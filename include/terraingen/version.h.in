@@ -1,0 +1,25 @@
+#pragma once
+
+// Generated from version.h.in by CMake -- do not edit the generated copy,
+// edit this template (or the root VERSION file) instead.
+
+namespace terraingen {
+
+#define TERRAINGEN_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define TERRAINGEN_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define TERRAINGEN_VERSION_PATCH @PROJECT_VERSION_PATCH@
+#define TERRAINGEN_VERSION_STRING "@PROJECT_VERSION@"
+
+#define TERRAINGEN_API_VERSION 1
+
+struct Version {
+    int major;
+    int minor;
+    int patch;
+};
+
+Version GetVersion();
+
+int GetApiVersion();
+
+}  // namespace terraingen

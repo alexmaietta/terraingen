@@ -1,0 +1,13 @@
+dist/
+site/
+build/
+
+CMakeUserPresets.json
+
+# My custom stuff for now
+paper/
+research/
+TODO.md
+ARCHITECTURE.md
+DESIGN.md
+.vscode/
