@@ -54,6 +54,11 @@ if(TERRAINGEN_BUILD_CLI)
     add_subdirectory(apps/cli)
 endif()
 
+if(TERRAINGEN_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
+
 if(TERRAINGEN_INSTALL)
     include(CMakePackageConfigHelpers)
     set(TERRAINGEN_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/terraingen")

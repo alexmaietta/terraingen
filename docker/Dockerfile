@@ -20,6 +20,7 @@ COPY . .
 
 RUN cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
     && cmake --build build \
+    && ctest --test-dir build --output-on-failure \
     && cmake --install build --prefix /opt/terraingen
 
 # Runtime
