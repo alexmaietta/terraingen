@@ -1,32 +1,38 @@
-configure_file("${CMAKE_SOURCE_DIR}/include/terraingen/version.h.in"
-               "${CMAKE_BINARY_DIR}/include/terraingen/version.h" @ONLY)
+configure_file("${PROJECT_SOURCE_DIR}/include/terraingen/version.h.in"
+               "${PROJECT_BINARY_DIR}/include/terraingen/version.h" @ONLY)
 
-set(TERRAINGEN_BUILD_INFO_CPP "${CMAKE_BINARY_DIR}/src/build_info.cpp")
+set(TERRAINGEN_BUILD_INFO_CPP "${PROJECT_BINARY_DIR}/src/build_info.cpp")
 
 add_custom_target(
-    generate_build_info ALL
+    terraingen_generate_build_info ALL
     COMMAND
-        ${CMAKE_COMMAND} -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
-        -DTEMPLATE=${CMAKE_SOURCE_DIR}/src/build_info.cpp.in -DOUTPUT=${TERRAINGEN_BUILD_INFO_CPP}
-        -P ${CMAKE_SOURCE_DIR}/cmake/GenerateBuildInfo.cmake
+        ${CMAKE_COMMAND} -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
+        -DTEMPLATE=${PROJECT_SOURCE_DIR}/src/build_info.cpp.in -DOUTPUT=${TERRAINGEN_BUILD_INFO_CPP}
+        -P ${PROJECT_SOURCE_DIR}/cmake/GenerateBuildInfo.cmake
     BYPRODUCTS ${TERRAINGEN_BUILD_INFO_CPP}
     COMMENT "Regenerating TerrainGen build info (git SHA / build date)"
     VERBATIM)
 
-add_library(terraingen STATIC version.cpp "${TERRAINGEN_BUILD_INFO_CPP}")
-add_library(terraingen::terraingen ALIAS terraingen)
-add_dependencies(terraingen generate_build_info)
+add_library(terraingen_core STATIC version.cpp "${TERRAINGEN_BUILD_INFO_CPP}")
+add_library(terraingen::core ALIAS terraingen_core)
+set_target_properties(terraingen_core PROPERTIES EXPORT_NAME core)
+add_dependencies(terraingen_core terraingen_generate_build_info)
 
-target_include_directories(terraingen PUBLIC "${CMAKE_SOURCE_DIR}/include"
-                                             "${CMAKE_BINARY_DIR}/include")
+target_include_directories(
+    terraingen_core
+    PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+           $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
+           $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+target_compile_features(terraingen_core PUBLIC cxx_std_20)
+target_link_libraries(terraingen_core PRIVATE $<BUILD_INTERFACE:terraingen_warnings>)
 
 install(
-    TARGETS terraingen
+    TARGETS terraingen_core
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(
-    DIRECTORY "${CMAKE_SOURCE_DIR}/include/terraingen"
+    DIRECTORY "${PROJECT_SOURCE_DIR}/include/terraingen"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     PATTERN "*.in" EXCLUDE)
-install(FILES "${CMAKE_BINARY_DIR}/include/terraingen/version.h"
+install(FILES "${PROJECT_BINARY_DIR}/include/terraingen/version.h"
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/terraingen)
