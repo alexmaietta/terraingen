@@ -1,0 +1,13 @@
+.git/lfs
+build/
+dist/
+site/
+.venv/
+.vscode/
+.claude/
+paper/
+research/
+TODO.md
+ARCHITECTURE.md
+DESIGN.md
+CMakeUserPresets.json
