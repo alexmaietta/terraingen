@@ -14,6 +14,7 @@ option(TERRAINGEN_BUILD_DEMOS "Build the demos" OFF)
 option(TERRAINGEN_BUILD_PYTHON "Build the Python bindings" OFF)
 option(TERRAINGEN_WITH_GDAL "Build terraingen::io, which requires GDAL" ON)
 option(TERRAINGEN_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
+option(TERRAINGEN_INSTALL "Generate install rules and the CMake package" ${PROJECT_IS_TOP_LEVEL})
 
 include(GNUInstallDirs)
 
@@ -51,4 +52,25 @@ add_subdirectory(src)
 
 if(TERRAINGEN_BUILD_CLI)
     add_subdirectory(apps/cli)
+endif()
+
+if(TERRAINGEN_INSTALL)
+    include(CMakePackageConfigHelpers)
+    set(TERRAINGEN_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/terraingen")
+
+    install(
+        EXPORT terraingenTargets
+        NAMESPACE terraingen::
+        DESTINATION "${TERRAINGEN_INSTALL_CMAKEDIR}")
+
+    configure_package_config_file(
+        "${PROJECT_SOURCE_DIR}/cmake/terraingenConfig.cmake.in"
+        "${PROJECT_BINARY_DIR}/terraingenConfig.cmake"
+        INSTALL_DESTINATION "${TERRAINGEN_INSTALL_CMAKEDIR}")
+    write_basic_package_version_file("${PROJECT_BINARY_DIR}/terraingenConfigVersion.cmake"
+                                     COMPATIBILITY SameMinorVersion)
+
+    install(FILES "${PROJECT_BINARY_DIR}/terraingenConfig.cmake"
+                  "${PROJECT_BINARY_DIR}/terraingenConfigVersion.cmake"
+            DESTINATION "${TERRAINGEN_INSTALL_CMAKEDIR}")
 endif()

@@ -26,13 +26,16 @@ target_include_directories(
 target_compile_features(terraingen_core PUBLIC cxx_std_20)
 target_link_libraries(terraingen_core PRIVATE $<BUILD_INTERFACE:terraingen_warnings>)
 
-install(
-    TARGETS terraingen_core
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
-install(
-    DIRECTORY "${PROJECT_SOURCE_DIR}/include/terraingen"
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    PATTERN "*.in" EXCLUDE)
-install(FILES "${PROJECT_BINARY_DIR}/include/terraingen/version.h"
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/terraingen)
+if(TERRAINGEN_INSTALL)
+    install(
+        TARGETS terraingen_core
+        EXPORT terraingenTargets
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    install(
+        DIRECTORY "${PROJECT_SOURCE_DIR}/include/terraingen"
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        PATTERN "*.in" EXCLUDE)
+    install(FILES "${PROJECT_BINARY_DIR}/include/terraingen/version.h"
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/terraingen)
+endif()
