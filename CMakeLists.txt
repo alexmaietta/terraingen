@@ -15,6 +15,7 @@ option(TERRAINGEN_BUILD_PYTHON "Build the Python bindings" OFF)
 option(TERRAINGEN_WITH_GDAL "Build terraingen::io, which requires GDAL" ON)
 option(TERRAINGEN_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 option(TERRAINGEN_INSTALL "Generate install rules and the CMake package" ${PROJECT_IS_TOP_LEVEL})
+option(TERRAINGEN_COVERAGE "Instrument TerrainGen for code coverage and add a coverage target" OFF)
 
 include(GNUInstallDirs)
 
@@ -46,6 +47,18 @@ else()
                   -Wsign-conversion
                   -Wdouble-promotion
                   $<$<BOOL:${TERRAINGEN_WARNINGS_AS_ERRORS}>:-Werror>)
+endif()
+
+add_library(terraingen_coverage INTERFACE)
+if(TERRAINGEN_COVERAGE)
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        message(FATAL_ERROR "TERRAINGEN_COVERAGE requires GCC or Clang")
+    endif()
+    if(NOT TERRAINGEN_BUILD_TESTS)
+        message(FATAL_ERROR "TERRAINGEN_COVERAGE requires TERRAINGEN_BUILD_TESTS")
+    endif()
+    target_compile_options(terraingen_coverage INTERFACE --coverage -O0 -g)
+    target_link_options(terraingen_coverage INTERFACE --coverage)
 endif()
 
 add_subdirectory(src)

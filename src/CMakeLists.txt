@@ -24,7 +24,8 @@ target_include_directories(
            $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 target_compile_features(terraingen_core PUBLIC cxx_std_20)
-target_link_libraries(terraingen_core PRIVATE $<BUILD_INTERFACE:terraingen_warnings>)
+target_link_libraries(terraingen_core PRIVATE $<BUILD_INTERFACE:terraingen_warnings>
+                                              $<BUILD_INTERFACE:terraingen_coverage>)
 
 if(TERRAINGEN_INSTALL)
     install(
