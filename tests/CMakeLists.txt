@@ -1,23 +1,29 @@
 include(FetchContent)
+include(GoogleTest)
+
+set(BUILD_GMOCK OFF)
+set(INSTALL_GTEST OFF)
+set(gtest_force_shared_crt ON)
 
 FetchContent_Declare(
-    Catch2
-    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-    GIT_TAG v3.16.0
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG v1.18.0
     GIT_SHALLOW TRUE)
-FetchContent_MakeAvailable(Catch2)
-
-list(APPEND CMAKE_MODULE_PATH "${catch2_SOURCE_DIR}/extras")
-include(Catch)
+FetchContent_MakeAvailable(googletest)
 
 function(terraingen_add_test_suite name)
-    cmake_parse_arguments(PARSE_ARGV 1 ARG "" "" "SOURCES;LIBRARIES")
+    cmake_parse_arguments(PARSE_ARGV 1 ARG "" "" "SOURCES;LIBRARIES;LABELS")
+    if(NOT ARG_LABELS)
+        set(ARG_LABELS unit)
+    endif()
     set(target terraingen_tests_${name})
     add_executable(${target} ${ARG_SOURCES})
-    target_link_libraries(${target} PRIVATE ${ARG_LIBRARIES} Catch2::Catch2WithMain
-                                            terraingen_warnings)
-    catch_discover_tests(${target} TEST_PREFIX "${name}." ADD_TAGS_AS_LABELS DISCOVERY_MODE
-                         PRE_TEST)
+    target_link_libraries(${target} PRIVATE ${ARG_LIBRARIES} GTest::gtest_main terraingen_warnings)
+    gtest_discover_tests(
+        ${target}
+        TEST_PREFIX "${name}." DISCOVERY_MODE PRE_TEST
+        PROPERTIES LABELS "${ARG_LABELS}")
 endfunction()
 
 add_subdirectory(core)
