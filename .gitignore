@@ -11,3 +11,7 @@ TODO.md
 ARCHITECTURE.md
 DESIGN.md
 .vscode/
+
+__pycache__/
+*.pyc
+.pytest_cache/

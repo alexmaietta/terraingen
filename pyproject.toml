@@ -1,0 +1,35 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "nanobind>=2.0"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "terraingen"
+dynamic = ["version"]
+description = "Scientific terrain generation for the lunar surface"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.22"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+cmake.version = ">=3.22"
+build-dir = "build/{wheel_tag}"
+wheel.packages = ["bindings/python/terraingen"]
+wheel.py-api = "cp312"
+
+[tool.scikit-build.metadata.version]
+provider = "scikit_build_core.metadata.regex"
+input = "VERSION"
+regex = '(?P<value>\d+\.\d+\.\d+)'
+
+[tool.scikit-build.cmake.define]
+TERRAINGEN_BUILD_PYTHON = "ON"
+TERRAINGEN_BUILD_CLI = "OFF"
+TERRAINGEN_BUILD_TESTS = "OFF"
+TERRAINGEN_BUILD_VIEWER = "OFF"
+TERRAINGEN_BUILD_DEMOS = "OFF"
+TERRAINGEN_WITH_GDAL = "OFF"
+TERRAINGEN_INSTALL = "OFF"

@@ -72,6 +72,12 @@ if(TERRAINGEN_BUILD_VIEWER)
     add_subdirectory(apps/viewer)
 endif()
 
+if(TERRAINGEN_BUILD_PYTHON)
+    set_target_properties(terraingen_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    include("${PROJECT_SOURCE_DIR}/cmake/third_party/nanobind.cmake")
+    add_subdirectory(bindings/python)
+endif()
+
 if(TERRAINGEN_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)

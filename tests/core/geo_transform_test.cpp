@@ -48,3 +48,14 @@ TEST(GeoTransform, WorldToPixelThrowsWhenNotInvertible) {
     const GeoTransform degenerate = GeoTransform::FromGdal({0.0, 1.0, 1.0, 0.0, 1.0, 1.0});
     EXPECT_THROW(degenerate.WorldToPixel(1.0, 1.0), std::domain_error);
 }
+
+TEST(GeoTransform, EqualityComparesEveryCoefficient) {
+    const std::array<double, 6> base{1.0, 2.0, 3.0, 4.0, 5.0, 6.0};
+    EXPECT_EQ(GeoTransform::FromGdal(base), GeoTransform::FromGdal(base));
+    for (std::size_t i = 0; i < base.size(); ++i) {
+        std::array<double, 6> changed = base;
+        changed[i] += 1.0;
+        EXPECT_NE(GeoTransform::FromGdal(base), GeoTransform::FromGdal(changed))
+            << "coefficient " << i;
+    }
+}
