@@ -1,8 +1,5 @@
 #pragma once
 
-// Generated from version.h.in by CMake -- do not edit the generated copy,
-// edit this template (or the root VERSION file) instead.
-
 namespace terraingen {
 
 #define TERRAINGEN_VERSION_MAJOR @PROJECT_VERSION_MAJOR@

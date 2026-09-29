@@ -30,7 +30,7 @@ To quickly get started with TerrainGen, it is recommended to install the Python 
 
 ```sh
 pip install terraingen[examples]
-terraingen
+terraingen --gui
 ```
 
 ## Installation
