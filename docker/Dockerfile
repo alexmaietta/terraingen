@@ -12,7 +12,11 @@ RUN apt-get update \
         git \
         libgdal-dev \
         libproj-dev \
+        libwayland-dev \
+        libxkbcommon-dev \
         ninja-build \
+        pkg-config \
+        xorg-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src

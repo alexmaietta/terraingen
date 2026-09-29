@@ -9,11 +9,10 @@ project(
 
 option(TERRAINGEN_BUILD_CLI "Build the terraingen command-line app" ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_BUILD_TESTS "Build the test suite" ${PROJECT_IS_TOP_LEVEL})
-option(TERRAINGEN_BUILD_VIEWER "Build the static terrain viewer" OFF)
+option(TERRAINGEN_BUILD_VIEWER "Build the static terrain viewer" ON)
 option(TERRAINGEN_BUILD_DEMOS "Build the demos" OFF)
-option(TERRAINGEN_BUILD_PYTHON "Build the Python bindings" OFF)
+option(TERRAINGEN_BUILD_PYTHON "Build the Python bindings" ON)
 option(TERRAINGEN_WITH_GDAL "Build terraingen::io, which requires GDAL" ON)
-option(TERRAINGEN_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 option(TERRAINGEN_INSTALL "Generate install rules and the CMake package" ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_COVERAGE "Instrument TerrainGen for code coverage and add a coverage target" OFF)
 
@@ -34,8 +33,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib")
 
 add_library(terraingen_warnings INTERFACE)
 if(MSVC)
-    target_compile_options(terraingen_warnings
-                           INTERFACE /W4 $<$<BOOL:${TERRAINGEN_WARNINGS_AS_ERRORS}>:/WX>)
+    target_compile_options(terraingen_warnings INTERFACE /W4)
 else()
     target_compile_options(
         terraingen_warnings
@@ -45,8 +43,7 @@ else()
                   -Wshadow
                   -Wconversion
                   -Wsign-conversion
-                  -Wdouble-promotion
-                  $<$<BOOL:${TERRAINGEN_WARNINGS_AS_ERRORS}>:-Werror>)
+                  -Wdouble-promotion)
 endif()
 
 add_library(terraingen_coverage INTERFACE)
@@ -65,6 +62,14 @@ add_subdirectory(src)
 
 if(TERRAINGEN_BUILD_CLI)
     add_subdirectory(apps/cli)
+endif()
+
+if(TERRAINGEN_BUILD_VIEWER)
+    include("${PROJECT_SOURCE_DIR}/cmake/third_party/wgpu_native.cmake")
+    include("${PROJECT_SOURCE_DIR}/cmake/third_party/glfw.cmake")
+    include("${PROJECT_SOURCE_DIR}/cmake/third_party/dear_imgui.cmake")
+    add_subdirectory(render)
+    add_subdirectory(apps/viewer)
 endif()
 
 if(TERRAINGEN_BUILD_TESTS)

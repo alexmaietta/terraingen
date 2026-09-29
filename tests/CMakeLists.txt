@@ -1,16 +1,5 @@
-include(FetchContent)
+include("${PROJECT_SOURCE_DIR}/cmake/third_party/googletest.cmake")
 include(GoogleTest)
-
-set(BUILD_GMOCK OFF)
-set(INSTALL_GTEST OFF)
-set(gtest_force_shared_crt ON)
-
-FetchContent_Declare(
-    googletest
-    GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG v1.18.0
-    GIT_SHALLOW TRUE)
-FetchContent_MakeAvailable(googletest)
 
 function(terraingen_add_test_suite name)
     cmake_parse_arguments(PARSE_ARGV 1 ARG "" "" "SOURCES;LIBRARIES;LABELS")
@@ -31,6 +20,9 @@ endfunction()
 add_subdirectory(core)
 add_subdirectory(kernels)
 add_subdirectory(models)
+if(TARGET terraingen_render)
+    add_subdirectory(render)
+endif()
 
 if(TERRAINGEN_INSTALL AND NOT TERRAINGEN_COVERAGE)
     set(package_prefix "${CMAKE_CURRENT_BINARY_DIR}/package/prefix")
@@ -72,9 +64,10 @@ if(TERRAINGEN_COVERAGE)
         COMMAND
             "${GCOVR_EXECUTABLE}" --root "${PROJECT_SOURCE_DIR}" --gcov-executable "${gcov_command}"
             --filter "${PROJECT_SOURCE_DIR}/include/terraingen/" --filter
-            "${PROJECT_SOURCE_DIR}/src/" --filter "${PROJECT_SOURCE_DIR}/apps/"
-            --exclude-throw-branches --delete --txt --html-details "${report_dir}/index.html"
-            --cobertura "${report_dir}/coverage.xml" --print-summary "${PROJECT_BINARY_DIR}"
+            "${PROJECT_SOURCE_DIR}/src/" --filter "${PROJECT_SOURCE_DIR}/apps/" --exclude
+            "${PROJECT_SOURCE_DIR}/apps/viewer/" --exclude-throw-branches --delete --txt
+            --html-details "${report_dir}/index.html" --cobertura "${report_dir}/coverage.xml"
+            --print-summary "${PROJECT_BINARY_DIR}"
         WORKING_DIRECTORY "${PROJECT_BINARY_DIR}"
         COMMENT "Running tests and writing coverage reports to ${report_dir}"
         USES_TERMINAL VERBATIM)

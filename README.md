@@ -6,7 +6,7 @@
 
 A scientific terrain generation tool for the lunar surface.
 
-TerrainGen
+TerrainGen provides a core C++ and Python library designed to easily integrate into external workflows. We also provide an optional lightweight viewer to explore TerrainGen's capabilities.
 
 Orbital datasets are not high enough resolution (yet) to accurately model centimeter-scale terrain and hazards. Whether its a planetary rover mission or a landing site safety analysis, generating realistic, stochastic, and high resolution terrains is mission critical.
 
@@ -29,8 +29,8 @@ Below are existing tools that are open-source, closed-source, or commercial.
 To quickly get started with TerrainGen, it is recommended to install the Python package and run the viewer.
 
 ```sh
-pip install terraingen[examples]
-terraingen --gui
+pip install terraingen[viewer]
+terraingen-viewer
 ```
 
 ## Installation
