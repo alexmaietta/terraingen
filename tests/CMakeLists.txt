@@ -29,6 +29,8 @@ function(terraingen_add_test_suite name)
 endfunction()
 
 add_subdirectory(core)
+add_subdirectory(kernels)
+add_subdirectory(models)
 
 if(TERRAINGEN_INSTALL AND NOT TERRAINGEN_COVERAGE)
     set(package_prefix "${CMAKE_CURRENT_BINARY_DIR}/package/prefix")

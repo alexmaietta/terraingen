@@ -1,0 +1,16 @@
+terraingen_add_test_suite(
+    kernels
+    SOURCES
+    hash_test.cpp
+    perlin_test.cpp
+    fbm_test.cpp
+    LIBRARIES
+    terraingen::core)
+terraingen_add_test_suite(
+    kernels_golden
+    SOURCES
+    golden_test.cpp
+    LIBRARIES
+    terraingen::core
+    LABELS
+    golden)

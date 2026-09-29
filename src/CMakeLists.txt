@@ -13,7 +13,8 @@ add_custom_target(
     COMMENT "Regenerating TerrainGen build info (git SHA / build date)"
     VERBATIM)
 
-add_library(terraingen_core STATIC version.cpp "${TERRAINGEN_BUILD_INFO_CPP}")
+add_library(terraingen_core STATIC version.cpp models/fbm_terrain.cpp
+                                   "${TERRAINGEN_BUILD_INFO_CPP}")
 add_library(terraingen::core ALIAS terraingen_core)
 set_target_properties(terraingen_core PROPERTIES EXPORT_NAME core)
 add_dependencies(terraingen_core terraingen_generate_build_info)
