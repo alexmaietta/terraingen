@@ -9,10 +9,10 @@ namespace terraingen {
 
 namespace detail {
 
-/// Quintic fade curve 6t⁵ − 15t⁴ + 10t³, which has zero first and second derivatives at t = 0 and
-/// t = 1, so noise is C² continuous across cell edges.
+/// Quintic fade curve 6t^5 - 15t^4 + 10t^3, which has zero first and second derivatives at t = 0
+/// and t = 1, so noise is C^2 continuous across cell edges.
 ///
-/// Reference: K. Perlin, "Improving Noise", ACM Transactions on Graphics 21(3):681–682, 2002
+/// Reference: K. Perlin, "Improving Noise", ACM Transactions on Graphics 21(3):681-682, 2002
 /// (SIGGRAPH 2002). https://doi.org/10.1145/566654.566636
 constexpr float PerlinFade(float t) {
     return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
@@ -67,17 +67,17 @@ inline std::uint32_t PerlinCornerHash(std::uint32_t ix, std::uint32_t iy, std::u
 /// (Jarzynski and Olano 2020), so any seed works without tables and the function ports directly to
 /// GPU shading languages.
 ///
-/// Noise is zero at every lattice point. With unit gradients its magnitude is at most √2/2, reached
-/// at cell centres, so the result is scaled by √2 to span [−1, 1].
+/// Noise is zero at every lattice point. With unit gradients its magnitude is at most sqrt(2)/2,
+/// reached at cell centres, so the result is scaled by sqrt(2) to span [-1, 1].
 ///
 /// References:
-/// - K. Perlin, "An Image Synthesizer", SIGGRAPH '85, Computer Graphics 19(3):287–296, 1985.
+/// - K. Perlin, "An Image Synthesizer", SIGGRAPH '85, Computer Graphics 19(3):287-296, 1985.
 ///   https://doi.org/10.1145/325165.325247
-/// - K. Perlin, "Improving Noise", ACM Transactions on Graphics 21(3):681–682, 2002.
+/// - K. Perlin, "Improving Noise", ACM Transactions on Graphics 21(3):681-682, 2002.
 ///   https://doi.org/10.1145/566654.566636
 /// - M. Jarzynski and M. Olano, "Hash Functions for GPU Rendering", JCGT 9(3), 2020.
 ///
-/// @return Noise in [−1, 1].
+/// @return Noise in [-1, 1].
 inline float PerlinNoise2(std::int32_t ix, std::int32_t iy, float fx, float fy,
                           std::uint32_t seed) {
     const auto x0 = static_cast<std::uint32_t>(ix);
@@ -103,7 +103,7 @@ inline float PerlinNoise2(std::int32_t ix, std::int32_t iy, float fx, float fy,
 /// 2D improved Perlin gradient noise at (`x`, `y`) in lattice units; see the cell-and-offset
 /// overload for the method and references.
 ///
-/// @return Noise in [−1, 1].
+/// @return Noise in [-1, 1].
 inline float PerlinNoise2(float x, float y, std::uint32_t seed) {
     const float cellX = std::floor(x);
     const float cellY = std::floor(y);

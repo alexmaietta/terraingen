@@ -36,7 +36,7 @@ void ValidateSyntheticTerrain(const SyntheticTerrainParams& params);
 /// @throws std::invalid_argument if `params` are invalid.
 void FillSyntheticTerrain(Raster<float>& raster, const SyntheticTerrainParams& params);
 
-/// Generates a `width` × `height` north-up synthetic terrain centred on the world origin, with
+/// Generates a `width` x `height` north-up synthetic terrain centred on the world origin, with
 /// square pixels of `pixelSize` world units (metres).
 /// @throws std::invalid_argument if `width` or `height` is zero, `pixelSize` is not positive and
 /// finite, or `params` are invalid.

@@ -23,7 +23,7 @@ template <typename T> class Raster {
   public:
     Raster() = default;
 
-    /// Creates a `width` × `height` raster with every cell set to `fill`.
+    /// Creates a `width` x `height` raster with every cell set to `fill`.
     Raster(std::size_t width, std::size_t height, T fill = T{})
         : width_(width), height_(height), values_(width * height, fill) {}
 

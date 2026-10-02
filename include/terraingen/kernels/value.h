@@ -10,14 +10,14 @@ namespace terraingen {
 
 /// 2D value noise at lattice cell (`ix`, `iy`) plus fractional offset (`fx`, `fy`) in [0, 1).
 ///
-/// Each lattice point gets a pseudo-random value in [−1, 1) from `pcg3d`, and values are blended
+/// Each lattice point gets a pseudo-random value in [-1, 1) from `pcg3d`, and values are blended
 /// with Perlin's quintic fade curve. Cheaper than gradient noise but blobbier, with visible
 /// lattice alignment; mostly useful as a baseline or a soft mask.
 ///
 /// Reference: D. R. Peachey, "Building Procedural Textures", in D. S. Ebert et al., Texturing and
 /// Modeling: A Procedural Approach, 3rd ed., Morgan Kaufmann, 2003 (value noise).
 ///
-/// @return Noise in [−1, 1].
+/// @return Noise in [-1, 1].
 inline float ValueNoise2(std::int32_t ix, std::int32_t iy, float fx, float fy, std::uint32_t seed) {
     const auto x0 = static_cast<std::uint32_t>(ix);
     const auto y0 = static_cast<std::uint32_t>(iy);
@@ -32,7 +32,7 @@ inline float ValueNoise2(std::int32_t ix, std::int32_t iy, float fx, float fy, s
 
 /// 2D value noise at (`x`, `y`) in lattice units; see the cell-and-offset overload.
 ///
-/// @return Noise in [−1, 1].
+/// @return Noise in [-1, 1].
 inline float ValueNoise2(float x, float y, std::uint32_t seed) {
     const float cellX = std::floor(x);
     const float cellY = std::floor(y);

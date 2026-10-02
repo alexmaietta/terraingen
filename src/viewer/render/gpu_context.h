@@ -72,7 +72,7 @@ class GpuContext {
     /// they fire inside this call. Blocks on outstanding GPU work between checks.
     void WaitUntil(const std::function<bool()>& done) const;
 
-    /// Configures the surface for a framebuffer of `width` × `height` pixels with vsync.
+    /// Configures the surface for a framebuffer of `width` x `height` pixels with vsync.
     /// @throws std::logic_error for a headless context.
     void ConfigureSurface(std::uint32_t width, std::uint32_t height);
 

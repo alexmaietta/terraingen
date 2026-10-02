@@ -16,12 +16,12 @@ struct WorleyDistances {
 
 /// Worley cellular distances at lattice cell (`ix`, `iy`) plus fractional offset (`fx`, `fy`).
 ///
-/// Every lattice cell holds one feature point at a pseudo-random position from `pcg3d`. The 5 × 5
-/// cells around the point are searched, which makes F1 exact (it never exceeds √2, and points
+/// Every lattice cell holds one feature point at a pseudo-random position from `pcg3d`. The 5 x 5
+/// cells around the point are searched, which makes F1 exact (it never exceeds sqrt(2), and points
 /// outside the window are at least 2 away) and F2 exact except in rare configurations where the
 /// second-nearest point lies more than two cells away.
 ///
-/// Reference: S. Worley, "A Cellular Texture Basis Function", SIGGRAPH '96, 291–294, 1996.
+/// Reference: S. Worley, "A Cellular Texture Basis Function", SIGGRAPH '96, 291-294, 1996.
 /// https://doi.org/10.1145/237170.237267
 inline WorleyDistances Worley2(std::int32_t ix, std::int32_t iy, float fx, float fy,
                                std::uint32_t seed) {

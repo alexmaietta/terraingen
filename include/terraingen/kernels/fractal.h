@@ -19,7 +19,7 @@ enum class NoiseBasis : std::uint32_t {
     Value = 2,            ///< Value noise (`ValueNoise2`).
     WorleyF1 = 3,         ///< Distance to the nearest feature point; cones and basins.
     WorleyF2 = 4,         ///< Distance to the second-nearest feature point.
-    WorleyF2MinusF1 = 5,  ///< F2 − F1; ridges along cell borders, like cracked ground.
+    WorleyF2MinusF1 = 5,  ///< F2 - F1; ridges along cell borders, like cracked ground.
 };
 
 inline constexpr std::uint32_t kNoiseBasisCount = 6;
@@ -37,16 +37,16 @@ inline constexpr std::uint32_t kFractalTypeCount = 4;
 /// Parameters of a fractal built from octaves of a basis noise.
 ///
 /// Octave i has wavelength `wavelength / lacunarity^i` and spectral weight `gain^i`. Choosing
-/// `gain = lacunarity^(−H)` gives a surface with Hurst exponent H (see `GainFromHurst`); H near 1
+/// `gain = lacunarity^(-H)` gives a surface with Hurst exponent H (see `GainFromHurst`); H near 1
 /// is smooth, lower H is rougher at short baselines. Lunar topography is self-affine over limited
 /// baselines with baseline-dependent Hurst exponents (Rosenburg et al. 2011), which is what makes H
 /// the natural roughness control here.
 ///
 /// References:
 /// - B. B. Mandelbrot and J. W. Van Ness, "Fractional Brownian Motions, Fractional Noises and
-///   Applications", SIAM Review 10(4):422–437, 1968. https://doi.org/10.1137/1010093
+///   Applications", SIAM Review 10(4):422-437, 1968. https://doi.org/10.1137/1010093
 /// - F. K. Musgrave, C. E. Kolb and R. S. Mace, "The Synthesis and Rendering of Eroded Fractal
-///   Terrains", SIGGRAPH '89, Computer Graphics 23(3):41–50, 1989.
+///   Terrains", SIGGRAPH '89, Computer Graphics 23(3):41-50, 1989.
 ///   https://doi.org/10.1145/74334.74337
 /// - F. K. Musgrave, "Procedural Fractal Terrains", in D. S. Ebert et al., Texturing and Modeling:
 ///   A Procedural Approach, 3rd ed., Morgan Kaufmann, 2003 (ridged and hybrid multifractals).
@@ -67,17 +67,18 @@ struct FractalParams {
     bool operator==(const FractalParams&) const = default;
 };
 
-/// Octave gain that gives Hurst exponent `hurst` for the given lacunarity: `lacunarity^(−hurst)`.
+/// Octave gain that gives Hurst exponent `hurst` for the given lacunarity: `lacunarity^(-hurst)`.
 ///
 /// Evaluated on the host; kernels only receive the resulting gain.
 inline float GainFromHurst(float hurst, float lacunarity) {
     return std::pow(lacunarity, -hurst);
 }
 
-/// One octave of `basis` noise at (`x`, `y`) in lattice units, in [−1, 1].
+/// One octave of `basis` noise at (`x`, `y`) in lattice units, in [-1, 1].
 ///
-/// Worley distances are mapped linearly from [0, bound] to [−1, 1], where the bound is the largest
-/// possible distance with one feature point per cell: √2 for F1 and √5 for F2 and F2 − F1.
+/// Worley distances are mapped linearly from [0, bound] to [-1, 1], where the bound is the largest
+/// possible distance with one feature point per cell: sqrt(2) for F1, and sqrt(5) for F2
+/// and F2 - F1.
 inline float BasisNoise2(NoiseBasis basis, float x, float y, std::uint32_t seed) {
     constexpr float kInvSqrt2 = 0.707106781186547524f;
     constexpr float kInvSqrt5 = 0.447213595499957939f;
@@ -99,18 +100,17 @@ inline float BasisNoise2(NoiseBasis basis, float x, float y, std::uint32_t seed)
     }
 }
 
-/// Fractal height at world position (`x`, `y`), in [−amplitude, amplitude] world units.
+/// Fractal height at world position (`x`, `y`), in [-amplitude, amplitude] world units.
 ///
 /// Each octave uses its own seed and a pseudo-random sub-cell lattice offset from `pcg3d`; without
 /// the offset every octave's lattice would share the origin, leaving a visible fixed point. Every
 /// fractal type is normalized by its largest possible value so the bound holds for any parameters:
-/// - `Fbm`: Σ wᵢ nᵢ / Σ wᵢ.
-/// - `Billow`: fBm of 2|nᵢ| − 1.
-/// - `Ridged`: Musgrave's ridged multifractal, sᵢ = (offset − |nᵢ|)² weighted by the previous
-///   octave's signal (feedback gain 2, clamped to [0, 1]), rescaled from [0, 1] to [−1, 1].
-/// - `HybridMultifractal`: Musgrave's hybrid multifractal with (nᵢ + offset) signals and the
-/// running
-///   weight clamped to [0, 1], divided by (1 + offset) Σ wᵢ.
+/// - `Fbm`: sum(w_i n_i) / sum(w_i).
+/// - `Billow`: fBm of 2|n_i| - 1.
+/// - `Ridged`: Musgrave's ridged multifractal, s_i = (offset - |n_i|)^2 weighted by the previous
+///   octave's signal (feedback gain 2, clamped to [0, 1]), rescaled from [0, 1] to [-1, 1].
+/// - `HybridMultifractal`: Musgrave's hybrid multifractal with (n_i + offset) signals and
+///   the running weight clamped to [0, 1], divided by (1 + offset) * sum(w_i).
 ///
 /// Uses only arithmetic, comparisons and `floor`, so it ports directly to GPU kernels. Parameters
 /// are assumed valid; see `ValidateFractalParams`.

@@ -13,7 +13,7 @@ enum class LayerBlend : std::uint32_t {
     Add = 0,   ///< height + layer
     Max = 1,   ///< max(height, layer)
     Min = 2,   ///< min(height, layer)
-    Mask = 3,  ///< height × (layer / amplitude + 1) / 2: the layer modulates roughness by region.
+    Mask = 3,  ///< height * (layer / amplitude + 1) / 2: the layer modulates roughness by region.
 };
 
 inline constexpr std::uint32_t kLayerBlendCount = 4;
@@ -47,7 +47,7 @@ inline void DomainWarp2(float x, float y, const NoiseLayer& layer, float& dx, fl
     dy = Fractal2(x, y, warp);
 }
 
-/// Normalized value of `layer` at (`x`, `y`), in [−1, 1], before amplitude and blending.
+/// Normalized value of `layer` at (`x`, `y`), in [-1, 1], before amplitude and blending.
 inline float EvaluateNoiseLayer(float x, float y, const NoiseLayer& layer) {
     FractalParams unit = layer.fractal;
     unit.amplitude = 1.0f;
@@ -62,7 +62,7 @@ inline float EvaluateNoiseLayer(float x, float y, const NoiseLayer& layer) {
 
 /// Height at world position (`x`, `y`) of `count` stacked layers, in world units (metres).
 ///
-/// The first enabled layer sets the height (`amplitude × value`); each later enabled layer is
+/// The first enabled layer sets the height (`amplitude * value`); each later enabled layer is
 /// combined with it by its `blend` mode. Returns 0 if no layer is enabled.
 inline float EvaluateNoiseLayers(float x, float y, const NoiseLayer* layers, std::size_t count) {
     float height = 0.0f;

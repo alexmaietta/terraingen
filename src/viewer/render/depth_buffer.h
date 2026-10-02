@@ -15,7 +15,7 @@ class DepthBuffer {
     DepthBuffer(const DepthBuffer&) = delete;
     DepthBuffer& operator=(const DepthBuffer&) = delete;
 
-    /// Ensures the texture is `width` × `height` pixels, recreating it if the size changed.
+    /// Ensures the texture is `width` x `height` pixels, recreating it if the size changed.
     void Resize(std::uint32_t width, std::uint32_t height);
 
     /// View of the current texture, or null before the first `Resize`.

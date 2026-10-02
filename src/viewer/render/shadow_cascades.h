@@ -18,10 +18,10 @@ struct ShadowCascade {
 };
 
 /// View-space split depths from `nearPlane` to `farPlane` with the practical split scheme, which
-/// blends logarithmic splits (weight `lambda`) with uniform splits (weight 1 − `lambda`).
+/// blends logarithmic splits (weight `lambda`) with uniform splits (weight 1 - `lambda`).
 ///
 /// Reference: F. Zhang, H. Sun, L. Xu and L. K. Lun, "Parallel-Split Shadow Maps for Large-Scale
-/// Virtual Environments", Proc. ACM VRCIA 2006, 311–318. https://doi.org/10.1145/1128923.1128975
+/// Virtual Environments", Proc. ACM VRCIA 2006, 311-318. https://doi.org/10.1145/1128923.1128975
 ///
 /// @return `count + 1` increasing depths, starting at `nearPlane` and ending at `farPlane`.
 std::vector<float> PracticalSplits(float nearPlane, float farPlane, int count, float lambda);
