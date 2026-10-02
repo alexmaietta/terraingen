@@ -1,6 +1,6 @@
 #include "app.h"
 
-#include "terraingen/version.h"
+#include "terraingen/core/version.h"
 
 #include "ernie/depth_buffer.h"
 #include "ernie/gpu_context.h"

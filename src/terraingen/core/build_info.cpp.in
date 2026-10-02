@@ -1,4 +1,4 @@
-#include "terraingen/build_info.h"
+#include "terraingen/core/build_info.h"
 
 namespace terraingen {
 

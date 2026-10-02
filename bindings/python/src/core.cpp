@@ -1,10 +1,10 @@
 #include "bindings.h"
 
-#include "terraingen/build_info.h"
+#include "terraingen/core/build_info.h"
+#include "terraingen/core/version.h"
 #include "terraingen/raster/geo_transform.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/raster/raster_stats.h"
-#include "terraingen/version.h"
 
 #include <nanobind/ndarray.h>
 #include <nanobind/operators.h>

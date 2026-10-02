@@ -1,6 +1,6 @@
 #include "panels.h"
 
-#include "terraingen/version.h"
+#include "terraingen/core/version.h"
 
 #include <imgui.h>
 

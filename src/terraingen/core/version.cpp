@@ -1,4 +1,4 @@
-#include "terraingen/version.h"
+#include "terraingen/core/version.h"
 
 namespace terraingen {
 

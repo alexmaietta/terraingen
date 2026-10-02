@@ -2,8 +2,9 @@
 
 /// The whole TerrainGen library.
 
-#include "terraingen/build_info.h"
+#include "terraingen/core/build_info.h"
 #include "terraingen/core/log.h"
+#include "terraingen/core/version.h"
 #include "terraingen/craters.h"
 #include "terraingen/distributions.h"
 #include "terraingen/kernels/fractal.h"
@@ -21,4 +22,3 @@
 #include "terraingen/raster/raster_stats.h"
 #include "terraingen/spatial/cells.h"
 #include "terraingen/surfaces/synthetic_terrain.h"
-#include "terraingen/version.h"

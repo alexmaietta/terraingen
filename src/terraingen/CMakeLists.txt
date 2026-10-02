@@ -1,5 +1,5 @@
-configure_file("${PROJECT_SOURCE_DIR}/include/terraingen/version.h.in"
-               "${PROJECT_BINARY_DIR}/include/terraingen/version.h" @ONLY)
+configure_file("${PROJECT_SOURCE_DIR}/include/terraingen/core/version.h.in"
+               "${PROJECT_BINARY_DIR}/include/terraingen/core/version.h" @ONLY)
 
 set(TERRAINGEN_BUILD_INFO_CPP "${CMAKE_CURRENT_BINARY_DIR}/build_info.cpp")
 
@@ -7,7 +7,7 @@ add_custom_target(
     terraingen_generate_build_info ALL
     COMMAND
         ${CMAKE_COMMAND} -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
-        -DTEMPLATE=${CMAKE_CURRENT_SOURCE_DIR}/build_info.cpp.in
+        -DTEMPLATE=${CMAKE_CURRENT_SOURCE_DIR}/core/build_info.cpp.in
         -DOUTPUT=${TERRAINGEN_BUILD_INFO_CPP} -P ${PROJECT_SOURCE_DIR}/cmake/GenerateBuildInfo.cmake
     BYPRODUCTS ${TERRAINGEN_BUILD_INFO_CPP}
     COMMENT "Regenerating TerrainGen build info (git SHA / build date)"
@@ -15,8 +15,8 @@ add_custom_target(
 
 add_library(
     terraingen_core STATIC
-    version.cpp
     core/log.cpp
+    core/version.cpp
     distributions/composite.cpp
     distributions/log_polynomial.cpp
     distributions/power_law.cpp
@@ -62,7 +62,7 @@ if(TERRAINGEN_INSTALL)
         COMPONENT development
         PATTERN "*.in" EXCLUDE)
     install(
-        FILES "${PROJECT_BINARY_DIR}/include/terraingen/version.h"
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/terraingen
+        FILES "${PROJECT_BINARY_DIR}/include/terraingen/core/version.h"
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/terraingen/core
         COMPONENT development)
 endif()

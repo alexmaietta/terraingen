@@ -1,5 +1,5 @@
-#include "terraingen/build_info.h"
-#include "terraingen/version.h"
+#include "terraingen/core/build_info.h"
+#include "terraingen/core/version.h"
 
 #include <gtest/gtest.h>
 
