@@ -40,17 +40,17 @@ class CraterAgeModel {
 };
 
 /// Every crater is fresh: age and lifetime zero.
-class AllFresh final : public CraterAgeModel {
+class FreshAges final : public CraterAgeModel {
   protected:
     double LifetimeAt(double diameter) const override;
     double SampleAgeAt(RandomStream& random, double diameter, double lifetimeGyr) const override;
 };
 
 /// Ages uniform over one lifetime for every diameter, so freshness is uniform in [0, 1].
-class UniformFreshness final : public CraterAgeModel {
+class UniformAges final : public CraterAgeModel {
   public:
     /// @throws std::invalid_argument unless `lifetimeGyr` is positive and finite.
-    explicit UniformFreshness(double lifetimeGyr);
+    explicit UniformAges(double lifetimeGyr);
 
   protected:
     double LifetimeAt(double diameter) const override;

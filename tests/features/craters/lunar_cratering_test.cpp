@@ -9,11 +9,11 @@
 
 using terraingen::DiameterRange;
 using terraingen::ExtendedNeukumProductionFunction;
-using terraingen::LogPolynomial;
+using terraingen::LogPolynomialSfd;
 using terraingen::NeukumLunarChronology;
 using terraingen::NeukumLunarChronologyRate;
 using terraingen::NeukumProductionFunction;
-using terraingen::PowerLaw;
+using terraingen::PowerLawSfd;
 using terraingen::ProductionSurface;
 using terraingen::RandomStream;
 using terraingen::SfdKind;
@@ -26,7 +26,7 @@ constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
 }  // namespace
 
 TEST(NeukumProductionFunction, IsAProductionRateFromTenMetresTo300Kilometres) {
-    const LogPolynomial npf = NeukumProductionFunction();
+    const LogPolynomialSfd npf = NeukumProductionFunction();
     EXPECT_EQ(npf.Kind(), SfdKind::ProductionRate);
     EXPECT_EQ(npf.ValidRange().min, 10.0);
     EXPECT_EQ(npf.ValidRange().max, 300000.0);
@@ -52,7 +52,7 @@ TEST(NeukumLunarChronology, EvaluatesEquationFiveWithinTheLunarAge) {
 }
 
 TEST(ProductionSurface, ScalesTheProductionFunctionToTheChronologyAtOneKilometre) {
-    const auto npf = std::make_shared<LogPolynomial>(NeukumProductionFunction());
+    const auto npf = std::make_shared<LogPolynomialSfd>(NeukumProductionFunction());
     const ProductionSurface surface(npf, 3.5);
     EXPECT_EQ(surface.Kind(), SfdKind::Density);
     EXPECT_EQ(surface.AgeGyr(), 3.5);
@@ -75,7 +75,7 @@ TEST(ProductionSurface, ScalesTheProductionFunctionToTheChronologyAtOneKilometre
 }
 
 TEST(ProductionSurface, YoungSurfacesAccumulateCratersAtThePresentDayRate) {
-    const auto npf = std::make_shared<LogPolynomial>(NeukumProductionFunction());
+    const auto npf = std::make_shared<LogPolynomialSfd>(NeukumProductionFunction());
     const ProductionSurface young(npf, 0.01);
     const ProductionSurface twice(npf, 0.02);
     EXPECT_NEAR(twice.Cumulative(50.0) / young.Cumulative(50.0), 2.0, 1e-8);
@@ -88,21 +88,21 @@ TEST(ProductionSurface, YoungSurfacesAccumulateCratersAtThePresentDayRate) {
 }
 
 TEST(ProductionSurface, InheritsExtrapolationAndRejectsInvalidProduction) {
-    auto npf = std::make_shared<LogPolynomial>(NeukumProductionFunction());
+    auto npf = std::make_shared<LogPolynomialSfd>(NeukumProductionFunction());
     npf->SetAllowExtrapolation(true);
     EXPECT_NO_THROW(ProductionSurface(npf, 1.0).Cumulative(5.0));
     EXPECT_THROW(ProductionSurface(nullptr, 1.0), std::invalid_argument);
-    EXPECT_THROW(ProductionSurface(std::make_shared<PowerLaw>(1.0, 2.0), 1.0),
+    EXPECT_THROW(ProductionSurface(std::make_shared<PowerLawSfd>(1.0, 2.0), 1.0),
                  std::invalid_argument);
     const auto small =
-        std::make_shared<PowerLaw>(1.0, 2.0, SfdKind::ProductionRate, DiameterRange{0.0, 100.0});
+        std::make_shared<PowerLawSfd>(1.0, 2.0, SfdKind::ProductionRate, DiameterRange{0.0, 100.0});
     EXPECT_THROW(ProductionSurface(small, 1.0), std::domain_error);
     EXPECT_THROW(ProductionSurface(npf, 5.0), std::domain_error);
 }
 
 TEST(ExtendedNeukumProductionFunction, ContinuesBelowTenMetresWithSlope285) {
     const SplicedSfd extended = ExtendedNeukumProductionFunction();
-    const LogPolynomial npf = NeukumProductionFunction();
+    const LogPolynomialSfd npf = NeukumProductionFunction();
     EXPECT_EQ(extended.Kind(), SfdKind::ProductionRate);
     EXPECT_EQ(extended.ValidRange().min, 2.5);
     EXPECT_EQ(extended.ValidRange().max, 300000.0);

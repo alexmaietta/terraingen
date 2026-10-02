@@ -84,18 +84,18 @@ CraterModels BuildCraterModels(const CraterSettings& settings) {
         break;
     }
     case CraterDensityModel::Trask:
-        models.density = std::make_shared<PowerLaw>(TraskEquilibrium());
+        models.density = std::make_shared<PowerLawSfd>(TraskEquilibrium());
         break;
     case CraterDensityModel::Hartmann:
-        models.density = std::make_shared<PowerLaw>(HartmannEquilibrium());
+        models.density = std::make_shared<PowerLawSfd>(HartmannEquilibrium());
         break;
     case CraterDensityModel::PowerLaw:
         models.density =
-            std::make_shared<PowerLaw>(settings.powerLawCoefficient, settings.powerLawExponent);
+            std::make_shared<PowerLawSfd>(settings.powerLawCoefficient, settings.powerLawExponent);
         break;
     }
     if (!models.ages) {
-        models.ages = std::make_shared<UniformFreshness>(settings.lifetimeGyr);
+        models.ages = std::make_shared<UniformAges>(settings.lifetimeGyr);
     }
     if (settings.degrade) {
         models.degradation = std::make_shared<FreshnessDegradation>(models.ages);

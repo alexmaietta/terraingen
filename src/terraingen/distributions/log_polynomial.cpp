@@ -9,8 +9,8 @@
 
 namespace terraingen {
 
-LogPolynomial::LogPolynomial(std::vector<double> coefficients, DiameterRange range, SfdKind kind,
-                             double diameterUnit, double areaUnit)
+LogPolynomialSfd::LogPolynomialSfd(std::vector<double> coefficients, DiameterRange range,
+                                   SfdKind kind, double diameterUnit, double areaUnit)
     : SizeFrequencyDistribution(kind, range), coefficients_(std::move(coefficients)),
       diameterUnit_(diameterUnit), areaUnit_(areaUnit) {
     if (coefficients_.empty() || !std::all_of(coefficients_.begin(), coefficients_.end(),
@@ -34,7 +34,7 @@ LogPolynomial::LogPolynomial(std::vector<double> coefficients, DiameterRange ran
     }
 }
 
-double LogPolynomial::Polynomial(double x) const {
+double LogPolynomialSfd::Polynomial(double x) const {
     double sum = 0.0;
     for (auto it = coefficients_.rbegin(); it != coefficients_.rend(); ++it) {
         sum = sum * x + *it;
@@ -42,7 +42,7 @@ double LogPolynomial::Polynomial(double x) const {
     return sum;
 }
 
-double LogPolynomial::Derivative(double x) const {
+double LogPolynomialSfd::Derivative(double x) const {
     double sum = 0.0;
     for (std::size_t i = coefficients_.size() - 1; i > 0; --i) {
         sum = sum * x + static_cast<double>(i) * coefficients_[i];
@@ -50,11 +50,11 @@ double LogPolynomial::Derivative(double x) const {
     return sum;
 }
 
-double LogPolynomial::CumulativeAt(double diameter) const {
+double LogPolynomialSfd::CumulativeAt(double diameter) const {
     return std::pow(10.0, Polynomial(std::log10(diameter / diameterUnit_))) / areaUnit_;
 }
 
-double LogPolynomial::IncrementalAt(double diameter) const {
+double LogPolynomialSfd::IncrementalAt(double diameter) const {
     return -CumulativeAt(diameter) * Derivative(std::log10(diameter / diameterUnit_)) / diameter;
 }
 

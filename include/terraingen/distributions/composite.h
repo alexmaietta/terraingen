@@ -18,8 +18,8 @@ struct SfdPiece {
 /// A cumulative distribution made of other distributions over consecutive diameter intervals, such
 /// as a production function extended below its fitted range by a power law.
 ///
-/// As in `PiecewisePowerLaw`, the lower piece applies at a join, and pieces must meet there within
-/// a relative tolerance.
+/// As in `PiecewisePowerLawSfd`, the lower piece applies at a join, and pieces must meet there
+/// within a relative tolerance.
 class SplicedSfd final : public SizeFrequencyDistribution {
   public:
     /// @param pieces At least one piece, with strictly increasing `start`, the first `start` equal

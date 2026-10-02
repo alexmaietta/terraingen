@@ -13,7 +13,7 @@ using terraingen::FreshCraterDepthRatio;
 using terraingen::FreshnessDegradation;
 using terraingen::kFreshRimHeightRatio;
 using terraingen::NoDegradation;
-using terraingen::UniformFreshness;
+using terraingen::UniformAges;
 
 TEST(FreshCraterDepthRatio, FollowsFassett2022Table2) {
     EXPECT_EQ(FreshCraterDepthRatio(1.0), 0.10);
@@ -46,7 +46,7 @@ TEST(NoDegradation, KeepsEveryCraterFresh) {
 }
 
 TEST(FreshnessDegradation, ScalesDepthAndRimByOneErosionFactor) {
-    const FreshnessDegradation degradation(std::make_shared<UniformFreshness>(2.0));
+    const FreshnessDegradation degradation(std::make_shared<UniformAges>(2.0));
     const auto at = [&](double ageGyr) {
         return degradation.State(Crater{0.0, 0.0, 150.0, ageGyr, 1u});
     };
@@ -62,8 +62,8 @@ TEST(FreshnessDegradation, ScalesDepthAndRimByOneErosionFactor) {
     EXPECT_DOUBLE_EQ(half.current.depthRatio / half.fresh.depthRatio,
                      half.current.rimHeightRatio / half.fresh.rimHeightRatio);
     EXPECT_THROW(FreshnessDegradation(nullptr), std::invalid_argument);
-    EXPECT_THROW(FreshnessDegradation(std::make_shared<UniformFreshness>(1.0), 0.0),
+    EXPECT_THROW(FreshnessDegradation(std::make_shared<UniformAges>(1.0), 0.0),
                  std::invalid_argument);
-    EXPECT_THROW(FreshnessDegradation(std::make_shared<UniformFreshness>(1.0), 0.1),
+    EXPECT_THROW(FreshnessDegradation(std::make_shared<UniformAges>(1.0), 0.1),
                  std::invalid_argument);
 }

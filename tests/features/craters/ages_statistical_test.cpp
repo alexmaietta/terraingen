@@ -11,7 +11,7 @@ using terraingen::LunarSurface;
 using terraingen::NeukumLunarChronology;
 using terraingen::RandomStream;
 using terraingen::SurfaceModel;
-using terraingen::UniformFreshness;
+using terraingen::UniformAges;
 using terraingen::testing::KolmogorovSmirnov;
 using terraingen::testing::KolmogorovSmirnovCritical;
 
@@ -31,7 +31,7 @@ std::vector<double> SampleAges(const CraterAgeModel& model, double diameter, std
 }  // namespace
 
 TEST(CraterAgeStatistics, UniformFreshnessAgesAreUniform) {
-    const UniformFreshness uniform(1.5);
+    const UniformAges uniform(1.5);
     const auto ages = SampleAges(uniform, 20.0, 1u);
     EXPECT_LT(KolmogorovSmirnov(ages, [](double age) { return age / 1.5; }),
               KolmogorovSmirnovCritical(kSamples));

@@ -16,12 +16,12 @@ enum class MooreTerrain {
 /// Moore's distribution for `terrain` (H. J. Moore, USGS Section C, c. 1970). The published
 /// coefficients are rounded, so segments agree at their joins only to within 0.2%; the presets
 /// accept joins within 0.5%.
-PiecewisePowerLaw MooreDistribution(MooreTerrain terrain);
+PiecewisePowerLawSfd MooreDistribution(MooreTerrain terrain);
 
 /// The VIPER environmental specification (VIPER-MSE-SPEC-001, 2021) as used by synthterrain:
 /// N = 29174 D^-1.92 per km^2 for D <= 80 m and 156228 D^-2.389 above (D in m). Kept for comparison
 /// with synthterrain; its segments disagree by a factor of 1.46 at 80 m, and Allan et al. (2017)
 /// found it predicts too many craters against a NAC image.
-PiecewisePowerLaw ViperSpecification();
+PiecewisePowerLawSfd ViperSpecification();
 
 }  // namespace terraingen

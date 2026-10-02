@@ -9,7 +9,7 @@
 
 namespace terraingen {
 
-PowerLaw::PowerLaw(double coefficient, double exponent, SfdKind kind, DiameterRange range)
+PowerLawSfd::PowerLawSfd(double coefficient, double exponent, SfdKind kind, DiameterRange range)
     : SizeFrequencyDistribution(kind, range), coefficient_(coefficient), exponent_(exponent) {
     if (!detail::PositiveFinite(coefficient_) || !detail::PositiveFinite(exponent_)) {
         throw std::invalid_argument(
@@ -17,21 +17,21 @@ PowerLaw::PowerLaw(double coefficient, double exponent, SfdKind kind, DiameterRa
     }
 }
 
-double PowerLaw::CumulativeAt(double diameter) const {
+double PowerLawSfd::CumulativeAt(double diameter) const {
     return coefficient_ * std::pow(diameter, -exponent_);
 }
 
-double PowerLaw::IncrementalAt(double diameter) const {
+double PowerLawSfd::IncrementalAt(double diameter) const {
     return coefficient_ * exponent_ * std::pow(diameter, -exponent_ - 1.0);
 }
 
-double PowerLaw::InvertCumulative(double target, double /*dMin*/, double /*dMax*/) const {
+double PowerLawSfd::InvertCumulative(double target, double /*dMin*/, double /*dMax*/) const {
     return std::pow(target / coefficient_, -1.0 / exponent_);
 }
 
-PiecewisePowerLaw::PiecewisePowerLaw(std::vector<PowerLawSegment> segments, SfdKind kind,
-                                     DiameterRange range, bool allowDiscontinuities,
-                                     double tolerance)
+PiecewisePowerLawSfd::PiecewisePowerLawSfd(std::vector<PowerLawSegment> segments, SfdKind kind,
+                                           DiameterRange range, bool allowDiscontinuities,
+                                           double tolerance)
     : SizeFrequencyDistribution(kind, range), segments_(std::move(segments)) {
     if (segments_.empty()) {
         throw std::invalid_argument("A piecewise power law needs at least one segment");
@@ -65,7 +65,7 @@ PiecewisePowerLaw::PiecewisePowerLaw(std::vector<PowerLawSegment> segments, SfdK
     }
 }
 
-const PowerLawSegment& PiecewisePowerLaw::SegmentAt(double diameter) const {
+const PowerLawSegment& PiecewisePowerLawSfd::SegmentAt(double diameter) const {
     std::size_t index = 0;
     while (index + 1 < segments_.size() && segments_[index + 1].start < diameter) {
         ++index;
@@ -73,17 +73,17 @@ const PowerLawSegment& PiecewisePowerLaw::SegmentAt(double diameter) const {
     return segments_[index];
 }
 
-double PiecewisePowerLaw::CumulativeAt(double diameter) const {
+double PiecewisePowerLawSfd::CumulativeAt(double diameter) const {
     const PowerLawSegment& segment = SegmentAt(diameter);
     return segment.coefficient * std::pow(diameter, -segment.exponent);
 }
 
-double PiecewisePowerLaw::IncrementalAt(double diameter) const {
+double PiecewisePowerLawSfd::IncrementalAt(double diameter) const {
     const PowerLawSegment& segment = SegmentAt(diameter);
     return segment.coefficient * segment.exponent * std::pow(diameter, -segment.exponent - 1.0);
 }
 
-double PiecewisePowerLaw::InvertCumulative(double target, double dMin, double dMax) const {
+double PiecewisePowerLawSfd::InvertCumulative(double target, double dMin, double dMax) const {
     std::size_t index = 0;
     while (index + 1 < segments_.size()) {
         const PowerLawSegment& segment = segments_[index];

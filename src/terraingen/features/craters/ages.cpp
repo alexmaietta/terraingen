@@ -54,27 +54,27 @@ double CraterAgeModel::Freshness(double diameter, double ageGyr) const {
     return std::clamp(1.0 - ageGyr / lifetime, 0.0, 1.0);
 }
 
-double AllFresh::LifetimeAt(double /*diameter*/) const {
+double FreshAges::LifetimeAt(double /*diameter*/) const {
     return 0.0;
 }
 
-double AllFresh::SampleAgeAt(RandomStream& /*random*/, double /*diameter*/,
-                             double /*lifetimeGyr*/) const {
+double FreshAges::SampleAgeAt(RandomStream& /*random*/, double /*diameter*/,
+                              double /*lifetimeGyr*/) const {
     return 0.0;
 }
 
-UniformFreshness::UniformFreshness(double lifetimeGyr) : lifetimeGyr_(lifetimeGyr) {
+UniformAges::UniformAges(double lifetimeGyr) : lifetimeGyr_(lifetimeGyr) {
     if (!(std::isfinite(lifetimeGyr_) && lifetimeGyr_ > 0.0)) {
         throw std::invalid_argument("Lifetime must be positive and finite");
     }
 }
 
-double UniformFreshness::LifetimeAt(double /*diameter*/) const {
+double UniformAges::LifetimeAt(double /*diameter*/) const {
     return lifetimeGyr_;
 }
 
-double UniformFreshness::SampleAgeAt(RandomStream& random, double /*diameter*/,
-                                     double lifetimeGyr) const {
+double UniformAges::SampleAgeAt(RandomStream& random, double /*diameter*/,
+                                double lifetimeGyr) const {
     return random.NextDouble() * lifetimeGyr;
 }
 
@@ -110,7 +110,7 @@ double SteadyStateAges::SampleAgeAt(RandomStream& random, double /*diameter*/,
 
 SurfaceModel LunarSurface(double ageGyr) {
     auto production = std::make_shared<SplicedSfd>(ExtendedNeukumProductionFunction());
-    auto equilibrium = std::make_shared<PowerLaw>(TraskEquilibrium());
+    auto equilibrium = std::make_shared<PowerLawSfd>(TraskEquilibrium());
     auto surface = std::make_shared<ProductionSurface>(production, ageGyr);
     return SurfaceModel{
         std::make_shared<MinimumSfd>(

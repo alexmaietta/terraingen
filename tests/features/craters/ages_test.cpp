@@ -7,20 +7,20 @@
 #include <memory>
 #include <stdexcept>
 
-using terraingen::AllFresh;
 using terraingen::CraterAgeModel;
 using terraingen::ExtendedNeukumProductionFunction;
-using terraingen::LogPolynomial;
+using terraingen::FreshAges;
+using terraingen::LogPolynomialSfd;
 using terraingen::LunarSurface;
 using terraingen::NeukumLunarChronology;
 using terraingen::NeukumProductionFunction;
-using terraingen::PowerLaw;
+using terraingen::PowerLawSfd;
 using terraingen::RandomStream;
 using terraingen::SfdKind;
 using terraingen::SteadyStateAges;
 using terraingen::SurfaceModel;
 using terraingen::TraskEquilibrium;
-using terraingen::UniformFreshness;
+using terraingen::UniformAges;
 
 namespace {
 
@@ -28,14 +28,14 @@ constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
 constexpr double kInf = std::numeric_limits<double>::infinity();
 
 SteadyStateAges NeukumTrask(double ageGyr) {
-    return SteadyStateAges(std::make_shared<LogPolynomial>(NeukumProductionFunction()),
-                           std::make_shared<PowerLaw>(TraskEquilibrium()), ageGyr);
+    return SteadyStateAges(std::make_shared<LogPolynomialSfd>(NeukumProductionFunction()),
+                           std::make_shared<PowerLawSfd>(TraskEquilibrium()), ageGyr);
 }
 
 }  // namespace
 
-TEST(AllFresh, GivesEveryCraterAgeZeroAndFreshnessOne) {
-    const AllFresh fresh;
+TEST(FreshAges, GivesEveryCraterAgeZeroAndFreshnessOne) {
+    const FreshAges fresh;
     RandomStream stream(1u, 1u);
     EXPECT_EQ(fresh.LifetimeGyr(10.0), 0.0);
     EXPECT_EQ(fresh.SampleAgeGyr(stream, 10.0), 0.0);
@@ -44,12 +44,12 @@ TEST(AllFresh, GivesEveryCraterAgeZeroAndFreshnessOne) {
     EXPECT_THROW(fresh.LifetimeGyr(0.0), std::domain_error);
     EXPECT_THROW(fresh.SampleAgeGyr(stream, kNaN), std::domain_error);
     EXPECT_THROW(fresh.Freshness(-1.0, 0.0), std::domain_error);
-    const std::unique_ptr<CraterAgeModel> base = std::make_unique<AllFresh>();
+    const std::unique_ptr<CraterAgeModel> base = std::make_unique<FreshAges>();
     EXPECT_EQ(base->LifetimeGyr(1.0), 0.0);
 }
 
-TEST(UniformFreshness, DrawsAgesUniformlyOverOneLifetime) {
-    const UniformFreshness uniform(2.0);
+TEST(UniformAges, DrawsAgesUniformlyOverOneLifetime) {
+    const UniformAges uniform(2.0);
     RandomStream copy(4u, 2u);
     RandomStream stream(4u, 2u);
     for (int i = 0; i < 50; ++i) {
@@ -60,15 +60,15 @@ TEST(UniformFreshness, DrawsAgesUniformlyOverOneLifetime) {
     EXPECT_DOUBLE_EQ(uniform.Freshness(5.0, 0.5), 0.75);
     EXPECT_EQ(uniform.Freshness(5.0, 3.0), 0.0);
     EXPECT_EQ(uniform.Freshness(5.0, -1.0), 1.0);
-    EXPECT_THROW(UniformFreshness(0.0), std::invalid_argument);
-    EXPECT_THROW(UniformFreshness{kInf}, std::invalid_argument);
-    EXPECT_THROW(UniformFreshness{kNaN}, std::invalid_argument);
+    EXPECT_THROW(UniformAges(0.0), std::invalid_argument);
+    EXPECT_THROW(UniformAges{kInf}, std::invalid_argument);
+    EXPECT_THROW(UniformAges{kNaN}, std::invalid_argument);
 }
 
 TEST(SteadyStateAges, LifetimeIsTheEquilibriumOverProductionRatioCappedAtTheSurfaceAge) {
     const SteadyStateAges ages = NeukumTrask(3.5);
-    const LogPolynomial npf = NeukumProductionFunction();
-    const PowerLaw trask = TraskEquilibrium();
+    const LogPolynomialSfd npf = NeukumProductionFunction();
+    const PowerLawSfd trask = TraskEquilibrium();
     for (const double d : {10.0, 100.0, 150.0}) {
         const double expected = trask.Incremental(d) / npf.Incremental(d);
         EXPECT_NEAR(ages.EquilibriumLifetimeGyr(d), expected, 1e-12 * expected) << d;
@@ -101,8 +101,8 @@ TEST(SteadyStateAges, DrawsAgesFromTheChronologyWithinTheLifetime) {
 }
 
 TEST(SteadyStateAges, RejectsInvalidInputs) {
-    const auto npf = std::make_shared<LogPolynomial>(NeukumProductionFunction());
-    const auto trask = std::make_shared<PowerLaw>(TraskEquilibrium());
+    const auto npf = std::make_shared<LogPolynomialSfd>(NeukumProductionFunction());
+    const auto trask = std::make_shared<PowerLawSfd>(TraskEquilibrium());
     EXPECT_THROW(SteadyStateAges(nullptr, trask, 1.0), std::invalid_argument);
     EXPECT_THROW(SteadyStateAges(npf, nullptr, 1.0), std::invalid_argument);
     EXPECT_THROW(SteadyStateAges(trask, trask, 1.0), std::invalid_argument);

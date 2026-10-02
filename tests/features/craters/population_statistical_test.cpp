@@ -6,13 +6,13 @@
 #include <cmath>
 #include <vector>
 
-using terraingen::AllFresh;
 using terraingen::Bounds2d;
 using terraingen::CraterList;
+using terraingen::FreshAges;
 using terraingen::GenerateCraters;
 using terraingen::LunarSurface;
 using terraingen::PlanarCells;
-using terraingen::PowerLaw;
+using terraingen::PowerLawSfd;
 using terraingen::SurfaceModel;
 using terraingen::testing::ChiSquareCritical;
 using terraingen::testing::KolmogorovSmirnov;
@@ -44,9 +44,9 @@ TEST(CraterPopulationStatistics, DiametersMatchTheDensityAcrossBands) {
 }
 
 TEST(CraterPopulationStatistics, PositionsAreUniformAcrossQuadratsNotAlignedWithCells) {
-    const PowerLaw density(0.1, 2.0);
+    const PowerLawSfd density(0.1, 2.0);
     const Bounds2d region{3.0, 7.0, 1003.0, 1007.0};
-    const CraterList craters = GenerateCraters(PlanarCells(), region, density, AllFresh(), 23u,
+    const CraterList craters = GenerateCraters(PlanarCells(), region, density, FreshAges(), 23u,
                                                {.dMin = 1.0, .dMax = 64.0});
     constexpr std::size_t kSide = 7;
     std::vector<double> counts(kSide * kSide, 0.0);

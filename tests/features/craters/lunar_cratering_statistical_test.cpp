@@ -8,7 +8,7 @@
 #include <vector>
 
 using terraingen::ExtendedNeukumProductionFunction;
-using terraingen::LogPolynomial;
+using terraingen::LogPolynomialSfd;
 using terraingen::MooreDistribution;
 using terraingen::MooreTerrain;
 using terraingen::NeukumProductionFunction;
@@ -42,7 +42,7 @@ double TruncatedCdf(const SizeFrequencyDistribution& sfd, double dMin, double dM
 }  // namespace
 
 TEST(LunarCrateringStatistics, NeukumSurfaceSamplesMatchTheirCdfOverTheFullRange) {
-    const ProductionSurface surface(std::make_shared<LogPolynomial>(NeukumProductionFunction()),
+    const ProductionSurface surface(std::make_shared<LogPolynomialSfd>(NeukumProductionFunction()),
                                     3.5);
     const auto samples = Sample(surface, 5u, 10.0, 300000.0);
     EXPECT_LT(KolmogorovSmirnov(samples,

@@ -8,7 +8,7 @@
 #include <limits>
 #include <vector>
 
-using terraingen::PowerLaw;
+using terraingen::PowerLawSfd;
 using terraingen::RandomStream;
 using terraingen::SizeFrequencyDistribution;
 using terraingen::TabulatedSfd;
@@ -38,7 +38,7 @@ double TruncatedCdf(const SizeFrequencyDistribution& sfd, double dMin, double dM
 }  // namespace
 
 TEST(SfdStatistics, MaximumLikelihoodRecoversThePowerLawExponentWithBootstrapInterval) {
-    const PowerLaw law(1.0, 2.7);
+    const PowerLawSfd law(1.0, 2.7);
     const auto samples = Sample(law, 1u, 1.0, std::numeric_limits<double>::infinity());
     const double estimate = PowerLawExponentMle(samples, 1.0);
     EXPECT_NEAR(estimate, 2.7, 4.0 * 2.7 / std::sqrt(static_cast<double>(kSamples)));
@@ -58,7 +58,7 @@ TEST(SfdStatistics, MaximumLikelihoodRecoversThePowerLawExponentWithBootstrapInt
 }
 
 TEST(SfdStatistics, TruncatedPowerLawSamplesMatchTheirCdf) {
-    const PowerLaw law(1.0, 1.9);
+    const PowerLawSfd law(1.0, 1.9);
     const auto samples = Sample(law, 3u, 1.0, 100.0);
     EXPECT_LT(
         KolmogorovSmirnov(samples, [&](double d) { return TruncatedCdf(law, 1.0, 100.0, d); }),

@@ -14,15 +14,15 @@
 #include <vector>
 
 using terraingen::HartmannEquilibrium;
-using terraingen::LogPolynomial;
+using terraingen::LogPolynomialSfd;
 using terraingen::LunarSurface;
 using terraingen::MooreDistribution;
 using terraingen::MooreTerrain;
 using terraingen::NeukumLunarChronology;
 using terraingen::NeukumProductionFunction;
-using terraingen::PiecewisePowerLaw;
-using terraingen::PowerLaw;
+using terraingen::PiecewisePowerLawSfd;
 using terraingen::PowerLawCoefficientFromKilometres;
+using terraingen::PowerLawSfd;
 using terraingen::ProductionSurface;
 using terraingen::SteadyStateAges;
 using terraingen::SurfaceModel;
@@ -42,16 +42,16 @@ TEST(Presets, MooreTerrainsAreContinuousAndMatchTheirSegments) {
     EXPECT_DOUBLE_EQ(MooreDistribution(MooreTerrain::RoughMare).Cumulative(1000.0), 10.0 * 1e-9);
     EXPECT_DOUBLE_EQ(MooreDistribution(MooreTerrain::Uplands).Cumulative(10.0), 0.1 * 1e-2);
     EXPECT_DOUBLE_EQ(MooreDistribution(MooreTerrain::Uplands).Cumulative(1e4), 100.0 * 1e-12);
-    const PiecewisePowerLaw smooth = MooreDistribution(MooreTerrain::SmoothMare);
+    const PiecewisePowerLawSfd smooth = MooreDistribution(MooreTerrain::SmoothMare);
     EXPECT_EQ(smooth.Segments().size(), 4u);
     EXPECT_NEAR(smooth.Cumulative(150.0), std::pow(10.0, -2.038) * std::pow(150.0, -1.68), 1e-18);
-    const PiecewisePowerLaw heavy = MooreDistribution(MooreTerrain::HeavilyCratered);
+    const PiecewisePowerLawSfd heavy = MooreDistribution(MooreTerrain::HeavilyCratered);
     EXPECT_EQ(heavy.ValidRange().max, 10000.0);
     EXPECT_THROW(heavy.Cumulative(20000.0), std::domain_error);
 }
 
 TEST(Presets, ViperSpecificationDropsByAFactorOf146At80Metres) {
-    const PiecewisePowerLaw viper = ViperSpecification();
+    const PiecewisePowerLawSfd viper = ViperSpecification();
     const double below = viper.Cumulative(80.0);
     const double above = viper.Cumulative(80.0 * (1.0 + 1e-12));
     EXPECT_NEAR(below / above, 1.458, 1e-3);
@@ -61,9 +61,9 @@ TEST(Presets, ViperSpecificationDropsByAFactorOf146At80Metres) {
 TEST(Presets, MatchSynthterrainReferenceValues) {
     std::ifstream file(TERRAINGEN_VALIDATION_REFERENCES "/sfd/synthterrain_reference.csv");
     ASSERT_TRUE(file.is_open());
-    const PowerLaw trask = TraskEquilibrium();
-    const PiecewisePowerLaw viper = ViperSpecification();
-    const LogPolynomial npf = NeukumProductionFunction();
+    const PowerLawSfd trask = TraskEquilibrium();
+    const PiecewisePowerLawSfd viper = ViperSpecification();
+    const LogPolynomialSfd npf = NeukumProductionFunction();
     std::string line;
     int compared = 0;
     while (std::getline(file, line)) {
@@ -125,9 +125,9 @@ TEST(Presets, TabulatedDsneTableFollowsTheSurfaceModelBetweenRows) {
     auto [diameters, values] = ReadDsneTable();
     ASSERT_EQ(diameters.size(), 30u);
     const TabulatedSfd table(diameters, values, terraingen::SfdKind::Density, 1000.0, 1e6);
-    const ProductionSurface surface(std::make_shared<LogPolynomial>(NeukumProductionFunction()),
+    const ProductionSurface surface(std::make_shared<LogPolynomialSfd>(NeukumProductionFunction()),
                                     3.5);
-    const PowerLaw trask = TraskEquilibrium();
+    const PowerLawSfd trask = TraskEquilibrium();
     int compared = 0;
     for (std::size_t i = 0; i + 1 < diameters.size(); ++i) {
         const double low = diameters[i] * 1000.0;
@@ -161,8 +161,8 @@ TEST(Presets, LunarSurfaceReproducesTheDsneMareTable) {
 TEST(Presets, SteadyStateLifetimesAreTheLimitOfSynthterrainsBinnedEquilibriumAges) {
     std::ifstream file(TERRAINGEN_VALIDATION_REFERENCES "/sfd/synthterrain_reference.csv");
     ASSERT_TRUE(file.is_open());
-    const auto npf = std::make_shared<LogPolynomial>(NeukumProductionFunction());
-    const auto trask = std::make_shared<PowerLaw>(TraskEquilibrium());
+    const auto npf = std::make_shared<LogPolynomialSfd>(NeukumProductionFunction());
+    const auto trask = std::make_shared<PowerLawSfd>(TraskEquilibrium());
     const SteadyStateAges ages(npf, trask, terraingen::kMaxLunarAgeGyr);
     const auto binned = [&](double d, double dex) {
         const double upper = std::pow(10.0, std::log10(d) + dex);

@@ -68,8 +68,8 @@ struct CraterSettings {
     bool enabled = true;
     CraterDensityModel density = CraterDensityModel::LunarSurface;
     double surfaceAgeGyr = 3.5;        ///< For `LunarSurface`.
-    double powerLawCoefficient = 0.1;  ///< For `PowerLaw`, per m^2 with D in metres.
-    double powerLawExponent = 2.0;     ///< For `PowerLaw`.
+    double powerLawCoefficient = 0.1;  ///< For `PowerLawSfd`, per m^2 with D in metres.
+    double powerLawExponent = 2.0;     ///< For `PowerLawSfd`.
     double lifetimeGyr = 1.0;          ///< Age span of other densities, which have no chronology.
     double minDiameter = 4.0;          ///< Metres.
     double maxDiameter = 250.0;        ///< Metres.

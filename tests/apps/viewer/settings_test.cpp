@@ -375,7 +375,7 @@ TEST(CraterSettings, BuildsTheSelectedModels) {
     const CraterModels trask = BuildCraterModels(settings);
     EXPECT_DOUBLE_EQ(trask.density->Cumulative(10.0),
                      terraingen::TraskEquilibrium().Cumulative(10.0));
-    EXPECT_NE(dynamic_cast<const terraingen::UniformFreshness*>(trask.ages.get()), nullptr);
+    EXPECT_NE(dynamic_cast<const terraingen::UniformAges*>(trask.ages.get()), nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::NoDegradation*>(trask.degradation.get()), nullptr);
     EXPECT_EQ(trask.profile->ReachRadii(), 2.0);
 

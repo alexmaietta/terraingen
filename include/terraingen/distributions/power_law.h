@@ -7,12 +7,12 @@
 namespace terraingen {
 
 /// N(>=D) = `coefficient` * D^(-`exponent`), with D in metres and N per m^2 (or per m^2 per Gyr).
-class PowerLaw final : public SizeFrequencyDistribution {
+class PowerLawSfd final : public SizeFrequencyDistribution {
   public:
     /// @throws std::invalid_argument unless `coefficient` and `exponent` are positive and finite
     /// and the range is valid.
-    PowerLaw(double coefficient, double exponent, SfdKind kind = SfdKind::Density,
-             DiameterRange range = {});
+    PowerLawSfd(double coefficient, double exponent, SfdKind kind = SfdKind::Density,
+                DiameterRange range = {});
 
     double Coefficient() const {
         return coefficient_;
@@ -32,7 +32,7 @@ class PowerLaw final : public SizeFrequencyDistribution {
     double exponent_;
 };
 
-/// One segment of a `PiecewisePowerLaw`: N(>=D) = `coefficient` * D^(-`exponent`) from `start`
+/// One segment of a `PiecewisePowerLawSfd`: N(>=D) = `coefficient` * D^(-`exponent`) from `start`
 /// metres up to the next segment's start.
 struct PowerLawSegment {
     double start = 0.0;
@@ -46,15 +46,15 @@ struct PowerLawSegment {
 /// set, which exists for legacy specifications. A downward jump at a join means a finite fraction
 /// of the population has exactly the join diameter, and `SampleDiameter` returns it for that
 /// fraction.
-class PiecewisePowerLaw final : public SizeFrequencyDistribution {
+class PiecewisePowerLawSfd final : public SizeFrequencyDistribution {
   public:
     /// @param segments At least one segment, with strictly increasing `start` and the first `start`
     /// equal to `range.min`.
     /// @throws std::invalid_argument for malformed segments, a join that rises, or a discontinuity
     /// larger than `tolerance` without `allowDiscontinuities`.
-    PiecewisePowerLaw(std::vector<PowerLawSegment> segments, SfdKind kind = SfdKind::Density,
-                      DiameterRange range = {}, bool allowDiscontinuities = false,
-                      double tolerance = 1e-3);
+    PiecewisePowerLawSfd(std::vector<PowerLawSegment> segments, SfdKind kind = SfdKind::Density,
+                         DiameterRange range = {}, bool allowDiscontinuities = false,
+                         double tolerance = 1e-3);
 
     const std::vector<PowerLawSegment>& Segments() const {
         return segments_;

@@ -4,12 +4,12 @@
 
 namespace terraingen {
 
-PowerLaw TraskEquilibrium() {
-    return PowerLaw(std::pow(10.0, -1.1), 2.0);
+PowerLawSfd TraskEquilibrium() {
+    return PowerLawSfd(std::pow(10.0, -1.1), 2.0);
 }
 
-PowerLaw HartmannEquilibrium() {
-    return PowerLaw(PowerLawCoefficientFromKilometres(std::pow(10.0, -1.14), 1.83), 1.83);
+PowerLawSfd HartmannEquilibrium() {
+    return PowerLawSfd(PowerLawCoefficientFromKilometres(std::pow(10.0, -1.14), 1.83), 1.83);
 }
 
 }  // namespace terraingen

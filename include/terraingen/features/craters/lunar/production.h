@@ -52,7 +52,7 @@ class ProductionSurface final : public SizeFrequencyDistribution {
 /// SLS-SPEC-159 Revision I, Table 3.4.1.1-1).
 ///
 /// Reference: Neukum, Ivanov and Hartmann (2001); see `NeukumLunarChronology`.
-LogPolynomial NeukumProductionFunction();
+LogPolynomialSfd NeukumProductionFunction();
 
 /// `NeukumProductionFunction` extended below 10 m as a cumulative power law of slope -2.85,
 /// continuous at 10 m, and valid from 2.5 to 300000 m.
