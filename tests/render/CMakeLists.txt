@@ -29,4 +29,4 @@ terraingen_add_test_suite(
     gpu)
 target_compile_definitions(
     terraingen_tests_render_gpu
-    PRIVATE TERRAINGEN_SHADER_DIR="${PROJECT_SOURCE_DIR}/src/viewer/render/shaders")
+    PRIVATE TERRAINGEN_SHADER_DIR="${PROJECT_SOURCE_DIR}/apps/viewer/render/shaders")

@@ -70,6 +70,7 @@ if(TERRAINGEN_BUILD_VIEWER)
 endif()
 
 add_subdirectory(src)
+add_subdirectory(apps)
 
 if(TERRAINGEN_BUILD_PYTHON)
     set_target_properties(terraingen_core PROPERTIES POSITION_INDEPENDENT_CODE ON)

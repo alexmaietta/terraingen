@@ -36,7 +36,7 @@ add_library(
     terrain_renderer.cpp)
 target_include_directories(
     terraingen_render
-    PUBLIC "${PROJECT_SOURCE_DIR}/src/viewer"
+    PUBLIC "${PROJECT_SOURCE_DIR}/apps/viewer"
     PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_link_libraries(
     terraingen_render

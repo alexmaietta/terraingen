@@ -11,7 +11,7 @@ if(TARGET _terraingen)
     add_subdirectory(python)
 endif()
 if(TARGET terraingen_viewer_app)
-    add_subdirectory(viewer)
+    add_subdirectory(apps/viewer)
 endif()
 
 if(TERRAINGEN_INSTALL AND NOT TERRAINGEN_COVERAGE)
@@ -69,9 +69,10 @@ if(TERRAINGEN_COVERAGE)
         COMMAND
             "${GCOVR_EXECUTABLE}" --root "${PROJECT_SOURCE_DIR}" --gcov-executable "${gcov_command}"
             --filter "${PROJECT_SOURCE_DIR}/include/terraingen/" --filter
-            "${PROJECT_SOURCE_DIR}/src/" --exclude-throw-branches --exclude-noncode-lines --delete
-            --txt --html-details "${report_dir}/index.html" --cobertura "${report_dir}/coverage.xml"
-            --print-summary "${PROJECT_BINARY_DIR}"
+            "${PROJECT_SOURCE_DIR}/src/" --filter "${PROJECT_SOURCE_DIR}/apps/"
+            --exclude-throw-branches --exclude-noncode-lines --delete --txt --html-details
+            "${report_dir}/index.html" --cobertura "${report_dir}/coverage.xml" --print-summary
+            "${PROJECT_BINARY_DIR}"
         WORKING_DIRECTORY "${PROJECT_BINARY_DIR}"
         COMMENT "Running tests and writing coverage reports to ${report_dir}"
         USES_TERMINAL VERBATIM)
