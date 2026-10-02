@@ -19,6 +19,9 @@
 #include <cstdio>
 #include <optional>
 #include <stdexcept>
+#include <string>
+#include <utility>
+#include <variant>
 
 namespace terraingen::viewer {
 
@@ -116,9 +119,40 @@ struct App::State {
     double framedExtent = 0.0;
     TerrainPanelStatus status;
     InfoPanelData info;
+    SurfacePanelState surfacePanel;
 
     int width = 0;
     int height = 0;
+
+    /// Applies the command-line reflectance model and detail textures.
+    /// @throws std::runtime_error for an unknown model or a texture that cannot be loaded.
+    void ApplyOptions() {
+        if (!options.brdf.empty()) {
+            if (terrain->Brdfs().Find(options.brdf) == nullptr) {
+                std::string known;
+                for (const render::BrdfModel& model : terrain->Brdfs().Models()) {
+                    known += (known.empty() ? "" : ", ") + model.id;
+                }
+                throw std::runtime_error("Unknown reflectance model '" + options.brdf +
+                                         "'; available: " + known);
+            }
+            view.material.surface.brdf = options.brdf;
+        }
+        for (const bool normalMap : {false, true}) {
+            const std::string& path = normalMap ? options.detailNormal : options.detailAlbedo;
+            if (path.empty()) {
+                continue;
+            }
+            auto& buffer = normalMap ? surfacePanel.normalPath : surfacePanel.albedoPath;
+            path.copy(buffer.data(), buffer.size() - 1);
+            if (!LoadDetail(normalMap)) {
+                throw std::runtime_error(
+                    "Cannot load detail " + std::string(normalMap ? "normal map" : "albedo") + " " +
+                    path + ": " +
+                    (normalMap ? surfacePanel.normalStatus : surfacePanel.albedoStatus));
+            }
+        }
+    }
 
     void Request() {
         requested = settings;
@@ -167,6 +201,50 @@ struct App::State {
         }
     }
 
+    /// Loads the detail texture at the path in the Surface panel; on failure records why there and
+    /// returns false.
+    bool LoadDetail(bool normalMap) {
+        const std::string path =
+            normalMap ? surfacePanel.normalPath.data() : surfacePanel.albedoPath.data();
+        std::string& message = normalMap ? surfacePanel.normalStatus : surfacePanel.albedoStatus;
+        auto loaded = LoadDetailTexture(path, normalMap);
+        if (const std::string* error = std::get_if<std::string>(&loaded)) {
+            message = *error;
+            return false;
+        }
+        const render::Image& image = std::get<render::Image>(loaded);
+        try {
+            if (normalMap) {
+                terrain->Material().SetDetailNormal(&image);
+            } else {
+                terrain->Material().SetDetailAlbedo(&image);
+            }
+        } catch (const std::invalid_argument& error) {
+            message = error.what();
+            return false;
+        }
+        message = std::to_string(image.width) + " x " + std::to_string(image.height);
+        return true;
+    }
+
+    void HandleSurfaceAction(SurfacePanelAction action) {
+        switch (action) {
+        case SurfacePanelAction::LoadDetailAlbedo:
+            LoadDetail(false);
+            break;
+        case SurfacePanelAction::LoadDetailNormal:
+            LoadDetail(true);
+            break;
+        case SurfacePanelAction::ClearDetail:
+            terrain->Material().SetDetailTextures(nullptr, nullptr);
+            surfacePanel.albedoStatus.clear();
+            surfacePanel.normalStatus.clear();
+            break;
+        case SurfacePanelAction::None:
+            break;
+        }
+    }
+
     void HandleInput() {
         const ImGuiIO& io = ImGui::GetIO();
         if (!io.WantCaptureMouse) {
@@ -204,6 +282,8 @@ struct App::State {
         if (DrawViewPanel(view)) {
             Frame();
         }
+        surfacePanel.hasAlbedoMap = terrain->Material().HasAlbedoMap();
+        HandleSurfaceAction(DrawSurfacePanel(view.material, surfacePanel, terrain->Brdfs()));
         info.gpu = gpu->AdapterDescription();
         info.gpuBytes = terrain->GpuBytes();
         info.triangles = terrain->TriangleCount();
@@ -225,6 +305,7 @@ struct App::State {
         params.wireframe = view.wireframe;
         params.shadows = view.shadows;
         params.lod = view.lod;
+        params.surface = view.material.Effective(terrain->Brdfs());
         terrain->Update(params);
         terrain->EncodeShadows(encoder);
 
@@ -257,6 +338,7 @@ App::App(const AppOptions& options) : state_(std::make_unique<State>()) {
     s.imgui.emplace(window, *s.gpu);
     s.depth.emplace(s.gpu->Device());
     s.terrain.emplace(*s.gpu, s.gpu->SurfaceFormat(), s.depth->Format());
+    s.ApplyOptions();
 
     int width = 0;
     int height = 0;

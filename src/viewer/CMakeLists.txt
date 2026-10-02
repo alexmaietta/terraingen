@@ -1,6 +1,6 @@
 add_subdirectory(render)
 
-add_library(terraingen_viewer_app STATIC app.cpp panels.cpp settings.cpp worker.cpp)
+add_library(terraingen_viewer_app STATIC app.cpp options.cpp panels.cpp settings.cpp worker.cpp)
 target_include_directories(terraingen_viewer_app PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(
     terraingen_viewer_app

@@ -1,6 +1,7 @@
 #include "settings.h"
 
 #include <cmath>
+#include <exception>
 #include <stdexcept>
 
 namespace terraingen::viewer {
@@ -64,6 +65,30 @@ glm::vec3 SunDirection(float azimuthDegrees, float elevationDegrees) {
     const float elevation = glm::radians(elevationDegrees);
     return {std::sin(azimuth) * std::cos(elevation), std::cos(azimuth) * std::cos(elevation),
             std::sin(elevation)};
+}
+
+render::SurfaceSettings SurfaceViewSettings::Effective(const render::BrdfRegistry& registry) const {
+    render::SurfaceSettings effective = surface;
+    if (const render::BrdfModel* model = registry.Find(surface.brdf)) {
+        const auto edited = brdfParams.find(surface.brdf);
+        effective.brdfParams = edited != brdfParams.end()
+                                   ? render::ResolveBrdfParams(*model, edited->second)
+                                   : model->Defaults();
+    }
+    return effective;
+}
+
+std::variant<render::Image, std::string> LoadDetailTexture(const std::string& path,
+                                                           bool normalMap) {
+    if (path.empty()) {
+        return std::string("No file given");
+    }
+    try {
+        return render::LoadImage(path, normalMap ? render::ImageEncoding::Linear
+                                                 : render::ImageEncoding::Srgb);
+    } catch (const std::exception& error) {
+        return std::string(error.what());
+    }
 }
 
 }  // namespace terraingen::viewer

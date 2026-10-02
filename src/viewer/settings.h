@@ -9,7 +9,10 @@
 
 #include <array>
 #include <cstddef>
+#include <functional>
+#include <map>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace terraingen::viewer {
@@ -52,7 +55,23 @@ std::string ValidateSettings(const TerrainSettings& settings);
 /// @throws std::invalid_argument if the settings are invalid.
 Raster<float> GenerateTerrain(const TerrainSettings& settings);
 
-/// Display options edited in the View panel.
+/// Surface options edited in the Surface panel: the renderer's surface settings plus every
+/// reflectance model's parameter values, kept while switching between models.
+struct SurfaceViewSettings {
+    render::SurfaceSettings surface;
+    std::map<std::string, std::vector<float>, std::less<>> brdfParams;
+
+    /// `surface` with the selected model's parameters resolved against `registry`: edited values
+    /// where present, defaults otherwise.
+    render::SurfaceSettings Effective(const render::BrdfRegistry& registry) const;
+};
+
+/// Loads a detail texture: colour as sRGB-encoded albedo, or a tangent-space normal map as linear
+/// data when `normalMap` is set.
+/// @return The image, or a message describing why it could not be loaded.
+std::variant<render::Image, std::string> LoadDetailTexture(const std::string& path, bool normalMap);
+
+/// Display options edited in the View and Surface panels.
 struct ViewSettings {
     float sunAzimuthDegrees = 315.0f;  ///< Clockwise from north, as seen from above.
     float sunElevationDegrees = 35.0f;
@@ -62,6 +81,7 @@ struct ViewSettings {
     bool wireframe = false;
     render::ShadowSettings shadows;
     render::LodSettings lod;
+    SurfaceViewSettings material;
     std::array<float, 3> background{0.08f, 0.08f, 0.10f};
 };
 

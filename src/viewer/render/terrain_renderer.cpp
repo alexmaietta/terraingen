@@ -13,6 +13,7 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 namespace terraingen::render {
 
@@ -31,8 +32,9 @@ struct Uniforms {
     float lodEye[4];
     std::uint32_t lodInfo[4];
     float morph[LodQuadtree::kMaxLevels * 2];
+    float eye[4];
 };
-static_assert(sizeof(Uniforms) == 304, "Uniforms must match the WGSL layout");
+static_assert(sizeof(Uniforms) == 320, "Uniforms must match the WGSL layout");
 static_assert(sizeof(LodPatch) == 16, "LodPatch must match the WGSL vec4<u32>");
 
 struct ShadowUniforms {
@@ -105,8 +107,9 @@ std::vector<std::uint32_t> PackedGradients(const Raster<float>& raster, double p
 }  // namespace
 
 TerrainRenderer::TerrainRenderer(const GpuContext& gpu, WGPUTextureFormat colorFormat,
-                                 WGPUTextureFormat depthFormat)
-    : gpu_(gpu), poisson_(PoissonDisk(16)) {
+                                 WGPUTextureFormat depthFormat, BrdfRegistry brdfs)
+    : gpu_(gpu), surface_(gpu), brdfs_(std::move(brdfs)), colorFormat_(colorFormat),
+      depthFormat_(depthFormat), poisson_(PoissonDisk(16)) {
     WGPUDevice device = gpu.Device();
 
     WGPUBindGroupLayoutEntry terrainEntries[5] = {
@@ -159,33 +162,11 @@ TerrainRenderer::TerrainRenderer(const GpuContext& gpu, WGPUTextureFormat colorF
     lightLayout_ = CreateLayout(device, &lightEntry, 1);
 
     const std::string common = shaders::kTerrainCommonWgsl;
-    WGPUShaderModule module = CreateModule(device, common + shaders::kTerrainWgsl, "terrain");
     WGPUShaderModule shadowModule =
         CreateModule(device, common + shaders::kTerrainShadowWgsl, "terrain shadow");
-
-    const WGPUBindGroupLayout mainLayouts[2] = {terrainLayout_, shadowSamplingLayout_};
-    WGPUPipelineLayout mainLayout = CreatePipelineLayout(device, mainLayouts, 2);
-    WGPUDepthStencilState depthStencil = WGPU_DEPTH_STENCIL_STATE_INIT;
-    depthStencil.format = depthFormat;
-    depthStencil.depthWriteEnabled = WGPUOptionalBool_True;
-    depthStencil.depthCompare = WGPUCompareFunction_Less;
-    WGPUColorTargetState colorTarget = WGPU_COLOR_TARGET_STATE_INIT;
-    colorTarget.format = colorFormat;
-    WGPUFragmentState fragment = WGPU_FRAGMENT_STATE_INIT;
-    fragment.module = module;
-    fragment.entryPoint = View("fs_main");
-    fragment.targetCount = 1;
-    fragment.targets = &colorTarget;
-    WGPURenderPipelineDescriptor pipelineDescriptor = WGPU_RENDER_PIPELINE_DESCRIPTOR_INIT;
-    pipelineDescriptor.label = View("terrain");
-    pipelineDescriptor.layout = mainLayout;
-    pipelineDescriptor.vertex.module = module;
-    pipelineDescriptor.vertex.entryPoint = View("vs_main");
-    pipelineDescriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
-    pipelineDescriptor.primitive.cullMode = WGPUCullMode_None;
-    pipelineDescriptor.depthStencil = &depthStencil;
-    pipelineDescriptor.fragment = &fragment;
-    pipeline_ = wgpuDeviceCreateRenderPipeline(device, &pipelineDescriptor);
+    const WGPUBindGroupLayout colorLayouts[3] = {terrainLayout_, shadowSamplingLayout_,
+                                                 surface_.Layout()};
+    colorLayout_ = CreatePipelineLayout(device, colorLayouts, 3);
 
     const WGPUBindGroupLayout shadowLayouts[2] = {terrainLayout_, lightLayout_};
     WGPUPipelineLayout shadowLayout = CreatePipelineLayout(device, shadowLayouts, 2);
@@ -205,9 +186,7 @@ TerrainRenderer::TerrainRenderer(const GpuContext& gpu, WGPUTextureFormat colorF
     shadowPipeline_ = wgpuDeviceCreateRenderPipeline(device, &shadowDescriptor);
 
     wgpuPipelineLayoutRelease(shadowLayout);
-    wgpuPipelineLayoutRelease(mainLayout);
     wgpuShaderModuleRelease(shadowModule);
-    wgpuShaderModuleRelease(module);
 
     uniformBuffer_ = CreateUniformBuffer(device, sizeof(Uniforms));
     shadowUniformBuffer_ = CreateUniformBuffer(device, sizeof(ShadowUniforms));
@@ -249,10 +228,79 @@ TerrainRenderer::~TerrainRenderer() {
     wgpuBufferRelease(shadowUniformBuffer_);
     wgpuBufferRelease(uniformBuffer_);
     wgpuRenderPipelineRelease(shadowPipeline_);
-    wgpuRenderPipelineRelease(pipeline_);
+    for (const auto& [id, pipeline] : colorPipelines_) {
+        wgpuRenderPipelineRelease(pipeline);
+    }
+    wgpuPipelineLayoutRelease(colorLayout_);
     wgpuBindGroupLayoutRelease(lightLayout_);
     wgpuBindGroupLayoutRelease(shadowSamplingLayout_);
     wgpuBindGroupLayoutRelease(terrainLayout_);
+}
+
+WGPURenderPipeline TerrainRenderer::CreateColorPipeline(const BrdfModel& model) const {
+    WGPUDevice device = gpu_.Device();
+    const std::string source = std::string(shaders::kTerrainCommonWgsl) +
+                               std::string(BrdfCommonWgsl()) + "\n" + model.wgsl + "\n" +
+                               shaders::kSurfaceWgsl + shaders::kTerrainWgsl;
+    wgpuDevicePushErrorScope(device, WGPUErrorFilter_Validation);
+    WGPUShaderModule module = CreateModule(device, source, "terrain");
+    WGPUDepthStencilState depthStencil = WGPU_DEPTH_STENCIL_STATE_INIT;
+    depthStencil.format = depthFormat_;
+    depthStencil.depthWriteEnabled = WGPUOptionalBool_True;
+    depthStencil.depthCompare = WGPUCompareFunction_Less;
+    WGPUColorTargetState colorTarget = WGPU_COLOR_TARGET_STATE_INIT;
+    colorTarget.format = colorFormat_;
+    WGPUFragmentState fragment = WGPU_FRAGMENT_STATE_INIT;
+    fragment.module = module;
+    fragment.entryPoint = View("fs_main");
+    fragment.targetCount = 1;
+    fragment.targets = &colorTarget;
+    WGPURenderPipelineDescriptor descriptor = WGPU_RENDER_PIPELINE_DESCRIPTOR_INIT;
+    descriptor.label = View("terrain");
+    descriptor.layout = colorLayout_;
+    descriptor.vertex.module = module;
+    descriptor.vertex.entryPoint = View("vs_main");
+    descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
+    descriptor.primitive.cullMode = WGPUCullMode_None;
+    descriptor.depthStencil = &depthStencil;
+    descriptor.fragment = &fragment;
+    WGPURenderPipeline pipeline = wgpuDeviceCreateRenderPipeline(device, &descriptor);
+    wgpuShaderModuleRelease(module);
+
+    struct ScopeResult {
+        bool done = false;
+        WGPUErrorType type = WGPUErrorType_NoError;
+        std::string message;
+    } result;
+    WGPUPopErrorScopeCallbackInfo callback = WGPU_POP_ERROR_SCOPE_CALLBACK_INFO_INIT;
+    callback.mode = WGPUCallbackMode_AllowProcessEvents;
+    callback.callback = [](WGPUPopErrorScopeStatus, WGPUErrorType type, WGPUStringView message,
+                           void* userdata1, void*) {
+        auto* out = static_cast<ScopeResult*>(userdata1);
+        out->type = type;
+        if (message.data != nullptr) {
+            out->message = message.length == WGPU_STRLEN
+                               ? std::string(message.data)
+                               : std::string(message.data, message.length);
+        }
+        out->done = true;
+    };
+    callback.userdata1 = &result;
+    wgpuDevicePopErrorScope(device, callback);
+    gpu_.WaitUntil([&result] { return result.done; });
+    if (result.type != WGPUErrorType_NoError) {
+        wgpuRenderPipelineRelease(pipeline);
+        throw std::invalid_argument("BRDF " + model.id + " failed to compile: " + result.message);
+    }
+    return pipeline;
+}
+
+void TerrainRenderer::AddBrdf(BrdfModel model) {
+    BrdfRegistry candidate = brdfs_;
+    candidate.Add(model);
+    const WGPURenderPipeline pipeline = CreateColorPipeline(model);
+    colorPipelines_.emplace(model.id, pipeline);
+    brdfs_ = std::move(candidate);
 }
 
 void TerrainRenderer::CreateShadowMaps(std::uint32_t resolution) {
@@ -426,7 +474,8 @@ std::uint64_t TerrainRenderer::GpuBytes() const {
                                       shadowResolution_ * kMaxCascades * sizeof(float);
     const std::uint64_t cells = static_cast<std::uint64_t>(width_) * height_;
     return cells * (sizeof(float) + sizeof(std::uint32_t)) + shadowBytes + sizeof(Uniforms) +
-           sizeof(ShadowUniforms) + kLightStride * kMaxCascades + patchCapacity_ * sizeof(LodPatch);
+           sizeof(ShadowUniforms) + kLightStride * kMaxCascades +
+           patchCapacity_ * sizeof(LodPatch) + surface_.GpuBytes();
 }
 
 std::pair<glm::vec3, glm::vec3> TerrainRenderer::Bounds(float exaggeration) const {
@@ -442,6 +491,17 @@ std::pair<glm::vec3, glm::vec3> TerrainRenderer::Bounds(float exaggeration) cons
 }
 
 void TerrainRenderer::Update(const TerrainDrawParams& params) {
+    const BrdfModel* model = brdfs_.Find(params.surface.brdf);
+    if (model == nullptr) {
+        throw std::invalid_argument("Unknown BRDF: " + params.surface.brdf);
+    }
+    auto pipeline = colorPipelines_.find(model->id);
+    if (pipeline == colorPipelines_.end()) {
+        pipeline = colorPipelines_.emplace(model->id, CreateColorPipeline(*model)).first;
+    }
+    activePipeline_ = pipeline->second;
+    surface_.Update(params.surface, ResolveBrdfParams(*model, params.surface.brdfParams));
+
     Uniforms uniforms{};
     const glm::mat4 viewProjection = params.camera.ViewProjection();
     std::memcpy(uniforms.viewProjection, glm::value_ptr(viewProjection),
@@ -479,6 +539,9 @@ void TerrainRenderer::Update(const TerrainDrawParams& params) {
                                tree_.MinFirstRange(params.exaggeration, morphStart));
         ranges = tree_.Ranges(firstRange_, morphStart);
     }
+    uniforms.eye[0] = params.camera.eye.x;
+    uniforms.eye[1] = params.camera.eye.y;
+    uniforms.eye[2] = params.camera.eye.z;
     uniforms.lodEye[0] = lodEye_.x;
     uniforms.lodEye[1] = lodEye_.y;
     uniforms.lodEye[2] = lodEye_.z;
@@ -592,9 +655,13 @@ void TerrainRenderer::Draw(WGPURenderPassEncoder pass) const {
     if (!HasHeightfield()) {
         return;
     }
-    wgpuRenderPassEncoderSetPipeline(pass, pipeline_);
+    if (activePipeline_ == nullptr) {
+        return;
+    }
+    wgpuRenderPassEncoderSetPipeline(pass, activePipeline_);
     wgpuRenderPassEncoderSetBindGroup(pass, 0, terrainBindGroup_, 0, nullptr);
     wgpuRenderPassEncoderSetBindGroup(pass, 1, shadowBindGroup_, 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(pass, 2, surface_.BindGroup(), 0, nullptr);
     DrawPatches(pass, mainRange_);
 }
 

@@ -7,6 +7,9 @@
 
 #include <limits>
 #include <stdexcept>
+#include <string>
+#include <variant>
+#include <vector>
 
 using terraingen::FractalType;
 using terraingen::GainFromHurst;
@@ -114,4 +117,49 @@ TEST(SunDirection, UsesCompassAzimuthAndElevation) {
     EXPECT_NEAR(overhead.z, 1.0f, 1e-6f);
 
     EXPECT_NEAR(glm::length(SunDirection(315.0f, 35.0f)), 1.0f, 1e-6f);
+}
+
+TEST(SurfaceViewSettings, ResolvesTheSelectedModelsParameters) {
+    const terraingen::render::BrdfRegistry registry =
+        terraingen::render::BrdfRegistry::WithBuiltins();
+    terraingen::viewer::SurfaceViewSettings material;
+    EXPECT_EQ(material.surface.brdf, "lambert");
+    EXPECT_TRUE(material.Effective(registry).brdfParams.empty());
+
+    material.surface.brdf = "hapke";
+    EXPECT_EQ(material.Effective(registry).brdfParams, registry.Find("hapke")->Defaults());
+
+    material.brdfParams["hapke"] = {0.4f, 9.0f};
+    material.brdfParams["oren_nayar"] = {30.0f};
+    const auto hapke = material.Effective(registry).brdfParams;
+    ASSERT_EQ(hapke.size(), 6u);
+    EXPECT_FLOAT_EQ(hapke[0], 0.4f);
+    EXPECT_FLOAT_EQ(hapke[1], 1.0f) << "clamped to the parameter range";
+    EXPECT_FLOAT_EQ(hapke[4], registry.Find("hapke")->params[4].defaultValue);
+
+    material.surface.brdf = "oren_nayar";
+    EXPECT_EQ(material.Effective(registry).brdfParams, std::vector<float>{30.0f})
+        << "each model keeps its own values";
+
+    material.surface.brdf = "unregistered";
+    material.surface.brdfParams = {1.0f};
+    EXPECT_EQ(material.Effective(registry).brdfParams, std::vector<float>{1.0f});
+}
+
+TEST(LoadDetailTexture, LoadsColourAsSrgbAndNormalsAsLinear) {
+    const std::string path = std::string(TERRAINGEN_TEST_FIXTURES) + "/images/grey16.png";
+    const auto albedo = terraingen::viewer::LoadDetailTexture(path, false);
+    const auto normal = terraingen::viewer::LoadDetailTexture(path, true);
+    ASSERT_TRUE(std::holds_alternative<terraingen::render::Image>(albedo));
+    ASSERT_TRUE(std::holds_alternative<terraingen::render::Image>(normal));
+    const float stored = 32768.0f / 65535.0f;
+    EXPECT_NEAR(std::get<terraingen::render::Image>(normal).At(0, 1).r, stored, 1e-6f);
+    EXPECT_NEAR(std::get<terraingen::render::Image>(albedo).At(0, 1).r,
+                terraingen::render::SrgbToLinear(stored), 1e-6f);
+
+    const auto missing = terraingen::viewer::LoadDetailTexture("/no/such/file.png", false);
+    ASSERT_TRUE(std::holds_alternative<std::string>(missing));
+    EXPECT_NE(std::get<std::string>(missing).find("/no/such/file.png"), std::string::npos);
+    EXPECT_EQ(std::get<std::string>(terraingen::viewer::LoadDetailTexture("", true)),
+              "No file given");
 }

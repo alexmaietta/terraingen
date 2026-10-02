@@ -10,6 +10,7 @@
 #include <random>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace terraingen::viewer {
 
@@ -195,7 +196,7 @@ bool DrawViewPanel(ViewSettings& view) {
     ImGui::SliderFloat("Exaggeration", &view.exaggeration, 0.1f, 10.0f, "%.1fx",
                        ImGuiSliderFlags_Logarithmic);
     int mode = static_cast<int>(view.colorMode);
-    ImGui::Combo("Colour", &mode, "Hillshade\0Height colormap\0Shaded colormap\0");
+    ImGui::Combo("Colour", &mode, "Shaded\0Height colormap\0Shaded colormap\0");
     view.colorMode = static_cast<render::TerrainColorMode>(mode);
     ImGui::Checkbox("Wireframe", &view.wireframe);
 
@@ -238,6 +239,106 @@ bool DrawViewPanel(ViewSettings& view) {
     ImGui::PopItemWidth();
     ImGui::End();
     return frame;
+}
+
+SurfacePanelAction DrawSurfacePanel(SurfaceViewSettings& material, SurfacePanelState& state,
+                                    const render::BrdfRegistry& registry) {
+    const ImGuiIO& io = ImGui::GetIO();
+    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 10.0f, 10.0f), ImGuiCond_FirstUseEver,
+                            ImVec2(1.0f, 0.0f));
+    ImGui::Begin("Surface", nullptr, kPanelFlags);
+    ImGui::PushItemWidth(200.0f);
+    SurfacePanelAction action = SurfacePanelAction::None;
+    render::SurfaceSettings& surface = material.surface;
+
+    ImGui::SeparatorText("Reflectance");
+    const render::BrdfModel* selected = registry.Find(surface.brdf);
+    if (ImGui::BeginCombo("Model", selected != nullptr ? selected->name.c_str() : "?")) {
+        for (const render::BrdfModel& model : registry.Models()) {
+            if (ImGui::Selectable(model.name.c_str(), &model == selected)) {
+                surface.brdf = model.id;
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("%s", model.description.c_str());
+            }
+        }
+        ImGui::EndCombo();
+    }
+    selected = registry.Find(surface.brdf);
+    if (selected != nullptr) {
+        std::vector<float>& values = material.brdfParams[selected->id];
+        values = render::ResolveBrdfParams(*selected, values);
+        for (std::size_t i = 0; i < selected->params.size(); ++i) {
+            const render::BrdfParam& param = selected->params[i];
+            const std::string format =
+                param.units.empty() ? std::string("%.4g") : "%.4g " + param.units;
+            ImGui::SliderFloat(
+                param.label.c_str(), &values[i], param.minValue, param.maxValue, format.c_str(),
+                param.logarithmic ? ImGuiSliderFlags_Logarithmic : ImGuiSliderFlags_None);
+            if (ImGui::IsItemHovered() && !param.description.empty()) {
+                ImGui::SetTooltip("%s", param.description.c_str());
+            }
+        }
+        if (!selected->params.empty() && ImGui::Button("Reset parameters")) {
+            values = selected->Defaults();
+        }
+        if (!selected->references.empty()) {
+            ImGui::TextDisabled("(references)");
+            if (ImGui::IsItemHovered()) {
+                ImGui::BeginTooltip();
+                ImGui::PushTextWrapPos(500.0f);
+                for (const std::string& reference : selected->references) {
+                    ImGui::BulletText("%s", reference.c_str());
+                }
+                ImGui::PopTextWrapPos();
+                ImGui::EndTooltip();
+            }
+        }
+    }
+    ImGui::ColorEdit3("Albedo", &surface.albedo.x);
+    ImGui::SliderFloat("Exposure", &surface.exposure, 0.01f, 100.0f, "%.3g",
+                       ImGuiSliderFlags_Logarithmic);
+    ImGui::BeginDisabled(!state.hasAlbedoMap);
+    ImGui::Checkbox("Use albedo map", &surface.useAlbedoMap);
+    ImGui::EndDisabled();
+
+    ImGui::SeparatorText("Detail textures");
+    render::DetailSettings& detail = surface.detail;
+    ImGui::InputText("Albedo file", state.albedoPath.data(), state.albedoPath.size());
+    ImGui::SameLine();
+    if (ImGui::Button("Load##albedo")) {
+        action = SurfacePanelAction::LoadDetailAlbedo;
+    }
+    if (!state.albedoStatus.empty()) {
+        ImGui::TextDisabled("%s", state.albedoStatus.c_str());
+    }
+    ImGui::InputText("Normal file", state.normalPath.data(), state.normalPath.size());
+    ImGui::SameLine();
+    if (ImGui::Button("Load##normal")) {
+        action = SurfacePanelAction::LoadDetailNormal;
+    }
+    if (!state.normalStatus.empty()) {
+        ImGui::TextDisabled("%s", state.normalStatus.c_str());
+    }
+    if (ImGui::Button("Clear detail textures")) {
+        action = SurfacePanelAction::ClearDetail;
+    }
+    ImGui::SliderFloat("Tile size", &detail.tileSize, 0.1f, 1000.0f, "%.3g m",
+                       ImGuiSliderFlags_Logarithmic);
+    ImGui::SliderFloat("Albedo strength", &detail.albedoStrength, 0.0f, 1.0f, "%.2f");
+    ImGui::SliderFloat("Normal strength", &detail.normalStrength, 0.0f, 4.0f, "%.2f");
+    ImGui::Checkbox("DirectX normal map", &detail.directXNormals);
+    ImGui::Checkbox("Hex tiling", &detail.hexTiling);
+    ImGui::BeginDisabled(!detail.hexTiling);
+    ImGui::SliderFloat("Tile rotation", &detail.hexRotation, 0.0f, 1.0f, "%.2f");
+    ImGui::SliderFloat("Blend contrast", &detail.hexContrast, 0.0f, 1.0f, "%.2f");
+    ImGui::SliderFloat("Blend sharpness", &detail.hexSharpness, 1.0f, 32.0f, "%.1f",
+                       ImGuiSliderFlags_Logarithmic);
+    ImGui::EndDisabled();
+
+    ImGui::PopItemWidth();
+    ImGui::End();
+    return action;
 }
 
 void DrawInfoPanel(const InfoPanelData& info) {

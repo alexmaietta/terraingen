@@ -16,6 +16,8 @@ struct Uniforms {
     lod_info: vec4<u32>,
     // Morph start distance and 1 / (morph end - morph start) per LOD level, two levels per vec4.
     morph: array<vec4<f32>, 8>,
+    // xyz: camera position, w: unused.
+    eye: vec4<f32>,
 }
 
 @group(0) @binding(0) var<uniform> u: Uniforms;

@@ -1,5 +1,7 @@
+#include "render/brdf.h"
 #include "render/depth_buffer.h"
 #include "render/gpu_context.h"
+#include "render/image.h"
 #include "render/orbit_camera.h"
 #include "render/terrain_renderer.h"
 #include "terraingen/surfaces/synthetic_terrain.h"
@@ -20,8 +22,10 @@
 using terraingen::GenerateSyntheticTerrain;
 using terraingen::GeoTransform;
 using terraingen::Raster;
+using terraingen::render::BrdfModel;
 using terraingen::render::DepthBuffer;
 using terraingen::render::GpuContext;
+using terraingen::render::Image;
 using terraingen::render::OrbitCamera;
 using terraingen::render::TerrainColorMode;
 using terraingen::render::TerrainDrawParams;
@@ -50,7 +54,8 @@ class TerrainRendererTest : public testing::Test {
         }
     }
 
-    std::vector<Pixel> Render(TerrainRenderer& renderer, const TerrainDrawParams& params) {
+    std::vector<Pixel> Render(TerrainRenderer& renderer, const TerrainDrawParams& params,
+                              bool update = true) {
         WGPUTextureDescriptor colorDescriptor = WGPU_TEXTURE_DESCRIPTOR_INIT;
         colorDescriptor.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
         colorDescriptor.dimension = WGPUTextureDimension_2D;
@@ -83,7 +88,9 @@ class TerrainRendererTest : public testing::Test {
         readbackDescriptor.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
         WGPUBuffer readback = wgpuDeviceCreateBuffer(gpu_->Device(), &readbackDescriptor);
 
-        renderer.Update(params);
+        if (update) {
+            renderer.Update(params);
+        }
         WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(gpu_->Device(), nullptr);
         renderer.EncodeShadows(encoder);
         WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(encoder, &passDescriptor);
@@ -452,4 +459,274 @@ TEST_F(TerrainRendererTest, GrowsThePatchBufferForLargeSelections) {
     EXPECT_EQ(renderer.PatchCount(), 32u * 32u);
     EXPECT_GT(renderer.GpuBytes(), before + 1025u * 1025u * 8u);
     EXPECT_GT(pixels[kSize / 2 * kSize + kSize / 2].Luminance(), 0);
+}
+
+namespace {
+
+int CentreLuminance(const std::vector<Pixel>& pixels) {
+    return pixels[kSize / 2 * kSize + kSize / 2].Luminance();
+}
+
+/// Mean and standard deviation of luminance over the central half of the image.
+std::pair<double, double> CentreStatistics(const std::vector<Pixel>& pixels) {
+    double sum = 0.0;
+    double squares = 0.0;
+    int count = 0;
+    for (std::size_t row = kSize / 4; row < 3 * kSize / 4; ++row) {
+        for (std::size_t col = kSize / 4; col < 3 * kSize / 4; ++col) {
+            const double l = pixels[row * kSize + col].Luminance();
+            sum += l;
+            squares += l * l;
+            ++count;
+        }
+    }
+    const double mean = sum / count;
+    return {mean, std::sqrt(std::max(0.0, squares / count - mean * mean))};
+}
+
+Image TiltedNormals(glm::vec3 normal) {
+    const glm::vec3 n = glm::normalize(normal);
+    return Image(16, 16, glm::vec4(0.5f * n + 0.5f, 1.0f));
+}
+
+TerrainDrawParams LitFromEast(const TerrainRenderer& renderer) {
+    OrbitCamera camera;
+    camera.pitch = OrbitCamera::kMaxPitch;
+    const auto [low, high] = renderer.Bounds(1.0f);
+    camera.Frame(low, high);
+    TerrainDrawParams params;
+    params.camera = camera.MakeView(1.0f);
+    params.colorMode = TerrainColorMode::Hillshade;
+    params.ambient = 0.0f;
+    params.shadows.enabled = false;
+    params.sunDirection = glm::normalize(glm::vec3(1.0f, 0.0f, 0.5f));
+    return params;
+}
+
+}  // namespace
+
+TEST_F(TerrainRendererTest, EveryBuiltinBrdfRendersWithoutValidationErrors) {
+    testing::internal::CaptureStderr();
+    TerrainRenderer renderer(*gpu_, kColorFormat);
+    renderer.SetHeightfield(
+        GenerateSyntheticTerrain(65, 65, 1.0, terraingen::SyntheticTerrainParams{}));
+    TerrainDrawParams params = FramedView(renderer);
+    params.colorMode = TerrainColorMode::Hillshade;
+    params.sunDirection = glm::normalize(glm::vec3(0.3f, -0.2f, 1.0f));
+    params.surface.albedo = glm::vec3(0.3f);
+    params.surface.exposure = 3.0f;
+    for (const BrdfModel& model : renderer.Brdfs().Models()) {
+        params.surface.brdf = model.id;
+        EXPECT_GT(CentreLuminance(Render(renderer, params)), 30) << model.id;
+    }
+    EXPECT_EQ(testing::internal::GetCapturedStderr(), "");
+    params.surface.brdf = "missing";
+    EXPECT_THROW(renderer.Update(params), std::invalid_argument);
+}
+
+TEST_F(TerrainRendererTest, AddBrdfCompilesCustomModelsAndReportsErrors) {
+    TerrainRenderer renderer(*gpu_, kColorFormat);
+    renderer.SetHeightfield(Plane(0.0f));
+    TerrainDrawParams params = FramedView(renderer);
+    params.colorMode = TerrainColorMode::Hillshade;
+    params.ambient = 0.0f;
+    const int lambert = CentreLuminance(Render(renderer, params));
+
+    BrdfModel half{"half",
+                   "Half",
+                   "Half of the albedo input.",
+                   {},
+                   {},
+                   "fn brdf_radiance_factor(s: BrdfInput) -> vec3<f32> {\n"
+                   "    return 0.5 * s.albedo * brdf_param(0u);\n}\n"};
+    half.params = {{"gain", "Gain", "", 1.0f, 0.0f, 2.0f, false, ""}};
+    renderer.AddBrdf(half);
+    ASSERT_NE(renderer.Brdfs().Find("half"), nullptr);
+    params.surface.brdf = "half";
+    EXPECT_NEAR(CentreLuminance(Render(renderer, params)), lambert / 2, 3);
+    params.surface.brdfParams = {2.0f};
+    EXPECT_NEAR(CentreLuminance(Render(renderer, params)), lambert, 3);
+
+    BrdfModel broken{
+        "broken", "Broken",
+        "",       {},
+        {},       "fn brdf_radiance_factor(s: BrdfInput) -> vec3<f32> { return s.nope; }"};
+    try {
+        renderer.AddBrdf(broken);
+        ADD_FAILURE() << "invalid WGSL accepted";
+    } catch (const std::invalid_argument& error) {
+        EXPECT_NE(std::string(error.what()).find("broken failed to compile"), std::string::npos);
+    }
+    EXPECT_EQ(renderer.Brdfs().Find("broken"), nullptr);
+    EXPECT_THROW(renderer.AddBrdf(half), std::invalid_argument);
+    EXPECT_EQ(renderer.Brdfs().Models().size(), 6u);
+}
+
+TEST_F(TerrainRendererTest, AlbedoAndExposureScaleTheShading) {
+    TerrainRenderer renderer(*gpu_, kColorFormat);
+    renderer.SetHeightfield(Plane(0.0f));
+    TerrainDrawParams params = FramedView(renderer);
+    params.colorMode = TerrainColorMode::Hillshade;
+    params.ambient = 0.0f;
+    params.sunDirection = glm::normalize(glm::vec3(0.0f, 0.0f, 1.0f));
+    const int full = CentreLuminance(Render(renderer, params));
+    params.surface.albedo = glm::vec3(0.5f);
+    EXPECT_NEAR(CentreLuminance(Render(renderer, params)), full / 2, 3);
+    params.surface.exposure = 2.0f;
+    EXPECT_NEAR(CentreLuminance(Render(renderer, params)), full, 3);
+    params.surface.albedo = glm::vec3(1.0f, 0.0f, 0.0f);
+    params.surface.exposure = 1.0f;
+    const Pixel red = Render(renderer, params)[kSize / 2 * kSize + kSize / 2];
+    EXPECT_GT(red.r, 200);
+    EXPECT_EQ(red.g, 0);
+}
+
+TEST_F(TerrainRendererTest, AlbedoMapVariesTheSurfaceAndFallsBackAtGaps) {
+    TerrainRenderer renderer(*gpu_, kColorFormat);
+    renderer.SetHeightfield(Plane(0.0f));
+    Raster<float> albedo(8, 8);
+    albedo.SetTransform(GeoTransform::NorthUp(-16.5, 16.5, 33.0 / 8.0));
+    for (std::size_t row = 0; row < 8; ++row) {
+        for (std::size_t col = 0; col < 8; ++col) {
+            albedo(col, row) = col < 4 ? 0.25f : 1.0f;
+        }
+    }
+    albedo(6, 0) = std::numeric_limits<float>::quiet_NaN();
+    renderer.Material().SetAlbedoMap(albedo);
+    EXPECT_TRUE(renderer.Material().HasAlbedoMap());
+
+    TerrainDrawParams params = FramedView(renderer);
+    params.colorMode = TerrainColorMode::Hillshade;
+    params.ambient = 0.0f;
+    params.sunDirection = glm::vec3(0.0f, 0.0f, 1.0f);
+    params.surface.albedo = glm::vec3(0.0f);
+    const std::vector<Pixel> mapped = Render(renderer, params);
+    const auto [first, last] = CoveredSpan(mapped, kSize / 2);
+    ASSERT_LT(first, last);
+    const int west = mapped[kSize / 2 * kSize + first + (last - first) / 5].Luminance();
+    const int east = mapped[kSize / 2 * kSize + last - (last - first) / 5].Luminance();
+    EXPECT_NEAR(west * 4, east, 12);
+    const std::size_t gap = (first + (last - first) * 13 / 16) + 2 * kSize;
+    EXPECT_LT(mapped[gap + kSize].Luminance(), east) << "NaN cell falls back to the constant";
+
+    params.surface.useAlbedoMap = false;
+    params.surface.albedo = glm::vec3(1.0f);
+    const std::vector<Pixel> constant = Render(renderer, params);
+    EXPECT_NEAR(constant[kSize / 2 * kSize + first + (last - first) / 5].Luminance(), east, 3);
+
+    renderer.Material().ClearAlbedoMap();
+    EXPECT_FALSE(renderer.Material().HasAlbedoMap());
+    EXPECT_THROW(renderer.Material().SetAlbedoMap(Raster<float>()), std::invalid_argument);
+    Raster<float> rotated(4, 4);
+    rotated.SetTransform(GeoTransform::FromGdal({0.0, 1.0, 0.2, 0.0, 0.0, -1.0}));
+    EXPECT_THROW(renderer.Material().SetAlbedoMap(rotated), std::invalid_argument);
+    Raster<float> huge(std::size_t{1} << 20, 1);
+    huge.SetTransform(GeoTransform::NorthUp(0.0, 0.0, 1.0));
+    EXPECT_THROW(renderer.Material().SetAlbedoMap(huge), std::invalid_argument);
+}
+
+TEST_F(TerrainRendererTest, DetailAlbedoAddsVariationButKeepsTheMean) {
+    TerrainRenderer renderer(*gpu_, kColorFormat);
+    renderer.SetHeightfield(Plane(0.0f));
+    TerrainDrawParams params = FramedView(renderer);
+    params.colorMode = TerrainColorMode::Hillshade;
+    params.ambient = 0.0f;
+    params.sunDirection = glm::vec3(0.0f, 0.0f, 1.0f);
+    params.surface.albedo = glm::vec3(0.5f);
+    const auto [plainMean, plainSpread] = CentreStatistics(Render(renderer, params));
+    EXPECT_LT(plainSpread, 1.0);
+
+    const Image grey(8, 8, glm::vec4(0.2f, 0.2f, 0.2f, 1.0f));
+    renderer.Material().SetDetailTextures(&grey, nullptr);
+    EXPECT_TRUE(renderer.Material().HasDetailAlbedo());
+    EXPECT_NEAR(renderer.Material().DetailAlbedoMean().g, 0.2f, 2e-3f);
+    EXPECT_NEAR(CentreStatistics(Render(renderer, params)).first, plainMean, 2.0)
+        << "a uniform texture divided by its mean changes nothing";
+
+    Image checker(64, 64);
+    for (std::uint32_t y = 0; y < 64; ++y) {
+        for (std::uint32_t x = 0; x < 64; ++x) {
+            const float v = ((x / 8 + y / 8) % 2 == 0) ? 0.1f : 0.3f;
+            checker.At(x, y) = glm::vec4(v, v, v, 1.0f);
+        }
+    }
+    const std::uint64_t before = renderer.GpuBytes();
+    renderer.Material().SetDetailTextures(&checker, nullptr);
+    EXPECT_GT(renderer.GpuBytes(), before);
+    params.surface.detail.tileSize = 16.0f;
+    params.surface.detail.hexTiling = false;
+    const auto [checkerMean, checkerSpread] = CentreStatistics(Render(renderer, params));
+    EXPECT_GT(checkerSpread, 20.0);
+    EXPECT_NEAR(checkerMean, plainMean, 0.1 * plainMean);
+    params.surface.detail.hexTiling = true;
+    EXPECT_GT(CentreStatistics(Render(renderer, params)).second, 10.0);
+    params.surface.detail.albedoStrength = 0.0f;
+    EXPECT_LT(CentreStatistics(Render(renderer, params)).second, 1.0);
+
+    renderer.Material().SetDetailTextures(nullptr, nullptr);
+    EXPECT_FALSE(renderer.Material().HasDetailAlbedo());
+    const Image empty;
+    EXPECT_THROW(renderer.Material().SetDetailTextures(&empty, nullptr), std::invalid_argument);
+    const Image huge(std::uint32_t{1} << 20, 1);
+    EXPECT_THROW(renderer.Material().SetDetailTextures(nullptr, &huge), std::invalid_argument);
+}
+
+TEST_F(TerrainRendererTest, DetailNormalsTiltTheShadingAndFollowTheirConvention) {
+    TerrainRenderer renderer(*gpu_, kColorFormat);
+    renderer.SetHeightfield(Plane(0.0f));
+    TerrainDrawParams params = LitFromEast(renderer);
+    params.surface.detail.hexTiling = false;
+    const double flat = CentreStatistics(Render(renderer, params)).first;
+
+    const Image east = TiltedNormals({0.5f, 0.0f, 1.0f});
+    renderer.Material().SetDetailTextures(nullptr, &east);
+    EXPECT_TRUE(renderer.Material().HasDetailNormal());
+    const auto [plain, plainSpread] = CentreStatistics(Render(renderer, params));
+    EXPECT_GT(plain, flat + 40.0) << "a normal tilted towards the sun brightens the ground";
+    EXPECT_LT(plainSpread, 2.0);
+
+    // Hex tiles without rotation only offset the texture, which leaves a uniform tilt uniform;
+    // with rotation each tile's tilt turns with it (see HexTilingGpuTest for the consistency).
+    params.surface.detail.hexTiling = true;
+    params.surface.detail.hexRotation = 0.0f;
+    const auto [offsetOnly, offsetSpread] = CentreStatistics(Render(renderer, params));
+    EXPECT_NEAR(offsetOnly, plain, 2.0);
+    EXPECT_LT(offsetSpread, 2.0);
+    params.surface.detail.hexRotation = 1.0f;
+    EXPECT_GT(CentreStatistics(Render(renderer, params)).second, 20.0);
+
+    params.surface.detail.normalStrength = 0.0f;
+    EXPECT_NEAR(CentreStatistics(Render(renderer, params)).first, flat, 2.0);
+
+    const Image north = TiltedNormals({0.0f, 0.5f, 1.0f});
+    renderer.Material().SetDetailTextures(nullptr, &north);
+    params.surface.detail.normalStrength = 1.0f;
+    params.surface.detail.hexTiling = false;
+    params.sunDirection = glm::normalize(glm::vec3(0.0f, 1.0f, 0.5f));
+    const double openGl = CentreStatistics(Render(renderer, params)).first;
+    params.surface.detail.directXNormals = true;
+    const double directX = CentreStatistics(Render(renderer, params)).first;
+    EXPECT_GT(openGl, directX + 60.0) << "green up the image points north in OpenGL maps";
+}
+
+TEST_F(TerrainRendererTest, DrawingBeforeTheFirstUpdateDrawsNothing) {
+    TerrainRenderer renderer(*gpu_, kColorFormat);
+    renderer.SetHeightfield(Plane(0.0f));
+    for (const Pixel& p : Render(renderer, FramedView(renderer), false)) {
+        ASSERT_EQ(p.Luminance(), 0);
+    }
+}
+
+TEST_F(TerrainRendererTest, FlatGroundUnderAZenithSunIsNotSelfShadowed) {
+    TerrainRenderer renderer(*gpu_, kColorFormat);
+    renderer.SetHeightfield(Plane(0.0f));
+    TerrainDrawParams params = FramedView(renderer);
+    params.colorMode = TerrainColorMode::Hillshade;
+    params.ambient = 0.0f;
+    params.sunDirection = glm::vec3(0.0f, 0.0f, 1.0f);
+    params.shadows.enabled = false;
+    const int unshadowed = CentreLuminance(Render(renderer, params));
+    EXPECT_GT(unshadowed, 700);
+    params.shadows.enabled = true;
+    EXPECT_NEAR(CentreLuminance(Render(renderer, params)), unshadowed, 3);
 }

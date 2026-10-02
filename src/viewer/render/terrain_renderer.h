@@ -1,10 +1,12 @@
 #pragma once
 
+#include "render/brdf.h"
 #include "render/frustum.h"
 #include "render/gpu_context.h"
 #include "render/lod_quadtree.h"
 #include "render/orbit_camera.h"
 #include "render/shadow_cascades.h"
+#include "render/surface_material.h"
 #include "terraingen/core/raster.h"
 
 #include <glm/glm.hpp>
@@ -13,6 +15,8 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <map>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -20,9 +24,9 @@ namespace terraingen::render {
 
 /// How terrain fragments are coloured.
 enum class TerrainColorMode : std::uint32_t {
-    Hillshade = 0,       ///< Grey Lambert shading.
+    Hillshade = 0,       ///< Surface albedo lit by the selected reflectance model.
     Colormap = 1,        ///< Height colormap without shading.
-    ShadedColormap = 2,  ///< Height colormap modulated by Lambert shading.
+    ShadedColormap = 2,  ///< Height colormap modulated by the lit surface.
 };
 
 /// Cascaded shadow map options.
@@ -58,6 +62,7 @@ struct TerrainDrawParams {
     bool wireframe = false;
     ShadowSettings shadows;
     LodSettings lod;
+    SurfaceSettings surface;
 };
 
 /// Draws a north-up heightfield raster as a lit, shadowed triangle mesh.
@@ -68,6 +73,11 @@ struct TerrainDrawParams {
 /// vertex and instance indices and morphed between levels. Normals come from a precomputed
 /// central-difference gradient texture sampled per fragment, so shading is independent of the mesh
 /// level. The world frame is the raster's: x east, y north, z up.
+///
+/// Fragments are lit by a reflectance model from a `BrdfRegistry`: the colour pass is composed
+/// from the shared terrain code, the model's WGSL and `surface.wgsl`, with one pipeline per model
+/// built on first use. Albedo comes from `Material()`'s albedo map or a constant, varied by its
+/// detail albedo texture; its detail normal texture perturbs the shading normal.
 ///
 /// The main view culls patches against the camera frustum and each shadow cascade against its
 /// light frustum, but all of them choose levels and morph from the camera's eye, so shadow casters
@@ -93,9 +103,11 @@ class TerrainRenderer {
     /// Grid quads along a level-0 LOD node; patches are half this.
     static constexpr std::uint32_t kLodLeafCells = 64;
 
-    /// Builds the pipelines for render passes with the given colour and depth formats.
+    /// Builds the pipelines for render passes with the given colour and depth formats, drawing
+    /// with the reflectance models in `brdfs`.
     TerrainRenderer(const GpuContext& gpu, WGPUTextureFormat colorFormat,
-                    WGPUTextureFormat depthFormat = WGPUTextureFormat_Depth32Float);
+                    WGPUTextureFormat depthFormat = WGPUTextureFormat_Depth32Float,
+                    BrdfRegistry brdfs = BrdfRegistry::WithBuiltins());
     ~TerrainRenderer();
     TerrainRenderer(const TerrainRenderer&) = delete;
     TerrainRenderer& operator=(const TerrainRenderer&) = delete;
@@ -136,6 +148,24 @@ class TerrainRenderer {
         return tree_;
     }
 
+    const BrdfRegistry& Brdfs() const {
+        return brdfs_;
+    }
+
+    /// Compiles `model` into a colour pipeline and registers it.
+    /// @throws std::invalid_argument if the registry rejects the model (`BrdfRegistry::Add`) or
+    /// its WGSL fails to compile; the message includes the compiler's diagnostics.
+    void AddBrdf(BrdfModel model);
+
+    /// Albedo map and detail textures.
+    SurfaceMaterial& Material() {
+        return surface_;
+    }
+
+    const SurfaceMaterial& Material() const {
+        return surface_;
+    }
+
     /// GPU memory held for the heightfield, shadow maps and uniforms, in bytes.
     std::uint64_t GpuBytes() const;
 
@@ -144,6 +174,7 @@ class TerrainRenderer {
 
     /// Uploads per-frame uniforms, fits the shadow cascades and selects the LOD patches for the
     /// main view and every cascade. Call once per frame before `EncodeShadows` and `Draw`.
+    /// @throws std::invalid_argument if `params.surface.brdf` is not in `Brdfs()`.
     void Update(const TerrainDrawParams& params);
 
     /// Records the shadow map passes. Does nothing without a heightfield or with shadows off.
@@ -163,6 +194,7 @@ class TerrainRenderer {
         std::uint32_t count = 0;
     };
 
+    WGPURenderPipeline CreateColorPipeline(const BrdfModel& model) const;
     void CreateShadowMaps(std::uint32_t resolution);
     void CreateTerrainBindGroup();
     void ReservePatches(std::size_t count);
@@ -171,10 +203,16 @@ class TerrainRenderer {
     void ReleaseHeightfield();
 
     const GpuContext& gpu_;
+    SurfaceMaterial surface_;
+    BrdfRegistry brdfs_;
+    WGPUTextureFormat colorFormat_;
+    WGPUTextureFormat depthFormat_;
+    WGPUPipelineLayout colorLayout_ = nullptr;
+    std::map<std::string, WGPURenderPipeline, std::less<>> colorPipelines_;
+    WGPURenderPipeline activePipeline_ = nullptr;
     WGPUBindGroupLayout terrainLayout_ = nullptr;
     WGPUBindGroupLayout shadowSamplingLayout_ = nullptr;
     WGPUBindGroupLayout lightLayout_ = nullptr;
-    WGPURenderPipeline pipeline_ = nullptr;
     WGPURenderPipeline shadowPipeline_ = nullptr;
     WGPUBuffer uniformBuffer_ = nullptr;
     WGPUBuffer shadowUniformBuffer_ = nullptr;
