@@ -143,6 +143,7 @@ add_library(
     ernie/src/raster/raster_delegate.cpp
     ernie/src/raster/raster_material.cpp
     ernie/src/raster/raster_renderer.cpp
+    ernie/src/raster/render_outputs.cpp
     ernie/src/raster/shadow_cascades.cpp
     ernie/src/raster/terrain_part.cpp)
 ernie_layer(ernie_raster)

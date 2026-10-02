@@ -30,6 +30,12 @@ read() are read-only views. Write again after changing an array in place, so the
 tracked. CUDA arrays are copied into Ernie's GPU buffers device to device, ordered on the GPU
 after the work that produced them.
 
+Rendering follows ovrtx: renderer.step(scene, render_products={"/Render/Camera"}) returns the
+outputs by product, and product.frames[0].render_vars["/Render/Camera/LdrColor"].map(device=...)
+delivers each output to Device.CPU, Device.CUDA (linear, filled on the GPU) or Device.CUDA_ARRAY
+(the rendered image itself, no copy); unmap() hands a CUDA_ARRAY back. step_async() returns an
+Operation to wait(timeout_ns=...) on or poll, then fetch().
+
 render(scene, device="cuda") returns a CudaArray in GPU memory shared with Vulkan. It returns as
 soon as the render is submitted; torch.from_dlpack(result) (or CuPy, JAX) makes the consumer's
 stream wait for the render on the GPU, so the host never blocks.
@@ -38,10 +44,16 @@ stream wait for the render on the GPU, so the host never blocks.
 from ._ernie import (
     ChangeCursor,
     CudaArray,
+    CudaArrayMapping,
+    Device,
     Dirty,
+    Frame,
+    Operation,
     Path,
     Prim,
     RasterRenderer,
+    RenderProductOutput,
+    RenderVar,
     Scene,
     dirty_of,
     distant_light_transform,
@@ -52,10 +64,16 @@ from ._ernie import (
 __all__ = [
     "ChangeCursor",
     "CudaArray",
+    "CudaArrayMapping",
+    "Device",
     "Dirty",
+    "Frame",
+    "Operation",
     "Path",
     "Prim",
     "RasterRenderer",
+    "RenderProductOutput",
+    "RenderVar",
     "Scene",
     "dirty_of",
     "distant_light_transform",

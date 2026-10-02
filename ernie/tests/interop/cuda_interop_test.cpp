@@ -1,4 +1,5 @@
 #include "ernie/gpu/gpu_buffer.h"
+#include "ernie/gpu/gpu_image.h"
 #include "ernie/interop/cuda_interop.h"
 #include "support/vulkan_fixture.h"
 
@@ -144,4 +145,35 @@ TEST_F(CudaInteropTest, CudaWaitsOnTheGpuForVulkanWrites) {
     context_->WaitForSubmissions();
     EXPECT_FALSE(context_->HasPendingSubmissions());
     vkDestroySemaphore(context_->Device(), gate, nullptr);
+}
+
+TEST_F(CudaInteropTest, ImagesMapAsCudaArraysWithoutCopying) {
+    ernie::ImageDesc desc{
+        4, 2, 1, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, true};
+    ernie::GpuImage image(*context_, desc);
+    const ernie::TimelinePoint signal = cuda_->NextVulkanSignal();
+    context_->Submit(
+        [&](VkCommandBuffer commands) {
+            image.Transition(commands, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+            const VkClearColorValue color{{0.0f, 0.5f, 1.0f, 1.0f}};
+            const VkImageSubresourceRange range{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+            vkCmdClearColorImage(commands, image.Handle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                 &color, 1, &range);
+            image.Transition(commands, VK_IMAGE_LAYOUT_GENERAL);
+        },
+        {}, std::span(&signal, 1));
+    const ernie::CudaArrayView view = cuda_->MapImage(image);
+    EXPECT_NE(view.array, 0u);
+    EXPECT_EQ(view.channels, 4u);
+    EXPECT_EQ(cuda_->MapImage(image).array, view.array) << "imported once";
+    const Tensor host = cuda_->DownloadArray(view);
+    EXPECT_EQ(host.Shape(), (std::vector<std::int64_t>{2, 4, 4}));
+    const auto* texels = host.As<std::uint8_t>();
+    EXPECT_EQ(texels[0], 0);
+    EXPECT_NEAR(texels[1], 128, 1);
+    EXPECT_EQ(texels[2], 255);
+    EXPECT_EQ(texels[4 * 7 + 3], 255);
+
+    ernie::GpuImage plain(*context_, {4, 2, 1, 1, VK_FORMAT_R8G8B8A8_UNORM});
+    EXPECT_THROW(cuda_->MapImage(plain), std::invalid_argument);
 }

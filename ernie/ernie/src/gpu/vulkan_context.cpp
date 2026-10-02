@@ -417,6 +417,18 @@ void VulkanContext::Report(std::string message) {
     messages_.push_back(std::move(message));
 }
 
+std::uint32_t VulkanContext::DeviceLocalMemoryType(std::uint32_t typeBits) const {
+    VkPhysicalDeviceMemoryProperties properties{};
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice_, &properties);
+    for (std::uint32_t i = 0; i < properties.memoryTypeCount; ++i) {
+        if ((typeBits & (1u << i)) != 0 &&
+            (properties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0) {
+            return i;
+        }
+    }
+    throw std::runtime_error("No device-local memory type");
+}
+
 VkSemaphore VulkanContext::CreateTimelineSemaphore(std::uint64_t initial, bool exportable) const {
     VkSemaphoreTypeCreateInfo type{VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO};
     type.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
@@ -511,9 +523,9 @@ void VulkanContext::Submit(const std::function<void(VkCommandBuffer)>& record,
     CheckVk(result, "vkQueueSubmit2");
 }
 
-void VulkanContext::SubmitAsync(const std::function<void(VkCommandBuffer)>& record,
-                                std::span<const TimelinePoint> waits,
-                                std::span<const TimelinePoint> signals) const {
+std::uint64_t VulkanContext::SubmitAsync(const std::function<void(VkCommandBuffer)>& record,
+                                         std::span<const TimelinePoint> waits,
+                                         std::span<const TimelinePoint> signals) const {
     std::lock_guard lock(submitMutex_);
     RecyclePending();
     VkCommandBuffer commands = Record(record);
@@ -536,6 +548,15 @@ void VulkanContext::SubmitAsync(const std::function<void(VkCommandBuffer)>& reco
         CheckVk(result, "vkQueueSubmit2");
     }
     pending_.emplace_back(commands, ++submitted_);
+    return submitted_;
+}
+
+bool VulkanContext::WaitForSubmission(std::uint64_t submission, std::uint64_t timeoutNs) const {
+    VkSemaphoreWaitInfo wait{VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO};
+    wait.semaphoreCount = 1;
+    wait.pSemaphores = &submissions_;
+    wait.pValues = &submission;
+    return vkWaitSemaphores(device_, &wait, timeoutNs) == VK_SUCCESS;
 }
 
 void VulkanContext::RecyclePending() const {

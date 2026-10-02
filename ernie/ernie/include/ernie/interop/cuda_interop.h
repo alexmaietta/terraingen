@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ernie/gpu/gpu_buffer.h"
+#include "ernie/gpu/gpu_image.h"
 #include "ernie/gpu/vulkan_context.h"
 #include "ernie/interop/tensor.h"
 
@@ -34,6 +35,18 @@ namespace ernie {
 ///   https://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__EXTRES__INTEROP.html
 /// - Khronos, VK_KHR_external_memory_fd,
 ///   https://registry.khronos.org/vulkan/specs/latest/man/html/VK_KHR_external_memory_fd.html
+/// A Vulkan image seen by CUDA in place, as an opaque CUDA array (`CUarray`): read it with CUDA
+/// texture or surface objects, `cudaMemcpy2DFromArray`, or `wp.Texture2D(cuda_array=...)`. It is
+/// valid while the image lives.
+struct CudaArrayView {
+    std::uintptr_t array = 0;  ///< The `CUarray` handle.
+    std::uint32_t width = 0;
+    std::uint32_t height = 0;
+    std::uint32_t channels = 0;
+    DType type = DType::UInt8;  ///< Type of each channel.
+    int device = 0;             ///< CUDA device ordinal.
+};
+
 class CudaInterop {
   public:
     /// Connects `context`'s device to the CUDA device with the same UUID.
@@ -64,6 +77,16 @@ class CudaInterop {
     /// @throws std::invalid_argument for a tensor that is not on the CPU.
     Tensor Upload(const Tensor& host);
 
+    /// The shared image `image` as a CUDA array, without copying, importing its memory on first
+    /// use. Supports 8-bit RGBA and 32-bit float colour formats; CUDA work reading it must first
+    /// wait for the Vulkan work writing it (`WaitForVulkan`).
+    /// @throws std::invalid_argument for an image that is not shared, has several layers or mips,
+    /// or has another format.
+    CudaArrayView MapImage(GpuImage& image);
+
+    /// A CPU copy of a CUDA array, rows top to bottom, after the latest Vulkan signal.
+    Tensor DownloadArray(const CudaArrayView& view);
+
     /// A contiguous CPU copy of a tensor on this CUDA device, after the latest Vulkan signal.
     /// @throws std::invalid_argument for a tensor that is not a contiguous tensor on this device.
     Tensor Download(const Tensor& device);
@@ -74,6 +97,10 @@ class CudaInterop {
 
     /// A signal to add to the next Vulkan submission whose writes CUDA will read.
     TimelinePoint NextVulkanSignal();
+
+    /// Queues on `stream` a signal that Vulkan waits for (`VulkanWait`) before its next work, for
+    /// CUDA work that reads Vulkan memory and must finish before Vulkan writes it again.
+    void SignalVulkan(std::uintptr_t stream = 1);
 
     /// Makes the CUDA stream `stream` wait on the GPU, without blocking the host, for the latest
     /// `NextVulkanSignal`. Streams follow DLPack: 1 is the legacy default stream, 2 the

@@ -22,6 +22,56 @@ using Context = struct Context_st*;
 using Stream = struct Stream_st*;
 using ExternalMemory = struct ExternalMemory_st*;
 using ExternalSemaphore = struct ExternalSemaphore_st*;
+using Array = struct Array_st*;
+using MipmappedArray = struct MipmappedArray_st*;
+
+/// CUDA_ARRAY3D_DESCRIPTOR.
+struct Array3dDescriptor {
+    std::size_t width;
+    std::size_t height;
+    std::size_t depth;
+    int format;
+    unsigned int numChannels;
+    unsigned int flags;
+};
+static_assert(sizeof(Array3dDescriptor) == 40, "Must match CUDA_ARRAY3D_DESCRIPTOR");
+
+/// CUDA_EXTERNAL_MEMORY_MIPMAPPED_ARRAY_DESC.
+struct ExternalMemoryMipmappedArrayDesc {
+    unsigned long long offset;
+    Array3dDescriptor arrayDesc;
+    unsigned int numLevels;
+    unsigned int reserved[16];
+};
+static_assert(sizeof(ExternalMemoryMipmappedArrayDesc) == 120,
+              "Must match CUDA_EXTERNAL_MEMORY_MIPMAPPED_ARRAY_DESC");
+
+/// CUDA_MEMCPY2D.
+struct Memcpy2d {
+    std::size_t srcXInBytes;
+    std::size_t srcY;
+    int srcMemoryType;
+    const void* srcHost;
+    unsigned long long srcDevice;
+    Array srcArray;
+    std::size_t srcPitch;
+    std::size_t dstXInBytes;
+    std::size_t dstY;
+    int dstMemoryType;
+    void* dstHost;
+    unsigned long long dstDevice;
+    Array dstArray;
+    std::size_t dstPitch;
+    std::size_t widthInBytes;
+    std::size_t height;
+};
+static_assert(sizeof(Memcpy2d) == 128, "Must match CUDA_MEMCPY2D");
+
+constexpr int kFormatUnsignedInt8 = 0x01;
+constexpr int kFormatFloat = 0x20;
+constexpr unsigned int kArrayColorAttachment = 0x20;
+constexpr int kMemoryHost = 0x01;
+constexpr int kMemoryArray = 0x03;
 using DevicePtr = unsigned long long;
 
 struct Uuid {
@@ -149,6 +199,11 @@ struct Driver {
     Result (*waitExternalSemaphoresAsync)(const ExternalSemaphore*,
                                           const ExternalSemaphoreWaitParams*, unsigned int, Stream);
     Result (*destroyExternalSemaphore)(ExternalSemaphore);
+    Result (*externalMemoryGetMappedMipmappedArray)(MipmappedArray*, ExternalMemory,
+                                                    const ExternalMemoryMipmappedArrayDesc*);
+    Result (*mipmappedArrayGetLevel)(Array*, MipmappedArray, unsigned int);
+    Result (*mipmappedArrayDestroy)(MipmappedArray);
+    Result (*memcpy2DAsync)(const Memcpy2d*, Stream);
 };
 
 }  // namespace cu
@@ -228,13 +283,18 @@ struct CudaInterop::State {
 
 namespace {
 
-/// A CUDA import of one shared buffer's memory, attached to the buffer.
+/// A CUDA import of one shared buffer's or image's memory, attached to it.
 struct Import {
     std::shared_ptr<CudaInterop::State> state;
     cu::ExternalMemory memory = nullptr;
     cu::DevicePtr pointer = 0;
+    cu::MipmappedArray mipmapped = nullptr;
+    cu::Array array = nullptr;
 
     ~Import() {
+        if (mipmapped != nullptr) {
+            state->driver.mipmappedArrayDestroy(mipmapped);
+        }
         if (memory != nullptr) {
             state->driver.destroyExternalMemory(memory);
         }
@@ -264,7 +324,8 @@ std::unique_ptr<CudaInterop> CudaInterop::Create(const VulkanContext& context, s
         LoadSymbol(lib, "cuInit", d.init) &&
         LoadSymbol(lib, "cuDeviceGetCount", d.deviceGetCount) &&
         LoadSymbol(lib, "cuDeviceGet", d.deviceGet) &&
-        LoadSymbol(lib, "cuDeviceGetUuid", d.deviceGetUuid) &&
+        (LoadSymbol(lib, "cuDeviceGetUuid_v2", d.deviceGetUuid) ||
+         LoadSymbol(lib, "cuDeviceGetUuid", d.deviceGetUuid)) &&
         LoadSymbol(lib, "cuDevicePrimaryCtxRetain", d.primaryCtxRetain) &&
         LoadSymbol(lib, "cuDevicePrimaryCtxRelease_v2", d.primaryCtxRelease) &&
         LoadSymbol(lib, "cuCtxPushCurrent_v2", d.ctxPushCurrent) &&
@@ -282,7 +343,12 @@ std::unique_ptr<CudaInterop> CudaInterop::Create(const VulkanContext& context, s
         LoadSymbol(lib, "cuImportExternalSemaphore", d.importExternalSemaphore) &&
         LoadSymbol(lib, "cuSignalExternalSemaphoresAsync", d.signalExternalSemaphoresAsync) &&
         LoadSymbol(lib, "cuWaitExternalSemaphoresAsync", d.waitExternalSemaphoresAsync) &&
-        LoadSymbol(lib, "cuDestroyExternalSemaphore", d.destroyExternalSemaphore);
+        LoadSymbol(lib, "cuDestroyExternalSemaphore", d.destroyExternalSemaphore) &&
+        LoadSymbol(lib, "cuExternalMemoryGetMappedMipmappedArray",
+                   d.externalMemoryGetMappedMipmappedArray) &&
+        LoadSymbol(lib, "cuMipmappedArrayGetLevel", d.mipmappedArrayGetLevel) &&
+        LoadSymbol(lib, "cuMipmappedArrayDestroy", d.mipmappedArrayDestroy) &&
+        LoadSymbol(lib, "cuMemcpy2DAsync_v2", d.memcpy2DAsync);
     if (!loaded) {
         return fail("the CUDA driver lacks external memory interop (too old)");
     }
@@ -375,6 +441,92 @@ std::uint64_t CudaInterop::DevicePointer(GpuBuffer& buffer) {
     return pointer;
 }
 
+CudaArrayView CudaInterop::MapImage(GpuImage& image) {
+    const ImageDesc& desc = image.Desc();
+    if (image.AllocationSize() == 0) {
+        throw std::invalid_argument("CUDA can only reach shared images");
+    }
+    if (desc.layers != 1 || desc.mips != 1) {
+        throw std::invalid_argument("CUDA arrays of images need one layer and one mip");
+    }
+    CudaArrayView view;
+    view.width = desc.width;
+    view.height = desc.height;
+    view.device = state_->ordinal;
+    int format = 0;
+    switch (desc.format) {
+    case VK_FORMAT_R8G8B8A8_UNORM:
+    case VK_FORMAT_R8G8B8A8_SRGB:
+        format = cu::kFormatUnsignedInt8;
+        view.channels = 4;
+        view.type = DType::UInt8;
+        break;
+    case VK_FORMAT_R32_SFLOAT:
+        format = cu::kFormatFloat;
+        view.channels = 1;
+        view.type = DType::Float32;
+        break;
+    case VK_FORMAT_R32G32B32A32_SFLOAT:
+        format = cu::kFormatFloat;
+        view.channels = 4;
+        view.type = DType::Float32;
+        break;
+    default:
+        throw std::invalid_argument("CUDA arrays support RGBA8 and float32 images");
+    }
+    if (auto* import = static_cast<Import*>(image.Attached().get())) {
+        view.array = reinterpret_cast<std::uintptr_t>(import->array);
+        return view;
+    }
+    auto import = std::make_shared<Import>();
+    import->state = state_;
+    const State::Scope scope(*state_);
+    cu::ExternalMemoryHandleDesc handle{};
+    handle.type = cu::kHandleTypeOpaqueFd;
+    handle.handle.fd = image.ExportFd();
+    handle.size = image.AllocationSize();
+    handle.flags = cu::kDedicated;
+    const cu::Result result = state_->driver.importExternalMemory(&import->memory, &handle);
+    if (result != cu::kSuccess) {
+        close(handle.handle.fd);
+        state_->Check(result, "cuImportExternalMemory");
+    }
+    cu::ExternalMemoryMipmappedArrayDesc mapped{};
+    mapped.arrayDesc.width = desc.width;
+    mapped.arrayDesc.height = desc.height;
+    mapped.arrayDesc.format = format;
+    mapped.arrayDesc.numChannels = view.channels;
+    mapped.arrayDesc.flags = cu::kArrayColorAttachment;
+    mapped.numLevels = 1;
+    state_->Check(state_->driver.externalMemoryGetMappedMipmappedArray(&import->mipmapped,
+                                                                       import->memory, &mapped),
+                  "cuExternalMemoryGetMappedMipmappedArray");
+    state_->Check(state_->driver.mipmappedArrayGetLevel(&import->array, import->mipmapped, 0),
+                  "cuMipmappedArrayGetLevel");
+    view.array = reinterpret_cast<std::uintptr_t>(import->array);
+    image.Attach(std::move(import));
+    return view;
+}
+
+Tensor CudaInterop::DownloadArray(const CudaArrayView& view) {
+    Tensor host = Tensor::Zeros(view.type, {static_cast<std::int64_t>(view.height),
+                                            static_cast<std::int64_t>(view.width),
+                                            static_cast<std::int64_t>(view.channels)});
+    WaitForVulkan();
+    const State::Scope scope(*state_);
+    cu::Memcpy2d copy{};
+    copy.srcMemoryType = cu::kMemoryArray;
+    copy.srcArray = reinterpret_cast<cu::Array>(view.array);
+    copy.dstMemoryType = cu::kMemoryHost;
+    copy.dstHost = host.Data();
+    copy.dstPitch = std::size_t{view.width} * view.channels * SizeOf(view.type);
+    copy.widthInBytes = copy.dstPitch;
+    copy.height = view.height;
+    state_->Check(state_->driver.memcpy2DAsync(&copy, cu::kLegacyStream), "cuMemcpy2DAsync");
+    state_->Check(state_->driver.streamSynchronize(cu::kLegacyStream), "cuStreamSynchronize");
+    return host;
+}
+
 void CudaInterop::CheckOnDevice(const Tensor& tensor) const {
     if (tensor.Location() != ernie::Device{DeviceKind::Cuda, state_->ordinal}) {
         throw std::invalid_argument("Expected a tensor on CUDA device " +
@@ -404,6 +556,16 @@ void CudaInterop::CopyToBuffer(const Tensor& source, GpuBuffer& buffer, VkDevice
     signal.params.fence.value = state_->cudaSignalled + 1;
     state_->Check(state_->driver.signalExternalSemaphoresAsync(&state_->toVulkanCuda, &signal, 1,
                                                                cu::kLegacyStream),
+                  "cuSignalExternalSemaphoresAsync");
+    ++state_->cudaSignalled;
+}
+
+void CudaInterop::SignalVulkan(std::uintptr_t stream) {
+    const State::Scope scope(*state_);
+    cu::ExternalSemaphoreSignalParams signal{};
+    signal.params.fence.value = state_->cudaSignalled + 1;
+    state_->Check(state_->driver.signalExternalSemaphoresAsync(
+                      &state_->toVulkanCuda, &signal, 1, reinterpret_cast<cu::Stream>(stream)),
                   "cuSignalExternalSemaphoresAsync");
     ++state_->cudaSignalled;
 }

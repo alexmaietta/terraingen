@@ -418,6 +418,8 @@ void BindScene(nb::module_& m) {
         {"DETAIL_HEX_SHARPNESS", tokens::kDetailHexSharpness},
         {"CAMERA_REL", tokens::kCameraRel},
         {"RESOLUTION", tokens::kResolution},
+        {"PRODUCTS", tokens::kProducts},
+        {"ORDERED_VARS", tokens::kOrderedVars},
         {"SOURCE_NAME", tokens::kSourceName},
         {"AMBIENT", tokens::kAmbient},
         {"COLOR_MODE", tokens::kColorMode},

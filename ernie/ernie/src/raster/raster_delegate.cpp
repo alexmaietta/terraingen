@@ -2,6 +2,7 @@
 
 #include "ernie/scene/schema.h"
 #include "ernie/scene/tokens.h"
+#include "product_frame.h"
 
 #include <algorithm>
 #include <cmath>
@@ -179,6 +180,60 @@ RasterPrims ResolveRasterPrims(const Scene& scene, const Path& settings) {
     }
     prims.light = FirstVisible(scene, tokens::kDistantLight);
     return prims;
+}
+
+std::vector<RenderProductSpec>
+ResolveRenderProducts(const Scene& scene, std::span<const Path> products, const Path& settings) {
+    using namespace tokens;
+    const Path resolved = ResolveRasterPrims(scene, settings).settings;
+    const glm::dvec2 settingsResolution = GetVec2(scene, resolved, kResolution, {2048.0, 1080.0});
+    std::vector<Path> paths(products.begin(), products.end());
+    if (paths.empty() && !resolved.IsEmpty()) {
+        paths = TargetsOf(scene, resolved, kProducts);
+    }
+    const auto extentOf = [](glm::dvec2 resolution) {
+        if (!(resolution.x >= 1.0) || !(resolution.y >= 1.0)) {
+            throw std::invalid_argument("Render resolutions must be positive");
+        }
+        return VkExtent2D{static_cast<std::uint32_t>(resolution.x),
+                          static_cast<std::uint32_t>(resolution.y)};
+    };
+    std::vector<RenderProductSpec> specs;
+    if (paths.empty()) {
+        RenderProductSpec spec;
+        spec.product = resolved.IsEmpty() ? Path::Root() : resolved;
+        spec.resolution = extentOf(settingsResolution);
+        spec.vars.emplace_back(spec.product.IsRoot() ? Path("/LdrColor")
+                                                     : spec.product.Child("LdrColor"),
+                               std::string(kLdrColor));
+        specs.push_back(std::move(spec));
+        return specs;
+    }
+    for (const Path& path : paths) {
+        if (!scene.Has(path) || scene.TypeOf(path) != kRenderProduct) {
+            throw std::invalid_argument("'" + path.String() + "' is not a RenderProduct prim");
+        }
+        RenderProductSpec spec;
+        spec.product = path;
+        spec.camera = GetTarget(scene, path, kCameraRel);
+        spec.resolution = extentOf(GetVec2(scene, path, kResolution, settingsResolution));
+        for (const Path& var : TargetsOf(scene, path, kOrderedVars)) {
+            if (!scene.Has(var) || scene.TypeOf(var) != kRenderVar) {
+                throw std::invalid_argument("'" + var.String() + "' is not a RenderVar prim");
+            }
+            const std::string name = GetToken(scene, var, kSourceName, kLdrColor);
+            if (name != kLdrColor) {
+                throw std::invalid_argument("Render var '" + var.String() + "' asks for '" + name +
+                                            "'; Ernie's rasterizer renders LdrColor");
+            }
+            spec.vars.emplace_back(var, name);
+        }
+        if (spec.vars.empty()) {
+            spec.vars.emplace_back(path.Child("LdrColor"), std::string(kLdrColor));
+        }
+        specs.push_back(std::move(spec));
+    }
+    return specs;
 }
 
 FrameParams FrameParamsOf(const Scene& scene, const RasterPrims& prims, float aspect) {
@@ -386,6 +441,10 @@ RasterDelegate::RasterDelegate(const VulkanContext& context, VkFormat colorForma
                                VkFormat depthFormat, BrdfRegistry brdfs)
     : context_(context), renderer_(context, colorFormat, depthFormat, std::move(brdfs)),
       terrain_(renderer_), meshes_(renderer_), colorFormat_(colorFormat) {}
+
+RasterDelegate::~RasterDelegate() {
+    context_.WaitForSubmissions();
+}
 
 RasterDelegate::Key
 RasterDelegate::KeyOf(const Scene& scene, const Path& path,
@@ -754,9 +813,13 @@ std::vector<MeshItem> RasterDelegate::Items(const Scene& scene) const {
 }
 
 void RasterDelegate::Update(const Scene& scene, const Path& settings, VkExtent2D extent) {
+    UpdatePrims(scene, ResolveRasterPrims(scene, settings), extent);
+}
+
+void RasterDelegate::UpdatePrims(const Scene& scene, const RasterPrims& prims, VkExtent2D extent) {
     context_.WaitForSubmissions();
     Sync(scene);
-    prims_ = ResolveRasterPrims(scene, settings);
+    prims_ = prims;
     const float aspect =
         static_cast<float>(extent.width) / static_cast<float>(std::max(extent.height, 1u));
     const FrameParams frame = FrameParamsOf(scene, prims_, aspect);
@@ -784,21 +847,86 @@ void RasterDelegate::Record(VkCommandBuffer commands, RenderingTarget target) {
     renderer_.Record(commands, target, parts);
 }
 
-Tensor RasterDelegate::Render(const Scene& scene, const Path& settings, Device device) {
+std::shared_ptr<ProductFrame> RasterDelegate::AcquireFrame(const Path& product, VkExtent2D extent) {
+    std::vector<std::shared_ptr<ProductFrame>>& frames = frames_[product];
+    std::erase_if(frames, [extent](const std::shared_ptr<ProductFrame>& frame) {
+        const VkExtent2D size = frame->target->Extent();
+        return frame.use_count() == 1 &&
+               (size.width != extent.width || size.height != extent.height);
+    });
+    for (const std::shared_ptr<ProductFrame>& frame : frames) {
+        if (frame.use_count() == 1 && frame->arrayMaps == 0) {
+            return frame;
+        }
+    }
+    auto frame = std::make_shared<ProductFrame>();
+    frame->context = &context_;
+    frame->cuda = cuda_.get();
+    frame->bgra =
+        colorFormat_ == VK_FORMAT_B8G8R8A8_UNORM || colorFormat_ == VK_FORMAT_B8G8R8A8_SRGB;
+    frame->linearPool = &linearPool_;
+    frame->target = std::make_unique<OffscreenTarget>(context_, extent.width, extent.height,
+                                                      colorFormat_, renderer_.DepthFormat(),
+                                                      cuda_ != nullptr && !frame->bgra);
+    frames.push_back(frame);
+    return frame;
+}
+
+StepOperation RasterDelegate::StepAsync(const Scene& scene, std::span<const Path> products,
+                                        const Path& settings) {
     const bool bgra =
         colorFormat_ == VK_FORMAT_B8G8R8A8_UNORM || colorFormat_ == VK_FORMAT_B8G8R8A8_SRGB;
     if (!bgra && colorFormat_ != VK_FORMAT_R8G8B8A8_UNORM &&
         colorFormat_ != VK_FORMAT_R8G8B8A8_SRGB) {
-        throw std::invalid_argument("RasterDelegate::Render needs an 8-bit RGBA or BGRA format");
+        throw std::invalid_argument("Rendering products needs an 8-bit RGBA or BGRA format");
     }
+    context_.WaitForSubmissions();
+    CudaInterop* cuda = Cuda();
+    const RasterPrims base = ResolveRasterPrims(scene, settings);
+    const std::vector<RenderProductSpec> specs = ResolveRenderProducts(scene, products, settings);
+    RenderProductSetOutputs outputs;
+    std::uint64_t submission = 0;
+    for (const RenderProductSpec& spec : specs) {
+        RasterPrims prims = base;
+        if (!spec.camera.IsEmpty()) {
+            prims.camera = spec.camera;
+        }
+        std::shared_ptr<ProductFrame> frame = AcquireFrame(spec.product, spec.resolution);
+        UpdatePrims(scene, prims, spec.resolution);
+        const std::vector<TimelinePoint> waits = SubmitWaits();
+        std::vector<TimelinePoint> signals;
+        if (cuda != nullptr) {
+            signals.push_back(cuda->NextVulkanSignal());
+        }
+        OffscreenTarget& target = *frame->target;
+        submission = context_.SubmitAsync(
+            [&](VkCommandBuffer commands) {
+                Record(commands, target.Prepare(commands));
+                if (target.Color().AllocationSize() != 0) {
+                    target.Color().Transition(commands, VK_IMAGE_LAYOUT_GENERAL);
+                }
+            },
+            waits, signals);
+        frame->submission = submission;
+        RenderProductOutput& output = outputs[spec.product];
+        output.product = spec.product;
+        for (const auto& [path, name] : spec.vars) {
+            output.vars.emplace(name, RenderVar(frame, path, name));
+        }
+    }
+    return StepOperation(context_, submission, std::move(outputs));
+}
+
+RenderProductSetOutputs RasterDelegate::Step(const Scene& scene, std::span<const Path> products,
+                                             const Path& settings) {
+    return StepAsync(scene, products, settings).Fetch();
+}
+
+Tensor RasterDelegate::Render(const Scene& scene, const Path& settings, Device device) {
     const bool cuda = device.kind == DeviceKind::Cuda;
-    if (cuda && bgra) {
-        throw std::invalid_argument("A CUDA render needs an RGBA colour format");
-    }
-    CudaInterop* interop = nullptr;
     if (cuda) {
         std::string why;
-        interop = Cuda(&why);
+        CudaInterop* interop = Cuda(&why);
         if (interop == nullptr) {
             throw std::invalid_argument("A CUDA render needs CUDA interop: " + why);
         }
@@ -807,57 +935,10 @@ Tensor RasterDelegate::Render(const Scene& scene, const Path& settings, Device d
                                         std::to_string(interop->Device()));
         }
     }
-    context_.WaitForSubmissions();
-    const RasterPrims prims = ResolveRasterPrims(scene, settings);
-    const glm::dvec2 resolution =
-        GetVec2(scene, prims.settings, tokens::kResolution, {2048.0, 1080.0});
-    if (!(resolution.x >= 1.0) || !(resolution.y >= 1.0)) {
-        throw std::invalid_argument("RenderSettings resolution must be positive");
-    }
-    const VkExtent2D extent{static_cast<std::uint32_t>(resolution.x),
-                            static_cast<std::uint32_t>(resolution.y)};
-    if (offscreen_ == nullptr || offscreen_->Extent().width != extent.width ||
-        offscreen_->Extent().height != extent.height) {
-        offscreen_.reset();
-        offscreen_ = std::make_unique<OffscreenTarget>(context_, extent.width, extent.height,
-                                                       colorFormat_, renderer_.DepthFormat());
-    }
-    Update(scene, prims.settings, extent);
-    const std::vector<TimelinePoint> waits = SubmitWaits();
-    const std::vector<std::int64_t> shape{static_cast<std::int64_t>(extent.height),
-                                          static_cast<std::int64_t>(extent.width), 4};
-    if (cuda) {
-        if (cudaOutput_ == nullptr || cudaOutput_.use_count() > 1 ||
-            cudaOutput_->Size() < offscreen_->ColorBytes()) {
-            cudaOutput_ =
-                std::make_shared<GpuBuffer>(context_, offscreen_->ColorBytes(),
-                                            VK_BUFFER_USAGE_TRANSFER_DST_BIT, BufferMemory::Shared);
-        }
-        Tensor result = interop->View(cudaOutput_, DType::UInt8, shape);
-        const TimelinePoint signal = interop->NextVulkanSignal();
-        context_.SubmitAsync(
-            [&](VkCommandBuffer commands) {
-                RenderingTarget target = offscreen_->Prepare(commands);
-                Record(commands, target);
-                offscreen_->RecordCopyColor(commands, *cudaOutput_);
-            },
-            waits, std::span(&signal, 1));
-        return result;
-    }
-    context_.Submit(
-        [&](VkCommandBuffer commands) {
-            RenderingTarget target = offscreen_->Prepare(commands);
-            Record(commands, target);
-        },
-        waits);
-    std::vector<std::uint8_t> bytes = offscreen_->ReadColor();
-    if (bgra) {
-        for (std::size_t i = 0; i + 3 < bytes.size(); i += 4) {
-            std::swap(bytes[i], bytes[i + 2]);
-        }
-    }
-    auto owner = std::make_shared<std::vector<std::uint8_t>>(std::move(bytes));
-    return Tensor(owner->data(), DType::UInt8, shape, {}, {}, owner);
+    StepOperation step = StepAsync(scene, {}, settings);
+    RenderProductSetOutputs outputs = cuda ? step.Outputs() : step.Fetch();
+    RenderVar& color = outputs.begin()->second.vars.begin()->second;
+    return color.Map(cuda ? MapDevice::Cuda : MapDevice::Cpu).tensor;
 }
 
 }  // namespace ernie

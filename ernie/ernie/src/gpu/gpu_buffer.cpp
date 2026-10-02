@@ -6,23 +6,6 @@
 
 namespace ernie {
 
-namespace {
-
-/// The index of a device-local memory type allowed by `typeBits`.
-std::uint32_t DeviceLocalMemoryType(const VulkanContext& context, std::uint32_t typeBits) {
-    VkPhysicalDeviceMemoryProperties properties{};
-    vkGetPhysicalDeviceMemoryProperties(context.PhysicalDevice(), &properties);
-    for (std::uint32_t i = 0; i < properties.memoryTypeCount; ++i) {
-        if ((typeBits & (1u << i)) != 0 &&
-            (properties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0) {
-            return i;
-        }
-    }
-    throw std::runtime_error("No device-local memory type for a shared buffer");
-}
-
-}  // namespace
-
 GpuBuffer::GpuBuffer(const VulkanContext& context, VkDeviceSize size, VkBufferUsageFlags usage,
                      BufferMemory memory)
     : context_(&context), size_(size), memory_(memory) {
@@ -48,7 +31,7 @@ GpuBuffer::GpuBuffer(const VulkanContext& context, VkDeviceSize size, VkBufferUs
         VkMemoryAllocateInfo allocate{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
         allocate.pNext = &exported;
         allocate.allocationSize = requirements.size;
-        allocate.memoryTypeIndex = DeviceLocalMemoryType(context, requirements.memoryTypeBits);
+        allocate.memoryTypeIndex = context.DeviceLocalMemoryType(requirements.memoryTypeBits);
         const VkResult result =
             vkAllocateMemory(context.Device(), &allocate, nullptr, &sharedMemory_);
         if (result != VK_SUCCESS) {

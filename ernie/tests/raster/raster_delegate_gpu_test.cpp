@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <cmath>
 #include <cstring>
 #include <memory>
 #include <vector>
@@ -373,4 +374,151 @@ TEST(ExtentOf, ReadsValuesAndArrays) {
     scene.Set("/A", tokens::kExtent, std::vector<float>{1, 2});
     EXPECT_FALSE(ernie::ExtentOf(scene, "/A").has_value());
     EXPECT_FALSE(ernie::ExtentOf(scene, "/Missing").has_value());
+}
+
+namespace {
+
+/// MeshScene with two RenderProducts: the overhead camera at 32 x 32, and a second camera to the
+/// side at 16 x 24, each with an LdrColor RenderVar.
+Scene ProductScene() {
+    Scene scene = MeshScene();
+    scene.Define("/World/Side", tokens::kCamera)
+        .Set(tokens::kTransform,
+             ernie::LookAtTransform({60.0, 0.0, 20.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 1.0}))
+        .Set(tokens::kFocalLength, 18.0f);
+    scene.Define("/Render/Vars/Color", tokens::kRenderVar).Set(tokens::kSourceName, "LdrColor");
+    scene.Define("/Render/Top", tokens::kRenderProduct)
+        .Set(tokens::kCameraRel, Path("/World/Camera"))
+        .Set(tokens::kResolution, glm::ivec2(32, 32))
+        .Set(tokens::kOrderedVars, std::vector<Path>{"/Render/Vars/Color"});
+    scene.Define("/Render/SideView", tokens::kRenderProduct)
+        .Set(tokens::kCameraRel, Path("/World/Side"))
+        .Set(tokens::kResolution, glm::ivec2(16, 24));
+    scene.Set("/Render/Settings", tokens::kProducts,
+              std::vector<Path>{"/Render/Top", "/Render/SideView"});
+    return scene;
+}
+
+}  // namespace
+
+TEST(ResolveRenderProducts, FollowsUsdRender) {
+    Scene scene = ProductScene();
+    std::vector<ernie::RenderProductSpec> specs = ernie::ResolveRenderProducts(scene, {}, {});
+    ASSERT_EQ(specs.size(), 2u);
+    EXPECT_EQ(specs[0].product, Path("/Render/Top"));
+    EXPECT_EQ(specs[0].resolution.width, 32u);
+    EXPECT_EQ(specs[0].vars.front().first, Path("/Render/Vars/Color"));
+    EXPECT_EQ(specs[1].camera, Path("/World/Side"));
+    EXPECT_EQ(specs[1].resolution.height, 24u);
+    EXPECT_EQ(specs[1].vars.front().second, "LdrColor") << "default var";
+
+    const Path only[] = {"/Render/SideView"};
+    EXPECT_EQ(ernie::ResolveRenderProducts(scene, only, {}).size(), 1u);
+    scene.Clear("/Render/Settings", tokens::kProducts);
+    specs = ernie::ResolveRenderProducts(scene, {}, {});
+    ASSERT_EQ(specs.size(), 1u);
+    EXPECT_EQ(specs[0].product, Path("/Render/Settings")) << "default product";
+    EXPECT_EQ(specs[0].resolution.width, kSize);
+
+    const Path bad[] = {"/World/Camera"};
+    EXPECT_THROW(ernie::ResolveRenderProducts(scene, bad, {}), std::invalid_argument);
+    scene.Set("/Render/Vars/Color", tokens::kSourceName, "Depth");
+    const Path top[] = {"/Render/Top"};
+    EXPECT_THROW(ernie::ResolveRenderProducts(scene, top, {}), std::invalid_argument);
+}
+
+TEST_F(RasterDelegateTest, StepsRenderEveryProductSyncOrAsync) {
+    Scene scene = ProductScene();
+    RasterDelegate delegate(*context_);
+    ernie::RenderProductSetOutputs outputs = delegate.Step(scene);
+    ASSERT_EQ(outputs.size(), 2u);
+    ernie::RenderVar& top = outputs.at("/Render/Top").vars.at("LdrColor");
+    EXPECT_EQ(top.GetPath(), Path("/Render/Vars/Color"));
+    const Tensor topImage = top.Map(ernie::MapDevice::Cpu).tensor;
+    EXPECT_EQ(topImage.Shape(), (std::vector<std::int64_t>{32, 32, 4}));
+    const Tensor side =
+        outputs.at("/Render/SideView").vars.at("LdrColor").Map(ernie::MapDevice::Cpu).tensor;
+    EXPECT_EQ(side.Shape(), (std::vector<std::int64_t>{24, 16, 4}));
+    scene.Define("/Render/TopSmall", tokens::kRenderProduct)
+        .Set(tokens::kCameraRel, Path("/World/Camera"))
+        .Set(tokens::kResolution, glm::ivec2(16, 24));
+    const Path pair[] = {"/Render/TopSmall", "/Render/SideView"};
+    ernie::RenderProductSetOutputs both = delegate.Step(scene, pair);
+    const Tensor small =
+        both.at("/Render/TopSmall").vars.at("LdrColor").Map(ernie::MapDevice::Cpu).tensor;
+    const Tensor sideAgain =
+        both.at("/Render/SideView").vars.at("LdrColor").Map(ernie::MapDevice::Cpu).tensor;
+    EXPECT_NE(
+        std::memcmp(small.Data(), sideAgain.Data(), static_cast<std::size_t>(small.Elements())), 0)
+        << "each product renders through its own camera";
+    EXPECT_EQ(std::memcmp(side.Data(), sideAgain.Data(), static_cast<std::size_t>(side.Elements())),
+              0);
+
+    ernie::StepOperation operation = delegate.StepAsync(scene);
+    EXPECT_TRUE(operation.Wait());
+    EXPECT_TRUE(operation.Done());
+    const Tensor again =
+        operation.Fetch().at("/Render/Top").vars.at("LdrColor").Map(ernie::MapDevice::Cpu).tensor;
+    EXPECT_EQ(
+        std::memcmp(again.Data(), topImage.Data(), static_cast<std::size_t>(topImage.Elements())),
+        0)
+        << "async and sync steps render the same";
+}
+
+TEST_F(RasterDelegateTest, FramesHeldByOutputsAreNotRenderedOver) {
+    Scene scene = ProductScene();
+    RasterDelegate delegate(*context_);
+    const Path top[] = {"/Render/Top"};
+    ernie::RenderProductSetOutputs first = delegate.Step(scene, top);
+    const Tensor before =
+        first.at("/Render/Top").vars.at("LdrColor").Map(ernie::MapDevice::Cpu).tensor;
+    scene.Set("/Looks/Red", tokens::kAlbedo, glm::vec3(0.0f, 0.0f, 1.0f));
+    ernie::RenderProductSetOutputs second = delegate.Step(scene, top);
+    const Tensor held =
+        first.at("/Render/Top").vars.at("LdrColor").Map(ernie::MapDevice::Cpu).tensor;
+    EXPECT_EQ(std::memcmp(held.Data(), before.Data(), static_cast<std::size_t>(before.Elements())),
+              0)
+        << "the held frame kept its image";
+    const Tensor after =
+        second.at("/Render/Top").vars.at("LdrColor").Map(ernie::MapDevice::Cpu).tensor;
+    EXPECT_NE(std::memcmp(after.Data(), before.Data(), static_cast<std::size_t>(before.Elements())),
+              0);
+}
+
+TEST_F(RasterDelegateTest, MapsRenderVarsToCudaArraysWithoutCopying) {
+    RasterDelegate delegate(*context_);
+    std::string why;
+    ernie::CudaInterop* cuda = delegate.Cuda(&why);
+    if (cuda == nullptr) {
+        GTEST_SKIP() << "No CUDA interop: " << why;
+    }
+    Scene scene = ProductScene();
+    const Path top[] = {"/Render/Top"};
+    ernie::StepOperation operation = delegate.StepAsync(scene, top);
+    ernie::RenderVar var = operation.Outputs().at("/Render/Top").vars.at("LdrColor");
+    const Tensor expected = var.Map(ernie::MapDevice::Cpu).tensor;
+
+    const ernie::MappedRenderVar array = var.Map(ernie::MapDevice::CudaArray);
+    EXPECT_NE(array.array.array, 0u);
+    EXPECT_TRUE(var.IsMapped());
+    const Tensor fromArray = cuda->DownloadArray(array.array);
+    EXPECT_EQ(std::memcmp(fromArray.Data(), expected.Data(),
+                          static_cast<std::size_t>(expected.Elements())),
+              0);
+    EXPECT_EQ(var.Map(ernie::MapDevice::CudaArray).array.array, array.array.array)
+        << "the frame's own image";
+    var.Unmap();
+    var.Unmap();
+    EXPECT_FALSE(var.IsMapped());
+
+    const ernie::MappedRenderVar linear = var.Map(ernie::MapDevice::Cuda);
+    EXPECT_EQ(linear.tensor.Location().kind, ernie::DeviceKind::Cuda);
+    const Tensor fromLinear = cuda->Download(linear.tensor);
+    EXPECT_EQ(std::memcmp(fromLinear.Data(), expected.Data(),
+                          static_cast<std::size_t>(expected.Elements())),
+              0);
+
+    var = {};
+    operation = delegate.StepAsync(scene, top);
+    EXPECT_TRUE(operation.Wait());
 }

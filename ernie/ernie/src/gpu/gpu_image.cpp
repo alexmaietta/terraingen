@@ -56,12 +56,44 @@ GpuImage::GpuImage(const VulkanContext& context, const ImageDesc& desc)
     info.tiling = VK_IMAGE_TILING_OPTIMAL;
     info.usage = desc.usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    VmaAllocationCreateInfo allocation{};
-    allocation.usage = VMA_MEMORY_USAGE_AUTO;
-    VmaAllocationInfo result{};
-    CheckVk(vmaCreateImage(context.Allocator(), &info, &allocation, &image_, &allocation_, &result),
+    if (desc.shared) {
+        if (!context.SupportsExternalMemory()) {
+            throw std::runtime_error("The Vulkan device cannot export image memory");
+        }
+        VkExternalMemoryImageCreateInfo external{
+            VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO};
+        external.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+        info.pNext = &external;
+        CheckVk(vkCreateImage(context.Device(), &info, nullptr, &image_), "vkCreateImage");
+        VkMemoryRequirements requirements{};
+        vkGetImageMemoryRequirements(context.Device(), image_, &requirements);
+        VkMemoryDedicatedAllocateInfo dedicated{VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO};
+        dedicated.image = image_;
+        VkExportMemoryAllocateInfo exported{VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO};
+        exported.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+        exported.pNext = &dedicated;
+        VkMemoryAllocateInfo allocate{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+        allocate.pNext = &exported;
+        allocate.allocationSize = requirements.size;
+        allocate.memoryTypeIndex = context.DeviceLocalMemoryType(requirements.memoryTypeBits);
+        const VkResult result =
+            vkAllocateMemory(context.Device(), &allocate, nullptr, &sharedMemory_);
+        if (result != VK_SUCCESS) {
+            vkDestroyImage(context.Device(), image_, nullptr);
+            image_ = VK_NULL_HANDLE;
+            CheckVk(result, "vkAllocateMemory");
+        }
+        CheckVk(vkBindImageMemory(context.Device(), image_, sharedMemory_, 0), "vkBindImageMemory");
+        bytes_ = requirements.size;
+    } else {
+        VmaAllocationCreateInfo allocation{};
+        allocation.usage = VMA_MEMORY_USAGE_AUTO;
+        VmaAllocationInfo result{};
+        CheckVk(
+            vmaCreateImage(context.Allocator(), &info, &allocation, &image_, &allocation_, &result),
             "vmaCreateImage");
-    bytes_ = result.size;
+        bytes_ = result.size;
+    }
 
     VkImageViewCreateInfo view{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
     view.image = image_;
@@ -89,8 +121,9 @@ GpuImage::GpuImage(GpuImage&& other) noexcept
     : context_(other.context_), desc_(other.desc_),
       image_(std::exchange(other.image_, VK_NULL_HANDLE)),
       allocation_(std::exchange(other.allocation_, VK_NULL_HANDLE)),
-      view_(std::exchange(other.view_, VK_NULL_HANDLE)), layerViews_(std::move(other.layerViews_)),
-      layout_(other.layout_), bytes_(other.bytes_) {}
+      sharedMemory_(std::exchange(other.sharedMemory_, VK_NULL_HANDLE)),
+      attached_(std::move(other.attached_)), view_(std::exchange(other.view_, VK_NULL_HANDLE)),
+      layerViews_(std::move(other.layerViews_)), layout_(other.layout_), bytes_(other.bytes_) {}
 
 GpuImage& GpuImage::operator=(GpuImage&& other) noexcept {
     if (this != &other) {
@@ -99,6 +132,8 @@ GpuImage& GpuImage::operator=(GpuImage&& other) noexcept {
         desc_ = other.desc_;
         image_ = std::exchange(other.image_, VK_NULL_HANDLE);
         allocation_ = std::exchange(other.allocation_, VK_NULL_HANDLE);
+        sharedMemory_ = std::exchange(other.sharedMemory_, VK_NULL_HANDLE);
+        attached_ = std::move(other.attached_);
         view_ = std::exchange(other.view_, VK_NULL_HANDLE);
         layerViews_ = std::move(other.layerViews_);
         layout_ = other.layout_;
@@ -115,10 +150,29 @@ void GpuImage::Release() {
         vkDestroyImageView(context_->Device(), view, nullptr);
     }
     layerViews_.clear();
+    attached_.reset();
     vkDestroyImageView(context_->Device(), view_, nullptr);
-    vmaDestroyImage(context_->Allocator(), image_, allocation_);
+    if (sharedMemory_ != VK_NULL_HANDLE) {
+        vkDestroyImage(context_->Device(), image_, nullptr);
+        vkFreeMemory(context_->Device(), sharedMemory_, nullptr);
+        sharedMemory_ = VK_NULL_HANDLE;
+    } else {
+        vmaDestroyImage(context_->Allocator(), image_, allocation_);
+    }
     image_ = VK_NULL_HANDLE;
     view_ = VK_NULL_HANDLE;
+}
+
+int GpuImage::ExportFd() const {
+    if (sharedMemory_ == VK_NULL_HANDLE) {
+        throw std::logic_error("Only shared images export their memory");
+    }
+    VkMemoryGetFdInfoKHR info{VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR};
+    info.memory = sharedMemory_;
+    info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+    int fd = -1;
+    CheckVk(context_->GetMemoryFd()(context_->Device(), &info, &fd), "vkGetMemoryFdKHR");
+    return fd;
 }
 
 VkImageView GpuImage::LayerView(std::uint32_t layer) const {

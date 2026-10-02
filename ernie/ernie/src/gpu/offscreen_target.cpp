@@ -9,10 +9,11 @@
 namespace ernie {
 
 OffscreenTarget::OffscreenTarget(const VulkanContext& context, std::uint32_t width,
-                                 std::uint32_t height, VkFormat colorFormat, VkFormat depthFormat)
+                                 std::uint32_t height, VkFormat colorFormat, VkFormat depthFormat,
+                                 bool shared)
     : context_(context),
       color_(context, {width, height, 1, 1, colorFormat,
-                       VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT}),
+                       VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, shared}),
       depth_(context,
              {width, height, 1, 1, depthFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT}) {}
 

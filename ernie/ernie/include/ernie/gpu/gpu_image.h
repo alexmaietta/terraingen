@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <span>
 #include <vector>
 
@@ -17,6 +18,9 @@ struct ImageDesc {
     std::uint32_t mips = 1;
     VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
     VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+    /// Allocate in a dedicated allocation exportable as a POSIX file descriptor, for CUDA to read
+    /// the image in place (`VulkanContext::SupportsExternalMemory`).
+    bool shared = false;
 };
 
 /// A device-local Vulkan image with a view of all its mips and layers, allocated through VMA.
@@ -68,6 +72,26 @@ class GpuImage {
     /// @throws std::invalid_argument if the number of mips or a mip's size does not match.
     void Upload(std::span<const std::span<const std::byte>> mipData);
 
+    /// For shared images, a new file descriptor for the image's memory, owned by the caller until
+    /// it imports it elsewhere (CUDA takes ownership on import).
+    /// @throws std::logic_error for other images, or std::runtime_error if export fails.
+    int ExportFd() const;
+
+    /// For shared images, the size of the image's dedicated memory allocation.
+    VkDeviceSize AllocationSize() const {
+        return sharedMemory_ != VK_NULL_HANDLE ? bytes_ : 0;
+    }
+
+    /// Keeps `object`, such as a CUDA import of the image's memory, until the image is destroyed,
+    /// releasing it before the memory is freed.
+    void Attach(std::shared_ptr<void> object) {
+        attached_ = std::move(object);
+    }
+
+    const std::shared_ptr<void>& Attached() const {
+        return attached_;
+    }
+
     /// Bytes per texel of the formats Ernie uploads and reads back.
     /// @throws std::invalid_argument for other formats.
     static std::uint32_t TexelBytes(VkFormat format);
@@ -79,6 +103,8 @@ class GpuImage {
     ImageDesc desc_;
     VkImage image_ = VK_NULL_HANDLE;
     VmaAllocation allocation_ = VK_NULL_HANDLE;
+    VkDeviceMemory sharedMemory_ = VK_NULL_HANDLE;
+    std::shared_ptr<void> attached_;
     VkImageView view_ = VK_NULL_HANDLE;
     std::vector<VkImageView> layerViews_;
     VkImageLayout layout_ = VK_IMAGE_LAYOUT_UNDEFINED;

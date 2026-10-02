@@ -104,8 +104,10 @@ inline constexpr std::string_view kDetailHexContrast = "inputs:detail:hexContras
 inline constexpr std::string_view kDetailHexSharpness = "inputs:detail:hexSharpness";
 
 // Render settings (UsdRender), with Ernie's rasterizer options under `ernie:`.
-inline constexpr std::string_view kCameraRel = "camera";       ///< Path of the camera.
-inline constexpr std::string_view kResolution = "resolution";  ///< ivec2 pixels.
+inline constexpr std::string_view kCameraRel = "camera";         ///< Path of the camera.
+inline constexpr std::string_view kResolution = "resolution";    ///< ivec2 pixels.
+inline constexpr std::string_view kProducts = "products";        ///< Paths of RenderProducts.
+inline constexpr std::string_view kOrderedVars = "orderedVars";  ///< Paths of RenderVars.
 inline constexpr std::string_view kSourceName = "sourceName";  ///< RenderVar name, e.g. "LdrColor".
 inline constexpr std::string_view kAmbient = "ernie:ambient";  ///< float fraction of sunlight.
 inline constexpr std::string_view kColorMode = "ernie:colorMode";

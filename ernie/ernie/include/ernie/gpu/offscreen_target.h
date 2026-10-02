@@ -14,9 +14,15 @@ namespace ernie {
 class OffscreenTarget {
   public:
     /// @throws std::runtime_error if the images cannot be created.
+    /// A `shared` target allocates its colour image exportable, for CUDA to read in place
+    /// (`CudaInterop::MapImage`).
     OffscreenTarget(const VulkanContext& context, std::uint32_t width, std::uint32_t height,
                     VkFormat colorFormat = VK_FORMAT_R8G8B8A8_UNORM,
-                    VkFormat depthFormat = VK_FORMAT_D32_SFLOAT);
+                    VkFormat depthFormat = VK_FORMAT_D32_SFLOAT, bool shared = false);
+
+    GpuImage& Color() {
+        return color_;
+    }
 
     VkExtent2D Extent() const {
         return {color_.Desc().width, color_.Desc().height};

@@ -6,6 +6,7 @@
 #include "ernie/interop/tensor.h"
 #include "ernie/raster/mesh_part.h"
 #include "ernie/raster/raster_renderer.h"
+#include "ernie/raster/render_outputs.h"
 #include "ernie/raster/terrain_part.h"
 #include "ernie/scene/scene.h"
 
@@ -35,6 +36,25 @@ struct RasterPrims {
     Path material;
     Path light;
 };
+
+/// A render product to draw, resolved from UsdRender prims.
+struct RenderProductSpec {
+    Path product;  ///< The RenderProduct prim, or the settings' path for the default product.
+    Path camera;   ///< Empty to use the settings' camera.
+    VkExtent2D resolution{2048, 1080};
+    /// Render vars as (path, sourceName).
+    std::vector<std::pair<Path, std::string>> vars;
+};
+
+/// The render products a step of `scene` draws, following UsdRender: the given RenderProduct
+/// prims, or else the RenderSettings' `products`, or else one default product keyed by the
+/// settings' path (the root without settings). Each product takes its `camera` and `resolution`
+/// from its prim, falling back to the settings' and then 2048 x 1080; its vars are its
+/// `orderedVars` RenderVar prims by `sourceName`, or `LdrColor` alone.
+/// @throws std::invalid_argument for a path that is not a RenderProduct, a var that is not a
+/// RenderVar, or a source name other than `LdrColor`.
+std::vector<RenderProductSpec>
+ResolveRenderProducts(const Scene& scene, std::span<const Path> products, const Path& settings);
 
 /// Resolves the prims a render of `scene` with the RenderSettings prim `settings` uses.
 /// @throws std::invalid_argument if `settings` is not empty and not a RenderSettings prim.
@@ -121,6 +141,9 @@ class RasterDelegate {
                             VkFormat colorFormat = VK_FORMAT_R8G8B8A8_UNORM,
                             VkFormat depthFormat = VK_FORMAT_D32_SFLOAT,
                             BrdfRegistry brdfs = BrdfRegistry::WithBuiltins());
+    ~RasterDelegate();
+    RasterDelegate(const RasterDelegate&) = delete;
+    RasterDelegate& operator=(const RasterDelegate&) = delete;
 
     /// Uploads the materials, terrain, meshes and instances that changed since the last call, or
     /// all of them when `scene` is not the scene of the last call. An upload that fails is not
@@ -130,7 +153,8 @@ class RasterDelegate {
     void Sync(const Scene& scene);
 
     /// Syncs, then prepares the renderer to draw the scene as `settings` describes into an image
-    /// of `extent`. Call only while no submitted frame is still reading the renderer.
+    /// of `extent`. Waits for earlier `StepAsync` work, then needs no submitted frame to still be
+    /// reading the renderer.
     /// @throws std::invalid_argument as `Sync`, `ResolveRasterPrims` and `FrameParamsOf`.
     void Update(const Scene& scene, const Path& settings, VkExtent2D extent);
 
@@ -142,16 +166,27 @@ class RasterDelegate {
     /// settings' `ernie:clearColor` unless `target.loadColor` is set.
     void Record(VkCommandBuffer commands, RenderingTarget target);
 
-    /// Renders the scene at the settings' `resolution` (default 2048 x 1080, as UsdRender) and
-    /// returns its `LdrColor` render var: a uint8 (rows, cols, 4) RGBA tensor, rows top to bottom,
-    /// on the CPU or, with a CUDA `device`, in CUDA memory shared with Vulkan without a copy
-    /// through the host. A CUDA render returns as soon as it is submitted: CUDA work reading the
-    /// result must first wait for it with `CudaInterop::WaitForVulkan` (Python's `__dlpack__`
-    /// does so on the consumer's stream; `CudaInterop::Download` does so itself). The next render
-    /// waits for this one. A CUDA result stays valid while the tensor lives, even across later
-    /// renders, but not beyond the delegate's Vulkan context.
-    /// @throws std::invalid_argument as `Update`; if the colour format is not 8-bit RGBA or BGRA,
-    /// or BGRA for a CUDA result; or for a CUDA device without CUDA interop.
+    /// Renders `products` of `scene` (see `ResolveRenderProducts`) and returns at once, as
+    /// ovrtx's `step_async`: wait for or poll the operation, then fetch the outputs and map their
+    /// render vars. Products render one after another, each into a frame of its own that later
+    /// steps reuse once its outputs are dropped and unmapped. GPU work is ordered after CUDA
+    /// copies into the renderer's buffers, and signals CUDA when done.
+    /// @throws std::invalid_argument as `ResolveRenderProducts` and `Update`.
+    StepOperation StepAsync(const Scene& scene, std::span<const Path> products = {},
+                            const Path& settings = {});
+
+    /// `StepAsync(...).Fetch()`, as ovrtx's `step`.
+    RenderProductSetOutputs Step(const Scene& scene, std::span<const Path> products = {},
+                                 const Path& settings = {});
+
+    /// Renders the first product of the settings and returns its `LdrColor`: a uint8 (rows, cols,
+    /// 4) RGBA tensor, rows top to bottom, on the CPU, or with a CUDA `device` a linear CUDA
+    /// tensor that the GPU fills without the host. A CUDA result returns without waiting for the
+    /// render; CUDA work reading it must first wait with `CudaInterop::WaitForVulkan` (Python's
+    /// `__dlpack__` does so on the consumer's stream; `CudaInterop::Download` does so itself). It
+    /// stays valid while the tensor lives, but not beyond the delegate's Vulkan context.
+    /// @throws std::invalid_argument as `StepAsync` and `RenderVar::Map`, or for a CUDA device
+    /// other than the renderer's.
     Tensor Render(const Scene& scene, const Path& settings = {}, Device device = {});
 
     /// The CUDA interop of the delegate's device, connected on first use; null if unavailable,
@@ -217,19 +252,21 @@ class RasterDelegate {
     std::vector<MeshItem> Items(const Scene& scene) const;
 
     CudaInterop& RequireCuda();
+    void UpdatePrims(const Scene& scene, const RasterPrims& prims, VkExtent2D extent);
+    std::shared_ptr<ProductFrame> AcquireFrame(const Path& product, VkExtent2D extent);
     void SetMeshPoints(const Scene& scene, const Path& path, std::uint32_t handle);
 
     const VulkanContext& context_;
     std::unique_ptr<CudaInterop> cuda_;
     bool cudaTried_ = false;
     std::string cudaWhy_;
-    std::shared_ptr<GpuBuffer> cudaOutput_;
     bool meshesOnCuda_ = false;
     RasterRenderer renderer_;
     TerrainPart terrain_;
     MeshPart meshes_;
     VkFormat colorFormat_;
-    std::unique_ptr<OffscreenTarget> offscreen_;
+    std::map<Path, std::vector<std::shared_ptr<ProductFrame>>> frames_;
+    std::vector<std::shared_ptr<GpuBuffer>> linearPool_;
     ChangeCursor cursor_;
     std::uint64_t sceneId_ = 0;
     RasterPrims prims_;

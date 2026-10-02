@@ -116,6 +116,10 @@ class VulkanContext {
         return getSemaphoreFd_;
     }
 
+    /// The index of a device-local memory type among `typeBits`.
+    /// @throws std::runtime_error if there is none.
+    std::uint32_t DeviceLocalMemoryType(std::uint32_t typeBits) const;
+
     /// Creates a timeline semaphore at `initial`, exportable as a POSIX file descriptor when
     /// `exportable` is set (which needs `SupportsExternalMemory`). The caller destroys it.
     /// @throws std::runtime_error if creation fails.
@@ -143,14 +147,18 @@ class VulkanContext {
 
     /// Like `Submit`, but returns once the work is submitted, without waiting for the device; its
     /// command buffer is recycled after the device finishes it. Use `signals` to tell other work
-    /// (such as CUDA) when it is done, or `WaitForSubmissions`.
+    /// (such as CUDA) when it is done, or `WaitForSubmission` with the returned number.
     /// @throws std::runtime_error if submission fails.
-    void SubmitAsync(const std::function<void(VkCommandBuffer)>& record,
-                     std::span<const TimelinePoint> waits = {},
-                     std::span<const TimelinePoint> signals = {}) const;
+    std::uint64_t SubmitAsync(const std::function<void(VkCommandBuffer)>& record,
+                              std::span<const TimelinePoint> waits = {},
+                              std::span<const TimelinePoint> signals = {}) const;
 
     /// Waits until the device has finished every `SubmitAsync` submission.
     void WaitForSubmissions() const;
+
+    /// Waits up to `timeoutNs` nanoseconds (0 polls) for `SubmitAsync` submission `submission`;
+    /// true once the device has finished it.
+    bool WaitForSubmission(std::uint64_t submission, std::uint64_t timeoutNs = UINT64_MAX) const;
 
     /// Whether `SubmitAsync` work is still pending on the device.
     bool HasPendingSubmissions() const;
