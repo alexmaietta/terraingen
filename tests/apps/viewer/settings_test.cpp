@@ -316,6 +316,9 @@ TEST(AuthorView, RoundTripsTheViewThroughErniesDrawParameters) {
 
 TEST(CraterSettings, DefaultsAreAValidLunarSurface) {
     const TerrainSettings settings;
+    EXPECT_EQ(settings.craters.apply, terraingen::CraterApplyOptions{});
+    EXPECT_EQ(settings.craters.apply.datum, terraingen::CraterDatum::None);
+    EXPECT_EQ(settings.craters.rims.sigmaRadii, 0.0);
     EXPECT_TRUE(settings.craters.enabled);
     EXPECT_EQ(settings.craters.density, CraterDensityModel::LunarSurface);
     EXPECT_EQ(ValidateSettings(settings), "");
@@ -337,9 +340,11 @@ TEST(CraterSettings, ReportsCraterProblems) {
         return ValidateSettings(settings);
     };
     EXPECT_NE(problem([](CraterSettings& c) { c.minDiameter = 0.0; }), "");
-    EXPECT_NE(problem([](CraterSettings& c) { c.minDiameterPixels = -1.0; }), "");
-    EXPECT_NE(problem([](CraterSettings& c) { c.spacingRatio = 0.5; }), "");
-    EXPECT_NE(problem([](CraterSettings& c) { c.spacingSeparation = -0.1; }), "");
+    EXPECT_NE(problem([](CraterSettings& c) { c.apply.minDiameterPixels = -1.0; }), "");
+    EXPECT_NE(problem([](CraterSettings& c) { c.apply.interiorReplacement = 2.0; }), "");
+    EXPECT_NE(problem([](CraterSettings& c) { c.spacing.diameterRatio = 0.5; }), "");
+    EXPECT_NE(problem([](CraterSettings& c) { c.spacing.separation = -0.1; }), "");
+    EXPECT_NE(problem([](CraterSettings& c) { c.rims.strength = 2.0; }), "");
     EXPECT_NE(problem([](CraterSettings& c) { c.maxDiameter = 3.0; }), "");
     EXPECT_NE(problem([](CraterSettings& c) { c.minDiameter = 2.0; }), "");
     EXPECT_NE(problem([](CraterSettings& c) { c.surfaceAgeGyr = 5.0; }), "");
@@ -427,8 +432,9 @@ TEST(CraterSettings, SpacingAndMinimumPixelsReachTheLibrary) {
     settings.height = 97;
     settings.craters.minDiameter = 8.0;
     settings.craters.maxDiameter = 100.0;
-    settings.craters.spacingSeparation = 1.0;
-    settings.craters.minDiameterPixels = 6.0;
+    settings.craters.spacing.separation = 1.0;
+    settings.craters.apply = {.minDiameterPixels = 6.0, .datum = terraingen::CraterDatum::Plane};
+    settings.craters.rims = {.sigmaRadii = 0.1, .strength = 0.5};
     const auto generated = GenerateTerrain(settings);
 
     auto expected = GenerateSyntheticTerrain(129, 97, 2.0, settings.EffectiveTerrain());
@@ -438,7 +444,8 @@ TEST(CraterSettings, SpacingAndMinimumPixelsReachTheLibrary) {
         settings.craters.seed,
         {.dMin = 8.0, .dMax = 100.0, .marginRadii = 1.5, .spacing = {1.5, 1.0}});
     terraingen::ApplyCraters(expected, craters, *models.profile, *models.degradation,
-                             {.minDiameterPixels = 6.0});
+                             {.minDiameterPixels = 6.0, .datum = terraingen::CraterDatum::Plane});
+    terraingen::SmoothCraterRims(expected, craters, {.sigmaRadii = 0.1, .strength = 0.5});
     for (std::size_t i = 0; i < generated.Size(); ++i) {
         ASSERT_EQ(generated.Values()[i], expected.Values()[i]) << i;
     }

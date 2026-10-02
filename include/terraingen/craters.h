@@ -22,3 +22,4 @@
 #include "terraingen/features/craters/profiles/fassett_thomson.h"
 #include "terraingen/features/craters/profiles/martin_parkes_dunstan.h"
 #include "terraingen/features/craters/profiles/profile.h"
+#include "terraingen/features/craters/rim_smoothing.h"

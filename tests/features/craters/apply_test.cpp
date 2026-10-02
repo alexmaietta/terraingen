@@ -9,8 +9,12 @@
 #include <stdexcept>
 
 using terraingen::ApplyCraters;
+using terraingen::BlendShape;
 using terraingen::Crater;
 using terraingen::CraterApplyOptions;
+using terraingen::CraterBlend;
+using terraingen::CraterBlendWeight;
+using terraingen::CraterDatum;
 using terraingen::CraterList;
 using terraingen::CraterOrder;
 using terraingen::CraterState;
@@ -88,7 +92,7 @@ TEST(ApplyCraters, ReplacesOlderReliefInsideTheRimAndDrapesEjectaOutside) {
         }
     }
     const FassettThomsonProfile profile;
-    ApplyCraters(raster, One(0.0, 0.0, 40.0), profile);
+    ApplyCraters(raster, One(0.0, 0.0, 40.0), profile, {.datum = CraterDatum::Plane});
     const float centre = At(raster, 0.5, 0.5);
     const float neighbour = At(raster, 1.5, 0.5);
     EXPECT_NEAR(centre, neighbour, 0.05);
@@ -106,16 +110,18 @@ TEST(ApplyCraters, OrderDecidesWhichCraterOverprints) {
     const FassettThomsonProfile profile;
 
     Raster<float> big = Flat(100);
-    ApplyCraters(big, One(0.0, 0.0, 50.0), profile);
+    ApplyCraters(big, One(0.0, 0.0, 50.0), profile, {.datum = CraterDatum::Plane});
 
     Raster<float> oldest = Flat(100);
-    ApplyCraters(oldest, craters, profile, {.order = CraterOrder::OldestFirst});
+    ApplyCraters(oldest, craters, profile,
+                 {.order = CraterOrder::OldestFirst, .datum = CraterDatum::Plane});
     for (const double x : {0.5, 3.5, 6.5, -8.5, 15.5}) {
         EXPECT_NEAR(At(oldest, x, 0.5), At(big, x, 0.5), 0.02) << x;
     }
 
     Raster<float> largest = Flat(100);
-    ApplyCraters(largest, craters, profile, {.order = CraterOrder::LargestFirst});
+    ApplyCraters(largest, craters, profile,
+                 {.order = CraterOrder::LargestFirst, .datum = CraterDatum::Plane});
     EXPECT_LT(At(largest, 3.5, 0.5), At(big, 3.5, 0.5) - 0.5f);
 }
 
@@ -197,4 +203,130 @@ TEST(ApplyCraters, LogsAppliedAndSkippedCounts) {
         records[0].message.rfind("Applied 1 of 3 craters (1 below 3 px, 1 off the raster) in ", 0),
         0u)
         << records[0].message;
+}
+
+namespace {
+
+/// A raster whose cells alternate between +0.5 and -0.5 m, like small-scale relief.
+Raster<float> Checkerboard(std::size_t size) {
+    Raster<float> raster = Flat(size);
+    for (std::size_t row = 0; row < raster.Height(); ++row) {
+        for (std::size_t col = 0; col < raster.Width(); ++col) {
+            raster(col, row) = (col + row) % 2 == 0 ? 0.5f : -0.5f;
+        }
+    }
+    return raster;
+}
+
+/// A raster tilted with height 0.2 x + 5.
+Raster<float> Slope(std::size_t size) {
+    Raster<float> raster = Flat(size);
+    for (std::size_t row = 0; row < raster.Height(); ++row) {
+        for (std::size_t col = 0; col < raster.Width(); ++col) {
+            raster(col, row) = static_cast<float>(0.2 * raster.CellCenter(col, row).x + 5.0);
+        }
+    }
+    return raster;
+}
+
+}  // namespace
+
+TEST(ApplyCraters, WithoutADatumCratersAreAdditive) {
+    Raster<float> raster = Checkerboard(80);
+    const Raster<float> before = raster;
+    const FassettThomsonProfile profile;
+    ApplyCraters(raster, One(0.0, 0.0, 40.0), profile);
+    for (const double x : {0.5, 1.5, 10.5, 26.5}) {
+        const double expected =
+            static_cast<double>(At(before, x, 0.5)) + Fresh(profile, std::hypot(x, 0.5), 40.0);
+        EXPECT_NEAR(At(raster, x, 0.5), expected, 1e-5) << x;
+    }
+}
+
+TEST(ApplyCraters, FlatDatumsLevelTheInteriorAndAPlaneKeepsTheSlope) {
+    const FassettThomsonProfile profile;
+    const auto interior = [&](CraterDatum datum) {
+        Raster<float> raster = Slope(100);
+        ApplyCraters(raster, One(10.5, 0.5, 30.0), profile, {.datum = datum});
+        return std::pair{At(raster, 4.5, 0.5), At(raster, 16.5, 0.5)};
+    };
+    const auto [planeLeft, planeRight] = interior(CraterDatum::Plane);
+    EXPECT_NEAR(planeRight - planeLeft, 0.2f * 12.0f, 1e-3f);
+    const auto [meanLeft, meanRight] = interior(CraterDatum::MeanHeight);
+    EXPECT_NEAR(meanRight - meanLeft, 0.0f, 1e-3f);
+    const auto [centreLeft, centreRight] = interior(CraterDatum::CentreHeight);
+    EXPECT_NEAR(centreLeft, centreRight, 1e-3f);
+    EXPECT_NEAR(centreLeft - static_cast<float>(Fresh(profile, 6.0, 30.0)), 0.2f * 10.5f + 5.0f,
+                1e-3f);
+}
+
+TEST(ApplyCraters, DatumFitRadiusChoosesTheFootprint) {
+    const FassettThomsonProfile profile;
+    const auto centre = [&](double fitRadii) {
+        Raster<float> raster = Flat(100);
+        for (std::size_t row = 0; row < raster.Height(); ++row) {
+            for (std::size_t col = 0; col < raster.Width(); ++col) {
+                const auto p = raster.CellCenter(col, row);
+                raster(col, row) = std::hypot(p.x, p.y) > 12.0 ? 4.0f : 0.0f;
+            }
+        }
+        ApplyCraters(raster, One(0.0, 0.0, 20.0), profile,
+                     {.datum = CraterDatum::MeanHeight, .datumFitRadii = fitRadii});
+        return At(raster, 0.5, 0.5) -
+               static_cast<float>(Fresh(profile, std::hypot(0.5, 0.5), 20.0));
+    };
+    EXPECT_NEAR(centre(1.0), 0.0f, 1e-4f);
+    EXPECT_GT(centre(2.0), 1.0f);
+}
+
+TEST(ApplyCraters, InteriorReplacementBlendsOldReliefWithTheDatum) {
+    const FassettThomsonProfile profile;
+    const auto relief = [&](double replacement) {
+        Raster<float> raster = Checkerboard(80);
+        ApplyCraters(raster, One(0.0, 0.0, 40.0), profile,
+                     {.datum = CraterDatum::Plane, .interiorReplacement = replacement});
+        return std::fabs(At(raster, 0.5, 0.5) - At(raster, 1.5, 0.5));
+    };
+    EXPECT_LT(relief(1.0), 0.05f);
+    EXPECT_NEAR(relief(0.5), 0.5f, 0.05f);
+    EXPECT_NEAR(relief(0.0), 1.0f, 0.05f);
+}
+
+TEST(CraterBlendWeight, FallsFromOneToZeroAcrossTheBand) {
+    for (const BlendShape shape : {BlendShape::Linear, BlendShape::Smoothstep,
+                                   BlendShape::Smootherstep, BlendShape::Gaussian}) {
+        const CraterBlend blend{0.8, 1.2, shape};
+        EXPECT_EQ(CraterBlendWeight(0.0, blend), 1.0);
+        EXPECT_EQ(CraterBlendWeight(0.8, blend), 1.0);
+        EXPECT_EQ(CraterBlendWeight(1.2, blend), 0.0);
+        EXPECT_EQ(CraterBlendWeight(5.0, blend), 0.0);
+        EXPECT_NEAR(CraterBlendWeight(0.8 + 1e-9, blend), 1.0, 1e-6);
+        EXPECT_NEAR(CraterBlendWeight(1.2 - 1e-9, blend), 0.0, 1e-6);
+        double previous = 1.0;
+        for (int i = 1; i < 40; ++i) {
+            const double weight = CraterBlendWeight(0.8 + 0.01 * i, blend);
+            EXPECT_LE(weight, previous);
+            previous = weight;
+        }
+    }
+    EXPECT_DOUBLE_EQ(CraterBlendWeight(1.0, {0.8, 1.2, BlendShape::Linear}), 0.5);
+    EXPECT_DOUBLE_EQ(CraterBlendWeight(1.0, {0.8, 1.2, BlendShape::Smoothstep}), 0.5);
+    EXPECT_DOUBLE_EQ(CraterBlendWeight(1.0, {0.8, 1.2, BlendShape::Smootherstep}), 0.5);
+    const double tail = std::exp(-4.5);
+    EXPECT_NEAR(CraterBlendWeight(1.0, {0.8, 1.2, BlendShape::Gaussian}),
+                (std::exp(-1.125) - tail) / (1.0 - tail), 1e-12);
+    EXPECT_NEAR(CraterBlendWeight(0.9, {0.8, 1.2, BlendShape::Linear}), 0.75, 1e-12);
+}
+
+TEST(ApplyCraters, RejectsInvalidDatumAndBlendOptions) {
+    Raster<float> raster = Flat(10);
+    const FassettThomsonProfile profile;
+    const auto apply = [&](const CraterApplyOptions& options) {
+        ApplyCraters(raster, One(0.0, 0.0, 4.0), profile, options);
+    };
+    EXPECT_THROW(apply({.datumFitRadii = 0.0}), std::invalid_argument);
+    EXPECT_THROW(apply({.interiorReplacement = 1.5}), std::invalid_argument);
+    EXPECT_THROW(apply({.interiorReplacement = -0.1}), std::invalid_argument);
+    EXPECT_THROW(apply({.blend = {1.2, 1.2, BlendShape::Linear}}), std::invalid_argument);
+    EXPECT_THROW(apply({.blend = {-0.1, 1.2, BlendShape::Linear}}), std::invalid_argument);
 }

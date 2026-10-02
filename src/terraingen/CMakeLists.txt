@@ -41,8 +41,10 @@ add_library(
     features/craters/population.cpp
     features/craters/profiles/fassett_thomson.cpp
     features/craters/profiles/martin_parkes_dunstan.cpp
-    random/stream.cpp
+    features/craters/rim_smoothing.cpp
     random/samplers.cpp
+    random/stream.cpp
+    raster/filters.cpp
     spatial/cells.cpp
     surfaces/synthetic_terrain.cpp
     "${TERRAINGEN_BUILD_INFO_CPP}")

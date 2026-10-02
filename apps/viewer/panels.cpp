@@ -26,6 +26,8 @@ constexpr const char* kFractalNames[] = {"fBm", "Ridged", "Billow", "Hybrid mult
 constexpr const char* kBlendNames[] = {"Add", "Max", "Min", "Mask"};
 constexpr const char* kCraterDensityNames[] = {"Lunar surface (DSNE)", "Trask equilibrium",
                                                "Hartmann equilibrium", "Power law"};
+constexpr const char* kCraterDatumNames[] = {"None", "Plane", "Mean height", "Centre height"};
+constexpr const char* kBlendShapeNames[] = {"Linear", "Smoothstep", "Smootherstep", "Gaussian"};
 constexpr const char* kCraterProfileNames[] = {"Fassett & Thomson 2014", "Fassett et al. 2022",
                                                "Martin, Parkes & Dunstan (PANGU)"};
 
@@ -207,15 +209,45 @@ void DrawTerrainCraters(TerrainSettings& settings) {
                ImGuiSliderFlags_Logarithmic);
     EnumCombo("Profile", craters.profile, kCraterProfileNames);
     ImGui::Checkbox("Degrade with age", &craters.degrade);
-    DragDouble("Min crater size (px)", craters.minDiameterPixels, 0.0, 20.0, "%.1f");
-    DragDouble("Separation (diameters)", craters.spacingSeparation, 0.0, 3.0, "%.2f");
+    DragDouble("Separation (diameters)", craters.spacing.separation, 0.0, 3.0, "%.2f");
     if (ImGui::IsItemHovered()) {
         ImGui::SetTooltip("Similar craters closer than this many diameters of the larger one are "
                           "removed, keeping the younger; 0 allows any overlap.");
     }
-    ImGui::BeginDisabled(craters.spacingSeparation <= 0.0);
-    DragDouble("Similar size ratio", craters.spacingRatio, 1.0, 8.0, "%.2f",
+    ImGui::BeginDisabled(craters.spacing.separation <= 0.0);
+    DragDouble("Similar size ratio", craters.spacing.diameterRatio, 1.0, 8.0, "%.2f",
                ImGuiSliderFlags_Logarithmic);
+    ImGui::EndDisabled();
+
+    ImGui::SeparatorText("Application");
+    CraterApplyOptions& apply = craters.apply;
+    DragDouble("Min crater size (px)", apply.minDiameterPixels, 0.0, 20.0, "%.1f");
+    EnumCombo("Datum", apply.datum, kCraterDatumNames);
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Surface the crater interior is cut relative to; None adds craters onto "
+                          "the terrain.");
+    }
+    ImGui::BeginDisabled(apply.datum == CraterDatum::None);
+    DragDouble("Datum fit (radii)", apply.datumFitRadii, 0.1, 3.0, "%.2f");
+    DragDouble("Interior replacement", apply.interiorReplacement, 0.0, 1.0, "%.2f");
+    DragDouble("Blend start (radii)", apply.blend.startRadii, 0.0, apply.blend.endRadii, "%.2f");
+    DragDouble("Blend end (radii)", apply.blend.endRadii, apply.blend.startRadii, 3.0, "%.2f");
+    EnumCombo("Blend shape", apply.blend.shape, kBlendShapeNames);
+    ImGui::EndDisabled();
+
+    ImGui::SeparatorText("Rim smoothing");
+    RimSmoothing& rims = craters.rims;
+    DragDouble("Sigma (radii)", rims.sigmaRadii, 0.0, 0.3, "%.3f");
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Gaussian smoothing around each rim after the craters are applied; 0 "
+                          "turns it off.");
+    }
+    ImGui::BeginDisabled(rims.sigmaRadii <= 0.0);
+    DragDouble("Strength", rims.strength, 0.0, 1.0, "%.2f");
+    DragDouble("Inner (radii)", rims.innerRadii, 0.0, 0.99, "%.2f");
+    DragDouble("Outer (radii)", rims.outerRadii, 1.01, 3.0, "%.2f");
+    EnumCombo("Falloff", rims.shape, kBlendShapeNames);
+    rims.minDiameterPixels = apply.minDiameterPixels;
     ImGui::EndDisabled();
     ImGui::InputScalar("Seed", ImGuiDataType_U32, &craters.seed);
     ImGui::SameLine();

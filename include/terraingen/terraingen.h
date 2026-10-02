@@ -17,6 +17,7 @@
 #include "terraingen/kernels/worley.h"
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"
+#include "terraingen/raster/filters.h"
 #include "terraingen/raster/geo_transform.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/raster/raster_stats.h"

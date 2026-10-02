@@ -88,6 +88,8 @@ struct CraterSpacing {
     bool Enabled() const {
         return separation > 0.0;
     }
+
+    bool operator==(const CraterSpacing&) const = default;
 };
 
 /// Settings for `GenerateCraters`.
