@@ -114,6 +114,10 @@ class CudaInterop {
     /// per-thread default stream, anything else a CUstream handle.
     void WaitForVulkan(std::uintptr_t stream = 1);
 
+    /// Makes CUDA stream `stream` wait on the GPU for Vulkan timeline value `value` from
+    /// `NextVulkanSignal`; nothing for 0.
+    void WaitForVulkan(std::uintptr_t stream, std::uint64_t value);
+
     /// Blocks the host until every copy queued so far is done.
     void Synchronize();
 

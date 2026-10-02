@@ -441,3 +441,67 @@ TEST_F(MeshPartTest, CudaInstancesAndPointsRenderLikeHostOnes) {
     EXPECT_THROW(device.meshes.SetInstances(*deviceItem.instancer, data), std::invalid_argument)
         << "scales do not match";
 }
+
+TEST_F(MeshPartTest, BoundArraysAreDoubleBufferedAcrossFrames) {
+    std::string why;
+    auto cuda = ernie::CudaInterop::Create(*context_, &why);
+    if (cuda == nullptr) {
+        GTEST_SKIP() << "No CUDA interop: " << why;
+    }
+    Frame frame(*context_);
+    frame.meshes.SetCudaInterop(cuda.get());
+    MeshItem item;
+    item.mesh = frame.meshes.AddMesh(Square(1.0f));
+    item.instancer = frame.meshes.AddInstancer({{-8, 0, 0}, {}, {}});
+    item.instances = {0};
+    frame.meshes.SetItems({item});
+    EXPECT_THROW(MeshPart(frame.renderer).MapPoints(item.mesh), std::invalid_argument)
+        << "no CUDA interop";
+
+    const auto write = [&](const ernie::BoundSlot& slot, float x) {
+        const std::array<float, 3> position{x, 0.0f, 0.0f};
+        cuda->CopyToBuffer(cuda->Upload(Tensor::Copy<float>(position, {1, 3})), *slot.buffer);
+        cuda->Synchronize();
+    };
+    const ernie::BoundSlot first =
+        frame.meshes.MapInstances(*item.instancer, ernie::InstanceArray::Positions);
+    EXPECT_EQ(first.readDone, 0u) << "no frame has read it";
+    EXPECT_EQ(frame.meshes.MapInstances(*item.instancer, ernie::InstanceArray::Positions).buffer,
+              first.buffer)
+        << "mapping again returns the same slot";
+    write(first, 8.0f);
+    frame.meshes.UnmapInstances(*item.instancer, ernie::InstanceArray::Positions);
+    std::vector<Pixel> pixels = Render(frame);
+    frame.meshes.MarkRead(11);
+    EXPECT_GT(pixels[PixelOf({8, 0, 0})].Luminance(), 100) << "frame 1 reads the written slot";
+    EXPECT_EQ(pixels[PixelOf({-8, 0, 0})].Luminance(), 0);
+
+    const ernie::BoundSlot second =
+        frame.meshes.MapInstances(*item.instancer, ernie::InstanceArray::Positions);
+    EXPECT_NE(second.buffer, first.buffer) << "frame 2 is written while frame 1 reads the other";
+    EXPECT_EQ(second.readDone, 0u) << "so it waits for nothing frame 1 does";
+    write(second, 0.0f);
+    frame.meshes.UnmapInstances(*item.instancer, ernie::InstanceArray::Positions);
+    pixels = Render(frame);
+    frame.meshes.MarkRead(12);
+    EXPECT_GT(pixels[PixelOf({0, 0, 0})].Luminance(), 100) << "frame 2 reads its slot";
+    EXPECT_EQ(pixels[PixelOf({8, 0, 0})].Luminance(), 0);
+
+    const ernie::BoundSlot third =
+        frame.meshes.MapInstances(*item.instancer, ernie::InstanceArray::Positions);
+    EXPECT_EQ(third.buffer, first.buffer);
+    EXPECT_EQ(third.readDone, 11u) << "waits for frame 1, the last reader, not frame 2";
+    frame.meshes.UnmapInstances(*item.instancer, ernie::InstanceArray::Positions);
+
+    pixels = Render(frame);
+    EXPECT_GT(pixels[PixelOf({8, 0, 0})].Luminance(), 100)
+        << "an unwritten slot shows what was written two frames before";
+
+    frame.meshes.SetInstances(*item.instancer, InstanceData{{-8, 0, 0}, {}, {}});
+    pixels = Render(frame);
+    EXPECT_GT(pixels[PixelOf({-8, 0, 0})].Luminance(), 100) << "SetInstances takes over again";
+
+    const ernie::BoundSlot points = frame.meshes.MapPoints(item.mesh);
+    EXPECT_EQ(points.count, 4u);
+    EXPECT_EQ(points.components, 3u);
+}

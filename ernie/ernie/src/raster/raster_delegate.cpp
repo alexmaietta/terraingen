@@ -874,39 +874,51 @@ AttributeBinding RasterDelegate::Bind(const Scene& scene, const Path& path,
     return binding;
 }
 
-Tensor RasterDelegate::MapBinding(const AttributeBinding& binding, std::uintptr_t stream) {
-    using namespace tokens;
-    CudaInterop& cuda = RequireCuda();
-    if (meshes_.NeedsRebuild()) {
-        context_.WaitForSubmissions();
-        meshes_.RebuildPools();
-    }
-    PoolRegion region;
-    if (binding.attribute_ == kPoints) {
+namespace {
+
+InstanceArray InstanceArrayOf(const std::string& attribute) {
+    return attribute == tokens::kPositions      ? InstanceArray::Positions
+           : attribute == tokens::kOrientations ? InstanceArray::Orientations
+                                                : InstanceArray::Scales;
+}
+
+}  // namespace
+
+std::uint32_t RasterDelegate::BoundHandle(const AttributeBinding& binding) const {
+    if (binding.attribute_ == tokens::kPoints) {
         const auto it = syncedMeshes_.find(binding.path_);
         if (it == syncedMeshes_.end() || it->second.handle == 0) {
             throw std::invalid_argument("Bound mesh '" + binding.path_.String() + "' is gone");
         }
-        region = meshes_.BindPoints(it->second.handle, binding.extent_);
-    } else {
-        const auto it = instancers_.find(binding.path_);
-        if (it == instancers_.end() || it->second.handle == 0) {
-            throw std::invalid_argument("Bound instancer '" + binding.path_.String() + "' is gone");
-        }
-        const InstanceArray array = binding.attribute_ == kPositions ? InstanceArray::Positions
-                                    : binding.attribute_ == kOrientations
-                                        ? InstanceArray::Orientations
-                                        : InstanceArray::Scales;
-        region = meshes_.BindInstances(it->second.handle, array, binding.extent_);
+        return it->second.handle;
     }
-    cuda.WaitForVulkan(stream);
-    return cuda.View(
-        region.buffer, DType::Float32,
-        {static_cast<std::int64_t>(region.count), static_cast<std::int64_t>(region.components)},
-        region.offset);
+    const auto it = instancers_.find(binding.path_);
+    if (it == instancers_.end() || it->second.handle == 0) {
+        throw std::invalid_argument("Bound instancer '" + binding.path_.String() + "' is gone");
+    }
+    return it->second.handle;
 }
 
-void RasterDelegate::UnmapBinding(std::uintptr_t stream) {
+Tensor RasterDelegate::MapBinding(const AttributeBinding& binding, std::uintptr_t stream) {
+    CudaInterop& cuda = RequireCuda();
+    const std::uint32_t handle = BoundHandle(binding);
+    const BoundSlot slot =
+        binding.attribute_ == tokens::kPoints
+            ? meshes_.MapPoints(handle, binding.extent_)
+            : meshes_.MapInstances(handle, InstanceArrayOf(binding.attribute_), binding.extent_);
+    cuda.WaitForVulkan(stream, slot.readDone);
+    return cuda.View(
+        slot.buffer, DType::Float32,
+        {static_cast<std::int64_t>(slot.count), static_cast<std::int64_t>(slot.components)});
+}
+
+void RasterDelegate::UnmapBinding(const AttributeBinding& binding, std::uintptr_t stream) {
+    const std::uint32_t handle = BoundHandle(binding);
+    if (binding.attribute_ == tokens::kPoints) {
+        meshes_.UnmapPoints(handle);
+    } else {
+        meshes_.UnmapInstances(handle, InstanceArrayOf(binding.attribute_));
+    }
     RequireCuda().SignalVulkan(stream);
 }
 
@@ -923,7 +935,7 @@ void AttributeBinding::Unmap(std::uintptr_t stream) {
     if (delegate_ == nullptr || !mapped_) {
         return;
     }
-    delegate_->UnmapBinding(stream);
+    delegate_->UnmapBinding(*this, stream);
     mapped_ = false;
 }
 
@@ -987,6 +999,9 @@ StepOperation RasterDelegate::StepAsync(const Scene& scene, std::span<const Path
                 }
             },
             waits, signals);
+        if (!signals.empty()) {
+            meshes_.MarkRead(signals.front().value);
+        }
         frame->submission = submission;
         RenderProductOutput& output = outputs[spec.product];
         output.product = spec.product;

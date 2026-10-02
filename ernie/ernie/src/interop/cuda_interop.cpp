@@ -600,12 +600,16 @@ TimelinePoint CudaInterop::NextVulkanSignal() {
 }
 
 void CudaInterop::WaitForVulkan(std::uintptr_t stream) {
-    if (state_->vulkanSignalled == 0) {
+    WaitForVulkan(stream, state_->vulkanSignalled);
+}
+
+void CudaInterop::WaitForVulkan(std::uintptr_t stream, std::uint64_t value) {
+    if (value == 0) {
         return;
     }
     const State::Scope scope(*state_);
     cu::ExternalSemaphoreWaitParams wait{};
-    wait.params.fence.value = state_->vulkanSignalled;
+    wait.params.fence.value = value;
     state_->Check(state_->driver.waitExternalSemaphoresAsync(&state_->toCudaCuda, &wait, 1,
                                                              reinterpret_cast<cu::Stream>(stream)),
                   "cuWaitExternalSemaphoresAsync");

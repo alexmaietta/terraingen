@@ -42,3 +42,17 @@ def test_bind_rejects_other_attributes(cuda_renderer):
     scene = instancer_scene(np.zeros((1, 3), np.float32))
     with pytest.raises(ValueError, match="can be bound"):
         cuda_renderer.bind(scene, "/World/Rocks", tokens.POINTS)
+
+
+def test_steps_alternate_between_bound_arrays(cuda_renderer):
+    scene = instancer_scene(np.array([[-10.0, 0.0, 0.0]], np.float32))
+    binding = cuda_renderer.bind(scene, "/World/Rocks", tokens.POSITIONS)
+    for x in (10.0, -10.0, 10.0, -10.0):
+        array = binding.map(stream=1)
+        value = cuda_renderer.cuda_upload(np.array([[x, 0.0, 0.0]], np.float32))
+        cuda_renderer.cuda_copy(value, array, stream=1)
+        binding.unmap(stream=1)
+        columns = green_columns(cuda_renderer.render(scene))
+        assert columns.size
+        assert (columns.min() > 24) == (x > 0), f"step drew the array written for x={x}"
+    assert cuda_renderer.take_validation_messages() == []

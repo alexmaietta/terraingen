@@ -25,6 +25,8 @@ struct MeshDraw {
     float4 tint;
     // First index, first vertex, first instance id, flags.
     uint4 offsets;
+    // x: first point in `points`, which differs from the first vertex for bound points.
+    uint4 points;
 }
 
 [[vk::binding(10, 0)]] StructuredBuffer<float> points;
@@ -74,7 +76,7 @@ MeshVertex meshVertex(uint vertexIndex, uint instanceIndex) {
     let d = draws[draw.first];
     let flags = d.offsets.w;
     let index = d.offsets.y + indices[d.offsets.x + vertexIndex];
-    var p = load3(points, index);
+    var p = load3(points, d.points.x + indices[d.offsets.x + vertexIndex]);
     var n = (flags & kHasNormals) != 0 ? load3(normals, index) : float3(0.0);
     if ((flags & kInstanced) != 0) {
         let instance = instanceIds[d.offsets.z + instanceIndex];

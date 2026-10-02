@@ -126,12 +126,15 @@ class RasterDelegate;
 /// float32 CUDA tensor (n, 3 or 4), and the next steps draw whatever was written there by
 /// `Unmap`.
 ///
-/// `Map` makes CUDA stream `stream` wait on the GPU until earlier steps stop reading the array;
-/// `Unmap` makes later steps wait on the GPU for the work queued on `stream`. Neither blocks the
-/// host, except the first `Map` after meshes or instancers were added or removed. The tensor is
-/// valid until `Unmap`; map again for the next update. Bound data persists until the scene's own
-/// attribute (or a mesh's topology) changes, which takes over again. Bounds for shadows come from
-/// the prim's `extent` as of `Bind`; without one they stay those of the last synced data.
+/// Bound arrays are double-buffered, so a simulation writes step N+1 while step N renders: `Map`
+/// returns the array the next step reads, and makes CUDA stream `stream` wait on the GPU only for
+/// the step before last, the last one that read it; `Unmap` makes the next step wait on the GPU
+/// for the work queued on `stream` and read what was written. Neither blocks the host. Mapping
+/// again before the next step returns the same array. The array holds what was written two steps
+/// before (or the scene's data at first), so a writer fills all of it each step. The tensor is
+/// valid until `Unmap`. Bound data persists until the scene's own attribute (or a mesh's
+/// topology) changes, which takes over again. Bounds for shadows come from the prim's `extent` as
+/// of `Bind`; without one they stay those of the last synced data.
 class AttributeBinding {
   public:
     AttributeBinding() = default;
@@ -304,7 +307,8 @@ class RasterDelegate {
     CudaInterop& RequireCuda();
     friend class AttributeBinding;
     Tensor MapBinding(const AttributeBinding& binding, std::uintptr_t stream);
-    void UnmapBinding(std::uintptr_t stream);
+    void UnmapBinding(const AttributeBinding& binding, std::uintptr_t stream);
+    std::uint32_t BoundHandle(const AttributeBinding& binding) const;
     void UpdatePrims(const Scene& scene, const RasterPrims& prims, VkExtent2D extent);
     std::shared_ptr<ProductFrame> AcquireFrame(const Path& product, VkExtent2D extent);
     void SetMeshPoints(const Scene& scene, const Path& path, std::uint32_t handle);

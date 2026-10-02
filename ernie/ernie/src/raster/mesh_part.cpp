@@ -27,8 +27,9 @@ struct GpuDraw {
     float prototype[16];
     float tint[4];
     std::uint32_t offsets[4];
+    std::uint32_t points[4];
 };
-static_assert(sizeof(GpuDraw) == 160, "GpuDraw must match MeshDraw in mesh.slang");
+static_assert(sizeof(GpuDraw) == 176, "GpuDraw must match MeshDraw in mesh.slang");
 
 struct DrawConstants {
     float lightViewProj[16];
@@ -242,7 +243,7 @@ void MeshPart::SetPoints(std::uint32_t mesh, std::span<const float> points) {
     it->second.data.points.assign(points.begin(), points.end());
     std::tie(it->second.low, it->second.high) = PointBounds(it->second.data.points);
     it->second.devicePoints = Tensor();
-    it->second.bound = false;
+    it->second.bound.reset();
     it->second.pointsDirty = true;
 }
 
@@ -265,7 +266,7 @@ void MeshPart::SetPoints(std::uint32_t mesh, const Tensor& points,
         std::tie(target.low, target.high) = PointBounds(target.data.points);
     }
     target.devicePoints = points;
-    target.bound = false;
+    target.bound.reset();
     target.pointsDirty = true;
 }
 
@@ -323,6 +324,7 @@ void MeshPart::SetInstances(std::uint32_t instancer, InstanceData data) {
     target.dirty = true;
     target.bound = {};
     target.boundExtent.reset();
+    target.dedicated.reset();
 }
 
 void MeshPart::CheckDeviceTensor(const Tensor& tensor, std::size_t components,
@@ -369,6 +371,7 @@ void MeshPart::SetInstances(std::uint32_t instancer, const DeviceInstanceData& d
     target.dirty = true;
     target.bound = {};
     target.boundExtent.reset();
+    target.dedicated.reset();
     target.data = {};
     if (!data.extent) {
         const Tensor positions = cuda_->Download(data.positions);
@@ -422,10 +425,6 @@ void MeshPart::SetItems(std::vector<MeshItem> items) {
 }
 
 void MeshPart::RebuildGeometry() {
-    std::map<std::uint32_t, std::uint32_t> oldFirst;
-    for (const auto& [handle, mesh] : meshes_) {
-        oldFirst[handle] = mesh.firstVertex;
-    }
     std::vector<float> points;
     std::vector<float> normals;
     std::vector<float> colors;
@@ -449,44 +448,19 @@ void MeshPart::RebuildGeometry() {
         mesh.pointsDirty = false;
     }
     vkDeviceWaitIdle(context_.Device());
-    const std::shared_ptr<GpuBuffer> oldPoints = points_;
     points_ = Pool(std::as_bytes(std::span(points)));
     normals_ = StorageBuffer(context_, normals);
     colors_ = StorageBuffer(context_, colors);
     indices_ = StorageBuffer(context_, indices);
-    std::vector<VkBufferCopy> keep;
     for (auto& [handle, mesh] : meshes_) {
         if (!mesh.devicePoints.Empty() && cuda_ != nullptr) {
             CopyDevicePoints(mesh);
         }
-        const auto old = oldFirst.find(handle);
-        if (mesh.bound && oldPoints != nullptr && old != oldFirst.end() &&
-            !mesh.data.points.empty()) {
-            keep.push_back({VkDeviceSize{old->second} * 3 * sizeof(float),
-                            VkDeviceSize{mesh.firstVertex} * 3 * sizeof(float),
-                            mesh.data.points.size() * sizeof(float)});
-        }
     }
-    CopyRegions(oldPoints.get(), *points_, keep);
     geometryDirty_ = false;
 }
 
-void MeshPart::CopyRegions(const GpuBuffer* from, GpuBuffer& to,
-                           const std::vector<VkBufferCopy>& regions) const {
-    if (from == nullptr || regions.empty()) {
-        return;
-    }
-    context_.Submit([&](VkCommandBuffer commands) {
-        vkCmdCopyBuffer(commands, from->Handle(), to.Handle(),
-                        static_cast<std::uint32_t>(regions.size()), regions.data());
-    });
-}
-
 void MeshPart::RebuildInstances() {
-    std::map<std::uint32_t, std::uint32_t> oldFirst;
-    for (const auto& [handle, instancer] : instancers_) {
-        oldFirst[handle] = instancer.first;
-    }
     std::vector<float> positions;
     std::vector<float> orientations;
     std::vector<float> scales;
@@ -513,86 +487,122 @@ void MeshPart::RebuildInstances() {
         }
     }
     vkDeviceWaitIdle(context_.Device());
-    const std::array<std::shared_ptr<GpuBuffer>, 3> old{positions_, orientations_, scales_};
     positions_ = Pool(std::as_bytes(std::span(positions)));
     orientations_ = Pool(std::as_bytes(std::span(orientations)));
     scales_ = Pool(std::as_bytes(std::span(scales)));
-    std::array<std::vector<VkBufferCopy>, 3> keep;
-    constexpr std::array<VkDeviceSize, 3> kComponents{3, 4, 3};
     for (auto& [handle, instancer] : instancers_) {
         if (instancer.onDevice) {
             WriteInstancer(instancer);
         }
         instancer.dirty = false;
-        const auto from = oldFirst.find(handle);
-        for (std::size_t a = 0; a < 3; ++a) {
-            if (instancer.bound[a] && old[a] != nullptr && from != oldFirst.end() &&
-                instancer.count > 0) {
-                const VkDeviceSize stride = kComponents[a] * sizeof(float);
-                keep[a].push_back(
-                    {from->second * stride, instancer.first * stride, instancer.count * stride});
-            }
-        }
     }
-    CopyRegions(old[0].get(), *positions_, keep[0]);
-    CopyRegions(old[1].get(), *orientations_, keep[1]);
-    CopyRegions(old[2].get(), *scales_, keep[2]);
     instancesDirty_ = false;
-}
-
-void MeshPart::RebuildPools() {
-    if (geometryDirty_) {
-        RebuildGeometry();
-    }
-    if (instancesDirty_) {
-        RebuildInstances();
-    }
 }
 
 void MeshPart::CheckBindable() const {
     if (cuda_ == nullptr) {
-        throw std::invalid_argument("Binding pools for CUDA needs MeshPart::SetCudaInterop");
-    }
-    if (NeedsRebuild()) {
-        throw std::invalid_argument("Rebuild the pools (RebuildPools) before binding");
+        throw std::invalid_argument("Binding arrays for CUDA needs MeshPart::SetCudaInterop");
     }
 }
 
-PoolRegion MeshPart::BindPoints(std::uint32_t mesh, std::optional<Bounds3> bounds) {
+MeshPart::DoubleBuffer MeshPart::NewDoubleBuffer(std::size_t floats) const {
+    DoubleBuffer buffer;
+    for (std::shared_ptr<GpuBuffer>& slot : buffer.slots) {
+        slot = std::make_shared<GpuBuffer>(
+            context_, std::max<VkDeviceSize>(floats * sizeof(float), 16),
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, BufferMemory::Shared);
+    }
+    return buffer;
+}
+
+void MeshPart::FillPoints(Mesh& mesh) {
+    for (const std::shared_ptr<GpuBuffer>& slot : mesh.bound->slots) {
+        if (!mesh.devicePoints.Empty()) {
+            cuda_->CopyToBuffer(mesh.devicePoints, *slot);
+        } else {
+            slot->Write(std::as_bytes(std::span(mesh.data.points)));
+        }
+    }
+}
+
+void MeshPart::FillDedicated(Instancer& instancer) {
+    const std::size_t count = instancer.count;
+    const InstanceData& data = instancer.data;
+    const std::array<const Tensor*, 3> device{
+        &instancer.device.positions, &instancer.device.orientations, &instancer.device.scales};
+    const std::array<const std::vector<float>*, 3> host{&data.positions, &data.orientations,
+                                                        &data.scales};
+    constexpr std::array<std::size_t, 3> kComponents{3, 4, 3};
+    constexpr std::array<float, 3> kDefaults{0.0f, 0.0f, 1.0f};
+    for (std::size_t a = 0; a < 3; ++a) {
+        const std::vector<float> defaults(count * kComponents[a], kDefaults[a]);
+        for (const std::shared_ptr<GpuBuffer>& slot : (*instancer.dedicated)[a].slots) {
+            if (instancer.onDevice && !device[a]->Empty()) {
+                cuda_->CopyToBuffer(*device[a], *slot);
+            } else if (!instancer.onDevice && host[a]->size() == count * kComponents[a]) {
+                slot->Write(std::as_bytes(std::span(*host[a])));
+            } else {
+                slot->Write(std::as_bytes(std::span(defaults)));
+            }
+        }
+    }
+}
+
+BoundSlot MeshPart::MapSlot(DoubleBuffer& buffer, std::size_t count, std::size_t components) {
+    if (buffer.mapped < 0) {
+        buffer.mapped = buffer.written >= 0 ? buffer.written : 1 - buffer.read;
+    }
+    const auto slot = static_cast<std::size_t>(buffer.mapped);
+    return {buffer.slots[slot], count, components, buffer.readDone[slot]};
+}
+
+void MeshPart::FlipSlots(DoubleBuffer& buffer) {
+    if (buffer.written >= 0) {
+        buffer.read = buffer.written;
+        buffer.written = -1;
+    }
+}
+
+BoundSlot MeshPart::MapPoints(std::uint32_t mesh, std::optional<Bounds3> bounds) {
     const auto it = meshes_.find(mesh);
     if (it == meshes_.end()) {
         throw std::invalid_argument("Unknown mesh " + std::to_string(mesh));
     }
     CheckBindable();
     Mesh& target = it->second;
-    if (target.pointsDirty) {
-        if (!target.devicePoints.Empty()) {
-            CopyDevicePoints(target);
-        } else {
-            points_->Write(std::as_bytes(std::span(target.data.points)),
-                           VkDeviceSize{target.firstVertex} * 3 * sizeof(float));
-        }
+    if (!target.bound) {
+        target.bound = NewDoubleBuffer(target.data.points.size());
+        FillPoints(target);
+        target.devicePoints = Tensor();
         target.pointsDirty = false;
     }
-    target.bound = true;
-    target.devicePoints = Tensor();
     if (bounds) {
         std::tie(target.low, target.high) = *bounds;
     }
-    return {points_, VkDeviceSize{target.firstVertex} * 3 * sizeof(float),
-            target.data.points.size() / 3, 3};
+    return MapSlot(*target.bound, target.data.points.size() / 3, 3);
 }
 
-PoolRegion MeshPart::BindInstances(std::uint32_t instancer, InstanceArray array,
-                                   std::optional<Bounds3> extent) {
+void MeshPart::UnmapPoints(std::uint32_t mesh) {
+    const auto it = meshes_.find(mesh);
+    if (it != meshes_.end() && it->second.bound && it->second.bound->mapped >= 0) {
+        it->second.bound->written = it->second.bound->mapped;
+        it->second.bound->mapped = -1;
+    }
+}
+
+BoundSlot MeshPart::MapInstances(std::uint32_t instancer, InstanceArray array,
+                                 std::optional<Bounds3> extent) {
     const auto it = instancers_.find(instancer);
     if (it == instancers_.end()) {
         throw std::invalid_argument("Unknown instancer " + std::to_string(instancer));
     }
     CheckBindable();
     Instancer& target = it->second;
-    if (target.dirty) {
-        WriteInstancer(target);
+    if (!target.dedicated) {
+        target.dedicated = std::array<DoubleBuffer, 3>{NewDoubleBuffer(3 * target.count),
+                                                       NewDoubleBuffer(4 * target.count),
+                                                       NewDoubleBuffer(3 * target.count)};
+        FillDedicated(target);
         target.dirty = false;
     }
     const auto index = static_cast<std::size_t>(array);
@@ -600,13 +610,35 @@ PoolRegion MeshPart::BindInstances(std::uint32_t instancer, InstanceArray array,
     if (extent) {
         target.boundExtent = extent;
     }
-    const std::size_t components = array == InstanceArray::Orientations ? 4 : 3;
-    const std::shared_ptr<GpuBuffer>& pool =
-        array == InstanceArray::Positions
-            ? positions_
-            : (array == InstanceArray::Orientations ? orientations_ : scales_);
-    return {pool, VkDeviceSize{target.first} * components * sizeof(float), target.count,
-            components};
+    return MapSlot((*target.dedicated)[index], target.count,
+                   array == InstanceArray::Orientations ? 4 : 3);
+}
+
+void MeshPart::UnmapInstances(std::uint32_t instancer, InstanceArray array) {
+    const auto it = instancers_.find(instancer);
+    if (it == instancers_.end() || !it->second.dedicated) {
+        return;
+    }
+    DoubleBuffer& buffer = (*it->second.dedicated)[static_cast<std::size_t>(array)];
+    if (buffer.mapped >= 0) {
+        buffer.written = buffer.mapped;
+        buffer.mapped = -1;
+    }
+}
+
+void MeshPart::MarkRead(std::uint64_t value) {
+    for (auto& [handle, mesh] : meshes_) {
+        if (mesh.bound) {
+            mesh.bound->readDone[static_cast<std::size_t>(mesh.bound->read)] = value;
+        }
+    }
+    for (auto& [handle, instancer] : instancers_) {
+        if (instancer.dedicated) {
+            for (DoubleBuffer& buffer : *instancer.dedicated) {
+                buffer.readDone[static_cast<std::size_t>(buffer.read)] = value;
+            }
+        }
+    }
 }
 
 void MeshPart::WriteInstancer(const Instancer& instancer) {
@@ -638,7 +670,7 @@ void MeshPart::Prepare(const FrameParams&, std::span<const ShadowCascade>) {
         RebuildGeometry();
     } else {
         for (auto& [handle, mesh] : meshes_) {
-            if (!mesh.pointsDirty) {
+            if (!mesh.pointsDirty || mesh.bound) {
                 continue;
             }
             if (!mesh.devicePoints.Empty()) {
@@ -657,6 +689,19 @@ void MeshPart::Prepare(const FrameParams&, std::span<const ShadowCascade>) {
             if (instancer.dirty) {
                 WriteInstancer(instancer);
                 instancer.dirty = false;
+            }
+        }
+    }
+
+    for (auto& [handle, mesh] : meshes_) {
+        if (mesh.bound) {
+            FlipSlots(*mesh.bound);
+        }
+    }
+    for (auto& [handle, instancer] : instancers_) {
+        if (instancer.dedicated) {
+            for (DoubleBuffer& buffer : *instancer.dedicated) {
+                FlipSlots(buffer);
             }
         }
     }
@@ -692,11 +737,13 @@ void MeshPart::Prepare(const FrameParams&, std::span<const ShadowCascade>) {
                                                           : !instancer.data.scales.empty());
             flags |= orientations ? kHasOrientations : 0u;
             flags |= scales ? kHasScales : 0u;
+            const std::uint32_t first = instancer.dedicated ? 0u : instancer.first;
             for (const std::uint32_t instance : item.instances) {
-                instanceIds.push_back(instancer.first + instance);
+                instanceIds.push_back(first + instance);
             }
         }
         draw.offsets[3] = flags;
+        draw.points[0] = mesh.bound ? 0u : mesh.firstVertex;
     }
     const auto bytes = [](const auto& data) {
         return std::max<VkDeviceSize>(data.size() * sizeof(data[0]), 16);
@@ -766,13 +813,29 @@ std::uint64_t MeshPart::TriangleCount() const {
 }
 
 std::vector<DescriptorResource> MeshPart::Resources(const RasterFrame& frame,
-                                                    std::uint32_t material) const {
+                                                    std::size_t item) const {
+    const MeshItem& draw = items_[item];
     std::vector<DescriptorResource> resources = {frame.uniforms, frame.shadows, frame.shadowMap,
                                                  frame.shadowSampler, frame.clampSampler};
-    renderer_.MaterialOrDefault(material).AppendResources(resources);
-    for (const GpuBuffer* buffer :
-         {points_.get(), normals_.get(), indices_.get(), draws_.get(), colors_.get(),
-          positions_.get(), orientations_.get(), scales_.get(), instanceIds_.get()}) {
+    renderer_.MaterialOrDefault(draw.material).AppendResources(resources);
+    const Mesh& mesh = meshes_.at(draw.mesh);
+    const GpuBuffer* points =
+        mesh.bound ? mesh.bound->slots[static_cast<std::size_t>(mesh.bound->read)].get()
+                   : points_.get();
+    std::array<const GpuBuffer*, 3> instances{positions_.get(), orientations_.get(), scales_.get()};
+    if (draw.instancer) {
+        const Instancer& instancer = instancers_.at(*draw.instancer);
+        if (instancer.dedicated) {
+            for (std::size_t a = 0; a < 3; ++a) {
+                const DoubleBuffer& buffer = (*instancer.dedicated)[a];
+                instances[a] = buffer.slots[static_cast<std::size_t>(buffer.read)].get();
+            }
+        }
+    }
+    const std::array<const GpuBuffer*, 9> buffers{points,       normals_.get(), indices_.get(),
+                                                  draws_.get(), colors_.get(),  instances[0],
+                                                  instances[1], instances[2],   instanceIds_.get()};
+    for (const GpuBuffer* buffer : buffers) {
         resources.push_back(DescriptorResource::Of(*buffer));
     }
     return resources;
@@ -799,29 +862,20 @@ void MeshPart::RecordShadow(VkCommandBuffer commands, const RasterFrame& frame, 
         return;
     }
     vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPipeline_->Handle());
-    layout_.Push(commands, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                 Resources(frame, RasterRenderer::kDefaultMaterial));
     for (std::size_t i = 0; i < itemPipelines_.size(); ++i) {
+        layout_.Push(commands, VK_PIPELINE_BIND_POINT_GRAPHICS, Resources(frame, i));
         Draw(commands, i, lightViewProjection);
     }
 }
 
 void MeshPart::RecordColor(VkCommandBuffer commands, const RasterFrame& frame) const {
-    if (itemPipelines_.empty()) {
-        return;
-    }
     const GraphicsPipeline* bound = nullptr;
-    std::optional<std::uint32_t> pushed;
     for (std::size_t i = 0; i < itemPipelines_.size(); ++i) {
         if (itemPipelines_[i] != bound) {
             bound = itemPipelines_[i];
             vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_GRAPHICS, bound->Handle());
-            pushed.reset();
         }
-        if (pushed != items_[i].material) {
-            pushed = items_[i].material;
-            layout_.Push(commands, VK_PIPELINE_BIND_POINT_GRAPHICS, Resources(frame, *pushed));
-        }
+        layout_.Push(commands, VK_PIPELINE_BIND_POINT_GRAPHICS, Resources(frame, i));
         Draw(commands, i, glm::mat4(1.0f));
     }
 }

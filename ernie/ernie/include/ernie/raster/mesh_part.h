@@ -59,13 +59,15 @@ struct DeviceInstanceData {
 /// One per-instance array of an instancer.
 enum class InstanceArray { Positions, Orientations, Scales };
 
-/// A region of one of a part's GPU pools that CUDA writes in place: `count` elements of
-/// `components` floats from byte `offset` of `buffer`.
-struct PoolRegion {
+/// The slot of a bound array a CUDA writer fills for the next frame: `count` elements of
+/// `components` floats at the start of `buffer`. CUDA must wait for Vulkan timeline value
+/// `readDone` (`CudaInterop::WaitForVulkan`), the last frame that read this slot, before writing;
+/// 0 when no frame has.
+struct BoundSlot {
     std::shared_ptr<GpuBuffer> buffer;
-    VkDeviceSize offset = 0;
     std::size_t count = 0;
     std::size_t components = 3;
+    std::uint64_t readDone = 0;
 };
 
 /// One draw of a mesh: either the mesh itself, or the given instances of an instancer with the
@@ -147,28 +149,31 @@ class MeshPart : public RasterPart {
     /// must outlive the part. Null turns CUDA inputs off again.
     void SetCudaInterop(CudaInterop* cuda);
 
-    /// Whether adding or removing meshes or instancers, or `SetCudaInterop`, left the pools to be
-    /// rebuilt by the next `Prepare` or `RebuildPools`.
-    bool NeedsRebuild() const {
-        return geometryDirty_ || instancesDirty_;
-    }
+    /// Binds a mesh's points for CUDA to write in place, double-buffered: the mesh gets two
+    /// dedicated buffers in memory shared with CUDA, frames read one while the other is written,
+    /// and `MapPoints` hands out the one the next frame reads. Mapping again before that frame
+    /// returns the same slot. A slot holds what was written two frames before, so writers fill
+    /// all of it. Bound until `SetPoints` replaces the points. `bounds` replace the mesh's
+    /// bounds when given.
+    /// @throws std::invalid_argument for an unknown mesh or without `SetCudaInterop`.
+    BoundSlot MapPoints(std::uint32_t mesh, std::optional<Bounds3> bounds = std::nullopt);
 
-    /// Rebuilds the pools now if they need it; only while no submitted frame reads them.
-    void RebuildPools();
+    /// Ends `MapPoints`: the next `Prepare` makes the written slot the one frames read.
+    void UnmapPoints(std::uint32_t mesh);
 
-    /// Binds a mesh's points for CUDA to write in place: the region of the shared points pool
-    /// that the shaders read, which stays the mesh's points (kept across pool rebuilds) until
-    /// `SetPoints` replaces them. `bounds` replace the mesh's bounds when given.
-    /// @throws std::invalid_argument for an unknown mesh, without `SetCudaInterop`, or while
-    /// `NeedsRebuild`.
-    PoolRegion BindPoints(std::uint32_t mesh, std::optional<Bounds3> bounds = std::nullopt);
+    /// Binds one array of an instancer as `MapPoints` does, until `SetInstances` replaces the
+    /// instancer's arrays. Binding orientations or scales enables them. `extent` bounds the
+    /// instances in the instancer's frame.
+    /// @throws as `MapPoints`, for an unknown instancer.
+    BoundSlot MapInstances(std::uint32_t instancer, InstanceArray array,
+                           std::optional<Bounds3> extent = std::nullopt);
 
-    /// Binds one array of an instancer for CUDA to write in place, as `BindPoints`, until
-    /// `SetInstances` replaces the instancer's arrays. Binding orientations or scales enables
-    /// them for the instancer. `extent` bounds the instances in the instancer's frame.
-    /// @throws as `BindPoints`, for an unknown instancer.
-    PoolRegion BindInstances(std::uint32_t instancer, InstanceArray array,
-                             std::optional<Bounds3> extent = std::nullopt);
+    /// Ends `MapInstances`, as `UnmapPoints`.
+    void UnmapInstances(std::uint32_t instancer, InstanceArray array);
+
+    /// Records that GPU work signalling Vulkan timeline value `value` (`CudaInterop`) read the
+    /// slots the last `Prepare` selected, so writers of those slots wait for it.
+    void MarkRead(std::uint64_t value);
 
     /// Sets the draws of the next frames; nothing is drawn until the next `Prepare`. Draws whose
     /// material is removed later use the default material.
@@ -199,6 +204,15 @@ class MeshPart : public RasterPart {
     void RecordColor(VkCommandBuffer commands, const RasterFrame& frame) const override;
 
   private:
+    /// Two slots of a bound array: frames read `read` while a writer fills the other.
+    struct DoubleBuffer {
+        std::array<std::shared_ptr<GpuBuffer>, 2> slots;
+        int read = 0;
+        int written = -1;  ///< Slot unmapped since the last `Prepare`, or -1.
+        int mapped = -1;   ///< Slot mapped now, or -1.
+        std::array<std::uint64_t, 2> readDone{};
+    };
+
     struct Mesh {
         MeshData data;
         glm::vec3 low{0.0f};
@@ -207,7 +221,7 @@ class MeshPart : public RasterPart {
         std::uint32_t firstVertex = 0;
         bool pointsDirty = false;
         Tensor devicePoints;  ///< CUDA points replacing `data.points` on the GPU, if any.
-        bool bound = false;   ///< The pool holds points written in place (`BindPoints`).
+        std::optional<DoubleBuffer> bound;  ///< Points written in place (`MapPoints`).
     };
 
     struct Instancer {
@@ -217,8 +231,10 @@ class MeshPart : public RasterPart {
         std::size_t count = 0;
         std::uint32_t first = 0;
         bool dirty = false;
-        std::array<bool, 3> bound{};  ///< Arrays written in place (`BindInstances`).
+        std::array<bool, 3> bound{};  ///< Arrays written in place (`MapInstances`).
         std::optional<Bounds3> boundExtent;
+        /// With any array bound, all three arrays live in dedicated double buffers.
+        std::optional<std::array<DoubleBuffer, 3>> dedicated;
     };
 
     const GraphicsPipeline& ColorPipeline(const BrdfModel& model);
@@ -228,11 +244,13 @@ class MeshPart : public RasterPart {
     void CopyDevicePoints(Mesh& mesh);
     std::shared_ptr<GpuBuffer> Pool(std::span<const std::byte> bytes) const;
     void CheckBindable() const;
-    void CopyRegions(const GpuBuffer* from, GpuBuffer& to,
-                     const std::vector<VkBufferCopy>& regions) const;
+    DoubleBuffer NewDoubleBuffer(std::size_t floats) const;
+    void FillPoints(Mesh& mesh);
+    void FillDedicated(Instancer& instancer);
+    BoundSlot MapSlot(DoubleBuffer& buffer, std::size_t count, std::size_t components);
+    static void FlipSlots(DoubleBuffer& buffer);
     void CheckDeviceTensor(const Tensor& tensor, std::size_t components, const char* what) const;
-    std::vector<DescriptorResource> Resources(const RasterFrame& frame,
-                                              std::uint32_t material) const;
+    std::vector<DescriptorResource> Resources(const RasterFrame& frame, std::size_t item) const;
     void Draw(VkCommandBuffer commands, std::size_t item, const glm::mat4& light) const;
 
     RasterRenderer& renderer_;
