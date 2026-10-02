@@ -1,4 +1,4 @@
-#include "terraingen/random/random_stream.h"
+#include "terraingen/random/stream.h"
 
 namespace terraingen {
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "terraingen/random/random_stream.h"
+#include "terraingen/random/stream.h"
 
 #include <cstdint>
 #include <vector>

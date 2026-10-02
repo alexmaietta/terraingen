@@ -1,8 +1,8 @@
 #include "bindings.h"
 
 #include "terraingen/kernels/philox.h"
-#include "terraingen/random/random_stream.h"
 #include "terraingen/random/samplers.h"
+#include "terraingen/random/stream.h"
 
 #include <nanobind/ndarray.h>
 #include <nanobind/stl/optional.h>

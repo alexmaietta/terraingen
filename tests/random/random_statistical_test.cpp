@@ -1,6 +1,6 @@
 #include "support/statistics.h"
-#include "terraingen/random/random_stream.h"
 #include "terraingen/random/samplers.h"
+#include "terraingen/random/stream.h"
 
 #include <gtest/gtest.h>
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "terraingen/random/random_stream.h"
+#include "terraingen/random/stream.h"
 #include "terraingen/raster/geo_transform.h"
 
 #include <cstdint>

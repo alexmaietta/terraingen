@@ -41,7 +41,7 @@ add_library(
     features/craters/population.cpp
     features/craters/profiles/fassett_thomson.cpp
     features/craters/profiles/martin_parkes_dunstan.cpp
-    random/random_stream.cpp
+    random/stream.cpp
     random/samplers.cpp
     spatial/cells.cpp
     surfaces/synthetic_terrain.cpp
