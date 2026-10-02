@@ -19,8 +19,11 @@ add_library(
     random.cpp
     distributions/size_frequency.cpp
     features/craters/ages.cpp
+    features/craters/apply.cpp
+    features/craters/degradation.cpp
     features/craters/lunar_cratering.cpp
     features/craters/population.cpp
+    features/craters/profiles.cpp
     spatial/cells.cpp
     surfaces/synthetic_terrain.cpp
     "${TERRAINGEN_BUILD_INFO_CPP}")

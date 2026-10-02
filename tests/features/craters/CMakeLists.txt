@@ -4,6 +4,9 @@ terraingen_add_test_suite(
     ages_test.cpp
     lunar_cratering_test.cpp
     population_test.cpp
+    profiles_test.cpp
+    apply_test.cpp
+    degradation_test.cpp
     LIBRARIES
     terraingen::core)
 terraingen_add_test_suite(

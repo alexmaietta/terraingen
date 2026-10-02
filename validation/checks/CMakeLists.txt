@@ -2,6 +2,7 @@ terraingen_add_test_suite(
     validation
     SOURCES
     size_frequency_check.cpp
+    crater_profile_check.cpp
     LIBRARIES
     terraingen::core
     LABELS
