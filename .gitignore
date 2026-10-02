@@ -7,9 +7,9 @@ CMakeUserPresets.json
 # My custom stuff for now
 paper/
 research/
+demos/
 TODO.md
 ARCHITECTURE.md
-DESIGN.md
 .vscode/
 
 __pycache__/

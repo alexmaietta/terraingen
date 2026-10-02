@@ -1,4 +1,4 @@
-# Verification and Validation
+# Validation
 
 We want to make sure TerrainGen can produce accurate results and products. To that end, we can leverage existing map products and orbital data to validate that TerrainGen produces reasonable results.
 
