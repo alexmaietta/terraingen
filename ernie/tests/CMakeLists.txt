@@ -40,7 +40,7 @@ ernie_add_test_suite(
     LABELS
     gpu
     DEFINITIONS
-    ERNIE_SHADER_DIR="${ERNIE_SOURCE_DIR}/ernie/shaders")
+    ERNIE_SHADER_DIR="${ERNIE_SOURCE_DIR}/ernie/src/shaders")
 
 if(TARGET _ernie)
     execute_process(

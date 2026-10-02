@@ -73,13 +73,13 @@ set(ernie_shaders
 foreach(shader ${ernie_shaders})
     string(MAKE_C_IDENTIFIER "${shader}" shader_id)
     string(TOUPPER "${shader_id}" shader_upper)
-    file(READ "ernie/shaders/${shader}" ERNIE_${shader_upper})
+    file(READ "ernie/src/shaders/${shader}" ERNIE_${shader_upper})
     set_property(
         DIRECTORY
         APPEND
-        PROPERTY CMAKE_CONFIGURE_DEPENDS "ernie/shaders/${shader}")
+        PROPERTY CMAKE_CONFIGURE_DEPENDS "ernie/src/shaders/${shader}")
 endforeach()
-configure_file(ernie/shaders/embedded_shaders.h.in
+configure_file(ernie/src/shaders/embedded_shaders.h.in
                "${CMAKE_CURRENT_BINARY_DIR}/generated/embedded_shaders.h" @ONLY)
 
 # Layers, each depending only on the ones above it:
