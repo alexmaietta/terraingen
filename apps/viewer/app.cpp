@@ -2,19 +2,22 @@
 
 #include "terraingen/core/version.h"
 
-#include "ernie/depth_buffer.h"
-#include "ernie/gpu_context.h"
-#include "ernie/orbit_camera.h"
-#include "ernie/terrain_renderer.h"
+#include "ernie/camera/orbit_camera.h"
+#include "ernie/gpu/gpu_image.h"
+#include "ernie/gpu/pipeline.h"
+#include "ernie/gpu/swapchain.h"
+#include "ernie/gpu/vulkan_context.h"
+#include "ernie/raster/terrain_renderer.h"
 #include "glfw_surface.h"
 #include "panels.h"
 #include "settings.h"
 #include "worker.h"
 
+#define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
-#include <imgui_impl_wgpu.h>
+#include <imgui_impl_vulkan.h>
 
 #include <algorithm>
 #include <array>
@@ -37,6 +40,8 @@ struct GlfwWindow {
         glfwSetErrorCallback([](int code, const char* message) {
             std::fprintf(stderr, "GLFW %d: %s\n", code, message);
         });
+        // GLFW uses Ernie's Vulkan, which on macOS may be MoltenVK without a loader.
+        glfwInitVulkanLoader(ernie::LoadVulkanLoader());
         if (glfwInit() == GLFW_FALSE) {
             throw std::runtime_error("Could not initialize GLFW");
         }
@@ -58,20 +63,35 @@ struct GlfwWindow {
 };
 
 struct ImGuiContext {
-    ImGuiContext(GLFWwindow* window, const ernie::GpuContext& gpu) {
+    ImGuiContext(GLFWwindow* window, const ernie::VulkanContext& gpu,
+                 const ernie::Swapchain& swapchain) {
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGui::GetIO().IniFilename = nullptr;
         ImGui::StyleColorsDark();
-        ImGui_ImplGlfw_InitForOther(window, true);
-        ImGui_ImplWGPU_InitInfo info;
+        ImGui_ImplGlfw_InitForVulkan(window, true);
+        const VkFormat format = swapchain.Format();
+        ImGui_ImplVulkan_InitInfo info{};
+        info.ApiVersion = VK_API_VERSION_1_3;
+        info.Instance = gpu.Instance();
+        info.PhysicalDevice = gpu.PhysicalDevice();
         info.Device = gpu.Device();
-        info.RenderTargetFormat = gpu.SurfaceFormat();
-        ImGui_ImplWGPU_Init(&info);
+        info.QueueFamily = gpu.QueueFamily();
+        info.Queue = gpu.Queue();
+        info.DescriptorPoolSize = 64;
+        info.MinImageCount = swapchain.MinImageCount();
+        info.ImageCount = swapchain.ImageCount();
+        info.UseDynamicRendering = true;
+        info.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+        info.PipelineInfoMain.PipelineRenderingCreateInfo = {
+            VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
+        info.PipelineInfoMain.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
+        info.PipelineInfoMain.PipelineRenderingCreateInfo.pColorAttachmentFormats = &format;
+        ImGui_ImplVulkan_Init(&info);
     }
 
     ~ImGuiContext() {
-        ImGui_ImplWGPU_Shutdown();
+        ImGui_ImplVulkan_Shutdown();
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
     }
@@ -80,27 +100,49 @@ struct ImGuiContext {
     ImGuiContext& operator=(const ImGuiContext&) = delete;
 };
 
-WGPURenderPassEncoder BeginPass(WGPUCommandEncoder encoder, WGPUTextureView target, WGPULoadOp load,
-                                const std::array<float, 3>& clear, WGPUTextureView depth) {
-    WGPURenderPassColorAttachment color = WGPU_RENDER_PASS_COLOR_ATTACHMENT_INIT;
-    color.view = target;
-    color.loadOp = load;
-    color.storeOp = WGPUStoreOp_Store;
-    color.clearValue = {static_cast<double>(clear[0]), static_cast<double>(clear[1]),
-                        static_cast<double>(clear[2]), 1.0};
-    WGPURenderPassDepthStencilAttachment depthAttachment =
-        WGPU_RENDER_PASS_DEPTH_STENCIL_ATTACHMENT_INIT;
-    depthAttachment.view = depth;
-    depthAttachment.depthLoadOp = WGPULoadOp_Clear;
-    depthAttachment.depthStoreOp = WGPUStoreOp_Discard;
-    depthAttachment.depthClearValue = 1.0f;
+/// Command buffer and synchronisation for the one frame the viewer keeps in flight.
+struct FrameResources {
+    const ernie::VulkanContext& gpu;
+    VkCommandPool pool = VK_NULL_HANDLE;
+    VkCommandBuffer commands = VK_NULL_HANDLE;
+    VkFence done = VK_NULL_HANDLE;
+    VkSemaphore acquired = VK_NULL_HANDLE;
 
-    WGPURenderPassDescriptor descriptor = WGPU_RENDER_PASS_DESCRIPTOR_INIT;
-    descriptor.colorAttachmentCount = 1;
-    descriptor.colorAttachments = &color;
-    descriptor.depthStencilAttachment = depth != nullptr ? &depthAttachment : nullptr;
-    return wgpuCommandEncoderBeginRenderPass(encoder, &descriptor);
-}
+    explicit FrameResources(const ernie::VulkanContext& context) : gpu(context) {
+        VkCommandPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+        poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        poolInfo.queueFamilyIndex = gpu.QueueFamily();
+        ernie::CheckVk(vkCreateCommandPool(gpu.Device(), &poolInfo, nullptr, &pool),
+                       "vkCreateCommandPool");
+        VkCommandBufferAllocateInfo allocate{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+        allocate.commandPool = pool;
+        allocate.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocate.commandBufferCount = 1;
+        ernie::CheckVk(vkAllocateCommandBuffers(gpu.Device(), &allocate, &commands),
+                       "vkAllocateCommandBuffers");
+        VkFenceCreateInfo fenceInfo{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+        fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        ernie::CheckVk(vkCreateFence(gpu.Device(), &fenceInfo, nullptr, &done), "vkCreateFence");
+        VkSemaphoreCreateInfo semaphoreInfo{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+        ernie::CheckVk(vkCreateSemaphore(gpu.Device(), &semaphoreInfo, nullptr, &acquired),
+                       "vkCreateSemaphore");
+    }
+
+    ~FrameResources() {
+        vkDeviceWaitIdle(gpu.Device());
+        vkDestroySemaphore(gpu.Device(), acquired, nullptr);
+        vkDestroyFence(gpu.Device(), done, nullptr);
+        vkDestroyCommandPool(gpu.Device(), pool, nullptr);
+    }
+
+    FrameResources(const FrameResources&) = delete;
+    FrameResources& operator=(const FrameResources&) = delete;
+
+    /// Waits until the previous frame has finished on the GPU.
+    void Wait() const {
+        vkWaitForFences(gpu.Device(), 1, &done, VK_TRUE, UINT64_MAX);
+    }
+};
 
 /// Routes TerrainGen's log to `buffer` for its lifetime, then restores the default sink and level.
 class LogInstallation {
@@ -123,9 +165,11 @@ struct App::State {
     LogInstallation logInstallation{logBuffer};
     AppOptions options;
     GlfwWindow window;
-    std::unique_ptr<ernie::GpuContext> gpu;
+    std::unique_ptr<ernie::VulkanContext> gpu;
+    std::unique_ptr<ernie::Swapchain> swapchain;
+    std::unique_ptr<ernie::GpuImage> depth;
+    std::optional<FrameResources> frame;
     std::optional<ImGuiContext> imgui;
-    std::optional<ernie::DepthBuffer> depth;
     std::optional<ernie::TerrainRenderer> terrain;
     ernie::OrbitCamera camera;
 
@@ -185,10 +229,18 @@ struct App::State {
         width = newWidth;
         height = newHeight;
         if (width > 0 && height > 0) {
-            gpu->ConfigureSurface(static_cast<std::uint32_t>(width),
-                                  static_cast<std::uint32_t>(height));
-            depth->Resize(static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height));
+            swapchain->Resize(static_cast<std::uint32_t>(width),
+                              static_cast<std::uint32_t>(height));
+            CreateDepth();
+            ImGui_ImplVulkan_SetMinImageCount(swapchain->MinImageCount());
         }
+    }
+
+    void CreateDepth() {
+        const VkExtent2D extent = swapchain->Extent();
+        depth = std::make_unique<ernie::GpuImage>(
+            *gpu, ernie::ImageDesc{extent.width, extent.height, 1, 1, VK_FORMAT_D32_SFLOAT,
+                                   VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT});
     }
 
     void Frame() {
@@ -315,7 +367,7 @@ struct App::State {
     void DrawUi() {
         status.generating = worker.Busy();
         surfacePanel.hasAlbedoMap = terrain->Material().HasAlbedoMap();
-        info.gpu = gpu->AdapterDescription();
+        info.gpu = gpu->DeviceName();
         info.gpuBytes = terrain->GpuBytes();
         info.triangles = terrain->TriangleCount();
         info.patches = terrain->PatchCount();
@@ -338,10 +390,7 @@ struct App::State {
         }
     }
 
-    void Render(WGPUTexture target) {
-        WGPUTextureView targetView = wgpuTextureCreateView(target, nullptr);
-        WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(gpu->Device(), nullptr);
-
+    void Render(const ernie::Swapchain::Frame& image) {
         ernie::TerrainDrawParams params;
         params.camera = camera.MakeView(static_cast<float>(width) / static_cast<float>(height));
         params.sunDirection = SunDirection(view.sunAzimuthDegrees, view.sunElevationDegrees);
@@ -353,25 +402,51 @@ struct App::State {
         params.lod = view.lod;
         params.surface = view.material.Effective(terrain->Brdfs());
         terrain->Update(params);
-        terrain->EncodeShadows(encoder);
 
-        WGPURenderPassEncoder scene =
-            BeginPass(encoder, targetView, WGPULoadOp_Clear, view.background, depth->View());
-        terrain->Draw(scene);
-        wgpuRenderPassEncoderEnd(scene);
+        VkCommandBuffer commands = frame->commands;
+        vkResetCommandBuffer(commands, 0);
+        VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+        begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        vkBeginCommandBuffer(commands, &begin);
+        ernie::TransitionImage(commands, image.image, VK_IMAGE_ASPECT_COLOR_BIT,
+                               VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        depth->Transition(commands, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+        ernie::RenderingTarget target;
+        target.color = image.view;
+        target.depth = depth->View();
+        target.extent = swapchain->Extent();
+        target.clearColor = {{view.background[0], view.background[1], view.background[2], 1.0f}};
+        terrain->Record(commands, target);
 
-        WGPURenderPassEncoder overlay =
-            BeginPass(encoder, targetView, WGPULoadOp_Load, view.background, nullptr);
-        ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), overlay);
-        wgpuRenderPassEncoderEnd(overlay);
+        ernie::RenderingTarget overlay;
+        overlay.color = image.view;
+        overlay.extent = swapchain->Extent();
+        overlay.loadColor = true;
+        ernie::BeginRendering(commands, overlay);
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commands);
+        vkCmdEndRendering(commands);
+        ernie::TransitionImage(commands, image.image, VK_IMAGE_ASPECT_COLOR_BIT,
+                               VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                               VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+        vkEndCommandBuffer(commands);
 
-        WGPUCommandBuffer commands = wgpuCommandEncoderFinish(encoder, nullptr);
-        wgpuQueueSubmit(gpu->Queue(), 1, &commands);
-        wgpuCommandBufferRelease(commands);
-        wgpuRenderPassEncoderRelease(overlay);
-        wgpuRenderPassEncoderRelease(scene);
-        wgpuCommandEncoderRelease(encoder);
-        wgpuTextureViewRelease(targetView);
+        VkSemaphoreSubmitInfo wait{VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO};
+        wait.semaphore = image.acquired;
+        wait.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+        VkSemaphoreSubmitInfo signal{VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO};
+        signal.semaphore = image.rendered;
+        signal.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+        VkCommandBufferSubmitInfo commandInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO};
+        commandInfo.commandBuffer = commands;
+        VkSubmitInfo2 submit{VK_STRUCTURE_TYPE_SUBMIT_INFO_2};
+        submit.waitSemaphoreInfoCount = 1;
+        submit.pWaitSemaphoreInfos = &wait;
+        submit.commandBufferInfoCount = 1;
+        submit.pCommandBufferInfos = &commandInfo;
+        submit.signalSemaphoreInfoCount = 1;
+        submit.pSignalSemaphoreInfos = &signal;
+        vkResetFences(gpu->Device(), 1, &frame->done);
+        ernie::CheckVk(vkQueueSubmit2(gpu->Queue(), 1, &submit, frame->done), "vkQueueSubmit2");
     }
 };
 
@@ -380,19 +455,28 @@ App::App(const AppOptions& options) : state_(std::make_unique<State>()) {
     s.options = options;
     SetLogLevel(options.logLevel);
     GLFWwindow* window = s.window.window;
-    s.gpu = ernie::GpuContext::Create(
-        [window](WGPUInstance instance) { return CreateGlfwSurface(instance, window); });
-    LogInfo("viewer", "TerrainGen ", TERRAINGEN_VERSION_STRING, " on ",
-            s.gpu->AdapterDescription());
-    s.imgui.emplace(window, *s.gpu);
-    s.depth.emplace(s.gpu->Device());
-    s.terrain.emplace(*s.gpu, s.gpu->SurfaceFormat(), s.depth->Format());
-    s.ApplyOptions();
+    ernie::VulkanContextOptions gpuOptions;
+    gpuOptions.validation = options.validation;
+    gpuOptions.instanceExtensions = GlfwInstanceExtensions();
+    gpuOptions.deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+    s.gpu = ernie::VulkanContext::Create(gpuOptions);
+    LogInfo("viewer", "TerrainGen ", TERRAINGEN_VERSION_STRING, " on ", s.gpu->DeviceName(),
+            s.gpu->ValidationEnabled() ? " with Vulkan validation" : "");
 
     int width = 0;
     int height = 0;
     glfwGetFramebufferSize(window, &width, &height);
-    s.Resize(width, height);
+    s.swapchain =
+        std::make_unique<ernie::Swapchain>(*s.gpu, CreateGlfwSurface(s.gpu->Instance(), window),
+                                           static_cast<std::uint32_t>(std::max(width, 1)),
+                                           static_cast<std::uint32_t>(std::max(height, 1)));
+    s.width = width;
+    s.height = height;
+    s.CreateDepth();
+    s.frame.emplace(*s.gpu);
+    s.imgui.emplace(window, *s.gpu, *s.swapchain);
+    s.terrain.emplace(*s.gpu, s.swapchain->Format(), VK_FORMAT_D32_SFLOAT);
+    s.ApplyOptions();
     s.Request();
 }
 
@@ -420,29 +504,25 @@ void App::Run() {
             s.ApplyResult(std::move(*result));
         }
 
-        WGPUSurfaceTexture surfaceTexture = WGPU_SURFACE_TEXTURE_INIT;
-        wgpuSurfaceGetCurrentTexture(s.gpu->Surface(), &surfaceTexture);
-        if (ImGui_ImplWGPU_IsSurfaceStatusError(surfaceTexture.status)) {
-            throw std::runtime_error("Unrecoverable WebGPU surface status");
-        }
-        if (ImGui_ImplWGPU_IsSurfaceStatusSubOptimal(surfaceTexture.status)) {
-            if (surfaceTexture.texture != nullptr) {
-                wgpuTextureRelease(surfaceTexture.texture);
-            }
+        s.frame->Wait();
+        const std::optional<ernie::Swapchain::Frame> image =
+            s.swapchain->Acquire(s.frame->acquired);
+        if (!image) {
             s.Resize(width, height);
             continue;
         }
 
-        ImGui_ImplWGPU_NewFrame();
+        ImGui_ImplVulkan_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
         s.HandleInput();
         s.DrawUi();
         ImGui::Render();
 
-        s.Render(surfaceTexture.texture);
-        wgpuSurfacePresent(s.gpu->Surface());
-        wgpuTextureRelease(surfaceTexture.texture);
+        s.Render(*image);
+        if (!s.swapchain->Present(*image)) {
+            s.Resize(width, height);
+        }
     }
 }
 

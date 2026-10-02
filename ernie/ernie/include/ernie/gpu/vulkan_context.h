@@ -1,0 +1,146 @@
+#pragma once
+
+#include <vk_mem_alloc.h>
+#include <volk.h>
+
+#include <array>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <vector>
+
+namespace ernie {
+
+/// Options for `VulkanContext::Create`.
+struct VulkanContextOptions {
+    /// Enable the Khronos validation layer when it is installed; its messages are collected (see
+    /// `VulkanContext::TakeValidationMessages`) and errors are also printed to stderr.
+    bool validation = false;
+    /// Prefer the first device whose name contains this text; empty prefers a discrete GPU, then an
+    /// integrated one, then anything else.
+    std::string preferredDevice;
+    /// Extra instance extensions, e.g. the ones a window system needs for presentation.
+    std::vector<std::string> instanceExtensions;
+    /// Extra device extensions, e.g. `VK_KHR_swapchain`.
+    std::vector<std::string> deviceExtensions;
+};
+
+/// Owns a Vulkan instance, device, graphics and compute queue, and memory allocator.
+///
+/// Requires Vulkan 1.3 with dynamic rendering, synchronization2, timeline semaphores and shader
+/// draw parameters, plus push descriptors. Ray queries are enabled when the device supports them.
+/// Vulkan is loaded at run time through volk: the system loader on Linux and Windows, MoltenVK on
+/// macOS (with the portability extensions it needs). Several contexts may exist at once, on the
+/// same or different devices: core functions go through the loader's dispatch, and extension
+/// functions come from the context that enabled them (e.g. `PushDescriptorSet`), never from volk's
+/// globals.
+class VulkanContext {
+  public:
+    /// @throws std::runtime_error if Vulkan cannot be loaded or no device meets the requirements.
+    static std::unique_ptr<VulkanContext> Create(const VulkanContextOptions& options = {});
+
+    ~VulkanContext();
+    VulkanContext(const VulkanContext&) = delete;
+    VulkanContext& operator=(const VulkanContext&) = delete;
+
+    VkInstance Instance() const {
+        return instance_;
+    }
+
+    VkPhysicalDevice PhysicalDevice() const {
+        return physicalDevice_;
+    }
+
+    VkDevice Device() const {
+        return device_;
+    }
+
+    VkQueue Queue() const {
+        return queue_;
+    }
+
+    std::uint32_t QueueFamily() const {
+        return queueFamily_;
+    }
+
+    VmaAllocator Allocator() const {
+        return allocator_;
+    }
+
+    /// Device name, e.g. "NVIDIA GeForce RTX 5070 Laptop GPU".
+    const std::string& DeviceName() const {
+        return deviceName_;
+    }
+
+    /// Device UUID, which CUDA reports too, for matching devices across APIs.
+    const std::array<std::uint8_t, VK_UUID_SIZE>& DeviceUuid() const {
+        return deviceUuid_;
+    }
+
+    const VkPhysicalDeviceLimits& Limits() const {
+        return limits_;
+    }
+
+    bool SupportsRayQuery() const {
+        return rayQuery_;
+    }
+
+    bool SupportsAnisotropy() const {
+        return anisotropy_;
+    }
+
+    bool ValidationEnabled() const {
+        return validation_;
+    }
+
+    /// `vkCmdPushDescriptorSetKHR` for this device.
+    PFN_vkCmdPushDescriptorSetKHR PushDescriptorSet() const {
+        return pushDescriptorSet_;
+    }
+
+    /// Validation and error messages reported since the last call, oldest first.
+    std::vector<std::string> TakeValidationMessages();
+
+    /// Records commands with `record` into a one-off command buffer, submits it and waits for the
+    /// device to finish it. Its writes are then visible to the host and to later submissions.
+    /// @throws std::runtime_error if submission fails.
+    void Submit(const std::function<void(VkCommandBuffer)>& record) const;
+
+  private:
+    VulkanContext() = default;
+    void Report(std::string message);
+
+    VkInstance instance_ = VK_NULL_HANDLE;
+    VkDebugUtilsMessengerEXT messenger_ = VK_NULL_HANDLE;
+    VkPhysicalDevice physicalDevice_ = VK_NULL_HANDLE;
+    VkDevice device_ = VK_NULL_HANDLE;
+    VkQueue queue_ = VK_NULL_HANDLE;
+    std::uint32_t queueFamily_ = 0;
+    VmaAllocator allocator_ = VK_NULL_HANDLE;
+    VkCommandPool commandPool_ = VK_NULL_HANDLE;
+    PFN_vkDestroyDebugUtilsMessengerEXT destroyMessenger_ = nullptr;
+    PFN_vkCmdPushDescriptorSetKHR pushDescriptorSet_ = nullptr;
+    std::string deviceName_;
+    std::array<std::uint8_t, VK_UUID_SIZE> deviceUuid_{};
+    VkPhysicalDeviceLimits limits_{};
+    bool rayQuery_ = false;
+    bool anisotropy_ = false;
+    bool validation_ = false;
+    mutable std::mutex submitMutex_;
+    std::unique_ptr<std::function<void(std::string)>> sink_;
+    std::mutex messagesMutex_;
+    std::vector<std::string> messages_;
+};
+
+/// Loads Vulkan (the system loader, or MoltenVK on macOS without one) and returns its
+/// `vkGetInstanceProcAddr`, e.g. for `glfwInitVulkanLoader` so a window system uses the same
+/// Vulkan as Ernie.
+/// @throws std::runtime_error if Vulkan is not available.
+PFN_vkGetInstanceProcAddr LoadVulkanLoader();
+
+/// Throws `std::runtime_error` naming `what` and the result unless `result` is `VK_SUCCESS`.
+void CheckVk(VkResult result, const char* what);
+
+}  // namespace ernie

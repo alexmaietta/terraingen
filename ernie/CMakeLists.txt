@@ -3,18 +3,8 @@ cmake_minimum_required(VERSION 3.22)
 project(
     Ernie
     VERSION 0.1.0
-    DESCRIPTION "Standalone WebGPU terrain renderer"
-    LANGUAGES CXX)
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
-    set(hint "On Ubuntu 22.04, install g++-13 from ppa:ubuntu-toolchain-r/test.")
-    if(NOT PROJECT_IS_TOP_LEVEL)
-        string(APPEND hint
-               " Configure with -DTERRAINGEN_BUILD_VIEWER=OFF to build TerrainGen without "
-               "Ernie and the viewer.")
-    endif()
-    message(FATAL_ERROR "Ernie needs GCC 13 or newer; found ${CMAKE_CXX_COMPILER_VERSION}. ${hint}")
-endif()
+    DESCRIPTION "Standalone Vulkan terrain renderer"
+    LANGUAGES C CXX)
 
 option(ERNIE_BUILD_TESTS "Build Ernie's tests" ${PROJECT_IS_TOP_LEVEL})
 
@@ -31,7 +21,13 @@ if(PROJECT_IS_TOP_LEVEL)
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib")
 endif()
 
-include(cmake/third_party/wgpu_native.cmake)
+include(cmake/third_party/vulkan_headers.cmake)
+include(cmake/third_party/volk.cmake)
+include(cmake/third_party/vma.cmake)
+include(cmake/third_party/slang.cmake)
+if(APPLE)
+    include(cmake/third_party/moltenvk.cmake)
+endif()
 include(cmake/third_party/glm.cmake)
 include(cmake/third_party/stb.cmake)
 include(cmake/third_party/tinyexr.cmake)
@@ -55,51 +51,86 @@ else()
 endif()
 
 set(ernie_shaders
-    terrain_common
-    terrain
-    terrain_shadow
-    surface
-    brdf_common
-    brdf_lambert
-    brdf_lommel_seeliger
-    brdf_lunar_lambert
-    brdf_oren_nayar
-    brdf_hapke)
+    material/brdf.slang
+    material/lambert.slang
+    material/lommel_seeliger.slang
+    material/lunar_lambert.slang
+    material/oren_nayar.slang
+    material/hapke.slang
+    raster/terrain.slang
+    raster/surface.slang
+    raster/terrain_shadow.slang
+    raster/terrain_color.slang)
 foreach(shader ${ernie_shaders})
-    string(TOUPPER "${shader}" shader_upper)
-    file(READ "shaders/${shader}.wgsl" ERNIE_${shader_upper}_WGSL)
+    string(MAKE_C_IDENTIFIER "${shader}" shader_id)
+    string(TOUPPER "${shader_id}" shader_upper)
+    file(READ "ernie/shaders/${shader}" ERNIE_${shader_upper})
     set_property(
         DIRECTORY
         APPEND
-        PROPERTY CMAKE_CONFIGURE_DEPENDS "shaders/${shader}.wgsl")
+        PROPERTY CMAKE_CONFIGURE_DEPENDS "ernie/shaders/${shader}")
 endforeach()
-configure_file(shaders/embedded_shaders.h.in
+configure_file(ernie/shaders/embedded_shaders.h.in
                "${CMAKE_CURRENT_BINARY_DIR}/generated/embedded_shaders.h" @ONLY)
 
+# Layers, each depending only on the ones above it:
+#   Ernie::core    image I/O, raster views, geometry, cameras, materials; no Vulkan
+#   Ernie::gpu     Vulkan device, memory, pipelines, Slang compiler, presentation
+#   Ernie::raster  the rasterizer
+#   Ernie::ernie   everything
+function(ernie_layer target)
+    target_include_directories(
+        ${target}
+        PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/ernie/include"
+        PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/ernie/src" "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    target_compile_features(${target} PUBLIC cxx_std_20)
+    target_link_libraries(${target} PRIVATE ernie_build_options)
+endfunction()
+
 add_library(
-    ernie STATIC
-    src/brdf.cpp
-    src/depth_buffer.cpp
-    src/frustum.cpp
-    src/gpu_context.cpp
-    src/image.cpp
-    src/lod_quadtree.cpp
-    src/orbit_camera.cpp
-    src/poisson_disk.cpp
-    src/shadow_cascades.cpp
-    src/surface_material.cpp
-    src/terrain_renderer.cpp)
-add_library(Ernie::ernie ALIAS ernie)
-target_include_directories(
-    ernie
-    PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
-    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_BINARY_DIR}/generated")
-target_compile_features(ernie PUBLIC cxx_std_20)
+    ernie_core STATIC
+    ernie/src/camera/orbit_camera.cpp ernie/src/core/image.cpp ernie/src/geometry/frustum.cpp
+    ernie/src/geometry/lod_quadtree.cpp ernie/src/material/brdf.cpp)
+ernie_layer(ernie_core)
 target_link_libraries(
-    ernie
-    PUBLIC wgpu_native ernie_glm
-    PRIVATE ernie_stb ernie_tinyexr ernie_build_options)
-target_compile_definitions(ernie PRIVATE ERNIE_WEBGPU_WGPU_NATIVE)
+    ernie_core
+    PUBLIC ernie_glm
+    PRIVATE ernie_stb ernie_tinyexr)
+
+add_library(
+    ernie_gpu STATIC
+    ernie/src/gpu/gpu_buffer.cpp
+    ernie/src/gpu/gpu_image.cpp
+    ernie/src/gpu/offscreen_target.cpp
+    ernie/src/gpu/pipeline.cpp
+    ernie/src/gpu/shader_compiler.cpp
+    ernie/src/gpu/swapchain.cpp
+    ernie/src/gpu/vulkan_context.cpp)
+ernie_layer(ernie_gpu)
+target_link_libraries(
+    ernie_gpu
+    PUBLIC ernie_core ernie_volk ernie_vma
+    PRIVATE slang::slang)
+# Vulkan structs are initialised as `VkFoo info{VK_STRUCTURE_TYPE_FOO}` with the rest zeroed, here
+# and in code that uses Ernie's Vulkan types.
+target_compile_options(ernie_gpu
+                       PUBLIC $<$<CXX_COMPILER_ID:GNU,Clang>:-Wno-missing-field-initializers>)
+if(APPLE)
+    target_compile_definitions(ernie_gpu PRIVATE ERNIE_MOLTENVK_PATH="${ERNIE_MOLTENVK_LIBRARY}")
+endif()
+
+add_library(
+    ernie_raster STATIC ernie/src/raster/poisson_disk.cpp ernie/src/raster/shadow_cascades.cpp
+                        ernie/src/raster/surface_material.cpp ernie/src/raster/terrain_renderer.cpp)
+ernie_layer(ernie_raster)
+target_link_libraries(ernie_raster PUBLIC ernie_gpu)
+
+add_library(ernie INTERFACE)
+target_link_libraries(ernie INTERFACE ernie_raster)
+add_library(Ernie::core ALIAS ernie_core)
+add_library(Ernie::gpu ALIAS ernie_gpu)
+add_library(Ernie::raster ALIAS ernie_raster)
+add_library(Ernie::ernie ALIAS ernie)
 
 if(ERNIE_BUILD_TESTS)
     enable_testing()

@@ -112,7 +112,11 @@ The viewer additionally uses:
 
 | Library | Purpose | License |
 | --- | --- | --- |
-| [wgpu-native](https://github.com/gfx-rs/wgpu-native) | Cross-platform WebGPU rendering | MIT / Apache-2.0 |
+| [Vulkan-Headers](https://github.com/KhronosGroup/Vulkan-Headers) | Vulkan API headers for the Ernie renderer | Apache-2.0 / MIT |
+| [volk](https://github.com/zeux/volk) | Loads Vulkan at run time | MIT |
+| [Vulkan Memory Allocator](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator) | GPU memory allocation | MIT |
+| [Slang](https://github.com/shader-slang/slang) | Shader language and run-time compiler (SPIR-V, WGSL) | Apache-2.0 with LLVM exception |
+| [MoltenVK](https://github.com/KhronosGroup/MoltenVK) | Vulkan on Metal, macOS only | Apache-2.0 |
 | [GLFW](https://www.glfw.org/) | Windowing and input | Zlib |
 | [Dear ImGui](https://github.com/ocornut/imgui) | User interface | MIT |
 | [GLM](https://github.com/g-truc/glm) | Vector and matrix math | MIT |

@@ -1,14 +1,20 @@
 #pragma once
 
-#include <webgpu/webgpu.h>
+#include <volk.h>
+
+#include <string>
+#include <vector>
 
 struct GLFWwindow;
 
 namespace terraingen::viewer {
 
-/// Creates a WebGPU surface for a GLFW window created with `GLFW_CLIENT_API` set to
-/// `GLFW_NO_API`. Supports Windows, macOS, X11 and Wayland.
-/// @return The surface, or null if the window system is unsupported.
-WGPUSurface CreateGlfwSurface(WGPUInstance instance, GLFWwindow* window);
+/// Instance extensions GLFW needs to present to its windows.
+/// @throws std::runtime_error if GLFW reports that Vulkan is unavailable.
+std::vector<std::string> GlfwInstanceExtensions();
+
+/// Creates a Vulkan surface for `window`; the caller owns it.
+/// @throws std::runtime_error if GLFW cannot create the surface.
+VkSurfaceKHR CreateGlfwSurface(VkInstance instance, GLFWwindow* window);
 
 }  // namespace terraingen::viewer

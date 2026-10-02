@@ -5,17 +5,12 @@ add_library(
     "${dear_imgui_SOURCE_DIR}/imgui_widgets.cpp")
 target_include_directories(dear_imgui SYSTEM PUBLIC "${dear_imgui_SOURCE_DIR}")
 
-if(TARGET glfw AND TARGET wgpu_native)
-    add_library(dear_imgui_glfw_wgpu STATIC "${dear_imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp"
-                                            "${dear_imgui_SOURCE_DIR}/backends/imgui_impl_wgpu.cpp")
-    target_include_directories(dear_imgui_glfw_wgpu SYSTEM
+if(TARGET glfw AND TARGET ernie_volk)
+    add_library(dear_imgui_glfw_vulkan STATIC "${dear_imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp"
+                                              "${dear_imgui_SOURCE_DIR}/backends/imgui_impl_vulkan.cpp")
+    target_include_directories(dear_imgui_glfw_vulkan SYSTEM
                                PUBLIC "${dear_imgui_SOURCE_DIR}/backends")
-    # ImGui's WGPU path targets pre-v27 wgpu-native; its DAWN path targets the standard webgpu.h
-    # that current wgpu-native and browsers implement.
-    target_compile_definitions(dear_imgui_glfw_wgpu PUBLIC IMGUI_IMPL_WEBGPU_BACKEND_DAWN)
-    target_link_libraries(dear_imgui_glfw_wgpu PUBLIC dear_imgui glfw wgpu_native)
-    if(APPLE)
-        set_source_files_properties("${dear_imgui_SOURCE_DIR}/backends/imgui_impl_wgpu.cpp"
-                                    PROPERTIES COMPILE_FLAGS "-x objective-c++")
-    endif()
+    # Vulkan functions come from volk, as in Ernie, so the backend works with MoltenVK too.
+    target_compile_definitions(dear_imgui_glfw_vulkan PUBLIC IMGUI_IMPL_VULKAN_USE_VOLK)
+    target_link_libraries(dear_imgui_glfw_vulkan PUBLIC dear_imgui glfw ernie_volk)
 endif()

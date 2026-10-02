@@ -24,12 +24,13 @@ TEST(ParseAppOptions, DefaultsWithoutArguments) {
     EXPECT_TRUE(options.detailAlbedo.empty());
     EXPECT_TRUE(options.detailNormal.empty());
     EXPECT_EQ(options.logLevel, terraingen::LogLevel::Info);
+    EXPECT_FALSE(options.validation);
 }
 
 TEST(ParseAppOptions, ReadsEveryOption) {
-    const AppOptions options = Parse({"--frames", "30", "--brdf", "hapke", "--detail-albedo",
-                                      "rock_diff.png", "--detail-normal", "rock_nor_gl.exr",
-                                      "--log-level", "debug"});
+    const AppOptions options =
+        Parse({"--frames", "30", "--brdf", "hapke", "--detail-albedo", "rock_diff.png",
+               "--detail-normal", "rock_nor_gl.exr", "--log-level", "debug"});
     EXPECT_EQ(options.maxFrames, 30);
     EXPECT_EQ(options.brdf, "hapke");
     EXPECT_EQ(options.detailAlbedo, "rock_diff.png");
@@ -50,8 +51,12 @@ TEST(ParseAppOptions, RejectsUnknownFlagsMissingValuesAndBadNumbers) {
 
 TEST(AppUsage, ListsEveryOption) {
     const std::string usage = terraingen::viewer::AppUsage();
-    for (const char* flag :
-         {"--brdf", "--detail-albedo", "--detail-normal", "--frames", "--log-level", "--help"}) {
+    for (const char* flag : {"--brdf", "--detail-albedo", "--detail-normal", "--frames",
+                             "--log-level", "--validation", "--help"}) {
         EXPECT_NE(usage.find(flag), std::string::npos) << flag;
     }
+}
+
+TEST(ParseAppOptions, EnablesValidation) {
+    EXPECT_TRUE(Parse({"--validation"}).validation);
 }

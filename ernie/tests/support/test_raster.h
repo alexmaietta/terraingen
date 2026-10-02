@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ernie/raster_view.h"
+#include "ernie/core/raster_view.h"
 
 #include <glm/glm.hpp>
 

@@ -3,14 +3,14 @@ include("${ERNIE_SOURCE_DIR}/cmake/ErnieTesting.cmake")
 ernie_add_test_suite(
     unit
     SOURCES
-    brdf_test.cpp
-    frustum_test.cpp
-    gpu_context_names_test.cpp
-    image_test.cpp
-    lod_quadtree_test.cpp
-    orbit_camera_test.cpp
-    poisson_disk_test.cpp
-    shadow_cascades_test.cpp
+    camera/orbit_camera_test.cpp
+    core/image_test.cpp
+    geometry/frustum_test.cpp
+    geometry/lod_quadtree_test.cpp
+    gpu/shader_compiler_test.cpp
+    material/brdf_test.cpp
+    raster/poisson_disk_test.cpp
+    raster/shadow_cascades_test.cpp
     LIBRARIES
     ernie
     ernie_stb
@@ -20,13 +20,14 @@ ernie_add_test_suite(
 ernie_add_test_suite(
     gpu
     SOURCES
-    brdf_gpu_test.cpp
-    gpu_context_test.cpp
-    hex_tiling_gpu_test.cpp
-    terrain_renderer_test.cpp
+    gpu/pipeline_test.cpp
+    gpu/vulkan_context_test.cpp
+    material/brdf_vulkan_test.cpp
+    raster/hex_tiling_gpu_test.cpp
+    raster/terrain_renderer_test.cpp
     LIBRARIES
     ernie
     LABELS
     gpu
     DEFINITIONS
-    ERNIE_SHADER_DIR="${ERNIE_SOURCE_DIR}/shaders")
+    ERNIE_SHADER_DIR="${ERNIE_SOURCE_DIR}/ernie/shaders")

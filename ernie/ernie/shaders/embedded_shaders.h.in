@@ -1,0 +1,20 @@
+#pragma once
+
+namespace ernie::shaders {
+
+/// Shared reflectance-model module (`brdf`) and the built-in models.
+inline constexpr char kBrdfSlang[] = R"slang(@ERNIE_MATERIAL_BRDF_SLANG@)slang";
+inline constexpr char kBrdfLambertSlang[] = R"slang(@ERNIE_MATERIAL_LAMBERT_SLANG@)slang";
+inline constexpr char kBrdfLommelSeeligerSlang[] =
+    R"slang(@ERNIE_MATERIAL_LOMMEL_SEELIGER_SLANG@)slang";
+inline constexpr char kBrdfLunarLambertSlang[] = R"slang(@ERNIE_MATERIAL_LUNAR_LAMBERT_SLANG@)slang";
+inline constexpr char kBrdfOrenNayarSlang[] = R"slang(@ERNIE_MATERIAL_OREN_NAYAR_SLANG@)slang";
+inline constexpr char kBrdfHapkeSlang[] = R"slang(@ERNIE_MATERIAL_HAPKE_SLANG@)slang";
+
+/// Terrain modules: shared resources and grid vertex, the surface material, and the passes.
+inline constexpr char kTerrainSlang[] = R"slang(@ERNIE_RASTER_TERRAIN_SLANG@)slang";
+inline constexpr char kSurfaceSlang[] = R"slang(@ERNIE_RASTER_SURFACE_SLANG@)slang";
+inline constexpr char kTerrainShadowSlang[] = R"slang(@ERNIE_RASTER_TERRAIN_SHADOW_SLANG@)slang";
+inline constexpr char kTerrainColorSlang[] = R"slang(@ERNIE_RASTER_TERRAIN_COLOR_SLANG@)slang";
+
+}  // namespace ernie::shaders

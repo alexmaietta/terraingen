@@ -17,6 +17,7 @@ std::string AppUsage() {
            "  --detail-normal PATH   Tileable tangent-space normal map (PNG or EXR)\n"
            "  --frames N             Quit after N frames\n"
            "  --log-level LEVEL      trace, debug, info (default), warning, error or off\n"
+           "  --validation           Enable the Vulkan validation layer, if installed\n"
            "  --help                 Show this message\n";
 }
 
@@ -47,6 +48,8 @@ AppOptions ParseAppOptions(int argc, const char* const* argv) {
                                             text + "'");
             }
             options.logLevel = *level;
+        } else if (flag == "--validation") {
+            options.validation = true;
         } else if (flag == "--brdf") {
             options.brdf = value();
         } else if (flag == "--detail-albedo") {

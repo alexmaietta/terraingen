@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ernie/terrain_renderer.h"
+#include "ernie/raster/terrain_renderer.h"
 #include "terraingen/craters.h"
 #include "terraingen/distributions.h"
 #include "terraingen/kernels/layers.h"

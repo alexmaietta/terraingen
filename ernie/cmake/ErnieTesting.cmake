@@ -36,6 +36,6 @@ function(ernie_add_test_suite name)
             PROPERTIES LABELS "${ARG_LABELS}")
     endif()
     target_include_directories(${target} PRIVATE "${ERNIE_SOURCE_DIR}/tests"
-                                                 "${ERNIE_SOURCE_DIR}/src")
+                                                 "${ERNIE_SOURCE_DIR}/ernie/src")
     target_compile_definitions(${target} PRIVATE ${ARG_DEFINITIONS})
 endfunction()

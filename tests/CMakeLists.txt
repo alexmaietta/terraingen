@@ -72,10 +72,10 @@ if(TERRAINGEN_COVERAGE)
             "${GCOVR_EXECUTABLE}" --root "${PROJECT_SOURCE_DIR}" --gcov-executable "${gcov_command}"
             --filter "${PROJECT_SOURCE_DIR}/include/terraingen/" --filter
             "${PROJECT_SOURCE_DIR}/src/" --filter "${PROJECT_SOURCE_DIR}/apps/" --filter
-            "${PROJECT_SOURCE_DIR}/ernie/include/" --filter "${PROJECT_SOURCE_DIR}/ernie/src/"
-            --exclude-throw-branches --exclude-noncode-lines --delete --txt --html-details
-            "${report_dir}/index.html" --cobertura "${report_dir}/coverage.xml" --print-summary
-            "${PROJECT_BINARY_DIR}"
+            "${PROJECT_SOURCE_DIR}/ernie/ernie/include/" --filter
+            "${PROJECT_SOURCE_DIR}/ernie/ernie/src/" --exclude-throw-branches
+            --exclude-noncode-lines --delete --txt --html-details "${report_dir}/index.html"
+            --cobertura "${report_dir}/coverage.xml" --print-summary "${PROJECT_BINARY_DIR}"
         WORKING_DIRECTORY "${PROJECT_BINARY_DIR}"
         COMMENT "Running tests and writing coverage reports to ${report_dir}"
         USES_TERMINAL VERBATIM)

@@ -56,11 +56,12 @@ if(TERRAINGEN_COVERAGE)
     if(NOT TERRAINGEN_BUILD_TESTS)
         message(FATAL_ERROR "TERRAINGEN_COVERAGE requires TERRAINGEN_BUILD_TESTS")
     endif()
-    target_compile_options(terraingen_coverage INTERFACE --coverage -O0 -g)
+    # Atomic counters keep hit counts exact in code that runs on several threads.
+    target_compile_options(terraingen_coverage INTERFACE --coverage -fprofile-update=atomic -O0 -g)
     target_link_options(terraingen_coverage INTERFACE --coverage)
 endif()
 
-# The viewer renders with Ernie, which brings WebGPU and needs GCC 13 or newer.
+# The viewer renders with Ernie, the Vulkan renderer in ernie/.
 if(TERRAINGEN_BUILD_VIEWER)
     add_subdirectory(ernie)
     include("${PROJECT_SOURCE_DIR}/cmake/third_party/glfw.cmake")

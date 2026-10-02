@@ -14,6 +14,7 @@ struct AppOptions {
     std::string detailAlbedo;  ///< Detail albedo texture to load at startup.
     std::string detailNormal;  ///< Detail normal map to load at startup.
     LogLevel logLevel = LogLevel::Info;  ///< Lowest level shown in the Log panel.
+    bool validation = false;  ///< Enable the Vulkan validation layer when it is installed.
 };
 
 /// Usage text for `terraingen-viewer --help`.
