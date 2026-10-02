@@ -4,7 +4,9 @@ ernie_add_test_suite(
     unit
     SOURCES
     camera/orbit_camera_test.cpp
+    camera/physical_camera_test.cpp
     core/image_test.cpp
+    core/spectrum_test.cpp
     core/umbrella_test.cpp
     geometry/frustum_test.cpp
     geometry/lod_quadtree_test.cpp

@@ -62,7 +62,34 @@ inline constexpr std::string_view kClippingRange = "clippingRange";  ///< vec2 n
 inline constexpr std::string_view kProjection = "projection";  ///< kPerspective or kOrthographic.
 inline constexpr std::string_view kPerspective = "perspective";
 inline constexpr std::string_view kOrthographic = "orthographic";
-inline constexpr std::string_view kCameraExposure = "exposure";  ///< Stops; scales by 2^-exposure.
+inline constexpr std::string_view kCameraExposure = "exposure";  ///< Stops; scales by 2^exposure.
+inline constexpr std::string_view kHorizontalApertureOffset = "horizontalApertureOffset";
+inline constexpr std::string_view kVerticalApertureOffset = "verticalApertureOffset";
+inline constexpr std::string_view kExposureTime = "exposure:time";  ///< Seconds.
+inline constexpr std::string_view kExposureIso = "exposure:iso";
+inline constexpr std::string_view kExposureFStop = "exposure:fStop";
+inline constexpr std::string_view kExposureResponsivity = "exposure:responsivity";
+
+// Physical camera (Ernie): spectral sampling, lens and sensor. Spectra are float arrays of
+// interleaved (wavelength in nm, value) pairs.
+inline constexpr std::string_view kSpectralRange = "ernie:spectral:range";    ///< vec2 nm.
+inline constexpr std::string_view kSpectralBands = "ernie:spectral:bands";    ///< int, 1 to 64.
+inline constexpr std::string_view kLensDistortion = "ernie:lens:distortion";  ///< k1 k2 k3 p1 p2.
+inline constexpr std::string_view kLensVignetting = "ernie:lens:vignetting";  ///< bool.
+inline constexpr std::string_view kLensTransmission = "ernie:lens:transmission";  ///< fraction.
+inline constexpr std::string_view kSensorType = "ernie:sensor:type";  ///< "rgb" or "mono".
+/// Quantum efficiency spectrum of one channel: append the channel name ("r", "g", "b", "mono").
+inline constexpr std::string_view kSensorQePrefix = "ernie:sensor:qe:";
+inline constexpr std::string_view kSensorFullWell = "ernie:sensor:fullWell";        ///< electrons.
+inline constexpr std::string_view kSensorReadNoise = "ernie:sensor:readNoise";      ///< electrons.
+inline constexpr std::string_view kSensorDarkCurrent = "ernie:sensor:darkCurrent";  ///< e-/s.
+inline constexpr std::string_view kSensorPrnu = "ernie:sensor:prnu";                ///< fraction.
+inline constexpr std::string_view kSensorDsnu = "ernie:sensor:dsnu";                ///< electrons.
+inline constexpr std::string_view kSensorGain = "ernie:sensor:electronsPerDn";      ///< at ISO 100.
+inline constexpr std::string_view kSensorAdcBits = "ernie:sensor:adcBits";
+inline constexpr std::string_view kSensorBlackLevel = "ernie:sensor:blackLevel";  ///< DN.
+inline constexpr std::string_view kSensorNoise = "ernie:sensor:noise";            ///< bool.
+inline constexpr std::string_view kSensorSeed = "ernie:sensor:seed";              ///< int.
 
 // Lights (UsdLux). A DistantLight shines along the -z axis of its transform.
 inline constexpr std::string_view kIntensity = "inputs:intensity";

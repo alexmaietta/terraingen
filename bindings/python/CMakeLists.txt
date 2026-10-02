@@ -19,6 +19,7 @@ endforeach()
 set_target_properties(_terraingen PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${package_dir}")
 
 configure_file(terraingen/__init__.py "${package_dir}/__init__.py" COPYONLY)
+configure_file(terraingen/render.py "${package_dir}/render.py" COPYONLY)
 set_property(GLOBAL APPEND PROPERTY TERRAINGEN_TEST_TARGETS _terraingen)
 
 if(SKBUILD)
