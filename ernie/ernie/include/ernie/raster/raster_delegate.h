@@ -134,6 +134,10 @@ class RasterDelegate {
     /// @throws std::invalid_argument as `Sync`, `ResolveRasterPrims` and `FrameParamsOf`.
     void Update(const Scene& scene, const Path& settings, VkExtent2D extent);
 
+    /// Semaphore waits the submission of commands from `Record` needs, for CUDA copies into the
+    /// renderer's buffers that may still be running; empty without CUDA inputs.
+    std::vector<TimelinePoint> SubmitWaits() const;
+
     /// Records the frame prepared by the last `Update` into `target`, clearing to the render
     /// settings' `ernie:clearColor` unless `target.loadColor` is set.
     void Record(VkCommandBuffer commands, RenderingTarget target);
@@ -141,7 +145,10 @@ class RasterDelegate {
     /// Renders the scene at the settings' `resolution` (default 2048 x 1080, as UsdRender) and
     /// returns its `LdrColor` render var: a uint8 (rows, cols, 4) RGBA tensor, rows top to bottom,
     /// on the CPU or, with a CUDA `device`, in CUDA memory shared with Vulkan without a copy
-    /// through the host. A CUDA result stays valid while the tensor lives, even across later
+    /// through the host. A CUDA render returns as soon as it is submitted: CUDA work reading the
+    /// result must first wait for it with `CudaInterop::WaitForVulkan` (Python's `__dlpack__`
+    /// does so on the consumer's stream; `CudaInterop::Download` does so itself). The next render
+    /// waits for this one. A CUDA result stays valid while the tensor lives, even across later
     /// renders, but not beyond the delegate's Vulkan context.
     /// @throws std::invalid_argument as `Update`; if the colour format is not 8-bit RGBA or BGRA,
     /// or BGRA for a CUDA result; or for a CUDA device without CUDA interop.

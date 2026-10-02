@@ -32,19 +32,24 @@ VkDeviceSize OffscreenTarget::ColorBytes() const {
     return VkDeviceSize{extent.width} * extent.height * GpuImage::TexelBytes(ColorFormat());
 }
 
-void OffscreenTarget::CopyColor(GpuBuffer& buffer) {
+void OffscreenTarget::RecordCopyColor(VkCommandBuffer commands, GpuBuffer& buffer) {
     if (buffer.Size() < ColorBytes()) {
         throw std::invalid_argument("OffscreenTarget::CopyColor into a buffer that is too small");
     }
     const VkExtent2D extent = Extent();
-    context_.Submit([&](VkCommandBuffer commands) {
-        color_.Transition(commands, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-        VkBufferImageCopy region{};
-        region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
-        region.imageExtent = {extent.width, extent.height, 1};
-        vkCmdCopyImageToBuffer(commands, color_.Handle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                               buffer.Handle(), 1, &region);
-    });
+    color_.Transition(commands, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    VkBufferImageCopy region{};
+    region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+    region.imageExtent = {extent.width, extent.height, 1};
+    vkCmdCopyImageToBuffer(commands, color_.Handle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                           buffer.Handle(), 1, &region);
+}
+
+void OffscreenTarget::CopyColor(GpuBuffer& buffer) {
+    if (buffer.Size() < ColorBytes()) {
+        throw std::invalid_argument("OffscreenTarget::CopyColor into a buffer that is too small");
+    }
+    context_.Submit([&](VkCommandBuffer commands) { RecordCopyColor(commands, buffer); });
 }
 
 std::vector<std::uint8_t> OffscreenTarget::ReadColor() {

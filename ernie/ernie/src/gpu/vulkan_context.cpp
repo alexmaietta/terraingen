@@ -363,6 +363,8 @@ std::unique_ptr<VulkanContext> VulkanContext::Create(const VulkanContextOptions&
     if (externalMemory) {
         c.getMemoryFd_ = reinterpret_cast<PFN_vkGetMemoryFdKHR>(
             vkGetDeviceProcAddr(c.device_, "vkGetMemoryFdKHR"));
+        c.getSemaphoreFd_ = reinterpret_cast<PFN_vkGetSemaphoreFdKHR>(
+            vkGetDeviceProcAddr(c.device_, "vkGetSemaphoreFdKHR"));
     }
 
     VmaVulkanFunctions functions{};
@@ -383,12 +385,16 @@ std::unique_ptr<VulkanContext> VulkanContext::Create(const VulkanContextOptions&
     poolInfo.queueFamilyIndex = c.queueFamily_;
     CheckVk(vkCreateCommandPool(c.device_, &poolInfo, nullptr, &c.commandPool_),
             "vkCreateCommandPool");
+    c.submissions_ = c.CreateTimelineSemaphore();
     return context;
 }
 
 VulkanContext::~VulkanContext() {
     if (device_ != VK_NULL_HANDLE) {
         vkDeviceWaitIdle(device_);
+        if (submissions_ != VK_NULL_HANDLE) {
+            vkDestroySemaphore(device_, submissions_, nullptr);
+        }
         vkDestroyCommandPool(device_, commandPool_, nullptr);
         vmaDestroyAllocator(allocator_);
         vkDestroyDevice(device_, nullptr);
@@ -411,8 +417,26 @@ void VulkanContext::Report(std::string message) {
     messages_.push_back(std::move(message));
 }
 
-void VulkanContext::Submit(const std::function<void(VkCommandBuffer)>& record) const {
-    std::lock_guard lock(submitMutex_);
+VkSemaphore VulkanContext::CreateTimelineSemaphore(std::uint64_t initial, bool exportable) const {
+    VkSemaphoreTypeCreateInfo type{VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO};
+    type.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
+    type.initialValue = initial;
+    VkExportSemaphoreCreateInfo exported{VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_CREATE_INFO};
+    exported.handleTypes = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT;
+    if (exportable) {
+        if (!SupportsExternalMemory()) {
+            throw std::runtime_error("The Vulkan device cannot export semaphores");
+        }
+        type.pNext = &exported;
+    }
+    VkSemaphoreCreateInfo info{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+    info.pNext = &type;
+    VkSemaphore semaphore = VK_NULL_HANDLE;
+    CheckVk(vkCreateSemaphore(device_, &info, nullptr, &semaphore), "vkCreateSemaphore");
+    return semaphore;
+}
+
+VkCommandBuffer VulkanContext::Record(const std::function<void(VkCommandBuffer)>& record) const {
     VkCommandBufferAllocateInfo allocateInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
     allocateInfo.commandPool = commandPool_;
     allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -436,15 +460,48 @@ void VulkanContext::Submit(const std::function<void(VkCommandBuffer)>& record) c
     dependency.pMemoryBarriers = &barrier;
     vkCmdPipelineBarrier2(commands, &dependency);
     vkEndCommandBuffer(commands);
+    return commands;
+}
 
+namespace {
+
+std::vector<VkSemaphoreSubmitInfo> SubmitInfos(std::span<const TimelinePoint> points) {
+    std::vector<VkSemaphoreSubmitInfo> infos;
+    for (const TimelinePoint& point : points) {
+        if (point.semaphore == VK_NULL_HANDLE) {
+            continue;
+        }
+        VkSemaphoreSubmitInfo info{VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO};
+        info.semaphore = point.semaphore;
+        info.value = point.value;
+        info.stageMask = point.stages;
+        infos.push_back(info);
+    }
+    return infos;
+}
+
+}  // namespace
+
+void VulkanContext::Submit(const std::function<void(VkCommandBuffer)>& record,
+                           std::span<const TimelinePoint> waits,
+                           std::span<const TimelinePoint> signals) const {
+    std::lock_guard lock(submitMutex_);
+    RecyclePending();
+    VkCommandBuffer commands = Record(record);
     VkFenceCreateInfo fenceInfo{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
     VkFence fence = VK_NULL_HANDLE;
     CheckVk(vkCreateFence(device_, &fenceInfo, nullptr, &fence), "vkCreateFence");
+    const std::vector<VkSemaphoreSubmitInfo> waitInfos = SubmitInfos(waits);
+    const std::vector<VkSemaphoreSubmitInfo> signalInfos = SubmitInfos(signals);
     VkCommandBufferSubmitInfo commandInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO};
     commandInfo.commandBuffer = commands;
     VkSubmitInfo2 submit{VK_STRUCTURE_TYPE_SUBMIT_INFO_2};
+    submit.waitSemaphoreInfoCount = static_cast<std::uint32_t>(waitInfos.size());
+    submit.pWaitSemaphoreInfos = waitInfos.data();
     submit.commandBufferInfoCount = 1;
     submit.pCommandBufferInfos = &commandInfo;
+    submit.signalSemaphoreInfoCount = static_cast<std::uint32_t>(signalInfos.size());
+    submit.pSignalSemaphoreInfos = signalInfos.data();
     const VkResult result = vkQueueSubmit2(queue_, 1, &submit, fence);
     if (result == VK_SUCCESS) {
         vkWaitForFences(device_, 1, &fence, VK_TRUE, UINT64_MAX);
@@ -452,6 +509,66 @@ void VulkanContext::Submit(const std::function<void(VkCommandBuffer)>& record) c
     vkDestroyFence(device_, fence, nullptr);
     vkFreeCommandBuffers(device_, commandPool_, 1, &commands);
     CheckVk(result, "vkQueueSubmit2");
+}
+
+void VulkanContext::SubmitAsync(const std::function<void(VkCommandBuffer)>& record,
+                                std::span<const TimelinePoint> waits,
+                                std::span<const TimelinePoint> signals) const {
+    std::lock_guard lock(submitMutex_);
+    RecyclePending();
+    VkCommandBuffer commands = Record(record);
+    std::vector<TimelinePoint> allSignals(signals.begin(), signals.end());
+    allSignals.push_back({submissions_, submitted_ + 1});
+    const std::vector<VkSemaphoreSubmitInfo> waitInfos = SubmitInfos(waits);
+    const std::vector<VkSemaphoreSubmitInfo> signalInfos = SubmitInfos(allSignals);
+    VkCommandBufferSubmitInfo commandInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO};
+    commandInfo.commandBuffer = commands;
+    VkSubmitInfo2 submit{VK_STRUCTURE_TYPE_SUBMIT_INFO_2};
+    submit.waitSemaphoreInfoCount = static_cast<std::uint32_t>(waitInfos.size());
+    submit.pWaitSemaphoreInfos = waitInfos.data();
+    submit.commandBufferInfoCount = 1;
+    submit.pCommandBufferInfos = &commandInfo;
+    submit.signalSemaphoreInfoCount = static_cast<std::uint32_t>(signalInfos.size());
+    submit.pSignalSemaphoreInfos = signalInfos.data();
+    const VkResult result = vkQueueSubmit2(queue_, 1, &submit, VK_NULL_HANDLE);
+    if (result != VK_SUCCESS) {
+        vkFreeCommandBuffers(device_, commandPool_, 1, &commands);
+        CheckVk(result, "vkQueueSubmit2");
+    }
+    pending_.emplace_back(commands, ++submitted_);
+}
+
+void VulkanContext::RecyclePending() const {
+    if (pending_.empty()) {
+        return;
+    }
+    std::uint64_t done = 0;
+    vkGetSemaphoreCounterValue(device_, submissions_, &done);
+    auto finished = std::partition(pending_.begin(), pending_.end(),
+                                   [done](const auto& entry) { return entry.second > done; });
+    for (auto it = finished; it != pending_.end(); ++it) {
+        vkFreeCommandBuffers(device_, commandPool_, 1, &it->first);
+    }
+    pending_.erase(finished, pending_.end());
+}
+
+void VulkanContext::WaitForSubmissions() const {
+    std::lock_guard lock(submitMutex_);
+    if (pending_.empty()) {
+        return;
+    }
+    VkSemaphoreWaitInfo wait{VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO};
+    wait.semaphoreCount = 1;
+    wait.pSemaphores = &submissions_;
+    wait.pValues = &submitted_;
+    vkWaitSemaphores(device_, &wait, UINT64_MAX);
+    RecyclePending();
+}
+
+bool VulkanContext::HasPendingSubmissions() const {
+    std::lock_guard lock(submitMutex_);
+    RecyclePending();
+    return !pending_.empty();
 }
 
 }  // namespace ernie

@@ -24,6 +24,7 @@
 #include <string>
 #include <utility>
 #include <variant>
+#include <vector>
 
 namespace terraingen::viewer {
 
@@ -439,17 +440,24 @@ struct App::State {
                                VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
         vkEndCommandBuffer(commands);
 
-        VkSemaphoreSubmitInfo wait{VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO};
-        wait.semaphore = image.acquired;
-        wait.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+        std::vector<VkSemaphoreSubmitInfo> waits(1, {VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO});
+        waits[0].semaphore = image.acquired;
+        waits[0].stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+        for (const ernie::TimelinePoint& point : delegate->SubmitWaits()) {
+            VkSemaphoreSubmitInfo& wait = waits.emplace_back();
+            wait.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+            wait.semaphore = point.semaphore;
+            wait.value = point.value;
+            wait.stageMask = point.stages;
+        }
         VkSemaphoreSubmitInfo signal{VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO};
         signal.semaphore = image.rendered;
         signal.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
         VkCommandBufferSubmitInfo commandInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO};
         commandInfo.commandBuffer = commands;
         VkSubmitInfo2 submit{VK_STRUCTURE_TYPE_SUBMIT_INFO_2};
-        submit.waitSemaphoreInfoCount = 1;
-        submit.pWaitSemaphoreInfos = &wait;
+        submit.waitSemaphoreInfoCount = static_cast<std::uint32_t>(waits.size());
+        submit.pWaitSemaphoreInfos = waits.data();
         submit.commandBufferInfoCount = 1;
         submit.pCommandBufferInfos = &commandInfo;
         submit.signalSemaphoreInfoCount = 1;

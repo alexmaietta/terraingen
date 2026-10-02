@@ -21,6 +21,7 @@ using Device = int;
 using Context = struct Context_st*;
 using Stream = struct Stream_st*;
 using ExternalMemory = struct ExternalMemory_st*;
+using ExternalSemaphore = struct ExternalSemaphore_st*;
 using DevicePtr = unsigned long long;
 
 struct Uuid {
@@ -55,7 +56,68 @@ struct ExternalMemoryBufferDesc {
 static_assert(sizeof(ExternalMemoryBufferDesc) == 88,
               "Must match CUDA_EXTERNAL_MEMORY_BUFFER_DESC");
 
+/// CUDA_EXTERNAL_SEMAPHORE_HANDLE_DESC.
+struct ExternalSemaphoreHandleDesc {
+    int type;
+    union {
+        int fd;
+        struct {
+            void* handle;
+            const void* name;
+        } win32;
+        const void* nvSciSyncObj;
+    } handle;
+    unsigned int flags;
+    unsigned int reserved[16];
+};
+static_assert(sizeof(ExternalSemaphoreHandleDesc) == 96,
+              "Must match CUDA_EXTERNAL_SEMAPHORE_HANDLE_DESC");
+
+/// CUDA_EXTERNAL_SEMAPHORE_SIGNAL_PARAMS.
+struct ExternalSemaphoreSignalParams {
+    struct {
+        struct {
+            unsigned long long value;
+        } fence;
+        union {
+            void* fence;
+            unsigned long long reserved;
+        } nvSciSync;
+        struct {
+            unsigned long long key;
+        } keyedMutex;
+        unsigned int reserved[12];
+    } params;
+    unsigned int flags;
+    unsigned int reserved[16];
+};
+static_assert(sizeof(ExternalSemaphoreSignalParams) == 144,
+              "Must match CUDA_EXTERNAL_SEMAPHORE_SIGNAL_PARAMS");
+
+/// CUDA_EXTERNAL_SEMAPHORE_WAIT_PARAMS.
+struct ExternalSemaphoreWaitParams {
+    struct {
+        struct {
+            unsigned long long value;
+        } fence;
+        union {
+            void* fence;
+            unsigned long long reserved;
+        } nvSciSync;
+        struct {
+            unsigned long long key;
+            unsigned int timeoutMs;
+        } keyedMutex;
+        unsigned int reserved[10];
+    } params;
+    unsigned int flags;
+    unsigned int reserved[16];
+};
+static_assert(sizeof(ExternalSemaphoreWaitParams) == 144,
+              "Must match CUDA_EXTERNAL_SEMAPHORE_WAIT_PARAMS");
+
 constexpr Result kSuccess = 0;
+constexpr int kSemaphoreTimelineFd = 9;
 constexpr int kHandleTypeOpaqueFd = 1;
 constexpr unsigned int kDedicated = 1;
 const Stream kLegacyStream = reinterpret_cast<Stream>(0x1);
@@ -80,6 +142,13 @@ struct Driver {
     Result (*memcpyDtoHAsync)(void*, DevicePtr, std::size_t, Stream);
     Result (*streamSynchronize)(Stream);
     Result (*getErrorString)(Result, const char**);
+    Result (*importExternalSemaphore)(ExternalSemaphore*, const ExternalSemaphoreHandleDesc*);
+    Result (*signalExternalSemaphoresAsync)(const ExternalSemaphore*,
+                                            const ExternalSemaphoreSignalParams*, unsigned int,
+                                            Stream);
+    Result (*waitExternalSemaphoresAsync)(const ExternalSemaphore*,
+                                          const ExternalSemaphoreWaitParams*, unsigned int, Stream);
+    Result (*destroyExternalSemaphore)(ExternalSemaphore);
 };
 
 }  // namespace cu
@@ -100,7 +169,28 @@ struct CudaInterop::State {
     int ordinal = 0;
     cu::Context context = nullptr;
 
+    /// The shared timelines, CUDA to Vulkan and Vulkan to CUDA, in both APIs, and the last value
+    /// each side has signalled.
+    VkDevice vulkan = VK_NULL_HANDLE;
+    VkSemaphore toVulkan = VK_NULL_HANDLE;
+    VkSemaphore toCuda = VK_NULL_HANDLE;
+    cu::ExternalSemaphore toVulkanCuda = nullptr;
+    cu::ExternalSemaphore toCudaCuda = nullptr;
+    std::uint64_t cudaSignalled = 0;
+    std::uint64_t vulkanSignalled = 0;
+
     ~State() {
+        if (toVulkanCuda != nullptr) {
+            driver.destroyExternalSemaphore(toVulkanCuda);
+        }
+        if (toCudaCuda != nullptr) {
+            driver.destroyExternalSemaphore(toCudaCuda);
+        }
+        if (vulkan != VK_NULL_HANDLE) {
+            vkDeviceWaitIdle(vulkan);
+            vkDestroySemaphore(vulkan, toVulkan, nullptr);
+            vkDestroySemaphore(vulkan, toCuda, nullptr);
+        }
         if (context != nullptr) {
             driver.primaryCtxRelease(device);
         }
@@ -188,7 +278,11 @@ std::unique_ptr<CudaInterop> CudaInterop::Create(const VulkanContext& context, s
         LoadSymbol(lib, "cuMemcpyHtoDAsync_v2", d.memcpyHtoDAsync) &&
         LoadSymbol(lib, "cuMemcpyDtoHAsync_v2", d.memcpyDtoHAsync) &&
         LoadSymbol(lib, "cuStreamSynchronize", d.streamSynchronize) &&
-        LoadSymbol(lib, "cuGetErrorString", d.getErrorString);
+        LoadSymbol(lib, "cuGetErrorString", d.getErrorString) &&
+        LoadSymbol(lib, "cuImportExternalSemaphore", d.importExternalSemaphore) &&
+        LoadSymbol(lib, "cuSignalExternalSemaphoresAsync", d.signalExternalSemaphoresAsync) &&
+        LoadSymbol(lib, "cuWaitExternalSemaphoresAsync", d.waitExternalSemaphoresAsync) &&
+        LoadSymbol(lib, "cuDestroyExternalSemaphore", d.destroyExternalSemaphore);
     if (!loaded) {
         return fail("the CUDA driver lacks external memory interop (too old)");
     }
@@ -212,6 +306,31 @@ std::unique_ptr<CudaInterop> CudaInterop::Create(const VulkanContext& context, s
         if (d.primaryCtxRetain(&state->context, device) != cu::kSuccess) {
             state->context = nullptr;
             return fail("cannot retain the CUDA device's primary context");
+        }
+        try {
+            state->vulkan = context.Device();
+            state->toVulkan = context.CreateTimelineSemaphore(0, true);
+            state->toCuda = context.CreateTimelineSemaphore(0, true);
+            const State::Scope scope(*state);
+            for (const auto& [semaphore, imported] :
+                 {std::pair(state->toVulkan, &state->toVulkanCuda),
+                  std::pair(state->toCuda, &state->toCudaCuda)}) {
+                VkSemaphoreGetFdInfoKHR info{VK_STRUCTURE_TYPE_SEMAPHORE_GET_FD_INFO_KHR};
+                info.semaphore = semaphore;
+                info.handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT;
+                int fd = -1;
+                CheckVk(context.GetSemaphoreFd()(context.Device(), &info, &fd),
+                        "vkGetSemaphoreFdKHR");
+                cu::ExternalSemaphoreHandleDesc handle{};
+                handle.type = cu::kSemaphoreTimelineFd;
+                handle.handle.fd = fd;
+                if (d.importExternalSemaphore(imported, &handle) != cu::kSuccess) {
+                    close(fd);
+                    return fail("CUDA cannot import Vulkan timeline semaphores");
+                }
+            }
+        } catch (const std::runtime_error& error) {
+            return fail(error.what());
         }
         return std::unique_ptr<CudaInterop>(new CudaInterop(std::move(state)));
     }
@@ -281,6 +400,39 @@ void CudaInterop::CopyToBuffer(const Tensor& source, GpuBuffer& buffer, VkDevice
                                                  reinterpret_cast<cu::DevicePtr>(source.Data()),
                                                  bytes, cu::kLegacyStream),
                   "cuMemcpyDtoDAsync");
+    cu::ExternalSemaphoreSignalParams signal{};
+    signal.params.fence.value = state_->cudaSignalled + 1;
+    state_->Check(state_->driver.signalExternalSemaphoresAsync(&state_->toVulkanCuda, &signal, 1,
+                                                               cu::kLegacyStream),
+                  "cuSignalExternalSemaphoresAsync");
+    ++state_->cudaSignalled;
+}
+
+TimelinePoint CudaInterop::VulkanWait() const {
+    if (state_->cudaSignalled == 0) {
+        return {};
+    }
+    return {state_->toVulkan, state_->cudaSignalled};
+}
+
+TimelinePoint CudaInterop::NextVulkanSignal() {
+    return {state_->toCuda, ++state_->vulkanSignalled};
+}
+
+void CudaInterop::WaitForVulkan(std::uintptr_t stream) {
+    if (state_->vulkanSignalled == 0) {
+        return;
+    }
+    const State::Scope scope(*state_);
+    cu::ExternalSemaphoreWaitParams wait{};
+    wait.params.fence.value = state_->vulkanSignalled;
+    state_->Check(state_->driver.waitExternalSemaphoresAsync(&state_->toCudaCuda, &wait, 1,
+                                                             reinterpret_cast<cu::Stream>(stream)),
+                  "cuWaitExternalSemaphoresAsync");
+}
+
+void CudaInterop::Synchronize() {
+    const State::Scope scope(*state_);
     state_->Check(state_->driver.streamSynchronize(cu::kLegacyStream), "cuStreamSynchronize");
 }
 
@@ -323,6 +475,7 @@ Tensor CudaInterop::Download(const Tensor& device) {
     CheckOnDevice(device);
     Tensor host = Tensor::Zeros(device.Type(), device.Shape());
     const std::size_t bytes = static_cast<std::size_t>(device.Elements()) * SizeOf(device.Type());
+    WaitForVulkan();
     if (bytes > 0) {
         const State::Scope scope(*state_);
         state_->Check(state_->driver.memcpyDtoHAsync(host.Data(),

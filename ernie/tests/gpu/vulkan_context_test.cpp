@@ -131,3 +131,29 @@ void main(uint3 id : SV_DispatchThreadID) {
         EXPECT_THROW(pipeline.Dispatch(commands, tooFew, 1), std::invalid_argument);
     });
 }
+
+TEST_F(VulkanContextTest, AsyncSubmissionsSignalTimelinesAndRecycle) {
+    VkSemaphore timeline = context_->CreateTimelineSemaphore(5);
+    ernie::GpuBuffer buffer(*context_, 16, 0, ernie::BufferMemory::Readback);
+    const ernie::TimelinePoint wait{timeline, 5};
+    const ernie::TimelinePoint signal{timeline, 9};
+    for (int i = 0; i < 3; ++i) {
+        context_->SubmitAsync(
+            [&](VkCommandBuffer commands) {
+                vkCmdFillBuffer(commands, buffer.Handle(), 0, VK_WHOLE_SIZE,
+                                static_cast<std::uint32_t>(i));
+            },
+            std::span(&wait, 1),
+            i == 2 ? std::span(&signal, 1) : std::span<ernie::TimelinePoint>());
+    }
+    context_->WaitForSubmissions();
+    EXPECT_FALSE(context_->HasPendingSubmissions());
+    std::uint64_t value = 0;
+    vkGetSemaphoreCounterValue(context_->Device(), timeline, &value);
+    EXPECT_EQ(value, 9u);
+    std::array<std::uint32_t, 4> read{};
+    buffer.Read(std::as_writable_bytes(std::span(read)));
+    EXPECT_EQ(read[3], 2u) << "submissions ran in order";
+    context_->Submit([](VkCommandBuffer) {}, std::span(&signal, 1));
+    vkDestroySemaphore(context_->Device(), timeline, nullptr);
+}

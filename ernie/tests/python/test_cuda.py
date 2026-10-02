@@ -42,7 +42,11 @@ def test_renders_into_cuda_memory(cuda_renderer):
     scene = instancer_scene(positions)
     expected = np.array(cuda_renderer.render(scene))
     result = cuda_renderer.render(scene, device="cuda")
+    assert isinstance(result, ernie.CudaArray)
+    assert result.shape == (48, 48, 4)
     assert result.__dlpack_device__() == (2, 0)
+    assert type(result.__dlpack__(stream=-1)).__name__ == "PyCapsule"
+    assert type(result.__dlpack__(stream=None)).__name__ == "PyCapsule"
     np.testing.assert_array_equal(np.array(cuda_renderer.cuda_download(result)), expected)
     assert cuda_renderer.take_validation_messages() == []
 
@@ -61,3 +65,11 @@ def test_rejects_bad_devices(renderer):
     scene = instancer_scene(np.zeros((1, 3), np.float32))
     with pytest.raises(ValueError, match="device must be"):
         renderer.render(scene, device="tpu")
+
+
+def test_back_to_back_cuda_renders_stay_correct(cuda_renderer):
+    scene = instancer_scene(np.array([[-10.0, 0.0, 0.0]], np.float32))
+    expected = np.array(cuda_renderer.render(scene))
+    results = [cuda_renderer.render(scene, device="cuda") for _ in range(4)]
+    for result in results:
+        np.testing.assert_array_equal(np.array(cuda_renderer.cuda_download(result)), expected)

@@ -754,6 +754,7 @@ std::vector<MeshItem> RasterDelegate::Items(const Scene& scene) const {
 }
 
 void RasterDelegate::Update(const Scene& scene, const Path& settings, VkExtent2D extent) {
+    context_.WaitForSubmissions();
     Sync(scene);
     prims_ = ResolveRasterPrims(scene, settings);
     const float aspect =
@@ -766,6 +767,13 @@ void RasterDelegate::Update(const Scene& scene, const Path& settings, VkExtent2D
     RasterPart* parts[] = {&terrain_, &meshes_};
     renderer_.Update(frame, parts);
     clearColor_ = glm::vec3(GetVec3(scene, prims_.settings, tokens::kClearColor, {0.0, 0.0, 0.0}));
+}
+
+std::vector<TimelinePoint> RasterDelegate::SubmitWaits() const {
+    if (cuda_ == nullptr || cuda_->VulkanWait().semaphore == VK_NULL_HANDLE) {
+        return {};
+    }
+    return {cuda_->VulkanWait()};
 }
 
 void RasterDelegate::Record(VkCommandBuffer commands, RenderingTarget target) {
@@ -799,6 +807,7 @@ Tensor RasterDelegate::Render(const Scene& scene, const Path& settings, Device d
                                         std::to_string(interop->Device()));
         }
     }
+    context_.WaitForSubmissions();
     const RasterPrims prims = ResolveRasterPrims(scene, settings);
     const glm::dvec2 resolution =
         GetVec2(scene, prims.settings, tokens::kResolution, {2048.0, 1080.0});
@@ -814,10 +823,7 @@ Tensor RasterDelegate::Render(const Scene& scene, const Path& settings, Device d
                                                        colorFormat_, renderer_.DepthFormat());
     }
     Update(scene, prims.settings, extent);
-    context_.Submit([&](VkCommandBuffer commands) {
-        RenderingTarget target = offscreen_->Prepare(commands);
-        Record(commands, target);
-    });
+    const std::vector<TimelinePoint> waits = SubmitWaits();
     const std::vector<std::int64_t> shape{static_cast<std::int64_t>(extent.height),
                                           static_cast<std::int64_t>(extent.width), 4};
     if (cuda) {
@@ -827,9 +833,23 @@ Tensor RasterDelegate::Render(const Scene& scene, const Path& settings, Device d
                 std::make_shared<GpuBuffer>(context_, offscreen_->ColorBytes(),
                                             VK_BUFFER_USAGE_TRANSFER_DST_BIT, BufferMemory::Shared);
         }
-        offscreen_->CopyColor(*cudaOutput_);
-        return interop->View(cudaOutput_, DType::UInt8, shape);
+        Tensor result = interop->View(cudaOutput_, DType::UInt8, shape);
+        const TimelinePoint signal = interop->NextVulkanSignal();
+        context_.SubmitAsync(
+            [&](VkCommandBuffer commands) {
+                RenderingTarget target = offscreen_->Prepare(commands);
+                Record(commands, target);
+                offscreen_->RecordCopyColor(commands, *cudaOutput_);
+            },
+            waits, std::span(&signal, 1));
+        return result;
     }
+    context_.Submit(
+        [&](VkCommandBuffer commands) {
+            RenderingTarget target = offscreen_->Prepare(commands);
+            Record(commands, target);
+        },
+        waits);
     std::vector<std::uint8_t> bytes = offscreen_->ReadColor();
     if (bgra) {
         for (std::size_t i = 0; i + 3 < bytes.size(); i += 4) {

@@ -8,6 +8,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -25,6 +26,14 @@ struct VulkanContextOptions {
     std::vector<std::string> instanceExtensions;
     /// Extra device extensions, e.g. `VK_KHR_swapchain`.
     std::vector<std::string> deviceExtensions;
+};
+
+/// A wait for or a signal of a timeline semaphore value in a submission.
+struct TimelinePoint {
+    VkSemaphore semaphore = VK_NULL_HANDLE;
+    std::uint64_t value = 0;
+    /// Stages that wait for the value, or that must finish before it is signalled.
+    VkPipelineStageFlags2 stages = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 };
 
 /// Owns a Vulkan instance, device, graphics and compute queue, and memory allocator.
@@ -102,6 +111,16 @@ class VulkanContext {
         return getMemoryFd_;
     }
 
+    /// `vkGetSemaphoreFdKHR` for this device, or null without external memory support.
+    PFN_vkGetSemaphoreFdKHR GetSemaphoreFd() const {
+        return getSemaphoreFd_;
+    }
+
+    /// Creates a timeline semaphore at `initial`, exportable as a POSIX file descriptor when
+    /// `exportable` is set (which needs `SupportsExternalMemory`). The caller destroys it.
+    /// @throws std::runtime_error if creation fails.
+    VkSemaphore CreateTimelineSemaphore(std::uint64_t initial = 0, bool exportable = false) const;
+
     bool ValidationEnabled() const {
         return validation_;
     }
@@ -115,9 +134,26 @@ class VulkanContext {
     std::vector<std::string> TakeValidationMessages();
 
     /// Records commands with `record` into a one-off command buffer, submits it and waits for the
-    /// device to finish it. Its writes are then visible to the host and to later submissions.
+    /// device to finish it. Its writes are then visible to the host and to later submissions. The
+    /// submission waits for `waits` before starting and signals `signals` when done.
     /// @throws std::runtime_error if submission fails.
-    void Submit(const std::function<void(VkCommandBuffer)>& record) const;
+    void Submit(const std::function<void(VkCommandBuffer)>& record,
+                std::span<const TimelinePoint> waits = {},
+                std::span<const TimelinePoint> signals = {}) const;
+
+    /// Like `Submit`, but returns once the work is submitted, without waiting for the device; its
+    /// command buffer is recycled after the device finishes it. Use `signals` to tell other work
+    /// (such as CUDA) when it is done, or `WaitForSubmissions`.
+    /// @throws std::runtime_error if submission fails.
+    void SubmitAsync(const std::function<void(VkCommandBuffer)>& record,
+                     std::span<const TimelinePoint> waits = {},
+                     std::span<const TimelinePoint> signals = {}) const;
+
+    /// Waits until the device has finished every `SubmitAsync` submission.
+    void WaitForSubmissions() const;
+
+    /// Whether `SubmitAsync` work is still pending on the device.
+    bool HasPendingSubmissions() const;
 
   private:
     VulkanContext() = default;
@@ -134,6 +170,7 @@ class VulkanContext {
     PFN_vkDestroyDebugUtilsMessengerEXT destroyMessenger_ = nullptr;
     PFN_vkCmdPushDescriptorSetKHR pushDescriptorSet_ = nullptr;
     PFN_vkGetMemoryFdKHR getMemoryFd_ = nullptr;
+    PFN_vkGetSemaphoreFdKHR getSemaphoreFd_ = nullptr;
     std::string deviceName_;
     std::array<std::uint8_t, VK_UUID_SIZE> deviceUuid_{};
     VkPhysicalDeviceLimits limits_{};
@@ -141,6 +178,13 @@ class VulkanContext {
     bool anisotropy_ = false;
     bool validation_ = false;
     mutable std::mutex submitMutex_;
+    /// Timeline signalled by every `SubmitAsync`, and its command buffers awaiting recycling.
+    VkSemaphore submissions_ = VK_NULL_HANDLE;
+    mutable std::uint64_t submitted_ = 0;
+    mutable std::vector<std::pair<VkCommandBuffer, std::uint64_t>> pending_;
+
+    VkCommandBuffer Record(const std::function<void(VkCommandBuffer)>& record) const;
+    void RecyclePending() const;
     std::unique_ptr<std::function<void(std::string)>> sink_;
     std::mutex messagesMutex_;
     std::vector<std::string> messages_;

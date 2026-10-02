@@ -5,7 +5,9 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <chrono>
 #include <cstring>
+#include <future>
 #include <memory>
 #include <vector>
 
@@ -59,9 +61,18 @@ TEST_F(CudaInteropTest, CudaWritesReachVulkanBuffersWithoutTheHost) {
     GpuBuffer buffer(*context_, 64, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, BufferMemory::Shared);
     const std::array<std::uint32_t, 4> values{7, 8, 9, 10};
     cuda_->CopyToBuffer(cuda_->Upload(Tensor::Copy<std::uint32_t>(values, {4})), buffer, 16);
+    GpuBuffer readback(*context_, 16, 0, BufferMemory::Readback);
+    const ernie::TimelinePoint wait = cuda_->VulkanWait();
+    ASSERT_NE(wait.semaphore, VK_NULL_HANDLE);
+    context_->Submit(
+        [&](VkCommandBuffer commands) {
+            const VkBufferCopy region{16, 0, 16};
+            vkCmdCopyBuffer(commands, buffer.Handle(), readback.Handle(), 1, &region);
+        },
+        std::span(&wait, 1));
     std::array<std::uint32_t, 4> read{};
-    buffer.Read(std::as_writable_bytes(std::span(read)), 16);
-    EXPECT_EQ(read, values);
+    readback.Read(std::as_writable_bytes(std::span(read)));
+    EXPECT_EQ(read, values) << "Vulkan waited on the GPU for the queued CUDA copy";
 
     EXPECT_THROW(
         cuda_->CopyToBuffer(cuda_->Upload(Tensor::Copy<std::uint32_t>(values, {4})), buffer, 56),
@@ -98,4 +109,39 @@ TEST(CudaInteropAvailability, ExplainsWhyItIsUnavailable) {
     std::string why;
     const auto cuda = CudaInterop::Create(*context, &why);
     EXPECT_EQ(cuda == nullptr, !why.empty());
+}
+
+TEST_F(CudaInteropTest, CudaWaitsOnTheGpuForVulkanWrites) {
+    auto buffer = std::make_shared<GpuBuffer>(*context_, 64, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                              BufferMemory::Shared);
+    const std::array<std::uint32_t, 16> zeros{};
+    buffer->Write(std::as_bytes(std::span(zeros)));
+    const Tensor view = cuda_->View(buffer, DType::UInt32, {16});
+
+    // Vulkan fills the buffer only once the host releases `gate`, and signals CUDA after.
+    VkSemaphore gate = context_->CreateTimelineSemaphore();
+    const ernie::TimelinePoint release{gate, 1};
+    const ernie::TimelinePoint signal = cuda_->NextVulkanSignal();
+    context_->SubmitAsync(
+        [&](VkCommandBuffer commands) {
+            vkCmdFillBuffer(commands, buffer->Handle(), 0, VK_WHOLE_SIZE, 42u);
+        },
+        std::span(&release, 1), std::span(&signal, 1));
+    EXPECT_TRUE(context_->HasPendingSubmissions());
+
+    std::future<Tensor> download =
+        std::async(std::launch::async, [&] { return cuda_->Download(view); });
+    EXPECT_EQ(download.wait_for(std::chrono::milliseconds(50)), std::future_status::timeout)
+        << "CUDA must wait for the gated Vulkan fill";
+    VkSemaphoreSignalInfo signalInfo{VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO};
+    signalInfo.semaphore = gate;
+    signalInfo.value = 1;
+    vkSignalSemaphore(context_->Device(), &signalInfo);
+    const Tensor host = download.get();
+    for (int i = 0; i < 16; ++i) {
+        EXPECT_EQ(host.As<std::uint32_t>()[i], 42u);
+    }
+    context_->WaitForSubmissions();
+    EXPECT_FALSE(context_->HasPendingSubmissions());
+    vkDestroySemaphore(context_->Device(), gate, nullptr);
 }

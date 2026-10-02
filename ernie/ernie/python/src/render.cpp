@@ -73,6 +73,27 @@ Tensor KeepingAlive(const Tensor& tensor, nb::handle keep) {
                   std::move(owner));
 }
 
+/// A CUDA render result: implements the DLPack protocol so a consumer's stream waits on the GPU
+/// for the render before reading it.
+struct CudaArray {
+    Tensor tensor;
+    CudaInterop* cuda = nullptr;
+
+    nb::object Dlpack(nb::handle stream) const {
+        const std::intptr_t handle = stream.is_none() ? 1 : nb::cast<std::intptr_t>(stream);
+        if (handle != -1) {
+            cuda->WaitForVulkan(static_cast<std::uintptr_t>(handle));
+        }
+        auto* kept = new Tensor(tensor);
+        nb::capsule owner(kept, [](void* p) noexcept { delete static_cast<Tensor*>(p); });
+        std::vector<std::size_t> shape(tensor.Shape().begin(), tensor.Shape().end());
+        nb::ndarray<nb::ro> array(tensor.Data(), shape.size(), shape.data(), owner, nullptr,
+                                  nb::dtype<std::uint8_t>(), nb::device::cuda::value,
+                                  tensor.Location().id);
+        return nb::cast(array, nb::rv_policy::reference);
+    }
+};
+
 CudaInterop& RequireCuda(RasterRenderer& r) {
     std::string why;
     CudaInterop* cuda = r.delegate->Cuda(&why);
@@ -85,6 +106,31 @@ CudaInterop& RequireCuda(RasterRenderer& r) {
 }  // namespace
 
 void BindRender(nb::module_& m) {
+    nb::class_<CudaArray>(m, "CudaArray",
+                          "A render in CUDA memory. Pass it to torch.from_dlpack, cupy.from_dlpack "
+                          "or jax.dlpack.from_dlpack: its __dlpack__ makes the consumer's stream "
+                          "wait for the render on the GPU, without blocking the host.")
+        .def(
+            "__dlpack__",
+            [](const CudaArray& a, nb::handle stream, nb::handle, nb::handle, nb::handle) {
+                return a.Dlpack(stream);
+            },
+            nb::kw_only(), nb::arg("stream").none() = nb::none(),
+            nb::arg("max_version").none() = nb::none(), nb::arg("dl_device").none() = nb::none(),
+            nb::arg("copy").none() = nb::none())
+        .def("__dlpack_device__",
+             [](const CudaArray& a) {
+                 return nb::make_tuple(static_cast<int>(nb::device::cuda::value),
+                                       a.tensor.Location().id);
+             })
+        .def_prop_ro("shape", [](const CudaArray& a) {
+            nb::list shape;
+            for (const std::int64_t extent : a.tensor.Shape()) {
+                shape.append(extent);
+            }
+            return nb::tuple(shape);
+        });
+
     nb::class_<RasterRenderer>(
         m, "RasterRenderer",
         "Ernie's rasterizer: renders a Scene's terrain, material, light, camera and render "
@@ -121,6 +167,10 @@ void BindRender(nb::module_& m) {
                 {
                     nb::gil_scoped_release release;
                     image = self.p->delegate->Render(scene, settings, target);
+                }
+                if (target.kind == DeviceKind::Cuda) {
+                    return nb::cast(
+                        CudaArray{KeepingAlive(image, self.h), self.p->delegate->Cuda()});
                 }
                 return ArrayFromTensor(KeepingAlive(image, self.h));
             },

@@ -41,6 +41,11 @@ class OffscreenTarget {
     /// Bytes of the colour image tightly packed.
     VkDeviceSize ColorBytes() const;
 
+    /// Records a copy of the colour texels, laid out as `ReadColor` returns them, into the start of
+    /// `buffer`, after the rendering recorded before it.
+    /// @throws std::invalid_argument if the buffer is smaller than `ColorBytes`.
+    void RecordCopyColor(VkCommandBuffer commands, GpuBuffer& buffer);
+
     /// Copies the colour texels, laid out as `ReadColor` returns them, into the start of `buffer`
     /// and waits for the copy.
     /// @throws std::invalid_argument if the buffer is smaller than `ColorBytes`.

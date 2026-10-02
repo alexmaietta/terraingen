@@ -27,11 +27,17 @@ Attribute values map from Python as follows:
 
 Arrays given to write() are shared, not copied, and kept alive by the scene; arrays returned by
 read() are read-only views. Write again after changing an array in place, so the change is
-tracked.
+tracked. CUDA arrays are copied into Ernie's GPU buffers device to device, ordered on the GPU
+after the work that produced them.
+
+render(scene, device="cuda") returns a CudaArray in GPU memory shared with Vulkan. It returns as
+soon as the render is submitted; torch.from_dlpack(result) (or CuPy, JAX) makes the consumer's
+stream wait for the render on the GPU, so the host never blocks.
 """
 
 from ._ernie import (
     ChangeCursor,
+    CudaArray,
     Dirty,
     Path,
     Prim,
@@ -45,6 +51,7 @@ from ._ernie import (
 
 __all__ = [
     "ChangeCursor",
+    "CudaArray",
     "Dirty",
     "Path",
     "Prim",
