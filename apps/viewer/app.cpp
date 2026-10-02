@@ -7,7 +7,9 @@
 #include "ernie/gpu/pipeline.h"
 #include "ernie/gpu/swapchain.h"
 #include "ernie/gpu/vulkan_context.h"
-#include "ernie/raster/terrain_renderer.h"
+#include "ernie/raster/raster_delegate.h"
+#include "ernie/scene/scene.h"
+#include "ernie/scene/tokens.h"
 #include "glfw_surface.h"
 #include "panels.h"
 #include "settings.h"
@@ -23,6 +25,7 @@
 #include <array>
 #include <cstdint>
 #include <cstdio>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -170,7 +173,8 @@ struct App::State {
     std::unique_ptr<ernie::GpuImage> depth;
     std::optional<FrameResources> frame;
     std::optional<ImGuiContext> imgui;
-    std::optional<ernie::TerrainRenderer> terrain;
+    std::optional<ernie::RasterDelegate> delegate;
+    ernie::Scene scene;
     ernie::OrbitCamera camera;
 
     TerrainSettings settings;
@@ -194,9 +198,9 @@ struct App::State {
     /// @throws std::runtime_error for an unknown model or a texture that cannot be loaded.
     void ApplyOptions() {
         if (!options.brdf.empty()) {
-            if (terrain->Brdfs().Find(options.brdf) == nullptr) {
+            if (Renderer().Brdfs().Find(options.brdf) == nullptr) {
                 std::string known;
-                for (const ernie::BrdfModel& model : terrain->Brdfs().Models()) {
+                for (const ernie::BrdfModel& model : Renderer().Brdfs().Models()) {
                     known += (known.empty() ? "" : ", ") + model.id;
                 }
                 throw std::runtime_error("Unknown reflectance model '" + options.brdf +
@@ -218,6 +222,10 @@ struct App::State {
                     (normalMap ? surfacePanel.normalStatus : surfacePanel.albedoStatus));
             }
         }
+    }
+
+    ernie::TerrainRenderer& Renderer() {
+        return delegate->Renderer();
     }
 
     void Request() {
@@ -244,8 +252,8 @@ struct App::State {
     }
 
     void Frame() {
-        if (terrain->HasHeightfield()) {
-            const auto [low, high] = terrain->Bounds(view.exaggeration);
+        if (Renderer().HasHeightfield()) {
+            const auto [low, high] = Renderer().Bounds(view.exaggeration);
             camera.Frame(low, high);
         }
     }
@@ -258,18 +266,19 @@ struct App::State {
         }
         const Stopwatch upload;
         try {
-            terrain->SetHeightfield(ViewOf(result.raster));
+            AuthorTerrain(scene, std::make_shared<const Raster<float>>(std::move(result.raster)));
+            delegate->Sync(scene);
         } catch (const std::invalid_argument& error) {
             status.error = error.what();
             LogWarning("viewer", "Cannot display generation ", result.id, ": ", status.error);
             return;
         }
+        info.width = Renderer().Width();
+        info.height = Renderer().Height();
         LogInfo("viewer", "Generation ", result.id, " finished in ",
-                FormatDuration(result.milliseconds), "; uploaded ", result.raster.Width(), "x",
-                result.raster.Height(), " heightfield in ", FormatDuration(upload.Milliseconds()));
-        info.width = terrain->Width();
-        info.height = terrain->Height();
-        info.gpuBytes = terrain->GpuBytes();
+                FormatDuration(result.milliseconds), "; uploaded ", info.width, "x", info.height,
+                " heightfield in ", FormatDuration(upload.Milliseconds()));
+        info.gpuBytes = Renderer().GpuBytes();
         info.stats = result.stats;
         info.generationMilliseconds = result.milliseconds;
 
@@ -296,19 +305,23 @@ struct App::State {
             LogWarning("viewer", "Cannot load detail ", kind, " ", path, ": ", message);
             return false;
         }
-        const ernie::Image& image = std::get<ernie::Image>(loaded);
+        auto image =
+            std::make_shared<const ernie::Image>(std::move(std::get<ernie::Image>(loaded)));
+        const std::string_view attribute =
+            normalMap ? ernie::tokens::kDetailNormal : ernie::tokens::kDetailAlbedo;
         try {
-            if (normalMap) {
-                terrain->Material().SetDetailNormal(&image);
-            } else {
-                terrain->Material().SetDetailAlbedo(&image);
-            }
+            scene.Define(kSurfacePrim, ernie::tokens::kMaterial);
+            scene.Define(kTerrainPrim, ernie::tokens::kTerrain)
+                .Set(ernie::tokens::kMaterialBinding, ernie::Path(kSurfacePrim));
+            scene.Write(kSurfacePrim, attribute, TensorOf(image));
+            delegate->Sync(scene);
         } catch (const std::invalid_argument& error) {
+            scene.Clear(kSurfacePrim, attribute);
             message = error.what();
             LogWarning("viewer", "Cannot use detail ", kind, " ", path, ": ", message);
             return false;
         }
-        message = std::to_string(image.width) + " x " + std::to_string(image.height);
+        message = std::to_string(image->width) + " x " + std::to_string(image->height);
         LogInfo("viewer", "Loaded detail ", kind, " ", path, " (", message, ")");
         return true;
     }
@@ -322,7 +335,10 @@ struct App::State {
             LoadDetail(true);
             break;
         case SurfacePanelAction::ClearDetail:
-            terrain->Material().SetDetailTextures(nullptr, nullptr);
+            if (scene.Has(kSurfacePrim)) {
+                scene.Clear(kSurfacePrim, ernie::tokens::kDetailAlbedo);
+                scene.Clear(kSurfacePrim, ernie::tokens::kDetailNormal);
+            }
             surfacePanel.albedoStatus.clear();
             surfacePanel.normalStatus.clear();
             break;
@@ -366,17 +382,17 @@ struct App::State {
 
     void DrawUi() {
         status.generating = worker.Busy();
-        surfacePanel.hasAlbedoMap = terrain->Material().HasAlbedoMap();
+        surfacePanel.hasAlbedoMap = Renderer().Material().HasAlbedoMap();
         info.gpu = gpu->DeviceName();
-        info.gpuBytes = terrain->GpuBytes();
-        info.triangles = terrain->TriangleCount();
-        info.patches = terrain->PatchCount();
-        info.lodLevels = terrain->Lod().Levels();
+        info.gpuBytes = Renderer().GpuBytes();
+        info.triangles = Renderer().TriangleCount();
+        info.patches = Renderer().PatchCount();
+        info.lodLevels = Renderer().Lod().Levels();
         if (!uiVisible) {
             return;
         }
         const SidebarActions actions = DrawSidebar(settings, autoRegenerate, status, view,
-                                                   surfacePanel, terrain->Brdfs(), info);
+                                                   surfacePanel, Renderer().Brdfs(), info);
         const bool changed = !(settings == requested);
         if (actions.generate || (autoRegenerate && changed && ValidateSettings(settings).empty())) {
             Request();
@@ -391,17 +407,8 @@ struct App::State {
     }
 
     void Render(const ernie::Swapchain::Frame& image) {
-        ernie::TerrainDrawParams params;
-        params.camera = camera.MakeView(static_cast<float>(width) / static_cast<float>(height));
-        params.sunDirection = SunDirection(view.sunAzimuthDegrees, view.sunElevationDegrees);
-        params.ambient = view.ambient;
-        params.exaggeration = view.exaggeration;
-        params.colorMode = view.colorMode;
-        params.wireframe = view.wireframe;
-        params.shadows = view.shadows;
-        params.lod = view.lod;
-        params.surface = view.material.Effective(terrain->Brdfs());
-        terrain->Update(params);
+        AuthorView(scene, view, camera, Renderer().Brdfs());
+        delegate->Update(scene, kSettingsPrim, swapchain->Extent());
 
         VkCommandBuffer commands = frame->commands;
         vkResetCommandBuffer(commands, 0);
@@ -415,8 +422,7 @@ struct App::State {
         target.color = image.view;
         target.depth = depth->View();
         target.extent = swapchain->Extent();
-        target.clearColor = {{view.background[0], view.background[1], view.background[2], 1.0f}};
-        terrain->Record(commands, target);
+        delegate->Record(commands, target);
 
         ernie::RenderingTarget overlay;
         overlay.color = image.view;
@@ -475,7 +481,7 @@ App::App(const AppOptions& options) : state_(std::make_unique<State>()) {
     s.CreateDepth();
     s.frame.emplace(*s.gpu);
     s.imgui.emplace(window, *s.gpu, *s.swapchain);
-    s.terrain.emplace(*s.gpu, s.swapchain->Format(), VK_FORMAT_D32_SFLOAT);
+    s.delegate.emplace(*s.gpu, s.swapchain->Format(), VK_FORMAT_D32_SFLOAT);
     s.ApplyOptions();
     s.Request();
 }

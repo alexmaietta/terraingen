@@ -186,6 +186,20 @@ void TerrainRenderer::ReservePatches(std::size_t count) {
                                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, BufferMemory::Upload);
 }
 
+void TerrainRenderer::ClearHeightfield() {
+    vkDeviceWaitIdle(context_.Device());
+    heights_.reset();
+    gradients_.reset();
+    tree_ = LodQuadtree();
+    patches_.clear();
+    mainRange_ = {};
+    cascadeRanges_ = {};
+    triangles_ = 0;
+    updated_ = false;
+    width_ = 0;
+    height_ = 0;
+}
+
 void TerrainRenderer::SetHeightfield(const RasterView& raster) {
     CheckRasterView(raster, "Heightfield", 2);
     const std::uint32_t maxSize = context_.Limits().maxImageDimension2D;

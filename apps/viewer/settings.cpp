@@ -3,6 +3,9 @@
 #include "terraingen/craters.h"
 #include "terraingen/spatial/cells.h"
 
+#include "ernie/scene/schema.h"
+#include "ernie/scene/tokens.h"
+
 #include <cmath>
 #include <exception>
 #include <stdexcept>
@@ -194,6 +197,90 @@ ernie::SurfaceSettings SurfaceViewSettings::Effective(const ernie::BrdfRegistry&
                                    : model->Defaults();
     }
     return effective;
+}
+
+void AuthorTerrain(ernie::Scene& scene, std::shared_ptr<const Raster<float>> raster) {
+    const ernie::RasterView view = ViewOf(*raster);
+    ernie::Tensor heights(
+        const_cast<float*>(view.data), ernie::DType::Float32,
+        {static_cast<std::int64_t>(view.height), static_cast<std::int64_t>(view.width)},
+        {static_cast<std::int64_t>(view.Stride()), 1}, {}, raster);
+    ernie::Prim terrain = scene.Define(kTerrainPrim, ernie::tokens::kTerrain);
+    terrain.Write(ernie::tokens::kHeights, heights)
+        .Set(ernie::tokens::kOrigin, glm::dvec2(view.originX, view.originY))
+        .Set(ernie::tokens::kCellSize, view.cellSize);
+    if (view.noData) {
+        terrain.Set(ernie::tokens::kNoData, *view.noData);
+    } else {
+        scene.Clear(kTerrainPrim, ernie::tokens::kNoData);
+    }
+}
+
+ernie::Tensor TensorOf(std::shared_ptr<const ernie::Image> image) {
+    void* data = const_cast<glm::vec4*>(image->pixels.data());
+    std::vector<std::int64_t> shape{static_cast<std::int64_t>(image->height),
+                                    static_cast<std::int64_t>(image->width), 4};
+    return ernie::Tensor(data, ernie::DType::Float32, std::move(shape), {}, {}, std::move(image));
+}
+
+void AuthorView(ernie::Scene& scene, const ViewSettings& view, const ernie::OrbitCamera& camera,
+                const ernie::BrdfRegistry& brdfs) {
+    using namespace ernie::tokens;
+    ernie::SetCamera(scene, kCameraPrim, camera);
+
+    const ernie::SurfaceSettings surface = view.material.Effective(brdfs);
+    scene.Define(kSunPrim, kDistantLight)
+        .Set(kTransform, ernie::DistantLightTransform(glm::dvec3(
+                             SunDirection(view.sunAzimuthDegrees, view.sunElevationDegrees))))
+        .Set(kIntensity, surface.exposure)
+        .Set(kShadowEnable, view.shadows.enabled);
+
+    ernie::Prim material = scene.Define(kSurfacePrim, kMaterial);
+    material.Set(kBrdf, surface.brdf)
+        .Set(kAlbedo, surface.albedo)
+        .Set(kAlbedoMapEnable, surface.useAlbedoMap);
+    if (const ernie::BrdfModel* model = brdfs.Find(surface.brdf)) {
+        for (std::size_t i = 0; i < model->params.size(); ++i) {
+            material.Set("inputs:" + model->params[i].name, surface.brdfParams[i]);
+        }
+    }
+    const ernie::DetailSettings& detail = surface.detail;
+    material.Set(kDetailTileSize, detail.tileSize)
+        .Set(kDetailAlbedoStrength, detail.albedoStrength)
+        .Set(kDetailNormalStrength, detail.normalStrength)
+        .Set(kDetailDirectXNormals, detail.directXNormals)
+        .Set(kDetailHexTiling, detail.hexTiling)
+        .Set(kDetailHexRotation, detail.hexRotation)
+        .Set(kDetailHexContrast, detail.hexContrast)
+        .Set(kDetailHexSharpness, detail.hexSharpness);
+
+    scene.Define(kTerrainPrim, kTerrain)
+        .Set(kExaggeration, view.exaggeration)
+        .Set(kMaterialBinding, ernie::Path(kSurfacePrim));
+
+    std::string_view colorMode = kShadedColormap;
+    if (view.colorMode == ernie::TerrainColorMode::Hillshade) {
+        colorMode = kHillshade;
+    } else if (view.colorMode == ernie::TerrainColorMode::Colormap) {
+        colorMode = kColormap;
+    }
+    scene.Define(kSettingsPrim, kRenderSettings)
+        .Set(kCameraRel, ernie::Path(kCameraPrim))
+        .Set(kAmbient, view.ambient)
+        .Set(kColorMode, colorMode)
+        .Set(kWireframe, view.wireframe)
+        .Set(kClearColor, glm::vec3(view.background[0], view.background[1], view.background[2]))
+        .Set(kShadowCascades, view.shadows.cascades)
+        .Set(kShadowResolution, static_cast<int>(view.shadows.resolution))
+        .Set(kShadowSoftness, view.shadows.softness)
+        .Set(kShadowNormalOffset, view.shadows.normalOffset)
+        .Set(kShadowSplitLambda, view.shadows.splitLambda)
+        .Set(kShadowShowCascades, view.shadows.showCascades)
+        .Set(kLodEnable, view.lod.enabled)
+        .Set(kLodDetail, view.lod.detail)
+        .Set(kLodMorphStart, view.lod.morphStart)
+        .Set(kLodFreeze, view.lod.freeze)
+        .Set(kLodShowLevels, view.lod.showLevels);
 }
 
 std::variant<ernie::Image, std::string> LoadDetailTexture(const std::string& path, bool normalMap) {

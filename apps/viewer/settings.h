@@ -1,6 +1,8 @@
 #pragma once
 
+#include "ernie/interop/tensor.h"
 #include "ernie/raster/terrain_renderer.h"
+#include "ernie/scene/scene.h"
 #include "terraingen/craters.h"
 #include "terraingen/distributions.h"
 #include "terraingen/kernels/layers.h"
@@ -154,5 +156,27 @@ struct ViewSettings {
 /// Unit vector pointing towards a sun at the given azimuth (clockwise from north) and elevation
 /// above the horizon, in a frame with x east, y north and z up.
 glm::vec3 SunDirection(float azimuthDegrees, float elevationDegrees);
+
+/// Paths of the prims the viewer authors in its Ernie scene.
+inline constexpr const char* kTerrainPrim = "/World/Terrain";
+inline constexpr const char* kSunPrim = "/World/Sun";
+inline constexpr const char* kCameraPrim = "/World/Camera";
+inline constexpr const char* kSurfacePrim = "/Looks/Surface";
+inline constexpr const char* kSettingsPrim = "/Render/Settings";
+
+/// Writes `raster` as the heights of the terrain prim, with its grid, without copying; the scene
+/// keeps the raster alive.
+/// @throws std::invalid_argument as `ViewOf`.
+void AuthorTerrain(ernie::Scene& scene, std::shared_ptr<const Raster<float>> raster);
+
+/// A float32 (rows, cols, 4) tensor of `image`'s linear pixels, sharing and keeping the image.
+ernie::Tensor TensorOf(std::shared_ptr<const ernie::Image> image);
+
+/// Authors `view` and `camera` into `scene`: the camera, a DistantLight for the sun whose
+/// intensity is the surface exposure, the surface material bound to the terrain with the selected
+/// model's parameters from `brdfs`, the terrain's exaggeration, and render settings for everything
+/// else.
+void AuthorView(ernie::Scene& scene, const ViewSettings& view, const ernie::OrbitCamera& camera,
+                const ernie::BrdfRegistry& brdfs);
 
 }  // namespace terraingen::viewer

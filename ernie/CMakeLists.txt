@@ -29,6 +29,7 @@ if(APPLE)
     include(cmake/third_party/moltenvk.cmake)
 endif()
 include(cmake/third_party/glm.cmake)
+include(cmake/third_party/dlpack.cmake)
 include(cmake/third_party/stb.cmake)
 include(cmake/third_party/tinyexr.cmake)
 
@@ -74,7 +75,7 @@ configure_file(ernie/shaders/embedded_shaders.h.in
                "${CMAKE_CURRENT_BINARY_DIR}/generated/embedded_shaders.h" @ONLY)
 
 # Layers, each depending only on the ones above it:
-#   Ernie::core    image I/O, raster views, geometry, cameras, materials; no Vulkan
+#   Ernie::core    image I/O, raster views, geometry, cameras, materials, scene, tensors; no Vulkan
 #   Ernie::gpu     Vulkan device, memory, pipelines, Slang compiler, presentation
 #   Ernie::raster  the rasterizer
 #   Ernie::ernie   everything
@@ -89,12 +90,19 @@ endfunction()
 
 add_library(
     ernie_core STATIC
-    ernie/src/camera/orbit_camera.cpp ernie/src/core/image.cpp ernie/src/geometry/frustum.cpp
-    ernie/src/geometry/lod_quadtree.cpp ernie/src/material/brdf.cpp)
+    ernie/src/camera/orbit_camera.cpp
+    ernie/src/core/image.cpp
+    ernie/src/geometry/frustum.cpp
+    ernie/src/geometry/lod_quadtree.cpp
+    ernie/src/interop/tensor.cpp
+    ernie/src/material/brdf.cpp
+    ernie/src/scene/path.cpp
+    ernie/src/scene/scene.cpp
+    ernie/src/scene/schema.cpp)
 ernie_layer(ernie_core)
 target_link_libraries(
     ernie_core
-    PUBLIC ernie_glm
+    PUBLIC ernie_glm ernie_dlpack
     PRIVATE ernie_stb ernie_tinyexr)
 
 add_library(
@@ -120,8 +128,10 @@ if(APPLE)
 endif()
 
 add_library(
-    ernie_raster STATIC ernie/src/raster/poisson_disk.cpp ernie/src/raster/shadow_cascades.cpp
-                        ernie/src/raster/surface_material.cpp ernie/src/raster/terrain_renderer.cpp)
+    ernie_raster STATIC
+    ernie/src/raster/poisson_disk.cpp ernie/src/raster/raster_delegate.cpp
+    ernie/src/raster/shadow_cascades.cpp ernie/src/raster/surface_material.cpp
+    ernie/src/raster/terrain_renderer.cpp)
 ernie_layer(ernie_raster)
 target_link_libraries(ernie_raster PUBLIC ernie_gpu)
 

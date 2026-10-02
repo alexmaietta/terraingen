@@ -124,6 +124,9 @@ class TerrainRenderer {
     /// `RasterView`), or larger than the device's maximum texture size.
     void SetHeightfield(const RasterView& heights);
 
+    /// Drops the heightfield, so `Record` draws only the clear. Waits for the device to go idle.
+    void ClearHeightfield();
+
     bool HasHeightfield() const {
         return heights_ != nullptr;
     }

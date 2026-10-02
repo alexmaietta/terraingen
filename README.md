@@ -104,7 +104,7 @@ TerrainGen is built on top of the following open source libraries and tools:
 | --- | --- | --- |
 | [GDAL](https://gdal.org/) | Raster/vector geospatial data I/O (GeoTIFF, PDS/IMG-LBL, ...) | MIT |
 | [PROJ](https://proj.org/) | Coordinate reference system transformations | MIT |
-| [dlpack](https://github.com/dmlc/dlpack) | Zero-copy tensor interop for raster buffers | Apache-2.0 |
+| [dlpack](https://github.com/dmlc/dlpack) | Zero-copy tensor interop (vendored in `ernie/third_party/`) | Apache-2.0 |
 | [nlohmann/json](https://github.com/nlohmann/json) | Config-based generation | MIT |
 | [nanobind](https://github.com/wjakob/nanobind) | Python bindings | BSD-3-Clause |
 

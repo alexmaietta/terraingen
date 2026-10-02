@@ -8,9 +8,14 @@ ernie_add_test_suite(
     geometry/frustum_test.cpp
     geometry/lod_quadtree_test.cpp
     gpu/shader_compiler_test.cpp
+    interop/tensor_test.cpp
     material/brdf_test.cpp
     raster/poisson_disk_test.cpp
+    raster/raster_delegate_test.cpp
     raster/shadow_cascades_test.cpp
+    scene/path_test.cpp
+    scene/scene_test.cpp
+    scene/schema_test.cpp
     LIBRARIES
     ernie
     ernie_stb
@@ -24,6 +29,7 @@ ernie_add_test_suite(
     gpu/vulkan_context_test.cpp
     material/brdf_vulkan_test.cpp
     raster/hex_tiling_gpu_test.cpp
+    raster/raster_delegate_gpu_test.cpp
     raster/terrain_renderer_test.cpp
     LIBRARIES
     ernie

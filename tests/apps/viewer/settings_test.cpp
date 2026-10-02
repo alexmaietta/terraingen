@@ -4,12 +4,16 @@
 #include "terraingen/spatial/cells.h"
 #include "terraingen/surfaces/synthetic_terrain.h"
 
+#include "ernie/raster/raster_delegate.h"
+#include "ernie/scene/tokens.h"
+
 #include <glm/glm.hpp>
 #include <gtest/gtest.h>
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <variant>
@@ -204,6 +208,106 @@ TEST(ViewOf, RejectsRotatedOrRectangularPixels) {
     EXPECT_THROW(terraingen::viewer::ViewOf(raster), std::invalid_argument);
     raster.SetTransform(terraingen::GeoTransform::FromGdal({0.0, 1.0, 0.0, 0.0, 0.0, 1.0}));
     EXPECT_THROW(terraingen::viewer::ViewOf(raster), std::invalid_argument) << "south-up";
+}
+
+TEST(AuthorTerrain, WritesHeightsAndGridWithoutCopying) {
+    auto raster = std::make_shared<terraingen::Raster<float>>(3, 2);
+    raster->SetTransform(terraingen::GeoTransform::NorthUp(100.0, 50.0, 2.5));
+    raster->SetNoData(-1.0f);
+    (*raster)(2, 1) = 7.0f;
+    ernie::Scene scene;
+    terraingen::viewer::AuthorTerrain(scene, raster);
+    const ernie::Tensor* heights = scene.Read(terraingen::viewer::kTerrainPrim, "heights");
+    ASSERT_NE(heights, nullptr);
+    EXPECT_EQ(heights->Data(), raster->Values().data());
+    EXPECT_EQ(heights->Shape(), (std::vector<std::int64_t>{2, 3}));
+    EXPECT_EQ(heights->As<float>()[5], 7.0f);
+    EXPECT_EQ(scene.Get<glm::dvec2>(terraingen::viewer::kTerrainPrim, ernie::tokens::kOrigin, {}),
+              glm::dvec2(100.0, 50.0));
+    EXPECT_EQ(scene.Get<double>(terraingen::viewer::kTerrainPrim, ernie::tokens::kCellSize, 0.0),
+              2.5);
+    EXPECT_EQ(scene.Get<float>(terraingen::viewer::kTerrainPrim, ernie::tokens::kNoData, 0.0f),
+              -1.0f);
+
+    auto noNoData = std::make_shared<terraingen::Raster<float>>(2, 2);
+    noNoData->SetTransform(terraingen::GeoTransform::NorthUp(0.0, 0.0, 1.0));
+    terraingen::viewer::AuthorTerrain(scene, noNoData);
+    EXPECT_EQ(scene.Get(terraingen::viewer::kTerrainPrim, ernie::tokens::kNoData), nullptr);
+
+    auto rotated = std::make_shared<terraingen::Raster<float>>(2, 2);
+    rotated->SetTransform(terraingen::GeoTransform::FromGdal({0.0, 1.0, 0.2, 0.0, 0.0, -1.0}));
+    EXPECT_THROW(terraingen::viewer::AuthorTerrain(scene, rotated), std::invalid_argument);
+}
+
+TEST(TensorOf, SharesTheImagesPixels) {
+    auto image = std::make_shared<ernie::Image>(3, 2, glm::vec4(0.5f));
+    const ernie::Tensor tensor = terraingen::viewer::TensorOf(image);
+    EXPECT_EQ(tensor.Shape(), (std::vector<std::int64_t>{2, 3, 4}));
+    EXPECT_EQ(tensor.Data(), static_cast<const void*>(image->pixels.data()));
+    EXPECT_EQ(tensor.As<float>()[23], 0.5f);
+}
+
+TEST(AuthorView, RoundTripsTheViewThroughErniesDrawParameters) {
+    const ernie::BrdfRegistry brdfs = ernie::BrdfRegistry::WithBuiltins();
+    terraingen::viewer::ViewSettings view;
+    view.sunAzimuthDegrees = 90.0f;
+    view.sunElevationDegrees = 30.0f;
+    view.ambient = 0.25f;
+    view.exaggeration = 2.0f;
+    view.colorMode = ernie::TerrainColorMode::Hillshade;
+    view.wireframe = true;
+    view.shadows.enabled = false;
+    view.shadows.cascades = 2;
+    view.shadows.resolution = 1024;
+    view.lod.detail = 6.0f;
+    view.lod.showLevels = true;
+    view.material.surface.brdf = "hapke";
+    view.material.surface.exposure = 1.5f;
+    view.material.surface.albedo = glm::vec3(0.2f, 0.3f, 0.4f);
+    view.material.surface.detail.tileSize = 9.0f;
+    view.material.brdfParams["hapke"] = {0.4f};
+    ernie::OrbitCamera camera;
+    camera.yaw = 0.3f;
+
+    ernie::Scene scene;
+    terraingen::viewer::AuthorView(scene, view, camera, brdfs);
+    const ernie::RasterPrims prims =
+        ernie::ResolveRasterPrims(scene, terraingen::viewer::kSettingsPrim);
+    EXPECT_EQ(prims.camera, ernie::Path(terraingen::viewer::kCameraPrim));
+    EXPECT_EQ(prims.terrain, ernie::Path(terraingen::viewer::kTerrainPrim));
+    EXPECT_EQ(prims.material, ernie::Path(terraingen::viewer::kSurfacePrim));
+    EXPECT_EQ(prims.light, ernie::Path(terraingen::viewer::kSunPrim));
+
+    const ernie::TerrainDrawParams params = ernie::DrawParamsOf(scene, prims, brdfs, 1.5f);
+    const glm::vec3 sun = SunDirection(90.0f, 30.0f);
+    for (int i = 0; i < 3; ++i) {
+        EXPECT_NEAR(params.sunDirection[i], sun[i], 1e-6f);
+        EXPECT_NEAR(params.camera.eye[i], camera.Eye()[i], 1e-3f);
+    }
+    EXPECT_NEAR(params.camera.verticalFov, camera.verticalFov, 1e-6f);
+    EXPECT_EQ(params.ambient, 0.25f);
+    EXPECT_EQ(params.exaggeration, 2.0f);
+    EXPECT_EQ(params.colorMode, ernie::TerrainColorMode::Hillshade);
+    EXPECT_TRUE(params.wireframe);
+    EXPECT_FALSE(params.shadows.enabled);
+    EXPECT_EQ(params.shadows.cascades, 2);
+    EXPECT_EQ(params.shadows.resolution, 1024u);
+    EXPECT_EQ(params.lod.detail, 6.0f);
+    EXPECT_TRUE(params.lod.showLevels);
+    EXPECT_EQ(params.surface.brdf, "hapke");
+    EXPECT_EQ(params.surface.brdfParams, view.material.Effective(brdfs).brdfParams);
+    EXPECT_FLOAT_EQ(params.surface.exposure, 1.5f);
+    EXPECT_EQ(params.surface.albedo, glm::vec3(0.2f, 0.3f, 0.4f));
+    EXPECT_EQ(params.surface.detail.tileSize, 9.0f);
+
+    view.colorMode = ernie::TerrainColorMode::Colormap;
+    terraingen::viewer::AuthorView(scene, view, camera, brdfs);
+    EXPECT_EQ(ernie::DrawParamsOf(scene, prims, brdfs, 1.0f).colorMode,
+              ernie::TerrainColorMode::Colormap);
+    view.colorMode = ernie::TerrainColorMode::ShadedColormap;
+    terraingen::viewer::AuthorView(scene, view, camera, brdfs);
+    EXPECT_EQ(ernie::DrawParamsOf(scene, prims, brdfs, 1.0f).colorMode,
+              ernie::TerrainColorMode::ShadedColormap);
 }
 
 TEST(CraterSettings, DefaultsAreAValidLunarSurface) {
