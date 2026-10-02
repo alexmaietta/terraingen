@@ -8,9 +8,9 @@ A high-performance scientific terrain generation tool for the lunar surface.
 
 TerrainGen provides a core C++ and Python library designed to easily integrate into external workflows. The core is designed with minimal dependencies, but provides natural extensions to handle geotiffs, meshes, and GPU acceleration.
 
-We provide a command-line interface, a lightweight viewer, and a standalone demo that integrates TerrainGen into a planetary-scale renderer, synthezing terrain detail on the GPU, on the fly, while navigating around the Moon.
+We provide a command-line interface, a lightweight viewer, and a standalone demo that integrates TerrainGen into a planetary-scale renderer, synthesizing terrain detail on the GPU, on the fly, while navigating around the Moon.
 
-TerrainGen is validated against existing lunar datasets. For more information, see the [validation](./verification/README.md) section.
+TerrainGen is validated against existing lunar datasets. For more information, see the [validation](./validation/README.md) section.
 
 For information on the concepts behind TerrainGen and the API, see our latest [documentation]().
 
@@ -100,19 +100,30 @@ TerrainGen is designed to be integrated into downstream simulation, rendering, a
 
 TerrainGen is built on top of the following open source libraries and tools:
 
-| Library | Purpose | License | Status |
+| Library | Purpose | License |
+| --- | --- | --- |
+| [GDAL](https://gdal.org/) | Raster/vector geospatial data I/O (GeoTIFF, PDS/IMG-LBL, ...) | MIT |
+| [PROJ](https://proj.org/) | Coordinate reference system transformations | MIT |
+| [dlpack](https://github.com/dmlc/dlpack) | Zero-copy tensor interop for raster buffers | Apache-2.0 |
+| [nlohmann/json](https://github.com/nlohmann/json) | Config-based generation | MIT |
+| [nanobind](https://github.com/wjakob/nanobind) | Python bindings | BSD-3-Clause |
+
+The viewer additionally uses:
+
+| Library | Purpose | License |
+| --- | --- | --- |
+| [wgpu-native](https://github.com/gfx-rs/wgpu-native) | Cross-platform WebGPU rendering | MIT / Apache-2.0 |
+| [GLFW](https://www.glfw.org/) | Windowing and input | Zlib |
+| [Dear ImGui](https://github.com/ocornut/imgui) | User interface | MIT |
+| [GLM](https://github.com/g-truc/glm) | Vector and matrix math | MIT |
+
+TerrainGen also draws inspiration from existing lunar terrain generation tools:
+
+| Name | Organization | Availability | Capabilities |
 | --- | --- | --- | --- |
-| [GDAL](https://gdal.org/) | Raster/vector geospatial data I/O (GeoTIFF, PDS/IMG-LBL, ...) | MIT | Planned |
-| [PROJ](https://proj.org/) | Coordinate reference system transformations | MIT | Planned |
-| [dlpack](https://github.com/dmlc/dlpack) | Zero-copy tensor interop for raster buffers | Apache-2.0 | Planned (vendored) |
-| [nlohmann/json](https://github.com/nlohmann/json) | Config-based generation | MIT | Planned (vendored) |
-| [nanobind](https://github.com/wjakob/nanobind) | Python bindings | BSD-3-Clause | Planned |
+| [synthterrain](https://github.com/NeoGeographyToolkit/synthterrain) | NASA Ames | Open source (Apache-2.0) | Crater and boulder populations from size-frequency distributions, crater profiles and DEMs on flat terrain |
+| [lunasynth](https://github.com/nasa-jpl/lunasynth) | NASA JPL | Open source (Apache-2.0) | Adds craters and rocks to a lunar base DEM, down to 1 cm pixels, and renders images under varying camera and sun positions |
+| [DLES Terrain Crafting](https://doi.org/10.1109/AERO63441.2025.11068736) | NASA JSC | Not publicly released (paper) | Enhances LOLA and NAC-derived DEMs of the lunar south pole to 20 cm with synthetic craters and rocks, including hand-placed craters from imagery |
+| [PANGU](https://pangu.software/) | University of Dundee / STAR-Dundee | Commercial | Multi-resolution planet and asteroid surfaces from real or fractal DEMs with statistical craters and boulders; GPU camera, LiDAR and thermal sensor simulation |
 
-TerrainGen also draws inspiration from the following softwares in the terrain generation field:
-
-- synthterrain
-- lunasynth
-- dles terrain crafting
-- pangu
-
-For a complete list of references, see the associated paper.
+For a complete list of references, see the [TerrainGen paper](./paper/paper.md).
