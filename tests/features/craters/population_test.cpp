@@ -1,3 +1,4 @@
+#include "support/log_capture.h"
 #include "terraingen/features/craters/population.h"
 
 #include <gtest/gtest.h>
@@ -198,4 +199,17 @@ TEST(GenerateCraters, RejectsInvalidRequests) {
     EXPECT_THROW(GenerateCraters(kCells, {0.0, 0.0, 0.0, 1.0}, density, fresh, 1u,
                                  {.dMin = 1.0, .dMax = 10.0}),
                  std::invalid_argument);
+}
+
+TEST(GenerateCraters, LogsASummaryAndEachBand) {
+    const terraingen::testing::LogCapture capture(terraingen::LogLevel::Debug);
+    const CraterList craters = GenerateCraters(kCells, {0.0, 0.0, 200.0, 200.0}, PowerLaw(0.1, 2.0),
+                                               AllFresh(), 3u, {.dMin = 3.0, .dMax = 20.0});
+    const auto summary = capture.Matching("craters", terraingen::LogLevel::Info);
+    ASSERT_EQ(summary.size(), 1u);
+    EXPECT_EQ(summary[0].message.rfind(
+                  "Generated " + std::to_string(craters.Size()) + " craters (3-20 m, 4 bands", 0),
+              0u)
+        << summary[0].message;
+    EXPECT_EQ(capture.Matching("craters", terraingen::LogLevel::Debug).size(), 4u);
 }

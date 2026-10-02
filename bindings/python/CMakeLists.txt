@@ -4,6 +4,7 @@ nanobind_add_module(
     _terraingen
     STABLE_ABI
     NB_STATIC
+    src/log.cpp
     src/module.cpp
     src/core.cpp
     src/kernels.cpp

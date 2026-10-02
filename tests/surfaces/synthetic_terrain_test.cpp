@@ -1,3 +1,4 @@
+#include "support/log_capture.h"
 #include "terraingen/surfaces/synthetic_terrain.h"
 
 #include <gtest/gtest.h>
@@ -183,4 +184,15 @@ TEST(GenerateSyntheticTerrain, RejectsInvalidArguments) {
 TEST(SyntheticTerrainParams, ComparesLayers) {
     EXPECT_EQ(SyntheticTerrainParams{}, SyntheticTerrainParams{});
     EXPECT_FALSE(TwoLayers() == SyntheticTerrainParams{});
+}
+
+TEST(GenerateSyntheticTerrain, LogsTheFillWithItsTiming) {
+    const terraingen::testing::LogCapture capture;
+    SyntheticTerrainParams params;
+    params.layers.push_back(params.layers.front());
+    GenerateSyntheticTerrain(9, 7, 1.0, params);
+    const auto records = capture.Matching("surfaces", terraingen::LogLevel::Info);
+    ASSERT_EQ(records.size(), 1u);
+    EXPECT_EQ(records[0].message.rfind("Filled 9x7 synthetic terrain (2 layers) in ", 0), 0u)
+        << records[0].message;
 }

@@ -16,6 +16,7 @@ add_custom_target(
 add_library(
     terraingen_core STATIC
     version.cpp
+    log.cpp
     random.cpp
     distributions/size_frequency.cpp
     features/craters/ages.cpp

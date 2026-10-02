@@ -1,5 +1,6 @@
 #include "terraingen/features/craters/population.h"
 
+#include "terraingen/core/log.h"
 #include "terraingen/kernels/philox.h"
 
 #include <algorithm>
@@ -97,6 +98,7 @@ CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
                            const SizeFrequencyDistribution& density, const CraterAgeModel& ages,
                            std::uint32_t seed, const CraterGenerationOptions& options) {
     CheckOptions(options);
+    const Stopwatch stopwatch;
     if (density.Kind() != SfdKind::Density) {
         throw std::invalid_argument("Craters are generated from a Density distribution");
     }
@@ -122,9 +124,13 @@ CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
         const double margin = 0.5 * options.marginRadii * band.high;
         BandCells entry{band, cells.CellsCovering(region.Expanded(margin), band.cellSize),
                         density.ExpectedCount(1.0, band.low, band.high)};
+        double bandExpected = 0.0;
         for (const CellIndex& cell : entry.cells) {
-            expected += entry.countPerArea * cells.CellArea(cell, band.cellSize);
+            bandExpected += entry.countPerArea * cells.CellArea(cell, band.cellSize);
         }
+        LogDebug("craters", "Band [", band.low, ", ", band.high, ") m: ", entry.cells.size(),
+                 " cells of ", band.cellSize, " m, ", bandExpected, " craters expected");
+        expected += bandExpected;
         plan.push_back(std::move(entry));
     }
     if (expected > options.maxExpectedCraters) {
@@ -157,6 +163,9 @@ CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
             }
         }
     }
+    LogInfo("craters", "Generated ", craters.Size(), " craters (", options.dMin, "-", dMax, " m, ",
+            plan.size(), " bands, ", static_cast<long long>(std::llround(expected)),
+            " expected) in ", FormatDuration(stopwatch.Milliseconds()));
     return craters;
 }
 

@@ -1,3 +1,4 @@
+#include "support/log_capture.h"
 #include "terraingen/features/craters/apply.h"
 
 #include <gtest/gtest.h>
@@ -180,4 +181,20 @@ TEST(ApplyCraters, RejectsInvalidOptionsAndTransforms) {
                  std::invalid_argument);
     raster.SetTransform(GeoTransform{0.0, 0.0, 0.0, 0.0, 0.0, 1.0});
     EXPECT_THROW(ApplyCraters(raster, One(0.0, 0.0, 4.0), profile), std::domain_error);
+}
+
+TEST(ApplyCraters, LogsAppliedAndSkippedCounts) {
+    const terraingen::testing::LogCapture capture;
+    Raster<float> raster = Flat(50);
+    CraterList craters;
+    craters.Append({0.5, 0.5, 10.0, 0.0, 1});
+    craters.Append({0.5, 0.5, 1.0, 0.0, 2});
+    craters.Append({500.0, 500.0, 10.0, 0.0, 3});
+    ApplyCraters(raster, craters, FassettThomsonProfile());
+    const auto records = capture.Matching("craters", terraingen::LogLevel::Info);
+    ASSERT_EQ(records.size(), 1u);
+    EXPECT_EQ(
+        records[0].message.rfind("Applied 1 of 3 craters (1 below 2 px, 1 off the raster) in ", 0),
+        0u)
+        << records[0].message;
 }

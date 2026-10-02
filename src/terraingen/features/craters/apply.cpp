@@ -1,5 +1,7 @@
 #include "terraingen/features/craters/apply.h"
 
+#include "terraingen/core/log.h"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -148,6 +150,7 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
     if (raster.Empty() || craters.Empty()) {
         return;
     }
+    const Stopwatch stopwatch;
     const GeoTransform& transform = raster.Transform();
     const double pixelArea = std::fabs(transform.pixelWidth * transform.pixelHeight -
                                        transform.rowRotation * transform.colRotation);
@@ -158,17 +161,23 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
     const std::optional<float> noData = raster.NoData();
     const auto isData = [&](float value) { return !noData || value != *noData; };
 
+    std::size_t applied = 0;
+    std::size_t unresolved = 0;
+    std::size_t offRaster = 0;
     for (const std::size_t index : Order(craters, options.order)) {
         const Crater crater = craters.At(index);
         if (crater.diameter < options.minDiameterPixels * pixelSize) {
+            ++unresolved;
             continue;
         }
         const double radius = 0.5 * crater.diameter;
         const PixelWindow window =
             Window(raster, crater.x, crater.y, profile.ReachRadii() * radius);
         if (window.Empty()) {
+            ++offRaster;
             continue;
         }
+        ++applied;
 
         PlaneFit fit;
         for (std::size_t row = window.rowBegin; row < window.rowEnd; ++row) {
@@ -207,6 +216,9 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
             }
         }
     }
+    LogInfo("craters", "Applied ", applied, " of ", craters.Size(), " craters (", unresolved,
+            " below ", options.minDiameterPixels, " px, ", offRaster, " off the raster) in ",
+            FormatDuration(stopwatch.Milliseconds()));
 }
 
 }  // namespace terraingen

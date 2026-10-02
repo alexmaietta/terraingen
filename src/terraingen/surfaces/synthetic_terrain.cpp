@@ -1,5 +1,7 @@
 #include "terraingen/surfaces/synthetic_terrain.h"
 
+#include "terraingen/core/log.h"
+
 #include <cmath>
 #include <stdexcept>
 #include <string>
@@ -70,6 +72,7 @@ void ValidateSyntheticTerrain(const SyntheticTerrainParams& params) {
 
 void FillSyntheticTerrain(Raster<float>& raster, const SyntheticTerrainParams& params) {
     ValidateSyntheticTerrain(params);
+    const Stopwatch stopwatch;
     for (std::size_t row = 0; row < raster.Height(); ++row) {
         for (std::size_t col = 0; col < raster.Width(); ++col) {
             const Vec2d centre = raster.CellCenter(col, row);
@@ -78,6 +81,9 @@ void FillSyntheticTerrain(Raster<float>& raster, const SyntheticTerrainParams& p
                                     params.layers.data(), params.layers.size());
         }
     }
+    LogInfo("surfaces", "Filled ", raster.Width(), "x", raster.Height(), " synthetic terrain (",
+            params.layers.size(), params.layers.size() == 1 ? " layer" : " layers", ") in ",
+            FormatDuration(stopwatch.Milliseconds()));
 }
 
 Raster<float> GenerateSyntheticTerrain(std::size_t width, std::size_t height, double pixelSize,

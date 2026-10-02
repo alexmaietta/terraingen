@@ -6,6 +6,7 @@ terraingen_add_test_suite(
     raster_test.cpp
     raster_stats_test.cpp
     random_test.cpp
+    log_test.cpp
     LIBRARIES
     terraingen::core)
 target_compile_definitions(terraingen_tests_core

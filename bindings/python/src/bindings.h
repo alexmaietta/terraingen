@@ -6,6 +6,7 @@ namespace terraingen::python {
 
 void BindCore(nanobind::module_& m);
 void BindKernels(nanobind::module_& m);
+void BindLog(nanobind::module_& m);
 void BindRandom(nanobind::module_& m);
 
 }  // namespace terraingen::python
