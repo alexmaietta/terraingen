@@ -10,6 +10,7 @@
 #include <vector>
 
 using terraingen::DiameterRange;
+using terraingen::ExtendedNeukumProductionFunction;
 using terraingen::LogPolynomial;
 using terraingen::NeukumLunarChronology;
 using terraingen::NeukumProductionFunction;
@@ -19,7 +20,10 @@ using terraingen::PowerLawSegment;
 using terraingen::ProductionSurface;
 using terraingen::RandomStream;
 using terraingen::SfdKind;
+using terraingen::SfdPiece;
 using terraingen::SizeFrequencyDistribution;
+using terraingen::SplicedSfd;
+using terraingen::TabulatedSfd;
 
 namespace {
 
@@ -324,4 +328,166 @@ TEST(ProductionSurface, InheritsExtrapolationAndRejectsInvalidProduction) {
         std::make_shared<PowerLaw>(1.0, 2.0, SfdKind::ProductionRate, DiameterRange{0.0, 100.0});
     EXPECT_THROW(ProductionSurface(small, 1.0), std::domain_error);
     EXPECT_THROW(ProductionSurface(npf, 5.0), std::domain_error);
+}
+
+TEST(TabulatedSfd, InterpolatesPowerLawsBetweenPoints) {
+    const PowerLaw law(2.0, 2.0);
+    const TabulatedSfd table({1.0, 10.0, 100.0}, {2.0, 0.02, 0.0002});
+    for (const double d : {1.0, 3.0, 10.0, 42.0, 100.0}) {
+        EXPECT_NEAR(table.Cumulative(d), law.Cumulative(d), 1e-12 * law.Cumulative(d)) << d;
+        EXPECT_NEAR(table.Incremental(d), law.Incremental(d), 1e-12 * law.Incremental(d)) << d;
+    }
+    RandomStream tableStream(2u, 3u);
+    RandomStream lawStream(2u, 3u);
+    for (int i = 0; i < 50; ++i) {
+        const double expected = law.SampleDiameter(lawStream, 1.5, 80.0);
+        EXPECT_NEAR(table.SampleDiameter(tableStream, 1.5, 80.0), expected, 1e-9 * expected);
+    }
+    EXPECT_EQ(table.ValidRange().min, 1.0);
+    EXPECT_EQ(table.ValidRange().max, 100.0);
+    EXPECT_THROW(table.Cumulative(0.5), std::domain_error);
+}
+
+TEST(TabulatedSfd, UsesEachIntervalsSlopeAndConvertsUnits) {
+    const TabulatedSfd table({0.001, 0.01, 0.1}, {1e6, 1e5, 1e2}, SfdKind::ProductionRate, 1000.0,
+                             1e6);
+    EXPECT_EQ(table.Kind(), SfdKind::ProductionRate);
+    EXPECT_DOUBLE_EQ(table.Diameters().back(), 100.0);
+    EXPECT_DOUBLE_EQ(table.CumulativeValues().front(), 1.0);
+    EXPECT_NEAR(table.Cumulative(std::sqrt(10.0)), std::pow(10.0, -0.5), 1e-12);
+    EXPECT_NEAR(table.Cumulative(std::sqrt(1000.0)), 1e-1 * std::pow(10.0, -1.5), 1e-12);
+    EXPECT_NEAR(table.Incremental(5.0), table.Cumulative(5.0) / 5.0, 1e-12);
+    EXPECT_NEAR(table.Incremental(50.0), 3.0 * table.Cumulative(50.0) / 50.0, 1e-12);
+}
+
+TEST(TabulatedSfd, FlatIntervalsHoldNoMass) {
+    const TabulatedSfd table({1.0, 2.0, 4.0}, {1.0, 1.0, 0.25});
+    EXPECT_EQ(table.Incremental(1.5), 0.0);
+    RandomStream stream(6u, 6u);
+    for (int i = 0; i < 200; ++i) {
+        EXPECT_GE(table.SampleDiameter(stream, 1.0, 4.0), 2.0);
+    }
+}
+
+TEST(TabulatedSfd, ExtrapolatesTheEndSlopesByOptIn) {
+    TabulatedSfd table({1.0, 10.0, 100.0}, {1.0, 0.1, 0.0001});
+    table.SetAllowExtrapolation(true);
+    EXPECT_NEAR(table.Cumulative(0.1), 10.0, 1e-12);
+    EXPECT_NEAR(table.Cumulative(1000.0), 1e-7, 1e-18);
+    RandomStream stream(3u, 9u);
+    for (int i = 0; i < 50; ++i) {
+        const double d = table.SampleDiameter(stream, 0.1, 1000.0);
+        EXPECT_GE(d, 0.1);
+        EXPECT_LE(d, 1000.0);
+    }
+    const PowerLaw steep(1e-1 * 1000.0, 3.0);
+    RandomStream tableStream(4u, 4u);
+    RandomStream lawStream(4u, 4u);
+    for (int i = 0; i < 20; ++i) {
+        const double expected = steep.SampleDiameter(lawStream, 200.0, 2000.0);
+        EXPECT_NEAR(table.SampleDiameter(tableStream, 200.0, 2000.0), expected, 1e-9 * expected);
+    }
+}
+
+TEST(TabulatedSfd, RejectsMalformedTables) {
+    EXPECT_THROW(TabulatedSfd({1.0}, {1.0}), std::invalid_argument);
+    EXPECT_THROW(TabulatedSfd({1.0, 2.0}, {1.0}), std::invalid_argument);
+    EXPECT_THROW(TabulatedSfd({2.0, 1.0}, {1.0, 0.5}), std::invalid_argument);
+    EXPECT_THROW(TabulatedSfd({1.0, 1.0}, {1.0, 0.5}), std::invalid_argument);
+    EXPECT_THROW(TabulatedSfd({0.0, 1.0}, {1.0, 0.5}), std::invalid_argument);
+    EXPECT_THROW(TabulatedSfd({1.0, kInf}, {1.0, 0.5}), std::invalid_argument);
+    EXPECT_THROW(TabulatedSfd({1.0, 2.0}, {1.0, 0.0}), std::invalid_argument);
+    EXPECT_THROW(TabulatedSfd({1.0, 2.0}, {kNaN, 0.5}), std::invalid_argument);
+    EXPECT_THROW(TabulatedSfd({1.0, 2.0}, {0.5, 1.0}), std::invalid_argument);
+    EXPECT_THROW(TabulatedSfd({1.0, 2.0}, {1.0, 0.5}, SfdKind::Density, 0.0),
+                 std::invalid_argument);
+    EXPECT_THROW(TabulatedSfd({1.0, 2.0}, {1.0, 0.5}, SfdKind::Density, 1.0, kNaN),
+                 std::invalid_argument);
+}
+
+namespace {
+
+SplicedSfd TwoPowerLaws() {
+    return SplicedSfd({{0.0, std::make_shared<PowerLaw>(0.1, 2.0)},
+                       {100.0, std::make_shared<PowerLaw>(10.0, 3.0)}},
+                      DiameterRange{});
+}
+
+}  // namespace
+
+TEST(SplicedSfd, MatchesTheEquivalentPiecewisePowerLaw) {
+    const SplicedSfd spliced = TwoPowerLaws();
+    const PiecewisePowerLaw piecewise({{0.0, 0.1, 2.0}, {100.0, 10.0, 3.0}});
+    EXPECT_EQ(spliced.Pieces().size(), 2u);
+    EXPECT_EQ(spliced.Kind(), SfdKind::Density);
+    for (const double d : {1.0, 99.0, 100.0, 101.0, 1e4}) {
+        EXPECT_NEAR(spliced.Cumulative(d), piecewise.Cumulative(d),
+                    1e-12 * piecewise.Cumulative(d));
+        EXPECT_NEAR(spliced.Incremental(d), piecewise.Incremental(d),
+                    1e-12 * piecewise.Incremental(d));
+    }
+    for (const auto& [dMin, dMax] : {std::pair{1.0, 1000.0}, std::pair{150.0, kInf},
+                                     std::pair{2.0, 50.0}, std::pair{50.0, 100.0}}) {
+        RandomStream splicedStream(7u, 7u);
+        RandomStream piecewiseStream(7u, 7u);
+        for (int i = 0; i < 50; ++i) {
+            const double expected = piecewise.SampleDiameter(piecewiseStream, dMin, dMax);
+            EXPECT_NEAR(spliced.SampleDiameter(splicedStream, dMin, dMax), expected,
+                        1e-9 * expected)
+                << dMin << " " << dMax;
+        }
+    }
+}
+
+TEST(SplicedSfd, DiscontinuitiesWithinToleranceBecomeAnAtomAtTheJoin) {
+    const SplicedSfd spliced({{0.0, std::make_shared<PowerLaw>(1.0, 2.0)},
+                              {10.0, std::make_shared<PowerLaw>(0.9 * 10.0, 3.0)}},
+                             DiameterRange{}, 0.2);
+    RandomStream stream(1u, 5u);
+    constexpr int kDraws = 20000;
+    int atJoin = 0;
+    for (int i = 0; i < kDraws; ++i) {
+        atJoin += spliced.SampleDiameter(stream, 5.0, 100.0) == 10.0 ? 1 : 0;
+    }
+    const double expected = kDraws * 0.1 * 0.01 / (0.04 - 0.9 * 10.0 * 1e-6);
+    EXPECT_NEAR(atJoin, expected, 5.0 * std::sqrt(expected));
+}
+
+TEST(SplicedSfd, RejectsMalformedPieces) {
+    const auto low = std::make_shared<PowerLaw>(0.1, 2.0);
+    const auto high = std::make_shared<PowerLaw>(10.0, 3.0);
+    const DiameterRange all{};
+    EXPECT_THROW(SplicedSfd({}, all), std::invalid_argument);
+    EXPECT_THROW(SplicedSfd({{0.0, nullptr}}, all), std::invalid_argument);
+    EXPECT_THROW(SplicedSfd({{1.0, low}}, all), std::invalid_argument);
+    EXPECT_THROW(SplicedSfd({{0.0, low}, {0.0, high}}, all), std::invalid_argument);
+    EXPECT_THROW(SplicedSfd({{0.0, low}, {100.0, high}}, DiameterRange{0.0, 50.0}),
+                 std::invalid_argument);
+    EXPECT_THROW(SplicedSfd({{0.0, low}, {100.0, nullptr}}, all), std::invalid_argument);
+    const auto rate = std::make_shared<PowerLaw>(10.0, 3.0, SfdKind::ProductionRate);
+    EXPECT_THROW(SplicedSfd({{0.0, low}, {100.0, rate}}, all), std::invalid_argument);
+    EXPECT_THROW(SplicedSfd({{0.0, low}, {50.0, high}}, all), std::invalid_argument);
+    EXPECT_THROW(SplicedSfd({{0.0, low}, {200.0, high}}, all), std::invalid_argument);
+    const auto bounded =
+        std::make_shared<PowerLaw>(10.0, 3.0, SfdKind::Density, DiameterRange{100.0, 1000.0});
+    EXPECT_THROW(SplicedSfd({{0.0, low}, {100.0, bounded}}, all), std::invalid_argument);
+    EXPECT_NO_THROW(SplicedSfd({{0.0, low}, {100.0, bounded}}, DiameterRange{0.0, 1000.0}));
+    auto extrapolating =
+        std::make_shared<PowerLaw>(10.0, 3.0, SfdKind::Density, DiameterRange{100.0, 1000.0});
+    extrapolating->SetAllowExtrapolation(true);
+    EXPECT_NO_THROW(SplicedSfd({{0.0, low}, {100.0, extrapolating}}, all));
+}
+
+TEST(ExtendedNeukumProductionFunction, ContinuesBelowTenMetresWithSlope285) {
+    const SplicedSfd extended = ExtendedNeukumProductionFunction();
+    const LogPolynomial npf = NeukumProductionFunction();
+    EXPECT_EQ(extended.Kind(), SfdKind::ProductionRate);
+    EXPECT_EQ(extended.ValidRange().min, 2.5);
+    EXPECT_EQ(extended.ValidRange().max, 300000.0);
+    EXPECT_DOUBLE_EQ(extended.Cumulative(10.0), npf.Cumulative(10.0));
+    EXPECT_NEAR(extended.Cumulative(5.0) / extended.Cumulative(10.0), std::pow(2.0, 2.85), 1e-12);
+    EXPECT_DOUBLE_EQ(extended.Cumulative(500.0), npf.Cumulative(500.0));
+    EXPECT_THROW(extended.Cumulative(2.0), std::domain_error);
+    const ProductionSurface surface(std::make_shared<SplicedSfd>(extended), 3.5);
+    EXPECT_NEAR(surface.Cumulative(1000.0), NeukumLunarChronology(3.5), 1e-15);
 }

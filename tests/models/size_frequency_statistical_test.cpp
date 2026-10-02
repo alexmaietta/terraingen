@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 
+using terraingen::ExtendedNeukumProductionFunction;
 using terraingen::LogPolynomial;
 using terraingen::MooreDistribution;
 using terraingen::MooreTerrain;
@@ -17,6 +18,8 @@ using terraingen::PowerLaw;
 using terraingen::ProductionSurface;
 using terraingen::RandomStream;
 using terraingen::SizeFrequencyDistribution;
+using terraingen::SplicedSfd;
+using terraingen::TabulatedSfd;
 using terraingen::ViperSpecification;
 using terraingen::testing::KolmogorovSmirnov;
 using terraingen::testing::KolmogorovSmirnovCritical;
@@ -86,6 +89,23 @@ TEST(SfdStatistics, NeukumSurfaceSamplesMatchTheirCdfOverTheFullRange) {
     EXPECT_LT(KolmogorovSmirnov(samples,
                                 [&](double d) { return TruncatedCdf(surface, 10.0, 300000.0, d); }),
               KolmogorovSmirnovCritical(kSamples));
+}
+
+TEST(SfdStatistics, ExtendedNeukumSurfaceSamplesMatchTheirCdfAcrossTheSplice) {
+    const ProductionSurface surface(
+        std::make_shared<SplicedSfd>(ExtendedNeukumProductionFunction()), 3.5);
+    const auto samples = Sample(surface, 6u, 2.5, 1000.0);
+    EXPECT_LT(
+        KolmogorovSmirnov(samples, [&](double d) { return TruncatedCdf(surface, 2.5, 1000.0, d); }),
+        KolmogorovSmirnovCritical(kSamples));
+}
+
+TEST(SfdStatistics, TabulatedSamplesMatchTheirCdf) {
+    const TabulatedSfd table({1.0, 3.0, 10.0, 40.0, 100.0}, {1.0, 0.2, 0.01, 1e-3, 2e-5});
+    const auto samples = Sample(table, 7u, 1.0, 100.0);
+    EXPECT_LT(
+        KolmogorovSmirnov(samples, [&](double d) { return TruncatedCdf(table, 1.0, 100.0, d); }),
+        KolmogorovSmirnovCritical(kSamples));
 }
 
 TEST(SfdStatistics, ViperDiscontinuityBecomesAnAtomAtTheJoin) {

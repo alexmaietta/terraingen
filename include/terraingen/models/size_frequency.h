@@ -205,6 +205,76 @@ class LogPolynomial final : public SizeFrequencyDistribution {
     double areaUnit_;
 };
 
+/// A cumulative distribution given as a table of (D, N(>=D)) points, interpolated linearly in log D
+/// and log N, so each interval is a power law. Extrapolation continues the end intervals' slopes.
+class TabulatedSfd final : public SizeFrequencyDistribution {
+  public:
+    /// @param diameters At least two strictly increasing positive diameters, in `diameterUnit`
+    /// metres.
+    /// @param cumulative N(>=D) at each diameter, positive, finite and not increasing, per
+    /// `areaUnit` m^2.
+    /// @throws std::invalid_argument for malformed tables or units.
+    TabulatedSfd(std::vector<double> diameters, std::vector<double> cumulative,
+                 SfdKind kind = SfdKind::Density, double diameterUnit = 1.0, double areaUnit = 1.0);
+
+    /// Table diameters in metres.
+    const std::vector<double>& Diameters() const {
+        return diameters_;
+    }
+
+    /// Table values per m^2 (or per m^2 per Gyr).
+    const std::vector<double>& CumulativeValues() const {
+        return cumulative_;
+    }
+
+  protected:
+    double CumulativeAt(double diameter) const override;
+    double IncrementalAt(double diameter) const override;
+    double InvertCumulative(double target, double dMin, double dMax) const override;
+
+  private:
+    std::size_t IntervalAt(double diameter) const;
+
+    std::vector<double> diameters_;
+    std::vector<double> cumulative_;
+    std::vector<double> slopes_;
+};
+
+/// One piece of a `SplicedSfd`: `distribution` applies from `start` metres up to the next piece's
+/// start.
+struct SfdPiece {
+    double start = 0.0;
+    std::shared_ptr<const SizeFrequencyDistribution> distribution;
+};
+
+/// A cumulative distribution made of other distributions over consecutive diameter intervals, such
+/// as a production function extended below its fitted range by a power law.
+///
+/// As in `PiecewisePowerLaw`, the lower piece applies at a join, and pieces must meet there within
+/// a relative tolerance.
+class SplicedSfd final : public SizeFrequencyDistribution {
+  public:
+    /// @param pieces At least one piece, with strictly increasing `start`, the first `start` equal
+    /// to `range.min`, and each distribution valid (or extrapolating) over its interval.
+    /// @throws std::invalid_argument for malformed pieces, mixed kinds, a piece not valid over its
+    /// interval, or a join that rises or is discontinuous by more than `tolerance`.
+    SplicedSfd(std::vector<SfdPiece> pieces, DiameterRange range, double tolerance = 1e-3);
+
+    const std::vector<SfdPiece>& Pieces() const {
+        return pieces_;
+    }
+
+  protected:
+    double CumulativeAt(double diameter) const override;
+    double IncrementalAt(double diameter) const override;
+    double InvertCumulative(double target, double dMin, double dMax) const override;
+
+  private:
+    std::size_t PieceAt(double diameter) const;
+
+    std::vector<SfdPiece> pieces_;
+};
+
 /// The cumulative density of craters on a surface of a given age: a
 /// production function scaled so that N(>=1 km) follows the Neukum et al. (2001) lunar chronology,
 /// N(D, T) = Phi(D) * N1(T) / Phi(1 km).
@@ -301,5 +371,17 @@ double NeukumLunarChronology(double ageGyr);
 ///
 /// Reference: Neukum, Ivanov and Hartmann (2001); see `NeukumLunarChronology`.
 LogPolynomial NeukumProductionFunction();
+
+/// `NeukumProductionFunction` extended below 10 m as a cumulative power law of slope -2.85,
+/// continuous at 10 m, and valid from 2.5 to 300000 m.
+///
+/// Oetting et al. (2025) measured a mean cumulative slope of -2.85 for craters of at most 10 m on
+/// young impact melt deposits, fitted by maximum likelihood on unbinned data, and concluded that
+/// production functions can be extended down to 2.5 m.
+///
+/// Reference: A. Oetting et al., "Slopes of Lunar Crater Size-Frequency Distributions on Exterior
+/// Impact Melt Deposits of Young Craters", JGR Planets 130, e2024JE008589, 2025.
+/// https://doi.org/10.1029/2024JE008589
+SplicedSfd ExtendedNeukumProductionFunction();
 
 }  // namespace terraingen

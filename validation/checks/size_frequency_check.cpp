@@ -9,6 +9,8 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <utility>
+#include <vector>
 
 using terraingen::HartmannEquilibrium;
 using terraingen::LogPolynomial;
@@ -20,6 +22,7 @@ using terraingen::PiecewisePowerLaw;
 using terraingen::PowerLaw;
 using terraingen::PowerLawCoefficientFromKilometres;
 using terraingen::ProductionSurface;
+using terraingen::TabulatedSfd;
 using terraingen::TraskEquilibrium;
 using terraingen::ViperSpecification;
 
@@ -86,6 +89,54 @@ TEST(Presets, NeukumPresentDayRateMatchesTheProductionFunctionAtOneKilometre) {
     EXPECT_NEAR(rate * 1e6, 8.38e-4, 1e-9);
     const double step = 1e-6;
     EXPECT_NEAR(NeukumLunarChronology(step) / step, rate, 1e-6 * rate);
+}
+
+namespace {
+
+std::pair<std::vector<double>, std::vector<double>> ReadDsneTable() {
+    std::ifstream file(TERRAINGEN_VALIDATION_REFERENCES "/sfd/dsne_rev_i_table_3_4_1_1_1.csv");
+    if (!file.is_open()) {
+        throw std::runtime_error("Missing DSNE reference table");
+    }
+    std::vector<double> diameters;
+    std::vector<double> values;
+    std::string line;
+    while (std::getline(file, line)) {
+        if (line.empty() || line[0] == '#' || line.rfind("diameter", 0) == 0) {
+            continue;
+        }
+        const std::size_t comma = line.find(',');
+        diameters.push_back(std::stod(line.substr(0, comma)));
+        values.push_back(std::stod(line.substr(comma + 1)));
+    }
+    return {diameters, values};
+}
+
+}  // namespace
+
+TEST(Presets, TabulatedDsneTableFollowsTheSurfaceModelBetweenRows) {
+    auto [diameters, values] = ReadDsneTable();
+    ASSERT_EQ(diameters.size(), 30u);
+    const TabulatedSfd table(diameters, values, terraingen::SfdKind::Density, 1000.0, 1e6);
+    const ProductionSurface surface(std::make_shared<LogPolynomial>(NeukumProductionFunction()),
+                                    3.5);
+    const PowerLaw trask = TraskEquilibrium();
+    int compared = 0;
+    for (std::size_t i = 0; i + 1 < diameters.size(); ++i) {
+        const double low = diameters[i] * 1000.0;
+        const double high = diameters[i + 1] * 1000.0;
+        EXPECT_NEAR(table.Cumulative(low), values[i] / 1e6, 1e-12 * values[i]);
+        const bool lowIsProduction = surface.Cumulative(low) < trask.Cumulative(low);
+        const bool highIsProduction = surface.Cumulative(high) < trask.Cumulative(high);
+        if (lowIsProduction != highIsProduction) {
+            continue;
+        }
+        const double middle = std::sqrt(low * high);
+        const double model = std::min(surface.Cumulative(middle), trask.Cumulative(middle));
+        EXPECT_NEAR(table.Cumulative(middle), model, 0.01 * model) << "D = " << middle << " m";
+        ++compared;
+    }
+    EXPECT_EQ(compared, 28);
 }
 
 TEST(Presets, NeukumSurfaceAndTraskEquilibriumReproduceTheDsneMareTable) {
