@@ -198,9 +198,9 @@ struct App::State {
     /// @throws std::runtime_error for an unknown model or a texture that cannot be loaded.
     void ApplyOptions() {
         if (!options.brdf.empty()) {
-            if (Renderer().Brdfs().Find(options.brdf) == nullptr) {
+            if (Brdfs().Find(options.brdf) == nullptr) {
                 std::string known;
-                for (const ernie::BrdfModel& model : Renderer().Brdfs().Models()) {
+                for (const ernie::BrdfModel& model : Brdfs().Models()) {
                     known += (known.empty() ? "" : ", ") + model.id;
                 }
                 throw std::runtime_error("Unknown reflectance model '" + options.brdf +
@@ -224,8 +224,16 @@ struct App::State {
         }
     }
 
-    ernie::TerrainRenderer& Renderer() {
-        return delegate->Renderer();
+    const ernie::TerrainPart& Terrain() const {
+        return delegate->Terrain();
+    }
+
+    const ernie::BrdfRegistry& Brdfs() const {
+        return delegate->Renderer().Brdfs();
+    }
+
+    std::uint64_t GpuBytes() const {
+        return delegate->Renderer().GpuBytes() + Terrain().GpuBytes();
     }
 
     void Request() {
@@ -252,8 +260,8 @@ struct App::State {
     }
 
     void Frame() {
-        if (Renderer().HasHeightfield()) {
-            const auto [low, high] = Renderer().Bounds(view.exaggeration);
+        if (Terrain().HasHeightfield()) {
+            const auto [low, high] = Terrain().Bounds(view.exaggeration);
             camera.Frame(low, high);
         }
     }
@@ -273,12 +281,12 @@ struct App::State {
             LogWarning("viewer", "Cannot display generation ", result.id, ": ", status.error);
             return;
         }
-        info.width = Renderer().Width();
-        info.height = Renderer().Height();
+        info.width = Terrain().Width();
+        info.height = Terrain().Height();
         LogInfo("viewer", "Generation ", result.id, " finished in ",
                 FormatDuration(result.milliseconds), "; uploaded ", info.width, "x", info.height,
                 " heightfield in ", FormatDuration(upload.Milliseconds()));
-        info.gpuBytes = Renderer().GpuBytes();
+        info.gpuBytes = GpuBytes();
         info.stats = result.stats;
         info.generationMilliseconds = result.milliseconds;
 
@@ -382,17 +390,19 @@ struct App::State {
 
     void DrawUi() {
         status.generating = worker.Busy();
-        surfacePanel.hasAlbedoMap = Renderer().Material().HasAlbedoMap();
+        const std::optional<std::uint32_t> surface = delegate->MaterialId(kSurfacePrim);
+        surfacePanel.hasAlbedoMap =
+            surface.has_value() && delegate->Renderer().Material(*surface).HasAlbedoMap();
         info.gpu = gpu->DeviceName();
-        info.gpuBytes = Renderer().GpuBytes();
-        info.triangles = Renderer().TriangleCount();
-        info.patches = Renderer().PatchCount();
-        info.lodLevels = Renderer().Lod().Levels();
+        info.gpuBytes = GpuBytes();
+        info.triangles = Terrain().TriangleCount() + delegate->Meshes().TriangleCount();
+        info.patches = Terrain().PatchCount();
+        info.lodLevels = Terrain().Lod().Levels();
         if (!uiVisible) {
             return;
         }
-        const SidebarActions actions = DrawSidebar(settings, autoRegenerate, status, view,
-                                                   surfacePanel, Renderer().Brdfs(), info);
+        const SidebarActions actions =
+            DrawSidebar(settings, autoRegenerate, status, view, surfacePanel, Brdfs(), info);
         const bool changed = !(settings == requested);
         if (actions.generate || (autoRegenerate && changed && ValidateSettings(settings).empty())) {
             Request();
@@ -407,7 +417,7 @@ struct App::State {
     }
 
     void Render(const ernie::Swapchain::Frame& image) {
-        AuthorView(scene, view, camera, Renderer().Brdfs());
+        AuthorView(scene, view, camera, Brdfs());
         delegate->Update(scene, kSettingsPrim, swapchain->Extent());
 
         VkCommandBuffer commands = frame->commands;
@@ -506,11 +516,10 @@ void App::Run() {
         if (width <= 0 || height <= 0) {
             continue;
         }
+        s.frame->Wait();
         if (auto result = s.worker.TakeResult()) {
             s.ApplyResult(std::move(*result));
         }
-
-        s.frame->Wait();
         const std::optional<ernie::Swapchain::Frame> image =
             s.swapchain->Acquire(s.frame->acquired);
         if (!image) {

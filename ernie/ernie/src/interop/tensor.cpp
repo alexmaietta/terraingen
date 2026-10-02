@@ -21,6 +21,8 @@ DLDataType ToDl(DType type) {
         return {kDLUInt, 32, 1};
     case DType::Int32:
         return {kDLInt, 32, 1};
+    case DType::Int64:
+        return {kDLInt, 64, 1};
     case DType::Float16:
         return {kDLFloat, 16, 1};
     case DType::Float32:
@@ -46,6 +48,9 @@ DType FromDl(DLDataType type) {
     }
     if (type.code == kDLInt && type.bits == 32) {
         return DType::Int32;
+    }
+    if (type.code == kDLInt && type.bits == 64) {
+        return DType::Int64;
     }
     if (type.code == kDLFloat && type.bits == 16) {
         return DType::Float16;

@@ -3,13 +3,19 @@
 #include "ernie/core/image.h"
 #include "ernie/gpu/offscreen_target.h"
 #include "ernie/interop/tensor.h"
-#include "ernie/raster/terrain_renderer.h"
+#include "ernie/raster/mesh_part.h"
+#include "ernie/raster/raster_renderer.h"
+#include "ernie/raster/terrain_part.h"
 #include "ernie/scene/scene.h"
 
 #include <array>
 #include <cstdint>
+#include <initializer_list>
+#include <map>
 #include <memory>
 #include <optional>
+#include <string_view>
+#include <vector>
 
 namespace ernie {
 
@@ -33,21 +39,52 @@ struct RasterPrims {
 /// @throws std::invalid_argument if `settings` is not empty and not a RenderSettings prim.
 RasterPrims ResolveRasterPrims(const Scene& scene, const Path& settings);
 
-/// The terrain renderer's per-frame parameters for `prims` of `scene`, for an image with aspect
-/// ratio `aspect`:
+/// The Material prim bound to `prim` by `material:binding`, or the empty path.
+Path BoundMaterial(const Scene& scene, const Path& prim);
+
+/// The frame parameters for `prims` of `scene`, for an image with aspect ratio `aspect`:
 /// - camera from the Camera (`CameraViewOf`);
-/// - sun direction from the light's transform (`TowardsLight`), and the surface exposure from its
+/// - sun direction from the light's transform (`TowardsLight`), and the exposure from its
 ///   `inputs:intensity` times 2^`inputs:exposure`, divided by 2^ the camera's `exposure`;
 ///   shadows from its `inputs:shadow:enable`;
-/// - vertical exaggeration from the terrain's `ernie:exaggeration`;
-/// - BRDF, its `inputs:<parameter>` values, albedo and detail options from the material;
-/// - ambient, colour mode, wireframe, shadow and LOD options from the render settings.
+/// - ambient, wireframe and shadow options from the render settings.
 ///
 /// The light's colour is not used yet.
-/// @throws std::invalid_argument if there is no camera, the camera is invalid (`CameraViewOf`), or
-/// the material names a BRDF that is not in `brdfs`.
-TerrainDrawParams DrawParamsOf(const Scene& scene, const RasterPrims& prims,
-                               const BrdfRegistry& brdfs, float aspect);
+/// @throws std::invalid_argument if there is no camera or it is invalid (`CameraViewOf`).
+FrameParams FrameParamsOf(const Scene& scene, const RasterPrims& prims, float aspect);
+
+/// The terrain's options: vertical exaggeration from the terrain's `ernie:exaggeration`, and
+/// colour mode and LOD options from the render settings. The material is left at the default.
+TerrainParams TerrainParamsOf(const Scene& scene, const RasterPrims& prims);
+
+/// The settings of the Material prim at `material` (empty for defaults): BRDF from `ernie:brdf`,
+/// its parameters from `inputs:<parameter>`, albedo and detail options.
+/// @throws std::invalid_argument if the material names a BRDF that is not in `brdfs`.
+MaterialSettings MaterialSettingsOf(const Scene& scene, const Path& material,
+                                    const BrdfRegistry& brdfs);
+
+/// The geometry of the Mesh prim at `mesh`: `points`, `faceVertexCounts` and `faceVertexIndices`
+/// (triangulated as fans), per-vertex `normals`, and per-vertex `primvars:displayColor` when it
+/// has one colour per point. Points, normals and colours may be float32 or float64, shaped
+/// (n, 3) or flat; indices int32, int64 or uint32. Normals and colours of other sizes (such as
+/// face-varying ones) are ignored.
+/// @throws std::invalid_argument naming the attribute for arrays of the wrong type, size or
+/// device, or invalid topology.
+MeshData MeshDataOf(const Scene& scene, const Path& mesh);
+
+/// The per-instance arrays of the PointInstancer prim at `instancer`: `positions`, and optional
+/// `orientations` (quaternions as x, y, z, w, imaginary part first as in USD's memory layout) and
+/// `scales`.
+/// @throws std::invalid_argument naming the attribute for arrays of the wrong type or size.
+InstanceData InstanceDataOf(const Scene& scene, const Path& instancer);
+
+/// The instances of each prototype of the PointInstancer at `instancer`: entry k lists the
+/// instances whose `protoIndices` entry is k, for `prototypes` prototypes. Without
+/// `protoIndices` every instance uses prototype 0; instances with an index out of range are
+/// dropped.
+/// @throws std::invalid_argument if `protoIndices` is not an integer array.
+std::vector<std::vector<std::uint32_t>>
+InstancesByPrototype(const Scene& scene, const Path& instancer, std::size_t prototypes);
 
 /// A detail texture tensor as an `Image`: float32 values are linear; uint8 values are sRGB-encoded
 /// when `encoding` is `Srgb` and linear otherwise. Grey replicates into rgb and a missing alpha
@@ -56,14 +93,18 @@ TerrainDrawParams DrawParamsOf(const Scene& scene, const RasterPrims& prims,
 /// float32 or uint8 on the CPU.
 Image ImageOfTensor(const Tensor& tensor, ImageEncoding encoding);
 
-/// Ernie's rasterizer as a render delegate for a `Scene`: syncs the scene's terrain, material,
-/// light, camera and render settings into a `TerrainRenderer` and renders them.
+/// Ernie's rasterizer as a render delegate for a `Scene`: syncs Material prims into the
+/// renderer's material table, the first visible Terrain into a `TerrainPart`, and Mesh and
+/// PointInstancer prims into a `MeshPart`, and renders them with the scene's camera, light and
+/// render settings.
 ///
 /// `Sync` re-uploads GPU data only when the attributes behind it changed
-/// (`Scene::AttributeVersion`), so editing display options or moving the camera costs nothing
-/// beyond the per-frame update. Interactive applications call `Update` and `Record` into their own
-/// command buffer each frame; headless ones call `Render`, which returns the `LdrColor` render var
-/// as a tensor.
+/// (`Scene::AttributeVersion`): a deforming mesh rewrites only its points, and moving instances
+/// rewrites only the instance arrays. Meshes that are prototypes of a PointInstancer are drawn
+/// only through it; prototypes must be Mesh prims. A mesh without a bound material uses the
+/// default material tinted by its `primvars:displayColor` (0.5 grey without one). Interactive
+/// applications call `Update` and `Record` into their own command buffer each frame; headless ones
+/// call `Render`, which returns the `LdrColor` render var as a tensor.
 class RasterDelegate {
   public:
     /// @throws std::runtime_error if the renderer's pipelines cannot be created.
@@ -72,16 +113,16 @@ class RasterDelegate {
                             VkFormat depthFormat = VK_FORMAT_D32_SFLOAT,
                             BrdfRegistry brdfs = BrdfRegistry::WithBuiltins());
 
-    /// Uploads the heightfield, albedo map and detail textures that changed since the last call,
-    /// or all of them when `scene` is not the scene of the last call. An upload that fails is not
+    /// Uploads the materials, terrain, meshes and instances that changed since the last call, or
+    /// all of them when `scene` is not the scene of the last call. An upload that fails is not
     /// retried until its attributes change again.
-    /// @throws std::invalid_argument naming the prim and attribute of a tensor that cannot be
+    /// @throws std::invalid_argument naming the prim and attribute of data that cannot be
     /// uploaded.
     void Sync(const Scene& scene);
 
     /// Syncs, then prepares the renderer to draw the scene as `settings` describes into an image
     /// of `extent`. Call only while no submitted frame is still reading the renderer.
-    /// @throws std::invalid_argument as `Sync`, `ResolveRasterPrims` and `DrawParamsOf`.
+    /// @throws std::invalid_argument as `Sync`, `ResolveRasterPrims` and `FrameParamsOf`.
     void Update(const Scene& scene, const Path& settings, VkExtent2D extent);
 
     /// Records the frame prepared by the last `Update` into `target`, clearing to the render
@@ -99,35 +140,73 @@ class RasterDelegate {
         return prims_;
     }
 
-    TerrainRenderer& Renderer() {
+    RasterRenderer& Renderer() {
         return renderer_;
     }
 
-    const TerrainRenderer& Renderer() const {
+    const RasterRenderer& Renderer() const {
         return renderer_;
     }
+
+    const TerrainPart& Terrain() const {
+        return terrain_;
+    }
+
+    const MeshPart& Meshes() const {
+        return meshes_;
+    }
+
+    /// The renderer's material id for the Material prim at `path`, if it is synced.
+    std::optional<std::uint32_t> MaterialId(const Path& path) const;
 
   private:
     /// Scene, path and attribute versions behind an upload.
-    using Key = std::pair<Path, std::array<std::uint64_t, 5>>;
+    using Key = std::pair<Path, std::array<std::uint64_t, 6>>;
 
+    struct SyncedMaterial {
+        std::uint32_t id = 0;
+        std::optional<Key> albedoMap;
+        std::optional<Key> detailAlbedo;
+        std::optional<Key> detailNormal;
+    };
+
+    struct SyncedMesh {
+        std::uint32_t handle = 0;
+        Key key;
+        std::uint64_t points = 0;
+        bool hasColors = false;
+        glm::vec3 tint{0.5f};
+    };
+
+    struct SyncedInstancer {
+        std::uint32_t handle = 0;
+        Key key;
+    };
+
+    Key KeyOf(const Scene& scene, const Path& path,
+              std::initializer_list<std::string_view> attributes) const;
+    void SyncMaterials(const Scene& scene);
+    void SyncMaterial(const Scene& scene, const Path& path, SyncedMaterial& material);
     void SyncHeightfield(const Scene& scene, const Path& terrain);
-    void SyncAlbedoMap(const Scene& scene, const Path& material);
-    void SyncDetail(const Scene& scene, const Path& material, bool normal);
+    void SyncMeshes(const Scene& scene);
+    void SyncInstancers(const Scene& scene);
+    std::uint32_t MaterialOf(const Scene& scene, const Path& prim) const;
+    std::vector<MeshItem> Items(const Scene& scene) const;
 
     const VulkanContext& context_;
-    TerrainRenderer renderer_;
+    RasterRenderer renderer_;
+    TerrainPart terrain_;
+    MeshPart meshes_;
     VkFormat colorFormat_;
-    VkFormat depthFormat_;
     std::unique_ptr<OffscreenTarget> offscreen_;
     ChangeCursor cursor_;
     std::uint64_t sceneId_ = 0;
     RasterPrims prims_;
     glm::vec3 clearColor_{0.0f};
     std::optional<Key> heightfield_;
-    std::optional<Key> albedoMap_;
-    std::optional<Key> detailAlbedo_;
-    std::optional<Key> detailNormal_;
+    std::map<Path, SyncedMaterial> materials_;
+    std::map<Path, SyncedMesh> syncedMeshes_;
+    std::map<Path, SyncedInstancer> instancers_;
 };
 
 }  // namespace ernie

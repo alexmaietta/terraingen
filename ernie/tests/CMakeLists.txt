@@ -10,6 +10,7 @@ ernie_add_test_suite(
     gpu/shader_compiler_test.cpp
     interop/tensor_test.cpp
     material/brdf_test.cpp
+    raster/mesh_data_test.cpp
     raster/poisson_disk_test.cpp
     raster/raster_delegate_test.cpp
     raster/shadow_cascades_test.cpp
@@ -29,8 +30,9 @@ ernie_add_test_suite(
     gpu/vulkan_context_test.cpp
     material/brdf_vulkan_test.cpp
     raster/hex_tiling_gpu_test.cpp
+    raster/mesh_part_test.cpp
     raster/raster_delegate_gpu_test.cpp
-    raster/terrain_renderer_test.cpp
+    raster/terrain_part_test.cpp
     LIBRARIES
     ernie
     LABELS

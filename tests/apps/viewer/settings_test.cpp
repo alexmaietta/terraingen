@@ -262,7 +262,7 @@ TEST(AuthorView, RoundTripsTheViewThroughErniesDrawParameters) {
     view.lod.detail = 6.0f;
     view.lod.showLevels = true;
     view.material.surface.brdf = "hapke";
-    view.material.surface.exposure = 1.5f;
+    view.material.exposure = 1.5f;
     view.material.surface.albedo = glm::vec3(0.2f, 0.3f, 0.4f);
     view.material.surface.detail.tileSize = 9.0f;
     view.material.brdfParams["hapke"] = {0.4f};
@@ -278,35 +278,39 @@ TEST(AuthorView, RoundTripsTheViewThroughErniesDrawParameters) {
     EXPECT_EQ(prims.material, ernie::Path(terraingen::viewer::kSurfacePrim));
     EXPECT_EQ(prims.light, ernie::Path(terraingen::viewer::kSunPrim));
 
-    const ernie::TerrainDrawParams params = ernie::DrawParamsOf(scene, prims, brdfs, 1.5f);
+    const ernie::FrameParams frame = ernie::FrameParamsOf(scene, prims, 1.5f);
     const glm::vec3 sun = SunDirection(90.0f, 30.0f);
     for (int i = 0; i < 3; ++i) {
-        EXPECT_NEAR(params.sunDirection[i], sun[i], 1e-6f);
-        EXPECT_NEAR(params.camera.eye[i], camera.Eye()[i], 1e-3f);
+        EXPECT_NEAR(frame.sunDirection[i], sun[i], 1e-6f);
+        EXPECT_NEAR(frame.camera.eye[i], camera.Eye()[i], 1e-3f);
     }
-    EXPECT_NEAR(params.camera.verticalFov, camera.verticalFov, 1e-6f);
-    EXPECT_EQ(params.ambient, 0.25f);
-    EXPECT_EQ(params.exaggeration, 2.0f);
-    EXPECT_EQ(params.colorMode, ernie::TerrainColorMode::Hillshade);
-    EXPECT_TRUE(params.wireframe);
-    EXPECT_FALSE(params.shadows.enabled);
-    EXPECT_EQ(params.shadows.cascades, 2);
-    EXPECT_EQ(params.shadows.resolution, 1024u);
-    EXPECT_EQ(params.lod.detail, 6.0f);
-    EXPECT_TRUE(params.lod.showLevels);
-    EXPECT_EQ(params.surface.brdf, "hapke");
-    EXPECT_EQ(params.surface.brdfParams, view.material.Effective(brdfs).brdfParams);
-    EXPECT_FLOAT_EQ(params.surface.exposure, 1.5f);
-    EXPECT_EQ(params.surface.albedo, glm::vec3(0.2f, 0.3f, 0.4f));
-    EXPECT_EQ(params.surface.detail.tileSize, 9.0f);
+    EXPECT_NEAR(frame.camera.verticalFov, camera.verticalFov, 1e-6f);
+    EXPECT_EQ(frame.ambient, 0.25f);
+    EXPECT_TRUE(frame.wireframe);
+    EXPECT_FALSE(frame.shadows.enabled);
+    EXPECT_EQ(frame.shadows.cascades, 2);
+    EXPECT_EQ(frame.shadows.resolution, 1024u);
+    EXPECT_FLOAT_EQ(frame.exposure, 1.5f);
+
+    const ernie::TerrainParams terrain = ernie::TerrainParamsOf(scene, prims);
+    EXPECT_EQ(terrain.exaggeration, 2.0f);
+    EXPECT_EQ(terrain.colorMode, ernie::TerrainColorMode::Hillshade);
+    EXPECT_EQ(terrain.lod.detail, 6.0f);
+    EXPECT_TRUE(terrain.lod.showLevels);
+
+    const ernie::MaterialSettings material =
+        ernie::MaterialSettingsOf(scene, prims.material, brdfs);
+    EXPECT_EQ(material.brdf, "hapke");
+    EXPECT_EQ(material.brdfParams, view.material.Effective(brdfs).brdfParams);
+    EXPECT_EQ(material.albedo, glm::vec3(0.2f, 0.3f, 0.4f));
+    EXPECT_EQ(material.detail.tileSize, 9.0f);
 
     view.colorMode = ernie::TerrainColorMode::Colormap;
     terraingen::viewer::AuthorView(scene, view, camera, brdfs);
-    EXPECT_EQ(ernie::DrawParamsOf(scene, prims, brdfs, 1.0f).colorMode,
-              ernie::TerrainColorMode::Colormap);
+    EXPECT_EQ(ernie::TerrainParamsOf(scene, prims).colorMode, ernie::TerrainColorMode::Colormap);
     view.colorMode = ernie::TerrainColorMode::ShadedColormap;
     terraingen::viewer::AuthorView(scene, view, camera, brdfs);
-    EXPECT_EQ(ernie::DrawParamsOf(scene, prims, brdfs, 1.0f).colorMode,
+    EXPECT_EQ(ernie::TerrainParamsOf(scene, prims).colorMode,
               ernie::TerrainColorMode::ShadedColormap);
 }
 

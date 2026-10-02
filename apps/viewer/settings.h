@@ -1,7 +1,8 @@
 #pragma once
 
 #include "ernie/interop/tensor.h"
-#include "ernie/raster/terrain_renderer.h"
+#include "ernie/raster/raster_renderer.h"
+#include "ernie/raster/terrain_part.h"
 #include "ernie/scene/scene.h"
 #include "terraingen/craters.h"
 #include "terraingen/distributions.h"
@@ -124,12 +125,13 @@ Raster<float> GenerateTerrain(const TerrainSettings& settings);
 /// Surface options edited in the Surface panel: the renderer's surface settings plus every
 /// reflectance model's parameter values, kept while switching between models.
 struct SurfaceViewSettings {
-    ernie::SurfaceSettings surface;
+    ernie::MaterialSettings surface;
+    float exposure = 1.0f;  ///< Sun intensity, a scale on reflected sunlight.
     std::map<std::string, std::vector<float>, std::less<>> brdfParams;
 
     /// `surface` with the selected model's parameters resolved against `registry`: edited values
     /// where present, defaults otherwise.
-    ernie::SurfaceSettings Effective(const ernie::BrdfRegistry& registry) const;
+    ernie::MaterialSettings Effective(const ernie::BrdfRegistry& registry) const;
 };
 
 /// A view of `raster` for Ernie, without copying; `raster` must outlive the view.

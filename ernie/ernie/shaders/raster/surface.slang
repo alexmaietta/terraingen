@@ -1,10 +1,10 @@
-// Terrain surface: material uniform, albedo map, and tileable detail albedo and normal textures
-// with hex-tiling.
+// Materials, shared by every raster part: the material uniform, albedo map, and tileable detail
+// albedo and normal textures with hex-tiling, at bindings 5 to 9.
 import brdf;
-import terrain;
+import frame;
 
 public struct Surface {
-    // rgb: albedo where no albedo map applies, a: exposure.
+    // rgb: albedo where no albedo map applies, a: unused.
     public float4 albedo;
     // Albedo map: origin x, origin y (top edge), pixel size, 1 when the map is used.
     public float4 albedoMap;
@@ -21,13 +21,13 @@ public struct Surface {
     public BrdfParams brdf;
 }
 
-[[vk::binding(8, 0)]] public ConstantBuffer<Surface> surface;
+[[vk::binding(5, 0)]] public ConstantBuffer<Surface> surface;
 // Albedo map: r albedo times validity, g validity, so filtering fades to the constant albedo at
 // gaps.
-[[vk::binding(9, 0)]] public Texture2D<float2> albedoMap;
-[[vk::binding(10, 0)]] public Texture2D<float4> detailAlbedo;
-[[vk::binding(11, 0)]] public Texture2D<float4> detailNormal;
-[[vk::binding(12, 0)]] public SamplerState detailSampler;
+[[vk::binding(6, 0)]] public Texture2D<float2> albedoMap;
+[[vk::binding(7, 0)]] public Texture2D<float4> detailAlbedo;
+[[vk::binding(8, 0)]] public Texture2D<float4> detailNormal;
+[[vk::binding(9, 0)]] public SamplerState detailSampler;
 
 public float3 surfaceAlbedo(float3 world) {
     let constant = surface.albedo.rgb;
@@ -48,9 +48,11 @@ public struct DetailCoords {
     public float2 dy;
 }
 
-public DetailCoords detailCoords(float3 world) {
+// Detail coordinates of a planar projection of the world, in world units, with x east and y
+// north for the terrain's horizontal projection.
+public DetailCoords detailCoords(float2 planar) {
     DetailCoords c;
-    c.tile = world.xy * surface.albedoMapSize.z;
+    c.tile = planar * surface.albedoMapSize.z;
     c.dx = ddx(c.tile);
     c.dy = ddy(c.tile);
     return c;

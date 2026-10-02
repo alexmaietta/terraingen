@@ -28,22 +28,22 @@ struct DetailSettings {
     float hexSharpness = 7.0f;    ///< Exponent on the barycentric blend weights.
 };
 
-/// How the terrain surface reflects light.
-struct SurfaceSettings {
+/// How a surface reflects light: a material's settings.
+struct MaterialSettings {
     std::string brdf = "lambert";   ///< Id of a model in the renderer's `BrdfRegistry`.
     std::vector<float> brdfParams;  ///< In the model's parameter order; missing ones use defaults.
     glm::vec3 albedo{1.0f};         ///< Albedo input where no albedo map applies.
-    float exposure = 1.0f;          ///< Scale on the reflected radiance factor.
     bool useAlbedoMap = true;       ///< Use the albedo map when one is set.
     DetailSettings detail;
 };
 
-/// GPU resources for the terrain's surface: the material uniform, an optional albedo map and
-/// optional tileable detail albedo and normal textures, bound at bindings 8 to 12 of the terrain
-/// passes (`surface.slang`).
+/// A material's GPU resources: the material uniform, an optional albedo map and optional tileable
+/// detail albedo and normal textures, bound at bindings 5 to 9 of every raster pass
+/// (`surface.slang`), so terrain and meshes share materials.
 ///
-/// The albedo map is a georeferenced raster sampled by world position, like the heightfield but
-/// with its own grid. Detail textures repeat every `DetailSettings::tileSize` world units; the
+/// The albedo map is a georeferenced raster sampled by world x and y, like the heightfield but
+/// with its own grid. Detail textures repeat every `DetailSettings::tileSize` world units: the
+/// terrain projects them from above and meshes along all three axes (triplanar); the
 /// detail albedo multiplies the base albedo after division by its own mean, so it adds variation
 /// without changing the map's calibrated mean, and the detail normal map's slopes add to the
 /// terrain's. Detail textures are mipmapped and sampled anisotropically.
@@ -53,19 +53,19 @@ struct SurfaceSettings {
 ///   11(3), 2022.
 /// - M. Jarzynski and M. Olano, "Hash Functions for GPU Rendering", Journal of Computer Graphics
 ///   Techniques 9(3), 2020 (pcg2d, for per-tile rotations and offsets).
-class SurfaceMaterial {
+class RasterMaterial {
   public:
-    explicit SurfaceMaterial(const VulkanContext& context);
-    SurfaceMaterial(const SurfaceMaterial&) = delete;
-    SurfaceMaterial& operator=(const SurfaceMaterial&) = delete;
+    explicit RasterMaterial(const VulkanContext& context);
+    RasterMaterial(const RasterMaterial&) = delete;
+    RasterMaterial& operator=(const RasterMaterial&) = delete;
 
     /// The material's uniform buffer, albedo map, detail albedo, detail normal and detail sampler,
-    /// in binding order (8 to 12).
+    /// in binding order (5 to 9).
     void AppendResources(std::vector<DescriptorResource>& resources) const;
 
     /// Uploads `albedo` as the albedo map; the data is copied, so the view need not outlive the
     /// call. Cells that are not finite or equal the nodata value fall back to
-    /// `SurfaceSettings::albedo`.
+    /// `MaterialSettings::albedo`.
     /// @throws std::invalid_argument if the view is empty or malformed (see `RasterView`), or
     /// larger than the device's maximum texture size.
     void SetAlbedoMap(const RasterView& albedo);
@@ -104,19 +104,28 @@ class SurfaceMaterial {
         return detailMean_;
     }
 
-    /// Writes the material uniform; `brdfParams` are the active model's resolved values. Call
-    /// only while no submitted work is reading the material.
-    void Update(const SurfaceSettings& settings, std::span<const float> brdfParams);
+    /// Sets the material's settings; `brdfParams` are the model's resolved values. This and the
+    /// texture setters write the material's uniform, so call them only while no submitted work is
+    /// reading the material.
+    void Update(const MaterialSettings& settings, std::span<const float> brdfParams);
+
+    /// The settings of the last `Update`.
+    const MaterialSettings& Settings() const {
+        return settings_;
+    }
 
     /// GPU memory held for textures and the uniform, in bytes.
     std::uint64_t GpuBytes() const;
 
   private:
     void CheckDetailImage(const Image* image) const;
+    void WriteUniform();
     std::unique_ptr<GpuImage> UploadMips(const Image& image, MipFilter filter,
                                          ImageEncoding encoding, VkFormat format) const;
 
     const VulkanContext& context_;
+    MaterialSettings settings_;
+    std::vector<float> params_;
     GpuBuffer uniform_;
     Sampler sampler_;
     std::unique_ptr<GpuImage> albedoMap_;

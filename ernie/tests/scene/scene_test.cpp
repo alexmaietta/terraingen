@@ -38,6 +38,7 @@ TEST(Value, HoldsTypedValuesAndTokens) {
     EXPECT_TRUE(Value(Path("/Looks/Rock")).Is<Path>());
     EXPECT_TRUE(Value(glm::ivec2(640, 480)).Is<glm::ivec2>());
     EXPECT_TRUE(Value(std::vector<float>{1.0f}).Is<std::vector<float>>());
+    EXPECT_EQ(Value(std::vector<Path>{"/A", "/B"}).Get<std::vector<Path>>()->size(), 2u);
     EXPECT_EQ(Value(glm::dvec2(1.0, 2.0)), Value(glm::dvec2(1.0, 2.0)));
     EXPECT_NE(Value(1), Value(1.0));
 }

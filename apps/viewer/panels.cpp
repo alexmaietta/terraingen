@@ -278,7 +278,7 @@ bool DrawViewSection(ViewSettings& view) {
     ernie::ShadowSettings& shadows = view.shadows;
     ImGui::Checkbox("Enabled", &shadows.enabled);
     ImGui::BeginDisabled(!shadows.enabled);
-    ImGui::SliderInt("Cascades", &shadows.cascades, 1, ernie::TerrainRenderer::kMaxCascades);
+    ImGui::SliderInt("Cascades", &shadows.cascades, 1, ernie::RasterRenderer::kMaxCascades);
     const std::uint32_t resolutions[] = {1024, 2048, 4096};
     const std::string preview = std::to_string(shadows.resolution);
     if (ImGui::BeginCombo("Resolution", preview.c_str())) {
@@ -314,7 +314,7 @@ bool DrawViewSection(ViewSettings& view) {
 SurfacePanelAction DrawSurfaceSection(SurfaceViewSettings& material, SurfacePanelState& state,
                                       const ernie::BrdfRegistry& registry) {
     SurfacePanelAction action = SurfacePanelAction::None;
-    ernie::SurfaceSettings& surface = material.surface;
+    ernie::MaterialSettings& surface = material.surface;
 
     ImGui::SeparatorText("Reflectance");
     const ernie::BrdfModel* selected = registry.Find(surface.brdf);
@@ -361,7 +361,7 @@ SurfacePanelAction DrawSurfaceSection(SurfaceViewSettings& material, SurfacePane
         }
     }
     ImGui::ColorEdit3("Albedo", &surface.albedo.x);
-    ImGui::SliderFloat("Exposure", &surface.exposure, 0.01f, 100.0f, "%.3g",
+    ImGui::SliderFloat("Exposure", &material.exposure, 0.01f, 100.0f, "%.3g",
                        ImGuiSliderFlags_Logarithmic);
     ImGui::BeginDisabled(!state.hasAlbedoMap);
     ImGui::Checkbox("Use albedo map", &surface.useAlbedoMap);

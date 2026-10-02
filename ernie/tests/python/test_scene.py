@@ -51,6 +51,7 @@ def test_values_round_trip_by_usd_name():
     prim.set("rel", ernie.Path("/Looks/Rock")).set("res", (640, 480)).set("uv", (0.5, 1))
     prim.set("rgb", [0.1, 0.2, 0.3]).set("rgba", (1, 2, 3, 4)).set("curve", [1, 2, 3, 4, 5])
     prim.set("np", np.float32(2.5)).set("vec", np.array([1.0, 2.0, 3.0]))
+    prim.set("targets", [ernie.Path("/A"), ernie.Path("/B")])
     assert prim.get("b") is True
     assert prim.get("i") == 3
     assert prim.get("f") == 0.5
@@ -63,13 +64,14 @@ def test_values_round_trip_by_usd_name():
     assert prim.get("curve") == [1.0, 2.0, 3.0, 4.0, 5.0]
     assert prim.get("np") == 2.5
     assert prim.get("vec") == (1.0, 2.0, 3.0)
+    assert prim.get("targets") == [ernie.Path("/A"), ernie.Path("/B")]
     assert prim.get("missing") is None and prim.get("missing", 7) == 7
     assert scene.get("/P", "i") == 3 and scene.get("/Missing", "i", "x") == "x"
     assert set(scene.attributes("/P")) >= {"b", "i", "rel", "rgba"}
     assert scene.clear("/P", "b") and prim.get("b") is None
     prim.set("none", None)
     assert prim.get("none") is None
-    for bad in ({}, [True, False], ["a", "b"], [[1, 2], [3, 4]], 2**40):
+    for bad in ({}, [True, False], ["a", "b"], [[1, 2], [3, 4]], 2**40, [ernie.Path("/A"), 1]):
         with pytest.raises((TypeError, ValueError)):
             prim.set("bad", bad)
     with pytest.raises(ValueError):
@@ -124,11 +126,11 @@ def test_strided_and_typed_arrays_keep_their_layout():
     base = np.arange(12, dtype=np.float32).reshape(3, 4)
     scene.write("/T", "transposed", base.T)
     np.testing.assert_array_equal(scene.read("/T", "transposed"), base.T)
-    for dtype in (np.uint8, np.uint16, np.uint32, np.int32, np.float16, np.float64):
+    for dtype in (np.uint8, np.uint16, np.uint32, np.int32, np.int64, np.float16, np.float64):
         array = np.ones((2, 2), dtype=dtype)
         scene.write("/T", "typed", array)
         assert scene.read("/T", "typed").dtype == dtype
-    for dtype in (np.int64, np.complex64, np.bool_):
+    for dtype in (np.int8, np.complex64, np.bool_):
         with pytest.raises((TypeError, ValueError)):
             scene.write("/T", "bad", np.ones(2, dtype=dtype))
     assert ernie._ernie._roundtrip(base).base is not None

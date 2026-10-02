@@ -25,6 +25,9 @@ DType DTypeOf(nb::dlpack::dtype type) {
         if (code == Code::Int && type.bits == 32) {
             return DType::Int32;
         }
+        if (code == Code::Int && type.bits == 64) {
+            return DType::Int64;
+        }
         if (code == Code::Float && type.bits == 16) {
             return DType::Float16;
         }
@@ -37,7 +40,7 @@ DType DTypeOf(nb::dlpack::dtype type) {
     }
     throw std::invalid_argument("Unsupported array element type (code " +
                                 std::to_string(type.code) + ", " + std::to_string(type.bits) +
-                                " bits); use uint8, uint16, uint32, int32 or float16/32/64");
+                                " bits); use uint8, uint16, uint32, int32, int64 or float16/32/64");
 }
 
 nb::dlpack::dtype DlpackOf(DType type) {
@@ -50,6 +53,8 @@ nb::dlpack::dtype DlpackOf(DType type) {
         return nb::dtype<std::uint32_t>();
     case DType::Int32:
         return nb::dtype<std::int32_t>();
+    case DType::Int64:
+        return nb::dtype<std::int64_t>();
     case DType::Float16:
         return {static_cast<std::uint8_t>(nb::dlpack::dtype_code::Float), 16, 1};
     case DType::Float32:

@@ -3,7 +3,7 @@
 #include "ernie/gpu/pipeline.h"
 #include "ernie/gpu/shader_compiler.h"
 #include "ernie/material/brdf.h"
-#include "ernie/raster/surface_material.h"
+#include "ernie/raster/raster_material.h"
 #include "support/vulkan_fixture.h"
 
 #include <glm/glm.hpp>
@@ -23,11 +23,11 @@ using ernie::DescriptorBinding;
 using ernie::DescriptorResource;
 using ernie::GpuBuffer;
 using ernie::Image;
+using ernie::MaterialSettings;
 using ernie::PipelineLayout;
+using ernie::RasterMaterial;
 using ernie::ShaderCompiler;
 using ernie::ShaderModuleSource;
-using ernie::SurfaceMaterial;
-using ernie::SurfaceSettings;
 
 namespace {
 
@@ -49,11 +49,11 @@ std::string ShaderSource(const std::string& name) {
 }
 
 // Detail albedo (red) and slope from hexDetail at each tile-space point. The material binds at
-// 8 to 12 as in the terrain passes; the harness's buffers follow at 13 and 14.
+// 5 to 9 as in every raster pass; the harness's buffers follow at 10 and 11.
 constexpr char kHarness[] = R"(import surface;
 
-[[vk::binding(13, 0)]] StructuredBuffer<float4> points;
-[[vk::binding(14, 0)]] RWStructuredBuffer<float4> samples;
+[[vk::binding(10, 0)]] StructuredBuffer<float4> points;
+[[vk::binding(11, 0)]] RWStructuredBuffer<float4> samples;
 
 [shader("compute")]
 [numthreads(64, 1, 1)]
@@ -73,21 +73,21 @@ void main(uint3 id : SV_DispatchThreadID) {
 
 class HexTilingGpuTest : public ernie::testing::VulkanTest {
   protected:
-    std::vector<glm::vec3> Sample(const SurfaceMaterial& material,
+    std::vector<glm::vec3> Sample(const RasterMaterial& material,
                                   const std::vector<glm::vec2>& at) {
         const std::vector<ShaderModuleSource> modules = {
             {"brdf", std::string(ernie::BrdfSlang())},
-            {"terrain", ShaderSource("raster/terrain")},
+            {"frame", ShaderSource("raster/frame")},
             {"surface", ShaderSource("raster/surface")},
             {"harness", kHarness}};
         constexpr VkShaderStageFlags kCompute = VK_SHADER_STAGE_COMPUTE_BIT;
-        const DescriptorBinding bindings[] = {{8, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, kCompute},
-                                              {9, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, kCompute},
-                                              {10, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, kCompute},
-                                              {11, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, kCompute},
-                                              {12, VK_DESCRIPTOR_TYPE_SAMPLER, kCompute},
-                                              {13, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, kCompute},
-                                              {14, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, kCompute}};
+        const DescriptorBinding bindings[] = {{5, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, kCompute},
+                                              {6, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, kCompute},
+                                              {7, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, kCompute},
+                                              {8, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, kCompute},
+                                              {9, VK_DESCRIPTOR_TYPE_SAMPLER, kCompute},
+                                              {10, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, kCompute},
+                                              {11, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, kCompute}};
         const PipelineLayout layout(*context_, bindings, 80);
         const ComputePipeline pipeline(*context_, layout,
                                        ShaderCompiler().CompileSpirv(modules, "main"));
@@ -142,10 +142,10 @@ std::pair<Image, Image> MatchedRamps(int axis) {
 
 TEST_F(HexTilingGpuTest, SlopesRotateWithTheirTile) {
     for (const int axis : {0, 1}) {
-        SurfaceMaterial material(*context_);
+        RasterMaterial material(*context_);
         const auto [albedo, normal] = MatchedRamps(axis);
         material.SetDetailTextures(&albedo, &normal);
-        SurfaceSettings settings;
+        MaterialSettings settings;
         settings.detail.hexRotation = 1.0f;
         settings.detail.hexContrast = 0.0f;
         settings.detail.hexSharpness = 64.0f;

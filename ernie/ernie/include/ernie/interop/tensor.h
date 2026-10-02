@@ -13,7 +13,7 @@
 namespace ernie {
 
 /// Element types Ernie exchanges.
-enum class DType : std::uint8_t { UInt8, UInt16, UInt32, Int32, Float16, Float32, Float64 };
+enum class DType : std::uint8_t { UInt8, UInt16, UInt32, Int32, Int64, Float16, Float32, Float64 };
 
 /// Bytes per element of `type`.
 std::size_t SizeOf(DType type);
@@ -134,6 +134,9 @@ template <> constexpr DType DTypeOf<std::uint32_t>() {
 }
 template <> constexpr DType DTypeOf<std::int32_t>() {
     return DType::Int32;
+}
+template <> constexpr DType DTypeOf<std::int64_t>() {
+    return DType::Int64;
 }
 template <> constexpr DType DTypeOf<float>() {
     return DType::Float32;

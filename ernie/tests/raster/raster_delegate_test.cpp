@@ -15,7 +15,6 @@ using ernie::RasterPrims;
 using ernie::Scene;
 using ernie::Tensor;
 using ernie::TerrainColorMode;
-using ernie::TerrainDrawParams;
 namespace tokens = ernie::tokens;
 
 namespace {
@@ -62,28 +61,30 @@ TEST(RasterPrims, ResolveFollowsSettingsBindingsAndVisibility) {
     EXPECT_THROW(ernie::ResolveRasterPrims(scene, "/Missing"), std::invalid_argument);
 }
 
-TEST(DrawParamsOf, DefaultsMatchTheRendererWithADefaultSun) {
+TEST(FrameParamsOf, DefaultsMatchTheRendererWithADefaultSun) {
     const Scene scene = MinimalScene();
-    const TerrainDrawParams params = ernie::DrawParamsOf(
-        scene, ernie::ResolveRasterPrims(scene, {}), BrdfRegistry::WithBuiltins(), 2.0f);
-    const TerrainDrawParams defaults;
+    const RasterPrims prims = ernie::ResolveRasterPrims(scene, {});
+    const ernie::FrameParams params = ernie::FrameParamsOf(scene, prims, 2.0f);
+    const ernie::FrameParams defaults;
     EXPECT_EQ(params.sunDirection, defaults.sunDirection);
     EXPECT_EQ(params.ambient, defaults.ambient);
-    EXPECT_EQ(params.colorMode, defaults.colorMode);
-    EXPECT_EQ(params.exaggeration, 1.0f);
-    EXPECT_EQ(params.surface.exposure, 1.0f);
-    EXPECT_EQ(params.surface.brdf, "lambert");
-    EXPECT_EQ(params.surface.albedo, glm::vec3(1.0f));
+    EXPECT_EQ(params.exposure, 1.0f);
     EXPECT_TRUE(params.shadows.enabled);
     EXPECT_EQ(params.camera.aspect, 2.0f);
+    const ernie::TerrainParams terrain = ernie::TerrainParamsOf(scene, prims);
+    EXPECT_EQ(terrain.colorMode, ernie::TerrainParams().colorMode);
+    EXPECT_EQ(terrain.exaggeration, 1.0f);
+    const ernie::MaterialSettings material =
+        ernie::MaterialSettingsOf(scene, prims.material, BrdfRegistry::WithBuiltins());
+    EXPECT_EQ(material.brdf, "lambert");
+    EXPECT_EQ(material.albedo, glm::vec3(1.0f));
 
     Scene empty;
-    EXPECT_THROW(ernie::DrawParamsOf(empty, ernie::ResolveRasterPrims(empty, {}),
-                                     BrdfRegistry::WithBuiltins(), 1.0f),
+    EXPECT_THROW(ernie::FrameParamsOf(empty, ernie::ResolveRasterPrims(empty, {}), 1.0f),
                  std::invalid_argument);
 }
 
-TEST(DrawParamsOf, ReadsLightMaterialTerrainAndSettings) {
+TEST(FrameParamsOf, ReadsLightMaterialTerrainAndSettings) {
     Scene scene = MinimalScene();
     scene.Define("/World/Sun", tokens::kDistantLight)
         .Set(tokens::kTransform, ernie::DistantLightTransform({1.0, 0.0, 1.0}))
@@ -110,41 +111,116 @@ TEST(DrawParamsOf, ReadsLightMaterialTerrainAndSettings) {
         .Set(tokens::kLodDetail, 6.0f);
 
     const BrdfRegistry brdfs = BrdfRegistry::WithBuiltins();
-    const TerrainDrawParams params =
-        ernie::DrawParamsOf(scene, ernie::ResolveRasterPrims(scene, {}), brdfs, 1.0f);
+    const RasterPrims prims = ernie::ResolveRasterPrims(scene, {});
+    const ernie::FrameParams frame = ernie::FrameParamsOf(scene, prims, 1.0f);
     const float diagonal = std::sqrt(0.5f);
-    EXPECT_NEAR(params.sunDirection.x, diagonal, 1e-6f);
-    EXPECT_NEAR(params.sunDirection.z, diagonal, 1e-6f);
-    EXPECT_FLOAT_EQ(params.surface.exposure, 2.0f) << "2 x 2^1 / 2^1";
-    EXPECT_FALSE(params.shadows.enabled);
-    EXPECT_EQ(params.surface.brdf, "hapke");
+    EXPECT_NEAR(frame.sunDirection.x, diagonal, 1e-6f);
+    EXPECT_NEAR(frame.sunDirection.z, diagonal, 1e-6f);
+    EXPECT_FLOAT_EQ(frame.exposure, 2.0f) << "2 x 2^1 / 2^1";
+    EXPECT_FALSE(frame.shadows.enabled);
+    EXPECT_EQ(frame.ambient, 0.3f);
+    EXPECT_TRUE(frame.wireframe);
+    EXPECT_EQ(frame.shadows.cascades, 2);
+    EXPECT_EQ(frame.shadows.resolution, 1024u);
+
+    const ernie::MaterialSettings material =
+        ernie::MaterialSettingsOf(scene, prims.material, brdfs);
+    EXPECT_EQ(material.brdf, "hapke");
     const ernie::BrdfModel* hapke = brdfs.Find("hapke");
     ASSERT_NE(hapke, nullptr);
-    ASSERT_EQ(params.surface.brdfParams.size(), hapke->params.size());
+    ASSERT_EQ(material.brdfParams.size(), hapke->params.size());
     for (std::size_t i = 0; i < hapke->params.size(); ++i) {
         const float expected = hapke->params[i].name == "b" ? 0.33f : hapke->params[i].defaultValue;
-        EXPECT_FLOAT_EQ(params.surface.brdfParams[i], expected) << hapke->params[i].name;
+        EXPECT_FLOAT_EQ(material.brdfParams[i], expected) << hapke->params[i].name;
     }
-    EXPECT_EQ(params.surface.albedo, glm::vec3(0.5f, 0.4f, 0.3f));
-    EXPECT_FALSE(params.surface.useAlbedoMap);
-    EXPECT_EQ(params.surface.detail.tileSize, 8.0f);
-    EXPECT_FALSE(params.surface.detail.hexTiling);
-    EXPECT_EQ(params.exaggeration, 3.0f);
-    EXPECT_EQ(params.ambient, 0.3f);
-    EXPECT_EQ(params.colorMode, TerrainColorMode::Hillshade);
-    EXPECT_TRUE(params.wireframe);
-    EXPECT_EQ(params.shadows.cascades, 2);
-    EXPECT_EQ(params.shadows.resolution, 1024u);
-    EXPECT_FALSE(params.lod.enabled);
-    EXPECT_EQ(params.lod.detail, 6.0f);
+    EXPECT_EQ(material.albedo, glm::vec3(0.5f, 0.4f, 0.3f));
+    EXPECT_FALSE(material.useAlbedoMap);
+    EXPECT_EQ(material.detail.tileSize, 8.0f);
+    EXPECT_FALSE(material.detail.hexTiling);
+
+    ernie::TerrainParams terrain = ernie::TerrainParamsOf(scene, prims);
+    EXPECT_EQ(terrain.exaggeration, 3.0f);
+    EXPECT_EQ(terrain.colorMode, TerrainColorMode::Hillshade);
+    EXPECT_FALSE(terrain.lod.enabled);
+    EXPECT_EQ(terrain.lod.detail, 6.0f);
 
     scene.Set("/Render/Settings", tokens::kColorMode, tokens::kColormap);
-    EXPECT_EQ(
-        ernie::DrawParamsOf(scene, ernie::ResolveRasterPrims(scene, {}), brdfs, 1.0f).colorMode,
-        TerrainColorMode::Colormap);
+    EXPECT_EQ(ernie::TerrainParamsOf(scene, prims).colorMode, TerrainColorMode::Colormap);
     scene.Set("/Looks/Rock", tokens::kBrdf, "nope");
-    EXPECT_THROW(ernie::DrawParamsOf(scene, ernie::ResolveRasterPrims(scene, {}), brdfs, 1.0f),
-                 std::invalid_argument);
+    EXPECT_THROW(ernie::MaterialSettingsOf(scene, prims.material, brdfs), std::invalid_argument);
+}
+
+TEST(MeshDataOf, ReadsPointsTopologyNormalsAndVertexColours) {
+    Scene scene;
+    const std::array<double, 12> points{0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0};
+    const std::array<std::int64_t, 1> counts{4};
+    const std::array<std::int32_t, 4> indices{0, 1, 2, 3};
+    const std::array<float, 12> normals{0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1};
+    const std::array<float, 12> colors{1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1};
+    scene.Define("/Quad", tokens::kMesh)
+        .Write(tokens::kPoints, Tensor::Copy<double>(points, {4, 3}))
+        .Write(tokens::kFaceVertexCounts, Tensor::Copy<std::int64_t>(counts, {1}))
+        .Write(tokens::kFaceVertexIndices, Tensor::Copy<std::int32_t>(indices, {4}))
+        .Write(tokens::kNormals, Tensor::Copy<float>(normals, {12}))
+        .Write(tokens::kDisplayColor, Tensor::Copy<float>(colors, {4, 3}));
+    const ernie::MeshData data = ernie::MeshDataOf(scene, "/Quad");
+    EXPECT_EQ(data.points.size(), 12u);
+    EXPECT_EQ(data.points[3], 1.0f);
+    EXPECT_EQ(data.indices, (std::vector<std::uint32_t>{0, 1, 2, 0, 2, 3}));
+    EXPECT_EQ(data.normals.size(), 12u);
+    EXPECT_EQ(data.colors.size(), 12u);
+
+    const std::array<float, 6> faceVarying{0, 0, 1, 0, 0, 1};
+    scene.Write("/Quad", tokens::kNormals, Tensor::Copy<float>(faceVarying, {2, 3}));
+    scene.Set("/Quad", tokens::kDisplayColor, glm::vec3(0.2f));
+    scene.Clear("/Quad", tokens::kDisplayColor);
+    EXPECT_TRUE(ernie::MeshDataOf(scene, "/Quad").normals.empty()) << "not one per point";
+
+    scene.Write("/Quad", tokens::kPoints, Tensor::Zeros(DType::Int32, {4, 3}));
+    EXPECT_THROW(ernie::MeshDataOf(scene, "/Quad"), std::invalid_argument);
+    scene.Write("/Quad", tokens::kPoints, Tensor::Zeros(DType::Float32, {4, 2}));
+    EXPECT_THROW(ernie::MeshDataOf(scene, "/Quad"), std::invalid_argument);
+    scene.Write("/Quad", tokens::kPoints, Tensor::Copy<double>(points, {4, 3}));
+    scene.Write("/Quad", tokens::kFaceVertexIndices, Tensor::Zeros(DType::Float32, {4}));
+    EXPECT_THROW(ernie::MeshDataOf(scene, "/Quad"), std::invalid_argument);
+    scene.Clear("/Quad", tokens::kFaceVertexIndices);
+    EXPECT_THROW(ernie::MeshDataOf(scene, "/Quad"), std::invalid_argument);
+}
+
+TEST(InstanceDataOf, ReadsArraysAndGroupsInstancesByPrototype) {
+    Scene scene;
+    const std::array<float, 9> positions{0, 0, 0, 1, 0, 0, 2, 0, 0};
+    const std::array<std::int32_t, 3> protoIndices{1, 0, 7};
+    scene.Define("/Rocks", tokens::kPointInstancer)
+        .Write(tokens::kPositions, Tensor::Copy<float>(positions, {3, 3}))
+        .Write(tokens::kScales, Tensor::Copy<float>(positions, {9}));
+    const ernie::InstanceData data = ernie::InstanceDataOf(scene, "/Rocks");
+    EXPECT_EQ(data.positions.size(), 9u);
+    EXPECT_TRUE(data.orientations.empty());
+    EXPECT_EQ(data.scales.size(), 9u);
+
+    using Lists = std::vector<std::vector<std::uint32_t>>;
+    EXPECT_EQ(ernie::InstancesByPrototype(scene, "/Rocks", 2), (Lists{{0, 1, 2}, {}}))
+        << "without protoIndices every instance uses prototype 0";
+    scene.Write("/Rocks", tokens::kProtoIndices, Tensor::Copy<std::int32_t>(protoIndices, {3}));
+    EXPECT_EQ(ernie::InstancesByPrototype(scene, "/Rocks", 2), (Lists{{1}, {0}}))
+        << "out-of-range indices are dropped";
+    EXPECT_TRUE(ernie::InstancesByPrototype(scene, "/Rocks", 0).empty());
+    scene.Write("/Rocks", tokens::kProtoIndices, Tensor::Zeros(DType::Float32, {3}));
+    EXPECT_THROW(ernie::InstancesByPrototype(scene, "/Rocks", 2), std::invalid_argument);
+    scene.Write("/Rocks", tokens::kOrientations, Tensor::Zeros(DType::Float32, {3, 3}));
+    EXPECT_THROW(ernie::InstanceDataOf(scene, "/Rocks"), std::invalid_argument);
+}
+
+TEST(BoundMaterial, FollowsBindingsToMaterialsOnly) {
+    Scene scene;
+    scene.Define("/Looks/Rock", tokens::kMaterial);
+    scene.Define("/Looks/Group", tokens::kScope);
+    scene.Define("/Mesh", tokens::kMesh).Set(tokens::kMaterialBinding, Path("/Looks/Rock"));
+    EXPECT_EQ(ernie::BoundMaterial(scene, "/Mesh"), Path("/Looks/Rock"));
+    scene.Set("/Mesh", tokens::kMaterialBinding, Path("/Looks/Group"));
+    EXPECT_TRUE(ernie::BoundMaterial(scene, "/Mesh").IsEmpty());
+    EXPECT_TRUE(ernie::BoundMaterial(scene, "/Missing").IsEmpty());
 }
 
 TEST(ImageOfTensor, ConvertsFloatAndByteTextures) {

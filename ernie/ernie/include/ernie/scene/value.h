@@ -16,12 +16,13 @@ namespace ernie {
 /// types Ernie's schemas use. Bulk per-element data goes in a `Tensor` instead.
 ///
 /// Strings serve both as USD tokens (`"invisible"`, `"lambert"`) and asset paths; `Path` values are
-/// relationship targets such as `material:binding`.
+/// relationship targets such as `material:binding`, and path lists relationships with several
+/// targets such as a PointInstancer's `prototypes`.
 class Value {
   public:
     using Data = std::variant<std::monostate, bool, int, float, double, glm::ivec2, glm::vec2,
                               glm::vec3, glm::vec4, glm::dvec2, glm::dvec3, glm::dmat4, std::string,
-                              Path, std::vector<float>>;
+                              Path, std::vector<float>, std::vector<Path>>;
 
     Value() = default;
     Value(bool value) : data_(value) {}
@@ -40,6 +41,7 @@ class Value {
     Value(const char* value) : data_(std::string(value)) {}
     Value(Path value) : data_(std::move(value)) {}
     Value(std::vector<float> value) : data_(std::move(value)) {}
+    Value(std::vector<Path> value) : data_(std::move(value)) {}
 
     bool Empty() const {
         return std::holds_alternative<std::monostate>(data_);

@@ -88,6 +88,16 @@ Value ValueFromPython(nb::handle object) {
     for (nb::handle item : sequence) {
         items.push_back(nb::borrow(item));
     }
+    if (!items.empty() && nb::isinstance<Path>(items[0])) {
+        std::vector<Path> paths;
+        for (const nb::object& item : items) {
+            if (!nb::isinstance<Path>(item)) {
+                throw nb::type_error("A list of targets must hold only Path values");
+            }
+            paths.push_back(nb::cast<Path>(item));
+        }
+        return paths;
+    }
     if (items.size() == 4 && !IsNumber(items[0])) {
         glm::dmat4 matrix(1.0);
         for (int row = 0; row < 4; ++row) {
@@ -142,6 +152,12 @@ nb::object ValueToPython(const Value& value) {
                 return nb::make_tuple(double(v.x), double(v.y), double(v.z), double(v.w));
             } else if constexpr (std::is_same_v<T, glm::dmat4>) {
                 return MatrixToPython(v);
+            } else if constexpr (std::is_same_v<T, std::vector<Path>>) {
+                nb::list paths;
+                for (const Path& path : v) {
+                    paths.append(nb::cast(path));
+                }
+                return paths;
             } else if constexpr (std::is_same_v<T, float>) {
                 return nb::cast(double(v));
             } else {

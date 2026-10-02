@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <set>
 #include <stdexcept>
 #include <string>
 
@@ -62,7 +63,97 @@ TerrainColorMode ColorModeOf(const std::string& token) {
     return TerrainColorMode::ShadedColormap;
 }
 
+/// A CPU array of `components`-vectors as floats, shaped (n, components) or flat.
+std::vector<float> FloatsOf(const Tensor& tensor, std::size_t components, std::string_view what) {
+    const bool shaped =
+        tensor.Rank() == 2 && tensor.Shape()[1] == static_cast<std::int64_t>(components);
+    if (tensor.Location().kind != DeviceKind::Cpu || !(tensor.Rank() == 1 || shaped) ||
+        static_cast<std::size_t>(tensor.Elements()) % components != 0) {
+        throw std::invalid_argument(std::string(what) + " must be a CPU array of " +
+                                    std::to_string(components) + "-vectors");
+    }
+    const Tensor packed = tensor.Contiguous();
+    const auto count = static_cast<std::size_t>(packed.Elements());
+    if (packed.Type() == DType::Float32) {
+        return {packed.As<float>(), packed.As<float>() + count};
+    }
+    if (packed.Type() == DType::Float64) {
+        return {packed.As<double>(), packed.As<double>() + count};
+    }
+    throw std::invalid_argument(std::string(what) + " must be float32 or float64");
+}
+
+/// A CPU array of integers, of any shape.
+std::vector<std::int64_t> IntsOf(const Tensor& tensor, std::string_view what) {
+    if (tensor.Location().kind != DeviceKind::Cpu) {
+        throw std::invalid_argument(std::string(what) + " must be a CPU array");
+    }
+    const Tensor packed = tensor.Contiguous();
+    const auto count = static_cast<std::size_t>(packed.Elements());
+    switch (packed.Type()) {
+    case DType::Int32:
+        return {packed.As<std::int32_t>(), packed.As<std::int32_t>() + count};
+    case DType::Int64:
+        return {packed.As<std::int64_t>(), packed.As<std::int64_t>() + count};
+    case DType::UInt32:
+        return {packed.As<std::uint32_t>(), packed.As<std::uint32_t>() + count};
+    default:
+        throw std::invalid_argument(std::string(what) + " must be int32, int64 or uint32");
+    }
+}
+
+/// The prim's attribute as an array: a written tensor or, for small arrays, a float array value.
+std::optional<std::vector<float>> FloatAttribute(const Scene& scene, const Path& path,
+                                                 std::string_view attribute,
+                                                 std::size_t components) {
+    if (const Tensor* tensor = scene.Read(path, attribute)) {
+        return FloatsOf(*tensor, components, attribute);
+    }
+    return std::nullopt;
+}
+
+/// Targets of a relationship holding one path or a list of them.
+std::vector<Path> TargetsOf(const Scene& scene, const Path& path, std::string_view attribute) {
+    const Value* value = scene.Get(path, attribute);
+    if (value == nullptr) {
+        return {};
+    }
+    if (const auto* list = value->Get<std::vector<Path>>()) {
+        return *list;
+    }
+    if (const auto* single = value->Get<Path>()) {
+        return {*single};
+    }
+    return {};
+}
+
+/// The constant colour of `primvars:displayColor`: a colour value or a one-row array.
+std::optional<glm::vec3> ConstantDisplayColor(const Scene& scene, const Path& mesh) {
+    if (scene.Get(mesh, tokens::kDisplayColor) != nullptr) {
+        return glm::vec3(GetVec3(scene, mesh, tokens::kDisplayColor, glm::dvec3(0.5)));
+    }
+    if (const Tensor* tensor = scene.Read(mesh, tokens::kDisplayColor)) {
+        if (tensor->Elements() == 3) {
+            const std::vector<float> color = FloatsOf(*tensor, 3, tokens::kDisplayColor);
+            return glm::vec3(color[0], color[1], color[2]);
+        }
+    }
+    return std::nullopt;
+}
+
+std::string Describe(const Path& path, std::string_view what, const std::exception& error) {
+    return "'" + path.String() + "' " + std::string(what) + ": " + error.what();
+}
+
 }  // namespace
+
+Path BoundMaterial(const Scene& scene, const Path& prim) {
+    const Path material = GetTarget(scene, prim, tokens::kMaterialBinding);
+    if (scene.Has(material) && scene.TypeOf(material) == tokens::kMaterial) {
+        return material;
+    }
+    return {};
+}
 
 RasterPrims ResolveRasterPrims(const Scene& scene, const Path& settings) {
     RasterPrims prims;
@@ -84,27 +175,21 @@ RasterPrims ResolveRasterPrims(const Scene& scene, const Path& settings) {
     }
     prims.terrain = FirstVisible(scene, tokens::kTerrain);
     if (!prims.terrain.IsEmpty()) {
-        const Path material = GetTarget(scene, prims.terrain, tokens::kMaterialBinding);
-        if (scene.Has(material) && scene.TypeOf(material) == tokens::kMaterial) {
-            prims.material = material;
-        }
+        prims.material = BoundMaterial(scene, prims.terrain);
     }
     prims.light = FirstVisible(scene, tokens::kDistantLight);
     return prims;
 }
 
-TerrainDrawParams DrawParamsOf(const Scene& scene, const RasterPrims& prims,
-                               const BrdfRegistry& brdfs, float aspect) {
+FrameParams FrameParamsOf(const Scene& scene, const RasterPrims& prims, float aspect) {
     using namespace tokens;
     if (prims.camera.IsEmpty()) {
         throw std::invalid_argument("The scene has no Camera");
     }
-    TerrainDrawParams params;
+    FrameParams params;
     params.camera = CameraViewOf(scene, prims.camera, aspect);
-
     const Path& settings = prims.settings;
     params.ambient = Number(scene, settings, kAmbient, params.ambient);
-    params.colorMode = ColorModeOf(GetToken(scene, settings, kColorMode, kShadedColormap));
     params.wireframe = GetBool(scene, settings, kWireframe, params.wireframe);
     ShadowSettings& shadows = params.shadows;
     shadows.cascades =
@@ -115,12 +200,6 @@ TerrainDrawParams DrawParamsOf(const Scene& scene, const RasterPrims& prims,
     shadows.normalOffset = Number(scene, settings, kShadowNormalOffset, shadows.normalOffset);
     shadows.splitLambda = Number(scene, settings, kShadowSplitLambda, shadows.splitLambda);
     shadows.showCascades = GetBool(scene, settings, kShadowShowCascades, shadows.showCascades);
-    LodSettings& lod = params.lod;
-    lod.enabled = GetBool(scene, settings, kLodEnable, lod.enabled);
-    lod.detail = Number(scene, settings, kLodDetail, lod.detail);
-    lod.morphStart = Number(scene, settings, kLodMorphStart, lod.morphStart);
-    lod.freeze = GetBool(scene, settings, kLodFreeze, lod.freeze);
-    lod.showLevels = GetBool(scene, settings, kLodShowLevels, lod.showLevels);
 
     double exposure = 1.0;
     if (!prims.light.IsEmpty()) {
@@ -130,25 +209,42 @@ TerrainDrawParams DrawParamsOf(const Scene& scene, const RasterPrims& prims,
         shadows.enabled = GetBool(scene, prims.light, kShadowEnable, true);
     }
     exposure *= std::exp2(-GetNumber(scene, prims.camera, kCameraExposure, 0.0));
+    params.exposure = static_cast<float>(exposure);
+    return params;
+}
 
+TerrainParams TerrainParamsOf(const Scene& scene, const RasterPrims& prims) {
+    using namespace tokens;
+    TerrainParams params;
     params.exaggeration = Number(scene, prims.terrain, kExaggeration, 1.0f);
+    const Path& settings = prims.settings;
+    params.colorMode = ColorModeOf(GetToken(scene, settings, kColorMode, kShadedColormap));
+    LodSettings& lod = params.lod;
+    lod.enabled = GetBool(scene, settings, kLodEnable, lod.enabled);
+    lod.detail = Number(scene, settings, kLodDetail, lod.detail);
+    lod.morphStart = Number(scene, settings, kLodMorphStart, lod.morphStart);
+    lod.freeze = GetBool(scene, settings, kLodFreeze, lod.freeze);
+    lod.showLevels = GetBool(scene, settings, kLodShowLevels, lod.showLevels);
+    return params;
+}
 
-    const Path& material = prims.material;
-    SurfaceSettings& surface = params.surface;
-    surface.exposure = static_cast<float>(exposure);
-    surface.brdf = GetToken(scene, material, kBrdf, surface.brdf);
-    const BrdfModel* model = brdfs.Find(surface.brdf);
+MaterialSettings MaterialSettingsOf(const Scene& scene, const Path& material,
+                                    const BrdfRegistry& brdfs) {
+    using namespace tokens;
+    MaterialSettings settings;
+    settings.brdf = GetToken(scene, material, kBrdf, settings.brdf);
+    const BrdfModel* model = brdfs.Find(settings.brdf);
     if (model == nullptr) {
         throw std::invalid_argument("Material '" + material.String() + "' names unknown BRDF '" +
-                                    surface.brdf + "'");
+                                    settings.brdf + "'");
     }
     for (const BrdfParam& param : model->params) {
-        surface.brdfParams.push_back(
+        settings.brdfParams.push_back(
             Number(scene, material, "inputs:" + param.name, param.defaultValue));
     }
-    surface.albedo = glm::vec3(GetVec3(scene, material, kAlbedo, glm::dvec3(surface.albedo)));
-    surface.useAlbedoMap = GetBool(scene, material, kAlbedoMapEnable, true);
-    DetailSettings& detail = surface.detail;
+    settings.albedo = glm::vec3(GetVec3(scene, material, kAlbedo, glm::dvec3(settings.albedo)));
+    settings.useAlbedoMap = GetBool(scene, material, kAlbedoMapEnable, true);
+    DetailSettings& detail = settings.detail;
     detail.tileSize = Number(scene, material, kDetailTileSize, detail.tileSize);
     detail.albedoStrength = Number(scene, material, kDetailAlbedoStrength, detail.albedoStrength);
     detail.normalStrength = Number(scene, material, kDetailNormalStrength, detail.normalStrength);
@@ -157,7 +253,69 @@ TerrainDrawParams DrawParamsOf(const Scene& scene, const RasterPrims& prims,
     detail.hexRotation = Number(scene, material, kDetailHexRotation, detail.hexRotation);
     detail.hexContrast = Number(scene, material, kDetailHexContrast, detail.hexContrast);
     detail.hexSharpness = Number(scene, material, kDetailHexSharpness, detail.hexSharpness);
-    return params;
+    return settings;
+}
+
+MeshData MeshDataOf(const Scene& scene, const Path& mesh) {
+    using namespace tokens;
+    MeshData data;
+    data.points = FloatAttribute(scene, mesh, kPoints, 3).value_or(std::vector<float>());
+    const std::size_t count = data.points.size() / 3;
+    const Tensor* counts = scene.Read(mesh, kFaceVertexCounts);
+    const Tensor* indices = scene.Read(mesh, kFaceVertexIndices);
+    if ((counts == nullptr) != (indices == nullptr)) {
+        throw std::invalid_argument("needs both faceVertexCounts and faceVertexIndices");
+    }
+    if (counts != nullptr) {
+        data.indices = TriangulateFaces(IntsOf(*counts, kFaceVertexCounts),
+                                        IntsOf(*indices, kFaceVertexIndices), count);
+    }
+    if (std::optional<std::vector<float>> normals = FloatAttribute(scene, mesh, kNormals, 3)) {
+        if (normals->size() == data.points.size()) {
+            data.normals = std::move(*normals);
+        }
+    }
+    if (const Tensor* colors = scene.Read(mesh, kDisplayColor)) {
+        if (static_cast<std::size_t>(colors->Elements()) == data.points.size() && count > 1) {
+            data.colors = FloatsOf(*colors, 3, kDisplayColor);
+        }
+    }
+    return data;
+}
+
+InstanceData InstanceDataOf(const Scene& scene, const Path& instancer) {
+    using namespace tokens;
+    InstanceData data;
+    data.positions = FloatAttribute(scene, instancer, kPositions, 3).value_or(std::vector<float>());
+    data.orientations =
+        FloatAttribute(scene, instancer, kOrientations, 4).value_or(std::vector<float>());
+    data.scales = FloatAttribute(scene, instancer, kScales, 3).value_or(std::vector<float>());
+    return data;
+}
+
+std::vector<std::vector<std::uint32_t>>
+InstancesByPrototype(const Scene& scene, const Path& instancer, std::size_t prototypes) {
+    std::vector<std::vector<std::uint32_t>> lists(prototypes);
+    const Tensor* positions = scene.Read(instancer, tokens::kPositions);
+    const std::size_t count =
+        positions != nullptr ? static_cast<std::size_t>(positions->Elements()) / 3 : 0;
+    if (prototypes == 0) {
+        return lists;
+    }
+    const Tensor* protoIndices = scene.Read(instancer, tokens::kProtoIndices);
+    if (protoIndices == nullptr) {
+        for (std::uint32_t i = 0; i < count; ++i) {
+            lists[0].push_back(i);
+        }
+        return lists;
+    }
+    const std::vector<std::int64_t> indices = IntsOf(*protoIndices, tokens::kProtoIndices);
+    for (std::size_t i = 0; i < std::min(count, indices.size()); ++i) {
+        if (indices[i] >= 0 && static_cast<std::size_t>(indices[i]) < prototypes) {
+            lists[static_cast<std::size_t>(indices[i])].push_back(static_cast<std::uint32_t>(i));
+        }
+    }
+    return lists;
 }
 
 Image ImageOfTensor(const Tensor& tensor, ImageEncoding encoding) {
@@ -200,92 +358,224 @@ Image ImageOfTensor(const Tensor& tensor, ImageEncoding encoding) {
 RasterDelegate::RasterDelegate(const VulkanContext& context, VkFormat colorFormat,
                                VkFormat depthFormat, BrdfRegistry brdfs)
     : context_(context), renderer_(context, colorFormat, depthFormat, std::move(brdfs)),
-      colorFormat_(colorFormat), depthFormat_(depthFormat) {}
+      terrain_(renderer_), meshes_(renderer_), colorFormat_(colorFormat) {}
+
+RasterDelegate::Key
+RasterDelegate::KeyOf(const Scene& scene, const Path& path,
+                      std::initializer_list<std::string_view> attributes) const {
+    Key key{path, {}};
+    key.second[0] = sceneId_;
+    std::size_t i = 1;
+    for (const std::string_view attribute : attributes) {
+        key.second.at(i++) = scene.AttributeVersion(path, attribute);
+    }
+    return key;
+}
+
+std::optional<std::uint32_t> RasterDelegate::MaterialId(const Path& path) const {
+    const auto it = materials_.find(path);
+    return it != materials_.end() ? std::optional(it->second.id) : std::nullopt;
+}
+
+std::uint32_t RasterDelegate::MaterialOf(const Scene& scene, const Path& prim) const {
+    return MaterialId(BoundMaterial(scene, prim)).value_or(RasterRenderer::kDefaultMaterial);
+}
+
+void RasterDelegate::SyncMaterials(const Scene& scene) {
+    using namespace tokens;
+    std::set<Path> seen;
+    std::vector<std::string> errors;
+    for (const Path& path : scene.Prims(kMaterial)) {
+        seen.insert(path);
+        auto [it, added] = materials_.try_emplace(path);
+        SyncedMaterial& material = it->second;
+        if (added) {
+            material.id = renderer_.AddMaterial();
+        }
+        try {
+            SyncMaterial(scene, path, material);
+        } catch (const std::invalid_argument& error) {
+            errors.emplace_back(error.what());
+        }
+    }
+    for (auto it = materials_.begin(); it != materials_.end();) {
+        if (seen.contains(it->first)) {
+            ++it;
+            continue;
+        }
+        renderer_.RemoveMaterial(it->second.id);
+        it = materials_.erase(it);
+    }
+    if (!errors.empty()) {
+        throw std::invalid_argument(errors.front());
+    }
+}
+
+void RasterDelegate::SyncMaterial(const Scene& scene, const Path& path, SyncedMaterial& material) {
+    using namespace tokens;
+    renderer_.SetMaterial(material.id, MaterialSettingsOf(scene, path, renderer_.Brdfs()));
+    RasterMaterial& gpu = renderer_.Material(material.id);
+
+    const Key albedoKey =
+        KeyOf(scene, path, {kAlbedoMap, kAlbedoMapOrigin, kAlbedoMapCellSize, kAlbedoMapNoData});
+    if (material.albedoMap != albedoKey) {
+        material.albedoMap = albedoKey;
+        try {
+            if (const Tensor* tensor = scene.Read(path, kAlbedoMap)) {
+                const Tensor albedo = tensor->Contiguous();
+                gpu.SetAlbedoMap(RasterOf(scene, path, albedo, kAlbedoMapOrigin, kAlbedoMapCellSize,
+                                          kAlbedoMapNoData));
+            } else if (gpu.HasAlbedoMap()) {
+                gpu.ClearAlbedoMap();
+            }
+        } catch (const std::invalid_argument& error) {
+            throw UploadError(path, kAlbedoMap, error.what());
+        }
+    }
+    for (const bool normal : {false, true}) {
+        const std::string_view attribute = normal ? kDetailNormal : kDetailAlbedo;
+        std::optional<Key>& cached = normal ? material.detailNormal : material.detailAlbedo;
+        const Key key = KeyOf(scene, path, {attribute});
+        if (cached == key) {
+            continue;
+        }
+        cached = key;
+        try {
+            std::optional<Image> image;
+            if (const Tensor* tensor = scene.Read(path, attribute)) {
+                image =
+                    ImageOfTensor(*tensor, normal ? ImageEncoding::Linear : ImageEncoding::Srgb);
+            }
+            if (normal) {
+                gpu.SetDetailNormal(image ? &*image : nullptr);
+            } else {
+                gpu.SetDetailAlbedo(image ? &*image : nullptr);
+            }
+        } catch (const std::invalid_argument& error) {
+            throw UploadError(path, attribute, error.what());
+        }
+    }
+}
 
 void RasterDelegate::SyncHeightfield(const Scene& scene, const Path& terrain) {
     using namespace tokens;
     if (terrain.IsEmpty() || scene.Read(terrain, kHeights) == nullptr) {
         if (heightfield_) {
-            renderer_.ClearHeightfield();
+            terrain_.ClearHeightfield();
             heightfield_.reset();
         }
         return;
     }
-    const Key key{terrain,
-                  {sceneId_, scene.AttributeVersion(terrain, kHeights),
-                   scene.AttributeVersion(terrain, kOrigin),
-                   scene.AttributeVersion(terrain, kCellSize),
-                   scene.AttributeVersion(terrain, kNoData)}};
+    const Key key = KeyOf(scene, terrain, {kHeights, kOrigin, kCellSize, kNoData});
     if (heightfield_ == key) {
         return;
     }
     heightfield_ = key;
     try {
         const Tensor heights = scene.Read(terrain, kHeights)->Contiguous();
-        renderer_.SetHeightfield(RasterOf(scene, terrain, heights, kOrigin, kCellSize, kNoData));
+        terrain_.SetHeightfield(RasterOf(scene, terrain, heights, kOrigin, kCellSize, kNoData));
     } catch (const std::invalid_argument& error) {
         throw UploadError(terrain, kHeights, error.what());
     }
 }
 
-void RasterDelegate::SyncAlbedoMap(const Scene& scene, const Path& material) {
+void RasterDelegate::SyncMeshes(const Scene& scene) {
     using namespace tokens;
-    SurfaceMaterial& surface = renderer_.Material();
-    if (material.IsEmpty() || scene.Read(material, kAlbedoMap) == nullptr) {
-        if (albedoMap_) {
-            surface.ClearAlbedoMap();
-            albedoMap_.reset();
+    std::set<Path> seen;
+    std::vector<std::string> errors;
+    for (const Path& path : scene.Prims(kMesh)) {
+        seen.insert(path);
+        const Key key =
+            KeyOf(scene, path, {kFaceVertexCounts, kFaceVertexIndices, kNormals, kDisplayColor});
+        const std::uint64_t points = scene.AttributeVersion(path, kPoints);
+        const auto it = syncedMeshes_.find(path);
+        if (it != syncedMeshes_.end() && it->second.key == key) {
+            SyncedMesh& synced = it->second;
+            if (synced.points == points) {
+                continue;
+            }
+            synced.points = points;
+            if (synced.handle != 0) {
+                try {
+                    const std::optional<std::vector<float>> moved =
+                        FloatAttribute(scene, path, kPoints, 3);
+                    meshes_.SetPoints(synced.handle, moved.value_or(std::vector<float>()));
+                    continue;
+                } catch (const std::invalid_argument&) {
+                }
+            }
         }
-        return;
+        SyncedMesh synced;
+        synced.key = key;
+        synced.points = points;
+        if (it != syncedMeshes_.end() && it->second.handle != 0) {
+            meshes_.RemoveMesh(it->second.handle);
+        }
+        try {
+            MeshData data = MeshDataOf(scene, path);
+            synced.hasColors = !data.colors.empty();
+            synced.tint = ConstantDisplayColor(scene, path).value_or(glm::vec3(0.5f));
+            synced.handle = meshes_.AddMesh(std::move(data));
+        } catch (const std::invalid_argument& error) {
+            errors.push_back(Describe(path, "mesh", error));
+        }
+        syncedMeshes_[path] = synced;
     }
-    const Key key{material,
-                  {sceneId_, scene.AttributeVersion(material, kAlbedoMap),
-                   scene.AttributeVersion(material, kAlbedoMapOrigin),
-                   scene.AttributeVersion(material, kAlbedoMapCellSize),
-                   scene.AttributeVersion(material, kAlbedoMapNoData)}};
-    if (albedoMap_ == key) {
-        return;
+    for (auto it = syncedMeshes_.begin(); it != syncedMeshes_.end();) {
+        if (seen.contains(it->first)) {
+            ++it;
+            continue;
+        }
+        if (it->second.handle != 0) {
+            meshes_.RemoveMesh(it->second.handle);
+        }
+        it = syncedMeshes_.erase(it);
     }
-    albedoMap_ = key;
-    try {
-        const Tensor albedo = scene.Read(material, kAlbedoMap)->Contiguous();
-        surface.SetAlbedoMap(RasterOf(scene, material, albedo, kAlbedoMapOrigin, kAlbedoMapCellSize,
-                                      kAlbedoMapNoData));
-    } catch (const std::invalid_argument& error) {
-        throw UploadError(material, kAlbedoMap, error.what());
+    if (!errors.empty()) {
+        throw std::invalid_argument("Cannot upload " + errors.front());
     }
 }
 
-void RasterDelegate::SyncDetail(const Scene& scene, const Path& material, bool normal) {
-    const std::string_view attribute = normal ? tokens::kDetailNormal : tokens::kDetailAlbedo;
-    std::optional<Key>& cached = normal ? detailNormal_ : detailAlbedo_;
-    SurfaceMaterial& surface = renderer_.Material();
-    const auto set = [&](const Image* image) {
-        if (normal) {
-            surface.SetDetailNormal(image);
-        } else {
-            surface.SetDetailAlbedo(image);
+void RasterDelegate::SyncInstancers(const Scene& scene) {
+    using namespace tokens;
+    std::set<Path> seen;
+    std::vector<std::string> errors;
+    for (const Path& path : scene.Prims(kPointInstancer)) {
+        seen.insert(path);
+        const Key key = KeyOf(scene, path, {kPositions, kOrientations, kScales});
+        auto [it, added] = instancers_.try_emplace(path);
+        SyncedInstancer& synced = it->second;
+        if (!added && synced.key == key) {
+            continue;
         }
-    };
-    const Tensor* tensor = material.IsEmpty() ? nullptr : scene.Read(material, attribute);
-    if (tensor == nullptr) {
-        if (cached) {
-            set(nullptr);
-            cached.reset();
+        synced.key = key;
+        try {
+            InstanceData data = InstanceDataOf(scene, path);
+            if (synced.handle == 0) {
+                synced.handle = meshes_.AddInstancer(std::move(data));
+            } else {
+                meshes_.SetInstances(synced.handle, std::move(data));
+            }
+        } catch (const std::invalid_argument& error) {
+            if (synced.handle != 0) {
+                meshes_.RemoveInstancer(synced.handle);
+                synced.handle = 0;
+            }
+            errors.push_back(Describe(path, "instancer", error));
         }
-        return;
     }
-    const Key key{material, {sceneId_, scene.AttributeVersion(material, attribute), 0, 0, 0}};
-    if (cached == key) {
-        return;
+    for (auto it = instancers_.begin(); it != instancers_.end();) {
+        if (seen.contains(it->first)) {
+            ++it;
+            continue;
+        }
+        if (it->second.handle != 0) {
+            meshes_.RemoveInstancer(it->second.handle);
+        }
+        it = instancers_.erase(it);
     }
-    cached = key;
-    try {
-        const Image image =
-            ImageOfTensor(*tensor, normal ? ImageEncoding::Linear : ImageEncoding::Srgb);
-        set(&image);
-    } catch (const std::invalid_argument& error) {
-        throw UploadError(material, attribute, error.what());
+    if (!errors.empty()) {
+        throw std::invalid_argument("Cannot upload " + errors.front());
     }
 }
 
@@ -296,11 +586,80 @@ void RasterDelegate::Sync(const Scene& scene) {
     } else if (scene.Changes(cursor_).empty()) {
         return;
     }
-    const RasterPrims prims = ResolveRasterPrims(scene, {});
-    SyncHeightfield(scene, prims.terrain);
-    SyncAlbedoMap(scene, prims.material);
-    SyncDetail(scene, prims.material, false);
-    SyncDetail(scene, prims.material, true);
+    std::vector<std::string> errors;
+    const auto attempt = [&errors](auto&& step) {
+        try {
+            step();
+        } catch (const std::invalid_argument& error) {
+            errors.emplace_back(error.what());
+        }
+    };
+    attempt([&] { SyncMaterials(scene); });
+    attempt([&] { SyncHeightfield(scene, ResolveRasterPrims(scene, {}).terrain); });
+    attempt([&] { SyncMeshes(scene); });
+    attempt([&] { SyncInstancers(scene); });
+    if (!errors.empty()) {
+        std::string message = errors.front();
+        for (std::size_t i = 1; i < errors.size(); ++i) {
+            message += "; " + errors[i];
+        }
+        throw std::invalid_argument(message);
+    }
+}
+
+std::vector<MeshItem> RasterDelegate::Items(const Scene& scene) const {
+    std::set<Path> prototypes;
+    for (const auto& [path, synced] : instancers_) {
+        for (const Path& prototype : TargetsOf(scene, path, tokens::kPrototypes)) {
+            prototypes.insert(prototype);
+        }
+    }
+    const auto isPrototype = [&prototypes](const Path& path) {
+        return std::any_of(prototypes.begin(), prototypes.end(),
+                           [&path](const Path& prototype) { return path.HasPrefix(prototype); });
+    };
+    const auto shade = [this, &scene](const Path& mesh, const SyncedMesh& synced, MeshItem& item) {
+        item.material = MaterialOf(scene, mesh);
+        const bool bound = item.material != RasterRenderer::kDefaultMaterial;
+        item.tint = bound ? glm::vec3(1.0f) : synced.tint;
+        item.vertexColors = !bound;
+    };
+
+    std::vector<MeshItem> items;
+    for (const auto& [path, synced] : syncedMeshes_) {
+        if (synced.handle == 0 || isPrototype(path) || !scene.IsVisible(path)) {
+            continue;
+        }
+        MeshItem item;
+        item.mesh = synced.handle;
+        item.transform = glm::mat4(scene.WorldTransform(path));
+        shade(path, synced, item);
+        items.push_back(std::move(item));
+    }
+    for (const auto& [path, synced] : instancers_) {
+        if (synced.handle == 0 || !scene.IsVisible(path)) {
+            continue;
+        }
+        const std::vector<Path> targets = TargetsOf(scene, path, tokens::kPrototypes);
+        const std::vector<std::vector<std::uint32_t>> lists =
+            InstancesByPrototype(scene, path, targets.size());
+        const glm::mat4 world(scene.WorldTransform(path));
+        for (std::size_t k = 0; k < targets.size(); ++k) {
+            const auto mesh = syncedMeshes_.find(targets[k]);
+            if (mesh == syncedMeshes_.end() || mesh->second.handle == 0 || lists[k].empty()) {
+                continue;
+            }
+            MeshItem item;
+            item.mesh = mesh->second.handle;
+            item.transform = world;
+            item.prototype = glm::mat4(scene.LocalTransform(targets[k]));
+            item.instancer = synced.handle;
+            item.instances = lists[k];
+            shade(targets[k], mesh->second, item);
+            items.push_back(std::move(item));
+        }
+    }
+    return items;
 }
 
 void RasterDelegate::Update(const Scene& scene, const Path& settings, VkExtent2D extent) {
@@ -308,7 +667,13 @@ void RasterDelegate::Update(const Scene& scene, const Path& settings, VkExtent2D
     prims_ = ResolveRasterPrims(scene, settings);
     const float aspect =
         static_cast<float>(extent.width) / static_cast<float>(std::max(extent.height, 1u));
-    renderer_.Update(DrawParamsOf(scene, prims_, renderer_.Brdfs(), aspect));
+    const FrameParams frame = FrameParamsOf(scene, prims_, aspect);
+    TerrainParams terrain = TerrainParamsOf(scene, prims_);
+    terrain.material = MaterialOf(scene, prims_.terrain);
+    terrain_.SetParams(terrain);
+    meshes_.SetItems(Items(scene));
+    RasterPart* parts[] = {&terrain_, &meshes_};
+    renderer_.Update(frame, parts);
     clearColor_ = glm::vec3(GetVec3(scene, prims_.settings, tokens::kClearColor, {0.0, 0.0, 0.0}));
 }
 
@@ -316,7 +681,8 @@ void RasterDelegate::Record(VkCommandBuffer commands, RenderingTarget target) {
     if (!target.loadColor) {
         target.clearColor = {{clearColor_.r, clearColor_.g, clearColor_.b, 1.0f}};
     }
-    renderer_.Record(commands, target);
+    const RasterPart* parts[] = {&terrain_, &meshes_};
+    renderer_.Record(commands, target, parts);
 }
 
 Tensor RasterDelegate::Render(const Scene& scene, const Path& settings) {
@@ -338,7 +704,7 @@ Tensor RasterDelegate::Render(const Scene& scene, const Path& settings) {
         offscreen_->Extent().height != extent.height) {
         offscreen_.reset();
         offscreen_ = std::make_unique<OffscreenTarget>(context_, extent.width, extent.height,
-                                                       colorFormat_, depthFormat_);
+                                                       colorFormat_, renderer_.DepthFormat());
     }
     Update(scene, prims.settings, extent);
     context_.Submit([&](VkCommandBuffer commands) {

@@ -11,6 +11,12 @@ inline constexpr char kBrdfLunarLambertSlang[] = R"slang(@ERNIE_MATERIAL_LUNAR_L
 inline constexpr char kBrdfOrenNayarSlang[] = R"slang(@ERNIE_MATERIAL_OREN_NAYAR_SLANG@)slang";
 inline constexpr char kBrdfHapkeSlang[] = R"slang(@ERNIE_MATERIAL_HAPKE_SLANG@)slang";
 
+/// Per-frame resources and helpers every raster pass shares.
+inline constexpr char kFrameSlang[] = R"slang(@ERNIE_RASTER_FRAME_SLANG@)slang";
+
+/// Mesh and PointInstancer passes.
+inline constexpr char kMeshSlang[] = R"slang(@ERNIE_RASTER_MESH_SLANG@)slang";
+
 /// Terrain modules: shared resources and grid vertex, the surface material, and the passes.
 inline constexpr char kTerrainSlang[] = R"slang(@ERNIE_RASTER_TERRAIN_SLANG@)slang";
 inline constexpr char kSurfaceSlang[] = R"slang(@ERNIE_RASTER_SURFACE_SLANG@)slang";

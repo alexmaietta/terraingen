@@ -198,8 +198,8 @@ ernie::RasterView ViewOf(const Raster<float>& raster) {
             t.pixelWidth,           raster.NoData()};
 }
 
-ernie::SurfaceSettings SurfaceViewSettings::Effective(const ernie::BrdfRegistry& registry) const {
-    ernie::SurfaceSettings effective = surface;
+ernie::MaterialSettings SurfaceViewSettings::Effective(const ernie::BrdfRegistry& registry) const {
+    ernie::MaterialSettings effective = surface;
     if (const ernie::BrdfModel* model = registry.Find(surface.brdf)) {
         const auto edited = brdfParams.find(surface.brdf);
         effective.brdfParams = edited != brdfParams.end()
@@ -238,11 +238,11 @@ void AuthorView(ernie::Scene& scene, const ViewSettings& view, const ernie::Orbi
     using namespace ernie::tokens;
     ernie::SetCamera(scene, kCameraPrim, camera);
 
-    const ernie::SurfaceSettings surface = view.material.Effective(brdfs);
+    const ernie::MaterialSettings surface = view.material.Effective(brdfs);
     scene.Define(kSunPrim, kDistantLight)
         .Set(kTransform, ernie::DistantLightTransform(glm::dvec3(
                              SunDirection(view.sunAzimuthDegrees, view.sunElevationDegrees))))
-        .Set(kIntensity, surface.exposure)
+        .Set(kIntensity, view.material.exposure)
         .Set(kShadowEnable, view.shadows.enabled);
 
     ernie::Prim material = scene.Define(kSurfacePrim, kMaterial);

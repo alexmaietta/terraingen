@@ -64,6 +64,8 @@ set(ernie_shaders
     material/lunar_lambert.slang
     material/oren_nayar.slang
     material/hapke.slang
+    raster/frame.slang
+    raster/mesh.slang
     raster/terrain.slang
     raster/surface.slang
     raster/terrain_shadow.slang
@@ -135,9 +137,13 @@ endif()
 
 add_library(
     ernie_raster STATIC
-    ernie/src/raster/poisson_disk.cpp ernie/src/raster/raster_delegate.cpp
-    ernie/src/raster/shadow_cascades.cpp ernie/src/raster/surface_material.cpp
-    ernie/src/raster/terrain_renderer.cpp)
+    ernie/src/raster/mesh_part.cpp
+    ernie/src/raster/poisson_disk.cpp
+    ernie/src/raster/raster_delegate.cpp
+    ernie/src/raster/raster_material.cpp
+    ernie/src/raster/raster_renderer.cpp
+    ernie/src/raster/shadow_cascades.cpp
+    ernie/src/raster/terrain_part.cpp)
 ernie_layer(ernie_raster)
 target_link_libraries(ernie_raster PUBLIC ernie_gpu)
 

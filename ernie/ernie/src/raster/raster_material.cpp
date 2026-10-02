@@ -1,4 +1,4 @@
-#include "ernie/raster/surface_material.h"
+#include "ernie/raster/raster_material.h"
 
 #include "core/raster_checks.h"
 #include "ernie/material/brdf.h"
@@ -23,7 +23,8 @@ struct SurfaceUniforms {
     float hex[4];
     float params[BrdfRegistry::kMaxParams];
 };
-static_assert(sizeof(SurfaceUniforms) == 160, "SurfaceUniforms must match the WGSL layout");
+static_assert(sizeof(SurfaceUniforms) == 160,
+              "SurfaceUniforms must match Surface in surface.slang");
 
 glm::vec3 QuantisedSrgbMean(const Image& image) {
     const std::vector<std::uint8_t> bytes = ToRgba8(image, ImageEncoding::Srgb);
@@ -43,17 +44,16 @@ std::span<const std::byte> Bytes(const auto& values) {
 
 }  // namespace
 
-SurfaceMaterial::SurfaceMaterial(const VulkanContext& context)
+RasterMaterial::RasterMaterial(const VulkanContext& context)
     : context_(context), uniform_(context, sizeof(SurfaceUniforms),
                                   VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, BufferMemory::Upload),
       sampler_(context, SamplerDesc{VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR,
                                     VK_SAMPLER_ADDRESS_MODE_REPEAT, 16.0f, false}) {
     ClearAlbedoMap();
     SetDetailTextures(nullptr, nullptr);
-    Update(SurfaceSettings{}, {});
 }
 
-void SurfaceMaterial::AppendResources(std::vector<DescriptorResource>& resources) const {
+void RasterMaterial::AppendResources(std::vector<DescriptorResource>& resources) const {
     resources.push_back(DescriptorResource::Of(uniform_));
     resources.push_back(DescriptorResource::Of(albedoMap_->View()));
     resources.push_back(DescriptorResource::Of(detailAlbedo_->View()));
@@ -61,7 +61,7 @@ void SurfaceMaterial::AppendResources(std::vector<DescriptorResource>& resources
     resources.push_back(DescriptorResource::Of(sampler_));
 }
 
-void SurfaceMaterial::SetAlbedoMap(const RasterView& albedo) {
+void RasterMaterial::SetAlbedoMap(const RasterView& albedo) {
     CheckRasterView(albedo, "Albedo map", 1);
     const std::uint32_t maxSize = context_.Limits().maxImageDimension2D;
     if (albedo.width > maxSize || albedo.height > maxSize) {
@@ -86,9 +86,10 @@ void SurfaceMaterial::SetAlbedoMap(const RasterView& albedo) {
     hasAlbedoMap_ = true;
     albedoGrid_ = glm::dvec4(albedo.originX, albedo.originY, albedo.cellSize, 0.0);
     albedoSize_ = {w, h};
+    WriteUniform();
 }
 
-void SurfaceMaterial::ClearAlbedoMap() {
+void RasterMaterial::ClearAlbedoMap() {
     const std::uint32_t none = glm::packHalf2x16(glm::vec2(0.0f));
     auto image = std::make_unique<GpuImage>(
         context_, ImageDesc{1, 1, 1, 1, VK_FORMAT_R16G16_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT});
@@ -99,16 +100,17 @@ void SurfaceMaterial::ClearAlbedoMap() {
     hasAlbedoMap_ = false;
     albedoGrid_ = glm::dvec4(0.0);
     albedoSize_ = {1u, 1u};
+    WriteUniform();
 }
 
-void SurfaceMaterial::SetDetailTextures(const Image* albedo, const Image* normal) {
+void RasterMaterial::SetDetailTextures(const Image* albedo, const Image* normal) {
     CheckDetailImage(albedo);
     CheckDetailImage(normal);
     SetDetailAlbedo(albedo);
     SetDetailNormal(normal);
 }
 
-void SurfaceMaterial::SetDetailAlbedo(const Image* albedo) {
+void RasterMaterial::SetDetailAlbedo(const Image* albedo) {
     CheckDetailImage(albedo);
     const Image white(1, 1, glm::vec4(1.0f));
     auto image = UploadMips(albedo != nullptr ? *albedo : white, MipFilter::Average,
@@ -117,9 +119,10 @@ void SurfaceMaterial::SetDetailAlbedo(const Image* albedo) {
     detailAlbedo_ = std::move(image);
     hasDetailAlbedo_ = albedo != nullptr;
     detailMean_ = albedo != nullptr ? QuantisedSrgbMean(*albedo) : glm::vec3(1.0f);
+    WriteUniform();
 }
 
-void SurfaceMaterial::SetDetailNormal(const Image* normal) {
+void RasterMaterial::SetDetailNormal(const Image* normal) {
     CheckDetailImage(normal);
     const Image flat(1, 1, glm::vec4(0.5f, 0.5f, 1.0f, 1.0f));
     auto image = UploadMips(normal != nullptr ? *normal : flat, MipFilter::UnitVector,
@@ -127,9 +130,10 @@ void SurfaceMaterial::SetDetailNormal(const Image* normal) {
     vkDeviceWaitIdle(context_.Device());
     detailNormal_ = std::move(image);
     hasDetailNormal_ = normal != nullptr;
+    WriteUniform();
 }
 
-void SurfaceMaterial::CheckDetailImage(const Image* image) const {
+void RasterMaterial::CheckDetailImage(const Image* image) const {
     if (image == nullptr) {
         return;
     }
@@ -143,12 +147,19 @@ void SurfaceMaterial::CheckDetailImage(const Image* image) const {
     }
 }
 
-void SurfaceMaterial::Update(const SurfaceSettings& settings, std::span<const float> brdfParams) {
+void RasterMaterial::Update(const MaterialSettings& settings, std::span<const float> brdfParams) {
+    settings_ = settings;
+    params_.assign(brdfParams.begin(), brdfParams.end());
+    WriteUniform();
+}
+
+void RasterMaterial::WriteUniform() {
+    const MaterialSettings& settings = settings_;
+    const std::span<const float> brdfParams = params_;
     SurfaceUniforms u{};
     u.albedo[0] = settings.albedo.r;
     u.albedo[1] = settings.albedo.g;
     u.albedo[2] = settings.albedo.b;
-    u.albedo[3] = settings.exposure;
     const bool useMap = hasAlbedoMap_ && settings.useAlbedoMap;
     u.albedoMap[0] = static_cast<float>(albedoGrid_.x);
     u.albedoMap[1] = static_cast<float>(albedoGrid_.y);
@@ -175,13 +186,13 @@ void SurfaceMaterial::Update(const SurfaceSettings& settings, std::span<const fl
     uniform_.Write(std::as_bytes(std::span(&u, 1)));
 }
 
-std::uint64_t SurfaceMaterial::GpuBytes() const {
+std::uint64_t RasterMaterial::GpuBytes() const {
     return uniform_.Size() + albedoMap_->Bytes() + detailAlbedo_->Bytes() + detailNormal_->Bytes();
 }
 
-std::unique_ptr<GpuImage> SurfaceMaterial::UploadMips(const Image& image, MipFilter filter,
-                                                      ImageEncoding encoding,
-                                                      VkFormat format) const {
+std::unique_ptr<GpuImage> RasterMaterial::UploadMips(const Image& image, MipFilter filter,
+                                                     ImageEncoding encoding,
+                                                     VkFormat format) const {
     const std::vector<Image> mips = MipChain(image, filter);
     auto texture = std::make_unique<GpuImage>(
         context_, ImageDesc{image.width, image.height, 1, static_cast<std::uint32_t>(mips.size()),

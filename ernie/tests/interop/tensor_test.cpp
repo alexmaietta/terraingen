@@ -66,6 +66,7 @@ TEST(Tensor, SizesMatchDLPackBits) {
     EXPECT_EQ(ernie::SizeOf(DType::Float16), 2u);
     EXPECT_EQ(ernie::SizeOf(DType::UInt32), 4u);
     EXPECT_EQ(ernie::SizeOf(DType::Int32), 4u);
+    EXPECT_EQ(ernie::SizeOf(DType::Int64), 8u);
     EXPECT_EQ(ernie::SizeOf(DType::Float32), 4u);
     EXPECT_EQ(ernie::SizeOf(DType::Float64), 8u);
 }
@@ -219,7 +220,7 @@ TEST(Tensor, ToDlpackRoundTripsAndKeepsTheMemoryAliveUntilDeleted) {
 
 TEST(Tensor, ToDlpackExportsEveryTypeAndCudaDevices) {
     float value = 0.0f;
-    for (const DType type : {DType::UInt8, DType::UInt16, DType::UInt32, DType::Int32,
+    for (const DType type : {DType::UInt8, DType::UInt16, DType::UInt32, DType::Int32, DType::Int64,
                              DType::Float16, DType::Float32, DType::Float64}) {
         const Tensor tensor(&value, type, {1}, {}, {DeviceKind::Cuda, 2});
         DLManagedTensorVersioned* exported = tensor.ToDlpack();

@@ -2,7 +2,8 @@
 #include "ernie/core/image.h"
 #include "ernie/gpu/offscreen_target.h"
 #include "ernie/material/brdf.h"
-#include "ernie/raster/terrain_renderer.h"
+#include "ernie/raster/terrain_part.h"
+#include "support/terrain_harness.h"
 #include "support/test_raster.h"
 #include "support/vulkan_fixture.h"
 
@@ -25,9 +26,9 @@ using ernie::OffscreenTarget;
 using ernie::OrbitCamera;
 using ernie::RasterView;
 using ernie::TerrainColorMode;
-using ernie::TerrainDrawParams;
-using ernie::TerrainRenderer;
 using ernie::testing::RollingTerrain;
+using ernie::testing::TerrainDrawParams;
+using ernie::testing::TerrainRenderer;
 using ernie::testing::TestRaster;
 
 namespace {
