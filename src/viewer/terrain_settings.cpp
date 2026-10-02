@@ -1,0 +1,62 @@
+#include "terrain_settings.h"
+
+#include <cmath>
+#include <stdexcept>
+
+namespace terraingen::viewer {
+
+NoiseLayer LayerSettings::EffectiveLayer() const {
+    NoiseLayer effective = layer;
+    if (useHurst) {
+        effective.fractal.gain = GainFromHurst(hurst, layer.fractal.lacunarity);
+    }
+    return effective;
+}
+
+LayerSettings DefaultLayer() {
+    LayerSettings settings;
+    settings.layer.fractal.seed = 1u;
+    settings.layer.fractal.wavelength = 500.0f;
+    settings.layer.fractal.amplitude = 50.0f;
+    return settings;
+}
+
+SyntheticTerrainParams TerrainSettings::EffectiveTerrain() const {
+    SyntheticTerrainParams params;
+    params.layers.clear();
+    for (const LayerSettings& layer : layers) {
+        params.layers.push_back(layer.EffectiveLayer());
+    }
+    return params;
+}
+
+std::string ValidateSettings(const TerrainSettings& settings) {
+    if (settings.size < 2) {
+        return "Grid size must be at least 2";
+    }
+    if (!(std::isfinite(settings.pixelSize) && settings.pixelSize > 0.0)) {
+        return "Pixel size must be positive";
+    }
+    for (std::size_t i = 0; i < settings.layers.size(); ++i) {
+        if (settings.layers[i].useHurst && !std::isfinite(settings.layers[i].hurst)) {
+            return "Layer " + std::to_string(i + 1) + ": Hurst exponent must be finite";
+        }
+    }
+    try {
+        ValidateSyntheticTerrain(settings.EffectiveTerrain());
+    } catch (const std::invalid_argument& error) {
+        return error.what();
+    }
+    return {};
+}
+
+Raster<float> GenerateTerrain(const TerrainSettings& settings) {
+    const std::string error = ValidateSettings(settings);
+    if (!error.empty()) {
+        throw std::invalid_argument(error);
+    }
+    return GenerateSyntheticTerrain(settings.size, settings.size, settings.pixelSize,
+                                    settings.EffectiveTerrain());
+}
+
+}  // namespace terraingen::viewer

@@ -58,16 +58,14 @@ if(TERRAINGEN_COVERAGE)
     target_link_options(terraingen_coverage INTERFACE --coverage)
 endif()
 
-add_subdirectory(src)
-
 if(TERRAINGEN_BUILD_VIEWER)
     include("${PROJECT_SOURCE_DIR}/cmake/third_party/wgpu_native.cmake")
     include("${PROJECT_SOURCE_DIR}/cmake/third_party/glfw.cmake")
     include("${PROJECT_SOURCE_DIR}/cmake/third_party/dear_imgui.cmake")
     include("${PROJECT_SOURCE_DIR}/cmake/third_party/glm.cmake")
-    add_subdirectory(src/viewer/render)
-    add_subdirectory(apps/viewer)
 endif()
+
+add_subdirectory(src)
 
 if(TERRAINGEN_BUILD_PYTHON)
     set_target_properties(terraingen_core PROPERTIES POSITION_INDEPENDENT_CODE ON)

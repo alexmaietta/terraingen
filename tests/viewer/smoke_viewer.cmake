@@ -1,0 +1,8 @@
+if(NOT DEFINED ENV{DISPLAY} AND NOT DEFINED ENV{WAYLAND_DISPLAY})
+    message("No display; skipping the viewer smoke test")
+    return()
+endif()
+execute_process(COMMAND "${VIEWER}" --frames 30 RESULT_VARIABLE result)
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "terraingen-viewer exited with ${result}")
+endif()
