@@ -68,10 +68,17 @@ class CudaInterop {
     /// buffer is not `BufferMemory::Shared`, or the bytes do not fit.
     void CopyToBuffer(const Tensor& source, GpuBuffer& buffer, VkDeviceSize offset = 0);
 
-    /// A CUDA tensor of `type` and `shape` over `buffer`'s memory from its start, which keeps the
-    /// buffer alive. The buffer's Vulkan context must outlive the tensor.
+    /// A CUDA tensor of `type` and `shape` over `buffer`'s memory from byte `offset`, which keeps
+    /// the buffer alive. The buffer's Vulkan context must outlive the tensor.
     /// @throws std::invalid_argument if the buffer is not `BufferMemory::Shared` or too small.
-    Tensor View(std::shared_ptr<GpuBuffer> buffer, DType type, std::vector<std::int64_t> shape);
+    Tensor View(std::shared_ptr<GpuBuffer> buffer, DType type, std::vector<std::int64_t> shape,
+                VkDeviceSize offset = 0);
+
+    /// Queues a device-to-device copy of contiguous CUDA tensor `source` into contiguous CUDA
+    /// tensor `destination` of the same byte size on `stream`, without waiting.
+    /// @throws std::invalid_argument if either is not a contiguous tensor on this device or their
+    /// sizes differ.
+    void Copy(const Tensor& source, const Tensor& destination, std::uintptr_t stream = 1);
 
     /// A contiguous copy of a CPU tensor in CUDA memory that the tensor owns.
     /// @throws std::invalid_argument for a tensor that is not on the CPU.

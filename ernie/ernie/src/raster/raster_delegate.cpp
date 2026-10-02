@@ -847,6 +847,86 @@ void RasterDelegate::Record(VkCommandBuffer commands, RenderingTarget target) {
     renderer_.Record(commands, target, parts);
 }
 
+AttributeBinding RasterDelegate::Bind(const Scene& scene, const Path& path,
+                                      std::string_view attribute) {
+    using namespace tokens;
+    const bool mesh = scene.Has(path) && scene.TypeOf(path) == kMesh;
+    const bool instancer = scene.Has(path) && scene.TypeOf(path) == kPointInstancer;
+    if (!(mesh && attribute == kPoints) &&
+        !(instancer &&
+          (attribute == kPositions || attribute == kOrientations || attribute == kScales))) {
+        throw std::invalid_argument("Only a Mesh's points and a PointInstancer's positions, "
+                                    "orientations and scales can be bound, not " +
+                                    std::string(attribute) + " of '" + path.String() + "'");
+    }
+    RequireCuda();
+    Sync(scene);
+    const bool synced = mesh ? syncedMeshes_.contains(path) && syncedMeshes_.at(path).handle != 0
+                             : instancers_.contains(path) && instancers_.at(path).handle != 0;
+    if (!synced) {
+        throw std::invalid_argument("'" + path.String() + "' did not sync, so it cannot be bound");
+    }
+    AttributeBinding binding;
+    binding.delegate_ = this;
+    binding.path_ = path;
+    binding.attribute_ = attribute;
+    binding.extent_ = ExtentOf(scene, path);
+    return binding;
+}
+
+Tensor RasterDelegate::MapBinding(const AttributeBinding& binding, std::uintptr_t stream) {
+    using namespace tokens;
+    CudaInterop& cuda = RequireCuda();
+    if (meshes_.NeedsRebuild()) {
+        context_.WaitForSubmissions();
+        meshes_.RebuildPools();
+    }
+    PoolRegion region;
+    if (binding.attribute_ == kPoints) {
+        const auto it = syncedMeshes_.find(binding.path_);
+        if (it == syncedMeshes_.end() || it->second.handle == 0) {
+            throw std::invalid_argument("Bound mesh '" + binding.path_.String() + "' is gone");
+        }
+        region = meshes_.BindPoints(it->second.handle, binding.extent_);
+    } else {
+        const auto it = instancers_.find(binding.path_);
+        if (it == instancers_.end() || it->second.handle == 0) {
+            throw std::invalid_argument("Bound instancer '" + binding.path_.String() + "' is gone");
+        }
+        const InstanceArray array = binding.attribute_ == kPositions ? InstanceArray::Positions
+                                    : binding.attribute_ == kOrientations
+                                        ? InstanceArray::Orientations
+                                        : InstanceArray::Scales;
+        region = meshes_.BindInstances(it->second.handle, array, binding.extent_);
+    }
+    cuda.WaitForVulkan(stream);
+    return cuda.View(
+        region.buffer, DType::Float32,
+        {static_cast<std::int64_t>(region.count), static_cast<std::int64_t>(region.components)},
+        region.offset);
+}
+
+void RasterDelegate::UnmapBinding(std::uintptr_t stream) {
+    RequireCuda().SignalVulkan(stream);
+}
+
+Tensor AttributeBinding::Map(std::uintptr_t stream) {
+    if (delegate_ == nullptr) {
+        throw std::invalid_argument("AttributeBinding::Map on an empty binding");
+    }
+    Tensor tensor = delegate_->MapBinding(*this, stream);
+    mapped_ = true;
+    return tensor;
+}
+
+void AttributeBinding::Unmap(std::uintptr_t stream) {
+    if (delegate_ == nullptr || !mapped_) {
+        return;
+    }
+    delegate_->UnmapBinding(stream);
+    mapped_ = false;
+}
+
 std::shared_ptr<ProductFrame> RasterDelegate::AcquireFrame(const Path& product, VkExtent2D extent) {
     std::vector<std::shared_ptr<ProductFrame>>& frames = frames_[product];
     std::erase_if(frames, [extent](const std::shared_ptr<ProductFrame>& frame) {

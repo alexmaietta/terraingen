@@ -522,3 +522,58 @@ TEST_F(RasterDelegateTest, MapsRenderVarsToCudaArraysWithoutCopying) {
     operation = delegate.StepAsync(scene, top);
     EXPECT_TRUE(operation.Wait());
 }
+
+TEST_F(RasterDelegateTest, BoundAttributesAreWrittenInPlaceByCuda) {
+    RasterDelegate delegate(*context_);
+    std::string why;
+    ernie::CudaInterop* cuda = delegate.Cuda(&why);
+    if (cuda == nullptr) {
+        GTEST_SKIP() << "No CUDA interop: " << why;
+    }
+    Scene scene = MeshScene();
+    scene.Set("/World/Rocks", tokens::kExtent,
+              std::vector<float>{-14.0f, -14.0f, -1.0f, 14.0f, 14.0f, 1.0f});
+    ernie::AttributeBinding positions = delegate.Bind(scene, "/World/Rocks", tokens::kPositions);
+    EXPECT_EQ(positions.GetPath(), Path("/World/Rocks"));
+
+    const Tensor array = positions.Map();
+    EXPECT_TRUE(positions.IsMapped());
+    EXPECT_EQ(array.Location().kind, ernie::DeviceKind::Cuda);
+    EXPECT_EQ(array.Shape(), (std::vector<std::int64_t>{3, 3}));
+    EXPECT_EQ(cuda->Download(array).As<float>()[0], 12.0f) << "the synced positions";
+    const std::array<float, 9> moved{0, 0, 0, 12, 0, 0, 12, 10, 0};
+    cuda->Copy(cuda->Upload(Tensor::Copy<float>(moved, {3, 3})), array);
+    positions.Unmap();
+    EXPECT_FALSE(positions.IsMapped());
+
+    Tensor image = delegate.Render(scene);
+    EXPECT_GT(TexelAt(scene, image, {0, 0, 0})[1], 200) << "drawn from the CUDA write";
+    EXPECT_EQ(TexelAt(scene, image, {12, -10, 0})[1], 0);
+    EXPECT_EQ(scene.Read("/World/Rocks", tokens::kPositions)->Location().kind,
+              ernie::DeviceKind::Cpu)
+        << "the scene's array was not touched";
+
+    ernie::AttributeBinding points = delegate.Bind(scene, "/World/Quad", tokens::kPoints);
+    const Tensor quad = points.Map();
+    const std::array<float, 12> shifted{-2, 6, 0, 2, 6, 0, 2, 10, 0, -2, 10, 0};
+    cuda->Copy(cuda->Upload(Tensor::Copy<float>(shifted, {4, 3})), quad);
+    points.Unmap();
+
+    DefineQuad(scene, "/World/Extra", 1.0f);
+    scene.Set("/World/Extra", tokens::kTransform,
+              glm::translate(glm::dmat4(1.0), glm::dvec3(0.0, -12.0, 0.0)));
+    image = delegate.Render(scene);
+    EXPECT_GT(TexelAt(scene, image, {0, 0, 0})[1], 200) << "bound positions survive a rebuild";
+    EXPECT_GT(TexelAt(scene, image, {-12, 8, 0})[0], 200) << "bound points survive a rebuild";
+    EXPECT_GT(TexelAt(scene, image, {0, -12, 0})[0] + TexelAt(scene, image, {0, -12, 0})[1], 0)
+        << "the added mesh draws";
+
+    const std::array<float, 9> again{12, -10, 0, 12, 0, 0, 12, 10, 0};
+    scene.Write("/World/Rocks", tokens::kPositions, Tensor::Copy<float>(again, {3, 3}));
+    image = delegate.Render(scene);
+    EXPECT_GT(TexelAt(scene, image, {12, -10, 0})[1], 200) << "the scene takes over again";
+
+    EXPECT_THROW(delegate.Bind(scene, "/World/Rocks", tokens::kPoints), std::invalid_argument);
+    EXPECT_THROW(delegate.Bind(scene, "/World/Camera", tokens::kPoints), std::invalid_argument);
+    EXPECT_THROW(ernie::AttributeBinding().Map(), std::invalid_argument);
+}

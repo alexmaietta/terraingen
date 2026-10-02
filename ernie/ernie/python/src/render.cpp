@@ -6,6 +6,7 @@
 #include <nanobind/stl/map.h>
 #include <nanobind/stl/optional.h>
 #include <nanobind/stl/string.h>
+#include <nanobind/stl/string_view.h>
 #include <nanobind/stl/unique_ptr.h>
 #include <nanobind/stl/vector.h>
 
@@ -161,6 +162,23 @@ std::vector<Path> PathsOf(nb::handle products) {
     return paths;
 }
 
+/// A writable array-API object over a CUDA tensor, keeping the tensor alive.
+nb::object WritableCudaArray(const Tensor& tensor) {
+    auto* kept = new Tensor(tensor);
+    nb::capsule owner(kept, [](void* p) noexcept { delete static_cast<Tensor*>(p); });
+    std::vector<std::size_t> shape(tensor.Shape().begin(), tensor.Shape().end());
+    nb::ndarray<nb::array_api> array(tensor.Data(), shape.size(), shape.data(), owner, nullptr,
+                                     nb::dtype<float>(), nb::device::cuda::value,
+                                     tensor.Location().id);
+    return nb::cast(array, nb::rv_policy::reference);
+}
+
+/// A bound attribute, keeping its renderer alive.
+struct PyBinding {
+    AttributeBinding binding;
+    nb::object renderer;
+};
+
 CudaInterop& RequireCuda(RasterRenderer& r) {
     std::string why;
     CudaInterop* cuda = r.delegate->Cuda(&why);
@@ -294,6 +312,32 @@ void BindRender(nb::module_& m) {
             "outputs", [](PyOperation& op) { return Wrap(op.operation->Outputs(), op.renderer); },
             "The step's outputs without waiting, for CUDA mappings that order on the GPU.");
 
+    nb::class_<PyBinding>(
+        m, "AttributeBinding",
+        "An attribute bound for CUDA to write in place: map() returns the renderer's own GPU "
+        "array, writable, and the next steps draw what was written there by unmap().")
+        .def_prop_ro("path", [](const PyBinding& b) { return b.binding.GetPath(); })
+        .def_prop_ro("attribute", [](const PyBinding& b) { return b.binding.Attribute(); })
+        .def_prop_ro("mapped", [](const PyBinding& b) { return b.binding.IsMapped(); })
+        .def(
+            "map",
+            [](PyBinding& b, nb::handle stream) {
+                Tensor tensor;
+                {
+                    nb::gil_scoped_release release;
+                    tensor = b.binding.Map(StreamOf(stream));
+                }
+                return WritableCudaArray(KeepingAlive(tensor, b.renderer));
+            },
+            nb::arg("stream").none() = nb::none(),
+            "A writable float32 CUDA array (n, 3 or 4) over the renderer's own memory, for "
+            "torch.from_dlpack or wp.from_dlpack; CUDA stream `stream` waits on the GPU until "
+            "earlier steps stop reading it. Valid until unmap().")
+        .def(
+            "unmap", [](PyBinding& b, nb::handle stream) { b.binding.Unmap(StreamOf(stream)); },
+            nb::arg("stream").none() = nb::none(),
+            "Ends the mapping; later steps wait on the GPU for the work queued on `stream`.");
+
     nb::class_<RasterRenderer>(
         m, "RasterRenderer",
         "Ernie's rasterizer: renders a Scene's terrain, material, light, camera and render "
@@ -375,6 +419,27 @@ void BindRender(nb::module_& m) {
             nb::arg("settings") = Path(),
             "step_async(...).wait().fetch(): the outputs by render product path, each with "
             ".frames[0].render_vars by RenderVar path.")
+        .def(
+            "bind",
+            [](nb::pointer_and_handle<RasterRenderer> self, const Scene& scene, const Path& path,
+               std::string_view attribute) {
+                PyBinding binding;
+                binding.renderer = nb::borrow(self.h);
+                binding.binding = self.p->delegate->Bind(scene, path, attribute);
+                return binding;
+            },
+            nb::arg("scene"), nb::arg("path"), nb::arg("attribute"),
+            "Binds a Mesh's points or a PointInstancer's positions, orientations or scales for "
+            "CUDA to write in place, without copies.")
+        .def(
+            "cuda_copy",
+            [](RasterRenderer& r, const AnyArray& source, const AnyArray& destination,
+               nb::handle stream) {
+                RequireCuda(r).Copy(TensorFromArray(source), TensorFromArray(destination),
+                                    StreamOf(stream));
+            },
+            nb::arg("source"), nb::arg("destination"), nb::arg("stream").none() = nb::none(),
+            "Queues a device-to-device copy between CUDA arrays of the same size on `stream`.")
         .def_prop_ro(
             "cuda_available", [](RasterRenderer& r) { return r.delegate->Cuda() != nullptr; },
             "Whether CUDA arrays can be written to scenes this renderer draws, and rendered to.")

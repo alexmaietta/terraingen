@@ -119,6 +119,50 @@ std::optional<Bounds3> ExtentOf(const Scene& scene, const Path& prim);
 /// float32 or uint8 on the CPU.
 Image ImageOfTensor(const Tensor& tensor, ImageEncoding encoding);
 
+class RasterDelegate;
+
+/// A Mesh's `points` or a PointInstancer's `positions`, `orientations` or `scales` bound for CUDA
+/// to write in place, without copies: `Map` returns the renderer's own GPU array as a writable
+/// float32 CUDA tensor (n, 3 or 4), and the next steps draw whatever was written there by
+/// `Unmap`.
+///
+/// `Map` makes CUDA stream `stream` wait on the GPU until earlier steps stop reading the array;
+/// `Unmap` makes later steps wait on the GPU for the work queued on `stream`. Neither blocks the
+/// host, except the first `Map` after meshes or instancers were added or removed. The tensor is
+/// valid until `Unmap`; map again for the next update. Bound data persists until the scene's own
+/// attribute (or a mesh's topology) changes, which takes over again. Bounds for shadows come from
+/// the prim's `extent` as of `Bind`; without one they stay those of the last synced data.
+class AttributeBinding {
+  public:
+    AttributeBinding() = default;
+
+    const Path& GetPath() const {
+        return path_;
+    }
+
+    const std::string& Attribute() const {
+        return attribute_;
+    }
+
+    /// @throws std::invalid_argument if CUDA interop is unavailable or the prim is gone.
+    Tensor Map(std::uintptr_t stream = 1);
+
+    void Unmap(std::uintptr_t stream = 1);
+
+    bool IsMapped() const {
+        return mapped_;
+    }
+
+  private:
+    friend class RasterDelegate;
+
+    RasterDelegate* delegate_ = nullptr;
+    Path path_;
+    std::string attribute_;
+    std::optional<Bounds3> extent_;
+    bool mapped_ = false;
+};
+
 /// Ernie's rasterizer as a render delegate for a `Scene`: syncs Material prims into the
 /// renderer's material table, the first visible Terrain into a `TerrainPart`, and Mesh and
 /// PointInstancer prims into a `MeshPart`, and renders them with the scene's camera, light and
@@ -193,6 +237,12 @@ class RasterDelegate {
     /// with the reason in `why` if given.
     CudaInterop* Cuda(std::string* why = nullptr);
 
+    /// Syncs `scene`, then binds `attribute` of the prim at `path` for CUDA to write in place:
+    /// `points` of a Mesh, or `positions`, `orientations` or `scales` of a PointInstancer.
+    /// @throws std::invalid_argument for other prims or attributes, a prim that failed to sync,
+    /// or without CUDA interop.
+    AttributeBinding Bind(const Scene& scene, const Path& path, std::string_view attribute);
+
     /// The prims the last `Update` drew.
     const RasterPrims& Prims() const {
         return prims_;
@@ -252,6 +302,9 @@ class RasterDelegate {
     std::vector<MeshItem> Items(const Scene& scene) const;
 
     CudaInterop& RequireCuda();
+    friend class AttributeBinding;
+    Tensor MapBinding(const AttributeBinding& binding, std::uintptr_t stream);
+    void UnmapBinding(std::uintptr_t stream);
     void UpdatePrims(const Scene& scene, const RasterPrims& prims, VkExtent2D extent);
     std::shared_ptr<ProductFrame> AcquireFrame(const Path& product, VkExtent2D extent);
     void SetMeshPoints(const Scene& scene, const Path& path, std::uint32_t handle);

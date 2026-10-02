@@ -570,6 +570,24 @@ void CudaInterop::SignalVulkan(std::uintptr_t stream) {
     ++state_->cudaSignalled;
 }
 
+void CudaInterop::Copy(const Tensor& source, const Tensor& destination, std::uintptr_t stream) {
+    CheckOnDevice(source);
+    CheckOnDevice(destination);
+    const auto bytes = static_cast<std::size_t>(source.Elements()) * SizeOf(source.Type());
+    if (bytes != static_cast<std::size_t>(destination.Elements()) * SizeOf(destination.Type())) {
+        throw std::invalid_argument("CudaInterop::Copy between tensors of different sizes");
+    }
+    if (bytes == 0) {
+        return;
+    }
+    const State::Scope scope(*state_);
+    state_->Check(
+        state_->driver.memcpyDtoDAsync(reinterpret_cast<cu::DevicePtr>(destination.Data()),
+                                       reinterpret_cast<cu::DevicePtr>(source.Data()), bytes,
+                                       reinterpret_cast<cu::Stream>(stream)),
+        "cuMemcpyDtoDAsync");
+}
+
 TimelinePoint CudaInterop::VulkanWait() const {
     if (state_->cudaSignalled == 0) {
         return {};
@@ -599,13 +617,13 @@ void CudaInterop::Synchronize() {
 }
 
 Tensor CudaInterop::View(std::shared_ptr<GpuBuffer> buffer, DType type,
-                         std::vector<std::int64_t> shape) {
+                         std::vector<std::int64_t> shape, VkDeviceSize offset) {
     const Tensor shaped(nullptr, type, shape);
     const auto bytes = static_cast<VkDeviceSize>(shaped.Elements()) * SizeOf(type);
-    if (bytes > buffer->Size()) {
+    if (offset > buffer->Size() || bytes > buffer->Size() - offset) {
         throw std::invalid_argument("CudaInterop::View larger than the buffer");
     }
-    const std::uint64_t pointer = DevicePointer(*buffer);
+    const std::uint64_t pointer = DevicePointer(*buffer) + offset;
     return Tensor(reinterpret_cast<void*>(pointer), type, std::move(shape), {},
                   {DeviceKind::Cuda, state_->ordinal}, std::move(buffer));
 }

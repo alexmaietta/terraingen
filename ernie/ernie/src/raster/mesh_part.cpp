@@ -242,6 +242,7 @@ void MeshPart::SetPoints(std::uint32_t mesh, std::span<const float> points) {
     it->second.data.points.assign(points.begin(), points.end());
     std::tie(it->second.low, it->second.high) = PointBounds(it->second.data.points);
     it->second.devicePoints = Tensor();
+    it->second.bound = false;
     it->second.pointsDirty = true;
 }
 
@@ -264,6 +265,7 @@ void MeshPart::SetPoints(std::uint32_t mesh, const Tensor& points,
         std::tie(target.low, target.high) = PointBounds(target.data.points);
     }
     target.devicePoints = points;
+    target.bound = false;
     target.pointsDirty = true;
 }
 
@@ -272,12 +274,12 @@ void MeshPart::CopyDevicePoints(Mesh& mesh) {
                         VkDeviceSize{mesh.firstVertex} * 3 * sizeof(float));
 }
 
-std::unique_ptr<GpuBuffer> MeshPart::Pool(std::span<const std::byte> bytes) const {
+std::shared_ptr<GpuBuffer> MeshPart::Pool(std::span<const std::byte> bytes) const {
     if (cuda_ == nullptr) {
         return StorageBuffer(context_, bytes);
     }
     auto buffer =
-        std::make_unique<GpuBuffer>(context_, std::max<VkDeviceSize>(bytes.size(), 16),
+        std::make_shared<GpuBuffer>(context_, std::max<VkDeviceSize>(bytes.size(), 16),
                                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, BufferMemory::Shared);
     if (!bytes.empty()) {
         buffer->Write(bytes);
@@ -319,6 +321,8 @@ void MeshPart::SetInstances(std::uint32_t instancer, InstanceData data) {
     target.device = {};
     target.onDevice = false;
     target.dirty = true;
+    target.bound = {};
+    target.boundExtent.reset();
 }
 
 void MeshPart::CheckDeviceTensor(const Tensor& tensor, std::size_t components,
@@ -363,6 +367,8 @@ void MeshPart::SetInstances(std::uint32_t instancer, const DeviceInstanceData& d
     target.device = data;
     target.onDevice = true;
     target.dirty = true;
+    target.bound = {};
+    target.boundExtent.reset();
     target.data = {};
     if (!data.extent) {
         const Tensor positions = cuda_->Download(data.positions);
@@ -416,6 +422,10 @@ void MeshPart::SetItems(std::vector<MeshItem> items) {
 }
 
 void MeshPart::RebuildGeometry() {
+    std::map<std::uint32_t, std::uint32_t> oldFirst;
+    for (const auto& [handle, mesh] : meshes_) {
+        oldFirst[handle] = mesh.firstVertex;
+    }
     std::vector<float> points;
     std::vector<float> normals;
     std::vector<float> colors;
@@ -439,19 +449,44 @@ void MeshPart::RebuildGeometry() {
         mesh.pointsDirty = false;
     }
     vkDeviceWaitIdle(context_.Device());
+    const std::shared_ptr<GpuBuffer> oldPoints = points_;
     points_ = Pool(std::as_bytes(std::span(points)));
     normals_ = StorageBuffer(context_, normals);
     colors_ = StorageBuffer(context_, colors);
     indices_ = StorageBuffer(context_, indices);
+    std::vector<VkBufferCopy> keep;
     for (auto& [handle, mesh] : meshes_) {
         if (!mesh.devicePoints.Empty() && cuda_ != nullptr) {
             CopyDevicePoints(mesh);
         }
+        const auto old = oldFirst.find(handle);
+        if (mesh.bound && oldPoints != nullptr && old != oldFirst.end() &&
+            !mesh.data.points.empty()) {
+            keep.push_back({VkDeviceSize{old->second} * 3 * sizeof(float),
+                            VkDeviceSize{mesh.firstVertex} * 3 * sizeof(float),
+                            mesh.data.points.size() * sizeof(float)});
+        }
     }
+    CopyRegions(oldPoints.get(), *points_, keep);
     geometryDirty_ = false;
 }
 
+void MeshPart::CopyRegions(const GpuBuffer* from, GpuBuffer& to,
+                           const std::vector<VkBufferCopy>& regions) const {
+    if (from == nullptr || regions.empty()) {
+        return;
+    }
+    context_.Submit([&](VkCommandBuffer commands) {
+        vkCmdCopyBuffer(commands, from->Handle(), to.Handle(),
+                        static_cast<std::uint32_t>(regions.size()), regions.data());
+    });
+}
+
 void MeshPart::RebuildInstances() {
+    std::map<std::uint32_t, std::uint32_t> oldFirst;
+    for (const auto& [handle, instancer] : instancers_) {
+        oldFirst[handle] = instancer.first;
+    }
     std::vector<float> positions;
     std::vector<float> orientations;
     std::vector<float> scales;
@@ -460,34 +495,118 @@ void MeshPart::RebuildInstances() {
         const std::size_t count = instancer.count;
         const InstanceData& data = instancer.data;
         const bool host = !instancer.onDevice;
-        if (host) {
+        if (host && data.positions.size() == 3 * count) {
             positions.insert(positions.end(), data.positions.begin(), data.positions.end());
         } else {
             positions.resize(positions.size() + 3 * count, 0.0f);
         }
-        if (host && !data.orientations.empty()) {
+        if (host && data.orientations.size() == 4 * count) {
             orientations.insert(orientations.end(), data.orientations.begin(),
                                 data.orientations.end());
         } else {
             orientations.resize(orientations.size() + 4 * count, 0.0f);
         }
-        if (host && !data.scales.empty()) {
+        if (host && data.scales.size() == 3 * count) {
             scales.insert(scales.end(), data.scales.begin(), data.scales.end());
         } else {
             scales.resize(scales.size() + 3 * count, 1.0f);
         }
     }
     vkDeviceWaitIdle(context_.Device());
+    const std::array<std::shared_ptr<GpuBuffer>, 3> old{positions_, orientations_, scales_};
     positions_ = Pool(std::as_bytes(std::span(positions)));
     orientations_ = Pool(std::as_bytes(std::span(orientations)));
     scales_ = Pool(std::as_bytes(std::span(scales)));
+    std::array<std::vector<VkBufferCopy>, 3> keep;
+    constexpr std::array<VkDeviceSize, 3> kComponents{3, 4, 3};
     for (auto& [handle, instancer] : instancers_) {
         if (instancer.onDevice) {
             WriteInstancer(instancer);
         }
         instancer.dirty = false;
+        const auto from = oldFirst.find(handle);
+        for (std::size_t a = 0; a < 3; ++a) {
+            if (instancer.bound[a] && old[a] != nullptr && from != oldFirst.end() &&
+                instancer.count > 0) {
+                const VkDeviceSize stride = kComponents[a] * sizeof(float);
+                keep[a].push_back(
+                    {from->second * stride, instancer.first * stride, instancer.count * stride});
+            }
+        }
     }
+    CopyRegions(old[0].get(), *positions_, keep[0]);
+    CopyRegions(old[1].get(), *orientations_, keep[1]);
+    CopyRegions(old[2].get(), *scales_, keep[2]);
     instancesDirty_ = false;
+}
+
+void MeshPart::RebuildPools() {
+    if (geometryDirty_) {
+        RebuildGeometry();
+    }
+    if (instancesDirty_) {
+        RebuildInstances();
+    }
+}
+
+void MeshPart::CheckBindable() const {
+    if (cuda_ == nullptr) {
+        throw std::invalid_argument("Binding pools for CUDA needs MeshPart::SetCudaInterop");
+    }
+    if (NeedsRebuild()) {
+        throw std::invalid_argument("Rebuild the pools (RebuildPools) before binding");
+    }
+}
+
+PoolRegion MeshPart::BindPoints(std::uint32_t mesh, std::optional<Bounds3> bounds) {
+    const auto it = meshes_.find(mesh);
+    if (it == meshes_.end()) {
+        throw std::invalid_argument("Unknown mesh " + std::to_string(mesh));
+    }
+    CheckBindable();
+    Mesh& target = it->second;
+    if (target.pointsDirty) {
+        if (!target.devicePoints.Empty()) {
+            CopyDevicePoints(target);
+        } else {
+            points_->Write(std::as_bytes(std::span(target.data.points)),
+                           VkDeviceSize{target.firstVertex} * 3 * sizeof(float));
+        }
+        target.pointsDirty = false;
+    }
+    target.bound = true;
+    target.devicePoints = Tensor();
+    if (bounds) {
+        std::tie(target.low, target.high) = *bounds;
+    }
+    return {points_, VkDeviceSize{target.firstVertex} * 3 * sizeof(float),
+            target.data.points.size() / 3, 3};
+}
+
+PoolRegion MeshPart::BindInstances(std::uint32_t instancer, InstanceArray array,
+                                   std::optional<Bounds3> extent) {
+    const auto it = instancers_.find(instancer);
+    if (it == instancers_.end()) {
+        throw std::invalid_argument("Unknown instancer " + std::to_string(instancer));
+    }
+    CheckBindable();
+    Instancer& target = it->second;
+    if (target.dirty) {
+        WriteInstancer(target);
+        target.dirty = false;
+    }
+    const auto index = static_cast<std::size_t>(array);
+    target.bound[index] = true;
+    if (extent) {
+        target.boundExtent = extent;
+    }
+    const std::size_t components = array == InstanceArray::Orientations ? 4 : 3;
+    const std::shared_ptr<GpuBuffer>& pool =
+        array == InstanceArray::Positions
+            ? positions_
+            : (array == InstanceArray::Orientations ? orientations_ : scales_);
+    return {pool, VkDeviceSize{target.first} * components * sizeof(float), target.count,
+            components};
 }
 
 void MeshPart::WriteInstancer(const Instancer& instancer) {
@@ -565,10 +684,12 @@ void MeshPart::Prepare(const FrameParams&, std::span<const ShadowCascade>) {
         if (item.instancer) {
             const Instancer& instancer = instancers_.at(*item.instancer);
             flags |= kInstanced;
-            const bool orientations = instancer.onDevice ? !instancer.device.orientations.Empty()
-                                                         : !instancer.data.orientations.empty();
-            const bool scales = instancer.onDevice ? !instancer.device.scales.Empty()
-                                                   : !instancer.data.scales.empty();
+            const bool orientations =
+                instancer.bound[1] || (instancer.onDevice ? !instancer.device.orientations.Empty()
+                                                          : !instancer.data.orientations.empty());
+            const bool scales =
+                instancer.bound[2] || (instancer.onDevice ? !instancer.device.scales.Empty()
+                                                          : !instancer.data.scales.empty());
             flags |= orientations ? kHasOrientations : 0u;
             flags |= scales ? kHasScales : 0u;
             for (const std::uint32_t instance : item.instances) {
@@ -611,9 +732,10 @@ std::optional<Bounds3> MeshPart::Bounds() const {
             continue;
         }
         const Instancer& instancer = instancers_.at(*item.instancer);
-        if (instancer.onDevice && instancer.device.extent) {
-            add(TransformBox(item.transform, instancer.device.extent->first,
-                             instancer.device.extent->second));
+        const std::optional<Bounds3>& extent =
+            instancer.boundExtent ? instancer.boundExtent : instancer.device.extent;
+        if ((instancer.onDevice || instancer.boundExtent) && extent) {
+            add(TransformBox(item.transform, extent->first, extent->second));
             continue;
         }
         const auto [low, high] = TransformBox(item.prototype, mesh.low, mesh.high);

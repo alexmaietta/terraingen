@@ -36,12 +36,18 @@ delivers each output to Device.CPU, Device.CUDA (linear, filled on the GPU) or D
 (the rendered image itself, no copy); unmap() hands a CUDA_ARRAY back. step_async() returns an
 Operation to wait(timeout_ns=...) on or poll, then fetch().
 
+renderer.bind(scene, path, attribute) binds a Mesh's points or a PointInstancer's positions,
+orientations or scales for a simulation to write in place: binding.map(stream=...) returns the
+renderer's own GPU array, writable through DLPack, and binding.unmap(stream=...) hands it back,
+with both sides ordered on the GPU and nothing copied.
+
 render(scene, device="cuda") returns a CudaArray in GPU memory shared with Vulkan. It returns as
 soon as the render is submitted; torch.from_dlpack(result) (or CuPy, JAX) makes the consumer's
 stream wait for the render on the GPU, so the host never blocks.
 """
 
 from ._ernie import (
+    AttributeBinding,
     ChangeCursor,
     CudaArray,
     CudaArrayMapping,
@@ -62,6 +68,7 @@ from ._ernie import (
 )
 
 __all__ = [
+    "AttributeBinding",
     "ChangeCursor",
     "CudaArray",
     "CudaArrayMapping",
