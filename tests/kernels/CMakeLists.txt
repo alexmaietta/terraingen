@@ -4,6 +4,9 @@ terraingen_add_test_suite(
     hash_test.cpp
     perlin_test.cpp
     fbm_test.cpp
+    simplex_test.cpp
+    value_test.cpp
+    worley_test.cpp
     LIBRARIES
     terraingen::core)
 terraingen_add_test_suite(
