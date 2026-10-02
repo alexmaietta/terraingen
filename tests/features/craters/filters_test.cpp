@@ -103,3 +103,18 @@ TEST(SpacingReach, BoundsTheDistanceOfAnyConflict) {
     EXPECT_DOUBLE_EQ(SpacingReach(10.0, 100.0, spacing), 10.0);
     EXPECT_DOUBLE_EQ(SpacingReach(80.0, 100.0, spacing), 50.0);
 }
+
+TEST(CraterTakesPrecedence, PrefersManualCratersOverEverythingElse) {
+    const Crater manual{0, 0, 5, 3.0, 9u, true};
+    const Crater generated{0, 0, 50, 0.0, 1u};
+    EXPECT_TRUE(CraterTakesPrecedence(manual, generated));
+    EXPECT_FALSE(CraterTakesPrecedence(generated, manual));
+}
+
+TEST(SpacingConflicts, NeverRemovesManualCraters) {
+    const CraterSpacing spacing{1.5, 1.0};
+    const CraterList craters = List({{0.0, 0.0, 10.0, 2.0, 1u, true},
+                                     {3.0, 0.0, 10.0, 1.0, 2u, true},
+                                     {6.0, 0.0, 10.0, 0.0, 3u}});
+    EXPECT_EQ(SpacingConflicts(craters, spacing), (std::vector<bool>{false, false, true}));
+}

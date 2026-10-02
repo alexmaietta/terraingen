@@ -450,3 +450,61 @@ TEST(CraterSettings, SpacingAndMinimumPixelsReachTheLibrary) {
         ASSERT_EQ(generated.Values()[i], expected.Values()[i]) << i;
     }
 }
+
+TEST(CraterSettings, ManualCratersAreValidatedAndCounted) {
+    TerrainSettings settings;
+    settings.craters.manual.push_back({0.0, 0.0, 40.0, 0.1, 0u, true});
+    EXPECT_EQ(ValidateSettings(settings), "");
+    TerrainSettings manualOnly = settings;
+    manualOnly.craters.generate = false;
+    manualOnly.craters.minDiameter = -5.0;
+    EXPECT_EQ(ValidateSettings(manualOnly), "");
+    EXPECT_EQ(ExpectedCraterCount(manualOnly), 1.0);
+    TerrainSettings generated = settings;
+    generated.craters.manual.clear();
+    EXPECT_NEAR(ExpectedCraterCount(settings), ExpectedCraterCount(generated) + 1.0, 1e-9);
+    settings.craters.manual.push_back({0.0, 0.0, 0.0, 0.0, 0u, true});
+    EXPECT_NE(ValidateSettings(settings).find("manual crater 2"), std::string::npos);
+}
+
+TEST(CraterSettings, ManualOnlyAppliesJustTheManualCraters) {
+    TerrainSettings settings;
+    settings.width = 101;
+    settings.height = 101;
+    settings.layers[0].layer.fractal.amplitude = 0.0f;
+    settings.craters.generate = false;
+    settings.craters.manual = {{0.0, 0.0, 60.0, 0.0, 0u, true}, {5000.0, 0.0, 60.0, 0.0, 0u, true}};
+    const auto raster = GenerateTerrain(settings);
+
+    auto expected = GenerateSyntheticTerrain(101, 101, 2.0, settings.EffectiveTerrain());
+    const CraterModels models = BuildCraterModels(settings.craters);
+    terraingen::CraterList craters;
+    craters.Append({0.0, 0.0, 60.0, 0.0, terraingen::ManualCraterId(0.0, 0.0, 60.0), true});
+    terraingen::ApplyCraters(expected, craters, *models.profile, *models.degradation);
+    for (std::size_t i = 0; i < raster.Size(); ++i) {
+        ASSERT_EQ(raster.Values()[i], expected.Values()[i]) << i;
+    }
+    EXPECT_LT(raster(50, 50), -1.0f);
+}
+
+TEST(CraterSettings, ManualCratersMergeWithGeneratedCraters) {
+    TerrainSettings settings;
+    settings.width = 129;
+    settings.height = 97;
+    settings.craters.minDiameter = 8.0;
+    settings.craters.maxDiameter = 100.0;
+    settings.craters.manual = {{10.0, -5.0, 70.0, 0.0, 0u, true}};
+    const auto generated = GenerateTerrain(settings);
+
+    auto expected = GenerateSyntheticTerrain(129, 97, 2.0, settings.EffectiveTerrain());
+    const CraterModels models = BuildCraterModels(settings.craters);
+    terraingen::CraterList manual;
+    manual.Append({10.0, -5.0, 70.0, 0.0, terraingen::ManualCraterId(10.0, -5.0, 70.0), true});
+    const auto craters = terraingen::GenerateCraters(
+        terraingen::PlanarCells(), {-129.0, -97.0, 129.0, 97.0}, *models.density, *models.ages,
+        settings.craters.seed, {.dMin = 8.0, .dMax = 100.0, .marginRadii = 1.5, .manual = manual});
+    terraingen::ApplyCraters(expected, craters, *models.profile, *models.degradation);
+    for (std::size_t i = 0; i < generated.Size(); ++i) {
+        ASSERT_EQ(generated.Values()[i], expected.Values()[i]) << i;
+    }
+}

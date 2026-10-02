@@ -6,6 +6,7 @@
 #include "terraingen/random/samplers.h"
 
 #include <algorithm>
+#include <bit>
 #include <cmath>
 #include <stdexcept>
 #include <string>
@@ -66,12 +67,24 @@ void CheckOptions(const CraterGenerationOptions& options) {
 
 }  // namespace
 
+std::uint64_t ManualCraterId(double x, double y, double diameter) {
+    const auto xBits = std::bit_cast<std::uint64_t>(x);
+    const auto yBits = std::bit_cast<std::uint64_t>(y);
+    const auto dBits = std::bit_cast<std::uint64_t>(diameter);
+    const U32x4 block =
+        Philox4x32({static_cast<std::uint32_t>(xBits), static_cast<std::uint32_t>(xBits >> 32),
+                    static_cast<std::uint32_t>(yBits), static_cast<std::uint32_t>(yBits >> 32)},
+                   {static_cast<std::uint32_t>(dBits), static_cast<std::uint32_t>(dBits >> 32)});
+    return (static_cast<std::uint64_t>(block.x) << 32) | block.y;
+}
+
 void CraterList::Reserve(std::size_t count) {
     x_.reserve(count);
     y_.reserve(count);
     diameter_.reserve(count);
     ageGyr_.reserve(count);
     id_.reserve(count);
+    manual_.reserve(count);
 }
 
 void CraterList::Append(const Crater& crater) {
@@ -80,6 +93,7 @@ void CraterList::Append(const Crater& crater) {
     diameter_.push_back(crater.diameter);
     ageGyr_.push_back(crater.ageGyr);
     id_.push_back(crater.id);
+    manual_.push_back(crater.manual ? 1 : 0);
 }
 
 void CraterList::Append(const CraterList& other) {
@@ -88,13 +102,15 @@ void CraterList::Append(const CraterList& other) {
     diameter_.insert(diameter_.end(), other.diameter_.begin(), other.diameter_.end());
     ageGyr_.insert(ageGyr_.end(), other.ageGyr_.begin(), other.ageGyr_.end());
     id_.insert(id_.end(), other.id_.begin(), other.id_.end());
+    manual_.insert(manual_.end(), other.manual_.begin(), other.manual_.end());
 }
 
 Crater CraterList::At(std::size_t index) const {
     if (index >= Size()) {
         throw std::out_of_range("Crater index out of range");
     }
-    return {x_[index], y_[index], diameter_[index], ageGyr_[index], id_[index]};
+    return {x_[index],      y_[index],  diameter_[index],
+            ageGyr_[index], id_[index], manual_[index] != 0};
 }
 
 CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
@@ -173,7 +189,34 @@ CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
             }
         }
     }
+    const std::size_t generated = craters.Size();
+    for (std::size_t n = 0; n < options.manual.Size(); ++n) {
+        Crater crater = options.manual.At(n);
+        if (!(std::isfinite(crater.x) && std::isfinite(crater.y) &&
+              std::isfinite(crater.diameter) && crater.diameter > 0.0 &&
+              std::isfinite(crater.ageGyr) && crater.ageGyr >= 0.0)) {
+            throw std::invalid_argument("Manual craters need finite positions, positive diameters "
+                                        "and non-negative ages");
+        }
+        crater.manual = true;
+        if (crater.id == 0) {
+            crater.id = ManualCraterId(crater.x, crater.y, crater.diameter);
+        }
+        craters.Append(crater);
+    }
     std::size_t removed = 0;
+    if (!spacing.Enabled() && options.manual.Size() > 0) {
+        CraterList kept;
+        kept.Reserve(craters.Size());
+        for (std::size_t n = 0; n < craters.Size(); ++n) {
+            const Crater crater = craters.At(n);
+            if (n < generated || region.Expanded(0.5 * options.marginRadii * crater.diameter)
+                                     .Contains(crater.x, crater.y)) {
+                kept.Append(crater);
+            }
+        }
+        craters = std::move(kept);
+    }
     if (spacing.Enabled()) {
         const std::vector<bool> conflicts = SpacingConflicts(craters, spacing);
         CraterList kept;
@@ -195,6 +238,9 @@ CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
     LogInfo("craters", "Generated ", craters.Size(), " craters (", options.dMin, "-", dMax, " m, ",
             plan.size(), " bands, ", static_cast<long long>(std::llround(expected)), " expected",
             spacing.Enabled() ? ", " + std::to_string(removed) + " removed by spacing" : "",
+            options.manual.Size() > 0
+                ? ", " + std::to_string(options.manual.Size()) + " manual supplied"
+                : "",
             ") in ", FormatDuration(stopwatch.Milliseconds()));
     return craters;
 }

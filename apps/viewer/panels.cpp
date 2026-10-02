@@ -11,6 +11,7 @@
 #include <optional>
 #include <random>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -184,10 +185,59 @@ void DrawTerrainSurface(TerrainSettings& settings) {
     ImGui::EndDisabled();
 }
 
+/// Editable table of manual craters with add and remove buttons.
+void DrawManualCraters(std::vector<Crater>& manual) {
+    std::optional<std::size_t> remove;
+    constexpr ImGuiTableFlags kFlags =
+        ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchSame;
+    if (!manual.empty() && ImGui::BeginTable("##manual", 5, kFlags)) {
+        ImGui::TableSetupColumn("x (m)");
+        ImGui::TableSetupColumn("y (m)");
+        ImGui::TableSetupColumn("D (m)");
+        ImGui::TableSetupColumn("Age (Gyr)");
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
+        ImGui::TableHeadersRow();
+        for (std::size_t n = 0; n < manual.size(); ++n) {
+            Crater& crater = manual[n];
+            ImGui::PushID(static_cast<int>(n));
+            ImGui::TableNextRow();
+            for (auto [column, value, format] :
+                 {std::tuple{0, &crater.x, "%.1f"}, std::tuple{1, &crater.y, "%.1f"},
+                  std::tuple{2, &crater.diameter, "%.1f"}, std::tuple{3, &crater.ageGyr, "%.3f"}}) {
+                ImGui::TableSetColumnIndex(column);
+                ImGui::SetNextItemWidth(-1.0f);
+                ImGui::PushID(column);
+                ImGui::InputDouble("##value", value, 0.0, 0.0, format);
+                ImGui::PopID();
+            }
+            ImGui::TableSetColumnIndex(4);
+            if (ImGui::SmallButton("x")) {
+                remove = n;
+            }
+            ImGui::PopID();
+        }
+        ImGui::EndTable();
+    }
+    if (remove) {
+        manual.erase(manual.begin() + static_cast<std::ptrdiff_t>(*remove));
+    }
+    if (ImGui::Button("Add crater")) {
+        manual.push_back({0.0, 0.0, 50.0, 0.0, 0u, true});
+    }
+    if (!manual.empty()) {
+        ImGui::SameLine();
+        if (ImGui::Button("Clear")) {
+            manual.clear();
+        }
+    }
+}
+
 void DrawTerrainCraters(TerrainSettings& settings) {
     CraterSettings& craters = settings.craters;
     ImGui::Checkbox("Enabled", &craters.enabled);
     ImGui::BeginDisabled(!craters.enabled);
+    ImGui::Checkbox("Generate craters", &craters.generate);
+    ImGui::BeginDisabled(!craters.generate);
     EnumCombo("Density", craters.density, kCraterDensityNames);
     switch (craters.density) {
     case CraterDensityModel::LunarSurface:
@@ -218,6 +268,10 @@ void DrawTerrainCraters(TerrainSettings& settings) {
     DragDouble("Similar size ratio", craters.spacing.diameterRatio, 1.0, 8.0, "%.2f",
                ImGuiSliderFlags_Logarithmic);
     ImGui::EndDisabled();
+    ImGui::EndDisabled();
+
+    ImGui::SeparatorText("Manual craters");
+    DrawManualCraters(craters.manual);
 
     ImGui::SeparatorText("Application");
     CraterApplyOptions& apply = craters.apply;

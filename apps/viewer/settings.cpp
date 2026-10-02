@@ -42,6 +42,24 @@ std::string ValidateCraters(const TerrainSettings& settings) {
     if (!craters.enabled) {
         return {};
     }
+    for (std::size_t n = 0; n < craters.manual.size(); ++n) {
+        const Crater& crater = craters.manual[n];
+        if (!(std::isfinite(crater.x) && std::isfinite(crater.y) &&
+              std::isfinite(crater.diameter) && crater.diameter > 0.0 &&
+              std::isfinite(crater.ageGyr) && crater.ageGyr >= 0.0)) {
+            return "Craters: manual crater " + std::to_string(n + 1) +
+                   " needs a positive diameter and a non-negative age";
+        }
+    }
+    if (!craters.generate) {
+        try {
+            ValidateCraterApplyOptions(craters.apply);
+            ValidateRimSmoothing(craters.rims);
+        } catch (const std::invalid_argument& error) {
+            return std::string("Craters: ") + error.what();
+        }
+        return {};
+    }
     if (!(std::isfinite(craters.minDiameter) && craters.minDiameter > 0.0)) {
         return "Craters: minimum diameter must be positive";
     }
@@ -120,10 +138,14 @@ double ExpectedCraterCount(const TerrainSettings& settings) {
     if (!craters.enabled) {
         return 0.0;
     }
+    const auto manual = static_cast<double>(craters.manual.size());
+    if (!craters.generate) {
+        return manual;
+    }
     const CraterModels models = BuildCraterModels(craters);
     const Bounds2d bounds = TerrainBounds(settings);
     const double area = (bounds.maxX - bounds.minX) * (bounds.maxY - bounds.minY);
-    return models.density->ExpectedCount(area, craters.minDiameter, craters.maxDiameter);
+    return manual + models.density->ExpectedCount(area, craters.minDiameter, craters.maxDiameter);
 }
 
 SyntheticTerrainParams TerrainSettings::EffectiveTerrain() const {
@@ -168,12 +190,33 @@ Raster<float> GenerateTerrain(const TerrainSettings& settings) {
     const CraterSettings& craters = settings.craters;
     if (craters.enabled) {
         const CraterModels models = BuildCraterModels(craters);
-        const CraterList list = GenerateCraters(PlanarCells(), TerrainBounds(settings),
-                                                *models.density, *models.ages, craters.seed,
-                                                {.dMin = craters.minDiameter,
-                                                 .dMax = craters.maxDiameter,
-                                                 .marginRadii = models.profile->ReachRadii(),
-                                                 .spacing = craters.spacing});
+        const Bounds2d bounds = TerrainBounds(settings);
+        CraterList manual;
+        for (Crater crater : craters.manual) {
+            crater.manual = true;
+            if (crater.id == 0) {
+                crater.id = ManualCraterId(crater.x, crater.y, crater.diameter);
+            }
+            manual.Append(crater);
+        }
+        CraterList list;
+        if (craters.generate) {
+            list =
+                GenerateCraters(PlanarCells(), bounds, *models.density, *models.ages, craters.seed,
+                                {.dMin = craters.minDiameter,
+                                 .dMax = craters.maxDiameter,
+                                 .marginRadii = models.profile->ReachRadii(),
+                                 .spacing = craters.spacing,
+                                 .manual = manual});
+        } else {
+            for (std::size_t n = 0; n < manual.Size(); ++n) {
+                const Crater crater = manual.At(n);
+                const double margin = 0.5 * models.profile->ReachRadii() * crater.diameter;
+                if (bounds.Expanded(margin).Contains(crater.x, crater.y)) {
+                    list.Append(crater);
+                }
+            }
+        }
         ApplyCraters(raster, list, *models.profile, *models.degradation, craters.apply);
         SmoothCraterRims(raster, list, craters.rims);
     }

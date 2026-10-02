@@ -67,6 +67,8 @@ inline constexpr double kMaxViewerCraters = 2e6;
 /// Craters added to the synthetic terrain.
 struct CraterSettings {
     bool enabled = true;
+    bool generate = true;        ///< Generate craters from the density; off uses manual only.
+    std::vector<Crater> manual;  ///< Craters placed by hand, in metres from the centre.
     CraterDensityModel density = CraterDensityModel::LunarSurface;
     double surfaceAgeGyr = 3.5;        ///< For `LunarSurface`.
     double powerLawCoefficient = 0.1;  ///< For `PowerLawSfd`, per m^2 with D in metres.

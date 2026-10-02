@@ -273,3 +273,99 @@ TEST(GenerateCraters, RejectsInvalidSpacing) {
                                  1u, {.dMin = 1.0, .dMax = 5.0, .spacing = {0.5, 1.0}}),
                  std::invalid_argument);
 }
+
+TEST(CraterList, StoresTheManualFlag) {
+    CraterList list;
+    list.Append({1.0, 2.0, 3.0, 0.5, 7u, true});
+    list.Append({4.0, 5.0, 6.0, 1.5, 9u});
+    EXPECT_EQ(list.Manual(), (std::vector<std::uint8_t>{1, 0}));
+    EXPECT_TRUE(list.At(0).manual);
+    EXPECT_FALSE(list.At(1).manual);
+    CraterList joined;
+    joined.Append(list);
+    EXPECT_EQ(joined.Manual(), list.Manual());
+}
+
+TEST(ManualCraterId, IsStableAndDependsOnEveryField) {
+    const std::uint64_t id = terraingen::ManualCraterId(10.0, 20.0, 30.0);
+    EXPECT_EQ(id, terraingen::ManualCraterId(10.0, 20.0, 30.0));
+    EXPECT_NE(id, terraingen::ManualCraterId(10.5, 20.0, 30.0));
+    EXPECT_NE(id, terraingen::ManualCraterId(10.0, 20.5, 30.0));
+    EXPECT_NE(id, terraingen::ManualCraterId(10.0, 20.0, 30.5));
+}
+
+TEST(GenerateCraters, MergesManualCratersInsideTheRegion) {
+    CraterList manual;
+    manual.Append({50.0, 50.0, 30.0, 0.2, 0u});
+    manual.Append({60.0, 60.0, 20.0, 0.1, 42u, true});
+    manual.Append({900.0, 900.0, 30.0, 0.0, 0u});
+    const Bounds2d region{0.0, 0.0, 200.0, 200.0};
+    const CraterList plain = GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), FreshAges(), 3u,
+                                             {.dMin = 4.0, .dMax = 64.0});
+    const CraterList merged = GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), FreshAges(),
+                                              3u, {.dMin = 4.0, .dMax = 64.0, .manual = manual});
+    ASSERT_EQ(merged.Size(), plain.Size() + 2);
+    for (std::size_t n = 0; n < plain.Size(); ++n) {
+        EXPECT_EQ(merged.At(n), plain.At(n));
+    }
+    const Crater first = merged.At(plain.Size());
+    EXPECT_TRUE(first.manual);
+    EXPECT_EQ(first.ageGyr, 0.2);
+    EXPECT_EQ(first.id, terraingen::ManualCraterId(50.0, 50.0, 30.0));
+    EXPECT_EQ(merged.At(plain.Size() + 1).id, 42u);
+}
+
+TEST(GenerateCraters, ManualCratersClearConflictingGeneratedCraters) {
+    const terraingen::CraterSpacing spacing{2.0, 1.0};
+    CraterList manual;
+    manual.Append({100.0, 100.0, 40.0, 3.0, 0u});
+    const Bounds2d region{0.0, 0.0, 200.0, 200.0};
+    const CraterList craters =
+        GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), UniformAges(1.0), 8u,
+                        {.dMin = 8.0, .dMax = 64.0, .spacing = spacing, .manual = manual});
+    std::size_t manualCount = 0;
+    for (std::size_t n = 0; n < craters.Size(); ++n) {
+        const Crater crater = craters.At(n);
+        manualCount += crater.manual ? 1u : 0u;
+        if (!crater.manual) {
+            EXPECT_FALSE(terraingen::CratersConflict(crater, manual.At(0), spacing)) << n;
+        }
+    }
+    EXPECT_EQ(manualCount, 1u);
+    EXPECT_EQ(ConflictingPairs(craters, spacing), 0u);
+}
+
+TEST(GenerateCraters, ManualCratersKeepTilesJoined) {
+    CraterList manual;
+    manual.Append({12.0, 1.0, 30.0, 0.0, 0u});
+    manual.Append({-150.0, 50.0, 12.0, 0.0, 0u});
+    const CraterGenerationOptions options{
+        .dMin = 4.0, .dMax = 40.0, .marginRadii = 1.5, .spacing = {1.5, 0.75}, .manual = manual};
+    const PowerLawSfd density(0.1, 2.0);
+    const UniformAges ages(1.0);
+    const CraterList whole =
+        GenerateCraters(kCells, {-200.0, -100.0, 200.0, 100.0}, density, ages, 2u, options);
+    CraterList joined;
+    for (const Bounds2d& tile :
+         {Bounds2d{-200.0, -100.0, 13.0, 0.0}, Bounds2d{13.0, -100.0, 200.0, 0.0},
+          Bounds2d{-200.0, 0.0, 13.0, 100.0}, Bounds2d{13.0, 0.0, 200.0, 100.0}}) {
+        const CraterList part = GenerateCraters(kCells, tile, density, ages, 2u, options);
+        for (std::size_t n = 0; n < part.Size(); ++n) {
+            if (tile.Contains(part.At(n).x, part.At(n).y)) {
+                joined.Append(part.At(n));
+            }
+        }
+    }
+    ExpectSameCraters(Filter(whole, {-200.0, -100.0, 200.0, 100.0}), joined);
+}
+
+TEST(GenerateCraters, RejectsInvalidManualCraters) {
+    for (const Crater& bad : {Crater{0.0, 0.0, 0.0, 0.0, 0u}, Crater{0.0, 0.0, 5.0, -1.0, 0u},
+                              Crater{std::numeric_limits<double>::infinity(), 0.0, 5.0, 0.0, 0u}}) {
+        CraterList manual;
+        manual.Append(bad);
+        EXPECT_THROW(GenerateCraters(kCells, {0.0, 0.0, 10.0, 10.0}, PowerLawSfd(0.1, 2.0),
+                                     FreshAges(), 1u, {.dMin = 1.0, .dMax = 5.0, .manual = manual}),
+                     std::invalid_argument);
+    }
+}

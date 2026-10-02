@@ -50,6 +50,9 @@ bool CratersConflict(const Crater& a, const Crater& b, const CraterSpacing& spac
 }
 
 bool CraterTakesPrecedence(const Crater& a, const Crater& b) {
+    if (a.manual != b.manual) {
+        return a.manual;
+    }
     if (a.ageGyr != b.ageGyr) {
         return a.ageGyr < b.ageGyr;
     }
@@ -82,6 +85,9 @@ std::vector<bool> SpacingConflicts(const CraterList& craters, const CraterSpacin
     }
     for (std::size_t n = 0; n < craters.Size(); ++n) {
         const Crater crater = craters.At(n);
+        if (crater.manual) {
+            continue;
+        }
         const int lowest = std::ilogb(crater.diameter / spacing.diameterRatio);
         const int highest = std::ilogb(crater.diameter * spacing.diameterRatio);
         for (int band = lowest; band <= highest && !conflicts[n]; ++band) {
