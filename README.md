@@ -12,9 +12,9 @@ We provide a command-line interface, a lightweight viewer, and a standalone demo
 
 TerrainGen is validated against existing lunar datasets. For more information, see the [validation](./validation/README.md) section.
 
-For information on the concepts behind TerrainGen and the API, see our latest [documentation]().
+For information on the concepts behind TerrainGen and the API, see our latest [documentation](https://alexmaietta.github.io/terraingen/).
 
-TerrainGen has also been integrated into other third-party tools such as [Project Chrono]().
+TerrainGen plugs into downstream simulation and rendering tools such as [Project Chrono](https://github.com/projectchrono/chrono). See [Third-party Integrations and Use Cases](#third-party-integrations-and-use-cases) for current and planned integrations.
 
 Future work includes extending TerrainGen for other planetary and celestial bodies such as Mars and asteroids.
 
@@ -87,7 +87,7 @@ TerrainGen is designed to be integrated into downstream simulation, rendering, a
 
 * [Newton](https://github.com/newton-physics/newton)
 * [Nvidia Omniverse](https://www.nvidia.com/en-us/omniverse/)
-* [Project Chrono](https://projectchrono.org/)
+* [Project Chrono](https://github.com/projectchrono/chrono)
 * [IsaacLab](https://isaac-sim.github.io/IsaacLab/)
 
 **Use cases**
