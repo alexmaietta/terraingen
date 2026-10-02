@@ -3,6 +3,7 @@
 #include "terraingen/build_info.h"
 #include "terraingen/core/geo_transform.h"
 #include "terraingen/core/raster.h"
+#include "terraingen/core/raster_stats.h"
 #include "terraingen/version.h"
 
 #include <nanobind/ndarray.h>
@@ -168,12 +169,28 @@ void BindRaster(nb::module_& m) {
         });
 }
 
+void BindStats(nb::module_& m) {
+    nb::class_<RasterStats>(m, "RasterStats", "Statistics of a raster's valid cells.")
+        .def_ro("min", &RasterStats::min)
+        .def_ro("max", &RasterStats::max)
+        .def_ro("mean", &RasterStats::mean)
+        .def_ro("valid_count", &RasterStats::validCount)
+        .def("__repr__", [](const RasterStats& s) {
+            return "RasterStats(min=" + std::to_string(s.min) + ", max=" + std::to_string(s.max) +
+                   ", mean=" + std::to_string(s.mean) +
+                   ", valid_count=" + std::to_string(s.validCount) + ")";
+        });
+    m.def("compute_stats", &ComputeStats<float>, "raster"_a,
+          "Statistics over cells that are finite and not the nodata value.");
+}
+
 }  // namespace
 
 void BindCore(nb::module_& m) {
     BindVersion(m);
     BindGeoTransform(m);
     BindRaster(m);
+    BindStats(m);
 }
 
 }  // namespace terraingen::python
