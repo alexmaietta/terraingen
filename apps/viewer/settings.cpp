@@ -48,6 +48,14 @@ std::string ValidateCraters(const TerrainSettings& settings) {
     if (!(std::isfinite(craters.maxDiameter) && craters.maxDiameter > craters.minDiameter)) {
         return "Craters: maximum diameter must exceed the minimum";
     }
+    if (!(std::isfinite(craters.minDiameterPixels) && craters.minDiameterPixels >= 0.0)) {
+        return "Craters: minimum size in pixels must not be negative";
+    }
+    try {
+        ValidateCraterSpacing({craters.spacingRatio, craters.spacingSeparation});
+    } catch (const std::invalid_argument& error) {
+        return std::string("Craters: ") + error.what();
+    }
     if (craters.density == CraterDensityModel::LunarSurface && craters.minDiameter < 2.5) {
         return "Craters: the lunar surface model starts at 2.5 m";
     }
@@ -161,12 +169,14 @@ Raster<float> GenerateTerrain(const TerrainSettings& settings) {
     const CraterSettings& craters = settings.craters;
     if (craters.enabled) {
         const CraterModels models = BuildCraterModels(craters);
-        const CraterList list = GenerateCraters(PlanarCells(), TerrainBounds(settings),
-                                                *models.density, *models.ages, craters.seed,
-                                                {.dMin = craters.minDiameter,
-                                                 .dMax = craters.maxDiameter,
-                                                 .marginRadii = models.profile->ReachRadii()});
-        ApplyCraters(raster, list, *models.profile, *models.degradation);
+        const CraterList list = GenerateCraters(
+            PlanarCells(), TerrainBounds(settings), *models.density, *models.ages, craters.seed,
+            {.dMin = craters.minDiameter,
+             .dMax = craters.maxDiameter,
+             .marginRadii = models.profile->ReachRadii(),
+             .spacing = {craters.spacingRatio, craters.spacingSeparation}});
+        ApplyCraters(raster, list, *models.profile, *models.degradation,
+                     {.minDiameterPixels = craters.minDiameterPixels});
     }
     return raster;
 }

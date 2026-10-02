@@ -333,6 +333,9 @@ TEST(CraterSettings, ReportsCraterProblems) {
         return ValidateSettings(settings);
     };
     EXPECT_NE(problem([](CraterSettings& c) { c.minDiameter = 0.0; }), "");
+    EXPECT_NE(problem([](CraterSettings& c) { c.minDiameterPixels = -1.0; }), "");
+    EXPECT_NE(problem([](CraterSettings& c) { c.spacingRatio = 0.5; }), "");
+    EXPECT_NE(problem([](CraterSettings& c) { c.spacingSeparation = -0.1; }), "");
     EXPECT_NE(problem([](CraterSettings& c) { c.maxDiameter = 3.0; }), "");
     EXPECT_NE(problem([](CraterSettings& c) { c.minDiameter = 2.0; }), "");
     EXPECT_NE(problem([](CraterSettings& c) { c.surfaceAgeGyr = 5.0; }), "");
@@ -412,4 +415,27 @@ TEST(CraterSettings, GenerateAppliesCratersOnTheNoiseTerrain) {
     const auto plain = GenerateTerrain(settings);
     EXPECT_FALSE(
         std::equal(plain.Values().begin(), plain.Values().end(), generated.Values().begin()));
+}
+
+TEST(CraterSettings, SpacingAndMinimumPixelsReachTheLibrary) {
+    TerrainSettings settings;
+    settings.width = 129;
+    settings.height = 97;
+    settings.craters.minDiameter = 8.0;
+    settings.craters.maxDiameter = 100.0;
+    settings.craters.spacingSeparation = 1.0;
+    settings.craters.minDiameterPixels = 6.0;
+    const auto generated = GenerateTerrain(settings);
+
+    auto expected = GenerateSyntheticTerrain(129, 97, 2.0, settings.EffectiveTerrain());
+    const CraterModels models = BuildCraterModels(settings.craters);
+    const auto craters = terraingen::GenerateCraters(
+        terraingen::PlanarCells(), {-129.0, -97.0, 129.0, 97.0}, *models.density, *models.ages,
+        settings.craters.seed,
+        {.dMin = 8.0, .dMax = 100.0, .marginRadii = 1.5, .spacing = {1.5, 1.0}});
+    terraingen::ApplyCraters(expected, craters, *models.profile, *models.degradation,
+                             {.minDiameterPixels = 6.0});
+    for (std::size_t i = 0; i < generated.Size(); ++i) {
+        ASSERT_EQ(generated.Values()[i], expected.Values()[i]) << i;
+    }
 }

@@ -5,6 +5,7 @@
 #include "terraingen/features/craters/ages.h"
 #include "terraingen/features/craters/apply.h"
 #include "terraingen/features/craters/degradation.h"
+#include "terraingen/features/craters/filters.h"
 #include "terraingen/features/craters/lunar/chronology.h"
 #include "terraingen/features/craters/lunar/equilibrium.h"
 #include "terraingen/features/craters/lunar/production.h"

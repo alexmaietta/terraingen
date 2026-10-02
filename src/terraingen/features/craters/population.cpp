@@ -1,6 +1,7 @@
 #include "terraingen/features/craters/population.h"
 
 #include "terraingen/core/log.h"
+#include "terraingen/features/craters/filters.h"
 #include "terraingen/kernels/philox.h"
 #include "terraingen/random/samplers.h"
 
@@ -45,6 +46,7 @@ std::uint64_t CraterId(std::uint32_t seed, const Band& band, const CellIndex& ce
 }
 
 void CheckOptions(const CraterGenerationOptions& options) {
+    ValidateCraterSpacing(options.spacing);
     if (!(std::isfinite(options.dMin) && options.dMin > 0.0)) {
         throw std::invalid_argument("dMin must be positive and finite");
     }
@@ -119,10 +121,18 @@ CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
         std::vector<CellIndex> cells;
         double countPerArea = 0.0;
     };
+    const CraterSpacing& spacing = options.spacing;
+    const auto candidateMargin = [&](double diameter) {
+        if (!spacing.Enabled()) {
+            return 0.5 * options.marginRadii * diameter;
+        }
+        const double neighbour = std::fmin(spacing.diameterRatio * diameter, dMax);
+        return SpacingReach(diameter, dMax, spacing) + 0.5 * options.marginRadii * neighbour;
+    };
     std::vector<BandCells> plan;
     double expected = 0.0;
     for (const Band& band : Bands(options.dMin, dMax, options.cellSizeFactor)) {
-        const double margin = 0.5 * options.marginRadii * band.high;
+        const double margin = candidateMargin(band.high);
         BandCells entry{band, cells.CellsCovering(region.Expanded(margin), band.cellSize),
                         density.ExpectedCount(1.0, band.low, band.high)};
         double bandExpected = 0.0;
@@ -155,8 +165,7 @@ CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
                 const double diameter = density.SampleDiameter(geometry, band.low, band.high);
                 const Vec2d centre = cells.SamplePoint(geometry, cell, band.cellSize);
                 const double ageGyr = ages.SampleAgeGyr(ageStream, diameter);
-                if (!region.Expanded(0.5 * options.marginRadii * diameter)
-                         .Contains(centre.x, centre.y)) {
+                if (!region.Expanded(candidateMargin(diameter)).Contains(centre.x, centre.y)) {
                     continue;
                 }
                 craters.Append({centre.x, centre.y, diameter, ageGyr,
@@ -164,9 +173,29 @@ CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
             }
         }
     }
+    std::size_t removed = 0;
+    if (spacing.Enabled()) {
+        const std::vector<bool> conflicts = SpacingConflicts(craters, spacing);
+        CraterList kept;
+        kept.Reserve(craters.Size());
+        for (std::size_t n = 0; n < craters.Size(); ++n) {
+            const Crater crater = craters.At(n);
+            if (!region.Expanded(0.5 * options.marginRadii * crater.diameter)
+                     .Contains(crater.x, crater.y)) {
+                continue;
+            }
+            if (conflicts[n]) {
+                ++removed;
+                continue;
+            }
+            kept.Append(crater);
+        }
+        craters = std::move(kept);
+    }
     LogInfo("craters", "Generated ", craters.Size(), " craters (", options.dMin, "-", dMax, " m, ",
-            plan.size(), " bands, ", static_cast<long long>(std::llround(expected)),
-            " expected) in ", FormatDuration(stopwatch.Milliseconds()));
+            plan.size(), " bands, ", static_cast<long long>(std::llround(expected)), " expected",
+            spacing.Enabled() ? ", " + std::to_string(removed) + " removed by spacing" : "",
+            ") in ", FormatDuration(stopwatch.Milliseconds()));
     return craters;
 }
 

@@ -25,6 +25,7 @@ add_library(
     features/craters/ages.cpp
     features/craters/apply.cpp
     features/craters/degradation.cpp
+    features/craters/filters.cpp
     features/craters/lunar/chronology.cpp
     features/craters/lunar/equilibrium.cpp
     features/craters/lunar/production.cpp

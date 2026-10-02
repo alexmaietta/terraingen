@@ -213,3 +213,63 @@ TEST(GenerateCraters, LogsASummaryAndEachBand) {
         << summary[0].message;
     EXPECT_EQ(capture.Matching("craters", terraingen::LogLevel::Debug).size(), 4u);
 }
+
+namespace {
+
+std::size_t ConflictingPairs(const CraterList& craters, const terraingen::CraterSpacing& spacing) {
+    std::size_t pairs = 0;
+    for (std::size_t n = 0; n < craters.Size(); ++n) {
+        for (std::size_t m = n + 1; m < craters.Size(); ++m) {
+            pairs += terraingen::CratersConflict(craters.At(n), craters.At(m), spacing) ? 1u : 0u;
+        }
+    }
+    return pairs;
+}
+
+}  // namespace
+
+TEST(GenerateCraters, SpacingLeavesNoSimilarCratersTooClose) {
+    const terraingen::CraterSpacing spacing{1.5, 1.0};
+    const Bounds2d region{0.0, 0.0, 300.0, 300.0};
+    const CraterList dense = GenerateCraters(
+        kCells, region, PowerLaw(0.1, 2.0), UniformFreshness(1.0), 4u, {.dMin = 4.0, .dMax = 64.0});
+    const terraingen::testing::LogCapture capture;
+    const CraterList spaced =
+        GenerateCraters(kCells, region, PowerLaw(0.1, 2.0), UniformFreshness(1.0), 4u,
+                        {.dMin = 4.0, .dMax = 64.0, .spacing = spacing});
+    EXPECT_GT(ConflictingPairs(dense, spacing), 0u);
+    EXPECT_EQ(ConflictingPairs(spaced, spacing), 0u);
+    EXPECT_LT(spaced.Size(), dense.Size());
+    const auto records = capture.Matching("craters", terraingen::LogLevel::Info);
+    ASSERT_EQ(records.size(), 1u);
+    EXPECT_NE(records[0].message.find(" removed by spacing"), std::string::npos)
+        << records[0].message;
+}
+
+TEST(GenerateCraters, SpacedTilesJoinToTheWholeRegion) {
+    const terraingen::CraterSpacing spacing{2.0, 0.75};
+    const CraterGenerationOptions options{
+        .dMin = 2.0, .dMax = 40.0, .marginRadii = 1.5, .spacing = spacing};
+    const PowerLaw density(0.1, 2.0);
+    const UniformFreshness ages(1.0);
+    const CraterList whole =
+        GenerateCraters(kCells, {-200.0, -100.0, 200.0, 100.0}, density, ages, 6u, options);
+    CraterList joined;
+    for (const Bounds2d& tile :
+         {Bounds2d{-200.0, -100.0, 13.0, 0.0}, Bounds2d{13.0, -100.0, 200.0, 0.0},
+          Bounds2d{-200.0, 0.0, 13.0, 100.0}, Bounds2d{13.0, 0.0, 200.0, 100.0}}) {
+        const CraterList part = GenerateCraters(kCells, tile, density, ages, 6u, options);
+        for (std::size_t n = 0; n < part.Size(); ++n) {
+            if (tile.Contains(part.At(n).x, part.At(n).y)) {
+                joined.Append(part.At(n));
+            }
+        }
+    }
+    ExpectSameCraters(Filter(whole, {-200.0, -100.0, 200.0, 100.0}), joined);
+}
+
+TEST(GenerateCraters, RejectsInvalidSpacing) {
+    EXPECT_THROW(GenerateCraters(kCells, {0.0, 0.0, 10.0, 10.0}, PowerLaw(0.1, 2.0), AllFresh(), 1u,
+                                 {.dMin = 1.0, .dMax = 5.0, .spacing = {0.5, 1.0}}),
+                 std::invalid_argument);
+}

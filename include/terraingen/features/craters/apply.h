@@ -17,7 +17,7 @@ enum class CraterOrder {
 struct CraterApplyOptions {
     CraterOrder order = CraterOrder::OldestFirst;
     /// Craters narrower than this many pixels are skipped, since they cannot be resolved.
-    double minDiameterPixels = 2.0;
+    double minDiameterPixels = 3.0;
 };
 
 /// Applies `craters` to `raster`, whose `GeoTransform` maps pixels to the craters' surface

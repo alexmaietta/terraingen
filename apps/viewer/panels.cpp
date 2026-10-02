@@ -207,6 +207,16 @@ void DrawTerrainCraters(TerrainSettings& settings) {
                ImGuiSliderFlags_Logarithmic);
     EnumCombo("Profile", craters.profile, kCraterProfileNames);
     ImGui::Checkbox("Degrade with age", &craters.degrade);
+    DragDouble("Min crater size (px)", craters.minDiameterPixels, 0.0, 20.0, "%.1f");
+    DragDouble("Separation (diameters)", craters.spacingSeparation, 0.0, 3.0, "%.2f");
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Similar craters closer than this many diameters of the larger one are "
+                          "removed, keeping the younger; 0 allows any overlap.");
+    }
+    ImGui::BeginDisabled(craters.spacingSeparation <= 0.0);
+    DragDouble("Similar size ratio", craters.spacingRatio, 1.0, 8.0, "%.2f",
+               ImGuiSliderFlags_Logarithmic);
+    ImGui::EndDisabled();
     ImGui::InputScalar("Seed", ImGuiDataType_U32, &craters.seed);
     ImGui::SameLine();
     if (ImGui::Button("Random")) {

@@ -71,6 +71,25 @@ class CraterList {
     std::vector<std::uint64_t> id_;
 };
 
+/// Keeps craters of similar size apart: two craters conflict when their diameters differ by at most
+/// `diameterRatio` and their centres are closer than `separation` times the larger diameter.
+///
+/// For example, a ratio of 1.5 and a separation of 0.5 forbid a crater from lying within one radius
+/// of a crater between two thirds and one and a half times its size, while small craters may still
+/// sit inside large ones.
+struct CraterSpacing {
+    CraterSpacing() = default;
+    CraterSpacing(double ratio, double minSeparation)
+        : diameterRatio(ratio), separation(minSeparation) {}
+
+    double diameterRatio = 1.5;  ///< At least 1.
+    double separation = 0.0;     ///< In larger diameters; 0 disables spacing.
+
+    bool Enabled() const {
+        return separation > 0.0;
+    }
+};
+
 /// Settings for `GenerateCraters`.
 struct CraterGenerationOptions {
     /// Smallest diameter generated, in metres; must be set to a positive value.
@@ -85,6 +104,9 @@ struct CraterGenerationOptions {
     double cellSizeFactor = 16.0;
     /// Upper limit on the expected number of craters, to catch requests that would exhaust memory.
     double maxExpectedCraters = 5e7;
+    /// Keeps similar craters apart by removing conflicting craters (see `SpacingConflicts`);
+    /// disabled by default, since removing craters lowers the density below `density`.
+    CraterSpacing spacing{};
 };
 
 /// Generates the craters of `density` with diameters in [`dMin`, `dMax`) whose centres lie in

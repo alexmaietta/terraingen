@@ -194,7 +194,7 @@ TEST(ApplyCraters, LogsAppliedAndSkippedCounts) {
     const auto records = capture.Matching("craters", terraingen::LogLevel::Info);
     ASSERT_EQ(records.size(), 1u);
     EXPECT_EQ(
-        records[0].message.rfind("Applied 1 of 3 craters (1 below 2 px, 1 off the raster) in ", 0),
+        records[0].message.rfind("Applied 1 of 3 craters (1 below 3 px, 1 off the raster) in ", 0),
         0u)
         << records[0].message;
 }

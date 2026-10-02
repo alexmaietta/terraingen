@@ -7,6 +7,7 @@ terraingen_add_test_suite(
     profiles_test.cpp
     apply_test.cpp
     degradation_test.cpp
+    filters_test.cpp
     LIBRARIES
     terraingen::core)
 terraingen_add_test_suite(

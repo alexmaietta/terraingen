@@ -74,6 +74,9 @@ struct CraterSettings {
     double minDiameter = 4.0;          ///< Metres.
     double maxDiameter = 250.0;        ///< Metres.
     bool degrade = true;               ///< Degrade craters with freshness; otherwise all are fresh.
+    double minDiameterPixels = 3.0;    ///< Craters narrower than this many pixels are not applied.
+    double spacingRatio = 1.5;         ///< Diameter ratio within which craters count as similar.
+    double spacingSeparation = 0.0;    ///< Minimum spacing of similar craters, in larger diameters.
     CraterProfileModel profile = CraterProfileModel::FassettThomson;
     std::uint32_t seed = 1;
 
