@@ -197,14 +197,14 @@ bool DrawViewPanel(ViewSettings& view) {
                        ImGuiSliderFlags_Logarithmic);
     int mode = static_cast<int>(view.colorMode);
     ImGui::Combo("Colour", &mode, "Shaded\0Height colormap\0Shaded colormap\0");
-    view.colorMode = static_cast<render::TerrainColorMode>(mode);
+    view.colorMode = static_cast<ernie::TerrainColorMode>(mode);
     ImGui::Checkbox("Wireframe", &view.wireframe);
 
     ImGui::SeparatorText("Shadows");
-    render::ShadowSettings& shadows = view.shadows;
+    ernie::ShadowSettings& shadows = view.shadows;
     ImGui::Checkbox("Enabled", &shadows.enabled);
     ImGui::BeginDisabled(!shadows.enabled);
-    ImGui::SliderInt("Cascades", &shadows.cascades, 1, render::TerrainRenderer::kMaxCascades);
+    ImGui::SliderInt("Cascades", &shadows.cascades, 1, ernie::TerrainRenderer::kMaxCascades);
     const std::uint32_t resolutions[] = {1024, 2048, 4096};
     const std::string preview = std::to_string(shadows.resolution);
     if (ImGui::BeginCombo("Resolution", preview.c_str())) {
@@ -222,7 +222,7 @@ bool DrawViewPanel(ViewSettings& view) {
     ImGui::EndDisabled();
 
     ImGui::SeparatorText("Level of detail");
-    render::LodSettings& lod = view.lod;
+    ernie::LodSettings& lod = view.lod;
     ImGui::Checkbox("LOD", &lod.enabled);
     ImGui::BeginDisabled(!lod.enabled);
     ImGui::SliderFloat("Detail", &lod.detail, 1.0f, 32.0f, "%.1f nodes",
@@ -242,19 +242,19 @@ bool DrawViewPanel(ViewSettings& view) {
 }
 
 SurfacePanelAction DrawSurfacePanel(SurfaceViewSettings& material, SurfacePanelState& state,
-                                    const render::BrdfRegistry& registry) {
+                                    const ernie::BrdfRegistry& registry) {
     const ImGuiIO& io = ImGui::GetIO();
     ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 10.0f, 10.0f), ImGuiCond_FirstUseEver,
                             ImVec2(1.0f, 0.0f));
     ImGui::Begin("Surface", nullptr, kPanelFlags);
     ImGui::PushItemWidth(200.0f);
     SurfacePanelAction action = SurfacePanelAction::None;
-    render::SurfaceSettings& surface = material.surface;
+    ernie::SurfaceSettings& surface = material.surface;
 
     ImGui::SeparatorText("Reflectance");
-    const render::BrdfModel* selected = registry.Find(surface.brdf);
+    const ernie::BrdfModel* selected = registry.Find(surface.brdf);
     if (ImGui::BeginCombo("Model", selected != nullptr ? selected->name.c_str() : "?")) {
-        for (const render::BrdfModel& model : registry.Models()) {
+        for (const ernie::BrdfModel& model : registry.Models()) {
             if (ImGui::Selectable(model.name.c_str(), &model == selected)) {
                 surface.brdf = model.id;
             }
@@ -267,9 +267,9 @@ SurfacePanelAction DrawSurfacePanel(SurfaceViewSettings& material, SurfacePanelS
     selected = registry.Find(surface.brdf);
     if (selected != nullptr) {
         std::vector<float>& values = material.brdfParams[selected->id];
-        values = render::ResolveBrdfParams(*selected, values);
+        values = ernie::ResolveBrdfParams(*selected, values);
         for (std::size_t i = 0; i < selected->params.size(); ++i) {
-            const render::BrdfParam& param = selected->params[i];
+            const ernie::BrdfParam& param = selected->params[i];
             const std::string format =
                 param.units.empty() ? std::string("%.4g") : "%.4g " + param.units;
             ImGui::SliderFloat(
@@ -303,7 +303,7 @@ SurfacePanelAction DrawSurfacePanel(SurfaceViewSettings& material, SurfacePanelS
     ImGui::EndDisabled();
 
     ImGui::SeparatorText("Detail textures");
-    render::DetailSettings& detail = surface.detail;
+    ernie::DetailSettings& detail = surface.detail;
     ImGui::InputText("Albedo file", state.albedoPath.data(), state.albedoPath.size());
     ImGui::SameLine();
     if (ImGui::Button("Load##albedo")) {

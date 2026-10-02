@@ -1,0 +1,32 @@
+include("${ERNIE_SOURCE_DIR}/cmake/ErnieTesting.cmake")
+
+ernie_add_test_suite(
+    unit
+    SOURCES
+    brdf_test.cpp
+    frustum_test.cpp
+    gpu_context_names_test.cpp
+    image_test.cpp
+    lod_quadtree_test.cpp
+    orbit_camera_test.cpp
+    poisson_disk_test.cpp
+    shadow_cascades_test.cpp
+    LIBRARIES
+    ernie
+    ernie_stb
+    ernie_tinyexr
+    DEFINITIONS
+    ERNIE_TEST_FIXTURES="${ERNIE_SOURCE_DIR}/tests/fixtures")
+ernie_add_test_suite(
+    gpu
+    SOURCES
+    brdf_gpu_test.cpp
+    gpu_context_test.cpp
+    hex_tiling_gpu_test.cpp
+    terrain_renderer_test.cpp
+    LIBRARIES
+    ernie
+    LABELS
+    gpu
+    DEFINITIONS
+    ERNIE_SHADER_DIR="${ERNIE_SOURCE_DIR}/shaders")

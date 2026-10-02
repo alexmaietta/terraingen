@@ -1,5 +1,5 @@
-# Vendored code in third_party/ stays byte-identical to upstream.
-exclude: ^third_party/
+# Vendored code in third_party/ directories stays byte-identical to upstream.
+exclude: (^|/)third_party/
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -18,13 +18,13 @@ repos:
     hooks:
       - id: clang-format
         types_or: [c++, c]
-        exclude: ^third_party/
+        exclude: (^|/)third_party/
 
   - repo: https://github.com/pocc/pre-commit-hooks
     rev: v1.3.5
     hooks:
       - id: cppcheck
-        exclude: ^third_party/
+        exclude: (^|/)third_party/
         additional_dependencies: ["cppcheck==1.5.1"]
         args:
           - "--language=c++"

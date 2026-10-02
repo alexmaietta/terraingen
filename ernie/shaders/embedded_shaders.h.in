@@ -1,0 +1,29 @@
+#pragma once
+
+namespace ernie::shaders {
+
+/// Uniforms, heightfield access and grid vertex generation shared by the terrain shaders.
+inline constexpr char kTerrainCommonWgsl[] = R"wgsl(@ERNIE_TERRAIN_COMMON_WGSL@)wgsl";
+
+/// Terrain colour pass; composed after `kTerrainCommonWgsl`, `kBrdfCommonWgsl`, a model and
+/// `kSurfaceWgsl`.
+inline constexpr char kTerrainWgsl[] = R"wgsl(@ERNIE_TERRAIN_WGSL@)wgsl";
+
+/// Terrain shadow depth pass; prepend `kTerrainCommonWgsl`.
+inline constexpr char kTerrainShadowWgsl[] = R"wgsl(@ERNIE_TERRAIN_SHADOW_WGSL@)wgsl";
+
+/// Material uniform, albedo map, detail textures and hex-tiling; part of the terrain colour pass.
+inline constexpr char kSurfaceWgsl[] = R"wgsl(@ERNIE_SURFACE_WGSL@)wgsl";
+
+/// Shared reflectance-model prelude (`BrdfInput`, phase functions).
+inline constexpr char kBrdfCommonWgsl[] = R"wgsl(@ERNIE_BRDF_COMMON_WGSL@)wgsl";
+
+/// Built-in reflectance models, each defining `brdf_radiance_factor`.
+inline constexpr char kBrdfLambertWgsl[] = R"wgsl(@ERNIE_BRDF_LAMBERT_WGSL@)wgsl";
+inline constexpr char kBrdfLommelSeeligerWgsl[] =
+    R"wgsl(@ERNIE_BRDF_LOMMEL_SEELIGER_WGSL@)wgsl";
+inline constexpr char kBrdfLunarLambertWgsl[] = R"wgsl(@ERNIE_BRDF_LUNAR_LAMBERT_WGSL@)wgsl";
+inline constexpr char kBrdfOrenNayarWgsl[] = R"wgsl(@ERNIE_BRDF_OREN_NAYAR_WGSL@)wgsl";
+inline constexpr char kBrdfHapkeWgsl[] = R"wgsl(@ERNIE_BRDF_HAPKE_WGSL@)wgsl";
+
+}  // namespace ernie::shaders

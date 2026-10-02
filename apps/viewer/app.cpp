@@ -1,11 +1,11 @@
 #include "app.h"
 
+#include "ernie/depth_buffer.h"
+#include "ernie/gpu_context.h"
+#include "ernie/orbit_camera.h"
+#include "ernie/terrain_renderer.h"
+#include "glfw_surface.h"
 #include "panels.h"
-#include "render/depth_buffer.h"
-#include "render/glfw_surface.h"
-#include "render/gpu_context.h"
-#include "render/orbit_camera.h"
-#include "render/terrain_renderer.h"
 #include "settings.h"
 #include "worker.h"
 
@@ -55,7 +55,7 @@ struct GlfwWindow {
 };
 
 struct ImGuiContext {
-    ImGuiContext(GLFWwindow* window, const render::GpuContext& gpu) {
+    ImGuiContext(GLFWwindow* window, const ernie::GpuContext& gpu) {
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGui::GetIO().IniFilename = nullptr;
@@ -104,11 +104,11 @@ WGPURenderPassEncoder BeginPass(WGPUCommandEncoder encoder, WGPUTextureView targ
 struct App::State {
     AppOptions options;
     GlfwWindow window;
-    std::unique_ptr<render::GpuContext> gpu;
+    std::unique_ptr<ernie::GpuContext> gpu;
     std::optional<ImGuiContext> imgui;
-    std::optional<render::DepthBuffer> depth;
-    std::optional<render::TerrainRenderer> terrain;
-    render::OrbitCamera camera;
+    std::optional<ernie::DepthBuffer> depth;
+    std::optional<ernie::TerrainRenderer> terrain;
+    ernie::OrbitCamera camera;
 
     TerrainSettings settings;
     TerrainSettings requested;
@@ -130,7 +130,7 @@ struct App::State {
         if (!options.brdf.empty()) {
             if (terrain->Brdfs().Find(options.brdf) == nullptr) {
                 std::string known;
-                for (const render::BrdfModel& model : terrain->Brdfs().Models()) {
+                for (const ernie::BrdfModel& model : terrain->Brdfs().Models()) {
                     known += (known.empty() ? "" : ", ") + model.id;
                 }
                 throw std::runtime_error("Unknown reflectance model '" + options.brdf +
@@ -182,7 +182,7 @@ struct App::State {
             return;
         }
         try {
-            terrain->SetHeightfield(result.raster);
+            terrain->SetHeightfield(ViewOf(result.raster));
         } catch (const std::invalid_argument& error) {
             status.error = error.what();
             return;
@@ -212,7 +212,7 @@ struct App::State {
             message = *error;
             return false;
         }
-        const render::Image& image = std::get<render::Image>(loaded);
+        const ernie::Image& image = std::get<ernie::Image>(loaded);
         try {
             if (normalMap) {
                 terrain->Material().SetDetailNormal(&image);
@@ -296,7 +296,7 @@ struct App::State {
         WGPUTextureView targetView = wgpuTextureCreateView(target, nullptr);
         WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(gpu->Device(), nullptr);
 
-        render::TerrainDrawParams params;
+        ernie::TerrainDrawParams params;
         params.camera = camera.MakeView(static_cast<float>(width) / static_cast<float>(height));
         params.sunDirection = SunDirection(view.sunAzimuthDegrees, view.sunElevationDegrees);
         params.ambient = view.ambient;
@@ -333,8 +333,8 @@ App::App(const AppOptions& options) : state_(std::make_unique<State>()) {
     State& s = *state_;
     s.options = options;
     GLFWwindow* window = s.window.window;
-    s.gpu = render::GpuContext::Create(
-        [window](WGPUInstance instance) { return render::CreateGlfwSurface(instance, window); });
+    s.gpu = ernie::GpuContext::Create(
+        [window](WGPUInstance instance) { return CreateGlfwSurface(instance, window); });
     s.imgui.emplace(window, *s.gpu);
     s.depth.emplace(s.gpu->Device());
     s.terrain.emplace(*s.gpu, s.gpu->SurfaceFormat(), s.depth->Format());

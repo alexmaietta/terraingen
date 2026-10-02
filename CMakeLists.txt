@@ -60,13 +60,11 @@ if(TERRAINGEN_COVERAGE)
     target_link_options(terraingen_coverage INTERFACE --coverage)
 endif()
 
+# The viewer renders with Ernie, which brings WebGPU and needs GCC 13 or newer.
 if(TERRAINGEN_BUILD_VIEWER)
-    include("${PROJECT_SOURCE_DIR}/cmake/third_party/wgpu_native.cmake")
+    add_subdirectory(ernie)
     include("${PROJECT_SOURCE_DIR}/cmake/third_party/glfw.cmake")
     include("${PROJECT_SOURCE_DIR}/cmake/third_party/dear_imgui.cmake")
-    include("${PROJECT_SOURCE_DIR}/cmake/third_party/glm.cmake")
-    include("${PROJECT_SOURCE_DIR}/cmake/third_party/stb.cmake")
-    include("${PROJECT_SOURCE_DIR}/cmake/third_party/tinyexr.cmake")
 endif()
 
 add_subdirectory(src)

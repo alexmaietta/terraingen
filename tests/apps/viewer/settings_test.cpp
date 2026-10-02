@@ -120,8 +120,7 @@ TEST(SunDirection, UsesCompassAzimuthAndElevation) {
 }
 
 TEST(SurfaceViewSettings, ResolvesTheSelectedModelsParameters) {
-    const terraingen::render::BrdfRegistry registry =
-        terraingen::render::BrdfRegistry::WithBuiltins();
+    const ernie::BrdfRegistry registry = ernie::BrdfRegistry::WithBuiltins();
     terraingen::viewer::SurfaceViewSettings material;
     EXPECT_EQ(material.surface.brdf, "lambert");
     EXPECT_TRUE(material.Effective(registry).brdfParams.empty());
@@ -150,16 +149,44 @@ TEST(LoadDetailTexture, LoadsColourAsSrgbAndNormalsAsLinear) {
     const std::string path = std::string(TERRAINGEN_TEST_FIXTURES) + "/images/grey16.png";
     const auto albedo = terraingen::viewer::LoadDetailTexture(path, false);
     const auto normal = terraingen::viewer::LoadDetailTexture(path, true);
-    ASSERT_TRUE(std::holds_alternative<terraingen::render::Image>(albedo));
-    ASSERT_TRUE(std::holds_alternative<terraingen::render::Image>(normal));
+    ASSERT_TRUE(std::holds_alternative<ernie::Image>(albedo));
+    ASSERT_TRUE(std::holds_alternative<ernie::Image>(normal));
     const float stored = 32768.0f / 65535.0f;
-    EXPECT_NEAR(std::get<terraingen::render::Image>(normal).At(0, 1).r, stored, 1e-6f);
-    EXPECT_NEAR(std::get<terraingen::render::Image>(albedo).At(0, 1).r,
-                terraingen::render::SrgbToLinear(stored), 1e-6f);
+    EXPECT_NEAR(std::get<ernie::Image>(normal).At(0, 1).r, stored, 1e-6f);
+    EXPECT_NEAR(std::get<ernie::Image>(albedo).At(0, 1).r, ernie::SrgbToLinear(stored), 1e-6f);
 
     const auto missing = terraingen::viewer::LoadDetailTexture("/no/such/file.png", false);
     ASSERT_TRUE(std::holds_alternative<std::string>(missing));
     EXPECT_NE(std::get<std::string>(missing).find("/no/such/file.png"), std::string::npos);
     EXPECT_EQ(std::get<std::string>(terraingen::viewer::LoadDetailTexture("", true)),
               "No file given");
+}
+
+TEST(ViewOf, SharesTheRastersCellsAndGeometry) {
+    terraingen::Raster<float> raster(3, 2);
+    raster.SetTransform(terraingen::GeoTransform::NorthUp(100.0, 50.0, 2.5));
+    raster.SetNoData(-1.0f);
+    raster(2, 1) = 7.0f;
+    const ernie::RasterView view = terraingen::viewer::ViewOf(raster);
+    EXPECT_EQ(view.data, raster.Values().data());
+    EXPECT_EQ(view.width, 3u);
+    EXPECT_EQ(view.height, 2u);
+    EXPECT_EQ(view.Stride(), 3u);
+    EXPECT_DOUBLE_EQ(view.originX, 100.0);
+    EXPECT_DOUBLE_EQ(view.originY, 50.0);
+    EXPECT_DOUBLE_EQ(view.cellSize, 2.5);
+    EXPECT_EQ(view.noData, -1.0f);
+    EXPECT_FLOAT_EQ(view(2, 1), 7.0f);
+    EXPECT_FALSE(view.IsValid(-1.0f));
+    EXPECT_TRUE(view.IsValid(7.0f));
+}
+
+TEST(ViewOf, RejectsRotatedOrRectangularPixels) {
+    terraingen::Raster<float> raster(4, 4);
+    raster.SetTransform(terraingen::GeoTransform::FromGdal({0.0, 1.0, 0.2, 0.0, 0.0, -1.0}));
+    EXPECT_THROW(terraingen::viewer::ViewOf(raster), std::invalid_argument);
+    raster.SetTransform(terraingen::GeoTransform::FromGdal({0.0, 1.0, 0.0, 0.0, 0.0, -2.0}));
+    EXPECT_THROW(terraingen::viewer::ViewOf(raster), std::invalid_argument);
+    raster.SetTransform(terraingen::GeoTransform::FromGdal({0.0, 1.0, 0.0, 0.0, 0.0, 1.0}));
+    EXPECT_THROW(terraingen::viewer::ViewOf(raster), std::invalid_argument) << "south-up";
 }

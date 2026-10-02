@@ -4,8 +4,8 @@ add_subdirectory(distributions)
 add_subdirectory(features)
 add_subdirectory(spatial)
 add_subdirectory(surfaces)
-if(TARGET terraingen_render)
-    add_subdirectory(render)
+if(TARGET ernie)
+    add_subdirectory("${ERNIE_SOURCE_DIR}/tests" "${PROJECT_BINARY_DIR}/ernie/tests")
 endif()
 if(TARGET _terraingen)
     add_subdirectory(python)
@@ -69,7 +69,8 @@ if(TERRAINGEN_COVERAGE)
         COMMAND
             "${GCOVR_EXECUTABLE}" --root "${PROJECT_SOURCE_DIR}" --gcov-executable "${gcov_command}"
             --filter "${PROJECT_SOURCE_DIR}/include/terraingen/" --filter
-            "${PROJECT_SOURCE_DIR}/src/" --filter "${PROJECT_SOURCE_DIR}/apps/"
+            "${PROJECT_SOURCE_DIR}/src/" --filter "${PROJECT_SOURCE_DIR}/apps/" --filter
+            "${PROJECT_SOURCE_DIR}/ernie/include/" --filter "${PROJECT_SOURCE_DIR}/ernie/src/"
             --exclude-throw-branches --exclude-noncode-lines --delete --txt --html-details
             "${report_dir}/index.html" --cobertura "${report_dir}/coverage.xml" --print-summary
             "${PROJECT_BINARY_DIR}"

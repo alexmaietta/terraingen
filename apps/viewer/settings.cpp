@@ -67,25 +67,34 @@ glm::vec3 SunDirection(float azimuthDegrees, float elevationDegrees) {
             std::sin(elevation)};
 }
 
-render::SurfaceSettings SurfaceViewSettings::Effective(const render::BrdfRegistry& registry) const {
-    render::SurfaceSettings effective = surface;
-    if (const render::BrdfModel* model = registry.Find(surface.brdf)) {
+ernie::RasterView ViewOf(const Raster<float>& raster) {
+    const GeoTransform& t = raster.Transform();
+    if (t.rowRotation != 0.0 || t.colRotation != 0.0 || !(t.pixelWidth > 0.0) ||
+        t.pixelHeight != -t.pixelWidth) {
+        throw std::invalid_argument("Terrain must be north-up with square pixels to render");
+    }
+    return {raster.Values().data(), raster.Width(), raster.Height(), 0, t.originX, t.originY,
+            t.pixelWidth,           raster.NoData()};
+}
+
+ernie::SurfaceSettings SurfaceViewSettings::Effective(const ernie::BrdfRegistry& registry) const {
+    ernie::SurfaceSettings effective = surface;
+    if (const ernie::BrdfModel* model = registry.Find(surface.brdf)) {
         const auto edited = brdfParams.find(surface.brdf);
         effective.brdfParams = edited != brdfParams.end()
-                                   ? render::ResolveBrdfParams(*model, edited->second)
+                                   ? ernie::ResolveBrdfParams(*model, edited->second)
                                    : model->Defaults();
     }
     return effective;
 }
 
-std::variant<render::Image, std::string> LoadDetailTexture(const std::string& path,
-                                                           bool normalMap) {
+std::variant<ernie::Image, std::string> LoadDetailTexture(const std::string& path, bool normalMap) {
     if (path.empty()) {
         return std::string("No file given");
     }
     try {
-        return render::LoadImage(path, normalMap ? render::ImageEncoding::Linear
-                                                 : render::ImageEncoding::Srgb);
+        return ernie::LoadImage(path, normalMap ? ernie::ImageEncoding::Linear
+                                                : ernie::ImageEncoding::Srgb);
     } catch (const std::exception& error) {
         return std::string(error.what());
     }

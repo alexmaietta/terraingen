@@ -41,7 +41,7 @@ enum class SurfacePanelAction { None, LoadDetailAlbedo, LoadDetailNormal, ClearD
 /// Draws the Surface panel: reflectance model and its parameters, albedo, exposure and detail
 /// textures, editing `material` in place.
 SurfacePanelAction DrawSurfacePanel(SurfaceViewSettings& material, SurfacePanelState& state,
-                                    const render::BrdfRegistry& registry);
+                                    const ernie::BrdfRegistry& registry);
 
 /// Values shown in the Info panel.
 struct InfoPanelData {
