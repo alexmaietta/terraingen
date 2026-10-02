@@ -9,6 +9,8 @@ project(
 
 option(TERRAINGEN_BUILD_CLI "Build the terraingen command-line app" ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_BUILD_TESTS "Build the test suite" ${PROJECT_IS_TOP_LEVEL})
+option(TERRAINGEN_BUILD_VALIDATION "Build the validation tests against external references"
+       ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_BUILD_VIEWER "Build the static terrain viewer" ON)
 option(TERRAINGEN_BUILD_DEMOS "Build the demos" OFF)
 option(TERRAINGEN_BUILD_PYTHON "Build the Python bindings" ON)
@@ -73,8 +75,14 @@ if(TERRAINGEN_BUILD_PYTHON)
     add_subdirectory(bindings/python)
 endif()
 
-if(TERRAINGEN_BUILD_TESTS)
+if(TERRAINGEN_BUILD_TESTS OR TERRAINGEN_BUILD_VALIDATION)
     enable_testing()
+    include("${PROJECT_SOURCE_DIR}/cmake/TerrainGenTesting.cmake")
+endif()
+if(TERRAINGEN_BUILD_VALIDATION)
+    add_subdirectory(validation/checks)
+endif()
+if(TERRAINGEN_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
 

@@ -25,3 +25,13 @@ tests/fixtures/**/*.bin filter=lfs diff=lfs merge=lfs -text
 tests/fixtures/**/*.obj filter=lfs diff=lfs merge=lfs -text
 tests/fixtures/**/*.ply filter=lfs diff=lfs merge=lfs -text
 tests/fixtures/**/*.stl filter=lfs diff=lfs merge=lfs -text
+
+validation/references/**/*.tif filter=lfs diff=lfs merge=lfs -text
+validation/references/**/*.tiff filter=lfs diff=lfs merge=lfs -text
+validation/references/**/*.png filter=lfs diff=lfs merge=lfs -text
+validation/references/**/*.gpkg filter=lfs diff=lfs merge=lfs -text
+validation/references/**/*.glb filter=lfs diff=lfs merge=lfs -text
+validation/references/**/*.bin filter=lfs diff=lfs merge=lfs -text
+validation/references/**/*.obj filter=lfs diff=lfs merge=lfs -text
+validation/references/**/*.ply filter=lfs diff=lfs merge=lfs -text
+validation/references/**/*.stl filter=lfs diff=lfs merge=lfs -text

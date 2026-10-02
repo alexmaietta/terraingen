@@ -1,23 +1,3 @@
-include("${PROJECT_SOURCE_DIR}/cmake/third_party/googletest.cmake")
-include(GoogleTest)
-
-function(terraingen_add_test_suite name)
-    cmake_parse_arguments(PARSE_ARGV 1 ARG "" "" "SOURCES;LIBRARIES;LABELS")
-    if(NOT ARG_LABELS)
-        set(ARG_LABELS unit)
-    endif()
-    set(target terraingen_tests_${name})
-    add_executable(${target} ${ARG_SOURCES})
-    target_include_directories(${target} PRIVATE "${PROJECT_SOURCE_DIR}/tests")
-    target_link_libraries(${target} PRIVATE ${ARG_LIBRARIES} GTest::gtest_main terraingen_warnings
-                                            terraingen_coverage)
-    set_property(GLOBAL APPEND PROPERTY TERRAINGEN_TEST_TARGETS ${target})
-    gtest_discover_tests(
-        ${target}
-        TEST_PREFIX "${name}." DISCOVERY_MODE PRE_TEST
-        PROPERTIES LABELS "${ARG_LABELS}")
-endfunction()
-
 add_subdirectory(core)
 add_subdirectory(kernels)
 add_subdirectory(models)
@@ -81,7 +61,8 @@ if(TERRAINGEN_COVERAGE)
     add_custom_target(
         coverage
         COMMAND ${CMAKE_COMMAND} -E make_directory "${report_dir}"
-        COMMAND ${CMAKE_CTEST_COMMAND} --test-dir "${PROJECT_BINARY_DIR}" --output-on-failure
+        COMMAND ${CMAKE_CTEST_COMMAND} --test-dir "${PROJECT_BINARY_DIR}" --output-on-failure -LE
+                validation
         COMMAND
             "${GCOVR_EXECUTABLE}" --root "${PROJECT_SOURCE_DIR}" --gcov-executable "${gcov_command}"
             --filter "${PROJECT_SOURCE_DIR}/include/terraingen/" --filter
