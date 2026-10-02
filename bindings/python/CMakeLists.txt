@@ -1,6 +1,13 @@
 set(package_dir "${PROJECT_BINARY_DIR}/python/terraingen")
 
-nanobind_add_module(_terraingen STABLE_ABI NB_STATIC src/module.cpp src/core.cpp src/kernels.cpp)
+nanobind_add_module(
+    _terraingen
+    STABLE_ABI
+    NB_STATIC
+    src/module.cpp
+    src/core.cpp
+    src/kernels.cpp
+    src/random.cpp)
 target_link_libraries(_terraingen PRIVATE terraingen::core terraingen_warnings terraingen_coverage)
 target_include_directories(_terraingen SYSTEM PRIVATE "${NB_DIR}/include" ${Python_INCLUDE_DIRS})
 foreach(nanobind_library nanobind-static nanobind-static-abi3)
