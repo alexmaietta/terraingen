@@ -91,6 +91,17 @@ class VulkanContext {
         return anisotropy_;
     }
 
+    /// Whether buffers can be allocated with `BufferMemory::Shared`: memory exported as POSIX file
+    /// descriptors (VK_KHR_external_memory_fd), for CUDA interop.
+    bool SupportsExternalMemory() const {
+        return getMemoryFd_ != nullptr;
+    }
+
+    /// `vkGetMemoryFdKHR` for this device, or null without external memory support.
+    PFN_vkGetMemoryFdKHR GetMemoryFd() const {
+        return getMemoryFd_;
+    }
+
     bool ValidationEnabled() const {
         return validation_;
     }
@@ -122,6 +133,7 @@ class VulkanContext {
     VkCommandPool commandPool_ = VK_NULL_HANDLE;
     PFN_vkDestroyDebugUtilsMessengerEXT destroyMessenger_ = nullptr;
     PFN_vkCmdPushDescriptorSetKHR pushDescriptorSet_ = nullptr;
+    PFN_vkGetMemoryFdKHR getMemoryFd_ = nullptr;
     std::string deviceName_;
     std::array<std::uint8_t, VK_UUID_SIZE> deviceUuid_{};
     VkPhysicalDeviceLimits limits_{};

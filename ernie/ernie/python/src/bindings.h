@@ -11,16 +11,17 @@ namespace ernie::python {
 
 namespace nb = nanobind;
 
-/// Any array a DLPack-capable framework hands over: NumPy, PyTorch, JAX, CuPy, Warp.
-using AnyArray = nb::ndarray<>;
+/// Any array a DLPack-capable framework hands over (NumPy, PyTorch, JAX, CuPy, Warp), read-only
+/// arrays included, since Ernie never writes into them.
+using AnyArray = nb::ndarray<nb::ro>;
 
 /// Adopts `array` without copying; the tensor keeps the Python array alive and releases it with
 /// the GIL held.
 /// @throws std::invalid_argument for an element type Ernie does not exchange.
 Tensor TensorFromArray(const AnyArray& array);
 
-/// A read-only view of `tensor` that keeps it alive: a NumPy array for CPU tensors, a DLPack
-/// capable `nb_ndarray` otherwise.
+/// A read-only view of `tensor` that keeps it alive: a NumPy array for CPU tensors, an
+/// array-API object with `__dlpack__` (for torch.from_dlpack, CuPy, JAX) otherwise.
 nb::object ArrayFromTensor(const Tensor& tensor);
 
 /// Converts a Python value to a scene `Value`; see the module documentation for the mapping.

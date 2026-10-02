@@ -3,8 +3,7 @@
 #include "terraingen/craters.h"
 #include "terraingen/spatial/cells.h"
 
-#include "ernie/scene/schema.h"
-#include "ernie/scene/tokens.h"
+#include "ernie/ernie.h"
 
 #include <cmath>
 #include <exception>

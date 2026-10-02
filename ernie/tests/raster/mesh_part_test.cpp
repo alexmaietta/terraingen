@@ -1,5 +1,6 @@
 #include "ernie/camera/orbit_camera.h"
 #include "ernie/gpu/offscreen_target.h"
+#include "ernie/interop/cuda_interop.h"
 #include "ernie/raster/mesh_part.h"
 #include "ernie/raster/raster_renderer.h"
 #include "ernie/raster/terrain_part.h"
@@ -10,7 +11,9 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <cmath>
 #include <cstring>
+#include <string>
 #include <vector>
 
 using ernie::FrameParams;
@@ -22,6 +25,7 @@ using ernie::OffscreenTarget;
 using ernie::OrbitCamera;
 using ernie::RasterPart;
 using ernie::RasterRenderer;
+using ernie::Tensor;
 using ernie::TerrainPart;
 using ernie::testing::TestRaster;
 
@@ -36,6 +40,8 @@ struct Pixel {
     int Luminance() const {
         return r + g + b;
     }
+
+    bool operator==(const Pixel&) const = default;
 };
 
 /// A unit square in the x-y plane centred on the origin, as two triangles, optionally with
@@ -302,7 +308,7 @@ TEST_F(MeshPartTest, RejectsBadMeshesInstancersAndItems) {
     item.instancer = instancer;
     item.instances = {1};
     EXPECT_THROW(meshes.SetItems({item}), std::invalid_argument);
-    EXPECT_THROW(meshes.SetInstances(999, {}), std::invalid_argument);
+    EXPECT_THROW(meshes.SetInstances(999, InstanceData{}), std::invalid_argument);
 
     item.instances = {0};
     meshes.SetItems({item});
@@ -366,4 +372,72 @@ TEST_F(MeshPartTest, DetailTexturesProjectOntoMeshesTriplanar) {
     const int a = pixels[PixelOf({2.0f, 2.0f, 0.0f})].Luminance();
     const int b = pixels[PixelOf({-2.0f, 2.0f, 0.0f})].Luminance();
     EXPECT_GT(std::abs(a - b), 100) << "neighbouring checker squares differ";
+}
+
+TEST_F(MeshPartTest, CudaInstancesAndPointsRenderLikeHostOnes) {
+    std::string why;
+    auto cuda = ernie::CudaInterop::Create(*context_, &why);
+    if (cuda == nullptr) {
+        GTEST_SKIP() << "No CUDA interop: " << why;
+    }
+    const std::array<float, 9> positions{-8, -8, 0, 8, -8, 0, 0, 8, 0};
+    const std::array<float, 9> scales{1, 1, 1, 2, 2, 1, 1, 3, 1};
+    const float s = std::sqrt(0.5f);
+    const std::array<float, 12> orientations{0, 0, 0, 1, 0, 0, s, s, 0, 0, 0, 1};
+
+    Frame host(*context_);
+    MeshItem item;
+    item.mesh = host.meshes.AddMesh(Square(1.0f));
+    item.instancer = host.meshes.AddInstancer({{positions.begin(), positions.end()},
+                                               {orientations.begin(), orientations.end()},
+                                               {scales.begin(), scales.end()}});
+    item.instances = {0, 1, 2};
+    host.meshes.SetItems({item});
+    const std::vector<Pixel> expected = Render(host);
+
+    Frame device(*context_);
+    device.meshes.SetCudaInterop(cuda.get());
+    MeshItem deviceItem = item;
+    deviceItem.mesh = device.meshes.AddMesh(Square(1.0f));
+    deviceItem.instancer = device.meshes.AddInstancer({{0, 0, 0, 0, 0, 0, 0, 0, 0}, {}, {}});
+    ernie::DeviceInstanceData data;
+    data.positions = cuda->Upload(Tensor::Copy<float>(positions, {3, 3}));
+    data.orientations = cuda->Upload(Tensor::Copy<float>(orientations, {3, 4}));
+    data.scales = cuda->Upload(Tensor::Copy<float>(scales, {3, 3}));
+    device.meshes.SetInstances(*deviceItem.instancer, data);
+    device.meshes.SetItems({deviceItem});
+    EXPECT_EQ(Render(device), expected) << "same pixels from CUDA arrays";
+    EXPECT_TRUE(device.meshes.Bounds().has_value());
+
+    const std::array<float, 12> moved{-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0};
+    MeshItem plain;
+    plain.mesh = deviceItem.mesh;
+    plain.transform = glm::translate(glm::mat4(1.0f), {12.0f, 12.0f, 0.0f});
+    device.meshes.SetItems({deviceItem, plain});
+    std::array<float, 12> shifted = moved;
+    for (std::size_t i = 0; i < shifted.size(); i += 3) {
+        shifted[i] -= 4.0f;
+    }
+    device.meshes.SetPoints(deviceItem.mesh, cuda->Upload(Tensor::Copy<float>(shifted, {4, 3})));
+    const std::vector<Pixel> deformed = Render(device);
+    EXPECT_GT(deformed[PixelOf({8.0f, 12.0f, 0.0f})].Luminance(), 100) << "points moved on the GPU";
+    EXPECT_EQ(deformed[PixelOf({12.0f, 12.0f, 0.0f})].Luminance(), 0);
+
+    data.positions = cuda->Upload(Tensor::Copy<float>(positions, {9}));
+    data.extent = std::pair(glm::vec3(-20.0f), glm::vec3(20.0f));
+    device.meshes.SetInstances(*deviceItem.instancer, data);
+    const auto bounds = device.meshes.Bounds();
+    ASSERT_TRUE(bounds.has_value());
+    EXPECT_LE(bounds->first.x, -20.0f) << "the given extent bounds the instances";
+
+    EXPECT_THROW(host.meshes.SetInstances(*item.instancer, data), std::invalid_argument)
+        << "no CUDA interop";
+    data.positions = Tensor::Copy<float>(positions, {3, 3});
+    EXPECT_THROW(device.meshes.SetInstances(*deviceItem.instancer, data), std::invalid_argument)
+        << "a host tensor";
+    data.positions = cuda->Upload(Tensor::Copy<float>(positions, {3, 3}));
+    data.scales =
+        cuda->Upload(Tensor::Copy<float>(std::span<const float>(positions).first(6), {2, 3}));
+    EXPECT_THROW(device.meshes.SetInstances(*deviceItem.instancer, data), std::invalid_argument)
+        << "scales do not match";
 }

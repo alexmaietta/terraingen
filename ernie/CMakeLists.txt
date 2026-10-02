@@ -117,6 +117,7 @@ add_library(
     ernie_gpu STATIC
     ernie/src/gpu/gpu_buffer.cpp
     ernie/src/gpu/gpu_image.cpp
+    ernie/src/interop/cuda_interop.cpp
     ernie/src/gpu/offscreen_target.cpp
     ernie/src/gpu/pipeline.cpp
     ernie/src/gpu/shader_compiler.cpp
@@ -126,7 +127,7 @@ ernie_layer(ernie_gpu)
 target_link_libraries(
     ernie_gpu
     PUBLIC ernie_core ernie_volk ernie_vma
-    PRIVATE slang::slang)
+    PRIVATE slang::slang ${CMAKE_DL_LIBS})
 # Vulkan structs are initialised as `VkFoo info{VK_STRUCTURE_TYPE_FOO}` with the rest zeroed, here
 # and in code that uses Ernie's Vulkan types.
 target_compile_options(ernie_gpu

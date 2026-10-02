@@ -259,7 +259,15 @@ MaterialSettings MaterialSettingsOf(const Scene& scene, const Path& material,
 MeshData MeshDataOf(const Scene& scene, const Path& mesh) {
     using namespace tokens;
     MeshData data;
-    data.points = FloatAttribute(scene, mesh, kPoints, 3).value_or(std::vector<float>());
+    const Tensor* pointsTensor = scene.Read(mesh, kPoints);
+    if (pointsTensor != nullptr && pointsTensor->Location().kind == DeviceKind::Cuda) {
+        if (pointsTensor->Elements() % 3 != 0) {
+            throw std::invalid_argument("points must be 3-vectors");
+        }
+        data.points.assign(static_cast<std::size_t>(pointsTensor->Elements()), 0.0f);
+    } else {
+        data.points = FloatAttribute(scene, mesh, kPoints, 3).value_or(std::vector<float>());
+    }
     const std::size_t count = data.points.size() / 3;
     const Tensor* counts = scene.Read(mesh, kFaceVertexCounts);
     const Tensor* indices = scene.Read(mesh, kFaceVertexIndices);
@@ -291,6 +299,25 @@ InstanceData InstanceDataOf(const Scene& scene, const Path& instancer) {
         FloatAttribute(scene, instancer, kOrientations, 4).value_or(std::vector<float>());
     data.scales = FloatAttribute(scene, instancer, kScales, 3).value_or(std::vector<float>());
     return data;
+}
+
+std::optional<Bounds3> ExtentOf(const Scene& scene, const Path& prim) {
+    std::vector<float> values;
+    if (const Tensor* tensor = scene.Read(prim, tokens::kExtent)) {
+        if (tensor->Location().kind != DeviceKind::Cpu || tensor->Elements() != 6) {
+            return std::nullopt;
+        }
+        values = FloatsOf(*tensor, 3, tokens::kExtent);
+    } else if (const Value* value = scene.Get(prim, tokens::kExtent)) {
+        if (const auto* floats = value->Get<std::vector<float>>()) {
+            values = *floats;
+        }
+    }
+    if (values.size() != 6) {
+        return std::nullopt;
+    }
+    return Bounds3(glm::vec3(values[0], values[1], values[2]),
+                   glm::vec3(values[3], values[4], values[5]));
 }
 
 std::vector<std::vector<std::uint32_t>>
@@ -479,6 +506,42 @@ void RasterDelegate::SyncHeightfield(const Scene& scene, const Path& terrain) {
     }
 }
 
+CudaInterop* RasterDelegate::Cuda(std::string* why) {
+    if (!cudaTried_) {
+        cudaTried_ = true;
+        cuda_ = CudaInterop::Create(context_, &cudaWhy_);
+    }
+    if (cuda_ == nullptr && why != nullptr) {
+        *why = cudaWhy_;
+    }
+    return cuda_.get();
+}
+
+CudaInterop& RasterDelegate::RequireCuda() {
+    std::string why;
+    CudaInterop* cuda = Cuda(&why);
+    if (cuda == nullptr) {
+        throw std::invalid_argument("CUDA arrays need CUDA interop, which is unavailable: " + why);
+    }
+    if (!meshesOnCuda_) {
+        meshes_.SetCudaInterop(cuda);
+        meshesOnCuda_ = true;
+    }
+    return *cuda;
+}
+
+void RasterDelegate::SetMeshPoints(const Scene& scene, const Path& path, std::uint32_t handle) {
+    const Tensor* tensor = scene.Read(path, tokens::kPoints);
+    if (tensor != nullptr && tensor->Location().kind == DeviceKind::Cuda) {
+        RequireCuda();
+        meshes_.SetPoints(handle, *tensor, ExtentOf(scene, path));
+        return;
+    }
+    const std::optional<std::vector<float>> points =
+        FloatAttribute(scene, path, tokens::kPoints, 3);
+    meshes_.SetPoints(handle, points.value_or(std::vector<float>()));
+}
+
 void RasterDelegate::SyncMeshes(const Scene& scene) {
     using namespace tokens;
     std::set<Path> seen;
@@ -497,9 +560,7 @@ void RasterDelegate::SyncMeshes(const Scene& scene) {
             synced.points = points;
             if (synced.handle != 0) {
                 try {
-                    const std::optional<std::vector<float>> moved =
-                        FloatAttribute(scene, path, kPoints, 3);
-                    meshes_.SetPoints(synced.handle, moved.value_or(std::vector<float>()));
+                    SetMeshPoints(scene, path, synced.handle);
                     continue;
                 } catch (const std::invalid_argument&) {
                 }
@@ -516,7 +577,15 @@ void RasterDelegate::SyncMeshes(const Scene& scene) {
             synced.hasColors = !data.colors.empty();
             synced.tint = ConstantDisplayColor(scene, path).value_or(glm::vec3(0.5f));
             synced.handle = meshes_.AddMesh(std::move(data));
+            const Tensor* tensor = scene.Read(path, kPoints);
+            if (tensor != nullptr && tensor->Location().kind == DeviceKind::Cuda) {
+                SetMeshPoints(scene, path, synced.handle);
+            }
         } catch (const std::invalid_argument& error) {
+            if (synced.handle != 0) {
+                meshes_.RemoveMesh(synced.handle);
+                synced.handle = 0;
+            }
             errors.push_back(Describe(path, "mesh", error));
         }
         syncedMeshes_[path] = synced;
@@ -550,11 +619,33 @@ void RasterDelegate::SyncInstancers(const Scene& scene) {
         }
         synced.key = key;
         try {
-            InstanceData data = InstanceDataOf(scene, path);
-            if (synced.handle == 0) {
-                synced.handle = meshes_.AddInstancer(std::move(data));
+            const Tensor* positions = scene.Read(path, kPositions);
+            if (positions != nullptr && positions->Location().kind == DeviceKind::Cuda) {
+                CudaInterop& cuda = RequireCuda();
+                const auto onDevice = [&](std::string_view attribute) {
+                    const Tensor* tensor = scene.Read(path, attribute);
+                    if (tensor == nullptr) {
+                        return Tensor();
+                    }
+                    return tensor->Location().kind == DeviceKind::Cuda ? *tensor
+                                                                       : cuda.Upload(*tensor);
+                };
+                DeviceInstanceData data;
+                data.positions = *positions;
+                data.orientations = onDevice(kOrientations);
+                data.scales = onDevice(kScales);
+                data.extent = ExtentOf(scene, path);
+                if (synced.handle == 0) {
+                    synced.handle = meshes_.AddInstancer({});
+                }
+                meshes_.SetInstances(synced.handle, data);
             } else {
-                meshes_.SetInstances(synced.handle, std::move(data));
+                InstanceData data = InstanceDataOf(scene, path);
+                if (synced.handle == 0) {
+                    synced.handle = meshes_.AddInstancer(std::move(data));
+                } else {
+                    meshes_.SetInstances(synced.handle, std::move(data));
+                }
             }
         } catch (const std::invalid_argument& error) {
             if (synced.handle != 0) {
@@ -685,12 +776,28 @@ void RasterDelegate::Record(VkCommandBuffer commands, RenderingTarget target) {
     renderer_.Record(commands, target, parts);
 }
 
-Tensor RasterDelegate::Render(const Scene& scene, const Path& settings) {
+Tensor RasterDelegate::Render(const Scene& scene, const Path& settings, Device device) {
     const bool bgra =
         colorFormat_ == VK_FORMAT_B8G8R8A8_UNORM || colorFormat_ == VK_FORMAT_B8G8R8A8_SRGB;
     if (!bgra && colorFormat_ != VK_FORMAT_R8G8B8A8_UNORM &&
         colorFormat_ != VK_FORMAT_R8G8B8A8_SRGB) {
         throw std::invalid_argument("RasterDelegate::Render needs an 8-bit RGBA or BGRA format");
+    }
+    const bool cuda = device.kind == DeviceKind::Cuda;
+    if (cuda && bgra) {
+        throw std::invalid_argument("A CUDA render needs an RGBA colour format");
+    }
+    CudaInterop* interop = nullptr;
+    if (cuda) {
+        std::string why;
+        interop = Cuda(&why);
+        if (interop == nullptr) {
+            throw std::invalid_argument("A CUDA render needs CUDA interop: " + why);
+        }
+        if (interop->Device() != device.id) {
+            throw std::invalid_argument("The renderer's Vulkan device is CUDA device " +
+                                        std::to_string(interop->Device()));
+        }
     }
     const RasterPrims prims = ResolveRasterPrims(scene, settings);
     const glm::dvec2 resolution =
@@ -711,6 +818,18 @@ Tensor RasterDelegate::Render(const Scene& scene, const Path& settings) {
         RenderingTarget target = offscreen_->Prepare(commands);
         Record(commands, target);
     });
+    const std::vector<std::int64_t> shape{static_cast<std::int64_t>(extent.height),
+                                          static_cast<std::int64_t>(extent.width), 4};
+    if (cuda) {
+        if (cudaOutput_ == nullptr || cudaOutput_.use_count() > 1 ||
+            cudaOutput_->Size() < offscreen_->ColorBytes()) {
+            cudaOutput_ =
+                std::make_shared<GpuBuffer>(context_, offscreen_->ColorBytes(),
+                                            VK_BUFFER_USAGE_TRANSFER_DST_BIT, BufferMemory::Shared);
+        }
+        offscreen_->CopyColor(*cudaOutput_);
+        return interop->View(cudaOutput_, DType::UInt8, shape);
+    }
     std::vector<std::uint8_t> bytes = offscreen_->ReadColor();
     if (bgra) {
         for (std::size_t i = 0; i + 3 < bytes.size(); i += 4) {
@@ -718,10 +837,7 @@ Tensor RasterDelegate::Render(const Scene& scene, const Path& settings) {
         }
     }
     auto owner = std::make_shared<std::vector<std::uint8_t>>(std::move(bytes));
-    return Tensor(
-        owner->data(), DType::UInt8,
-        {static_cast<std::int64_t>(extent.height), static_cast<std::int64_t>(extent.width), 4}, {},
-        {}, owner);
+    return Tensor(owner->data(), DType::UInt8, shape, {}, {}, owner);
 }
 
 }  // namespace ernie

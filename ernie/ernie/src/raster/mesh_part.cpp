@@ -241,7 +241,48 @@ void MeshPart::SetPoints(std::uint32_t mesh, std::span<const float> points) {
     }
     it->second.data.points.assign(points.begin(), points.end());
     std::tie(it->second.low, it->second.high) = PointBounds(it->second.data.points);
+    it->second.devicePoints = Tensor();
     it->second.pointsDirty = true;
+}
+
+void MeshPart::SetPoints(std::uint32_t mesh, const Tensor& points,
+                         std::optional<std::pair<glm::vec3, glm::vec3>> bounds) {
+    const auto it = meshes_.find(mesh);
+    if (it == meshes_.end()) {
+        throw std::invalid_argument("Unknown mesh " + std::to_string(mesh));
+    }
+    CheckDeviceTensor(points, 3, "Mesh points");
+    Mesh& target = it->second;
+    if (static_cast<std::size_t>(points.Elements()) != target.data.points.size()) {
+        throw std::invalid_argument("SetPoints must keep the number of points");
+    }
+    if (bounds) {
+        std::tie(target.low, target.high) = *bounds;
+    } else {
+        const Tensor host = cuda_->Download(points);
+        target.data.points.assign(host.As<float>(), host.As<float>() + host.Elements());
+        std::tie(target.low, target.high) = PointBounds(target.data.points);
+    }
+    target.devicePoints = points;
+    target.pointsDirty = true;
+}
+
+void MeshPart::CopyDevicePoints(Mesh& mesh) {
+    cuda_->CopyToBuffer(mesh.devicePoints, *points_,
+                        VkDeviceSize{mesh.firstVertex} * 3 * sizeof(float));
+}
+
+std::unique_ptr<GpuBuffer> MeshPart::Pool(std::span<const std::byte> bytes) const {
+    if (cuda_ == nullptr) {
+        return StorageBuffer(context_, bytes);
+    }
+    auto buffer =
+        std::make_unique<GpuBuffer>(context_, std::max<VkDeviceSize>(bytes.size(), 16),
+                                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, BufferMemory::Shared);
+    if (!bytes.empty()) {
+        buffer->Write(bytes);
+    }
+    return buffer;
 }
 
 void MeshPart::RemoveMesh(std::uint32_t mesh) {
@@ -256,7 +297,10 @@ void MeshPart::RemoveMesh(std::uint32_t mesh) {
 std::uint32_t MeshPart::AddInstancer(InstanceData data) {
     CheckInstances(data);
     const std::uint32_t handle = nextHandle_++;
-    instancers_.emplace(handle, Instancer{std::move(data), 0});
+    Instancer instancer;
+    instancer.count = data.positions.size() / 3;
+    instancer.data = std::move(data);
+    instancers_.emplace(handle, std::move(instancer));
     instancesDirty_ = true;
     return handle;
 }
@@ -267,7 +311,72 @@ void MeshPart::SetInstances(std::uint32_t instancer, InstanceData data) {
         throw std::invalid_argument("Unknown instancer " + std::to_string(instancer));
     }
     CheckInstances(data);
-    it->second.data = std::move(data);
+    Instancer& target = it->second;
+    const std::size_t count = data.positions.size() / 3;
+    instancesDirty_ = instancesDirty_ || count != target.count;
+    target.count = count;
+    target.data = std::move(data);
+    target.device = {};
+    target.onDevice = false;
+    target.dirty = true;
+}
+
+void MeshPart::CheckDeviceTensor(const Tensor& tensor, std::size_t components,
+                                 const char* what) const {
+    if (cuda_ == nullptr) {
+        throw std::invalid_argument("CUDA inputs need MeshPart::SetCudaInterop");
+    }
+    const bool shaped =
+        tensor.Rank() == 1 ||
+        (tensor.Rank() == 2 && tensor.Shape()[1] == static_cast<std::int64_t>(components));
+    if (tensor.Location() != Device{DeviceKind::Cuda, cuda_->Device()} ||
+        tensor.Type() != DType::Float32 || !tensor.IsContiguous() || !shaped ||
+        static_cast<std::size_t>(tensor.Elements()) % components != 0) {
+        throw std::invalid_argument(std::string(what) + " must be a contiguous float32 tensor of " +
+                                    std::to_string(components) + "-vectors on CUDA device " +
+                                    std::to_string(cuda_->Device()));
+    }
+}
+
+void MeshPart::SetInstances(std::uint32_t instancer, const DeviceInstanceData& data) {
+    const auto it = instancers_.find(instancer);
+    if (it == instancers_.end()) {
+        throw std::invalid_argument("Unknown instancer " + std::to_string(instancer));
+    }
+    CheckDeviceTensor(data.positions, 3, "Instance positions");
+    const auto count = static_cast<std::size_t>(data.positions.Elements()) / 3;
+    if (!data.orientations.Empty()) {
+        CheckDeviceTensor(data.orientations, 4, "Instance orientations");
+        if (static_cast<std::size_t>(data.orientations.Elements()) != 4 * count) {
+            throw std::invalid_argument("Instance orientations must have 4 values per instance");
+        }
+    }
+    if (!data.scales.Empty()) {
+        CheckDeviceTensor(data.scales, 3, "Instance scales");
+        if (static_cast<std::size_t>(data.scales.Elements()) != 3 * count) {
+            throw std::invalid_argument("Instance scales must have 3 values per instance");
+        }
+    }
+    Instancer& target = it->second;
+    instancesDirty_ = instancesDirty_ || count != target.count;
+    target.count = count;
+    target.device = data;
+    target.onDevice = true;
+    target.dirty = true;
+    target.data = {};
+    if (!data.extent) {
+        const Tensor positions = cuda_->Download(data.positions);
+        target.data.positions.assign(positions.As<float>(), positions.As<float>() + 3 * count);
+        if (!data.scales.Empty()) {
+            const Tensor scales = cuda_->Download(data.scales);
+            target.data.scales.assign(scales.As<float>(), scales.As<float>() + 3 * count);
+        }
+    }
+}
+
+void MeshPart::SetCudaInterop(CudaInterop* cuda) {
+    cuda_ = cuda;
+    geometryDirty_ = true;
     instancesDirty_ = true;
 }
 
@@ -294,7 +403,7 @@ void MeshPart::SetItems(std::vector<MeshItem> items) {
             if (it == instancers_.end()) {
                 throw std::invalid_argument("Unknown instancer " + std::to_string(*item.instancer));
             }
-            const std::size_t count = it->second.data.positions.size() / 3;
+            const std::size_t count = it->second.count;
             for (const std::uint32_t instance : item.instances) {
                 if (instance >= count) {
                     throw std::invalid_argument("Instance index out of range");
@@ -330,10 +439,15 @@ void MeshPart::RebuildGeometry() {
         mesh.pointsDirty = false;
     }
     vkDeviceWaitIdle(context_.Device());
-    points_ = StorageBuffer(context_, points);
+    points_ = Pool(std::as_bytes(std::span(points)));
     normals_ = StorageBuffer(context_, normals);
     colors_ = StorageBuffer(context_, colors);
     indices_ = StorageBuffer(context_, indices);
+    for (auto& [handle, mesh] : meshes_) {
+        if (!mesh.devicePoints.Empty() && cuda_ != nullptr) {
+            CopyDevicePoints(mesh);
+        }
+    }
     geometryDirty_ = false;
 }
 
@@ -343,35 +457,61 @@ void MeshPart::RebuildInstances() {
     std::vector<float> scales;
     for (auto& [handle, instancer] : instancers_) {
         instancer.first = static_cast<std::uint32_t>(positions.size() / 3);
-        const std::size_t count = instancer.data.positions.size() / 3;
-        positions.insert(positions.end(), instancer.data.positions.begin(),
-                         instancer.data.positions.end());
-        if (instancer.data.orientations.empty()) {
-            orientations.resize(orientations.size() + 4 * count, 0.0f);
+        const std::size_t count = instancer.count;
+        const InstanceData& data = instancer.data;
+        const bool host = !instancer.onDevice;
+        if (host) {
+            positions.insert(positions.end(), data.positions.begin(), data.positions.end());
         } else {
-            orientations.insert(orientations.end(), instancer.data.orientations.begin(),
-                                instancer.data.orientations.end());
+            positions.resize(positions.size() + 3 * count, 0.0f);
         }
-        if (instancer.data.scales.empty()) {
-            scales.resize(scales.size() + 3 * count, 1.0f);
+        if (host && !data.orientations.empty()) {
+            orientations.insert(orientations.end(), data.orientations.begin(),
+                                data.orientations.end());
         } else {
-            scales.insert(scales.end(), instancer.data.scales.begin(), instancer.data.scales.end());
+            orientations.resize(orientations.size() + 4 * count, 0.0f);
+        }
+        if (host && !data.scales.empty()) {
+            scales.insert(scales.end(), data.scales.begin(), data.scales.end());
+        } else {
+            scales.resize(scales.size() + 3 * count, 1.0f);
         }
     }
-    const auto size = [](const std::unique_ptr<GpuBuffer>& buffer) {
-        return buffer != nullptr ? buffer->Size() : VkDeviceSize{0};
-    };
-    if (size(positions_) == std::max<VkDeviceSize>(positions.size() * sizeof(float), 16)) {
-        positions_->Write(std::as_bytes(std::span(positions)));
-        orientations_->Write(std::as_bytes(std::span(orientations)));
-        scales_->Write(std::as_bytes(std::span(scales)));
-    } else {
-        vkDeviceWaitIdle(context_.Device());
-        positions_ = StorageBuffer(context_, positions);
-        orientations_ = StorageBuffer(context_, orientations);
-        scales_ = StorageBuffer(context_, scales);
+    vkDeviceWaitIdle(context_.Device());
+    positions_ = Pool(std::as_bytes(std::span(positions)));
+    orientations_ = Pool(std::as_bytes(std::span(orientations)));
+    scales_ = Pool(std::as_bytes(std::span(scales)));
+    for (auto& [handle, instancer] : instancers_) {
+        if (instancer.onDevice) {
+            WriteInstancer(instancer);
+        }
+        instancer.dirty = false;
     }
     instancesDirty_ = false;
+}
+
+void MeshPart::WriteInstancer(const Instancer& instancer) {
+    const VkDeviceSize first = instancer.first;
+    if (instancer.onDevice) {
+        cuda_->CopyToBuffer(instancer.device.positions, *positions_, first * 3 * sizeof(float));
+        if (!instancer.device.orientations.Empty()) {
+            cuda_->CopyToBuffer(instancer.device.orientations, *orientations_,
+                                first * 4 * sizeof(float));
+        }
+        if (!instancer.device.scales.Empty()) {
+            cuda_->CopyToBuffer(instancer.device.scales, *scales_, first * 3 * sizeof(float));
+        }
+        return;
+    }
+    const InstanceData& data = instancer.data;
+    positions_->Write(std::as_bytes(std::span(data.positions)), first * 3 * sizeof(float));
+    if (!data.orientations.empty()) {
+        orientations_->Write(std::as_bytes(std::span(data.orientations)),
+                             first * 4 * sizeof(float));
+    }
+    if (!data.scales.empty()) {
+        scales_->Write(std::as_bytes(std::span(data.scales)), first * 3 * sizeof(float));
+    }
 }
 
 void MeshPart::Prepare(const FrameParams&, std::span<const ShadowCascade>) {
@@ -379,15 +519,27 @@ void MeshPart::Prepare(const FrameParams&, std::span<const ShadowCascade>) {
         RebuildGeometry();
     } else {
         for (auto& [handle, mesh] : meshes_) {
-            if (mesh.pointsDirty) {
+            if (!mesh.pointsDirty) {
+                continue;
+            }
+            if (!mesh.devicePoints.Empty()) {
+                CopyDevicePoints(mesh);
+            } else {
                 points_->Write(std::as_bytes(std::span(mesh.data.points)),
                                VkDeviceSize{mesh.firstVertex} * 3 * sizeof(float));
-                mesh.pointsDirty = false;
             }
+            mesh.pointsDirty = false;
         }
     }
     if (instancesDirty_) {
         RebuildInstances();
+    } else {
+        for (auto& [handle, instancer] : instancers_) {
+            if (instancer.dirty) {
+                WriteInstancer(instancer);
+                instancer.dirty = false;
+            }
+        }
     }
 
     std::vector<GpuDraw> draws(items_.size());
@@ -413,8 +565,12 @@ void MeshPart::Prepare(const FrameParams&, std::span<const ShadowCascade>) {
         if (item.instancer) {
             const Instancer& instancer = instancers_.at(*item.instancer);
             flags |= kInstanced;
-            flags |= instancer.data.orientations.empty() ? 0u : kHasOrientations;
-            flags |= instancer.data.scales.empty() ? 0u : kHasScales;
+            const bool orientations = instancer.onDevice ? !instancer.device.orientations.Empty()
+                                                         : !instancer.data.orientations.empty();
+            const bool scales = instancer.onDevice ? !instancer.device.scales.Empty()
+                                                   : !instancer.data.scales.empty();
+            flags |= orientations ? kHasOrientations : 0u;
+            flags |= scales ? kHasScales : 0u;
             for (const std::uint32_t instance : item.instances) {
                 instanceIds.push_back(instancer.first + instance);
             }
@@ -454,9 +610,15 @@ std::optional<Bounds3> MeshPart::Bounds() const {
             add(TransformBox(item.transform, mesh.low, mesh.high));
             continue;
         }
+        const Instancer& instancer = instancers_.at(*item.instancer);
+        if (instancer.onDevice && instancer.device.extent) {
+            add(TransformBox(item.transform, instancer.device.extent->first,
+                             instancer.device.extent->second));
+            continue;
+        }
         const auto [low, high] = TransformBox(item.prototype, mesh.low, mesh.high);
         const float radius = glm::length(glm::max(glm::abs(low), glm::abs(high)));
-        const InstanceData& data = instancers_.at(*item.instancer).data;
+        const InstanceData& data = instancer.data;
         for (const std::uint32_t i : item.instances) {
             float scale = 1.0f;
             if (!data.scales.empty()) {

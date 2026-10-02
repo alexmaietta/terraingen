@@ -1,9 +1,6 @@
 #pragma once
 
-#include "ernie/interop/tensor.h"
-#include "ernie/raster/raster_renderer.h"
-#include "ernie/raster/terrain_part.h"
-#include "ernie/scene/scene.h"
+#include "ernie/ernie.h"
 #include "terraingen/craters.h"
 #include "terraingen/distributions.h"
 #include "terraingen/kernels/layers.h"

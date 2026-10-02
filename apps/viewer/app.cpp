@@ -2,14 +2,7 @@
 
 #include "terraingen/core/version.h"
 
-#include "ernie/camera/orbit_camera.h"
-#include "ernie/gpu/gpu_image.h"
-#include "ernie/gpu/pipeline.h"
-#include "ernie/gpu/swapchain.h"
-#include "ernie/gpu/vulkan_context.h"
-#include "ernie/raster/raster_delegate.h"
-#include "ernie/scene/scene.h"
-#include "ernie/scene/tokens.h"
+#include "ernie/ernie.h"
 #include "glfw_surface.h"
 #include "panels.h"
 #include "settings.h"

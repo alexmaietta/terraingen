@@ -45,6 +45,8 @@ inline constexpr std::string_view kPositions = "positions";
 inline constexpr std::string_view kOrientations = "orientations";
 inline constexpr std::string_view kScales = "scales";
 inline constexpr std::string_view kVelocities = "velocities";
+/// Bounds in the prim's own frame (UsdGeomBoundable): a float array of low then high x, y, z.
+inline constexpr std::string_view kExtent = "extent";
 inline constexpr std::string_view kProtoIndices = "protoIndices";
 inline constexpr std::string_view kPrototypes = "prototypes";
 

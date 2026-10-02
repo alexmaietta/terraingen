@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace ernie::python {
@@ -31,6 +32,55 @@ struct RasterRenderer {
         : context(CreateContext(validation, device)),
           delegate(std::make_unique<RasterDelegate>(*context)) {}
 };
+
+Device ParseDevice(const std::string& device) {
+    if (device == "cpu") {
+        return {};
+    }
+    if (device == "cuda") {
+        return {DeviceKind::Cuda, 0};
+    }
+    if (device.rfind("cuda:", 0) == 0) {
+        try {
+            return {DeviceKind::Cuda, std::stoi(device.substr(5))};
+        } catch (const std::exception&) {
+        }
+    }
+    throw std::invalid_argument("device must be \"cpu\", \"cuda\" or \"cuda:<index>\", not \"" +
+                                device + "\"");
+}
+
+/// Holds a Python object, releasing it with the GIL held.
+struct PythonReference {
+    nb::object object;
+
+    ~PythonReference() {
+        if (Py_IsInitialized() != 0) {
+            nb::gil_scoped_acquire gil;
+            object = nb::object();
+        }
+    }
+};
+
+/// `tensor`, also keeping the Python object `keep` alive, so arrays in memory of the renderer's
+/// Vulkan device or CUDA context cannot outlive the renderer.
+Tensor KeepingAlive(const Tensor& tensor, nb::handle keep) {
+    auto reference = std::make_shared<PythonReference>();
+    reference->object = nb::borrow(keep);
+    auto owner = std::make_shared<std::pair<Tensor, std::shared_ptr<PythonReference>>>(
+        tensor, std::move(reference));
+    return Tensor(tensor.Data(), tensor.Type(), tensor.Shape(), tensor.Strides(), tensor.Location(),
+                  std::move(owner));
+}
+
+CudaInterop& RequireCuda(RasterRenderer& r) {
+    std::string why;
+    CudaInterop* cuda = r.delegate->Cuda(&why);
+    if (cuda == nullptr) {
+        throw std::invalid_argument("CUDA interop is unavailable: " + why);
+    }
+    return *cuda;
+}
 
 }  // namespace
 
@@ -64,17 +114,39 @@ void BindRender(nb::module_& m) {
             "sync.")
         .def(
             "render",
-            [](RasterRenderer& r, const Scene& scene, const Path& settings) {
+            [](nb::pointer_and_handle<RasterRenderer> self, const Scene& scene,
+               const Path& settings, const std::string& device) {
+                const Device target = ParseDevice(device);
                 Tensor image;
                 {
                     nb::gil_scoped_release release;
-                    image = r.delegate->Render(scene, settings);
+                    image = self.p->delegate->Render(scene, settings, target);
                 }
-                return ArrayFromTensor(image);
+                return ArrayFromTensor(KeepingAlive(image, self.h));
             },
-            nb::arg("scene"), nb::arg("settings") = Path(),
+            nb::arg("scene"), nb::arg("settings") = Path(), nb::arg("device") = "cpu",
             "Renders `scene` as the RenderSettings prim `settings` (or the first one) describes "
-            "and returns the LdrColor render var: a read-only uint8 array (rows, cols, 4).")
+            "and returns the LdrColor render var: a read-only uint8 array (rows, cols, 4). With "
+            "device=\"cuda\" the array stays in GPU memory shared with Vulkan, for "
+            "torch.from_dlpack and friends; it keeps the renderer alive.")
+        .def_prop_ro(
+            "cuda_available", [](RasterRenderer& r) { return r.delegate->Cuda() != nullptr; },
+            "Whether CUDA arrays can be written to scenes this renderer draws, and rendered to.")
+        .def(
+            "cuda_upload",
+            [](nb::pointer_and_handle<RasterRenderer> self, const AnyArray& array) {
+                return ArrayFromTensor(
+                    KeepingAlive(RequireCuda(*self.p).Upload(TensorFromArray(array)), self.h));
+            },
+            nb::arg("array"),
+            "A copy of a host array in CUDA memory, for frameworks without CUDA arrays of their "
+            "own.")
+        .def(
+            "cuda_download",
+            [](RasterRenderer& r, const AnyArray& array) {
+                return ArrayFromTensor(RequireCuda(r).Download(TensorFromArray(array)));
+            },
+            nb::arg("array"), "A host copy of a CUDA array.")
         .def(
             "take_validation_messages",
             [](RasterRenderer& r) { return r.context->TakeValidationMessages(); },

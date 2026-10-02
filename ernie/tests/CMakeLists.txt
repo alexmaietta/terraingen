@@ -5,6 +5,7 @@ ernie_add_test_suite(
     SOURCES
     camera/orbit_camera_test.cpp
     core/image_test.cpp
+    core/umbrella_test.cpp
     geometry/frustum_test.cpp
     geometry/lod_quadtree_test.cpp
     gpu/shader_compiler_test.cpp
@@ -27,6 +28,7 @@ ernie_add_test_suite(
     gpu
     SOURCES
     gpu/pipeline_test.cpp
+    interop/cuda_interop_test.cpp
     gpu/vulkan_context_test.cpp
     material/brdf_vulkan_test.cpp
     raster/hex_tiling_gpu_test.cpp

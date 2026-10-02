@@ -2,6 +2,7 @@
 
 #include "ernie/core/image.h"
 #include "ernie/gpu/offscreen_target.h"
+#include "ernie/interop/cuda_interop.h"
 #include "ernie/interop/tensor.h"
 #include "ernie/raster/mesh_part.h"
 #include "ernie/raster/raster_renderer.h"
@@ -67,7 +68,8 @@ MaterialSettings MaterialSettingsOf(const Scene& scene, const Path& material,
 /// (triangulated as fans), per-vertex `normals`, and per-vertex `primvars:displayColor` when it
 /// has one colour per point. Points, normals and colours may be float32 or float64, shaped
 /// (n, 3) or flat; indices int32, int64 or uint32. Normals and colours of other sizes (such as
-/// face-varying ones) are ignored.
+/// face-varying ones) are ignored. Points on a CUDA device come back as zeros of the right
+/// number, for the caller to copy device to device.
 /// @throws std::invalid_argument naming the attribute for arrays of the wrong type, size or
 /// device, or invalid topology.
 MeshData MeshDataOf(const Scene& scene, const Path& mesh);
@@ -86,6 +88,10 @@ InstanceData InstanceDataOf(const Scene& scene, const Path& instancer);
 std::vector<std::vector<std::uint32_t>>
 InstancesByPrototype(const Scene& scene, const Path& instancer, std::size_t prototypes);
 
+/// The prim's `extent`: six numbers, low then high corner, as a float array value or a CPU array;
+/// none if unset or malformed.
+std::optional<Bounds3> ExtentOf(const Scene& scene, const Path& prim);
+
 /// A detail texture tensor as an `Image`: float32 values are linear; uint8 values are sRGB-encoded
 /// when `encoding` is `Srgb` and linear otherwise. Grey replicates into rgb and a missing alpha
 /// reads as 1.
@@ -100,7 +106,10 @@ Image ImageOfTensor(const Tensor& tensor, ImageEncoding encoding);
 ///
 /// `Sync` re-uploads GPU data only when the attributes behind it changed
 /// (`Scene::AttributeVersion`): a deforming mesh rewrites only its points, and moving instances
-/// rewrites only the instance arrays. Meshes that are prototypes of a PointInstancer are drawn
+/// rewrites only the instance arrays. Arrays on a CUDA device (mesh `points`, instance
+/// `positions`, `orientations` and `scales`, contiguous float32) are copied device to device
+/// through `CudaInterop`, connected on first use; author `extent` on such prims to spare a copy
+/// to the host for bounds. Meshes that are prototypes of a PointInstancer are drawn
 /// only through it; prototypes must be Mesh prims. A mesh without a bound material uses the
 /// default material tinted by its `primvars:displayColor` (0.5 grey without one). Interactive
 /// applications call `Update` and `Record` into their own command buffer each frame; headless ones
@@ -130,10 +139,17 @@ class RasterDelegate {
     void Record(VkCommandBuffer commands, RenderingTarget target);
 
     /// Renders the scene at the settings' `resolution` (default 2048 x 1080, as UsdRender) and
-    /// returns its `LdrColor` render var: a uint8 (rows, cols, 4) RGBA tensor, rows top to bottom.
-    /// @throws std::invalid_argument as `Update`, or if the colour format is not 8-bit RGBA or
-    /// BGRA.
-    Tensor Render(const Scene& scene, const Path& settings = {});
+    /// returns its `LdrColor` render var: a uint8 (rows, cols, 4) RGBA tensor, rows top to bottom,
+    /// on the CPU or, with a CUDA `device`, in CUDA memory shared with Vulkan without a copy
+    /// through the host. A CUDA result stays valid while the tensor lives, even across later
+    /// renders, but not beyond the delegate's Vulkan context.
+    /// @throws std::invalid_argument as `Update`; if the colour format is not 8-bit RGBA or BGRA,
+    /// or BGRA for a CUDA result; or for a CUDA device without CUDA interop.
+    Tensor Render(const Scene& scene, const Path& settings = {}, Device device = {});
+
+    /// The CUDA interop of the delegate's device, connected on first use; null if unavailable,
+    /// with the reason in `why` if given.
+    CudaInterop* Cuda(std::string* why = nullptr);
 
     /// The prims the last `Update` drew.
     const RasterPrims& Prims() const {
@@ -193,7 +209,15 @@ class RasterDelegate {
     std::uint32_t MaterialOf(const Scene& scene, const Path& prim) const;
     std::vector<MeshItem> Items(const Scene& scene) const;
 
+    CudaInterop& RequireCuda();
+    void SetMeshPoints(const Scene& scene, const Path& path, std::uint32_t handle);
+
     const VulkanContext& context_;
+    std::unique_ptr<CudaInterop> cuda_;
+    bool cudaTried_ = false;
+    std::string cudaWhy_;
+    std::shared_ptr<GpuBuffer> cudaOutput_;
+    bool meshesOnCuda_ = false;
     RasterRenderer renderer_;
     TerrainPart terrain_;
     MeshPart meshes_;

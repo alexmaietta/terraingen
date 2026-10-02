@@ -114,8 +114,9 @@ nb::object ArrayFromTensor(const Tensor& tensor) {
                                              0);
         return nb::cast(array, nb::rv_policy::reference);
     }
-    nb::ndarray<nb::ro> array(tensor.Data(), shape.size(), shape.data(), owner, strides.data(),
-                              DlpackOf(tensor.Type()), deviceType, tensor.Location().id);
+    nb::ndarray<nb::array_api, nb::ro> array(tensor.Data(), shape.size(), shape.data(), owner,
+                                             strides.data(), DlpackOf(tensor.Type()), deviceType,
+                                             tensor.Location().id);
     return nb::cast(array, nb::rv_policy::reference);
 }
 

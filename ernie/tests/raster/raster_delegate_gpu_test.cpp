@@ -312,3 +312,65 @@ TEST_F(RasterDelegateTest, ABadMeshDoesNotBlockTheOthers) {
     const Tensor image = delegate.Render(scene);
     EXPECT_GT(TexelAt(scene, image, {-12, 0, 0})[0], 200) << "the good quad still draws";
 }
+
+TEST_F(RasterDelegateTest, CudaArraysAndCudaOutputMatchTheHostPath) {
+    RasterDelegate delegate(*context_);
+    std::string why;
+    ernie::CudaInterop* cuda = delegate.Cuda(&why);
+    if (cuda == nullptr) {
+        GTEST_SKIP() << "No CUDA interop: " << why;
+    }
+    Scene host = MeshScene();
+    RasterDelegate reference(*context_);
+    const Tensor expected = reference.Render(host);
+
+    Scene device = MeshScene();
+    device.Write("/World/Rocks", tokens::kPositions,
+                 cuda->Upload(*device.Read("/World/Rocks", tokens::kPositions)));
+    device.Set("/World/Rocks", tokens::kExtent,
+               std::vector<float>{-2.0f, -12.0f, -1.0f, 14.0f, 12.0f, 1.0f});
+    device.Write("/World/Quad", tokens::kPoints,
+                 cuda->Upload(*device.Read("/World/Quad", tokens::kPoints)));
+    const Tensor image = delegate.Render(device);
+    ASSERT_EQ(image.Elements(), expected.Elements());
+    EXPECT_EQ(
+        std::memcmp(image.Data(), expected.Data(), static_cast<std::size_t>(image.Elements())), 0)
+        << "CUDA inputs draw the same image";
+
+    const Tensor first = delegate.Render(device, {}, {ernie::DeviceKind::Cuda, cuda->Device()});
+    EXPECT_EQ(first.Location().kind, ernie::DeviceKind::Cuda);
+    EXPECT_EQ(first.Shape(), expected.Shape());
+    const Tensor second = delegate.Render(device, {}, {ernie::DeviceKind::Cuda, cuda->Device()});
+    EXPECT_NE(first.Data(), second.Data()) << "a live result is not overwritten";
+    const Tensor downloaded = cuda->Download(first);
+    EXPECT_EQ(std::memcmp(downloaded.Data(), expected.Data(),
+                          static_cast<std::size_t>(expected.Elements())),
+              0)
+        << "the CUDA result holds the render";
+
+    const std::array<float, 9> moved{12, -10, 0, 0, 0, 0, 12, 10, 0};
+    device.Write("/World/Rocks", tokens::kPositions,
+                 cuda->Upload(Tensor::Copy<float>(moved, {3, 3})));
+    const Tensor after = delegate.Render(device);
+    EXPECT_GT(TexelAt(device, after, {0, 0, 0})[1], 200) << "a moved CUDA instance";
+
+    EXPECT_THROW(delegate.Render(device, {}, {ernie::DeviceKind::Cuda, cuda->Device() + 7}),
+                 std::invalid_argument);
+    RasterDelegate bgra(*context_, VK_FORMAT_B8G8R8A8_UNORM);
+    EXPECT_THROW(bgra.Render(host, {}, {ernie::DeviceKind::Cuda, cuda->Device()}),
+                 std::invalid_argument);
+}
+
+TEST(ExtentOf, ReadsValuesAndArrays) {
+    Scene scene;
+    scene.Define("/A", tokens::kMesh).Set(tokens::kExtent, std::vector<float>{0, 1, 2, 3, 4, 5});
+    const auto extent = ernie::ExtentOf(scene, "/A");
+    ASSERT_TRUE(extent.has_value());
+    EXPECT_EQ(extent->second, glm::vec3(3.0f, 4.0f, 5.0f));
+    const std::array<double, 6> values{-1, -1, -1, 1, 1, 1};
+    scene.Write("/A", tokens::kExtent, Tensor::Copy<double>(values, {2, 3}));
+    EXPECT_EQ(ernie::ExtentOf(scene, "/A")->first, glm::vec3(-1.0f));
+    scene.Set("/A", tokens::kExtent, std::vector<float>{1, 2});
+    EXPECT_FALSE(ernie::ExtentOf(scene, "/A").has_value());
+    EXPECT_FALSE(ernie::ExtentOf(scene, "/Missing").has_value());
+}

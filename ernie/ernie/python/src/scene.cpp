@@ -373,6 +373,7 @@ void BindScene(nb::module_& m) {
         {"ORIENTATIONS", tokens::kOrientations},
         {"SCALES", tokens::kScales},
         {"VELOCITIES", tokens::kVelocities},
+        {"EXTENT", tokens::kExtent},
         {"PROTO_INDICES", tokens::kProtoIndices},
         {"PROTOTYPES", tokens::kPrototypes},
         {"MATERIAL_BINDING", tokens::kMaterialBinding},

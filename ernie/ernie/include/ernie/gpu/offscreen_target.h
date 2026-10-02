@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ernie/gpu/gpu_buffer.h"
 #include "ernie/gpu/gpu_image.h"
 #include "ernie/gpu/pipeline.h"
 #include "ernie/gpu/vulkan_context.h"
@@ -36,6 +37,14 @@ class OffscreenTarget {
     /// Colour texels, rows top to bottom, tightly packed; for 8-bit formats four bytes per texel.
     /// Waits for submitted work through `VulkanContext::Submit`.
     std::vector<std::uint8_t> ReadColor();
+
+    /// Bytes of the colour image tightly packed.
+    VkDeviceSize ColorBytes() const;
+
+    /// Copies the colour texels, laid out as `ReadColor` returns them, into the start of `buffer`
+    /// and waits for the copy.
+    /// @throws std::invalid_argument if the buffer is smaller than `ColorBytes`.
+    void CopyColor(GpuBuffer& buffer);
 
   private:
     const VulkanContext& context_;

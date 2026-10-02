@@ -1,6 +1,4 @@
-#include "ernie/gpu/pipeline.h"
-#include "ernie/gpu/swapchain.h"
-#include "ernie/gpu/vulkan_context.h"
+#include "ernie/ernie.h"
 #include "glfw_surface.h"
 
 #define GLFW_INCLUDE_NONE

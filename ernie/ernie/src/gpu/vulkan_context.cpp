@@ -286,6 +286,12 @@ std::unique_ptr<VulkanContext> VulkanContext::Create(const VulkanContextOptions&
     if (Has(deviceExtensions, "VK_KHR_portability_subset")) {
         enabled.push_back("VK_KHR_portability_subset");
     }
+    const bool externalMemory = Has(deviceExtensions, VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME) &&
+                                Has(deviceExtensions, VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME);
+    if (externalMemory) {
+        enabled.push_back(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
+        enabled.push_back(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME);
+    }
 
     VkPhysicalDeviceAccelerationStructureFeaturesKHR accelerationSupport{
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR};
@@ -354,6 +360,10 @@ std::unique_ptr<VulkanContext> VulkanContext::Create(const VulkanContextOptions&
     vkGetDeviceQueue(c.device_, c.queueFamily_, 0, &c.queue_);
     c.pushDescriptorSet_ = reinterpret_cast<PFN_vkCmdPushDescriptorSetKHR>(
         vkGetDeviceProcAddr(c.device_, "vkCmdPushDescriptorSetKHR"));
+    if (externalMemory) {
+        c.getMemoryFd_ = reinterpret_cast<PFN_vkGetMemoryFdKHR>(
+            vkGetDeviceProcAddr(c.device_, "vkGetMemoryFdKHR"));
+    }
 
     VmaVulkanFunctions functions{};
     functions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;

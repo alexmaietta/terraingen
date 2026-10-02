@@ -2,6 +2,8 @@
 
 #include "ernie/gpu/gpu_buffer.h"
 #include "ernie/gpu/pipeline.h"
+#include "ernie/interop/cuda_interop.h"
+#include "ernie/interop/tensor.h"
 #include "ernie/raster/raster_part.h"
 #include "ernie/raster/raster_renderer.h"
 
@@ -40,6 +42,17 @@ struct InstanceData {
     std::vector<float>
         orientations;           ///< Empty, or a quaternion x, y, z, w (real last) per instance.
     std::vector<float> scales;  ///< Empty, or x, y, z per instance.
+};
+
+/// Per-instance arrays on a CUDA device, as contiguous float32 tensors: positions (n, 3), and
+/// orientations (n, 4, imaginary part first) and scales (n, 3), each empty when absent.
+struct DeviceInstanceData {
+    Tensor positions;
+    Tensor orientations;
+    Tensor scales;
+    /// Bounds of the instances in the instancer's frame, prototypes included, as USD's `extent`;
+    /// without them the positions and scales are copied to the host to compute bounds.
+    std::optional<std::pair<glm::vec3, glm::vec3>> extent;
 };
 
 /// One draw of a mesh: either the mesh itself, or the given instances of an instancer with the
@@ -88,6 +101,14 @@ class MeshPart : public RasterPart {
     /// @throws std::invalid_argument for an unknown mesh or a different number of points.
     void SetPoints(std::uint32_t mesh, std::span<const float> points);
 
+    /// Replaces a mesh's points with a contiguous float32 CUDA tensor of the same number of
+    /// points, copied device to device at the next `Prepare`. `bounds` are the points' bounds;
+    /// without them the points are copied to the host to compute them.
+    /// @throws std::invalid_argument for an unknown mesh, a different number of points, a tensor
+    /// that is not float32 on the CUDA device, or without `SetCudaInterop`.
+    void SetPoints(std::uint32_t mesh, const Tensor& points,
+                   std::optional<std::pair<glm::vec3, glm::vec3>> bounds = std::nullopt);
+
     /// @throws std::invalid_argument for an unknown mesh.
     void RemoveMesh(std::uint32_t mesh);
 
@@ -102,6 +123,16 @@ class MeshPart : public RasterPart {
 
     /// @throws std::invalid_argument for an unknown instancer.
     void RemoveInstancer(std::uint32_t instancer);
+
+    /// Replaces an instancer's arrays with CUDA tensors, copied device to device at the next
+    /// `Prepare`; only the arrays of instancers that changed are copied.
+    /// @throws std::invalid_argument for an unknown instancer, tensors that are not float32 on
+    /// the CUDA device or do not match the positions, or without `SetCudaInterop`.
+    void SetInstances(std::uint32_t instancer, const DeviceInstanceData& data);
+
+    /// Enables CUDA inputs: geometry and instance pools move to memory shared with `cuda`, which
+    /// must outlive the part. Null turns CUDA inputs off again.
+    void SetCudaInterop(CudaInterop* cuda);
 
     /// Sets the draws of the next frames; nothing is drawn until the next `Prepare`. Draws whose
     /// material is removed later use the default material.
@@ -139,16 +170,25 @@ class MeshPart : public RasterPart {
         std::uint32_t firstIndex = 0;
         std::uint32_t firstVertex = 0;
         bool pointsDirty = false;
+        Tensor devicePoints;  ///< CUDA points replacing `data.points` on the GPU, if any.
     };
 
     struct Instancer {
-        InstanceData data;
+        InstanceData data;  ///< Host arrays; for device instancers, host copies for bounds.
+        DeviceInstanceData device;
+        bool onDevice = false;
+        std::size_t count = 0;
         std::uint32_t first = 0;
+        bool dirty = false;
     };
 
     const GraphicsPipeline& ColorPipeline(const BrdfModel& model);
     void RebuildGeometry();
     void RebuildInstances();
+    void WriteInstancer(const Instancer& instancer);
+    void CopyDevicePoints(Mesh& mesh);
+    std::unique_ptr<GpuBuffer> Pool(std::span<const std::byte> bytes) const;
+    void CheckDeviceTensor(const Tensor& tensor, std::size_t components, const char* what) const;
     std::vector<DescriptorResource> Resources(const RasterFrame& frame,
                                               std::uint32_t material) const;
     void Draw(VkCommandBuffer commands, std::size_t item, const glm::mat4& light) const;
@@ -164,6 +204,7 @@ class MeshPart : public RasterPart {
     std::uint32_t nextHandle_ = 1;
     bool geometryDirty_ = true;
     bool instancesDirty_ = true;
+    CudaInterop* cuda_ = nullptr;
     std::vector<MeshItem> items_;
     std::vector<const GraphicsPipeline*> itemPipelines_;
 

@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <span>
+#include <stdexcept>
 
 namespace ernie {
 
@@ -26,19 +27,30 @@ RenderingTarget OffscreenTarget::Prepare(VkCommandBuffer commands, VkClearColorV
     return target;
 }
 
-std::vector<std::uint8_t> OffscreenTarget::ReadColor() {
+VkDeviceSize OffscreenTarget::ColorBytes() const {
     const VkExtent2D extent = Extent();
-    const std::size_t bytes = static_cast<std::size_t>(extent.width) * extent.height *
-                              GpuImage::TexelBytes(ColorFormat());
-    GpuBuffer readback(context_, bytes, 0, BufferMemory::Readback);
+    return VkDeviceSize{extent.width} * extent.height * GpuImage::TexelBytes(ColorFormat());
+}
+
+void OffscreenTarget::CopyColor(GpuBuffer& buffer) {
+    if (buffer.Size() < ColorBytes()) {
+        throw std::invalid_argument("OffscreenTarget::CopyColor into a buffer that is too small");
+    }
+    const VkExtent2D extent = Extent();
     context_.Submit([&](VkCommandBuffer commands) {
         color_.Transition(commands, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
         VkBufferImageCopy region{};
         region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
         region.imageExtent = {extent.width, extent.height, 1};
         vkCmdCopyImageToBuffer(commands, color_.Handle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                               readback.Handle(), 1, &region);
+                               buffer.Handle(), 1, &region);
     });
+}
+
+std::vector<std::uint8_t> OffscreenTarget::ReadColor() {
+    const auto bytes = static_cast<std::size_t>(ColorBytes());
+    GpuBuffer readback(context_, bytes, 0, BufferMemory::Readback);
+    CopyColor(readback);
     std::vector<std::uint8_t> texels(bytes);
     readback.Read(std::as_writable_bytes(std::span(texels)));
     return texels;
