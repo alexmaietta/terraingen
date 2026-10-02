@@ -5,7 +5,16 @@ terraingen_add_test_suite(
     geo_transform_test.cpp
     raster_test.cpp
     raster_stats_test.cpp
+    random_test.cpp
     LIBRARIES
     terraingen::core)
 target_compile_definitions(terraingen_tests_core
                            PRIVATE TERRAINGEN_EXPECTED_VERSION="${PROJECT_VERSION}")
+terraingen_add_test_suite(
+    core_statistical
+    SOURCES
+    random_statistical_test.cpp
+    LIBRARIES
+    terraingen::core
+    LABELS
+    statistical)

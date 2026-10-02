@@ -2,6 +2,7 @@ terraingen_add_test_suite(
     kernels
     SOURCES
     hash_test.cpp
+    philox_test.cpp
     perlin_test.cpp
     fractal_test.cpp
     simplex_test.cpp
