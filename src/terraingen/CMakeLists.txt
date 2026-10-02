@@ -17,19 +17,27 @@ add_library(
     terraingen_core STATIC
     core/log.cpp
     core/version.cpp
-    distributions/composite.cpp
     distributions/log_polynomial.cpp
+    distributions/minimum.cpp
+    distributions/piecewise_power_law.cpp
     distributions/power_law.cpp
     distributions/size_frequency.cpp
+    distributions/spliced.cpp
     distributions/tabulated.cpp
-    features/craters/ages.cpp
+    features/craters/ages/age_model.cpp
+    features/craters/ages/fresh.cpp
+    features/craters/ages/steady_state.cpp
+    features/craters/ages/uniform.cpp
     features/craters/apply.cpp
-    features/craters/degradation.cpp
+    features/craters/degradation/freshness.cpp
+    features/craters/degradation/none.cpp
+    features/craters/degradation/state.cpp
     features/craters/filters.cpp
     features/craters/lunar/chronology.cpp
     features/craters/lunar/equilibrium.cpp
     features/craters/lunar/production.cpp
     features/craters/lunar/specifications.cpp
+    features/craters/lunar/surface.cpp
     features/craters/population.cpp
     features/craters/profiles/fassett_thomson.cpp
     features/craters/profiles/martin_parkes_dunstan.cpp

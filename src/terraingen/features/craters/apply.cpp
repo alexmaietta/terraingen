@@ -1,6 +1,7 @@
 #include "terraingen/features/craters/apply.h"
 
 #include "terraingen/core/log.h"
+#include "terraingen/features/craters/degradation/none.h"
 
 #include <algorithm>
 #include <array>

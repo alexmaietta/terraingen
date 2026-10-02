@@ -1,4 +1,15 @@
-terraingen_add_test_suite(distributions SOURCES size_frequency_test.cpp LIBRARIES terraingen::core)
+terraingen_add_test_suite(
+    distributions
+    SOURCES
+    log_polynomial_test.cpp
+    minimum_test.cpp
+    piecewise_power_law_test.cpp
+    power_law_test.cpp
+    size_frequency_test.cpp
+    spliced_test.cpp
+    tabulated_test.cpp
+    LIBRARIES
+    terraingen::core)
 terraingen_add_test_suite(
     distributions_statistical
     SOURCES

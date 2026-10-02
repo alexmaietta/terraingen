@@ -24,46 +24,12 @@ using terraingen::UniformAges;
 
 namespace {
 
-constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
-constexpr double kInf = std::numeric_limits<double>::infinity();
-
 SteadyStateAges NeukumTrask(double ageGyr) {
     return SteadyStateAges(std::make_shared<LogPolynomialSfd>(NeukumProductionFunction()),
                            std::make_shared<PowerLawSfd>(TraskEquilibrium()), ageGyr);
 }
 
 }  // namespace
-
-TEST(FreshAges, GivesEveryCraterAgeZeroAndFreshnessOne) {
-    const FreshAges fresh;
-    RandomStream stream(1u, 1u);
-    EXPECT_EQ(fresh.LifetimeGyr(10.0), 0.0);
-    EXPECT_EQ(fresh.SampleAgeGyr(stream, 10.0), 0.0);
-    EXPECT_EQ(fresh.Freshness(10.0, 0.0), 1.0);
-    EXPECT_EQ(fresh.Freshness(10.0, 2.0), 1.0);
-    EXPECT_THROW(fresh.LifetimeGyr(0.0), std::domain_error);
-    EXPECT_THROW(fresh.SampleAgeGyr(stream, kNaN), std::domain_error);
-    EXPECT_THROW(fresh.Freshness(-1.0, 0.0), std::domain_error);
-    const std::unique_ptr<CraterAgeModel> base = std::make_unique<FreshAges>();
-    EXPECT_EQ(base->LifetimeGyr(1.0), 0.0);
-}
-
-TEST(UniformAges, DrawsAgesUniformlyOverOneLifetime) {
-    const UniformAges uniform(2.0);
-    RandomStream copy(4u, 2u);
-    RandomStream stream(4u, 2u);
-    for (int i = 0; i < 50; ++i) {
-        const double expected = 2.0 * copy.NextDouble();
-        EXPECT_DOUBLE_EQ(uniform.SampleAgeGyr(stream, 1.0 + i), expected);
-    }
-    EXPECT_EQ(uniform.LifetimeGyr(1e4), 2.0);
-    EXPECT_DOUBLE_EQ(uniform.Freshness(5.0, 0.5), 0.75);
-    EXPECT_EQ(uniform.Freshness(5.0, 3.0), 0.0);
-    EXPECT_EQ(uniform.Freshness(5.0, -1.0), 1.0);
-    EXPECT_THROW(UniformAges(0.0), std::invalid_argument);
-    EXPECT_THROW(UniformAges{kInf}, std::invalid_argument);
-    EXPECT_THROW(UniformAges{kNaN}, std::invalid_argument);
-}
 
 TEST(SteadyStateAges, LifetimeIsTheEquilibriumOverProductionRatioCappedAtTheSurfaceAge) {
     const SteadyStateAges ages = NeukumTrask(3.5);
@@ -109,22 +75,4 @@ TEST(SteadyStateAges, RejectsInvalidInputs) {
     EXPECT_THROW(SteadyStateAges(npf, npf, 1.0), std::invalid_argument);
     EXPECT_THROW(SteadyStateAges(npf, trask, -0.5), std::domain_error);
     EXPECT_THROW(SteadyStateAges(npf, trask, 4.7), std::domain_error);
-}
-
-TEST(LunarSurface, CombinesTheDsneDensityWithSteadyStateAges) {
-    const SurfaceModel surface = LunarSurface(3.5);
-    EXPECT_EQ(surface.density->Kind(), SfdKind::Density);
-    EXPECT_EQ(surface.density->ValidRange().min, 2.5);
-    EXPECT_EQ(surface.density->ValidRange().max, 300000.0);
-    EXPECT_DOUBLE_EQ(surface.density->Cumulative(50.0), TraskEquilibrium().Cumulative(50.0));
-    EXPECT_NEAR(surface.density->Cumulative(1000.0), NeukumLunarChronology(3.5), 1e-15);
-    EXPECT_LT(surface.density->Cumulative(1000.0), TraskEquilibrium().Cumulative(1000.0));
-    const auto* ages = dynamic_cast<const SteadyStateAges*>(surface.ages.get());
-    ASSERT_NE(ages, nullptr);
-    EXPECT_EQ(ages->SurfaceAgeGyr(), 3.5);
-    EXPECT_EQ(surface.ages->LifetimeGyr(1000.0), 3.5);
-    const double expected =
-        TraskEquilibrium().Incremental(5.0) / ExtendedNeukumProductionFunction().Incremental(5.0);
-    EXPECT_NEAR(surface.ages->LifetimeGyr(5.0), expected, 1e-12 * expected);
-    EXPECT_THROW(LunarSurface(5.0), std::domain_error);
 }

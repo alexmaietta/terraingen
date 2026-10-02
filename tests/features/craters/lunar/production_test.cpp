@@ -19,12 +19,6 @@ using terraingen::RandomStream;
 using terraingen::SfdKind;
 using terraingen::SplicedSfd;
 
-namespace {
-
-constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
-
-}  // namespace
-
 TEST(NeukumProductionFunction, IsAProductionRateFromTenMetresTo300Kilometres) {
     const LogPolynomialSfd npf = NeukumProductionFunction();
     EXPECT_EQ(npf.Kind(), SfdKind::ProductionRate);
@@ -39,16 +33,6 @@ TEST(NeukumProductionFunction, IsAProductionRateFromTenMetresTo300Kilometres) {
             (2.0 * step * d);
         EXPECT_NEAR(npf.Incremental(d), numeric, 1e-6 * numeric) << d;
     }
-}
-
-TEST(NeukumLunarChronology, EvaluatesEquationFiveWithinTheLunarAge) {
-    EXPECT_EQ(NeukumLunarChronology(0.0), 0.0);
-    EXPECT_NEAR(NeukumLunarChronology(1.0) * 1e6, 8.3800006e-4, 1e-11);
-    EXPECT_NEAR(NeukumLunarChronology(3.5) * 1e6, 4.792566e-3, 1e-9);
-    EXPECT_NO_THROW(NeukumLunarChronology(terraingen::kMaxLunarAgeGyr));
-    EXPECT_THROW(NeukumLunarChronology(-0.1), std::domain_error);
-    EXPECT_THROW(NeukumLunarChronology(4.7), std::domain_error);
-    EXPECT_THROW(NeukumLunarChronology(kNaN), std::domain_error);
 }
 
 TEST(ProductionSurface, ScalesTheProductionFunctionToTheChronologyAtOneKilometre) {
@@ -112,16 +96,4 @@ TEST(ExtendedNeukumProductionFunction, ContinuesBelowTenMetresWithSlope285) {
     EXPECT_THROW(extended.Cumulative(2.0), std::domain_error);
     const ProductionSurface surface(std::make_shared<SplicedSfd>(extended), 3.5);
     EXPECT_NEAR(surface.Cumulative(1000.0), NeukumLunarChronology(3.5), 1e-15);
-}
-
-TEST(NeukumLunarChronology, RateIsTheDerivativeOfTheChronology) {
-    EXPECT_NEAR(NeukumLunarChronologyRate(0.0) * 1e6, 8.38e-4, 1e-12);
-    for (const double t : {0.5, 3.0, 4.0}) {
-        const double step = 1e-6;
-        const double numeric =
-            (NeukumLunarChronology(t + step) - NeukumLunarChronology(t - step)) / (2.0 * step);
-        EXPECT_NEAR(NeukumLunarChronologyRate(t), numeric, 1e-6 * numeric) << t;
-    }
-    EXPECT_THROW(NeukumLunarChronologyRate(-1.0), std::domain_error);
-    EXPECT_THROW(NeukumLunarChronologyRate(5.0), std::domain_error);
 }

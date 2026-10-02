@@ -1,6 +1,6 @@
 #pragma once
 
-#include "terraingen/features/craters/degradation.h"
+#include "terraingen/features/craters/degradation/state.h"
 
 namespace terraingen {
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "terraingen/distributions/power_law.h"
+#include "terraingen/distributions/piecewise_power_law.h"
 
 namespace terraingen {
 

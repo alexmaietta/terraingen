@@ -1,6 +1,6 @@
 #pragma once
 
-#include "terraingen/features/craters/degradation.h"
+#include "terraingen/features/craters/degradation/degradation_model.h"
 #include "terraingen/features/craters/population.h"
 #include "terraingen/features/craters/profiles/profile.h"
 #include "terraingen/raster/raster.h"

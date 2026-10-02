@@ -1,20 +1,27 @@
 terraingen_add_test_suite(
     craters
     SOURCES
-    ages_test.cpp
-    lunar_cratering_test.cpp
-    population_test.cpp
-    profiles_test.cpp
+    ages/fresh_test.cpp
+    ages/steady_state_test.cpp
+    ages/uniform_test.cpp
     apply_test.cpp
-    degradation_test.cpp
+    degradation/freshness_test.cpp
+    degradation/none_test.cpp
+    degradation/state_test.cpp
     filters_test.cpp
+    lunar/chronology_test.cpp
+    lunar/production_test.cpp
+    lunar/surface_test.cpp
+    population_test.cpp
+    profiles/fassett_thomson_test.cpp
+    profiles/martin_parkes_dunstan_test.cpp
     LIBRARIES
     terraingen::core)
 terraingen_add_test_suite(
     craters_statistical
     SOURCES
-    ages_statistical_test.cpp
-    lunar_cratering_statistical_test.cpp
+    ages/ages_statistical_test.cpp
+    lunar/production_statistical_test.cpp
     population_statistical_test.cpp
     LIBRARIES
     terraingen::core
