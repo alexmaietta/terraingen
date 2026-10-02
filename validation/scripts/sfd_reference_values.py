@@ -13,6 +13,7 @@ def main():
     distributions = {
         "trask": functions.Trask(a=0.01),
         "viper": functions.VIPER_Env_Spec(a=0.01),
+        "npf": functions.NPF(a=10, b=300000),
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     with OUTPUT.open("w", newline="") as handle:
@@ -20,7 +21,7 @@ def main():
         writer = csv.writer(handle, lineterminator="\n")
         writer.writerow(["name", "diameter_m", "cumulative_per_m2"])
         for name, distribution in distributions.items():
-            for diameter in DIAMETERS:
+            for diameter in DIAMETERS[DIAMETERS >= distribution.a]:
                 value = float(np.asarray(distribution.csfd(np.array([diameter])))[0])
                 writer.writerow([name, repr(float(diameter)), repr(value)])
 

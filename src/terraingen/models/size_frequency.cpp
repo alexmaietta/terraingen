@@ -197,6 +197,79 @@ double PiecewisePowerLaw::InvertCumulative(double target, double dMin, double dM
     return std::pow(target / segment.coefficient, -1.0 / segment.exponent);
 }
 
+LogPolynomial::LogPolynomial(std::vector<double> coefficients, DiameterRange range, SfdKind kind,
+                             double diameterUnit, double areaUnit)
+    : SizeFrequencyDistribution(kind, range), coefficients_(std::move(coefficients)),
+      diameterUnit_(diameterUnit), areaUnit_(areaUnit) {
+    if (coefficients_.empty() || !std::all_of(coefficients_.begin(), coefficients_.end(),
+                                              [](double value) { return std::isfinite(value); })) {
+        throw std::invalid_argument("A log polynomial needs finite coefficients");
+    }
+    if (!PositiveFinite(diameterUnit_) || !PositiveFinite(areaUnit_)) {
+        throw std::invalid_argument("Diameter and area units must be positive and finite");
+    }
+    if (!(range.min > 0.0 && std::isfinite(range.max))) {
+        throw std::invalid_argument(
+            "A log polynomial needs a finite range with a positive minimum");
+    }
+    constexpr int kSamples = 4096;
+    const double low = std::log10(range.min / diameterUnit_);
+    const double high = std::log10(range.max / diameterUnit_);
+    for (int i = 0; i <= kSamples; ++i) {
+        if (Derivative(low + (high - low) * i / kSamples) > 0.0) {
+            throw std::invalid_argument("A cumulative distribution cannot increase with diameter");
+        }
+    }
+}
+
+double LogPolynomial::Polynomial(double x) const {
+    double sum = 0.0;
+    for (auto it = coefficients_.rbegin(); it != coefficients_.rend(); ++it) {
+        sum = sum * x + *it;
+    }
+    return sum;
+}
+
+double LogPolynomial::Derivative(double x) const {
+    double sum = 0.0;
+    for (std::size_t i = coefficients_.size() - 1; i > 0; --i) {
+        sum = sum * x + static_cast<double>(i) * coefficients_[i];
+    }
+    return sum;
+}
+
+double LogPolynomial::CumulativeAt(double diameter) const {
+    return std::pow(10.0, Polynomial(std::log10(diameter / diameterUnit_))) / areaUnit_;
+}
+
+double LogPolynomial::IncrementalAt(double diameter) const {
+    return -CumulativeAt(diameter) * Derivative(std::log10(diameter / diameterUnit_)) / diameter;
+}
+
+ProductionSurface::ProductionSurface(std::shared_ptr<const SizeFrequencyDistribution> production,
+                                     double ageGyr)
+    : SizeFrequencyDistribution(SfdKind::Density,
+                                production ? production->ValidRange() : DiameterRange{}),
+      production_(std::move(production)), ageGyr_(ageGyr) {
+    if (!production_ || production_->Kind() != SfdKind::ProductionRate) {
+        throw std::invalid_argument("A production surface needs a production rate distribution");
+    }
+    SetAllowExtrapolation(production_->AllowsExtrapolation());
+    scale_ = NeukumLunarChronology(ageGyr_) / production_->Cumulative(1000.0);
+}
+
+double ProductionSurface::CumulativeAt(double diameter) const {
+    return scale_ * CumulativeOf(*production_, diameter);
+}
+
+double ProductionSurface::IncrementalAt(double diameter) const {
+    return scale_ * IncrementalOf(*production_, diameter);
+}
+
+double ProductionSurface::InvertCumulative(double target, double dMin, double dMax) const {
+    return InvertCumulativeOf(*production_, target / scale_, dMin, dMax);
+}
+
 double PowerLawCoefficientFromKilometres(double coefficient, double exponent) {
     return coefficient * std::pow(1000.0, exponent) / 1e6;
 }
@@ -232,6 +305,19 @@ PiecewisePowerLaw MooreDistribution(MooreTerrain terrain) {
 PiecewisePowerLaw ViperSpecification() {
     return PiecewisePowerLaw({{0.0, 29174.0 / 1e6, 1.92}, {80.0, 156228.0 / 1e6, 2.389}},
                              SfdKind::Density, DiameterRange{}, true);
+}
+
+double NeukumLunarChronology(double ageGyr) {
+    if (!(ageGyr >= 0.0 && ageGyr <= kMaxLunarAgeGyr)) {
+        throw std::domain_error("Lunar surface age must be between 0 and 4.6 Gyr");
+    }
+    return (5.44e-14 * std::expm1(6.93 * ageGyr) + 8.38e-4 * ageGyr) / 1e6;
+}
+
+LogPolynomial NeukumProductionFunction() {
+    return LogPolynomial({-3.076756, -3.557528, 0.781027, 1.021521, -0.156012, -0.444058, 0.019977,
+                          0.086850, -0.005874, -0.006809, 8.25e-4, 5.54e-5},
+                         DiameterRange{10.0, 300000.0}, SfdKind::ProductionRate, 1000.0, 1e6);
 }
 
 }  // namespace terraingen

@@ -6,11 +6,15 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <memory>
 #include <vector>
 
+using terraingen::LogPolynomial;
 using terraingen::MooreDistribution;
 using terraingen::MooreTerrain;
+using terraingen::NeukumProductionFunction;
 using terraingen::PowerLaw;
+using terraingen::ProductionSurface;
 using terraingen::RandomStream;
 using terraingen::SizeFrequencyDistribution;
 using terraingen::ViperSpecification;
@@ -73,6 +77,15 @@ TEST(SfdStatistics, MooreSmoothMareSamplesMatchTheirCdfAcrossAllSegments) {
     EXPECT_LT(
         KolmogorovSmirnov(samples, [&](double d) { return TruncatedCdf(smooth, 10.0, 1000.0, d); }),
         KolmogorovSmirnovCritical(kSamples));
+}
+
+TEST(SfdStatistics, NeukumSurfaceSamplesMatchTheirCdfOverTheFullRange) {
+    const ProductionSurface surface(std::make_shared<LogPolynomial>(NeukumProductionFunction()),
+                                    3.5);
+    const auto samples = Sample(surface, 5u, 10.0, 300000.0);
+    EXPECT_LT(KolmogorovSmirnov(samples,
+                                [&](double d) { return TruncatedCdf(surface, 10.0, 300000.0, d); }),
+              KolmogorovSmirnovCritical(kSamples));
 }
 
 TEST(SfdStatistics, ViperDiscontinuityBecomesAnAtomAtTheJoin) {

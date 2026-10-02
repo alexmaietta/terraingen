@@ -1,0 +1,36 @@
+# NASA SLS-SPEC-159 Cross-Program Design Specification for Natural Environments (DSNE), Revision I,
+# effective 2021-10-27, Section 3.4.1.1, Table 3.4.1.1-1 (page 214): number density of craters with
+# diameter >= D per km2 for a 3.5 Ga lunar surface. Rows up to 0.2 km follow the Trask equilibrium
+# 0.079433 D^-2; larger craters follow the Neukum et al. (2001) production function.
+# Transcribed from research/SLS-SPEC-159 ... REVISION I.pdf; values as printed (3 significant figures).
+diameter_km,cumulative_per_km2
+0.01,7.94E+02
+0.0126,5.01E+02
+0.0158,3.16E+02
+0.0200,2.00E+02
+0.0251,1.26E+02
+0.0316,7.94E+01
+0.0398,5.01E+01
+0.0501,3.16E+01
+0.0631,2.00E+01
+0.0794,1.26E+01
+0.1,7.94E+00
+0.126,5.01E+00
+0.158,3.16E+00
+0.200,1.72E+00
+0.251,7.73E-01
+0.316,3.39E-01
+0.398,1.46E-01
+0.501,6.17E-02
+0.631,2.60E-02
+0.794,1.10E-02
+1,4.79E-03
+1.259,2.16E-03
+1.585,1.02E-03
+1.995,5.12E-04
+2.512,2.75E-04
+3.162,1.59E-04
+3.981,9.92E-05
+5.012,6.61E-05
+6.310,4.67E-05
+7.943,3.46E-05

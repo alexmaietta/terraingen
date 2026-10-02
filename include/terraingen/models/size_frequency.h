@@ -3,6 +3,7 @@
 #include "terraingen/core/random.h"
 
 #include <limits>
+#include <memory>
 #include <vector>
 
 namespace terraingen {
@@ -86,6 +87,20 @@ class SizeFrequencyDistribution {
     /// Defaults to bisection in log diameter.
     virtual double InvertCumulative(double target, double dMin, double dMax) const;
 
+    /// Unchecked access to another distribution, for distributions built from others.
+    static double CumulativeOf(const SizeFrequencyDistribution& distribution, double diameter) {
+        return distribution.CumulativeAt(diameter);
+    }
+
+    static double IncrementalOf(const SizeFrequencyDistribution& distribution, double diameter) {
+        return distribution.IncrementalAt(diameter);
+    }
+
+    static double InvertCumulativeOf(const SizeFrequencyDistribution& distribution, double target,
+                                     double dMin, double dMax) {
+        return distribution.InvertCumulative(target, dMin, dMax);
+    }
+
   private:
     void CheckDiameter(double diameter) const;
 
@@ -159,6 +174,71 @@ class PiecewisePowerLaw final : public SizeFrequencyDistribution {
     std::vector<PowerLawSegment> segments_;
 };
 
+/// N(>=D) = 10^P(x) / `areaUnit` with P(x) = sum_i a_i x^i and x = log10(D / `diameterUnit`), the
+/// form of the Neukum et al. (2001) production function. With `diameterUnit` = 1000 and `areaUnit`
+/// = 1e6, coefficients published for D in km and N per km^2 give D in metres and N per m^2.
+class LogPolynomial final : public SizeFrequencyDistribution {
+  public:
+    /// @param coefficients a_0, a_1, ... in increasing degree; at least one, all finite.
+    /// @param range Diameters in metres with 0 < `min` and finite `max`, since polynomials diverge
+    /// outside the interval they were fitted on.
+    /// @throws std::invalid_argument for malformed arguments or if N(>=D) increases anywhere in the
+    /// range.
+    LogPolynomial(std::vector<double> coefficients, DiameterRange range,
+                  SfdKind kind = SfdKind::Density, double diameterUnit = 1.0,
+                  double areaUnit = 1.0);
+
+    const std::vector<double>& Coefficients() const {
+        return coefficients_;
+    }
+
+  protected:
+    double CumulativeAt(double diameter) const override;
+    double IncrementalAt(double diameter) const override;
+
+  private:
+    double Polynomial(double x) const;
+    double Derivative(double x) const;
+
+    std::vector<double> coefficients_;
+    double diameterUnit_;
+    double areaUnit_;
+};
+
+/// The cumulative density of craters on a surface of a given age: a
+/// production function scaled so that N(>=1 km) follows the Neukum et al. (2001) lunar chronology,
+/// N(D, T) = Phi(D) * N1(T) / Phi(1 km).
+///
+/// This is the population a surface would have with no erosion; small craters exceed equilibrium
+/// on old surfaces.
+class ProductionSurface final : public SizeFrequencyDistribution {
+  public:
+    /// @param production A `ProductionRate` distribution defined at 1 km.
+    /// @param ageGyr Surface age in Gyr; see `NeukumLunarChronology`. The surface takes the
+    /// production function's valid range and extrapolation setting.
+    /// @throws std::invalid_argument if `production` is null or not a production rate.
+    /// @throws std::domain_error if the age is out of range or `production` is not defined at 1 km.
+    ProductionSurface(std::shared_ptr<const SizeFrequencyDistribution> production, double ageGyr);
+
+    const SizeFrequencyDistribution& Production() const {
+        return *production_;
+    }
+
+    double AgeGyr() const {
+        return ageGyr_;
+    }
+
+  protected:
+    double CumulativeAt(double diameter) const override;
+    double IncrementalAt(double diameter) const override;
+    double InvertCumulative(double target, double dMin, double dMax) const override;
+
+  private:
+    std::shared_ptr<const SizeFrequencyDistribution> production_;
+    double ageGyr_;
+    double scale_;
+};
+
 /// Converts a power-law coefficient published for D in km and N per km^2 to D in metres and N per
 /// m^2.
 double PowerLawCoefficientFromKilometres(double coefficient, double exponent);
@@ -197,5 +277,29 @@ PiecewisePowerLaw MooreDistribution(MooreTerrain terrain);
 /// with synthterrain; its segments disagree by a factor of 1.46 at 80 m, and Allan et al. (2017)
 /// found it predicts too many craters against a NAC image.
 PiecewisePowerLaw ViperSpecification();
+
+/// Oldest surface age, in Gyr, accepted by `NeukumLunarChronology`.
+inline constexpr double kMaxLunarAgeGyr = 4.6;
+
+/// Neukum et al. (2001) lunar chronology: cumulative density of craters at least 1 km across on a
+/// surface `ageGyr` old, N1(T) = 5.44e-14 (e^(6.93 T) - 1) + 8.38e-4 T per km^2, returned per m^2.
+/// The linear term is the present-day rate, which equals 10^a_0 of `NeukumProductionFunction`.
+///
+/// Reference: G. Neukum, B. A. Ivanov and W. K. Hartmann, "Cratering Records in the Inner Solar
+/// System in Relation to the Lunar Reference System", Space Science Reviews 96:55-86, 2001, eq. 5.
+/// https://doi.org/10.1023/A:1011989004263
+/// @throws std::domain_error unless 0 <= `ageGyr` <= `kMaxLunarAgeGyr`.
+double NeukumLunarChronology(double ageGyr);
+
+/// Neukum et al. (2001) lunar production function (eq. 2, table 1 "new" N(D)), valid from 10 m to
+/// 300 km, as a `ProductionRate` per m^2 per Gyr at the present-day flux.
+///
+/// a_0 is log10(8.38e-4) = -3.076756, as in synthterrain; the paper prints -3.0876, which
+/// craterstats treats as a typo for -3.0768. Combined with `NeukumLunarChronology` in a
+/// `ProductionSurface` it reproduces the large-crater values of the DSNE 3.5 Ga mare table (NASA
+/// SLS-SPEC-159 Revision I, Table 3.4.1.1-1).
+///
+/// Reference: Neukum, Ivanov and Hartmann (2001); see `NeukumLunarChronology`.
+LogPolynomial NeukumProductionFunction();
 
 }  // namespace terraingen
