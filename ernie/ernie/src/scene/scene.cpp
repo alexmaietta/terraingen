@@ -2,6 +2,7 @@
 
 #include "ernie/scene/tokens.h"
 
+#include <atomic>
 #include <bit>
 #include <set>
 #include <stdexcept>
@@ -84,6 +85,11 @@ const Value* Prim::Get(std::string_view attribute) const {
 
 const Tensor* Prim::Read(std::string_view attribute) const {
     return scene_ != nullptr ? scene_->Read(path_, attribute) : nullptr;
+}
+
+Scene::UniqueId::UniqueId() {
+    static std::atomic<std::uint64_t> next{1};
+    value = next.fetch_add(1, std::memory_order_relaxed);
 }
 
 Scene::Scene() {

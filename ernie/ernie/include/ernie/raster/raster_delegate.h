@@ -72,8 +72,9 @@ class RasterDelegate {
                             VkFormat depthFormat = VK_FORMAT_D32_SFLOAT,
                             BrdfRegistry brdfs = BrdfRegistry::WithBuiltins());
 
-    /// Uploads the heightfield, albedo map and detail textures that changed since the last call.
-    /// An upload that fails is not retried until its attributes change again.
+    /// Uploads the heightfield, albedo map and detail textures that changed since the last call,
+    /// or all of them when `scene` is not the scene of the last call. An upload that fails is not
+    /// retried until its attributes change again.
     /// @throws std::invalid_argument naming the prim and attribute of a tensor that cannot be
     /// uploaded.
     void Sync(const Scene& scene);
@@ -107,8 +108,8 @@ class RasterDelegate {
     }
 
   private:
-    /// Path and attribute versions behind an upload.
-    using Key = std::pair<Path, std::array<std::uint64_t, 4>>;
+    /// Scene, path and attribute versions behind an upload.
+    using Key = std::pair<Path, std::array<std::uint64_t, 5>>;
 
     void SyncHeightfield(const Scene& scene, const Path& terrain);
     void SyncAlbedoMap(const Scene& scene, const Path& material);
@@ -120,7 +121,7 @@ class RasterDelegate {
     VkFormat depthFormat_;
     std::unique_ptr<OffscreenTarget> offscreen_;
     ChangeCursor cursor_;
-    bool synced_ = false;
+    std::uint64_t sceneId_ = 0;
     RasterPrims prims_;
     glm::vec3 clearColor_{0.0f};
     std::optional<Key> heightfield_;

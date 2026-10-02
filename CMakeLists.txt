@@ -61,8 +61,14 @@ if(TERRAINGEN_COVERAGE)
     target_link_options(terraingen_coverage INTERFACE --coverage)
 endif()
 
-# The viewer renders with Ernie, the Vulkan renderer in ernie/.
+if(TERRAINGEN_BUILD_PYTHON)
+    include("${PROJECT_SOURCE_DIR}/cmake/third_party/nanobind.cmake")
+endif()
+
+# The viewer renders with Ernie, the Vulkan renderer in ernie/; Ernie's Python module comes with
+# TerrainGen's.
 if(TERRAINGEN_BUILD_VIEWER)
+    set(ERNIE_BUILD_PYTHON ${TERRAINGEN_BUILD_PYTHON})
     add_subdirectory(ernie)
     include("${PROJECT_SOURCE_DIR}/cmake/third_party/glfw.cmake")
     include("${PROJECT_SOURCE_DIR}/cmake/third_party/dear_imgui.cmake")
@@ -73,7 +79,6 @@ add_subdirectory(apps)
 
 if(TERRAINGEN_BUILD_PYTHON)
     set_target_properties(terraingen_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
-    include("${PROJECT_SOURCE_DIR}/cmake/third_party/nanobind.cmake")
     add_subdirectory(bindings/python)
 endif()
 

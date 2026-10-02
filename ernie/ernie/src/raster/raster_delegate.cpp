@@ -211,10 +211,11 @@ void RasterDelegate::SyncHeightfield(const Scene& scene, const Path& terrain) {
         }
         return;
     }
-    const Key key{
-        terrain,
-        {scene.AttributeVersion(terrain, kHeights), scene.AttributeVersion(terrain, kOrigin),
-         scene.AttributeVersion(terrain, kCellSize), scene.AttributeVersion(terrain, kNoData)}};
+    const Key key{terrain,
+                  {sceneId_, scene.AttributeVersion(terrain, kHeights),
+                   scene.AttributeVersion(terrain, kOrigin),
+                   scene.AttributeVersion(terrain, kCellSize),
+                   scene.AttributeVersion(terrain, kNoData)}};
     if (heightfield_ == key) {
         return;
     }
@@ -238,7 +239,7 @@ void RasterDelegate::SyncAlbedoMap(const Scene& scene, const Path& material) {
         return;
     }
     const Key key{material,
-                  {scene.AttributeVersion(material, kAlbedoMap),
+                  {sceneId_, scene.AttributeVersion(material, kAlbedoMap),
                    scene.AttributeVersion(material, kAlbedoMapOrigin),
                    scene.AttributeVersion(material, kAlbedoMapCellSize),
                    scene.AttributeVersion(material, kAlbedoMapNoData)}};
@@ -274,7 +275,7 @@ void RasterDelegate::SyncDetail(const Scene& scene, const Path& material, bool n
         }
         return;
     }
-    const Key key{material, {scene.AttributeVersion(material, attribute), 0, 0, 0}};
+    const Key key{material, {sceneId_, scene.AttributeVersion(material, attribute), 0, 0, 0}};
     if (cached == key) {
         return;
     }
@@ -289,10 +290,12 @@ void RasterDelegate::SyncDetail(const Scene& scene, const Path& material, bool n
 }
 
 void RasterDelegate::Sync(const Scene& scene) {
-    if (scene.Changes(cursor_).empty() && synced_) {
+    if (scene.Id() != sceneId_) {
+        sceneId_ = scene.Id();
+        cursor_.version = scene.Version();
+    } else if (scene.Changes(cursor_).empty()) {
         return;
     }
-    synced_ = true;
     const RasterPrims prims = ResolveRasterPrims(scene, {});
     SyncHeightfield(scene, prims.terrain);
     SyncAlbedoMap(scene, prims.material);

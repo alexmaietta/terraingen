@@ -248,3 +248,20 @@ TEST(Scene, CursorsAreIndependent) {
     EXPECT_EQ(BitsOf(scene.Changes(late), "/A"), Dirty::Transform);
     EXPECT_EQ(BitsOf(scene.Changes(early), "/A"), Dirty::Added);
 }
+
+TEST(Scene, IdsAreUniqueAndRenewedByCopies) {
+    Scene a;
+    Scene b;
+    EXPECT_NE(a.Id(), b.Id());
+    a.Define("/A", tokens::kXform);
+    Scene copy = a;
+    EXPECT_NE(copy.Id(), a.Id());
+    EXPECT_TRUE(copy.Has("/A"));
+    const std::uint64_t before = b.Id();
+    b = a;
+    EXPECT_NE(b.Id(), before);
+    EXPECT_NE(b.Id(), a.Id());
+    const std::uint64_t moved = copy.Id();
+    const Scene target = std::move(copy);
+    EXPECT_EQ(target.Id(), moved);
+}

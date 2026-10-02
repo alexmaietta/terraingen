@@ -7,6 +7,7 @@ project(
     LANGUAGES C CXX)
 
 option(ERNIE_BUILD_TESTS "Build Ernie's tests" ${PROJECT_IS_TOP_LEVEL})
+option(ERNIE_BUILD_PYTHON "Build Ernie's Python module" OFF)
 
 set(ERNIE_SOURCE_DIR
     "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -19,6 +20,11 @@ if(PROJECT_IS_TOP_LEVEL)
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib")
+endif()
+
+# The Python module links Ernie's static libraries into a shared object.
+if(ERNIE_BUILD_PYTHON)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
 
 include(cmake/third_party/vulkan_headers.cmake)
@@ -141,6 +147,11 @@ add_library(Ernie::core ALIAS ernie_core)
 add_library(Ernie::gpu ALIAS ernie_gpu)
 add_library(Ernie::raster ALIAS ernie_raster)
 add_library(Ernie::ernie ALIAS ernie)
+
+if(ERNIE_BUILD_PYTHON)
+    include(cmake/third_party/nanobind.cmake)
+    add_subdirectory(ernie/python)
+endif()
 
 if(ERNIE_BUILD_TESTS)
     enable_testing()

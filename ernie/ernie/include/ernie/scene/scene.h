@@ -205,6 +205,12 @@ class Scene {
         return version_;
     }
 
+    /// Unique among the scenes of this process, copies included, so a consumer can tell when it is
+    /// handed a different scene and its `ChangeCursor` no longer applies.
+    std::uint64_t Id() const {
+        return id_.value;
+    }
+
     /// The prims changed since `cursor`, in path order, and advances `cursor` to `Version()`. A
     /// prim added since the cursor reports `Added` alone (with `Removed` if an older prim of that
     /// path was removed meanwhile), since consumers rebuild new prims fully. A default cursor sees
@@ -213,6 +219,20 @@ class Scene {
 
   private:
     static constexpr std::size_t kStampCount = 9;
+
+    /// A process-wide unique id that copies and assignments renew.
+    struct UniqueId {
+        std::uint64_t value;
+
+        UniqueId();
+        UniqueId(const UniqueId&) : UniqueId() {}
+        UniqueId& operator=(const UniqueId&) {
+            *this = UniqueId();
+            return *this;
+        }
+        UniqueId(UniqueId&&) noexcept = default;
+        UniqueId& operator=(UniqueId&&) noexcept = default;
+    };
 
     struct PrimData {
         std::string type;
@@ -231,6 +251,7 @@ class Scene {
     std::map<Path, PrimData> prims_;
     std::map<Path, std::uint64_t> removed_;
     std::uint64_t version_ = 0;
+    UniqueId id_;
 };
 
 template <typename T> T Prim::Get(std::string_view attribute, T fallback) const {

@@ -165,3 +165,24 @@ TEST_F(RasterDelegateTest, ReportsBadTensorsOnceWithThePrimAndAttribute) {
     scene.Write("/Looks/Rock", tokens::kAlbedoMap, Tensor::Zeros(DType::Float32, {4}));
     EXPECT_THROW(delegate.Sync(scene), std::invalid_argument);
 }
+
+TEST_F(RasterDelegateTest, SwitchingScenesResyncsEverything) {
+    Scene first = TerrainScene(RollingTerrain(33, 17, 2.0));
+    for (int i = 0; i < 20; ++i) {
+        first.Set("/World/Terrain", tokens::kExaggeration, 1.0f);
+    }
+    RasterDelegate delegate(*context_);
+    delegate.Sync(first);
+    EXPECT_EQ(delegate.Renderer().Width(), 33u);
+
+    Scene second = TerrainScene(RollingTerrain(9, 5, 2.0));
+    ASSERT_LT(second.Version(), first.Version()) << "an older cursor must not hide it";
+    delegate.Sync(second);
+    EXPECT_EQ(delegate.Renderer().Width(), 9u);
+
+    Scene empty;
+    delegate.Sync(empty);
+    EXPECT_FALSE(delegate.Renderer().HasHeightfield());
+    delegate.Sync(second);
+    EXPECT_TRUE(delegate.Renderer().HasHeightfield());
+}

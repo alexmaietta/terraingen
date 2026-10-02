@@ -37,3 +37,21 @@ ernie_add_test_suite(
     gpu
     DEFINITIONS
     ERNIE_SHADER_DIR="${ERNIE_SOURCE_DIR}/ernie/shaders")
+
+if(TARGET _ernie)
+    execute_process(
+        COMMAND "${Python_EXECUTABLE}" -c "import pytest, numpy"
+        RESULT_VARIABLE ernie_python_test_deps_missing
+        OUTPUT_QUIET ERROR_QUIET)
+    if(ernie_python_test_deps_missing)
+        message(WARNING "pytest or numpy not found for ${Python_EXECUTABLE}; skipping Ernie's "
+                        "Python tests")
+    else()
+        add_test(NAME ernie.python.pytest
+                 COMMAND "${Python_EXECUTABLE}" -m pytest -q -p no:cacheprovider
+                         "${CMAKE_CURRENT_SOURCE_DIR}/python")
+        set_tests_properties(
+            ernie.python.pytest PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/python"
+                                           LABELS "gpu;python")
+    endif()
+endif()
