@@ -85,7 +85,8 @@ if(TERRAINGEN_INSTALL)
     install(
         EXPORT terraingenTargets
         NAMESPACE terraingen::
-        DESTINATION "${TERRAINGEN_INSTALL_CMAKEDIR}")
+        DESTINATION "${TERRAINGEN_INSTALL_CMAKEDIR}"
+        COMPONENT development)
 
     configure_package_config_file(
         "${PROJECT_SOURCE_DIR}/cmake/terraingenConfig.cmake.in"
@@ -94,7 +95,11 @@ if(TERRAINGEN_INSTALL)
     write_basic_package_version_file("${PROJECT_BINARY_DIR}/terraingenConfigVersion.cmake"
                                      COMPATIBILITY SameMinorVersion)
 
-    install(FILES "${PROJECT_BINARY_DIR}/terraingenConfig.cmake"
-                  "${PROJECT_BINARY_DIR}/terraingenConfigVersion.cmake"
-            DESTINATION "${TERRAINGEN_INSTALL_CMAKEDIR}")
+    install(
+        FILES "${PROJECT_BINARY_DIR}/terraingenConfig.cmake"
+              "${PROJECT_BINARY_DIR}/terraingenConfigVersion.cmake"
+        DESTINATION "${TERRAINGEN_INSTALL_CMAKEDIR}"
+        COMPONENT development)
+
+    include("${PROJECT_SOURCE_DIR}/cmake/TerrainGenPackaging.cmake")
 endif()

@@ -13,5 +13,5 @@ target_link_libraries(terraingen-viewer PRIVATE terraingen_viewer_app terraingen
                                                 terraingen_coverage)
 
 if(TERRAINGEN_INSTALL)
-    install(TARGETS terraingen-viewer RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+    install(TARGETS terraingen-viewer RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT runtime)
 endif()

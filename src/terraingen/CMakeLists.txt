@@ -32,12 +32,15 @@ if(TERRAINGEN_INSTALL)
     install(
         TARGETS terraingen_core
         EXPORT terraingenTargets
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT development
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT development)
     install(
         DIRECTORY "${PROJECT_SOURCE_DIR}/include/terraingen"
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        COMPONENT development
         PATTERN "*.in" EXCLUDE)
-    install(FILES "${PROJECT_BINARY_DIR}/include/terraingen/version.h"
-            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/terraingen)
+    install(
+        FILES "${PROJECT_BINARY_DIR}/include/terraingen/version.h"
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/terraingen
+        COMPONENT development)
 endif()

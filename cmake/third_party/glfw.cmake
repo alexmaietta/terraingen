@@ -3,7 +3,13 @@ set(TERRAINGEN_DEP_VERSION_glfw
     CACHE STRING "Tag of GLFW to fetch when no system GLFW >= 3.4 is found.")
 mark_as_advanced(TERRAINGEN_DEP_VERSION_glfw)
 
-find_package(glfw3 3.4 QUIET)
+option(TERRAINGEN_USE_SYSTEM_GLFW
+       "Use an installed GLFW >= 3.4 if found; turn off for packages so GLFW is linked statically"
+       ON)
+
+if(TERRAINGEN_USE_SYSTEM_GLFW)
+    find_package(glfw3 3.4 QUIET)
+endif()
 if(NOT glfw3_FOUND)
     include(FetchContent)
 

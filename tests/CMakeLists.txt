@@ -47,6 +47,20 @@ if(TERRAINGEN_INSTALL AND NOT TERRAINGEN_COVERAGE)
                                                      integration)
 endif()
 
+find_program(DPKG_DEB_EXECUTABLE dpkg-deb)
+if(TERRAINGEN_INSTALL
+   AND NOT TERRAINGEN_COVERAGE
+   AND DPKG_DEB_EXECUTABLE)
+    add_test(
+        NAME package.deb
+        COMMAND
+            ${CMAKE_COMMAND} -DCPACK=${CMAKE_CPACK_COMMAND} -DCTEST=${CMAKE_CTEST_COMMAND}
+            -DBUILD_DIR=${PROJECT_BINARY_DIR} -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/package/deb
+            -DCONSUMER_DIR=${CMAKE_CURRENT_SOURCE_DIR}/package -DGENERATOR=${CMAKE_GENERATOR} -P
+            "${CMAKE_CURRENT_SOURCE_DIR}/package/test_debian_packages.cmake")
+    set_tests_properties(package.deb PROPERTIES LABELS integration)
+endif()
+
 if(TERRAINGEN_COVERAGE)
     find_program(GCOVR_EXECUTABLE gcovr HINTS "${PROJECT_SOURCE_DIR}/.venv/bin")
     if(NOT GCOVR_EXECUTABLE)
