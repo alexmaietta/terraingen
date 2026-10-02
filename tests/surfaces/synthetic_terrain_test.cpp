@@ -1,4 +1,4 @@
-#include "terraingen/models/synthetic_terrain.h"
+#include "terraingen/surfaces/synthetic_terrain.h"
 
 #include <gtest/gtest.h>
 

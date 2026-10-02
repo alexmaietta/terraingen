@@ -2,7 +2,7 @@
 #include "render/gpu_context.h"
 #include "render/orbit_camera.h"
 #include "render/terrain_renderer.h"
-#include "terraingen/models/synthetic_terrain.h"
+#include "terraingen/surfaces/synthetic_terrain.h"
 
 #include <gtest/gtest.h>
 

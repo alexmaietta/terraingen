@@ -1,7 +1,7 @@
 #include "render/frustum.h"
 #include "render/lod_quadtree.h"
 #include "render/orbit_camera.h"
-#include "terraingen/models/synthetic_terrain.h"
+#include "terraingen/surfaces/synthetic_terrain.h"
 
 #include <glm/glm.hpp>
 #include <gtest/gtest.h>

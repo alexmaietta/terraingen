@@ -1,6 +1,6 @@
 #include "settings.h"
 
-#include "terraingen/models/synthetic_terrain.h"
+#include "terraingen/surfaces/synthetic_terrain.h"
 
 #include <glm/glm.hpp>
 #include <gtest/gtest.h>

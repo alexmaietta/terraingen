@@ -3,7 +3,7 @@
 #include "render/terrain_renderer.h"
 #include "terraingen/core/raster.h"
 #include "terraingen/kernels/layers.h"
-#include "terraingen/models/synthetic_terrain.h"
+#include "terraingen/surfaces/synthetic_terrain.h"
 
 #include <glm/glm.hpp>
 

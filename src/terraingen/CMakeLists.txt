@@ -14,8 +14,14 @@ add_custom_target(
     VERBATIM)
 
 add_library(
-    terraingen_core STATIC version.cpp random.cpp models/crater_ages.cpp models/size_frequency.cpp
-                           models/synthetic_terrain.cpp "${TERRAINGEN_BUILD_INFO_CPP}")
+    terraingen_core STATIC
+    version.cpp
+    random.cpp
+    distributions/size_frequency.cpp
+    features/craters/ages.cpp
+    features/craters/lunar_cratering.cpp
+    surfaces/synthetic_terrain.cpp
+    "${TERRAINGEN_BUILD_INFO_CPP}")
 add_library(terraingen::core ALIAS terraingen_core)
 set_target_properties(terraingen_core PROPERTIES EXPORT_NAME core)
 add_dependencies(terraingen_core terraingen_generate_build_info)

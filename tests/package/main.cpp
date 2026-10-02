@@ -1,6 +1,6 @@
 #include "terraingen/build_info.h"
 #include "terraingen/core/raster_stats.h"
-#include "terraingen/models/synthetic_terrain.h"
+#include "terraingen/surfaces/synthetic_terrain.h"
 #include "terraingen/version.h"
 
 #include <cmath>

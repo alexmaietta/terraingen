@@ -1,5 +1,6 @@
-#include "terraingen/models/crater_ages.h"
-#include "terraingen/models/size_frequency.h"
+#include "terraingen/distributions/size_frequency.h"
+#include "terraingen/features/craters/ages.h"
+#include "terraingen/features/craters/lunar_cratering.h"
 
 #include <gtest/gtest.h>
 
