@@ -1,8 +1,8 @@
 #pragma once
 
-#include "terraingen/core/raster.h"
 #include "terraingen/kernels/fractal.h"
 #include "terraingen/kernels/layers.h"
+#include "terraingen/raster/raster.h"
 
 #include <cstddef>
 #include <vector>

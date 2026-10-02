@@ -1,5 +1,5 @@
 #include "support/statistics.h"
-#include "terraingen/distributions/size_frequency.h"
+#include "terraingen/distributions.h"
 
 #include <gtest/gtest.h>
 

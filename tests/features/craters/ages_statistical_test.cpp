@@ -1,5 +1,5 @@
 #include "support/statistics.h"
-#include "terraingen/features/craters/ages.h"
+#include "terraingen/craters.h"
 
 #include <gtest/gtest.h>
 

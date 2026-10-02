@@ -1,12 +1,10 @@
 #pragma once
 
 #include "ernie/terrain_renderer.h"
-#include "terraingen/core/raster.h"
-#include "terraingen/distributions/size_frequency.h"
-#include "terraingen/features/craters/ages.h"
-#include "terraingen/features/craters/degradation.h"
-#include "terraingen/features/craters/profiles.h"
+#include "terraingen/craters.h"
+#include "terraingen/distributions.h"
 #include "terraingen/kernels/layers.h"
+#include "terraingen/raster/raster.h"
 #include "terraingen/surfaces/synthetic_terrain.h"
 
 #include <glm/glm.hpp>

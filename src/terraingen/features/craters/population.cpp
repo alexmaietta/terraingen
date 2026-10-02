@@ -2,6 +2,7 @@
 
 #include "terraingen/core/log.h"
 #include "terraingen/kernels/philox.h"
+#include "terraingen/random/samplers.h"
 
 #include <algorithm>
 #include <cmath>

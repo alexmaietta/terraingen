@@ -1,7 +1,7 @@
 #pragma once
 
-#include "terraingen/core/geo_transform.h"
-#include "terraingen/core/random.h"
+#include "terraingen/random/random_stream.h"
+#include "terraingen/raster/geo_transform.h"
 
 #include <cstdint>
 #include <vector>

@@ -1,5 +1,9 @@
 #include "terraingen/features/craters/ages.h"
 
+#include "terraingen/distributions/composite.h"
+#include "terraingen/features/craters/lunar/equilibrium.h"
+#include "terraingen/features/craters/lunar/production.h"
+
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>

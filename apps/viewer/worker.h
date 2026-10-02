@@ -1,8 +1,8 @@
 #pragma once
 
 #include "settings.h"
-#include "terraingen/core/raster.h"
-#include "terraingen/core/raster_stats.h"
+#include "terraingen/raster/raster.h"
+#include "terraingen/raster/raster_stats.h"
 
 #include <condition_variable>
 #include <cstdint>

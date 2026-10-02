@@ -1,6 +1,6 @@
 #pragma once
 
-#include "terraingen/core/geo_transform.h"
+#include "terraingen/raster/geo_transform.h"
 
 #include <cassert>
 #include <cstddef>

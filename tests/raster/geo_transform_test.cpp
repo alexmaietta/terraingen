@@ -1,4 +1,4 @@
-#include "terraingen/core/geo_transform.h"
+#include "terraingen/raster/geo_transform.h"
 
 #include <gtest/gtest.h>
 

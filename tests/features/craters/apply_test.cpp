@@ -1,5 +1,5 @@
 #include "support/log_capture.h"
-#include "terraingen/features/craters/apply.h"
+#include "terraingen/craters.h"
 
 #include <gtest/gtest.h>
 

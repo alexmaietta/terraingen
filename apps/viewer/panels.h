@@ -2,7 +2,7 @@
 
 #include "log_buffer.h"
 #include "settings.h"
-#include "terraingen/core/raster_stats.h"
+#include "terraingen/raster/raster_stats.h"
 
 #include <array>
 #include <chrono>

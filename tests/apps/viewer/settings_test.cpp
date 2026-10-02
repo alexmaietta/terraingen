@@ -1,7 +1,6 @@
 #include "settings.h"
 
-#include "terraingen/features/craters/apply.h"
-#include "terraingen/features/craters/population.h"
+#include "terraingen/craters.h"
 #include "terraingen/spatial/cells.h"
 #include "terraingen/surfaces/synthetic_terrain.h"
 

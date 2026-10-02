@@ -1,4 +1,4 @@
-#include "terraingen/features/craters/degradation.h"
+#include "terraingen/craters.h"
 
 #include <gtest/gtest.h>
 

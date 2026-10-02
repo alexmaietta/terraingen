@@ -1,8 +1,6 @@
 #include "settings.h"
 
-#include "terraingen/features/craters/apply.h"
-#include "terraingen/features/craters/lunar_cratering.h"
-#include "terraingen/features/craters/population.h"
+#include "terraingen/craters.h"
 #include "terraingen/spatial/cells.h"
 
 #include <cmath>

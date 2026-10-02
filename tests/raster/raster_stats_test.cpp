@@ -1,4 +1,4 @@
-#include "terraingen/core/raster_stats.h"
+#include "terraingen/raster/raster_stats.h"
 
 #include <gtest/gtest.h>
 

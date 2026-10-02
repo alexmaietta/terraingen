@@ -16,15 +16,24 @@ add_custom_target(
 add_library(
     terraingen_core STATIC
     version.cpp
-    log.cpp
-    random.cpp
+    core/log.cpp
+    distributions/composite.cpp
+    distributions/log_polynomial.cpp
+    distributions/power_law.cpp
     distributions/size_frequency.cpp
+    distributions/tabulated.cpp
     features/craters/ages.cpp
     features/craters/apply.cpp
     features/craters/degradation.cpp
-    features/craters/lunar_cratering.cpp
+    features/craters/lunar/chronology.cpp
+    features/craters/lunar/equilibrium.cpp
+    features/craters/lunar/production.cpp
+    features/craters/lunar/specifications.cpp
     features/craters/population.cpp
-    features/craters/profiles.cpp
+    features/craters/profiles/fassett_thomson.cpp
+    features/craters/profiles/martin_parkes_dunstan.cpp
+    random/random_stream.cpp
+    random/samplers.cpp
     spatial/cells.cpp
     surfaces/synthetic_terrain.cpp
     "${TERRAINGEN_BUILD_INFO_CPP}")

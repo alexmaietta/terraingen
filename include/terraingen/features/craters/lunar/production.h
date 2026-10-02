@@ -1,6 +1,9 @@
 #pragma once
 
+#include "terraingen/distributions/composite.h"
+#include "terraingen/distributions/log_polynomial.h"
 #include "terraingen/distributions/size_frequency.h"
+#include "terraingen/features/craters/lunar/chronology.h"
 
 #include <memory>
 
@@ -39,59 +42,6 @@ class ProductionSurface final : public SizeFrequencyDistribution {
     double ageGyr_;
     double scale_;
 };
-
-/// Trask (1966) lunar equilibrium, N(>=D) = 10^-1.1 D^-2 (the same in km/km^2 and m/m^2). The DSNE
-/// uses it as the upper limit on the density of craters smaller than about 100-200 m on any
-/// surface.
-///
-/// References: N. J. Trask, in Ranger VIII and IX Part II, JPL Technical Report 32-800, 1966; NASA
-/// SLS-SPEC-159 (DSNE) Revision I, Section 3.4.1.1.
-PowerLaw TraskEquilibrium();
-
-/// Hartmann (1984) lunar equilibrium, N(>=D) = 10^-1.14 D_km^-1.83 per km^2, as given by Fassett et
-/// al. (2022, eq. 3b).
-///
-/// Reference: C. I. Fassett et al., "Topographic Diffusion Revisited", JGR Planets 127, 2022.
-/// https://doi.org/10.1029/2022JE007510
-PowerLaw HartmannEquilibrium();
-
-/// Moore's terrain-specific cumulative distributions for Lunar Roving Vehicle trafficability (USGS,
-/// "Section C"), N per m^2 with D in metres.
-enum class MooreTerrain {
-    RoughMare,        ///< 10^-1 D^-2 below 100 m, 10 D^-3 above.
-    SmoothMare,       ///< 10^-1 D^-2 below 40 m, then 10^0.602 D^-3, 10^-2.038 D^-1.68, 10 D^-3.
-    Uplands,          ///< 10^-1 D^-2 below 1 km, 10^2 D^-3 above.
-    HeavilyCratered,  ///< 10^-1 D^-2 up to 10 km.
-};
-
-/// Moore's distribution for `terrain` (H. J. Moore, USGS Section C, c. 1970). The published
-/// coefficients are rounded, so segments agree at their joins only to within 0.2%; the presets
-/// accept joins within 0.5%.
-PiecewisePowerLaw MooreDistribution(MooreTerrain terrain);
-
-/// The VIPER environmental specification (VIPER-MSE-SPEC-001, 2021) as used by synthterrain:
-/// N = 29174 D^-1.92 per km^2 for D <= 80 m and 156228 D^-2.389 above (D in m). Kept for comparison
-/// with synthterrain; its segments disagree by a factor of 1.46 at 80 m, and Allan et al. (2017)
-/// found it predicts too many craters against a NAC image.
-PiecewisePowerLaw ViperSpecification();
-
-/// Oldest surface age, in Gyr, accepted by `NeukumLunarChronology`.
-inline constexpr double kMaxLunarAgeGyr = 4.6;
-
-/// Neukum et al. (2001) lunar chronology: cumulative density of craters at least 1 km across on a
-/// surface `ageGyr` old, N1(T) = 5.44e-14 (e^(6.93 T) - 1) + 8.38e-4 T per km^2, returned per m^2.
-/// The linear term is the present-day rate, which equals 10^a_0 of `NeukumProductionFunction`.
-///
-/// Reference: G. Neukum, B. A. Ivanov and W. K. Hartmann, "Cratering Records in the Inner Solar
-/// System in Relation to the Lunar Reference System", Space Science Reviews 96:55-86, 2001, eq. 5.
-/// https://doi.org/10.1023/A:1011989004263
-/// @throws std::domain_error unless 0 <= `ageGyr` <= `kMaxLunarAgeGyr`.
-double NeukumLunarChronology(double ageGyr);
-
-/// dN1/dT of `NeukumLunarChronology`: the formation rate of craters at least 1 km across `ageGyr`
-/// ago, per m^2 per Gyr.
-/// @throws std::domain_error unless 0 <= `ageGyr` <= `kMaxLunarAgeGyr`.
-double NeukumLunarChronologyRate(double ageGyr);
 
 /// Neukum et al. (2001) lunar production function (eq. 2, table 1 "new" N(D)), valid from 10 m to
 /// 300 km, as a `ProductionRate` per m^2 per Gyr at the present-day flux.

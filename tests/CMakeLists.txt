@@ -1,4 +1,6 @@
 add_subdirectory(core)
+add_subdirectory(raster)
+add_subdirectory(random)
 add_subdirectory(kernels)
 add_subdirectory(distributions)
 add_subdirectory(features)

@@ -1,6 +1,5 @@
-#include "terraingen/distributions/size_frequency.h"
-#include "terraingen/features/craters/ages.h"
-#include "terraingen/features/craters/lunar_cratering.h"
+#include "terraingen/craters.h"
+#include "terraingen/distributions.h"
 
 #include <gtest/gtest.h>
 

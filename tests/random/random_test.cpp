@@ -1,4 +1,5 @@
-#include "terraingen/core/random.h"
+#include "terraingen/random/random_stream.h"
+#include "terraingen/random/samplers.h"
 
 #include <gtest/gtest.h>
 

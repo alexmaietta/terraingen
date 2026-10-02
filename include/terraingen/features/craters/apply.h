@@ -1,9 +1,9 @@
 #pragma once
 
-#include "terraingen/core/raster.h"
 #include "terraingen/features/craters/degradation.h"
 #include "terraingen/features/craters/population.h"
-#include "terraingen/features/craters/profiles.h"
+#include "terraingen/features/craters/profiles/profile.h"
+#include "terraingen/raster/raster.h"
 
 namespace terraingen {
 

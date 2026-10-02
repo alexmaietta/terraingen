@@ -1,8 +1,8 @@
 #pragma once
 
-#include "terraingen/core/random.h"
 #include "terraingen/distributions/size_frequency.h"
-#include "terraingen/features/craters/lunar_cratering.h"
+#include "terraingen/features/craters/lunar/chronology.h"
+#include "terraingen/random/random_stream.h"
 
 #include <memory>
 
