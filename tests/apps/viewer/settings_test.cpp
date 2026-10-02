@@ -4,8 +4,7 @@
 #include "terraingen/spatial/cells.h"
 #include "terraingen/surfaces/synthetic_terrain.h"
 
-#include "ernie/raster/raster_delegate.h"
-#include "ernie/scene/tokens.h"
+#include "ernie/ernie.h"
 
 #include <glm/glm.hpp>
 #include <gtest/gtest.h>
@@ -507,4 +506,36 @@ TEST(CraterSettings, ManualCratersMergeWithGeneratedCraters) {
     for (std::size_t i = 0; i < generated.Size(); ++i) {
         ASSERT_EQ(generated.Values()[i], expected.Values()[i]) << i;
     }
+}
+
+TEST(ViewSettings, DefaultsToAGrayShadedTerrainOnBlack) {
+    const terraingen::viewer::ViewSettings view;
+    EXPECT_EQ(view.colorMode, ernie::TerrainColorMode::Hillshade);
+    EXPECT_EQ(view.background, (std::array<float, 3>{0.0f, 0.0f, 0.0f}));
+    EXPECT_EQ(view.material.surface.albedo, glm::vec3(0.5f));
+}
+
+TEST(CraterSettings, MaxCratersReachesTheLibraryAndFitsTheMinimumDiameter) {
+    TerrainSettings settings;
+    settings.width = 129;
+    settings.height = 97;
+    settings.craters.minDiameter = 8.0;
+    settings.craters.maxDiameter = 100.0;
+    settings.craters.maxCraters = 20;
+    const auto generated = GenerateTerrain(settings);
+
+    auto expected = GenerateSyntheticTerrain(129, 97, 2.0, settings.EffectiveTerrain());
+    const CraterModels models = BuildCraterModels(settings.craters);
+    const auto craters = terraingen::GenerateCraters(
+        terraingen::PlanarCells(), {-129.0, -97.0, 129.0, 97.0}, *models.density, *models.ages,
+        settings.craters.seed, {.dMin = 8.0, .dMax = 100.0, .marginRadii = 1.5, .maxCraters = 20});
+    EXPECT_EQ(craters.Size(), 20u);
+    terraingen::ApplyCraters(expected, craters, *models.profile, *models.degradation);
+    for (std::size_t i = 0; i < generated.Size(); ++i) {
+        ASSERT_EQ(generated.Values()[i], expected.Values()[i]) << i;
+    }
+
+    const double fitted = terraingen::viewer::MinDiameterForCount(settings);
+    settings.craters.minDiameter = fitted;
+    EXPECT_NEAR(ExpectedCraterCount(settings), 20.0, 1e-3);
 }

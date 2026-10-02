@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <limits>
 #include <map>
 #include <memory>
@@ -368,4 +369,53 @@ TEST(GenerateCraters, RejectsInvalidManualCraters) {
                                      FreshAges(), 1u, {.dMin = 1.0, .dMax = 5.0, .manual = manual}),
                      std::invalid_argument);
     }
+}
+
+TEST(GenerateCraters, MaxCratersKeepsTheLargestGeneratedCraters) {
+    const Bounds2d region{0.0, 0.0, 300.0, 300.0};
+    CraterList manual;
+    manual.Append({10.0, 10.0, 3.0, 0.0, 0u});
+    const CraterList all = GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), FreshAges(), 5u,
+                                           {.dMin = 2.0, .dMax = 64.0});
+    const terraingen::testing::LogCapture capture;
+    const CraterList capped =
+        GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), FreshAges(), 5u,
+                        {.dMin = 2.0, .dMax = 64.0, .manual = manual, .maxCraters = 50});
+    ASSERT_GT(all.Size(), 50u);
+    ASSERT_EQ(capped.Size(), 51u);
+    std::vector<double> diameters(all.Diameters());
+    std::sort(diameters.begin(), diameters.end(), std::greater<>());
+    double smallestKept = 1e9;
+    std::size_t manualKept = 0;
+    for (std::size_t n = 0; n < capped.Size(); ++n) {
+        if (capped.At(n).manual) {
+            ++manualKept;
+        } else {
+            smallestKept = std::min(smallestKept, capped.At(n).diameter);
+        }
+    }
+    EXPECT_EQ(manualKept, 1u);
+    EXPECT_EQ(smallestKept, diameters[49]);
+    const auto records = capture.Matching("craters", terraingen::LogLevel::Info);
+    ASSERT_EQ(records.size(), 1u);
+    EXPECT_NE(records[0].message.find(" over maxCraters dropped"), std::string::npos);
+    const CraterList generous =
+        GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), FreshAges(), 5u,
+                        {.dMin = 2.0, .dMax = 64.0, .maxCraters = 1000000});
+    EXPECT_EQ(generous.Ids(), all.Ids());
+}
+
+TEST(MinDiameterForCount, InvertsTheExpectedCount) {
+    const PowerLawSfd density(0.1, 2.0);
+    const double area = 1e6;
+    const double d = terraingen::MinDiameterForCount(density, area, 500.0, 1.0, 100.0);
+    EXPECT_NEAR(density.ExpectedCount(area, d, 100.0), 500.0, 1e-6);
+    EXPECT_NEAR(d, 1.0 / std::sqrt(500.0 / (area * 0.1) + 1e-4), 1e-9);
+    EXPECT_EQ(terraingen::MinDiameterForCount(density, area, 1e12, 1.0, 100.0), 1.0);
+    EXPECT_THROW(terraingen::MinDiameterForCount(density, area, 0.0, 1.0, 100.0),
+                 std::invalid_argument);
+    EXPECT_THROW(terraingen::MinDiameterForCount(density, -1.0, 5.0, 1.0, 100.0),
+                 std::invalid_argument);
+    EXPECT_THROW(terraingen::MinDiameterForCount(density, area, 5.0, 10.0, 1.0),
+                 std::invalid_argument);
 }

@@ -129,7 +129,22 @@ struct CraterGenerationOptions {
     /// it) are returned after the generated craters with `manual` set, and an ID from
     /// `ManualCraterId` where theirs is 0; with spacing, they remove conflicting generated craters.
     CraterList manual{};
+    /// Keep at most this many generated craters, the largest (ties to the smaller ID); 0 keeps
+    /// all. Manual craters are always kept and do not count. Ranking the whole list means a capped
+    /// region no longer equals its tiles joined; `MinDiameterForCount` bounds counts tile-safely.
+    std::size_t maxCraters = 0;
 };
+
+/// The smallest diameter in [`dMin`, `dMax`) from which `density` expects about `count` craters
+/// over `area` m^2, found by bisection in log diameter; `dMin` if even that expects fewer.
+///
+/// Raising `dMin` to this value bounds the number of craters while keeping the distribution's
+/// shape above it, unlike a hard cap, so tiles still join.
+/// @throws std::invalid_argument unless `count` and `area` are positive and finite and
+/// 0 < `dMin` < `dMax`.
+/// @throws std::domain_error if the interval leaves the density's valid range.
+double MinDiameterForCount(const SizeFrequencyDistribution& density, double area, double count,
+                           double dMin, double dMax);
 
 /// Generates the craters of `density` with diameters in [`dMin`, `dMax`) whose centres lie in
 /// `region`, or within `marginRadii` radii of it.

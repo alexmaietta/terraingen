@@ -69,6 +69,7 @@ struct CraterSettings {
     bool enabled = true;
     bool generate = true;        ///< Generate craters from the density; off uses manual only.
     std::vector<Crater> manual;  ///< Craters placed by hand, in metres from the centre.
+    std::size_t maxCraters = 0;  ///< Keep at most this many generated craters; 0 keeps all.
     CraterDensityModel density = CraterDensityModel::LunarSurface;
     double surfaceAgeGyr = 3.5;        ///< For `LunarSurface`.
     double powerLawCoefficient = 0.1;  ///< For `PowerLawSfd`, per m^2 with D in metres.
@@ -115,6 +116,11 @@ struct TerrainSettings {
 /// Describes the first problem with `settings`, or returns an empty string if they are valid.
 std::string ValidateSettings(const TerrainSettings& settings);
 
+/// The minimum diameter at which the craters' density expects `maxCraters` craters over the
+/// terrain, within the valid range of the density.
+/// @throws std::invalid_argument or std::domain_error for invalid crater settings or a zero cap.
+double MinDiameterForCount(const TerrainSettings& settings);
+
 /// Expected number of craters `settings` generate, or 0 when craters are disabled.
 /// @throws std::invalid_argument or std::domain_error for invalid crater settings.
 double ExpectedCraterCount(const TerrainSettings& settings);
@@ -126,8 +132,11 @@ Raster<float> GenerateTerrain(const TerrainSettings& settings);
 
 /// Surface options edited in the Surface panel: the renderer's surface settings plus every
 /// reflectance model's parameter values, kept while switching between models.
+/// The viewer's starting material: a mid gray (linear albedo 0.5).
+ernie::MaterialSettings DefaultMaterial();
+
 struct SurfaceViewSettings {
-    ernie::MaterialSettings surface;
+    ernie::MaterialSettings surface = DefaultMaterial();
     float exposure = 1.0f;  ///< Sun intensity, a scale on reflected sunlight.
     std::map<std::string, std::vector<float>, std::less<>> brdfParams;
 
@@ -152,12 +161,12 @@ struct ViewSettings {
     float sunElevationDegrees = 35.0f;
     float ambient = 0.15f;
     float exaggeration = 1.0f;
-    ernie::TerrainColorMode colorMode = ernie::TerrainColorMode::ShadedColormap;
+    ernie::TerrainColorMode colorMode = ernie::TerrainColorMode::Hillshade;
     bool wireframe = false;
     ernie::ShadowSettings shadows;
     ernie::LodSettings lod;
     SurfaceViewSettings material;
-    std::array<float, 3> background{0.08f, 0.08f, 0.10f};
+    std::array<float, 3> background{0.0f, 0.0f, 0.0f};
 };
 
 /// Unit vector pointing towards a sun at the given azimuth (clockwise from north) and elevation

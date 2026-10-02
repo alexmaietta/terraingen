@@ -20,6 +20,12 @@ NoiseLayer LayerSettings::EffectiveLayer() const {
     return effective;
 }
 
+ernie::MaterialSettings DefaultMaterial() {
+    ernie::MaterialSettings material;
+    material.albedo = glm::vec3(0.5f);
+    return material;
+}
+
 LayerSettings DefaultLayer() {
     LayerSettings settings;
     settings.layer.fractal.seed = 1u;
@@ -133,6 +139,17 @@ CraterModels BuildCraterModels(const CraterSettings& settings) {
     return models;
 }
 
+double MinDiameterForCount(const TerrainSettings& settings) {
+    const CraterSettings& craters = settings.craters;
+    const CraterModels models = BuildCraterModels(craters);
+    const Bounds2d bounds = TerrainBounds(settings);
+    const double area = (bounds.maxX - bounds.minX) * (bounds.maxY - bounds.minY);
+    const double lowest = std::fmax(models.density->ValidRange().min, 1e-3);
+    return terraingen::MinDiameterForCount(*models.density, area,
+                                           static_cast<double>(craters.maxCraters), lowest,
+                                           craters.maxDiameter);
+}
+
 double ExpectedCraterCount(const TerrainSettings& settings) {
     const CraterSettings& craters = settings.craters;
     if (!craters.enabled) {
@@ -207,7 +224,8 @@ Raster<float> GenerateTerrain(const TerrainSettings& settings) {
                                  .dMax = craters.maxDiameter,
                                  .marginRadii = models.profile->ReachRadii(),
                                  .spacing = craters.spacing,
-                                 .manual = manual});
+                                 .manual = manual,
+                                 .maxCraters = craters.maxCraters});
         } else {
             for (std::size_t n = 0; n < manual.Size(); ++n) {
                 const Crater crater = manual.At(n);

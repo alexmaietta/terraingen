@@ -235,14 +235,76 @@ CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
         }
         craters = std::move(kept);
     }
+    std::size_t capped = 0;
+    std::size_t generatedKept = 0;
+    for (std::size_t n = 0; n < craters.Size(); ++n) {
+        generatedKept += craters.Manual()[n] == 0 ? 1u : 0u;
+    }
+    if (options.maxCraters > 0 && generatedKept > options.maxCraters) {
+        std::vector<std::size_t> order;
+        order.reserve(generatedKept);
+        for (std::size_t n = 0; n < craters.Size(); ++n) {
+            if (craters.Manual()[n] == 0) {
+                order.push_back(n);
+            }
+        }
+        const auto& diameters = craters.Diameters();
+        const auto& ids = craters.Ids();
+        std::nth_element(order.begin(),
+                         order.begin() + static_cast<std::ptrdiff_t>(options.maxCraters),
+                         order.end(), [&](std::size_t a, std::size_t b) {
+                             if (diameters[a] != diameters[b]) {
+                                 return diameters[a] > diameters[b];
+                             }
+                             return ids[a] < ids[b];
+                         });
+        std::vector<bool> keep(craters.Size(), false);
+        for (std::size_t k = 0; k < options.maxCraters; ++k) {
+            keep[order[k]] = true;
+        }
+        CraterList kept;
+        kept.Reserve(options.maxCraters + options.manual.Size());
+        for (std::size_t n = 0; n < craters.Size(); ++n) {
+            if (keep[n] || craters.Manual()[n] != 0) {
+                kept.Append(craters.At(n));
+            }
+        }
+        capped = generatedKept - options.maxCraters;
+        craters = std::move(kept);
+    }
     LogInfo("craters", "Generated ", craters.Size(), " craters (", options.dMin, "-", dMax, " m, ",
             plan.size(), " bands, ", static_cast<long long>(std::llround(expected)), " expected",
             spacing.Enabled() ? ", " + std::to_string(removed) + " removed by spacing" : "",
             options.manual.Size() > 0
                 ? ", " + std::to_string(options.manual.Size()) + " manual supplied"
                 : "",
-            ") in ", FormatDuration(stopwatch.Milliseconds()));
+            capped > 0 ? ", " + std::to_string(capped) + " over maxCraters dropped" : "", ") in ",
+            FormatDuration(stopwatch.Milliseconds()));
     return craters;
+}
+
+double MinDiameterForCount(const SizeFrequencyDistribution& density, double area, double count,
+                           double dMin, double dMax) {
+    if (!(std::isfinite(count) && count > 0.0 && std::isfinite(area) && area > 0.0)) {
+        throw std::invalid_argument("Count and area must be positive and finite");
+    }
+    if (!(std::isfinite(dMin) && dMin > 0.0 && dMax > dMin && std::isfinite(dMax))) {
+        throw std::invalid_argument("Diameter interval must satisfy 0 < dMin < dMax");
+    }
+    if (density.ExpectedCount(area, dMin, dMax) <= count) {
+        return dMin;
+    }
+    double low = std::log(dMin);
+    double high = std::log(dMax);
+    for (int i = 0; i < 200 && high - low > 1e-12; ++i) {
+        const double middle = 0.5 * (low + high);
+        if (density.ExpectedCount(area, std::exp(middle), dMax) > count) {
+            low = middle;
+        } else {
+            high = middle;
+        }
+    }
+    return std::exp(high);
 }
 
 }  // namespace terraingen

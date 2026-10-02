@@ -268,6 +268,25 @@ void DrawTerrainCraters(TerrainSettings& settings) {
     DragDouble("Similar size ratio", craters.spacing.diameterRatio, 1.0, 8.0, "%.2f",
                ImGuiSliderFlags_Logarithmic);
     ImGui::EndDisabled();
+    std::uint64_t maxCraters = craters.maxCraters;
+    if (ImGui::InputScalar("Max craters", ImGuiDataType_U64, &maxCraters)) {
+        craters.maxCraters = static_cast<std::size_t>(maxCraters);
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Keep only the largest generated craters; 0 keeps all.");
+    }
+    ImGui::BeginDisabled(craters.maxCraters == 0);
+    if (ImGui::Button("Fit min diameter to count")) {
+        try {
+            craters.minDiameter = MinDiameterForCount(settings);
+        } catch (const std::exception&) {
+        }
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Raise the minimum diameter so the expected count is the maximum; "
+                          "unlike the cap, this keeps the size distribution.");
+    }
+    ImGui::EndDisabled();
     ImGui::EndDisabled();
 
     ImGui::SeparatorText("Manual craters");
