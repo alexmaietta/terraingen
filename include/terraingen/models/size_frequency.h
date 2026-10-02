@@ -275,6 +275,32 @@ class SplicedSfd final : public SizeFrequencyDistribution {
     std::vector<SfdPiece> pieces_;
 };
 
+/// The pointwise minimum of distributions of one kind, such as the DSNE construction of a surface's
+/// crater density: the lesser of the production surface and the equilibrium density at every
+/// diameter.
+///
+/// The valid range is the intersection of the inputs' ranges.
+class MinimumSfd final : public SizeFrequencyDistribution {
+  public:
+    /// @throws std::invalid_argument if `distributions` is empty, holds a null pointer, mixes
+    /// kinds, or the valid ranges do not overlap.
+    explicit MinimumSfd(
+        std::vector<std::shared_ptr<const SizeFrequencyDistribution>> distributions);
+
+    const std::vector<std::shared_ptr<const SizeFrequencyDistribution>>& Distributions() const {
+        return distributions_;
+    }
+
+  protected:
+    double CumulativeAt(double diameter) const override;
+    double IncrementalAt(double diameter) const override;
+
+  private:
+    const SizeFrequencyDistribution& LowestAt(double diameter) const;
+
+    std::vector<std::shared_ptr<const SizeFrequencyDistribution>> distributions_;
+};
+
 /// The cumulative density of craters on a surface of a given age: a
 /// production function scaled so that N(>=1 km) follows the Neukum et al. (2001) lunar chronology,
 /// N(D, T) = Phi(D) * N1(T) / Phi(1 km).
@@ -360,6 +386,11 @@ inline constexpr double kMaxLunarAgeGyr = 4.6;
 /// https://doi.org/10.1023/A:1011989004263
 /// @throws std::domain_error unless 0 <= `ageGyr` <= `kMaxLunarAgeGyr`.
 double NeukumLunarChronology(double ageGyr);
+
+/// dN1/dT of `NeukumLunarChronology`: the formation rate of craters at least 1 km across `ageGyr`
+/// ago, per m^2 per Gyr.
+/// @throws std::domain_error unless 0 <= `ageGyr` <= `kMaxLunarAgeGyr`.
+double NeukumLunarChronologyRate(double ageGyr);
 
 /// Neukum et al. (2001) lunar production function (eq. 2, table 1 "new" N(D)), valid from 10 m to
 /// 300 km, as a `ProductionRate` per m^2 per Gyr at the present-day flux.

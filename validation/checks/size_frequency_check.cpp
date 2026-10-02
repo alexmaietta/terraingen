@@ -1,3 +1,4 @@
+#include "terraingen/models/crater_ages.h"
 #include "terraingen/models/size_frequency.h"
 
 #include <gtest/gtest.h>
@@ -14,6 +15,7 @@
 
 using terraingen::HartmannEquilibrium;
 using terraingen::LogPolynomial;
+using terraingen::LunarSurface;
 using terraingen::MooreDistribution;
 using terraingen::MooreTerrain;
 using terraingen::NeukumLunarChronology;
@@ -22,6 +24,8 @@ using terraingen::PiecewisePowerLaw;
 using terraingen::PowerLaw;
 using terraingen::PowerLawCoefficientFromKilometres;
 using terraingen::ProductionSurface;
+using terraingen::SteadyStateAges;
+using terraingen::SurfaceModel;
 using terraingen::TabulatedSfd;
 using terraingen::TraskEquilibrium;
 using terraingen::ViperSpecification;
@@ -73,6 +77,9 @@ TEST(Presets, MatchSynthterrainReferenceValues) {
         std::getline(fields, name, ',');
         std::getline(fields, diameter, ',');
         std::getline(fields, value, ',');
+        if (name == "equilibrium_age_gyr") {
+            continue;
+        }
         const double d = std::stod(diameter);
         const double expected = std::stod(value);
         const double actual = name == "trask"   ? trask.Cumulative(d)
@@ -139,28 +146,49 @@ TEST(Presets, TabulatedDsneTableFollowsTheSurfaceModelBetweenRows) {
     EXPECT_EQ(compared, 28);
 }
 
-TEST(Presets, NeukumSurfaceAndTraskEquilibriumReproduceTheDsneMareTable) {
-    std::ifstream file(TERRAINGEN_VALIDATION_REFERENCES "/sfd/dsne_rev_i_table_3_4_1_1_1.csv");
+TEST(Presets, LunarSurfaceReproducesTheDsneMareTable) {
+    const auto [diameters, values] = ReadDsneTable();
+    ASSERT_EQ(diameters.size(), 30u);
+    const SurfaceModel surface = LunarSurface(3.5);
+    for (std::size_t i = 0; i < diameters.size(); ++i) {
+        const double d = diameters[i] * 1000.0;
+        const double expected = values[i] / 1e6;
+        EXPECT_NEAR(surface.density->Cumulative(d), expected, 0.01 * expected)
+            << "D = " << d << " m";
+    }
+}
+
+TEST(Presets, SteadyStateLifetimesAreTheLimitOfSynthterrainsBinnedEquilibriumAges) {
+    std::ifstream file(TERRAINGEN_VALIDATION_REFERENCES "/sfd/synthterrain_reference.csv");
     ASSERT_TRUE(file.is_open());
-    const ProductionSurface surface(std::make_shared<LogPolynomial>(NeukumProductionFunction()),
-                                    3.5);
-    const PowerLaw trask = TraskEquilibrium();
+    const auto npf = std::make_shared<LogPolynomial>(NeukumProductionFunction());
+    const auto trask = std::make_shared<PowerLaw>(TraskEquilibrium());
+    const SteadyStateAges ages(npf, trask, terraingen::kMaxLunarAgeGyr);
+    const auto binned = [&](double d, double dex) {
+        const double upper = std::pow(10.0, std::log10(d) + dex);
+        return (trask->Cumulative(d) - trask->Cumulative(upper)) /
+               (npf->Cumulative(d) - npf->Cumulative(upper));
+    };
     std::string line;
     int compared = 0;
     while (std::getline(file, line)) {
-        if (line.empty() || line[0] == '#' || line.rfind("diameter", 0) == 0) {
+        if (line.rfind("equilibrium_age_gyr,", 0) != 0) {
             continue;
         }
         std::stringstream fields(line);
+        std::string name;
         std::string diameter;
         std::string value;
+        std::getline(fields, name, ',');
         std::getline(fields, diameter, ',');
         std::getline(fields, value, ',');
-        const double d = std::stod(diameter) * 1000.0;
-        const double expected = std::stod(value) / 1e6;
-        const double actual = std::min(surface.Cumulative(d), trask.Cumulative(d));
-        EXPECT_NEAR(actual, expected, 0.01 * expected) << "D = " << d << " m";
+        const double d = std::stod(diameter);
+        const double expected = std::stod(value);
+        EXPECT_NEAR(binned(d, 0.1), expected, 1e-9 * expected) << "D = " << d << " m";
+        const double lifetime = ages.EquilibriumLifetimeGyr(d);
+        EXPECT_NEAR(binned(d, 1e-5), lifetime, 1e-3 * lifetime) << "D = " << d << " m";
+        EXPECT_NEAR(lifetime, expected, 0.2 * expected) << "D = " << d << " m";
         ++compared;
     }
-    EXPECT_EQ(compared, 30);
+    EXPECT_EQ(compared, 16);
 }
