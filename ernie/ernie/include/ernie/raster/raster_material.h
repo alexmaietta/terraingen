@@ -2,6 +2,7 @@
 
 #include "ernie/core/image.h"
 #include "ernie/core/raster_view.h"
+#include "ernie/core/spectrum.h"
 #include "ernie/gpu/gpu_buffer.h"
 #include "ernie/gpu/gpu_image.h"
 #include "ernie/gpu/pipeline.h"
@@ -32,8 +33,10 @@ struct DetailSettings {
 struct MaterialSettings {
     std::string brdf = "lambert";   ///< Id of a model in the renderer's `BrdfRegistry`.
     std::vector<float> brdfParams;  ///< In the model's parameter order; missing ones use defaults.
-    glm::vec3 albedo{1.0f};         ///< Albedo input where no albedo map applies.
-    bool useAlbedoMap = true;       ///< Use the albedo map when one is set.
+    glm::vec3 albedo{1.0f};  ///< Linear RGB albedo, upsampled to a spectrum (`RgbToSpectrum`).
+    /// Reflectance spectrum replacing `albedo` when not empty.
+    Spectrum reflectance;
+    bool useAlbedoMap = true;  ///< Use the albedo map when one is set.
     DetailSettings detail;
 };
 
@@ -114,6 +117,22 @@ class RasterMaterial {
         return settings_;
     }
 
+    /// The model's resolved parameters from the last `Update`.
+    const std::vector<float>& Params() const {
+        return params_;
+    }
+
+    /// The material's reflectance spectrum: `Settings().reflectance`, or the albedo upsampled.
+    const Spectrum& Reflectance() const {
+        return reflectance_;
+    }
+
+    /// Luminance of the reflectance (CIE Y under the equal-energy illuminant), which albedo map
+    /// values are relative to: the map sets the albedo and the spectrum its shape.
+    float Luminance() const {
+        return luminance_;
+    }
+
     /// GPU memory held for textures and the uniform, in bytes.
     std::uint64_t GpuBytes() const;
 
@@ -126,6 +145,8 @@ class RasterMaterial {
     const VulkanContext& context_;
     MaterialSettings settings_;
     std::vector<float> params_;
+    Spectrum reflectance_ = Spectrum::Constant(1.0);
+    float luminance_ = 1.0f;
     GpuBuffer uniform_;
     Sampler sampler_;
     std::unique_ptr<GpuImage> albedoMap_;

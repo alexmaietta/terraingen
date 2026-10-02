@@ -1,7 +1,4 @@
-// Terrain colour pass. The host composes it with a reflectance model by prepending
-//     import <model module>;
-//     typealias ActiveBrdf = <model type>;
-import brdf;
+// Terrain G-buffer pass: the terrain's normals, shadows, albedo and ids for spectral shading.
 import terrain;
 import surface;
 
@@ -37,35 +34,37 @@ float3 colormap(float t) {
 }
 
 [shader("fragment")]
-float4 fragmentMain(VertexOutput in) : SV_Target {
+GBuffer fragmentMain(VertexOutput in) {
     let detail = sampleDetail(detailCoords(in.world.xy));
 
     // Shadow lookups use the terrain normal; shading adds the detail normal's slope.
     let slope = terrainSlope(in.world);
     let normal = slopeNormal(slope);
     let shadingNormal = slopeNormal(slope + detail.slope);
-    let visibility = sunVisibility(in.world, normal, in.position.xy);
-    let albedo = surfaceAlbedo(in.world) * detail.albedo;
-    let toEye = normalize(u.eye.xyz - in.world);
-    let lit = reflected<ActiveBrdf>(shadingNormal, u.sun.xyz, toEye, albedo, surface.brdf) *
-              visibility * u.eye.w;
-    let shade = u.sun.w * albedo + (1.0 - u.sun.w) * lit;
     let range = max(t.heightRange.y - t.heightRange.x, 1e-6);
     let fraction = (in.height - t.heightRange.x) / range;
 
-    var color = shade;
+    var modulation = detail.albedo;
+    var flags = 0u;
     if (t.dims.z == 1) {
-        color = colormap(fraction);
+        modulation = colormap(fraction);
+        flags = kUnlit;
     } else if (t.dims.z == 2) {
-        color = colormap(fraction) * shade;
+        modulation = modulation * colormap(fraction);
     }
-    color = cascadeTint(color, in.world);
-
+    modulation = cascadeTint(modulation, in.world);
     if (t.dims.w == 1) {
         let levelTints = float3[6](float3(1.0, 0.6, 0.6), float3(0.6, 1.0, 0.6),
                                    float3(0.6, 0.7, 1.0), float3(1.0, 1.0, 0.55),
                                    float3(1.0, 0.6, 1.0), float3(0.55, 1.0, 1.0));
-        color = color * levelTints[in.level % 6];
+        modulation = modulation * levelTints[in.level % 6];
     }
-    return float4(wireframe(color, in.barycentric), 1.0);
+    GBuffer out;
+    out.normal = float4(shadingNormal, flags == kUnlit ? 1.0
+                                                       : sunVisibility(in.world, normal,
+                                                                       in.position.xy));
+    let scale = flags == kUnlit ? 1.0 : surfaceAlbedoScale(in.world);
+    out.albedo = float4(scale, wireframe(modulation, in.barycentric));
+    out.ids = uint4(t.ids.x, t.ids.y, 0, flags);
+    return out;
 }

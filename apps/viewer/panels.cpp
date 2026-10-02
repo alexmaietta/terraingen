@@ -411,6 +411,26 @@ bool DrawViewSection(ViewSettings& view) {
     ImGui::SameLine();
     ImGui::Checkbox("Show levels", &lod.showLevels);
     ImGui::EndDisabled();
+    ImGui::SeparatorText("Camera");
+    CameraViewSettings& camera = view.camera;
+    ImGui::SliderFloat("Exposure##camera", &camera.exposureStops, -20.0f, 20.0f, "%+.1f stops");
+    ImGui::SliderFloat("Shutter", &camera.shutterSeconds, 1e-5f, 10.0f, "%.3g s",
+                       ImGuiSliderFlags_Logarithmic);
+    ImGui::SliderFloat("ISO", &camera.iso, 25.0f, 25600.0f, "%.0f", ImGuiSliderFlags_Logarithmic);
+    ImGui::SliderFloat("f-number", &camera.fStop, 0.5f, 64.0f, "f/%.1f",
+                       ImGuiSliderFlags_Logarithmic);
+    ImGui::SliderInt("Spectral bands", &camera.bands, 1, ernie::SpectralBands::kMaxBands);
+    ImGui::Checkbox("Physical sun", &camera.physicalSun);
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("1361 W/m^2 at 5772 K. Try f/16, 1/100 s, ISO 100 (sunny 16).");
+    }
+    if (ImGui::Button("Sunny 16")) {
+        camera = {0.0f, 0.01f, 100.0f, 16.0f, camera.bands, true};
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Reset camera")) {
+        camera = {};
+    }
     ImGui::Separator();
     ImGui::ColorEdit3("Background", view.background.data());
     return ImGui::Button("Frame terrain (F)");

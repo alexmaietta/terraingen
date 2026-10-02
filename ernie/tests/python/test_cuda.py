@@ -53,6 +53,7 @@ def test_renders_into_cuda_memory(cuda_renderer):
 
 def test_cuda_results_keep_the_renderer_alive(cuda_renderer):
     scene = instancer_scene(np.zeros((1, 3), np.float32))
+    gc.collect()
     before = sys.getrefcount(cuda_renderer)
     result = cuda_renderer.render(scene, device="cuda:0")
     assert sys.getrefcount(cuda_renderer) > before

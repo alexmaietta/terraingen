@@ -10,16 +10,85 @@ namespace ernie {
 RenderVar::RenderVar(std::shared_ptr<ProductFrame> frame, Path path, std::string name)
     : frame_(std::move(frame)), path_(std::move(path)), name_(std::move(name)) {}
 
+namespace {
+
+struct TexelLayout {
+    DType type;
+    std::int64_t channels;
+};
+
+TexelLayout LayoutOf(VkFormat format) {
+    switch (format) {
+    case VK_FORMAT_R8G8B8A8_UNORM:
+        return {DType::UInt8, 4};
+    case VK_FORMAT_R16G16B16A16_UINT:
+        return {DType::UInt16, 4};
+    case VK_FORMAT_R32G32B32A32_SFLOAT:
+        return {DType::Float32, 4};
+    case VK_FORMAT_R32_SFLOAT:
+        return {DType::Float32, 1};
+    case VK_FORMAT_R32_UINT:
+        return {DType::UInt32, 1};
+    default:
+        throw std::invalid_argument("Render var with an unsupported format");
+    }
+}
+
+/// (layers, rows, cols) for layered images, (rows, cols) for one channel, else (rows, cols,
+/// channels).
+std::vector<std::int64_t> ShapeOf(const GpuImage& image) {
+    const ImageDesc& desc = image.Desc();
+    const std::int64_t channels = LayoutOf(desc.format).channels;
+    if (desc.layers > 1) {
+        return {desc.layers, desc.height, desc.width};
+    }
+    if (channels == 1) {
+        return {desc.height, desc.width};
+    }
+    return {desc.height, desc.width, channels};
+}
+
+/// Records a tightly packed copy of every layer of `image` into the start of `buffer`, leaving
+/// the image in the general layout.
+void RecordCopy(VkCommandBuffer commands, GpuImage& image, GpuBuffer& buffer) {
+    const ImageDesc& desc = image.Desc();
+    const VkDeviceSize layerBytes =
+        VkDeviceSize{desc.width} * desc.height * GpuImage::TexelBytes(desc.format);
+    image.Transition(commands, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    std::vector<VkBufferImageCopy> regions;
+    for (std::uint32_t layer = 0; layer < desc.layers; ++layer) {
+        VkBufferImageCopy region{};
+        region.bufferOffset = layer * layerBytes;
+        region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, layer, 1};
+        region.imageExtent = {desc.width, desc.height, 1};
+        regions.push_back(region);
+    }
+    vkCmdCopyImageToBuffer(commands, image.Handle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                           buffer.Handle(), static_cast<std::uint32_t>(regions.size()),
+                           regions.data());
+    image.Transition(commands, VK_IMAGE_LAYOUT_GENERAL);
+}
+
+}  // namespace
+
 std::uint32_t RenderVar::Width() const {
-    return frame_->target->Extent().width;
+    return frame_->targets->Extent().width;
 }
 
 std::uint32_t RenderVar::Height() const {
-    return frame_->target->Extent().height;
+    return frame_->targets->Extent().height;
 }
 
 bool RenderVar::IsMapped() const {
     return frame_ != nullptr && frame_->arrayMaps > 0;
+}
+
+std::vector<std::int64_t> RenderVar::Shape() const {
+    return ShapeOf(*frame_->targets->Var(name_));
+}
+
+DType RenderVar::Type() const {
+    return LayoutOf(frame_->targets->Var(name_)->Desc().format).type;
 }
 
 MappedRenderVar RenderVar::Map(MapDevice device, std::uintptr_t syncStream) {
@@ -27,53 +96,54 @@ MappedRenderVar RenderVar::Map(MapDevice device, std::uintptr_t syncStream) {
         throw std::invalid_argument("RenderVar::Map on an empty render var");
     }
     ProductFrame& frame = *frame_;
-    const std::vector<std::int64_t> shape{static_cast<std::int64_t>(Height()),
-                                          static_cast<std::int64_t>(Width()), 4};
+    GpuImage& image = *frame.targets->Var(name_);
+    const std::vector<std::int64_t> shape = ShapeOf(image);
+    const DType type = LayoutOf(image.Desc().format).type;
+    const VkDeviceSize bytes = VkDeviceSize{image.Desc().width} * image.Desc().height *
+                               image.Desc().layers * GpuImage::TexelBytes(image.Desc().format);
     MappedRenderVar mapped;
     mapped.device = device;
     if (device == MapDevice::Cpu) {
         frame.context->WaitForSubmission(frame.submission);
-        std::vector<std::uint8_t> bytes = frame.target->ReadColor();
-        if (frame.bgra) {
-            for (std::size_t i = 0; i + 3 < bytes.size(); i += 4) {
-                std::swap(bytes[i], bytes[i + 2]);
-            }
-        }
-        auto owner = std::make_shared<std::vector<std::uint8_t>>(std::move(bytes));
-        mapped.tensor = Tensor(owner->data(), DType::UInt8, shape, {}, {}, owner);
+        GpuBuffer readback(*frame.context, bytes, 0, BufferMemory::Readback);
+        frame.context->Submit(
+            [&](VkCommandBuffer commands) { RecordCopy(commands, image, readback); });
+        auto owner = std::make_shared<std::vector<std::byte>>(static_cast<std::size_t>(bytes));
+        readback.Read(*owner);
+        mapped.tensor = Tensor(owner->data(), type, shape, {}, {}, owner);
         return mapped;
     }
     if (frame.cuda == nullptr) {
         throw std::invalid_argument("Mapping a render var to CUDA needs CUDA interop");
     }
-    if (frame.bgra) {
-        throw std::invalid_argument("CUDA mappings need an RGBA colour format");
-    }
     if (device == MapDevice::CudaArray) {
-        mapped.array = frame.cuda->MapImage(frame.target->Color());
+        if (image.Desc().layers > 1) {
+            throw std::invalid_argument("Render var " + name_ +
+                                        " has several layers; map it to Device.CUDA instead");
+        }
+        mapped.array = frame.cuda->MapImage(image);
         frame.cuda->WaitForVulkan(syncStream);
         ++frame.arrayMaps;
         return mapped;
     }
     std::shared_ptr<GpuBuffer> buffer;
     for (const std::shared_ptr<GpuBuffer>& candidate : *frame.linearPool) {
-        if (candidate.use_count() == 1 && candidate->Size() >= frame.target->ColorBytes()) {
+        if (candidate.use_count() == 1 && candidate->Size() >= bytes) {
             buffer = candidate;
             break;
         }
     }
     if (buffer == nullptr) {
-        buffer =
-            std::make_shared<GpuBuffer>(*frame.context, frame.target->ColorBytes(),
-                                        VK_BUFFER_USAGE_TRANSFER_DST_BIT, BufferMemory::Shared);
+        buffer = std::make_shared<GpuBuffer>(
+            *frame.context, bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, BufferMemory::Shared);
         frame.linearPool->push_back(buffer);
     }
     const TimelinePoint signal = frame.cuda->NextVulkanSignal();
     frame.context->SubmitAsync(
-        [&](VkCommandBuffer commands) { frame.target->RecordCopyColor(commands, *buffer); }, {},
+        [&](VkCommandBuffer commands) { RecordCopy(commands, image, *buffer); }, {},
         std::span(&signal, 1));
     frame.cuda->WaitForVulkan(syncStream);
-    mapped.tensor = frame.cuda->View(buffer, DType::UInt8, shape);
+    mapped.tensor = frame.cuda->View(buffer, type, shape);
     return mapped;
 }
 

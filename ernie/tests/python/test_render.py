@@ -75,10 +75,9 @@ def test_renders_meshes_and_point_instancers(renderer):
     quad(scene, "/World/Rocks/Rock", 1.5).set(tokens.DISPLAY_COLOR, (0.0, 1.0, 0.0))
 
     image = renderer.render(scene)
-    red = np.all(image[..., :3] == (255, 0, 0), axis=-1) | (
-        (image[..., 0] > 200) & (image[..., 1] < 10) & (image[..., 2] < 10)
-    )
-    green = (image[..., 1] > 200) & (image[..., 0] < 10) & (image[..., 2] < 10)
+    pixels = image.astype(np.int32)
+    red = (pixels[..., 0] > 200) & (2 * (pixels[..., 1] + pixels[..., 2]) < pixels[..., 0])
+    green = (pixels[..., 1] > 200) & (2 * (pixels[..., 0] + pixels[..., 2]) < pixels[..., 1])
     assert red[:, :24].sum() > 8, "the red quad on the left"
     assert green[:, 24:].sum() > 15, "three green instances on the right"
     assert not green[:, 20:28].any(), "the prototype is not drawn on its own"
@@ -87,6 +86,7 @@ def test_renders_meshes_and_point_instancers(renderer):
     positions[:, 1] += 20.0
     scene.write("/World/Rocks", tokens.POSITIONS, positions)
     moved = renderer.render(scene)
-    moved_green = (moved[..., 1] > 200) & (moved[..., 0] < 10)
+    moved_pixels = moved.astype(np.int32)
+    moved_green = (moved_pixels[..., 1] > 200) & (2 * moved_pixels[..., 0] < moved_pixels[..., 1])
     assert not moved_green[:, 32:].any(), "instances left the right side"
     assert renderer.take_validation_messages() == []

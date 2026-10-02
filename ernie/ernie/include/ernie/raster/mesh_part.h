@@ -80,6 +80,7 @@ struct MeshItem {
     std::vector<std::uint32_t> instances;  ///< Instanced: indices into the instancer's arrays.
     std::uint32_t material = RasterRenderer::kDefaultMaterial;  ///< Id in the renderer's table.
     glm::vec3 tint{1.0f};      ///< Multiplies the material's albedo where colours are not used.
+    std::uint32_t primId = 1;  ///< Written to the PrimId render var; 0 means background.
     bool vertexColors = true;  ///< Use the mesh's vertex colours, if it has any, as the tint.
 };
 
@@ -237,7 +238,7 @@ class MeshPart : public RasterPart {
         std::optional<std::array<DoubleBuffer, 3>> dedicated;
     };
 
-    const GraphicsPipeline& ColorPipeline(const BrdfModel& model);
+    void CreateGBufferPipeline();
     void RebuildGeometry();
     void RebuildInstances();
     void WriteInstancer(const Instancer& instancer);
@@ -257,7 +258,7 @@ class MeshPart : public RasterPart {
     const VulkanContext& context_;
     PipelineLayout layout_;
     std::unique_ptr<GraphicsPipeline> shadowPipeline_;
-    std::map<std::string, std::unique_ptr<GraphicsPipeline>, std::less<>> colorPipelines_;
+    std::unique_ptr<GraphicsPipeline> gbufferPipeline_;
 
     std::map<std::uint32_t, Mesh> meshes_;
     std::map<std::uint32_t, Instancer> instancers_;

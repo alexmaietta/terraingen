@@ -11,6 +11,7 @@
 #include <array>
 #include <cmath>
 #include <cstring>
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -88,11 +89,13 @@ TEST_F(RasterDelegateTest, RendersTheSameImageAsTheRendererDrivenDirectly) {
     terrainParams.material = material;
     terrainPart.SetParams(terrainParams);
     ernie::RasterPart* parts[] = {&terrainPart};
-    direct.Update(ernie::FrameParamsOf(scene, delegate.Prims(), 1.0f), parts);
+    direct.Update(ernie::FrameParamsOf(scene, delegate.Prims(), kSize, kSize), parts);
     ernie::OffscreenTarget target(*context_, kSize, kSize);
+    ernie::RenderTargets targets(*context_, {kSize, kSize}, direct.Bands().count, false);
     const ernie::RasterPart* drawn[] = {&terrainPart};
     context_->Submit([&](VkCommandBuffer commands) {
-        direct.Record(commands, target.Prepare(commands, {{0.0f, 0.0f, 1.0f, 1.0f}}), drawn);
+        const ernie::RenderingTarget present = target.Prepare(commands);
+        direct.Record(commands, targets, drawn, &present);
     });
     const std::vector<std::uint8_t> expected = target.ReadColor();
     ASSERT_EQ(expected.size(), static_cast<std::size_t>(image.Elements()));
@@ -107,7 +110,7 @@ TEST_F(RasterDelegateTest, RendersTheSameImageAsTheRendererDrivenDirectly) {
     EXPECT_GT(terrain, static_cast<int>(kSize * kSize / 4)) << "the terrain covers the view";
 }
 
-TEST_F(RasterDelegateTest, BgraTargetsComeBackAsRgba) {
+TEST_F(RasterDelegateTest, OutputsDoNotDependOnThePresentFormat) {
     const TestRaster raster = RollingTerrain(33, 33, 2.0);
     Scene scene = TerrainScene(raster);
     RasterDelegate rgba(*context_);
@@ -120,7 +123,8 @@ TEST_F(RasterDelegateTest, BgraTargetsComeBackAsRgba) {
     EXPECT_EQ(std::memcmp(a.Data(), b.Data(), static_cast<std::size_t>(a.Elements())), 0);
 
     RasterDelegate wide(*context_, VK_FORMAT_R16G16B16A16_SFLOAT);
-    EXPECT_THROW(wide.Render(scene), std::invalid_argument);
+    const Tensor c = wide.Render(scene, "/Render/Settings");
+    EXPECT_EQ(std::memcmp(a.Data(), c.Data(), static_cast<std::size_t>(a.Elements())), 0);
 }
 
 TEST_F(RasterDelegateTest, SyncsHeightfieldEditsRemovalsAndTextures) {
@@ -263,11 +267,11 @@ TEST_F(RasterDelegateTest, DrawsMeshesAndInstancersWithTheirMaterials) {
     EXPECT_EQ(delegate.Meshes().InstancerCount(), 1u);
     const std::uint8_t* quad = TexelAt(scene, image, {-12, 0, 0});
     EXPECT_GT(quad[0], 200);
-    EXPECT_LT(quad[1] + quad[2], 10) << "red from its material";
+    EXPECT_LT(quad[1] + quad[2], quad[0] / 2) << "red from its material";
     for (const float y : {-10.0f, 0.0f, 10.0f}) {
         const std::uint8_t* rock = TexelAt(scene, image, {12, y, 0});
         EXPECT_GT(rock[1], 200) << "green from displayColor, instance at y " << y;
-        EXPECT_LT(rock[0] + rock[2], 10);
+        EXPECT_LT(rock[0] + rock[2], rock[1] / 2);
     }
     const std::uint8_t* prototype = TexelAt(scene, image, {0, 0, 0});
     EXPECT_EQ(prototype[0] + prototype[1] + prototype[2], 0) << "prototypes draw only as instances";
@@ -356,9 +360,6 @@ TEST_F(RasterDelegateTest, CudaArraysAndCudaOutputMatchTheHostPath) {
     EXPECT_GT(TexelAt(device, after, {0, 0, 0})[1], 200) << "a moved CUDA instance";
 
     EXPECT_THROW(delegate.Render(device, {}, {ernie::DeviceKind::Cuda, cuda->Device() + 7}),
-                 std::invalid_argument);
-    RasterDelegate bgra(*context_, VK_FORMAT_B8G8R8A8_UNORM);
-    EXPECT_THROW(bgra.Render(host, {}, {ernie::DeviceKind::Cuda, cuda->Device()}),
                  std::invalid_argument);
 }
 
@@ -576,4 +577,185 @@ TEST_F(RasterDelegateTest, BoundAttributesAreWrittenInPlaceByCuda) {
     EXPECT_THROW(delegate.Bind(scene, "/World/Rocks", tokens::kPoints), std::invalid_argument);
     EXPECT_THROW(delegate.Bind(scene, "/World/Camera", tokens::kPoints), std::invalid_argument);
     EXPECT_THROW(ernie::AttributeBinding().Map(), std::invalid_argument);
+}
+
+TEST(ResolveRenderProducts, ReadsSensorFilterChains) {
+    Scene scene = ProductScene();
+    scene.Define("/Render/Filters/Cie", tokens::kSensorFilter).Set(tokens::kFilterType, "cie");
+    scene.Define("/Render/Filters/Exposure", tokens::kSensorFilter)
+        .Set(tokens::kFilterType, "exposure");
+    scene.Set("/Render/Top", tokens::kFilters,
+              std::vector<Path>{"/Render/Filters/Cie", "/Render/Filters/Exposure"});
+    const Path top[] = {"/Render/Top"};
+    const std::vector<ernie::RenderProductSpec> specs =
+        ernie::ResolveRenderProducts(scene, top, {});
+    ASSERT_EQ(specs.size(), 1u);
+    EXPECT_EQ(specs[0].filters, (std::vector<ernie::SensorFilter>{ernie::SensorFilter::Cie,
+                                                                  ernie::SensorFilter::Exposure}));
+
+    scene.Define("/Render/Vars/Dn", tokens::kRenderVar).Set(tokens::kSourceName, "RawDN");
+    scene.Set("/Render/Top", tokens::kOrderedVars, std::vector<Path>{"/Render/Vars/Dn"});
+    EXPECT_THROW(ernie::ResolveRenderProducts(scene, top, {}), std::invalid_argument)
+        << "the chain has no ADC";
+    scene.Set("/Render/Top", tokens::kOrderedVars, std::vector<Path>{"/Render/Vars/Color"});
+    scene.Set("/Render/Filters/Cie", tokens::kFilterType, "bloom");
+    EXPECT_THROW(ernie::ResolveRenderProducts(scene, top, {}), std::invalid_argument);
+    scene.Set("/Render/Top", tokens::kFilters, std::vector<Path>{"/World/Camera"});
+    EXPECT_THROW(ernie::ResolveRenderProducts(scene, top, {}), std::invalid_argument);
+    scene.Define("/Render/Filters/Adc", tokens::kSensorFilter).Set(tokens::kFilterType, "adc");
+    scene.Set("/Render/Top", tokens::kFilters, std::vector<Path>{"/Render/Filters/Adc"});
+    EXPECT_THROW(ernie::ResolveRenderProducts(scene, top, {}), std::invalid_argument)
+        << "adc needs qe";
+}
+
+namespace {
+
+constexpr std::uint32_t kVarSize = 32;
+
+/// A flat grey (albedo 0.5) Hillshade terrain 100 m below a camera looking straight down, lit by
+/// a relative white sun overhead without shadows, rendering every var at 32 x 32.
+Scene FlatScene() {
+    Scene scene;
+    scene.Define("/World/Terrain", tokens::kTerrain)
+        .Write(tokens::kHeights, HeightsOf(TestRaster::Centred(65, 65, 2.0)))
+        .Set(tokens::kOrigin, glm::dvec2(-65.0, 65.0))
+        .Set(tokens::kCellSize, 2.0)
+        .Set(tokens::kMaterialBinding, Path("/Looks/Grey"));
+    scene.Define("/Looks/Grey", tokens::kMaterial).Set(tokens::kAlbedo, glm::vec3(0.5f));
+    scene.Define("/World/Sun", tokens::kDistantLight)
+        .Set(tokens::kTransform, ernie::DistantLightTransform({0.0, 0.0, 1.0}))
+        .Set(tokens::kShadowEnable, false);
+    scene.Define("/World/Camera", tokens::kCamera)
+        .Set(tokens::kTransform,
+             ernie::LookAtTransform({0.0, 0.0, 100.0}, {0.0, 0.0, 0.0}, {0.0, 1.0, 0.0}))
+        .Set(tokens::kSensorNoise, false);
+    std::vector<Path> vars;
+    for (const std::string_view name : ernie::RenderTargets::VarNames()) {
+        const Path var = Path("/Render/Vars").Child(std::string(name));
+        scene.Define(var, tokens::kRenderVar).Set(tokens::kSourceName, std::string(name));
+        vars.push_back(var);
+    }
+    scene.Define("/Render/Settings", tokens::kRenderSettings)
+        .Set(tokens::kCameraRel, Path("/World/Camera"))
+        .Set(tokens::kResolution, glm::ivec2(kVarSize, kVarSize))
+        .Set(tokens::kColorMode, tokens::kHillshade)
+        .Set(tokens::kAmbient, 0.0f);
+    scene.Define("/Render/Product", tokens::kRenderProduct).Set(tokens::kOrderedVars, vars);
+    scene.Set("/Render/Settings", tokens::kProducts, std::vector<Path>{"/Render/Product"});
+    return scene;
+}
+
+/// Every var of `outputs`' product mapped to the CPU.
+std::map<std::string, Tensor, std::less<>> MapVars(ernie::RenderProductSetOutputs& outputs) {
+    std::map<std::string, Tensor, std::less<>> tensors;
+    for (auto& [name, var] : outputs.at("/Render/Product").vars) {
+        tensors[name] = var.Map(ernie::MapDevice::Cpu).tensor;
+    }
+    return tensors;
+}
+
+template <typename T>
+T At(const Tensor& tensor, std::size_t row, std::size_t col, std::size_t channel = 0) {
+    const std::size_t channels = tensor.Shape().size() == 3 ? tensor.Shape()[2] : 1;
+    return static_cast<const T*>(tensor.Data())[(row * kVarSize + col) * channels + channel];
+}
+
+}  // namespace
+
+TEST_F(RasterDelegateTest, RenderVarsMeasureTheScene) {
+    Scene scene = FlatScene();
+    RasterDelegate delegate(*context_);
+    ernie::RenderProductSetOutputs outputs = delegate.Step(scene);
+    const auto vars = MapVars(outputs);
+    ASSERT_EQ(vars.size(), ernie::RenderTargets::VarNames().size());
+    const std::size_t c = kVarSize / 2;
+
+    const Tensor& spectral = vars.at("SpectralRadiance");
+    ASSERT_EQ(spectral.Shape(), (std::vector<std::int64_t>{16, kVarSize, kVarSize}));
+    EXPECT_EQ(spectral.Type(), DType::Float32);
+    double luminanceIntegral = 0.0;
+    for (double w = 360.0; w <= 830.0; w += 1.0) {
+        luminanceIntegral += ernie::CieXyz(w).y;
+    }
+    const float* radiance = static_cast<const float*>(spectral.Data());
+    const double expected = 0.5 / (ernie::kLuminousEfficacy * luminanceIntegral);
+    EXPECT_NEAR(radiance[8 * kVarSize * kVarSize + c * kVarSize + c], expected, 0.03 * expected)
+        << "L = E / pi * albedo for a flat sun of white luminance 1 cd/m^2";
+
+    const Tensor& hdr = vars.at("HdrColor");
+    EXPECT_EQ(hdr.Shape(), (std::vector<std::int64_t>{kVarSize, kVarSize, 4}));
+    for (std::size_t k = 0; k < 3; ++k) {
+        EXPECT_NEAR(At<float>(hdr, c, c, k), 0.5f, 0.02f) << "neutral grey of 0.5 cd/m^2";
+    }
+    const int ldr = At<std::uint8_t>(vars.at("LdrColor"), c, c);
+    EXPECT_NEAR(ldr, 188, 3) << "sRGB encoding of 0.5";
+
+    EXPECT_NEAR(At<float>(vars.at("DistanceToImagePlane"), c, c), 100.0f, 0.5f);
+    EXPECT_NEAR(At<float>(vars.at("DistanceToCamera"), c, c), 100.0f, 0.5f);
+    EXPECT_GT(At<float>(vars.at("DistanceToCamera"), 0, 0),
+              At<float>(vars.at("DistanceToImagePlane"), 0, 0))
+        << "off-axis pixels are further from the eye than the image plane";
+    EXPECT_NEAR(At<float>(vars.at("Normal"), c, c, 2), 1.0f, 1e-3f);
+
+    const std::uint32_t id = At<std::uint32_t>(vars.at("PrimId"), c, c);
+    EXPECT_NE(id, 0u);
+    EXPECT_EQ(delegate.PrimPath(id), Path("/World/Terrain"));
+    EXPECT_EQ(delegate.PrimPath(0), Path());
+    EXPECT_EQ(At<std::uint32_t>(vars.at("InstanceId"), c, c), 0u);
+
+    const ernie::PhysicalCamera camera =
+        ernie::PhysicalCameraOf(scene, "/World/Camera", kVarSize, kVarSize);
+    const float electrons = At<float>(vars.at("Electrons"), c, c, 1);
+    EXPECT_GT(electrons, 0.0f);
+    EXPECT_EQ(At<float>(vars.at("Electrons"), c, c, 3), 0.0f) << "an RGB sensor has 3 channels";
+    const double perDn = camera.sensor.ElectronsPerDn(camera.iso);
+    EXPECT_EQ(vars.at("RawDN").Type(), DType::UInt16);
+    EXPECT_NEAR(At<std::uint16_t>(vars.at("RawDN"), c, c, 1), electrons / perDn, 0.5 + 1e-3);
+}
+
+TEST_F(RasterDelegateTest, ExposureNoiseAndDistortionFollowTheCamera) {
+    Scene scene = FlatScene();
+    RasterDelegate delegate(*context_);
+    ernie::RenderProductSetOutputs plain = delegate.Step(scene);
+    const auto before = MapVars(plain);
+    const std::size_t c = kVarSize / 2;
+
+    scene.Set("/World/Camera", tokens::kCameraExposure, 1.0f);
+    ernie::RenderProductSetOutputs brighter = delegate.Step(scene);
+    const auto stop = MapVars(brighter);
+    EXPECT_FLOAT_EQ(At<float>(stop.at("HdrColor"), c, c), At<float>(before.at("HdrColor"), c, c))
+        << "exposure is photographic only";
+    EXPECT_EQ(At<std::uint8_t>(stop.at("LdrColor"), c, c), 255) << "2 x 0.5 is white";
+
+    scene.Set("/World/Camera", tokens::kCameraExposure, 0.0f);
+    scene.Set("/World/Camera", tokens::kSensorNoise, true);
+    ernie::RenderProductSetOutputs first = delegate.Step(scene);
+    ernie::RenderProductSetOutputs second = delegate.Step(scene);
+    const Tensor a =
+        first.at("/Render/Product").vars.at("Electrons").Map(ernie::MapDevice::Cpu).tensor;
+    const Tensor b =
+        second.at("/Render/Product").vars.at("Electrons").Map(ernie::MapDevice::Cpu).tensor;
+    double mean = 0.0;
+    double clean = 0.0;
+    int differing = 0;
+    for (std::size_t row = 0; row < kVarSize; ++row) {
+        for (std::size_t col = 0; col < kVarSize; ++col) {
+            mean += At<float>(a, row, col, 1);
+            clean += At<float>(before.at("Electrons"), row, col, 1);
+            differing += At<float>(a, row, col, 1) != At<float>(b, row, col, 1) ? 1 : 0;
+        }
+    }
+    EXPECT_GT(differing, static_cast<int>(kVarSize * kVarSize / 2)) << "temporal noise";
+    EXPECT_NEAR(mean / clean, 1.0, 0.02) << "noise keeps the mean";
+
+    scene.Set("/World/Camera", tokens::kSensorNoise, false);
+    scene.Set("/World/Camera", tokens::kLensDistortion, std::vector<float>{-0.3f, 0, 0, 0, 0});
+    ernie::RenderProductSetOutputs distorted = delegate.Step(scene);
+    const auto barrel = MapVars(distorted);
+    EXPECT_NEAR(At<float>(barrel.at("DistanceToCamera"), c, c), 100.0f, 0.5f);
+    EXPECT_NEAR(At<float>(barrel.at("HdrColor"), c, c), 0.5f, 0.02f);
+    EXPECT_NE(At<std::uint32_t>(barrel.at("PrimId"), 0, 0), 0u) << "corners stay covered";
+    EXPECT_NE(At<float>(barrel.at("DistanceToCamera"), 0, 0),
+              At<float>(before.at("DistanceToCamera"), 0, 0))
+        << "barrel distortion sees wider at the corners";
 }

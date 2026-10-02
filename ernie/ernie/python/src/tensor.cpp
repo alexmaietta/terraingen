@@ -43,6 +43,21 @@ DType DTypeOf(nb::dlpack::dtype type) {
                                 " bits); use uint8, uint16, uint32, int32, int64 or float16/32/64");
 }
 
+/// Owns a reference to a Python array; dropping it takes the GIL, since the last `Tensor` copy may
+/// go away in C++ code that released it.
+struct ArrayOwner {
+    AnyArray array;
+
+    ~ArrayOwner() {
+        if (Py_IsInitialized() != 0) {
+            nb::gil_scoped_acquire gil;
+            array = AnyArray();
+        }
+    }
+};
+
+}  // namespace
+
 nb::dlpack::dtype DlpackOf(DType type) {
     switch (type) {
     case DType::UInt8:
@@ -64,21 +79,6 @@ nb::dlpack::dtype DlpackOf(DType type) {
     }
     throw std::invalid_argument("Unknown element type");
 }
-
-/// Owns a reference to a Python array; dropping it takes the GIL, since the last `Tensor` copy may
-/// go away in C++ code that released it.
-struct ArrayOwner {
-    AnyArray array;
-
-    ~ArrayOwner() {
-        if (Py_IsInitialized() != 0) {
-            nb::gil_scoped_acquire gil;
-            array = AnyArray();
-        }
-    }
-};
-
-}  // namespace
 
 Tensor TensorFromArray(const AnyArray& array) {
     const DType type = DTypeOf(array.dtype());

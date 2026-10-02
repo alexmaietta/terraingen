@@ -48,6 +48,7 @@ struct TerrainParams {
     TerrainColorMode colorMode = TerrainColorMode::ShadedColormap;
     LodSettings lod;
     std::uint32_t material = RasterRenderer::kDefaultMaterial;  ///< Id in the renderer's table.
+    std::uint32_t primId = 1;  ///< Written to the PrimId render var; 0 means background.
 };
 
 /// A north-up heightfield raster drawn as a lit, shadowed triangle mesh: a `RasterPart`.
@@ -59,11 +60,10 @@ struct TerrainParams {
 /// central-difference gradient texture sampled per fragment, so shading is independent of the mesh
 /// level. The world frame is the raster's: x east, y north, z up.
 ///
-/// Fragments are lit by the reflectance model of the terrain's material: the colour pass is
-/// composed in Slang from `terrain.slang`, `surface.slang`, the model's module and
-/// `terrain_color.slang`, with one Vulkan pipeline per model built on first use. Albedo comes from
-/// the material's albedo map or constant, varied by its detail albedo texture; its detail normal
-/// texture perturbs the shading normal.
+/// The colour pass writes the renderer's G-buffer (`terrain_color.slang`), which the renderer's
+/// spectral shading pass lights with the reflectance model and spectrum of the terrain's material:
+/// the material's albedo map scales its reflectance, its detail albedo texture modulates it and
+/// its detail normal texture perturbs the shading normal.
 ///
 /// The main view culls patches against the camera frustum and each shadow cascade against its
 /// light frustum, but all of them choose levels and morph from the camera's eye, so shadow casters
@@ -156,15 +156,14 @@ class TerrainPart : public RasterPart {
         std::uint32_t count = 0;
     };
 
-    const GraphicsPipeline& ColorPipeline(const BrdfModel& model);
+    void CreateGBufferPipeline();
     void ReservePatches(std::size_t count);
     std::vector<DescriptorResource> Resources(const RasterFrame& frame) const;
     void DrawPatches(VkCommandBuffer commands, DrawRange range, const glm::mat4& light) const;
 
     RasterRenderer& renderer_;
     PipelineLayout layout_;
-    std::map<std::string, std::unique_ptr<GraphicsPipeline>, std::less<>> colorPipelines_;
-    const GraphicsPipeline* activePipeline_ = nullptr;
+    std::unique_ptr<GraphicsPipeline> gbufferPipeline_;
     std::unique_ptr<GraphicsPipeline> shadowPipeline_;
     TerrainParams params_;
 

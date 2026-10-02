@@ -79,6 +79,10 @@ class ComputePipeline {
 
     /// Pushes `resources` and dispatches `groupsX` x `groupsY` x `groupsZ` workgroups.
     /// @throws std::invalid_argument if the number of resources does not match the layout.
+    VkPipeline Handle() const {
+        return pipeline_;
+    }
+
     void Dispatch(VkCommandBuffer commands, std::span<const DescriptorResource> resources,
                   std::uint32_t groupsX, std::uint32_t groupsY = 1,
                   std::uint32_t groupsZ = 1) const;
@@ -104,6 +108,8 @@ struct GraphicsPipelineDesc {
     std::string vertexEntry = "main";
     std::string fragmentEntry = "main";
     VkFormat colorFormat = VK_FORMAT_UNDEFINED;  ///< Undefined for depth-only passes.
+    /// Several colour attachments in this order, replacing `colorFormat` when not empty.
+    std::vector<VkFormat> colorFormats;
     VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
     VkCompareOp depthCompare = VK_COMPARE_OP_LESS;
     float depthBiasSlope = 0.0f;  ///< Slope-scaled depth bias, e.g. for shadow maps.
@@ -135,6 +141,12 @@ struct RenderingTarget {
     VkExtent2D extent{};
     VkClearColorValue clearColor{};
     bool loadColor = false;  ///< Keep the colour attachment's contents instead of clearing it.
+    /// Several colour attachments, replacing `color` when not empty, cleared to `clearColors`
+    /// (zero where missing) unless `loadColor` is set.
+    std::vector<VkImageView> colors;
+    std::vector<VkClearColorValue> clearColors;
+    /// Keep the depth attachment's contents instead of clearing it to 1.
+    bool loadDepth = false;
 };
 
 /// Records a barrier moving every subresource of `image` from `from` to `to`; waits for and makes

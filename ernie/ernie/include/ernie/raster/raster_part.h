@@ -1,7 +1,9 @@
 #pragma once
 
 #include "ernie/camera/orbit_camera.h"
+#include "ernie/camera/physical_camera.h"
 #include "ernie/gpu/pipeline.h"
+#include "ernie/raster/render_targets.h"
 #include "ernie/raster/shadow_cascades.h"
 
 #include <glm/glm.hpp>
@@ -25,14 +27,27 @@ struct ShadowSettings {
     bool showCascades = false;        ///< Tint fragments by cascade, for tuning.
 };
 
-/// Per-frame parameters every part shares: the view, the sun and the shadows.
+/// Per-frame parameters every part shares: the view, the camera, the sun and the shadows.
 struct FrameParams {
+    /// The raster view. With lens distortion its projection covers the undistorted rays of every
+    /// sensor pixel: its focal length is the sensor's divided by `overscan`.
     CameraView camera;
+    /// The camera's spectral bands, exposure, lens and sensor. Its `width` and `height` are the
+    /// image size, which the render targets must have.
+    PhysicalCamera physical;
+    double overscan = 1.0;
     glm::vec3 sunDirection{0.0f, 0.0f, 1.0f};  ///< Unit vector pointing towards the sun.
-    float ambient = 0.15f;                     ///< Fraction of light reaching unlit surfaces.
-    float exposure = 1.0f;                     ///< Scale on reflected sunlight.
-    bool wireframe = false;                    ///< Draw triangle edges over every part.
+    /// The sun's spectral irradiance at normal incidence per band of `physical.bands`, in
+    /// W m^-2 nm^-1. Empty means a flat spectrum scaled so a white Lambertian surface facing the
+    /// sun has a luminance of 1 cd/m^2 (relative units).
+    std::vector<float> sunIrradiance;
+    float ambient = 0.15f;   ///< Fraction of sunlight reaching surfaces without shading.
+    float exposure = 1.0f;   ///< Extra scale on the photographic output.
+    bool wireframe = false;  ///< Draw triangle edges over every part.
     ShadowSettings shadows;
+    /// The sensor filters to run (`CheckFilterChain`); empty runs `DefaultFilterChain`.
+    std::vector<SensorFilter> filters;
+    glm::vec3 clearColor{0.0f};  ///< Linear display colour of the background in LdrColor.
 };
 
 /// Axis-aligned world bounds, low and high corners.

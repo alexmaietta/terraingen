@@ -296,6 +296,12 @@ void AuthorView(ernie::Scene& scene, const ViewSettings& view, const ernie::Orbi
                 const ernie::BrdfRegistry& brdfs) {
     using namespace ernie::tokens;
     ernie::SetCamera(scene, kCameraPrim, camera);
+    scene.Define(kCameraPrim, kCamera)
+        .Set(kCameraExposure, view.camera.exposureStops)
+        .Set(kExposureTime, view.camera.shutterSeconds)
+        .Set(kExposureIso, view.camera.iso)
+        .Set(kExposureFStop, view.camera.fStop)
+        .Set(kSpectralBands, view.camera.bands);
 
     const ernie::MaterialSettings surface = view.material.Effective(brdfs);
     scene.Define(kSunPrim, kDistantLight)
@@ -303,6 +309,11 @@ void AuthorView(ernie::Scene& scene, const ViewSettings& view, const ernie::Orbi
                              SunDirection(view.sunAzimuthDegrees, view.sunElevationDegrees))))
         .Set(kIntensity, view.material.exposure)
         .Set(kShadowEnable, view.shadows.enabled);
+    if (view.camera.physicalSun) {
+        scene.Set(kSunPrim, kLightIrradiance, 1361.0);
+    } else {
+        scene.Clear(kSunPrim, kLightIrradiance);
+    }
 
     ernie::Prim material = scene.Define(kSurfacePrim, kMaterial);
     material.Set(kBrdf, surface.brdf)

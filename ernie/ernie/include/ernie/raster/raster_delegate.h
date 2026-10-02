@@ -44,15 +44,20 @@ struct RenderProductSpec {
     VkExtent2D resolution{2048, 1080};
     /// Render vars as (path, sourceName).
     std::vector<std::pair<Path, std::string>> vars;
+    /// The product's sensor filter chain; empty for `DefaultFilterChain`.
+    std::vector<SensorFilter> filters;
 };
 
 /// The render products a step of `scene` draws, following UsdRender: the given RenderProduct
 /// prims, or else the RenderSettings' `products`, or else one default product keyed by the
 /// settings' path (the root without settings). Each product takes its `camera` and `resolution`
 /// from its prim, falling back to the settings' and then 2048 x 1080; its vars are its
-/// `orderedVars` RenderVar prims by `sourceName`, or `LdrColor` alone.
+/// `orderedVars` RenderVar prims by `sourceName` (any of `RenderTargets::VarNames`), or `LdrColor`
+/// alone; its sensor filters are the SensorFilter prims of its `ernie:filters`, by
+/// `ernie:filter:type`.
 /// @throws std::invalid_argument for a path that is not a RenderProduct, a var that is not a
-/// RenderVar, or a source name other than `LdrColor`.
+/// RenderVar, a filter that is not a SensorFilter or of an unknown type, an invalid filter chain
+/// (`CheckFilterChain`), or a var the rasterizer does not render or the chain does not write.
 std::vector<RenderProductSpec>
 ResolveRenderProducts(const Scene& scene, std::span<const Path> products, const Path& settings);
 
@@ -63,16 +68,40 @@ RasterPrims ResolveRasterPrims(const Scene& scene, const Path& settings);
 /// The Material prim bound to `prim` by `material:binding`, or the empty path.
 Path BoundMaterial(const Scene& scene, const Path& prim);
 
-/// The frame parameters for `prims` of `scene`, for an image with aspect ratio `aspect`:
-/// - camera from the Camera (`CameraViewOf`);
-/// - sun direction from the light's transform (`TowardsLight`), and the exposure from its
-///   `inputs:intensity` times 2^`inputs:exposure`, divided by 2^ the camera's `exposure`;
-///   shadows from its `inputs:shadow:enable`;
-/// - ambient, wireframe and shadow options from the render settings.
-///
-/// The light's colour is not used yet.
-/// @throws std::invalid_argument if there is no camera or it is invalid (`CameraViewOf`).
-FrameParams FrameParamsOf(const Scene& scene, const RasterPrims& prims, float aspect);
+/// The sun's spectral irradiance at normal incidence per band of `bands`, in W m^-2 nm^-1, from the
+/// DistantLight at `light`:
+/// - physical, when it has `ernie:irradiance` or `ernie:spectrum`: the spectrum binned (scaled to
+///   the irradiance when both are set), or else a black body at the enabled colour temperature or
+///   the Sun's 5772 K carrying the irradiance (default 1361 W/m^2, the solar constant);
+/// - otherwise relative, following UsdLux: `inputs:intensity` times 2^`inputs:exposure` is the
+///   luminance (cd/m^2) of a white Lambertian surface facing the light, with the spectrum's shape
+///   from `inputs:color` (upsampled with `RgbToSigmoid`) times a black body at the colour
+///   temperature when `inputs:enableColorTemperature` is set.
+/// @throws std::invalid_argument for invalid bands or spectrum pairs.
+std::vector<float> SunIrradianceOf(const Scene& scene, const Path& light,
+                                   const SpectralBands& bands);
+
+/// How much wider than the sensor's the raster image's field of view must be for every sensor
+/// pixel's undistorted ray to land in it: 1 without distortion, else the largest ratio along the
+/// sensor's border, plus one percent.
+double OverscanOf(const PhysicalCamera& camera);
+
+/// The raster view of the Camera prim at `path`: its world transform, and a projection with the
+/// camera's focal length divided by `overscan`, its principal point and clipping range.
+CameraView RasterCameraOf(const Scene& scene, const Path& path, const PhysicalCamera& camera,
+                          double overscan);
+
+/// The frame parameters for `prims` of `scene`, for an image of `width` x `height`:
+/// - the physical camera from the Camera (`PhysicalCameraOf`), its raster view widened for lens
+///   distortion (`OverscanOf`, `RasterCameraOf`);
+/// - sun direction from the light's transform (`TowardsLight`), its spectral irradiance
+///   (`SunIrradianceOf`) and shadows from its `inputs:shadow:enable`; without a light, a white sun
+///   overhead in relative units;
+/// - ambient, wireframe, clear colour (linear) and shadow options from the render settings.
+/// @throws std::invalid_argument if there is no camera, it is not perspective, or it or the light
+/// are invalid.
+FrameParams FrameParamsOf(const Scene& scene, const RasterPrims& prims, std::uint32_t width,
+                          std::uint32_t height);
 
 /// The terrain's options: vertical exaggeration from the terrain's `ernie:exaggeration`, and
 /// colour mode and LOD options from the render settings. The material is left at the default.
@@ -184,9 +213,9 @@ class AttributeBinding {
 class RasterDelegate {
   public:
     /// @throws std::runtime_error if the renderer's pipelines cannot be created.
+    /// `presentFormat` is the colour format `Record` draws LdrColor into.
     explicit RasterDelegate(const VulkanContext& context,
-                            VkFormat colorFormat = VK_FORMAT_R8G8B8A8_UNORM,
-                            VkFormat depthFormat = VK_FORMAT_D32_SFLOAT,
+                            VkFormat presentFormat = VK_FORMAT_R8G8B8A8_UNORM,
                             BrdfRegistry brdfs = BrdfRegistry::WithBuiltins());
     ~RasterDelegate();
     RasterDelegate(const RasterDelegate&) = delete;
@@ -209,9 +238,13 @@ class RasterDelegate {
     /// renderer's buffers that may still be running; empty without CUDA inputs.
     std::vector<TimelinePoint> SubmitWaits() const;
 
-    /// Records the frame prepared by the last `Update` into `target`, clearing to the render
-    /// settings' `ernie:clearColor` unless `target.loadColor` is set.
-    void Record(VkCommandBuffer commands, RenderingTarget target);
+    /// Records the frame prepared by the last `Update` into render targets of the delegate's own
+    /// and draws its LdrColor into `target.color` (in the colour attachment layout, of the present
+    /// format). Recreating those targets for a new size or band count waits for the device.
+    void Record(VkCommandBuffer commands, const RenderingTarget& target);
+
+    /// The prim path of a PrimId render var value, or the empty path for 0 or an unknown id.
+    Path PrimPath(std::uint32_t id) const;
 
     /// Renders `products` of `scene` (see `ResolveRenderProducts`) and returns at once, as
     /// ovrtx's `step_async`: wait for or poll the operation, then fetch the outputs and map their
@@ -309,8 +342,10 @@ class RasterDelegate {
     Tensor MapBinding(const AttributeBinding& binding, std::uintptr_t stream);
     void UnmapBinding(const AttributeBinding& binding, std::uintptr_t stream);
     std::uint32_t BoundHandle(const AttributeBinding& binding) const;
-    void UpdatePrims(const Scene& scene, const RasterPrims& prims, VkExtent2D extent);
-    std::shared_ptr<ProductFrame> AcquireFrame(const Path& product, VkExtent2D extent);
+    void UpdatePrims(const Scene& scene, const RasterPrims& prims, VkExtent2D extent,
+                     std::span<const SensorFilter> filters = {});
+    std::shared_ptr<ProductFrame> AcquireFrame(const Path& product, VkExtent2D extent, int bands);
+    std::uint32_t PrimIdOf(const Path& path) const;
     void SetMeshPoints(const Scene& scene, const Path& path, std::uint32_t handle);
 
     const VulkanContext& context_;
@@ -321,13 +356,14 @@ class RasterDelegate {
     RasterRenderer renderer_;
     TerrainPart terrain_;
     MeshPart meshes_;
-    VkFormat colorFormat_;
+    std::unique_ptr<RenderTargets> viewTargets_;
+    mutable std::map<Path, std::uint32_t> primIds_;
+    mutable std::vector<Path> primPaths_;
     std::map<Path, std::vector<std::shared_ptr<ProductFrame>>> frames_;
     std::vector<std::shared_ptr<GpuBuffer>> linearPool_;
     ChangeCursor cursor_;
     std::uint64_t sceneId_ = 0;
     RasterPrims prims_;
-    glm::vec3 clearColor_{0.0f};
     std::optional<Key> heightfield_;
     std::map<Path, SyncedMaterial> materials_;
     std::map<Path, SyncedMesh> syncedMeshes_;

@@ -93,7 +93,7 @@ struct CudaArray {
         nb::capsule owner(kept, [](void* p) noexcept { delete static_cast<Tensor*>(p); });
         std::vector<std::size_t> shape(tensor.Shape().begin(), tensor.Shape().end());
         nb::ndarray<nb::ro> array(tensor.Data(), shape.size(), shape.data(), owner, nullptr,
-                                  nb::dtype<std::uint8_t>(), nb::device::cuda::value,
+                                  DlpackOf(tensor.Type()), nb::device::cuda::value,
                                   tensor.Location().id);
         return nb::cast(array, nb::rv_policy::reference);
     }
@@ -246,7 +246,25 @@ void BindRender(nb::module_& m) {
         .def_prop_ro("name", [](const PyRenderVar& v) { return v.var.Name(); })
         .def_prop_ro(
             "shape",
-            [](const PyRenderVar& v) { return nb::make_tuple(v.var.Height(), v.var.Width(), 4); })
+            [](const PyRenderVar& v) {
+                nb::list shape;
+                for (const std::int64_t extent : v.var.Shape()) {
+                    shape.append(extent);
+                }
+                return nb::tuple(shape);
+            },
+            "(height, width, channels), (height, width) for single-channel vars, or (bands, "
+            "height, width) for SpectralRadiance.")
+        .def_prop_ro(
+            "dtype",
+            [](const PyRenderVar& v) {
+                const nb::dlpack::dtype type = DlpackOf(v.var.Type());
+                const char* kind =
+                    type.code == static_cast<std::uint8_t>(nb::dlpack::dtype_code::Float) ? "float"
+                                                                                          : "uint";
+                return std::string(kind) + std::to_string(type.bits);
+            },
+            "The NumPy name of the element type: uint8, uint16, uint32 or float32.")
         .def(
             "map",
             [](PyRenderVar& v, MapDevice device, nb::handle syncStream) -> nb::object {
@@ -458,6 +476,12 @@ void BindRender(nb::module_& m) {
                 return ArrayFromTensor(RequireCuda(r).Download(TensorFromArray(array)));
             },
             nb::arg("array"), "A host copy of a CUDA array.")
+        .def(
+            "prim_path",
+            [](RasterRenderer& r, std::uint32_t id) { return r.delegate->PrimPath(id); },
+            nb::arg("id"),
+            "The prim path of a PrimId render var value; the empty path for 0 (background) or an "
+            "unknown id.")
         .def(
             "take_validation_messages",
             [](RasterRenderer& r) { return r.context->TakeValidationMessages(); },

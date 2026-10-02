@@ -14,6 +14,11 @@ inline constexpr char kBrdfHapkeSlang[] = R"slang(@ERNIE_MATERIAL_HAPKE_SLANG@)s
 /// Per-frame resources and helpers every raster pass shares.
 inline constexpr char kFrameSlang[] = R"slang(@ERNIE_RASTER_FRAME_SLANG@)slang";
 
+/// Spectral shading, sensor filters and the present pass.
+inline constexpr char kShadingSlang[] = R"slang(@ERNIE_RASTER_SHADING_SLANG@)slang";
+inline constexpr char kFiltersSlang[] = R"slang(@ERNIE_RASTER_FILTERS_SLANG@)slang";
+inline constexpr char kPresentSlang[] = R"slang(@ERNIE_RASTER_PRESENT_SLANG@)slang";
+
 /// Mesh and PointInstancer passes.
 inline constexpr char kMeshSlang[] = R"slang(@ERNIE_RASTER_MESH_SLANG@)slang";
 

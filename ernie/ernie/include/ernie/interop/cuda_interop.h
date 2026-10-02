@@ -85,7 +85,8 @@ class CudaInterop {
     Tensor Upload(const Tensor& host);
 
     /// The shared image `image` as a CUDA array, without copying, importing its memory on first
-    /// use. Supports 8-bit RGBA and 32-bit float colour formats; CUDA work reading it must first
+    /// use. Supports RGBA8, RGBA16 unsigned, R32 unsigned and 32-bit float colour formats; CUDA
+    /// work reading it must first
     /// wait for the Vulkan work writing it (`WaitForVulkan`).
     /// @throws std::invalid_argument for an image that is not shared, has several layers or mips,
     /// or has another format.

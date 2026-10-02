@@ -4,7 +4,8 @@ import brdf;
 import frame;
 
 public struct Surface {
-    // rgb: albedo where no albedo map applies, a: unused.
+    // rgb: albedo where no albedo map applies (shading uses the material's spectrum instead),
+    // a: luminance of the material's reflectance.
     public float4 albedo;
     // Albedo map: origin x, origin y (top edge), pixel size, 1 when the map is used.
     public float4 albedoMap;
@@ -29,15 +30,18 @@ public struct Surface {
 [[vk::binding(8, 0)]] public Texture2D<float4> detailNormal;
 [[vk::binding(9, 0)]] public SamplerState detailSampler;
 
-public float3 surfaceAlbedo(float3 world) {
-    let constant = surface.albedo.rgb;
+// Luminance albedo at a world position, which scales the material's reflectance spectrum
+// normalised to luminance 1 (white where the material is black): the reflectance's luminance
+// without an albedo map, else the map's albedo, falling back to the reflectance's at gaps. So the
+// map sets the albedo and the material's spectrum its shape.
+public float surfaceAlbedoScale(float3 world) {
     if (surface.albedoMap.w == 0.0) {
-        return constant;
+        return surface.albedo.a;
     }
     let extent = surface.albedoMapSize.xy * surface.albedoMap.z;
     let uv = float2(world.x - surface.albedoMap.x, surface.albedoMap.y - world.y) / extent;
     let m = albedoMap.SampleLevel(clampSampler, uv, 0);
-    return float3(m.r) + (1.0 - m.g) * constant;
+    return m.r + (1.0 - m.g) * surface.albedo.a;
 }
 
 // Detail texture coordinates: world x east and y north scaled to tiles. Textures are sampled with

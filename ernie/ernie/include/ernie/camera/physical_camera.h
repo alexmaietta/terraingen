@@ -30,7 +30,7 @@ struct LensModel {
     double k3 = 0.0;
     double p1 = 0.0;
     double p2 = 0.0;
-    bool vignetting = true;     ///< Natural cos^4 falloff of irradiance off axis.
+    bool vignetting = false;    ///< Natural cos^4 falloff of irradiance off axis.
     double transmission = 1.0;  ///< Fraction of light the optics pass.
 
     bool HasDistortion() const {

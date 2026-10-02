@@ -3,10 +3,7 @@
 // surface.slang) the passes bind
 //   10 points, 11 normals, 12 triangle indices, 13 draws, 14 vertex colours,
 //   15 instance positions, 16 instance orientations, 17 instance scales, 18 instance ids.
-// The colour pass is composed with a reflectance model by prepending
-//     import <model module>;
-//     typealias ActiveBrdf = <model type>;
-import brdf;
+// The colour pass writes the G-buffer for spectral shading (frame.slang).
 import frame;
 import surface;
 
@@ -25,7 +22,8 @@ struct MeshDraw {
     float4 tint;
     // First index, first vertex, first instance id, flags.
     uint4 offsets;
-    // x: first point in `points`, which differs from the first vertex for bound points.
+    // First point in `points` (which differs from the first vertex for bound points), material,
+    // prim id, and the instancer's first entry in the instance arrays.
     uint4 points;
 }
 
@@ -69,6 +67,7 @@ struct MeshVertex {
     float3 normal;
     float3 color;
     uint corner;
+    uint instance;
 }
 
 // Vertex `vertexIndex` (three per triangle) of instance `instanceIndex` of the current draw.
@@ -101,6 +100,8 @@ MeshVertex meshVertex(uint vertexIndex, uint instanceIndex) {
     v.normal = transformNormal(d.model, n);
     v.color = (flags & kHasColors) != 0 ? load3(colors, index) : d.tint.rgb;
     v.corner = vertexIndex % 3;
+    v.instance = (flags & kInstanced) != 0 ? instanceIds[d.offsets.z + instanceIndex] - d.points.w
+                                           : 0u;
     return v;
 }
 
@@ -110,6 +111,7 @@ struct VertexOutput {
     float3 normal : NORMAL;
     float3 color : COLOR;
     float3 barycentric : BARYCENTRIC;
+    nointerpolation uint instance : INSTANCE;
 }
 
 [shader("vertex")]
@@ -122,6 +124,7 @@ VertexOutput meshVertexMain(uint vertexIndex : SV_VertexID, uint instanceIndex :
     out.normal = v.normal;
     out.color = v.color;
     out.barycentric = barycentric[v.corner];
+    out.instance = v.instance;
     return out;
 }
 
@@ -153,10 +156,10 @@ DetailSample triplanarDetail(float3 world, inout float3 normal) {
 }
 
 // Meshes are two-sided: normals turn towards the viewer. Without authored normals each triangle
-// is lit flat with the normal of its plane. Albedo is the material's (constant or albedo map, by
-// world x and y) times the mesh's vertex colours or tint, varied by the detail textures.
+// is lit flat with the normal of its plane. The albedo modulation is the mesh's vertex colours or
+// tint times the detail albedo; the material's albedo map scales its reflectance by world x and y.
 [shader("fragment")]
-float4 meshFragmentMain(VertexOutput in) : SV_Target {
+GBuffer meshFragmentMain(VertexOutput in) {
     let d = draws[draw.first];
     let toEye = normalize(u.eye.xyz - in.world);
     let flat = cross(ddx(in.world), ddy(in.world));
@@ -166,12 +169,12 @@ float4 meshFragmentMain(VertexOutput in) : SV_Target {
     if (dot(normal, toEye) < 0.0) {
         normal = -normal;
     }
-    let visibility = sunVisibility(in.world, normal, in.position.xy);
     var shadingNormal = normal;
     let detail = triplanarDetail(in.world, shadingNormal);
-    let albedo = surfaceAlbedo(in.world) * in.color * detail.albedo;
-    let lit = reflected<ActiveBrdf>(shadingNormal, u.sun.xyz, toEye, albedo, surface.brdf) *
-              visibility * u.eye.w;
-    let shade = u.sun.w * albedo + (1.0 - u.sun.w) * lit;
-    return float4(wireframe(cascadeTint(shade, in.world), in.barycentric), 1.0);
+    let modulation = cascadeTint(in.color * detail.albedo, in.world);
+    GBuffer out;
+    out.normal = float4(shadingNormal, sunVisibility(in.world, normal, in.position.xy));
+    out.albedo = float4(surfaceAlbedoScale(in.world), wireframe(modulation, in.barycentric));
+    out.ids = uint4(d.points.y, d.points.z, in.instance, 0u);
+    return out;
 }

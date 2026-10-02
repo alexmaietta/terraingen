@@ -35,9 +35,11 @@ std::uint32_t GpuImage::TexelBytes(VkFormat format) {
     case VK_FORMAT_D32_SFLOAT:
         return 4;
     case VK_FORMAT_R16G16B16A16_SFLOAT:
+    case VK_FORMAT_R16G16B16A16_UINT:
     case VK_FORMAT_R32G32_SFLOAT:
         return 8;
     case VK_FORMAT_R32G32B32A32_SFLOAT:
+    case VK_FORMAT_R32G32B32A32_UINT:
         return 16;
     default:
         throw std::invalid_argument("Unsupported texel format");

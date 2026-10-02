@@ -3,6 +3,7 @@
 #include "ernie/raster/raster_renderer.h"
 #include "ernie/raster/terrain_part.h"
 
+#include <memory>
 #include <utility>
 
 namespace ernie::testing {
@@ -15,6 +16,7 @@ struct TerrainDrawParams {
     };
 
     CameraView camera;
+    VkExtent2D extent{64, 64};  ///< Image size, which `Record`'s target must have.
     glm::vec3 sunDirection{0.0f, 0.0f, 1.0f};
     float ambient = 0.15f;
     float exaggeration = 1.0f;
@@ -32,7 +34,10 @@ class TerrainRenderer {
     explicit TerrainRenderer(const VulkanContext& context, VkFormat colorFormat,
                              VkFormat depthFormat = VK_FORMAT_D32_SFLOAT,
                              BrdfRegistry brdfs = BrdfRegistry::WithBuiltins())
-        : renderer_(context, colorFormat, depthFormat, std::move(brdfs)), terrain_(renderer_) {}
+        : context_(context), renderer_(context, colorFormat, std::move(brdfs)),
+          terrain_(renderer_) {
+        static_cast<void>(depthFormat);
+    }
 
     void SetHeightfield(const RasterView& heights) {
         terrain_.SetHeightfield(heights);
@@ -56,6 +61,8 @@ class TerrainRenderer {
             {params.exaggeration, params.colorMode, params.lod, RasterRenderer::kDefaultMaterial});
         FrameParams frame;
         frame.camera = params.camera;
+        frame.physical.width = params.extent.width;
+        frame.physical.height = params.extent.height;
         frame.sunDirection = params.sunDirection;
         frame.ambient = params.ambient;
         frame.exposure = params.surface.exposure;
@@ -65,9 +72,20 @@ class TerrainRenderer {
         renderer_.Update(frame, parts);
     }
 
-    void Record(VkCommandBuffer commands, const RenderingTarget& target) const {
+    /// Renders the frame and draws its LdrColor into `target.color`.
+    void Record(VkCommandBuffer commands, const RenderingTarget& target) {
+        if (targets_ == nullptr || targets_->Extent().width != target.extent.width ||
+            targets_->Extent().height != target.extent.height ||
+            targets_->Bands() != renderer_.Bands().count) {
+            targets_ = std::make_unique<RenderTargets>(context_, target.extent,
+                                                       renderer_.Bands().count, false);
+        }
         const RasterPart* parts[] = {&terrain_};
-        renderer_.Record(commands, target, parts);
+        renderer_.Record(commands, *targets_, parts, &target);
+    }
+
+    RenderTargets* Targets() {
+        return targets_.get();
     }
 
     RasterMaterial& Material() {
@@ -111,8 +129,10 @@ class TerrainRenderer {
     }
 
   private:
+    const VulkanContext& context_;
     RasterRenderer renderer_;
     TerrainPart terrain_;
+    std::unique_ptr<RenderTargets> targets_;
 };
 
 }  // namespace ernie::testing

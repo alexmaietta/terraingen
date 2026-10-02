@@ -69,6 +69,7 @@ TEST(PhysicalCamera, ElectronsFollowTheCameraEquation) {
     camera.bands = {500.0, 600.0, 1};
     camera.sensor.channels = {{"flat", ernie::Spectrum::Constant(0.5)}};
     camera.lens.transmission = 0.9;
+    camera.lens.vignetting = true;
     const std::vector<float> radiance{2.0f};
     const double irradiance = 2.0 * M_PI * 0.9 / (4.0 * 16.0);
     const double energy = irradiance * 100.0 * 1e-10 * 0.002;

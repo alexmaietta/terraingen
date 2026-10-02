@@ -27,8 +27,9 @@ struct TerrainUniforms {
     float lodEye[4];
     std::uint32_t lodInfo[4];
     float morph[LodQuadtree::kMaxLevels * 2];
+    std::uint32_t ids[4];
 };
-static_assert(sizeof(TerrainUniforms) == 208, "TerrainUniforms must match terrain.slang");
+static_assert(sizeof(TerrainUniforms) == 224, "TerrainUniforms must match terrain.slang");
 static_assert(sizeof(LodPatch) == 16, "LodPatch must match the shaders' uint4");
 
 struct DrawConstants {
@@ -101,6 +102,7 @@ TerrainPart::TerrainPart(RasterRenderer& renderer)
     shadow.depthFormat = VK_FORMAT_D32_SFLOAT;
     shadow.depthBiasSlope = 1.5f;
     shadowPipeline_ = std::make_unique<GraphicsPipeline>(renderer_.Context(), layout_, shadow);
+    CreateGBufferPipeline();
     ReservePatches(kInitialPatchCapacity);
 }
 
@@ -108,31 +110,20 @@ TerrainPart::~TerrainPart() {
     vkDeviceWaitIdle(renderer_.Context().Device());
 }
 
-const GraphicsPipeline& TerrainPart::ColorPipeline(const BrdfModel& model) {
-    if (const auto it = colorPipelines_.find(model.id); it != colorPipelines_.end()) {
-        return *it->second;
-    }
+void TerrainPart::CreateGBufferPipeline() {
     std::vector<ShaderModuleSource> modules = TerrainModules();
-    modules.push_back({BrdfModuleName(model), model.slang});
-    modules.push_back({"terrain_color", "import " + BrdfModuleName(model) +
-                                            ";\ntypealias ActiveBrdf = " + model.typeName + ";\n" +
-                                            shaders::kTerrainColorSlang});
-    std::vector<std::uint32_t> vertex;
-    std::vector<std::uint32_t> fragment;
-    try {
-        vertex = renderer_.Compiler().CompileSpirv(modules, "vertexMain");
-        fragment = renderer_.Compiler().CompileSpirv(modules, "fragmentMain");
-    } catch (const std::invalid_argument& error) {
-        throw std::invalid_argument("BRDF " + model.id +
-                                    " failed to compile for the terrain: " + error.what());
-    }
+    modules.push_back({"terrain_color", shaders::kTerrainColorSlang});
+    const std::vector<std::uint32_t> vertex =
+        renderer_.Compiler().CompileSpirv(modules, "vertexMain");
+    const std::vector<std::uint32_t> fragment =
+        renderer_.Compiler().CompileSpirv(modules, "fragmentMain");
     GraphicsPipelineDesc desc;
     desc.vertexSpirv = vertex;
     desc.fragmentSpirv = fragment;
-    desc.colorFormat = renderer_.ColorFormat();
-    desc.depthFormat = renderer_.DepthFormat();
-    auto pipeline = std::make_unique<GraphicsPipeline>(renderer_.Context(), layout_, desc);
-    return *colorPipelines_.emplace(model.id, std::move(pipeline)).first->second;
+    desc.colorFormats.assign(RenderTargets::kGBufferFormats.begin(),
+                             RenderTargets::kGBufferFormats.end());
+    desc.depthFormat = RenderTargets::kDepthFormat;
+    gbufferPipeline_ = std::make_unique<GraphicsPipeline>(renderer_.Context(), layout_, desc);
 }
 
 void TerrainPart::ReservePatches(std::size_t count) {
@@ -253,9 +244,9 @@ void TerrainPart::Prepare(const FrameParams& frame, std::span<const ShadowCascad
     if (!HasHeightfield()) {
         return;
     }
-    const RasterMaterial& material = renderer_.MaterialOrDefault(params_.material);
-    activePipeline_ = &ColorPipeline(*renderer_.Brdfs().Find(material.Settings().brdf));
-
+    const std::uint32_t material = renderer_.HasMaterial(params_.material)
+                                       ? params_.material
+                                       : RasterRenderer::kDefaultMaterial;
     TerrainUniforms uniforms{};
     uniforms.grid[0] = static_cast<float>(originX_);
     uniforms.grid[1] = static_cast<float>(originY_);
@@ -298,6 +289,8 @@ void TerrainPart::Prepare(const FrameParams& frame, std::span<const ShadowCascad
         uniforms.morph[2 * level] = start;
         uniforms.morph[2 * level + 1] = slope;
     }
+    uniforms.ids[0] = material;
+    uniforms.ids[1] = params_.primId;
     uniforms_.Write(std::as_bytes(std::span(&uniforms, 1)));
 
     patches_.clear();
@@ -361,10 +354,10 @@ void TerrainPart::RecordShadow(VkCommandBuffer commands, const RasterFrame& fram
 }
 
 void TerrainPart::RecordColor(VkCommandBuffer commands, const RasterFrame& frame) const {
-    if (!prepared_ || activePipeline_ == nullptr) {
+    if (!prepared_) {
         return;
     }
-    vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_GRAPHICS, activePipeline_->Handle());
+    vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_GRAPHICS, gbufferPipeline_->Handle());
     layout_.Push(commands, VK_PIPELINE_BIND_POINT_GRAPHICS, Resources(frame));
     DrawPatches(commands, mainRange_, glm::mat4(1.0f));
 }

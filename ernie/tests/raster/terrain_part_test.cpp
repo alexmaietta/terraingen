@@ -42,6 +42,15 @@ struct Pixel {
     int Luminance() const {
         return r + g + b;
     }
+
+    /// Sum of the channels decoded from sRGB to linear, in 8-bit units (0 to 765).
+    double Linear() const {
+        const auto decode = [](std::uint8_t value) {
+            const double c = value / 255.0;
+            return 255.0 * (c <= 0.04045 ? c / 12.92 : std::pow((c + 0.055) / 1.055, 2.4));
+        };
+        return decode(r) + decode(g) + decode(b);
+    }
 };
 
 class TerrainRendererTest : public ernie::testing::VulkanTest {
@@ -388,6 +397,11 @@ int CentreLuminance(const std::vector<Pixel>& pixels) {
     return pixels[kSize / 2 * kSize + kSize / 2].Luminance();
 }
 
+/// Linear luminance at the image centre (`Pixel::Linear`), since LdrColor is sRGB encoded.
+double CentreLinear(const std::vector<Pixel>& pixels) {
+    return pixels[kSize / 2 * kSize + kSize / 2].Linear();
+}
+
 /// Mean and standard deviation of luminance over the central half of the image.
 std::pair<double, double> CentreStatistics(const std::vector<Pixel>& pixels) {
     double sum = 0.0;
@@ -448,7 +462,7 @@ TEST_F(TerrainRendererTest, AddBrdfCompilesCustomModelsAndReportsErrors) {
     TerrainDrawParams params = FramedView(renderer);
     params.colorMode = TerrainColorMode::Hillshade;
     params.ambient = 0.0f;
-    const int lambert = CentreLuminance(Render(renderer, params));
+    const double lambert = CentreLinear(Render(renderer, params));
 
     BrdfModel half;
     half.id = "half";
@@ -464,9 +478,9 @@ TEST_F(TerrainRendererTest, AddBrdfCompilesCustomModelsAndReportsErrors) {
     renderer.AddBrdf(half);
     ASSERT_NE(renderer.Brdfs().Find("half"), nullptr);
     params.surface.brdf = "half";
-    EXPECT_NEAR(CentreLuminance(Render(renderer, params)), lambert / 2, 3);
+    EXPECT_NEAR(CentreLinear(Render(renderer, params)), lambert / 2, 3);
     params.surface.brdfParams = {2.0f};
-    EXPECT_NEAR(CentreLuminance(Render(renderer, params)), lambert, 3);
+    EXPECT_NEAR(CentreLinear(Render(renderer, params)), lambert, 3);
 
     BrdfModel broken;
     broken.id = "broken";
@@ -494,16 +508,16 @@ TEST_F(TerrainRendererTest, AlbedoAndExposureScaleTheShading) {
     params.colorMode = TerrainColorMode::Hillshade;
     params.ambient = 0.0f;
     params.sunDirection = glm::normalize(glm::vec3(0.0f, 0.0f, 1.0f));
-    const int full = CentreLuminance(Render(renderer, params));
+    const double full = CentreLinear(Render(renderer, params));
     params.surface.albedo = glm::vec3(0.5f);
-    EXPECT_NEAR(CentreLuminance(Render(renderer, params)), full / 2, 3);
+    EXPECT_NEAR(CentreLinear(Render(renderer, params)), full / 2, 3);
     params.surface.exposure = 2.0f;
-    EXPECT_NEAR(CentreLuminance(Render(renderer, params)), full, 3);
+    EXPECT_NEAR(CentreLinear(Render(renderer, params)), full, 3);
     params.surface.albedo = glm::vec3(1.0f, 0.0f, 0.0f);
     params.surface.exposure = 1.0f;
     const Pixel red = Render(renderer, params)[kSize / 2 * kSize + kSize / 2];
     EXPECT_GT(red.r, 200);
-    EXPECT_EQ(red.g, 0);
+    EXPECT_LT(red.g + red.b, red.r / 2) << "a spectrum cannot reproduce the sRGB red primary";
 }
 
 TEST_F(TerrainRendererTest, AlbedoMapVariesTheSurfaceAndFallsBackAtGaps) {
@@ -527,16 +541,16 @@ TEST_F(TerrainRendererTest, AlbedoMapVariesTheSurfaceAndFallsBackAtGaps) {
     const std::vector<Pixel> mapped = Render(renderer, params);
     const auto [first, last] = CoveredSpan(mapped, kSize / 2);
     ASSERT_LT(first, last);
-    const int west = mapped[kSize / 2 * kSize + first + (last - first) / 5].Luminance();
-    const int east = mapped[kSize / 2 * kSize + last - (last - first) / 5].Luminance();
+    const double west = mapped[kSize / 2 * kSize + first + (last - first) / 5].Linear();
+    const double east = mapped[kSize / 2 * kSize + last - (last - first) / 5].Linear();
     EXPECT_NEAR(west * 4, east, 12);
     const std::size_t gap = (first + (last - first) * 13 / 16) + 2 * kSize;
-    EXPECT_LT(mapped[gap + kSize].Luminance(), east) << "NaN cell falls back to the constant";
+    EXPECT_LT(mapped[gap + kSize].Linear(), east) << "NaN cell falls back to the constant";
 
     params.surface.useAlbedoMap = false;
     params.surface.albedo = glm::vec3(1.0f);
     const std::vector<Pixel> constant = Render(renderer, params);
-    EXPECT_NEAR(constant[kSize / 2 * kSize + first + (last - first) / 5].Luminance(), east, 3);
+    EXPECT_NEAR(constant[kSize / 2 * kSize + first + (last - first) / 5].Linear(), east, 3);
 
     renderer.Material().ClearAlbedoMap();
     EXPECT_FALSE(renderer.Material().HasAlbedoMap());

@@ -148,6 +148,16 @@ void RasterMaterial::CheckDetailImage(const Image* image) const {
 }
 
 void RasterMaterial::Update(const MaterialSettings& settings, std::span<const float> brdfParams) {
+    const bool sameSpectrum =
+        settings.albedo == settings_.albedo &&
+        settings.reflectance.Wavelengths() == settings_.reflectance.Wavelengths() &&
+        settings.reflectance.Values() == settings_.reflectance.Values();
+    if (!sameSpectrum || reflectance_.Empty()) {
+        reflectance_ = settings.reflectance.Empty() ? RgbToSpectrum(glm::dvec3(settings.albedo))
+                                                    : settings.reflectance;
+        const glm::dvec3 rgb = ReflectanceToLinearSrgb(reflectance_);
+        luminance_ = static_cast<float>(0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b);
+    }
     settings_ = settings;
     params_.assign(brdfParams.begin(), brdfParams.end());
     WriteUniform();
@@ -160,6 +170,7 @@ void RasterMaterial::WriteUniform() {
     u.albedo[0] = settings.albedo.r;
     u.albedo[1] = settings.albedo.g;
     u.albedo[2] = settings.albedo.b;
+    u.albedo[3] = luminance_;
     const bool useMap = hasAlbedoMap_ && settings.useAlbedoMap;
     u.albedoMap[0] = static_cast<float>(albedoGrid_.x);
     u.albedoMap[1] = static_cast<float>(albedoGrid_.y);

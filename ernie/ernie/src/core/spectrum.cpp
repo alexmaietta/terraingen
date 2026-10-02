@@ -190,13 +190,25 @@ double InverseSigmoid(double y) {
 
 /// XYZ of a function of wavelength under the equal-energy illuminant, normalised by the
 /// integral of y, integrated every 1 nm over 360-830 nm.
+/// The colour matching functions every 1 nm over 360-830 nm, computed once.
+const std::vector<glm::dvec3>& SampledCmfs() {
+    static const std::vector<glm::dvec3> cmfs = [] {
+        std::vector<glm::dvec3> values;
+        for (double w = kSigmoidMinNm; w <= kSigmoidMaxNm; w += 1.0) {
+            values.push_back(CieXyz(w));
+        }
+        return values;
+    }();
+    return cmfs;
+}
+
 template <typename Function> glm::dvec3 EqualEnergyXyz(Function reflectance) {
+    const std::vector<glm::dvec3>& cmfs = SampledCmfs();
     glm::dvec3 xyz(0.0);
     double y = 0.0;
-    for (double w = kSigmoidMinNm; w <= kSigmoidMaxNm; w += 1.0) {
-        const glm::dvec3 cmf = CieXyz(w);
-        xyz += reflectance(w) * cmf;
-        y += cmf.y;
+    for (std::size_t i = 0; i < cmfs.size(); ++i) {
+        xyz += reflectance(kSigmoidMinNm + static_cast<double>(i)) * cmfs[i];
+        y += cmfs[i].y;
     }
     return xyz / y;
 }

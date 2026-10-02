@@ -64,13 +64,17 @@ TEST(RasterPrims, ResolveFollowsSettingsBindingsAndVisibility) {
 TEST(FrameParamsOf, DefaultsMatchTheRendererWithADefaultSun) {
     const Scene scene = MinimalScene();
     const RasterPrims prims = ernie::ResolveRasterPrims(scene, {});
-    const ernie::FrameParams params = ernie::FrameParamsOf(scene, prims, 2.0f);
+    const ernie::FrameParams params = ernie::FrameParamsOf(scene, prims, 64, 32);
     const ernie::FrameParams defaults;
     EXPECT_EQ(params.sunDirection, defaults.sunDirection);
     EXPECT_EQ(params.ambient, defaults.ambient);
     EXPECT_EQ(params.exposure, 1.0f);
     EXPECT_TRUE(params.shadows.enabled);
     EXPECT_EQ(params.camera.aspect, 2.0f);
+    EXPECT_TRUE(params.sunIrradiance.empty()) << "the renderer's default white sun";
+    EXPECT_EQ(params.physical.width, 64u);
+    EXPECT_DOUBLE_EQ(params.overscan, 1.0);
+    EXPECT_DOUBLE_EQ(params.physical.LinearExposureScale(), 1.0);
     const ernie::TerrainParams terrain = ernie::TerrainParamsOf(scene, prims);
     EXPECT_EQ(terrain.colorMode, ernie::TerrainParams().colorMode);
     EXPECT_EQ(terrain.exaggeration, 1.0f);
@@ -80,7 +84,7 @@ TEST(FrameParamsOf, DefaultsMatchTheRendererWithADefaultSun) {
     EXPECT_EQ(material.albedo, glm::vec3(1.0f));
 
     Scene empty;
-    EXPECT_THROW(ernie::FrameParamsOf(empty, ernie::ResolveRasterPrims(empty, {}), 1.0f),
+    EXPECT_THROW(ernie::FrameParamsOf(empty, ernie::ResolveRasterPrims(empty, {}), 8, 8),
                  std::invalid_argument);
 }
 
@@ -112,11 +116,18 @@ TEST(FrameParamsOf, ReadsLightMaterialTerrainAndSettings) {
 
     const BrdfRegistry brdfs = BrdfRegistry::WithBuiltins();
     const RasterPrims prims = ernie::ResolveRasterPrims(scene, {});
-    const ernie::FrameParams frame = ernie::FrameParamsOf(scene, prims, 1.0f);
+    const ernie::FrameParams frame = ernie::FrameParamsOf(scene, prims, 32, 32);
     const float diagonal = std::sqrt(0.5f);
     EXPECT_NEAR(frame.sunDirection.x, diagonal, 1e-6f);
     EXPECT_NEAR(frame.sunDirection.z, diagonal, 1e-6f);
-    EXPECT_FLOAT_EQ(frame.exposure, 2.0f) << "2 x 2^1 / 2^1";
+    EXPECT_DOUBLE_EQ(frame.physical.LinearExposureScale(), 2.0) << "camera exposure 1 stop";
+    ASSERT_EQ(frame.sunIrradiance.size(), 16u);
+    double luminanceIntegral = 0.0;
+    for (double w = 360.0; w <= 830.0; w += 1.0) {
+        luminanceIntegral += ernie::CieXyz(w).y;
+    }
+    EXPECT_NEAR(frame.sunIrradiance[5], M_PI * 4.0 / (683.002 * luminanceIntegral), 1e-6)
+        << "a flat sun whose white Lambertian luminance is 2 x 2^1 cd/m^2";
     EXPECT_FALSE(frame.shadows.enabled);
     EXPECT_EQ(frame.ambient, 0.3f);
     EXPECT_TRUE(frame.wireframe);
@@ -253,4 +264,73 @@ TEST(ImageOfTensor, ConvertsFloatAndByteTextures) {
                  std::invalid_argument);
     EXPECT_THROW(ernie::ImageOfTensor(Tensor::Zeros(DType::Float32, {4}), ImageEncoding::Srgb),
                  std::invalid_argument);
+}
+
+TEST(SunIrradianceOf, PhysicalLightsCarryTheirIrradianceAndSpectrum) {
+    Scene scene;
+    scene.Define("/Sun", tokens::kDistantLight).Set(tokens::kLightIrradiance, 1361.0);
+    const ernie::SpectralBands bands;
+    const std::vector<float> sun = ernie::SunIrradianceOf(scene, "/Sun", bands);
+    EXPECT_EQ(sun, ernie::BlackbodyIrradiance(bands, 5772.0, 1361.0)) << "the Sun's black body";
+
+    scene.Set("/Sun", tokens::kLightSpectrum, std::vector<float>{400.0f, 1.0f, 800.0f, 1.0f});
+    scene.Set("/Sun", tokens::kLightIrradiance, 800.0);
+    for (const float value : ernie::SunIrradianceOf(scene, "/Sun", {400.0, 780.0, 4})) {
+        EXPECT_NEAR(value, 2.0f, 1e-5f) << "a flat 400 W/m^2 spectrum scaled to 800 W/m^2";
+    }
+
+    Scene hot;
+    hot.Define("/Sun", tokens::kDistantLight)
+        .Set(tokens::kLightIrradiance, 1000.0)
+        .Set(tokens::kEnableColorTemperature, true)
+        .Set(tokens::kColorTemperature, 3000.0);
+    EXPECT_EQ(ernie::SunIrradianceOf(hot, "/Sun", bands),
+              ernie::BlackbodyIrradiance(bands, 3000.0, 1000.0));
+    EXPECT_THROW(ernie::SunIrradianceOf(hot, "/Sun", {500.0, 400.0, 4}), std::invalid_argument);
+}
+
+TEST(SunIrradianceOf, RelativeLightsFollowTheirColourAndTemperature) {
+    Scene scene;
+    scene.Define("/Sun", tokens::kDistantLight).Set(tokens::kColor, glm::vec3(1.0f, 0.2f, 0.1f));
+    const ernie::SpectralBands bands;
+    const std::vector<float> red = ernie::SunIrradianceOf(scene, "/Sun", bands);
+    EXPECT_GT(red[13], 3.0f * red[2]) << "650 nm against 430 nm";
+
+    scene.Set("/Sun", tokens::kColor, glm::vec3(1.0f));
+    scene.Set("/Sun", tokens::kEnableColorTemperature, true);
+    scene.Set("/Sun", tokens::kColorTemperature, 2500.0);
+    const std::vector<float> warm = ernie::SunIrradianceOf(scene, "/Sun", bands);
+    EXPECT_GT(warm[13], warm[2]);
+    scene.Set("/Sun", tokens::kColorTemperature, 20000.0);
+    const std::vector<float> cool = ernie::SunIrradianceOf(scene, "/Sun", bands);
+    EXPECT_LT(cool[13], cool[2]);
+}
+
+TEST(OverscanOf, WidensTheRasterViewForDistortion) {
+    ernie::PhysicalCamera camera;
+    camera.width = 64;
+    camera.height = 48;
+    EXPECT_EQ(ernie::OverscanOf(camera), 1.0);
+    camera.lens.k1 = -0.2;
+    const double barrel = ernie::OverscanOf(camera);
+    EXPECT_GT(barrel, 1.02) << "barrel distortion pulls wider rays into the sensor";
+    camera.lens.k1 = 0.2;
+    EXPECT_LT(ernie::OverscanOf(camera), barrel);
+    EXPECT_GE(ernie::OverscanOf(camera), 1.0);
+}
+
+TEST(RasterCameraOf, NarrowsByTheOverscanAndShiftsThePrincipalPoint) {
+    Scene scene = MinimalScene();
+    ernie::PhysicalCamera camera = ernie::PhysicalCameraOf(scene, "/World/Camera", 64, 32);
+    const ernie::CameraView plain = ernie::RasterCameraOf(scene, "/World/Camera", camera, 1.0);
+    EXPECT_NEAR(plain.verticalFov, camera.VerticalFov(), 1e-6);
+    EXPECT_FLOAT_EQ(plain.aspect, 2.0f);
+    EXPECT_FLOAT_EQ(plain.projection[2][0], 0.0f);
+    const ernie::CameraView wide = ernie::RasterCameraOf(scene, "/World/Camera", camera, 1.5);
+    EXPECT_NEAR(std::tan(wide.verticalFov / 2.0), 1.5 * std::tan(plain.verticalFov / 2.0), 1e-5);
+
+    camera.horizontalApertureOffsetMm = 2.0;
+    const ernie::CameraView shifted = ernie::RasterCameraOf(scene, "/World/Camera", camera, 1.0);
+    EXPECT_NEAR(shifted.projection[2][0], 1.0 - 2.0 * camera.PrincipalPoint().x / 64.0, 1e-6);
+    EXPECT_NE(shifted.projection[2][0], 0.0f);
 }

@@ -86,3 +86,53 @@ def test_maps_to_cuda_and_cuda_arrays(renderer):
     var.unmap(stream=1)
     assert not var.mapped
     assert renderer.take_validation_messages() == []
+
+
+def test_maps_every_render_var_with_its_shape_and_type(renderer):
+    scene = product_scene()
+    names = ["SpectralRadiance", "Electrons", "RawDN", "HdrColor", "DistanceToCamera", "PrimId"]
+    for name in names:
+        scene.define(f"/Render/Vars/{name}", tokens.RENDER_VAR).set(tokens.SOURCE_NAME, name)
+    scene.set(
+        "/Render/Camera", tokens.ORDERED_VARS, [ernie.Path(f"/Render/Vars/{n}") for n in names]
+    )
+    frame = renderer.step(scene, render_products={"/Render/Camera"})["/Render/Camera"].frames[0]
+    var = frame.render_vars
+    expected = {
+        "SpectralRadiance": ((16, 32, 32), "float32"),
+        "Electrons": ((32, 32, 4), "float32"),
+        "RawDN": ((32, 32, 4), "uint16"),
+        "HdrColor": ((32, 32, 4), "float32"),
+        "DistanceToCamera": ((32, 32), "float32"),
+        "PrimId": ((32, 32), "uint32"),
+    }
+    for name, (shape, dtype) in expected.items():
+        render_var = var[f"/Render/Vars/{name}"]
+        assert render_var.shape == shape and render_var.dtype == dtype, name
+        array = render_var.map()
+        assert array.shape == shape and array.dtype == np.dtype(dtype), name
+
+    ids = var["/Render/Vars/PrimId"].map()
+    hit = ids[ids != 0]
+    assert hit.size, "the instances are in view"
+    paths = {str(renderer.prim_path(int(i))) for i in np.unique(hit)}
+    assert paths == {"/World/Rocks"}, paths
+    assert str(renderer.prim_path(0)) == ""
+    distance = var["/Render/Vars/DistanceToCamera"].map()
+    assert np.all(np.isinf(distance[ids == 0])) and np.all(np.isfinite(distance[ids != 0]))
+    assert renderer.take_validation_messages() == []
+
+
+def test_products_choose_their_sensor_filters(renderer):
+    scene = product_scene()
+    scene.define("/Render/Filters/Cie", tokens.SENSOR_FILTER).set(tokens.FILTER_TYPE, "cie")
+    scene.set("/Render/Camera", tokens.FILTERS, [ernie.Path("/Render/Filters/Cie")])
+    scene.define("/Render/Vars/Hdr", tokens.RENDER_VAR).set(tokens.SOURCE_NAME, "HdrColor")
+    scene.set("/Render/Camera", tokens.ORDERED_VARS, [ernie.Path("/Render/Vars/Hdr")])
+    products = renderer.step(scene, render_products={"/Render/Camera"})
+    hdr = products["/Render/Camera"].frames[0].render_vars["/Render/Vars/Hdr"].map()
+    assert hdr.dtype == np.float32 and hdr[..., :3].max() > 0.0
+
+    scene.set("/Render/Camera", tokens.ORDERED_VARS, [ernie.Path("/Render/Camera/LdrColor")])
+    with pytest.raises(ValueError, match="sensor filters do not write"):
+        renderer.step(scene, render_products={"/Render/Camera"})

@@ -64,8 +64,11 @@ set(ernie_shaders
     material/lunar_lambert.slang
     material/oren_nayar.slang
     material/hapke.slang
+    raster/filters.slang
     raster/frame.slang
     raster/mesh.slang
+    raster/present.slang
+    raster/shading.slang
     raster/terrain.slang
     raster/surface.slang
     raster/terrain_shadow.slang
@@ -146,6 +149,7 @@ add_library(
     ernie/src/raster/raster_material.cpp
     ernie/src/raster/raster_renderer.cpp
     ernie/src/raster/render_outputs.cpp
+    ernie/src/raster/render_targets.cpp
     ernie/src/raster/shadow_cascades.cpp
     ernie/src/raster/terrain_part.cpp)
 ernie_layer(ernie_raster)

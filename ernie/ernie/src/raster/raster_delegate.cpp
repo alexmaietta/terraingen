@@ -2,7 +2,9 @@
 
 #include "ernie/scene/schema.h"
 #include "ernie/scene/tokens.h"
+
 #include "product_frame.h"
+#include <glm/gtc/matrix_transform.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -222,11 +224,33 @@ ResolveRenderProducts(const Scene& scene, std::span<const Path> products, const 
                 throw std::invalid_argument("'" + var.String() + "' is not a RenderVar prim");
             }
             const std::string name = GetToken(scene, var, kSourceName, kLdrColor);
-            if (name != kLdrColor) {
-                throw std::invalid_argument("Render var '" + var.String() + "' asks for '" + name +
-                                            "'; Ernie's rasterizer renders LdrColor");
-            }
             spec.vars.emplace_back(var, name);
+        }
+        for (const Path& filter : TargetsOf(scene, path, kFilters)) {
+            if (!scene.Has(filter) || scene.TypeOf(filter) != kSensorFilter) {
+                throw std::invalid_argument("'" + filter.String() + "' is not a SensorFilter prim");
+            }
+            const std::string type = GetToken(scene, filter, kFilterType, "");
+            const std::optional<SensorFilter> known = SensorFilterNamed(type);
+            if (!known) {
+                throw std::invalid_argument("Sensor filter '" + filter.String() +
+                                            "' has unknown type '" + type + "'");
+            }
+            spec.filters.push_back(*known);
+        }
+        const std::vector<SensorFilter> chain =
+            CheckFilterChain(spec.filters.empty() ? DefaultFilterChain() : spec.filters);
+        const std::vector<std::string_view> written = VarsWrittenBy(chain);
+        for (const auto& [var, name] : spec.vars) {
+            const auto names = RenderTargets::VarNames();
+            if (std::find(names.begin(), names.end(), name) == names.end()) {
+                throw std::invalid_argument("Render var '" + var.String() + "' asks for '" + name +
+                                            "', which Ernie's rasterizer does not render");
+            }
+            if (std::find(written.begin(), written.end(), name) == written.end()) {
+                throw std::invalid_argument("Render var '" + var.String() + "' asks for '" + name +
+                                            "', which the product's sensor filters do not write");
+            }
         }
         if (spec.vars.empty()) {
             spec.vars.emplace_back(path.Child("LdrColor"), std::string(kLdrColor));
@@ -236,16 +260,136 @@ ResolveRenderProducts(const Scene& scene, std::span<const Path> products, const 
     return specs;
 }
 
-FrameParams FrameParamsOf(const Scene& scene, const RasterPrims& prims, float aspect) {
+std::vector<float> SunIrradianceOf(const Scene& scene, const Path& light,
+                                   const SpectralBands& bands) {
+    using namespace tokens;
+    bands.Check();
+    const double temperature = GetBool(scene, light, kEnableColorTemperature, false)
+                                   ? GetNumber(scene, light, kColorTemperature, 6500.0)
+                                   : 0.0;
+    const Value* spectrumValue = scene.Get(light, kLightSpectrum);
+    const std::vector<float>* pairs =
+        spectrumValue != nullptr ? spectrumValue->Get<std::vector<float>>() : nullptr;
+    const bool physical = scene.Get(light, kLightIrradiance) != nullptr || pairs != nullptr;
+    if (physical) {
+        if (pairs != nullptr) {
+            const Spectrum spectrum = Spectrum::FromPairs(*pairs);
+            std::vector<float> binned = spectrum.Bin(bands);
+            if (scene.Get(light, kLightIrradiance) != nullptr && !spectrum.Empty()) {
+                const double total =
+                    spectrum.Average(spectrum.Wavelengths().front(),
+                                     spectrum.Wavelengths().back()) *
+                    (spectrum.Wavelengths().back() - spectrum.Wavelengths().front());
+                const double scale = GetNumber(scene, light, kLightIrradiance, total) / total;
+                for (float& value : binned) {
+                    value = static_cast<float>(value * scale);
+                }
+            }
+            return binned;
+        }
+        return BlackbodyIrradiance(bands, temperature > 0.0 ? temperature : 5772.0,
+                                   GetNumber(scene, light, kLightIrradiance, 1361.0));
+    }
+    const double intensity = GetNumber(scene, light, kIntensity, 1.0) *
+                             std::exp2(GetNumber(scene, light, kExposure, 0.0));
+    const glm::dvec3 color = GetVec3(scene, light, kColor, glm::dvec3(1.0));
+    const bool white = color == glm::dvec3(1.0);
+    const SigmoidSpectrum tint = RgbToSigmoid(color);
+    const auto shape = [&](double w) {
+        return (temperature > 0.0 ? PlanckRadiance(w, temperature) : 1.0) * (white ? 1.0 : tint(w));
+    };
+    double luminance = 0.0;
+    for (double w = 360.0; w <= 830.0; w += 1.0) {
+        luminance += shape(w) * CieXyz(w).y;
+    }
+    const double scale = M_PI * intensity / (kLuminousEfficacy * luminance);
+    std::vector<float> irradiance(static_cast<std::size_t>(bands.count));
+    for (int i = 0; i < bands.count; ++i) {
+        double sum = 0.0;
+        for (int k = 0; k < 8; ++k) {
+            sum += shape(bands.Lower(i) + (k + 0.5) * bands.Width() / 8.0);
+        }
+        irradiance[static_cast<std::size_t>(i)] = static_cast<float>(scale * sum / 8.0);
+    }
+    return irradiance;
+}
+
+double OverscanOf(const PhysicalCamera& camera) {
+    if (!camera.lens.HasDistortion()) {
+        return 1.0;
+    }
+    const double f = camera.FocalLengthPixels();
+    const glm::dvec2 centre = camera.PrincipalPoint();
+    const double w = camera.width;
+    const double h = camera.height;
+    double overscan = 1.0;
+    const auto include = [&](double x, double y) {
+        const glm::dvec2 u = camera.lens.Undistort({(x - centre.x) / f, (centre.y - y) / f});
+        const double right = w - centre.x;
+        const double up = centre.y;
+        const double down = h - centre.y;
+        if (u.x > 0.0) {
+            overscan = std::max(overscan, u.x * f / right);
+        } else if (u.x < 0.0) {
+            overscan = std::max(overscan, -u.x * f / centre.x);
+        }
+        if (u.y > 0.0) {
+            overscan = std::max(overscan, u.y * f / up);
+        } else if (u.y < 0.0) {
+            overscan = std::max(overscan, -u.y * f / down);
+        }
+    };
+    constexpr int kSamples = 64;
+    for (int i = 0; i <= kSamples; ++i) {
+        const double t = static_cast<double>(i) / kSamples;
+        include(t * w, 0.0);
+        include(t * w, h);
+        include(0.0, t * h);
+        include(w, t * h);
+    }
+    return overscan * 1.01;
+}
+
+CameraView RasterCameraOf(const Scene& scene, const Path& path, const PhysicalCamera& camera,
+                          double overscan) {
+    const glm::dmat4 world = scene.WorldTransform(path);
+    const double w = camera.width;
+    const double h = camera.height;
+    const double focal = camera.FocalLengthPixels() / overscan;
+    const glm::dvec2 centre = camera.PrincipalPoint();
+    CameraView view;
+    view.verticalFov = static_cast<float>(2.0 * std::atan(0.5 * h / focal));
+    view.aspect = static_cast<float>(w / h);
+    view.nearPlane = static_cast<float>(camera.nearPlane);
+    view.farPlane = static_cast<float>(camera.farPlane);
+    view.eye = glm::vec3(world[3]);
+    view.forward = glm::vec3(glm::normalize(-glm::dvec3(world[2])));
+    view.view = glm::mat4(glm::inverse(world));
+    view.projection =
+        glm::perspectiveRH_ZO(view.verticalFov, view.aspect, view.nearPlane, view.farPlane);
+    view.projection[2][0] = static_cast<float>(1.0 - 2.0 * centre.x / w);
+    view.projection[2][1] = static_cast<float>(2.0 * centre.y / h - 1.0);
+    return view;
+}
+
+FrameParams FrameParamsOf(const Scene& scene, const RasterPrims& prims, std::uint32_t width,
+                          std::uint32_t height) {
     using namespace tokens;
     if (prims.camera.IsEmpty()) {
         throw std::invalid_argument("The scene has no Camera");
     }
+    if (GetToken(scene, prims.camera, kProjection, kPerspective) != kPerspective) {
+        throw std::invalid_argument("Camera '" + prims.camera.String() +
+                                    "': only perspective projection is supported");
+    }
     FrameParams params;
-    params.camera = CameraViewOf(scene, prims.camera, aspect);
+    params.physical = PhysicalCameraOf(scene, prims.camera, width, height);
+    params.overscan = OverscanOf(params.physical);
+    params.camera = RasterCameraOf(scene, prims.camera, params.physical, params.overscan);
     const Path& settings = prims.settings;
     params.ambient = Number(scene, settings, kAmbient, params.ambient);
     params.wireframe = GetBool(scene, settings, kWireframe, params.wireframe);
+    params.clearColor = glm::vec3(GetVec3(scene, settings, kClearColor, {0.0, 0.0, 0.0}));
     ShadowSettings& shadows = params.shadows;
     shadows.cascades =
         static_cast<int>(GetNumber(scene, settings, kShadowCascades, shadows.cascades));
@@ -255,16 +399,11 @@ FrameParams FrameParamsOf(const Scene& scene, const RasterPrims& prims, float as
     shadows.normalOffset = Number(scene, settings, kShadowNormalOffset, shadows.normalOffset);
     shadows.splitLambda = Number(scene, settings, kShadowSplitLambda, shadows.splitLambda);
     shadows.showCascades = GetBool(scene, settings, kShadowShowCascades, shadows.showCascades);
-
-    double exposure = 1.0;
     if (!prims.light.IsEmpty()) {
         params.sunDirection = glm::vec3(TowardsLight(scene, prims.light));
-        exposure = GetNumber(scene, prims.light, kIntensity, 1.0) *
-                   std::exp2(GetNumber(scene, prims.light, kExposure, 0.0));
+        params.sunIrradiance = SunIrradianceOf(scene, prims.light, params.physical.bands);
         shadows.enabled = GetBool(scene, prims.light, kShadowEnable, true);
     }
-    exposure *= std::exp2(-GetNumber(scene, prims.camera, kCameraExposure, 0.0));
-    params.exposure = static_cast<float>(exposure);
     return params;
 }
 
@@ -437,10 +576,10 @@ Image ImageOfTensor(const Tensor& tensor, ImageEncoding encoding) {
     return image;
 }
 
-RasterDelegate::RasterDelegate(const VulkanContext& context, VkFormat colorFormat,
-                               VkFormat depthFormat, BrdfRegistry brdfs)
-    : context_(context), renderer_(context, colorFormat, depthFormat, std::move(brdfs)),
-      terrain_(renderer_), meshes_(renderer_), colorFormat_(colorFormat) {}
+RasterDelegate::RasterDelegate(const VulkanContext& context, VkFormat presentFormat,
+                               BrdfRegistry brdfs)
+    : context_(context), renderer_(context, presentFormat, std::move(brdfs)), terrain_(renderer_),
+      meshes_(renderer_) {}
 
 RasterDelegate::~RasterDelegate() {
     context_.WaitForSubmissions();
@@ -783,6 +922,7 @@ std::vector<MeshItem> RasterDelegate::Items(const Scene& scene) const {
         MeshItem item;
         item.mesh = synced.handle;
         item.transform = glm::mat4(scene.WorldTransform(path));
+        item.primId = PrimIdOf(path);
         shade(path, synced, item);
         items.push_back(std::move(item));
     }
@@ -805,6 +945,7 @@ std::vector<MeshItem> RasterDelegate::Items(const Scene& scene) const {
             item.prototype = glm::mat4(scene.LocalTransform(targets[k]));
             item.instancer = synced.handle;
             item.instances = lists[k];
+            item.primId = PrimIdOf(path);
             shade(targets[k], mesh->second, item);
             items.push_back(std::move(item));
         }
@@ -816,20 +957,33 @@ void RasterDelegate::Update(const Scene& scene, const Path& settings, VkExtent2D
     UpdatePrims(scene, ResolveRasterPrims(scene, settings), extent);
 }
 
-void RasterDelegate::UpdatePrims(const Scene& scene, const RasterPrims& prims, VkExtent2D extent) {
+void RasterDelegate::UpdatePrims(const Scene& scene, const RasterPrims& prims, VkExtent2D extent,
+                                 std::span<const SensorFilter> filters) {
     context_.WaitForSubmissions();
     Sync(scene);
     prims_ = prims;
-    const float aspect =
-        static_cast<float>(extent.width) / static_cast<float>(std::max(extent.height, 1u));
-    const FrameParams frame = FrameParamsOf(scene, prims_, aspect);
+    FrameParams frame = FrameParamsOf(scene, prims_, extent.width, extent.height);
+    frame.filters.assign(filters.begin(), filters.end());
     TerrainParams terrain = TerrainParamsOf(scene, prims_);
     terrain.material = MaterialOf(scene, prims_.terrain);
+    terrain.primId = prims_.terrain.IsEmpty() ? 0u : PrimIdOf(prims_.terrain);
     terrain_.SetParams(terrain);
     meshes_.SetItems(Items(scene));
     RasterPart* parts[] = {&terrain_, &meshes_};
     renderer_.Update(frame, parts);
-    clearColor_ = glm::vec3(GetVec3(scene, prims_.settings, tokens::kClearColor, {0.0, 0.0, 0.0}));
+}
+
+std::uint32_t RasterDelegate::PrimIdOf(const Path& path) const {
+    const auto [it, added] =
+        primIds_.try_emplace(path, static_cast<std::uint32_t>(primPaths_.size() + 1));
+    if (added) {
+        primPaths_.push_back(path);
+    }
+    return it->second;
+}
+
+Path RasterDelegate::PrimPath(std::uint32_t id) const {
+    return id >= 1 && id <= primPaths_.size() ? primPaths_[id - 1] : Path();
 }
 
 std::vector<TimelinePoint> RasterDelegate::SubmitWaits() const {
@@ -839,12 +993,22 @@ std::vector<TimelinePoint> RasterDelegate::SubmitWaits() const {
     return {cuda_->VulkanWait()};
 }
 
-void RasterDelegate::Record(VkCommandBuffer commands, RenderingTarget target) {
-    if (!target.loadColor) {
-        target.clearColor = {{clearColor_.r, clearColor_.g, clearColor_.b, 1.0f}};
+void RasterDelegate::Record(VkCommandBuffer commands, const RenderingTarget& target) {
+    const VkExtent2D extent = renderer_.Extent();
+    if (viewTargets_ == nullptr || viewTargets_->Extent().width != extent.width ||
+        viewTargets_->Extent().height != extent.height ||
+        viewTargets_->Bands() != renderer_.Bands().count) {
+        if (extent.width == 0 || extent.height == 0) {
+            BeginRendering(commands, target);
+            vkCmdEndRendering(commands);
+            return;
+        }
+        vkDeviceWaitIdle(context_.Device());
+        viewTargets_ =
+            std::make_unique<RenderTargets>(context_, extent, renderer_.Bands().count, false);
     }
     const RasterPart* parts[] = {&terrain_, &meshes_};
-    renderer_.Record(commands, target, parts);
+    renderer_.Record(commands, *viewTargets_, parts, &target);
 }
 
 AttributeBinding RasterDelegate::Bind(const Scene& scene, const Path& path,
@@ -939,12 +1103,16 @@ void AttributeBinding::Unmap(std::uintptr_t stream) {
     mapped_ = false;
 }
 
-std::shared_ptr<ProductFrame> RasterDelegate::AcquireFrame(const Path& product, VkExtent2D extent) {
+std::shared_ptr<ProductFrame> RasterDelegate::AcquireFrame(const Path& product, VkExtent2D extent,
+                                                           int bands) {
     std::vector<std::shared_ptr<ProductFrame>>& frames = frames_[product];
-    std::erase_if(frames, [extent](const std::shared_ptr<ProductFrame>& frame) {
-        const VkExtent2D size = frame->target->Extent();
-        return frame.use_count() == 1 &&
-               (size.width != extent.width || size.height != extent.height);
+    const bool shared = cuda_ != nullptr;
+    std::erase_if(frames, [&](const std::shared_ptr<ProductFrame>& frame) {
+        const RenderTargets& targets = *frame->targets;
+        return frame.use_count() == 1 && frame->arrayMaps == 0 &&
+               (targets.Extent().width != extent.width ||
+                targets.Extent().height != extent.height || targets.Bands() != bands ||
+                targets.Shared() != shared);
     });
     for (const std::shared_ptr<ProductFrame>& frame : frames) {
         if (frame.use_count() == 1 && frame->arrayMaps == 0) {
@@ -954,24 +1122,14 @@ std::shared_ptr<ProductFrame> RasterDelegate::AcquireFrame(const Path& product, 
     auto frame = std::make_shared<ProductFrame>();
     frame->context = &context_;
     frame->cuda = cuda_.get();
-    frame->bgra =
-        colorFormat_ == VK_FORMAT_B8G8R8A8_UNORM || colorFormat_ == VK_FORMAT_B8G8R8A8_SRGB;
     frame->linearPool = &linearPool_;
-    frame->target = std::make_unique<OffscreenTarget>(context_, extent.width, extent.height,
-                                                      colorFormat_, renderer_.DepthFormat(),
-                                                      cuda_ != nullptr && !frame->bgra);
+    frame->targets = std::make_unique<RenderTargets>(context_, extent, bands, shared);
     frames.push_back(frame);
     return frame;
 }
 
 StepOperation RasterDelegate::StepAsync(const Scene& scene, std::span<const Path> products,
                                         const Path& settings) {
-    const bool bgra =
-        colorFormat_ == VK_FORMAT_B8G8R8A8_UNORM || colorFormat_ == VK_FORMAT_B8G8R8A8_SRGB;
-    if (!bgra && colorFormat_ != VK_FORMAT_R8G8B8A8_UNORM &&
-        colorFormat_ != VK_FORMAT_R8G8B8A8_SRGB) {
-        throw std::invalid_argument("Rendering products needs an 8-bit RGBA or BGRA format");
-    }
     context_.WaitForSubmissions();
     CudaInterop* cuda = Cuda();
     const RasterPrims base = ResolveRasterPrims(scene, settings);
@@ -983,22 +1141,24 @@ StepOperation RasterDelegate::StepAsync(const Scene& scene, std::span<const Path
         if (!spec.camera.IsEmpty()) {
             prims.camera = spec.camera;
         }
-        std::shared_ptr<ProductFrame> frame = AcquireFrame(spec.product, spec.resolution);
-        UpdatePrims(scene, prims, spec.resolution);
+        if (prims.camera.IsEmpty()) {
+            throw std::invalid_argument("The scene has no Camera");
+        }
+        const int bands =
+            PhysicalCameraOf(scene, prims.camera, spec.resolution.width, spec.resolution.height)
+                .bands.count;
+        std::shared_ptr<ProductFrame> frame = AcquireFrame(spec.product, spec.resolution, bands);
+        UpdatePrims(scene, prims, spec.resolution, spec.filters);
         const std::vector<TimelinePoint> waits = SubmitWaits();
         std::vector<TimelinePoint> signals;
         if (cuda != nullptr) {
             signals.push_back(cuda->NextVulkanSignal());
         }
-        OffscreenTarget& target = *frame->target;
+        RenderTargets& targets = *frame->targets;
+        const RasterPart* parts[] = {&terrain_, &meshes_};
         submission = context_.SubmitAsync(
-            [&](VkCommandBuffer commands) {
-                Record(commands, target.Prepare(commands));
-                if (target.Color().AllocationSize() != 0) {
-                    target.Color().Transition(commands, VK_IMAGE_LAYOUT_GENERAL);
-                }
-            },
-            waits, signals);
+            [&](VkCommandBuffer commands) { renderer_.Record(commands, targets, parts); }, waits,
+            signals);
         if (!signals.empty()) {
             meshes_.MarkRead(signals.front().value);
         }
@@ -1032,8 +1192,13 @@ Tensor RasterDelegate::Render(const Scene& scene, const Path& settings, Device d
     }
     StepOperation step = StepAsync(scene, {}, settings);
     RenderProductSetOutputs outputs = cuda ? step.Outputs() : step.Fetch();
-    RenderVar& color = outputs.begin()->second.vars.begin()->second;
-    return color.Map(cuda ? MapDevice::Cuda : MapDevice::Cpu).tensor;
+    for (auto& [path, output] : outputs) {
+        if (const auto it = output.vars.find(std::string(render_vars::kLdrColor));
+            it != output.vars.end()) {
+            return it->second.Map(cuda ? MapDevice::Cuda : MapDevice::Cpu).tensor;
+        }
+    }
+    throw std::invalid_argument("The render products have no LdrColor render var");
 }
 
 }  // namespace ernie

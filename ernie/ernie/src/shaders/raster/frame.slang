@@ -3,15 +3,13 @@
 //   4 clamping linear sampler;
 // the per-draw push constants; and sun visibility and reflectance helpers. Materials take
 // bindings 5 to 9 (surface.slang) and each part's own resources start at 10.
-import brdf;
-
 public struct Uniforms {
     public float4x4 viewProj;
     // xyz: unit direction towards the sun, w: ambient light fraction.
     public float4 sun;
     // xyz: camera forward, w: dot(eye, forward); view depth = dot(world, forward) - w.
     public float4 forward;
-    // xyz: camera position, w: exposure, a scale on reflected sunlight.
+    // xyz: camera position, w: unused.
     public float4 eye;
     // x: wireframe.
     public uint4 flags;
@@ -44,30 +42,6 @@ public struct Shadows {
 [[vk::binding(3, 0)]] public SamplerComparisonState shadowSampler;
 [[vk::binding(4, 0)]] public SamplerState clampSampler;
 [[vk::push_constant]] public ConstantBuffer<DrawConstants> draw;
-
-// Radiance factor of reflectance model B for unit normal n, unit direction to the light l and to
-// the viewer v.
-public float3 reflected<B : IBrdf>(float3 n, float3 l, float3 v, float3 albedo, BrdfParams params) {
-    let mu0 = dot(n, l);
-    if (mu0 <= 0.0) {
-        return float3(0.0);
-    }
-    let mu = dot(n, v);
-    let lPlane = l - n * mu0;
-    let vPlane = v - n * mu;
-    var cosPsi = 1.0;
-    if (length(lPlane) > 1e-5 && length(vPlane) > 1e-5) {
-        cosPsi = dot(normalize(lPlane), normalize(vPlane));
-    }
-    BrdfInput input;
-    input.mu0 = mu0;
-    input.mu = max(mu, 1e-3);
-    input.cosG = dot(l, v);
-    input.cosPsi = cosPsi;
-    input.albedo = albedo;
-    B model;
-    return max(model.radianceFactor(input, params), float3(0.0));
-}
 
 // Jimenez 2014, "Next Generation Post Processing in Call of Duty: Advanced Warfare".
 float interleavedGradientNoise(float2 pixel) {
@@ -150,6 +124,19 @@ public float3 cascadeTint(float3 color, float3 world) {
         return color * tints[cascadeIndex(viewDepth(world))];
     }
     return color;
+}
+
+// What raster passes write for the spectral shading pass (see `RenderTargets`):
+//   normal: unit shading normal, w sun visibility (0 shadowed to 1 lit);
+//   albedo: x scale on the material's reflectance (albedo map over its luminance), yzw linear RGB
+//           modulation of it (detail albedo, tints, vertex colours, debug overlays);
+//   ids: material, prim id, instance id, flags (kUnlit: light without shading or shadows).
+public static const uint kUnlit = 1;
+
+public struct GBuffer {
+    public float4 normal : SV_Target0;
+    public float4 albedo : SV_Target1;
+    public uint4 ids : SV_Target2;
 }
 
 // `color` with triangle edges drawn over it when wireframe is on, from barycentric coordinates.

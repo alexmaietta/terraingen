@@ -101,6 +101,14 @@ inline constexpr std::string_view kWidth = "inputs:width";
 inline constexpr std::string_view kHeight = "inputs:height";
 inline constexpr std::string_view kTextureFile = "inputs:texture:file";
 inline constexpr std::string_view kShadowEnable = "inputs:shadow:enable";
+inline constexpr std::string_view kColorTemperature = "inputs:colorTemperature";  ///< Kelvin.
+inline constexpr std::string_view kEnableColorTemperature = "inputs:enableColorTemperature";
+/// Physical sunlight (Ernie): total irradiance at normal incidence in W/m^2, and a spectrum of
+/// (wavelength nm, W m^-2 nm^-1) pairs. Either one makes the light physical; without a spectrum
+/// it is a black body (the colour temperature when enabled, else the Sun's 5772 K) and without an
+/// irradiance a black body carries the solar constant, 1361 W/m^2.
+inline constexpr std::string_view kLightIrradiance = "ernie:irradiance";
+inline constexpr std::string_view kLightSpectrum = "ernie:spectrum";
 
 // Terrain (Ernie): a north-up heightfield, x east, y north, z up.
 inline constexpr std::string_view kHeights = "heights";          ///< float32 tensor (rows, cols).
@@ -135,6 +143,11 @@ inline constexpr std::string_view kCameraRel = "camera";         ///< Path of th
 inline constexpr std::string_view kResolution = "resolution";    ///< ivec2 pixels.
 inline constexpr std::string_view kProducts = "products";        ///< Paths of RenderProducts.
 inline constexpr std::string_view kOrderedVars = "orderedVars";  ///< Paths of RenderVars.
+/// Sensor filter chain of a RenderProduct (Ernie): paths of SensorFilter prims in order.
+inline constexpr std::string_view kFilters = "ernie:filters";
+inline constexpr std::string_view kSensorFilter = "SensorFilter";  ///< Prim type.
+/// A SensorFilter prim's filter: "lens", "qe", "noise", "adc", "cie" or "exposure".
+inline constexpr std::string_view kFilterType = "ernie:filter:type";
 inline constexpr std::string_view kSourceName = "sourceName";  ///< RenderVar name, e.g. "LdrColor".
 inline constexpr std::string_view kAmbient = "ernie:ambient";  ///< float fraction of sunlight.
 inline constexpr std::string_view kColorMode = "ernie:colorMode";

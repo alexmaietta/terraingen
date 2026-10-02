@@ -492,7 +492,7 @@ App::App(const AppOptions& options) : state_(std::make_unique<State>()) {
     s.CreateDepth();
     s.frame.emplace(*s.gpu);
     s.imgui.emplace(window, *s.gpu, *s.swapchain);
-    s.delegate.emplace(*s.gpu, s.swapchain->Format(), VK_FORMAT_D32_SFLOAT);
+    s.delegate.emplace(*s.gpu, s.swapchain->Format());
     s.ApplyOptions();
     s.Request();
 }

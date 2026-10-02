@@ -14,7 +14,8 @@ def cuda_renderer(renderer):
 
 
 def green_columns(image):
-    green = (np.asarray(image)[..., 1] > 200) & (np.asarray(image)[..., 0] < 10)
+    pixels = np.asarray(image).astype(np.int32)
+    green = (pixels[..., 1] > 200) & (2 * (pixels[..., 0] + pixels[..., 2]) < pixels[..., 1])
     return np.nonzero(green.any(axis=0))[0]
 
 

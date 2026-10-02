@@ -152,6 +152,19 @@ ernie::RasterView ViewOf(const Raster<float>& raster);
 /// @return The image, or a message describing why it could not be loaded.
 std::variant<ernie::Image, std::string> LoadDetailTexture(const std::string& path, bool normalMap);
 
+/// Camera exposure and spectral options edited in the View panel. With the defaults the
+/// photographic exposure scale is 1 (`ernie::PhysicalCamera::LinearExposureScale`).
+struct CameraViewSettings {
+    float exposureStops = 0.0f;   ///< USD `exposure`: scales the image by 2^stops.
+    float shutterSeconds = 1.0f;  ///< Exposure time.
+    float iso = 100.0f;
+    float fStop = 1.0f;
+    int bands = 16;  ///< Spectral bands over 380 to 780 nm.
+    bool physicalSun =
+        false;  ///< Light with the Sun's 1361 W/m^2 at 5772 K instead of relative
+                ///< units; pair with a real exposure, such as f/16, 1/100 s, ISO 100.
+};
+
 /// Display options edited in the View and Surface panels.
 struct ViewSettings {
     float sunAzimuthDegrees = 315.0f;  ///< Clockwise from north, as seen from above.
@@ -163,6 +176,7 @@ struct ViewSettings {
     ernie::ShadowSettings shadows;
     ernie::LodSettings lod;
     SurfaceViewSettings material;
+    CameraViewSettings camera;
     std::array<float, 3> background{0.0f, 0.0f, 0.0f};
 };
 
@@ -185,8 +199,9 @@ void AuthorTerrain(ernie::Scene& scene, std::shared_ptr<const Raster<float>> ras
 /// A float32 (rows, cols, 4) tensor of `image`'s linear pixels, sharing and keeping the image.
 ernie::Tensor TensorOf(std::shared_ptr<const ernie::Image> image);
 
-/// Authors `view` and `camera` into `scene`: the camera, a DistantLight for the sun whose
-/// intensity is the surface exposure, the surface material bound to the terrain with the selected
+/// Authors `view` and `camera` into `scene`: the camera with its exposure and spectral bands, a
+/// DistantLight for the sun whose intensity is the surface exposure (or physical, see
+/// `CameraViewSettings::physicalSun`), the surface material bound to the terrain with the selected
 /// model's parameters from `brdfs`, the terrain's exaggeration, and render settings for everything
 /// else.
 void AuthorView(ernie::Scene& scene, const ViewSettings& view, const ernie::OrbitCamera& camera,

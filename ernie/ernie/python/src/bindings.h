@@ -20,6 +20,9 @@ using AnyArray = nb::ndarray<nb::ro>;
 /// @throws std::invalid_argument for an element type Ernie does not exchange.
 Tensor TensorFromArray(const AnyArray& array);
 
+/// The DLPack element type of `type`.
+nb::dlpack::dtype DlpackOf(DType type);
+
 /// A read-only view of `tensor` that keeps it alive: a NumPy array for CPU tensors, an
 /// array-API object with `__dlpack__` (for torch.from_dlpack, CuPy, JAX) otherwise.
 nb::object ArrayFromTensor(const Tensor& tensor);

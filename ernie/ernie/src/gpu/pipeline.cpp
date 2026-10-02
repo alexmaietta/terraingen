@@ -200,14 +200,19 @@ GraphicsPipeline::GraphicsPipeline(const VulkanContext& context, const PipelineL
     depth.depthTestEnable = VK_TRUE;
     depth.depthWriteEnable = VK_TRUE;
     depth.depthCompareOp = desc.depthCompare;
+    std::vector<VkFormat> colorFormats = desc.colorFormats;
+    if (colorFormats.empty() && desc.colorFormat != VK_FORMAT_UNDEFINED) {
+        colorFormats.push_back(desc.colorFormat);
+    }
     VkPipelineColorBlendAttachmentState blendAttachment{};
     blendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
                                      VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    const std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(colorFormats.size(),
+                                                                            blendAttachment);
     VkPipelineColorBlendStateCreateInfo blend{
         VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
-    const bool hasColor = desc.colorFormat != VK_FORMAT_UNDEFINED;
-    blend.attachmentCount = hasColor ? 1 : 0;
-    blend.pAttachments = &blendAttachment;
+    blend.attachmentCount = static_cast<std::uint32_t>(blendAttachments.size());
+    blend.pAttachments = blendAttachments.data();
     const std::array<VkDynamicState, 2> dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT,
                                                          VK_DYNAMIC_STATE_SCISSOR};
     VkPipelineDynamicStateCreateInfo dynamic{VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
@@ -215,8 +220,8 @@ GraphicsPipeline::GraphicsPipeline(const VulkanContext& context, const PipelineL
     dynamic.pDynamicStates = dynamicStates.data();
 
     VkPipelineRenderingCreateInfo rendering{VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
-    rendering.colorAttachmentCount = hasColor ? 1 : 0;
-    rendering.pColorAttachmentFormats = &desc.colorFormat;
+    rendering.colorAttachmentCount = static_cast<std::uint32_t>(colorFormats.size());
+    rendering.pColorAttachmentFormats = colorFormats.data();
     rendering.depthAttachmentFormat = desc.depthFormat;
 
     VkGraphicsPipelineCreateInfo info{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
@@ -264,23 +269,35 @@ void TransitionImage(VkCommandBuffer commands, VkImage image, VkImageAspectFlags
 }
 
 void BeginRendering(VkCommandBuffer commands, const RenderingTarget& target) {
-    VkRenderingAttachmentInfo color{VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
-    color.imageView = target.color;
-    color.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    color.loadOp = target.loadColor ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_CLEAR;
-    color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    color.clearValue.color = target.clearColor;
+    std::vector<VkRenderingAttachmentInfo> colors;
+    const auto addColor = [&](VkImageView view, VkClearColorValue clear) {
+        VkRenderingAttachmentInfo color{VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
+        color.imageView = view;
+        color.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        color.loadOp = target.loadColor ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_CLEAR;
+        color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        color.clearValue.color = clear;
+        colors.push_back(color);
+    };
+    if (!target.colors.empty()) {
+        for (std::size_t i = 0; i < target.colors.size(); ++i) {
+            addColor(target.colors[i],
+                     i < target.clearColors.size() ? target.clearColors[i] : VkClearColorValue{});
+        }
+    } else if (target.color != VK_NULL_HANDLE) {
+        addColor(target.color, target.clearColor);
+    }
     VkRenderingAttachmentInfo depth{VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
     depth.imageView = target.depth;
     depth.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-    depth.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depth.loadOp = target.loadDepth ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_CLEAR;
     depth.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     depth.clearValue.depthStencil = {1.0f, 0};
     VkRenderingInfo info{VK_STRUCTURE_TYPE_RENDERING_INFO};
     info.renderArea = {{0, 0}, target.extent};
     info.layerCount = 1;
-    info.colorAttachmentCount = target.color != VK_NULL_HANDLE ? 1 : 0;
-    info.pColorAttachments = &color;
+    info.colorAttachmentCount = static_cast<std::uint32_t>(colors.size());
+    info.pColorAttachments = colors.data();
     info.pDepthAttachment = target.depth != VK_NULL_HANDLE ? &depth : nullptr;
     vkCmdBeginRendering(commands, &info);
 

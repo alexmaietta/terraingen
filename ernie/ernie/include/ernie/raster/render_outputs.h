@@ -9,6 +9,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace ernie {
 
@@ -52,11 +53,18 @@ class RenderVar {
     std::uint32_t Width() const;
     std::uint32_t Height() const;
 
+    /// Shape of the mapped tensor: (rows, cols, channels), (rows, cols) for one channel, or
+    /// (bands, rows, cols) for SpectralRadiance.
+    std::vector<std::int64_t> Shape() const;
+
+    /// Element type of the mapped tensor.
+    DType Type() const;
+
     /// Maps the output to `device`. CUDA mappings make CUDA stream `syncStream` (DLPack
     /// numbering: 1 legacy default, 2 per-thread default) wait on the GPU for the render, without
     /// blocking the host; a CPU mapping waits on the host. `Cuda` and `Cpu` tensors own their
     /// texels; a `CudaArray` is the frame's image, which must be unmapped before the frame is
-    /// dropped.
+    /// dropped, and is not available for the layered SpectralRadiance.
     /// @throws std::invalid_argument for a CUDA device without CUDA interop, or a format CUDA
     /// arrays do not support.
     MappedRenderVar Map(MapDevice device, std::uintptr_t syncStream = 1);

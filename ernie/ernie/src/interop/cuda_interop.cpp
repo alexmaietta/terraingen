@@ -68,6 +68,8 @@ struct Memcpy2d {
 static_assert(sizeof(Memcpy2d) == 128, "Must match CUDA_MEMCPY2D");
 
 constexpr int kFormatUnsignedInt8 = 0x01;
+constexpr int kFormatUnsignedInt16 = 0x02;
+constexpr int kFormatUnsignedInt32 = 0x03;
 constexpr int kFormatFloat = 0x20;
 constexpr unsigned int kArrayColorAttachment = 0x20;
 constexpr int kMemoryHost = 0x01;
@@ -471,8 +473,19 @@ CudaArrayView CudaInterop::MapImage(GpuImage& image) {
         view.channels = 4;
         view.type = DType::Float32;
         break;
+    case VK_FORMAT_R16G16B16A16_UINT:
+        format = cu::kFormatUnsignedInt16;
+        view.channels = 4;
+        view.type = DType::UInt16;
+        break;
+    case VK_FORMAT_R32_UINT:
+        format = cu::kFormatUnsignedInt32;
+        view.channels = 1;
+        view.type = DType::UInt32;
+        break;
     default:
-        throw std::invalid_argument("CUDA arrays support RGBA8 and float32 images");
+        throw std::invalid_argument("CUDA arrays support RGBA8, RGBA16 and R32 unsigned, and "
+                                    "float32 images");
     }
     if (auto* import = static_cast<Import*>(image.Attached().get())) {
         view.array = reinterpret_cast<std::uintptr_t>(import->array);

@@ -63,14 +63,12 @@ constexpr DescriptorBinding kBindings[] = {
     {18, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, kGraphics},
 };
 
-/// The mesh passes composed with reflectance model `model`.
-std::vector<ShaderModuleSource> MeshModules(const BrdfModel& model) {
+/// The mesh passes, which write the renderer's G-buffer.
+std::vector<ShaderModuleSource> MeshModules() {
     return {{"brdf", std::string(BrdfSlang())},
             {"frame", shaders::kFrameSlang},
             {"surface", shaders::kSurfaceSlang},
-            {BrdfModuleName(model), model.slang},
-            {"mesh", "import " + BrdfModuleName(model) + ";\ntypealias ActiveBrdf = " +
-                         model.typeName + ";\n" + shaders::kMeshSlang}};
+            {"mesh", shaders::kMeshSlang}};
 }
 
 /// A host-visible storage buffer holding `bytes`, at least 16 bytes so it can always be bound.
@@ -171,8 +169,9 @@ std::vector<std::uint32_t> TriangulateFaces(std::span<const std::int64_t> faceVe
 MeshPart::MeshPart(RasterRenderer& renderer)
     : renderer_(renderer), context_(renderer.Context()),
       layout_(renderer.Context(), kBindings, sizeof(DrawConstants)) {
-    const std::vector<std::uint32_t> vertex = renderer_.Compiler().CompileSpirv(
-        MeshModules(renderer_.Brdfs().Models().front()), "meshShadowVertex");
+    CreateGBufferPipeline();
+    const std::vector<std::uint32_t> vertex =
+        renderer_.Compiler().CompileSpirv(MeshModules(), "meshShadowVertex");
     GraphicsPipelineDesc shadow;
     shadow.vertexSpirv = vertex;
     shadow.depthFormat = VK_FORMAT_D32_SFLOAT;
@@ -188,27 +187,19 @@ MeshPart::~MeshPart() {
     vkDeviceWaitIdle(context_.Device());
 }
 
-const GraphicsPipeline& MeshPart::ColorPipeline(const BrdfModel& model) {
-    if (const auto it = colorPipelines_.find(model.id); it != colorPipelines_.end()) {
-        return *it->second;
-    }
-    const std::vector<ShaderModuleSource> modules = MeshModules(model);
-    std::vector<std::uint32_t> vertex;
-    std::vector<std::uint32_t> fragment;
-    try {
-        vertex = renderer_.Compiler().CompileSpirv(modules, "meshVertexMain");
-        fragment = renderer_.Compiler().CompileSpirv(modules, "meshFragmentMain");
-    } catch (const std::invalid_argument& error) {
-        throw std::invalid_argument("BRDF " + model.id +
-                                    " failed to compile for meshes: " + error.what());
-    }
+void MeshPart::CreateGBufferPipeline() {
+    const std::vector<ShaderModuleSource> modules = MeshModules();
+    const std::vector<std::uint32_t> vertex =
+        renderer_.Compiler().CompileSpirv(modules, "meshVertexMain");
+    const std::vector<std::uint32_t> fragment =
+        renderer_.Compiler().CompileSpirv(modules, "meshFragmentMain");
     GraphicsPipelineDesc desc;
     desc.vertexSpirv = vertex;
     desc.fragmentSpirv = fragment;
-    desc.colorFormat = renderer_.ColorFormat();
-    desc.depthFormat = renderer_.DepthFormat();
-    auto pipeline = std::make_unique<GraphicsPipeline>(context_, layout_, desc);
-    return *colorPipelines_.emplace(model.id, std::move(pipeline)).first->second;
+    desc.colorFormats.assign(RenderTargets::kGBufferFormats.begin(),
+                             RenderTargets::kGBufferFormats.end());
+    desc.depthFormat = RenderTargets::kDepthFormat;
+    gbufferPipeline_ = std::make_unique<GraphicsPipeline>(context_, layout_, desc);
 }
 
 std::uint32_t MeshPart::AddMesh(MeshData data) {
@@ -712,8 +703,7 @@ void MeshPart::Prepare(const FrameParams&, std::span<const ShadowCascade>) {
     for (std::size_t i = 0; i < items_.size(); ++i) {
         const MeshItem& item = items_[i];
         const Mesh& mesh = meshes_.at(item.mesh);
-        const RasterMaterial& material = renderer_.MaterialOrDefault(item.material);
-        itemPipelines_.push_back(&ColorPipeline(*renderer_.Brdfs().Find(material.Settings().brdf)));
+        itemPipelines_.push_back(gbufferPipeline_.get());
         GpuDraw& draw = draws[i];
         std::memcpy(draw.model, glm::value_ptr(item.transform), sizeof(draw.model));
         std::memcpy(draw.prototype, glm::value_ptr(item.prototype), sizeof(draw.prototype));
@@ -738,12 +728,16 @@ void MeshPart::Prepare(const FrameParams&, std::span<const ShadowCascade>) {
             flags |= orientations ? kHasOrientations : 0u;
             flags |= scales ? kHasScales : 0u;
             const std::uint32_t first = instancer.dedicated ? 0u : instancer.first;
+            draw.points[3] = first;
             for (const std::uint32_t instance : item.instances) {
                 instanceIds.push_back(first + instance);
             }
         }
         draw.offsets[3] = flags;
         draw.points[0] = mesh.bound ? 0u : mesh.firstVertex;
+        draw.points[1] =
+            renderer_.HasMaterial(item.material) ? item.material : RasterRenderer::kDefaultMaterial;
+        draw.points[2] = item.primId;
     }
     const auto bytes = [](const auto& data) {
         return std::max<VkDeviceSize>(data.size() * sizeof(data[0]), 16);

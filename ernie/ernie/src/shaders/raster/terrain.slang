@@ -17,6 +17,8 @@ public struct TerrainUniforms {
     public uint4 lodInfo;
     // Morph start distance and 1 / (morph end - morph start) per LOD level, two levels per float4.
     public float4 morph[8];
+    // Material, prim id.
+    public uint4 ids;
 }
 
 [[vk::binding(10, 0)]] public ConstantBuffer<TerrainUniforms> t;

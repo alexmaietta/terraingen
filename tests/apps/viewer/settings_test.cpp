@@ -277,7 +277,7 @@ TEST(AuthorView, RoundTripsTheViewThroughErniesDrawParameters) {
     EXPECT_EQ(prims.material, ernie::Path(terraingen::viewer::kSurfacePrim));
     EXPECT_EQ(prims.light, ernie::Path(terraingen::viewer::kSunPrim));
 
-    const ernie::FrameParams frame = ernie::FrameParamsOf(scene, prims, 1.5f);
+    const ernie::FrameParams frame = ernie::FrameParamsOf(scene, prims, 48, 32);
     const glm::vec3 sun = SunDirection(90.0f, 30.0f);
     for (int i = 0; i < 3; ++i) {
         EXPECT_NEAR(frame.sunDirection[i], sun[i], 1e-6f);
@@ -289,7 +289,9 @@ TEST(AuthorView, RoundTripsTheViewThroughErniesDrawParameters) {
     EXPECT_FALSE(frame.shadows.enabled);
     EXPECT_EQ(frame.shadows.cascades, 2);
     EXPECT_EQ(frame.shadows.resolution, 1024u);
-    EXPECT_FLOAT_EQ(frame.exposure, 1.5f);
+    EXPECT_EQ(frame.physical.width, 48u);
+    ASSERT_EQ(frame.sunIrradiance.size(), 16u);
+    EXPECT_GT(frame.sunIrradiance[0], 0.0f) << "the exposure scales the sun's irradiance";
 
     const ernie::TerrainParams terrain = ernie::TerrainParamsOf(scene, prims);
     EXPECT_EQ(terrain.exaggeration, 2.0f);
@@ -311,6 +313,28 @@ TEST(AuthorView, RoundTripsTheViewThroughErniesDrawParameters) {
     terraingen::viewer::AuthorView(scene, view, camera, brdfs);
     EXPECT_EQ(ernie::TerrainParamsOf(scene, prims).colorMode,
               ernie::TerrainColorMode::ShadedColormap);
+}
+
+TEST(AuthorView, WritesTheCameraExposureBandsAndPhysicalSun) {
+    const ernie::BrdfRegistry brdfs = ernie::BrdfRegistry::WithBuiltins();
+    terraingen::viewer::ViewSettings view;
+    EXPECT_EQ(ernie::PhysicalCamera{}.LinearExposureScale(), 1.0) << "defaults are neutral";
+    view.camera = {1.0f, 0.01f, 200.0f, 16.0f, 8, true};
+    ernie::Scene scene;
+    terraingen::viewer::AuthorView(scene, view, ernie::OrbitCamera{}, brdfs);
+    const ernie::RasterPrims prims =
+        ernie::ResolveRasterPrims(scene, terraingen::viewer::kSettingsPrim);
+    const ernie::FrameParams frame = ernie::FrameParamsOf(scene, prims, 16, 16);
+    EXPECT_EQ(frame.physical.bands.count, 8);
+    EXPECT_NEAR(frame.physical.LinearExposureScale(), 0.01 * 2.0 * 2.0 / 256.0, 1e-9);
+    const ernie::SpectralBands bands = frame.physical.bands;
+    EXPECT_EQ(frame.sunIrradiance, ernie::BlackbodyIrradiance(bands, 5772.0, 1361.0));
+
+    view.camera.physicalSun = false;
+    terraingen::viewer::AuthorView(scene, view, ernie::OrbitCamera{}, brdfs);
+    EXPECT_NE(ernie::FrameParamsOf(scene, prims, 16, 16).sunIrradiance,
+              ernie::BlackbodyIrradiance(bands, 5772.0, 1361.0))
+        << "back to relative units";
 }
 
 TEST(CraterSettings, DefaultsAreAValidLunarSurface) {

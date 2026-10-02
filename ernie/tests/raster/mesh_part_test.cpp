@@ -98,10 +98,12 @@ class MeshPartTest : public ernie::testing::VulkanTest {
         RasterPart* parts[] = {&frame.terrain, &frame.meshes};
         frame.renderer.Update(params, parts);
         OffscreenTarget target(*context_, kSize, kSize, kColorFormat);
+        ernie::RenderTargets targets(*context_, {kSize, kSize}, params.physical.bands.count, false);
         const RasterPart* drawn[] = {&frame.terrain, &frame.meshes};
         context_->Submit([&](VkCommandBuffer commands) {
-            frame.renderer.Record(commands, target.Prepare(commands, {{0.0f, 0.0f, 0.0f, 1.0f}}),
-                                  drawn);
+            const ernie::RenderingTarget present =
+                target.Prepare(commands, {{0.0f, 0.0f, 0.0f, 1.0f}});
+            frame.renderer.Record(commands, targets, drawn, &present);
         });
         const std::vector<std::uint8_t> bytes = target.ReadColor();
         std::vector<Pixel> pixels(kSize * kSize);
@@ -115,6 +117,8 @@ class MeshPartTest : public ernie::testing::VulkanTest {
         camera.distance = distance;
         FrameParams params;
         params.camera = camera.MakeView(1.0f);
+        params.physical.width = kSize;
+        params.physical.height = kSize;
         return params;
     }
 
@@ -151,7 +155,7 @@ TEST_F(MeshPartTest, DrawsALitMeshWithItsAlbedoAndVertexColours) {
     EXPECT_GT(g.Luminance(), 300);
     EXPECT_NEAR(g.r, g.b, 2);
     EXPECT_GT(r.r, 200);
-    EXPECT_LT(r.g + r.b, 10);
+    EXPECT_LT(r.g + r.b, r.r / 2) << "a spectrum cannot reproduce the sRGB red primary";
     EXPECT_EQ(pixels[PixelOf({0.0f, 0.0f, 0.0f})].Luminance(), 0) << "background between";
     EXPECT_EQ(meshes.TriangleCount(), 4u);
 }
@@ -335,7 +339,7 @@ TEST_F(MeshPartTest, MeshesShareTheRenderersMaterials) {
     std::vector<Pixel> pixels = Render(frame);
     Pixel centre = pixels[PixelOf({0, 0, 0})];
     EXPECT_GT(centre.r, 200);
-    EXPECT_LT(centre.g + centre.b, 10);
+    EXPECT_LT(centre.g + centre.b, centre.r / 2);
 
     ernie::MaterialSettings blue = red;
     blue.albedo = {0.0f, 0.0f, 1.0f};
