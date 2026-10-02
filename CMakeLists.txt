@@ -60,10 +60,6 @@ endif()
 
 add_subdirectory(src)
 
-if(TERRAINGEN_BUILD_CLI)
-    add_subdirectory(apps/cli)
-endif()
-
 if(TERRAINGEN_BUILD_VIEWER)
     include("${PROJECT_SOURCE_DIR}/cmake/third_party/wgpu_native.cmake")
     include("${PROJECT_SOURCE_DIR}/cmake/third_party/glfw.cmake")
