@@ -1,5 +1,7 @@
 #include "app.h"
 
+#include "terraingen/version.h"
+
 #include "ernie/depth_buffer.h"
 #include "ernie/gpu_context.h"
 #include "ernie/orbit_camera.h"
@@ -14,6 +16,7 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_wgpu.h>
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstdio>
@@ -99,9 +102,25 @@ WGPURenderPassEncoder BeginPass(WGPUCommandEncoder encoder, WGPUTextureView targ
     return wgpuCommandEncoderBeginRenderPass(encoder, &descriptor);
 }
 
+/// Routes TerrainGen's log to `buffer` for its lifetime, then restores the default sink and level.
+class LogInstallation {
+  public:
+    explicit LogInstallation(LogBuffer& buffer) {
+        SetLogSink(buffer.Sink());
+    }
+    ~LogInstallation() {
+        SetLogSink(nullptr);
+        SetLogLevel(LogLevel::Warning);
+    }
+    LogInstallation(const LogInstallation&) = delete;
+    LogInstallation& operator=(const LogInstallation&) = delete;
+};
+
 }  // namespace
 
 struct App::State {
+    LogBuffer logBuffer;
+    LogInstallation logInstallation{logBuffer};
     AppOptions options;
     GlfwWindow window;
     std::unique_ptr<ernie::GpuContext> gpu;
@@ -115,11 +134,14 @@ struct App::State {
     ViewSettings view;
     Worker worker;
     bool autoRegenerate = true;
+    bool uiVisible = true;
+    bool logVisible = true;
     bool framed = false;
     double framedExtent = 0.0;
     TerrainPanelStatus status;
     InfoPanelData info;
     SurfacePanelState surfacePanel;
+    LogPanelState logPanel;
 
     int width = 0;
     int height = 0;
@@ -179,21 +201,29 @@ struct App::State {
     void ApplyResult(GenerationResult result) {
         status.error = result.error;
         if (!result.error.empty()) {
+            LogWarning("viewer", "Generation ", result.id, " failed: ", result.error);
             return;
         }
+        const Stopwatch upload;
         try {
             terrain->SetHeightfield(ViewOf(result.raster));
         } catch (const std::invalid_argument& error) {
             status.error = error.what();
+            LogWarning("viewer", "Cannot display generation ", result.id, ": ", status.error);
             return;
         }
+        LogInfo("viewer", "Generation ", result.id, " finished in ",
+                FormatDuration(result.milliseconds), "; uploaded ", result.raster.Width(), "x",
+                result.raster.Height(), " heightfield in ", FormatDuration(upload.Milliseconds()));
         info.width = terrain->Width();
         info.height = terrain->Height();
         info.gpuBytes = terrain->GpuBytes();
         info.stats = result.stats;
         info.generationMilliseconds = result.milliseconds;
 
-        const double extent = static_cast<double>(result.settings.size) * result.settings.pixelSize;
+        const double extent =
+            static_cast<double>(std::max(result.settings.width, result.settings.height)) *
+            result.settings.pixelSize;
         if (!framed || extent != framedExtent) {
             Frame();
             framed = true;
@@ -208,8 +238,10 @@ struct App::State {
             normalMap ? surfacePanel.normalPath.data() : surfacePanel.albedoPath.data();
         std::string& message = normalMap ? surfacePanel.normalStatus : surfacePanel.albedoStatus;
         auto loaded = LoadDetailTexture(path, normalMap);
+        const char* kind = normalMap ? "normal map" : "albedo";
         if (const std::string* error = std::get_if<std::string>(&loaded)) {
             message = *error;
+            LogWarning("viewer", "Cannot load detail ", kind, " ", path, ": ", message);
             return false;
         }
         const ernie::Image& image = std::get<ernie::Image>(loaded);
@@ -221,9 +253,11 @@ struct App::State {
             }
         } catch (const std::invalid_argument& error) {
             message = error.what();
+            LogWarning("viewer", "Cannot use detail ", kind, " ", path, ": ", message);
             return false;
         }
         message = std::to_string(image.width) + " x " + std::to_string(image.height);
+        LogInfo("viewer", "Loaded detail ", kind, " ", path, " (", message, ")");
         return true;
     }
 
@@ -263,6 +297,12 @@ struct App::State {
             if (ImGui::IsKeyPressed(ImGuiKey_F)) {
                 Frame();
             }
+            if (ImGui::IsKeyPressed(ImGuiKey_H, false)) {
+                uiVisible = !uiVisible;
+            }
+            if (ImGui::IsKeyPressed(ImGuiKey_L, false)) {
+                logVisible = !logVisible;
+            }
             if (ImGui::IsKeyPressed(ImGuiKey_R) && ValidateSettings(settings).empty()) {
                 Request();
             }
@@ -274,22 +314,28 @@ struct App::State {
 
     void DrawUi() {
         status.generating = worker.Busy();
-        const bool generate = DrawTerrainPanel(settings, autoRegenerate, status);
-        const bool changed = !(settings == requested);
-        if (generate || (autoRegenerate && changed && ValidateSettings(settings).empty())) {
-            Request();
-        }
-        if (DrawViewPanel(view)) {
-            Frame();
-        }
         surfacePanel.hasAlbedoMap = terrain->Material().HasAlbedoMap();
-        HandleSurfaceAction(DrawSurfacePanel(view.material, surfacePanel, terrain->Brdfs()));
         info.gpu = gpu->AdapterDescription();
         info.gpuBytes = terrain->GpuBytes();
         info.triangles = terrain->TriangleCount();
         info.patches = terrain->PatchCount();
         info.lodLevels = terrain->Lod().Levels();
-        DrawInfoPanel(info);
+        if (!uiVisible) {
+            return;
+        }
+        const SidebarActions actions = DrawSidebar(settings, autoRegenerate, status, view,
+                                                   surfacePanel, terrain->Brdfs(), info);
+        const bool changed = !(settings == requested);
+        if (actions.generate || (autoRegenerate && changed && ValidateSettings(settings).empty())) {
+            Request();
+        }
+        if (actions.frame) {
+            Frame();
+        }
+        HandleSurfaceAction(actions.surface);
+        if (logVisible) {
+            DrawLogPanel(logBuffer, logPanel, actions.width);
+        }
     }
 
     void Render(WGPUTexture target) {
@@ -332,9 +378,12 @@ struct App::State {
 App::App(const AppOptions& options) : state_(std::make_unique<State>()) {
     State& s = *state_;
     s.options = options;
+    SetLogLevel(options.logLevel);
     GLFWwindow* window = s.window.window;
     s.gpu = ernie::GpuContext::Create(
         [window](WGPUInstance instance) { return CreateGlfwSurface(instance, window); });
+    LogInfo("viewer", "TerrainGen ", TERRAINGEN_VERSION_STRING, " on ",
+            s.gpu->AdapterDescription());
     s.imgui.emplace(window, *s.gpu);
     s.depth.emplace(s.gpu->Device());
     s.terrain.emplace(*s.gpu, s.gpu->SurfaceFormat(), s.depth->Format());

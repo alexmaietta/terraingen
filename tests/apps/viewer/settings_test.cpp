@@ -1,10 +1,15 @@
 #include "settings.h"
 
+#include "terraingen/features/craters/apply.h"
+#include "terraingen/features/craters/population.h"
+#include "terraingen/spatial/cells.h"
 #include "terraingen/surfaces/synthetic_terrain.h"
 
 #include <glm/glm.hpp>
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <cmath>
 #include <limits>
 #include <stdexcept>
 #include <string>
@@ -15,7 +20,13 @@ using terraingen::FractalType;
 using terraingen::GainFromHurst;
 using terraingen::GenerateSyntheticTerrain;
 using terraingen::NoiseBasis;
+using terraingen::viewer::BuildCraterModels;
+using terraingen::viewer::CraterDensityModel;
+using terraingen::viewer::CraterModels;
+using terraingen::viewer::CraterProfileModel;
+using terraingen::viewer::CraterSettings;
 using terraingen::viewer::DefaultLayer;
+using terraingen::viewer::ExpectedCraterCount;
 using terraingen::viewer::GenerateTerrain;
 using terraingen::viewer::LayerSettings;
 using terraingen::viewer::SunDirection;
@@ -58,7 +69,10 @@ TEST(TerrainSettings, ReportsTheFirstProblem) {
         mutate(settings);
         return ValidateSettings(settings);
     };
-    EXPECT_NE(problem([](TerrainSettings& s) { s.size = 1; }), "");
+    EXPECT_NE(problem([](TerrainSettings& s) { s.width = 1; }), "");
+    EXPECT_NE(problem([](TerrainSettings& s) { s.height = 1; }), "");
+    EXPECT_NE(problem([](TerrainSettings& s) { s.width = terraingen::viewer::kMaxGridSize + 1; }),
+              "");
     EXPECT_NE(problem([](TerrainSettings& s) { s.pixelSize = 0.0; }), "");
     EXPECT_NE(
         problem([](TerrainSettings& s) { s.pixelSize = std::numeric_limits<double>::infinity(); }),
@@ -78,11 +92,13 @@ TEST(TerrainSettings, ReportsTheFirstProblem) {
 
 TEST(TerrainSettings, GenerateMatchesTheCoreFunction) {
     TerrainSettings settings;
-    settings.size = 33;
+    settings.craters.enabled = false;
+    settings.width = 33;
+    settings.height = 21;
     settings.pixelSize = 3.0;
     settings.layers[0].useHurst = true;
     const auto generated = GenerateTerrain(settings);
-    const auto expected = GenerateSyntheticTerrain(33, 33, 3.0, settings.EffectiveTerrain());
+    const auto expected = GenerateSyntheticTerrain(33, 21, 3.0, settings.EffectiveTerrain());
     ASSERT_EQ(generated.Size(), expected.Size());
     for (std::size_t i = 0; i < generated.Size(); ++i) {
         ASSERT_EQ(generated.Values()[i], expected.Values()[i]);
@@ -91,7 +107,7 @@ TEST(TerrainSettings, GenerateMatchesTheCoreFunction) {
 
 TEST(TerrainSettings, GenerateRejectsInvalidSettings) {
     TerrainSettings settings;
-    settings.size = 0;
+    settings.width = 0;
     EXPECT_THROW(GenerateTerrain(settings), std::invalid_argument);
 }
 
@@ -189,4 +205,108 @@ TEST(ViewOf, RejectsRotatedOrRectangularPixels) {
     EXPECT_THROW(terraingen::viewer::ViewOf(raster), std::invalid_argument);
     raster.SetTransform(terraingen::GeoTransform::FromGdal({0.0, 1.0, 0.0, 0.0, 0.0, 1.0}));
     EXPECT_THROW(terraingen::viewer::ViewOf(raster), std::invalid_argument) << "south-up";
+}
+
+TEST(CraterSettings, DefaultsAreAValidLunarSurface) {
+    const TerrainSettings settings;
+    EXPECT_TRUE(settings.craters.enabled);
+    EXPECT_EQ(settings.craters.density, CraterDensityModel::LunarSurface);
+    EXPECT_EQ(ValidateSettings(settings), "");
+    const double area = static_cast<double>(settings.width * settings.height) * settings.pixelSize *
+                        settings.pixelSize;
+    const CraterModels models = BuildCraterModels(settings.craters);
+    EXPECT_NEAR(ExpectedCraterCount(settings), models.density->ExpectedCount(area, 4.0, 250.0),
+                1e-9);
+    EXPECT_GT(ExpectedCraterCount(settings), 100.0);
+    TerrainSettings disabled;
+    disabled.craters.enabled = false;
+    EXPECT_EQ(ExpectedCraterCount(disabled), 0.0);
+}
+
+TEST(CraterSettings, ReportsCraterProblems) {
+    const auto problem = [](auto mutate) {
+        TerrainSettings settings;
+        mutate(settings.craters);
+        return ValidateSettings(settings);
+    };
+    EXPECT_NE(problem([](CraterSettings& c) { c.minDiameter = 0.0; }), "");
+    EXPECT_NE(problem([](CraterSettings& c) { c.maxDiameter = 3.0; }), "");
+    EXPECT_NE(problem([](CraterSettings& c) { c.minDiameter = 2.0; }), "");
+    EXPECT_NE(problem([](CraterSettings& c) { c.surfaceAgeGyr = 5.0; }), "");
+    EXPECT_NE(problem([](CraterSettings& c) {
+                  c.density = CraterDensityModel::PowerLaw;
+                  c.powerLawExponent = 0.0;
+              }),
+              "");
+    EXPECT_NE(problem([](CraterSettings& c) {
+                  c.density = CraterDensityModel::Trask;
+                  c.lifetimeGyr = 0.0;
+              }),
+              "");
+    const std::string tooMany = problem([](CraterSettings& c) {
+        c.density = CraterDensityModel::Trask;
+        c.minDiameter = 0.1;
+    });
+    EXPECT_NE(tooMany.find("raise the minimum diameter"), std::string::npos) << tooMany;
+    EXPECT_EQ(problem([](CraterSettings& c) {
+                  c.enabled = false;
+                  c.minDiameter = -1.0;
+              }),
+              "");
+}
+
+TEST(CraterSettings, BuildsTheSelectedModels) {
+    CraterSettings settings;
+    CraterModels lunar = BuildCraterModels(settings);
+    EXPECT_NE(dynamic_cast<const terraingen::SteadyStateAges*>(lunar.ages.get()), nullptr);
+    EXPECT_NE(dynamic_cast<const terraingen::FreshnessDegradation*>(lunar.degradation.get()),
+              nullptr);
+    EXPECT_EQ(lunar.profile->ReachRadii(), 1.5);
+
+    settings.density = CraterDensityModel::Trask;
+    settings.degrade = false;
+    settings.profile = CraterProfileModel::MartinParkesDunstan;
+    const CraterModels trask = BuildCraterModels(settings);
+    EXPECT_DOUBLE_EQ(trask.density->Cumulative(10.0),
+                     terraingen::TraskEquilibrium().Cumulative(10.0));
+    EXPECT_NE(dynamic_cast<const terraingen::UniformFreshness*>(trask.ages.get()), nullptr);
+    EXPECT_NE(dynamic_cast<const terraingen::NoDegradation*>(trask.degradation.get()), nullptr);
+    EXPECT_EQ(trask.profile->ReachRadii(), 2.0);
+
+    settings.density = CraterDensityModel::Hartmann;
+    settings.profile = CraterProfileModel::FassettThomsonPlateau;
+    EXPECT_DOUBLE_EQ(BuildCraterModels(settings).density->Cumulative(10.0),
+                     terraingen::HartmannEquilibrium().Cumulative(10.0));
+
+    settings.density = CraterDensityModel::PowerLaw;
+    settings.powerLawCoefficient = 0.2;
+    settings.powerLawExponent = 2.5;
+    EXPECT_DOUBLE_EQ(BuildCraterModels(settings).density->Cumulative(2.0),
+                     0.2 * std::pow(2.0, -2.5));
+}
+
+TEST(CraterSettings, GenerateAppliesCratersOnTheNoiseTerrain) {
+    TerrainSettings settings;
+    settings.width = 129;
+    settings.height = 97;
+    settings.craters.minDiameter = 8.0;
+    settings.craters.maxDiameter = 100.0;
+    const auto generated = GenerateTerrain(settings);
+
+    auto expected = GenerateSyntheticTerrain(129, 97, 2.0, settings.EffectiveTerrain());
+    const CraterModels models = BuildCraterModels(settings.craters);
+    const auto craters = terraingen::GenerateCraters(
+        terraingen::PlanarCells(), {-129.0, -97.0, 129.0, 97.0}, *models.density, *models.ages,
+        settings.craters.seed, {.dMin = 8.0, .dMax = 100.0, .marginRadii = 1.5});
+    ASSERT_FALSE(craters.Empty());
+    terraingen::ApplyCraters(expected, craters, *models.profile, *models.degradation);
+    ASSERT_EQ(generated.Size(), expected.Size());
+    for (std::size_t i = 0; i < generated.Size(); ++i) {
+        ASSERT_EQ(generated.Values()[i], expected.Values()[i]) << i;
+    }
+
+    settings.craters.enabled = false;
+    const auto plain = GenerateTerrain(settings);
+    EXPECT_FALSE(
+        std::equal(plain.Values().begin(), plain.Values().end(), generated.Values().begin()));
 }

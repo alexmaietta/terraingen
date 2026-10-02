@@ -4,8 +4,10 @@
 
 #include <imgui.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <exception>
 #include <optional>
 #include <random>
 #include <string>
@@ -16,14 +18,21 @@ namespace terraingen::viewer {
 
 namespace {
 
-constexpr ImGuiWindowFlags kPanelFlags = ImGuiWindowFlags_AlwaysAutoResize;
-
 enum class LayerAction { None, Remove, MoveUp, MoveDown };
 
 constexpr const char* kBasisNames[] = {"Perlin",    "Simplex",   "Value",
                                        "Worley F1", "Worley F2", "Worley F2 - F1"};
 constexpr const char* kFractalNames[] = {"fBm", "Ridged", "Billow", "Hybrid multifractal"};
 constexpr const char* kBlendNames[] = {"Add", "Max", "Min", "Mask"};
+constexpr const char* kCraterDensityNames[] = {"Lunar surface (DSNE)", "Trask equilibrium",
+                                               "Hartmann equilibrium", "Power law"};
+constexpr const char* kCraterProfileNames[] = {"Fassett & Thomson 2014", "Fassett et al. 2022",
+                                               "Martin, Parkes & Dunstan (PANGU)"};
+
+bool DragDouble(const char* label, double& value, double min, double max, const char* format,
+                ImGuiSliderFlags flags = ImGuiSliderFlags_None) {
+    return ImGui::SliderScalar(label, ImGuiDataType_Double, &value, &min, &max, format, flags);
+}
 
 template <typename Enum, std::size_t N>
 void EnumCombo(const char* label, Enum& value, const char* const (&names)[N]) {
@@ -104,34 +113,42 @@ LayerAction DrawLayer(LayerSettings& settings, std::size_t index, std::size_t co
     return action;
 }
 
-void SizeCombo(std::size_t& size) {
-    const std::string preview = std::to_string(size) + " x " + std::to_string(size);
-    if (ImGui::BeginCombo("Grid", preview.c_str())) {
+bool GridDimension(const char* label, std::size_t& cells) {
+    std::uint64_t value = cells;
+    const std::uint64_t step = 1;
+    const std::uint64_t fastStep = 64;
+    if (ImGui::InputScalar(label, ImGuiDataType_U64, &value, &step, &fastStep)) {
+        cells = static_cast<std::size_t>(std::clamp<std::uint64_t>(value, 2, kMaxGridSize));
+        return true;
+    }
+    return false;
+}
+
+void GridSize(TerrainSettings& settings) {
+    GridDimension("Width (cells)", settings.width);
+    GridDimension("Height (cells)", settings.height);
+    if (ImGui::BeginCombo("Preset", "Square grid...")) {
         for (const std::size_t option : kGridSizes) {
             const std::string label = std::to_string(option) + " x " + std::to_string(option);
-            if (ImGui::Selectable(label.c_str(), option == size)) {
-                size = option;
+            if (ImGui::Selectable(label.c_str(),
+                                  option == settings.width && option == settings.height)) {
+                settings.width = option;
+                settings.height = option;
             }
         }
         ImGui::EndCombo();
     }
 }
 
-}  // namespace
-
-bool DrawTerrainPanel(TerrainSettings& settings, bool& autoRegenerate,
-                      const TerrainPanelStatus& status) {
-    ImGui::SetNextWindowPos(ImVec2(10.0f, 10.0f), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Terrain", nullptr, kPanelFlags);
-    ImGui::PushItemWidth(200.0f);
-
-    SizeCombo(settings.size);
+void DrawTerrainSurface(TerrainSettings& settings) {
+    GridSize(settings);
     const double minPixel = 0.05;
     const double maxPixel = 100.0;
     ImGui::DragScalar("Pixel size (m)", ImGuiDataType_Double, &settings.pixelSize, 0.05f, &minPixel,
                       &maxPixel, "%.2f");
-    const double extent = static_cast<double>(settings.size) * settings.pixelSize;
-    ImGui::TextDisabled("Extent: %.0f m x %.0f m", extent, extent);
+    ImGui::TextDisabled("Extent: %.0f m x %.0f m",
+                        static_cast<double>(settings.width) * settings.pixelSize,
+                        static_cast<double>(settings.height) * settings.pixelSize);
 
     ImGui::SeparatorText("Layers");
     std::optional<std::size_t> remove;
@@ -163,8 +180,52 @@ bool DrawTerrainPanel(TerrainSettings& settings, bool& autoRegenerate,
         settings.layers.push_back(layer);
     }
     ImGui::EndDisabled();
+}
 
-    ImGui::Separator();
+void DrawTerrainCraters(TerrainSettings& settings) {
+    CraterSettings& craters = settings.craters;
+    ImGui::Checkbox("Enabled", &craters.enabled);
+    ImGui::BeginDisabled(!craters.enabled);
+    EnumCombo("Density", craters.density, kCraterDensityNames);
+    switch (craters.density) {
+    case CraterDensityModel::LunarSurface:
+        DragDouble("Surface age (Gyr)", craters.surfaceAgeGyr, 0.0, kMaxLunarAgeGyr, "%.2f");
+        break;
+    case CraterDensityModel::PowerLaw:
+        DragDouble("Coefficient (per m^2)", craters.powerLawCoefficient, 1e-4, 10.0, "%.4f",
+                   ImGuiSliderFlags_Logarithmic);
+        DragDouble("Exponent", craters.powerLawExponent, 1.0, 4.0, "%.2f");
+        [[fallthrough]];
+    default:
+        DragDouble("Lifetime (Gyr)", craters.lifetimeGyr, 0.01, 4.5, "%.2f",
+                   ImGuiSliderFlags_Logarithmic);
+        break;
+    }
+    DragDouble("Min diameter (m)", craters.minDiameter, 0.5, 1000.0, "%.1f",
+               ImGuiSliderFlags_Logarithmic);
+    DragDouble("Max diameter (m)", craters.maxDiameter, 1.0, 10000.0, "%.0f",
+               ImGuiSliderFlags_Logarithmic);
+    EnumCombo("Profile", craters.profile, kCraterProfileNames);
+    ImGui::Checkbox("Degrade with age", &craters.degrade);
+    ImGui::InputScalar("Seed", ImGuiDataType_U32, &craters.seed);
+    ImGui::SameLine();
+    if (ImGui::Button("Random")) {
+        craters.seed = std::random_device{}();
+    }
+    ImGui::EndDisabled();
+
+    if (craters.enabled) {
+        try {
+            ImGui::TextDisabled("Expected craters: %.0f", ExpectedCraterCount(settings));
+        } catch (const std::exception&) {
+            ImGui::TextDisabled("Expected craters: -");
+        }
+    }
+}
+
+/// The Terrain section: generation controls, then the Surface and Craters sub-groups.
+bool DrawTerrainSection(TerrainSettings& settings, bool& autoRegenerate,
+                        const TerrainPanelStatus& status) {
     const std::string error = ValidateSettings(settings);
     ImGui::BeginDisabled(!error.empty());
     const bool generate = ImGui::Button("Generate (R)");
@@ -177,19 +238,22 @@ bool DrawTerrainPanel(TerrainSettings& settings, bool& autoRegenerate,
     }
     const std::string& shown = error.empty() ? status.error : error;
     if (!shown.empty()) {
+        ImGui::PushTextWrapPos(0.0f);
         ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", shown.c_str());
+        ImGui::PopTextWrapPos();
     }
-
-    ImGui::PopItemWidth();
-    ImGui::End();
+    if (ImGui::TreeNodeEx("Surface", ImGuiTreeNodeFlags_DefaultOpen)) {
+        DrawTerrainSurface(settings);
+        ImGui::TreePop();
+    }
+    if (ImGui::TreeNodeEx("Craters", ImGuiTreeNodeFlags_DefaultOpen)) {
+        DrawTerrainCraters(settings);
+        ImGui::TreePop();
+    }
     return generate && error.empty();
 }
 
-bool DrawViewPanel(ViewSettings& view) {
-    ImGui::SetNextWindowPos(ImVec2(10.0f, 470.0f), ImGuiCond_FirstUseEver);
-    ImGui::Begin("View", nullptr, kPanelFlags);
-    ImGui::PushItemWidth(200.0f);
-
+bool DrawViewSection(ViewSettings& view) {
     ImGui::SliderFloat("Sun azimuth", &view.sunAzimuthDegrees, 0.0f, 360.0f, "%.0f deg");
     ImGui::SliderFloat("Sun elevation", &view.sunElevationDegrees, 0.0f, 90.0f, "%.0f deg");
     ImGui::SliderFloat("Ambient", &view.ambient, 0.0f, 1.0f, "%.2f");
@@ -234,20 +298,11 @@ bool DrawViewPanel(ViewSettings& view) {
     ImGui::EndDisabled();
     ImGui::Separator();
     ImGui::ColorEdit3("Background", view.background.data());
-    const bool frame = ImGui::Button("Frame terrain (F)");
-
-    ImGui::PopItemWidth();
-    ImGui::End();
-    return frame;
+    return ImGui::Button("Frame terrain (F)");
 }
 
-SurfacePanelAction DrawSurfacePanel(SurfaceViewSettings& material, SurfacePanelState& state,
-                                    const ernie::BrdfRegistry& registry) {
-    const ImGuiIO& io = ImGui::GetIO();
-    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 10.0f, 10.0f), ImGuiCond_FirstUseEver,
-                            ImVec2(1.0f, 0.0f));
-    ImGui::Begin("Surface", nullptr, kPanelFlags);
-    ImGui::PushItemWidth(200.0f);
+SurfacePanelAction DrawSurfaceSection(SurfaceViewSettings& material, SurfacePanelState& state,
+                                      const ernie::BrdfRegistry& registry) {
     SurfacePanelAction action = SurfacePanelAction::None;
     ernie::SurfaceSettings& surface = material.surface;
 
@@ -335,15 +390,10 @@ SurfacePanelAction DrawSurfacePanel(SurfaceViewSettings& material, SurfacePanelS
     ImGui::SliderFloat("Blend sharpness", &detail.hexSharpness, 1.0f, 32.0f, "%.1f",
                        ImGuiSliderFlags_Logarithmic);
     ImGui::EndDisabled();
-
-    ImGui::PopItemWidth();
-    ImGui::End();
     return action;
 }
 
-void DrawInfoPanel(const InfoPanelData& info) {
-    ImGui::SetNextWindowPos(ImVec2(10.0f, 700.0f), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Info", nullptr, kPanelFlags);
+void DrawInfoSection(const InfoPanelData& info) {
     const ImGuiIO& io = ImGui::GetIO();
     ImGui::Text("TerrainGen %s", TERRAINGEN_VERSION_STRING);
     ImGui::Text("GPU: %s", info.gpu.c_str());
@@ -364,6 +414,133 @@ void DrawInfoPanel(const InfoPanelData& info) {
         ImGui::Text("Generated in %.1f ms", info.generationMilliseconds);
     }
     ImGui::TextDisabled("Drag: orbit | Right/middle drag: pan | Scroll: zoom");
+    ImGui::TextDisabled("H: hide interface | L: log | F: frame terrain | R: regenerate");
+}
+
+}  // namespace
+
+SidebarActions DrawSidebar(TerrainSettings& settings, bool& autoRegenerate,
+                           const TerrainPanelStatus& status, ViewSettings& view,
+                           SurfacePanelState& surfaceState, const ernie::BrdfRegistry& registry,
+                           const InfoPanelData& info) {
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    const float height = viewport->WorkSize.y;
+    const float maxWidth = std::max(kSidebarMinWidth, 0.9f * viewport->WorkSize.x);
+    ImGui::SetNextWindowPos(viewport->WorkPos);
+    ImGui::SetNextWindowSize(ImVec2(kSidebarDefaultWidth, height), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(kSidebarMinWidth, height), ImVec2(maxWidth, height));
+    ImGui::Begin("TerrainGen", nullptr,
+                 ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
+                     ImGuiWindowFlags_NoTitleBar);
+    ImGui::PushItemWidth(-ImGui::GetFontSize() * 11.0f);
+
+    SidebarActions actions;
+    const auto section = [](const char* name, auto draw) {
+        ImGui::PushID(name);
+        if (ImGui::CollapsingHeader(name, ImGuiTreeNodeFlags_DefaultOpen)) {
+            draw();
+        }
+        ImGui::PopID();
+    };
+    section("Info", [&] { DrawInfoSection(info); });
+    section("Terrain",
+            [&] { actions.generate = DrawTerrainSection(settings, autoRegenerate, status); });
+    section("View", [&] { actions.frame = DrawViewSection(view); });
+    section("Surface",
+            [&] { actions.surface = DrawSurfaceSection(view.material, surfaceState, registry); });
+
+    ImGui::PopItemWidth();
+    actions.width = ImGui::GetWindowWidth();
+    ImGui::End();
+    return actions;
+}
+
+void DrawLogPanel(LogBuffer& buffer, LogPanelState& state, float left) {
+    if (const std::uint64_t version = buffer.Version(); version != state.version) {
+        state.records = buffer.Snapshot();
+        state.version = version;
+    }
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    const float width = std::max(1.0f, viewport->WorkSize.x - left);
+    const float maxHeight = std::max(kLogPanelMinHeight, 0.8f * viewport->WorkSize.y);
+    ImGui::SetNextWindowPos(
+        ImVec2(viewport->WorkPos.x + left, viewport->WorkPos.y + viewport->WorkSize.y),
+        ImGuiCond_Always, ImVec2(0.0f, 1.0f));
+    ImGui::SetNextWindowSize(ImVec2(width, kLogPanelDefaultHeight), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(width, kLogPanelMinHeight),
+                                        ImVec2(width, maxHeight));
+    std::string title = "Log";
+    if (!state.records.empty()) {
+        title += " - " + state.records.back().message;
+    }
+    title += "###Log";
+    if (!ImGui::Begin(title.c_str(), nullptr, ImGuiWindowFlags_NoMove)) {
+        ImGui::End();
+        return;
+    }
+
+    constexpr const char* kLevelNames[] = {"Trace", "Debug", "Info", "Warning", "Error"};
+    ImGui::SetNextItemWidth(110.0f);
+    int level = std::min(static_cast<int>(state.minLevel), 4);
+    if (ImGui::Combo("##level", &level, kLevelNames, 5)) {
+        state.minLevel = static_cast<LogLevel>(level);
+    }
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(220.0f);
+    ImGui::InputTextWithHint("##filter", "Filter", state.filter.data(), state.filter.size());
+    ImGui::SameLine();
+    ImGui::Checkbox("Auto-scroll", &state.autoScroll);
+    ImGui::SameLine();
+    if (ImGui::Button("Clear")) {
+        buffer.Clear();
+    }
+    const std::string_view filter = state.filter.data();
+    std::vector<const LogRecord*> shown;
+    for (const LogRecord& record : state.records) {
+        if (LogRecordMatches(record, state.minLevel, filter)) {
+            shown.push_back(&record);
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Copy")) {
+        std::string text;
+        for (const LogRecord* record : shown) {
+            text += FormatLogLine(*record, state.start) + "\n";
+        }
+        ImGui::SetClipboardText(text.c_str());
+    }
+    ImGui::SameLine();
+    ImGui::TextDisabled("%zu of %zu", shown.size(), state.records.size());
+
+    ImGui::BeginChild("##records", ImVec2(0.0f, 0.0f), ImGuiChildFlags_None,
+                      ImGuiWindowFlags_HorizontalScrollbar);
+    ImGuiListClipper clipper;
+    clipper.Begin(static_cast<int>(shown.size()));
+    while (clipper.Step()) {
+        for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i) {
+            const LogRecord& record = *shown[static_cast<std::size_t>(i)];
+            const std::string line = FormatLogLine(record, state.start);
+            switch (record.level) {
+            case LogLevel::Warning:
+                ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.3f, 1.0f), "%s", line.c_str());
+                break;
+            case LogLevel::Error:
+                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", line.c_str());
+                break;
+            case LogLevel::Trace:
+            case LogLevel::Debug:
+                ImGui::TextDisabled("%s", line.c_str());
+                break;
+            default:
+                ImGui::TextUnformatted(line.c_str());
+                break;
+            }
+        }
+    }
+    if (state.autoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) {
+        ImGui::SetScrollHereY(1.0f);
+    }
+    ImGui::EndChild();
     ImGui::End();
 }
 

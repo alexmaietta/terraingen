@@ -2,6 +2,10 @@
 
 #include "ernie/terrain_renderer.h"
 #include "terraingen/core/raster.h"
+#include "terraingen/distributions/size_frequency.h"
+#include "terraingen/features/craters/ages.h"
+#include "terraingen/features/craters/degradation.h"
+#include "terraingen/features/craters/profiles.h"
 #include "terraingen/kernels/layers.h"
 #include "terraingen/surfaces/synthetic_terrain.h"
 
@@ -9,16 +13,21 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <map>
+#include <memory>
 #include <string>
 #include <variant>
 #include <vector>
 
 namespace terraingen::viewer {
 
-/// Grid sizes offered in the Terrain panel.
+/// Grid sizes offered as presets in the Terrain section.
 inline constexpr std::array<std::size_t, 5> kGridSizes{129, 257, 513, 1025, 2049};
+
+/// Largest grid side the viewer accepts, the minimum texture size WebGPU guarantees.
+inline constexpr std::size_t kMaxGridSize = 8192;
 
 /// A noise layer as edited in the viewer, with an optional Hurst-exponent roughness control.
 struct LayerSettings {
@@ -36,11 +45,60 @@ struct LayerSettings {
 /// The viewer's starting layer: Perlin fBm with a 500 m wavelength and 50 m amplitude.
 LayerSettings DefaultLayer();
 
+/// Crater density models offered in the Craters panel.
+enum class CraterDensityModel {
+    LunarSurface,  ///< DSNE construction for a surface of the chosen age, with steady-state ages.
+    Trask,         ///< Trask equilibrium.
+    Hartmann,      ///< Hartmann equilibrium.
+    PowerLaw,      ///< N(>=D) = coefficient * D^-exponent per m^2.
+};
+
+/// Crater profiles offered in the Craters panel.
+enum class CraterProfileModel {
+    FassettThomson,         ///< Fassett and Thomson (2014), published rim.
+    FassettThomsonPlateau,  ///< Fassett et al. (2022) flat rim.
+    MartinParkesDunstan,    ///< PANGU (Martin, Parkes and Dunstan 2014).
+};
+
+/// Most craters the viewer will generate, to keep generation interactive.
+inline constexpr double kMaxViewerCraters = 2e6;
+
+/// Craters added to the synthetic terrain.
+struct CraterSettings {
+    bool enabled = true;
+    CraterDensityModel density = CraterDensityModel::LunarSurface;
+    double surfaceAgeGyr = 3.5;        ///< For `LunarSurface`.
+    double powerLawCoefficient = 0.1;  ///< For `PowerLaw`, per m^2 with D in metres.
+    double powerLawExponent = 2.0;     ///< For `PowerLaw`.
+    double lifetimeGyr = 1.0;          ///< Age span of other densities, which have no chronology.
+    double minDiameter = 4.0;          ///< Metres.
+    double maxDiameter = 250.0;        ///< Metres.
+    bool degrade = true;               ///< Degrade craters with freshness; otherwise all are fresh.
+    CraterProfileModel profile = CraterProfileModel::FassettThomson;
+    std::uint32_t seed = 1;
+
+    bool operator==(const CraterSettings&) const = default;
+};
+
+/// The library models a `CraterSettings` selects.
+struct CraterModels {
+    std::shared_ptr<const SizeFrequencyDistribution> density;
+    std::shared_ptr<const CraterAgeModel> ages;
+    std::shared_ptr<const DegradationModel> degradation;
+    std::shared_ptr<const CraterProfile> profile;
+};
+
+/// Builds the models `settings` select.
+/// @throws std::invalid_argument or std::domain_error for invalid parameters.
+CraterModels BuildCraterModels(const CraterSettings& settings);
+
 /// Everything needed to generate a synthetic terrain in the viewer.
 struct TerrainSettings {
-    std::size_t size = 513;  ///< Cells along each side of the square grid.
-    double pixelSize = 2.0;  ///< Metres.
+    std::size_t width = 513;   ///< Cells along x (east).
+    std::size_t height = 513;  ///< Cells along y (north).
+    double pixelSize = 2.0;    ///< Metres.
     std::vector<LayerSettings> layers{DefaultLayer()};
+    CraterSettings craters;
 
     /// Synthetic terrain parameters with every layer's effective gain applied.
     SyntheticTerrainParams EffectiveTerrain() const;
@@ -51,7 +109,12 @@ struct TerrainSettings {
 /// Describes the first problem with `settings`, or returns an empty string if they are valid.
 std::string ValidateSettings(const TerrainSettings& settings);
 
-/// Generates the terrain `settings` describe, centred on the origin.
+/// Expected number of craters `settings` generate, or 0 when craters are disabled.
+/// @throws std::invalid_argument or std::domain_error for invalid crater settings.
+double ExpectedCraterCount(const TerrainSettings& settings);
+
+/// Generates the terrain `settings` describe, centred on the origin: the noise layers, then the
+/// craters applied on top.
 /// @throws std::invalid_argument if the settings are invalid.
 Raster<float> GenerateTerrain(const TerrainSettings& settings);
 

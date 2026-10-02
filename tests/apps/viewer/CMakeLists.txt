@@ -1,6 +1,7 @@
 terraingen_add_test_suite(
     viewer
     SOURCES
+    log_buffer_test.cpp
     options_test.cpp
     settings_test.cpp
     worker_test.cpp

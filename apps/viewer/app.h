@@ -1,5 +1,7 @@
 #pragma once
 
+#include "terraingen/core/log.h"
+
 #include <memory>
 #include <string>
 
@@ -11,6 +13,7 @@ struct AppOptions {
     std::string brdf;          ///< Reflectance model id to start with; empty keeps the default.
     std::string detailAlbedo;  ///< Detail albedo texture to load at startup.
     std::string detailNormal;  ///< Detail normal map to load at startup.
+    LogLevel logLevel = LogLevel::Info;  ///< Lowest level shown in the Log panel.
 };
 
 /// Usage text for `terraingen-viewer --help`.

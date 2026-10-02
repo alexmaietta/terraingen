@@ -31,7 +31,8 @@ std::optional<GenerationResult> WaitForResult(Worker& worker) {
 
 TerrainSettings Small(std::uint32_t seed) {
     TerrainSettings settings;
-    settings.size = 17;
+    settings.width = 17;
+    settings.height = 13;
     settings.layers[0].layer.fractal.seed = seed;
     return settings;
 }
@@ -46,7 +47,7 @@ TEST(Worker, ProducesTheSameTerrainAsGeneratingDirectly) {
     EXPECT_EQ(result->id, id);
     EXPECT_EQ(result->error, "");
     EXPECT_EQ(result->settings, Small(4));
-    EXPECT_EQ(result->stats.validCount, 17u * 17u);
+    EXPECT_EQ(result->stats.validCount, 17u * 13u);
     EXPECT_GE(result->milliseconds, 0.0);
 
     const auto expected = GenerateTerrain(Small(4));

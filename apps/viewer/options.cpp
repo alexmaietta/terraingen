@@ -2,6 +2,7 @@
 
 #include <cerrno>
 #include <cstdlib>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -15,6 +16,7 @@ std::string AppUsage() {
            "  --detail-albedo PATH   Tileable albedo texture (PNG, JPEG or EXR)\n"
            "  --detail-normal PATH   Tileable tangent-space normal map (PNG or EXR)\n"
            "  --frames N             Quit after N frames\n"
+           "  --log-level LEVEL      trace, debug, info (default), warning, error or off\n"
            "  --help                 Show this message\n";
 }
 
@@ -36,6 +38,15 @@ AppOptions ParseAppOptions(int argc, const char* const* argv) {
             if (text.empty() || *end != '\0' || errno != 0) {
                 throw std::invalid_argument("--frames needs an integer, not '" + text + "'");
             }
+        } else if (flag == "--log-level") {
+            const std::string text = value();
+            const std::optional<LogLevel> level = ParseLogLevel(text);
+            if (!level) {
+                throw std::invalid_argument("--log-level needs trace, debug, info, warning, error "
+                                            "or off, not '" +
+                                            text + "'");
+            }
+            options.logLevel = *level;
         } else if (flag == "--brdf") {
             options.brdf = value();
         } else if (flag == "--detail-albedo") {
