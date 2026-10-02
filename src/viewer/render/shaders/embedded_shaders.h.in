@@ -1,0 +1,14 @@
+#pragma once
+
+namespace terraingen::render::shaders {
+
+/// Uniforms, heightfield access and grid vertex generation shared by the terrain shaders.
+inline constexpr char kTerrainCommonWgsl[] = R"wgsl(@TERRAINGEN_TERRAIN_COMMON_WGSL@)wgsl";
+
+/// Terrain colour pass; prepend `kTerrainCommonWgsl`.
+inline constexpr char kTerrainWgsl[] = R"wgsl(@TERRAINGEN_TERRAIN_WGSL@)wgsl";
+
+/// Terrain shadow depth pass; prepend `kTerrainCommonWgsl`.
+inline constexpr char kTerrainShadowWgsl[] = R"wgsl(@TERRAINGEN_TERRAIN_SHADOW_WGSL@)wgsl";
+
+}  // namespace terraingen::render::shaders

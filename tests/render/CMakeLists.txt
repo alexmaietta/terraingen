@@ -1,9 +1,18 @@
-terraingen_add_test_suite(render SOURCES gpu_context_names_test.cpp LIBRARIES terraingen_render)
+terraingen_add_test_suite(
+    render
+    SOURCES
+    gpu_context_names_test.cpp
+    orbit_camera_test.cpp
+    poisson_disk_test.cpp
+    shadow_cascades_test.cpp
+    LIBRARIES
+    terraingen_render)
 terraingen_add_test_suite(
     render_gpu
     SOURCES
     gpu_context_test.cpp
     glfw_surface_test.cpp
+    terrain_renderer_test.cpp
     LIBRARIES
     terraingen_render
     LABELS
