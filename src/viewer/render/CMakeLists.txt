@@ -13,8 +13,10 @@ configure_file(shaders/embedded_shaders.h.in
 add_library(
     terraingen_render STATIC
     depth_buffer.cpp
+    frustum.cpp
     glfw_surface.cpp
     gpu_context.cpp
+    lod_quadtree.cpp
     orbit_camera.cpp
     poisson_disk.cpp
     shadow_cascades.cpp

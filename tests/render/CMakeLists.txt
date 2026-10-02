@@ -1,7 +1,9 @@
 terraingen_add_test_suite(
     render
     SOURCES
+    frustum_test.cpp
     gpu_context_names_test.cpp
+    lod_quadtree_test.cpp
     orbit_camera_test.cpp
     poisson_disk_test.cpp
     shadow_cascades_test.cpp

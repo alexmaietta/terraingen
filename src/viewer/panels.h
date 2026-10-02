@@ -1,8 +1,7 @@
 #pragma once
 
-#include "terrain_settings.h"
+#include "settings.h"
 #include "terraingen/core/raster_stats.h"
-#include "view_settings.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -32,6 +31,8 @@ struct InfoPanelData {
     std::size_t width = 0;
     std::size_t height = 0;
     std::uint64_t triangles = 0;
+    std::size_t patches = 0;
+    std::uint32_t lodLevels = 0;
     std::uint64_t gpuBytes = 0;
     std::optional<RasterStats> stats;
     double generationMilliseconds = 0.0;

@@ -1,4 +1,4 @@
-#include "terrain_settings.h"
+#include "settings.h"
 
 #include <cmath>
 #include <stdexcept>
@@ -57,6 +57,13 @@ Raster<float> GenerateTerrain(const TerrainSettings& settings) {
     }
     return GenerateSyntheticTerrain(settings.size, settings.size, settings.pixelSize,
                                     settings.EffectiveTerrain());
+}
+
+glm::vec3 SunDirection(float azimuthDegrees, float elevationDegrees) {
+    const float azimuth = glm::radians(azimuthDegrees);
+    const float elevation = glm::radians(elevationDegrees);
+    return {std::sin(azimuth) * std::cos(elevation), std::cos(azimuth) * std::cos(elevation),
+            std::sin(elevation)};
 }
 
 }  // namespace terraingen::viewer

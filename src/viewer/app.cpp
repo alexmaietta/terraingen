@@ -1,14 +1,13 @@
-#include "viewer_app.h"
+#include "app.h"
 
-#include "generation_worker.h"
 #include "panels.h"
 #include "render/depth_buffer.h"
 #include "render/glfw_surface.h"
 #include "render/gpu_context.h"
 #include "render/orbit_camera.h"
 #include "render/terrain_renderer.h"
-#include "terrain_settings.h"
-#include "view_settings.h"
+#include "settings.h"
+#include "worker.h"
 
 #include <GLFW/glfw3.h>
 #include <imgui.h>
@@ -99,8 +98,8 @@ WGPURenderPassEncoder BeginPass(WGPUCommandEncoder encoder, WGPUTextureView targ
 
 }  // namespace
 
-struct ViewerApp::State {
-    ViewerOptions options;
+struct App::State {
+    AppOptions options;
     GlfwWindow window;
     std::unique_ptr<render::GpuContext> gpu;
     std::optional<ImGuiContext> imgui;
@@ -111,7 +110,7 @@ struct ViewerApp::State {
     TerrainSettings settings;
     TerrainSettings requested;
     ViewSettings view;
-    GenerationWorker worker;
+    Worker worker;
     bool autoRegenerate = true;
     bool framed = false;
     double framedExtent = 0.0;
@@ -156,7 +155,6 @@ struct ViewerApp::State {
         }
         info.width = terrain->Width();
         info.height = terrain->Height();
-        info.triangles = terrain->TriangleCount();
         info.gpuBytes = terrain->GpuBytes();
         info.stats = result.stats;
         info.generationMilliseconds = result.milliseconds;
@@ -208,6 +206,9 @@ struct ViewerApp::State {
         }
         info.gpu = gpu->AdapterDescription();
         info.gpuBytes = terrain->GpuBytes();
+        info.triangles = terrain->TriangleCount();
+        info.patches = terrain->PatchCount();
+        info.lodLevels = terrain->Lod().Levels();
         DrawInfoPanel(info);
     }
 
@@ -223,6 +224,7 @@ struct ViewerApp::State {
         params.colorMode = view.colorMode;
         params.wireframe = view.wireframe;
         params.shadows = view.shadows;
+        params.lod = view.lod;
         terrain->Update(params);
         terrain->EncodeShadows(encoder);
 
@@ -246,7 +248,7 @@ struct ViewerApp::State {
     }
 };
 
-ViewerApp::ViewerApp(const ViewerOptions& options) : state_(std::make_unique<State>()) {
+App::App(const AppOptions& options) : state_(std::make_unique<State>()) {
     State& s = *state_;
     s.options = options;
     GLFWwindow* window = s.window.window;
@@ -263,9 +265,9 @@ ViewerApp::ViewerApp(const ViewerOptions& options) : state_(std::make_unique<Sta
     s.Request();
 }
 
-ViewerApp::~ViewerApp() = default;
+App::~App() = default;
 
-void ViewerApp::Run() {
+void App::Run() {
     State& s = *state_;
     for (long frame = 0; !glfwWindowShouldClose(s.window.window) && frame != s.options.maxFrames;
          ++frame) {

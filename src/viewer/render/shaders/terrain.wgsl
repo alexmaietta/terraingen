@@ -12,6 +12,11 @@ struct Shadows {
     poisson: array<vec4<f32>, 8>,
 }
 
+// Central-difference height gradient (dz/dx east, dz/dy north) per raster cell, before
+// exaggeration; filterable, unlike `heights`.
+@group(0) @binding(3) var gradients: texture_2d<f32>;
+@group(0) @binding(4) var gradient_sampler: sampler;
+
 @group(1) @binding(0) var<uniform> s: Shadows;
 @group(1) @binding(1) var shadow_map: texture_depth_2d_array;
 @group(1) @binding(2) var shadow_sampler: sampler_comparison;
@@ -19,24 +24,34 @@ struct Shadows {
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) world: vec3<f32>,
-    @location(1) normal: vec3<f32>,
-    @location(2) height: f32,
-    @location(3) barycentric: vec3<f32>,
+    @location(1) height: f32,
+    @location(2) barycentric: vec3<f32>,
+    @location(3) @interpolate(flat) level: u32,
 }
 
 @vertex
-fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
+fn vs_main(@builtin(vertex_index) vertex_index: u32,
+           @builtin(instance_index) instance_index: u32) -> VertexOutput {
     var barycentric = array<vec3<f32>, 6>(
         vec3<f32>(1.0, 0.0, 0.0), vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(0.0, 0.0, 1.0),
         vec3<f32>(1.0, 0.0, 0.0), vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(0.0, 0.0, 1.0));
-    let v = grid_vertex(vertex_index);
+    let v = grid_vertex(vertex_index, instance_index);
     var out: VertexOutput;
     out.position = u.view_proj * vec4<f32>(v.world, 1.0);
     out.world = v.world;
-    out.normal = v.normal;
     out.height = v.height;
     out.barycentric = barycentric[v.corner];
+    out.level = v.level;
     return out;
+}
+
+// Normals come from the full-resolution gradient at the fragment's position rather than from the
+// mesh, so shading does not change as LOD levels morph.
+fn surface_normal(world: vec3<f32>) -> vec3<f32> {
+    let extent = vec2<f32>(u.dims.xy) * u.grid.z;
+    let uv = vec2<f32>(world.x - u.grid.x, u.grid.y - world.y) / extent;
+    let gradient = textureSampleLevel(gradients, gradient_sampler, uv, 0.0).xy * u.grid.w;
+    return normalize(vec3<f32>(-gradient.x, -gradient.y, 1.0));
 }
 
 fn colormap(t: f32) -> vec3<f32> {
@@ -104,7 +119,7 @@ fn shadow_visibility(world: vec3<f32>, normal: vec3<f32>, n_dot_l: f32, view_dep
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let edge_width = fwidth(in.barycentric);
 
-    let normal = normalize(in.normal);
+    let normal = surface_normal(in.world);
     let n_dot_l = dot(normal, u.sun.xyz);
     var visibility = 1.0;
     if (s.params.w > 0.0) {
@@ -134,6 +149,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             vec3<f32>(1.0, 1.0, 0.5), vec3<f32>(1.0, 1.0, 1.0));
         let view_depth = dot(in.world, u.forward.xyz) - u.forward.w;
         color = color * tints[cascade_index(view_depth)];
+    }
+
+    if (u.lod_info.y == 1u) {
+        var level_tints = array<vec3<f32>, 6>(
+            vec3<f32>(1.0, 0.6, 0.6), vec3<f32>(0.6, 1.0, 0.6), vec3<f32>(0.6, 0.7, 1.0),
+            vec3<f32>(1.0, 1.0, 0.55), vec3<f32>(1.0, 0.6, 1.0), vec3<f32>(0.55, 1.0, 1.0));
+        color = color * level_tints[in.level % 6u];
     }
 
     if (u.dims.w == 1u) {

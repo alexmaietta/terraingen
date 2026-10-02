@@ -1,6 +1,6 @@
 #pragma once
 
-#include "terrain_settings.h"
+#include "settings.h"
 #include "terraingen/core/raster.h"
 #include "terraingen/core/raster_stats.h"
 
@@ -29,17 +29,17 @@ struct GenerationResult {
 ///
 /// The latest request wins: a new request replaces any request still waiting, and results of
 /// requests that were superseded while running are discarded.
-class GenerationWorker {
+class Worker {
   public:
     using GenerateFn = std::function<Raster<float>(const TerrainSettings&)>;
 
-    explicit GenerationWorker(GenerateFn generate = GenerateTerrain);
+    explicit Worker(GenerateFn generate = GenerateTerrain);
 
     /// Waits for any generation in progress to finish, then stops the thread.
-    ~GenerationWorker();
+    ~Worker();
 
-    GenerationWorker(const GenerationWorker&) = delete;
-    GenerationWorker& operator=(const GenerationWorker&) = delete;
+    Worker(const Worker&) = delete;
+    Worker& operator=(const Worker&) = delete;
 
     /// Queues `settings`, replacing any request not yet started, and returns the request's id.
     std::uint64_t Request(const TerrainSettings& settings);

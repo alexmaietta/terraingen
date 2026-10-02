@@ -4,11 +4,13 @@
 #include "render/poisson_disk.h"
 #include "terraingen/core/raster_stats.h"
 
+#include <glm/gtc/packing.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <limits>
 #include <stdexcept>
 #include <string>
 
@@ -17,6 +19,7 @@ namespace terraingen::render {
 namespace {
 
 constexpr std::uint64_t kLightStride = 256;
+constexpr std::size_t kInitialPatchCapacity = 256;
 
 struct Uniforms {
     float viewProjection[16];
@@ -25,8 +28,12 @@ struct Uniforms {
     float heightRange[4];
     std::uint32_t dims[4];
     float forward[4];
+    float lodEye[4];
+    std::uint32_t lodInfo[4];
+    float morph[LodQuadtree::kMaxLevels * 2];
 };
-static_assert(sizeof(Uniforms) == 144, "Uniforms must match the WGSL layout");
+static_assert(sizeof(Uniforms) == 304, "Uniforms must match the WGSL layout");
+static_assert(sizeof(LodPatch) == 16, "LodPatch must match the WGSL vec4<u32>");
 
 struct ShadowUniforms {
     float lightViewProjection[TerrainRenderer::kMaxCascades][16];
@@ -74,6 +81,27 @@ WGPUPipelineLayout CreatePipelineLayout(WGPUDevice device, const WGPUBindGroupLa
     return wgpuDeviceCreatePipelineLayout(device, &descriptor);
 }
 
+// Central-difference gradients (dz/dx east, dz/dy north) per cell as packed half floats, clamping
+// at the raster's edges.
+std::vector<std::uint32_t> PackedGradients(const Raster<float>& raster, double pixelSize) {
+    const std::size_t w = raster.Width();
+    const std::size_t h = raster.Height();
+    const auto scale = static_cast<float>(0.5 / pixelSize);
+    std::vector<std::uint32_t> packed(w * h);
+    for (std::size_t row = 0; row < h; ++row) {
+        const std::size_t north = row > 0 ? row - 1 : row;
+        const std::size_t south = row + 1 < h ? row + 1 : row;
+        for (std::size_t col = 0; col < w; ++col) {
+            const std::size_t west = col > 0 ? col - 1 : col;
+            const std::size_t east = col + 1 < w ? col + 1 : col;
+            const glm::vec2 gradient((raster(east, row) - raster(west, row)) * scale,
+                                     (raster(col, north) - raster(col, south)) * scale);
+            packed[row * w + col] = glm::packHalf2x16(gradient);
+        }
+    }
+    return packed;
+}
+
 }  // namespace
 
 TerrainRenderer::TerrainRenderer(const GpuContext& gpu, WGPUTextureFormat colorFormat,
@@ -81,8 +109,10 @@ TerrainRenderer::TerrainRenderer(const GpuContext& gpu, WGPUTextureFormat colorF
     : gpu_(gpu), poisson_(PoissonDisk(16)) {
     WGPUDevice device = gpu.Device();
 
-    WGPUBindGroupLayoutEntry terrainEntries[2] = {WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT,
-                                                  WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT};
+    WGPUBindGroupLayoutEntry terrainEntries[5] = {
+        WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT, WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT,
+        WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT, WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT,
+        WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT};
     terrainEntries[0].binding = 0;
     terrainEntries[0].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
     terrainEntries[0].buffer.type = WGPUBufferBindingType_Uniform;
@@ -91,7 +121,18 @@ TerrainRenderer::TerrainRenderer(const GpuContext& gpu, WGPUTextureFormat colorF
     terrainEntries[1].visibility = WGPUShaderStage_Vertex;
     terrainEntries[1].texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
     terrainEntries[1].texture.viewDimension = WGPUTextureViewDimension_2D;
-    terrainLayout_ = CreateLayout(device, terrainEntries, 2);
+    terrainEntries[2].binding = 2;
+    terrainEntries[2].visibility = WGPUShaderStage_Vertex;
+    terrainEntries[2].buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    terrainEntries[2].buffer.minBindingSize = sizeof(LodPatch);
+    terrainEntries[3].binding = 3;
+    terrainEntries[3].visibility = WGPUShaderStage_Fragment;
+    terrainEntries[3].texture.sampleType = WGPUTextureSampleType_Float;
+    terrainEntries[3].texture.viewDimension = WGPUTextureViewDimension_2D;
+    terrainEntries[4].binding = 4;
+    terrainEntries[4].visibility = WGPUShaderStage_Fragment;
+    terrainEntries[4].sampler.type = WGPUSamplerBindingType_Filtering;
+    terrainLayout_ = CreateLayout(device, terrainEntries, 5);
 
     WGPUBindGroupLayoutEntry shadowEntries[3] = {WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT,
                                                  WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT,
@@ -188,12 +229,20 @@ TerrainRenderer::TerrainRenderer(const GpuContext& gpu, WGPUTextureFormat colorF
     samplerDescriptor.compare = WGPUCompareFunction_Less;
     shadowSampler_ = wgpuDeviceCreateSampler(device, &samplerDescriptor);
 
+    WGPUSamplerDescriptor gradientSampler = WGPU_SAMPLER_DESCRIPTOR_INIT;
+    gradientSampler.magFilter = WGPUFilterMode_Linear;
+    gradientSampler.minFilter = WGPUFilterMode_Linear;
+    gradientSampler_ = wgpuDeviceCreateSampler(device, &gradientSampler);
+
+    ReservePatches(kInitialPatchCapacity);
     CreateShadowMaps(1);
 }
 
 TerrainRenderer::~TerrainRenderer() {
     ReleaseHeightfield();
     ReleaseShadowMaps();
+    wgpuBufferRelease(patchBuffer_);
+    wgpuSamplerRelease(gradientSampler_);
     wgpuSamplerRelease(shadowSampler_);
     wgpuBindGroupRelease(lightBindGroup_);
     wgpuBufferRelease(lightBuffer_);
@@ -313,31 +362,71 @@ void TerrainRenderer::SetHeightfield(const Raster<float>& raster) {
     wgpuQueueWriteTexture(gpu_.Queue(), &destination, raster.Values().data(),
                           raster.Size() * sizeof(float), &layout, &size);
 
-    WGPUBindGroupEntry entries[2] = {WGPU_BIND_GROUP_ENTRY_INIT, WGPU_BIND_GROUP_ENTRY_INIT};
+    textureDescriptor.label = View("height gradients");
+    textureDescriptor.format = WGPUTextureFormat_RG16Float;
+    gradientTexture_ = wgpuDeviceCreateTexture(gpu_.Device(), &textureDescriptor);
+    gradientView_ = wgpuTextureCreateView(gradientTexture_, nullptr);
+    destination.texture = gradientTexture_;
+    const std::vector<std::uint32_t> gradients = PackedGradients(raster, pixelSize_);
+    wgpuQueueWriteTexture(gpu_.Queue(), &destination, gradients.data(),
+                          gradients.size() * sizeof(std::uint32_t), &layout, &size);
+
+    tree_ = LodQuadtree(raster, kLodLeafCells);
+    CreateTerrainBindGroup();
+}
+
+void TerrainRenderer::CreateTerrainBindGroup() {
+    if (terrainBindGroup_ != nullptr) {
+        wgpuBindGroupRelease(terrainBindGroup_);
+        terrainBindGroup_ = nullptr;
+    }
+    if (heightView_ == nullptr) {
+        return;
+    }
+    WGPUBindGroupEntry entries[5] = {WGPU_BIND_GROUP_ENTRY_INIT, WGPU_BIND_GROUP_ENTRY_INIT,
+                                     WGPU_BIND_GROUP_ENTRY_INIT, WGPU_BIND_GROUP_ENTRY_INIT,
+                                     WGPU_BIND_GROUP_ENTRY_INIT};
     entries[0].binding = 0;
     entries[0].buffer = uniformBuffer_;
     entries[0].size = sizeof(Uniforms);
     entries[1].binding = 1;
     entries[1].textureView = heightView_;
+    entries[2].binding = 2;
+    entries[2].buffer = patchBuffer_;
+    entries[2].size = patchCapacity_ * sizeof(LodPatch);
+    entries[3].binding = 3;
+    entries[3].textureView = gradientView_;
+    entries[4].binding = 4;
+    entries[4].sampler = gradientSampler_;
     WGPUBindGroupDescriptor group = WGPU_BIND_GROUP_DESCRIPTOR_INIT;
     group.layout = terrainLayout_;
-    group.entryCount = 2;
+    group.entryCount = 5;
     group.entries = entries;
     terrainBindGroup_ = wgpuDeviceCreateBindGroup(gpu_.Device(), &group);
 }
 
-std::uint64_t TerrainRenderer::TriangleCount() const {
-    if (!HasHeightfield()) {
-        return 0;
+void TerrainRenderer::ReservePatches(std::size_t count) {
+    if (count <= patchCapacity_) {
+        return;
     }
-    return 2ull * (width_ - 1) * (height_ - 1);
+    if (patchBuffer_ != nullptr) {
+        wgpuBufferRelease(patchBuffer_);
+    }
+    patchCapacity_ = std::max(count, 2 * patchCapacity_);
+    WGPUBufferDescriptor descriptor = WGPU_BUFFER_DESCRIPTOR_INIT;
+    descriptor.label = View("lod patches");
+    descriptor.size = patchCapacity_ * sizeof(LodPatch);
+    descriptor.usage = WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst;
+    patchBuffer_ = wgpuDeviceCreateBuffer(gpu_.Device(), &descriptor);
+    CreateTerrainBindGroup();
 }
 
 std::uint64_t TerrainRenderer::GpuBytes() const {
     const std::uint64_t shadowBytes = static_cast<std::uint64_t>(shadowResolution_) *
                                       shadowResolution_ * kMaxCascades * sizeof(float);
-    return static_cast<std::uint64_t>(width_) * height_ * sizeof(float) + shadowBytes +
-           sizeof(Uniforms) + sizeof(ShadowUniforms) + kLightStride * kMaxCascades;
+    const std::uint64_t cells = static_cast<std::uint64_t>(width_) * height_;
+    return cells * (sizeof(float) + sizeof(std::uint32_t)) + shadowBytes + sizeof(Uniforms) +
+           sizeof(ShadowUniforms) + kLightStride * kMaxCascades + patchCapacity_ * sizeof(LodPatch);
 }
 
 std::pair<glm::vec3, glm::vec3> TerrainRenderer::Bounds(float exaggeration) const {
@@ -375,6 +464,37 @@ void TerrainRenderer::Update(const TerrainDrawParams& params) {
     uniforms.forward[1] = params.camera.forward.y;
     uniforms.forward[2] = params.camera.forward.z;
     uniforms.forward[3] = glm::dot(params.camera.eye, params.camera.forward);
+
+    const LodSettings& lod = params.lod;
+    if (!(lod.freeze && frozen_)) {
+        lodEye_ = params.camera.eye;
+        lodFrustum_ = Frustum::FromMatrix(viewProjection);
+    }
+    frozen_ = lod.freeze;
+    std::vector<LodRange> ranges;
+    firstRange_ = 0.0f;
+    if (lod.enabled && !tree_.Empty()) {
+        const float morphStart = std::clamp(lod.morphStart, 0.05f, 0.95f);
+        firstRange_ = std::max(lod.detail * tree_.LeafSize(),
+                               tree_.MinFirstRange(params.exaggeration, morphStart));
+        ranges = tree_.Ranges(firstRange_, morphStart);
+    }
+    uniforms.lodEye[0] = lodEye_.x;
+    uniforms.lodEye[1] = lodEye_.y;
+    uniforms.lodEye[2] = lodEye_.z;
+    uniforms.lodInfo[0] = tree_.PatchCells();
+    uniforms.lodInfo[1] = lod.showLevels ? 1u : 0u;
+    for (std::uint32_t level = 0; level < LodQuadtree::kMaxLevels; ++level) {
+        // Levels that never morph get a start beyond any distance and a zero slope.
+        float start = std::numeric_limits<float>::max();
+        float slope = 0.0f;
+        if (level < ranges.size() && std::isfinite(ranges[level].morphEnd)) {
+            start = ranges[level].morphStart;
+            slope = 1.0f / (ranges[level].morphEnd - start);
+        }
+        uniforms.morph[2 * level] = start;
+        uniforms.morph[2 * level + 1] = slope;
+    }
     wgpuQueueWriteBuffer(gpu_.Queue(), uniformBuffer_, 0, &uniforms, sizeof(uniforms));
 
     const ShadowSettings& shadows = params.shadows;
@@ -418,13 +538,36 @@ void TerrainRenderer::Update(const TerrainDrawParams& params) {
     }
     wgpuQueueWriteBuffer(gpu_.Queue(), shadowUniformBuffer_, 0, &shadowUniforms,
                          sizeof(shadowUniforms));
+
+    patches_.clear();
+    if (ranges.empty()) {
+        tree_.SelectAll(patches_);
+    } else {
+        tree_.Select(lodEye_, ranges, &lodFrustum_, params.exaggeration, patches_);
+    }
+    mainRange_ = {0, static_cast<std::uint32_t>(patches_.size())};
+    triangles_ = tree_.TriangleCount(patches_);
+    for (std::size_t c = 0; c < cascades_.size(); ++c) {
+        if (ranges.empty()) {
+            cascadeRanges_[c] = mainRange_;
+            continue;
+        }
+        const auto first = static_cast<std::uint32_t>(patches_.size());
+        const Frustum light = Frustum::FromMatrix(cascades_[c].lightViewProjection);
+        tree_.Select(lodEye_, ranges, &light, params.exaggeration, patches_);
+        cascadeRanges_[c] = {first, static_cast<std::uint32_t>(patches_.size()) - first};
+    }
+    if (!patches_.empty()) {
+        ReservePatches(patches_.size());
+        wgpuQueueWriteBuffer(gpu_.Queue(), patchBuffer_, 0, patches_.data(),
+                             patches_.size() * sizeof(LodPatch));
+    }
 }
 
 void TerrainRenderer::EncodeShadows(WGPUCommandEncoder encoder) const {
     if (!shadowsEnabled_) {
         return;
     }
-    const auto vertexCount = static_cast<std::uint32_t>(TriangleCount() * 3);
     for (std::size_t c = 0; c < cascades_.size(); ++c) {
         WGPURenderPassDepthStencilAttachment depth = WGPU_RENDER_PASS_DEPTH_STENCIL_ATTACHMENT_INIT;
         depth.view = shadowLayerViews_[c];
@@ -439,7 +582,7 @@ void TerrainRenderer::EncodeShadows(WGPUCommandEncoder encoder) const {
         wgpuRenderPassEncoderSetBindGroup(pass, 0, terrainBindGroup_, 0, nullptr);
         const auto offset = static_cast<std::uint32_t>(kLightStride * c);
         wgpuRenderPassEncoderSetBindGroup(pass, 1, lightBindGroup_, 1, &offset);
-        wgpuRenderPassEncoderDraw(pass, vertexCount, 1, 0, 0);
+        DrawPatches(pass, cascadeRanges_[c]);
         wgpuRenderPassEncoderEnd(pass);
         wgpuRenderPassEncoderRelease(pass);
     }
@@ -452,7 +595,15 @@ void TerrainRenderer::Draw(WGPURenderPassEncoder pass) const {
     wgpuRenderPassEncoderSetPipeline(pass, pipeline_);
     wgpuRenderPassEncoderSetBindGroup(pass, 0, terrainBindGroup_, 0, nullptr);
     wgpuRenderPassEncoderSetBindGroup(pass, 1, shadowBindGroup_, 0, nullptr);
-    wgpuRenderPassEncoderDraw(pass, static_cast<std::uint32_t>(TriangleCount() * 3), 1, 0, 0);
+    DrawPatches(pass, mainRange_);
+}
+
+void TerrainRenderer::DrawPatches(WGPURenderPassEncoder pass, DrawRange range) const {
+    if (range.count == 0) {
+        return;
+    }
+    const std::uint32_t cells = tree_.PatchCells();
+    wgpuRenderPassEncoderDraw(pass, 6 * cells * cells, range.count, 0, range.first);
 }
 
 void TerrainRenderer::ReleaseHeightfield() {
@@ -468,6 +619,19 @@ void TerrainRenderer::ReleaseHeightfield() {
         wgpuTextureRelease(heightTexture_);
         heightTexture_ = nullptr;
     }
+    if (gradientView_ != nullptr) {
+        wgpuTextureViewRelease(gradientView_);
+        gradientView_ = nullptr;
+    }
+    if (gradientTexture_ != nullptr) {
+        wgpuTextureRelease(gradientTexture_);
+        gradientTexture_ = nullptr;
+    }
+    tree_ = LodQuadtree();
+    patches_.clear();
+    mainRange_ = {};
+    cascadeRanges_ = {};
+    triangles_ = 0;
     width_ = 0;
     height_ = 0;
 }

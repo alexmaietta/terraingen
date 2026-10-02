@@ -1,7 +1,8 @@
-#include "terrain_settings.h"
+#include "settings.h"
 
 #include "terraingen/models/synthetic_terrain.h"
 
+#include <glm/glm.hpp>
 #include <gtest/gtest.h>
 
 #include <limits>
@@ -14,6 +15,7 @@ using terraingen::NoiseBasis;
 using terraingen::viewer::DefaultLayer;
 using terraingen::viewer::GenerateTerrain;
 using terraingen::viewer::LayerSettings;
+using terraingen::viewer::SunDirection;
 using terraingen::viewer::TerrainSettings;
 using terraingen::viewer::ValidateSettings;
 
@@ -96,4 +98,20 @@ TEST(TerrainSettings, ComparesByValue) {
     EXPECT_EQ(a, b);
     b.layers[0].layer.fractal.seed = 99u;
     EXPECT_FALSE(a == b);
+}
+
+TEST(SunDirection, UsesCompassAzimuthAndElevation) {
+    const glm::vec3 north = SunDirection(0.0f, 0.0f);
+    EXPECT_NEAR(north.x, 0.0f, 1e-6f);
+    EXPECT_NEAR(north.y, 1.0f, 1e-6f);
+    EXPECT_NEAR(north.z, 0.0f, 1e-6f);
+
+    const glm::vec3 east = SunDirection(90.0f, 0.0f);
+    EXPECT_NEAR(east.x, 1.0f, 1e-6f);
+    EXPECT_NEAR(east.y, 0.0f, 1e-6f);
+
+    const glm::vec3 overhead = SunDirection(123.0f, 90.0f);
+    EXPECT_NEAR(overhead.z, 1.0f, 1e-6f);
+
+    EXPECT_NEAR(glm::length(SunDirection(315.0f, 35.0f)), 1.0f, 1e-6f);
 }

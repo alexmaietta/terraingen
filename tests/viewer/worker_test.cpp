@@ -1,4 +1,4 @@
-#include "generation_worker.h"
+#include "worker.h"
 
 #include <gtest/gtest.h>
 
@@ -13,12 +13,12 @@
 using terraingen::Raster;
 using terraingen::viewer::GenerateTerrain;
 using terraingen::viewer::GenerationResult;
-using terraingen::viewer::GenerationWorker;
 using terraingen::viewer::TerrainSettings;
+using terraingen::viewer::Worker;
 
 namespace {
 
-std::optional<GenerationResult> WaitForResult(GenerationWorker& worker) {
+std::optional<GenerationResult> WaitForResult(Worker& worker) {
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
     while (std::chrono::steady_clock::now() < deadline) {
         if (auto result = worker.TakeResult()) {
@@ -38,8 +38,8 @@ TerrainSettings Small(std::uint32_t seed) {
 
 }  // namespace
 
-TEST(GenerationWorker, ProducesTheSameTerrainAsGeneratingDirectly) {
-    GenerationWorker worker;
+TEST(Worker, ProducesTheSameTerrainAsGeneratingDirectly) {
+    Worker worker;
     const std::uint64_t id = worker.Request(Small(4));
     const auto result = WaitForResult(worker);
     ASSERT_TRUE(result.has_value());
@@ -56,8 +56,8 @@ TEST(GenerationWorker, ProducesTheSameTerrainAsGeneratingDirectly) {
     EXPECT_FALSE(worker.TakeResult().has_value());
 }
 
-TEST(GenerationWorker, ReportsGenerationErrors) {
-    GenerationWorker worker([](const TerrainSettings&) -> Raster<float> {
+TEST(Worker, ReportsGenerationErrors) {
+    Worker worker([](const TerrainSettings&) -> Raster<float> {
         throw std::invalid_argument("bad settings");
     });
     worker.Request(Small(1));
@@ -66,11 +66,11 @@ TEST(GenerationWorker, ReportsGenerationErrors) {
     EXPECT_EQ(result->error, "bad settings");
 }
 
-TEST(GenerationWorker, LatestRequestWins) {
+TEST(Worker, LatestRequestWins) {
     std::atomic<bool> release{false};
     std::mutex callsMutex;
     std::vector<std::uint32_t> calls;
-    GenerationWorker worker([&](const TerrainSettings& settings) {
+    Worker worker([&](const TerrainSettings& settings) {
         {
             const std::lock_guard lock(callsMutex);
             calls.push_back(settings.layers[0].layer.fractal.seed);
@@ -105,9 +105,9 @@ TEST(GenerationWorker, LatestRequestWins) {
     EXPECT_EQ(calls, (std::vector<std::uint32_t>{1u, 3u}));
 }
 
-TEST(GenerationWorker, StopsCleanlyWithWorkOutstanding) {
+TEST(Worker, StopsCleanlyWithWorkOutstanding) {
     {
-        GenerationWorker worker([](const TerrainSettings&) { return Raster<float>(2, 2); });
+        Worker worker([](const TerrainSettings&) { return Raster<float>(2, 2); });
         worker.Request(Small(1));
         worker.Request(Small(2));
     }

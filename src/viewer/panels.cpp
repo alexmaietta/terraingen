@@ -219,6 +219,18 @@ bool DrawViewPanel(ViewSettings& view) {
     ImGui::SliderFloat("Split lambda", &shadows.splitLambda, 0.0f, 1.0f, "%.2f");
     ImGui::Checkbox("Show cascades", &shadows.showCascades);
     ImGui::EndDisabled();
+
+    ImGui::SeparatorText("Level of detail");
+    render::LodSettings& lod = view.lod;
+    ImGui::Checkbox("LOD", &lod.enabled);
+    ImGui::BeginDisabled(!lod.enabled);
+    ImGui::SliderFloat("Detail", &lod.detail, 1.0f, 32.0f, "%.1f nodes",
+                       ImGuiSliderFlags_Logarithmic);
+    ImGui::SliderFloat("Morph start", &lod.morphStart, 0.05f, 0.95f, "%.2f");
+    ImGui::Checkbox("Freeze", &lod.freeze);
+    ImGui::SameLine();
+    ImGui::Checkbox("Show levels", &lod.showLevels);
+    ImGui::EndDisabled();
     ImGui::Separator();
     ImGui::ColorEdit3("Background", view.background.data());
     const bool frame = ImGui::Button("Frame terrain (F)");
@@ -241,7 +253,8 @@ void DrawInfoPanel(const InfoPanelData& info) {
         ImGui::TextDisabled("No terrain yet");
     } else {
         ImGui::Text("Grid: %zu x %zu", info.width, info.height);
-        ImGui::Text("Triangles: %llu", static_cast<unsigned long long>(info.triangles));
+        ImGui::Text("Triangles: %llu in %zu patches, %u levels",
+                    static_cast<unsigned long long>(info.triangles), info.patches, info.lodLevels);
         ImGui::Text("GPU memory: %.1f MB", static_cast<double>(info.gpuBytes) / (1024.0 * 1024.0));
         if (info.stats) {
             ImGui::Text("Height: %.2f to %.2f m (mean %.2f)", info.stats->min, info.stats->max,

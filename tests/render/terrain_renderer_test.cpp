@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <memory>
@@ -187,7 +188,10 @@ TEST_F(TerrainRendererTest, BuildsPipelineAndUploadsWithoutValidationErrors) {
     EXPECT_TRUE(renderer.HasHeightfield());
     EXPECT_EQ(renderer.Width(), 65u);
     EXPECT_EQ(renderer.Height(), 33u);
+    EXPECT_EQ(renderer.TriangleCount(), 0u);
+    renderer.Update(FramedView(renderer));
     EXPECT_EQ(renderer.TriangleCount(), 2u * 64u * 32u);
+    EXPECT_EQ(renderer.PatchCount(), 2u);
     EXPECT_GE(renderer.GpuBytes(), 65u * 33u * sizeof(float));
 }
 
@@ -340,4 +344,112 @@ TEST_F(TerrainRendererTest, DepthBufferRecreatesOnlyWhenTheSizeChanges) {
     EXPECT_EQ(depth.View(), first);
     depth.Resize(8, 8);
     EXPECT_EQ(depth.Width(), 8u);
+}
+
+TEST_F(TerrainRendererTest, LodImageMatchesFullResolution) {
+    TerrainRenderer renderer(*gpu_, kColorFormat);
+    renderer.SetHeightfield(Grid(257, [](double x, double y) {
+        return static_cast<float>(12.0 * std::sin(x / 15.0) * std::cos(y / 21.0) + 0.05 * x);
+    }));
+    TerrainDrawParams params = FramedView(renderer);
+    params.colorMode = TerrainColorMode::Hillshade;
+    // Shadow PCF noise depends on exact caster depths; LOD shadows are checked separately.
+    params.shadows.enabled = false;
+
+    params.lod.enabled = false;
+    const std::vector<Pixel> full = Render(renderer, params);
+    EXPECT_EQ(renderer.TriangleCount(), 2u * 256u * 256u);
+    EXPECT_FLOAT_EQ(renderer.LodFirstRange(), 0.0f);
+
+    params.lod.enabled = true;
+    const std::vector<Pixel> lod = Render(renderer, params);
+    EXPECT_LT(renderer.TriangleCount(), 2u * 256u * 256u / 4u);
+    EXPECT_GE(renderer.LodFirstRange(),
+              renderer.Lod().MinFirstRange(params.exaggeration, params.lod.morphStart));
+
+    int differing = 0;
+    for (std::size_t i = 0; i < full.size(); ++i) {
+        differing += std::abs(full[i].Luminance() - lod[i].Luminance()) > 30 ? 1 : 0;
+    }
+    EXPECT_LT(differing, static_cast<int>(full.size() / 50));
+}
+
+TEST_F(TerrainRendererTest, LodRidgeCastsTheSameShadowAsFullResolution) {
+    TerrainRenderer renderer(*gpu_, kColorFormat);
+    renderer.SetHeightfield(
+        Grid(257, [](double x, double) { return std::fabs(x) < 8.0 ? 40.0f : 0.0f; }));
+    TerrainDrawParams params = FramedView(renderer);
+    params.colorMode = TerrainColorMode::Hillshade;
+    params.ambient = 0.0f;
+    params.sunDirection = glm::normalize(glm::vec3(1.0f, 0.0f, 0.36f));
+
+    params.lod.enabled = false;
+    const std::vector<Pixel> full = Render(renderer, params);
+    params.lod.enabled = true;
+    const std::vector<Pixel> lod = Render(renderer, params);
+    ASSERT_GT(renderer.Lod().Levels(), 2u);
+    ASSERT_GT(renderer.Cascades().size(), 0u);
+
+    const std::size_t row = kSize / 2;
+    const auto [first, last] = CoveredSpan(full, row);
+    ASSERT_LT(first, last);
+    const std::size_t west = row * kSize + first + (last - first) / 5;
+    const std::size_t east = row * kSize + last - (last - first) / 5;
+    EXPECT_LT(lod[west].Luminance(), lod[east].Luminance() / 4);
+    EXPECT_NEAR(lod[west].Luminance(), full[west].Luminance(), 20);
+    EXPECT_NEAR(lod[east].Luminance(), full[east].Luminance(), 20);
+}
+
+TEST_F(TerrainRendererTest, FreezeKeepsTheSelectionWhileTheCameraMoves) {
+    TerrainRenderer renderer(*gpu_, kColorFormat);
+    renderer.SetHeightfield(
+        GenerateSyntheticTerrain(513, 513, 1.0, terraingen::SyntheticTerrainParams{}));
+    OrbitCamera camera;
+    camera.distance = 60.0f;
+    camera.pitch = 0.4f;
+    TerrainDrawParams params;
+    params.camera = camera.MakeView(1.0f);
+    params.lod.freeze = true;
+    renderer.Update(params);
+    const std::size_t frozen = renderer.PatchCount();
+    const std::uint64_t triangles = renderer.TriangleCount();
+
+    camera.target = {150.0f, -120.0f, 0.0f};
+    camera.distance = 600.0f;
+    params.camera = camera.MakeView(1.0f);
+    renderer.Update(params);
+    EXPECT_EQ(renderer.PatchCount(), frozen);
+    EXPECT_EQ(renderer.TriangleCount(), triangles);
+
+    params.lod.freeze = false;
+    renderer.Update(params);
+    EXPECT_NE(renderer.PatchCount(), frozen);
+}
+
+TEST_F(TerrainRendererTest, ShowLevelsTintsTheTerrain) {
+    TerrainRenderer renderer(*gpu_, kColorFormat);
+    renderer.SetHeightfield(Plane(0.0f));
+    TerrainDrawParams params = FramedView(renderer);
+    params.colorMode = TerrainColorMode::Hillshade;
+    const Pixel grey = Render(renderer, params)[kSize / 2 * kSize + kSize / 2];
+    EXPECT_EQ(grey.r, grey.b);
+    params.lod.showLevels = true;
+    const Pixel tinted = Render(renderer, params)[kSize / 2 * kSize + kSize / 2];
+    EXPECT_NE(tinted.r, tinted.b);
+}
+
+TEST_F(TerrainRendererTest, GrowsThePatchBufferForLargeSelections) {
+    testing::internal::CaptureStderr();
+    TerrainRenderer renderer(*gpu_, kColorFormat);
+    const std::uint64_t before = renderer.GpuBytes();
+    renderer.SetHeightfield(Grid(1025, [](double x, double y) {
+        return static_cast<float>(std::sin(0.05 * x) * std::cos(0.07 * y));
+    }));
+    TerrainDrawParams params = FramedView(renderer);
+    params.lod.enabled = false;
+    const std::vector<Pixel> pixels = Render(renderer, params);
+    EXPECT_EQ(testing::internal::GetCapturedStderr(), "");
+    EXPECT_EQ(renderer.PatchCount(), 32u * 32u);
+    EXPECT_GT(renderer.GpuBytes(), before + 1025u * 1025u * 8u);
+    EXPECT_GT(pixels[kSize / 2 * kSize + kSize / 2].Luminance(), 0);
 }

@@ -1,14 +1,13 @@
-#include "generation_worker.h"
+#include "worker.h"
 
 #include <chrono>
 #include <exception>
 
 namespace terraingen::viewer {
 
-GenerationWorker::GenerationWorker(GenerateFn generate)
-    : generate_(std::move(generate)), thread_([this] { Run(); }) {}
+Worker::Worker(GenerateFn generate) : generate_(std::move(generate)), thread_([this] { Run(); }) {}
 
-GenerationWorker::~GenerationWorker() {
+Worker::~Worker() {
     {
         const std::lock_guard lock(mutex_);
         stop_ = true;
@@ -17,7 +16,7 @@ GenerationWorker::~GenerationWorker() {
     thread_.join();
 }
 
-std::uint64_t GenerationWorker::Request(const TerrainSettings& settings) {
+std::uint64_t Worker::Request(const TerrainSettings& settings) {
     std::uint64_t id = 0;
     {
         const std::lock_guard lock(mutex_);
@@ -29,19 +28,19 @@ std::uint64_t GenerationWorker::Request(const TerrainSettings& settings) {
     return id;
 }
 
-std::optional<GenerationResult> GenerationWorker::TakeResult() {
+std::optional<GenerationResult> Worker::TakeResult() {
     const std::lock_guard lock(mutex_);
     std::optional<GenerationResult> result = std::move(result_);
     result_.reset();
     return result;
 }
 
-bool GenerationWorker::Busy() const {
+bool Worker::Busy() const {
     const std::lock_guard lock(mutex_);
     return pending_.has_value() || running_;
 }
 
-void GenerationWorker::Run() {
+void Worker::Run() {
     std::unique_lock lock(mutex_);
     while (true) {
         wake_.wait(lock, [this] { return stop_ || pending_.has_value(); });
