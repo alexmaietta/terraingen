@@ -116,6 +116,8 @@ The viewer additionally uses:
 | [GLFW](https://www.glfw.org/) | Windowing and input | Zlib |
 | [Dear ImGui](https://github.com/ocornut/imgui) | User interface | MIT |
 | [GLM](https://github.com/g-truc/glm) | Vector and matrix math | MIT |
+| [stb](https://github.com/nothings/stb) | PNG and JPEG texture loading (vendored in `third_party/`) | MIT or public domain |
+| [tinyexr](https://github.com/syoyo/tinyexr) | OpenEXR texture loading (vendored in `third_party/`) | BSD-3-Clause |
 
 TerrainGen also draws inspiration from existing lunar terrain generation tools:
 

@@ -65,6 +65,8 @@ if(TERRAINGEN_BUILD_VIEWER)
     include("${PROJECT_SOURCE_DIR}/cmake/third_party/glfw.cmake")
     include("${PROJECT_SOURCE_DIR}/cmake/third_party/dear_imgui.cmake")
     include("${PROJECT_SOURCE_DIR}/cmake/third_party/glm.cmake")
+    include("${PROJECT_SOURCE_DIR}/cmake/third_party/stb.cmake")
+    include("${PROJECT_SOURCE_DIR}/cmake/third_party/tinyexr.cmake")
 endif()
 
 add_subdirectory(src)
