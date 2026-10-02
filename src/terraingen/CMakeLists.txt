@@ -20,6 +20,8 @@ add_library(
     distributions/size_frequency.cpp
     features/craters/ages.cpp
     features/craters/lunar_cratering.cpp
+    features/craters/population.cpp
+    spatial/cells.cpp
     surfaces/synthetic_terrain.cpp
     "${TERRAINGEN_BUILD_INFO_CPP}")
 add_library(terraingen::core ALIAS terraingen_core)

@@ -1,0 +1,114 @@
+#pragma once
+
+#include "terraingen/distributions/size_frequency.h"
+#include "terraingen/features/craters/ages.h"
+#include "terraingen/spatial/cells.h"
+
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <vector>
+
+namespace terraingen {
+
+/// One crater: centre in surface coordinates, rim-to-rim diameter in metres, age in Gyr and a
+/// stable ID.
+struct Crater {
+    double x = 0.0;
+    double y = 0.0;
+    double diameter = 0.0;
+    double ageGyr = 0.0;
+    std::uint64_t id = 0;
+};
+
+/// Craters stored as one array per field, so each column can be shared with NumPy or uploaded to a
+/// GPU without copying.
+class CraterList {
+  public:
+    std::size_t Size() const {
+        return id_.size();
+    }
+
+    bool Empty() const {
+        return id_.empty();
+    }
+
+    void Reserve(std::size_t count);
+
+    void Append(const Crater& crater);
+
+    void Append(const CraterList& other);
+
+    /// The crater at `index`.
+    /// @throws std::out_of_range if `index` >= `Size()`.
+    Crater At(std::size_t index) const;
+
+    const std::vector<double>& X() const {
+        return x_;
+    }
+
+    const std::vector<double>& Y() const {
+        return y_;
+    }
+
+    const std::vector<double>& Diameters() const {
+        return diameter_;
+    }
+
+    const std::vector<double>& AgesGyr() const {
+        return ageGyr_;
+    }
+
+    const std::vector<std::uint64_t>& Ids() const {
+        return id_;
+    }
+
+  private:
+    std::vector<double> x_;
+    std::vector<double> y_;
+    std::vector<double> diameter_;
+    std::vector<double> ageGyr_;
+    std::vector<std::uint64_t> id_;
+};
+
+/// Settings for `GenerateCraters`.
+struct CraterGenerationOptions {
+    /// Smallest diameter generated, in metres; must be set to a positive value.
+    double dMin = 0.0;
+    /// Largest diameter, exclusive; infinity means the top of the density's valid range, which must
+    /// then be finite.
+    double dMax = std::numeric_limits<double>::infinity();
+    /// Also keep craters centred outside the region within this many radii of it, so craters whose
+    /// rims or ejecta reach into a tile are included.
+    double marginRadii = 0.0;
+    /// Cell side as a multiple of each band's largest diameter.
+    double cellSizeFactor = 16.0;
+    /// Upper limit on the expected number of craters, to catch requests that would exhaust memory.
+    double maxExpectedCraters = 5e7;
+};
+
+/// Generates the craters of `density` with diameters in [`dMin`, `dMax`) whose centres lie in
+/// `region`, or within `marginRadii` radii of it.
+///
+/// Diameters are grouped into bands [2^k, 2^(k+1)) metres, clipped to [`dMin`, `dMax`). Band k uses
+/// cells of side `cellSizeFactor` * 2^(k+1); each cell draws its crater count from a Poisson
+/// distribution with the density's expected count, then each crater's diameter, position and age,
+/// all from random substreams keyed by (`seed`, k, cell). Consequently:
+/// - any region, however tiled, contains the same craters: generating tiles and joining them equals
+///   generating their union;
+/// - bands lying wholly inside [`dMin`, `dMax`) do not depend on `dMin` or `dMax`, so lowering
+///   `dMin` adds smaller craters without moving larger ones;
+/// - ages come from a separate substream, so changing the age model never moves a crater.
+///
+/// Crater IDs hash (`seed`, band, cell, index) with Philox and are stable under all of the above.
+/// Craters are ordered by band, then cell, then index within the cell.
+///
+/// @param density A `Density` distribution valid over [`dMin`, `dMax`), or extrapolating.
+/// @throws std::invalid_argument for invalid options, an empty or non-finite region, a density that
+/// is not a `Density`, or an expected count above `maxExpectedCraters`.
+/// @throws std::domain_error if the diameter interval leaves the density's valid range.
+CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
+                           const SizeFrequencyDistribution& density, const CraterAgeModel& ages,
+                           std::uint32_t seed, const CraterGenerationOptions& options);
+
+}  // namespace terraingen

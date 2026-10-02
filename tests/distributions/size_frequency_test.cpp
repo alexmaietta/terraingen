@@ -14,6 +14,7 @@ using terraingen::LogPolynomial;
 using terraingen::MinimumSfd;
 using terraingen::PiecewisePowerLaw;
 using terraingen::PowerLaw;
+using terraingen::PowerLawCoefficientFromKilometres;
 using terraingen::PowerLawSegment;
 using terraingen::RandomStream;
 using terraingen::SfdKind;
@@ -436,4 +437,11 @@ TEST(MinimumSfd, IntersectsRangesAndRejectsInvalidInputs) {
     const auto far =
         std::make_shared<PowerLaw>(1.0, 2.0, SfdKind::Density, DiameterRange{200.0, kInf});
     EXPECT_THROW(MinimumSfd({low, far}), std::invalid_argument);
+}
+
+TEST(PowerLaw, ConvertsKilometreCoefficientsToMetres) {
+    EXPECT_DOUBLE_EQ(PowerLawCoefficientFromKilometres(0.1, 2.0), 0.1);
+    EXPECT_DOUBLE_EQ(PowerLawCoefficientFromKilometres(1.0, 3.0), 1000.0);
+    const PowerLaw metres(PowerLawCoefficientFromKilometres(5.0, 1.8), 1.8);
+    EXPECT_NEAR(metres.Cumulative(2000.0) * 1e6, 5.0 * std::pow(2.0, -1.8), 1e-12);
 }
