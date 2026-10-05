@@ -15,6 +15,12 @@ namespace ernie::tokens {
 inline constexpr std::string_view kXform = "Xform";
 inline constexpr std::string_view kScope = "Scope";
 inline constexpr std::string_view kMesh = "Mesh";
+inline constexpr std::string_view kCube = "Cube";
+inline constexpr std::string_view kSphere = "Sphere";
+inline constexpr std::string_view kCylinder = "Cylinder";
+inline constexpr std::string_view kCone = "Cone";
+inline constexpr std::string_view kCapsule = "Capsule";
+inline constexpr std::string_view kPlane = "Plane";
 inline constexpr std::string_view kPointInstancer = "PointInstancer";
 inline constexpr std::string_view kVolume = "Volume";
 inline constexpr std::string_view kCamera = "Camera";
@@ -25,6 +31,7 @@ inline constexpr std::string_view kDiskLight = "DiskLight";
 inline constexpr std::string_view kDomeLight = "DomeLight";
 inline constexpr std::string_view kMaterial = "Material";
 inline constexpr std::string_view kTerrain = "Terrain";
+inline constexpr std::string_view kGroundPlane = "GroundPlane";  ///< Ernie: an infinite floor.
 inline constexpr std::string_view kRenderSettings = "RenderSettings";
 inline constexpr std::string_view kRenderProduct = "RenderProduct";
 inline constexpr std::string_view kRenderVar = "RenderVar";
@@ -49,6 +56,15 @@ inline constexpr std::string_view kVelocities = "velocities";
 inline constexpr std::string_view kExtent = "extent";
 inline constexpr std::string_view kProtoIndices = "protoIndices";
 inline constexpr std::string_view kPrototypes = "prototypes";
+
+// Implicit primitives (UsdGeom Cube, Sphere, Cylinder, Cone, Capsule, Plane), drawn as meshes
+// (`ernie::BoxMesh` and the other generators).
+inline constexpr std::string_view kSize = "size";  ///< Cube edge length, default 2.
+inline constexpr std::string_view kGeomRadius = "radius";
+inline constexpr std::string_view kGeomHeight = "height";
+inline constexpr std::string_view kGeomWidth = "width";    ///< Plane, default 2.
+inline constexpr std::string_view kGeomLength = "length";  ///< Plane, default 2.
+inline constexpr std::string_view kAxis = "axis";          ///< "X", "Y" or "Z" (default).
 
 // Material binding (UsdShade MaterialBindingAPI): a Path.
 inline constexpr std::string_view kMaterialBinding = "material:binding";
@@ -114,11 +130,16 @@ inline constexpr std::string_view kEnableColorTemperature = "inputs:enableColorT
 /// irradiance a black body carries the solar constant, 1361 W/m^2.
 inline constexpr std::string_view kLightIrradiance = "ernie:irradiance";
 inline constexpr std::string_view kLightSpectrum = "ernie:spectrum";
-/// Physical lamp (Ernie): a SphereLight's radiant flux over 360 to 830 nm in W, emitted equally in
-/// every direction (a cone only masks it). Its spectrum's shape is `ernie:spectrum`, else a black
-/// body at the enabled colour temperature, else flat; `ernie:spectrum` alone gives the radiant
-/// intensity in W sr^-1 nm^-1.
+/// Physical lamp (Ernie): radiant flux over 360 to 830 nm in W. A SphereLight emits it equally in
+/// every direction (a cone only masks it); a RectLight or DiskLight from its face as a Lambertian
+/// emitter. Its spectrum's shape is `ernie:spectrum`, else a black body at the enabled colour
+/// temperature, else flat; `ernie:spectrum` alone gives the radiant intensity in W sr^-1 nm^-1
+/// (sphere) or radiance in W m^-2 sr^-1 nm^-1 (rect, disk, dome).
 inline constexpr std::string_view kLightPower = "ernie:power";
+/// A DomeLight's map (Ernie): float32 (rows, cols, 3 or 4) linear RGB scaling its radiance, in
+/// latitude-longitude layout around the dome's +z axis: rows run from +z (top) to -z, columns
+/// from +x through +y. (USD's `inputs:texture:file` maps are not read.)
+inline constexpr std::string_view kLightTexture = "ernie:texture";
 
 // Terrain (Ernie): a north-up heightfield, x east, y north, z up.
 inline constexpr std::string_view kHeights = "heights";          ///< float32 tensor (rows, cols).
@@ -126,6 +147,14 @@ inline constexpr std::string_view kOrigin = "ernie:origin";      ///< dvec2 nort
 inline constexpr std::string_view kCellSize = "ernie:cellSize";  ///< double, world units.
 inline constexpr std::string_view kNoData = "ernie:noData";      ///< float marking missing cells.
 inline constexpr std::string_view kExaggeration = "ernie:exaggeration";  ///< float.
+
+// Ground plane (Ernie): an infinite horizontal plane facing +z, drawn with its material binding.
+inline constexpr std::string_view kGroundHeight = "ernie:height";       ///< World z, default 0.
+inline constexpr std::string_view kChecker = "ernie:checker";           ///< bool, default off.
+inline constexpr std::string_view kCheckerSize = "ernie:checker:size";  ///< Square size, default 1.
+/// Linear colours of the checker squares, multiplying the material's albedo; default 1 and 0.5.
+inline constexpr std::string_view kCheckerColor0 = "ernie:checker:color0";
+inline constexpr std::string_view kCheckerColor1 = "ernie:checker:color1";
 
 // Material (Ernie surface). BRDF parameters are `inputs:<parameter id>`.
 inline constexpr std::string_view kBrdf = "ernie:brdf";             ///< BRDF model id.

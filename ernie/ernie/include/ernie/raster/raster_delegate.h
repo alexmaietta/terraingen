@@ -1,9 +1,11 @@
 #pragma once
 
 #include "ernie/core/image.h"
+#include "ernie/geometry/primitives.h"
 #include "ernie/gpu/offscreen_target.h"
 #include "ernie/interop/cuda_interop.h"
 #include "ernie/interop/tensor.h"
+#include "ernie/raster/ground_part.h"
 #include "ernie/raster/mesh_part.h"
 #include "ernie/raster/raster_renderer.h"
 #include "ernie/raster/render_outputs.h"
@@ -30,8 +32,10 @@ namespace ernie {
 /// - `light`: the first visible DistantLight, the sun, with cascaded shadows; without any light
 ///   Ernie lights the scene with a default sun overhead, as Hydra's Storm adds a default light to
 ///   unlit scenes.
-/// - `lights`: every other visible DistantLight and SphereLight (other UsdLux
-///   lights are not drawn yet), sorted by path.
+/// - `lights`: every other visible DistantLight, SphereLight, RectLight and DiskLight, sorted by
+///   path.
+/// - `dome`: the first visible DomeLight.
+/// - `ground`: the first visible GroundPlane.
 struct RasterPrims {
     Path settings;
     Path camera;
@@ -39,6 +43,8 @@ struct RasterPrims {
     Path material;
     Path light;
     std::vector<Path> lights;
+    Path dome;
+    Path ground;
 };
 
 /// A render product to draw, resolved from UsdRender prims.
@@ -93,10 +99,28 @@ std::vector<float> SunIrradianceOf(const Scene& scene, const Path& light,
 ///   otherwise relative, following UsdLux: `inputs:intensity` times 2^`inputs:exposure` is the
 ///   luminance (cd/m^2) of its surface, so its luminous intensity is that times pi r^2 (times 1
 ///   for a point), with the shape of `inputs:color` and the enabled colour temperature.
+/// - rect and disk: centred at its world position, emitting along its -z axis from a face of
+///   `inputs:width` x `inputs:height` (default 1 x 1) or radius `inputs:radius` (default 0.5),
+///   scaled by its transform. Physical with `ernie:power` or `ernie:spectrum` as a sphere;
+///   otherwise relative: `inputs:intensity` times 2^`inputs:exposure` is its luminance (cd/m^2).
 /// Shadows follow `inputs:shadow:enable`.
-/// @throws std::invalid_argument for another prim type, a negative radius or power, invalid bands
-/// or spectrum pairs.
+/// @throws std::invalid_argument for another prim type, a negative radius or power, an area light
+/// without area, a degenerate transform, invalid bands or spectrum pairs.
 Light LightOf(const Scene& scene, const Path& path, const SpectralBands& bands);
+
+/// Diffuse irradiance over pi of a latitude-longitude RGB map (`tokens::kLightTexture` layout)
+/// turned by `rotation` into the world, as order-2 spherical harmonics (Ramamoorthi and Hanrahan
+/// 2001): the map's projection weighted by each texel's exact solid angle, convolved with the
+/// clamped cosine.
+/// @throws std::invalid_argument unless `latlong` is a float32 (rows, cols, 3 or 4) CPU array.
+std::array<glm::vec3, 9> DomeIrradianceSh(const Tensor& latlong, const glm::dmat3& rotation);
+
+/// The DomeLight at `path` for `bands`: radiance `ernie:spectrum` (W m^-2 sr^-1 nm^-1), or in
+/// relative units `inputs:intensity` times 2^`inputs:exposure` as luminance (cd/m^2) with the
+/// shape of `inputs:color` and the enabled colour temperature; its map `ernie:texture` (uniform
+/// without one) rotated by its transform.
+/// @throws std::invalid_argument for another prim type, an invalid map, bands or spectrum pairs.
+DomeLight DomeOf(const Scene& scene, const Path& path, const SpectralBands& bands);
 
 /// How much wider than the sensor's the raster image's field of view must be for every sensor
 /// pixel's undistorted ray to land in it: 1 without distortion, else the largest ratio along the
@@ -114,13 +138,19 @@ CameraView RasterCameraOf(const Scene& scene, const Path& path, const PhysicalCa
 /// - sun direction from the light's transform (`TowardsLight`), its spectral irradiance
 ///   (`SunIrradianceOf`), angular diameter (`inputs:angle`, default 0.53 degrees) and shadows from
 ///   its `inputs:shadow:enable`; without any light, a white sun overhead in relative units; with
-///   only other lights, no sun;
-/// - the other lights (`LightOf`);
+///   only other lights or a dome, no sun;
+/// - the other lights (`LightOf`) and the dome (`DomeOf`);
 /// - ambient, wireframe, clear colour (linear) and shadow options from the render settings.
 /// @throws std::invalid_argument if there is no camera, it is not perspective, or it or the light
 /// are invalid.
 FrameParams FrameParamsOf(const Scene& scene, const RasterPrims& prims, std::uint32_t width,
                           std::uint32_t height);
+
+/// The ground plane's options from the GroundPlane prim at `ground`: `ernie:height`, and its
+/// checkerboard from `ernie:checker`, `ernie:checker:size` and `ernie:checker:color0` and `color1`.
+/// The material and prim id are left at their defaults.
+/// @throws std::invalid_argument for a checker size that is not positive and finite.
+GroundParams GroundParamsOf(const Scene& scene, const Path& ground);
 
 /// The terrain's options: vertical exaggeration from the terrain's `ernie:exaggeration`, and
 /// colour mode and LOD options from the render settings. The material is left at the default.
@@ -140,7 +170,19 @@ MaterialSettings MaterialSettingsOf(const Scene& scene, const Path& material,
 /// number, for the caller to copy device to device.
 /// @throws std::invalid_argument naming the attribute for arrays of the wrong type, size or
 /// device, or invalid topology.
+/// For a UsdGeom primitive (Cube, Sphere, Cylinder, Cone, Capsule, Plane) the generated mesh,
+/// `PrimitiveMeshOf`.
 MeshData MeshDataOf(const Scene& scene, const Path& mesh);
+
+/// Whether prims of `type` draw as meshes: Mesh and the UsdGeom primitives.
+bool IsMeshType(std::string_view type);
+
+/// The mesh of the UsdGeom primitive at `path` from its attributes and their UsdGeom defaults:
+/// Cube `size` (2); Sphere `radius` (1); Cylinder and Cone `radius` (1), `height` (2) and `axis`
+/// ("Z"); Capsule `radius` (0.5), `height` (1) and `axis`; Plane `width` (2), `length` (2) and
+/// `axis`. See `BoxMesh` and the other generators.
+/// @throws std::invalid_argument for another prim type, an unknown axis or invalid sizes.
+MeshData PrimitiveMeshOf(const Scene& scene, const Path& path);
 
 /// The per-instance arrays of the PointInstancer prim at `instancer`: `positions`, and optional
 /// `orientations` (quaternions as x, y, z, w, imaginary part first as in USD's memory layout) and
@@ -315,6 +357,10 @@ class RasterDelegate {
         return terrain_;
     }
 
+    const GroundPart& Ground() const {
+        return ground_;
+    }
+
     const MeshPart& Meshes() const {
         return meshes_;
     }
@@ -324,7 +370,7 @@ class RasterDelegate {
 
   private:
     /// Scene, path and attribute versions behind an upload.
-    using Key = std::pair<Path, std::array<std::uint64_t, 6>>;
+    using Key = std::pair<Path, std::array<std::uint64_t, 12>>;
 
     struct SyncedMaterial {
         std::uint32_t id = 0;
@@ -375,6 +421,7 @@ class RasterDelegate {
     RasterRenderer renderer_;
     TerrainPart terrain_;
     MeshPart meshes_;
+    GroundPart ground_;
     std::unique_ptr<RenderTargets> viewTargets_;
     mutable std::map<Path, std::uint32_t> primIds_;
     mutable std::vector<Path> primPaths_;

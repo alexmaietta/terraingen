@@ -4,11 +4,15 @@
 //     typealias ActiveBrdf = <model type>;
 // and dispatches one pipeline per model, each shading the pixels whose material uses its model.
 //
-// Radiance is L = E / pi * (a * albedo + (1 - a) * F * V) + sum over lights of E_k / pi * F_k * V_k,
-// with E the sun's spectral irradiance at normal incidence, F the model's radiance factor (pi
-// times the BRDF times cos(i)), V the shadow visibility and a the ambient fraction. A distant
-// light's E_k is its irradiance; a sphere light's is its intensity over the squared distance
-// (capped at its radius) times its cone's falloff. Unlit pixels get L = E / pi * albedo.
+// Radiance is L = E / pi * (a * albedo + (1 - a) * F * V) + sum over lights of E_k / pi * F_k * V_k
+// + albedo * L_dome * D, with E the sun's spectral irradiance at normal incidence, F the model's
+// radiance factor (pi times the BRDF times cos(i)), V the shadow visibility and a the ambient
+// fraction. A distant light's E_k is its irradiance; a sphere light's is its intensity over the
+// squared distance (capped at its radius) times its cone's falloff. A rect or disk light's E_k is
+// its radiance times the length of its vector form factor (the polygon clipped to the receiver's
+// horizon, Lambert's formula), with F_k along that vector. The dome adds its radiance times its
+// map's irradiance over pi, D, from spherical harmonics, diffusely. Unlit pixels get
+// L = E / pi * albedo.
 //
 // Bindings: 0 ShadingUniforms, 1 G-buffer normal, 2 G-buffer albedo, 3 G-buffer ids, 4 depth,
 // 5 materials, 6 RGB-to-spectrum coefficient table, 7 its sampler, 8 spectral radiance, 9 lights,
@@ -34,12 +38,17 @@ struct ShadingUniforms {
     float4 lightShadow;
     // 16 Poisson disk samples in the unit disk, two per float4.
     float4 poisson[8];
+    // Dome: irradiance over pi of its RGB map as order-2 spherical harmonics (rgb), and its
+    // spectral radiance per band (W m^-2 sr^-1 nm^-1), four per float4; zero without a dome.
+    float4 domeSh[9];
+    float4 dome[16];
 }
 
 static const uint kMaxLights = 16;
 
 struct LightGpu {
-    // xyz: position (sphere) or unit direction towards the light (distant), w: 0 distant, 1 sphere.
+    // xyz: position (sphere, rect, disk) or unit direction towards the light (distant), w: type,
+    // 0 distant, 1 sphere, 2 rect, 3 disk.
     float4 position;
     // xyz: unit cone axis, w: sphere radius.
     float4 axis;
@@ -48,6 +57,9 @@ struct LightGpu {
     float4 cone;
     // x: world size of a shadow texel, at unit distance for perspective views.
     float4 shadow;
+    // Rect and disk: half width along the light's +x and half height along its +y, as vectors.
+    float4 extentX;
+    float4 extentY;
     // Spectral irradiance (distant, W m^-2 nm^-1) or intensity (sphere, W sr^-1 nm^-1) per band.
     float4 spectrum[16];
 }
@@ -96,6 +108,93 @@ float modulationAt(float3 coefficients, float scale, float wavelength) {
     return scale * (0.5 + x / (2.0 * sqrt(1.0 + x * x)));
 }
 
+// Sigmoid spectrum coefficients (Jakob and Hanika 2019) of a linear RGB colour whose largest
+// component is 1, interpolated from the coefficient table.
+float3 sigmoidCoefficients(float3 colour) {
+    let resolution = float(sh.size.z);
+    let uv = (colour.xy * (resolution - 1.0) + 0.5) / resolution;
+    let layer = colour.z * (resolution - 1.0);
+    let lower = floor(layer);
+    let upper = min(lower + 1.0, resolution - 1.0);
+    let a = sigmoidTable.SampleLevel(tableSampler, float3(uv, lower), 0).xyz;
+    let b = sigmoidTable.SampleLevel(tableSampler, float3(uv, upper), 0).xyz;
+    return lerp(a, b, layer - lower);
+}
+
+// The dome map's irradiance over pi at unit normal `n` (Ramamoorthi and Hanrahan 2001).
+float3 domeIrradiance(float3 n) {
+    let c = sh.domeSh;
+    let e = c[0].rgb * 0.282095 + c[1].rgb * 0.488603 * n.y + c[2].rgb * 0.488603 * n.z +
+            c[3].rgb * 0.488603 * n.x + c[4].rgb * 1.092548 * n.x * n.y +
+            c[5].rgb * 1.092548 * n.y * n.z + c[6].rgb * 0.315392 * (3.0 * n.z * n.z - 1.0) +
+            c[7].rgb * 1.092548 * n.x * n.z + c[8].rgb * 0.546274 * (n.x * n.x - n.y * n.y);
+    return max(e, float3(0.0));
+}
+
+static const uint kDiskSides = 16;
+static const uint kMaxPolygon = kDiskSides + 1;
+
+// The vector form factor of a rect or disk light at `world` with unit normal `n`: half the sum
+// over the emitter's edges, clipped to the receiver's horizon, of each edge's angle times the unit
+// normal of the plane through it and `world` (Lambert's formula; Arvo 1994). Irradiance is the
+// light's radiance times dot(n, V). Zero when the emitter faces away or lies below the horizon.
+float3 areaFormFactor(LightGpu light, float3 world, float3 n) {
+    let centre = light.position.xyz;
+    if (dot(world - centre, light.axis.xyz) <= 0.0) {
+        return float3(0.0);
+    }
+    float3 polygon[kMaxPolygon];
+    uint count = 0;
+    if (uint(light.position.w) == 2) {
+        polygon[0] = centre - light.extentX.xyz - light.extentY.xyz;
+        polygon[1] = centre + light.extentX.xyz - light.extentY.xyz;
+        polygon[2] = centre + light.extentX.xyz + light.extentY.xyz;
+        polygon[3] = centre - light.extentX.xyz + light.extentY.xyz;
+        count = 4;
+    } else {
+        // A regular polygon of the disk's area.
+        let step = 2.0 * PI / float(kDiskSides);
+        let scale = sqrt(step / sin(step));
+        for (uint i = 0; i < kDiskSides; ++i) {
+            let a = step * float(i);
+            polygon[i] = centre + scale * (cos(a) * light.extentX.xyz + sin(a) * light.extentY.xyz);
+        }
+        count = kDiskSides;
+    }
+    // Sutherland-Hodgman against the receiver's tangent plane.
+    float3 clipped[kMaxPolygon];
+    uint kept = 0;
+    for (uint i = 0; i < count; ++i) {
+        let a = polygon[i];
+        let b = polygon[(i + 1) % count];
+        let da = dot(n, a - world);
+        let db = dot(n, b - world);
+        if (da > 0.0) {
+            clipped[kept] = a;
+            kept += 1;
+        }
+        if ((da > 0.0) != (db > 0.0) && kept < kMaxPolygon) {
+            clipped[kept] = a + (b - a) * (da / (da - db));
+            kept += 1;
+        }
+    }
+    if (kept < 3) {
+        return float3(0.0);
+    }
+    var vector = float3(0.0);
+    for (uint i = 0; i < kept; ++i) {
+        let u = normalize(clipped[i] - world);
+        let w = normalize(clipped[(i + 1) % kept] - world);
+        let edge = cross(u, w);
+        let sine = length(edge);
+        if (sine > 1e-7) {
+            vector += acos(clamp(dot(u, w), -1.0, 1.0)) * edge / sine;
+        }
+    }
+    vector *= 0.5;
+    return dot(vector, n) < 0.0 ? -vector : vector;
+}
+
 // Jimenez 2014, "Next Generation Post Processing in Call of Duty: Advanced Warfare".
 float interleavedGradientNoise(float2 pixel) {
     return frac(52.9829189 * frac(dot(pixel, float2(0.06711056, 0.00583715))));
@@ -133,9 +232,10 @@ float lightVisibility(LightGpu light, float3 world, float3 n, float nDotL, float
     if (clip.w <= 0.0) {
         return 1.0;
     }
-    let ndc = clip.xyz / clip.w;
+    // Receivers beyond the far plane compare at it, as the sun's (frame.slang).
+    let ndc = float3(clip.xy / clip.w, min(clip.z / clip.w, 0.99999994));
     let uv = float2(0.5 * ndc.x + 0.5, 0.5 - 0.5 * ndc.y);
-    if (any(uv < float2(0.0)) || any(uv > float2(1.0)) || ndc.z > 1.0) {
+    if (any(uv < float2(0.0)) || any(uv > float2(1.0))) {
         return 1.0;
     }
     let angle = 6.28318530718 * interleavedGradientNoise(pixel);
@@ -202,23 +302,15 @@ void shadeMain(uint3 id : SV_DispatchThreadID) {
     let albedo = gAlbedo.Load(pixel);
     let modulation = max(albedo.yzw, float3(0.0));
     let scale = max(modulation.x, max(modulation.y, modulation.z));
-    var coefficients = float3(0.0);
-    if (scale > 0.0) {
-        let resolution = float(sh.size.z);
-        let colour = modulation / scale;
-        let uv = (colour.xy * (resolution - 1.0) + 0.5) / resolution;
-        let layer = colour.z * (resolution - 1.0);
-        let lower = floor(layer);
-        let upper = min(lower + 1.0, resolution - 1.0);
-        let a = sigmoidTable.SampleLevel(tableSampler, float3(uv, lower), 0).xyz;
-        let b = sigmoidTable.SampleLevel(tableSampler, float3(uv, upper), 0).xyz;
-        coefficients = lerp(a, b, layer - lower);
-    }
+    let coefficients = scale > 0.0 ? sigmoidCoefficients(modulation / scale) : float3(0.0);
     let v = normalize(sh.eye.xyz - world);
     let l = sh.sun.xyz;
     let ambient = sh.sun.w;
     let bands = uint(sh.range.z);
     let unlit = (ids.w & kUnlit) != 0;
+    let domeRgb = unlit ? float3(0.0) : domeIrradiance(n);
+    let domeScale = max(domeRgb.x, max(domeRgb.y, domeRgb.z));
+    let domeCoefficients = domeScale > 0.0 ? sigmoidCoefficients(domeRgb / domeScale) : float3(0.0);
 
     // Per light: direction towards it and the scale on its spectrum (inverse square, cone and
     // shadow); 0 for lights that cannot reach the point.
@@ -229,7 +321,12 @@ void shadeMain(uint3 id : SV_DispatchThreadID) {
         let light = lights[k];
         var toLight = light.position.xyz;
         var scale = 1.0;
-        if (light.position.w != 0.0) {
+        let type = uint(light.position.w);
+        if (type >= 2) {
+            let form = areaFormFactor(light, world, n);
+            scale = length(form);
+            toLight = scale > 0.0 ? form / scale : n;
+        } else if (type == 1) {
             let offset = light.position.xyz - world;
             let distance2 = max(dot(offset, offset), 1e-12);
             toLight = offset * rsqrt(distance2);
@@ -266,6 +363,14 @@ void shadeMain(uint3 id : SV_DispatchThreadID) {
             response = ambient * bandAlbedo + (1.0 - ambient) * factors * visibility;
         }
         var radiance = bandIrradiance / PI * response;
+        if (domeScale > 0.0) {
+            for (uint j = 0; j < 3; ++j) {
+                let band = min(first + j, bands - 1);
+                let wavelength = sh.range.x + (float(band) + 0.5) * sh.range.y;
+                radiance[j] += bandAlbedo[j] * bandValue(sh.dome, band) *
+                               modulationAt(domeCoefficients, domeScale, wavelength);
+            }
+        }
         for (uint k = 0; k < lightCount; ++k) {
             if (lightScales[k] <= 0.0) {
                 continue;

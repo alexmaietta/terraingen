@@ -38,13 +38,13 @@ struct TimelinePoint {
 
 /// Owns a Vulkan instance, device, graphics and compute queue, and memory allocator.
 ///
-/// Requires Vulkan 1.3 with dynamic rendering, synchronization2, timeline semaphores and shader
-/// draw parameters, plus push descriptors. Ray queries are enabled when the device supports them.
-/// Vulkan is loaded at run time through volk: the system loader on Linux and Windows, MoltenVK on
-/// macOS (with the portability extensions it needs). Several contexts may exist at once, on the
-/// same or different devices: core functions go through the loader's dispatch, and extension
-/// functions come from the context that enabled them (e.g. `PushDescriptorSet`), never from volk's
-/// globals.
+/// Requires Vulkan 1.3 with dynamic rendering, synchronization2, demote to helper invocation,
+/// timeline semaphores and shader draw parameters, plus push descriptors. Ray queries are enabled
+/// when the device supports them. Vulkan is loaded at run time through volk: the system loader on
+/// Linux and Windows, MoltenVK on macOS (with the portability extensions it needs). Several
+/// contexts may exist at once, on the same or different devices: core functions go through the
+/// loader's dispatch, and extension functions come from the context that enabled them (e.g.
+/// `PushDescriptorSet`), never from volk's globals.
 class VulkanContext {
   public:
     /// @throws std::runtime_error if Vulkan cannot be loaded or no device meets the requirements.

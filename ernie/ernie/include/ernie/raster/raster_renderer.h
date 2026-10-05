@@ -215,8 +215,6 @@ class RasterRenderer {
     std::vector<ShadowCascade> shadowViews_;
     std::unique_ptr<GpuImage> lightShadowMaps_;
     std::uint32_t lightResolution_ = 0;
-    GpuBuffer lightTable_;
-    GpuBuffer lightViewMatrices_;
     std::vector<glm::vec2> poisson_;
     bool shadowsEnabled_ = false;
     bool updated_ = false;
@@ -231,6 +229,8 @@ class RasterRenderer {
     Sampler tableSampler_;
     GpuBuffer shadingUniforms_;
     GpuBuffer sensorUniforms_;
+    GpuBuffer lightTable_;
+    GpuBuffer lightViewMatrices_;
     std::unique_ptr<GpuBuffer> materialTable_;
     std::vector<std::size_t> modelsInUse_;
     SpectralBands bands_;

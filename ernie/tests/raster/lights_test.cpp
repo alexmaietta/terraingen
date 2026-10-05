@@ -2,8 +2,10 @@
 #include "ernie/scene/schema.h"
 #include "ernie/scene/tokens.h"
 
+#include <glm/gtc/matrix_transform.hpp>
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cmath>
 #include <stdexcept>
 #include <vector>
@@ -87,8 +89,8 @@ TEST(LightOf, PhysicalLampsSpreadTheirPowerOverTheSphere) {
 
     scene.Set("/Lamp", tokens::kLightPower, -1.0);
     EXPECT_THROW(ernie::LightOf(scene, "/Lamp", bands), std::invalid_argument);
-    scene.Define("/Rect", tokens::kRectLight);
-    EXPECT_THROW(ernie::LightOf(scene, "/Rect", bands), std::invalid_argument);
+    scene.Define("/Sky", tokens::kDomeLight);
+    EXPECT_THROW(ernie::LightOf(scene, "/Sky", bands), std::invalid_argument) << "see DomeOf";
 }
 
 TEST(LightOf, DistantLightsShineFromTheirAxis) {
@@ -165,4 +167,100 @@ TEST(FitLightShadowViews, CoversTheSceneFromEachKindOfLight) {
 
     spot.shadows = false;
     EXPECT_TRUE(ernie::FitLightShadowViews(spot, low, high, 512).empty());
+}
+
+namespace {
+
+/// The irradiance factor of `sh` at unit normal `n`.
+glm::vec3 Evaluate(const std::array<glm::vec3, 9>& sh, const glm::vec3& n) {
+    const float basis[9] = {0.282095f,
+                            0.488603f * n.y,
+                            0.488603f * n.z,
+                            0.488603f * n.x,
+                            1.092548f * n.x * n.y,
+                            1.092548f * n.y * n.z,
+                            0.315392f * (3.0f * n.z * n.z - 1.0f),
+                            1.092548f * n.x * n.z,
+                            0.546274f * (n.x * n.x - n.y * n.y)};
+    glm::vec3 sum(0.0f);
+    for (int k = 0; k < 9; ++k) {
+        sum += sh[k] * basis[k];
+    }
+    return sum;
+}
+
+ernie::Tensor UpperHemisphere(std::int64_t rows, std::int64_t cols) {
+    std::vector<float> map(static_cast<std::size_t>(rows * cols * 4), 0.0f);
+    std::fill(map.begin(), map.begin() + static_cast<std::ptrdiff_t>(map.size() / 2), 1.0f);
+    return ernie::Tensor::Copy<float>(map, {rows, cols, 4});
+}
+
+}  // namespace
+
+TEST(LightOf, RectAndDiskLightsTakeTheirSizeAndRadiance) {
+    Scene scene;
+    scene.Define("/Panel", tokens::kRectLight)
+        .Set(tokens::kTransform,
+             glm::scale(ernie::LookAtTransform({0.0, 0.0, 5.0}, {0.0, 0.0, 0.0}, {0.0, 1.0, 0.0}),
+                        glm::dvec3(2.0, 1.0, 1.0)))
+        .Set(tokens::kWidth, 3.0)
+        .Set(tokens::kHeight, 4.0)
+        .Set(tokens::kIntensity, 10.0);
+    const ernie::SpectralBands bands;
+    const Light panel = ernie::LightOf(scene, "/Panel", bands);
+    EXPECT_EQ(panel.type, LightType::Rect);
+    EXPECT_EQ(panel.size, glm::vec2(6.0f, 4.0f)) << "scaled by the transform";
+    EXPECT_NEAR(panel.direction.z, -1.0f, 1e-6f);
+    EXPECT_NEAR(glm::dot(panel.tangent, panel.direction), 0.0f, 1e-6f);
+    EXPECT_NEAR(panel.spectrum[8], 10.0 / (ernie::kLuminousEfficacy * LuminanceIntegral()), 1e-7)
+        << "relative units are the face's luminance";
+
+    scene.Set("/Panel", tokens::kLightPower, 470.0 * M_PI * 24.0);
+    EXPECT_NEAR(ernie::LightOf(scene, "/Panel", bands).spectrum[3], 1.0, 1e-5)
+        << "power = pi x area x radiance for a Lambertian face";
+
+    scene.Define("/Disk", tokens::kDiskLight).Set(tokens::kRadius, 2.0);
+    const Light disk = ernie::LightOf(scene, "/Disk", bands);
+    EXPECT_EQ(disk.type, LightType::Disk);
+    EXPECT_EQ(disk.radius, 2.0f);
+    scene.Set("/Disk", tokens::kRadius, 0.0);
+    EXPECT_THROW(ernie::LightOf(scene, "/Disk", bands), std::invalid_argument);
+}
+
+TEST(DomeIrradianceSh, ProjectsUniformAndHemisphericalMaps) {
+    std::vector<float> ones(32 * 64 * 3, 1.0f);
+    const auto uniform =
+        ernie::DomeIrradianceSh(ernie::Tensor::Copy<float>(ones, {32, 64, 3}), glm::dmat3(1.0));
+    EXPECT_NEAR(uniform[0].g, std::sqrt(4.0 * M_PI), 0.01);
+    for (const glm::vec3 n : {glm::vec3(0, 0, 1), glm::vec3(1, 0, 0), glm::vec3(0, -1, 0)}) {
+        EXPECT_NEAR(Evaluate(uniform, n).r, 1.0f, 0.01f) << "E = pi L from every side";
+    }
+
+    const auto upper = ernie::DomeIrradianceSh(UpperHemisphere(64, 128), glm::dmat3(1.0));
+    EXPECT_NEAR(Evaluate(upper, {0, 0, 1}).g, 1.0f, 0.05f) << "a sky facing up";
+    EXPECT_NEAR(Evaluate(upper, {0, 0, -1}).g, 0.0f, 0.05f) << "and nothing facing down";
+    EXPECT_NEAR(Evaluate(upper, {1, 0, 0}).g, 0.5f, 0.01f) << "half from a wall";
+
+    const glm::dmat3 flip(glm::rotate(glm::dmat4(1.0), M_PI, glm::dvec3(1.0, 0.0, 0.0)));
+    const auto flipped = ernie::DomeIrradianceSh(UpperHemisphere(64, 128), flip);
+    EXPECT_NEAR(Evaluate(flipped, {0, 0, -1}).g, 1.0f, 0.05f);
+
+    EXPECT_THROW(
+        ernie::DomeIrradianceSh(ernie::Tensor::Copy<float>(ones, {32 * 64, 3}), glm::dmat3(1.0)),
+        std::invalid_argument);
+}
+
+TEST(DomeOf, ResolvesTheDomeAndTurnsOffTheDefaultSun) {
+    Scene scene;
+    scene.Define("/World/Camera", tokens::kCamera);
+    scene.Define("/World/Sky", tokens::kDomeLight).Set(tokens::kIntensity, 2.0);
+    const ernie::RasterPrims prims = ernie::ResolveRasterPrims(scene, {});
+    EXPECT_EQ(prims.dome, Path("/World/Sky"));
+    const ernie::FrameParams frame = ernie::FrameParamsOf(scene, prims, 8, 8);
+    EXPECT_FALSE(frame.sun);
+    ASSERT_TRUE(frame.dome.has_value());
+    EXPECT_NEAR(frame.dome->radiance[8], 2.0 / (ernie::kLuminousEfficacy * LuminanceIntegral()),
+                1e-7);
+    EXPECT_NEAR(frame.dome->sh[0].r, std::sqrt(4.0 * M_PI), 1e-5);
+    EXPECT_THROW(ernie::DomeOf(scene, "/World/Camera", {}), std::invalid_argument);
 }

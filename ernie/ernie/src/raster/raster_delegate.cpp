@@ -7,6 +7,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <set>
 #include <stdexcept>
@@ -201,10 +202,10 @@ std::vector<float> RelativeSpectrum(const Scene& scene, const Path& light,
     return BinShape(shape, bands, luminous / (kLuminousEfficacy * luminance));
 }
 
-/// A physical SphereLight's spectral radiant intensity per band, W sr^-1 nm^-1 (see
-/// `tokens::kLightPower`).
-std::vector<float> LampIntensity(const Scene& scene, const Path& light, const SpectralBands& bands,
-                                 const std::vector<float>* pairs) {
+/// A physical lamp's spectrum per band (see `tokens::kLightPower`): its power over `spread`, which
+/// is 4 pi sr for a sphere's radiant intensity and pi times the area for an area light's radiance.
+std::vector<float> LampSpectrum(const Scene& scene, const Path& light, const SpectralBands& bands,
+                                const std::vector<float>* pairs, double spread) {
     const bool hasPower = scene.Get(light, tokens::kLightPower) != nullptr;
     const double power = GetNumber(scene, light, tokens::kLightPower, 0.0);
     if (power < 0.0) {
@@ -217,9 +218,9 @@ std::vector<float> LampIntensity(const Scene& scene, const Path& light, const Sp
             const double low = std::max(360.0, spectrum.Wavelengths().front());
             const double high = std::min(830.0, spectrum.Wavelengths().back());
             const double total = high > low ? spectrum.Average(low, high) * (high - low) : 0.0;
-            const double scale = total > 0.0 ? power / (4.0 * M_PI) / total : 0.0;
+            const double scale = total > 0.0 ? power / spread / total : 0.0;
             for (float& value : binned) {
-                value = static_cast<float>(value * scale);
+                value = static_cast<float>(static_cast<double>(value) * scale);
             }
         }
         return binned;
@@ -232,7 +233,21 @@ std::vector<float> LampIntensity(const Scene& scene, const Path& light, const Sp
     for (double w = 360.5; w < 830.0; w += 1.0) {
         total += shape(w);
     }
-    return BinShape(shape, bands, power / (4.0 * M_PI) / total);
+    return BinShape(shape, bands, power / spread / total);
+}
+
+/// Real spherical harmonics up to order 2 at unit direction `d`, in the order (0,0), (1,-1),
+/// (1,0), (1,1), (2,-2), (2,-1), (2,0), (2,1), (2,2).
+std::array<double, 9> ShBasis(const glm::dvec3& d) {
+    return {0.282095,
+            0.488603 * d.y,
+            0.488603 * d.z,
+            0.488603 * d.x,
+            1.092548 * d.x * d.y,
+            1.092548 * d.y * d.z,
+            0.315392 * (3.0 * d.z * d.z - 1.0),
+            1.092548 * d.x * d.z,
+            0.546274 * (d.x * d.x - d.y * d.y)};
 }
 
 }  // namespace
@@ -269,7 +284,8 @@ RasterPrims ResolveRasterPrims(const Scene& scene, const Path& settings) {
     }
     prims.light = FirstVisible(scene, tokens::kDistantLight);
     std::vector<Path> lights;
-    for (const std::string_view type : {tokens::kDistantLight, tokens::kSphereLight}) {
+    for (const std::string_view type :
+         {tokens::kDistantLight, tokens::kSphereLight, tokens::kRectLight, tokens::kDiskLight}) {
         for (const Path& path : scene.Prims(type)) {
             if (path != prims.light && scene.IsVisible(path)) {
                 lights.push_back(path);
@@ -278,6 +294,8 @@ RasterPrims ResolveRasterPrims(const Scene& scene, const Path& settings) {
     }
     std::sort(lights.begin(), lights.end());
     prims.lights = std::move(lights);
+    prims.dome = FirstVisible(scene, tokens::kDomeLight);
+    prims.ground = FirstVisible(scene, tokens::kGroundPlane);
     return prims;
 }
 
@@ -377,7 +395,7 @@ std::vector<float> SunIrradianceOf(const Scene& scene, const Path& light,
                     (spectrum.Wavelengths().back() - spectrum.Wavelengths().front());
                 const double scale = GetNumber(scene, light, kLightIrradiance, total) / total;
                 for (float& value : binned) {
-                    value = static_cast<float>(value * scale);
+                    value = static_cast<float>(static_cast<double>(value) * scale);
                 }
             }
             return binned;
@@ -400,17 +418,48 @@ Light LightOf(const Scene& scene, const Path& path, const SpectralBands& bands) 
         light.spectrum = SunIrradianceOf(scene, path, bands);
         return light;
     }
-    if (type != kSphereLight) {
-        throw std::invalid_argument("'" + path.String() + "' is not a DistantLight or SphereLight");
+    if (type != kSphereLight && type != kRectLight && type != kDiskLight) {
+        throw std::invalid_argument("'" + path.String() +
+                                    "' is not a DistantLight, SphereLight, RectLight or DiskLight");
     }
     const glm::dmat4 world = scene.WorldTransform(path);
     light.position = glm::vec3(world[3]);
     const glm::dvec3 axis = -glm::dvec3(world[2]);
-    if (glm::length(axis) == 0.0) {
-        throw std::invalid_argument("SphereLight '" + path.String() +
-                                    "' has a degenerate transform");
+    const glm::dvec3 xAxis(world[0]);
+    const glm::dvec3 yAxis(world[1]);
+    if (glm::length(axis) == 0.0 || glm::length(xAxis) == 0.0 || glm::length(yAxis) == 0.0) {
+        throw std::invalid_argument("Light '" + path.String() + "' has a degenerate transform");
     }
     light.direction = glm::vec3(glm::normalize(axis));
+    if (type != kSphereLight) {
+        const glm::dvec3 d = glm::normalize(axis);
+        const glm::dvec3 x = xAxis - glm::dot(xAxis, d) * d;
+        if (glm::length(x) == 0.0) {
+            throw std::invalid_argument("Light '" + path.String() + "' has a degenerate transform");
+        }
+        light.tangent = glm::vec3(glm::normalize(x));
+        double area = 0.0;
+        if (type == kRectLight) {
+            light.type = LightType::Rect;
+            light.size = glm::vec2(GetNumber(scene, path, kWidth, 1.0) * glm::length(xAxis),
+                                   GetNumber(scene, path, kHeight, 1.0) * glm::length(yAxis));
+            area = static_cast<double>(light.size.x) * static_cast<double>(light.size.y);
+        } else {
+            light.type = LightType::Disk;
+            light.radius =
+                static_cast<float>(GetNumber(scene, path, kRadius, 0.5) * glm::length(xAxis));
+            const double radius = light.radius;
+            area = M_PI * radius * radius;
+        }
+        if (!(area > 0.0)) {
+            throw std::invalid_argument("Light '" + path.String() + "' has no area");
+        }
+        const std::vector<float>* pairs = SpectrumPairs(scene, path);
+        light.spectrum = scene.Get(path, kLightPower) != nullptr || pairs != nullptr
+                             ? LampSpectrum(scene, path, bands, pairs, M_PI * area)
+                             : RelativeSpectrum(scene, path, bands, LightIntensity(scene, path));
+        return light;
+    }
     light.radius =
         GetBool(scene, path, kTreatAsPoint, false) ? 0.0f : Number(scene, path, kRadius, 0.5f);
     light.coneAngle = std::clamp(Number(scene, path, kShapingConeAngle, 180.0f), 0.0f, 180.0f);
@@ -420,12 +469,77 @@ Light LightOf(const Scene& scene, const Path& path, const SpectralBands& bands) 
     }
     const std::vector<float>* pairs = SpectrumPairs(scene, path);
     if (scene.Get(path, kLightPower) != nullptr || pairs != nullptr) {
-        light.spectrum = LampIntensity(scene, path, bands, pairs);
+        light.spectrum = LampSpectrum(scene, path, bands, pairs, 4.0 * M_PI);
         return light;
     }
-    const double area = light.radius > 0.0f ? M_PI * light.radius * light.radius : 1.0;
+    const double radius = light.radius;
+    const double area = radius > 0.0 ? M_PI * radius * radius : 1.0;
     light.spectrum = RelativeSpectrum(scene, path, bands, LightIntensity(scene, path) * area);
     return light;
+}
+
+std::array<glm::vec3, 9> DomeIrradianceSh(const Tensor& latlong, const glm::dmat3& rotation) {
+    if (latlong.Location().kind != DeviceKind::Cpu || latlong.Type() != DType::Float32 ||
+        latlong.Shape().size() != 3 || latlong.Shape()[2] < 3 || latlong.Shape()[0] < 1 ||
+        latlong.Shape()[1] < 1) {
+        throw std::invalid_argument(
+            "A dome texture must be a float32 (rows, cols, 3 or 4) array on the CPU");
+    }
+    const Tensor texels = latlong.Contiguous();
+    const std::int64_t rows = texels.Shape()[0];
+    const std::int64_t cols = texels.Shape()[1];
+    const std::int64_t channels = texels.Shape()[2];
+    const float* data = texels.As<float>();
+    std::array<glm::dvec3, 9> radiance{};
+    const double dTheta = M_PI / static_cast<double>(rows);
+    const double dPhi = 2.0 * M_PI / static_cast<double>(cols);
+    for (std::int64_t r = 0; r < rows; ++r) {
+        const double theta = (static_cast<double>(r) + 0.5) * dTheta;
+        const double solidAngle = (std::cos(static_cast<double>(r) * dTheta) -
+                                   std::cos(static_cast<double>(r + 1) * dTheta)) *
+                                  dPhi;
+        for (std::int64_t c = 0; c < cols; ++c) {
+            const double phi = (static_cast<double>(c) + 0.5) * dPhi;
+            const glm::dvec3 local(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi),
+                                   std::cos(theta));
+            const float* texel = data + (r * cols + c) * channels;
+            const glm::dvec3 rgb(texel[0], texel[1], texel[2]);
+            const std::array<double, 9> basis = ShBasis(rotation * local);
+            for (std::size_t k = 0; k < 9; ++k) {
+                radiance[k] += rgb * basis[k] * solidAngle;
+            }
+        }
+    }
+    constexpr std::array<double, 9> kBand{1.0,  2.0 / 3.0, 2.0 / 3.0, 2.0 / 3.0, 0.25,
+                                          0.25, 0.25,      0.25,      0.25};
+    std::array<glm::vec3, 9> sh;
+    for (std::size_t k = 0; k < 9; ++k) {
+        sh[k] = glm::vec3(radiance[k] * kBand[k]);
+    }
+    return sh;
+}
+
+DomeLight DomeOf(const Scene& scene, const Path& path, const SpectralBands& bands) {
+    using namespace tokens;
+    bands.Check();
+    if (scene.TypeOf(path) != kDomeLight) {
+        throw std::invalid_argument("'" + path.String() + "' is not a DomeLight");
+    }
+    DomeLight dome;
+    const std::vector<float>* pairs = SpectrumPairs(scene, path);
+    dome.radiance = pairs != nullptr
+                        ? Spectrum::FromPairs(*pairs).Bin(bands)
+                        : RelativeSpectrum(scene, path, bands, LightIntensity(scene, path));
+    if (const Tensor* texture = scene.Read(path, kLightTexture)) {
+        const glm::dmat4 world = scene.WorldTransform(path);
+        const glm::dmat3 rotation(glm::normalize(glm::dvec3(world[0])),
+                                  glm::normalize(glm::dvec3(world[1])),
+                                  glm::normalize(glm::dvec3(world[2])));
+        dome.sh = DomeIrradianceSh(*texture, rotation);
+    } else {
+        dome.sh[0] = glm::vec3(static_cast<float>(std::sqrt(4.0 * M_PI)));
+    }
+    return dome;
 }
 
 double OverscanOf(const PhysicalCamera& camera) {
@@ -519,10 +633,30 @@ FrameParams FrameParamsOf(const Scene& scene, const RasterPrims& prims, std::uin
         params.sunAngle = std::max(Number(scene, prims.light, kAngle, params.sunAngle), 0.0f);
         shadows.enabled = GetBool(scene, prims.light, kShadowEnable, true);
     }
-    params.sun = !prims.light.IsEmpty() || prims.lights.empty();
+    params.sun = !prims.light.IsEmpty() || (prims.lights.empty() && prims.dome.IsEmpty());
+    if (!prims.dome.IsEmpty()) {
+        params.dome = DomeOf(scene, prims.dome, params.physical.bands);
+    }
     for (const Path& light : prims.lights) {
         params.lights.push_back(LightOf(scene, light, params.physical.bands));
     }
+    return params;
+}
+
+GroundParams GroundParamsOf(const Scene& scene, const Path& ground) {
+    using namespace tokens;
+    GroundParams params;
+    params.height = Number(scene, ground, kGroundHeight, params.height);
+    params.checker = GetBool(scene, ground, kChecker, params.checker);
+    params.checkerSize = Number(scene, ground, kCheckerSize, params.checkerSize);
+    if (!(params.checkerSize > 0.0f) || !std::isfinite(params.checkerSize)) {
+        throw std::invalid_argument("GroundPlane '" + ground.String() +
+                                    "' needs a positive checker size");
+    }
+    params.checkerColors[0] =
+        glm::vec3(GetVec3(scene, ground, kCheckerColor0, glm::dvec3(params.checkerColors[0])));
+    params.checkerColors[1] =
+        glm::vec3(GetVec3(scene, ground, kCheckerColor1, glm::dvec3(params.checkerColors[1])));
     return params;
 }
 
@@ -569,8 +703,49 @@ MaterialSettings MaterialSettingsOf(const Scene& scene, const Path& material,
     return settings;
 }
 
+bool IsMeshType(std::string_view type) {
+    using namespace tokens;
+    return type == kMesh || type == kCube || type == kSphere || type == kCylinder ||
+           type == kCone || type == kCapsule || type == kPlane;
+}
+
+MeshData PrimitiveMeshOf(const Scene& scene, const Path& path) {
+    using namespace tokens;
+    const std::string_view type = scene.TypeOf(path);
+    const auto number = [&](std::string_view attribute, double fallback) {
+        return static_cast<float>(GetNumber(scene, path, attribute, fallback));
+    };
+    const std::string axisName = GetToken(scene, path, kAxis, "Z");
+    const std::optional<Axis> axis = AxisNamed(axisName);
+    if (!axis) {
+        throw std::invalid_argument("'" + path.String() + "' has unknown axis '" + axisName + "'");
+    }
+    if (type == kCube) {
+        return BoxMesh(glm::vec3(number(kSize, 2.0)));
+    }
+    if (type == kSphere) {
+        return SphereMesh(number(kGeomRadius, 1.0));
+    }
+    if (type == kCylinder) {
+        return CylinderMesh(number(kGeomRadius, 1.0), number(kGeomHeight, 2.0), *axis);
+    }
+    if (type == kCone) {
+        return ConeMesh(number(kGeomRadius, 1.0), number(kGeomHeight, 2.0), *axis);
+    }
+    if (type == kCapsule) {
+        return CapsuleMesh(number(kGeomRadius, 0.5), number(kGeomHeight, 1.0), *axis);
+    }
+    if (type == kPlane) {
+        return PlaneMesh(number(kGeomWidth, 2.0), number(kGeomLength, 2.0), *axis);
+    }
+    throw std::invalid_argument("'" + path.String() + "' is not a UsdGeom primitive");
+}
+
 MeshData MeshDataOf(const Scene& scene, const Path& mesh) {
     using namespace tokens;
+    if (scene.TypeOf(mesh) != kMesh && IsMeshType(scene.TypeOf(mesh))) {
+        return PrimitiveMeshOf(scene, mesh);
+    }
     MeshData data;
     const Tensor* pointsTensor = scene.Read(mesh, kPoints);
     if (pointsTensor != nullptr && pointsTensor->Location().kind == DeviceKind::Cuda) {
@@ -698,7 +873,7 @@ Image ImageOfTensor(const Tensor& tensor, ImageEncoding encoding) {
 RasterDelegate::RasterDelegate(const VulkanContext& context, VkFormat presentFormat,
                                BrdfRegistry brdfs)
     : context_(context), renderer_(context, presentFormat, std::move(brdfs)), terrain_(renderer_),
-      meshes_(renderer_) {}
+      meshes_(renderer_), ground_(renderer_) {}
 
 RasterDelegate::~RasterDelegate() {
     context_.WaitForSubmissions();
@@ -863,10 +1038,17 @@ void RasterDelegate::SyncMeshes(const Scene& scene) {
     using namespace tokens;
     std::set<Path> seen;
     std::vector<std::string> errors;
-    for (const Path& path : scene.Prims(kMesh)) {
+    std::vector<Path> paths;
+    for (const std::string_view type :
+         {kMesh, kCube, kSphere, kCylinder, kCone, kCapsule, kPlane}) {
+        const std::vector<Path> ofType = scene.Prims(type);
+        paths.insert(paths.end(), ofType.begin(), ofType.end());
+    }
+    for (const Path& path : paths) {
         seen.insert(path);
-        const Key key =
-            KeyOf(scene, path, {kFaceVertexCounts, kFaceVertexIndices, kNormals, kDisplayColor});
+        const Key key = KeyOf(scene, path,
+                              {kFaceVertexCounts, kFaceVertexIndices, kNormals, kDisplayColor,
+                               kSize, kGeomRadius, kGeomHeight, kGeomWidth, kGeomLength, kAxis});
         const std::uint64_t points = scene.AttributeVersion(path, kPoints);
         const auto it = syncedMeshes_.find(path);
         if (it != syncedMeshes_.end() && it->second.key == key) {
@@ -1088,7 +1270,14 @@ void RasterDelegate::UpdatePrims(const Scene& scene, const RasterPrims& prims, V
     terrain.primId = prims_.terrain.IsEmpty() ? 0u : PrimIdOf(prims_.terrain);
     terrain_.SetParams(terrain);
     meshes_.SetItems(Items(scene));
-    RasterPart* parts[] = {&terrain_, &meshes_};
+    ground_.SetEnabled(!prims_.ground.IsEmpty());
+    if (!prims_.ground.IsEmpty()) {
+        GroundParams ground = GroundParamsOf(scene, prims_.ground);
+        ground.material = MaterialOf(scene, prims_.ground);
+        ground.primId = PrimIdOf(prims_.ground);
+        ground_.SetParams(ground);
+    }
+    RasterPart* parts[] = {&terrain_, &meshes_, &ground_};
     renderer_.Update(frame, parts);
 }
 
@@ -1126,7 +1315,7 @@ void RasterDelegate::Record(VkCommandBuffer commands, const RenderingTarget& tar
         viewTargets_ =
             std::make_unique<RenderTargets>(context_, extent, renderer_.Bands().count, false);
     }
-    const RasterPart* parts[] = {&terrain_, &meshes_};
+    const RasterPart* parts[] = {&terrain_, &meshes_, &ground_};
     renderer_.Record(commands, *viewTargets_, parts, &target);
 }
 
@@ -1274,7 +1463,7 @@ StepOperation RasterDelegate::StepAsync(const Scene& scene, std::span<const Path
             signals.push_back(cuda->NextVulkanSignal());
         }
         RenderTargets& targets = *frame->targets;
-        const RasterPart* parts[] = {&terrain_, &meshes_};
+        const RasterPart* parts[] = {&terrain_, &meshes_, &ground_};
         submission = context_.SubmitAsync(
             [&](VkCommandBuffer commands) { renderer_.Record(commands, targets, parts); }, waits,
             signals);

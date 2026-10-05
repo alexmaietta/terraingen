@@ -334,3 +334,58 @@ TEST(RasterCameraOf, NarrowsByTheOverscanAndShiftsThePrincipalPoint) {
     EXPECT_NEAR(shifted.projection[2][0], 1.0 - 2.0 * camera.PrincipalPoint().x / 64.0, 1e-6);
     EXPECT_NE(shifted.projection[2][0], 0.0f);
 }
+
+TEST(PrimitiveMeshOf, ReadsUsdGeomAttributesAndDefaults) {
+    Scene scene;
+    scene.Define("/Cube", tokens::kCube);
+    scene.Define("/Rod", tokens::kCylinder)
+        .Set(tokens::kGeomRadius, 0.25)
+        .Set(tokens::kGeomHeight, 3.0)
+        .Set(tokens::kAxis, "X");
+    scene.Define("/Floor", tokens::kPlane).Set(tokens::kGeomWidth, 10.0);
+    scene.Define("/Bad", tokens::kCone).Set(tokens::kAxis, "W");
+
+    const auto bounds = [](const ernie::MeshData& mesh) {
+        glm::vec3 low(1e30f);
+        glm::vec3 high(-1e30f);
+        for (std::size_t i = 0; i < mesh.points.size(); i += 3) {
+            const glm::vec3 p(mesh.points[i], mesh.points[i + 1], mesh.points[i + 2]);
+            low = glm::min(low, p);
+            high = glm::max(high, p);
+        }
+        return std::pair(low, high);
+    };
+    EXPECT_EQ(bounds(ernie::MeshDataOf(scene, "/Cube")).second, glm::vec3(1.0f))
+        << "UsdGeomCube's default size is 2";
+    const auto [rodLow, rodHigh] = bounds(ernie::MeshDataOf(scene, "/Rod"));
+    EXPECT_FLOAT_EQ(rodHigh.x, 1.5f) << "height along the X axis";
+    EXPECT_NEAR(rodHigh.y, 0.25f, 1e-6f);
+    EXPECT_FLOAT_EQ(bounds(ernie::MeshDataOf(scene, "/Floor")).second.x, 5.0f);
+    EXPECT_FLOAT_EQ(bounds(ernie::MeshDataOf(scene, "/Floor")).second.y, 1.0f);
+    EXPECT_THROW(ernie::MeshDataOf(scene, "/Bad"), std::invalid_argument);
+    EXPECT_TRUE(ernie::IsMeshType(tokens::kCapsule));
+    EXPECT_FALSE(ernie::IsMeshType(tokens::kTerrain));
+    scene.Define("/Xform", tokens::kXform);
+    EXPECT_THROW(ernie::PrimitiveMeshOf(scene, "/Xform"), std::invalid_argument);
+}
+
+TEST(GroundParamsOf, ReadsHeightAndCheckerboard) {
+    Scene scene;
+    scene.Define("/Ground", tokens::kGroundPlane);
+    ernie::GroundParams params = ernie::GroundParamsOf(scene, "/Ground");
+    EXPECT_EQ(params.height, 0.0f);
+    EXPECT_FALSE(params.checker);
+    EXPECT_EQ(params.checkerColors[1], glm::vec3(0.5f));
+    scene.Set("/Ground", tokens::kGroundHeight, -2.5);
+    scene.Set("/Ground", tokens::kChecker, true);
+    scene.Set("/Ground", tokens::kCheckerSize, 10.0);
+    scene.Set("/Ground", tokens::kCheckerColor0, glm::vec3(0.2f, 0.3f, 0.4f));
+    params = ernie::GroundParamsOf(scene, "/Ground");
+    EXPECT_EQ(params.height, -2.5f);
+    EXPECT_TRUE(params.checker);
+    EXPECT_EQ(params.checkerSize, 10.0f);
+    EXPECT_EQ(params.checkerColors[0], glm::vec3(0.2f, 0.3f, 0.4f));
+    EXPECT_EQ(ernie::ResolveRasterPrims(scene, {}).ground, Path("/Ground"));
+    scene.Set("/Ground", tokens::kCheckerSize, 0.0);
+    EXPECT_THROW(ernie::GroundParamsOf(scene, "/Ground"), std::invalid_argument);
+}

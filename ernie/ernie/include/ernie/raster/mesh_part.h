@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ernie/geometry/mesh_data.h"
 #include "ernie/gpu/gpu_buffer.h"
 #include "ernie/gpu/pipeline.h"
 #include "ernie/interop/cuda_interop.h"
@@ -21,14 +22,6 @@
 #include <vector>
 
 namespace ernie {
-
-/// Triangle mesh geometry in a mesh's own frame.
-struct MeshData {
-    std::vector<float> points;           ///< x, y, z per vertex.
-    std::vector<std::uint32_t> indices;  ///< Three vertex indices per triangle.
-    std::vector<float> normals;          ///< Empty, or x, y, z per vertex.
-    std::vector<float> colors;           ///< Empty, or linear r, g, b per vertex.
-};
 
 /// Triangulates polygons given as USD `faceVertexCounts` and `faceVertexIndices` into fans.
 /// @throws std::invalid_argument if a face has fewer than 3 vertices, the counts do not add up to

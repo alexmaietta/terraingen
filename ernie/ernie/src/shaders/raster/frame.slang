@@ -94,9 +94,11 @@ float shadowVisibility(float3 world, float3 normal, float nDotL, float depth, fl
     // bias, from comparing equal to their own depth.
     let offset = normal * s.params.y * texelWorld * max(1.0 - clamp(nDotL, 0.0, 1.0), 0.25);
     let clip = mul(s.lightViewProj[cascade], float4(world + offset, 1.0));
-    let ndc = clip.xyz / clip.w;
+    // Receivers beyond the map's far plane are behind every caster, so they compare at it: any
+    // caster above them still shadows them.
+    let ndc = float3(clip.xy / clip.w, min(clip.z / clip.w, 0.99999994));
     let uv = float2(0.5 * ndc.x + 0.5, 0.5 - 0.5 * ndc.y);
-    if (any(uv < float2(0.0)) || any(uv > float2(1.0)) || ndc.z > 1.0) {
+    if (any(uv < float2(0.0)) || any(uv > float2(1.0))) {
         return 1.0;
     }
 

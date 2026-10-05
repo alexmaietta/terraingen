@@ -66,6 +66,7 @@ set(ernie_shaders
     material/hapke.slang
     raster/filters.slang
     raster/frame.slang
+    raster/ground.slang
     raster/mesh.slang
     raster/present.slang
     raster/shading.slang
@@ -107,6 +108,7 @@ add_library(
     ernie/src/core/spectrum.cpp
     ernie/src/geometry/frustum.cpp
     ernie/src/geometry/lod_quadtree.cpp
+    ernie/src/geometry/primitives.cpp
     ernie/src/interop/tensor.cpp
     ernie/src/material/brdf.cpp
     ernie/src/scene/path.cpp
@@ -143,6 +145,7 @@ endif()
 
 add_library(
     ernie_raster STATIC
+    ernie/src/raster/ground_part.cpp
     ernie/src/raster/mesh_part.cpp
     ernie/src/raster/poisson_disk.cpp
     ernie/src/raster/raster_delegate.cpp

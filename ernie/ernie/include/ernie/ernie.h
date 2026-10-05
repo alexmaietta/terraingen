@@ -11,6 +11,8 @@
 #include "ernie/core/shader_source.h"
 #include "ernie/geometry/frustum.h"
 #include "ernie/geometry/lod_quadtree.h"
+#include "ernie/geometry/mesh_data.h"
+#include "ernie/geometry/primitives.h"
 #include "ernie/material/brdf.h"
 
 // Scene: USD-style prims, values, schema tokens and helpers, and DLPack tensors.
@@ -32,6 +34,7 @@
 #include "ernie/interop/cuda_interop.h"
 
 // Rasterizer: the renderer, its parts and materials, and the scene render delegate.
+#include "ernie/raster/ground_part.h"
 #include "ernie/raster/mesh_part.h"
 #include "ernie/raster/poisson_disk.h"
 #include "ernie/raster/raster_delegate.h"

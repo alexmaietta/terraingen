@@ -10,6 +10,7 @@ ernie_add_test_suite(
     core/umbrella_test.cpp
     geometry/frustum_test.cpp
     geometry/lod_quadtree_test.cpp
+    geometry/primitives_test.cpp
     gpu/shader_compiler_test.cpp
     interop/tensor_test.cpp
     material/brdf_test.cpp

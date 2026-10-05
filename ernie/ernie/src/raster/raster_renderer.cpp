@@ -48,17 +48,21 @@ struct ShadingUniforms {
     float irradiance[SpectralBands::kMaxBands];
     float lightShadow[4];
     float poisson[32];
+    float domeSh[9][4];
+    float dome[SpectralBands::kMaxBands];
 };
-static_assert(sizeof(ShadingUniforms) == 528, "ShadingUniforms must match shading.slang");
+static_assert(sizeof(ShadingUniforms) == 928, "ShadingUniforms must match shading.slang");
 
 struct LightGpu {
     float position[4];
     float axis[4];
     float cone[4];
     float shadow[4];
+    float extentX[4];
+    float extentY[4];
     float spectrum[SpectralBands::kMaxBands];
 };
-static_assert(sizeof(LightGpu) == 320, "LightGpu must match shading.slang");
+static_assert(sizeof(LightGpu) == 352, "LightGpu must match shading.slang");
 
 struct MaterialGpu {
     std::uint32_t info[4];
@@ -449,6 +453,14 @@ void RasterRenderer::WriteLights(const FrameParams& params, const std::optional<
         entry.axis[1] = axis.y;
         entry.axis[2] = axis.z;
         entry.axis[3] = light.radius;
+        const glm::vec3 x = glm::normalize(light.tangent);
+        const glm::vec3 y = glm::cross(x, axis);
+        const glm::vec2 half =
+            light.type == LightType::Disk ? glm::vec2(light.radius) : 0.5f * light.size;
+        for (int k = 0; k < 3; ++k) {
+            entry.extentX[k] = x[k] * half.x;
+            entry.extentY[k] = y[k] * half.y;
+        }
         const bool cone = !distant && light.coneAngle < 180.0f;
         const float softness = std::clamp(light.coneSoftness, 0.0f, 1.0f);
         entry.cone[0] = cone ? std::cos(glm::radians(light.coneAngle)) : -2.0f;
@@ -493,6 +505,16 @@ void RasterRenderer::Update(const FrameParams& params, std::span<RasterPart* con
         if (glm::length(light.direction) == 0.0f) {
             throw std::invalid_argument("A light's direction must not be zero");
         }
+        const bool area = light.type == LightType::Rect || light.type == LightType::Disk;
+        if (area && std::abs(glm::dot(glm::normalize(light.tangent),
+                                      glm::normalize(light.direction))) > 1e-3f) {
+            throw std::invalid_argument("A rect or disk light's tangent must be perpendicular to "
+                                        "its direction");
+        }
+    }
+    if (params.dome &&
+        params.dome->radiance.size() != static_cast<std::size_t>(params.physical.bands.count)) {
+        throw std::invalid_argument("The dome's radiance needs one value per camera band");
     }
     Uniforms uniforms{};
     const glm::mat4 viewProjection = params.camera.ViewProjection();
@@ -670,6 +692,14 @@ void RasterRenderer::WriteShading(const FrameParams& params) {
                 ? static_cast<float>(M_PI / (kLuminousEfficacy * LuminanceIntegral()))
                 : params.sunIrradiance[static_cast<std::size_t>(i)];
     }
+    if (params.dome) {
+        for (std::size_t k = 0; k < params.dome->sh.size(); ++k) {
+            shading.domeSh[k][0] = params.dome->sh[k].r;
+            shading.domeSh[k][1] = params.dome->sh[k].g;
+            shading.domeSh[k][2] = params.dome->sh[k].b;
+        }
+        std::copy(params.dome->radiance.begin(), params.dome->radiance.end(), shading.dome);
+    }
     shading.lightShadow[0] = params.shadows.softness;
     shading.lightShadow[1] = params.shadows.normalOffset;
     shading.lightShadow[2] = static_cast<float>(lightResolution_);
@@ -683,7 +713,8 @@ void RasterRenderer::WriteShading(const FrameParams& params) {
 void RasterRenderer::WriteSensor(const FrameParams& params) {
     const PhysicalCamera& camera = params.physical;
     const glm::mat4& projection = params.camera.projection;
-    const double rasterFocal = projection[1][1] * extent_.height / 2.0;
+    const double rasterFocal =
+        static_cast<double>(projection[1][1]) * static_cast<double>(extent_.height) / 2.0;
     SensorUniforms sensor{};
     CopyMatrix(sensor.invViewProj, glm::inverse(params.camera.ViewProjection()));
     sensor.eye[0] = params.camera.eye.x;
@@ -693,8 +724,10 @@ void RasterRenderer::WriteSensor(const FrameParams& params) {
     sensor.forward[1] = params.camera.forward.y;
     sensor.forward[2] = params.camera.forward.z;
     sensor.intrinsics[0] = static_cast<float>(rasterFocal * params.overscan);
-    sensor.intrinsics[1] = static_cast<float>(extent_.width / 2.0 * (1.0 - projection[2][0]));
-    sensor.intrinsics[2] = static_cast<float>(extent_.height / 2.0 * (1.0 + projection[2][1]));
+    sensor.intrinsics[1] =
+        static_cast<float>(extent_.width / 2.0 * (1.0 - static_cast<double>(projection[2][0])));
+    sensor.intrinsics[2] =
+        static_cast<float>(extent_.height / 2.0 * (1.0 + static_cast<double>(projection[2][1])));
     sensor.intrinsics[3] = static_cast<float>(params.overscan);
     sensor.size[0] = extent_.width;
     sensor.size[1] = extent_.height;
@@ -707,7 +740,8 @@ void RasterRenderer::WriteSensor(const FrameParams& params) {
     sensor.distortion[3] = static_cast<float>(lens.p1);
     sensor.lens[0] = static_cast<float>(lens.p2);
     sensor.lens[1] = lens.vignetting ? 1.0f : 0.0f;
-    sensor.lens[2] = static_cast<float>(camera.LinearExposureScale() * params.exposure);
+    sensor.lens[2] =
+        static_cast<float>(camera.LinearExposureScale() * static_cast<double>(params.exposure));
     sensor.lens[3] = static_cast<float>(camera.exposureTime);
     const SensorModel& model = camera.sensor;
     sensor.sensor[0] = static_cast<float>(model.fullWellElectrons);

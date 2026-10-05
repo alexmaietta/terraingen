@@ -105,3 +105,33 @@ def test_sphere_lights_alone_light_the_scene(renderer, terrain_scene):
     assert centre.sum() > 30, "the spot lights the terrain under it"
     assert corner[0] < centre[0] / 4, "outside the cone stays dark (or blue background)"
     assert renderer.take_validation_messages() == []
+
+
+def test_primitives_stand_on_a_checkered_ground_plane(renderer):
+    scene = ernie.Scene()
+    scene.define("/World/Camera", tokens.CAMERA).set(
+        tokens.TRANSFORM, ernie.look_at_transform((0.0, -30.0, 8.0), (0.0, 0.0, 4.0))
+    ).set(tokens.FOCAL_LENGTH, 18.0)
+    scene.define("/World/Sun", tokens.DISTANT_LIGHT).set(
+        tokens.TRANSFORM, ernie.distant_light_transform((0.3, -0.5, 1.0))
+    )
+    scene.define("/World/Ground", tokens.GROUND_PLANE).set(tokens.CHECKER, True).set(
+        tokens.CHECKER_SIZE, 2.0
+    )
+    lift = np.eye(4)
+    lift[2, 3] = 4.0
+    scene.define("/World/Ball", tokens.SPHERE).set(tokens.GEOM_RADIUS, 4.0).set(
+        tokens.DISPLAY_COLOR, (1.0, 0.0, 0.0)
+    ).set(tokens.TRANSFORM, lift)
+    scene.define("/Render/Settings", tokens.RENDER_SETTINGS).set(
+        tokens.CAMERA_REL, ernie.Path("/World/Camera")
+    ).set(tokens.RESOLUTION, (64, 48)).set(tokens.CLEAR_COLOR, (0.0, 0.0, 1.0))
+
+    image = renderer.render(scene).astype(int)
+    centre = image[24, 32, :3]
+    assert centre[0] > 2 * (centre[1] + centre[2]), "the red sphere in the middle"
+    floor = image[44, :, :3]
+    assert not np.all(floor[:, 2] == 255), "the ground covers the bottom row"
+    assert floor[:, 1].std() > 10, "with a checkerboard"
+    assert np.all(image[0, :, :3] == (0, 0, 255)), "sky above the horizon"
+    assert renderer.take_validation_messages() == []

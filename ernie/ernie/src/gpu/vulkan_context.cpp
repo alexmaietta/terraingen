@@ -245,6 +245,7 @@ std::unique_ptr<VulkanContext> VulkanContext::Create(const VulkanContextOptions&
         }
         const bool suitable = properties.apiVersion >= VK_API_VERSION_1_3 && family < familyCount &&
                               features13.dynamicRendering && features13.synchronization2 &&
+                              features13.shaderDemoteToHelperInvocation &&
                               features12.timelineSemaphore && features11.shaderDrawParameters &&
                               extensionsPresent;
         if (!suitable) {
@@ -260,7 +261,8 @@ std::unique_ptr<VulkanContext> VulkanContext::Create(const VulkanContextOptions&
     }
     if (candidates.empty()) {
         throw std::runtime_error("No Vulkan 1.3 device with dynamic rendering, synchronization2, "
-                                 "timeline semaphores, shader draw parameters and push "
+                                 "demote to helper invocation, timeline semaphores, shader draw "
+                                 "parameters and push "
                                  "descriptors; rejected:" +
                                  rejected);
     }
@@ -329,6 +331,7 @@ std::unique_ptr<VulkanContext> VulkanContext::Create(const VulkanContextOptions&
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES};
     features13.dynamicRendering = VK_TRUE;
     features13.synchronization2 = VK_TRUE;
+    features13.shaderDemoteToHelperInvocation = VK_TRUE;
     features13.pNext = c.rayQuery_ ? &acceleration : nullptr;
     VkPhysicalDeviceVulkan12Features features12{
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};

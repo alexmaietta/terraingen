@@ -19,6 +19,9 @@ inline constexpr char kShadingSlang[] = R"slang(@ERNIE_RASTER_SHADING_SLANG@)sla
 inline constexpr char kFiltersSlang[] = R"slang(@ERNIE_RASTER_FILTERS_SLANG@)slang";
 inline constexpr char kPresentSlang[] = R"slang(@ERNIE_RASTER_PRESENT_SLANG@)slang";
 
+/// The infinite ground plane's pass.
+inline constexpr char kGroundSlang[] = R"slang(@ERNIE_RASTER_GROUND_SLANG@)slang";
+
 /// Mesh and PointInstancer passes.
 inline constexpr char kMeshSlang[] = R"slang(@ERNIE_RASTER_MESH_SLANG@)slang";
 

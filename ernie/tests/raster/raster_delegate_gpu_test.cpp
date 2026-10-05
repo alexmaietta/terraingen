@@ -893,3 +893,237 @@ TEST_F(RasterDelegateTest, TheSunsDiskWidensPenumbrae) {
     EXPECT_GT(soft, hard + 10) << "a wider disk widens the penumbra";
     EXPECT_LT(smaller, umbra);
 }
+
+namespace {
+
+/// FlatScene lit only by an area light of `type` 10 m above the origin facing down, with a
+/// luminance of 1000 cd/m^2.
+Scene AreaLightScene(std::string_view type) {
+    Scene scene = FlatScene();
+    scene.Remove("/World/Sun");
+    scene.Define("/World/Panel", type)
+        .Set(tokens::kTransform,
+             ernie::LookAtTransform({0.0, 0.0, 10.0}, {0.0, 0.0, 0.0}, {0.0, 1.0, 0.0}))
+        .Set(tokens::kIntensity, 1000.0)
+        .Set(tokens::kShadowEnable, false);
+    return scene;
+}
+
+/// Spectral radiance of a flat 1 cd/m^2 white emitter, per band.
+double UnitLuminanceRadiance() {
+    double sum = 0.0;
+    for (double w = 360.0; w <= 830.0; w += 1.0) {
+        sum += ernie::CieXyz(w).y;
+    }
+    return 1.0 / (ernie::kLuminousEfficacy * sum);
+}
+
+/// Form factor from a point to a parallel rectangle `a` x `b` whose corner lies `h` above it.
+double CornerFormFactor(double a, double b, double h) {
+    const double x = a / h;
+    const double y = b / h;
+    const double sx = std::sqrt(1.0 + x * x);
+    const double sy = std::sqrt(1.0 + y * y);
+    return (x / sx * std::atan(y / sx) + y / sy * std::atan(x / sy)) / (2.0 * M_PI);
+}
+
+}  // namespace
+
+TEST_F(RasterDelegateTest, RectAndDiskLightsMatchTheirFormFactors) {
+    RasterDelegate delegate(*context_);
+    const double radiance = 1000.0 * UnitLuminanceRadiance();
+
+    Scene rect = AreaLightScene(tokens::kRectLight);
+    rect.Set("/World/Panel", tokens::kWidth, 8.0);
+    rect.Set("/World/Panel", tokens::kHeight, 6.0);
+    const double rectExpected =
+        0.5 / M_PI * radiance * M_PI * 4.0 * CornerFormFactor(4.0, 3.0, 10.0);
+    EXPECT_NEAR(RadianceAt(delegate, rect, 0.0f, 0.0f), rectExpected, 0.03 * rectExpected)
+        << "albedo / pi times E = pi L F";
+
+    Scene disk = AreaLightScene(tokens::kDiskLight);
+    disk.Set("/World/Panel", tokens::kRadius, 5.0);
+    const double diskExpected = 0.5 * radiance * 25.0 / (25.0 + 100.0);
+    EXPECT_NEAR(RadianceAt(delegate, disk, 0.0f, 0.0f), diskExpected, 0.03 * diskExpected)
+        << "E = pi L r^2 / (r^2 + h^2) on the axis";
+
+    disk.Set("/World/Panel", tokens::kTransform,
+             ernie::LookAtTransform({0.0, 0.0, 10.0}, {0.0, 0.0, 20.0}, {0.0, 1.0, 0.0}));
+    EXPECT_EQ(RadianceAt(delegate, disk, 0.0f, 0.0f), 0.0f) << "facing away";
+    disk.Set("/World/Panel", tokens::kTransform,
+             ernie::LookAtTransform({0.0, 0.0, 0.5}, {10.0, 0.0, 0.5}, {0.0, 0.0, 1.0}));
+    const float grazing = RadianceAt(delegate, disk, 3.0f, 0.0f);
+    EXPECT_GT(grazing, 0.0f) << "half the disk is above the ground's horizon";
+    EXPECT_LT(grazing, static_cast<float>(diskExpected));
+}
+
+TEST_F(RasterDelegateTest, AreaLightsCastShadows) {
+    RasterDelegate delegate(*context_);
+    Scene scene = AreaLightScene(tokens::kRectLight);
+    scene.Set("/World/Panel", tokens::kShadowEnable, true);
+    const float lit = RadianceAt(delegate, scene, 3.0f, 0.0f);
+    DefineQuad(scene, "/World/Blocker");
+    scene.Set("/World/Blocker", tokens::kTransform,
+              glm::translate(glm::dmat4(1.0), glm::dvec3(0.0, 0.0, 5.0)));
+    EXPECT_LT(RadianceAt(delegate, scene, 3.0f, 0.0f), 0.2f * lit) << "behind the blocker";
+    EXPECT_EQ(delegate.Renderer().LightShadowViews().size(), 6u) << "a cube at the centre";
+}
+
+TEST_F(RasterDelegateTest, DomesLightEverySurfaceDiffusely) {
+    Scene scene = FlatScene();
+    scene.Remove("/World/Sun");
+    scene.Define("/World/Sky", tokens::kDomeLight).Set(tokens::kIntensity, 1.0);
+    RasterDelegate delegate(*context_);
+    ernie::RenderProductSetOutputs outputs = delegate.Step(scene);
+    const auto vars = MapVars(outputs);
+    const std::size_t c = kVarSize / 2;
+    EXPECT_NEAR(At<float>(vars.at("HdrColor"), c, c, 1), 0.5f, 0.02f)
+        << "a uniform 1 cd/m^2 dome gives albedo 0.5 a luminance of 0.5";
+    EXPECT_FALSE(delegate.Renderer().Bands().count == 0);
+
+    std::vector<float> map(8 * 16 * 3, 0.0f);
+    std::fill(map.begin(), map.begin() + map.size() / 2, 1.0f);
+    scene.Write("/World/Sky", tokens::kLightTexture, Tensor::Copy<float>(map, {8, 16, 3}));
+    ernie::RenderProductSetOutputs upper = delegate.Step(scene);
+    EXPECT_NEAR(At<float>(MapVars(upper).at("HdrColor"), c, c, 1), 0.5f, 0.03f)
+        << "the upper hemisphere alone lights upward surfaces fully";
+    scene.Set("/World/Sky", tokens::kTransform,
+              glm::rotate(glm::dmat4(1.0), M_PI, glm::dvec3(1.0, 0.0, 0.0)));
+    ernie::RenderProductSetOutputs lower = delegate.Step(scene);
+    EXPECT_LT(At<float>(MapVars(lower).at("HdrColor"), c, c, 1), 0.03f) << "turned upside down";
+}
+
+TEST_F(RasterDelegateTest, DrawsUsdGeomPrimitivesAndInstancesThem) {
+    Scene scene = MeshScene();
+    scene.Remove("/World/Quad");
+    scene.Remove("/World/Rocks/Rock");
+    scene.Define("/World/Ball", tokens::kSphere)
+        .Set(tokens::kGeomRadius, 3.0)
+        .Set(tokens::kMaterialBinding, Path("/Looks/Red"))
+        .Set(tokens::kTransform, glm::translate(glm::dmat4(1.0), glm::dvec3(-12.0, 0.0, 0.0)));
+    scene.Define("/World/Rocks/Rock", tokens::kCube)
+        .Set(tokens::kSize, 3.0)
+        .Set(tokens::kDisplayColor, glm::vec3(0.0f, 1.0f, 0.0f));
+    RasterDelegate delegate(*context_);
+    const Tensor image = delegate.Render(scene);
+    EXPECT_EQ(delegate.Meshes().MeshCount(), 2u);
+    const std::uint8_t* ball = TexelAt(scene, image, {-12, 0, 3});
+    EXPECT_GT(ball[0], 150);
+    EXPECT_LT(ball[1] + ball[2], ball[0] / 2) << "the sphere, red from its material";
+    for (const float y : {-10.0f, 0.0f, 10.0f}) {
+        const std::uint8_t* rock = TexelAt(scene, image, {12, y, 1.5f});
+        EXPECT_GT(rock[1], 150) << "a cube prototype instanced at y " << y;
+    }
+    const std::uint8_t* origin = TexelAt(scene, image, {0, 0, 0});
+    EXPECT_EQ(origin[0] + origin[1] + origin[2], 0) << "the prototype draws only as instances";
+
+    scene.Set("/World/Ball", tokens::kGeomRadius, 0.5);
+    const Tensor smaller = delegate.Render(scene);
+    const std::uint8_t* rim = TexelAt(scene, smaller, {-10, 0, 0});
+    EXPECT_EQ(rim[0], 0) << "editing the radius regenerates the mesh";
+}
+
+namespace {
+
+/// FlatScene with its terrain replaced by a grey GroundPlane at `height`.
+Scene GroundScene(double height) {
+    Scene scene = FlatScene();
+    scene.Remove("/World/Terrain");
+    scene.Define("/World/Ground", tokens::kGroundPlane)
+        .Set(tokens::kGroundHeight, height)
+        .Set(tokens::kMaterialBinding, Path("/Looks/Grey"));
+    return scene;
+}
+
+}  // namespace
+
+TEST_F(RasterDelegateTest, GroundPlanesAreLitAndSortedLikeSurfaces) {
+    Scene scene = GroundScene(10.0);
+    RasterDelegate delegate(*context_);
+    ernie::RenderProductSetOutputs outputs = delegate.Step(scene);
+    auto vars = MapVars(outputs);
+    const std::size_t c = kVarSize / 2;
+    EXPECT_TRUE(delegate.Ground().Enabled());
+    EXPECT_NEAR(At<float>(vars.at("DistanceToImagePlane"), c, c), 90.0f, 0.5f);
+    EXPECT_NEAR(At<float>(vars.at("DistanceToImagePlane"), 0, 0), 90.0f, 0.5f)
+        << "a flat plane under a nadir camera";
+    EXPECT_NEAR(At<float>(vars.at("Normal"), c, c, 2), 1.0f, 1e-4f);
+    EXPECT_NEAR(At<float>(vars.at("HdrColor"), c, c, 1), 0.5f, 0.02f) << "albedo 0.5 under the sun";
+    EXPECT_EQ(delegate.PrimPath(At<std::uint32_t>(vars.at("PrimId"), 0, 0)), Path("/World/Ground"));
+
+    Scene withTerrain = FlatScene();
+    withTerrain.Define("/World/Ground", tokens::kGroundPlane).Set(tokens::kGroundHeight, -5.0);
+    ernie::RenderProductSetOutputs both = delegate.Step(withTerrain);
+    vars = MapVars(both);
+    EXPECT_EQ(delegate.PrimPath(At<std::uint32_t>(vars.at("PrimId"), c, c)), Path("/World/Terrain"))
+        << "the terrain is in front of a plane below it";
+    EXPECT_NEAR(At<float>(vars.at("DistanceToImagePlane"), c, c), 100.0f, 0.5f);
+
+    withTerrain.Set("/World/Ground", tokens::kVisibility, tokens::kInvisible);
+    delegate.Step(withTerrain);
+    EXPECT_FALSE(delegate.Ground().Enabled());
+}
+
+TEST_F(RasterDelegateTest, GroundPlanesReachTheHorizonWithACheckerboard) {
+    Scene scene = GroundScene(0.0);
+    scene.Set("/World/Ground", tokens::kChecker, true);
+    scene.Set("/World/Ground", tokens::kCheckerSize, 4.0);
+    scene.Set("/World/Ground", tokens::kCheckerColor1, glm::vec3(0.0f));
+    RasterDelegate delegate(*context_);
+    ernie::RenderProductSetOutputs outputs = delegate.Step(scene);
+    const auto vars = MapVars(outputs);
+    int light = 0;
+    int dark = 0;
+    for (std::size_t row = 0; row < kVarSize; ++row) {
+        for (std::size_t col = 0; col < kVarSize; ++col) {
+            const float value = At<float>(vars.at("HdrColor"), row, col, 1);
+            light += value > 0.4f ? 1 : 0;
+            dark += value < 0.1f ? 1 : 0;
+        }
+    }
+    EXPECT_GT(light, 300) << "4 m squares at about 1 m per pixel are crisp";
+    EXPECT_GT(dark, 300);
+
+    scene.Set("/World/Camera", tokens::kTransform,
+              ernie::LookAtTransform({0.0, 0.0, 2.0}, {0.0, 1000.0, 1.0}, {0.0, 0.0, 1.0}));
+    ernie::RenderProductSetOutputs horizon = delegate.Step(scene);
+    const auto far = MapVars(horizon);
+    const std::size_t c = kVarSize / 2;
+    const std::uint32_t top = At<std::uint32_t>(far.at("PrimId"), 0, c);
+    const std::uint32_t bottom = At<std::uint32_t>(far.at("PrimId"), kVarSize - 1, c);
+    EXPECT_EQ(top, 0u) << "sky above the horizon";
+    EXPECT_EQ(delegate.PrimPath(bottom), Path("/World/Ground"));
+    std::size_t lastGround = 0;
+    for (std::size_t row = 0; row < kVarSize; ++row) {
+        if (At<std::uint32_t>(far.at("PrimId"), row, c) != 0) {
+            lastGround = row;
+            break;
+        }
+    }
+    EXPECT_GT(lastGround, kVarSize / 2 - 3) << "the plane reaches up to the horizon";
+    EXPECT_LT(lastGround, kVarSize / 2 + 3);
+    const float distant = At<float>(far.at("HdrColor"), lastGround, c, 1);
+    EXPECT_NEAR(distant, 0.25f, 0.1f) << "the filtered checker fades to its mean far away";
+}
+
+TEST_F(RasterDelegateTest, PrimitivesStandOnTheGroundAndShadowIt) {
+    Scene scene = GroundScene(0.0);
+    scene.Set("/World/Sun", tokens::kShadowEnable, true);
+    scene.Set("/World/Sun", tokens::kTransform, ernie::DistantLightTransform({1.0, 0.0, 1.0}));
+    scene.Define("/World/Block", tokens::kCube)
+        .Set(tokens::kSize, 6.0)
+        .Set(tokens::kTransform, glm::translate(glm::dmat4(1.0), glm::dvec3(0.0, 0.0, 3.0)));
+    RasterDelegate delegate(*context_);
+    ernie::RenderProductSetOutputs outputs = delegate.Step(scene);
+    const auto vars = MapVars(outputs);
+    const auto [row, col] = PixelOf(scene, 0.0f, 0.0f);
+    EXPECT_EQ(delegate.PrimPath(At<std::uint32_t>(vars.at("PrimId"), row, col)),
+              Path("/World/Block"));
+    const auto [shadowRow, shadowCol] = PixelOf(scene, -5.0f, 0.0f);
+    const auto [litRow, litCol] = PixelOf(scene, 5.0f, 5.0f);
+    EXPECT_EQ(delegate.PrimPath(At<std::uint32_t>(vars.at("PrimId"), shadowRow, shadowCol)),
+              Path("/World/Ground"));
+    EXPECT_LT(At<float>(vars.at("HdrColor"), shadowRow, shadowCol, 1),
+              0.2f * At<float>(vars.at("HdrColor"), litRow, litCol, 1))
+        << "the cube shadows the ground away from the sun";
+}
