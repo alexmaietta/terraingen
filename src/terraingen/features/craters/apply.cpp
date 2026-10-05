@@ -116,8 +116,7 @@ class PlaneFit {
 
 /// Height of the raster at world point (x, y) by bilinear interpolation of the cell centres, or
 /// nothing if a contributing cell is outside the raster or holds no data.
-std::optional<double> Sample(const Raster<float>& raster, double x, double y,
-                             const std::optional<float>& noData) {
+std::optional<double> Sample(const Raster<float>& raster, double x, double y) {
     const Vec2d pixel = raster.Transform().WorldToPixel(x, y);
     const double u = pixel.x - 0.5;
     const double v = pixel.y - 0.5;
@@ -138,7 +137,7 @@ std::optional<double> Sample(const Raster<float>& raster, double x, double y,
                                      raster(c1, r1)};
     std::array<double, 4> values{};
     for (std::size_t i = 0; i < cells.size(); ++i) {
-        if (noData && cells[i] == *noData) {
+        if (raster.IsNoData(cells[i])) {
             return std::nullopt;
         }
         values[i] = cells[i];
@@ -237,8 +236,7 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
         throw std::domain_error("The raster's transform is not invertible");
     }
     const double pixelSize = std::sqrt(pixelArea);
-    const std::optional<float> noData = raster.NoData();
-    const auto isData = [&](float value) { return !noData || value != *noData; };
+    const auto isData = [&](float value) { return !raster.IsNoData(value); };
 
     std::size_t applied = 0;
     std::size_t unresolved = 0;
@@ -261,7 +259,7 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
         const CraterState state = degradation.State(crater);
         std::optional<std::array<double, 3>> datum;
         if (options.datum == CraterDatum::CentreHeight) {
-            if (const auto height = Sample(raster, crater.x, crater.y, noData)) {
+            if (const auto height = Sample(raster, crater.x, crater.y)) {
                 datum = std::array<double, 3>{*height, 0.0, 0.0};
             }
         } else if (options.datum != CraterDatum::None) {

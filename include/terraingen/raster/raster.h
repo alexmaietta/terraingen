@@ -3,11 +3,13 @@
 #include "terraingen/raster/geo_transform.h"
 
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <optional>
 #include <span>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -105,6 +107,19 @@ template <typename T> class Raster {
     }
 
     /// Value marking cells without data, if any.
+    /// Whether `value` is the no-data value; a NaN no-data value matches every NaN.
+    bool IsNoData(const T& value) const {
+        if (!noData_) {
+            return false;
+        }
+        if constexpr (std::is_floating_point_v<T>) {
+            if (std::isnan(*noData_)) {
+                return std::isnan(value);
+            }
+        }
+        return value == *noData_;
+    }
+
     const std::optional<T>& NoData() const {
         return noData_;
     }

@@ -173,6 +173,11 @@ TEST(ReadGeoTiffInfo, DescribesTheLayout) {
     const auto point = ReadGeoTiffInfo(WriteBytes("info_point.tif", float32_pixel_is_point.bytes));
     EXPECT_TRUE(point.geoKeys.PixelIsPoint());
     EXPECT_FALSE(lzw.geoKeys.PixelIsPoint());
+    EXPECT_FALSE(lzw.geoKeys.IsGeographic());
+    EXPECT_EQ(lzw.geoKeys.ShortKey(1024), 1) << "GTModelTypeGeoKey: projected";
+    EXPECT_EQ(lzw.geoKeys.ShortKey(4321), std::nullopt);
+    EXPECT_FALSE(GeoKeys{}.IsGeographic());
+    EXPECT_TRUE((GeoKeys{{1, 1, 0, 1, 1024, 0, 1, 2}, {}, {}}.IsGeographic()));
 }
 
 TEST(WriteGeoTiff, RoundTripsValuesTransformNoDataAndGeoKeys) {

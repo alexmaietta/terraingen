@@ -17,7 +17,8 @@ std::string Usage();
 /// Runs `terraingen` with `args` (without the program name), writing results to `out` and errors
 /// to `err`:
 /// - `CONFIG [--output-dir DIR] [--log-level LEVEL]` generates the terrain the JSON file CONFIG
-///   describes and writes its outputs, relative paths resolving against DIR or the config's folder;
+///   describes and writes its outputs; relative input paths resolve against the config's folder,
+///   relative output paths against DIR or the config's folder;
 /// - `validate CONFIG` checks CONFIG and reports the expected crater count;
 /// - `schema` prints a complete configuration with every default written out;
 /// - `--version` and `--help`.

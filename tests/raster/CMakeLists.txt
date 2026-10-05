@@ -5,5 +5,6 @@ terraingen_add_test_suite(
     geo_transform_test.cpp
     raster_test.cpp
     raster_stats_test.cpp
+    resample_test.cpp
     LIBRARIES
     terraingen::core)

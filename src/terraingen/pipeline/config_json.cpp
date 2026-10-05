@@ -126,10 +126,36 @@ template <> struct EnumNames<CraterListFormat> {
     }};
 };
 
+template <> struct EnumNames<ResampleMethod> {
+    static constexpr std::array<std::pair<std::string_view, ResampleMethod>, 3> kValues{{
+        {"nearest", ResampleMethod::Nearest},
+        {"bilinear", ResampleMethod::Bilinear},
+        {"cubic", ResampleMethod::Cubic},
+    }};
+};
+
+template <> struct EnumNames<TiffCompression> {
+    static constexpr std::array<std::pair<std::string_view, TiffCompression>, 4> kValues{{
+        {"none", TiffCompression::None},
+        {"lzw", TiffCompression::Lzw},
+        {"deflate", TiffCompression::Deflate},
+        {"packbits", TiffCompression::PackBits},
+    }};
+};
+
 template <typename E>
 concept NamedEnum = std::is_enum_v<E> && requires { EnumNames<E>::kValues; };
 
 template <typename Spec> struct SpecName;
+template <> struct SpecName<SyntheticSurfaceSpec> {
+    static constexpr std::string_view kName = "synthetic";
+};
+template <> struct SpecName<RasterSurfaceSpec> {
+    static constexpr std::string_view kName = "raster";
+};
+template <> struct SpecName<HeightmapOutput> {
+    static constexpr std::string_view kName = "heightmap";
+};
 template <> struct SpecName<LunarSurfaceSpec> {
     static constexpr std::string_view kName = "lunar_surface";
 };
@@ -233,7 +259,9 @@ class Writer {
     Json& json_;
 };
 
-template <typename IO> void Fields(IO& io, GridConfig& grid);
+template <typename IO> void Fields(IO& io, SyntheticSurfaceSpec& surface);
+template <typename IO> void Fields(IO& io, RasterSurfaceSpec& surface);
+template <typename IO> void Fields(IO& io, HeightmapOutput& output);
 template <typename IO> void Fields(IO& io, NoiseLayerConfig& layer);
 template <typename IO> void Fields(IO& io, PowerLawSegment& segment);
 template <typename IO> void Fields(IO& io, CraterSpacing& spacing);
@@ -507,10 +535,25 @@ template <typename T> void Writer::operator()(std::string_view key, T& value) {
     json_[std::string(key)] = ToJson(value);
 }
 
-template <typename IO> void Fields(IO& io, GridConfig& grid) {
-    io("width", grid.width);
-    io("height", grid.height);
-    io("pixel_size", grid.pixelSize);
+template <typename IO> void Fields(IO& io, SyntheticSurfaceSpec& surface) {
+    io("width", surface.width);
+    io("height", surface.height);
+    io("pixel_size", surface.pixelSize);
+    io("layers", surface.layers);
+}
+
+template <typename IO> void Fields(IO& io, RasterSurfaceSpec& surface) {
+    io("path", surface.path);
+    io("band", surface.band);
+    io("pixel_size", surface.pixelSize);
+    io("resampling", surface.resampling);
+    io("detail", surface.detail);
+}
+
+template <typename IO> void Fields(IO& io, HeightmapOutput& output) {
+    io("path", output.path);
+    io("compression", output.compression);
+    io("tile_size", output.tileSize);
 }
 
 template <typename IO> void Fields(IO& io, NoiseLayerConfig& config) {
@@ -667,19 +710,7 @@ TerrainConfig ReadConfig(const Json& json) {
                                    " is not supported; this library reads version " +
                                    std::to_string(kConfigSchemaVersion));
     }
-    reader("grid", config.grid);
-    reader.Accept("surface");
-    if (const auto surface = json.find("surface"); surface != json.end()) {
-        Reader surfaceReader(*surface, "surface");
-        surfaceReader.Accept("type");
-        if (const auto type = surface->find("type"); type != surface->end()) {
-            if (!type->is_string() || type->get<std::string>() != "synthetic") {
-                Fail("surface.type", "expected \"synthetic\"");
-            }
-        }
-        surfaceReader("layers", config.surface.layers);
-        surfaceReader.Finish();
-    }
+    reader("surface", config.surface);
     reader.Accept("craters");
     if (const auto craters = json.find("craters"); craters != json.end()) {
         Read(*craters, "craters", config.craters);
@@ -719,11 +750,7 @@ TerrainConfig LoadConfig(const std::filesystem::path& path) {
 std::string ConfigToJson(const TerrainConfig& config, int indent) {
     Json json = Json::object();
     json["schema_version"] = config.schemaVersion;
-    json["grid"] = ToJson(config.grid);
-    Json surface = Json::object();
-    surface["type"] = "synthetic";
-    surface["layers"] = ToJson(config.surface.layers);
-    json["surface"] = surface;
+    json["surface"] = ToJson(config.surface);
     json["craters"] = ToJson(config.craters);
     json["outputs"] = ToJson(config.outputs);
     return json.dump(indent) + "\n";

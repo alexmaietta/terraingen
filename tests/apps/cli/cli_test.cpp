@@ -1,6 +1,7 @@
 #include "cli.h"
 
 #include "terraingen/core/log.h"
+#include "terraingen/io/geotiff.h"
 #include "terraingen/pipeline/config_json.h"
 
 #include <gtest/gtest.h>
@@ -37,7 +38,7 @@ std::filesystem::path WriteConfig(const std::string& name, const std::string& ex
     std::filesystem::create_directories(directory);
     const auto path = directory / "config.json";
     std::ofstream file(path);
-    file << R"({"schema_version": 1, "grid": {"width": 33, "height": 33},
+    file << R"({"schema_version": 1, "surface": {"type": "synthetic", "width": 33, "height": 33},
                 "craters": {"min_diameter": 8, "max_diameter": 40)" +
                 extra + R"(},
                 "outputs": [{"type": "crater_list", "path": "craters.csv"}]})";
@@ -64,7 +65,7 @@ TEST(Cli, SchemaPrintsAValidCompleteConfiguration) {
     ASSERT_EQ(schema.code, kExitSuccess);
     const terraingen::TerrainConfig config = terraingen::ParseConfig(schema.out);
     EXPECT_TRUE(config.craters.has_value());
-    EXPECT_EQ(config.outputs.size(), 1u);
+    EXPECT_EQ(config.outputs.size(), 2u);
     EXPECT_EQ(Invoke({"schema", "extra"}).code, kExitUsage);
 }
 
@@ -72,7 +73,8 @@ TEST(Cli, ValidateReportsValidAndInvalidConfigurations) {
     const auto good = WriteConfig("terraingen_cli_valid");
     const Result valid = Invoke({"validate", good.string()});
     EXPECT_EQ(valid.code, kExitSuccess) << valid.err;
-    EXPECT_NE(valid.out.find("is valid: 33x33 grid, about "), std::string::npos) << valid.out;
+    EXPECT_NE(valid.out.find("is valid: 33x33 grid of 2 m cells, about "), std::string::npos)
+        << valid.out;
 
     const auto bad = WriteConfig("terraingen_cli_invalid", R"(, "seed": -1)");
     const Result invalid = Invoke({"validate", bad.string()});
@@ -105,9 +107,9 @@ TEST(Cli, ReportsConfigurationAndUsageErrors) {
     EXPECT_NE(invalid.err.find("craters.max_diameter"), std::string::npos) << invalid.err;
     const auto blocked = WriteConfig("terraingen_cli_blocked");
     std::ofstream(blocked.parent_path() / "blocker") << "a file, not a folder";
-    const Result unwritable = Invoke({blocked.string(), "--output-dir",
-                                      (blocked.parent_path() / "blocker").string(), "--log-level",
-                                      "off"});
+    const Result unwritable =
+        Invoke({blocked.string(), "--output-dir", (blocked.parent_path() / "blocker").string(),
+                "--log-level", "off"});
     EXPECT_EQ(unwritable.code, kExitInvalidConfig);
     EXPECT_EQ(unwritable.err.rfind("terraingen: ", 0), 0u) << unwritable.err;
     EXPECT_EQ(Invoke({}).code, kExitUsage);
@@ -118,4 +120,27 @@ TEST(Cli, ReportsConfigurationAndUsageErrors) {
     EXPECT_EQ(Invoke({"--log-level", "off"}).code, kExitUsage);
     const Result usage = Invoke({});
     EXPECT_NE(usage.err.find("Usage:"), std::string::npos);
+}
+
+TEST(Cli, GeneratesFromARasterSurfaceWithRelativePaths) {
+    const auto directory = std::filesystem::path(::testing::TempDir()) / "terraingen_cli_raster";
+    std::filesystem::remove_all(directory);
+    std::filesystem::create_directories(directory / "inputs");
+    terraingen::Raster<float> dem(48, 32, 100.0f);
+    dem.SetTransform(terraingen::GeoTransform::NorthUp(-500.0, 800.0, 4.0));
+    terraingen::WriteGeoTiff(directory / "inputs" / "dem.tif", dem,
+                             {{1, 1, 0, 1, 1024, 0, 1, 1}, {}, {}});
+    std::ofstream(directory / "config.json") << R"({"schema_version": 1,
+               "surface": {"type": "raster", "path": "inputs/dem.tif", "pixel_size": 2},
+               "craters": {"density": {"type": "trask"}, "min_diameter": 20, "max_diameter": 60},
+               "outputs": [{"type": "heightmap", "path": "out/dem_2m.tif"}]})";
+    const Result valid = Invoke({"validate", (directory / "config.json").string()});
+    EXPECT_EQ(valid.code, kExitSuccess) << valid.err;
+    EXPECT_NE(valid.out.find("96x64 grid of 2 m cells"), std::string::npos) << valid.out;
+    const Result result = Invoke({(directory / "config.json").string(), "--log-level", "off"});
+    ASSERT_EQ(result.code, kExitSuccess) << result.err;
+    const auto out = terraingen::ReadGeoTiffInfo(directory / "out" / "dem_2m.tif");
+    EXPECT_EQ(out.width, 96u);
+    EXPECT_EQ(out.height, 64u);
+    EXPECT_EQ(out.transform, terraingen::GeoTransform::NorthUp(-500.0, 800.0, 2.0));
 }

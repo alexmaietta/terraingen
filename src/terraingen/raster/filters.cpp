@@ -22,7 +22,8 @@ std::vector<double> GaussianKernel(double sigma) {
 /// Convolves `values` along one axis of a `width` x `height` grid with `kernel`, truncated at the
 /// grid's edges.
 std::vector<double> Convolve(const std::vector<double>& values, std::size_t width,
-                             std::size_t height, const std::vector<double>& kernel, bool alongRows) {
+                             std::size_t height, const std::vector<double>& kernel,
+                             bool alongRows) {
     const auto radius = static_cast<std::ptrdiff_t>(kernel.size() / 2);
     const auto length = static_cast<std::ptrdiff_t>(alongRows ? width : height);
     std::vector<double> result(values.size(), 0.0);
@@ -57,12 +58,11 @@ Raster<float> GaussianBlur(const Raster<float>& raster, double sigmaPixels) {
     }
     const std::size_t width = raster.Width();
     const std::size_t height = raster.Height();
-    const std::optional<float> noData = raster.NoData();
     std::vector<double> weighted(raster.Size());
     std::vector<double> mask(raster.Size());
     for (std::size_t i = 0; i < raster.Size(); ++i) {
         const float value = raster.Values()[i];
-        const bool valid = !noData || value != *noData;
+        const bool valid = !raster.IsNoData(value);
         mask[i] = valid ? 1.0 : 0.0;
         weighted[i] = valid ? static_cast<double>(value) : 0.0;
     }

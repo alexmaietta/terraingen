@@ -45,6 +45,7 @@ add_library(
     random/samplers.cpp
     random/stream.cpp
     raster/filters.cpp
+    raster/resample.cpp
     spatial/cells.cpp
     surfaces/synthetic_terrain.cpp
     "${TERRAINGEN_BUILD_INFO_CPP}")
@@ -69,7 +70,7 @@ add_library(terraingen::pipeline ALIAS terraingen_pipeline)
 set_target_properties(terraingen_pipeline PROPERTIES EXPORT_NAME pipeline)
 target_link_libraries(
     terraingen_pipeline
-    PUBLIC terraingen_core
+    PUBLIC terraingen_core terraingen_io
     PRIVATE $<BUILD_INTERFACE:nlohmann_json> $<BUILD_INTERFACE:terraingen_warnings>
             $<BUILD_INTERFACE:terraingen_coverage>)
 

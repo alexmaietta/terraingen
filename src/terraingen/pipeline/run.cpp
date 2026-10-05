@@ -15,14 +15,17 @@
 #include "terraingen/features/craters/lunar/production.h"
 #include "terraingen/features/craters/lunar/surface.h"
 #include "terraingen/features/craters/profiles/martin_parkes_dunstan.h"
+#include "terraingen/kernels/layers.h"
 #include "terraingen/pipeline/config_json.h"
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdio>
 #include <fstream>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <variant>
@@ -153,7 +156,62 @@ CraterList ManualCraters(const CraterConfig& craters) {
     return list;
 }
 
-void ValidateCraters(const CraterConfig& craters, const GridConfig& grid) {
+std::filesystem::path Resolve(const std::string& path, const std::filesystem::path& directory) {
+    const std::filesystem::path resolved = path;
+    return resolved.is_relative() && !directory.empty() ? directory / resolved : resolved;
+}
+
+void ValidateLayers(const std::vector<NoiseLayerConfig>& layers, const std::string& path,
+                    bool allowEmpty) {
+    if ((layers.empty() && !allowEmpty) || layers.size() > kMaxNoiseLayers) {
+        throw ConfigError(path, std::string("needs ") + (allowEmpty ? "0" : "1") + " to " +
+                                    std::to_string(kMaxNoiseLayers) + " layers");
+    }
+    for (std::size_t i = 0; i < layers.size(); ++i) {
+        const std::string layer = path + "[" + std::to_string(i) + "]";
+        if (layers[i].hurst && !std::isfinite(*layers[i].hurst)) {
+            throw ConfigError(layer + ".hurst", "must be finite");
+        }
+        At(layer, [&] { ValidateNoiseLayer(layers[i].Effective()); });
+    }
+}
+
+void CheckGridSize(std::size_t width, std::size_t height, const std::string& path) {
+    if (width < 2 || height < 2 || width > kMaxConfigGridSize || height > kMaxConfigGridSize) {
+        throw ConfigError(path, std::to_string(width) + "x" + std::to_string(height) +
+                                    " cells; each side must be between 2 and " +
+                                    std::to_string(kMaxConfigGridSize));
+    }
+}
+
+SyntheticTerrainParams LayerParams(const std::vector<NoiseLayerConfig>& layers) {
+    SyntheticTerrainParams params;
+    params.layers.clear();
+    for (const NoiseLayerConfig& layer : layers) {
+        params.layers.push_back(layer.Effective());
+    }
+    return params;
+}
+
+/// Adds `layers` to every cell of `raster` with data, evaluated relative to the raster's origin.
+void AddDetail(Raster<float>& raster, const std::vector<NoiseLayerConfig>& layers) {
+    const SyntheticTerrainParams params = LayerParams(layers);
+    const GeoTransform& transform = raster.Transform();
+    for (std::size_t row = 0; row < raster.Height(); ++row) {
+        for (std::size_t col = 0; col < raster.Width(); ++col) {
+            float& cell = raster(col, row);
+            if (raster.IsNoData(cell)) {
+                continue;
+            }
+            const Vec2d centre = raster.CellCenter(col, row);
+            cell += EvaluateNoiseLayers(static_cast<float>(centre.x - transform.originX),
+                                        static_cast<float>(centre.y - transform.originY),
+                                        params.layers.data(), params.layers.size());
+        }
+    }
+}
+
+void ValidateCraters(const CraterConfig& craters, const SurfaceGrid& grid) {
     for (std::size_t n = 0; n < craters.manual.size(); ++n) {
         const Crater& crater = craters.manual[n];
         const std::string path = "craters.manual[" + std::to_string(n) + "]";
@@ -183,8 +241,7 @@ void ValidateCraters(const CraterConfig& craters, const GridConfig& grid) {
     if (!(std::isfinite(craters.maxDiameter) && craters.maxDiameter > craters.minDiameter)) {
         throw ConfigError("craters.max_diameter", "must exceed min_diameter");
     }
-    const Bounds2d bounds = GridBounds(grid);
-    const double area = (bounds.maxX - bounds.minX) * (bounds.maxY - bounds.minY);
+    const double area = grid.Area();
     const double expected = At("craters.min_diameter", [&] {
         return density->ExpectedCount(area, craters.minDiameter, craters.maxDiameter);
     });
@@ -214,13 +271,8 @@ NoiseLayer NoiseLayerConfig::Effective() const {
     return effective;
 }
 
-SyntheticTerrainParams SurfaceConfig::Params() const {
-    SyntheticTerrainParams params;
-    params.layers.clear();
-    for (const NoiseLayerConfig& layer : layers) {
-        params.layers.push_back(layer.Effective());
-    }
-    return params;
+SyntheticTerrainParams SyntheticSurfaceSpec::Params() const {
+    return LayerParams(layers);
 }
 
 CraterModels BuildCraterModels(const CraterConfig& craters) {
@@ -232,61 +284,153 @@ CraterModels BuildCraterModels(const CraterConfig& craters) {
     return models;
 }
 
-Bounds2d GridBounds(const GridConfig& grid) {
-    const double halfX = 0.5 * static_cast<double>(grid.width) * grid.pixelSize;
-    const double halfY = 0.5 * static_cast<double>(grid.height) * grid.pixelSize;
-    return {-halfX, -halfY, halfX, halfY};
+Bounds2d SurfaceGrid::Bounds() const {
+    constexpr double kInf = std::numeric_limits<double>::infinity();
+    Bounds2d bounds{kInf, kInf, -kInf, -kInf};
+    for (const double col : {0.0, static_cast<double>(width)}) {
+        for (const double row : {0.0, static_cast<double>(height)}) {
+            const Vec2d corner = transform.PixelToWorld(col, row);
+            bounds.minX = std::fmin(bounds.minX, corner.x);
+            bounds.minY = std::fmin(bounds.minY, corner.y);
+            bounds.maxX = std::fmax(bounds.maxX, corner.x);
+            bounds.maxY = std::fmax(bounds.maxY, corner.y);
+        }
+    }
+    return bounds;
 }
 
-void ValidateConfig(const TerrainConfig& config) {
+double SurfaceGrid::Area() const {
+    return static_cast<double>(width) * static_cast<double>(height) * PixelSize() * PixelSize();
+}
+
+double SurfaceGrid::PixelSize() const {
+    return std::sqrt(std::fabs(transform.pixelWidth * transform.pixelHeight -
+                               transform.rowRotation * transform.colRotation));
+}
+
+SurfaceGrid DescribeSurface(const SurfaceSpec& surface, const std::filesystem::path& directory) {
+    if (const auto* synthetic = std::get_if<SyntheticSurfaceSpec>(&surface)) {
+        if (!(std::isfinite(synthetic->pixelSize) && synthetic->pixelSize > 0.0)) {
+            throw ConfigError("surface.pixel_size", "must be positive");
+        }
+        CheckGridSize(synthetic->width, synthetic->height, "surface.width");
+        const double halfX = 0.5 * static_cast<double>(synthetic->width) * synthetic->pixelSize;
+        const double halfY = 0.5 * static_cast<double>(synthetic->height) * synthetic->pixelSize;
+        return {synthetic->width, synthetic->height,
+                GeoTransform::NorthUp(-halfX, halfY, synthetic->pixelSize)};
+    }
+    const auto& raster = std::get<RasterSurfaceSpec>(surface);
+    if (raster.path.empty()) {
+        throw ConfigError("surface.path", "must not be empty");
+    }
+    GeoTiffInfo info;
+    try {
+        info = ReadGeoTiffInfo(Resolve(raster.path, directory));
+    } catch (const GeoTiffError& error) {
+        throw ConfigError("surface.path", error.what());
+    }
+    if (raster.band >= info.bands) {
+        throw ConfigError("surface.band", "the file has " + std::to_string(info.bands) +
+                                              (info.bands == 1 ? " band" : " bands"));
+    }
+    if (info.geoKeys.IsGeographic()) {
+        throw ConfigError("surface.path",
+                          "the raster's CRS is geographic (degrees); craters are sized in metres, "
+                          "so reproject it first, for example with gdalwarp -t_srs");
+    }
+    SurfaceGrid grid{info.width, info.height, info.transform};
+    if (raster.pixelSize) {
+        if (!(std::isfinite(*raster.pixelSize) && *raster.pixelSize > 0.0)) {
+            throw ConfigError("surface.pixel_size", "must be positive");
+        }
+        if (grid.transform.rowRotation != 0.0 || grid.transform.colRotation != 0.0) {
+            throw ConfigError("surface.pixel_size", "rotated rasters cannot be resampled");
+        }
+        const double scaleX = std::fabs(grid.transform.pixelWidth) / *raster.pixelSize;
+        const double scaleY = std::fabs(grid.transform.pixelHeight) / *raster.pixelSize;
+        const double width = std::max(1.0, std::round(static_cast<double>(info.width) * scaleX));
+        const double height = std::max(1.0, std::round(static_cast<double>(info.height) * scaleY));
+        if (width > static_cast<double>(kMaxConfigGridSize) ||
+            height > static_cast<double>(kMaxConfigGridSize)) {
+            throw ConfigError("surface.pixel_size", "resampling would exceed " +
+                                                        std::to_string(kMaxConfigGridSize) +
+                                                        " cells per side");
+        }
+        grid.width = static_cast<std::size_t>(width);
+        grid.height = static_cast<std::size_t>(height);
+        grid.transform.pixelWidth = std::copysign(*raster.pixelSize, grid.transform.pixelWidth);
+        grid.transform.pixelHeight = std::copysign(*raster.pixelSize, grid.transform.pixelHeight);
+    }
+    CheckGridSize(grid.width, grid.height,
+                  raster.pixelSize ? "surface.pixel_size" : "surface.path");
+    return grid;
+}
+
+void ValidateConfig(const TerrainConfig& config, const std::filesystem::path& directory) {
     if (config.schemaVersion != kConfigSchemaVersion) {
         throw ConfigError("schema_version",
                           "version " + std::to_string(config.schemaVersion) + " is not supported");
     }
-    const GridConfig& grid = config.grid;
-    for (const auto& [name, size] :
-         {std::pair{"grid.width", grid.width}, std::pair{"grid.height", grid.height}}) {
-        if (size < 2 || size > kMaxConfigGridSize) {
-            throw ConfigError(name, "must be between 2 and " + std::to_string(kMaxConfigGridSize));
-        }
-    }
-    if (!(std::isfinite(grid.pixelSize) && grid.pixelSize > 0.0)) {
-        throw ConfigError("grid.pixel_size", "must be positive");
-    }
-    const auto& layers = config.surface.layers;
-    if (layers.empty() || layers.size() > kMaxNoiseLayers) {
-        throw ConfigError("surface.layers",
-                          "needs 1 to " + std::to_string(kMaxNoiseLayers) + " layers");
-    }
-    for (std::size_t i = 0; i < layers.size(); ++i) {
-        const std::string path = "surface.layers[" + std::to_string(i) + "]";
-        if (layers[i].hurst && !std::isfinite(*layers[i].hurst)) {
-            throw ConfigError(path + ".hurst", "must be finite");
-        }
-        At(path, [&] { ValidateNoiseLayer(layers[i].Effective()); });
+    const SurfaceGrid grid = DescribeSurface(config.surface, directory);
+    if (const auto* synthetic = std::get_if<SyntheticSurfaceSpec>(&config.surface)) {
+        ValidateLayers(synthetic->layers, "surface.layers", false);
+    } else {
+        ValidateLayers(std::get<RasterSurfaceSpec>(config.surface).detail, "surface.detail", true);
     }
     if (config.craters) {
         ValidateCraters(*config.craters, grid);
     }
     for (std::size_t i = 0; i < config.outputs.size(); ++i) {
-        const auto& output = std::get<CraterListOutput>(config.outputs[i]);
-        if (output.path.empty()) {
-            throw ConfigError("outputs[" + std::to_string(i) + "].path", "must not be empty");
-        }
+        const std::string path = "outputs[" + std::to_string(i) + "]";
+        std::visit(Overloaded{
+                       [&](const CraterListOutput& output) {
+                           if (output.path.empty()) {
+                               throw ConfigError(path + ".path", "must not be empty");
+                           }
+                       },
+                       [&](const HeightmapOutput& output) {
+                           if (output.path.empty()) {
+                               throw ConfigError(path + ".path", "must not be empty");
+                           }
+                           if (output.compression == TiffCompression::PackBits) {
+                               throw ConfigError(path + ".compression",
+                                                 "packbits is read-only; use none, lzw or deflate");
+                           }
+                           if (output.tileSize == 0 || output.tileSize % 16 != 0) {
+                               throw ConfigError(path + ".tile_size",
+                                                 "must be a positive multiple of 16");
+                           }
+                       },
+                   },
+                   config.outputs[i]);
     }
 }
 
-GeneratedTerrain GenerateTerrain(const TerrainConfig& config) {
-    ValidateConfig(config);
+GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
+                                 const std::filesystem::path& directory) {
+    ValidateConfig(config, directory);
     const Stopwatch stopwatch;
-    const GridConfig& grid = config.grid;
-    GeneratedTerrain terrain{
-        GenerateSyntheticTerrain(grid.width, grid.height, grid.pixelSize, config.surface.Params()),
-        {}};
+    GeneratedTerrain terrain;
+    if (const auto* synthetic = std::get_if<SyntheticSurfaceSpec>(&config.surface)) {
+        terrain.heights = GenerateSyntheticTerrain(synthetic->width, synthetic->height,
+                                                   synthetic->pixelSize, synthetic->Params());
+    } else {
+        const auto& raster = std::get<RasterSurfaceSpec>(config.surface);
+        GeoTiff tiff = ReadGeoTiff(Resolve(raster.path, directory), raster.band);
+        terrain.heights = raster.pixelSize
+                              ? Resample(tiff.raster, *raster.pixelSize, raster.resampling)
+                              : std::move(tiff.raster);
+        terrain.geoKeys = std::move(tiff.geoKeys);
+        if (!raster.detail.empty()) {
+            AddDetail(terrain.heights, raster.detail);
+        }
+    }
+    const SurfaceGrid grid{terrain.heights.Width(), terrain.heights.Height(),
+                           terrain.heights.Transform()};
     if (config.craters) {
         const CraterConfig& craters = *config.craters;
         const CraterModels models = BuildCraterModels(craters);
-        const Bounds2d bounds = GridBounds(grid);
+        const Bounds2d bounds = grid.Bounds();
         const CraterList manual = ManualCraters(craters);
         if (craters.generate) {
             terrain.craters =
@@ -353,16 +497,20 @@ std::vector<std::filesystem::path> WriteOutputs(const TerrainConfig& config,
                                                 const std::filesystem::path& directory) {
     std::vector<std::filesystem::path> written;
     for (const OutputSpec& spec : config.outputs) {
-        const auto& output = std::get<CraterListOutput>(spec);
-        std::filesystem::path path = output.path;
-        if (path.is_relative()) {
-            path = directory / path;
-        }
+        const std::string& relative =
+            std::visit([](const auto& output) -> const std::string& { return output.path; }, spec);
+        const std::filesystem::path path = Resolve(relative, directory);
         if (path.has_parent_path()) {
             std::filesystem::create_directories(path.parent_path());
         }
-        WriteCraterList(terrain.craters, path, output.format);
-        LogInfo("pipeline", "Wrote ", terrain.craters.Size(), " craters to ", path.string());
+        if (const auto* heightmap = std::get_if<HeightmapOutput>(&spec)) {
+            WriteGeoTiff(path, terrain.heights, terrain.geoKeys,
+                         {.compression = heightmap->compression, .tileSize = heightmap->tileSize});
+        } else {
+            const auto& list = std::get<CraterListOutput>(spec);
+            WriteCraterList(terrain.craters, path, list.format);
+            LogInfo("pipeline", "Wrote ", terrain.craters.Size(), " craters to ", path.string());
+        }
         written.push_back(path);
     }
     return written;

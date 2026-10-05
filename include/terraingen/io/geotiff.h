@@ -40,6 +40,13 @@ struct GeoKeys {
     /// than pixel areas.
     bool PixelIsPoint() const;
 
+    /// Whether GTModelTypeGeoKey says the CRS is geographic, with coordinates in angles rather than
+    /// a projection's linear units.
+    bool IsGeographic() const;
+
+    /// The value of the SHORT GeoKey `key` stored in the directory, if present.
+    std::optional<std::uint16_t> ShortKey(std::uint16_t key) const;
+
     bool operator==(const GeoKeys&) const = default;
 };
 

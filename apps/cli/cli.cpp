@@ -60,9 +60,10 @@ GenerateArgs ParseGenerate(const std::vector<std::string>& args) {
     return parsed;
 }
 
-/// A configuration showing every section, with an example crater list output.
+/// A configuration showing every section, with example heightmap and crater list outputs.
 TerrainConfig SchemaExample() {
     TerrainConfig config;
+    config.outputs.push_back(HeightmapOutput{"terrain.tif"});
     config.outputs.push_back(CraterListOutput{"craters.csv", CraterListFormat::Csv});
     return config;
 }
@@ -73,7 +74,7 @@ int Generate(const std::vector<std::string>& args, std::ostream& out, std::ostre
     SetLogLevel(parsed.logLevel);
     try {
         const TerrainConfig config = LoadConfig(parsed.config);
-        const GeneratedTerrain terrain = GenerateTerrain(config);
+        const GeneratedTerrain terrain = GenerateTerrain(config, parsed.config.parent_path());
         const std::filesystem::path directory =
             parsed.outputDir.value_or(parsed.config.parent_path());
         const auto written = WriteOutputs(config, terrain, directory);
@@ -102,13 +103,13 @@ int Validate(const std::vector<std::string>& args, std::ostream& out, std::ostre
     const std::filesystem::path path = args[1];
     try {
         const TerrainConfig config = LoadConfig(path);
-        ValidateConfig(config);
-        out << path.string() << " is valid: " << config.grid.width << "x" << config.grid.height
-            << " grid";
+        ValidateConfig(config, path.parent_path());
+        const SurfaceGrid grid = DescribeSurface(config.surface, path.parent_path());
+        out << path.string() << " is valid: " << grid.width << "x" << grid.height << " grid of "
+            << grid.PixelSize() << " m cells";
         if (config.craters && config.craters->generate) {
             const CraterModels models = BuildCraterModels(*config.craters);
-            const Bounds2d bounds = GridBounds(config.grid);
-            const double area = (bounds.maxX - bounds.minX) * (bounds.maxY - bounds.minY);
+            const double area = grid.Area();
             const double expected = models.density->ExpectedCount(area, config.craters->minDiameter,
                                                                   config.craters->maxDiameter);
             out << ", about " << static_cast<long long>(expected)
@@ -134,7 +135,8 @@ std::string Usage() {
            "  terraingen --version   Show version and build information\n"
            "  terraingen --help      Show this message\n"
            "\n"
-           "Relative output paths resolve against DIR, or the folder holding CONFIG.\n"
+           "Relative input paths resolve against the folder holding CONFIG; relative output\n"
+           "paths against DIR, or that folder.\n"
            "LEVEL is trace, debug, info (default), warning, error or off.\n";
 }
 

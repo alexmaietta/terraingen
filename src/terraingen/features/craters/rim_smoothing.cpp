@@ -100,7 +100,7 @@ void SmoothCraterRims(Raster<float>& raster, const CraterList& craters,
         for (std::size_t row = row0; row < row1; ++row) {
             for (std::size_t col = col0; col < col1; ++col) {
                 float& cell = raster(col, row);
-                if (noData && cell == *noData) {
+                if (raster.IsNoData(cell)) {
                     continue;
                 }
                 const Vec2d centre = raster.CellCenter(col, row);

@@ -21,5 +21,6 @@
 #include "terraingen/raster/geo_transform.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/raster/raster_stats.h"
+#include "terraingen/raster/resample.h"
 #include "terraingen/spatial/cells.h"
 #include "terraingen/surfaces/synthetic_terrain.h"

@@ -596,18 +596,28 @@ float SampleAt(const std::uint8_t* p, const GeoTiffInfo& info) {
 
 }  // namespace
 
-bool GeoKeys::PixelIsPoint() const {
+std::optional<std::uint16_t> GeoKeys::ShortKey(std::uint16_t key) const {
     if (directory.size() < 4) {
-        return false;
+        return std::nullopt;
     }
     const std::size_t keys = directory[3];
     for (std::size_t k = 0; k < keys && 4 + 4 * k + 3 < directory.size(); ++k) {
         const std::size_t at = 4 + 4 * k;
-        if (directory[at] == kGtRasterTypeGeoKey && directory[at + 1] == 0) {
-            return directory[at + 3] == kRasterPixelIsPoint;
+        if (directory[at] == key && directory[at + 1] == 0) {
+            return directory[at + 3];
         }
     }
-    return false;
+    return std::nullopt;
+}
+
+bool GeoKeys::PixelIsPoint() const {
+    return ShortKey(kGtRasterTypeGeoKey) == kRasterPixelIsPoint;
+}
+
+bool GeoKeys::IsGeographic() const {
+    constexpr std::uint16_t kGtModelTypeGeoKey = 1024;
+    constexpr std::uint16_t kModelTypeGeographic = 2;
+    return ShortKey(kGtModelTypeGeoKey) == kModelTypeGeographic;
 }
 
 GeoTiffInfo ReadGeoTiffInfo(const std::filesystem::path& path) {
