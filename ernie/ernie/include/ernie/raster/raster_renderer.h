@@ -236,7 +236,6 @@ class RasterRenderer {
     SpectralBands bands_;
     std::vector<SensorFilter> filters_;
     VkExtent2D extent_{0, 0};
-    std::uint32_t frameIndex_ = 0;
 };
 
 }  // namespace ernie

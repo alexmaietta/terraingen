@@ -256,23 +256,10 @@ float lightVisibility(LightGpu light, float3 world, float3 n, float nDotL, float
 // Radiance factors of the active model for three bands at once: the bands' albedos go in the RGB
 // slots of BrdfInput, which models treat independently.
 float3 radianceFactors(float3 n, float3 l, float3 v, float3 albedo, BrdfParams params) {
-    let mu0 = dot(n, l);
-    if (mu0 <= 0.0) {
+    let input = brdfInputOf(n, l, v, albedo);
+    if (input.mu0 <= 0.0) {
         return float3(0.0);
     }
-    let mu = dot(n, v);
-    let lPlane = l - n * mu0;
-    let vPlane = v - n * mu;
-    var cosPsi = 1.0;
-    if (length(lPlane) > 1e-5 && length(vPlane) > 1e-5) {
-        cosPsi = dot(normalize(lPlane), normalize(vPlane));
-    }
-    BrdfInput input;
-    input.mu0 = mu0;
-    input.mu = max(mu, 1e-3);
-    input.cosG = dot(l, v);
-    input.cosPsi = cosPsi;
-    input.albedo = albedo;
     ActiveBrdf model;
     return max(model.radianceFactor(input, params), float3(0.0));
 }

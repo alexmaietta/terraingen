@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ernie/gpu/gpu_image.h"
 #include "ernie/interop/cuda_interop.h"
 #include "ernie/interop/tensor.h"
 #include "ernie/scene/path.h"
@@ -9,11 +10,12 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace ernie {
 
-/// Where `RenderVar::Map` delivers an output, as ovrtx's `Device`.
+/// Where `RenderVar::Map` delivers an output.
 enum class MapDevice {
     Cpu,        ///< A host tensor; the texels are copied to the host.
     Cuda,       ///< A linear CUDA tensor; the GPU detiles the image into it, without the host.
@@ -25,6 +27,18 @@ struct MappedRenderVar {
     MapDevice device = MapDevice::Cpu;
     Tensor tensor;
     CudaArrayView array;
+};
+
+/// The images a backend renders one frame of a render product into, by render var name: what
+/// `RenderVar` reads, whatever the backend.
+class FrameImages {
+  public:
+    virtual ~FrameImages() = default;
+
+    virtual VkExtent2D Extent() const = 0;
+
+    /// The image of render var `name`, or null if the frame has none.
+    virtual GpuImage* Var(std::string_view name) = 0;
 };
 
 /// Internal state of one rendered frame of a render product.
@@ -77,6 +91,10 @@ class RenderVar {
     bool IsMapped() const;
 
   private:
+    /// The var's image in the frame.
+    /// @throws std::invalid_argument for an empty var or one the frame lacks.
+    GpuImage& Image() const;
+
     std::shared_ptr<ProductFrame> frame_;
     Path path_;
     std::string name_;
@@ -91,7 +109,7 @@ struct RenderProductOutput {
 /// Outputs of a step by render product path.
 using RenderProductSetOutputs = std::map<Path, RenderProductOutput>;
 
-/// A submitted step, as ovrtx's `Operation`: poll or wait for its GPU work, then fetch its
+/// A submitted step: poll or wait for its GPU work, then fetch its
 /// outputs.
 class StepOperation {
   public:

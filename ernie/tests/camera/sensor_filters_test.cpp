@@ -1,4 +1,4 @@
-#include "ernie/raster/render_targets.h"
+#include "ernie/camera/sensor_filters.h"
 
 #include <gtest/gtest.h>
 
@@ -59,9 +59,8 @@ TEST(SensorFilters, VarsWrittenByFollowTheChain) {
     EXPECT_FALSE(Contains(lens, render_vars::kLdrColor));
 
     const std::vector<std::string_view> all = ernie::VarsWrittenBy(ernie::DefaultFilterChain());
-    EXPECT_EQ(all.size(), ernie::RenderTargets::VarNames().size())
-        << "the default chain writes every var";
-    for (const std::string_view name : ernie::RenderTargets::VarNames()) {
+    EXPECT_EQ(all.size(), ernie::kRenderVarNames.size()) << "the default chain writes every var";
+    for (const std::string_view name : ernie::kRenderVarNames) {
         EXPECT_TRUE(Contains(all, name)) << name;
     }
 }

@@ -1,4 +1,4 @@
-#include "ernie/raster/mesh_part.h"
+#include "ernie/geometry/mesh_data.h"
 
 #include <gtest/gtest.h>
 

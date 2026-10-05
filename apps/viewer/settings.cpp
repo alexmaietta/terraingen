@@ -285,6 +285,23 @@ void AuthorTerrain(ernie::Scene& scene, std::shared_ptr<const Raster<float>> ras
     }
 }
 
+std::optional<std::pair<glm::vec3, glm::vec3>>
+TerrainBounds(const Raster<float>& raster, const RasterStats& stats, float exaggeration) {
+    if (stats.validCount == 0) {
+        return std::nullopt;
+    }
+    const ernie::RasterView view = ViewOf(raster);
+    const double half = 0.5 * view.cellSize;
+    const glm::vec3 a(static_cast<float>(view.originX + half),
+                      static_cast<float>(view.originY - half),
+                      static_cast<float>(stats.min) * exaggeration);
+    const glm::vec3 b(
+        static_cast<float>(view.originX + static_cast<double>(view.width) * view.cellSize - half),
+        static_cast<float>(view.originY - static_cast<double>(view.height) * view.cellSize + half),
+        static_cast<float>(stats.max) * exaggeration);
+    return std::pair(glm::min(a, b), glm::max(a, b));
+}
+
 ernie::Tensor TensorOf(std::shared_ptr<const ernie::Image> image) {
     void* data = const_cast<glm::vec4*>(image->pixels.data());
     std::vector<std::int64_t> shape{static_cast<std::int64_t>(image->height),

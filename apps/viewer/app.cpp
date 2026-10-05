@@ -22,6 +22,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -167,7 +168,9 @@ struct App::State {
     std::unique_ptr<ernie::GpuImage> depth;
     std::optional<FrameResources> frame;
     std::optional<ImGuiContext> imgui;
-    std::optional<ernie::RasterDelegate> delegate;
+    std::unique_ptr<ernie::RenderDelegate> delegate;
+    /// The terrain's bounds without exaggeration, once a generation is displayed.
+    std::optional<std::pair<glm::vec3, glm::vec3>> terrainBounds;
     ernie::Scene scene;
     ernie::OrbitController camera;
 
@@ -218,16 +221,18 @@ struct App::State {
         }
     }
 
-    const ernie::TerrainPart& Terrain() const {
-        return delegate->Terrain();
-    }
-
     const ernie::BrdfRegistry& Brdfs() const {
-        return delegate->Renderer().Brdfs();
+        return delegate->Brdfs();
     }
 
-    std::uint64_t GpuBytes() const {
-        return delegate->Renderer().GpuBytes() + Terrain().GpuBytes();
+    /// The delegate's backend-specific count `name`, or 0.
+    static std::uint64_t Counter(const ernie::RenderStats& stats, std::string_view name) {
+        for (const auto& [counter, value] : stats.counters) {
+            if (counter == name) {
+                return value;
+            }
+        }
+        return 0;
     }
 
     void Request() {
@@ -254,9 +259,9 @@ struct App::State {
     }
 
     void Frame() {
-        if (Terrain().HasHeightfield()) {
-            const auto [low, high] = Terrain().Bounds(view.exaggeration);
-            camera.Frame(low, high);
+        if (terrainBounds) {
+            const glm::vec3 scale(1.0f, 1.0f, view.exaggeration);
+            camera.Frame(terrainBounds->first * scale, terrainBounds->second * scale);
         }
     }
 
@@ -267,7 +272,13 @@ struct App::State {
             return;
         }
         const Stopwatch upload;
+        std::optional<std::pair<glm::vec3, glm::vec3>> bounds;
+        std::size_t cols = 0;
+        std::size_t rows = 0;
         try {
+            bounds = TerrainBounds(result.raster, result.stats, 1.0f);
+            cols = result.raster.Width();
+            rows = result.raster.Height();
             AuthorTerrain(scene, std::make_shared<const Raster<float>>(std::move(result.raster)));
             delegate->Sync(scene);
         } catch (const std::invalid_argument& error) {
@@ -275,12 +286,13 @@ struct App::State {
             LogWarning("viewer", "Cannot display generation ", result.id, ": ", status.error);
             return;
         }
-        info.width = Terrain().Width();
-        info.height = Terrain().Height();
+        terrainBounds = bounds;
+        info.width = cols;
+        info.height = rows;
         LogInfo("viewer", "Generation ", result.id, " finished in ",
                 FormatDuration(result.milliseconds), "; uploaded ", info.width, "x", info.height,
                 " heightfield in ", FormatDuration(upload.Milliseconds()));
-        info.gpuBytes = GpuBytes();
+        info.gpuBytes = delegate->Stats().gpuBytes;
         info.stats = result.stats;
         info.generationMilliseconds = result.milliseconds;
 
@@ -384,14 +396,15 @@ struct App::State {
 
     void DrawUi() {
         status.generating = worker.Busy();
-        const std::optional<std::uint32_t> surface = delegate->MaterialId(kSurfacePrim);
-        surfacePanel.hasAlbedoMap =
-            surface.has_value() && delegate->Renderer().Material(*surface).HasAlbedoMap();
+        surfacePanel.hasAlbedoMap = scene.Read(kSurfacePrim, ernie::tokens::kAlbedoMap) != nullptr;
+        const ernie::RenderStats stats = delegate->Stats();
         info.gpu = gpu->DeviceName();
-        info.gpuBytes = GpuBytes();
-        info.triangles = Terrain().TriangleCount() + delegate->Meshes().TriangleCount();
-        info.patches = Terrain().PatchCount();
-        info.lodLevels = Terrain().Lod().Levels();
+        info.gpuBytes = stats.gpuBytes;
+        info.triangles = stats.triangles;
+        info.patches =
+            static_cast<std::size_t>(Counter(stats, ernie::raster_stats::kTerrainPatches));
+        info.lodLevels =
+            static_cast<std::uint32_t>(Counter(stats, ernie::raster_stats::kTerrainLodLevels));
         if (!uiVisible) {
             return;
         }
@@ -492,7 +505,7 @@ App::App(const AppOptions& options) : state_(std::make_unique<State>()) {
     s.CreateDepth();
     s.frame.emplace(*s.gpu);
     s.imgui.emplace(window, *s.gpu, *s.swapchain);
-    s.delegate.emplace(*s.gpu, s.swapchain->Format());
+    s.delegate = ernie::CreateRenderDelegate("raster", *s.gpu, s.swapchain->Format());
     s.ApplyOptions();
     s.Request();
 }

@@ -26,6 +26,9 @@ def instancer_scene(positions):
         tokens.PROTOTYPES, [ernie.Path("/World/Rocks/Rock")]
     ).set(tokens.EXTENT, [-15.0, -15.0, -1.0, 15.0, 15.0, 1.0])
     quad(scene, "/World/Rocks/Rock", 1.5).set(tokens.DISPLAY_COLOR, (0.0, 1.0, 0.0))
+    scene.define("/World/Sun", tokens.DISTANT_LIGHT).set(
+        tokens.TRANSFORM, ernie.distant_light_transform((0.0, 0.0, 1.0))
+    )
     return scene
 
 

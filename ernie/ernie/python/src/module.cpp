@@ -5,4 +5,7 @@ NB_MODULE(_ernie, m) {
     ernie::python::BindTensor(m);
     ernie::python::BindScene(m);
     ernie::python::BindRender(m);
+#ifdef ERNIE_HAS_GUI
+    ernie::python::BindGui(m);
+#endif
 }

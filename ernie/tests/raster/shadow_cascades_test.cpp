@@ -1,13 +1,17 @@
 #include "ernie/camera/orbit_controller.h"
+#include "ernie/raster/raster_renderer.h"
 #include "ernie/raster/shadow_cascades.h"
 
 #include <glm/glm.hpp>
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <vector>
 
 using ernie::CameraView;
 using ernie::FitCascades;
+using ernie::Light;
+using ernie::LightType;
 using ernie::OrbitController;
 using ernie::PracticalSplits;
 using ernie::ShadowCascade;
@@ -25,6 +29,16 @@ CameraView TestCamera() {
     camera.yaw = 0.4f;
     camera.pitch = 0.5f;
     return camera.MakeCamera(8, 5).RasterView();
+}
+
+/// Whether `p` lies inside the clip volume of `view`.
+bool Sees(const ShadowCascade& view, const glm::vec3& p) {
+    const glm::vec4 clip = view.lightViewProjection * glm::vec4(p, 1.0f);
+    if (clip.w <= 0.0f) {
+        return false;
+    }
+    const glm::vec3 ndc = glm::vec3(clip) / clip.w;
+    return std::abs(ndc.x) <= 1.0f && std::abs(ndc.y) <= 1.0f && ndc.z >= 0.0f && ndc.z <= 1.0f;
 }
 
 glm::vec3 Project(const glm::mat4& m, const glm::vec3& p) {
@@ -122,4 +136,43 @@ TEST(FitCascades, HandlesAnOverheadSun) {
     const glm::vec3 ndc = Project(cascades[0].lightViewProjection, glm::vec3(0.0f, 0.0f, 40.0f));
     EXPECT_TRUE(std::isfinite(ndc.x));
     EXPECT_GE(ndc.z, 0.0f);
+}
+
+TEST(FitLightShadowViews, CoversTheSceneFromEachKindOfLight) {
+    const glm::vec3 low(-10.0f, -10.0f, 0.0f);
+    const glm::vec3 high(10.0f, 10.0f, 2.0f);
+    Light distant;
+    distant.type = LightType::Distant;
+    distant.direction = glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f));
+    const std::vector<ShadowCascade> ortho = ernie::FitLightShadowViews(distant, low, high, 512);
+    ASSERT_EQ(ortho.size(), 1u);
+    for (int i = 0; i < 8; ++i) {
+        const glm::vec3 corner((i & 1) ? high.x : low.x, (i & 2) ? high.y : low.y,
+                               (i & 4) ? high.z : low.z);
+        EXPECT_TRUE(Sees(ortho[0], corner)) << "corner " << i;
+    }
+    EXPECT_NEAR(ortho[0].texelWorldSize, glm::length(high - low) / 512.0f, 1e-4f);
+
+    Light spot;
+    spot.position = glm::vec3(0.0f, 0.0f, 10.0f);
+    spot.direction = glm::vec3(0.0f, 0.0f, -1.0f);
+    spot.coneAngle = 30.0f;
+    const std::vector<ShadowCascade> one = ernie::FitLightShadowViews(spot, low, high, 512);
+    ASSERT_EQ(one.size(), 1u);
+    EXPECT_TRUE(Sees(one[0], {0.0f, 0.0f, 0.0f}));
+    EXPECT_TRUE(Sees(one[0], {5.0f, 0.0f, 0.0f})) << "inside the 30 degree cone";
+    EXPECT_FALSE(Sees(one[0], {9.0f, 0.0f, 0.0f})) << "outside it";
+    EXPECT_NEAR(one[0].texelWorldSize, 2.0f * std::tan(glm::radians(30.0f)) / 512.0f, 1e-6f);
+
+    spot.coneAngle = 180.0f;
+    const std::vector<ShadowCascade> cube = ernie::FitLightShadowViews(spot, low, high, 512);
+    ASSERT_EQ(cube.size(), 6u);
+    const glm::vec3 axes[] = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
+    for (std::size_t face = 0; face < 6; ++face) {
+        EXPECT_TRUE(Sees(cube[face], spot.position + 5.0f * axes[face])) << "face " << face;
+        EXPECT_FALSE(Sees(cube[face], spot.position - 5.0f * axes[face])) << "face " << face;
+    }
+
+    spot.shadows = false;
+    EXPECT_TRUE(ernie::FitLightShadowViews(spot, low, high, 512).empty());
 }

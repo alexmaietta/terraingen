@@ -30,6 +30,10 @@ struct BrdfParam {
 /// Parameter `i`, in the order of `params`, is `p.get(i)`.
 /// `BrdfInput` carries cos(i), cos(e), cos(g), the cosine of the azimuth between the incidence and
 /// emission planes, and an rgb albedo input whose meaning each model documents.
+///
+/// A model only defines `radianceFactor`; every render backend evaluates and samples it through the
+/// generic helpers of the `brdf` module (`evaluateBrdf`, `sampleBrdf`, `brdfPdf`), so a model works
+/// unchanged in the rasterizer and in ray and path tracers.
 struct BrdfModel {
     std::string id;    ///< Stable identifier used in settings, e.g. "hapke".
     std::string name;  ///< Display name.
@@ -57,7 +61,7 @@ class BrdfRegistry {
     static BrdfRegistry WithBuiltins();
 
     /// Adds `model`. Its shader source is only checked superficially here; it is compiled when a
-    /// renderer first uses it (`TerrainRenderer::AddBrdf` compiles eagerly).
+    /// renderer first uses it (`RasterRenderer::AddBrdf` compiles eagerly).
     /// @throws std::invalid_argument if the id is empty, not an identifier or taken, there are more
     /// than `kMaxParams` parameters, a parameter's range is empty or excludes its default, or its
     /// Slang source is empty or does not mention `typeName`.
@@ -74,7 +78,16 @@ class BrdfRegistry {
     std::vector<BrdfModel> models_;
 };
 
-/// The shared Slang module `brdf`: `BrdfInput`, `BrdfParams`, `IBrdf`, `PI` and phase functions.
+/// The shared Slang module `brdf`: `BrdfInput`, `BrdfParams`, `IBrdf`, `PI`, phase functions, and
+/// the backend-neutral helpers:
+/// - `brdfInputOf(n, l, v, albedo)`: the `BrdfInput` of unit light and view directions about a
+///   normal, in any frame;
+/// - `evaluateBrdf(model, n, l, v, albedo, p)`: f_r cos(i), `radianceFactor / pi`, the radiance
+///   reflected towards v per unit radiance from l per steradian;
+/// - `sampleBrdf(model, n, v, albedo, p, u)`: a cosine-weighted incident direction with its
+///   density and weight (evaluation over density) from uniform `u` in [0, 1)^2;
+/// - `brdfPdf(n, l)`: that density, for multiple importance sampling;
+/// - `cosineHemisphere` and `orthonormalBasis`, the sampling building blocks.
 std::string_view BrdfSlang();
 
 /// Slang modules to compile before a shader that uses `model`: `brdf`, then the model's module,

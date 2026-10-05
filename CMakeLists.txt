@@ -65,13 +65,12 @@ if(TERRAINGEN_BUILD_PYTHON)
     include("${PROJECT_SOURCE_DIR}/cmake/third_party/nanobind.cmake")
 endif()
 
-# The viewer renders with Ernie, the Vulkan renderer in ernie/; Ernie's Python module comes with
-# TerrainGen's.
+# The viewer renders with Ernie, the Vulkan renderer in ernie/, whose GUI brings GLFW and Dear
+# ImGui; Ernie's Python module comes with TerrainGen's.
 if(TERRAINGEN_BUILD_VIEWER)
     set(ERNIE_BUILD_PYTHON ${TERRAINGEN_BUILD_PYTHON})
+    set(ERNIE_BUILD_GUI ON)
     add_subdirectory(ernie)
-    include("${PROJECT_SOURCE_DIR}/cmake/third_party/glfw.cmake")
-    include("${PROJECT_SOURCE_DIR}/cmake/third_party/dear_imgui.cmake")
 endif()
 
 add_subdirectory(src)

@@ -13,7 +13,7 @@ render it::
         tokens.CELL_SIZE, 2.0)
     scene.define("/World/Camera", tokens.CAMERA).set(
         tokens.TRANSFORM, ernie.look_at_transform((0, -500, 300), (0, 0, 0)))
-    image = ernie.RasterRenderer().render(scene)  # uint8 (rows, cols, 4)
+    image = ernie.Renderer().render(scene)  # uint8 (rows, cols, 4)
 
 Attribute values map from Python as follows:
 
@@ -30,7 +30,7 @@ read() are read-only views. Write again after changing an array in place, so the
 tracked. CUDA arrays are copied into Ernie's GPU buffers device to device, ordered on the GPU
 after the work that produced them.
 
-Rendering follows ovrtx: renderer.step(scene, render_products={"/Render/Camera"}) returns the
+Rendering is by steps: renderer.step(scene, render_products={"/Render/Camera"}) returns the
 outputs by product, and product.frames[0].render_vars["/Render/Camera/LdrColor"].map(device=...)
 delivers each output to Device.CPU, Device.CUDA (linear, filled on the GPU) or Device.CUDA_ARRAY
 (the rendered image itself, no copy); unmap() hands a CUDA_ARRAY back. step_async() returns an
@@ -57,7 +57,7 @@ from ._ernie import (
     Operation,
     Path,
     Prim,
-    RasterRenderer,
+    Renderer,
     RenderProductOutput,
     RenderVar,
     Scene,
@@ -78,7 +78,7 @@ __all__ = [
     "Operation",
     "Path",
     "Prim",
-    "RasterRenderer",
+    "Renderer",
     "RenderProductOutput",
     "RenderVar",
     "Scene",

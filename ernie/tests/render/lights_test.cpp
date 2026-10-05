@@ -1,4 +1,4 @@
-#include "ernie/raster/raster_delegate.h"
+#include "ernie/render/resolve.h"
 #include "ernie/scene/schema.h"
 #include "ernie/scene/tokens.h"
 
@@ -14,7 +14,6 @@ using ernie::Light;
 using ernie::LightType;
 using ernie::Path;
 using ernie::Scene;
-using ernie::ShadowCascade;
 namespace tokens = ernie::tokens;
 
 namespace {
@@ -25,16 +24,6 @@ double LuminanceIntegral() {
         sum += ernie::CieXyz(w).y;
     }
     return sum;
-}
-
-/// Whether `p` lies inside the clip volume of `view`.
-bool Sees(const ShadowCascade& view, const glm::vec3& p) {
-    const glm::vec4 clip = view.lightViewProjection * glm::vec4(p, 1.0f);
-    if (clip.w <= 0.0f) {
-        return false;
-    }
-    const glm::vec3 ndc = glm::vec3(clip) / clip.w;
-    return std::abs(ndc.x) <= 1.0f && std::abs(ndc.y) <= 1.0f && ndc.z >= 0.0f && ndc.z <= 1.0f;
 }
 
 }  // namespace
@@ -110,7 +99,7 @@ TEST(FrameParamsOf, ResolvesEveryLightAndTheSunsDisk) {
     scene.Define("/World/Camera", tokens::kCamera);
     scene.Define("/World/Lamp", tokens::kSphereLight);
     scene.Define("/World/Off", tokens::kSphereLight).Set(tokens::kVisibility, tokens::kInvisible);
-    ernie::RasterPrims prims = ernie::ResolveRasterPrims(scene, {});
+    ernie::RenderPrims prims = ernie::ResolveRenderPrims(scene, {});
     EXPECT_EQ(prims.light, Path());
     EXPECT_EQ(prims.lights, std::vector<Path>{"/World/Lamp"});
     ernie::FrameParams frame = ernie::FrameParamsOf(scene, prims, 8, 8);
@@ -119,7 +108,7 @@ TEST(FrameParamsOf, ResolvesEveryLightAndTheSunsDisk) {
 
     scene.Define("/World/Sun", tokens::kDistantLight).Set(tokens::kAngle, 2.0f);
     scene.Define("/World/Earth", tokens::kDistantLight);
-    prims = ernie::ResolveRasterPrims(scene, {});
+    prims = ernie::ResolveRenderPrims(scene, {});
     EXPECT_EQ(prims.light, Path("/World/Earth")) << "the first distant light is the sun";
     EXPECT_EQ(prims.lights, (std::vector<Path>{"/World/Lamp", "/World/Sun"}));
     frame = ernie::FrameParamsOf(scene, prims, 8, 8);
@@ -129,73 +118,6 @@ TEST(FrameParamsOf, ResolvesEveryLightAndTheSunsDisk) {
     scene.Set("/World/Earth", tokens::kAngle, 2.0f);
     EXPECT_EQ(ernie::FrameParamsOf(scene, prims, 8, 8).sunAngle, 2.0f);
 }
-
-TEST(FitLightShadowViews, CoversTheSceneFromEachKindOfLight) {
-    const glm::vec3 low(-10.0f, -10.0f, 0.0f);
-    const glm::vec3 high(10.0f, 10.0f, 2.0f);
-    Light distant;
-    distant.type = LightType::Distant;
-    distant.direction = glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f));
-    const std::vector<ShadowCascade> ortho = ernie::FitLightShadowViews(distant, low, high, 512);
-    ASSERT_EQ(ortho.size(), 1u);
-    for (int i = 0; i < 8; ++i) {
-        const glm::vec3 corner((i & 1) ? high.x : low.x, (i & 2) ? high.y : low.y,
-                               (i & 4) ? high.z : low.z);
-        EXPECT_TRUE(Sees(ortho[0], corner)) << "corner " << i;
-    }
-    EXPECT_NEAR(ortho[0].texelWorldSize, glm::length(high - low) / 512.0f, 1e-4f);
-
-    Light spot;
-    spot.position = glm::vec3(0.0f, 0.0f, 10.0f);
-    spot.direction = glm::vec3(0.0f, 0.0f, -1.0f);
-    spot.coneAngle = 30.0f;
-    const std::vector<ShadowCascade> one = ernie::FitLightShadowViews(spot, low, high, 512);
-    ASSERT_EQ(one.size(), 1u);
-    EXPECT_TRUE(Sees(one[0], {0.0f, 0.0f, 0.0f}));
-    EXPECT_TRUE(Sees(one[0], {5.0f, 0.0f, 0.0f})) << "inside the 30 degree cone";
-    EXPECT_FALSE(Sees(one[0], {9.0f, 0.0f, 0.0f})) << "outside it";
-    EXPECT_NEAR(one[0].texelWorldSize, 2.0f * std::tan(glm::radians(30.0f)) / 512.0f, 1e-6f);
-
-    spot.coneAngle = 180.0f;
-    const std::vector<ShadowCascade> cube = ernie::FitLightShadowViews(spot, low, high, 512);
-    ASSERT_EQ(cube.size(), 6u);
-    const glm::vec3 axes[] = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
-    for (std::size_t face = 0; face < 6; ++face) {
-        EXPECT_TRUE(Sees(cube[face], spot.position + 5.0f * axes[face])) << "face " << face;
-        EXPECT_FALSE(Sees(cube[face], spot.position - 5.0f * axes[face])) << "face " << face;
-    }
-
-    spot.shadows = false;
-    EXPECT_TRUE(ernie::FitLightShadowViews(spot, low, high, 512).empty());
-}
-
-namespace {
-
-/// The irradiance factor of `sh` at unit normal `n`.
-glm::vec3 Evaluate(const std::array<glm::vec3, 9>& sh, const glm::vec3& n) {
-    const float basis[9] = {0.282095f,
-                            0.488603f * n.y,
-                            0.488603f * n.z,
-                            0.488603f * n.x,
-                            1.092548f * n.x * n.y,
-                            1.092548f * n.y * n.z,
-                            0.315392f * (3.0f * n.z * n.z - 1.0f),
-                            1.092548f * n.x * n.z,
-                            0.546274f * (n.x * n.x - n.y * n.y)};
-    glm::vec3 sum(0.0f);
-    for (int k = 0; k < 9; ++k) {
-        sum += sh[k] * basis[k];
-    }
-    return sum;
-}
-
-ernie::Tensor UpperHemisphere(std::int64_t rows, std::int64_t cols) {
-    std::vector<float> map(static_cast<std::size_t>(rows * cols * 4), 0.0f);
-    std::fill(map.begin(), map.begin() + static_cast<std::ptrdiff_t>(map.size() / 2), 1.0f);
-    return ernie::Tensor::Copy<float>(map, {rows, cols, 4});
-}
-
-}  // namespace
 
 TEST(LightOf, RectAndDiskLightsTakeTheirSizeAndRadiance) {
     Scene scene;
@@ -227,6 +149,34 @@ TEST(LightOf, RectAndDiskLightsTakeTheirSizeAndRadiance) {
     EXPECT_THROW(ernie::LightOf(scene, "/Disk", bands), std::invalid_argument);
 }
 
+namespace {
+
+/// The irradiance factor of `sh` at unit normal `n`.
+glm::vec3 Evaluate(const std::array<glm::vec3, 9>& sh, const glm::vec3& n) {
+    const float basis[9] = {0.282095f,
+                            0.488603f * n.y,
+                            0.488603f * n.z,
+                            0.488603f * n.x,
+                            1.092548f * n.x * n.y,
+                            1.092548f * n.y * n.z,
+                            0.315392f * (3.0f * n.z * n.z - 1.0f),
+                            1.092548f * n.x * n.z,
+                            0.546274f * (n.x * n.x - n.y * n.y)};
+    glm::vec3 sum(0.0f);
+    for (int k = 0; k < 9; ++k) {
+        sum += sh[k] * basis[k];
+    }
+    return sum;
+}
+
+ernie::Tensor UpperHemisphere(std::int64_t rows, std::int64_t cols) {
+    std::vector<float> map(static_cast<std::size_t>(rows * cols * 4), 0.0f);
+    std::fill(map.begin(), map.begin() + static_cast<std::ptrdiff_t>(map.size() / 2), 1.0f);
+    return ernie::Tensor::Copy<float>(map, {rows, cols, 4});
+}
+
+}  // namespace
+
 TEST(DomeIrradianceSh, ProjectsUniformAndHemisphericalMaps) {
     std::vector<float> ones(32 * 64 * 3, 1.0f);
     const auto uniform =
@@ -254,7 +204,7 @@ TEST(DomeOf, ResolvesTheDomeAndTurnsOffTheDefaultSun) {
     Scene scene;
     scene.Define("/World/Camera", tokens::kCamera);
     scene.Define("/World/Sky", tokens::kDomeLight).Set(tokens::kIntensity, 2.0);
-    const ernie::RasterPrims prims = ernie::ResolveRasterPrims(scene, {});
+    const ernie::RenderPrims prims = ernie::ResolveRenderPrims(scene, {});
     EXPECT_EQ(prims.dome, Path("/World/Sky"));
     const ernie::FrameParams frame = ernie::FrameParamsOf(scene, prims, 8, 8);
     EXPECT_FALSE(frame.sun);

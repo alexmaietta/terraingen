@@ -1,7 +1,7 @@
 #include "bindings.h"
 
 #include "ernie/gpu/vulkan_context.h"
-#include "ernie/raster/raster_delegate.h"
+#include "ernie/render/render_delegate.h"
 
 #include <nanobind/stl/map.h>
 #include <nanobind/stl/optional.h>
@@ -28,14 +28,14 @@ std::unique_ptr<VulkanContext> CreateContext(bool validation, const std::string&
     return VulkanContext::Create(options);
 }
 
-/// A Vulkan context and the rasterizer delegate drawing with it, destroyed in reverse order.
-struct RasterRenderer {
+/// A Vulkan context and a render delegate drawing with it, destroyed in reverse order.
+struct Renderer {
     std::unique_ptr<VulkanContext> context;
-    std::unique_ptr<RasterDelegate> delegate;
+    std::unique_ptr<RenderDelegate> delegate;
 
-    RasterRenderer(bool validation, const std::string& device)
+    Renderer(const std::string& backend, bool validation, const std::string& device)
         : context(CreateContext(validation, device)),
-          delegate(std::make_unique<RasterDelegate>(*context)) {}
+          delegate(CreateRenderDelegate(backend, *context)) {}
 };
 
 Device ParseDevice(const std::string& device) {
@@ -111,7 +111,7 @@ struct PyCudaArrayMapping {
     PyRenderVar var;
 };
 
-/// One frame of a render product, as ovrtx's: its render vars by path.
+/// One frame of a render product: its render vars by path.
 struct PyFrame {
     std::map<std::string, PyRenderVar> renderVars;
 };
@@ -140,7 +140,7 @@ PyOutputs Wrap(const RenderProductSetOutputs& outputs, nb::handle renderer) {
     return wrapped;
 }
 
-/// A submitted step, as ovrtx's `Operation`.
+/// A submitted step.
 struct PyOperation {
     std::optional<StepOperation> operation;
     nb::object renderer;
@@ -179,7 +179,7 @@ struct PyBinding {
     nb::object renderer;
 };
 
-CudaInterop& RequireCuda(RasterRenderer& r) {
+CudaInterop& RequireCuda(Renderer& r) {
     std::string why;
     CudaInterop* cuda = r.delegate->Cuda(&why);
     if (cuda == nullptr) {
@@ -216,7 +216,7 @@ void BindRender(nb::module_& m) {
             return nb::tuple(shape);
         });
 
-    nb::enum_<MapDevice>(m, "Device", "Where RenderVar.map delivers an output, as ovrtx's Device.")
+    nb::enum_<MapDevice>(m, "Device", "Where RenderVar.map delivers an output.")
         .value("CPU", MapDevice::Cpu, "A NumPy array; the texels are copied to the host.")
         .value("CUDA", MapDevice::Cuda,
                "A linear CUDA array the GPU fills from the render, without the host.")
@@ -297,8 +297,7 @@ void BindRender(nb::module_& m) {
         .def_ro("product", &PyProductOutput::product)
         .def_ro("frames", &PyProductOutput::frames);
 
-    nb::class_<PyOperation>(m, "Operation",
-                            "A submitted step, as ovrtx's Operation: wait or poll, then fetch.")
+    nb::class_<PyOperation>(m, "Operation", "A submitted step: wait or poll, then fetch.")
         .def(
             "wait",
             [](nb::handle self, std::optional<std::int64_t> timeoutNs) -> nb::object {
@@ -356,37 +355,54 @@ void BindRender(nb::module_& m) {
             nb::arg("stream").none() = nb::none(),
             "Ends the mapping; later steps wait on the GPU for the work queued on `stream`.");
 
-    nb::class_<RasterRenderer>(
-        m, "RasterRenderer",
-        "Ernie's rasterizer: renders a Scene's terrain, material, light, camera and render "
-        "settings on a Vulkan device.")
-        .def(nb::init<bool, const std::string&>(), nb::arg("validation") = false,
-             nb::arg("device") = "",
+    nb::class_<Renderer>(
+        m, "Renderer",
+        "Renders a Scene's terrain, meshes, materials, lights, cameras and render settings on a "
+        "Vulkan device, with one of Ernie's render backends.")
+        .def(nb::init<const std::string&, bool, const std::string&>(),
+             nb::arg("backend") = "raster", nb::arg("validation") = false, nb::arg("device") = "",
              "Creates a Vulkan device, preferring one whose name contains `device`, with the "
-             "validation layer when `validation` is set and it is installed. Raises RuntimeError "
-             "without a Vulkan device.")
-        .def_prop_ro("device_name", [](const RasterRenderer& r) { return r.context->DeviceName(); })
+             "validation layer when `validation` is set and it is installed, and the render "
+             "`backend` (see `backends`) on it. Raises RuntimeError without a Vulkan device and "
+             "ValueError for an unknown backend.")
+        .def_static("backends", &RenderBackends, "The names of the render backends.")
+        .def_prop_ro("backend", [](const Renderer& r) { return r.delegate->Info().name; })
+        .def_prop_ro(
+            "progressive", [](const Renderer& r) { return r.delegate->Info().progressive; },
+            "Whether consecutive steps of an unchanged scene refine one image.")
+        .def_prop_ro("device_name", [](const Renderer& r) { return r.context->DeviceName(); })
         .def_prop_ro("brdfs",
-                     [](const RasterRenderer& r) {
+                     [](const Renderer& r) {
                          std::vector<std::string> ids;
-                         for (const BrdfModel& model : r.delegate->Renderer().Brdfs().Models()) {
+                         for (const BrdfModel& model : r.delegate->Brdfs().Models()) {
                              ids.push_back(model.id);
                          }
                          return ids;
                      })
+        .def_prop_ro(
+            "stats",
+            [](const Renderer& r) {
+                const RenderStats stats = r.delegate->Stats();
+                nb::dict result;
+                result["gpu_bytes"] = stats.gpuBytes;
+                result["triangles"] = stats.triangles;
+                for (const auto& [name, value] : stats.counters) {
+                    result[nb::str(name.c_str())] = value;
+                }
+                return result;
+            },
+            "GPU memory, triangles and the backend's own counts, by name.")
         .def(
             "sync",
-            [](RasterRenderer& r, const Scene& scene) {
+            [](Renderer& r, const Scene& scene) {
                 nb::gil_scoped_release release;
                 r.delegate->Sync(scene);
             },
-            nb::arg("scene"),
-            "Uploads the terrain, albedo map and detail textures that changed since the last "
-            "sync.")
+            nb::arg("scene"), "Uploads the parts of the scene that changed since the last sync.")
         .def(
             "render",
-            [](nb::pointer_and_handle<RasterRenderer> self, const Scene& scene,
-               const Path& settings, const std::string& device) {
+            [](nb::pointer_and_handle<Renderer> self, const Scene& scene, const Path& settings,
+               const std::string& device) {
                 const Device target = ParseDevice(device);
                 Tensor image;
                 {
@@ -406,8 +422,8 @@ void BindRender(nb::module_& m) {
             "torch.from_dlpack and friends; it keeps the renderer alive.")
         .def(
             "step_async",
-            [](nb::pointer_and_handle<RasterRenderer> self, const Scene& scene,
-               nb::handle renderProducts, const Path& settings) {
+            [](nb::pointer_and_handle<Renderer> self, const Scene& scene, nb::handle renderProducts,
+               const Path& settings) {
                 const std::vector<Path> products = PathsOf(renderProducts);
                 PyOperation op;
                 op.renderer = nb::borrow(self.h);
@@ -420,11 +436,11 @@ void BindRender(nb::module_& m) {
             nb::arg("scene"), nb::arg("render_products").none() = nb::none(),
             nb::arg("settings") = Path(),
             "Renders the RenderProduct prims `render_products` (or the settings' products, or a "
-            "default one) and returns an Operation at once, as ovrtx's step_async.")
+            "default one) and returns an Operation at once.")
         .def(
             "step",
-            [](nb::pointer_and_handle<RasterRenderer> self, const Scene& scene,
-               nb::handle renderProducts, const Path& settings) {
+            [](nb::pointer_and_handle<Renderer> self, const Scene& scene, nb::handle renderProducts,
+               const Path& settings) {
                 const std::vector<Path> products = PathsOf(renderProducts);
                 RenderProductSetOutputs outputs;
                 {
@@ -439,7 +455,7 @@ void BindRender(nb::module_& m) {
             ".frames[0].render_vars by RenderVar path.")
         .def(
             "bind",
-            [](nb::pointer_and_handle<RasterRenderer> self, const Scene& scene, const Path& path,
+            [](nb::pointer_and_handle<Renderer> self, const Scene& scene, const Path& path,
                std::string_view attribute) {
                 PyBinding binding;
                 binding.renderer = nb::borrow(self.h);
@@ -451,7 +467,7 @@ void BindRender(nb::module_& m) {
             "CUDA to write in place, without copies.")
         .def(
             "cuda_copy",
-            [](RasterRenderer& r, const AnyArray& source, const AnyArray& destination,
+            [](Renderer& r, const AnyArray& source, const AnyArray& destination,
                nb::handle stream) {
                 RequireCuda(r).Copy(TensorFromArray(source), TensorFromArray(destination),
                                     StreamOf(stream));
@@ -459,11 +475,11 @@ void BindRender(nb::module_& m) {
             nb::arg("source"), nb::arg("destination"), nb::arg("stream").none() = nb::none(),
             "Queues a device-to-device copy between CUDA arrays of the same size on `stream`.")
         .def_prop_ro(
-            "cuda_available", [](RasterRenderer& r) { return r.delegate->Cuda() != nullptr; },
+            "cuda_available", [](Renderer& r) { return r.delegate->Cuda() != nullptr; },
             "Whether CUDA arrays can be written to scenes this renderer draws, and rendered to.")
         .def(
             "cuda_upload",
-            [](nb::pointer_and_handle<RasterRenderer> self, const AnyArray& array) {
+            [](nb::pointer_and_handle<Renderer> self, const AnyArray& array) {
                 return ArrayFromTensor(
                     KeepingAlive(RequireCuda(*self.p).Upload(TensorFromArray(array)), self.h));
             },
@@ -472,19 +488,18 @@ void BindRender(nb::module_& m) {
             "own.")
         .def(
             "cuda_download",
-            [](RasterRenderer& r, const AnyArray& array) {
+            [](Renderer& r, const AnyArray& array) {
                 return ArrayFromTensor(RequireCuda(r).Download(TensorFromArray(array)));
             },
             nb::arg("array"), "A host copy of a CUDA array.")
         .def(
-            "prim_path",
-            [](RasterRenderer& r, std::uint32_t id) { return r.delegate->PrimPath(id); },
+            "prim_path", [](Renderer& r, std::uint32_t id) { return r.delegate->PrimPath(id); },
             nb::arg("id"),
             "The prim path of a PrimId render var value; the empty path for 0 (background) or an "
             "unknown id.")
         .def(
             "take_validation_messages",
-            [](RasterRenderer& r) { return r.context->TakeValidationMessages(); },
+            [](Renderer& r) { return r.context->TakeValidationMessages(); },
             "Vulkan validation messages since the last call.");
 }
 

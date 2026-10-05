@@ -1,4 +1,4 @@
-#include "ernie/raster/render_outputs.h"
+#include "ernie/render/render_outputs.h"
 
 #include "product_frame.h"
 
@@ -72,11 +72,11 @@ void RecordCopy(VkCommandBuffer commands, GpuImage& image, GpuBuffer& buffer) {
 }  // namespace
 
 std::uint32_t RenderVar::Width() const {
-    return frame_->targets->Extent().width;
+    return frame_->images->Extent().width;
 }
 
 std::uint32_t RenderVar::Height() const {
-    return frame_->targets->Extent().height;
+    return frame_->images->Extent().height;
 }
 
 bool RenderVar::IsMapped() const {
@@ -84,11 +84,22 @@ bool RenderVar::IsMapped() const {
 }
 
 std::vector<std::int64_t> RenderVar::Shape() const {
-    return ShapeOf(*frame_->targets->Var(name_));
+    return ShapeOf(Image());
 }
 
 DType RenderVar::Type() const {
-    return LayoutOf(frame_->targets->Var(name_)->Desc().format).type;
+    return LayoutOf(Image().Desc().format).type;
+}
+
+GpuImage& RenderVar::Image() const {
+    if (frame_ == nullptr) {
+        throw std::invalid_argument("Empty render var");
+    }
+    GpuImage* image = frame_->images->Var(name_);
+    if (image == nullptr) {
+        throw std::invalid_argument("The frame has no render var " + name_);
+    }
+    return *image;
 }
 
 MappedRenderVar RenderVar::Map(MapDevice device, std::uintptr_t syncStream) {
@@ -96,7 +107,7 @@ MappedRenderVar RenderVar::Map(MapDevice device, std::uintptr_t syncStream) {
         throw std::invalid_argument("RenderVar::Map on an empty render var");
     }
     ProductFrame& frame = *frame_;
-    GpuImage& image = *frame.targets->Var(name_);
+    GpuImage& image = Image();
     const std::vector<std::int64_t> shape = ShapeOf(image);
     const DType type = LayoutOf(image.Desc().format).type;
     const VkDeviceSize bytes = VkDeviceSize{image.Desc().width} * image.Desc().height *

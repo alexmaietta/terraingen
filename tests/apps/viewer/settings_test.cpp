@@ -209,6 +209,22 @@ TEST(ViewOf, RejectsRotatedOrRectangularPixels) {
     EXPECT_THROW(terraingen::viewer::ViewOf(raster), std::invalid_argument) << "south-up";
 }
 
+TEST(TerrainBounds, SpansCellCentresAndTheExaggeratedHeights) {
+    terraingen::Raster<float> raster(3, 2);
+    raster.SetTransform(terraingen::GeoTransform::NorthUp(100.0, 50.0, 2.5));
+    terraingen::RasterStats stats;
+    stats.min = -4.0;
+    stats.max = 6.0;
+    stats.validCount = 6;
+    const auto bounds = terraingen::viewer::TerrainBounds(raster, stats, 2.0f);
+    ASSERT_TRUE(bounds.has_value());
+    EXPECT_EQ(bounds->first, glm::vec3(101.25f, 46.25f, -8.0f));
+    EXPECT_EQ(bounds->second, glm::vec3(106.25f, 48.75f, 12.0f));
+
+    stats.validCount = 0;
+    EXPECT_FALSE(terraingen::viewer::TerrainBounds(raster, stats, 1.0f).has_value());
+}
+
 TEST(AuthorTerrain, WritesHeightsAndGridWithoutCopying) {
     auto raster = std::make_shared<terraingen::Raster<float>>(3, 2);
     raster->SetTransform(terraingen::GeoTransform::NorthUp(100.0, 50.0, 2.5));
@@ -270,8 +286,8 @@ TEST(AuthorView, RoundTripsTheViewThroughErniesDrawParameters) {
 
     ernie::Scene scene;
     terraingen::viewer::AuthorView(scene, view, camera, brdfs);
-    const ernie::RasterPrims prims =
-        ernie::ResolveRasterPrims(scene, terraingen::viewer::kSettingsPrim);
+    const ernie::RenderPrims prims =
+        ernie::ResolveRenderPrims(scene, terraingen::viewer::kSettingsPrim);
     EXPECT_EQ(prims.camera, ernie::Path(terraingen::viewer::kCameraPrim));
     EXPECT_EQ(prims.terrain, ernie::Path(terraingen::viewer::kTerrainPrim));
     EXPECT_EQ(prims.material, ernie::Path(terraingen::viewer::kSurfacePrim));
@@ -322,8 +338,8 @@ TEST(AuthorView, WritesTheCameraExposureBandsAndPhysicalSun) {
     view.camera = {1.0f, 0.01f, 200.0f, 16.0f, 8, true};
     ernie::Scene scene;
     terraingen::viewer::AuthorView(scene, view, ernie::OrbitController{}, brdfs);
-    const ernie::RasterPrims prims =
-        ernie::ResolveRasterPrims(scene, terraingen::viewer::kSettingsPrim);
+    const ernie::RenderPrims prims =
+        ernie::ResolveRenderPrims(scene, terraingen::viewer::kSettingsPrim);
     const ernie::FrameParams frame = ernie::FrameParamsOf(scene, prims, 16, 16);
     EXPECT_EQ(frame.camera.bands.count, 8);
     EXPECT_NEAR(frame.camera.LinearExposureScale(), 0.01 * 2.0 * 2.0 / 256.0, 1e-9);

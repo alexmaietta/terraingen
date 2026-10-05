@@ -62,6 +62,9 @@ def test_renders_meshes_and_point_instancers(renderer):
     scene.define("/Render/Settings", tokens.RENDER_SETTINGS).set(tokens.RESOLUTION, (48, 48)).set(
         tokens.AMBIENT, 0.0
     )
+    scene.define("/World/Sun", tokens.DISTANT_LIGHT).set(
+        tokens.TRANSFORM, ernie.distant_light_transform((0.0, 0.0, 1.0))
+    )
     scene.define("/Looks/Red", tokens.MATERIAL).set(tokens.ALBEDO, (1.0, 0.0, 0.0))
     move = np.eye(4)
     move[0, 3] = -12.0
@@ -135,3 +138,19 @@ def test_primitives_stand_on_a_checkered_ground_plane(renderer):
     assert floor[:, 1].std() > 10, "with a checkerboard"
     assert np.all(image[0, :, :3] == (0, 0, 255)), "sky above the horizon"
     assert renderer.take_validation_messages() == []
+
+
+def test_renderer_reports_its_backend_and_stats(renderer, terrain_scene):
+    assert ernie.Renderer.backends() == ["raster"]
+    assert renderer.backend == "raster"
+    assert not renderer.progressive
+    renderer.render(terrain_scene)
+    stats = renderer.stats
+    assert stats["gpu_bytes"] > 0
+    assert stats["triangles"] > 0
+    assert "terrain patches" in stats
+
+
+def test_unknown_backends_raise(renderer):
+    with pytest.raises(ValueError, match="Unknown render backend 'nope'; available: raster"):
+        ernie.Renderer(backend="nope")

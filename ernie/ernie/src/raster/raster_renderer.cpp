@@ -2,6 +2,7 @@
 
 #include "embedded_shaders.h"
 #include "ernie/raster/poisson_disk.h"
+#include "ernie/render/sampling.h"
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -604,7 +605,6 @@ void RasterRenderer::Update(const FrameParams& params, std::span<RasterPart* con
     }
     WriteShading(params);
     WriteSensor(params);
-    frameIndex_ += 1;
 
     WriteLights(params, bounds);
     shadowViews_ = cascades_;
@@ -756,7 +756,7 @@ void RasterRenderer::WriteSensor(const FrameParams& params) {
     sensor.adc[3] = static_cast<float>(std::exp2(model.adcBits) - 1.0);
     sensor.noise[0] = model.noise ? 1u : 0u;
     sensor.noise[1] = model.seed;
-    sensor.noise[2] = frameIndex_;
+    sensor.noise[2] = FrameSeed(model.seed, params.stream, params.frame);
     sensor.clear[0] = params.clearColor.r;
     sensor.clear[1] = params.clearColor.g;
     sensor.clear[2] = params.clearColor.b;

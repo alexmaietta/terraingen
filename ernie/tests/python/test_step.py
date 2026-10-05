@@ -24,7 +24,7 @@ def product_scene():
     return scene
 
 
-def test_step_follows_ovrtx(renderer):
+def test_step_returns_outputs_by_product(renderer):
     scene = product_scene()
     products = renderer.step(scene, render_products={"/Render/Camera", "/Render/Side"})
     assert set(products) == {"/Render/Camera", "/Render/Side"}

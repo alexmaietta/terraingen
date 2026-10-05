@@ -1,12 +1,14 @@
 #pragma once
 
 /// Everything Ernie offers, in one include: the scene and its tensors, the GPU layer, the
-/// rasterizer and its render delegate. Include the individual headers instead to keep a
-/// translation unit's dependencies narrow, for example `ernie/scene/scene.h` alone needs no Vulkan.
+/// backend-neutral render delegate API and the rasterizer. Include the individual headers instead
+/// to keep a translation unit's dependencies narrow, for example `ernie/scene/scene.h` alone needs
+/// no Vulkan.
 
 // Core: images, rasters, geometry, cameras, materials; no GPU.
 #include "ernie/camera/camera.h"
 #include "ernie/camera/orbit_controller.h"
+#include "ernie/camera/sensor_filters.h"
 #include "ernie/core/image.h"
 #include "ernie/core/raster_view.h"
 #include "ernie/core/shader_source.h"
@@ -15,6 +17,7 @@
 #include "ernie/geometry/mesh_data.h"
 #include "ernie/geometry/primitives.h"
 #include "ernie/material/brdf.h"
+#include "ernie/material/material_settings.h"
 
 // Scene: USD-style prims, values, schema tokens and helpers, and DLPack tensors.
 #include "ernie/interop/tensor.h"
@@ -34,6 +37,14 @@
 #include "ernie/gpu/vulkan_context.h"
 #include "ernie/interop/cuda_interop.h"
 
+// Rendering: the render delegate API every backend implements, scene resolution, render outputs
+// and deterministic sampling.
+#include "ernie/render/frame_params.h"
+#include "ernie/render/render_delegate.h"
+#include "ernie/render/render_outputs.h"
+#include "ernie/render/resolve.h"
+#include "ernie/render/sampling.h"
+
 // Rasterizer: the renderer, its parts and materials, and the scene render delegate.
 #include "ernie/raster/ground_part.h"
 #include "ernie/raster/mesh_part.h"
@@ -42,5 +53,6 @@
 #include "ernie/raster/raster_material.h"
 #include "ernie/raster/raster_part.h"
 #include "ernie/raster/raster_renderer.h"
+#include "ernie/raster/render_targets.h"
 #include "ernie/raster/shadow_cascades.h"
 #include "ernie/raster/terrain_part.h"

@@ -11,6 +11,11 @@
 ///   https://docs.omniverse.nvidia.com/materials-and-rendering/latest/lighting.html
 namespace ernie::tokens {
 
+/// Root of the prims interactive tools define for their own use, such as the GUI viewer's cameras
+/// and lights. Render delegates skip it when falling back to the scene's first RenderSettings or
+/// Camera and when gathering the scene's lights.
+inline constexpr std::string_view kSessionRoot = "/__session";
+
 // Prim types.
 inline constexpr std::string_view kXform = "Xform";
 inline constexpr std::string_view kScope = "Scope";
@@ -178,8 +183,14 @@ inline constexpr std::string_view kDetailHexContrast = "inputs:detail:hexContras
 inline constexpr std::string_view kDetailHexSharpness = "inputs:detail:hexSharpness";
 
 // Render settings (UsdRender), with Ernie's rasterizer options under `ernie:`.
-inline constexpr std::string_view kCameraRel = "camera";         ///< Path of the camera.
-inline constexpr std::string_view kResolution = "resolution";    ///< ivec2 pixels.
+inline constexpr std::string_view kCameraRel = "camera";       ///< Path of the camera.
+inline constexpr std::string_view kResolution = "resolution";  ///< ivec2 pixels.
+/// int: the frame number noise and samples derive from (Ernie); unset counts the images of each
+/// render product a delegate renders.
+inline constexpr std::string_view kFrame = "ernie:frame";
+/// Paths of the lights to render with (Ernie); unset renders with every visible light outside
+/// `kSessionRoot`.
+inline constexpr std::string_view kLightsRel = "ernie:lights";
 inline constexpr std::string_view kProducts = "products";        ///< Paths of RenderProducts.
 inline constexpr std::string_view kOrderedVars = "orderedVars";  ///< Paths of RenderVars.
 /// Sensor filter chain of a RenderProduct (Ernie): paths of SensorFilter prims in order.

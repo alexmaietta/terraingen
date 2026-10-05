@@ -38,7 +38,7 @@ struct SensorUniforms {
     float4 sensor;
     // DSNU (e-), electrons per DN, black level (DN), largest DN.
     float4 adc;
-    // Noise on (1), seed, frame index, unused.
+    // Noise on (1), seed, frame seed (FrameSeed of the seed, stream and frame), unused.
     uint4 noise;
     // Linear display colour of the background in LdrColor.
     float4 clear;
@@ -218,7 +218,7 @@ float poisson(float mean, uint3 seed) {
 }
 
 // Noise: per-pixel fixed patterns (PRNU gain and DSNU offset, from the seed alone) and temporal
-// photon shot noise and read noise (from the seed and frame index), clipped at the full well.
+// photon shot noise and read noise (from the frame seed), clipped at the full well.
 [shader("compute")]
 [numthreads(8, 8, 1)]
 void noiseMain(uint3 id : SV_DispatchThreadID) {

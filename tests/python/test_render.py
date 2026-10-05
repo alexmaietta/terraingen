@@ -92,7 +92,7 @@ def test_sun_and_camera_prims():
 
 def test_renders_a_generated_terrain_headlessly():
     try:
-        renderer = ernie.RasterRenderer()
+        renderer = ernie.Renderer()
     except RuntimeError as error:
         pytest.skip(f"No Vulkan device: {error}")
     raster = make_raster(65, 65)

@@ -8,6 +8,7 @@ project(
 
 option(ERNIE_BUILD_TESTS "Build Ernie's tests" ${PROJECT_IS_TOP_LEVEL})
 option(ERNIE_BUILD_PYTHON "Build Ernie's Python module" OFF)
+option(ERNIE_BUILD_GUI "Build Ernie's GUI viewer (GLFW, Dear ImGui, ImPlot, ImGuizmo, fonts)" OFF)
 
 set(ERNIE_SOURCE_DIR
     "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -104,10 +105,12 @@ add_library(
     ernie_core STATIC
     ernie/src/camera/orbit_controller.cpp
     ernie/src/camera/camera.cpp
+    ernie/src/camera/sensor_filters.cpp
     ernie/src/core/image.cpp
     ernie/src/core/spectrum.cpp
     ernie/src/geometry/frustum.cpp
     ernie/src/geometry/lod_quadtree.cpp
+    ernie/src/geometry/mesh_data.cpp
     ernie/src/geometry/primitives.cpp
     ernie/src/interop/tensor.cpp
     ernie/src/material/brdf.cpp
@@ -143,6 +146,11 @@ if(APPLE)
     target_compile_definitions(ernie_gpu PRIVATE ERNIE_MOLTENVK_PATH="${ERNIE_MOLTENVK_LIBRARY}")
 endif()
 
+add_library(ernie_render STATIC ernie/src/render/render_delegate.cpp
+                                ernie/src/render/render_outputs.cpp ernie/src/render/resolve.cpp)
+ernie_layer(ernie_render)
+target_link_libraries(ernie_render PUBLIC ernie_gpu)
+
 add_library(
     ernie_raster STATIC
     ernie/src/raster/ground_part.cpp
@@ -151,19 +159,33 @@ add_library(
     ernie/src/raster/raster_delegate.cpp
     ernie/src/raster/raster_material.cpp
     ernie/src/raster/raster_renderer.cpp
-    ernie/src/raster/render_outputs.cpp
     ernie/src/raster/render_targets.cpp
     ernie/src/raster/shadow_cascades.cpp
     ernie/src/raster/terrain_part.cpp)
 ernie_layer(ernie_raster)
-target_link_libraries(ernie_raster PUBLIC ernie_gpu)
+target_link_libraries(ernie_raster PUBLIC ernie_render)
+
+# The backends `CreateRenderDelegate` can make.
+add_library(ernie_backends STATIC ernie/src/render/backends.cpp)
+ernie_layer(ernie_backends)
+target_link_libraries(ernie_backends PUBLIC ernie_raster)
 
 add_library(ernie INTERFACE)
-target_link_libraries(ernie INTERFACE ernie_raster)
+target_link_libraries(ernie INTERFACE ernie_backends)
 add_library(Ernie::core ALIAS ernie_core)
 add_library(Ernie::gpu ALIAS ernie_gpu)
+add_library(Ernie::render ALIAS ernie_render)
 add_library(Ernie::raster ALIAS ernie_raster)
 add_library(Ernie::ernie ALIAS ernie)
+
+if(ERNIE_BUILD_GUI)
+    include(cmake/third_party/glfw.cmake)
+    include(cmake/third_party/dear_imgui.cmake)
+    include(cmake/third_party/implot.cmake)
+    include(cmake/third_party/imguizmo.cmake)
+    include(cmake/third_party/gui_fonts.cmake)
+    add_subdirectory(gui)
+endif()
 
 if(ERNIE_BUILD_PYTHON)
     include(cmake/third_party/nanobind.cmake)

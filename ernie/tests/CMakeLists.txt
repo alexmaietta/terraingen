@@ -5,20 +5,23 @@ ernie_add_test_suite(
     SOURCES
     camera/orbit_controller_test.cpp
     camera/camera_test.cpp
+    camera/sensor_filters_test.cpp
     core/image_test.cpp
     core/spectrum_test.cpp
     core/umbrella_test.cpp
     geometry/frustum_test.cpp
     geometry/lod_quadtree_test.cpp
+    geometry/mesh_data_test.cpp
     geometry/primitives_test.cpp
     gpu/shader_compiler_test.cpp
     interop/tensor_test.cpp
     material/brdf_test.cpp
-    raster/mesh_data_test.cpp
     raster/poisson_disk_test.cpp
     raster/raster_delegate_test.cpp
-    raster/lights_test.cpp
-    raster/render_targets_test.cpp
+    render/lights_test.cpp
+    render/render_delegate_test.cpp
+    render/resolve_test.cpp
+    render/sampling_test.cpp
     raster/shadow_cascades_test.cpp
     scene/path_test.cpp
     scene/scene_test.cpp
@@ -63,4 +66,23 @@ if(TARGET _ernie)
             ernie.python.pytest PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/python"
                                            LABELS "gpu;python")
     endif()
+endif()
+
+if(TARGET ernie_gui)
+    ernie_add_test_suite(
+        gui
+        SOURCES
+        gui/panel_test.cpp
+        gui/session_test.cpp
+        gui/theme_test.cpp
+        LIBRARIES
+        ernie_gui_internal)
+    ernie_add_test_suite(
+        gui_gpu
+        SOURCES
+        gui/viewer_gpu_test.cpp
+        LIBRARIES
+        ernie_gui_internal
+        LABELS
+        gpu)
 endif()

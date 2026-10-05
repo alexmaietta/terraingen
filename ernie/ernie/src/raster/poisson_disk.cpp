@@ -1,5 +1,7 @@
 #include "ernie/raster/poisson_disk.h"
 
+#include "ernie/render/sampling.h"
+
 #include <glm/glm.hpp>
 
 #include <cmath>
@@ -9,19 +11,6 @@
 namespace ernie {
 
 namespace {
-
-// pcg3d (Jarzynski and Olano 2020).
-glm::uvec3 Pcg3d(glm::uvec3 v) {
-    v = v * 1664525u + 1013904223u;
-    v.x += v.y * v.z;
-    v.y += v.z * v.x;
-    v.z += v.x * v.y;
-    v ^= v >> 16u;
-    v.x += v.y * v.z;
-    v.y += v.z * v.x;
-    v.z += v.x * v.y;
-    return v;
-}
 
 float UnitFloat(std::uint32_t hash) {
     return static_cast<float>(hash >> 8u) * 0x1p-24f;

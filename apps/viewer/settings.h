@@ -5,6 +5,7 @@
 #include "terraingen/distributions.h"
 #include "terraingen/kernels/layers.h"
 #include "terraingen/raster/raster.h"
+#include "terraingen/raster/raster_stats.h"
 #include "terraingen/surfaces/synthetic_terrain.h"
 
 #include <glm/glm.hpp>
@@ -15,7 +16,9 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -195,6 +198,12 @@ inline constexpr const char* kSettingsPrim = "/Render/Settings";
 /// keeps the raster alive.
 /// @throws std::invalid_argument as `ViewOf`.
 void AuthorTerrain(ernie::Scene& scene, std::shared_ptr<const Raster<float>> raster);
+
+/// World bounds of the terrain Ernie draws from `raster` with heights scaled by `exaggeration`:
+/// the centres of the edge cells in x and y, and the valid heights' range from `stats` in z. None
+/// without valid cells.
+std::optional<std::pair<glm::vec3, glm::vec3>>
+TerrainBounds(const Raster<float>& raster, const RasterStats& stats, float exaggeration);
 
 /// A float32 (rows, cols, 4) tensor of `image`'s linear pixels, sharing and keeping the image.
 ernie::Tensor TensorOf(std::shared_ptr<const ernie::Image> image);

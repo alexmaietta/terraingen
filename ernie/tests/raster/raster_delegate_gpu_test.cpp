@@ -112,6 +112,35 @@ TEST_F(RasterDelegateTest, RendersTheSameImageAsTheRendererDrivenDirectly) {
     EXPECT_GT(terrain, static_cast<int>(kSize * kSize / 4)) << "the terrain covers the view";
 }
 
+TEST_F(RasterDelegateTest, AnUnlitSceneRendersBlackAndChosenLightsLightIt) {
+    const TestRaster raster = RollingTerrain(33, 33, 2.0);
+    Scene scene = TerrainScene(raster);
+    scene.Set("/Render/Settings", tokens::kClearColor, glm::vec3(0.0f));
+    RasterDelegate delegate(*context_);
+    delegate.Sync(scene);
+    ernie::SetCamera(scene, "/World/Camera", FramingCamera(delegate));
+    const auto brightness = [&](const Tensor& image) {
+        const auto* pixels = image.As<std::uint8_t>();
+        long sum = 0;
+        for (std::int64_t i = 0; i < image.Elements(); i += 4) {
+            sum += pixels[i] + pixels[i + 1] + pixels[i + 2];
+        }
+        return sum;
+    };
+    EXPECT_GT(brightness(delegate.Render(scene)), 0);
+
+    scene.Define("/__session/Lights/Head", tokens::kDistantLight)
+        .Set(tokens::kTransform, ernie::DistantLightTransform({0.0, 0.0, 1.0}));
+    scene.Set("/Render/Settings", tokens::kLightsRel, std::vector<Path>{});
+    EXPECT_EQ(brightness(delegate.Render(scene)), 0) << "no chosen lights";
+    scene.Set("/Render/Settings", tokens::kLightsRel, Path("/__session/Lights/Head"));
+    EXPECT_GT(brightness(delegate.Render(scene)), 0) << "lit by the chosen session light";
+
+    scene.Clear("/Render/Settings", tokens::kLightsRel);
+    scene.Remove("/World/Sun");
+    EXPECT_EQ(brightness(delegate.Render(scene)), 0) << "session lights are not stage lights";
+}
+
 TEST_F(RasterDelegateTest, OutputsDoNotDependOnThePresentFormat) {
     const TestRaster raster = RollingTerrain(33, 33, 2.0);
     Scene scene = TerrainScene(raster);
@@ -760,6 +789,92 @@ TEST_F(RasterDelegateTest, ExposureNoiseAndDistortionFollowTheCamera) {
     EXPECT_NE(At<float>(barrel.at("DistanceToCamera"), 0, 0),
               At<float>(before.at("DistanceToCamera"), 0, 0))
         << "barrel distortion sees wider at the corners";
+}
+
+namespace {
+
+/// The Electrons var of `product` in `outputs`, on the CPU.
+std::vector<float> ElectronsOf(ernie::RenderProductSetOutputs& outputs, const Path& product) {
+    const Tensor tensor =
+        outputs.at(product).vars.at("Electrons").Map(ernie::MapDevice::Cpu).tensor;
+    const auto* data = static_cast<const float*>(tensor.Data());
+    return {data, data + tensor.Elements()};
+}
+
+/// FlatScene with sensor noise, and a second product `/Render/Other` of the same camera.
+Scene NoisyScene() {
+    Scene scene = FlatScene();
+    scene.Set("/World/Camera", tokens::kSensorNoise, true);
+    scene.Define("/Render/Other", tokens::kRenderProduct)
+        .Set(tokens::kOrderedVars, *scene.Get("/Render/Product", tokens::kOrderedVars));
+    return scene;
+}
+
+}  // namespace
+
+TEST_F(RasterDelegateTest, NoiseIsDeterministicPerProductAndFrame) {
+    Scene scene = NoisyScene();
+    const Path product("/Render/Product");
+    const Path other("/Render/Other");
+    const std::array<Path, 1> one = {product};
+    const std::array<Path, 1> second = {other};
+
+    RasterDelegate a(*context_);
+    std::vector<std::vector<float>> frames;
+    for (int i = 0; i < 2; ++i) {
+        ernie::RenderProductSetOutputs outputs = a.Step(scene, one);
+        frames.push_back(ElectronsOf(outputs, product));
+    }
+    EXPECT_NE(frames[0], frames[1]) << "consecutive frames have independent noise";
+
+    RasterDelegate b(*context_);
+    b.Update(scene, "/Render/Settings", {kVarSize, kVarSize});
+    ernie::RenderProductSetOutputs otherFirst = b.Step(scene, second);
+    const std::vector<float> otherNoise = ElectronsOf(otherFirst, other);
+    for (int i = 0; i < 2; ++i) {
+        ernie::RenderProductSetOutputs outputs = b.Step(scene, one);
+        EXPECT_EQ(ElectronsOf(outputs, product), frames[static_cast<std::size_t>(i)])
+            << "frame " << i << " does not depend on what else rendered";
+    }
+    EXPECT_NE(otherNoise, frames[0]) << "products of one camera have their own noise";
+
+    scene.Set("/Render/Settings", tokens::kFrame, 7);
+    ernie::RenderProductSetOutputs seventh = a.Step(scene, one);
+    ernie::RenderProductSetOutputs again = b.Step(scene, one);
+    EXPECT_EQ(ElectronsOf(seventh, product), ElectronsOf(again, product))
+        << "an authored frame renders the same noise";
+    scene.Set("/Render/Settings", tokens::kFrame, 0);
+    ernie::RenderProductSetOutputs zeroth = a.Step(scene, one);
+    EXPECT_EQ(ElectronsOf(zeroth, product), frames[0]) << "frame 0 again";
+}
+
+TEST_F(RasterDelegateTest, IsARenderBackend) {
+    const std::unique_ptr<ernie::RenderDelegate> delegate =
+        ernie::CreateRenderDelegate("raster", *context_);
+    EXPECT_EQ(delegate->Info().name, "raster");
+    EXPECT_FALSE(delegate->Info().progressive);
+    EXPECT_NE(delegate->Brdfs().Find("hapke"), nullptr);
+    EXPECT_FALSE(delegate->SceneBounds().has_value()) << "nothing synced";
+    EXPECT_THROW(ernie::CreateRenderDelegate("pathtracer", *context_), std::invalid_argument);
+
+    Scene scene = FlatScene();
+    delegate->Update(scene, "/Render/Settings", {kVarSize, kVarSize});
+    const std::optional<ernie::Bounds3> bounds = delegate->SceneBounds();
+    ASSERT_TRUE(bounds.has_value());
+    EXPECT_NEAR(bounds->first.x, -64.0f, 1e-3f);
+    EXPECT_NEAR(bounds->second.x, 64.0f, 1e-3f);
+    const ernie::RenderStats stats = delegate->Stats();
+    EXPECT_GT(stats.gpuBytes, 0u);
+    std::vector<std::string> names;
+    for (const auto& [name, value] : stats.counters) {
+        names.emplace_back(name);
+    }
+    EXPECT_EQ(names,
+              (std::vector<std::string>{std::string(ernie::raster_stats::kTerrainPatches),
+                                        std::string(ernie::raster_stats::kTerrainLodLevels)}));
+    delegate->Step(scene);
+    EXPECT_GT(delegate->Stats().triangles, 0u);
+    EXPECT_GT(delegate->Stats().gpuBytes, stats.gpuBytes) << "the product's frame";
 }
 
 namespace {

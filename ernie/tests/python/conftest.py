@@ -9,7 +9,7 @@ from ernie import tokens
 def renderer():
     """A validating renderer, or a skip without a Vulkan device."""
     try:
-        return ernie.RasterRenderer(validation=True)
+        return ernie.Renderer(validation=True)
     except RuntimeError as error:
         pytest.skip(f"No Vulkan device: {error}")
 

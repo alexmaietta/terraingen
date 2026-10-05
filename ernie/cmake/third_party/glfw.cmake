@@ -1,13 +1,13 @@
-set(TERRAINGEN_DEP_VERSION_glfw
+set(ERNIE_DEP_VERSION_glfw
     3.4
     CACHE STRING "Tag of GLFW to fetch when no system GLFW >= 3.4 is found.")
-mark_as_advanced(TERRAINGEN_DEP_VERSION_glfw)
+mark_as_advanced(ERNIE_DEP_VERSION_glfw)
 
-option(TERRAINGEN_USE_SYSTEM_GLFW
+option(ERNIE_USE_SYSTEM_GLFW
        "Use an installed GLFW >= 3.4 if found; turn off for packages so GLFW is linked statically"
        ON)
 
-if(TERRAINGEN_USE_SYSTEM_GLFW)
+if(ERNIE_USE_SYSTEM_GLFW)
     find_package(glfw3 3.4 QUIET)
 endif()
 if(NOT glfw3_FOUND)
@@ -21,7 +21,7 @@ if(NOT glfw3_FOUND)
     FetchContent_Declare(
         glfw
         GIT_REPOSITORY https://github.com/glfw/glfw.git
-        GIT_TAG ${TERRAINGEN_DEP_VERSION_glfw}
+        GIT_TAG ${ERNIE_DEP_VERSION_glfw}
         GIT_SHALLOW TRUE)
     FetchContent_MakeAvailable(glfw)
 endif()

@@ -37,4 +37,7 @@ void BindTensor(nb::module_& m);
 void BindScene(nb::module_& m);
 void BindRender(nb::module_& m);
 
+/// The `gui` submodule; built only with Ernie's GUI (`ERNIE_HAS_GUI`).
+void BindGui(nb::module_& m);
+
 }  // namespace ernie::python
