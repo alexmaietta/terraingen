@@ -190,7 +190,6 @@ glm::vec3 SunDirection(float azimuthDegrees, float elevationDegrees);
 /// Paths of the prims the viewer authors in its Ernie scene.
 inline constexpr const char* kTerrainPrim = "/World/Terrain";
 inline constexpr const char* kSunPrim = "/World/Sun";
-inline constexpr const char* kCameraPrim = "/World/Camera";
 inline constexpr const char* kSurfacePrim = "/Looks/Surface";
 inline constexpr const char* kSettingsPrim = "/Render/Settings";
 
@@ -199,22 +198,16 @@ inline constexpr const char* kSettingsPrim = "/Render/Settings";
 /// @throws std::invalid_argument as `ViewOf`.
 void AuthorTerrain(ernie::Scene& scene, std::shared_ptr<const Raster<float>> raster);
 
-/// World bounds of the terrain Ernie draws from `raster` with heights scaled by `exaggeration`:
-/// the centres of the edge cells in x and y, and the valid heights' range from `stats` in z. None
-/// without valid cells.
-std::optional<std::pair<glm::vec3, glm::vec3>>
-TerrainBounds(const Raster<float>& raster, const RasterStats& stats, float exaggeration);
-
 /// A float32 (rows, cols, 4) tensor of `image`'s linear pixels, sharing and keeping the image.
 ernie::Tensor TensorOf(std::shared_ptr<const ernie::Image> image);
 
-/// Authors `view` and `orbit` into `scene`: the camera posed by `orbit` with the view's exposure
-/// and spectral bands, a
+/// Authors `view` into `scene`: the view's exposure and spectral bands on the Camera prim at
+/// `camera` (left alone when it is not a Camera; its pose belongs to whoever navigates it), a
 /// DistantLight for the sun whose intensity is the surface exposure (or physical, see
 /// `CameraViewSettings::physicalSun`), the surface material bound to the terrain with the selected
 /// model's parameters from `brdfs`, the terrain's exaggeration, and render settings for everything
 /// else.
-void AuthorView(ernie::Scene& scene, const ViewSettings& view, const ernie::OrbitController& orbit,
+void AuthorView(ernie::Scene& scene, const ViewSettings& view, const ernie::Path& camera,
                 const ernie::BrdfRegistry& brdfs);
 
 }  // namespace terraingen::viewer

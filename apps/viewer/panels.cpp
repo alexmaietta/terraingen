@@ -338,9 +338,24 @@ void DrawTerrainCraters(TerrainSettings& settings) {
     }
 }
 
-/// The Terrain section: generation controls, then the Surface and Craters sub-groups.
-bool DrawTerrainSection(TerrainSettings& settings, bool& autoRegenerate,
-                        const TerrainPanelStatus& status) {
+/// Pushes the item width the panels use: labels to the right of the widgets.
+class ItemWidth {
+  public:
+    ItemWidth() {
+        ImGui::PushItemWidth(-ImGui::GetFontSize() * 11.0f);
+    }
+    ~ItemWidth() {
+        ImGui::PopItemWidth();
+    }
+    ItemWidth(const ItemWidth&) = delete;
+    ItemWidth& operator=(const ItemWidth&) = delete;
+};
+
+}  // namespace
+
+bool DrawTerrainPanel(TerrainSettings& settings, bool& autoRegenerate,
+                      const TerrainPanelStatus& status) {
+    const ItemWidth width;
     const std::string error = ValidateSettings(settings);
     ImGui::BeginDisabled(!error.empty());
     const bool generate = ImGui::Button("Generate (R)");
@@ -368,7 +383,8 @@ bool DrawTerrainSection(TerrainSettings& settings, bool& autoRegenerate,
     return generate && error.empty();
 }
 
-bool DrawViewSection(ViewSettings& view) {
+bool DrawViewPanel(ViewSettings& view) {
+    const ItemWidth width;
     ImGui::SliderFloat("Sun azimuth", &view.sunAzimuthDegrees, 0.0f, 360.0f, "%.0f deg");
     ImGui::SliderFloat("Sun elevation", &view.sunElevationDegrees, 0.0f, 90.0f, "%.0f deg");
     ImGui::SliderFloat("Ambient", &view.ambient, 0.0f, 1.0f, "%.2f");
@@ -436,8 +452,9 @@ bool DrawViewSection(ViewSettings& view) {
     return ImGui::Button("Frame terrain (F)");
 }
 
-SurfacePanelAction DrawSurfaceSection(SurfaceViewSettings& material, SurfacePanelState& state,
-                                      const ernie::BrdfRegistry& registry) {
+SurfacePanelAction DrawSurfacePanel(SurfaceViewSettings& material, SurfacePanelState& state,
+                                    const ernie::BrdfRegistry& registry) {
+    const ItemWidth width;
     SurfacePanelAction action = SurfacePanelAction::None;
     ernie::MaterialSettings& surface = material.surface;
 
@@ -528,20 +545,13 @@ SurfacePanelAction DrawSurfaceSection(SurfaceViewSettings& material, SurfacePane
     return action;
 }
 
-void DrawInfoSection(const InfoPanelData& info) {
-    const ImGuiIO& io = ImGui::GetIO();
+void DrawInfoPanel(const InfoPanelData& info) {
     ImGui::Text("TerrainGen %s", TERRAINGEN_VERSION_STRING);
-    ImGui::Text("GPU: %s", info.gpu.c_str());
-    ImGui::Text("%.2f ms/frame (%.0f FPS)", 1000.0 / static_cast<double>(io.Framerate),
-                static_cast<double>(io.Framerate));
     ImGui::Separator();
     if (info.width == 0) {
         ImGui::TextDisabled("No terrain yet");
     } else {
         ImGui::Text("Grid: %zu x %zu", info.width, info.height);
-        ImGui::Text("Triangles: %llu in %zu patches, %u levels",
-                    static_cast<unsigned long long>(info.triangles), info.patches, info.lodLevels);
-        ImGui::Text("GPU memory: %.1f MB", static_cast<double>(info.gpuBytes) / (1024.0 * 1024.0));
         if (info.stats) {
             ImGui::Text("Height: %.2f to %.2f m (mean %.2f)", info.stats->min, info.stats->max,
                         info.stats->mean);
@@ -549,69 +559,13 @@ void DrawInfoSection(const InfoPanelData& info) {
         ImGui::Text("Generated in %.1f ms", info.generationMilliseconds);
     }
     ImGui::TextDisabled("Drag: orbit | Right/middle drag: pan | Scroll: zoom");
-    ImGui::TextDisabled("H: hide interface | L: log | F: frame terrain | R: regenerate");
+    ImGui::TextDisabled("H: hide panels | L: log | F: frame | R: regenerate | Esc: quit");
 }
 
-}  // namespace
-
-SidebarActions DrawSidebar(TerrainSettings& settings, bool& autoRegenerate,
-                           const TerrainPanelStatus& status, ViewSettings& view,
-                           SurfacePanelState& surfaceState, const ernie::BrdfRegistry& registry,
-                           const InfoPanelData& info) {
-    const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    const float height = viewport->WorkSize.y;
-    const float maxWidth = std::max(kSidebarMinWidth, 0.9f * viewport->WorkSize.x);
-    ImGui::SetNextWindowPos(viewport->WorkPos);
-    ImGui::SetNextWindowSize(ImVec2(kSidebarDefaultWidth, height), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSizeConstraints(ImVec2(kSidebarMinWidth, height), ImVec2(maxWidth, height));
-    ImGui::Begin("TerrainGen", nullptr,
-                 ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
-                     ImGuiWindowFlags_NoTitleBar);
-    ImGui::PushItemWidth(-ImGui::GetFontSize() * 11.0f);
-
-    SidebarActions actions;
-    const auto section = [](const char* name, auto draw) {
-        ImGui::PushID(name);
-        if (ImGui::CollapsingHeader(name, ImGuiTreeNodeFlags_DefaultOpen)) {
-            draw();
-        }
-        ImGui::PopID();
-    };
-    section("Info", [&] { DrawInfoSection(info); });
-    section("Terrain",
-            [&] { actions.generate = DrawTerrainSection(settings, autoRegenerate, status); });
-    section("View", [&] { actions.frame = DrawViewSection(view); });
-    section("Surface",
-            [&] { actions.surface = DrawSurfaceSection(view.material, surfaceState, registry); });
-
-    ImGui::PopItemWidth();
-    actions.width = ImGui::GetWindowWidth();
-    ImGui::End();
-    return actions;
-}
-
-void DrawLogPanel(LogBuffer& buffer, LogPanelState& state, float left) {
+void DrawLogPanel(LogBuffer& buffer, LogPanelState& state) {
     if (const std::uint64_t version = buffer.Version(); version != state.version) {
         state.records = buffer.Snapshot();
         state.version = version;
-    }
-    const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    const float width = std::max(1.0f, viewport->WorkSize.x - left);
-    const float maxHeight = std::max(kLogPanelMinHeight, 0.8f * viewport->WorkSize.y);
-    ImGui::SetNextWindowPos(
-        ImVec2(viewport->WorkPos.x + left, viewport->WorkPos.y + viewport->WorkSize.y),
-        ImGuiCond_Always, ImVec2(0.0f, 1.0f));
-    ImGui::SetNextWindowSize(ImVec2(width, kLogPanelDefaultHeight), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSizeConstraints(ImVec2(width, kLogPanelMinHeight),
-                                        ImVec2(width, maxHeight));
-    std::string title = "Log";
-    if (!state.records.empty()) {
-        title += " - " + state.records.back().message;
-    }
-    title += "###Log";
-    if (!ImGui::Begin(title.c_str(), nullptr, ImGuiWindowFlags_NoMove)) {
-        ImGui::End();
-        return;
     }
 
     constexpr const char* kLevelNames[] = {"Trace", "Debug", "Info", "Warning", "Error"};
@@ -676,7 +630,6 @@ void DrawLogPanel(LogBuffer& buffer, LogPanelState& state, float left) {
         ImGui::SetScrollHereY(1.0f);
     }
     ImGui::EndChild();
-    ImGui::End();
 }
 
 }  // namespace terraingen::viewer

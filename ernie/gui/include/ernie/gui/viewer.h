@@ -1,7 +1,9 @@
 #pragma once
 
+#include "ernie/gpu/vulkan_context.h"
 #include "ernie/gui/panel.h"
 #include "ernie/gui/theme.h"
+#include "ernie/render/render_delegate.h"
 #include "ernie/scene/path.h"
 #include "ernie/scene/scene.h"
 
@@ -11,12 +13,8 @@
 #include <memory>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
-
-namespace ernie {
-class RenderDelegate;
-class VulkanContext;
-}  // namespace ernie
 
 namespace ernie::gui {
 
@@ -30,20 +28,21 @@ enum class Lighting {
 
 /// Options for opening a `Viewer`.
 struct ViewerOptions {
-    std::string title = "Ernie";   ///< Window title.
-    std::uint32_t width = 1600;    ///< Window width in screen coordinates.
-    std::uint32_t height = 900;    ///< Window height in screen coordinates.
-    bool hidden = false;           ///< Render without showing the window, for tests.
-    bool validation = false;       ///< Enable the Vulkan validation layer when installed.
-    std::string device;            ///< GPU name to prefer; empty picks the first discrete.
-    Theme theme = DarkTheme();     ///< Colours and metrics of the UI.
-    std::filesystem::path layout;  ///< Docking layout (ImGui .ini) to load; empty uses
-                                   ///< the built-in default layout.
-    Path settings;                 ///< RenderSettings prim the viewport starts with;
-                                   ///< empty picks the first one, as `ResolveRenderPrims`.
+    std::string title = "Ernie";      ///< Window title.
+    std::uint32_t width = 1600;       ///< Window width in screen coordinates.
+    std::uint32_t height = 900;       ///< Window height in screen coordinates.
+    bool hidden = false;              ///< Render without showing the window, for tests.
+    bool validation = false;          ///< Enable the Vulkan validation layer when installed.
+    std::string device;               ///< GPU name to prefer; empty picks the first discrete.
+    std::string renderer = "raster";  ///< Render backend, one of `Viewer::Renderers()`.
+    Theme theme = DarkTheme();        ///< Colours and metrics of the UI.
+    std::filesystem::path layout;     ///< Docking layout (ImGui .ini) to load; empty uses
+                                      ///< the built-in default layout.
+    Path settings;                    ///< RenderSettings prim the viewport starts with;
+                                      ///< empty picks the first one, as `ResolveRenderPrims`.
 };
 
-/// Per-frame information passed to `OnFrame` callbacks.
+/// Per-frame information passed to `OnFrame`, `OnPreRender` and `OnPostRender` callbacks.
 struct FrameInfo {
     std::uint64_t frame = 0;  ///< Frames drawn before this one.
     double time = 0.0;        ///< Seconds since the viewer opened.
@@ -65,8 +64,13 @@ struct FrameInfo {
 ///
 /// Drive it in one of two ways, both on the thread that created it (GLFW needs the main thread on
 /// macOS):
-/// - `Run()` loops until the window closes, calling `OnFrame` callbacks before each frame;
+/// - `Run()` loops until the window closes;
 /// - `Step()` draws one frame and returns, for callers that own the loop, such as a simulation.
+///
+/// Each frame runs, in order: `OnFrame` callbacks; the UI, whose panels may edit the scene, then
+/// `OnUi` callbacks; `OnPreRender` callbacks; the scene's sync and render, and presentation;
+/// `OnPostRender` callbacks. Callbacks run on the viewer's thread; an exception from one ends that
+/// frame and propagates out of `Step` or `Run`, and the viewer can step again afterwards.
 ///
 /// Applications extend it with panels (`AddPanel`), menu items (`AddMenuItem`) and callbacks;
 /// TerrainGen's viewer is one such application, adding its terrain configuration panels.
@@ -93,19 +97,61 @@ class Viewer {
     /// Asks the window to close; `Run` returns and `Step` returns false after the current frame.
     void Close();
 
-    /// Adds a callback run at the start of every frame, before the scene is synced, so its edits
-    /// show in that frame. Returns an id for `RemoveCallback`.
+    /// Adds a callback run at the start of every frame, before the UI and the render, so its
+    /// edits show in that frame. Returns an id for `RemoveCallback`.
     std::uint64_t OnFrame(std::function<void(Viewer&, const FrameInfo&)> callback);
+
+    /// Adds a callback run during the UI, after the panels, inside the Dear ImGui frame: for
+    /// keyboard shortcuts (`ImGui::IsKeyPressed`) and overlays. Returns an id for
+    /// `RemoveCallback`.
+    std::uint64_t OnUi(std::function<void(Viewer&, const FrameInfo&)> callback);
+
+    /// Adds a callback run after the UI and just before the scene is synced and rendered: the
+    /// scene then holds this frame's GUI edits, and the callback's own edits show in this frame.
+    /// Returns an id for `RemoveCallback`.
+    std::uint64_t OnPreRender(std::function<void(Viewer&, const FrameInfo&)> callback);
+
+    /// Adds a callback run after the frame is submitted and presented; the GPU may still be
+    /// rendering it. Edits show in the next frame. Returns an id for `RemoveCallback`.
+    std::uint64_t OnPostRender(std::function<void(Viewer&, const FrameInfo&)> callback);
 
     /// Adds a callback run when the selection changes, by click or by `SetSelection`.
     std::uint64_t OnSelection(std::function<void(Viewer&, std::span<const Path>)> callback);
 
+    /// Removes the frame, UI, pre-render, post-render or selection callback with id `id`; unknown
+    /// ids are ignored.
     void RemoveCallback(std::uint64_t id);
 
     Scene& GetScene();
-    RenderDelegate& Delegate();
     VulkanContext& Context();
     const VulkanContext& Context() const;
+
+    /// The render backends the viewer can switch between, such as "raster".
+    static std::vector<std::string> Renderers();
+
+    /// The render backend the viewport draws with.
+    const std::string& Renderer() const;
+
+    /// Switches the viewport to the render backend `name`, waiting for the GPU; the new backend
+    /// syncs the whole scene on its next frame. References from `Delegate()` become invalid.
+    /// @throws std::invalid_argument for a backend not in `Renderers()`, or std::runtime_error if
+    /// it cannot start, in which case the current backend stays.
+    void SetRenderer(const std::string& name);
+
+    /// The reflectance models of the current backend, for material editors.
+    const BrdfRegistry& Brdfs() const;
+
+    /// What the current backend holds and drew last frame: GPU memory, triangles and its own
+    /// counters.
+    RenderStats Stats() const;
+
+    /// Syncs the scene into the current backend now, rather than at the next frame, to check
+    /// newly authored data.
+    /// @throws std::invalid_argument naming the prim and attribute of data the backend cannot use.
+    void Sync();
+
+    /// The current backend itself, for what the viewer does not wrap, such as CUDA bindings.
+    RenderDelegate& Delegate();
 
     /// Root of the prims the viewer defines for its own use, `/__session`.
     static const Path& SessionRoot();
@@ -157,10 +203,23 @@ class Viewer {
     void Capture(const std::filesystem::path& path, std::string var = {});
 
     /// Adds a dockable panel, shown under Window in the menu bar. Returns the panel.
+    /// @throws std::invalid_argument for a null panel or a title in use or reserved ("Viewport").
     Panel& AddPanel(std::unique_ptr<Panel> panel);
 
+    /// Constructs a `T` (a `Panel` subclass) from `args` and adds it; returns it.
+    template <typename T, typename... Args> T& AddPanel(Args&&... args) {
+        return static_cast<T&>(AddPanel(std::make_unique<T>(std::forward<Args>(args)...)));
+    }
+
+    /// Adds a panel titled `title` that calls `draw` to draw its contents with Dear ImGui; for
+    /// panels that need no class of their own. Returns the panel.
+    Panel& AddPanel(std::string title, Dock dock, std::function<void(Viewer&)> draw);
+
+    /// The panel titled `title`, built-in ("Stats") or added; null if there is none.
+    Panel* FindPanel(std::string_view title);
+
     /// Adds a `WidgetPanel` titled `title`, for widgets added without ImGui (Python's panels).
-    WidgetPanel& AddWidgetPanel(std::string title);
+    WidgetPanel& AddWidgetPanel(std::string title, Dock dock = Dock::Right);
 
     /// Removes the panel titled `title`; built-in panels are only hidden.
     void RemovePanel(const std::string& title);

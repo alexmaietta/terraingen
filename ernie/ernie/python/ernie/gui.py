@@ -17,9 +17,11 @@ under ``Viewer.session_root`` (``/__session``), which headless renders of the sc
     while viewer.step():
         scene.set("/World/Rover", ernie.tokens.TRANSFORM, sim.advance())
 
-    # or add callbacks and panels, then run()
-    viewer.on_frame(lambda v, info: ...)
-    panel = viewer.add_panel("Sim")
+    # or add callbacks and panels, then run(); each frame runs on_frame, the UI, on_pre_render,
+    # the render, then on_post_render
+    viewer.on_pre_render(lambda v, info: sim.write_into(v.scene))
+    viewer.on_post_render(lambda v, info: sim.advance())
+    panel = viewer.add_panel("Sim", Dock.LEFT)
     panel.slider("Sun elevation", 0.0, 90.0, 5.0, on_change=lambda deg: ...)
 
 The viewer opens with its own perspective camera framing the scene (``Viewer.perspective_camera``);
@@ -36,6 +38,7 @@ from . import _ernie
 if not hasattr(_ernie, "gui"):
     raise ImportError("This build of Ernie has no GUI; configure it with -DERNIE_BUILD_GUI=ON")
 
+Dock = _ernie.gui.Dock
 FrameInfo = _ernie.gui.FrameInfo
 Lighting = _ernie.gui.Lighting
 Theme = _ernie.gui.Theme
@@ -45,6 +48,7 @@ dark_theme = _ernie.gui.dark_theme
 light_theme = _ernie.gui.light_theme
 
 __all__ = [
+    "Dock",
     "FrameInfo",
     "Lighting",
     "Theme",

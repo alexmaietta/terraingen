@@ -65,6 +65,12 @@ void BindGui(nb::module_& parent) {
     nb::module_ m = parent.def_submodule(
         "gui", "Ernie's interactive viewer: a window onto a Scene, driven by run() or step().");
 
+    nb::enum_<gui::Dock>(m, "Dock", "Where a panel docks in the default layout.")
+        .value("LEFT", gui::Dock::Left)
+        .value("RIGHT", gui::Dock::Right)
+        .value("BOTTOM", gui::Dock::Bottom)
+        .value("FLOATING", gui::Dock::Floating, "Not docked: a free window.");
+
     nb::enum_<Lighting>(m, "Lighting", "How the viewport lights the scene.")
         .value("STAGE", Lighting::Stage, "The scene's own lights; black without any.")
         .value("CAMERA", Lighting::Camera, "A distant light along the view direction.")
@@ -102,6 +108,7 @@ void BindGui(nb::module_& parent) {
                             "A dockable panel of simple widgets; each calls its callback when the "
                             "user changes it.")
         .def_prop_ro("title", &WidgetPanel::Title)
+        .def_prop_ro("dock", &WidgetPanel::GetDock)
         .def_prop_rw("visible", &WidgetPanel::IsVisible, &WidgetPanel::SetVisible)
         .def("text", &WidgetPanel::Text, nb::arg("text"), "Adds a line of text; returns its id.")
         .def("separator", &WidgetPanel::Separator)
@@ -142,7 +149,7 @@ void BindGui(nb::module_& parent) {
             [](Viewer* self, Scene& scene, const std::string& title, std::uint32_t width,
                std::uint32_t height, bool hidden, bool validation, const std::string& device,
                const Theme* theme, const std::optional<std::filesystem::path>& layout,
-               const Path& settings) {
+               const Path& settings, const std::string& renderer) {
                 ViewerOptions options;
                 options.title = title;
                 options.width = width;
@@ -155,6 +162,7 @@ void BindGui(nb::module_& parent) {
                 }
                 options.layout = layout.value_or(std::filesystem::path());
                 options.settings = settings;
+                options.renderer = renderer;
                 nb::gil_scoped_release release;
                 new (self) Viewer(scene, options);
             },
@@ -162,7 +170,7 @@ void BindGui(nb::module_& parent) {
             nb::arg("height") = 900, nb::arg("hidden") = false, nb::arg("validation") = false,
             nb::arg("device") = "", nb::arg("theme").none() = nb::none(),
             nb::arg("layout").none() = nb::none(), nb::arg("settings") = Path(),
-            nb::keep_alive<1, 2>(),
+            nb::arg("renderer") = "raster", nb::keep_alive<1, 2>(),
             "Opens the window (none when `hidden`) on a Vulkan device. Raises RuntimeError "
             "without a window system or Vulkan device.")
         .def("run", &Viewer::Run, nb::call_guard<nb::gil_scoped_release>(),
@@ -178,8 +186,28 @@ void BindGui(nb::module_& parent) {
                 return viewer.OnFrame([call](Viewer& v, const FrameInfo& info) { call(v, info); });
             },
             nb::arg("callback"),
-            "Calls callback(viewer, frame_info) at the start of every frame, before the scene is "
-            "synced; returns an id for remove_callback.")
+            "Calls callback(viewer, frame_info) at the start of every frame, before the UI; "
+            "returns an id for remove_callback.")
+        .def(
+            "on_pre_render",
+            [](Viewer& viewer, nb::callable callback) {
+                const Callable call(std::move(callback));
+                return viewer.OnPreRender(
+                    [call](Viewer& v, const FrameInfo& info) { call(v, info); });
+            },
+            nb::arg("callback"),
+            "Calls callback(viewer, frame_info) after the UI, just before the scene is synced and "
+            "rendered, so its edits show in this frame; returns an id.")
+        .def(
+            "on_post_render",
+            [](Viewer& viewer, nb::callable callback) {
+                const Callable call(std::move(callback));
+                return viewer.OnPostRender(
+                    [call](Viewer& v, const FrameInfo& info) { call(v, info); });
+            },
+            nb::arg("callback"),
+            "Calls callback(viewer, frame_info) after the frame is submitted and presented; its "
+            "edits show in the next frame. Returns an id.")
         .def(
             "on_selection",
             [](Viewer& viewer, nb::callable callback) {
@@ -193,6 +221,13 @@ void BindGui(nb::module_& parent) {
         .def("remove_callback", &Viewer::RemoveCallback, nb::arg("id"))
         .def_prop_ro("scene", &Viewer::GetScene, nb::rv_policy::reference)
         .def_prop_ro("device_name", [](Viewer& v) { return v.Context().DeviceName(); })
+        .def_prop_ro_static(
+            "renderers", [](nb::handle) { return Viewer::Renderers(); },
+            "The render backends the viewer can switch between.")
+        .def_prop_rw("renderer", &Viewer::Renderer, &Viewer::SetRenderer,
+                     "The render backend the viewport draws with; assign to switch.")
+        .def("sync", &Viewer::Sync,
+             "Syncs the scene into the renderer now; raises ValueError for data it cannot use.")
         .def_prop_ro_static("session_root", [](nb::handle) { return Viewer::SessionRoot(); })
         .def_prop_ro_static("perspective_camera",
                             [](nb::handle) { return Viewer::PerspectiveCamera(); })
@@ -212,7 +247,8 @@ void BindGui(nb::module_& parent) {
         .def("capture", &Viewer::Capture, nb::arg("path"), nb::arg("var") = "",
              "Writes the next viewport frame to `path` as PNG.")
         .def("add_panel", &Viewer::AddWidgetPanel, nb::arg("title"),
-             nb::rv_policy::reference_internal, "Adds a WidgetPanel titled `title`.")
+             nb::arg("dock") = gui::Dock::Right, nb::rv_policy::reference_internal,
+             "Adds a WidgetPanel titled `title`, docked at `dock` in the default layout.")
         .def("remove_panel", &Viewer::RemovePanel, nb::arg("title"))
         .def(
             "add_menu_item",

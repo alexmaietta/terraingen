@@ -1,7 +1,8 @@
 #pragma once
 
 /// Lucide icon glyphs (lucide-static 1.52.0, private-use codepoints) as UTF-8 strings, for text
-/// drawn with the viewer's merged icon font.
+/// drawn with the viewer's font, which has the icons merged in: `ImGui::Button(icons::kSave)`, or
+/// `std::string(icons::kCamera) + " Camera"` as a label.
 namespace ernie::gui::icons {
 
 inline constexpr const char* kCamera = "\xee\x81\xa4";             ///< U+E064

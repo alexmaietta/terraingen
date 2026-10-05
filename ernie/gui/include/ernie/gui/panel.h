@@ -10,11 +10,20 @@ namespace ernie::gui {
 
 class Viewer;
 
-/// A dockable window of the viewer. Subclasses draw with Dear ImGui in `Draw`, between the
-/// window's `Begin` and `End`, which the viewer calls.
+/// Where a panel docks in the viewer's default layout, around the viewport.
+enum class Dock {
+    Left,
+    Right,
+    Bottom,
+    Floating,  ///< Not docked: a free window.
+};
+
+/// A dockable window of the viewer. Subclasses draw with Dear ImGui (`#include <imgui.h>`) in
+/// `Draw`, between the window's `Begin` and `End`, which the viewer calls.
 class Panel {
   public:
-    explicit Panel(std::string title) : title_(std::move(title)) {}
+    explicit Panel(std::string title, Dock dock = Dock::Right)
+        : title_(std::move(title)), dock_(dock) {}
     virtual ~Panel() = default;
     Panel(const Panel&) = delete;
     Panel& operator=(const Panel&) = delete;
@@ -22,6 +31,11 @@ class Panel {
     /// Title, also the panel's id in saved layouts.
     const std::string& Title() const {
         return title_;
+    }
+
+    /// Where the panel docks in the default layout; a saved layout overrides it.
+    Dock GetDock() const {
+        return dock_;
     }
 
     bool IsVisible() const {
@@ -37,7 +51,24 @@ class Panel {
 
   private:
     std::string title_;
+    Dock dock_;
     bool visible_ = true;
+};
+
+/// A panel that draws its contents by calling a function.
+class FunctionPanel final : public Panel {
+  public:
+    FunctionPanel(std::string title, Dock dock, std::function<void(Viewer&)> draw)
+        : Panel(std::move(title), dock), draw_(std::move(draw)) {}
+
+    void Draw(Viewer& viewer) override {
+        if (draw_) {
+            draw_(viewer);
+        }
+    }
+
+  private:
+    std::function<void(Viewer&)> draw_;
 };
 
 /// A panel of simple widgets described by data rather than ImGui calls, so code without ImGui
@@ -47,7 +78,7 @@ class WidgetPanel final : public Panel {
   public:
     using Id = std::uint32_t;
 
-    explicit WidgetPanel(std::string title);
+    explicit WidgetPanel(std::string title, Dock dock = Dock::Right);
     ~WidgetPanel() override;
 
     Id Text(std::string text);

@@ -32,42 +32,30 @@ struct SurfacePanelState {
 /// What the user asked for in the Surface section this frame.
 enum class SurfacePanelAction { None, LoadDetailAlbedo, LoadDetailNormal, ClearDetail };
 
-/// Values shown in the Info section.
+/// Values shown in the Info panel; the viewer's Stats panel shows the renderer's.
 struct InfoPanelData {
-    std::string gpu;
     std::size_t width = 0;
     std::size_t height = 0;
-    std::uint64_t triangles = 0;
-    std::size_t patches = 0;
-    std::uint32_t lodLevels = 0;
-    std::uint64_t gpuBytes = 0;
     std::optional<RasterStats> stats;
     double generationMilliseconds = 0.0;
 };
 
-/// Default and minimum widths of the sidebar, in pixels.
-inline constexpr float kSidebarDefaultWidth = 420.0f;
-inline constexpr float kSidebarMinWidth = 300.0f;
+/// Draws the Terrain panel's contents: generation controls, then the Surface and Craters
+/// groups. Edits `settings` in place; returns whether to generate now.
+bool DrawTerrainPanel(TerrainSettings& settings, bool& autoRegenerate,
+                      const TerrainPanelStatus& status);
 
-/// What the user asked for in the sidebar this frame.
-struct SidebarActions {
-    bool generate = false;  ///< Generate the terrain now.
-    bool frame = false;     ///< Re-frame the camera on the terrain.
-    SurfacePanelAction surface = SurfacePanelAction::None;
-    float width = 0.0f;  ///< Current sidebar width in pixels.
-};
+/// Draws the View panel's contents: sun, shading, shadows, level of detail and camera exposure.
+/// Returns whether to frame the terrain.
+bool DrawViewPanel(ViewSettings& view);
 
-/// Draws the sidebar: a full-height window docked on the left that can be widened by dragging its
-/// right edge, with collapsible Info, Terrain (Surface and Craters), View and Surface sections.
-/// Edits the settings in place.
-SidebarActions DrawSidebar(TerrainSettings& settings, bool& autoRegenerate,
-                           const TerrainPanelStatus& status, ViewSettings& view,
-                           SurfacePanelState& surfaceState, const ernie::BrdfRegistry& registry,
-                           const InfoPanelData& info);
+/// Draws the Surface panel's contents: reflectance model and parameters, albedo and detail
+/// textures. Returns what the user asked for.
+SurfacePanelAction DrawSurfacePanel(SurfaceViewSettings& material, SurfacePanelState& state,
+                                    const ernie::BrdfRegistry& registry);
 
-/// Default and minimum heights of the Log panel, in pixels.
-inline constexpr float kLogPanelDefaultHeight = 180.0f;
-inline constexpr float kLogPanelMinHeight = 60.0f;
+/// Draws the Info panel's contents: version, grid, height range, generation time and controls.
+void DrawInfoPanel(const InfoPanelData& info);
 
 /// Filter settings of the Log panel and the records it last read.
 struct LogPanelState {
@@ -79,8 +67,8 @@ struct LogPanelState {
     std::vector<LogRecord> records;
 };
 
-/// Draws the Log panel docked along the bottom of the window from `left` pixels to the right
-/// edge, with a resizable height, level and text filters, auto-scroll, Clear and Copy.
-void DrawLogPanel(LogBuffer& buffer, LogPanelState& state, float left);
+/// Draws the Log panel's contents: level and text filters, auto-scroll, Clear and Copy, and the
+/// records.
+void DrawLogPanel(LogBuffer& buffer, LogPanelState& state);
 
 }  // namespace terraingen::viewer

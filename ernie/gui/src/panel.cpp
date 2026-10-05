@@ -57,7 +57,7 @@ struct WidgetPanel::Widget {
         data;
 };
 
-WidgetPanel::WidgetPanel(std::string title) : Panel(std::move(title)) {}
+WidgetPanel::WidgetPanel(std::string title, Dock dock) : Panel(std::move(title), dock) {}
 
 WidgetPanel::~WidgetPanel() = default;
 

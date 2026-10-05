@@ -12,7 +12,7 @@ target_compile_definitions(terraingen_tests_viewer
 terraingen_add_test_suite(
     viewer_gpu
     SOURCES
-    glfw_surface_test.cpp
+    app_test.cpp
     LIBRARIES
     terraingen_viewer_app
     LABELS
@@ -24,6 +24,5 @@ add_test(
         ${CMAKE_COMMAND} -DVIEWER=$<TARGET_FILE:terraingen-viewer>
         -DTEXTURE=${ERNIE_SOURCE_DIR}/tests/fixtures/images/grey16.png -P
         "${CMAKE_CURRENT_SOURCE_DIR}/smoke_viewer.cmake")
-set_tests_properties(viewer.smoke PROPERTIES LABELS gpu SKIP_REGULAR_EXPRESSION
-                                             "No display; skipping")
+set_tests_properties(viewer.smoke PROPERTIES LABELS gpu)
 set_property(GLOBAL APPEND PROPERTY TERRAINGEN_TEST_TARGETS terraingen-viewer)

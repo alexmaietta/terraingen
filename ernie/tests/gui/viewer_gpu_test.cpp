@@ -1,6 +1,6 @@
 #include "ernie/camera/camera.h"
 #include "ernie/gpu/vulkan_context.h"
-#include "ernie/gui/viewer.h"
+#include "ernie/gui/gui.h"
 #include "ernie/raster/raster_delegate.h"
 #include "ernie/scene/schema.h"
 #include "ernie/scene/tokens.h"
@@ -186,6 +186,167 @@ TEST_F(ViewerTest, FrameCallbackEditsShowInTheSameFrame) {
     EXPECT_TRUE(scene_.Get(Path("/__session/RenderSettings"), "ernie:wireframe", false));
 }
 
+TEST_F(ViewerTest, CallbacksRunInFrameUiPreRenderPostRenderOrder) {
+    std::vector<std::string> order;
+    viewer_->OnPostRender([&](Viewer&, const FrameInfo&) { order.push_back("post"); });
+    viewer_->OnPreRender([&](Viewer&, const FrameInfo&) { order.push_back("pre"); });
+    viewer_->OnUi([&](Viewer&, const FrameInfo&) {
+        EXPECT_NE(ImGui::GetCurrentContext(), nullptr);
+        ImGui::Begin("Overlay");
+        ImGui::TextUnformatted("inside the ImGui frame");
+        ImGui::End();
+        order.push_back("ui");
+    });
+    viewer_->OnFrame([&](Viewer&, const FrameInfo&) { order.push_back("frame"); });
+    viewer_->Step();
+    EXPECT_EQ(order, (std::vector<std::string>{"frame", "ui", "pre", "post"}));
+}
+
+TEST_F(ViewerTest, PreRenderEditsShowInTheFrameAndPostRenderEditsInTheNext) {
+    viewer_->OnPreRender([](Viewer& viewer, const FrameInfo& info) {
+        viewer.GetScene().Set(Path("/Render/Settings"), "test:pre", static_cast<int>(info.frame));
+    });
+    viewer_->OnPostRender([](Viewer& viewer, const FrameInfo& info) {
+        viewer.GetScene().Set(Path("/Render/Settings"), "test:post", static_cast<int>(info.frame));
+    });
+    const Path session("/__session/RenderSettings");
+    viewer_->Step();
+    EXPECT_EQ(scene_.Get(session, "test:pre", -1), 0) << "mirrored into this frame's settings";
+    EXPECT_EQ(scene_.Get(session, "test:post", -1), -1) << "set after the frame rendered";
+    viewer_->Step();
+    EXPECT_EQ(scene_.Get(session, "test:pre", -1), 1);
+    EXPECT_EQ(scene_.Get(session, "test:post", -1), 0);
+}
+
+TEST_F(ViewerTest, PreAndPostRenderExceptionsPropagateAndTheViewerKeepsWorking) {
+    bool failPre = true;
+    bool failPost = false;
+    viewer_->OnPreRender([&](Viewer&, const FrameInfo&) {
+        if (failPre) {
+            throw std::runtime_error("pre failed");
+        }
+    });
+    viewer_->OnPostRender([&](Viewer&, const FrameInfo&) {
+        if (failPost) {
+            throw std::runtime_error("post failed");
+        }
+    });
+    EXPECT_THROW(viewer_->Step(), std::runtime_error);
+    failPre = false;
+    failPost = true;
+    EXPECT_THROW(viewer_->Step(), std::runtime_error);
+    failPost = false;
+    EXPECT_TRUE(viewer_->Step());
+    EXPECT_TRUE(viewer_->Step());
+}
+
+TEST_F(ViewerTest, RemoveCallbackRemovesEveryKind) {
+    int calls = 0;
+    const auto count = [&](Viewer&, const FrameInfo&) { ++calls; };
+    const std::vector<std::uint64_t> ids{viewer_->OnFrame(count), viewer_->OnUi(count),
+                                         viewer_->OnPreRender(count), viewer_->OnPostRender(count)};
+    viewer_->Step();
+    EXPECT_EQ(calls, 4);
+    for (const std::uint64_t id : ids) {
+        viewer_->RemoveCallback(id);
+    }
+    viewer_->RemoveCallback(12345);
+    viewer_->Step();
+    EXPECT_EQ(calls, 4);
+}
+
+/// A panel docked on the left that counts its draws.
+class CountingPanel final : public Panel {
+  public:
+    CountingPanel(std::string title, Dock dock, int& draws)
+        : Panel(std::move(title), dock), draws_(draws) {}
+    void Draw(Viewer&) override {
+        ++draws_;
+        ImGui::TextUnformatted("counted");
+    }
+
+  private:
+    int& draws_;
+};
+
+TEST_F(ViewerTest, PanelsDockWhereTheyAsk) {
+    int draws = 0;
+    CountingPanel& left = viewer_->AddPanel<CountingPanel>("Left Panel", Dock::Left, draws);
+    viewer_->AddPanel<CountingPanel>("Bottom Panel", Dock::Bottom, draws);
+    viewer_->AddPanel<CountingPanel>("Floating Panel", Dock::Floating, draws);
+    EXPECT_EQ(left.GetDock(), Dock::Left);
+    viewer_->Step();
+    viewer_->Step();
+    EXPECT_GE(draws, 6);
+    const std::filesystem::path path = TempFile("docks.ini");
+    viewer_->SaveLayout(path);
+    std::ifstream file(path);
+    const std::string text{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+    const auto docked = [&](const std::string& title) {
+        const std::size_t at = text.find("[Window][" + title + "]");
+        if (at == std::string::npos) {
+            return false;
+        }
+        const std::size_t end = text.find("\n\n", at);
+        return text.substr(at, end - at).find("DockId=") != std::string::npos;
+    };
+    EXPECT_TRUE(docked("Left Panel"));
+    EXPECT_TRUE(docked("Bottom Panel"));
+    EXPECT_TRUE(docked("Stats"));
+    EXPECT_FALSE(docked("Floating Panel"));
+    std::filesystem::remove(path);
+}
+
+TEST_F(ViewerTest, FunctionPanelsDrawAndPanelsAreFoundByTitle) {
+    int draws = 0;
+    Panel& panel = viewer_->AddPanel("Function", Dock::Bottom, [&](Viewer& viewer) {
+        EXPECT_EQ(&viewer, viewer_.get());
+        ImGui::TextUnformatted("drawn by a function");
+        ++draws;
+    });
+    EXPECT_EQ(panel.GetDock(), Dock::Bottom);
+    EXPECT_EQ(viewer_->FindPanel("Function"), &panel);
+    ASSERT_NE(viewer_->FindPanel("Stats"), nullptr);
+    EXPECT_EQ(viewer_->FindPanel("Missing"), nullptr);
+    viewer_->Step();
+    EXPECT_EQ(draws, 1);
+    panel.SetVisible(false);
+    viewer_->Step();
+    EXPECT_EQ(draws, 1);
+}
+
+TEST_F(ViewerTest, RendererIsAViewerOptionAndSwitchable) {
+    const std::vector<std::string> renderers = Viewer::Renderers();
+    ASSERT_FALSE(renderers.empty());
+    EXPECT_EQ(viewer_->Renderer(), "raster");
+    EXPECT_NE(std::find(renderers.begin(), renderers.end(), "raster"), renderers.end());
+    EXPECT_THROW(viewer_->SetRenderer("no_such_backend"), std::invalid_argument);
+    EXPECT_EQ(viewer_->Renderer(), "raster") << "a failed switch keeps the current backend";
+    viewer_->SetRenderer("raster");
+    EXPECT_TRUE(viewer_->Step());
+    EXPECT_GT(viewer_->Stats().triangles, 0u);
+    EXPECT_NE(viewer_->Brdfs().Find("lambert"), nullptr);
+}
+
+TEST_F(ViewerTest, SyncReportsDataTheRendererCannotUse) {
+    EXPECT_NO_THROW(viewer_->Sync());
+    scene_.Define("/World/Broken", tokens::kCube).Set(tokens::kSize, -1.0);
+    EXPECT_THROW(viewer_->Sync(), std::invalid_argument);
+}
+
+TEST(ViewerOptionsTest, RejectsAnUnknownRenderer) {
+    try {
+        VulkanContext::Create();
+    } catch (const std::runtime_error& error) {
+        GTEST_SKIP() << "No Vulkan device: " << error.what();
+    }
+    Scene scene = CubeScene();
+    ViewerOptions options;
+    options.hidden = true;
+    options.renderer = "no_such_backend";
+    EXPECT_THROW(Viewer(scene, options), std::invalid_argument);
+}
+
 TEST_F(ViewerTest, SelectionCallbacksFireOnlyOnChange) {
     int calls = 0;
     std::vector<Path> last;
@@ -279,8 +440,7 @@ TEST_F(ViewerTest, LayoutsRoundTripThroughFiles) {
 }
 
 TEST_F(ViewerTest, ShowsRenderErrorsWithoutThrowing) {
-    scene_.Define("/World/Broken", tokens::kMesh)
-        .Set(tokens::kFaceVertexCounts, std::vector<float>{3.0f});
+    scene_.Define("/World/Broken", tokens::kCube).Set(tokens::kSize, -1.0);
     EXPECT_NO_THROW(viewer_->Step());
     scene_.Remove(Path("/World/Broken"));
     EXPECT_TRUE(viewer_->Step());

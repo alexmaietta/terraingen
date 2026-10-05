@@ -122,3 +122,29 @@ def test_an_unlit_scene_opens_with_the_default_light():
     except RuntimeError as error:
         pytest.skip(f"No Vulkan device: {error}")
     assert viewer.lighting == gui.Lighting.DEFAULT
+
+
+def test_pre_and_post_render_callbacks_run_in_order(viewer):
+    order = []
+    viewer.on_post_render(lambda v, info: order.append(("post", info.frame)))
+    viewer.on_pre_render(lambda v, info: order.append(("pre", info.frame)))
+    viewer.on_frame(lambda v, info: order.append(("frame", info.frame)))
+    viewer.step()
+    assert order == [("frame", 0), ("pre", 0), ("post", 0)]
+
+
+def test_panels_take_a_dock(viewer):
+    panel = viewer.add_panel("Left", gui.Dock.LEFT)
+    assert panel.dock == gui.Dock.LEFT
+    assert viewer.add_panel("Default").dock == gui.Dock.RIGHT
+    assert viewer.step()
+
+
+def test_renderer_is_an_option_and_switchable(viewer):
+    assert "raster" in gui.Viewer.renderers
+    assert viewer.renderer == "raster"
+    with pytest.raises(ValueError):
+        viewer.renderer = "no_such_backend"
+    viewer.renderer = "raster"
+    viewer.sync()
+    assert viewer.step()

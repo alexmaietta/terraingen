@@ -285,23 +285,6 @@ void AuthorTerrain(ernie::Scene& scene, std::shared_ptr<const Raster<float>> ras
     }
 }
 
-std::optional<std::pair<glm::vec3, glm::vec3>>
-TerrainBounds(const Raster<float>& raster, const RasterStats& stats, float exaggeration) {
-    if (stats.validCount == 0) {
-        return std::nullopt;
-    }
-    const ernie::RasterView view = ViewOf(raster);
-    const double half = 0.5 * view.cellSize;
-    const glm::vec3 a(static_cast<float>(view.originX + half),
-                      static_cast<float>(view.originY - half),
-                      static_cast<float>(stats.min) * exaggeration);
-    const glm::vec3 b(
-        static_cast<float>(view.originX + static_cast<double>(view.width) * view.cellSize - half),
-        static_cast<float>(view.originY - static_cast<double>(view.height) * view.cellSize + half),
-        static_cast<float>(stats.max) * exaggeration);
-    return std::pair(glm::min(a, b), glm::max(a, b));
-}
-
 ernie::Tensor TensorOf(std::shared_ptr<const ernie::Image> image) {
     void* data = const_cast<glm::vec4*>(image->pixels.data());
     std::vector<std::int64_t> shape{static_cast<std::int64_t>(image->height),
@@ -309,17 +292,17 @@ ernie::Tensor TensorOf(std::shared_ptr<const ernie::Image> image) {
     return ernie::Tensor(data, ernie::DType::Float32, std::move(shape), {}, {}, std::move(image));
 }
 
-void AuthorView(ernie::Scene& scene, const ViewSettings& view, const ernie::OrbitController& orbit,
+void AuthorView(ernie::Scene& scene, const ViewSettings& view, const ernie::Path& camera,
                 const ernie::BrdfRegistry& brdfs) {
     using namespace ernie::tokens;
-    ernie::Camera camera;
-    orbit.Apply(camera);
-    camera.exposureStops = view.camera.exposureStops;
-    camera.exposureTime = view.camera.shutterSeconds;
-    camera.iso = view.camera.iso;
-    camera.fStop = view.camera.fStop;
-    camera.bands.count = view.camera.bands;
-    ernie::SetCamera(scene, kCameraPrim, camera);
+    if (scene.Has(camera) && scene.TypeOf(camera) == kCamera) {
+        scene.GetPrim(camera)
+            .Set(kCameraExposure, static_cast<double>(view.camera.exposureStops))
+            .Set(kExposureTime, static_cast<double>(view.camera.shutterSeconds))
+            .Set(kExposureIso, static_cast<double>(view.camera.iso))
+            .Set(kExposureFStop, static_cast<double>(view.camera.fStop))
+            .Set(kSpectralBands, view.camera.bands);
+    }
 
     const ernie::MaterialSettings surface = view.material.Effective(brdfs);
     scene.Define(kSunPrim, kDistantLight)
@@ -363,7 +346,6 @@ void AuthorView(ernie::Scene& scene, const ViewSettings& view, const ernie::Orbi
         colorMode = kColormap;
     }
     scene.Define(kSettingsPrim, kRenderSettings)
-        .Set(kCameraRel, ernie::Path(kCameraPrim))
         .Set(kAmbient, view.ambient)
         .Set(kColorMode, colorMode)
         .Set(kWireframe, view.wireframe)

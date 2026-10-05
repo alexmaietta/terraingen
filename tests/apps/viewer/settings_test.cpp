@@ -209,22 +209,6 @@ TEST(ViewOf, RejectsRotatedOrRectangularPixels) {
     EXPECT_THROW(terraingen::viewer::ViewOf(raster), std::invalid_argument) << "south-up";
 }
 
-TEST(TerrainBounds, SpansCellCentresAndTheExaggeratedHeights) {
-    terraingen::Raster<float> raster(3, 2);
-    raster.SetTransform(terraingen::GeoTransform::NorthUp(100.0, 50.0, 2.5));
-    terraingen::RasterStats stats;
-    stats.min = -4.0;
-    stats.max = 6.0;
-    stats.validCount = 6;
-    const auto bounds = terraingen::viewer::TerrainBounds(raster, stats, 2.0f);
-    ASSERT_TRUE(bounds.has_value());
-    EXPECT_EQ(bounds->first, glm::vec3(101.25f, 46.25f, -8.0f));
-    EXPECT_EQ(bounds->second, glm::vec3(106.25f, 48.75f, 12.0f));
-
-    stats.validCount = 0;
-    EXPECT_FALSE(terraingen::viewer::TerrainBounds(raster, stats, 1.0f).has_value());
-}
-
 TEST(AuthorTerrain, WritesHeightsAndGridWithoutCopying) {
     auto raster = std::make_shared<terraingen::Raster<float>>(3, 2);
     raster->SetTransform(terraingen::GeoTransform::NorthUp(100.0, 50.0, 2.5));
@@ -283,12 +267,14 @@ TEST(AuthorView, RoundTripsTheViewThroughErniesDrawParameters) {
     view.material.brdfParams["hapke"] = {0.4f};
     ernie::OrbitController camera;
     camera.yaw = 0.3f;
+    const ernie::Path cameraPath("/World/Camera");
 
     ernie::Scene scene;
-    terraingen::viewer::AuthorView(scene, view, camera, brdfs);
+    ernie::SetCamera(scene, cameraPath, camera.MakeCamera(48, 32));
+    terraingen::viewer::AuthorView(scene, view, cameraPath, brdfs);
     const ernie::RenderPrims prims =
         ernie::ResolveRenderPrims(scene, terraingen::viewer::kSettingsPrim);
-    EXPECT_EQ(prims.camera, ernie::Path(terraingen::viewer::kCameraPrim));
+    EXPECT_EQ(prims.camera, cameraPath) << "the settings leave the camera to the viewer";
     EXPECT_EQ(prims.terrain, ernie::Path(terraingen::viewer::kTerrainPrim));
     EXPECT_EQ(prims.material, ernie::Path(terraingen::viewer::kSurfacePrim));
     EXPECT_EQ(prims.light, ernie::Path(terraingen::viewer::kSunPrim));
@@ -322,11 +308,13 @@ TEST(AuthorView, RoundTripsTheViewThroughErniesDrawParameters) {
     EXPECT_EQ(material.albedo, glm::vec3(0.2f, 0.3f, 0.4f));
     EXPECT_EQ(material.detail.tileSize, 9.0f);
 
+    EXPECT_NEAR(frame.View().eye[0], camera.Eye()[0], 1e-3f) << "the pose is left alone";
+
     view.colorMode = ernie::TerrainColorMode::Colormap;
-    terraingen::viewer::AuthorView(scene, view, camera, brdfs);
+    terraingen::viewer::AuthorView(scene, view, cameraPath, brdfs);
     EXPECT_EQ(ernie::TerrainParamsOf(scene, prims).colorMode, ernie::TerrainColorMode::Colormap);
     view.colorMode = ernie::TerrainColorMode::ShadedColormap;
-    terraingen::viewer::AuthorView(scene, view, camera, brdfs);
+    terraingen::viewer::AuthorView(scene, view, cameraPath, brdfs);
     EXPECT_EQ(ernie::TerrainParamsOf(scene, prims).colorMode,
               ernie::TerrainColorMode::ShadedColormap);
 }
@@ -337,7 +325,9 @@ TEST(AuthorView, WritesTheCameraExposureBandsAndPhysicalSun) {
     EXPECT_EQ(ernie::Camera{}.LinearExposureScale(), 1.0) << "defaults are neutral";
     view.camera = {1.0f, 0.01f, 200.0f, 16.0f, 8, true};
     ernie::Scene scene;
-    terraingen::viewer::AuthorView(scene, view, ernie::OrbitController{}, brdfs);
+    const ernie::Path cameraPath("/World/Camera");
+    ernie::SetCamera(scene, cameraPath, ernie::OrbitController{}.MakeCamera(16, 16));
+    terraingen::viewer::AuthorView(scene, view, cameraPath, brdfs);
     const ernie::RenderPrims prims =
         ernie::ResolveRenderPrims(scene, terraingen::viewer::kSettingsPrim);
     const ernie::FrameParams frame = ernie::FrameParamsOf(scene, prims, 16, 16);
@@ -347,10 +337,22 @@ TEST(AuthorView, WritesTheCameraExposureBandsAndPhysicalSun) {
     EXPECT_EQ(frame.sunIrradiance, ernie::BlackbodyIrradiance(bands, 5772.0, 1361.0));
 
     view.camera.physicalSun = false;
-    terraingen::viewer::AuthorView(scene, view, ernie::OrbitController{}, brdfs);
+    terraingen::viewer::AuthorView(scene, view, cameraPath, brdfs);
     EXPECT_NE(ernie::FrameParamsOf(scene, prims, 16, 16).sunIrradiance,
               ernie::BlackbodyIrradiance(bands, 5772.0, 1361.0))
         << "back to relative units";
+}
+
+TEST(AuthorView, LeavesPrimsThatAreNotCamerasAlone) {
+    const ernie::BrdfRegistry brdfs = ernie::BrdfRegistry::WithBuiltins();
+    ernie::Scene scene;
+    terraingen::viewer::AuthorView(scene, terraingen::viewer::ViewSettings{},
+                                   ernie::Path("/Missing"), brdfs);
+    EXPECT_FALSE(scene.Has(ernie::Path("/Missing")));
+    scene.Define("/World/Box", ernie::tokens::kCube);
+    terraingen::viewer::AuthorView(scene, terraingen::viewer::ViewSettings{},
+                                   ernie::Path("/World/Box"), brdfs);
+    EXPECT_EQ(scene.Get(ernie::Path("/World/Box"), ernie::tokens::kExposureIso), nullptr);
 }
 
 TEST(CraterSettings, DefaultsAreAValidLunarSurface) {

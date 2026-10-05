@@ -8,11 +8,11 @@
 #include "ernie/gpu/pipeline.h"
 #include "ernie/gpu/swapchain.h"
 #include "ernie/gpu/vulkan_context.h"
+#include "ernie/gui/icons.h"
 #include "ernie/render/render_delegate.h"
 #include "ernie/render/resolve.h"
 #include "ernie/scene/schema.h"
 #include "ernie/scene/tokens.h"
-#include "icons.h"
 #include "session.h"
 
 #define GLFW_INCLUDE_NONE
@@ -195,6 +195,7 @@ struct Viewer::State {
     bool imguiVulkan = false;
     bool imguiGlfw = false;
     std::unique_ptr<RenderDelegate> delegate;
+    std::string renderer;
 
     std::unique_ptr<OffscreenTarget> viewport;
     std::unique_ptr<Sampler> sampler;
@@ -211,8 +212,10 @@ struct Viewer::State {
     float contentScale = 1.0f;
     std::vector<Path> selection;
 
+    enum class Stage { Frame, Ui, PreRender, PostRender };
     struct FrameCallback {
         std::uint64_t id;
+        Stage stage;
         std::function<void(Viewer&, const FrameInfo&)> callback;
     };
     struct SelectionCallback {
@@ -236,7 +239,9 @@ struct Viewer::State {
     std::chrono::steady_clock::time_point last = start;
     bool open = true;
     bool layoutReady = false;
-    ImGuiID sideDock = 0;
+    std::map<Dock, ImGuiID> dockNodes;
+    bool userLayout = false;
+    FrameInfo frameInfo;
     std::optional<std::string> pendingLayout;
     std::string renderError;
 
@@ -329,7 +334,8 @@ struct Viewer::State {
             uiTarget = std::make_unique<OffscreenTarget>(*gpu, options.width, options.height);
         }
         frame.emplace(*gpu);
-        delegate = CreateRenderDelegate("raster", *gpu, kViewportFormat);
+        delegate = CreateRenderDelegate(options.renderer, *gpu, kViewportFormat);
+        renderer = options.renderer;
         sampler = std::make_unique<Sampler>(*gpu, SamplerDesc{VK_FILTER_LINEAR});
     }
 
@@ -532,11 +538,30 @@ struct Viewer::State {
         ImGui::DockBuilderRemoveNode(dockSpace);
         ImGui::DockBuilderAddNode(dockSpace, ImGuiDockNodeFlags_DockSpace);
         ImGui::DockBuilderSetNodeSize(dockSpace, ImGui::GetMainViewport()->WorkSize);
+        dockNodes.clear();
+        const auto wants = [&](Dock dock) {
+            return std::any_of(panels.begin(), panels.end(),
+                               [dock](const auto& panel) { return panel->GetDock() == dock; });
+        };
         ImGuiID center = dockSpace;
-        sideDock = ImGui::DockBuilderSplitNode(center, ImGuiDir_Right, 0.26f, nullptr, &center);
+        if (wants(Dock::Left)) {
+            dockNodes[Dock::Left] =
+                ImGui::DockBuilderSplitNode(center, ImGuiDir_Left, 0.24f, nullptr, &center);
+        }
+        if (wants(Dock::Right)) {
+            dockNodes[Dock::Right] =
+                ImGui::DockBuilderSplitNode(center, ImGuiDir_Right, 0.30f, nullptr, &center);
+        }
+        if (wants(Dock::Bottom)) {
+            dockNodes[Dock::Bottom] =
+                ImGui::DockBuilderSplitNode(center, ImGuiDir_Down, 0.25f, nullptr, &center);
+        }
         ImGui::DockBuilderDockWindow(kViewportTitle, center);
         for (const auto& panel : panels) {
-            ImGui::DockBuilderDockWindow(panel->Title().c_str(), sideDock);
+            const auto node = dockNodes.find(panel->GetDock());
+            if (node != dockNodes.end()) {
+                ImGui::DockBuilderDockWindow(panel->Title().c_str(), node->second);
+            }
         }
         ImGui::DockBuilderFinish(dockSpace);
     }
@@ -565,6 +590,7 @@ struct Viewer::State {
                 ImGui::Separator();
                 if (ImGui::MenuItem("Reset Layout")) {
                     layoutReady = false;
+                    userLayout = false;
                 }
             }
             bool first = true;
@@ -674,6 +700,23 @@ struct Viewer::State {
         ImGui::PushStyleColor(ImGuiCol_PopupBg, ToImVec4(theme.panel));
         const float comboWidth = 150.0f * contentScale;
 
+        const std::vector<std::string> renderers = RenderBackends();
+        ImGui::SetNextItemWidth(110.0f * contentScale);
+        const std::string rendererLabel = std::string(icons::kMonitor) + "  " + renderer;
+        if (ImGui::BeginCombo("##renderer", rendererLabel.c_str())) {
+            for (const std::string& name : renderers) {
+                if (ImGui::Selectable(name.c_str(), name == renderer) && name != renderer) {
+                    try {
+                        self.SetRenderer(name);
+                    } catch (const std::exception& error) {
+                        renderError = error.what();
+                    }
+                }
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::SameLine();
+
         ImGui::SetNextItemWidth(comboWidth);
         const std::string cameraLabel = std::string(icons::kCamera) + "  " + Label(activeCamera);
         if (ImGui::BeginCombo("##camera", cameraLabel.c_str())) {
@@ -729,8 +772,9 @@ struct Viewer::State {
             if (!panel.IsVisible()) {
                 continue;
             }
-            if (sideDock != 0) {
-                ImGui::SetNextWindowDockID(sideDock, ImGuiCond_FirstUseEver);
+            const auto node = dockNodes.find(panel.GetDock());
+            if (node != dockNodes.end()) {
+                ImGui::SetNextWindowDockID(node->second, ImGuiCond_FirstUseEver);
             }
             bool keepOpen = true;
             if (ImGui::Begin(panel.Title().c_str(), &keepOpen)) {
@@ -753,6 +797,7 @@ struct Viewer::State {
         ImGui::DockSpaceOverViewport(dockSpace, ImGui::GetMainViewport());
         DrawViewport();
         DrawPanels();
+        RunCallbacks(Stage::Ui, frameInfo);
     }
 
     void RecordViewport(VkCommandBuffer commands) {
@@ -852,16 +897,37 @@ struct Viewer::State {
         }
     }
 
+    /// Runs the callbacks of `stage` on a copy of the list, so callbacks may add or remove
+    /// callbacks.
+    void RunCallbacks(Stage stage, const FrameInfo& info) {
+        const auto callbacks = frameCallbacks;
+        for (const FrameCallback& entry : callbacks) {
+            if (entry.stage == stage) {
+                entry.callback(self, info);
+            }
+        }
+    }
+
+    std::uint64_t AddCallback(Stage stage,
+                              std::function<void(Viewer&, const FrameInfo&)> callback) {
+        const std::uint64_t id = nextCallback++;
+        frameCallbacks.push_back({id, stage, std::move(callback)});
+        return id;
+    }
+
     bool Step();
 };
 
 namespace {
 
 void StatsPanel::Draw(Viewer& viewer) {
-    const RenderStats stats = viewer.Delegate().Stats();
+    const RenderStats stats = viewer.Stats();
     ImGui::TextDisabled("Device");
     ImGui::SameLine(100.0f);
     ImGui::TextUnformatted(viewer.Context().DeviceName().c_str());
+    ImGui::TextDisabled("Renderer");
+    ImGui::SameLine(100.0f);
+    ImGui::TextUnformatted(viewer.Renderer().c_str());
     ImGui::TextDisabled("Frame");
     ImGui::SameLine(100.0f);
     const float framerate = ImGui::GetIO().Framerate;
@@ -929,28 +995,18 @@ bool Viewer::State::Step() {
     info.time = std::chrono::duration<double>(now - start).count();
     info.delta = std::chrono::duration<double>(now - last).count();
     last = now;
-    const auto callbacks = frameCallbacks;
-    for (const FrameCallback& entry : callbacks) {
-        entry.callback(self, info);
-    }
+    frameInfo = info;
+    RunCallbacks(Stage::Frame, info);
     if (!open) {
         return false;
     }
     ValidateSession();
 
-    std::optional<Swapchain::Frame> image;
-    if (swapchain) {
-        image = swapchain->Acquire(frame->acquired);
-        if (!image) {
-            ResizeSwapchain(framebufferWidth, framebufferHeight);
-            return true;
-        }
-    }
-
     if (pendingLayout) {
         ImGui::LoadIniSettingsFromMemory(pendingLayout->c_str(), pendingLayout->size());
         pendingLayout.reset();
         layoutReady = true;
+        userLayout = true;
     }
     ImGui_ImplVulkan_NewFrame();
     if (window != nullptr) {
@@ -976,6 +1032,17 @@ bool Viewer::State::Step() {
     if (stats != nullptr) {
         stats->Record(static_cast<float>(info.delta * 1000.0));
     }
+    RunCallbacks(Stage::PreRender, info);
+    ValidateSession();
+
+    std::optional<Swapchain::Frame> image;
+    if (swapchain) {
+        image = swapchain->Acquire(frame->acquired);
+        if (!image) {
+            ResizeSwapchain(framebufferWidth, framebufferHeight);
+            return open;
+        }
+    }
 
     VkCommandBuffer commands = frame->commands;
     vkResetCommandBuffer(commands, 0);
@@ -998,6 +1065,7 @@ bool Viewer::State::Step() {
     if (capture && capture->rendered) {
         WriteCapture();
     }
+    RunCallbacks(Stage::PostRender, info);
     return open;
 }
 
@@ -1041,9 +1109,19 @@ void Viewer::Close() {
 }
 
 std::uint64_t Viewer::OnFrame(std::function<void(Viewer&, const FrameInfo&)> callback) {
-    const std::uint64_t id = state_->nextCallback++;
-    state_->frameCallbacks.push_back({id, std::move(callback)});
-    return id;
+    return state_->AddCallback(State::Stage::Frame, std::move(callback));
+}
+
+std::uint64_t Viewer::OnUi(std::function<void(Viewer&, const FrameInfo&)> callback) {
+    return state_->AddCallback(State::Stage::Ui, std::move(callback));
+}
+
+std::uint64_t Viewer::OnPreRender(std::function<void(Viewer&, const FrameInfo&)> callback) {
+    return state_->AddCallback(State::Stage::PreRender, std::move(callback));
+}
+
+std::uint64_t Viewer::OnPostRender(std::function<void(Viewer&, const FrameInfo&)> callback) {
+    return state_->AddCallback(State::Stage::PostRender, std::move(callback));
 }
 
 std::uint64_t Viewer::OnSelection(std::function<void(Viewer&, std::span<const Path>)> callback) {
@@ -1059,6 +1137,37 @@ void Viewer::RemoveCallback(std::uint64_t id) {
 
 Scene& Viewer::GetScene() {
     return state_->scene;
+}
+
+std::vector<std::string> Viewer::Renderers() {
+    return RenderBackends();
+}
+
+const std::string& Viewer::Renderer() const {
+    return state_->renderer;
+}
+
+void Viewer::SetRenderer(const std::string& name) {
+    State& s = *state_;
+    if (name == s.renderer) {
+        return;
+    }
+    vkDeviceWaitIdle(s.gpu->Device());
+    std::unique_ptr<RenderDelegate> next = CreateRenderDelegate(name, *s.gpu, kViewportFormat);
+    s.delegate = std::move(next);
+    s.renderer = name;
+}
+
+const BrdfRegistry& Viewer::Brdfs() const {
+    return state_->delegate->Brdfs();
+}
+
+RenderStats Viewer::Stats() const {
+    return state_->delegate->Stats();
+}
+
+void Viewer::Sync() {
+    state_->delegate->Sync(state_->scene);
 }
 
 RenderDelegate& Viewer::Delegate() {
@@ -1207,12 +1316,30 @@ Panel& Viewer::AddPanel(std::unique_ptr<Panel> panel) {
     if (panel->Title() == kViewportTitle) {
         throw std::invalid_argument("'Viewport' is reserved");
     }
+    const Dock dock = panel->GetDock();
     state_->panels.push_back(std::move(panel));
+    if (!state_->userLayout && dock != Dock::Floating && !state_->dockNodes.contains(dock)) {
+        state_->layoutReady = false;
+    }
     return *state_->panels.back();
 }
 
-WidgetPanel& Viewer::AddWidgetPanel(std::string title) {
-    return static_cast<WidgetPanel&>(AddPanel(std::make_unique<WidgetPanel>(std::move(title))));
+Panel& Viewer::AddPanel(std::string title, Dock dock, std::function<void(Viewer&)> draw) {
+    return AddPanel(std::make_unique<FunctionPanel>(std::move(title), dock, std::move(draw)));
+}
+
+Panel* Viewer::FindPanel(std::string_view title) {
+    for (const auto& panel : state_->panels) {
+        if (panel->Title() == title) {
+            return panel.get();
+        }
+    }
+    return nullptr;
+}
+
+WidgetPanel& Viewer::AddWidgetPanel(std::string title, Dock dock) {
+    return static_cast<WidgetPanel&>(
+        AddPanel(std::make_unique<WidgetPanel>(std::move(title), dock)));
 }
 
 void Viewer::RemovePanel(const std::string& title) {

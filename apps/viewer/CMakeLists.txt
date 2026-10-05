@@ -1,16 +1,9 @@
-add_library(
-    terraingen_viewer_app STATIC
-    app.cpp
-    glfw_surface.cpp
-    log_buffer.cpp
-    options.cpp
-    panels.cpp
-    settings.cpp
-    worker.cpp)
+add_library(terraingen_viewer_app STATIC app.cpp log_buffer.cpp options.cpp panels.cpp settings.cpp
+                                         worker.cpp)
 target_include_directories(terraingen_viewer_app PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(
     terraingen_viewer_app
-    PUBLIC terraingen::core Ernie::ernie glfw dear_imgui_glfw_vulkan
+    PUBLIC terraingen::core Ernie::gui
     PRIVATE terraingen_warnings terraingen_coverage)
 
 add_executable(terraingen-viewer main.cpp)

@@ -5,6 +5,10 @@
 #include <memory>
 #include <string>
 
+namespace ernie::gui {
+class Viewer;
+}  // namespace ernie::gui
+
 namespace terraingen::viewer {
 
 /// Command-line options of `terraingen-viewer`.
@@ -15,6 +19,7 @@ struct AppOptions {
     std::string detailNormal;  ///< Detail normal map to load at startup.
     LogLevel logLevel = LogLevel::Info;  ///< Lowest level shown in the Log panel.
     bool validation = false;  ///< Enable the Vulkan validation layer when it is installed.
+    bool hidden = false;      ///< Render without a window, for tests and headless machines.
 };
 
 /// Usage text for `terraingen-viewer --help`.
@@ -25,11 +30,13 @@ std::string AppUsage();
 /// that is not an integer.
 AppOptions ParseAppOptions(int argc, const char* const* argv);
 
-/// The TerrainGen viewer: a window that generates synthetic terrain from its panels and renders it.
+/// The TerrainGen viewer: Ernie's GUI viewer (`ernie::gui::Viewer`) with TerrainGen's panels,
+/// generating synthetic terrain on a worker thread and showing it in the viewer's scene.
 class App {
   public:
-    /// Opens the window and initializes WebGPU and ImGui.
-    /// @throws std::runtime_error if the window or GPU cannot be initialized.
+    /// Opens the viewer and adds the Terrain, View, Surface, Info and Log panels.
+    /// @throws std::runtime_error if the window or GPU cannot be initialized, or for an unknown
+    /// reflectance model or a detail texture that cannot be loaded.
     explicit App(const AppOptions& options);
     ~App();
     App(const App&) = delete;
@@ -37,6 +44,9 @@ class App {
 
     /// Runs the event loop until the window closes or `maxFrames` is reached.
     void Run();
+
+    /// The Ernie viewer the app runs in.
+    ernie::gui::Viewer& Viewer();
 
   private:
     struct State;

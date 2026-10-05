@@ -2,24 +2,15 @@
 
 #include "terraingen/core/version.h"
 
-#include "ernie/ernie.h"
-#include "glfw_surface.h"
+#include "ernie/gui/gui.h"
+#include "ernie/scene/tokens.h"
 #include "panels.h"
 #include "settings.h"
 #include "worker.h"
 
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
-#include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_impl_vulkan.h>
-
 #include <algorithm>
-#include <array>
 #include <cstdint>
-#include <cstdio>
 #include <memory>
-#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -30,117 +21,6 @@
 namespace terraingen::viewer {
 
 namespace {
-
-struct GlfwWindow {
-    GLFWwindow* window = nullptr;
-
-    GlfwWindow() {
-        glfwSetErrorCallback([](int code, const char* message) {
-            std::fprintf(stderr, "GLFW %d: %s\n", code, message);
-        });
-        // GLFW uses Ernie's Vulkan, which on macOS may be MoltenVK without a loader.
-        glfwInitVulkanLoader(ernie::LoadVulkanLoader());
-        if (glfwInit() == GLFW_FALSE) {
-            throw std::runtime_error("Could not initialize GLFW");
-        }
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        window = glfwCreateWindow(1600, 1000, "TerrainGen Viewer", nullptr, nullptr);
-        if (window == nullptr) {
-            glfwTerminate();
-            throw std::runtime_error("Could not create a window");
-        }
-    }
-
-    ~GlfwWindow() {
-        glfwDestroyWindow(window);
-        glfwTerminate();
-    }
-
-    GlfwWindow(const GlfwWindow&) = delete;
-    GlfwWindow& operator=(const GlfwWindow&) = delete;
-};
-
-struct ImGuiContext {
-    ImGuiContext(GLFWwindow* window, const ernie::VulkanContext& gpu,
-                 const ernie::Swapchain& swapchain) {
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-        ImGui::GetIO().IniFilename = nullptr;
-        ImGui::StyleColorsDark();
-        ImGui_ImplGlfw_InitForVulkan(window, true);
-        const VkFormat format = swapchain.Format();
-        ImGui_ImplVulkan_InitInfo info{};
-        info.ApiVersion = VK_API_VERSION_1_3;
-        info.Instance = gpu.Instance();
-        info.PhysicalDevice = gpu.PhysicalDevice();
-        info.Device = gpu.Device();
-        info.QueueFamily = gpu.QueueFamily();
-        info.Queue = gpu.Queue();
-        info.DescriptorPoolSize = 64;
-        info.MinImageCount = swapchain.MinImageCount();
-        info.ImageCount = swapchain.ImageCount();
-        info.UseDynamicRendering = true;
-        info.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-        info.PipelineInfoMain.PipelineRenderingCreateInfo = {
-            VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
-        info.PipelineInfoMain.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
-        info.PipelineInfoMain.PipelineRenderingCreateInfo.pColorAttachmentFormats = &format;
-        ImGui_ImplVulkan_Init(&info);
-    }
-
-    ~ImGuiContext() {
-        ImGui_ImplVulkan_Shutdown();
-        ImGui_ImplGlfw_Shutdown();
-        ImGui::DestroyContext();
-    }
-
-    ImGuiContext(const ImGuiContext&) = delete;
-    ImGuiContext& operator=(const ImGuiContext&) = delete;
-};
-
-/// Command buffer and synchronisation for the one frame the viewer keeps in flight.
-struct FrameResources {
-    const ernie::VulkanContext& gpu;
-    VkCommandPool pool = VK_NULL_HANDLE;
-    VkCommandBuffer commands = VK_NULL_HANDLE;
-    VkFence done = VK_NULL_HANDLE;
-    VkSemaphore acquired = VK_NULL_HANDLE;
-
-    explicit FrameResources(const ernie::VulkanContext& context) : gpu(context) {
-        VkCommandPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
-        poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-        poolInfo.queueFamilyIndex = gpu.QueueFamily();
-        ernie::CheckVk(vkCreateCommandPool(gpu.Device(), &poolInfo, nullptr, &pool),
-                       "vkCreateCommandPool");
-        VkCommandBufferAllocateInfo allocate{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
-        allocate.commandPool = pool;
-        allocate.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        allocate.commandBufferCount = 1;
-        ernie::CheckVk(vkAllocateCommandBuffers(gpu.Device(), &allocate, &commands),
-                       "vkAllocateCommandBuffers");
-        VkFenceCreateInfo fenceInfo{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
-        fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-        ernie::CheckVk(vkCreateFence(gpu.Device(), &fenceInfo, nullptr, &done), "vkCreateFence");
-        VkSemaphoreCreateInfo semaphoreInfo{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-        ernie::CheckVk(vkCreateSemaphore(gpu.Device(), &semaphoreInfo, nullptr, &acquired),
-                       "vkCreateSemaphore");
-    }
-
-    ~FrameResources() {
-        vkDeviceWaitIdle(gpu.Device());
-        vkDestroySemaphore(gpu.Device(), acquired, nullptr);
-        vkDestroyFence(gpu.Device(), done, nullptr);
-        vkDestroyCommandPool(gpu.Device(), pool, nullptr);
-    }
-
-    FrameResources(const FrameResources&) = delete;
-    FrameResources& operator=(const FrameResources&) = delete;
-
-    /// Waits until the previous frame has finished on the GPU.
-    void Wait() const {
-        vkWaitForFences(gpu.Device(), 1, &done, VK_TRUE, UINT64_MAX);
-    }
-};
 
 /// Routes TerrainGen's log to `buffer` for its lifetime, then restores the default sink and level.
 class LogInstallation {
@@ -162,34 +42,26 @@ struct App::State {
     LogBuffer logBuffer;
     LogInstallation logInstallation{logBuffer};
     AppOptions options;
-    GlfwWindow window;
-    std::unique_ptr<ernie::VulkanContext> gpu;
-    std::unique_ptr<ernie::Swapchain> swapchain;
-    std::unique_ptr<ernie::GpuImage> depth;
-    std::optional<FrameResources> frame;
-    std::optional<ImGuiContext> imgui;
-    std::unique_ptr<ernie::RenderDelegate> delegate;
-    /// The terrain's bounds without exaggeration, once a generation is displayed.
-    std::optional<std::pair<glm::vec3, glm::vec3>> terrainBounds;
     ernie::Scene scene;
-    ernie::OrbitController camera;
+    std::unique_ptr<ernie::gui::Viewer> viewer;
 
     TerrainSettings settings;
     TerrainSettings requested;
     ViewSettings view;
     Worker worker;
     bool autoRegenerate = true;
-    bool uiVisible = true;
-    bool logVisible = true;
     bool framed = false;
     double framedExtent = 0.0;
     TerrainPanelStatus status;
     InfoPanelData info;
     SurfacePanelState surfacePanel;
     LogPanelState logPanel;
+    std::vector<ernie::gui::Panel*> panels;
+    ernie::gui::Panel* log = nullptr;
 
-    int width = 0;
-    int height = 0;
+    const ernie::BrdfRegistry& Brdfs() const {
+        return viewer->Brdfs();
+    }
 
     /// Applies the command-line reflectance model and detail textures.
     /// @throws std::runtime_error for an unknown model or a texture that cannot be loaded.
@@ -221,48 +93,9 @@ struct App::State {
         }
     }
 
-    const ernie::BrdfRegistry& Brdfs() const {
-        return delegate->Brdfs();
-    }
-
-    /// The delegate's backend-specific count `name`, or 0.
-    static std::uint64_t Counter(const ernie::RenderStats& stats, std::string_view name) {
-        for (const auto& [counter, value] : stats.counters) {
-            if (counter == name) {
-                return value;
-            }
-        }
-        return 0;
-    }
-
     void Request() {
         requested = settings;
         worker.Request(settings);
-    }
-
-    void Resize(int newWidth, int newHeight) {
-        width = newWidth;
-        height = newHeight;
-        if (width > 0 && height > 0) {
-            swapchain->Resize(static_cast<std::uint32_t>(width),
-                              static_cast<std::uint32_t>(height));
-            CreateDepth();
-            ImGui_ImplVulkan_SetMinImageCount(swapchain->MinImageCount());
-        }
-    }
-
-    void CreateDepth() {
-        const VkExtent2D extent = swapchain->Extent();
-        depth = std::make_unique<ernie::GpuImage>(
-            *gpu, ernie::ImageDesc{extent.width, extent.height, 1, 1, VK_FORMAT_D32_SFLOAT,
-                                   VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT});
-    }
-
-    void Frame() {
-        if (terrainBounds) {
-            const glm::vec3 scale(1.0f, 1.0f, view.exaggeration);
-            camera.Frame(terrainBounds->first * scale, terrainBounds->second * scale);
-        }
     }
 
     void ApplyResult(GenerationResult result) {
@@ -272,27 +105,21 @@ struct App::State {
             return;
         }
         const Stopwatch upload;
-        std::optional<std::pair<glm::vec3, glm::vec3>> bounds;
-        std::size_t cols = 0;
-        std::size_t rows = 0;
+        const std::size_t cols = result.raster.Width();
+        const std::size_t rows = result.raster.Height();
         try {
-            bounds = TerrainBounds(result.raster, result.stats, 1.0f);
-            cols = result.raster.Width();
-            rows = result.raster.Height();
             AuthorTerrain(scene, std::make_shared<const Raster<float>>(std::move(result.raster)));
-            delegate->Sync(scene);
+            viewer->Sync();
         } catch (const std::invalid_argument& error) {
             status.error = error.what();
             LogWarning("viewer", "Cannot display generation ", result.id, ": ", status.error);
             return;
         }
-        terrainBounds = bounds;
         info.width = cols;
         info.height = rows;
         LogInfo("viewer", "Generation ", result.id, " finished in ",
                 FormatDuration(result.milliseconds), "; uploaded ", info.width, "x", info.height,
                 " heightfield in ", FormatDuration(upload.Milliseconds()));
-        info.gpuBytes = delegate->Stats().gpuBytes;
         info.stats = result.stats;
         info.generationMilliseconds = result.milliseconds;
 
@@ -300,7 +127,7 @@ struct App::State {
             static_cast<double>(std::max(result.settings.width, result.settings.height)) *
             result.settings.pixelSize;
         if (!framed || extent != framedExtent) {
-            Frame();
+            viewer->Frame();
             framed = true;
             framedExtent = extent;
         }
@@ -328,7 +155,7 @@ struct App::State {
             scene.Define(kTerrainPrim, ernie::tokens::kTerrain)
                 .Set(ernie::tokens::kMaterialBinding, ernie::Path(kSurfacePrim));
             scene.Write(kSurfacePrim, attribute, TensorOf(image));
-            delegate->Sync(scene);
+            viewer->Sync();
         } catch (const std::invalid_argument& error) {
             scene.Clear(kSurfacePrim, attribute);
             message = error.what();
@@ -361,122 +188,72 @@ struct App::State {
         }
     }
 
-    void HandleInput() {
-        const ImGuiIO& io = ImGui::GetIO();
-        if (!io.WantCaptureMouse) {
-            if (ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f)) {
-                camera.Orbit(-io.MouseDelta.x * 0.005f, io.MouseDelta.y * 0.005f);
-            }
-            if (ImGui::IsMouseDragging(ImGuiMouseButton_Right, 0.0f) ||
-                ImGui::IsMouseDragging(ImGuiMouseButton_Middle, 0.0f)) {
-                camera.Pan(io.MouseDelta.x, io.MouseDelta.y, io.DisplaySize.y);
-            }
-            if (io.MouseWheel != 0.0f) {
-                camera.Zoom(io.MouseWheel);
-            }
+    /// Takes a finished generation and refreshes what the panels show, before the UI.
+    void BeginFrame() {
+        if (auto result = worker.TakeResult()) {
+            ApplyResult(std::move(*result));
         }
-        if (!io.WantCaptureKeyboard) {
-            if (ImGui::IsKeyPressed(ImGuiKey_F)) {
-                Frame();
-            }
-            if (ImGui::IsKeyPressed(ImGuiKey_H, false)) {
-                uiVisible = !uiVisible;
-            }
-            if (ImGui::IsKeyPressed(ImGuiKey_L, false)) {
-                logVisible = !logVisible;
-            }
-            if (ImGui::IsKeyPressed(ImGuiKey_R) && ValidateSettings(settings).empty()) {
-                Request();
-            }
-            if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-                glfwSetWindowShouldClose(window.window, GLFW_TRUE);
-            }
-        }
-    }
-
-    void DrawUi() {
         status.generating = worker.Busy();
         surfacePanel.hasAlbedoMap = scene.Read(kSurfacePrim, ernie::tokens::kAlbedoMap) != nullptr;
-        const ernie::RenderStats stats = delegate->Stats();
-        info.gpu = gpu->DeviceName();
-        info.gpuBytes = stats.gpuBytes;
-        info.triangles = stats.triangles;
-        info.patches =
-            static_cast<std::size_t>(Counter(stats, ernie::raster_stats::kTerrainPatches));
-        info.lodLevels =
-            static_cast<std::uint32_t>(Counter(stats, ernie::raster_stats::kTerrainLodLevels));
-        if (!uiVisible) {
+    }
+
+    /// The keyboard shortcuts, inside the UI frame.
+    void HandleShortcuts() {
+        if (ImGui::GetIO().WantTextInput) {
             return;
         }
-        const SidebarActions actions =
-            DrawSidebar(settings, autoRegenerate, status, view, surfacePanel, Brdfs(), info);
-        const bool changed = !(settings == requested);
-        if (actions.generate || (autoRegenerate && changed && ValidateSettings(settings).empty())) {
+        if (ImGui::IsKeyPressed(ImGuiKey_H, false)) {
+            const bool visible =
+                std::none_of(panels.begin(), panels.end(),
+                             [](const ernie::gui::Panel* panel) { return panel->IsVisible(); });
+            for (ernie::gui::Panel* panel : panels) {
+                panel->SetVisible(visible);
+            }
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_L, false)) {
+            log->SetVisible(!log->IsVisible());
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_R) && ValidateSettings(settings).empty()) {
             Request();
-        }
-        if (actions.frame) {
-            Frame();
-        }
-        HandleSurfaceAction(actions.surface);
-        if (logVisible) {
-            DrawLogPanel(logBuffer, logPanel, actions.width);
         }
     }
 
-    void Render(const ernie::Swapchain::Frame& image) {
-        AuthorView(scene, view, camera, Brdfs());
-        delegate->Update(scene, kSettingsPrim, swapchain->Extent());
-
-        VkCommandBuffer commands = frame->commands;
-        vkResetCommandBuffer(commands, 0);
-        VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-        begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-        vkBeginCommandBuffer(commands, &begin);
-        ernie::TransitionImage(commands, image.image, VK_IMAGE_ASPECT_COLOR_BIT,
-                               VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        depth->Transition(commands, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-        ernie::RenderingTarget target;
-        target.color = image.view;
-        target.depth = depth->View();
-        target.extent = swapchain->Extent();
-        delegate->Record(commands, target);
-
-        ernie::RenderingTarget overlay;
-        overlay.color = image.view;
-        overlay.extent = swapchain->Extent();
-        overlay.loadColor = true;
-        ernie::BeginRendering(commands, overlay);
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commands);
-        vkCmdEndRendering(commands);
-        ernie::TransitionImage(commands, image.image, VK_IMAGE_ASPECT_COLOR_BIT,
-                               VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                               VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-        vkEndCommandBuffer(commands);
-
-        std::vector<VkSemaphoreSubmitInfo> waits(1, {VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO});
-        waits[0].semaphore = image.acquired;
-        waits[0].stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-        for (const ernie::TimelinePoint& point : delegate->SubmitWaits()) {
-            VkSemaphoreSubmitInfo& wait = waits.emplace_back();
-            wait.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-            wait.semaphore = point.semaphore;
-            wait.value = point.value;
-            wait.stageMask = point.stages;
+    void AddPanels() {
+        using ernie::gui::Dock;
+        using ernie::gui::Viewer;
+        panels.push_back(&viewer->AddPanel("Terrain", Dock::Left, [this](Viewer&) {
+            const bool generate = DrawTerrainPanel(settings, autoRegenerate, status);
+            const bool changed = !(settings == requested);
+            if (generate || (autoRegenerate && changed && ValidateSettings(settings).empty())) {
+                Request();
+            }
+        }));
+        panels.push_back(&viewer->AddPanel("View", Dock::Left, [this](Viewer& v) {
+            if (DrawViewPanel(view)) {
+                v.Frame();
+            }
+        }));
+        panels.push_back(&viewer->AddPanel("Surface", Dock::Left, [this](Viewer&) {
+            HandleSurfaceAction(DrawSurfacePanel(view.material, surfacePanel, Brdfs()));
+        }));
+        panels.push_back(
+            &viewer->AddPanel("Info", Dock::Right, [this](Viewer&) { DrawInfoPanel(info); }));
+        log = &viewer->AddPanel("Log", Dock::Bottom,
+                                [this](Viewer&) { DrawLogPanel(logBuffer, logPanel); });
+        panels.push_back(log);
+        if (ernie::gui::Panel* stats = viewer->FindPanel("Stats")) {
+            panels.push_back(stats);
         }
-        VkSemaphoreSubmitInfo signal{VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO};
-        signal.semaphore = image.rendered;
-        signal.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-        VkCommandBufferSubmitInfo commandInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO};
-        commandInfo.commandBuffer = commands;
-        VkSubmitInfo2 submit{VK_STRUCTURE_TYPE_SUBMIT_INFO_2};
-        submit.waitSemaphoreInfoCount = static_cast<std::uint32_t>(waits.size());
-        submit.pWaitSemaphoreInfos = waits.data();
-        submit.commandBufferInfoCount = 1;
-        submit.pCommandBufferInfos = &commandInfo;
-        submit.signalSemaphoreInfoCount = 1;
-        submit.pSignalSemaphoreInfos = &signal;
-        vkResetFences(gpu->Device(), 1, &frame->done);
-        ernie::CheckVk(vkQueueSubmit2(gpu->Queue(), 1, &submit, frame->done), "vkQueueSubmit2");
+    }
+
+    void AddCallbacks() {
+        using ernie::gui::FrameInfo;
+        using ernie::gui::Viewer;
+        viewer->OnFrame([this](Viewer&, const FrameInfo&) { BeginFrame(); });
+        viewer->OnUi([this](Viewer&, const FrameInfo&) { HandleShortcuts(); });
+        viewer->OnPreRender([this](Viewer& v, const FrameInfo&) {
+            AuthorView(scene, view, v.ActiveCamera(), Brdfs());
+        });
     }
 };
 
@@ -484,28 +261,20 @@ App::App(const AppOptions& options) : state_(std::make_unique<State>()) {
     State& s = *state_;
     s.options = options;
     SetLogLevel(options.logLevel);
-    GLFWwindow* window = s.window.window;
-    ernie::VulkanContextOptions gpuOptions;
-    gpuOptions.validation = options.validation;
-    gpuOptions.instanceExtensions = GlfwInstanceExtensions();
-    gpuOptions.deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-    s.gpu = ernie::VulkanContext::Create(gpuOptions);
-    LogInfo("viewer", "TerrainGen ", TERRAINGEN_VERSION_STRING, " on ", s.gpu->DeviceName(),
-            s.gpu->ValidationEnabled() ? " with Vulkan validation" : "");
-
-    int width = 0;
-    int height = 0;
-    glfwGetFramebufferSize(window, &width, &height);
-    s.swapchain =
-        std::make_unique<ernie::Swapchain>(*s.gpu, CreateGlfwSurface(s.gpu->Instance(), window),
-                                           static_cast<std::uint32_t>(std::max(width, 1)),
-                                           static_cast<std::uint32_t>(std::max(height, 1)));
-    s.width = width;
-    s.height = height;
-    s.CreateDepth();
-    s.frame.emplace(*s.gpu);
-    s.imgui.emplace(window, *s.gpu, *s.swapchain);
-    s.delegate = ernie::CreateRenderDelegate("raster", *s.gpu, s.swapchain->Format());
+    ernie::gui::ViewerOptions viewerOptions;
+    viewerOptions.title = "TerrainGen Viewer";
+    viewerOptions.width = 1600;
+    viewerOptions.height = 1000;
+    viewerOptions.hidden = options.hidden;
+    viewerOptions.validation = options.validation;
+    s.viewer = std::make_unique<ernie::gui::Viewer>(s.scene, viewerOptions);
+    LogInfo("viewer", "TerrainGen ", TERRAINGEN_VERSION_STRING, " on ",
+            s.viewer->Context().DeviceName(),
+            s.viewer->Context().ValidationEnabled() ? " with Vulkan validation" : "");
+    s.AddPanels();
+    s.AddCallbacks();
+    AuthorView(s.scene, s.view, s.viewer->ActiveCamera(), s.Brdfs());
+    s.viewer->SetLighting(ernie::gui::Lighting::Stage);
     s.ApplyOptions();
     s.Request();
 }
@@ -514,45 +283,12 @@ App::~App() = default;
 
 void App::Run() {
     State& s = *state_;
-    for (long frame = 0; !glfwWindowShouldClose(s.window.window) && frame != s.options.maxFrames;
-         ++frame) {
-        glfwPollEvents();
-        if (glfwGetWindowAttrib(s.window.window, GLFW_ICONIFIED) != 0) {
-            ImGui_ImplGlfw_Sleep(10);
-            continue;
-        }
-        int width = 0;
-        int height = 0;
-        glfwGetFramebufferSize(s.window.window, &width, &height);
-        if (width != s.width || height != s.height) {
-            s.Resize(width, height);
-        }
-        if (width <= 0 || height <= 0) {
-            continue;
-        }
-        s.frame->Wait();
-        if (auto result = s.worker.TakeResult()) {
-            s.ApplyResult(std::move(*result));
-        }
-        const std::optional<ernie::Swapchain::Frame> image =
-            s.swapchain->Acquire(s.frame->acquired);
-        if (!image) {
-            s.Resize(width, height);
-            continue;
-        }
-
-        ImGui_ImplVulkan_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-        s.HandleInput();
-        s.DrawUi();
-        ImGui::Render();
-
-        s.Render(*image);
-        if (!s.swapchain->Present(*image)) {
-            s.Resize(width, height);
-        }
+    for (long frame = 0; frame != s.options.maxFrames && s.viewer->Step(); ++frame) {
     }
+}
+
+ernie::gui::Viewer& App::Viewer() {
+    return *state_->viewer;
 }
 
 }  // namespace terraingen::viewer

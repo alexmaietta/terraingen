@@ -25,17 +25,19 @@ TEST(ParseAppOptions, DefaultsWithoutArguments) {
     EXPECT_TRUE(options.detailNormal.empty());
     EXPECT_EQ(options.logLevel, terraingen::LogLevel::Info);
     EXPECT_FALSE(options.validation);
+    EXPECT_FALSE(options.hidden);
 }
 
 TEST(ParseAppOptions, ReadsEveryOption) {
     const AppOptions options =
         Parse({"--frames", "30", "--brdf", "hapke", "--detail-albedo", "rock_diff.png",
-               "--detail-normal", "rock_nor_gl.exr", "--log-level", "debug"});
+               "--detail-normal", "rock_nor_gl.exr", "--log-level", "debug", "--hidden"});
     EXPECT_EQ(options.maxFrames, 30);
     EXPECT_EQ(options.brdf, "hapke");
     EXPECT_EQ(options.detailAlbedo, "rock_diff.png");
     EXPECT_EQ(options.detailNormal, "rock_nor_gl.exr");
     EXPECT_EQ(options.logLevel, terraingen::LogLevel::Debug);
+    EXPECT_TRUE(options.hidden);
 }
 
 TEST(ParseAppOptions, RejectsUnknownFlagsMissingValuesAndBadNumbers) {
@@ -52,7 +54,7 @@ TEST(ParseAppOptions, RejectsUnknownFlagsMissingValuesAndBadNumbers) {
 TEST(AppUsage, ListsEveryOption) {
     const std::string usage = terraingen::viewer::AppUsage();
     for (const char* flag : {"--brdf", "--detail-albedo", "--detail-normal", "--frames",
-                             "--log-level", "--validation", "--help"}) {
+                             "--log-level", "--validation", "--hidden", "--help"}) {
         EXPECT_NE(usage.find(flag), std::string::npos) << flag;
     }
 }

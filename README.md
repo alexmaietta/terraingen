@@ -6,7 +6,7 @@
 
 A high-performance scientific terrain generation tool for the lunar surface.
 
-TerrainGen provides a core C++ and Python library designed to easily integrate into external workflows. The core is designed with minimal dependencies, but provides natural extensions to handle geotiffs, meshes, and GPU acceleration.
+TerrainGen provides a core C++ and Python library designed to easily integrate into external workflows. The core is designed with minimal dependencies and users can extend the base classes for custom functionality.
 
 We provide a command-line interface, a lightweight viewer, and a standalone demo that integrates TerrainGen into a planetary-scale renderer, synthesizing terrain detail on the GPU, on the fly, while navigating around the Moon.
 
@@ -27,6 +27,8 @@ pip install terraingen[viewer]
 terraingen-viewer
 ```
 
+For more examples of TerrainGen, see our complete [getting started guide]().
+
 ## Installation
 
 ### Prebuilt binaries
@@ -35,35 +37,13 @@ Versioned releases are available as precompiled binaries from the GitHub release
 
 ### Building from source
 
-Install the GDAL and PROJ development packages through your platform's package manager, then configure and build with CMake.
-
-**Linux (Debian/Ubuntu):**
-
-```sh
-sudo apt install libgdal-dev libproj-dev
-```
-
-**macOS (Homebrew):**
-
-```sh
-brew install gdal proj
-```
-
-**Windows (vcpkg):**
-
-```sh
-vcpkg install gdal proj
-```
-
-Then, from the repo root (on Windows, add `-DCMAKE_TOOLCHAIN_FILE=<path-to-vcpkg>/scripts/buildsystems/vcpkg.cmake`):
-
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ./build/bin/terraingen --version
 ```
 
-
+For more details, see the [installation guide]().
 
 ## Contributing
 
@@ -102,8 +82,6 @@ TerrainGen is built on top of the following open source libraries and tools:
 
 | Library | Purpose | License |
 | --- | --- | --- |
-| [GDAL](https://gdal.org/) | Raster/vector geospatial data I/O (GeoTIFF, PDS/IMG-LBL, ...) | MIT |
-| [PROJ](https://proj.org/) | Coordinate reference system transformations | MIT |
 | [dlpack](https://github.com/dmlc/dlpack) | Zero-copy tensor interop (vendored in `ernie/third_party/`) | Apache-2.0 |
 | [nlohmann/json](https://github.com/nlohmann/json) | Config-based generation | MIT |
 | [nanobind](https://github.com/wjakob/nanobind) | Python bindings | BSD-3-Clause |
@@ -118,7 +96,11 @@ The viewer additionally uses:
 | [Slang](https://github.com/shader-slang/slang) | Shader language and run-time compiler (SPIR-V, WGSL) | Apache-2.0 with LLVM exception |
 | [MoltenVK](https://github.com/KhronosGroup/MoltenVK) | Vulkan on Metal, macOS only | Apache-2.0 |
 | [GLFW](https://www.glfw.org/) | Windowing and input | Zlib |
-| [Dear ImGui](https://github.com/ocornut/imgui) | User interface | MIT |
+| [Dear ImGui](https://github.com/ocornut/imgui) | User interface (docking branch) | MIT |
+| [ImPlot](https://github.com/epezent/implot) | Plots in the viewer's panels | MIT |
+| [ImGuizmo](https://github.com/CedricGuillemet/ImGuizmo) | Transform gizmos in the viewport | MIT |
+| [Inter](https://github.com/rsms/inter) | User interface typeface | SIL OFL 1.1 |
+| [Lucide](https://github.com/lucide-icons/lucide) | User interface icons | ISC |
 | [GLM](https://github.com/g-truc/glm) | Vector and matrix math | MIT |
 | [stb](https://github.com/nothings/stb) | PNG and JPEG texture loading (vendored in `ernie/third_party/`) | MIT or public domain |
 | [tinyexr](https://github.com/syoyo/tinyexr) | OpenEXR texture loading (vendored in `ernie/third_party/`) | BSD-3-Clause |
