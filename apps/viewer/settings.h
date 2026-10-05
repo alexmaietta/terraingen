@@ -3,9 +3,11 @@
 #include "ernie/ernie.h"
 #include "terraingen/craters.h"
 #include "terraingen/distributions.h"
+#include "terraingen/io/geotiff.h"
 #include "terraingen/kernels/layers.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/raster/raster_stats.h"
+#include "terraingen/raster/resample.h"
 #include "terraingen/surfaces/synthetic_terrain.h"
 
 #include <glm/glm.hpp>
@@ -68,7 +70,7 @@ inline constexpr double kMaxViewerCraters = 2e6;
 struct CraterSettings {
     bool enabled = true;
     bool generate = true;        ///< Generate craters from the density; off uses manual only.
-    std::vector<Crater> manual;  ///< Craters placed by hand, in metres from the centre.
+    std::vector<Crater> manual;  ///< Craters placed by hand, in the terrain's coordinates.
     std::size_t maxCraters = 0;  ///< Keep at most this many generated craters; 0 keeps all.
     CraterDensityModel density = CraterDensityModel::LunarSurface;
     double surfaceAgeGyr = 3.5;        ///< For `LunarSurface`.
@@ -99,8 +101,43 @@ struct CraterModels {
 /// @throws std::invalid_argument or std::domain_error for invalid parameters.
 CraterModels BuildCraterModels(const CraterSettings& settings);
 
-/// Everything needed to generate a synthetic terrain in the viewer.
+/// Where the viewer's terrain comes from.
+enum class TerrainSource {
+    Synthetic,  ///< Noise layers over the configured grid.
+    Raster,     ///< A DEM read from a GeoTIFF.
+};
+
+/// A DEM loaded as the terrain, in the file's own projected coordinates.
+struct RasterSourceSettings {
+    std::string path;
+    std::size_t band = 0;  ///< From 0.
+    /// Resample to this cell size in metres; 0 keeps the file's, or the smallest that fits within
+    /// `kMaxGridSize` cells per side for larger files.
+    double pixelSize = 0.0;
+    ResampleMethod resampling = ResampleMethod::Cubic;
+    bool detail = false;  ///< Add the noise layers to the DEM as detail.
+
+    bool operator==(const RasterSourceSettings&) const = default;
+};
+
+/// The grid a terrain occupies: its size in cells and its pixel-to-world transform.
+struct TerrainGrid {
+    std::size_t width = 0;
+    std::size_t height = 0;
+    GeoTransform transform{};
+    std::size_t nativeWidth = 0;  ///< A raster file's size before resampling.
+    std::size_t nativeHeight = 0;
+    double nativePixelSize = 0.0;
+
+    Bounds2d Bounds() const;
+    double PixelSize() const;
+    double Area() const;
+};
+
+/// Everything needed to generate a terrain in the viewer.
 struct TerrainSettings {
+    TerrainSource source = TerrainSource::Synthetic;
+    RasterSourceSettings raster;
     std::size_t width = 513;   ///< Cells along x (east).
     std::size_t height = 513;  ///< Cells along y (north).
     double pixelSize = 2.0;    ///< Metres.
@@ -112,6 +149,18 @@ struct TerrainSettings {
 
     bool operator==(const TerrainSettings&) const = default;
 };
+
+/// Reads the raster `settings` select, resampled to the grid `DescribeTerrain` gives, with the
+/// noise layers added as detail when asked.
+/// @throws GeoTiffError or std::invalid_argument as `ReadGeoTiff` and `DescribeTerrain`.
+Raster<float> LoadRaster(const TerrainSettings& settings);
+
+/// The grid `settings` produce. For a raster source only the file's header is read, and it is
+/// cached until the file changes, since this runs every frame.
+/// @throws GeoTiffError for an unreadable raster.
+/// @throws std::invalid_argument for a raster in a geographic CRS, a missing band or an invalid
+/// pixel size.
+TerrainGrid DescribeTerrain(const TerrainSettings& settings);
 
 /// Describes the first problem with `settings`, or returns an empty string if they are valid.
 std::string ValidateSettings(const TerrainSettings& settings);
@@ -125,8 +174,9 @@ double MinDiameterForCount(const TerrainSettings& settings);
 /// @throws std::invalid_argument or std::domain_error for invalid crater settings.
 double ExpectedCraterCount(const TerrainSettings& settings);
 
-/// Generates the terrain `settings` describe, centred on the origin: the noise layers, then the
-/// craters applied on top.
+/// Generates the terrain `settings` describe: the noise layers centred on the origin, or the raster
+/// (resampled, with optional noise detail added relative to its origin), then the craters applied
+/// on top.
 /// @throws std::invalid_argument if the settings are invalid.
 Raster<float> GenerateTerrain(const TerrainSettings& settings);
 

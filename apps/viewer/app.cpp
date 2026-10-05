@@ -9,6 +9,7 @@
 #include "worker.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <stdexcept>
@@ -51,7 +52,7 @@ struct App::State {
     Worker worker;
     bool autoRegenerate = true;
     bool framed = false;
-    double framedExtent = 0.0;
+    std::array<double, 4> framedBounds{};
     TerrainPanelStatus status;
     InfoPanelData info;
     SurfacePanelState surfacePanel;
@@ -63,9 +64,14 @@ struct App::State {
         return viewer->Brdfs();
     }
 
-    /// Applies the command-line reflectance model and detail textures.
+    /// Applies the command-line DEM, reflectance model and detail textures.
     /// @throws std::runtime_error for an unknown model or a texture that cannot be loaded.
     void ApplyOptions() {
+        if (!options.dem.empty()) {
+            settings.source = TerrainSource::Raster;
+            settings.raster.path = options.dem;
+            settings.craters.enabled = false;
+        }
         if (!options.brdf.empty()) {
             if (Brdfs().Find(options.brdf) == nullptr) {
                 std::string known;
@@ -107,6 +113,7 @@ struct App::State {
         const Stopwatch upload;
         const std::size_t cols = result.raster.Width();
         const std::size_t rows = result.raster.Height();
+        const Bounds2d extent = TerrainGrid{cols, rows, result.raster.Transform()}.Bounds();
         try {
             AuthorTerrain(scene, std::make_shared<const Raster<float>>(std::move(result.raster)));
             viewer->Sync();
@@ -123,13 +130,11 @@ struct App::State {
         info.stats = result.stats;
         info.generationMilliseconds = result.milliseconds;
 
-        const double extent =
-            static_cast<double>(std::max(result.settings.width, result.settings.height)) *
-            result.settings.pixelSize;
-        if (!framed || extent != framedExtent) {
+        const std::array<double, 4> bounds{extent.minX, extent.minY, extent.maxX, extent.maxY};
+        if (!framed || bounds != framedBounds) {
             viewer->Frame();
             framed = true;
-            framedExtent = extent;
+            framedBounds = bounds;
         }
     }
 

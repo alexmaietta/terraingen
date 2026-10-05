@@ -10,7 +10,10 @@
 namespace terraingen::viewer {
 
 std::string AppUsage() {
-    return "Usage: terraingen-viewer [options]\n"
+    return "Usage: terraingen-viewer [options] [DEM]\n"
+           "  DEM                    GeoTIFF to view, in a projected CRS; craters and noise "
+           "detail\n"
+           "                         start off and can be enabled in the Terrain panel\n"
            "  --brdf ID              Reflectance model to start with (lambert, lommel_seeliger,\n"
            "                         lunar_lambert, oren_nayar, hapke)\n"
            "  --detail-albedo PATH   Tileable albedo texture (PNG, JPEG or EXR)\n"
@@ -59,6 +62,12 @@ AppOptions ParseAppOptions(int argc, const char* const* argv) {
             options.detailAlbedo = value();
         } else if (flag == "--detail-normal") {
             options.detailNormal = value();
+        } else if (!flag.starts_with("-")) {
+            if (!options.dem.empty()) {
+                throw std::invalid_argument("Only one DEM can be given; got '" + options.dem +
+                                            "' and '" + std::string(flag) + "'");
+            }
+            options.dem = flag;
         } else {
             throw std::invalid_argument("Unknown option " + std::string(flag));
         }

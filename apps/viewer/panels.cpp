@@ -5,6 +5,7 @@
 #include <imgui.h>
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <exception>
@@ -29,6 +30,8 @@ constexpr const char* kCraterDensityNames[] = {"Lunar surface (DSNE)", "Trask eq
                                                "Hartmann equilibrium", "Power law"};
 constexpr const char* kCraterDatumNames[] = {"None", "Plane", "Mean height", "Centre height"};
 constexpr const char* kBlendShapeNames[] = {"Linear", "Smoothstep", "Smootherstep", "Gaussian"};
+constexpr const char* kSourceNames[] = {"Synthetic", "Raster file"};
+constexpr const char* kResampleNames[] = {"Nearest", "Bilinear", "Cubic"};
 constexpr const char* kCraterProfileNames[] = {"Fassett & Thomson 2014", "Fassett et al. 2022",
                                                "Martin, Parkes & Dunstan (PANGU)"};
 
@@ -143,15 +146,56 @@ void GridSize(TerrainSettings& settings) {
     }
 }
 
+/// Raster file, band, resampling and detail controls, with the file's and the loaded grid's sizes.
+void DrawRasterSource(TerrainSettings& settings) {
+    RasterSourceSettings& raster = settings.raster;
+    std::array<char, 1024> path{};
+    raster.path.copy(path.data(), path.size() - 1);
+    if (ImGui::InputText("File (Enter)", path.data(), path.size(),
+                         ImGuiInputTextFlags_EnterReturnsTrue)) {
+        raster.path = path.data();
+    }
+    int band = static_cast<int>(raster.band);
+    if (ImGui::InputInt("Band", &band) && band >= 0) {
+        raster.band = static_cast<std::size_t>(band);
+    }
+    ImGui::InputDouble("Pixel size (m)", &raster.pixelSize, 0.0, 0.0, "%.3f",
+                       ImGuiInputTextFlags_EnterReturnsTrue);
+    ImGui::SetItemTooltip("0 keeps the file's, or fits %zu cells per side for larger files",
+                          kMaxGridSize);
+    EnumCombo("Resampling", raster.resampling, kResampleNames);
+    ImGui::Checkbox("Add noise detail", &raster.detail);
+    try {
+        const TerrainGrid grid = DescribeTerrain(settings);
+        ImGui::TextDisabled("File: %zu x %zu at %.3f m", grid.nativeWidth, grid.nativeHeight,
+                            grid.nativePixelSize);
+        ImGui::TextDisabled("Loaded: %zu x %zu at %.3f m", grid.width, grid.height,
+                            grid.PixelSize());
+        const Bounds2d bounds = grid.Bounds();
+        ImGui::TextDisabled("Extent: %.0f m x %.0f m", bounds.maxX - bounds.minX,
+                            bounds.maxY - bounds.minY);
+    } catch (const std::exception&) {
+        ImGui::TextDisabled("File: -");
+    }
+}
+
 void DrawTerrainSurface(TerrainSettings& settings) {
-    GridSize(settings);
-    const double minPixel = 0.05;
-    const double maxPixel = 100.0;
-    ImGui::DragScalar("Pixel size (m)", ImGuiDataType_Double, &settings.pixelSize, 0.05f, &minPixel,
-                      &maxPixel, "%.2f");
-    ImGui::TextDisabled("Extent: %.0f m x %.0f m",
-                        static_cast<double>(settings.width) * settings.pixelSize,
-                        static_cast<double>(settings.height) * settings.pixelSize);
+    EnumCombo("Source", settings.source, kSourceNames);
+    if (settings.source == TerrainSource::Raster) {
+        DrawRasterSource(settings);
+        if (!settings.raster.detail) {
+            return;
+        }
+    } else {
+        GridSize(settings);
+        const double minPixel = 0.05;
+        const double maxPixel = 100.0;
+        ImGui::DragScalar("Pixel size (m)", ImGuiDataType_Double, &settings.pixelSize, 0.05f,
+                          &minPixel, &maxPixel, "%.2f");
+        ImGui::TextDisabled("Extent: %.0f m x %.0f m",
+                            static_cast<double>(settings.width) * settings.pixelSize,
+                            static_cast<double>(settings.height) * settings.pixelSize);
+    }
 
     ImGui::SeparatorText("Layers");
     std::optional<std::size_t> remove;

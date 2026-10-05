@@ -26,6 +26,7 @@ TEST(ParseAppOptions, DefaultsWithoutArguments) {
     EXPECT_EQ(options.logLevel, terraingen::LogLevel::Info);
     EXPECT_FALSE(options.validation);
     EXPECT_FALSE(options.hidden);
+    EXPECT_TRUE(options.dem.empty());
 }
 
 TEST(ParseAppOptions, ReadsEveryOption) {
@@ -61,4 +62,15 @@ TEST(AppUsage, ListsEveryOption) {
 
 TEST(ParseAppOptions, EnablesValidation) {
     EXPECT_TRUE(Parse({"--validation"}).validation);
+}
+
+TEST(ParseAppOptions, TakesOneDemAnywhereAmongTheOptions) {
+    EXPECT_EQ(Parse({"ldem.tif"}).dem, "ldem.tif");
+    const AppOptions options = Parse({"--frames", "2", "dems/ldem.tif", "--hidden"});
+    EXPECT_EQ(options.dem, "dems/ldem.tif");
+    EXPECT_EQ(options.maxFrames, 2);
+    EXPECT_TRUE(options.hidden);
+    EXPECT_THROW(Parse({"a.tif", "b.tif"}), std::invalid_argument);
+    EXPECT_THROW(Parse({"-"}), std::invalid_argument);
+    EXPECT_NE(terraingen::viewer::AppUsage().find("[DEM]"), std::string::npos);
 }

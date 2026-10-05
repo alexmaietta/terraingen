@@ -17,6 +17,7 @@ struct AppOptions {
     std::string brdf;          ///< Reflectance model id to start with; empty keeps the default.
     std::string detailAlbedo;  ///< Detail albedo texture to load at startup.
     std::string detailNormal;  ///< Detail normal map to load at startup.
+    std::string dem;           ///< GeoTIFF to view instead of synthetic terrain, without craters.
     LogLevel logLevel = LogLevel::Info;  ///< Lowest level shown in the Log panel.
     bool validation = false;  ///< Enable the Vulkan validation layer when it is installed.
     bool hidden = false;      ///< Render without a window, for tests and headless machines.
@@ -26,12 +27,13 @@ struct AppOptions {
 std::string AppUsage();
 
 /// Parses `terraingen-viewer` arguments (`argv[0]` is the program name).
-/// @throws std::invalid_argument for an unknown flag, a flag without its value, or a frame count
-/// that is not an integer.
+/// @throws std::invalid_argument for an unknown flag, a flag without its value, a frame count
+/// that is not an integer, or more than one DEM.
 AppOptions ParseAppOptions(int argc, const char* const* argv);
 
 /// The TerrainGen viewer: Ernie's GUI viewer (`ernie::gui::Viewer`) with TerrainGen's panels,
-/// generating synthetic terrain on a worker thread and showing it in the viewer's scene.
+/// generating synthetic terrain or loading a DEM on a worker thread and showing it in the viewer's
+/// scene.
 class App {
   public:
     /// Opens the viewer and adds the Terrain, View, Surface, Info and Log panels.

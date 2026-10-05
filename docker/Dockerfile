@@ -30,7 +30,7 @@ RUN cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
 # Runtime
 FROM ubuntu:${UBUNTU_VERSION} AS runtime
 
-# GDAL runtime libraries get added here once terraingen::io links against GDAL.
+# GDAL runtime libraries get added here once GeoTIFF IO links against GDAL.
 COPY --from=build /opt/terraingen /opt/terraingen
 ENV PATH=/opt/terraingen/bin:${PATH}
 

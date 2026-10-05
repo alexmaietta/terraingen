@@ -13,6 +13,12 @@ add_custom_target(
     COMMENT "Regenerating TerrainGen build info (git SHA / build date)"
     VERBATIM)
 
+add_library(terraingen_miniz OBJECT "${PROJECT_SOURCE_DIR}/third_party/miniz/miniz.c")
+target_compile_definitions(
+    terraingen_miniz PRIVATE MINIZ_NO_STDIO MINIZ_NO_TIME MINIZ_NO_ARCHIVE_APIS
+                             MINIZ_NO_ZLIB_COMPATIBLE_NAMES)
+set_target_properties(terraingen_miniz PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 add_library(
     terraingen_core STATIC
     core/log.cpp
@@ -42,13 +48,16 @@ add_library(
     features/craters/profiles/fassett_thomson.cpp
     features/craters/profiles/martin_parkes_dunstan.cpp
     features/craters/rim_smoothing.cpp
+    io/geotiff.cpp
+    io/tiff_codecs.cpp
     random/samplers.cpp
     random/stream.cpp
     raster/filters.cpp
     raster/resample.cpp
     spatial/cells.cpp
     surfaces/synthetic_terrain.cpp
-    "${TERRAINGEN_BUILD_INFO_CPP}")
+    "${TERRAINGEN_BUILD_INFO_CPP}"
+    $<TARGET_OBJECTS:terraingen_miniz>)
 add_library(terraingen::core ALIAS terraingen_core)
 set_target_properties(terraingen_core PROPERTIES EXPORT_NAME core)
 add_dependencies(terraingen_core terraingen_generate_build_info)
@@ -61,6 +70,10 @@ target_include_directories(
 target_compile_features(terraingen_core PUBLIC cxx_std_20)
 target_link_libraries(terraingen_core PRIVATE $<BUILD_INTERFACE:terraingen_warnings>
                                               $<BUILD_INTERFACE:terraingen_coverage>)
+target_include_directories(terraingen_core SYSTEM PRIVATE "${PROJECT_SOURCE_DIR}/third_party/miniz")
+target_compile_definitions(
+    terraingen_core PRIVATE MINIZ_NO_STDIO MINIZ_NO_TIME MINIZ_NO_ARCHIVE_APIS
+                            MINIZ_NO_ZLIB_COMPATIBLE_NAMES)
 
 add_library(nlohmann_json INTERFACE)
 target_include_directories(nlohmann_json SYSTEM INTERFACE "${PROJECT_SOURCE_DIR}/third_party")
@@ -70,31 +83,13 @@ add_library(terraingen::pipeline ALIAS terraingen_pipeline)
 set_target_properties(terraingen_pipeline PROPERTIES EXPORT_NAME pipeline)
 target_link_libraries(
     terraingen_pipeline
-    PUBLIC terraingen_core terraingen_io
+    PUBLIC terraingen_core
     PRIVATE $<BUILD_INTERFACE:nlohmann_json> $<BUILD_INTERFACE:terraingen_warnings>
             $<BUILD_INTERFACE:terraingen_coverage>)
 
-add_library(terraingen_miniz OBJECT "${PROJECT_SOURCE_DIR}/third_party/miniz/miniz.c")
-target_compile_definitions(
-    terraingen_miniz PRIVATE MINIZ_NO_STDIO MINIZ_NO_TIME MINIZ_NO_ARCHIVE_APIS
-                             MINIZ_NO_ZLIB_COMPATIBLE_NAMES)
-set_target_properties(terraingen_miniz PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
-add_library(terraingen_io STATIC io/geotiff.cpp io/tiff_codecs.cpp
-                                 $<TARGET_OBJECTS:terraingen_miniz>)
-add_library(terraingen::io ALIAS terraingen_io)
-set_target_properties(terraingen_io PROPERTIES EXPORT_NAME io)
-target_link_libraries(
-    terraingen_io
-    PUBLIC terraingen_core
-    PRIVATE $<BUILD_INTERFACE:terraingen_warnings> $<BUILD_INTERFACE:terraingen_coverage>)
-target_include_directories(terraingen_io SYSTEM PRIVATE "${PROJECT_SOURCE_DIR}/third_party/miniz")
-target_compile_definitions(terraingen_io PRIVATE MINIZ_NO_STDIO MINIZ_NO_TIME MINIZ_NO_ARCHIVE_APIS
-                                                 MINIZ_NO_ZLIB_COMPATIBLE_NAMES)
-
 if(TERRAINGEN_INSTALL)
     install(
-        TARGETS terraingen_core terraingen_pipeline terraingen_io
+        TARGETS terraingen_core terraingen_pipeline
         EXPORT terraingenTargets
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT development
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT development)

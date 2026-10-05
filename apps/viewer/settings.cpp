@@ -1,13 +1,21 @@
 #include "settings.h"
 
+#include "terraingen/core/log.h"
 #include "terraingen/craters.h"
 #include "terraingen/spatial/cells.h"
 
 #include "ernie/ernie.h"
 
+#include <algorithm>
 #include <cmath>
 #include <exception>
+#include <filesystem>
+#include <mutex>
+#include <optional>
 #include <stdexcept>
+#include <string>
+#include <system_error>
+#include <utility>
 
 namespace terraingen::viewer {
 
@@ -35,11 +43,146 @@ LayerSettings DefaultLayer() {
 
 namespace {
 
-/// The square region a terrain of `settings` covers, centred on the origin.
-Bounds2d TerrainBounds(const TerrainSettings& settings) {
-    const double halfX = 0.5 * static_cast<double>(settings.width) * settings.pixelSize;
-    const double halfY = 0.5 * static_cast<double>(settings.height) * settings.pixelSize;
-    return {-halfX, -halfY, halfX, halfY};
+/// Identifies a version of a file by its path, size and modification time.
+struct FileStamp {
+    std::string path;
+    std::uintmax_t size = 0;
+    std::filesystem::file_time_type modified{};
+
+    bool operator==(const FileStamp&) const = default;
+};
+
+FileStamp StampOf(const std::string& path) {
+    if (path.empty()) {
+        throw GeoTiffError("No raster file given");
+    }
+    std::error_code error;
+    FileStamp stamp{path, std::filesystem::file_size(path, error), {}};
+    if (!error) {
+        stamp.modified = std::filesystem::last_write_time(path, error);
+    }
+    if (error) {
+        throw GeoTiffError("Cannot open " + path + ": " + error.message());
+    }
+    return stamp;
+}
+
+/// The header of the GeoTIFF at `path`, read once per change to the file.
+GeoTiffInfo RasterHeader(const std::string& path) {
+    static std::mutex mutex;
+    static std::optional<std::pair<FileStamp, GeoTiffInfo>> cached;
+    const FileStamp stamp = StampOf(path);
+    const std::lock_guard lock(mutex);
+    if (!cached || cached->first != stamp) {
+        cached.emplace(stamp, ReadGeoTiffInfo(path));
+    }
+    return cached->second;
+}
+
+/// What a loaded raster was read and resampled from.
+struct RasterKey {
+    FileStamp file;
+    std::size_t band = 0;
+    std::size_t width = 0;
+    std::size_t height = 0;
+    GeoTransform transform{};
+    ResampleMethod resampling = ResampleMethod::Cubic;
+
+    bool operator==(const RasterKey&) const = default;
+};
+
+TerrainGrid DescribeRaster(const RasterSourceSettings& raster) {
+    const GeoTiffInfo info = RasterHeader(raster.path);
+    if (raster.band >= info.bands) {
+        throw std::invalid_argument("Band " + std::to_string(raster.band) +
+                                    " is missing; the file has " + std::to_string(info.bands) +
+                                    (info.bands == 1 ? " band" : " bands"));
+    }
+    if (info.geoKeys.IsGeographic()) {
+        throw std::invalid_argument(
+            "The raster's CRS is geographic (degrees); reproject it first, for example with "
+            "gdalwarp -t_srs");
+    }
+    const GeoTransform& t = info.transform;
+    if (t.rowRotation != 0.0 || t.colRotation != 0.0 || !(t.pixelWidth > 0.0) ||
+        !(t.pixelHeight < 0.0)) {
+        throw std::invalid_argument("The raster must be north-up to view");
+    }
+    TerrainGrid grid{info.width, info.height, t, info.width, info.height, t.pixelWidth};
+    const double extentX = static_cast<double>(info.width) * t.pixelWidth;
+    const double extentY = static_cast<double>(info.height) * -t.pixelHeight;
+    double pixelSize = raster.pixelSize;
+    if (pixelSize == 0.0) {
+        const bool square = t.pixelHeight == -t.pixelWidth;
+        const bool fits = info.width <= kMaxGridSize && info.height <= kMaxGridSize;
+        if (square && fits) {
+            return grid;
+        }
+        pixelSize = std::max({t.pixelWidth, -t.pixelHeight,
+                              std::max(extentX, extentY) / static_cast<double>(kMaxGridSize)});
+    }
+    if (!(std::isfinite(pixelSize) && pixelSize > 0.0)) {
+        throw std::invalid_argument("Pixel size must be positive, or 0 for the file's");
+    }
+    grid.width =
+        std::max<std::size_t>(1, static_cast<std::size_t>(std::llround(extentX / pixelSize)));
+    grid.height =
+        std::max<std::size_t>(1, static_cast<std::size_t>(std::llround(extentY / pixelSize)));
+    grid.transform = GeoTransform::NorthUp(t.originX, t.originY, pixelSize);
+    return grid;
+}
+
+/// Describes the first problem with the grid `settings` produce, or returns an empty string.
+std::string ValidateGrid(const TerrainSettings& settings) {
+    if (settings.source == TerrainSource::Raster) {
+        TerrainGrid grid;
+        try {
+            grid = DescribeTerrain(settings);
+        } catch (const std::exception& error) {
+            return std::string("Raster: ") + error.what();
+        }
+        if (grid.width < 2 || grid.height < 2) {
+            return "Raster: the resampled grid must be at least 2 cells across";
+        }
+        if (grid.width > kMaxGridSize || grid.height > kMaxGridSize) {
+            return "Raster: the resampled grid must be at most " + std::to_string(kMaxGridSize) +
+                   " cells across; raise the pixel size";
+        }
+        return {};
+    }
+    if (settings.width < 2 || settings.height < 2) {
+        return "Width and height must be at least 2 cells";
+    }
+    if (settings.width > kMaxGridSize || settings.height > kMaxGridSize) {
+        return "Width and height must be at most " + std::to_string(kMaxGridSize) + " cells";
+    }
+    if (!(std::isfinite(settings.pixelSize) && settings.pixelSize > 0.0)) {
+        return "Pixel size must be positive";
+    }
+    return {};
+}
+
+/// Whether the noise layers contribute to the terrain `settings` describe.
+bool UsesLayers(const TerrainSettings& settings) {
+    return settings.source == TerrainSource::Synthetic || settings.raster.detail;
+}
+
+/// Adds `params`' layers to every cell of `raster` with data, evaluated relative to the raster's
+/// origin.
+void AddDetail(Raster<float>& raster, const SyntheticTerrainParams& params) {
+    const GeoTransform& transform = raster.Transform();
+    for (std::size_t row = 0; row < raster.Height(); ++row) {
+        for (std::size_t col = 0; col < raster.Width(); ++col) {
+            float& cell = raster(col, row);
+            if (raster.IsNoData(cell)) {
+                continue;
+            }
+            const Vec2d centre = raster.CellCenter(col, row);
+            cell += EvaluateNoiseLayers(static_cast<float>(centre.x - transform.originX),
+                                        static_cast<float>(centre.y - transform.originY),
+                                        params.layers.data(), params.layers.size());
+        }
+    }
 }
 
 std::string ValidateCraters(const TerrainSettings& settings) {
@@ -141,8 +284,7 @@ CraterModels BuildCraterModels(const CraterSettings& settings) {
 double MinDiameterForCount(const TerrainSettings& settings) {
     const CraterSettings& craters = settings.craters;
     const CraterModels models = BuildCraterModels(craters);
-    const Bounds2d bounds = TerrainBounds(settings);
-    const double area = (bounds.maxX - bounds.minX) * (bounds.maxY - bounds.minY);
+    const double area = DescribeTerrain(settings).Area();
     const double lowest = std::fmax(models.density->ValidRange().min, 1e-3);
     return terraingen::MinDiameterForCount(*models.density, area,
                                            static_cast<double>(craters.maxCraters), lowest,
@@ -159,8 +301,7 @@ double ExpectedCraterCount(const TerrainSettings& settings) {
         return manual;
     }
     const CraterModels models = BuildCraterModels(craters);
-    const Bounds2d bounds = TerrainBounds(settings);
-    const double area = (bounds.maxX - bounds.minX) * (bounds.maxY - bounds.minY);
+    const double area = DescribeTerrain(settings).Area();
     return manual + models.density->ExpectedCount(area, craters.minDiameter, craters.maxDiameter);
 }
 
@@ -173,27 +314,78 @@ SyntheticTerrainParams TerrainSettings::EffectiveTerrain() const {
     return params;
 }
 
+Bounds2d TerrainGrid::Bounds() const {
+    const Vec2d a = transform.PixelToWorld(0.0, 0.0);
+    const Vec2d b = transform.PixelToWorld(static_cast<double>(width), static_cast<double>(height));
+    return {std::fmin(a.x, b.x), std::fmin(a.y, b.y), std::fmax(a.x, b.x), std::fmax(a.y, b.y)};
+}
+
+double TerrainGrid::PixelSize() const {
+    return std::sqrt(std::fabs(transform.pixelWidth * transform.pixelHeight));
+}
+
+double TerrainGrid::Area() const {
+    return static_cast<double>(width) * static_cast<double>(height) * PixelSize() * PixelSize();
+}
+
+TerrainGrid DescribeTerrain(const TerrainSettings& settings) {
+    if (settings.source == TerrainSource::Raster) {
+        return DescribeRaster(settings.raster);
+    }
+    const double halfX = 0.5 * static_cast<double>(settings.width) * settings.pixelSize;
+    const double halfY = 0.5 * static_cast<double>(settings.height) * settings.pixelSize;
+    return {settings.width, settings.height,
+            GeoTransform::NorthUp(-halfX, halfY, settings.pixelSize)};
+}
+
 std::string ValidateSettings(const TerrainSettings& settings) {
-    if (settings.width < 2 || settings.height < 2) {
-        return "Width and height must be at least 2 cells";
+    if (std::string error = ValidateGrid(settings); !error.empty()) {
+        return error;
     }
-    if (settings.width > kMaxGridSize || settings.height > kMaxGridSize) {
-        return "Width and height must be at most " + std::to_string(kMaxGridSize) + " cells";
-    }
-    if (!(std::isfinite(settings.pixelSize) && settings.pixelSize > 0.0)) {
-        return "Pixel size must be positive";
-    }
-    for (std::size_t i = 0; i < settings.layers.size(); ++i) {
-        if (settings.layers[i].useHurst && !std::isfinite(settings.layers[i].hurst)) {
-            return "Layer " + std::to_string(i + 1) + ": Hurst exponent must be finite";
+    if (UsesLayers(settings)) {
+        for (std::size_t i = 0; i < settings.layers.size(); ++i) {
+            if (settings.layers[i].useHurst && !std::isfinite(settings.layers[i].hurst)) {
+                return "Layer " + std::to_string(i + 1) + ": Hurst exponent must be finite";
+            }
+        }
+        try {
+            ValidateSyntheticTerrain(settings.EffectiveTerrain());
+        } catch (const std::invalid_argument& error) {
+            return error.what();
         }
     }
-    try {
-        ValidateSyntheticTerrain(settings.EffectiveTerrain());
-    } catch (const std::invalid_argument& error) {
-        return error.what();
-    }
     return ValidateCraters(settings);
+}
+
+Raster<float> LoadRaster(const TerrainSettings& settings) {
+    static std::mutex mutex;
+    static std::optional<std::pair<RasterKey, Raster<float>>> cached;
+    const RasterSourceSettings& source = settings.raster;
+    const TerrainGrid grid = DescribeTerrain(settings);
+    const RasterKey key{StampOf(source.path), source.band,    grid.width,
+                        grid.height,          grid.transform, source.resampling};
+    Raster<float> raster;
+    {
+        const std::lock_guard lock(mutex);
+        if (cached && cached->first == key) {
+            raster = cached->second;
+        }
+    }
+    if (raster.Empty()) {
+        GeoTiff tiff = ReadGeoTiff(source.path, source.band);
+        raster = grid.width == grid.nativeWidth && grid.height == grid.nativeHeight &&
+                         grid.transform == tiff.raster.Transform()
+                     ? std::move(tiff.raster)
+                     : Resample(tiff.raster, grid.PixelSize(), source.resampling);
+        LogInfo("viewer", "Loaded ", source.path, " as ", raster.Width(), "x", raster.Height(),
+                " cells of ", grid.PixelSize(), " m");
+        const std::lock_guard lock(mutex);
+        cached.emplace(key, raster);
+    }
+    if (settings.raster.detail && !settings.layers.empty()) {
+        AddDetail(raster, settings.EffectiveTerrain());
+    }
+    return raster;
 }
 
 Raster<float> GenerateTerrain(const TerrainSettings& settings) {
@@ -201,12 +393,15 @@ Raster<float> GenerateTerrain(const TerrainSettings& settings) {
     if (!error.empty()) {
         throw std::invalid_argument(error);
     }
-    Raster<float> raster = GenerateSyntheticTerrain(
-        settings.width, settings.height, settings.pixelSize, settings.EffectiveTerrain());
+    Raster<float> raster =
+        settings.source == TerrainSource::Raster
+            ? LoadRaster(settings)
+            : GenerateSyntheticTerrain(settings.width, settings.height, settings.pixelSize,
+                                       settings.EffectiveTerrain());
     const CraterSettings& craters = settings.craters;
     if (craters.enabled) {
         const CraterModels models = BuildCraterModels(craters);
-        const Bounds2d bounds = TerrainBounds(settings);
+        const Bounds2d bounds = DescribeTerrain(settings).Bounds();
         CraterList manual;
         for (Crater crater : craters.manual) {
             crater.manual = true;

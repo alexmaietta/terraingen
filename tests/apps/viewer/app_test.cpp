@@ -1,5 +1,6 @@
 #include "app.h"
 #include "settings.h"
+#include "terraingen/io/geotiff.h"
 
 #include "ernie/gpu/vulkan_context.h"
 #include "ernie/gui/gui.h"
@@ -7,10 +8,14 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <chrono>
+#include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -101,5 +106,29 @@ TEST(App, RejectsAnUnknownReflectanceModel) {
         FAIL() << "an unknown model was accepted";
     } catch (const std::runtime_error& error) {
         EXPECT_NE(std::string(error.what()).find("available: lambert"), std::string::npos);
+    }
+}
+
+TEST(App, OpensADemWithoutCratersOrDetail) {
+    terraingen::Raster<float> dem(64, 48, 10.0f);
+    dem.SetTransform(terraingen::GeoTransform::NorthUp(-5000.0, 2000.0, 20.0));
+    const auto path = std::filesystem::path(::testing::TempDir()) / "app_dem.tif";
+    terraingen::WriteGeoTiff(path, dem);
+    AppOptions options;
+    options.dem = path.string();
+    std::unique_ptr<App> app = MakeApp(options);
+    if (!app) {
+        GTEST_SKIP() << "No Vulkan device";
+    }
+    ASSERT_TRUE(StepUntilTerrain(*app, 60.0));
+    const ernie::Scene& scene = app->Viewer().GetScene();
+    const auto* heights = scene.Read(terraingen::viewer::kTerrainPrim, tokens::kHeights);
+    ASSERT_NE(heights, nullptr);
+    EXPECT_EQ(heights->Shape(), (std::vector<std::int64_t>{48, 64}));
+    const float* values = static_cast<const float*>(heights->Data());
+    EXPECT_TRUE(std::all_of(values, values + 64 * 48, [](float v) { return v == 10.0f; }))
+        << "no craters or noise are added to the DEM";
+    for (const std::string& message : app->Viewer().Context().TakeValidationMessages()) {
+        ADD_FAILURE() << "Vulkan validation: " << message;
     }
 }

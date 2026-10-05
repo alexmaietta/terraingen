@@ -1,6 +1,9 @@
 #include "settings.h"
 
 #include "terraingen/craters.h"
+#include "terraingen/io/geotiff.h"
+#include "terraingen/kernels/layers.h"
+#include "terraingen/raster/resample.h"
 #include "terraingen/spatial/cells.h"
 #include "terraingen/surfaces/synthetic_terrain.h"
 
@@ -11,10 +14,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -580,4 +585,192 @@ TEST(CraterSettings, MaxCratersReachesTheLibraryAndFitsTheMinimumDiameter) {
     const double fitted = terraingen::viewer::MinDiameterForCount(settings);
     settings.craters.minDiameter = fitted;
     EXPECT_NEAR(ExpectedCraterCount(settings), 20.0, 1e-3);
+}
+
+namespace {
+
+using terraingen::GeoKeys;
+using terraingen::GeoTransform;
+using terraingen::Raster;
+using terraingen::ResampleMethod;
+using terraingen::viewer::DescribeTerrain;
+using terraingen::viewer::kMaxGridSize;
+using terraingen::viewer::LoadRaster;
+using terraingen::viewer::TerrainGrid;
+using terraingen::viewer::TerrainSource;
+
+/// A `width` x `height` DEM of `pixelSize` cells with its origin at (1000, 5000), sloping east.
+Raster<float> SlopedDem(std::size_t width, std::size_t height, double pixelSize) {
+    Raster<float> raster(width, height);
+    for (std::size_t row = 0; row < height; ++row) {
+        for (std::size_t col = 0; col < width; ++col) {
+            raster(col, row) = static_cast<float>(col) + 0.25f * static_cast<float>(row);
+        }
+    }
+    raster.SetTransform(GeoTransform::NorthUp(1000.0, 5000.0, pixelSize));
+    return raster;
+}
+
+std::string WriteDem(const std::string& name, const Raster<float>& raster,
+                     const GeoKeys& keys = {}) {
+    const auto path = std::filesystem::path(::testing::TempDir()) / name;
+    terraingen::WriteGeoTiff(path, raster, keys,
+                             {.compression = terraingen::TiffCompression::None});
+    return path.string();
+}
+
+std::vector<float> Cells(const Raster<float>& raster) {
+    return {raster.Values().begin(), raster.Values().end()};
+}
+
+TerrainSettings RasterSettings(const std::string& path) {
+    TerrainSettings settings;
+    settings.source = TerrainSource::Raster;
+    settings.raster.path = path;
+    settings.craters.enabled = false;
+    return settings;
+}
+
+}  // namespace
+
+TEST(RasterSource, LoadsTheFileUnchangedWhenItFits) {
+    const Raster<float> dem = SlopedDem(40, 30, 5.0);
+    const TerrainSettings settings = RasterSettings(WriteDem("viewer_native.tif", dem));
+    EXPECT_EQ(ValidateSettings(settings), "");
+
+    const TerrainGrid grid = DescribeTerrain(settings);
+    EXPECT_EQ(grid.width, 40u);
+    EXPECT_EQ(grid.height, 30u);
+    EXPECT_EQ(grid.nativeWidth, 40u);
+    EXPECT_EQ(grid.nativePixelSize, 5.0);
+    EXPECT_EQ(grid.transform, dem.Transform());
+    const terraingen::Bounds2d bounds = grid.Bounds();
+    EXPECT_EQ(bounds.minX, 1000.0);
+    EXPECT_EQ(bounds.maxX, 1200.0);
+    EXPECT_EQ(bounds.minY, 4850.0);
+    EXPECT_EQ(bounds.maxY, 5000.0);
+    EXPECT_EQ(grid.Area(), 200.0 * 150.0);
+
+    const Raster<float> loaded = GenerateTerrain(settings);
+    EXPECT_EQ(Cells(loaded), Cells(dem));
+    EXPECT_EQ(loaded.Transform(), dem.Transform());
+}
+
+TEST(RasterSource, ResamplesToTheChosenPixelSize) {
+    const Raster<float> dem = SlopedDem(64, 32, 2.0);
+    TerrainSettings settings = RasterSettings(WriteDem("viewer_resample.tif", dem));
+    settings.raster.pixelSize = 4.0;
+    settings.raster.resampling = ResampleMethod::Bilinear;
+    const TerrainGrid grid = DescribeTerrain(settings);
+    EXPECT_EQ(grid.width, 32u);
+    EXPECT_EQ(grid.height, 16u);
+    EXPECT_EQ(grid.nativeWidth, 64u);
+
+    const Raster<float> loaded = GenerateTerrain(settings);
+    const Raster<float> expected = terraingen::Resample(dem, 4.0, ResampleMethod::Bilinear);
+    EXPECT_EQ(Cells(loaded), Cells(expected));
+    EXPECT_EQ(loaded.Transform(), expected.Transform());
+}
+
+TEST(RasterSource, FitsLargeFilesWithinTheGridLimit) {
+    const Raster<float> dem = SlopedDem(kMaxGridSize + 8, 4, 1.0);
+    const TerrainSettings settings = RasterSettings(WriteDem("viewer_large.tif", dem));
+    const TerrainGrid grid = DescribeTerrain(settings);
+    EXPECT_EQ(grid.width, kMaxGridSize);
+    EXPECT_EQ(grid.nativeWidth, kMaxGridSize + 8);
+    EXPECT_DOUBLE_EQ(grid.PixelSize(),
+                     static_cast<double>(kMaxGridSize + 8) / static_cast<double>(kMaxGridSize));
+    EXPECT_EQ(ValidateSettings(settings), "");
+}
+
+TEST(RasterSource, SquaresRectangularPixels) {
+    Raster<float> dem = SlopedDem(20, 10, 1.0);
+    dem.SetTransform({0.0, 2.0, 0.0, 100.0, 0.0, -4.0});
+    const TerrainSettings settings = RasterSettings(WriteDem("viewer_rectangular.tif", dem));
+    const TerrainGrid grid = DescribeTerrain(settings);
+    EXPECT_EQ(grid.PixelSize(), 4.0);
+    EXPECT_EQ(grid.width, 10u);
+    EXPECT_EQ(grid.height, 10u);
+    EXPECT_NO_THROW(terraingen::viewer::ViewOf(GenerateTerrain(settings)));
+}
+
+TEST(RasterSource, AddsNoiseDetailOnlyWhenAskedAndKeepsNoData) {
+    Raster<float> dem = SlopedDem(16, 16, 10.0);
+    dem.SetNoData(std::numeric_limits<float>::quiet_NaN());
+    dem(3, 4) = std::numeric_limits<float>::quiet_NaN();
+    TerrainSettings settings = RasterSettings(WriteDem("viewer_detail.tif", dem));
+    settings.layers[0].layer.fractal.wavelength = 1e9f;
+    EXPECT_EQ(ValidateSettings(settings), "") << "unused layers are not validated";
+    settings.layers[0].layer.fractal.wavelength = 50.0f;
+    const Raster<float> plain = GenerateTerrain(settings);
+
+    settings.raster.detail = true;
+    const Raster<float> detailed = GenerateTerrain(settings);
+    EXPECT_TRUE(std::isnan(detailed(3, 4)));
+    const terraingen::NoiseLayer layer = settings.layers[0].EffectiveLayer();
+    for (const auto [col, row] : {std::pair{0u, 0u}, std::pair{7u, 9u}, std::pair{15u, 15u}}) {
+        const auto centre = detailed.CellCenter(col, row);
+        const float offset =
+            terraingen::EvaluateNoiseLayers(static_cast<float>(centre.x - 1000.0),
+                                            static_cast<float>(centre.y - 5000.0), &layer, 1);
+        EXPECT_FLOAT_EQ(detailed(col, row), plain(col, row) + offset) << col << "," << row;
+    }
+}
+
+TEST(RasterSource, AppliesCratersWithinTheRastersBounds) {
+    Raster<float> flat(128, 128);
+    flat.SetTransform(GeoTransform::NorthUp(1000.0, 5000.0, 2.0));
+    TerrainSettings settings = RasterSettings(WriteDem("viewer_craters.tif", flat));
+    settings.craters.enabled = true;
+    settings.craters.minDiameter = 20.0;
+    const TerrainGrid grid = DescribeTerrain(settings);
+    const CraterModels models = BuildCraterModels(settings.craters);
+    EXPECT_DOUBLE_EQ(ExpectedCraterCount(settings),
+                     models.density->ExpectedCount(grid.Area(), 20.0, 250.0));
+
+    settings.craters.generate = false;
+    settings.craters.manual.push_back({1128.0, 4872.0, 60.0, 0.0});
+    const Raster<float> cratered = GenerateTerrain(settings);
+    EXPECT_LT(cratered(64, 64), -1.0f) << "the manual crater is placed in map coordinates";
+    EXPECT_EQ(cratered(0, 0), 0.0f);
+}
+
+TEST(RasterSource, ReportsFileProblems) {
+    TerrainSettings settings = RasterSettings("");
+    EXPECT_NE(ValidateSettings(settings).find("No raster file"), std::string::npos);
+    settings.raster.path = (std::filesystem::path(::testing::TempDir()) / "missing.tif").string();
+    EXPECT_NE(ValidateSettings(settings).find("Cannot open"), std::string::npos);
+    EXPECT_THROW(DescribeTerrain(settings), terraingen::GeoTiffError);
+
+    const Raster<float> dem = SlopedDem(8, 8, 1.0);
+    settings.raster.path = WriteDem("viewer_problems.tif", dem);
+    settings.raster.band = 1;
+    EXPECT_NE(ValidateSettings(settings).find("Band 1 is missing; the file has 1 band"),
+              std::string::npos);
+    settings.raster.band = 0;
+    settings.raster.pixelSize = -1.0;
+    EXPECT_NE(ValidateSettings(settings).find("Pixel size must be positive"), std::string::npos);
+    settings.raster.pixelSize = 100.0;
+    EXPECT_NE(ValidateSettings(settings).find("at least 2 cells"), std::string::npos);
+    settings.raster.pixelSize = 1e-4;
+    EXPECT_NE(ValidateSettings(settings).find("raise the pixel size"), std::string::npos);
+
+    settings = RasterSettings(
+        WriteDem("viewer_geographic.tif", dem, GeoKeys{{1, 1, 0, 1, 1024, 0, 1, 2}, {}, {}}));
+    EXPECT_NE(ValidateSettings(settings).find("geographic"), std::string::npos);
+
+    Raster<float> rotated = dem;
+    rotated.SetTransform({0.0, 1.0, 0.5, 0.0, 0.5, -1.0});
+    settings = RasterSettings(WriteDem("viewer_rotated.tif", rotated));
+    EXPECT_NE(ValidateSettings(settings).find("north-up"), std::string::npos);
+}
+
+TEST(RasterSource, RereadsAFileThatChanged) {
+    const std::string path = WriteDem("viewer_changed.tif", SlopedDem(8, 8, 1.0));
+    const TerrainSettings settings = RasterSettings(path);
+    EXPECT_EQ(GenerateTerrain(settings).Width(), 8u);
+    EXPECT_EQ(GenerateTerrain(settings).Width(), 8u);
+    WriteDem("viewer_changed.tif", SlopedDem(12, 8, 1.0));
+    EXPECT_EQ(DescribeTerrain(settings).width, 12u);
+    EXPECT_EQ(GenerateTerrain(settings).Width(), 12u);
 }
