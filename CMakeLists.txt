@@ -14,7 +14,7 @@ option(TERRAINGEN_BUILD_VALIDATION "Build the validation tests against external 
 option(TERRAINGEN_BUILD_VIEWER "Build the static terrain viewer" ON)
 option(TERRAINGEN_BUILD_DEMOS "Build the demos" OFF)
 option(TERRAINGEN_BUILD_PYTHON "Build the Python bindings" ON)
-option(TERRAINGEN_WITH_GDAL "Build terraingen::io, which requires GDAL" ON)
+option(TERRAINGEN_WITH_GDAL "Reserved for GDAL-backed formats; terraingen::io needs no GDAL" ON)
 option(TERRAINGEN_INSTALL "Generate install rules and the CMake package" ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_COVERAGE "Instrument TerrainGen for code coverage and add a coverage target" OFF)
 

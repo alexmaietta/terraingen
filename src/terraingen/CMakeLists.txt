@@ -73,9 +73,17 @@ target_link_libraries(
     PRIVATE $<BUILD_INTERFACE:nlohmann_json> $<BUILD_INTERFACE:terraingen_warnings>
             $<BUILD_INTERFACE:terraingen_coverage>)
 
+add_library(terraingen_io STATIC io/geotiff.cpp io/tiff_codecs.cpp)
+add_library(terraingen::io ALIAS terraingen_io)
+set_target_properties(terraingen_io PROPERTIES EXPORT_NAME io)
+target_link_libraries(
+    terraingen_io
+    PUBLIC terraingen_core
+    PRIVATE $<BUILD_INTERFACE:terraingen_warnings> $<BUILD_INTERFACE:terraingen_coverage>)
+
 if(TERRAINGEN_INSTALL)
     install(
-        TARGETS terraingen_core terraingen_pipeline
+        TARGETS terraingen_core terraingen_pipeline terraingen_io
         EXPORT terraingenTargets
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT development
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT development)
