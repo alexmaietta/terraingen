@@ -43,6 +43,8 @@ cmake --build build
 ./build/bin/terraingen --version
 ```
 
+The viewer builds against a checkout of Ernie, found next to TerrainGen (`../ernie`) by default; point `-DTERRAINGEN_ERNIE_DIR=/path/to/ernie` at another checkout, or build without the viewer with `-DTERRAINGEN_BUILD_VIEWER=OFF`.
+
 For more details, see the [installation guide]().
 
 ## Contributing
@@ -86,7 +88,7 @@ TerrainGen is built on top of the following open source libraries and tools:
 | [miniz](https://github.com/richgel999/miniz) | Deflate compression for GeoTIFF reading and writing (vendored in `third_party/`) | MIT |
 | [nanobind](https://github.com/wjakob/nanobind) | Python bindings | BSD-3-Clause |
 
-The viewer renders with [Ernie](./ernie), which brings its own rendering and user interface dependencies.
+The viewer renders with Ernie, which brings its own rendering and user interface dependencies.
 
 TerrainGen also draws inspiration from existing lunar terrain generation tools:
 

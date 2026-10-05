@@ -65,12 +65,21 @@ if(TERRAINGEN_BUILD_PYTHON)
     include("${PROJECT_SOURCE_DIR}/cmake/third_party/nanobind.cmake")
 endif()
 
-# The viewer renders with Ernie, the Vulkan renderer in ernie/, whose GUI brings GLFW and Dear
-# ImGui; Ernie's Python module comes with TerrainGen's.
+# The viewer runs in Ernie's GUI viewer and renders with Ernie, a separate project built from a
+# local checkout; Ernie's Python module comes with TerrainGen's.
+set(TERRAINGEN_ERNIE_DIR
+    "${PROJECT_SOURCE_DIR}/../ernie"
+    CACHE PATH "Ernie source checkout the viewer builds against")
 if(TERRAINGEN_BUILD_VIEWER)
+    if(NOT EXISTS "${TERRAINGEN_ERNIE_DIR}/CMakeLists.txt")
+        message(
+            FATAL_ERROR
+                "The viewer needs Ernie, which was not found in ${TERRAINGEN_ERNIE_DIR}. Set "
+                "-DTERRAINGEN_ERNIE_DIR to an Ernie checkout, or -DTERRAINGEN_BUILD_VIEWER=OFF.")
+    endif()
     set(ERNIE_BUILD_PYTHON ${TERRAINGEN_BUILD_PYTHON})
     set(ERNIE_BUILD_GUI ON)
-    add_subdirectory(ernie)
+    add_subdirectory("${TERRAINGEN_ERNIE_DIR}" "${PROJECT_BINARY_DIR}/ernie")
 endif()
 
 add_subdirectory(src)
