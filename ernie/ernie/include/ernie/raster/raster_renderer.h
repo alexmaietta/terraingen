@@ -15,14 +15,29 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
 #include <span>
 #include <vector>
 
 namespace ernie {
 
+/// The shadow views of `light` over a scene within `sceneMin` to `sceneMax`, for square maps of
+/// `resolution` texels:
+/// - a distant light: one orthographic view along the light enclosing the scene's bounding sphere;
+///   `texelWorldSize` is the world size of a texel;
+/// - a sphere light whose cone is at most `Light::kMaxSpotConeDegrees`: one perspective view along
+///   its axis covering the cone;
+/// - any other sphere light: six 90-degree perspective views, the faces of a cube in the order
+///   +x, -x, +y, -y, +z, -z.
+/// Perspective views reach from the light (its radius, at least 1/10000 of the far plane) to the
+/// scene's farthest corner, and their `texelWorldSize` is the size of a texel one unit away. None
+/// for a light without shadows.
+std::vector<ShadowCascade> FitLightShadowViews(const Light& light, const glm::vec3& sceneMin,
+                                               const glm::vec3& sceneMax, std::uint32_t resolution);
+
 /// Ernie's rasterizer: owns what every part of a frame shares and draws the parts, spectrally.
 ///
-/// Shared are the frame uniforms (camera, sun, ambient), the cascaded shadow maps, a table of
+/// Shared are the frame uniforms (camera, sun, ambient), the lights, the shadow maps, a table of
 /// materials, the reflectance models and the shader compiler. Parts (`TerrainPart`, `MeshPart`,
 /// ...) are created against a renderer and passed to `Update` and `Record` each frame: the
 /// renderer fits the shadow cascades around all their bounds, so every part casts shadows on every
@@ -31,11 +46,15 @@ namespace ernie {
 /// A frame is deferred and spectral. The parts rasterize a G-buffer (shading normals, shadow
 /// visibility, albedo scale and modulation, material and prim ids, depth); a compute pass per
 /// reflectance model in use turns it into spectral radiance in the camera's bands, lit by the
-/// sun's spectral irradiance; then the camera's sensor filters (`SensorFilter`) turn that into
-/// the render vars, and a present pass can draw LdrColor into a colour attachment.
+/// sun's spectral irradiance and the other lights (`Light`); then the camera's sensor filters
+/// (`SensorFilter`) turn that into the render vars, and a present pass can draw LdrColor into a
+/// colour attachment.
 ///
-/// Shadows use cascaded shadow maps (`FitCascades`) filtered with rotated Poisson-disk PCF, with
-/// slope-scaled depth bias and normal offset against acne.
+/// The sun's shadows use cascaded shadow maps (`FitCascades`) filtered with rotated Poisson-disk
+/// PCF, with slope-scaled depth bias and normal offset against acne, and penumbrae that widen with
+/// the distance to the occluder for the sun's angular size (percentage-closer soft shadows). Other
+/// lights' shadow maps (`FitLightShadowViews`) are sampled with the same filter in the shading
+/// pass.
 ///
 /// References:
 /// - L. Williams, "Casting Curved Shadows on Curved Surfaces", SIGGRAPH '78, 270-274, 1978.
@@ -45,6 +64,8 @@ namespace ernie {
 /// - D. Holbert, "Saying 'Goodbye' to Shadow Acne", GDC 2011 poster (normal offset shadows).
 /// - J. Jimenez, "Next Generation Post Processing in Call of Duty: Advanced Warfare", SIGGRAPH 2014
 ///   Advances in Real-Time Rendering course (interleaved gradient noise).
+/// - R. Fernando, "Percentage-Closer Soft Shadows", SIGGRAPH 2005 Sketches, 2005.
+///   https://doi.org/10.1145/1187112.1187153
 /// - T. Saito and T. Takahashi, "Comprehensible Rendering of 3-D Shapes", SIGGRAPH '90, 197-206,
 ///   1990. https://doi.org/10.1145/97880.97901 (G-buffers and deferred shading).
 /// - W. Jakob and J. Hanika, "A Low-Dimensional Function Space for Efficient Spectral
@@ -52,6 +73,11 @@ namespace ernie {
 class RasterRenderer {
   public:
     static constexpr int kMaxCascades = 4;
+
+    /// Lights besides the sun per frame, and shadow map views among them; lights past the views
+    /// draw without shadows.
+    static constexpr std::size_t kMaxLights = 16;
+    static constexpr std::size_t kMaxLightShadowViews = 24;
 
     /// Material 0, which always exists and parts use by default: Lambert with albedo 1.
     static constexpr std::uint32_t kDefaultMaterial = 0;
@@ -116,8 +142,8 @@ class RasterRenderer {
     /// `Record`, only while no submitted frame is still reading the renderer's or the parts'
     /// buffers.
     /// @throws std::invalid_argument for an invalid camera (`PhysicalCamera::Check`) or filter
-    /// chain (`CheckFilterChain`), a sun spectrum with the wrong number of bands, or a model whose
-    /// shading pass fails to compile.
+    /// chain (`CheckFilterChain`), a sun or light spectrum with the wrong number of bands, more
+    /// than `kMaxLights` lights, or a model whose shading pass fails to compile.
     void Update(const FrameParams& params, std::span<RasterPart* const> parts);
 
     /// Records a frame of `parts` into `targets`: the shadow passes, the G-buffer, spectral shading
@@ -151,11 +177,18 @@ class RasterRenderer {
         return cascades_;
     }
 
+    /// Shadow views of the other lights fitted by the last `Update`, in light order.
+    const std::vector<ShadowCascade>& LightShadowViews() const {
+        return lightViews_;
+    }
+
     /// GPU memory held for the frame, shadow maps and materials, in bytes.
     std::uint64_t GpuBytes() const;
 
   private:
     void CreateShadowMaps(std::uint32_t resolution);
+    void CreateLightShadowMaps(std::uint32_t resolution, std::uint32_t layers);
+    void WriteLights(const FrameParams& params, const std::optional<Bounds3>& bounds);
     const ComputePipeline& ShadingPipeline(std::size_t model);
     void WriteMaterialTable();
     void WriteShading(const FrameParams& params);
@@ -178,6 +211,12 @@ class RasterRenderer {
     std::unique_ptr<GpuImage> shadowMaps_;
     std::uint32_t shadowResolution_ = 0;
     std::vector<ShadowCascade> cascades_;
+    std::vector<ShadowCascade> lightViews_;
+    std::vector<ShadowCascade> shadowViews_;
+    std::unique_ptr<GpuImage> lightShadowMaps_;
+    std::uint32_t lightResolution_ = 0;
+    GpuBuffer lightTable_;
+    GpuBuffer lightViewMatrices_;
     std::vector<glm::vec2> poisson_;
     bool shadowsEnabled_ = false;
     bool updated_ = false;

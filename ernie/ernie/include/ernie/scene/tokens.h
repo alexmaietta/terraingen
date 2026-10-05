@@ -91,12 +91,17 @@ inline constexpr std::string_view kSensorBlackLevel = "ernie:sensor:blackLevel";
 inline constexpr std::string_view kSensorNoise = "ernie:sensor:noise";            ///< bool.
 inline constexpr std::string_view kSensorSeed = "ernie:sensor:seed";              ///< int.
 
-// Lights (UsdLux). A DistantLight shines along the -z axis of its transform.
+// Lights (UsdLux). A DistantLight shines along the -z axis of its transform, and a SphereLight's
+// cone (ShapingAPI) is around its -z axis.
 inline constexpr std::string_view kIntensity = "inputs:intensity";
 inline constexpr std::string_view kExposure = "inputs:exposure";  ///< Stops; scales by 2^exposure.
 inline constexpr std::string_view kColor = "inputs:color";
 inline constexpr std::string_view kAngle = "inputs:angle";  ///< Degrees subtended.
 inline constexpr std::string_view kRadius = "inputs:radius";
+inline constexpr std::string_view kTreatAsPoint = "treatAsPoint";  ///< bool: radius 0.
+/// Degrees off the axis that a light reaches, and the fraction of that angle over which it fades.
+inline constexpr std::string_view kShapingConeAngle = "inputs:shaping:cone:angle";
+inline constexpr std::string_view kShapingConeSoftness = "inputs:shaping:cone:softness";
 inline constexpr std::string_view kWidth = "inputs:width";
 inline constexpr std::string_view kHeight = "inputs:height";
 inline constexpr std::string_view kTextureFile = "inputs:texture:file";
@@ -109,6 +114,11 @@ inline constexpr std::string_view kEnableColorTemperature = "inputs:enableColorT
 /// irradiance a black body carries the solar constant, 1361 W/m^2.
 inline constexpr std::string_view kLightIrradiance = "ernie:irradiance";
 inline constexpr std::string_view kLightSpectrum = "ernie:spectrum";
+/// Physical lamp (Ernie): a SphereLight's radiant flux over 360 to 830 nm in W, emitted equally in
+/// every direction (a cone only masks it). Its spectrum's shape is `ernie:spectrum`, else a black
+/// body at the enabled colour temperature, else flat; `ernie:spectrum` alone gives the radiant
+/// intensity in W sr^-1 nm^-1.
+inline constexpr std::string_view kLightPower = "ernie:power";
 
 // Terrain (Ernie): a north-up heightfield, x east, y north, z up.
 inline constexpr std::string_view kHeights = "heights";          ///< float32 tensor (rows, cols).

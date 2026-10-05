@@ -759,3 +759,137 @@ TEST_F(RasterDelegateTest, ExposureNoiseAndDistortionFollowTheCamera) {
               At<float>(before.at("DistanceToCamera"), 0, 0))
         << "barrel distortion sees wider at the corners";
 }
+
+namespace {
+
+/// FlatScene lit only by a point lamp `height` above the origin pointing down, with a radiant flux
+/// of 1000 W over a flat spectrum and a cone of `coneAngle` degrees (180: unshaped).
+Scene LampScene(double height, float coneAngle = 180.0f) {
+    Scene scene = FlatScene();
+    scene.Remove("/World/Sun");
+    scene.Define("/World/Lamp", tokens::kSphereLight)
+        .Set(tokens::kTransform,
+             ernie::LookAtTransform({0.0, 0.0, height}, {0.0, 0.0, 0.0}, {0.0, 1.0, 0.0}))
+        .Set(tokens::kTreatAsPoint, true)
+        .Set(tokens::kLightPower, 1000.0)
+        .Set(tokens::kShapingConeAngle, coneAngle);
+    return scene;
+}
+
+/// The pixel of FlatScene's image showing ground point (x, y).
+std::pair<std::size_t, std::size_t> PixelOf(const Scene& scene, float x, float y) {
+    const glm::vec4 clip = ernie::CameraViewOf(scene, "/World/Camera", 1.0f).ViewProjection() *
+                           glm::vec4(x, y, 0.0f, 1.0f);
+    const glm::vec2 ndc = glm::vec2(clip) / clip.w;
+    return {static_cast<std::size_t>((0.5f - ndc.y * 0.5f) * kVarSize),
+            static_cast<std::size_t>((ndc.x * 0.5f + 0.5f) * kVarSize)};
+}
+
+/// Spectral radiance in band 8 at ground point (x, y) of a step of `scene`.
+float RadianceAt(RasterDelegate& delegate, const Scene& scene, float x, float y) {
+    ernie::RenderProductSetOutputs outputs = delegate.Step(scene);
+    const Tensor spectral =
+        outputs.at("/Render/Product").vars.at("SpectralRadiance").Map(ernie::MapDevice::Cpu).tensor;
+    const auto [row, col] = PixelOf(scene, x, y);
+    return static_cast<const float*>(
+        spectral.Data())[8 * kVarSize * kVarSize + row * kVarSize + col];
+}
+
+}  // namespace
+
+TEST_F(RasterDelegateTest, LampsLightByTheInverseSquareLaw) {
+    RasterDelegate delegate(*context_);
+    const Scene near = LampScene(10.0);
+    const float intensity = static_cast<float>(1000.0 / (4.0 * M_PI) / 470.0);
+    const float x = 3.0f;
+    const float distance2 = 100.0f + x * x;
+    const float expected =
+        intensity * (10.0f / std::sqrt(distance2)) / distance2 * 0.5f / static_cast<float>(M_PI);
+    EXPECT_NEAR(RadianceAt(delegate, near, x, 0.0f), expected, 0.04f * expected)
+        << "L = I cos(i) / d^2 * albedo / pi";
+    EXPECT_FALSE(delegate.Prims().lights.empty());
+
+    const float twice = RadianceAt(delegate, LampScene(20.0), 0.0f, 0.0f);
+    const float once = RadianceAt(delegate, LampScene(10.0), 0.0f, 0.0f);
+    EXPECT_NEAR(once / twice, 4.0f, 0.1f);
+
+    const Scene spot = LampScene(10.0, 10.0f);
+    EXPECT_NEAR(RadianceAt(delegate, spot, 0.0f, 0.0f), once, 0.02f * once) << "inside the cone";
+    EXPECT_EQ(RadianceAt(delegate, spot, 6.0f, 0.0f), 0.0f) << "outside a 10 degree cone";
+}
+
+TEST_F(RasterDelegateTest, LampsCastShadowsFromSpotAndCubeMaps) {
+    RasterDelegate delegate(*context_);
+    for (const float cone : {60.0f, 180.0f}) {
+        Scene scene = LampScene(10.0, cone);
+        const float lit = RadianceAt(delegate, scene, 3.0f, 0.0f);
+        DefineQuad(scene, "/World/Blocker");
+        scene.Set("/World/Blocker", tokens::kTransform,
+                  glm::translate(glm::dmat4(1.0), glm::dvec3(0.0, 0.0, 5.0)));
+        EXPECT_LT(RadianceAt(delegate, scene, 3.0f, 0.0f), 0.1f * lit)
+            << "behind the blocker, cone " << cone;
+        EXPECT_NEAR(RadianceAt(delegate, scene, 6.0f, 6.0f),
+                    RadianceAt(delegate, LampScene(10.0, cone), 6.0f, 6.0f), 0.05f * lit)
+            << "beside the shadow, cone " << cone;
+        scene.Set("/World/Lamp", tokens::kShadowEnable, false);
+        EXPECT_NEAR(RadianceAt(delegate, scene, 3.0f, 0.0f), lit, 0.02f * lit);
+    }
+    EXPECT_EQ(delegate.Renderer().LightShadowViews().size(), 0u) << "shadows off";
+}
+
+TEST_F(RasterDelegateTest, OtherDistantLightsAddToTheSun) {
+    Scene scene = FlatScene();
+    scene.Define("/World/Zenith", tokens::kDistantLight)
+        .Set(tokens::kTransform, ernie::DistantLightTransform({0.0, 0.0, 1.0}))
+        .Set(tokens::kIntensity, 0.5f);
+    RasterDelegate delegate(*context_);
+    ernie::RenderProductSetOutputs outputs = delegate.Step(scene);
+    const auto vars = MapVars(outputs);
+    const std::size_t c = kVarSize / 2;
+    EXPECT_NEAR(At<float>(vars.at("HdrColor"), c, c, 1), 0.75f, 0.03f)
+        << "0.5 cd/m^2 from the sun and 0.25 from Earthshine";
+    EXPECT_EQ(delegate.Renderer().LightShadowViews().size(), 1u);
+}
+
+TEST_F(RasterDelegateTest, TheSunsDiskWidensPenumbrae) {
+    Scene scene = FlatScene();
+    scene.Set("/World/Sun", tokens::kShadowEnable, true);
+    scene.Set("/World/Sun", tokens::kTransform, ernie::DistantLightTransform({0.3, 0.0, 1.0}));
+    DefineQuad(scene, "/World/Blocker", 4.0f);
+    scene.Set("/World/Blocker", tokens::kTransform,
+              glm::translate(glm::dmat4(1.0), glm::dvec3(0.0, 0.0, 30.0)));
+    RasterDelegate delegate(*context_);
+    const auto partial = [&](float angle) {
+        scene.Set("/World/Sun", tokens::kAngle, angle);
+        ernie::RenderProductSetOutputs outputs = delegate.Step(scene);
+        const Tensor hdr =
+            outputs.at("/Render/Product").vars.at("HdrColor").Map(ernie::MapDevice::Cpu).tensor;
+        const Tensor ids =
+            outputs.at("/Render/Product").vars.at("PrimId").Map(ernie::MapDevice::Cpu).tensor;
+        const std::uint32_t ground = At<std::uint32_t>(ids, 0, 0);
+        float lit = 0.0f;
+        for (std::size_t row = 0; row < kVarSize; ++row) {
+            for (std::size_t col = 0; col < kVarSize; ++col) {
+                lit = std::max(lit, At<float>(hdr, row, col, 1));
+            }
+        }
+        int count = 0;
+        int shadowed = 0;
+        for (std::size_t row = 0; row < kVarSize; ++row) {
+            for (std::size_t col = 0; col < kVarSize; ++col) {
+                if (At<std::uint32_t>(ids, row, col) != ground) {
+                    continue;
+                }
+                const float value = At<float>(hdr, row, col, 1) / lit;
+                count += value > 0.1f && value < 0.9f ? 1 : 0;
+                shadowed += value <= 0.1f ? 1 : 0;
+            }
+        }
+        return std::pair(count, shadowed);
+    };
+    const auto [hard, umbra] = partial(0.0f);
+    EXPECT_GT(umbra, 20) << "the blocker's shadow is in view";
+    const auto [soft, smaller] = partial(4.0f);
+    EXPECT_GT(soft, hard + 10) << "a wider disk widens the penumbra";
+    EXPECT_LT(smaller, umbra);
+}

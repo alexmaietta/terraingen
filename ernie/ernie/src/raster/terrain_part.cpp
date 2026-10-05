@@ -146,7 +146,7 @@ void TerrainPart::ClearHeightfield() {
     tree_ = LodQuadtree();
     patches_.clear();
     mainRange_ = {};
-    cascadeRanges_ = {};
+    cascadeRanges_.clear();
     triangles_ = 0;
     prepared_ = false;
     width_ = 0;
@@ -166,7 +166,7 @@ void TerrainPart::SetHeightfield(const RasterView& raster) {
     tree_ = LodQuadtree();
     patches_.clear();
     mainRange_ = {};
-    cascadeRanges_ = {};
+    cascadeRanges_.clear();
     triangles_ = 0;
     prepared_ = false;
     width_ = raster.width;
@@ -301,8 +301,8 @@ void TerrainPart::Prepare(const FrameParams& frame, std::span<const ShadowCascad
     }
     mainRange_ = {0, static_cast<std::uint32_t>(patches_.size())};
     triangles_ = tree_.TriangleCount(patches_);
-    cascadeRanges_ = {};
-    for (std::size_t c = 0; c < cascades.size() && c < cascadeRanges_.size(); ++c) {
+    cascadeRanges_.assign(cascades.size(), DrawRange{});
+    for (std::size_t c = 0; c < cascades.size(); ++c) {
         if (ranges.empty()) {
             cascadeRanges_[c] = mainRange_;
             continue;

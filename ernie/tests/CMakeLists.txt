@@ -16,6 +16,7 @@ ernie_add_test_suite(
     raster/mesh_data_test.cpp
     raster/poisson_disk_test.cpp
     raster/raster_delegate_test.cpp
+    raster/lights_test.cpp
     raster/render_targets_test.cpp
     raster/shadow_cascades_test.cpp
     scene/path_test.cpp

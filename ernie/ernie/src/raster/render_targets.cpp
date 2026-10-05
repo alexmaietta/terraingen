@@ -130,13 +130,14 @@ RenderTargets::RenderTargets(const VulkanContext& context, VkExtent2D extent, in
         ImageDesc{extent.width, extent.height, 1, 1, kDepthFormat,
                   VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT});
     const auto layers = static_cast<std::uint32_t>(bands);
-    rasterRadiance_ = std::make_unique<GpuImage>(
-        context, ImageDesc{extent.width, extent.height, layers, 1, VK_FORMAT_R32_SFLOAT, kStorage});
+    rasterRadiance_ =
+        std::make_unique<GpuImage>(context, ImageDesc{extent.width, extent.height, layers, 1,
+                                                      VK_FORMAT_R32_SFLOAT, kStorage, false, true});
     for (std::size_t i = 0; i < kVarNames.size(); ++i) {
         const bool spectral = kVarNames[i] == render_vars::kSpectralRadiance;
         vars_.push_back(std::make_unique<GpuImage>(
             context, ImageDesc{extent.width, extent.height, spectral ? layers : 1u, 1,
-                               kVarFormats[i], kStorage, shared && !spectral}));
+                               kVarFormats[i], kStorage, shared && !spectral, spectral}));
     }
 }
 

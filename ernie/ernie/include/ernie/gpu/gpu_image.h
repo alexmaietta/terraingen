@@ -21,6 +21,8 @@ struct ImageDesc {
     /// Allocate in a dedicated allocation exportable as a POSIX file descriptor, for CUDA to read
     /// the image in place (`VulkanContext::SupportsExternalMemory`).
     bool shared = false;
+    /// View the image as a 2D array even with one layer, for shaders that declare an array.
+    bool array = false;
 };
 
 /// A device-local Vulkan image with a view of all its mips and layers, allocated through VMA.

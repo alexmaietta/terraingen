@@ -90,3 +90,18 @@ def test_renders_meshes_and_point_instancers(renderer):
     moved_green = (moved_pixels[..., 1] > 200) & (2 * moved_pixels[..., 0] < moved_pixels[..., 1])
     assert not moved_green[:, 32:].any(), "instances left the right side"
     assert renderer.take_validation_messages() == []
+
+
+def test_sphere_lights_alone_light_the_scene(renderer, terrain_scene):
+    terrain_scene.remove("/World/Sun")
+    terrain_scene.define("/World/Lamp", tokens.SPHERE_LIGHT).set(
+        tokens.TRANSFORM, ernie.look_at_transform((0.0, 0.0, 60.0), (0.0, 0.0, 0.0), (0.0, 1.0, 0.0))
+    ).set(tokens.LIGHT_POWER, 2.0e6).set(tokens.SHAPING_CONE_ANGLE, 20.0).set(
+        tokens.TREAT_AS_POINT, True
+    )
+    image = renderer.render(terrain_scene)
+    centre = image[24, 24, :3].astype(int)
+    corner = image[4, 4, :3].astype(int)
+    assert centre.sum() > 30, "the spot lights the terrain under it"
+    assert corner[0] < centre[0] / 4, "outside the cone stays dark (or blue background)"
+    assert renderer.take_validation_messages() == []

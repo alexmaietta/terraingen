@@ -175,7 +175,7 @@ class TerrainPart : public RasterPart {
     LodQuadtree tree_;
     std::vector<LodPatch> patches_;
     DrawRange mainRange_;
-    std::array<DrawRange, RasterRenderer::kMaxCascades> cascadeRanges_{};
+    std::vector<DrawRange> cascadeRanges_;
     std::uint64_t triangles_ = 0;
     float firstRange_ = 0.0f;
     bool frozen_ = false;

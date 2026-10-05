@@ -31,11 +31,13 @@ struct ShadowUniforms {
     float lightViewProjection[4][16];
     float splits[4];
     float texelWorld[4];
+    float depthWorld[4];
     float params[4];
+    float sun[4];
     std::uint32_t debug[4];
     float poisson[32];
 };
-static_assert(sizeof(ShadowUniforms) == 448, "ShadowUniforms must match frame.slang");
+static_assert(sizeof(ShadowUniforms) == 480, "ShadowUniforms must match frame.slang");
 
 struct ShadingUniforms {
     float invViewProj[16];
@@ -44,8 +46,19 @@ struct ShadingUniforms {
     float range[4];
     std::uint32_t size[4];
     float irradiance[SpectralBands::kMaxBands];
+    float lightShadow[4];
+    float poisson[32];
 };
-static_assert(sizeof(ShadingUniforms) == 384, "ShadingUniforms must match shading.slang");
+static_assert(sizeof(ShadingUniforms) == 528, "ShadingUniforms must match shading.slang");
+
+struct LightGpu {
+    float position[4];
+    float axis[4];
+    float cone[4];
+    float shadow[4];
+    float spectrum[SpectralBands::kMaxBands];
+};
+static_assert(sizeof(LightGpu) == 320, "LightGpu must match shading.slang");
 
 struct MaterialGpu {
     std::uint32_t info[4];
@@ -89,6 +102,10 @@ constexpr DescriptorBinding kShadingBindings[] = {
     {6, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, kCompute},
     {7, VK_DESCRIPTOR_TYPE_SAMPLER, kCompute},
     {8, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, kCompute},
+    {9, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, kCompute},
+    {10, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, kCompute},
+    {11, VK_DESCRIPTOR_TYPE_SAMPLER, kCompute},
+    {12, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, kCompute},
 };
 
 constexpr DescriptorBinding kFilterBindings[] = {
@@ -174,6 +191,19 @@ std::uint32_t Groups(std::uint32_t size) {
     return (size + 7) / 8;
 }
 
+/// A unit vector perpendicular enough to `direction` to serve as a look-at up vector.
+glm::vec3 UpFor(const glm::vec3& direction) {
+    return std::abs(direction.z) > 0.99f ? glm::vec3(0.0f, 1.0f, 0.0f)
+                                         : glm::vec3(0.0f, 0.0f, 1.0f);
+}
+
+/// World depth spanned by the [0, 1] depth of an orthographic view-projection.
+float OrthographicDepth(const glm::mat4& viewProjection) {
+    const float gradient =
+        glm::length(glm::vec3(viewProjection[0][2], viewProjection[1][2], viewProjection[2][2]));
+    return gradient > 0.0f ? 1.0f / gradient : 0.0f;
+}
+
 /// A compute shader that evaluates `model` once, to check that its module implements `IBrdf`.
 std::vector<ShaderModuleSource> BrdfCheckModules(const BrdfModel& model) {
     return {{"brdf", std::string(BrdfSlang())},
@@ -188,6 +218,51 @@ std::vector<ShaderModuleSource> BrdfCheckModules(const BrdfModel& model) {
 }
 
 }  // namespace
+
+std::vector<ShadowCascade> FitLightShadowViews(const Light& light, const glm::vec3& sceneMin,
+                                               const glm::vec3& sceneMax,
+                                               std::uint32_t resolution) {
+    if (!light.shadows) {
+        return {};
+    }
+    const float texels = static_cast<float>(std::max(resolution, 1u));
+    const glm::vec3 centre = 0.5f * (sceneMin + sceneMax);
+    if (light.type == LightType::Distant) {
+        const float radius = std::max(0.5f * glm::length(sceneMax - sceneMin), 1e-3f);
+        const glm::vec3 towards = glm::normalize(light.direction);
+        ShadowCascade view;
+        view.lightViewProjection =
+            glm::orthoRH_ZO(-radius, radius, -radius, radius, radius, 3.0f * radius) *
+            glm::lookAtRH(centre + 2.0f * radius * towards, centre, UpFor(towards));
+        view.texelWorldSize = 2.0f * radius / texels;
+        return {view};
+    }
+    float farPlane = 1e-3f;
+    for (int i = 0; i < 8; ++i) {
+        const glm::vec3 corner((i & 1) ? sceneMax.x : sceneMin.x, (i & 2) ? sceneMax.y : sceneMin.y,
+                               (i & 4) ? sceneMax.z : sceneMin.z);
+        farPlane = std::max(farPlane, 1.01f * glm::length(corner - light.position));
+    }
+    const float nearPlane = std::max(light.radius, 1e-4f * farPlane);
+    const auto perspective = [&](const glm::vec3& axis, float fov) {
+        ShadowCascade view;
+        view.lightViewProjection =
+            glm::perspectiveRH_ZO(fov, 1.0f, nearPlane, farPlane) *
+            glm::lookAtRH(light.position, light.position + axis, UpFor(axis));
+        view.texelWorldSize = 2.0f * std::tan(0.5f * fov) / texels;
+        return view;
+    };
+    if (light.coneAngle <= Light::kMaxSpotConeDegrees) {
+        return {perspective(glm::normalize(light.direction),
+                            2.0f * glm::radians(std::max(light.coneAngle, 0.5f)))};
+    }
+    std::vector<ShadowCascade> faces;
+    for (const glm::vec3 axis : {glm::vec3(1, 0, 0), glm::vec3(-1, 0, 0), glm::vec3(0, 1, 0),
+                                 glm::vec3(0, -1, 0), glm::vec3(0, 0, 1), glm::vec3(0, 0, -1)}) {
+        faces.push_back(perspective(axis, glm::radians(90.0f)));
+    }
+    return faces;
+}
 
 RasterRenderer::RasterRenderer(const VulkanContext& context, VkFormat presentFormat,
                                BrdfRegistry brdfs)
@@ -208,7 +283,11 @@ RasterRenderer::RasterRenderer(const VulkanContext& context, VkFormat presentFor
       shadingUniforms_(context, sizeof(ShadingUniforms), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                        BufferMemory::Upload),
       sensorUniforms_(context, sizeof(SensorUniforms), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                      BufferMemory::Upload) {
+                      BufferMemory::Upload),
+      lightTable_(context, kMaxLights * sizeof(LightGpu), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                  BufferMemory::Upload),
+      lightViewMatrices_(context, kMaxLightShadowViews * sizeof(glm::mat4),
+                         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, BufferMemory::Upload) {
     if (brdfs_.Models().empty()) {
         throw std::invalid_argument("RasterRenderer needs at least one BRDF");
     }
@@ -219,6 +298,7 @@ RasterRenderer::RasterRenderer(const VulkanContext& context, VkFormat presentFor
     materials_.emplace(kDefaultMaterial, std::make_unique<RasterMaterial>(context_));
     SetMaterial(kDefaultMaterial, defaults);
     CreateShadowMaps(1);
+    CreateLightShadowMaps(1, 1);
 
     const std::vector<float>& table = SigmoidTable();
     const std::size_t layerBytes =
@@ -338,7 +418,82 @@ void RasterRenderer::CreateShadowMaps(std::uint32_t resolution) {
     shadowResolution_ = resolution;
 }
 
+void RasterRenderer::CreateLightShadowMaps(std::uint32_t resolution, std::uint32_t layers) {
+    vkDeviceWaitIdle(context_.Device());
+    lightShadowMaps_ = std::make_unique<GpuImage>(
+        context_,
+        ImageDesc{resolution, resolution, layers, 1, VK_FORMAT_D32_SFLOAT,
+                  VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, false,
+                  true});
+    context_.Submit([this](VkCommandBuffer commands) {
+        lightShadowMaps_->Transition(commands, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    });
+    lightResolution_ = resolution;
+}
+
+void RasterRenderer::WriteLights(const FrameParams& params, const std::optional<Bounds3>& bounds) {
+    const std::uint32_t resolution = std::max(params.shadows.lightResolution, 1u);
+    lightViews_.clear();
+    std::vector<LightGpu> table(params.lights.size());
+    for (std::size_t i = 0; i < params.lights.size(); ++i) {
+        const Light& light = params.lights[i];
+        LightGpu& entry = table[i];
+        const glm::vec3 axis = glm::normalize(light.direction);
+        const bool distant = light.type == LightType::Distant;
+        const glm::vec3 where = distant ? axis : light.position;
+        entry.position[0] = where.x;
+        entry.position[1] = where.y;
+        entry.position[2] = where.z;
+        entry.position[3] = static_cast<float>(light.type);
+        entry.axis[0] = axis.x;
+        entry.axis[1] = axis.y;
+        entry.axis[2] = axis.z;
+        entry.axis[3] = light.radius;
+        const bool cone = !distant && light.coneAngle < 180.0f;
+        const float softness = std::clamp(light.coneSoftness, 0.0f, 1.0f);
+        entry.cone[0] = cone ? std::cos(glm::radians(light.coneAngle)) : -2.0f;
+        entry.cone[1] = cone ? std::cos(glm::radians(light.coneAngle * (1.0f - softness))) : -1.0f;
+        if (bounds) {
+            const std::vector<ShadowCascade> views =
+                FitLightShadowViews(light, bounds->first, bounds->second, resolution);
+            if (!views.empty() && lightViews_.size() + views.size() <= kMaxLightShadowViews) {
+                entry.cone[2] = static_cast<float>(lightViews_.size());
+                entry.cone[3] = static_cast<float>(views.size());
+                entry.shadow[0] = views.front().texelWorldSize;
+                lightViews_.insert(lightViews_.end(), views.begin(), views.end());
+            }
+        }
+        std::copy(light.spectrum.begin(), light.spectrum.end(), entry.spectrum);
+    }
+    if (!table.empty()) {
+        lightTable_.Write(std::as_bytes(std::span(table)));
+    }
+    std::vector<glm::mat4> matrices;
+    for (const ShadowCascade& view : lightViews_) {
+        matrices.push_back(view.lightViewProjection);
+    }
+    if (!matrices.empty()) {
+        lightViewMatrices_.Write(std::as_bytes(std::span(matrices)));
+        const auto layers = static_cast<std::uint32_t>(lightViews_.size());
+        if (resolution != lightResolution_ || layers > lightShadowMaps_->Desc().layers) {
+            CreateLightShadowMaps(resolution, layers);
+        }
+    }
+}
+
 void RasterRenderer::Update(const FrameParams& params, std::span<RasterPart* const> parts) {
+    if (params.lights.size() > kMaxLights) {
+        throw std::invalid_argument("A frame has at most " + std::to_string(kMaxLights) +
+                                    " lights besides the sun");
+    }
+    for (const Light& light : params.lights) {
+        if (light.spectrum.size() != static_cast<std::size_t>(params.physical.bands.count)) {
+            throw std::invalid_argument("Every light's spectrum needs one value per camera band");
+        }
+        if (glm::length(light.direction) == 0.0f) {
+            throw std::invalid_argument("A light's direction must not be zero");
+        }
+    }
     Uniforms uniforms{};
     const glm::mat4 viewProjection = params.camera.ViewProjection();
     std::memcpy(uniforms.viewProjection, glm::value_ptr(viewProjection),
@@ -367,7 +522,8 @@ void RasterRenderer::Update(const FrameParams& params, std::span<RasterPart* con
         }
     }
     const ShadowSettings& shadows = params.shadows;
-    shadowsEnabled_ = shadows.enabled && bounds.has_value() && params.sunDirection.z > 0.0f;
+    shadowsEnabled_ =
+        params.sun && shadows.enabled && bounds.has_value() && params.sunDirection.z > 0.0f;
     cascades_.clear();
     if (shadowsEnabled_) {
         if (shadows.resolution != shadowResolution_) {
@@ -381,7 +537,9 @@ void RasterRenderer::Update(const FrameParams& params, std::span<RasterPart* con
             farthest =
                 std::max(farthest, glm::dot(corner - params.camera.eye, params.camera.forward));
         }
-        const float shadowDistance = std::min(params.camera.farPlane, farthest);
+        // A margin keeps surfaces at exactly the farthest depth, such as flat ground under a
+        // nadir camera, inside the last cascade.
+        const float shadowDistance = std::min(params.camera.farPlane, 1.01f * farthest);
         cascades_ = FitCascades(params.camera, shadowDistance, params.sunDirection, low, high,
                                 std::clamp(shadows.cascades, 1, kMaxCascades), shadows.splitLambda,
                                 shadowResolution_);
@@ -393,7 +551,9 @@ void RasterRenderer::Update(const FrameParams& params, std::span<RasterPart* con
                     glm::value_ptr(cascades_[c].lightViewProjection), 64);
         shadowUniforms.splits[c] = cascades_[c].splitFar;
         shadowUniforms.texelWorld[c] = cascades_[c].texelWorldSize;
+        shadowUniforms.depthWorld[c] = OrthographicDepth(cascades_[c].lightViewProjection);
     }
+    shadowUniforms.sun[0] = std::tan(0.5f * glm::radians(std::max(params.sunAngle, 0.0f)));
     shadowUniforms.params[0] = shadows.softness;
     shadowUniforms.params[1] = shadows.normalOffset;
     shadowUniforms.params[2] = static_cast<float>(cascades_.size());
@@ -424,8 +584,11 @@ void RasterRenderer::Update(const FrameParams& params, std::span<RasterPart* con
     WriteSensor(params);
     frameIndex_ += 1;
 
+    WriteLights(params, bounds);
+    shadowViews_ = cascades_;
+    shadowViews_.insert(shadowViews_.end(), lightViews_.begin(), lightViews_.end());
     for (RasterPart* part : parts) {
-        part->Prepare(params, cascades_);
+        part->Prepare(params, shadowViews_);
     }
     updated_ = true;
 }
@@ -500,11 +663,19 @@ void RasterRenderer::WriteShading(const FrameParams& params) {
     shading.size[0] = extent_.width;
     shading.size[1] = extent_.height;
     shading.size[2] = kTableResolution;
-    for (int i = 0; i < bands_.count; ++i) {
+    shading.size[3] = static_cast<std::uint32_t>(params.lights.size());
+    for (int i = 0; i < bands_.count && params.sun; ++i) {
         shading.irradiance[i] =
             params.sunIrradiance.empty()
                 ? static_cast<float>(M_PI / (kLuminousEfficacy * LuminanceIntegral()))
                 : params.sunIrradiance[static_cast<std::size_t>(i)];
+    }
+    shading.lightShadow[0] = params.shadows.softness;
+    shading.lightShadow[1] = params.shadows.normalOffset;
+    shading.lightShadow[2] = static_cast<float>(lightResolution_);
+    for (std::size_t i = 0; i < poisson_.size(); ++i) {
+        shading.poisson[2 * i] = poisson_[i].x;
+        shading.poisson[2 * i + 1] = poisson_[i].y;
     }
     shadingUniforms_.Write(std::as_bytes(std::span(&shading, 1)));
 }
@@ -605,6 +776,21 @@ void RasterRenderer::Record(VkCommandBuffer commands, RenderTargets& targets,
         }
         shadowMaps_->Transition(commands, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
+    if (!lightViews_.empty()) {
+        lightShadowMaps_->Transition(commands, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+        for (std::size_t v = 0; v < lightViews_.size(); ++v) {
+            RenderingTarget shadow;
+            shadow.depth = lightShadowMaps_->LayerView(static_cast<std::uint32_t>(v));
+            shadow.extent = {lightResolution_, lightResolution_};
+            BeginRendering(commands, shadow);
+            for (const RasterPart* part : parts) {
+                part->RecordShadow(commands, frame, cascades_.size() + v,
+                                   lightViews_[v].lightViewProjection);
+            }
+            vkCmdEndRendering(commands);
+        }
+        lightShadowMaps_->Transition(commands, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    }
     BeginRendering(commands, targets.PrepareGBuffer(commands));
     for (const RasterPart* part : parts) {
         part->RecordColor(commands, frame);
@@ -639,7 +825,11 @@ void RasterRenderer::ShadeAndFilter(VkCommandBuffer commands, RenderTargets& tar
                                                   DescriptorResource::Of(*materialTable_),
                                                   sampled(sigmoidTable_),
                                                   DescriptorResource::Of(tableSampler_),
-                                                  general(targets.RasterRadiance())};
+                                                  general(targets.RasterRadiance()),
+                                                  DescriptorResource::Of(lightTable_),
+                                                  sampled(*lightShadowMaps_),
+                                                  DescriptorResource::Of(shadowSampler_),
+                                                  DescriptorResource::Of(lightViewMatrices_)};
     const std::uint32_t groupsX = Groups(extent_.width);
     const std::uint32_t groupsY = Groups(extent_.height);
     for (const std::size_t model : modelsInUse_) {
@@ -689,7 +879,9 @@ void RasterRenderer::Present(VkCommandBuffer commands, RenderTargets& targets,
 
 std::uint64_t RasterRenderer::GpuBytes() const {
     std::uint64_t bytes = uniforms_.Size() + shadowUniforms_.Size() + shadowMaps_->Bytes() +
-                          sigmoidTable_.Bytes() + shadingUniforms_.Size() + sensorUniforms_.Size() +
+                          lightShadowMaps_->Bytes() + lightTable_.Size() +
+                          lightViewMatrices_.Size() + sigmoidTable_.Bytes() +
+                          shadingUniforms_.Size() + sensorUniforms_.Size() +
                           (materialTable_ != nullptr ? materialTable_->Size() : 0);
     for (const auto& [id, material] : materials_) {
         bytes += material->GpuBytes();

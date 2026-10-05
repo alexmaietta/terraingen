@@ -99,11 +99,12 @@ GpuImage::GpuImage(const VulkanContext& context, const ImageDesc& desc)
 
     VkImageViewCreateInfo view{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
     view.image = image_;
-    view.viewType = desc.layers > 1 ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
+    const bool array = desc.layers > 1 || desc.array;
+    view.viewType = array ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
     view.format = desc.format;
     view.subresourceRange = {AspectOf(desc.format), 0, desc.mips, 0, desc.layers};
     CheckVk(vkCreateImageView(context.Device(), &view, nullptr, &view_), "vkCreateImageView");
-    if (desc.layers > 1) {
+    if (array) {
         for (std::uint32_t layer = 0; layer < desc.layers; ++layer) {
             view.viewType = VK_IMAGE_VIEW_TYPE_2D;
             view.subresourceRange = {AspectOf(desc.format), 0, 1, layer, 1};
@@ -181,7 +182,7 @@ VkImageView GpuImage::LayerView(std::uint32_t layer) const {
     if (layer >= desc_.layers) {
         throw std::out_of_range("GpuImage::LayerView past the last layer");
     }
-    return desc_.layers > 1 ? layerViews_[layer] : view_;
+    return layerViews_.empty() ? view_ : layerViews_[layer];
 }
 
 void GpuImage::Transition(VkCommandBuffer commands, VkImageLayout layout) {

@@ -27,14 +27,18 @@ namespace ernie {
 /// - `camera`: the settings' `camera` relationship, or else the first Camera.
 /// - `terrain`: the first visible Terrain.
 /// - `material`: the terrain's `material:binding` when it names a Material.
-/// - `light`: the first visible DistantLight; without one Ernie lights the scene with a default
-///   sun overhead, as Hydra's Storm adds a default light to unlit scenes.
+/// - `light`: the first visible DistantLight, the sun, with cascaded shadows; without any light
+///   Ernie lights the scene with a default sun overhead, as Hydra's Storm adds a default light to
+///   unlit scenes.
+/// - `lights`: every other visible DistantLight and SphereLight (other UsdLux
+///   lights are not drawn yet), sorted by path.
 struct RasterPrims {
     Path settings;
     Path camera;
     Path terrain;
     Path material;
     Path light;
+    std::vector<Path> lights;
 };
 
 /// A render product to draw, resolved from UsdRender prims.
@@ -81,6 +85,19 @@ Path BoundMaterial(const Scene& scene, const Path& prim);
 std::vector<float> SunIrradianceOf(const Scene& scene, const Path& light,
                                    const SpectralBands& bands);
 
+/// The DistantLight or SphereLight at `path` as a `Light` for `bands`:
+/// - distant: towards the light along its +z axis, its spectrum as `SunIrradianceOf`;
+/// - sphere: at its world position with its cone (`inputs:shaping:cone:angle` and `:softness`,
+///   default 180 degrees: unshaped) around its -z axis, radius `inputs:radius` (default 0.5; 0 with
+///   `treatAsPoint`). Physical with `ernie:power` or `ernie:spectrum` (`tokens::kLightPower`);
+///   otherwise relative, following UsdLux: `inputs:intensity` times 2^`inputs:exposure` is the
+///   luminance (cd/m^2) of its surface, so its luminous intensity is that times pi r^2 (times 1
+///   for a point), with the shape of `inputs:color` and the enabled colour temperature.
+/// Shadows follow `inputs:shadow:enable`.
+/// @throws std::invalid_argument for another prim type, a negative radius or power, invalid bands
+/// or spectrum pairs.
+Light LightOf(const Scene& scene, const Path& path, const SpectralBands& bands);
+
 /// How much wider than the sensor's the raster image's field of view must be for every sensor
 /// pixel's undistorted ray to land in it: 1 without distortion, else the largest ratio along the
 /// sensor's border, plus one percent.
@@ -95,8 +112,10 @@ CameraView RasterCameraOf(const Scene& scene, const Path& path, const PhysicalCa
 /// - the physical camera from the Camera (`PhysicalCameraOf`), its raster view widened for lens
 ///   distortion (`OverscanOf`, `RasterCameraOf`);
 /// - sun direction from the light's transform (`TowardsLight`), its spectral irradiance
-///   (`SunIrradianceOf`) and shadows from its `inputs:shadow:enable`; without a light, a white sun
-///   overhead in relative units;
+///   (`SunIrradianceOf`), angular diameter (`inputs:angle`, default 0.53 degrees) and shadows from
+///   its `inputs:shadow:enable`; without any light, a white sun overhead in relative units; with
+///   only other lights, no sun;
+/// - the other lights (`LightOf`);
 /// - ambient, wireframe, clear colour (linear) and shadow options from the render settings.
 /// @throws std::invalid_argument if there is no camera, it is not perspective, or it or the light
 /// are invalid.

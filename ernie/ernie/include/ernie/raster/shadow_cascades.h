@@ -9,7 +9,8 @@
 
 namespace ernie {
 
-/// One cascade of a cascaded shadow map.
+/// One cascade of a cascaded shadow map, or another shadow view (only `lightViewProjection` and
+/// `texelWorldSize` apply).
 struct ShadowCascade {
     glm::mat4 lightViewProjection{1.0f};  ///< World to light clip space, [0, 1] depth.
     float splitNear = 0.0f;               ///< View-space depth where this cascade starts.

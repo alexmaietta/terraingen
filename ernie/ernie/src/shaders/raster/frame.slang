@@ -28,8 +28,12 @@ public struct Shadows {
     public float4 splits;
     // World size of one shadow map texel in each cascade.
     public float4 texelWorld;
+    // World depth spanned by each cascade's [0, 1] depth.
+    public float4 depthWorld;
     // Filter radius (texels), normal offset (texels), cascade count, enabled.
     public float4 params;
+    // x: tangent of the sun's angular radius.
+    public float4 sun;
     // x: tint cascades.
     public uint4 debug;
     // 16 Poisson disk samples in the unit disk, two per float4.
@@ -67,9 +71,19 @@ public uint cascadeIndex(float depth) {
     return count;
 }
 
+// Largest PCF radius in texels, which bounds the penumbra of the sun's disk.
+static const float kMaxFilterTexels = 24.0;
+
 // Poisson-disk PCF over a cascaded shadow map. Each tap is a hardware 2x2 comparison; the disk is
 // rotated per pixel so undersampling shows as fine noise rather than banding. Normal offset
 // (Holbert 2011) pushes the lookup off the surface to avoid self-shadowing acne.
+//
+// Percentage-closer soft shadows (Fernando 2005) size the filter to the sun's disk: a blocker
+// search averages the depth of occluders within the disk's footprint, and the penumbra is the
+// receiver-to-blocker distance times the tangent of the sun's angular radius, never below the
+// configured softness. Taps beyond that softness compare against the receiver's plane, lowered by
+// their distance times the tangent of the angle between the normal and the sun, so tilted
+// surfaces do not shadow themselves through the wider filter.
 float shadowVisibility(float3 world, float3 normal, float nDotL, float depth, float2 pixel) {
     let cascade = cascadeIndex(depth);
     if (cascade >= uint(s.params.z)) {
@@ -93,12 +107,42 @@ float shadowVisibility(float3 world, float3 normal, float nDotL, float depth, fl
     uint height;
     uint layers;
     shadowMap.GetDimensions(width, height, layers);
-    let radius = s.params.x / float(width);
+    var filterTexels = s.params.x;
+    let tanRadius = s.sun.x;
+    let depthWorld = s.depthWorld[cascade];
+    let cosine = clamp(nDotL, 0.05, 1.0);
+    let planeSlope = min(sqrt(1.0 - cosine * cosine) / cosine, 10.0) * texelWorld /
+                     max(depthWorld, 1e-6);
+    if (tanRadius > 0.0) {
+        let searchTexels = clamp(ndc.z * depthWorld * tanRadius / texelWorld, s.params.x,
+                                 kMaxFilterTexels);
+        var blockers = 0.0;
+        var blockerDepth = 0.0;
+        for (uint i = 0; i < 16; ++i) {
+            let p = poissonSample(i);
+            let tap = uv + float2(c * p.x - sn * p.y, sn * p.x + c * p.y) * searchTexels /
+                               float(width);
+            let texel = int2(clamp(tap, float2(0.0), float2(1.0)) * float2(width, height));
+            let stored = shadowMap.Load(int4(min(texel, int2(width, height) - 1), cascade, 0));
+            if (stored < ndc.z - length(p) * max(searchTexels - s.params.x, 0.0) * planeSlope) {
+                blockers += 1.0;
+                blockerDepth += stored;
+            }
+        }
+        if (blockers == 0.0) {
+            return 1.0;
+        }
+        let gap = (ndc.z - blockerDepth / blockers) * depthWorld;
+        filterTexels = clamp(gap * tanRadius / texelWorld, s.params.x, kMaxFilterTexels);
+    }
+    let radius = filterTexels / float(width);
+    let extra = max(filterTexels - s.params.x, 0.0) * planeSlope;
     var lit = 0.0;
     for (uint i = 0; i < 16; ++i) {
         let p = poissonSample(i);
         let tap = uv + float2(c * p.x - sn * p.y, sn * p.x + c * p.y) * radius;
-        lit += shadowMap.SampleCmpLevelZero(shadowSampler, float3(tap, float(cascade)), ndc.z);
+        lit += shadowMap.SampleCmpLevelZero(shadowSampler, float3(tap, float(cascade)),
+                                            ndc.z - length(p) * extra);
     }
     return lit / 16.0;
 }

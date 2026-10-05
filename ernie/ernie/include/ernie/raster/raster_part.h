@@ -13,18 +13,49 @@
 #include <optional>
 #include <span>
 #include <utility>
+#include <vector>
 
 namespace ernie {
 
 /// Cascaded shadow map options.
 struct ShadowSettings {
     bool enabled = true;
-    int cascades = 3;                 ///< Number of cascades, 1 to 4.
-    std::uint32_t resolution = 2048;  ///< Texels along each side of every cascade's map.
-    float softness = 1.5f;            ///< Poisson filter radius, in shadow map texels.
-    float normalOffset = 1.5f;        ///< Receiver offset along the normal, in texels.
-    float splitLambda = 0.8f;         ///< Logarithmic weight of the practical split scheme.
-    bool showCascades = false;        ///< Tint fragments by cascade, for tuning.
+    int cascades = 3;                      ///< Number of cascades, 1 to 4.
+    std::uint32_t resolution = 2048;       ///< Texels along each side of every cascade's map.
+    float softness = 1.5f;                 ///< Poisson filter radius, in shadow map texels.
+    float normalOffset = 1.5f;             ///< Receiver offset along the normal, in texels.
+    float splitLambda = 0.8f;              ///< Logarithmic weight of the practical split scheme.
+    bool showCascades = false;             ///< Tint fragments by cascade, for tuning.
+    std::uint32_t lightResolution = 1024;  ///< Texels along each side of other lights' maps.
+};
+
+/// Kinds of `Light`.
+enum class LightType : std::uint32_t {
+    Distant = 0,  ///< Parallel light from a direction, such as Earthshine (UsdLux DistantLight).
+    Sphere = 1,   ///< A point or sphere, optionally limited to a cone (UsdLux SphereLight with
+                  ///< ShapingAPI): lamps and spot lights.
+};
+
+/// A light besides the sun. Distant lights get one orthographic shadow map over the scene; sphere
+/// lights a perspective map when their cone is at most `kMaxSpotConeDegrees`, else six (a cube).
+struct Light {
+    LightType type = LightType::Sphere;
+    glm::vec3 position{0.0f};  ///< Sphere: world centre.
+    /// Distant: unit vector towards the light. Sphere: unit axis of the cone, the light's -z.
+    glm::vec3 direction{0.0f, 0.0f, 1.0f};
+    /// One value per band of the camera. Distant: spectral irradiance at normal incidence,
+    /// W m^-2 nm^-1. Sphere: spectral radiant intensity, W sr^-1 nm^-1, the same in every
+    /// direction inside the cone.
+    std::vector<float> spectrum;
+    /// Sphere radius: irradiance follows the inverse square law outside it and is capped at its
+    /// surface value inside.
+    float radius = 0.0f;
+    float coneAngle = 180.0f;   ///< Degrees off the axis that are lit; 180 lights every direction.
+    float coneSoftness = 0.0f;  ///< Fraction of the cone, at its edge, over which light fades out.
+    bool shadows = true;
+
+    /// Cones up to this half angle (degrees) get one perspective shadow map, wider ones a cube.
+    static constexpr float kMaxSpotConeDegrees = 75.0f;
 };
 
 /// Per-frame parameters every part shares: the view, the camera, the sun and the shadows.
@@ -36,14 +67,19 @@ struct FrameParams {
     /// image size, which the render targets must have.
     PhysicalCamera physical;
     double overscan = 1.0;
+    bool sun = true;  ///< Off lights the scene with `lights` alone (no sun, ambient or cascades).
     glm::vec3 sunDirection{0.0f, 0.0f, 1.0f};  ///< Unit vector pointing towards the sun.
+    /// Angular diameter of the sun's disk in degrees, which widens shadow penumbrae with the
+    /// distance from the occluder (percentage-closer soft shadows); 0 keeps `shadows.softness`.
+    float sunAngle = 0.53f;
     /// The sun's spectral irradiance at normal incidence per band of `physical.bands`, in
     /// W m^-2 nm^-1. Empty means a flat spectrum scaled so a white Lambertian surface facing the
     /// sun has a luminance of 1 cd/m^2 (relative units).
     std::vector<float> sunIrradiance;
-    float ambient = 0.15f;   ///< Fraction of sunlight reaching surfaces without shading.
-    float exposure = 1.0f;   ///< Extra scale on the photographic output.
-    bool wireframe = false;  ///< Draw triangle edges over every part.
+    float ambient = 0.15f;      ///< Fraction of sunlight reaching surfaces without shading.
+    std::vector<Light> lights;  ///< Other lights, at most `RasterRenderer::kMaxLights`.
+    float exposure = 1.0f;      ///< Extra scale on the photographic output.
+    bool wireframe = false;     ///< Draw triangle edges over every part.
     ShadowSettings shadows;
     /// The sensor filters to run (`CheckFilterChain`); empty runs `DefaultFilterChain`.
     std::vector<SensorFilter> filters;
@@ -65,9 +101,10 @@ struct RasterFrame {
 };
 
 /// Something a `RasterRenderer` draws: terrain, meshes, and in future volumes or points. Each
-/// frame the renderer asks every part for its bounds, fits the shadow cascades around them, lets
-/// each part prepare for the final view and cascades, and then has each record its draws into
-/// every shadow cascade and into the main pass. Parts bind the frame's resources at bindings 0 to
+/// frame the renderer asks every part for its bounds, fits the shadow views around them (the
+/// sun's cascades, then the views of the other lights' shadow maps), lets each part prepare for
+/// the final view and shadow views, and then has each record its draws into every shadow view and
+/// into the main pass. Parts bind the frame's resources at bindings 0 to
 /// 4, a material's at 5 to 9 (`RasterRenderer::Material`) and their own from 10.
 class RasterPart {
   public:
@@ -76,12 +113,14 @@ class RasterPart {
     /// World bounds of what the part draws, for fitting shadow cascades; none if nothing.
     virtual std::optional<Bounds3> Bounds() const = 0;
 
-    /// Prepares the next frame once the view and cascades are final, for example selecting levels
-    /// of detail for the main view and each cascade. Called by `RasterRenderer::Update`, only
-    /// while no submitted frame is reading the part's buffers.
+    /// Prepares the next frame once the view and shadow views are final, for example selecting
+    /// levels of detail for the main view and each shadow view (orthographic or perspective; only
+    /// their `lightViewProjection` applies to every view). Called by `RasterRenderer::Update`,
+    /// only while no submitted frame is reading the part's buffers.
     virtual void Prepare(const FrameParams& params, std::span<const ShadowCascade> cascades) = 0;
 
-    /// Records depth-only draws for shadow cascade `cascade` into the open rendering pass.
+    /// Records depth-only draws for shadow view `cascade` (an index into the views given to
+    /// `Prepare`) into the open rendering pass.
     virtual void RecordShadow(VkCommandBuffer commands, const RasterFrame& frame,
                               std::size_t cascade, const glm::mat4& lightViewProjection) const = 0;
 
