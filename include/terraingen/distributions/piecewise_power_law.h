@@ -12,6 +12,8 @@ struct PowerLawSegment {
     double start = 0.0;
     double coefficient = 1.0;
     double exponent = 2.0;
+
+    bool operator==(const PowerLawSegment&) const = default;
 };
 
 /// A cumulative distribution made of power-law segments in increasing diameter order.

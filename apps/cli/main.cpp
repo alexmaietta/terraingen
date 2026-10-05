@@ -1,16 +1,10 @@
-#include "terraingen/core/build_info.h"
-#include "terraingen/core/version.h"
+#include "cli.h"
 
-#include <cstdio>
+#include <iostream>
+#include <string>
+#include <vector>
 
-int main() {
-    terraingen::Version version = terraingen::GetVersion();
-    terraingen::BuildInfo buildInfo = terraingen::GetBuildInfo();
-
-    std::printf("TerrainGen %d.%d.%d\n", version.major, version.minor, version.patch);
-    std::printf("  git commit:  %s%s\n", buildInfo.gitSha.c_str(),
-                buildInfo.gitDirty ? "-dirty" : "");
-    std::printf("  build date:  %s\n", buildInfo.buildDate.c_str());
-    std::printf("  api version: %d\n", terraingen::GetApiVersion());
-    return 0;
+int main(int argc, char** argv) {
+    const std::vector<std::string> args(argv + 1, argv + argc);
+    return terraingen::cli::Run(args, std::cout, std::cerr);
 }

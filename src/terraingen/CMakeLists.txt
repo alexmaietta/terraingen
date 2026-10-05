@@ -61,9 +61,21 @@ target_compile_features(terraingen_core PUBLIC cxx_std_20)
 target_link_libraries(terraingen_core PRIVATE $<BUILD_INTERFACE:terraingen_warnings>
                                               $<BUILD_INTERFACE:terraingen_coverage>)
 
+add_library(nlohmann_json INTERFACE)
+target_include_directories(nlohmann_json SYSTEM INTERFACE "${PROJECT_SOURCE_DIR}/third_party")
+
+add_library(terraingen_pipeline STATIC pipeline/config_json.cpp pipeline/run.cpp)
+add_library(terraingen::pipeline ALIAS terraingen_pipeline)
+set_target_properties(terraingen_pipeline PROPERTIES EXPORT_NAME pipeline)
+target_link_libraries(
+    terraingen_pipeline
+    PUBLIC terraingen_core
+    PRIVATE $<BUILD_INTERFACE:nlohmann_json> $<BUILD_INTERFACE:terraingen_warnings>
+            $<BUILD_INTERFACE:terraingen_coverage>)
+
 if(TERRAINGEN_INSTALL)
     install(
-        TARGETS terraingen_core
+        TARGETS terraingen_core terraingen_pipeline
         EXPORT terraingenTargets
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT development
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT development)

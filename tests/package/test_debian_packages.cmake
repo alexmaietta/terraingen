@@ -21,9 +21,21 @@ foreach(package terraingen terraingen-dev)
     endif()
 endforeach()
 
-execute_process(COMMAND "${WORK_DIR}/root/usr/bin/terraingen" RESULT_VARIABLE result)
+set(cli "${WORK_DIR}/root/usr/bin/terraingen")
+execute_process(COMMAND "${cli}" --version RESULT_VARIABLE result)
 if(NOT result EQUAL 0)
-    message(FATAL_ERROR "Packaged terraingen exited with ${result}")
+    message(FATAL_ERROR "Packaged terraingen --version exited with ${result}")
+endif()
+execute_process(
+    COMMAND "${cli}" schema
+    OUTPUT_FILE "${WORK_DIR}/schema.json"
+    RESULT_VARIABLE result)
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "Packaged terraingen schema exited with ${result}")
+endif()
+execute_process(COMMAND "${cli}" validate "${WORK_DIR}/schema.json" RESULT_VARIABLE result)
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "Packaged terraingen could not validate its own schema (${result})")
 endif()
 
 execute_process(
