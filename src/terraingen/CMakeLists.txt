@@ -73,13 +73,23 @@ target_link_libraries(
     PRIVATE $<BUILD_INTERFACE:nlohmann_json> $<BUILD_INTERFACE:terraingen_warnings>
             $<BUILD_INTERFACE:terraingen_coverage>)
 
-add_library(terraingen_io STATIC io/geotiff.cpp io/tiff_codecs.cpp)
+add_library(terraingen_miniz OBJECT "${PROJECT_SOURCE_DIR}/third_party/miniz/miniz.c")
+target_compile_definitions(
+    terraingen_miniz PRIVATE MINIZ_NO_STDIO MINIZ_NO_TIME MINIZ_NO_ARCHIVE_APIS
+                             MINIZ_NO_ZLIB_COMPATIBLE_NAMES)
+set_target_properties(terraingen_miniz PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+add_library(terraingen_io STATIC io/geotiff.cpp io/tiff_codecs.cpp
+                                 $<TARGET_OBJECTS:terraingen_miniz>)
 add_library(terraingen::io ALIAS terraingen_io)
 set_target_properties(terraingen_io PROPERTIES EXPORT_NAME io)
 target_link_libraries(
     terraingen_io
     PUBLIC terraingen_core
     PRIVATE $<BUILD_INTERFACE:terraingen_warnings> $<BUILD_INTERFACE:terraingen_coverage>)
+target_include_directories(terraingen_io SYSTEM PRIVATE "${PROJECT_SOURCE_DIR}/third_party/miniz")
+target_compile_definitions(terraingen_io PRIVATE MINIZ_NO_STDIO MINIZ_NO_TIME MINIZ_NO_ARCHIVE_APIS
+                                                 MINIZ_NO_ZLIB_COMPATIBLE_NAMES)
 
 if(TERRAINGEN_INSTALL)
     install(

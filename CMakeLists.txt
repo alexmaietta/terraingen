@@ -5,7 +5,7 @@ file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" TERRAINGEN_VERSION)
 project(
     TerrainGen
     VERSION ${TERRAINGEN_VERSION}
-    LANGUAGES CXX)
+    LANGUAGES C CXX)
 
 option(TERRAINGEN_BUILD_CLI "Build the terraingen command-line app" ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_BUILD_TESTS "Build the test suite" ${PROJECT_IS_TOP_LEVEL})

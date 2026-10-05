@@ -177,7 +177,8 @@ TEST(ReadGeoTiffInfo, DescribesTheLayout) {
 
 TEST(WriteGeoTiff, RoundTripsValuesTransformNoDataAndGeoKeys) {
     const auto source = ReadGeoTiff(WriteBytes("source.tif", float32_lzw_fp_tiles.bytes));
-    for (const TiffCompression compression : {TiffCompression::Lzw, TiffCompression::None}) {
+    for (const TiffCompression compression :
+         {TiffCompression::Lzw, TiffCompression::Deflate, TiffCompression::None}) {
         for (const bool bigTiff : {false, true}) {
             Raster<float> raster = Sample(53, 37);
             raster.SetNoData(-9999.0f);
@@ -269,22 +270,11 @@ TEST(ReadGeoTiff, ReportsUnreadableAndUnsupportedFiles) {
                          "zero tile or strip size"));
     EXPECT_TRUE(contains(ReadError(PatchTag(strips, 278, 1)), "fewer tile or strip offsets"));
 
-    std::vector<std::uint8_t> deflate = float32_none_strips.bytes;
-    for (std::size_t i = 10; i + 12 <= deflate.size(); i += 12) {
-        if (deflate[i] == 0x03 && deflate[i + 1] == 0x01) {
-            deflate[i + 8] = 8;
-            break;
-        }
-    }
-    try {
-        ReadGeoTiff(WriteBytes("deflate.tif", deflate));
-        FAIL() << "expected a GeoTiffError";
-    } catch (const GeoTiffError& error) {
-        const std::string message = error.what();
-        EXPECT_NE(message.find("Deflate compression is not supported"), std::string::npos)
-            << message;
-        EXPECT_NE(message.find("gdal_translate -co COMPRESS=LZW"), std::string::npos);
-    }
+    const std::string zstd = ReadError(PatchTag(strips, 259, 50000));
+    EXPECT_TRUE(contains(zstd, "ZSTD compression is not supported")) << zstd;
+    EXPECT_TRUE(contains(zstd, "gdal_translate -co COMPRESS=DEFLATE")) << zstd;
+    EXPECT_TRUE(
+        contains(ReadError(PatchTag(float32_deflate_fp_tiles.bytes, 259, 32946)), "no error"));
 }
 
 TEST(TiffCodecs, LzwRoundTripsAcrossCodeWidthsAndClears) {
@@ -306,6 +296,24 @@ TEST(TiffCodecs, LzwRoundTripsAcrossCodeWidthsAndClears) {
     const auto encoded = terraingen::detail::EncodeLzw(zeros);
     EXPECT_LT(encoded.size(), zeros.size() / 20);
     EXPECT_EQ(terraingen::detail::DecodeLzw(encoded, zeros.size()), zeros);
+}
+
+TEST(TiffCodecs, DeflateRoundTripsAndRejectsCorruptStreams) {
+    std::vector<std::uint8_t> data(100000);
+    for (std::size_t i = 0; i < data.size(); ++i) {
+        data[i] = static_cast<std::uint8_t>((i * 7) ^ (i >> 5));
+    }
+    const auto encoded = terraingen::detail::EncodeDeflate(data);
+    EXPECT_LT(encoded.size(), data.size());
+    EXPECT_EQ(encoded[0] & 0x0f, 8) << "zlib header with the Deflate method";
+    EXPECT_EQ(terraingen::detail::DecodeDeflate(encoded, data.size()), data);
+    EXPECT_THROW(terraingen::detail::DecodeDeflate(encoded, data.size() + 1), GeoTiffError);
+    EXPECT_THROW(terraingen::detail::DecodeDeflate(encoded, data.size() - 1), GeoTiffError);
+    EXPECT_THROW(terraingen::detail::DecodeDeflate(Bytes({0x78, 0x9c, 0xff, 0xff}), 8),
+                 GeoTiffError);
+    const std::vector<std::uint8_t> empty;
+    EXPECT_EQ(terraingen::detail::DecodeDeflate(terraingen::detail::EncodeDeflate(empty), 0),
+              empty);
 }
 
 TEST(TiffCodecs, RejectCorruptStreams) {

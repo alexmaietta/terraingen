@@ -108,9 +108,6 @@ std::string CompressionName(std::uint64_t code) {
     switch (code) {
     case 7:
         return "JPEG";
-    case 8:
-    case 32946:
-        return "Deflate";
     case 34887:
         return "LERC";
     case 34925:
@@ -430,9 +427,13 @@ Layout ReadLayout(TiffReader& reader) {
     case 32773:
         info.compression = TiffCompression::PackBits;
         break;
+    case 8:
+    case 32946:
+        info.compression = TiffCompression::Deflate;
+        break;
     default:
         reader.Fail(CompressionName(code) + " compression is not supported; convert with "
-                                            "gdal_translate -co COMPRESS=LZW");
+                                            "gdal_translate -co COMPRESS=DEFLATE");
     }
     info.predictor = static_cast<int>(Single(reader, ifd, kPredictor, 1));
     if (info.predictor < 1 || info.predictor > 3) {
@@ -656,6 +657,9 @@ GeoTiff ReadGeoTiff(const std::filesystem::path& path, std::size_t band) {
                 case TiffCompression::PackBits:
                     bytes = detail::DecodePackBits(raw, expected);
                     break;
+                case TiffCompression::Deflate:
+                    bytes = detail::DecodeDeflate(raw, expected);
+                    break;
                 default:
                     if (raw.size() < expected) {
                         reader.Fail("truncated uncompressed chunk");
@@ -775,7 +779,7 @@ void WriteGeoTiff(const std::filesystem::path& path, const Raster<float>& raster
         throw GeoTiffError("Cannot write an empty raster to " + path.string());
     }
     if (options.compression == TiffCompression::PackBits) {
-        throw GeoTiffError("Writing PackBits is not supported; use None or Lzw");
+        throw GeoTiffError("Writing PackBits is not supported; use None, Lzw or Deflate");
     }
     if (options.tileSize == 0 || options.tileSize % 16 != 0) {
         throw GeoTiffError("Tile size must be a positive multiple of 16");
@@ -820,6 +824,9 @@ void WriteGeoTiff(const std::filesystem::path& path, const Raster<float>& raster
             if (options.compression == TiffCompression::Lzw) {
                 EncodePredictor3(bytes, tile, tile);
                 bytes = detail::EncodeLzw(bytes);
+            } else if (options.compression == TiffCompression::Deflate) {
+                EncodePredictor3(bytes, tile, tile);
+                bytes = detail::EncodeDeflate(bytes);
             }
             offsets.push_back(position);
             counts.push_back(bytes.size());
@@ -842,13 +849,17 @@ void WriteGeoTiff(const std::filesystem::path& path, const Raster<float>& raster
     ifd.Add<std::uint32_t>(kImageWidth, kLong, {width});
     ifd.Add<std::uint32_t>(kImageLength, kLong, {height});
     ifd.Add<std::uint16_t>(kBitsPerSample, kShort, {32});
-    ifd.Add<std::uint16_t>(
-        kCompression, kShort,
-        {static_cast<std::uint16_t>(options.compression == TiffCompression::Lzw ? 5 : 1)});
+    std::uint16_t compressionCode = 1;
+    if (options.compression == TiffCompression::Lzw) {
+        compressionCode = 5;
+    } else if (options.compression == TiffCompression::Deflate) {
+        compressionCode = 8;
+    }
+    ifd.Add<std::uint16_t>(kCompression, kShort, {compressionCode});
     ifd.Add<std::uint16_t>(kPhotometric, kShort, {1});
     ifd.Add<std::uint16_t>(kSamplesPerPixel, kShort, {1});
     ifd.Add<std::uint16_t>(kPlanarConfiguration, kShort, {1});
-    if (options.compression == TiffCompression::Lzw) {
+    if (options.compression != TiffCompression::None) {
         ifd.Add<std::uint16_t>(kPredictor, kShort, {3});
     }
     ifd.Add<std::uint32_t>(kTileWidth, kLong, {options.tileSize});

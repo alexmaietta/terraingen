@@ -21,6 +21,21 @@ std::vector<std::uint8_t> DecodeLzw(std::span<const std::uint8_t> data, std::siz
 /// Encodes `data` as TIFF LZW, beginning with Clear and ending with EndOfInfo.
 std::vector<std::uint8_t> EncodeLzw(std::span<const std::uint8_t> data);
 
+/// Decodes zlib-wrapped Deflate data (TIFF compression 8 and 32946) into exactly `size` bytes with
+/// miniz.
+///
+/// References:
+/// - P. Deutsch, "DEFLATE Compressed Data Format Specification version 1.3", RFC 1951, 1996.
+///   https://www.rfc-editor.org/rfc/rfc1951
+/// - P. Deutsch and J.-L. Gailly, "ZLIB Compressed Data Format Specification version 3.3",
+///   RFC 1950, 1996. https://www.rfc-editor.org/rfc/rfc1950
+/// - Adobe, "TIFF Specification Supplement 2", 2002 (Deflate in TIFF).
+/// @throws GeoTiffError for corrupt data or output of a different size.
+std::vector<std::uint8_t> DecodeDeflate(std::span<const std::uint8_t> data, std::size_t size);
+
+/// Encodes `data` as zlib-wrapped Deflate at miniz's default level.
+std::vector<std::uint8_t> EncodeDeflate(std::span<const std::uint8_t> data);
+
 /// Decodes PackBits run-length data (TIFF 6.0 section 9) into exactly `size` bytes.
 /// @throws GeoTiffError for corrupt or short data.
 std::vector<std::uint8_t> DecodePackBits(std::span<const std::uint8_t> data, std::size_t size);

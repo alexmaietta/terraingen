@@ -2,8 +2,9 @@
 
 #include "terraingen/io/geotiff.h"
 
+#include <miniz.h>
+
 #include <array>
-#include <unordered_map>
 
 namespace terraingen::detail {
 
@@ -144,12 +145,56 @@ std::vector<std::uint8_t> DecodeLzw(std::span<const std::uint8_t> data, std::siz
     return out;
 }
 
+/// The LZW string table for encoding: (prefix code, next byte) -> code, open-addressed with a
+/// generation stamp so that clearing it is constant time.
+class LzwTable {
+  public:
+    LzwTable() : keys_(kSlots), codes_(kSlots), stamps_(kSlots, 0) {}
+
+    void Clear() {
+        ++generation_;
+    }
+
+    /// The code for `key`, or -1.
+    int Find(std::uint32_t key) const {
+        for (std::size_t slot = Hash(key);; slot = (slot + 1) & (kSlots - 1)) {
+            if (stamps_[slot] != generation_) {
+                return -1;
+            }
+            if (keys_[slot] == key) {
+                return codes_[slot];
+            }
+        }
+    }
+
+    void Insert(std::uint32_t key, int code) {
+        std::size_t slot = Hash(key);
+        while (stamps_[slot] == generation_) {
+            slot = (slot + 1) & (kSlots - 1);
+        }
+        keys_[slot] = key;
+        codes_[slot] = static_cast<std::uint16_t>(code);
+        stamps_[slot] = generation_;
+    }
+
+  private:
+    static constexpr std::size_t kSlots = 16384;
+
+    static std::size_t Hash(std::uint32_t key) {
+        return static_cast<std::size_t>((key * 2654435761u) >> 18) & (kSlots - 1);
+    }
+
+    std::vector<std::uint32_t> keys_;
+    std::vector<std::uint16_t> codes_;
+    std::vector<std::uint32_t> stamps_;
+    std::uint32_t generation_ = 1;
+};
+
 std::vector<std::uint8_t> EncodeLzw(std::span<const std::uint8_t> data) {
     BitWriter writer;
     int width = 9;
     writer.Put(kClear, width);
-    std::unordered_map<std::uint32_t, std::uint16_t> table;
-    table.reserve(kMaxCode);
+    LzwTable table;
     int next = kFirstCode;
     int current = -1;
     for (const std::uint8_t byte : data) {
@@ -158,19 +203,19 @@ std::vector<std::uint8_t> EncodeLzw(std::span<const std::uint8_t> data) {
             continue;
         }
         const std::uint32_t key = (static_cast<std::uint32_t>(current) << 8) | byte;
-        if (const auto found = table.find(key); found != table.end()) {
-            current = found->second;
+        if (const int found = table.Find(key); found >= 0) {
+            current = found;
             continue;
         }
         writer.Put(current, width);
-        table.emplace(key, static_cast<std::uint16_t>(next));
+        table.Insert(key, next);
         ++next;
         if (next > (1 << width) - 1 && width < 12) {
             ++width;
         }
         if (next >= kMaxCode - 2) {
             writer.Put(kClear, width);
-            table.clear();
+            table.Clear();
             width = 9;
             next = kFirstCode;
         }
@@ -185,6 +230,37 @@ std::vector<std::uint8_t> EncodeLzw(std::span<const std::uint8_t> data) {
     }
     writer.Put(kEndOfInfo, width);
     return writer.Finish();
+}
+
+std::vector<std::uint8_t> DecodeDeflate(std::span<const std::uint8_t> data, std::size_t size) {
+    std::vector<std::uint8_t> out(size);
+    const std::size_t written = tinfl_decompress_mem_to_mem(
+        out.data(), out.size(), data.data(), data.size(), TINFL_FLAG_PARSE_ZLIB_HEADER);
+    if (written == TINFL_DECOMPRESS_MEM_TO_MEM_FAILED) {
+        throw GeoTiffError("Corrupt Deflate data");
+    }
+    if (written != size) {
+        throw GeoTiffError("Corrupt Deflate data: decoded " + std::to_string(written) + " of " +
+                           std::to_string(size) + " bytes");
+    }
+    return out;
+}
+
+std::vector<std::uint8_t> EncodeDeflate(std::span<const std::uint8_t> data) {
+    constexpr int kLevel = 6;
+    constexpr int kWindowBits = 15;
+    const mz_uint flags =
+        tdefl_create_comp_flags_from_zip_params(kLevel, kWindowBits, MZ_DEFAULT_STRATEGY);
+    std::size_t length = 0;
+    void* compressed =
+        tdefl_compress_mem_to_heap(data.data(), data.size(), &length, static_cast<int>(flags));
+    if (compressed == nullptr) {
+        throw GeoTiffError("Deflate compression failed");
+    }
+    const auto* bytes = static_cast<const std::uint8_t*>(compressed);
+    std::vector<std::uint8_t> out(bytes, bytes + length);
+    mz_free(compressed);
+    return out;
 }
 
 std::vector<std::uint8_t> DecodePackBits(std::span<const std::uint8_t> data, std::size_t size) {

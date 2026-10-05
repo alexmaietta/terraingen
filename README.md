@@ -82,28 +82,11 @@ TerrainGen is built on top of the following open source libraries and tools:
 
 | Library | Purpose | License |
 | --- | --- | --- |
-| [dlpack](https://github.com/dmlc/dlpack) | Zero-copy tensor interop (vendored in `ernie/third_party/`) | Apache-2.0 |
-| [nlohmann/json](https://github.com/nlohmann/json) | Config-based generation | MIT |
+| [nlohmann/json](https://github.com/nlohmann/json) | JSON configuration files (vendored in `third_party/`) | MIT |
+| [miniz](https://github.com/richgel999/miniz) | Deflate compression for GeoTIFF reading and writing (vendored in `third_party/`) | MIT |
 | [nanobind](https://github.com/wjakob/nanobind) | Python bindings | BSD-3-Clause |
 
-The viewer additionally uses:
-
-| Library | Purpose | License |
-| --- | --- | --- |
-| [Vulkan-Headers](https://github.com/KhronosGroup/Vulkan-Headers) | Vulkan API headers for the Ernie renderer | Apache-2.0 / MIT |
-| [volk](https://github.com/zeux/volk) | Loads Vulkan at run time | MIT |
-| [Vulkan Memory Allocator](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator) | GPU memory allocation | MIT |
-| [Slang](https://github.com/shader-slang/slang) | Shader language and run-time compiler (SPIR-V, WGSL) | Apache-2.0 with LLVM exception |
-| [MoltenVK](https://github.com/KhronosGroup/MoltenVK) | Vulkan on Metal, macOS only | Apache-2.0 |
-| [GLFW](https://www.glfw.org/) | Windowing and input | Zlib |
-| [Dear ImGui](https://github.com/ocornut/imgui) | User interface (docking branch) | MIT |
-| [ImPlot](https://github.com/epezent/implot) | Plots in the viewer's panels | MIT |
-| [ImGuizmo](https://github.com/CedricGuillemet/ImGuizmo) | Transform gizmos in the viewport | MIT |
-| [Inter](https://github.com/rsms/inter) | User interface typeface | SIL OFL 1.1 |
-| [Lucide](https://github.com/lucide-icons/lucide) | User interface icons | ISC |
-| [GLM](https://github.com/g-truc/glm) | Vector and matrix math | MIT |
-| [stb](https://github.com/nothings/stb) | PNG and JPEG texture loading (vendored in `ernie/third_party/`) | MIT or public domain |
-| [tinyexr](https://github.com/syoyo/tinyexr) | OpenEXR texture loading (vendored in `ernie/third_party/`) | BSD-3-Clause |
+The viewer renders with [Ernie](./ernie), which brings its own rendering and user interface dependencies.
 
 TerrainGen also draws inspiration from existing lunar terrain generation tools:
 

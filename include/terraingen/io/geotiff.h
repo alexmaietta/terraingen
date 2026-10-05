@@ -43,12 +43,13 @@ struct GeoKeys {
     bool operator==(const GeoKeys&) const = default;
 };
 
-/// Compression schemes this library reads and writes. Others, such as Deflate, JPEG and ZSTD, are
-/// reported as unsupported; `gdal_translate -co COMPRESS=LZW` converts them.
+/// Compression schemes this library reads and writes. Others, such as JPEG, ZSTD and LERC, are
+/// reported as unsupported; `gdal_translate -co COMPRESS=DEFLATE` converts them.
 enum class TiffCompression {
     None,      ///< Code 1.
     Lzw,       ///< Code 5, with TIFF 6.0's early code-width change.
     PackBits,  ///< Code 32773; read only.
+    Deflate,   ///< Codes 8 and 32946 (zlib streams), decoded and encoded with miniz.
 };
 
 /// How sample bits are interpreted.
@@ -100,9 +101,9 @@ struct GeoTiff {
 /// Reads band `band` (from 0) of the GeoTIFF at `path` as heights.
 ///
 /// Strips and tiles, chunky and planar band layouts, 8- to 64-bit integer and 32- and 64-bit float
-/// samples, no compression, LZW and PackBits, and horizontal and floating-point predictors are
-/// supported. Samples are converted to `float`. The raster gets the file's transform and no-data
-/// value; the GeoKeys are returned alongside. See `ReadGeoTiffInfo` for the specifications.
+/// samples, no compression, LZW, Deflate and PackBits, and horizontal and floating-point predictors
+/// are supported. Samples are converted to `float`. The raster gets the file's transform and
+/// no-data value; the GeoKeys are returned alongside. See `ReadGeoTiffInfo` for the specifications.
 ///
 /// Reference for the floating-point predictor: Adobe, "Adobe Photoshop TIFF Technical Note 3",
 /// 2005. http://chriscox.org/TIFFTN3d1.pdf
@@ -111,7 +112,8 @@ GeoTiff ReadGeoTiff(const std::filesystem::path& path, std::size_t band = 0);
 
 /// Settings for `WriteGeoTiff`.
 struct GeoTiffWriteOptions {
-    /// `None` or `Lzw`; LZW uses the floating-point predictor, which suits elevation data.
+    /// `None`, `Lzw` or `Deflate`; compressed files use the floating-point predictor, which suits
+    /// elevation data.
     TiffCompression compression = TiffCompression::Lzw;
     /// Tile width and height in pixels; a positive multiple of 16.
     std::uint32_t tileSize = 256;

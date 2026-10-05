@@ -37,6 +37,9 @@ CASES = {
     "rotated_uint16_packbits": dict(
         crs=CRS.from_epsg(4326), dtype="uint16", compress="packbits",
         transform=Affine(0.001, 0.0002, -105, 0.0001, -0.001, 40)),
+    "moon_deflate_predictor": dict(
+        crs=CRS.from_proj4("+proj=eqc +R=1737400 +units=m +no_defs"), dtype="float32",
+        compress="deflate", predictor=3, tiled=True, blockxsize=128, blockysize=128),
     "bigtiff_nodata_float32": dict(
         crs=CRS.from_epsg(4326), dtype="float32", compress="lzw", BIGTIFF="YES", nodata=-9999.0),
 }
@@ -67,7 +70,7 @@ def main():
     work.mkdir(parents=True, exist_ok=True)
     failures = []
     for name, case in CASES.items():
-        for compression in ("lzw", "none"):
+        for compression in ("lzw", "deflate", "none"):
             source = work / f"{name}.tif"
             output = work / f"{name}_terraingen_{compression}.tif"
             write_input(source, case)
