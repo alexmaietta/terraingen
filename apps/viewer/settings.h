@@ -153,7 +153,7 @@ ernie::RasterView ViewOf(const Raster<float>& raster);
 std::variant<ernie::Image, std::string> LoadDetailTexture(const std::string& path, bool normalMap);
 
 /// Camera exposure and spectral options edited in the View panel. With the defaults the
-/// photographic exposure scale is 1 (`ernie::PhysicalCamera::LinearExposureScale`).
+/// photographic exposure scale is 1 (`ernie::Camera::LinearExposureScale`).
 struct CameraViewSettings {
     float exposureStops = 0.0f;   ///< USD `exposure`: scales the image by 2^stops.
     float shutterSeconds = 1.0f;  ///< Exposure time.
@@ -199,12 +199,13 @@ void AuthorTerrain(ernie::Scene& scene, std::shared_ptr<const Raster<float>> ras
 /// A float32 (rows, cols, 4) tensor of `image`'s linear pixels, sharing and keeping the image.
 ernie::Tensor TensorOf(std::shared_ptr<const ernie::Image> image);
 
-/// Authors `view` and `camera` into `scene`: the camera with its exposure and spectral bands, a
+/// Authors `view` and `orbit` into `scene`: the camera posed by `orbit` with the view's exposure
+/// and spectral bands, a
 /// DistantLight for the sun whose intensity is the surface exposure (or physical, see
 /// `CameraViewSettings::physicalSun`), the surface material bound to the terrain with the selected
 /// model's parameters from `brdfs`, the terrain's exaggeration, and render settings for everything
 /// else.
-void AuthorView(ernie::Scene& scene, const ViewSettings& view, const ernie::OrbitCamera& camera,
+void AuthorView(ernie::Scene& scene, const ViewSettings& view, const ernie::OrbitController& orbit,
                 const ernie::BrdfRegistry& brdfs);
 
 }  // namespace terraingen::viewer

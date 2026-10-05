@@ -102,8 +102,8 @@ endfunction()
 
 add_library(
     ernie_core STATIC
-    ernie/src/camera/orbit_camera.cpp
-    ernie/src/camera/physical_camera.cpp
+    ernie/src/camera/orbit_controller.cpp
+    ernie/src/camera/camera.cpp
     ernie/src/core/image.cpp
     ernie/src/core/spectrum.cpp
     ernie/src/geometry/frustum.cpp

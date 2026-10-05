@@ -3,8 +3,8 @@ include("${ERNIE_SOURCE_DIR}/cmake/ErnieTesting.cmake")
 ernie_add_test_suite(
     unit
     SOURCES
-    camera/orbit_camera_test.cpp
-    camera/physical_camera_test.cpp
+    camera/orbit_controller_test.cpp
+    camera/camera_test.cpp
     core/image_test.cpp
     core/spectrum_test.cpp
     core/umbrella_test.cpp

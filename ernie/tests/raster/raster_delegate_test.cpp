@@ -70,11 +70,11 @@ TEST(FrameParamsOf, DefaultsMatchTheRendererWithADefaultSun) {
     EXPECT_EQ(params.ambient, defaults.ambient);
     EXPECT_EQ(params.exposure, 1.0f);
     EXPECT_TRUE(params.shadows.enabled);
-    EXPECT_EQ(params.camera.aspect, 2.0f);
+    EXPECT_EQ(params.View().aspect, 2.0f);
     EXPECT_TRUE(params.sunIrradiance.empty()) << "the renderer's default white sun";
-    EXPECT_EQ(params.physical.width, 64u);
+    EXPECT_EQ(params.camera.width, 64u);
     EXPECT_DOUBLE_EQ(params.overscan, 1.0);
-    EXPECT_DOUBLE_EQ(params.physical.LinearExposureScale(), 1.0);
+    EXPECT_DOUBLE_EQ(params.camera.LinearExposureScale(), 1.0);
     const ernie::TerrainParams terrain = ernie::TerrainParamsOf(scene, prims);
     EXPECT_EQ(terrain.colorMode, ernie::TerrainParams().colorMode);
     EXPECT_EQ(terrain.exaggeration, 1.0f);
@@ -120,7 +120,7 @@ TEST(FrameParamsOf, ReadsLightMaterialTerrainAndSettings) {
     const float diagonal = std::sqrt(0.5f);
     EXPECT_NEAR(frame.sunDirection.x, diagonal, 1e-6f);
     EXPECT_NEAR(frame.sunDirection.z, diagonal, 1e-6f);
-    EXPECT_DOUBLE_EQ(frame.physical.LinearExposureScale(), 2.0) << "camera exposure 1 stop";
+    EXPECT_DOUBLE_EQ(frame.camera.LinearExposureScale(), 2.0) << "camera exposure 1 stop";
     ASSERT_EQ(frame.sunIrradiance.size(), 16u);
     double luminanceIntegral = 0.0;
     for (double w = 360.0; w <= 830.0; w += 1.0) {
@@ -307,7 +307,7 @@ TEST(SunIrradianceOf, RelativeLightsFollowTheirColourAndTemperature) {
 }
 
 TEST(OverscanOf, WidensTheRasterViewForDistortion) {
-    ernie::PhysicalCamera camera;
+    ernie::Camera camera;
     camera.width = 64;
     camera.height = 48;
     EXPECT_EQ(ernie::OverscanOf(camera), 1.0);
@@ -317,22 +317,6 @@ TEST(OverscanOf, WidensTheRasterViewForDistortion) {
     camera.lens.k1 = 0.2;
     EXPECT_LT(ernie::OverscanOf(camera), barrel);
     EXPECT_GE(ernie::OverscanOf(camera), 1.0);
-}
-
-TEST(RasterCameraOf, NarrowsByTheOverscanAndShiftsThePrincipalPoint) {
-    Scene scene = MinimalScene();
-    ernie::PhysicalCamera camera = ernie::PhysicalCameraOf(scene, "/World/Camera", 64, 32);
-    const ernie::CameraView plain = ernie::RasterCameraOf(scene, "/World/Camera", camera, 1.0);
-    EXPECT_NEAR(plain.verticalFov, camera.VerticalFov(), 1e-6);
-    EXPECT_FLOAT_EQ(plain.aspect, 2.0f);
-    EXPECT_FLOAT_EQ(plain.projection[2][0], 0.0f);
-    const ernie::CameraView wide = ernie::RasterCameraOf(scene, "/World/Camera", camera, 1.5);
-    EXPECT_NEAR(std::tan(wide.verticalFov / 2.0), 1.5 * std::tan(plain.verticalFov / 2.0), 1e-5);
-
-    camera.horizontalApertureOffsetMm = 2.0;
-    const ernie::CameraView shifted = ernie::RasterCameraOf(scene, "/World/Camera", camera, 1.0);
-    EXPECT_NEAR(shifted.projection[2][0], 1.0 - 2.0 * camera.PrincipalPoint().x / 64.0, 1e-6);
-    EXPECT_NE(shifted.projection[2][0], 0.0f);
 }
 
 TEST(PrimitiveMeshOf, ReadsUsdGeomAttributesAndDefaults) {

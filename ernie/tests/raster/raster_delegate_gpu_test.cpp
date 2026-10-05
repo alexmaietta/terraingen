@@ -1,3 +1,4 @@
+#include "ernie/camera/orbit_controller.h"
 #include "ernie/gpu/offscreen_target.h"
 #include "ernie/raster/raster_delegate.h"
 #include "ernie/scene/schema.h"
@@ -16,7 +17,7 @@
 #include <vector>
 
 using ernie::DType;
-using ernie::OrbitCamera;
+using ernie::OrbitController;
 using ernie::Path;
 using ernie::RasterDelegate;
 using ernie::Scene;
@@ -37,12 +38,13 @@ Tensor HeightsOf(const TestRaster& raster) {
         owner);
 }
 
-OrbitCamera FramingCamera(const RasterDelegate& delegate) {
-    OrbitCamera camera;
-    camera.pitch = 0.8f;
+/// A camera framing the delegate's terrain from 0.8 rad above the horizon.
+ernie::Camera FramingCamera(const RasterDelegate& delegate) {
+    OrbitController orbit;
+    orbit.pitch = 0.8f;
     const auto [low, high] = delegate.Terrain().Bounds(1.0f);
-    camera.Frame(low, high);
-    return camera;
+    orbit.Frame(low, high);
+    return orbit.MakeCamera(kSize, kSize);
 }
 
 /// A terrain lit by a low sun, with render settings for a `kSize` square image.
@@ -73,7 +75,7 @@ TEST_F(RasterDelegateTest, RendersTheSameImageAsTheRendererDrivenDirectly) {
     RasterDelegate delegate(*context_);
     delegate.Sync(scene);
     ASSERT_TRUE(delegate.Terrain().HasHeightfield());
-    const OrbitCamera camera = FramingCamera(delegate);
+    const ernie::Camera camera = FramingCamera(delegate);
     ernie::SetCamera(scene, "/World/Camera", camera);
 
     const Tensor image = delegate.Render(scene);
@@ -250,7 +252,8 @@ Scene MeshScene() {
 /// The RGBA texel showing world point `p` in `image`.
 const std::uint8_t* TexelAt(const Scene& scene, const Tensor& image, glm::vec3 p) {
     const glm::vec4 clip =
-        ernie::CameraViewOf(scene, "/World/Camera", 1.0f).ViewProjection() * glm::vec4(p, 1.0f);
+        ernie::CameraOf(scene, "/World/Camera", kSize, kSize).RasterView().ViewProjection() *
+        glm::vec4(p, 1.0f);
     const glm::vec2 ndc = glm::vec2(clip) / clip.w;
     const auto col = static_cast<std::size_t>((ndc.x * 0.5f + 0.5f) * kSize);
     const auto row = static_cast<std::size_t>((0.5f - ndc.y * 0.5f) * kSize);
@@ -703,8 +706,7 @@ TEST_F(RasterDelegateTest, RenderVarsMeasureTheScene) {
     EXPECT_EQ(delegate.PrimPath(0), Path());
     EXPECT_EQ(At<std::uint32_t>(vars.at("InstanceId"), c, c), 0u);
 
-    const ernie::PhysicalCamera camera =
-        ernie::PhysicalCameraOf(scene, "/World/Camera", kVarSize, kVarSize);
+    const ernie::Camera camera = ernie::CameraOf(scene, "/World/Camera", kVarSize, kVarSize);
     const float electrons = At<float>(vars.at("Electrons"), c, c, 1);
     EXPECT_GT(electrons, 0.0f);
     EXPECT_EQ(At<float>(vars.at("Electrons"), c, c, 3), 0.0f) << "an RGB sensor has 3 channels";
@@ -778,8 +780,9 @@ Scene LampScene(double height, float coneAngle = 180.0f) {
 
 /// The pixel of FlatScene's image showing ground point (x, y).
 std::pair<std::size_t, std::size_t> PixelOf(const Scene& scene, float x, float y) {
-    const glm::vec4 clip = ernie::CameraViewOf(scene, "/World/Camera", 1.0f).ViewProjection() *
-                           glm::vec4(x, y, 0.0f, 1.0f);
+    const glm::vec4 clip =
+        ernie::CameraOf(scene, "/World/Camera", kSize, kSize).RasterView().ViewProjection() *
+        glm::vec4(x, y, 0.0f, 1.0f);
     const glm::vec2 ndc = glm::vec2(clip) / clip.w;
     return {static_cast<std::size_t>((0.5f - ndc.y * 0.5f) * kVarSize),
             static_cast<std::size_t>((ndc.x * 0.5f + 0.5f) * kVarSize)};

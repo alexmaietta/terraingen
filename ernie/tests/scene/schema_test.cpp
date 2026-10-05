@@ -1,3 +1,4 @@
+#include "ernie/camera/orbit_controller.h"
 #include "ernie/scene/schema.h"
 #include "ernie/scene/tokens.h"
 
@@ -6,7 +7,7 @@
 
 #include <cmath>
 
-using ernie::OrbitCamera;
+using ernie::OrbitController;
 using ernie::Path;
 using ernie::Scene;
 namespace tokens = ernie::tokens;
@@ -82,23 +83,24 @@ TEST(Schema, DistantLightTransformRoundTripsTheDirection) {
     EXPECT_THROW(ernie::DistantLightTransform(glm::dvec3(0.0)), std::invalid_argument);
 }
 
-TEST(Schema, CameraViewOfMatchesTheOrbitCameraItWasAuthoredFrom) {
-    OrbitCamera orbit;
+TEST(Schema, CamerasAuthoredFromAnOrbitControllerReadBackTheSameView) {
+    OrbitController orbit;
     orbit.target = {10.0f, 20.0f, 3.0f};
     orbit.yaw = 0.7f;
     orbit.pitch = 0.4f;
     orbit.distance = 250.0f;
     orbit.verticalFov = 0.9f;
     Scene scene;
-    ernie::SetCamera(scene, "/Camera", orbit);
-    const ernie::CameraView expected = orbit.MakeView(1.5f);
-    const ernie::CameraView view = ernie::CameraViewOf(scene, "/Camera", 1.5f);
-    EXPECT_NEAR(view.verticalFov, expected.verticalFov, 1e-6f);
-    EXPECT_NEAR(view.nearPlane, expected.nearPlane, 1e-4f);
-    EXPECT_NEAR(view.farPlane, expected.farPlane, 1e-1f);
+    const ernie::Camera camera = orbit.MakeCamera(30, 20);
+    ernie::SetCamera(scene, "/Camera", camera);
+    const ernie::CameraView expected = camera.RasterView();
+    const ernie::CameraView view = ernie::CameraOf(scene, "/Camera", 30, 20).RasterView();
+    EXPECT_NEAR(view.verticalFov, 0.9f, 1e-6f);
+    EXPECT_NEAR(view.nearPlane, orbit.NearPlane(), 1e-4f);
+    EXPECT_NEAR(view.farPlane, orbit.FarPlane(), 1e-1f);
     EXPECT_FLOAT_EQ(view.aspect, 1.5f);
     for (int i = 0; i < 3; ++i) {
-        EXPECT_NEAR(view.eye[i], expected.eye[i], 1e-3f);
+        EXPECT_NEAR(view.eye[i], orbit.Eye()[i], 1e-3f);
         EXPECT_NEAR(view.forward[i], expected.forward[i], 1e-5f);
     }
     const glm::vec4 point(5.0f, 30.0f, 0.0f, 1.0f);
@@ -109,26 +111,26 @@ TEST(Schema, CameraViewOfMatchesTheOrbitCameraItWasAuthoredFrom) {
     }
 }
 
-TEST(Schema, CameraViewOfUsesUsdDefaultsAndRejectsBadCameras) {
+TEST(Schema, CameraOfUsesUsdDefaultsAndRejectsBadCameras) {
     Scene scene;
     scene.Define("/Camera", tokens::kCamera);
-    const ernie::CameraView view = ernie::CameraViewOf(scene, "/Camera", 1.0f);
+    const ernie::CameraView view = ernie::CameraOf(scene, "/Camera", 8, 8).RasterView();
     EXPECT_NEAR(view.verticalFov, 2.0 * std::atan(15.2908 / 100.0), 1e-6);
     EXPECT_FLOAT_EQ(view.nearPlane, 1.0f);
     EXPECT_FLOAT_EQ(view.farPlane, 1e6f);
     EXPECT_EQ(view.forward, glm::vec3(0.0f, 0.0f, -1.0f));
 
     scene.Define("/Xform", tokens::kXform);
-    EXPECT_THROW(ernie::CameraViewOf(scene, "/Xform", 1.0f), std::invalid_argument);
-    EXPECT_THROW(ernie::CameraViewOf(scene, "/Missing", 1.0f), std::invalid_argument);
+    EXPECT_THROW(ernie::CameraOf(scene, "/Xform", 8, 8), std::invalid_argument);
+    EXPECT_THROW(ernie::CameraOf(scene, "/Missing", 8, 8), std::invalid_argument);
     scene.Set("/Camera", tokens::kFocalLength, 0.0f);
-    EXPECT_THROW(ernie::CameraViewOf(scene, "/Camera", 1.0f), std::invalid_argument);
+    EXPECT_THROW(ernie::CameraOf(scene, "/Camera", 8, 8), std::invalid_argument);
     scene.Set("/Camera", tokens::kFocalLength, 35.0);
     scene.Set("/Camera", tokens::kClippingRange, glm::vec2(5.0f, 1.0f));
-    EXPECT_THROW(ernie::CameraViewOf(scene, "/Camera", 1.0f), std::invalid_argument);
+    EXPECT_THROW(ernie::CameraOf(scene, "/Camera", 8, 8), std::invalid_argument);
     scene.Set("/Camera", tokens::kClippingRange, glm::vec2(1.0f, 5.0f));
     scene.Set("/Camera", tokens::kProjection, tokens::kOrthographic);
-    EXPECT_THROW(ernie::CameraViewOf(scene, "/Camera", 1.0f), std::invalid_argument);
+    EXPECT_THROW(ernie::CameraOf(scene, "/Camera", 8, 8), std::invalid_argument);
 }
 
 TEST(Scene, AttributeVersionsTrackEachAttribute) {

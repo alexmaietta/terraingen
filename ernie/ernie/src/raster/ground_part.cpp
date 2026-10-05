@@ -84,7 +84,7 @@ void GroundPart::Prepare(const FrameParams& params, std::span<const ShadowCascad
         return;
     }
     GroundUniforms uniforms{};
-    const glm::mat4 inverse = glm::inverse(params.camera.ViewProjection());
+    const glm::mat4 inverse = glm::inverse(params.View().ViewProjection());
     std::memcpy(uniforms.invViewProj, glm::value_ptr(inverse), sizeof(uniforms.invViewProj));
     uniforms.plane[0] = params_.height;
     uniforms.plane[1] = params_.checkerSize;
@@ -93,8 +93,8 @@ void GroundPart::Prepare(const FrameParams& params, std::span<const ShadowCascad
         uniforms.colour0[k] = params_.checkerColors[0][k];
         uniforms.colour1[k] = params_.checkerColors[1][k];
     }
-    uniforms.viewport[0] = static_cast<float>(params.physical.width);
-    uniforms.viewport[1] = static_cast<float>(params.physical.height);
+    uniforms.viewport[0] = static_cast<float>(params.camera.width);
+    uniforms.viewport[1] = static_cast<float>(params.camera.height);
     uniforms.ids[0] = renderer_.HasMaterial(params_.material) ? params_.material
                                                               : RasterRenderer::kDefaultMaterial;
     uniforms.ids[1] = params_.primId;

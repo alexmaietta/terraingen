@@ -15,7 +15,7 @@ struct TerrainDrawParams {
         float exposure = 1.0f;
     };
 
-    CameraView camera;
+    Camera camera;              ///< Its width and height are replaced by `extent`.
     VkExtent2D extent{64, 64};  ///< Image size, which `Record`'s target must have.
     glm::vec3 sunDirection{0.0f, 0.0f, 1.0f};
     float ambient = 0.15f;
@@ -61,8 +61,8 @@ class TerrainRenderer {
             {params.exaggeration, params.colorMode, params.lod, RasterRenderer::kDefaultMaterial});
         FrameParams frame;
         frame.camera = params.camera;
-        frame.physical.width = params.extent.width;
-        frame.physical.height = params.extent.height;
+        frame.camera.width = params.extent.width;
+        frame.camera.height = params.extent.height;
         frame.sunDirection = params.sunDirection;
         frame.ambient = params.ambient;
         frame.exposure = params.surface.exposure;

@@ -1,4 +1,4 @@
-#include "ernie/camera/orbit_camera.h"
+#include "ernie/camera/orbit_controller.h"
 #include "ernie/core/image.h"
 #include "ernie/gpu/offscreen_target.h"
 #include "ernie/material/brdf.h"
@@ -23,7 +23,7 @@
 using ernie::BrdfModel;
 using ernie::Image;
 using ernie::OffscreenTarget;
-using ernie::OrbitCamera;
+using ernie::OrbitController;
 using ernie::RasterView;
 using ernie::TerrainColorMode;
 using ernie::testing::RollingTerrain;
@@ -71,12 +71,12 @@ class TerrainRendererTest : public ernie::testing::VulkanTest {
     }
 
     static TerrainDrawParams FramedView(const TerrainRenderer& renderer) {
-        OrbitCamera camera;
-        camera.pitch = OrbitCamera::kMaxPitch;
+        OrbitController camera;
+        camera.pitch = OrbitController::kMaxPitch;
         const auto [low, high] = renderer.Bounds(1.0f);
         camera.Frame(low, high);
         TerrainDrawParams params;
-        params.camera = camera.MakeView(1.0f);
+        params.camera = camera.MakeCamera(kSize, kSize);
         return params;
     }
 };
@@ -343,11 +343,11 @@ TEST_F(TerrainRendererTest, LodRidgeCastsTheSameShadowAsFullResolution) {
 TEST_F(TerrainRendererTest, FreezeKeepsTheSelectionWhileTheCameraMoves) {
     TerrainRenderer renderer(*context_, kColorFormat);
     renderer.SetHeightfield(RollingTerrain(513, 513, 1.0));
-    OrbitCamera camera;
+    OrbitController camera;
     camera.distance = 60.0f;
     camera.pitch = 0.4f;
     TerrainDrawParams params;
-    params.camera = camera.MakeView(1.0f);
+    params.camera = camera.MakeCamera(kSize, kSize);
     params.lod.freeze = true;
     renderer.Update(params);
     const std::size_t frozen = renderer.PatchCount();
@@ -355,7 +355,7 @@ TEST_F(TerrainRendererTest, FreezeKeepsTheSelectionWhileTheCameraMoves) {
 
     camera.target = {150.0f, -120.0f, 0.0f};
     camera.distance = 600.0f;
-    params.camera = camera.MakeView(1.0f);
+    params.camera = camera.MakeCamera(kSize, kSize);
     renderer.Update(params);
     EXPECT_EQ(renderer.PatchCount(), frozen);
     EXPECT_EQ(renderer.TriangleCount(), triangles);
@@ -425,12 +425,12 @@ Image TiltedNormals(glm::vec3 normal) {
 }
 
 TerrainDrawParams LitFromEast(const TerrainRenderer& renderer) {
-    OrbitCamera camera;
-    camera.pitch = OrbitCamera::kMaxPitch;
+    OrbitController camera;
+    camera.pitch = OrbitController::kMaxPitch;
     const auto [low, high] = renderer.Bounds(1.0f);
     camera.Frame(low, high);
     TerrainDrawParams params;
-    params.camera = camera.MakeView(1.0f);
+    params.camera = camera.MakeCamera(kSize, kSize);
     params.colorMode = TerrainColorMode::Hillshade;
     params.ambient = 0.0f;
     params.shadows.enabled = false;

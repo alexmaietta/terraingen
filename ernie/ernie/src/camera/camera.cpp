@@ -1,7 +1,9 @@
-#include "ernie/camera/physical_camera.h"
+#include "ernie/camera/camera.h"
 
 #include "ernie/scene/schema.h"
 #include "ernie/scene/tokens.h"
+
+#include <glm/gtc/matrix_transform.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -71,29 +73,29 @@ double SensorModel::ElectronsPerDn(double iso) const {
     return atIso100 * 100.0 / iso;
 }
 
-double PhysicalCamera::LinearExposureScale() const {
+double Camera::LinearExposureScale() const {
     return responsivity * exposureTime * (iso / 100.0) * std::exp2(exposureStops) / (fStop * fStop);
 }
 
-double PhysicalCamera::PixelPitchMetres() const {
+double Camera::PixelPitchMetres() const {
     return verticalApertureMm * 1e-3 / height;
 }
 
-double PhysicalCamera::FocalLengthPixels() const {
+double Camera::FocalLengthPixels() const {
     return focalLengthMm * 1e-3 / PixelPitchMetres();
 }
 
-glm::dvec2 PhysicalCamera::PrincipalPoint() const {
+glm::dvec2 Camera::PrincipalPoint() const {
     const double pitchMm = PixelPitchMetres() * 1e3;
     return {0.5 * width + horizontalApertureOffsetMm / pitchMm,
             0.5 * height - verticalApertureOffsetMm / pitchMm};
 }
 
-double PhysicalCamera::VerticalFov() const {
+double Camera::VerticalFov() const {
     return 2.0 * std::atan(0.5 * verticalApertureMm / focalLengthMm);
 }
 
-double PhysicalCamera::IrradiancePerRadiance(glm::dvec2 normalised) const {
+double Camera::IrradiancePerRadiance(glm::dvec2 normalised) const {
     double factor = M_PI * lens.transmission / (4.0 * fStop * fStop);
     if (lens.vignetting) {
         const double cosine2 = 1.0 / (1.0 + glm::dot(normalised, normalised));
@@ -102,7 +104,7 @@ double PhysicalCamera::IrradiancePerRadiance(glm::dvec2 normalised) const {
     return factor;
 }
 
-std::vector<float> PhysicalCamera::ElectronsPerRadiance(std::size_t channel) const {
+std::vector<float> Camera::ElectronsPerRadiance(std::size_t channel) const {
     const SensorChannel& sensorChannel = sensor.channels.at(channel);
     const double area = PixelPitchMetres() * PixelPitchMetres();
     const double optics = IrradiancePerRadiance({0.0, 0.0});
@@ -117,11 +119,11 @@ std::vector<float> PhysicalCamera::ElectronsPerRadiance(std::size_t channel) con
     return factors;
 }
 
-double PhysicalCamera::Electrons(std::span<const float> radiance, std::size_t channel,
-                                 glm::dvec2 normalised) const {
+double Camera::Electrons(std::span<const float> radiance, std::size_t channel,
+                         glm::dvec2 normalised) const {
     const std::vector<float> factors = ElectronsPerRadiance(channel);
     if (radiance.size() != factors.size()) {
-        throw std::invalid_argument("PhysicalCamera::Electrons needs one radiance per band");
+        throw std::invalid_argument("Camera::Electrons needs one radiance per band");
     }
     double electrons = 0.0;
     for (std::size_t i = 0; i < factors.size(); ++i) {
@@ -130,15 +132,46 @@ double PhysicalCamera::Electrons(std::span<const float> radiance, std::size_t ch
     return electrons * IrradiancePerRadiance(normalised) / IrradiancePerRadiance({0.0, 0.0});
 }
 
-void PhysicalCamera::Check() const {
+glm::dvec3 Camera::Forward() const {
+    return glm::normalize(-glm::dvec3(transform[2]));
+}
+
+void Camera::SetVerticalFov(double radians) {
+    verticalApertureMm = 2.0 * focalLengthMm * std::tan(0.5 * radians);
+}
+
+CameraView Camera::RasterView(double overscan) const {
+    const double w = width;
+    const double h = height;
+    const double focal = FocalLengthPixels() / overscan;
+    const glm::dvec2 centre = PrincipalPoint();
+    CameraView view;
+    view.verticalFov = static_cast<float>(2.0 * std::atan(0.5 * h / focal));
+    view.aspect = static_cast<float>(w / h);
+    view.nearPlane = static_cast<float>(nearPlane);
+    view.farPlane = static_cast<float>(farPlane);
+    view.eye = glm::vec3(Eye());
+    view.forward = glm::vec3(Forward());
+    view.view = glm::mat4(glm::inverse(transform));
+    view.projection =
+        glm::perspectiveRH_ZO(view.verticalFov, view.aspect, view.nearPlane, view.farPlane);
+    view.projection[2][0] = static_cast<float>(1.0 - 2.0 * centre.x / w);
+    view.projection[2][1] = static_cast<float>(2.0 * centre.y / h - 1.0);
+    return view;
+}
+
+void Camera::Check() const {
     bands.Check();
     if (width == 0 || height == 0 || !(focalLengthMm > 0.0) || !(verticalApertureMm > 0.0) ||
         !(exposureTime > 0.0) || !(iso > 0.0) || !(fStop > 0.0) || !(responsivity > 0.0)) {
-        throw std::invalid_argument("A physical camera needs positive image size, focal length, "
+        throw std::invalid_argument("A camera needs positive image size, focal length, "
                                     "aperture, exposure time, ISO, f-number and responsivity");
     }
     if (!(nearPlane > 0.0) || !(farPlane > nearPlane)) {
         throw std::invalid_argument("A camera needs a positive clipping range");
+    }
+    if (!(std::abs(glm::determinant(glm::dmat3(transform))) > 0.0)) {
+        throw std::invalid_argument("A camera needs an invertible transform");
     }
     if (sensor.channels.empty() || sensor.channels.size() > 4) {
         throw std::invalid_argument("A sensor needs one to four channels");
@@ -150,13 +183,17 @@ void PhysicalCamera::Check() const {
     }
 }
 
-PhysicalCamera PhysicalCameraOf(const Scene& scene, const Path& path, std::uint32_t width,
-                                std::uint32_t height) {
+Camera CameraOf(const Scene& scene, const Path& path, std::uint32_t width, std::uint32_t height) {
     using namespace tokens;
     if (!scene.Has(path) || scene.TypeOf(path) != kCamera) {
         throw std::invalid_argument("'" + path.String() + "' is not a Camera");
     }
-    PhysicalCamera camera;
+    if (GetToken(scene, path, kProjection, kPerspective) != kPerspective) {
+        throw std::invalid_argument("Camera '" + path.String() +
+                                    "': only perspective projection is supported");
+    }
+    Camera camera;
+    camera.transform = scene.WorldTransform(path);
     camera.width = width;
     camera.height = height;
     const auto number = [&](std::string_view attribute, double fallback) {

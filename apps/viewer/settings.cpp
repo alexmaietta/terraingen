@@ -292,16 +292,17 @@ ernie::Tensor TensorOf(std::shared_ptr<const ernie::Image> image) {
     return ernie::Tensor(data, ernie::DType::Float32, std::move(shape), {}, {}, std::move(image));
 }
 
-void AuthorView(ernie::Scene& scene, const ViewSettings& view, const ernie::OrbitCamera& camera,
+void AuthorView(ernie::Scene& scene, const ViewSettings& view, const ernie::OrbitController& orbit,
                 const ernie::BrdfRegistry& brdfs) {
     using namespace ernie::tokens;
+    ernie::Camera camera;
+    orbit.Apply(camera);
+    camera.exposureStops = view.camera.exposureStops;
+    camera.exposureTime = view.camera.shutterSeconds;
+    camera.iso = view.camera.iso;
+    camera.fStop = view.camera.fStop;
+    camera.bands.count = view.camera.bands;
     ernie::SetCamera(scene, kCameraPrim, camera);
-    scene.Define(kCameraPrim, kCamera)
-        .Set(kCameraExposure, view.camera.exposureStops)
-        .Set(kExposureTime, view.camera.shutterSeconds)
-        .Set(kExposureIso, view.camera.iso)
-        .Set(kExposureFStop, view.camera.fStop)
-        .Set(kSpectralBands, view.camera.bands);
 
     const ernie::MaterialSettings surface = view.material.Effective(brdfs);
     scene.Define(kSunPrim, kDistantLight)

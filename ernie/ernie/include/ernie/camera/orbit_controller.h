@@ -1,31 +1,18 @@
 #pragma once
 
+#include "ernie/camera/camera.h"
+
 #include <glm/glm.hpp>
 
 namespace ernie {
 
-/// Everything a renderer needs to know about a perspective camera for one frame.
-struct CameraView {
-    glm::mat4 view{1.0f};
-    glm::mat4 projection{1.0f};
-    glm::vec3 eye{0.0f};
-    glm::vec3 forward{0.0f, 1.0f, 0.0f};  ///< Unit viewing direction.
-    float verticalFov = 0.785398f;        ///< Radians.
-    float aspect = 1.0f;
-    float nearPlane = 0.1f;
-    float farPlane = 1000.0f;
-
-    glm::mat4 ViewProjection() const {
-        return projection * view;
-    }
-};
-
-/// Camera orbiting a target point in a z-up world, for inspecting terrain.
+/// Interactive orbit control of a `Camera` around a target point in a z-up world, for inspecting
+/// terrain. It holds no camera of its own: `Apply` writes its pose, field of view and clipping
+/// range into one.
 ///
 /// Yaw rotates around the vertical axis (0 looks north, positive turns the view clockwise seen from
-/// above); pitch is the elevation angle of the camera above the target's horizontal plane. The
-/// projection uses WebGPU's [0, 1] depth range.
-class OrbitCamera {
+/// above); pitch is the elevation angle of the eye above the target's horizontal plane.
+class OrbitController {
   public:
     glm::vec3 target{0.0f};
     float yaw = 0.0f;               ///< Radians.
@@ -39,15 +26,10 @@ class OrbitCamera {
     /// Eye position in world coordinates.
     glm::vec3 Eye() const;
 
-    glm::mat4 View() const;
+    /// Camera-to-world transform of the eye looking at the target, +z up.
+    glm::dmat4 Transform() const;
 
-    /// Perspective projection with near and far planes scaled to the orbit distance.
-    glm::mat4 Projection(float aspect) const;
-
-    glm::mat4 ViewProjection(float aspect) const {
-        return Projection(aspect) * View();
-    }
-
+    /// Clipping planes scaled to the orbit distance.
     float NearPlane() const {
         return distance * 0.01f;
     }
@@ -56,8 +38,12 @@ class OrbitCamera {
         return distance * 100.0f;
     }
 
-    /// Snapshot of this camera for a viewport with the given aspect ratio.
-    CameraView MakeView(float aspect) const;
+    /// Sets `camera`'s transform, vertical field of view (through its aperture, keeping its focal
+    /// length) and clipping range.
+    void Apply(Camera& camera) const;
+
+    /// A default camera of `width` x `height` with this pose, field of view and clipping range.
+    Camera MakeCamera(std::uint32_t width, std::uint32_t height) const;
 
     /// Rotates by `deltaYaw` and `deltaPitch` radians, clamping pitch.
     void Orbit(float deltaYaw, float deltaPitch);

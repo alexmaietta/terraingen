@@ -1,4 +1,4 @@
-#include "ernie/camera/orbit_camera.h"
+#include "ernie/camera/orbit_controller.h"
 #include "ernie/geometry/frustum.h"
 #include "ernie/geometry/lod_quadtree.h"
 #include "support/test_raster.h"
@@ -18,7 +18,7 @@ using ernie::Frustum;
 using ernie::LodPatch;
 using ernie::LodQuadtree;
 using ernie::LodRange;
-using ernie::OrbitCamera;
+using ernie::OrbitController;
 
 namespace {
 
@@ -411,11 +411,11 @@ TEST(LodQuadtree, FrustumCullingKeepsOnlyVisiblePatches) {
     const LodQuadtree tree(heights, 8);
     const auto ranges = tree.Ranges(tree.MinFirstRange(1.0f, kMorphStart), kMorphStart);
 
-    OrbitCamera camera;
+    OrbitController camera;
     camera.target = glm::vec3(heights.CellCenter(128, 128).x, heights.CellCenter(128, 128).y, 0.0f);
     camera.distance = 150.0f;
     camera.pitch = 0.3f;
-    const auto view = camera.MakeView(1.0f);
+    const auto view = camera.MakeCamera(1, 1).RasterView();
     const Frustum frustum = Frustum::FromMatrix(view.ViewProjection());
 
     std::vector<LodPatch> all;
@@ -428,10 +428,10 @@ TEST(LodQuadtree, FrustumCullingKeepsOnlyVisiblePatches) {
         EXPECT_NE(std::find(all.begin(), all.end(), patch), all.end());
     }
 
-    OrbitCamera away = camera;
+    OrbitController away = camera;
     away.target = glm::vec3(1e5f, 1e5f, 0.0f);
     away.distance = 10.0f;
-    const auto awayView = away.MakeView(1.0f);
+    const auto awayView = away.MakeCamera(1, 1).RasterView();
     const Frustum awayFrustum = Frustum::FromMatrix(awayView.ViewProjection());
     std::vector<LodPatch> none;
     tree.Select(view.eye, ranges, &awayFrustum, 1.0f, none);

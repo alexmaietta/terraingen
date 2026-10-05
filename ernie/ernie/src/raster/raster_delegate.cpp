@@ -542,7 +542,7 @@ DomeLight DomeOf(const Scene& scene, const Path& path, const SpectralBands& band
     return dome;
 }
 
-double OverscanOf(const PhysicalCamera& camera) {
+double OverscanOf(const Camera& camera) {
     if (!camera.lens.HasDistortion()) {
         return 1.0;
     }
@@ -578,42 +578,15 @@ double OverscanOf(const PhysicalCamera& camera) {
     return overscan * 1.01;
 }
 
-CameraView RasterCameraOf(const Scene& scene, const Path& path, const PhysicalCamera& camera,
-                          double overscan) {
-    const glm::dmat4 world = scene.WorldTransform(path);
-    const double w = camera.width;
-    const double h = camera.height;
-    const double focal = camera.FocalLengthPixels() / overscan;
-    const glm::dvec2 centre = camera.PrincipalPoint();
-    CameraView view;
-    view.verticalFov = static_cast<float>(2.0 * std::atan(0.5 * h / focal));
-    view.aspect = static_cast<float>(w / h);
-    view.nearPlane = static_cast<float>(camera.nearPlane);
-    view.farPlane = static_cast<float>(camera.farPlane);
-    view.eye = glm::vec3(world[3]);
-    view.forward = glm::vec3(glm::normalize(-glm::dvec3(world[2])));
-    view.view = glm::mat4(glm::inverse(world));
-    view.projection =
-        glm::perspectiveRH_ZO(view.verticalFov, view.aspect, view.nearPlane, view.farPlane);
-    view.projection[2][0] = static_cast<float>(1.0 - 2.0 * centre.x / w);
-    view.projection[2][1] = static_cast<float>(2.0 * centre.y / h - 1.0);
-    return view;
-}
-
 FrameParams FrameParamsOf(const Scene& scene, const RasterPrims& prims, std::uint32_t width,
                           std::uint32_t height) {
     using namespace tokens;
     if (prims.camera.IsEmpty()) {
         throw std::invalid_argument("The scene has no Camera");
     }
-    if (GetToken(scene, prims.camera, kProjection, kPerspective) != kPerspective) {
-        throw std::invalid_argument("Camera '" + prims.camera.String() +
-                                    "': only perspective projection is supported");
-    }
     FrameParams params;
-    params.physical = PhysicalCameraOf(scene, prims.camera, width, height);
-    params.overscan = OverscanOf(params.physical);
-    params.camera = RasterCameraOf(scene, prims.camera, params.physical, params.overscan);
+    params.camera = CameraOf(scene, prims.camera, width, height);
+    params.overscan = OverscanOf(params.camera);
     const Path& settings = prims.settings;
     params.ambient = Number(scene, settings, kAmbient, params.ambient);
     params.wireframe = GetBool(scene, settings, kWireframe, params.wireframe);
@@ -629,16 +602,16 @@ FrameParams FrameParamsOf(const Scene& scene, const RasterPrims& prims, std::uin
     shadows.showCascades = GetBool(scene, settings, kShadowShowCascades, shadows.showCascades);
     if (!prims.light.IsEmpty()) {
         params.sunDirection = glm::vec3(TowardsLight(scene, prims.light));
-        params.sunIrradiance = SunIrradianceOf(scene, prims.light, params.physical.bands);
+        params.sunIrradiance = SunIrradianceOf(scene, prims.light, params.camera.bands);
         params.sunAngle = std::max(Number(scene, prims.light, kAngle, params.sunAngle), 0.0f);
         shadows.enabled = GetBool(scene, prims.light, kShadowEnable, true);
     }
     params.sun = !prims.light.IsEmpty() || (prims.lights.empty() && prims.dome.IsEmpty());
     if (!prims.dome.IsEmpty()) {
-        params.dome = DomeOf(scene, prims.dome, params.physical.bands);
+        params.dome = DomeOf(scene, prims.dome, params.camera.bands);
     }
     for (const Path& light : prims.lights) {
-        params.lights.push_back(LightOf(scene, light, params.physical.bands));
+        params.lights.push_back(LightOf(scene, light, params.camera.bands));
     }
     return params;
 }
@@ -1453,7 +1426,7 @@ StepOperation RasterDelegate::StepAsync(const Scene& scene, std::span<const Path
             throw std::invalid_argument("The scene has no Camera");
         }
         const int bands =
-            PhysicalCameraOf(scene, prims.camera, spec.resolution.width, spec.resolution.height)
+            CameraOf(scene, prims.camera, spec.resolution.width, spec.resolution.height)
                 .bands.count;
         std::shared_ptr<ProductFrame> frame = AcquireFrame(spec.product, spec.resolution, bands);
         UpdatePrims(scene, prims, spec.resolution, spec.filters);

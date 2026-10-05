@@ -1,4 +1,5 @@
-#include "ernie/camera/physical_camera.h"
+#include "ernie/camera/camera.h"
+#include "ernie/scene/schema.h"
 #include "ernie/scene/tokens.h"
 
 #include <gtest/gtest.h>
@@ -6,12 +7,12 @@
 #include <cmath>
 #include <vector>
 
-using ernie::PhysicalCamera;
+using ernie::Camera;
 using ernie::Scene;
 namespace tokens = ernie::tokens;
 
-TEST(PhysicalCamera, ExposureScaleFollowsUsd) {
-    PhysicalCamera camera;
+TEST(Camera, ExposureScaleFollowsUsd) {
+    Camera camera;
     EXPECT_DOUBLE_EQ(camera.LinearExposureScale(), 1.0) << "USD's defaults";
     camera.exposureTime = 0.01;
     camera.iso = 200.0;
@@ -21,8 +22,8 @@ TEST(PhysicalCamera, ExposureScaleFollowsUsd) {
     EXPECT_DOUBLE_EQ(camera.LinearExposureScale(), 0.5 * 0.01 * 2.0 * 2.0 / 64.0);
 }
 
-TEST(PhysicalCamera, IntrinsicsFollowTheApertureAndOffsets) {
-    PhysicalCamera camera;
+TEST(Camera, IntrinsicsFollowTheApertureAndOffsets) {
+    Camera camera;
     camera.width = 640;
     camera.height = 480;
     camera.focalLengthMm = 24.0;
@@ -36,7 +37,7 @@ TEST(PhysicalCamera, IntrinsicsFollowTheApertureAndOffsets) {
     EXPECT_EQ(camera.PrincipalPoint(), glm::dvec2(330.0, 235.0)) << "offsets up the image";
 }
 
-TEST(PhysicalCamera, DistortionRoundTrips) {
+TEST(Camera, DistortionRoundTrips) {
     ernie::LensModel lens;
     EXPECT_FALSE(lens.HasDistortion());
     EXPECT_EQ(lens.Distort({0.3, -0.2}), glm::dvec2(0.3, -0.2));
@@ -59,8 +60,8 @@ TEST(PhysicalCamera, DistortionRoundTrips) {
     EXPECT_NEAR(back.y, p.y, 1e-9);
 }
 
-TEST(PhysicalCamera, ElectronsFollowTheCameraEquation) {
-    PhysicalCamera camera;
+TEST(Camera, ElectronsFollowTheCameraEquation) {
+    Camera camera;
     camera.width = 100;
     camera.height = 100;
     camera.verticalApertureMm = 1.0;
@@ -83,7 +84,7 @@ TEST(PhysicalCamera, ElectronsFollowTheCameraEquation) {
     EXPECT_THROW(camera.Electrons(std::vector<float>{1.0f, 2.0f}, 0), std::invalid_argument);
 }
 
-TEST(PhysicalCamera, SensorPresetsAndGain) {
+TEST(Camera, SensorPresetsAndGain) {
     const ernie::SensorModel rgb = ernie::SensorModel::Rgb();
     ASSERT_EQ(rgb.channels.size(), 3u);
     EXPECT_GT(rgb.channels[0].quantumEfficiency(610.0), rgb.channels[2].quantumEfficiency(610.0));
@@ -95,7 +96,7 @@ TEST(PhysicalCamera, SensorPresetsAndGain) {
     EXPECT_NEAR(rgb.ElectronsPerDn(400.0), 20000.0 / 4095.0 / 4.0, 1e-9) << "ISO raises gain";
 }
 
-TEST(PhysicalCamera, ReadsUsdAndErnieAttributes) {
+TEST(Camera, ReadsUsdAndErnieAttributes) {
     Scene scene;
     scene.Define("/Camera", tokens::kCamera)
         .Set(tokens::kFocalLength, 35.0f)
@@ -116,7 +117,7 @@ TEST(PhysicalCamera, ReadsUsdAndErnieAttributes) {
         .Set(tokens::kSensorAdcBits, 14)
         .Set(tokens::kSensorNoise, false)
         .Set(tokens::kSensorSeed, 7);
-    const PhysicalCamera camera = ernie::PhysicalCameraOf(scene, "/Camera", 64, 48);
+    const Camera camera = ernie::CameraOf(scene, "/Camera", 64, 48);
     EXPECT_EQ(camera.width, 64u);
     EXPECT_DOUBLE_EQ(camera.focalLengthMm, 35.0);
     EXPECT_DOUBLE_EQ(camera.verticalApertureOffsetMm, 0.5);
@@ -135,10 +136,76 @@ TEST(PhysicalCamera, ReadsUsdAndErnieAttributes) {
     EXPECT_EQ(camera.sensor.seed, 7u);
 
     scene.Set("/Camera", tokens::kSensorType, "infrared");
-    EXPECT_THROW(ernie::PhysicalCameraOf(scene, "/Camera", 64, 48), std::invalid_argument);
+    EXPECT_THROW(ernie::CameraOf(scene, "/Camera", 64, 48), std::invalid_argument);
     scene.Set("/Camera", tokens::kSensorType, "rgb");
     scene.Set("/Camera", tokens::kExposureTime, 0.0);
-    EXPECT_THROW(ernie::PhysicalCameraOf(scene, "/Camera", 64, 48), std::invalid_argument);
+    EXPECT_THROW(ernie::CameraOf(scene, "/Camera", 64, 48), std::invalid_argument);
     scene.Define("/NotACamera", tokens::kXform);
-    EXPECT_THROW(ernie::PhysicalCameraOf(scene, "/NotACamera", 64, 48), std::invalid_argument);
+    EXPECT_THROW(ernie::CameraOf(scene, "/NotACamera", 64, 48), std::invalid_argument);
+}
+
+TEST(Camera, PoseGivesTheEyeForwardAndRasterView) {
+    Camera camera;
+    camera.width = 64;
+    camera.height = 32;
+    camera.transform = ernie::LookAtTransform({10.0, -20.0, 30.0}, {10.0, 0.0, 30.0}, {0, 0, 1});
+    EXPECT_EQ(camera.Eye(), glm::dvec3(10.0, -20.0, 30.0));
+    EXPECT_NEAR(camera.Forward().y, 1.0, 1e-12);
+
+    const ernie::CameraView plain = camera.RasterView();
+    EXPECT_NEAR(plain.verticalFov, camera.VerticalFov(), 1e-6);
+    EXPECT_FLOAT_EQ(plain.aspect, 2.0f);
+    EXPECT_FLOAT_EQ(plain.projection[2][0], 0.0f);
+    EXPECT_NEAR(glm::length(glm::vec3(plain.view * glm::vec4(plain.eye, 1.0f))), 0.0f, 1e-4f);
+    const glm::vec4 ahead = plain.ViewProjection() * glm::vec4(10.0f, 50.0f, 30.0f, 1.0f);
+    EXPECT_NEAR(ahead.x / ahead.w, 0.0f, 1e-5f) << "a point straight ahead projects to the centre";
+    EXPECT_NEAR(ahead.y / ahead.w, 0.0f, 1e-5f);
+
+    const ernie::CameraView wide = camera.RasterView(1.5);
+    EXPECT_NEAR(std::tan(wide.verticalFov / 2.0), 1.5 * std::tan(plain.verticalFov / 2.0), 1e-5);
+    camera.horizontalApertureOffsetMm = 2.0;
+    const ernie::CameraView shifted = camera.RasterView();
+    EXPECT_NEAR(shifted.projection[2][0], 1.0 - 2.0 * camera.PrincipalPoint().x / 64.0, 1e-6);
+    EXPECT_NE(shifted.projection[2][0], 0.0f);
+
+    camera.SetVerticalFov(1.0);
+    EXPECT_NEAR(camera.VerticalFov(), 1.0, 1e-12);
+    camera.transform = glm::dmat4(0.0);
+    EXPECT_THROW(camera.Check(), std::invalid_argument);
+}
+
+TEST(Camera, SetCameraAndCameraOfRoundTrip) {
+    Camera camera;
+    camera.width = 40;
+    camera.height = 20;
+    camera.transform = ernie::LookAtTransform({1.0, 2.0, 3.0}, {0.0, 0.0, 0.0}, {0, 0, 1});
+    camera.focalLengthMm = 24.0;
+    camera.verticalApertureMm = 12.0;
+    camera.verticalApertureOffsetMm = 0.5;
+    camera.nearPlane = 0.25;
+    camera.farPlane = 400.0;
+    camera.exposureStops = 1.5;
+    camera.exposureTime = 0.01;
+    camera.iso = 200.0;
+    camera.fStop = 8.0;
+    camera.bands = {400.0, 700.0, 6};
+    Scene scene;
+    ernie::SetCamera(scene, "/Camera", camera);
+    const Camera back = ernie::CameraOf(scene, "/Camera", 40, 20);
+    for (int c = 0; c < 4; ++c) {
+        for (int r = 0; r < 4; ++r) {
+            EXPECT_NEAR(back.transform[c][r], camera.transform[c][r], 1e-12);
+        }
+    }
+    EXPECT_DOUBLE_EQ(back.focalLengthMm, 24.0);
+    EXPECT_DOUBLE_EQ(back.verticalApertureMm, 12.0);
+    EXPECT_DOUBLE_EQ(back.verticalApertureOffsetMm, 0.5);
+    EXPECT_DOUBLE_EQ(back.farPlane, 400.0);
+    EXPECT_DOUBLE_EQ(back.LinearExposureScale(), camera.LinearExposureScale());
+    EXPECT_EQ(back.bands, camera.bands);
+    EXPECT_DOUBLE_EQ(ernie::GetNumber(scene, "/Camera", tokens::kHorizontalAperture, 0.0), 24.0)
+        << "the horizontal aperture follows the aspect";
+
+    scene.Set("/Camera", tokens::kProjection, tokens::kOrthographic);
+    EXPECT_THROW(ernie::CameraOf(scene, "/Camera", 40, 20), std::invalid_argument);
 }

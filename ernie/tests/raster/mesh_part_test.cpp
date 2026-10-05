@@ -1,4 +1,4 @@
-#include "ernie/camera/orbit_camera.h"
+#include "ernie/camera/orbit_controller.h"
 #include "ernie/gpu/offscreen_target.h"
 #include "ernie/interop/cuda_interop.h"
 #include "ernie/raster/mesh_part.h"
@@ -22,7 +22,7 @@ using ernie::MeshData;
 using ernie::MeshItem;
 using ernie::MeshPart;
 using ernie::OffscreenTarget;
-using ernie::OrbitCamera;
+using ernie::OrbitController;
 using ernie::RasterPart;
 using ernie::RasterRenderer;
 using ernie::Tensor;
@@ -98,7 +98,7 @@ class MeshPartTest : public ernie::testing::VulkanTest {
         RasterPart* parts[] = {&frame.terrain, &frame.meshes};
         frame.renderer.Update(params, parts);
         OffscreenTarget target(*context_, kSize, kSize, kColorFormat);
-        ernie::RenderTargets targets(*context_, {kSize, kSize}, params.physical.bands.count, false);
+        ernie::RenderTargets targets(*context_, {kSize, kSize}, params.camera.bands.count, false);
         const RasterPart* drawn[] = {&frame.terrain, &frame.meshes};
         context_->Submit([&](VkCommandBuffer commands) {
             const ernie::RenderingTarget present =
@@ -112,19 +112,17 @@ class MeshPartTest : public ernie::testing::VulkanTest {
     }
 
     static FrameParams View(float distance) {
-        OrbitCamera camera;
-        camera.pitch = OrbitCamera::kMaxPitch;
+        OrbitController camera;
+        camera.pitch = OrbitController::kMaxPitch;
         camera.distance = distance;
         FrameParams params;
-        params.camera = camera.MakeView(1.0f);
-        params.physical.width = kSize;
-        params.physical.height = kSize;
+        params.camera = camera.MakeCamera(kSize, kSize);
         return params;
     }
 
     /// The pixel showing world point `p` in a `View(distance)` render.
     static std::size_t PixelOf(glm::vec3 p, float distance = 40.0f) {
-        const glm::vec4 clip = View(distance).camera.ViewProjection() * glm::vec4(p, 1.0f);
+        const glm::vec4 clip = View(distance).View().ViewProjection() * glm::vec4(p, 1.0f);
         const glm::vec2 ndc = glm::vec2(clip) / clip.w;
         const auto col = static_cast<std::size_t>((ndc.x * 0.5f + 0.5f) * kSize);
         const auto row = static_cast<std::size_t>((0.5f - ndc.y * 0.5f) * kSize);

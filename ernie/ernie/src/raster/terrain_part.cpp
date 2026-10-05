@@ -260,9 +260,10 @@ void TerrainPart::Prepare(const FrameParams& frame, std::span<const ShadowCascad
     uniforms.dims[3] = params_.lod.showLevels ? 1u : 0u;
 
     const LodSettings& lod = params_.lod;
-    const glm::mat4 viewProjection = frame.camera.ViewProjection();
+    const CameraView view = frame.View();
+    const glm::mat4 viewProjection = view.ViewProjection();
     if (!(lod.freeze && frozen_)) {
-        lodEye_ = frame.camera.eye;
+        lodEye_ = view.eye;
         lodFrustum_ = Frustum::FromMatrix(viewProjection);
     }
     frozen_ = lod.freeze;

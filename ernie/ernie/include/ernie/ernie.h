@@ -5,7 +5,8 @@
 /// translation unit's dependencies narrow, for example `ernie/scene/scene.h` alone needs no Vulkan.
 
 // Core: images, rasters, geometry, cameras, materials; no GPU.
-#include "ernie/camera/orbit_camera.h"
+#include "ernie/camera/camera.h"
+#include "ernie/camera/orbit_controller.h"
 #include "ernie/core/image.h"
 #include "ernie/core/raster_view.h"
 #include "ernie/core/shader_source.h"

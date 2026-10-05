@@ -1,7 +1,6 @@
 #pragma once
 
-#include "ernie/camera/orbit_camera.h"
-#include "ernie/camera/physical_camera.h"
+#include "ernie/camera/camera.h"
 #include "ernie/gpu/pipeline.h"
 #include "ernie/raster/render_targets.h"
 #include "ernie/raster/shadow_cascades.h"
@@ -91,19 +90,18 @@ struct DomeLight {
 
 /// Per-frame parameters every part shares: the view, the camera, the sun and the shadows.
 struct FrameParams {
-    /// The raster view. With lens distortion its projection covers the undistorted rays of every
-    /// sensor pixel: its focal length is the sensor's divided by `overscan`.
-    CameraView camera;
-    /// The camera's spectral bands, exposure, lens and sensor. Its `width` and `height` are the
-    /// image size, which the render targets must have.
-    PhysicalCamera physical;
+    /// The camera: pose, projection, spectral bands, exposure, lens and sensor. Its `width` and
+    /// `height` are the image size, which the render targets must have.
+    Camera camera;
+    /// How much wider than the camera's the raster view's field of view is, so that with lens
+    /// distortion it covers the undistorted rays of every sensor pixel (`OverscanOf`).
     double overscan = 1.0;
     bool sun = true;  ///< Off lights the scene with `lights` alone (no sun, ambient or cascades).
     glm::vec3 sunDirection{0.0f, 0.0f, 1.0f};  ///< Unit vector pointing towards the sun.
     /// Angular diameter of the sun's disk in degrees, which widens shadow penumbrae with the
     /// distance from the occluder (percentage-closer soft shadows); 0 keeps `shadows.softness`.
     float sunAngle = 0.53f;
-    /// The sun's spectral irradiance at normal incidence per band of `physical.bands`, in
+    /// The sun's spectral irradiance at normal incidence per band of `camera.bands`, in
     /// W m^-2 nm^-1. Empty means a flat spectrum scaled so a white Lambertian surface facing the
     /// sun has a luminance of 1 cd/m^2 (relative units).
     std::vector<float> sunIrradiance;
@@ -116,6 +114,11 @@ struct FrameParams {
     /// The sensor filters to run (`CheckFilterChain`); empty runs `DefaultFilterChain`.
     std::vector<SensorFilter> filters;
     glm::vec3 clearColor{0.0f};  ///< Linear display colour of the background in LdrColor.
+
+    /// The raster view the passes draw with, `camera.RasterView(overscan)`.
+    CameraView View() const {
+        return camera.RasterView(overscan);
+    }
 };
 
 /// Axis-aligned world bounds, low and high corners.

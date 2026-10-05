@@ -141,7 +141,7 @@ class RasterRenderer {
     /// cascades around the parts' bounds and prepares every part. Call once per frame before
     /// `Record`, only while no submitted frame is still reading the renderer's or the parts'
     /// buffers.
-    /// @throws std::invalid_argument for an invalid camera (`PhysicalCamera::Check`) or filter
+    /// @throws std::invalid_argument for an invalid camera (`Camera::Check`) or filter
     /// chain (`CheckFilterChain`), a sun or light spectrum with the wrong number of bands, more
     /// than `kMaxLights` lights, or a model whose shading pass fails to compile.
     void Update(const FrameParams& params, std::span<RasterPart* const> parts);

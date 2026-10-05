@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ernie/camera/orbit_camera.h"
+#include "ernie/camera/camera.h"
 
 #include <glm/glm.hpp>
 

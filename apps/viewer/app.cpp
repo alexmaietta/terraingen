@@ -169,7 +169,7 @@ struct App::State {
     std::optional<ImGuiContext> imgui;
     std::optional<ernie::RasterDelegate> delegate;
     ernie::Scene scene;
-    ernie::OrbitCamera camera;
+    ernie::OrbitController camera;
 
     TerrainSettings settings;
     TerrainSettings requested;

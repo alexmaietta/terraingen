@@ -12,6 +12,23 @@
 
 namespace ernie {
 
+/// The raster view of a camera for one frame, derived from a `Camera` by `Camera::RasterView`:
+/// what the rasterizer's passes need.
+struct CameraView {
+    glm::mat4 view{1.0f};
+    glm::mat4 projection{1.0f};
+    glm::vec3 eye{0.0f};
+    glm::vec3 forward{0.0f, 1.0f, 0.0f};  ///< Unit viewing direction.
+    float verticalFov = 0.785398f;        ///< Radians.
+    float aspect = 1.0f;
+    float nearPlane = 0.1f;
+    float farPlane = 1000.0f;
+
+    glm::mat4 ViewProjection() const {
+        return projection * view;
+    }
+};
+
 /// A lens: radial and tangential distortion (Brown-Conrady, in OpenCV's convention), natural
 /// cos^4 vignetting and transmission.
 ///
@@ -84,8 +101,11 @@ struct SensorModel {
     double ElectronsPerDn(double iso) const;
 };
 
-/// A physically based pinhole camera for one image: UsdGeomCamera's projection and exposure
-/// attributes, a spectral range, a lens and a sensor.
+/// Ernie's camera: a physically based pinhole camera for one image, with UsdGeomCamera's pose,
+/// projection and exposure attributes, a spectral range, a lens and a sensor.
+///
+/// The pose `transform` maps camera to world coordinates; as in USD the camera looks down its -z
+/// axis with +y up. Interactive controls such as `OrbitController` write it.
 ///
 /// Focal length and apertures are read in millimetres. The image fits the vertical aperture:
 /// pixels are square with a pitch of `verticalAperture / height`, and the horizontal aperture
@@ -101,7 +121,8 @@ struct SensorModel {
 /// - B. K. P. Horn, "Robot Vision", MIT Press, 1986 (the image irradiance equation
 ///   E = L (pi / 4) (d / f)^2 cos^4(alpha), with N = f / d).
 /// - Pixar, "UsdGeomCamera", https://openusd.org/release/api/class_usd_geom_camera.html
-struct PhysicalCamera {
+struct Camera {
+    glm::dmat4 transform{1.0};  ///< Camera to world.
     std::uint32_t width = 1;
     std::uint32_t height = 1;
     double focalLengthMm = 50.0;
@@ -118,6 +139,22 @@ struct PhysicalCamera {
     SpectralBands bands;
     LensModel lens;
     SensorModel sensor = SensorModel::Rgb();
+
+    /// The camera's position in the world.
+    glm::dvec3 Eye() const {
+        return glm::dvec3(transform[3]);
+    }
+
+    /// Unit viewing direction in the world, the transform's -z axis.
+    glm::dvec3 Forward() const;
+
+    /// Sets the vertical aperture so the image spans `radians` vertically at the focal length.
+    void SetVerticalFov(double radians);
+
+    /// The raster view: the inverse pose, and a projection with the focal length divided by
+    /// `overscan` (so with lens distortion it covers the undistorted rays of every sensor pixel),
+    /// the principal point and the clipping range.
+    CameraView RasterView(double overscan = 1.0) const;
 
     /// USD's ratio between incident luminance and the normalised photographic output:
     /// responsivity * time * (iso / 100) * 2^exposure / fStop^2.
@@ -149,17 +186,18 @@ struct PhysicalCamera {
     std::vector<float> ElectronsPerRadiance(std::size_t channel) const;
 
     /// @throws std::invalid_argument for non-positive sizes, times, f-numbers, ISO or focal
-    /// length, a bad spectral range, no sensor channels or more than four.
+    /// length, a bad clipping range, a degenerate transform, a bad spectral range, no sensor
+    /// channels or more than four.
     void Check() const;
 };
 
-/// The physical camera of the Camera prim at `path` for an image of `width` x `height`, from
-/// UsdGeomCamera's `focalLength`, `verticalAperture`, aperture offsets, `clippingRange`,
-/// `exposure`, `exposure:time`, `exposure:iso`, `exposure:fStop` and `exposure:responsivity`,
-/// and Ernie's `ernie:spectral:*`, `ernie:lens:*` and `ernie:sensor:*` attributes (see
-/// `tokens.h`). Unset attributes keep `PhysicalCamera`'s defaults.
-/// @throws std::invalid_argument if the prim is not a Camera or the result fails `Check`.
-PhysicalCamera PhysicalCameraOf(const Scene& scene, const Path& path, std::uint32_t width,
-                                std::uint32_t height);
+/// The camera of the Camera prim at `path` for an image of `width` x `height`: its world
+/// transform, and UsdGeomCamera's `focalLength`, `verticalAperture`, aperture offsets,
+/// `clippingRange`, `exposure`, `exposure:time`, `exposure:iso`, `exposure:fStop` and
+/// `exposure:responsivity`, and Ernie's `ernie:spectral:*`, `ernie:lens:*` and `ernie:sensor:*`
+/// attributes (see `tokens.h`). Unset attributes keep `Camera`'s defaults.
+/// @throws std::invalid_argument if the prim is not a Camera, its projection is not perspective,
+/// or the result fails `Check`.
+Camera CameraOf(const Scene& scene, const Path& path, std::uint32_t width, std::uint32_t height);
 
 }  // namespace ernie

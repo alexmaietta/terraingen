@@ -1,4 +1,4 @@
-#include "ernie/camera/orbit_camera.h"
+#include "ernie/camera/orbit_controller.h"
 #include "ernie/raster/shadow_cascades.h"
 
 #include <glm/glm.hpp>
@@ -8,7 +8,7 @@
 
 using ernie::CameraView;
 using ernie::FitCascades;
-using ernie::OrbitCamera;
+using ernie::OrbitController;
 using ernie::PracticalSplits;
 using ernie::ShadowCascade;
 
@@ -19,12 +19,12 @@ const glm::vec3 kSceneMin(-500.0f, -500.0f, -30.0f);
 const glm::vec3 kSceneMax(500.0f, 500.0f, 40.0f);
 
 CameraView TestCamera() {
-    OrbitCamera camera;
+    OrbitController camera;
     camera.target = {50.0f, -20.0f, 0.0f};
     camera.distance = 400.0f;
     camera.yaw = 0.4f;
     camera.pitch = 0.5f;
-    return camera.MakeView(1.6f);
+    return camera.MakeCamera(8, 5).RasterView();
 }
 
 glm::vec3 Project(const glm::mat4& m, const glm::vec3& p) {

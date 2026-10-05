@@ -494,12 +494,13 @@ void RasterRenderer::WriteLights(const FrameParams& params, const std::optional<
 }
 
 void RasterRenderer::Update(const FrameParams& params, std::span<RasterPart* const> parts) {
+    const CameraView view = params.View();
     if (params.lights.size() > kMaxLights) {
         throw std::invalid_argument("A frame has at most " + std::to_string(kMaxLights) +
                                     " lights besides the sun");
     }
     for (const Light& light : params.lights) {
-        if (light.spectrum.size() != static_cast<std::size_t>(params.physical.bands.count)) {
+        if (light.spectrum.size() != static_cast<std::size_t>(params.camera.bands.count)) {
             throw std::invalid_argument("Every light's spectrum needs one value per camera band");
         }
         if (glm::length(light.direction) == 0.0f) {
@@ -513,24 +514,24 @@ void RasterRenderer::Update(const FrameParams& params, std::span<RasterPart* con
         }
     }
     if (params.dome &&
-        params.dome->radiance.size() != static_cast<std::size_t>(params.physical.bands.count)) {
+        params.dome->radiance.size() != static_cast<std::size_t>(params.camera.bands.count)) {
         throw std::invalid_argument("The dome's radiance needs one value per camera band");
     }
     Uniforms uniforms{};
-    const glm::mat4 viewProjection = params.camera.ViewProjection();
+    const glm::mat4 viewProjection = view.ViewProjection();
     std::memcpy(uniforms.viewProjection, glm::value_ptr(viewProjection),
                 sizeof(uniforms.viewProjection));
     uniforms.sun[0] = params.sunDirection.x;
     uniforms.sun[1] = params.sunDirection.y;
     uniforms.sun[2] = params.sunDirection.z;
     uniforms.sun[3] = params.ambient;
-    uniforms.forward[0] = params.camera.forward.x;
-    uniforms.forward[1] = params.camera.forward.y;
-    uniforms.forward[2] = params.camera.forward.z;
-    uniforms.forward[3] = glm::dot(params.camera.eye, params.camera.forward);
-    uniforms.eye[0] = params.camera.eye.x;
-    uniforms.eye[1] = params.camera.eye.y;
-    uniforms.eye[2] = params.camera.eye.z;
+    uniforms.forward[0] = view.forward.x;
+    uniforms.forward[1] = view.forward.y;
+    uniforms.forward[2] = view.forward.z;
+    uniforms.forward[3] = glm::dot(view.eye, view.forward);
+    uniforms.eye[0] = view.eye.x;
+    uniforms.eye[1] = view.eye.y;
+    uniforms.eye[2] = view.eye.z;
     uniforms.eye[3] = params.exposure;
     uniforms.flags[0] = params.wireframe ? 1u : 0u;
     uniforms_.Write(std::as_bytes(std::span(&uniforms, 1)));
@@ -556,13 +557,12 @@ void RasterRenderer::Update(const FrameParams& params, std::span<RasterPart* con
         for (int i = 0; i < 8; ++i) {
             const glm::vec3 corner((i & 1) ? high.x : low.x, (i & 2) ? high.y : low.y,
                                    (i & 4) ? high.z : low.z);
-            farthest =
-                std::max(farthest, glm::dot(corner - params.camera.eye, params.camera.forward));
+            farthest = std::max(farthest, glm::dot(corner - view.eye, view.forward));
         }
         // A margin keeps surfaces at exactly the farthest depth, such as flat ground under a
         // nadir camera, inside the last cascade.
-        const float shadowDistance = std::min(params.camera.farPlane, 1.01f * farthest);
-        cascades_ = FitCascades(params.camera, shadowDistance, params.sunDirection, low, high,
+        const float shadowDistance = std::min(view.farPlane, 1.01f * farthest);
+        cascades_ = FitCascades(view, shadowDistance, params.sunDirection, low, high,
                                 std::clamp(shadows.cascades, 1, kMaxCascades), shadows.splitLambda,
                                 shadowResolution_);
     }
@@ -587,17 +587,17 @@ void RasterRenderer::Update(const FrameParams& params, std::span<RasterPart* con
     }
     shadowUniforms_.Write(std::as_bytes(std::span(&shadowUniforms, 1)));
 
-    params.physical.Check();
-    if (params.physical.sensor.channels.size() > 4) {
+    params.camera.Check();
+    if (params.camera.sensor.channels.size() > 4) {
         throw std::invalid_argument("A sensor has at most four channels");
     }
     if (!params.sunIrradiance.empty() &&
-        params.sunIrradiance.size() != static_cast<std::size_t>(params.physical.bands.count)) {
+        params.sunIrradiance.size() != static_cast<std::size_t>(params.camera.bands.count)) {
         throw std::invalid_argument("The sun's irradiance needs one value per camera band");
     }
     filters_ = CheckFilterChain(params.filters.empty() ? DefaultFilterChain() : params.filters);
-    bands_ = params.physical.bands;
-    extent_ = {params.physical.width, params.physical.height};
+    bands_ = params.camera.bands;
+    extent_ = {params.camera.width, params.camera.height};
     WriteMaterialTable();
     for (const std::size_t model : modelsInUse_) {
         ShadingPipeline(model);
@@ -670,11 +670,12 @@ void RasterRenderer::WriteMaterialTable() {
 }
 
 void RasterRenderer::WriteShading(const FrameParams& params) {
+    const CameraView view = params.View();
     ShadingUniforms shading{};
-    CopyMatrix(shading.invViewProj, glm::inverse(params.camera.ViewProjection()));
-    shading.eye[0] = params.camera.eye.x;
-    shading.eye[1] = params.camera.eye.y;
-    shading.eye[2] = params.camera.eye.z;
+    CopyMatrix(shading.invViewProj, glm::inverse(view.ViewProjection()));
+    shading.eye[0] = view.eye.x;
+    shading.eye[1] = view.eye.y;
+    shading.eye[2] = view.eye.z;
     shading.sun[0] = params.sunDirection.x;
     shading.sun[1] = params.sunDirection.y;
     shading.sun[2] = params.sunDirection.z;
@@ -711,18 +712,19 @@ void RasterRenderer::WriteShading(const FrameParams& params) {
 }
 
 void RasterRenderer::WriteSensor(const FrameParams& params) {
-    const PhysicalCamera& camera = params.physical;
-    const glm::mat4& projection = params.camera.projection;
+    const CameraView view = params.View();
+    const Camera& camera = params.camera;
+    const glm::mat4& projection = view.projection;
     const double rasterFocal =
         static_cast<double>(projection[1][1]) * static_cast<double>(extent_.height) / 2.0;
     SensorUniforms sensor{};
-    CopyMatrix(sensor.invViewProj, glm::inverse(params.camera.ViewProjection()));
-    sensor.eye[0] = params.camera.eye.x;
-    sensor.eye[1] = params.camera.eye.y;
-    sensor.eye[2] = params.camera.eye.z;
-    sensor.forward[0] = params.camera.forward.x;
-    sensor.forward[1] = params.camera.forward.y;
-    sensor.forward[2] = params.camera.forward.z;
+    CopyMatrix(sensor.invViewProj, glm::inverse(view.ViewProjection()));
+    sensor.eye[0] = view.eye.x;
+    sensor.eye[1] = view.eye.y;
+    sensor.eye[2] = view.eye.z;
+    sensor.forward[0] = view.forward.x;
+    sensor.forward[1] = view.forward.y;
+    sensor.forward[2] = view.forward.z;
     sensor.intrinsics[0] = static_cast<float>(rasterFocal * params.overscan);
     sensor.intrinsics[1] =
         static_cast<float>(extent_.width / 2.0 * (1.0 - static_cast<double>(projection[2][0])));

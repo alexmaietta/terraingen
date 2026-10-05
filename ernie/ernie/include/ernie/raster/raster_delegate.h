@@ -125,16 +125,11 @@ DomeLight DomeOf(const Scene& scene, const Path& path, const SpectralBands& band
 /// How much wider than the sensor's the raster image's field of view must be for every sensor
 /// pixel's undistorted ray to land in it: 1 without distortion, else the largest ratio along the
 /// sensor's border, plus one percent.
-double OverscanOf(const PhysicalCamera& camera);
-
-/// The raster view of the Camera prim at `path`: its world transform, and a projection with the
-/// camera's focal length divided by `overscan`, its principal point and clipping range.
-CameraView RasterCameraOf(const Scene& scene, const Path& path, const PhysicalCamera& camera,
-                          double overscan);
+double OverscanOf(const Camera& camera);
 
 /// The frame parameters for `prims` of `scene`, for an image of `width` x `height`:
-/// - the physical camera from the Camera (`PhysicalCameraOf`), its raster view widened for lens
-///   distortion (`OverscanOf`, `RasterCameraOf`);
+/// - the camera from the Camera prim (`CameraOf`) and the overscan its lens distortion needs
+///   (`OverscanOf`);
 /// - sun direction from the light's transform (`TowardsLight`), its spectral irradiance
 ///   (`SunIrradianceOf`), angular diameter (`inputs:angle`, default 0.53 degrees) and shadows from
 ///   its `inputs:shadow:enable`; without any light, a white sun overhead in relative units; with

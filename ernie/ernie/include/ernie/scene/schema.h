@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ernie/camera/orbit_camera.h"
+#include "ernie/camera/camera.h"
 #include "ernie/scene/scene.h"
 
 #include <glm/glm.hpp>
@@ -48,16 +48,10 @@ glm::dmat4 DistantLightTransform(glm::dvec3 towardsLight);
 /// Unit vector from the scene towards a DistantLight: the +z axis of its world transform.
 glm::dvec3 TowardsLight(const Scene& scene, const Path& light);
 
-/// Sets a Camera prim's transform, vertical field of view and clipping range from `camera`, keeping
-/// the USD default 50 mm focal length and fitting the vertical aperture to the field of view.
-void SetCamera(Scene& scene, const Path& path, const OrbitCamera& camera);
-
-/// The `CameraView` of the Camera prim at `path` for an image with aspect ratio `aspect`. The
-/// vertical field of view is `2 atan(verticalAperture / (2 focalLength))`, so the image height
-/// fits the vertical aperture and `horizontalAperture` is ignored. Unset attributes use the USD
-/// defaults: focal length 50, vertical aperture 15.2908, clipping range (1, 1e6).
-/// @throws std::invalid_argument if the prim is not a Camera, its projection is orthographic, or
-/// its focal length, aperture or clipping range are not positive.
-CameraView CameraViewOf(const Scene& scene, const Path& path, float aspect);
+/// Authors `camera` as the Camera prim at `path`: its transform, `focalLength`, apertures (the
+/// horizontal one from the image's aspect) and their offsets, `clippingRange`, `exposure` and the
+/// `exposure:*` attributes, and `ernie:spectral:range` and `ernie:spectral:bands`. Its lens and
+/// sensor are not written. `CameraOf` reads it back.
+void SetCamera(Scene& scene, const Path& path, const Camera& camera);
 
 }  // namespace ernie

@@ -1,4 +1,4 @@
-#include "ernie/camera/orbit_camera.h"
+#include "ernie/camera/orbit_controller.h"
 #include "ernie/geometry/frustum.h"
 
 #include <glm/glm.hpp>
@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 
 using ernie::Frustum;
-using ernie::OrbitCamera;
+using ernie::OrbitController;
 
 namespace {
 
@@ -17,10 +17,11 @@ bool Contains(const Frustum& frustum, const glm::vec3& centre, float halfSize) {
 }  // namespace
 
 TEST(Frustum, PerspectiveKeepsTheTargetAndCullsBoxesOutsideEachPlane) {
-    OrbitCamera camera;
+    OrbitController camera;
     camera.target = {10.0f, 20.0f, 0.0f};
     camera.distance = 100.0f;
-    const Frustum frustum = Frustum::FromMatrix(camera.MakeView(1.5f).ViewProjection());
+    const Frustum frustum =
+        Frustum::FromMatrix(camera.MakeCamera(3, 2).RasterView().ViewProjection());
     const glm::vec3 eye = camera.Eye();
     const glm::vec3 forward = glm::normalize(camera.target - eye);
     const glm::vec3 right = glm::normalize(glm::cross(forward, glm::vec3(0.0f, 0.0f, 1.0f)));
