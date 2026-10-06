@@ -7,6 +7,7 @@
 #include "terraingen/layers/craters/population.h"
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
 #include "terraingen/layers/rocks/rock_layer.h"
+#include "terraingen/layers/roughness.h"
 #include "terraingen/noise/kernels/layers.h"
 #include "terraingen/raster/geotiff.h"
 #include "terraingen/raster/resample.h"
@@ -181,7 +182,14 @@ struct RockLayerSpec {
     bool operator==(const RockLayerSpec&) const = default;
 };
 
-using LayerSpec = std::variant<NoiseLayerSpec, CraterLayerSpec, RockLayerSpec>;
+/// "roughness": fine roughness of a given RMS slope (`RoughnessLayer`).
+struct RoughnessLayerSpec {
+    RoughnessOptions roughness{};
+
+    bool operator==(const RoughnessLayerSpec&) const = default;
+};
+
+using LayerSpec = std::variant<NoiseLayerSpec, CraterLayerSpec, RockLayerSpec, RoughnessLayerSpec>;
 
 /// Filters, named in JSON by their "type": "rim_smoothing" is `RimSmoothingFilter`.
 using FilterSpec = std::variant<RimSmoothing>;

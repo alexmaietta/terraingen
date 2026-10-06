@@ -39,6 +39,7 @@
 #include "terraingen/layers/noise_relief.h"
 #include "terraingen/layers/rocks/rock.h"
 #include "terraingen/layers/rocks/rock_layer.h"
+#include "terraingen/layers/roughness.h"
 #include "terraingen/noise/kernels/fractal.h"
 #include "terraingen/noise/kernels/hash.h"
 #include "terraingen/noise/kernels/layers.h"

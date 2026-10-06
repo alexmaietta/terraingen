@@ -84,7 +84,20 @@ TerrainConfig Everything() {
                    .maxLean = 0.1,
                    .relief = terraingen::RockRelief::None,
                    .fade = {1.0, 3.0, terraingen::BlendShape::Linear}};
-    config.layers = {noise, craters, CraterLayerSpec{}, rocks, terraingen::RockLayerSpec{}};
+    const terraingen::RoughnessLayerSpec roughness{{.rmsSlope = 0.3,
+                                                    .baseline = 0.05,
+                                                    .hurst = 0.6,
+                                                    .maxWavelength = 2.0,
+                                                    .minWavelength = 0.005,
+                                                    .seed = 9,
+                                                    .fade = {1.5, 5.0}}};
+    config.layers = {noise,
+                     craters,
+                     CraterLayerSpec{},
+                     rocks,
+                     terraingen::RockLayerSpec{},
+                     roughness,
+                     terraingen::RoughnessLayerSpec{}};
     config.filters = {terraingen::RimSmoothing{
         .sigmaRadii = 0.1, .strength = 0.5, .fade = {0.5, 6.0, terraingen::BlendShape::Gaussian}}};
     config.outputs = {

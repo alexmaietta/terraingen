@@ -259,6 +259,9 @@ std::shared_ptr<const Layer> BuildLayer(const LayerSpec& spec, const Source& sou
     if (const auto* noise = std::get_if<NoiseLayerSpec>(&spec)) {
         return std::make_shared<NoiseRelief>(noise->Params(), source.ReferencePoint());
     }
+    if (const auto* roughness = std::get_if<RoughnessLayerSpec>(&spec)) {
+        return std::make_shared<RoughnessLayer>(roughness->roughness);
+    }
     if (const auto* rocks = std::get_if<RockLayerSpec>(&spec)) {
         return std::make_shared<RockLayer>(
             rocks->rocks, rocks->rocks.ejecta.minCraterDiameter > 0.0 ? ejecta : nullptr);
@@ -380,6 +383,9 @@ void ValidateConfig(const TerrainConfig& config, const std::filesystem::path& di
                            craters = true;
                        },
                        [&](const RockLayerSpec& spec) { ValidateRocks(spec, craters, grid, path); },
+                       [&](const RoughnessLayerSpec& spec) {
+                           At(path, [&] { ValidateRoughnessOptions(spec.roughness); });
+                       },
                    },
                    config.layers[i]);
     }

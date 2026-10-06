@@ -11,7 +11,7 @@ builds one static library. A module depends only on the modules above it in this
 | `random` | `terraingen::random` | Counter-based random streams and samplers | noise |
 | `distribution` | `terraingen::distribution` | Size-frequency distributions of craters and rocks | random |
 | `sources` | `terraingen::sources` | Where heights come from: synthetic terrain from layered noise | util, raster, noise |
-| `layers` | `terraingen::layers` | Relief added on top: craters (populations, profiles, ages, degradation, stamping), rocks and the bedrock exposure field | util, raster, noise, random, distribution |
+| `layers` | `terraingen::layers` | Relief added on top: craters (populations, profiles, ages, degradation, stamping), rocks, fine roughness and the bedrock exposure field | util, raster, noise, random, distribution |
 | `filters` | `terraingen::filters` | Transforms of the heights so far: crater rim smoothing | layers, raster |
 | `bodies` | `terraingen::bodies` | Calibrations for particular bodies: the Moon's chronology, production, equilibrium and surface presets | distribution, layers |
 | `pipeline` | `terraingen::pipeline` | JSON terrain configs and the generation pipeline | all of the above |
@@ -49,7 +49,7 @@ auto tile = terraingen::Evaluate(terrain, tileGrid);  // any grid on the same la
 - **Sources** fill a grid: `FlatSource` (a level datum) or `GeoTiffSource` (a DEM, optionally
   resampled).
 - **Layers** add relief and record what they placed (`TerrainFeatures`, such as the craters):
-  `NoiseRelief`, `CraterLayer` and `RockLayer`.
+  `NoiseRelief`, `CraterLayer`, `RockLayer` and `RoughnessLayer`.
 - **Filters** transform the heights using those features: `RimSmoothingFilter`.
 
 Layers are pure functions of position, so a tile evaluated alone equals the same cells of the whole
@@ -72,6 +72,11 @@ where bedrock shows (`ExposureField`, read from how far the ground stands above 
 how steep it is). Each rock is recorded with its size, height, burial and tilt in
 `TerrainFeatures::rocks`, and drawn into the heights as a dome, or left out of them
 (`RockRelief::None`) for programs that place each rock as a body or mesh of its own.
+
+Fine roughness is given as planetary surveys measure it (Shepard et al. 2001): an RMS slope over a
+baseline and a Hurst exponent, how the RMS height difference grows with the baseline. `RoughnessLayer`
+builds it from octaves of noise whose amplitudes are calibrated so that the RMS slope over the baseline
+is the one asked for, and each octave fades out with the spacing like craters do.
 
 `EvaluateAt(terrain, x, y, spacing)` evaluates a single point, to the same bits as the grid cell
 centred there, and is safe to call from many threads, as a soil model querying ground heights node by
@@ -105,7 +110,8 @@ JSON configurations describe the same composition:
  "layers": [{"type": "noise", "stack": [{"wavelength": 500, "amplitude": 20}]},
             {"type": "craters", "density": {"type": "lunar_surface", "age_gyr": 3.5}},
             {"type": "rocks", "coverage": 0.02, "ejecta": {"min_crater_diameter": 20},
-             "exposure": {}}],
+             "exposure": {}},
+            {"type": "roughness", "rms_slope": 0.15, "baseline": 0.25, "hurst": 0.8}],
  "filters": [{"type": "rim_smoothing"}],
  "outputs": [{"type": "heightmap", "path": "terrain.tif"}]}
 ```

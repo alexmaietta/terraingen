@@ -187,6 +187,27 @@ TEST(ValidateConfig, ReportsRockLayerProblemsByPath) {
               "layers[0].min_diameter");
 }
 
+TEST(GenerateTerrain, AddsRoughnessAndReportsItsProblemsByPath) {
+    TerrainConfig config = Small();
+    const auto plain = GenerateTerrain(config);
+    config.layers.push_back(
+        terraingen::RoughnessLayerSpec{{.rmsSlope = 0.2, .minWavelength = 1.0}});
+    const auto rough = GenerateTerrain(config);
+    const terraingen::RoughnessLayer layer({.rmsSlope = 0.2, .minWavelength = 1.0});
+    const auto& heights = plain.heights;
+    for (std::size_t row = 0; row < heights.Height(); row += 7) {
+        for (std::size_t col = 0; col < heights.Width(); col += 5) {
+            const auto centre = heights.CellCenter(col, row);
+            EXPECT_EQ(rough.heights(col, row),
+                      layer.ApplyAt(heights(col, row), centre.x, centre.y, {2.0}));
+        }
+    }
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
+                  c.layers.push_back(terraingen::RoughnessLayerSpec{{.hurst = 2.0}});
+              }),
+              "layers[2]");
+}
+
 TEST(GenerateTerrain, AddsRocksWithEjectaFromTheLastCraterLayerBeforeThem) {
     TerrainConfig config = Small();
     Flat(config).pixelSize = 0.5;

@@ -169,6 +169,9 @@ template <> struct SpecName<CraterLayerSpec> {
 template <> struct SpecName<RockLayerSpec> {
     static constexpr std::string_view kName = "rocks";
 };
+template <> struct SpecName<RoughnessLayerSpec> {
+    static constexpr std::string_view kName = "roughness";
+};
 template <> struct SpecName<RimSmoothing> {
     static constexpr std::string_view kName = "rim_smoothing";
 };
@@ -295,6 +298,7 @@ template <typename IO> void Fields(IO& io, RockPatches& patches);
 template <typename IO> void Fields(IO& io, RockEjecta& ejecta);
 template <typename IO> void Fields(IO& io, ExposureParams& exposure);
 template <typename IO> void Fields(IO& io, RockLayerSpec& spec);
+template <typename IO> void Fields(IO& io, RoughnessLayerSpec& spec);
 template <typename IO> void Fields(IO& io, LunarSurfaceSpec& spec);
 template <typename IO> void Fields(IO& io, PowerLawSpec& spec);
 template <typename IO> void Fields(IO& io, PiecewisePowerLawSpec& spec);
@@ -709,6 +713,17 @@ template <typename IO> void Fields(IO& io, RockLayerSpec& spec) {
     io("max_lean", rocks.maxLean);
     io("relief", rocks.relief);
     io("fade", rocks.fade);
+}
+
+template <typename IO> void Fields(IO& io, RoughnessLayerSpec& spec) {
+    RoughnessOptions& roughness = spec.roughness;
+    io("rms_slope", roughness.rmsSlope);
+    io("baseline", roughness.baseline);
+    io("hurst", roughness.hurst);
+    io("max_wavelength", roughness.maxWavelength);
+    io("min_wavelength", roughness.minWavelength);
+    io("seed", roughness.seed);
+    io("fade", roughness.fade);
 }
 
 template <typename IO> void Fields(IO& io, LunarSurfaceSpec& spec) {
