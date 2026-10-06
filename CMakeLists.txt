@@ -66,7 +66,8 @@ endif()
 add_subdirectory(terraingen/src)
 
 if(TERRAINGEN_BUILD_PYTHON)
-    set_target_properties(terraingen_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    set_target_properties(terraingen_core terraingen_core_objects
+                          PROPERTIES POSITION_INDEPENDENT_CODE ON)
     add_subdirectory(terraingen/python)
 endif()
 

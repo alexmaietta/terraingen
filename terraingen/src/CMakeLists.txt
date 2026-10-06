@@ -1,26 +1,17 @@
 configure_file("${PROJECT_SOURCE_DIR}/terraingen/include/terraingen/core/version.h.in"
                "${PROJECT_BINARY_DIR}/include/terraingen/core/version.h" @ONLY)
 
-set(TERRAINGEN_BUILD_INFO_CPP "${CMAKE_CURRENT_BINARY_DIR}/build_info.cpp")
-
-add_custom_target(
-    terraingen_generate_build_info ALL
-    COMMAND
-        ${CMAKE_COMMAND} -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
-        -DTEMPLATE=${CMAKE_CURRENT_SOURCE_DIR}/core/build_info.cpp.in
-        -DOUTPUT=${TERRAINGEN_BUILD_INFO_CPP} -P ${PROJECT_SOURCE_DIR}/cmake/GenerateBuildInfo.cmake
-    BYPRODUCTS ${TERRAINGEN_BUILD_INFO_CPP}
-    COMMENT "Regenerating TerrainGen build info (git SHA / build date)"
-    VERBATIM)
-
 add_library(terraingen_miniz OBJECT "${PROJECT_SOURCE_DIR}/third_party/miniz/miniz.c")
 target_compile_definitions(
     terraingen_miniz PRIVATE MINIZ_NO_STDIO MINIZ_NO_TIME MINIZ_NO_ARCHIVE_APIS
                              MINIZ_NO_ZLIB_COMPATIBLE_NAMES)
 set_target_properties(terraingen_miniz PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# The library's sources compile into an object library so the build info can depend on their
+# objects: it is regenerated, with a fresh build time, only when an object or the git state
+# changes, and builds without changes relink nothing.
 add_library(
-    terraingen_core STATIC
+    terraingen_core_objects OBJECT
     core/log.cpp
     core/version.cpp
     distributions/log_polynomial.cpp
@@ -55,12 +46,43 @@ add_library(
     raster/filters.cpp
     raster/resample.cpp
     spatial/cells.cpp
-    surfaces/synthetic_terrain.cpp
-    "${TERRAINGEN_BUILD_INFO_CPP}"
-    $<TARGET_OBJECTS:terraingen_miniz>)
+    surfaces/synthetic_terrain.cpp)
+target_include_directories(terraingen_core_objects PUBLIC "${PROJECT_SOURCE_DIR}/terraingen/include"
+                                                          "${PROJECT_BINARY_DIR}/include")
+target_include_directories(terraingen_core_objects SYSTEM
+                           PRIVATE "${PROJECT_SOURCE_DIR}/third_party/miniz")
+target_compile_features(terraingen_core_objects PUBLIC cxx_std_20)
+target_compile_definitions(
+    terraingen_core_objects PRIVATE MINIZ_NO_STDIO MINIZ_NO_TIME MINIZ_NO_ARCHIVE_APIS
+                                    MINIZ_NO_ZLIB_COMPATIBLE_NAMES)
+target_link_libraries(terraingen_core_objects PRIVATE terraingen_warnings terraingen_coverage)
+
+set(git_state "${CMAKE_CURRENT_BINARY_DIR}/git_state.txt")
+set(build_info "${CMAKE_CURRENT_BINARY_DIR}/build_info.cpp")
+add_custom_target(
+    terraingen_git_state ALL
+    COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=${PROJECT_SOURCE_DIR} -DOUTPUT=${git_state} -P
+            ${PROJECT_SOURCE_DIR}/cmake/GenerateGitState.cmake
+    BYPRODUCTS ${git_state}
+    COMMENT "Checking the TerrainGen git state"
+    VERBATIM)
+add_custom_command(
+    OUTPUT ${build_info}
+    COMMAND
+        ${CMAKE_COMMAND} -DSTATE=${git_state}
+        -DTEMPLATE=${CMAKE_CURRENT_SOURCE_DIR}/core/build_info.cpp.in -DOUTPUT=${build_info} -P
+        ${PROJECT_SOURCE_DIR}/cmake/GenerateBuildInfo.cmake
+    DEPENDS ${git_state} ${CMAKE_CURRENT_SOURCE_DIR}/core/build_info.cpp.in
+            ${PROJECT_SOURCE_DIR}/cmake/GenerateBuildInfo.cmake
+            $<TARGET_OBJECTS:terraingen_core_objects>
+    COMMENT "Regenerating TerrainGen build info (git SHA / build time)"
+    VERBATIM)
+
+add_library(terraingen_core STATIC ${build_info} $<TARGET_OBJECTS:terraingen_core_objects>
+                                   $<TARGET_OBJECTS:terraingen_miniz>)
 add_library(terraingen::core ALIAS terraingen_core)
 set_target_properties(terraingen_core PROPERTIES EXPORT_NAME core)
-add_dependencies(terraingen_core terraingen_generate_build_info)
+add_dependencies(terraingen_core terraingen_git_state terraingen_core_objects)
 
 target_include_directories(
     terraingen_core
@@ -70,10 +92,6 @@ target_include_directories(
 target_compile_features(terraingen_core PUBLIC cxx_std_20)
 target_link_libraries(terraingen_core PRIVATE $<BUILD_INTERFACE:terraingen_warnings>
                                               $<BUILD_INTERFACE:terraingen_coverage>)
-target_include_directories(terraingen_core SYSTEM PRIVATE "${PROJECT_SOURCE_DIR}/third_party/miniz")
-target_compile_definitions(
-    terraingen_core PRIVATE MINIZ_NO_STDIO MINIZ_NO_TIME MINIZ_NO_ARCHIVE_APIS
-                            MINIZ_NO_ZLIB_COMPATIBLE_NAMES)
 
 add_library(nlohmann_json INTERFACE)
 target_include_directories(nlohmann_json SYSTEM INTERFACE "${PROJECT_SOURCE_DIR}/third_party")

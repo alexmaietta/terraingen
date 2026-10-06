@@ -20,6 +20,7 @@ TEST(Version, ApiVersionMatchesHeaders) {
 TEST(BuildInfo, IsPopulated) {
     const terraingen::BuildInfo info = terraingen::GetBuildInfo();
     EXPECT_FALSE(info.gitSha.empty());
-    EXPECT_TRUE(std::regex_match(info.buildDate, std::regex(R"(\d{4}-\d{2}-\d{2})")))
+    EXPECT_TRUE(
+        std::regex_match(info.buildDate, std::regex(R"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)")))
         << info.buildDate;
 }
