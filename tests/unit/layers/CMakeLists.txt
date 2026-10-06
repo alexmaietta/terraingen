@@ -16,5 +16,6 @@ terraingen_add_test_suite(
     craters/profiles/martin_parkes_dunstan_test.cpp
     exposure_test.cpp
     noise_relief_test.cpp
+    rocks/rock_layer_test.cpp
     LIBRARIES
     terraingen::bodies)

@@ -12,6 +12,7 @@ terraingen_add_test_suite(
     SOURCES
     layers/craters/ages/ages_test.cpp
     layers/craters/population_test.cpp
+    layers/rocks/rock_layer_test.cpp
     LIBRARIES
     terraingen::bodies
     LABELS

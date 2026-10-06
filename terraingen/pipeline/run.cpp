@@ -4,6 +4,7 @@
 #include "terraingen/bodies/moon/production.h"
 #include "terraingen/bodies/moon/steady_state.h"
 #include "terraingen/bodies/moon/surface.h"
+#include "terraingen/distribution/golombek_rapp.h"
 #include "terraingen/distribution/log_polynomial.h"
 #include "terraingen/distribution/power_law.h"
 #include "terraingen/distribution/spliced.h"
@@ -227,9 +228,40 @@ void ValidateCraters(const CraterLayerSpec& craters, const RasterGrid& grid,
     }
 }
 
-std::shared_ptr<const Layer> BuildLayer(const LayerSpec& spec, const Source& source) {
+void ValidateRocks(const RockLayerSpec& spec, bool craters, const RasterGrid& grid,
+                   const std::string& path) {
+    const RockLayerOptions& rocks = spec.rocks;
+    At(path, [&] { ValidateRockLayerOptions(rocks); });
+    if (rocks.ejecta.minCraterDiameter > 0.0 && !craters) {
+        throw ConfigError(path + ".ejecta.min_crater_diameter",
+                          "ejecta need a crater layer before this one");
+    }
+    const double minDiameter =
+        std::fmax(rocks.minDiameter, rocks.fade.startSamples * grid.PixelSize());
+    if (minDiameter >= rocks.maxDiameter) {
+        return;
+    }
+    const GolombekRappSfd candidates(RockCandidateCoverage(rocks), rocks.qa, rocks.qb);
+    const double expected = candidates.ExpectedCount(grid.Area(), minDiameter, rocks.maxDiameter);
+    const double limit = CraterGenerationOptions{}.maxExpectedCraters;
+    if (expected > limit) {
+        throw ConfigError(path + ".min_diameter",
+                          "about " + std::to_string(static_cast<long long>(expected)) +
+                              " candidate rocks expected, more than the limit of " +
+                              std::to_string(static_cast<long long>(limit)) +
+                              "; raise min_diameter or lower coverage");
+    }
+}
+
+/// The layer `spec` describes; rock ejecta come from `ejecta`, the last crater layer before it.
+std::shared_ptr<const Layer> BuildLayer(const LayerSpec& spec, const Source& source,
+                                        const std::shared_ptr<const CraterLayer>& ejecta) {
     if (const auto* noise = std::get_if<NoiseLayerSpec>(&spec)) {
         return std::make_shared<NoiseRelief>(noise->Params(), source.ReferencePoint());
+    }
+    if (const auto* rocks = std::get_if<RockLayerSpec>(&spec)) {
+        return std::make_shared<RockLayer>(
+            rocks->rocks, rocks->rocks.ejecta.minCraterDiameter > 0.0 ? ejecta : nullptr);
     }
     const auto& craters = std::get<CraterLayerSpec>(spec);
     CraterLayerOptions options;
@@ -336,13 +368,20 @@ void ValidateConfig(const TerrainConfig& config, const std::filesystem::path& di
                           "version " + std::to_string(config.schemaVersion) + " is not supported");
     }
     const RasterGrid grid = DescribeSource(config.source, directory);
+    bool craters = false;
     for (std::size_t i = 0; i < config.layers.size(); ++i) {
         const std::string path = "layers[" + std::to_string(i) + "]";
-        if (const auto* noise = std::get_if<NoiseLayerSpec>(&config.layers[i])) {
-            ValidateLayers(noise->stack, path + ".stack", false);
-        } else {
-            ValidateCraters(std::get<CraterLayerSpec>(config.layers[i]), grid, path);
-        }
+        std::visit(Overloaded{
+                       [&](const NoiseLayerSpec& noise) {
+                           ValidateLayers(noise.stack, path + ".stack", false);
+                       },
+                       [&](const CraterLayerSpec& spec) {
+                           ValidateCraters(spec, grid, path);
+                           craters = true;
+                       },
+                       [&](const RockLayerSpec& spec) { ValidateRocks(spec, craters, grid, path); },
+                   },
+                   config.layers[i]);
     }
     for (std::size_t i = 0; i < config.filters.size(); ++i) {
         At("filters[" + std::to_string(i) + "]",
@@ -385,8 +424,12 @@ Terrain BuildTerrain(const TerrainConfig& config, const std::filesystem::path& d
         terrain.source = std::make_shared<GeoTiffSource>(
             Resolve(raster.path, directory), raster.band, raster.pixelSize, raster.resampling);
     }
+    std::shared_ptr<const CraterLayer> craters;
     for (const LayerSpec& layer : config.layers) {
-        terrain.layers.push_back(BuildLayer(layer, *terrain.source));
+        terrain.layers.push_back(BuildLayer(layer, *terrain.source, craters));
+        if (auto built = std::dynamic_pointer_cast<const CraterLayer>(terrain.layers.back())) {
+            craters = std::move(built);
+        }
     }
     for (const FilterSpec& filter : config.filters) {
         terrain.filters.push_back(
@@ -406,7 +449,8 @@ GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
         generated.geoKeys = raster->Keys();
     }
     LogInfo("pipeline", "Generated ", generated.heights.Width(), "x", generated.heights.Height(),
-            " terrain with ", generated.features.craters.Size(), " craters in ",
+            " terrain with ", generated.features.craters.Size(), " craters and ",
+            generated.features.rocks.size(), " rocks in ",
             FormatDuration(stopwatch.Milliseconds()));
     return generated;
 }

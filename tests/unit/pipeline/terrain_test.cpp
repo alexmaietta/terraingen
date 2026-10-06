@@ -389,3 +389,42 @@ TEST(TerrainGround, IsTheSourceAndTheLayersBeneath) {
     EXPECT_THROW(terraingen::TerrainGround(terrain, 3), std::invalid_argument);
     EXPECT_THROW(terraingen::TerrainGround(Terrain{}, 0), std::invalid_argument);
 }
+
+TEST(Evaluate, RocksFromCraterEjectaAndBedrockAgreeOnGridsTilesAndPoints) {
+    Terrain terrain = Rolling();
+    const auto craters =
+        std::dynamic_pointer_cast<const terraingen::CraterLayer>(terrain.layers[1]);
+    ASSERT_NE(craters, nullptr);
+    terraingen::RockLayerOptions options;
+    options.minDiameter = 1.0;
+    options.coverage = 0.05;
+    options.patches = {2.0, 60.0};
+    options.ejecta = {0.15, 20.0, 3.0, 0.0};
+    options.exposure = terraingen::ExposureParams{};
+    options.fade = {1.0, 2.0};
+    terrain.layers.push_back(std::make_shared<terraingen::RockLayer>(options, craters));
+
+    const RasterGrid large{240, 200, GeoTransform::NorthUp(-120.0, 100.0, 1.0)};
+    const auto whole = Evaluate(terrain, large, terraingen::EvaluationOptions{0.0, 4});
+    EXPECT_FALSE(whole.features.rocks.empty());
+    for (std::size_t row = 3; row < large.height; row += 7) {
+        for (std::size_t col = 1; col < large.width; col += 7) {
+            const auto centre = whole.heights.CellCenter(col, row);
+            ASSERT_EQ(terraingen::EvaluateAt(terrain, centre.x, centre.y, 1.0),
+                      whole.heights(col, row));
+        }
+    }
+    const terraingen::TileScheme scheme{{-96.0, 64.0}, 128.0, 16};
+    const terraingen::TileKey key{3, 2, 2};
+    const auto tile = terraingen::EvaluateTile(terrain, scheme, key);
+    const RasterGrid grid = scheme.Grid(key);
+    const auto offset =
+        large.transform.WorldToPixel(grid.transform.originX, grid.transform.originY);
+    for (std::size_t row = 0; row < grid.height; ++row) {
+        for (std::size_t col = 0; col < grid.width; ++col) {
+            ASSERT_EQ(tile.heights(col, row),
+                      whole.heights(static_cast<std::size_t>(offset.x) + col,
+                                    static_cast<std::size_t>(offset.y) + row));
+        }
+    }
+}

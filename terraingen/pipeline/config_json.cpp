@@ -119,6 +119,13 @@ template <> struct EnumNames<BlendShape> {
     }};
 };
 
+template <> struct EnumNames<RockRelief> {
+    static constexpr std::array<std::pair<std::string_view, RockRelief>, 2> kValues{{
+        {"body", RockRelief::Body},
+        {"none", RockRelief::None},
+    }};
+};
+
 template <> struct EnumNames<CraterListFormat> {
     static constexpr std::array<std::pair<std::string_view, CraterListFormat>, 2> kValues{{
         {"csv", CraterListFormat::Csv},
@@ -158,6 +165,9 @@ template <> struct SpecName<NoiseLayerSpec> {
 };
 template <> struct SpecName<CraterLayerSpec> {
     static constexpr std::string_view kName = "craters";
+};
+template <> struct SpecName<RockLayerSpec> {
+    static constexpr std::string_view kName = "rocks";
 };
 template <> struct SpecName<RimSmoothing> {
     static constexpr std::string_view kName = "rim_smoothing";
@@ -281,6 +291,10 @@ template <typename IO> void Fields(IO& io, ResolutionFade& fade);
 template <typename IO> void Fields(IO& io, CraterApplyOptions& apply);
 template <typename IO> void Fields(IO& io, RimSmoothing& smoothing);
 template <typename IO> void Fields(IO& io, CraterLayerSpec& craters);
+template <typename IO> void Fields(IO& io, RockPatches& patches);
+template <typename IO> void Fields(IO& io, RockEjecta& ejecta);
+template <typename IO> void Fields(IO& io, ExposureParams& exposure);
+template <typename IO> void Fields(IO& io, RockLayerSpec& spec);
 template <typename IO> void Fields(IO& io, LunarSurfaceSpec& spec);
 template <typename IO> void Fields(IO& io, PowerLawSpec& spec);
 template <typename IO> void Fields(IO& io, PiecewisePowerLawSpec& spec);
@@ -651,6 +665,50 @@ template <typename IO> void Fields(IO& io, CraterLayerSpec& craters) {
     io("profile", craters.profile);
     io("degradation", craters.degradation);
     io("apply", craters.apply);
+}
+
+template <typename IO> void Fields(IO& io, RockPatches& patches) {
+    io("spread", patches.spread);
+    io("size", patches.size);
+}
+
+template <typename IO> void Fields(IO& io, RockEjecta& ejecta) {
+    io("coverage", ejecta.coverage);
+    io("min_crater_diameter", ejecta.minCraterDiameter);
+    io("reach", ejecta.reach);
+    io("min_freshness", ejecta.minFreshness);
+}
+
+template <typename IO> void Fields(IO& io, ExposureParams& exposure) {
+    io("reach", exposure.reach);
+    io("rise_soil", exposure.riseSoil);
+    io("rise_rock", exposure.riseRock);
+    io("slope_soil", exposure.slopeSoil);
+    io("slope_rock", exposure.slopeRock);
+    io("floor_cover", exposure.floorCover);
+    io("floor_patch", exposure.floorPatch);
+    io("seed", exposure.seed);
+}
+
+template <typename IO> void Fields(IO& io, RockLayerSpec& spec) {
+    RockLayerOptions& rocks = spec.rocks;
+    io("coverage", rocks.coverage);
+    io("qa", rocks.qa);
+    io("qb", rocks.qb);
+    io("min_diameter", rocks.minDiameter);
+    io("max_diameter", rocks.maxDiameter);
+    io("seed", rocks.seed);
+    io("patches", rocks.patches);
+    io("ejecta", rocks.ejecta);
+    io("exposure", rocks.exposure);
+    io("exposure_spacing", rocks.exposureSpacing);
+    io("min_height_ratio", rocks.minHeightRatio);
+    io("max_height_ratio", rocks.maxHeightRatio);
+    io("min_burial", rocks.minBurial);
+    io("max_burial", rocks.maxBurial);
+    io("max_lean", rocks.maxLean);
+    io("relief", rocks.relief);
+    io("fade", rocks.fade);
 }
 
 template <typename IO> void Fields(IO& io, LunarSurfaceSpec& spec) {

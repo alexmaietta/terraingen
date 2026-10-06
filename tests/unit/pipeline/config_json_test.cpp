@@ -66,7 +66,25 @@ TerrainConfig Everything() {
                      .datumFitRadii = 1.5,
                      .interiorReplacement = 0.5,
                      .blend = {0.7, 1.3, terraingen::BlendShape::Gaussian}};
-    config.layers = {noise, craters, CraterLayerSpec{}};
+    terraingen::RockLayerSpec rocks;
+    rocks.rocks = {.coverage = 0.05,
+                   .qa = 1.5,
+                   .qb = 0.2,
+                   .minDiameter = 0.25,
+                   .maxDiameter = 6.0,
+                   .seed = 17,
+                   .patches = {2.0, 80.0},
+                   .ejecta = {0.2, 10.0, 2.5, 0.5},
+                   .exposure = terraingen::ExposureParams{8.0, 0.02, 0.05, 0.1, 0.5, 0.3, 40.0, 5},
+                   .exposureSpacing = 0.5,
+                   .minHeightRatio = 0.3,
+                   .maxHeightRatio = 0.7,
+                   .minBurial = 0.0,
+                   .maxBurial = 0.5,
+                   .maxLean = 0.1,
+                   .relief = terraingen::RockRelief::None,
+                   .fade = {1.0, 3.0, terraingen::BlendShape::Linear}};
+    config.layers = {noise, craters, CraterLayerSpec{}, rocks, terraingen::RockLayerSpec{}};
     config.filters = {terraingen::RimSmoothing{
         .sigmaRadii = 0.1, .strength = 0.5, .fade = {0.5, 6.0, terraingen::BlendShape::Gaussian}}};
     config.outputs = {
@@ -150,6 +168,32 @@ TEST(ConfigJson, OmittedKeysTakeDefaultsAndOmittedListsAreEmpty) {
     EXPECT_EQ(std::get<terraingen::RimSmoothing>(partial.filters[0]), terraingen::RimSmoothing{});
 }
 
+TEST(ConfigJson, ReadsRockLayersWithOptionalExposure) {
+    const TerrainConfig config = ParseConfig(R"({"schema_version": 1, "layers": [
+        {"type": "rocks", "coverage": 0.04, "relief": "none", "ejecta": {"min_crater_diameter": 20},
+         "exposure": {"reach": 6}},
+        {"type": "rocks", "exposure": null}]})");
+    ASSERT_EQ(config.layers.size(), 2u);
+    const auto& rocks = std::get<terraingen::RockLayerSpec>(config.layers[0]).rocks;
+    EXPECT_EQ(rocks.coverage, 0.04);
+    EXPECT_EQ(rocks.relief, terraingen::RockRelief::None);
+    EXPECT_EQ(rocks.ejecta.minCraterDiameter, 20.0);
+    EXPECT_EQ(rocks.ejecta.coverage, terraingen::RockEjecta{}.coverage);
+    ASSERT_TRUE(rocks.exposure.has_value());
+    EXPECT_EQ(rocks.exposure->reach, 6.0);
+    EXPECT_EQ(rocks.exposure->riseRock, terraingen::ExposureParams{}.riseRock);
+    EXPECT_FALSE(std::get<terraingen::RockLayerSpec>(config.layers[1]).rocks.exposure);
+    EXPECT_EQ(
+        ErrorPath(R"({"schema_version": 1, "layers": [{"type": "rocks", "relief": "mesh"}]})"),
+        "layers[0].relief");
+    EXPECT_EQ(
+        ErrorPath(R"({"schema_version": 1, "layers": [{"type": "rocks", "cache_rocks": 1}]})"),
+        "layers[0].cache_rocks");
+    EXPECT_EQ(
+        ErrorPath(R"({"schema_version": 1, "layers": [{"type": "rocks", "exposure": {"x": 1}}]})"),
+        "layers[0].exposure.x");
+}
+
 TEST(ConfigJson, InfersTheCraterListFormatFromTheExtension) {
     const TerrainConfig config = ParseConfig(R"({"schema_version": 1, "outputs": [
         {"type": "crater_list", "path": "a.json"},
@@ -186,7 +230,7 @@ TEST(ConfigJson, ReportsProblemsByTheirJsonPath) {
         "source.resampling");
     EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "source": {"type": "raster", "layers": []}})"),
               "source.layers");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "layers": [{"type": "rocks"}]})"),
+    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "layers": [{"type": "boulders"}]})"),
               "layers[0].type");
     EXPECT_EQ(
         ErrorPath(R"({"schema_version": 1, "filters": [{"type": "rim_smoothing", "sigma": 1}]})"),

@@ -9,9 +9,9 @@ builds one static library. A module depends only on the modules above it in this
 | `raster` | `terraingen::raster` | Rasters, geotransforms, filters, resampling, and GeoTIFF reading and writing without GDAL | util |
 | `noise` | `terraingen::noise` | Noise kernels (header-only) | |
 | `random` | `terraingen::random` | Counter-based random streams and samplers | noise |
-| `distribution` | `terraingen::distribution` | Size-frequency distributions | random |
+| `distribution` | `terraingen::distribution` | Size-frequency distributions of craters and rocks | random |
 | `sources` | `terraingen::sources` | Where heights come from: synthetic terrain from layered noise | util, raster, noise |
-| `layers` | `terraingen::layers` | Relief added on top: craters (populations, profiles, ages, degradation, stamping) | util, raster, noise, random, distribution |
+| `layers` | `terraingen::layers` | Relief added on top: craters (populations, profiles, ages, degradation, stamping), rocks and the bedrock exposure field | util, raster, noise, random, distribution |
 | `filters` | `terraingen::filters` | Transforms of the heights so far: crater rim smoothing | layers, raster |
 | `bodies` | `terraingen::bodies` | Calibrations for particular bodies: the Moon's chronology, production, equilibrium and surface presets | distribution, layers |
 | `pipeline` | `terraingen::pipeline` | JSON terrain configs and the generation pipeline | all of the above |
@@ -49,14 +49,14 @@ auto tile = terraingen::Evaluate(terrain, tileGrid);  // any grid on the same la
 - **Sources** fill a grid: `FlatSource` (a level datum) or `GeoTiffSource` (a DEM, optionally
   resampled).
 - **Layers** add relief and record what they placed (`TerrainFeatures`, such as the craters):
-  `NoiseRelief` and `CraterLayer`.
+  `NoiseRelief`, `CraterLayer` and `RockLayer`.
 - **Filters** transform the heights using those features: `RimSmoothingFilter`.
 
 Layers are pure functions of position, so a tile evaluated alone equals the same cells of the whole
 terrain. Filters may read neighbouring cells, so tiles need a margin to match. Derive from `Source`,
 `Layer` or `Filter` to add your own.
 
-Every evaluation takes a sample spacing. Craters, and the rim smoothing around them, fade with it
+Every evaluation takes a sample spacing. Craters, rocks, and the rim smoothing around craters, fade with it
 (`ResolutionFade`): absent below 2 samples across, whole from 4, smooth in between. A crater therefore
 changes continuously between coarse and fine levels of detail instead of popping in or out, and size
 bands too small to resolve at a spacing are not generated at all.
@@ -65,6 +65,13 @@ Layers are given the ground beneath them: the source and the layers before them,
 point (`Ground`, provided by `TerrainGround`). Craters cut to a datum fit it to that ground plus the
 craters before them, on a fixed lattice around each crater, so a crater landing in an earlier bowl sits
 on its floor while the result stays the same on every grid, tile and point.
+
+Rocks follow the Golombek and Rapp (1997) size distribution from a coverage k that varies in patches,
+rises toward the rims of fresh craters (their ejecta, from a crater layer before the rocks) and rises
+where bedrock shows (`ExposureField`, read from how far the ground stands above its surroundings and
+how steep it is). Each rock is recorded with its size, height, burial and tilt in
+`TerrainFeatures::rocks`, and drawn into the heights as a dome, or left out of them
+(`RockRelief::None`) for programs that place each rock as a body or mesh of its own.
 
 `EvaluateAt(terrain, x, y, spacing)` evaluates a single point, to the same bits as the grid cell
 centred there, and is safe to call from many threads, as a soil model querying ground heights node by
@@ -96,7 +103,9 @@ JSON configurations describe the same composition:
 {"schema_version": 1,
  "source": {"type": "flat", "width": 1024, "height": 1024, "pixel_size": 1},
  "layers": [{"type": "noise", "stack": [{"wavelength": 500, "amplitude": 20}]},
-            {"type": "craters", "density": {"type": "lunar_surface", "age_gyr": 3.5}}],
+            {"type": "craters", "density": {"type": "lunar_surface", "age_gyr": 3.5}},
+            {"type": "rocks", "coverage": 0.02, "ejecta": {"min_crater_diameter": 20},
+             "exposure": {}}],
  "filters": [{"type": "rim_smoothing"}],
  "outputs": [{"type": "heightmap", "path": "terrain.tif"}]}
 ```

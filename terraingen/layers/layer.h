@@ -2,17 +2,20 @@
 
 #include "terraingen/layers/craters/population.h"
 #include "terraingen/layers/ground.h"
+#include "terraingen/layers/rocks/rock.h"
 #include "terraingen/raster/geo_transform.h"
 #include "terraingen/raster/raster.h"
 
 #include <cmath>
 #include <stdexcept>
+#include <vector>
 
 namespace terraingen {
 
 /// What layers place besides heights, for the filters and outputs that follow them.
 struct TerrainFeatures {
-    CraterList craters;  ///< Every crater the layers applied, in the order they applied them.
+    CraterList craters;       ///< Every crater the layers applied, in the order they applied them.
+    std::vector<Rock> rocks;  ///< Every rock the layers placed, in the order they placed them.
 };
 
 /// How a layer is evaluated.

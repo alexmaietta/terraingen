@@ -6,6 +6,7 @@
 #include "terraingen/layers/craters/apply.h"
 #include "terraingen/layers/craters/population.h"
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
+#include "terraingen/layers/rocks/rock_layer.h"
 #include "terraingen/noise/kernels/layers.h"
 #include "terraingen/raster/geotiff.h"
 #include "terraingen/raster/resample.h"
@@ -171,7 +172,16 @@ struct CraterLayerSpec {
     bool operator==(const CraterLayerSpec&) const = default;
 };
 
-using LayerSpec = std::variant<NoiseLayerSpec, CraterLayerSpec>;
+/// "rocks": rocks scattered over the terrain (`RockLayer`). Ejecta come from the nearest crater
+/// layer before this one, which must exist when `rocks.ejecta.minCraterDiameter` is positive.
+/// `rocks.cacheRocks` is not part of the configuration.
+struct RockLayerSpec {
+    RockLayerOptions rocks{};
+
+    bool operator==(const RockLayerSpec&) const = default;
+};
+
+using LayerSpec = std::variant<NoiseLayerSpec, CraterLayerSpec, RockLayerSpec>;
 
 /// Filters, named in JSON by their "type": "rim_smoothing" is `RimSmoothingFilter`.
 using FilterSpec = std::variant<RimSmoothing>;

@@ -157,6 +157,67 @@ TEST(ValidateConfig, AcceptsTheDefaultsAndReportsEachProblemByPath) {
               "outputs[0].path");
 }
 
+TEST(ValidateConfig, ReportsRockLayerProblemsByPath) {
+    const auto withRocks = [](auto change) {
+        return ErrorPath([&](TerrainConfig& c) {
+            terraingen::RockLayerSpec rocks;
+            rocks.rocks.minDiameter = 1.0;
+            change(rocks.rocks);
+            c.layers.push_back(rocks);
+        });
+    };
+    EXPECT_EQ(withRocks([](terraingen::RockLayerOptions&) {}), "valid");
+    EXPECT_EQ(withRocks([](terraingen::RockLayerOptions& r) { r.coverage = 2.0; }), "layers[2]");
+    EXPECT_EQ(withRocks([](terraingen::RockLayerOptions& r) { r.ejecta.minCraterDiameter = 10.0; }),
+              "valid");
+    EXPECT_EQ(withRocks([](terraingen::RockLayerOptions& r) { r.minDiameter = 0.01; }), "valid");
+    EXPECT_EQ(withRocks([](terraingen::RockLayerOptions& r) { r.maxDiameter = 2.0; }), "valid");
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
+                  terraingen::RockLayerSpec rocks;
+                  rocks.rocks.ejecta.minCraterDiameter = 10.0;
+                  c.layers.insert(c.layers.begin() + 1, rocks);
+              }),
+              "layers[1].ejecta.min_crater_diameter");
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
+                  Flat(c) = {60000, 60000, 0.1};
+                  terraingen::RockLayerSpec rocks;
+                  rocks.rocks.coverage = 0.5;
+                  c.layers = {rocks};
+              }),
+              "layers[0].min_diameter");
+}
+
+TEST(GenerateTerrain, AddsRocksWithEjectaFromTheLastCraterLayerBeforeThem) {
+    TerrainConfig config = Small();
+    Flat(config).pixelSize = 0.5;
+    Craters(config).minDiameter = 4.0;
+    terraingen::RockLayerSpec rocks;
+    rocks.rocks.minDiameter = 0.5;
+    rocks.rocks.coverage = 0.03;
+    rocks.rocks.ejecta = {0.2, 8.0, 3.0, 0.0};
+    rocks.rocks.exposure = terraingen::ExposureParams{};
+    config.layers.push_back(rocks);
+    const auto generated = GenerateTerrain(config, {}, 4);
+    ASSERT_FALSE(generated.features.rocks.empty());
+
+    terraingen::Terrain terrain = terraingen::BuildTerrain(config);
+    ASSERT_EQ(terrain.layers.size(), 3u);
+    terraingen::RockLayerOptions options = rocks.rocks;
+    terrain.layers[2] = std::make_shared<terraingen::RockLayer>(
+        options, std::dynamic_pointer_cast<const terraingen::CraterLayer>(terrain.layers[1]));
+    const auto composed = terraingen::Evaluate(terrain, terrain.source->Grid());
+    ExpectSameRaster(generated.heights, composed.heights);
+    ASSERT_EQ(generated.features.rocks.size(), composed.features.rocks.size());
+    for (std::size_t n = 0; n < composed.features.rocks.size(); ++n) {
+        EXPECT_EQ(generated.features.rocks[n].id, composed.features.rocks[n].id);
+    }
+
+    rocks.rocks.ejecta.minCraterDiameter = 0.0;
+    config.layers.back() = rocks;
+    const auto without = GenerateTerrain(config);
+    EXPECT_LT(without.features.rocks.size(), generated.features.rocks.size());
+}
+
 TEST(BuildCraterModels, BuildsEachSelectedModel) {
     CraterLayerSpec craters;
     auto models = BuildCraterModels(craters);

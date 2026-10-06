@@ -16,6 +16,7 @@ terraingen_add_library(
     craters/profiles/martin_parkes_dunstan.cpp
     exposure.cpp
     noise_relief.cpp
+    rocks/rock_layer.cpp
     PUBLIC
     terraingen_distribution
     terraingen_noise
