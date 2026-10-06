@@ -10,7 +10,6 @@ terraingen_add_library(
     terraingen_core
     terraingen_distributions
     terraingen_features
-    terraingen_io
     terraingen_noise
     terraingen_raster
     PRIVATE

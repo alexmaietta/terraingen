@@ -6,9 +6,9 @@
 #include "terraingen/features/craters/population.h"
 #include "terraingen/features/craters/profiles/fassett_thomson.h"
 #include "terraingen/features/craters/rim_smoothing.h"
-#include "terraingen/io/geotiff.h"
 #include "terraingen/noise/kernels/layers.h"
 #include "terraingen/noise/synthetic_terrain.h"
+#include "terraingen/raster/geotiff.h"
 #include "terraingen/raster/resample.h"
 
 #include <cstddef>

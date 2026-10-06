@@ -2,7 +2,7 @@
 values, transform and no-data GDAL reads back, in geotiff_fixtures.inc for hermetic tests.
 
 Run from the repository root with the validation environment (rasterio bundles GDAL):
-    .venv/bin/python tests/unit/io/generate_geotiff_fixtures.py
+    .venv/bin/python tests/unit/raster/generate_geotiff_fixtures.py
 """
 
 import math

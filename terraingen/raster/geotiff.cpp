@@ -1,6 +1,6 @@
-#include "terraingen/io/geotiff.h"
+#include "terraingen/raster/geotiff.h"
 
-#include "terraingen/io/tiff_codecs.h"
+#include "terraingen/raster/tiff_codecs.h"
 
 #include "terraingen/core/log.h"
 
@@ -695,7 +695,7 @@ GeoTiff ReadGeoTiff(const std::filesystem::path& path, std::size_t band) {
             }
         }
     }
-    LogInfo("io", "Read ", info.width, "x", info.height, " GeoTIFF ", path.string(), " in ",
+    LogInfo("raster", "Read ", info.width, "x", info.height, " GeoTIFF ", path.string(), " in ",
             FormatDuration(stopwatch.Milliseconds()));
     return result;
 }
@@ -922,7 +922,7 @@ void WriteGeoTiff(const std::filesystem::path& path, const Raster<float>& raster
     if (!file) {
         throw GeoTiffError("Cannot write " + path.string());
     }
-    LogInfo("io", "Wrote ", raster.Width(), "x", raster.Height(), " GeoTIFF ", path.string(),
+    LogInfo("raster", "Wrote ", raster.Width(), "x", raster.Height(), " GeoTIFF ", path.string(),
             " in ", FormatDuration(stopwatch.Milliseconds()));
 }
 

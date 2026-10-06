@@ -27,7 +27,7 @@ Heights are in metres on a north-up grid of square pixels centred on the world o
 ## C++
 
 ```cpp
-#include <terraingen/io/geotiff.h>
+#include <terraingen/raster/geotiff.h>
 #include <terraingen/terraingen.h>
 
 #include <cstdio>

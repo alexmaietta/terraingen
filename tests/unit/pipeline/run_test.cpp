@@ -1,8 +1,8 @@
 #include "terraingen/pipeline/run.h"
 
 #include "terraingen/craters.h"
-#include "terraingen/io/geotiff.h"
 #include "terraingen/pipeline/config_json.h"
+#include "terraingen/raster/geotiff.h"
 #include "terraingen/raster/resample.h"
 
 #include <gtest/gtest.h>

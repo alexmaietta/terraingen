@@ -3,6 +3,7 @@ terraingen_add_test_suite(
     SOURCES
     filters_test.cpp
     geo_transform_test.cpp
+    geotiff_test.cpp
     raster_test.cpp
     raster_stats_test.cpp
     resample_test.cpp

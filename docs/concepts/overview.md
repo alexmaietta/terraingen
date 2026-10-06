@@ -6,12 +6,11 @@ builds one static library. A module depends only on the modules above it in this
 | Module | Library | Contents | Depends on |
 | --- | --- | --- | --- |
 | `core` | `terraingen::core` | Logging, version and build info | |
-| `raster` | `terraingen::raster` | Rasters, geotransforms, filters and resampling | |
+| `raster` | `terraingen::raster` | Rasters, geotransforms, filters, resampling, and GeoTIFF reading and writing without GDAL | core |
 | `noise` | `terraingen::noise` | Noise kernels and synthetic terrain | core, raster |
 | `random` | `terraingen::random` | Counter-based random streams and samplers | noise |
 | `distributions` | `terraingen::distributions` | Crater size-frequency distributions | random |
 | `features` | `terraingen::features` | Per-cell feature placement and craters | core, raster, noise, random, distributions |
-| `io` | `terraingen::io` | GeoTIFF reading and writing, without GDAL | core, raster |
 | `pipeline` | `terraingen::pipeline` | JSON terrain configs and the generation pipeline | all of the above |
 
 `terraingen::terraingen` links every module. Headers are included from the repository root, as in

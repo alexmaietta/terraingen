@@ -1,4 +1,4 @@
-#include "terraingen/io/geotiff.h"
+#include "terraingen/raster/geotiff.h"
 
 #include <cstdio>
 #include <exception>

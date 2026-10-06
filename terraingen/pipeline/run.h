@@ -6,8 +6,8 @@
 #include "terraingen/features/craters/degradation/degradation_model.h"
 #include "terraingen/features/craters/population.h"
 #include "terraingen/features/craters/profiles/profile.h"
-#include "terraingen/io/geotiff.h"
 #include "terraingen/pipeline/config.h"
+#include "terraingen/raster/geotiff.h"
 #include "terraingen/raster/raster.h"
 
 #include <filesystem>

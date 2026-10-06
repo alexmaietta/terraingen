@@ -48,7 +48,7 @@ target_link_libraries(my_app PRIVATE terraingen::terraingen)
 ```
 
 Each module is its own library (see {doc}`concepts/overview`), so a program that only reads
-GeoTIFFs can link `terraingen::io` alone. `GetBuildInfo()` comes from `terraingen::build_info`,
+GeoTIFFs can link `terraingen::raster` alone. `GetBuildInfo()` comes from `terraingen::build_info`,
 which `terraingen::terraingen` includes.
 
 On Debian and Ubuntu, `cpack -G DEB` in the build directory makes a `terraingen-dev` package with

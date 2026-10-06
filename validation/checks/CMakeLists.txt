@@ -12,7 +12,7 @@ target_compile_definitions(
     PRIVATE TERRAINGEN_VALIDATION_REFERENCES="${PROJECT_SOURCE_DIR}/validation/references")
 
 add_executable(terraingen_geotiff_roundtrip geotiff_roundtrip.cpp)
-target_link_libraries(terraingen_geotiff_roundtrip PRIVATE terraingen::io terraingen_warnings)
+target_link_libraries(terraingen_geotiff_roundtrip PRIVATE terraingen::raster terraingen_warnings)
 
 set(TERRAINGEN_VALIDATION_PYTHON
     "${PROJECT_SOURCE_DIR}/.venv/bin/python"

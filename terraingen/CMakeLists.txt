@@ -1,11 +1,10 @@
 # TerrainGen's modules, one library each, every module depending only on the ones before it:
 #   core           logging, version and the build info's header
-#   raster         rasters, geotransforms, filters and resampling
+#   raster         rasters, geotransforms, filters, resampling and GeoTIFF reading and writing
 #   noise          noise kernels (header-only, GPU-shareable) and synthetic terrain
 #   random         counter-based random streams and samplers
 #   distributions  crater size-frequency distributions
 #   features       per-cell feature placement and craters
-#   io             GeoTIFF reading and writing
 #   pipeline       JSON terrain configs and the generation pipeline
 # Headers sit next to their sources and are included from the repository root as
 # "terraingen/<module>/<file>.h"; terraingen::terraingen links every module and the build info.
@@ -44,7 +43,6 @@ add_subdirectory(noise)
 add_subdirectory(random)
 add_subdirectory(distributions)
 add_subdirectory(features)
-add_subdirectory(io)
 add_subdirectory(pipeline)
 
 get_property(modules GLOBAL PROPERTY TERRAINGEN_MODULES)
