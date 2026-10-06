@@ -4,6 +4,6 @@ terraingen_add_test_suite(
     SOURCES
     noise/kernels_test.cpp
     LIBRARIES
-    terraingen::core
+    terraingen::noise
     LABELS
     golden)

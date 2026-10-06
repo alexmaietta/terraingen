@@ -11,4 +11,4 @@ terraingen_add_test_suite(
     kernels/worley_test.cpp
     synthetic_terrain_test.cpp
     LIBRARIES
-    terraingen::core)
+    terraingen::noise)

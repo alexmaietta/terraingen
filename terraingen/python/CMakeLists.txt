@@ -9,7 +9,8 @@ nanobind_add_module(
     src/core.cpp
     src/kernels.cpp
     src/random.cpp)
-target_link_libraries(_terraingen PRIVATE terraingen::core terraingen_warnings terraingen_coverage)
+target_link_libraries(_terraingen PRIVATE terraingen::terraingen terraingen_warnings
+                                          terraingen_coverage)
 target_include_directories(_terraingen SYSTEM PRIVATE "${NB_DIR}/include" ${Python_INCLUDE_DIRS})
 foreach(nanobind_library nanobind-static nanobind-static-abi3)
     if(TARGET ${nanobind_library})

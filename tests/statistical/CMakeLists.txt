@@ -4,7 +4,7 @@ terraingen_add_test_suite(
     SOURCES
     distributions/size_frequency_test.cpp
     LIBRARIES
-    terraingen::core
+    terraingen::distributions
     LABELS
     statistical)
 terraingen_add_test_suite(
@@ -14,7 +14,7 @@ terraingen_add_test_suite(
     features/craters/lunar/production_test.cpp
     features/craters/population_test.cpp
     LIBRARIES
-    terraingen::core
+    terraingen::features
     LABELS
     statistical)
 terraingen_add_test_suite(
@@ -22,6 +22,6 @@ terraingen_add_test_suite(
     SOURCES
     random/random_test.cpp
     LIBRARIES
-    terraingen::core
+    terraingen::random
     LABELS
     statistical)

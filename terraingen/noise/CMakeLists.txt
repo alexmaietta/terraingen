@@ -1,0 +1,1 @@
+terraingen_add_library(noise SOURCES synthetic_terrain.cpp PUBLIC terraingen_core terraingen_raster)

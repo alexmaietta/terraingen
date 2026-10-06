@@ -17,4 +17,4 @@ terraingen_add_test_suite(
     profiles/martin_parkes_dunstan_test.cpp
     rim_smoothing_test.cpp
     LIBRARIES
-    terraingen::core)
+    terraingen::features)

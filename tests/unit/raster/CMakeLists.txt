@@ -7,4 +7,4 @@ terraingen_add_test_suite(
     raster_stats_test.cpp
     resample_test.cpp
     LIBRARIES
-    terraingen::core)
+    terraingen::raster)

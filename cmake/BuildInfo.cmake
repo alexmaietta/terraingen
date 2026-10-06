@@ -1,9 +1,9 @@
-# Build info for terraingen::core, in two steps run with -P:
+# Build info for terraingen::build_info, in two steps run with -P:
 #
 # MODE=git_state (every build): writes the checkout's short commit SHA and dirty flag to OUTPUT,
 # leaving the file untouched when they have not changed.
 #
-# MODE=source (only when the library's objects or OUTPUT of the git_state step change): writes the
+# MODE=source (only when a module library or OUTPUT of the git_state step changes): writes the
 # build info source from TEMPLATE to OUTPUT with the git state in STATE and the current time, so the
 # time is when the library was last rebuilt and builds without changes relink nothing. TIMESTAMP
 # honours SOURCE_DATE_EPOCH for reproducible builds.

@@ -9,4 +9,4 @@ terraingen_add_test_suite(
     spliced_test.cpp
     tabulated_test.cpp
     LIBRARIES
-    terraingen::core)
+    terraingen::distributions)
