@@ -1,5 +1,10 @@
 .git/lfs
 build/
+build-*/
+assets/
+demos/
+docs/_build/
+docs/_doxygen/
 dist/
 site/
 .venv/
