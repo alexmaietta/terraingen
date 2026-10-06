@@ -7,7 +7,7 @@ namespace terraingen {
 /// Build metadata captured when the library was compiled.
 ///
 /// Regenerated whenever the library is rebuilt or the git state changes (see
-/// cmake/GenerateBuildInfo.cmake), so it describes the linked library binary,
+/// cmake/BuildInfo.cmake), so it describes the linked library binary,
 /// not the headers a caller compiled against. Builds without changes keep it,
 /// and relink nothing.
 struct BuildInfo {

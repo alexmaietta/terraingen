@@ -54,9 +54,9 @@ set(ENV{SOURCE_DATE_EPOCH} 0)
 set(pinned "${WORK_DIR}/build_info.cpp")
 execute_process(
     COMMAND
-        ${CMAKE_COMMAND} -DSTATE=${core_dir}/git_state.txt
+        ${CMAKE_COMMAND} -DMODE=source -DSTATE=${core_dir}/git_state.txt
         -DTEMPLATE=${SOURCE_DIR}/terraingen/src/core/build_info.cpp.in -DOUTPUT=${pinned} -P
-        ${SOURCE_DIR}/cmake/GenerateBuildInfo.cmake
+        ${SOURCE_DIR}/cmake/BuildInfo.cmake
     RESULT_VARIABLE result)
 file(READ "${pinned}" content)
 if(NOT result EQUAL 0 OR NOT content MATCHES "\"1970-01-01T00:00:00Z\"")

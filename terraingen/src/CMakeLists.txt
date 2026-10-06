@@ -61,20 +61,19 @@ set(git_state "${CMAKE_CURRENT_BINARY_DIR}/git_state.txt")
 set(build_info "${CMAKE_CURRENT_BINARY_DIR}/build_info.cpp")
 add_custom_target(
     terraingen_git_state ALL
-    COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=${PROJECT_SOURCE_DIR} -DOUTPUT=${git_state} -P
-            ${PROJECT_SOURCE_DIR}/cmake/GenerateGitState.cmake
+    COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=${PROJECT_SOURCE_DIR} -DOUTPUT=${git_state}
+            -DMODE=git_state -P ${PROJECT_SOURCE_DIR}/cmake/BuildInfo.cmake
     BYPRODUCTS ${git_state}
     COMMENT "Checking the TerrainGen git state"
     VERBATIM)
 add_custom_command(
     OUTPUT ${build_info}
     COMMAND
-        ${CMAKE_COMMAND} -DSTATE=${git_state}
+        ${CMAKE_COMMAND} -DMODE=source -DSTATE=${git_state}
         -DTEMPLATE=${CMAKE_CURRENT_SOURCE_DIR}/core/build_info.cpp.in -DOUTPUT=${build_info} -P
-        ${PROJECT_SOURCE_DIR}/cmake/GenerateBuildInfo.cmake
+        ${PROJECT_SOURCE_DIR}/cmake/BuildInfo.cmake
     DEPENDS ${git_state} ${CMAKE_CURRENT_SOURCE_DIR}/core/build_info.cpp.in
-            ${PROJECT_SOURCE_DIR}/cmake/GenerateBuildInfo.cmake
-            $<TARGET_OBJECTS:terraingen_core_objects>
+            ${PROJECT_SOURCE_DIR}/cmake/BuildInfo.cmake $<TARGET_OBJECTS:terraingen_core_objects>
     COMMENT "Regenerating TerrainGen build info (git SHA / build time)"
     VERBATIM)
 
