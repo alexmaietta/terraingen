@@ -62,6 +62,27 @@ enum class TiffCompression {
 /// How sample bits are interpreted.
 enum class TiffSampleFormat { UnsignedInteger, SignedInteger, Float };
 
+/// A band's scale and offset: a sample `s` stands for `s * scale + offset`, as GDAL's band SCALE
+/// and OFFSET metadata say, for DEMs stored as integers or in other units.
+struct BandScaling {
+    double scale = 1.0;
+    double offset = 0.0;
+
+    bool Identity() const {
+        return scale == 1.0 && offset == 0.0;
+    }
+
+    bool operator==(const BandScaling&) const = default;
+};
+
+/// The scaling of each of `bands` bands that the XML of a GDAL_METADATA tag (42112) gives in its
+/// `<Item name="SCALE" sample="n" role="scale">` and `role="offset"` items; 1 and 0 for bands it
+/// does not mention. Items for bands beyond `bands`, without a band, or whose value is not a number
+/// are ignored.
+///
+/// Reference: GDAL GTiff driver, metadata. https://gdal.org/en/stable/drivers/raster/gtiff.html
+std::vector<BandScaling> ParseGdalBandScaling(const std::string& xml, std::size_t bands);
+
 /// The layout and georeferencing of a GeoTIFF's first image.
 struct GeoTiffInfo {
     std::size_t width = 0;
@@ -79,6 +100,8 @@ struct GeoTiffInfo {
     GeoTransform transform{};
     bool georeferenced = false;
     std::optional<double> noData;  ///< From the GDAL_NODATA tag (42113).
+    /// One per band, from the GDAL_METADATA tag (42112); `ReadGeoTiff` returns raw samples.
+    std::vector<BandScaling> bandScaling;
     GeoKeys geoKeys;
 };
 

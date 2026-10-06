@@ -47,7 +47,8 @@ auto tile = terraingen::Evaluate(terrain, tileGrid);  // any grid on the same la
 ```
 
 - **Sources** fill a grid: `FlatSource` (a level datum), `GeoTiffSource` (a DEM, optionally
-  resampled), or `SourceChain`, which fills each source's gaps from the next.
+  resampled, with its band's GDAL scale and offset applied), or `SourceChain`, which fills each
+  source's gaps from the next.
 - **Layers** add relief and record what they placed (`TerrainFeatures`, such as the craters):
   `NoiseRelief`, `CraterLayer`, `RockLayer` and `RoughnessLayer`. Layers can also reshape the heights so
   far, point by point: `ScaleLayer`, `ClampLayer`, `FunctionLayer`, and `RegionLayer`, which applies

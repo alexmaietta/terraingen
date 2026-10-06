@@ -621,6 +621,16 @@ TEST(GenerateTerrain, LoadsResamplesAndDetailsARasterSource) {
     EXPECT_EQ(plain.geoKeys, Keys());
     EXPECT_EQ(plain.heights.Transform(), dem.Transform());
 
+    RasterSpec(config).scale = 1000.0;
+    RasterSpec(config).offset = -5.0;
+    const auto scaled = GenerateTerrain(config, folder);
+    for (std::size_t i = 0; i < dem.Size(); ++i) {
+        ASSERT_EQ(scaled.heights.Values()[i],
+                  static_cast<float>(static_cast<double>(dem.Values()[i]) * 1000.0 - 5.0));
+    }
+    RasterSpec(config).scale.reset();
+    RasterSpec(config).offset.reset();
+
     RasterSpec(config).pixelSize = 2.5;
     RasterSpec(config).resampling = terraingen::ResampleMethod::Bilinear;
     const auto resampled = GenerateTerrain(config, folder);

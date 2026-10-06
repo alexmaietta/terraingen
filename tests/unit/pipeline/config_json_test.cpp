@@ -143,7 +143,8 @@ TEST(ConfigJson, RoundTripsEveryModelType) {
           terraingen::SourceSpec{terraingen::RasterSourceSpec{"x.tif", 0, std::nullopt,
                                                               terraingen::ResampleMethod::Cubic}},
           terraingen::SourceSpec{terraingen::ChainSourceSpec{
-              {terraingen::RasterSourceSpec{"a.tif", 1, 2.0, terraingen::ResampleMethod::Nearest},
+              {terraingen::RasterSourceSpec{"a.tif", 1, 2.0, terraingen::ResampleMethod::Nearest,
+                                            0.001, -250.0},
                terraingen::FlatSourceSpec{3, 4, 5.0, 6.0f}, terraingen::ChainSourceSpec{}}}}}) {
         TerrainConfig config;
         config.source = source;

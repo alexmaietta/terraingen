@@ -19,15 +19,22 @@ namespace terraingen {
 /// lattice, such as a tile of its grid, `Fill` copies cells exactly; on any other grid, such as a
 /// tile at another level of detail, each cell is the file interpolated at its centre with
 /// `resampling`. Cells beyond the file are no-data.
+///
+/// Samples are scaled to heights with the band's scale and offset (`GeoTiffInfo::bandScaling`),
+/// either of which `scale` and `offset` replace, before resampling. When that changes the samples,
+/// cells without data become NaN, so that no height can be mistaken for the file's no-data value.
 class GeoTiffSource final : public Source {
   public:
     /// Reads the file's header.
     /// @throws GeoTiffError if the file cannot be read.
     /// @throws std::invalid_argument for a missing band, a geographic CRS (craters are sized in
-    /// metres), a non-positive `pixelSize`, or a rotated raster that would need resampling.
+    /// metres), a non-positive `pixelSize`, a rotated raster that would need resampling, or a
+    /// `scale` or `offset` that is not finite.
     explicit GeoTiffSource(std::filesystem::path path, std::size_t band = 0,
                            std::optional<double> pixelSize = std::nullopt,
-                           ResampleMethod resampling = ResampleMethod::Cubic);
+                           ResampleMethod resampling = ResampleMethod::Cubic,
+                           std::optional<double> scale = std::nullopt,
+                           std::optional<double> offset = std::nullopt);
 
     RasterGrid Grid() const override {
         return grid_;
@@ -50,6 +57,11 @@ class GeoTiffSource final : public Source {
         return info_.geoKeys;
     }
 
+    /// The scale and offset the samples are read with.
+    const BandScaling& Scaling() const {
+        return scaling_;
+    }
+
   private:
     /// Reads the file, and resamples it to `pixelSize` when set, once.
     void Load() const;
@@ -61,6 +73,7 @@ class GeoTiffSource final : public Source {
     std::optional<double> pixelSize_;
     ResampleMethod resampling_;
     GeoTiffInfo info_;
+    BandScaling scaling_;
     RasterGrid grid_;
     mutable std::once_flag loaded_;
     mutable std::shared_ptr<const Raster<float>> native_;

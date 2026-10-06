@@ -2,11 +2,13 @@
 
 #include "terraingen/raster/geotiff.h"
 #include "terraingen/raster/resample.h"
+#include "tests/unit/raster/gdal_fixtures.h"
 
 #include <gtest/gtest.h>
 
 #include <cmath>
 #include <filesystem>
+#include <fstream>
 #include <stdexcept>
 
 using terraingen::GeoKeys;
@@ -146,4 +148,52 @@ TEST(GeoTiffSource, GivesCellsAtTheirCentresAndInterpolatesElsewhere) {
     const auto holes = TempPath("geotiff_source_holes.tif");
     terraingen::WriteGeoTiff(holes, dem, Keys());
     EXPECT_TRUE(std::isnan(GeoTiffSource(holes).HeightAt(1000.0 + 6.0, 2000.0 - 6.0)));
+}
+
+TEST(GeoTiffSource, ScalesSamplesByTheBandsMetadataOrOverrides) {
+    using terraingen::testing::GdalFixture;
+    const auto write = [](const GdalFixture& fixture) {
+        const auto path = TempPath(std::string("scaled_") + fixture.name + ".tif");
+        std::ofstream file(path, std::ios::binary);
+        file.write(reinterpret_cast<const char*>(fixture.bytes.data()),
+                   static_cast<std::streamsize>(fixture.bytes.size()));
+        return path;
+    };
+    const GdalFixture& single = terraingen::testing::int16_scaled_nodata;
+    const auto expect = [&](const GeoTiffSource& source, const GdalFixture& fixture, double scale,
+                            double offset) {
+        EXPECT_EQ(source.Scaling(), (terraingen::BandScaling{scale, offset}));
+        auto heights = source.Grid().MakeRaster();
+        source.Fill(heights);
+        for (std::size_t i = 0; i < heights.Size(); ++i) {
+            const float raw = fixture.values[i];
+            if (fixture.noData && raw == static_cast<float>(*fixture.noData)) {
+                ASSERT_TRUE(std::isnan(heights.Values()[i])) << i;
+                continue;
+            }
+            ASSERT_EQ(heights.Values()[i],
+                      static_cast<float>(static_cast<double>(raw) * scale + offset))
+                << i;
+        }
+    };
+    const auto path = write(single);
+    expect(GeoTiffSource(path), single, 0.5, -1000.0);
+    expect(GeoTiffSource(path, 0, std::nullopt, ResampleMethod::Cubic, 2.0), single, 2.0, -1000.0);
+    expect(GeoTiffSource(path, 0, std::nullopt, ResampleMethod::Cubic, std::nullopt, 0.0), single,
+           0.5, 0.0);
+    auto heights = GeoTiffSource(path).Grid().MakeRaster();
+    GeoTiffSource(path).Fill(heights);
+    ASSERT_TRUE(heights.NoData().has_value());
+    EXPECT_TRUE(std::isnan(*heights.NoData()));
+    EXPECT_TRUE(std::isnan(
+        GeoTiffSource(path).HeightAt(-1200.0 + 4 * 2.5 + 1.25, 3400.0 - 3 * 2.5 - 1.25)));
+
+    const GdalFixture& bands = terraingen::testing::uint16_three_band_scaled;
+    expect(GeoTiffSource(write(bands), 1), bands, 0.25, 10.0);
+    EXPECT_EQ(GeoTiffSource(write(bands), 0).Scaling(), terraingen::BandScaling{});
+
+    EXPECT_THROW(GeoTiffSource(path, 0, std::nullopt, ResampleMethod::Cubic, std::nan("")),
+                 std::invalid_argument);
+    EXPECT_THROW(GeoTiffSource(path, 0, std::nullopt, ResampleMethod::Cubic, 1.0, INFINITY),
+                 std::invalid_argument);
 }

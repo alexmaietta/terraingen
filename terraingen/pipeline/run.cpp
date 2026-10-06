@@ -454,7 +454,8 @@ std::shared_ptr<const Source> BuildSource(const SourceSpec& spec,
     }
     const auto& raster = std::get<RasterSourceSpec>(spec);
     return std::make_shared<GeoTiffSource>(Resolve(raster.path, directory), raster.band,
-                                           raster.pixelSize, raster.resampling);
+                                           raster.pixelSize, raster.resampling, raster.scale,
+                                           raster.offset);
 }
 
 /// The raster source whose grid `source` covers, if any: itself, or a chain's first source.

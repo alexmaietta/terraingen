@@ -63,6 +63,8 @@ struct RasterSourceSpec {
     std::size_t band = 0;             ///< From 0.
     std::optional<double> pixelSize;  ///< Resample to this cell size; unset keeps the file's.
     ResampleMethod resampling = ResampleMethod::Cubic;
+    std::optional<double> scale{};   ///< Replaces the band's scale from the file's GDAL metadata.
+    std::optional<double> offset{};  ///< Replaces the band's offset from the file's GDAL metadata.
 
     bool operator==(const RasterSourceSpec&) const = default;
 };

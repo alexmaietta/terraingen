@@ -1,6 +1,7 @@
 #include "terraingen/raster/geotiff.h"
 
 #include "terraingen/raster/tiff_codecs.h"
+#include "tests/unit/raster/gdal_fixtures.h"
 
 #include <gtest/gtest.h>
 
@@ -26,21 +27,7 @@ using terraingen::WriteGeoTiff;
 
 namespace {
 
-/// A GeoTIFF written by GDAL and what GDAL reads back from it.
-struct GdalFixture {
-    const char* name;
-    std::size_t band;
-    std::size_t width;
-    std::size_t height;
-    std::size_t bands;
-    std::vector<std::uint8_t> bytes;
-    std::vector<float> values;
-    std::array<double, 6> transform;
-    bool georeferenced;
-    std::optional<double> noData;
-};
-
-#include "geotiff_fixtures.inc"
+using namespace terraingen::testing;  // NOLINT(google-build-using-namespace): the fixtures
 
 std::filesystem::path TempPath(const std::string& name) {
     return std::filesystem::path(::testing::TempDir()) / name;
@@ -135,6 +122,11 @@ TEST(ReadGeoTiff, MatchesGdalForEveryFixtureLayout) {
         EXPECT_EQ(info.height, fixture->height);
         EXPECT_EQ(info.bands, fixture->bands);
         EXPECT_EQ(info.georeferenced, fixture->georeferenced);
+        ASSERT_EQ(info.bandScaling.size(), fixture->bands);
+        for (std::size_t band = 0; band < fixture->bands; ++band) {
+            EXPECT_EQ(info.bandScaling[band].scale, fixture->scales[band]) << band;
+            EXPECT_EQ(info.bandScaling[band].offset, fixture->offsets[band]) << band;
+        }
         const auto tiff = ReadGeoTiff(path, fixture->band);
         const Raster<float>& raster = tiff.raster;
         ASSERT_EQ(raster.Size(), fixture->values.size());
@@ -154,6 +146,27 @@ TEST(ReadGeoTiff, MatchesGdalForEveryFixtureLayout) {
             EXPECT_FALSE(raster.NoData().has_value());
         }
     }
+}
+
+TEST(ParseGdalBandScaling, ReadsEachBandsScaleAndOffsetAndSkipsTheRest) {
+    using terraingen::BandScaling;
+    using terraingen::ParseGdalBandScaling;
+    EXPECT_EQ(ParseGdalBandScaling("", 2), (std::vector<BandScaling>{{}, {}}));
+    const std::string xml = R"(<GDALMetadata>
+  <Item name="OFFSET" sample="1" role="offset">-12.5</Item>
+  <Item name="SCALE" sample="1" role="scale">0.25</Item>
+  <Item name="SCALE" sample="0" role="scale">3</Item>
+  <Item name="SCALE" sample="7" role="scale">9</Item>
+  <Item name="SCALE" role="scale">9</Item>
+  <Item name="SCALE" sample="x" role="scale">9</Item>
+  <Item name="SCALE" sample="0" role="scale">nope</Item>
+  <Item name="UNITTYPE" sample="0" role="unittype">m</Item>
+  <Item name="AREA_OR_POINT">Area</Item>
+  <Item name="SCALE" sample="0" role="scale">unterminated
+</GDALMetadata>)";
+    EXPECT_EQ(ParseGdalBandScaling(xml, 2), (std::vector<BandScaling>{{3.0, 0.0}, {0.25, -12.5}}));
+    EXPECT_TRUE(BandScaling{}.Identity());
+    EXPECT_FALSE((BandScaling{1.0, 2.0}).Identity());
 }
 
 TEST(ReadGeoTiffInfo, DescribesTheLayout) {

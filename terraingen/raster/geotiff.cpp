@@ -54,6 +54,7 @@ enum Tag : std::uint16_t {
     kGeoKeyDirectory = 34735,
     kGeoDoubleParams = 34736,
     kGeoAsciiParams = 34737,
+    kGdalMetadata = 42112,
     kGdalNoData = 42113,
 };
 
@@ -487,6 +488,9 @@ Layout ReadLayout(TiffReader& reader) {
     if (info.georeferenced && info.geoKeys.PixelIsPoint()) {
         info.transform = ShiftHalfPixel(info.transform, -1.0);
     }
+    const auto metadata = ifd.find(kGdalMetadata);
+    info.bandScaling = ParseGdalBandScaling(
+        metadata != ifd.end() ? TiffReader::Ascii(metadata->second) : std::string(), info.bands);
     if (const auto noData = ifd.find(kGdalNoData); noData != ifd.end()) {
         const std::string text = TiffReader::Ascii(noData->second);
         char* end = nullptr;
@@ -618,6 +622,49 @@ bool GeoKeys::IsGeographic() const {
     constexpr std::uint16_t kGtModelTypeGeoKey = 1024;
     constexpr std::uint16_t kModelTypeGeographic = 2;
     return ShortKey(kGtModelTypeGeoKey) == kModelTypeGeographic;
+}
+
+std::vector<BandScaling> ParseGdalBandScaling(const std::string& xml, std::size_t bands) {
+    std::vector<BandScaling> scaling(bands);
+    const auto attribute = [](const std::string& tag, const std::string& name) {
+        const std::string key = " " + name + "=\"";
+        const std::size_t start = tag.find(key);
+        if (start == std::string::npos) {
+            return std::optional<std::string>();
+        }
+        const std::size_t first = start + key.size();
+        const std::size_t last = tag.find('"', first);
+        return last == std::string::npos
+                   ? std::optional<std::string>()
+                   : std::optional<std::string>(tag.substr(first, last - first));
+    };
+    std::size_t position = 0;
+    while ((position = xml.find("<Item", position)) != std::string::npos) {
+        const std::size_t close = xml.find('>', position);
+        const std::size_t end = xml.find("</Item>", close);
+        if (close == std::string::npos || end == std::string::npos) {
+            break;
+        }
+        const std::string tag = xml.substr(position, close - position);
+        const std::string text = xml.substr(close + 1, end - close - 1);
+        position = end;
+        const auto sample = attribute(tag, "sample");
+        const auto role = attribute(tag, "role");
+        if (!sample || !role || (*role != "scale" && *role != "offset")) {
+            continue;
+        }
+        char* parsed = nullptr;
+        const unsigned long long band = std::strtoull(sample->c_str(), &parsed, 10);
+        if (parsed == sample->c_str() || band >= bands) {
+            continue;
+        }
+        const double value = std::strtod(text.c_str(), &parsed);
+        if (parsed == text.c_str() || !std::isfinite(value)) {
+            continue;
+        }
+        (*role == "scale" ? scaling[band].scale : scaling[band].offset) = value;
+    }
+    return scaling;
 }
 
 GeoTiffInfo ReadGeoTiffInfo(const std::filesystem::path& path) {

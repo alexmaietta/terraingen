@@ -63,6 +63,10 @@ FIXTURES = [
     ("float32_pixel_is_point", np.float32, 1, dict(compress="lzw", area_or_point="Point")),
     ("float32_rotated", np.float32, 1, dict(compress="lzw", transform=ROTATED)),
     ("float32_no_georeferencing", np.float32, 1, dict(crs=None, transform=None)),
+    ("int16_scaled_nodata", np.int16, 1,
+     dict(compress="lzw", nodata=-32768, scales=(0.5,), offsets=(-1000.0,))),
+    ("uint16_three_band_scaled", np.uint16, 3,
+     dict(compress="lzw", scales=(1.0, 0.25, 2.0), offsets=(0.0, 10.0, -5.5))),
 ]
 
 
@@ -70,6 +74,8 @@ def write(path, dtype, bands, options):
     options = dict(options)
     transform = options.pop("transform", NORTH_UP)
     area_or_point = options.pop("area_or_point", None)
+    scales = options.pop("scales", None)
+    offsets = options.pop("offsets", None)
     crs = options.pop("crs", MOON)
     profile = dict(driver="GTiff", width=WIDTH, height=HEIGHT, count=bands, dtype=dtype)
     if transform is not None:
@@ -84,6 +90,9 @@ def write(path, dtype, bands, options):
         with rasterio.open(path, "w", **profile) as dataset:
             if area_or_point:
                 dataset.update_tags(AREA_OR_POINT=area_or_point)
+            if scales:
+                dataset.scales = scales
+                dataset.offsets = offsets
             dataset.write(data)
 
 
@@ -113,6 +122,8 @@ def main():
                 values = dataset.read(band + 1).astype(np.float32).ravel()
                 transform = dataset.transform if dataset.transform != Affine.identity() else None
                 nodata = dataset.nodata
+                scales = dataset.scales
+                offsets = dataset.offsets
             data = ", ".join(f"0x{b:02x}" for b in raw)
             lines += [
                 f"const GdalFixture {name}{{",
@@ -123,7 +134,9 @@ def main():
                  + ", ".join(repr(float(v)) for v in (transform.c, transform.a, transform.b,
                                                        transform.f, transform.d, transform.e))
                  + "}, true," if transform else "    std::array<double, 6>{0, 1, 0, 0, 0, 1}, false,"),
-                f"    {repr(float(nodata)) if nodata is not None else 'std::nullopt'}}};",
+                f"    {repr(float(nodata)) if nodata is not None else 'std::nullopt'},",
+                "    std::vector<double>{" + ", ".join(repr(float(v)) for v in scales) + "},",
+                "    std::vector<double>{" + ", ".join(repr(float(v)) for v in offsets) + "}};",
                 "",
             ]
     names = ", ".join(f"&{name}" for name, *_ in FIXTURES)

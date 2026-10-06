@@ -21,7 +21,8 @@ std::optional<long long> Whole(double value) {
 }  // namespace
 
 GeoTiffSource::GeoTiffSource(std::filesystem::path path, std::size_t band,
-                             std::optional<double> pixelSize, ResampleMethod resampling)
+                             std::optional<double> pixelSize, ResampleMethod resampling,
+                             std::optional<double> scale, std::optional<double> offset)
     : path_(std::move(path)), band_(band), pixelSize_(pixelSize), resampling_(resampling),
       info_(ReadGeoTiffInfo(path_)) {
     if (band_ >= info_.bands) {
@@ -29,6 +30,11 @@ GeoTiffSource::GeoTiffSource(std::filesystem::path path, std::size_t band,
                                     std::to_string(info_.bands) +
                                     (info_.bands == 1 ? " band" : " bands"));
     }
+    if ((scale && !std::isfinite(*scale)) || (offset && !std::isfinite(*offset))) {
+        throw std::invalid_argument("Scale and offset must be finite");
+    }
+    scaling_ = {scale.value_or(info_.bandScaling[band_].scale),
+                offset.value_or(info_.bandScaling[band_].offset)};
     if (info_.geoKeys.IsGeographic()) {
         throw std::invalid_argument(
             "The raster's CRS is geographic (degrees); craters are sized in metres, so reproject "
@@ -61,6 +67,19 @@ Vec2d GeoTiffSource::ReferencePoint() const {
 void GeoTiffSource::Load() const {
     std::call_once(loaded_, [this] {
         GeoTiff tiff = ReadGeoTiff(path_, band_);
+        if (!scaling_.Identity()) {
+            Raster<float>& raster = tiff.raster;
+            constexpr float kMissing = std::numeric_limits<float>::quiet_NaN();
+            for (float& value : raster.Values()) {
+                value = raster.IsNoData(value)
+                            ? kMissing
+                            : static_cast<float>(static_cast<double>(value) * scaling_.scale +
+                                                 scaling_.offset);
+            }
+            if (raster.NoData()) {
+                raster.SetNoData(kMissing);
+            }
+        }
         native_ = std::make_shared<const Raster<float>>(std::move(tiff.raster));
         heights_ = pixelSize_ ? std::make_shared<const Raster<float>>(
                                     Resample(*native_, *pixelSize_, resampling_))

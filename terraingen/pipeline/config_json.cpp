@@ -610,6 +610,8 @@ template <typename IO> void Fields(IO& io, RasterSourceSpec& source) {
     io("band", source.band);
     io("pixel_size", source.pixelSize);
     io("resampling", source.resampling);
+    io("scale", source.scale);
+    io("offset", source.offset);
 }
 
 template <typename IO> void Fields(IO& io, ChainSourceSpec& source) {
