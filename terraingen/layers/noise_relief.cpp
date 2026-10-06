@@ -14,14 +14,10 @@ NoiseRelief::NoiseRelief(SyntheticTerrainParams params, Vec2d origin)
     ValidateSyntheticTerrain(params_);
 }
 
-void NoiseRelief::Apply(Raster<float>& heights, double spacing, TerrainFeatures& features) const {
-    ApplyParallel(heights, spacing, features, 1);
-}
-
-void NoiseRelief::ApplyParallel(Raster<float>& heights, double /*spacing*/,
-                                TerrainFeatures& /*features*/, unsigned threads) const {
+void NoiseRelief::Apply(Raster<float>& heights, const LayerContext& context,
+                        TerrainFeatures& /*features*/) const {
     const Stopwatch stopwatch;
-    ParallelFor(heights.Height(), threads, [&](std::size_t row) {
+    ParallelFor(heights.Height(), context.threads, [&](std::size_t row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
             float& cell = heights(col, row);
             if (heights.IsNoData(cell)) {
@@ -38,7 +34,8 @@ void NoiseRelief::ApplyParallel(Raster<float>& heights, double /*spacing*/,
             "x", heights.Height(), " cells in ", FormatDuration(stopwatch.Milliseconds()));
 }
 
-float NoiseRelief::ApplyAt(float height, double x, double y, double /*spacing*/) const {
+float NoiseRelief::ApplyAt(float height, double x, double y,
+                           const LayerContext& /*context*/) const {
     if (std::isnan(height)) {
         return height;
     }

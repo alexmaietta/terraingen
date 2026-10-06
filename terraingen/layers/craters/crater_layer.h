@@ -45,20 +45,21 @@ class CraterLayer final : public Layer {
     /// @throws std::invalid_argument for a missing model or invalid options.
     CraterLayer(CraterModels models, CraterLayerOptions options);
 
-    void Apply(Raster<float>& heights, double spacing, TerrainFeatures& features) const override;
-
-    void ApplyParallel(Raster<float>& heights, double spacing, TerrainFeatures& features,
-                       unsigned threads) const override;
+    /// Craters with a datum fit it to `context.ground` where given, otherwise to `heights` as
+    /// passed in.
+    void Apply(Raster<float>& heights, const LayerContext& context,
+               TerrainFeatures& features) const override;
 
     /// `dMax` (the density's largest valid diameter when unbounded) or the largest manual crater.
     double MaxFeatureDiameter() const override;
 
     /// The craters reaching (`x`, `y`) added to `height` there, in the order `ApplyCraters` applies
-    /// them, to the same bits as a cell centred there; NaN stays NaN.
-    /// @throws std::invalid_argument if `spacing` is not positive and finite, or the layer has a
-    /// datum (which needs the heights around the point) or `maxCraters` (which depends on the whole
-    /// grid).
-    float ApplyAt(float height, double x, double y, double spacing) const override;
+    /// them, to the same bits as a cell centred there; NaN stays NaN. Datums are fitted to
+    /// `context.ground`.
+    /// @throws std::invalid_argument if `context.spacing` is not positive and finite, the layer
+    /// has a datum and `context.ground` is null, or the layer has `maxCraters` (which depends on
+    /// the whole grid).
+    float ApplyAt(float height, double x, double y, const LayerContext& context) const override;
 
     /// The craters this layer applies to a grid covering `region`: those generated, and the manual
     /// ones, centred in it or within the profile's reach of it. With a positive `spacing`, bands

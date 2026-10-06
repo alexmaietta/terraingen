@@ -37,8 +37,10 @@ EvaluatedTerrain Evaluate(const Terrain& terrain, const RasterGrid& grid,
     const double resolved = std::max(options.spacing, grid.PixelSize());
     EvaluatedTerrain result{grid.MakeRaster(), {}};
     terrain.source->Fill(result.heights);
-    for (const auto& layer : terrain.layers) {
-        layer->ApplyParallel(result.heights, resolved, result.features, options.threads);
+    for (std::size_t n = 0; n < terrain.layers.size(); ++n) {
+        const TerrainGround ground(terrain, n);
+        terrain.layers[n]->Apply(result.heights, LayerContext{resolved, options.threads, &ground},
+                                 result.features);
     }
     for (const auto& filter : terrain.filters) {
         filter->ApplyParallel(result.heights, resolved, result.features, options.threads);
@@ -103,12 +105,28 @@ float EvaluateAt(const Terrain& terrain, double x, double y, double spacing) {
     if (!(std::isfinite(spacing) && spacing > 0.0)) {
         throw std::invalid_argument("Sample spacing must be positive and finite");
     }
-    float height = terrain.source->HeightAt(x, y);
-    for (const auto& layer : terrain.layers) {
-        if (!layer) {
-            throw std::invalid_argument("A terrain's layers must not be null");
-        }
-        height = layer->ApplyAt(height, x, y, spacing);
+    if (std::any_of(terrain.layers.begin(), terrain.layers.end(),
+                    [](const auto& l) { return !l; })) {
+        throw std::invalid_argument("A terrain's layers must not be null");
+    }
+    return TerrainGround(terrain, terrain.layers.size()).HeightAt(x, y, spacing);
+}
+
+TerrainGround::TerrainGround(const Terrain& terrain, std::size_t layers)
+    : terrain_(terrain), layers_(layers) {
+    if (!terrain_.source) {
+        throw std::invalid_argument("A terrain needs a source");
+    }
+    if (layers_ > terrain_.layers.size()) {
+        throw std::invalid_argument("The terrain has fewer layers than the ground asks for");
+    }
+}
+
+float TerrainGround::HeightAt(double x, double y, double spacing) const {
+    float height = terrain_.source->HeightAt(x, y);
+    for (std::size_t n = 0; n < layers_; ++n) {
+        const TerrainGround ground(terrain_, n);
+        height = terrain_.layers[n]->ApplyAt(height, x, y, LayerContext{spacing, 1, &ground});
     }
     return height;
 }

@@ -14,13 +14,11 @@ class NoiseRelief final : public Layer {
     /// @throws std::invalid_argument if `params` are invalid.
     explicit NoiseRelief(SyntheticTerrainParams params, Vec2d origin = {});
 
-    void Apply(Raster<float>& heights, double spacing, TerrainFeatures& features) const override;
-
-    void ApplyParallel(Raster<float>& heights, double spacing, TerrainFeatures& features,
-                       unsigned threads) const override;
+    void Apply(Raster<float>& heights, const LayerContext& context,
+               TerrainFeatures& features) const override;
 
     /// Noise added at (`x`, `y`); NaN stays NaN.
-    float ApplyAt(float height, double x, double y, double spacing) const override;
+    float ApplyAt(float height, double x, double y, const LayerContext& context) const override;
 
     const SyntheticTerrainParams& Params() const {
         return params_;

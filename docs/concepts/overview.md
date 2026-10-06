@@ -61,11 +61,16 @@ Every evaluation takes a sample spacing. Craters, and the rim smoothing around t
 changes continuously between coarse and fine levels of detail instead of popping in or out, and size
 bands too small to resolve at a spacing are not generated at all.
 
+Layers are given the ground beneath them: the source and the layers before them, readable at any
+point (`Ground`, provided by `TerrainGround`). Craters cut to a datum fit it to that ground plus the
+craters before them, on a fixed lattice around each crater, so a crater landing in an earlier bowl sits
+on its floor while the result stays the same on every grid, tile and point.
+
 `EvaluateAt(terrain, x, y, spacing)` evaluates a single point, to the same bits as the grid cell
 centred there, and is safe to call from many threads, as a soil model querying ground heights node by
 node does. Crater cells are kept in a bounded cache (`CraterCellCache`), so neighbouring tiles and
-points generate each cell once. Point queries need additive craters (no datum) and no `max_craters`
-cap, and run the source and layers only, since filters read neighbouring cells.
+points generate each cell once. Point queries cannot use the `max_craters` cap, which ranks craters over a
+whole grid, and run the source and layers only, since filters read neighbouring cells.
 
 ## Tiles and threads
 

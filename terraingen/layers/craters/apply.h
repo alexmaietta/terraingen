@@ -5,7 +5,12 @@
 #include "terraingen/layers/craters/profiles/profile.h"
 #include "terraingen/raster/raster.h"
 
+#include <array>
 #include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <optional>
+#include <unordered_map>
 #include <vector>
 
 namespace terraingen {
@@ -80,8 +85,9 @@ struct CraterApplyOptions {
     CraterOrder order = CraterOrder::OldestFirst;
     /// How craters too small to resolve at the sample spacing fade out.
     ResolutionFade fade{};
-    /// Reference surface for the interior; with `None` craters are purely additive and the
-    /// settings below are unused.
+    /// Reference surface for the interior, fitted to the ground beneath the craters (see
+    /// `FitCraterDatum`); with `None` craters are purely additive and the settings below are
+    /// unused.
     CraterDatum datum = CraterDatum::None;
     /// Footprint the datum is fitted over, in crater radii.
     double datumFitRadii = 1.0;
@@ -98,24 +104,102 @@ struct CraterApplyOptions {
 /// `endRadii`.
 void ValidateCraterApplyOptions(const CraterApplyOptions& options);
 
+/// Heights of the ground beneath a layer at world positions, NaN where there is none; must be safe
+/// to call from several threads at once.
+using HeightSampler = std::function<float(double x, double y)>;
+
+/// The datum `options` asks for under `crater`, fitted to `ground`: its height at the centre
+/// (`CentreHeight`), or the mean (`MeanHeight`) or least-squares plane (`Plane`) of its heights at
+/// the points of a 7 x 7 lattice spanning the footprint of `datumFitRadii` radii that lie inside
+/// it. The lattice depends only on the crater, so the datum is the same on every grid, tile and
+/// level of detail. Nothing for `None`, or where the ground has no data.
+std::optional<std::array<double, 3>> FitCraterDatum(const Crater& crater,
+                                                    const CraterApplyOptions& options,
+                                                    const HeightSampler& ground);
+
+/// The craters of a list in the order they are applied, each with its resolution weight and
+/// degradation state, indexed by position so that the relief of the craters applied before any one
+/// of them can be summed at a point quickly. Craters are bucketed by size band, each band in square
+/// buckets twice its largest reach, so a point reads only the nine buckets around it per band.
+class CraterInfluence {
+  public:
+    /// One crater with its weight at the evaluation's spacing and its state.
+    struct Entry {
+        Crater crater;
+        double resolution = 1.0;
+        CraterState state;
+    };
+
+    /// `entries` in the order they are applied; `profile` must outlive the index.
+    CraterInfluence(std::vector<Entry> entries, const CraterProfile& profile);
+
+    /// The sum of `resolution` times the profile height at (`x`, `y`) of the entries before entry
+    /// `k` that reach it, in a fixed order that does not depend on which other craters the list
+    /// holds, so lists sharing the craters near a point give the same bits there.
+    double ReliefBefore(double x, double y, std::size_t k) const;
+
+    const std::vector<Entry>& Entries() const {
+        return entries_;
+    }
+
+  private:
+    struct Key {
+        int band;
+        std::int64_t i;
+        std::int64_t j;
+        bool operator==(const Key&) const = default;
+    };
+    struct KeyHash {
+        std::size_t operator()(const Key& key) const;
+    };
+
+    std::vector<Entry> entries_;
+    const CraterProfile& profile_;
+    std::vector<int> bands_;
+    std::unordered_map<Key, std::vector<std::size_t>, KeyHash> buckets_;
+};
+
+/// The height datums are fitted to under entry `k` of `influence`: `ground` plus the relief of the
+/// craters applied before it, as if those were added without their own datums. A crater landing in
+/// an earlier crater's bowl is thus cut relative to the bowl, while its datum still depends only on
+/// the ground and the craters near it, so it is the same on every grid, tile and point.
+HeightSampler DatumGround(const HeightSampler& ground, const CraterInfluence& influence,
+                          std::size_t k);
+
+/// The distance beyond a grid, in world units, within which craters with a datum can change it
+/// through their datum fit: the fit footprint plus the profile's reach, for craters up to
+/// `maxDiameter`. Craters for a grid or point should be generated this far around it.
+double DatumMargin(const CraterApplyOptions& options, const CraterProfile& profile,
+                   double maxDiameter);
+
+/// `height` at (`x`, `y`) after `crater` in `state`, with weight `resolution` and `datum` (from
+/// `FitCraterDatum`): what `ApplyCraters` does to one cell, shared with point queries so both give
+/// the same bits.
+float ApplyCraterTo(float height, double x, double y, const Crater& crater,
+                    const CraterState& state, double resolution,
+                    const std::optional<std::array<double, 3>>& datum, const CraterProfile& profile,
+                    const CraterApplyOptions& options);
+
 /// Applies `craters` to `raster`, whose `GeoTransform` maps pixels to the craters' surface
 /// coordinates, shaping each crater with `profile` in the state `degradation` gives it.
 ///
 /// Craters are applied in turn. Without a datum, each crater's profile is added to the terrain.
-/// With a datum, the datum is fitted to the terrain within `datumFitRadii` of the centre, and the
-/// terrain inside the crater is replaced by the datum plus the profile, weighted by
-/// `interiorReplacement` times `CraterBlendWeight`; beyond the blend the profile is added. A plane
-/// datum follows regional slopes, the approach of Martin, Parkes and Dunstan (2014), DLES terrain
-/// crafting (Foreman et al. 2025) and Furlong et al. (2019). Cells holding the raster's no-data
-/// value are left unchanged and excluded from the fit.
+/// With a datum, the datum is fitted (`FitCraterDatum`) to the ground beneath the craters (`ground`
+/// when given, otherwise `raster` as passed in, interpolated bilinearly) plus the relief of the
+/// craters before it (`DatumGround`). The terrain inside the crater is replaced by the datum plus
+/// the profile, weighted by `interiorReplacement` times `CraterBlendWeight`; beyond the blend the
+/// profile is added. Craters off the raster still count toward the datums of craters on it, so
+/// callers pass the craters within `DatumMargin` of the raster. A plane datum follows regional
+/// slopes, the approach of Martin, Parkes and Dunstan (2014), DLES terrain crafting (Foreman et al.
+/// 2025) and Furlong et al. (2019). Cells holding the raster's no-data value are left unchanged and
+/// excluded from the fit.
 ///
 /// Each crater's change is weighted by `ResolutionWeight(diameter, spacing, fade)`, so craters too
 /// small to resolve at the sample `spacing` (world units; 0 means the raster's cell size, and a
-/// finer spacing is raised to it) fade out. Without a datum every cell depends only on the craters
-/// reaching it, so a tile of a larger raster gets the same cells as the larger raster.
-///
-/// Craters overlapping the raster edge are fitted to the cells available, so with a datum a crater
-/// near the edge of one raster can differ slightly from the same crater in a larger raster.
+/// finer spacing is raised to it) fade out. Every cell depends only on the craters reaching it and
+/// their datums, so with a `ground` that covers the footprints a tile of a larger raster gets the
+/// same cells as the larger raster; without one, footprints beyond the raster's edge are fitted to
+/// the cells available.
 ///
 /// References:
 /// - S. Martin, S. Parkes and M. Dunstan, "Modeling cratered surfaces with real and synthetic
@@ -127,21 +211,19 @@ void ValidateCraterApplyOptions(const CraterApplyOptions& options);
 /// - P. M. Furlong, U. Wong, M. Allan et al., "Planetary Rover Simulation for Lunar Exploration
 ///   Missions", IEEE Aerospace Conference, 2019. https://doi.org/10.1109/AERO.2019.8741780
 ///
-/// Without a datum, rows are split over up to `threads` threads (0 for every hardware thread), each
-/// applying the craters in the same order, so the result does not depend on `threads`; with a
-/// datum, craters read the cells around them as earlier craters left them, so they run on one
-/// thread.
+/// Datums are fitted and rows applied over up to `threads` threads (0 for every hardware thread),
+/// each applying the craters in the same order, so the result does not depend on `threads`.
 ///
 /// @throws std::invalid_argument for invalid `options` or a negative or non-finite `spacing`.
 /// @throws std::domain_error if the raster's transform is not invertible.
 void ApplyCraters(Raster<float>& raster, const CraterList& craters, const CraterProfile& profile,
                   const DegradationModel& degradation, const CraterApplyOptions& options = {},
-                  double spacing = 0.0, unsigned threads = 1);
+                  double spacing = 0.0, unsigned threads = 1, const HeightSampler& ground = {});
 
 /// `ApplyCraters` with every crater fresh (`NoDegradation`).
 void ApplyCraters(Raster<float>& raster, const CraterList& craters, const CraterProfile& profile,
                   const CraterApplyOptions& options = {}, double spacing = 0.0,
-                  unsigned threads = 1);
+                  unsigned threads = 1, const HeightSampler& ground = {});
 
 /// The order `ApplyCraters` applies `craters` in under `order`, as indices into `craters`.
 std::vector<std::size_t> CraterApplyOrder(const CraterList& craters, CraterOrder order);

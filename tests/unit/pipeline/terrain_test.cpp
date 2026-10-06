@@ -203,8 +203,9 @@ namespace {
 /// A layer with only `Apply`, so `ApplyAt` is the default one-cell evaluation.
 class Bump final : public terraingen::Layer {
   public:
-    void Apply(terraingen::Raster<float>& heights, double spacing,
+    void Apply(terraingen::Raster<float>& heights, const terraingen::LayerContext& context,
                terraingen::TerrainFeatures& /*features*/) const override {
+        const double spacing = context.spacing;
         for (std::size_t row = 0; row < heights.Height(); ++row) {
             for (std::size_t col = 0; col < heights.Width(); ++col) {
                 const auto centre = heights.CellCenter(col, row);
@@ -218,8 +219,8 @@ class Bump final : public terraingen::Layer {
 
 TEST(Layer, DefaultApplyAtEvaluatesOneCellCentredOnThePoint) {
     const Bump bump;
-    EXPECT_EQ(bump.ApplyAt(1.0f, 4.0, -2.0, 3.0), 1.0f + 2.0f - 2.0f + 3.0f);
-    EXPECT_THROW(bump.ApplyAt(0.0f, 0.0, 0.0, 0.0), std::invalid_argument);
+    EXPECT_EQ(bump.ApplyAt(1.0f, 4.0, -2.0, {3.0}), 1.0f + 2.0f - 2.0f + 3.0f);
+    EXPECT_THROW(bump.ApplyAt(0.0f, 0.0, 0.0, {0.0}), std::invalid_argument);
 }
 
 namespace {
@@ -315,4 +316,76 @@ TEST(Layer, DefaultsRunApplyAndPlaceNoFeatures) {
         Evaluate(terrain, terrain.source->Grid(), terraingen::EvaluationOptions{0.0, 4});
     ExpectSameHeights(parallel.heights, Evaluate(terrain).heights);
     EXPECT_EQ(Bump().MaxFeatureDiameter(), 0.0);
+}
+
+namespace {
+
+/// Rolling noise then craters cut to a plane datum fitted to the ground.
+Terrain Datum(terraingen::CraterDatum datum = terraingen::CraterDatum::Plane) {
+    Terrain terrain = Rolling();
+    terraingen::CraterLayerOptions options;
+    options.generation.dMin = 6.0;
+    options.generation.dMax = 50.0;
+    options.apply.datum = datum;
+    terrain.layers.back() = std::make_shared<terraingen::CraterLayer>(
+        terraingen::CraterModels{std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
+                                 std::make_shared<terraingen::UniformAges>(1.0),
+                                 std::make_shared<terraingen::NoDegradation>(),
+                                 std::make_shared<terraingen::FassettThomsonProfile>()},
+        options);
+    return terrain;
+}
+
+}  // namespace
+
+TEST(EvaluateAt, EqualsGridsForCratersCutToADatum) {
+    for (const auto datum :
+         {terraingen::CraterDatum::Plane, terraingen::CraterDatum::CentreHeight}) {
+        const Terrain terrain = Datum(datum);
+        const auto grid = Evaluate(terrain);
+        for (std::size_t row = 1; row < grid.heights.Height(); row += 5) {
+            for (std::size_t col = 2; col < grid.heights.Width(); col += 5) {
+                const auto centre = grid.heights.CellCenter(col, row);
+                ASSERT_EQ(terraingen::EvaluateAt(terrain, centre.x, centre.y, 2.0),
+                          grid.heights(col, row))
+                    << col << "," << row;
+            }
+        }
+    }
+}
+
+TEST(EvaluateTile, CratersCutToADatumEqualALargerGrid) {
+    const Terrain terrain = Datum();
+    const terraingen::TileScheme scheme{{-96.0, 64.0}, 128.0, 16};
+    const RasterGrid large{120, 100, GeoTransform::NorthUp(-120.0, 100.0, 2.0)};
+    const auto whole = Evaluate(terrain, large, terraingen::EvaluationOptions{0.0, 4});
+    ExpectSameHeights(whole.heights,
+                      Evaluate(terrain, large, terraingen::EvaluationOptions{0.0, 1}).heights);
+    for (const terraingen::TileKey key :
+         {terraingen::TileKey{2, 1, 1}, terraingen::TileKey{2, 0, 0}}) {
+        const auto tile = terraingen::EvaluateTile(terrain, scheme, key);
+        const RasterGrid grid = scheme.Grid(key);
+        const auto offset =
+            large.transform.WorldToPixel(grid.transform.originX, grid.transform.originY);
+        for (std::size_t row = 0; row < grid.height; ++row) {
+            for (std::size_t col = 0; col < grid.width; ++col) {
+                ASSERT_EQ(tile.heights(col, row),
+                          whole.heights(static_cast<std::size_t>(offset.x) + col,
+                                        static_cast<std::size_t>(offset.y) + row));
+            }
+        }
+    }
+}
+
+TEST(TerrainGround, IsTheSourceAndTheLayersBeneath) {
+    const Terrain terrain = Datum();
+    const terraingen::TerrainGround source(terrain, 0);
+    const terraingen::TerrainGround noise(terrain, 1);
+    const terraingen::TerrainGround all(terrain, 2);
+    EXPECT_EQ(source.HeightAt(3.0, 4.0, 2.0), 5.0f);
+    EXPECT_EQ(noise.HeightAt(3.0, 4.0, 2.0), terrain.layers[0]->ApplyAt(5.0f, 3.0, 4.0, {2.0}));
+    EXPECT_EQ(all.HeightAt(3.0, 4.0, 2.0), terraingen::EvaluateAt(terrain, 3.0, 4.0, 2.0));
+    EXPECT_EQ(noise.Sampler(2.0)(3.0, 4.0), noise.HeightAt(3.0, 4.0, 2.0));
+    EXPECT_THROW(terraingen::TerrainGround(terrain, 3), std::invalid_argument);
+    EXPECT_THROW(terraingen::TerrainGround(Terrain{}, 0), std::invalid_argument);
 }

@@ -45,7 +45,7 @@ TEST(CraterLayer, GeneratesAndAppliesCratersOverTheGrid) {
     const CraterLayer layer(Models(), Options());
     Raster<float> heights = Grid();
     TerrainFeatures features;
-    layer.Apply(heights, 2.0, features);
+    layer.Apply(heights, {2.0}, features);
 
     const CraterModels models = Models();
     const CraterList craters = terraingen::GenerateCraters(
@@ -66,7 +66,7 @@ TEST(CraterLayer, AppendsToTheFeaturesOfEarlierLayers) {
     TerrainFeatures features;
     features.craters.Append({1000.0, 1000.0, 10.0, 0.0, 99u});
     Raster<float> heights = Grid();
-    layer.Apply(heights, 2.0, features);
+    layer.Apply(heights, {2.0}, features);
     EXPECT_EQ(features.craters.At(0).id, 99u);
     EXPECT_GT(features.craters.Size(), 1u);
 }
@@ -83,7 +83,7 @@ TEST(CraterLayer, AppliesOnlyManualCratersWithoutGenerating) {
     EXPECT_EQ(craters.At(0).id, terraingen::ManualCraterId(0.0, 0.0, 30.0));
     Raster<float> heights = Grid();
     TerrainFeatures features;
-    layer.Apply(heights, 2.0, features);
+    layer.Apply(heights, {2.0}, features);
     EXPECT_LT(heights(32, 32), -1.0f);
 }
 
@@ -95,7 +95,7 @@ TEST(CraterLayer, FadesCratersOutAsTheSpacingCoarsens) {
     TerrainFeatures features;
     const auto floor = [&](double spacing) {
         Raster<float> heights = Grid();
-        layer.Apply(heights, spacing, features);
+        layer.Apply(heights, {spacing}, features);
         return heights(32, 32);
     };
     const float whole = floor(2.0);
@@ -122,18 +122,19 @@ TEST(CraterLayer, RejectsMissingModelsAndInvalidOptions) {
     EXPECT_EQ(layer.Options().generation.marginRadii, layer.Models().profile->ReachRadii());
 }
 
-TEST(CraterLayer, PointQueriesNeedAdditiveUncappedCraters) {
+TEST(CraterLayer, PointQueriesNeedTheGroundForDatumsAndNoCap) {
     CraterLayerOptions options = Options();
     options.apply.datum = terraingen::CraterDatum::Plane;
-    EXPECT_THROW(CraterLayer(Models(), options).ApplyAt(0.0f, 0.0, 0.0, 2.0),
-                 std::invalid_argument);
+    EXPECT_THROW(CraterLayer(Models(), options).ApplyAt(0.0f, 0.0, 0.0, {2.0}),
+                 std::invalid_argument)
+        << "a datum needs the ground beneath the layer";
     options = Options();
     options.generation.maxCraters = 5;
-    EXPECT_THROW(CraterLayer(Models(), options).ApplyAt(0.0f, 0.0, 0.0, 2.0),
+    EXPECT_THROW(CraterLayer(Models(), options).ApplyAt(0.0f, 0.0, 0.0, {2.0}),
                  std::invalid_argument);
     const CraterLayer layer(Models(), Options());
-    EXPECT_THROW(layer.ApplyAt(0.0f, 0.0, 0.0, 0.0), std::invalid_argument);
-    EXPECT_TRUE(std::isnan(layer.ApplyAt(std::nanf(""), 0.0, 0.0, 2.0)));
+    EXPECT_THROW(layer.ApplyAt(0.0f, 0.0, 0.0, {0.0}), std::invalid_argument);
+    EXPECT_TRUE(std::isnan(layer.ApplyAt(std::nanf(""), 0.0, 0.0, {2.0})));
 }
 
 TEST(CraterLayer, CachesCellsAndWorksWithoutACache) {
@@ -147,7 +148,7 @@ TEST(CraterLayer, CachesCellsAndWorksWithoutACache) {
     EXPECT_EQ(cached.Craters(region).Ids(), uncached.Craters(region).Ids());
     EXPECT_GT(cached.Cache()->Size(), 0u);
     EXPECT_EQ(cached.Craters(region).Ids(), uncached.Craters(region).Ids());
-    EXPECT_EQ(cached.ApplyAt(1.0f, 3.0, -7.0, 2.0), uncached.ApplyAt(1.0f, 3.0, -7.0, 2.0));
+    EXPECT_EQ(cached.ApplyAt(1.0f, 3.0, -7.0, {2.0}), uncached.ApplyAt(1.0f, 3.0, -7.0, {2.0}));
 }
 
 TEST(CraterLayer, ReportsItsLargestCrater) {

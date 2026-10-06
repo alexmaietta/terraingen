@@ -388,3 +388,58 @@ TEST(ApplyCraters, GivesTheSameBitsOnAnyNumberOfThreads) {
         }
     }
 }
+
+TEST(FitCraterDatum, FitsTheGroundOnALatticeAroundTheCrater) {
+    const terraingen::HeightSampler slope = [](double x, double y) {
+        return static_cast<float>(10.0 + 0.5 * x - 0.25 * y);
+    };
+    const terraingen::Crater crater{100.0, -40.0, 20.0, 0.0, 1u};
+    terraingen::CraterApplyOptions options;
+    options.datum = terraingen::CraterDatum::Plane;
+    const auto plane = terraingen::FitCraterDatum(crater, options, slope);
+    ASSERT_TRUE(plane.has_value());
+    EXPECT_NEAR((*plane)[0], 10.0 + 50.0 + 10.0, 1e-4) << "height under the centre";
+    EXPECT_NEAR((*plane)[1], 0.5, 1e-6);
+    EXPECT_NEAR((*plane)[2], -0.25, 1e-6);
+    options.datum = terraingen::CraterDatum::MeanHeight;
+    EXPECT_NEAR((*terraingen::FitCraterDatum(crater, options, slope))[0], 70.0, 1e-4);
+    options.datum = terraingen::CraterDatum::CentreHeight;
+    EXPECT_FLOAT_EQ(static_cast<float>((*terraingen::FitCraterDatum(crater, options, slope))[0]),
+                    70.0f);
+    const terraingen::HeightSampler none = [](double, double) { return std::nanf(""); };
+    EXPECT_FALSE(terraingen::FitCraterDatum(crater, options, none).has_value());
+    options.datum = terraingen::CraterDatum::Plane;
+    EXPECT_FALSE(terraingen::FitCraterDatum(crater, options, none).has_value());
+    options.datum = terraingen::CraterDatum::None;
+    EXPECT_FALSE(terraingen::FitCraterDatum(crater, options, slope).has_value());
+}
+
+TEST(CraterInfluence, SumsEarlierCratersReachingAPointWhateverElseTheListHolds) {
+    const FassettThomsonProfile profile;
+    const terraingen::CraterState fresh = terraingen::NoDegradation().State({0, 0, 10, 0, 1});
+    std::vector<terraingen::CraterInfluence::Entry> near{{{0.0, 0.0, 10.0, 0.0, 1u}, 1.0, fresh},
+                                                         {{3.0, 1.0, 6.0, 0.0, 2u}, 0.5, fresh},
+                                                         {{1.0, -2.0, 8.0, 0.0, 3u}, 1.0, fresh}};
+    const terraingen::CraterInfluence small(near, profile);
+    EXPECT_EQ(small.ReliefBefore(1.0, 0.5, 0), 0.0);
+    const double first = small.ReliefBefore(1.0, 0.5, 1);
+    EXPECT_DOUBLE_EQ(first, profile.Height(std::hypot(1.0, 0.5), 10.0, fresh));
+    const double two = small.ReliefBefore(1.0, 0.5, 2);
+    EXPECT_DOUBLE_EQ(two, first + 0.5 * profile.Height(std::hypot(2.0, 0.5), 6.0, fresh));
+    std::vector<terraingen::CraterInfluence::Entry> more = near;
+    more.insert(more.begin() + 1, {{500.0, 500.0, 40.0, 0.0, 9u}, 1.0, fresh});
+    more.push_back({{-300.0, 0.0, 12.0, 0.0, 10u}, 1.0, fresh});
+    const terraingen::CraterInfluence large(more, profile);
+    EXPECT_EQ(large.ReliefBefore(1.0, 0.5, 4), small.ReliefBefore(1.0, 0.5, 3));
+    EXPECT_EQ(large.Entries().size(), 5u);
+}
+
+TEST(DatumMargin, CoversTheFitFootprintAndReachOfTheLargestCrater) {
+    const FassettThomsonProfile profile;
+    EXPECT_EQ(terraingen::DatumMargin({}, profile, 100.0), 0.0);
+    terraingen::CraterApplyOptions options;
+    options.datum = terraingen::CraterDatum::Plane;
+    options.datumFitRadii = 1.5;
+    EXPECT_DOUBLE_EQ(terraingen::DatumMargin(options, profile, 100.0),
+                     (1.5 + profile.ReachRadii()) * 50.0);
+}

@@ -38,6 +38,24 @@ void BM_EvaluateAtWarm(benchmark::State& state) {
 }
 BENCHMARK(BM_EvaluateAtWarm)->ThreadRange(1, 8)->UseRealTime();
 
+/// Warm point queries of craters cut to a plane datum: each crater reaching a point fits its datum
+/// to the ground and the craters before it on a 7 x 7 lattice.
+void BM_EvaluateAtDatum(benchmark::State& state) {
+    static const Terrain terrain = LunarMare(4096.0, 1.0, 200.0, 4000000, CraterDatum::Plane);
+    std::vector<Vec2d> points = Patch(0.0, 0.0);
+    points.resize(400);
+    for (const Vec2d& point : points) {
+        EvaluateAt(terrain, point.x, point.y, 0.25);
+    }
+    for (auto _ : state) {
+        for (const Vec2d& point : points) {
+            benchmark::DoNotOptimize(EvaluateAt(terrain, point.x, point.y, 0.25));
+        }
+    }
+    state.SetItemsProcessed(state.iterations() * static_cast<std::int64_t>(points.size()));
+}
+BENCHMARK(BM_EvaluateAtDatum);
+
 /// Queries with no cell cache, so every point regenerates the cells around it, over the first 64
 /// points of a patch.
 void BM_EvaluateAtUncached(benchmark::State& state) {

@@ -11,7 +11,8 @@ namespace terraingen::benchmarks {
 /// source of `pixelSize` cells centred on the origin. `cacheCraters` sizes the crater cell cache (0
 /// for none).
 inline Terrain LunarMare(double size, double pixelSize, double maxDiameter = 200.0,
-                         std::size_t cacheCraters = 4000000) {
+                         std::size_t cacheCraters = 4000000,
+                         CraterDatum datum = CraterDatum::None) {
     Terrain terrain;
     const auto cells = static_cast<std::size_t>(size / pixelSize);
     terrain.source = std::make_shared<FlatSource>(cells, cells, pixelSize);
@@ -24,6 +25,7 @@ inline Terrain LunarMare(double size, double pixelSize, double maxDiameter = 200
     options.generation.dMin = 2.5;
     options.generation.dMax = maxDiameter;
     options.cacheCraters = cacheCraters;
+    options.apply.datum = datum;
     terrain.layers.push_back(std::make_shared<CraterLayer>(
         CraterModels{surface.density, surface.ages,
                      std::make_shared<FreshnessDegradation>(surface.ages),

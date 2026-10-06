@@ -7,6 +7,7 @@
 #include "terraingen/raster/raster.h"
 #include "terraingen/sources/source.h"
 
+#include <cstddef>
 #include <memory>
 #include <vector>
 
@@ -29,6 +30,21 @@ struct EvaluationOptions {
     /// Threads to split each layer and filter over; 0 for every hardware thread. The result does
     /// not depend on it.
     unsigned threads = 0;
+};
+
+/// The ground beneath layer `layers` of `terrain`: its source and its first `layers` layers,
+/// evaluated at single points with `ApplyAt`. `Evaluate` and `EvaluateAt` give each layer the
+/// ground beneath it. `terrain` must outlive it.
+class TerrainGround final : public Ground {
+  public:
+    /// @throws std::invalid_argument if `terrain` has no source or fewer than `layers` layers.
+    TerrainGround(const Terrain& terrain, std::size_t layers);
+
+    float HeightAt(double x, double y, double spacing) const override;
+
+  private:
+    const Terrain& terrain_;
+    std::size_t layers_;
 };
 
 /// Heights over a grid and the features the layers placed there.

@@ -220,12 +220,20 @@ TEST(GenerateTerrain, MatchesComposingTheLibraryCalls) {
     const auto models = BuildCraterModels(Craters(config));
     CraterList manual;
     manual.Append({4.0, -3.0, 40.0, 0.0, terraingen::ManualCraterId(4.0, -3.0, 40.0), true});
-    const CraterList craters = terraingen::GenerateCraters(
-        terraingen::PlanarCells(), terraingen::DescribeSource(config.source).Bounds(),
-        *models.density, *models.ages, 1u,
-        {.dMin = 8.0, .dMax = 60.0, .marginRadii = 1.5, .manual = manual});
-    terraingen::ApplyCraters(expected, craters, *models.profile, *models.degradation,
-                             Craters(config).apply);
+    const auto bounds = terraingen::DescribeSource(config.source).Bounds();
+    const auto generate = [&](const terraingen::Bounds2d& region) {
+        return terraingen::GenerateCraters(
+            terraingen::PlanarCells(), region, *models.density, *models.ages, 1u,
+            {.dMin = 8.0, .dMax = 60.0, .marginRadii = 1.5, .manual = manual});
+    };
+    const CraterList craters = generate(bounds);
+    const double margin = terraingen::DatumMargin(Craters(config).apply, *models.profile, 60.0);
+    const terraingen::NoiseRelief noise(Noise(config).Params());
+    const terraingen::HeightSampler ground = [&](double x, double y) {
+        return noise.ApplyAt(0.0f, x, y, {2.0});
+    };
+    terraingen::ApplyCraters(expected, generate(bounds.Expanded(margin)), *models.profile,
+                             *models.degradation, Craters(config).apply, 2.0, 1, ground);
     terraingen::SmoothCraterRims(expected, craters, {.sigmaRadii = 0.05});
     EXPECT_EQ(terrain.features.craters.Ids(), craters.Ids());
     ASSERT_EQ(terrain.heights.Size(), expected.Size());

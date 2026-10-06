@@ -29,7 +29,7 @@ TEST(NoiseRelief, AddsTheSyntheticTerrainAtTheOrigin) {
     Raster<float> heights(24, 16, 10.0f);
     heights.SetTransform(GeoTransform::NorthUp(-24.0, 16.0, 2.0));
     TerrainFeatures features;
-    NoiseRelief(Params()).Apply(heights, 2.0, features);
+    NoiseRelief(Params()).Apply(heights, {2.0}, features);
     Raster<float> expected(24, 16);
     expected.SetTransform(heights.Transform());
     terraingen::FillSyntheticTerrain(expected, Params());
@@ -46,7 +46,7 @@ TEST(NoiseRelief, MeasuresPositionsFromItsOriginAndSkipsNoData) {
     heights(1, 2) = std::numeric_limits<float>::quiet_NaN();
     TerrainFeatures features;
     const SyntheticTerrainParams params = Params();
-    NoiseRelief({params}, {500000.0, 4000000.0}).Apply(heights, 1.0, features);
+    NoiseRelief({params}, {500000.0, 4000000.0}).Apply(heights, {1.0}, features);
     EXPECT_TRUE(std::isnan(heights(1, 2)));
     const auto centre = heights.CellCenter(3, 1);
     EXPECT_EQ(heights(3, 1),
@@ -67,8 +67,9 @@ TEST(NoiseRelief, PointQueriesMatchCellsAndKeepNoData) {
     heights.SetTransform(GeoTransform::NorthUp(-8.0, 8.0, 2.0));
     TerrainFeatures features;
     const NoiseRelief relief(Params(), {1.0, -2.0});
-    relief.Apply(heights, 2.0, features);
+    relief.Apply(heights, {2.0}, features);
     const auto centre = heights.CellCenter(5, 2);
-    EXPECT_EQ(relief.ApplyAt(3.0f, centre.x, centre.y, 2.0), heights(5, 2));
-    EXPECT_TRUE(std::isnan(relief.ApplyAt(std::numeric_limits<float>::quiet_NaN(), 0.0, 0.0, 2.0)));
+    EXPECT_EQ(relief.ApplyAt(3.0f, centre.x, centre.y, {2.0}), heights(5, 2));
+    EXPECT_TRUE(
+        std::isnan(relief.ApplyAt(std::numeric_limits<float>::quiet_NaN(), 0.0, 0.0, {2.0})));
 }
