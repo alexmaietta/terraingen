@@ -1,5 +1,6 @@
 #pragma once
 
+#include "terraingen/bodies/moon/rocks.h"
 #include "terraingen/bodies/moon/specifications.h"
 #include "terraingen/distribution/piecewise_power_law.h"
 #include "terraingen/filters/rim_smoothing.h"
@@ -190,11 +191,37 @@ struct CraterLayerSpec {
     bool operator==(const CraterLayerSpec&) const = default;
 };
 
+/// Rock size distributions, named in JSON by their "type"; "power_law", "piecewise_power_law" and
+/// "tabulated" are also accepted, as for crater densities.
+struct GolombekRappRocksSpec {  ///< "golombek_rapp": the layer's coverage, qa and qb.
+    bool operator==(const GolombekRappRocksSpec&) const = default;
+};
+struct Sp8023IntercraterRocksSpec {  ///< "sp8023_intercrater": `Sp8023IntercraterBlocks(curve)`.
+    RockModelCurve curve = RockModelCurve::Nominal;
+    bool operator==(const Sp8023IntercraterRocksSpec&) const = default;
+};
+struct Sp8023CraterRocksSpec {  ///< "sp8023_crater": `Sp8023CraterBlocks(curve)`.
+    RockModelCurve curve = RockModelCurve::Nominal;
+    bool operator==(const Sp8023CraterRocksSpec&) const = default;
+};
+struct SynthterrainRocksSpec {  ///< "synthterrain": `SynthterrainRockDistribution(model)`.
+    SynthterrainRocks model = SynthterrainRocks::InterCrater;
+    bool operator==(const SynthterrainRocksSpec&) const = default;
+};
+using RockSizesSpec =
+    std::variant<GolombekRappRocksSpec, Sp8023IntercraterRocksSpec, Sp8023CraterRocksSpec,
+                 SynthterrainRocksSpec, PowerLawSpec, PiecewisePowerLawSpec, TabulatedSpec>;
+
 /// "rocks": rocks scattered over the terrain (`RockLayer`). Ejecta come from the nearest crater
-/// layer before this one, which must exist when `rocks.ejecta.minCraterDiameter` is positive.
-/// `rocks.cacheRocks` is not part of the configuration.
+/// layer before this one, which must exist when crater blocks are enabled. `sizes` and
+/// `ejectaSizes` give `rocks.distribution` and `rocks.ejecta.distribution`; with `extrapolate`,
+/// tables may be evaluated beyond their published diameters. `rocks.cacheRocks` is not part of the
+/// configuration.
 struct RockLayerSpec {
     RockLayerOptions rocks{};
+    RockSizesSpec sizes{};
+    RockSizesSpec ejectaSizes{};
+    bool extrapolate = false;
 
     bool operator==(const RockLayerSpec&) const = default;
 };

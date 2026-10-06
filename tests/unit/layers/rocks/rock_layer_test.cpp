@@ -105,40 +105,115 @@ TEST(RockLayer, GivesTheSameRocksInEveryRegionAndSkipsOnlyUnresolvedOnes) {
     EXPECT_LT(coarse.size(), whole.size());
 }
 
-TEST(RockLayer, RaisesTheCoverToTheRimsOfFreshCraters) {
+TEST(RockLayer, AddsBlocksAroundFreshCraters) {
     RockLayerOptions options;
-    options.ejecta = {0.15, 50.0, 3.0, 0.7};
-    const RockLayer layer(options, Craters({{0.0, 0.0, 100.0, 0.0, 0u}}));
-    EXPECT_DOUBLE_EQ(layer.CoverageAt(50.0, 0.0), 0.15) << "at the rim";
-    EXPECT_DOUBLE_EQ(layer.CoverageAt(10.0, 5.0), 0.15) << "on the floor";
-    const double halfway = layer.CoverageAt(100.0, 0.0);
-    EXPECT_GT(halfway, 0.02);
-    EXPECT_LT(halfway, 0.15);
-    EXPECT_DOUBLE_EQ(layer.CoverageAt(160.0, 0.0), 0.02) << "beyond 3 radii";
+    options.ejecta.minCraterDiameter = 50.0;
+    options.ejecta.coverage = 0.15;
+    const auto craters = Craters({{0.0, 0.0, 100.0, 0.0, 0u}});
+    const RockLayer layer(options, craters);
+    EXPECT_EQ(layer.AbundanceAt(50.0, 0.0).ejecta, 1.0) << "at the rim";
+    EXPECT_EQ(layer.AbundanceAt(10.0, 5.0).ejecta, 1.0) << "on the floor";
+    const double halfway = layer.AbundanceAt(100.0, 0.0).ejecta;
+    EXPECT_GT(halfway, 0.0);
+    EXPECT_LT(halfway, 1.0);
+    EXPECT_EQ(layer.AbundanceAt(160.0, 0.0).ejecta, 0.0) << "beyond 3 radii";
+    EXPECT_EQ(layer.AbundanceAt(160.0, 0.0).background, 1.0);
+    EXPECT_DOUBLE_EQ(layer.DensityAt(1.0, 50.0, 0.0),
+                     terraingen::GolombekRappSfd(0.02).Incremental(1.0) +
+                         terraingen::GolombekRappSfd(0.15).Incremental(1.0))
+        << "crater blocks add to the rocks between craters";
     const auto nearRim = layer.Rocks({40.0, -10.0, 60.0, 10.0});
     const auto far = layer.Rocks({300.0, -10.0, 320.0, 10.0});
     EXPECT_GT(nearRim.size(), 3 * far.size());
     EXPECT_THROW(RockLayer{options}, std::invalid_argument) << "ejecta need craters";
 
     options.ejecta.minCraterDiameter = 200.0;
-    EXPECT_DOUBLE_EQ(
-        RockLayer(options, Craters({{0.0, 0.0, 100.0, 0.0, 0u}})).CoverageAt(50.0, 0.0), 0.02)
+    EXPECT_EQ(RockLayer(options, craters).AbundanceAt(50.0, 0.0).ejecta, 0.0)
         << "smaller craters did not dig to rock";
+    options.ejecta.minCraterDiameter = 0.0;
+    options.ejecta.regolithThickness = 8.0;
+    EXPECT_EQ(options.ejecta.MinCraterDiameter(), 80.0) << "excavating a tenth of the diameter";
+    EXPECT_EQ(RockLayer(options, craters).AbundanceAt(50.0, 0.0).ejecta, 1.0);
+    options.ejecta.regolithThickness = 15.0;
+    EXPECT_EQ(RockLayer(options, craters).AbundanceAt(50.0, 0.0).ejecta, 0.0);
 }
 
-TEST(RockLayer, RaisesTheCoverWhereBedrockShows) {
+TEST(RockLayer, ShapesAndAgesCraterBlocksLikeSynthterrainWhenAsked) {
+    RockLayerOptions options;
+    options.ejecta.minCraterDiameter = 50.0;
+    options.ejecta.profile = terraingen::EjectaProfile::Exponential;
+    options.ejecta.reach = 2.0;
+    options.ejecta.aging = terraingen::EjectaAging::Age;
+    const RockLayer fresh(options, Craters({{0.0, 0.0, 100.0, 0.0, 0u}}));
+    EXPECT_DOUBLE_EQ(fresh.AbundanceAt(55.0, 0.0).ejecta, std::exp(-0.1 / 0.7));
+    EXPECT_DOUBLE_EQ(fresh.AbundanceAt(10.0, 0.0).ejecta, 0.05) << "the floor's share";
+    EXPECT_EQ(fresh.AbundanceAt(101.0, 0.0).ejecta, 0.0) << "beyond 2 radii";
+    const RockLayer old(options, Craters({{0.0, 0.0, 100.0, 2.0, 0u}}));
+    EXPECT_DOUBLE_EQ(old.AbundanceAt(55.0, 0.0).ejecta, 0.125 * std::exp(-0.1 / 0.7))
+        << "(1 - 2 / 4)^3 at 2 Gyr";
+    const RockLayer gone(options, Craters({{0.0, 0.0, 100.0, 5.0, 0u}}));
+    EXPECT_EQ(gone.AbundanceAt(55.0, 0.0).ejecta, 0.0);
+}
+
+TEST(RockLayer, LimitsCraterBlocksToHowFarTheyAreThrownOverRegolith) {
+    EXPECT_NEAR(terraingen::BoulderThrowDistance(2200.0, 4.0, 1.62), 7500.0, 100.0)
+        << "Linne: about 7.5 km over 4 m of regolith (Pajola et al. 2019)";
+    EXPECT_THROW(terraingen::BoulderThrowDistance(0.0, 4.0, 1.62), std::invalid_argument);
+    EXPECT_THROW(terraingen::BoulderThrowDistance(10.0, 4.0, -1.0), std::invalid_argument);
+    RockLayerOptions options;
+    options.ejecta.regolithThickness = 60.0;
+    options.ejecta.excavationDepthRatio = 1.0;
+    const auto craters = Craters({{0.0, 0.0, 100.0, 0.0, 0u}});
+    EXPECT_GT(RockLayer(options, craters).AbundanceAt(130.0, 0.0).ejecta, 0.0);
+    options.ejecta.gravity = 1.62;
+    const double thrown = terraingen::BoulderThrowDistance(100.0, 60.0, 1.62);
+    ASSERT_LT(thrown, 130.0);
+    EXPECT_EQ(RockLayer(options, craters).AbundanceAt(130.0, 0.0).ejecta, 0.0);
+    EXPECT_GT(RockLayer(options, craters).AbundanceAt(thrown - 5.0, 0.0).ejecta, 0.0);
+}
+
+TEST(RockLayer, DrawsRocksAndCraterBlocksFromAnyDistribution) {
+    RockLayerOptions options;
+    options.distribution =
+        terraingen::SynthterrainRockDistribution(terraingen::SynthterrainRocks::ViperSpecification);
+    options.minDiameter = 1.0;
+    options.maxDiameter = 8.0;
+    options.ejecta.minCraterDiameter = 50.0;
+    options.ejecta.distribution =
+        terraingen::Sp8023CraterBlocks(terraingen::RockModelCurve::Nominal);
+    const RockLayer layer(options, Craters({{0.0, 0.0, 100.0, 0.0, 0u}}));
+    EXPECT_DOUBLE_EQ(layer.DensityAt(2.0, 400.0, 0.0), options.distribution->Incremental(2.0));
+    EXPECT_DOUBLE_EQ(layer.DensityAt(2.0, 50.0, 0.0),
+                     options.distribution->Incremental(2.0) +
+                         options.ejecta.distribution->Incremental(2.0));
+    const auto rocks = layer.Rocks({-100.0, -100.0, 100.0, 100.0});
+    ASSERT_FALSE(rocks.empty());
+    for (const Rock& rock : rocks) {
+        EXPECT_GE(rock.diameter, 1.0);
+        EXPECT_LT(rock.diameter, 8.0);
+    }
+    options.minDiameter = 0.1;
+    EXPECT_THROW(RockLayer(options, Craters({})), std::invalid_argument)
+        << "the crater table starts at 0.85 m";
+    auto extrapolated = terraingen::Sp8023CraterBlocks(terraingen::RockModelCurve::Nominal);
+    extrapolated->SetAllowExtrapolation(true);
+    options.ejecta.distribution = extrapolated;
+    EXPECT_NO_THROW(RockLayer(options, Craters({})));
+}
+
+TEST(RockLayer, RaisesTheAbundanceWhereBedrockShows) {
     RockLayerOptions options;
     options.patches.spread = 3.0;
     options.patches.size = 1e6;
+    options.coverage = 0.01;
     options.exposure = terraingen::ExposureParams{};
     const RockLayer layer(options);
     const Analytic steep([](double x, double) { return static_cast<float>(0.8 * x); });
     const Analytic level([](double, double) { return 0.0f; });
-    const double soil = layer.CoverageAt(100.0, 0.0, &level);
-    const double bedrock = layer.CoverageAt(100.0, 0.0, &steep);
-    EXPECT_GT(bedrock, soil);
-    EXPECT_NEAR(bedrock, soil + 0.5 * (0.06 - soil), 1e-12) << "halfway toward the richest cover";
-    EXPECT_THROW(layer.CoverageAt(0.0, 0.0), std::invalid_argument);
+    const double soil = layer.AbundanceAt(100.0, 0.0, &level).background;
+    const double bedrock = layer.AbundanceAt(100.0, 0.0, &steep).background;
+    EXPECT_NEAR(bedrock, 3.0 * soil, 1e-12) << "bedrockAbundance times as many";
+    EXPECT_THROW(layer.AbundanceAt(0.0, 0.0), std::invalid_argument);
     EXPECT_THROW(layer.Rocks({0.0, 0.0, 1.0, 1.0}), std::invalid_argument);
 }
 
@@ -200,7 +275,33 @@ TEST(RockLayer, LeavesHeightsAloneWithoutReliefAndRejectsBadOptions) {
         [](RockLayerOptions& o) { o.maxDiameter = 0.05; },
         [](RockLayerOptions& o) { o.patches.spread = 0.5; },
         [](RockLayerOptions& o) { o.patches.spread = 60.0; },
-        [](RockLayerOptions& o) { o.ejecta = {2.0, 10.0, 3.0, 0.7}; },
+        [](RockLayerOptions& o) {
+            o.ejecta.minCraterDiameter = 10.0;
+            o.ejecta.coverage = 2.0;
+        },
+        [](RockLayerOptions& o) {
+            o.ejecta.minCraterDiameter = 10.0;
+            o.ejecta.floorShare = 2.0;
+        },
+        [](RockLayerOptions& o) {
+            o.ejecta.minCraterDiameter = 10.0;
+            o.ejecta.lifetimeGyr = 0.0;
+        },
+        [](RockLayerOptions& o) {
+            o.ejecta.minCraterDiameter = 10.0;
+            o.ejecta.gravity = 0.0;
+        },
+        [](RockLayerOptions& o) { o.ejecta.regolithThickness = -1.0; },
+        [](RockLayerOptions& o) { o.ejecta.excavationDepthRatio = 0.0; },
+        [](RockLayerOptions& o) { o.bedrockAbundance = 0.0; },
+        [](RockLayerOptions& o) {
+            o.exposure = terraingen::ExposureParams{};
+            o.coverage = 0.4;
+        },
+        [](RockLayerOptions& o) {
+            o.distribution = std::make_shared<terraingen::PowerLawSfd>(
+                1.0, 2.0, terraingen::SfdKind::ProductionRate);
+        },
         [](RockLayerOptions& o) { o.ejecta.minCraterDiameter = -1.0; },
         [](RockLayerOptions& o) { o.exposureSpacing = 0.0; },
         [](RockLayerOptions& o) { o.exposure = terraingen::ExposureParams{.reach = 0.0}; },

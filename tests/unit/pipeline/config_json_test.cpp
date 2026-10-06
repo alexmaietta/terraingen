@@ -74,8 +74,21 @@ TerrainConfig Everything() {
                    .maxDiameter = 6.0,
                    .seed = 17,
                    .patches = {2.0, 80.0},
-                   .ejecta = {0.2, 10.0, 2.5, 0.5},
+                   .ejecta = {.minCraterDiameter = 10.0,
+                              .regolithThickness = 3.0,
+                              .excavationDepthRatio = 0.12,
+                              .coverage = 0.2,
+                              .profile = terraingen::EjectaProfile::Exponential,
+                              .reach = 2.5,
+                              .decayRadii = 0.6,
+                              .floorShare = 0.1,
+                              .aging = terraingen::EjectaAging::Age,
+                              .minFreshness = 0.5,
+                              .lifetimeGyr = 3.0,
+                              .agingExponent = 2.0,
+                              .gravity = 1.62},
                    .exposure = terraingen::ExposureParams{8.0, 0.02, 0.05, 0.1, 0.5, 0.3, 40.0, 5},
+                   .bedrockAbundance = 2.5,
                    .exposureSpacing = 0.5,
                    .minHeightRatio = 0.3,
                    .maxHeightRatio = 0.7,
@@ -84,6 +97,15 @@ TerrainConfig Everything() {
                    .maxLean = 0.1,
                    .relief = terraingen::RockRelief::None,
                    .fade = {1.0, 3.0, terraingen::BlendShape::Linear}};
+    rocks.sizes = terraingen::Sp8023IntercraterRocksSpec{terraingen::RockModelCurve::Maximum};
+    rocks.ejectaSizes = terraingen::Sp8023CraterRocksSpec{terraingen::RockModelCurve::Minimum};
+    rocks.extrapolate = true;
+    terraingen::RockLayerSpec synthterrain;
+    synthterrain.sizes =
+        terraingen::SynthterrainRocksSpec{terraingen::SynthterrainRocks::ViperSpecification};
+    terraingen::RockLayerSpec table;
+    table.sizes = terraingen::TabulatedSpec{{0.1, 1.0}, {1.0, 0.001}};
+    table.ejectaSizes = terraingen::PowerLawSpec{0.001, 3.0};
     const terraingen::RoughnessLayerSpec roughness{{.rmsSlope = 0.3,
                                                     .baseline = 0.05,
                                                     .hurst = 0.6,
@@ -97,6 +119,8 @@ TerrainConfig Everything() {
         CraterLayerSpec{},
         rocks,
         terraingen::RockLayerSpec{},
+        synthterrain,
+        table,
         roughness,
         terraingen::RoughnessLayerSpec{},
         terraingen::ScaleLayerSpec{1.5, -20.0},

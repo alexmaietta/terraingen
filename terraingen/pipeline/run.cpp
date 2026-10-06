@@ -231,11 +231,49 @@ void ValidateCraters(const CraterLayerSpec& craters, const RasterGrid& grid,
     }
 }
 
+/// The distribution `spec` names, or null for the layer's Golombek-Rapp rocks.
+std::shared_ptr<SizeFrequencyDistribution> BuildRockSizes(const RockSizesSpec& spec) {
+    using Result = std::shared_ptr<SizeFrequencyDistribution>;
+    const auto density = [](const DensitySpec& named) {
+        return std::const_pointer_cast<SizeFrequencyDistribution>(BuildDensity(named));
+    };
+    return std::visit(
+        Overloaded{
+            [](const GolombekRappRocksSpec&) -> Result { return nullptr; },
+            [](const Sp8023IntercraterRocksSpec& s) -> Result {
+                return Sp8023IntercraterBlocks(s.curve);
+            },
+            [](const Sp8023CraterRocksSpec& s) -> Result { return Sp8023CraterBlocks(s.curve); },
+            [](const SynthterrainRocksSpec& s) -> Result {
+                return SynthterrainRockDistribution(s.model);
+            },
+            [&](const PowerLawSpec& s) -> Result { return density(s); },
+            [&](const PiecewisePowerLawSpec& s) -> Result { return density(s); },
+            [&](const TabulatedSpec& s) -> Result { return density(s); },
+        },
+        spec);
+}
+
+/// The options `spec` describes, with its size distributions built.
+RockLayerOptions BuildRockOptions(const RockLayerSpec& spec, const std::string& path) {
+    RockLayerOptions options = spec.rocks;
+    const auto sizes = [&](const RockSizesSpec& named, const std::string& key) {
+        auto built = At(path + "." + key, [&] { return BuildRockSizes(named); });
+        if (built && spec.extrapolate) {
+            built->SetAllowExtrapolation(true);
+        }
+        return built;
+    };
+    options.distribution = sizes(spec.sizes, "sizes");
+    options.ejecta.distribution = sizes(spec.ejectaSizes, "ejecta_sizes");
+    return options;
+}
+
 void ValidateRocks(const RockLayerSpec& spec, bool craters, const RasterGrid& grid,
                    const std::string& path) {
-    const RockLayerOptions& rocks = spec.rocks;
+    const RockLayerOptions rocks = BuildRockOptions(spec, path);
     At(path, [&] { ValidateRockLayerOptions(rocks); });
-    if (rocks.ejecta.minCraterDiameter > 0.0 && !craters) {
+    if (rocks.ejecta.MinCraterDiameter() > 0.0 && !craters) {
         throw ConfigError(path + ".ejecta.min_crater_diameter",
                           "ejecta need a crater layer before this one");
     }
@@ -244,8 +282,8 @@ void ValidateRocks(const RockLayerSpec& spec, bool craters, const RasterGrid& gr
     if (minDiameter >= rocks.maxDiameter) {
         return;
     }
-    const GolombekRappSfd candidates(RockCandidateCoverage(rocks), rocks.qa, rocks.qb);
-    const double expected = candidates.ExpectedCount(grid.Area(), minDiameter, rocks.maxDiameter);
+    const double expected =
+        RockCandidates(rocks)->ExpectedCount(grid.Area(), minDiameter, rocks.maxDiameter);
     const double limit = CraterGenerationOptions{}.maxExpectedCraters;
     if (expected > limit) {
         throw ConfigError(path + ".min_diameter",
@@ -320,8 +358,9 @@ std::shared_ptr<const Layer> BuildLayer(const LayerSpec& spec, const Source& sou
         return std::make_shared<RoughnessLayer>(roughness->roughness);
     }
     if (const auto* rocks = std::get_if<RockLayerSpec>(&spec)) {
-        return std::make_shared<RockLayer>(
-            rocks->rocks, rocks->rocks.ejecta.minCraterDiameter > 0.0 ? ejecta : nullptr);
+        RockLayerOptions options = BuildRockOptions(*rocks, "rocks");
+        const bool throws = options.ejecta.MinCraterDiameter() > 0.0;
+        return std::make_shared<RockLayer>(std::move(options), throws ? ejecta : nullptr);
     }
     const auto& craters = std::get<CraterLayerSpec>(spec);
     CraterLayerOptions options;

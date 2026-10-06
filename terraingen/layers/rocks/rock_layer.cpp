@@ -1,5 +1,6 @@
 #include "terraingen/layers/rocks/rock_layer.h"
 
+#include "terraingen/distribution/summed.h"
 #include "terraingen/layers/craters/ages/fresh.h"
 #include "terraingen/noise/kernels/perlin.h"
 #include "terraingen/noise/kernels/philox.h"
@@ -12,6 +13,7 @@
 #include <limits>
 #include <numbers>
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 namespace terraingen {
@@ -23,7 +25,7 @@ constexpr std::uint32_t kRockAttributes = 0x41545452u;
 constexpr std::uint32_t kRockPatches = 0x50415443u;
 
 /// Golombek-Rapp rocks per m^2 per metre of diameter at `diameter` for coverage `k`.
-double Density(double diameter, double k, double qa, double qb) {
+double GolombekRappDensity(double diameter, double k, double qa, double qb) {
     const double q = qa + qb / k;
     return k * q * std::exp(-q * diameter) / (std::numbers::pi * diameter * diameter / 4.0);
 }
@@ -71,12 +73,57 @@ Window WindowAround(const Raster<float>& raster, double x, double y, double reac
             clampTo(std::ceil(rowMax), raster.Height())};
 }
 
+/// Whether `distribution` may be evaluated from `low` to `high` metres.
+bool Covers(const SizeFrequencyDistribution& distribution, double low, double high) {
+    return distribution.AllowsExtrapolation() ||
+           (distribution.ValidRange().min <= low && distribution.ValidRange().max >= high);
+}
+
+/// The largest background abundance: the richest patches on bedrock.
+double MaxBackground(const RockLayerOptions& options) {
+    return options.patches.spread *
+           (options.exposure ? std::fmax(1.0, options.bedrockAbundance) : 1.0);
+}
+
+/// The sizes of the crater blocks at full share.
+std::shared_ptr<const SizeFrequencyDistribution> EjectaSizes(const RockLayerOptions& options) {
+    const RockEjecta& ejecta = options.ejecta;
+    if (ejecta.distribution) {
+        return ejecta.distribution;
+    }
+    return std::make_shared<GolombekRappSfd>(ejecta.coverage, options.qa, options.qb);
+}
+
+void CheckSizes(const SizeFrequencyDistribution& distribution, const RockLayerOptions& options,
+                const char* what) {
+    if (distribution.Kind() != SfdKind::Density) {
+        throw std::invalid_argument(std::string(what) + " must be a density, not a rate");
+    }
+    if (!Covers(distribution, options.minDiameter, options.maxDiameter)) {
+        throw std::invalid_argument(std::string(what) +
+                                    " must be valid from minDiameter to maxDiameter, or allow "
+                                    "extrapolation");
+    }
+}
+
 }  // namespace
 
-void ValidateRockLayerOptions(const RockLayerOptions& options) {
-    if (!(options.coverage > 0.0 && options.coverage < 1.0)) {
-        throw std::invalid_argument("Rock coverage must be between 0 and 1");
+double RockEjecta::MinCraterDiameter() const {
+    const double excavated = regolithThickness ? *regolithThickness / excavationDepthRatio : 0.0;
+    return std::fmax(minCraterDiameter, excavated);
+}
+
+double BoulderThrowDistance(double craterDiameter, double regolithThickness, double gravity) {
+    for (const double value : {craterDiameter, regolithThickness, gravity}) {
+        if (!(std::isfinite(value) && value > 0.0)) {
+            throw std::invalid_argument(
+                "Crater diameter, regolith thickness and gravity must be positive and finite");
+        }
     }
+    return 138.5 / gravity * std::pow(craterDiameter / regolithThickness, 0.7086);
+}
+
+void ValidateRockLayerOptions(const RockLayerOptions& options) {
     if (!(std::isfinite(options.minDiameter) && options.minDiameter > 0.0 &&
           std::isfinite(options.maxDiameter) && options.maxDiameter > options.minDiameter)) {
         throw std::invalid_argument("Rock diameters must satisfy 0 < minDiameter < maxDiameter");
@@ -85,18 +132,54 @@ void ValidateRockLayerOptions(const RockLayerOptions& options) {
           std::isfinite(options.patches.size) && options.patches.size > 0.0)) {
         throw std::invalid_argument("Rock patches need spread >= 1 and a positive size");
     }
+    if (!(std::isfinite(options.bedrockAbundance) && options.bedrockAbundance > 0.0)) {
+        throw std::invalid_argument("Rock bedrockAbundance must be positive and finite");
+    }
+    if (options.distribution) {
+        CheckSizes(*options.distribution, options, "The rock distribution");
+    } else {
+        if (!(options.coverage > 0.0 && options.coverage < 1.0)) {
+            throw std::invalid_argument("Rock coverage must be between 0 and 1");
+        }
+        if (options.coverage * MaxBackground(options) >= 1.0) {
+            throw std::invalid_argument(
+                "Rock coverage times the patch spread and bedrock abundance must stay below 1");
+        }
+    }
     const RockEjecta& ejecta = options.ejecta;
     if (!(std::isfinite(ejecta.minCraterDiameter) && ejecta.minCraterDiameter >= 0.0)) {
         throw std::invalid_argument("Rock ejecta minCraterDiameter must not be negative");
     }
-    if (ejecta.minCraterDiameter > 0.0 &&
-        !(ejecta.coverage > 0.0 && ejecta.coverage < 1.0 && std::isfinite(ejecta.reach) &&
-          ejecta.reach > 1.0 && ejecta.minFreshness >= 0.0 && ejecta.minFreshness < 1.0)) {
-        throw std::invalid_argument("Rock ejecta need a coverage in (0, 1), a reach over 1 radius "
-                                    "and minFreshness in [0, 1)");
+    if (ejecta.regolithThickness &&
+        !(std::isfinite(*ejecta.regolithThickness) && *ejecta.regolithThickness > 0.0)) {
+        throw std::invalid_argument("Rock ejecta regolithThickness must be positive");
     }
-    if (options.coverage * options.patches.spread >= 1.0) {
-        throw std::invalid_argument("Rock coverage times the patch spread must stay below 1");
+    if (!(ejecta.excavationDepthRatio > 0.0 && ejecta.excavationDepthRatio <= 1.0)) {
+        throw std::invalid_argument("Rock ejecta excavationDepthRatio must be in (0, 1]");
+    }
+    if (ejecta.MinCraterDiameter() > 0.0) {
+        if (ejecta.distribution) {
+            CheckSizes(*ejecta.distribution, options, "The rock ejecta distribution");
+        } else if (!(ejecta.coverage > 0.0 && ejecta.coverage < 1.0)) {
+            throw std::invalid_argument("Rock ejecta coverage must be between 0 and 1");
+        }
+        if (!(std::isfinite(ejecta.reach) && ejecta.reach > 1.0)) {
+            throw std::invalid_argument("Rock ejecta need a reach over 1 radius");
+        }
+        if (!(std::isfinite(ejecta.decayRadii) && ejecta.decayRadii > 0.0 &&
+              ejecta.floorShare >= 0.0 && ejecta.floorShare <= 1.0)) {
+            throw std::invalid_argument(
+                "Rock ejecta need a positive decayRadii and a floorShare in [0, 1]");
+        }
+        if (!(ejecta.minFreshness >= 0.0 && ejecta.minFreshness < 1.0 &&
+              std::isfinite(ejecta.lifetimeGyr) && ejecta.lifetimeGyr > 0.0 &&
+              std::isfinite(ejecta.agingExponent) && ejecta.agingExponent >= 0.0)) {
+            throw std::invalid_argument("Rock ejecta need minFreshness in [0, 1), a positive "
+                                        "lifetimeGyr and a non-negative agingExponent");
+        }
+        if (ejecta.gravity && !(std::isfinite(*ejecta.gravity) && *ejecta.gravity > 0.0)) {
+            throw std::invalid_argument("Rock ejecta gravity must be positive");
+        }
     }
     if (options.exposure) {
         ValidateExposureParams(*options.exposure);
@@ -118,20 +201,31 @@ void ValidateRockLayerOptions(const RockLayerOptions& options) {
     ValidateResolutionFade(options.fade);
 }
 
-double RockCandidateCoverage(const RockLayerOptions& options) {
-    const double patches = options.coverage * options.patches.spread;
-    return options.ejecta.minCraterDiameter > 0.0 ? std::max(patches, options.ejecta.coverage)
-                                                  : patches;
+std::shared_ptr<const SizeFrequencyDistribution> RockCandidates(const RockLayerOptions& options) {
+    ValidateRockLayerOptions(options);
+    const double richest = MaxBackground(options);
+    std::vector<WeightedSfd> terms;
+    if (options.distribution) {
+        terms.push_back({richest, options.distribution});
+    } else {
+        terms.push_back({1.0, std::make_shared<GolombekRappSfd>(options.coverage * richest,
+                                                                options.qa, options.qb)});
+    }
+    if (options.ejecta.MinCraterDiameter() > 0.0) {
+        terms.push_back({1.0, EjectaSizes(options)});
+    }
+    return std::make_shared<SummedSfd>(std::move(terms));
 }
 
 RockLayer::RockLayer(RockLayerOptions options, std::shared_ptr<const CraterLayer> craters)
     : options_(std::move(options)), craters_(std::move(craters)) {
-    ValidateRockLayerOptions(options_);
-    if (options_.ejecta.minCraterDiameter > 0.0 && !craters_) {
+    candidates_ = RockCandidates(options_);
+    minCraterDiameter_ = options_.ejecta.MinCraterDiameter();
+    if (minCraterDiameter_ > 0.0 && !craters_) {
         throw std::invalid_argument("Rock ejecta need the crater layer whose craters throw them");
     }
-    maxCoverage_ = RockCandidateCoverage(options_);
-    candidates_ = std::make_shared<GolombekRappSfd>(maxCoverage_, options_.qa, options_.qb);
+    maxBackground_ = MaxBackground(options_);
+    ejectaSizes_ = minCraterDiameter_ > 0.0 ? EjectaSizes(options_) : nullptr;
     if (options_.cacheRocks > 0) {
         cache_ = std::make_shared<CraterCellCache>(options_.cacheRocks);
     }
@@ -141,25 +235,24 @@ RockLayer::RockLayer(RockLayerOptions options, std::shared_ptr<const CraterLayer
 }
 
 CraterList RockLayer::EjectaCraters(const Bounds2d& region) const {
-    if (options_.ejecta.minCraterDiameter <= 0.0) {
+    if (minCraterDiameter_ <= 0.0) {
         return {};
     }
     const double margin = options_.ejecta.reach * 0.5 * craters_->MaxFeatureDiameter();
-    const double spacing =
-        options_.ejecta.minCraterDiameter / craters_->Options().apply.fade.startSamples;
+    const double spacing = minCraterDiameter_ / craters_->Options().apply.fade.startSamples;
     const CraterList all = craters_->Craters(region.Expanded(margin), spacing);
     CraterList large;
     for (std::size_t n = 0; n < all.Size(); ++n) {
-        if (all.At(n).diameter >= options_.ejecta.minCraterDiameter) {
+        if (all.At(n).diameter >= minCraterDiameter_) {
             large.Append(all.At(n));
         }
     }
     return large;
 }
 
-double RockLayer::Coverage(double x, double y, const Ground* ground,
-                           const CraterList& ejecta) const {
-    double k = options_.coverage;
+RockAbundance RockLayer::Abundance(double x, double y, const Ground* ground,
+                                   const CraterList& ejecta) const {
+    RockAbundance abundance;
     const RockPatches& patches = options_.patches;
     if (patches.spread > 1.0) {
         const auto px = static_cast<float>(x / patches.size);
@@ -169,48 +262,79 @@ double RockLayer::Coverage(double x, double y, const Ground* ground,
             2.5 * (0.7 * static_cast<double>(PerlinNoise2(px, py, seed)) +
                    0.3 * static_cast<double>(PerlinNoise2(4.0f * px, 4.0f * py, seed + 1u))),
             -1.0, 1.0);
-        k *= std::pow(patches.spread, noise);
+        abundance.background = std::pow(patches.spread, noise);
     }
-    const double richest = maxCoverage_;
     if (exposure_) {
         if (ground == nullptr) {
             throw std::invalid_argument("Rocks that read the exposure field need the ground");
         }
         const double bedrock = exposure_->Exposure(*ground, x, y, options_.exposureSpacing);
-        k += 0.5 * bedrock * (richest - k);
+        abundance.background *= 1.0 + bedrock * (options_.bedrockAbundance - 1.0);
     }
+    abundance.background = std::min(abundance.background, maxBackground_);
     const RockEjecta& eject = options_.ejecta;
-    if (!ejecta.Empty()) {
-        const DegradationModel& degradation = *craters_->Models().degradation;
-        double boost = 0.0;
-        for (std::size_t n = 0; n < ejecta.Size(); ++n) {
-            const Crater crater = ejecta.At(n);
-            const double radius = 0.5 * crater.diameter;
-            const double rho = std::hypot(x - crater.x, y - crater.y) / radius;
-            if (rho >= eject.reach) {
-                continue;
-            }
+    if (ejecta.Empty()) {
+        return abundance;
+    }
+    const DegradationModel& degradation = *craters_->Models().degradation;
+    for (std::size_t n = 0; n < ejecta.Size(); ++n) {
+        const Crater crater = ejecta.At(n);
+        const double radius = 0.5 * crater.diameter;
+        double reach = eject.reach;
+        if (eject.gravity && eject.regolithThickness) {
+            reach = std::fmin(reach, std::fmax(1.0, BoulderThrowDistance(crater.diameter,
+                                                                         *eject.regolithThickness,
+                                                                         *eject.gravity) /
+                                                        radius));
+        }
+        const double rho = std::hypot(x - crater.x, y - crater.y) / radius;
+        if (rho >= reach) {
+            continue;
+        }
+        double radial = 1.0;
+        if (eject.profile == EjectaProfile::Smoothstep) {
+            radial = rho <= 1.0 ? 1.0 : Smoothstep((reach - rho) / (reach - 1.0));
+        } else {
+            radial = rho <= 1.0 ? eject.floorShare : std::exp(-(rho - 1.0) / eject.decayRadii);
+        }
+        if (radial <= abundance.ejecta) {
+            continue;
+        }
+        double kept = 1.0;
+        if (eject.aging == EjectaAging::Freshness) {
             const CraterState state = degradation.State(crater);
             const double freshness = state.fresh.depthRatio > 0.0
                                          ? state.current.depthRatio / state.fresh.depthRatio
                                          : 0.0;
-            const double fresh =
-                Smoothstep((freshness - eject.minFreshness) / (1.0 - eject.minFreshness));
-            const double nearRim =
-                rho <= 1.0 ? 1.0 : Smoothstep((eject.reach - rho) / (eject.reach - 1.0));
-            boost = std::max(boost, fresh * nearRim);
+            kept = Smoothstep((freshness - eject.minFreshness) / (1.0 - eject.minFreshness));
+        } else {
+            kept = std::pow(std::fmax(0.0, 1.0 - crater.ageGyr / eject.lifetimeGyr),
+                            eject.agingExponent);
         }
-        if (eject.coverage > k) {
-            k += boost * (eject.coverage - k);
-        }
+        abundance.ejecta = std::fmax(abundance.ejecta, kept * radial);
     }
-    return std::min(k, maxCoverage_);
+    return abundance;
 }
 
-double RockLayer::CoverageAt(double x, double y, const Ground* ground) const {
+RockAbundance RockLayer::AbundanceAt(double x, double y, const Ground* ground) const {
     constexpr double kInf = std::numeric_limits<double>::infinity();
-    return Coverage(x, y, ground,
-                    EjectaCraters({x, y, std::nextafter(x, kInf), std::nextafter(y, kInf)}));
+    return Abundance(x, y, ground,
+                     EjectaCraters({x, y, std::nextafter(x, kInf), std::nextafter(y, kInf)}));
+}
+
+double RockLayer::Density(double diameter, const RockAbundance& abundance) const {
+    double density = options_.distribution
+                         ? abundance.background * options_.distribution->Incremental(diameter)
+                         : GolombekRappDensity(diameter, options_.coverage * abundance.background,
+                                               options_.qa, options_.qb);
+    if (abundance.ejecta > 0.0) {
+        density += abundance.ejecta * ejectaSizes_->Incremental(diameter);
+    }
+    return density;
+}
+
+double RockLayer::DensityAt(double diameter, double x, double y, const Ground* ground) const {
+    return Density(diameter, AbundanceAt(x, y, ground));
 }
 
 std::vector<Rock> RockLayer::Rocks(const Bounds2d& region, double spacing,
@@ -242,9 +366,9 @@ std::vector<Rock> RockLayer::Rocks(const Bounds2d& region, double spacing,
         const auto low = static_cast<std::uint32_t>(candidate.id);
         const auto high = static_cast<std::uint32_t>(candidate.id >> 32);
         const U32x4 draw = Philox4x32({low, high, kRockAttributes, 0u}, {options_.seed, kRockSeed});
-        const double k = Coverage(candidate.x, candidate.y, ground, ejecta);
-        const double keep = Density(candidate.diameter, k, options_.qa, options_.qb) /
-                            Density(candidate.diameter, maxCoverage_, options_.qa, options_.qb);
+        const RockAbundance abundance = Abundance(candidate.x, candidate.y, ground, ejecta);
+        const double keep =
+            Density(candidate.diameter, abundance) / candidates_->Incremental(candidate.diameter);
         if (Uniform(draw.x, draw.y) >= keep) {
             continue;
         }

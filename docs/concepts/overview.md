@@ -70,11 +70,13 @@ point (`Ground`, provided by `TerrainGround`). Craters cut to a datum fit it to 
 craters before them, on a fixed lattice around each crater, so a crater landing in an earlier bowl sits
 on its floor while the result stays the same on every grid, tile and point.
 
-Rocks follow the Golombek and Rapp (1997) size distribution from a coverage k that varies in patches,
-rises toward the rims of fresh craters (their ejecta, from a crater layer before the rocks) and rises
-where bedrock shows (`ExposureField`, read from how far the ground stands above its surroundings and
-how steep it is). Each rock is recorded with its size, height, burial and tilt in
-`TerrainFeatures::rocks`, and drawn into the heights as a dome, or left out of them
+Rocks between craters follow the Golombek and Rapp (1997) size distribution or any other one, such as the
+Surveyor-based block models of NASA SP-8023 (`Sp8023IntercraterBlocks`) or synthterrain's power laws.
+Their abundance varies in patches and rises where bedrock shows (`ExposureField`, read from how far the
+ground stands above its surroundings and how steep it is). Fresh craters that dug through the regolith
+add blocks of their own (`RockEjecta`, sized by `Sp8023CraterBlocks` or Golombek and Rapp), densest at
+the rim, falling off outward and wearing away with age. Each rock is recorded with its size, height,
+burial and tilt in `TerrainFeatures::rocks`, and drawn into the heights as a dome, or left out of them
 (`RockRelief::None`) for programs that place each rock as a body or mesh of its own.
 
 Fine roughness is given as planetary surveys measure it (Shepard et al. 2001): an RMS slope over a

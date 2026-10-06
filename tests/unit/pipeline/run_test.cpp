@@ -261,6 +261,36 @@ TEST(GenerateTerrain, AppliesTransformsAndRegionsAsTheLibraryDoes) {
               0.0f);
 }
 
+TEST(GenerateTerrain, DrawsRocksFromEachKindOfSizeDistribution) {
+    TerrainConfig config = Small();
+    Flat(config).pixelSize = 0.5;
+    terraingen::RockLayerSpec rocks;
+    rocks.rocks.minDiameter = 0.5;
+    rocks.rocks.ejecta.minCraterDiameter = 8.0;
+    rocks.rocks.ejecta.minFreshness = 0.0;
+    rocks.sizes = terraingen::Sp8023IntercraterRocksSpec{terraingen::RockModelCurve::Maximum};
+    rocks.ejectaSizes = terraingen::Sp8023CraterRocksSpec{};
+    config.layers.push_back(rocks);
+    EXPECT_EQ(ErrorPath([&](TerrainConfig& c) { c.layers = config.layers; }), "layers[2]")
+        << "the crater table starts at 0.85 m";
+    rocks.extrapolate = true;
+    config.layers.back() = rocks;
+    const auto generated = GenerateTerrain(config);
+    EXPECT_FALSE(generated.features.rocks.empty());
+    for (const terraingen::RockSizesSpec& sizes :
+         {terraingen::RockSizesSpec{terraingen::SynthterrainRocksSpec{}},
+          terraingen::RockSizesSpec{terraingen::PowerLawSpec{0.001, 2.5}},
+          terraingen::RockSizesSpec{terraingen::PiecewisePowerLawSpec{{{0.5, 0.001, 2.5}}}},
+          terraingen::RockSizesSpec{terraingen::TabulatedSpec{{0.5, 10.0}, {0.01, 1e-5}}}}) {
+        rocks.sizes = sizes;
+        config.layers.back() = rocks;
+        EXPECT_NO_THROW(GenerateTerrain(config));
+    }
+    rocks.sizes = terraingen::TabulatedSpec{{1.0}, {0.01}};
+    config.layers.back() = rocks;
+    EXPECT_EQ(ErrorPath([&](TerrainConfig& c) { c.layers = config.layers; }), "layers[2].sizes");
+}
+
 TEST(GenerateTerrain, AddsRocksWithEjectaFromTheLastCraterLayerBeforeThem) {
     TerrainConfig config = Small();
     Flat(config).pixelSize = 0.5;
@@ -268,7 +298,9 @@ TEST(GenerateTerrain, AddsRocksWithEjectaFromTheLastCraterLayerBeforeThem) {
     terraingen::RockLayerSpec rocks;
     rocks.rocks.minDiameter = 0.5;
     rocks.rocks.coverage = 0.03;
-    rocks.rocks.ejecta = {0.2, 8.0, 3.0, 0.0};
+    rocks.rocks.ejecta.coverage = 0.2;
+    rocks.rocks.ejecta.minCraterDiameter = 8.0;
+    rocks.rocks.ejecta.minFreshness = 0.0;
     rocks.rocks.exposure = terraingen::ExposureParams{};
     config.layers.push_back(rocks);
     const auto generated = GenerateTerrain(config, {}, 4);

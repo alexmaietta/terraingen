@@ -119,6 +119,36 @@ template <> struct EnumNames<BlendShape> {
     }};
 };
 
+template <> struct EnumNames<EjectaProfile> {
+    static constexpr std::array<std::pair<std::string_view, EjectaProfile>, 2> kValues{{
+        {"smoothstep", EjectaProfile::Smoothstep},
+        {"exponential", EjectaProfile::Exponential},
+    }};
+};
+
+template <> struct EnumNames<EjectaAging> {
+    static constexpr std::array<std::pair<std::string_view, EjectaAging>, 2> kValues{{
+        {"freshness", EjectaAging::Freshness},
+        {"age", EjectaAging::Age},
+    }};
+};
+
+template <> struct EnumNames<RockModelCurve> {
+    static constexpr std::array<std::pair<std::string_view, RockModelCurve>, 3> kValues{{
+        {"minimum", RockModelCurve::Minimum},
+        {"nominal", RockModelCurve::Nominal},
+        {"maximum", RockModelCurve::Maximum},
+    }};
+};
+
+template <> struct EnumNames<SynthterrainRocks> {
+    static constexpr std::array<std::pair<std::string_view, SynthterrainRocks>, 3> kValues{{
+        {"intercrater", SynthterrainRocks::InterCrater},
+        {"haworth", SynthterrainRocks::Haworth},
+        {"viper_specification", SynthterrainRocks::ViperSpecification},
+    }};
+};
+
 template <> struct EnumNames<RockRelief> {
     static constexpr std::array<std::pair<std::string_view, RockRelief>, 2> kValues{{
         {"body", RockRelief::Body},
@@ -174,6 +204,18 @@ template <> struct SpecName<RockLayerSpec> {
 };
 template <> struct SpecName<RoughnessLayerSpec> {
     static constexpr std::string_view kName = "roughness";
+};
+template <> struct SpecName<GolombekRappRocksSpec> {
+    static constexpr std::string_view kName = "golombek_rapp";
+};
+template <> struct SpecName<Sp8023IntercraterRocksSpec> {
+    static constexpr std::string_view kName = "sp8023_intercrater";
+};
+template <> struct SpecName<Sp8023CraterRocksSpec> {
+    static constexpr std::string_view kName = "sp8023_crater";
+};
+template <> struct SpecName<SynthterrainRocksSpec> {
+    static constexpr std::string_view kName = "synthterrain";
 };
 template <> struct SpecName<ScaleLayerSpec> {
     static constexpr std::string_view kName = "scale";
@@ -318,6 +360,10 @@ template <typename IO> void Fields(IO& io, RockEjecta& ejecta);
 template <typename IO> void Fields(IO& io, ExposureParams& exposure);
 template <typename IO> void Fields(IO& io, RockLayerSpec& spec);
 template <typename IO> void Fields(IO& io, RoughnessLayerSpec& spec);
+template <typename IO> void Fields(IO& io, GolombekRappRocksSpec& spec);
+template <typename IO> void Fields(IO& io, Sp8023IntercraterRocksSpec& spec);
+template <typename IO> void Fields(IO& io, Sp8023CraterRocksSpec& spec);
+template <typename IO> void Fields(IO& io, SynthterrainRocksSpec& spec);
 template <typename IO> void Fields(IO& io, ScaleLayerSpec& spec);
 template <typename IO> void Fields(IO& io, ClampLayerSpec& spec);
 template <typename IO> void Fields(IO& io, RectangleRegionSpec& spec);
@@ -717,10 +763,33 @@ template <typename IO> void Fields(IO& io, RockPatches& patches) {
 }
 
 template <typename IO> void Fields(IO& io, RockEjecta& ejecta) {
-    io("coverage", ejecta.coverage);
     io("min_crater_diameter", ejecta.minCraterDiameter);
+    io("regolith_thickness", ejecta.regolithThickness);
+    io("excavation_depth_ratio", ejecta.excavationDepthRatio);
+    io("coverage", ejecta.coverage);
+    io("profile", ejecta.profile);
     io("reach", ejecta.reach);
+    io("decay_radii", ejecta.decayRadii);
+    io("floor_share", ejecta.floorShare);
+    io("aging", ejecta.aging);
     io("min_freshness", ejecta.minFreshness);
+    io("lifetime_gyr", ejecta.lifetimeGyr);
+    io("aging_exponent", ejecta.agingExponent);
+    io("gravity", ejecta.gravity);
+}
+
+template <typename IO> void Fields(IO& /*io*/, GolombekRappRocksSpec& /*spec*/) {}
+
+template <typename IO> void Fields(IO& io, Sp8023IntercraterRocksSpec& spec) {
+    io("curve", spec.curve);
+}
+
+template <typename IO> void Fields(IO& io, Sp8023CraterRocksSpec& spec) {
+    io("curve", spec.curve);
+}
+
+template <typename IO> void Fields(IO& io, SynthterrainRocksSpec& spec) {
+    io("model", spec.model);
 }
 
 template <typename IO> void Fields(IO& io, ExposureParams& exposure) {
@@ -741,10 +810,14 @@ template <typename IO> void Fields(IO& io, RockLayerSpec& spec) {
     io("qb", rocks.qb);
     io("min_diameter", rocks.minDiameter);
     io("max_diameter", rocks.maxDiameter);
+    io("sizes", spec.sizes);
     io("seed", rocks.seed);
     io("patches", rocks.patches);
     io("ejecta", rocks.ejecta);
+    io("ejecta_sizes", spec.ejectaSizes);
+    io("extrapolate", spec.extrapolate);
     io("exposure", rocks.exposure);
+    io("bedrock_abundance", rocks.bedrockAbundance);
     io("exposure_spacing", rocks.exposureSpacing);
     io("min_height_ratio", rocks.minHeightRatio);
     io("max_height_ratio", rocks.maxHeightRatio);

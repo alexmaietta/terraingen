@@ -402,7 +402,9 @@ TEST(Evaluate, RocksFromCraterEjectaAndBedrockAgreeOnGridsTilesAndPoints) {
     options.minDiameter = 1.0;
     options.coverage = 0.05;
     options.patches = {2.0, 60.0};
-    options.ejecta = {0.15, 20.0, 3.0, 0.0};
+    options.ejecta.coverage = 0.15;
+    options.ejecta.minCraterDiameter = 20.0;
+    options.ejecta.minFreshness = 0.0;
     options.exposure = terraingen::ExposureParams{};
     options.fade = {1.0, 2.0};
     terrain.layers.push_back(std::make_shared<terraingen::RockLayer>(options, craters));
