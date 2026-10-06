@@ -10,7 +10,7 @@
 namespace terraingen {
 
 /// A problem with a configuration, located by the JSON path of the offending value, such as
-/// "craters.density.age_gyr" or "surface.layers[1].octaves".
+/// "layers[1].density.age_gyr" or "layers[0].stack[1].octaves".
 class ConfigError : public std::runtime_error {
   public:
     ConfigError(std::string path, const std::string& message);
@@ -26,10 +26,19 @@ class ConfigError : public std::runtime_error {
 
 /// Reads a configuration from JSON text.
 ///
-/// Keys are snake_case versions of the C++ fields (`pixel_size`, `age_gyr`); models are objects
-/// with a "type", such as {"type": "power_law", "coefficient": 0.1, "exponent": 2}. Omitted keys
-/// take their defaults; unknown keys, wrong types and an unsupported `schema_version` are errors.
-/// Omitting "craters" or setting it to null disables craters.
+/// A configuration has a "source", then "layers" and "filters" applied in order, and "outputs":
+///
+///     {"schema_version": 1,
+///      "source": {"type": "flat", "width": 513, "height": 513, "pixel_size": 2},
+///      "layers": [{"type": "noise", "stack": [{"wavelength": 500, "amplitude": 50}]},
+///                 {"type": "craters", "density": {"type": "lunar_surface", "age_gyr": 3.5}}],
+///      "filters": [{"type": "rim_smoothing", "sigma_radii": 0.05}],
+///      "outputs": [{"type": "heightmap", "path": "terrain.tif"}]}
+///
+/// Keys are snake_case versions of the C++ fields (`pixel_size`, `age_gyr`); sources, layers,
+/// filters, outputs and models are objects with a "type". Omitted keys take their defaults, and
+/// omitted lists are empty; unknown keys, wrong types and an unsupported `schema_version` are
+/// errors.
 /// @throws ConfigError for malformed JSON or a value that does not fit the format.
 TerrainConfig ParseConfig(std::string_view json);
 

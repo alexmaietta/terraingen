@@ -9,6 +9,7 @@ terraingen_add_library(
     raster
     SOURCES
     filters.cpp
+    grid.cpp
     geotiff.cpp
     resample.cpp
     tiff_codecs.cpp

@@ -30,6 +30,44 @@ floating-point arithmetic, so they give bit-identical results across platforms a
 to GPU shading languages. Noise and random numbers are counter-based (PCG and Philox hashes), so
 every value depends only on its position and seed, never on evaluation order.
 
+## Composing a terrain
+
+A `Terrain` is a `Source`, a list of `Layer`s and a list of `Filter`s. `Evaluate` fills a grid from
+the source, adds each layer's relief in order, then runs each filter in order:
+
+```cpp
+terraingen::Terrain terrain;
+terrain.source = std::make_shared<terraingen::FlatSource>(1024, 1024, 1.0);
+terrain.layers.push_back(std::make_shared<terraingen::NoiseRelief>(noise));
+terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(models, options));
+terrain.filters.push_back(std::make_shared<terraingen::RimSmoothingFilter>(smoothing));
+
+auto whole = terraingen::Evaluate(terrain);           // over the source's grid
+auto tile = terraingen::Evaluate(terrain, tileGrid);  // any grid on the same lattice
+```
+
+- **Sources** fill a grid: `FlatSource` (a level datum) or `GeoTiffSource` (a DEM, optionally
+  resampled).
+- **Layers** add relief and record what they placed (`TerrainFeatures`, such as the craters):
+  `NoiseRelief` and `CraterLayer`.
+- **Filters** transform the heights using those features: `RimSmoothingFilter`.
+
+Layers are pure functions of position, so a tile evaluated alone equals the same cells of the whole
+terrain. Filters may read neighbouring cells, so tiles need a margin to match. Every evaluation takes
+a sample spacing, and features too small to resolve at it are left out. Derive from `Source`, `Layer`
+or `Filter` to add your own.
+
+JSON configurations describe the same composition:
+
+```json
+{"schema_version": 1,
+ "source": {"type": "flat", "width": 1024, "height": 1024, "pixel_size": 1},
+ "layers": [{"type": "noise", "stack": [{"wavelength": 500, "amplitude": 20}]},
+            {"type": "craters", "density": {"type": "lunar_surface", "age_gyr": 3.5}}],
+ "filters": [{"type": "rim_smoothing"}],
+ "outputs": [{"type": "heightmap", "path": "terrain.tif"}]}
+```
+
 ## Repository layout
 
 | Folder | Contents |

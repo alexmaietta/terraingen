@@ -1,5 +1,6 @@
 #pragma once
 
+#include "terraingen/filters/filter.h"
 #include "terraingen/layers/craters/apply.h"
 #include "terraingen/layers/craters/population.h"
 #include "terraingen/raster/raster.h"
@@ -50,5 +51,23 @@ void ValidateRimSmoothing(const RimSmoothing& smoothing);
 /// @throws std::domain_error if the raster's transform is not invertible.
 void SmoothCraterRims(Raster<float>& raster, const CraterList& craters,
                       const RimSmoothing& smoothing = {});
+
+/// `SmoothCraterRims` over the craters the layers placed. A sample spacing coarser than the grid's
+/// cells raises `minDiameterPixels` accordingly, as for `CraterLayer`.
+class RimSmoothingFilter final : public Filter {
+  public:
+    /// @throws std::invalid_argument as `ValidateRimSmoothing`.
+    explicit RimSmoothingFilter(const RimSmoothing& smoothing);
+
+    void Apply(Raster<float>& heights, double spacing,
+               const TerrainFeatures& features) const override;
+
+    const RimSmoothing& Smoothing() const {
+        return smoothing_;
+    }
+
+  private:
+    RimSmoothing smoothing_;
+};
 
 }  // namespace terraingen

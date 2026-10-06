@@ -1,1 +1,8 @@
-terraingen_add_test_suite(sources SOURCES synthetic_terrain_test.cpp LIBRARIES terraingen::sources)
+terraingen_add_test_suite(
+    sources
+    SOURCES
+    flat_source_test.cpp
+    geotiff_source_test.cpp
+    synthetic_terrain_test.cpp
+    LIBRARIES
+    terraingen::sources)

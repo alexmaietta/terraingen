@@ -147,11 +147,20 @@ template <typename E>
 concept NamedEnum = std::is_enum_v<E> && requires { EnumNames<E>::kValues; };
 
 template <typename Spec> struct SpecName;
-template <> struct SpecName<SyntheticSurfaceSpec> {
-    static constexpr std::string_view kName = "synthetic";
+template <> struct SpecName<FlatSourceSpec> {
+    static constexpr std::string_view kName = "flat";
 };
-template <> struct SpecName<RasterSurfaceSpec> {
+template <> struct SpecName<RasterSourceSpec> {
     static constexpr std::string_view kName = "raster";
+};
+template <> struct SpecName<NoiseLayerSpec> {
+    static constexpr std::string_view kName = "noise";
+};
+template <> struct SpecName<CraterLayerSpec> {
+    static constexpr std::string_view kName = "craters";
+};
+template <> struct SpecName<RimSmoothing> {
+    static constexpr std::string_view kName = "rim_smoothing";
 };
 template <> struct SpecName<HeightmapOutput> {
     static constexpr std::string_view kName = "heightmap";
@@ -259,8 +268,9 @@ class Writer {
     Json& json_;
 };
 
-template <typename IO> void Fields(IO& io, SyntheticSurfaceSpec& surface);
-template <typename IO> void Fields(IO& io, RasterSurfaceSpec& surface);
+template <typename IO> void Fields(IO& io, FlatSourceSpec& source);
+template <typename IO> void Fields(IO& io, RasterSourceSpec& source);
+template <typename IO> void Fields(IO& io, NoiseLayerSpec& layer);
 template <typename IO> void Fields(IO& io, HeightmapOutput& output);
 template <typename IO> void Fields(IO& io, NoiseLayerConfig& layer);
 template <typename IO> void Fields(IO& io, PowerLawSegment& segment);
@@ -269,7 +279,7 @@ template <typename IO> void Fields(IO& io, Crater& crater);
 template <typename IO> void Fields(IO& io, CraterBlend& blend);
 template <typename IO> void Fields(IO& io, CraterApplyOptions& apply);
 template <typename IO> void Fields(IO& io, RimSmoothing& smoothing);
-template <typename IO> void Fields(IO& io, CraterConfig& craters);
+template <typename IO> void Fields(IO& io, CraterLayerSpec& craters);
 template <typename IO> void Fields(IO& io, LunarSurfaceSpec& spec);
 template <typename IO> void Fields(IO& io, PowerLawSpec& spec);
 template <typename IO> void Fields(IO& io, PiecewisePowerLawSpec& spec);
@@ -535,19 +545,22 @@ template <typename T> void Writer::operator()(std::string_view key, T& value) {
     json_[std::string(key)] = ToJson(value);
 }
 
-template <typename IO> void Fields(IO& io, SyntheticSurfaceSpec& surface) {
-    io("width", surface.width);
-    io("height", surface.height);
-    io("pixel_size", surface.pixelSize);
-    io("layers", surface.layers);
+template <typename IO> void Fields(IO& io, FlatSourceSpec& source) {
+    io("width", source.width);
+    io("height", source.height);
+    io("pixel_size", source.pixelSize);
+    io("elevation", source.elevation);
 }
 
-template <typename IO> void Fields(IO& io, RasterSurfaceSpec& surface) {
-    io("path", surface.path);
-    io("band", surface.band);
-    io("pixel_size", surface.pixelSize);
-    io("resampling", surface.resampling);
-    io("detail", surface.detail);
+template <typename IO> void Fields(IO& io, RasterSourceSpec& source) {
+    io("path", source.path);
+    io("band", source.band);
+    io("pixel_size", source.pixelSize);
+    io("resampling", source.resampling);
+}
+
+template <typename IO> void Fields(IO& io, NoiseLayerSpec& layer) {
+    io("stack", layer.stack);
 }
 
 template <typename IO> void Fields(IO& io, HeightmapOutput& output) {
@@ -618,7 +631,7 @@ template <typename IO> void Fields(IO& io, RimSmoothing& smoothing) {
     io("min_diameter_pixels", smoothing.minDiameterPixels);
 }
 
-template <typename IO> void Fields(IO& io, CraterConfig& craters) {
+template <typename IO> void Fields(IO& io, CraterLayerSpec& craters) {
     io("generate", craters.generate);
     io("seed", craters.seed);
     io("density", craters.density);
@@ -631,7 +644,6 @@ template <typename IO> void Fields(IO& io, CraterConfig& craters) {
     io("profile", craters.profile);
     io("degradation", craters.degradation);
     io("apply", craters.apply);
-    io("rim_smoothing", craters.rimSmoothing);
 }
 
 template <typename IO> void Fields(IO& io, LunarSurfaceSpec& spec) {
@@ -710,13 +722,9 @@ TerrainConfig ReadConfig(const Json& json) {
                                    " is not supported; this library reads version " +
                                    std::to_string(kConfigSchemaVersion));
     }
-    reader("surface", config.surface);
-    reader.Accept("craters");
-    if (const auto craters = json.find("craters"); craters != json.end()) {
-        Read(*craters, "craters", config.craters);
-    } else {
-        config.craters.reset();
-    }
+    reader("source", config.source);
+    reader("layers", config.layers);
+    reader("filters", config.filters);
     reader("outputs", config.outputs);
     reader.Finish();
     return config;
@@ -750,8 +758,9 @@ TerrainConfig LoadConfig(const std::filesystem::path& path) {
 std::string ConfigToJson(const TerrainConfig& config, int indent) {
     Json json = Json::object();
     json["schema_version"] = config.schemaVersion;
-    json["surface"] = ToJson(config.surface);
-    json["craters"] = ToJson(config.craters);
+    json["source"] = ToJson(config.source);
+    json["layers"] = ToJson(config.layers);
+    json["filters"] = ToJson(config.filters);
     json["outputs"] = ToJson(config.outputs);
     return json.dump(indent) + "\n";
 }

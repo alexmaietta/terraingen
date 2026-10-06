@@ -17,7 +17,7 @@
 using terraingen::Bounds2d;
 using terraingen::BuildCraterModels;
 using terraingen::ConfigError;
-using terraingen::CraterConfig;
+using terraingen::CraterLayerSpec;
 using terraingen::CraterList;
 using terraingen::CraterListFormat;
 using terraingen::CraterListOutput;
@@ -27,18 +27,31 @@ using terraingen::ValidateConfig;
 
 namespace {
 
-terraingen::SyntheticSurfaceSpec& Synthetic(TerrainConfig& config) {
-    return std::get<terraingen::SyntheticSurfaceSpec>(config.surface);
+terraingen::FlatSourceSpec& Flat(TerrainConfig& config) {
+    return std::get<terraingen::FlatSourceSpec>(config.source);
 }
 
-/// A small, fast configuration.
+/// The noise layer of a `Small` configuration.
+terraingen::NoiseLayerSpec& Noise(TerrainConfig& config) {
+    return std::get<terraingen::NoiseLayerSpec>(config.layers.at(0));
+}
+
+/// The crater layer of a `Small` configuration.
+CraterLayerSpec& Craters(TerrainConfig& config) {
+    return std::get<CraterLayerSpec>(config.layers.at(1));
+}
+
+/// A small, fast configuration: a flat source, a noise layer, then a crater layer.
 TerrainConfig Small() {
     TerrainConfig config;
-    config.surface = terraingen::SyntheticSurfaceSpec{65, 49, 2.0};
-    Synthetic(config).layers[0].layer.fractal.wavelength = 200.0f;
-    Synthetic(config).layers[0].layer.fractal.amplitude = 10.0f;
-    config.craters->minDiameter = 8.0;
-    config.craters->maxDiameter = 60.0;
+    config.source = terraingen::FlatSourceSpec{65, 49, 2.0};
+    terraingen::NoiseLayerSpec noise;
+    noise.stack[0].layer.fractal.wavelength = 200.0f;
+    noise.stack[0].layer.fractal.amplitude = 10.0f;
+    CraterLayerSpec craters;
+    craters.minDiameter = 8.0;
+    craters.maxDiameter = 60.0;
+    config.layers = {noise, craters};
     return config;
 }
 
@@ -79,15 +92,14 @@ TEST(ValidateConfig, AcceptsTheDefaultsAndReportsEachProblemByPath) {
     EXPECT_NO_THROW(ValidateConfig(TerrainConfig{}));
     EXPECT_EQ(ErrorPath([](TerrainConfig&) {}), "valid");
     EXPECT_EQ(ErrorPath([](TerrainConfig& c) { c.schemaVersion = 7; }), "schema_version");
-    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { Synthetic(c).width = 1; }), "surface.width");
-    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { Synthetic(c).height = 100000; }), "surface.width");
-    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { Synthetic(c).pixelSize = 0.0; }),
-              "surface.pixel_size");
-    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { Synthetic(c).layers.clear(); }), "surface.layers");
-    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { Synthetic(c).layers[0].layer.fractal.octaves = 0; }),
-              "surface.layers[0]");
-    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { Synthetic(c).layers[0].hurst = 1.0f / 0.0f; }),
-              "surface.layers[0].hurst");
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { Flat(c).width = 1; }), "source.width");
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { Flat(c).height = 100000; }), "source.width");
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { Flat(c).pixelSize = 0.0; }), "source.pixel_size");
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { Noise(c).stack.clear(); }), "layers[0].stack");
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { Noise(c).stack[0].layer.fractal.octaves = 0; }),
+              "layers[0].stack[0]");
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { Noise(c).stack[0].hurst = 1.0f / 0.0f; }),
+              "layers[0].stack[0].hurst");
     EXPECT_EQ(ErrorPath([](TerrainConfig& c) { c.outputs = {terraingen::HeightmapOutput{}}; }),
               "outputs[0].path");
     EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
@@ -101,41 +113,44 @@ TEST(ValidateConfig, AcceptsTheDefaultsAndReportsEachProblemByPath) {
               }),
               "outputs[0].tile_size");
     EXPECT_EQ(
-        ErrorPath([](TerrainConfig& c) { c.craters->density = terraingen::LunarSurfaceSpec{9.0}; }),
-        "craters.density");
+        ErrorPath([](TerrainConfig& c) { Craters(c).density = terraingen::LunarSurfaceSpec{9.0}; }),
+        "layers[1].density");
     EXPECT_EQ(
-        ErrorPath([](TerrainConfig& c) { c.craters->ages = terraingen::UniformAgesSpec{0.0}; }),
-        "craters.ages");
+        ErrorPath([](TerrainConfig& c) { Craters(c).ages = terraingen::UniformAgesSpec{0.0}; }),
+        "layers[1].ages");
     EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
-                  c.craters->degradation = terraingen::FreshnessDegradationSpec{0.5};
+                  Craters(c).degradation = terraingen::FreshnessDegradationSpec{0.5};
               }),
-              "craters.degradation");
-    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { c.craters->spacing.diameterRatio = 0.5; }),
-              "craters.spacing");
-    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { c.craters->apply.interiorReplacement = 2.0; }),
-              "craters.apply");
-    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { c.craters->rimSmoothing.strength = -1.0; }),
-              "craters.rim_smoothing");
-    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { c.craters->minDiameter = 0.0; }),
-              "craters.min_diameter");
-    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { c.craters->maxDiameter = 5.0; }),
-              "craters.max_diameter");
-    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { c.craters->minDiameter = 2.0; }),
-              "craters.min_diameter");
+              "layers[1].degradation");
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { Craters(c).spacing.diameterRatio = 0.5; }),
+              "layers[1].spacing");
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { Craters(c).apply.interiorReplacement = 2.0; }),
+              "layers[1].apply");
     EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
-                  c.craters->density = terraingen::TraskSpec{};
-                  c.craters->minDiameter = 0.001;
+                  c.filters = {terraingen::RimSmoothing{},
+                               terraingen::RimSmoothing{.strength = -1.0}};
               }),
-              "craters.min_diameter");
-    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { c.craters->manual = {{0.0, 0.0, -1.0, 0.0}}; }),
-              "craters.manual[0].diameter");
-    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { c.craters->manual = {{0.0, 0.0, 5.0, -1.0}}; }),
-              "craters.manual[0].age_gyr");
-    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { c.craters->manual = {{1.0 / 0.0, 0.0, 5.0, 0.0}}; }),
-              "craters.manual[0]");
+              "filters[1]");
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { Craters(c).minDiameter = 0.0; }),
+              "layers[1].min_diameter");
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { Craters(c).maxDiameter = 5.0; }),
+              "layers[1].max_diameter");
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { Craters(c).minDiameter = 2.0; }),
+              "layers[1].min_diameter");
     EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
-                  c.craters->generate = false;
-                  c.craters->minDiameter = -1.0;
+                  Craters(c).density = terraingen::TraskSpec{};
+                  Craters(c).minDiameter = 0.001;
+              }),
+              "layers[1].min_diameter");
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { Craters(c).manual = {{0.0, 0.0, -1.0, 0.0}}; }),
+              "layers[1].manual[0].diameter");
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { Craters(c).manual = {{0.0, 0.0, 5.0, -1.0}}; }),
+              "layers[1].manual[0].age_gyr");
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { Craters(c).manual = {{1.0 / 0.0, 0.0, 5.0, 0.0}}; }),
+              "layers[1].manual[0]");
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
+                  Craters(c).generate = false;
+                  Craters(c).minDiameter = -1.0;
               }),
               "valid");
     EXPECT_EQ(ErrorPath([](TerrainConfig& c) { c.outputs = {CraterListOutput{}}; }),
@@ -143,7 +158,7 @@ TEST(ValidateConfig, AcceptsTheDefaultsAndReportsEachProblemByPath) {
 }
 
 TEST(BuildCraterModels, BuildsEachSelectedModel) {
-    CraterConfig craters;
+    CraterLayerSpec craters;
     auto models = BuildCraterModels(craters);
     EXPECT_NE(dynamic_cast<const terraingen::SteadyStateAges*>(models.ages.get()), nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::FreshnessDegradation*>(models.degradation.get()),
@@ -196,23 +211,23 @@ TEST(BuildCraterModels, BuildsEachSelectedModel) {
 
 TEST(GenerateTerrain, MatchesComposingTheLibraryCalls) {
     TerrainConfig config = Small();
-    config.craters->manual = {{4.0, -3.0, 40.0, 0.0, 0u}};
-    config.craters->apply.datum = terraingen::CraterDatum::Plane;
-    config.craters->rimSmoothing.sigmaRadii = 0.05;
+    Craters(config).manual = {{4.0, -3.0, 40.0, 0.0, 0u}};
+    Craters(config).apply.datum = terraingen::CraterDatum::Plane;
+    config.filters = {terraingen::RimSmoothing{.sigmaRadii = 0.05}};
     const auto terrain = GenerateTerrain(config);
 
-    auto expected = terraingen::GenerateSyntheticTerrain(65, 49, 2.0, Synthetic(config).Params());
-    const auto models = BuildCraterModels(*config.craters);
+    auto expected = terraingen::GenerateSyntheticTerrain(65, 49, 2.0, Noise(config).Params());
+    const auto models = BuildCraterModels(Craters(config));
     CraterList manual;
     manual.Append({4.0, -3.0, 40.0, 0.0, terraingen::ManualCraterId(4.0, -3.0, 40.0), true});
     const CraterList craters = terraingen::GenerateCraters(
-        terraingen::PlanarCells(), terraingen::DescribeSurface(config.surface).Bounds(),
+        terraingen::PlanarCells(), terraingen::DescribeSource(config.source).Bounds(),
         *models.density, *models.ages, 1u,
         {.dMin = 8.0, .dMax = 60.0, .marginRadii = 1.5, .manual = manual});
     terraingen::ApplyCraters(expected, craters, *models.profile, *models.degradation,
-                             config.craters->apply);
-    terraingen::SmoothCraterRims(expected, craters, config.craters->rimSmoothing);
-    EXPECT_EQ(terrain.craters.Ids(), craters.Ids());
+                             Craters(config).apply);
+    terraingen::SmoothCraterRims(expected, craters, {.sigmaRadii = 0.05});
+    EXPECT_EQ(terrain.features.craters.Ids(), craters.Ids());
     ASSERT_EQ(terrain.heights.Size(), expected.Size());
     for (std::size_t i = 0; i < expected.Size(); ++i) {
         ASSERT_EQ(terrain.heights.Values()[i], expected.Values()[i]) << i;
@@ -221,36 +236,63 @@ TEST(GenerateTerrain, MatchesComposingTheLibraryCalls) {
 
 TEST(GenerateTerrain, AppliesTheHurstExponentToTheGain) {
     TerrainConfig config = Small();
-    config.craters.reset();
-    Synthetic(config).layers[0].hurst = 0.6f;
+    config.layers.pop_back();
+    Noise(config).stack[0].hurst = 0.6f;
     const auto terrain = GenerateTerrain(config);
     terraingen::SyntheticTerrainParams params;
-    params.layers[0] = Synthetic(config).layers[0].layer;
+    params.layers[0] = Noise(config).stack[0].layer;
     params.layers[0].fractal.gain = terraingen::GainFromHurst(0.6f, 2.0f);
     const auto expected = terraingen::GenerateSyntheticTerrain(65, 49, 2.0, params);
     EXPECT_TRUE(std::equal(terrain.heights.Values().begin(), terrain.heights.Values().end(),
                            expected.Values().begin()));
 }
 
-TEST(GenerateTerrain, SupportsNoCratersAndManualCratersOnly) {
+TEST(GenerateTerrain, SupportsNoLayersNoCratersAndManualCratersOnly) {
     TerrainConfig config = Small();
-    config.craters.reset();
+    Flat(config).elevation = -250.0f;
+    config.layers.clear();
+    const auto flat = GenerateTerrain(config);
+    EXPECT_TRUE(std::all_of(flat.heights.Values().begin(), flat.heights.Values().end(),
+                            [](float h) { return h == -250.0f; }));
+
+    config = Small();
+    config.layers.pop_back();
     const auto plain = GenerateTerrain(config);
-    EXPECT_TRUE(plain.craters.Empty());
-    const auto noise =
-        terraingen::GenerateSyntheticTerrain(65, 49, 2.0, Synthetic(config).Params());
+    EXPECT_TRUE(plain.features.craters.Empty());
+    const auto noise = terraingen::GenerateSyntheticTerrain(65, 49, 2.0, Noise(config).Params());
     EXPECT_TRUE(std::equal(plain.heights.Values().begin(), plain.heights.Values().end(),
                            noise.Values().begin()));
 
-    config.craters = CraterConfig{};
-    config.craters->generate = false;
-    config.craters->manual = {{0.0, 0.0, 30.0, 0.0, 0u}, {9000.0, 0.0, 30.0, 0.0, 0u}};
+    CraterLayerSpec manualOnly;
+    manualOnly.generate = false;
+    manualOnly.manual = {{0.0, 0.0, 30.0, 0.0, 0u}, {9000.0, 0.0, 30.0, 0.0, 0u}};
+    config.layers.push_back(manualOnly);
     const auto manual = GenerateTerrain(config);
-    ASSERT_EQ(manual.craters.Size(), 1u);
-    EXPECT_TRUE(manual.craters.At(0).manual);
+    ASSERT_EQ(manual.features.craters.Size(), 1u);
+    EXPECT_TRUE(manual.features.craters.At(0).manual);
+    EXPECT_EQ(manual.features.craters.At(0).id, terraingen::ManualCraterId(0.0, 0.0, 30.0));
     TerrainConfig tiny;
-    tiny.surface = terraingen::SyntheticSurfaceSpec{1, 1, 1.0};
+    tiny.source = terraingen::FlatSourceSpec{1, 1, 1.0};
     EXPECT_THROW(GenerateTerrain(tiny), ConfigError);
+}
+
+TEST(GenerateTerrain, RunsLayersInOrderAndCollectsEveryLayersCraters) {
+    TerrainConfig config = Small();
+    CraterLayerSpec second = Craters(config);
+    second.seed = 2;
+    config.layers.push_back(second);
+    const auto both = GenerateTerrain(config);
+    config.layers.pop_back();
+    const auto first = GenerateTerrain(config);
+    config.layers.pop_back();
+    config.layers.push_back(second);
+    const auto other = GenerateTerrain(config);
+    ASSERT_GT(first.features.craters.Size(), 0u);
+    ASSERT_GT(other.features.craters.Size(), 0u);
+    auto ids = first.features.craters.Ids();
+    const auto more = other.features.craters.Ids();
+    ids.insert(ids.end(), more.begin(), more.end());
+    EXPECT_EQ(both.features.craters.Ids(), ids);
 }
 
 TEST(WriteCraterList, WritesCsvAndJsonExactly) {
@@ -296,7 +338,7 @@ TEST(WriteOutputs, ResolvesRelativePathsAndCreatesFolders) {
     EXPECT_TRUE(std::filesystem::exists(written[0]));
     const std::string csv = Read(absolute);
     EXPECT_EQ(std::count(csv.begin(), csv.end(), '\n'),
-              static_cast<long>(terrain.craters.Size() + 1));
+              static_cast<long>(terrain.features.craters.Size() + 1));
 }
 
 namespace {
@@ -326,23 +368,22 @@ terraingen::Raster<float> WriteDem(const std::filesystem::path& folder, const st
 
 TerrainConfig RasterConfig(const std::string& path) {
     TerrainConfig config;
-    config.surface =
-        terraingen::RasterSurfaceSpec{path, 0, std::nullopt, terraingen::ResampleMethod::Cubic, {}};
-    config.craters.reset();
+    config.source =
+        terraingen::RasterSourceSpec{path, 0, std::nullopt, terraingen::ResampleMethod::Cubic};
     return config;
 }
 
-terraingen::RasterSurfaceSpec& RasterSpec(TerrainConfig& config) {
-    return std::get<terraingen::RasterSurfaceSpec>(config.surface);
+terraingen::RasterSourceSpec& RasterSpec(TerrainConfig& config) {
+    return std::get<terraingen::RasterSourceSpec>(config.source);
 }
 
 }  // namespace
 
-TEST(DescribeSurface, ReadsTheRasterHeaderAndResampledSize) {
+TEST(DescribeSource, ReadsTheRasterHeaderAndResampledSize) {
     const auto folder = TempPath("terraingen_describe");
     WriteDem(folder, "dem.tif");
     TerrainConfig config = RasterConfig("dem.tif");
-    const auto grid = terraingen::DescribeSurface(config.surface, folder);
+    const auto grid = terraingen::DescribeSource(config.source, folder);
     EXPECT_EQ(grid.width, 40u);
     EXPECT_EQ(grid.height, 30u);
     EXPECT_EQ(grid.transform, terraingen::GeoTransform::NorthUp(1000.0, 2000.0, 5.0));
@@ -354,13 +395,13 @@ TEST(DescribeSurface, ReadsTheRasterHeaderAndResampledSize) {
     EXPECT_EQ(bounds.minY, 1850.0);
     EXPECT_EQ(bounds.maxY, 2000.0);
     RasterSpec(config).pixelSize = 2.5;
-    const auto fine = terraingen::DescribeSurface(config.surface, folder);
+    const auto fine = terraingen::DescribeSource(config.source, folder);
     EXPECT_EQ(fine.width, 80u);
     EXPECT_EQ(fine.height, 60u);
     EXPECT_DOUBLE_EQ(fine.PixelSize(), 2.5);
 }
 
-TEST(ValidateConfig, ReportsRasterSurfaceProblems) {
+TEST(ValidateConfig, ReportsRasterSourceProblems) {
     const auto folder = TempPath("terraingen_raster_errors");
     WriteDem(folder, "dem.tif");
     WriteDem(folder, "degrees.tif", Keys(true));
@@ -375,33 +416,35 @@ TEST(ValidateConfig, ReportsRasterSurfaceProblems) {
         return std::string("valid");
     };
     EXPECT_EQ(error([](TerrainConfig&) {}), "valid");
-    EXPECT_EQ(error([](TerrainConfig& c) { RasterSpec(c).path.clear(); }).rfind("surface.path", 0),
+    EXPECT_EQ(error([](TerrainConfig& c) { RasterSpec(c).path.clear(); }).rfind("source.path", 0),
               0u);
     EXPECT_NE(
         error([](TerrainConfig& c) { RasterSpec(c).path = "missing.tif"; }).find("cannot open"),
         std::string::npos);
-    EXPECT_NE(error([](TerrainConfig& c) { RasterSpec(c).band = 1; }).find("surface.band"),
+    EXPECT_NE(error([](TerrainConfig& c) { RasterSpec(c).band = 1; }).find("source.band"),
               std::string::npos);
     EXPECT_NE(
         error([](TerrainConfig& c) { RasterSpec(c).path = "degrees.tif"; }).find("geographic"),
         std::string::npos);
     EXPECT_EQ(error([](TerrainConfig& c) {
                   RasterSpec(c).pixelSize = -1.0;
-              }).rfind("surface.pixel_size", 0),
+              }).rfind("source.pixel_size", 0),
               0u);
     EXPECT_EQ(error([](TerrainConfig& c) {
                   RasterSpec(c).pixelSize = 1e-6;
-              }).rfind("surface.pixel_size", 0),
+              }).rfind("source.pixel_size", 0),
               0u);
     EXPECT_EQ(error([](TerrainConfig& c) {
-                  RasterSpec(c).detail = {terraingen::NoiseLayerConfig{}};
-                  RasterSpec(c).detail[0].layer.fractal.octaves = 0;
-              }).rfind("surface.detail[0]", 0),
+                  terraingen::NoiseLayerSpec noise;
+                  noise.stack[0].layer.fractal.octaves = 0;
+                  c.layers = {noise};
+              }).rfind("layers[0].stack[0]", 0),
               0u);
     EXPECT_EQ(error([](TerrainConfig& c) {
-                  c.craters = terraingen::CraterConfig{};
-                  c.craters->minDiameter = 0.0;
-              }).rfind("craters.min_diameter", 0),
+                  CraterLayerSpec craters;
+                  craters.minDiameter = 0.0;
+                  c.layers = {craters};
+              }).rfind("layers[0].min_diameter", 0),
               0u);
     terraingen::Raster<float> rotated(8, 8, 1.0f);
     rotated.SetTransform(terraingen::GeoTransform{0.0, 1.0, 0.2, 0.0, 0.1, -1.0});
@@ -409,15 +452,15 @@ TEST(ValidateConfig, ReportsRasterSurfaceProblems) {
     EXPECT_EQ(error([](TerrainConfig& c) {
                   RasterSpec(c).path = "rotated.tif";
                   RasterSpec(c).pixelSize = 0.5;
-              }).rfind("surface.pixel_size", 0),
+              }).rfind("source.pixel_size", 0),
               0u);
     terraingen::WriteGeoTiff(folder / "tiny.tif", terraingen::Raster<float>(1, 1, 0.0f), Keys());
     EXPECT_EQ(
-        error([](TerrainConfig& c) { RasterSpec(c).path = "tiny.tif"; }).rfind("surface.path", 0),
+        error([](TerrainConfig& c) { RasterSpec(c).path = "tiny.tif"; }).rfind("source.path", 0),
         0u);
 }
 
-TEST(GenerateTerrain, LoadsResamplesAndDetailsARasterSurface) {
+TEST(GenerateTerrain, LoadsResamplesAndDetailsARasterSource) {
     const auto folder = TempPath("terraingen_raster_generate");
     const auto dem = WriteDem(folder, "dem.tif");
     TerrainConfig config = RasterConfig("dem.tif");
@@ -436,7 +479,9 @@ TEST(GenerateTerrain, LoadsResamplesAndDetailsARasterSurface) {
     terraingen::NoiseLayerConfig detail;
     detail.layer.fractal.wavelength = 20.0f;
     detail.layer.fractal.amplitude = 1.5f;
-    RasterSpec(config).detail = {detail};
+    terraingen::NoiseLayerSpec noise;
+    noise.stack = {detail};
+    config.layers = {noise};
     const auto detailed = GenerateTerrain(config, folder);
     const terraingen::NoiseLayer layer = detail.Effective();
     for (std::size_t row = 0; row < dem.Height(); ++row) {
@@ -454,22 +499,23 @@ TEST(GenerateTerrain, PlacesCratersInTheRastersCoordinates) {
     const auto folder = TempPath("terraingen_raster_craters");
     WriteDem(folder, "dem.tif");
     TerrainConfig config = RasterConfig("dem.tif");
-    config.craters = terraingen::CraterConfig{};
-    config.craters->density = terraingen::PowerLawSpec{0.1, 2.0};
-    config.craters->minDiameter = 15.0;
-    config.craters->maxDiameter = 60.0;
-    config.craters->manual = {{1100.0, 1925.0, 50.0, 0.0, 0u, true}};
+    CraterLayerSpec craters;
+    craters.density = terraingen::PowerLawSpec{0.1, 2.0};
+    craters.minDiameter = 15.0;
+    craters.maxDiameter = 60.0;
+    craters.manual = {{1100.0, 1925.0, 50.0, 0.0, 0u, true}};
+    config.layers = {craters};
     const auto terrain = GenerateTerrain(config, folder);
-    ASSERT_GT(terrain.craters.Size(), 2u);
+    ASSERT_GT(terrain.features.craters.Size(), 2u);
     const Bounds2d bounds{1000.0, 1850.0, 1200.0, 2000.0};
-    for (std::size_t n = 0; n < terrain.craters.Size(); ++n) {
-        const auto crater = terrain.craters.At(n);
+    for (std::size_t n = 0; n < terrain.features.craters.Size(); ++n) {
+        const auto crater = terrain.features.craters.At(n);
         EXPECT_TRUE(bounds.Expanded(0.75 * crater.diameter).Contains(crater.x, crater.y)) << n;
     }
     EXPECT_LT(terrain.heights(20, 15), WriteDem(folder, "again.tif")(20, 15) - 2.0f);
 }
 
-TEST(WriteOutputs, WritesHeightmapsWithTheSurfaceProjection) {
+TEST(WriteOutputs, WritesHeightmapsWithTheSourceProjection) {
     const auto folder = TempPath("terraingen_heightmap");
     const auto dem = WriteDem(folder, "dem.tif");
     TerrainConfig config = RasterConfig("dem.tif");

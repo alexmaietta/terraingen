@@ -1,0 +1,38 @@
+#include "terraingen/sources/flat_source.h"
+
+#include <gtest/gtest.h>
+
+#include <limits>
+#include <stdexcept>
+
+using terraingen::FlatSource;
+using terraingen::GeoTransform;
+
+TEST(FlatSource, CoversAGridCentredOnTheOrigin) {
+    const FlatSource source(10, 6, 2.0);
+    const auto grid = source.Grid();
+    EXPECT_EQ(grid.width, 10u);
+    EXPECT_EQ(grid.height, 6u);
+    EXPECT_EQ(grid.transform, GeoTransform::NorthUp(-10.0, 6.0, 2.0));
+    EXPECT_EQ(source.ReferencePoint().x, 0.0);
+    EXPECT_EQ(source.ReferencePoint().y, 0.0);
+}
+
+TEST(FlatSource, FillsAnyGridWithItsElevation) {
+    const FlatSource source(10, 6, 2.0, -3.5f);
+    terraingen::RasterGrid tile{3, 2, GeoTransform::NorthUp(500.0, 500.0, 2.0)};
+    auto heights = tile.MakeRaster(1.0f);
+    source.Fill(heights);
+    for (const float value : heights.Values()) {
+        EXPECT_EQ(value, -3.5f);
+    }
+}
+
+TEST(FlatSource, RejectsInvalidGrids) {
+    EXPECT_THROW(FlatSource(0, 4, 1.0), std::invalid_argument);
+    EXPECT_THROW(FlatSource(4, 0, 1.0), std::invalid_argument);
+    EXPECT_THROW(FlatSource(4, 4, 0.0), std::invalid_argument);
+    EXPECT_THROW(FlatSource(4, 4, std::numeric_limits<double>::infinity()), std::invalid_argument);
+    EXPECT_THROW(FlatSource(4, 4, 1.0, std::numeric_limits<float>::quiet_NaN()),
+                 std::invalid_argument);
+}

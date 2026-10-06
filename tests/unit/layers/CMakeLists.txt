@@ -5,6 +5,7 @@ terraingen_add_test_suite(
     craters/ages/fresh_test.cpp
     craters/ages/uniform_test.cpp
     craters/apply_test.cpp
+    craters/crater_layer_test.cpp
     craters/degradation/freshness_test.cpp
     craters/degradation/none_test.cpp
     craters/degradation/state_test.cpp
@@ -12,5 +13,6 @@ terraingen_add_test_suite(
     craters/population_test.cpp
     craters/profiles/fassett_thomson_test.cpp
     craters/profiles/martin_parkes_dunstan_test.cpp
+    noise_relief_test.cpp
     LIBRARIES
     terraingen::bodies)

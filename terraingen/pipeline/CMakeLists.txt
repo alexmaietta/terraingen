@@ -6,6 +6,7 @@ terraingen_add_library(
     SOURCES
     config_json.cpp
     run.cpp
+    terrain.cpp
     PUBLIC
     terraingen_bodies
     terraingen_distribution

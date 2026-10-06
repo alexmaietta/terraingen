@@ -1,6 +1,7 @@
 #include "terraingen/filters/rim_smoothing.h"
 
 #include "terraingen/raster/filters.h"
+#include "terraingen/raster/grid.h"
 
 #include <algorithm>
 #include <cmath>
@@ -115,6 +116,20 @@ void SmoothCraterRims(Raster<float>& raster, const CraterList& craters,
             }
         }
     }
+}
+
+RimSmoothingFilter::RimSmoothingFilter(const RimSmoothing& smoothing) : smoothing_(smoothing) {
+    ValidateRimSmoothing(smoothing_);
+}
+
+void RimSmoothingFilter::Apply(Raster<float>& heights, double spacing,
+                               const TerrainFeatures& features) const {
+    RimSmoothing smoothing = smoothing_;
+    const double pixelSize = RasterGrid::Of(heights).PixelSize();
+    if (spacing > pixelSize) {
+        smoothing.minDiameterPixels *= spacing / pixelSize;
+    }
+    SmoothCraterRims(heights, features.craters, smoothing);
 }
 
 }  // namespace terraingen

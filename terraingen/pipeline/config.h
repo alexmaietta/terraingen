@@ -35,37 +35,43 @@ struct NoiseLayerConfig {
     bool operator==(const NoiseLayerConfig&) const = default;
 };
 
-/// "synthetic": noise layers over a `width` x `height` grid of `pixelSize` metres, centred on the
-/// origin of the surface coordinates.
-struct SyntheticSurfaceSpec {
+/// "flat": a level datum at `elevation` over a `width` x `height` grid of `pixelSize` metres,
+/// centred on the origin of the surface coordinates (`FlatSource`).
+struct FlatSourceSpec {
     std::size_t width = 513;
     std::size_t height = 513;
     double pixelSize = 2.0;
-    std::vector<NoiseLayerConfig> layers{NoiseLayerConfig{}};
+    float elevation = 0.0f;
 
-    /// The layers as `GenerateSyntheticTerrain` parameters.
-    SyntheticTerrainParams Params() const;
-
-    bool operator==(const SyntheticSurfaceSpec&) const = default;
+    bool operator==(const FlatSourceSpec&) const = default;
 };
 
-/// "raster": a heightmap read from a GeoTIFF, in its own projected coordinates.
+/// "raster": a heightmap read from a GeoTIFF, in its own projected coordinates (`GeoTiffSource`).
 ///
 /// Relative paths resolve against the configuration's folder. The raster can be resampled to
-/// `pixelSize` metres over the same extent, and `detail` noise layers added to it, as when
-/// upscaling a DEM; craters are generated over its extent in its coordinates, which must be a
-/// projection in metres.
-struct RasterSurfaceSpec {
+/// `pixelSize` metres over the same extent, as when upscaling a DEM; layers then add relief in its
+/// coordinates, which must be a projection in metres.
+struct RasterSourceSpec {
     std::string path;
     std::size_t band = 0;             ///< From 0.
     std::optional<double> pixelSize;  ///< Resample to this cell size; unset keeps the file's.
     ResampleMethod resampling = ResampleMethod::Cubic;
-    std::vector<NoiseLayerConfig> detail;  ///< Noise added to every cell with data.
 
-    bool operator==(const RasterSurfaceSpec&) const = default;
+    bool operator==(const RasterSourceSpec&) const = default;
 };
 
-using SurfaceSpec = std::variant<SyntheticSurfaceSpec, RasterSurfaceSpec>;
+using SourceSpec = std::variant<FlatSourceSpec, RasterSourceSpec>;
+
+/// "noise": a stack of noise layers added to the terrain (`NoiseRelief`), from 1 to
+/// `kMaxNoiseLayers`, measured from the source's reference point.
+struct NoiseLayerSpec {
+    std::vector<NoiseLayerConfig> stack{NoiseLayerConfig{}};
+
+    /// The stack as `SyntheticTerrainParams`, with each layer's Hurst exponent applied.
+    SyntheticTerrainParams Params() const;
+
+    bool operator==(const NoiseLayerSpec&) const = default;
+};
 
 /// Crater densities, named in JSON by their "type".
 struct LunarSurfaceSpec {  ///< "lunar_surface": `LunarSurface(ageGyr)`, density and ages.
@@ -146,8 +152,8 @@ struct MartinParkesDunstanSpec {  ///< "martin_parkes_dunstan": `MartinParkesDun
 };
 using ProfileSpec = std::variant<FassettThomsonSpec, MartinParkesDunstanSpec>;
 
-/// Craters generated over the surface's extent and applied to it.
-struct CraterConfig {
+/// "craters": craters generated over the grid and applied to it (`CraterLayer`).
+struct CraterLayerSpec {
     bool generate = true;  ///< Generate craters from `density`; otherwise only `manual` ones.
     std::uint32_t seed = 1;
     DensitySpec density{};
@@ -161,10 +167,14 @@ struct CraterConfig {
     ProfileSpec profile{};
     DegradationSpec degradation{};
     CraterApplyOptions apply{};
-    RimSmoothing rimSmoothing{.sigmaRadii = 0.0};
 
-    bool operator==(const CraterConfig&) const = default;
+    bool operator==(const CraterLayerSpec&) const = default;
 };
+
+using LayerSpec = std::variant<NoiseLayerSpec, CraterLayerSpec>;
+
+/// Filters, named in JSON by their "type": "rim_smoothing" is `RimSmoothingFilter`.
+using FilterSpec = std::variant<RimSmoothing>;
 
 /// Formats for crater lists.
 enum class CraterListFormat { Csv, Json };
@@ -175,7 +185,7 @@ struct CraterListOutput {
     CraterListFormat format = CraterListFormat::Csv;
     bool operator==(const CraterListOutput&) const = default;
 };
-/// "heightmap": writes the generated heights as a float32 GeoTIFF, with a raster surface's
+/// "heightmap": writes the generated heights as a float32 GeoTIFF, with a raster source's
 /// projection.
 struct HeightmapOutput {
     std::string path;
@@ -186,11 +196,13 @@ struct HeightmapOutput {
 
 using OutputSpec = std::variant<HeightmapOutput, CraterListOutput>;
 
-/// Everything needed to generate a terrain: what `terraingen config.json` runs.
+/// Everything needed to generate a terrain: a source, the layers added to it in order, the filters
+/// applied after them in order, and the outputs to write.
 struct TerrainConfig {
     int schemaVersion = kConfigSchemaVersion;
-    SurfaceSpec surface{};
-    std::optional<CraterConfig> craters = CraterConfig{};
+    SourceSpec source{};
+    std::vector<LayerSpec> layers;
+    std::vector<FilterSpec> filters;
     std::vector<OutputSpec> outputs;
 
     bool operator==(const TerrainConfig&) const = default;

@@ -9,10 +9,11 @@
 using terraingen::AgesSpec;
 using terraingen::ConfigError;
 using terraingen::ConfigToJson;
-using terraingen::CraterConfig;
+using terraingen::CraterLayerSpec;
 using terraingen::CraterListFormat;
 using terraingen::CraterListOutput;
 using terraingen::DensitySpec;
+using terraingen::LayerSpec;
 using terraingen::LoadConfig;
 using terraingen::ParseConfig;
 using terraingen::TerrainConfig;
@@ -32,10 +33,12 @@ std::string ErrorPath(const std::string& json) {
 /// A configuration using a non-default alternative or value for everything.
 TerrainConfig Everything() {
     TerrainConfig config;
-    auto& surface = std::get<terraingen::SyntheticSurfaceSpec>(config.surface);
-    surface.width = 33;
-    surface.height = 21;
-    surface.pixelSize = 0.5;
+    auto& source = std::get<terraingen::FlatSourceSpec>(config.source);
+    source.width = 33;
+    source.height = 21;
+    source.pixelSize = 0.5;
+    source.elevation = -1200.5f;
+    terraingen::NoiseLayerSpec noise;
     terraingen::NoiseLayerConfig second;
     second.layer.blend = terraingen::LayerBlend::Mask;
     second.layer.fractal.basis = terraingen::NoiseBasis::WorleyF2MinusF1;
@@ -43,8 +46,8 @@ TerrainConfig Everything() {
     second.layer.fractal.seed = 4000000000u;
     second.layer.warpAmplitude = 12.5f;
     second.hurst = 0.8f;
-    surface.layers.push_back(second);
-    CraterConfig& craters = *config.craters;
+    noise.stack.push_back(second);
+    CraterLayerSpec craters;
     craters.generate = false;
     craters.seed = 99;
     craters.density = terraingen::PiecewisePowerLawSpec{{{1.0, 0.2, 2.0}, {50.0, 10.0, 3.0}}};
@@ -63,7 +66,8 @@ TerrainConfig Everything() {
                      .datumFitRadii = 1.5,
                      .interiorReplacement = 0.5,
                      .blend = {0.7, 1.3, terraingen::BlendShape::Gaussian}};
-    craters.rimSmoothing = {.sigmaRadii = 0.1, .strength = 0.5};
+    config.layers = {noise, craters, CraterLayerSpec{}};
+    config.filters = {terraingen::RimSmoothing{.sigmaRadii = 0.1, .strength = 0.5}};
     config.outputs = {
         CraterListOutput{"out/craters.json", CraterListFormat::Json},
         CraterListOutput{"craters.txt", CraterListFormat::Csv},
@@ -92,47 +96,57 @@ TEST(ConfigJson, RoundTripsEveryModelType) {
         terraingen::ViperSpec{}};
     const std::vector<AgesSpec> ages{terraingen::AutoAgesSpec{}, terraingen::FreshAgesSpec{},
                                      terraingen::UniformAgesSpec{2.5}};
-    for (const terraingen::SurfaceSpec& surface :
-         {terraingen::SurfaceSpec{terraingen::RasterSurfaceSpec{
-              "dem.tif", 2, 0.25, terraingen::ResampleMethod::Bilinear, {{}}}},
-          terraingen::SurfaceSpec{terraingen::RasterSurfaceSpec{
-              "x.tif", 0, std::nullopt, terraingen::ResampleMethod::Cubic, {}}}}) {
+    for (const terraingen::SourceSpec& source :
+         {terraingen::SourceSpec{terraingen::RasterSourceSpec{
+              "dem.tif", 2, 0.25, terraingen::ResampleMethod::Bilinear}},
+          terraingen::SourceSpec{terraingen::RasterSourceSpec{
+              "x.tif", 0, std::nullopt, terraingen::ResampleMethod::Cubic}}}) {
         TerrainConfig config;
-        config.surface = surface;
+        config.source = source;
         EXPECT_EQ(ParseConfig(ConfigToJson(config)), config);
     }
     for (const DensitySpec& density : densities) {
         TerrainConfig config;
-        config.craters->density = density;
+        CraterLayerSpec craters;
+        craters.density = density;
+        config.layers = {craters};
         EXPECT_EQ(ParseConfig(ConfigToJson(config)), config);
     }
     for (const AgesSpec& spec : ages) {
         TerrainConfig config;
-        config.craters->ages = spec;
-        config.craters->profile =
-            terraingen::FassettThomsonSpec{terraingen::FassettThomsonRim::Plateau};
+        CraterLayerSpec craters;
+        craters.ages = spec;
+        craters.profile = terraingen::FassettThomsonSpec{terraingen::FassettThomsonRim::Plateau};
+        config.layers = {craters};
         EXPECT_EQ(ParseConfig(ConfigToJson(config)), config);
     }
 }
 
-TEST(ConfigJson, OmittedKeysTakeDefaultsAndOmittedCratersDisablesThem) {
+TEST(ConfigJson, OmittedKeysTakeDefaultsAndOmittedListsAreEmpty) {
     const TerrainConfig minimal = ParseConfig(R"({"schema_version": 1})");
-    EXPECT_EQ(minimal.surface, terraingen::SurfaceSpec{});
-    EXPECT_FALSE(minimal.craters.has_value());
-    EXPECT_FALSE(ParseConfig(R"({"schema_version": 1, "craters": null})").craters.has_value());
+    EXPECT_EQ(minimal.source, terraingen::SourceSpec{});
+    EXPECT_TRUE(minimal.layers.empty());
+    EXPECT_TRUE(minimal.filters.empty());
+    EXPECT_TRUE(minimal.outputs.empty());
     const TerrainConfig partial = ParseConfig(R"({
         "schema_version": 1,
-        "surface": {"type": "synthetic", "width": 64, "layers": [{"octaves": 3, "hurst": 0.7}]},
-        "craters": {"density": {"type": "trask"}}
+        "source": {"type": "flat", "width": 64},
+        "layers": [{"type": "noise", "stack": [{"octaves": 3, "hurst": 0.7}]},
+                   {"type": "craters", "density": {"type": "trask"}}],
+        "filters": [{"type": "rim_smoothing"}]
     })");
-    const auto& synthetic = std::get<terraingen::SyntheticSurfaceSpec>(partial.surface);
-    EXPECT_EQ(synthetic.width, 64u);
-    EXPECT_EQ(synthetic.height, 513u);
-    EXPECT_EQ(synthetic.layers.at(0).layer.fractal.octaves, 3);
-    EXPECT_EQ(synthetic.layers.at(0).hurst, 0.7f);
-    ASSERT_TRUE(partial.craters.has_value());
-    EXPECT_TRUE(std::holds_alternative<terraingen::TraskSpec>(partial.craters->density));
-    EXPECT_EQ(partial.craters->minDiameter, 4.0);
+    const auto& flat = std::get<terraingen::FlatSourceSpec>(partial.source);
+    EXPECT_EQ(flat.width, 64u);
+    EXPECT_EQ(flat.height, 513u);
+    ASSERT_EQ(partial.layers.size(), 2u);
+    const auto& noise = std::get<terraingen::NoiseLayerSpec>(partial.layers[0]);
+    EXPECT_EQ(noise.stack.at(0).layer.fractal.octaves, 3);
+    EXPECT_EQ(noise.stack.at(0).hurst, 0.7f);
+    const auto& craters = std::get<CraterLayerSpec>(partial.layers[1]);
+    EXPECT_TRUE(std::holds_alternative<terraingen::TraskSpec>(craters.density));
+    EXPECT_EQ(craters.minDiameter, 4.0);
+    ASSERT_EQ(partial.filters.size(), 1u);
+    EXPECT_EQ(std::get<terraingen::RimSmoothing>(partial.filters[0]), terraingen::RimSmoothing{});
 }
 
 TEST(ConfigJson, InfersTheCraterListFormatFromTheExtension) {
@@ -153,99 +167,109 @@ TEST(ConfigJson, ReportsProblemsByTheirJsonPath) {
     EXPECT_EQ(ErrorPath(R"({"schema_version": 2})"), "schema_version");
     EXPECT_EQ(ErrorPath(R"({"schema_version": "1"})"), "schema_version");
     EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "colour": 3})"), "colour");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "surface": {"type": "synthetic", "width": -1}})"),
-              "surface.width");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "surface": {"type": "synthetic", "width": 2.5}})"),
-              "surface.width");
-    EXPECT_EQ(
-        ErrorPath(R"({"schema_version": 1, "surface": {"type": "synthetic", "pixel_size": "1"}})"),
-        "surface.pixel_size");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "surface": []})"), "surface");
+    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "source": {"type": "flat", "width": -1}})"),
+              "source.width");
+    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "source": {"type": "flat", "width": 2.5}})"),
+              "source.width");
+    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "source": {"type": "flat", "pixel_size": "1"}})"),
+              "source.pixel_size");
+    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "source": []})"), "source");
     EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "grid": {}})"), "grid");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "surface": {"type": "dem"}})"), "surface.type");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "surface": {"layers": []}})"), "surface.type");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "surface": {"type": "synthetic", "layers": {}}})"),
-              "surface.layers");
+    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "source": {"type": "dem"}})"), "source.type");
+    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "source": {"width": 3}})"), "source.type");
+    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "layers": [{"type": "noise", "stack": {}}]})"),
+              "layers[0].stack");
     EXPECT_EQ(
         ErrorPath(
-            R"({"schema_version": 1, "surface": {"type": "raster", "resampling": "lanczos"}})"),
-        "surface.resampling");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "surface": {"type": "raster", "layers": []}})"),
-              "surface.layers");
+            R"({"schema_version": 1, "source": {"type": "raster", "resampling": "lanczos"}})"),
+        "source.resampling");
+    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "source": {"type": "raster", "layers": []}})"),
+              "source.layers");
+    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "layers": [{"type": "rocks"}]})"),
+              "layers[0].type");
+    EXPECT_EQ(
+        ErrorPath(R"({"schema_version": 1, "filters": [{"type": "rim_smoothing", "sigma": 1}]})"),
+        "filters[0].sigma");
+    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "craters": {}})"), "craters");
     EXPECT_EQ(
         ErrorPath(
             R"({"schema_version": 1, "outputs": [{"type": "heightmap", "compression": "zstd"}]})"),
         "outputs[0].compression");
     EXPECT_EQ(
         ErrorPath(
-            R"({"schema_version": 1, "surface": {"type": "synthetic", "layers": [{}, {"octave": 3}]}})"),
-        "surface.layers[1].octave");
+            R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{}, {"octave": 3}]}]})"),
+        "layers[0].stack[1].octave");
     EXPECT_EQ(
         ErrorPath(
-            R"({"schema_version": 1, "surface": {"type": "synthetic", "layers": [{"basis": "curl"}]}})"),
-        "surface.layers[0].basis");
+            R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"basis": "curl"}]}]})"),
+        "layers[0].stack[0].basis");
     EXPECT_EQ(
         ErrorPath(
-            R"({"schema_version": 1, "surface": {"type": "synthetic", "layers": [{"amplitude": 1e300}]}})"),
-        "surface.layers[0].amplitude");
+            R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"amplitude": 1e300}]}]})"),
+        "layers[0].stack[0].amplitude");
     EXPECT_EQ(
         ErrorPath(
-            R"({"schema_version": 1, "surface": {"type": "synthetic", "layers": [{"octaves": 1e12}]}})"),
-        "surface.layers[0].octaves");
+            R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"octaves": 1e12}]}]})"),
+        "layers[0].stack[0].octaves");
     EXPECT_EQ(
         ErrorPath(
-            R"({"schema_version": 1, "surface": {"type": "synthetic", "layers": [{"seed": 5000000000}]}})"),
-        "surface.layers[0].seed");
+            R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"seed": 5000000000}]}]})"),
+        "layers[0].stack[0].seed");
     EXPECT_EQ(
         ErrorPath(
-            R"({"schema_version": 1, "surface": {"type": "synthetic", "layers": [{"enabled": 1}]}})"),
-        "surface.layers[0].enabled");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "craters": {"density": {"age_gyr": 3}}})"),
-              "craters.density.type");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "craters": {"density": {"type": "hartman"}}})"),
-              "craters.density.type");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "craters": {"density": "trask"}})"),
-              "craters.density");
+            R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"enabled": 1}]}]})"),
+        "layers[0].stack[0].enabled");
     EXPECT_EQ(
         ErrorPath(
-            R"({"schema_version": 1, "craters": {"density": {"type": "trask", "age_gyr": 3}}})"),
-        "craters.density.age_gyr");
+            R"({"schema_version": 1, "layers": [{"type": "craters", "density": {"age_gyr": 3}}]})"),
+        "layers[0].density.type");
     EXPECT_EQ(
-        ErrorPath(R"({"schema_version": 1, "craters": {"manual": [{"x": 1, "pinned": true}]}})"),
-        "craters.manual[0].pinned");
+        ErrorPath(
+            R"({"schema_version": 1, "layers": [{"type": "craters", "density": {"type": "hartman"}}]})"),
+        "layers[0].density.type");
+    EXPECT_EQ(
+        ErrorPath(R"({"schema_version": 1, "layers": [{"type": "craters", "density": "trask"}]})"),
+        "layers[0].density");
+    EXPECT_EQ(
+        ErrorPath(
+            R"({"schema_version": 1, "layers": [{"type": "craters", "density": {"type": "trask", "age_gyr": 3}}]})"),
+        "layers[0].density.age_gyr");
+    EXPECT_EQ(
+        ErrorPath(
+            R"({"schema_version": 1, "layers": [{"type": "craters", "manual": [{"x": 1, "pinned": true}]}]})"),
+        "layers[0].manual[0].pinned");
     EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "outputs": [{"type": "mesh"}]})"),
               "outputs[0].type");
     EXPECT_EQ(ErrorPath(R"({"schema_version": 3000000000})"), "schema_version");
     EXPECT_EQ(ErrorPath(R"({"schema_version": -3000000000})"), "schema_version");
+    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "source": {"type": "flat", "height": "tall"}})"),
+              "source.height");
     EXPECT_EQ(
-        ErrorPath(R"({"schema_version": 1, "surface": {"type": "synthetic", "height": "tall"}})"),
-        "surface.height");
-    EXPECT_EQ(
-        ErrorPath(
-            R"({"schema_version": 1, "surface": {"type": "synthetic", "pixel_size": 1e400}})"),
-        "");
+        ErrorPath(R"({"schema_version": 1, "source": {"type": "flat", "pixel_size": 1e400}})"), "");
     EXPECT_EQ(
         ErrorPath(R"({"schema_version": 1, "outputs": [{"type": "crater_list", "format": 1}]})"),
         "outputs[0].format");
     EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "outputs": {}})"), "outputs");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "craters": {"ages": {"type": 3}}})"),
-              "craters.ages.type");
+    EXPECT_EQ(
+        ErrorPath(R"({"schema_version": 1, "layers": [{"type": "craters", "ages": {"type": 3}}]})"),
+        "layers[0].ages.type");
     EXPECT_EQ(
         ErrorPath(
-            R"({"schema_version": 1, "surface": {"type": "synthetic", "layers": [{"hurst": null}]}})"),
+            R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"hurst": null}]}]})"),
         "no error");
     EXPECT_EQ(ErrorPath(R"({"schema_version": 1,
-                            "craters": {"degradation": {"type": "none", "depth_ratio": null}}})"),
+                            "layers": [{"type": "craters", "degradation": {"type": "none", "depth_ratio": null}}]})"),
               "no error");
 }
 
 TEST(ConfigJson, ErrorMessagesNameThePathAndTheAlternatives) {
     try {
-        ParseConfig(R"({"schema_version": 1, "craters": {"profile": {"type": "bowl"}}})");
+        ParseConfig(
+            R"({"schema_version": 1, "layers": [{"type": "craters", "profile": {"type": "bowl"}}]})");
         FAIL() << "expected a ConfigError";
     } catch (const ConfigError& error) {
         const std::string message = error.what();
-        EXPECT_EQ(message.rfind("craters.profile.type: unknown type \"bowl\"", 0), 0u) << message;
+        EXPECT_EQ(message.rfind("layers[0].profile.type: unknown type \"bowl\"", 0), 0u) << message;
         EXPECT_NE(message.find("fassett_thomson, martin_parkes_dunstan"), std::string::npos);
     }
 }

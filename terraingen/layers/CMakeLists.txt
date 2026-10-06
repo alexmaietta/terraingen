@@ -5,6 +5,7 @@ terraingen_add_library(
     craters/ages/fresh.cpp
     craters/ages/uniform.cpp
     craters/apply.cpp
+    craters/crater_layer.cpp
     craters/degradation/freshness.cpp
     craters/degradation/none.cpp
     craters/degradation/state.cpp
@@ -12,9 +13,11 @@ terraingen_add_library(
     craters/population.cpp
     craters/profiles/fassett_thomson.cpp
     craters/profiles/martin_parkes_dunstan.cpp
+    noise_relief.cpp
     PUBLIC
     terraingen_distribution
     terraingen_noise
     terraingen_random
     terraingen_raster
+    terraingen_sources
     terraingen_util)
