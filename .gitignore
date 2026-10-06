@@ -15,3 +15,6 @@ ARCHITECTURE.md
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Local data such as DEMs; not committed for now
+assets/
