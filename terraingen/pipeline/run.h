@@ -1,10 +1,10 @@
 #pragma once
 
 #include "terraingen/distribution/size_frequency.h"
-#include "terraingen/layer/craters/ages/age_model.h"
-#include "terraingen/layer/craters/degradation/degradation_model.h"
-#include "terraingen/layer/craters/population.h"
-#include "terraingen/layer/craters/profiles/profile.h"
+#include "terraingen/layers/craters/ages/age_model.h"
+#include "terraingen/layers/craters/degradation/degradation_model.h"
+#include "terraingen/layers/craters/population.h"
+#include "terraingen/layers/craters/profiles/profile.h"
 #include "terraingen/pipeline/config.h"
 #include "terraingen/raster/geotiff.h"
 #include "terraingen/raster/raster.h"

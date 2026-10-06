@@ -1,1 +1,0 @@
-terraingen_add_library(filter SOURCES rim_smoothing.cpp PUBLIC terraingen_layer terraingen_raster)

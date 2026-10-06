@@ -1,0 +1,9 @@
+terraingen_add_test_suite(
+    moon
+    SOURCES
+    moon/chronology_test.cpp
+    moon/production_test.cpp
+    moon/steady_state_test.cpp
+    moon/surface_test.cpp
+    LIBRARIES
+    terraingen::bodies)

@@ -1,5 +1,5 @@
 #include "terraingen/raster/raster_stats.h"
-#include "terraingen/source/synthetic_terrain.h"
+#include "terraingen/sources/synthetic_terrain.h"
 #include "terraingen/util/build_info.h"
 #include "terraingen/util/version.h"
 

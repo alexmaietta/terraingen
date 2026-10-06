@@ -1,0 +1,20 @@
+terraingen_add_library(
+    layers
+    SOURCES
+    craters/ages/age_model.cpp
+    craters/ages/fresh.cpp
+    craters/ages/uniform.cpp
+    craters/apply.cpp
+    craters/degradation/freshness.cpp
+    craters/degradation/none.cpp
+    craters/degradation/state.cpp
+    craters/filters.cpp
+    craters/population.cpp
+    craters/profiles/fassett_thomson.cpp
+    craters/profiles/martin_parkes_dunstan.cpp
+    PUBLIC
+    terraingen_distribution
+    terraingen_noise
+    terraingen_random
+    terraingen_raster
+    terraingen_util)
