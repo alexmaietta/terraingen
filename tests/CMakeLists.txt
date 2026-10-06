@@ -29,9 +29,10 @@ if(TERRAINGEN_COVERAGE)
                 validation
         COMMAND
             "${GCOVR_EXECUTABLE}" --root "${PROJECT_SOURCE_DIR}" --gcov-executable "${gcov_command}"
-            --filter "${PROJECT_SOURCE_DIR}/terraingen/" --exclude-throw-branches
-            --exclude-noncode-lines --delete --txt --html-details "${report_dir}/index.html"
-            --cobertura "${report_dir}/coverage.xml" --print-summary "${PROJECT_BINARY_DIR}"
+            --filter "${PROJECT_SOURCE_DIR}/terraingen/" --gcov-exclude ".*build_info.*"
+            --exclude-throw-branches --exclude-noncode-lines --delete --txt --html-details
+            "${report_dir}/index.html" --cobertura "${report_dir}/coverage.xml" --print-summary
+            "${PROJECT_BINARY_DIR}"
         WORKING_DIRECTORY "${PROJECT_BINARY_DIR}"
         COMMENT "Running tests and writing coverage reports to ${report_dir}"
         USES_TERMINAL VERBATIM)
