@@ -68,6 +68,7 @@
 #include "terraingen/sources/flat_source.h"
 #include "terraingen/sources/geotiff_source.h"
 #include "terraingen/sources/source.h"
+#include "terraingen/sources/source_chain.h"
 #include "terraingen/sources/synthetic_terrain.h"
 #include "terraingen/util/build_info.h"
 #include "terraingen/util/cells.h"

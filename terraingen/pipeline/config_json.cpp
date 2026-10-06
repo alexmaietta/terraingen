@@ -160,6 +160,9 @@ template <> struct SpecName<FlatSourceSpec> {
 template <> struct SpecName<RasterSourceSpec> {
     static constexpr std::string_view kName = "raster";
 };
+template <> struct SpecName<ChainSourceSpec> {
+    static constexpr std::string_view kName = "chain";
+};
 template <> struct SpecName<NoiseLayerSpec> {
     static constexpr std::string_view kName = "noise";
 };
@@ -298,6 +301,7 @@ class Writer {
 
 template <typename IO> void Fields(IO& io, FlatSourceSpec& source);
 template <typename IO> void Fields(IO& io, RasterSourceSpec& source);
+template <typename IO> void Fields(IO& io, ChainSourceSpec& source);
 template <typename IO> void Fields(IO& io, NoiseLayerSpec& layer);
 template <typename IO> void Fields(IO& io, HeightmapOutput& output);
 template <typename IO> void Fields(IO& io, NoiseLayerConfig& layer);
@@ -606,6 +610,10 @@ template <typename IO> void Fields(IO& io, RasterSourceSpec& source) {
     io("band", source.band);
     io("pixel_size", source.pixelSize);
     io("resampling", source.resampling);
+}
+
+template <typename IO> void Fields(IO& io, ChainSourceSpec& source) {
+    io("sources", source.sources);
 }
 
 template <typename IO> void Fields(IO& io, NoiseLayerSpec& layer) {

@@ -21,6 +21,7 @@
 #include "terraingen/pipeline/config_json.h"
 #include "terraingen/sources/flat_source.h"
 #include "terraingen/sources/geotiff_source.h"
+#include "terraingen/sources/source_chain.h"
 #include "terraingen/util/log.h"
 
 #include <nlohmann/json.hpp>
@@ -366,40 +367,58 @@ CraterModels BuildCraterModels(const CraterLayerSpec& craters) {
     return models;
 }
 
-RasterGrid DescribeSource(const SourceSpec& source, const std::filesystem::path& directory) {
+namespace {
+
+/// `DescribeSource` for the source at JSON `path`.
+RasterGrid DescribeSourceAt(const SourceSpec& source, const std::filesystem::path& directory,
+                            const std::string& path) {
+    if (const auto* chain = std::get_if<ChainSourceSpec>(&source)) {
+        if (chain->sources.empty()) {
+            throw ConfigError(path + ".sources", "must not be empty");
+        }
+        RasterGrid grid;
+        for (std::size_t n = 0; n < chain->sources.size(); ++n) {
+            const RasterGrid described = DescribeSourceAt(
+                chain->sources[n], directory, path + ".sources[" + std::to_string(n) + "]");
+            if (n == 0) {
+                grid = described;
+            }
+        }
+        return grid;
+    }
     if (const auto* flat = std::get_if<FlatSourceSpec>(&source)) {
         if (!(std::isfinite(flat->pixelSize) && flat->pixelSize > 0.0)) {
-            throw ConfigError("source.pixel_size", "must be positive");
+            throw ConfigError(path + ".pixel_size", "must be positive");
         }
-        CheckGridSize(flat->width, flat->height, "source.width");
+        CheckGridSize(flat->width, flat->height, path + ".width");
         return FlatSource(flat->width, flat->height, flat->pixelSize, flat->elevation).Grid();
     }
     const auto& raster = std::get<RasterSourceSpec>(source);
     if (raster.path.empty()) {
-        throw ConfigError("source.path", "must not be empty");
+        throw ConfigError(path + ".path", "must not be empty");
     }
     GeoTiffInfo info;
     try {
         info = ReadGeoTiffInfo(Resolve(raster.path, directory));
     } catch (const GeoTiffError& error) {
-        throw ConfigError("source.path", error.what());
+        throw ConfigError(path + ".path", error.what());
     }
     if (raster.band >= info.bands) {
-        throw ConfigError("source.band", "the file has " + std::to_string(info.bands) +
-                                             (info.bands == 1 ? " band" : " bands"));
+        throw ConfigError(path + ".band", "the file has " + std::to_string(info.bands) +
+                                              (info.bands == 1 ? " band" : " bands"));
     }
     if (info.geoKeys.IsGeographic()) {
-        throw ConfigError("source.path",
+        throw ConfigError(path + ".path",
                           "the raster's CRS is geographic (degrees); craters are sized in metres, "
                           "so reproject it first, for example with gdalwarp -t_srs");
     }
     RasterGrid grid{info.width, info.height, info.transform};
     if (raster.pixelSize) {
         if (!(std::isfinite(*raster.pixelSize) && *raster.pixelSize > 0.0)) {
-            throw ConfigError("source.pixel_size", "must be positive");
+            throw ConfigError(path + ".pixel_size", "must be positive");
         }
         if (grid.transform.rowRotation != 0.0 || grid.transform.colRotation != 0.0) {
-            throw ConfigError("source.pixel_size", "rotated rasters cannot be resampled");
+            throw ConfigError(path + ".pixel_size", "rotated rasters cannot be resampled");
         }
         const double scaleX = std::fabs(grid.transform.pixelWidth) / *raster.pixelSize;
         const double scaleY = std::fabs(grid.transform.pixelHeight) / *raster.pixelSize;
@@ -407,17 +426,49 @@ RasterGrid DescribeSource(const SourceSpec& source, const std::filesystem::path&
         const double height = std::max(1.0, std::round(static_cast<double>(info.height) * scaleY));
         if (width > static_cast<double>(kMaxConfigGridSize) ||
             height > static_cast<double>(kMaxConfigGridSize)) {
-            throw ConfigError("source.pixel_size", "resampling would exceed " +
-                                                       std::to_string(kMaxConfigGridSize) +
-                                                       " cells per side");
+            throw ConfigError(path + ".pixel_size", "resampling would exceed " +
+                                                        std::to_string(kMaxConfigGridSize) +
+                                                        " cells per side");
         }
         grid.width = static_cast<std::size_t>(width);
         grid.height = static_cast<std::size_t>(height);
         grid.transform.pixelWidth = std::copysign(*raster.pixelSize, grid.transform.pixelWidth);
         grid.transform.pixelHeight = std::copysign(*raster.pixelSize, grid.transform.pixelHeight);
     }
-    CheckGridSize(grid.width, grid.height, raster.pixelSize ? "source.pixel_size" : "source.path");
+    CheckGridSize(grid.width, grid.height, path + (raster.pixelSize ? ".pixel_size" : ".path"));
     return grid;
+}
+
+std::shared_ptr<const Source> BuildSource(const SourceSpec& spec,
+                                          const std::filesystem::path& directory) {
+    if (const auto* flat = std::get_if<FlatSourceSpec>(&spec)) {
+        return std::make_shared<FlatSource>(flat->width, flat->height, flat->pixelSize,
+                                            flat->elevation);
+    }
+    if (const auto* chain = std::get_if<ChainSourceSpec>(&spec)) {
+        std::vector<std::shared_ptr<const Source>> sources;
+        for (const SourceSpec& source : chain->sources) {
+            sources.push_back(BuildSource(source, directory));
+        }
+        return std::make_shared<SourceChain>(std::move(sources));
+    }
+    const auto& raster = std::get<RasterSourceSpec>(spec);
+    return std::make_shared<GeoTiffSource>(Resolve(raster.path, directory), raster.band,
+                                           raster.pixelSize, raster.resampling);
+}
+
+/// The raster source whose grid `source` covers, if any: itself, or a chain's first source.
+const GeoTiffSource* GridRaster(const Source& source) {
+    if (const auto* chain = dynamic_cast<const SourceChain*>(&source)) {
+        return GridRaster(*chain->Sources().front());
+    }
+    return dynamic_cast<const GeoTiffSource*>(&source);
+}
+
+}  // namespace
+
+RasterGrid DescribeSource(const SourceSpec& source, const std::filesystem::path& directory) {
+    return DescribeSourceAt(source, directory, "source");
 }
 
 void ValidateConfig(const TerrainConfig& config, const std::filesystem::path& directory) {
@@ -463,14 +514,7 @@ void ValidateConfig(const TerrainConfig& config, const std::filesystem::path& di
 Terrain BuildTerrain(const TerrainConfig& config, const std::filesystem::path& directory) {
     ValidateConfig(config, directory);
     Terrain terrain;
-    if (const auto* flat = std::get_if<FlatSourceSpec>(&config.source)) {
-        terrain.source = std::make_shared<FlatSource>(flat->width, flat->height, flat->pixelSize,
-                                                      flat->elevation);
-    } else {
-        const auto& raster = std::get<RasterSourceSpec>(config.source);
-        terrain.source = std::make_shared<GeoTiffSource>(
-            Resolve(raster.path, directory), raster.band, raster.pixelSize, raster.resampling);
-    }
+    terrain.source = BuildSource(config.source, directory);
     std::shared_ptr<const CraterLayer> craters;
     for (const LayerSpec& layer : config.layers) {
         terrain.layers.push_back(BuildLayer(layer, *terrain.source, craters));
@@ -492,7 +536,7 @@ GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
     EvaluatedTerrain evaluated =
         Evaluate(terrain, terrain.source->Grid(), EvaluationOptions{0.0, threads});
     GeneratedTerrain generated{std::move(evaluated.heights), std::move(evaluated.features), {}};
-    if (const auto raster = std::dynamic_pointer_cast<const GeoTiffSource>(terrain.source)) {
+    if (const GeoTiffSource* raster = GridRaster(*terrain.source)) {
         generated.geoKeys = raster->Keys();
     }
     LogInfo("pipeline", "Generated ", generated.heights.Width(), "x", generated.heights.Height(),

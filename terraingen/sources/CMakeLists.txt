@@ -3,6 +3,7 @@ terraingen_add_library(
     SOURCES
     flat_source.cpp
     geotiff_source.cpp
+    source_chain.cpp
     synthetic_terrain.cpp
     PUBLIC
     terraingen_noise

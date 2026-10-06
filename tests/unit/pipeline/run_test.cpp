@@ -683,3 +683,46 @@ TEST(WriteOutputs, WritesHeightmapsWithTheSourceProjection) {
     EXPECT_EQ(read.geoKeys, Keys());
     EXPECT_EQ(read.raster.Transform(), dem.Transform());
 }
+
+TEST(GenerateTerrain, FillsARastersGapsFromTheSourcesChainedAfterIt) {
+    const auto folder = TempPath("terraingen_chain");
+    const auto dem = WriteDem(folder, "dem.tif");
+    auto holes = dem;
+    holes.SetNoData(-9999.0f);
+    for (std::size_t row = 10; row < 20; ++row) {
+        for (std::size_t col = 5; col < 12; ++col) {
+            holes(col, row) = -9999.0f;
+        }
+    }
+    terraingen::WriteGeoTiff(folder / "holes.tif", holes, Keys());
+    const auto raster = [](const std::string& path) {
+        return terraingen::RasterSourceSpec{path, 0, std::nullopt,
+                                            terraingen::ResampleMethod::Cubic};
+    };
+    TerrainConfig config;
+    config.source = terraingen::ChainSourceSpec{{raster("holes.tif"), raster("dem.tif")}};
+    const auto filled = GenerateTerrain(config, folder);
+    ExpectSameRaster(filled.heights, dem);
+    EXPECT_EQ(filled.geoKeys, Keys());
+
+    config.source = terraingen::ChainSourceSpec{
+        {raster("holes.tif"), terraingen::FlatSourceSpec{2, 2, 1.0, 3.5f}}};
+    const auto datum = GenerateTerrain(config, folder);
+    EXPECT_EQ(datum.heights(6, 12), 3.5f);
+    EXPECT_EQ(datum.heights(30, 2), dem(30, 2));
+
+    const auto error = [&](terraingen::ChainSourceSpec chain) {
+        TerrainConfig bad;
+        bad.source = std::move(chain);
+        try {
+            ValidateConfig(bad, folder);
+        } catch (const ConfigError& e) {
+            return e.Path();
+        }
+        return std::string("valid");
+    };
+    EXPECT_EQ(error({}), "source.sources");
+    EXPECT_EQ(error({{raster("dem.tif"), raster("missing.tif")}}), "source.sources[1].path");
+    EXPECT_EQ(error({{terraingen::ChainSourceSpec{{terraingen::FlatSourceSpec{1, 1, 1.0}}}}}),
+              "source.sources[0].sources[0].width");
+}

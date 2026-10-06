@@ -67,7 +67,17 @@ struct RasterSourceSpec {
     bool operator==(const RasterSourceSpec&) const = default;
 };
 
-using SourceSpec = std::variant<FlatSourceSpec, RasterSourceSpec>;
+struct ChainSourceSpec;
+
+using SourceSpec = std::variant<FlatSourceSpec, RasterSourceSpec, ChainSourceSpec>;
+
+/// "chain": `sources` tried in order, each filling where those before it have no data
+/// (`SourceChain`); the terrain covers the first source's grid.
+struct ChainSourceSpec {
+    std::vector<SourceSpec> sources;
+
+    bool operator==(const ChainSourceSpec&) const = default;
+};
 
 /// "noise": a stack of noise layers added to the terrain (`NoiseRelief`), from 1 to
 /// `kMaxNoiseLayers`, measured from the source's reference point.

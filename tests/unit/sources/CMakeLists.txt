@@ -3,6 +3,7 @@ terraingen_add_test_suite(
     SOURCES
     flat_source_test.cpp
     geotiff_source_test.cpp
+    source_chain_test.cpp
     synthetic_terrain_test.cpp
     LIBRARIES
     terraingen::sources)
