@@ -1,4 +1,4 @@
-#include "terraingen/kernels/fractal.h"
+#include "terraingen/noise/kernels/fractal.h"
 
 #include <gtest/gtest.h>
 

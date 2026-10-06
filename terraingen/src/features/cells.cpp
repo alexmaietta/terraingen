@@ -1,4 +1,4 @@
-#include "terraingen/spatial/cells.h"
+#include "terraingen/features/cells.h"
 
 #include <cmath>
 #include <limits>

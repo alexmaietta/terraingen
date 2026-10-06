@@ -1,6 +1,6 @@
 #pragma once
 
-#include "terraingen/kernels/fractal.h"
+#include "terraingen/noise/kernels/fractal.h"
 
 #include <algorithm>
 #include <cstddef>

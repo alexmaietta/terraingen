@@ -21,6 +21,7 @@ add_library(
     distributions/size_frequency.cpp
     distributions/spliced.cpp
     distributions/tabulated.cpp
+    features/cells.cpp
     features/craters/ages/age_model.cpp
     features/craters/ages/fresh.cpp
     features/craters/ages/steady_state.cpp
@@ -45,8 +46,7 @@ add_library(
     random/stream.cpp
     raster/filters.cpp
     raster/resample.cpp
-    spatial/cells.cpp
-    surfaces/synthetic_terrain.cpp)
+    noise/synthetic_terrain.cpp)
 target_include_directories(terraingen_core_objects PUBLIC "${PROJECT_SOURCE_DIR}/terraingen/include"
                                                           "${PROJECT_BINARY_DIR}/include")
 target_include_directories(terraingen_core_objects SYSTEM

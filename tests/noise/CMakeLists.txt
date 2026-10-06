@@ -1,0 +1,22 @@
+terraingen_add_test_suite(
+    noise
+    SOURCES
+    kernels/fractal_test.cpp
+    kernels/hash_test.cpp
+    kernels/layers_test.cpp
+    kernels/perlin_test.cpp
+    kernels/philox_test.cpp
+    kernels/simplex_test.cpp
+    kernels/value_test.cpp
+    kernels/worley_test.cpp
+    synthetic_terrain_test.cpp
+    LIBRARIES
+    terraingen::core)
+terraingen_add_test_suite(
+    noise_golden
+    SOURCES
+    kernels/golden_test.cpp
+    LIBRARIES
+    terraingen::core
+    LABELS
+    golden)

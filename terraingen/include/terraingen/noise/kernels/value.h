@@ -1,7 +1,7 @@
 #pragma once
 
-#include "terraingen/kernels/hash.h"
-#include "terraingen/kernels/perlin.h"
+#include "terraingen/noise/kernels/hash.h"
+#include "terraingen/noise/kernels/perlin.h"
 
 #include <cmath>
 #include <cstdint>

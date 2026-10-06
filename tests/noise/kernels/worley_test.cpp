@@ -1,4 +1,4 @@
-#include "terraingen/kernels/worley.h"
+#include "terraingen/noise/kernels/worley.h"
 
 #include <gtest/gtest.h>
 

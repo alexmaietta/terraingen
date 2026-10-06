@@ -1,4 +1,4 @@
-#include "terraingen/kernels/simplex.h"
+#include "terraingen/noise/kernels/simplex.h"
 
 #include <gtest/gtest.h>
 

@@ -1,4 +1,4 @@
-#include "terraingen/kernels/philox.h"
+#include "terraingen/noise/kernels/philox.h"
 
 #include <gtest/gtest.h>
 

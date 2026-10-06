@@ -1,6 +1,6 @@
 #include "bindings.h"
 
-#include "terraingen/kernels/philox.h"
+#include "terraingen/noise/kernels/philox.h"
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"
 

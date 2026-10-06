@@ -1,4 +1,4 @@
-#include "terraingen/kernels/perlin.h"
+#include "terraingen/noise/kernels/perlin.h"
 
 #include <gtest/gtest.h>
 

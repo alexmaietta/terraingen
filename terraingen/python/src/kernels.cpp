@@ -1,13 +1,13 @@
 #include "bindings.h"
 
-#include "terraingen/kernels/fractal.h"
-#include "terraingen/kernels/hash.h"
-#include "terraingen/kernels/layers.h"
-#include "terraingen/kernels/perlin.h"
-#include "terraingen/kernels/simplex.h"
-#include "terraingen/kernels/value.h"
-#include "terraingen/kernels/worley.h"
-#include "terraingen/surfaces/synthetic_terrain.h"
+#include "terraingen/noise/kernels/fractal.h"
+#include "terraingen/noise/kernels/hash.h"
+#include "terraingen/noise/kernels/layers.h"
+#include "terraingen/noise/kernels/perlin.h"
+#include "terraingen/noise/kernels/simplex.h"
+#include "terraingen/noise/kernels/value.h"
+#include "terraingen/noise/kernels/worley.h"
+#include "terraingen/noise/synthetic_terrain.h"
 
 #include <nanobind/ndarray.h>
 #include <nanobind/operators.h>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "terraingen/kernels/hash.h"
+#include "terraingen/noise/kernels/hash.h"
 
 #include <cmath>
 #include <cstdint>

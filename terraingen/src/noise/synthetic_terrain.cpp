@@ -1,4 +1,4 @@
-#include "terraingen/surfaces/synthetic_terrain.h"
+#include "terraingen/noise/synthetic_terrain.h"
 
 #include "terraingen/core/log.h"
 
@@ -81,7 +81,7 @@ void FillSyntheticTerrain(Raster<float>& raster, const SyntheticTerrainParams& p
                                     params.layers.data(), params.layers.size());
         }
     }
-    LogInfo("surfaces", "Filled ", raster.Width(), "x", raster.Height(), " synthetic terrain (",
+    LogInfo("noise", "Filled ", raster.Width(), "x", raster.Height(), " synthetic terrain (",
             params.layers.size(), params.layers.size() == 1 ? " layer" : " layers", ") in ",
             FormatDuration(stopwatch.Milliseconds()));
 }

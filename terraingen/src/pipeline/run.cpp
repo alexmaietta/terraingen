@@ -15,7 +15,7 @@
 #include "terraingen/features/craters/lunar/production.h"
 #include "terraingen/features/craters/lunar/surface.h"
 #include "terraingen/features/craters/profiles/martin_parkes_dunstan.h"
-#include "terraingen/kernels/layers.h"
+#include "terraingen/noise/kernels/layers.h"
 #include "terraingen/pipeline/config_json.h"
 
 #include <nlohmann/json.hpp>

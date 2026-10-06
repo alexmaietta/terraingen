@@ -1,10 +1,10 @@
 #pragma once
 
-#include "terraingen/kernels/hash.h"
-#include "terraingen/kernels/perlin.h"
-#include "terraingen/kernels/simplex.h"
-#include "terraingen/kernels/value.h"
-#include "terraingen/kernels/worley.h"
+#include "terraingen/noise/kernels/hash.h"
+#include "terraingen/noise/kernels/perlin.h"
+#include "terraingen/noise/kernels/simplex.h"
+#include "terraingen/noise/kernels/value.h"
+#include "terraingen/noise/kernels/worley.h"
 
 #include <algorithm>
 #include <cmath>

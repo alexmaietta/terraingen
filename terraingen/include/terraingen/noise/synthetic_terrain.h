@@ -1,7 +1,7 @@
 #pragma once
 
-#include "terraingen/kernels/fractal.h"
-#include "terraingen/kernels/layers.h"
+#include "terraingen/noise/kernels/fractal.h"
+#include "terraingen/noise/kernels/layers.h"
 #include "terraingen/raster/raster.h"
 
 #include <cstddef>

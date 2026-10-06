@@ -1,8 +1,8 @@
 #pragma once
 
 #include "terraingen/distributions/size_frequency.h"
+#include "terraingen/features/cells.h"
 #include "terraingen/features/craters/ages/age_model.h"
-#include "terraingen/spatial/cells.h"
 
 #include <cstddef>
 #include <cstdint>

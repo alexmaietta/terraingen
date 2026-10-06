@@ -1,5 +1,5 @@
 #include "support/log_capture.h"
-#include "terraingen/surfaces/synthetic_terrain.h"
+#include "terraingen/noise/synthetic_terrain.h"
 
 #include <gtest/gtest.h>
 
@@ -191,7 +191,7 @@ TEST(GenerateSyntheticTerrain, LogsTheFillWithItsTiming) {
     SyntheticTerrainParams params;
     params.layers.push_back(params.layers.front());
     GenerateSyntheticTerrain(9, 7, 1.0, params);
-    const auto records = capture.Matching("surfaces", terraingen::LogLevel::Info);
+    const auto records = capture.Matching("noise", terraingen::LogLevel::Info);
     ASSERT_EQ(records.size(), 1u);
     EXPECT_EQ(records[0].message.rfind("Filled 9x7 synthetic terrain (2 layers) in ", 0), 0u)
         << records[0].message;

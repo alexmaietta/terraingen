@@ -1,4 +1,4 @@
-#include "terraingen/kernels/value.h"
+#include "terraingen/noise/kernels/value.h"
 
 #include <gtest/gtest.h>
 

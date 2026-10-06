@@ -1,4 +1,4 @@
-#include "terraingen/kernels/layers.h"
+#include "terraingen/noise/kernels/layers.h"
 
 #include <gtest/gtest.h>
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "terraingen/kernels/philox.h"
+#include "terraingen/noise/kernels/philox.h"
 
 #include <cstdint>
 
