@@ -77,16 +77,16 @@ TEST_F(LogTest, DefaultsToWarningsAndAbove) {
 
 TEST_F(LogTest, FormatsMessagesOnlyWhenEnabled) {
     int formatted = 0;
-    LogDebug("surface", CountedFormatting{&formatted});
+    LogDebug("source", CountedFormatting{&formatted});
     EXPECT_EQ(formatted, 0);
     SetLogLevel(LogLevel::Debug);
-    LogDebug("surface", CountedFormatting{&formatted});
+    LogDebug("source", CountedFormatting{&formatted});
     EXPECT_EQ(formatted, 1);
-    Log(LogLevel::Error, "surface", std::string("plain"));
+    Log(LogLevel::Error, "source", std::string("plain"));
     ASSERT_EQ(records.size(), 2u);
     EXPECT_EQ(records[1].message, "plain");
     SetLogLevel(LogLevel::Off);
-    Log(LogLevel::Error, "surface", std::string("silenced"));
+    Log(LogLevel::Error, "source", std::string("silenced"));
     EXPECT_EQ(records.size(), 2u);
 }
 

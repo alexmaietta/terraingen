@@ -1,0 +1,12 @@
+terraingen_add_library(
+    body
+    SOURCES
+    moon/chronology.cpp
+    moon/equilibrium.cpp
+    moon/production.cpp
+    moon/specifications.cpp
+    moon/steady_state.cpp
+    moon/surface.cpp
+    PUBLIC
+    terraingen_distribution
+    terraingen_layer)

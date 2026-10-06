@@ -7,7 +7,7 @@
 #include "terraingen/noise/kernels/simplex.h"
 #include "terraingen/noise/kernels/value.h"
 #include "terraingen/noise/kernels/worley.h"
-#include "terraingen/surface/synthetic_terrain.h"
+#include "terraingen/source/synthetic_terrain.h"
 
 #include <nanobind/ndarray.h>
 #include <nanobind/operators.h>

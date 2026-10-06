@@ -1,1 +1,0 @@
-terraingen_add_test_suite(surface SOURCES synthetic_terrain_test.cpp LIBRARIES terraingen::surface)

@@ -1,15 +1,15 @@
 #pragma once
 
-#include "terraingen/craters/apply.h"
-#include "terraingen/craters/lunar/specifications.h"
-#include "terraingen/craters/population.h"
-#include "terraingen/craters/profiles/fassett_thomson.h"
-#include "terraingen/craters/rim_smoothing.h"
+#include "terraingen/body/moon/specifications.h"
 #include "terraingen/distribution/piecewise_power_law.h"
+#include "terraingen/filter/rim_smoothing.h"
+#include "terraingen/layer/craters/apply.h"
+#include "terraingen/layer/craters/population.h"
+#include "terraingen/layer/craters/profiles/fassett_thomson.h"
 #include "terraingen/noise/kernels/layers.h"
 #include "terraingen/raster/geotiff.h"
 #include "terraingen/raster/resample.h"
-#include "terraingen/surface/synthetic_terrain.h"
+#include "terraingen/source/synthetic_terrain.h"
 
 #include <cstddef>
 #include <cstdint>

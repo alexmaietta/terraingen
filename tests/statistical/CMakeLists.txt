@@ -10,11 +10,18 @@ terraingen_add_test_suite(
 terraingen_add_test_suite(
     craters_statistical
     SOURCES
-    craters/ages/ages_test.cpp
-    craters/lunar/production_test.cpp
-    craters/population_test.cpp
+    layer/craters/ages/ages_test.cpp
+    layer/craters/population_test.cpp
     LIBRARIES
-    terraingen::craters
+    terraingen::body
+    LABELS
+    statistical)
+terraingen_add_test_suite(
+    moon_statistical
+    SOURCES
+    body/moon/production_test.cpp
+    LIBRARIES
+    terraingen::body
     LABELS
     statistical)
 terraingen_add_test_suite(
