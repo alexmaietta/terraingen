@@ -16,6 +16,9 @@ class NoiseRelief final : public Layer {
 
     void Apply(Raster<float>& heights, double spacing, TerrainFeatures& features) const override;
 
+    void ApplyParallel(Raster<float>& heights, double spacing, TerrainFeatures& features,
+                       unsigned threads) const override;
+
     /// Noise added at (`x`, `y`); NaN stays NaN.
     float ApplyAt(float height, double x, double y, double spacing) const override;
 

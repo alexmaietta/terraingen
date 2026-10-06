@@ -46,11 +46,12 @@ struct GeneratedTerrain {
 };
 
 /// Generates the terrain `config` describes over its source's grid: `BuildTerrain`, then
-/// `Evaluate`. Relative input paths resolve against `directory`.
+/// `Evaluate` on up to `threads` threads (0 for every hardware thread; the result does not depend
+/// on it). Relative input paths resolve against `directory`.
 /// @throws ConfigError if the configuration is invalid.
 /// @throws GeoTiffError if a raster cannot be read.
 GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
-                                 const std::filesystem::path& directory = {});
+                                 const std::filesystem::path& directory = {}, unsigned threads = 0);
 
 /// Writes `craters` as CSV (columns x, y, diameter, age_gyr, id, manual) or as JSON ({"craters":
 /// [{"x": ..., "y": ..., ...}]}), with doubles written exactly.

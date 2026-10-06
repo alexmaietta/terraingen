@@ -28,6 +28,18 @@ class Layer {
     /// it placed in `features`.
     virtual void Apply(Raster<float>& heights, double spacing, TerrainFeatures& features) const = 0;
 
+    /// `Apply` on up to `threads` threads (0 for every hardware thread), to the same bits. The
+    /// default runs `Apply`.
+    virtual void ApplyParallel(Raster<float>& heights, double spacing, TerrainFeatures& features,
+                               unsigned /*threads*/) const {
+        Apply(heights, spacing, features);
+    }
+
+    /// The largest feature the layer places, in world units, for filters' margins; 0 for none.
+    virtual double MaxFeatureDiameter() const {
+        return 0.0;
+    }
+
     /// The height at (`x`, `y`) after this layer, given `height` there before it, sampled every
     /// `spacing` world units: what `Apply` makes of a cell centred there, to the same bits. The
     /// default applies the layer to one cell of side `spacing`; layers override it with something

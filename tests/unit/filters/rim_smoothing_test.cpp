@@ -99,3 +99,21 @@ TEST(RimSmoothingFilter, LeavesCratersTooSmallForTheSpacingAndRejectsBadSettings
         << "a 40 m crater is under 3 samples of 20 m";
     EXPECT_THROW(terraingen::RimSmoothingFilter({.strength = 2.0}), std::invalid_argument);
 }
+
+TEST(SmoothCraterRims, SmoothsFromTheUnsmoothedTerrainOnAnyNumberOfThreads) {
+    CraterList craters;
+    Raster<float> raster = Cratered(craters);
+    craters.Append({20.5, 0.5, 30.0, 0.0, 2u});
+    ApplyCraters(raster, CraterList(), FassettThomsonProfile());
+    Raster<float> serial = raster;
+    SmoothCraterRims(serial, craters, {.sigmaRadii = 0.08}, 0.0, 1);
+    for (const unsigned threads : {2u, 0u}) {
+        Raster<float> parallel = raster;
+        SmoothCraterRims(parallel, craters, {.sigmaRadii = 0.08}, 0.0, threads);
+        EXPECT_TRUE(std::equal(parallel.Values().begin(), parallel.Values().end(),
+                               serial.Values().begin()));
+    }
+    EXPECT_EQ(terraingen::RimSmoothingFilter({.sigmaRadii = 0.0}).Margin(40.0, 1.0), 0.0);
+    EXPECT_DOUBLE_EQ(terraingen::RimSmoothingFilter({.sigmaRadii = 0.1}).Margin(40.0, 1.0),
+                     (1.2 + 0.3) * 20.0 + 2.0);
+}

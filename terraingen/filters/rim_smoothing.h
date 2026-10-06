@@ -35,8 +35,11 @@ void ValidateRimSmoothing(const RimSmoothing& smoothing);
 ///
 /// Fresh profiles have sharp rim crests; smoothing them is a localized linear diffusion
 /// (sigma^2 = 2 kappa t; Culling 1960), the process that rounds rims as craters degrade (Fassett
-/// and Thomson 2014). Craters are smoothed in list order, each against the terrain as left by the
-/// previous ones; cells holding the no-data value are left unchanged. Each crater's smoothing is
+/// and Thomson 2014). Every crater's smoothed copy is taken from the terrain as it was before any
+/// smoothing, and the blends are applied in list order, so each cell depends only on the terrain
+/// within a fixed distance and tiles with a margin (`RimSmoothingFilter::Margin`) equal the whole.
+/// Cells holding the no-data value are left unchanged. The work is split over up to `threads`
+/// threads (0 for every hardware thread) without changing the result. Each crater's smoothing is
 /// weighted by `ResolutionWeight(diameter, spacing, fade)`; `spacing` is in world units, 0 means
 /// the raster's cell size, and a finer spacing is raised to it.
 ///
@@ -51,7 +54,8 @@ void ValidateRimSmoothing(const RimSmoothing& smoothing);
 /// `spacing`.
 /// @throws std::domain_error if the raster's transform is not invertible.
 void SmoothCraterRims(Raster<float>& raster, const CraterList& craters,
-                      const RimSmoothing& smoothing = {}, double spacing = 0.0);
+                      const RimSmoothing& smoothing = {}, double spacing = 0.0,
+                      unsigned threads = 1);
 
 /// `SmoothCraterRims` over the craters the layers placed, at the evaluation's sample spacing.
 class RimSmoothingFilter final : public Filter {
@@ -61,6 +65,12 @@ class RimSmoothingFilter final : public Filter {
 
     void Apply(Raster<float>& heights, double spacing,
                const TerrainFeatures& features) const override;
+
+    void ApplyParallel(Raster<float>& heights, double spacing, const TerrainFeatures& features,
+                       unsigned threads) const override;
+
+    /// The band's outer edge plus three sigmas for the largest crater, and two samples.
+    double Margin(double maxFeatureDiameter, double spacing) const override;
 
     const RimSmoothing& Smoothing() const {
         return smoothing_;

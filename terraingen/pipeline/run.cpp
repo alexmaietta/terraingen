@@ -396,10 +396,11 @@ Terrain BuildTerrain(const TerrainConfig& config, const std::filesystem::path& d
 }
 
 GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
-                                 const std::filesystem::path& directory) {
+                                 const std::filesystem::path& directory, unsigned threads) {
     const Terrain terrain = BuildTerrain(config, directory);
     const Stopwatch stopwatch;
-    EvaluatedTerrain evaluated = Evaluate(terrain);
+    EvaluatedTerrain evaluated =
+        Evaluate(terrain, terrain.source->Grid(), EvaluationOptions{0.0, threads});
     GeneratedTerrain generated{std::move(evaluated.heights), std::move(evaluated.features), {}};
     if (const auto raster = std::dynamic_pointer_cast<const GeoTiffSource>(terrain.source)) {
         generated.geoKeys = raster->Keys();

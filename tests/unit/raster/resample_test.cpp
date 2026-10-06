@@ -105,3 +105,40 @@ TEST(Resample, RejectsInvalidInputs) {
     rotated.SetTransform(GeoTransform{0.0, 1.0, 0.1, 0.0, 0.0, -1.0});
     EXPECT_THROW(Resample(rotated, 1.0, ResampleMethod::Nearest), std::invalid_argument);
 }
+
+TEST(SampleRaster, InterpolatesAtWorldPositions) {
+    Raster<float> raster(4, 3);
+    raster.SetTransform(GeoTransform::NorthUp(10.0, 30.0, 2.0));
+    for (std::size_t row = 0; row < 3; ++row) {
+        for (std::size_t col = 0; col < 4; ++col) {
+            raster(col, row) = static_cast<float>(col * 10 + row);
+        }
+    }
+    EXPECT_EQ(terraingen::SampleRaster(raster, 13.0, 27.0, ResampleMethod::Bilinear), 11.0f);
+    EXPECT_FLOAT_EQ(terraingen::SampleRaster(raster, 14.0, 27.0, ResampleMethod::Bilinear), 16.0f);
+    EXPECT_EQ(terraingen::SampleRaster(raster, 14.1, 26.9, ResampleMethod::Nearest), 21.0f);
+    EXPECT_TRUE(std::isnan(terraingen::SampleRaster(raster, 9.0, 27.0, ResampleMethod::Cubic)));
+    EXPECT_TRUE(std::isnan(terraingen::SampleRaster(raster, 13.0, 31.0, ResampleMethod::Cubic)));
+    raster.SetNoData(-1.0f);
+    raster(1, 1) = -1.0f;
+    EXPECT_TRUE(std::isnan(terraingen::SampleRaster(raster, 13.0, 27.0, ResampleMethod::Nearest)));
+    EXPECT_TRUE(std::isnan(terraingen::SampleRaster(raster, 14.0, 27.0, ResampleMethod::Bilinear)));
+}
+
+TEST(ResampleTo, SamplesEachCellCentreAndMarksCellsBeyondTheRaster) {
+    Raster<float> raster(4, 4, 5.0f);
+    raster.SetTransform(GeoTransform::NorthUp(0.0, 8.0, 2.0));
+    const terraingen::RasterGrid grid{6, 6, GeoTransform::NorthUp(-2.0, 10.0, 2.0)};
+    const Raster<float> resampled = terraingen::ResampleTo(raster, grid, ResampleMethod::Cubic);
+    EXPECT_EQ(terraingen::RasterGrid::Of(resampled), grid);
+    EXPECT_FLOAT_EQ(resampled(2, 2), 5.0f);
+    EXPECT_TRUE(resampled.IsNoData(resampled(0, 0)));
+    EXPECT_TRUE(std::isnan(resampled(5, 3)));
+    EXPECT_THROW(terraingen::ResampleTo(raster, terraingen::RasterGrid{}, ResampleMethod::Cubic),
+                 std::invalid_argument);
+    EXPECT_THROW(terraingen::ResampleTo(Raster<float>(), grid, ResampleMethod::Cubic),
+                 std::invalid_argument);
+    raster.SetTransform(GeoTransform{0.0, 2.0, 0.3, 8.0, 0.3, -2.0});
+    EXPECT_THROW(terraingen::SampleRaster(raster, 1.0, 1.0, ResampleMethod::Cubic),
+                 std::invalid_argument);
+}

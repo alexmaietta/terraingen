@@ -2,6 +2,7 @@
 
 #include "terraingen/layers/craters/degradation/none.h"
 #include "terraingen/util/log.h"
+#include "terraingen/util/parallel.h"
 
 #include <algorithm>
 #include <array>
@@ -222,13 +223,13 @@ std::vector<std::size_t> CraterApplyOrder(const CraterList& craters, CraterOrder
 }
 
 void ApplyCraters(Raster<float>& raster, const CraterList& craters, const CraterProfile& profile,
-                  const CraterApplyOptions& options, double spacing) {
-    ApplyCraters(raster, craters, profile, NoDegradation(), options, spacing);
+                  const CraterApplyOptions& options, double spacing, unsigned threads) {
+    ApplyCraters(raster, craters, profile, NoDegradation(), options, spacing, threads);
 }
 
 void ApplyCraters(Raster<float>& raster, const CraterList& craters, const CraterProfile& profile,
                   const DegradationModel& degradation, const CraterApplyOptions& options,
-                  double spacing) {
+                  double spacing, unsigned threads) {
     ValidateCraterApplyOptions(options);
     if (!(std::isfinite(spacing) && spacing >= 0.0)) {
         throw std::invalid_argument("Sample spacing must be finite and not negative");
@@ -246,6 +247,13 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
     const double resolved = std::max(spacing, std::sqrt(pixelArea));
     const auto isData = [&](float value) { return !raster.IsNoData(value); };
 
+    struct Additive {
+        Crater crater;
+        double resolution = 0.0;
+        CraterState state;
+        PixelWindow window;
+    };
+    std::vector<Additive> additive;
     std::size_t applied = 0;
     std::size_t unresolved = 0;
     std::size_t offRaster = 0;
@@ -266,6 +274,10 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
         ++applied;
 
         const CraterState state = degradation.State(crater);
+        if (options.datum == CraterDatum::None) {
+            additive.push_back({crater, resolution, state, window});
+            continue;
+        }
         std::optional<std::array<double, 3>> datum;
         if (options.datum == CraterDatum::CentreHeight) {
             if (const auto height = Sample(raster, crater.x, crater.y)) {
@@ -319,6 +331,39 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
             }
         }
     }
+    constexpr std::size_t kBandRows = 32;
+    const std::size_t bands = (raster.Height() + kBandRows - 1) / kBandRows;
+    ParallelFor(bands, threads, [&](std::size_t band) {
+        const std::size_t bandBegin = band * kBandRows;
+        const std::size_t bandEnd = std::min(raster.Height(), bandBegin + kBandRows);
+        for (const Additive& entry : additive) {
+            const Crater& crater = entry.crater;
+            const double radius = 0.5 * crater.diameter;
+            const std::size_t rowBegin = std::max(bandBegin, entry.window.rowBegin);
+            const std::size_t rowEnd = std::min(bandEnd, entry.window.rowEnd);
+            for (std::size_t row = rowBegin; row < rowEnd; ++row) {
+                for (std::size_t col = entry.window.colBegin; col < entry.window.colEnd; ++col) {
+                    float& cell = raster(col, row);
+                    if (!isData(cell)) {
+                        continue;
+                    }
+                    const Vec2d centre = raster.CellCenter(col, row);
+                    const double dx = centre.x - crater.x;
+                    const double dy = centre.y - crater.y;
+                    const double distance = std::sqrt(dx * dx + dy * dy);
+                    if (distance >= profile.ReachRadii() * radius) {
+                        continue;
+                    }
+                    const double height = cell;
+                    const double replaced = 0.0;
+                    cell = static_cast<float>(
+                        height +
+                        entry.resolution * profile.Height(distance, crater.diameter, entry.state) +
+                        entry.resolution * replaced);
+                }
+            }
+        }
+    });
     LogInfo("craters", "Applied ", applied, " of ", craters.Size(), " craters (", unresolved,
             " unresolved at ", resolved, " m, ", offRaster, " off the raster) in ",
             FormatDuration(stopwatch.Milliseconds()));

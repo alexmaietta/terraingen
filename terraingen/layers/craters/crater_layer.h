@@ -47,6 +47,12 @@ class CraterLayer final : public Layer {
 
     void Apply(Raster<float>& heights, double spacing, TerrainFeatures& features) const override;
 
+    void ApplyParallel(Raster<float>& heights, double spacing, TerrainFeatures& features,
+                       unsigned threads) const override;
+
+    /// `dMax` (the density's largest valid diameter when unbounded) or the largest manual crater.
+    double MaxFeatureDiameter() const override;
+
     /// The craters reaching (`x`, `y`) added to `height` there, in the order `ApplyCraters` applies
     /// them, to the same bits as a cell centred there; NaN stays NaN.
     /// @throws std::invalid_argument if `spacing` is not positive and finite, or the layer has a

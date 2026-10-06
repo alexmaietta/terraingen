@@ -105,7 +105,7 @@ TEST(CraterLayer, FadesCratersOutAsTheSpacingCoarsens) {
     EXPECT_GT(faded, whole);
     EXPECT_EQ(floor(5.0), 0.0f) << "2 samples across: gone";
     const double weight = terraingen::ResolutionWeight(10.0, 4.0, terraingen::ResolutionFade{});
-    EXPECT_NEAR(faded, weight * whole, 1e-5);
+    EXPECT_NEAR(faded, weight * static_cast<double>(whole), 1e-5);
 }
 
 TEST(CraterLayer, RejectsMissingModelsAndInvalidOptions) {
@@ -148,4 +148,13 @@ TEST(CraterLayer, CachesCellsAndWorksWithoutACache) {
     EXPECT_GT(cached.Cache()->Size(), 0u);
     EXPECT_EQ(cached.Craters(region).Ids(), uncached.Craters(region).Ids());
     EXPECT_EQ(cached.ApplyAt(1.0f, 3.0, -7.0, 2.0), uncached.ApplyAt(1.0f, 3.0, -7.0, 2.0));
+}
+
+TEST(CraterLayer, ReportsItsLargestCrater) {
+    EXPECT_EQ(CraterLayer(Models(), Options()).MaxFeatureDiameter(), 40.0);
+    CraterLayerOptions options = Options();
+    options.generate = false;
+    options.generation.manual.Append({0.0, 0.0, 75.0, 0.0, 0u});
+    options.generation.manual.Append({0.0, 0.0, 12.0, 0.0, 0u});
+    EXPECT_EQ(CraterLayer(Models(), options).MaxFeatureDiameter(), 75.0);
 }

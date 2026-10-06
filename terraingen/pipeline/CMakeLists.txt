@@ -7,6 +7,8 @@ terraingen_add_library(
     config_json.cpp
     run.cpp
     terrain.cpp
+    tile_cache.cpp
+    tiling.cpp
     PUBLIC
     terraingen_bodies
     terraingen_distribution

@@ -1,15 +1,12 @@
 #pragma once
 
 #include "terraingen/layers/craters/population.h"
+#include "terraingen/util/lru_cache.h"
 
-#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
-#include <list>
 #include <memory>
-#include <mutex>
-#include <unordered_map>
 
 namespace terraingen {
 
@@ -26,17 +23,23 @@ class CraterCellCache {
 
     /// The craters of `cell` in band `exponent`, from `generate` when they are not held.
     std::shared_ptr<const CraterList> Get(int exponent, const CellIndex& cell,
-                                          const std::function<CraterList()>& generate);
+                                          const std::function<CraterList()>& generate) {
+        return cache_.Get({exponent, cell.i, cell.j}, generate);
+    }
 
     /// Craters held across every cell.
-    std::size_t Size() const;
+    std::size_t Size() const {
+        return cache_.Size();
+    }
 
     std::size_t MaxCraters() const {
-        return maxCraters_;
+        return cache_.Capacity();
     }
 
     /// Cells evicted since construction.
-    std::size_t Evictions() const;
+    std::size_t Evictions() const {
+        return cache_.Evictions();
+    }
 
   private:
     struct Key {
@@ -49,21 +52,8 @@ class CraterCellCache {
     struct KeyHash {
         std::size_t operator()(const Key& key) const;
     };
-    struct Shard {
-        mutable std::mutex mutex;
-        std::list<Key> recency;
-        struct Entry {
-            std::shared_ptr<const CraterList> craters;
-            std::list<Key>::iterator recent;
-        };
-        std::unordered_map<Key, Entry, KeyHash> entries;
-        std::size_t craters = 0;
-        std::size_t evictions = 0;
-    };
-    static constexpr std::size_t kShards = 16;
 
-    std::size_t maxCraters_;
-    std::array<Shard, kShards> shards_;
+    LruCache<Key, CraterList, KeyHash> cache_;
 };
 
 }  // namespace terraingen

@@ -4,6 +4,7 @@
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/cells.h"
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
@@ -58,12 +59,29 @@ CraterList CraterLayer::Craters(const Bounds2d& region, double spacing) const {
 }
 
 void CraterLayer::Apply(Raster<float>& heights, double spacing, TerrainFeatures& features) const {
+    ApplyParallel(heights, spacing, features, 1);
+}
+
+void CraterLayer::ApplyParallel(Raster<float>& heights, double spacing, TerrainFeatures& features,
+                                unsigned threads) const {
     const RasterGrid grid = RasterGrid::Of(heights);
     const double resolved = std::max(spacing, grid.PixelSize());
     const CraterList craters = Craters(grid.Bounds(), resolved);
-    ApplyCraters(heights, craters, *models_.profile, *models_.degradation, options_.apply,
-                 resolved);
+    ApplyCraters(heights, craters, *models_.profile, *models_.degradation, options_.apply, resolved,
+                 threads);
     features.craters.Append(craters);
+}
+
+double CraterLayer::MaxFeatureDiameter() const {
+    const CraterGenerationOptions& generation = options_.generation;
+    double largest = 0.0;
+    if (options_.generate) {
+        largest = std::isinf(generation.dMax) ? models_.density->ValidRange().max : generation.dMax;
+    }
+    for (std::size_t n = 0; n < generation.manual.Size(); ++n) {
+        largest = std::fmax(largest, generation.manual.At(n).diameter);
+    }
+    return largest;
 }
 
 float CraterLayer::ApplyAt(float height, double x, double y, double spacing) const {

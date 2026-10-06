@@ -4,5 +4,7 @@ terraingen_add_test_suite(
     config_json_test.cpp
     run_test.cpp
     terrain_test.cpp
+    tile_cache_test.cpp
+    tiling_test.cpp
     LIBRARIES
     terraingen::pipeline)

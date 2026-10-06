@@ -127,15 +127,21 @@ void ValidateCraterApplyOptions(const CraterApplyOptions& options);
 /// - P. M. Furlong, U. Wong, M. Allan et al., "Planetary Rover Simulation for Lunar Exploration
 ///   Missions", IEEE Aerospace Conference, 2019. https://doi.org/10.1109/AERO.2019.8741780
 ///
+/// Without a datum, rows are split over up to `threads` threads (0 for every hardware thread), each
+/// applying the craters in the same order, so the result does not depend on `threads`; with a
+/// datum, craters read the cells around them as earlier craters left them, so they run on one
+/// thread.
+///
 /// @throws std::invalid_argument for invalid `options` or a negative or non-finite `spacing`.
 /// @throws std::domain_error if the raster's transform is not invertible.
 void ApplyCraters(Raster<float>& raster, const CraterList& craters, const CraterProfile& profile,
                   const DegradationModel& degradation, const CraterApplyOptions& options = {},
-                  double spacing = 0.0);
+                  double spacing = 0.0, unsigned threads = 1);
 
 /// `ApplyCraters` with every crater fresh (`NoDegradation`).
 void ApplyCraters(Raster<float>& raster, const CraterList& craters, const CraterProfile& profile,
-                  const CraterApplyOptions& options = {}, double spacing = 0.0);
+                  const CraterApplyOptions& options = {}, double spacing = 0.0,
+                  unsigned threads = 1);
 
 /// The order `ApplyCraters` applies `craters` in under `order`, as indices into `craters`.
 std::vector<std::size_t> CraterApplyOrder(const CraterList& craters, CraterOrder order);

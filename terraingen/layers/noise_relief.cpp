@@ -2,6 +2,7 @@
 
 #include "terraingen/noise/kernels/layers.h"
 #include "terraingen/util/log.h"
+#include "terraingen/util/parallel.h"
 
 #include <cmath>
 #include <utility>
@@ -13,10 +14,14 @@ NoiseRelief::NoiseRelief(SyntheticTerrainParams params, Vec2d origin)
     ValidateSyntheticTerrain(params_);
 }
 
-void NoiseRelief::Apply(Raster<float>& heights, double /*spacing*/,
-                        TerrainFeatures& /*features*/) const {
+void NoiseRelief::Apply(Raster<float>& heights, double spacing, TerrainFeatures& features) const {
+    ApplyParallel(heights, spacing, features, 1);
+}
+
+void NoiseRelief::ApplyParallel(Raster<float>& heights, double /*spacing*/,
+                                TerrainFeatures& /*features*/, unsigned threads) const {
     const Stopwatch stopwatch;
-    for (std::size_t row = 0; row < heights.Height(); ++row) {
+    ParallelFor(heights.Height(), threads, [&](std::size_t row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
             float& cell = heights(col, row);
             if (heights.IsNoData(cell)) {
@@ -27,7 +32,7 @@ void NoiseRelief::Apply(Raster<float>& heights, double /*spacing*/,
                                         static_cast<float>(centre.y - origin_.y),
                                         params_.layers.data(), params_.layers.size());
         }
-    }
+    });
     LogInfo("layers", "Added ", params_.layers.size(),
             params_.layers.size() == 1 ? " noise layer" : " noise layers", " to ", heights.Width(),
             "x", heights.Height(), " cells in ", FormatDuration(stopwatch.Milliseconds()));

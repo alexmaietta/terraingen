@@ -363,8 +363,28 @@ TEST(ApplyCraters, FadesCratersWithTheSpacing) {
     const double weight = terraingen::ResolutionWeight(9.0, 3.0, terraingen::ResolutionFade{});
     ASSERT_GT(weight, 0.0);
     ASSERT_LT(weight, 1.0);
-    EXPECT_NEAR(At(coarse, 0.5, 0.5), weight * At(fine, 0.5, 0.5), 1e-6);
+    EXPECT_NEAR(At(coarse, 0.5, 0.5), weight * static_cast<double>(At(fine, 0.5, 0.5)), 1e-6);
     Raster<float> gone = Flat(50);
     ApplyCraters(gone, One(0.5, 0.5, 9.0), profile, {}, 5.0);
     EXPECT_EQ(At(gone, 0.5, 0.5), 0.0f);
+}
+
+TEST(ApplyCraters, GivesTheSameBitsOnAnyNumberOfThreads) {
+    const terraingen::PowerLawSfd density(0.05, 2.0);
+    const terraingen::UniformAges ages(1.0);
+    const CraterList craters =
+        terraingen::GenerateCraters(terraingen::PlanarCells(), {-50.0, -50.0, 50.0, 50.0}, density,
+                                    ages, 4u, {.dMin = 3.0, .dMax = 40.0, .marginRadii = 1.5});
+    const FassettThomsonProfile profile;
+    for (const terraingen::CraterDatum datum :
+         {terraingen::CraterDatum::None, terraingen::CraterDatum::Plane}) {
+        Raster<float> serial = Flat(100);
+        ApplyCraters(serial, craters, profile, {.datum = datum}, 0.0, 1);
+        for (const unsigned threads : {3u, 0u}) {
+            Raster<float> parallel = Flat(100);
+            ApplyCraters(parallel, craters, profile, {.datum = datum}, 0.0, threads);
+            EXPECT_TRUE(std::equal(parallel.Values().begin(), parallel.Values().end(),
+                                   serial.Values().begin()));
+        }
+    }
 }

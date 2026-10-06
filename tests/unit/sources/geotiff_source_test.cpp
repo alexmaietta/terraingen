@@ -71,12 +71,34 @@ TEST(GeoTiffSource, FillsTilesOnItsLatticeAndNoDataBeyondTheFile) {
     ASSERT_TRUE(heights.NoData().has_value());
     EXPECT_TRUE(heights.IsNoData(heights(3, 2)));
 
-    RasterGrid shifted{2, 2, GeoTransform::NorthUp(1001.0, 2000.0, 4.0)};
-    auto off = shifted.MakeRaster();
-    EXPECT_THROW(source.Fill(off), std::invalid_argument);
-    RasterGrid finer{2, 2, GeoTransform::NorthUp(1000.0, 2000.0, 2.0)};
-    auto fine = finer.MakeRaster();
-    EXPECT_THROW(source.Fill(fine), std::invalid_argument);
+    RasterGrid rotated{2, 2, GeoTransform{1000.0, 4.0, 0.5, 2000.0, 0.5, -4.0}};
+    auto turned = rotated.MakeRaster();
+    EXPECT_THROW(source.Fill(turned), std::invalid_argument);
+}
+
+TEST(GeoTiffSource, InterpolatesOntoGridsOffItsLattice) {
+    const auto path = TempPath("geotiff_source_off.tif");
+    const Raster<float> dem = WriteDem(path);
+    const GeoTiffSource source(path, 0, std::nullopt, ResampleMethod::Bilinear);
+    for (const RasterGrid& grid : {RasterGrid{6, 4, GeoTransform::NorthUp(1001.0, 1999.0, 4.0)},
+                                   RasterGrid{8, 6, GeoTransform::NorthUp(1000.0, 2000.0, 2.0)},
+                                   RasterGrid{5, 5, GeoTransform::NorthUp(990.0, 2010.0, 8.0)}}) {
+        auto heights = grid.MakeRaster();
+        source.Fill(heights);
+        for (std::size_t row = 0; row < grid.height; ++row) {
+            for (std::size_t col = 0; col < grid.width; ++col) {
+                const auto centre = heights.CellCenter(col, row);
+                const float expected =
+                    terraingen::SampleRaster(dem, centre.x, centre.y, ResampleMethod::Bilinear);
+                if (std::isnan(expected)) {
+                    EXPECT_TRUE(heights.IsNoData(heights(col, row)));
+                } else {
+                    EXPECT_EQ(heights(col, row), expected) << col << "," << row;
+                }
+                EXPECT_EQ(std::isnan(source.HeightAt(centre.x, centre.y)), std::isnan(expected));
+            }
+        }
+    }
 }
 
 TEST(GeoTiffSource, ResamplesToThePixelSize) {
@@ -110,12 +132,13 @@ TEST(GeoTiffSource, RejectsUnusableFiles) {
     EXPECT_THROW(GeoTiffSource(turned, 0, 0.5), std::invalid_argument);
 }
 
-TEST(GeoTiffSource, GivesTheHeightOfTheCellContainingAPoint) {
+TEST(GeoTiffSource, GivesCellsAtTheirCentresAndInterpolatesElsewhere) {
     const auto path = TempPath("geotiff_source_point.tif");
     Raster<float> dem = WriteDem(path);
     const GeoTiffSource source(path);
     EXPECT_EQ(source.HeightAt(1000.0 + 4.0 * 3 + 2.0, 2000.0 - 4.0 * 5 - 2.0), dem(3, 5));
-    EXPECT_EQ(source.HeightAt(1000.0 + 0.1, 2000.0 - 0.1), dem(0, 0));
+    EXPECT_EQ(source.HeightAt(1000.0 + 4.0 * 3 + 3.0, 2000.0 - 4.0 * 5 - 1.0),
+              terraingen::SampleRaster(dem, 1015.0, 1979.0, ResampleMethod::Cubic));
     EXPECT_TRUE(std::isnan(source.HeightAt(999.0, 1990.0)));
     EXPECT_TRUE(std::isnan(source.HeightAt(1100.0, 2001.0)));
     dem.SetNoData(-9999.0f);

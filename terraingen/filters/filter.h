@@ -18,6 +18,18 @@ class Filter {
     /// Transforms `heights` in place.
     virtual void Apply(Raster<float>& heights, double spacing,
                        const TerrainFeatures& features) const = 0;
+
+    /// `Apply` on up to `threads` threads (0 for every hardware thread), to the same bits. The
+    /// default runs `Apply`.
+    virtual void ApplyParallel(Raster<float>& heights, double spacing,
+                               const TerrainFeatures& features, unsigned /*threads*/) const {
+        Apply(heights, spacing, features);
+    }
+
+    /// How far from a cell, in world units, the filter reads the heights it is given when features
+    /// are at most `maxFeatureDiameter` across: grids evaluated with this margin around them, then
+    /// cropped, equal the same cells of any larger grid.
+    virtual double Margin(double maxFeatureDiameter, double spacing) const = 0;
 };
 
 }  // namespace terraingen

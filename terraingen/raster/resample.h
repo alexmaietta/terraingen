@@ -1,5 +1,6 @@
 #pragma once
 
+#include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
 
 namespace terraingen {
@@ -25,5 +26,18 @@ enum class ResampleMethod {
 /// @throws std::invalid_argument for an empty or rotated raster, a non-positive or non-finite
 /// `pixelSize`, or a result wider or taller than 2^31 cells.
 Raster<float> Resample(const Raster<float>& raster, double pixelSize, ResampleMethod method);
+
+/// `raster` interpolated at world position (`x`, `y`) with `method`, as `Resample` interpolates:
+/// samples beyond the edge come from the nearest edge cell, and any contributing no-data cell gives
+/// NaN. Positions outside the raster's extent give NaN.
+/// @throws std::invalid_argument for an empty or rotated raster.
+float SampleRaster(const Raster<float>& raster, double x, double y, ResampleMethod method);
+
+/// `raster` resampled onto `grid`: each cell is `SampleRaster` at its centre, and cells that give
+/// NaN hold `raster`'s no-data value (NaN if it has none, which then becomes the no-data value).
+/// The CRS is kept.
+/// @throws std::invalid_argument for an empty or rotated raster, or an empty grid.
+Raster<float> ResampleTo(const Raster<float>& raster, const RasterGrid& grid,
+                         ResampleMethod method);
 
 }  // namespace terraingen

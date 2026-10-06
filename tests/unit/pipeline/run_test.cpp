@@ -234,6 +234,15 @@ TEST(GenerateTerrain, MatchesComposingTheLibraryCalls) {
     }
 }
 
+TEST(GenerateTerrain, GivesTheSameTerrainOnAnyNumberOfThreads) {
+    TerrainConfig config = Small();
+    config.filters = {terraingen::RimSmoothing{}};
+    const auto serial = GenerateTerrain(config, {}, 1);
+    const auto parallel = GenerateTerrain(config, {}, 4);
+    ExpectSameRaster(parallel.heights, serial.heights);
+    EXPECT_EQ(parallel.features.craters.Ids(), serial.features.craters.Ids());
+}
+
 TEST(GenerateTerrain, AppliesTheHurstExponentToTheGain) {
     TerrainConfig config = Small();
     config.layers.pop_back();
@@ -479,9 +488,9 @@ TEST(GenerateTerrain, LoadsResamplesAndDetailsARasterSource) {
     terraingen::NoiseLayerConfig detail;
     detail.layer.fractal.wavelength = 20.0f;
     detail.layer.fractal.amplitude = 1.5f;
-    terraingen::NoiseLayerSpec noise;
-    noise.stack = {detail};
-    config.layers = {noise};
+    terraingen::NoiseLayerSpec detailLayer;
+    detailLayer.stack = {detail};
+    config.layers = {detailLayer};
     const auto detailed = GenerateTerrain(config, folder);
     const terraingen::NoiseLayer layer = detail.Effective();
     for (std::size_t row = 0; row < dem.Height(); ++row) {

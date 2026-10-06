@@ -67,6 +67,24 @@ node does. Crater cells are kept in a bounded cache (`CraterCellCache`), so neig
 points generate each cell once. Point queries need additive craters (no datum) and no `max_craters`
 cap, and run the source and layers only, since filters read neighbouring cells.
 
+## Tiles and threads
+
+`Evaluate(terrain, grid, {.threads = 0})` splits every layer and filter over all hardware threads and
+gives the same bits as one thread. For level-of-detail rendering and streaming, a `TileScheme` is a
+planar quadtree of tiles: level 0 is the coarsest, each level halves the tile side and the spacing, and
+`TileScheme::Covering(grid)` lines one level up with a source's own cells.
+
+```cpp
+const auto scheme = terraingen::TileScheme::Covering(terrain.source->Grid(), 256);
+auto tile = terraingen::EvaluateTile(terrain, scheme, {level, x, y});
+auto many = terraingen::EvaluateTiles(terrain, scheme, keys);  // in parallel
+terraingen::TileCache cache(terrain, scheme, 1 << 30);          // evaluated once, kept within 1 GiB
+```
+
+A tile is a piece of the unbounded terrain: filters such as rim smoothing are evaluated with a margin
+around it (`FilterMargin`) and cropped, so tiles equal the same cells of any larger grid on the same
+lattice. Raster sources copy their own cells exactly and interpolate onto tiles at other levels.
+
 JSON configurations describe the same composition:
 
 ```json
