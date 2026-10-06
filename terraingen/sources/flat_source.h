@@ -20,6 +20,10 @@ class FlatSource final : public Source {
 
     void Fill(Raster<float>& heights) const override;
 
+    float HeightAt(double /*x*/, double /*y*/) const override {
+        return elevation_;
+    }
+
   private:
     RasterGrid grid_;
     float elevation_;

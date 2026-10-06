@@ -53,9 +53,19 @@ auto tile = terraingen::Evaluate(terrain, tileGrid);  // any grid on the same la
 - **Filters** transform the heights using those features: `RimSmoothingFilter`.
 
 Layers are pure functions of position, so a tile evaluated alone equals the same cells of the whole
-terrain. Filters may read neighbouring cells, so tiles need a margin to match. Every evaluation takes
-a sample spacing, and features too small to resolve at it are left out. Derive from `Source`, `Layer`
-or `Filter` to add your own.
+terrain. Filters may read neighbouring cells, so tiles need a margin to match. Derive from `Source`,
+`Layer` or `Filter` to add your own.
+
+Every evaluation takes a sample spacing. Craters, and the rim smoothing around them, fade with it
+(`ResolutionFade`): absent below 2 samples across, whole from 4, smooth in between. A crater therefore
+changes continuously between coarse and fine levels of detail instead of popping in or out, and size
+bands too small to resolve at a spacing are not generated at all.
+
+`EvaluateAt(terrain, x, y, spacing)` evaluates a single point, to the same bits as the grid cell
+centred there, and is safe to call from many threads, as a soil model querying ground heights node by
+node does. Crater cells are kept in a bounded cache (`CraterCellCache`), so neighbouring tiles and
+points generate each cell once. Point queries need additive craters (no datum) and no `max_craters`
+cap, and run the source and layers only, since filters read neighbouring cells.
 
 JSON configurations describe the same composition:
 

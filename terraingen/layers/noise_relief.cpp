@@ -3,6 +3,7 @@
 #include "terraingen/noise/kernels/layers.h"
 #include "terraingen/util/log.h"
 
+#include <cmath>
 #include <utility>
 
 namespace terraingen {
@@ -30,6 +31,15 @@ void NoiseRelief::Apply(Raster<float>& heights, double /*spacing*/,
     LogInfo("layers", "Added ", params_.layers.size(),
             params_.layers.size() == 1 ? " noise layer" : " noise layers", " to ", heights.Width(),
             "x", heights.Height(), " cells in ", FormatDuration(stopwatch.Milliseconds()));
+}
+
+float NoiseRelief::ApplyAt(float height, double x, double y, double /*spacing*/) const {
+    if (std::isnan(height)) {
+        return height;
+    }
+    return height + EvaluateNoiseLayers(static_cast<float>(x - origin_.x),
+                                        static_cast<float>(y - origin_.y), params_.layers.data(),
+                                        params_.layers.size());
 }
 
 }  // namespace terraingen

@@ -101,4 +101,17 @@ void GeoTiffSource::Fill(Raster<float>& heights) const {
     heights.SetNoData(noData ? noData : (outside ? std::optional<float>(fill) : std::nullopt));
 }
 
+float GeoTiffSource::HeightAt(double x, double y) const {
+    const Raster<float>& data = Heights();
+    const Vec2d pixel = grid_.transform.WorldToPixel(x, y);
+    const double col = std::floor(pixel.x);
+    const double row = std::floor(pixel.y);
+    if (!(col >= 0.0 && row >= 0.0 && col < static_cast<double>(data.Width()) &&
+          row < static_cast<double>(data.Height()))) {
+        return std::numeric_limits<float>::quiet_NaN();
+    }
+    const float value = data(static_cast<std::size_t>(col), static_cast<std::size_t>(row));
+    return data.IsNoData(value) ? std::numeric_limits<float>::quiet_NaN() : value;
+}
+
 }  // namespace terraingen

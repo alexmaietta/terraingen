@@ -277,6 +277,7 @@ template <typename IO> void Fields(IO& io, PowerLawSegment& segment);
 template <typename IO> void Fields(IO& io, CraterSpacing& spacing);
 template <typename IO> void Fields(IO& io, Crater& crater);
 template <typename IO> void Fields(IO& io, CraterBlend& blend);
+template <typename IO> void Fields(IO& io, ResolutionFade& fade);
 template <typename IO> void Fields(IO& io, CraterApplyOptions& apply);
 template <typename IO> void Fields(IO& io, RimSmoothing& smoothing);
 template <typename IO> void Fields(IO& io, CraterLayerSpec& craters);
@@ -607,6 +608,12 @@ template <typename IO> void Fields(IO& io, Crater& crater) {
     io("id", crater.id);
 }
 
+template <typename IO> void Fields(IO& io, ResolutionFade& fade) {
+    io("start_samples", fade.startSamples);
+    io("end_samples", fade.endSamples);
+    io("shape", fade.shape);
+}
+
 template <typename IO> void Fields(IO& io, CraterBlend& blend) {
     io("start_radii", blend.startRadii);
     io("end_radii", blend.endRadii);
@@ -615,7 +622,7 @@ template <typename IO> void Fields(IO& io, CraterBlend& blend) {
 
 template <typename IO> void Fields(IO& io, CraterApplyOptions& apply) {
     io("order", apply.order);
-    io("min_diameter_pixels", apply.minDiameterPixels);
+    io("fade", apply.fade);
     io("datum", apply.datum);
     io("datum_fit_radii", apply.datumFitRadii);
     io("interior_replacement", apply.interiorReplacement);
@@ -628,7 +635,7 @@ template <typename IO> void Fields(IO& io, RimSmoothing& smoothing) {
     io("outer_radii", smoothing.outerRadii);
     io("shape", smoothing.shape);
     io("strength", smoothing.strength);
-    io("min_diameter_pixels", smoothing.minDiameterPixels);
+    io("fade", smoothing.fade);
 }
 
 template <typename IO> void Fields(IO& io, CraterLayerSpec& craters) {

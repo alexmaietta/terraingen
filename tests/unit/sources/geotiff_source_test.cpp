@@ -109,3 +109,18 @@ TEST(GeoTiffSource, RejectsUnusableFiles) {
     EXPECT_NO_THROW(GeoTiffSource{turned});
     EXPECT_THROW(GeoTiffSource(turned, 0, 0.5), std::invalid_argument);
 }
+
+TEST(GeoTiffSource, GivesTheHeightOfTheCellContainingAPoint) {
+    const auto path = TempPath("geotiff_source_point.tif");
+    Raster<float> dem = WriteDem(path);
+    const GeoTiffSource source(path);
+    EXPECT_EQ(source.HeightAt(1000.0 + 4.0 * 3 + 2.0, 2000.0 - 4.0 * 5 - 2.0), dem(3, 5));
+    EXPECT_EQ(source.HeightAt(1000.0 + 0.1, 2000.0 - 0.1), dem(0, 0));
+    EXPECT_TRUE(std::isnan(source.HeightAt(999.0, 1990.0)));
+    EXPECT_TRUE(std::isnan(source.HeightAt(1100.0, 2001.0)));
+    dem.SetNoData(-9999.0f);
+    dem(1, 1) = -9999.0f;
+    const auto holes = TempPath("geotiff_source_holes.tif");
+    terraingen::WriteGeoTiff(holes, dem, Keys());
+    EXPECT_TRUE(std::isnan(GeoTiffSource(holes).HeightAt(1000.0 + 6.0, 2000.0 - 6.0)));
+}

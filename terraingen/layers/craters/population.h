@@ -6,7 +6,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <limits>
+#include <memory>
 #include <vector>
 
 namespace terraingen {
@@ -108,6 +110,33 @@ struct CraterSpacing {
     bool operator==(const CraterSpacing&) const = default;
 };
 
+/// A size band of crater generation: diameters [`low`, `high`) metres, from 2^`exponent` to
+/// 2^(`exponent` + 1) clipped to the requested range, drawn in square cells of side `cellSize`.
+struct CraterBand {
+    int exponent = 0;
+    double low = 0.0;
+    double high = 0.0;
+    double cellSize = 0.0;
+
+    bool operator==(const CraterBand&) const = default;
+};
+
+/// The bands `GenerateCraters` uses for diameters in [`dMin`, `dMax`), with cells of side
+/// `cellSizeFactor` times each band's largest whole diameter.
+std::vector<CraterBand> CraterBands(double dMin, double dMax, double cellSizeFactor);
+
+/// The craters `GenerateCraters` draws in `cell` of `band`, in the order drawn, before regions,
+/// manual craters, spacing and caps apply: a Poisson count from the expected count over the cell,
+/// then each crater's diameter, position and age, from substreams keyed by (`seed`, band, cell).
+CraterList GenerateCellCraters(const SurfaceCells& cells, const CraterBand& band,
+                               const CellIndex& cell, const SizeFrequencyDistribution& density,
+                               const CraterAgeModel& ages, std::uint32_t seed);
+
+/// Supplies the craters of one cell of one band as `GenerateCellCraters` would, for example from a
+/// cache; must be safe to call from several threads at once.
+using CellCraterSource =
+    std::function<std::shared_ptr<const CraterList>(const CraterBand& band, const CellIndex& cell)>;
+
 /// Settings for `GenerateCraters`.
 struct CraterGenerationOptions {
     /// Smallest diameter generated, in metres; must be set to a positive value.
@@ -133,6 +162,12 @@ struct CraterGenerationOptions {
     /// all. Manual craters are always kept and do not count. Ranking the whole list means a capped
     /// region no longer equals its tiles joined; `MinDiameterForCount` bounds counts tile-safely.
     std::size_t maxCraters = 0;
+    /// Skip whole bands whose craters are all smaller than this and, with spacing, too small to
+    /// remove a crater at least this large; 0 generates every band. Craters at or above it are the
+    /// same as without skipping, so a renderer can skip bands too small to resolve at its spacing.
+    double minResolvedDiameter = 0.0;
+    /// Where each cell's craters come from; empty draws them with `GenerateCellCraters`.
+    CellCraterSource cellCraters{};
 };
 
 /// The smallest diameter in [`dMin`, `dMax`) from which `density` expects about `count` craters

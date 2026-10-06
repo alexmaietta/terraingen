@@ -148,10 +148,20 @@ std::optional<double> Sample(const Raster<float>& raster, double x, double y) {
 
 }  // namespace
 
-void ValidateCraterApplyOptions(const CraterApplyOptions& options) {
-    if (!(std::isfinite(options.minDiameterPixels) && options.minDiameterPixels >= 0.0)) {
-        throw std::invalid_argument("minDiameterPixels must be finite and not negative");
+void ValidateResolutionFade(const ResolutionFade& fade) {
+    if (!(std::isfinite(fade.startSamples) && std::isfinite(fade.endSamples) &&
+          fade.startSamples >= 0.0 && fade.endSamples > fade.startSamples)) {
+        throw std::invalid_argument("Resolution fade must satisfy 0 <= startSamples < endSamples");
     }
+}
+
+double ResolutionWeight(double diameter, double spacing, const ResolutionFade& fade) {
+    const double samples = diameter / spacing;
+    return 1.0 - CraterBlendWeight(samples, {fade.startSamples, fade.endSamples, fade.shape});
+}
+
+void ValidateCraterApplyOptions(const CraterApplyOptions& options) {
+    ValidateResolutionFade(options.fade);
     if (!(std::isfinite(options.datumFitRadii) && options.datumFitRadii > 0.0)) {
         throw std::invalid_argument("datumFitRadii must be positive and finite");
     }
@@ -164,8 +174,6 @@ void ValidateCraterApplyOptions(const CraterApplyOptions& options) {
         throw std::invalid_argument("Crater blend must satisfy 0 <= startRadii < endRadii");
     }
 }
-
-namespace {}  // namespace
 
 double CraterBlendWeight(double radii, const CraterBlend& blend) {
     if (radii <= blend.startRadii) {
@@ -192,9 +200,7 @@ double CraterBlendWeight(double radii, const CraterBlend& blend) {
     return 0.0;
 }
 
-namespace {
-
-std::vector<std::size_t> Order(const CraterList& craters, CraterOrder order) {
+std::vector<std::size_t> CraterApplyOrder(const CraterList& craters, CraterOrder order) {
     std::vector<std::size_t> indices(craters.Size());
     std::iota(indices.begin(), indices.end(), std::size_t{0});
     const auto& age = craters.AgesGyr();
@@ -215,16 +221,18 @@ std::vector<std::size_t> Order(const CraterList& craters, CraterOrder order) {
     return indices;
 }
 
-}  // namespace
-
 void ApplyCraters(Raster<float>& raster, const CraterList& craters, const CraterProfile& profile,
-                  const CraterApplyOptions& options) {
-    ApplyCraters(raster, craters, profile, NoDegradation(), options);
+                  const CraterApplyOptions& options, double spacing) {
+    ApplyCraters(raster, craters, profile, NoDegradation(), options, spacing);
 }
 
 void ApplyCraters(Raster<float>& raster, const CraterList& craters, const CraterProfile& profile,
-                  const DegradationModel& degradation, const CraterApplyOptions& options) {
+                  const DegradationModel& degradation, const CraterApplyOptions& options,
+                  double spacing) {
     ValidateCraterApplyOptions(options);
+    if (!(std::isfinite(spacing) && spacing >= 0.0)) {
+        throw std::invalid_argument("Sample spacing must be finite and not negative");
+    }
     if (raster.Empty() || craters.Empty()) {
         return;
     }
@@ -235,15 +243,16 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
     if (!(pixelArea > 0.0)) {
         throw std::domain_error("The raster's transform is not invertible");
     }
-    const double pixelSize = std::sqrt(pixelArea);
+    const double resolved = std::max(spacing, std::sqrt(pixelArea));
     const auto isData = [&](float value) { return !raster.IsNoData(value); };
 
     std::size_t applied = 0;
     std::size_t unresolved = 0;
     std::size_t offRaster = 0;
-    for (const std::size_t index : Order(craters, options.order)) {
+    for (const std::size_t index : CraterApplyOrder(craters, options.order)) {
         const Crater crater = craters.At(index);
-        if (crater.diameter < options.minDiameterPixels * pixelSize) {
+        const double resolution = ResolutionWeight(crater.diameter, resolved, options.fade);
+        if (resolution == 0.0) {
             ++unresolved;
             continue;
         }
@@ -305,12 +314,13 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
                     replaced = weight * (base - height);
                 }
                 cell = static_cast<float>(
-                    height + profile.Height(distance, crater.diameter, state) + replaced);
+                    height + resolution * profile.Height(distance, crater.diameter, state) +
+                    resolution * replaced);
             }
         }
     }
     LogInfo("craters", "Applied ", applied, " of ", craters.Size(), " craters (", unresolved,
-            " below ", options.minDiameterPixels, " px, ", offRaster, " off the raster) in ",
+            " unresolved at ", resolved, " m, ", offRaster, " off the raster) in ",
             FormatDuration(stopwatch.Milliseconds()));
 }
 

@@ -18,15 +18,15 @@ struct RimSmoothing {
     BlendShape shape = BlendShape::Smootherstep;
     /// Fraction of the smoothed height used at the rim, in [0, 1].
     double strength = 1.0;
-    /// Craters narrower than this many pixels are skipped, as in `ApplyCraters`.
-    double minDiameterPixels = 3.0;
+    /// How rims of craters too small to resolve at the sample spacing fade out, as in
+    /// `ApplyCraters`.
+    ResolutionFade fade{};
 
     bool operator==(const RimSmoothing&) const = default;
 };
 
-/// @throws std::invalid_argument for a negative or non-finite `sigmaRadii` or
-/// `minDiameterPixels`, a `strength` outside [0, 1], or a band that does not satisfy
-/// 0 <= `innerRadii` < 1 < `outerRadii`.
+/// @throws std::invalid_argument for a negative or non-finite `sigmaRadii`, an invalid `fade`, a
+/// `strength` outside [0, 1], or a band that does not satisfy 0 <= `innerRadii` < 1 < `outerRadii`.
 void ValidateRimSmoothing(const RimSmoothing& smoothing);
 
 /// Rounds crater rims after `ApplyCraters`: around each crater, blends the terrain towards a
@@ -36,7 +36,9 @@ void ValidateRimSmoothing(const RimSmoothing& smoothing);
 /// Fresh profiles have sharp rim crests; smoothing them is a localized linear diffusion
 /// (sigma^2 = 2 kappa t; Culling 1960), the process that rounds rims as craters degrade (Fassett
 /// and Thomson 2014). Craters are smoothed in list order, each against the terrain as left by the
-/// previous ones; cells holding the no-data value are left unchanged.
+/// previous ones; cells holding the no-data value are left unchanged. Each crater's smoothing is
+/// weighted by `ResolutionWeight(diameter, spacing, fade)`; `spacing` is in world units, 0 means
+/// the raster's cell size, and a finer spacing is raised to it.
 ///
 /// References:
 /// - W. E. H. Culling, "Analytical theory of erosion", Journal of Geology 68(3):336-344, 1960.
@@ -45,15 +47,13 @@ void ValidateRimSmoothing(const RimSmoothing& smoothing);
 ///   and the rate of erosion on the Moon", JGR Planets 119:2255-2271, 2014.
 ///   https://doi.org/10.1002/2014JE004698
 ///
-/// @throws std::invalid_argument for a negative or non-finite `sigmaRadii` or
-/// `minDiameterPixels`, a `strength` outside [0, 1], or a band that does not satisfy
-/// 0 <= `innerRadii` < 1 < `outerRadii`.
+/// @throws std::invalid_argument as `ValidateRimSmoothing`, or for a negative or non-finite
+/// `spacing`.
 /// @throws std::domain_error if the raster's transform is not invertible.
 void SmoothCraterRims(Raster<float>& raster, const CraterList& craters,
-                      const RimSmoothing& smoothing = {});
+                      const RimSmoothing& smoothing = {}, double spacing = 0.0);
 
-/// `SmoothCraterRims` over the craters the layers placed. A sample spacing coarser than the grid's
-/// cells raises `minDiameterPixels` accordingly, as for `CraterLayer`.
+/// `SmoothCraterRims` over the craters the layers placed, at the evaluation's sample spacing.
 class RimSmoothingFilter final : public Filter {
   public:
     /// @throws std::invalid_argument as `ValidateRimSmoothing`.

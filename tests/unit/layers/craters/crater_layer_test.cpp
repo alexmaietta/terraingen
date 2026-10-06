@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <memory>
 #include <stdexcept>
 
@@ -86,18 +87,25 @@ TEST(CraterLayer, AppliesOnlyManualCratersWithoutGenerating) {
     EXPECT_LT(heights(32, 32), -1.0f);
 }
 
-TEST(CraterLayer, LeavesOutCratersTooSmallForTheSpacing) {
+TEST(CraterLayer, FadesCratersOutAsTheSpacingCoarsens) {
     CraterLayerOptions options = Options();
     options.generate = false;
     options.generation.manual.Append({0.0, 0.0, 10.0, 0.0, 0u});
     const CraterLayer layer(Models(), options);
-    Raster<float> fine = Grid();
     TerrainFeatures features;
-    layer.Apply(fine, 2.0, features);
-    EXPECT_LT(fine(32, 32), -0.5f);
-    Raster<float> coarse = Grid();
-    layer.Apply(coarse, 4.0, features);
-    EXPECT_EQ(coarse(32, 32), 0.0f) << "a 10 m crater is under 3 samples of 4 m";
+    const auto floor = [&](double spacing) {
+        Raster<float> heights = Grid();
+        layer.Apply(heights, spacing, features);
+        return heights(32, 32);
+    };
+    const float whole = floor(2.0);
+    EXPECT_LT(whole, -0.5f) << "5 samples across: whole";
+    const float faded = floor(4.0);
+    EXPECT_LT(faded, 0.0f) << "2.5 samples across: partly faded";
+    EXPECT_GT(faded, whole);
+    EXPECT_EQ(floor(5.0), 0.0f) << "2 samples across: gone";
+    const double weight = terraingen::ResolutionWeight(10.0, 4.0, terraingen::ResolutionFade{});
+    EXPECT_NEAR(faded, weight * whole, 1e-5);
 }
 
 TEST(CraterLayer, RejectsMissingModelsAndInvalidOptions) {
@@ -112,4 +120,32 @@ TEST(CraterLayer, RejectsMissingModelsAndInvalidOptions) {
     EXPECT_THROW(CraterLayer(Models(), options), std::invalid_argument);
     const CraterLayer layer(Models(), Options());
     EXPECT_EQ(layer.Options().generation.marginRadii, layer.Models().profile->ReachRadii());
+}
+
+TEST(CraterLayer, PointQueriesNeedAdditiveUncappedCraters) {
+    CraterLayerOptions options = Options();
+    options.apply.datum = terraingen::CraterDatum::Plane;
+    EXPECT_THROW(CraterLayer(Models(), options).ApplyAt(0.0f, 0.0, 0.0, 2.0),
+                 std::invalid_argument);
+    options = Options();
+    options.generation.maxCraters = 5;
+    EXPECT_THROW(CraterLayer(Models(), options).ApplyAt(0.0f, 0.0, 0.0, 2.0),
+                 std::invalid_argument);
+    const CraterLayer layer(Models(), Options());
+    EXPECT_THROW(layer.ApplyAt(0.0f, 0.0, 0.0, 0.0), std::invalid_argument);
+    EXPECT_TRUE(std::isnan(layer.ApplyAt(std::nanf(""), 0.0, 0.0, 2.0)));
+}
+
+TEST(CraterLayer, CachesCellsAndWorksWithoutACache) {
+    const CraterLayer cached(Models(), Options());
+    CraterLayerOptions options = Options();
+    options.cacheCraters = 0;
+    const CraterLayer uncached(Models(), options);
+    EXPECT_EQ(uncached.Cache(), nullptr);
+    ASSERT_NE(cached.Cache(), nullptr);
+    const terraingen::Bounds2d region{-64.0, -64.0, 64.0, 64.0};
+    EXPECT_EQ(cached.Craters(region).Ids(), uncached.Craters(region).Ids());
+    EXPECT_GT(cached.Cache()->Size(), 0u);
+    EXPECT_EQ(cached.Craters(region).Ids(), uncached.Craters(region).Ids());
+    EXPECT_EQ(cached.ApplyAt(1.0f, 3.0, -7.0, 2.0), uncached.ApplyAt(1.0f, 3.0, -7.0, 2.0));
 }

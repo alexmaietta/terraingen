@@ -27,6 +27,10 @@ class Source {
     /// Sets every cell of `heights`, whose transform places the cells, to the source's height
     /// there, or to `heights`' no-data value where the source has none.
     virtual void Fill(Raster<float>& heights) const = 0;
+
+    /// The height at (`x`, `y`): what `Fill` gives a cell centred there, to the same bits, or NaN
+    /// where the source has no data.
+    virtual float HeightAt(double x, double y) const = 0;
 };
 
 }  // namespace terraingen

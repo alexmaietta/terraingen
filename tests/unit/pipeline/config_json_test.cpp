@@ -61,13 +61,14 @@ TerrainConfig Everything() {
     craters.profile = terraingen::MartinParkesDunstanSpec{};
     craters.degradation = terraingen::NoDegradationSpec{0.17};
     craters.apply = {.order = terraingen::CraterOrder::LargestFirst,
-                     .minDiameterPixels = 4.0,
+                     .fade = {1.0, 3.0, terraingen::BlendShape::Linear},
                      .datum = terraingen::CraterDatum::Plane,
                      .datumFitRadii = 1.5,
                      .interiorReplacement = 0.5,
                      .blend = {0.7, 1.3, terraingen::BlendShape::Gaussian}};
     config.layers = {noise, craters, CraterLayerSpec{}};
-    config.filters = {terraingen::RimSmoothing{.sigmaRadii = 0.1, .strength = 0.5}};
+    config.filters = {terraingen::RimSmoothing{
+        .sigmaRadii = 0.1, .strength = 0.5, .fade = {0.5, 6.0, terraingen::BlendShape::Gaussian}}};
     config.outputs = {
         CraterListOutput{"out/craters.json", CraterListFormat::Json},
         CraterListOutput{"craters.txt", CraterListFormat::Csv},

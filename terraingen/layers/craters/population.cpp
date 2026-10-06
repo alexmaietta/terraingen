@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <bit>
 #include <cmath>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -20,24 +21,7 @@ constexpr std::uint32_t kCraterStream = 0x43524154u;
 constexpr std::uint32_t kCraterAgeStream = 0x43524147u;
 constexpr std::uint32_t kCraterIdStream = 0x43524944u;
 
-struct Band {
-    int exponent = 0;
-    double low = 0.0;
-    double high = 0.0;
-    double cellSize = 0.0;
-};
-
-std::vector<Band> Bands(double dMin, double dMax, double cellSizeFactor) {
-    std::vector<Band> bands;
-    for (int k = std::ilogb(dMin); std::ldexp(1.0, k) < dMax; ++k) {
-        const double low = std::fmax(dMin, std::ldexp(1.0, k));
-        const double high = std::fmin(dMax, std::ldexp(1.0, k + 1));
-        bands.push_back({k, low, high, cellSizeFactor * std::ldexp(1.0, k + 1)});
-    }
-    return bands;
-}
-
-std::uint64_t CraterId(std::uint32_t seed, const Band& band, const CellIndex& cell,
+std::uint64_t CraterId(std::uint32_t seed, const CraterBand& band, const CellIndex& cell,
                        std::uint32_t index) {
     const U32x4 block =
         Philox4x32({static_cast<std::uint32_t>(cell.i), static_cast<std::uint32_t>(cell.j),
@@ -63,9 +47,47 @@ void CheckOptions(const CraterGenerationOptions& options) {
     if (!(options.maxExpectedCraters >= 0.0)) {
         throw std::invalid_argument("maxExpectedCraters must not be negative");
     }
+    if (!(std::isfinite(options.minResolvedDiameter) && options.minResolvedDiameter >= 0.0)) {
+        throw std::invalid_argument("minResolvedDiameter must be finite and not negative");
+    }
 }
 
 }  // namespace
+
+std::vector<CraterBand> CraterBands(double dMin, double dMax, double cellSizeFactor) {
+    std::vector<CraterBand> bands;
+    for (int k = std::ilogb(dMin); std::ldexp(1.0, k) < dMax; ++k) {
+        const double low = std::fmax(dMin, std::ldexp(1.0, k));
+        const double high = std::fmin(dMax, std::ldexp(1.0, k + 1));
+        bands.push_back({k, low, high, cellSizeFactor * std::ldexp(1.0, k + 1)});
+    }
+    return bands;
+}
+
+CraterList GenerateCellCraters(const SurfaceCells& cells, const CraterBand& band,
+                               const CellIndex& cell, const SizeFrequencyDistribution& density,
+                               const CraterAgeModel& ages, std::uint32_t seed) {
+    const auto k = static_cast<std::uint32_t>(band.exponent);
+    const auto i = static_cast<std::uint32_t>(cell.i);
+    const auto j = static_cast<std::uint32_t>(cell.j);
+    RandomStream geometry(seed, kCraterStream, i, j, k);
+    RandomStream ageStream(seed, kCraterAgeStream, i, j, k);
+    const double countPerArea = density.ExpectedCount(1.0, band.low, band.high);
+    const std::uint64_t count =
+        SamplePoisson(geometry, countPerArea * cells.CellArea(cell, band.cellSize));
+    CraterList craters;
+    craters.Reserve(static_cast<std::size_t>(count));
+    for (std::uint64_t index = 0; index < count; ++index) {
+        const double diameter = density.SampleDiameter(geometry, band.low, band.high);
+        const double u = geometry.NextDouble();
+        const double v = geometry.NextDouble();
+        const Vec2d centre = cells.SamplePoint(u, v, cell, band.cellSize);
+        const double ageGyr = ages.SampleAgeGyr(ageStream, diameter);
+        craters.Append({centre.x, centre.y, diameter, ageGyr,
+                        CraterId(seed, band, cell, static_cast<std::uint32_t>(index))});
+    }
+    return craters;
+}
 
 std::uint64_t ManualCraterId(double x, double y, double diameter) {
     const auto xBits = std::bit_cast<std::uint64_t>(x);
@@ -133,7 +155,7 @@ CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
     }
 
     struct BandCells {
-        Band band;
+        CraterBand band;
         std::vector<CellIndex> cells;
         double countPerArea = 0.0;
     };
@@ -147,7 +169,12 @@ CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
     };
     std::vector<BandCells> plan;
     double expected = 0.0;
-    for (const Band& band : Bands(options.dMin, dMax, options.cellSizeFactor)) {
+    const double skipBelow =
+        options.minResolvedDiameter / (spacing.Enabled() ? spacing.diameterRatio : 1.0);
+    for (const CraterBand& band : CraterBands(options.dMin, dMax, options.cellSizeFactor)) {
+        if (band.high <= skipBelow) {
+            continue;
+        }
         const double margin = candidateMargin(band.high);
         BandCells entry{band, cells.CellsCovering(region.Expanded(margin), band.cellSize),
                         density.ExpectedCount(1.0, band.low, band.high)};
@@ -168,26 +195,20 @@ CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
     CraterList craters;
     craters.Reserve(static_cast<std::size_t>(expected));
     for (const BandCells& entry : plan) {
-        const Band& band = entry.band;
-        const auto k = static_cast<std::uint32_t>(band.exponent);
         for (const CellIndex& cell : entry.cells) {
-            const auto i = static_cast<std::uint32_t>(cell.i);
-            const auto j = static_cast<std::uint32_t>(cell.j);
-            RandomStream geometry(seed, kCraterStream, i, j, k);
-            RandomStream ageStream(seed, kCraterAgeStream, i, j, k);
-            const std::uint64_t count =
-                SamplePoisson(geometry, entry.countPerArea * cells.CellArea(cell, band.cellSize));
-            for (std::uint64_t index = 0; index < count; ++index) {
-                const double diameter = density.SampleDiameter(geometry, band.low, band.high);
-                const double u = geometry.NextDouble();
-                const double v = geometry.NextDouble();
-                const Vec2d centre = cells.SamplePoint(u, v, cell, band.cellSize);
-                const double ageGyr = ages.SampleAgeGyr(ageStream, diameter);
-                if (!region.Expanded(candidateMargin(diameter)).Contains(centre.x, centre.y)) {
-                    continue;
+            std::shared_ptr<const CraterList> drawn;
+            if (options.cellCraters) {
+                drawn = options.cellCraters(entry.band, cell);
+            } else {
+                drawn = std::make_shared<const CraterList>(
+                    GenerateCellCraters(cells, entry.band, cell, density, ages, seed));
+            }
+            for (std::size_t n = 0; n < drawn->Size(); ++n) {
+                const Crater crater = drawn->At(n);
+                if (region.Expanded(candidateMargin(crater.diameter))
+                        .Contains(crater.x, crater.y)) {
+                    craters.Append(crater);
                 }
-                craters.Append({centre.x, centre.y, diameter, ageGyr,
-                                CraterId(seed, band, cell, static_cast<std::uint32_t>(index))});
             }
         }
     }

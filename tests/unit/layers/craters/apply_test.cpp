@@ -162,7 +162,7 @@ TEST(ApplyCraters, SkipsUnresolvedCratersAndCratersOffTheRaster) {
     for (const float value : raster.Values()) {
         EXPECT_EQ(value, 0.0f);
     }
-    ApplyCraters(raster, One(0.5, 0.5, 1.5), profile, {.minDiameterPixels = 0.5});
+    ApplyCraters(raster, One(0.5, 0.5, 1.5), profile, {.fade = {0.5, 1.0}});
     EXPECT_LT(At(raster, 0.5, 0.5), 0.0f);
 }
 
@@ -180,10 +180,14 @@ TEST(ApplyCraters, HandlesCratersOverlappingTheEdgeAndNoData) {
 TEST(ApplyCraters, RejectsInvalidOptionsAndTransforms) {
     Raster<float> raster = Flat(10);
     const FassettThomsonProfile profile;
-    EXPECT_THROW(ApplyCraters(raster, One(0.0, 0.0, 4.0), profile, {.minDiameterPixels = -1.0}),
+    EXPECT_THROW(ApplyCraters(raster, One(0.0, 0.0, 4.0), profile, {.fade = {-1.0, 2.0}}),
+                 std::invalid_argument);
+    EXPECT_THROW(ApplyCraters(raster, One(0.0, 0.0, 4.0), profile, {.fade = {2.0, 2.0}}),
                  std::invalid_argument);
     EXPECT_THROW(ApplyCraters(raster, One(0.0, 0.0, 4.0), profile,
-                              {.minDiameterPixels = std::numeric_limits<double>::infinity()}),
+                              {.fade = {1.0, std::numeric_limits<double>::infinity()}}),
+                 std::invalid_argument);
+    EXPECT_THROW(ApplyCraters(raster, One(0.0, 0.0, 4.0), profile, {}, -1.0),
                  std::invalid_argument);
     raster.SetTransform(GeoTransform{0.0, 0.0, 0.0, 0.0, 0.0, 1.0});
     EXPECT_THROW(ApplyCraters(raster, One(0.0, 0.0, 4.0), profile), std::domain_error);
@@ -199,9 +203,9 @@ TEST(ApplyCraters, LogsAppliedAndSkippedCounts) {
     ApplyCraters(raster, craters, FassettThomsonProfile());
     const auto records = capture.Matching("craters", terraingen::LogLevel::Info);
     ASSERT_EQ(records.size(), 1u);
-    EXPECT_EQ(
-        records[0].message.rfind("Applied 1 of 3 craters (1 below 3 px, 1 off the raster) in ", 0),
-        0u)
+    EXPECT_EQ(records[0].message.rfind(
+                  "Applied 1 of 3 craters (1 unresolved at 1 m, 1 off the raster) in ", 0),
+              0u)
         << records[0].message;
 }
 
@@ -329,4 +333,38 @@ TEST(ApplyCraters, RejectsInvalidDatumAndBlendOptions) {
     EXPECT_THROW(apply({.interiorReplacement = -0.1}), std::invalid_argument);
     EXPECT_THROW(apply({.blend = {1.2, 1.2, BlendShape::Linear}}), std::invalid_argument);
     EXPECT_THROW(apply({.blend = {-0.1, 1.2, BlendShape::Linear}}), std::invalid_argument);
+}
+
+TEST(ResolutionWeight, FadesFromStartToEndSamples) {
+    const terraingen::ResolutionFade fade{};
+    EXPECT_EQ(terraingen::ResolutionWeight(1.0, 1.0, fade), 0.0);
+    EXPECT_EQ(terraingen::ResolutionWeight(2.0, 1.0, fade), 0.0);
+    EXPECT_DOUBLE_EQ(terraingen::ResolutionWeight(3.0, 1.0, fade), 0.5);
+    EXPECT_EQ(terraingen::ResolutionWeight(4.0, 1.0, fade), 1.0);
+    EXPECT_EQ(terraingen::ResolutionWeight(40.0, 10.0, fade), 1.0);
+    double previous = 0.0;
+    for (double samples = 2.0; samples <= 4.0; samples += 0.01) {
+        const double weight = terraingen::ResolutionWeight(samples, 1.0, fade);
+        EXPECT_GE(weight, previous);
+        previous = weight;
+    }
+    const terraingen::ResolutionFade linear{1.0, 3.0, terraingen::BlendShape::Linear};
+    EXPECT_DOUBLE_EQ(terraingen::ResolutionWeight(1.5, 1.0, linear), 0.25);
+    EXPECT_NO_THROW(terraingen::ValidateResolutionFade({0.0, 0.5}));
+    EXPECT_THROW(terraingen::ValidateResolutionFade({3.0, 3.0}), std::invalid_argument);
+}
+
+TEST(ApplyCraters, FadesCratersWithTheSpacing) {
+    const FassettThomsonProfile profile;
+    Raster<float> fine = Flat(50);
+    ApplyCraters(fine, One(0.5, 0.5, 9.0), profile, {}, 1.0);
+    Raster<float> coarse = Flat(50);
+    ApplyCraters(coarse, One(0.5, 0.5, 9.0), profile, {}, 3.0);
+    const double weight = terraingen::ResolutionWeight(9.0, 3.0, terraingen::ResolutionFade{});
+    ASSERT_GT(weight, 0.0);
+    ASSERT_LT(weight, 1.0);
+    EXPECT_NEAR(At(coarse, 0.5, 0.5), weight * At(fine, 0.5, 0.5), 1e-6);
+    Raster<float> gone = Flat(50);
+    ApplyCraters(gone, One(0.5, 0.5, 9.0), profile, {}, 5.0);
+    EXPECT_EQ(At(gone, 0.5, 0.5), 0.0f);
 }

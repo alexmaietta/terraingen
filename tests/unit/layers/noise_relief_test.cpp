@@ -61,3 +61,14 @@ TEST(NoiseRelief, RejectsInvalidParameters) {
     EXPECT_THROW(NoiseRelief{params}, std::invalid_argument);
     EXPECT_EQ(NoiseRelief(Params()).Params(), Params());
 }
+
+TEST(NoiseRelief, PointQueriesMatchCellsAndKeepNoData) {
+    Raster<float> heights(8, 8, 3.0f);
+    heights.SetTransform(GeoTransform::NorthUp(-8.0, 8.0, 2.0));
+    TerrainFeatures features;
+    const NoiseRelief relief(Params(), {1.0, -2.0});
+    relief.Apply(heights, 2.0, features);
+    const auto centre = heights.CellCenter(5, 2);
+    EXPECT_EQ(relief.ApplyAt(3.0f, centre.x, centre.y, 2.0), heights(5, 2));
+    EXPECT_TRUE(std::isnan(relief.ApplyAt(std::numeric_limits<float>::quiet_NaN(), 0.0, 0.0, 2.0)));
+}

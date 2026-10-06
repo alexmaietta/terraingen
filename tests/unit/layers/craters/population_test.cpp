@@ -419,3 +419,64 @@ TEST(MinDiameterForCount, InvertsTheExpectedCount) {
     EXPECT_THROW(terraingen::MinDiameterForCount(density, area, 5.0, 10.0, 1.0),
                  std::invalid_argument);
 }
+
+TEST(GenerateCraters, CellCraterSourcesGiveTheSameCraters) {
+    const terraingen::PowerLawSfd density(0.05, 2.0);
+    const terraingen::UniformAges ages(1.0);
+    const terraingen::Bounds2d region{-120.0, -80.0, 140.0, 90.0};
+    for (const terraingen::CraterSpacing spacing :
+         {terraingen::CraterSpacing{}, terraingen::CraterSpacing{1.5, 1.0}}) {
+        terraingen::CraterGenerationOptions options{.dMin = 3.0, .dMax = 60.0, .marginRadii = 1.5};
+        options.spacing = spacing;
+        const auto direct = terraingen::GenerateCraters(terraingen::PlanarCells(), region, density,
+                                                        ages, 5u, options);
+        int calls = 0;
+        options.cellCraters = [&](const terraingen::CraterBand& band,
+                                  const terraingen::CellIndex& cell) {
+            ++calls;
+            return std::make_shared<const terraingen::CraterList>(terraingen::GenerateCellCraters(
+                terraingen::PlanarCells(), band, cell, density, ages, 5u));
+        };
+        const auto supplied = terraingen::GenerateCraters(terraingen::PlanarCells(), region,
+                                                          density, ages, 5u, options);
+        EXPECT_GT(calls, 0);
+        EXPECT_EQ(supplied.Ids(), direct.Ids());
+        EXPECT_EQ(supplied.Diameters(), direct.Diameters());
+    }
+}
+
+TEST(GenerateCraters, SkippingUnresolvedBandsKeepsEveryResolvedCrater) {
+    const terraingen::PowerLawSfd density(0.05, 2.0);
+    const terraingen::UniformAges ages(1.0);
+    const terraingen::Bounds2d region{-150.0, -150.0, 150.0, 150.0};
+    for (const terraingen::CraterSpacing spacing :
+         {terraingen::CraterSpacing{}, terraingen::CraterSpacing{1.5, 2.0}}) {
+        terraingen::CraterGenerationOptions options{.dMin = 2.0, .dMax = 100.0, .marginRadii = 1.5};
+        options.spacing = spacing;
+        const auto all = terraingen::GenerateCraters(terraingen::PlanarCells(), region, density,
+                                                     ages, 9u, options);
+        options.minResolvedDiameter = 13.0;
+        const auto resolved = terraingen::GenerateCraters(terraingen::PlanarCells(), region,
+                                                          density, ages, 9u, options);
+        EXPECT_LT(resolved.Size(), all.Size());
+        std::vector<std::uint64_t> expected;
+        std::vector<std::uint64_t> kept;
+        for (std::size_t n = 0; n < all.Size(); ++n) {
+            if (all.At(n).diameter >= 13.0) {
+                expected.push_back(all.At(n).id);
+            }
+        }
+        for (std::size_t n = 0; n < resolved.Size(); ++n) {
+            if (resolved.At(n).diameter >= 13.0) {
+                kept.push_back(resolved.At(n).id);
+            }
+        }
+        ASSERT_FALSE(expected.empty());
+        EXPECT_EQ(kept, expected) << "spacing " << spacing.separation;
+    }
+    terraingen::CraterGenerationOptions bad{.dMin = 2.0, .dMax = 100.0};
+    bad.minResolvedDiameter = -1.0;
+    EXPECT_THROW(
+        terraingen::GenerateCraters(terraingen::PlanarCells(), region, density, ages, 9u, bad),
+        std::invalid_argument);
+}

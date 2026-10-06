@@ -31,6 +31,27 @@ EvaluatedTerrain Evaluate(const Terrain& terrain, const RasterGrid& grid, double
     return result;
 }
 
+float EvaluateAt(const Terrain& terrain, double x, double y, double spacing) {
+    if (!terrain.source) {
+        throw std::invalid_argument("A terrain needs a source");
+    }
+    if (!terrain.filters.empty()) {
+        throw std::invalid_argument(
+            "Point queries cannot run filters, which read neighbouring cells; evaluate a grid");
+    }
+    if (!(std::isfinite(spacing) && spacing > 0.0)) {
+        throw std::invalid_argument("Sample spacing must be positive and finite");
+    }
+    float height = terrain.source->HeightAt(x, y);
+    for (const auto& layer : terrain.layers) {
+        if (!layer) {
+            throw std::invalid_argument("A terrain's layers must not be null");
+        }
+        height = layer->ApplyAt(height, x, y, spacing);
+    }
+    return height;
+}
+
 EvaluatedTerrain Evaluate(const Terrain& terrain) {
     if (!terrain.source) {
         throw std::invalid_argument("A terrain needs a source");

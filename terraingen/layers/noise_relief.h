@@ -16,6 +16,9 @@ class NoiseRelief final : public Layer {
 
     void Apply(Raster<float>& heights, double spacing, TerrainFeatures& features) const override;
 
+    /// Noise added at (`x`, `y`); NaN stays NaN.
+    float ApplyAt(float height, double x, double y, double spacing) const override;
+
     const SyntheticTerrainParams& Params() const {
         return params_;
     }

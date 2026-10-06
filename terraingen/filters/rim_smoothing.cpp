@@ -1,7 +1,6 @@
 #include "terraingen/filters/rim_smoothing.h"
 
 #include "terraingen/raster/filters.h"
-#include "terraingen/raster/grid.h"
 
 #include <algorithm>
 #include <cmath>
@@ -20,9 +19,7 @@ void ValidateRimSmoothing(const RimSmoothing& smoothing) {
     if (!(smoothing.strength >= 0.0 && smoothing.strength <= 1.0)) {
         throw std::invalid_argument("Rim smoothing strength must be between 0 and 1");
     }
-    if (!(std::isfinite(smoothing.minDiameterPixels) && smoothing.minDiameterPixels >= 0.0)) {
-        throw std::invalid_argument("minDiameterPixels must be finite and not negative");
-    }
+    ValidateResolutionFade(smoothing.fade);
     if (!(smoothing.innerRadii >= 0.0 && smoothing.innerRadii < 1.0 && smoothing.outerRadii > 1.0 &&
           std::isfinite(smoothing.outerRadii))) {
         throw std::invalid_argument("Rim smoothing band must satisfy 0 <= inner < 1 < outer");
@@ -42,8 +39,11 @@ double BandWeight(double radii, const RimSmoothing& smoothing) {
 }  // namespace
 
 void SmoothCraterRims(Raster<float>& raster, const CraterList& craters,
-                      const RimSmoothing& smoothing) {
+                      const RimSmoothing& smoothing, double spacing) {
     ValidateRimSmoothing(smoothing);
+    if (!(std::isfinite(spacing) && spacing >= 0.0)) {
+        throw std::invalid_argument("Sample spacing must be finite and not negative");
+    }
     if (raster.Empty() || craters.Empty() || smoothing.sigmaRadii == 0.0 ||
         smoothing.strength == 0.0) {
         return;
@@ -55,11 +55,13 @@ void SmoothCraterRims(Raster<float>& raster, const CraterList& craters,
         throw std::domain_error("The raster's transform is not invertible");
     }
     const double pixelSize = std::sqrt(pixelArea);
+    const double resolved = std::max(spacing, pixelSize);
     const std::optional<float> noData = raster.NoData();
 
     for (std::size_t n = 0; n < craters.Size(); ++n) {
         const Crater crater = craters.At(n);
-        if (crater.diameter < smoothing.minDiameterPixels * pixelSize) {
+        const double resolution = ResolutionWeight(crater.diameter, resolved, smoothing.fade);
+        if (resolution == 0.0) {
             continue;
         }
         const double radius = 0.5 * crater.diameter;
@@ -109,7 +111,8 @@ void SmoothCraterRims(Raster<float>& raster, const CraterList& craters,
                 if (radii <= smoothing.innerRadii || radii >= smoothing.outerRadii) {
                     continue;
                 }
-                const double weight = smoothing.strength * BandWeight(radii, smoothing);
+                const double weight =
+                    resolution * smoothing.strength * BandWeight(radii, smoothing);
                 const double height = cell;
                 const double target = smoothed(col - col0, row - row0);
                 cell = static_cast<float>(height + weight * (target - height));
@@ -124,12 +127,7 @@ RimSmoothingFilter::RimSmoothingFilter(const RimSmoothing& smoothing) : smoothin
 
 void RimSmoothingFilter::Apply(Raster<float>& heights, double spacing,
                                const TerrainFeatures& features) const {
-    RimSmoothing smoothing = smoothing_;
-    const double pixelSize = RasterGrid::Of(heights).PixelSize();
-    if (spacing > pixelSize) {
-        smoothing.minDiameterPixels *= spacing / pixelSize;
-    }
-    SmoothCraterRims(heights, features.craters, smoothing);
+    SmoothCraterRims(heights, features.craters, smoothing_, spacing);
 }
 
 }  // namespace terraingen

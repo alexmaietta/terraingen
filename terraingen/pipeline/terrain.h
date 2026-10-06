@@ -35,4 +35,12 @@ EvaluatedTerrain Evaluate(const Terrain& terrain, const RasterGrid& grid, double
 /// Evaluates `terrain` over its source's grid.
 EvaluatedTerrain Evaluate(const Terrain& terrain);
 
+/// The height of `terrain` at (`x`, `y`) sampled every `spacing` world units: the source's height
+/// there, then each layer's `ApplyAt`. It equals the cell centred there of `Evaluate` over a grid
+/// of `spacing` cells, to the same bits, and is safe to call from several threads at once, as point
+/// queries from a physics model are.
+/// @throws std::invalid_argument if `terrain` has no source, a null layer or any filter (filters
+/// read neighbouring cells), or `spacing` is not positive and finite; and whatever the parts throw.
+float EvaluateAt(const Terrain& terrain, double x, double y, double spacing);
+
 }  // namespace terraingen

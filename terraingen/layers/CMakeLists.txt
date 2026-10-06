@@ -5,6 +5,7 @@ terraingen_add_library(
     craters/ages/fresh.cpp
     craters/ages/uniform.cpp
     craters/apply.cpp
+    craters/cell_cache.cpp
     craters/crater_layer.cpp
     craters/degradation/freshness.cpp
     craters/degradation/none.cpp

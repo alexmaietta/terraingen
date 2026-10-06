@@ -5,6 +5,9 @@
 #include "terraingen/layers/craters/profiles/profile.h"
 #include "terraingen/raster/raster.h"
 
+#include <cstddef>
+#include <vector>
+
 namespace terraingen {
 
 /// The order in which overlapping craters are applied; later craters overprint earlier ones.
@@ -52,11 +55,31 @@ struct CraterBlend {
 /// `blend.endRadii`, and `blend.shape` in between.
 double CraterBlendWeight(double radii, const CraterBlend& blend);
 
+/// How features too small to resolve at the sample spacing fade out, by how many samples span
+/// their diameter: absent up to `startSamples`, whole from `endSamples`, and `shape` in between.
+///
+/// Fading rather than cutting keeps levels of detail consistent: a crater sampled at a coarse and
+/// at a fine spacing changes continuously instead of appearing or vanishing at one spacing.
+struct ResolutionFade {
+    double startSamples = 2.0;
+    double endSamples = 4.0;
+    BlendShape shape = BlendShape::Smoothstep;
+
+    bool operator==(const ResolutionFade&) const = default;
+};
+
+/// @throws std::invalid_argument unless 0 <= `startSamples` < `endSamples`, both finite.
+void ValidateResolutionFade(const ResolutionFade& fade);
+
+/// The weight of a feature `diameter` across sampled every `spacing` (same units): 0 up to
+/// `fade.startSamples` samples across it, 1 from `fade.endSamples`, and `fade.shape` in between.
+double ResolutionWeight(double diameter, double spacing, const ResolutionFade& fade);
+
 /// Settings for `ApplyCraters`.
 struct CraterApplyOptions {
     CraterOrder order = CraterOrder::OldestFirst;
-    /// Craters narrower than this many pixels are skipped, since they cannot be resolved.
-    double minDiameterPixels = 3.0;
+    /// How craters too small to resolve at the sample spacing fade out.
+    ResolutionFade fade{};
     /// Reference surface for the interior; with `None` craters are purely additive and the
     /// settings below are unused.
     CraterDatum datum = CraterDatum::None;
@@ -70,9 +93,9 @@ struct CraterApplyOptions {
     bool operator==(const CraterApplyOptions&) const = default;
 };
 
-/// @throws std::invalid_argument for a negative or non-finite `minDiameterPixels`, a non-positive
-/// `datumFitRadii`, an `interiorReplacement` outside [0, 1], or a blend that does not satisfy
-/// 0 <= `startRadii` < `endRadii`.
+/// @throws std::invalid_argument for an invalid `fade`, a non-positive `datumFitRadii`, an
+/// `interiorReplacement` outside [0, 1], or a blend that does not satisfy 0 <= `startRadii` <
+/// `endRadii`.
 void ValidateCraterApplyOptions(const CraterApplyOptions& options);
 
 /// Applies `craters` to `raster`, whose `GeoTransform` maps pixels to the craters' surface
@@ -86,8 +109,13 @@ void ValidateCraterApplyOptions(const CraterApplyOptions& options);
 /// crafting (Foreman et al. 2025) and Furlong et al. (2019). Cells holding the raster's no-data
 /// value are left unchanged and excluded from the fit.
 ///
-/// Craters overlapping the raster edge are fitted to the cells available, so a crater near the edge
-/// of one raster can differ slightly from the same crater in a larger raster.
+/// Each crater's change is weighted by `ResolutionWeight(diameter, spacing, fade)`, so craters too
+/// small to resolve at the sample `spacing` (world units; 0 means the raster's cell size, and a
+/// finer spacing is raised to it) fade out. Without a datum every cell depends only on the craters
+/// reaching it, so a tile of a larger raster gets the same cells as the larger raster.
+///
+/// Craters overlapping the raster edge are fitted to the cells available, so with a datum a crater
+/// near the edge of one raster can differ slightly from the same crater in a larger raster.
 ///
 /// References:
 /// - S. Martin, S. Parkes and M. Dunstan, "Modeling cratered surfaces with real and synthetic
@@ -99,15 +127,17 @@ void ValidateCraterApplyOptions(const CraterApplyOptions& options);
 /// - P. M. Furlong, U. Wong, M. Allan et al., "Planetary Rover Simulation for Lunar Exploration
 ///   Missions", IEEE Aerospace Conference, 2019. https://doi.org/10.1109/AERO.2019.8741780
 ///
-/// @throws std::invalid_argument for a negative or non-finite `minDiameterPixels`, a non-positive
-/// `datumFitRadii`, an `interiorReplacement` outside [0, 1], or a blend that does not satisfy
-/// 0 <= `startRadii` < `endRadii`.
+/// @throws std::invalid_argument for invalid `options` or a negative or non-finite `spacing`.
 /// @throws std::domain_error if the raster's transform is not invertible.
 void ApplyCraters(Raster<float>& raster, const CraterList& craters, const CraterProfile& profile,
-                  const DegradationModel& degradation, const CraterApplyOptions& options = {});
+                  const DegradationModel& degradation, const CraterApplyOptions& options = {},
+                  double spacing = 0.0);
 
 /// `ApplyCraters` with every crater fresh (`NoDegradation`).
 void ApplyCraters(Raster<float>& raster, const CraterList& craters, const CraterProfile& profile,
-                  const CraterApplyOptions& options = {});
+                  const CraterApplyOptions& options = {}, double spacing = 0.0);
+
+/// The order `ApplyCraters` applies `craters` in under `order`, as indices into `craters`.
+std::vector<std::size_t> CraterApplyOrder(const CraterList& craters, CraterOrder order);
 
 }  // namespace terraingen

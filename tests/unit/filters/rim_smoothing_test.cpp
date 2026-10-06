@@ -53,7 +53,7 @@ TEST(SmoothCraterRims, DoesNothingWithoutStrengthSigmaOrResolution) {
     const Raster<float> before = Cratered(craters);
     for (const RimSmoothing& smoothing :
          {RimSmoothing{.sigmaRadii = 0.0}, RimSmoothing{.strength = 0.0},
-          RimSmoothing{.minDiameterPixels = 50.0}}) {
+          RimSmoothing{.fade = {100.0, 200.0}}}) {
         Raster<float> after = before;
         SmoothCraterRims(after, craters, smoothing);
         EXPECT_TRUE(
@@ -68,8 +68,8 @@ TEST(SmoothCraterRims, RejectsInvalidSettings) {
     EXPECT_THROW(SmoothCraterRims(raster, craters, {.innerRadii = 1.0}), std::invalid_argument);
     EXPECT_THROW(SmoothCraterRims(raster, craters, {.outerRadii = 1.0}), std::invalid_argument);
     EXPECT_THROW(SmoothCraterRims(raster, craters, {.strength = 2.0}), std::invalid_argument);
-    EXPECT_THROW(SmoothCraterRims(raster, craters, {.minDiameterPixels = -1.0}),
-                 std::invalid_argument);
+    EXPECT_THROW(SmoothCraterRims(raster, craters, {.fade = {-1.0, 1.0}}), std::invalid_argument);
+    EXPECT_THROW(SmoothCraterRims(raster, craters, {}, -1.0), std::invalid_argument);
 }
 
 TEST(RimSmoothingFilter, SmoothsTheRimsOfThePlacedCraters) {

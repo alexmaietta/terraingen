@@ -38,6 +38,11 @@ class GeoTiffSource final : public Source {
     /// @throws GeoTiffError if the file cannot be read.
     void Fill(Raster<float>& heights) const override;
 
+    /// The value of the source cell containing (`x`, `y`), or NaN beyond the file and where the
+    /// file has no data.
+    /// @throws GeoTiffError if the file cannot be read.
+    float HeightAt(double x, double y) const override;
+
     /// The file's projection, to write outputs with.
     const GeoKeys& Keys() const {
         return info_.geoKeys;
