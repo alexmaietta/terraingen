@@ -19,9 +19,11 @@ terraingen_add_library(
     region.cpp
     roughness.cpp
     transforms.cpp
+    rocks/boulder_meshes.cpp
     rocks/rock_layer.cpp
     PUBLIC
     terraingen_distribution
+    terraingen_meshes
     terraingen_noise
     terraingen_random
     terraingen_raster

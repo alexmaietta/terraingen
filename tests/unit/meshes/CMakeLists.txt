@@ -1,0 +1,9 @@
+terraingen_add_test_suite(
+    meshes
+    SOURCES
+    boulder_test.cpp
+    mesh_io_test.cpp
+    mesh_test.cpp
+    polyhedra_test.cpp
+    LIBRARIES
+    terraingen::meshes)

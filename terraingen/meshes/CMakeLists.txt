@@ -1,0 +1,11 @@
+terraingen_add_library(
+    meshes
+    SOURCES
+    boulder.cpp
+    mesh.cpp
+    mesh_io.cpp
+    polyhedra.cpp
+    PUBLIC
+    terraingen_noise
+    terraingen_random
+    terraingen_util)

@@ -9,6 +9,7 @@ builds one static library. A module depends only on the modules above it in this
 | `raster` | `terraingen::raster` | Rasters, geotransforms, filters, resampling, and GeoTIFF reading and writing without GDAL | util |
 | `noise` | `terraingen::noise` | Noise kernels (header-only) | |
 | `random` | `terraingen::random` | Counter-based random streams and samplers | noise |
+| `meshes` | `terraingen::meshes` | Triangle meshes, base solids, icospheres, synthetic boulder shapes, PLY and glTF export | util, noise, random |
 | `distribution` | `terraingen::distribution` | Size-frequency distributions of craters and rocks | random |
 | `sources` | `terraingen::sources` | Where heights come from: synthetic terrain from layered noise | util, raster, noise |
 | `layers` | `terraingen::layers` | Relief added on top: craters (populations, profiles, ages, degradation, stamping), rocks, fine roughness, the bedrock exposure field, and pointwise transforms and regions | util, raster, noise, random, distribution |
@@ -78,6 +79,10 @@ add blocks of their own (`RockEjecta`, sized by `Sp8023CraterBlocks` or Golombek
 the rim, falling off outward and wearing away with age. Each rock is recorded with its size, height,
 burial and tilt in `TerrainFeatures::rocks`, and drawn into the heights as a dome, or left out of them
 (`RockRelief::None`) for programs that place each rock as a body or mesh of its own.
+`GenerateBoulderShape` gives each rock a 3D shape from its ID: a cube, pyramid, wedge, tetrahedron or
+icosphere, stretched to the axis ratios of impact fragments, rounded, roughened with 3D Perlin noise and cut
+by flat fracture faces, in styles such as blocks, slabs and weathered rounded boulders. `BoulderMesh`
+places it as the rock, at its size, heading, lean and burial, and `WritePly` and `WriteGlb` export it.
 
 Fine roughness is given as planetary surveys measure it (Shepard et al. 2001): an RMS slope over a
 baseline and a Hurst exponent, how the RMS height difference grows with the baseline. `RoughnessLayer`

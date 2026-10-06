@@ -3,6 +3,7 @@
 #   raster        rasters, geotransforms, filters, resampling and GeoTIFF reading and writing
 #   noise         noise kernels: header-only and portable to GPU shading languages
 #   random        counter-based random streams and samplers
+#   meshes        triangle meshes, base solids, icospheres and synthetic boulder shapes
 #   distribution  size-frequency distributions
 #   sources       where heights come from: synthetic terrain from layered noise
 #   layers        relief added on top of a source: craters (populations, profiles, degradation)
@@ -60,6 +61,7 @@ add_subdirectory(util)
 add_subdirectory(raster)
 add_subdirectory(noise)
 add_subdirectory(random)
+add_subdirectory(meshes)
 add_subdirectory(distribution)
 add_subdirectory(sources)
 add_subdirectory(layers)
