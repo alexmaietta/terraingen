@@ -34,7 +34,7 @@ class ConfigError : public std::runtime_error {
 TerrainConfig ParseConfig(std::string_view json);
 
 /// `ParseConfig` on the contents of the file at `path`.
-/// @throws ConfigError, also when the file cannot be read.
+/// @throws ConfigError as `ParseConfig`, or when the file cannot be read.
 TerrainConfig LoadConfig(const std::filesystem::path& path);
 
 /// The configuration as JSON with every value written out, indented by `indent` spaces; parsing the
