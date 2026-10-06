@@ -6,6 +6,7 @@
 #include "terraingen/layers/craters/apply.h"
 #include "terraingen/layers/craters/population.h"
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
+#include "terraingen/layers/region.h"
 #include "terraingen/layers/rocks/rock_layer.h"
 #include "terraingen/layers/roughness.h"
 #include "terraingen/noise/kernels/layers.h"
@@ -13,10 +14,14 @@
 #include "terraingen/raster/resample.h"
 #include "terraingen/sources/synthetic_terrain.h"
 
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
+#include <type_traits>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -189,7 +194,93 @@ struct RoughnessLayerSpec {
     bool operator==(const RoughnessLayerSpec&) const = default;
 };
 
-using LayerSpec = std::variant<NoiseLayerSpec, CraterLayerSpec, RockLayerSpec, RoughnessLayerSpec>;
+/// "scale": height * `scale` + `offset` (`ScaleLayer`).
+struct ScaleLayerSpec {
+    double scale = 1.0;
+    double offset = 0.0;
+
+    bool operator==(const ScaleLayerSpec&) const = default;
+};
+
+/// "clamp": heights clamped to [`min`, `max`], either optional (`ClampLayer`).
+struct ClampLayerSpec {
+    std::optional<double> min;
+    std::optional<double> max;
+
+    bool operator==(const ClampLayerSpec&) const = default;
+};
+
+/// Region shapes, named in JSON by their "type".
+struct RectangleRegionSpec {  ///< "rectangle": [`minX`, `maxX`] x [`minY`, `maxY`].
+    double minX = 0.0;
+    double minY = 0.0;
+    double maxX = 0.0;
+    double maxY = 0.0;
+    bool operator==(const RectangleRegionSpec&) const = default;
+};
+struct CircleRegionSpec {  ///< "circle": centred on (`x`, `y`).
+    double x = 0.0;
+    double y = 0.0;
+    double radius = 0.0;
+    bool operator==(const CircleRegionSpec&) const = default;
+};
+using RegionShapeSpec = std::variant<RectangleRegionSpec, CircleRegionSpec>;
+
+/// A value held by pointer, so that a spec can hold the variant it belongs to; it is copied and
+/// compared by value.
+template <typename T> class Boxed {
+  public:
+    Boxed() : value_(std::make_unique<T>()) {}
+    /// From anything `T` can be made from, such as one alternative of a variant.
+    template <typename U>
+        requires(!std::same_as<std::remove_cvref_t<U>, Boxed> && std::constructible_from<T, U &&>)
+    Boxed(U&& value)  // NOLINT(google-explicit-constructor): converts implicitly by design
+        : value_(std::make_unique<T>(std::forward<U>(value))) {}
+    Boxed(const Boxed& other) : value_(std::make_unique<T>(*other.value_)) {}
+    Boxed(Boxed&& other) noexcept = default;
+    Boxed& operator=(const Boxed& other) {
+        value_ = std::make_unique<T>(*other.value_);
+        return *this;
+    }
+    Boxed& operator=(Boxed&& other) noexcept = default;
+    ~Boxed() = default;
+
+    T& operator*() {
+        return *value_;
+    }
+    const T& operator*() const {
+        return *value_;
+    }
+    T* operator->() {
+        return value_.get();
+    }
+    const T* operator->() const {
+        return value_.get();
+    }
+
+    friend bool operator==(const Boxed& a, const Boxed& b) {
+        return *a.value_ == *b.value_;
+    }
+
+  private:
+    std::unique_ptr<T> value_;
+};
+
+struct RegionLayerSpec;
+
+using LayerSpec = std::variant<NoiseLayerSpec, CraterLayerSpec, RockLayerSpec, RoughnessLayerSpec,
+                               ScaleLayerSpec, ClampLayerSpec, RegionLayerSpec>;
+
+/// "region": `layer` applied only inside `shape`, feathered over `feather` metres outside it
+/// (`RegionLayer`). Rock ejecta do not see crater layers inside regions.
+struct RegionLayerSpec {
+    RegionShapeSpec shape{};
+    double feather = 0.0;
+    BlendShape blend = BlendShape::Smoothstep;
+    Boxed<LayerSpec> layer{};
+
+    bool operator==(const RegionLayerSpec&) const = default;
+};
 
 /// Filters, named in JSON by their "type": "rim_smoothing" is `RimSmoothingFilter`.
 using FilterSpec = std::variant<RimSmoothing>;

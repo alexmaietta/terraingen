@@ -91,13 +91,22 @@ TerrainConfig Everything() {
                                                     .minWavelength = 0.005,
                                                     .seed = 9,
                                                     .fade = {1.5, 5.0}}};
-    config.layers = {noise,
-                     craters,
-                     CraterLayerSpec{},
-                     rocks,
-                     terraingen::RockLayerSpec{},
-                     roughness,
-                     terraingen::RoughnessLayerSpec{}};
+    config.layers = {
+        noise,
+        craters,
+        CraterLayerSpec{},
+        rocks,
+        terraingen::RockLayerSpec{},
+        roughness,
+        terraingen::RoughnessLayerSpec{},
+        terraingen::ScaleLayerSpec{1.5, -20.0},
+        terraingen::ClampLayerSpec{std::nullopt, 12.5},
+        terraingen::RegionLayerSpec{terraingen::CircleRegionSpec{3.0, -4.0, 50.0}, 7.5,
+                                    terraingen::BlendShape::Gaussian, craters},
+        terraingen::RegionLayerSpec{
+            terraingen::RectangleRegionSpec{-1.0, -2.0, 3.0, 4.0}, 0.0,
+            terraingen::BlendShape::Linear,
+            terraingen::RegionLayerSpec{{}, 1.0, {}, terraingen::ClampLayerSpec{0.0, 1.0}}}};
     config.filters = {terraingen::RimSmoothing{
         .sigmaRadii = 0.1, .strength = 0.5, .fade = {0.5, 6.0, terraingen::BlendShape::Gaussian}}};
     config.outputs = {
@@ -205,6 +214,48 @@ TEST(ConfigJson, ReadsRockLayersWithOptionalExposure) {
     EXPECT_EQ(
         ErrorPath(R"({"schema_version": 1, "layers": [{"type": "rocks", "exposure": {"x": 1}}]})"),
         "layers[0].exposure.x");
+}
+
+TEST(Boxed, CopiesAndComparesByValue) {
+    terraingen::Boxed<LayerSpec> a = terraingen::ScaleLayerSpec{2.0, 0.0};
+    terraingen::Boxed<LayerSpec> b;
+    EXPECT_TRUE(std::holds_alternative<terraingen::NoiseLayerSpec>(*b));
+    b = a;
+    EXPECT_EQ(a, b);
+    std::get<terraingen::ScaleLayerSpec>(*b).scale = 3.0;
+    EXPECT_EQ(std::get<terraingen::ScaleLayerSpec>(*a).scale, 2.0) << "deep copies";
+    EXPECT_FALSE(a == b);
+    const terraingen::Boxed<LayerSpec> c = std::move(b);
+    EXPECT_EQ(std::get<terraingen::ScaleLayerSpec>(*c).scale, 3.0);
+    EXPECT_EQ(c->index(), a->index());
+}
+
+TEST(ConfigJson, ReadsTransformsAndNestedRegions) {
+    const TerrainConfig config = ParseConfig(R"({"schema_version": 1, "layers": [
+        {"type": "scale", "scale": 2},
+        {"type": "clamp", "min": -1},
+        {"type": "region", "shape": {"type": "circle", "radius": 30}, "feather": 5,
+         "layer": {"type": "region", "shape": {"type": "rectangle", "max_x": 1, "max_y": 2},
+                   "layer": {"type": "clamp", "max": 0}}}]})");
+    ASSERT_EQ(config.layers.size(), 3u);
+    EXPECT_EQ(std::get<terraingen::ScaleLayerSpec>(config.layers[0]),
+              (terraingen::ScaleLayerSpec{2.0, 0.0}));
+    EXPECT_EQ(std::get<terraingen::ClampLayerSpec>(config.layers[1]),
+              (terraingen::ClampLayerSpec{-1.0, std::nullopt}));
+    const auto& outer = std::get<terraingen::RegionLayerSpec>(config.layers[2]);
+    EXPECT_EQ(outer.shape,
+              (terraingen::RegionShapeSpec{terraingen::CircleRegionSpec{0.0, 0.0, 30.0}}));
+    EXPECT_EQ(outer.feather, 5.0);
+    EXPECT_EQ(outer.blend, terraingen::BlendShape::Smoothstep);
+    const auto& inner = std::get<terraingen::RegionLayerSpec>(*outer.layer);
+    EXPECT_EQ(std::get<terraingen::RectangleRegionSpec>(inner.shape).maxY, 2.0);
+    EXPECT_EQ(std::get<terraingen::ClampLayerSpec>(*inner.layer).max, 0.0);
+    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "layers": [
+        {"type": "region", "layer": {"type": "clamp", "mid": 0}}]})"),
+              "layers[0].layer.mid");
+    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "layers": [
+        {"type": "region", "shape": {"type": "polygon"}}]})"),
+              "layers[0].shape.type");
 }
 
 TEST(ConfigJson, InfersTheCraterListFormatFromTheExtension) {

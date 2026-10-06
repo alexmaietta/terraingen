@@ -172,6 +172,21 @@ template <> struct SpecName<RockLayerSpec> {
 template <> struct SpecName<RoughnessLayerSpec> {
     static constexpr std::string_view kName = "roughness";
 };
+template <> struct SpecName<ScaleLayerSpec> {
+    static constexpr std::string_view kName = "scale";
+};
+template <> struct SpecName<ClampLayerSpec> {
+    static constexpr std::string_view kName = "clamp";
+};
+template <> struct SpecName<RegionLayerSpec> {
+    static constexpr std::string_view kName = "region";
+};
+template <> struct SpecName<RectangleRegionSpec> {
+    static constexpr std::string_view kName = "rectangle";
+};
+template <> struct SpecName<CircleRegionSpec> {
+    static constexpr std::string_view kName = "circle";
+};
 template <> struct SpecName<RimSmoothing> {
     static constexpr std::string_view kName = "rim_smoothing";
 };
@@ -299,6 +314,11 @@ template <typename IO> void Fields(IO& io, RockEjecta& ejecta);
 template <typename IO> void Fields(IO& io, ExposureParams& exposure);
 template <typename IO> void Fields(IO& io, RockLayerSpec& spec);
 template <typename IO> void Fields(IO& io, RoughnessLayerSpec& spec);
+template <typename IO> void Fields(IO& io, ScaleLayerSpec& spec);
+template <typename IO> void Fields(IO& io, ClampLayerSpec& spec);
+template <typename IO> void Fields(IO& io, RectangleRegionSpec& spec);
+template <typename IO> void Fields(IO& io, CircleRegionSpec& spec);
+template <typename IO> void Fields(IO& io, RegionLayerSpec& spec);
 template <typename IO> void Fields(IO& io, LunarSurfaceSpec& spec);
 template <typename IO> void Fields(IO& io, PowerLawSpec& spec);
 template <typename IO> void Fields(IO& io, PiecewisePowerLawSpec& spec);
@@ -399,6 +419,7 @@ template <NamedEnum E> void Read(const Json& json, const std::string& path, E& v
 }
 
 template <typename T> void Read(const Json& json, const std::string& path, std::optional<T>& value);
+template <typename T> void Read(const Json& json, const std::string& path, Boxed<T>& value);
 template <typename T> void Read(const Json& json, const std::string& path, std::vector<T>& value);
 template <typename... Ts>
 void Read(const Json& json, const std::string& path, std::variant<Ts...>& value);
@@ -433,6 +454,10 @@ void Read(const Json& json, const std::string& path, std::optional<T>& value) {
     T inner = value.value_or(T{});
     Read(json, path, inner);
     value = std::move(inner);
+}
+
+template <typename T> void Read(const Json& json, const std::string& path, Boxed<T>& value) {
+    Read(json, path, *value);
 }
 
 template <typename T> void Read(const Json& json, const std::string& path, std::vector<T>& value) {
@@ -522,6 +547,7 @@ template <NamedEnum E> Json ToJson(E value) {
 }
 
 template <typename T> Json ToJson(const std::optional<T>& value);
+template <typename T> Json ToJson(const Boxed<T>& value);
 template <typename T> Json ToJson(const std::vector<T>& value);
 template <typename... Ts> Json ToJson(const std::variant<Ts...>& value);
 
@@ -535,6 +561,10 @@ template <HasFields T> Json ToJson(const T& value) {
 
 template <typename T> Json ToJson(const std::optional<T>& value) {
     return value ? ToJson(*value) : Json(nullptr);
+}
+
+template <typename T> Json ToJson(const Boxed<T>& value) {
+    return ToJson(*value);
 }
 
 template <typename T> Json ToJson(const std::vector<T>& value) {
@@ -724,6 +754,36 @@ template <typename IO> void Fields(IO& io, RoughnessLayerSpec& spec) {
     io("min_wavelength", roughness.minWavelength);
     io("seed", roughness.seed);
     io("fade", roughness.fade);
+}
+
+template <typename IO> void Fields(IO& io, ScaleLayerSpec& spec) {
+    io("scale", spec.scale);
+    io("offset", spec.offset);
+}
+
+template <typename IO> void Fields(IO& io, ClampLayerSpec& spec) {
+    io("min", spec.min);
+    io("max", spec.max);
+}
+
+template <typename IO> void Fields(IO& io, RectangleRegionSpec& spec) {
+    io("min_x", spec.minX);
+    io("min_y", spec.minY);
+    io("max_x", spec.maxX);
+    io("max_y", spec.maxY);
+}
+
+template <typename IO> void Fields(IO& io, CircleRegionSpec& spec) {
+    io("x", spec.x);
+    io("y", spec.y);
+    io("radius", spec.radius);
+}
+
+template <typename IO> void Fields(IO& io, RegionLayerSpec& spec) {
+    io("shape", spec.shape);
+    io("feather", spec.feather);
+    io("blend", spec.blend);
+    io("layer", spec.layer);
 }
 
 template <typename IO> void Fields(IO& io, LunarSurfaceSpec& spec) {

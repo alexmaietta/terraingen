@@ -11,7 +11,7 @@ builds one static library. A module depends only on the modules above it in this
 | `random` | `terraingen::random` | Counter-based random streams and samplers | noise |
 | `distribution` | `terraingen::distribution` | Size-frequency distributions of craters and rocks | random |
 | `sources` | `terraingen::sources` | Where heights come from: synthetic terrain from layered noise | util, raster, noise |
-| `layers` | `terraingen::layers` | Relief added on top: craters (populations, profiles, ages, degradation, stamping), rocks, fine roughness and the bedrock exposure field | util, raster, noise, random, distribution |
+| `layers` | `terraingen::layers` | Relief added on top: craters (populations, profiles, ages, degradation, stamping), rocks, fine roughness, the bedrock exposure field, and pointwise transforms and regions | util, raster, noise, random, distribution |
 | `filters` | `terraingen::filters` | Transforms of the heights so far: crater rim smoothing | layers, raster |
 | `bodies` | `terraingen::bodies` | Calibrations for particular bodies: the Moon's chronology, production, equilibrium and surface presets | distribution, layers |
 | `pipeline` | `terraingen::pipeline` | JSON terrain configs and the generation pipeline | all of the above |
@@ -49,7 +49,9 @@ auto tile = terraingen::Evaluate(terrain, tileGrid);  // any grid on the same la
 - **Sources** fill a grid: `FlatSource` (a level datum) or `GeoTiffSource` (a DEM, optionally
   resampled).
 - **Layers** add relief and record what they placed (`TerrainFeatures`, such as the craters):
-  `NoiseRelief`, `CraterLayer`, `RockLayer` and `RoughnessLayer`.
+  `NoiseRelief`, `CraterLayer`, `RockLayer` and `RoughnessLayer`. Layers can also reshape the heights so
+  far, point by point: `ScaleLayer`, `ClampLayer`, `FunctionLayer`, and `RegionLayer`, which applies
+  another layer only inside a rectangle or circle, feathered at its edge.
 - **Filters** transform the heights using those features: `RimSmoothingFilter`.
 
 Layers are pure functions of position, so a tile evaluated alone equals the same cells of the whole

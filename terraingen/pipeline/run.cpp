@@ -16,6 +16,7 @@
 #include "terraingen/layers/craters/filters.h"
 #include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
 #include "terraingen/layers/noise_relief.h"
+#include "terraingen/layers/transforms.h"
 #include "terraingen/noise/kernels/layers.h"
 #include "terraingen/pipeline/config_json.h"
 #include "terraingen/sources/flat_source.h"
@@ -253,11 +254,65 @@ void ValidateRocks(const RockLayerSpec& spec, bool craters, const RasterGrid& gr
     }
 }
 
+RegionShape BuildRegionShape(const RegionShapeSpec& spec) {
+    if (const auto* circle = std::get_if<CircleRegionSpec>(&spec)) {
+        return RegionShape::Circle({circle->x, circle->y}, circle->radius);
+    }
+    const auto& rectangle = std::get<RectangleRegionSpec>(spec);
+    return RegionShape::Rectangle({rectangle.minX, rectangle.minY, rectangle.maxX, rectangle.maxY});
+}
+
+/// Checks the layer `spec` at JSON `path`; `craters` says whether a crater layer came before it
+/// and is set when `spec` is one.
+void ValidateLayer(const LayerSpec& spec, const RasterGrid& grid, const std::string& path,
+                   bool& craters) {
+    std::visit(Overloaded{
+                   [&](const NoiseLayerSpec& noise) {
+                       ValidateLayers(noise.stack, path + ".stack", false);
+                   },
+                   [&](const CraterLayerSpec& layer) {
+                       ValidateCraters(layer, grid, path);
+                       craters = true;
+                   },
+                   [&](const RockLayerSpec& layer) { ValidateRocks(layer, craters, grid, path); },
+                   [&](const RoughnessLayerSpec& layer) {
+                       At(path, [&] { ValidateRoughnessOptions(layer.roughness); });
+                   },
+                   [&](const ScaleLayerSpec& layer) {
+                       At(path, [&] { ScaleLayer(layer.scale, layer.offset); });
+                   },
+                   [&](const ClampLayerSpec& layer) {
+                       At(path, [&] { ClampLayer(layer.min, layer.max); });
+                   },
+                   [&](const RegionLayerSpec& layer) {
+                       At(path + ".shape",
+                          [&] { ValidateRegionShape(BuildRegionShape(layer.shape)); });
+                       if (!(std::isfinite(layer.feather) && layer.feather >= 0.0)) {
+                           throw ConfigError(path + ".feather", "must not be negative");
+                       }
+                       bool inner = craters;
+                       ValidateLayer(*layer.layer, grid, path + ".layer", inner);
+                   },
+               },
+               spec);
+}
+
 /// The layer `spec` describes; rock ejecta come from `ejecta`, the last crater layer before it.
 std::shared_ptr<const Layer> BuildLayer(const LayerSpec& spec, const Source& source,
                                         const std::shared_ptr<const CraterLayer>& ejecta) {
     if (const auto* noise = std::get_if<NoiseLayerSpec>(&spec)) {
         return std::make_shared<NoiseRelief>(noise->Params(), source.ReferencePoint());
+    }
+    if (const auto* scale = std::get_if<ScaleLayerSpec>(&spec)) {
+        return std::make_shared<ScaleLayer>(scale->scale, scale->offset);
+    }
+    if (const auto* clamp = std::get_if<ClampLayerSpec>(&spec)) {
+        return std::make_shared<ClampLayer>(clamp->min, clamp->max);
+    }
+    if (const auto* region = std::get_if<RegionLayerSpec>(&spec)) {
+        return std::make_shared<RegionLayer>(BuildLayer(*region->layer, source, ejecta),
+                                             BuildRegionShape(region->shape), region->feather,
+                                             region->blend);
     }
     if (const auto* roughness = std::get_if<RoughnessLayerSpec>(&spec)) {
         return std::make_shared<RoughnessLayer>(roughness->roughness);
@@ -373,21 +428,7 @@ void ValidateConfig(const TerrainConfig& config, const std::filesystem::path& di
     const RasterGrid grid = DescribeSource(config.source, directory);
     bool craters = false;
     for (std::size_t i = 0; i < config.layers.size(); ++i) {
-        const std::string path = "layers[" + std::to_string(i) + "]";
-        std::visit(Overloaded{
-                       [&](const NoiseLayerSpec& noise) {
-                           ValidateLayers(noise.stack, path + ".stack", false);
-                       },
-                       [&](const CraterLayerSpec& spec) {
-                           ValidateCraters(spec, grid, path);
-                           craters = true;
-                       },
-                       [&](const RockLayerSpec& spec) { ValidateRocks(spec, craters, grid, path); },
-                       [&](const RoughnessLayerSpec& spec) {
-                           At(path, [&] { ValidateRoughnessOptions(spec.roughness); });
-                       },
-                   },
-                   config.layers[i]);
+        ValidateLayer(config.layers[i], grid, "layers[" + std::to_string(i) + "]", craters);
     }
     for (std::size_t i = 0; i < config.filters.size(); ++i) {
         At("filters[" + std::to_string(i) + "]",

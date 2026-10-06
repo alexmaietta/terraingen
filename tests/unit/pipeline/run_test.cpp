@@ -208,6 +208,59 @@ TEST(GenerateTerrain, AddsRoughnessAndReportsItsProblemsByPath) {
               "layers[2]");
 }
 
+TEST(ValidateConfig, ReportsTransformAndRegionProblemsByPath) {
+    using terraingen::ClampLayerSpec;
+    using terraingen::RegionLayerSpec;
+    const auto with = [](terraingen::LayerSpec layer) {
+        return ErrorPath([&](TerrainConfig& c) { c.layers.push_back(layer); });
+    };
+    EXPECT_EQ(with(terraingen::ScaleLayerSpec{2.0, 1.0}), "valid");
+    EXPECT_EQ(with(ClampLayerSpec{2.0, 1.0}), "layers[2]");
+    EXPECT_EQ(with(RegionLayerSpec{terraingen::CircleRegionSpec{0.0, 0.0, -1.0}}),
+              "layers[2].shape");
+    EXPECT_EQ(with(RegionLayerSpec{terraingen::RectangleRegionSpec{1.0, 0.0, 0.0, 1.0}}),
+              "layers[2].shape");
+    EXPECT_EQ(with(RegionLayerSpec{{}, -1.0}), "layers[2].feather");
+    EXPECT_EQ(with(RegionLayerSpec{{}, 1.0, {}, ClampLayerSpec{2.0, 1.0}}), "layers[2].layer");
+    TerrainConfig small = Small();
+    EXPECT_EQ(with(RegionLayerSpec{{}, 1.0, {}, RegionLayerSpec{{}, 1.0, {}, Craters(small)}}),
+              "valid");
+    terraingen::RockLayerSpec rocks;
+    rocks.rocks.ejecta.minCraterDiameter = 10.0;
+    EXPECT_EQ(ErrorPath([&](TerrainConfig& c) {
+                  c.layers = {RegionLayerSpec{{}, 1.0, {}, Craters(c)}, rocks};
+              }),
+              "layers[1].ejecta.min_crater_diameter")
+        << "crater layers inside regions do not count for ejecta";
+    EXPECT_EQ(ErrorPath([&](TerrainConfig& c) {
+                  c.layers.push_back(RegionLayerSpec{{}, 1.0, {}, rocks});
+              }),
+              "valid")
+        << "rocks inside a region see the crater layers before it";
+}
+
+TEST(GenerateTerrain, AppliesTransformsAndRegionsAsTheLibraryDoes) {
+    TerrainConfig config = Small();
+    const terraingen::RegionLayerSpec region{terraingen::CircleRegionSpec{10.0, -5.0, 20.0}, 6.0,
+                                             terraingen::BlendShape::Linear,
+                                             terraingen::ClampLayerSpec{std::nullopt, 0.0}};
+    config.layers.push_back(terraingen::ScaleLayerSpec{2.0, 1.0});
+    config.layers.push_back(region);
+    const auto generated = GenerateTerrain(config);
+
+    terraingen::Terrain terrain = terraingen::BuildTerrain(config);
+    ASSERT_EQ(terrain.layers.size(), 4u);
+    terrain.layers[2] = std::make_shared<terraingen::ScaleLayer>(2.0, 1.0);
+    terrain.layers[3] = std::make_shared<terraingen::RegionLayer>(
+        std::make_shared<terraingen::ClampLayer>(std::nullopt, 0.0),
+        terraingen::RegionShape::Circle({10.0, -5.0}, 20.0), 6.0, terraingen::BlendShape::Linear);
+    ExpectSameRaster(generated.heights, terraingen::Evaluate(terrain).heights);
+    const auto& heights = generated.heights;
+    const auto centre = heights.Transform().WorldToPixel(10.0, -5.0);
+    EXPECT_LE(heights(static_cast<std::size_t>(centre.x), static_cast<std::size_t>(centre.y)),
+              0.0f);
+}
+
 TEST(GenerateTerrain, AddsRocksWithEjectaFromTheLastCraterLayerBeforeThem) {
     TerrainConfig config = Small();
     Flat(config).pixelSize = 0.5;
