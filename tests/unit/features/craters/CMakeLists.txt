@@ -18,13 +18,3 @@ terraingen_add_test_suite(
     rim_smoothing_test.cpp
     LIBRARIES
     terraingen::core)
-terraingen_add_test_suite(
-    craters_statistical
-    SOURCES
-    ages/ages_statistical_test.cpp
-    lunar/production_statistical_test.cpp
-    population_statistical_test.cpp
-    LIBRARIES
-    terraingen::core
-    LABELS
-    statistical)

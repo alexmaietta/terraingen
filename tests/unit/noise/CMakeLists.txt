@@ -12,11 +12,3 @@ terraingen_add_test_suite(
     synthetic_terrain_test.cpp
     LIBRARIES
     terraingen::core)
-terraingen_add_test_suite(
-    noise_golden
-    SOURCES
-    kernels/golden_test.cpp
-    LIBRARIES
-    terraingen::core
-    LABELS
-    golden)

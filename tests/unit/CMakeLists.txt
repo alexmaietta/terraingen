@@ -1,0 +1,8 @@
+add_subdirectory(core)
+add_subdirectory(raster)
+add_subdirectory(random)
+add_subdirectory(distributions)
+add_subdirectory(features)
+add_subdirectory(io)
+add_subdirectory(noise)
+add_subdirectory(pipeline)
