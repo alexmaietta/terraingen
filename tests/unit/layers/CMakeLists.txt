@@ -14,6 +14,7 @@ terraingen_add_test_suite(
     craters/population_test.cpp
     craters/profiles/fassett_thomson_test.cpp
     craters/profiles/martin_parkes_dunstan_test.cpp
+    exposure_test.cpp
     noise_relief_test.cpp
     LIBRARIES
     terraingen::bodies)

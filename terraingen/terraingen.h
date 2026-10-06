@@ -33,6 +33,7 @@
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
 #include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
 #include "terraingen/layers/craters/profiles/profile.h"
+#include "terraingen/layers/exposure.h"
 #include "terraingen/layers/ground.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/layers/noise_relief.h"
