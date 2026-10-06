@@ -40,7 +40,9 @@ if(TERRAINGEN_INSTALL
             -DBUILD_DIR=${PROJECT_BINARY_DIR} -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/package/deb
             -DCONSUMER_DIR=${CMAKE_CURRENT_SOURCE_DIR}/package -DGENERATOR=${CMAKE_GENERATOR} -P
             "${CMAKE_CURRENT_SOURCE_DIR}/package/test_debian_packages.cmake")
-    set_tests_properties(package.deb PROPERTIES LABELS integration)
+    # CPack builds the project before packaging; running alone keeps that build from relinking
+    # binaries other tests are running.
+    set_tests_properties(package.deb PROPERTIES LABELS integration RUN_SERIAL TRUE)
 endif()
 
 if(TERRAINGEN_COVERAGE)

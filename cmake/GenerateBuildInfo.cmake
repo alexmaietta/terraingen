@@ -24,7 +24,10 @@ if(NOT GIT_SHA STREQUAL "unknown")
     endif()
 endif()
 
-# Get build date
-string(TIMESTAMP BUILD_DATE "%Y-%m-%dT%H:%M:%SZ" UTC)
+# The build day rather than the time, so the file only changes, and the library and everything
+# linking it only rebuild, when the commit, the dirty state or the day changes. TIMESTAMP honours
+# SOURCE_DATE_EPOCH for reproducible builds.
+string(TIMESTAMP BUILD_DATE "%Y-%m-%d" UTC)
 
+# configure_file leaves an unchanged file untouched, so its timestamp does not trigger a rebuild.
 configure_file(${TEMPLATE} ${OUTPUT} @ONLY)
