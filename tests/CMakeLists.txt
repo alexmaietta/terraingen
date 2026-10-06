@@ -7,16 +7,9 @@ add_subdirectory(features)
 add_subdirectory(io)
 add_subdirectory(pipeline)
 add_subdirectory(spatial)
-add_subdirectory(apps/cli)
 add_subdirectory(surfaces)
-if(TARGET ernie)
-    add_subdirectory("${ERNIE_SOURCE_DIR}/tests" "${PROJECT_BINARY_DIR}/ernie/tests")
-endif()
 if(TARGET _terraingen)
     add_subdirectory(python)
-endif()
-if(TARGET terraingen_viewer_app)
-    add_subdirectory(apps/viewer)
 endif()
 
 if(TERRAINGEN_INSTALL AND NOT TERRAINGEN_COVERAGE)
@@ -73,12 +66,9 @@ if(TERRAINGEN_COVERAGE)
                 validation
         COMMAND
             "${GCOVR_EXECUTABLE}" --root "${PROJECT_SOURCE_DIR}" --gcov-executable "${gcov_command}"
-            --filter "${PROJECT_SOURCE_DIR}/include/terraingen/" --filter
-            "${PROJECT_SOURCE_DIR}/src/" --filter "${PROJECT_SOURCE_DIR}/apps/" --filter
-            "${ERNIE_SOURCE_DIR}/ernie/include/" --filter "${ERNIE_SOURCE_DIR}/ernie/src/" --filter
-            "${ERNIE_SOURCE_DIR}/gui/" --exclude-throw-branches --exclude-noncode-lines --delete
-            --txt --html-details "${report_dir}/index.html" --cobertura "${report_dir}/coverage.xml"
-            --print-summary "${PROJECT_BINARY_DIR}"
+            --filter "${PROJECT_SOURCE_DIR}/terraingen/" --exclude-throw-branches
+            --exclude-noncode-lines --delete --txt --html-details "${report_dir}/index.html"
+            --cobertura "${report_dir}/coverage.xml" --print-summary "${PROJECT_BINARY_DIR}"
         WORKING_DIRECTORY "${PROJECT_BINARY_DIR}"
         COMMENT "Running tests and writing coverage reports to ${report_dir}"
         USES_TERMINAL VERBATIM)

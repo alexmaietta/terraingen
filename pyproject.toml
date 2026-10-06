@@ -17,7 +17,7 @@ test = ["pytest"]
 minimum-version = "build-system.requires"
 cmake.version = ">=3.22"
 build-dir = "build/{wheel_tag}"
-wheel.packages = ["bindings/python/terraingen"]
+wheel.packages = ["terraingen/python/terraingen"]
 wheel.py-api = "cp312"
 
 [tool.scikit-build.metadata.version]
@@ -27,9 +27,7 @@ regex = '(?P<value>\d+\.\d+\.\d+)'
 
 [tool.scikit-build.cmake.define]
 TERRAINGEN_BUILD_PYTHON = "ON"
-TERRAINGEN_BUILD_CLI = "OFF"
 TERRAINGEN_BUILD_TESTS = "OFF"
-TERRAINGEN_BUILD_VIEWER = "OFF"
 TERRAINGEN_BUILD_DEMOS = "OFF"
 TERRAINGEN_WITH_GDAL = "OFF"
 TERRAINGEN_INSTALL = "OFF"

@@ -1,6 +1,6 @@
 """Render TerrainGen rasters with Ernie, TerrainGen's renderer.
 
-These helpers need the ``ernie`` Python module, built with TerrainGen's viewer. They put a raster
+These helpers need the ``ernie`` Python module, built from an Ernie checkout. They put a raster
 into an Ernie scene without copying its cells (Ernie reads them through DLPack and keeps the raster
 alive), and add a sun and a camera looking at it, so a script can generate and render headlessly::
 
@@ -15,7 +15,7 @@ alive), and add a sun and a camera looking at it, so a script can generate and r
     render.frame_terrain(scene, raster)
     image = ernie.Renderer().render(scene)
 
-Directions follow TerrainGen and the viewer: x east, y north, z up, azimuths clockwise from north.
+Directions follow TerrainGen: x east, y north, z up, azimuths clockwise from north.
 """
 
 import math
@@ -32,7 +32,7 @@ def _ernie():
         import ernie
     except ImportError as error:
         raise ImportError(
-            "terraingen.render needs the ernie module, built with TerrainGen's viewer"
+            "terraingen.render needs the ernie module, built from an Ernie checkout"
         ) from error
     return ernie
 

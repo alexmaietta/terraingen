@@ -14,5 +14,5 @@ Checks: >
   -bugprone-easily-swappable-parameters
 
 WarningsAsErrors: ''
-HeaderFilterRegex: '.*/(include/terraingen|src)/.*'
+HeaderFilterRegex: '.*/terraingen/(include/terraingen|src)/.*'
 FormatStyle: file

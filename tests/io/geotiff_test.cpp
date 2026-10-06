@@ -1,6 +1,6 @@
 #include "terraingen/io/geotiff.h"
 
-#include "../../src/terraingen/io/tiff_codecs.h"
+#include "../../terraingen/src/io/tiff_codecs.h"
 
 #include <gtest/gtest.h>
 

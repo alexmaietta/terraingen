@@ -1,1 +1,0 @@
-terraingen_add_test_suite(cli SOURCES cli_test.cpp LIBRARIES terraingen_cli_app)

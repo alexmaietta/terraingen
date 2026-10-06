@@ -1,4 +1,4 @@
-configure_file("${PROJECT_SOURCE_DIR}/include/terraingen/core/version.h.in"
+configure_file("${PROJECT_SOURCE_DIR}/terraingen/include/terraingen/core/version.h.in"
                "${PROJECT_BINARY_DIR}/include/terraingen/core/version.h" @ONLY)
 
 set(TERRAINGEN_BUILD_INFO_CPP "${CMAKE_CURRENT_BINARY_DIR}/build_info.cpp")
@@ -64,7 +64,7 @@ add_dependencies(terraingen_core terraingen_generate_build_info)
 
 target_include_directories(
     terraingen_core
-    PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+    PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/terraingen/include>
            $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 target_compile_features(terraingen_core PUBLIC cxx_std_20)
@@ -94,7 +94,7 @@ if(TERRAINGEN_INSTALL)
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT development
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT development)
     install(
-        DIRECTORY "${PROJECT_SOURCE_DIR}/include/terraingen"
+        DIRECTORY "${PROJECT_SOURCE_DIR}/terraingen/include/terraingen"
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         COMPONENT development
         PATTERN "*.in" EXCLUDE)

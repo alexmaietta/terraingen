@@ -10,7 +10,7 @@ if(NOT result EQUAL 0)
     message(FATAL_ERROR "cpack failed with ${result}")
 endif()
 
-foreach(package terraingen terraingen-dev)
+foreach(package terraingen-dev)
     file(GLOB deb "${WORK_DIR}/debs/${package}_*.deb")
     if(NOT deb)
         message(FATAL_ERROR "${package} package was not generated")
@@ -20,23 +20,6 @@ foreach(package terraingen terraingen-dev)
         message(FATAL_ERROR "Could not extract ${deb}")
     endif()
 endforeach()
-
-set(cli "${WORK_DIR}/root/usr/bin/terraingen")
-execute_process(COMMAND "${cli}" --version RESULT_VARIABLE result)
-if(NOT result EQUAL 0)
-    message(FATAL_ERROR "Packaged terraingen --version exited with ${result}")
-endif()
-execute_process(
-    COMMAND "${cli}" schema
-    OUTPUT_FILE "${WORK_DIR}/schema.json"
-    RESULT_VARIABLE result)
-if(NOT result EQUAL 0)
-    message(FATAL_ERROR "Packaged terraingen schema exited with ${result}")
-endif()
-execute_process(COMMAND "${cli}" validate "${WORK_DIR}/schema.json" RESULT_VARIABLE result)
-if(NOT result EQUAL 0)
-    message(FATAL_ERROR "Packaged terraingen could not validate its own schema (${result})")
-endif()
 
 execute_process(
     COMMAND

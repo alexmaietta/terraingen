@@ -32,8 +32,8 @@ repos:
           - "--enable=warning,performance,portability"
           - "--suppress=missingInclude"
           - "--suppress=normalCheckLevelMaxBranches"
-          - "--suppress=floatConversionOverflow:bindings/python/src/kernels.cpp"
-          - "--suppress=assignBoolToPointer:bindings/python/src/kernels.cpp"
+          - "--suppress=floatConversionOverflow:terraingen/python/src/kernels.cpp"
+          - "--suppress=assignBoolToPointer:terraingen/python/src/kernels.cpp"
           - "--error-exitcode=1"
 
   - repo: https://github.com/cheshirekow/cmake-format-precommit

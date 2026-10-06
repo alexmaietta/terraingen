@@ -7,11 +7,9 @@ project(
     VERSION ${TERRAINGEN_VERSION}
     LANGUAGES C CXX)
 
-option(TERRAINGEN_BUILD_CLI "Build the terraingen command-line app" ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_BUILD_TESTS "Build the test suite" ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_BUILD_VALIDATION "Build the validation tests against external references"
        ${PROJECT_IS_TOP_LEVEL})
-option(TERRAINGEN_BUILD_VIEWER "Build the static terrain viewer" ON)
 option(TERRAINGEN_BUILD_DEMOS "Build the demos" OFF)
 option(TERRAINGEN_BUILD_PYTHON "Build the Python bindings" ON)
 option(TERRAINGEN_WITH_GDAL "Reserved for GDAL-backed formats; GeoTIFF needs no GDAL" ON)
@@ -65,29 +63,11 @@ if(TERRAINGEN_BUILD_PYTHON)
     include("${PROJECT_SOURCE_DIR}/cmake/third_party/nanobind.cmake")
 endif()
 
-# The viewer runs in Ernie's GUI viewer and renders with Ernie, a separate project built from a
-# local checkout; Ernie's Python module comes with TerrainGen's.
-set(TERRAINGEN_ERNIE_DIR
-    "${PROJECT_SOURCE_DIR}/../ernie"
-    CACHE PATH "Ernie source checkout the viewer builds against")
-if(TERRAINGEN_BUILD_VIEWER)
-    if(NOT EXISTS "${TERRAINGEN_ERNIE_DIR}/CMakeLists.txt")
-        message(
-            FATAL_ERROR
-                "The viewer needs Ernie, which was not found in ${TERRAINGEN_ERNIE_DIR}. Set "
-                "-DTERRAINGEN_ERNIE_DIR to an Ernie checkout, or -DTERRAINGEN_BUILD_VIEWER=OFF.")
-    endif()
-    set(ERNIE_BUILD_PYTHON ${TERRAINGEN_BUILD_PYTHON})
-    set(ERNIE_BUILD_GUI ON)
-    add_subdirectory("${TERRAINGEN_ERNIE_DIR}" "${PROJECT_BINARY_DIR}/ernie")
-endif()
-
-add_subdirectory(src)
-add_subdirectory(apps)
+add_subdirectory(terraingen/src)
 
 if(TERRAINGEN_BUILD_PYTHON)
     set_target_properties(terraingen_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
-    add_subdirectory(bindings/python)
+    add_subdirectory(terraingen/python)
 endif()
 
 if(TERRAINGEN_BUILD_TESTS OR TERRAINGEN_BUILD_VALIDATION)
