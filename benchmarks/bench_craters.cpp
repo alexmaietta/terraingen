@@ -34,7 +34,7 @@ void BM_ApplyCraters(benchmark::State& state) {
         GenerateCraters(PlanarCells(), {-half, -half, half, half}, *surface.density, *surface.ages,
                         1u, {.dMin = 2.5, .dMax = 200.0, .marginRadii = 1.5});
     const FassettThomsonProfile profile;
-    const FreshnessDegradation degradation(surface.ages);
+    const FreshnessDegradation degradation(surface.ages, LunarFreshCraterMorphometry);
     Raster<float> heights(side, side, 0.0f);
     heights.SetTransform(GeoTransform::NorthUp(-half, half, 1.0));
     for (auto _ : state) {

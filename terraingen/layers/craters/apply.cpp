@@ -370,12 +370,6 @@ std::vector<std::size_t> CraterApplyOrder(const CraterList& craters, CraterOrder
 }
 
 void ApplyCraters(Raster<float>& raster, const CraterList& craters, const CraterProfile& profile,
-                  const CraterApplyOptions& options, double spacing, unsigned threads,
-                  const HeightSampler& ground) {
-    ApplyCraters(raster, craters, profile, NoDegradation(), options, spacing, threads, ground);
-}
-
-void ApplyCraters(Raster<float>& raster, const CraterList& craters, const CraterProfile& profile,
                   const DegradationModel& degradation, const CraterApplyOptions& options,
                   double spacing, unsigned threads, const HeightSampler& ground) {
     ValidateCraterApplyOptions(options);

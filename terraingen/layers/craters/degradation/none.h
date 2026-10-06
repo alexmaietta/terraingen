@@ -2,22 +2,22 @@
 
 #include "terraingen/layers/craters/degradation/degradation_model.h"
 
+#include <optional>
+
 namespace terraingen {
 
-/// Every crater stays fresh: depth from `FreshCraterDepthRatio` (or a fixed ratio) and rim height
-/// `kFreshRimHeightRatio`.
+/// Every crater stays as `fresh` makes it, optionally with one depth/diameter ratio for all.
 class NoDegradation final : public DegradationModel {
   public:
-    NoDegradation() = default;
-
-    /// A fixed fresh depth/diameter ratio for every crater.
-    /// @throws std::invalid_argument unless `depthRatio` is positive and finite.
-    explicit NoDegradation(double depthRatio);
+    /// @throws std::invalid_argument for an empty `fresh`, or a `depthRatio` that is not positive
+    /// and finite.
+    explicit NoDegradation(FreshMorphometry fresh, std::optional<double> depthRatio = std::nullopt);
 
     CraterState State(const Crater& crater) const override;
 
   private:
-    double depthRatio_ = 0.0;
+    FreshMorphometry fresh_;
+    std::optional<double> depthRatio_;
 };
 
 }  // namespace terraingen

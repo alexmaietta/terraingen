@@ -1,1 +1,2 @@
-terraingen_add_test_suite(filters SOURCES rim_smoothing_test.cpp LIBRARIES terraingen::filters)
+terraingen_add_test_suite(filters SOURCES rim_smoothing_test.cpp LIBRARIES terraingen::filters
+                          terraingen::bodies)

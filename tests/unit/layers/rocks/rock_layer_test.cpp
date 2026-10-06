@@ -31,7 +31,8 @@ Craters(const std::vector<terraingen::Crater>& manual) {
         terraingen::CraterModels{std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
                                  std::make_shared<terraingen::FreshAges>(),
                                  std::make_shared<terraingen::FreshnessDegradation>(
-                                     std::make_shared<terraingen::UniformAges>(1.0)),
+                                     std::make_shared<terraingen::UniformAges>(1.0),
+                                     terraingen::LunarFreshCraterMorphometry),
                                  std::make_shared<terraingen::FassettThomsonProfile>()},
         options);
 }

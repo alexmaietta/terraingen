@@ -21,7 +21,7 @@ namespace {
 CraterModels Models() {
     return {std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
             std::make_shared<terraingen::UniformAges>(1.0),
-            std::make_shared<terraingen::NoDegradation>(),
+            std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry),
             std::make_shared<terraingen::FassettThomsonProfile>()};
 }
 

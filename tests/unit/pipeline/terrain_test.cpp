@@ -31,10 +31,11 @@ Terrain Rolling() {
     options.generation.dMin = 6.0;
     options.generation.dMax = 50.0;
     terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(
-        terraingen::CraterModels{std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
-                                 std::make_shared<terraingen::UniformAges>(1.0),
-                                 std::make_shared<terraingen::NoDegradation>(),
-                                 std::make_shared<terraingen::FassettThomsonProfile>()},
+        terraingen::CraterModels{
+            std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
+            std::make_shared<terraingen::UniformAges>(1.0),
+            std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry),
+            std::make_shared<terraingen::FassettThomsonProfile>()},
         options));
     return terrain;
 }
@@ -124,10 +125,11 @@ TEST(EvaluateAt, ChangesContinuouslyWithTheSpacing) {
     options.generate = false;
     options.generation.manual.Append({0.0, 0.0, 20.0, 0.0, 0u});
     terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(
-        terraingen::CraterModels{std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
-                                 std::make_shared<terraingen::UniformAges>(1.0),
-                                 std::make_shared<terraingen::NoDegradation>(),
-                                 std::make_shared<terraingen::FassettThomsonProfile>()},
+        terraingen::CraterModels{
+            std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
+            std::make_shared<terraingen::UniformAges>(1.0),
+            std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry),
+            std::make_shared<terraingen::FassettThomsonProfile>()},
         options));
     const float whole = terraingen::EvaluateAt(terrain, 0.0, 0.0, 1.0);
     ASSERT_LT(whole, -1.0f);
@@ -328,10 +330,11 @@ Terrain Datum(terraingen::CraterDatum datum = terraingen::CraterDatum::Plane) {
     options.generation.dMax = 50.0;
     options.apply.datum = datum;
     terrain.layers.back() = std::make_shared<terraingen::CraterLayer>(
-        terraingen::CraterModels{std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
-                                 std::make_shared<terraingen::UniformAges>(1.0),
-                                 std::make_shared<terraingen::NoDegradation>(),
-                                 std::make_shared<terraingen::FassettThomsonProfile>()},
+        terraingen::CraterModels{
+            std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
+            std::make_shared<terraingen::UniformAges>(1.0),
+            std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry),
+            std::make_shared<terraingen::FassettThomsonProfile>()},
         options);
     return terrain;
 }

@@ -17,14 +17,17 @@ namespace terraingen {
 /// diffusion-based degradation will capture that.
 class FreshnessDegradation final : public DegradationModel {
   public:
-    /// @throws std::invalid_argument if `ages` is null or `cutoffDepthRatio` is not in (0, 0.1).
-    explicit FreshnessDegradation(std::shared_ptr<const CraterAgeModel> ages,
-                                  double cutoffDepthRatio = 0.04);
+    /// `fresh` gives each crater's morphometry when fresh.
+    /// @throws std::invalid_argument if `ages` is null, `fresh` empty, or `cutoffDepthRatio` not
+    /// in (0, 0.1).
+    FreshnessDegradation(std::shared_ptr<const CraterAgeModel> ages, FreshMorphometry fresh,
+                         double cutoffDepthRatio = 0.04);
 
     CraterState State(const Crater& crater) const override;
 
   private:
     std::shared_ptr<const CraterAgeModel> ages_;
+    FreshMorphometry fresh_;
     double cutoffDepthRatio_;
 };
 

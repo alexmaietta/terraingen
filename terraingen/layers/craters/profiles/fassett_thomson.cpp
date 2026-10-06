@@ -40,13 +40,13 @@ double FassettThomsonProfile::Height(double distance, double diameter,
         if (x <= 0.98) {
             h = Interior(x);
         } else if (x <= 1.02) {
-            h = kFreshRimHeightRatio;
+            h = state.fresh.rimHeightRatio;
         } else {
             h = Exterior(x);
         }
         break;
     }
-    return std::fmax(h, kFreshRimHeightRatio - state.current.depthRatio) * diameter;
+    return std::fmax(h, state.fresh.rimHeightRatio - state.current.depthRatio) * diameter;
 }
 
 }  // namespace terraingen

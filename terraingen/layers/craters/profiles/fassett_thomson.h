@@ -11,8 +11,9 @@ enum class FassettThomsonRim {
     /// The interior fit extended to 1.0 radii so the rim lies at the stated diameter, as
     /// synthterrain's default `FT_Crater`; leaves a 0.0076 D step at the rim.
     AtOneRadius,
-    /// Fassett et al. (2022) Table 3, synthterrain's `FTmod_Crater`: a flat rim of 0.0368 D from
-    /// 0.98 to 1.02 radii; leaves a 0.0042 D step at 1.02 radii.
+    /// Fassett et al. (2022) Table 3, synthterrain's `FTmod_Crater`: a flat rim at the fresh rim
+    /// height (`state.fresh.rimHeightRatio`, 0.0368 D on the Moon) from 0.98 to 1.02 radii; leaves
+    /// a 0.0042 D step at 1.02 radii on the Moon.
     Plateau,
 };
 
@@ -24,7 +25,8 @@ enum class FassettThomsonRim {
 ///      0.188253307 - 0.187050452x + 0.01844746x^2 + 0.01505647x^3     exterior, to x = 1.5
 ///
 /// Every variant flattens the interior at a floor `state.current.depthRatio` below the fresh rim
-/// height 0.0368 D, as Fassett et al. (2022) do for size-dependent fresh depths; a depth beyond the
+/// height `state.fresh.rimHeightRatio`, as Fassett et al. (2022) do for size-dependent fresh depths
+/// with the lunar 0.0368 D (`LunarFreshCraterMorphometry`); a depth beyond the
 /// fit's floor leaves the fit unchanged. The rim height is fixed by the fit, so degraded rim
 /// heights are not represented.
 ///

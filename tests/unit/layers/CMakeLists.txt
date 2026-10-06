@@ -10,7 +10,6 @@ terraingen_add_test_suite(
     craters/crater_layer_test.cpp
     craters/degradation/freshness_test.cpp
     craters/degradation/none_test.cpp
-    craters/degradation/state_test.cpp
     craters/filters_test.cpp
     craters/population_test.cpp
     craters/profiles/fassett_thomson_test.cpp

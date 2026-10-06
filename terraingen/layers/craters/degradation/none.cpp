@@ -2,18 +2,25 @@
 
 #include <cmath>
 #include <stdexcept>
+#include <utility>
 
 namespace terraingen {
 
-NoDegradation::NoDegradation(double depthRatio) : depthRatio_(depthRatio) {
-    if (!(std::isfinite(depthRatio_) && depthRatio_ > 0.0)) {
+NoDegradation::NoDegradation(FreshMorphometry fresh, std::optional<double> depthRatio)
+    : fresh_(std::move(fresh)), depthRatio_(depthRatio) {
+    if (!fresh_) {
+        throw std::invalid_argument("No degradation needs the fresh crater morphometry");
+    }
+    if (depthRatio_ && !(std::isfinite(*depthRatio_) && *depthRatio_ > 0.0)) {
         throw std::invalid_argument("Depth/diameter ratio must be positive and finite");
     }
 }
 
 CraterState NoDegradation::State(const Crater& crater) const {
-    const double depth = FreshCraterDepthRatio(crater.diameter);
-    const CraterMorphometry fresh{depthRatio_ > 0.0 ? depthRatio_ : depth, kFreshRimHeightRatio};
+    CraterMorphometry fresh = fresh_(crater.diameter);
+    if (depthRatio_) {
+        fresh.depthRatio = *depthRatio_;
+    }
     return {fresh, fresh};
 }
 

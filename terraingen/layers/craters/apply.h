@@ -220,11 +220,6 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
                   const DegradationModel& degradation, const CraterApplyOptions& options = {},
                   double spacing = 0.0, unsigned threads = 1, const HeightSampler& ground = {});
 
-/// `ApplyCraters` with every crater fresh (`NoDegradation`).
-void ApplyCraters(Raster<float>& raster, const CraterList& craters, const CraterProfile& profile,
-                  const CraterApplyOptions& options = {}, double spacing = 0.0,
-                  unsigned threads = 1, const HeightSampler& ground = {});
-
 /// The order `ApplyCraters` applies `craters` in under `order`, as indices into `craters`.
 std::vector<std::size_t> CraterApplyOrder(const CraterList& craters, CraterOrder order);
 

@@ -1,5 +1,6 @@
 #include "terraingen/pipeline/run.h"
 
+#include "terraingen/bodies/moon/craters.h"
 #include "terraingen/bodies/moon/equilibrium.h"
 #include "terraingen/bodies/moon/production.h"
 #include "terraingen/bodies/moon/steady_state.h"
@@ -115,11 +116,11 @@ BuildDegradation(const DegradationSpec& spec, const std::shared_ptr<const Crater
     return std::visit(
         Overloaded{
             [&](const FreshnessDegradationSpec& s) -> std::shared_ptr<const DegradationModel> {
-                return std::make_shared<FreshnessDegradation>(ages, s.cutoffDepthRatio);
+                return std::make_shared<FreshnessDegradation>(ages, LunarFreshCraterMorphometry,
+                                                              s.cutoffDepthRatio);
             },
             [](const NoDegradationSpec& s) -> std::shared_ptr<const DegradationModel> {
-                return s.depthRatio ? std::make_shared<NoDegradation>(*s.depthRatio)
-                                    : std::make_shared<NoDegradation>();
+                return std::make_shared<NoDegradation>(LunarFreshCraterMorphometry, s.depthRatio);
             },
         },
         spec);

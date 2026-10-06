@@ -26,11 +26,12 @@ inline Terrain LunarMare(double size, double pixelSize, double maxDiameter = 200
     options.generation.dMax = maxDiameter;
     options.cacheCraters = cacheCraters;
     options.apply.datum = datum;
-    terrain.layers.push_back(std::make_shared<CraterLayer>(
-        CraterModels{surface.density, surface.ages,
-                     std::make_shared<FreshnessDegradation>(surface.ages),
-                     std::make_shared<FassettThomsonProfile>()},
-        options));
+    terrain.layers.push_back(
+        std::make_shared<CraterLayer>(CraterModels{surface.density, surface.ages,
+                                                   std::make_shared<FreshnessDegradation>(
+                                                       surface.ages, LunarFreshCraterMorphometry),
+                                                   std::make_shared<FassettThomsonProfile>()},
+                                      options));
     return terrain;
 }
 

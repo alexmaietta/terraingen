@@ -35,10 +35,11 @@ std::shared_ptr<const terraingen::CraterLayer> ManualCraters() {
         options.generation.manual.Append({x, y, 8.0, 0.0});
     }
     return std::make_shared<terraingen::CraterLayer>(
-        terraingen::CraterModels{std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
-                                 std::make_shared<terraingen::FreshAges>(),
-                                 std::make_shared<terraingen::NoDegradation>(),
-                                 std::make_shared<terraingen::FassettThomsonProfile>()},
+        terraingen::CraterModels{
+            std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
+            std::make_shared<terraingen::FreshAges>(),
+            std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry),
+            std::make_shared<terraingen::FassettThomsonProfile>()},
         options);
 }
 

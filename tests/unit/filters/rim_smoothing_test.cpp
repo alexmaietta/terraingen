@@ -22,7 +22,8 @@ Raster<float> Cratered(CraterList& craters) {
     Raster<float> raster(120, 120, 0.0f);
     raster.SetTransform(GeoTransform::NorthUp(-60.0, 60.0, 1.0));
     craters.Append({0.5, 0.5, 40.0, 0.0, 1u});
-    ApplyCraters(raster, craters, FassettThomsonProfile());
+    ApplyCraters(raster, craters, FassettThomsonProfile(),
+                 terraingen::NoDegradation(terraingen::LunarFreshCraterMorphometry));
     return raster;
 }
 
@@ -104,7 +105,8 @@ TEST(SmoothCraterRims, SmoothsFromTheUnsmoothedTerrainOnAnyNumberOfThreads) {
     CraterList craters;
     Raster<float> raster = Cratered(craters);
     craters.Append({20.5, 0.5, 30.0, 0.0, 2u});
-    ApplyCraters(raster, CraterList(), FassettThomsonProfile());
+    ApplyCraters(raster, CraterList(), FassettThomsonProfile(),
+                 terraingen::NoDegradation(terraingen::LunarFreshCraterMorphometry));
     Raster<float> serial = raster;
     SmoothCraterRims(serial, craters, {.sigmaRadii = 0.08}, 0.0, 1);
     for (const unsigned threads : {2u, 0u}) {

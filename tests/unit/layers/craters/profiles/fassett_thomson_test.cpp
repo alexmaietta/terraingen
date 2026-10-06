@@ -11,12 +11,12 @@ using terraingen::CraterProfile;
 using terraingen::CraterState;
 using terraingen::FassettThomsonProfile;
 using terraingen::FassettThomsonRim;
-using terraingen::kFreshRimHeightRatio;
+using terraingen::kLunarFreshRimHeightRatio;
 using terraingen::MartinParkesDunstanProfile;
 
 namespace {
 
-CraterState Fresh(double depthRatio, double rimRatio = kFreshRimHeightRatio) {
+CraterState Fresh(double depthRatio, double rimRatio = kLunarFreshRimHeightRatio) {
     const CraterMorphometry shape{depthRatio, rimRatio};
     return {shape, shape};
 }
@@ -34,14 +34,14 @@ double Exterior(double x) {
 TEST(FassettThomsonProfile, EvaluatesTheFitsWithAFlatFloor) {
     const FassettThomsonProfile profile;
     const double d = 100.0;
-    const CraterState deep = Fresh(kFreshRimHeightRatio + 0.181);
+    const CraterState deep = Fresh(kLunarFreshRimHeightRatio + 0.181);
     EXPECT_NEAR(profile.Height(0.0, d, deep), -0.181 * d, 1e-12);
     EXPECT_NEAR(profile.Height(0.6 * 50.0, d, deep), Interior(0.6) * d, 1e-12);
     EXPECT_NEAR(profile.Height(1.2 * 50.0, d, deep), Exterior(1.2) * d, 1e-12);
     EXPECT_EQ(profile.Height(1.51 * 50.0, d, deep), 0.0);
     EXPECT_EQ(profile.ReachRadii(), 1.5);
     const CraterState shallow = Fresh(0.13);
-    EXPECT_NEAR(profile.Height(0.0, d, shallow), (kFreshRimHeightRatio - 0.13) * d, 1e-12);
+    EXPECT_NEAR(profile.Height(0.0, d, shallow), (kLunarFreshRimHeightRatio - 0.13) * d, 1e-12);
     EXPECT_NEAR(profile.Height(0.9 * 50.0, d, shallow), Interior(0.9) * d, 1e-12);
 }
 
@@ -59,9 +59,9 @@ TEST(FassettThomsonProfile, RimVariantsJoinAsPublished) {
     EXPECT_NEAR(step(atOne, 1.0), (Exterior(1.0) - Interior(1.0)) * d, 1e-6);
     EXPECT_NEAR(step(atOne, 1.0) / d, -0.0076, 1e-4);
     const FassettThomsonProfile plateau(FassettThomsonRim::Plateau);
-    EXPECT_NEAR(plateau.Height(0.5 * d, d, state), kFreshRimHeightRatio * d, 1e-12);
+    EXPECT_NEAR(plateau.Height(0.5 * d, d, state), kLunarFreshRimHeightRatio * d, 1e-12);
     EXPECT_NEAR(plateau.Height(0.7 * 0.5 * d, d, state), Interior(0.7) * d, 1e-12);
-    EXPECT_NEAR(plateau.Height(0.0, d, state), (kFreshRimHeightRatio - 0.2) * d, 1e-12);
+    EXPECT_NEAR(plateau.Height(0.0, d, state), (kLunarFreshRimHeightRatio - 0.2) * d, 1e-12);
     EXPECT_NEAR(step(plateau, 1.02) / d, -0.0042, 1e-4);
     double previous = original.Height(0.0, d, state);
     for (int i = 1; i <= 97; ++i) {

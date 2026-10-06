@@ -10,7 +10,6 @@ terraingen_add_library(
     craters/crater_layer.cpp
     craters/degradation/freshness.cpp
     craters/degradation/none.cpp
-    craters/degradation/state.cpp
     craters/filters.cpp
     craters/population.cpp
     craters/profiles/fassett_thomson.cpp

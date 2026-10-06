@@ -13,7 +13,7 @@ using terraingen::CraterMorphometry;
 using terraingen::CraterState;
 using terraingen::FassettThomsonProfile;
 using terraingen::FassettThomsonRim;
-using terraingen::kFreshRimHeightRatio;
+using terraingen::kLunarFreshRimHeightRatio;
 using terraingen::MartinParkesDunstanProfile;
 
 TEST(CraterProfiles, MatchSynthterrainReferenceValues) {
@@ -43,11 +43,12 @@ TEST(CraterProfiles, MatchSynthterrainReferenceValues) {
         const double expected = std::stod(values[5]);
         double actual = 0.0;
         if (name == "ft_original" || name == "ft_at_one_radius") {
-            const CraterMorphometry shape{kFreshRimHeightRatio + 0.181, kFreshRimHeightRatio};
+            const CraterMorphometry shape{kLunarFreshRimHeightRatio + 0.181,
+                                          kLunarFreshRimHeightRatio};
             const FassettThomsonProfile& profile = name == "ft_original" ? original : atOne;
             actual = profile.Height(distance, diameter, {shape, shape});
         } else if (name == "ft_plateau") {
-            const CraterMorphometry shape{depth / diameter, kFreshRimHeightRatio};
+            const CraterMorphometry shape{depth / diameter, kLunarFreshRimHeightRatio};
             actual = plateau.Height(distance, diameter, {shape, shape});
         } else {
             const double freshRim = 0.036 * std::pow(diameter, 1.01) / diameter;

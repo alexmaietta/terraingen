@@ -8,7 +8,6 @@
 #include <limits>
 #include <stdexcept>
 
-using terraingen::ApplyCraters;
 using terraingen::BlendShape;
 using terraingen::Crater;
 using terraingen::CraterApplyOptions;
@@ -24,6 +23,16 @@ using terraingen::NoDegradation;
 using terraingen::Raster;
 
 namespace {
+
+const NoDegradation kFresh(terraingen::LunarFreshCraterMorphometry);
+
+/// `terraingen::ApplyCraters` with every crater a fresh lunar one.
+void ApplyCraters(Raster<float>& raster, const CraterList& craters,
+                  const terraingen::CraterProfile& profile, const CraterApplyOptions& options = {},
+                  double spacing = 0.0, unsigned threads = 1,
+                  const terraingen::HeightSampler& ground = {}) {
+    terraingen::ApplyCraters(raster, craters, profile, kFresh, options, spacing, threads, ground);
+}
 
 /// A `size` x `size` north-up raster of 1 m pixels centred on the origin.
 Raster<float> Flat(std::size_t size, float value = 0.0f) {
@@ -47,7 +56,7 @@ float At(const Raster<float>& raster, double x, double y) {
 
 /// Profile height of a fresh crater `diameter` across at `distance` from its centre.
 double Fresh(const FassettThomsonProfile& profile, double distance, double diameter) {
-    const CraterState state = NoDegradation().State(Crater{0.0, 0.0, diameter, 0.0, 0u});
+    const CraterState state = kFresh.State(Crater{0.0, 0.0, diameter, 0.0, 0u});
     return profile.Height(distance, diameter, state);
 }
 
@@ -64,7 +73,7 @@ TEST(ApplyCraters, StampsTheProfileOnFlatTerrain) {
             EXPECT_NEAR(raster(col, row), Fresh(profile, r, 40.0), 1e-5) << col << " " << row;
         }
     }
-    EXPECT_NEAR(At(raster, 0.5, 0.5), -(0.13 - terraingen::kFreshRimHeightRatio) * 40.0, 1e-5);
+    EXPECT_NEAR(At(raster, 0.5, 0.5), -(0.13 - terraingen::kLunarFreshRimHeightRatio) * 40.0, 1e-5);
 }
 
 TEST(ApplyCraters, KeepsTheRegionalSlope) {
@@ -416,7 +425,7 @@ TEST(FitCraterDatum, FitsTheGroundOnALatticeAroundTheCrater) {
 
 TEST(CraterInfluence, SumsEarlierCratersReachingAPointWhateverElseTheListHolds) {
     const FassettThomsonProfile profile;
-    const terraingen::CraterState fresh = terraingen::NoDegradation().State({0, 0, 10, 0, 1});
+    const terraingen::CraterState fresh = kFresh.State({0, 0, 10, 0, 1});
     std::vector<terraingen::CraterInfluence::Entry> near{{{0.0, 0.0, 10.0, 0.0, 1u}, 1.0, fresh},
                                                          {{3.0, 1.0, 6.0, 0.0, 2u}, 0.5, fresh},
                                                          {{1.0, -2.0, 8.0, 0.0, 3u}, 1.0, fresh}};

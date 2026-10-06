@@ -2,6 +2,7 @@ terraingen_add_library(
     bodies
     SOURCES
     moon/chronology.cpp
+    moon/craters.cpp
     moon/equilibrium.cpp
     moon/production.cpp
     moon/specifications.cpp

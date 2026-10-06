@@ -11,12 +11,12 @@ using terraingen::CraterProfile;
 using terraingen::CraterState;
 using terraingen::FassettThomsonProfile;
 using terraingen::FassettThomsonRim;
-using terraingen::kFreshRimHeightRatio;
+using terraingen::kLunarFreshRimHeightRatio;
 using terraingen::MartinParkesDunstanProfile;
 
 namespace {
 
-CraterState Fresh(double depthRatio, double rimRatio = kFreshRimHeightRatio) {
+CraterState Fresh(double depthRatio, double rimRatio = kLunarFreshRimHeightRatio) {
     const CraterMorphometry shape{depthRatio, rimRatio};
     return {shape, shape};
 }

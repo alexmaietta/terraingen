@@ -1,11 +1,11 @@
-#include "terraingen/layers/craters/degradation/state.h"
+#include "terraingen/bodies/moon/craters.h"
 
 #include <cmath>
 #include <stdexcept>
 
 namespace terraingen {
 
-double FreshCraterDepthRatio(double diameter) {
+double LunarFreshCraterDepthRatio(double diameter) {
     if (!(std::isfinite(diameter) && diameter > 0.0)) {
         throw std::domain_error("Diameter must be positive and finite");
     }
@@ -25,6 +25,10 @@ double FreshCraterDepthRatio(double diameter) {
         return 0.17;
     }
     return 0.21;
+}
+
+CraterMorphometry LunarFreshCraterMorphometry(double diameter) {
+    return {LunarFreshCraterDepthRatio(diameter), kLunarFreshRimHeightRatio};
 }
 
 }  // namespace terraingen
