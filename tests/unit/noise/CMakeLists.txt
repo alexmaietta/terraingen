@@ -9,6 +9,5 @@ terraingen_add_test_suite(
     kernels/simplex_test.cpp
     kernels/value_test.cpp
     kernels/worley_test.cpp
-    synthetic_terrain_test.cpp
     LIBRARIES
     terraingen::noise)

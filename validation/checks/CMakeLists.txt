@@ -4,7 +4,7 @@ terraingen_add_test_suite(
     size_frequency_check.cpp
     crater_profile_check.cpp
     LIBRARIES
-    terraingen::features
+    terraingen::craters
     LABELS
     validation)
 target_compile_definitions(

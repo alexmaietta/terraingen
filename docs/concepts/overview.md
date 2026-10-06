@@ -5,17 +5,19 @@ builds one static library. A module depends only on the modules above it in this
 
 | Module | Library | Contents | Depends on |
 | --- | --- | --- | --- |
-| `core` | `terraingen::core` | Logging, version and build info | |
-| `raster` | `terraingen::raster` | Rasters, geotransforms, filters, resampling, and GeoTIFF reading and writing without GDAL | core |
-| `noise` | `terraingen::noise` | Noise kernels and synthetic terrain | core, raster |
+| `util` | `terraingen::util` | Logging, version, geometry and surface cells | |
+| `raster` | `terraingen::raster` | Rasters, geotransforms, filters, resampling, and GeoTIFF reading and writing without GDAL | util |
+| `noise` | `terraingen::noise` | Noise kernels (header-only) | |
 | `random` | `terraingen::random` | Counter-based random streams and samplers | noise |
-| `distributions` | `terraingen::distributions` | Crater size-frequency distributions | random |
-| `features` | `terraingen::features` | Per-cell feature placement and craters | core, raster, noise, random, distributions |
+| `distribution` | `terraingen::distribution` | Size-frequency distributions | random |
+| `surface` | `terraingen::surface` | Synthetic terrain from layered noise | util, raster, noise |
+| `craters` | `terraingen::craters` | Crater populations, profiles, degradation and application | util, raster, noise, random, distribution |
 | `pipeline` | `terraingen::pipeline` | JSON terrain configs and the generation pipeline | all of the above |
 
 `terraingen::terraingen` links every module. Headers are included from the repository root, as in
-`#include <terraingen/raster/resample.h>`; `terraingen/terraingen.h`, `terraingen/craters.h` and
-`terraingen/distributions.h` include whole areas at once.
+`#include <terraingen/raster/resample.h>`, and `terraingen/terraingen.h` includes the whole library.
+The build info, `GetBuildInfo()`, comes from `terraingen::build_info`, which sits above every module
+so that it changes whenever any of them is rebuilt.
 
 The noise kernels in `noise/kernels/` are header-only and use only integer hashing and simple
 floating-point arithmetic, so they give bit-identical results across platforms and port directly

@@ -1,20 +1,20 @@
 # Tests that check distributions by sampling, against tolerances derived from the sample size.
 terraingen_add_test_suite(
-    distributions_statistical
+    distribution_statistical
     SOURCES
-    distributions/size_frequency_test.cpp
+    distribution/size_frequency_test.cpp
     LIBRARIES
-    terraingen::distributions
+    terraingen::distribution
     LABELS
     statistical)
 terraingen_add_test_suite(
     craters_statistical
     SOURCES
-    features/craters/ages/ages_test.cpp
-    features/craters/lunar/production_test.cpp
-    features/craters/population_test.cpp
+    craters/ages/ages_test.cpp
+    craters/lunar/production_test.cpp
+    craters/population_test.cpp
     LIBRARIES
-    terraingen::features
+    terraingen::craters
     LABELS
     statistical)
 terraingen_add_test_suite(

@@ -1,14 +1,14 @@
 #pragma once
 
-#include "terraingen/distributions/size_frequency.h"
-#include "terraingen/features/cells.h"
-#include "terraingen/features/craters/ages/age_model.h"
-#include "terraingen/features/craters/degradation/degradation_model.h"
-#include "terraingen/features/craters/population.h"
-#include "terraingen/features/craters/profiles/profile.h"
+#include "terraingen/craters/ages/age_model.h"
+#include "terraingen/craters/degradation/degradation_model.h"
+#include "terraingen/craters/population.h"
+#include "terraingen/craters/profiles/profile.h"
+#include "terraingen/distribution/size_frequency.h"
 #include "terraingen/pipeline/config.h"
 #include "terraingen/raster/geotiff.h"
 #include "terraingen/raster/raster.h"
+#include "terraingen/util/cells.h"
 
 #include <filesystem>
 #include <memory>

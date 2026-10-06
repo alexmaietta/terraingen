@@ -13,8 +13,8 @@ terraingen_add_library(
     resample.cpp
     tiff_codecs.cpp
     $<TARGET_OBJECTS:terraingen_miniz>
-    PRIVATE
-    terraingen_core)
+    PUBLIC
+    terraingen_util)
 target_include_directories(terraingen_raster SYSTEM
                            PRIVATE "${PROJECT_SOURCE_DIR}/third_party/miniz")
 target_compile_definitions(

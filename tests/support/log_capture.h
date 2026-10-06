@@ -1,6 +1,6 @@
 #pragma once
 
-#include "terraingen/core/log.h"
+#include "terraingen/util/log.h"
 
 #include <algorithm>
 #include <string_view>

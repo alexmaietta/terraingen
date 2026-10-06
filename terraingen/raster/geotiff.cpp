@@ -2,7 +2,7 @@
 
 #include "terraingen/raster/tiff_codecs.h"
 
-#include "terraingen/core/log.h"
+#include "terraingen/util/log.h"
 
 #include <algorithm>
 #include <array>

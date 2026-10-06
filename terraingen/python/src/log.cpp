@@ -1,6 +1,6 @@
 #include "bindings.h"
 
-#include "terraingen/core/log.h"
+#include "terraingen/util/log.h"
 
 #include <nanobind/stl/function.h>
 #include <nanobind/stl/optional.h>

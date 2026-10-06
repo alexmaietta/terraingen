@@ -55,7 +55,7 @@ set(pinned "${WORK_DIR}/build_info.cpp")
 execute_process(
     COMMAND
         ${CMAKE_COMMAND} -DMODE=source -DSTATE=${module_dir}/git_state.txt
-        -DTEMPLATE=${SOURCE_DIR}/terraingen/core/build_info.cpp.in -DOUTPUT=${pinned} -P
+        -DTEMPLATE=${SOURCE_DIR}/terraingen/util/build_info.cpp.in -DOUTPUT=${pinned} -P
         ${SOURCE_DIR}/cmake/BuildInfo.cmake
     RESULT_VARIABLE result)
 file(READ "${pinned}" content)

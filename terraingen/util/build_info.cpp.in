@@ -1,0 +1,9 @@
+#include "terraingen/util/build_info.h"
+
+namespace terraingen {
+
+BuildInfo GetBuildInfo() {
+    return BuildInfo{"@GIT_SHA@", @GIT_DIRTY@, "@BUILD_DATE@"};
+}
+
+}  // namespace terraingen

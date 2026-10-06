@@ -1,5 +1,4 @@
-#include "terraingen/craters.h"
-#include "terraingen/distributions.h"
+#include "terraingen/terraingen.h"
 
 #include <gtest/gtest.h>
 

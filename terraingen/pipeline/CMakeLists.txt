@@ -7,10 +7,11 @@ terraingen_add_library(
     config_json.cpp
     run.cpp
     PUBLIC
-    terraingen_core
-    terraingen_distributions
-    terraingen_features
+    terraingen_craters
+    terraingen_distribution
     terraingen_noise
     terraingen_raster
+    terraingen_surface
+    terraingen_util
     PRIVATE
     $<BUILD_INTERFACE:nlohmann_json>)

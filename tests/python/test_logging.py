@@ -24,7 +24,7 @@ def test_records_reach_the_logging_module(caplog):
     tg.set_log_level("info")
     with caplog.at_level(logging.INFO, logger="terraingen"):
         tg.generate_synthetic_terrain(9, 7, 1.0, tg.SyntheticTerrainParams())
-    records = [r for r in caplog.records if r.name == "terraingen.noise"]
+    records = [r for r in caplog.records if r.name == "terraingen.surface"]
     assert len(records) == 1
     assert records[0].levelno == logging.INFO
     assert records[0].getMessage().startswith("Filled 9x7 synthetic terrain (1 layer) in ")
@@ -43,5 +43,5 @@ def test_custom_sinks_receive_level_category_and_message():
     tg.generate_synthetic_terrain(3, 3, 1.0, tg.SyntheticTerrainParams())
     assert len(received) == 1
     level, category, message = received[0]
-    assert (level, category) == ("info", "noise")
+    assert (level, category) == ("info", "surface")
     assert message.startswith("Filled 3x3")

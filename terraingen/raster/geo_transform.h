@@ -1,15 +1,11 @@
 #pragma once
 
+#include "terraingen/util/geometry.h"
+
 #include <array>
 #include <stdexcept>
 
 namespace terraingen {
-
-/// A 2D point or offset in double precision.
-struct Vec2d {
-    double x = 0.0;
-    double y = 0.0;
-};
 
 /// Affine mapping from pixel coordinates to world coordinates, matching GDAL's six-coefficient
 /// geotransform.
