@@ -8,6 +8,7 @@ terraingen_add_library(
     power_law.cpp
     size_frequency.cpp
     spliced.cpp
+    summed.cpp
     tabulated.cpp
     PUBLIC
     terraingen_random)

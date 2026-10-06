@@ -8,6 +8,7 @@ terraingen_add_test_suite(
     power_law_test.cpp
     size_frequency_test.cpp
     spliced_test.cpp
+    summed_test.cpp
     tabulated_test.cpp
     LIBRARIES
     terraingen::distribution)
