@@ -1,6 +1,7 @@
 dist/
 site/
 build/
+build-*/
 
 CMakeUserPresets.json
 

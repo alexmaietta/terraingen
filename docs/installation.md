@@ -26,7 +26,8 @@ cmake --install build --prefix /opt/terraingen
 
 The build needs a C++20 compiler and CMake 3.22 or newer. The Python bindings need Python 3.10 or
 newer with its development headers; nanobind is used from the Python environment when installed,
-and fetched otherwise. GoogleTest is fetched for the tests. JSON and Deflate support are vendored
+and fetched otherwise. GoogleTest is fetched for the tests and Google Benchmark for the benchmarks; run
+`build/bin/terraingen_benchmarks` from a `-DCMAKE_BUILD_TYPE=Release` build for meaningful timings. JSON and Deflate support are vendored
 in `third_party/`, so the library has no other dependencies.
 
 | Option | Default | Effect |
@@ -34,6 +35,7 @@ in `third_party/`, so the library has no other dependencies.
 | `TERRAINGEN_BUILD_PYTHON` | `ON` | Build the Python bindings |
 | `TERRAINGEN_BUILD_TESTS` | `ON` at top level | Build the test suite |
 | `TERRAINGEN_BUILD_VALIDATION` | `ON` at top level | Build the checks against external references |
+| `TERRAINGEN_BUILD_BENCHMARKS` | `ON` at top level | Build the benchmarks (Google Benchmark, fetched) |
 | `TERRAINGEN_INSTALL` | `ON` at top level | Generate install rules and the CMake package |
 | `TERRAINGEN_COVERAGE` | `OFF` | Instrument for coverage and add a `coverage` target |
 

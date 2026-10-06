@@ -10,6 +10,8 @@ project(
 option(TERRAINGEN_BUILD_TESTS "Build the test suite" ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_BUILD_VALIDATION "Build the validation tests against external references"
        ${PROJECT_IS_TOP_LEVEL})
+option(TERRAINGEN_BUILD_BENCHMARKS "Build the benchmarks (Google Benchmark)"
+       ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_BUILD_DEMOS "Build the demos" OFF)
 option(TERRAINGEN_BUILD_PYTHON "Build the Python bindings" ON)
 option(TERRAINGEN_WITH_GDAL "Reserved for GDAL-backed formats; GeoTIFF needs no GDAL" ON)
@@ -74,6 +76,9 @@ if(TERRAINGEN_BUILD_VALIDATION)
 endif()
 if(TERRAINGEN_BUILD_TESTS)
     add_subdirectory(tests)
+endif()
+if(TERRAINGEN_BUILD_BENCHMARKS)
+    add_subdirectory(benchmarks)
 endif()
 
 if(TERRAINGEN_INSTALL)
