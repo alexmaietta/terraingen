@@ -140,6 +140,9 @@ void RegionLayer::Apply(Raster<float>& heights, const LayerContext& context,
         const Crater crater = placed.craters.At(n);
         if (shape_.DistanceOutside(crater.x, crater.y) <= feather_) {
             features.craters.Append(crater);
+            if (n < placed.craterAttributes.size()) {
+                features.craterAttributes.push_back(placed.craterAttributes[n]);
+            }
         }
     }
     for (const Rock& rock : placed.rocks) {

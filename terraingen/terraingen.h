@@ -22,6 +22,7 @@
 #include "terraingen/layers/craters/ages/fresh.h"
 #include "terraingen/layers/craters/ages/uniform.h"
 #include "terraingen/layers/craters/apply.h"
+#include "terraingen/layers/craters/attributes.h"
 #include "terraingen/layers/craters/cell_cache.h"
 #include "terraingen/layers/craters/crater_layer.h"
 #include "terraingen/layers/craters/degradation/degradation_model.h"

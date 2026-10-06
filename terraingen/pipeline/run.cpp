@@ -548,30 +548,49 @@ GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
 }
 
 void WriteCraterList(const CraterList& craters, const std::filesystem::path& path,
-                     CraterListFormat format) {
+                     CraterListFormat format, const std::vector<CraterAttributes>& attributes) {
+    const bool detailed = !attributes.empty();
+    if (detailed && attributes.size() != craters.Size()) {
+        throw std::invalid_argument("Crater attributes must be empty or one per crater");
+    }
     std::ofstream file(path, std::ios::binary);
     if (!file) {
         throw std::runtime_error("Cannot write " + path.string());
     }
     if (format == CraterListFormat::Csv) {
-        file << "x,y,diameter,age_gyr,id,manual\n";
+        file << "x,y,diameter,age_gyr,id,manual"
+             << (detailed ? ",floor_depth,rim_height,depth_ratio,freshness" : "") << '\n';
         for (std::size_t n = 0; n < craters.Size(); ++n) {
             const Crater crater = craters.At(n);
             file << Number(crater.x) << ',' << Number(crater.y) << ',' << Number(crater.diameter)
                  << ',' << Number(crater.ageGyr) << ',' << crater.id << ','
-                 << (crater.manual ? 1 : 0) << '\n';
+                 << (crater.manual ? 1 : 0);
+            if (detailed) {
+                const CraterAttributes& a = attributes[n];
+                file << ',' << Number(a.floorDepth) << ',' << Number(a.rimHeight) << ','
+                     << Number(a.depthRatio) << ',' << Number(a.freshness);
+            }
+            file << '\n';
         }
     } else {
         nlohmann::ordered_json json;
         json["craters"] = nlohmann::ordered_json::array();
         for (std::size_t n = 0; n < craters.Size(); ++n) {
             const Crater crater = craters.At(n);
-            json["craters"].push_back({{"x", crater.x},
-                                       {"y", crater.y},
-                                       {"diameter", crater.diameter},
-                                       {"age_gyr", crater.ageGyr},
-                                       {"id", crater.id},
-                                       {"manual", crater.manual}});
+            nlohmann::ordered_json entry{{"x", crater.x},
+                                         {"y", crater.y},
+                                         {"diameter", crater.diameter},
+                                         {"age_gyr", crater.ageGyr},
+                                         {"id", crater.id},
+                                         {"manual", crater.manual}};
+            if (detailed) {
+                const CraterAttributes& a = attributes[n];
+                entry["floor_depth"] = a.floorDepth;
+                entry["rim_height"] = a.rimHeight;
+                entry["depth_ratio"] = a.depthRatio;
+                entry["freshness"] = a.freshness;
+            }
+            json["craters"].push_back(std::move(entry));
         }
         file << json.dump(2) << '\n';
     }
@@ -596,7 +615,8 @@ std::vector<std::filesystem::path> WriteOutputs(const TerrainConfig& config,
                          {.compression = heightmap->compression, .tileSize = heightmap->tileSize});
         } else {
             const auto& list = std::get<CraterListOutput>(spec);
-            WriteCraterList(terrain.features.craters, path, list.format);
+            WriteCraterList(terrain.features.craters, path, list.format,
+                            terrain.features.craterAttributes);
             LogInfo("pipeline", "Wrote ", terrain.features.craters.Size(), " craters to ",
                     path.string());
         }

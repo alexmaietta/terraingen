@@ -70,7 +70,15 @@ void CraterLayer::Apply(Raster<float>& heights, const LayerContext& context,
         context.ground ? context.ground->Sampler(resolved) : HeightSampler{};
     ApplyCraters(heights, craters, *models_.profile, *models_.degradation, options_.apply, resolved,
                  context.threads, ground);
-    features.craters.Append(margin > 0.0 ? Craters(bounds, resolved) : craters);
+    const CraterList recorded = margin > 0.0 ? Craters(bounds, resolved) : craters;
+    for (std::size_t n = 0; n < recorded.Size(); ++n) {
+        features.craterAttributes.push_back(Attributes(recorded.At(n)));
+    }
+    features.craters.Append(recorded);
+}
+
+CraterAttributes CraterLayer::Attributes(const Crater& crater) const {
+    return ComputeCraterAttributes(crater, models_.degradation->State(crater), *models_.profile);
 }
 
 double CraterLayer::MaxFeatureDiameter() const {

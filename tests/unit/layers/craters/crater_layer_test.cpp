@@ -55,6 +55,14 @@ TEST(CraterLayer, GeneratesAndAppliesCratersOverTheGrid) {
     terraingen::ApplyCraters(expected, craters, *models.profile, *models.degradation);
     ASSERT_GT(craters.Size(), 0u);
     EXPECT_EQ(features.craters.Ids(), craters.Ids());
+    ASSERT_EQ(features.craterAttributes.size(), craters.Size());
+    for (std::size_t n = 0; n < craters.Size(); ++n) {
+        const auto crater = craters.At(n);
+        EXPECT_EQ(features.craterAttributes[n],
+                  terraingen::ComputeCraterAttributes(crater, models.degradation->State(crater),
+                                                      *models.profile));
+        EXPECT_EQ(features.craterAttributes[n], layer.Attributes(crater));
+    }
     EXPECT_EQ(layer.Craters({-64.0, -64.0, 64.0, 64.0}).Ids(), craters.Ids());
     for (std::size_t i = 0; i < expected.Size(); ++i) {
         ASSERT_EQ(heights.Values()[i], expected.Values()[i]) << i;

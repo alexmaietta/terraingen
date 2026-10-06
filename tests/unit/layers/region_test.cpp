@@ -121,6 +121,15 @@ TEST(RegionLayer, KeepsTheFeaturesCentredInTheRegionOrItsFeather) {
     };
     const auto near = craters(2.0);
     ASSERT_EQ(near.Size(), 1u);
+    {
+        auto heights = Slope();
+        terraingen::TerrainFeatures features;
+        const auto inner = ManualCraters();
+        RegionLayer(inner, RegionShape::Rectangle({-5.0, -5.0, 5.0, 5.0}), 12.0)
+            .Apply(heights, {}, features);
+        ASSERT_EQ(features.craterAttributes.size(), 2u);
+        EXPECT_EQ(features.craterAttributes[1], inner->Attributes(features.craters.At(1)));
+    }
     EXPECT_EQ(near.At(0).x, 0.0);
     const auto wider = craters(12.0);
     ASSERT_EQ(wider.Size(), 2u) << "the crater 11 m off is inside a 12 m feather";

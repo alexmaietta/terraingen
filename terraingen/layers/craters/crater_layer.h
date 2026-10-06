@@ -66,6 +66,9 @@ class CraterLayer final : public Layer {
     /// too small to resolve at it are skipped (`CraterGenerationOptions::minResolvedDiameter`).
     CraterList Craters(const Bounds2d& region, double spacing = 0.0) const;
 
+    /// `crater`'s depth, rim height and freshness in the state the degradation model gives it.
+    CraterAttributes Attributes(const Crater& crater) const;
+
     /// The cell cache, or null when `cacheCraters` is 0.
     const CraterCellCache* Cache() const {
         return cache_.get();

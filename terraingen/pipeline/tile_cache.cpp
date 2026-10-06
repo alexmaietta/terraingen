@@ -7,7 +7,9 @@ namespace terraingen {
 namespace {
 
 std::size_t TileBytes(const EvaluatedTerrain& tile) {
-    return tile.heights.Size() * sizeof(float) + tile.features.craters.Size() * sizeof(Crater);
+    return tile.heights.Size() * sizeof(float) + tile.features.craters.Size() * sizeof(Crater) +
+           tile.features.craterAttributes.size() * sizeof(CraterAttributes) +
+           tile.features.rocks.size() * sizeof(Rock);
 }
 
 }  // namespace

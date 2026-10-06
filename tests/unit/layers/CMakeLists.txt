@@ -5,6 +5,7 @@ terraingen_add_test_suite(
     craters/ages/fresh_test.cpp
     craters/ages/uniform_test.cpp
     craters/apply_test.cpp
+    craters/attributes_test.cpp
     craters/cell_cache_test.cpp
     craters/crater_layer_test.cpp
     craters/degradation/freshness_test.cpp

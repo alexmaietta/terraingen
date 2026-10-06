@@ -1,5 +1,6 @@
 #pragma once
 
+#include "terraingen/layers/craters/attributes.h"
 #include "terraingen/layers/craters/population.h"
 #include "terraingen/layers/ground.h"
 #include "terraingen/layers/rocks/rock.h"
@@ -14,7 +15,9 @@ namespace terraingen {
 
 /// What layers place besides heights, for the filters and outputs that follow them.
 struct TerrainFeatures {
-    CraterList craters;       ///< Every crater the layers applied, in the order they applied them.
+    CraterList craters;  ///< Every crater the layers applied, in the order they applied them.
+    /// The attributes of `craters`, in the same order; layers that record craters record these too.
+    std::vector<CraterAttributes> craterAttributes;
     std::vector<Rock> rocks;  ///< Every rock the layers placed, in the order they placed them.
 };
 

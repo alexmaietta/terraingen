@@ -4,6 +4,7 @@ terraingen_add_library(
     craters/ages/age_model.cpp
     craters/ages/fresh.cpp
     craters/ages/uniform.cpp
+    craters/attributes.cpp
     craters/apply.cpp
     craters/cell_cache.cpp
     craters/crater_layer.cpp
