@@ -1,6 +1,7 @@
 terraingen_add_test_suite(
     distribution
     SOURCES
+    golombek_rapp_test.cpp
     log_polynomial_test.cpp
     minimum_test.cpp
     piecewise_power_law_test.cpp

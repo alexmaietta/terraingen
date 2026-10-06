@@ -1,6 +1,7 @@
 terraingen_add_library(
     distribution
     SOURCES
+    golombek_rapp.cpp
     log_polynomial.cpp
     minimum.cpp
     piecewise_power_law.cpp
