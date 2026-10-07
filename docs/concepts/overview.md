@@ -65,7 +65,8 @@ Craters from the simple-to-complex transition (15 km on the Moon) can take the c
 (`ComplexCraterProfile`): Pike's (1974, 1977) depths, rim heights and flat floors, and central peaks with
 the heights and volumes of Hale and Grieve (1982). A crater layer's `body` picks the Moon's or Mars's fresh morphometry
 (`MarsFreshCraterMorphometry`, after Daubar et al. 2014, Sweeney et al. 2018 and Garvin et al. 2003) and
-complex crater shape, with Mars's transition at 7 km.
+complex crater shape, with Mars's transition at 7 km. The "mars_surface" density gives a Martian surface of a given age from
+Ivanov's (2001) production function and chronology.
 
 Every evaluation takes a sample spacing. Craters, rocks, and the rim smoothing around craters, fade with it
 (`ResolutionFade`): absent below 2 samples across, whole from 4, smooth in between. A crater therefore

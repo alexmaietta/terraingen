@@ -5,24 +5,31 @@
 #include "terraingen/distribution/size_frequency.h"
 #include "terraingen/distribution/spliced.h"
 
+#include <functional>
 #include <memory>
 
 namespace terraingen {
 
+/// N(>=1 km) per m^2 on a surface `ageGyr` old, such as `NeukumLunarChronology`.
+using Chronology = std::function<double(double ageGyr)>;
+
 /// The cumulative density of craters on a surface of a given age: a
-/// production function scaled so that N(>=1 km) follows the Neukum et al. (2001) lunar chronology,
-/// N(D, T) = Phi(D) * N1(T) / Phi(1 km).
+/// production function scaled so that N(>=1 km) follows a chronology, by default the Neukum et al.
+/// (2001) lunar one, N(D, T) = Phi(D) * N1(T) / Phi(1 km).
 ///
 /// This is the population a surface would have with no erosion; small craters exceed equilibrium
 /// on old surfaces.
 class ProductionSurface final : public SizeFrequencyDistribution {
   public:
     /// @param production A `ProductionRate` distribution defined at 1 km.
-    /// @param ageGyr Surface age in Gyr; see `NeukumLunarChronology`. The surface takes the
-    /// production function's valid range and extrapolation setting.
-    /// @throws std::invalid_argument if `production` is null or not a production rate.
+    /// @param ageGyr Surface age in Gyr; see `chronology`. The surface takes the production
+    /// function's valid range and extrapolation setting.
+    /// @param chronology N(>=1 km) for the age, which may reject ages out of its range.
+    /// @throws std::invalid_argument if `production` is null or not a production rate, or
+    /// `chronology` is empty.
     /// @throws std::domain_error if the age is out of range or `production` is not defined at 1 km.
-    ProductionSurface(std::shared_ptr<const SizeFrequencyDistribution> production, double ageGyr);
+    ProductionSurface(std::shared_ptr<const SizeFrequencyDistribution> production, double ageGyr,
+                      const Chronology& chronology = NeukumLunarChronology);
 
     const SizeFrequencyDistribution& Production() const {
         return *production_;

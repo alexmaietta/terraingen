@@ -1,6 +1,7 @@
 #include "terraingen/pipeline/run.h"
 
 #include "terraingen/bodies/mars/craters.h"
+#include "terraingen/bodies/mars/production.h"
 #include "terraingen/bodies/moon/craters.h"
 #include "terraingen/bodies/moon/equilibrium.h"
 #include "terraingen/bodies/moon/production.h"
@@ -55,6 +56,9 @@ std::shared_ptr<const SizeFrequencyDistribution> BuildDensity(const DensitySpec&
             [](const LunarSurfaceSpec& s) -> std::shared_ptr<const SizeFrequencyDistribution> {
                 return LunarSurface(s.ageGyr).density;
             },
+            [](const MarsSurfaceSpec& s) -> std::shared_ptr<const SizeFrequencyDistribution> {
+                return MarsSurface(s.ageGyr).density;
+            },
             [](const PowerLawSpec& s) -> std::shared_ptr<const SizeFrequencyDistribution> {
                 return std::make_shared<PowerLawSfd>(s.coefficient, s.exponent);
             },
@@ -89,6 +93,9 @@ std::shared_ptr<const CraterAgeModel> BuildAges(const AgesSpec& spec, const Dens
             [&](const AutoAgesSpec&) -> std::shared_ptr<const CraterAgeModel> {
                 if (const auto* lunar = std::get_if<LunarSurfaceSpec>(&density)) {
                     return LunarSurface(lunar->ageGyr).ages;
+                }
+                if (const auto* mars = std::get_if<MarsSurfaceSpec>(&density)) {
+                    return MarsSurface(mars->ageGyr).ages;
                 }
                 return std::make_shared<UniformAges>(1.0);
             },
@@ -228,10 +235,16 @@ void ValidateCraters(const CraterLayerSpec& craters, const RasterGrid& grid,
     At(path + ".apply", [&] { ValidateCraterApplyOptions(craters.apply); });
     const auto density = At(path + ".density", [&] { return BuildDensity(craters.density); });
     const auto ages = At(path + ".ages", [&] { return BuildAges(craters.ages, craters.density); });
+    if (craters.body == CraterBody::Moon &&
+        std::holds_alternative<MarsSurfaceSpec>(craters.density)) {
+        throw ConfigError(path + ".density",
+                          "mars_surface is Mars's; set the layer's body to mars");
+    }
     if (craters.body == CraterBody::Mars) {
         if (std::holds_alternative<LunarSurfaceSpec>(craters.density)) {
-            throw ConfigError(path + ".density", "lunar_surface is the Moon's; on Mars give a "
-                                                 "power_law, piecewise_power_law or tabulated");
+            throw ConfigError(path + ".density",
+                              "lunar_surface is the Moon's; on Mars give mars_surface, a "
+                              "power_law, piecewise_power_law or tabulated");
         }
         if (std::holds_alternative<SteadyStateAgesSpec>(craters.ages)) {
             throw ConfigError(path + ".ages",

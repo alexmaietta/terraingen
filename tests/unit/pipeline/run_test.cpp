@@ -340,6 +340,17 @@ TEST(BuildCraterModels, ShapesCratersForTheirBody) {
               terraingen::LunarFreshCraterMorphometry(10000.0));
     EXPECT_EQ(ErrorPath([](TerrainConfig& c) { Craters(c).body = terraingen::CraterBody::Mars; }),
               "layers[1].density");
+    EXPECT_EQ(
+        ErrorPath([](TerrainConfig& c) { Craters(c).density = terraingen::MarsSurfaceSpec{3.0}; }),
+        "layers[1].density");
+    TerrainConfig surface = Small();
+    Craters(surface).body = terraingen::CraterBody::Mars;
+    Craters(surface).density = terraingen::MarsSurfaceSpec{3.0};
+    Craters(surface).minDiameter = 20.0;
+    EXPECT_FALSE(GenerateTerrain(surface).features.craters.Empty());
+    const auto models = BuildCraterModels(Craters(surface));
+    EXPECT_NEAR(models.density->Cumulative(1000.0), terraingen::IvanovMarsChronology(3.0), 1e-15);
+    EXPECT_NE(dynamic_cast<const terraingen::UniformAges*>(models.ages.get()), nullptr);
     EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
                   Craters(c).body = terraingen::CraterBody::Mars;
                   Craters(c).density = terraingen::PowerLawSpec{0.1, 2.0};

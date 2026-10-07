@@ -174,6 +174,7 @@ TEST(ConfigJson, RoundTripsTheDefaultsAndEveryNonDefaultValue) {
 TEST(ConfigJson, RoundTripsEveryModelType) {
     const std::vector<DensitySpec> densities{
         terraingen::LunarSurfaceSpec{2.0},
+        terraingen::MarsSurfaceSpec{1.5},
         terraingen::PowerLawSpec{0.3, 1.8},
         terraingen::TabulatedSpec{{1.0, 10.0}, {1.0, 0.01}, 1000.0, 1e6},
         terraingen::TraskSpec{},

@@ -98,6 +98,10 @@ struct LunarSurfaceSpec {  ///< "lunar_surface": `LunarSurface(ageGyr)`, density
     double ageGyr = 3.5;
     bool operator==(const LunarSurfaceSpec&) const = default;
 };
+struct MarsSurfaceSpec {  ///< "mars_surface": `MarsSurface(ageGyr)`, density and ages.
+    double ageGyr = 3.0;
+    bool operator==(const MarsSurfaceSpec&) const = default;
+};
 struct PowerLawSpec {  ///< "power_law": `PowerLawSfd`, N per m^2 with D in metres.
     double coefficient = 0.1;
     double exponent = 2.0;
@@ -127,11 +131,12 @@ struct MooreSpec {  ///< "moore": `MooreDistribution(terrain)`.
 struct ViperSpec {  ///< "viper": `ViperSpecification`.
     bool operator==(const ViperSpec&) const = default;
 };
-using DensitySpec = std::variant<LunarSurfaceSpec, PowerLawSpec, PiecewisePowerLawSpec,
-                                 TabulatedSpec, TraskSpec, HartmannSpec, MooreSpec, ViperSpec>;
+using DensitySpec =
+    std::variant<LunarSurfaceSpec, MarsSurfaceSpec, PowerLawSpec, PiecewisePowerLawSpec,
+                 TabulatedSpec, TraskSpec, HartmannSpec, MooreSpec, ViperSpec>;
 
 /// Crater age models.
-struct AutoAgesSpec {  ///< "auto": the lunar surface's steady-state ages, otherwise uniform 1 Gyr.
+struct AutoAgesSpec {  ///< "auto": the lunar or Martian surface's ages, otherwise uniform 1 Gyr.
     bool operator==(const AutoAgesSpec&) const = default;
 };
 struct FreshAgesSpec {  ///< "fresh": `FreshAges`.
@@ -185,7 +190,8 @@ using ProfileSpec = std::variant<FassettThomsonSpec, MartinParkesDunstanSpec, Co
 enum class CraterBody { Moon, Mars };
 
 /// "craters": craters generated over the grid and applied to it (`CraterLayer`). With `body` Mars,
-/// the lunar-only density "lunar_surface" and ages "steady_state" are refused.
+/// the lunar-only density "lunar_surface" and ages "steady_state" are refused, and with `body` Moon
+/// the density "mars_surface".
 struct CraterLayerSpec {
     CraterBody body = CraterBody::Moon;
     bool generate = true;  ///< Generate craters from `density`; otherwise only `manual` ones.

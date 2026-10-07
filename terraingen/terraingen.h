@@ -3,6 +3,7 @@
 /// The whole TerrainGen library.
 
 #include "terraingen/bodies/mars/craters.h"
+#include "terraingen/bodies/mars/production.h"
 #include "terraingen/bodies/moon/chronology.h"
 #include "terraingen/bodies/moon/craters.h"
 #include "terraingen/bodies/moon/equilibrium.h"

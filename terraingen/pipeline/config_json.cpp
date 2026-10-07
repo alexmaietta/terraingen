@@ -259,6 +259,9 @@ template <> struct SpecName<HeightmapOutput> {
 template <> struct SpecName<LunarSurfaceSpec> {
     static constexpr std::string_view kName = "lunar_surface";
 };
+template <> struct SpecName<MarsSurfaceSpec> {
+    static constexpr std::string_view kName = "mars_surface";
+};
 template <> struct SpecName<PowerLawSpec> {
     static constexpr std::string_view kName = "power_law";
 };
@@ -398,6 +401,7 @@ template <typename IO> void Fields(IO& io, CircleRegionSpec& spec);
 template <typename IO> void Fields(IO& io, RegionLayerSpec& spec);
 template <typename IO> void Fields(IO& io, LunarSurfaceSpec& spec);
 template <typename IO> void Fields(IO& io, PowerLawSpec& spec);
+template <typename IO> void Fields(IO& io, MarsSurfaceSpec& spec);
 template <typename IO> void Fields(IO& io, PiecewisePowerLawSpec& spec);
 template <typename IO> void Fields(IO& io, TabulatedSpec& spec);
 template <typename IO> void Fields(IO& io, TraskSpec& spec);
@@ -917,6 +921,10 @@ template <typename IO> void Fields(IO& io, RegionLayerSpec& spec) {
 }
 
 template <typename IO> void Fields(IO& io, LunarSurfaceSpec& spec) {
+    io("age_gyr", spec.ageGyr);
+}
+
+template <typename IO> void Fields(IO& io, MarsSurfaceSpec& spec) {
     io("age_gyr", spec.ageGyr);
 }
 
