@@ -8,6 +8,8 @@ namespace terraingen {
 struct CraterMorphometry {
     double depthRatio = 0.0;      ///< Rim-to-floor depth / diameter.
     double rimHeightRatio = 0.0;  ///< Rim height above the pre-impact surface / diameter.
+
+    bool operator==(const CraterMorphometry&) const = default;
 };
 
 /// A crater's degradation state: its morphometry when fresh and now. Profiles shape craters to the
@@ -16,6 +18,8 @@ struct CraterMorphometry {
 struct CraterState {
     CraterMorphometry fresh;
     CraterMorphometry current;
+
+    bool operator==(const CraterState&) const = default;
 };
 
 /// The morphometry of a fresh crater of a given diameter (m) on some body, such as

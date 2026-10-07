@@ -159,6 +159,13 @@ template <> struct EnumNames<BaseSolid> {
     }};
 };
 
+template <> struct EnumNames<CraterBody> {
+    static constexpr std::array<std::pair<std::string_view, CraterBody>, 2> kValues{{
+        {"moon", CraterBody::Moon},
+        {"mars", CraterBody::Mars},
+    }};
+};
+
 template <> struct EnumNames<RockRelief> {
     static constexpr std::array<std::pair<std::string_view, RockRelief>, 3> kValues{{
         {"dome", RockRelief::Dome},
@@ -779,6 +786,7 @@ template <typename IO> void Fields(IO& io, RimSmoothing& smoothing) {
 }
 
 template <typename IO> void Fields(IO& io, CraterLayerSpec& craters) {
+    io("body", craters.body);
     io("generate", craters.generate);
     io("seed", craters.seed);
     io("density", craters.density);

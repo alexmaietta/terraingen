@@ -17,7 +17,8 @@ void ValidateComplexCraterShape(const ComplexCraterShape& shape) {
     if (!(std::isfinite(shape.transitionDiameter) && shape.transitionDiameter > 0.0)) {
         throw std::invalid_argument("The complex crater transition diameter must be positive");
     }
-    for (const KilometrePowerLaw& law : {shape.floorDiameter, shape.peakHeight, shape.peakVolume}) {
+    const KilometrePowerLaw peakWidth = shape.peakDiameter ? *shape.peakDiameter : shape.peakVolume;
+    for (const KilometrePowerLaw& law : {shape.floorDiameter, shape.peakHeight, peakWidth}) {
         if (!(std::isfinite(law.coefficient) && law.coefficient > 0.0 &&
               std::isfinite(law.exponent))) {
             throw std::invalid_argument("Complex crater power laws need a positive coefficient");
@@ -71,9 +72,10 @@ double ComplexCraterProfile::Height(double distance, double diameter,
     const double fitted =
         shape_.peakFitMaxDiameter > 0.0 ? std::fmin(diameter, shape_.peakFitMaxDiameter) : diameter;
     const double peakHeight = shape_.peakHeight.At(fitted);
-    const double base =
-        std::sqrt(3.0 * shape_.peakVolume.At(fitted, true) / (std::numbers::pi * peakHeight)) *
-        (diameter / fitted);
+    const double base = (shape_.peakDiameter ? 0.5 * shape_.peakDiameter->At(fitted)
+                                             : std::sqrt(3.0 * shape_.peakVolume.At(fitted, true) /
+                                                         (std::numbers::pi * peakHeight))) *
+                        (diameter / fitted);
     if (distance < base) {
         const double fresh = state.fresh.depthRatio;
         const double kept = fresh > 0.0 ? state.current.depthRatio / fresh : 1.0;

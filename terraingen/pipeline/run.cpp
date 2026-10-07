@@ -1,5 +1,6 @@
 #include "terraingen/pipeline/run.h"
 
+#include "terraingen/bodies/mars/craters.h"
 #include "terraingen/bodies/moon/craters.h"
 #include "terraingen/bodies/moon/equilibrium.h"
 #include "terraingen/bodies/moon/production.h"
@@ -114,16 +115,22 @@ std::shared_ptr<const CraterAgeModel> BuildAges(const AgesSpec& spec, const Dens
         spec);
 }
 
+FreshMorphometry BodyMorphometry(CraterBody body) {
+    return body == CraterBody::Mars ? FreshMorphometry(MarsFreshCraterMorphometry)
+                                    : FreshMorphometry(LunarFreshCraterMorphometry);
+}
+
 std::shared_ptr<const DegradationModel>
-BuildDegradation(const DegradationSpec& spec, const std::shared_ptr<const CraterAgeModel>& ages) {
+BuildDegradation(const DegradationSpec& spec, const std::shared_ptr<const CraterAgeModel>& ages,
+                 CraterBody body) {
+    const FreshMorphometry fresh = BodyMorphometry(body);
     return std::visit(
         Overloaded{
             [&](const FreshnessDegradationSpec& s) -> std::shared_ptr<const DegradationModel> {
-                return std::make_shared<FreshnessDegradation>(ages, LunarFreshCraterMorphometry,
-                                                              s.cutoffDepthRatio);
+                return std::make_shared<FreshnessDegradation>(ages, fresh, s.cutoffDepthRatio);
             },
-            [](const NoDegradationSpec& s) -> std::shared_ptr<const DegradationModel> {
-                return std::make_shared<NoDegradation>(LunarFreshCraterMorphometry, s.depthRatio);
+            [&](const NoDegradationSpec& s) -> std::shared_ptr<const DegradationModel> {
+                return std::make_shared<NoDegradation>(fresh, s.depthRatio);
             },
         },
         spec);
@@ -142,10 +149,11 @@ std::shared_ptr<const CraterProfile> BuildSimpleProfile(const SimpleProfileSpec&
         spec);
 }
 
-std::shared_ptr<const CraterProfile> BuildProfile(const ProfileSpec& spec) {
+std::shared_ptr<const CraterProfile> BuildProfile(const ProfileSpec& spec, CraterBody body) {
     if (const auto* complex = std::get_if<ComplexProfileSpec>(&spec)) {
-        return std::make_shared<ComplexCraterProfile>(BuildSimpleProfile(complex->simple),
-                                                      LunarComplexCraterShape());
+        return std::make_shared<ComplexCraterProfile>(
+            BuildSimpleProfile(complex->simple),
+            body == CraterBody::Mars ? MarsComplexCraterShape() : LunarComplexCraterShape());
     }
     if (const auto* thomson = std::get_if<FassettThomsonSpec>(&spec)) {
         return BuildSimpleProfile(*thomson);
@@ -220,8 +228,19 @@ void ValidateCraters(const CraterLayerSpec& craters, const RasterGrid& grid,
     At(path + ".apply", [&] { ValidateCraterApplyOptions(craters.apply); });
     const auto density = At(path + ".density", [&] { return BuildDensity(craters.density); });
     const auto ages = At(path + ".ages", [&] { return BuildAges(craters.ages, craters.density); });
-    At(path + ".degradation", [&] { return BuildDegradation(craters.degradation, ages); });
-    At(path + ".profile", [&] { return BuildProfile(craters.profile); });
+    if (craters.body == CraterBody::Mars) {
+        if (std::holds_alternative<LunarSurfaceSpec>(craters.density)) {
+            throw ConfigError(path + ".density", "lunar_surface is the Moon's; on Mars give a "
+                                                 "power_law, piecewise_power_law or tabulated");
+        }
+        if (std::holds_alternative<SteadyStateAgesSpec>(craters.ages)) {
+            throw ConfigError(path + ".ages",
+                              "steady_state ages are the Moon's; on Mars give fresh or uniform");
+        }
+    }
+    At(path + ".degradation",
+       [&] { return BuildDegradation(craters.degradation, ages, craters.body); });
+    At(path + ".profile", [&] { return BuildProfile(craters.profile, craters.body); });
     if (!craters.generate) {
         return;
     }
@@ -416,8 +435,8 @@ CraterModels BuildCraterModels(const CraterLayerSpec& craters) {
     CraterModels models;
     models.density = BuildDensity(craters.density);
     models.ages = BuildAges(craters.ages, craters.density);
-    models.degradation = BuildDegradation(craters.degradation, models.ages);
-    models.profile = BuildProfile(craters.profile);
+    models.degradation = BuildDegradation(craters.degradation, models.ages, craters.body);
+    models.profile = BuildProfile(craters.profile, craters.body);
     return models;
 }
 

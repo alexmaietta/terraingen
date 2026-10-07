@@ -324,6 +324,30 @@ TEST(GenerateTerrain, AddsRocksWithEjectaFromTheLastCraterLayerBeforeThem) {
     EXPECT_LT(without.features.rocks.size(), generated.features.rocks.size());
 }
 
+TEST(BuildCraterModels, ShapesCratersForTheirBody) {
+    CraterLayerSpec craters;
+    craters.profile = terraingen::ComplexProfileSpec{};
+    const auto moon = BuildCraterModels(craters);
+    craters.body = terraingen::CraterBody::Mars;
+    craters.density = terraingen::PowerLawSpec{0.1, 2.0};
+    const auto mars = BuildCraterModels(craters);
+    const terraingen::Crater crater{0.0, 0.0, 10000.0, 0.0, 1u};
+    EXPECT_FALSE(moon.profile->IsComplex(10000.0));
+    EXPECT_TRUE(mars.profile->IsComplex(10000.0));
+    EXPECT_EQ(mars.degradation->State(crater).fresh,
+              terraingen::MarsFreshCraterMorphometry(10000.0));
+    EXPECT_EQ(moon.degradation->State(crater).fresh,
+              terraingen::LunarFreshCraterMorphometry(10000.0));
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { Craters(c).body = terraingen::CraterBody::Mars; }),
+              "layers[1].density");
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
+                  Craters(c).body = terraingen::CraterBody::Mars;
+                  Craters(c).density = terraingen::PowerLawSpec{0.1, 2.0};
+                  Craters(c).ages = terraingen::SteadyStateAgesSpec{};
+              }),
+              "layers[1].ages");
+}
+
 TEST(BuildCraterModels, BuildsEachSelectedModel) {
     CraterLayerSpec craters;
     auto models = BuildCraterModels(craters);

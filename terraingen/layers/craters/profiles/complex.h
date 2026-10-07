@@ -3,6 +3,7 @@
 #include "terraingen/layers/craters/profiles/profile.h"
 
 #include <memory>
+#include <optional>
 
 namespace terraingen {
 
@@ -24,7 +25,10 @@ struct ComplexCraterShape {
     double transitionDiameter = 0.0;  ///< Smallest complex crater (m).
     KilometrePowerLaw floorDiameter;  ///< Diameter of the flat floor.
     KilometrePowerLaw peakHeight;     ///< Height of the central peak above the floor.
-    KilometrePowerLaw peakVolume;     ///< Volume of the central peak (km^3).
+    KilometrePowerLaw peakVolume;  ///< Volume of the central peak (km^3), with no `peakDiameter`.
+    /// Diameter of the central peak's base, when known; otherwise the base follows from the peak's
+    /// height and `peakVolume`.
+    std::optional<KilometrePowerLaw> peakDiameter;
     /// Largest crater the peak relations were fitted to (m); larger craters keep the peak height
     /// of this size and a base radius in proportion to the diameter, as peaks stop growing (Pike
     /// 1977) rather than follow the power laws out of range. 0 applies the laws to every size.
@@ -45,9 +49,9 @@ void ValidateComplexCraterShape(const ComplexCraterShape& shape);
 /// - a flat floor at h - d out to the floor radius `floorDiameter(D)` / 2;
 /// - a concave wall from the floor to the rim, h - d + d t^2 with t from 0 at the floor's edge to 1
 ///   at the rim, steepest just below the rim as terraced walls are;
-/// - a central peak, a smooth dome h_p (1 - (r / r_b)^2)^2 whose height and volume follow
-///   `peakHeight` and `peakVolume` (r_b^2 = 3 V / (pi h_p)), lowered with the crater as it wears
-///   (by its depth now over its depth when fresh);
+/// - a central peak, a smooth dome h_p (1 - (r / r_b)^2)^2 of height `peakHeight` and base radius
+///   r_b, half `peakDiameter`, or from `peakVolume` (r_b^2 = 3 V / (pi h_p)), lowered with the
+///   crater as it wears (by its depth now over its depth when fresh);
 /// - an exterior falling from the rim as x^-`ejectaExponent`, the ejecta thickness law of McGetchin
 ///   et al. (1973), shifted to reach zero at `reachRadii`.
 ///

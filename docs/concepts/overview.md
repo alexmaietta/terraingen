@@ -14,7 +14,7 @@ builds one static library. A module depends only on the modules above it in this
 | `sources` | `terraingen::sources` | Where heights come from: synthetic terrain from layered noise | util, raster, noise |
 | `layers` | `terraingen::layers` | Relief added on top: craters (populations, profiles, ages, degradation, stamping), rocks, fine roughness, the bedrock exposure field, and pointwise transforms and regions | util, raster, noise, random, distribution |
 | `filters` | `terraingen::filters` | Transforms of the heights so far: crater rim smoothing | layers, raster |
-| `bodies` | `terraingen::bodies` | Calibrations for particular bodies: the Moon's chronology, production, equilibrium and surface presets | distribution, layers |
+| `bodies` | `terraingen::bodies` | Calibrations for particular bodies: the Moon's chronology, production, equilibrium, crater, rock and surface presets, and Mars's crater morphometry | distribution, layers |
 | `pipeline` | `terraingen::pipeline` | JSON terrain configs and the generation pipeline | all of the above |
 
 A terrain is built as a source, then layers, then filters. The general models live in `layers/` and
@@ -63,7 +63,9 @@ terrain. Filters may read neighbouring cells, so tiles need a margin to match. D
 
 Craters from the simple-to-complex transition (15 km on the Moon) can take the complex form
 (`ComplexCraterProfile`): Pike's (1974, 1977) depths, rim heights and flat floors, and central peaks with
-the heights and volumes of Hale and Grieve (1982).
+the heights and volumes of Hale and Grieve (1982). A crater layer's `body` picks the Moon's or Mars's fresh morphometry
+(`MarsFreshCraterMorphometry`, after Daubar et al. 2014, Sweeney et al. 2018 and Garvin et al. 2003) and
+complex crater shape, with Mars's transition at 7 km.
 
 Every evaluation takes a sample spacing. Craters, rocks, and the rim smoothing around craters, fade with it
 (`ResolutionFade`): absent below 2 samples across, whole from 4, smooth in between. A crater therefore

@@ -49,6 +49,7 @@ TerrainConfig Everything() {
     noise.stack.push_back(second);
     CraterLayerSpec craters;
     craters.generate = false;
+    craters.body = terraingen::CraterBody::Mars;
     craters.seed = 99;
     craters.density = terraingen::PiecewisePowerLawSpec{{{1.0, 0.2, 2.0}, {50.0, 10.0, 3.0}}};
     craters.ages =

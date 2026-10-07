@@ -171,16 +171,23 @@ struct MartinParkesDunstanSpec {  ///< "martin_parkes_dunstan": `MartinParkesDun
     bool operator==(const MartinParkesDunstanSpec&) const = default;
 };
 using SimpleProfileSpec = std::variant<FassettThomsonSpec, MartinParkesDunstanSpec>;
-/// "complex": `simple` below the lunar simple-to-complex transition and lunar complex craters, with
-/// flat floors and central peaks, from it (`ComplexCraterProfile`, `LunarComplexCraterShape`).
+/// "complex": `simple` below the crater layer's body's simple-to-complex transition and complex
+/// craters, with flat floors and central peaks, from it (`ComplexCraterProfile` with
+/// `LunarComplexCraterShape` or `MarsComplexCraterShape`).
 struct ComplexProfileSpec {
     SimpleProfileSpec simple{};
     bool operator==(const ComplexProfileSpec&) const = default;
 };
 using ProfileSpec = std::variant<FassettThomsonSpec, MartinParkesDunstanSpec, ComplexProfileSpec>;
 
-/// "craters": craters generated over the grid and applied to it (`CraterLayer`).
+/// The body a crater layer's craters are shaped for: its fresh morphometry
+/// (`LunarFreshCraterMorphometry`, `MarsFreshCraterMorphometry`) and complex crater shape.
+enum class CraterBody { Moon, Mars };
+
+/// "craters": craters generated over the grid and applied to it (`CraterLayer`). With `body` Mars,
+/// the lunar-only density "lunar_surface" and ages "steady_state" are refused.
 struct CraterLayerSpec {
+    CraterBody body = CraterBody::Moon;
     bool generate = true;  ///< Generate craters from `density`; otherwise only `manual` ones.
     std::uint32_t seed = 1;
     DensitySpec density{};
