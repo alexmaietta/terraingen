@@ -69,6 +69,12 @@ the heights and volumes of Hale and Grieve (1982). A crater layer's `body` picks
 complex crater shape, with Mars's transition at 7 km. The "mars_surface" density gives a Martian surface of a given age from
 Ivanov's (2001) production function and chronology.
 
+Craters can also wear by topographic diffusion (`DiffusionDegradation` with a `DiffusedProfile`, the
+"diffusion" degradation): the fresh profile diffuses as dh/dt = kappa del^2 h (Fassett and Thomson 2014,
+after synthterrain), solved once per fresh shape and tabulated by kappa t / D^2, so small craters fade fast
+and large ones slowly. Lunar diffusivities are Fassett and Thomson's 5.5 m^2/Myr or their age calibration,
+or the size-dependent fits of Fassett et al. (2022) to the Hartmann or Trask equilibrium.
+
 Craters can have irregular outlines (`CraterIrregularity`, under a crater layer's "apply"): rims that
 wander as a sum of harmonics, either a configurable power-law spectrum or the spectra Du et al. (2024) fitted
 to fresh lunar rim crests (`RimRoughnessModel::Du2024`), and
