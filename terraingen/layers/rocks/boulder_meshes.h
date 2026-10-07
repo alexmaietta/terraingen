@@ -3,6 +3,7 @@
 #include "terraingen/layers/rocks/rock.h"
 #include "terraingen/meshes/boulder.h"
 #include "terraingen/meshes/mesh.h"
+#include "terraingen/util/surface.h"
 
 #include <cstdint>
 #include <memory>
@@ -34,6 +35,15 @@ struct BoulderModel {
 /// The height of the top of `placed`, a mesh in the world, above (`x`, `y`): the highest of its
 /// upward-facing triangles there, or nothing outside its footprint.
 std::optional<double> TopSurface(const TriangleMesh& placed, double x, double y);
+
+/// `placement` of a boulder at `rock` (surface coordinates), given in the rock's local frame (east,
+/// north and up, with up the height above the datum), moved into the local frame of `site`: on a
+/// sphere, the east, north and up axes at `site` on the datum sphere, so a scene of boulders about
+/// a site keeps metre-scale coordinates (glTF stores single precision); on a plane, where
+/// placements are already in the shared frame, `placement` unchanged. Rocks placed by a `RockLayer`
+/// on a sphere have their placements in their local frames.
+BoulderPlacement PlacementAtSite(const BoulderPlacement& placement, const Vec2d& rock,
+                                 const Vec2d& site, const Surface& surface);
 
 /// The placement of `shape` as `rock` on ground at `groundHeight` under its centre: the long axis
 /// scaled to the rock's diameter, the intermediate axis in proportion, and the short axis to the

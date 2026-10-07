@@ -821,9 +821,6 @@ void ValidateConfig(const TerrainConfig& config, const std::filesystem::path& di
                     }
                 },
                 [&](const BoulderModelsOutput& output) {
-                    if (surface.IsSphere()) {
-                        throw ConfigError(path, "boulder models are not written on a sphere yet");
-                    }
                     const std::string extension =
                         std::filesystem::path(output.path).extension().string();
                     if (extension != ".glb" && extension != ".ply") {
@@ -1042,7 +1039,8 @@ void WriteRockList(const std::vector<Rock>& rocks, const std::filesystem::path& 
 }
 
 void WriteBoulderModels(const std::vector<BoulderModel>& boulders,
-                        const std::filesystem::path& path, double creaseAngle) {
+                        const std::filesystem::path& path, double creaseAngle,
+                        const Surface& surface, const Vec2d& site) {
     const std::string extension = path.extension().string();
     if (extension != ".glb" && extension != ".ply") {
         throw std::invalid_argument("Boulder models are written as .glb or .ply");
@@ -1057,8 +1055,10 @@ void WriteBoulderModels(const std::vector<BoulderModel>& boulders,
         TriangleMesh merged;
         for (const BoulderModel& boulder : boulders) {
             const auto first = static_cast<std::uint32_t>(merged.positions.size());
+            const BoulderPlacement placement =
+                PlacementAtSite(boulder.placement, {boulder.rock.x, boulder.rock.y}, site, surface);
             for (const Vec3d& p : boulder.shape->mesh.positions) {
-                merged.positions.push_back(boulder.placement.Apply(p));
+                merged.positions.push_back(placement.Apply(p));
             }
             for (const auto& t : boulder.shape->mesh.triangles) {
                 merged.triangles.push_back({first + t[0], first + t[1], first + t[2]});
@@ -1077,7 +1077,9 @@ void WriteBoulderModels(const std::vector<BoulderModel>& boulders,
             ShadedMesh shaded = WithCreases(boulder.shape->mesh, radians);
             meshes.push_back({std::move(shaded.mesh), std::move(shaded.normals)});
         }
-        nodes.push_back({found->second, boulder.placement.scale, boulder.placement.pose});
+        const BoulderPlacement placement =
+            PlacementAtSite(boulder.placement, {boulder.rock.x, boulder.rock.y}, site, surface);
+        nodes.push_back({found->second, placement.scale, placement.pose});
     }
     WriteGlbScene(path, meshes, nodes);
 }
@@ -1111,7 +1113,10 @@ std::vector<std::filesystem::path> WriteOutputs(const TerrainConfig& config,
                 LogWarning("pipeline", "No boulder models to write to ", path.string());
                 continue;
             }
-            WriteBoulderModels(terrain.features.boulders, path, models->creaseAngle);
+            const Bounds2d bounds = RasterGrid::Of(terrain.heights).Bounds();
+            WriteBoulderModels(
+                terrain.features.boulders, path, models->creaseAngle, BuildSurface(config.surface),
+                {0.5 * (bounds.minX + bounds.maxX), 0.5 * (bounds.minY + bounds.maxY)});
             LogInfo("pipeline", "Wrote ", terrain.features.boulders.size(), " boulder models to ",
                     path.string());
         } else {

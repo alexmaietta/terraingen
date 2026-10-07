@@ -87,11 +87,14 @@ void WriteRockList(const std::vector<Rock>& rocks, const std::filesystem::path& 
 
 /// Writes `boulders` as a glTF scene (a path ending in .glb), each shape once with crease normals
 /// split at `creaseAngle` degrees and drawn once per boulder, or (.ply) as one mesh of every
-/// boulder placed in the world.
+/// boulder placed in the world. On a sphere the world is the east-north-up frame of `site` on the
+/// datum sphere (`PlacementAtSite`), so coordinates stay small; `WriteOutputs` uses the grid's
+/// centre.
 /// @throws std::invalid_argument for another extension, no boulders or an angle outside [0, 180].
 /// @throws std::runtime_error if the file cannot be written.
 void WriteBoulderModels(const std::vector<BoulderModel>& boulders,
-                        const std::filesystem::path& path, double creaseAngle = 35.0);
+                        const std::filesystem::path& path, double creaseAngle = 35.0,
+                        const Surface& surface = {}, const Vec2d& site = {});
 
 /// Writes `config`'s outputs (heightmaps and albedos with `terrain.geoKeys`, crater lists),
 /// resolving relative paths against `directory`, and returns the paths written.

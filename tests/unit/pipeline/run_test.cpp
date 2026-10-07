@@ -1261,3 +1261,34 @@ TEST(GenerateTerrain, AddsSecondariesAroundTheCratersBeforeThem) {
     EXPECT_EQ(error([](auto&, auto& l) { l.depthRatio = 0.0; }), "layers[2].depth_ratio");
     EXPECT_EQ(error([](auto& c, auto&) { c.layers.pop_back(); }), "layers[1]");
 }
+
+TEST(WriteOutputs, WritesBoulderModelsOnASphereAboutTheGridCentre) {
+    TerrainConfig config;
+    config.surface = terraingen::SphereSurfaceSpec{0.0, terraingen::Body::Moon};
+    terraingen::FlatSourceSpec flat{160, 160, 0.25};
+    flat.centreX = -30.0;
+    flat.centreY = 60.0;
+    config.source = flat;
+    terraingen::RockLayerSpec rocks;
+    rocks.rocks.coverage = 0.3;
+    rocks.rocks.minDiameter = 0.5;
+    rocks.rocks.maxDiameter = 3.0;
+    rocks.rocks.models.minDiameter = 1.0;
+    config.layers = {rocks};
+    config.outputs = {terraingen::BoulderModelsOutput{"boulders.ply"}};
+    const auto terrain = GenerateTerrain(config);
+    ASSERT_FALSE(terrain.features.boulders.empty());
+    const auto directory = TempPath("terraingen_sphere_boulders");
+    std::filesystem::remove_all(directory);
+    const auto written = terraingen::WriteOutputs(config, terrain, directory);
+    ASSERT_EQ(written.size(), 1u);
+    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
+    for (const auto& boulder : terrain.features.boulders) {
+        const auto placed = terraingen::PlacementAtSite(
+            boulder.placement, {boulder.rock.x, boulder.rock.y}, {-30.0, 60.0}, moon);
+        EXPECT_LT(std::fabs(placed.pose.translation.x), 25.0);
+        EXPECT_LT(std::fabs(placed.pose.translation.y), 25.0);
+        EXPECT_LT(std::fabs(placed.pose.translation.z), 5.0);
+    }
+    EXPECT_GT(std::filesystem::file_size(written[0]), 1000u);
+}

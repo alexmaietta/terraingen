@@ -75,6 +75,10 @@ class Surface {
     /// towards longitude 0 on the equator, y towards longitude 90 and z towards the north pole.
     Vec3d Position(const Vec2d& point) const;
 
+    /// The east, north and up unit vectors at `point` in the frame of `Position`: on a plane the x,
+    /// y and z axes; on a sphere the local frame of `Offset`, up away from the centre.
+    void Frame(const Vec2d& point, Vec3d& east, Vec3d& north, Vec3d& up) const;
+
     /// The surface point of a direction from the sphere's centre (any length but 0); on a plane,
     /// (x, y).
     Vec2d PointOf(const Vec3d& direction) const;

@@ -56,3 +56,45 @@ TEST(TopSurface, IsTheHighestUpwardFaceAboveAPoint) {
     const auto pyramid = terraingen::BaseSolidMesh(terraingen::BaseSolid::Pyramid);
     EXPECT_NEAR(*terraingen::TopSurface(pyramid, 0.5, 0.0), 0.0, 1e-12) << "halfway down a side";
 }
+
+TEST(PlacementAtSite, MovesLocalPlacementsIntoTheSitesFrame) {
+    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
+    terraingen::BoulderPlacement local;
+    local.scale = {2.0, 1.5, 1.0};
+    local.pose = terraingen::RigidTransform::RotationZ(0.7);
+    local.pose.translation = {0.0, 0.0, 3.0};
+    const terraingen::Vec2d site{20.0, 10.0};
+    const auto same = terraingen::PlacementAtSite(local, site, site, moon);
+    for (std::size_t i = 0; i < 9; ++i) {
+        EXPECT_NEAR(same.pose.rotation[i], local.pose.rotation[i], 1e-12);
+    }
+    EXPECT_NEAR(same.pose.translation.z, 3.0, 1e-9);
+    EXPECT_NEAR(same.pose.translation.x, 0.0, 1e-9);
+
+    const terraingen::Vec2d rock = moon.Locate(site, {800.0, -300.0});
+    const auto moved = terraingen::PlacementAtSite(local, rock, site, moon);
+    const terraingen::Vec3d q{0.4, -0.2, 0.5};
+    const terraingen::Vec3d atSite = moved.Apply(q);
+    const terraingen::Vec3d inRock = local.Apply(q);
+    terraingen::Vec3d e;
+    terraingen::Vec3d n;
+    terraingen::Vec3d u;
+    moon.Frame(rock, e, n, u);
+    const terraingen::Vec3d pr = moon.Position(rock);
+    const terraingen::Vec3d body{pr.x + e.x * inRock.x + n.x * inRock.y + u.x * inRock.z,
+                                 pr.y + e.y * inRock.x + n.y * inRock.y + u.y * inRock.z,
+                                 pr.z + e.z * inRock.x + n.z * inRock.y + u.z * inRock.z};
+    moon.Frame(site, e, n, u);
+    const terraingen::Vec3d ps = moon.Position(site);
+    const terraingen::Vec3d back{ps.x + e.x * atSite.x + n.x * atSite.y + u.x * atSite.z,
+                                 ps.y + e.y * atSite.x + n.y * atSite.y + u.y * atSite.z,
+                                 ps.z + e.z * atSite.x + n.z * atSite.y + u.z * atSite.z};
+    EXPECT_NEAR(back.x, body.x, 1e-6);
+    EXPECT_NEAR(back.y, body.y, 1e-6);
+    EXPECT_NEAR(back.z, body.z, 1e-6);
+    EXPECT_NEAR(atSite.x, 800.0, 1.0);
+    EXPECT_NEAR(atSite.y, -300.0, 1.0);
+    EXPECT_LT(atSite.z, 3.5);
+    const auto flat = terraingen::PlacementAtSite(local, {5.0, 5.0}, {0.0, 0.0}, {});
+    EXPECT_EQ(flat.pose.translation, local.pose.translation);
+}

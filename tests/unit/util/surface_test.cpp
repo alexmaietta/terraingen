@@ -250,3 +250,23 @@ TEST(CubeSphereCells, TwoRingsOfNeighboursHoldEveryPointWithinACellAcrossFacesAn
     const std::vector<CellIndex> inner = cells.Neighbours({5, 5}, size, 1);
     EXPECT_EQ(inner.size(), 9u);
 }
+
+TEST(Surface, FramesAreOrthonormalWithUpAwayFromTheCentre) {
+    const Surface moon = Surface::Sphere(kMoon);
+    Vec3d e;
+    Vec3d n;
+    Vec3d u;
+    moon.Frame({40.0, -30.0}, e, n, u);
+    const auto dot = [](const Vec3d& a, const Vec3d& b) {
+        return a.x * b.x + a.y * b.y + a.z * b.z;
+    };
+    EXPECT_NEAR(dot(e, e), 1.0, 1e-12);
+    EXPECT_NEAR(dot(n, n), 1.0, 1e-12);
+    EXPECT_NEAR(dot(e, n), 0.0, 1e-12);
+    EXPECT_NEAR(dot(e, u), 0.0, 1e-12);
+    const Vec3d p = moon.Position({40.0, -30.0});
+    EXPECT_NEAR(dot(u, p), kMoon, 1e-6);
+    Surface().Frame({3.0, 4.0}, e, n, u);
+    EXPECT_EQ(e, (Vec3d{1.0, 0.0, 0.0}));
+    EXPECT_EQ(u, (Vec3d{0.0, 0.0, 1.0}));
+}

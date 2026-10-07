@@ -104,6 +104,17 @@ Vec3d Surface::Position(const Vec2d& point) const {
     return {radius_ * unit.x, radius_ * unit.y, radius_ * unit.z};
 }
 
+void Surface::Frame(const Vec2d& point, Vec3d& east, Vec3d& north, Vec3d& up) const {
+    if (kind_ == Kind::Plane) {
+        east = {1.0, 0.0, 0.0};
+        north = {0.0, 1.0, 0.0};
+        up = {0.0, 0.0, 1.0};
+        return;
+    }
+    LocalAxes(point.x * kDegree, point.y * kDegree, east, north);
+    up = UnitVector(point.x, point.y);
+}
+
 Vec2d Surface::PointOf(const Vec3d& direction) const {
     if (kind_ == Kind::Plane) {
         return {direction.x, direction.y};
