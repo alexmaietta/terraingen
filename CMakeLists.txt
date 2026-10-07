@@ -14,7 +14,6 @@ option(TERRAINGEN_BUILD_BENCHMARKS "Build the benchmarks (Google Benchmark)"
        ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_BUILD_DEMOS "Build the demos" OFF)
 option(TERRAINGEN_BUILD_PYTHON "Build the Python bindings" ON)
-option(TERRAINGEN_WITH_GDAL "Reserved for GDAL-backed formats; GeoTIFF needs no GDAL" ON)
 option(TERRAINGEN_INSTALL "Generate install rules and the CMake package" ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_COVERAGE "Instrument TerrainGen for code coverage and add a coverage target" OFF)
 
