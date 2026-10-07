@@ -38,6 +38,26 @@ void BM_EvaluateAtWarm(benchmark::State& state) {
 }
 BENCHMARK(BM_EvaluateAtWarm)->ThreadRange(1, 8)->UseRealTime();
 
+/// `BM_EvaluateAtWarm` on a lunar-sized sphere: the same patch in metres, placed at the equator.
+void BM_EvaluateAtWarmSphere(benchmark::State& state) {
+    static const Surface moon = Surface::Sphere(1737400.0);
+    static const Terrain terrain = LunarMare(4096.0, 1.0, 200.0, 4000000, CraterDatum::None, moon);
+    std::vector<Vec2d> points;
+    for (const Vec2d& offset : Patch(100.0 * state.thread_index(), -50.0)) {
+        points.push_back(moon.Locate({0.0, 0.0}, offset));
+    }
+    for (const Vec2d& point : points) {
+        EvaluateAt(terrain, point.x, point.y, 0.25);
+    }
+    for (auto _ : state) {
+        for (const Vec2d& point : points) {
+            benchmark::DoNotOptimize(EvaluateAt(terrain, point.x, point.y, 0.25));
+        }
+    }
+    state.SetItemsProcessed(state.iterations() * static_cast<std::int64_t>(points.size()));
+}
+BENCHMARK(BM_EvaluateAtWarmSphere)->ThreadRange(1, 8)->UseRealTime();
+
 /// Warm point queries of craters cut to a plane datum: each crater reaching a point fits its datum
 /// to the ground and the craters before it on a 7 x 7 lattice.
 void BM_EvaluateAtDatum(benchmark::State& state) {

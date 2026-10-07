@@ -25,6 +25,25 @@ BENCHMARK(BM_EvaluateGrid)
     ->Unit(benchmark::kMillisecond)
     ->UseRealTime();
 
+/// `BM_EvaluateGrid` on a lunar-sized sphere at the equator, 1 m cells along a meridian.
+void BM_EvaluateGridSphere(benchmark::State& state) {
+    const auto side = static_cast<double>(state.range(0));
+    const Terrain terrain =
+        LunarMare(side, 1.0, 200.0, 4000000, CraterDatum::None, Surface::Sphere(1737400.0));
+    const RasterGrid grid = terrain.source->Grid();
+    const EvaluationOptions options{0.0, static_cast<unsigned>(state.range(1))};
+    for (auto _ : state) {
+        benchmark::DoNotOptimize(Evaluate(terrain, grid, options));
+    }
+    state.SetItemsProcessed(state.iterations() *
+                            static_cast<std::int64_t>(grid.width * grid.height));
+}
+BENCHMARK(BM_EvaluateGridSphere)
+    ->ArgsProduct({{512, 2048}, {1, 0}})
+    ->ArgNames({"cells", "threads"})
+    ->Unit(benchmark::kMillisecond)
+    ->UseRealTime();
+
 /// Tiles of 256 x 256 cells at the level given by the argument (0 is 8 m spacing, 5 is 0.25 m),
 /// with a warm crater cache, evaluated in parallel across every hardware thread.
 void BM_EvaluateTiles(benchmark::State& state) {
