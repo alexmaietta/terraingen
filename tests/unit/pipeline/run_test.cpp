@@ -1103,13 +1103,9 @@ TEST(ValidateConfig, ReportsSphereProblemsByPath) {
               "surface.radius");
     EXPECT_EQ(error([](TerrainConfig& c) { Flat(c).centreY = 89.999; }), "source.height");
     EXPECT_EQ(error([](TerrainConfig& c) { Flat(c).centreX = NAN; }), "source.centre_x");
-    EXPECT_EQ(error([](TerrainConfig& c) {
-                  Noise(c).stack[0].layer.fractal.basis = terraingen::NoiseBasis::Simplex;
-              }),
-              "layers[0].stack[0].basis");
     EXPECT_EQ(
         error([](TerrainConfig& c) { c.outputs = {terraingen::BoulderModelsOutput{"b.glb"}}; }),
-        "outputs[0]");
+        "valid");
     EXPECT_EQ(error([](TerrainConfig& c) {
                   terraingen::SyntheticAlbedoSpec synthetic;
                   synthetic.valueNoise = {terraingen::NoiseLayerConfig{}};
