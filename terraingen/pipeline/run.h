@@ -1,5 +1,6 @@
 #pragma once
 
+#include "terraingen/albedo/albedo.h"
 #include "terraingen/layers/craters/crater_layer.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/pipeline/config.h"
@@ -37,16 +38,26 @@ void ValidateConfig(const TerrainConfig& config, const std::filesystem::path& di
 /// @throws ConfigError if the configuration is invalid.
 Terrain BuildTerrain(const TerrainConfig& config, const std::filesystem::path& directory = {});
 
-/// A generated terrain: heights, the features the layers placed and the projection keys of a
-/// raster source.
+/// The albedo `config.albedo` describes for `terrain` (built by `BuildTerrain` from `config`):
+/// crater albedo layers read the terrain's top-level crater layers, and synthetic noise is
+/// measured from the source's reference point. Relative input paths resolve against `directory`.
+/// @throws ConfigError if the configuration is invalid or has no albedo.
+/// @throws GeoTiffError if an albedo map cannot be read.
+Albedo BuildAlbedo(const TerrainConfig& config, const Terrain& terrain,
+                   const std::filesystem::path& directory = {});
+
+/// A generated terrain: heights, the features the layers placed, the projection keys of a raster
+/// source, and the albedo bands when the configuration has an albedo.
 struct GeneratedTerrain {
     Raster<float> heights;
     TerrainFeatures features;
     GeoKeys geoKeys;
+    std::vector<Raster<float>> albedo{};
 };
 
 /// Generates the terrain `config` describes over its source's grid: `BuildTerrain`, then
-/// `Evaluate` on up to `threads` threads (0 for every hardware thread; the result does not depend
+/// `Evaluate` (and `EvaluateAlbedo` with an albedo, at the grid's cell size) on up to `threads`
+/// threads (0 for every hardware thread; the result does not depend
 /// on it). Relative input paths resolve against `directory`.
 /// @throws ConfigError if the configuration is invalid.
 /// @throws GeoTiffError if a raster cannot be read.
@@ -76,9 +87,9 @@ void WriteRockList(const std::vector<Rock>& rocks, const std::filesystem::path& 
 void WriteBoulderModels(const std::vector<BoulderModel>& boulders,
                         const std::filesystem::path& path, double creaseAngle = 35.0);
 
-/// Writes `config`'s outputs (heightmaps with `terrain.geoKeys`, crater lists), resolving relative
-/// paths against `directory`, and returns the paths written.
-/// @throws std::runtime_error if an output cannot be written.
+/// Writes `config`'s outputs (heightmaps and albedos with `terrain.geoKeys`, crater lists),
+/// resolving relative paths against `directory`, and returns the paths written.
+/// @throws std::runtime_error if an output cannot be written, or an albedo output has no albedo.
 std::vector<std::filesystem::path> WriteOutputs(const TerrainConfig& config,
                                                 const GeneratedTerrain& terrain,
                                                 const std::filesystem::path& directory);

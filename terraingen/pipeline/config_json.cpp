@@ -338,6 +338,18 @@ template <> struct SpecName<BoulderModelsOutput> {
 template <> struct SpecName<CraterListOutput> {
     static constexpr std::string_view kName = "crater_list";
 };
+template <> struct SpecName<AlbedoOutput> {
+    static constexpr std::string_view kName = "albedo";
+};
+template <> struct SpecName<SyntheticAlbedoSpec> {
+    static constexpr std::string_view kName = "synthetic";
+};
+template <> struct SpecName<RasterAlbedoSpec> {
+    static constexpr std::string_view kName = "raster";
+};
+template <> struct SpecName<CraterAlbedoSpec> {
+    static constexpr std::string_view kName = "craters";
+};
 
 /// Reads the keys of one JSON object into fields, remembering which keys were asked for so that
 /// any other key can be reported.
@@ -446,6 +458,15 @@ template <typename IO> void Fields(IO& io, RockModels& models);
 template <typename IO> void Fields(IO& io, ValueRange& range);
 template <typename IO> void Fields(IO& io, BoulderStyle& style);
 template <typename IO> void Fields(IO& io, BoulderShapeOptions& shapes);
+template <typename IO> void Fields(IO& io, AlbedoOutput& output);
+template <typename IO> void Fields(IO& io, SyntheticAlbedoSpec& spec);
+template <typename IO> void Fields(IO& io, AlbedoDetail& detail);
+template <typename IO> void Fields(IO& io, RasterAlbedoSpec& spec);
+template <typename IO> void Fields(IO& io, CraterRays& rays);
+template <typename IO> void Fields(IO& io, RayRetention& retention);
+template <typename IO> void Fields(IO& io, CraterAlbedoOptions& options);
+template <typename IO> void Fields(IO& io, CraterAlbedoSpec& spec);
+template <typename IO> void Fields(IO& io, AlbedoSpec& spec);
 
 template <typename T>
 concept HasFields = requires(Reader& reader, T& value) { Fields(reader, value); };
@@ -1122,6 +1143,103 @@ template <typename IO> void Fields(IO& io, CraterListOutput& output) {
     io("format", output.format);
 }
 
+template <typename IO> void Fields(IO& io, AlbedoOutput& output) {
+    io("path", output.path);
+    io("compression", output.compression);
+    io("tile_size", output.tileSize);
+}
+
+template <typename IO> void Fields(IO& io, SyntheticAlbedoSpec& spec) {
+    io("rgb", spec.rgb);
+    io("hue", spec.hue);
+    io("saturation", spec.saturation);
+    io("value", spec.value);
+    io("hue_noise", spec.hueNoise);
+    io("saturation_noise", spec.saturationNoise);
+    io("value_noise", spec.valueNoise);
+}
+
+template <typename IO> void Fields(IO& io, AlbedoDetail& detail) {
+    io("enabled", detail.enabled);
+    io("seed", detail.seed);
+    io("octaves", detail.octaves);
+    io("scale", detail.scale);
+    io("hurst", detail.hurst);
+    io("fade", detail.fade);
+}
+
+template <typename IO> void Fields(IO& io, RasterAlbedoSpec& spec) {
+    io("path", spec.path);
+    io("bands", spec.bands);
+    io("scale", spec.scale);
+    io("offset", spec.offset);
+    io("resampling", spec.options.method);
+    io("detail", spec.options.detail);
+}
+
+template <typename IO> void Fields(IO& io, CraterRays& rays) {
+    io("enabled", rays.enabled);
+    io("count", rays.count);
+    io("length_coefficient", rays.lengthCoefficient);
+    io("length_exponent", rays.lengthExponent);
+    io("length_spread", rays.lengthSpread);
+    io("width_degrees", rays.widthDegrees);
+    io("excess", rays.excess);
+    io("patchiness", rays.patchiness);
+    io("patch_radii", rays.patchRadii);
+}
+
+template <typename IO> void Fields(IO& io, RayRetention& retention) {
+    io("small_diameter", retention.smallDiameter);
+    io("small_myr", retention.smallMyr);
+    io("mid_diameter", retention.midDiameter);
+    io("mid_myr", retention.midMyr);
+    io("large_diameter", retention.largeDiameter);
+    io("large_myr", retention.largeMyr);
+    io("scale", retention.scale);
+}
+
+template <typename IO> void Fields(IO& io, CraterAlbedoOptions& options) {
+    io("seed", options.seed);
+    io("min_diameter", options.minDiameter);
+    std::optional<double> maxDiameter;
+    if (std::isfinite(options.maxDiameter)) {
+        maxDiameter = options.maxDiameter;
+    }
+    io("max_diameter", maxDiameter);
+    options.maxDiameter = maxDiameter.value_or(std::numeric_limits<double>::infinity());
+    io("min_age_gyr", options.minAgeGyr);
+    std::optional<double> maxAge;
+    if (std::isfinite(options.maxAgeGyr)) {
+        maxAge = options.maxAgeGyr;
+    }
+    io("max_age_gyr", maxAge);
+    options.maxAgeGyr = maxAge.value_or(std::numeric_limits<double>::infinity());
+    io("manual", options.manual);
+    io("share", options.share);
+    io("background_maturity", options.backgroundMaturity);
+    io("max_maturity", options.maxMaturity);
+    io("interior_excess", options.interiorExcess);
+    io("ejecta_excess", options.ejectaExcess);
+    io("ejecta_exponent", options.ejectaExponent);
+    io("ejecta_reach_radii", options.ejectaReachRadii);
+    io("rays", options.rays);
+    io("retention", options.retention);
+    io("fade_exponent", options.fadeExponent);
+    io("origin_reflectance", options.originReflectance);
+    io("fade", options.fade);
+}
+
+template <typename IO> void Fields(IO& io, CraterAlbedoSpec& spec) {
+    io("crater_layer", spec.craterLayer);
+    Fields(io, spec.options);
+}
+
+template <typename IO> void Fields(IO& io, AlbedoSpec& spec) {
+    io("source", spec.source);
+    io("layers", spec.layers);
+}
+
 TerrainConfig ReadConfig(const Json& json) {
     Reader reader(json, "");
     if (!reader.Has("schema_version")) {
@@ -1139,6 +1257,7 @@ TerrainConfig ReadConfig(const Json& json) {
     reader("layers", config.layers);
     reader("filters", config.filters);
     reader("outputs", config.outputs);
+    reader("albedo", config.albedo);
     reader.Finish();
     return config;
 }
@@ -1175,6 +1294,9 @@ std::string ConfigToJson(const TerrainConfig& config, int indent) {
     json["layers"] = ToJson(config.layers);
     json["filters"] = ToJson(config.filters);
     json["outputs"] = ToJson(config.outputs);
+    if (config.albedo) {
+        json["albedo"] = ToJson(*config.albedo);
+    }
     return json.dump(indent) + "\n";
 }
 

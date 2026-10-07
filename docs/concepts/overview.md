@@ -14,6 +14,7 @@ builds one static library. A module depends only on the modules above it in this
 | `sources` | `terraingen::sources` | Where heights come from: synthetic terrain from layered noise | util, raster, noise |
 | `layers` | `terraingen::layers` | Relief added on top: craters (populations, profiles, ages, degradation, stamping), rocks, fine roughness, the bedrock exposure field, and pointwise transforms and regions | util, raster, noise, random, distribution |
 | `filters` | `terraingen::filters` | Transforms of the heights so far: crater rim smoothing | layers, raster |
+| `albedo` | `terraingen::albedo` | Surface albedo: orbital maps upscaled, synthetic colour, and bright crater ejecta and rays | layers, raster, noise, random, sources |
 | `bodies` | `terraingen::bodies` | Calibrations for particular bodies: the Moon's chronology, production, equilibrium, crater, rock and surface presets, and Mars's crater morphometry | distribution, layers |
 | `pipeline` | `terraingen::pipeline` | JSON terrain configs and the generation pipeline | all of the above |
 
@@ -115,6 +116,35 @@ centred there, and is safe to call from many threads, as a soil model querying g
 node does. Crater cells are kept in a bounded cache (`CraterCellCache`), so neighbouring tiles and
 points generate each cell once. Point queries cannot use the `max_craters` cap, which ranks craters over a
 whole grid, and run the source and layers only, since filters read neighbouring cells.
+
+## Albedo
+
+An `Albedo` is an `AlbedoSource` and a list of `AlbedoLayer`s, evaluated like a terrain over any grid
+(`EvaluateAlbedo`) or at a point (`EvaluateAlbedoAt`), to the same bits, as one band of reflectance or
+three (red, green, blue):
+
+- `RasterAlbedo` upscales a map, such as an orbital normal albedo mosaic: interpolated, then given detail
+  below its resolution as fractal noise that continues the map's own roughness, measured from its
+  structure function, octave by octave, fading with the sample spacing.
+- `SyntheticAlbedo` is a base colour in hue, saturation and value with a noise stack per channel, for
+  terrain without data; the default value is the 750 nm reflectance of a mature mare soil.
+- `CraterAlbedo` brightens the immature material of fresh craters from a `CraterLayer`: interiors,
+  continuous ejecta thinning outward as McGetchin et al. (1973) describe, and rays with the counts, widths
+  and lengths Elliott et al. (2018) mapped. Brightness is reckoned in Lucey et al.'s (2000) optical
+  maturity, with Tycho's values by default, and turned into reflectance along their maturity trend. It fades
+  with age over the ray retention times of Werner and Medvedev (2010), with a configurable fade shape.
+  Users choose which craters (diameter and age ranges, manual craters, a share), and distributions for the
+  ray count, length spread and width.
+
+In JSON, an "albedo" block holds a "synthetic" or "raster" source and "craters" layers, and the "albedo"
+output writes the bands as one GeoTIFF:
+
+```json
+"albedo": {"source": {"type": "synthetic", "value": 0.11,
+                      "value_noise": [{"wavelength": 300, "amplitude": 0.1}]},
+           "layers": [{"type": "craters", "min_diameter": 20}]},
+"outputs": [{"type": "albedo", "path": "albedo.tif"}]
+```
 
 ## Tiles and threads
 

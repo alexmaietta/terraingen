@@ -10,6 +10,7 @@ terraingen_add_library(
     tile_cache.cpp
     tiling.cpp
     PUBLIC
+    terraingen_albedo
     terraingen_bodies
     terraingen_distribution
     terraingen_filters

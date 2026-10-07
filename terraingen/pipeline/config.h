@@ -1,5 +1,8 @@
 #pragma once
 
+#include "terraingen/albedo/crater_albedo.h"
+#include "terraingen/albedo/raster_albedo.h"
+#include "terraingen/albedo/synthetic.h"
 #include "terraingen/bodies/moon/rocks.h"
 #include "terraingen/bodies/moon/specifications.h"
 #include "terraingen/distribution/piecewise_power_law.h"
@@ -387,17 +390,84 @@ struct BoulderModelsOutput {
     bool operator==(const BoulderModelsOutput&) const = default;
 };
 
-using OutputSpec =
-    std::variant<HeightmapOutput, CraterListOutput, RockListOutput, BoulderModelsOutput>;
+/// "albedo": writes the albedo (`TerrainConfig::albedo`) as a float32 GeoTIFF of one band, or of
+/// three (red, green, blue), with a raster source's projection.
+struct AlbedoOutput {
+    std::string path;
+    TiffCompression compression = TiffCompression::Lzw;  ///< None, Lzw or Deflate.
+    std::uint32_t tileSize = 256;
+    bool operator==(const AlbedoOutput&) const = default;
+};
+
+using OutputSpec = std::variant<HeightmapOutput, CraterListOutput, RockListOutput,
+                                BoulderModelsOutput, AlbedoOutput>;
+
+/// Albedo sources, named in JSON by their "type".
+///
+/// "synthetic": `SyntheticAlbedo`, a base colour with a noise stack per channel (each 0 to
+/// `kMaxNoiseLayers` layers), measured from the terrain source's reference point.
+struct SyntheticAlbedoSpec {
+    bool rgb = false;
+    double hue = 0.0;
+    double saturation = 0.0;
+    double value = SyntheticAlbedoParams{}.value;
+    std::vector<NoiseLayerConfig> hueNoise;
+    std::vector<NoiseLayerConfig> saturationNoise;
+    std::vector<NoiseLayerConfig> valueNoise;
+
+    /// The parameters, with each noise layer's Hurst exponent applied.
+    SyntheticAlbedoParams Params() const;
+
+    bool operator==(const SyntheticAlbedoSpec&) const = default;
+};
+
+/// "raster": `RasterAlbedo` from one or three `bands` (from 0) of a GeoTIFF in the terrain's
+/// projected coordinates, such as an orbital normal albedo map. Relative paths resolve against the
+/// configuration's folder. Samples are scaled as the file's GDAL metadata says, or by `scale` and
+/// `offset` when given, for maps stored as integers.
+struct RasterAlbedoSpec {
+    std::string path;
+    std::vector<std::size_t> bands{0};
+    std::optional<double> scale{};
+    std::optional<double> offset{};
+    RasterAlbedoOptions options{};
+
+    bool operator==(const RasterAlbedoSpec&) const = default;
+};
+
+using AlbedoSourceSpec = std::variant<SyntheticAlbedoSpec, RasterAlbedoSpec>;
+
+/// Albedo layers, named in JSON by their "type".
+///
+/// "craters": `CraterAlbedo`, bright ejecta and rays of the craters of the `craterLayer`th
+/// top-level crater layer (from 0), or of every top-level crater layer when unset.
+struct CraterAlbedoSpec {
+    std::optional<std::size_t> craterLayer;
+    CraterAlbedoOptions options{};
+
+    bool operator==(const CraterAlbedoSpec&) const = default;
+};
+
+using AlbedoLayerSpec = std::variant<CraterAlbedoSpec>;
+
+/// The albedo of the terrain: a source and the layers that change it, evaluated over the
+/// terrain's grid.
+struct AlbedoSpec {
+    AlbedoSourceSpec source{};
+    std::vector<AlbedoLayerSpec> layers;
+
+    bool operator==(const AlbedoSpec&) const = default;
+};
 
 /// Everything needed to generate a terrain: a source, the layers added to it in order, the filters
-/// applied after them in order, and the outputs to write.
+/// applied after them in order, the outputs to write, and optionally its albedo.
 struct TerrainConfig {
     int schemaVersion = kConfigSchemaVersion;
     SourceSpec source{};
     std::vector<LayerSpec> layers;
     std::vector<FilterSpec> filters;
     std::vector<OutputSpec> outputs;
+    std::optional<AlbedoSpec> albedo;  ///< None by default.
 
     bool operator==(const TerrainConfig&) const = default;
 };

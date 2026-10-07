@@ -1,5 +1,8 @@
 #include "terraingen/pipeline/run.h"
 
+#include "terraingen/albedo/crater_albedo.h"
+#include "terraingen/albedo/raster_albedo.h"
+#include "terraingen/albedo/synthetic.h"
 #include "terraingen/bodies/mars/craters.h"
 #include "terraingen/bodies/mars/production.h"
 #include "terraingen/bodies/moon/craters.h"
@@ -550,6 +553,87 @@ std::shared_ptr<const Source> BuildSource(const SourceSpec& spec,
                                            raster.offset);
 }
 
+std::size_t CraterLayerCount(const TerrainConfig& config) {
+    return static_cast<std::size_t>(
+        std::count_if(config.layers.begin(), config.layers.end(), [](const LayerSpec& layer) {
+            return std::holds_alternative<CraterLayerSpec>(layer);
+        }));
+}
+
+void ValidateAlbedo(const AlbedoSpec& albedo, std::size_t craterLayers,
+                    const std::filesystem::path& directory) {
+    if (const auto* synthetic = std::get_if<SyntheticAlbedoSpec>(&albedo.source)) {
+        ValidateLayers(synthetic->hueNoise, "albedo.source.hue_noise", true);
+        ValidateLayers(synthetic->saturationNoise, "albedo.source.saturation_noise", true);
+        ValidateLayers(synthetic->valueNoise, "albedo.source.value_noise", true);
+        At("albedo.source", [&] { ValidateSyntheticAlbedo(synthetic->Params()); });
+    } else {
+        const auto& raster = std::get<RasterAlbedoSpec>(albedo.source);
+        if (raster.path.empty()) {
+            throw ConfigError("albedo.source.path", "must not be empty");
+        }
+        if (raster.bands.size() != 1 && raster.bands.size() != kMaxAlbedoBands) {
+            throw ConfigError("albedo.source.bands", "needs 1 or 3 bands");
+        }
+        GeoTiffInfo info;
+        try {
+            info = ReadGeoTiffInfo(Resolve(raster.path, directory));
+        } catch (const GeoTiffError& error) {
+            throw ConfigError("albedo.source.path", error.what());
+        }
+        for (const std::size_t band : raster.bands) {
+            if (band >= info.bands) {
+                throw ConfigError("albedo.source.bands",
+                                  "the file has " + std::to_string(info.bands) +
+                                      (info.bands == 1 ? " band" : " bands"));
+            }
+        }
+        if (info.transform.rowRotation != 0.0 || info.transform.colRotation != 0.0) {
+            throw ConfigError("albedo.source.path", "rotated albedo maps are not supported");
+        }
+        if ((raster.scale && !std::isfinite(*raster.scale)) ||
+            (raster.offset && !std::isfinite(*raster.offset))) {
+            throw ConfigError("albedo.source.scale", "the scale and offset must be finite");
+        }
+        At("albedo.source.detail", [&] { ValidateAlbedoDetail(raster.options.detail); });
+    }
+    for (std::size_t i = 0; i < albedo.layers.size(); ++i) {
+        const std::string path = "albedo.layers[" + std::to_string(i) + "]";
+        const auto& craters = std::get<CraterAlbedoSpec>(albedo.layers[i]);
+        if (craterLayers == 0) {
+            throw ConfigError(path, "crater albedo needs a crater layer");
+        }
+        if (craters.craterLayer && *craters.craterLayer >= craterLayers) {
+            throw ConfigError(path + ".crater_layer",
+                              "there are " + std::to_string(craterLayers) + " crater layers");
+        }
+        At(path, [&] { ValidateCraterAlbedo(craters.options); });
+    }
+}
+
+/// The bands of a raster albedo map, scaled as its metadata or the spec says.
+std::vector<Raster<float>> LoadAlbedoBands(const RasterAlbedoSpec& spec,
+                                           const std::filesystem::path& directory) {
+    const std::filesystem::path path = Resolve(spec.path, directory);
+    const GeoTiffInfo info = ReadGeoTiffInfo(path);
+    std::vector<Raster<float>> bands;
+    for (const std::size_t band : spec.bands) {
+        Raster<float> raster = ReadGeoTiff(path, band).raster;
+        const BandScaling scaling{spec.scale.value_or(info.bandScaling[band].scale),
+                                  spec.offset.value_or(info.bandScaling[band].offset)};
+        if (!scaling.Identity()) {
+            for (float& value : raster.Values()) {
+                if (!raster.IsNoData(value)) {
+                    value = static_cast<float>(static_cast<double>(value) * scaling.scale +
+                                               scaling.offset);
+                }
+            }
+        }
+        bands.push_back(std::move(raster));
+    }
+    return bands;
+}
+
 /// The raster source whose grid `source` covers, if any: itself, or a chain's first source.
 const GeoTiffSource* GridRaster(const Source& source) {
     if (const auto* chain = dynamic_cast<const SourceChain*>(&source)) {
@@ -562,6 +646,22 @@ const GeoTiffSource* GridRaster(const Source& source) {
 
 RasterGrid DescribeSource(const SourceSpec& source, const std::filesystem::path& directory) {
     return DescribeSourceAt(source, directory, "source");
+}
+
+SyntheticAlbedoParams SyntheticAlbedoSpec::Params() const {
+    SyntheticAlbedoParams params;
+    params.rgb = rgb;
+    params.hue = hue;
+    params.saturation = saturation;
+    params.value = value;
+    for (const auto& [stack, layers] : {std::pair{&hueNoise, &params.hueNoise},
+                                        std::pair{&saturationNoise, &params.saturationNoise},
+                                        std::pair{&valueNoise, &params.valueNoise}}) {
+        for (const NoiseLayerConfig& layer : *stack) {
+            layers->push_back(layer.Effective());
+        }
+    }
+    return params;
 }
 
 void ValidateConfig(const TerrainConfig& config, const std::filesystem::path& directory) {
@@ -580,44 +680,95 @@ void ValidateConfig(const TerrainConfig& config, const std::filesystem::path& di
     }
     for (std::size_t i = 0; i < config.outputs.size(); ++i) {
         const std::string path = "outputs[" + std::to_string(i) + "]";
-        std::visit(Overloaded{
-                       [&](const CraterListOutput& output) {
-                           if (output.path.empty()) {
-                               throw ConfigError(path + ".path", "must not be empty");
-                           }
-                       },
-                       [&](const RockListOutput& output) {
-                           if (output.path.empty()) {
-                               throw ConfigError(path + ".path", "must not be empty");
-                           }
-                       },
-                       [&](const BoulderModelsOutput& output) {
-                           const std::string extension =
-                               std::filesystem::path(output.path).extension().string();
-                           if (extension != ".glb" && extension != ".ply") {
-                               throw ConfigError(path + ".path", "must end in .glb or .ply");
-                           }
-                           if (!(output.creaseAngle >= 0.0 && output.creaseAngle <= 180.0)) {
-                               throw ConfigError(path + ".crease_angle",
-                                                 "must be between 0 and 180 degrees");
-                           }
-                       },
-                       [&](const HeightmapOutput& output) {
-                           if (output.path.empty()) {
-                               throw ConfigError(path + ".path", "must not be empty");
-                           }
-                           if (output.compression == TiffCompression::PackBits) {
-                               throw ConfigError(path + ".compression",
-                                                 "packbits is read-only; use none, lzw or deflate");
-                           }
-                           if (output.tileSize == 0 || output.tileSize % 16 != 0) {
-                               throw ConfigError(path + ".tile_size",
-                                                 "must be a positive multiple of 16");
-                           }
-                       },
-                   },
-                   config.outputs[i]);
+        std::visit(
+            Overloaded{
+                [&](const CraterListOutput& output) {
+                    if (output.path.empty()) {
+                        throw ConfigError(path + ".path", "must not be empty");
+                    }
+                },
+                [&](const RockListOutput& output) {
+                    if (output.path.empty()) {
+                        throw ConfigError(path + ".path", "must not be empty");
+                    }
+                },
+                [&](const BoulderModelsOutput& output) {
+                    const std::string extension =
+                        std::filesystem::path(output.path).extension().string();
+                    if (extension != ".glb" && extension != ".ply") {
+                        throw ConfigError(path + ".path", "must end in .glb or .ply");
+                    }
+                    if (!(output.creaseAngle >= 0.0 && output.creaseAngle <= 180.0)) {
+                        throw ConfigError(path + ".crease_angle",
+                                          "must be between 0 and 180 degrees");
+                    }
+                },
+                [&](const AlbedoOutput& output) {
+                    if (!config.albedo) {
+                        throw ConfigError(path, "the configuration has no albedo");
+                    }
+                    if (output.path.empty()) {
+                        throw ConfigError(path + ".path", "must not be empty");
+                    }
+                    if (output.compression == TiffCompression::PackBits) {
+                        throw ConfigError(path + ".compression",
+                                          "packbits is read-only; use none, lzw or deflate");
+                    }
+                    if (output.tileSize == 0 || output.tileSize % 16 != 0) {
+                        throw ConfigError(path + ".tile_size", "must be a positive multiple of 16");
+                    }
+                },
+                [&](const HeightmapOutput& output) {
+                    if (output.path.empty()) {
+                        throw ConfigError(path + ".path", "must not be empty");
+                    }
+                    if (output.compression == TiffCompression::PackBits) {
+                        throw ConfigError(path + ".compression",
+                                          "packbits is read-only; use none, lzw or deflate");
+                    }
+                    if (output.tileSize == 0 || output.tileSize % 16 != 0) {
+                        throw ConfigError(path + ".tile_size", "must be a positive multiple of 16");
+                    }
+                },
+            },
+            config.outputs[i]);
     }
+    if (config.albedo) {
+        ValidateAlbedo(*config.albedo, CraterLayerCount(config), directory);
+    }
+}
+
+Albedo BuildAlbedo(const TerrainConfig& config, const Terrain& terrain,
+                   const std::filesystem::path& directory) {
+    if (!config.albedo) {
+        throw ConfigError("albedo", "the configuration has no albedo");
+    }
+    ValidateAlbedo(*config.albedo, CraterLayerCount(config), directory);
+    Albedo albedo;
+    if (const auto* synthetic = std::get_if<SyntheticAlbedoSpec>(&config.albedo->source)) {
+        albedo.source = std::make_shared<SyntheticAlbedo>(synthetic->Params(),
+                                                          terrain.source->ReferencePoint());
+    } else {
+        const auto& raster = std::get<RasterAlbedoSpec>(config.albedo->source);
+        albedo.source =
+            std::make_shared<RasterAlbedo>(LoadAlbedoBands(raster, directory), raster.options);
+    }
+    std::vector<std::shared_ptr<const CraterLayer>> craterLayers;
+    for (const auto& layer : terrain.layers) {
+        if (auto craters = std::dynamic_pointer_cast<const CraterLayer>(layer)) {
+            craterLayers.push_back(std::move(craters));
+        }
+    }
+    for (const AlbedoLayerSpec& spec : config.albedo->layers) {
+        const auto& craters = std::get<CraterAlbedoSpec>(spec);
+        for (std::size_t i = 0; i < craterLayers.size(); ++i) {
+            if (!craters.craterLayer || *craters.craterLayer == i) {
+                albedo.layers.push_back(
+                    std::make_shared<CraterAlbedo>(craterLayers[i], craters.options));
+            }
+        }
+    }
+    return albedo;
 }
 
 Terrain BuildTerrain(const TerrainConfig& config, const std::filesystem::path& directory) {
@@ -647,6 +798,11 @@ GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
     GeneratedTerrain generated{std::move(evaluated.heights), std::move(evaluated.features), {}};
     if (const GeoTiffSource* raster = GridRaster(*terrain.source)) {
         generated.geoKeys = raster->Keys();
+    }
+    if (config.albedo) {
+        const RasterGrid grid = RasterGrid::Of(generated.heights);
+        generated.albedo = EvaluateAlbedo(BuildAlbedo(config, terrain, directory), grid,
+                                          {.spacing = grid.PixelSize(), .threads = threads});
     }
     LogInfo("pipeline", "Generated ", generated.heights.Width(), "x", generated.heights.Height(),
             " terrain with ", generated.features.craters.Size(), " craters and ",
@@ -802,6 +958,12 @@ std::vector<std::filesystem::path> WriteOutputs(const TerrainConfig& config,
         if (const auto* heightmap = std::get_if<HeightmapOutput>(&spec)) {
             WriteGeoTiff(path, terrain.heights, terrain.geoKeys,
                          {.compression = heightmap->compression, .tileSize = heightmap->tileSize});
+        } else if (const auto* albedo = std::get_if<AlbedoOutput>(&spec)) {
+            if (terrain.albedo.empty()) {
+                throw std::runtime_error("No albedo to write to " + path.string());
+            }
+            WriteGeoTiff(path, terrain.albedo, terrain.geoKeys,
+                         {.compression = albedo->compression, .tileSize = albedo->tileSize});
         } else if (const auto* rocks = std::get_if<RockListOutput>(&spec)) {
             WriteRockList(terrain.features.rocks, path, rocks->format);
             LogInfo("pipeline", "Wrote ", terrain.features.rocks.size(), " rocks to ",

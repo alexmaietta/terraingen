@@ -1,0 +1,15 @@
+terraingen_add_library(
+    albedo
+    SOURCES
+    albedo.cpp
+    crater_albedo.cpp
+    maturity.cpp
+    raster_albedo.cpp
+    synthetic.cpp
+    PUBLIC
+    terraingen_layers
+    terraingen_noise
+    terraingen_random
+    terraingen_raster
+    terraingen_sources
+    terraingen_util)

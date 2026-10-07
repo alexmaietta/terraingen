@@ -236,6 +236,53 @@ TEST(ConfigJson, RoundTripsEveryModelType) {
     }
 }
 
+TEST(ConfigJson, RoundTripsAlbedos) {
+    TerrainConfig config;
+    terraingen::SyntheticAlbedoSpec synthetic;
+    synthetic.rgb = true;
+    synthetic.hue = 30.0;
+    synthetic.saturation = 0.1;
+    synthetic.value = 0.2;
+    synthetic.valueNoise = {terraingen::NoiseLayerConfig{{}, 0.8f}};
+    synthetic.hueNoise = {terraingen::NoiseLayerConfig{}};
+    terraingen::CraterAlbedoSpec craters;
+    craters.craterLayer = 1;
+    craters.options.maxDiameter = 5000.0;
+    craters.options.maxAgeGyr = 0.5;
+    craters.options.rays.count = {terraingen::ValueDistribution::Kind::Uniform, 4.0, 9.0};
+    craters.options.retention.largeMyr = 2000.0;
+    craters.options.fadeExponent = 2.0;
+    config.albedo = terraingen::AlbedoSpec{synthetic, {craters, terraingen::CraterAlbedoSpec{}}};
+    config.outputs = {
+        terraingen::AlbedoOutput{"albedo.tif", terraingen::TiffCompression::Deflate, 32}};
+    const std::string json = ConfigToJson(config);
+    EXPECT_EQ(ParseConfig(json), config) << json;
+    EXPECT_EQ(ConfigToJson(ParseConfig(json)), json);
+
+    terraingen::RasterAlbedoSpec raster{"wac.tif", {2, 1, 0}, 0.0001, 0.01, {}};
+    raster.options.method = terraingen::ResampleMethod::Bilinear;
+    raster.options.detail.hurst = 0.4;
+    raster.options.detail.octaves = 6;
+    config.albedo = terraingen::AlbedoSpec{raster, {}};
+    EXPECT_EQ(ParseConfig(ConfigToJson(config)), config);
+
+    const TerrainConfig parsed = ParseConfig(
+        R"({"schema_version": 1, "albedo": {"source": {"type": "synthetic"},
+            "layers": [{"type": "craters", "min_diameter": 100, "rays": {"enabled": false}}]}})");
+    ASSERT_TRUE(parsed.albedo);
+    const auto& layer = std::get<terraingen::CraterAlbedoSpec>(parsed.albedo->layers.at(0));
+    EXPECT_EQ(layer.options.minDiameter, 100.0);
+    EXPECT_FALSE(layer.options.rays.enabled);
+    EXPECT_EQ(layer.options.backgroundMaturity, 0.202);
+    EXPECT_FALSE(layer.craterLayer);
+    EXPECT_FALSE(ParseConfig(R"({"schema_version": 1})").albedo);
+    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "albedo": {"source": {"type": "map"}}})"),
+              "albedo.source.type");
+    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "albedo": {"layers": [{"type": "craters",
+              "rays": {"glow": 1}}]}})"),
+              "albedo.layers[0].rays.glow");
+}
+
 TEST(ConfigJson, OmittedKeysTakeDefaultsAndOmittedListsAreEmpty) {
     const TerrainConfig minimal = ParseConfig(R"({"schema_version": 1})");
     EXPECT_EQ(minimal.source, terraingen::SourceSpec{});

@@ -2,6 +2,11 @@
 
 /// The whole TerrainGen library.
 
+#include "terraingen/albedo/albedo.h"
+#include "terraingen/albedo/crater_albedo.h"
+#include "terraingen/albedo/maturity.h"
+#include "terraingen/albedo/raster_albedo.h"
+#include "terraingen/albedo/synthetic.h"
 #include "terraingen/bodies/mars/bedforms.h"
 #include "terraingen/bodies/mars/craters.h"
 #include "terraingen/bodies/mars/production.h"

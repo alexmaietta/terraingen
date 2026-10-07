@@ -895,3 +895,180 @@ TEST(GenerateTerrain, FillsARastersGapsFromTheSourcesChainedAfterIt) {
     EXPECT_EQ(error({{terraingen::ChainSourceSpec{{terraingen::FlatSourceSpec{1, 1, 1.0}}}}}),
               "source.sources[0].sources[0].width");
 }
+
+namespace {
+
+/// `Small` with a synthetic albedo and bright crater material from its crater layer.
+TerrainConfig WithAlbedo() {
+    TerrainConfig config = Small();
+    Craters(config).manual = {{10.0, -8.0, 30.0, 0.0, 77u, true}};
+    terraingen::SyntheticAlbedoSpec synthetic;
+    synthetic.rgb = true;
+    synthetic.saturation = 0.05;
+    synthetic.valueNoise = {terraingen::NoiseLayerConfig{}};
+    synthetic.valueNoise[0].layer.fractal.amplitude = 0.2f;
+    synthetic.valueNoise[0].layer.fractal.wavelength = 40.0f;
+    config.albedo = terraingen::AlbedoSpec{synthetic, {terraingen::CraterAlbedoSpec{}}};
+    return config;
+}
+
+}  // namespace
+
+TEST(ValidateConfig, ReportsAlbedoProblemsByPath) {
+    const auto error = [](auto mutate) {
+        TerrainConfig config = WithAlbedo();
+        mutate(config);
+        try {
+            ValidateConfig(config);
+        } catch (const ConfigError& e) {
+            return e.Path();
+        }
+        return std::string("valid");
+    };
+    const auto synthetic = [](TerrainConfig& c) -> terraingen::SyntheticAlbedoSpec& {
+        return std::get<terraingen::SyntheticAlbedoSpec>(c.albedo->source);
+    };
+    const auto craters = [](TerrainConfig& c) -> terraingen::CraterAlbedoSpec& {
+        return std::get<terraingen::CraterAlbedoSpec>(c.albedo->layers.at(0));
+    };
+    EXPECT_EQ(error([](TerrainConfig&) {}), "valid");
+    EXPECT_EQ(error([&](TerrainConfig& c) { synthetic(c).value = 2.0; }), "albedo.source");
+    EXPECT_EQ(error([&](TerrainConfig& c) {
+                  synthetic(c).hueNoise.assign(terraingen::kMaxNoiseLayers + 1, {});
+              }),
+              "albedo.source.hue_noise");
+    EXPECT_EQ(error([&](TerrainConfig& c) {
+                  synthetic(c).saturationNoise = {terraingen::NoiseLayerConfig{}};
+                  synthetic(c).saturationNoise[0].layer.fractal.octaves = 0;
+              }),
+              "albedo.source.saturation_noise[0]");
+    EXPECT_EQ(error([&](TerrainConfig& c) { synthetic(c).valueNoise[0].hurst = NAN; }),
+              "albedo.source.value_noise[0].hurst");
+    EXPECT_EQ(error([&](TerrainConfig& c) { craters(c).craterLayer = 1; }),
+              "albedo.layers[0].crater_layer");
+    EXPECT_EQ(error([&](TerrainConfig& c) { craters(c).options.share = 2.0; }), "albedo.layers[0]");
+    EXPECT_EQ(error([](TerrainConfig& c) { c.layers.pop_back(); }), "albedo.layers[0]");
+    EXPECT_EQ(error([](TerrainConfig& c) { c.albedo->source = terraingen::RasterAlbedoSpec{}; }),
+              "albedo.source.path");
+    EXPECT_EQ(error([](TerrainConfig& c) {
+                  c.albedo->source = terraingen::RasterAlbedoSpec{"x.tif", {0, 1}, {}, {}, {}};
+              }),
+              "albedo.source.bands");
+    EXPECT_EQ(error([](TerrainConfig& c) {
+                  c.albedo->source = terraingen::RasterAlbedoSpec{"missing.tif", {0}, {}, {}, {}};
+              }),
+              "albedo.source.path");
+    EXPECT_EQ(error([](TerrainConfig& c) {
+                  c.albedo.reset();
+                  c.outputs = {terraingen::AlbedoOutput{"a.tif"}};
+              }),
+              "outputs[0]");
+    EXPECT_EQ(error([](TerrainConfig& c) { c.outputs = {terraingen::AlbedoOutput{}}; }),
+              "outputs[0].path");
+    EXPECT_EQ(error([](TerrainConfig& c) {
+                  c.outputs = {
+                      terraingen::AlbedoOutput{"a.tif", terraingen::TiffCompression::PackBits}};
+              }),
+              "outputs[0].compression");
+    EXPECT_EQ(error([](TerrainConfig& c) {
+                  c.outputs = {
+                      terraingen::AlbedoOutput{"a.tif", terraingen::TiffCompression::Lzw, 10}};
+              }),
+              "outputs[0].tile_size");
+    TerrainConfig none = Small();
+    EXPECT_THROW(terraingen::BuildAlbedo(none, terraingen::BuildTerrain(none)), ConfigError);
+}
+
+TEST(GenerateTerrain, EvaluatesTheAlbedoAsTheLibraryDoes) {
+    const TerrainConfig config = WithAlbedo();
+    const auto generated = GenerateTerrain(config, {}, 3);
+    ASSERT_EQ(generated.albedo.size(), 3u);
+
+    const terraingen::Terrain terrain = terraingen::BuildTerrain(config);
+    const auto craters =
+        std::dynamic_pointer_cast<const terraingen::CraterLayer>(terrain.layers[1]);
+    ASSERT_TRUE(craters);
+    const auto& synthetic = std::get<terraingen::SyntheticAlbedoSpec>(config.albedo->source);
+    const terraingen::Albedo albedo{std::make_shared<terraingen::SyntheticAlbedo>(
+                                        synthetic.Params(), terrain.source->ReferencePoint()),
+                                    {std::make_shared<terraingen::CraterAlbedo>(craters)}};
+    const auto grid = terraingen::RasterGrid::Of(generated.heights);
+    const auto expected = terraingen::EvaluateAlbedo(albedo, grid, {.spacing = grid.PixelSize()});
+    for (std::size_t band = 0; band < 3; ++band) {
+        ExpectSameRaster(generated.albedo[band], expected[band]);
+    }
+    const terraingen::Albedo plain{albedo.source, {}};
+    const auto background = terraingen::EvaluateAlbedo(plain, grid, {.spacing = grid.PixelSize()});
+    const auto centre = generated.albedo[0].Transform().WorldToPixel(10.0, -8.0);
+    const auto col = static_cast<std::size_t>(centre.x);
+    const auto row = static_cast<std::size_t>(centre.y);
+    EXPECT_GT(generated.albedo[0](col, row), background[0](col, row));
+
+    TerrainConfig both = WithAlbedo();
+    both.layers.push_back(Craters(both));
+    std::get<terraingen::CraterAlbedoSpec>(both.albedo->layers[0]).craterLayer.reset();
+    EXPECT_EQ(terraingen::BuildAlbedo(both, terraingen::BuildTerrain(both)).layers.size(), 2u);
+    std::get<terraingen::CraterAlbedoSpec>(both.albedo->layers[0]).craterLayer = 1;
+    EXPECT_EQ(terraingen::BuildAlbedo(both, terraingen::BuildTerrain(both)).layers.size(), 1u);
+    EXPECT_TRUE(GenerateTerrain(Small()).albedo.empty());
+}
+
+TEST(WriteOutputs, WritesARasterAlbedoUpscaledWithTheSourceProjection) {
+    const auto folder = TempPath("terraingen_albedo");
+    WriteDem(folder, "dem.tif");
+    terraingen::Raster<float> map(10, 8);
+    map.SetTransform(terraingen::GeoTransform::NorthUp(1000.0, 2000.0, 20.0));
+    for (std::size_t i = 0; i < map.Size(); ++i) {
+        map.Values()[i] = static_cast<float>(1000 + 37 * (i % 11));
+    }
+    terraingen::WriteGeoTiff(folder / "map.tif", map, Keys());
+    TerrainConfig config = RasterConfig("dem.tif");
+    terraingen::RasterAlbedoSpec raster{"map.tif", {0}, 0.0001, 0.0, {}};
+    raster.options.detail.enabled = false;
+    config.albedo = terraingen::AlbedoSpec{raster, {}};
+    config.outputs = {terraingen::AlbedoOutput{"out/albedo.tif"}};
+    const auto terrain = GenerateTerrain(config, folder);
+    const auto written = terraingen::WriteOutputs(config, terrain, folder);
+    ASSERT_EQ(written.size(), 1u);
+    const auto read = terraingen::ReadGeoTiff(written[0]);
+    EXPECT_EQ(read.geoKeys, Keys());
+    EXPECT_EQ(read.raster.Transform(), terrain.heights.Transform());
+    const auto centre = read.raster.CellCenter(3, 4);
+    const float sampled =
+        terraingen::SampleRaster(map, centre.x, centre.y, terraingen::ResampleMethod::Cubic);
+    EXPECT_NEAR(read.raster(3, 4), 0.0001f * sampled, 1e-6f);
+    float lowest = 1.0f;
+    float highest = 0.0f;
+    for (const float value : read.raster.Values()) {
+        lowest = std::min(lowest, value);
+        highest = std::max(highest, value);
+    }
+    EXPECT_GT(lowest, 0.09f);
+    EXPECT_LT(highest, 0.15f);
+
+    const auto rejected = [&](terraingen::RasterAlbedoSpec spec) {
+        TerrainConfig bad = config;
+        bad.albedo->source = std::move(spec);
+        try {
+            ValidateConfig(bad, folder);
+        } catch (const ConfigError& error) {
+            return error.Path();
+        }
+        return std::string("valid");
+    };
+    EXPECT_EQ(rejected({"map.tif", {1}, {}, {}, {}}), "albedo.source.bands");
+    EXPECT_EQ(rejected({"map.tif", {0}, NAN, {}, {}}), "albedo.source.scale");
+    terraingen::RasterAlbedoSpec detail{"map.tif", {0}, {}, {}, {}};
+    detail.options.detail.octaves = 0;
+    EXPECT_EQ(rejected(detail), "albedo.source.detail");
+    terraingen::Raster<float> rotated = map;
+    rotated.SetTransform({1000.0, 20.0, 1.0, 2000.0, 0.0, -20.0});
+    terraingen::WriteGeoTiff(folder / "rotated.tif", rotated, Keys());
+    EXPECT_EQ(rejected({"rotated.tif", {0}, {}, {}, {}}), "albedo.source.path");
+
+    config.albedo->source = terraingen::RasterAlbedoSpec{"map.tif", {0}, {}, {}, {}};
+    EXPECT_NEAR(GenerateTerrain(config, folder).albedo[0](3, 4), sampled, 1e-3f);
+    config.albedo.reset();
+    EXPECT_THROW(terraingen::WriteOutputs(config, GenerateTerrain(Small()), folder),
+                 std::runtime_error);
+}
