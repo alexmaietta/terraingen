@@ -84,6 +84,25 @@ class Surface {
     /// turn takes every longitude, [-180, 180]. Longitudes are not wrapped.
     Bounds2d Expand(const Bounds2d& region, double metres) const;
 
+    /// Whether `region` holds `point`, half-open as `Bounds2d::Contains`; on a sphere a longitude
+    /// also counts 360 degrees either side, so boxes running past the antimeridian hold the points
+    /// beyond it, and a box reaching latitude 90 holds the north pole.
+    bool Contains(const Bounds2d& region, const Vec2d& point) const {
+        if (region.Contains(point.x, point.y)) {
+            return true;
+        }
+        if (kind_ == Kind::Plane) {
+            return false;
+        }
+        const Vec2d pole{point.x, point.y >= 90.0 && region.maxY >= 90.0 ? region.minY : point.y};
+        return region.Contains(pole.x, pole.y) || region.Contains(pole.x - 360.0, pole.y) ||
+               region.Contains(pole.x + 360.0, pole.y);
+    }
+
+    /// The 3D bucket of side `size` metres holding `point`, for hashing nearby features: on a
+    /// plane the z index is always 0.
+    void Bucket(const Vec2d& point, double size, long long& i, long long& j, long long& k) const;
+
     bool operator==(const Surface&) const = default;
 
   private:

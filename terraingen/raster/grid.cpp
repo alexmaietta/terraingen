@@ -35,4 +35,11 @@ Raster<float> RasterGrid::MakeRaster(float fill) const {
     return raster;
 }
 
+double RasterGrid::Spacing(const Surface& surface) const {
+    if (!surface.IsSphere()) {
+        return PixelSize();
+    }
+    return std::hypot(transform.rowRotation, transform.pixelHeight) * surface.UnitLength();
+}
+
 }  // namespace terraingen

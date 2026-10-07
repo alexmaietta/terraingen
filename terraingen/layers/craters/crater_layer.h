@@ -33,6 +33,9 @@ struct CraterLayerOptions {
     CraterApplyOptions apply{};
     /// Most craters to keep generated cells of (`CraterCellCache`); 0 regenerates cells every time.
     std::size_t cacheCraters = 4000000;
+    /// What the craters lie on, copied into `generation.surface` and `apply.surface`: on a sphere
+    /// they are generated in `CubeSphereCells` and placed by longitude and latitude.
+    Surface surface{};
 };
 
 /// Craters generated over the grid being evaluated and applied to it: `GenerateCraters` with
@@ -85,6 +88,7 @@ class CraterLayer final : public Layer {
   private:
     CraterModels models_;
     CraterLayerOptions options_;
+    std::shared_ptr<const SurfaceCells> cells_;
     std::shared_ptr<CraterCellCache> cache_;
 };
 

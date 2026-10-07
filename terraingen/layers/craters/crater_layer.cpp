@@ -23,6 +23,13 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options)
     ValidateCraterApplyOptions(options_.apply);
     options_.generation.marginRadii =
         models_.profile->ReachRadii() * MaxOutlineScale(options_.apply.irregularity);
+    options_.generation.surface = options_.surface;
+    options_.apply.surface = options_.surface;
+    if (options_.surface.IsSphere()) {
+        cells_ = std::make_shared<CubeSphereCells>(options_.surface.Radius());
+    } else {
+        cells_ = std::make_shared<PlanarCells>();
+    }
     if (options_.cacheCraters > 0) {
         cache_ = std::make_shared<CraterCellCache>(options_.cacheCraters);
     }
@@ -37,13 +44,13 @@ CraterList CraterLayer::Craters(const Bounds2d& region, double spacing) const {
         if (cache_) {
             generation.cellCraters = [this](const CraterBand& band, const CellIndex& cell) {
                 return cache_->Get(band.exponent, cell, [&] {
-                    return GenerateCellCraters(PlanarCells(), band, cell, *models_.density,
-                                               *models_.ages, options_.seed);
+                    return GenerateCellCraters(*cells_, band, cell, *models_.density, *models_.ages,
+                                               options_.seed);
                 });
             };
         }
-        return GenerateCraters(PlanarCells(), region, *models_.density, *models_.ages,
-                               options_.seed, generation);
+        return GenerateCraters(*cells_, region, *models_.density, *models_.ages, options_.seed,
+                               generation);
     }
     CraterList craters;
     for (std::size_t n = 0; n < generation.manual.Size(); ++n) {
@@ -53,7 +60,8 @@ CraterList CraterLayer::Craters(const Bounds2d& region, double spacing) const {
             crater.id = ManualCraterId(crater.x, crater.y, crater.diameter);
         }
         const double margin = 0.5 * generation.marginRadii * crater.diameter;
-        if (region.Expanded(margin).Contains(crater.x, crater.y)) {
+        if (options_.surface.Contains(options_.surface.Expand(region, margin),
+                                      {crater.x, crater.y})) {
             craters.Append(crater);
         }
     }
@@ -63,10 +71,10 @@ CraterList CraterLayer::Craters(const Bounds2d& region, double spacing) const {
 void CraterLayer::Apply(Raster<float>& heights, const LayerContext& context,
                         TerrainFeatures& features) const {
     const RasterGrid grid = RasterGrid::Of(heights);
-    const double resolved = std::max(context.spacing, grid.PixelSize());
+    const double resolved = std::max(context.spacing, grid.Spacing(options_.surface));
     const Bounds2d bounds = grid.Bounds();
     const double margin = DatumMargin(options_.apply, *models_.profile, MaxFeatureDiameter());
-    const CraterList craters = Craters(bounds.Expanded(margin), resolved);
+    const CraterList craters = Craters(options_.surface.Expand(bounds, margin), resolved);
     const HeightSampler ground =
         context.ground ? context.ground->Sampler(resolved) : HeightSampler{};
     ApplyCraters(heights, craters, *models_.profile, *models_.degradation, options_.apply, resolved,
@@ -113,8 +121,8 @@ float CraterLayer::ApplyAt(float height, double x, double y, const LayerContext&
     }
     constexpr double kInf = std::numeric_limits<double>::infinity();
     const double margin = DatumMargin(options_.apply, *models_.profile, MaxFeatureDiameter());
-    const Bounds2d point =
-        Bounds2d{x, y, std::nextafter(x, kInf), std::nextafter(y, kInf)}.Expanded(margin);
+    const Bounds2d point = options_.surface.Expand(
+        Bounds2d{x, y, std::nextafter(x, kInf), std::nextafter(y, kInf)}, margin);
     const CraterList craters = Craters(point, spacing);
     const CraterProfile& profile = *models_.profile;
     std::vector<CraterInfluence::Entry> resolvedCraters;
@@ -127,12 +135,12 @@ float CraterLayer::ApplyAt(float height, double x, double y, const LayerContext&
         }
     }
     const CraterInfluence influence(std::move(resolvedCraters), profile,
-                                    MaxOutlineScale(options_.apply.irregularity));
+                                    MaxOutlineScale(options_.apply.irregularity), options_.surface);
     const HeightSampler ground = datum ? context.ground->Sampler(spacing) : HeightSampler{};
     const auto& entries = influence.Entries();
     for (std::size_t k = 0; k < entries.size(); ++k) {
         const CraterInfluence::Entry& entry = entries[k];
-        if (CraterProfileDistance(entry.crater, entry.outline, x, y) >=
+        if (CraterProfileDistance(entry.crater, entry.outline, x, y, options_.surface) >=
             profile.ReachRadii() * 0.5 * entry.crater.diameter) {
             continue;
         }

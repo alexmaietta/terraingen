@@ -160,6 +160,7 @@ CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
         double countPerArea = 0.0;
     };
     const CraterSpacing& spacing = options.spacing;
+    const Surface& surface = options.surface;
     const auto candidateMargin = [&](double diameter) {
         if (!spacing.Enabled()) {
             return 0.5 * options.marginRadii * diameter;
@@ -176,7 +177,7 @@ CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
             continue;
         }
         const double margin = candidateMargin(band.high);
-        BandCells entry{band, cells.CellsCovering(region.Expanded(margin), band.cellSize),
+        BandCells entry{band, cells.CellsCovering(surface.Expand(region, margin), band.cellSize),
                         density.ExpectedCount(1.0, band.low, band.high)};
         double bandExpected = 0.0;
         for (const CellIndex& cell : entry.cells) {
@@ -205,8 +206,8 @@ CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
             }
             for (std::size_t n = 0; n < drawn->Size(); ++n) {
                 const Crater crater = drawn->At(n);
-                if (region.Expanded(candidateMargin(crater.diameter))
-                        .Contains(crater.x, crater.y)) {
+                if (surface.Contains(surface.Expand(region, candidateMargin(crater.diameter)),
+                                     {crater.x, crater.y})) {
                     craters.Append(crater);
                 }
             }
@@ -233,21 +234,23 @@ CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
         kept.Reserve(craters.Size());
         for (std::size_t n = 0; n < craters.Size(); ++n) {
             const Crater crater = craters.At(n);
-            if (n < generated || region.Expanded(0.5 * options.marginRadii * crater.diameter)
-                                     .Contains(crater.x, crater.y)) {
+            if (n < generated || surface.Contains(surface.Expand(region, 0.5 * options.marginRadii *
+                                                                             crater.diameter),
+                                                  {crater.x, crater.y})) {
                 kept.Append(crater);
             }
         }
         craters = std::move(kept);
     }
     if (spacing.Enabled()) {
-        const std::vector<bool> conflicts = SpacingConflicts(craters, spacing);
+        const std::vector<bool> conflicts = SpacingConflicts(craters, spacing, surface);
         CraterList kept;
         kept.Reserve(craters.Size());
         for (std::size_t n = 0; n < craters.Size(); ++n) {
             const Crater crater = craters.At(n);
-            if (!region.Expanded(0.5 * options.marginRadii * crater.diameter)
-                     .Contains(crater.x, crater.y)) {
+            if (!surface.Contains(
+                    surface.Expand(region, 0.5 * options.marginRadii * crater.diameter),
+                    {crater.x, crater.y})) {
                 continue;
             }
             if (conflicts[n]) {

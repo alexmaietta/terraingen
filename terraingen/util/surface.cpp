@@ -113,6 +113,14 @@ Vec2d Surface::PointOf(const Vec3d& direction) const {
     return {lon == -180.0 ? 180.0 : lon, lat};
 }
 
+void Surface::Bucket(const Vec2d& point, double size, long long& i, long long& j,
+                     long long& k) const {
+    const Vec3d p = Position(point);
+    i = static_cast<long long>(std::floor(p.x / size));
+    j = static_cast<long long>(std::floor(p.y / size));
+    k = static_cast<long long>(std::floor(p.z / size));
+}
+
 Bounds2d Surface::Expand(const Bounds2d& region, double metres) const {
     if (kind_ == Kind::Plane) {
         return region.Expanded(metres);

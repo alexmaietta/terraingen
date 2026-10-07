@@ -9,8 +9,10 @@ namespace terraingen {
 /// @throws std::invalid_argument unless `diameterRatio` >= 1 and `separation` >= 0 are finite.
 void ValidateCraterSpacing(const CraterSpacing& spacing);
 
-/// Whether `a` and `b` are similar in size and closer than `spacing` allows.
-bool CratersConflict(const Crater& a, const Crater& b, const CraterSpacing& spacing);
+/// Whether `a` and `b` are similar in size and closer than `spacing` allows, measured on
+/// `surface`.
+bool CratersConflict(const Crater& a, const Crater& b, const CraterSpacing& spacing,
+                     const Surface& surface = {});
 
 /// Whether `a` takes precedence over `b` when they conflict: a manual crater over a generated one,
 /// then the younger crater, which would have overprinted the older, then the larger, then the one
@@ -26,7 +28,8 @@ bool CraterTakesPrecedence(const Crater& a, const Crater& b);
 ///
 /// Reference: B. Matern, "Spatial Variation", Lecture Notes in Statistics 36, Springer, 1986.
 /// @throws std::invalid_argument for invalid `spacing`.
-std::vector<bool> SpacingConflicts(const CraterList& craters, const CraterSpacing& spacing);
+std::vector<bool> SpacingConflicts(const CraterList& craters, const CraterSpacing& spacing,
+                                   const Surface& surface = {});
 
 /// `craters` without those `SpacingConflicts` marks, in their original order.
 ///
@@ -34,7 +37,8 @@ std::vector<bool> SpacingConflicts(const CraterList& craters, const CraterSpacin
 /// for results that join across tiles, thin a list that extends `SpacingReach` beyond the region
 /// and crop afterwards (`GenerateCraters` does this when given `spacing`).
 /// @throws std::invalid_argument for invalid `spacing`.
-CraterList ThinBySpacing(const CraterList& craters, const CraterSpacing& spacing);
+CraterList ThinBySpacing(const CraterList& craters, const CraterSpacing& spacing,
+                         const Surface& surface = {});
 
 /// Farthest distance, in metres, at which a crater at most `diameter` metres across can conflict
 /// with another crater at most `maxDiameter` across.

@@ -98,6 +98,10 @@ struct CraterApplyOptions {
     CraterBlend blend{};
     /// Irregular, non-circular outlines; off by default.
     CraterIrregularity irregularity{};
+    /// What craters are shaped on: on a sphere, crater centres and rasters are in longitude and
+    /// latitude, and each crater is shaped in its local frame (`Surface::Offset`), with spacings in
+    /// metres.
+    Surface surface{};
 
     bool operator==(const CraterApplyOptions&) const = default;
 };
@@ -137,7 +141,7 @@ class CraterInfluence {
     /// `entries` in the order they are applied; `profile` must outlive the index. Footprints are
     /// widened by `outlineScale`, at least every entry's `CraterOutline::MaxScale`.
     CraterInfluence(std::vector<Entry> entries, const CraterProfile& profile,
-                    double outlineScale = 1.0);
+                    double outlineScale = 1.0, const Surface& surface = {});
 
     /// The sum of `resolution` times the profile height at (`x`, `y`) of the entries before entry
     /// `k` that reach it, in a fixed order that does not depend on which other craters the list
@@ -153,6 +157,7 @@ class CraterInfluence {
         int band;
         std::int64_t i;
         std::int64_t j;
+        std::int64_t k;
         bool operator==(const Key&) const = default;
     };
     struct KeyHash {
@@ -162,6 +167,7 @@ class CraterInfluence {
     std::vector<Entry> entries_;
     const CraterProfile& profile_;
     double outlineScale_ = 1.0;
+    Surface surface_;
     std::vector<int> bands_;
     std::unordered_map<Key, std::vector<std::size_t>, KeyHash> buckets_;
 };
@@ -181,8 +187,8 @@ double DatumMargin(const CraterApplyOptions& options, const CraterProfile& profi
 
 /// The distance from `crater`'s centre to (`x`, `y`) at which its round profile is read: the true
 /// distance over the stretch of its `outline` in that direction.
-double CraterProfileDistance(const Crater& crater, const CraterOutline& outline, double x,
-                             double y);
+double CraterProfileDistance(const Crater& crater, const CraterOutline& outline, double x, double y,
+                             const Surface& surface = {});
 
 /// `height` at (`x`, `y`) after `crater` in `state`, with weight `resolution`, `datum` (from
 /// `FitCraterDatum`) and `outline` (from `OutlineOf`): what `ApplyCraters` does to one cell, shared

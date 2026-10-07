@@ -3,6 +3,7 @@
 #include "terraingen/distribution/size_frequency.h"
 #include "terraingen/layers/craters/ages/age_model.h"
 #include "terraingen/util/cells.h"
+#include "terraingen/util/surface.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -168,6 +169,9 @@ struct CraterGenerationOptions {
     double minResolvedDiameter = 0.0;
     /// Where each cell's craters come from; empty draws them with `GenerateCellCraters`.
     CellCraterSource cellCraters{};
+    /// What the region and margins are measured on: on a sphere, regions are longitude and
+    /// latitude boxes and margins are metres, and `cells` must be `CubeSphereCells` of its radius.
+    Surface surface{};
 };
 
 /// The smallest diameter in [`dMin`, `dMax`) from which `density` expects about `count` craters

@@ -3,6 +3,7 @@
 #include "terraingen/raster/geo_transform.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/util/geometry.h"
+#include "terraingen/util/surface.h"
 
 #include <cstddef>
 
@@ -28,6 +29,10 @@ struct RasterGrid {
 
     /// Side of a cell: the square root of a cell's area.
     double PixelSize() const;
+
+    /// The grid's sample spacing in metres on `surface`: `PixelSize` on a plane, and on a sphere
+    /// the latitude step of a cell (its largest side) in metres.
+    double Spacing(const Surface& surface) const;
 
     /// A raster on this grid filled with `fill`.
     Raster<float> MakeRaster(float fill = 0.0f) const;
