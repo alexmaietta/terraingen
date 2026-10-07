@@ -12,6 +12,7 @@ terraingen_add_library(
     moon/specifications.cpp
     moon/steady_state.cpp
     moon/surface.cpp
+    radii.cpp
     PUBLIC
     terraingen_distribution
     terraingen_layers)

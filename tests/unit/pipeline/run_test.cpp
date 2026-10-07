@@ -1118,6 +1118,11 @@ TEST(ValidateConfig, ReportsSphereProblemsByPath) {
               }),
               "albedo.source.value_noise[0].basis");
     EXPECT_THROW(terraingen::BuildSurface(terraingen::SphereSurfaceSpec{-1.0}), ConfigError);
+    EXPECT_EQ(terraingen::BuildSurface(terraingen::SphereSurfaceSpec{0.0, terraingen::Body::Moon}),
+              terraingen::Surface::Sphere(1737400.0));
+    EXPECT_THROW(
+        terraingen::BuildSurface(terraingen::SphereSurfaceSpec{5.0, terraingen::Body::Moon}),
+        ConfigError);
 }
 
 TEST(GenerateTerrain, BuildsSphereTerrainsAndWritesGeographicRasters) {

@@ -5,6 +5,7 @@
 #include "terraingen/albedo/synthetic.h"
 #include "terraingen/bodies/moon/rocks.h"
 #include "terraingen/bodies/moon/specifications.h"
+#include "terraingen/bodies/radii.h"
 #include "terraingen/distribution/piecewise_power_law.h"
 #include "terraingen/filters/rim_smoothing.h"
 #include "terraingen/layers/bedforms.h"
@@ -506,9 +507,11 @@ struct PlaneSurfaceSpec {
 
 /// "sphere": a body of `radius` metres, such as a planet or moon; grids and positions are
 /// longitude and latitude in degrees, and features are generated over the whole body (`Surface`).
-/// The radius has no default: give the body's.
+/// Give the radius, or a `body` ("moon", "mars", "mercury") for its mean radius (`MeanRadius`),
+/// not both.
 struct SphereSurfaceSpec {
     double radius = 0.0;
+    std::optional<Body> body{};
     bool operator==(const SphereSurfaceSpec&) const = default;
 };
 

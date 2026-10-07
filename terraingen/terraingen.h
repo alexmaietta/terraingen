@@ -18,6 +18,7 @@
 #include "terraingen/bodies/moon/specifications.h"
 #include "terraingen/bodies/moon/steady_state.h"
 #include "terraingen/bodies/moon/surface.h"
+#include "terraingen/bodies/radii.h"
 #include "terraingen/distribution/golombek_rapp.h"
 #include "terraingen/distribution/log_polynomial.h"
 #include "terraingen/distribution/minimum.h"

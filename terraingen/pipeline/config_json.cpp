@@ -185,6 +185,14 @@ template <> struct EnumNames<DiffusivityModel> {
     }};
 };
 
+template <> struct EnumNames<Body> {
+    static constexpr std::array<std::pair<std::string_view, Body>, 3> kValues{{
+        {"moon", Body::Moon},
+        {"mars", Body::Mars},
+        {"mercury", Body::Mercury},
+    }};
+};
+
 template <> struct EnumNames<CraterBody> {
     static constexpr std::array<std::pair<std::string_view, CraterBody>, 2> kValues{{
         {"moon", CraterBody::Moon},
@@ -1223,6 +1231,7 @@ template <typename IO> void Fields(IO& /*io*/, PlaneSurfaceSpec& /*spec*/) {}
 
 template <typename IO> void Fields(IO& io, SphereSurfaceSpec& spec) {
     io("radius", spec.radius);
+    io("body", spec.body);
 }
 
 template <typename IO> void Fields(IO& io, AlbedoOutput& output) {

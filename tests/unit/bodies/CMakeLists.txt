@@ -3,6 +3,7 @@ terraingen_add_test_suite(
     SOURCES
     mars/craters_test.cpp
     mars/production_test.cpp
+    radii_test.cpp
     moon/chronology_test.cpp
     moon/craters_test.cpp
     moon/production_test.cpp

@@ -759,8 +759,15 @@ RasterGrid DescribeSource(const SourceSpec& source, const std::filesystem::path&
 
 Surface BuildSurface(const SurfaceSpec& spec) {
     if (const auto* sphere = std::get_if<SphereSurfaceSpec>(&spec)) {
+        if (sphere->body) {
+            if (sphere->radius != 0.0) {
+                throw ConfigError("surface.radius", "give a radius or a body, not both");
+            }
+            return BodySphere(*sphere->body);
+        }
         if (!(std::isfinite(sphere->radius) && sphere->radius > 0.0)) {
-            throw ConfigError("surface.radius", "must be positive; give the body's radius");
+            throw ConfigError("surface.radius",
+                              "must be positive; give the body's radius or a body");
         }
         return Surface::Sphere(sphere->radius);
     }

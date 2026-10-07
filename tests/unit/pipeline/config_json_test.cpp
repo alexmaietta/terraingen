@@ -302,6 +302,12 @@ TEST(ConfigJson, RoundTripsSurfacesAndFlatCentres) {
     EXPECT_TRUE(std::holds_alternative<terraingen::PlaneSurfaceSpec>(
         ParseConfig(R"({"schema_version": 1})").surface));
     EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "surface": {"type": "torus"}})"), "surface.type");
+    const TerrainConfig mars =
+        ParseConfig(R"({"schema_version": 1, "surface": {"type": "sphere", "body": "mars"}})");
+    EXPECT_EQ(std::get<terraingen::SphereSurfaceSpec>(mars.surface).body, terraingen::Body::Mars);
+    EXPECT_EQ(ParseConfig(ConfigToJson(mars)), mars);
+    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "surface": {"type": "sphere", "body": "pluto"}})"),
+              "surface.body");
 }
 
 TEST(ConfigJson, RoundTripsDiffusionDegradation) {
