@@ -25,4 +25,9 @@ namespace terraingen {
 /// @throws std::invalid_argument unless `sigmaPixels` is finite and not negative; 0 returns a copy.
 Raster<float> GaussianBlur(const Raster<float>& raster, double sigmaPixels);
 
+/// `GaussianBlur` with standard deviations `sigmaColumns` along rows and `sigmaRows` along
+/// columns, in pixels, as on a longitude-latitude grid where cells are narrower east to west.
+/// @throws std::invalid_argument unless both are finite and not negative; both 0 returns a copy.
+Raster<float> GaussianBlur(const Raster<float>& raster, double sigmaColumns, double sigmaRows);
+
 }  // namespace terraingen

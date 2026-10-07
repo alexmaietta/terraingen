@@ -2,6 +2,7 @@
 
 #include "terraingen/layers/ground.h"
 #include "terraingen/raster/raster.h"
+#include "terraingen/util/surface.h"
 
 #include <cstdint>
 
@@ -40,8 +41,10 @@ void ValidateExposureParams(const ExposureParams& params);
 /// grid, tile and point.
 class ExposureField {
   public:
+    /// On a sphere, the surroundings are read in each point's local frame and the floor patches
+    /// are 3D noise at the 3D point.
     /// @throws std::invalid_argument as `ValidateExposureParams`.
-    explicit ExposureField(const ExposureParams& params = {});
+    explicit ExposureField(const ExposureParams& params = {}, const Surface& surface = {});
 
     /// Share of bedrock at (`x`, `y`) in [0, 1]: 0 soil, 1 bedrock; 0 where the ground has no data.
     /// Points around it without data count as level with it.
@@ -56,8 +59,13 @@ class ExposureField {
         return params_;
     }
 
+    const Surface& GetSurface() const {
+        return surface_;
+    }
+
   private:
     ExposureParams params_;
+    Surface surface_;
 };
 
 }  // namespace terraingen

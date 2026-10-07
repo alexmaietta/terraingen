@@ -165,6 +165,22 @@ inline float PerlinNoise3(std::int32_t ix, std::int32_t iy, std::int32_t iz, flo
     return value < -1.0f ? -1.0f : (value > 1.0f ? 1.0f : value);
 }
 
+/// 3D improved Perlin gradient noise at (`x`, `y`, `z`) in lattice units given in double precision,
+/// split into an integer cell and a fraction before narrowing, so it stays exact far from the
+/// origin, such as on a planet's surface.
+///
+/// @return Noise in [-1, 1].
+inline float PerlinNoise3Precise(double x, double y, double z, std::uint32_t seed) {
+    const double cellX = std::floor(x);
+    const double cellY = std::floor(y);
+    const double cellZ = std::floor(z);
+    return PerlinNoise3(static_cast<std::int32_t>(static_cast<std::int64_t>(cellX)),
+                        static_cast<std::int32_t>(static_cast<std::int64_t>(cellY)),
+                        static_cast<std::int32_t>(static_cast<std::int64_t>(cellZ)),
+                        static_cast<float>(x - cellX), static_cast<float>(y - cellY),
+                        static_cast<float>(z - cellZ), seed);
+}
+
 /// 3D improved Perlin gradient noise at (`x`, `y`, `z`) in lattice units; see the cell-and-offset
 /// overload for the method and references.
 ///

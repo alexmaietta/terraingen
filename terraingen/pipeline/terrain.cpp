@@ -34,7 +34,7 @@ EvaluatedTerrain Evaluate(const Terrain& terrain, const RasterGrid& grid,
     if (!(std::isfinite(options.spacing) && options.spacing >= 0.0)) {
         throw std::invalid_argument("Sample spacing must be finite and not negative");
     }
-    const double resolved = std::max(options.spacing, grid.PixelSize());
+    const double resolved = std::max(options.spacing, grid.Spacing(terrain.surface));
     EvaluatedTerrain result{grid.MakeRaster(), {}};
     terrain.source->Fill(result.heights);
     for (std::size_t n = 0; n < terrain.layers.size(); ++n) {
@@ -65,22 +65,35 @@ EvaluatedTerrain EvaluateTile(const Terrain& terrain, const TileScheme& scheme, 
                               unsigned threads) {
     scheme.Validate();
     const RasterGrid tile = scheme.Grid(key);
-    const double spacing = tile.PixelSize();
-    const auto margin =
-        static_cast<std::size_t>(std::ceil(FilterMargin(terrain, spacing) / spacing));
-    if (margin == 0) {
+    const double spacing = tile.Spacing(terrain.surface);
+    const double metres = FilterMargin(terrain, spacing);
+    std::size_t marginRows = static_cast<std::size_t>(std::ceil(metres / spacing));
+    std::size_t marginColumns = marginRows;
+    if (terrain.surface.IsSphere() && metres > 0.0) {
+        const Bounds2d bounds = tile.Bounds();
+        const Bounds2d grown = terrain.surface.Expand(bounds, metres);
+        const double cell = tile.transform.pixelWidth;
+        marginColumns = static_cast<std::size_t>(
+            std::ceil(std::fmax(bounds.minX - grown.minX, grown.maxX - bounds.maxX) / cell));
+        marginColumns = std::min(marginColumns, static_cast<std::size_t>(std::ceil(360.0 / cell)));
+    }
+    if (marginRows == 0) {
         return Evaluate(terrain, tile, EvaluationOptions{spacing, threads});
     }
-    const Vec2d corner =
-        tile.transform.PixelToWorld(-static_cast<double>(margin), -static_cast<double>(margin));
-    const RasterGrid padded{tile.width + 2 * margin, tile.height + 2 * margin,
-                            GeoTransform::NorthUp(corner.x, corner.y, spacing)};
+    const std::size_t margin = marginRows;
+    const Vec2d corner = tile.transform.PixelToWorld(-static_cast<double>(marginColumns),
+                                                     -static_cast<double>(marginRows));
+    GeoTransform paddedTransform = tile.transform;
+    paddedTransform.originX = corner.x;
+    paddedTransform.originY = corner.y;
+    const RasterGrid padded{tile.width + 2 * marginColumns, tile.height + 2 * marginRows,
+                            paddedTransform};
     EvaluatedTerrain evaluated = Evaluate(terrain, padded, EvaluationOptions{spacing, threads});
     EvaluatedTerrain result{tile.MakeRaster(), std::move(evaluated.features)};
     result.heights.SetNoData(evaluated.heights.NoData());
     for (std::size_t row = 0; row < tile.height; ++row) {
         for (std::size_t col = 0; col < tile.width; ++col) {
-            result.heights(col, row) = evaluated.heights(col + margin, row + margin);
+            result.heights(col, row) = evaluated.heights(col + marginColumns, row + margin);
         }
     }
     return result;

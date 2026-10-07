@@ -16,6 +16,7 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace terraingen {
 
@@ -72,6 +73,27 @@ Window WindowAround(const Raster<float>& raster, double x, double y, double reac
     return {clampTo(std::floor(colMin), raster.Width()), clampTo(std::ceil(colMax), raster.Width()),
             clampTo(std::floor(rowMin), raster.Height()),
             clampTo(std::ceil(rowMax), raster.Height())};
+}
+
+/// The windows of `raster` within `reach` metres of (`x`, `y`): one on a plane, and on a sphere
+/// one for each turn the raster's longitudes cover.
+std::vector<Window> WindowsAround(const Raster<float>& raster, double x, double y, double reach,
+                                  const Surface& surface) {
+    if (!surface.IsSphere()) {
+        return {WindowAround(raster, x, y, reach)};
+    }
+    const Bounds2d box = surface.Expand({x, y, x, y}, reach);
+    const double cx = 0.5 * (box.minX + box.maxX);
+    const double cy = 0.5 * (box.minY + box.maxY);
+    const double half = std::fmax(0.5 * (box.maxX - box.minX), 0.5 * (box.maxY - box.minY));
+    std::vector<Window> windows;
+    for (const double shift : {-360.0, 0.0, 360.0}) {
+        const Window window = WindowAround(raster, cx + shift, cy, half);
+        if (window.col0 < window.col1 && window.row0 < window.row1) {
+            windows.push_back(window);
+        }
+    }
+    return windows;
 }
 
 /// Whether `distribution` may be evaluated from `low` to `high` metres.
@@ -229,8 +251,17 @@ std::shared_ptr<const SizeFrequencyDistribution> RockCandidates(const RockLayerO
     return std::make_shared<SummedSfd>(std::move(terms));
 }
 
-RockLayer::RockLayer(RockLayerOptions options, std::shared_ptr<const CraterLayer> craters)
-    : options_(std::move(options)), craters_(std::move(craters)) {
+RockLayer::RockLayer(RockLayerOptions options, std::shared_ptr<const CraterLayer> craters,
+                     Surface surface)
+    : options_(std::move(options)), craters_(std::move(craters)), surface_(surface) {
+    if (craters_ && !(craters_->Options().surface == surface_)) {
+        throw std::invalid_argument("A rock layer and its crater layer must share a surface");
+    }
+    if (surface_.IsSphere()) {
+        cells_ = std::make_shared<CubeSphereCells>(surface_.Radius());
+    } else {
+        cells_ = std::make_shared<PlanarCells>();
+    }
     candidates_ = RockCandidates(options_);
     minCraterDiameter_ = options_.ejecta.MinCraterDiameter();
     if (minCraterDiameter_ > 0.0 && !craters_) {
@@ -242,7 +273,7 @@ RockLayer::RockLayer(RockLayerOptions options, std::shared_ptr<const CraterLayer
         cache_ = std::make_shared<CraterCellCache>(options_.cacheRocks);
     }
     if (options_.exposure) {
-        exposure_.emplace(*options_.exposure);
+        exposure_.emplace(*options_.exposure, surface_);
     }
     shapes_ = std::make_shared<LruCache<std::uint64_t, BoulderShape>>(
         options_.shapePrototypes > 0 ? options_.shapePrototypes : 4096,
@@ -256,7 +287,12 @@ std::shared_ptr<const BoulderShape> RockLayer::Shape(const Rock& rock) const {
 
 TriangleMesh RockLayer::PlacedOnLevel(const Rock& rock) const {
     const auto shape = Shape(rock);
-    const BoulderPlacement placement = PlaceBoulder(rock, *shape, 0.0);
+    Rock local = rock;
+    if (surface_.IsSphere()) {
+        local.x = 0.0;
+        local.y = 0.0;
+    }
+    const BoulderPlacement placement = PlaceBoulder(local, *shape, 0.0);
     TriangleMesh mesh = shape->mesh;
     for (Vec3d& p : mesh.positions) {
         p = placement.Apply(p);
@@ -267,9 +303,15 @@ TriangleMesh RockLayer::PlacedOnLevel(const Rock& rock) const {
 float RockLayer::AddRelief(float height, double x, double y, const Rock& rock,
                            const TriangleMesh* placed, double weight) const {
     if (placed == nullptr) {
-        return AddRock(height, x, y, rock, weight);
+        return AddRock(height, x, y, rock, weight, surface_);
     }
-    const std::optional<double> top = TopSurface(*placed, x, y);
+    std::optional<double> top;
+    if (surface_.IsSphere()) {
+        const Vec2d offset = surface_.Offset({rock.x, rock.y}, {x, y});
+        top = TopSurface(*placed, offset.x, offset.y);
+    } else {
+        top = TopSurface(*placed, x, y);
+    }
     if (!top || !(*top > 0.0)) {
         return height;
     }
@@ -282,7 +324,7 @@ CraterList RockLayer::EjectaCraters(const Bounds2d& region) const {
     }
     const double margin = options_.ejecta.reach * 0.5 * craters_->MaxFeatureDiameter();
     const double spacing = minCraterDiameter_ / craters_->Options().apply.fade.startSamples;
-    const CraterList all = craters_->Craters(region.Expanded(margin), spacing);
+    const CraterList all = craters_->Craters(surface_.Expand(region, margin), spacing);
     CraterList large;
     for (std::size_t n = 0; n < all.Size(); ++n) {
         if (all.At(n).diameter >= minCraterDiameter_) {
@@ -297,13 +339,22 @@ RockAbundance RockLayer::Abundance(double x, double y, const Ground* ground,
     RockAbundance abundance;
     const RockPatches& patches = options_.patches;
     if (patches.spread > 1.0) {
-        const auto px = static_cast<float>(x / patches.size);
-        const auto py = static_cast<float>(y / patches.size);
         const std::uint32_t seed = options_.seed ^ kRockPatches;
-        const double noise = std::clamp(
-            2.5 * (0.7 * static_cast<double>(PerlinNoise2(px, py, seed)) +
-                   0.3 * static_cast<double>(PerlinNoise2(4.0f * px, 4.0f * py, seed + 1u))),
-            -1.0, 1.0);
+        double coarse = 0.0;
+        double fine = 0.0;
+        if (surface_.IsSphere()) {
+            const Vec3d p = surface_.Position({x, y});
+            const double s = 1.0 / patches.size;
+            coarse = static_cast<double>(PerlinNoise3Precise(s * p.x, s * p.y, s * p.z, seed));
+            fine = static_cast<double>(
+                PerlinNoise3Precise(4.0 * s * p.x, 4.0 * s * p.y, 4.0 * s * p.z, seed + 1u));
+        } else {
+            const auto px = static_cast<float>(x / patches.size);
+            const auto py = static_cast<float>(y / patches.size);
+            coarse = static_cast<double>(PerlinNoise2(px, py, seed));
+            fine = static_cast<double>(PerlinNoise2(4.0f * px, 4.0f * py, seed + 1u));
+        }
+        const double noise = std::clamp(2.5 * (0.7 * coarse + 0.3 * fine), -1.0, 1.0);
         abundance.background = std::pow(patches.spread, noise);
     }
     if (exposure_) {
@@ -329,7 +380,9 @@ RockAbundance RockLayer::Abundance(double x, double y, const Ground* ground,
                                                                          *eject.gravity) /
                                                         radius));
         }
-        const double rho = std::hypot(x - crater.x, y - crater.y) / radius;
+        const double rho = (surface_.IsSphere() ? surface_.Distance({crater.x, crater.y}, {x, y})
+                                                : std::hypot(x - crater.x, y - crater.y)) /
+                           radius;
         if (rho >= reach) {
             continue;
         }
@@ -388,6 +441,7 @@ std::vector<Rock> RockLayer::Rocks(const Bounds2d& region, double spacing,
     const FreshAges ages;
     CraterGenerationOptions generation{
         .dMin = options_.minDiameter, .dMax = options_.maxDiameter, .marginRadii = 1.0};
+    generation.surface = surface_;
     if (spacing > 0.0) {
         generation.minResolvedDiameter = options_.fade.startSamples * spacing;
     }
@@ -395,12 +449,12 @@ std::vector<Rock> RockLayer::Rocks(const Bounds2d& region, double spacing,
         generation.cellCraters = [this, seed, &ages](const CraterBand& band,
                                                      const CellIndex& cell) {
             return cache_->Get(band.exponent, cell, [&] {
-                return GenerateCellCraters(PlanarCells(), band, cell, *candidates_, ages, seed);
+                return GenerateCellCraters(*cells_, band, cell, *candidates_, ages, seed);
             });
         };
     }
     const CraterList candidates =
-        GenerateCraters(PlanarCells(), region, *candidates_, ages, seed, generation);
+        GenerateCraters(*cells_, region, *candidates_, ages, seed, generation);
     const CraterList ejecta = EjectaCraters(region);
     std::vector<Rock> rocks;
     for (std::size_t n = 0; n < candidates.Size(); ++n) {
@@ -441,9 +495,11 @@ std::vector<Rock> RockLayer::Rocks(const Bounds2d& region, double spacing,
     return rocks;
 }
 
-float AddRock(float height, double x, double y, const Rock& rock, double weight) {
-    const double dx = x - rock.x;
-    const double dy = y - rock.y;
+float AddRock(float height, double x, double y, const Rock& rock, double weight,
+              const Surface& surface) {
+    const Vec2d offset = surface.Offset({rock.x, rock.y}, {x, y});
+    const double dx = offset.x;
+    const double dy = offset.y;
     const double radius = 0.5 * rock.diameter;
     const double r2 = (dx * dx + dy * dy) / (radius * radius);
     if (r2 >= 1.0) {
@@ -456,7 +512,7 @@ float AddRock(float height, double x, double y, const Rock& rock, double weight)
 void RockLayer::Apply(Raster<float>& heights, const LayerContext& context,
                       TerrainFeatures& features) const {
     const RasterGrid grid = RasterGrid::Of(heights);
-    const double resolved = std::max(context.spacing, grid.PixelSize());
+    const double resolved = std::max(context.spacing, grid.Spacing(surface_));
     std::vector<Rock> rocks = Rocks(grid.Bounds(), resolved, context.ground);
     for (Rock& rock : rocks) {
         if (rock.model && !rock.ground) {
@@ -468,7 +524,7 @@ void RockLayer::Apply(Raster<float>& heights, const LayerContext& context,
     }
     if (options_.relief != RockRelief::None) {
         const bool shaped = options_.relief == RockRelief::Shape;
-        std::vector<Window> windows(rocks.size());
+        std::vector<std::vector<Window>> windows(rocks.size());
         std::vector<double> weights(rocks.size(), 0.0);
         std::vector<TriangleMesh> placed(shaped ? rocks.size() : 0);
         for (std::size_t n = 0; n < rocks.size(); ++n) {
@@ -483,12 +539,14 @@ void RockLayer::Apply(Raster<float>& heights, const LayerContext& context,
             if (shaped) {
                 placed[n] = PlacedOnLevel(rock);
                 const Box3d box = Bounds(placed[n]);
-                const double reach = std::fmax(
-                    std::fmax(std::fabs(box.min.x - rock.x), std::fabs(box.max.x - rock.x)),
-                    std::fmax(std::fabs(box.min.y - rock.y), std::fabs(box.max.y - rock.y)));
-                windows[n] = WindowAround(heights, rock.x, rock.y, reach);
+                const double cx = surface_.IsSphere() ? 0.0 : rock.x;
+                const double cy = surface_.IsSphere() ? 0.0 : rock.y;
+                const double reach =
+                    std::fmax(std::fmax(std::fabs(box.min.x - cx), std::fabs(box.max.x - cx)),
+                              std::fmax(std::fabs(box.min.y - cy), std::fabs(box.max.y - cy)));
+                windows[n] = WindowsAround(heights, rock.x, rock.y, reach, surface_);
             } else {
-                windows[n] = WindowAround(heights, rock.x, rock.y, 0.5 * rock.diameter);
+                windows[n] = WindowsAround(heights, rock.x, rock.y, 0.5 * rock.diameter, surface_);
             }
         }
         constexpr std::size_t kBandRows = 32;
@@ -500,17 +558,18 @@ void RockLayer::Apply(Raster<float>& heights, const LayerContext& context,
                 if (weights[n] == 0.0) {
                     continue;
                 }
-                const Window& window = windows[n];
                 const TriangleMesh* shape = shaped ? &placed[n] : nullptr;
-                for (std::size_t row = std::max(bandBegin, window.row0);
-                     row < std::min(bandEnd, window.row1); ++row) {
-                    for (std::size_t col = window.col0; col < window.col1; ++col) {
-                        float& cell = heights(col, row);
-                        if (heights.IsNoData(cell)) {
-                            continue;
+                for (const Window& window : windows[n]) {
+                    for (std::size_t row = std::max(bandBegin, window.row0);
+                         row < std::min(bandEnd, window.row1); ++row) {
+                        for (std::size_t col = window.col0; col < window.col1; ++col) {
+                            float& cell = heights(col, row);
+                            if (heights.IsNoData(cell)) {
+                                continue;
+                            }
+                            const Vec2d centre = heights.CellCenter(col, row);
+                            cell = AddRelief(cell, centre.x, centre.y, rocks[n], shape, weights[n]);
                         }
-                        const Vec2d centre = heights.CellCenter(col, row);
-                        cell = AddRelief(cell, centre.x, centre.y, rocks[n], shape, weights[n]);
                     }
                 }
             }
@@ -519,8 +578,13 @@ void RockLayer::Apply(Raster<float>& heights, const LayerContext& context,
     for (const Rock& rock : rocks) {
         if (rock.model && rock.ground) {
             const auto shape = Shape(rock);
+            Rock local = rock;
+            if (surface_.IsSphere()) {
+                local.x = 0.0;
+                local.y = 0.0;
+            }
             features.boulders.push_back({rock, BoulderShapeSeed(rock.id, options_.shapePrototypes),
-                                         shape, PlaceBoulder(rock, *shape, *rock.ground)});
+                                         shape, PlaceBoulder(local, *shape, *rock.ground)});
         }
     }
     features.rocks.insert(features.rocks.end(), rocks.begin(), rocks.end());

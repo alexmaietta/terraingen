@@ -136,6 +136,48 @@ CellIndex CubeSphereCells::CellOf(double lonDeg, double latDeg, double cellSize)
     return {static_cast<std::int32_t>(face) * n + index(kFaces[face].u), index(kFaces[face].v)};
 }
 
+std::vector<CellIndex> CubeSphereCells::Neighbours(const CellIndex& cell, double cellSize,
+                                                   int rings) const {
+    const std::int32_t n = CellsPerEdge(cellSize);
+    const std::int32_t face = cell.i / n;
+    const Face& f = kFaces[static_cast<std::size_t>(face)];
+    const std::int32_t col = cell.i % n;
+    const double step = 2.0 * kQuarter / static_cast<double>(n);
+    std::vector<CellIndex> cells;
+    for (std::int32_t dj = -rings; dj <= rings; ++dj) {
+        for (std::int32_t di = -rings; di <= rings; ++di) {
+            const std::int32_t c = col + di;
+            const std::int32_t r = cell.j + dj;
+            if (c >= 0 && c < n && r >= 0 && r < n) {
+                cells.push_back({face * n + c, r});
+                continue;
+            }
+            for (const double su : {0.1, 0.5, 0.9}) {
+                for (const double sv : {0.1, 0.5, 0.9}) {
+                    const double alpha = -kQuarter + (static_cast<double>(c) + su) * step;
+                    const double beta = -kQuarter + (static_cast<double>(r) + sv) * step;
+                    if (!(std::fabs(alpha) < 2.0 * kQuarter - step &&
+                          std::fabs(beta) < 2.0 * kQuarter - step)) {
+                        continue;
+                    }
+                    const double a = std::tan(alpha);
+                    const double b = std::tan(beta);
+                    const Vec3d p{f.normal.x + a * f.u.x + b * f.v.x,
+                                  f.normal.y + a * f.u.y + b * f.v.y,
+                                  f.normal.z + a * f.u.z + b * f.v.z};
+                    const Vec2d point = Surface::Sphere(radius_).PointOf(p);
+                    cells.push_back(CellOf(point.x, point.y, cellSize));
+                }
+            }
+        }
+    }
+    std::sort(cells.begin(), cells.end(), [](const CellIndex& x, const CellIndex& y) {
+        return x.i != y.i ? x.i < y.i : x.j < y.j;
+    });
+    cells.erase(std::unique(cells.begin(), cells.end()), cells.end());
+    return cells;
+}
+
 std::vector<CellIndex> CubeSphereCells::CellsCovering(const Bounds2d& region,
                                                       double cellSize) const {
     CheckCellSize(cellSize);
@@ -144,27 +186,34 @@ std::vector<CellIndex> CubeSphereCells::CellsCovering(const Bounds2d& region,
         throw std::invalid_argument("Region must be finite and not inverted");
     }
     const Surface sphere = Surface::Sphere(radius_);
-    const Bounds2d widened = sphere.Expand(region, cellSize);
-    const double step = cellSize / 8.0 / sphere.UnitLength();
-    const auto rows = static_cast<std::int64_t>(std::ceil((widened.maxY - widened.minY) / step));
-    std::vector<CellIndex> cells;
+    const Bounds2d box{region.minX, std::max(-90.0, region.minY), region.maxX,
+                       std::min(90.0, region.maxY)};
+    const double step = cellSize / 4.0 / sphere.UnitLength();
+    const auto rows = static_cast<std::int64_t>(std::ceil((box.maxY - box.minY) / step));
+    std::vector<CellIndex> seeds;
     for (std::int64_t r = 0; r <= rows; ++r) {
-        const double lat = std::min(widened.maxY, widened.minY + static_cast<double>(r) * step);
+        const double lat = std::min(box.maxY, box.minY + static_cast<double>(r) * step);
+        const double width = std::min(box.maxX - box.minX, 360.0);
         const double cosLat = std::cos(lat * kDegree);
-        const double width = widened.maxX - widened.minX;
-        const auto columns = cosLat * width / step < 1.0
-                                 ? std::int64_t{0}
-                                 : static_cast<std::int64_t>(std::ceil(width * cosLat / step));
+        const auto columns = static_cast<std::int64_t>(std::ceil(width * cosLat / step));
         for (std::int64_t c = 0; c <= columns; ++c) {
-            const double lon = columns == 0 ? widened.minX
-                                            : widened.minX + width * static_cast<double>(c) /
-                                                                 static_cast<double>(columns);
-            cells.push_back(CellOf(lon, lat, cellSize));
+            const double lon = columns == 0 ? box.minX
+                                            : box.minX + width * static_cast<double>(c) /
+                                                             static_cast<double>(columns);
+            seeds.push_back(CellOf(lon, lat, cellSize));
         }
     }
-    std::sort(cells.begin(), cells.end(), [](const CellIndex& a, const CellIndex& b) {
+    const auto order = [](const CellIndex& a, const CellIndex& b) {
         return a.i != b.i ? a.i < b.i : a.j < b.j;
-    });
+    };
+    std::sort(seeds.begin(), seeds.end(), order);
+    seeds.erase(std::unique(seeds.begin(), seeds.end()), seeds.end());
+    std::vector<CellIndex> cells;
+    for (const CellIndex& seed : seeds) {
+        const std::vector<CellIndex> around = Neighbours(seed, cellSize, 1);
+        cells.insert(cells.end(), around.begin(), around.end());
+    }
+    std::sort(cells.begin(), cells.end(), order);
     cells.erase(std::unique(cells.begin(), cells.end()), cells.end());
     return cells;
 }

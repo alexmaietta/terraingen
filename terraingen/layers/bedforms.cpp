@@ -15,6 +15,7 @@ namespace terraingen {
 namespace {
 
 constexpr std::uint32_t kBedformStream = 0x42454446u;
+constexpr std::uint32_t kBedformSphereStream = 0x42454453u;
 constexpr double kRadiusMin = 0.40;
 constexpr double kRadiusMax = 0.70;
 constexpr double kRagged = 0.30;
@@ -60,7 +61,8 @@ void ValidateBedformOptions(const BedformOptions& options) {
     ValidateResolutionFade(options.fade);
 }
 
-BedformLayer::BedformLayer(BedformOptions options) : options_(options) {
+BedformLayer::BedformLayer(BedformOptions options, Surface surface)
+    : options_(options), surface_(surface) {
     ValidateBedformOptions(options_);
     cell_ = options_.fieldSize / (kRadiusMin + kRadiusMax);
     const double meanArea = std::numbers::pi *
@@ -68,8 +70,50 @@ BedformLayer::BedformLayer(BedformOptions options) : options_(options) {
                             (3.0 * (kRadiusMax - kRadiusMin));
     density_ = std::min(1.0, -std::log1p(-options_.cover) / meanArea);
     if (options_.exposure) {
-        exposure_.emplace(*options_.exposure);
+        exposure_.emplace(*options_.exposure, surface_);
     }
+    if (surface_.IsSphere()) {
+        cells_.emplace(surface_.Radius());
+    }
+}
+
+void BedformLayer::AddField(Point& point, RandomStream& random, const Vec2d& centre,
+                            const Vec2d& offset, const Ground* ground) const {
+    const double barren = random.NextDouble();
+    const auto ox = static_cast<float>(97.0 * random.NextDouble());
+    const auto oy = static_cast<float>(97.0 * random.NextDouble());
+    const double radius = (kRadiusMin + (kRadiusMax - kRadiusMin) * random.NextDouble()) * cell_;
+    const double scale = kWavelengthMin + kWavelengthSpan * random.NextDouble();
+    const double azimuth =
+        options_.windAzimuth + options_.azimuthSpread * (2.0 * random.NextDouble() - 1.0);
+    const double phase = random.NextDouble();
+    const double dx = offset.x;
+    const double dy = offset.y;
+    const double rag = static_cast<double>(
+        PerlinNoise2(static_cast<float>(dx / (kRagRadii * radius)) + ox,
+                     static_cast<float>(dy / (kRagRadii * radius)) + oy, options_.seed));
+    const double inside = 1.0 - std::hypot(dx, dy) / (radius * (1.0 + kRagged * rag));
+    if (inside <= 0.0) {
+        return;
+    }
+    if (exposure_ &&
+        barren < exposure_->Exposure(*ground, centre.x, centre.y, options_.exposureSpacing)) {
+        return;
+    }
+    const double cover = Smoothstep(inside / kEdgeShare);
+    const double wavelength = options_.wavelength * scale;
+    const double wander = static_cast<double>(PerlinNoise2(
+        static_cast<float>(dx / (kWanderWavelengths * wavelength)) + oy,
+        static_cast<float>(dy / (kWanderWavelengths * wavelength)) + ox, options_.seed + 1u));
+    const double along = (dx * std::cos(azimuth) + dy * std::sin(azimuth)) / wavelength +
+                         options_.sinuosity * wander + phase;
+    const double t = along - std::floor(along);
+    const double upwind = 1.0 - options_.leeFraction;
+    const double profile =
+        t < upwind ? 0.5 * (1.0 - std::cos(std::numbers::pi * t / upwind))
+                   : 0.5 * (1.0 + std::cos(std::numbers::pi * (t - upwind) / options_.leeFraction));
+    point.cover += cover;
+    point.relief += cover * options_.height * scale * profile;
 }
 
 BedformLayer::Point BedformLayer::Evaluate(double x, double y, const Ground* ground) const {
@@ -79,6 +123,23 @@ BedformLayer::Point BedformLayer::Evaluate(double x, double y, const Ground* gro
     }
     if (exposure_ && ground == nullptr) {
         throw std::invalid_argument("Bedforms that read the exposure field need the ground");
+    }
+    if (cells_) {
+        const CellIndex home = cells_->CellOf(x, y, cell_);
+        for (const CellIndex& cell : cells_->Neighbours(home, cell_, 2)) {
+            RandomStream random(options_.seed, kBedformSphereStream,
+                                static_cast<std::uint32_t>(cell.i),
+                                static_cast<std::uint32_t>(cell.j));
+            const double chance = density_ * cells_->CellArea(cell, cell_) / (cell_ * cell_);
+            if (random.NextDouble() >= chance) {
+                continue;
+            }
+            const double u = random.NextDouble();
+            const double v = random.NextDouble();
+            const Vec2d centre = cells_->SamplePoint(u, v, cell, cell_);
+            AddField(point, random, centre, surface_.Offset(centre, {x, y}), ground);
+        }
+        return point;
     }
     const auto ix = static_cast<std::int64_t>(std::floor(x / cell_));
     const auto iy = static_cast<std::int64_t>(std::floor(y / cell_));
@@ -92,45 +153,7 @@ BedformLayer::Point BedformLayer::Evaluate(double x, double y, const Ground* gro
             }
             const double cx = (static_cast<double>(gx) + random.NextDouble()) * cell_;
             const double cy = (static_cast<double>(gy) + random.NextDouble()) * cell_;
-            const double barren = random.NextDouble();
-            const auto ox = static_cast<float>(97.0 * random.NextDouble());
-            const auto oy = static_cast<float>(97.0 * random.NextDouble());
-            const double radius =
-                (kRadiusMin + (kRadiusMax - kRadiusMin) * random.NextDouble()) * cell_;
-            const double scale = kWavelengthMin + kWavelengthSpan * random.NextDouble();
-            const double azimuth =
-                options_.windAzimuth + options_.azimuthSpread * (2.0 * random.NextDouble() - 1.0);
-            const double phase = random.NextDouble();
-            const double dx = x - cx;
-            const double dy = y - cy;
-            const double rag = static_cast<double>(
-                PerlinNoise2(static_cast<float>(dx / (kRagRadii * radius)) + ox,
-                             static_cast<float>(dy / (kRagRadii * radius)) + oy, options_.seed));
-            const double inside = 1.0 - std::hypot(dx, dy) / (radius * (1.0 + kRagged * rag));
-            if (inside <= 0.0) {
-                continue;
-            }
-            if (exposure_ &&
-                barren < exposure_->Exposure(*ground, cx, cy, options_.exposureSpacing)) {
-                continue;
-            }
-            const double cover = Smoothstep(inside / kEdgeShare);
-            const double wavelength = options_.wavelength * scale;
-            const double wander = static_cast<double>(
-                PerlinNoise2(static_cast<float>(dx / (kWanderWavelengths * wavelength)) + oy,
-                             static_cast<float>(dy / (kWanderWavelengths * wavelength)) + ox,
-                             options_.seed + 1u));
-            const double along = (dx * std::cos(azimuth) + dy * std::sin(azimuth)) / wavelength +
-                                 options_.sinuosity * wander + phase;
-            const double t = along - std::floor(along);
-            const double upwind = 1.0 - options_.leeFraction;
-            const double profile =
-                t < upwind
-                    ? 0.5 * (1.0 - std::cos(std::numbers::pi * t / upwind))
-                    : 0.5 *
-                          (1.0 + std::cos(std::numbers::pi * (t - upwind) / options_.leeFraction));
-            point.cover += cover;
-            point.relief += cover * options_.height * scale * profile;
+            AddField(point, random, {cx, cy}, {x - cx, y - cy}, ground);
         }
     }
     return point;
@@ -159,7 +182,7 @@ void BedformLayer::Apply(Raster<float>& heights, const LayerContext& context,
     if (exposure_ && context.ground == nullptr) {
         throw std::invalid_argument("Bedforms that read the exposure field need the ground");
     }
-    const double spacing = std::max(context.spacing, RasterGrid::Of(heights).PixelSize());
+    const double spacing = std::max(context.spacing, RasterGrid::Of(heights).Spacing(surface_));
     ParallelFor(heights.Height(), context.threads, [&](std::size_t row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
             float& cell = heights(col, row);

@@ -67,9 +67,9 @@ class CubeSphereCells final : public SurfaceCells {
     /// @throws std::invalid_argument unless `radius` is positive and finite.
     explicit CubeSphereCells(double radius);
 
-    /// Every cell with a point within its own size of `region` (longitudes may run past
-    /// [-180, 180]), found by sampling the region widened by a cell on a lattice an eighth of a
-    /// cell apart; sorted by i, then j. A cell reaching into `region` is always included.
+    /// Every cell reaching into `region` (longitudes may run past [-180, 180]), and some next to
+    /// them: the cells of points sampled over the region a quarter cell apart, with their
+    /// `Neighbours` one ring out; sorted by i, then j.
     std::vector<CellIndex> CellsCovering(const Bounds2d& region, double cellSize) const override;
 
     double CellArea(const CellIndex& cell, double cellSize) const override;
@@ -79,6 +79,12 @@ class CubeSphereCells final : public SurfaceCells {
 
     /// The cell holding the point at longitude `lonDeg` and latitude `latDeg`.
     CellIndex CellOf(double lonDeg, double latDeg, double cellSize) const;
+
+    /// `cell` and the cells up to `rings` steps from it along and across its face's rows and
+    /// columns, continuing onto the neighbouring faces past an edge (the cells of points spread
+    /// over each step past the edge on the face's extended plane), without repeats, sorted by i,
+    /// then j.
+    std::vector<CellIndex> Neighbours(const CellIndex& cell, double cellSize, int rings) const;
 
     /// Cells along each edge of a face for cells `cellSize` metres across.
     std::int32_t CellsPerEdge(double cellSize) const;

@@ -3,6 +3,8 @@
 #include "terraingen/layers/craters/apply.h"
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/layer.h"
+#include "terraingen/random/stream.h"
+#include "terraingen/util/cells.h"
 
 #include <cstdint>
 #include <optional>
@@ -48,8 +50,11 @@ void ValidateBedformOptions(const BedformOptions& options);
 /// with edges 30% ragged, thinning over their outer 35%, and crests wandering over 5 wavelengths.
 class BedformLayer final : public Layer {
   public:
+    /// On a sphere, fields are drawn in `CubeSphereCells` (each with a chance in proportion to its
+    /// area), shaped in their centres' local frames, and the wind azimuth is counter-clockwise from
+    /// local east.
     /// @throws std::invalid_argument for invalid options.
-    explicit BedformLayer(BedformOptions options);
+    explicit BedformLayer(BedformOptions options, Surface surface = {});
 
     /// @throws std::invalid_argument if the exposure field is enabled and `context.ground` is null.
     void Apply(Raster<float>& heights, const LayerContext& context,
@@ -73,12 +78,16 @@ class BedformLayer final : public Layer {
         double relief = 0.0;
     };
     Point Evaluate(double x, double y, const Ground* ground) const;
+    void AddField(Point& point, RandomStream& random, const Vec2d& centre, const Vec2d& offset,
+                  const Ground* ground) const;
     float Add(float height, double x, double y, double spacing, const Ground* ground) const;
 
     BedformOptions options_;
     double cell_ = 1.0;
     double density_ = 0.0;
     std::optional<ExposureField> exposure_;
+    Surface surface_;
+    std::optional<CubeSphereCells> cells_;
 };
 
 }  // namespace terraingen

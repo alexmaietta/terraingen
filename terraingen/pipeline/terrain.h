@@ -16,16 +16,21 @@ namespace terraingen {
 /// A terrain as a composition: heights from `source`, plus each of `layers` in order, then each of
 /// `filters` in order. Every part is a pure function of where it is evaluated, so a terrain can be
 /// evaluated over any grid on its source's lattice, such as a tile, at any sample spacing.
+///
+/// `surface` is what the terrain lies on; on a sphere, grids are in longitude and latitude and
+/// spacings in metres (`RasterGrid::Spacing`). The layers and filters must be built for the same
+/// surface.
 struct Terrain {
     std::shared_ptr<const Source> source;
     std::vector<std::shared_ptr<const Layer>> layers;
     std::vector<std::shared_ptr<const Filter>> filters;
+    Surface surface{};
 };
 
 /// How to evaluate a terrain over a grid.
 struct EvaluationOptions {
-    /// Sample spacing in world units; 0 means the grid's cell size, and a smaller value is raised
-    /// to it.
+    /// Sample spacing in metres; 0 means the grid's spacing on the terrain's surface, and a smaller
+    /// value is raised to it.
     double spacing = 0.0;
     /// Threads to split each layer and filter over; 0 for every hardware thread. The result does
     /// not depend on it.

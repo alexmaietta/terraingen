@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <numbers>
 #include <set>
@@ -219,4 +220,33 @@ TEST(CubeSphereCells, CoveringFindsEveryCellReachingTheRegion) {
     }
     EXPECT_THROW(cells.CellsCovering({0.0, 0.0, -1.0, 1.0}, size), std::invalid_argument);
     EXPECT_THROW(cells.CellsCovering({0.0, 0.0, NAN, 1.0}, size), std::invalid_argument);
+}
+
+TEST(CubeSphereCells, TwoRingsOfNeighboursHoldEveryPointWithinACellAcrossFacesAndCorners) {
+    const CubeSphereCells cells(kMoon);
+    const Surface moon = Surface::Sphere(kMoon);
+    const double size = 50000.0;
+    RandomStream random(11, 12);
+    const double corner = std::atan(1.0 / std::sqrt(2.0)) * 180.0 / std::numbers::pi;
+    std::vector<Vec2d> centres{{45.0, corner}, {-135.0, -corner}, {45.0, 0.0}, {0.0, 45.0}};
+    for (int k = 0; k < 300; ++k) {
+        centres.push_back(
+            {360.0 * random.NextDouble() - 180.0, 180.0 * random.NextDouble() - 90.0});
+    }
+    for (const Vec2d& centre : centres) {
+        const CellIndex home = cells.CellOf(centre.x, centre.y, size);
+        const std::vector<CellIndex> around = cells.Neighbours(home, size, 2);
+        EXPECT_TRUE(std::find(around.begin(), around.end(), home) != around.end());
+        for (int k = 0; k < 60; ++k) {
+            const double distance = 0.91 * size * std::sqrt(random.NextDouble());
+            const double azimuth = 2.0 * std::numbers::pi * random.NextDouble();
+            const Vec2d there =
+                moon.Locate(centre, {distance * std::sin(azimuth), distance * std::cos(azimuth)});
+            const CellIndex cell = cells.CellOf(there.x, there.y, size);
+            EXPECT_TRUE(std::find(around.begin(), around.end(), cell) != around.end())
+                << centre.x << " " << centre.y;
+        }
+    }
+    const std::vector<CellIndex> inner = cells.Neighbours({5, 5}, size, 1);
+    EXPECT_EQ(inner.size(), 9u);
 }

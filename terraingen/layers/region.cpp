@@ -7,8 +7,10 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <numbers>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 namespace terraingen {
 
@@ -24,7 +26,21 @@ float Blend(float height, float inner, double weight) {
 
 }  // namespace
 
-double RegionShape::DistanceOutside(double x, double y) const {
+double RegionShape::DistanceOutside(double x, double y, const Surface& surface) const {
+    if (surface.IsSphere()) {
+        if (kind == Kind::Circle) {
+            return std::fmax(0.0, surface.Distance(centre, {x, y}) - radius);
+        }
+        double best = std::numeric_limits<double>::infinity();
+        for (const double shift : {-360.0, 0.0, 360.0}) {
+            const double lon = x + shift;
+            const double dx = std::fmax(0.0, std::fmax(rectangle.minX - lon, lon - rectangle.maxX));
+            const double dy = std::fmax(0.0, std::fmax(rectangle.minY - y, y - rectangle.maxY));
+            const double cosLat = std::cos(y * std::numbers::pi / 180.0);
+            best = std::fmin(best, surface.UnitLength() * std::hypot(dx * cosLat, dy));
+        }
+        return best;
+    }
     if (kind == Kind::Circle) {
         return std::fmax(0.0, std::hypot(x - centre.x, y - centre.y) - radius);
     }
@@ -33,8 +49,11 @@ double RegionShape::DistanceOutside(double x, double y) const {
     return std::hypot(dx, dy);
 }
 
-Bounds2d RegionShape::Bounds() const {
+Bounds2d RegionShape::Bounds(const Surface& surface) const {
     if (kind == Kind::Circle) {
+        if (surface.IsSphere()) {
+            return surface.Expand({centre.x, centre.y, centre.x, centre.y}, radius);
+        }
         return {centre.x - radius, centre.y - radius, centre.x + radius, centre.y + radius};
     }
     return rectangle;
@@ -56,8 +75,8 @@ void ValidateRegionShape(const RegionShape& shape) {
 }
 
 RegionLayer::RegionLayer(std::shared_ptr<const Layer> inner, RegionShape shape, double feather,
-                         BlendShape blend)
-    : inner_(std::move(inner)), shape_(shape), feather_(feather), blend_(blend) {
+                         BlendShape blend, Surface surface)
+    : inner_(std::move(inner)), shape_(shape), feather_(feather), blend_(blend), surface_(surface) {
     if (!inner_) {
         throw std::invalid_argument("A region layer needs a layer to apply");
     }
@@ -68,7 +87,7 @@ RegionLayer::RegionLayer(std::shared_ptr<const Layer> inner, RegionShape shape, 
 }
 
 double RegionLayer::Weight(double x, double y) const {
-    const double distance = shape_.DistanceOutside(x, y);
+    const double distance = shape_.DistanceOutside(x, y, surface_);
     if (distance <= 0.0) {
         return 1.0;
     }
@@ -80,28 +99,42 @@ double RegionLayer::Weight(double x, double y) const {
 
 void RegionLayer::Apply(Raster<float>& heights, const LayerContext& context,
                         TerrainFeatures& features) const {
-    const Bounds2d reach = shape_.Bounds().Expanded(feather_);
+    const Bounds2d reach = surface_.Expand(shape_.Bounds(surface_), feather_);
     const GeoTransform& transform = heights.Transform();
-    double minCol = std::numeric_limits<double>::infinity();
-    double minRow = minCol;
-    double maxCol = -minCol;
-    double maxRow = -minCol;
-    for (const auto& [x, y] : std::array<Vec2d, 4>{{{reach.minX, reach.minY},
-                                                    {reach.minX, reach.maxY},
-                                                    {reach.maxX, reach.minY},
-                                                    {reach.maxX, reach.maxY}}}) {
-        const Vec2d pixel = transform.WorldToPixel(x, y);
-        minCol = std::fmin(minCol, pixel.x);
-        maxCol = std::fmax(maxCol, pixel.x);
-        minRow = std::fmin(minRow, pixel.y);
-        maxRow = std::fmax(maxRow, pixel.y);
-    }
     const auto width = static_cast<double>(heights.Width());
     const auto height = static_cast<double>(heights.Height());
-    const auto col0 = static_cast<std::size_t>(std::clamp(std::floor(minCol), 0.0, width));
-    const auto col1 = static_cast<std::size_t>(std::clamp(std::ceil(maxCol), 0.0, width));
-    const auto row0 = static_cast<std::size_t>(std::clamp(std::floor(minRow), 0.0, height));
-    const auto row1 = static_cast<std::size_t>(std::clamp(std::ceil(maxRow), 0.0, height));
+    std::size_t col0 = heights.Width();
+    std::size_t col1 = 0;
+    std::size_t row0 = heights.Height();
+    std::size_t row1 = 0;
+    const std::vector<double> shifts =
+        surface_.IsSphere() ? std::vector<double>{-360.0, 0.0, 360.0} : std::vector<double>{0.0};
+    for (const double shift : shifts) {
+        double minCol = std::numeric_limits<double>::infinity();
+        double minRow = minCol;
+        double maxCol = -minCol;
+        double maxRow = -minCol;
+        for (const auto& [x, y] : std::array<Vec2d, 4>{{{reach.minX + shift, reach.minY},
+                                                        {reach.minX + shift, reach.maxY},
+                                                        {reach.maxX + shift, reach.minY},
+                                                        {reach.maxX + shift, reach.maxY}}}) {
+            const Vec2d pixel = transform.WorldToPixel(x, y);
+            minCol = std::fmin(minCol, pixel.x);
+            maxCol = std::fmax(maxCol, pixel.x);
+            minRow = std::fmin(minRow, pixel.y);
+            maxRow = std::fmax(maxRow, pixel.y);
+        }
+        const auto c0 = static_cast<std::size_t>(std::clamp(std::floor(minCol), 0.0, width));
+        const auto c1 = static_cast<std::size_t>(std::clamp(std::ceil(maxCol), 0.0, width));
+        const auto r0 = static_cast<std::size_t>(std::clamp(std::floor(minRow), 0.0, height));
+        const auto r1 = static_cast<std::size_t>(std::clamp(std::ceil(maxRow), 0.0, height));
+        if (c0 < c1 && r0 < r1) {
+            col0 = std::min(col0, c0);
+            col1 = std::max(col1, c1);
+            row0 = std::min(row0, r0);
+            row1 = std::max(row1, r1);
+        }
+    }
     if (col0 >= col1 || row0 >= row1) {
         return;
     }
@@ -138,7 +171,7 @@ void RegionLayer::Apply(Raster<float>& heights, const LayerContext& context,
 
     for (std::size_t n = 0; n < placed.craters.Size(); ++n) {
         const Crater crater = placed.craters.At(n);
-        if (shape_.DistanceOutside(crater.x, crater.y) <= feather_) {
+        if (shape_.DistanceOutside(crater.x, crater.y, surface_) <= feather_) {
             features.craters.Append(crater);
             if (n < placed.craterAttributes.size()) {
                 features.craterAttributes.push_back(placed.craterAttributes[n]);
@@ -146,7 +179,7 @@ void RegionLayer::Apply(Raster<float>& heights, const LayerContext& context,
         }
     }
     for (const Rock& rock : placed.rocks) {
-        if (shape_.DistanceOutside(rock.x, rock.y) <= feather_) {
+        if (shape_.DistanceOutside(rock.x, rock.y, surface_) <= feather_) {
             features.rocks.push_back(rock);
         }
     }

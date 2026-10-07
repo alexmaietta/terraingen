@@ -5,13 +5,31 @@
 #include "terraingen/util/parallel.h"
 
 #include <cmath>
+#include <stdexcept>
 #include <utility>
 
 namespace terraingen {
 
-NoiseRelief::NoiseRelief(SyntheticTerrainParams params, Vec2d origin)
-    : params_(std::move(params)), origin_(origin) {
+NoiseRelief::NoiseRelief(SyntheticTerrainParams params, Vec2d origin, Surface surface)
+    : params_(std::move(params)), origin_(origin), surface_(surface) {
     ValidateSyntheticTerrain(params_);
+    if (surface_.IsSphere()) {
+        for (const NoiseLayer& layer : params_.layers) {
+            if (!HasBasisNoise3(layer.fractal.basis)) {
+                throw std::invalid_argument(
+                    "Noise on a sphere needs a basis with a 3D form: perlin or value");
+            }
+        }
+    }
+}
+
+float NoiseRelief::NoiseAt(double x, double y) const {
+    if (surface_.IsSphere()) {
+        const Vec3d p = surface_.Position({x, y});
+        return EvaluateNoiseLayers3(p.x, p.y, p.z, params_.layers.data(), params_.layers.size());
+    }
+    return EvaluateNoiseLayers(static_cast<float>(x - origin_.x), static_cast<float>(y - origin_.y),
+                               params_.layers.data(), params_.layers.size());
 }
 
 void NoiseRelief::Apply(Raster<float>& heights, const LayerContext& context,
@@ -24,9 +42,7 @@ void NoiseRelief::Apply(Raster<float>& heights, const LayerContext& context,
                 continue;
             }
             const Vec2d centre = heights.CellCenter(col, row);
-            cell += EvaluateNoiseLayers(static_cast<float>(centre.x - origin_.x),
-                                        static_cast<float>(centre.y - origin_.y),
-                                        params_.layers.data(), params_.layers.size());
+            cell += NoiseAt(centre.x, centre.y);
         }
     });
     LogInfo("layers", "Added ", params_.layers.size(),
@@ -39,9 +55,7 @@ float NoiseRelief::ApplyAt(float height, double x, double y,
     if (std::isnan(height)) {
         return height;
     }
-    return height + EvaluateNoiseLayers(static_cast<float>(x - origin_.x),
-                                        static_cast<float>(y - origin_.y), params_.layers.data(),
-                                        params_.layers.size());
+    return height + NoiseAt(x, y);
 }
 
 }  // namespace terraingen

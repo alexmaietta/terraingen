@@ -50,10 +50,13 @@ struct RasterAlbedoOptions {
 /// or where it has no data, the albedo is NaN.
 class RasterAlbedo final : public AlbedoSource {
   public:
-    /// `bands` are 1 or 3 rasters on one grid.
+    /// `bands` are 1 or 3 rasters on one grid. On a sphere (`surface`) the map is in longitude and
+    /// latitude, its cell size is its latitude step in metres, and the detail is 3D Perlin noise at
+    /// each point's 3D position.
     /// @throws std::invalid_argument for another band count, empty, rotated or mismatched rasters,
     /// or invalid options.
-    RasterAlbedo(std::vector<Raster<float>> bands, RasterAlbedoOptions options = {});
+    RasterAlbedo(std::vector<Raster<float>> bands, RasterAlbedoOptions options = {},
+                 Surface surface = {});
 
     std::size_t Bands() const override {
         return bands_.size();
@@ -79,6 +82,7 @@ class RasterAlbedo final : public AlbedoSource {
   private:
     std::vector<Raster<float>> bands_;
     RasterAlbedoOptions options_;
+    Surface surface_;
     double cell_ = 0.0;
     double hurst_ = 0.5;
     double roughness_ = 0.0;

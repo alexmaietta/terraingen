@@ -2,7 +2,9 @@
 
 #include "terraingen/layers/craters/apply.h"
 #include "terraingen/layers/layer.h"
+#include "terraingen/util/surface.h"
 
+#include <array>
 #include <cstdint>
 #include <vector>
 
@@ -42,6 +44,12 @@ void ValidateRoughnessOptions(const RoughnessOptions& options);
 /// in between it is interpolated from a table computed by Monte Carlo to about 0.1%.
 double PerlinStructureFunction(double r);
 
+/// The structure function of `PerlinNoise3` at a lag of `r` lattice units in a random 3D direction,
+/// as a surface cutting the lattice at a random angle sees it: about 0.4941 r^2 for small lags,
+/// levelling off at 0.14520 from about 4 lattice units, interpolated in between from a table
+/// computed by Monte Carlo (2^24 pairs per lag).
+double Perlin3StructureFunction(double r);
+
 /// Fine roughness added to the terrain: octaves of Perlin noise halving in wavelength from
 /// `maxWavelength` to `minWavelength`, with amplitudes growing as wavelength^H and scaled so that
 /// the RMS slope over `baseline` is `rmsSlope` when every octave is resolved. Each octave is
@@ -49,8 +57,13 @@ double PerlinStructureFunction(double r);
 /// coarse to resolve it, so coarse levels of detail see the same surface low-passed.
 class RoughnessLayer final : public Layer {
   public:
+    /// On a sphere each octave is 3D Perlin noise at the 3D point, its lattice turned by a uniform
+    /// random rotation (Shoemake 1992) and calibrated with `Perlin3StructureFunction`.
+    ///
+    /// Reference: K. Shoemake, "Uniform random rotations", in D. Kirk (ed.), Graphics Gems III,
+    /// Academic Press, 124-132, 1992.
     /// @throws std::invalid_argument for invalid options.
-    explicit RoughnessLayer(RoughnessOptions options);
+    explicit RoughnessLayer(RoughnessOptions options, Surface surface = {});
 
     void Apply(Raster<float>& heights, const LayerContext& context,
                TerrainFeatures& features) const override;
@@ -78,11 +91,14 @@ class RoughnessLayer final : public Layer {
         double offsetX;
         double offsetY;
         std::uint32_t seed;
+        std::array<double, 9> rotation{};
+        double offsetZ = 0.0;
     };
 
     float Roughness(double x, double y, double spacing) const;
 
     RoughnessOptions options_;
+    Surface surface_;
     std::vector<Octave> octaves_;
 };
 

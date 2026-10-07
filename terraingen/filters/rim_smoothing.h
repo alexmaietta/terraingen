@@ -53,15 +53,19 @@ void ValidateRimSmoothing(const RimSmoothing& smoothing);
 /// @throws std::invalid_argument as `ValidateRimSmoothing`, or for a negative or non-finite
 /// `spacing`.
 /// @throws std::domain_error if the raster's transform is not invertible.
+///
+/// On a sphere (`surface`), the raster is in longitude and latitude, `spacing` is in metres,
+/// distances are great-circle, and each crater's blur is narrower in columns by the cosine of its
+/// latitude, so it is round in metres.
 void SmoothCraterRims(Raster<float>& raster, const CraterList& craters,
                       const RimSmoothing& smoothing = {}, double spacing = 0.0,
-                      unsigned threads = 1);
+                      unsigned threads = 1, const Surface& surface = {});
 
 /// `SmoothCraterRims` over the craters the layers placed, at the evaluation's sample spacing.
 class RimSmoothingFilter final : public Filter {
   public:
     /// @throws std::invalid_argument as `ValidateRimSmoothing`.
-    explicit RimSmoothingFilter(const RimSmoothing& smoothing);
+    explicit RimSmoothingFilter(const RimSmoothing& smoothing, const Surface& surface = {});
 
     void Apply(Raster<float>& heights, double spacing,
                const TerrainFeatures& features) const override;
@@ -78,6 +82,7 @@ class RimSmoothingFilter final : public Filter {
 
   private:
     RimSmoothing smoothing_;
+    Surface surface_;
 };
 
 }  // namespace terraingen

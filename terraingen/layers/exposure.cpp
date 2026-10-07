@@ -40,7 +40,8 @@ void ValidateExposureParams(const ExposureParams& params) {
     }
 }
 
-ExposureField::ExposureField(const ExposureParams& params) : params_(params) {
+ExposureField::ExposureField(const ExposureParams& params, const Surface& surface)
+    : params_(params), surface_(surface) {
     ValidateExposureParams(params_);
 }
 
@@ -58,7 +59,8 @@ double ExposureField::Exposure(const Ground& ground, double x, double y, double 
     std::array<double, 8> heights{};
     double mean = 0.0;
     for (std::size_t k = 0; k < 8; ++k) {
-        const float there = ground.HeightAt(x + kEast[k] * reach, y + kNorth[k] * reach, spacing);
+        const Vec2d at = surface_.Locate({x, y}, {kEast[k] * reach, kNorth[k] * reach});
+        const float there = ground.HeightAt(at.x, at.y, spacing);
         heights[k] = static_cast<double>(std::isnan(there) ? here : there);
         mean += heights[k] / 8.0;
     }
@@ -68,13 +70,22 @@ double ExposureField::Exposure(const Ground& ground, double x, double y, double 
     double exposure = std::max(Share(rise, params_.riseSoil, params_.riseRock),
                                Share(slope, params_.slopeSoil, params_.slopeRock));
     if (params_.floorCover > 0.0) {
-        const auto px = static_cast<float>(x / params_.floorPatch);
-        const auto py = static_cast<float>(y / params_.floorPatch);
-        const double noise = std::clamp(
-            2.5 *
-                (0.7 * static_cast<double>(PerlinNoise2(px, py, params_.seed)) +
-                 0.3 * static_cast<double>(PerlinNoise2(4.0f * px, 4.0f * py, params_.seed + 1u))),
-            -1.0, 1.0);
+        double coarse = 0.0;
+        double fine = 0.0;
+        if (surface_.IsSphere()) {
+            const Vec3d p = surface_.Position({x, y});
+            const double s = 1.0 / params_.floorPatch;
+            coarse =
+                static_cast<double>(PerlinNoise3Precise(s * p.x, s * p.y, s * p.z, params_.seed));
+            fine = static_cast<double>(PerlinNoise3Precise(4.0 * s * p.x, 4.0 * s * p.y,
+                                                           4.0 * s * p.z, params_.seed + 1u));
+        } else {
+            const auto px = static_cast<float>(x / params_.floorPatch);
+            const auto py = static_cast<float>(y / params_.floorPatch);
+            coarse = static_cast<double>(PerlinNoise2(px, py, params_.seed));
+            fine = static_cast<double>(PerlinNoise2(4.0f * px, 4.0f * py, params_.seed + 1u));
+        }
+        const double noise = std::clamp(2.5 * (0.7 * coarse + 0.3 * fine), -1.0, 1.0);
         const double threshold = 1.0 - 2.0 * params_.floorCover;
         exposure = std::max(exposure, Share(noise, threshold - 0.2, threshold + 0.2));
     }

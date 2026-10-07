@@ -433,3 +433,56 @@ TEST(Evaluate, RocksFromCraterEjectaAndBedrockAgreeOnGridsTilesAndPoints) {
         }
     }
 }
+
+TEST(Evaluate, SphereTilesAndPointsEqualTheWholeTerrain) {
+    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
+    const double step = 4.0 / moon.UnitLength();
+    Terrain terrain;
+    terrain.surface = moon;
+    terrain.source = std::make_shared<terraingen::FlatSource>(96, 64, step, 0.0f);
+    terraingen::SyntheticTerrainParams noise;
+    noise.layers[0].fractal.wavelength = 400.0f;
+    noise.layers[0].fractal.amplitude = 6.0f;
+    terrain.layers.push_back(
+        std::make_shared<terraingen::NoiseRelief>(noise, terraingen::Vec2d{}, moon));
+    terraingen::CraterLayerOptions options;
+    options.seed = 4;
+    options.surface = moon;
+    options.generation.dMin = 12.0;
+    options.generation.dMax = 80.0;
+    terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(
+        terraingen::CraterModels{
+            std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
+            std::make_shared<terraingen::UniformAges>(1.0),
+            std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry),
+            std::make_shared<terraingen::FassettThomsonProfile>()},
+        options));
+    const auto whole = Evaluate(terrain, terrain.source->Grid());
+    EXPECT_GT(whole.features.craters.Size(), 3u);
+    for (const auto& [col, row] : {std::pair<std::size_t, std::size_t>{10, 10},
+                                   std::pair<std::size_t, std::size_t>{50, 33}}) {
+        const auto centre = whole.heights.CellCenter(col, row);
+        EXPECT_EQ(terraingen::EvaluateAt(terrain, centre.x, centre.y, 4.0),
+                  whole.heights(col, row));
+    }
+    terrain.filters.push_back(
+        std::make_shared<terraingen::RimSmoothingFilter>(terraingen::RimSmoothing{}, moon));
+    const RasterGrid large{200, 160, GeoTransform::NorthUp(-100.0 * step, 80.0 * step, step)};
+    const auto smoothed = Evaluate(terrain, large);
+    const terraingen::TileScheme scheme{{-48.0 * step, 32.0 * step}, 64.0 * step, 16};
+    for (const terraingen::TileKey key :
+         {terraingen::TileKey{2, 1, 1}, terraingen::TileKey{2, 2, 0}}) {
+        const auto tile = terraingen::EvaluateTile(terrain, scheme, key, 2);
+        const RasterGrid grid = scheme.Grid(key);
+        const auto offset =
+            large.transform.WorldToPixel(grid.transform.originX, grid.transform.originY);
+        const auto col0 = static_cast<std::size_t>(std::lround(offset.x));
+        const auto row0 = static_cast<std::size_t>(std::lround(offset.y));
+        for (std::size_t row = 0; row < grid.height; ++row) {
+            for (std::size_t col = 0; col < grid.width; ++col) {
+                ASSERT_NEAR(tile.heights(col, row), smoothed.heights(col0 + col, row0 + row), 1e-3)
+                    << col << " " << row;
+            }
+        }
+    }
+}

@@ -19,6 +19,7 @@ using terraingen::GeoTransform;
 using terraingen::RasterGrid;
 using terraingen::RayRetention;
 using terraingen::ReflectanceAtMaturity;
+using terraingen::Surface;
 using terraingen::SyntheticAlbedo;
 using terraingen::SyntheticAlbedoParams;
 using terraingen::ValueDistribution;
@@ -288,4 +289,54 @@ TEST(CraterAlbedo, RejectsInvalidOptions) {
                      .layers[0]
                      ->ApplyAt(*std::make_unique<AlbedoSample>(), 1, 0.0, 0.0, {.spacing = 0.0}),
                  std::invalid_argument);
+}
+
+TEST(CraterAlbedo, WorksOnASphereInMetres) {
+    const Surface moon = Surface::Sphere(1737400.0);
+    terraingen::CraterLayerOptions sphereOptions;
+    sphereOptions.generate = false;
+    sphereOptions.surface = moon;
+    sphereOptions.generation.manual.Append({179.99, -20.0, 2000.0, 0.0, 9u, true});
+    const auto sphereCraters = std::make_shared<terraingen::CraterLayer>(
+        terraingen::CraterModels{
+            std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
+            std::make_shared<terraingen::FreshAges>(),
+            std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry),
+            std::make_shared<terraingen::FassettThomsonProfile>()},
+        sphereOptions);
+    const CraterAlbedo sphere(sphereCraters);
+    const CraterAlbedo plane(Craters({{0.0, 0.0, 2000.0, 0.0, 9u, true}}));
+    const Crater onSphere = sphereCraters->Options().generation.manual.At(0);
+    const Crater onPlane{0.0, 0.0, 2000.0, 0.0, 9u, true};
+    for (const double distance : {0.0, 600.0, 1400.0, 2500.0, 5000.0}) {
+        for (const double azimuth : {0.1, 1.9, 3.7, 5.2}) {
+            const terraingen::Vec2d offset{distance * std::sin(azimuth),
+                                           distance * std::cos(azimuth)};
+            const terraingen::Vec2d at = moon.Locate({179.99, -20.0}, offset);
+            EXPECT_NEAR(sphere.Excess(onSphere, at.x, at.y, 1.0),
+                        plane.Excess(onPlane, offset.x, offset.y, 1.0), 1e-6);
+        }
+    }
+    SyntheticAlbedoParams params;
+    params.value = 0.11;
+    const Albedo albedo{std::make_shared<SyntheticAlbedo>(params, terraingen::Vec2d{}, moon),
+                        {std::make_shared<CraterAlbedo>(sphereCraters)},
+                        moon};
+    const double step = 50.0 / moon.UnitLength();
+    const RasterGrid grid{120, 80,
+                          GeoTransform::NorthUp(179.99 - 60.0 * step, -20.0 + 40.0 * step, step)};
+    const auto bands = EvaluateAlbedo(albedo, grid, {.spacing = 0.0, .threads = 0});
+    int bright = 0;
+    for (std::size_t row = 0; row < 80; ++row) {
+        for (std::size_t col = 0; col < 120; ++col) {
+            bright += bands[0](col, row) > 0.1101f ? 1 : 0;
+        }
+    }
+    EXPECT_GT(bright, 100);
+    for (const auto& [col, row] : {std::pair<std::size_t, std::size_t>{60, 40},
+                                   std::pair<std::size_t, std::size_t>{100, 10}}) {
+        const auto centre = bands[0].CellCenter(col, row);
+        EXPECT_EQ(EvaluateAlbedoAt(albedo, centre.x, centre.y, {.spacing = 50.0})[0],
+                  bands[0](col, row));
+    }
 }

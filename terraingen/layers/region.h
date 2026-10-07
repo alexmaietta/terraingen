@@ -24,11 +24,14 @@ struct RegionShape {
         return {Kind::Circle, {}, centre, radius};
     }
 
-    /// How far (`x`, `y`) lies outside the shape; 0 inside it.
-    double DistanceOutside(double x, double y) const;
+    /// How far (`x`, `y`) lies outside the shape, in metres on `surface`; 0 inside it. On a sphere
+    /// a circle's centre is a longitude and latitude and its radius metres, and a rectangle is a
+    /// longitude-latitude box whose distance is measured in the point's local frame, east
+    /// shortened by the cosine of latitude (an approximation for feathers small against the body).
+    double DistanceOutside(double x, double y, const Surface& surface = {}) const;
 
-    /// The smallest box holding the shape.
-    Bounds2d Bounds() const;
+    /// The smallest box holding the shape, in `surface`'s coordinates.
+    Bounds2d Bounds(const Surface& surface = {}) const;
 
     bool operator==(const RegionShape&) const = default;
 };
@@ -49,7 +52,7 @@ class RegionLayer final : public Layer {
     /// @throws std::invalid_argument for a null `inner`, an invalid `shape`, or a negative or
     /// non-finite `feather`.
     RegionLayer(std::shared_ptr<const Layer> inner, RegionShape shape, double feather = 0.0,
-                BlendShape blend = BlendShape::Smoothstep);
+                BlendShape blend = BlendShape::Smoothstep, Surface surface = {});
 
     void Apply(Raster<float>& heights, const LayerContext& context,
                TerrainFeatures& features) const override;
@@ -74,6 +77,7 @@ class RegionLayer final : public Layer {
     RegionShape shape_;
     double feather_;
     BlendShape blend_;
+    Surface surface_;
 };
 
 }  // namespace terraingen

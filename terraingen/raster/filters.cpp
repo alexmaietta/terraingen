@@ -10,6 +10,9 @@ namespace terraingen {
 namespace {
 
 std::vector<double> GaussianKernel(double sigma) {
+    if (sigma == 0.0) {
+        return {1.0};
+    }
     const auto radius = static_cast<std::ptrdiff_t>(std::ceil(3.0 * sigma));
     std::vector<double> kernel(static_cast<std::size_t>(2 * radius + 1));
     for (std::ptrdiff_t i = -radius; i <= radius; ++i) {
@@ -49,11 +52,16 @@ std::vector<double> Convolve(const std::vector<double>& values, std::size_t widt
 }  // namespace
 
 Raster<float> GaussianBlur(const Raster<float>& raster, double sigmaPixels) {
-    if (!(std::isfinite(sigmaPixels) && sigmaPixels >= 0.0)) {
+    return GaussianBlur(raster, sigmaPixels, sigmaPixels);
+}
+
+Raster<float> GaussianBlur(const Raster<float>& raster, double sigmaColumns, double sigmaRows) {
+    if (!(std::isfinite(sigmaColumns) && sigmaColumns >= 0.0 && std::isfinite(sigmaRows) &&
+          sigmaRows >= 0.0)) {
         throw std::invalid_argument("Gaussian sigma must be finite and not negative");
     }
     Raster<float> result = raster;
-    if (sigmaPixels == 0.0 || raster.Empty()) {
+    if ((sigmaColumns == 0.0 && sigmaRows == 0.0) || raster.Empty()) {
         return result;
     }
     const std::size_t width = raster.Width();
@@ -66,11 +74,12 @@ Raster<float> GaussianBlur(const Raster<float>& raster, double sigmaPixels) {
         mask[i] = valid ? 1.0 : 0.0;
         weighted[i] = valid ? static_cast<double>(value) : 0.0;
     }
-    const std::vector<double> kernel = GaussianKernel(sigmaPixels);
+    const std::vector<double> across = GaussianKernel(sigmaColumns);
+    const std::vector<double> down = GaussianKernel(sigmaRows);
     const std::vector<double> numerator =
-        Convolve(Convolve(weighted, width, height, kernel, true), width, height, kernel, false);
+        Convolve(Convolve(weighted, width, height, across, true), width, height, down, false);
     const std::vector<double> denominator =
-        Convolve(Convolve(mask, width, height, kernel, true), width, height, kernel, false);
+        Convolve(Convolve(mask, width, height, across, true), width, height, down, false);
     for (std::size_t i = 0; i < raster.Size(); ++i) {
         if (mask[i] > 0.0) {
             result.Values()[i] = static_cast<float>(numerator[i] / denominator[i]);

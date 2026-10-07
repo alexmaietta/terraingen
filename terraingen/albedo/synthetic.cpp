@@ -20,12 +20,6 @@ void ValidateStack(const std::vector<NoiseLayer>& layers) {
     }
 }
 
-double Noise(const std::vector<NoiseLayer>& layers, float x, float y) {
-    return layers.empty()
-               ? 0.0
-               : static_cast<double>(EvaluateNoiseLayers(x, y, layers.data(), layers.size()));
-}
-
 }  // namespace
 
 void ValidateSyntheticAlbedo(const SyntheticAlbedoParams& params) {
@@ -65,22 +59,45 @@ AlbedoSample HsvToRgb(double hue, double saturation, double value) {
     }
 }
 
-SyntheticAlbedo::SyntheticAlbedo(SyntheticAlbedoParams params, Vec2d origin)
-    : params_(std::move(params)), origin_(origin) {
+SyntheticAlbedo::SyntheticAlbedo(SyntheticAlbedoParams params, Vec2d origin, Surface surface)
+    : params_(std::move(params)), origin_(origin), surface_(surface) {
     ValidateSyntheticAlbedo(params_);
+    if (surface_.IsSphere()) {
+        for (const auto* stack :
+             {&params_.hueNoise, &params_.saturationNoise, &params_.valueNoise}) {
+            for (const NoiseLayer& layer : *stack) {
+                if (!HasBasisNoise3(layer.fractal.basis)) {
+                    throw std::invalid_argument(
+                        "Albedo noise on a sphere needs a basis with a 3D form: perlin or value");
+                }
+            }
+        }
+    }
+}
+
+double SyntheticAlbedo::Noise(const std::vector<NoiseLayer>& layers, double x, double y) const {
+    if (layers.empty()) {
+        return 0.0;
+    }
+    if (surface_.IsSphere()) {
+        const Vec3d p = surface_.Position({x, y});
+        return static_cast<double>(
+            EvaluateNoiseLayers3(p.x, p.y, p.z, layers.data(), layers.size()));
+    }
+    return static_cast<double>(EvaluateNoiseLayers(static_cast<float>(x - origin_.x),
+                                                   static_cast<float>(y - origin_.y), layers.data(),
+                                                   layers.size()));
 }
 
 AlbedoSample SyntheticAlbedo::ValueAt(double x, double y, const AlbedoContext& /*context*/) const {
-    const auto fx = static_cast<float>(x - origin_.x);
-    const auto fy = static_cast<float>(y - origin_.y);
     const double value =
-        std::clamp(params_.value * (1.0 + Noise(params_.valueNoise, fx, fy)), 0.0, 1.0);
+        std::clamp(params_.value * (1.0 + Noise(params_.valueNoise, x, y)), 0.0, 1.0);
     if (!params_.rgb) {
         return {static_cast<float>(value), 0.0f, 0.0f};
     }
-    const double hue = params_.hue + Noise(params_.hueNoise, fx, fy);
+    const double hue = params_.hue + Noise(params_.hueNoise, x, y);
     const double saturation =
-        std::clamp(params_.saturation + Noise(params_.saturationNoise, fx, fy), 0.0, 1.0);
+        std::clamp(params_.saturation + Noise(params_.saturationNoise, x, y), 0.0, 1.0);
     return HsvToRgb(hue, saturation, value);
 }
 

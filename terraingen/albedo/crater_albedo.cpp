@@ -182,14 +182,14 @@ CraterAlbedo::Prepared CraterAlbedo::Prepare(const Crater& crater, double spacin
 
 namespace {
 
-double PreparedExcess(const CraterAlbedoOptions& o, const Crater& crater,
+double PreparedExcess(const CraterAlbedoOptions& o, const Surface& surface, const Crater& crater,
                       const CraterOutline& outline, double weight, const std::vector<Ray>& rays,
                       double x, double y) {
     if (weight == 0.0) {
         return 0.0;
     }
     const double radius = 0.5 * crater.diameter;
-    const double radii = CraterProfileDistance(crater, outline, x, y) / radius;
+    const double radii = CraterProfileDistance(crater, outline, x, y, surface) / radius;
     double excess = 0.0;
     if (radii < 1.0) {
         return weight * o.interiorExcess;
@@ -198,8 +198,9 @@ double PreparedExcess(const CraterAlbedoOptions& o, const Crater& crater,
         const double edge = std::pow(o.ejectaReachRadii, -o.ejectaExponent);
         excess = o.ejectaExcess * (std::pow(radii, -o.ejectaExponent) - edge) / (1.0 - edge);
     }
-    const double dx = x - crater.x;
-    const double dy = y - crater.y;
+    const Vec2d offset = surface.Offset({crater.x, crater.y}, {x, y});
+    const double dx = offset.x;
+    const double dy = offset.y;
     for (const Ray& ray : rays) {
         const double along = dx * ray.cos + dy * ray.sin;
         if (along <= radius || along >= ray.length) {
@@ -229,7 +230,8 @@ double PreparedExcess(const CraterAlbedoOptions& o, const Crater& crater,
 
 double CraterAlbedo::Excess(const Crater& crater, double x, double y, double spacing) const {
     const Prepared prepared = Prepare(crater, spacing);
-    return PreparedExcess(options_, crater, prepared.outline, prepared.weight, prepared.rays, x, y);
+    return PreparedExcess(options_, craters_->Options().surface, crater, prepared.outline,
+                          prepared.weight, prepared.rays, x, y);
 }
 
 double CraterAlbedo::Reach(const Crater& crater) const {
@@ -246,7 +248,8 @@ std::vector<CraterAlbedo::Prepared> CraterAlbedo::Gather(const Bounds2d& region,
     const double reach =
         std::fmax(rayReach, 0.5 * largest * options_.ejectaReachRadii *
                                 MaxOutlineScale(craters_->Options().apply.irregularity));
-    const CraterList list = craters_->Craters(region.Expanded(reach), spacing);
+    const Surface& surface = craters_->Options().surface;
+    const CraterList list = craters_->Craters(surface.Expand(region, reach), spacing);
     std::vector<Prepared> prepared;
     for (std::size_t i = 0; i < list.Size(); ++i) {
         Prepared one = Prepare(list.At(i), spacing);
@@ -254,8 +257,7 @@ std::vector<CraterAlbedo::Prepared> CraterAlbedo::Gather(const Bounds2d& region,
             continue;
         }
         const Crater& c = one.crater;
-        if (c.x + one.reach < region.minX || c.x - one.reach > region.maxX ||
-            c.y + one.reach < region.minY || c.y - one.reach > region.maxY) {
+        if (!surface.Contains(surface.Expand(region, one.reach), {c.x, c.y})) {
             continue;
         }
         prepared.push_back(std::move(one));
@@ -294,13 +296,15 @@ void CraterAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, dou
     const std::vector<Prepared> prepared = Gather({x, y, x, y}, context.spacing);
     double excess = 0.0;
     for (const Prepared& p : prepared) {
-        excess += PreparedExcess(options_, p.crater, p.outline, p.weight, p.rays, x, y);
+        excess += PreparedExcess(options_, craters_->Options().surface, p.crater, p.outline,
+                                 p.weight, p.rays, x, y);
     }
     Brighten(value, bands, excess, options_);
 }
 
 void CraterAlbedo::Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const {
     ValidateAlbedoContext(context);
+    const Surface& surface = craters_->Options().surface;
     if (bands.empty()) {
         return;
     }
@@ -318,7 +322,8 @@ void CraterAlbedo::Apply(std::vector<Raster<float>>& bands, const AlbedoContext&
         const double yMax = std::fmax(ya, yb);
         std::vector<const Prepared*> near;
         for (const Prepared& p : prepared) {
-            if (p.crater.y + p.reach >= yMin && p.crater.y - p.reach <= yMax) {
+            const double reachY = p.reach / surface.UnitLength();
+            if (p.crater.y + reachY >= yMin && p.crater.y - reachY <= yMax) {
                 near.push_back(&p);
             }
         }
@@ -327,11 +332,11 @@ void CraterAlbedo::Apply(std::vector<Raster<float>>& bands, const AlbedoContext&
                 const Vec2d centre = first.CellCenter(col, row);
                 double excess = 0.0;
                 for (const Prepared* p : near) {
-                    if (std::fabs(centre.x - p->crater.x) > p->reach) {
+                    if (!surface.IsSphere() && std::fabs(centre.x - p->crater.x) > p->reach) {
                         continue;
                     }
-                    excess += PreparedExcess(options_, p->crater, p->outline, p->weight, p->rays,
-                                             centre.x, centre.y);
+                    excess += PreparedExcess(options_, craters_->Options().surface, p->crater,
+                                             p->outline, p->weight, p->rays, centre.x, centre.y);
                 }
                 AlbedoSample value{};
                 for (std::size_t band = 0; band < bands.size(); ++band) {

@@ -22,6 +22,7 @@ terraingen_add_test_suite(
     noise_relief_test.cpp
     region_test.cpp
     roughness_test.cpp
+    sphere_layers_test.cpp
     transforms_test.cpp
     rocks/boulder_meshes_test.cpp
     rocks/rock_layer_test.cpp

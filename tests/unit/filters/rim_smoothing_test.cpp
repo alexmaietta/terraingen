@@ -119,3 +119,47 @@ TEST(SmoothCraterRims, SmoothsFromTheUnsmoothedTerrainOnAnyNumberOfThreads) {
     EXPECT_DOUBLE_EQ(terraingen::RimSmoothingFilter({.sigmaRadii = 0.1}).Margin(40.0, 1.0),
                      (1.2 + 0.3) * 20.0 + 2.0);
 }
+
+TEST(SmoothCraterRims, IsRoundInMetresOnASphere) {
+    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
+    using terraingen::TerrainFeatures;
+    using terraingen::Vec2d;
+    terraingen::CraterLayerOptions options;
+    options.generate = false;
+    options.surface = moon;
+    options.generation.manual.Append({10.0, 70.0, 200.0, 0.5, 5u});
+    const terraingen::CraterLayer craters(
+        {std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
+         std::make_shared<terraingen::UniformAges>(1.0),
+         std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry),
+         std::make_shared<terraingen::FassettThomsonProfile>()},
+        options);
+    Raster<float> heights(450, 150, 0.0f);
+    const double step = 2.0 / moon.UnitLength();
+    heights.SetTransform(GeoTransform::NorthUp(10.0 - 225.0 * step, 70.0 + 75.0 * step, step));
+    TerrainFeatures features;
+    craters.Apply(heights, {.spacing = 2.0}, features);
+    const Raster<float> sharp = heights;
+    terraingen::RimSmoothing smoothing;
+    smoothing.sigmaRadii = 0.2;
+    terraingen::SmoothCraterRims(heights, features.craters, smoothing, 2.0, 2, moon);
+    float sharpCrest = -1e9f;
+    float smoothCrest = -1e9f;
+    double changedEast = 0.0;
+    double changedNorth = 0.0;
+    const Vec2d centre{10.0, 70.0};
+    for (std::size_t row = 0; row < heights.Height(); ++row) {
+        for (std::size_t col = 0; col < heights.Width(); ++col) {
+            sharpCrest = std::max(sharpCrest, sharp(col, row));
+            smoothCrest = std::max(smoothCrest, heights(col, row));
+            if (heights(col, row) != sharp(col, row)) {
+                const Vec2d offset = moon.Offset(centre, heights.CellCenter(col, row));
+                changedEast = std::max(changedEast, std::fabs(offset.x));
+                changedNorth = std::max(changedNorth, std::fabs(offset.y));
+            }
+        }
+    }
+    EXPECT_LT(smoothCrest, sharpCrest);
+    EXPECT_NEAR(changedEast, changedNorth, 6.0);
+    EXPECT_LT(changedEast, 1.2 * 100.0 + 3.0);
+}

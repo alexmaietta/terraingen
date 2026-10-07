@@ -2,6 +2,7 @@
 
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
+#include "terraingen/util/surface.h"
 
 #include <array>
 #include <cstddef>
@@ -69,16 +70,19 @@ class AlbedoLayer {
     virtual void Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const;
 };
 
-/// An albedo as a composition: values from `source`, then each of `layers` in order.
+/// An albedo as a composition: values from `source`, then each of `layers` in order, on
+/// `surface`, which sets how a grid's cell size turns into a spacing in metres.
 struct Albedo {
     std::shared_ptr<const AlbedoSource> source;
     std::vector<std::shared_ptr<const AlbedoLayer>> layers;
+    Surface surface{};
 };
 
-/// The bands of `albedo` over `grid`, sampled every `context.spacing` world units (raised to the
-/// grid's cell size if smaller), one raster per band with no-data NaN.
+/// The bands of `albedo` over `grid`, sampled every `context.spacing` metres (0 or anything
+/// smaller than the grid's spacing on the albedo's surface, `RasterGrid::Spacing`, is raised to
+/// it), one raster per band with no-data NaN.
 /// @throws std::invalid_argument if `albedo` has no source, holds a null layer, the source has a
-/// band count other than 1 or 3, `grid` is empty, or the context is invalid.
+/// band count other than 1 or 3, `grid` is empty, or the spacing is negative or not finite.
 std::vector<Raster<float>> EvaluateAlbedo(const Albedo& albedo, const RasterGrid& grid,
                                           AlbedoContext context);
 

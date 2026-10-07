@@ -1,5 +1,6 @@
 #include "terraingen/albedo/raster_albedo.h"
 
+#include "terraingen/layers/roughness.h"
 #include "terraingen/noise/kernels/hash.h"
 #include "terraingen/noise/kernels/perlin.h"
 
@@ -59,8 +60,9 @@ void ValidateAlbedoDetail(const AlbedoDetail& detail) {
     ValidateResolutionFade(detail.fade);
 }
 
-RasterAlbedo::RasterAlbedo(std::vector<Raster<float>> bands, RasterAlbedoOptions options)
-    : bands_(std::move(bands)), options_(options) {
+RasterAlbedo::RasterAlbedo(std::vector<Raster<float>> bands, RasterAlbedoOptions options,
+                           Surface surface)
+    : bands_(std::move(bands)), options_(options), surface_(surface) {
     if (bands_.size() != 1 && bands_.size() != kMaxAlbedoBands) {
         throw std::invalid_argument("An albedo map must have 1 or 3 bands");
     }
@@ -76,7 +78,7 @@ RasterAlbedo::RasterAlbedo(std::vector<Raster<float>> bands, RasterAlbedoOptions
         }
     }
     ValidateAlbedoDetail(options_.detail);
-    cell_ = RasterGrid::Of(first).PixelSize();
+    cell_ = RasterGrid::Of(first).Spacing(surface_);
 
     const std::size_t width = first.Width();
     const std::size_t height = first.Height();
@@ -158,6 +160,14 @@ AlbedoSample RasterAlbedo::ValueAt(double x, double y, const AlbedoContext& cont
         if (weight == 0.0) {
             break;
         }
+        if (surface_.IsSphere()) {
+            const Vec3d p = surface_.Position({x, y});
+            const float noise = PerlinNoise3Precise(
+                p.x / wavelength, p.y / wavelength, p.z / wavelength,
+                PcgHash(detail.seed + 0x9e3779b9u * static_cast<std::uint32_t>(octave)));
+            sum += weight * std::exp2(-(octave + 1) * hurst_) * static_cast<double>(noise);
+            continue;
+        }
         const double u = (x - origin.x) / wavelength;
         const double v = (y - origin.y) / wavelength;
         const double iu = std::floor(u);
@@ -169,7 +179,9 @@ AlbedoSample RasterAlbedo::ValueAt(double x, double y, const AlbedoContext& cont
                          PcgHash(detail.seed + 0x9e3779b9u * static_cast<std::uint32_t>(octave)));
         sum += weight * std::exp2(-(octave + 1) * hurst_) * static_cast<double>(noise);
     }
-    const double factor = std::exp(detail.scale * roughness_ * sum / PerlinRms());
+    const double rms =
+        surface_.IsSphere() ? std::sqrt(0.5 * Perlin3StructureFunction(1e6)) : PerlinRms();
+    const double factor = std::exp(detail.scale * roughness_ * sum / rms);
     for (std::size_t band = 0; band < bands_.size(); ++band) {
         value[band] = static_cast<float>(static_cast<double>(value[band]) * factor);
     }

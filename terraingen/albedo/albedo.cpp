@@ -74,8 +74,11 @@ std::vector<Raster<float>> EvaluateAlbedo(const Albedo& albedo, const RasterGrid
     if (grid.width == 0 || grid.height == 0) {
         throw std::invalid_argument("Cannot evaluate an albedo over an empty grid");
     }
+    if (!(std::isfinite(context.spacing) && context.spacing >= 0.0)) {
+        throw std::invalid_argument("Albedo sample spacing must be finite and not negative");
+    }
+    context.spacing = std::fmax(context.spacing, grid.Spacing(albedo.surface));
     const std::size_t count = CheckAlbedo(albedo, context);
-    context.spacing = std::fmax(context.spacing, grid.PixelSize());
     std::vector<Raster<float>> bands;
     for (std::size_t band = 0; band < count; ++band) {
         Raster<float> raster = grid.MakeRaster(0.0f);

@@ -41,11 +41,13 @@ AlbedoSample HsvToRgb(double hue, double saturation, double value);
 
 /// An albedo for terrain without data: a base colour with noise in each channel, the saturation
 /// and value clamped to [0, 1] after it. Noise is measured from `origin`, so single-precision noise
-/// stays accurate in projections whose coordinates are large.
+/// stays accurate in projections whose coordinates are large; on a sphere it is 3D noise at each
+/// point's 3D position (`EvaluateNoiseLayers3`).
 class SyntheticAlbedo final : public AlbedoSource {
   public:
-    /// @throws std::invalid_argument as `ValidateSyntheticAlbedo`.
-    explicit SyntheticAlbedo(SyntheticAlbedoParams params, Vec2d origin = {});
+    /// @throws std::invalid_argument as `ValidateSyntheticAlbedo`, or on a sphere for a noise
+    /// basis without a 3D form.
+    explicit SyntheticAlbedo(SyntheticAlbedoParams params, Vec2d origin = {}, Surface surface = {});
 
     std::size_t Bands() const override {
         return params_.rgb ? kMaxAlbedoBands : 1;
@@ -58,8 +60,11 @@ class SyntheticAlbedo final : public AlbedoSource {
     }
 
   private:
+    double Noise(const std::vector<NoiseLayer>& layers, double x, double y) const;
+
     SyntheticAlbedoParams params_;
     Vec2d origin_;
+    Surface surface_;
 };
 
 }  // namespace terraingen

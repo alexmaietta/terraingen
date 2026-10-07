@@ -200,7 +200,13 @@ class RockLayer final : public Layer {
     /// `craters` supplies the craters that throw rocks out; it may be null when ejecta are
     /// disabled.
     /// @throws std::invalid_argument for invalid options, or ejecta without `craters`.
-    RockLayer(RockLayerOptions options, std::shared_ptr<const CraterLayer> craters = nullptr);
+    ///
+    /// On a sphere (`surface`, which must be the crater layer's), candidates are drawn in
+    /// `CubeSphereCells`, patches are 3D noise, distances are great-circle, each rock's relief is
+    /// shaped in its local frame, and boulder model placements are in the rock's local east, north
+    /// and up frame, its origin on the datum below the rock.
+    RockLayer(RockLayerOptions options, std::shared_ptr<const CraterLayer> craters = nullptr,
+              Surface surface = {});
 
     /// Adds the exposed parts of the rocks drawn into the heights, as `relief` says, and records
     /// the rocks centred in the grid or within a radius of it, the models among them with their
@@ -264,10 +270,13 @@ class RockLayer final : public Layer {
     std::shared_ptr<CraterCellCache> cache_;
     std::shared_ptr<LruCache<std::uint64_t, BoulderShape>> shapes_;
     std::optional<ExposureField> exposure_;
+    Surface surface_;
+    std::shared_ptr<const SurfaceCells> cells_;
 };
 
 /// `height` at (`x`, `y`) after the exposed part of `rock`, a dome of the rock's exposed height
 /// over its diameter, weighted by `weight`; what `RockLayer` adds to each cell.
-float AddRock(float height, double x, double y, const Rock& rock, double weight);
+float AddRock(float height, double x, double y, const Rock& rock, double weight,
+              const Surface& surface = {});
 
 }  // namespace terraingen
