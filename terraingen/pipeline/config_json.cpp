@@ -486,6 +486,7 @@ template <typename IO> void Fields(IO& io, SyntheticAlbedoSpec& spec);
 template <typename IO> void Fields(IO& io, AlbedoDetail& detail);
 template <typename IO> void Fields(IO& io, RasterAlbedoSpec& spec);
 template <typename IO> void Fields(IO& io, CraterRays& rays);
+template <typename IO> void Fields(IO& io, ObliqueImpacts& oblique);
 template <typename IO> void Fields(IO& io, RayRetention& retention);
 template <typename IO> void Fields(IO& io, CraterAlbedoOptions& options);
 template <typename IO> void Fields(IO& io, CraterAlbedoSpec& spec);
@@ -1230,6 +1231,17 @@ template <typename IO> void Fields(IO& io, CraterRays& rays) {
     io("excess", rays.excess);
     io("patchiness", rays.patchiness);
     io("patch_radii", rays.patchRadii);
+    io("oblique", rays.oblique);
+}
+
+template <typename IO> void Fields(IO& io, ObliqueImpacts& oblique) {
+    io("enabled", oblique.enabled);
+    io("heading", oblique.heading);
+    io("asymmetric_degrees", oblique.asymmetricDegrees);
+    io("forbidden_degrees", oblique.forbiddenDegrees);
+    io("butterfly_degrees", oblique.butterflyDegrees);
+    io("downrange_speed_ratio", oblique.downrangeSpeedRatio);
+    io("zone_half_width_degrees", oblique.zoneHalfWidthDegrees);
 }
 
 template <typename IO> void Fields(IO& io, RayRetention& retention) {

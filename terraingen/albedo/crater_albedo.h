@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <optional>
 
 namespace terraingen {
 
@@ -41,6 +42,66 @@ struct RayRetention {
 /// and scale positive, all finite.
 void ValidateRayRetention(const RayRetention& retention);
 
+/// How oblique impacts shape a crater's rays, after Herrick and Forsberg-Taylor (2003) and Anderson
+/// et al. (2003). Each crater gets an impact angle theta from the horizontal, distributed as
+/// Shoemaker (1962) found for random approach directions, P(< theta) = sin^2 theta (so theta = asin
+/// sqrt(u)), and a downrange direction, `heading` (radians counter-clockwise from east) or uniform
+/// at random.
+///
+/// - Below `asymmetricDegrees` (45 on the Moon) the ejecta blanket is asymmetric. Ejecta leave
+///   faster downrange: Anderson et al. measured downrange ejection speeds 20 to 40% above uprange
+///   ones at 30 degrees, and none at 90, so the ratio is drawn from `downrangeSpeedRatio`. A ray
+///   at angle d from downrange is ejected at a speed proportional to 1 + a cos d, with
+///   (1 + a) / (1 - a) the ratio, and as ballistic range grows with the square of the speed
+///   (Elliott et al. 2018, eq. 5), its length is multiplied by (1 + a cos d)^2 / (1 + a^2 / 2),
+///   which keeps the mean over directions.
+/// - Below `forbiddenDegrees` (25) a forbidden zone forms uprange: rays within
+/// `zoneHalfWidthDegrees`
+///   of uprange are dropped.
+/// - Below `butterflyDegrees` (10) the ejecta take a butterfly pattern: rays near downrange are
+///   dropped too.
+///
+/// Herrick and Forsberg-Taylor give the angles from the share of 86 mare craters showing each trait
+/// (29% with a forbidden zone, 5% a butterfly). Neither source measures the zones' width, so
+/// `zoneHalfWidthDegrees` is illustrative, and holding the speed ratio for every angle below
+/// `asymmetricDegrees` simplifies Anderson et al.'s single measured angle.
+///
+/// References:
+/// - R. R. Herrick and N. K. Forsberg-Taylor, "The shape and appearance of craters formed by
+///   oblique impact on the Moon and Venus", Meteoritics and Planetary Science 38:1551-1578, 2003.
+///   https://doi.org/10.1111/j.1945-5100.2003.tb00001.x
+/// - J. L. B. Anderson, P. H. Schultz and J. T. Heineck, "Asymmetry of ejecta flow during oblique
+///   impacts using three-dimensional particle image velocimetry", JGR 108(E8), 5094, 2003.
+///   https://doi.org/10.1029/2003JE002075
+/// - E. M. Shoemaker, "Interpretation of lunar craters", in Z. Kopal (ed.), Physics and Astronomy
+///   of the Moon, Academic Press, 283-359, 1962 (as Herrick and Forsberg-Taylor cite it).
+struct ObliqueImpacts {
+    bool enabled = true;
+    std::optional<double> heading;
+    double asymmetricDegrees = 45.0;
+    double forbiddenDegrees = 25.0;
+    double butterflyDegrees = 10.0;
+    ValueDistribution downrangeSpeedRatio{ValueDistribution::Kind::Uniform, 1.2, 1.4};
+    double zoneHalfWidthDegrees = 45.0;
+
+    /// The most a ray's length can be multiplied by.
+    double MaxStretch() const;
+
+    bool operator==(const ObliqueImpacts&) const = default;
+};
+
+/// The impact that formed a crater, as `ObliqueImpacts` draws it.
+struct CraterImpact {
+    double angleDegrees = 90.0;  ///< From the horizontal.
+    double heading = 0.0;        ///< Downrange, radians counter-clockwise from east.
+    double speedRatio = 1.0;     ///< Downrange over uprange ejection speed.
+};
+
+/// @throws std::invalid_argument for an invalid speed ratio distribution or one that can be below
+/// 1, angles outside [0, 90] or out of order (butterfly <= forbidden <= asymmetric), a zone half
+/// width outside [0, 180], or a heading that is not finite.
+void ValidateObliqueImpacts(const ObliqueImpacts& oblique);
+
 /// The rays of a crater: narrow streaks of immature material and secondary craters running out
 /// from the rim, after Elliott et al. (2018), who mapped the rays of 26 lunar craters of 10 m to
 /// 84 km diameter (their Table 2).
@@ -64,8 +125,9 @@ void ValidateRayRetention(const RayRetention& retention);
 ///   wavelength `patchRadii` radii, takes up to `patchiness` of the strength away. Both defaults
 ///   are illustrative, not measured.
 ///
-/// Azimuths are uniform at random. Elliott et al. note oblique impacts lengthen rays downrange,
-/// which is not modelled.
+/// Azimuths are uniform at random. Oblique impacts lengthen rays downrange and clear them uprange
+/// (`ObliqueImpacts`), which Elliott et al. note is the largest source of spread in a crater's ray
+/// lengths; their median is about what a vertical impact would give.
 ///
 /// Reference: J. R. Elliott, Y.-H. Huang, D. A. Minton and A. M. Freed, "The length of lunar crater
 /// rays explained using secondary crater scaling", Icarus 312:231-246, 2018.
@@ -80,6 +142,7 @@ struct CraterRays {
     double excess = 0.048;
     double patchiness = 0.5;
     double patchRadii = 0.5;
+    ObliqueImpacts oblique{};
 
     /// The median ray length (m) of a crater `diameter` across.
     double MedianLength(double diameter) const;
@@ -174,6 +237,9 @@ class CraterAlbedo final : public AlbedoLayer {
 
     /// The excess optical maturity `crater` gives (`x`, `y`) when sampled every `spacing`.
     double Excess(const Crater& crater, double x, double y, double spacing) const;
+
+    /// The impact `crater` came from, drawn from its ID; vertical without oblique impacts.
+    CraterImpact Impact(const Crater& crater) const;
 
     /// How far from its centre `crater` can brighten the ground: the farthest of its ejecta and
     /// its rays; 0 when it has no bright material.

@@ -16,6 +16,7 @@ namespace terraingen {
 namespace {
 
 constexpr std::uint32_t kCraterAlbedoStream = 0x414c4244u;
+constexpr std::uint32_t kObliqueStream = 0x4f424c51u;
 constexpr std::size_t kBlockRows = 32;
 
 bool Positive(double value) {
@@ -49,6 +50,35 @@ void ValidateRayRetention(const RayRetention& retention) {
     }
 }
 
+double ObliqueImpacts::MaxStretch() const {
+    if (!enabled) {
+        return 1.0;
+    }
+    const double ratio = downrangeSpeedRatio.Highest();
+    const double a = (ratio - 1.0) / (ratio + 1.0);
+    return (1.0 + a) * (1.0 + a) / (1.0 + 0.5 * a * a);
+}
+
+void ValidateObliqueImpacts(const ObliqueImpacts& oblique) {
+    ValidateValueDistribution(oblique.downrangeSpeedRatio);
+    if (oblique.downrangeSpeedRatio.Lowest() < 1.0 ||
+        !std::isfinite(oblique.downrangeSpeedRatio.Highest())) {
+        throw std::invalid_argument("The downrange speed ratio must be at least 1 and bounded");
+    }
+    if (!(oblique.butterflyDegrees >= 0.0 && oblique.butterflyDegrees <= oblique.forbiddenDegrees &&
+          oblique.forbiddenDegrees <= oblique.asymmetricDegrees &&
+          oblique.asymmetricDegrees <= 90.0)) {
+        throw std::invalid_argument(
+            "Oblique impact angles must satisfy 0 <= butterfly <= forbidden <= asymmetric <= 90");
+    }
+    if (!(oblique.zoneHalfWidthDegrees >= 0.0 && oblique.zoneHalfWidthDegrees <= 180.0)) {
+        throw std::invalid_argument("A forbidden zone's half width must be in [0, 180] degrees");
+    }
+    if (oblique.heading && !std::isfinite(*oblique.heading)) {
+        throw std::invalid_argument("An impact heading must be finite");
+    }
+}
+
 double CraterRays::MedianLength(double diameter) const {
     return 1000.0 * lengthCoefficient * std::pow(0.0005 * diameter, lengthExponent);
 }
@@ -73,6 +103,7 @@ void ValidateCraterRays(const CraterRays& rays) {
         throw std::invalid_argument(
             "Ray patchiness must be in [0, 1] with a positive patch wavelength");
     }
+    ValidateObliqueImpacts(rays.oblique);
 }
 
 void ValidateCraterAlbedo(const CraterAlbedoOptions& options) {
@@ -159,6 +190,12 @@ CraterAlbedo::Prepared CraterAlbedo::Prepare(const Crater& crater, double spacin
     const double c2 = random.NextDouble();
     const auto count = static_cast<int>(std::lround(o.rays.count.Sample(c1, c2)));
     const double median = o.rays.MedianLength(crater.diameter);
+    const ObliqueImpacts& oblique = o.rays.oblique;
+    const CraterImpact impact = Impact(crater);
+    const double angle = impact.angleDegrees;
+    const double heading = impact.heading;
+    const double asymmetry = (impact.speedRatio - 1.0) / (impact.speedRatio + 1.0);
+    const double zone = oblique.zoneHalfWidthDegrees * std::numbers::pi / 180.0;
     for (int i = 0; i < count; ++i) {
         const double azimuth = 2.0 * std::numbers::pi * random.NextDouble();
         const double l1 = random.NextDouble();
@@ -169,6 +206,17 @@ CraterAlbedo::Prepared CraterAlbedo::Prepare(const Crater& crater, double spacin
         ray.cos = std::cos(azimuth);
         ray.sin = std::sin(azimuth);
         ray.length = median * std::exp(o.rays.lengthSpread.Sample(l1, l2));
+        const double fromDownrange = std::remainder(azimuth - heading, 2.0 * std::numbers::pi);
+        if (asymmetry > 0.0) {
+            const double speed = 1.0 + asymmetry * std::cos(fromDownrange);
+            ray.length *= speed * speed / (1.0 + 0.5 * asymmetry * asymmetry);
+        }
+        const bool uprange = std::fabs(fromDownrange) > std::numbers::pi - zone;
+        const bool downrange = std::fabs(fromDownrange) < zone;
+        if ((oblique.enabled && angle < oblique.forbiddenDegrees && uprange) ||
+            (oblique.enabled && angle < oblique.butterflyDegrees && downrange)) {
+            ray.length = 0.0;
+        }
         ray.sinHalfWidth =
             std::sin(0.5 * o.rays.widthDegrees.Sample(w1, w2) * std::numbers::pi / 180.0);
         ray.seed = random.NextU32();
@@ -234,6 +282,25 @@ double CraterAlbedo::Excess(const Crater& crater, double x, double y, double spa
                           prepared.weight, prepared.rays, x, y);
 }
 
+CraterImpact CraterAlbedo::Impact(const Crater& crater) const {
+    const ObliqueImpacts& oblique = options_.rays.oblique;
+    CraterImpact impact;
+    if (!oblique.enabled) {
+        return impact;
+    }
+    RandomStream random(options_.seed, kObliqueStream, static_cast<std::uint32_t>(crater.id),
+                        static_cast<std::uint32_t>(crater.id >> 32));
+    impact.angleDegrees = std::asin(std::sqrt(random.NextDouble())) * 180.0 / std::numbers::pi;
+    const double h = random.NextDouble();
+    impact.heading = oblique.heading ? *oblique.heading : 2.0 * std::numbers::pi * h;
+    const double r1 = random.NextDouble();
+    const double r2 = random.NextDouble();
+    if (impact.angleDegrees < oblique.asymmetricDegrees) {
+        impact.speedRatio = oblique.downrangeSpeedRatio.Sample(r1, r2);
+    }
+    return impact;
+}
+
 double CraterAlbedo::Reach(const Crater& crater) const {
     return Prepare(crater, 0.0).reach;
 }
@@ -241,10 +308,11 @@ double CraterAlbedo::Reach(const Crater& crater) const {
 std::vector<CraterAlbedo::Prepared> CraterAlbedo::Gather(const Bounds2d& region,
                                                          double spacing) const {
     const double largest = craters_->MaxFeatureDiameter();
-    const double rayReach =
-        options_.rays.enabled
-            ? options_.rays.MedianLength(largest) * std::exp(options_.rays.lengthSpread.Highest())
-            : 0.0;
+    const double rayReach = options_.rays.enabled
+                                ? options_.rays.MedianLength(largest) *
+                                      std::exp(options_.rays.lengthSpread.Highest()) *
+                                      options_.rays.oblique.MaxStretch()
+                                : 0.0;
     const double reach =
         std::fmax(rayReach, 0.5 * largest * options_.ejectaReachRadii *
                                 MaxOutlineScale(craters_->Options().apply.irregularity));

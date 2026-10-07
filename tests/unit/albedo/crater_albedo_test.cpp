@@ -155,6 +155,7 @@ TEST(CraterAlbedo, RaysReachBeyondTheEjecta) {
     CraterAlbedoOptions options;
     options.rays.patchiness = 0.0;
     options.rays.count = {ValueDistribution::Kind::Constant, 12.0};
+    options.rays.oblique.enabled = false;
     const auto layer = std::make_shared<CraterAlbedo>(Craters({crater}), options);
     const double reach = layer->Reach(crater);
     EXPECT_GT(reach, 0.70 * 6590.0 - 1.0);
@@ -339,4 +340,101 @@ TEST(CraterAlbedo, WorksOnASphereInMetres) {
         EXPECT_EQ(EvaluateAlbedoAt(albedo, centre.x, centre.y, {.spacing = 50.0})[0],
                   bands[0](col, row));
     }
+}
+
+TEST(CraterAlbedo, DrawsImpactAnglesAsShoemakerFound) {
+    const CraterAlbedo layer(Craters({}));
+    int asymmetric = 0;
+    int forbidden = 0;
+    int butterfly = 0;
+    const int craters = 20000;
+    for (int n = 0; n < craters; ++n) {
+        const auto impact =
+            layer.Impact({0.0, 0.0, 1000.0, 0.0, static_cast<std::uint64_t>(n + 1)});
+        EXPECT_GE(impact.angleDegrees, 0.0);
+        EXPECT_LE(impact.angleDegrees, 90.0);
+        asymmetric += impact.angleDegrees < 45.0 ? 1 : 0;
+        forbidden += impact.angleDegrees < 25.0 ? 1 : 0;
+        butterfly += impact.angleDegrees < 10.0 ? 1 : 0;
+        if (impact.angleDegrees < 45.0) {
+            EXPECT_GE(impact.speedRatio, 1.2);
+            EXPECT_LE(impact.speedRatio, 1.4);
+        } else {
+            EXPECT_EQ(impact.speedRatio, 1.0);
+        }
+    }
+    const auto share = [&](int count) { return static_cast<double>(count) / craters; };
+    const auto expected = [](double degrees) {
+        const double s = std::sin(degrees * M_PI / 180.0);
+        return s * s;
+    };
+    EXPECT_NEAR(share(asymmetric), expected(45.0), 0.015);
+    EXPECT_NEAR(share(forbidden), expected(25.0), 0.01);
+    EXPECT_NEAR(share(butterfly), expected(10.0), 0.005);
+    CraterAlbedoOptions vertical;
+    vertical.rays.oblique.enabled = false;
+    EXPECT_EQ(CraterAlbedo(Craters({}), vertical).Impact({0.0, 0.0, 1.0, 0.0, 3u}).angleDegrees,
+              90.0);
+}
+
+TEST(CraterAlbedo, ObliqueImpactsLengthenRaysDownrangeAndClearThemUprange) {
+    CraterAlbedoOptions options;
+    options.rays.patchiness = 0.0;
+    options.rays.count = {ValueDistribution::Kind::Constant, 64.0};
+    options.rays.widthDegrees = {ValueDistribution::Kind::Constant, 6.0};
+    options.rays.lengthSpread = {ValueDistribution::Kind::Constant, 0.0};
+    options.rays.oblique.heading = 0.0;
+    double downrange = 0.0;
+    double uprange = 0.0;
+    int forbiddenCraters = 0;
+    for (std::uint64_t id = 1; id <= 300; ++id) {
+        const Crater crater{0.0, 0.0, 2000.0, 0.0, id, true};
+        const CraterAlbedo layer(Craters({crater}), options);
+        const auto impact = layer.Impact(crater);
+        const auto reachAlong = [&](double azimuth) {
+            for (double r = 12000.0; r > 3100.0; r -= 50.0) {
+                if (layer.Excess(crater, r * std::cos(azimuth), r * std::sin(azimuth), 1.0) > 0.0) {
+                    return r;
+                }
+            }
+            return 0.0;
+        };
+        double east = 0.0;
+        double west = 0.0;
+        for (const double offset : {-0.3, -0.15, 0.0, 0.15, 0.3}) {
+            east = std::fmax(east, reachAlong(offset));
+            west = std::fmax(west, reachAlong(M_PI + offset));
+        }
+        if (impact.angleDegrees < 25.0) {
+            ++forbiddenCraters;
+            EXPECT_EQ(west, 0.0) << id;
+        } else if (impact.angleDegrees < 45.0) {
+            downrange += east;
+            uprange += west;
+        }
+    }
+    EXPECT_GT(forbiddenCraters, 20);
+    EXPECT_GT(downrange, 1.2 * uprange);
+    EXPECT_GT(CraterAlbedo(Craters({}), options).Reach({0.0, 0.0, 2000.0, 0.0, 5u, true}), 0.0);
+}
+
+TEST(ObliqueImpacts, RejectsInvalidSettings) {
+    const auto rejects = [](auto change) {
+        terraingen::ObliqueImpacts oblique;
+        change(oblique);
+        EXPECT_THROW(terraingen::ValidateObliqueImpacts(oblique), std::invalid_argument);
+    };
+    rejects([](auto& o) { o.downrangeSpeedRatio = {ValueDistribution::Kind::Constant, 0.9}; });
+    rejects(
+        [](auto& o) { o.downrangeSpeedRatio = {ValueDistribution::Kind::LogNormal, 1.3, 0.1}; });
+    rejects([](auto& o) { o.butterflyDegrees = 30.0; });
+    rejects([](auto& o) { o.asymmetricDegrees = 95.0; });
+    rejects([](auto& o) { o.zoneHalfWidthDegrees = 200.0; });
+    rejects([](auto& o) { o.heading = NAN; });
+    terraingen::ObliqueImpacts off;
+    off.enabled = false;
+    EXPECT_EQ(off.MaxStretch(), 1.0);
+    EXPECT_NEAR(terraingen::ObliqueImpacts{}.MaxStretch(),
+                (1.0 + 0.4 / 2.4) * (1.0 + 0.4 / 2.4) / (1.0 + 0.5 * (0.4 / 2.4) * (0.4 / 2.4)),
+                1e-12);
 }
