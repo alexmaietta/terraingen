@@ -294,6 +294,9 @@ template <> struct SpecName<NoDegradationSpec> {
 template <> struct SpecName<FassettThomsonSpec> {
     static constexpr std::string_view kName = "fassett_thomson";
 };
+template <> struct SpecName<ComplexProfileSpec> {
+    static constexpr std::string_view kName = "complex";
+};
 template <> struct SpecName<MartinParkesDunstanSpec> {
     static constexpr std::string_view kName = "martin_parkes_dunstan";
 };
@@ -402,6 +405,7 @@ template <typename IO> void Fields(IO& io, FreshnessDegradationSpec& spec);
 template <typename IO> void Fields(IO& io, NoDegradationSpec& spec);
 template <typename IO> void Fields(IO& io, FassettThomsonSpec& spec);
 template <typename IO> void Fields(IO& io, MartinParkesDunstanSpec& spec);
+template <typename IO> void Fields(IO& io, ComplexProfileSpec& spec);
 template <typename IO> void Fields(IO& io, CraterListOutput& output);
 template <typename IO> void Fields(IO& io, RockListOutput& output);
 template <typename IO> void Fields(IO& io, BoulderModelsOutput& output);
@@ -961,6 +965,10 @@ template <typename IO> void Fields(IO& io, FassettThomsonSpec& spec) {
 }
 
 template <typename IO> void Fields(IO& /*io*/, MartinParkesDunstanSpec& /*spec*/) {}
+
+template <typename IO> void Fields(IO& io, ComplexProfileSpec& spec) {
+    io("simple", spec.simple);
+}
 
 template <typename IO> void Fields(IO& io, RockListOutput& output) {
     io("path", output.path);

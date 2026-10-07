@@ -170,7 +170,14 @@ struct FassettThomsonSpec {  ///< "fassett_thomson": `FassettThomsonProfile(rim)
 struct MartinParkesDunstanSpec {  ///< "martin_parkes_dunstan": `MartinParkesDunstanProfile`.
     bool operator==(const MartinParkesDunstanSpec&) const = default;
 };
-using ProfileSpec = std::variant<FassettThomsonSpec, MartinParkesDunstanSpec>;
+using SimpleProfileSpec = std::variant<FassettThomsonSpec, MartinParkesDunstanSpec>;
+/// "complex": `simple` below the lunar simple-to-complex transition and lunar complex craters, with
+/// flat floors and central peaks, from it (`ComplexCraterProfile`, `LunarComplexCraterShape`).
+struct ComplexProfileSpec {
+    SimpleProfileSpec simple{};
+    bool operator==(const ComplexProfileSpec&) const = default;
+};
+using ProfileSpec = std::variant<FassettThomsonSpec, MartinParkesDunstanSpec, ComplexProfileSpec>;
 
 /// "craters": craters generated over the grid and applied to it (`CraterLayer`).
 struct CraterLayerSpec {

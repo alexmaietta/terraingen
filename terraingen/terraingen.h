@@ -34,6 +34,7 @@
 #include "terraingen/layers/craters/degradation/state.h"
 #include "terraingen/layers/craters/filters.h"
 #include "terraingen/layers/craters/population.h"
+#include "terraingen/layers/craters/profiles/complex.h"
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
 #include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
 #include "terraingen/layers/craters/profiles/profile.h"

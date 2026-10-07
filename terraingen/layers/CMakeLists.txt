@@ -12,6 +12,7 @@ terraingen_add_library(
     craters/degradation/none.cpp
     craters/filters.cpp
     craters/population.cpp
+    craters/profiles/complex.cpp
     craters/profiles/fassett_thomson.cpp
     craters/profiles/martin_parkes_dunstan.cpp
     exposure.cpp

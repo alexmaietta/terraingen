@@ -129,7 +129,7 @@ BuildDegradation(const DegradationSpec& spec, const std::shared_ptr<const Crater
         spec);
 }
 
-std::shared_ptr<const CraterProfile> BuildProfile(const ProfileSpec& spec) {
+std::shared_ptr<const CraterProfile> BuildSimpleProfile(const SimpleProfileSpec& spec) {
     return std::visit(
         Overloaded{
             [](const FassettThomsonSpec& s) -> std::shared_ptr<const CraterProfile> {
@@ -140,6 +140,17 @@ std::shared_ptr<const CraterProfile> BuildProfile(const ProfileSpec& spec) {
             },
         },
         spec);
+}
+
+std::shared_ptr<const CraterProfile> BuildProfile(const ProfileSpec& spec) {
+    if (const auto* complex = std::get_if<ComplexProfileSpec>(&spec)) {
+        return std::make_shared<ComplexCraterProfile>(BuildSimpleProfile(complex->simple),
+                                                      LunarComplexCraterShape());
+    }
+    if (const auto* thomson = std::get_if<FassettThomsonSpec>(&spec)) {
+        return BuildSimpleProfile(*thomson);
+    }
+    return BuildSimpleProfile(std::get<MartinParkesDunstanSpec>(spec));
 }
 
 /// Runs `check`, rethrowing any invalid-argument or domain error as a `ConfigError` at `path`.
@@ -618,7 +629,7 @@ void WriteCraterList(const CraterList& craters, const std::filesystem::path& pat
     }
     if (format == CraterListFormat::Csv) {
         file << "x,y,diameter,age_gyr,id,manual"
-             << (detailed ? ",floor_depth,rim_height,depth_ratio,freshness" : "") << '\n';
+             << (detailed ? ",floor_depth,rim_height,depth_ratio,freshness,complex" : "") << '\n';
         for (std::size_t n = 0; n < craters.Size(); ++n) {
             const Crater crater = craters.At(n);
             file << Number(crater.x) << ',' << Number(crater.y) << ',' << Number(crater.diameter)
@@ -627,7 +638,8 @@ void WriteCraterList(const CraterList& craters, const std::filesystem::path& pat
             if (detailed) {
                 const CraterAttributes& a = attributes[n];
                 file << ',' << Number(a.floorDepth) << ',' << Number(a.rimHeight) << ','
-                     << Number(a.depthRatio) << ',' << Number(a.freshness);
+                     << Number(a.depthRatio) << ',' << Number(a.freshness) << ','
+                     << (a.complex ? 1 : 0);
             }
             file << '\n';
         }
@@ -648,6 +660,7 @@ void WriteCraterList(const CraterList& craters, const std::filesystem::path& pat
                 entry["rim_height"] = a.rimHeight;
                 entry["depth_ratio"] = a.depthRatio;
                 entry["freshness"] = a.freshness;
+                entry["complex"] = a.complex;
             }
             json["craters"].push_back(std::move(entry));
         }

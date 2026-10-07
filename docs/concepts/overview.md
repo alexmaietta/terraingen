@@ -61,6 +61,10 @@ Layers are pure functions of position, so a tile evaluated alone equals the same
 terrain. Filters may read neighbouring cells, so tiles need a margin to match. Derive from `Source`,
 `Layer` or `Filter` to add your own.
 
+Craters from the simple-to-complex transition (15 km on the Moon) can take the complex form
+(`ComplexCraterProfile`): Pike's (1974, 1977) depths, rim heights and flat floors, and central peaks with
+the heights and volumes of Hale and Grieve (1982).
+
 Every evaluation takes a sample spacing. Craters, rocks, and the rim smoothing around craters, fade with it
 (`ResolutionFade`): absent below 2 samples across, whole from 4, smooth in between. A crater therefore
 changes continuously between coarse and fine levels of detail instead of popping in or out, and size

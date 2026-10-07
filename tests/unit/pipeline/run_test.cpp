@@ -497,13 +497,14 @@ TEST(WriteCraterList, WritesCsvAndJsonExactly) {
     EXPECT_THROW(
         terraingen::WriteCraterList(craters, TempPath("missing/dir/x.csv"), CraterListFormat::Csv),
         std::runtime_error);
-    const std::vector<terraingen::CraterAttributes> attributes{{2.5, 0.5, 0.25, 0.75},
-                                                               {1.0, 0.125, 0.2, 1.0}};
+    const std::vector<terraingen::CraterAttributes> attributes{{2.5, 0.5, 0.25, 0.75, false},
+                                                               {1.0, 0.125, 0.2, 1.0, true}};
     terraingen::WriteCraterList(craters, csv, CraterListFormat::Csv, attributes);
-    EXPECT_EQ(Read(csv), "x,y,diameter,age_gyr,id,manual,floor_depth,rim_height,depth_ratio,"
-                         "freshness\n"
-                         "0.10000000000000001,-2.5,12.345678901234567,0.25,42,0,2.5,0.5,0.25,0.75\n"
-                         "3,4,5,0,7,1,1,0.125,0.20000000000000001,1\n");
+    EXPECT_EQ(Read(csv),
+              "x,y,diameter,age_gyr,id,manual,floor_depth,rim_height,depth_ratio,"
+              "freshness,complex\n"
+              "0.10000000000000001,-2.5,12.345678901234567,0.25,42,0,2.5,0.5,0.25,0.75,0\n"
+              "3,4,5,0,7,1,1,0.125,0.20000000000000001,1,1\n");
     terraingen::WriteCraterList(craters, json, CraterListFormat::Json, attributes);
     EXPECT_NE(Read(json).find("\"freshness\": 0.75"), std::string::npos);
     EXPECT_NE(Read(json).find("\"rim_height\": 0.125"), std::string::npos);

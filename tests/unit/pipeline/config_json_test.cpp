@@ -58,7 +58,7 @@ TerrainConfig Everything() {
     craters.spacing = {2.0, 0.75};
     craters.maxCraters = 1234;
     craters.manual = {{1.5, -2.25, 30.0, 0.1, 7u, true}};
-    craters.profile = terraingen::MartinParkesDunstanSpec{};
+    craters.profile = terraingen::ComplexProfileSpec{terraingen::MartinParkesDunstanSpec{}};
     craters.degradation = terraingen::NoDegradationSpec{0.17};
     craters.apply = {.order = terraingen::CraterOrder::LargestFirst,
                      .fade = {1.0, 3.0, terraingen::BlendShape::Linear},

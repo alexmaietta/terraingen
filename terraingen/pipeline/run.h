@@ -55,7 +55,7 @@ GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
 
 /// Writes `craters` as CSV (columns x, y, diameter, age_gyr, id, manual) or as JSON ({"craters":
 /// [{"x": ..., "y": ..., ...}]}), with doubles written exactly. With an `attributes` entry for
-/// every crater, each also gets floor_depth, rim_height, depth_ratio and freshness.
+/// every crater, each also gets floor_depth, rim_height, depth_ratio, freshness and complex.
 /// @throws std::runtime_error if the file cannot be written, or for `attributes` that are neither
 /// empty nor one per crater.
 void WriteCraterList(const CraterList& craters, const std::filesystem::path& path,

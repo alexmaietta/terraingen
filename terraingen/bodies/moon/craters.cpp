@@ -28,7 +28,22 @@ double LunarFreshCraterDepthRatio(double diameter) {
 }
 
 CraterMorphometry LunarFreshCraterMorphometry(double diameter) {
+    if (diameter >= kLunarComplexCraterDiameter && std::isfinite(diameter)) {
+        const KilometrePowerLaw depth{1.044, 0.301};
+        const KilometrePowerLaw rim{0.236, 0.399};
+        return {depth.At(diameter) / diameter, rim.At(diameter) / diameter};
+    }
     return {LunarFreshCraterDepthRatio(diameter), kLunarFreshRimHeightRatio};
+}
+
+ComplexCraterShape LunarComplexCraterShape() {
+    ComplexCraterShape shape;
+    shape.transitionDiameter = kLunarComplexCraterDiameter;
+    shape.floorDiameter = {0.187, 1.249};
+    shape.peakHeight = {0.589e-3, 1.969};
+    shape.peakVolume = {0.987e-7, 5.078};
+    shape.peakFitMaxDiameter = 51000.0;
+    return shape;
 }
 
 }  // namespace terraingen

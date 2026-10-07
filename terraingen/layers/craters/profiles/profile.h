@@ -16,6 +16,12 @@ class CraterProfile {
 
     /// Distance from the centre, in crater radii, beyond which `Height` is zero.
     virtual double ReachRadii() const = 0;
+
+    /// Whether a crater `diameter` metres across has the complex form: a flat floor, terraced walls
+    /// and a central peak.
+    virtual bool IsComplex(double /*diameter*/) const {
+        return false;
+    }
 };
 
 }  // namespace terraingen
