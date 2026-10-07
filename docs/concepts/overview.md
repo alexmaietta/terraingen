@@ -94,6 +94,10 @@ icosphere, stretched to the axis ratios of impact fragments, rounded, roughened 
 by flat fracture faces, in styles such as blocks, slabs and weathered rounded boulders. `BoulderMesh`
 places it as the rock, at its size, heading, lean and burial, and `WritePly` and `WriteGlb` export it.
 
+`BedformLayer` adds fields of wind-blown ripples or dunes, with crests across the wind, sinuous along
+their length and with steeper lee faces, kept off bedrock when given the exposure field; `MarsLargeRipples`
+(Lapotre et al. 2016) and `MarsTransverseAeolianRidges` (Hugenholtz et al. 2017) are presets.
+
 Fine roughness is given as planetary surveys measure it (Shepard et al. 2001): an RMS slope over a
 baseline and a Hurst exponent, how the RMS height difference grows with the baseline. `RoughnessLayer`
 builds it from octaves of noise whose amplitudes are calibrated so that the RMS slope over the baseline

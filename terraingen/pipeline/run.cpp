@@ -364,6 +364,9 @@ void ValidateLayer(const LayerSpec& spec, const RasterGrid& grid, const std::str
                    [&](const RoughnessLayerSpec& layer) {
                        At(path, [&] { ValidateRoughnessOptions(layer.roughness); });
                    },
+                   [&](const BedformLayerSpec& layer) {
+                       At(path, [&] { ValidateBedformOptions(layer.bedforms); });
+                   },
                    [&](const ScaleLayerSpec& layer) {
                        At(path, [&] { ScaleLayer(layer.scale, layer.offset); });
                    },
@@ -388,6 +391,9 @@ std::shared_ptr<const Layer> BuildLayer(const LayerSpec& spec, const Source& sou
                                         const std::shared_ptr<const CraterLayer>& ejecta) {
     if (const auto* noise = std::get_if<NoiseLayerSpec>(&spec)) {
         return std::make_shared<NoiseRelief>(noise->Params(), source.ReferencePoint());
+    }
+    if (const auto* bedforms = std::get_if<BedformLayerSpec>(&spec)) {
+        return std::make_shared<BedformLayer>(bedforms->bedforms);
     }
     if (const auto* scale = std::get_if<ScaleLayerSpec>(&spec)) {
         return std::make_shared<ScaleLayer>(scale->scale, scale->offset);

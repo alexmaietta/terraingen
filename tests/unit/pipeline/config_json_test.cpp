@@ -1,5 +1,7 @@
 #include "terraingen/pipeline/config_json.h"
 
+#include "terraingen/bodies/mars/bedforms.h"
+
 #include <gtest/gtest.h>
 
 #include <filesystem>
@@ -140,6 +142,7 @@ TerrainConfig Everything() {
         terraingen::RockLayerSpec{},
         synthterrain,
         table,
+        terraingen::BedformLayerSpec{terraingen::MarsLargeRipples()},
         roughness,
         terraingen::RoughnessLayerSpec{},
         terraingen::ScaleLayerSpec{1.5, -20.0},

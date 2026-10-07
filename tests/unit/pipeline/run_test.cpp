@@ -291,6 +291,25 @@ TEST(GenerateTerrain, DrawsRocksFromEachKindOfSizeDistribution) {
     EXPECT_EQ(ErrorPath([&](TerrainConfig& c) { c.layers = config.layers; }), "layers[2].sizes");
 }
 
+TEST(GenerateTerrain, AddsBedformsAsTheLibraryDoes) {
+    TerrainConfig config = Small();
+    Flat(config).pixelSize = 0.5;
+    terraingen::BedformOptions ridges = terraingen::MarsTransverseAeolianRidges();
+    ridges.wavelength = 5.0;
+    ridges.cover = 0.5;
+    ridges.fieldSize = 20.0;
+    config.layers.push_back(terraingen::BedformLayerSpec{ridges});
+    const auto generated = GenerateTerrain(config);
+    terraingen::Terrain terrain = terraingen::BuildTerrain(config);
+    terrain.layers.back() = std::make_shared<terraingen::BedformLayer>(ridges);
+    ExpectSameRaster(generated.heights, terraingen::Evaluate(terrain).heights);
+    ridges.leeFraction = 2.0;
+    EXPECT_EQ(ErrorPath([&](TerrainConfig& c) {
+                  c.layers.push_back(terraingen::BedformLayerSpec{ridges});
+              }),
+              "layers[2]");
+}
+
 TEST(GenerateTerrain, AddsRocksWithEjectaFromTheLastCraterLayerBeforeThem) {
     TerrainConfig config = Small();
     Flat(config).pixelSize = 0.5;

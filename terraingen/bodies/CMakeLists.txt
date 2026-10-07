@@ -1,6 +1,7 @@
 terraingen_add_library(
     bodies
     SOURCES
+    mars/bedforms.cpp
     mars/craters.cpp
     mars/production.cpp
     moon/chronology.cpp

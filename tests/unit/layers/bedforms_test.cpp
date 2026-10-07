@@ -1,0 +1,161 @@
+#include "terraingen/layers/bedforms.h"
+
+#include "terraingen/terraingen.h"
+
+#include <gtest/gtest.h>
+
+#include <cmath>
+#include <functional>
+#include <numbers>
+#include <stdexcept>
+#include <vector>
+
+using terraingen::BedformLayer;
+using terraingen::BedformOptions;
+using terraingen::GeoTransform;
+using terraingen::Raster;
+
+namespace {
+
+BedformOptions Field() {
+    BedformOptions options;
+    options.wavelength = 2.0;
+    options.height = 0.3;
+    options.cover = 0.5;
+    options.fieldSize = 30.0;
+    options.leeFraction = 0.3;
+    return options;
+}
+
+class Level final : public terraingen::Ground {
+  public:
+    explicit Level(double slope) : slope_(slope) {}
+    float HeightAt(double x, double, double) const override {
+        return static_cast<float>(slope_ * x);
+    }
+
+  private:
+    double slope_;
+};
+
+}  // namespace
+
+TEST(BedformLayer, GivesPointsTheSameBitsAsGridsOnAnyThreads) {
+    const BedformLayer layer(Field());
+    Raster<float> one(120, 100, 1.0f);
+    one.SetTransform(GeoTransform::NorthUp(-30.0, 25.0, 0.5));
+    Raster<float> many = one;
+    terraingen::TerrainFeatures features;
+    layer.Apply(one, {0.5, 1}, features);
+    layer.Apply(many, {0.5, 4}, features);
+    double highest = 0.0;
+    for (std::size_t row = 0; row < one.Height(); ++row) {
+        for (std::size_t col = 0; col < one.Width(); ++col) {
+            ASSERT_EQ(one(col, row), many(col, row));
+            const auto centre = one.CellCenter(col, row);
+            ASSERT_EQ(layer.ApplyAt(1.0f, centre.x, centre.y, {0.5}), one(col, row));
+            ASSERT_GE(one(col, row), 1.0f);
+            highest = std::fmax(highest, static_cast<double>(one(col, row)) - 1.0);
+        }
+    }
+    EXPECT_GT(highest, 0.1);
+    EXPECT_LE(highest, 0.3 * 1.2 + 1e-6) << "the tallest field is 1.2 times the height";
+    EXPECT_TRUE(std::isnan(layer.ApplyAt(std::nanf(""), 0.0, 0.0, {0.5})));
+    EXPECT_THROW(layer.ApplyAt(1.0f, 0.0, 0.0, {0.0}), std::invalid_argument);
+}
+
+TEST(BedformLayer, CoversAboutTheShareOfGroundAskedFor) {
+    for (const double cover : {0.0, 0.2, 0.6}) {
+        BedformOptions options = Field();
+        options.cover = cover;
+        const BedformLayer layer(options);
+        double inside = 0.0;
+        constexpr int kSide = 200;
+        for (int j = 0; j < kSide; ++j) {
+            for (int i = 0; i < kSide; ++i) {
+                inside += layer.CoverAt(7.3 * i, 6.1 * j) > 0.5 ? 1.0 : 0.0;
+            }
+        }
+        EXPECT_NEAR(inside / (kSide * kSide), cover, 0.12) << cover;
+    }
+}
+
+TEST(BedformLayer, FadesBelowTwoSamplesPerWavelengthAndSkipsBareGround) {
+    const BedformLayer layer(Field());
+    for (int n = 0; n < 50; ++n) {
+        EXPECT_EQ(layer.ApplyAt(1.0f, 3.1 * n, 1.7 * n, {1.0}), 1.0f) << "2 m at 1 m spacing";
+    }
+    BedformOptions bare = Field();
+    bare.cover = 0.0;
+    EXPECT_EQ(BedformLayer(bare).ApplyAt(1.0f, 5.0, 5.0, {0.1}), 1.0f);
+}
+
+TEST(BedformLayer, HasSteeperLeeFacesDownwind) {
+    BedformOptions options = Field();
+    options.cover = 0.9;
+    options.fieldSize = 400.0;
+    options.sinuosity = 0.0;
+    const BedformLayer layer(options);
+    double up = 0.0;
+    double down = 0.0;
+    for (int i = 0; i < 4000; ++i) {
+        const double x = 0.01 * i;
+        const double slope = (static_cast<double>(layer.ApplyAt(0.0f, x + 0.01, 3.0, {0.01})) -
+                              static_cast<double>(layer.ApplyAt(0.0f, x, 3.0, {0.01}))) /
+                             0.01;
+        up = std::fmax(up, slope);
+        down = std::fmax(down, -slope);
+    }
+    EXPECT_GT(down, 1.5 * up) << "wind toward +x: the lee faces east and is the steeper";
+}
+
+TEST(BedformLayer, KeepsSandOffBedrock) {
+    BedformOptions options = Field();
+    options.cover = 0.6;
+    options.exposure = terraingen::ExposureParams{};
+    const BedformLayer layer(options);
+    const Level flat(0.0);
+    const Level steep(0.8);
+    double soil = 0.0;
+    double rock = 0.0;
+    for (int n = 0; n < 400; ++n) {
+        soil += layer.CoverAt(5.3 * n, 2.9 * n, &flat);
+        rock += layer.CoverAt(5.3 * n, 2.9 * n, &steep);
+    }
+    EXPECT_GT(soil, 0.0);
+    EXPECT_EQ(rock, 0.0) << "steep ground is all bedrock";
+    EXPECT_THROW(layer.CoverAt(0.0, 0.0), std::invalid_argument);
+    Raster<float> heights(4, 4, 0.0f);
+    terraingen::TerrainFeatures features;
+    EXPECT_THROW(layer.Apply(heights, {}, features), std::invalid_argument);
+}
+
+TEST(BedformLayer, RejectsInvalidOptions) {
+    const std::vector<std::function<void(BedformOptions&)>> changes{
+        [](BedformOptions& o) { o.wavelength = 0.0; },
+        [](BedformOptions& o) { o.height = -1.0; },
+        [](BedformOptions& o) { o.leeFraction = 1.0; },
+        [](BedformOptions& o) { o.cover = 0.95; },
+        [](BedformOptions& o) { o.sinuosity = -1.0; },
+        [](BedformOptions& o) { o.exposureSpacing = 0.0; },
+        [](BedformOptions& o) { o.exposure = terraingen::ExposureParams{.reach = -1.0}; },
+        [](BedformOptions& o) { o.fade = {2.0, 1.0}; }};
+    for (const auto& change : changes) {
+        BedformOptions options;
+        change(options);
+        EXPECT_THROW(BedformLayer{options}, std::invalid_argument);
+    }
+    EXPECT_EQ(BedformLayer(Field()).Options(), Field());
+}
+
+TEST(MarsBedforms, FollowLapotreAndHugenholtz) {
+    const auto ripples = terraingen::MarsLargeRipples();
+    const double leeSlope =
+        std::numbers::pi * ripples.height / (2.0 * ripples.wavelength * ripples.leeFraction);
+    EXPECT_NEAR(std::atan(leeSlope) * 180.0 / std::numbers::pi, 30.0, 1e-9);
+    EXPECT_NO_THROW(terraingen::ValidateBedformOptions(ripples));
+    const auto ridges = terraingen::MarsTransverseAeolianRidges();
+    EXPECT_EQ(ridges.wavelength, 25.8);
+    EXPECT_EQ(ridges.height, 1.3);
+    EXPECT_EQ(ridges.leeFraction, 0.5);
+}

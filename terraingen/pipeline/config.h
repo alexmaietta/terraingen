@@ -4,6 +4,7 @@
 #include "terraingen/bodies/moon/specifications.h"
 #include "terraingen/distribution/piecewise_power_law.h"
 #include "terraingen/filters/rim_smoothing.h"
+#include "terraingen/layers/bedforms.h"
 #include "terraingen/layers/craters/apply.h"
 #include "terraingen/layers/craters/population.h"
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
@@ -253,6 +254,13 @@ struct RoughnessLayerSpec {
     bool operator==(const RoughnessLayerSpec&) const = default;
 };
 
+/// "bedforms": fields of wind-blown ripples or dunes (`BedformLayer`); angles in radians.
+struct BedformLayerSpec {
+    BedformOptions bedforms{};
+
+    bool operator==(const BedformLayerSpec&) const = default;
+};
+
 /// "scale": height * `scale` + `offset` (`ScaleLayer`).
 struct ScaleLayerSpec {
     double scale = 1.0;
@@ -328,7 +336,7 @@ template <typename T> class Boxed {
 struct RegionLayerSpec;
 
 using LayerSpec = std::variant<NoiseLayerSpec, CraterLayerSpec, RockLayerSpec, RoughnessLayerSpec,
-                               ScaleLayerSpec, ClampLayerSpec, RegionLayerSpec>;
+                               BedformLayerSpec, ScaleLayerSpec, ClampLayerSpec, RegionLayerSpec>;
 
 /// "region": `layer` applied only inside `shape`, feathered over `feather` metres outside it
 /// (`RegionLayer`). Rock ejecta do not see crater layers inside regions.

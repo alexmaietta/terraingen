@@ -2,6 +2,7 @@
 terraingen_add_test_suite(
     craters
     SOURCES
+    bedforms_test.cpp
     craters/ages/fresh_test.cpp
     craters/ages/uniform_test.cpp
     craters/apply_test.cpp

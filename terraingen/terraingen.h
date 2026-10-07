@@ -2,6 +2,7 @@
 
 /// The whole TerrainGen library.
 
+#include "terraingen/bodies/mars/bedforms.h"
 #include "terraingen/bodies/mars/craters.h"
 #include "terraingen/bodies/mars/production.h"
 #include "terraingen/bodies/moon/chronology.h"
@@ -23,6 +24,7 @@
 #include "terraingen/distribution/tabulated.h"
 #include "terraingen/filters/filter.h"
 #include "terraingen/filters/rim_smoothing.h"
+#include "terraingen/layers/bedforms.h"
 #include "terraingen/layers/craters/ages/age_model.h"
 #include "terraingen/layers/craters/ages/fresh.h"
 #include "terraingen/layers/craters/ages/uniform.h"

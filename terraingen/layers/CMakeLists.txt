@@ -1,6 +1,7 @@
 terraingen_add_library(
     layers
     SOURCES
+    bedforms.cpp
     craters/ages/age_model.cpp
     craters/ages/fresh.cpp
     craters/ages/uniform.cpp

@@ -235,6 +235,9 @@ template <> struct SpecName<Sp8023CraterRocksSpec> {
 template <> struct SpecName<SynthterrainRocksSpec> {
     static constexpr std::string_view kName = "synthterrain";
 };
+template <> struct SpecName<BedformLayerSpec> {
+    static constexpr std::string_view kName = "bedforms";
+};
 template <> struct SpecName<ScaleLayerSpec> {
     static constexpr std::string_view kName = "scale";
 };
@@ -395,6 +398,7 @@ template <typename IO> void Fields(IO& io, Sp8023IntercraterRocksSpec& spec);
 template <typename IO> void Fields(IO& io, Sp8023CraterRocksSpec& spec);
 template <typename IO> void Fields(IO& io, SynthterrainRocksSpec& spec);
 template <typename IO> void Fields(IO& io, ScaleLayerSpec& spec);
+template <typename IO> void Fields(IO& io, BedformLayerSpec& spec);
 template <typename IO> void Fields(IO& io, ClampLayerSpec& spec);
 template <typename IO> void Fields(IO& io, RectangleRegionSpec& spec);
 template <typename IO> void Fields(IO& io, CircleRegionSpec& spec);
@@ -888,6 +892,22 @@ template <typename IO> void Fields(IO& io, RoughnessLayerSpec& spec) {
     io("min_wavelength", roughness.minWavelength);
     io("seed", roughness.seed);
     io("fade", roughness.fade);
+}
+
+template <typename IO> void Fields(IO& io, BedformLayerSpec& spec) {
+    BedformOptions& bedforms = spec.bedforms;
+    io("wavelength", bedforms.wavelength);
+    io("height", bedforms.height);
+    io("wind_azimuth", bedforms.windAzimuth);
+    io("azimuth_spread", bedforms.azimuthSpread);
+    io("lee_fraction", bedforms.leeFraction);
+    io("sinuosity", bedforms.sinuosity);
+    io("cover", bedforms.cover);
+    io("field_size", bedforms.fieldSize);
+    io("seed", bedforms.seed);
+    io("exposure", bedforms.exposure);
+    io("exposure_spacing", bedforms.exposureSpacing);
+    io("fade", bedforms.fade);
 }
 
 template <typename IO> void Fields(IO& io, ScaleLayerSpec& spec) {
