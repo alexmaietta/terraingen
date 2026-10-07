@@ -1159,3 +1159,64 @@ TEST(GenerateTerrain, BuildsSphereTerrainsAndWritesGeographicRasters) {
     EXPECT_EQ(read.raster.Transform(), generated.heights.Transform());
     EXPECT_TRUE(terraingen::ReadGeoTiffInfo(written[1]).geoKeys.IsGeographic());
 }
+
+TEST(GenerateTerrain, WearsCratersByDiffusionAsTheLibraryDoes) {
+    TerrainConfig config = Small();
+    Craters(config).degradation = terraingen::DiffusionDegradationSpec{};
+    Craters(config).profile =
+        terraingen::FassettThomsonSpec{terraingen::FassettThomsonRim::Plateau};
+    const auto generated = GenerateTerrain(config, {}, 2);
+    const CraterLayerSpec& spec = Craters(config);
+    const terraingen::CraterModels models = BuildCraterModels(spec);
+    const auto* profile = dynamic_cast<const terraingen::DiffusedProfile*>(models.profile.get());
+    ASSERT_NE(profile, nullptr);
+    ASSERT_GT(generated.features.craters.Size(), 0u);
+    const terraingen::Crater crater = generated.features.craters.At(0);
+    const terraingen::CraterState state = models.degradation->State(crater);
+    EXPECT_DOUBLE_EQ(state.diffusion,
+                     terraingen::Fassett2022HartmannDiffusivity()(crater.diameter, crater.ageGyr) /
+                         (crater.diameter * crater.diameter));
+
+    const auto error = [](auto mutate) {
+        TerrainConfig bad = Small();
+        terraingen::DiffusionDegradationSpec diffusion;
+        mutate(diffusion, Craters(bad));
+        Craters(bad).degradation = diffusion;
+        try {
+            ValidateConfig(bad);
+        } catch (const ConfigError& e) {
+            return e.Path();
+        }
+        return std::string("valid");
+    };
+    EXPECT_EQ(error([](auto&, auto&) {}), "valid");
+    EXPECT_EQ(error([](auto& d, auto&) { d.reachRadii = 1.0; }), "layers[1].degradation");
+    EXPECT_EQ(error([](auto& d, auto&) {
+                  d.diffusivity = terraingen::DiffusivityModel::PowerLaw;
+                  d.powerLaw = {0.0, 1.0, 0.0};
+              }),
+              "layers[1].degradation");
+    EXPECT_EQ(error([](auto&, auto& c) {
+                  c.body = terraingen::CraterBody::Mars;
+                  c.density = terraingen::MarsSurfaceSpec{};
+                  c.ages = terraingen::UniformAgesSpec{};
+              }),
+              "layers[1].degradation.diffusivity");
+    EXPECT_EQ(error([](auto& d, auto& c) {
+                  c.body = terraingen::CraterBody::Mars;
+                  c.density = terraingen::PowerLawSpec{};
+                  c.ages = terraingen::UniformAgesSpec{};
+                  d.diffusivity = terraingen::DiffusivityModel::PowerLaw;
+              }),
+              "valid");
+    for (const auto model : {terraingen::DiffusivityModel::Fassett2022Trask,
+                             terraingen::DiffusivityModel::FassettThomson2014,
+                             terraingen::DiffusivityModel::FassettThomson2014Calibration}) {
+        CraterLayerSpec layer = Craters(config);
+        terraingen::DiffusionDegradationSpec diffusion;
+        diffusion.diffusivity = model;
+        layer.degradation = diffusion;
+        const auto built = BuildCraterModels(layer);
+        EXPECT_GT(built.degradation->State({0.0, 0.0, 500.0, 1.0, 1u}).diffusion, 0.0);
+    }
+}

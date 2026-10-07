@@ -142,8 +142,27 @@ BuildDegradation(const DegradationSpec& spec, const std::shared_ptr<const Crater
             [&](const NoDegradationSpec& s) -> std::shared_ptr<const DegradationModel> {
                 return std::make_shared<NoDegradation>(fresh, s.depthRatio);
             },
+            [&](const DiffusionDegradationSpec&) -> std::shared_ptr<const DegradationModel> {
+                throw std::logic_error("Diffusion degradation is built with its profile");
+            },
         },
         spec);
+}
+
+DiffusionAgeModel BuildDiffusionAges(const DiffusionDegradationSpec& spec) {
+    switch (spec.diffusivity) {
+    case DiffusivityModel::Fassett2022Trask:
+        return Fassett2022TraskDiffusivity();
+    case DiffusivityModel::FassettThomson2014:
+        return FassettThomson2014Diffusivity();
+    case DiffusivityModel::FassettThomson2014Calibration:
+        return [](double, double ageGyr) { return FassettThomson2014DiffusionAge(ageGyr); };
+    case DiffusivityModel::PowerLaw:
+        ValidatePowerLawDiffusivity(spec.powerLaw);
+        return spec.powerLaw;
+    default:
+        return Fassett2022HartmannDiffusivity();
+    }
 }
 
 std::shared_ptr<const CraterProfile> BuildSimpleProfile(const SimpleProfileSpec& spec) {
@@ -264,9 +283,22 @@ void ValidateCraters(const CraterLayerSpec& craters, const RasterGrid& grid,
             throw ConfigError(path + ".ages",
                               "steady_state ages are the Moon's; on Mars give fresh or uniform");
         }
+        const auto* diffusion = std::get_if<DiffusionDegradationSpec>(&craters.degradation);
+        if (diffusion && diffusion->diffusivity != DiffusivityModel::PowerLaw) {
+            throw ConfigError(path + ".degradation.diffusivity",
+                              "the diffusivity models are the Moon's; on Mars give a power_law");
+        }
     }
-    At(path + ".degradation",
-       [&] { return BuildDegradation(craters.degradation, ages, craters.body); });
+    if (const auto* diffusion = std::get_if<DiffusionDegradationSpec>(&craters.degradation)) {
+        At(path + ".degradation", [&] {
+            BuildDiffusionAges(*diffusion);
+            return DiffusedProfile(BuildProfile(craters.profile, craters.body),
+                                   diffusion->reachRadii);
+        });
+    } else {
+        At(path + ".degradation",
+           [&] { return BuildDegradation(craters.degradation, ages, craters.body); });
+    }
     At(path + ".profile", [&] { return BuildProfile(craters.profile, craters.body); });
     if (!craters.generate) {
         return;
@@ -473,8 +505,15 @@ CraterModels BuildCraterModels(const CraterLayerSpec& craters) {
     CraterModels models;
     models.density = BuildDensity(craters.density);
     models.ages = BuildAges(craters.ages, craters.density);
-    models.degradation = BuildDegradation(craters.degradation, models.ages, craters.body);
     models.profile = BuildProfile(craters.profile, craters.body);
+    if (const auto* diffusion = std::get_if<DiffusionDegradationSpec>(&craters.degradation)) {
+        auto profile = std::make_shared<DiffusedProfile>(models.profile, diffusion->reachRadii);
+        models.degradation = std::make_shared<DiffusionDegradation>(
+            BodyMorphometry(craters.body), BuildDiffusionAges(*diffusion), profile);
+        models.profile = std::move(profile);
+        return models;
+    }
+    models.degradation = BuildDegradation(craters.degradation, models.ages, craters.body);
     return models;
 }
 

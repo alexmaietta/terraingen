@@ -38,6 +38,7 @@
 #include "terraingen/layers/craters/cell_cache.h"
 #include "terraingen/layers/craters/crater_layer.h"
 #include "terraingen/layers/craters/degradation/degradation_model.h"
+#include "terraingen/layers/craters/degradation/diffusion.h"
 #include "terraingen/layers/craters/degradation/freshness.h"
 #include "terraingen/layers/craters/degradation/none.h"
 #include "terraingen/layers/craters/degradation/state.h"

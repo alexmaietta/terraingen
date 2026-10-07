@@ -9,6 +9,7 @@
 #include "terraingen/filters/rim_smoothing.h"
 #include "terraingen/layers/bedforms.h"
 #include "terraingen/layers/craters/apply.h"
+#include "terraingen/layers/craters/degradation/diffusion.h"
 #include "terraingen/layers/craters/population.h"
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
 #include "terraingen/layers/region.h"
@@ -173,7 +174,26 @@ struct FreshnessDegradationSpec {  ///< "freshness": `FreshnessDegradation`.
     double cutoffDepthRatio = 0.04;
     bool operator==(const FreshnessDegradationSpec&) const = default;
 };
-using DegradationSpec = std::variant<FreshnessDegradationSpec, NoDegradationSpec>;
+/// Where "diffusion" degradation takes its diffusion ages from.
+enum class DiffusivityModel {
+    Fassett2022Hartmann,  ///< "fassett_2022_hartmann": `Fassett2022HartmannDiffusivity`.
+    Fassett2022Trask,     ///< "fassett_2022_trask": `Fassett2022TraskDiffusivity`.
+    FassettThomson2014,   ///< "fassett_thomson_2014": `FassettThomson2014Diffusivity`.
+    /// "fassett_thomson_2014_calibration": `FassettThomson2014DiffusionAge`.
+    FassettThomson2014Calibration,
+    PowerLaw,  ///< "power_law": the spec's `powerLaw`.
+};
+
+/// "diffusion": `DiffusionDegradation`, with the layer's profile worn by topographic diffusion
+/// (`DiffusedProfile` reaching `reachRadii` radii). The lunar models are refused on Mars.
+struct DiffusionDegradationSpec {
+    DiffusivityModel diffusivity = DiffusivityModel::Fassett2022Hartmann;
+    PowerLawDiffusivity powerLaw{};
+    double reachRadii = 3.0;
+    bool operator==(const DiffusionDegradationSpec&) const = default;
+};
+using DegradationSpec =
+    std::variant<FreshnessDegradationSpec, NoDegradationSpec, DiffusionDegradationSpec>;
 
 /// Crater profiles.
 struct FassettThomsonSpec {  ///< "fassett_thomson": `FassettThomsonProfile(rim)`.

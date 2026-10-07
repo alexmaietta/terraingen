@@ -18,6 +18,9 @@ struct CraterMorphometry {
 struct CraterState {
     CraterMorphometry fresh;
     CraterMorphometry current;
+    /// Diffusion age over diameter squared, kappa t / D^2, for profiles that diffuse the fresh
+    /// shape (`DiffusedProfile`); 0 for none.
+    double diffusion = 0.0;
 
     bool operator==(const CraterState&) const = default;
 };

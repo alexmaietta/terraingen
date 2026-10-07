@@ -300,6 +300,28 @@ TEST(ConfigJson, RoundTripsSurfacesAndFlatCentres) {
     EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "surface": {"type": "torus"}})"), "surface.type");
 }
 
+TEST(ConfigJson, RoundTripsDiffusionDegradation) {
+    for (const auto model : {terraingen::DiffusivityModel::Fassett2022Hartmann,
+                             terraingen::DiffusivityModel::Fassett2022Trask,
+                             terraingen::DiffusivityModel::FassettThomson2014,
+                             terraingen::DiffusivityModel::FassettThomson2014Calibration,
+                             terraingen::DiffusivityModel::PowerLaw}) {
+        TerrainConfig config;
+        CraterLayerSpec craters;
+        terraingen::DiffusionDegradationSpec diffusion;
+        diffusion.diffusivity = model;
+        diffusion.powerLaw = {2.0, 0.9, 3.0};
+        diffusion.reachRadii = 2.5;
+        craters.degradation = diffusion;
+        config.layers = {craters};
+        const std::string json = ConfigToJson(config);
+        EXPECT_EQ(ParseConfig(json), config) << json;
+    }
+    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "layers": [{"type": "craters",
+              "degradation": {"type": "diffusion", "diffusivity": "fast"}}]})"),
+              "layers[0].degradation.diffusivity");
+}
+
 TEST(ConfigJson, OmittedKeysTakeDefaultsAndOmittedListsAreEmpty) {
     const TerrainConfig minimal = ParseConfig(R"({"schema_version": 1})");
     EXPECT_EQ(minimal.source, terraingen::SourceSpec{});

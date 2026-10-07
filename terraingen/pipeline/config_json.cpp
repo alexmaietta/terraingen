@@ -175,6 +175,16 @@ template <> struct EnumNames<RimRoughnessModel> {
     }};
 };
 
+template <> struct EnumNames<DiffusivityModel> {
+    static constexpr std::array<std::pair<std::string_view, DiffusivityModel>, 5> kValues{{
+        {"fassett_2022_hartmann", DiffusivityModel::Fassett2022Hartmann},
+        {"fassett_2022_trask", DiffusivityModel::Fassett2022Trask},
+        {"fassett_thomson_2014", DiffusivityModel::FassettThomson2014},
+        {"fassett_thomson_2014_calibration", DiffusivityModel::FassettThomson2014Calibration},
+        {"power_law", DiffusivityModel::PowerLaw},
+    }};
+};
+
 template <> struct EnumNames<CraterBody> {
     static constexpr std::array<std::pair<std::string_view, CraterBody>, 2> kValues{{
         {"moon", CraterBody::Moon},
@@ -317,6 +327,9 @@ template <> struct SpecName<SteadyStateAgesSpec> {
 template <> struct SpecName<FreshnessDegradationSpec> {
     static constexpr std::string_view kName = "freshness";
 };
+template <> struct SpecName<DiffusionDegradationSpec> {
+    static constexpr std::string_view kName = "diffusion";
+};
 template <> struct SpecName<NoDegradationSpec> {
     static constexpr std::string_view kName = "none";
 };
@@ -454,6 +467,8 @@ template <typename IO> void Fields(IO& io, UniformAgesSpec& spec);
 template <typename IO> void Fields(IO& io, SteadyStateAgesSpec& spec);
 template <typename IO> void Fields(IO& io, FreshnessDegradationSpec& spec);
 template <typename IO> void Fields(IO& io, NoDegradationSpec& spec);
+template <typename IO> void Fields(IO& io, DiffusionDegradationSpec& spec);
+template <typename IO> void Fields(IO& io, PowerLawDiffusivity& law);
 template <typename IO> void Fields(IO& io, FassettThomsonSpec& spec);
 template <typename IO> void Fields(IO& io, MartinParkesDunstanSpec& spec);
 template <typename IO> void Fields(IO& io, ComplexProfileSpec& spec);
@@ -1090,6 +1105,18 @@ template <typename IO> void Fields(IO& io, SteadyStateAgesSpec& spec) {
 
 template <typename IO> void Fields(IO& io, FreshnessDegradationSpec& spec) {
     io("cutoff_depth_ratio", spec.cutoffDepthRatio);
+}
+
+template <typename IO> void Fields(IO& io, DiffusionDegradationSpec& spec) {
+    io("diffusivity", spec.diffusivity);
+    io("power_law", spec.powerLaw);
+    io("reach_radii", spec.reachRadii);
+}
+
+template <typename IO> void Fields(IO& io, PowerLawDiffusivity& law) {
+    io("coefficient", law.coefficient);
+    io("exponent", law.exponent);
+    io("min_diameter", law.minDiameter);
 }
 
 template <typename IO> void Fields(IO& io, NoDegradationSpec& spec) {

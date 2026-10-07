@@ -9,6 +9,7 @@ terraingen_add_library(
     craters/apply.cpp
     craters/cell_cache.cpp
     craters/crater_layer.cpp
+    craters/degradation/diffusion.cpp
     craters/degradation/freshness.cpp
     craters/degradation/none.cpp
     craters/filters.cpp

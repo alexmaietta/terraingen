@@ -1,5 +1,6 @@
 #pragma once
 
+#include "terraingen/layers/craters/degradation/diffusion.h"
 #include "terraingen/layers/craters/degradation/state.h"
 #include "terraingen/layers/craters/profiles/complex.h"
 
@@ -50,5 +51,35 @@ CraterMorphometry LunarFreshCraterMorphometry(double diameter);
 /// fitted 17 to 51 km, so held at 51 km beyond), D in km, collected in Stoffler et al. (2006, Table
 /// 5.1).
 ComplexCraterShape LunarComplexCraterShape();
+
+/// The lunar diffusivity of Fassett and Thomson (2014), 5.5 m^2/Myr, the average they find for 800
+/// m to 5 km mare craters over the last 3 Gyr, for every size. With it a 1 km crater keeps about
+/// 52% of its depth after 3 Gyr and a 300 m crater about 7%.
+///
+/// Reference: C. I. Fassett and B. J. Thomson, "Crater degradation on the lunar maria: Topographic
+/// diffusion and the rate of erosion on the Moon", JGR Planets 119:2255-2271, 2014.
+/// https://doi.org/10.1002/2014JE004698
+PowerLawDiffusivity FassettThomson2014Diffusivity();
+
+/// The size-dependent lunar diffusivity Fassett et al. (2022, Figure 2) find needed to hold the
+/// Hartmann equilibrium of small craters, kappa = 3.6 D^0.87 m^2/Myr with D in km, fitted above 5 m
+/// and held at its 5 m value below (where production is less certain). They find it 2 to 4 times
+/// uncertain, and extrapolated to the kilometre scale it gives 2.8 to 3.2 m^2/Myr against
+/// Fassett and Thomson's (2014) 5.5.
+///
+/// Reference: C. I. Fassett, R. A. Beyer, A. N. Deutsch, M. Hirabayashi, C. J. Leight,
+/// P. Mahanti et al., "Topographic diffusion revisited: small crater lifetime on the Moon and
+/// implications for volatile exploration", JGR Planets 127, e2022JE007510, 2022.
+/// https://doi.org/10.1029/2022JE007510
+PowerLawDiffusivity Fassett2022HartmannDiffusivity();
+
+/// As `Fassett2022HartmannDiffusivity` for the Trask equilibrium: kappa = 3.1 D^1.05 m^2/Myr.
+PowerLawDiffusivity Fassett2022TraskDiffusivity();
+
+/// The diffusion age kappa t (m^2) Fassett and Thomson (2014, eq. 6) calibrate against crater age t
+/// in Gyr for 800 m to 5 km mare craters: 435.83 t^5 - 3621.2 t^4 + 11204 t^3 - 16811 t^2 +
+/// 17546 t, faster in the last 0.7 Gyr than before; clamped at 0. It does not depend on size, so
+/// it suits kilometre-scale craters.
+double FassettThomson2014DiffusionAge(double ageGyr);
 
 }  // namespace terraingen
