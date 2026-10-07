@@ -15,6 +15,7 @@ terraingen_add_library(
     craters/filters.cpp
     craters/irregularity.cpp
     craters/population.cpp
+    craters/secondaries.cpp
     craters/profiles/complex.cpp
     craters/profiles/fassett_thomson.cpp
     craters/profiles/martin_parkes_dunstan.cpp

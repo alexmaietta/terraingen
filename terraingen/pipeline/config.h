@@ -12,6 +12,7 @@
 #include "terraingen/layers/craters/degradation/diffusion.h"
 #include "terraingen/layers/craters/population.h"
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
+#include "terraingen/layers/craters/secondaries.h"
 #include "terraingen/layers/region.h"
 #include "terraingen/layers/rocks/rock_layer.h"
 #include "terraingen/layers/roughness.h"
@@ -288,6 +289,18 @@ struct BedformLayerSpec {
     bool operator==(const BedformLayerSpec&) const = default;
 };
 
+/// "secondaries": secondary craters around the craters of the last crater layer before this one
+/// (`SecondaryCraterLayer`), shaped with that layer's profile at a fixed depth ratio `depthRatio`
+/// (0.11, the average Pike and Wilhelms (1978) found for simple lunar secondaries, as Singer et al.
+/// (2020) report it) and the fresh rim of `body`. `secondaries.onsetCount` must be given.
+struct SecondaryLayerSpec {
+    SecondaryCraterOptions secondaries{};
+    double depthRatio = 0.11;
+    CraterBody body = CraterBody::Moon;
+
+    bool operator==(const SecondaryLayerSpec&) const = default;
+};
+
 /// "scale": height * `scale` + `offset` (`ScaleLayer`).
 struct ScaleLayerSpec {
     double scale = 1.0;
@@ -363,7 +376,8 @@ template <typename T> class Boxed {
 struct RegionLayerSpec;
 
 using LayerSpec = std::variant<NoiseLayerSpec, CraterLayerSpec, RockLayerSpec, RoughnessLayerSpec,
-                               BedformLayerSpec, ScaleLayerSpec, ClampLayerSpec, RegionLayerSpec>;
+                               BedformLayerSpec, ScaleLayerSpec, ClampLayerSpec, RegionLayerSpec,
+                               SecondaryLayerSpec>;
 
 /// "region": `layer` applied only inside `shape`, feathered over `feather` metres outside it
 /// (`RegionLayer`). Rock ejecta do not see crater layers inside regions.

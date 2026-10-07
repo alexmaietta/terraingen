@@ -1220,3 +1220,39 @@ TEST(GenerateTerrain, WearsCratersByDiffusionAsTheLibraryDoes) {
         EXPECT_GT(built.degradation->State({0.0, 0.0, 500.0, 1.0, 1u}).diffusion, 0.0);
     }
 }
+
+TEST(GenerateTerrain, AddsSecondariesAroundTheCratersBeforeThem) {
+    TerrainConfig config = Small();
+    Flat(config) = {400, 400, 8.0};
+    CraterLayerSpec& craters = Craters(config);
+    craters.generate = false;
+    craters.manual = {{-3000.0, 0.0, 2000.0, 0.0, 3u}};
+    terraingen::SecondaryLayerSpec secondaries;
+    secondaries.secondaries.onsetCount = 40.0;
+    secondaries.secondaries.minDiameter = 16.0;
+    config.layers.push_back(secondaries);
+    const auto generated = GenerateTerrain(config, {}, 2);
+    ASSERT_GT(generated.features.craters.Size(), 2u);
+    EXPECT_EQ(generated.features.craters.At(0).id, 3u);
+    EXPECT_EQ(generated.features.craterAttributes.size(), generated.features.craters.Size());
+
+    const auto error = [](auto mutate) {
+        TerrainConfig bad = Small();
+        terraingen::SecondaryLayerSpec layer;
+        layer.secondaries.onsetCount = 5.0;
+        mutate(bad, layer);
+        bad.layers.push_back(layer);
+        try {
+            ValidateConfig(bad);
+        } catch (const ConfigError& e) {
+            return e.Path();
+        }
+        return std::string("valid");
+    };
+    EXPECT_EQ(error([](auto&, auto&) {}), "valid");
+    EXPECT_EQ(error([](auto&, auto& l) { l.secondaries.onsetCount.reset(); }),
+              "layers[2].onset_count");
+    EXPECT_EQ(error([](auto&, auto& l) { l.secondaries.sizeSlope = 0.0; }), "layers[2]");
+    EXPECT_EQ(error([](auto&, auto& l) { l.depthRatio = 0.0; }), "layers[2].depth_ratio");
+    EXPECT_EQ(error([](auto& c, auto&) { c.layers.pop_back(); }), "layers[1]");
+}

@@ -411,6 +411,20 @@ void ValidateLayer(const LayerSpec& spec, const RasterGrid& grid, const std::str
                 craters = true;
             },
             [&](const RockLayerSpec& layer) { ValidateRocks(layer, craters, grid, path, surface); },
+            [&](const SecondaryLayerSpec& layer) {
+                if (!craters) {
+                    throw ConfigError(path, "secondaries need a crater layer before this one");
+                }
+                if (!(layer.secondaries.onsetCount && *layer.secondaries.onsetCount > 0.0)) {
+                    throw ConfigError(path + ".onset_count",
+                                      "required: the sources give secondary sizes, not their "
+                                      "number");
+                }
+                At(path, [&] { ValidateSecondaryCraterOptions(layer.secondaries); });
+                if (!(std::isfinite(layer.depthRatio) && layer.depthRatio > 0.0)) {
+                    throw ConfigError(path + ".depth_ratio", "must be positive");
+                }
+            },
             [&](const RoughnessLayerSpec& layer) {
                 At(path, [&] { ValidateRoughnessOptions(layer.roughness); });
             },
@@ -455,6 +469,14 @@ std::shared_ptr<const Layer> BuildLayer(const LayerSpec& spec, const Source& sou
         return std::make_shared<RegionLayer>(BuildLayer(*region->layer, source, ejecta, surface),
                                              BuildRegionShape(region->shape), region->feather,
                                              region->blend, surface);
+    }
+    if (const auto* secondaries = std::get_if<SecondaryLayerSpec>(&spec)) {
+        return std::make_shared<SecondaryCraterLayer>(
+            ejecta,
+            SecondaryCraterModels{ejecta->Models().profile,
+                                  std::make_shared<NoDegradation>(
+                                      BodyMorphometry(secondaries->body), secondaries->depthRatio)},
+            secondaries->secondaries);
     }
     if (const auto* roughness = std::get_if<RoughnessLayerSpec>(&spec)) {
         return std::make_shared<RoughnessLayer>(roughness->roughness, surface);

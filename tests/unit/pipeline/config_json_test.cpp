@@ -326,6 +326,24 @@ TEST(ConfigJson, RoundTripsDiffusionDegradation) {
               "layers[0].degradation.diffusivity");
 }
 
+TEST(ConfigJson, RoundTripsSecondaryLayers) {
+    TerrainConfig config;
+    terraingen::SecondaryLayerSpec secondaries;
+    secondaries.secondaries.onsetCount = 12.0;
+    secondaries.secondaries.maxDiameter = 80.0;
+    secondaries.secondaries.outerRange = 6.0;
+    secondaries.secondaries.maxAgeGyr = 0.5;
+    secondaries.secondaries.maxPrimaryDiameter = 900.0;
+    secondaries.depthRatio = 0.12;
+    secondaries.body = terraingen::CraterBody::Mars;
+    config.layers = {CraterLayerSpec{}, secondaries};
+    const std::string json = ConfigToJson(config);
+    EXPECT_EQ(ParseConfig(json), config) << json;
+    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "layers": [{"type": "secondaries",
+              "onset_count": "many"}]})"),
+              "layers[0].onset_count");
+}
+
 TEST(ConfigJson, OmittedKeysTakeDefaultsAndOmittedListsAreEmpty) {
     const TerrainConfig minimal = ParseConfig(R"({"schema_version": 1})");
     EXPECT_EQ(minimal.source, terraingen::SourceSpec{});

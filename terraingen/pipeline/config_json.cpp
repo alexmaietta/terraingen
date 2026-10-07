@@ -261,6 +261,9 @@ template <> struct SpecName<Sp8023CraterRocksSpec> {
 template <> struct SpecName<SynthterrainRocksSpec> {
     static constexpr std::string_view kName = "synthterrain";
 };
+template <> struct SpecName<SecondaryLayerSpec> {
+    static constexpr std::string_view kName = "secondaries";
+};
 template <> struct SpecName<BedformLayerSpec> {
     static constexpr std::string_view kName = "bedforms";
 };
@@ -448,6 +451,7 @@ template <typename IO> void Fields(IO& io, Sp8023CraterRocksSpec& spec);
 template <typename IO> void Fields(IO& io, SynthterrainRocksSpec& spec);
 template <typename IO> void Fields(IO& io, ScaleLayerSpec& spec);
 template <typename IO> void Fields(IO& io, BedformLayerSpec& spec);
+template <typename IO> void Fields(IO& io, SecondaryLayerSpec& spec);
 template <typename IO> void Fields(IO& io, ClampLayerSpec& spec);
 template <typename IO> void Fields(IO& io, RectangleRegionSpec& spec);
 template <typename IO> void Fields(IO& io, CircleRegionSpec& spec);
@@ -1008,6 +1012,40 @@ template <typename IO> void Fields(IO& io, RoughnessLayerSpec& spec) {
     io("min_wavelength", roughness.minWavelength);
     io("seed", roughness.seed);
     io("fade", roughness.fade);
+}
+
+template <typename IO> void Fields(IO& io, SecondaryLayerSpec& spec) {
+    SecondaryCraterOptions& o = spec.secondaries;
+    io("seed", o.seed);
+    io("onset_count", o.onsetCount);
+    io("count_fraction", o.countFraction);
+    io("size_slope", o.sizeSlope);
+    io("min_diameter", o.minDiameter);
+    std::optional<double> maxDiameter;
+    if (std::isfinite(o.maxDiameter)) {
+        maxDiameter = o.maxDiameter;
+    }
+    io("max_diameter", maxDiameter);
+    o.maxDiameter = maxDiameter.value_or(std::numeric_limits<double>::infinity());
+    io("outer_range", o.outerRange);
+    io("min_primary_diameter", o.minPrimaryDiameter);
+    std::optional<double> maxPrimary;
+    if (std::isfinite(o.maxPrimaryDiameter)) {
+        maxPrimary = o.maxPrimaryDiameter;
+    }
+    io("max_primary_diameter", maxPrimary);
+    o.maxPrimaryDiameter = maxPrimary.value_or(std::numeric_limits<double>::infinity());
+    io("min_age_gyr", o.minAgeGyr);
+    std::optional<double> maxAge;
+    if (std::isfinite(o.maxAgeGyr)) {
+        maxAge = o.maxAgeGyr;
+    }
+    io("max_age_gyr", maxAge);
+    o.maxAgeGyr = maxAge.value_or(std::numeric_limits<double>::infinity());
+    io("manual", o.manual);
+    io("cell_size_factor", o.cellSizeFactor);
+    io("depth_ratio", spec.depthRatio);
+    io("body", spec.body);
 }
 
 template <typename IO> void Fields(IO& io, BedformLayerSpec& spec) {
