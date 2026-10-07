@@ -77,7 +77,7 @@ if(TERRAINGEN_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
 if(TERRAINGEN_BUILD_BENCHMARKS)
-    add_subdirectory(benchmarks)
+    add_subdirectory(tests/benchmark)
 endif()
 
 if(TERRAINGEN_INSTALL)
