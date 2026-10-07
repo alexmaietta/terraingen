@@ -37,6 +37,22 @@ struct ValueDistribution {
 /// normal or log-normal without a finite `max`.
 void ValidateValueDistribution(const ValueDistribution& distribution);
 
+/// How rough crater rims are drawn.
+enum class RimRoughnessModel {
+    /// Harmonics `minHarmonic` to `maxHarmonic` with amplitudes falling as k^-`spectralSlope`, of
+    /// RMS `roughness`: a simple, configurable spectrum.
+    PowerLaw,
+    /// The fitted spectra of fresh lunar rim crests of Du et al. (2024, Table 2, rim crest radial
+    /// distance): per crater, the spectrum's breakpoints from their diameter relations (1 to 140
+    /// km; smaller and larger craters take the 1 and 140 km values), scattered by their 1-sigma
+    /// misfits and with noise of 0.55 in log10 power on each harmonic when `scatter`, turned into
+    /// waves of amplitude sqrt(2 pi P_i) / 5000 at random phases (their eq. 4 with the 5000
+    /// vertices their spectra were computed on). Harmonics 1 to 511 are kept, tabulated at 1024
+    /// angles. Outlines deviating by more than `maxDeviation` radii are scaled down to it, a
+    /// safeguard of this library: the fits' tails, drawn independently, can fold a rim.
+    Du2024,
+};
+
 /// Irregular, non-circular crater outlines: which craters have them and the distributions their
 /// shapes are drawn from, per crater from its ID, so every grid, tile and point agrees.
 ///
@@ -52,8 +68,8 @@ void ValidateValueDistribution(const ValueDistribution& distribution);
 /// Bottke et al. (2000) found 5.4% of 932 lunar mare craters (2.3 to 89 km) elliptical, with
 /// ellipticity at least 1.1 and at most 2.23, a share that did not change with size, and about 5%
 /// of kilometre-sized craters on Mars, Venus and the Moon; `elongatedShare` defaults to the lunar
-/// 5.4%. The defaults for the ellipticity (1.1 to 1.5), the roughness and its spectrum are
-/// illustrative, not fitted.
+/// 5.4%. The default ellipticity (1.1 to 1.5) and the `PowerLaw` roughness and spectrum are
+/// illustrative, not fitted; `RimRoughnessModel::Du2024` draws rims from Du et al.'s fits.
 ///
 /// References:
 /// - W. F. Bottke, S. G. Love, D. Tytell and T. Glotch, "Interpreting the elliptical crater
@@ -74,6 +90,9 @@ struct CraterIrregularity {
     bool manual = false;
 
     double roughShare = 1.0;  ///< Share of eligible craters with rough outlines.
+    RimRoughnessModel model = RimRoughnessModel::PowerLaw;
+    bool scatter = true;        ///< With `Du2024`, scatter each crater's spectrum as measured.
+    double maxDeviation = 0.3;  ///< With `Du2024`, the largest deviation kept, in radii.
     ValueDistribution roughness{ValueDistribution::Kind::Uniform, 0.01, 0.03};
     ValueDistribution spectralSlope{ValueDistribution::Kind::Constant, 1.5};
     int minHarmonic = 2;
@@ -92,7 +111,7 @@ struct CraterIrregularity {
 /// @throws std::invalid_argument for invalid distributions, shares outside [0, 1], inverted or
 /// negative size or age ranges, harmonics outside 1 <= min <= max <= 64, a roughness that could
 /// fold the rim (its highest value times sqrt(2 n), n harmonics, at least 0.5), an ellipticity
-/// below 1, or a negative or non-finite heading or spread.
+/// below 1, a negative or non-finite heading or spread, or a `maxDeviation` outside (0, 0.5].
 void ValidateCraterIrregularity(const CraterIrregularity& irregularity);
 
 /// One crater's outline: the factor its rim radius and profile are stretched by in each direction.
@@ -102,13 +121,16 @@ struct CraterOutline {
     std::vector<double> amplitudes;  ///< A_k from k = `firstHarmonic`.
     std::vector<double> phases;
     int firstHarmonic = 2;
+    /// The rim's deviation from a circle at angles 2 pi n / size, interpolated linearly, in place
+    /// of `amplitudes` when not empty.
+    std::vector<double> table;
 
     /// The stretch at offset (`dx`, `dy`) from the crater's centre; 1 for a round crater.
     double Scale(double dx, double dy) const;
     /// The largest stretch in any direction.
     double MaxScale() const;
     bool Round() const {
-        return ellipticity == 1.0 && amplitudes.empty();
+        return ellipticity == 1.0 && amplitudes.empty() && table.empty();
     }
 };
 

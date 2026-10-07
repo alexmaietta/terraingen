@@ -168,6 +168,13 @@ template <> struct EnumNames<ValueDistribution::Kind> {
     }};
 };
 
+template <> struct EnumNames<RimRoughnessModel> {
+    static constexpr std::array<std::pair<std::string_view, RimRoughnessModel>, 2> kValues{{
+        {"power_law", RimRoughnessModel::PowerLaw},
+        {"du_2024", RimRoughnessModel::Du2024},
+    }};
+};
+
 template <> struct EnumNames<CraterBody> {
     static constexpr std::array<std::pair<std::string_view, CraterBody>, 2> kValues{{
         {"moon", CraterBody::Moon},
@@ -833,6 +840,9 @@ template <typename IO> void Fields(IO& io, CraterIrregularity& irregularity) {
     irregularity.maxAgeGyr = maxAge.value_or(std::numeric_limits<double>::infinity());
     io("manual", irregularity.manual);
     io("rough_share", irregularity.roughShare);
+    io("model", irregularity.model);
+    io("scatter", irregularity.scatter);
+    io("max_deviation", irregularity.maxDeviation);
     io("roughness", irregularity.roughness);
     io("spectral_slope", irregularity.spectralSlope);
     io("min_harmonic", irregularity.minHarmonic);

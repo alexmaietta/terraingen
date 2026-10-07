@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <complex>
 #include <functional>
 #include <memory>
 #include <numbers>
@@ -168,6 +169,58 @@ TEST(CraterOutline, HasTheRoughnessAskedForAndStaysWithinItsBounds) {
     EXPECT_EQ(OutlineOf(At(3), irregularity).heading, 0.5);
 }
 
+TEST(OutlineOf, FollowsDuEtAlsFittedRimSpectra) {
+    CraterIrregularity irregularity;
+    irregularity.enabled = true;
+    irregularity.elongatedShare = 0.0;
+    irregularity.model = terraingen::RimRoughnessModel::Du2024;
+    irregularity.scatter = false;
+    const auto outline = OutlineOf(At(9, 10000.0), irregularity);
+    ASSERT_EQ(outline.table.size(), 1024u);
+    EXPECT_TRUE(outline.amplitudes.empty());
+    const auto amplitude = [&](int k) {
+        std::complex<double> sum = 0.0;
+        for (std::size_t n = 0; n < outline.table.size(); ++n) {
+            sum += outline.table[n] *
+                   std::polar(1.0, -2.0 * std::numbers::pi * k * static_cast<double>(n) / 1024.0);
+        }
+        return 2.0 * std::abs(sum) / 1024.0;
+    };
+    const auto expected = [](double logPower) {
+        return std::sqrt(std::pow(10.0, logPower) * 2.0 * std::numbers::pi) / 5000.0;
+    };
+    EXPECT_NEAR(amplitude(1), expected(0.066 * 10.0 - 1.1), 1e-12) << "degree-1 power";
+    EXPECT_NEAR(amplitude(2), expected(0.055 * 10.0 + 2.3), 1e-12) << "degree-2 power";
+    const double logWavelength2 = 0.010 * 10.0 - 0.57;
+    const double logPower2 = 0.043 * 10.0 + 0.59;
+    const double logPi = std::log10(std::numbers::pi);
+    const double at10 = std::log10(2.0 * std::numbers::pi / 10.0);
+    EXPECT_NEAR(amplitude(10),
+                expected(logPower2 + (at10 - logWavelength2) / (logPi - logWavelength2) *
+                                         (0.055 * 10.0 + 2.3 - logPower2)),
+                1e-12);
+    const double at200 = std::log10(2.0 * std::numbers::pi / 200.0);
+    EXPECT_NEAR(amplitude(200),
+                expected(logPower2 + (-0.022 * 10.0 + 3.3) * (at200 - logWavelength2)), 1e-12);
+    EXPECT_NEAR(outline.Scale(1.0, 0.0), 1.0 + outline.table[0], 1e-12);
+    EXPECT_NEAR(outline.Scale(std::cos(2.0 * std::numbers::pi * 5.0 / 1024.0),
+                              std::sin(2.0 * std::numbers::pi * 5.0 / 1024.0)),
+                1.0 + outline.table[5], 1e-9);
+    EXPECT_NEAR(terraingen::MaxOutlineScale(irregularity), 1.3, 1e-12);
+
+    irregularity.scatter = true;
+    irregularity.maxDeviation = 0.01;
+    for (std::uint64_t id = 0; id < 50; ++id) {
+        const auto capped = OutlineOf(At(id, 60000.0), irregularity);
+        for (const double deviation : capped.table) {
+            ASSERT_LE(std::fabs(deviation), 0.01 + 1e-12);
+        }
+        EXPECT_LE(capped.MaxScale(), 1.01 + 1e-12);
+    }
+    EXPECT_NE(OutlineOf(At(1, 60000.0), irregularity).table,
+              OutlineOf(At(2, 60000.0), irregularity).table);
+}
+
 TEST(ValidateCraterIrregularity, RejectsInvalidSettings) {
     EXPECT_NO_THROW(terraingen::ValidateCraterIrregularity({}));
     const std::vector<std::function<void(CraterIrregularity&)>> changes{
@@ -182,6 +235,8 @@ TEST(ValidateCraterIrregularity, RejectsInvalidSettings) {
         [](CraterIrregularity& c) { c.ellipticity = {ValueDistribution::Kind::Constant, 0.9}; },
         [](CraterIrregularity& c) { c.heading = std::nan(""); },
         [](CraterIrregularity& c) { c.headingSpread = -1.0; },
+        [](CraterIrregularity& c) { c.maxDeviation = 0.0; },
+        [](CraterIrregularity& c) { c.maxDeviation = 0.6; },
         [](CraterIrregularity& c) {
             c.spectralSlope = {ValueDistribution::Kind::Uniform, 2.0, 1.0};
         }};

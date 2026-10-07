@@ -69,7 +69,8 @@ complex crater shape, with Mars's transition at 7 km. The "mars_surface" density
 Ivanov's (2001) production function and chronology.
 
 Craters can have irregular outlines (`CraterIrregularity`, under a crater layer's "apply"): rims that
-wander as a sum of harmonics with a power-law spectrum, as Du et al. (2024) describe fresh lunar rims, and
+wander as a sum of harmonics, either a configurable power-law spectrum or the spectra Du et al. (2024) fitted
+to fresh lunar rim crests (`RimRoughnessModel::Du2024`), and
 elliptical craters, by default the 5.4% Bottke et al. (2000) found on the lunar maria. Users choose which
 craters (diameter and age ranges, manual craters or not), the share of each kind, and distributions
 (constant, uniform, normal or log-normal) for the roughness, spectral slope, ellipticity and heading.
