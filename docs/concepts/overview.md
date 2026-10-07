@@ -77,8 +77,11 @@ Their abundance varies in patches and rises where bedrock shows (`ExposureField`
 ground stands above its surroundings and how steep it is). Fresh craters that dug through the regolith
 add blocks of their own (`RockEjecta`, sized by `Sp8023CraterBlocks` or Golombek and Rapp), densest at
 the rim, falling off outward and wearing away with age. Each rock is recorded with its size, height,
-burial and tilt in `TerrainFeatures::rocks`, and drawn into the heights as a dome, or left out of them
-(`RockRelief::None`) for programs that place each rock as a body or mesh of its own.
+burial and tilt in `TerrainFeatures::rocks`. Rocks too small to resolve at the spacing fade out; rocks from
+there up to a threshold (`RockModels`, a diameter or a number of samples across) are drawn into the heights,
+as domes or as the tops of their 3D boulder shapes (`RockRelief`); larger rocks become 3D models of their
+own, placed on the ground beneath them (`TerrainFeatures::boulders`), which the "boulder_models" output
+writes as an instanced glTF scene or one PLY mesh and the "rock_list" output lists.
 `GenerateBoulderShape` gives each rock a 3D shape from its ID: a cube, pyramid, wedge, tetrahedron or
 icosphere, stretched to the axis ratios of impact fragments, rounded, roughened with 3D Perlin noise and cut
 by flat fracture faces, in styles such as blocks, slabs and weathered rounded boulders. `BoulderMesh`

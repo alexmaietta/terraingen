@@ -18,6 +18,7 @@
 #include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
 #include "terraingen/layers/noise_relief.h"
 #include "terraingen/layers/transforms.h"
+#include "terraingen/meshes/mesh_io.h"
 #include "terraingen/noise/kernels/layers.h"
 #include "terraingen/pipeline/config_json.h"
 #include "terraingen/sources/flat_source.h"
@@ -33,6 +34,8 @@
 #include <cstdio>
 #include <fstream>
 #include <limits>
+#include <map>
+#include <numbers>
 #include <stdexcept>
 #include <string>
 #include <variant>
@@ -534,6 +537,22 @@ void ValidateConfig(const TerrainConfig& config, const std::filesystem::path& di
                                throw ConfigError(path + ".path", "must not be empty");
                            }
                        },
+                       [&](const RockListOutput& output) {
+                           if (output.path.empty()) {
+                               throw ConfigError(path + ".path", "must not be empty");
+                           }
+                       },
+                       [&](const BoulderModelsOutput& output) {
+                           const std::string extension =
+                               std::filesystem::path(output.path).extension().string();
+                           if (extension != ".glb" && extension != ".ply") {
+                               throw ConfigError(path + ".path", "must end in .glb or .ply");
+                           }
+                           if (!(output.creaseAngle >= 0.0 && output.creaseAngle <= 180.0)) {
+                               throw ConfigError(path + ".crease_angle",
+                                                 "must be between 0 and 180 degrees");
+                           }
+                       },
                        [&](const HeightmapOutput& output) {
                            if (output.path.empty()) {
                                throw ConfigError(path + ".path", "must not be empty");
@@ -639,6 +658,85 @@ void WriteCraterList(const CraterList& craters, const std::filesystem::path& pat
     }
 }
 
+void WriteRockList(const std::vector<Rock>& rocks, const std::filesystem::path& path,
+                   CraterListFormat format) {
+    std::ofstream file(path, std::ios::binary);
+    if (!file) {
+        throw std::runtime_error("Cannot write " + path.string());
+    }
+    if (format == CraterListFormat::Csv) {
+        file << "x,y,ground,diameter,height,burial,yaw,lean,id,model\n";
+        for (const Rock& rock : rocks) {
+            file << Number(rock.x) << ',' << Number(rock.y) << ','
+                 << (rock.ground ? Number(*rock.ground) : std::string()) << ','
+                 << Number(rock.diameter) << ',' << Number(rock.height) << ','
+                 << Number(rock.burial) << ',' << Number(rock.yaw) << ',' << Number(rock.lean)
+                 << ',' << rock.id << ',' << (rock.model ? 1 : 0) << '\n';
+        }
+    } else {
+        nlohmann::ordered_json json;
+        json["rocks"] = nlohmann::ordered_json::array();
+        for (const Rock& rock : rocks) {
+            json["rocks"].push_back({{"x", rock.x},
+                                     {"y", rock.y},
+                                     {"ground", rock.ground ? nlohmann::ordered_json(*rock.ground)
+                                                            : nlohmann::ordered_json(nullptr)},
+                                     {"diameter", rock.diameter},
+                                     {"height", rock.height},
+                                     {"burial", rock.burial},
+                                     {"yaw", rock.yaw},
+                                     {"lean", rock.lean},
+                                     {"id", rock.id},
+                                     {"model", rock.model}});
+        }
+        file << json.dump(2) << '\n';
+    }
+    if (!file) {
+        throw std::runtime_error("Cannot write " + path.string());
+    }
+}
+
+void WriteBoulderModels(const std::vector<BoulderModel>& boulders,
+                        const std::filesystem::path& path, double creaseAngle) {
+    const std::string extension = path.extension().string();
+    if (extension != ".glb" && extension != ".ply") {
+        throw std::invalid_argument("Boulder models are written as .glb or .ply");
+    }
+    if (!(creaseAngle >= 0.0 && creaseAngle <= 180.0)) {
+        throw std::invalid_argument("Crease angle must be between 0 and 180 degrees");
+    }
+    if (boulders.empty()) {
+        throw std::invalid_argument("There are no boulder models to write");
+    }
+    if (extension == ".ply") {
+        TriangleMesh merged;
+        for (const BoulderModel& boulder : boulders) {
+            const auto first = static_cast<std::uint32_t>(merged.positions.size());
+            for (const Vec3d& p : boulder.shape->mesh.positions) {
+                merged.positions.push_back(boulder.placement.Apply(p));
+            }
+            for (const auto& t : boulder.shape->mesh.triangles) {
+                merged.triangles.push_back({first + t[0], first + t[1], first + t[2]});
+            }
+        }
+        WritePly(path, merged);
+        return;
+    }
+    const double radians = creaseAngle * std::numbers::pi / 180.0;
+    std::vector<SceneMesh> meshes;
+    std::map<const BoulderShape*, std::size_t> indices;
+    std::vector<SceneNode> nodes;
+    for (const BoulderModel& boulder : boulders) {
+        auto [found, added] = indices.emplace(boulder.shape.get(), meshes.size());
+        if (added) {
+            ShadedMesh shaded = WithCreases(boulder.shape->mesh, radians);
+            meshes.push_back({std::move(shaded.mesh), std::move(shaded.normals)});
+        }
+        nodes.push_back({found->second, boulder.placement.scale, boulder.placement.pose});
+    }
+    WriteGlbScene(path, meshes, nodes);
+}
+
 std::vector<std::filesystem::path> WriteOutputs(const TerrainConfig& config,
                                                 const GeneratedTerrain& terrain,
                                                 const std::filesystem::path& directory) {
@@ -653,6 +751,18 @@ std::vector<std::filesystem::path> WriteOutputs(const TerrainConfig& config,
         if (const auto* heightmap = std::get_if<HeightmapOutput>(&spec)) {
             WriteGeoTiff(path, terrain.heights, terrain.geoKeys,
                          {.compression = heightmap->compression, .tileSize = heightmap->tileSize});
+        } else if (const auto* rocks = std::get_if<RockListOutput>(&spec)) {
+            WriteRockList(terrain.features.rocks, path, rocks->format);
+            LogInfo("pipeline", "Wrote ", terrain.features.rocks.size(), " rocks to ",
+                    path.string());
+        } else if (const auto* models = std::get_if<BoulderModelsOutput>(&spec)) {
+            if (terrain.features.boulders.empty()) {
+                LogWarning("pipeline", "No boulder models to write to ", path.string());
+                continue;
+            }
+            WriteBoulderModels(terrain.features.boulders, path, models->creaseAngle);
+            LogInfo("pipeline", "Wrote ", terrain.features.boulders.size(), " boulder models to ",
+                    path.string());
         } else {
             const auto& list = std::get<CraterListOutput>(spec);
             WriteCraterList(terrain.features.craters, path, list.format,

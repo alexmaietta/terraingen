@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 
 namespace terraingen {
 
@@ -16,6 +17,10 @@ struct Rock {
     double yaw = 0.0;       ///< Rotation about the vertical, radians counter-clockwise from east.
     double lean = 0.0;      ///< Tilt of the rock's vertical axis from the vertical, radians.
     std::uint64_t id = 0;   ///< Stable ID, keyed like crater IDs.
+    /// Height of the ground beneath the rock's centre before any rocks, when the layer knows it.
+    std::optional<double> ground{};
+    /// Placed as a 3D model of its own rather than drawn into the heights (`RockModels`).
+    bool model = false;
 
     /// Height of the rock's top above the surface it stands on.
     double ExposedHeight() const {

@@ -537,6 +537,66 @@ TEST(WriteOutputs, ResolvesRelativePathsAndCreatesFolders) {
               static_cast<long>(terrain.features.craters.Size() + 1));
 }
 
+TEST(WriteOutputs, WritesRockListsAndBoulderModels) {
+    TerrainConfig config = Small();
+    Flat(config) = {200, 200, 0.5};
+    terraingen::RockLayerSpec rocks;
+    rocks.rocks.coverage = 0.3;
+    rocks.rocks.minDiameter = 0.5;
+    rocks.rocks.relief = terraingen::RockRelief::Shape;
+    rocks.rocks.models.minDiameter = 1.5;
+    rocks.rocks.shapes.subdivisions = 1;
+    config.layers.push_back(rocks);
+    config.outputs = {terraingen::RockListOutput{"rocks.csv"},
+                      terraingen::RockListOutput{"rocks.json", CraterListFormat::Json},
+                      terraingen::BoulderModelsOutput{"boulders.glb"},
+                      terraingen::BoulderModelsOutput{"boulders.ply"}};
+    const auto terrain = GenerateTerrain(config);
+    ASSERT_FALSE(terrain.features.boulders.empty());
+    for (const auto& boulder : terrain.features.boulders) {
+        ASSERT_TRUE(boulder.rock.ground.has_value());
+        EXPECT_GE(boulder.rock.diameter, 1.5);
+    }
+    const auto directory = TempPath("terraingen_rock_outputs");
+    std::filesystem::remove_all(directory);
+    const auto written = terraingen::WriteOutputs(config, terrain, directory);
+    ASSERT_EQ(written.size(), 4u);
+    const std::string csv = Read(written[0]);
+    EXPECT_EQ(csv.rfind("x,y,ground,diameter,height,burial,yaw,lean,id,model\n", 0), 0u);
+    EXPECT_EQ(std::count(csv.begin(), csv.end(), '\n'),
+              static_cast<long>(terrain.features.rocks.size() + 1));
+    EXPECT_NE(Read(written[1]).find("\"model\": true"), std::string::npos);
+    EXPECT_EQ(Read(written[2]).substr(0, 4), "glTF");
+    EXPECT_EQ(Read(written[3]).substr(0, 3), "ply");
+
+    terraingen::RockLayerSpec none;
+    none.rocks.minDiameter = 0.5;
+    config.layers.back() = none;
+    config.outputs = {terraingen::BoulderModelsOutput{"empty.glb"}};
+    EXPECT_TRUE(terraingen::WriteOutputs(config, GenerateTerrain(config), directory).empty())
+        << "nothing to write without models";
+
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
+                  c.outputs = {terraingen::BoulderModelsOutput{"boulders.obj"}};
+              }),
+              "outputs[0].path");
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
+                  c.outputs = {terraingen::BoulderModelsOutput{"boulders.glb", 200.0}};
+              }),
+              "outputs[0].crease_angle");
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { c.outputs = {terraingen::RockListOutput{}}; }),
+              "outputs[0].path");
+    EXPECT_THROW(terraingen::WriteBoulderModels({}, directory / "x.glb"), std::invalid_argument);
+    EXPECT_THROW(terraingen::WriteBoulderModels(terrain.features.boulders, directory / "x.obj"),
+                 std::invalid_argument);
+    EXPECT_THROW(
+        terraingen::WriteBoulderModels(terrain.features.boulders, directory / "x.glb", -1.0),
+        std::invalid_argument);
+    EXPECT_THROW(
+        terraingen::WriteRockList({}, TempPath("missing/dir/r.csv"), CraterListFormat::Csv),
+        std::runtime_error);
+}
+
 namespace {
 
 /// GeoKeys for a projected (or geographic) CRS with pixel-is-area rasters.

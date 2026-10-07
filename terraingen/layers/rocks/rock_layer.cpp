@@ -5,6 +5,7 @@
 #include "terraingen/noise/kernels/perlin.h"
 #include "terraingen/noise/kernels/philox.h"
 #include "terraingen/raster/grid.h"
+#include "terraingen/raster/resample.h"
 #include "terraingen/util/cells.h"
 #include "terraingen/util/parallel.h"
 
@@ -199,6 +200,17 @@ void ValidateRockLayerOptions(const RockLayerOptions& options) {
         throw std::invalid_argument("Rock maxLean must not be negative");
     }
     ValidateResolutionFade(options.fade);
+    for (const auto& threshold : {options.models.minDiameter, options.models.minSamples}) {
+        if (threshold && !(std::isfinite(*threshold) && *threshold > 0.0)) {
+            throw std::invalid_argument("Rock model thresholds must be positive and finite");
+        }
+    }
+    ValidateBoulderShapeOptions(options.shapes);
+}
+
+bool RockModels::IsModel(double diameter, double spacing) const {
+    return (minDiameter && diameter >= *minDiameter) ||
+           (minSamples && spacing > 0.0 && diameter >= *minSamples * spacing);
 }
 
 std::shared_ptr<const SizeFrequencyDistribution> RockCandidates(const RockLayerOptions& options) {
@@ -232,6 +244,36 @@ RockLayer::RockLayer(RockLayerOptions options, std::shared_ptr<const CraterLayer
     if (options_.exposure) {
         exposure_.emplace(*options_.exposure);
     }
+    shapes_ = std::make_shared<LruCache<std::uint64_t, BoulderShape>>(
+        options_.shapePrototypes > 0 ? options_.shapePrototypes : 4096,
+        [](const BoulderShape&) { return std::size_t{1}; });
+}
+
+std::shared_ptr<const BoulderShape> RockLayer::Shape(const Rock& rock) const {
+    const std::uint64_t seed = BoulderShapeSeed(rock.id, options_.shapePrototypes);
+    return shapes_->Get(seed, [&] { return GenerateBoulderShape(seed, options_.shapes); });
+}
+
+TriangleMesh RockLayer::PlacedOnLevel(const Rock& rock) const {
+    const auto shape = Shape(rock);
+    const BoulderPlacement placement = PlaceBoulder(rock, *shape, 0.0);
+    TriangleMesh mesh = shape->mesh;
+    for (Vec3d& p : mesh.positions) {
+        p = placement.Apply(p);
+    }
+    return mesh;
+}
+
+float RockLayer::AddRelief(float height, double x, double y, const Rock& rock,
+                           const TriangleMesh* placed, double weight) const {
+    if (placed == nullptr) {
+        return AddRock(height, x, y, rock, weight);
+    }
+    const std::optional<double> top = TopSurface(*placed, x, y);
+    if (!top || !(*top > 0.0)) {
+        return height;
+    }
+    return static_cast<float>(static_cast<double>(height) + weight * *top);
 }
 
 CraterList RockLayer::EjectaCraters(const Bounds2d& region) const {
@@ -379,9 +421,22 @@ std::vector<Rock> RockLayer::Rocks(const Bounds2d& region, double spacing,
             (options_.maxHeightRatio - options_.minHeightRatio) * Uniform(shape.x, shape.y);
         const double burial = options_.minBurial +
                               (options_.maxBurial - options_.minBurial) * Uniform(draw.z, draw.w);
-        rocks.push_back({candidate.x, candidate.y, candidate.diameter, ratio * candidate.diameter,
-                         burial, 2.0 * std::numbers::pi * Uniform(shape.z, shape.w),
-                         options_.maxLean * Uniform(shape.w, shape.x), candidate.id});
+        Rock rock{candidate.x,
+                  candidate.y,
+                  candidate.diameter,
+                  ratio * candidate.diameter,
+                  burial,
+                  2.0 * std::numbers::pi * Uniform(shape.z, shape.w),
+                  options_.maxLean * Uniform(shape.w, shape.x),
+                  candidate.id};
+        rock.model = options_.models.IsModel(rock.diameter, spacing);
+        if (ground != nullptr) {
+            const double height = ground->HeightAt(rock.x, rock.y, options_.exposureSpacing);
+            if (!std::isnan(height)) {
+                rock.ground = height;
+            }
+        }
+        rocks.push_back(rock);
     }
     return rocks;
 }
@@ -402,15 +457,39 @@ void RockLayer::Apply(Raster<float>& heights, const LayerContext& context,
                       TerrainFeatures& features) const {
     const RasterGrid grid = RasterGrid::Of(heights);
     const double resolved = std::max(context.spacing, grid.PixelSize());
-    const std::vector<Rock> rocks = Rocks(grid.Bounds(), resolved, context.ground);
-    if (options_.relief == RockRelief::Body) {
-        std::vector<Window> windows;
-        std::vector<double> weights;
-        windows.reserve(rocks.size());
-        weights.reserve(rocks.size());
-        for (const Rock& rock : rocks) {
-            windows.push_back(WindowAround(heights, rock.x, rock.y, 0.5 * rock.diameter));
-            weights.push_back(ResolutionWeight(rock.diameter, resolved, options_.fade));
+    std::vector<Rock> rocks = Rocks(grid.Bounds(), resolved, context.ground);
+    for (Rock& rock : rocks) {
+        if (rock.model && !rock.ground) {
+            const float below = SampleRaster(heights, rock.x, rock.y, ResampleMethod::Bilinear);
+            if (!std::isnan(below)) {
+                rock.ground = static_cast<double>(below);
+            }
+        }
+    }
+    if (options_.relief != RockRelief::None) {
+        const bool shaped = options_.relief == RockRelief::Shape;
+        std::vector<Window> windows(rocks.size());
+        std::vector<double> weights(rocks.size(), 0.0);
+        std::vector<TriangleMesh> placed(shaped ? rocks.size() : 0);
+        for (std::size_t n = 0; n < rocks.size(); ++n) {
+            const Rock& rock = rocks[n];
+            if (rock.model) {
+                continue;
+            }
+            weights[n] = ResolutionWeight(rock.diameter, resolved, options_.fade);
+            if (weights[n] == 0.0) {
+                continue;
+            }
+            if (shaped) {
+                placed[n] = PlacedOnLevel(rock);
+                const Box3d box = Bounds(placed[n]);
+                const double reach = std::fmax(
+                    std::fmax(std::fabs(box.min.x - rock.x), std::fabs(box.max.x - rock.x)),
+                    std::fmax(std::fabs(box.min.y - rock.y), std::fabs(box.max.y - rock.y)));
+                windows[n] = WindowAround(heights, rock.x, rock.y, reach);
+            } else {
+                windows[n] = WindowAround(heights, rock.x, rock.y, 0.5 * rock.diameter);
+            }
         }
         constexpr std::size_t kBandRows = 32;
         const std::size_t bands = (heights.Height() + kBandRows - 1) / kBandRows;
@@ -422,6 +501,7 @@ void RockLayer::Apply(Raster<float>& heights, const LayerContext& context,
                     continue;
                 }
                 const Window& window = windows[n];
+                const TriangleMesh* shape = shaped ? &placed[n] : nullptr;
                 for (std::size_t row = std::max(bandBegin, window.row0);
                      row < std::min(bandEnd, window.row1); ++row) {
                     for (std::size_t col = window.col0; col < window.col1; ++col) {
@@ -430,11 +510,18 @@ void RockLayer::Apply(Raster<float>& heights, const LayerContext& context,
                             continue;
                         }
                         const Vec2d centre = heights.CellCenter(col, row);
-                        cell = AddRock(cell, centre.x, centre.y, rocks[n], weights[n]);
+                        cell = AddRelief(cell, centre.x, centre.y, rocks[n], shape, weights[n]);
                     }
                 }
             }
         });
+    }
+    for (const Rock& rock : rocks) {
+        if (rock.model && rock.ground) {
+            const auto shape = Shape(rock);
+            features.boulders.push_back({rock, BoulderShapeSeed(rock.id, options_.shapePrototypes),
+                                         shape, PlaceBoulder(rock, *shape, *rock.ground)});
+        }
     }
     features.rocks.insert(features.rocks.end(), rocks.begin(), rocks.end());
 }
@@ -450,8 +537,14 @@ float RockLayer::ApplyAt(float height, double x, double y, const LayerContext& c
     const Bounds2d point{x, y, std::nextafter(x, kInf), std::nextafter(y, kInf)};
     for (const Rock& rock : Rocks(point, context.spacing, context.ground)) {
         const double weight = ResolutionWeight(rock.diameter, context.spacing, options_.fade);
-        if (weight > 0.0) {
-            height = AddRock(height, x, y, rock, weight);
+        if (rock.model || weight <= 0.0) {
+            continue;
+        }
+        if (options_.relief == RockRelief::Shape) {
+            const TriangleMesh placed = PlacedOnLevel(rock);
+            height = AddRelief(height, x, y, rock, &placed, weight);
+        } else {
+            height = AddRelief(height, x, y, rock, nullptr, weight);
         }
     }
     return height;

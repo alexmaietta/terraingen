@@ -3,6 +3,7 @@
 #include "terraingen/layers/craters/attributes.h"
 #include "terraingen/layers/craters/population.h"
 #include "terraingen/layers/ground.h"
+#include "terraingen/layers/rocks/boulder_meshes.h"
 #include "terraingen/layers/rocks/rock.h"
 #include "terraingen/raster/geo_transform.h"
 #include "terraingen/raster/raster.h"
@@ -19,6 +20,9 @@ struct TerrainFeatures {
     /// The attributes of `craters`, in the same order; layers that record craters record these too.
     std::vector<CraterAttributes> craterAttributes;
     std::vector<Rock> rocks;  ///< Every rock the layers placed, in the order they placed them.
+    /// The rocks placed as 3D models of their own (`Rock::model`), with their shapes and
+    /// placements.
+    std::vector<BoulderModel> boulders;
 };
 
 /// How a layer is evaluated.

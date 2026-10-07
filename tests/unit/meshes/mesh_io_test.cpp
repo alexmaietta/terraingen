@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
@@ -11,6 +12,7 @@
 #include <iterator>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -94,4 +96,54 @@ TEST(WriteGlb, WritesAValidBinaryGltfContainer) {
     std::memcpy(&y, bytes.data() + 20 + Word(bytes, 12) + 8 + 4, 4);
     EXPECT_EQ(y, 2.0f) << "z up becomes y up";
     EXPECT_THROW(terraingen::WriteGlb(path, terraingen::TriangleMesh{}), std::invalid_argument);
+}
+
+TEST(WriteGlbScene, DrawsSharedMeshesOncePerNodeInTheYUpFrame) {
+    const auto cube = terraingen::BaseSolidMesh(terraingen::BaseSolid::Cube);
+    const auto pyramid = terraingen::BaseSolidMesh(terraingen::BaseSolid::Pyramid);
+    std::vector<terraingen::SceneNode> nodes{
+        {0, {2.0, 3.0, 4.0}, terraingen::RigidTransform::Translation({1.0, 2.0, 3.0})},
+        {1, {1.0, 1.0, 1.0}, terraingen::RigidTransform::RotationZ(std::acos(-1.0) / 2.0)},
+        {0, {1.0, 1.0, 1.0}, {}}};
+    const auto path = TempPath("scene.glb");
+    terraingen::WriteGlbScene(path, {{cube, {}}, {pyramid, terraingen::VertexNormals(pyramid)}},
+                              nodes);
+    const std::string bytes = Read(path);
+    const std::string json = bytes.substr(20, Word(bytes, 12));
+    EXPECT_NE(json.find(R"("scenes":[{"nodes":[0,1,2]}])"), std::string::npos) << json;
+    EXPECT_NE(
+        json.find(R"({"mesh":0,"translation":[1,3,-2],"rotation":[0,0,0,1],"scale":[2,4,3]})"),
+        std::string::npos)
+        << "z up becomes y up for translations and scales";
+    EXPECT_NE(json.find(R"("rotation":[0,0.707106781,0,0.707106781])"), std::string::npos)
+        << "a turn about z is a turn about glTF's y";
+    EXPECT_EQ(Word(bytes, 8), bytes.size());
+
+    EXPECT_THROW(terraingen::WriteGlbScene(path, {}, nodes), std::invalid_argument);
+    EXPECT_THROW(terraingen::WriteGlbScene(path, {{cube, {}}}, {{3}}), std::invalid_argument);
+    EXPECT_THROW(terraingen::WriteGlbScene(path, {{cube, {}}}, {{0, {0.0, 1.0, 1.0}, {}}}),
+                 std::invalid_argument);
+    terraingen::RigidTransform mirror;
+    mirror.rotation[0] = -1.0;
+    EXPECT_THROW(terraingen::WriteGlbScene(path, {{cube, {}}}, {{0, {1.0, 1.0, 1.0}, mirror}}),
+                 std::invalid_argument);
+    terraingen::RigidTransform skew;
+    skew.rotation[1] = 0.5;
+    EXPECT_THROW(terraingen::WriteGlbScene(path, {{cube, {}}}, {{0, {1.0, 1.0, 1.0}, skew}}),
+                 std::invalid_argument);
+}
+
+TEST(WriteGlbScene, WritesHalfTurnsAboutEveryAxis) {
+    const auto cube = terraingen::BaseSolidMesh(terraingen::BaseSolid::Cube);
+    const double pi = std::acos(-1.0);
+    const auto path = TempPath("turns.glb");
+    terraingen::WriteGlbScene(path, {{cube, {}}},
+                              {{0, {1, 1, 1}, terraingen::RigidTransform::RotationX(pi)},
+                               {0, {1, 1, 1}, terraingen::RigidTransform::RotationZ(pi)},
+                               {0, {1, 1, 1}, terraingen::RigidTransform::RotationY(pi)}});
+    const std::string bytes = Read(path);
+    const std::string json = bytes.substr(20, Word(bytes, 12));
+    EXPECT_NE(json.find(R"("rotation":[1,)"), std::string::npos) << "about x";
+    EXPECT_NE(json.find(R"("rotation":[0,1,)"), std::string::npos) << "about glTF's y";
+    EXPECT_NE(json.find(R"("rotation":[0,0,1,)"), std::string::npos) << "about glTF's z";
 }

@@ -324,7 +324,7 @@ struct RegionLayerSpec {
 /// Filters, named in JSON by their "type": "rim_smoothing" is `RimSmoothingFilter`.
 using FilterSpec = std::variant<RimSmoothing>;
 
-/// Formats for crater lists.
+/// Formats for crater and rock lists.
 enum class CraterListFormat { Csv, Json };
 
 /// "crater_list": writes the generated and manual craters.
@@ -342,7 +342,25 @@ struct HeightmapOutput {
     bool operator==(const HeightmapOutput&) const = default;
 };
 
-using OutputSpec = std::variant<HeightmapOutput, CraterListOutput>;
+/// "rock_list": writes every rock the layers placed, models and relief alike; the format follows
+/// the extension unless given.
+struct RockListOutput {
+    std::string path;
+    CraterListFormat format = CraterListFormat::Csv;
+    bool operator==(const RockListOutput&) const = default;
+};
+/// "boulder_models": writes the rocks placed as 3D models (`RockModels`) on the ground beneath
+/// them, as a glTF scene (.glb) drawing each shared shape once per boulder, or as one merged PLY
+/// mesh
+/// (.ply). Vertices are split where faces meet at more than `creaseAngle` degrees.
+struct BoulderModelsOutput {
+    std::string path;
+    double creaseAngle = 35.0;
+    bool operator==(const BoulderModelsOutput&) const = default;
+};
+
+using OutputSpec =
+    std::variant<HeightmapOutput, CraterListOutput, RockListOutput, BoulderModelsOutput>;
 
 /// Everything needed to generate a terrain: a source, the layers added to it in order, the filters
 /// applied after them in order, and the outputs to write.

@@ -149,9 +149,20 @@ template <> struct EnumNames<SynthterrainRocks> {
     }};
 };
 
+template <> struct EnumNames<BaseSolid> {
+    static constexpr std::array<std::pair<std::string_view, BaseSolid>, 5> kValues{{
+        {"icosahedron", BaseSolid::Icosahedron},
+        {"cube", BaseSolid::Cube},
+        {"pyramid", BaseSolid::Pyramid},
+        {"prism", BaseSolid::Prism},
+        {"tetrahedron", BaseSolid::Tetrahedron},
+    }};
+};
+
 template <> struct EnumNames<RockRelief> {
-    static constexpr std::array<std::pair<std::string_view, RockRelief>, 2> kValues{{
-        {"body", RockRelief::Body},
+    static constexpr std::array<std::pair<std::string_view, RockRelief>, 3> kValues{{
+        {"dome", RockRelief::Dome},
+        {"shape", RockRelief::Shape},
         {"none", RockRelief::None},
     }};
 };
@@ -286,6 +297,12 @@ template <> struct SpecName<FassettThomsonSpec> {
 template <> struct SpecName<MartinParkesDunstanSpec> {
     static constexpr std::string_view kName = "martin_parkes_dunstan";
 };
+template <> struct SpecName<RockListOutput> {
+    static constexpr std::string_view kName = "rock_list";
+};
+template <> struct SpecName<BoulderModelsOutput> {
+    static constexpr std::string_view kName = "boulder_models";
+};
 template <> struct SpecName<CraterListOutput> {
     static constexpr std::string_view kName = "crater_list";
 };
@@ -386,6 +403,12 @@ template <typename IO> void Fields(IO& io, NoDegradationSpec& spec);
 template <typename IO> void Fields(IO& io, FassettThomsonSpec& spec);
 template <typename IO> void Fields(IO& io, MartinParkesDunstanSpec& spec);
 template <typename IO> void Fields(IO& io, CraterListOutput& output);
+template <typename IO> void Fields(IO& io, RockListOutput& output);
+template <typename IO> void Fields(IO& io, BoulderModelsOutput& output);
+template <typename IO> void Fields(IO& io, RockModels& models);
+template <typename IO> void Fields(IO& io, ValueRange& range);
+template <typename IO> void Fields(IO& io, BoulderStyle& style);
+template <typename IO> void Fields(IO& io, BoulderShapeOptions& shapes);
 
 template <typename T>
 concept HasFields = requires(Reader& reader, T& value) { Fields(reader, value); };
@@ -480,12 +503,21 @@ void AfterRead(const Json& /*json*/, Crater& crater) {
     crater.manual = true;
 }
 
-void AfterRead(const Json& json, CraterListOutput& output) {
+/// The list format a path's extension names when the configuration gives none.
+template <typename Output> void InferListFormat(const Json& json, Output& output) {
     if (!json.contains("format")) {
         const std::string& path = output.path;
         const bool isJson = path.size() >= 5 && path.compare(path.size() - 5, 5, ".json") == 0;
         output.format = isJson ? CraterListFormat::Json : CraterListFormat::Csv;
     }
+}
+
+void AfterRead(const Json& json, CraterListOutput& output) {
+    InferListFormat(json, output);
+}
+
+void AfterRead(const Json& json, RockListOutput& output) {
+    InferListFormat(json, output);
 }
 
 template <HasFields T> void Read(const Json& json, const std::string& path, T& value) {
@@ -825,6 +857,9 @@ template <typename IO> void Fields(IO& io, RockLayerSpec& spec) {
     io("max_burial", rocks.maxBurial);
     io("max_lean", rocks.maxLean);
     io("relief", rocks.relief);
+    io("models", rocks.models);
+    io("shapes", rocks.shapes);
+    io("shape_prototypes", rocks.shapePrototypes);
     io("fade", rocks.fade);
 }
 
@@ -926,6 +961,48 @@ template <typename IO> void Fields(IO& io, FassettThomsonSpec& spec) {
 }
 
 template <typename IO> void Fields(IO& /*io*/, MartinParkesDunstanSpec& /*spec*/) {}
+
+template <typename IO> void Fields(IO& io, RockListOutput& output) {
+    io("path", output.path);
+    io("format", output.format);
+}
+
+template <typename IO> void Fields(IO& io, BoulderModelsOutput& output) {
+    io("path", output.path);
+    io("crease_angle", output.creaseAngle);
+}
+
+template <typename IO> void Fields(IO& io, RockModels& models) {
+    io("min_diameter", models.minDiameter);
+    io("min_samples", models.minSamples);
+}
+
+template <typename IO> void Fields(IO& io, ValueRange& range) {
+    io("min", range.min);
+    io("max", range.max);
+}
+
+template <typename IO> void Fields(IO& io, BoulderStyle& style) {
+    io("name", style.name);
+    io("weight", style.weight);
+    io("solid", style.solid);
+    io("intermediate", style.intermediate);
+    io("short_axis", style.shortAxis);
+    io("rounding", style.rounding);
+    io("min_fractures", style.minFractures);
+    io("max_fractures", style.maxFractures);
+    io("fracture_depth", style.fractureDepth);
+    io("max_fracture_tilt", style.maxFractureTilt);
+    io("noise_amplitude", style.noiseAmplitude);
+    io("noise_wavelength", style.noiseWavelength);
+    io("noise_octaves", style.noiseOctaves);
+}
+
+template <typename IO> void Fields(IO& io, BoulderShapeOptions& shapes) {
+    io("styles", shapes.styles);
+    io("subdivisions", shapes.subdivisions);
+    io("seed", shapes.seed);
+}
 
 template <typename IO> void Fields(IO& io, CraterListOutput& output) {
     io("path", output.path);

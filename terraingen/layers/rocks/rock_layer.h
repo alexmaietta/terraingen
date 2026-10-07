@@ -7,7 +7,9 @@
 #include "terraingen/layers/craters/crater_layer.h"
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/layer.h"
+#include "terraingen/layers/rocks/boulder_meshes.h"
 #include "terraingen/layers/rocks/rock.h"
+#include "terraingen/util/lru_cache.h"
 
 #include <cstdint>
 #include <memory>
@@ -16,10 +18,28 @@
 
 namespace terraingen {
 
-/// What a rock layer adds to the heights.
+/// How the rocks drawn into the heights look there.
 enum class RockRelief {
-    Body,  ///< Each rock's exposed part, as a dome: for heightmaps that should show the rocks.
-    None,  ///< Nothing: for programs that place each rock as a body or mesh of its own.
+    Dome,   ///< Each rock's exposed part as a dome: cheap, and enough for small rocks.
+    Shape,  ///< The top surface of each rock's 3D boulder shape (`GenerateBoulderShape`).
+    None,   ///< Nothing: for programs that place every rock as a model of its own.
+};
+
+/// Which rocks become 3D models of their own rather than relief in the heights: those at least
+/// `minDiameter` metres across, or spanning at least `minSamples` samples at the spacing evaluated.
+/// Rocks too small to resolve are left out (`ResolutionFade`), rocks from there up to the threshold
+/// are drawn into the heights, and rocks above it are models, which suit them better than a DEM
+/// does. Neither set means no models. With `minSamples`, a rock drawn into a coarse level of detail
+/// becomes a model at a finer one.
+struct RockModels {
+    std::optional<double> minDiameter{};
+    std::optional<double> minSamples{};
+
+    /// Whether a rock `diameter` metres across is a model at `spacing` (0 for no spacing, when only
+    /// `minDiameter` counts).
+    bool IsModel(double diameter, double spacing) const;
+
+    bool operator==(const RockModels&) const = default;
 };
 
 /// Patches of richer and poorer rock cover.
@@ -131,7 +151,13 @@ struct RockLayerOptions {
     double minBurial = 0.1;  ///< Buried share of the height, uniform between these.
     double maxBurial = 0.4;
     double maxLean = 0.26;  ///< Largest tilt from the vertical (radians, about 15 degrees).
-    RockRelief relief = RockRelief::Body;
+    RockRelief relief = RockRelief::Dome;
+    RockModels models{};
+    /// The 3D shapes of the rocks, for `RockRelief::Shape` and for models.
+    BoulderShapeOptions shapes{};
+    /// How many shapes the rocks share, so that they can be drawn as instances; 0 gives every rock
+    /// a shape of its own (`BoulderShapeSeed`).
+    std::uint32_t shapePrototypes = 64;
     ResolutionFade fade{};
     /// Most rock candidates to keep generated cells of; 0 regenerates cells every time.
     std::size_t cacheRocks = 4000000;
@@ -176,18 +202,22 @@ class RockLayer final : public Layer {
     /// @throws std::invalid_argument for invalid options, or ejecta without `craters`.
     RockLayer(RockLayerOptions options, std::shared_ptr<const CraterLayer> craters = nullptr);
 
-    /// Adds the rocks' exposed parts (with `RockRelief::Body`) and records the rocks centred in the
-    /// grid or within a radius of it.
+    /// Adds the exposed parts of the rocks drawn into the heights, as `relief` says, and records
+    /// the rocks centred in the grid or within a radius of it, the models among them with their
+    /// shapes placed on the ground beneath (the ground from `context`, otherwise the heights as
+    /// given). The ground under a rock is read at its centre.
     /// @throws std::invalid_argument if the exposure field is enabled and `context.ground` is null.
     void Apply(Raster<float>& heights, const LayerContext& context,
                TerrainFeatures& features) const override;
 
-    /// The rocks reaching (`x`, `y`) added to `height` there, to the same bits as a cell centred
-    /// there; NaN stays NaN.
+    /// The rocks drawn into the heights that reach (`x`, `y`) added to `height` there, to the same
+    /// bits as a cell centred there; NaN stays NaN.
     float ApplyAt(float height, double x, double y, const LayerContext& context) const override;
 
     /// The rocks centred in `region` or within their radius of it, at least resolvable at `spacing`
-    /// (0 for every rock), in a fixed order; `ground` is needed when the exposure field is enabled.
+    /// (0 for every rock), in a fixed order, each marked as a model or not at that spacing and with
+    /// the height of `ground` under it when given; `ground` is needed when the exposure field is
+    /// enabled.
     /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
     std::vector<Rock> Rocks(const Bounds2d& region, double spacing = 0.0,
                             const Ground* ground = nullptr) const;
@@ -208,7 +238,17 @@ class RockLayer final : public Layer {
         return options_;
     }
 
+    /// The 3D shape of `rock`, shared between rocks with the same shape seed.
+    std::shared_ptr<const BoulderShape> Shape(const Rock& rock) const;
+
   private:
+    /// The rock's exposed part added to `height` at (`x`, `y`), with `placed` its shape placed on
+    /// level ground at 0 for `RockRelief::Shape`.
+    float AddRelief(float height, double x, double y, const Rock& rock, const TriangleMesh* placed,
+                    double weight) const;
+    /// `rock`'s shape placed on level ground at 0.
+    TriangleMesh PlacedOnLevel(const Rock& rock) const;
+
     /// The ejecta craters that can add blocks in `region`.
     CraterList EjectaCraters(const Bounds2d& region) const;
     RockAbundance Abundance(double x, double y, const Ground* ground,
@@ -222,6 +262,7 @@ class RockLayer final : public Layer {
     std::shared_ptr<const SizeFrequencyDistribution> candidates_;
     std::shared_ptr<const SizeFrequencyDistribution> ejectaSizes_;
     std::shared_ptr<CraterCellCache> cache_;
+    std::shared_ptr<LruCache<std::uint64_t, BoulderShape>> shapes_;
     std::optional<ExposureField> exposure_;
 };
 

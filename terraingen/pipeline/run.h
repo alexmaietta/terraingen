@@ -61,6 +61,21 @@ GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
 void WriteCraterList(const CraterList& craters, const std::filesystem::path& path,
                      CraterListFormat format, const std::vector<CraterAttributes>& attributes = {});
 
+/// Writes `rocks` as CSV (columns x, y, ground, diameter, height, burial, yaw, lean, id, model) or
+/// as JSON ({"rocks": [...]}), doubles written exactly and an unknown ground left empty (CSV) or
+/// null (JSON).
+/// @throws std::runtime_error if the file cannot be written.
+void WriteRockList(const std::vector<Rock>& rocks, const std::filesystem::path& path,
+                   CraterListFormat format);
+
+/// Writes `boulders` as a glTF scene (a path ending in .glb), each shape once with crease normals
+/// split at `creaseAngle` degrees and drawn once per boulder, or (.ply) as one mesh of every
+/// boulder placed in the world.
+/// @throws std::invalid_argument for another extension, no boulders or an angle outside [0, 180].
+/// @throws std::runtime_error if the file cannot be written.
+void WriteBoulderModels(const std::vector<BoulderModel>& boulders,
+                        const std::filesystem::path& path, double creaseAngle = 35.0);
+
 /// Writes `config`'s outputs (heightmaps with `terrain.geoKeys`, crater lists), resolving relative
 /// paths against `directory`, and returns the paths written.
 /// @throws std::runtime_error if an output cannot be written.

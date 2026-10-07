@@ -49,7 +49,7 @@ void Save(const std::filesystem::path& path, const std::string& bytes) {
 
 std::string Number(double value) {
     std::array<char, 32> buffer{};
-    std::snprintf(buffer.data(), buffer.size(), "%.9g", value);
+    std::snprintf(buffer.data(), buffer.size(), "%.9g", value == 0.0 ? 0.0 : value);
     return buffer.data();
 }
 
@@ -87,69 +87,159 @@ void WritePly(const std::filesystem::path& path, const TriangleMesh& mesh,
     Save(path, bytes);
 }
 
-void WriteGlb(const std::filesystem::path& path, const TriangleMesh& mesh,
-              const std::vector<Vec3d>& normals) {
-    CheckMesh(mesh, normals);
-    if (mesh.positions.empty() || mesh.triangles.empty()) {
-        throw std::invalid_argument("Cannot write an empty mesh as glTF");
+namespace {
+
+/// glTF is y-up: a z-up point (x, y, z) is written as (x, z, -y).
+Vec3d YUp(const Vec3d& p) {
+    return {p.x, p.z, -p.y};
+}
+
+/// The unit quaternion (x, y, z, w) of rotation matrix `r` (row-major).
+///
+/// Reference: S. W. Shepperd, "Quaternion from rotation matrix", Journal of Guidance and Control
+/// 1(3):223-224, 1978. https://doi.org/10.2514/3.55767b
+std::array<double, 4> Quaternion(const std::array<double, 9>& r) {
+    const double trace = r[0] + r[4] + r[8];
+    std::array<double, 4> q{};
+    if (trace > 0.0) {
+        const double s = 2.0 * std::sqrt(1.0 + trace);
+        q = {(r[7] - r[5]) / s, (r[2] - r[6]) / s, (r[3] - r[1]) / s, 0.25 * s};
+    } else if (r[0] > r[4] && r[0] > r[8]) {
+        const double s = 2.0 * std::sqrt(1.0 + r[0] - r[4] - r[8]);
+        q = {0.25 * s, (r[1] + r[3]) / s, (r[2] + r[6]) / s, (r[7] - r[5]) / s};
+    } else if (r[4] > r[8]) {
+        const double s = 2.0 * std::sqrt(1.0 + r[4] - r[0] - r[8]);
+        q = {(r[1] + r[3]) / s, 0.25 * s, (r[5] + r[7]) / s, (r[2] - r[6]) / s};
+    } else {
+        const double s = 2.0 * std::sqrt(1.0 + r[8] - r[0] - r[4]);
+        q = {(r[2] + r[6]) / s, (r[5] + r[7]) / s, 0.25 * s, (r[3] - r[1]) / s};
     }
-    const auto yUp = [](const Vec3d& p) { return Vec3d{p.x, p.z, -p.y}; };
+    return q;
+}
+
+void CheckRotation(const std::array<double, 9>& r) {
+    for (std::size_t i = 0; i < 3; ++i) {
+        for (std::size_t j = 0; j < 3; ++j) {
+            double dot = 0.0;
+            for (std::size_t k = 0; k < 3; ++k) {
+                dot += r[3 * i + k] * r[3 * j + k];
+            }
+            if (std::fabs(dot - (i == j ? 1.0 : 0.0)) > 1e-9) {
+                throw std::invalid_argument("A node's pose must be a rotation");
+            }
+        }
+    }
+    const double det = r[0] * (r[4] * r[8] - r[5] * r[7]) - r[1] * (r[3] * r[8] - r[5] * r[6]) +
+                       r[2] * (r[3] * r[7] - r[4] * r[6]);
+    if (det < 0.0) {
+        throw std::invalid_argument("A node's pose must be a rotation, not a reflection");
+    }
+}
+
+}  // namespace
+
+void WriteGlbScene(const std::filesystem::path& path, const std::vector<SceneMesh>& meshes,
+                   const std::vector<SceneNode>& nodes) {
+    if (meshes.empty() || nodes.empty()) {
+        throw std::invalid_argument("A glTF scene needs meshes and nodes");
+    }
     std::string binary;
-    Vec3d low{std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity(),
-              std::numeric_limits<double>::infinity()};
-    Vec3d high = low * -1.0;
-    for (const Vec3d& position : mesh.positions) {
-        const Vec3d p = yUp(position);
-        const std::array<float, 3> stored{static_cast<float>(p.x), static_cast<float>(p.y),
-                                          static_cast<float>(p.z)};
-        for (const float c : stored) {
-            Put(binary, c);
+    std::string views;
+    std::string accessors;
+    std::string primitives;
+    std::size_t accessor = 0;
+    const auto view = [&](std::size_t offset, std::size_t length, int target) {
+        views += std::string(views.empty() ? "" : ",") + R"({"buffer":0,"byteOffset":)" +
+                 std::to_string(offset) + R"(,"byteLength":)" + std::to_string(length) +
+                 R"(,"target":)" + std::to_string(target) + "}";
+    };
+    std::size_t viewCount = 0;
+    for (const SceneMesh& scene : meshes) {
+        const TriangleMesh& mesh = scene.mesh;
+        CheckMesh(mesh, scene.normals);
+        if (mesh.positions.empty() || mesh.triangles.empty()) {
+            throw std::invalid_argument("Cannot write an empty mesh as glTF");
         }
-        low = {std::fmin(low.x, stored[0]), std::fmin(low.y, stored[1]),
-               std::fmin(low.z, stored[2])};
-        high = {std::fmax(high.x, stored[0]), std::fmax(high.y, stored[1]),
-                std::fmax(high.z, stored[2])};
-    }
-    const std::size_t positionBytes = binary.size();
-    for (const Vec3d& normal : normals) {
-        const Vec3d n = yUp(normal);
-        for (const double c : {n.x, n.y, n.z}) {
-            Put(binary, static_cast<float>(c));
+        Vec3d low{std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity(),
+                  std::numeric_limits<double>::infinity()};
+        Vec3d high = low * -1.0;
+        const std::size_t positionStart = binary.size();
+        for (const Vec3d& position : mesh.positions) {
+            const Vec3d p = YUp(position);
+            const std::array<float, 3> stored{static_cast<float>(p.x), static_cast<float>(p.y),
+                                              static_cast<float>(p.z)};
+            for (const float c : stored) {
+                Put(binary, c);
+            }
+            low = {std::fmin(low.x, stored[0]), std::fmin(low.y, stored[1]),
+                   std::fmin(low.z, stored[2])};
+            high = {std::fmax(high.x, stored[0]), std::fmax(high.y, stored[1]),
+                    std::fmax(high.z, stored[2])};
         }
-    }
-    const std::size_t normalBytes = binary.size() - positionBytes;
-    for (const auto& t : mesh.triangles) {
-        for (const std::uint32_t v : t) {
-            Put(binary, v);
+        view(positionStart, binary.size() - positionStart, 34962);
+        const std::string vertices = std::to_string(mesh.positions.size());
+        accessors += std::string(accessors.empty() ? "" : ",") + R"({"bufferView":)" +
+                     std::to_string(viewCount++) + R"(,"componentType":5126,"count":)" + vertices +
+                     R"(,"type":"VEC3","min":[)" + Number(low.x) + "," + Number(low.y) + "," +
+                     Number(low.z) + R"(],"max":[)" + Number(high.x) + "," + Number(high.y) + "," +
+                     Number(high.z) + "]}";
+        std::string attributes = R"("POSITION":)" + std::to_string(accessor++);
+        if (!scene.normals.empty()) {
+            const std::size_t normalStart = binary.size();
+            for (const Vec3d& normal : scene.normals) {
+                const Vec3d n = YUp(normal);
+                for (const double c : {n.x, n.y, n.z}) {
+                    Put(binary, static_cast<float>(c));
+                }
+            }
+            view(normalStart, binary.size() - normalStart, 34962);
+            accessors += R"(,{"bufferView":)" + std::to_string(viewCount++) +
+                         R"(,"componentType":5126,"count":)" + vertices + R"(,"type":"VEC3"})";
+            attributes += R"(,"NORMAL":)" + std::to_string(accessor++);
         }
+        const std::size_t indexStart = binary.size();
+        for (const auto& t : mesh.triangles) {
+            for (const std::uint32_t v : t) {
+                Put(binary, v);
+            }
+        }
+        view(indexStart, binary.size() - indexStart, 34963);
+        accessors += R"(,{"bufferView":)" + std::to_string(viewCount++) +
+                     R"(,"componentType":5125,"count":)" +
+                     std::to_string(3 * mesh.triangles.size()) + R"(,"type":"SCALAR"})";
+        primitives += std::string(primitives.empty() ? "" : ",") +
+                      R"({"primitives":[{"attributes":{)" + attributes + R"(},"indices":)" +
+                      std::to_string(accessor++) + R"(,"mode":4}]})";
     }
-    const std::size_t indexBytes = binary.size() - positionBytes - normalBytes;
-    const std::string vertices = std::to_string(mesh.positions.size());
-    std::string json =
-        R"({"asset":{"version":"2.0","generator":"TerrainGen"},"scene":0,"scenes":[{"nodes":[0]}],)"
-        R"("nodes":[{"mesh":0}],"meshes":[{"primitives":[{"attributes":{"POSITION":0)";
-    json += normals.empty() ? "" : R"(,"NORMAL":1)";
-    json += R"(},"indices":)" + std::string(normals.empty() ? "1" : "2") + R"(,"mode":4}]}],)";
-    json += R"("buffers":[{"byteLength":)" + std::to_string(binary.size()) + "}],";
-    json += R"("bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":)" +
-            std::to_string(positionBytes) + R"(,"target":34962})";
-    if (!normals.empty()) {
-        json += R"(,{"buffer":0,"byteOffset":)" + std::to_string(positionBytes) +
-                R"(,"byteLength":)" + std::to_string(normalBytes) + R"(,"target":34962})";
+    std::string nodeList;
+    std::string roots;
+    for (std::size_t n = 0; n < nodes.size(); ++n) {
+        const SceneNode& node = nodes[n];
+        if (node.mesh >= meshes.size()) {
+            throw std::invalid_argument("A glTF node names a mesh the scene does not have");
+        }
+        for (const double s : {node.scale.x, node.scale.y, node.scale.z}) {
+            if (!(std::isfinite(s) && s != 0.0)) {
+                throw std::invalid_argument("Node scales must be finite and not zero");
+            }
+        }
+        CheckRotation(node.pose.rotation);
+        const auto& r = node.pose.rotation;
+        const std::array<double, 9> yUp{r[0], r[2], -r[1], r[6], r[8], -r[7], -r[3], -r[5], r[4]};
+        const auto q = Quaternion(yUp);
+        const Vec3d t = YUp(node.pose.translation);
+        nodeList += std::string(n == 0 ? "" : ",") + R"({"mesh":)" + std::to_string(node.mesh) +
+                    R"(,"translation":[)" + Number(t.x) + "," + Number(t.y) + "," + Number(t.z) +
+                    R"(],"rotation":[)" + Number(q[0]) + "," + Number(q[1]) + "," + Number(q[2]) +
+                    "," + Number(q[3]) + R"(],"scale":[)" + Number(node.scale.x) + "," +
+                    Number(node.scale.z) + "," + Number(node.scale.y) + "]}";
+        roots += std::string(n == 0 ? "" : ",") + std::to_string(n);
     }
-    json += R"(,{"buffer":0,"byteOffset":)" + std::to_string(positionBytes + normalBytes) +
-            R"(,"byteLength":)" + std::to_string(indexBytes) + R"(,"target":34963}],)";
-    json += R"("accessors":[{"bufferView":0,"componentType":5126,"count":)" + vertices +
-            R"(,"type":"VEC3","min":[)" + Number(low.x) + "," + Number(low.y) + "," +
-            Number(low.z) + R"(],"max":[)" + Number(high.x) + "," + Number(high.y) + "," +
-            Number(high.z) + "]}";
-    if (!normals.empty()) {
-        json +=
-            R"(,{"bufferView":1,"componentType":5126,"count":)" + vertices + R"(,"type":"VEC3"})";
-    }
-    json += R"(,{"bufferView":)" + std::string(normals.empty() ? "1" : "2") +
-            R"(,"componentType":5125,"count":)" + std::to_string(3 * mesh.triangles.size()) +
-            R"(,"type":"SCALAR"}]})";
+    std::string json = R"({"asset":{"version":"2.0","generator":"TerrainGen"},"scene":0,)"
+                       R"("scenes":[{"nodes":[)" +
+                       roots + R"(]}],"nodes":[)" + nodeList + R"(],"meshes":[)" + primitives +
+                       R"(],"buffers":[{"byteLength":)" + std::to_string(binary.size()) +
+                       R"(}],"bufferViews":[)" + views + R"(],"accessors":[)" + accessors + "]}";
     while (json.size() % 4 != 0) {
         json += ' ';
     }
@@ -167,6 +257,11 @@ void WriteGlb(const std::filesystem::path& path, const TriangleMesh& mesh,
     Put(bytes, std::uint32_t{0x004E4942u});
     bytes += binary;
     Save(path, bytes);
+}
+
+void WriteGlb(const std::filesystem::path& path, const TriangleMesh& mesh,
+              const std::vector<Vec3d>& normals) {
+    WriteGlbScene(path, {{mesh, normals}}, {SceneNode{}});
 }
 
 }  // namespace terraingen

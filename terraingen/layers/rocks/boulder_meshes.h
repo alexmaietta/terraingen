@@ -5,6 +5,8 @@
 #include "terraingen/meshes/mesh.h"
 
 #include <cstdint>
+#include <memory>
+#include <optional>
 
 namespace terraingen {
 
@@ -19,6 +21,19 @@ struct BoulderPlacement {
         return pose.Apply({p.x * scale.x, p.y * scale.y, p.z * scale.z});
     }
 };
+
+/// A rock placed as a 3D model of its own: its record, its shape, the seed of that shape, and how
+/// the unit shape is scaled and moved onto the ground beneath it.
+struct BoulderModel {
+    Rock rock;
+    std::uint64_t shapeSeed = 0;
+    std::shared_ptr<const BoulderShape> shape;
+    BoulderPlacement placement;
+};
+
+/// The height of the top of `placed`, a mesh in the world, above (`x`, `y`): the highest of its
+/// upward-facing triangles there, or nothing outside its footprint.
+std::optional<double> TopSurface(const TriangleMesh& placed, double x, double y);
 
 /// The placement of `shape` as `rock` on ground at `groundHeight` under its centre: the long axis
 /// scaled to the rock's diameter, the intermediate axis in proportion, and the short axis to the

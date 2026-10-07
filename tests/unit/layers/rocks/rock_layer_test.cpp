@@ -315,3 +315,123 @@ TEST(RockLayer, LeavesHeightsAloneWithoutReliefAndRejectsBadOptions) {
         EXPECT_THROW(terraingen::ValidateRockLayerOptions(invalid), std::invalid_argument);
     }
 }
+
+TEST(RockModels, SplitsRocksByDiameterOrBySamplesAtTheSpacing) {
+    const terraingen::RockModels none;
+    EXPECT_FALSE(none.IsModel(100.0, 1.0));
+    const terraingen::RockModels big{.minDiameter = 2.0};
+    EXPECT_TRUE(big.IsModel(2.0, 0.0));
+    EXPECT_FALSE(big.IsModel(1.9, 0.0));
+    const terraingen::RockModels resolved{.minSamples = 8.0};
+    EXPECT_TRUE(resolved.IsModel(1.0, 0.125)) << "eight samples across at 12.5 cm";
+    EXPECT_FALSE(resolved.IsModel(1.0, 0.5)) << "relief in a coarser level of detail";
+    EXPECT_FALSE(resolved.IsModel(1.0, 0.0));
+}
+
+TEST(RockLayer, PlacesLargeRocksAsModelsOnTheGroundAndLeavesThemOutOfTheHeights) {
+    RockLayerOptions options;
+    options.coverage = 0.15;
+    options.minDiameter = 0.5;
+    options.models.minDiameter = 1.0;
+    const RockLayer layer(options);
+    Raster<float> heights(160, 160, 2.0f);
+    heights.SetTransform(GeoTransform::NorthUp(-40.0, 40.0, 0.5));
+    terraingen::TerrainFeatures features;
+    layer.Apply(heights, {0.5, 2}, features);
+    std::size_t models = 0;
+    for (const Rock& rock : features.rocks) {
+        EXPECT_EQ(rock.model, rock.diameter >= 1.0);
+        models += rock.model ? 1 : 0;
+        if (rock.model && heights.Transform().WorldToPixel(rock.x, rock.y).x > 1.0) {
+            ASSERT_TRUE(rock.ground.has_value());
+            EXPECT_FLOAT_EQ(static_cast<float>(*rock.ground), 2.0f) << "the heights as given";
+        }
+    }
+    ASSERT_GT(models, 0u);
+    EXPECT_LE(features.boulders.size(), models);
+    EXPECT_GT(features.boulders.size(), 0u);
+    for (const auto& boulder : features.boulders) {
+        EXPECT_TRUE(boulder.rock.model);
+        terraingen::TriangleMesh placed = boulder.shape->mesh;
+        for (auto& p : placed.positions) {
+            p = boulder.placement.Apply(p);
+        }
+        const auto box = terraingen::Bounds(placed);
+        EXPECT_NEAR(box.min.z, 2.0 - boulder.rock.burial * (box.max.z - box.min.z), 1e-9);
+        EXPECT_NEAR(0.5 * (box.min.x + box.max.x), boulder.rock.x, boulder.rock.diameter);
+    }
+
+    options.models.minDiameter = options.minDiameter;
+    Raster<float> flat(160, 160, 2.0f);
+    flat.SetTransform(heights.Transform());
+    terraingen::TerrainFeatures all;
+    RockLayer(options).Apply(flat, {0.5}, all);
+    for (const float value : flat.Values()) {
+        ASSERT_EQ(value, 2.0f) << "models add nothing to the heights";
+    }
+    EXPECT_EQ(RockLayer(options).ApplyAt(2.0f, 1.0, 1.0, {0.5}), 2.0f);
+}
+
+TEST(RockLayer, ReadsTheGroundBeneathEachRock) {
+    RockLayerOptions options;
+    options.coverage = 0.15;
+    options.minDiameter = 1.0;
+    options.models.minDiameter = 1.0;
+    const RockLayer layer(options);
+    const Analytic slope([](double x, double) { return static_cast<float>(0.1 * x); });
+    const auto rocks = layer.Rocks({0.0, 0.0, 40.0, 40.0}, 0.5, &slope);
+    ASSERT_FALSE(rocks.empty());
+    for (const Rock& rock : rocks) {
+        ASSERT_TRUE(rock.ground.has_value());
+        EXPECT_NEAR(*rock.ground, 0.1 * rock.x, 1e-5);
+    }
+    EXPECT_FALSE(layer.Rocks({0.0, 0.0, 40.0, 40.0}, 0.5).front().ground.has_value());
+}
+
+TEST(RockLayer, DrawsTheTopsOfBoulderShapesThatPointQueriesMatch) {
+    RockLayerOptions options;
+    options.coverage = 0.1;
+    options.minDiameter = 0.5;
+    options.relief = terraingen::RockRelief::Shape;
+    options.shapes.subdivisions = 2;
+    const RockLayer layer(options);
+    Raster<float> heights(60, 50, 1.0f);
+    heights.SetTransform(GeoTransform::NorthUp(-15.0, 12.5, 0.5));
+    terraingen::TerrainFeatures features;
+    layer.Apply(heights, {0.5, 3}, features);
+    ASSERT_FALSE(features.rocks.empty());
+    double highest = 0.0;
+    double tallest = 0.0;
+    for (const Rock& rock : features.rocks) {
+        tallest = std::fmax(tallest, rock.ExposedHeight());
+    }
+    for (std::size_t row = 0; row < heights.Height(); ++row) {
+        for (std::size_t col = 0; col < heights.Width(); ++col) {
+            const auto centre = heights.CellCenter(col, row);
+            ASSERT_EQ(layer.ApplyAt(1.0f, centre.x, centre.y, {0.5}), heights(col, row));
+            highest = std::fmax(highest, static_cast<double>(heights(col, row)) - 1.0);
+        }
+    }
+    EXPECT_GT(highest, 0.0);
+    EXPECT_LE(highest, 2.0 * tallest) << "overlapping rocks add up";
+    options.relief = terraingen::RockRelief::Dome;
+    Raster<float> domes(60, 50, 1.0f);
+    domes.SetTransform(heights.Transform());
+    terraingen::TerrainFeatures again;
+    RockLayer(options).Apply(domes, {0.5}, again);
+    EXPECT_FALSE(std::equal(domes.Values().begin(), domes.Values().end(), heights.Values().begin()))
+        << "shapes are not domes";
+}
+
+TEST(RockLayer, SharesShapesBetweenRocksOfOnePrototype) {
+    RockLayerOptions options;
+    options.shapePrototypes = 1;
+    const RockLayer layer(options);
+    EXPECT_EQ(layer.Shape(Rock{.id = 1}).get(), layer.Shape(Rock{.id = 99}).get());
+    options.shapePrototypes = 0;
+    const RockLayer unique(options);
+    EXPECT_NE(unique.Shape(Rock{.id = 1})->mesh.positions,
+              unique.Shape(Rock{.id = 99})->mesh.positions);
+    options.models.minSamples = -1.0;
+    EXPECT_THROW(RockLayer{options}, std::invalid_argument);
+}

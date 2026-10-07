@@ -46,3 +46,13 @@ TEST(PlaceBoulder, BuriesItsShareOfTheLeanedHeightAndSharesPrototypes) {
     const auto b = terraingen::BoulderMesh(other, options, 0.0, 1);
     EXPECT_EQ(a.positions, b.positions) << "one prototype for every rock";
 }
+
+TEST(TopSurface, IsTheHighestUpwardFaceAboveAPoint) {
+    const auto cube = terraingen::BaseSolidMesh(terraingen::BaseSolid::Cube);
+    const auto top = terraingen::TopSurface(cube, 0.3, -0.2);
+    ASSERT_TRUE(top.has_value());
+    EXPECT_DOUBLE_EQ(*top, 1.0);
+    EXPECT_FALSE(terraingen::TopSurface(cube, 1.5, 0.0).has_value());
+    const auto pyramid = terraingen::BaseSolidMesh(terraingen::BaseSolid::Pyramid);
+    EXPECT_NEAR(*terraingen::TopSurface(pyramid, 0.5, 0.0), 0.0, 1e-12) << "halfway down a side";
+}

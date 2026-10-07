@@ -9,7 +9,8 @@ namespace {
 std::size_t TileBytes(const EvaluatedTerrain& tile) {
     return tile.heights.Size() * sizeof(float) + tile.features.craters.Size() * sizeof(Crater) +
            tile.features.craterAttributes.size() * sizeof(CraterAttributes) +
-           tile.features.rocks.size() * sizeof(Rock);
+           tile.features.rocks.size() * sizeof(Rock) +
+           tile.features.boulders.size() * sizeof(BoulderModel);
 }
 
 }  // namespace

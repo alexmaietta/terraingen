@@ -21,6 +21,30 @@ BoulderPlacement PlaceBoulder(const Rock& rock, const BoulderShape& shape, doubl
     return placement;
 }
 
+std::optional<double> TopSurface(const TriangleMesh& placed, double x, double y) {
+    std::optional<double> top;
+    for (const auto& t : placed.triangles) {
+        const Vec3d& a = placed.positions[t[0]];
+        const Vec3d& b = placed.positions[t[1]];
+        const Vec3d& c = placed.positions[t[2]];
+        const double area = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
+        if (!(area > 0.0)) {
+            continue;
+        }
+        const double u = ((b.x - x) * (c.y - y) - (c.x - x) * (b.y - y)) / area;
+        const double v = ((c.x - x) * (a.y - y) - (a.x - x) * (c.y - y)) / area;
+        const double w = 1.0 - u - v;
+        if (u < 0.0 || v < 0.0 || w < 0.0) {
+            continue;
+        }
+        const double z = u * a.z + v * b.z + w * c.z;
+        if (!top || z > *top) {
+            top = z;
+        }
+    }
+    return top;
+}
+
 TriangleMesh BoulderMesh(const Rock& rock, const BoulderShapeOptions& options, double groundHeight,
                          std::uint32_t prototypes) {
     const BoulderShape shape = GenerateBoulderShape(BoulderShapeSeed(rock.id, prototypes), options);
