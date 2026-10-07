@@ -100,6 +100,21 @@ inline float BasisNoise2(NoiseBasis basis, float x, float y, std::uint32_t seed)
     }
 }
 
+/// Whether `basis` has a 3D form for `Fractal3`: Perlin and value noise.
+inline bool HasBasisNoise3(NoiseBasis basis) {
+    return basis == NoiseBasis::Perlin || basis == NoiseBasis::Value;
+}
+
+/// One octave of `basis` noise at lattice cell (`ix`, `iy`, `iz`) plus fraction (`fx`, `fy`, `fz`),
+/// in [-1, 1]: value noise for `NoiseBasis::Value`, Perlin noise otherwise.
+inline float BasisNoise3(NoiseBasis basis, std::int32_t ix, std::int32_t iy, std::int32_t iz,
+                         float fx, float fy, float fz, std::uint32_t seed) {
+    if (basis == NoiseBasis::Value) {
+        return ValueNoise3(ix, iy, iz, fx, fy, fz, seed);
+    }
+    return PerlinNoise3(ix, iy, iz, fx, fy, fz, seed);
+}
+
 /// Fractal height at world position (`x`, `y`), in [-amplitude, amplitude] world units.
 ///
 /// Each octave uses its own seed and a pseudo-random sub-cell lattice offset from `pcg3d`; without
@@ -157,6 +172,73 @@ inline float Fractal2(float x, float y, const FractalParams& params) {
         totalWeight += weight;
         weight *= params.gain;
         frequency *= params.lacunarity;
+    }
+
+    switch (params.type) {
+    case FractalType::Ridged:
+        return params.amplitude * (2.0f * sum / (ridgeScale * ridgeScale * totalWeight) - 1.0f);
+    case FractalType::HybridMultifractal:
+        return params.amplitude * sum / ((1.0f + params.offset) * totalWeight);
+    default:
+        return params.amplitude * sum / totalWeight;
+    }
+}
+
+/// `Fractal2` in 3D at world position (`x`, `y`, `z`), for noise on a sphere evaluated at its 3D
+/// points. Each octave's lattice coordinate is split into an integer cell and a fraction in double
+/// precision, so noise stays exact at a planet's radius; only the bases with
+/// `HasBasisNoise3` are used, others falling back to Perlin noise.
+inline float Fractal3(double x, double y, double z, const FractalParams& params) {
+    double frequency = 1.0 / static_cast<double>(params.wavelength);
+    float weight = 1.0f;
+    float sum = 0.0f;
+    float totalWeight = 0.0f;
+    float feedback = 1.0f;
+    const float ridgeScale = std::max(params.offset, 1.0f - params.offset);
+    for (int octave = 0; octave < params.octaves; ++octave) {
+        const UVec3 h = Pcg3dHash(UVec3{params.seed, static_cast<std::uint32_t>(octave), 0u});
+        const UVec3 g = Pcg3dHash(UVec3{params.seed, static_cast<std::uint32_t>(octave), 1u});
+        const double px = x * frequency + static_cast<double>(HashToUnitFloat(h.y));
+        const double py = y * frequency + static_cast<double>(HashToUnitFloat(h.z));
+        const double pz = z * frequency + static_cast<double>(HashToUnitFloat(g.x));
+        const double cx = std::floor(px);
+        const double cy = std::floor(py);
+        const double cz = std::floor(pz);
+        const float n = BasisNoise3(
+            params.basis, static_cast<std::int32_t>(static_cast<std::int64_t>(cx)),
+            static_cast<std::int32_t>(static_cast<std::int64_t>(cy)),
+            static_cast<std::int32_t>(static_cast<std::int64_t>(cz)), static_cast<float>(px - cx),
+            static_cast<float>(py - cy), static_cast<float>(pz - cz), h.x);
+        switch (params.type) {
+        case FractalType::Billow:
+            sum += weight * (2.0f * std::fabs(n) - 1.0f);
+            break;
+        case FractalType::Ridged: {
+            float signal = params.offset - std::fabs(n);
+            signal *= signal * feedback;
+            feedback = std::clamp(2.0f * signal, 0.0f, 1.0f);
+            sum += weight * signal;
+            break;
+        }
+        case FractalType::HybridMultifractal: {
+            const float signal = (n + params.offset) * weight;
+            if (octave == 0) {
+                sum = signal;
+                feedback = signal;
+            } else {
+                feedback = std::clamp(feedback, 0.0f, 1.0f);
+                sum += feedback * signal;
+                feedback *= signal;
+            }
+            break;
+        }
+        default:
+            sum += weight * n;
+            break;
+        }
+        totalWeight += weight;
+        weight *= params.gain;
+        frequency *= static_cast<double>(params.lacunarity);
     }
 
     switch (params.type) {

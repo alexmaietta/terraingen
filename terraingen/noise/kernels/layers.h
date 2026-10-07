@@ -97,4 +97,57 @@ inline float EvaluateNoiseLayers(float x, float y, const NoiseLayer* layers, std
     return height;
 }
 
+/// `EvaluateNoiseLayers` in 3D at world position (`x`, `y`, `z`), with `Fractal3` and a 3D domain
+/// warp (three fields like `DomainWarp2`'s), for noise on a sphere.
+inline float EvaluateNoiseLayers3(double x, double y, double z, const NoiseLayer* layers,
+                                  std::size_t count) {
+    float height = 0.0f;
+    bool first = true;
+    for (std::size_t i = 0; i < count; ++i) {
+        const NoiseLayer& layer = layers[i];
+        if (!layer.enabled) {
+            continue;
+        }
+        FractalParams unit = layer.fractal;
+        unit.amplitude = 1.0f;
+        float value = 0.0f;
+        if (layer.warpAmplitude > 0.0f) {
+            FractalParams warp;
+            warp.wavelength = layer.warpWavelength;
+            warp.amplitude = layer.warpAmplitude;
+            warp.octaves = 4;
+            warp.seed = PcgHash(layer.fractal.seed ^ 0x5bd1e995u);
+            const double dx = static_cast<double>(Fractal3(x, y, z, warp));
+            warp.seed = PcgHash(warp.seed);
+            const double dy = static_cast<double>(Fractal3(x, y, z, warp));
+            warp.seed = PcgHash(warp.seed);
+            const double dz = static_cast<double>(Fractal3(x, y, z, warp));
+            value = Fractal3(x + dx, y + dy, z + dz, unit);
+        } else {
+            value = Fractal3(x, y, z, unit);
+        }
+        const float scaled = layer.fractal.amplitude * value;
+        if (first) {
+            height = scaled;
+            first = false;
+            continue;
+        }
+        switch (layer.blend) {
+        case LayerBlend::Max:
+            height = std::max(height, scaled);
+            break;
+        case LayerBlend::Min:
+            height = std::min(height, scaled);
+            break;
+        case LayerBlend::Mask:
+            height *= 0.5f * (value + 1.0f);
+            break;
+        default:
+            height += scaled;
+            break;
+        }
+    }
+    return height;
+}
+
 }  // namespace terraingen

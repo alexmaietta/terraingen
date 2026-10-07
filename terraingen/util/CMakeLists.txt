@@ -3,6 +3,7 @@ terraingen_add_library(
     util
     SOURCES
     cells.cpp
+    surface.cpp
     log.cpp
     parallel.cpp
     version.cpp

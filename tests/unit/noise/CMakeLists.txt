@@ -4,6 +4,7 @@ terraingen_add_test_suite(
     kernels/fractal_test.cpp
     kernels/hash_test.cpp
     kernels/layers_test.cpp
+    kernels/noise3_test.cpp
     kernels/perlin_test.cpp
     kernels/philox_test.cpp
     kernels/simplex_test.cpp

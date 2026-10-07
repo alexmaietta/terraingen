@@ -5,6 +5,7 @@ terraingen_add_test_suite(
     log_test.cpp
     lru_cache_test.cpp
     parallel_test.cpp
+    surface_test.cpp
     version_test.cpp
     LIBRARIES
     terraingen::terraingen)

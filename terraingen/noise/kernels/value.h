@@ -40,4 +40,29 @@ inline float ValueNoise2(float x, float y, std::uint32_t seed) {
                        x - cellX, y - cellY, seed);
 }
 
+/// 3D value noise at lattice cell (`ix`, `iy`, `iz`) plus fractional offset (`fx`, `fy`, `fz`) in
+/// [0, 1), as the 2D overload, blended trilinearly with the quintic fade.
+///
+/// @return Noise in [-1, 1].
+inline float ValueNoise3(std::int32_t ix, std::int32_t iy, std::int32_t iz, float fx, float fy,
+                         float fz, std::uint32_t seed) {
+    const auto x0 = static_cast<std::uint32_t>(ix);
+    const auto y0 = static_cast<std::uint32_t>(iy);
+    const auto z0 = static_cast<std::uint32_t>(iz);
+    const std::uint32_t key = PcgHash(seed);
+    const auto value = [key](std::uint32_t x, std::uint32_t y, std::uint32_t z) {
+        return 2.0f * HashToUnitFloat(Pcg3dHash(UVec3{x, y, z ^ key}).y) - 1.0f;
+    };
+    const float u = detail::PerlinFade(fx);
+    const float v = detail::PerlinFade(fy);
+    const float w = detail::PerlinFade(fz);
+    const float near =
+        detail::Lerp(v, detail::Lerp(u, value(x0, y0, z0), value(x0 + 1u, y0, z0)),
+                     detail::Lerp(u, value(x0, y0 + 1u, z0), value(x0 + 1u, y0 + 1u, z0)));
+    const float far = detail::Lerp(
+        v, detail::Lerp(u, value(x0, y0, z0 + 1u), value(x0 + 1u, y0, z0 + 1u)),
+        detail::Lerp(u, value(x0, y0 + 1u, z0 + 1u), value(x0 + 1u, y0 + 1u, z0 + 1u)));
+    return detail::Lerp(w, near, far);
+}
+
 }  // namespace terraingen
