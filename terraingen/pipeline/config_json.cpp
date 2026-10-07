@@ -159,6 +159,15 @@ template <> struct EnumNames<BaseSolid> {
     }};
 };
 
+template <> struct EnumNames<ValueDistribution::Kind> {
+    static constexpr std::array<std::pair<std::string_view, ValueDistribution::Kind>, 4> kValues{{
+        {"constant", ValueDistribution::Kind::Constant},
+        {"uniform", ValueDistribution::Kind::Uniform},
+        {"normal", ValueDistribution::Kind::Normal},
+        {"log_normal", ValueDistribution::Kind::LogNormal},
+    }};
+};
+
 template <> struct EnumNames<CraterBody> {
     static constexpr std::array<std::pair<std::string_view, CraterBody>, 2> kValues{{
         {"moon", CraterBody::Moon},
@@ -386,6 +395,8 @@ template <typename IO> void Fields(IO& io, Crater& crater);
 template <typename IO> void Fields(IO& io, CraterBlend& blend);
 template <typename IO> void Fields(IO& io, ResolutionFade& fade);
 template <typename IO> void Fields(IO& io, CraterApplyOptions& apply);
+template <typename IO> void Fields(IO& io, ValueDistribution& distribution);
+template <typename IO> void Fields(IO& io, CraterIrregularity& irregularity);
 template <typename IO> void Fields(IO& io, RimSmoothing& smoothing);
 template <typename IO> void Fields(IO& io, CraterLayerSpec& craters);
 template <typename IO> void Fields(IO& io, RockPatches& patches);
@@ -782,6 +793,54 @@ template <typename IO> void Fields(IO& io, CraterApplyOptions& apply) {
     io("datum_fit_radii", apply.datumFitRadii);
     io("interior_replacement", apply.interiorReplacement);
     io("blend", apply.blend);
+    io("irregularity", apply.irregularity);
+}
+
+template <typename IO> void Fields(IO& io, ValueDistribution& distribution) {
+    io("kind", distribution.kind);
+    io("a", distribution.a);
+    io("b", distribution.b);
+    std::optional<double> min;
+    std::optional<double> max;
+    if (std::isfinite(distribution.min)) {
+        min = distribution.min;
+    }
+    if (std::isfinite(distribution.max)) {
+        max = distribution.max;
+    }
+    io("min", min);
+    io("max", max);
+    distribution.min = min.value_or(-std::numeric_limits<double>::infinity());
+    distribution.max = max.value_or(std::numeric_limits<double>::infinity());
+}
+
+template <typename IO> void Fields(IO& io, CraterIrregularity& irregularity) {
+    io("enabled", irregularity.enabled);
+    io("seed", irregularity.seed);
+    io("min_diameter", irregularity.minDiameter);
+    std::optional<double> maxDiameter;
+    if (std::isfinite(irregularity.maxDiameter)) {
+        maxDiameter = irregularity.maxDiameter;
+    }
+    io("max_diameter", maxDiameter);
+    irregularity.maxDiameter = maxDiameter.value_or(std::numeric_limits<double>::infinity());
+    io("min_age_gyr", irregularity.minAgeGyr);
+    std::optional<double> maxAge;
+    if (std::isfinite(irregularity.maxAgeGyr)) {
+        maxAge = irregularity.maxAgeGyr;
+    }
+    io("max_age_gyr", maxAge);
+    irregularity.maxAgeGyr = maxAge.value_or(std::numeric_limits<double>::infinity());
+    io("manual", irregularity.manual);
+    io("rough_share", irregularity.roughShare);
+    io("roughness", irregularity.roughness);
+    io("spectral_slope", irregularity.spectralSlope);
+    io("min_harmonic", irregularity.minHarmonic);
+    io("max_harmonic", irregularity.maxHarmonic);
+    io("elongated_share", irregularity.elongatedShare);
+    io("ellipticity", irregularity.ellipticity);
+    io("heading", irregularity.heading);
+    io("heading_spread", irregularity.headingSpread);
 }
 
 template <typename IO> void Fields(IO& io, RimSmoothing& smoothing) {

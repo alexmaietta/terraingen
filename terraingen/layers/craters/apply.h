@@ -1,6 +1,7 @@
 #pragma once
 
 #include "terraingen/layers/craters/degradation/degradation_model.h"
+#include "terraingen/layers/craters/irregularity.h"
 #include "terraingen/layers/craters/population.h"
 #include "terraingen/layers/craters/profiles/profile.h"
 #include "terraingen/raster/raster.h"
@@ -95,6 +96,8 @@ struct CraterApplyOptions {
     /// crater, as an impact excavates it; 0 keeps it; values in between blend.
     double interiorReplacement = 1.0;
     CraterBlend blend{};
+    /// Irregular, non-circular outlines; off by default.
+    CraterIrregularity irregularity{};
 
     bool operator==(const CraterApplyOptions&) const = default;
 };
@@ -123,15 +126,18 @@ std::optional<std::array<double, 3>> FitCraterDatum(const Crater& crater,
 /// buckets twice its largest reach, so a point reads only the nine buckets around it per band.
 class CraterInfluence {
   public:
-    /// One crater with its weight at the evaluation's spacing and its state.
+    /// One crater with its weight at the evaluation's spacing, its state and its outline.
     struct Entry {
         Crater crater;
         double resolution = 1.0;
         CraterState state;
+        CraterOutline outline{};
     };
 
-    /// `entries` in the order they are applied; `profile` must outlive the index.
-    CraterInfluence(std::vector<Entry> entries, const CraterProfile& profile);
+    /// `entries` in the order they are applied; `profile` must outlive the index. Footprints are
+    /// widened by `outlineScale`, at least every entry's `CraterOutline::MaxScale`.
+    CraterInfluence(std::vector<Entry> entries, const CraterProfile& profile,
+                    double outlineScale = 1.0);
 
     /// The sum of `resolution` times the profile height at (`x`, `y`) of the entries before entry
     /// `k` that reach it, in a fixed order that does not depend on which other craters the list
@@ -155,6 +161,7 @@ class CraterInfluence {
 
     std::vector<Entry> entries_;
     const CraterProfile& profile_;
+    double outlineScale_ = 1.0;
     std::vector<int> bands_;
     std::unordered_map<Key, std::vector<std::size_t>, KeyHash> buckets_;
 };
@@ -172,13 +179,18 @@ HeightSampler DatumGround(const HeightSampler& ground, const CraterInfluence& in
 double DatumMargin(const CraterApplyOptions& options, const CraterProfile& profile,
                    double maxDiameter);
 
-/// `height` at (`x`, `y`) after `crater` in `state`, with weight `resolution` and `datum` (from
-/// `FitCraterDatum`): what `ApplyCraters` does to one cell, shared with point queries so both give
-/// the same bits.
+/// The distance from `crater`'s centre to (`x`, `y`) at which its round profile is read: the true
+/// distance over the stretch of its `outline` in that direction.
+double CraterProfileDistance(const Crater& crater, const CraterOutline& outline, double x,
+                             double y);
+
+/// `height` at (`x`, `y`) after `crater` in `state`, with weight `resolution`, `datum` (from
+/// `FitCraterDatum`) and `outline` (from `OutlineOf`): what `ApplyCraters` does to one cell, shared
+/// with point queries so both give the same bits.
 float ApplyCraterTo(float height, double x, double y, const Crater& crater,
                     const CraterState& state, double resolution,
                     const std::optional<std::array<double, 3>>& datum, const CraterProfile& profile,
-                    const CraterApplyOptions& options);
+                    const CraterApplyOptions& options, const CraterOutline& outline = {});
 
 /// Applies `craters` to `raster`, whose `GeoTransform` maps pixels to the craters' surface
 /// coordinates, shaping each crater with `profile` in the state `degradation` gives it.

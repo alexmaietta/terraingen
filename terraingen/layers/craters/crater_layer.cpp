@@ -21,7 +21,8 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options)
     }
     ValidateCraterSpacing(options_.generation.spacing);
     ValidateCraterApplyOptions(options_.apply);
-    options_.generation.marginRadii = models_.profile->ReachRadii();
+    options_.generation.marginRadii =
+        models_.profile->ReachRadii() * MaxOutlineScale(options_.apply.irregularity);
     if (options_.cacheCraters > 0) {
         cache_ = std::make_shared<CraterCellCache>(options_.cacheCraters);
     }
@@ -121,24 +122,25 @@ float CraterLayer::ApplyAt(float height, double x, double y, const LayerContext&
         const Crater crater = craters.At(index);
         const double resolution = ResolutionWeight(crater.diameter, spacing, options_.apply.fade);
         if (resolution > 0.0) {
-            resolvedCraters.push_back({crater, resolution, models_.degradation->State(crater)});
+            resolvedCraters.push_back({crater, resolution, models_.degradation->State(crater),
+                                       OutlineOf(crater, options_.apply.irregularity)});
         }
     }
-    const CraterInfluence influence(std::move(resolvedCraters), profile);
+    const CraterInfluence influence(std::move(resolvedCraters), profile,
+                                    MaxOutlineScale(options_.apply.irregularity));
     const HeightSampler ground = datum ? context.ground->Sampler(spacing) : HeightSampler{};
     const auto& entries = influence.Entries();
     for (std::size_t k = 0; k < entries.size(); ++k) {
         const CraterInfluence::Entry& entry = entries[k];
-        const double dx = x - entry.crater.x;
-        const double dy = y - entry.crater.y;
-        if (std::sqrt(dx * dx + dy * dy) >= profile.ReachRadii() * 0.5 * entry.crater.diameter) {
+        if (CraterProfileDistance(entry.crater, entry.outline, x, y) >=
+            profile.ReachRadii() * 0.5 * entry.crater.diameter) {
             continue;
         }
         const auto fitted =
             datum ? FitCraterDatum(entry.crater, options_.apply, DatumGround(ground, influence, k))
                   : std::nullopt;
         height = ApplyCraterTo(height, x, y, entry.crater, entry.state, entry.resolution, fitted,
-                               profile, options_.apply);
+                               profile, options_.apply, entry.outline);
     }
     return height;
 }

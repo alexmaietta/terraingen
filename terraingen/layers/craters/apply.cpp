@@ -168,6 +168,7 @@ double ResolutionWeight(double diameter, double spacing, const ResolutionFade& f
 
 void ValidateCraterApplyOptions(const CraterApplyOptions& options) {
     ValidateResolutionFade(options.fade);
+    ValidateCraterIrregularity(options.irregularity);
     if (!(std::isfinite(options.datumFitRadii) && options.datumFitRadii > 0.0)) {
         throw std::invalid_argument("datumFitRadii must be positive and finite");
     }
@@ -252,18 +253,22 @@ std::size_t CraterInfluence::KeyHash::operator()(const Key& key) const {
 namespace {
 
 /// Side of the buckets of a band: twice the largest reach of the band's craters.
-double BucketSize(int band, const CraterProfile& profile) {
-    return profile.ReachRadii() * std::ldexp(1.0, band + 1);
+double BucketSize(int band, const CraterProfile& profile, double outlineScale) {
+    return outlineScale * profile.ReachRadii() * std::ldexp(1.0, band + 1);
 }
 
 }  // namespace
 
-CraterInfluence::CraterInfluence(std::vector<Entry> entries, const CraterProfile& profile)
-    : entries_(std::move(entries)), profile_(profile) {
+CraterInfluence::CraterInfluence(std::vector<Entry> entries, const CraterProfile& profile,
+                                 double outlineScale)
+    : entries_(std::move(entries)), profile_(profile), outlineScale_(outlineScale) {
+    for (const Entry& entry : entries_) {
+        outlineScale_ = std::fmax(outlineScale_, entry.outline.MaxScale());
+    }
     for (std::size_t n = 0; n < entries_.size(); ++n) {
         const Crater& crater = entries_[n].crater;
         const int band = std::ilogb(crater.diameter);
-        const double size = BucketSize(band, profile_);
+        const double size = BucketSize(band, profile_, outlineScale_);
         buckets_[{band, static_cast<std::int64_t>(std::floor(crater.x / size)),
                   static_cast<std::int64_t>(std::floor(crater.y / size))}]
             .push_back(n);
@@ -277,7 +282,7 @@ CraterInfluence::CraterInfluence(std::vector<Entry> entries, const CraterProfile
 double CraterInfluence::ReliefBefore(double x, double y, std::size_t k) const {
     double relief = 0.0;
     for (const int band : bands_) {
-        const double size = BucketSize(band, profile_);
+        const double size = BucketSize(band, profile_, outlineScale_);
         const auto i0 = static_cast<std::int64_t>(std::floor(x / size));
         const auto j0 = static_cast<std::int64_t>(std::floor(y / size));
         for (std::int64_t j = j0 - 1; j <= j0 + 1; ++j) {
@@ -291,9 +296,8 @@ double CraterInfluence::ReliefBefore(double x, double y, std::size_t k) const {
                         break;
                     }
                     const Entry& entry = entries_[n];
-                    const double dx = x - entry.crater.x;
-                    const double dy = y - entry.crater.y;
-                    const double distance = std::sqrt(dx * dx + dy * dy);
+                    const double distance =
+                        CraterProfileDistance(entry.crater, entry.outline, x, y);
                     if (distance < profile_.ReachRadii() * 0.5 * entry.crater.diameter) {
                         relief += entry.resolution *
                                   profile_.Height(distance, entry.crater.diameter, entry.state);
@@ -321,17 +325,26 @@ double DatumMargin(const CraterApplyOptions& options, const CraterProfile& profi
     if (options.datum == CraterDatum::None) {
         return 0.0;
     }
-    return (options.datumFitRadii + profile.ReachRadii()) * 0.5 * maxDiameter;
+    return (options.datumFitRadii + MaxOutlineScale(options.irregularity) * profile.ReachRadii()) *
+           0.5 * maxDiameter;
+}
+
+double CraterProfileDistance(const Crater& crater, const CraterOutline& outline, double x,
+                             double y) {
+    const double dx = x - crater.x;
+    const double dy = y - crater.y;
+    const double distance = std::sqrt(dx * dx + dy * dy);
+    return outline.Round() ? distance : distance / outline.Scale(dx, dy);
 }
 
 float ApplyCraterTo(float height, double x, double y, const Crater& crater,
                     const CraterState& state, double resolution,
                     const std::optional<std::array<double, 3>>& datum, const CraterProfile& profile,
-                    const CraterApplyOptions& options) {
+                    const CraterApplyOptions& options, const CraterOutline& outline) {
     const double radius = 0.5 * crater.diameter;
     const double dx = x - crater.x;
     const double dy = y - crater.y;
-    const double distance = std::sqrt(dx * dx + dy * dy);
+    const double distance = CraterProfileDistance(crater, outline, x, y);
     if (distance >= profile.ReachRadii() * radius) {
         return height;
     }
@@ -393,6 +406,7 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
         Crater crater;
         double resolution = 0.0;
         CraterState state;
+        CraterOutline outline;
         PixelWindow window;
         std::size_t order = 0;
         std::optional<std::array<double, 3>> datum;
@@ -411,16 +425,17 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
         }
         const double radius = 0.5 * crater.diameter;
         const CraterState state = degradation.State(crater);
-        resolvedCraters.push_back({crater, resolution, state});
+        CraterOutline outline = OutlineOf(crater, options.irregularity);
         const PixelWindow window =
-            Window(raster, crater.x, crater.y, profile.ReachRadii() * radius);
+            Window(raster, crater.x, crater.y, outline.MaxScale() * profile.ReachRadii() * radius);
+        resolvedCraters.push_back({crater, resolution, state, outline});
         if (window.Empty()) {
             ++offRaster;
             continue;
         }
         ++applied;
-        entries.push_back(
-            {crater, resolution, state, window, resolvedCraters.size() - 1, std::nullopt});
+        entries.push_back({crater, resolution, state, std::move(outline), window,
+                           resolvedCraters.size() - 1, std::nullopt});
     }
 
     if (options.datum != CraterDatum::None && !entries.empty()) {
@@ -433,7 +448,8 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
                     Sample(*input, x, y).value_or(std::numeric_limits<double>::quiet_NaN()));
             };
         }
-        const CraterInfluence influence(std::move(resolvedCraters), profile);
+        const CraterInfluence influence(std::move(resolvedCraters), profile,
+                                        MaxOutlineScale(options.irregularity));
         ParallelFor(entries.size(), threads, [&](std::size_t n) {
             entries[n].datum = FitCraterDatum(entries[n].crater, options,
                                               DatumGround(sampler, influence, entries[n].order));
@@ -457,7 +473,8 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
                     }
                     const Vec2d centre = raster.CellCenter(col, row);
                     cell = ApplyCraterTo(cell, centre.x, centre.y, crater, entry.state,
-                                         entry.resolution, entry.datum, profile, options);
+                                         entry.resolution, entry.datum, profile, options,
+                                         entry.outline);
                 }
             }
         }

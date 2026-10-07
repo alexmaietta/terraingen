@@ -37,6 +37,7 @@
 #include "terraingen/layers/craters/degradation/none.h"
 #include "terraingen/layers/craters/degradation/state.h"
 #include "terraingen/layers/craters/filters.h"
+#include "terraingen/layers/craters/irregularity.h"
 #include "terraingen/layers/craters/population.h"
 #include "terraingen/layers/craters/profiles/complex.h"
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"

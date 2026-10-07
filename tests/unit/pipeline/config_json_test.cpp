@@ -63,12 +63,29 @@ TerrainConfig Everything() {
     craters.manual = {{1.5, -2.25, 30.0, 0.1, 7u, true}};
     craters.profile = terraingen::ComplexProfileSpec{terraingen::MartinParkesDunstanSpec{}};
     craters.degradation = terraingen::NoDegradationSpec{0.17};
-    craters.apply = {.order = terraingen::CraterOrder::LargestFirst,
-                     .fade = {1.0, 3.0, terraingen::BlendShape::Linear},
-                     .datum = terraingen::CraterDatum::Plane,
-                     .datumFitRadii = 1.5,
-                     .interiorReplacement = 0.5,
-                     .blend = {0.7, 1.3, terraingen::BlendShape::Gaussian}};
+    craters.apply = {
+        .order = terraingen::CraterOrder::LargestFirst,
+        .fade = {1.0, 3.0, terraingen::BlendShape::Linear},
+        .datum = terraingen::CraterDatum::Plane,
+        .datumFitRadii = 1.5,
+        .interiorReplacement = 0.5,
+        .blend = {0.7, 1.3, terraingen::BlendShape::Gaussian},
+        .irregularity = {
+            .enabled = true,
+            .seed = 4,
+            .minDiameter = 10.0,
+            .maxDiameter = 500.0,
+            .minAgeGyr = 0.1,
+            .manual = true,
+            .roughShare = 0.5,
+            .roughness = {terraingen::ValueDistribution::Kind::Normal, 0.02, 0.005, 0.0, 0.05},
+            .spectralSlope = {terraingen::ValueDistribution::Kind::Uniform, 1.0, 2.0},
+            .minHarmonic = 3,
+            .maxHarmonic = 8,
+            .elongatedShare = 0.1,
+            .ellipticity = {terraingen::ValueDistribution::Kind::LogNormal, 1.2, 0.1, 1.0, 2.23},
+            .heading = 0.3,
+            .headingSpread = 0.2}};
     terraingen::RockLayerSpec rocks;
     rocks.rocks = {
         .coverage = 0.05,
