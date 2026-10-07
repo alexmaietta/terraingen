@@ -117,6 +117,33 @@ node does. Crater cells are kept in a bounded cache (`CraterCellCache`), so neig
 points generate each cell once. Point queries cannot use the `max_craters` cap, which ranks craters over a
 whole grid, and run the source and layers only, since filters read neighbouring cells.
 
+## Planets
+
+A terrain lies on a `Surface`: a plane (the default, coordinates in metres in a projected frame) or a
+sphere of a body's radius, where coordinates are longitude and latitude in degrees, as in a geographic
+GeoTIFF. On a sphere every feature is defined once on the whole body, so any grid, tile or point
+agrees, across the antimeridian and at the poles:
+
+- Craters, rocks and bedform fields are generated in equiangular cube-sphere cells (`CubeSphereCells`)
+  with exact areas, so their densities per square metre are the same as on a plane.
+- Each feature is shaped in its own local frame (`Surface::Offset`, an azimuthal equidistant
+  projection about its centre), so profiles, outlines, rays and boulders keep their size in metres.
+- Noise, roughness and albedo noise are 3D at each point's position on the body, without seams.
+- Spacings, fades and margins are in metres; a grid's spacing is its latitude step on the body.
+
+In JSON, `"surface": {"type": "sphere", "radius": 1737400}` puts a configuration on a sphere; flat
+sources take a `centre_x` and `centre_y` in degrees, raster sources must be geographic, and heightmaps
+and albedos are written with a geographic CRS of the body.
+
+```json
+{"schema_version": 1,
+ "surface": {"type": "sphere", "radius": 1737400},
+ "source": {"type": "flat", "width": 2048, "height": 2048, "pixel_size": 2,
+            "centre_x": -60.5, "centre_y": -84.2},
+ "layers": [{"type": "craters", "density": {"type": "lunar_surface", "age_gyr": 3.5}}],
+ "outputs": [{"type": "heightmap", "path": "terrain.tif"}]}
+```
+
 ## Albedo
 
 An `Albedo` is an `AlbedoSource` and a list of `AlbedoLayer`s, evaluated like a terrain over any grid
