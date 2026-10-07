@@ -163,4 +163,15 @@ struct GeoTiffWriteOptions {
 void WriteGeoTiff(const std::filesystem::path& path, const Raster<float>& raster,
                   const GeoKeys& geoKeys = {}, const GeoTiffWriteOptions& options = {});
 
+/// Writes `bands` as one GeoTIFF of as many float32 bands, stored band after band (planar
+/// configuration 2) when there are several, with the first band's transform and no-data value;
+/// otherwise as `WriteGeoTiff` for one raster. `ReadGeoTiff` reads each band back.
+/// @throws GeoTiffError as for one raster, or for bands on different grids.
+void WriteGeoTiff(const std::filesystem::path& path, const std::vector<Raster<float>>& bands,
+                  const GeoKeys& geoKeys = {}, const GeoTiffWriteOptions& options = {});
+
+/// `WriteGeoTiff` for bands held elsewhere.
+void WriteGeoTiff(const std::filesystem::path& path, const std::vector<const Raster<float>*>& bands,
+                  const GeoKeys& geoKeys = {}, const GeoTiffWriteOptions& options = {});
+
 }  // namespace terraingen

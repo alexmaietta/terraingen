@@ -237,6 +237,36 @@ TEST(WriteGeoTiff, KeepsPixelIsPointAndRotatedTransforms) {
     EXPECT_TRUE(info.geoKeys.Empty());
 }
 
+TEST(WriteGeoTiff, WritesSeveralBandsOneAfterAnother) {
+    std::vector<Raster<float>> bands{Sample(21, 19), Sample(21, 19), Sample(21, 19)};
+    for (std::size_t band = 0; band < bands.size(); ++band) {
+        bands[band].SetTransform(GeoTransform::NorthUp(100.0, 200.0, 2.0));
+        bands[band].SetNoData(-1.0f);
+        for (float& value : bands[band].Values()) {
+            value += 10.0f * static_cast<float>(band);
+        }
+    }
+    const auto path = TempPath("bands.tif");
+    WriteGeoTiff(path, bands, {}, {.tileSize = 16});
+    EXPECT_EQ(ReadGeoTiffInfo(path).bands, 3u);
+    for (std::size_t band = 0; band < bands.size(); ++band) {
+        const auto read = ReadGeoTiff(path, band);
+        ExpectSamePixels(read.raster, bands[band]);
+        EXPECT_EQ(read.raster.Transform(), bands[band].Transform());
+        EXPECT_EQ(read.raster.NoData(), bands[band].NoData());
+    }
+    WriteGeoTiff(path, std::vector<Raster<float>>{bands[0]});
+    EXPECT_EQ(ReadGeoTiffInfo(path).bands, 1u);
+    ExpectSamePixels(ReadGeoTiff(path).raster, bands[0]);
+
+    EXPECT_THROW(WriteGeoTiff(path, std::vector<Raster<float>>{}), GeoTiffError);
+    bands[1] = Sample(20, 19);
+    EXPECT_THROW(WriteGeoTiff(path, bands), GeoTiffError);
+    bands[1] = bands[0];
+    bands[1].SetTransform(GeoTransform::NorthUp(0.0, 0.0, 1.0));
+    EXPECT_THROW(WriteGeoTiff(path, bands), GeoTiffError);
+}
+
 TEST(WriteGeoTiff, RejectsInvalidRequests) {
     EXPECT_THROW(WriteGeoTiff(TempPath("empty.tif"), Raster<float>()), GeoTiffError);
     const Raster<float> raster = Sample(8, 8);

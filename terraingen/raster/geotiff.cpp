@@ -47,6 +47,7 @@ enum Tag : std::uint16_t {
     kTileLength = 323,
     kTileOffsets = 324,
     kTileByteCounts = 325,
+    kExtraSamples = 338,
     kSampleFormat = 339,
     kModelPixelScale = 33550,
     kModelTiepoint = 33922,
@@ -831,10 +832,32 @@ std::string NoDataText(float value) {
 
 void WriteGeoTiff(const std::filesystem::path& path, const Raster<float>& raster,
                   const GeoKeys& geoKeys, const GeoTiffWriteOptions& options) {
+    WriteGeoTiff(path, std::vector<const Raster<float>*>{&raster}, geoKeys, options);
+}
+
+void WriteGeoTiff(const std::filesystem::path& path, const std::vector<Raster<float>>& bands,
+                  const GeoKeys& geoKeys, const GeoTiffWriteOptions& options) {
+    std::vector<const Raster<float>*> pointers;
+    for (const Raster<float>& band : bands) {
+        pointers.push_back(&band);
+    }
+    WriteGeoTiff(path, pointers, geoKeys, options);
+}
+
+void WriteGeoTiff(const std::filesystem::path& path, const std::vector<const Raster<float>*>& bands,
+                  const GeoKeys& geoKeys, const GeoTiffWriteOptions& options) {
     const Stopwatch stopwatch;
-    if (raster.Empty()) {
+    if (bands.empty() || bands.front()->Empty()) {
         throw GeoTiffError("Cannot write an empty raster to " + path.string());
     }
+    const Raster<float>& raster = *bands.front();
+    for (const Raster<float>* band : bands) {
+        if (band->Width() != raster.Width() || band->Height() != raster.Height() ||
+            !(band->Transform() == raster.Transform())) {
+            throw GeoTiffError("The bands written to " + path.string() + " must share one grid");
+        }
+    }
+    const auto samplesPerPixel = static_cast<std::uint16_t>(bands.size());
     if (options.compression == TiffCompression::PackBits) {
         throw GeoTiffError("Writing PackBits is not supported; use None, Lzw or Deflate");
     }
@@ -845,7 +868,7 @@ void WriteGeoTiff(const std::filesystem::path& path, const Raster<float>& raster
     const std::size_t across = (raster.Width() + tile - 1) / tile;
     const std::size_t down = (raster.Height() + tile - 1) / tile;
     const std::uint64_t estimate =
-        static_cast<std::uint64_t>(across * down) * tile * tile * 4 + (1u << 20);
+        static_cast<std::uint64_t>(across * down * bands.size()) * tile * tile * 4 + (1u << 20);
     const bool bigTiff = options.bigTiff || estimate >= (std::uint64_t{1} << 32);
 
     std::ofstream file(path, std::ios::binary);
@@ -866,33 +889,36 @@ void WriteGeoTiff(const std::filesystem::path& path, const Raster<float>& raster
     std::vector<std::uint64_t> counts;
     std::uint64_t position = header.size();
     std::vector<float> samples(tile * tile);
-    for (std::size_t ty = 0; ty < down; ++ty) {
-        for (std::size_t tx = 0; tx < across; ++tx) {
-            for (std::size_t y = 0; y < tile; ++y) {
-                for (std::size_t x = 0; x < tile; ++x) {
-                    const std::size_t col = tx * tile + x;
-                    const std::size_t row = ty * tile + y;
-                    samples[y * tile + x] =
-                        col < raster.Width() && row < raster.Height() ? raster(col, row) : fill;
+    for (const Raster<float>* band : bands) {
+        for (std::size_t ty = 0; ty < down; ++ty) {
+            for (std::size_t tx = 0; tx < across; ++tx) {
+                for (std::size_t y = 0; y < tile; ++y) {
+                    for (std::size_t x = 0; x < tile; ++x) {
+                        const std::size_t col = tx * tile + x;
+                        const std::size_t row = ty * tile + y;
+                        samples[y * tile + x] = col < raster.Width() && row < raster.Height()
+                                                    ? (*band)(col, row)
+                                                    : fill;
+                    }
                 }
-            }
-            std::vector<std::uint8_t> bytes(samples.size() * 4);
-            std::memcpy(bytes.data(), samples.data(), bytes.size());
-            if (options.compression == TiffCompression::Lzw) {
-                EncodePredictor3(bytes, tile, tile);
-                bytes = detail::EncodeLzw(bytes);
-            } else if (options.compression == TiffCompression::Deflate) {
-                EncodePredictor3(bytes, tile, tile);
-                bytes = detail::EncodeDeflate(bytes);
-            }
-            offsets.push_back(position);
-            counts.push_back(bytes.size());
-            file.write(reinterpret_cast<const char*>(bytes.data()),
-                       static_cast<std::streamsize>(bytes.size()));
-            position += bytes.size();
-            if (position % 2 != 0) {
-                file.put(0);
-                ++position;
+                std::vector<std::uint8_t> bytes(samples.size() * 4);
+                std::memcpy(bytes.data(), samples.data(), bytes.size());
+                if (options.compression == TiffCompression::Lzw) {
+                    EncodePredictor3(bytes, tile, tile);
+                    bytes = detail::EncodeLzw(bytes);
+                } else if (options.compression == TiffCompression::Deflate) {
+                    EncodePredictor3(bytes, tile, tile);
+                    bytes = detail::EncodeDeflate(bytes);
+                }
+                offsets.push_back(position);
+                counts.push_back(bytes.size());
+                file.write(reinterpret_cast<const char*>(bytes.data()),
+                           static_cast<std::streamsize>(bytes.size()));
+                position += bytes.size();
+                if (position % 2 != 0) {
+                    file.put(0);
+                    ++position;
+                }
             }
         }
     }
@@ -905,7 +931,7 @@ void WriteGeoTiff(const std::filesystem::path& path, const Raster<float>& raster
     const auto height = static_cast<std::uint32_t>(raster.Height());
     ifd.Add<std::uint32_t>(kImageWidth, kLong, {width});
     ifd.Add<std::uint32_t>(kImageLength, kLong, {height});
-    ifd.Add<std::uint16_t>(kBitsPerSample, kShort, {32});
+    ifd.Add<std::uint16_t>(kBitsPerSample, kShort, std::vector<std::uint16_t>(samplesPerPixel, 32));
     std::uint16_t compressionCode = 1;
     if (options.compression == TiffCompression::Lzw) {
         compressionCode = 5;
@@ -914,8 +940,9 @@ void WriteGeoTiff(const std::filesystem::path& path, const Raster<float>& raster
     }
     ifd.Add<std::uint16_t>(kCompression, kShort, {compressionCode});
     ifd.Add<std::uint16_t>(kPhotometric, kShort, {1});
-    ifd.Add<std::uint16_t>(kSamplesPerPixel, kShort, {1});
-    ifd.Add<std::uint16_t>(kPlanarConfiguration, kShort, {1});
+    ifd.Add<std::uint16_t>(kSamplesPerPixel, kShort, {samplesPerPixel});
+    ifd.Add<std::uint16_t>(kPlanarConfiguration, kShort,
+                           {static_cast<std::uint16_t>(samplesPerPixel == 1 ? 1 : 2)});
     if (options.compression != TiffCompression::None) {
         ifd.Add<std::uint16_t>(kPredictor, kShort, {3});
     }
@@ -930,7 +957,11 @@ void WriteGeoTiff(const std::filesystem::path& path, const Raster<float>& raster
         ifd.Add<std::uint32_t>(kTileByteCounts, kLong,
                                std::vector<std::uint32_t>(counts.begin(), counts.end()));
     }
-    ifd.Add<std::uint16_t>(kSampleFormat, kShort, {3});
+    if (samplesPerPixel > 1) {
+        ifd.Add<std::uint16_t>(kExtraSamples, kShort,
+                               std::vector<std::uint16_t>(samplesPerPixel - 1u, 0));
+    }
+    ifd.Add<std::uint16_t>(kSampleFormat, kShort, std::vector<std::uint16_t>(samplesPerPixel, 3));
 
     const GeoTransform& transform = raster.Transform();
     if (!geoKeys.Empty() || !(transform == GeoTransform{})) {
@@ -969,8 +1000,8 @@ void WriteGeoTiff(const std::filesystem::path& path, const Raster<float>& raster
     if (!file) {
         throw GeoTiffError("Cannot write " + path.string());
     }
-    LogInfo("raster", "Wrote ", raster.Width(), "x", raster.Height(), " GeoTIFF ", path.string(),
-            " in ", FormatDuration(stopwatch.Milliseconds()));
+    LogInfo("raster", "Wrote ", raster.Width(), "x", raster.Height(), "x", bands.size(),
+            " GeoTIFF ", path.string(), " in ", FormatDuration(stopwatch.Milliseconds()));
 }
 
 }  // namespace terraingen
