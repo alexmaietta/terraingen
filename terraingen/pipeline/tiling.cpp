@@ -128,4 +128,30 @@ std::array<TileKey, 4> TileScheme::Children(const TileKey& key) {
             TileKey{level, 2 * key.x, 2 * key.y + 1}, TileKey{level, 2 * key.x + 1, 2 * key.y + 1}};
 }
 
+TileScheme TileScheme::WholeBody(std::size_t cells) {
+    TileScheme scheme{{-180.0, 90.0}, 180.0, cells};
+    scheme.Validate();
+    return scheme;
+}
+
+std::vector<TileKey> TileScheme::BodyTiles(int level) {
+    if (level < 0) {
+        throw std::invalid_argument("Tile levels are not negative");
+    }
+    const std::int64_t rows = std::int64_t{1} << level;
+    std::vector<TileKey> keys;
+    keys.reserve(static_cast<std::size_t>(2 * rows * rows));
+    for (std::int64_t y = 0; y < rows; ++y) {
+        for (std::int64_t x = 0; x < 2 * rows; ++x) {
+            keys.push_back({level, x, y});
+        }
+    }
+    return keys;
+}
+
+TileKey TileScheme::WrapBodyTile(const TileKey& key) {
+    const std::int64_t columns = std::int64_t{2} << key.level;
+    return {key.level, ((key.x % columns) + columns) % columns, key.y};
+}
+
 }  // namespace terraingen

@@ -486,3 +486,65 @@ TEST(Evaluate, SphereTilesAndPointsEqualTheWholeTerrain) {
         }
     }
 }
+
+TEST(EvaluateTile, WholeBodyTilesAgreeAcrossTheAntimeridianAndAtThePole) {
+    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
+    const auto scheme = terraingen::TileScheme::WholeBody(16);
+    EXPECT_EQ(scheme.TileSize(0), 180.0);
+    EXPECT_EQ(terraingen::TileScheme::BodyTiles(2).size(), 32u);
+    EXPECT_EQ(terraingen::TileScheme::WrapBodyTile({3, -1, 2}), (terraingen::TileKey{3, 15, 2}));
+    EXPECT_EQ(terraingen::TileScheme::WrapBodyTile({3, 16, 2}), (terraingen::TileKey{3, 0, 2}));
+    EXPECT_THROW(terraingen::TileScheme::BodyTiles(-1), std::invalid_argument);
+
+    Terrain terrain;
+    terrain.surface = moon;
+    terrain.source = std::make_shared<terraingen::FlatSource>(8, 8, 1.0, 0.0f);
+    terraingen::CraterLayerOptions options;
+    options.seed = 6;
+    options.surface = moon;
+    options.generation.dMin = 300.0;
+    options.generation.dMax = 1500.0;
+    terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(
+        terraingen::CraterModels{
+            std::make_shared<terraingen::PowerLawSfd>(0.5, 2.0),
+            std::make_shared<terraingen::UniformAges>(1.0),
+            std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry),
+            std::make_shared<terraingen::FassettThomsonProfile>()},
+        options));
+    terrain.filters.push_back(
+        std::make_shared<terraingen::RimSmoothingFilter>(terraingen::RimSmoothing{}, moon));
+    const int level = 9;
+    const std::int64_t columns = std::int64_t{2} << level;
+    const double size = scheme.TileSize(level);
+    const double step = size / 16.0;
+    for (const terraingen::TileKey key :
+         {terraingen::TileKey{level, columns - 1, 100}, terraingen::TileKey{level, 0, 100},
+          terraingen::TileKey{level, 37, 0}}) {
+        const auto tile = terraingen::EvaluateTile(terrain, scheme, key, 2);
+        const RasterGrid grid = scheme.Grid(key);
+        const RasterGrid around{48, 48,
+                                GeoTransform::NorthUp(grid.transform.originX - 16.0 * step,
+                                                      grid.transform.originY + 16.0 * step, step)};
+        const auto larger = Evaluate(terrain, around);
+        for (std::size_t row = 0; row < 16; ++row) {
+            for (std::size_t col = 0; col < 16; ++col) {
+                ASSERT_NEAR(tile.heights(col, row), larger.heights(col + 16, row + 16), 1e-3)
+                    << key.x << " " << key.y << " " << col << " " << row;
+            }
+        }
+    }
+    const auto east = terraingen::EvaluateTile(terrain, scheme, {level, columns - 1, 100}, 1);
+    const RasterGrid shifted{32, 16,
+                             GeoTransform::NorthUp(180.0 - size, 90.0 - 100.0 * size, step)};
+    const auto across = Evaluate(terrain, shifted);
+    const auto west = terraingen::EvaluateTile(terrain, scheme, {level, 0, 100}, 1);
+    double relief = 0.0;
+    for (std::size_t row = 0; row < 16; ++row) {
+        for (std::size_t col = 0; col < 16; ++col) {
+            EXPECT_NEAR(across.heights(col, row), east.heights(col, row), 1e-3);
+            EXPECT_NEAR(across.heights(col + 16, row), west.heights(col, row), 1e-3);
+            relief = std::fmax(relief, std::fabs(east.heights(col, row)));
+        }
+    }
+    EXPECT_GT(relief, 1.0);
+}

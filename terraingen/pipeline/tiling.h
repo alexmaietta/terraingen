@@ -42,6 +42,21 @@ struct TileScheme {
     /// @throws std::invalid_argument for an empty, rotated or not north-up grid, or zero `cells`.
     static TileScheme Covering(const RasterGrid& grid, std::size_t cells = 256);
 
+    /// A longitude-latitude pyramid over a whole body, for terrains on a sphere: the origin at
+    /// (-180, 90) and root tiles 180 degrees across, so level L has 2^(L+1) x 2^L tiles covering
+    /// every longitude and latitude once (`BodyTiles`). Spacings are in degrees; a tile's spacing
+    /// in metres is `RasterGrid::Spacing` on the sphere.
+    /// @throws std::invalid_argument for zero `cells`.
+    static TileScheme WholeBody(std::size_t cells = 256);
+
+    /// Every tile of level `level` of a `WholeBody` scheme, row by row from the north-west.
+    /// @throws std::invalid_argument for a negative level.
+    static std::vector<TileKey> BodyTiles(int level);
+
+    /// `key` with its column wrapped into [0, 2^(level+1)), the tile of a `WholeBody` scheme a
+    /// neighbour across the antimeridian is.
+    static TileKey WrapBodyTile(const TileKey& key);
+
     /// @throws std::invalid_argument for a non-positive or non-finite `rootSize`, a non-finite
     /// origin, or zero `cells`.
     void Validate() const;
