@@ -1072,3 +1072,90 @@ TEST(WriteOutputs, WritesARasterAlbedoUpscaledWithTheSourceProjection) {
     EXPECT_THROW(terraingen::WriteOutputs(config, GenerateTerrain(Small()), folder),
                  std::runtime_error);
 }
+
+namespace {
+
+/// A small configuration on a lunar-sized sphere: a flat source at (30, -45), noise and craters.
+TerrainConfig OnASphere() {
+    TerrainConfig config = Small();
+    config.surface = terraingen::SphereSurfaceSpec{1737400.0};
+    Flat(config).centreX = 30.0;
+    Flat(config).centreY = -45.0;
+    Flat(config).pixelSize = 4.0;
+    return config;
+}
+
+}  // namespace
+
+TEST(ValidateConfig, ReportsSphereProblemsByPath) {
+    const auto error = [](auto mutate) {
+        TerrainConfig config = OnASphere();
+        mutate(config);
+        try {
+            ValidateConfig(config);
+        } catch (const ConfigError& e) {
+            return e.Path();
+        }
+        return std::string("valid");
+    };
+    EXPECT_EQ(error([](TerrainConfig&) {}), "valid");
+    EXPECT_EQ(error([](TerrainConfig& c) { c.surface = terraingen::SphereSurfaceSpec{}; }),
+              "surface.radius");
+    EXPECT_EQ(error([](TerrainConfig& c) { Flat(c).centreY = 89.999; }), "source.height");
+    EXPECT_EQ(error([](TerrainConfig& c) { Flat(c).centreX = NAN; }), "source.centre_x");
+    EXPECT_EQ(error([](TerrainConfig& c) {
+                  Noise(c).stack[0].layer.fractal.basis = terraingen::NoiseBasis::Simplex;
+              }),
+              "layers[0].stack[0].basis");
+    EXPECT_EQ(
+        error([](TerrainConfig& c) { c.outputs = {terraingen::BoulderModelsOutput{"b.glb"}}; }),
+        "outputs[0]");
+    EXPECT_EQ(error([](TerrainConfig& c) {
+                  terraingen::SyntheticAlbedoSpec synthetic;
+                  synthetic.valueNoise = {terraingen::NoiseLayerConfig{}};
+                  synthetic.valueNoise[0].layer.fractal.basis = terraingen::NoiseBasis::WorleyF1;
+                  c.albedo = terraingen::AlbedoSpec{synthetic, {}};
+              }),
+              "albedo.source.value_noise[0].basis");
+    EXPECT_THROW(terraingen::BuildSurface(terraingen::SphereSurfaceSpec{-1.0}), ConfigError);
+}
+
+TEST(GenerateTerrain, BuildsSphereTerrainsAndWritesGeographicRasters) {
+    TerrainConfig config = OnASphere();
+    terraingen::SyntheticAlbedoSpec synthetic;
+    config.albedo = terraingen::AlbedoSpec{synthetic, {terraingen::CraterAlbedoSpec{}}};
+    config.filters = {terraingen::RimSmoothing{}};
+    config.outputs = {terraingen::HeightmapOutput{"height.tif"},
+                      terraingen::AlbedoOutput{"albedo.tif"},
+                      CraterListOutput{"craters.csv", CraterListFormat::Csv}};
+    const auto generated = GenerateTerrain(config, {}, 2);
+    const auto grid = terraingen::RasterGrid::Of(generated.heights);
+    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
+    EXPECT_NEAR(grid.Spacing(moon), 4.0, 1e-9);
+    EXPECT_NEAR(grid.Bounds().minX + grid.Bounds().maxX, 60.0, 1e-9);
+    ASSERT_GT(generated.features.craters.Size(), 0u);
+    for (std::size_t n = 0; n < generated.features.craters.Size(); ++n) {
+        EXPECT_NEAR(generated.features.craters.X()[n], 30.0, 0.1);
+        EXPECT_NEAR(generated.features.craters.Y()[n], -45.0, 0.1);
+    }
+    EXPECT_EQ(generated.geoKeys, terraingen::GeographicSphereKeys(1737400.0));
+    EXPECT_EQ(generated.albedo.size(), 1u);
+
+    const terraingen::Terrain terrain = terraingen::BuildTerrain(config);
+    EXPECT_EQ(terrain.surface, moon);
+    terraingen::Terrain layersOnly = terrain;
+    layersOnly.filters.clear();
+    const auto unfiltered = terraingen::Evaluate(layersOnly, grid);
+    const auto centre = unfiltered.heights.CellCenter(20, 30);
+    EXPECT_EQ(terraingen::EvaluateAt(layersOnly, centre.x, centre.y, 4.0),
+              unfiltered.heights(20, 30));
+
+    const auto directory = TempPath("terraingen_sphere");
+    std::filesystem::remove_all(directory);
+    const auto written = terraingen::WriteOutputs(config, generated, directory);
+    ASSERT_EQ(written.size(), 3u);
+    const auto read = terraingen::ReadGeoTiff(written[0]);
+    EXPECT_TRUE(read.geoKeys.IsGeographic());
+    EXPECT_EQ(read.raster.Transform(), generated.heights.Transform());
+    EXPECT_TRUE(terraingen::ReadGeoTiffInfo(written[1]).geoKeys.IsGeographic());
+}

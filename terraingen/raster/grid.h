@@ -30,6 +30,11 @@ struct RasterGrid {
     /// Side of a cell: the square root of a cell's area.
     double PixelSize() const;
 
+    /// The area the grid covers on `surface`, in m^2: `Area` on a plane, and on a sphere of radius
+    /// R the area of its longitude-latitude box, R^2 (lon2 - lon1) (sin lat2 - sin lat1), with
+    /// latitudes clamped to [-90, 90] and at most a full turn of longitude.
+    double SurfaceArea(const Surface& surface) const;
+
     /// The grid's sample spacing in metres on `surface`: `PixelSize` on a plane, and on a sphere
     /// the latitude step of a cell (its largest side) in metres.
     double Spacing(const Surface& surface) const;

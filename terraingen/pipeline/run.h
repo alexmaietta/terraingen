@@ -21,10 +21,16 @@ inline constexpr std::size_t kMaxConfigGridSize = 65536;
 /// @throws std::invalid_argument or std::domain_error for invalid model parameters.
 CraterModels BuildCraterModels(const CraterLayerSpec& craters);
 
-/// The grid `source` covers, reading only the header of a raster source's file; relative paths
-/// resolve against `directory`.
+/// The grid `source` covers on `surface`, reading only the header of a raster source's file;
+/// relative paths resolve against `directory`. Pixel sizes are metres; on a sphere grids are in
+/// longitude and latitude, so a size becomes degrees along a meridian.
 /// @throws ConfigError for an unreadable raster or invalid grid parameters.
-RasterGrid DescribeSource(const SourceSpec& source, const std::filesystem::path& directory = {});
+RasterGrid DescribeSource(const SourceSpec& source, const std::filesystem::path& directory = {},
+                          const Surface& surface = {});
+
+/// The `Surface` `spec` describes.
+/// @throws ConfigError for a sphere without a positive, finite radius.
+Surface BuildSurface(const SurfaceSpec& spec);
 
 /// Checks everything that parsing cannot: grid limits, the raster file, noise parameters, model
 /// parameters, crater and filter options, outputs and the expected crater count against

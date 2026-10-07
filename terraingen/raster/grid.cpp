@@ -42,4 +42,17 @@ double RasterGrid::Spacing(const Surface& surface) const {
     return std::hypot(transform.rowRotation, transform.pixelHeight) * surface.UnitLength();
 }
 
+double RasterGrid::SurfaceArea(const Surface& surface) const {
+    if (!surface.IsSphere()) {
+        return Area();
+    }
+    constexpr double kDegree = 3.14159265358979323846 / 180.0;
+    const Bounds2d box = Bounds();
+    const double turn = std::fmin(box.maxX - box.minX, 360.0) * kDegree;
+    const double south = std::fmax(box.minY, -90.0) * kDegree;
+    const double north = std::fmin(box.maxY, 90.0) * kDegree;
+    const double radius = surface.Radius();
+    return radius * radius * turn * std::fmax(0.0, std::sin(north) - std::sin(south));
+}
+
 }  // namespace terraingen

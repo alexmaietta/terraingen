@@ -283,6 +283,23 @@ TEST(ConfigJson, RoundTripsAlbedos) {
               "albedo.layers[0].rays.glow");
 }
 
+TEST(ConfigJson, RoundTripsSurfacesAndFlatCentres) {
+    TerrainConfig config;
+    config.surface = terraingen::SphereSurfaceSpec{1737400.0};
+    terraingen::FlatSourceSpec flat;
+    flat.centreX = 30.0;
+    flat.centreY = -45.0;
+    config.source = flat;
+    const std::string json = ConfigToJson(config);
+    EXPECT_EQ(ParseConfig(json), config) << json;
+    const TerrainConfig parsed =
+        ParseConfig(R"({"schema_version": 1, "surface": {"type": "sphere", "radius": 3389500}})");
+    EXPECT_EQ(std::get<terraingen::SphereSurfaceSpec>(parsed.surface).radius, 3389500.0);
+    EXPECT_TRUE(std::holds_alternative<terraingen::PlaneSurfaceSpec>(
+        ParseConfig(R"({"schema_version": 1})").surface));
+    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "surface": {"type": "torus"}})"), "surface.type");
+}
+
 TEST(ConfigJson, OmittedKeysTakeDefaultsAndOmittedListsAreEmpty) {
     const TerrainConfig minimal = ParseConfig(R"({"schema_version": 1})");
     EXPECT_EQ(minimal.source, terraingen::SourceSpec{});

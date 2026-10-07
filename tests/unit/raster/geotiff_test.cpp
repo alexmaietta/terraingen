@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <fstream>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -265,6 +266,22 @@ TEST(WriteGeoTiff, WritesSeveralBandsOneAfterAnother) {
     bands[1] = bands[0];
     bands[1].SetTransform(GeoTransform::NorthUp(0.0, 0.0, 1.0));
     EXPECT_THROW(WriteGeoTiff(path, bands), GeoTiffError);
+}
+
+TEST(GeographicSphereKeys, DescribeLongitudeAndLatitudeOnTheBody) {
+    const auto keys = terraingen::GeographicSphereKeys(3389500.0);
+    EXPECT_TRUE(keys.IsGeographic());
+    EXPECT_FALSE(keys.PixelIsPoint());
+    EXPECT_EQ(keys.ShortKey(2054), 9102);
+    EXPECT_EQ(keys.doubleParams, (std::vector<double>{3389500.0, 3389500.0}));
+    Raster<float> raster = Sample(17, 9);
+    raster.SetTransform(GeoTransform::NorthUp(-10.0, 5.0, 0.25));
+    const auto path = TempPath("sphere.tif");
+    WriteGeoTiff(path, raster, keys);
+    const auto read = ReadGeoTiff(path);
+    EXPECT_EQ(read.geoKeys, keys);
+    EXPECT_EQ(read.raster.Transform(), raster.Transform());
+    EXPECT_THROW(terraingen::GeographicSphereKeys(0.0), std::invalid_argument);
 }
 
 TEST(WriteGeoTiff, RejectsInvalidRequests) {

@@ -338,6 +338,12 @@ template <> struct SpecName<BoulderModelsOutput> {
 template <> struct SpecName<CraterListOutput> {
     static constexpr std::string_view kName = "crater_list";
 };
+template <> struct SpecName<PlaneSurfaceSpec> {
+    static constexpr std::string_view kName = "plane";
+};
+template <> struct SpecName<SphereSurfaceSpec> {
+    static constexpr std::string_view kName = "sphere";
+};
 template <> struct SpecName<AlbedoOutput> {
     static constexpr std::string_view kName = "albedo";
 };
@@ -459,6 +465,8 @@ template <typename IO> void Fields(IO& io, ValueRange& range);
 template <typename IO> void Fields(IO& io, BoulderStyle& style);
 template <typename IO> void Fields(IO& io, BoulderShapeOptions& shapes);
 template <typename IO> void Fields(IO& io, AlbedoOutput& output);
+template <typename IO> void Fields(IO& io, PlaneSurfaceSpec& spec);
+template <typename IO> void Fields(IO& io, SphereSurfaceSpec& spec);
 template <typename IO> void Fields(IO& io, SyntheticAlbedoSpec& spec);
 template <typename IO> void Fields(IO& io, AlbedoDetail& detail);
 template <typename IO> void Fields(IO& io, RasterAlbedoSpec& spec);
@@ -739,6 +747,8 @@ template <typename IO> void Fields(IO& io, FlatSourceSpec& source) {
     io("height", source.height);
     io("pixel_size", source.pixelSize);
     io("elevation", source.elevation);
+    io("centre_x", source.centreX);
+    io("centre_y", source.centreY);
 }
 
 template <typename IO> void Fields(IO& io, RasterSourceSpec& source) {
@@ -1143,6 +1153,12 @@ template <typename IO> void Fields(IO& io, CraterListOutput& output) {
     io("format", output.format);
 }
 
+template <typename IO> void Fields(IO& /*io*/, PlaneSurfaceSpec& /*spec*/) {}
+
+template <typename IO> void Fields(IO& io, SphereSurfaceSpec& spec) {
+    io("radius", spec.radius);
+}
+
 template <typename IO> void Fields(IO& io, AlbedoOutput& output) {
     io("path", output.path);
     io("compression", output.compression);
@@ -1253,6 +1269,7 @@ TerrainConfig ReadConfig(const Json& json) {
                                    " is not supported; this library reads version " +
                                    std::to_string(kConfigSchemaVersion));
     }
+    reader("surface", config.surface);
     reader("source", config.source);
     reader("layers", config.layers);
     reader("filters", config.filters);
@@ -1290,6 +1307,7 @@ TerrainConfig LoadConfig(const std::filesystem::path& path) {
 std::string ConfigToJson(const TerrainConfig& config, int indent) {
     Json json = Json::object();
     json["schema_version"] = config.schemaVersion;
+    json["surface"] = ToJson(config.surface);
     json["source"] = ToJson(config.source);
     json["layers"] = ToJson(config.layers);
     json["filters"] = ToJson(config.filters);

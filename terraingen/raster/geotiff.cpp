@@ -14,6 +14,7 @@
 #include <limits>
 #include <map>
 #include <span>
+#include <stdexcept>
 
 namespace terraingen {
 
@@ -829,6 +830,19 @@ std::string NoDataText(float value) {
 }
 
 }  // namespace
+
+GeoKeys GeographicSphereKeys(double radius) {
+    if (!(std::isfinite(radius) && radius > 0.0)) {
+        throw std::invalid_argument("A sphere's radius must be positive and finite");
+    }
+    constexpr std::uint16_t kDoubles = 34736;
+    GeoKeys keys;
+    keys.directory = {1,    1, 0, 8,     1024, 0,        1, 2,     1025, 0,        1, 1,
+                      2048, 0, 1, 32767, 2050, 0,        1, 32767, 2054, 0,        1, 9102,
+                      2056, 0, 1, 32767, 2057, kDoubles, 1, 0,     2058, kDoubles, 1, 1};
+    keys.doubleParams = {radius, radius};
+    return keys;
+}
 
 void WriteGeoTiff(const std::filesystem::path& path, const Raster<float>& raster,
                   const GeoKeys& geoKeys, const GeoTiffWriteOptions& options) {

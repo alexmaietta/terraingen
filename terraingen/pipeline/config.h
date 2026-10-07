@@ -48,12 +48,16 @@ struct NoiseLayerConfig {
 };
 
 /// "flat": a level datum at `elevation` over a `width` x `height` grid of `pixelSize` metres,
-/// centred on the origin of the surface coordinates (`FlatSource`).
+/// centred on (`centreX`, `centreY`) in surface coordinates, the origin by default (`FlatSource`).
+/// On a sphere the centre is a longitude and latitude, and cells are `pixelSize` metres along a
+/// meridian, the same in degrees of longitude.
 struct FlatSourceSpec {
     std::size_t width = 513;
     std::size_t height = 513;
     double pixelSize = 2.0;
     float elevation = 0.0f;
+    double centreX = 0.0;
+    double centreY = 0.0;
 
     bool operator==(const FlatSourceSpec&) const = default;
 };
@@ -459,10 +463,29 @@ struct AlbedoSpec {
     bool operator==(const AlbedoSpec&) const = default;
 };
 
-/// Everything needed to generate a terrain: a source, the layers added to it in order, the filters
-/// applied after them in order, the outputs to write, and optionally its albedo.
+/// What a terrain lies on, named in JSON by its "type".
+///
+/// "plane": a projected frame in metres, the default.
+struct PlaneSurfaceSpec {
+    bool operator==(const PlaneSurfaceSpec&) const = default;
+};
+
+/// "sphere": a body of `radius` metres, such as a planet or moon; grids and positions are
+/// longitude and latitude in degrees, and features are generated over the whole body (`Surface`).
+/// The radius has no default: give the body's.
+struct SphereSurfaceSpec {
+    double radius = 0.0;
+    bool operator==(const SphereSurfaceSpec&) const = default;
+};
+
+using SurfaceSpec = std::variant<PlaneSurfaceSpec, SphereSurfaceSpec>;
+
+/// Everything needed to generate a terrain: the surface it lies on, a source, the layers added to
+/// it in order, the filters applied after them in order, the outputs to write, and optionally its
+/// albedo.
 struct TerrainConfig {
     int schemaVersion = kConfigSchemaVersion;
+    SurfaceSpec surface{};
     SourceSpec source{};
     std::vector<LayerSpec> layers;
     std::vector<FilterSpec> filters;

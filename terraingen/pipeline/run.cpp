@@ -202,6 +202,17 @@ void ValidateLayers(const std::vector<NoiseLayerConfig>& layers, const std::stri
     }
 }
 
+/// @throws ConfigError at `path` for a layer of `stack` whose basis has no 3D form, which noise on
+/// a sphere needs.
+void CheckBases3(const std::vector<NoiseLayerConfig>& stack, const std::string& path) {
+    for (std::size_t i = 0; i < stack.size(); ++i) {
+        if (!HasBasisNoise3(stack[i].layer.fractal.basis)) {
+            throw ConfigError(path + "[" + std::to_string(i) + "].basis",
+                              "on a sphere noise needs a basis with a 3D form: perlin or value");
+        }
+    }
+}
+
 void CheckGridSize(std::size_t width, std::size_t height, const std::string& path) {
     if (width < 2 || height < 2 || width > kMaxConfigGridSize || height > kMaxConfigGridSize) {
         throw ConfigError(path, std::to_string(width) + "x" + std::to_string(height) +
@@ -220,7 +231,7 @@ SyntheticTerrainParams StackParams(const std::vector<NoiseLayerConfig>& stack) {
 }
 
 void ValidateCraters(const CraterLayerSpec& craters, const RasterGrid& grid,
-                     const std::string& path) {
+                     const std::string& path, const Surface& surface) {
     for (std::size_t n = 0; n < craters.manual.size(); ++n) {
         const Crater& crater = craters.manual[n];
         const std::string manual = path + ".manual[" + std::to_string(n) + "]";
@@ -266,7 +277,7 @@ void ValidateCraters(const CraterLayerSpec& craters, const RasterGrid& grid,
     if (!(std::isfinite(craters.maxDiameter) && craters.maxDiameter > craters.minDiameter)) {
         throw ConfigError(path + ".max_diameter", "must exceed min_diameter");
     }
-    const double area = grid.Area();
+    const double area = grid.SurfaceArea(surface);
     const double expected = At(path + ".min_diameter", [&] {
         return density->ExpectedCount(area, craters.minDiameter, craters.maxDiameter);
     });
@@ -319,7 +330,7 @@ RockLayerOptions BuildRockOptions(const RockLayerSpec& spec, const std::string& 
 }
 
 void ValidateRocks(const RockLayerSpec& spec, bool craters, const RasterGrid& grid,
-                   const std::string& path) {
+                   const std::string& path, const Surface& surface) {
     const RockLayerOptions rocks = BuildRockOptions(spec, path);
     At(path, [&] { ValidateRockLayerOptions(rocks); });
     if (rocks.ejecta.MinCraterDiameter() > 0.0 && !craters) {
@@ -327,12 +338,12 @@ void ValidateRocks(const RockLayerSpec& spec, bool craters, const RasterGrid& gr
                           "ejecta need a crater layer before this one");
     }
     const double minDiameter =
-        std::fmax(rocks.minDiameter, rocks.fade.startSamples * grid.PixelSize());
+        std::fmax(rocks.minDiameter, rocks.fade.startSamples * grid.Spacing(surface));
     if (minDiameter >= rocks.maxDiameter) {
         return;
     }
-    const double expected =
-        RockCandidates(rocks)->ExpectedCount(grid.Area(), minDiameter, rocks.maxDiameter);
+    const double expected = RockCandidates(rocks)->ExpectedCount(grid.SurfaceArea(surface),
+                                                                 minDiameter, rocks.maxDiameter);
     const double limit = CraterGenerationOptions{}.maxExpectedCraters;
     if (expected > limit) {
         throw ConfigError(path + ".min_diameter",
@@ -354,49 +365,53 @@ RegionShape BuildRegionShape(const RegionShapeSpec& spec) {
 /// Checks the layer `spec` at JSON `path`; `craters` says whether a crater layer came before it
 /// and is set when `spec` is one.
 void ValidateLayer(const LayerSpec& spec, const RasterGrid& grid, const std::string& path,
-                   bool& craters) {
-    std::visit(Overloaded{
-                   [&](const NoiseLayerSpec& noise) {
-                       ValidateLayers(noise.stack, path + ".stack", false);
-                   },
-                   [&](const CraterLayerSpec& layer) {
-                       ValidateCraters(layer, grid, path);
-                       craters = true;
-                   },
-                   [&](const RockLayerSpec& layer) { ValidateRocks(layer, craters, grid, path); },
-                   [&](const RoughnessLayerSpec& layer) {
-                       At(path, [&] { ValidateRoughnessOptions(layer.roughness); });
-                   },
-                   [&](const BedformLayerSpec& layer) {
-                       At(path, [&] { ValidateBedformOptions(layer.bedforms); });
-                   },
-                   [&](const ScaleLayerSpec& layer) {
-                       At(path, [&] { ScaleLayer(layer.scale, layer.offset); });
-                   },
-                   [&](const ClampLayerSpec& layer) {
-                       At(path, [&] { ClampLayer(layer.min, layer.max); });
-                   },
-                   [&](const RegionLayerSpec& layer) {
-                       At(path + ".shape",
-                          [&] { ValidateRegionShape(BuildRegionShape(layer.shape)); });
-                       if (!(std::isfinite(layer.feather) && layer.feather >= 0.0)) {
-                           throw ConfigError(path + ".feather", "must not be negative");
-                       }
-                       bool inner = craters;
-                       ValidateLayer(*layer.layer, grid, path + ".layer", inner);
-                   },
-               },
-               spec);
+                   bool& craters, const Surface& surface) {
+    std::visit(
+        Overloaded{
+            [&](const NoiseLayerSpec& noise) {
+                ValidateLayers(noise.stack, path + ".stack", false);
+                if (surface.IsSphere()) {
+                    CheckBases3(noise.stack, path + ".stack");
+                }
+            },
+            [&](const CraterLayerSpec& layer) {
+                ValidateCraters(layer, grid, path, surface);
+                craters = true;
+            },
+            [&](const RockLayerSpec& layer) { ValidateRocks(layer, craters, grid, path, surface); },
+            [&](const RoughnessLayerSpec& layer) {
+                At(path, [&] { ValidateRoughnessOptions(layer.roughness); });
+            },
+            [&](const BedformLayerSpec& layer) {
+                At(path, [&] { ValidateBedformOptions(layer.bedforms); });
+            },
+            [&](const ScaleLayerSpec& layer) {
+                At(path, [&] { ScaleLayer(layer.scale, layer.offset); });
+            },
+            [&](const ClampLayerSpec& layer) {
+                At(path, [&] { ClampLayer(layer.min, layer.max); });
+            },
+            [&](const RegionLayerSpec& layer) {
+                At(path + ".shape", [&] { ValidateRegionShape(BuildRegionShape(layer.shape)); });
+                if (!(std::isfinite(layer.feather) && layer.feather >= 0.0)) {
+                    throw ConfigError(path + ".feather", "must not be negative");
+                }
+                bool inner = craters;
+                ValidateLayer(*layer.layer, grid, path + ".layer", inner, surface);
+            },
+        },
+        spec);
 }
 
 /// The layer `spec` describes; rock ejecta come from `ejecta`, the last crater layer before it.
 std::shared_ptr<const Layer> BuildLayer(const LayerSpec& spec, const Source& source,
-                                        const std::shared_ptr<const CraterLayer>& ejecta) {
+                                        const std::shared_ptr<const CraterLayer>& ejecta,
+                                        const Surface& surface) {
     if (const auto* noise = std::get_if<NoiseLayerSpec>(&spec)) {
-        return std::make_shared<NoiseRelief>(noise->Params(), source.ReferencePoint());
+        return std::make_shared<NoiseRelief>(noise->Params(), source.ReferencePoint(), surface);
     }
     if (const auto* bedforms = std::get_if<BedformLayerSpec>(&spec)) {
-        return std::make_shared<BedformLayer>(bedforms->bedforms);
+        return std::make_shared<BedformLayer>(bedforms->bedforms, surface);
     }
     if (const auto* scale = std::get_if<ScaleLayerSpec>(&spec)) {
         return std::make_shared<ScaleLayer>(scale->scale, scale->offset);
@@ -405,17 +420,17 @@ std::shared_ptr<const Layer> BuildLayer(const LayerSpec& spec, const Source& sou
         return std::make_shared<ClampLayer>(clamp->min, clamp->max);
     }
     if (const auto* region = std::get_if<RegionLayerSpec>(&spec)) {
-        return std::make_shared<RegionLayer>(BuildLayer(*region->layer, source, ejecta),
+        return std::make_shared<RegionLayer>(BuildLayer(*region->layer, source, ejecta, surface),
                                              BuildRegionShape(region->shape), region->feather,
-                                             region->blend);
+                                             region->blend, surface);
     }
     if (const auto* roughness = std::get_if<RoughnessLayerSpec>(&spec)) {
-        return std::make_shared<RoughnessLayer>(roughness->roughness);
+        return std::make_shared<RoughnessLayer>(roughness->roughness, surface);
     }
     if (const auto* rocks = std::get_if<RockLayerSpec>(&spec)) {
         RockLayerOptions options = BuildRockOptions(*rocks, "rocks");
         const bool throws = options.ejecta.MinCraterDiameter() > 0.0;
-        return std::make_shared<RockLayer>(std::move(options), throws ? ejecta : nullptr);
+        return std::make_shared<RockLayer>(std::move(options), throws ? ejecta : nullptr, surface);
     }
     const auto& craters = std::get<CraterLayerSpec>(spec);
     CraterLayerOptions options;
@@ -430,6 +445,7 @@ std::shared_ptr<const Layer> BuildLayer(const LayerSpec& spec, const Source& sou
         options.generation.manual.Append(crater);
     }
     options.apply = craters.apply;
+    options.surface = surface;
     return std::make_shared<CraterLayer>(BuildCraterModels(craters), std::move(options));
 }
 
@@ -466,15 +482,16 @@ namespace {
 
 /// `DescribeSource` for the source at JSON `path`.
 RasterGrid DescribeSourceAt(const SourceSpec& source, const std::filesystem::path& directory,
-                            const std::string& path) {
+                            const std::string& path, const Surface& surface) {
     if (const auto* chain = std::get_if<ChainSourceSpec>(&source)) {
         if (chain->sources.empty()) {
             throw ConfigError(path + ".sources", "must not be empty");
         }
         RasterGrid grid;
         for (std::size_t n = 0; n < chain->sources.size(); ++n) {
-            const RasterGrid described = DescribeSourceAt(
-                chain->sources[n], directory, path + ".sources[" + std::to_string(n) + "]");
+            const RasterGrid described =
+                DescribeSourceAt(chain->sources[n], directory,
+                                 path + ".sources[" + std::to_string(n) + "]", surface);
             if (n == 0) {
                 grid = described;
             }
@@ -486,7 +503,20 @@ RasterGrid DescribeSourceAt(const SourceSpec& source, const std::filesystem::pat
             throw ConfigError(path + ".pixel_size", "must be positive");
         }
         CheckGridSize(flat->width, flat->height, path + ".width");
-        return FlatSource(flat->width, flat->height, flat->pixelSize, flat->elevation).Grid();
+        if (!(std::isfinite(flat->centreX) && std::isfinite(flat->centreY))) {
+            throw ConfigError(path + ".centre_x", "the centre must be finite");
+        }
+        const double cell = flat->pixelSize / surface.UnitLength();
+        if (surface.IsSphere() &&
+            !(std::fabs(flat->centreY) + 0.5 * cell * static_cast<double>(flat->height) <= 90.0 &&
+              cell * static_cast<double>(flat->width) <= 360.0)) {
+            throw ConfigError(path + ".height",
+                              "the grid must lie within latitudes -90 to 90 and one turn of "
+                              "longitude");
+        }
+        return FlatSource(flat->width, flat->height, cell, flat->elevation,
+                          {flat->centreX, flat->centreY})
+            .Grid();
     }
     const auto& raster = std::get<RasterSourceSpec>(source);
     if (raster.path.empty()) {
@@ -502,10 +532,16 @@ RasterGrid DescribeSourceAt(const SourceSpec& source, const std::filesystem::pat
         throw ConfigError(path + ".band", "the file has " + std::to_string(info.bands) +
                                               (info.bands == 1 ? " band" : " bands"));
     }
-    if (info.geoKeys.IsGeographic()) {
+    if (info.geoKeys.IsGeographic() && !surface.IsSphere()) {
         throw ConfigError(path + ".path",
                           "the raster's CRS is geographic (degrees); craters are sized in metres, "
-                          "so reproject it first, for example with gdalwarp -t_srs");
+                          "so reproject it first, for example with gdalwarp -t_srs, or set the "
+                          "surface to a sphere");
+    }
+    if (surface.IsSphere() && !info.geoKeys.Empty() && !info.geoKeys.IsGeographic()) {
+        throw ConfigError(path + ".path",
+                          "on a sphere the raster must be in longitude and latitude (a "
+                          "geographic CRS)");
     }
     RasterGrid grid{info.width, info.height, info.transform};
     if (raster.pixelSize) {
@@ -515,8 +551,9 @@ RasterGrid DescribeSourceAt(const SourceSpec& source, const std::filesystem::pat
         if (grid.transform.rowRotation != 0.0 || grid.transform.colRotation != 0.0) {
             throw ConfigError(path + ".pixel_size", "rotated rasters cannot be resampled");
         }
-        const double scaleX = std::fabs(grid.transform.pixelWidth) / *raster.pixelSize;
-        const double scaleY = std::fabs(grid.transform.pixelHeight) / *raster.pixelSize;
+        const double cell = *raster.pixelSize / surface.UnitLength();
+        const double scaleX = std::fabs(grid.transform.pixelWidth) / cell;
+        const double scaleY = std::fabs(grid.transform.pixelHeight) / cell;
         const double width = std::max(1.0, std::round(static_cast<double>(info.width) * scaleX));
         const double height = std::max(1.0, std::round(static_cast<double>(info.height) * scaleY));
         if (width > static_cast<double>(kMaxConfigGridSize) ||
@@ -527,30 +564,35 @@ RasterGrid DescribeSourceAt(const SourceSpec& source, const std::filesystem::pat
         }
         grid.width = static_cast<std::size_t>(width);
         grid.height = static_cast<std::size_t>(height);
-        grid.transform.pixelWidth = std::copysign(*raster.pixelSize, grid.transform.pixelWidth);
-        grid.transform.pixelHeight = std::copysign(*raster.pixelSize, grid.transform.pixelHeight);
+        grid.transform.pixelWidth = std::copysign(cell, grid.transform.pixelWidth);
+        grid.transform.pixelHeight = std::copysign(cell, grid.transform.pixelHeight);
     }
     CheckGridSize(grid.width, grid.height, path + (raster.pixelSize ? ".pixel_size" : ".path"));
     return grid;
 }
 
 std::shared_ptr<const Source> BuildSource(const SourceSpec& spec,
-                                          const std::filesystem::path& directory) {
+                                          const std::filesystem::path& directory,
+                                          const Surface& surface) {
     if (const auto* flat = std::get_if<FlatSourceSpec>(&spec)) {
-        return std::make_shared<FlatSource>(flat->width, flat->height, flat->pixelSize,
-                                            flat->elevation);
+        return std::make_shared<FlatSource>(flat->width, flat->height,
+                                            flat->pixelSize / surface.UnitLength(), flat->elevation,
+                                            Vec2d{flat->centreX, flat->centreY});
     }
     if (const auto* chain = std::get_if<ChainSourceSpec>(&spec)) {
         std::vector<std::shared_ptr<const Source>> sources;
         for (const SourceSpec& source : chain->sources) {
-            sources.push_back(BuildSource(source, directory));
+            sources.push_back(BuildSource(source, directory, surface));
         }
         return std::make_shared<SourceChain>(std::move(sources));
     }
     const auto& raster = std::get<RasterSourceSpec>(spec);
-    return std::make_shared<GeoTiffSource>(Resolve(raster.path, directory), raster.band,
-                                           raster.pixelSize, raster.resampling, raster.scale,
-                                           raster.offset);
+    std::optional<double> cell;
+    if (raster.pixelSize) {
+        cell = *raster.pixelSize / surface.UnitLength();
+    }
+    return std::make_shared<GeoTiffSource>(Resolve(raster.path, directory), raster.band, cell,
+                                           raster.resampling, raster.scale, raster.offset);
 }
 
 std::size_t CraterLayerCount(const TerrainConfig& config) {
@@ -561,11 +603,16 @@ std::size_t CraterLayerCount(const TerrainConfig& config) {
 }
 
 void ValidateAlbedo(const AlbedoSpec& albedo, std::size_t craterLayers,
-                    const std::filesystem::path& directory) {
+                    const std::filesystem::path& directory, const Surface& surface) {
     if (const auto* synthetic = std::get_if<SyntheticAlbedoSpec>(&albedo.source)) {
         ValidateLayers(synthetic->hueNoise, "albedo.source.hue_noise", true);
         ValidateLayers(synthetic->saturationNoise, "albedo.source.saturation_noise", true);
         ValidateLayers(synthetic->valueNoise, "albedo.source.value_noise", true);
+        if (surface.IsSphere()) {
+            CheckBases3(synthetic->hueNoise, "albedo.source.hue_noise");
+            CheckBases3(synthetic->saturationNoise, "albedo.source.saturation_noise");
+            CheckBases3(synthetic->valueNoise, "albedo.source.value_noise");
+        }
         At("albedo.source", [&] { ValidateSyntheticAlbedo(synthetic->Params()); });
     } else {
         const auto& raster = std::get<RasterAlbedoSpec>(albedo.source);
@@ -644,8 +691,19 @@ const GeoTiffSource* GridRaster(const Source& source) {
 
 }  // namespace
 
-RasterGrid DescribeSource(const SourceSpec& source, const std::filesystem::path& directory) {
-    return DescribeSourceAt(source, directory, "source");
+RasterGrid DescribeSource(const SourceSpec& source, const std::filesystem::path& directory,
+                          const Surface& surface) {
+    return DescribeSourceAt(source, directory, "source", surface);
+}
+
+Surface BuildSurface(const SurfaceSpec& spec) {
+    if (const auto* sphere = std::get_if<SphereSurfaceSpec>(&spec)) {
+        if (!(std::isfinite(sphere->radius) && sphere->radius > 0.0)) {
+            throw ConfigError("surface.radius", "must be positive; give the body's radius");
+        }
+        return Surface::Sphere(sphere->radius);
+    }
+    return Surface::Plane();
 }
 
 SyntheticAlbedoParams SyntheticAlbedoSpec::Params() const {
@@ -669,10 +727,12 @@ void ValidateConfig(const TerrainConfig& config, const std::filesystem::path& di
         throw ConfigError("schema_version",
                           "version " + std::to_string(config.schemaVersion) + " is not supported");
     }
-    const RasterGrid grid = DescribeSource(config.source, directory);
+    const Surface surface = BuildSurface(config.surface);
+    const RasterGrid grid = DescribeSource(config.source, directory, surface);
     bool craters = false;
     for (std::size_t i = 0; i < config.layers.size(); ++i) {
-        ValidateLayer(config.layers[i], grid, "layers[" + std::to_string(i) + "]", craters);
+        ValidateLayer(config.layers[i], grid, "layers[" + std::to_string(i) + "]", craters,
+                      surface);
     }
     for (std::size_t i = 0; i < config.filters.size(); ++i) {
         At("filters[" + std::to_string(i) + "]",
@@ -693,6 +753,9 @@ void ValidateConfig(const TerrainConfig& config, const std::filesystem::path& di
                     }
                 },
                 [&](const BoulderModelsOutput& output) {
+                    if (surface.IsSphere()) {
+                        throw ConfigError(path, "boulder models are not written on a sphere yet");
+                    }
                     const std::string extension =
                         std::filesystem::path(output.path).extension().string();
                     if (extension != ".glb" && extension != ".ply") {
@@ -734,7 +797,8 @@ void ValidateConfig(const TerrainConfig& config, const std::filesystem::path& di
             config.outputs[i]);
     }
     if (config.albedo) {
-        ValidateAlbedo(*config.albedo, CraterLayerCount(config), directory);
+        ValidateAlbedo(*config.albedo, CraterLayerCount(config), directory,
+                       BuildSurface(config.surface));
     }
 }
 
@@ -743,15 +807,17 @@ Albedo BuildAlbedo(const TerrainConfig& config, const Terrain& terrain,
     if (!config.albedo) {
         throw ConfigError("albedo", "the configuration has no albedo");
     }
-    ValidateAlbedo(*config.albedo, CraterLayerCount(config), directory);
+    ValidateAlbedo(*config.albedo, CraterLayerCount(config), directory,
+                   BuildSurface(config.surface));
     Albedo albedo;
+    albedo.surface = terrain.surface;
     if (const auto* synthetic = std::get_if<SyntheticAlbedoSpec>(&config.albedo->source)) {
-        albedo.source = std::make_shared<SyntheticAlbedo>(synthetic->Params(),
-                                                          terrain.source->ReferencePoint());
+        albedo.source = std::make_shared<SyntheticAlbedo>(
+            synthetic->Params(), terrain.source->ReferencePoint(), terrain.surface);
     } else {
         const auto& raster = std::get<RasterAlbedoSpec>(config.albedo->source);
-        albedo.source =
-            std::make_shared<RasterAlbedo>(LoadAlbedoBands(raster, directory), raster.options);
+        albedo.source = std::make_shared<RasterAlbedo>(LoadAlbedoBands(raster, directory),
+                                                       raster.options, terrain.surface);
     }
     std::vector<std::shared_ptr<const CraterLayer>> craterLayers;
     for (const auto& layer : terrain.layers) {
@@ -774,17 +840,18 @@ Albedo BuildAlbedo(const TerrainConfig& config, const Terrain& terrain,
 Terrain BuildTerrain(const TerrainConfig& config, const std::filesystem::path& directory) {
     ValidateConfig(config, directory);
     Terrain terrain;
-    terrain.source = BuildSource(config.source, directory);
+    terrain.surface = BuildSurface(config.surface);
+    terrain.source = BuildSource(config.source, directory, terrain.surface);
     std::shared_ptr<const CraterLayer> craters;
     for (const LayerSpec& layer : config.layers) {
-        terrain.layers.push_back(BuildLayer(layer, *terrain.source, craters));
+        terrain.layers.push_back(BuildLayer(layer, *terrain.source, craters, terrain.surface));
         if (auto built = std::dynamic_pointer_cast<const CraterLayer>(terrain.layers.back())) {
             craters = std::move(built);
         }
     }
     for (const FilterSpec& filter : config.filters) {
         terrain.filters.push_back(
-            std::make_shared<RimSmoothingFilter>(std::get<RimSmoothing>(filter)));
+            std::make_shared<RimSmoothingFilter>(std::get<RimSmoothing>(filter), terrain.surface));
     }
     return terrain;
 }
@@ -799,10 +866,13 @@ GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
     if (const GeoTiffSource* raster = GridRaster(*terrain.source)) {
         generated.geoKeys = raster->Keys();
     }
+    if (terrain.surface.IsSphere() && generated.geoKeys.Empty()) {
+        generated.geoKeys = GeographicSphereKeys(terrain.surface.Radius());
+    }
     if (config.albedo) {
         const RasterGrid grid = RasterGrid::Of(generated.heights);
         generated.albedo = EvaluateAlbedo(BuildAlbedo(config, terrain, directory), grid,
-                                          {.spacing = grid.PixelSize(), .threads = threads});
+                                          {.spacing = 0.0, .threads = threads});
     }
     LogInfo("pipeline", "Generated ", generated.heights.Width(), "x", generated.heights.Height(),
             " terrain with ", generated.features.craters.Size(), " craters and ",

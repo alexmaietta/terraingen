@@ -140,6 +140,16 @@ struct GeoTiff {
 /// @throws GeoTiffError for unreadable, malformed or unsupported files, or a missing band.
 GeoTiff ReadGeoTiff(const std::filesystem::path& path, std::size_t band = 0);
 
+/// GeoKeys for longitude and latitude in degrees on a sphere of radius `radius` metres, such as a
+/// planet or moon: a user-defined geographic CRS (GTModelTypeGeoKey 2, GeographicTypeGeoKey,
+/// GeogGeodeticDatumGeoKey and GeogEllipsoidGeoKey 32767), angular unit degree (9102), and
+/// semi-major and semi-minor axes both `radius`, with pixel-is-area rasters.
+///
+/// Reference: OGC GeoTIFF Standard 1.1, OGC 19-008r4, 2019, sections 7.4 and 7.5.
+/// https://docs.ogc.org/is/19-008r4/19-008r4.html
+/// @throws std::invalid_argument unless `radius` is positive and finite.
+GeoKeys GeographicSphereKeys(double radius);
+
 /// Settings for `WriteGeoTiff`.
 struct GeoTiffWriteOptions {
     /// `None`, `Lzw` or `Deflate`; compressed files use the floating-point predictor, which suits
