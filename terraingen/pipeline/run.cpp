@@ -831,6 +831,23 @@ void ValidateConfig(const TerrainConfig& config, const std::filesystem::path& di
                                           "must be between 0 and 180 degrees");
                     }
                 },
+                [&](const BodyMeshOutput& output) {
+                    if (!surface.IsSphere()) {
+                        throw ConfigError(path, "a body mesh needs a sphere surface");
+                    }
+                    const std::string extension =
+                        std::filesystem::path(output.path).extension().string();
+                    if (extension != ".glb" && extension != ".ply") {
+                        throw ConfigError(path + ".path", "must end in .glb or .ply");
+                    }
+                    if (output.cellsPerFace == 0 || output.cellsPerFace > 4096) {
+                        throw ConfigError(path + ".cells_per_face", "must be 1 to 4096");
+                    }
+                    if (output.spacing &&
+                        !(std::isfinite(*output.spacing) && *output.spacing > 0.0)) {
+                        throw ConfigError(path + ".spacing", "must be positive");
+                    }
+                },
                 [&](const AlbedoOutput& output) {
                     if (!config.albedo) {
                         throw ConfigError(path, "the configuration has no albedo");
@@ -1098,6 +1115,17 @@ std::vector<std::filesystem::path> WriteOutputs(const TerrainConfig& config,
         if (const auto* heightmap = std::get_if<HeightmapOutput>(&spec)) {
             WriteGeoTiff(path, terrain.heights, terrain.geoKeys,
                          {.compression = heightmap->compression, .tileSize = heightmap->tileSize});
+        } else if (const auto* body = std::get_if<BodyMeshOutput>(&spec)) {
+            const TriangleMesh mesh = BodyMesh(BuildTerrain(config, directory), body->cellsPerFace,
+                                               body->spacing.value_or(0.0));
+            if (path.extension() == ".ply") {
+                WritePly(path, mesh);
+            } else {
+                ShadedMesh shaded = WithCreases(mesh, std::numbers::pi);
+                WriteGlb(path, shaded.mesh, shaded.normals);
+            }
+            LogInfo("pipeline", "Wrote a body mesh of ", mesh.triangles.size(), " triangles to ",
+                    path.string());
         } else if (const auto* albedo = std::get_if<AlbedoOutput>(&spec)) {
             if (terrain.albedo.empty()) {
                 throw std::runtime_error("No albedo to write to " + path.string());

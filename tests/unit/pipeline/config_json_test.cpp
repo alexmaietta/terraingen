@@ -306,6 +306,9 @@ TEST(ConfigJson, RoundTripsSurfacesAndFlatCentres) {
         ParseConfig(R"({"schema_version": 1, "surface": {"type": "sphere", "body": "mars"}})");
     EXPECT_EQ(std::get<terraingen::SphereSurfaceSpec>(mars.surface).body, terraingen::Body::Mars);
     EXPECT_EQ(ParseConfig(ConfigToJson(mars)), mars);
+    TerrainConfig meshed = mars;
+    meshed.outputs = {terraingen::BodyMeshOutput{"m.glb", 64, 300.0}};
+    EXPECT_EQ(ParseConfig(ConfigToJson(meshed)), meshed);
     EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "surface": {"type": "sphere", "body": "pluto"}})"),
               "surface.body");
 }

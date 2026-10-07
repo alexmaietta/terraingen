@@ -438,8 +438,18 @@ struct AlbedoOutput {
     bool operator==(const AlbedoOutput&) const = default;
 };
 
+/// "body_mesh": a mesh of the whole body on a sphere (`BodyMesh`), `cellsPerFace` quads along each
+/// edge of the six cube faces, sampled every `spacing` metres (by default a quad's side), as a
+/// glTF binary (.glb, with smooth normals) or PLY (.ply).
+struct BodyMeshOutput {
+    std::string path;
+    std::size_t cellsPerFace = 128;
+    std::optional<double> spacing{};
+    bool operator==(const BodyMeshOutput&) const = default;
+};
+
 using OutputSpec = std::variant<HeightmapOutput, CraterListOutput, RockListOutput,
-                                BoulderModelsOutput, AlbedoOutput>;
+                                BoulderModelsOutput, AlbedoOutput, BodyMeshOutput>;
 
 /// Albedo sources, named in JSON by their "type".
 ///

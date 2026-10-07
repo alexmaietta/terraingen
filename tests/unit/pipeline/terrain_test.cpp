@@ -548,3 +548,56 @@ TEST(EvaluateTile, WholeBodyTilesAgreeAcrossTheAntimeridianAndAtThePole) {
     }
     EXPECT_GT(relief, 1.0);
 }
+
+TEST(BodyMesh, CoversTheBodyWithOutwardTrianglesAtTheTerrainsHeights) {
+    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
+    Terrain terrain;
+    terrain.surface = moon;
+    terrain.source = std::make_shared<terraingen::FlatSource>(8, 8, 1.0, 100.0f);
+    terraingen::SyntheticTerrainParams noise;
+    noise.layers[0].fractal.wavelength = 300000.0f;
+    noise.layers[0].fractal.amplitude = 2000.0f;
+    terrain.layers.push_back(
+        std::make_shared<terraingen::NoiseRelief>(noise, terraingen::Vec2d{}, moon));
+    const std::size_t n = 8;
+    const terraingen::TriangleMesh mesh = terraingen::BodyMesh(terrain, n, 0.0, 2);
+    ASSERT_EQ(mesh.positions.size(), 6 * (n + 1) * (n + 1));
+    ASSERT_EQ(mesh.triangles.size(), 6 * n * n * 2);
+    const double step = 1737400.0 * (M_PI / 2.0) / static_cast<double>(n);
+    for (std::size_t k = 0; k < mesh.positions.size(); k += 7) {
+        const auto& p = mesh.positions[k];
+        const double r = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+        const auto point = moon.PointOf(p);
+        const double height = terraingen::EvaluateAt(terrain, point.x, point.y, step);
+        EXPECT_NEAR(r, 1737400.0 + height, 1e-3);
+    }
+    for (const auto& t : mesh.triangles) {
+        const auto& a = mesh.positions[t[0]];
+        const auto& b = mesh.positions[t[1]];
+        const auto& c = mesh.positions[t[2]];
+        const terraingen::Vec3d u{b.x - a.x, b.y - a.y, b.z - a.z};
+        const terraingen::Vec3d v{c.x - a.x, c.y - a.y, c.z - a.z};
+        const terraingen::Vec3d normal{u.y * v.z - u.z * v.y, u.z * v.x - u.x * v.z,
+                                       u.x * v.y - u.y * v.x};
+        EXPECT_GT(normal.x * a.x + normal.y * a.y + normal.z * a.z, 0.0);
+    }
+    const auto corner = [&](std::size_t face, std::size_t i, std::size_t j) {
+        return mesh.positions[face * (n + 1) * (n + 1) + j * (n + 1) + i];
+    };
+    const auto pxEdge = corner(0, n, n / 2);
+    double nearest = INFINITY;
+    for (std::size_t k = 2 * (n + 1) * (n + 1); k < 3 * (n + 1) * (n + 1); ++k) {
+        const auto& q = mesh.positions[k];
+        nearest = std::fmin(nearest, std::hypot(q.x - pxEdge.x, q.y - pxEdge.y, q.z - pxEdge.z));
+    }
+    EXPECT_LT(nearest, 1e-3);
+
+    Terrain flat = terrain;
+    flat.surface = {};
+    EXPECT_THROW(terraingen::BodyMesh(flat, 4), std::invalid_argument);
+    EXPECT_THROW(terraingen::BodyMesh(terrain, 0), std::invalid_argument);
+    EXPECT_THROW(terraingen::BodyMesh(terrain, 4, -1.0), std::invalid_argument);
+    terrain.filters.push_back(
+        std::make_shared<terraingen::RimSmoothingFilter>(terraingen::RimSmoothing{}, moon));
+    EXPECT_NO_THROW(terraingen::BodyMesh(terrain, 2));
+}

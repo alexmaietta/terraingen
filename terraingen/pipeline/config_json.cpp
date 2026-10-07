@@ -368,6 +368,9 @@ template <> struct SpecName<PlaneSurfaceSpec> {
 template <> struct SpecName<SphereSurfaceSpec> {
     static constexpr std::string_view kName = "sphere";
 };
+template <> struct SpecName<BodyMeshOutput> {
+    static constexpr std::string_view kName = "body_mesh";
+};
 template <> struct SpecName<AlbedoOutput> {
     static constexpr std::string_view kName = "albedo";
 };
@@ -492,6 +495,7 @@ template <typename IO> void Fields(IO& io, ValueRange& range);
 template <typename IO> void Fields(IO& io, BoulderStyle& style);
 template <typename IO> void Fields(IO& io, BoulderShapeOptions& shapes);
 template <typename IO> void Fields(IO& io, AlbedoOutput& output);
+template <typename IO> void Fields(IO& io, BodyMeshOutput& output);
 template <typename IO> void Fields(IO& io, PlaneSurfaceSpec& spec);
 template <typename IO> void Fields(IO& io, SphereSurfaceSpec& spec);
 template <typename IO> void Fields(IO& io, SyntheticAlbedoSpec& spec);
@@ -1232,6 +1236,12 @@ template <typename IO> void Fields(IO& /*io*/, PlaneSurfaceSpec& /*spec*/) {}
 template <typename IO> void Fields(IO& io, SphereSurfaceSpec& spec) {
     io("radius", spec.radius);
     io("body", spec.body);
+}
+
+template <typename IO> void Fields(IO& io, BodyMeshOutput& output) {
+    io("path", output.path);
+    io("cells_per_face", output.cellsPerFace);
+    io("spacing", output.spacing);
 }
 
 template <typename IO> void Fields(IO& io, AlbedoOutput& output) {

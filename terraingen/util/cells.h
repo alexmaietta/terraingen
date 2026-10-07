@@ -86,6 +86,12 @@ class CubeSphereCells final : public SurfaceCells {
     /// then j.
     std::vector<CellIndex> Neighbours(const CellIndex& cell, double cellSize, int rings) const;
 
+    /// The unit direction of face `face` (0 to 5: +x, -x, +y, -y, +z, -z) at equiangular
+    /// coordinates `alpha` and `beta`, the angles from the face's centre along its two axes, each
+    /// in
+    /// [-pi/4, pi/4].
+    static Vec3d Direction(int face, double alpha, double beta);
+
     /// Cells along each edge of a face for cells `cellSize` metres across.
     std::int32_t CellsPerEdge(double cellSize) const;
 

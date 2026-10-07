@@ -1292,3 +1292,39 @@ TEST(WriteOutputs, WritesBoulderModelsOnASphereAboutTheGridCentre) {
     }
     EXPECT_GT(std::filesystem::file_size(written[0]), 1000u);
 }
+
+TEST(WriteOutputs, WritesWholeBodyMeshes) {
+    TerrainConfig config;
+    config.surface = terraingen::SphereSurfaceSpec{0.0, terraingen::Body::Moon};
+    config.source = terraingen::FlatSourceSpec{4, 4, 1000.0, 5.0f};
+    config.outputs = {terraingen::BodyMeshOutput{"body.glb", 6, std::nullopt},
+                      terraingen::BodyMeshOutput{"body.ply", 4, 20000.0}};
+    const auto terrain = GenerateTerrain(config);
+    const auto directory = TempPath("terraingen_body_mesh");
+    std::filesystem::remove_all(directory);
+    const auto written = terraingen::WriteOutputs(config, terrain, directory);
+    ASSERT_EQ(written.size(), 2u);
+    EXPECT_GT(std::filesystem::file_size(written[0]), 1000u);
+    EXPECT_GT(std::filesystem::file_size(written[1]), 1000u);
+
+    const auto error = [](auto mutate) {
+        TerrainConfig bad;
+        bad.surface = terraingen::SphereSurfaceSpec{0.0, terraingen::Body::Mars};
+        bad.source = terraingen::FlatSourceSpec{4, 4, 1000.0};
+        terraingen::BodyMeshOutput output{"m.glb", 8, std::nullopt};
+        mutate(bad, output);
+        bad.outputs = {output};
+        try {
+            ValidateConfig(bad);
+        } catch (const ConfigError& e) {
+            return e.Path();
+        }
+        return std::string("valid");
+    };
+    EXPECT_EQ(error([](auto&, auto&) {}), "valid");
+    EXPECT_EQ(error([](auto& c, auto&) { c.surface = terraingen::PlaneSurfaceSpec{}; }),
+              "outputs[0]");
+    EXPECT_EQ(error([](auto&, auto& o) { o.path = "m.obj"; }), "outputs[0].path");
+    EXPECT_EQ(error([](auto&, auto& o) { o.cellsPerFace = 0; }), "outputs[0].cells_per_face");
+    EXPECT_EQ(error([](auto&, auto& o) { o.spacing = -1.0; }), "outputs[0].spacing");
+}

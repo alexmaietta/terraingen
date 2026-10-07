@@ -258,4 +258,14 @@ Vec2d CubeSphereCells::SamplePoint(double u, double v, const CellIndex& cell,
     return Surface::Sphere(radius_).PointOf(p);
 }
 
+Vec3d CubeSphereCells::Direction(int face, double alpha, double beta) {
+    const Face& f = kFaces[static_cast<std::size_t>(std::clamp(face, 0, 5))];
+    const double a = std::tan(alpha);
+    const double b = std::tan(beta);
+    const Vec3d p{f.normal.x + a * f.u.x + b * f.v.x, f.normal.y + a * f.u.y + b * f.v.y,
+                  f.normal.z + a * f.u.z + b * f.v.z};
+    const double length = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+    return {p.x / length, p.y / length, p.z / length};
+}
+
 }  // namespace terraingen

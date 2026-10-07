@@ -2,6 +2,7 @@
 
 #include "terraingen/filters/filter.h"
 #include "terraingen/layers/layer.h"
+#include "terraingen/meshes/mesh.h"
 #include "terraingen/pipeline/tiling.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
@@ -88,6 +89,19 @@ std::vector<EvaluatedTerrain> EvaluateTiles(const Terrain& terrain, const TileSc
 
 /// Evaluates `terrain` over its source's grid.
 EvaluatedTerrain Evaluate(const Terrain& terrain);
+
+/// A mesh of the whole body `terrain` lies on (which must be a sphere): the six faces of a cube,
+/// each split into `cellsPerFace` x `cellsPerFace` quads along equiangular coordinates (as
+/// `CubeSphereCells`), two triangles each, with every vertex at the body's radius plus the
+/// terrain's height there (`EvaluateAt` sampled every `spacing` metres, by default a quad's side
+/// at a face's centre; points without data are on the datum). Positions are body-fixed metres, x
+/// towards longitude 0 on the equator and z north (`Surface::Position`); vertices along the faces'
+/// edges are repeated per face. The terrain's filters read neighbouring cells, so they are left
+/// out. Heights are evaluated on up to `threads` threads (0 for every hardware thread).
+/// @throws std::invalid_argument for a terrain not on a sphere, zero cells, or a negative or
+/// non-finite spacing; and whatever the terrain's parts throw.
+TriangleMesh BodyMesh(const Terrain& terrain, std::size_t cellsPerFace, double spacing = 0.0,
+                      unsigned threads = 0);
 
 /// The height of `terrain` at (`x`, `y`) sampled every `spacing` world units: the source's height
 /// there, then each layer's `ApplyAt`. It equals the cell centred there of `Evaluate` over a grid
