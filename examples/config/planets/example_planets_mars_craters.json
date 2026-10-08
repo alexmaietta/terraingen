@@ -1,0 +1,43 @@
+{
+    "schema_version": 1,
+    "source": {
+        "type": "flat",
+        "width": 513,
+        "height": 513,
+        "pixel_size": 4
+    },
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 2,
+                    "wavelength": 3000,
+                    "amplitude": 60,
+                    "octaves": 8
+                }
+            ]
+        },
+        {
+            "type": "craters",
+            "body": "mars",
+            "seed": 2,
+            "density": {
+                "type": "mars_surface",
+                "age_gyr": 3.0
+            },
+            "min_diameter": 15,
+            "max_diameter": 500
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_planets_mars_craters.tif"
+        },
+        {
+            "type": "crater_list",
+            "path": "example_planets_mars_craters.csv"
+        }
+    ]
+}

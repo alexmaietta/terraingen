@@ -1,0 +1,85 @@
+{
+    "schema_version": 1,
+    "source": {
+        "type": "flat",
+        "width": 513,
+        "height": 513,
+        "pixel_size": 4
+    },
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 9,
+                    "wavelength": 1200,
+                    "amplitude": 25,
+                    "octaves": 6
+                }
+            ]
+        },
+        {
+            "type": "region",
+            "shape": {
+                "type": "circle",
+                "x": 0,
+                "y": 0,
+                "radius": 600
+            },
+            "feather": 150,
+            "layer": {
+                "type": "scale",
+                "scale": 0.2,
+                "offset": -15
+            }
+        },
+        {
+            "type": "region",
+            "shape": {
+                "type": "rectangle",
+                "min_x": -1026,
+                "min_y": -1026,
+                "max_x": 0,
+                "max_y": 1026
+            },
+            "feather": 200,
+            "layer": {
+                "type": "craters",
+                "seed": 9,
+                "density": {
+                    "type": "lunar_surface",
+                    "age_gyr": 3.9
+                },
+                "min_diameter": 10,
+                "max_diameter": 200
+            }
+        },
+        {
+            "type": "region",
+            "shape": {
+                "type": "rectangle",
+                "min_x": 0,
+                "min_y": -1026,
+                "max_x": 1026,
+                "max_y": 1026
+            },
+            "feather": 200,
+            "layer": {
+                "type": "craters",
+                "seed": 10,
+                "density": {
+                    "type": "lunar_surface",
+                    "age_gyr": 1.0
+                },
+                "min_diameter": 10,
+                "max_diameter": 200
+            }
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_layers_regions.tif"
+        }
+    ]
+}

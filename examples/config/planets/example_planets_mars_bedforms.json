@@ -1,0 +1,48 @@
+{
+    "schema_version": 1,
+    "source": {
+        "type": "flat",
+        "width": 513,
+        "height": 513,
+        "pixel_size": 1
+    },
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 2,
+                    "wavelength": 150,
+                    "amplitude": 2,
+                    "octaves": 6
+                }
+            ]
+        },
+        {
+            "type": "craters",
+            "body": "mars",
+            "seed": 2,
+            "density": {
+                "type": "mars_surface",
+                "age_gyr": 3.0
+            },
+            "min_diameter": 15,
+            "max_diameter": 150
+        },
+        {
+            "type": "bedforms",
+            "wavelength": 6,
+            "height": 0.4,
+            "wind_azimuth": 60,
+            "cover": 0.6,
+            "field_size": 80,
+            "seed": 2
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_planets_mars_bedforms.tif"
+        }
+    ]
+}

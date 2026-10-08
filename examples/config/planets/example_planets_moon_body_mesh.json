@@ -1,0 +1,63 @@
+{
+    "schema_version": 1,
+    "surface": {
+        "type": "sphere",
+        "body": "moon"
+    },
+    "source": {
+        "type": "flat",
+        "width": 64,
+        "height": 64,
+        "pixel_size": 20000
+    },
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 8,
+                    "wavelength": 400000,
+                    "amplitude": 3000,
+                    "octaves": 6
+                },
+                {
+                    "seed": 9,
+                    "wavelength": 20000,
+                    "amplitude": 300,
+                    "octaves": 6
+                }
+            ]
+        },
+        {
+            "type": "craters",
+            "generate": false,
+            "manual": [
+                {
+                    "x": 0,
+                    "y": 0,
+                    "diameter": 300000,
+                    "age_gyr": 3.9
+                },
+                {
+                    "x": -60,
+                    "y": 30,
+                    "diameter": 200000,
+                    "age_gyr": 3.5
+                },
+                {
+                    "x": 120,
+                    "y": -40,
+                    "diameter": 150000,
+                    "age_gyr": 1.0
+                }
+            ]
+        }
+    ],
+    "outputs": [
+        {
+            "type": "body_mesh",
+            "path": "example_planets_moon_body_mesh.glb",
+            "cells_per_face": 64
+        }
+    ]
+}

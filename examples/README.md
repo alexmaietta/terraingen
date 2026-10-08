@@ -3,10 +3,10 @@
 Examples in three forms, named `example_<category>_<name>`. They go from basic synthetic terrains,
 to craters on those terrains, to boulders, to albedo, and then through every crater and rock model
 and option: size-frequency distributions, age models, profiles, degradation, positioning and how
-craters are applied.
+craters are applied; then regions, the Moon and Mars on spheres, detail on DEMs, and tiles.
 
 Each form has a folder per category (`terrain`, `craters`, `distributions`, `ages`, `boulders`,
-`albedo`, `layers`, `config`), holding that category's examples.
+`albedo`, `layers`, `planets`, `sources`, `tiles`, `config`), holding that category's examples.
 
 - `config/`: JSON configs for the `terraingen` command:
   `terraingen examples/config/<category>/<file>.json`.
@@ -23,14 +23,21 @@ build everything in code. Outputs go to `./output` unless a folder is given.
 
 | Category | Config | C++ | Python |
 | --- | --- | --- | --- |
-| terrain | `example_terrain_fbm`, `_roughness`, `_ridged`, `_billow`, `_cellular`, `_domain_warp`, `_layered` | `example_terrain_fbm`, `_layered` | `example_terrain_fbm`, `_layered`, `_fractal_types`, `_hurst_sweep`, `_noise_kernels` |
-| craters | `example_craters_simple`, `_manual`, `_smoothed_rims`, `_profile_martin_parkes_dunstan`, `_profile_complex`, `_degradation_none`, `_degradation_diffusion`, `_spacing`, `_max_craters`, `_datum`, `_interior_replacement`, `_irregular`, `_secondaries` | `example_craters_simple`, `_manual`, `_profiles`, `_degradation`, `_secondaries` | `example_craters_simple`, `_manual`, `_age_sweep`, `_profiles`, `_degradation`, `_positioning`, `_apply_options`, `_irregularity`, `_secondaries` |
-| distributions | `example_distributions_power_law`, `_piecewise_power_law`, `_tabulated`, `_trask_equilibrium`, `_moore_rough_mare`, `_viper` | `example_distributions_csfd` | `example_distributions_csfd`, `_custom` |
-| ages | `example_ages_fresh`, `_uniform`, `_steady_state` | `example_ages_models` | `example_ages_models` |
-| boulders | `example_boulders_rocks`, `_models`, `_sp8023`, `_patches`, `_ejecta`, `_shapes` | `example_boulders_rocks`, `_ejecta` | `example_boulders_rocks`, `_size_models`, `_positioning` |
-| albedo | `example_albedo_synthetic`, `_crater_rays` | `example_albedo_crater_rays` | `example_albedo_crater_rays` |
-| layers | | `example_layers_custom` | `example_layers_custom` |
-| config | | `example_config_load` | `example_config_load` |
+| terrain | `example_terrain_billow`, `_cellular`, `_domain_warp`, `_fbm`, `_layered`, `_ridged`, `_roughness` | `example_terrain_fbm`, `_layered` | `example_terrain_fbm`, `_fractal_types`, `_hurst_sweep`, `_layered`, `_noise_kernels` |
+| craters | `example_craters_datum`, `_degradation_diffusion`, `_degradation_none`, `_interior_replacement`, `_irregular`, `_manual`, `_max_craters`, `_profile_complex`, `_profile_martin_parkes_dunstan`, `_secondaries`, `_simple`, `_smoothed_rims`, `_spacing` | `example_craters_degradation`, `_manual`, `_profiles`, `_secondaries`, `_simple` | `example_craters_age_sweep`, `_apply_options`, `_degradation`, `_irregularity`, `_manual`, `_positioning`, `_profiles`, `_secondaries`, `_simple` |
+| distributions | `example_distributions_moore_rough_mare`, `_piecewise_power_law`, `_power_law`, `_tabulated`, `_trask_equilibrium`, `_viper` | `example_distributions_csfd` | `example_distributions_csfd`, `_custom` |
+| ages | `example_ages_fresh`, `_steady_state`, `_uniform` | `example_ages_models` | `example_ages_models` |
+| boulders | `example_boulders_ejecta`, `_models`, `_patches`, `_rocks`, `_shapes`, `_sp8023` | `example_boulders_ejecta`, `_rocks` | `example_boulders_positioning`, `_rocks`, `_size_models` |
+| albedo | `example_albedo_crater_rays`, `_oblique_rays`, `_rgb`, `_synthetic` | `example_albedo_crater_rays` | `example_albedo_crater_rays`, `_options` |
+| layers | `example_layers_regions`, `_roughness`, `_scale_and_clamp` | `example_layers_custom`, `_regions` | `example_layers_custom`, `_regions` |
+| planets | `example_planets_mars_bedforms`, `_mars_craters`, `_moon_body_mesh`, `_moon_site` | `example_planets_moon` | `example_planets_body_mesh`, `_mars`, `_moon_site` |
+| sources |  | `example_sources_raster_detail` | `example_sources_chain`, `_raster_detail` |
+| tiles |  | `example_tiles_quadtree` | `example_tiles_point_queries`, `_quadtree` |
+| config |  | `example_config_load` | `example_config_load` |
+
+The `sources` and `tiles` examples are code only: configs read real DEMs from disk (a raster
+source is `{"type": "raster", "path": "dem.tif"}`) and write whole grids, so these examples write
+a coarse DEM of their own first, and tile a terrain from code.
 
 Custom models: every model and layer type is an interface you can implement, in C++ by deriving
 from it and in Python by subclassing it (`SizeFrequencyDistribution`, `CraterAgeModel`,

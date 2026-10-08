@@ -1,0 +1,57 @@
+{
+    "schema_version": 1,
+    "source": {
+        "type": "flat",
+        "width": 513,
+        "height": 513,
+        "pixel_size": 2
+    },
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 1,
+                    "wavelength": 800,
+                    "amplitude": 40,
+                    "octaves": 8
+                }
+            ]
+        }
+    ],
+    "albedo": {
+        "source": {
+            "type": "synthetic",
+            "rgb": true,
+            "hue": 30,
+            "saturation": 0.12,
+            "value": 0.14,
+            "hue_noise": [
+                {
+                    "seed": 5,
+                    "wavelength": 900,
+                    "amplitude": 25,
+                    "octaves": 4
+                }
+            ],
+            "value_noise": [
+                {
+                    "seed": 6,
+                    "wavelength": 600,
+                    "amplitude": 0.04,
+                    "octaves": 6
+                }
+            ]
+        }
+    },
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_albedo_rgb.tif"
+        },
+        {
+            "type": "albedo",
+            "path": "example_albedo_rgb_albedo.tif"
+        }
+    ]
+}
