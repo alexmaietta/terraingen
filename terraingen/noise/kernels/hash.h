@@ -11,13 +11,11 @@ struct UVec3 {
     uint32_t x = 0;
     uint32_t y = 0;
     uint32_t z = 0;
-};
 
 #ifndef __SLANG__
-constexpr bool operator==(UVec3 a, UVec3 b) {
-    return a.x == b.x && a.y == b.y && a.z == b.z;
-}
+    bool operator==(const UVec3&) const = default;
 #endif
+};
 
 /// PCG hash of one 32-bit word: a PCG-RXS-M-XS output permutation applied to one LCG step.
 ///

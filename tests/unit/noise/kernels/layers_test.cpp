@@ -37,9 +37,7 @@ TEST(EvaluateNoiseLayer, WarpShiftsTheSamplePointByTheWarpField) {
     NoiseLayer layer = Layer(3u, 1.0f);
     layer.warpAmplitude = 30.0f;
     layer.warpWavelength = 200.0f;
-    float dx = 0.0f;
-    float dy = 0.0f;
-    DomainWarp2(kX, kY, layer, dx, dy);
+    const auto [dx, dy] = DomainWarp2(kX, kY, layer);
     EXPECT_LE(std::fabs(dx), 30.0f);
     EXPECT_LE(std::fabs(dy), 30.0f);
     EXPECT_NE(dx, dy);
@@ -79,6 +77,24 @@ TEST(EvaluateNoiseLayers, CombinesLaterLayersByBlendMode) {
             break;
         }
     }
+}
+
+TEST(EvaluateNoiseLayers, FixedSizeBlockMatchesTheLayerArray) {
+    std::array<NoiseLayer, 3> layers{Layer(1u, 10.0f), Layer(2u, 4.0f, LayerBlend::Max),
+                                     Layer(3u, 2.0f, LayerBlend::Mask)};
+    layers[1].enabled = false;
+    layers[2].warpAmplitude = 5.0f;
+    terraingen::NoiseLayers block;
+    for (const NoiseLayer& layer : layers) {
+        block.layers[block.count++] = layer;
+    }
+    for (int i = 0; i < 20; ++i) {
+        const float x = kX + 7.3f * static_cast<float>(i);
+        EXPECT_EQ(EvaluateNoiseLayers(x, kY, block),
+                  EvaluateNoiseLayers(x, kY, layers.data(), layers.size()));
+    }
+    block.count = 0;
+    EXPECT_EQ(EvaluateNoiseLayers(kX, kY, block), 0.0f);
 }
 
 TEST(NoiseLayer, ComparesEveryField) {

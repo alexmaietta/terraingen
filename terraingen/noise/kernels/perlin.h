@@ -2,9 +2,6 @@
 
 #include "terraingen/noise/kernels/hash.h"
 
-#include <cmath>
-#include <cstdint>
-
 namespace terraingen {
 
 namespace detail {
@@ -27,7 +24,7 @@ constexpr float Lerp(float t, float a, float b) {
 ///
 /// Perlin (2002) replaced random gradients with a small fixed set to avoid clumping; this is the 2D
 /// analogue of his twelve cube-edge gradients, normalized so every gradient has unit length.
-inline float PerlinGradient2(std::uint32_t hash, float x, float y) {
+inline float PerlinGradient2(uint32_t hash, float x, float y) {
     constexpr float kInvSqrt2 = 0.707106781186547524f;
     switch (hash & 7u) {
     case 0u:
@@ -49,23 +46,32 @@ inline float PerlinGradient2(std::uint32_t hash, float x, float y) {
     }
 }
 
-inline std::uint32_t PerlinCornerHash(std::uint32_t ix, std::uint32_t iy, std::uint32_t seed) {
-    return Pcg3dHash(UVec3{ix, iy, seed}).x;
+inline uint32_t PerlinCornerHash(uint32_t ix, uint32_t iy, uint32_t seed) {
+    const UVec3 corner = {ix, iy, seed};
+    return Pcg3dHash(corner).x;
 }
 
 /// Dot product of the offset (x, y, z) with one of Perlin's (2002) twelve gradients, the vectors
 /// from the centre of a cube to the midpoints of its edges, chosen by the low four bits of `hash`
 /// with four of them repeated to make sixteen, as in his reference implementation.
-inline float PerlinGradient3(std::uint32_t hash, float x, float y, float z) {
-    const std::uint32_t h = hash & 15u;
+inline float PerlinGradient3(uint32_t hash, float x, float y, float z) {
+    const uint32_t h = hash & 15u;
     const float u = h < 8u ? x : y;
     const float v = h < 4u ? y : (h == 12u || h == 14u ? x : z);
     return ((h & 1u) == 0u ? u : -u) + ((h & 2u) == 0u ? v : -v);
 }
 
-inline std::uint32_t PerlinCornerHash3(std::uint32_t ix, std::uint32_t iy, std::uint32_t iz,
-                                       std::uint32_t seed) {
-    return Pcg3dHash(UVec3{ix, iy, iz + PcgHash(seed)}).x;
+inline uint32_t PerlinCornerHash3(uint32_t ix, uint32_t iy, uint32_t iz, uint32_t seed) {
+    const UVec3 corner = {ix, iy, iz + PcgHash(seed)};
+    return Pcg3dHash(corner).x;
+}
+
+/// The gradient term of corner (`x0` + `dx`, `y0` + `dy`, `z0` + `dz`) at fraction (`fx`, `fy`,
+/// `fz`) of cell (`x0`, `y0`, `z0`).
+inline float PerlinCorner3(uint32_t x0, uint32_t y0, uint32_t z0, uint32_t dx, uint32_t dy,
+                           uint32_t dz, float fx, float fy, float fz, uint32_t seed) {
+    return PerlinGradient3(PerlinCornerHash3(x0 + dx, y0 + dy, z0 + dz, seed), fx - float(dx),
+                           fy - float(dy), fz - float(dz));
 }
 
 }  // namespace detail
@@ -93,12 +99,11 @@ inline std::uint32_t PerlinCornerHash3(std::uint32_t ix, std::uint32_t iy, std::
 /// - M. Jarzynski and M. Olano, "Hash Functions for GPU Rendering", JCGT 9(3), 2020.
 ///
 /// @return Noise in [-1, 1].
-inline float PerlinNoise2(std::int32_t ix, std::int32_t iy, float fx, float fy,
-                          std::uint32_t seed) {
-    const auto x0 = static_cast<std::uint32_t>(ix);
-    const auto y0 = static_cast<std::uint32_t>(iy);
-    const std::uint32_t x1 = x0 + 1u;
-    const std::uint32_t y1 = y0 + 1u;
+inline float PerlinNoise2(int32_t ix, int32_t iy, float fx, float fy, uint32_t seed) {
+    const uint32_t x0 = uint32_t(ix);
+    const uint32_t y0 = uint32_t(iy);
+    const uint32_t x1 = x0 + 1u;
+    const uint32_t y1 = y0 + 1u;
 
     const float n00 = detail::PerlinGradient2(detail::PerlinCornerHash(x0, y0, seed), fx, fy);
     const float n10 =
@@ -119,11 +124,10 @@ inline float PerlinNoise2(std::int32_t ix, std::int32_t iy, float fx, float fy,
 /// overload for the method and references.
 ///
 /// @return Noise in [-1, 1].
-inline float PerlinNoise2(float x, float y, std::uint32_t seed) {
-    const float cellX = std::floor(x);
-    const float cellY = std::floor(y);
-    return PerlinNoise2(static_cast<std::int32_t>(cellX), static_cast<std::int32_t>(cellY),
-                        x - cellX, y - cellY, seed);
+inline float PerlinNoise2(float x, float y, uint32_t seed) {
+    const float cellX = floor(x);
+    const float cellY = floor(y);
+    return PerlinNoise2(int32_t(cellX), int32_t(cellY), x - cellX, y - cellY, seed);
 }
 
 /// 3D improved Perlin gradient noise at lattice cell (`ix`, `iy`, `iz`) plus fractional offset
@@ -144,23 +148,24 @@ inline float PerlinNoise2(float x, float y, std::uint32_t seed) {
 /// - M. Jarzynski and M. Olano, "Hash Functions for GPU Rendering", JCGT 9(3), 2020.
 ///
 /// @return Noise in [-1, 1].
-inline float PerlinNoise3(std::int32_t ix, std::int32_t iy, std::int32_t iz, float fx, float fy,
-                          float fz, std::uint32_t seed) {
-    const auto x0 = static_cast<std::uint32_t>(ix);
-    const auto y0 = static_cast<std::uint32_t>(iy);
-    const auto z0 = static_cast<std::uint32_t>(iz);
-    const auto corner = [&](std::uint32_t dx, std::uint32_t dy, std::uint32_t dz) {
-        return detail::PerlinGradient3(detail::PerlinCornerHash3(x0 + dx, y0 + dy, z0 + dz, seed),
-                                       fx - static_cast<float>(dx), fy - static_cast<float>(dy),
-                                       fz - static_cast<float>(dz));
-    };
+inline float PerlinNoise3(int32_t ix, int32_t iy, int32_t iz, float fx, float fy, float fz,
+                          uint32_t seed) {
+    const uint32_t x0 = uint32_t(ix);
+    const uint32_t y0 = uint32_t(iy);
+    const uint32_t z0 = uint32_t(iz);
+    const float c000 = detail::PerlinCorner3(x0, y0, z0, 0u, 0u, 0u, fx, fy, fz, seed);
+    const float c100 = detail::PerlinCorner3(x0, y0, z0, 1u, 0u, 0u, fx, fy, fz, seed);
+    const float c010 = detail::PerlinCorner3(x0, y0, z0, 0u, 1u, 0u, fx, fy, fz, seed);
+    const float c110 = detail::PerlinCorner3(x0, y0, z0, 1u, 1u, 0u, fx, fy, fz, seed);
+    const float c001 = detail::PerlinCorner3(x0, y0, z0, 0u, 0u, 1u, fx, fy, fz, seed);
+    const float c101 = detail::PerlinCorner3(x0, y0, z0, 1u, 0u, 1u, fx, fy, fz, seed);
+    const float c011 = detail::PerlinCorner3(x0, y0, z0, 0u, 1u, 1u, fx, fy, fz, seed);
+    const float c111 = detail::PerlinCorner3(x0, y0, z0, 1u, 1u, 1u, fx, fy, fz, seed);
     const float u = detail::PerlinFade(fx);
     const float v = detail::PerlinFade(fy);
     const float w = detail::PerlinFade(fz);
-    const float near = detail::Lerp(v, detail::Lerp(u, corner(0, 0, 0), corner(1, 0, 0)),
-                                    detail::Lerp(u, corner(0, 1, 0), corner(1, 1, 0)));
-    const float far = detail::Lerp(v, detail::Lerp(u, corner(0, 0, 1), corner(1, 0, 1)),
-                                   detail::Lerp(u, corner(0, 1, 1), corner(1, 1, 1)));
+    const float near = detail::Lerp(v, detail::Lerp(u, c000, c100), detail::Lerp(u, c010, c110));
+    const float far = detail::Lerp(v, detail::Lerp(u, c001, c101), detail::Lerp(u, c011, c111));
     const float value = detail::Lerp(w, near, far);
     return value < -1.0f ? -1.0f : (value > 1.0f ? 1.0f : value);
 }
@@ -170,27 +175,28 @@ inline float PerlinNoise3(std::int32_t ix, std::int32_t iy, std::int32_t iz, flo
 /// origin, such as on a planet's surface.
 ///
 /// @return Noise in [-1, 1].
-inline float PerlinNoise3Precise(double x, double y, double z, std::uint32_t seed) {
-    const double cellX = std::floor(x);
-    const double cellY = std::floor(y);
-    const double cellZ = std::floor(z);
-    return PerlinNoise3(static_cast<std::int32_t>(static_cast<std::int64_t>(cellX)),
-                        static_cast<std::int32_t>(static_cast<std::int64_t>(cellY)),
-                        static_cast<std::int32_t>(static_cast<std::int64_t>(cellZ)),
-                        static_cast<float>(x - cellX), static_cast<float>(y - cellY),
-                        static_cast<float>(z - cellZ), seed);
+#ifndef __SLANG__
+inline float PerlinNoise3Precise(double x, double y, double z, uint32_t seed) {
+    const double cellX = floor(x);
+    const double cellY = floor(y);
+    const double cellZ = floor(z);
+    return PerlinNoise3(int32_t(static_cast<std::int64_t>(cellX)),
+                        int32_t(static_cast<std::int64_t>(cellY)),
+                        int32_t(static_cast<std::int64_t>(cellZ)), float(x - cellX),
+                        float(y - cellY), float(z - cellZ), seed);
 }
+#endif
 
 /// 3D improved Perlin gradient noise at (`x`, `y`, `z`) in lattice units; see the cell-and-offset
 /// overload for the method and references.
 ///
 /// @return Noise in [-1, 1].
-inline float PerlinNoise3(float x, float y, float z, std::uint32_t seed) {
-    const float cellX = std::floor(x);
-    const float cellY = std::floor(y);
-    const float cellZ = std::floor(z);
-    return PerlinNoise3(static_cast<std::int32_t>(cellX), static_cast<std::int32_t>(cellY),
-                        static_cast<std::int32_t>(cellZ), x - cellX, y - cellY, z - cellZ, seed);
+inline float PerlinNoise3(float x, float y, float z, uint32_t seed) {
+    const float cellX = floor(x);
+    const float cellY = floor(y);
+    const float cellZ = floor(z);
+    return PerlinNoise3(int32_t(cellX), int32_t(cellY), int32_t(cellZ), x - cellX, y - cellY,
+                        z - cellZ, seed);
 }
 
 }  // namespace terraingen

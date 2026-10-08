@@ -2,9 +2,6 @@
 
 #include "terraingen/noise/kernels/hash.h"
 
-#include <cmath>
-#include <cstdint>
-
 namespace terraingen {
 
 /// Distances from a point to its nearest (F1) and second-nearest (F2) feature points, in lattice
@@ -23,16 +20,15 @@ struct WorleyDistances {
 ///
 /// Reference: S. Worley, "A Cellular Texture Basis Function", SIGGRAPH '96, 291-294, 1996.
 /// https://doi.org/10.1145/237170.237267
-inline WorleyDistances Worley2(std::int32_t ix, std::int32_t iy, float fx, float fy,
-                               std::uint32_t seed) {
+inline WorleyDistances Worley2(int32_t ix, int32_t iy, float fx, float fy, uint32_t seed) {
     float d1 = 1e30f;
     float d2 = 1e30f;
-    for (std::int32_t dy = -2; dy <= 2; ++dy) {
-        for (std::int32_t dx = -2; dx <= 2; ++dx) {
-            const UVec3 h = Pcg3dHash(UVec3{static_cast<std::uint32_t>(ix + dx),
-                                            static_cast<std::uint32_t>(iy + dy), seed});
-            const float px = static_cast<float>(dx) + HashToUnitFloat(h.y) - fx;
-            const float py = static_cast<float>(dy) + HashToUnitFloat(h.z) - fy;
+    for (int32_t dy = -2; dy <= 2; ++dy) {
+        for (int32_t dx = -2; dx <= 2; ++dx) {
+            const UVec3 cell = {uint32_t(ix + dx), uint32_t(iy + dy), seed};
+            const UVec3 h = Pcg3dHash(cell);
+            const float px = float(dx) + HashToUnitFloat(h.y) - fx;
+            const float py = float(dy) + HashToUnitFloat(h.z) - fy;
             const float d = px * px + py * py;
             if (d < d1) {
                 d2 = d1;
@@ -42,15 +38,15 @@ inline WorleyDistances Worley2(std::int32_t ix, std::int32_t iy, float fx, float
             }
         }
     }
-    return {std::sqrt(d1), std::sqrt(d2)};
+    const WorleyDistances distances = {sqrt(d1), sqrt(d2)};
+    return distances;
 }
 
 /// Worley cellular distances at (`x`, `y`) in lattice units; see the cell-and-offset overload.
-inline WorleyDistances Worley2(float x, float y, std::uint32_t seed) {
-    const float cellX = std::floor(x);
-    const float cellY = std::floor(y);
-    return Worley2(static_cast<std::int32_t>(cellX), static_cast<std::int32_t>(cellY), x - cellX,
-                   y - cellY, seed);
+inline WorleyDistances Worley2(float x, float y, uint32_t seed) {
+    const float cellX = floor(x);
+    const float cellY = floor(y);
+    return Worley2(int32_t(cellX), int32_t(cellY), x - cellX, y - cellY, seed);
 }
 
 }  // namespace terraingen
