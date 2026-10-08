@@ -112,6 +112,10 @@ if(TERRAINGEN_BUILD_PYTHON)
     add_subdirectory(python)
 endif()
 
+if(TERRAINGEN_BUILD_APP)
+    add_subdirectory(app)
+endif()
+
 if(TERRAINGEN_INSTALL)
     set(vulkan_targets)
     if(TERRAINGEN_WITH_VULKAN)
@@ -128,7 +132,8 @@ if(TERRAINGEN_INSTALL)
         COMPONENT development
         FILES_MATCHING
         PATTERN "*.h"
-        PATTERN "python" EXCLUDE)
+        PATTERN "python" EXCLUDE
+        PATTERN "app" EXCLUDE)
     install(
         FILES "${PROJECT_BINARY_DIR}/include/terraingen/util/version.h"
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/terraingen/util

@@ -7,4 +7,5 @@ terraingen_add_test_suite(
     tile_cache_test.cpp
     tiling_test.cpp
     LIBRARIES
-    terraingen::pipeline)
+    terraingen::pipeline
+    nlohmann_json)

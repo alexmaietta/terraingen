@@ -50,4 +50,11 @@ TerrainConfig LoadConfig(const std::filesystem::path& path);
 /// result gives back an equal configuration.
 std::string ConfigToJson(const TerrainConfig& config, int indent = 2);
 
+/// A reference of every configuration type with its defaults, as JSON: each surface, source,
+/// layer, filter and output type (as the lists "surface", "source", "layers", "filters" and
+/// "outputs"), the albedo, and under "models" one noise layer and every density, ages, degradation,
+/// profile, rock size, region shape, albedo source and albedo layer type. Each entry is an object
+/// that parses where its kind belongs in a configuration.
+std::string ConfigCatalog(int indent = 2);
+
 }  // namespace terraingen

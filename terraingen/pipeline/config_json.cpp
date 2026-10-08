@@ -1414,4 +1414,42 @@ std::string ConfigToJson(const TerrainConfig& config, int indent) {
     return json.dump(indent) + "\n";
 }
 
+namespace {
+
+/// Every alternative of `Variant`, default-constructed, with its "type".
+template <typename... Ts> Json Alternatives(const std::variant<Ts...>* /*tag*/) {
+    Json json = Json::array();
+    (json.push_back(ToJson(std::variant<Ts...>(Ts{}))), ...);
+    return json;
+}
+
+template <typename Variant> Json Alternatives() {
+    return Alternatives(static_cast<const Variant*>(nullptr));
+}
+
+}  // namespace
+
+std::string ConfigCatalog(int indent) {
+    Json json = Json::object();
+    json["schema_version"] = kConfigSchemaVersion;
+    json["surface"] = Alternatives<SurfaceSpec>();
+    json["source"] = Alternatives<SourceSpec>();
+    json["layers"] = Alternatives<LayerSpec>();
+    json["filters"] = Alternatives<FilterSpec>();
+    json["outputs"] = Alternatives<OutputSpec>();
+    json["albedo"] = ToJson(AlbedoSpec{});
+    Json models = Json::object();
+    models["noise_layer"] = ToJson(NoiseLayerConfig{});
+    models["density"] = Alternatives<DensitySpec>();
+    models["ages"] = Alternatives<AgesSpec>();
+    models["degradation"] = Alternatives<DegradationSpec>();
+    models["profile"] = Alternatives<ProfileSpec>();
+    models["rock_sizes"] = Alternatives<RockSizesSpec>();
+    models["region_shape"] = Alternatives<RegionShapeSpec>();
+    models["albedo_source"] = Alternatives<AlbedoSourceSpec>();
+    models["albedo_layer"] = Alternatives<AlbedoLayerSpec>();
+    json["models"] = models;
+    return json.dump(indent) + "\n";
+}
+
 }  // namespace terraingen

@@ -3,10 +3,14 @@
 #include "terraingen/bodies/mars/bedforms.h"
 
 #include <gtest/gtest.h>
+#include <nlohmann/json.hpp>
 
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <utility>
+#include <variant>
+#include <vector>
 
 using terraingen::AgesSpec;
 using terraingen::ConfigError;
@@ -583,4 +587,84 @@ TEST(LoadConfig, ReadsFilesAndReportsUnreadableOnes) {
     EXPECT_EQ(LoadConfig(path), Everything());
     std::filesystem::remove(path);
     EXPECT_THROW(LoadConfig(path), ConfigError);
+}
+
+TEST(ConfigCatalog, ListsEveryTypeAndEachEntryParsesWhereItBelongs) {
+    using Json = nlohmann::json;
+    const Json catalog = Json::parse(terraingen::ConfigCatalog());
+    EXPECT_EQ(catalog["schema_version"], terraingen::kConfigSchemaVersion);
+    const auto types = [](const Json& list) {
+        std::vector<std::string> names;
+        for (const Json& entry : list) {
+            names.push_back(entry["type"].get<std::string>());
+        }
+        return names;
+    };
+    EXPECT_EQ(types(catalog["surface"]), (std::vector<std::string>{"plane", "sphere"}));
+    EXPECT_EQ(catalog["layers"].size(), std::variant_size_v<LayerSpec>);
+    EXPECT_EQ(catalog["outputs"].size(), std::variant_size_v<terraingen::OutputSpec>);
+    EXPECT_EQ(catalog["models"]["density"].size(), std::variant_size_v<DensitySpec>);
+    EXPECT_EQ(catalog["models"]["ages"].size(), std::variant_size_v<AgesSpec>);
+
+    const auto parses = [](const Json& config, const std::string& what) {
+        Json document = config;
+        document["schema_version"] = terraingen::kConfigSchemaVersion;
+        EXPECT_NO_THROW(ParseConfig(document.dump())) << what << ": " << document.dump();
+    };
+    for (const Json& surface : catalog["surface"]) {
+        parses({{"surface", surface}}, "surface");
+    }
+    for (const Json& source : catalog["source"]) {
+        parses({{"source", source}}, "source");
+    }
+    for (const char* list : {"layers", "filters", "outputs"}) {
+        for (const Json& entry : catalog[list]) {
+            parses({{list, Json::array({entry})}}, list);
+        }
+    }
+    parses({{"albedo", catalog["albedo"]}}, "albedo");
+
+    const auto layerOf = [&](const std::string& type) {
+        for (const Json& layer : catalog["layers"]) {
+            if (layer["type"] == type) {
+                return layer;
+            }
+        }
+        ADD_FAILURE() << "no " << type << " layer";
+        return Json::object();
+    };
+    const Json& models = catalog["models"];
+    for (const auto& [model, key] : {std::pair<const char*, const char*>{"density", "density"},
+                                     {"ages", "ages"},
+                                     {"degradation", "degradation"},
+                                     {"profile", "profile"}}) {
+        for (const Json& entry : models[model]) {
+            Json craters = layerOf("craters");
+            craters[key] = entry;
+            parses({{"layers", Json::array({craters})}}, model);
+        }
+    }
+    for (const Json& entry : models["rock_sizes"]) {
+        Json rocks = layerOf("rocks");
+        rocks["sizes"] = entry;
+        parses({{"layers", Json::array({rocks})}}, "rock_sizes");
+    }
+    for (const Json& entry : models["region_shape"]) {
+        Json region = layerOf("region");
+        region["shape"] = entry;
+        parses({{"layers", Json::array({region})}}, "region_shape");
+    }
+    Json noise = layerOf("noise");
+    noise["stack"] = Json::array({models["noise_layer"]});
+    parses({{"layers", Json::array({noise})}}, "noise_layer");
+    for (const Json& entry : models["albedo_source"]) {
+        Json albedo = catalog["albedo"];
+        albedo["source"] = entry;
+        parses({{"albedo", albedo}}, "albedo_source");
+    }
+    for (const Json& entry : models["albedo_layer"]) {
+        Json albedo = catalog["albedo"];
+        albedo["layers"] = Json::array({entry});
+        parses({{"albedo", albedo}}, "albedo_layer");
+    }
 }
