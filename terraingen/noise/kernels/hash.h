@@ -1,17 +1,23 @@
 #pragma once
 
-#include <cstdint>
+#include "terraingen/noise/kernels/portable.h"
+
+/// Hash kernels, written once for the CPU and GPU backends (`portable.h`).
 
 namespace terraingen {
 
 /// Three 32-bit words.
 struct UVec3 {
-    std::uint32_t x = 0;
-    std::uint32_t y = 0;
-    std::uint32_t z = 0;
-
-    bool operator==(const UVec3&) const = default;
+    uint32_t x = 0;
+    uint32_t y = 0;
+    uint32_t z = 0;
 };
+
+#ifndef __SLANG__
+constexpr bool operator==(UVec3 a, UVec3 b) {
+    return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+#endif
 
 /// PCG hash of one 32-bit word: a PCG-RXS-M-XS output permutation applied to one LCG step.
 ///
@@ -22,9 +28,9 @@ struct UVec3 {
 ///   Random Number Generation", Harvey Mudd College, HMC-CS-2014-0905, 2014.
 /// - M. Jarzynski and M. Olano, "Hash Functions for GPU Rendering", Journal of Computer Graphics
 ///   Techniques 9(3), 2020 (the `pcg` hash). https://jcgt.org/published/0009/03/02/
-constexpr std::uint32_t PcgHash(std::uint32_t v) {
-    const std::uint32_t state = v * 747796405u + 2891336453u;
-    const std::uint32_t word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+constexpr uint32_t PcgHash(uint32_t v) {
+    const uint32_t state = v * 747796405u + 2891336453u;
+    const uint32_t word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
     return (word >> 22u) ^ word;
 }
 
@@ -51,8 +57,8 @@ constexpr UVec3 Pcg3dHash(UVec3 v) {
 }
 
 /// Maps a hash to a float in [0, 1) using its top 24 bits, which a `float` represents exactly.
-constexpr float HashToUnitFloat(std::uint32_t hash) {
-    return static_cast<float>(hash >> 8u) * 0x1p-24f;
+constexpr float HashToUnitFloat(uint32_t hash) {
+    return float(hash >> 8u) * 0x1p-24f;
 }
 
 }  // namespace terraingen

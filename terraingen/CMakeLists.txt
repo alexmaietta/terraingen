@@ -2,6 +2,7 @@
 #   util          logging, version, build info header, geometry and surface cells
 #   raster        rasters, geotransforms, filters, resampling and GeoTIFF reading and writing
 #   noise         noise kernels: header-only and portable to GPU shading languages
+#   gpu           backend selection and the Vulkan compute device, opened at run time
 #   random        counter-based random streams and samplers
 #   meshes        triangle meshes, base solids, icospheres and synthetic boulder shapes
 #   distribution  size-frequency distributions
@@ -61,6 +62,7 @@ endfunction()
 add_subdirectory(util)
 add_subdirectory(raster)
 add_subdirectory(noise)
+add_subdirectory(gpu)
 add_subdirectory(random)
 add_subdirectory(meshes)
 add_subdirectory(distribution)
@@ -111,8 +113,12 @@ if(TERRAINGEN_BUILD_PYTHON)
 endif()
 
 if(TERRAINGEN_INSTALL)
+    set(vulkan_targets)
+    if(TERRAINGEN_WITH_VULKAN)
+        set(vulkan_targets terraingen_volk terraingen_vulkan_headers)
+    endif()
     install(
-        TARGETS ${modules} terraingen_build_info terraingen
+        TARGETS ${modules} terraingen_build_info terraingen ${vulkan_targets}
         EXPORT terraingenTargets
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT development
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT development)

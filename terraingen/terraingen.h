@@ -30,6 +30,8 @@
 #include "terraingen/distribution/tabulated.h"
 #include "terraingen/filters/filter.h"
 #include "terraingen/filters/rim_smoothing.h"
+#include "terraingen/gpu/backend.h"
+#include "terraingen/gpu/vulkan.h"
 #include "terraingen/layers/bedforms.h"
 #include "terraingen/layers/craters/ages/age_model.h"
 #include "terraingen/layers/craters/ages/fresh.h"

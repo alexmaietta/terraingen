@@ -16,6 +16,8 @@ option(TERRAINGEN_BUILD_DEMOS "Build the demos" OFF)
 option(TERRAINGEN_BUILD_PYTHON "Build the Python bindings" ON)
 option(TERRAINGEN_INSTALL "Generate install rules and the CMake package" ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_COVERAGE "Instrument TerrainGen for code coverage and add a coverage target" OFF)
+option(TERRAINGEN_WITH_VULKAN
+       "Build the Vulkan compute backend (the Vulkan loader is opened at run time, if present)" ON)
 
 include(GNUInstallDirs)
 
@@ -62,6 +64,13 @@ endif()
 
 if(TERRAINGEN_BUILD_PYTHON)
     include("${PROJECT_SOURCE_DIR}/cmake/third_party/nanobind.cmake")
+endif()
+
+if(TERRAINGEN_WITH_VULKAN)
+    include("${PROJECT_SOURCE_DIR}/cmake/third_party/vulkan_headers.cmake")
+    include("${PROJECT_SOURCE_DIR}/cmake/third_party/volk.cmake")
+    include("${PROJECT_SOURCE_DIR}/cmake/third_party/slang.cmake")
+    include("${PROJECT_SOURCE_DIR}/cmake/TerrainGenSlang.cmake")
 endif()
 
 add_subdirectory(terraingen)

@@ -1,6 +1,7 @@
 add_subdirectory(util)
 add_subdirectory(raster)
 add_subdirectory(noise)
+add_subdirectory(gpu)
 add_subdirectory(random)
 add_subdirectory(meshes)
 add_subdirectory(distribution)
