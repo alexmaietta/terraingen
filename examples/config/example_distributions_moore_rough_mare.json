@@ -1,0 +1,42 @@
+{
+    "schema_version": 1,
+    "source": {
+        "type": "flat",
+        "width": 513,
+        "height": 513,
+        "pixel_size": 2
+    },
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 1,
+                    "wavelength": 800,
+                    "amplitude": 40,
+                    "octaves": 8
+                }
+            ]
+        },
+        {
+            "type": "craters",
+            "seed": 1,
+            "density": {
+                "type": "moore",
+                "terrain": "rough_mare"
+            },
+            "min_diameter": 8,
+            "max_diameter": 300
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_distributions_moore_rough_mare.tif"
+        },
+        {
+            "type": "crater_list",
+            "path": "example_distributions_moore_rough_mare.csv"
+        }
+    ]
+}

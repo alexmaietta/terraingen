@@ -1,0 +1,43 @@
+{
+    "schema_version": 1,
+    "source": {
+        "type": "flat",
+        "width": 513,
+        "height": 513,
+        "pixel_size": 2
+    },
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 1,
+                    "wavelength": 800,
+                    "amplitude": 40,
+                    "octaves": 8
+                }
+            ]
+        },
+        {
+            "type": "craters",
+            "seed": 1,
+            "density": {
+                "type": "power_law",
+                "coefficient": 0.05,
+                "exponent": 2.0
+            },
+            "min_diameter": 8,
+            "max_diameter": 300
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_distributions_power_law.tif"
+        },
+        {
+            "type": "crater_list",
+            "path": "example_distributions_power_law.csv"
+        }
+    ]
+}

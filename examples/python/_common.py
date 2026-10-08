@@ -66,3 +66,57 @@ def montage(images, columns, gap=4):
         row, column = divmod(index, columns)
         sheet[row * (height + gap) : row * (height + gap) + height, column * (width + gap) : column * (width + gap) + width] = image
     return sheet
+
+
+PALETTE = [
+    (0.12, 0.47, 0.71),
+    (0.84, 0.15, 0.16),
+    (0.17, 0.63, 0.17),
+    (0.58, 0.40, 0.74),
+    (1.00, 0.50, 0.05),
+    (0.55, 0.34, 0.29),
+    (0.89, 0.47, 0.76),
+    (0.50, 0.50, 0.50),
+]
+
+
+def line_plot(curves, log_x=False, log_y=False, size=(640, 420), margin=24):
+    """An RGB image in [0, 1] of `curves`, a list of (x, y) arrays, in the colours of PALETTE.
+
+    The axes span the curves' finite values, logarithmically with `log_x` / `log_y`, inside a
+    grey frame. There is no text: print a legend naming the curves in PALETTE order.
+    """
+    width, height = size
+    image = np.ones((height, width, 3))
+    transformed = []
+    for x, y in curves:
+        x, y = np.asarray(x, dtype=np.float64), np.asarray(y, dtype=np.float64)
+        keep = np.isfinite(x) & np.isfinite(y)
+        if log_x:
+            keep &= x > 0
+        if log_y:
+            keep &= y > 0
+        x, y = x[keep], y[keep]
+        transformed.append((np.log10(x) if log_x else x, np.log10(y) if log_y else y))
+    xs = np.concatenate([x for x, _ in transformed])
+    ys = np.concatenate([y for _, y in transformed])
+    x0, x1, y0, y1 = xs.min(), xs.max(), ys.min(), ys.max()
+    x1, y1 = (x1 if x1 > x0 else x0 + 1), (y1 if y1 > y0 else y0 + 1)
+    image[margin, margin : width - margin] = image[height - margin, margin : width - margin] = 0.6
+    image[margin : height - margin, margin] = image[margin : height - margin, width - margin] = 0.6
+    for index, (x, y) in enumerate(transformed):
+        px = margin + (x - x0) / (x1 - x0) * (width - 2 * margin)
+        py = height - margin - (y - y0) / (y1 - y0) * (height - 2 * margin)
+        colour = PALETTE[index % len(PALETTE)]
+        for i in range(len(px) - 1):
+            steps = int(max(abs(px[i + 1] - px[i]), abs(py[i + 1] - py[i]), 1)) * 2
+            for t in np.linspace(0.0, 1.0, steps):
+                cx = int(round(px[i] + t * (px[i + 1] - px[i])))
+                cy = int(round(py[i] + t * (py[i + 1] - py[i])))
+                image[max(cy - 1, 0) : cy + 1, max(cx - 1, 0) : cx + 1] = colour
+    return image
+
+
+def colour_name(index):
+    """The name of PALETTE colour `index`, for legends."""
+    return ["blue", "red", "green", "purple", "orange", "brown", "pink", "grey"][index % len(PALETTE)]

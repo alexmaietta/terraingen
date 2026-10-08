@@ -1,0 +1,49 @@
+{
+    "schema_version": 1,
+    "source": {
+        "type": "flat",
+        "width": 513,
+        "height": 513,
+        "pixel_size": 200
+    },
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 1,
+                    "wavelength": 40000,
+                    "amplitude": 1500,
+                    "octaves": 8
+                }
+            ]
+        },
+        {
+            "type": "craters",
+            "seed": 1,
+            "density": {
+                "type": "lunar_surface",
+                "age_gyr": 3.8
+            },
+            "min_diameter": 3000,
+            "max_diameter": 60000,
+            "profile": {
+                "type": "complex",
+                "simple": {
+                    "type": "fassett_thomson",
+                    "rim": "original"
+                }
+            }
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_craters_profile_complex.tif"
+        },
+        {
+            "type": "crater_list",
+            "path": "example_craters_profile_complex.csv"
+        }
+    ]
+}

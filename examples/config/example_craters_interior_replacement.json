@@ -1,0 +1,46 @@
+{
+    "schema_version": 1,
+    "source": {
+        "type": "flat",
+        "width": 513,
+        "height": 513,
+        "pixel_size": 2
+    },
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 1,
+                    "wavelength": 150,
+                    "amplitude": 25,
+                    "octaves": 8
+                }
+            ]
+        },
+        {
+            "type": "craters",
+            "seed": 1,
+            "density": {
+                "type": "lunar_surface",
+                "age_gyr": 3.5
+            },
+            "min_diameter": 20,
+            "max_diameter": 300,
+            "apply": {
+                "interior_replacement": 0.5,
+                "blend": {
+                    "start_radii": 0.6,
+                    "end_radii": 1.4,
+                    "shape": "smootherstep"
+                }
+            }
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_craters_interior_replacement.tif"
+        }
+    ]
+}

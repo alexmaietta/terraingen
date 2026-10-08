@@ -535,10 +535,11 @@ void BindCraterLayers(nb::module_& m) {
 
     auto apply = nb::class_<CraterApplyOptions>(
         m, "CraterApplyOptions",
-        "How craters are applied: their `order`, the `datum` interiors are cut relative to (fit "
-        "over `datum_fit_radii` radii), how much of the interior replaces the terrain "
-        "(`interior_replacement`, 0 to 1), the `blend` into the exterior, the resolution `fade` "
-        "and rim `irregularity`.");
+        "How craters are applied: the `datum` interiors are cut relative to (fit over "
+        "`datum_fit_radii` radii; with none, craters are added to the terrain and the settings "
+        "after it are unused), how much of the interior replaces the older relief "
+        "(`interior_replacement`, 0 to 1), the `blend` into the exterior, the `order` overlapping "
+        "craters are applied in, the resolution `fade` and rim `irregularity`.");
     BindKwargsInit<CraterApplyOptions>(apply);
     apply.def_rw("order", &CraterApplyOptions::order)
         .def_rw("fade", &CraterApplyOptions::fade)

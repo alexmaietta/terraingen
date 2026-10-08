@@ -13,10 +13,13 @@ if(TARGET terraingen_app)
     endforeach()
 endif()
 
-foreach(example example_terrain_fbm example_terrain_layered example_craters_simple
-                example_craters_manual example_boulders_rocks example_albedo_crater_rays)
-    add_test(NAME examples.cpp.${example} COMMAND ${example} "${output_dir}/cpp")
-    set_tests_properties(examples.cpp.${example} PROPERTIES LABELS "integration;examples")
+file(GLOB cpp_examples CONFIGURE_DEPENDS "${examples_dir}/cpp/example_*.cpp")
+foreach(source IN LISTS cpp_examples)
+    get_filename_component(example "${source}" NAME_WE)
+    if(NOT example STREQUAL "example_config_load")
+        add_test(NAME examples.cpp.${example} COMMAND ${example} "${output_dir}/cpp")
+        set_tests_properties(examples.cpp.${example} PROPERTIES LABELS "integration;examples")
+    endif()
 endforeach()
 add_test(NAME examples.cpp.example_config_load
          COMMAND example_config_load "${examples_dir}/config/example_craters_simple.json"

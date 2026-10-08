@@ -1,0 +1,39 @@
+{
+    "schema_version": 1,
+    "source": {
+        "type": "flat",
+        "width": 1537,
+        "height": 1537,
+        "pixel_size": 12
+    },
+    "layers": [
+        {
+            "type": "craters",
+            "generate": false,
+            "manual": [
+                {
+                    "x": 0,
+                    "y": 0,
+                    "diameter": 2000,
+                    "age_gyr": 0.05
+                }
+            ]
+        },
+        {
+            "type": "secondaries",
+            "seed": 4,
+            "onset_count": 20,
+            "min_diameter": 30
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_craters_secondaries.tif"
+        },
+        {
+            "type": "crater_list",
+            "path": "example_craters_secondaries.csv"
+        }
+    ]
+}
