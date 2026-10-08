@@ -1,0 +1,44 @@
+{
+    "schema_version": 1,
+    "source": {
+        "type": "flat",
+        "width": 401,
+        "height": 401,
+        "pixel_size": 0.25
+    },
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 1,
+                    "wavelength": 60,
+                    "amplitude": 6,
+                    "octaves": 7
+                }
+            ]
+        },
+        {
+            "type": "rocks",
+            "seed": 1,
+            "coverage": 0.02,
+            "min_diameter": 0.3,
+            "max_diameter": 4,
+            "exposure": {
+                "reach": 6.0
+            },
+            "bedrock_abundance": 4.0,
+            "exposure_spacing": 1.0
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_boulders_exposure.tif"
+        },
+        {
+            "type": "rock_list",
+            "path": "example_boulders_exposure.csv"
+        }
+    ]
+}
