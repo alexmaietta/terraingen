@@ -731,6 +731,64 @@ void BindCraterLayers(nb::module_& m) {
           "How far from its centre (m) a primary throws its first secondaries.");
 }
 
+void BindBoulderShapes(nb::module_& m) {
+    auto range =
+        nb::class_<ValueRange>(m, "ValueRange", "An interval values are drawn uniformly from.");
+    range
+        .def(
+            "__init__",
+            [](ValueRange* self, double min, double max) { new (self) ValueRange{min, max}; },
+            "min"_a = 0.0, "max"_a = 0.0)
+        .def_rw("min", &ValueRange::min)
+        .def_rw("max", &ValueRange::max);
+    nb::enum_<BaseSolid>(m, "BaseSolid", "The solid a boulder shape starts from.")
+        .value("ICOSAHEDRON", BaseSolid::Icosahedron)
+        .value("CUBE", BaseSolid::Cube)
+        .value("PYRAMID", BaseSolid::Pyramid)
+        .value("PRISM", BaseSolid::Prism)
+        .value("TETRAHEDRON", BaseSolid::Tetrahedron);
+    auto style = nb::class_<BoulderStyle>(
+        m, "BoulderStyle",
+        "One kind of boulder: its `solid`, stretched to axes 1 : `intermediate` : `short_axis`, "
+        "rounded toward an ellipsoid by `rounding`, roughened by noise and cut by fracture planes; "
+        "`weight` is its share of boulders.");
+    BindKwargsInit<BoulderStyle>(style);
+    style.def_rw("name", &BoulderStyle::name)
+        .def_rw("weight", &BoulderStyle::weight)
+        .def_rw("solid", &BoulderStyle::solid)
+        .def_rw("intermediate", &BoulderStyle::intermediate)
+        .def_rw("short_axis", &BoulderStyle::shortAxis)
+        .def_rw("rounding", &BoulderStyle::rounding)
+        .def_rw("min_fractures", &BoulderStyle::minFractures)
+        .def_rw("max_fractures", &BoulderStyle::maxFractures)
+        .def_rw("fracture_depth", &BoulderStyle::fractureDepth)
+        .def_rw("max_fracture_tilt", &BoulderStyle::maxFractureTilt)
+        .def_rw("noise_amplitude", &BoulderStyle::noiseAmplitude)
+        .def_rw("noise_wavelength", &BoulderStyle::noiseWavelength)
+        .def_rw("noise_octaves", &BoulderStyle::noiseOctaves);
+    m.def("default_boulder_styles", &DefaultBoulderStyles,
+          "The default mix: blocks and slabs, rounded boulders, wedges, pyramids and shards.");
+    auto shapes = nb::class_<BoulderShapeOptions>(
+        m, "BoulderShapeOptions",
+        "Boulder shapes: the `styles` to draw from, `subdivisions` of each solid and a `seed`.");
+    BindKwargsInit<BoulderShapeOptions>(shapes);
+    shapes.def_rw("styles", &BoulderShapeOptions::styles)
+        .def_rw("subdivisions", &BoulderShapeOptions::subdivisions)
+        .def_rw("seed", &BoulderShapeOptions::seed);
+    nb::class_<BoulderShape>(m, "BoulderShape",
+                             "A boulder shape with a long axis of 1 along x, `intermediate` along "
+                             "y and `short_axis` along z.")
+        .def_ro("mesh", &BoulderShape::mesh)
+        .def_ro("style", &BoulderShape::style)
+        .def_ro("intermediate", &BoulderShape::intermediate)
+        .def_ro("short_axis", &BoulderShape::shortAxis);
+    m.def("generate_boulder_shape", &GenerateBoulderShape, "shape_seed"_a,
+          "options"_a = BoulderShapeOptions{},
+          "The shape `shape_seed` gives: the same seed always gives the same shape.");
+    m.def("boulder_shape_seed", &BoulderShapeSeed, "id"_a, "prototypes"_a = 0,
+          "The shape seed of boulder `id`, or of one of `prototypes` shared shapes.");
+}
+
 void BindRockLayers(nb::module_& m) {
     auto patches = nb::class_<RockPatches>(
         m, "RockPatches",
@@ -803,6 +861,8 @@ void BindRockLayers(nb::module_& m) {
         .def_rw("max_lean", &RockLayerOptions::maxLean)
         .def_rw("relief", &RockLayerOptions::relief)
         .def_rw("models", &RockLayerOptions::models)
+        .def_rw("shapes", &RockLayerOptions::shapes)
+        .def_rw("shape_prototypes", &RockLayerOptions::shapePrototypes)
         .def_rw("fade", &RockLayerOptions::fade);
 
     nb::class_<RockLayer, Layer>(
@@ -847,19 +907,21 @@ void BindFilters(nb::module_& m) {
             },
             "heights"_a, "spacing"_a)
         .def("margin", &Filter::Margin, "max_feature_diameter"_a, "spacing"_a);
+    auto smoothing = nb::class_<RimSmoothing>(
+        m, "RimSmoothing",
+        "Crater rim smoothing: a Gaussian of `sigma_radii` crater radii over the band from "
+        "`inner_radii` to `outer_radii`, fading along `shape` away from the rim, at `strength`.");
+    BindKwargsInit<RimSmoothing>(smoothing);
+    smoothing.def_rw("sigma_radii", &RimSmoothing::sigmaRadii)
+        .def_rw("inner_radii", &RimSmoothing::innerRadii)
+        .def_rw("outer_radii", &RimSmoothing::outerRadii)
+        .def_rw("shape", &RimSmoothing::shape)
+        .def_rw("strength", &RimSmoothing::strength)
+        .def_rw("fade", &RimSmoothing::fade);
     nb::class_<RimSmoothingFilter, Filter>(m, "RimSmoothingFilter",
-                                           "Smooths crater rims with a Gaussian of `sigma_radii` "
-                                           "crater radii, at `strength` from 0 to 1.")
-        .def(
-            "__init__",
-            [](RimSmoothingFilter* self, double sigmaRadii, double strength,
-               const Surface& surface) {
-                RimSmoothing smoothing;
-                smoothing.sigmaRadii = sigmaRadii;
-                smoothing.strength = strength;
-                new (self) RimSmoothingFilter(smoothing, surface);
-            },
-            "sigma_radii"_a = 0.05, "strength"_a = 1.0, "surface"_a = Surface{});
+                                           "Smooths the rims of the craters the layers applied.")
+        .def(nb::init<RimSmoothing, Surface>(), "options"_a = RimSmoothing{},
+             "surface"_a = Surface{});
 }
 
 void BindEvaluation(nb::module_& m) {
@@ -1050,6 +1112,55 @@ void BindEvaluation(nb::module_& m) {
         "A mesh of the whole body a terrain on a sphere lies on: six cube faces of "
         "`cells_per_face` squared quads, each vertex at the radius plus the terrain's height "
         "there. Filters are left out.");
+
+    nb::class_<TileCache>(
+        m, "TileCache",
+        "Tiles of one terrain and scheme, evaluated on demand and kept up to about "
+        "`max_bytes`, least recently used first out; thread-safe. The budget is "
+        "split over 16 shards that each keep at least one tile, so a budget "
+        "smaller than 16 tiles is exceeded.")
+        .def(
+            "__init__",
+            [](TileCache* self, const PyTerrain& terrain, const TileScheme& scheme,
+               std::size_t maxBytes) { new (self) TileCache(terrain.Get(), scheme, maxBytes); },
+            "terrain"_a, "scheme"_a, "max_bytes"_a = std::size_t{1} << 30)
+        .def(
+            "get",
+            [](TileCache& cache, const TileKey& key) { return EvaluatedTerrain(*cache.Get(key)); },
+            "key"_a, nb::call_guard<nb::gil_scoped_release>(),
+            "The tile at `key`, evaluated if it is not held.")
+        .def_prop_ro("size", &TileCache::Size, "Bytes held.")
+        .def_prop_ro("max_bytes", &TileCache::MaxBytes)
+        .def_prop_ro("evictions", &TileCache::Evictions, "Tiles evicted so far.");
+
+    nb::class_<ExposureField>(
+        m, "ExposureField",
+        "How exposed the ground is, from 0 (buried under regolith) to 1 (bare rock): crests and "
+        "steep slopes shed regolith, read over `params.reach` metres.")
+        .def(nb::init<ExposureParams, Surface>(), "params"_a = ExposureParams{},
+             "surface"_a = Surface{})
+        .def(
+            "fill",
+            [](const ExposureField& field, const PyTerrain& terrain, std::size_t layers,
+               const RasterGrid& grid, double spacing, unsigned threads) {
+                const Terrain built = terrain.Get();
+                const TerrainGround ground(built, layers);
+                Raster<float> exposure = grid.MakeRaster();
+                field.Fill(exposure, ground, spacing, threads);
+                return exposure;
+            },
+            "terrain"_a, "layers"_a, "grid"_a, "spacing"_a, "threads"_a = 0,
+            nb::call_guard<nb::gil_scoped_release>(),
+            "The exposure over `grid` of the ground made by `terrain`'s source and its first "
+            "`layers` layers, sampled every `spacing` metres.")
+        .def(
+            "exposure",
+            [](const ExposureField& field, const PyTerrain& terrain, std::size_t layers, double x,
+               double y, double spacing) {
+                const Terrain built = terrain.Get();
+                return field.Exposure(TerrainGround(built, layers), x, y, spacing);
+            },
+            "terrain"_a, "layers"_a, "x"_a, "y"_a, "spacing"_a);
 }
 
 }  // namespace
@@ -1060,6 +1171,7 @@ void BindTerrain(nb::module_& m) {
     BindSources(m);
     BindLayerBase(m);
     BindCraterLayers(m);
+    BindBoulderShapes(m);
     BindRockLayers(m);
     BindFilters(m);
     BindEvaluation(m);

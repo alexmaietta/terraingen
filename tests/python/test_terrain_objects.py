@@ -100,7 +100,7 @@ def test_rocks_boulders_filters_and_writers(tmp_path):
     assert (tmp_path / "rocks.json").read_text().startswith("{")
     assert (tmp_path / "boulders.glb").read_bytes()[:4] == b"glTF"
 
-    smoothed = terraingen.Terrain(terrain.source, [craters], [terraingen.RimSmoothingFilter(sigma_radii=0.1)])
+    smoothed = terraingen.Terrain(terrain.source, [craters], [terraingen.RimSmoothingFilter(terraingen.RimSmoothing(sigma_radii=0.1))])
     plain = terraingen.Terrain(terrain.source, [craters])
     assert not np.array_equal(terraingen.evaluate(smoothed).heights.values, terraingen.evaluate(plain).heights.values)
     with pytest.raises(ValueError):
