@@ -30,7 +30,7 @@ extensions = [
 ]
 
 source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
-exclude_patterns = ["README.md", "_build", "_doxygen", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["README.md", "_build", "_doxygen", "Thumbs.db", ".DS_Store", "api/python_subclassing.md"]
 
 myst_enable_extensions = ["colon_fence", "deflist"]
 myst_heading_anchors = 3

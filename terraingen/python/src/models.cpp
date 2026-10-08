@@ -546,7 +546,9 @@ void BindProfiles(nb::module_& m) {
         "A crater's height relative to the surrounding surface at `distance` metres from its "
         "centre. Subclass it and implement `height(distance, diameter, state)` and "
         "`reach_radii()` (how far, in radii, it changes the terrain), and optionally "
-        "`is_complex(diameter)`.")
+        "`is_complex(diameter)`. A Python profile is called for every sample near every crater, "
+        "from every evaluation thread, and Python calls take turns on the GIL, so evaluate "
+        "terrains with one on one thread (`threads=1`).")
         .def(nb::init<>())
         .def("height", &CraterProfile::Height, "distance"_a, "diameter"_a, "state"_a)
         .def("reach_radii", &CraterProfile::ReachRadii)
@@ -575,11 +577,11 @@ void BindProfiles(nb::module_& m) {
             "coefficient"_a = 0.0, "exponent"_a = 0.0)
         .def_rw("coefficient", &KilometrePowerLaw::coefficient)
         .def_rw("exponent", &KilometrePowerLaw::exponent);
-    auto shape = nb::class_<ComplexCraterShape>(
+    auto shapeClass = nb::class_<ComplexCraterShape>(
         m, "ComplexCraterShape",
         "Where craters turn complex and how their floors and central peaks scale.");
-    BindKwargsInit<ComplexCraterShape>(shape);
-    shape.def_rw("transition_diameter", &ComplexCraterShape::transitionDiameter)
+    BindKwargsInit<ComplexCraterShape>(shapeClass);
+    shapeClass.def_rw("transition_diameter", &ComplexCraterShape::transitionDiameter)
         .def_rw("floor_diameter", &ComplexCraterShape::floorDiameter)
         .def_rw("peak_height", &ComplexCraterShape::peakHeight)
         .def_rw("peak_volume", &ComplexCraterShape::peakVolume)

@@ -61,12 +61,12 @@ void BindRasterIo(nb::module_& m) {
           "Reads a GeoTIFF's header: size, bands, sample format, compression, georeferencing and "
           "CRS keys.");
 
-    auto options = nb::class_<GeoTiffWriteOptions>(
+    auto writeOptionsClass = nb::class_<GeoTiffWriteOptions>(
         m, "GeoTiffWriteOptions",
         "How GeoTIFFs are written: `compression` (none, LZW or Deflate), square tiles of "
         "`tile_size` (a positive multiple of 16) and `big_tiff`.");
-    BindKwargsInit<GeoTiffWriteOptions>(options);
-    options.def_rw("compression", &GeoTiffWriteOptions::compression)
+    BindKwargsInit<GeoTiffWriteOptions>(writeOptionsClass);
+    writeOptionsClass.def_rw("compression", &GeoTiffWriteOptions::compression)
         .def_rw("tile_size", &GeoTiffWriteOptions::tileSize)
         .def_rw("big_tiff", &GeoTiffWriteOptions::bigTiff);
     m.def(

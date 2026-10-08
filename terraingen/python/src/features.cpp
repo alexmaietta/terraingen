@@ -303,7 +303,9 @@ void BindFunctions(nb::module_& m) {
     nb::class_<FunctionLayer, Layer>(
         m, "FunctionLayer",
         "A layer from a function `fn(x, y, spacing, height)` returning the new height; simpler "
-        "than subclassing Layer for point-wise changes.")
+        "than subclassing Layer for point-wise changes. The function is called for every sample "
+        "from every evaluation thread, and Python calls take turns on the GIL, so evaluate "
+        "terrains with it on one thread (`threads=1`).")
         .def(nb::init<HeightFunction>(), "function"_a);
 }
 

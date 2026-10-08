@@ -566,13 +566,13 @@ void BindCraterLayers(nb::module_& m) {
         .def_ro("freshness", &CraterAttributes::freshness)
         .def_ro("complex", &CraterAttributes::complex);
 
-    auto spacing = nb::class_<CraterSpacing>(
+    auto spacingClass = nb::class_<CraterSpacing>(
         m, "CraterSpacing",
         "Keeps craters of similar size apart: two conflict when their diameters differ by at most "
         "`diameter_ratio` (at least 1) and their centres are closer than `separation` times the "
         "larger diameter. A separation of 0 disables it.");
-    BindKwargsInit<CraterSpacing>(spacing);
-    spacing.def_rw("diameter_ratio", &CraterSpacing::diameterRatio)
+    BindKwargsInit<CraterSpacing>(spacingClass);
+    spacingClass.def_rw("diameter_ratio", &CraterSpacing::diameterRatio)
         .def_rw("separation", &CraterSpacing::separation);
 
     auto generation = nb::class_<CraterGenerationOptions>(
@@ -677,12 +677,12 @@ void BindCraterLayers(nb::module_& m) {
         .def_rw("blend", &CraterApplyOptions::blend)
         .def_rw("irregularity", &CraterApplyOptions::irregularity);
 
-    auto options = nb::class_<CraterLayerOptions>(
+    auto layerOptionsClass = nb::class_<CraterLayerOptions>(
         m, "CraterLayerOptions",
         "A crater layer's settings: whether to `generate` craters from the density, its `seed`, "
         "the `generation` options and the `apply` options.");
-    BindKwargsInit<CraterLayerOptions>(options);
-    options.def_rw("generate", &CraterLayerOptions::generate)
+    BindKwargsInit<CraterLayerOptions>(layerOptionsClass);
+    layerOptionsClass.def_rw("generate", &CraterLayerOptions::generate)
         .def_rw("surface", &CraterLayerOptions::surface,
                 "What the craters lie on; on a sphere they are placed by longitude and latitude.")
         .def_rw("seed", &CraterLayerOptions::seed)
@@ -864,14 +864,14 @@ void BindRockLayers(nb::module_& m) {
     models.def_rw("min_diameter", &RockModels::minDiameter)
         .def_rw("min_samples", &RockModels::minSamples);
 
-    auto options = nb::class_<RockLayerOptions>(
+    auto rockOptionsClass = nb::class_<RockLayerOptions>(
         m, "RockLayerOptions",
         "A rock layer's settings: sizes from Golombek and Rapp's model for `coverage` (or "
         "`distribution`), between `min_diameter` and `max_diameter`; `patches`, `ejecta` and "
         "`exposure` shape where they lie; heights, burial and lean shape each rock; `relief` and "
         "`models` how they are drawn.");
-    BindKwargsInit<RockLayerOptions>(options);
-    options.def_rw("coverage", &RockLayerOptions::coverage)
+    BindKwargsInit<RockLayerOptions>(rockOptionsClass);
+    rockOptionsClass.def_rw("coverage", &RockLayerOptions::coverage)
         .def_rw("qa", &RockLayerOptions::qa)
         .def_rw("qb", &RockLayerOptions::qb)
         .def_rw("distribution", &RockLayerOptions::distribution)
