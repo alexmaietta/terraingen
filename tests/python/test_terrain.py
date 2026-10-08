@@ -26,10 +26,10 @@ def test_fractal_params_defaults_and_keywords():
 def test_fractals_match_cpp_golden_values():
     x, y = float.fromhex("0x1.004p+9"), float.fromhex("-0x1.001p+10")
     expected = {
-        tg.FractalType.FBM: "-0x1.278372p+3",
-        tg.FractalType.RIDGED: "0x1.c929e4p+3",
-        tg.FractalType.BILLOW: "-0x1.bc10ep+5",
-        tg.FractalType.HYBRID_MULTIFRACTAL: "0x1.1ace18p+5",
+        tg.FractalType.FBM: "-0x1.a18ed6p+0",
+        tg.FractalType.RIDGED: "0x1.8fd9ap+5",
+        tg.FractalType.BILLOW: "-0x1.26132cp+6",
+        tg.FractalType.HYBRID_MULTIFRACTAL: "0x1.58502ap+5",
     }
     for fractal_type, value in expected.items():
         assert np.float32(tg.fractal2(x, y, tg.FractalParams(seed=42, type=fractal_type))) == f32(value)
@@ -67,7 +67,7 @@ def test_layers_match_cpp_golden_value():
     params = tg.SyntheticTerrainParams([base, detail])
     x = np.float32([float.fromhex("0x1.004p+9")])
     y = np.float32([float.fromhex("-0x1.001p+10")])
-    assert tg.evaluate_noise_layers(x, y, params)[0] == f32("-0x1.3b5e94p+4")
+    assert tg.evaluate_noise_layers(x, y, params)[0] == f32("-0x1.38f3cp+4")
 
 
 def test_noise_layer_and_terrain_params_fields():

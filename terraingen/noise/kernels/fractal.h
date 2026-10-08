@@ -115,6 +115,13 @@ inline float BasisNoise3(NoiseBasis basis, int32_t ix, int32_t iy, int32_t iz, f
 
 namespace detail {
 
+/// Each octave's lattice is turned by the golden angle (about 137.5 degrees) from the one before,
+/// so the creases that axis-aligned gradients leave along lattice lines do not line up from octave
+/// to octave into a grid. The turn is accumulated by multiplication rather than `cos` and `sin`,
+/// whose last bits differ between platforms, so results stay bit-identical everywhere.
+static const float kOctaveTurnCos = -0.7373688780783197f;
+static const float kOctaveTurnSin = 0.6754902942615238f;
+
 /// The running sums of a fractal over its octaves.
 struct FractalSums {
     float weight = 1.0f;
@@ -176,9 +183,11 @@ inline float FinishFractal(FractalSums sums, FractalParams params) {
 
 /// Fractal height at world position (`x`, `y`), in [-amplitude, amplitude] world units.
 ///
-/// Each octave uses its own seed and a pseudo-random sub-cell lattice offset from `pcg3d`; without
-/// the offset every octave's lattice would share the origin, leaving a visible fixed point. Every
-/// fractal type is normalized by its largest possible value so the bound holds for any parameters:
+/// Each octave uses its own seed, a pseudo-random sub-cell lattice offset from `pcg3d` and a
+/// lattice turned by the golden angle from the octave before; without the offset every octave's
+/// lattice would share the origin, leaving a visible fixed point, and without the turn the creases
+/// of ridged and billow fractals would line up along the lattice axes. Every fractal type is
+/// normalized by its largest possible value so the bound holds for any parameters:
 /// - `Fbm`: sum(w_i n_i) / sum(w_i).
 /// - `Billow`: fBm of 2|n_i| - 1.
 /// - `Ridged`: Musgrave's ridged multifractal, s_i = (offset - |n_i|)^2 weighted by the previous
@@ -189,16 +198,23 @@ inline float FinishFractal(FractalSums sums, FractalParams params) {
 /// Parameters are assumed valid; see `ValidateFractalParams`.
 inline float Fractal2(float x, float y, FractalParams params) {
     float frequency = 1.0f / params.wavelength;
+    float turnCos = 1.0f;
+    float turnSin = 0.0f;
     detail::FractalSums sums = {};
     for (int octave = 0; octave < params.octaves; ++octave) {
         const UVec3 key = {params.seed, uint32_t(octave), 0u};
         const UVec3 h = Pcg3dHash(key);
         const float offsetX = HashToUnitFloat(h.y);
         const float offsetY = HashToUnitFloat(h.z);
+        const float rx = x * turnCos - y * turnSin;
+        const float ry = x * turnSin + y * turnCos;
         const float n =
-            BasisNoise2(params.basis, x * frequency + offsetX, y * frequency + offsetY, h.x);
+            BasisNoise2(params.basis, rx * frequency + offsetX, ry * frequency + offsetY, h.x);
         sums = detail::AddFractalOctave(sums, params, octave, n);
         frequency *= params.lacunarity;
+        const float nextCos = turnCos * detail::kOctaveTurnCos - turnSin * detail::kOctaveTurnSin;
+        turnSin = turnSin * detail::kOctaveTurnCos + turnCos * detail::kOctaveTurnSin;
+        turnCos = nextCos;
     }
     return detail::FinishFractal(sums, params);
 }
@@ -209,14 +225,23 @@ inline float Fractal2(float x, float y, FractalParams params) {
 /// precision, so noise stays exact at a planet's radius; only the bases with
 /// `HasBasisNoise3` are used, others falling back to Perlin noise.
 inline float Fractal3(double x, double y, double z, FractalParams params) {
+    /// The golden angle about the axis (1, 2, 3) / sqrt(14), which lies along no lattice axis.
+    static constexpr double kTurn[3][3] = {
+        {-0.6132711010727254, -0.293401570821183, 0.7333580809050306},
+        {0.7897926788435601, -0.24097777005594262, 0.5640542870894418},
+        {0.011228581128535142, 0.9251190369776896, 0.37951111497202883}};
     double frequency = 1.0 / static_cast<double>(params.wavelength);
+    double turn[3][3] = {{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
     detail::FractalSums sums = {};
     for (int octave = 0; octave < params.octaves; ++octave) {
         const UVec3 h = Pcg3dHash({params.seed, uint32_t(octave), 0u});
         const UVec3 g = Pcg3dHash({params.seed, uint32_t(octave), 1u});
-        const double px = x * frequency + static_cast<double>(HashToUnitFloat(h.y));
-        const double py = y * frequency + static_cast<double>(HashToUnitFloat(h.z));
-        const double pz = z * frequency + static_cast<double>(HashToUnitFloat(g.x));
+        const double rx = turn[0][0] * x + turn[0][1] * y + turn[0][2] * z;
+        const double ry = turn[1][0] * x + turn[1][1] * y + turn[1][2] * z;
+        const double rz = turn[2][0] * x + turn[2][1] * y + turn[2][2] * z;
+        const double px = rx * frequency + static_cast<double>(HashToUnitFloat(h.y));
+        const double py = ry * frequency + static_cast<double>(HashToUnitFloat(h.z));
+        const double pz = rz * frequency + static_cast<double>(HashToUnitFloat(g.x));
         const double cx = floor(px);
         const double cy = floor(py);
         const double cz = floor(pz);
@@ -226,6 +251,15 @@ inline float Fractal3(double x, double y, double z, FractalParams params) {
                                     float(py - cy), float(pz - cz), h.x);
         sums = detail::AddFractalOctave(sums, params, octave, n);
         frequency *= static_cast<double>(params.lacunarity);
+        double next[3][3] = {};
+        for (int row = 0; row < 3; ++row) {
+            for (int column = 0; column < 3; ++column) {
+                next[row][column] = kTurn[row][0] * turn[0][column] +
+                                    kTurn[row][1] * turn[1][column] +
+                                    kTurn[row][2] * turn[2][column];
+            }
+        }
+        std::memcpy(turn, next, sizeof(turn));
     }
     return detail::FinishFractal(sums, params);
 }

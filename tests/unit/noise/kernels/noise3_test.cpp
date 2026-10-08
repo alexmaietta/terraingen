@@ -78,6 +78,42 @@ TEST(Fractal3, StaysWithinItsAmplitudeForEveryTypeAndIsPreciseFarFromTheOrigin) 
     EXPECT_NE(a, c);
 }
 
+TEST(Fractal3, TurnsEachOctaveOffTheLatticeAxes) {
+    FractalParams params;
+    params.seed = 9u;
+    params.octaves = 2;
+    params.wavelength = 50.0f;
+    params.amplitude = 1.0f;
+    const double x = 13.0;
+    const double y = -40.0;
+    const double z = 7.5;
+    const auto h0 = terraingen::Pcg3dHash({params.seed, 0u, 0u});
+    const auto g0 = terraingen::Pcg3dHash({params.seed, 0u, 1u});
+    const auto h1 = terraingen::Pcg3dHash({params.seed, 1u, 0u});
+    const auto g1 = terraingen::Pcg3dHash({params.seed, 1u, 1u});
+    const double turn = 3.14159265358979 * (3.0 - std::sqrt(5.0));
+    const double ux = 1.0 / std::sqrt(14.0);
+    const double uy = 2.0 / std::sqrt(14.0);
+    const double uz = 3.0 / std::sqrt(14.0);
+    const double c = std::cos(turn);
+    const double s = std::sin(turn);
+    const double t = 1.0 - c;
+    const double rx =
+        (t * ux * ux + c) * x + (t * ux * uy - s * uz) * y + (t * ux * uz + s * uy) * z;
+    const double ry =
+        (t * ux * uy + s * uz) * x + (t * uy * uy + c) * y + (t * uy * uz - s * ux) * z;
+    const double rz =
+        (t * ux * uz - s * uy) * x + (t * uy * uz + s * ux) * y + (t * uz * uz + c) * z;
+    const auto unit = [](std::uint32_t h) {
+        return static_cast<double>(terraingen::HashToUnitFloat(h));
+    };
+    const float first = terraingen::PerlinNoise3Precise(
+        x / 50.0 + unit(h0.y), y / 50.0 + unit(h0.z), z / 50.0 + unit(g0.x), h0.x);
+    const float second = terraingen::PerlinNoise3Precise(
+        rx / 25.0 + unit(h1.y), ry / 25.0 + unit(h1.z), rz / 25.0 + unit(g1.x), h1.x);
+    EXPECT_NEAR(Fractal3(x, y, z, params), (first + 0.5f * second) / 1.5f, 1e-5f);
+}
+
 TEST(EvaluateNoiseLayers3, BlendsWarpsAndSkipsDisabledLayers) {
     NoiseLayer base;
     base.fractal.amplitude = 10.0f;

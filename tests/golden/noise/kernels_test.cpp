@@ -36,8 +36,8 @@ TEST(KernelsGolden, PerlinFbm) {
     FractalParams params;
     params.seed = 42u;
     EXPECT_EQ(Fractal2(0.0f, 0.0f, params), 0x1.822c5cp+3f);
-    EXPECT_EQ(Fractal2(0x1.004p+9f, -0x1.001p+10f, params), -0x1.278372p+3f);
-    EXPECT_EQ(Fractal2(-0x1.77p+11f, 0x1.000cp+12f, params), -0x1.ef2c68p+2f);
+    EXPECT_EQ(Fractal2(0x1.004p+9f, -0x1.001p+10f, params), -0x1.a18ed6p+0f);
+    EXPECT_EQ(Fractal2(-0x1.77p+11f, 0x1.000cp+12f, params), 0x1.972ec2p+3f);
 }
 
 TEST(KernelsGolden, SimplexValueAndWorley) {
@@ -54,14 +54,14 @@ TEST(KernelsGolden, FractalTypes) {
     FractalParams params;
     params.seed = 42u;
     params.type = FractalType::Ridged;
-    EXPECT_EQ(Fractal2(0x1.004p+9f, -0x1.001p+10f, params), 0x1.c929e4p+3f);
+    EXPECT_EQ(Fractal2(0x1.004p+9f, -0x1.001p+10f, params), 0x1.8fd9ap+5f);
     params.type = FractalType::Billow;
-    EXPECT_EQ(Fractal2(0x1.004p+9f, -0x1.001p+10f, params), -0x1.bc10ep+5f);
+    EXPECT_EQ(Fractal2(0x1.004p+9f, -0x1.001p+10f, params), -0x1.26132cp+6f);
     params.type = FractalType::HybridMultifractal;
-    EXPECT_EQ(Fractal2(0x1.004p+9f, -0x1.001p+10f, params), 0x1.1ace18p+5f);
+    EXPECT_EQ(Fractal2(0x1.004p+9f, -0x1.001p+10f, params), 0x1.58502ap+5f);
     params.type = FractalType::Fbm;
     params.basis = NoiseBasis::Simplex;
-    EXPECT_EQ(Fractal2(0x1.004p+9f, -0x1.001p+10f, params), -0x1.d4bdfap+5f);
+    EXPECT_EQ(Fractal2(0x1.004p+9f, -0x1.001p+10f, params), -0x1.0f204ep+4f);
 }
 
 TEST(KernelsGolden, LayersWithWarp) {
@@ -71,5 +71,5 @@ TEST(KernelsGolden, LayersWithWarp) {
     layers[1].fractal.basis = NoiseBasis::WorleyF2MinusF1;
     layers[1].fractal.amplitude = 10.0f;
     layers[1].warpAmplitude = 50.0f;
-    EXPECT_EQ(EvaluateNoiseLayers(0x1.004p+9f, -0x1.001p+10f, layers, 2), -0x1.3b5e94p+4f);
+    EXPECT_EQ(EvaluateNoiseLayers(0x1.004p+9f, -0x1.001p+10f, layers, 2), -0x1.38f3cp+4f);
 }

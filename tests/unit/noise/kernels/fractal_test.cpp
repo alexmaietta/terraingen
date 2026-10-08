@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <utility>
 
 using terraingen::BasisNoise2;
 using terraingen::Fractal2;
@@ -148,6 +149,27 @@ TEST(Fractal2, RidgedPeaksWhereTheBasisCrossesZero) {
     const float x = (3.0f - terraingen::HashToUnitFloat(h.y)) * params.wavelength;
     const float y = (-2.0f - terraingen::HashToUnitFloat(h.z)) * params.wavelength;
     EXPECT_NEAR(Fractal2(x, y, params), 1.0f, 1e-4f);
+}
+
+TEST(Fractal2, TurnsEachOctaveByTheGoldenAngle) {
+    FractalParams params;
+    params.seed = 9u;
+    params.octaves = 2;
+    params.wavelength = 50.0f;
+    params.amplitude = 1.0f;
+    const double turn = 3.14159265358979 * (3.0 - std::sqrt(5.0));
+    const float c = static_cast<float>(std::cos(turn));
+    const float s = static_cast<float>(std::sin(turn));
+    for (const auto& [x, y] : {std::pair{13.0f, -40.0f}, std::pair{-210.5f, 77.25f}}) {
+        const auto h0 = terraingen::Pcg3dHash({params.seed, 0u, 0u});
+        const auto h1 = terraingen::Pcg3dHash({params.seed, 1u, 0u});
+        const float first = PerlinNoise2(x / 50.0f + terraingen::HashToUnitFloat(h0.y),
+                                         y / 50.0f + terraingen::HashToUnitFloat(h0.z), h0.x);
+        const float second =
+            PerlinNoise2((x * c - y * s) / 25.0f + terraingen::HashToUnitFloat(h1.y),
+                         (x * s + y * c) / 25.0f + terraingen::HashToUnitFloat(h1.z), h1.x);
+        EXPECT_NEAR(Fractal2(x, y, params), (first + 0.5f * second) / 1.5f, 1e-5f);
+    }
 }
 
 TEST(FractalParams, ComparesEveryField) {
