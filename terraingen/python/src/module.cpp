@@ -5,5 +5,7 @@ NB_MODULE(_terraingen, m) {
     terraingen::python::BindCore(m);
     terraingen::python::BindKernels(m);
     terraingen::python::BindLog(m);
+    terraingen::python::BindPipeline(m);
+    terraingen::python::BindTerrain(m);
     terraingen::python::BindRandom(m);
 }
