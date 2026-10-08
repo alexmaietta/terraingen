@@ -66,3 +66,17 @@ def test_tile_cache_and_exposure():
     assert field.exposure(terrain, 1, 0.125, 0.125, 0.25) == pytest.approx(exposure[127, 128], abs=1e-6)
     flat = field.fill(terraingen.Terrain(terraingen.FlatSource(16, 16, 0.25)), 0, terraingen.RasterGrid.centred(16, 16, 0.25), 0.25)
     assert np.ptp(flat.values) == 0.0
+
+
+def test_bedform_cover_and_rock_abundance_read_the_ground():
+    relief = terraingen.NoiseRelief([terraingen.NoiseLayer(terraingen.FractalParams(seed=3, wavelength=60.0, amplitude=5.0))])
+    exposure = terraingen.ExposureParams(reach=8.0)
+    sand = terraingen.BedformLayer(terraingen.BedformOptions(wavelength=2.5, height=0.25, cover=0.8, field_size=30.0, exposure=exposure))
+    rocks = terraingen.RockLayer(terraingen.RockLayerOptions(exposure=exposure, bedrock_abundance=4.0))
+    ground = terraingen.Terrain(terraingen.FlatSource(64, 64, 0.5), [relief])
+    with pytest.raises(ValueError):
+        sand.cover_at(0.0, 0.0)
+    covers = [sand.cover_at(x, 0.0, ground, 1) for x in np.linspace(-15.0, 15.0, 31)]
+    assert all(0.0 <= c <= 1.0 for c in covers)
+    abundances = [rocks.abundance_at(x, 0.0, ground, 1)[0] for x in np.linspace(-15.0, 15.0, 31)]
+    assert min(abundances) < max(abundances) <= 4.0 + 1e-9

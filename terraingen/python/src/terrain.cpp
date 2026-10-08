@@ -505,8 +505,20 @@ void BindLayerBase(nb::module_& m) {
           "Martian transverse aeolian ridges.");
     nb::class_<BedformLayer, Layer>(m, "BedformLayer", "Aeolian bedforms.")
         .def(nb::init<BedformOptions, Surface>(), "options"_a, "surface"_a = Surface{})
-        .def("cover_at",
-             [](const BedformLayer& layer, double x, double y) { return layer.CoverAt(x, y); });
+        .def(
+            "cover_at",
+            [](const BedformLayer& layer, double x, double y, const PyTerrain* terrain,
+               std::size_t layers) {
+                if (terrain == nullptr) {
+                    return layer.CoverAt(x, y);
+                }
+                const Terrain built = terrain->Get();
+                const TerrainGround ground(built, layers);
+                return layer.CoverAt(x, y, &ground);
+            },
+            "x"_a, "y"_a, "terrain"_a = nb::none(), "layers"_a = 0,
+            "The share of (x, y) covered by bedforms; bedforms that read the exposure field need "
+            "the ground beneath them: `terrain`'s source and its first `layers` layers.");
 }
 
 void BindCraterLayers(nb::module_& m) {
@@ -885,11 +897,21 @@ void BindRockLayers(nb::module_& m) {
             "evaluating any heights or ground.")
         .def(
             "abundance_at",
-            [](const RockLayer& layer, double x, double y) {
-                const RockAbundance abundance = layer.AbundanceAt(x, y);
+            [](const RockLayer& layer, double x, double y, const PyTerrain* terrain,
+               std::size_t layers) {
+                RockAbundance abundance;
+                if (terrain == nullptr) {
+                    abundance = layer.AbundanceAt(x, y);
+                } else {
+                    const Terrain built = terrain->Get();
+                    const TerrainGround ground(built, layers);
+                    abundance = layer.AbundanceAt(x, y, &ground);
+                }
                 return std::pair{abundance.background, abundance.ejecta};
             },
-            "x"_a, "y"_a, "The rock abundance at (x, y): (background, ejecta).")
+            "x"_a, "y"_a, "terrain"_a = nb::none(), "layers"_a = 0,
+            "The rock abundance at (x, y): (background, ejecta). With the exposure field, give "
+            "the ground beneath the rocks: `terrain`'s source and its first `layers` layers.")
         .def_prop_ro("options", &RockLayer::Options);
 }
 
