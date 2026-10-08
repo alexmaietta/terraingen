@@ -23,7 +23,7 @@ assets/
 # Default output folders of the examples
 examples/**/output/
 /output/
-examples/config/*.tif
-examples/config/*.csv
-examples/config/*.glb
-examples/config/*.aux.xml
+examples/config/**/*.tif
+examples/config/**/*.csv
+examples/config/**/*.glb
+examples/config/**/*.aux.xml

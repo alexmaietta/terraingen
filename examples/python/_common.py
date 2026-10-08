@@ -13,6 +13,11 @@ import numpy as np
 CONFIG_DIR = pathlib.Path(__file__).resolve().parent.parent / "config"
 
 
+def config_path(name):
+    """The example config `name` (such as "example_craters_simple"), in its category's folder."""
+    return CONFIG_DIR / name.split("_")[1] / f"{name}.json"
+
+
 def output_dir():
     """The folder given as the first command-line argument, or ./output, created if needed."""
     path = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "output")

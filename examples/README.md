@@ -5,14 +5,18 @@ to craters on those terrains, to boulders, to albedo, and then through every cra
 and option: size-frequency distributions, age models, profiles, degradation, positioning and how
 craters are applied.
 
-- `config/`: JSON configs for the `terraingen` command: `terraingen examples/config/<file>.json`.
+Each form has a folder per category (`terrain`, `craters`, `distributions`, `ages`, `boulders`,
+`albedo`, `layers`, `config`), holding that category's examples.
+
+- `config/`: JSON configs for the `terraingen` command:
+  `terraingen examples/config/<category>/<file>.json`.
   Outputs are written next to the config, or to `--output-dir`.
 - `cpp/`: C++ programs that build the same terrains from library objects (sources, layers,
   crater and rock models, albedo). Built with the library when `TERRAINGEN_BUILD_EXAMPLES` is on;
   run as `build/bin/<name> [OUTPUT_DIR]`.
 - `python/`: Python scripts that build the terrains from the same objects in the `terraingen`
-  package: `python examples/python/<name>.py [OUTPUT_DIR]`. They need only NumPy, and write PNG
-  previews next to their outputs.
+  package: `python examples/python/<category>/<name>.py [OUTPUT_DIR]`. They need only NumPy, and
+  write PNG previews next to their outputs; `python/_common.py` holds their shared helpers.
 
 `example_config_load` (C++ and Python) is the one example that reads a JSON config; the others
 build everything in code. Outputs go to `./output` unless a folder is given.
