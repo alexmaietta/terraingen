@@ -10,8 +10,12 @@ NB_MODULE(_terraingen, m) {
     terraingen::python::BindKernels(m);
     terraingen::python::BindLog(m);
     terraingen::python::BindPipeline(m);
+    terraingen::python::BindGeometry(m);
     terraingen::python::BindModels(m);
     terraingen::python::BindTerrain(m);
+    terraingen::python::BindFeatures(m);
     terraingen::python::BindAlbedo(m);
+    terraingen::python::BindRasterIo(m);
     terraingen::python::BindRandom(m);
+    terraingen::python::BindGpu(m);
 }

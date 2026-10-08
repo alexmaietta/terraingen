@@ -14,6 +14,7 @@
 #include <nanobind/stl/optional.h>
 #include <nanobind/stl/vector.h>
 
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -266,6 +267,116 @@ void BindLayers(nb::module_& m) {
           "of `pixel_size` metres.");
 }
 
+using InputArray64 = nb::ndarray<const double, nb::device::cpu, nb::c_contig>;
+
+/// `fn(x, y, z)` at each point of three float64 arrays of one shape, as float32.
+template <typename Fn>
+OutputArray Evaluate3(const InputArray64& x, const InputArray64& y, const InputArray64& z, Fn fn) {
+    if (x.ndim() != y.ndim() || x.ndim() != z.ndim() || x.size() != y.size() ||
+        x.size() != z.size()) {
+        throw std::invalid_argument("x, y and z must have the same shape");
+    }
+    std::vector<std::size_t> shape(x.ndim());
+    for (std::size_t i = 0; i < x.ndim(); ++i) {
+        if (x.shape(i) != y.shape(i) || x.shape(i) != z.shape(i)) {
+            throw std::invalid_argument("x, y and z must have the same shape");
+        }
+        shape[i] = x.shape(i);
+    }
+    float* out = nullptr;
+    OutputArray result = NewArray(shape, x.size(), out);
+    {
+        nb::gil_scoped_release release;
+        for (std::size_t i = 0; i < x.size(); ++i) {
+            out[i] = fn(x.data()[i], y.data()[i], z.data()[i]);
+        }
+    }
+    return result;
+}
+
+void BindNoise3(nb::module_& m) {
+    m.def(
+        "perlin_noise3",
+        [](const InputArray64& x, const InputArray64& y, const InputArray64& z,
+           std::uint32_t seed) {
+            return Evaluate3(x, y, z, [seed](double px, double py, double pz) {
+                return PerlinNoise3Precise(px, py, pz, seed);
+            });
+        },
+        "x"_a, "y"_a, "z"_a, "seed"_a,
+        "3D improved Perlin noise in [-1, 1] at each point, in lattice units; the cell is found in "
+        "double precision, so it stays exact far from the origin.");
+    m.def(
+        "perlin_noise3",
+        [](double x, double y, double z, std::uint32_t seed) {
+            return PerlinNoise3Precise(x, y, z, seed);
+        },
+        "x"_a, "y"_a, "z"_a, "seed"_a);
+    m.def(
+        "value_noise3",
+        [](double x, double y, double z, std::uint32_t seed) {
+            const double cx = std::floor(x);
+            const double cy = std::floor(y);
+            const double cz = std::floor(z);
+            return ValueNoise3(static_cast<std::int32_t>(cx), static_cast<std::int32_t>(cy),
+                               static_cast<std::int32_t>(cz), static_cast<float>(x - cx),
+                               static_cast<float>(y - cy), static_cast<float>(z - cz), seed);
+        },
+        "x"_a, "y"_a, "z"_a, "seed"_a, "3D value noise in [-1, 1], in lattice units.");
+    m.def("has_basis_noise3", &HasBasisNoise3, "basis"_a,
+          "Whether `basis` has a 3D form (Perlin and value noise).");
+    m.def(
+        "basis_noise3", &BasisNoise3, "basis"_a, "ix"_a, "iy"_a, "iz"_a, "fx"_a, "fy"_a, "fz"_a,
+        "seed"_a,
+        "One octave of 3D `basis` noise at lattice cell (ix, iy, iz) plus fraction (fx, fy, fz).");
+    m.def(
+        "fractal3",
+        [](const InputArray64& x, const InputArray64& y, const InputArray64& z,
+           const FractalParams& params) {
+            ValidateFractalParams(params);
+            return Evaluate3(x, y, z, [&params](double px, double py, double pz) {
+                return Fractal3(px, py, pz, params);
+            });
+        },
+        "x"_a, "y"_a, "z"_a, "params"_a,
+        "Fractal height in metres at each 3D world position (m), as noise on a sphere uses it.");
+    m.def(
+        "fractal3",
+        [](double x, double y, double z, const FractalParams& params) {
+            ValidateFractalParams(params);
+            return Fractal3(x, y, z, params);
+        },
+        "x"_a, "y"_a, "z"_a, "params"_a);
+    m.def(
+        "evaluate_noise_layers3",
+        [](const InputArray64& x, const InputArray64& y, const InputArray64& z,
+           const SyntheticTerrainParams& params) {
+            ValidateSyntheticTerrain(params);
+            return Evaluate3(x, y, z, [&params](double px, double py, double pz) {
+                return EvaluateNoiseLayers3(px, py, pz, params.layers.data(), params.layers.size());
+            });
+        },
+        "x"_a, "y"_a, "z"_a, "params"_a,
+        "Height in metres of the layer stack at each 3D world position (m).");
+    m.def(
+        "evaluate_noise_layer",
+        [](float x, float y, const NoiseLayer& layer) {
+            ValidateNoiseLayer(layer);
+            return EvaluateNoiseLayer(x, y, layer);
+        },
+        "x"_a, "y"_a, "layer"_a,
+        "The normalized value in [-1, 1] of one layer at world position (x, y), before amplitude "
+        "and blending.");
+    m.def(
+        "domain_warp2",
+        [](float x, float y, const NoiseLayer& layer) {
+            const WarpOffset2 offset = DomainWarp2(x, y, layer);
+            return nb::make_tuple(offset.dx, offset.dy);
+        },
+        "x"_a, "y"_a, "layer"_a,
+        "The domain warp offset (dx, dy) in metres a layer applies at world position (x, y).");
+}
+
 }  // namespace
 
 void BindKernels(nb::module_& m) {
@@ -274,6 +385,7 @@ void BindKernels(nb::module_& m) {
     BindEnums(m);
     BindFractal(m);
     BindLayers(m);
+    BindNoise3(m);
 }
 
 }  // namespace terraingen::python

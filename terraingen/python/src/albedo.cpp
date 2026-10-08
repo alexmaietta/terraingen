@@ -1,4 +1,5 @@
 #include "bindings.h"
+#include "objects.h"
 #include "options.h"
 
 #include "terraingen/terraingen.h"
@@ -8,6 +9,7 @@
 #include <nanobind/stl/optional.h>
 #include <nanobind/stl/pair.h>
 #include <nanobind/stl/shared_ptr.h>
+#include <nanobind/stl/tuple.h>
 #include <nanobind/stl/vector.h>
 #include <nanobind/trampoline.h>
 
@@ -72,21 +74,6 @@ class PyAlbedoLayer : public AlbedoLayer {
             current.append(value[band]);
         }
         value = ToSample(nb_trampoline.base().attr(ticket.key)(current, bands, x, y, context));
-    }
-};
-
-/// An albedo as Python builds it, with mutable parts as for `Terrain`.
-struct PyAlbedo {
-    std::shared_ptr<AlbedoSource> source;
-    std::vector<std::shared_ptr<AlbedoLayer>> layers;
-    Surface surface{};
-
-    Albedo Get() const {
-        Albedo albedo;
-        albedo.source = source;
-        albedo.layers.assign(layers.begin(), layers.end());
-        albedo.surface = surface;
-        return albedo;
     }
 };
 
@@ -261,7 +248,19 @@ void BindAlbedo(nb::module_& m) {
                CraterAlbedoOptions options) {
                 new (self) CraterAlbedo(std::move(craters), std::move(options));
             },
-            "craters"_a, "options"_a = CraterAlbedoOptions{});
+            "craters"_a, "options"_a = CraterAlbedoOptions{})
+        .def("excess", &CraterAlbedo::Excess, "crater"_a, "x"_a, "y"_a, "spacing"_a,
+             "The excess optical maturity `crater` gives (x, y).")
+        .def("impact", &CraterAlbedo::Impact, "crater"_a,
+             "The impact `crater` came from, drawn from its ID.")
+        .def("reach", &CraterAlbedo::Reach, "crater"_a,
+             "How far (m) from its centre `crater` can brighten the ground.");
+    nb::class_<CraterImpact>(m, "CraterImpact",
+                             "An impact: its angle from the horizontal, downrange heading and "
+                             "downrange-to-uprange ejection speed ratio.")
+        .def_ro("angle_degrees", &CraterImpact::angleDegrees)
+        .def_ro("heading", &CraterImpact::heading, "Radians counter-clockwise from east.")
+        .def_ro("speed_ratio", &CraterImpact::speedRatio);
 
     nb::class_<PyAlbedo>(m, "Albedo", "An albedo: `source`, changed by each of `layers` in order.")
         .def(
@@ -277,6 +276,39 @@ void BindAlbedo(nb::module_& m) {
         .def_rw("layers", &PyAlbedo::layers);
 
     m.def(
+        "evaluate_albedo_at",
+        [](const PyAlbedo& albedo, double x, double y, double spacing) {
+            const AlbedoSample sample =
+                EvaluateAlbedoAt(albedo.Get(), x, y, AlbedoContext{spacing, 1});
+            const std::size_t bands = albedo.source ? albedo.source->Bands() : 1;
+            return std::vector<float>(sample.begin(), sample.begin() + static_cast<long>(bands));
+        },
+        "albedo"_a, "x"_a, "y"_a, "spacing"_a,
+        "The albedo's bands at (x, y) sampled every `spacing` metres, equal to the grid cell "
+        "centred there.");
+    auto origin = nb::class_<OpticalMaturityOrigin>(
+        m, "OpticalMaturityOrigin",
+        "The origin of Lucey et al.'s optical maturity: the reflectance at 750 nm and the 950/750 "
+        "ratio that fully immature material tends to.");
+    BindKwargsInit<OpticalMaturityOrigin>(origin);
+    origin.def_rw("reflectance", &OpticalMaturityOrigin::reflectance)
+        .def_rw("ratio", &OpticalMaturityOrigin::ratio);
+    m.def("optical_maturity", &OpticalMaturity, "r750"_a, "r950"_a,
+          "origin"_a = OpticalMaturityOrigin{},
+          "Lucey et al.'s (2000) optical maturity of reflectances at 750 and 950 nm.");
+    m.def("reflectance_at_maturity", &ReflectanceAtMaturity, "reflectance"_a, "reference"_a,
+          "maturity"_a, "origin_reflectance"_a = OpticalMaturityOrigin{}.reflectance,
+          "The reflectance of material at `maturity`, from `reflectance` at the `reference` "
+          "maturity.");
+    m.def(
+        "hsv_to_rgb",
+        [](double hue, double saturation, double value) {
+            const AlbedoSample rgb = HsvToRgb(hue, saturation, value);
+            return std::tuple{rgb[0], rgb[1], rgb[2]};
+        },
+        "hue"_a, "saturation"_a, "value"_a, "A colour's (red, green, blue), hue in degrees.");
+
+    m.def(
         "evaluate_albedo",
         [](const PyAlbedo& albedo, const RasterGrid& grid, double spacing, unsigned threads) {
             return EvaluateAlbedo(albedo.Get(), grid, AlbedoContext{spacing, threads});
@@ -285,27 +317,6 @@ void BindAlbedo(nb::module_& m) {
         nb::call_guard<nb::gil_scoped_release>(),
         "The albedo's bands over `grid` (such as `RasterGrid.of(heights)` or a source's "
         "`grid()`), sampled every `spacing` metres (0 for the grid's), one Raster per band.");
-
-    m.def(
-        "write_geotiff",
-        [](const std::filesystem::path& path, const std::vector<const Raster<float>*>& bands) {
-            WriteGeoTiff(path, bands);
-        },
-        "path"_a, "bands"_a, "Writes one or more rasters as the bands of a float32 GeoTIFF.");
-    m.def(
-        "write_geotiff",
-        [](const std::filesystem::path& path, const Raster<float>& raster) {
-            WriteGeoTiff(path, raster);
-        },
-        "path"_a, "raster"_a);
-    m.def(
-        "read_geotiff",
-        [](const std::filesystem::path& path, std::size_t band) {
-            return ReadGeoTiff(path, band).raster;
-        },
-        "path"_a, "band"_a = 0,
-        "Reads band `band` (from 0) of a GeoTIFF as a Raster with the file's transform and no-data "
-        "value.");
 }
 
 }  // namespace terraingen::python

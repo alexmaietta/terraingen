@@ -1,4 +1,5 @@
 #include "bindings.h"
+#include "objects.h"
 #include "tables.h"
 
 #include "terraingen/pipeline/config_json.h"
@@ -87,6 +88,17 @@ void BindPipeline(nb::module_& m) {
             "expected crater counts); relative input paths resolve against `directory`. Raises "
             "ConfigError naming the first invalid value.")
         .def("__eq__", [](const TerrainConfig& a, const TerrainConfig& b) { return a == b; })
+        .def_prop_ro(
+            "surface", [](const TerrainConfig& config) { return BuildSurface(config.surface); },
+            "The Surface the configuration's terrain lies on.")
+        .def(
+            "grid",
+            [](const TerrainConfig& config, const std::optional<std::filesystem::path>& directory) {
+                return DescribeSource(config.source, Directory(directory),
+                                      BuildSurface(config.surface));
+            },
+            "directory"_a = nb::none(),
+            "The grid the configuration's source covers, reading only a raster source's header.")
         .def("__repr__", [](const TerrainConfig& config) {
             return "Config(" + std::to_string(config.layers.size()) + " layers, " +
                    std::to_string(config.filters.size()) + " filters, " +
@@ -148,6 +160,24 @@ void BindPipeline(nb::module_& m) {
         "Generates the terrain `config` describes over its source's grid on up to `threads` "
         "threads (0 for every hardware thread; the result does not depend on it). Relative input "
         "paths resolve against `directory`. Raises ConfigError for an invalid configuration.");
+
+    m.def(
+        "build_terrain",
+        [](const TerrainConfig& config, const std::optional<std::filesystem::path>& directory) {
+            return FromTerrain(BuildTerrain(config, Directory(directory)));
+        },
+        "config"_a, "directory"_a = nb::none(),
+        "The Terrain a configuration describes, as library objects to evaluate, tile, query at "
+        "points or change; relative input paths resolve against `directory`.");
+    m.def(
+        "build_albedo",
+        [](const TerrainConfig& config, const PyTerrain& terrain,
+           const std::optional<std::filesystem::path>& directory) {
+            return FromAlbedo(BuildAlbedo(config, terrain.Get(), Directory(directory)));
+        },
+        "config"_a, "terrain"_a, "directory"_a = nb::none(),
+        "The Albedo a configuration describes for `terrain`, built from the same configuration "
+        "by `build_terrain`.");
 
     m.def(
         "write_outputs",

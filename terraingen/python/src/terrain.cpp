@@ -1,4 +1,5 @@
 #include "bindings.h"
+#include "objects.h"
 #include "options.h"
 #include "tables.h"
 
@@ -157,40 +158,6 @@ class PyFilter : public Filter {
     }
 };
 
-/// A terrain as Python builds it: the parts are held as mutable pointers so they can be passed
-/// back to Python, and converted to a `Terrain` for evaluation.
-struct PyTerrain {
-    std::shared_ptr<Source> source;
-    std::vector<std::shared_ptr<Layer>> layers;
-    std::vector<std::shared_ptr<Filter>> filters;
-    Surface surface{};
-
-    Terrain Get() const {
-        Terrain terrain;
-        terrain.source = source;
-        terrain.layers.assign(layers.begin(), layers.end());
-        terrain.filters.assign(filters.begin(), filters.end());
-        terrain.surface = surface;
-        return terrain;
-    }
-};
-
-/// A mesh's positions and triangles as NumPy arrays of shape (n, 3).
-nb::tuple MeshArrays(const TriangleMesh& mesh) {
-    std::vector<double> positions;
-    for (const Vec3d& p : mesh.positions) {
-        positions.insert(positions.end(), {p.x, p.y, p.z});
-    }
-    std::vector<std::uint32_t> triangles;
-    for (const auto& t : mesh.triangles) {
-        triangles.insert(triangles.end(), t.begin(), t.end());
-    }
-    const nb::object flatPositions = Column(std::move(positions));
-    const nb::object flatTriangles = Column(std::move(triangles));
-    return nb::make_tuple(flatPositions.attr("reshape")(-1, 3),
-                          flatTriangles.attr("reshape")(-1, 3));
-}
-
 Vec2d ToVec(const std::pair<double, double>& p) {
     return {p.first, p.second};
 }
@@ -256,7 +223,44 @@ void BindSurface(nb::module_& m) {
                     surface.Locate({centre.first, centre.second}, {offset.first, offset.second});
                 return std::pair{p.x, p.y};
             },
-            "centre"_a, "offset"_a, "The point (east, north) metres from `centre`.");
+            "centre"_a, "offset"_a, "The point (east, north) metres from `centre`.")
+        .def(
+            "frame",
+            [](const Surface& surface, std::pair<double, double> point) {
+                Vec3d east;
+                Vec3d north;
+                Vec3d up;
+                surface.Frame({point.first, point.second}, east, north, up);
+                const auto v = [](const Vec3d& d) { return std::tuple{d.x, d.y, d.z}; };
+                return std::tuple{v(east), v(north), v(up)};
+            },
+            "point"_a, "The (east, north, up) unit vectors at a point.")
+        .def(
+            "point_of",
+            [](const Surface& surface, std::tuple<double, double, double> direction) {
+                const Vec2d p = surface.PointOf(
+                    {std::get<0>(direction), std::get<1>(direction), std::get<2>(direction)});
+                return std::pair{p.x, p.y};
+            },
+            "direction"_a, "The surface point of a direction from the sphere's centre.")
+        .def(
+            "expand",
+            [](const Surface& surface, std::tuple<double, double, double, double> region,
+               double metres) {
+                const Bounds2d b = surface.Expand(BoundsOf(region), metres);
+                return std::tuple{b.minX, b.minY, b.maxX, b.maxY};
+            },
+            "region"_a, "metres"_a, "A box holding every point within `metres` of `region`.")
+        .def(
+            "contains",
+            [](const Surface& surface, std::tuple<double, double, double, double> region,
+               std::pair<double, double> point) {
+                return surface.Contains(BoundsOf(region), {point.first, point.second});
+            },
+            "region"_a, "point"_a,
+            "Whether `region` holds `point`, across the antimeridian and at the poles on a "
+            "sphere.")
+        .def("__eq__", [](const Surface& a, const Surface& b) { return a == b; });
     nb::enum_<Body>(m, "Body", "Bodies with a radius preset.")
         .value("MOON", Body::Moon)
         .value("MARS", Body::Mars)
@@ -292,10 +296,19 @@ void BindGridAndContext(nb::module_& m) {
         .def_rw("width", &RasterGrid::width)
         .def_rw("height", &RasterGrid::height)
         .def_rw("transform", &RasterGrid::transform)
-        .def_prop_ro("bounds", [](const RasterGrid& grid) {
-            const Bounds2d b = grid.Bounds();
-            return std::tuple{b.minX, b.minY, b.maxX, b.maxY};
-        });
+        .def_prop_ro("bounds",
+                     [](const RasterGrid& grid) {
+                         const Bounds2d b = grid.Bounds();
+                         return std::tuple{b.minX, b.minY, b.maxX, b.maxY};
+                     })
+        .def_prop_ro("area", &RasterGrid::Area, "Area in square world units.")
+        .def_prop_ro("pixel_size", &RasterGrid::PixelSize, "Cell size in world units.")
+        .def("surface_area", &RasterGrid::SurfaceArea, "surface"_a,
+             "The area the grid covers on `surface`, in square metres.")
+        .def("spacing", &RasterGrid::Spacing, "surface"_a,
+             "The sample spacing in metres on `surface`.")
+        .def("make_raster", &RasterGrid::MakeRaster, "fill"_a = 0.0f,
+             "A raster on this grid filled with `fill`.");
 
     nb::class_<LayerContext>(m, "LayerContext",
                              "How a layer is evaluated: the sample spacing (m) and threads.")
@@ -450,7 +463,9 @@ void BindLayerBase(nb::module_& m) {
             },
             "layer"_a, "shape"_a, "feather"_a = 0.0, "blend"_a = BlendShape::Smoothstep,
             "surface"_a = Surface{})
-        .def("weight", &RegionLayer::Weight, "x"_a, "y"_a);
+        .def("weight", &RegionLayer::Weight, "x"_a, "y"_a)
+        .def_prop_ro("inner", &RegionLayer::Inner, nb::rv_policy::reference_internal,
+                     "The layer applied inside the region.");
 
     auto roughness = nb::class_<RoughnessOptions>(
         m, "RoughnessOptions",
@@ -467,7 +482,9 @@ void BindLayerBase(nb::module_& m) {
     nb::class_<RoughnessLayer, Layer>(m, "RoughnessLayer", "Fine roughness of a given RMS slope.")
         .def(nb::init<RoughnessOptions, Surface>(), "options"_a = RoughnessOptions{},
              "surface"_a = Surface{})
-        .def("rms_slope", &RoughnessLayer::RmsSlope, "baseline"_a);
+        .def("rms_slope", &RoughnessLayer::RmsSlope, "baseline"_a)
+        .def("wavelengths", &RoughnessLayer::Wavelengths,
+             "The wavelengths (m) of the roughness octaves.");
 
     auto exposure = nb::class_<ExposureParams>(
         m, "ExposureParams",
@@ -912,6 +929,19 @@ void BindRockLayers(nb::module_& m) {
             "x"_a, "y"_a, "terrain"_a = nb::none(), "layers"_a = 0,
             "The rock abundance at (x, y): (background, ejecta). With the exposure field, give "
             "the ground beneath the rocks: `terrain`'s source and its first `layers` layers.")
+        .def(
+            "density_at",
+            [](const RockLayer& layer, double diameter, double x, double y,
+               const PyTerrain* terrain, std::size_t layers) {
+                if (terrain == nullptr) {
+                    return layer.DensityAt(diameter, x, y);
+                }
+                const Terrain built = terrain->Get();
+                const TerrainGround ground(built, layers);
+                return layer.DensityAt(diameter, x, y, &ground);
+            },
+            "diameter"_a, "x"_a, "y"_a, "terrain"_a = nb::none(), "layers"_a = 0,
+            "Rocks at least `diameter` across per square metre at (x, y).")
         .def_prop_ro("options", &RockLayer::Options);
 }
 
@@ -987,6 +1017,15 @@ void BindEvaluation(nb::module_& m) {
             "boulder_count",
             [](const EvaluatedTerrain& terrain) { return terrain.features.boulders.size(); },
             "How many rocks were placed as 3D boulder models.")
+        .def_prop_ro(
+            "boulders", [](const EvaluatedTerrain& terrain) { return terrain.features.boulders; },
+            "The rocks placed as 3D models, with their shapes and placements.")
+        .def_prop_ro(
+            "rock_list", [](const EvaluatedTerrain& terrain) { return terrain.features.rocks; },
+            "The rocks placed, as Rock objects.")
+        .def_prop_ro(
+            "crater_list", [](const EvaluatedTerrain& terrain) { return terrain.features.craters; },
+            "The craters applied, as a CraterList.")
         .def(
             "write_crater_list",
             [](const EvaluatedTerrain& terrain, const std::filesystem::path& path) {
@@ -1076,6 +1115,8 @@ void BindEvaluation(nb::module_& m) {
                     "A longitude-latitude pyramid over a whole sphere.")
         .def_static("body_tiles", &TileScheme::BodyTiles, "level"_a,
                     "Every tile of a level of a whole-body scheme.")
+        .def_static("wrap_body_tile", &TileScheme::WrapBodyTile, "key"_a,
+                    "The whole-body tile a neighbour across the antimeridian is.")
         .def_prop_ro("origin",
                      [](const TileScheme& s) { return std::pair{s.origin.x, s.origin.y}; })
         .def_ro("root_size", &TileScheme::rootSize)
@@ -1105,25 +1146,14 @@ void BindEvaluation(nb::module_& m) {
         "terrain"_a, "scheme"_a, "keys"_a, "threads"_a = 0,
         nb::call_guard<nb::gil_scoped_release>(),
         "`evaluate_tile` for each of `keys`, split over threads.");
+    m.def(
+        "filter_margin",
+        [](const PyTerrain& terrain, double spacing) {
+            return FilterMargin(terrain.Get(), spacing);
+        },
+        "terrain"_a, "spacing"_a,
+        "How far (m) the terrain's filters read around a grid evaluated at `spacing`.");
 
-    nb::class_<TriangleMesh>(m, "TriangleMesh", "A triangle mesh in metres.")
-        .def_prop_ro("arrays", &MeshArrays,
-                     "(positions, triangles) as NumPy arrays of shape (n, 3).")
-        .def_prop_ro("vertex_count", [](const TriangleMesh& mesh) { return mesh.positions.size(); })
-        .def_prop_ro("triangle_count",
-                     [](const TriangleMesh& mesh) { return mesh.triangles.size(); })
-        .def(
-            "write_ply",
-            [](const TriangleMesh& mesh, const std::filesystem::path& path) {
-                WritePly(path, mesh);
-            },
-            "path"_a)
-        .def(
-            "write_glb",
-            [](const TriangleMesh& mesh, const std::filesystem::path& path) {
-                WriteGlb(path, mesh);
-            },
-            "path"_a);
     m.def(
         "body_mesh",
         [](const PyTerrain& terrain, std::size_t cellsPerFace, double spacing, unsigned threads) {

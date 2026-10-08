@@ -175,6 +175,11 @@ void BindDistributions(nb::module_& m) {
             "max_diameter"_a = kInfinity)
         .def_prop_ro("coefficient", &PowerLawSfd::Coefficient)
         .def_prop_ro("exponent", &PowerLawSfd::Exponent);
+    nb::class_<PowerLawSegment>(m, "PowerLawSegment",
+                                "One piece of a piecewise power law, from `start` metres.")
+        .def_ro("start", &PowerLawSegment::start)
+        .def_ro("coefficient", &PowerLawSegment::coefficient)
+        .def_ro("exponent", &PowerLawSegment::exponent);
     m.def("power_law_coefficient_from_kilometres", &PowerLawCoefficientFromKilometres,
           "coefficient"_a, "exponent"_a,
           "The coefficient per square metre, D in metres, of a power law given per square "
@@ -197,7 +202,8 @@ void BindDistributions(nb::module_& m) {
                                                 allowDiscontinuities);
             },
             "segments"_a, "kind"_a = SfdKind::Density, "min_diameter"_a = 0.0,
-            "max_diameter"_a = kInfinity, "allow_discontinuities"_a = false);
+            "max_diameter"_a = kInfinity, "allow_discontinuities"_a = false)
+        .def_prop_ro("segments", &PiecewisePowerLawSfd::Segments);
 
     nb::class_<TabulatedSfd, SizeFrequencyDistribution>(
         m, "TabulatedSfd",
@@ -206,7 +212,10 @@ void BindDistributions(nb::module_& m) {
         "km^2).")
         .def(nb::init<std::vector<double>, std::vector<double>, SfdKind, double, double>(),
              "diameters"_a, "cumulative"_a, "kind"_a = SfdKind::Density, "diameter_unit"_a = 1.0,
-             "area_unit"_a = 1.0);
+             "area_unit"_a = 1.0)
+        .def_prop_ro("diameters", &TabulatedSfd::Diameters, "Diameters in metres.")
+        .def_prop_ro("cumulative_values", &TabulatedSfd::CumulativeValues,
+                     "N(>= D) per square metre at each diameter.");
 
     nb::class_<LogPolynomialSfd, SizeFrequencyDistribution>(
         m, "LogPolynomialSfd",
@@ -220,7 +229,8 @@ void BindDistributions(nb::module_& m) {
                                             kind, diameterUnit, areaUnit);
             },
             "coefficients"_a, "min_diameter"_a, "max_diameter"_a, "kind"_a = SfdKind::Density,
-            "diameter_unit"_a = 1.0, "area_unit"_a = 1.0);
+            "diameter_unit"_a = 1.0, "area_unit"_a = 1.0)
+        .def_prop_ro("coefficients", &LogPolynomialSfd::Coefficients);
 
     nb::class_<SummedSfd, SizeFrequencyDistribution>(
         m, "SummedSfd", "A weighted sum of distributions: `terms` are (weight, distribution).")
@@ -235,7 +245,15 @@ void BindDistributions(nb::module_& m) {
                 }
                 new (self) SummedSfd(std::move(weighted));
             },
-            "terms"_a);
+            "terms"_a)
+        .def_prop_ro("terms", [](const SummedSfd& sfd) {
+            std::vector<std::pair<double, std::shared_ptr<SizeFrequencyDistribution>>> terms;
+            for (const WeightedSfd& term : sfd.Terms()) {
+                terms.emplace_back(term.weight, std::const_pointer_cast<SizeFrequencyDistribution>(
+                                                    term.distribution));
+            }
+            return terms;
+        });
 
     nb::class_<MinimumSfd, SizeFrequencyDistribution>(
         m, "MinimumSfd",
@@ -247,7 +265,14 @@ void BindDistributions(nb::module_& m) {
                const std::vector<std::shared_ptr<SizeFrequencyDistribution>>& distributions) {
                 new (self) MinimumSfd({distributions.begin(), distributions.end()});
             },
-            "distributions"_a);
+            "distributions"_a)
+        .def_prop_ro("distributions", [](const MinimumSfd& sfd) {
+            std::vector<std::shared_ptr<SizeFrequencyDistribution>> parts;
+            for (const auto& part : sfd.Distributions()) {
+                parts.push_back(std::const_pointer_cast<SizeFrequencyDistribution>(part));
+            }
+            return parts;
+        });
 
     nb::class_<SplicedSfd, SizeFrequencyDistribution>(
         m, "SplicedSfd",
@@ -265,7 +290,15 @@ void BindDistributions(nb::module_& m) {
                 }
                 new (self) SplicedSfd(std::move(spliced), {minDiameter, maxDiameter});
             },
-            "pieces"_a, "min_diameter"_a, "max_diameter"_a);
+            "pieces"_a, "min_diameter"_a, "max_diameter"_a)
+        .def_prop_ro("pieces", [](const SplicedSfd& sfd) {
+            std::vector<std::pair<double, std::shared_ptr<SizeFrequencyDistribution>>> pieces;
+            for (const SfdPiece& piece : sfd.Pieces()) {
+                pieces.emplace_back(piece.start, std::const_pointer_cast<SizeFrequencyDistribution>(
+                                                     piece.distribution));
+            }
+            return pieces;
+        });
 
     nb::class_<GolombekRappSfd, SizeFrequencyDistribution>(
         m, "GolombekRappSfd",
@@ -330,7 +363,16 @@ void BindDistributions(nb::module_& m) {
                                       chronology.value_or(Chronology(NeukumLunarChronology)));
             },
             "production"_a, "age_gyr"_a, "chronology"_a = nb::none())
-        .def_prop_ro("age_gyr", &ProductionSurface::AgeGyr);
+        .def_prop_ro("age_gyr", &ProductionSurface::AgeGyr)
+        .def_prop_ro("production", &ProductionSurface::Production,
+                     nb::rv_policy::reference_internal,
+                     "The production function scaled to the surface.");
+    m.def("neukum_lunar_chronology_rate", &NeukumLunarChronologyRate, "age_gyr"_a,
+          "dN1/dT of Neukum's lunar chronology, per square metre per Gyr.");
+    m.def("ivanov_mars_chronology_rate", &IvanovMarsChronologyRate, "age_gyr"_a,
+          "dN1/dT of Ivanov's Martian chronology, per square metre per Gyr.");
+    m.def("exponential_integral", &ExponentialIntegral, "n"_a, "x"_a,
+          "The generalized exponential integral E_n(x), as Golombek and Rapp's model uses.");
 
     nb::enum_<RockModelCurve>(m, "RockModelCurve", "Which SP-8023 rock curve.")
         .value("MINIMUM", RockModelCurve::Minimum)
@@ -442,6 +484,10 @@ void BindDegradation(nb::module_& m) {
         .def_rw("diffusion", &CraterState::diffusion);
     m.def("lunar_fresh_crater_morphometry", &LunarFreshCraterMorphometry, "diameter"_a,
           "A fresh lunar crater's depth and rim height ratios.");
+    m.def("lunar_fresh_crater_depth_ratio", &LunarFreshCraterDepthRatio, "diameter"_a,
+          "A fresh lunar crater's depth over diameter.");
+    m.def("fassett_thomson_2014_diffusion_age", &FassettThomson2014DiffusionAge, "age_gyr"_a,
+          "Fassett and Thomson's (2014) effective diffusion age for a crater `age_gyr` old.");
     m.def("mars_fresh_crater_morphometry", &MarsFreshCraterMorphometry, "diameter"_a,
           "A fresh Martian crater's depth and rim height ratios.");
 
