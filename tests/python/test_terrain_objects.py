@@ -118,7 +118,7 @@ def test_albedo_with_crater_rays_and_geotiffs(tmp_path):
     terrain = terraingen.Terrain(terraingen.FlatSource(129, 129, 8.0), [craters])
     variation = terraingen.NoiseLayer(terraingen.FractalParams(seed=4, wavelength=800.0, amplitude=0.02, octaves=3))
     plain = terraingen.Albedo(terraingen.SyntheticAlbedo(value=0.11, value_noise=[variation]))
-    bright = terraingen.Albedo(plain.source, [terraingen.CraterAlbedo(craters, rays=True)])
+    bright = terraingen.Albedo(plain.source, [terraingen.CraterAlbedo(craters, terraingen.CraterAlbedoOptions(rays=terraingen.CraterRays(enabled=True)))])
     base = terraingen.evaluate_albedo(plain, terrain.source.grid())[0].values
     rayed = terraingen.evaluate_albedo(bright, terrain.source.grid(), threads=2)[0].values
     assert base.shape == (129, 129) and abs(base.mean() - 0.11) < 0.01

@@ -4,6 +4,7 @@
 
 #include "terraingen/terraingen.h"
 
+#include <nanobind/operators.h>
 #include <nanobind/stl/filesystem.h>
 #include <nanobind/stl/optional.h>
 #include <nanobind/stl/pair.h>
@@ -162,15 +163,33 @@ struct PyTerrain {
     std::shared_ptr<Source> source;
     std::vector<std::shared_ptr<Layer>> layers;
     std::vector<std::shared_ptr<Filter>> filters;
+    Surface surface{};
 
     Terrain Get() const {
         Terrain terrain;
         terrain.source = source;
         terrain.layers.assign(layers.begin(), layers.end());
         terrain.filters.assign(filters.begin(), filters.end());
+        terrain.surface = surface;
         return terrain;
     }
 };
+
+/// A mesh's positions and triangles as NumPy arrays of shape (n, 3).
+nb::tuple MeshArrays(const TriangleMesh& mesh) {
+    std::vector<double> positions;
+    for (const Vec3d& p : mesh.positions) {
+        positions.insert(positions.end(), {p.x, p.y, p.z});
+    }
+    std::vector<std::uint32_t> triangles;
+    for (const auto& t : mesh.triangles) {
+        triangles.insert(triangles.end(), t.begin(), t.end());
+    }
+    const nb::object flatPositions = Column(std::move(positions));
+    const nb::object flatTriangles = Column(std::move(triangles));
+    return nb::make_tuple(flatPositions.attr("reshape")(-1, 3),
+                          flatTriangles.attr("reshape")(-1, 3));
+}
 
 Vec2d ToVec(const std::pair<double, double>& p) {
     return {p.first, p.second};
@@ -191,6 +210,60 @@ std::vector<Crater> FromCraterList(const CraterList& list) {
         craters.push_back(list.At(i));
     }
     return craters;
+}
+
+void BindSurface(nb::module_& m) {
+    nb::class_<Surface>(m, "Surface",
+                        "What a terrain lies on: a plane, with coordinates in metres, or a sphere, "
+                        "with coordinates in degrees of longitude and latitude and lengths in "
+                        "metres.")
+        .def(nb::init<>(), "A plane.")
+        .def_static("plane", &Surface::Plane)
+        .def_static("sphere", &Surface::Sphere, "radius"_a, "A sphere of `radius` metres.")
+        .def_prop_ro("is_sphere", &Surface::IsSphere)
+        .def_prop_ro("radius", &Surface::Radius)
+        .def_prop_ro("unit_length", &Surface::UnitLength,
+                     "Metres per coordinate unit: 1 on a plane, metres per degree along a "
+                     "meridian on a sphere.")
+        .def(
+            "distance",
+            [](const Surface& surface, std::pair<double, double> a, std::pair<double, double> b) {
+                return surface.Distance({a.first, a.second}, {b.first, b.second});
+            },
+            "a"_a, "b"_a, "The distance in metres between two points, great-circle on a sphere.")
+        .def(
+            "position",
+            [](const Surface& surface, std::pair<double, double> point) {
+                const Vec3d p = surface.Position({point.first, point.second});
+                return std::tuple{p.x, p.y, p.z};
+            },
+            "point"_a, "The 3D position (m) of a point; on a sphere, body-fixed with z north.")
+        .def(
+            "offset",
+            [](const Surface& surface, std::pair<double, double> centre,
+               std::pair<double, double> point) {
+                const Vec2d o =
+                    surface.Offset({centre.first, centre.second}, {point.first, point.second});
+                return std::pair{o.x, o.y};
+            },
+            "centre"_a, "point"_a,
+            "`point` as (east, north) metres from `centre` (azimuthal equidistant on a sphere).")
+        .def(
+            "locate",
+            [](const Surface& surface, std::pair<double, double> centre,
+               std::pair<double, double> offset) {
+                const Vec2d p =
+                    surface.Locate({centre.first, centre.second}, {offset.first, offset.second});
+                return std::pair{p.x, p.y};
+            },
+            "centre"_a, "offset"_a, "The point (east, north) metres from `centre`.");
+    nb::enum_<Body>(m, "Body", "Bodies with a radius preset.")
+        .value("MOON", Body::Moon)
+        .value("MARS", Body::Mars)
+        .value("MERCURY", Body::Mercury);
+    m.def("mean_radius", &MeanRadius, "body"_a,
+          "The body's volumetric mean radius in metres (NASA planetary fact sheets).");
+    m.def("body_sphere", &BodySphere, "body"_a, "The sphere of the body's mean radius.");
 }
 
 void BindGridAndContext(nb::module_& m) {
@@ -261,12 +334,19 @@ void BindSources(nb::module_& m) {
         .def(
             "__init__",
             [](FlatSource* self, std::size_t width, std::size_t height, double pixelSize,
-               float elevation, std::pair<double, double> centre) {
-                new (self) FlatSource(width, height, pixelSize, elevation, ToVec(centre));
+               float elevation, std::pair<double, double> centre, const Surface& surface) {
+                new (self) FlatSource(width, height, pixelSize / surface.UnitLength(), elevation,
+                                      ToVec(centre));
             },
             "width"_a, "height"_a, "pixel_size"_a, "elevation"_a = 0.0f,
-            "centre"_a = std::pair{0.0, 0.0});
+            "centre"_a = std::pair{0.0, 0.0}, "surface"_a = Surface{},
+            "On a sphere `centre` is (longitude, latitude) in degrees and `pixel_size` stays in "
+            "metres, converted to degrees along a meridian.");
 
+    nb::enum_<ResampleMethod>(m, "ResampleMethod", "How a raster is interpolated.")
+        .value("NEAREST", ResampleMethod::Nearest)
+        .value("BILINEAR", ResampleMethod::Bilinear)
+        .value("CUBIC", ResampleMethod::Cubic);
     nb::class_<GeoTiffSource, Source>(
         m, "GeoTiffSource",
         "Heights from band `band` of a GeoTIFF, optionally resampled to `pixel_size` metres and "
@@ -274,10 +354,24 @@ void BindSources(nb::module_& m) {
         .def(
             "__init__",
             [](GeoTiffSource* self, const std::filesystem::path& path, std::size_t band,
-               std::optional<double> pixelSize) {
-                new (self) GeoTiffSource(path, band, pixelSize);
+               std::optional<double> pixelSize, ResampleMethod resampling,
+               std::optional<double> scale, std::optional<double> offset) {
+                new (self) GeoTiffSource(path, band, pixelSize, resampling, scale, offset);
             },
-            "path"_a, "band"_a = 0, "pixel_size"_a = nb::none());
+            "path"_a, "band"_a = 0, "pixel_size"_a = nb::none(),
+            "resampling"_a = ResampleMethod::Cubic, "scale"_a = nb::none(), "offset"_a = nb::none(),
+            "`pixel_size` is in the file's units (degrees for a geographic file).");
+
+    nb::class_<SourceChain, Source>(
+        m, "SourceChain",
+        "Several sources tried in order, each filling where those before it have no data; the "
+        "grid is the first's.")
+        .def(
+            "__init__",
+            [](SourceChain* self, const std::vector<std::shared_ptr<Source>>& sources) {
+                new (self) SourceChain({sources.begin(), sources.end()});
+            },
+            "sources"_a);
 }
 
 void BindLayerBase(nb::module_& m) {
@@ -302,11 +396,14 @@ void BindLayerBase(nb::module_& m) {
                                    "from `origin`.")
         .def(
             "__init__",
-            [](NoiseRelief* self, std::vector<NoiseLayer> layers,
-               std::pair<double, double> origin) {
-                new (self) NoiseRelief(SyntheticTerrainParams{std::move(layers)}, ToVec(origin));
+            [](NoiseRelief* self, std::vector<NoiseLayer> layers, std::pair<double, double> origin,
+               const Surface& surface) {
+                new (self)
+                    NoiseRelief(SyntheticTerrainParams{std::move(layers)}, ToVec(origin), surface);
             },
-            "layers"_a, "origin"_a = std::pair{0.0, 0.0});
+            "layers"_a, "origin"_a = std::pair{0.0, 0.0}, "surface"_a = Surface{},
+            "On a sphere the noise is 3D at each point's position, seamless everywhere, and "
+            "`origin` is unused.");
 
     nb::class_<ScaleLayer, Layer>(m, "ScaleLayer", "height * scale + offset.")
         .def(nb::init<double, double>(), "scale"_a, "offset"_a = 0.0);
@@ -348,10 +445,11 @@ void BindLayerBase(nb::module_& m) {
         .def(
             "__init__",
             [](RegionLayer* self, std::shared_ptr<Layer> layer, RegionShape shape, double feather,
-               BlendShape blend) {
-                new (self) RegionLayer(std::move(layer), shape, feather, blend);
+               BlendShape blend, const Surface& surface) {
+                new (self) RegionLayer(std::move(layer), shape, feather, blend, surface);
             },
-            "layer"_a, "shape"_a, "feather"_a = 0.0, "blend"_a = BlendShape::Smoothstep)
+            "layer"_a, "shape"_a, "feather"_a = 0.0, "blend"_a = BlendShape::Smoothstep,
+            "surface"_a = Surface{})
         .def("weight", &RegionLayer::Weight, "x"_a, "y"_a);
 
     auto roughness = nb::class_<RoughnessOptions>(
@@ -367,7 +465,8 @@ void BindLayerBase(nb::module_& m) {
         .def_rw("seed", &RoughnessOptions::seed)
         .def_rw("fade", &RoughnessOptions::fade);
     nb::class_<RoughnessLayer, Layer>(m, "RoughnessLayer", "Fine roughness of a given RMS slope.")
-        .def(nb::init<RoughnessOptions>(), "options"_a = RoughnessOptions{})
+        .def(nb::init<RoughnessOptions, Surface>(), "options"_a = RoughnessOptions{},
+             "surface"_a = Surface{})
         .def("rms_slope", &RoughnessLayer::RmsSlope, "baseline"_a);
 
     auto exposure = nb::class_<ExposureParams>(
@@ -405,7 +504,7 @@ void BindLayerBase(nb::module_& m) {
     m.def("mars_transverse_aeolian_ridges", &MarsTransverseAeolianRidges,
           "Martian transverse aeolian ridges.");
     nb::class_<BedformLayer, Layer>(m, "BedformLayer", "Aeolian bedforms.")
-        .def(nb::init<BedformOptions>(), "options"_a)
+        .def(nb::init<BedformOptions, Surface>(), "options"_a, "surface"_a = Surface{})
         .def("cover_at",
              [](const BedformLayer& layer, double x, double y) { return layer.CoverAt(x, y); });
 }
@@ -555,6 +654,8 @@ void BindCraterLayers(nb::module_& m) {
         "the `generation` options and the `apply` options.");
     BindKwargsInit<CraterLayerOptions>(options);
     options.def_rw("generate", &CraterLayerOptions::generate)
+        .def_rw("surface", &CraterLayerOptions::surface,
+                "What the craters lie on; on a sphere they are placed by longitude and latitude.")
         .def_rw("seed", &CraterLayerOptions::seed)
         .def_rw("generation", &CraterLayerOptions::generation)
         .def_rw("apply", &CraterLayerOptions::apply);
@@ -710,10 +811,11 @@ void BindRockLayers(nb::module_& m) {
         "supplies the craters that throw ejecta rocks.")
         .def(
             "__init__",
-            [](RockLayer* self, RockLayerOptions options, std::shared_ptr<CraterLayer> craters) {
-                new (self) RockLayer(std::move(options), std::move(craters));
+            [](RockLayer* self, RockLayerOptions options, std::shared_ptr<CraterLayer> craters,
+               const Surface& surface) {
+                new (self) RockLayer(std::move(options), std::move(craters), surface);
             },
-            "options"_a = RockLayerOptions{}, "craters"_a = nb::none())
+            "options"_a = RockLayerOptions{}, "craters"_a = nb::none(), "surface"_a = Surface{})
         .def(
             "rocks",
             [](const RockLayer& layer, std::tuple<double, double, double, double> region,
@@ -750,13 +852,14 @@ void BindFilters(nb::module_& m) {
                                            "crater radii, at `strength` from 0 to 1.")
         .def(
             "__init__",
-            [](RimSmoothingFilter* self, double sigmaRadii, double strength) {
+            [](RimSmoothingFilter* self, double sigmaRadii, double strength,
+               const Surface& surface) {
                 RimSmoothing smoothing;
                 smoothing.sigmaRadii = sigmaRadii;
                 smoothing.strength = strength;
-                new (self) RimSmoothingFilter(smoothing);
+                new (self) RimSmoothingFilter(smoothing, surface);
             },
-            "sigma_radii"_a = 0.05, "strength"_a = 1.0);
+            "sigma_radii"_a = 0.05, "strength"_a = 1.0, "surface"_a = Surface{});
 }
 
 void BindEvaluation(nb::module_& m) {
@@ -767,11 +870,14 @@ void BindEvaluation(nb::module_& m) {
             "__init__",
             [](PyTerrain* self, std::shared_ptr<Source> source,
                std::vector<std::shared_ptr<Layer>> layers,
-               std::vector<std::shared_ptr<Filter>> filters) {
-                new (self) PyTerrain{std::move(source), std::move(layers), std::move(filters)};
+               std::vector<std::shared_ptr<Filter>> filters, const Surface& surface) {
+                new (self)
+                    PyTerrain{std::move(source), std::move(layers), std::move(filters), surface};
             },
             "source"_a, "layers"_a = std::vector<std::shared_ptr<Layer>>{},
-            "filters"_a = std::vector<std::shared_ptr<Filter>>{})
+            "filters"_a = std::vector<std::shared_ptr<Filter>>{}, "surface"_a = Surface{},
+            "`surface` must be the one the layers were built for.")
+        .def_rw("surface", &PyTerrain::surface)
         .def_rw("source", &PyTerrain::source)
         .def_rw("layers", &PyTerrain::layers)
         .def_rw("filters", &PyTerrain::filters);
@@ -845,11 +951,111 @@ void BindEvaluation(nb::module_& m) {
         "terrain"_a, "x"_a, "y"_a, "spacing"_a, nb::call_guard<nb::gil_scoped_release>(),
         "The terrain's height at (x, y) sampled every `spacing` metres; equal to the cell centred "
         "there of `evaluate`. Terrains with filters cannot be queried at points.");
+
+    nb::class_<TileKey>(m, "TileKey", "Tile (x, y) of a tile scheme's level `level`.")
+        .def(
+            "__init__",
+            [](TileKey* self, int level, std::int64_t x, std::int64_t y) {
+                new (self) TileKey{level, x, y};
+            },
+            "level"_a, "x"_a, "y"_a)
+        .def_rw("level", &TileKey::level)
+        .def_rw("x", &TileKey::x)
+        .def_rw("y", &TileKey::y)
+        .def(nb::self == nb::self)
+        .def("__repr__",
+             [](const TileKey& k) {
+                 return "TileKey(" + std::to_string(k.level) + ", " + std::to_string(k.x) + ", " +
+                        std::to_string(k.y) + ")";
+             })
+        .def_prop_ro("parent", &TileScheme::Parent)
+        .def_prop_ro("children", [](const TileKey& key) {
+            const auto c = TileScheme::Children(key);
+            return std::vector<TileKey>(c.begin(), c.end());
+        });
+    nb::class_<TileScheme>(
+        m, "TileScheme",
+        "A quadtree of north-up tiles: level 0 has tiles `root_size` across from `origin` (the "
+        "top-left corner of tile (0, 0)), each level halves them, and every tile has `cells` x "
+        "`cells` samples.")
+        .def(
+            "__init__",
+            [](TileScheme* self, std::pair<double, double> origin, double rootSize,
+               std::size_t cells) {
+                new (self) TileScheme{ToVec(origin), rootSize, cells};
+                self->Validate();
+            },
+            "origin"_a, "root_size"_a, "cells"_a = 256)
+        .def_static("covering", &TileScheme::Covering, "grid"_a, "cells"_a = 256,
+                    "A scheme one of whose levels has the cells of `grid`.")
+        .def_static("whole_body", &TileScheme::WholeBody, "cells"_a = 256,
+                    "A longitude-latitude pyramid over a whole sphere.")
+        .def_static("body_tiles", &TileScheme::BodyTiles, "level"_a,
+                    "Every tile of a level of a whole-body scheme.")
+        .def_prop_ro("origin",
+                     [](const TileScheme& s) { return std::pair{s.origin.x, s.origin.y}; })
+        .def_ro("root_size", &TileScheme::rootSize)
+        .def_ro("cells", &TileScheme::cells)
+        .def("tile_size", &TileScheme::TileSize, "level"_a)
+        .def("spacing", &TileScheme::Spacing, "level"_a)
+        .def("level_for", &TileScheme::LevelFor, "spacing"_a,
+             "The coarsest level whose spacing is at most `spacing`.")
+        .def("tile_at", &TileScheme::TileAt, "x"_a, "y"_a, "level"_a)
+        .def(
+            "tiles_covering",
+            [](const TileScheme& s, std::tuple<double, double, double, double> bounds, int level) {
+                return s.TilesCovering(BoundsOf(bounds), level);
+            },
+            "bounds"_a, "level"_a)
+        .def("grid", &TileScheme::Grid, "key"_a, "The tile's grid of samples.");
+    m.def(
+        "evaluate_tile",
+        [](const PyTerrain& terrain, const TileScheme& scheme, const TileKey& key,
+           unsigned threads) { return EvaluateTile(terrain.Get(), scheme, key, threads); },
+        "terrain"_a, "scheme"_a, "key"_a, "threads"_a = 1, nb::call_guard<nb::gil_scoped_release>(),
+        "One tile of `scheme` at its level's spacing, equal to the same cells of any larger grid.");
+    m.def(
+        "evaluate_tiles",
+        [](const PyTerrain& terrain, const TileScheme& scheme, const std::vector<TileKey>& keys,
+           unsigned threads) { return EvaluateTiles(terrain.Get(), scheme, keys, threads); },
+        "terrain"_a, "scheme"_a, "keys"_a, "threads"_a = 0,
+        nb::call_guard<nb::gil_scoped_release>(),
+        "`evaluate_tile` for each of `keys`, split over threads.");
+
+    nb::class_<TriangleMesh>(m, "TriangleMesh", "A triangle mesh in metres.")
+        .def_prop_ro("arrays", &MeshArrays,
+                     "(positions, triangles) as NumPy arrays of shape (n, 3).")
+        .def_prop_ro("vertex_count", [](const TriangleMesh& mesh) { return mesh.positions.size(); })
+        .def_prop_ro("triangle_count",
+                     [](const TriangleMesh& mesh) { return mesh.triangles.size(); })
+        .def(
+            "write_ply",
+            [](const TriangleMesh& mesh, const std::filesystem::path& path) {
+                WritePly(path, mesh);
+            },
+            "path"_a)
+        .def(
+            "write_glb",
+            [](const TriangleMesh& mesh, const std::filesystem::path& path) {
+                WriteGlb(path, mesh);
+            },
+            "path"_a);
+    m.def(
+        "body_mesh",
+        [](const PyTerrain& terrain, std::size_t cellsPerFace, double spacing, unsigned threads) {
+            return BodyMesh(terrain.Get(), cellsPerFace, spacing, threads);
+        },
+        "terrain"_a, "cells_per_face"_a, "spacing"_a = 0.0, "threads"_a = 0,
+        nb::call_guard<nb::gil_scoped_release>(),
+        "A mesh of the whole body a terrain on a sphere lies on: six cube faces of "
+        "`cells_per_face` squared quads, each vertex at the radius plus the terrain's height "
+        "there. Filters are left out.");
 }
 
 }  // namespace
 
 void BindTerrain(nb::module_& m) {
+    BindSurface(m);
     BindGridAndContext(m);
     BindSources(m);
     BindLayerBase(m);
