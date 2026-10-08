@@ -59,3 +59,12 @@ def test_every_public_cpp_name_is_bound_or_listed_as_internal():
                 if not re.search(r"\b" + name + r"\b", bound):
                     missing.append(f"{header.relative_to(ROOT)}: {name}")
     assert not missing, "C++ names without Python bindings:\n" + "\n".join(missing)
+
+
+def test_the_python_api_page_documents_every_exported_name():
+    import terraingen
+
+    page = (ROOT / "docs/api/python.md").read_text()
+    documented = set(re.findall(r"^\.\. auto\w+:: terraingen\.(\w+)$", page, re.M))
+    missing = sorted(set(terraingen.__all__) - documented)
+    assert not missing, "Exported but not on docs/api/python.md: " + ", ".join(missing)
