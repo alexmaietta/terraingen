@@ -37,8 +37,7 @@ repos:
           - "--suppress=passedByValue:terraingen/noise/kernels/*"
           - "--suppress=normalCheckLevelMaxBranches"
           - "--suppress=floatConversionOverflow:terraingen/python/src/kernels.cpp"
-          - "--suppress=assignBoolToPointer:terraingen/python/src/kernels.cpp"
-          - "--suppress=assignBoolToPointer:terraingen/python/src/terrain.cpp"
+          - "--suppress=assignBoolToPointer:terraingen/python/src/*"
           - "--error-exitcode=1"
 
   - repo: https://github.com/cheshirekow/cmake-format-precommit

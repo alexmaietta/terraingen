@@ -24,7 +24,9 @@ def main():
         degradation=terraingen.FreshnessDegradation(surface.ages),
         profile=terraingen.FassettThomsonProfile(),
     )
-    craters = terraingen.CraterLayer(models, seed=1, min_diameter=8.0, max_diameter=300.0)
+    craters = terraingen.CraterLayer(
+        models, terraingen.CraterLayerOptions(seed=1, generation=terraingen.CraterGenerationOptions(min_diameter=8.0, max_diameter=300.0))
+    )
     terrain = terraingen.Terrain(terraingen.FlatSource(513, 513, 2.0), [terraingen.NoiseRelief([fbm]), craters])
 
     evaluated = terraingen.evaluate(terrain)

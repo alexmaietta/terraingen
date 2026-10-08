@@ -10,6 +10,8 @@ nanobind_add_module(
     src/kernels.cpp
     src/pipeline.cpp
     src/terrain.cpp
+    src/models.cpp
+    src/albedo.cpp
     src/random.cpp)
 target_link_libraries(_terraingen PRIVATE terraingen::terraingen terraingen_warnings
                                           terraingen_coverage)

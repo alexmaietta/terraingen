@@ -26,7 +26,7 @@ def main():
         terraingen.Crater(260.0, -200.0, 120.0, age_gyr=1.5),
         terraingen.Crater(150.0, 250.0, 40.0, age_gyr=0.1),
     ]
-    craters = terraingen.CraterLayer(models, generate=False, manual=manual)
+    craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(generate=False, generation=terraingen.CraterGenerationOptions(manual=manual)))
     terrain = terraingen.Terrain(terraingen.FlatSource(513, 513, 2.0), [terraingen.NoiseRelief([fbm]), craters])
 
     evaluated = terraingen.evaluate(terrain)

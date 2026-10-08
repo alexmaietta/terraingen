@@ -23,7 +23,9 @@ def main():
         surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages), terraingen.FassettThomsonProfile()
     )
     young = terraingen.Crater(0.0, 0.0, 250.0, age_gyr=0.002)
-    craters = terraingen.CraterLayer(models, seed=1, min_diameter=30.0, max_diameter=400.0, manual=[young])
+    craters = terraingen.CraterLayer(
+        models, terraingen.CraterLayerOptions(seed=1, generation=terraingen.CraterGenerationOptions(min_diameter=30.0, max_diameter=400.0, manual=[young]))
+    )
     terrain = terraingen.Terrain(terraingen.FlatSource(513, 513, PIXEL), [terraingen.NoiseRelief([fbm]), craters])
 
     variation = terraingen.NoiseLayer(terraingen.FractalParams(seed=4, wavelength=1500.0, amplitude=0.02, octaves=4))
@@ -32,7 +34,7 @@ def main():
     )
 
     evaluated = terraingen.evaluate(terrain)
-    bands = terraingen.evaluate_albedo(albedo, terrain)
+    bands = terraingen.evaluate_albedo(albedo, terrain.source.grid())
     values = bands[0].values
     print(f"albedo from {values.min():.3f} to {values.max():.3f} over {len(evaluated.craters['x'])} craters")
     terraingen.write_geotiff(out / "example_albedo_crater_rays.tif", bands)

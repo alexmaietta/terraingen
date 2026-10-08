@@ -23,7 +23,9 @@ def main():
         models = terraingen.CraterModels(
             surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages), terraingen.FassettThomsonProfile()
         )
-        craters = terraingen.CraterLayer(models, seed=21, min_diameter=20.0, max_diameter=200.0)
+        craters = terraingen.CraterLayer(
+            models, terraingen.CraterLayerOptions(seed=21, generation=terraingen.CraterGenerationOptions(min_diameter=20.0, max_diameter=200.0))
+        )
         terrain = terraingen.Terrain(terraingen.FlatSource(257, 257, PIXEL), [terraingen.NoiseRelief([fbm]), craters])
         evaluated = terraingen.evaluate(terrain)
         print(f"{age:4.2f} Gyr: {len(evaluated.craters['x']):3d} craters of 20 m or more")

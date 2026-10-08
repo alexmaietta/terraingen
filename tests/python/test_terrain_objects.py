@@ -44,7 +44,9 @@ def test_craters_from_a_surface_model_and_by_hand():
     surface = terraingen.lunar_surface(3.5)
     assert surface.density.cumulative(10.0) > surface.density.cumulative(100.0) > 0
     assert surface.density.expected_count(1e6, 10.0, 100.0) > 0
-    craters = terraingen.CraterLayer(lunar_models(), seed=3, min_diameter=6.0, max_diameter=60.0)
+    craters = terraingen.CraterLayer(
+        lunar_models(), terraingen.CraterLayerOptions(seed=3, generation=terraingen.CraterGenerationOptions(min_diameter=6.0, max_diameter=60.0))
+    )
     terrain = terraingen.Terrain(terraingen.FlatSource(129, 129, 2.0), [terraingen.NoiseRelief([fbm()]), craters])
     evaluated = terraingen.evaluate(terrain)
     table = evaluated.craters
@@ -57,7 +59,9 @@ def test_craters_from_a_surface_model_and_by_hand():
     models = terraingen.CraterModels(
         terraingen.PowerLawSfd(1e-6, 2.0), ages, terraingen.NoDegradation(), terraingen.MartinParkesDunstanProfile()
     )
-    manual = terraingen.CraterLayer(models, generate=False, manual=[terraingen.Crater(0.0, 0.0, 60.0, age_gyr=1.0)])
+    manual = terraingen.CraterLayer(
+        models, terraingen.CraterLayerOptions(generate=False, generation=terraingen.CraterGenerationOptions(manual=[terraingen.Crater(0.0, 0.0, 60.0, age_gyr=1.0)]))
+    )
     single = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(65, 65, 2.0), [manual]))
     assert list(single.craters["diameter"]) == [60.0]
     assert single.craters["manual"][0] == 1 and single.craters["depth_ratio"][0] > 0.1
@@ -71,13 +75,18 @@ def test_craters_from_a_surface_model_and_by_hand():
         terraingen.NoDegradation(depth_ratio=0.1),
         terraingen.FassettThomsonProfile(terraingen.FassettThomsonRim.PLATEAU),
     )
-    assert terraingen.CraterLayer(fresh, min_diameter=4.0, max_diameter=20.0) is not None
+    assert terraingen.CraterLayer(fresh, terraingen.CraterLayerOptions(generation=terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=20.0))) is not None
     assert terraingen.mars_surface(3.0).density.cumulative(100.0) > 0
 
 
 def test_rocks_boulders_filters_and_writers(tmp_path):
-    craters = terraingen.CraterLayer(lunar_models(), min_diameter=3.0, max_diameter=20.0)
-    rocks = terraingen.RockLayer(coverage=0.08, min_diameter=0.2, max_diameter=3.0, model_min_diameter=0.6, craters=craters)
+    craters = terraingen.CraterLayer(lunar_models(), terraingen.CraterLayerOptions(generation=terraingen.CraterGenerationOptions(min_diameter=3.0, max_diameter=20.0)))
+    rocks = terraingen.RockLayer(
+        terraingen.RockLayerOptions(
+            coverage=0.08, min_diameter=0.2, max_diameter=3.0, models=terraingen.RockModels(min_diameter=0.6)
+        ),
+        craters,
+    )
     terrain = terraingen.Terrain(terraingen.FlatSource(301, 301, 0.1), [craters, rocks])
     evaluated = terraingen.evaluate(terrain)
     assert len(evaluated.rocks["x"]) > 50 and evaluated.boulder_count > 0
@@ -103,16 +112,20 @@ def test_rocks_boulders_filters_and_writers(tmp_path):
 
 def test_albedo_with_crater_rays_and_geotiffs(tmp_path):
     young = terraingen.Crater(0.0, 0.0, 250.0, age_gyr=0.002)
-    craters = terraingen.CraterLayer(lunar_models(3.2), min_diameter=60.0, max_diameter=300.0, manual=[young])
+    craters = terraingen.CraterLayer(
+        lunar_models(3.2), terraingen.CraterLayerOptions(generation=terraingen.CraterGenerationOptions(min_diameter=60.0, max_diameter=300.0, manual=[young]))
+    )
     terrain = terraingen.Terrain(terraingen.FlatSource(129, 129, 8.0), [craters])
     variation = terraingen.NoiseLayer(terraingen.FractalParams(seed=4, wavelength=800.0, amplitude=0.02, octaves=3))
     plain = terraingen.Albedo(terraingen.SyntheticAlbedo(value=0.11, value_noise=[variation]))
     bright = terraingen.Albedo(plain.source, [terraingen.CraterAlbedo(craters, rays=True)])
-    base = terraingen.evaluate_albedo(plain, terrain)[0].values
-    rayed = terraingen.evaluate_albedo(bright, terrain, threads=2)[0].values
+    base = terraingen.evaluate_albedo(plain, terrain.source.grid())[0].values
+    rayed = terraingen.evaluate_albedo(bright, terrain.source.grid(), threads=2)[0].values
     assert base.shape == (129, 129) and abs(base.mean() - 0.11) < 0.01
     assert rayed[64, 64] > base[64, 64]
-    rgb = terraingen.evaluate_albedo(terraingen.Albedo(terraingen.SyntheticAlbedo(rgb=True, hue=30.0, saturation=0.2)), terrain)
+    rgb = terraingen.evaluate_albedo(
+        terraingen.Albedo(terraingen.SyntheticAlbedo(rgb=True, hue=30.0, saturation=0.2)), terrain.source.grid()
+    )
     assert len(rgb) == 3 and len(bright.layers) == 1
 
     evaluated = terraingen.evaluate(terrain)

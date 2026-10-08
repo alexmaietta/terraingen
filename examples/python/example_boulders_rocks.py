@@ -24,13 +24,16 @@ def main():
     models = terraingen.CraterModels(
         surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages), terraingen.FassettThomsonProfile()
     )
-    craters = terraingen.CraterLayer(models, min_diameter=3.0, max_diameter=20.0)
+    craters = terraingen.CraterLayer(
+        models, terraingen.CraterLayerOptions(generation=terraingen.CraterGenerationOptions(min_diameter=3.0, max_diameter=20.0))
+    )
     area = (SIZE * PIXEL) ** 2
 
     for coverage in (0.02, 0.05, 0.10):
-        rocks = terraingen.RockLayer(
-            coverage=coverage, min_diameter=0.2, max_diameter=3.0, model_min_diameter=0.6, craters=craters
+        options = terraingen.RockLayerOptions(
+            coverage=coverage, min_diameter=0.2, max_diameter=3.0, models=terraingen.RockModels(min_diameter=0.6)
         )
+        rocks = terraingen.RockLayer(options, craters)
         terrain = terraingen.Terrain(
             terraingen.FlatSource(SIZE, SIZE, PIXEL), [terraingen.NoiseRelief([fbm]), craters, rocks]
         )
