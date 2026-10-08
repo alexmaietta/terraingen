@@ -90,6 +90,38 @@ TEST(SourceChain, FillsEachGapFromTheNextSourceWithData) {
     EXPECT_EQ(complete.HeightAt(-3.5, -2.5), -5.0f);
 }
 
+TEST(SourceChain, FillsNaNGapsOfSourcesWithoutANoDataValue) {
+    /// NaN where x < 0, as a GeoTIFF without a no-data tag reads, and no no-data value set.
+    class Unmarked final : public terraingen::Source {
+      public:
+        RasterGrid Grid() const override {
+            return kGrid;
+        }
+        void Fill(Raster<float>& heights) const override {
+            for (std::size_t row = 0; row < heights.Height(); ++row) {
+                for (std::size_t col = 0; col < heights.Width(); ++col) {
+                    const auto centre = heights.CellCenter(col, row);
+                    heights(col, row) = HeightAt(centre.x, centre.y);
+                }
+            }
+        }
+        float HeightAt(double x, double /*y*/) const override {
+            return x < 0.0 ? std::nanf("") : 1.0f;
+        }
+    };
+    const SourceChain chain(
+        {std::make_shared<Unmarked>(), std::make_shared<terraingen::FlatSource>(2, 2, 1.0, -5.0f)});
+    Raster<float> heights = kGrid.MakeRaster();
+    chain.Fill(heights);
+    for (std::size_t row = 0; row < heights.Height(); ++row) {
+        for (std::size_t col = 0; col < heights.Width(); ++col) {
+            const auto centre = heights.CellCenter(col, row);
+            EXPECT_EQ(heights(col, row), centre.x < 0.0 ? -5.0f : 1.0f);
+            EXPECT_EQ(heights(col, row), chain.HeightAt(centre.x, centre.y));
+        }
+    }
+}
+
 TEST(SourceChain, StopsOnceEveryCellHasData) {
     const auto full = std::make_shared<Patchy>([](double, double) { return true; }, -1.0f, kGrid);
     const auto spare = std::make_shared<Patchy>([](double, double) { return true; }, -1.0f, kGrid);

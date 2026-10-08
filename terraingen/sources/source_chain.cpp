@@ -18,12 +18,22 @@ SourceChain::SourceChain(std::vector<std::shared_ptr<const Source>> sources)
     }
 }
 
+namespace {
+
+/// Whether `value` of `raster` has no data: NaN, as `HeightAt` reports it, or the raster's no-data
+/// value.
+bool Missing(const Raster<float>& raster, float value) {
+    return std::isnan(value) || raster.IsNoData(value);
+}
+
+}  // namespace
+
 void SourceChain::Fill(Raster<float>& heights) const {
     sources_.front()->Fill(heights);
     for (std::size_t n = 1; n < sources_.size(); ++n) {
         bool missing = false;
         for (const float value : heights.Values()) {
-            if (heights.IsNoData(value)) {
+            if (Missing(heights, value)) {
                 missing = true;
                 break;
             }
@@ -37,7 +47,7 @@ void SourceChain::Fill(Raster<float>& heights) const {
         for (std::size_t i = 0; i < heights.Size(); ++i) {
             float& cell = heights.Values()[i];
             const float value = next.Values()[i];
-            if (heights.IsNoData(cell) && !next.IsNoData(value)) {
+            if (Missing(heights, cell) && !Missing(next, value)) {
                 cell = value;
             }
         }
