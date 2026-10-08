@@ -28,11 +28,11 @@ build everything in code. Outputs go to `./output` unless a folder is given.
 | distributions | `example_distributions_moore_rough_mare`, `_piecewise_power_law`, `_power_law`, `_tabulated`, `_trask_equilibrium`, `_viper` | `example_distributions_csfd` | `example_distributions_csfd`, `_custom` |
 | ages | `example_ages_fresh`, `_steady_state`, `_uniform` | `example_ages_models` | `example_ages_models` |
 | boulders | `example_boulders_ejecta`, `_exposure`, `_models`, `_patches`, `_rocks`, `_shapes`, `_sp8023` | `example_boulders_ejecta`, `_rocks`, `_shapes` | `example_boulders_exposure`, `_positioning`, `_rocks`, `_shapes`, `_size_models` |
-| albedo | `example_albedo_crater_rays`, `_oblique_rays`, `_rgb`, `_synthetic` | `example_albedo_crater_rays` | `example_albedo_crater_rays`, `_options` |
+| albedo | `example_albedo_crater_rays`, `_moon_site`, `_oblique_rays`, `_rgb`, `_synthetic` | `example_albedo_crater_rays` | `example_albedo_crater_rays`, `_moon_site`, `_options` |
 | layers | `example_layers_regions`, `_roughness`, `_scale_and_clamp` | `example_layers_custom`, `_regions` | `example_layers_custom`, `_regions` |
-| planets | `example_planets_mars_bedforms`, `_mars_craters`, `_mercury_site`, `_moon_body_mesh`, `_moon_site` | `example_planets_moon` | `example_planets_body_mesh`, `_mars`, `_mercury`, `_moon_site` |
+| planets | `example_planets_mars_bedforms`, `_mars_craters`, `_mars_exposure`, `_mercury_site`, `_moon_body_mesh`, `_moon_site` | `example_planets_moon` | `example_planets_body_mesh`, `_mars`, `_mars_exposure`, `_mercury`, `_moon_site` |
 | sources |  | `example_sources_raster_detail` | `example_sources_chain`, `_raster_detail` |
-| tiles |  | `example_tiles_body_pyramid`, `_quadtree` | `example_tiles_body_pyramid`, `_point_queries`, `_quadtree` |
+| tiles |  | `example_tiles_body_pyramid`, `_quadtree`, `_rover_contacts` | `example_tiles_body_pyramid`, `_point_queries`, `_quadtree`, `_rover_contacts` |
 | config |  | `example_config_load` | `example_config_load` |
 
 The `sources` and `tiles` examples are code only: configs read real DEMs from disk (a raster

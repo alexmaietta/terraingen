@@ -1,0 +1,55 @@
+{
+    "schema_version": 1,
+    "source": {
+        "type": "flat",
+        "width": 513,
+        "height": 513,
+        "pixel_size": 0.25
+    },
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 3,
+                    "wavelength": 60,
+                    "amplitude": 5,
+                    "octaves": 7
+                }
+            ]
+        },
+        {
+            "type": "bedforms",
+            "wavelength": 2.5,
+            "height": 0.25,
+            "wind_azimuth": 60,
+            "cover": 0.8,
+            "field_size": 30,
+            "seed": 3,
+            "exposure": {
+                "reach": 8.0
+            }
+        },
+        {
+            "type": "rocks",
+            "seed": 3,
+            "coverage": 0.02,
+            "min_diameter": 0.3,
+            "max_diameter": 3,
+            "exposure": {
+                "reach": 8.0
+            },
+            "bedrock_abundance": 4.0
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_planets_mars_exposure.tif"
+        },
+        {
+            "type": "rock_list",
+            "path": "example_planets_mars_exposure.csv"
+        }
+    ]
+}
