@@ -19,3 +19,11 @@ __pycache__/
 
 # Local data such as DEMs; not committed for now
 assets/
+
+# Default output folders of the examples
+examples/**/output/
+/output/
+examples/config/*.tif
+examples/config/*.csv
+examples/config/*.glb
+examples/config/*.aux.xml

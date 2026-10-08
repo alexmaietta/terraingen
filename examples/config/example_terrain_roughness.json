@@ -1,0 +1,29 @@
+{
+    "schema_version": 1,
+    "source": {
+        "type": "flat",
+        "width": 513,
+        "height": 513,
+        "pixel_size": 2
+    },
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 1,
+                    "wavelength": 800,
+                    "amplitude": 40,
+                    "octaves": 8,
+                    "hurst": 0.4
+                }
+            ]
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_terrain_roughness.tif"
+        }
+    ]
+}

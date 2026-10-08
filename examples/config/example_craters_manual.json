@@ -1,0 +1,62 @@
+{
+    "schema_version": 1,
+    "source": {
+        "type": "flat",
+        "width": 513,
+        "height": 513,
+        "pixel_size": 2
+    },
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 1,
+                    "wavelength": 800,
+                    "amplitude": 40,
+                    "octaves": 8
+                }
+            ]
+        },
+        {
+            "type": "craters",
+            "generate": false,
+            "manual": [
+                {
+                    "x": 0,
+                    "y": 0,
+                    "diameter": 200,
+                    "age_gyr": 0.5
+                },
+                {
+                    "x": -250,
+                    "y": 180,
+                    "diameter": 90,
+                    "age_gyr": 3.0
+                },
+                {
+                    "x": 260,
+                    "y": -200,
+                    "diameter": 120,
+                    "age_gyr": 1.5
+                },
+                {
+                    "x": 150,
+                    "y": 250,
+                    "diameter": 40,
+                    "age_gyr": 0.1
+                }
+            ]
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_craters_manual.tif"
+        },
+        {
+            "type": "crater_list",
+            "path": "example_craters_manual.csv"
+        }
+    ]
+}

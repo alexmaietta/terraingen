@@ -13,7 +13,10 @@ option(TERRAINGEN_BUILD_VALIDATION "Build the validation tests against external 
 option(TERRAINGEN_BUILD_BENCHMARKS "Build the benchmarks (Google Benchmark)"
        ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_BUILD_DEMOS "Build the demos" OFF)
+option(TERRAINGEN_BUILD_EXAMPLES "Build the C++ examples and test every example"
+       ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_BUILD_PYTHON "Build the Python bindings" ON)
+option(TERRAINGEN_BUILD_APP "Build the terraingen command-line app" ON)
 option(TERRAINGEN_INSTALL "Generate install rules and the CMake package" ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_COVERAGE "Instrument TerrainGen for code coverage and add a coverage target" OFF)
 option(TERRAINGEN_WITH_VULKAN
@@ -87,6 +90,9 @@ if(TERRAINGEN_BUILD_TESTS)
 endif()
 if(TERRAINGEN_BUILD_BENCHMARKS)
     add_subdirectory(tests/benchmark)
+endif()
+if(TERRAINGEN_BUILD_EXAMPLES)
+    add_subdirectory(examples/cpp)
 endif()
 
 if(TERRAINGEN_INSTALL)

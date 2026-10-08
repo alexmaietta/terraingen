@@ -1,0 +1,29 @@
+{
+    "schema_version": 1,
+    "source": {
+        "type": "flat",
+        "width": 513,
+        "height": 513,
+        "pixel_size": 2
+    },
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 1,
+                    "basis": "worley_f2_minus_f1",
+                    "wavelength": 300,
+                    "amplitude": 10,
+                    "octaves": 3
+                }
+            ]
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_terrain_cellular.tif"
+        }
+    ]
+}

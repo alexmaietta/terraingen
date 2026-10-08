@@ -41,3 +41,7 @@ if(TERRAINGEN_INSTALL
     # binaries other tests are running.
     set_tests_properties(package.deb PROPERTIES LABELS integration RUN_SERIAL TRUE)
 endif()
+
+if(TERRAINGEN_BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif()

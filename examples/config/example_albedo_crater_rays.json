@@ -1,0 +1,70 @@
+{
+    "schema_version": 1,
+    "source": {
+        "type": "flat",
+        "width": 513,
+        "height": 513,
+        "pixel_size": 8
+    },
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 1,
+                    "wavelength": 3000,
+                    "amplitude": 60,
+                    "octaves": 8
+                }
+            ]
+        },
+        {
+            "type": "craters",
+            "seed": 1,
+            "density": {
+                "type": "lunar_surface",
+                "age_gyr": 3.2
+            },
+            "min_diameter": 30,
+            "max_diameter": 400,
+            "manual": [
+                {
+                    "x": 0,
+                    "y": 0,
+                    "diameter": 250,
+                    "age_gyr": 0.002
+                }
+            ]
+        }
+    ],
+    "albedo": {
+        "source": {
+            "type": "synthetic",
+            "value": 0.11,
+            "value_noise": [
+                {
+                    "seed": 4,
+                    "wavelength": 1500,
+                    "amplitude": 0.02,
+                    "octaves": 4
+                }
+            ]
+        },
+        "layers": [
+            {
+                "type": "craters",
+                "seed": 1
+            }
+        ]
+    },
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_albedo_crater_rays_heights.tif"
+        },
+        {
+            "type": "albedo",
+            "path": "example_albedo_crater_rays.tif"
+        }
+    ]
+}

@@ -1,0 +1,44 @@
+{
+    "schema_version": 1,
+    "source": {
+        "type": "flat",
+        "width": 513,
+        "height": 513,
+        "pixel_size": 2
+    },
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 1,
+                    "wavelength": 800,
+                    "amplitude": 40,
+                    "octaves": 8
+                },
+                {
+                    "seed": 2,
+                    "fractal": "ridged",
+                    "wavelength": 250,
+                    "amplitude": 8,
+                    "octaves": 6,
+                    "blend": "add"
+                },
+                {
+                    "seed": 3,
+                    "basis": "value",
+                    "wavelength": 1200,
+                    "amplitude": 1,
+                    "octaves": 2,
+                    "blend": "mask"
+                }
+            ]
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_terrain_layered.tif"
+        }
+    ]
+}

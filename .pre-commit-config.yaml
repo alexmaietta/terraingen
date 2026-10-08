@@ -12,6 +12,9 @@ repos:
       - id: check-case-conflict
       - id: mixed-line-ending
         args: ["--fix=lf"]
+      - id: pretty-format-json
+        args: ["--autofix", "--indent=4", "--no-sort-keys"]
+        files: ^examples/
 
   - repo: https://github.com/pre-commit/mirrors-clang-format
     rev: v22.1.8
@@ -35,6 +38,7 @@ repos:
           - "--suppress=normalCheckLevelMaxBranches"
           - "--suppress=floatConversionOverflow:terraingen/python/src/kernels.cpp"
           - "--suppress=assignBoolToPointer:terraingen/python/src/kernels.cpp"
+          - "--suppress=assignBoolToPointer:terraingen/python/src/terrain.cpp"
           - "--error-exitcode=1"
 
   - repo: https://github.com/cheshirekow/cmake-format-precommit
