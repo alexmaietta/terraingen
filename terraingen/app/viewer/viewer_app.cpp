@@ -6,6 +6,7 @@
 #include "terraingen/pipeline/run.h"
 #include "terraingen/raster/geotiff.h"
 
+#include <ernie/app/icons.h>
 #include <imgui.h>
 
 #include <algorithm>
@@ -29,6 +30,13 @@ namespace {
 /// How long Live waits after the last edit before generating, so typing does not regenerate on
 /// every key.
 constexpr std::chrono::milliseconds kLiveDelay{250};
+
+/// The outliner's panel, docked left, and the inspector's, docked right.
+constexpr const char* kTerrainPanel = "Terrain";
+constexpr const char* kInspectorPanel = "Inspector";
+
+/// Lucide glyph of the Generate button (play).
+constexpr const char* kGlyphPlay = "\xee\x84\xbc";
 
 /// Ernie's panels hidden at start; the Window menu shows them again.
 constexpr const char* kHiddenPanels[] = {"Stage", "Properties", "Settings", "Camera", "Profiler"};
@@ -103,6 +111,7 @@ struct ViewerApp::State {
     std::string parseError;               ///< Why `config` does not parse; empty when it does.
     ConfigEditor editor;
     std::filesystem::path configFile;  ///< The file the editor's configuration came from.
+    std::string savedConfig;           ///< `config` as last opened or saved.
     std::string status = "Open a configuration or heights, or generate the starter terrain";
     std::future<Generated> generation;
     bool framed = false;
@@ -166,6 +175,9 @@ ViewerApp::ViewerApp(const ViewerAppOptions& options) : state_(std::make_unique<
     ernie::app::ViewerOptions viewerOptions;
     viewerOptions.title = "TerrainGen";
     viewerOptions.hidden = options.hidden;
+    viewerOptions.docks.left = 0.2f;
+    viewerOptions.docks.right = 0.3f;
+    viewerOptions.docks.bottom = 0.14f;
     s.viewer.emplace(s.scene, viewerOptions);
     ernie::app::ViewportDisplay display = s.viewer->GetViewportDisplay();
     display.grid = false;
@@ -186,71 +198,10 @@ ViewerApp::ViewerApp(const ViewerAppOptions& options) : state_(std::make_unique<
             Generate();
         }
     });
-    s.viewer->AddPanel("TerrainGen", ernie::app::Dock::Right, [this](ernie::app::Viewer&) {
-        State& st = *state_;
-        if (ImGui::Button("Open...")) {
-            ShowOpenDialog();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Save")) {
-            if (st.configFile.empty()) {
-                ShowSaveDialog();
-            } else {
-                SaveConfig(st.configFile);
-            }
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Save As...")) {
-            ShowSaveDialog();
-        }
-        ImGui::SameLine();
-        ImGui::BeginDisabled(Generating());
-        if (ImGui::Button(Generating() ? "Generating..." : "Generate")) {
-            Generate();
-        }
-        ImGui::EndDisabled();
-        ImGui::SameLine();
-        ImGui::Checkbox("Live", &st.live);
-        ImGui::SetItemTooltip("Generate again after each edit");
-        ImGui::TextDisabled("%s", st.configFile.empty() ? "Unsaved configuration"
-                                                        : st.configFile.string().c_str());
-        ImGui::TextWrapped("%s", st.status.c_str());
-        if (!st.parseError.empty()) {
-            ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.4f, 1.0f), "JSON: %s", st.parseError.c_str());
-        }
-        ImGui::Separator();
-        if (ImGui::BeginTabBar("##configTabs")) {
-            if (ImGui::BeginTabItem("Editor")) {
-                if (ImGui::SmallButton("Expand all")) {
-                    st.editor.ExpandAll();
-                }
-                ImGui::SameLine();
-                if (ImGui::SmallButton("Collapse all")) {
-                    st.editor.CollapseAll();
-                }
-                ImGui::SameLine();
-                ImGui::TextDisabled("Dim: default. Right-click a field to reset it.");
-                if (ImGui::BeginChild("##tree")) {
-                    if (st.editor.Draw(st.document)) {
-                        st.config = st.document.dump(4) + "\n";
-                        st.parseError.clear();
-                        st.Edited();
-                    }
-                }
-                ImGui::EndChild();
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("JSON")) {
-                const ImVec2 size(-1.0f, -1.0f);
-                if (InputString("##config", st.config, &size)) {
-                    st.ParseText();
-                    st.Edited();
-                }
-                ImGui::EndTabItem();
-            }
-            ImGui::EndTabBar();
-        }
-    });
+    s.viewer->AddPanel(kTerrainPanel, ernie::app::Dock::Left,
+                       [this](ernie::app::Viewer&) { DrawTerrainPanel(); });
+    s.viewer->AddPanel(kInspectorPanel, ernie::app::Dock::Right,
+                       [this](ernie::app::Viewer&) { DrawInspectorPanel(); });
     s.viewer->AddMenuItem("File", "Open...", [this](ernie::app::Viewer&) { ShowOpenDialog(); });
     s.viewer->AddMenuItem("File", "Save Configuration As...",
                           [this](ernie::app::Viewer&) { ShowSaveDialog(); });
@@ -300,7 +251,9 @@ void ViewerApp::Open(const std::filesystem::path& path) {
         std::ostringstream text;
         text << file.rdbuf();
         s.config = text.str();
+        s.savedConfig = s.config;
         s.ParseText();
+        s.editor.Select("/layers/0");
         s.configFile = path;
         s.Report(ernie::app::LogLevel::Info, "Opened " + path.string());
         Generate();
@@ -385,6 +338,7 @@ void ViewerApp::SaveConfig(const std::filesystem::path& path) {
             throw std::runtime_error("cannot write " + path.string());
         }
         s.configFile = path;
+        s.savedConfig = s.config;
         s.Report(ernie::app::LogLevel::Info, "Saved " + path.string());
     } catch (const std::exception& error) {
         s.Report(ernie::app::LogLevel::Error, "Cannot save " + path.string() + ": " + error.what());
@@ -413,6 +367,112 @@ void ViewerApp::ShowSaveDialog() {
     state_->viewer->OpenFileDialog(
         std::move(options),
         [this](ernie::app::Viewer&, const std::filesystem::path& path) { SaveConfig(path); });
+}
+
+void ViewerApp::DrawTerrainPanel() {
+    State& s = *state_;
+    // The toolbar: file actions, then Generate in the accent colour, then Live.
+    if (ImGui::Button(ernie::app::icons::kFolderOpen)) {
+        ShowOpenDialog();
+    }
+    ImGui::SetItemTooltip("Open a configuration or heights (Ctrl+O)");
+    ImGui::SameLine();
+    if (ImGui::Button(ernie::app::icons::kSave)) {
+        if (s.configFile.empty()) {
+            ShowSaveDialog();
+        } else {
+            SaveConfig(s.configFile);
+        }
+    }
+    ImGui::SetItemTooltip("Save the configuration (Ctrl+S)");
+    ImGui::SameLine();
+    if (ImGui::Button((std::string(ernie::app::icons::kSave) + "...").c_str())) {
+        ShowSaveDialog();
+    }
+    ImGui::SetItemTooltip("Save the configuration as a new file");
+    ImGui::SameLine();
+    const ImVec4 accent = ImGui::GetStyle().Colors[ImGuiCol_CheckMark];
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(accent.x, accent.y, accent.z, 0.75f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(accent.x, accent.y, accent.z, 0.9f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, accent);
+    ImGui::BeginDisabled(Generating());
+    const std::string generate =
+        std::string(kGlyphPlay) + (Generating() ? "  Generating..." : "  Generate");
+    if (ImGui::Button(generate.c_str(), ImVec2(-ImGui::GetFrameHeight() * 2.6f, 0.0f))) {
+        Generate();
+    }
+    ImGui::EndDisabled();
+    ImGui::PopStyleColor(3);
+    ImGui::SetItemTooltip("Generate the terrain (F5)");
+    ImGui::SameLine();
+    ImGui::Checkbox("Live", &s.live);
+    ImGui::SetItemTooltip("Generate again a moment after each edit");
+
+    // The file, starred when edited since it was opened or saved, and what last happened.
+    const bool dirty = s.config != s.savedConfig;
+    const std::string file = s.configFile.empty() ? "Untitled" : s.configFile.filename().string();
+    ImGui::TextUnformatted((file + (dirty ? " *" : "")).c_str());
+    if (!s.configFile.empty()) {
+        ImGui::SetItemTooltip("%s", s.configFile.string().c_str());
+    }
+    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+    ImGui::TextWrapped("%s", s.status.c_str());
+    ImGui::PopStyleColor();
+    if (!s.parseError.empty()) {
+        ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.4f, 1.0f), "The JSON does not parse");
+        ImGui::SetItemTooltip("%s", s.parseError.c_str());
+    }
+
+    if (ImGui::BeginChild("##outliner")) {
+        if (s.editor.DrawOutliner(s.document)) {
+            s.config = s.document.dump(4) + "\n";
+            s.parseError.clear();
+            s.Edited();
+        }
+    }
+    ImGui::EndChild();
+
+    const ImGuiIO& io = ImGui::GetIO();
+    if (!io.WantTextInput && io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_O, false)) {
+        ShowOpenDialog();
+    }
+    if (!io.WantTextInput && io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false)) {
+        if (s.configFile.empty()) {
+            ShowSaveDialog();
+        } else {
+            SaveConfig(s.configFile);
+        }
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_F5, false)) {
+        Generate();
+    }
+}
+
+void ViewerApp::DrawInspectorPanel() {
+    State& s = *state_;
+    if (!ImGui::BeginTabBar("##inspectorTabs")) {
+        return;
+    }
+    if (ImGui::BeginTabItem("Settings")) {
+        if (ImGui::BeginChild("##settings")) {
+            if (s.editor.DrawInspector(s.document)) {
+                s.config = s.document.dump(4) + "\n";
+                s.parseError.clear();
+                s.Edited();
+            }
+        }
+        ImGui::EndChild();
+        ImGui::EndTabItem();
+    }
+    if (ImGui::BeginTabItem("JSON")) {
+        const ImVec2 size(-1.0f, -1.0f);
+        if (InputString("##config", s.config, &size)) {
+            s.ParseText();
+            s.Edited();
+        }
+        ImGui::EndTabItem();
+    }
+    ImGui::EndTabBar();
 }
 
 const std::string& ViewerApp::Status() const {

@@ -61,7 +61,9 @@ TEST(ViewerApp, OpensAndGeneratesAConfigThenSavesIt) {
         ASSERT_NE(app.Viewer().FindPanel(hidden), nullptr) << hidden;
         EXPECT_FALSE(app.Viewer().FindPanel(hidden)->IsVisible()) << hidden;
     }
-    ASSERT_NE(app.Viewer().FindPanel("TerrainGen"), nullptr);
+    ASSERT_NE(app.Viewer().FindPanel("Terrain"), nullptr);
+    ASSERT_NE(app.Viewer().FindPanel("Inspector"), nullptr);
+    EXPECT_EQ(app.Editor().Selection(), "/layers/0") << "opening selects the first layer";
     EXPECT_FALSE(app.Viewer().GetViewportDisplay().grid);
     EXPECT_FALSE(app.Viewer().GetViewportDisplay().lights);
     EXPECT_TRUE(app.Viewer().FindPanel("Log")->IsVisible());

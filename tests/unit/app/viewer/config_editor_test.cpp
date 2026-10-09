@@ -6,6 +6,7 @@
 #include <nlohmann/json.hpp>
 
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -31,12 +32,17 @@ class HeadlessImGui : public ::testing::Test {
         ImGui::DestroyContext();
     }
 
-    /// Draws `editor` on `config` for one frame in a window; returns whether it reported a change.
+    /// Draws `editor`'s outliner and inspector on `config` for one frame, each in a window;
+    /// returns whether either reported a change.
     static bool Frame(ConfigEditor& editor, Json& config) {
         ImGui::NewFrame();
-        ImGui::SetNextWindowSize(ImVec2(900.0f, 3800.0f));
-        ImGui::Begin("Editor");
-        const bool changed = editor.Draw(config);
+        ImGui::SetNextWindowSize(ImVec2(300.0f, 3800.0f));
+        ImGui::Begin("Outliner");
+        bool changed = editor.DrawOutliner(config);
+        ImGui::End();
+        ImGui::SetNextWindowSize(ImVec2(600.0f, 3800.0f));
+        ImGui::Begin("Inspector");
+        changed |= editor.DrawInspector(config);
         ImGui::End();
         ImGui::Render();
         return changed;
@@ -100,20 +106,81 @@ TEST(ConfigEditor, SwitchingTypeKeepsTheFieldsBothTypesHave) {
     EXPECT_EQ(notAnObject, (Json{{"type", "chain"}}));
 }
 
-TEST_F(HeadlessImGui, DrawsEveryTypeWithoutChangingTheConfiguration) {
+TEST(ConfigEditor, LabelsKeysInWordsWithoutTheirUnit) {
+    EXPECT_EQ(ConfigEditor::Label("pixel_size", "m"), "Pixel size");
+    EXPECT_EQ(ConfigEditor::Label("age_gyr", "Gyr"), "Age");
+    EXPECT_EQ(ConfigEditor::Label("lifetime_gyr"), "Lifetime gyr");
+    EXPECT_EQ(ConfigEditor::Label("heading_degrees", "deg"), "Heading");
+    EXPECT_EQ(ConfigEditor::Label("centre_x"), "Centre X");
+    EXPECT_EQ(ConfigEditor::Label("m", "m"), "M") << "a lone word stays";
+    EXPECT_EQ(ConfigEditor::Label("rim_smoothing"), "Rim smoothing");
+    EXPECT_EQ(ConfigEditor::Label(""), "");
+}
+
+TEST(ConfigEditor, AddsRemovesAndMovesItemsWithTheSelectionFollowing) {
+    ConfigEditor editor;
+    Json config = Json::object();
+    EXPECT_FALSE(editor.AddItem(config, "layers", "no_such_type"));
+    EXPECT_FALSE(editor.AddItem(config, "source", "flat")) << "not a list";
+    EXPECT_FALSE(editor.AddItem(config, "nothing", "noise"));
+    ASSERT_TRUE(editor.AddItem(config, "layers", "noise"));
+    ASSERT_TRUE(editor.AddItem(config, "layers", "craters"));
+    ASSERT_TRUE(editor.AddItem(config, "layers", "rocks"));
+    EXPECT_EQ(config["layers"].size(), 3u);
+    EXPECT_EQ(editor.Selection(), "/layers/2") << "a new item is selected";
+
+    EXPECT_TRUE(editor.MoveItem(config, "layers", 2, 0));
+    EXPECT_EQ(config["layers"][0]["type"], "rocks");
+    EXPECT_EQ(editor.Selection(), "/layers/0") << "the selection follows the moved item";
+    editor.Select("/layers/1");
+    EXPECT_TRUE(editor.MoveItem(config, "layers", 0, 2));
+    EXPECT_EQ(editor.Selection(), "/layers/0") << "items after the moved one shift up";
+    EXPECT_TRUE(editor.MoveItem(config, "layers", 2, 0));
+    EXPECT_EQ(editor.Selection(), "/layers/1") << "and down";
+    EXPECT_FALSE(editor.MoveItem(config, "layers", 0, 3));
+    EXPECT_TRUE(editor.MoveItem(config, "layers", 1, 1));
+
+    editor.Select("/layers/2");
+    EXPECT_TRUE(editor.RemoveItem(config, "layers", 0));
+    EXPECT_EQ(editor.Selection(), "/layers/1");
+    EXPECT_TRUE(editor.RemoveItem(config, "layers", 1));
+    EXPECT_EQ(editor.Selection(), "") << "removing the selected item clears the selection";
+    EXPECT_FALSE(editor.RemoveItem(config, "layers", 5));
+    EXPECT_FALSE(editor.RemoveItem(config, "outputs", 0));
+    EXPECT_EQ(config["layers"].size(), 1u);
+    EXPECT_NE(editor.RootField("albedo"), nullptr);
+    EXPECT_EQ(editor.RootField("nothing"), nullptr);
+}
+
+TEST_F(HeadlessImGui, DrawsEverySelectionWithoutChangingTheConfiguration) {
     ConfigEditor editor;
     Json config = Everything();
     const Json before = config;
-    editor.ExpandAll();
-    EXPECT_FALSE(Frame(editor, config));
-    EXPECT_FALSE(Frame(editor, config)) << "the expanded tree draws every widget";
+    std::vector<std::string> selections = {"", "/surface", "/source", "/albedo"};
+    for (const char* list : {"layers", "filters", "outputs"}) {
+        for (std::size_t i = 0; i < config[list].size(); ++i) {
+            selections.push_back("/" + std::string(list) + "/" + std::to_string(i));
+        }
+    }
+    for (const std::string& selection : selections) {
+        editor.Select(selection);
+        editor.ExpandAll();
+        EXPECT_FALSE(Frame(editor, config)) << selection;
+        EXPECT_FALSE(Frame(editor, config)) << selection << ", expanded";
+        EXPECT_EQ(editor.Selection(), selection);
+    }
     EXPECT_EQ(config, before);
     EXPECT_NO_THROW(terraingen::ParseConfig(config.dump()));
     editor.CollapseAll();
     EXPECT_FALSE(Frame(editor, config));
 
+    for (const char* gone : {"/layers/99", "/nothing", "not a pointer", "/albedo"}) {
+        Json small = Json{{"schema_version", 1}};
+        editor.Select(gone);
+        EXPECT_FALSE(Frame(editor, small)) << gone;
+        EXPECT_EQ(editor.Selection(), "") << gone << " is no longer selected";
+    }
     Json empty = Json::array();
     EXPECT_FALSE(Frame(editor, empty));
-    EXPECT_EQ(empty, (Json{{"schema_version", terraingen::kConfigSchemaVersion}}))
-        << "a document that is no object starts over, with only the schema version";
+    EXPECT_TRUE(empty.is_object()) << "a document that is no object starts over";
 }

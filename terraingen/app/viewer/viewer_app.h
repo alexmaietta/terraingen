@@ -22,9 +22,12 @@ struct ViewerAppOptions {
 
 /// TerrainGen's 3D viewer: Ernie's viewer (`ernie::app::Viewer`) on a scene of the terrain, with
 /// Ernie's own panels hidden (the Window menu shows them again) but for its log, the viewport's
-/// ground grid and light gizmos off (its eye menu shows them again), the Log tab in front at the
-/// bottom, and a TerrainGen panel to open, edit, generate and save terrain configurations and to
-/// open heights, through the viewer's file dialogs (also under the File menu).
+/// ground grid and light gizmos off (its eye menu shows them again), and two panels of its own:
+/// - Terrain, on the left: a toolbar to open (Ctrl+O), save (Ctrl+S) and generate (F5) with Live
+///   regeneration, the file and status, and the configuration's outliner (`ConfigEditor`);
+/// - Inspector, on the right: the settings of what the outliner selects, and the whole
+///   configuration as JSON.
+/// Opening and saving go through the viewer's file dialogs (also under the File menu).
 ///
 /// Generation runs on a thread of its own, so the viewer stays responsive; the finished terrain
 /// replaces the scene's on the next frame, and the first one is framed.
@@ -58,21 +61,22 @@ class ViewerApp {
     /// Whether a generation is running.
     bool Generating() const;
 
-    /// The configuration being edited, as JSON text (the panel's JSON tab).
+    /// The configuration being edited, as JSON text (the Inspector's JSON tab).
     const std::string& ConfigText() const;
     void SetConfigText(std::string json);
 
-    /// The configuration parsed, as the panel's Editor tab edits it: the last text that parsed.
+    /// The configuration parsed, as the outliner and inspector edit it: the last text that
+    /// parsed.
     const nlohmann::json& ConfigDocument() const;
 
     /// Why `ConfigText()` does not parse as JSON; empty when it does.
     const std::string& ConfigParseError() const;
 
-    /// Edits the configuration as the Editor tab does: `edit` changes the document, the text
-    /// follows, and with `Live` a generation starts shortly after.
+    /// Edits the configuration as the outliner and inspector do: `edit` changes the document,
+    /// the text follows, and with `Live` a generation starts shortly after.
     void EditConfig(const std::function<void(nlohmann::json&)>& edit);
 
-    /// The Editor tab's editor.
+    /// The outliner's and inspector's editor.
     ConfigEditor& Editor();
 
     /// Whether each edit regenerates the terrain, a quarter second after the last one.
@@ -94,6 +98,11 @@ class ViewerApp {
     const std::string& Status() const;
 
   private:
+    /// The Terrain panel: the toolbar, the file and status, and the outliner.
+    void DrawTerrainPanel();
+    /// The Inspector panel: the selection's settings, and the configuration as JSON.
+    void DrawInspectorPanel();
+
     struct State;
     std::unique_ptr<State> state_;
 };
