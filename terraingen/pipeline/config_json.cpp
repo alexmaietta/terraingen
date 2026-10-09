@@ -8,11 +8,13 @@
 #include <cstdint>
 #include <fstream>
 #include <limits>
+#include <map>
 #include <optional>
 #include <set>
 #include <sstream>
 #include <string>
 #include <type_traits>
+#include <typeindex>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -1427,6 +1429,143 @@ template <typename Variant> Json Alternatives() {
     return Alternatives(static_cast<const Variant*>(nullptr));
 }
 
+/// What `ConfigSchema` collects: each struct and variant described once under an id, so
+/// recursive types (a chain of sources) refer to themselves.
+struct SchemaBuilder {
+    Json definitions = Json::object();
+    std::map<std::type_index, std::string> ids;
+
+    /// A reference to `T`'s definition, made by `describe` the first time.
+    template <typename T, typename Describe> Json Reference(Describe describe) {
+        const auto found = ids.find(typeid(T));
+        if (found != ids.end()) {
+            return Json{{"kind", "ref"}, {"ref", found->second}};
+        }
+        const std::string id = "d" + std::to_string(ids.size());
+        ids.emplace(typeid(T), id);
+        definitions[id] = describe();
+        return Json{{"kind", "ref"}, {"ref", id}};
+    }
+};
+
+template <typename T> struct Describer;
+
+/// Describes each field a `Fields` function visits: its name, schema and default.
+class SchemaWriter {
+  public:
+    SchemaWriter(SchemaBuilder& builder, Json& fields) : builder_(builder), fields_(fields) {}
+
+    template <typename T> void operator()(std::string_view key, T& value) {
+        fields_.push_back(Json{{"name", std::string(key)},
+                               {"schema", Describer<T>::Describe(builder_)},
+                               {"default", ToJson(value)}});
+    }
+
+  private:
+    SchemaBuilder& builder_;
+    Json& fields_;
+};
+
+template <> struct Describer<double> {
+    static Json Describe(SchemaBuilder& /*builder*/) {
+        return Json{{"kind", "number"}};
+    }
+};
+
+template <> struct Describer<float> : Describer<double> {};
+
+template <> struct Describer<int> {
+    static Json Describe(SchemaBuilder& /*builder*/) {
+        return Json{{"kind", "integer"}};
+    }
+};
+
+template <std::unsigned_integral T>
+    requires(!std::same_as<T, bool>)
+struct Describer<T> {
+    static Json Describe(SchemaBuilder& /*builder*/) {
+        return Json{{"kind", "integer"}, {"minimum", 0}};
+    }
+};
+
+template <> struct Describer<bool> {
+    static Json Describe(SchemaBuilder& /*builder*/) {
+        return Json{{"kind", "boolean"}};
+    }
+};
+
+template <> struct Describer<std::string> {
+    static Json Describe(SchemaBuilder& /*builder*/) {
+        return Json{{"kind", "string"}};
+    }
+};
+
+template <NamedEnum E> struct Describer<E> {
+    static Json Describe(SchemaBuilder& /*builder*/) {
+        Json choices = Json::array();
+        for (const auto& [name, enumerator] : EnumNames<E>::kValues) {
+            choices.push_back(std::string(name));
+        }
+        return Json{{"kind", "enum"}, {"choices", choices}};
+    }
+};
+
+template <typename T> struct Describer<std::optional<T>> {
+    static Json Describe(SchemaBuilder& builder) {
+        return Json{{"kind", "optional"},
+                    {"of", Describer<T>::Describe(builder)},
+                    {"default", ToJson(T{})}};
+    }
+};
+
+template <typename T> struct Describer<Boxed<T>> : Describer<T> {};
+
+template <typename T> struct Describer<std::vector<T>> {
+    static Json Describe(SchemaBuilder& builder) {
+        return Json{
+            {"kind", "array"}, {"of", Describer<T>::Describe(builder)}, {"default", ToJson(T{})}};
+    }
+};
+
+template <typename... Ts> struct Describer<std::variant<Ts...>> {
+    static Json Describe(SchemaBuilder& builder) {
+        return builder.Reference<std::variant<Ts...>>([&] {
+            Json alternatives = Json::array();
+            const auto describe = [&]<typename T>(T* /*tag*/) {
+                Json fields = Json::array();
+                T spec{};
+                SchemaWriter writer(builder, fields);
+                Fields(writer, spec);
+                alternatives.push_back(Json{{"type", std::string(SpecName<T>::kName)},
+                                            {"fields", fields},
+                                            {"default", ToJson(std::variant<Ts...>(T{}))}});
+            };
+            (describe(static_cast<Ts*>(nullptr)), ...);
+            return Json{{"kind", "choice"}, {"alternatives", alternatives}};
+        });
+    }
+};
+
+template <HasFields T> struct Describer<T> {
+    static Json Describe(SchemaBuilder& builder) {
+        return builder.Reference<T>([&] {
+            Json fields = Json::array();
+            T value{};
+            SchemaWriter writer(builder, fields);
+            Fields(writer, value);
+            return Json{{"kind", "object"}, {"fields", fields}};
+        });
+    }
+};
+
+/// A field of the configuration's root object, described as `SchemaWriter` does.
+template <typename T>
+Json RootField(SchemaBuilder& builder, std::string_view name, const T& value) {
+    return Json{{"name", std::string(name)},
+                {"schema", Describer<T>::Describe(builder)},
+                {"default", ToJson(value)}};
+}
+
 }  // namespace
 
 std::string ConfigCatalog(int indent) {
@@ -1449,6 +1588,26 @@ std::string ConfigCatalog(int indent) {
     models["albedo_source"] = Alternatives<AlbedoSourceSpec>();
     models["albedo_layer"] = Alternatives<AlbedoLayerSpec>();
     json["models"] = models;
+    return json.dump(indent) + "\n";
+}
+
+std::string ConfigSchema(int indent) {
+    SchemaBuilder builder;
+    const TerrainConfig config;
+    Json fields = Json::array();
+    fields.push_back(Json{{"name", "schema_version"},
+                          {"schema", Json{{"kind", "integer"}, {"fixed", true}}},
+                          {"default", config.schemaVersion}});
+    fields.push_back(RootField(builder, "surface", config.surface));
+    fields.push_back(RootField(builder, "source", config.source));
+    fields.push_back(RootField(builder, "layers", config.layers));
+    fields.push_back(RootField(builder, "filters", config.filters));
+    fields.push_back(RootField(builder, "outputs", config.outputs));
+    fields.push_back(RootField(builder, "albedo", config.albedo));
+    Json json = Json::object();
+    json["schema_version"] = kConfigSchemaVersion;
+    json["root"] = Json{{"kind", "object"}, {"fields", fields}};
+    json["definitions"] = builder.definitions;
     return json.dump(indent) + "\n";
 }
 

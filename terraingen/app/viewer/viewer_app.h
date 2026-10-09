@@ -1,9 +1,13 @@
 #pragma once
 
+#include "terraingen/app/viewer/config_editor.h"
+
 #include <ernie/app/viewer.h>
 #include <ernie/scene/scene.h>
+#include <nlohmann/json.hpp>
 
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -54,9 +58,26 @@ class ViewerApp {
     /// Whether a generation is running.
     bool Generating() const;
 
-    /// The configuration being edited, as JSON.
+    /// The configuration being edited, as JSON text (the panel's JSON tab).
     const std::string& ConfigText() const;
     void SetConfigText(std::string json);
+
+    /// The configuration parsed, as the panel's Editor tab edits it: the last text that parsed.
+    const nlohmann::json& ConfigDocument() const;
+
+    /// Why `ConfigText()` does not parse as JSON; empty when it does.
+    const std::string& ConfigParseError() const;
+
+    /// Edits the configuration as the Editor tab does: `edit` changes the document, the text
+    /// follows, and with `Live` a generation starts shortly after.
+    void EditConfig(const std::function<void(nlohmann::json&)>& edit);
+
+    /// The Editor tab's editor.
+    ConfigEditor& Editor();
+
+    /// Whether each edit regenerates the terrain, a quarter second after the last one.
+    bool Live() const;
+    void SetLive(bool live);
 
     /// Writes the editor's configuration to `path`, after checking it parses, and makes it the
     /// file `Generate` resolves paths against. Errors go to the log and the status.

@@ -57,4 +57,19 @@ std::string ConfigToJson(const TerrainConfig& config, int indent = 2);
 /// that parses where its kind belongs in a configuration.
 std::string ConfigCatalog(int indent = 2);
 
+/// The structure of a configuration as JSON, for editors: what each field holds and its default.
+///
+/// The document has "root", the configuration object, and "definitions", every struct and choice
+/// of types described once by id ("d0", "d1", ...) and referred to as {"kind": "ref", "ref": id},
+/// since some contain themselves (a chain of sources). A schema has a "kind":
+/// - "number", "integer" (with "minimum" 0 for counts; "fixed" for the schema version),
+///   "boolean", "string";
+/// - "enum" with its "choices";
+/// - "optional" and "array" with the schema "of" what they hold and that thing's "default";
+/// - "object" with its "fields", in order, each {"name", "schema", "default"};
+/// - "choice" with its "alternatives", each {"type", "fields", "default"}: an object whose "type"
+///   names which.
+/// It comes from the same field lists the parser reads, so it always matches it.
+std::string ConfigSchema(int indent = 2);
+
 }  // namespace terraingen

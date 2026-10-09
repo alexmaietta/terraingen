@@ -98,6 +98,35 @@ TEST(ViewerApp, OpensAndSavesThroughTheFileDialog) {
     EXPECT_EQ(app.Status().rfind("Generated", 0), 0u) << app.Status();
 }
 
+TEST(ViewerApp, LiveEditsRegenerateAndBadJsonKeepsTheLastDocument) {
+    const std::filesystem::path dir = Directory("live");
+    std::ofstream(dir / "terrain.json") << kConfig;
+    ViewerApp app({dir / "terrain.json", 1, true});
+    Settle(app);
+    EXPECT_EQ(app.ConfigDocument()["source"]["width"], 65);
+    EXPECT_TRUE(app.ConfigParseError().empty());
+
+    app.SetLive(true);
+    EXPECT_TRUE(app.Live());
+    app.EditConfig([](nlohmann::json& config) { config["source"]["width"] = 33; });
+    EXPECT_NE(app.ConfigText().find("\"width\": 33"), std::string::npos) << "the text follows";
+    const auto give_up = std::chrono::steady_clock::now() + std::chrono::minutes(1);
+    while (HeightsShape(app) != std::vector<std::int64_t>{33, 33} &&
+           std::chrono::steady_clock::now() < give_up) {
+        app.Step();
+    }
+    EXPECT_EQ(HeightsShape(app), (std::vector<std::int64_t>{33, 33})) << app.Status();
+    app.Editor().ExpandAll();
+    app.Step();
+
+    app.SetConfigText("{ \"source\": ");
+    EXPECT_FALSE(app.ConfigParseError().empty());
+    EXPECT_EQ(app.ConfigDocument()["source"]["width"], 33) << "the last good document stays";
+    app.SetLive(false);
+    app.Step();
+    EXPECT_FALSE(app.Generating());
+}
+
 TEST(ViewerApp, ShowsGeoTiffHeightsAndStartsWithTheStarterConfig) {
     const std::filesystem::path dir = Directory("geotiff");
     terraingen::Raster<float> heights(20, 12, 1.0f);

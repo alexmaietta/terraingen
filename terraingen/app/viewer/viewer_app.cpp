@@ -1,5 +1,6 @@
 #include "terraingen/app/viewer/viewer_app.h"
 
+#include "terraingen/app/viewer/config_editor.h"
 #include "terraingen/app/viewer/terrain_scene.h"
 #include "terraingen/pipeline/config_json.h"
 #include "terraingen/pipeline/run.h"
@@ -24,6 +25,10 @@
 namespace terraingen::viewer {
 
 namespace {
+
+/// How long Live waits after the last edit before generating, so typing does not regenerate on
+/// every key.
+constexpr std::chrono::milliseconds kLiveDelay{250};
 
 /// Ernie's panels hidden at start; the Window menu shows them again.
 constexpr const char* kHiddenPanels[] = {"Stage", "Properties", "Settings", "Camera", "Profiler"};
@@ -93,15 +98,34 @@ struct ViewerApp::State {
     ernie::Scene scene;
     std::optional<ernie::app::Viewer> viewer;
     unsigned threads = 0;
-    std::string config = kStarterConfig;
+    std::string config = kStarterConfig;  ///< The configuration as text, as the JSON tab shows.
+    nlohmann::json document;              ///< `config` parsed, as the Editor tab edits it.
+    std::string parseError;               ///< Why `config` does not parse; empty when it does.
+    ConfigEditor editor;
     std::filesystem::path configFile;  ///< The file the editor's configuration came from.
     std::string status = "Open a configuration or heights, or generate the starter terrain";
     std::future<Generated> generation;
     bool framed = false;
+    bool live = false;                                            ///< Regenerate after each edit.
+    std::optional<std::chrono::steady_clock::time_point> edited;  ///< The last edit not generated.
 
     void Report(ernie::app::LogLevel level, std::string text) {
         status = text;
         viewer->Log(level, std::move(text));
+    }
+
+    /// Parses `config` into `document`, keeping the last good document when it does not parse.
+    void ParseText() {
+        try {
+            document = nlohmann::json::parse(config);
+            parseError.clear();
+        } catch (const nlohmann::json::exception& error) {
+            parseError = error.what();
+        }
+    }
+
+    void Edited() {
+        edited = std::chrono::steady_clock::now();
     }
 
     /// Puts a finished generation into the scene, framing the first terrain shown.
@@ -153,8 +177,15 @@ ViewerApp::ViewerApp(const ViewerAppOptions& options) : state_(std::make_unique<
         }
     }
     s.viewer->FocusPanel("Log");
-    s.viewer->OnFrame(
-        [this](ernie::app::Viewer&, const ernie::app::FrameInfo&) { state_->Collect(); });
+    s.ParseText();
+    s.viewer->OnFrame([this](ernie::app::Viewer&, const ernie::app::FrameInfo&) {
+        State& st = *state_;
+        st.Collect();
+        if (st.live && st.edited && st.parseError.empty() && !Generating() &&
+            std::chrono::steady_clock::now() - *st.edited > kLiveDelay) {
+            Generate();
+        }
+    });
     s.viewer->AddPanel("TerrainGen", ernie::app::Dock::Right, [this](ernie::app::Viewer&) {
         State& st = *state_;
         if (ImGui::Button("Open...")) {
@@ -178,12 +209,47 @@ ViewerApp::ViewerApp(const ViewerAppOptions& options) : state_(std::make_unique<
             Generate();
         }
         ImGui::EndDisabled();
+        ImGui::SameLine();
+        ImGui::Checkbox("Live", &st.live);
+        ImGui::SetItemTooltip("Generate again after each edit");
         ImGui::TextDisabled("%s", st.configFile.empty() ? "Unsaved configuration"
                                                         : st.configFile.string().c_str());
         ImGui::TextWrapped("%s", st.status.c_str());
+        if (!st.parseError.empty()) {
+            ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.4f, 1.0f), "JSON: %s", st.parseError.c_str());
+        }
         ImGui::Separator();
-        const ImVec2 size(-1.0f, -1.0f);
-        InputString("##config", st.config, &size);
+        if (ImGui::BeginTabBar("##configTabs")) {
+            if (ImGui::BeginTabItem("Editor")) {
+                if (ImGui::SmallButton("Expand all")) {
+                    st.editor.ExpandAll();
+                }
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Collapse all")) {
+                    st.editor.CollapseAll();
+                }
+                ImGui::SameLine();
+                ImGui::TextDisabled("Dim: default. Right-click a field to reset it.");
+                if (ImGui::BeginChild("##tree")) {
+                    if (st.editor.Draw(st.document)) {
+                        st.config = st.document.dump(4) + "\n";
+                        st.parseError.clear();
+                        st.Edited();
+                    }
+                }
+                ImGui::EndChild();
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("JSON")) {
+                const ImVec2 size(-1.0f, -1.0f);
+                if (InputString("##config", st.config, &size)) {
+                    st.ParseText();
+                    st.Edited();
+                }
+                ImGui::EndTabItem();
+            }
+            ImGui::EndTabBar();
+        }
     });
     s.viewer->AddMenuItem("File", "Open...", [this](ernie::app::Viewer&) { ShowOpenDialog(); });
     s.viewer->AddMenuItem("File", "Save Configuration As...",
@@ -234,6 +300,7 @@ void ViewerApp::Open(const std::filesystem::path& path) {
         std::ostringstream text;
         text << file.rdbuf();
         s.config = text.str();
+        s.ParseText();
         s.configFile = path;
         s.Report(ernie::app::LogLevel::Info, "Opened " + path.string());
         Generate();
@@ -247,6 +314,7 @@ void ViewerApp::Generate() {
     if (Generating()) {
         return;
     }
+    s.edited.reset();
     try {
         const TerrainConfig config = ParseConfig(s.config);
         const std::filesystem::path directory = s.configFile.parent_path();
@@ -276,6 +344,35 @@ const std::string& ViewerApp::ConfigText() const {
 
 void ViewerApp::SetConfigText(std::string json) {
     state_->config = std::move(json);
+    state_->ParseText();
+}
+
+const nlohmann::json& ViewerApp::ConfigDocument() const {
+    return state_->document;
+}
+
+const std::string& ViewerApp::ConfigParseError() const {
+    return state_->parseError;
+}
+
+ConfigEditor& ViewerApp::Editor() {
+    return state_->editor;
+}
+
+bool ViewerApp::Live() const {
+    return state_->live;
+}
+
+void ViewerApp::SetLive(bool live) {
+    state_->live = live;
+}
+
+void ViewerApp::EditConfig(const std::function<void(nlohmann::json&)>& edit) {
+    State& s = *state_;
+    edit(s.document);
+    s.config = s.document.dump(4) + "\n";
+    s.parseError.clear();
+    s.Edited();
 }
 
 void ViewerApp::SaveConfig(const std::filesystem::path& path) {

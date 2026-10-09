@@ -5,8 +5,10 @@
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <string>
 #include <utility>
 #include <variant>
@@ -587,6 +589,166 @@ TEST(LoadConfig, ReadsFilesAndReportsUnreadableOnes) {
     EXPECT_EQ(LoadConfig(path), Everything());
     std::filesystem::remove(path);
     EXPECT_THROW(LoadConfig(path), ConfigError);
+}
+
+namespace {
+
+using SchemaJson = nlohmann::json;
+
+/// The schema `node` stands for, following a reference into `schema`'s definitions.
+const SchemaJson& Resolve(const SchemaJson& schema, const SchemaJson& node) {
+    return node["kind"] == "ref" ? schema["definitions"].at(node["ref"].get<std::string>()) : node;
+}
+
+/// Checks that `value` fits `node` (as a field's default must), recursing into objects, choices
+/// and arrays; counts the kinds seen.
+void CheckFits(const SchemaJson& schema, const SchemaJson& node, const SchemaJson& value,
+               const std::string& where, std::map<std::string, int>& kinds) {
+    const SchemaJson& resolved = Resolve(schema, node);
+    const std::string kind = resolved["kind"];
+    ++kinds[kind];
+    if (kind == "number") {
+        EXPECT_TRUE(value.is_number()) << where;
+    } else if (kind == "integer") {
+        EXPECT_TRUE(value.is_number_integer()) << where;
+    } else if (kind == "boolean") {
+        EXPECT_TRUE(value.is_boolean()) << where;
+    } else if (kind == "string") {
+        EXPECT_TRUE(value.is_string()) << where;
+    } else if (kind == "enum") {
+        ASSERT_TRUE(value.is_string()) << where;
+        const SchemaJson& choices = resolved["choices"];
+        EXPECT_NE(std::find(choices.begin(), choices.end(), value), choices.end()) << where;
+    } else if (kind == "optional") {
+        if (!value.is_null()) {
+            CheckFits(schema, resolved["of"], value, where, kinds);
+        }
+        CheckFits(schema, resolved["of"], resolved["default"], where + "?", kinds);
+    } else if (kind == "array") {
+        ASSERT_TRUE(value.is_array()) << where;
+        for (const SchemaJson& item : value) {
+            CheckFits(schema, resolved["of"], item, where + "[]", kinds);
+        }
+    } else if (kind == "object") {
+        ASSERT_TRUE(value.is_object()) << where;
+        for (const SchemaJson& field : resolved["fields"]) {
+            const std::string name = field["name"];
+            ASSERT_TRUE(value.contains(name)) << where << "." << name;
+            CheckFits(schema, field["schema"], value[name], where + "." + name, kinds);
+        }
+    } else if (kind == "choice") {
+        ASSERT_TRUE(value.is_object() && value.contains("type")) << where;
+        bool found = false;
+        for (const SchemaJson& alternative : resolved["alternatives"]) {
+            if (alternative["type"] != value["type"]) {
+                continue;
+            }
+            found = true;
+            for (const SchemaJson& field : alternative["fields"]) {
+                const std::string name = field["name"];
+                ASSERT_TRUE(value.contains(name)) << where << "." << name;
+                CheckFits(schema, field["schema"], value[name], where + "." + name, kinds);
+            }
+        }
+        EXPECT_TRUE(found) << where << " has type " << value["type"];
+    } else {
+        ADD_FAILURE() << where << ": unknown kind " << kind;
+    }
+}
+
+}  // namespace
+
+TEST(ConfigSchema, DescribesEveryFieldAndEveryDefaultFitsIt) {
+    const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
+    EXPECT_EQ(schema["schema_version"], terraingen::kConfigSchemaVersion);
+    const SchemaJson& root = schema["root"];
+    std::vector<std::string> names;
+    for (const SchemaJson& field : root["fields"]) {
+        names.push_back(field["name"]);
+    }
+    EXPECT_EQ(names, (std::vector<std::string>{"schema_version", "surface", "source", "layers",
+                                               "filters", "outputs", "albedo"}));
+
+    // Every alternative's default, and every field's, fits its schema.
+    std::map<std::string, int> kinds;
+    for (const auto& [id, definition] : schema["definitions"].items()) {
+        if (definition["kind"] == "choice") {
+            for (const SchemaJson& alternative : definition["alternatives"]) {
+                CheckFits(schema, definition, alternative["default"],
+                          id + ":" + alternative["type"].get<std::string>(), kinds);
+            }
+        } else {
+            for (const SchemaJson& field : definition["fields"]) {
+                CheckFits(schema, field["schema"], field["default"],
+                          id + "." + field["name"].get<std::string>(), kinds);
+            }
+        }
+    }
+    for (const char* kind : {"number", "integer", "boolean", "string", "enum", "optional", "array",
+                             "object", "choice"}) {
+        EXPECT_GT(kinds[kind], 0) << kind;
+    }
+
+    // A default configuration built from the schema parses.
+    SchemaJson config = SchemaJson::object();
+    for (const SchemaJson& field : root["fields"]) {
+        config[field["name"].get<std::string>()] = field["default"];
+    }
+    EXPECT_NO_THROW(ParseConfig(config.dump())) << config.dump();
+}
+
+TEST(ConfigSchema, ListsTheParsersChoicesAndRefersToRecursiveTypes) {
+    const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
+    const auto field = [&](const SchemaJson& object, const std::string& name) {
+        for (const SchemaJson& f : object["fields"]) {
+            if (f["name"] == name) {
+                return f;
+            }
+        }
+        ADD_FAILURE() << "no field " << name;
+        return SchemaJson::object();
+    };
+    const auto alternative = [&](const SchemaJson& choice, const std::string& type) {
+        for (const SchemaJson& a : choice["alternatives"]) {
+            if (a["type"] == type) {
+                return a;
+            }
+        }
+        ADD_FAILURE() << "no alternative " << type;
+        return SchemaJson::object();
+    };
+
+    const SchemaJson source = field(schema["root"], "source")["schema"];
+    ASSERT_EQ(source["kind"], "ref");
+    const SchemaJson& sources = Resolve(schema, source);
+    ASSERT_EQ(sources["kind"], "choice");
+    const SchemaJson chain = field(alternative(sources, "chain"), "sources")["schema"];
+    EXPECT_EQ(chain["kind"], "array");
+    EXPECT_EQ(chain["of"], source) << "a chain holds sources of the same choice";
+
+    const SchemaJson layers = field(schema["root"], "layers")["schema"];
+    ASSERT_EQ(layers["kind"], "array");
+    const SchemaJson& layerChoice = Resolve(schema, layers["of"]);
+    EXPECT_EQ(layerChoice["alternatives"].size(), std::variant_size_v<LayerSpec>);
+    const SchemaJson stack = field(alternative(layerChoice, "noise"), "stack")["schema"];
+    const SchemaJson& noise = Resolve(schema, stack["of"]);
+    const SchemaJson basis = field(noise, "basis")["schema"];
+    ASSERT_EQ(basis["kind"], "enum");
+    EXPECT_EQ(basis["choices"].size(), 6u);
+    for (const SchemaJson& choice : basis["choices"]) {
+        const std::string config =
+            R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"basis": )" +
+            choice.dump() + "}]}]}";
+        EXPECT_NO_THROW(ParseConfig(config)) << choice;
+    }
+    const SchemaJson octaves = field(noise, "octaves");
+    EXPECT_EQ(octaves["schema"]["kind"], "integer");
+    EXPECT_EQ(octaves["default"], 8);
+    const SchemaJson hurst = field(noise, "hurst");
+    EXPECT_EQ(hurst["schema"]["kind"], "optional");
+    EXPECT_TRUE(hurst["default"].is_null());
+    EXPECT_TRUE(hurst["schema"]["default"].is_number());
+    EXPECT_TRUE(field(schema["root"], "schema_version")["schema"]["fixed"]);
 }
 
 TEST(ConfigCatalog, ListsEveryTypeAndEachEntryParsesWhereItBelongs) {
