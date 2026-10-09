@@ -14,6 +14,10 @@ inline constexpr int kExitUsage = 2;
 /// Usage text for `terraingen --help`.
 std::string Usage();
 
+/// A `--threads` value: a count from 0 (every hardware thread) to 4096.
+/// @throws std::invalid_argument for anything else.
+unsigned ParseThreads(const std::string& text);
+
 /// Runs `terraingen` with `args` (without the program name), writing results to `out` and errors
 /// to `err`:
 /// - `CONFIG [--output-dir DIR] [--log-level LEVEL] [--threads N]` generates the terrain the JSON
@@ -22,6 +26,7 @@ std::string Usage();
 /// - `validate CONFIG` checks CONFIG without generating and reports its grid and the craters
 ///   expected;
 /// - `schema` prints every configuration type with its defaults (`ConfigCatalog`);
+/// - `view [PATH] [--threads N]` opens the 3D viewer (`RunView`) when the build has it;
 /// - `-V` or `--version`, and `-h` or `--help`.
 /// @return `kExitSuccess`, `kExitInvalidConfig` for a configuration, input or output error, or
 /// `kExitUsage` for bad arguments.

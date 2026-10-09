@@ -1,4 +1,5 @@
 #include "terraingen/app/cli.h"
+#include "terraingen/app/viewer/view.h"
 #include "terraingen/raster/geotiff.h"
 
 #include <gtest/gtest.h>
@@ -8,6 +9,7 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -98,6 +100,31 @@ TEST(Cli, RejectsBadArguments) {
         const Result result = Cli(args);
         EXPECT_EQ(result.code, kExitUsage) << ::testing::PrintToString(args);
         EXPECT_NE(result.err.find("Usage:"), std::string::npos);
+    }
+}
+
+TEST(Cli, ParsesThreadCounts) {
+    EXPECT_EQ(terraingen::cli::ParseThreads("0"), 0u);
+    EXPECT_EQ(terraingen::cli::ParseThreads("4096"), 4096u);
+    for (const char* bad : {"", "-1", "4097", "two", "3x"}) {
+        EXPECT_THROW(terraingen::cli::ParseThreads(bad), std::invalid_argument) << bad;
+    }
+}
+
+TEST(Cli, ViewRejectsBadArgumentsOrExplainsHowToAddTheViewer) {
+    EXPECT_NE(Cli({"--help"}).out.find("terraingen view [PATH]"), std::string::npos);
+    for (const std::vector<std::string>& args :
+         std::vector<std::vector<std::string>>{{"view", "--bogus"},
+                                               {"view", "a.json", "b.json"},
+                                               {"view", "--threads"},
+                                               {"view", "a.json", "--threads", "lots"}}) {
+        EXPECT_EQ(Cli(args).code, kExitUsage) << ::testing::PrintToString(args);
+    }
+    if (!terraingen::cli::ViewerAvailable()) {
+        const Result result = Cli({"view", "a.json"});
+        EXPECT_EQ(result.code, kExitUsage);
+        EXPECT_NE(result.err.find("-DTERRAINGEN_BUILD_VIEWER=ON"), std::string::npos);
+        EXPECT_NE(result.err.find("TERRAINGEN_ERNIE_DIR"), std::string::npos);
     }
 }
 

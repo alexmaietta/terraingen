@@ -1,5 +1,6 @@
 #include "terraingen/app/cli.h"
 
+#include "terraingen/app/viewer/view.h"
 #include "terraingen/pipeline/config_json.h"
 #include "terraingen/pipeline/run.h"
 #include "terraingen/util/build_info.h"
@@ -26,22 +27,6 @@ struct GenerateArgs {
     LogLevel logLevel = LogLevel::Info;
     unsigned threads = 0;
 };
-
-unsigned ParseThreads(const std::string& text) {
-    std::size_t used = 0;
-    unsigned long value = 0;
-    try {
-        value = std::stoul(text, &used);
-    } catch (const std::exception&) {
-        used = 0;
-    }
-    if (used == 0 || used != text.size() || text.front() == '-' || value > 4096) {
-        throw std::invalid_argument("--threads needs a count from 0 (every hardware thread) to "
-                                    "4096, not '" +
-                                    text + "'");
-    }
-    return static_cast<unsigned>(value);
-}
 
 GenerateArgs ParseGenerate(const std::vector<std::string>& args) {
     GenerateArgs parsed;
@@ -164,6 +149,22 @@ int Validate(const std::vector<std::string>& args, std::ostream& out, std::ostre
 
 }  // namespace
 
+unsigned ParseThreads(const std::string& text) {
+    std::size_t used = 0;
+    unsigned long value = 0;
+    try {
+        value = std::stoul(text, &used);
+    } catch (const std::exception&) {
+        used = 0;
+    }
+    if (used == 0 || used != text.size() || text.front() == '-' || value > 4096) {
+        throw std::invalid_argument("--threads needs a count from 0 (every hardware thread) to "
+                                    "4096, not '" +
+                                    text + "'");
+    }
+    return static_cast<unsigned>(value);
+}
+
 std::string Usage() {
     return "Usage:\n"
            "  terraingen CONFIG [--output-dir DIR] [--log-level LEVEL] [--threads N]\n"
@@ -171,6 +172,8 @@ std::string Usage() {
            "  terraingen validate CONFIG\n"
            "                         Check CONFIG without generating\n"
            "  terraingen schema      Print every configuration type with its defaults\n"
+           "  terraingen view [PATH] [--threads N]\n"
+           "                         Open the 3D viewer on a configuration or GeoTIFF heights\n"
            "  terraingen -V, --version\n"
            "                         Show version and build information\n"
            "  terraingen -h, --help  Show this message\n";
@@ -203,6 +206,9 @@ int Run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
         }
         if (first == "validate") {
             return Validate(args, out, err);
+        }
+        if (first == "view") {
+            return RunView({args.begin() + 1, args.end()}, out, err);
         }
         return Generate(args, out, err);
     } catch (const std::invalid_argument& error) {

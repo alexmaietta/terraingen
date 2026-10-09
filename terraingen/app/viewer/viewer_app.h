@@ -1,0 +1,80 @@
+#pragma once
+
+#include <ernie/app/viewer.h>
+#include <ernie/scene/scene.h>
+
+#include <filesystem>
+#include <memory>
+#include <string>
+
+namespace terraingen::viewer {
+
+/// Options for opening a `ViewerApp`.
+struct ViewerAppOptions {
+    std::filesystem::path open;  ///< Configuration (.json) or heights (.tif, .tiff); may be empty.
+    unsigned threads = 0;        ///< Generation threads; 0 for every hardware thread.
+    bool hidden = false;         ///< Render without showing the window, for tests.
+};
+
+/// TerrainGen's 3D viewer: Ernie's viewer (`ernie::app::Viewer`) on a scene of the terrain, with
+/// Ernie's own panels hidden (the Window menu shows them again) but for its log, the viewport's
+/// ground grid and light gizmos off (its eye menu shows them again), the Log tab in front at the
+/// bottom, and a TerrainGen panel to open, edit, generate and save terrain configurations and to
+/// open heights, through the viewer's file dialogs (also under the File menu).
+///
+/// Generation runs on a thread of its own, so the viewer stays responsive; the finished terrain
+/// replaces the scene's on the next frame, and the first one is framed.
+class ViewerApp {
+  public:
+    /// Opens the window, then `Open`s `options.open` when given.
+    /// @throws std::runtime_error if the window or GPU cannot be initialized.
+    explicit ViewerApp(const ViewerAppOptions& options = {});
+    ~ViewerApp();
+    ViewerApp(const ViewerApp&) = delete;
+    ViewerApp& operator=(const ViewerApp&) = delete;
+
+    /// Draws frames until the window closes.
+    void Run();
+
+    /// Draws one frame; returns whether the window is still open.
+    bool Step();
+
+    ernie::app::Viewer& Viewer();
+    ernie::Scene& Scene();
+
+    /// Opens a configuration (.json), putting it in the editor and generating it, or heights
+    /// (.tif, .tiff), showing them at once. Errors go to the viewer's log and the panel's status.
+    void Open(const std::filesystem::path& path);
+
+    /// Generates the editor's configuration in the background; relative paths in it resolve
+    /// against the folder of the configuration file last opened or saved, else the working
+    /// directory. Does nothing while a generation runs.
+    void Generate();
+
+    /// Whether a generation is running.
+    bool Generating() const;
+
+    /// The configuration being edited, as JSON.
+    const std::string& ConfigText() const;
+    void SetConfigText(std::string json);
+
+    /// Writes the editor's configuration to `path`, after checking it parses, and makes it the
+    /// file `Generate` resolves paths against. Errors go to the log and the status.
+    void SaveConfig(const std::filesystem::path& path);
+
+    /// Opens the viewer's file dialog to choose a configuration or heights to `Open`, starting in
+    /// the folder of the configuration file, as the panel's Open button and File > Open do.
+    void ShowOpenDialog();
+
+    /// Opens the viewer's file dialog to choose where to `SaveConfig`, as Save As does.
+    void ShowSaveDialog();
+
+    /// One line on what last happened: generated, opened, saved or failed.
+    const std::string& Status() const;
+
+  private:
+    struct State;
+    std::unique_ptr<State> state_;
+};
+
+}  // namespace terraingen::viewer
