@@ -17,8 +17,11 @@ __pycache__/
 *.pyc
 .pytest_cache/
 
-# Local data such as DEMs; not committed for now
-assets/
+# DEMs dropped in the repository root for local use; not committed
+/*.[tT][iI][fF]
+/*.[tT][iI][fF][fF]
+/*.[tT][iI][fF].aux.xml
+/*.[tT][iI][fF][fF].aux.xml
 
 # Default output folders of the examples
 examples/**/output/
