@@ -49,10 +49,10 @@ The 3D GUI (`terraingen CONFIG --gui`) builds with Ernie, the renderer, from a l
 - **Configuration fields** carry a description and, for numbers, a unit (see
   `terraingen/pipeline/config_json.cpp`); a test checks every field has them.
 
-## Reporting bugs and security issues
+## Reporting bugs
 
 Open an issue with the configuration (or code) that shows the problem, what you expected and
-what happened, and your platform. For security issues, see [SECURITY.md](SECURITY.md).
+what happened, and your platform.
 
 By contributing you agree that your contributions are licensed under the project's
 [BSD 3-Clause License](LICENSE).
