@@ -64,11 +64,12 @@ std::string ConfigCatalog(int indent = 2);
 /// since some contain themselves (a chain of sources). A schema has a "kind":
 /// - "number", "integer" (with "minimum" 0 for counts; "fixed" for the schema version),
 ///   "boolean", "string";
-/// - "enum" with its "choices";
+/// - "enum" with its "choices" and, for each, its "descriptions";
 /// - "optional" and "array" with the schema "of" what they hold and that thing's "default";
-/// - "object" with its "fields", in order, each {"name", "schema", "default"};
-/// - "choice" with its "alternatives", each {"type", "fields", "default"}: an object whose "type"
-///   names which.
+/// - "object" with its "fields", in order, each {"name", "description", "schema", "default"};
+/// - "choice" with its "alternatives", each {"type", "description", "fields", "default"}: an
+///   object whose "type" names which.
+/// Every field, type and enum value has a description, a sentence or two for editors' tooltips.
 /// It comes from the same field lists the parser reads, so it always matches it.
 std::string ConfigSchema(int indent = 2);
 

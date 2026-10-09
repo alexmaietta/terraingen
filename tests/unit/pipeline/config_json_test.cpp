@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <set>
 #include <string>
 #include <utility>
 #include <variant>
@@ -695,6 +696,64 @@ TEST(ConfigSchema, DescribesEveryFieldAndEveryDefaultFitsIt) {
         config[field["name"].get<std::string>()] = field["default"];
     }
     EXPECT_NO_THROW(ParseConfig(config.dump())) << config.dump();
+}
+
+TEST(ConfigSchema, DescribesEveryFieldTypeAndChoice) {
+    const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
+    std::vector<std::string> missing;
+    std::set<std::string> enums;
+    const auto describedAs = [&](const SchemaJson& item, const std::string& where) {
+        const std::string text = item.value("description", "");
+        if (text.empty()) {
+            missing.push_back(where);
+            return;
+        }
+        EXPECT_TRUE(std::all_of(text.begin(), text.end(),
+                                [](unsigned char c) { return c >= 32 && c < 127; }))
+            << where << " is not plain ASCII: " << text;
+        EXPECT_EQ(text.back(), '.') << where << " does not end with a full stop: " << text;
+        EXPECT_LE(text.size(), 400u) << where << " is long for a tooltip";
+    };
+    const auto checkEnums = [&](const SchemaJson& node, const std::string& where) {
+        const SchemaJson* resolved = &node;
+        while ((*resolved)["kind"] == "optional" || (*resolved)["kind"] == "array") {
+            resolved = &(*resolved)["of"];
+        }
+        if ((*resolved)["kind"] != "enum" || !enums.insert(resolved->dump()).second) {
+            return;
+        }
+        const SchemaJson& choices = (*resolved)["choices"];
+        const SchemaJson& descriptions = (*resolved)["descriptions"];
+        ASSERT_EQ(descriptions.size(), choices.size()) << where;
+        for (std::size_t i = 0; i < choices.size(); ++i) {
+            describedAs(SchemaJson{{"description", descriptions[i]}},
+                        where + "=" + choices[i].get<std::string>());
+        }
+    };
+    const auto checkFields = [&](const SchemaJson& fields, const std::string& where) {
+        for (const SchemaJson& field : fields) {
+            const std::string at = where + "." + field["name"].get<std::string>();
+            describedAs(field, at);
+            checkEnums(field["schema"], at);
+        }
+    };
+    checkFields(schema["root"]["fields"], "root");
+    for (const auto& [id, definition] : schema["definitions"].items()) {
+        if (definition["kind"] == "choice") {
+            for (const SchemaJson& alternative : definition["alternatives"]) {
+                const std::string type = alternative["type"];
+                describedAs(alternative, type);
+                checkFields(alternative["fields"], type);
+            }
+        } else {
+            checkFields(definition["fields"], id);
+        }
+    }
+    std::string list;
+    for (const std::string& where : missing) {
+        list += "\n  " + where;
+    }
+    EXPECT_TRUE(missing.empty()) << missing.size() << " without a description:" << list;
 }
 
 TEST(ConfigSchema, ListsTheParsersChoicesAndRefersToRecursiveTypes) {

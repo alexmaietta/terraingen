@@ -61,14 +61,50 @@ std::string ItemLabel(const Json& item, std::size_t index) {
     return label;
 }
 
-/// The label column: the field's name, dimmed when the configuration leaves it out.
-void Label(const std::string& name, bool given) {
+/// Shows `text` (and `extra` below it, dimmed) as the last item's tooltip, wrapped to a readable
+/// width; nothing for empty text.
+void Tooltip(std::string_view text, const std::string& extra = {}) {
+    if (text.empty() && extra.empty()) {
+        return;
+    }
+    if (ImGui::BeginItemTooltip()) {
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 28.0f);
+        if (!text.empty()) {
+            ImGui::TextUnformatted(text.data(), text.data() + text.size());
+        }
+        if (!extra.empty()) {
+            ImGui::TextColored(kDefaultColour, "%s", extra.c_str());
+        }
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
+}
+
+/// The description of choice `index` of an enum schema, if it has one.
+std::string_view ChoiceDescription(const Json& node, std::size_t index) {
+    const Json* descriptions = node.contains("descriptions") ? &node["descriptions"] : nullptr;
+    if (descriptions == nullptr || index >= descriptions->size()) {
+        return {};
+    }
+    return (*descriptions)[index].get_ref<const std::string&>();
+}
+
+/// The label column: the field's name, dimmed when the configuration leaves it out, with its
+/// description and default as a tooltip.
+void Label(const std::string& name, bool given, std::string_view description,
+           const Json& fallback) {
     ImGui::AlignTextToFramePadding();
     if (given) {
         ImGui::TextUnformatted(name.c_str());
     } else {
         ImGui::TextColored(kDefaultColour, "%s", name.c_str());
     }
+    std::string extra;
+    if (!fallback.is_null() && !fallback.is_object() && !fallback.is_array()) {
+        extra =
+            "Default: " + (fallback.is_string() ? fallback.get<std::string>() : fallback.dump());
+    }
+    Tooltip(description, extra);
 }
 
 }  // namespace
@@ -170,7 +206,8 @@ bool ConfigEditor::DrawField(Json& object, const Json& field) {
     const bool given = object.contains(name);
     Json value = given ? object[name] : field["default"];
     ImGui::PushID(name.c_str());
-    const bool changed = DrawValue(name, value, node, given);
+    const std::string description = field.value("description", "");
+    const bool changed = DrawValue(name, value, node, given, description, &field["default"]);
     bool reset = false;
     if (given && ImGui::BeginPopupContextItem("reset")) {
         if (ImGui::MenuItem("Reset to default")) {
@@ -189,7 +226,8 @@ bool ConfigEditor::DrawField(Json& object, const Json& field) {
     return changed;
 }
 
-bool ConfigEditor::DrawValue(const std::string& label, Json& value, const Json& node, bool given) {
+bool ConfigEditor::DrawValue(const std::string& label, Json& value, const Json& node, bool given,
+                             std::string_view description, const Json* fallback) {
     const Json& resolved = Resolve(node);
     const std::string kind = resolved["kind"];
     if (kind == "object") {
@@ -201,21 +239,23 @@ bool ConfigEditor::DrawValue(const std::string& label, Json& value, const Json& 
             ImGui::SetNextItemOpen(true, ImGuiCond_Once);
         }
         NextNodeOpen();
-        if (ImGui::TreeNode(label.c_str())) {
+        const bool open = ImGui::TreeNode(label.c_str());
+        Tooltip(description);
+        if (open) {
             changed = DrawFields(value, resolved["fields"]);
             ImGui::TreePop();
         }
         return changed;
     }
     if (kind == "choice") {
-        return DrawChoice(label, value, resolved);
+        return DrawChoice(label, value, resolved, description);
     }
     if (kind == "array") {
-        return DrawArray(label, value, resolved);
+        return DrawArray(label, value, resolved, description);
     }
 
     // Leaves: a label, then the widget filling the rest of the row.
-    Label(label, given);
+    Label(label, given, description, fallback != nullptr ? *fallback : Json());
     ImGui::SameLine(ImGui::GetContentRegionAvail().x * 0.42f);
     ImGui::SetNextItemWidth(-1.0f);
     if (kind != "optional") {
@@ -235,7 +275,7 @@ bool ConfigEditor::DrawValue(const std::string& label, Json& value, const Json& 
     const std::string innerKind = inner["kind"];
     if (innerKind == "object" || innerKind == "choice" || innerKind == "array") {
         ImGui::Indent();
-        changed |= DrawValue(label, value, resolved["of"], true);
+        changed |= DrawValue(label, value, resolved["of"], true, description);
         ImGui::Unindent();
         return changed;
     }
@@ -256,14 +296,24 @@ bool ConfigEditor::DrawLeaf(Json& value, const Json& resolved) {
     }
     if (kind == "enum") {
         const std::string current = value.is_string() ? value.get<std::string>() : "";
+        const Json& choices = resolved["choices"];
         bool changed = false;
-        if (ImGui::BeginCombo("##value", current.c_str())) {
-            for (const Json& choice : resolved["choices"]) {
-                const std::string name = choice;
+        const bool open = ImGui::BeginCombo("##value", current.c_str());
+        if (!open) {
+            for (std::size_t i = 0; i < choices.size(); ++i) {
+                if (choices[i] == current) {
+                    Tooltip(ChoiceDescription(resolved, i));
+                }
+            }
+        }
+        if (open) {
+            for (std::size_t i = 0; i < choices.size(); ++i) {
+                const std::string name = choices[i];
                 if (ImGui::Selectable(name.c_str(), name == current)) {
                     value = name;
                     changed = true;
                 }
+                Tooltip(ChoiceDescription(resolved, i));
             }
             ImGui::EndCombo();
         }
@@ -298,7 +348,8 @@ bool ConfigEditor::DrawLeaf(Json& value, const Json& resolved) {
     return false;
 }
 
-bool ConfigEditor::DrawChoice(const std::string& label, Json& value, const Json& choice) {
+bool ConfigEditor::DrawChoice(const std::string& label, Json& value, const Json& choice,
+                              std::string_view description) {
     bool changed = false;
     const std::string type = TypeOf(value, choice);
     if (!value.is_object()) {
@@ -306,16 +357,24 @@ bool ConfigEditor::DrawChoice(const std::string& label, Json& value, const Json&
     }
     NextNodeOpen();
     const bool open = ImGui::TreeNodeEx(label.c_str(), ImGuiTreeNodeFlags_AllowOverlap);
+    Tooltip(description);
     ImGui::SameLine(ImGui::GetContentRegionAvail().x * 0.42f);
     ImGui::SetNextItemWidth(-1.0f);
     ImGui::PushID(label.c_str());
-    if (ImGui::BeginCombo("##type", type.c_str())) {
+    const bool menu = ImGui::BeginCombo("##type", type.c_str());
+    if (!menu) {
+        if (const Json* current = AlternativeOf(choice, type)) {
+            Tooltip(current->value("description", ""));
+        }
+    }
+    if (menu) {
         for (const Json& alternative : choice["alternatives"]) {
             const std::string name = alternative["type"];
             if (ImGui::Selectable(name.c_str(), name == type)) {
                 SetType(value, choice, name);
                 changed = true;
             }
+            Tooltip(alternative.value("description", ""));
         }
         ImGui::EndCombo();
     }
@@ -330,14 +389,18 @@ bool ConfigEditor::DrawChoice(const std::string& label, Json& value, const Json&
     return changed;
 }
 
-bool ConfigEditor::DrawArray(const std::string& label, Json& value, const Json& node) {
+bool ConfigEditor::DrawArray(const std::string& label, Json& value, const Json& node,
+                             std::string_view description) {
     if (!value.is_array()) {
         value = Json::array();
     }
     bool changed = false;
     const std::string title = label + " (" + std::to_string(value.size()) + ")";
     NextNodeOpen();
-    if (!ImGui::TreeNodeEx(label.c_str(), ImGuiTreeNodeFlags_DefaultOpen, "%s", title.c_str())) {
+    const bool open =
+        ImGui::TreeNodeEx(label.c_str(), ImGuiTreeNodeFlags_DefaultOpen, "%s", title.c_str());
+    Tooltip(description);
+    if (!open) {
         return false;
     }
     const Json& of = node["of"];
@@ -377,6 +440,7 @@ bool ConfigEditor::DrawArray(const std::string& label, Json& value, const Json& 
                     value.push_back(Json{{"type", name}});
                     changed = true;
                 }
+                Tooltip(alternative.value("description", ""));
             }
             ImGui::EndCombo();
         }
