@@ -22,7 +22,8 @@ struct ViewerAppOptions {
 
 /// TerrainGen's 3D viewer: Ernie's viewer (`ernie::app::Viewer`) on a scene of the terrain, with
 /// Ernie's own panels hidden (the Window menu shows them again) but for its log, the viewport's
-/// ground grid and light gizmos off (its eye menu shows them again), and two panels of its own:
+/// ground grid, light gizmos, selection outline and toolbar menus but its settings and eye off
+/// (the eye menu shows them again), and two panels of its own:
 /// - Terrain, on the left: a toolbar to open (Ctrl+O), save (Ctrl+S) and generate (F5) with Live
 ///   regeneration, the file and status, and the configuration's outliner (`ConfigEditor`);
 /// - Inspector, on the right: the settings of what the outliner selects, and the whole

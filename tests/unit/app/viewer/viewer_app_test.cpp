@@ -66,6 +66,11 @@ TEST(ViewerApp, OpensAndGeneratesAConfigThenSavesIt) {
     EXPECT_EQ(app.Editor().Selection(), "/layers/0") << "opening selects the first layer";
     EXPECT_FALSE(app.Viewer().GetViewportDisplay().grid);
     EXPECT_FALSE(app.Viewer().GetViewportDisplay().lights);
+    const ernie::app::ViewportDisplay& display = app.Viewer().GetViewportDisplay();
+    EXPECT_FALSE(display.selection);
+    EXPECT_FALSE(display.toolbarRenderer || display.toolbarVar || display.toolbarCamera ||
+                 display.toolbarLighting)
+        << "the toolbar keeps only its settings and eye menus";
     EXPECT_TRUE(app.Viewer().FindPanel("Log")->IsVisible());
 
     app.SaveConfig(dir / "saved.json");

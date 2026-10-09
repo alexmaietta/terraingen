@@ -182,6 +182,11 @@ ViewerApp::ViewerApp(const ViewerAppOptions& options) : state_(std::make_unique<
     ernie::app::ViewportDisplay display = s.viewer->GetViewportDisplay();
     display.grid = false;
     display.lights = false;
+    display.selection = false;
+    display.toolbarRenderer = false;
+    display.toolbarVar = false;
+    display.toolbarCamera = false;
+    display.toolbarLighting = false;
     s.viewer->SetViewportDisplay(display);
     for (const char* title : kHiddenPanels) {
         if (ernie::app::Panel* panel = s.viewer->FindPanel(title)) {
