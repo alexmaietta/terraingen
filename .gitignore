@@ -17,9 +17,6 @@ __pycache__/
 *.pyc
 .pytest_cache/
 
-# Validation work in progress; only the files already committed are tracked for now
-validation/
-
 # DEMs dropped in the repository root for local use; not committed
 /*.[tT][iI][fF]
 /*.[tT][iI][fF][fF]
