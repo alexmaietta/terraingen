@@ -1,0 +1,118 @@
+name: Release
+
+# On a version tag (vX.Y.Z, matching VERSION): the CLI, library, headers and CMake package for
+# Linux, macOS and Windows as archives, Debian packages (terraingen, terraingen-dev) built on the
+# oldest supported Ubuntu, and a GitHub release with them. Wheels, the Docker image and the docs
+# publish from their own workflows on the same tag.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: version
+        shell: bash
+        run: |
+          version="$(head -n 1 VERSION)"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" != "v${version}" ]]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match VERSION ${version}"
+            exit 1
+          fi
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+  binaries:
+    name: Binaries (${{ matrix.platform }})
+    needs: version
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            platform: linux-x86_64
+          - os: macos-14
+            platform: macos-arm64
+          - os: windows-2022
+            platform: windows-x86_64
+    env:
+      ARCHIVE: terraingen-${{ needs.version.outputs.version }}-${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install Ninja
+        run: python -m pip install ninja
+
+      - name: Use the MSVC developer environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure
+        run: >-
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DTERRAINGEN_BUILD_TESTS=OFF -DTERRAINGEN_BUILD_VALIDATION=OFF
+          -DTERRAINGEN_BUILD_BENCHMARKS=OFF -DTERRAINGEN_BUILD_EXAMPLES=OFF
+          -DTERRAINGEN_BUILD_PYTHON=OFF -DTERRAINGEN_INSTALL=ON
+
+      - name: Build
+        run: cmake --build build --parallel 4
+
+      - name: Install into the archive's folder
+        run: cmake --install build --prefix ${{ env.ARCHIVE }}
+
+      - name: Add the licence and readme
+        shell: bash
+        run: cp LICENSE README.md CHANGELOG.md "${ARCHIVE}/"
+
+      - name: Archive (zip)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path "$env:ARCHIVE" -DestinationPath "$env:ARCHIVE.zip"
+
+      - name: Archive (tar.gz)
+        if: runner.os != 'Windows'
+        run: tar -czf "${ARCHIVE}.tar.gz" "${ARCHIVE}"
+
+      - name: Debian packages
+        if: runner.os == 'Linux'
+        run: cpack --config build/CPackConfig.cmake -G DEB -B debs
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: binaries-${{ matrix.platform }}
+          path: |
+            ${{ env.ARCHIVE }}.zip
+            ${{ env.ARCHIVE }}.tar.gz
+            debs/*.deb
+          if-no-files-found: error
+
+  release:
+    needs: [version, binaries]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: files
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          name: TerrainGen ${{ needs.version.outputs.version }}
+          generate_release_notes: true
+          files: files/**/*

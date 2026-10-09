@@ -1,0 +1,92 @@
+name: Wheels
+
+# Python wheels for Linux, macOS and Windows, tested against the Python tests. Pushes to main
+# publish a development version (VERSION.devN) to PyPI and version tags publish the release, both
+# through PyPI trusted publishing (the "pypi" environment).
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    paths:
+      - "pyproject.toml"
+      - "CMakeLists.txt"
+      - "terraingen/python/**"
+      - ".github/workflows/wheels.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wheels-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  wheels:
+    name: Wheels (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-15-intel, macos-14, windows-2022]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Mark a development version
+        if: github.ref_type != 'tag'
+        shell: bash
+        run: echo "$(head -n 1 VERSION).dev${{ github.run_number }}" > VERSION
+
+      - uses: pypa/cibuildwheel@v4.3.0
+        env:
+          # One stable-ABI wheel per platform serves Python 3.12 and newer.
+          CIBW_BUILD: "cp312-*"
+          CIBW_SKIP: "*-musllinux_*"
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+          CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
+          CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=11.0
+          CIBW_TEST_REQUIRES: pytest
+          CIBW_TEST_COMMAND: pytest {project}/tests/python
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
+
+  sdist:
+    name: Source distribution
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Mark a development version
+        if: github.ref_type != 'tag'
+        run: echo "$(head -n 1 VERSION).dev${{ github.run_number }}" > VERSION
+
+      - name: Build the source distribution
+        run: pipx run build --sdist
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+
+  publish:
+    name: Publish to PyPI
+    if: github.event_name == 'push'
+    needs: [wheels, sdist]
+    runs-on: ubuntu-24.04
+    environment:
+      name: pypi
+      url: https://pypi.org/p/terraingen
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - uses: pypa/gh-action-pypi-publish@release/v1

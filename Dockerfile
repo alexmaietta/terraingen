@@ -12,15 +12,9 @@ RUN apt-get update \
         ca-certificates \
         cmake \
         git \
-        libgdal-dev \
-        libproj-dev \
-        libwayland-dev \
-        libxkbcommon-dev \
         ninja-build \
-        pkg-config \
         python3-dev \
         python3-venv \
-        xorg-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN python3 -m venv /opt/venv \
@@ -40,17 +34,17 @@ RUN cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
 
 FROM ubuntu:${UBUNTU_VERSION} AS dev
 
+LABEL org.opencontainers.image.source="https://github.com/alexmaietta/terraingen" \
+      org.opencontainers.image.description="TerrainGen: the library, headers, CMake package, CLI and Python package" \
+      org.opencontainers.image.licenses="BSD-3-Clause"
+
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \
         cmake \
-        libwayland-dev \
-        libxkbcommon-dev \
         ninja-build \
-        pkg-config \
         python3-venv \
-        xorg-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /opt/terraingen /opt/terraingen
