@@ -66,7 +66,8 @@ std::string ConfigCatalog(int indent = 2);
 ///   "boolean", "string";
 /// - "enum" with its "choices" and, for each, its "descriptions";
 /// - "optional" and "array" with the schema "of" what they hold and that thing's "default";
-/// - "object" with its "fields", in order, each {"name", "description", "schema", "default"};
+/// - "object" with its "fields", in order, each {"name", "description", "unit", "schema",
+///   "default"}, "unit" the value's unit symbol (such as "m", "deg", "Gyr") or empty without one;
 /// - "choice" with its "alternatives", each {"type", "description", "fields", "default"}: an
 ///   object whose "type" names which.
 /// Every field, type and enum value has a description, a sentence or two for editors' tooltips.

@@ -614,9 +614,11 @@ class Reader {
         }
     }
 
-    /// Reads `key` into `value` when present; `description` is for `ConfigSchema` only.
+    /// Reads `key` into `value` when present; `description` and `unit` are for `ConfigSchema`
+    /// only.
     template <typename T>
-    void operator()(std::string_view key, T& value, std::string_view description = {});
+    void operator()(std::string_view key, T& value, std::string_view description = {},
+                    std::string_view unit = {});
 
     /// Marks `key` as known without reading it.
     void Accept(std::string_view key) {
@@ -651,9 +653,10 @@ class Writer {
   public:
     explicit Writer(Json& json) : json_(json) {}
 
-    /// Writes `value` as `key`; `description` is for `ConfigSchema` only.
+    /// Writes `value` as `key`; `description` and `unit` are for `ConfigSchema` only.
     template <typename T>
-    void operator()(std::string_view key, T& value, std::string_view description = {});
+    void operator()(std::string_view key, T& value, std::string_view description = {},
+                    std::string_view unit = {});
 
   private:
     Json& json_;
@@ -908,7 +911,8 @@ void Read(const Json& json, const std::string& path, std::variant<Ts...>& value)
 }
 
 template <typename T>
-void Reader::operator()(std::string_view key, T& value, std::string_view /*description*/) {
+void Reader::operator()(std::string_view key, T& value, std::string_view /*description*/,
+                        std::string_view /*unit*/) {
     known_.emplace(key);
     const auto found = json_.find(key);
     if (found != json_.end()) {
@@ -996,7 +1000,8 @@ template <typename... Ts> Json ToJson(const std::variant<Ts...>& value) {
 }
 
 template <typename T>
-void Writer::operator()(std::string_view key, T& value, std::string_view /*description*/) {
+void Writer::operator()(std::string_view key, T& value, std::string_view /*description*/,
+                        std::string_view /*unit*/) {
     json_[std::string(key)] = ToJson(value);
 }
 
@@ -1005,8 +1010,9 @@ template <typename IO> void Fields(IO& io, FlatSourceSpec& source) {
     io("height", source.height, "Rows of the grid.");
     io("pixel_size", source.pixelSize,
        "Cell size in metres; on a sphere, metres along a meridian, the same in degrees of "
-       "longitude.");
-    io("elevation", source.elevation, "Height of the level datum, in metres.");
+       "longitude.",
+       "m");
+    io("elevation", source.elevation, "Height of the level datum, in metres.", "m");
     io("centre_x", source.centreX,
        "Centre of the grid along x in surface coordinates; the longitude in degrees on a sphere.");
     io("centre_y", source.centreY,
@@ -1020,14 +1026,16 @@ template <typename IO> void Fields(IO& io, RasterSourceSpec& source) {
     io("band", source.band, "Band of the file to read, counting from 0.");
     io("pixel_size", source.pixelSize,
        "Cell size in metres to resample the raster to over the same extent, as when upscaling a "
-       "DEM. Unset keeps the file's.");
+       "DEM. Unset keeps the file's.",
+       "m");
     io("resampling", source.resampling, "Interpolation used when resampling to the cell size.");
     io("scale", source.scale,
        "Factor each sample is multiplied by, replacing the band's scale from the file's GDAL "
        "metadata. Unset keeps the file's.");
     io("offset", source.offset,
        "Added to each scaled sample, replacing the band's offset from the file's GDAL metadata. "
-       "Unset keeps the file's.");
+       "Unset keeps the file's.",
+       "m");
 }
 
 template <typename IO> void Fields(IO& io, ChainSourceSpec& source) {
@@ -1049,7 +1057,7 @@ template <typename IO> void Fields(IO& io, HeightmapOutput& output) {
     io("compression", output.compression,
        "Compression of the file; compressed files use the floating-point predictor.");
     io("tile_size", output.tileSize,
-       "Width and height of the file's tiles in pixels; a positive multiple of 16.");
+       "Width and height of the file's tiles in pixels; a positive multiple of 16.", "px");
 }
 
 template <typename IO> void Fields(IO& io, NoiseLayerConfig& config) {
@@ -1065,8 +1073,10 @@ template <typename IO> void Fields(IO& io, NoiseLayerConfig& config) {
        "Seed of the noise; changing it gives a different pattern of the same character.");
     io("wavelength", fractal.wavelength,
        "Wavelength of the first, broadest octave, in metres; sets the size of the largest "
-       "features.");
-    io("amplitude", fractal.amplitude, "Largest height of the layer above or below 0, in metres.");
+       "features.",
+       "m");
+    io("amplitude", fractal.amplitude, "Largest height of the layer above or below 0, in metres.",
+       "m");
     io("octaves", fractal.octaves,
        "Number of octaves, at least 1; each one adds detail at a shorter wavelength.");
     io("lacunarity", fractal.lacunarity,
@@ -1081,13 +1091,15 @@ template <typename IO> void Fields(IO& io, NoiseLayerConfig& config) {
        "Ridge offset of the ridged and hybrid multifractal types; greater than 0.");
     io("warp_amplitude", layer.warpAmplitude,
        "Domain warp displacement in metres, which bends the noise into swirled shapes; 0 "
-       "disables warping.");
-    io("warp_wavelength", layer.warpWavelength, "Wavelength of the warp field, in metres.");
+       "disables warping.",
+       "m");
+    io("warp_wavelength", layer.warpWavelength, "Wavelength of the warp field, in metres.", "m");
 }
 
 template <typename IO> void Fields(IO& io, PowerLawSegment& segment) {
     io("start", segment.start,
-       "Diameter in metres where this segment begins; it runs up to the next segment's start.");
+       "Diameter in metres where this segment begins; it runs up to the next segment's start.",
+       "m");
     io("coefficient", segment.coefficient,
        "Coefficient of N(>=D) = coefficient D^-exponent, the cumulative count per m^2 with D in "
        "metres.");
@@ -1109,10 +1121,11 @@ template <typename IO> void Fields(IO& io, Crater& crater) {
        "Centre along x in the surface's coordinates; the longitude in degrees on a sphere.");
     io("y", crater.y,
        "Centre along y in the surface's coordinates; the latitude in degrees on a sphere.");
-    io("diameter", crater.diameter, "Rim-to-rim diameter, in metres.");
+    io("diameter", crater.diameter, "Rim-to-rim diameter, in metres.", "m");
     io("age_gyr", crater.ageGyr,
        "Age in Gyr; older craters are more degraded under a degradation model and are applied "
-       "earlier in oldest-first order.");
+       "earlier in oldest-first order.",
+       "Gyr");
     io("id", crater.id,
        "Stable ID that seeds the crater's outline; 0 derives one from its position and diameter.");
 }
@@ -1185,21 +1198,22 @@ template <typename IO> void Fields(IO& io, CraterIrregularity& irregularity) {
        "Seed the outlines are drawn with, along with each crater's ID; changing it reshapes every "
        "irregular crater.");
     io("min_diameter", irregularity.minDiameter,
-       "Smallest diameter, in metres, of craters made irregular.");
+       "Smallest diameter, in metres, of craters made irregular.", "m");
     std::optional<double> maxDiameter;
     if (std::isfinite(irregularity.maxDiameter)) {
         maxDiameter = irregularity.maxDiameter;
     }
     io("max_diameter", maxDiameter,
-       "Largest diameter, in metres, of craters made irregular; unset has no upper limit.");
+       "Largest diameter, in metres, of craters made irregular; unset has no upper limit.", "m");
     irregularity.maxDiameter = maxDiameter.value_or(std::numeric_limits<double>::infinity());
-    io("min_age_gyr", irregularity.minAgeGyr, "Youngest age, in Gyr, of craters made irregular.");
+    io("min_age_gyr", irregularity.minAgeGyr, "Youngest age, in Gyr, of craters made irregular.",
+       "Gyr");
     std::optional<double> maxAge;
     if (std::isfinite(irregularity.maxAgeGyr)) {
         maxAge = irregularity.maxAgeGyr;
     }
     io("max_age_gyr", maxAge,
-       "Oldest age, in Gyr, of craters made irregular; unset has no upper limit.");
+       "Oldest age, in Gyr, of craters made irregular; unset has no upper limit.", "Gyr");
     irregularity.maxAgeGyr = maxAge.value_or(std::numeric_limits<double>::infinity());
     io("manual", irregularity.manual,
        "Makes manual craters irregular too; otherwise only generated craters are.");
@@ -1228,9 +1242,10 @@ template <typename IO> void Fields(IO& io, CraterIrregularity& irregularity) {
        "Long over short rim-to-rim diameter of elliptical craters, drawn per crater; at least 1.");
     io("heading", irregularity.heading,
        "Heading of elliptical craters' long axes, in radians counter-clockwise from +x; unset "
-       "gives random headings.");
+       "gives random headings.",
+       "rad");
     io("heading_spread", irregularity.headingSpread,
-       "Largest random turn of a long axis either way from the heading, in radians.");
+       "Largest random turn of a long axis either way from the heading, in radians.", "rad");
 }
 
 template <typename IO> void Fields(IO& io, RimSmoothing& smoothing) {
@@ -1265,9 +1280,9 @@ template <typename IO> void Fields(IO& io, CraterLayerSpec& craters) {
     io("ages", craters.ages,
        "How generated craters are given ages, which the degradation model wears them down by.");
     io("min_diameter", craters.minDiameter,
-       "Smallest crater generated, in metres; lower values add many more small craters.");
+       "Smallest crater generated, in metres; lower values add many more small craters.", "m");
     io("max_diameter", craters.maxDiameter,
-       "Largest crater generated, in metres; above the smallest.");
+       "Largest crater generated, in metres; above the smallest.", "m");
     io("spacing", craters.spacing,
        "Keeps craters of similar size apart by removing conflicting ones, which lowers the density "
        "below the model's.");
@@ -1289,16 +1304,19 @@ template <typename IO> void Fields(IO& io, RockPatches& patches) {
     io("spread", patches.spread,
        "Rock abundance varies from 1 / spread to spread times its mean, at least 1; 1 is the same "
        "everywhere.");
-    io("size", patches.size, "Typical width of a patch of richer or poorer rock cover, in metres.");
+    io("size", patches.size, "Typical width of a patch of richer or poorer rock cover, in metres.",
+       "m");
 }
 
 template <typename IO> void Fields(IO& io, RockEjecta& ejecta) {
     io("min_crater_diameter", ejecta.minCraterDiameter,
        "Smallest crater, in metres, that throws blocks out; 0 with no regolith thickness disables "
-       "crater blocks.");
+       "crater blocks.",
+       "m");
     io("regolith_thickness", ejecta.regolithThickness,
        "Regolith thickness in metres: craters smaller than it over the excavation depth ratio dig "
-       "no rock and throw no blocks. Unset ignores the regolith.");
+       "no rock and throw no blocks. Unset ignores the regolith.",
+       "m");
     io("excavation_depth_ratio", ejecta.excavationDepthRatio,
        "Depth of excavation over crater diameter, in (0, 1]; with the regolith thickness it sets "
        "the smallest crater that throws blocks.");
@@ -1321,7 +1339,7 @@ template <typename IO> void Fields(IO& io, RockEjecta& ejecta) {
        "With freshness aging, the freshness (current over fresh depth) at or below which a crater "
        "keeps no blocks; from 0 to below 1.");
     io("lifetime_gyr", ejecta.lifetimeGyr,
-       "With age aging, the crater age in Gyr at which a crater keeps no blocks.");
+       "With age aging, the crater age in Gyr at which a crater keeps no blocks.", "Gyr");
     io("aging_exponent", ejecta.agingExponent,
        "With age aging, the exponent of (1 - age / lifetime); higher values strip blocks from "
        "craters sooner.");
@@ -1351,7 +1369,8 @@ template <typename IO> void Fields(IO& io, SynthterrainRocksSpec& spec) {
 template <typename IO> void Fields(IO& io, ExposureParams& exposure) {
     io("reach", exposure.reach,
        "Distance in metres around a point at which its surroundings are read, to tell rises from "
-       "lows.");
+       "lows.",
+       "m");
     io("rise_soil", exposure.riseSoil,
        "Height above the surroundings, as a share of the reach, at or below which the ground is "
        "soil.");
@@ -1366,7 +1385,7 @@ template <typename IO> void Fields(IO& io, ExposureParams& exposure) {
        "Share of level ground that is bedrock too, in noise patches, as on a swept lava floor; "
        "from 0 to below 1, and 0 for none.");
     io("floor_patch", exposure.floorPatch,
-       "Width of the bedrock patches on level ground, in metres.");
+       "Width of the bedrock patches on level ground, in metres.", "m");
     io("seed", exposure.seed, "Seed of the bedrock patches on level ground.");
 }
 
@@ -1377,13 +1396,14 @@ template <typename IO> void Fields(IO& io, RockLayerSpec& spec) {
        "golombek_rapp sizes, where higher values give more rocks.");
     io("qa", rocks.qa,
        "Constant term of the Golombek-Rapp q = qa + qb / k, per metre; a larger q leaves fewer "
-       "large rocks. Also used for golombek_rapp ejecta.");
+       "large rocks. Also used for golombek_rapp ejecta.",
+       "1/m");
     io("qb", rocks.qb,
-       "Term of the Golombek-Rapp q = qa + qb / k divided by the coverage k, per metre.");
+       "Term of the Golombek-Rapp q = qa + qb / k divided by the coverage k, per metre.", "1/m");
     io("min_diameter", rocks.minDiameter,
-       "Smallest rock generated, in metres; lower values add many more small rocks.");
+       "Smallest rock generated, in metres; lower values add many more small rocks.", "m");
     io("max_diameter", rocks.maxDiameter,
-       "Largest rock generated, in metres, exclusive; above the smallest.");
+       "Largest rock generated, in metres, exclusive; above the smallest.", "m");
     io("sizes", spec.sizes,
        "Size distribution of the rocks between craters, per m^2; patches and bedrock scale its "
        "density.");
@@ -1408,7 +1428,8 @@ template <typename IO> void Fields(IO& io, RockLayerSpec& spec) {
        "exposure field.");
     io("exposure_spacing", rocks.exposureSpacing,
        "Spacing in metres the ground is read at for the exposure field, fixed so that which rocks "
-       "exist does not depend on the level of detail.");
+       "exist does not depend on the level of detail.",
+       "m");
     io("min_height_ratio", rocks.minHeightRatio,
        "Smallest rock height over diameter; each rock's is drawn uniformly between the two "
        "ratios.");
@@ -1420,7 +1441,7 @@ template <typename IO> void Fields(IO& io, RockLayerSpec& spec) {
     io("max_burial", rocks.maxBurial,
        "Largest buried share of a rock's height, below 1; more burial leaves less of the rock "
        "exposed.");
-    io("max_lean", rocks.maxLean, "Largest tilt of a rock from the vertical, in radians.");
+    io("max_lean", rocks.maxLean, "Largest tilt of a rock from the vertical, in radians.", "rad");
     io("relief", rocks.relief, "How the rocks drawn into the heights look there.");
     io("models", rocks.models,
        "Which rocks become 3D models of their own rather than relief in the heights; neither "
@@ -1437,14 +1458,16 @@ template <typename IO> void Fields(IO& io, RoughnessLayerSpec& spec) {
     io("rms_slope", roughness.rmsSlope,
        "RMS slope, as rise over run, over the baseline when every octave is resolved; higher "
        "values give rougher ground.");
-    io("baseline", roughness.baseline, "Baseline the RMS slope is given over, in metres.");
+    io("baseline", roughness.baseline, "Baseline the RMS slope is given over, in metres.", "m");
     io("hurst", roughness.hurst,
        "Hurst exponent, in (0, 1]: octave amplitudes grow as wavelength^hurst, so lower values "
        "put relatively more roughness at short wavelengths.");
-    io("max_wavelength", roughness.maxWavelength, "Wavelength of the longest octave, in metres.");
+    io("max_wavelength", roughness.maxWavelength, "Wavelength of the longest octave, in metres.",
+       "m");
     io("min_wavelength", roughness.minWavelength,
        "Wavelength of the shortest octave, in metres; octaves halve from the longest down to it, "
-       "spanning at most 40 octaves.");
+       "spanning at most 40 octaves.",
+       "m");
     io("seed", roughness.seed,
        "Seed of the noise; changing it gives a different pattern of the same roughness.");
     io("fade", roughness.fade,
@@ -1466,34 +1489,36 @@ template <typename IO> void Fields(IO& io, SecondaryLayerSpec& spec) {
     io("size_slope", o.sizeSlope,
        "Cumulative size slope of the secondaries, their number falling as d^-slope; higher values "
        "give relatively more small secondaries.");
-    io("min_diameter", o.minDiameter, "Smallest secondary generated, in metres.");
+    io("min_diameter", o.minDiameter, "Smallest secondary generated, in metres.", "m");
     std::optional<double> maxDiameter;
     if (std::isfinite(o.maxDiameter)) {
         maxDiameter = o.maxDiameter;
     }
     io("max_diameter", maxDiameter,
        "Largest secondary generated, in metres; unset has no limit beyond Singer et al.'s largest "
-       "secondary at each range.");
+       "secondary at each range.",
+       "m");
     o.maxDiameter = maxDiameter.value_or(std::numeric_limits<double>::infinity());
     io("outer_range", o.outerRange,
        "How far secondaries reach, in primary diameters from its centre; unset uses the longest "
        "typical ray of Elliott et al. (2018).");
     io("min_primary_diameter", o.minPrimaryDiameter,
-       "Smallest primary crater, in metres, that throws secondaries.");
+       "Smallest primary crater, in metres, that throws secondaries.", "m");
     std::optional<double> maxPrimary;
     if (std::isfinite(o.maxPrimaryDiameter)) {
         maxPrimary = o.maxPrimaryDiameter;
     }
     io("max_primary_diameter", maxPrimary,
-       "Largest primary crater, in metres, that throws secondaries; unset has no upper limit.");
+       "Largest primary crater, in metres, that throws secondaries; unset has no upper limit.",
+       "m");
     o.maxPrimaryDiameter = maxPrimary.value_or(std::numeric_limits<double>::infinity());
-    io("min_age_gyr", o.minAgeGyr, "Youngest primary, in Gyr, that throws secondaries.");
+    io("min_age_gyr", o.minAgeGyr, "Youngest primary, in Gyr, that throws secondaries.", "Gyr");
     std::optional<double> maxAge;
     if (std::isfinite(o.maxAgeGyr)) {
         maxAge = o.maxAgeGyr;
     }
     io("max_age_gyr", maxAge,
-       "Oldest primary, in Gyr, that throws secondaries; unset has no upper limit.");
+       "Oldest primary, in Gyr, that throws secondaries; unset has no upper limit.", "Gyr");
     o.maxAgeGyr = maxAge.value_or(std::numeric_limits<double>::infinity());
     io("manual", o.manual,
        "Lets manual primary craters throw secondaries too; otherwise only generated ones do.");
@@ -1509,14 +1534,15 @@ template <typename IO> void Fields(IO& io, SecondaryLayerSpec& spec) {
 template <typename IO> void Fields(IO& io, BedformLayerSpec& spec) {
     BedformOptions& bedforms = spec.bedforms;
     io("wavelength", bedforms.wavelength,
-       "Crest-to-crest spacing, in metres; each field's varies from 0.8 to 1.2 times it.");
+       "Crest-to-crest spacing, in metres; each field's varies from 0.8 to 1.2 times it.", "m");
     io("height", bedforms.height,
-       "Trough-to-crest height, in metres, scaled with each field's wavelength.");
+       "Trough-to-crest height, in metres, scaled with each field's wavelength.", "m");
     io("wind_azimuth", bedforms.windAzimuth,
        "Direction the wind blows toward, in radians counter-clockwise from +x (local east on a "
-       "sphere); crests lie across it.");
+       "sphere); crests lie across it.",
+       "rad");
     io("azimuth_spread", bedforms.azimuthSpread,
-       "Largest difference of each field's wind from the azimuth, in radians.");
+       "Largest difference of each field's wind from the azimuth, in radians.", "rad");
     io("lee_fraction", bedforms.leeFraction,
        "Share of a wavelength the lee face takes, in (0, 1): 0.5 is symmetric, lower values give "
        "a steeper lee face.");
@@ -1524,7 +1550,7 @@ template <typename IO> void Fields(IO& io, BedformLayerSpec& spec) {
        "How far a crest wanders along its length, in wavelengths; 0 gives straight crests.");
     io("cover", bedforms.cover,
        "Share of the ground under bedform fields, from 0 to 0.9; 0 gives no bedforms.");
-    io("field_size", bedforms.fieldSize, "Typical width of a bedform field, in metres.");
+    io("field_size", bedforms.fieldSize, "Typical width of a bedform field, in metres.", "m");
     io("seed", bedforms.seed,
        "Seed of the fields and their crests; changing it gives a different layout of the same "
        "statistics.");
@@ -1532,7 +1558,7 @@ template <typename IO> void Fields(IO& io, BedformLayerSpec& spec) {
        "Leaves out fields whose centres lie on bedrock, the likelier the barer the ground, as "
        "sand settles in lows; unset disables it.");
     io("exposure_spacing", bedforms.exposureSpacing,
-       "Spacing in metres the ground is read at for the exposure field.");
+       "Spacing in metres the ground is read at for the exposure field.", "m");
     io("fade", bedforms.fade,
        "How bedforms too fine for the sample spacing fade out, by samples per wavelength.");
 }
@@ -1540,16 +1566,19 @@ template <typename IO> void Fields(IO& io, BedformLayerSpec& spec) {
 template <typename IO> void Fields(IO& io, ScaleLayerSpec& spec) {
     io("scale", spec.scale,
        "Factor every height so far is multiplied by, as for vertical exaggeration.");
-    io("offset", spec.offset, "Metres added to every height after scaling, to shift the datum.");
+    io("offset", spec.offset, "Metres added to every height after scaling, to shift the datum.",
+       "m");
 }
 
 template <typename IO> void Fields(IO& io, ClampLayerSpec& spec) {
     io("min", spec.min,
        "Lowest height kept, in metres; lower heights are raised to it, flattening basin floors. "
-       "Unset leaves heights unbounded below.");
+       "Unset leaves heights unbounded below.",
+       "m");
     io("max", spec.max,
        "Highest height kept, in metres; higher heights are lowered to it, capping peaks. Unset "
-       "leaves heights unbounded above.");
+       "leaves heights unbounded above.",
+       "m");
 }
 
 template <typename IO> void Fields(IO& io, RectangleRegionSpec& spec) {
@@ -1568,14 +1597,15 @@ template <typename IO> void Fields(IO& io, CircleRegionSpec& spec) {
        "Centre along x in the surface's coordinates; the longitude in degrees on a sphere.");
     io("y", spec.y,
        "Centre along y in the surface's coordinates; the latitude in degrees on a sphere.");
-    io("radius", spec.radius, "Radius of the circle in metres, also on a sphere.");
+    io("radius", spec.radius, "Radius of the circle in metres, also on a sphere.", "m");
 }
 
 template <typename IO> void Fields(IO& io, RegionLayerSpec& spec) {
     io("shape", spec.shape, "Area the inner layer is applied in: a rectangle or a circle.");
     io("feather", spec.feather,
        "Distance in metres outside the shape over which the inner layer fades back to the "
-       "unchanged height; 0 gives a hard edge.");
+       "unchanged height; 0 gives a hard edge.",
+       "m");
     io("blend", spec.blend, "Curve of the fade across the feather.");
     io("layer", spec.layer,
        "Layer applied only inside the shape. A crater layer here does not count as the crater "
@@ -1585,13 +1615,15 @@ template <typename IO> void Fields(IO& io, RegionLayerSpec& spec) {
 template <typename IO> void Fields(IO& io, LunarSurfaceSpec& spec) {
     io("age_gyr", spec.ageGyr,
        "Age of the lunar surface in Gyr, from 0 to 4.6; older surfaces hold more craters, up to "
-       "the Trask equilibrium. Also sets auto crater ages.");
+       "the Trask equilibrium. Also sets auto crater ages.",
+       "Gyr");
 }
 
 template <typename IO> void Fields(IO& io, MarsSurfaceSpec& spec) {
     io("age_gyr", spec.ageGyr,
        "Age of the Martian surface in Gyr, above 0 and at most 4.6; older surfaces hold more "
-       "craters. Also sets auto crater ages.");
+       "craters. Also sets auto crater ages.",
+       "Gyr");
 }
 
 template <typename IO> void Fields(IO& io, PowerLawSpec& spec) {
@@ -1615,8 +1647,9 @@ template <typename IO> void Fields(IO& io, TabulatedSpec& spec) {
     io("cumulative", spec.cumulative,
        "Cumulative count N(>=D) at each diameter, per area unit; positive and not increasing.");
     io("diameter_unit", spec.diameterUnit,
-       "Metres per table diameter unit: 1 for metres, 1000 for km.");
-    io("area_unit", spec.areaUnit, "Square metres per table area unit: 1 for m^2, 1e6 for km^2.");
+       "Metres per table diameter unit: 1 for metres, 1000 for km.", "m");
+    io("area_unit", spec.areaUnit, "Square metres per table area unit: 1 for m^2, 1e6 for km^2.",
+       "m^2");
 }
 
 template <typename IO> void Fields(IO& /*io*/, TraskSpec& /*spec*/) {}
@@ -1636,13 +1669,15 @@ template <typename IO> void Fields(IO& /*io*/, FreshAgesSpec& /*spec*/) {}
 template <typename IO> void Fields(IO& io, UniformAgesSpec& spec) {
     io("lifetime_gyr", spec.lifetimeGyr,
        "Lifetime in Gyr, positive, that every crater's age is drawn uniformly within; with "
-       "degradation, a crater this old is fully worn.");
+       "degradation, a crater this old is fully worn.",
+       "Gyr");
 }
 
 template <typename IO> void Fields(IO& io, SteadyStateAgesSpec& spec) {
     io("age_gyr", spec.ageGyr,
        "Age of the surface in Gyr, from 0 to 4.6; it caps every crater's lifetime, so larger "
-       "craters on an older surface can be older.");
+       "craters on an older surface can be older.",
+       "Gyr");
     io("equilibrium", spec.equilibrium,
        "Equilibrium density that, with the production rate, sets how long small craters last "
        "before they are erased.");
@@ -1670,13 +1705,15 @@ template <typename IO> void Fields(IO& io, DiffusionDegradationSpec& spec) {
 template <typename IO> void Fields(IO& io, PowerLawDiffusivity& law) {
     io("coefficient", law.coefficient,
        "Diffusivity of a 1 km crater, in m^2/Myr, positive; higher values wear craters down "
-       "faster.");
+       "faster.",
+       "m^2/Myr");
     io("exponent", law.exponent,
        "Exponent of the diameter in coefficient (D / 1 km)^exponent; 0 gives the same "
        "diffusivity for every crater size.");
     io("min_diameter", law.minDiameter,
        "Diameter in metres below which the diffusivity is held at its value at this "
-       "diameter; not negative.");
+       "diameter; not negative.",
+       "m");
 }
 
 template <typename IO> void Fields(IO& io, NoDegradationSpec& spec) {
@@ -1712,13 +1749,15 @@ template <typename IO> void Fields(IO& io, BoulderModelsOutput& output) {
        "(the CLI's --output-dir), else the configuration's folder.");
     io("crease_angle", output.creaseAngle,
        "Angle in degrees, from 0 to 180: in .glb files, vertices are split where faces meet at "
-       "more than it, giving sharp edges; .ply files ignore it.");
+       "more than it, giving sharp edges; .ply files ignore it.",
+       "deg");
 }
 
 template <typename IO> void Fields(IO& io, RockModels& models) {
     io("min_diameter", models.minDiameter,
        "Rocks at least this many metres across become 3D models; unset applies no diameter "
-       "threshold.");
+       "threshold.",
+       "m");
     io("min_samples", models.minSamples,
        "Rocks spanning at least this many samples at the spacing evaluated become 3D models, so "
        "finer levels of detail make more of them; unset applies no such threshold.");
@@ -1791,7 +1830,7 @@ template <typename IO> void Fields(IO& /*io*/, PlaneSurfaceSpec& /*spec*/) {}
 
 template <typename IO> void Fields(IO& io, SphereSurfaceSpec& spec) {
     io("radius", spec.radius,
-       "Radius of the body's datum sphere, in metres; give it or a body, not both.");
+       "Radius of the body's datum sphere, in metres; give it or a body, not both.", "m");
     io("body", spec.body,
        "Body whose mean radius to use instead of a radius; unset requires the radius.");
 }
@@ -1805,7 +1844,8 @@ template <typename IO> void Fields(IO& io, BodyMeshOutput& output) {
        "triangles per quad.");
     io("spacing", output.spacing,
        "Sample spacing in metres the heights are evaluated at, which sets the finest features "
-       "kept; unset uses a quad's side at a face's centre.");
+       "kept; unset uses a quad's side at a face's centre.",
+       "m");
 }
 
 template <typename IO> void Fields(IO& io, AlbedoOutput& output) {
@@ -1815,14 +1855,15 @@ template <typename IO> void Fields(IO& io, AlbedoOutput& output) {
     io("compression", output.compression,
        "Compression of the file; compressed files use the floating-point predictor.");
     io("tile_size", output.tileSize,
-       "Width and height of the file's tiles in pixels; a positive multiple of 16.");
+       "Width and height of the file's tiles in pixels; a positive multiple of 16.", "px");
 }
 
 template <typename IO> void Fields(IO& io, SyntheticAlbedoSpec& spec) {
     io("rgb", spec.rgb,
        "Gives three bands, red, green and blue, from the colour; off gives one band of the value "
        "alone, ignoring hue and saturation.");
-    io("hue", spec.hue, "Hue of the base colour in degrees, wrapping around; used with rgb only.");
+    io("hue", spec.hue, "Hue of the base colour in degrees, wrapping around; used with rgb only.",
+       "deg");
     io("saturation", spec.saturation,
        "Saturation of the base colour, from 0 for grey to 1; used with rgb only.");
     io("value", spec.value,
@@ -1913,39 +1954,47 @@ template <typename IO> void Fields(IO& io, ObliqueImpacts& oblique) {
        "impact as vertical.");
     io("heading", oblique.heading,
        "Downrange direction of every impact, in radians counter-clockwise from east; unset draws "
-       "a random heading per crater.");
+       "a random heading per crater.",
+       "rad");
     io("asymmetric_degrees", oblique.asymmetricDegrees,
        "Impact angle from the horizontal, in degrees, below which ejecta leave faster downrange, "
-       "lengthening rays there and shortening them uprange.");
+       "lengthening rays there and shortening them uprange.",
+       "deg");
     io("forbidden_degrees", oblique.forbiddenDegrees,
        "Impact angle in degrees below which rays within the zone half width of uprange are "
-       "dropped; at most the asymmetric angle.");
+       "dropped; at most the asymmetric angle.",
+       "deg");
     io("butterfly_degrees", oblique.butterflyDegrees,
        "Impact angle in degrees below which rays within the zone half width of downrange are "
-       "dropped too, a butterfly pattern; at most the forbidden angle.");
+       "dropped too, a butterfly pattern; at most the forbidden angle.",
+       "deg");
     io("downrange_speed_ratio", oblique.downrangeSpeedRatio,
        "Downrange over uprange ejection speed below the asymmetric angle, drawn per crater; at "
        "least 1, higher values stretch downrange rays more.");
     io("zone_half_width_degrees", oblique.zoneHalfWidthDegrees,
        "Half width in degrees, 0 to 180, of the ray-free zones uprange and downrange; "
-       "illustrative, as the sources do not measure it.");
+       "illustrative, as the sources do not measure it.",
+       "deg");
 }
 
 template <typename IO> void Fields(IO& io, RayRetention& retention) {
     io("small_diameter", retention.smallDiameter,
        "Diameter in metres at or below which craters keep their bright material for the small "
-       "time.");
+       "time.",
+       "m");
     io("small_myr", retention.smallMyr,
-       "Time in Myr craters up to the small diameter keep their bright material.");
+       "Time in Myr craters up to the small diameter keep their bright material.", "Myr");
     io("mid_diameter", retention.midDiameter,
        "Diameter in metres from which craters keep their bright material for the mid time; "
-       "between the small and mid diameters the time follows a power law of diameter.");
+       "between the small and mid diameters the time follows a power law of diameter.",
+       "m");
     io("mid_myr", retention.midMyr,
-       "Time in Myr craters from the mid to the large diameter keep their bright material.");
+       "Time in Myr craters from the mid to the large diameter keep their bright material.", "Myr");
     io("large_diameter", retention.largeDiameter,
-       "Diameter in metres above which craters keep their bright material for the large time.");
+       "Diameter in metres above which craters keep their bright material for the large time.",
+       "m");
     io("large_myr", retention.largeMyr,
-       "Time in Myr craters above the large diameter keep their bright material.");
+       "Time in Myr craters above the large diameter keep their bright material.", "Myr");
     io("scale", retention.scale,
        "Factor every retention time is multiplied by, positive; higher values keep craters "
        "bright for longer.");
@@ -1956,22 +2005,24 @@ template <typename IO> void Fields(IO& io, CraterAlbedoOptions& options) {
        "Seed of which craters get bright material, their rays and their impacts; changing it "
        "gives a different pattern of the same statistics.");
     io("min_diameter", options.minDiameter,
-       "Smallest diameter, in metres, of craters given bright material.");
+       "Smallest diameter, in metres, of craters given bright material.", "m");
     std::optional<double> maxDiameter;
     if (std::isfinite(options.maxDiameter)) {
         maxDiameter = options.maxDiameter;
     }
     io("max_diameter", maxDiameter,
        "Largest diameter, in metres, of craters given bright material; unset has no upper "
-       "limit.");
+       "limit.",
+       "m");
     options.maxDiameter = maxDiameter.value_or(std::numeric_limits<double>::infinity());
-    io("min_age_gyr", options.minAgeGyr, "Youngest age, in Gyr, of craters given bright material.");
+    io("min_age_gyr", options.minAgeGyr, "Youngest age, in Gyr, of craters given bright material.",
+       "Gyr");
     std::optional<double> maxAge;
     if (std::isfinite(options.maxAgeGyr)) {
         maxAge = options.maxAgeGyr;
     }
     io("max_age_gyr", maxAge,
-       "Oldest age, in Gyr, of craters given bright material; unset has no upper limit.");
+       "Oldest age, in Gyr, of craters given bright material; unset has no upper limit.", "Gyr");
     options.maxAgeGyr = maxAge.value_or(std::numeric_limits<double>::infinity());
     io("manual", options.manual,
        "Gives manual craters bright material too; otherwise only generated craters have it.");
@@ -2123,9 +2174,11 @@ class SchemaWriter {
     SchemaWriter(SchemaBuilder& builder, Json& fields) : builder_(builder), fields_(fields) {}
 
     template <typename T>
-    void operator()(std::string_view key, T& value, std::string_view description = {}) {
+    void operator()(std::string_view key, T& value, std::string_view description = {},
+                    std::string_view unit = {}) {
         fields_.push_back(Json{{"name", std::string(key)},
                                {"description", std::string(description)},
+                               {"unit", std::string(unit)},
                                {"schema", Describer<T>::Describe(builder_)},
                                {"default", ToJson(value)}});
     }

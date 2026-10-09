@@ -756,6 +756,41 @@ TEST(ConfigSchema, DescribesEveryFieldTypeAndChoice) {
     EXPECT_TRUE(missing.empty()) << missing.size() << " without a description:" << list;
 }
 
+TEST(ConfigSchema, GivesUnitsOnlyToNumbersAndFromAFixedSet) {
+    const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
+    const std::set<std::string> units = {"",    "m",   "m^2",   "km",     "deg", "rad",    "Gyr",
+                                         "Myr", "1/m", "1/m^2", "1/km^2", "px",  "m^2/Myr"};
+    int withUnits = 0;
+    const auto numeric = [&](const SchemaJson& node) {
+        const SchemaJson* resolved = &node;
+        while ((*resolved)["kind"] == "optional" || (*resolved)["kind"] == "array") {
+            resolved = &(*resolved)["of"];
+        }
+        return (*resolved)["kind"] == "number" || (*resolved)["kind"] == "integer";
+    };
+    const auto check = [&](const SchemaJson& fields, const std::string& where) {
+        for (const SchemaJson& field : fields) {
+            const std::string unit = field.value("unit", "");
+            const std::string at = where + "." + field["name"].get<std::string>();
+            EXPECT_TRUE(units.contains(unit)) << at << " has unit \"" << unit << "\"";
+            if (!unit.empty()) {
+                ++withUnits;
+                EXPECT_TRUE(numeric(field["schema"])) << at << " is not a number";
+            }
+        }
+    };
+    for (const auto& [id, definition] : schema["definitions"].items()) {
+        if (definition["kind"] == "choice") {
+            for (const SchemaJson& alternative : definition["alternatives"]) {
+                check(alternative["fields"], alternative["type"].get<std::string>());
+            }
+        } else {
+            check(definition["fields"], id);
+        }
+    }
+    EXPECT_GT(withUnits, 50) << "lengths, angles and ages carry units";
+}
+
 TEST(ConfigSchema, ListsTheParsersChoicesAndRefersToRecursiveTypes) {
     const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
     const auto field = [&](const SchemaJson& object, const std::string& name) {
