@@ -1,12 +1,13 @@
 #include "terraingen/app/cli.h"
 
-#include "terraingen/app/viewer/view.h"
+#include "terraingen/app/gui/run.h"
 #include "terraingen/pipeline/config_json.h"
 #include "terraingen/pipeline/run.h"
 #include "terraingen/util/build_info.h"
 #include "terraingen/util/log.h"
 #include "terraingen/util/version.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <exception>
@@ -172,8 +173,8 @@ std::string Usage() {
            "  terraingen validate CONFIG\n"
            "                         Check CONFIG without generating\n"
            "  terraingen schema      Print every configuration type with its defaults\n"
-           "  terraingen view [PATH] [--threads N]\n"
-           "                         Open the 3D viewer on a configuration or GeoTIFF heights\n"
+           "  terraingen [PATH] --gui [--threads N]\n"
+           "                         Open the GUI on a configuration or GeoTIFF heights\n"
            "  terraingen -V, --version\n"
            "                         Show version and build information\n"
            "  terraingen -h, --help  Show this message\n";
@@ -183,6 +184,12 @@ int Run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
     try {
         if (args.empty()) {
             throw std::invalid_argument("Missing a command or configuration file");
+        }
+        const auto gui = std::find(args.begin(), args.end(), "--gui");
+        if (gui != args.end()) {
+            std::vector<std::string> rest(args.begin(), gui);
+            rest.insert(rest.end(), gui + 1, args.end());
+            return RunGui(rest, out, err);
         }
         const std::string& first = args.front();
         if (first == "--help" || first == "-h") {
@@ -206,9 +213,6 @@ int Run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
         }
         if (first == "validate") {
             return Validate(args, out, err);
-        }
-        if (first == "view") {
-            return RunView({args.begin() + 1, args.end()}, out, err);
         }
         return Generate(args, out, err);
     } catch (const std::invalid_argument& error) {

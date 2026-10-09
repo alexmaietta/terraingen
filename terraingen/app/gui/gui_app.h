@@ -1,6 +1,6 @@
 #pragma once
 
-#include "terraingen/app/viewer/config_editor.h"
+#include "terraingen/app/gui/config_editor.h"
 
 #include <ernie/app/viewer.h>
 #include <ernie/scene/scene.h>
@@ -11,16 +11,17 @@
 #include <memory>
 #include <string>
 
-namespace terraingen::viewer {
+namespace terraingen::gui {
 
-/// Options for opening a `ViewerApp`.
-struct ViewerAppOptions {
+/// Options for opening a `GuiApp`.
+struct GuiAppOptions {
     std::filesystem::path open;  ///< Configuration (.json) or heights (.tif, .tiff); may be empty.
     unsigned threads = 0;        ///< Generation threads; 0 for every hardware thread.
     bool hidden = false;         ///< Render without showing the window, for tests.
 };
 
-/// TerrainGen's 3D viewer: Ernie's viewer (`ernie::app::Viewer`) on a scene of the terrain, with
+/// TerrainGen's GUI (`terraingen --gui`): Ernie's viewer (`ernie::app::Viewer`) on a scene of the
+/// terrain, with
 /// Ernie's own panels hidden (the Window menu shows them again) but for its log, the viewport's
 /// ground grid, light gizmos, selection outline and toolbar menus but its settings and eye off
 /// (the eye menu shows them again), and two panels of its own:
@@ -30,16 +31,16 @@ struct ViewerAppOptions {
 ///   configuration as JSON.
 /// Opening and saving go through the viewer's file dialogs (also under the File menu).
 ///
-/// Generation runs on a thread of its own, so the viewer stays responsive; the finished terrain
+/// Generation runs on a thread of its own, so the GUI stays responsive; the finished terrain
 /// replaces the scene's on the next frame, and the first one is framed.
-class ViewerApp {
+class GuiApp {
   public:
     /// Opens the window, then `Open`s `options.open` when given.
     /// @throws std::runtime_error if the window or GPU cannot be initialized.
-    explicit ViewerApp(const ViewerAppOptions& options = {});
-    ~ViewerApp();
-    ViewerApp(const ViewerApp&) = delete;
-    ViewerApp& operator=(const ViewerApp&) = delete;
+    explicit GuiApp(const GuiAppOptions& options = {});
+    ~GuiApp();
+    GuiApp(const GuiApp&) = delete;
+    GuiApp& operator=(const GuiApp&) = delete;
 
     /// Draws frames until the window closes.
     void Run();
@@ -108,4 +109,4 @@ class ViewerApp {
     std::unique_ptr<State> state_;
 };
 
-}  // namespace terraingen::viewer
+}  // namespace terraingen::gui

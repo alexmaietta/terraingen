@@ -17,8 +17,8 @@ option(TERRAINGEN_BUILD_EXAMPLES "Build the C++ examples and test every example"
        ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_BUILD_PYTHON "Build the Python bindings" ON)
 option(TERRAINGEN_BUILD_APP "Build the terraingen command-line app" ON)
-option(TERRAINGEN_BUILD_VIEWER
-       "Build `terraingen view`, the 3D viewer, with Ernie from TERRAINGEN_ERNIE_DIR" OFF)
+option(TERRAINGEN_BUILD_GUI
+       "Build `terraingen --gui`, the 3D GUI, with Ernie from TERRAINGEN_ERNIE_DIR" OFF)
 option(TERRAINGEN_INSTALL "Generate install rules and the CMake package" ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_COVERAGE "Instrument TerrainGen for code coverage and add a coverage target" OFF)
 option(TERRAINGEN_WITH_VULKAN
@@ -78,9 +78,9 @@ if(TERRAINGEN_WITH_VULKAN)
     include("${PROJECT_SOURCE_DIR}/cmake/TerrainGenSlang.cmake")
 endif()
 
-if(TERRAINGEN_BUILD_VIEWER)
+if(TERRAINGEN_BUILD_GUI)
     if(NOT TERRAINGEN_BUILD_APP)
-        message(FATAL_ERROR "TERRAINGEN_BUILD_VIEWER needs TERRAINGEN_BUILD_APP")
+        message(FATAL_ERROR "TERRAINGEN_BUILD_GUI needs TERRAINGEN_BUILD_APP")
     endif()
     include("${PROJECT_SOURCE_DIR}/cmake/third_party/ernie.cmake")
 endif()

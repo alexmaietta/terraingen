@@ -7,7 +7,7 @@
 #include <string>
 #include <string_view>
 
-namespace terraingen::viewer {
+namespace terraingen::gui {
 
 /// An editor for a terrain configuration held as JSON, its widgets chosen from the
 /// configuration's schema (`ConfigSchema`), in two parts:
@@ -111,4 +111,4 @@ class ConfigEditor {
     std::optional<bool> openAll_;
 };
 
-}  // namespace terraingen::viewer
+}  // namespace terraingen::gui

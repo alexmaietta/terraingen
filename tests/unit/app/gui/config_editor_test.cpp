@@ -1,4 +1,4 @@
-#include "terraingen/app/viewer/config_editor.h"
+#include "terraingen/app/gui/config_editor.h"
 #include "terraingen/pipeline/config_json.h"
 
 #include <gtest/gtest.h>
@@ -11,7 +11,7 @@
 namespace {
 
 using Json = nlohmann::json;
-using terraingen::viewer::ConfigEditor;
+using terraingen::gui::ConfigEditor;
 
 /// An ImGui context without a window or renderer, for drawing widgets in tests.
 class HeadlessImGui : public ::testing::Test {

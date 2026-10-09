@@ -1,4 +1,4 @@
-#include "terraingen/app/viewer/terrain_scene.h"
+#include "terraingen/app/gui/terrain_scene.h"
 
 #include <ernie/scene/schema.h>
 #include <ernie/scene/tokens.h>
@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-namespace terraingen::viewer {
+namespace terraingen::gui {
 
 namespace {
 
@@ -91,4 +91,4 @@ void ShowTerrain(ernie::Scene& scene, const Raster<float>& heights, bool geograp
         .Set(tokens::kAlbedoMapCellSize, map.cellSize);
 }
 
-}  // namespace terraingen::viewer
+}  // namespace terraingen::gui

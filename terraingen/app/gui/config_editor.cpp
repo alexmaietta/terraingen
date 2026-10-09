@@ -1,4 +1,4 @@
-#include "terraingen/app/viewer/config_editor.h"
+#include "terraingen/app/gui/config_editor.h"
 
 #include "terraingen/pipeline/config_json.h"
 
@@ -15,7 +15,7 @@
 #include <utility>
 #include <vector>
 
-namespace terraingen::viewer {
+namespace terraingen::gui {
 
 namespace {
 
@@ -930,4 +930,4 @@ bool ConfigEditor::DrawArray(const std::string& label, Json& value, const Json& 
     return changed;
 }
 
-}  // namespace terraingen::viewer
+}  // namespace terraingen::gui

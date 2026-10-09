@@ -26,7 +26,8 @@ unsigned ParseThreads(const std::string& text);
 /// - `validate CONFIG` checks CONFIG without generating and reports its grid and the craters
 ///   expected;
 /// - `schema` prints every configuration type with its defaults (`ConfigCatalog`);
-/// - `view [PATH] [--threads N]` opens the 3D viewer (`RunView`) when the build has it;
+/// - `[PATH] --gui [--threads N]`, `--gui` anywhere, opens the GUI (`RunGui`) on a configuration
+///   or heights instead of generating, when the build has it;
 /// - `-V` or `--version`, and `-h` or `--help`.
 /// @return `kExitSuccess`, `kExitInvalidConfig` for a configuration, input or output error, or
 /// `kExitUsage` for bad arguments.

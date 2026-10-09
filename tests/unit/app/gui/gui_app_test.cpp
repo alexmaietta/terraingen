@@ -1,5 +1,5 @@
-#include "terraingen/app/viewer/terrain_scene.h"
-#include "terraingen/app/viewer/viewer_app.h"
+#include "terraingen/app/gui/gui_app.h"
+#include "terraingen/app/gui/terrain_scene.h"
 #include "terraingen/pipeline/config_json.h"
 #include "terraingen/raster/geotiff.h"
 
@@ -16,9 +16,9 @@
 namespace {
 
 namespace tokens = ernie::tokens;
-using terraingen::viewer::kTerrainPrim;
-using terraingen::viewer::ViewerApp;
-using terraingen::viewer::ViewerAppOptions;
+using terraingen::gui::GuiApp;
+using terraingen::gui::GuiAppOptions;
+using terraingen::gui::kTerrainPrim;
 
 const char* const kConfig = R"({
     "schema_version": 1,
@@ -28,14 +28,14 @@ const char* const kConfig = R"({
 
 std::filesystem::path Directory(const std::string& name) {
     const std::filesystem::path directory =
-        std::filesystem::path(::testing::TempDir()) / ("terraingen_viewer_" + name);
+        std::filesystem::path(::testing::TempDir()) / ("terraingen_gui_" + name);
     std::filesystem::remove_all(directory);
     std::filesystem::create_directories(directory);
     return directory;
 }
 
 /// Steps `app` until no generation runs, for at most a minute.
-void Settle(ViewerApp& app) {
+void Settle(GuiApp& app) {
     const auto give_up = std::chrono::steady_clock::now() + std::chrono::minutes(1);
     while (app.Generating() && std::chrono::steady_clock::now() < give_up) {
         app.Step();
@@ -43,17 +43,17 @@ void Settle(ViewerApp& app) {
     app.Step();
 }
 
-std::vector<std::int64_t> HeightsShape(ViewerApp& app) {
+std::vector<std::int64_t> HeightsShape(GuiApp& app) {
     const ernie::Tensor* heights = app.Scene().Read(kTerrainPrim, tokens::kHeights);
     return heights != nullptr ? heights->Shape() : std::vector<std::int64_t>{};
 }
 
 }  // namespace
 
-TEST(ViewerApp, OpensAndGeneratesAConfigThenSavesIt) {
+TEST(GuiApp, OpensAndGeneratesAConfigThenSavesIt) {
     const std::filesystem::path dir = Directory("generate");
     std::ofstream(dir / "terrain.json") << kConfig;
-    ViewerApp app({dir / "terrain.json", 2, true});
+    GuiApp app({dir / "terrain.json", 2, true});
     Settle(app);
     EXPECT_EQ(HeightsShape(app), (std::vector<std::int64_t>{33, 65}));
     EXPECT_EQ(app.Status().rfind("Generated 65 x 33", 0), 0u) << app.Status();
@@ -79,10 +79,10 @@ TEST(ViewerApp, OpensAndGeneratesAConfigThenSavesIt) {
               terraingen::ConfigToJson(terraingen::ParseConfig(kConfig)));
 }
 
-TEST(ViewerApp, OpensAndSavesThroughTheFileDialog) {
+TEST(GuiApp, OpensAndSavesThroughTheFileDialog) {
     const std::filesystem::path dir = Directory("dialog");
     std::ofstream(dir / "terrain.json") << kConfig;
-    ViewerApp app({dir / "terrain.json", 1, true});
+    GuiApp app({dir / "terrain.json", 1, true});
     Settle(app);
     ernie::app::FileDialog& dialog = app.Viewer().GetFileDialog();
 
@@ -105,10 +105,10 @@ TEST(ViewerApp, OpensAndSavesThroughTheFileDialog) {
     EXPECT_EQ(app.Status().rfind("Generated", 0), 0u) << app.Status();
 }
 
-TEST(ViewerApp, LiveEditsRegenerateAndBadJsonKeepsTheLastDocument) {
+TEST(GuiApp, LiveEditsRegenerateAndBadJsonKeepsTheLastDocument) {
     const std::filesystem::path dir = Directory("live");
     std::ofstream(dir / "terrain.json") << kConfig;
-    ViewerApp app({dir / "terrain.json", 1, true});
+    GuiApp app({dir / "terrain.json", 1, true});
     Settle(app);
     EXPECT_EQ(app.ConfigDocument()["source"]["width"], 65);
     EXPECT_TRUE(app.ConfigParseError().empty());
@@ -134,12 +134,12 @@ TEST(ViewerApp, LiveEditsRegenerateAndBadJsonKeepsTheLastDocument) {
     EXPECT_FALSE(app.Generating());
 }
 
-TEST(ViewerApp, ShowsGeoTiffHeightsAndStartsWithTheStarterConfig) {
+TEST(GuiApp, ShowsGeoTiffHeightsAndStartsWithTheStarterConfig) {
     const std::filesystem::path dir = Directory("geotiff");
     terraingen::Raster<float> heights(20, 12, 1.0f);
     heights.SetTransform(terraingen::GeoTransform::NorthUp(0.0, 24.0, 2.0));
     terraingen::WriteGeoTiff(dir / "dem.tif", heights);
-    ViewerApp app({{}, 1, true});
+    GuiApp app({{}, 1, true});
     EXPECT_NO_THROW(terraingen::ParseConfig(app.ConfigText())) << "the starter config parses";
     EXPECT_TRUE(HeightsShape(app).empty());
     app.Open(dir / "dem.tif");
@@ -148,9 +148,9 @@ TEST(ViewerApp, ShowsGeoTiffHeightsAndStartsWithTheStarterConfig) {
     app.Step();
 }
 
-TEST(ViewerApp, ReportsErrorsWithoutStopping) {
+TEST(GuiApp, ReportsErrorsWithoutStopping) {
     const std::filesystem::path dir = Directory("errors");
-    ViewerApp app({{}, 1, true});
+    GuiApp app({{}, 1, true});
     app.Open(dir / "missing.json");
     EXPECT_EQ(app.Status().rfind("Cannot open", 0), 0u) << app.Status();
     app.SetConfigText("{ not json");

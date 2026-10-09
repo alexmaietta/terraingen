@@ -1,5 +1,5 @@
 #include "terraingen/app/cli.h"
-#include "terraingen/app/viewer/view.h"
+#include "terraingen/app/gui/run.h"
 #include "terraingen/raster/geotiff.h"
 
 #include <gtest/gtest.h>
@@ -111,19 +111,20 @@ TEST(Cli, ParsesThreadCounts) {
     }
 }
 
-TEST(Cli, ViewRejectsBadArgumentsOrExplainsHowToAddTheViewer) {
-    EXPECT_NE(Cli({"--help"}).out.find("terraingen view [PATH]"), std::string::npos);
+TEST(Cli, GuiRejectsBadArgumentsOrExplainsHowToAddTheGui) {
+    EXPECT_NE(Cli({"--help"}).out.find("terraingen [PATH] --gui"), std::string::npos);
     for (const std::vector<std::string>& args :
-         std::vector<std::vector<std::string>>{{"view", "--bogus"},
-                                               {"view", "a.json", "b.json"},
-                                               {"view", "--threads"},
-                                               {"view", "a.json", "--threads", "lots"}}) {
+         std::vector<std::vector<std::string>>{{"--gui", "--bogus"},
+                                               {"a.json", "b.json", "--gui"},
+                                               {"--gui", "--threads"},
+                                               {"a.json", "--gui", "--output-dir", "out"},
+                                               {"a.json", "--threads", "lots", "--gui"}}) {
         EXPECT_EQ(Cli(args).code, kExitUsage) << ::testing::PrintToString(args);
     }
-    if (!terraingen::cli::ViewerAvailable()) {
-        const Result result = Cli({"view", "a.json"});
+    if (!terraingen::cli::GuiAvailable()) {
+        const Result result = Cli({"a.json", "--gui"});
         EXPECT_EQ(result.code, kExitUsage);
-        EXPECT_NE(result.err.find("-DTERRAINGEN_BUILD_VIEWER=ON"), std::string::npos);
+        EXPECT_NE(result.err.find("-DTERRAINGEN_BUILD_GUI=ON"), std::string::npos);
         EXPECT_NE(result.err.find("TERRAINGEN_ERNIE_DIR"), std::string::npos);
     }
 }

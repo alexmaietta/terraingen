@@ -1,4 +1,4 @@
-#include "terraingen/app/viewer/terrain_scene.h"
+#include "terraingen/app/gui/terrain_scene.h"
 
 #include <ernie/scene/tokens.h>
 #include <ernie/util/tensor.h>
@@ -15,12 +15,12 @@ namespace {
 namespace tokens = ernie::tokens;
 using terraingen::GeoTransform;
 using terraingen::Raster;
-using terraingen::viewer::kMaterialPrim;
-using terraingen::viewer::kSettingsPrim;
-using terraingen::viewer::kSunPrim;
-using terraingen::viewer::kTerrainPrim;
-using terraingen::viewer::SetUpScene;
-using terraingen::viewer::ShowTerrain;
+using terraingen::gui::kMaterialPrim;
+using terraingen::gui::kSettingsPrim;
+using terraingen::gui::kSunPrim;
+using terraingen::gui::kTerrainPrim;
+using terraingen::gui::SetUpScene;
+using terraingen::gui::ShowTerrain;
 
 Raster<float> Ramp(std::size_t width, std::size_t height, double cell = 2.0) {
     Raster<float> raster(width, height);

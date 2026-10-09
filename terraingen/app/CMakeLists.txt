@@ -1,4 +1,5 @@
-# The `terraingen` command-line app: generate, validate, describe and view JSON terrain configs.
+# The `terraingen` command-line app: generate, validate and describe JSON terrain configs, and
+# edit them in the GUI.
 # The commands live in a library so tests can run them without a process.
 add_library(terraingen_cli STATIC cli.cpp)
 target_link_libraries(
@@ -6,14 +7,14 @@ target_link_libraries(
     PUBLIC terraingen::terraingen
     PRIVATE terraingen_warnings terraingen_coverage)
 
-# `terraingen view`: the viewer (viewer/) on Ernie's app when the build has Ernie, else a stub that
-# says how to add it.
-if(TERRAINGEN_BUILD_VIEWER)
-    add_subdirectory(viewer)
-    target_sources(terraingen_cli PRIVATE viewer/view.cpp)
-    target_link_libraries(terraingen_cli PRIVATE terraingen_viewer)
+# `terraingen gui`: the GUI (gui/) on Ernie's app when the build has Ernie, else a stub that says
+# how to add it.
+if(TERRAINGEN_BUILD_GUI)
+    add_subdirectory(gui)
+    target_sources(terraingen_cli PRIVATE gui/run.cpp)
+    target_link_libraries(terraingen_cli PRIVATE terraingen_gui)
 else()
-    target_sources(terraingen_cli PRIVATE viewer/view_none.cpp)
+    target_sources(terraingen_cli PRIVATE gui/run_none.cpp)
 endif()
 
 add_executable(terraingen_app main.cpp)

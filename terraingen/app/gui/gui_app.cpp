@@ -1,7 +1,7 @@
-#include "terraingen/app/viewer/viewer_app.h"
+#include "terraingen/app/gui/gui_app.h"
 
-#include "terraingen/app/viewer/config_editor.h"
-#include "terraingen/app/viewer/terrain_scene.h"
+#include "terraingen/app/gui/config_editor.h"
+#include "terraingen/app/gui/terrain_scene.h"
 #include "terraingen/pipeline/config_json.h"
 #include "terraingen/pipeline/run.h"
 #include "terraingen/raster/geotiff.h"
@@ -23,7 +23,7 @@
 #include <string>
 #include <utility>
 
-namespace terraingen::viewer {
+namespace terraingen::gui {
 
 namespace {
 
@@ -94,7 +94,7 @@ bool HasExtension(const std::filesystem::path& path, std::initializer_list<const
     return std::any_of(exts.begin(), exts.end(), [&](const char* e) { return ext == e; });
 }
 
-/// What a generation hands back to the viewer's thread.
+/// What a generation hands back to the GUI's thread.
 struct Generated {
     GeneratedTerrain terrain;
     double seconds = 0.0;
@@ -102,7 +102,7 @@ struct Generated {
 
 }  // namespace
 
-struct ViewerApp::State {
+struct GuiApp::State {
     ernie::Scene scene;
     std::optional<ernie::app::Viewer> viewer;
     unsigned threads = 0;
@@ -168,7 +168,7 @@ struct ViewerApp::State {
     }
 };
 
-ViewerApp::ViewerApp(const ViewerAppOptions& options) : state_(std::make_unique<State>()) {
+GuiApp::GuiApp(const GuiAppOptions& options) : state_(std::make_unique<State>()) {
     State& s = *state_;
     s.threads = options.threads;
     SetUpScene(s.scene);
@@ -215,29 +215,29 @@ ViewerApp::ViewerApp(const ViewerAppOptions& options) : state_(std::make_unique<
     }
 }
 
-ViewerApp::~ViewerApp() {
+GuiApp::~GuiApp() {
     if (state_->generation.valid()) {
         state_->generation.wait();
     }
 }
 
-void ViewerApp::Run() {
+void GuiApp::Run() {
     state_->viewer->Run();
 }
 
-bool ViewerApp::Step() {
+bool GuiApp::Step() {
     return state_->viewer->Step();
 }
 
-ernie::app::Viewer& ViewerApp::Viewer() {
+ernie::app::Viewer& GuiApp::Viewer() {
     return *state_->viewer;
 }
 
-ernie::Scene& ViewerApp::Scene() {
+ernie::Scene& GuiApp::Scene() {
     return state_->scene;
 }
 
-void ViewerApp::Open(const std::filesystem::path& path) {
+void GuiApp::Open(const std::filesystem::path& path) {
     State& s = *state_;
     try {
         if (HasExtension(path, {".tif", ".tiff"})) {
@@ -267,7 +267,7 @@ void ViewerApp::Open(const std::filesystem::path& path) {
     }
 }
 
-void ViewerApp::Generate() {
+void GuiApp::Generate() {
     State& s = *state_;
     if (Generating()) {
         return;
@@ -291,41 +291,41 @@ void ViewerApp::Generate() {
     }
 }
 
-bool ViewerApp::Generating() const {
+bool GuiApp::Generating() const {
     const std::future<Generated>& g = state_->generation;
     return g.valid() && g.wait_for(std::chrono::seconds(0)) != std::future_status::ready;
 }
 
-const std::string& ViewerApp::ConfigText() const {
+const std::string& GuiApp::ConfigText() const {
     return state_->config;
 }
 
-void ViewerApp::SetConfigText(std::string json) {
+void GuiApp::SetConfigText(std::string json) {
     state_->config = std::move(json);
     state_->ParseText();
 }
 
-const nlohmann::json& ViewerApp::ConfigDocument() const {
+const nlohmann::json& GuiApp::ConfigDocument() const {
     return state_->document;
 }
 
-const std::string& ViewerApp::ConfigParseError() const {
+const std::string& GuiApp::ConfigParseError() const {
     return state_->parseError;
 }
 
-ConfigEditor& ViewerApp::Editor() {
+ConfigEditor& GuiApp::Editor() {
     return state_->editor;
 }
 
-bool ViewerApp::Live() const {
+bool GuiApp::Live() const {
     return state_->live;
 }
 
-void ViewerApp::SetLive(bool live) {
+void GuiApp::SetLive(bool live) {
     state_->live = live;
 }
 
-void ViewerApp::EditConfig(const std::function<void(nlohmann::json&)>& edit) {
+void GuiApp::EditConfig(const std::function<void(nlohmann::json&)>& edit) {
     State& s = *state_;
     edit(s.document);
     s.config = s.document.dump(4) + "\n";
@@ -333,7 +333,7 @@ void ViewerApp::EditConfig(const std::function<void(nlohmann::json&)>& edit) {
     s.Edited();
 }
 
-void ViewerApp::SaveConfig(const std::filesystem::path& path) {
+void GuiApp::SaveConfig(const std::filesystem::path& path) {
     State& s = *state_;
     try {
         const TerrainConfig config = ParseConfig(s.config);
@@ -350,7 +350,7 @@ void ViewerApp::SaveConfig(const std::filesystem::path& path) {
     }
 }
 
-void ViewerApp::ShowOpenDialog() {
+void GuiApp::ShowOpenDialog() {
     ernie::app::FileDialogOptions options;
     options.title = "Open Configuration or Heights";
     options.filters = {{"Configurations and heights", {".json", ".tif", ".tiff"}},
@@ -363,7 +363,7 @@ void ViewerApp::ShowOpenDialog() {
         [this](ernie::app::Viewer&, const std::filesystem::path& path) { Open(path); });
 }
 
-void ViewerApp::ShowSaveDialog() {
+void GuiApp::ShowSaveDialog() {
     ernie::app::FileDialogOptions options;
     options.title = "Save Configuration";
     options.save = true;
@@ -374,7 +374,7 @@ void ViewerApp::ShowSaveDialog() {
         [this](ernie::app::Viewer&, const std::filesystem::path& path) { SaveConfig(path); });
 }
 
-void ViewerApp::DrawTerrainPanel() {
+void GuiApp::DrawTerrainPanel() {
     State& s = *state_;
     // The toolbar: file actions, then Generate in the accent colour, then Live.
     if (ImGui::Button(ernie::app::icons::kFolderOpen)) {
@@ -453,7 +453,7 @@ void ViewerApp::DrawTerrainPanel() {
     }
 }
 
-void ViewerApp::DrawInspectorPanel() {
+void GuiApp::DrawInspectorPanel() {
     State& s = *state_;
     if (!ImGui::BeginTabBar("##inspectorTabs")) {
         return;
@@ -480,8 +480,8 @@ void ViewerApp::DrawInspectorPanel() {
     ImGui::EndTabBar();
 }
 
-const std::string& ViewerApp::Status() const {
+const std::string& GuiApp::Status() const {
     return state_->status;
 }
 
-}  // namespace terraingen::viewer
+}  // namespace terraingen::gui

@@ -1,7 +1,7 @@
-#include "terraingen/app/viewer/view.h"
+#include "terraingen/app/gui/run.h"
 
 #include "terraingen/app/cli.h"
-#include "terraingen/app/viewer/viewer_app.h"
+#include "terraingen/app/gui/gui_app.h"
 
 #include <cstddef>
 #include <exception>
@@ -10,12 +10,12 @@
 
 namespace terraingen::cli {
 
-bool ViewerAvailable() {
+bool GuiAvailable() {
     return true;
 }
 
-int RunView(const std::vector<std::string>& args, std::ostream& /*out*/, std::ostream& err) {
-    viewer::ViewerAppOptions options;
+int RunGui(const std::vector<std::string>& args, std::ostream& /*out*/, std::ostream& err) {
+    gui::GuiAppOptions options;
     for (std::size_t i = 0; i < args.size(); ++i) {
         const std::string& arg = args[i];
         if (arg == "--threads") {
@@ -24,7 +24,7 @@ int RunView(const std::vector<std::string>& args, std::ostream& /*out*/, std::os
             }
             options.threads = ParseThreads(args[++i]);
         } else if (arg.rfind("--", 0) == 0) {
-            throw std::invalid_argument("Unknown option " + arg);
+            throw std::invalid_argument("Unknown option " + arg + " with --gui");
         } else if (!options.open.empty()) {
             throw std::invalid_argument("Unexpected argument " + arg);
         } else {
@@ -32,10 +32,10 @@ int RunView(const std::vector<std::string>& args, std::ostream& /*out*/, std::os
         }
     }
     try {
-        viewer::ViewerApp app(options);
+        gui::GuiApp app(options);
         app.Run();
     } catch (const std::exception& error) {
-        err << "terraingen: the viewer stopped: " << error.what() << "\n";
+        err << "terraingen: the GUI stopped: " << error.what() << "\n";
         return kExitInvalidConfig;
     }
     return kExitSuccess;

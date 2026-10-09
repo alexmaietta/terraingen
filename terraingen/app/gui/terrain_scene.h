@@ -5,7 +5,7 @@
 #include <ernie/scene/path.h>
 #include <ernie/scene/scene.h>
 
-namespace terraingen::viewer {
+namespace terraingen::gui {
 
 /// The prims `ShowTerrain` and `SetUpScene` define.
 inline const ernie::Path kTerrainPrim{"/World/Terrain"};
@@ -25,4 +25,4 @@ void SetUpScene(ernie::Scene& scene);
 void ShowTerrain(ernie::Scene& scene, const Raster<float>& heights, bool geographic = false,
                  const Raster<float>* albedo = nullptr);
 
-}  // namespace terraingen::viewer
+}  // namespace terraingen::gui
