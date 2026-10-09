@@ -11,7 +11,7 @@ import terraingen
 
 SECTIONS = [
     ("Configs and the pipeline", "Load, validate, generate and write terrains from JSON configs, or build their objects.",
-     ["Config", "ConfigError", "GeneratedTerrain", "config_catalog", "generate_terrain", "write_outputs", "build_terrain", "build_albedo"]),
+     ["Config", "ConfigError", "GeneratedTerrain", "config_catalog", "config_schema", "generate_terrain", "write_outputs", "build_terrain", "build_albedo"]),
     ("Terrains and evaluation", "Compose a source, layers and filters, and evaluate them over grids, tiles or points.",
      ["Terrain", "EvaluatedTerrain", "evaluate", "evaluate_at", "filter_margin", "RasterGrid", "LayerContext"]),
     ("Surfaces and cells", "Planes and spheres, bodies, and the cells that tile them.",

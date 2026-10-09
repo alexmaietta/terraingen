@@ -115,6 +115,18 @@ void BindPipeline(nb::module_& m) {
         "'layers', 'filters' and 'outputs', the 'albedo', and the 'models' (densities, ages, "
         "degradation, profiles, rock sizes, region shapes and albedo sources and layers).");
 
+    m.def(
+        "config_schema",
+        [] {
+            const nb::object json = nb::module_::import_("json");
+            return json.attr("loads")(ConfigSchema(-1));
+        },
+        "The structure of a configuration, for editors, as a dict: 'root' (the configuration "
+        "object) and 'definitions' (each struct and choice of types by id, referred to as "
+        "{'kind': 'ref', 'ref': id}). Every field has a 'name', 'description', 'unit', 'schema' "
+        "and 'default'; schema kinds are number, integer, boolean, string, enum (with 'choices' "
+        "and their 'descriptions'), optional, array, object and choice (with 'alternatives').");
+
     nb::class_<GeneratedTerrain>(m, "GeneratedTerrain",
                                  "A generated terrain: heights, albedo bands and the craters and "
                                  "rocks its layers placed.")

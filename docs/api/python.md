@@ -52,6 +52,7 @@ Load, validate, generate and write terrains from JSON configs, or build their ob
 .. autoclass:: terraingen.ConfigError
 .. autoclass:: terraingen.GeneratedTerrain
 .. autofunction:: terraingen.config_catalog
+.. autofunction:: terraingen.config_schema
 .. autofunction:: terraingen.generate_terrain
 .. autofunction:: terraingen.write_outputs
 .. autofunction:: terraingen.build_terrain

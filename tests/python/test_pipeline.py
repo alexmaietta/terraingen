@@ -54,6 +54,18 @@ def test_config_errors_name_the_offending_value():
         tg.Config.load("/nonexistent/terrain.json")
 
 
+def test_schema_describes_fields_with_units_and_choices():
+    schema = tg.config_schema()
+    assert schema["schema_version"] == 1
+    root = {f["name"]: f for f in schema["root"]["fields"]}
+    assert list(root)[:3] == ["schema_version", "surface", "source"]
+    assert root["layers"]["description"].endswith(".")
+    source = schema["definitions"][root["source"]["schema"]["ref"]]
+    flat = next(a for a in source["alternatives"] if a["type"] == "flat")
+    pixel_size = next(f for f in flat["fields"] if f["name"] == "pixel_size")
+    assert pixel_size["unit"] == "m" and pixel_size["default"] == 2.0
+
+
 def test_catalog_lists_every_type_and_each_layer_parses():
     catalog = tg.config_catalog()
     assert catalog["schema_version"] == 1
