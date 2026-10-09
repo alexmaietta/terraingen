@@ -10,7 +10,7 @@ if(NOT result EQUAL 0)
     message(FATAL_ERROR "cpack failed with ${result}")
 endif()
 
-foreach(package terraingen-dev)
+foreach(package terraingen-dev terraingen)
     file(GLOB deb "${WORK_DIR}/debs/${package}_*.deb")
     if(NOT deb)
         message(FATAL_ERROR "${package} package was not generated")
@@ -29,4 +29,12 @@ execute_process(
     RESULT_VARIABLE result)
 if(NOT result EQUAL 0)
     message(FATAL_ERROR "Consumer build against terraingen-dev failed with ${result}")
+endif()
+
+execute_process(
+    COMMAND "${WORK_DIR}/root/usr/bin/terraingen" --version
+    RESULT_VARIABLE result
+    OUTPUT_VARIABLE version)
+if(NOT result EQUAL 0 OR NOT version MATCHES "^TerrainGen ")
+    message(FATAL_ERROR "The terraingen package's CLI did not run: ${result} ${version}")
 endif()
