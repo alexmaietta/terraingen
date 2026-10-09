@@ -7,8 +7,30 @@ name = "terraingen"
 dynamic = ["version"]
 description = "Scientific terrain generation for the lunar surface"
 readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Alex Maietta" }]
 requires-python = ">=3.10"
 dependencies = ["numpy>=1.22"]
+keywords = ["terrain", "moon", "mars", "craters", "planetary science", "simulation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Topic :: Scientific/Engineering :: GIS",
+]
+
+[project.urls]
+Homepage = "https://github.com/alexmaietta/terraingen"
+Documentation = "https://alexmaietta.github.io/terraingen/"
+Source = "https://github.com/alexmaietta/terraingen"
+Issues = "https://github.com/alexmaietta/terraingen/issues"
+Changelog = "https://github.com/alexmaietta/terraingen/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 test = ["pytest"]
@@ -23,7 +45,7 @@ wheel.py-api = "cp312"
 [tool.scikit-build.metadata.version]
 provider = "scikit_build_core.metadata.regex"
 input = "VERSION"
-regex = '(?P<value>\d+\.\d+\.\d+)'
+regex = '(?P<value>\d+\.\d+\.\d+(\.dev\d+)?)'
 
 [tool.scikit-build.cmake.define]
 TERRAINGEN_BUILD_PYTHON = "ON"

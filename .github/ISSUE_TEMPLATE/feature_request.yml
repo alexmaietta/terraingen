@@ -1,0 +1,22 @@
+name: Feature request
+description: A model, data source, output or tool TerrainGen should have.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What you would like
+      description: What you want to generate or do, and why.
+    validations:
+      required: true
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: >-
+        Papers, datasets or specifications the feature should follow (with DOIs or URLs).
+        TerrainGen models come from published sources.
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
