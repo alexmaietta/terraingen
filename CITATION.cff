@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use TerrainGen for published research, please cite it as below."
 type: software
-title: "TerrainGen: Scientific terrain generation for planetary surfaces"
+title: "TerrainGen: An open-source scientific terrain generation suite for planetary surfaces"
 abstract: >-
   A C++ and Python library, with a command-line tool, for generating scientific terrain of
   planetary surfaces: crater and rock populations from published size-frequency distributions,
