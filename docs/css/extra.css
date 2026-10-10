@@ -104,8 +104,8 @@
     display: none;
 }
 
-.md-header__title {
-    margin-left: 0.8rem;
+[dir="ltr"] .md-header__title {
+    margin-left: 0.6rem;
 }
 
 .md-source__repository {
@@ -114,6 +114,7 @@
 
 .md-tabs__link {
     opacity: 1;
+    font-size: 0.8rem;
     color: var(--md-default-fg-color--light);
 }
 
@@ -297,11 +298,11 @@
 }
 
 .tg-hero__inner {
-    display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 3rem;
-    padding: 3rem 0.8rem;
+    text-align: center;
+    padding: 2.6rem 0.8rem 2.4rem;
 }
 
 .tg-hero__eyebrow {
@@ -326,12 +327,13 @@
     font-size: 0.85rem;
     line-height: 1.65;
     color: var(--md-default-fg-color--light);
-    max-width: 33rem;
+    max-width: 36rem;
 }
 
 .tg-hero__actions {
     display: flex;
     flex-wrap: wrap;
+    justify-content: center;
     gap: 0.5rem;
 }
 
@@ -339,33 +341,23 @@
     display: inline-block;
     font-size: 0.7rem;
 }
-
-.tg-hero__figure {
-    margin: 0;
-}
-
-.tg-hero__figure img {
-    display: block;
-    width: 100%;
-    aspect-ratio: 1;
-    object-fit: cover;
-    border: 1px solid var(--tg-rule);
-}
-
 @media screen and (max-width: 59.9375em) {
-    .tg-hero__inner {
-        grid-template-columns: minmax(0, 1fr);
-        gap: 2rem;
-        padding: 2rem 0.8rem;
-    }
-
     .tg-hero h1 {
         font-size: 1.5rem;
     }
+}
 
-    .tg-hero__figure {
-        max-width: 20rem;
-    }
+/* The home page's content starts close under the title block. */
+.tg-hero ~ .md-main .md-main__inner {
+    margin-top: 0.6rem;
+}
+
+.tg-hero ~ .md-main .md-content__inner {
+    padding-top: 0;
+}
+
+.tg-hero ~ .md-main .md-content__inner > .tg-section:first-child > p:first-child {
+    margin-top: 0.8rem;
 }
 
 .tg-section > p:first-child {

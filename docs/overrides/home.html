@@ -1,27 +1,22 @@
 {% extends "main.html" %}
 
-{#- The home page: a hero banner above the page's content, without the page title. -#}
+{#- The home page: a centred title block above the page's content, without the page title. -#}
 {% block tabs %}
   {{ super() }}
   <section class="tg-hero">
     <div class="md-grid tg-hero__inner">
-      <div class="tg-hero__text">
-        <p class="tg-hero__eyebrow">Open source &middot; C++20 &middot; Python</p>
-        <h1>Scientific terrain for planetary surfaces</h1>
-        <p class="tg-hero__lead">
-          Crater and rock populations from published models, crater shapes that age, and surface
-          albedo, on synthetic relief or measured elevation models, from a few metres across to
-          whole bodies.
-        </p>
-        <div class="tg-hero__actions">
-          <a href="{{ 'getting-started/' | url }}" class="md-button md-button--primary">Get started</a>
-          <a href="{{ 'getting-started/quickstart/' | url }}" class="md-button">Quickstart</a>
-          <a href="{{ config.repo_url }}" class="md-button tg-hero__ghost">GitHub</a>
-        </div>
+      <p class="tg-hero__eyebrow">Open source &middot; C++20 &middot; Python</p>
+      <h1>Scientific terrain for planetary surfaces</h1>
+      <p class="tg-hero__lead">
+        Crater and rock populations from published models, crater shapes that age, and surface
+        albedo, on synthetic relief or measured elevation models, from a few metres across to whole
+        bodies.
+      </p>
+      <div class="tg-hero__actions">
+        <a href="{{ 'getting-started/' | url }}" class="md-button md-button--primary">Get started</a>
+        <a href="{{ 'getting-started/quickstart/' | url }}" class="md-button">Quickstart</a>
+        <a href="{{ config.repo_url }}" class="md-button">GitHub</a>
       </div>
-      <figure class="tg-hero__figure">
-        <img src="{{ 'images/home/craters.png' | url }}" alt="A synthetic cratered lunar surface">
-      </figure>
     </div>
   </section>
 {% endblock %}
