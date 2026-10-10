@@ -19,7 +19,7 @@
             ]
         },
         {
-            "type": "rocks",
+            "type": "boulders",
             "seed": 1,
             "coverage": 0.05,
             "min_diameter": 0.2,
@@ -41,8 +41,8 @@
             "path": "example_boulders_shapes.tif"
         },
         {
-            "type": "rock_list",
-            "path": "example_boulders_shapes_rocks.csv"
+            "type": "boulder_list",
+            "path": "example_boulders_shapes_boulders.csv"
         },
         {
             "type": "boulder_models",

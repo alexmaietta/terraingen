@@ -1,7 +1,7 @@
 # Examples
 
 Examples in three forms, named `example_<category>_<name>`. They go from basic synthetic terrains,
-to craters on those terrains, to boulders, to albedo, and then through every crater and rock model
+to craters on those terrains, to boulders, to albedo, and then through every crater and boulder model
 and option: size-frequency distributions, age models, profiles, degradation, positioning and how
 craters are applied; then regions, the Moon and Mars on spheres, detail on DEMs, and tiles.
 
@@ -12,7 +12,7 @@ Each form has a folder per category (`terrain`, `craters`, `distributions`, `age
   `terraingen examples/config/<category>/<file>.json`.
   Outputs are written next to the config, or to `--output-dir`.
 - `cpp/`: C++ programs that build the same terrains from library objects (sources, layers,
-  crater and rock models, albedo). Built with the library when `TERRAINGEN_BUILD_EXAMPLES` is on;
+  crater and boulder models, albedo). Built with the library when `TERRAINGEN_BUILD_EXAMPLES` is on;
   run as `build/bin/<name> [OUTPUT_DIR]`.
 - `python/`: Python scripts that build the terrains from the same objects in the `terraingen`
   package: `python examples/python/<category>/<name>.py [OUTPUT_DIR]`. They need only NumPy, and
@@ -27,7 +27,7 @@ build everything in code. Outputs go to `./output` unless a folder is given.
 | craters | `example_craters_datum`, `_degradation_diffusion`, `_degradation_none`, `_interior_replacement`, `_irregular`, `_manual`, `_max_craters`, `_profile_complex`, `_profile_martin_parkes_dunstan`, `_rim_smoothing_soft`, `_secondaries`, `_simple`, `_smoothed_rims`, `_spacing` | `example_craters_degradation`, `_manual`, `_profiles`, `_secondaries`, `_simple` | `example_craters_age_sweep`, `_apply_options`, `_degradation`, `_irregularity`, `_manual`, `_positioning`, `_profiles`, `_rim_smoothing`, `_secondaries`, `_simple` |
 | distributions | `example_distributions_moore_rough_mare`, `_piecewise_power_law`, `_power_law`, `_tabulated`, `_trask_equilibrium`, `_viper` | `example_distributions_csfd` | `example_distributions_csfd`, `_custom` |
 | ages | `example_ages_fresh`, `_steady_state`, `_uniform` | `example_ages_models` | `example_ages_models` |
-| boulders | `example_boulders_ejecta`, `_exposure`, `_models`, `_patches`, `_rocks`, `_shapes`, `_sp8023` | `example_boulders_ejecta`, `_rocks`, `_shapes` | `example_boulders_exposure`, `_positioning`, `_rocks`, `_shapes`, `_size_models` |
+| boulders | `example_boulders_ejecta`, `_exposure`, `_models`, `_patches`, `_boulders`, `_shapes`, `_sp8023` | `example_boulders_ejecta`, `_boulders`, `_shapes` | `example_boulders_exposure`, `_positioning`, `_boulders`, `_shapes`, `_size_models` |
 | albedo | `example_albedo_crater_rays`, `_moon_site`, `_oblique_rays`, `_rgb`, `_synthetic` | `example_albedo_crater_rays` | `example_albedo_crater_rays`, `_moon_site`, `_options` |
 | layers | `example_layers_regions`, `_roughness`, `_scale_and_clamp` | `example_layers_custom`, `_regions` | `example_layers_custom`, `_regions` |
 | planets | `example_planets_mars_bedforms`, `_mars_craters`, `_mars_exposure`, `_mercury_site`, `_moon_body_mesh`, `_moon_site` | `example_planets_moon` | `example_planets_body_mesh`, `_mars`, `_mars_exposure`, `_mercury`, `_moon_site` |

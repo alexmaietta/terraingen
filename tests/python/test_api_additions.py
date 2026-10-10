@@ -171,7 +171,7 @@ def test_crater_lists_generation_and_application():
     assert terraingen.fit_crater_datum(terraingen.Crater(0.0, 0.0, 50.0), terraingen.CraterApplyOptions(), lambda x, y: 0.0) is None
 
 
-def test_boulders_boulders_and_layers():
+def test_boulders_models_and_layers():
     craters = terraingen.CraterLayer(
         lunar_models(), terraingen.CraterLayerOptions(generation=terraingen.CraterGenerationOptions(min_diameter=3.0, max_diameter=20.0))
     )

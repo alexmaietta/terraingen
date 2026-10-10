@@ -31,7 +31,7 @@
             }
         },
         {
-            "type": "rocks",
+            "type": "boulders",
             "seed": 3,
             "coverage": 0.02,
             "min_diameter": 0.3,
@@ -48,7 +48,7 @@
             "path": "example_planets_mars_exposure.tif"
         },
         {
-            "type": "rock_list",
+            "type": "boulder_list",
             "path": "example_planets_mars_exposure.csv"
         }
     ]

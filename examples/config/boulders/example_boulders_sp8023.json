@@ -19,7 +19,7 @@
             ]
         },
         {
-            "type": "rocks",
+            "type": "boulders",
             "seed": 1,
             "sizes": {
                 "type": "sp8023_intercrater",
@@ -35,8 +35,8 @@
             "path": "example_boulders_sp8023.tif"
         },
         {
-            "type": "rock_list",
-            "path": "example_boulders_sp8023_rocks.csv"
+            "type": "boulder_list",
+            "path": "example_boulders_sp8023_boulders.csv"
         }
     ]
 }

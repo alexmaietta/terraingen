@@ -79,7 +79,7 @@ def test_craters_from_a_surface_model_and_by_hand():
     assert terraingen.mars_surface(3.0).density.cumulative(100.0) > 0
 
 
-def test_boulders_boulders_filters_and_writers(tmp_path):
+def test_boulders_layer_filters_and_writers(tmp_path):
     craters = terraingen.CraterLayer(lunar_models(), terraingen.CraterLayerOptions(generation=terraingen.CraterGenerationOptions(min_diameter=3.0, max_diameter=20.0)))
     boulders = terraingen.BoulderLayer(
         terraingen.BoulderLayerOptions(
