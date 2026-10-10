@@ -1,32 +1,421 @@
-/* A little space between the API's classes and functions. */
-.doc-object {
-    margin-bottom: 2em;
+/* TerrainGen's documentation theme: lunar slate with a sunlit amber accent, on Material. */
+
+/* ---- Colours ------------------------------------------------------------------------------ */
+
+:root {
+    --tg-amber: #e8a33a;
+    --tg-amber-strong: #c9821a;
+    --tg-slate-900: #0f141a;
+    --tg-slate-800: #161c24;
+    --tg-slate-700: #1e2630;
+    --tg-slate-600: #2a3542;
+    --tg-radius: 10px;
 }
 
-/* The home page's gallery: square images three to a row, wide montages across the page. */
-.hero-grid {
+[data-md-color-scheme="default"] {
+    --md-primary-fg-color: var(--tg-slate-700);
+    --md-primary-fg-color--light: var(--tg-slate-600);
+    --md-primary-fg-color--dark: var(--tg-slate-800);
+    --md-accent-fg-color: var(--tg-amber-strong);
+    --md-accent-fg-color--transparent: rgba(201, 130, 26, 0.1);
+    --md-typeset-a-color: #1f5fa8;
+    --tg-surface: #f6f7f9;
+    --tg-border: #e3e6ea;
+    --tg-shadow: 0 1px 2px rgba(15, 20, 26, 0.06), 0 6px 18px rgba(15, 20, 26, 0.06);
+}
+
+[data-md-color-scheme="slate"] {
+    --md-hue: 215;
+    --md-default-bg-color: var(--tg-slate-900);
+    --md-primary-fg-color: var(--tg-slate-800);
+    --md-primary-fg-color--light: var(--tg-slate-700);
+    --md-primary-fg-color--dark: var(--tg-slate-900);
+    --md-accent-fg-color: var(--tg-amber);
+    --md-accent-fg-color--transparent: rgba(232, 163, 58, 0.12);
+    --md-typeset-a-color: #8fb8ee;
+    --md-code-bg-color: #1a212b;
+    --tg-surface: var(--tg-slate-800);
+    --tg-border: #263040;
+    --tg-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* ---- Header and navigation ---------------------------------------------------------------- */
+
+.md-header {
+    box-shadow: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.md-header__title {
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.md-tabs {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.md-tabs__link {
+    font-weight: 500;
+    opacity: 0.8;
+}
+
+.md-tabs__link--active,
+.md-tabs__link:hover {
+    opacity: 1;
+    color: var(--tg-amber);
+}
+
+.md-nav__link--active {
+    font-weight: 600;
+}
+
+/* ---- Typography --------------------------------------------------------------------------- */
+
+.md-typeset h1 {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--md-default-fg-color);
+}
+
+.md-typeset h2 {
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    margin-top: 2em;
+}
+
+.md-typeset h3 {
+    font-weight: 600;
+}
+
+/* A section's opening paragraph reads as an introduction. */
+.md-typeset h1 + p {
+    font-size: 1.05em;
+    color: var(--md-default-fg-color--light);
+    max-width: 48em;
+}
+
+.md-typeset a {
+    text-underline-offset: 0.2em;
+}
+
+.md-typeset table:not([class]) {
+    border-radius: var(--tg-radius);
+    border: 1px solid var(--tg-border);
+    box-shadow: none;
+    overflow: hidden;
+}
+
+.md-typeset table:not([class]) th {
+    background: var(--tg-surface);
+}
+
+.md-typeset pre > code {
+    border-radius: var(--tg-radius);
+}
+
+.md-typeset .tabbed-set {
+    border-radius: var(--tg-radius);
+}
+
+/* ---- Buttons ------------------------------------------------------------------------------ */
+
+.md-typeset .md-button,
+.tg-hero .md-button {
+    border-radius: 999px;
+    padding: 0.55em 1.5em;
+    font-weight: 600;
+    transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.md-typeset .md-button:hover,
+.tg-hero .md-button:hover {
+    transform: translateY(-1px);
+}
+
+.md-typeset .md-button--primary,
+.tg-hero .md-button--primary {
+    background-color: var(--tg-amber);
+    border-color: var(--tg-amber);
+    color: var(--tg-slate-900);
+}
+
+.md-typeset .md-button--primary:hover,
+.tg-hero .md-button--primary:hover {
+    background-color: #f2b85a;
+    border-color: #f2b85a;
+    color: var(--tg-slate-900);
+}
+
+/* ---- Cards -------------------------------------------------------------------------------- */
+
+.md-typeset .grid.cards > ul > li,
+.md-typeset .grid > .card {
+    border: 1px solid var(--tg-border);
+    border-radius: var(--tg-radius);
+    background: var(--tg-surface);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.md-typeset .grid.cards > ul > li:hover,
+.md-typeset .grid > .card:hover {
+    border-color: var(--md-accent-fg-color);
+    box-shadow: var(--tg-shadow);
+    transform: translateY(-2px);
+}
+
+.md-typeset .grid.cards .twemoji.lg {
+    color: var(--md-accent-fg-color);
+}
+
+.md-typeset .grid.cards > ul > li > hr {
+    margin: 0.6em 0;
+    border-bottom-color: var(--tg-border);
+}
+
+.md-typeset .grid.cards strong {
+    font-weight: 650;
+}
+
+/* ---- Home page hero ----------------------------------------------------------------------- */
+
+.tg-hero {
+    color: #e9edf2;
+    background:
+        radial-gradient(1200px 500px at 85% 20%, rgba(232, 163, 58, 0.18), transparent 60%),
+        linear-gradient(160deg, var(--tg-slate-900) 0%, var(--tg-slate-700) 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.tg-hero__inner {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 1.5em;
-    margin: 1.5em 0;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    align-items: center;
+    gap: 3rem;
+    padding: 3.5rem 0.8rem 3.5rem;
 }
 
-.hero-grid figure {
+.tg-hero__eyebrow {
+    margin: 0 0 0.6rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--tg-amber);
+}
+
+.tg-hero h1 {
+    margin: 0 0 1rem;
+    font-size: 2.3rem;
+    line-height: 1.15;
+    font-weight: 750;
+    letter-spacing: -0.03em;
+    color: #ffffff;
+}
+
+.tg-hero__lead {
+    margin: 0 0 1.8rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: rgba(233, 237, 242, 0.8);
+    max-width: 34rem;
+}
+
+.tg-hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+.tg-hero .md-button {
+    font-size: 0.75rem;
+    color: #e9edf2;
+    border: 1px solid rgba(233, 237, 242, 0.35);
+    display: inline-block;
+}
+
+.tg-hero .md-button:hover {
+    color: #ffffff;
+    border-color: #ffffff;
+}
+
+.tg-hero__figure {
+    margin: 0;
+}
+
+.tg-hero__figure img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 18px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+@media screen and (max-width: 59.9375em) {
+    .tg-hero__inner {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 2rem;
+        padding: 2.5rem 0.8rem;
+    }
+
+    .tg-hero h1 {
+        font-size: 1.8rem;
+    }
+
+    .tg-hero__figure {
+        max-width: 22rem;
+    }
+}
+
+/* The home page has no page title of its own: the hero carries it. */
+.tg-section {
+    margin-top: 0.5rem;
+}
+
+.tg-section > p:first-child {
+    font-size: 0.95rem;
+    max-width: 48em;
+}
+
+.tg-highlights {
+    margin-top: 1.5rem;
+}
+
+/* ---- Home page gallery -------------------------------------------------------------------- */
+
+.tg-gallery {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 1.6rem 1.2rem;
+    margin: 1.5rem 0 2rem;
+}
+
+.md-typeset .tg-gallery figure {
     margin: 0;
     max-width: none;
 }
 
-.hero-grid figure.wide {
+.tg-gallery__square {
+    grid-column: span 2;
+}
+
+.tg-gallery__half {
+    grid-column: span 3;
+}
+
+.tg-gallery__wide {
     grid-column: 1 / -1;
 }
 
-.hero-grid img {
+.md-typeset .tg-gallery img {
+    display: block;
     width: 100%;
-    border-radius: 4px;
+    border-radius: var(--tg-radius);
+    border: 1px solid var(--tg-border);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.hero-grid figcaption {
-    font-size: 0.75rem;
-    margin-top: 0.4em;
+.tg-gallery figure:hover img {
+    transform: scale(1.015);
+    box-shadow: var(--tg-shadow);
+}
+
+.tg-gallery figcaption {
+    margin: 0.6em 0 0;
     max-width: none;
+    font-size: 0.68rem;
+    line-height: 1.5;
+    text-align: left;
+    color: var(--md-default-fg-color--light);
+}
+
+.tg-gallery figcaption a {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.tg-gallery figcaption a::after {
+    content: " \2192";
+}
+
+@media screen and (max-width: 59.9375em) {
+    .tg-gallery__square,
+    .tg-gallery__half {
+        grid-column: span 3;
+    }
+}
+
+@media screen and (max-width: 37.5em) {
+    .tg-gallery__square,
+    .tg-gallery__half {
+        grid-column: 1 / -1;
+    }
+}
+
+/* ---- API reference ------------------------------------------------------------------------ */
+
+.doc-object {
+    margin-bottom: 2.5em;
+}
+
+.md-typeset .doc-heading {
+    border-top: 1px solid var(--tg-border);
+    padding-top: 1em;
+}
+
+.md-typeset .doc-heading code {
+    font-weight: 600;
+    background: transparent;
+}
+
+.md-typeset .doc-signature {
+    border-left: 3px solid var(--md-accent-fg-color);
+}
+
+.md-typeset .doc-symbol {
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.md-typeset .doc-contents table:not([class]) {
+    font-size: 0.72rem;
+}
+
+/* ---- Footer ------------------------------------------------------------------------------- */
+
+.md-footer-meta {
+    background-color: var(--tg-slate-900);
+}
+
+/* Four highlights in one row on wide screens, two on narrower ones. */
+.md-typeset .grid.cards.tg-highlights {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media screen and (max-width: 76.1875em) {
+    .md-typeset .grid.cards.tg-highlights {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media screen and (max-width: 37.5em) {
+    .md-typeset .grid.cards.tg-highlights {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.tg-nowrap {
+    white-space: nowrap;
+}
+
+/* Material shrinks figures to their image; gallery figures fill their cell instead. */
+.md-typeset .tg-gallery figure {
+    display: block;
+    width: auto;
+}
+
+/* A little more room for code and the API reference on wide screens. */
+.md-grid {
+    max-width: 66rem;
 }

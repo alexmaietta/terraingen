@@ -1,8 +1,11 @@
 site_name: TerrainGen
 site_description: An open-source scientific terrain generation suite for planetary surfaces
+site_author: Alex Maietta
 site_url: https://alexmaietta.github.io/terraingen/
 repo_url: https://github.com/alexmaietta/terraingen
-repo_name: terraingen
+repo_name: alexmaietta/terraingen
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; 2026 Alex Maietta &middot; BSD 3-Clause License
 docs_dir: docs
 site_dir: site
 strict: true
@@ -11,48 +14,85 @@ exclude_docs: |
   README.md
   requirements.txt
   generate_python_api.py
+  overrides/
 
 theme:
   name: material
+  custom_dir: docs/overrides
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
+  icon:
+    repo: fontawesome/brands/github
+  font:
+    text: Inter
+    code: JetBrains Mono
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: blue grey
-      accent: indigo
+      primary: custom
+      accent: custom
       toggle:
-        icon: material/brightness-7
+        icon: material/weather-night
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: blue grey
-      accent: indigo
+      primary: custom
+      accent: custom
       toggle:
-        icon: material/brightness-4
+        icon: material/weather-sunny
         name: Switch to light mode
   features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
     - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
-    - navigation.top
     - navigation.indexes
+    - navigation.top
+    - navigation.footer
     - search.highlight
     - search.suggest
+    - search.share
     - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - content.tooltips
     - toc.follow
 
 markdown_extensions:
+  - abbr
   - admonition
   - attr_list
+  - def_list
+  - footnotes
   - md_in_html
   - tables
   - toc:
       permalink: true
   - pymdownx.details
-  - pymdownx.highlight
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
   - pymdownx.inlinehilite
+  - pymdownx.snippets
   - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/alexmaietta/terraingen
+      name: TerrainGen on GitHub
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/terraingen/
+      name: TerrainGen on PyPI
 
 extra_css:
   - css/extra.css
@@ -190,3 +230,6 @@ plugins:
             merge_init_into_class: true
             show_if_no_docstring: true
             show_bases: true
+            # Public names only: no private or special members such as __doc__ or __module__,
+            # apart from constructors, merged into their class.
+            filters: ["!^_", "^__init__$"]
