@@ -86,7 +86,7 @@ void BindCells(nb::module_& m) {
             return "CellIndex(" + std::to_string(c.i) + ", " + std::to_string(c.j) + ")";
         });
     nb::class_<SurfaceCells>(m, "SurfaceCells",
-                             "Cells that tile a surface, which crater and rock generation draws "
+                             "Cells that tile a surface, which crater and boulder generation draws "
                              "from one cell at a time.")
         .def(
             "cells_covering",

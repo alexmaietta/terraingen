@@ -126,7 +126,7 @@ FreshMorphometry FreshOf(std::optional<FreshMorphometry> fresh) {
 
 void BindDistributions(nb::module_& m) {
     nb::enum_<SfdKind>(m, "SfdKind", "What a size-frequency distribution counts.")
-        .value("DENSITY", SfdKind::Density, "Craters or rocks per square metre.")
+        .value("DENSITY", SfdKind::Density, "Craters or boulders per square metre.")
         .value("PRODUCTION_RATE", SfdKind::ProductionRate, "Per square metre per Gyr.");
 
     nb::class_<SizeFrequencyDistribution, PySizeFrequencyDistribution>(
@@ -302,7 +302,7 @@ void BindDistributions(nb::module_& m) {
 
     nb::class_<GolombekRappSfd, SizeFrequencyDistribution>(
         m, "GolombekRappSfd",
-        "Golombek and Rapp's (1997) rocks: the fractional area covered by rocks at least D "
+        "Golombek and Rapp's (1997) boulders: the fractional area covered by boulders at least D "
         "across is coverage * exp(-q D), q = qa + qb / coverage.")
         .def(
             "__init__",
@@ -374,32 +374,34 @@ void BindDistributions(nb::module_& m) {
     m.def("exponential_integral", &ExponentialIntegral, "n"_a, "x"_a,
           "The generalized exponential integral E_n(x), as Golombek and Rapp's model uses.");
 
-    nb::enum_<RockModelCurve>(m, "RockModelCurve", "Which SP-8023 rock curve.")
-        .value("MINIMUM", RockModelCurve::Minimum)
-        .value("NOMINAL", RockModelCurve::Nominal)
-        .value("MAXIMUM", RockModelCurve::Maximum);
+    nb::enum_<SpecificationCurve>(m, "SpecificationCurve", "Which SP-8023 boulder curve.")
+        .value("MINIMUM", SpecificationCurve::Minimum)
+        .value("NOMINAL", SpecificationCurve::Nominal)
+        .value("MAXIMUM", SpecificationCurve::Maximum);
     m.def(
         "sp8023_intercrater_blocks",
-        [](RockModelCurve curve) {
+        [](SpecificationCurve curve) {
             return std::shared_ptr<SizeFrequencyDistribution>(Sp8023IntercraterBlocks(curve));
         },
         "curve"_a, "NASA SP-8023 blocks between craters.");
     m.def(
         "sp8023_crater_blocks",
-        [](RockModelCurve curve) {
+        [](SpecificationCurve curve) {
             return std::shared_ptr<SizeFrequencyDistribution>(Sp8023CraterBlocks(curve));
         },
         "curve"_a, "NASA SP-8023 blocks near craters.");
-    nb::enum_<SynthterrainRocks>(m, "SynthterrainRocks", "synthterrain's rock distributions.")
-        .value("INTER_CRATER", SynthterrainRocks::InterCrater)
-        .value("HAWORTH", SynthterrainRocks::Haworth)
-        .value("VIPER_SPECIFICATION", SynthterrainRocks::ViperSpecification);
+    nb::enum_<SynthterrainBoulders>(m, "SynthterrainBoulders",
+                                    "synthterrain's boulder distributions.")
+        .value("INTER_CRATER", SynthterrainBoulders::InterCrater)
+        .value("HAWORTH", SynthterrainBoulders::Haworth)
+        .value("VIPER_SPECIFICATION", SynthterrainBoulders::ViperSpecification);
     m.def(
-        "synthterrain_rock_distribution",
-        [](SynthterrainRocks rocks) {
-            return std::shared_ptr<SizeFrequencyDistribution>(SynthterrainRockDistribution(rocks));
+        "synthterrain_boulder_distribution",
+        [](SynthterrainBoulders boulders) {
+            return std::shared_ptr<SizeFrequencyDistribution>(
+                SynthterrainBoulderDistribution(boulders));
         },
-        "rocks"_a, "One of synthterrain's power-law rock distributions.");
+        "boulders"_a, "One of synthterrain's power-law boulder distributions.");
 }
 
 void BindAges(nb::module_& m) {

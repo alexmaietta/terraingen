@@ -16,11 +16,11 @@ INTERNAL = {
     "GeoTiff", "ShortKey", "Identity", "Load", "Native", "Scaling", "Keys",
     # Config spec structs: Python builds configs as dicts (Config.from_dict) and library objects.
     "Boxed", "Effective", "CraterBody", "DiffusivityModel", "EquilibriumModel", "NoiseLayerConfig",
-    "HeightmapOutput", "CraterListOutput", "RockListOutput", "BoulderModelsOutput", "AlbedoOutput",
+    "HeightmapOutput", "CraterListOutput", "BoulderListOutput", "BoulderModelsOutput", "AlbedoOutput",
     "BodyMeshOutput", "BuildCraterModels", "BuildSurface", "DescribeSource", "TileKeyHash", "Scheme",
     # The GPU's fixed-size layer block and device internals; Python selects backends.
     "NoiseLayers", "ComputeKernel", "VulkanCompute", "DeviceName", "Reason", "Run",
-    # Internal steps of crater, rock and albedo evaluation, reached through their layers.
+    # Internal steps of crater, boulder and albedo evaluation, reached through their layers.
     "Entries", "ReliefBefore", "DatumGround", "DatumMargin", "CraterInfluence", "CraterProfileDistance",
     "ApplyCraterTo", "GenerateCellCraters", "SpacingConflicts", "Solve", "TableFor", "Morphometry",
     "AddField", "EjectaCraters", "Abundance", "AddRelief", "PlacedOnLevel", "Roughness", "Smoothing",

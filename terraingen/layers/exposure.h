@@ -14,9 +14,9 @@ struct ExposureParams {
     double reach = 12.0;  ///< How far around a point its surroundings are read (m).
     double riseSoil =
         0.010;  ///< Standing this share of the reach above the surroundings or less: soil.
-    double riseRock = 0.035;  ///< Standing this share of the reach above them or more: bedrock.
-    double slopeSoil = 0.20;  ///< Slope (rise over run) at or under which soil holds.
-    double slopeRock = 0.40;  ///< Slope at or over which none does.
+    double riseBoulder = 0.035;  ///< Standing this share of the reach above them or more: bedrock.
+    double slopeSoil = 0.20;     ///< Slope (rise over run) at or under which soil holds.
+    double slopeBoulder = 0.40;  ///< Slope at or over which none does.
     double floorCover =
         0.0;  ///< Share of level ground that is bedrock too, in patches; 0 for none.
     double floorPatch = 60.0;  ///< How far across those patches are (m).
@@ -25,8 +25,8 @@ struct ExposureParams {
     bool operator==(const ExposureParams&) const = default;
 };
 
-/// @throws std::invalid_argument unless `reach` and `floorPatch` are positive, each rock threshold
-/// is over its soil one, and `floorCover` is in [0, 1).
+/// @throws std::invalid_argument unless `reach` and `floorPatch` are positive, each boulder
+/// threshold is over its soil one, and `floorCover` is in [0, 1).
 void ValidateExposureParams(const ExposureParams& params);
 
 /// How far the ground at a point is bedrock rather than soil, from the shape of the ground alone:
@@ -36,9 +36,9 @@ void ValidateExposureParams(const ExposureParams& params);
 /// thresholds, and the larger share wins. Level ground can be bedrock too, such as a swept lava
 /// floor, which the shape cannot reveal, so `floorCover` of it is bedrock in noise patches.
 ///
-/// It changes no height. Layers that place material, such as rocks, and renderers ask it where the
-/// bedrock is, so they agree. It reads the ground at points (`Ground`), so it is the same on every
-/// grid, tile and point.
+/// It changes no height. Layers that place material, such as boulders, and renderers ask it where
+/// the bedrock is, so they agree. It reads the ground at points (`Ground`), so it is the same on
+/// every grid, tile and point.
 class ExposureField {
   public:
     /// On a sphere, the surroundings are read in each point's local frame and the floor patches

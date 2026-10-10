@@ -25,8 +25,8 @@ def test_boulder_styles_and_shapes(tmp_path):
     assert terraingen.boulder_shape_seed(12345, 16) < 16
     with pytest.raises(ValueError):
         terraingen.generate_boulder_shape(1, terraingen.BoulderShapeOptions(styles=[]))
-    rocks = terraingen.RockLayerOptions(shapes=terraingen.BoulderShapeOptions(styles=[egg]), shape_prototypes=8)
-    assert rocks.shapes.styles[0].name == "egg" and rocks.shape_prototypes == 8
+    boulders = terraingen.BoulderLayerOptions(shapes=terraingen.BoulderShapeOptions(styles=[egg]), shape_prototypes=8)
+    assert boulders.shapes.styles[0].name == "egg" and boulders.shape_prototypes == 8
 
 
 def test_rim_smoothing_options():
@@ -68,15 +68,15 @@ def test_tile_cache_and_exposure():
     assert np.ptp(flat.values) == 0.0
 
 
-def test_bedform_cover_and_rock_abundance_read_the_ground():
+def test_bedform_cover_and_boulder_abundance_read_the_ground():
     relief = terraingen.NoiseRelief([terraingen.NoiseLayer(terraingen.FractalParams(seed=3, wavelength=60.0, amplitude=5.0))])
     exposure = terraingen.ExposureParams(reach=8.0)
     sand = terraingen.BedformLayer(terraingen.BedformOptions(wavelength=2.5, height=0.25, cover=0.8, field_size=30.0, exposure=exposure))
-    rocks = terraingen.RockLayer(terraingen.RockLayerOptions(exposure=exposure, bedrock_abundance=4.0))
+    boulders = terraingen.BoulderLayer(terraingen.BoulderLayerOptions(exposure=exposure, bedrock_abundance=4.0))
     ground = terraingen.Terrain(terraingen.FlatSource(64, 64, 0.5), [relief])
     with pytest.raises(ValueError):
         sand.cover_at(0.0, 0.0)
     covers = [sand.cover_at(x, 0.0, ground, 1) for x in np.linspace(-15.0, 15.0, 31)]
     assert all(0.0 <= c <= 1.0 for c in covers)
-    abundances = [rocks.abundance_at(x, 0.0, ground, 1)[0] for x in np.linspace(-15.0, 15.0, 31)]
+    abundances = [boulders.abundance_at(x, 0.0, ground, 1)[0] for x in np.linspace(-15.0, 15.0, 31)]
     assert min(abundances) < max(abundances) <= 4.0 + 1e-9

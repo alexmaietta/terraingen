@@ -14,7 +14,7 @@ namespace terraingen::python {
 namespace nb = nanobind;
 
 /// Binds `__init__(**kwargs)` for an option struct: the defaults, then each keyword set as the
-/// attribute of that name, so `RockLayerOptions(coverage=0.05)` reads like its config.
+/// attribute of that name, so `BoulderLayerOptions(coverage=0.05)` reads like its config.
 template <typename T, typename Class> void BindKwargsInit(Class& cls) {
     cls.def(
         "__init__",

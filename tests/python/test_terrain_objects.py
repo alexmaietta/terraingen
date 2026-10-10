@@ -35,7 +35,7 @@ def test_noise_terrain_matches_the_kernels_and_point_queries():
     )
     assert heights[32, 32] == pytest.approx(float(expected[0]))
     assert terraingen.evaluate_at(terrain, 0.0, 0.0, 2.0) == heights[32, 32]
-    assert evaluated.craters["x"].size == 0 and evaluated.rocks["x"].size == 0
+    assert evaluated.craters["x"].size == 0 and evaluated.boulders["x"].size == 0
     with pytest.raises(ValueError):
         terraingen.NoiseRelief([])
 
@@ -79,25 +79,25 @@ def test_craters_from_a_surface_model_and_by_hand():
     assert terraingen.mars_surface(3.0).density.cumulative(100.0) > 0
 
 
-def test_rocks_boulders_filters_and_writers(tmp_path):
+def test_boulders_boulders_filters_and_writers(tmp_path):
     craters = terraingen.CraterLayer(lunar_models(), terraingen.CraterLayerOptions(generation=terraingen.CraterGenerationOptions(min_diameter=3.0, max_diameter=20.0)))
-    rocks = terraingen.RockLayer(
-        terraingen.RockLayerOptions(
-            coverage=0.08, min_diameter=0.2, max_diameter=3.0, models=terraingen.RockModels(min_diameter=0.6)
+    boulders = terraingen.BoulderLayer(
+        terraingen.BoulderLayerOptions(
+            coverage=0.08, min_diameter=0.2, max_diameter=3.0, models=terraingen.BoulderModelThreshold(min_diameter=0.6)
         ),
         craters,
     )
-    terrain = terraingen.Terrain(terraingen.FlatSource(301, 301, 0.1), [craters, rocks])
+    terrain = terraingen.Terrain(terraingen.FlatSource(301, 301, 0.1), [craters, boulders])
     evaluated = terraingen.evaluate(terrain)
-    assert len(evaluated.rocks["x"]) > 50 and evaluated.boulder_count > 0
-    assert evaluated.rocks["model"].sum() >= evaluated.boulder_count
+    assert len(evaluated.boulders["x"]) > 50 and evaluated.boulder_model_count > 0
+    assert evaluated.boulders["model"].sum() >= evaluated.boulder_model_count
     evaluated.write_crater_list(tmp_path / "craters.csv")
     evaluated.write_crater_list(tmp_path / "craters.json")
-    evaluated.write_rock_list(tmp_path / "rocks.csv")
-    evaluated.write_rock_list(tmp_path / "rocks.json")
+    evaluated.write_boulder_list(tmp_path / "boulders.csv")
+    evaluated.write_boulder_list(tmp_path / "boulders.json")
     evaluated.write_boulder_models(tmp_path / "boulders.glb")
     assert (tmp_path / "craters.csv").read_text().startswith("x,y,diameter")
-    assert (tmp_path / "rocks.json").read_text().startswith("{")
+    assert (tmp_path / "boulders.json").read_text().startswith("{")
     assert (tmp_path / "boulders.glb").read_bytes()[:4] == b"glTF"
 
     smoothed = terraingen.Terrain(terrain.source, [craters], [terraingen.RimSmoothingFilter(terraingen.RimSmoothing(sigma_radii=0.1))])

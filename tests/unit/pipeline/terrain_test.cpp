@@ -393,12 +393,12 @@ TEST(TerrainGround, IsTheSourceAndTheLayersBeneath) {
     EXPECT_THROW(terraingen::TerrainGround(Terrain{}, 0), std::invalid_argument);
 }
 
-TEST(Evaluate, RocksFromCraterEjectaAndBedrockAgreeOnGridsTilesAndPoints) {
+TEST(Evaluate, BouldersFromCraterEjectaAndBedrockAgreeOnGridsTilesAndPoints) {
     Terrain terrain = Rolling();
     const auto craters =
         std::dynamic_pointer_cast<const terraingen::CraterLayer>(terrain.layers[1]);
     ASSERT_NE(craters, nullptr);
-    terraingen::RockLayerOptions options;
+    terraingen::BoulderLayerOptions options;
     options.minDiameter = 1.0;
     options.coverage = 0.05;
     options.patches = {2.0, 60.0};
@@ -407,11 +407,11 @@ TEST(Evaluate, RocksFromCraterEjectaAndBedrockAgreeOnGridsTilesAndPoints) {
     options.ejecta.minFreshness = 0.0;
     options.exposure = terraingen::ExposureParams{};
     options.fade = {1.0, 2.0};
-    terrain.layers.push_back(std::make_shared<terraingen::RockLayer>(options, craters));
+    terrain.layers.push_back(std::make_shared<terraingen::BoulderLayer>(options, craters));
 
     const RasterGrid large{240, 200, GeoTransform::NorthUp(-120.0, 100.0, 1.0)};
     const auto whole = Evaluate(terrain, large, terraingen::EvaluationOptions{0.0, 4});
-    EXPECT_FALSE(whole.features.rocks.empty());
+    EXPECT_FALSE(whole.features.boulders.empty());
     for (std::size_t row = 3; row < large.height; row += 7) {
         for (std::size_t col = 1; col < large.width; col += 7) {
             const auto centre = whole.heights.CellCenter(col, row);

@@ -58,10 +58,10 @@ def test_terrain_on_a_sphere_and_body_mesh(tmp_path):
     )
     assert region.weight(23.47, 0.67) == 1.0
     rough = terraingen.RoughnessLayer(terraingen.RoughnessOptions(), surface=moon)
-    rocks = terraingen.RockLayer(terraingen.RockLayerOptions(), craters, surface=moon)
+    boulders = terraingen.BoulderLayer(terraingen.BoulderLayerOptions(), craters, surface=moon)
     smoothing = terraingen.RimSmoothingFilter(surface=moon)
     bedforms = terraingen.BedformLayer(terraingen.mars_large_ripples(), surface=moon)
-    assert all(part is not None for part in (rough, rocks, smoothing, bedforms))
+    assert all(part is not None for part in (rough, boulders, smoothing, bedforms))
 
 
 def test_tiles_match_the_whole_grid():

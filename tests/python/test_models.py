@@ -52,12 +52,12 @@ def test_custom_shapes_of_distributions():
     assert spliced.cumulative(50.0) == pytest.approx(power.cumulative(50.0))
     poly = terraingen.LogPolynomialSfd([-2.0, -2.0], 1.0, 100.0)
     assert poly.cumulative(10.0) == pytest.approx(1e-4)
-    rocks = terraingen.GolombekRappSfd(0.05)
-    assert rocks.coverage == 0.05 and rocks.q == pytest.approx(1.79 + 0.152 / 0.05)
-    assert rocks.fractional_area(0.0) == pytest.approx(0.05)
-    blocks = [terraingen.sp8023_intercrater_blocks(c) for c in terraingen.RockModelCurve]
-    blocks += [terraingen.sp8023_crater_blocks(c) for c in terraingen.RockModelCurve]
-    blocks += [terraingen.synthterrain_rock_distribution(kind) for kind in terraingen.SynthterrainRocks]
+    boulders = terraingen.GolombekRappSfd(0.05)
+    assert boulders.coverage == 0.05 and boulders.q == pytest.approx(1.79 + 0.152 / 0.05)
+    assert boulders.fractional_area(0.0) == pytest.approx(0.05)
+    blocks = [terraingen.sp8023_intercrater_blocks(c) for c in terraingen.SpecificationCurve]
+    blocks += [terraingen.sp8023_crater_blocks(c) for c in terraingen.SpecificationCurve]
+    blocks += [terraingen.synthterrain_boulder_distribution(kind) for kind in terraingen.SynthterrainBoulders]
     for sfd in blocks:
         low, high = sfd.valid_range
         low = max(low, 0.1)
@@ -171,7 +171,7 @@ def test_crater_options_secondaries_and_positions():
     assert terraingen.singer_max_secondary_diameter(2000.0, 5000.0) > 20.0
 
 
-def test_other_layers_and_rock_options():
+def test_other_layers_and_boulder_options():
     flat = terraingen.FlatSource(65, 65, 1.0)
     bump = terraingen.ScaleLayer(1.0, 5.0)
     region = terraingen.RegionLayer(bump, terraingen.RegionShape.circle(0.0, 0.0, 10.0), feather=5.0)
@@ -190,23 +190,23 @@ def test_other_layers_and_rock_options():
     assert bedforms.cover_at(0.0, 0.0) >= 0.0
     assert terraingen.mars_transverse_aeolian_ridges().wavelength > ripples.wavelength
 
-    options = terraingen.RockLayerOptions(
+    options = terraingen.BoulderLayerOptions(
         coverage=0.08,
         min_diameter=0.2,
         max_diameter=2.0,
-        distribution=terraingen.synthterrain_rock_distribution(terraingen.SynthterrainRocks.HAWORTH),
-        patches=terraingen.RockPatches(spread=1.0),
+        distribution=terraingen.synthterrain_boulder_distribution(terraingen.SynthterrainBoulders.HAWORTH),
+        patches=terraingen.BoulderPatches(spread=1.0),
         min_burial=0.0,
         max_burial=0.0,
-        relief=terraingen.RockRelief.DOME,
-        models=terraingen.RockModels(min_diameter=1.0),
+        relief=terraingen.BoulderRelief.DOME,
+        models=terraingen.BoulderModelThreshold(min_diameter=1.0),
         exposure=terraingen.ExposureParams(reach=6.0),
     )
     assert options.patches.spread == 1.0 and options.exposure.reach == 6.0
     options.exposure = None
-    layer = terraingen.RockLayer(options)
-    rocks = layer.rocks((-10.0, -10.0, 10.0, 10.0))
-    assert len(rocks["x"]) > 0 and (rocks["burial"] == 0.0).all()
+    layer = terraingen.BoulderLayer(options)
+    boulders = layer.boulders((-10.0, -10.0, 10.0, 10.0))
+    assert len(boulders["x"]) > 0 and (boulders["burial"] == 0.0).all()
     assert layer.abundance_at(0.0, 0.0) == (1.0, 0.0)
-    ejecta = terraingen.RockEjecta(min_crater_diameter=5.0, coverage=0.3, profile=terraingen.EjectaProfile.EXPONENTIAL)
+    ejecta = terraingen.BoulderEjecta(min_crater_diameter=5.0, coverage=0.3, profile=terraingen.EjectaProfile.EXPONENTIAL)
     assert ejecta.profile == terraingen.EjectaProfile.EXPONENTIAL and ejecta.aging == terraingen.EjectaAging.FRESHNESS

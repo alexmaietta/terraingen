@@ -1,40 +1,40 @@
-# Rocks and boulders
+# Boulders and boulder models
 
-Rock layers, rock size models and 3D boulder shapes.
+Boulder layers, boulder size models, and 3D boulder models and their shapes.
 
-::: terraingen.RockLayer
+::: terraingen.BoulderLayer
 
-::: terraingen.RockLayerOptions
+::: terraingen.BoulderLayerOptions
 
-::: terraingen.RockPatches
+::: terraingen.BoulderPatches
 
-::: terraingen.RockEjecta
+::: terraingen.BoulderEjecta
 
 ::: terraingen.EjectaProfile
 
 ::: terraingen.EjectaAging
 
-::: terraingen.RockRelief
+::: terraingen.BoulderRelief
 
-::: terraingen.RockModels
+::: terraingen.BoulderModelThreshold
 
-::: terraingen.RockModelCurve
+::: terraingen.SpecificationCurve
 
 ::: terraingen.sp8023_intercrater_blocks
 
 ::: terraingen.sp8023_crater_blocks
 
-::: terraingen.SynthterrainRocks
+::: terraingen.SynthterrainBoulders
 
-::: terraingen.synthterrain_rock_distribution
+::: terraingen.synthterrain_boulder_distribution
 
-::: terraingen.rock_candidates
+::: terraingen.boulder_candidates
 
 ::: terraingen.boulder_throw_distance
 
-::: terraingen.Rock
+::: terraingen.Boulder
 
-::: terraingen.add_rock
+::: terraingen.add_boulder
 
 ::: terraingen.BoulderStyle
 
@@ -56,7 +56,7 @@ Rock layers, rock size models and 3D boulder shapes.
 
 ::: terraingen.BoulderPlacement
 
-::: terraingen.place_boulder
+::: terraingen.place_boulder_model
 
 ::: terraingen.boulder_mesh
 

@@ -1,6 +1,6 @@
 # Concepts
 
-How TerrainGen is put together: what a terrain is made of, the science behind its craters, rocks and albedo, and how results stay the same on any grid, tile or thread count.
+How TerrainGen is put together: what a terrain is made of, the science behind its craters, boulders and albedo, and how results stay the same on any grid, tile or thread count.
 
 ## Building terrains
 
@@ -56,7 +56,7 @@ How TerrainGen is put together: what a terrain is made of, the science behind it
 
     ---
 
-    Crater and rock densities, production functions and chronologies.
+    Crater and boulder densities, production functions and chronologies.
 
     [Read more](distributions.md)
 
@@ -76,13 +76,13 @@ How TerrainGen is put together: what a terrain is made of, the science behind it
 
     [Read more](crater-profiles.md)
 
--   __Rocks and boulders__
+-   __Boulders and boulder models__
 
     ---
 
-    Rock sizes and placement, and 3D boulder shapes.
+    Boulder sizes and placement, and 3D boulder shapes.
 
-    [Read more](rocks.md)
+    [Read more](boulders.md)
 
 -   __Noise and synthetic relief__
 
@@ -118,7 +118,7 @@ How TerrainGen is put together: what a terrain is made of, the science behind it
 
     ---
 
-    Heightmaps, crater and rock lists, albedo, meshes and glTF scenes.
+    Heightmaps, crater and boulder lists, albedo, meshes and glTF scenes.
 
     [Read more](outputs.md)
 

@@ -7,7 +7,7 @@ terraingen_add_test_suite(
     moon/chronology_test.cpp
     moon/craters_test.cpp
     moon/production_test.cpp
-    moon/rocks_test.cpp
+    moon/boulders_test.cpp
     moon/steady_state_test.cpp
     moon/surface_test.cpp
     LIBRARIES

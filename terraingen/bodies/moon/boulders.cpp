@@ -1,4 +1,4 @@
-#include "terraingen/bodies/moon/rocks.h"
+#include "terraingen/bodies/moon/boulders.h"
 
 #include <array>
 #include <cmath>
@@ -98,40 +98,40 @@ std::shared_ptr<TabulatedSfd> Table(std::span<const LogPoint> first,
 
 }  // namespace
 
-std::shared_ptr<TabulatedSfd> Sp8023IntercraterBlocks(RockModelCurve curve) {
+std::shared_ptr<TabulatedSfd> Sp8023IntercraterBlocks(SpecificationCurve curve) {
     switch (curve) {
-    case RockModelCurve::Minimum:
+    case SpecificationCurve::Minimum:
         return Table(kIntercraterFine, kIntercraterMinimum);
-    case RockModelCurve::Nominal:
+    case SpecificationCurve::Nominal:
         return Table(kIntercraterFine, kIntercraterNominal);
-    case RockModelCurve::Maximum:
+    case SpecificationCurve::Maximum:
         return Table(kIntercraterFine, kIntercraterMaximum);
     }
-    throw std::invalid_argument("Unknown rock model curve");
+    throw std::invalid_argument("Unknown specification curve");
 }
 
-std::shared_ptr<TabulatedSfd> Sp8023CraterBlocks(RockModelCurve curve) {
+std::shared_ptr<TabulatedSfd> Sp8023CraterBlocks(SpecificationCurve curve) {
     switch (curve) {
-    case RockModelCurve::Minimum:
+    case SpecificationCurve::Minimum:
         return Table(kCraterMinimum);
-    case RockModelCurve::Nominal:
+    case SpecificationCurve::Nominal:
         return Table(kCraterNominal);
-    case RockModelCurve::Maximum:
+    case SpecificationCurve::Maximum:
         return Table(kCraterMaximum);
     }
-    throw std::invalid_argument("Unknown rock model curve");
+    throw std::invalid_argument("Unknown specification curve");
 }
 
-std::shared_ptr<PowerLawSfd> SynthterrainRockDistribution(SynthterrainRocks rocks) {
-    switch (rocks) {
-    case SynthterrainRocks::InterCrater:
+std::shared_ptr<PowerLawSfd> SynthterrainBoulderDistribution(SynthterrainBoulders boulders) {
+    switch (boulders) {
+    case SynthterrainBoulders::InterCrater:
         return std::make_shared<PowerLawSfd>(0.0001, 1.75457);
-    case SynthterrainRocks::Haworth:
+    case SynthterrainBoulders::Haworth:
         return std::make_shared<PowerLawSfd>(0.002, 2.6607);
-    case SynthterrainRocks::ViperSpecification:
+    case SynthterrainBoulders::ViperSpecification:
         return std::make_shared<PowerLawSfd>(0.0003, 2.482);
     }
-    throw std::invalid_argument("Unknown synthterrain rock distribution");
+    throw std::invalid_argument("Unknown synthterrain boulder distribution");
 }
 
 }  // namespace terraingen

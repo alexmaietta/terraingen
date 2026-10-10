@@ -6,7 +6,7 @@ namespace terraingen {
 
 /// The shape a terrain lies on: a plane, or a sphere such as a planet or moon. It says what surface
 /// coordinates mean and measures distances and directions between them, so features defined in a
-/// local frame around their centre (crater profiles, rocks, rays) work on either.
+/// local frame around their centre (crater profiles, boulders, rays) work on either.
 ///
 /// - On a plane, surface coordinates are metres in a projected frame, and the local frame of a
 ///   point is that frame shifted to it.

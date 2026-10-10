@@ -117,13 +117,13 @@ TEST(BedformLayer, KeepsSandOffBedrock) {
     const Level flat(0.0);
     const Level steep(0.8);
     double soil = 0.0;
-    double rock = 0.0;
+    double boulder = 0.0;
     for (int n = 0; n < 400; ++n) {
         soil += layer.CoverAt(5.3 * n, 2.9 * n, &flat);
-        rock += layer.CoverAt(5.3 * n, 2.9 * n, &steep);
+        boulder += layer.CoverAt(5.3 * n, 2.9 * n, &steep);
     }
     EXPECT_GT(soil, 0.0);
-    EXPECT_EQ(rock, 0.0) << "steep ground is all bedrock";
+    EXPECT_EQ(boulder, 0.0) << "steep ground is all bedrock";
     EXPECT_THROW(layer.CoverAt(0.0, 0.0), std::invalid_argument);
     Raster<float> heights(4, 4, 0.0f);
     terraingen::TerrainFeatures features;

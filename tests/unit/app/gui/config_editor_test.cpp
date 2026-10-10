@@ -125,12 +125,12 @@ TEST(ConfigEditor, AddsRemovesAndMovesItemsWithTheSelectionFollowing) {
     EXPECT_FALSE(editor.AddItem(config, "nothing", "noise"));
     ASSERT_TRUE(editor.AddItem(config, "layers", "noise"));
     ASSERT_TRUE(editor.AddItem(config, "layers", "craters"));
-    ASSERT_TRUE(editor.AddItem(config, "layers", "rocks"));
+    ASSERT_TRUE(editor.AddItem(config, "layers", "boulders"));
     EXPECT_EQ(config["layers"].size(), 3u);
     EXPECT_EQ(editor.Selection(), "/layers/2") << "a new item is selected";
 
     EXPECT_TRUE(editor.MoveItem(config, "layers", 2, 0));
-    EXPECT_EQ(config["layers"][0]["type"], "rocks");
+    EXPECT_EQ(config["layers"][0]["type"], "boulders");
     EXPECT_EQ(editor.Selection(), "/layers/0") << "the selection follows the moved item";
     editor.Select("/layers/1");
     EXPECT_TRUE(editor.MoveItem(config, "layers", 0, 2));

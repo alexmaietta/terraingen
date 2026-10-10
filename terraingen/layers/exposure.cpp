@@ -24,13 +24,13 @@ void ValidateExposureParams(const ExposureParams& params) {
     if (!(std::isfinite(params.reach) && params.reach > 0.0)) {
         throw std::invalid_argument("Exposure reach must be positive and finite");
     }
-    if (!(params.riseRock > params.riseSoil && std::isfinite(params.riseSoil) &&
-          std::isfinite(params.riseRock))) {
-        throw std::invalid_argument("Exposure riseRock must exceed riseSoil");
+    if (!(params.riseBoulder > params.riseSoil && std::isfinite(params.riseSoil) &&
+          std::isfinite(params.riseBoulder))) {
+        throw std::invalid_argument("Exposure riseBoulder must exceed riseSoil");
     }
-    if (!(params.slopeRock > params.slopeSoil && std::isfinite(params.slopeSoil) &&
-          std::isfinite(params.slopeRock))) {
-        throw std::invalid_argument("Exposure slopeRock must exceed slopeSoil");
+    if (!(params.slopeBoulder > params.slopeSoil && std::isfinite(params.slopeSoil) &&
+          std::isfinite(params.slopeBoulder))) {
+        throw std::invalid_argument("Exposure slopeBoulder must exceed slopeSoil");
     }
     if (!(params.floorCover >= 0.0 && params.floorCover < 1.0)) {
         throw std::invalid_argument("Exposure floorCover must be in [0, 1)");
@@ -67,8 +67,8 @@ double ExposureField::Exposure(const Ground& ground, double x, double y, double 
     const double rise = (static_cast<double>(here) - mean) / reach;
     const double slope =
         std::hypot(heights[0] - heights[4], heights[2] - heights[6]) / (2.0 * reach);
-    double exposure = std::max(Share(rise, params_.riseSoil, params_.riseRock),
-                               Share(slope, params_.slopeSoil, params_.slopeRock));
+    double exposure = std::max(Share(rise, params_.riseSoil, params_.riseBoulder),
+                               Share(slope, params_.slopeSoil, params_.slopeBoulder));
     if (params_.floorCover > 0.0) {
         double coarse = 0.0;
         double fine = 0.0;

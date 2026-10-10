@@ -3,19 +3,19 @@
 #include "terraingen/albedo/crater_albedo.h"
 #include "terraingen/albedo/raster_albedo.h"
 #include "terraingen/albedo/synthetic.h"
-#include "terraingen/bodies/moon/rocks.h"
+#include "terraingen/bodies/moon/boulders.h"
 #include "terraingen/bodies/moon/specifications.h"
 #include "terraingen/bodies/radii.h"
 #include "terraingen/distribution/piecewise_power_law.h"
 #include "terraingen/filters/rim_smoothing.h"
 #include "terraingen/layers/bedforms.h"
+#include "terraingen/layers/boulders/boulder_layer.h"
 #include "terraingen/layers/craters/apply.h"
 #include "terraingen/layers/craters/degradation/diffusion.h"
 #include "terraingen/layers/craters/population.h"
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
 #include "terraingen/layers/craters/secondaries.h"
 #include "terraingen/layers/region.h"
-#include "terraingen/layers/rocks/rock_layer.h"
 #include "terraingen/layers/roughness.h"
 #include "terraingen/noise/kernels/layers.h"
 #include "terraingen/raster/geotiff.h"
@@ -241,39 +241,39 @@ struct CraterLayerSpec {
     bool operator==(const CraterLayerSpec&) const = default;
 };
 
-/// Rock size distributions, named in JSON by their "type"; "power_law", "piecewise_power_law" and
-/// "tabulated" are also accepted, as for crater densities.
-struct GolombekRappRocksSpec {  ///< "golombek_rapp": the layer's coverage, qa and qb.
-    bool operator==(const GolombekRappRocksSpec&) const = default;
+/// Boulder size distributions, named in JSON by their "type"; "power_law", "piecewise_power_law"
+/// and "tabulated" are also accepted, as for crater densities.
+struct GolombekRappBouldersSpec {  ///< "golombek_rapp": the layer's coverage, qa and qb.
+    bool operator==(const GolombekRappBouldersSpec&) const = default;
 };
-struct Sp8023IntercraterRocksSpec {  ///< "sp8023_intercrater": `Sp8023IntercraterBlocks(curve)`.
-    RockModelCurve curve = RockModelCurve::Nominal;
-    bool operator==(const Sp8023IntercraterRocksSpec&) const = default;
+struct Sp8023IntercraterBouldersSpec {  ///< "sp8023_intercrater": `Sp8023IntercraterBlocks(curve)`.
+    SpecificationCurve curve = SpecificationCurve::Nominal;
+    bool operator==(const Sp8023IntercraterBouldersSpec&) const = default;
 };
-struct Sp8023CraterRocksSpec {  ///< "sp8023_crater": `Sp8023CraterBlocks(curve)`.
-    RockModelCurve curve = RockModelCurve::Nominal;
-    bool operator==(const Sp8023CraterRocksSpec&) const = default;
+struct Sp8023CraterBouldersSpec {  ///< "sp8023_crater": `Sp8023CraterBlocks(curve)`.
+    SpecificationCurve curve = SpecificationCurve::Nominal;
+    bool operator==(const Sp8023CraterBouldersSpec&) const = default;
 };
-struct SynthterrainRocksSpec {  ///< "synthterrain": `SynthterrainRockDistribution(model)`.
-    SynthterrainRocks model = SynthterrainRocks::InterCrater;
-    bool operator==(const SynthterrainRocksSpec&) const = default;
+struct SynthterrainBouldersSpec {  ///< "synthterrain": `SynthterrainBoulderDistribution(model)`.
+    SynthterrainBoulders model = SynthterrainBoulders::InterCrater;
+    bool operator==(const SynthterrainBouldersSpec&) const = default;
 };
-using RockSizesSpec =
-    std::variant<GolombekRappRocksSpec, Sp8023IntercraterRocksSpec, Sp8023CraterRocksSpec,
-                 SynthterrainRocksSpec, PowerLawSpec, PiecewisePowerLawSpec, TabulatedSpec>;
+using BoulderSizesSpec =
+    std::variant<GolombekRappBouldersSpec, Sp8023IntercraterBouldersSpec, Sp8023CraterBouldersSpec,
+                 SynthterrainBouldersSpec, PowerLawSpec, PiecewisePowerLawSpec, TabulatedSpec>;
 
-/// "rocks": rocks scattered over the terrain (`RockLayer`). Ejecta come from the nearest crater
-/// layer before this one, which must exist when crater blocks are enabled. `sizes` and
-/// `ejectaSizes` give `rocks.distribution` and `rocks.ejecta.distribution`; with `extrapolate`,
-/// tables may be evaluated beyond their published diameters. `rocks.cacheRocks` is not part of the
-/// configuration.
-struct RockLayerSpec {
-    RockLayerOptions rocks{};
-    RockSizesSpec sizes{};
-    RockSizesSpec ejectaSizes{};
+/// "boulders": boulders scattered over the terrain (`BoulderLayer`). Ejecta come from the nearest
+/// crater layer before this one, which must exist when crater blocks are enabled. `sizes` and
+/// `ejectaSizes` give `boulders.distribution` and `boulders.ejecta.distribution`; with
+/// `extrapolate`, tables may be evaluated beyond their published diameters.
+/// `boulders.cacheBoulders` is not part of the configuration.
+struct BoulderLayerSpec {
+    BoulderLayerOptions boulders{};
+    BoulderSizesSpec sizes{};
+    BoulderSizesSpec ejectaSizes{};
     bool extrapolate = false;
 
-    bool operator==(const RockLayerSpec&) const = default;
+    bool operator==(const BoulderLayerSpec&) const = default;
 };
 
 /// "roughness": fine roughness of a given RMS slope (`RoughnessLayer`).
@@ -376,12 +376,12 @@ template <typename T> class Boxed {
 
 struct RegionLayerSpec;
 
-using LayerSpec = std::variant<NoiseLayerSpec, CraterLayerSpec, RockLayerSpec, RoughnessLayerSpec,
-                               BedformLayerSpec, ScaleLayerSpec, ClampLayerSpec, RegionLayerSpec,
-                               SecondaryLayerSpec>;
+using LayerSpec = std::variant<NoiseLayerSpec, CraterLayerSpec, BoulderLayerSpec,
+                               RoughnessLayerSpec, BedformLayerSpec, ScaleLayerSpec, ClampLayerSpec,
+                               RegionLayerSpec, SecondaryLayerSpec>;
 
 /// "region": `layer` applied only inside `shape`, feathered over `feather` metres outside it
-/// (`RegionLayer`). Rock ejecta do not see crater layers inside regions.
+/// (`RegionLayer`). Boulder ejecta do not see crater layers inside regions.
 struct RegionLayerSpec {
     RegionShapeSpec shape{};
     double feather = 0.0;
@@ -394,7 +394,7 @@ struct RegionLayerSpec {
 /// Filters, named in JSON by their "type": "rim_smoothing" is `RimSmoothingFilter`.
 using FilterSpec = std::variant<RimSmoothing>;
 
-/// Formats for crater and rock lists.
+/// Formats for crater and boulder lists.
 enum class CraterListFormat { Csv, Json };
 
 /// "crater_list": writes the generated and manual craters.
@@ -412,16 +412,16 @@ struct HeightmapOutput {
     bool operator==(const HeightmapOutput&) const = default;
 };
 
-/// "rock_list": writes every rock the layers placed, models and relief alike; the format follows
-/// the extension unless given.
-struct RockListOutput {
+/// "boulder_list": writes every boulder the layers placed, models and relief alike; the format
+/// follows the extension unless given.
+struct BoulderListOutput {
     std::string path;
     CraterListFormat format = CraterListFormat::Csv;
-    bool operator==(const RockListOutput&) const = default;
+    bool operator==(const BoulderListOutput&) const = default;
 };
-/// "boulder_models": writes the rocks placed as 3D models (`RockModels`) on the ground beneath
-/// them, as a glTF scene (.glb) drawing each shared shape once per boulder, or as one merged PLY
-/// mesh
+/// "boulder_models": writes the boulders placed as 3D models (`BoulderModelThreshold`) on the
+/// ground beneath them, as a glTF scene (.glb) drawing each shared shape once per boulder, or as
+/// one merged PLY mesh
 /// (.ply). Vertices are split where faces meet at more than `creaseAngle` degrees.
 struct BoulderModelsOutput {
     std::string path;
@@ -448,7 +448,7 @@ struct BodyMeshOutput {
     bool operator==(const BodyMeshOutput&) const = default;
 };
 
-using OutputSpec = std::variant<HeightmapOutput, CraterListOutput, RockListOutput,
+using OutputSpec = std::variant<HeightmapOutput, CraterListOutput, BoulderListOutput,
                                 BoulderModelsOutput, AlbedoOutput, BodyMeshOutput>;
 
 /// Albedo sources, named in JSON by their "type".

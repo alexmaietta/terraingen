@@ -40,7 +40,7 @@ Every part of a terrain is a base class you can subclass, in C++ or Python: brin
 
     ---
 
-    Crater and rock densities of your own.
+    Crater and boulder densities of your own.
 
     [Read more](custom-distributions.md)
 

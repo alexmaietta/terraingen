@@ -49,10 +49,10 @@ struct BoulderStyle {
     bool operator==(const BoulderStyle&) const = default;
 };
 
-/// The default mix of boulder styles: blocks and slabs of broken rock most of all, then rounded,
-/// weathered boulders, wedges, pyramids and shards, so that a field reads as broken rock rather
+/// The default mix of boulder styles: blocks and slabs of broken boulder most of all, then rounded,
+/// weathered boulders, wedges, pyramids and shards, so that a field reads as broken boulder rather
 /// than as pebbles. The mix, the rounding, the noise and the fractures are chosen for their look,
-/// after Chrono::Planet's rock library; the axis ratios are centred on the mean shape of impact
+/// after Chrono::Planet's boulder library; the axis ratios are centred on the mean shape of impact
 /// fragments, a : b : c = 2 : sqrt(2) : 1, which surveys of lunar and asteroid boulders also find.
 ///
 /// References:

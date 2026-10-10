@@ -19,7 +19,7 @@ __pycache__/
 .pytest_cache/
 
 # Validation against external references; kept out of the repository for now
-validation/
+/validation/
 
 # DEMs dropped in the repository root for local use; not committed
 /*.[tT][iI][fF]

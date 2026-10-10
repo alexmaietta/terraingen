@@ -25,7 +25,7 @@ struct DiameterRange {
     }
 };
 
-/// A cumulative size-frequency distribution N(>=D) of craters or rocks.
+/// A cumulative size-frequency distribution N(>=D) of craters or boulders.
 ///
 /// Diameters are in metres and counts per m^2 (or per m^2 per Gyr; see `Kind`). Distributions
 /// decrease monotonically. Evaluating outside `ValidRange` throws unless extrapolation has been

@@ -16,7 +16,7 @@ CONFIG = {
             "max_diameter": 15,
             "density": {"type": "lunar_surface", "age_gyr": 3.5},
         },
-        {"type": "rocks", "coverage": 0.1, "min_diameter": 0.5, "max_diameter": 2},
+        {"type": "boulders", "coverage": 0.1, "min_diameter": 0.5, "max_diameter": 2},
     ],
     "outputs": [
         {"type": "heightmap", "path": "heights.tif"},
@@ -76,7 +76,7 @@ def test_catalog_lists_every_type_and_each_layer_parses():
         tg.Config.from_dict({"schema_version": 1, "layers": [layer]})
 
 
-def test_generate_terrain_returns_heights_craters_and_rocks():
+def test_generate_terrain_returns_heights_craters_and_boulders():
     config = tg.Config.from_dict(CONFIG)
     terrain = tg.generate_terrain(config, threads=2)
     assert terrain.heights.shape == (65, 81)
@@ -88,9 +88,9 @@ def test_generate_terrain_returns_heights_craters_and_rocks():
     assert len(craters["x"]) > 0
     assert craters["diameter"].min() >= 3 and craters["diameter"].max() < 15
     assert craters["id"].dtype == np.uint64 and (craters["manual"] == 0).all()
-    rocks = terrain.rocks
-    assert len(rocks["x"]) > 0 and rocks["diameter"].min() >= 0.5
-    assert terrain.boulder_count == 0 and terrain.albedo == []
+    boulders = terrain.boulders
+    assert len(boulders["x"]) > 0 and boulders["diameter"].min() >= 0.5
+    assert terrain.boulder_model_count == 0 and terrain.albedo == []
     again = tg.generate_terrain(config, threads=1)
     np.testing.assert_array_equal(again.heights.values, heights)
 

@@ -51,7 +51,7 @@ const char* TypeGlyph(std::string_view root, std::string_view type) {
         {"plane", "\xee\x84\x90"},     {"sphere", "\xee\x87\xb3"},
         {"flat", "\xee\x85\xa7"},      {"raster", "\xee\x83\xb6"},
         {"chain", "\xee\x92\xb3"},     {"noise", "\xee\x88\xb1"},
-        {"craters", "\xee\x8d\x85"},   {"rocks", "\xee\x89\x82"},
+        {"craters", "\xee\x8d\x85"},   {"boulders", "\xee\x89\x82"},
         {"roughness", "\xee\x90\x92"}, {"bedforms", "\xee\x86\xb0"},
         {"scale", "\xee\x8b\xac"},     {"clamp", "\xee\x85\x8b"},
         {"region", "\xee\x82\xac"},    {"secondaries", "\xee\x81\xb6"},

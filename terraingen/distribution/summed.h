@@ -13,8 +13,8 @@ struct WeightedSfd {
     std::shared_ptr<const SizeFrequencyDistribution> distribution;
 };
 
-/// The sum of weighted distributions of one kind, N(>=D) = sum of weight * N_i(>=D), such as rocks
-/// between craters plus the blocks thrown out by them, or a population scaled by a factor.
+/// The sum of weighted distributions of one kind, N(>=D) = sum of weight * N_i(>=D), such as
+/// boulders between craters plus the blocks thrown out by them, or a population scaled by a factor.
 ///
 /// It is valid where every term is: the intersection of their valid ranges, with a term that allows
 /// extrapolation counting as valid everywhere.

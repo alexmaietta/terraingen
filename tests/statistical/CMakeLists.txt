@@ -13,7 +13,7 @@ terraingen_add_test_suite(
     layers/craters/ages/ages_test.cpp
     layers/craters/population_test.cpp
     layers/roughness_test.cpp
-    layers/rocks/rock_layer_test.cpp
+    layers/boulders/boulder_layer_test.cpp
     LIBRARIES
     terraingen::bodies
     LABELS

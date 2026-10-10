@@ -178,9 +178,9 @@ void RegionLayer::Apply(Raster<float>& heights, const LayerContext& context,
             }
         }
     }
-    for (const Rock& rock : placed.rocks) {
-        if (shape_.DistanceOutside(rock.x, rock.y, surface_) <= feather_) {
-            features.rocks.push_back(rock);
+    for (const Boulder& boulder : placed.boulders) {
+        if (shape_.DistanceOutside(boulder.x, boulder.y, surface_) <= feather_) {
+            features.boulders.push_back(boulder);
         }
     }
 }

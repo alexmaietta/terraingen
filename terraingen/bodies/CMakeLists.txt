@@ -8,7 +8,7 @@ terraingen_add_library(
     moon/craters.cpp
     moon/equilibrium.cpp
     moon/production.cpp
-    moon/rocks.cpp
+    moon/boulders.cpp
     moon/specifications.cpp
     moon/steady_state.cpp
     moon/surface.cpp

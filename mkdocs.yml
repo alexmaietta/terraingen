@@ -104,7 +104,7 @@ nav:
       - Size-frequency distributions: concepts/distributions.md
       - Crater populations and ages: concepts/craters.md
       - Crater profiles and degradation: concepts/crater-profiles.md
-      - Rocks and boulders: concepts/rocks.md
+      - Boulders and boulder models: concepts/boulders.md
       - Noise and synthetic relief: concepts/noise.md
       - Albedo: concepts/albedo.md
       - Rasters and GeoTIFF: concepts/rasters.md
@@ -137,7 +137,7 @@ nav:
       - Crater size-frequency distributions: validation/crater-distributions.md
       - Crater morphometry: validation/crater-morphometry.md
       - Crater degradation: validation/crater-degradation.md
-      - Rock abundances: validation/rocks.md
+      - Boulder abundances: validation/boulders.md
       - Slopes and roughness: validation/slopes-and-roughness.md
       - Albedo: validation/albedo.md
       - Comparison with other tools: validation/other-tools.md
@@ -154,7 +154,7 @@ nav:
           - Crater size-frequency distributions: api/python/crater-size-frequency-distributions.md
           - Crater ages, degradation and profiles: api/python/crater-ages-degradation-and-profiles.md
           - Craters: api/python/craters.md
-          - Rocks and boulders: api/python/rocks-and-boulders.md
+          - Boulders and boulder models: api/python/boulders-and-boulder-models.md
           - Filters: api/python/filters.md
           - Albedo: api/python/albedo.md
           - Tiles and whole bodies: api/python/tiles-and-whole-bodies.md

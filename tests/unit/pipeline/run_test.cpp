@@ -157,32 +157,36 @@ TEST(ValidateConfig, AcceptsTheDefaultsAndReportsEachProblemByPath) {
               "outputs[0].path");
 }
 
-TEST(ValidateConfig, ReportsRockLayerProblemsByPath) {
-    const auto withRocks = [](auto change) {
+TEST(ValidateConfig, ReportsBoulderLayerProblemsByPath) {
+    const auto withBoulders = [](auto change) {
         return ErrorPath([&](TerrainConfig& c) {
-            terraingen::RockLayerSpec rocks;
-            rocks.rocks.minDiameter = 1.0;
-            change(rocks.rocks);
-            c.layers.push_back(rocks);
+            terraingen::BoulderLayerSpec boulders;
+            boulders.boulders.minDiameter = 1.0;
+            change(boulders.boulders);
+            c.layers.push_back(boulders);
         });
     };
-    EXPECT_EQ(withRocks([](terraingen::RockLayerOptions&) {}), "valid");
-    EXPECT_EQ(withRocks([](terraingen::RockLayerOptions& r) { r.coverage = 2.0; }), "layers[2]");
-    EXPECT_EQ(withRocks([](terraingen::RockLayerOptions& r) { r.ejecta.minCraterDiameter = 10.0; }),
+    EXPECT_EQ(withBoulders([](terraingen::BoulderLayerOptions&) {}), "valid");
+    EXPECT_EQ(withBoulders([](terraingen::BoulderLayerOptions& r) { r.coverage = 2.0; }),
+              "layers[2]");
+    EXPECT_EQ(
+        withBoulders([](terraingen::BoulderLayerOptions& r) { r.ejecta.minCraterDiameter = 10.0; }),
+        "valid");
+    EXPECT_EQ(withBoulders([](terraingen::BoulderLayerOptions& r) { r.minDiameter = 0.01; }),
               "valid");
-    EXPECT_EQ(withRocks([](terraingen::RockLayerOptions& r) { r.minDiameter = 0.01; }), "valid");
-    EXPECT_EQ(withRocks([](terraingen::RockLayerOptions& r) { r.maxDiameter = 2.0; }), "valid");
+    EXPECT_EQ(withBoulders([](terraingen::BoulderLayerOptions& r) { r.maxDiameter = 2.0; }),
+              "valid");
     EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
-                  terraingen::RockLayerSpec rocks;
-                  rocks.rocks.ejecta.minCraterDiameter = 10.0;
-                  c.layers.insert(c.layers.begin() + 1, rocks);
+                  terraingen::BoulderLayerSpec boulders;
+                  boulders.boulders.ejecta.minCraterDiameter = 10.0;
+                  c.layers.insert(c.layers.begin() + 1, boulders);
               }),
               "layers[1].ejecta.min_crater_diameter");
     EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
                   Flat(c) = {60000, 60000, 0.1};
-                  terraingen::RockLayerSpec rocks;
-                  rocks.rocks.coverage = 0.5;
-                  c.layers = {rocks};
+                  terraingen::BoulderLayerSpec boulders;
+                  boulders.boulders.coverage = 0.5;
+                  c.layers = {boulders};
               }),
               "layers[0].min_diameter");
 }
@@ -225,18 +229,18 @@ TEST(ValidateConfig, ReportsTransformAndRegionProblemsByPath) {
     TerrainConfig small = Small();
     EXPECT_EQ(with(RegionLayerSpec{{}, 1.0, {}, RegionLayerSpec{{}, 1.0, {}, Craters(small)}}),
               "valid");
-    terraingen::RockLayerSpec rocks;
-    rocks.rocks.ejecta.minCraterDiameter = 10.0;
+    terraingen::BoulderLayerSpec boulders;
+    boulders.boulders.ejecta.minCraterDiameter = 10.0;
     EXPECT_EQ(ErrorPath([&](TerrainConfig& c) {
-                  c.layers = {RegionLayerSpec{{}, 1.0, {}, Craters(c)}, rocks};
+                  c.layers = {RegionLayerSpec{{}, 1.0, {}, Craters(c)}, boulders};
               }),
               "layers[1].ejecta.min_crater_diameter")
         << "crater layers inside regions do not count for ejecta";
     EXPECT_EQ(ErrorPath([&](TerrainConfig& c) {
-                  c.layers.push_back(RegionLayerSpec{{}, 1.0, {}, rocks});
+                  c.layers.push_back(RegionLayerSpec{{}, 1.0, {}, boulders});
               }),
               "valid")
-        << "rocks inside a region see the crater layers before it";
+        << "boulders inside a region see the crater layers before it";
 }
 
 TEST(GenerateTerrain, AppliesTransformsAndRegionsAsTheLibraryDoes) {
@@ -261,33 +265,34 @@ TEST(GenerateTerrain, AppliesTransformsAndRegionsAsTheLibraryDoes) {
               0.0f);
 }
 
-TEST(GenerateTerrain, DrawsRocksFromEachKindOfSizeDistribution) {
+TEST(GenerateTerrain, DrawsBouldersFromEachKindOfSizeDistribution) {
     TerrainConfig config = Small();
     Flat(config).pixelSize = 0.5;
-    terraingen::RockLayerSpec rocks;
-    rocks.rocks.minDiameter = 0.5;
-    rocks.rocks.ejecta.minCraterDiameter = 8.0;
-    rocks.rocks.ejecta.minFreshness = 0.0;
-    rocks.sizes = terraingen::Sp8023IntercraterRocksSpec{terraingen::RockModelCurve::Maximum};
-    rocks.ejectaSizes = terraingen::Sp8023CraterRocksSpec{};
-    config.layers.push_back(rocks);
+    terraingen::BoulderLayerSpec boulders;
+    boulders.boulders.minDiameter = 0.5;
+    boulders.boulders.ejecta.minCraterDiameter = 8.0;
+    boulders.boulders.ejecta.minFreshness = 0.0;
+    boulders.sizes =
+        terraingen::Sp8023IntercraterBouldersSpec{terraingen::SpecificationCurve::Maximum};
+    boulders.ejectaSizes = terraingen::Sp8023CraterBouldersSpec{};
+    config.layers.push_back(boulders);
     EXPECT_EQ(ErrorPath([&](TerrainConfig& c) { c.layers = config.layers; }), "layers[2]")
         << "the crater table starts at 0.85 m";
-    rocks.extrapolate = true;
-    config.layers.back() = rocks;
+    boulders.extrapolate = true;
+    config.layers.back() = boulders;
     const auto generated = GenerateTerrain(config);
-    EXPECT_FALSE(generated.features.rocks.empty());
-    for (const terraingen::RockSizesSpec& sizes :
-         {terraingen::RockSizesSpec{terraingen::SynthterrainRocksSpec{}},
-          terraingen::RockSizesSpec{terraingen::PowerLawSpec{0.001, 2.5}},
-          terraingen::RockSizesSpec{terraingen::PiecewisePowerLawSpec{{{0.5, 0.001, 2.5}}}},
-          terraingen::RockSizesSpec{terraingen::TabulatedSpec{{0.5, 10.0}, {0.01, 1e-5}}}}) {
-        rocks.sizes = sizes;
-        config.layers.back() = rocks;
+    EXPECT_FALSE(generated.features.boulders.empty());
+    for (const terraingen::BoulderSizesSpec& sizes :
+         {terraingen::BoulderSizesSpec{terraingen::SynthterrainBouldersSpec{}},
+          terraingen::BoulderSizesSpec{terraingen::PowerLawSpec{0.001, 2.5}},
+          terraingen::BoulderSizesSpec{terraingen::PiecewisePowerLawSpec{{{0.5, 0.001, 2.5}}}},
+          terraingen::BoulderSizesSpec{terraingen::TabulatedSpec{{0.5, 10.0}, {0.01, 1e-5}}}}) {
+        boulders.sizes = sizes;
+        config.layers.back() = boulders;
         EXPECT_NO_THROW(GenerateTerrain(config));
     }
-    rocks.sizes = terraingen::TabulatedSpec{{1.0}, {0.01}};
-    config.layers.back() = rocks;
+    boulders.sizes = terraingen::TabulatedSpec{{1.0}, {0.01}};
+    config.layers.back() = boulders;
     EXPECT_EQ(ErrorPath([&](TerrainConfig& c) { c.layers = config.layers; }), "layers[2].sizes");
 }
 
@@ -310,37 +315,37 @@ TEST(GenerateTerrain, AddsBedformsAsTheLibraryDoes) {
               "layers[2]");
 }
 
-TEST(GenerateTerrain, AddsRocksWithEjectaFromTheLastCraterLayerBeforeThem) {
+TEST(GenerateTerrain, AddsBouldersWithEjectaFromTheLastCraterLayerBeforeThem) {
     TerrainConfig config = Small();
     Flat(config).pixelSize = 0.5;
     Craters(config).minDiameter = 4.0;
-    terraingen::RockLayerSpec rocks;
-    rocks.rocks.minDiameter = 0.5;
-    rocks.rocks.coverage = 0.03;
-    rocks.rocks.ejecta.coverage = 0.2;
-    rocks.rocks.ejecta.minCraterDiameter = 8.0;
-    rocks.rocks.ejecta.minFreshness = 0.0;
-    rocks.rocks.exposure = terraingen::ExposureParams{};
-    config.layers.push_back(rocks);
+    terraingen::BoulderLayerSpec boulders;
+    boulders.boulders.minDiameter = 0.5;
+    boulders.boulders.coverage = 0.03;
+    boulders.boulders.ejecta.coverage = 0.2;
+    boulders.boulders.ejecta.minCraterDiameter = 8.0;
+    boulders.boulders.ejecta.minFreshness = 0.0;
+    boulders.boulders.exposure = terraingen::ExposureParams{};
+    config.layers.push_back(boulders);
     const auto generated = GenerateTerrain(config, {}, 4);
-    ASSERT_FALSE(generated.features.rocks.empty());
+    ASSERT_FALSE(generated.features.boulders.empty());
 
     terraingen::Terrain terrain = terraingen::BuildTerrain(config);
     ASSERT_EQ(terrain.layers.size(), 3u);
-    terraingen::RockLayerOptions options = rocks.rocks;
-    terrain.layers[2] = std::make_shared<terraingen::RockLayer>(
+    terraingen::BoulderLayerOptions options = boulders.boulders;
+    terrain.layers[2] = std::make_shared<terraingen::BoulderLayer>(
         options, std::dynamic_pointer_cast<const terraingen::CraterLayer>(terrain.layers[1]));
     const auto composed = terraingen::Evaluate(terrain, terrain.source->Grid());
     ExpectSameRaster(generated.heights, composed.heights);
-    ASSERT_EQ(generated.features.rocks.size(), composed.features.rocks.size());
-    for (std::size_t n = 0; n < composed.features.rocks.size(); ++n) {
-        EXPECT_EQ(generated.features.rocks[n].id, composed.features.rocks[n].id);
+    ASSERT_EQ(generated.features.boulders.size(), composed.features.boulders.size());
+    for (std::size_t n = 0; n < composed.features.boulders.size(); ++n) {
+        EXPECT_EQ(generated.features.boulders[n].id, composed.features.boulders[n].id);
     }
 
-    rocks.rocks.ejecta.minCraterDiameter = 0.0;
-    config.layers.back() = rocks;
+    boulders.boulders.ejecta.minCraterDiameter = 0.0;
+    config.layers.back() = boulders;
     const auto without = GenerateTerrain(config);
-    EXPECT_LT(without.features.rocks.size(), generated.features.rocks.size());
+    EXPECT_LT(without.features.boulders.size(), generated.features.boulders.size());
 }
 
 TEST(BuildCraterModels, ShapesCratersForTheirBody) {
@@ -592,40 +597,40 @@ TEST(WriteOutputs, ResolvesRelativePathsAndCreatesFolders) {
               static_cast<long>(terrain.features.craters.Size() + 1));
 }
 
-TEST(WriteOutputs, WritesRockListsAndBoulderModels) {
+TEST(WriteOutputs, WritesBoulderListsAndBoulderModels) {
     TerrainConfig config = Small();
     Flat(config) = {200, 200, 0.5};
-    terraingen::RockLayerSpec rocks;
-    rocks.rocks.coverage = 0.3;
-    rocks.rocks.minDiameter = 0.5;
-    rocks.rocks.relief = terraingen::RockRelief::Shape;
-    rocks.rocks.models.minDiameter = 1.5;
-    rocks.rocks.shapes.subdivisions = 1;
-    config.layers.push_back(rocks);
-    config.outputs = {terraingen::RockListOutput{"rocks.csv"},
-                      terraingen::RockListOutput{"rocks.json", CraterListFormat::Json},
+    terraingen::BoulderLayerSpec boulders;
+    boulders.boulders.coverage = 0.3;
+    boulders.boulders.minDiameter = 0.5;
+    boulders.boulders.relief = terraingen::BoulderRelief::Shape;
+    boulders.boulders.models.minDiameter = 1.5;
+    boulders.boulders.shapes.subdivisions = 1;
+    config.layers.push_back(boulders);
+    config.outputs = {terraingen::BoulderListOutput{"boulders.csv"},
+                      terraingen::BoulderListOutput{"boulders.json", CraterListFormat::Json},
                       terraingen::BoulderModelsOutput{"boulders.glb"},
                       terraingen::BoulderModelsOutput{"boulders.ply"}};
     const auto terrain = GenerateTerrain(config);
-    ASSERT_FALSE(terrain.features.boulders.empty());
-    for (const auto& boulder : terrain.features.boulders) {
-        ASSERT_TRUE(boulder.rock.ground.has_value());
-        EXPECT_GE(boulder.rock.diameter, 1.5);
+    ASSERT_FALSE(terrain.features.boulderModels.empty());
+    for (const auto& boulder : terrain.features.boulderModels) {
+        ASSERT_TRUE(boulder.boulder.ground.has_value());
+        EXPECT_GE(boulder.boulder.diameter, 1.5);
     }
-    const auto directory = TempPath("terraingen_rock_outputs");
+    const auto directory = TempPath("terraingen_boulder_outputs");
     std::filesystem::remove_all(directory);
     const auto written = terraingen::WriteOutputs(config, terrain, directory);
     ASSERT_EQ(written.size(), 4u);
     const std::string csv = Read(written[0]);
     EXPECT_EQ(csv.rfind("x,y,ground,diameter,height,burial,yaw,lean,id,model\n", 0), 0u);
     EXPECT_EQ(std::count(csv.begin(), csv.end(), '\n'),
-              static_cast<long>(terrain.features.rocks.size() + 1));
+              static_cast<long>(terrain.features.boulders.size() + 1));
     EXPECT_NE(Read(written[1]).find("\"model\": true"), std::string::npos);
     EXPECT_EQ(Read(written[2]).substr(0, 4), "glTF");
     EXPECT_EQ(Read(written[3]).substr(0, 3), "ply");
 
-    terraingen::RockLayerSpec none;
-    none.rocks.minDiameter = 0.5;
+    terraingen::BoulderLayerSpec none;
+    none.boulders.minDiameter = 0.5;
     config.layers.back() = none;
     config.outputs = {terraingen::BoulderModelsOutput{"empty.glb"}};
     EXPECT_TRUE(terraingen::WriteOutputs(config, GenerateTerrain(config), directory).empty())
@@ -639,16 +644,17 @@ TEST(WriteOutputs, WritesRockListsAndBoulderModels) {
                   c.outputs = {terraingen::BoulderModelsOutput{"boulders.glb", 200.0}};
               }),
               "outputs[0].crease_angle");
-    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { c.outputs = {terraingen::RockListOutput{}}; }),
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) { c.outputs = {terraingen::BoulderListOutput{}}; }),
               "outputs[0].path");
     EXPECT_THROW(terraingen::WriteBoulderModels({}, directory / "x.glb"), std::invalid_argument);
-    EXPECT_THROW(terraingen::WriteBoulderModels(terrain.features.boulders, directory / "x.obj"),
-                 std::invalid_argument);
     EXPECT_THROW(
-        terraingen::WriteBoulderModels(terrain.features.boulders, directory / "x.glb", -1.0),
+        terraingen::WriteBoulderModels(terrain.features.boulderModels, directory / "x.obj"),
         std::invalid_argument);
     EXPECT_THROW(
-        terraingen::WriteRockList({}, TempPath("missing/dir/r.csv"), CraterListFormat::Csv),
+        terraingen::WriteBoulderModels(terrain.features.boulderModels, directory / "x.glb", -1.0),
+        std::invalid_argument);
+    EXPECT_THROW(
+        terraingen::WriteBoulderList({}, TempPath("missing/dir/r.csv"), CraterListFormat::Csv),
         std::runtime_error);
 }
 
@@ -1269,23 +1275,23 @@ TEST(WriteOutputs, WritesBoulderModelsOnASphereAboutTheGridCentre) {
     flat.centreX = -30.0;
     flat.centreY = 60.0;
     config.source = flat;
-    terraingen::RockLayerSpec rocks;
-    rocks.rocks.coverage = 0.3;
-    rocks.rocks.minDiameter = 0.5;
-    rocks.rocks.maxDiameter = 3.0;
-    rocks.rocks.models.minDiameter = 1.0;
-    config.layers = {rocks};
+    terraingen::BoulderLayerSpec boulders;
+    boulders.boulders.coverage = 0.3;
+    boulders.boulders.minDiameter = 0.5;
+    boulders.boulders.maxDiameter = 3.0;
+    boulders.boulders.models.minDiameter = 1.0;
+    config.layers = {boulders};
     config.outputs = {terraingen::BoulderModelsOutput{"boulders.ply"}};
     const auto terrain = GenerateTerrain(config);
-    ASSERT_FALSE(terrain.features.boulders.empty());
+    ASSERT_FALSE(terrain.features.boulderModels.empty());
     const auto directory = TempPath("terraingen_sphere_boulders");
     std::filesystem::remove_all(directory);
     const auto written = terraingen::WriteOutputs(config, terrain, directory);
     ASSERT_EQ(written.size(), 1u);
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
-    for (const auto& boulder : terrain.features.boulders) {
+    for (const auto& boulder : terrain.features.boulderModels) {
         const auto placed = terraingen::PlacementAtSite(
-            boulder.placement, {boulder.rock.x, boulder.rock.y}, {-30.0, 60.0}, moon);
+            boulder.placement, {boulder.boulder.x, boulder.boulder.y}, {-30.0, 60.0}, moon);
         EXPECT_LT(std::fabs(placed.pose.translation.x), 25.0);
         EXPECT_LT(std::fabs(placed.pose.translation.y), 25.0);
         EXPECT_LT(std::fabs(placed.pose.translation.z), 5.0);

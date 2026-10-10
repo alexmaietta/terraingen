@@ -1,8 +1,8 @@
 #pragma once
 
+#include "terraingen/layers/boulders/boulder.h"
 #include "terraingen/layers/craters/attributes.h"
 #include "terraingen/layers/craters/population.h"
-#include "terraingen/layers/rocks/rock.h"
 
 #include <nanobind/nanobind.h>
 #include <nanobind/ndarray.h>
@@ -52,21 +52,21 @@ inline nb::dict CraterTable(const CraterList& craters,
     return table;
 }
 
-inline nb::dict RockTable(const std::vector<Rock>& rocks) {
+inline nb::dict BoulderTable(const std::vector<Boulder>& boulders) {
     std::vector<double> x, y, ground, diameter, height, burial, yaw, lean;
     std::vector<std::uint64_t> id;
     std::vector<std::uint8_t> model;
-    for (const Rock& rock : rocks) {
-        x.push_back(rock.x);
-        y.push_back(rock.y);
-        ground.push_back(rock.ground.value_or(std::numeric_limits<double>::quiet_NaN()));
-        diameter.push_back(rock.diameter);
-        height.push_back(rock.height);
-        burial.push_back(rock.burial);
-        yaw.push_back(rock.yaw);
-        lean.push_back(rock.lean);
-        id.push_back(rock.id);
-        model.push_back(rock.model ? 1 : 0);
+    for (const Boulder& boulder : boulders) {
+        x.push_back(boulder.x);
+        y.push_back(boulder.y);
+        ground.push_back(boulder.ground.value_or(std::numeric_limits<double>::quiet_NaN()));
+        diameter.push_back(boulder.diameter);
+        height.push_back(boulder.height);
+        burial.push_back(boulder.burial);
+        yaw.push_back(boulder.yaw);
+        lean.push_back(boulder.lean);
+        id.push_back(boulder.id);
+        model.push_back(boulder.model ? 1 : 0);
     }
     nb::dict table;
     table["x"] = Column(std::move(x));

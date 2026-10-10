@@ -489,13 +489,13 @@ void BindLayerBase(nb::module_& m) {
     auto exposure = nb::class_<ExposureParams>(
         m, "ExposureParams",
         "How exposed the ground is (crests and steep slopes shed regolith): rises and slopes "
-        "for soil and rock, read over `reach` metres.");
+        "for soil and boulder, read over `reach` metres.");
     BindKwargsInit<ExposureParams>(exposure);
     exposure.def_rw("reach", &ExposureParams::reach)
         .def_rw("rise_soil", &ExposureParams::riseSoil)
-        .def_rw("rise_rock", &ExposureParams::riseRock)
+        .def_rw("rise_boulder", &ExposureParams::riseBoulder)
         .def_rw("slope_soil", &ExposureParams::slopeSoil)
-        .def_rw("slope_rock", &ExposureParams::slopeRock)
+        .def_rw("slope_boulder", &ExposureParams::slopeBoulder)
         .def_rw("floor_cover", &ExposureParams::floorCover)
         .def_rw("floor_patch", &ExposureParams::floorPatch)
         .def_rw("seed", &ExposureParams::seed);
@@ -818,105 +818,107 @@ void BindBoulderShapes(nb::module_& m) {
           "The shape seed of boulder `id`, or of one of `prototypes` shared shapes.");
 }
 
-void BindRockLayers(nb::module_& m) {
-    auto patches = nb::class_<RockPatches>(
-        m, "RockPatches",
-        "Patches of richer and poorer rock cover, about `size` metres across: the abundance "
+void BindBoulderLayers(nb::module_& m) {
+    auto patches = nb::class_<BoulderPatches>(
+        m, "BoulderPatches",
+        "Patches of richer and poorer boulder cover, about `size` metres across: the abundance "
         "varies from 1 / `spread` to `spread` times its mean (1 for the same everywhere).");
-    BindKwargsInit<RockPatches>(patches);
-    patches.def_rw("spread", &RockPatches::spread).def_rw("size", &RockPatches::size);
+    BindKwargsInit<BoulderPatches>(patches);
+    patches.def_rw("spread", &BoulderPatches::spread).def_rw("size", &BoulderPatches::size);
 
-    nb::enum_<EjectaProfile>(m, "EjectaProfile", "How ejecta rocks fall off from a crater's rim.")
+    nb::enum_<EjectaProfile>(m, "EjectaProfile",
+                             "How ejecta boulders fall off from a crater's rim.")
         .value("SMOOTHSTEP", EjectaProfile::Smoothstep)
         .value("EXPONENTIAL", EjectaProfile::Exponential);
-    nb::enum_<EjectaAging>(m, "EjectaAging", "How ejecta rocks fade as their crater ages.")
+    nb::enum_<EjectaAging>(m, "EjectaAging", "How ejecta boulders fade as their crater ages.")
         .value("FRESHNESS", EjectaAging::Freshness)
         .value("AGE", EjectaAging::Age);
-    auto ejecta = nb::class_<RockEjecta>(
-        m, "RockEjecta",
-        "Rocks thrown out by craters at least `min_crater_diameter` across (or deep enough to "
+    auto ejecta = nb::class_<BoulderEjecta>(
+        m, "BoulderEjecta",
+        "Boulders thrown out by craters at least `min_crater_diameter` across (or deep enough to "
         "reach bedrock under `regolith_thickness`): extra `coverage` near the rim, falling off "
         "to `reach` radii, fading as the crater ages.");
-    BindKwargsInit<RockEjecta>(ejecta);
-    ejecta.def_rw("min_crater_diameter", &RockEjecta::minCraterDiameter)
-        .def_rw("regolith_thickness", &RockEjecta::regolithThickness)
-        .def_rw("excavation_depth_ratio", &RockEjecta::excavationDepthRatio)
-        .def_rw("distribution", &RockEjecta::distribution)
-        .def_rw("coverage", &RockEjecta::coverage)
-        .def_rw("profile", &RockEjecta::profile)
-        .def_rw("reach", &RockEjecta::reach)
-        .def_rw("decay_radii", &RockEjecta::decayRadii)
-        .def_rw("floor_share", &RockEjecta::floorShare)
-        .def_rw("aging", &RockEjecta::aging)
-        .def_rw("min_freshness", &RockEjecta::minFreshness)
-        .def_rw("lifetime_gyr", &RockEjecta::lifetimeGyr)
-        .def_rw("aging_exponent", &RockEjecta::agingExponent);
+    BindKwargsInit<BoulderEjecta>(ejecta);
+    ejecta.def_rw("min_crater_diameter", &BoulderEjecta::minCraterDiameter)
+        .def_rw("regolith_thickness", &BoulderEjecta::regolithThickness)
+        .def_rw("excavation_depth_ratio", &BoulderEjecta::excavationDepthRatio)
+        .def_rw("distribution", &BoulderEjecta::distribution)
+        .def_rw("coverage", &BoulderEjecta::coverage)
+        .def_rw("profile", &BoulderEjecta::profile)
+        .def_rw("reach", &BoulderEjecta::reach)
+        .def_rw("decay_radii", &BoulderEjecta::decayRadii)
+        .def_rw("floor_share", &BoulderEjecta::floorShare)
+        .def_rw("aging", &BoulderEjecta::aging)
+        .def_rw("min_freshness", &BoulderEjecta::minFreshness)
+        .def_rw("lifetime_gyr", &BoulderEjecta::lifetimeGyr)
+        .def_rw("aging_exponent", &BoulderEjecta::agingExponent);
 
-    nb::enum_<RockRelief>(m, "RockRelief", "How rocks are drawn into the heights.")
-        .value("DOME", RockRelief::Dome)
-        .value("SHAPE", RockRelief::Shape)
-        .value("NONE", RockRelief::None);
-    auto models = nb::class_<RockModels>(
-        m, "RockModels",
-        "Which rocks are placed as 3D boulder models: at least `min_diameter` metres across, or "
+    nb::enum_<BoulderRelief>(m, "BoulderRelief", "How boulders are drawn into the heights.")
+        .value("DOME", BoulderRelief::Dome)
+        .value("SHAPE", BoulderRelief::Shape)
+        .value("NONE", BoulderRelief::None);
+    auto models = nb::class_<BoulderModelThreshold>(
+        m, "BoulderModelThreshold",
+        "Which boulders are placed as 3D boulder models: at least `min_diameter` metres across, or "
         "`min_samples` samples across.");
-    BindKwargsInit<RockModels>(models);
-    models.def_rw("min_diameter", &RockModels::minDiameter)
-        .def_rw("min_samples", &RockModels::minSamples);
+    BindKwargsInit<BoulderModelThreshold>(models);
+    models.def_rw("min_diameter", &BoulderModelThreshold::minDiameter)
+        .def_rw("min_samples", &BoulderModelThreshold::minSamples);
 
-    auto rockOptionsClass = nb::class_<RockLayerOptions>(
-        m, "RockLayerOptions",
-        "A rock layer's settings: sizes from Golombek and Rapp's model for `coverage` (or "
+    auto boulderOptionsClass = nb::class_<BoulderLayerOptions>(
+        m, "BoulderLayerOptions",
+        "A boulder layer's settings: sizes from Golombek and Rapp's model for `coverage` (or "
         "`distribution`), between `min_diameter` and `max_diameter`; `patches`, `ejecta` and "
-        "`exposure` shape where they lie; heights, burial and lean shape each rock; `relief` and "
+        "`exposure` shape where they lie; heights, burial and lean shape each boulder; `relief` "
+        "and "
         "`models` how they are drawn.");
-    BindKwargsInit<RockLayerOptions>(rockOptionsClass);
-    rockOptionsClass.def_rw("coverage", &RockLayerOptions::coverage)
-        .def_rw("qa", &RockLayerOptions::qa)
-        .def_rw("qb", &RockLayerOptions::qb)
-        .def_rw("distribution", &RockLayerOptions::distribution)
-        .def_rw("min_diameter", &RockLayerOptions::minDiameter)
-        .def_rw("max_diameter", &RockLayerOptions::maxDiameter)
-        .def_rw("seed", &RockLayerOptions::seed)
-        .def_rw("patches", &RockLayerOptions::patches)
-        .def_rw("ejecta", &RockLayerOptions::ejecta)
-        .def_rw("exposure", &RockLayerOptions::exposure)
-        .def_rw("bedrock_abundance", &RockLayerOptions::bedrockAbundance)
-        .def_rw("exposure_spacing", &RockLayerOptions::exposureSpacing)
-        .def_rw("min_height_ratio", &RockLayerOptions::minHeightRatio)
-        .def_rw("max_height_ratio", &RockLayerOptions::maxHeightRatio)
-        .def_rw("min_burial", &RockLayerOptions::minBurial)
-        .def_rw("max_burial", &RockLayerOptions::maxBurial)
-        .def_rw("max_lean", &RockLayerOptions::maxLean)
-        .def_rw("relief", &RockLayerOptions::relief)
-        .def_rw("models", &RockLayerOptions::models)
-        .def_rw("shapes", &RockLayerOptions::shapes)
-        .def_rw("shape_prototypes", &RockLayerOptions::shapePrototypes)
-        .def_rw("fade", &RockLayerOptions::fade);
+    BindKwargsInit<BoulderLayerOptions>(boulderOptionsClass);
+    boulderOptionsClass.def_rw("coverage", &BoulderLayerOptions::coverage)
+        .def_rw("qa", &BoulderLayerOptions::qa)
+        .def_rw("qb", &BoulderLayerOptions::qb)
+        .def_rw("distribution", &BoulderLayerOptions::distribution)
+        .def_rw("min_diameter", &BoulderLayerOptions::minDiameter)
+        .def_rw("max_diameter", &BoulderLayerOptions::maxDiameter)
+        .def_rw("seed", &BoulderLayerOptions::seed)
+        .def_rw("patches", &BoulderLayerOptions::patches)
+        .def_rw("ejecta", &BoulderLayerOptions::ejecta)
+        .def_rw("exposure", &BoulderLayerOptions::exposure)
+        .def_rw("bedrock_abundance", &BoulderLayerOptions::bedrockAbundance)
+        .def_rw("exposure_spacing", &BoulderLayerOptions::exposureSpacing)
+        .def_rw("min_height_ratio", &BoulderLayerOptions::minHeightRatio)
+        .def_rw("max_height_ratio", &BoulderLayerOptions::maxHeightRatio)
+        .def_rw("min_burial", &BoulderLayerOptions::minBurial)
+        .def_rw("max_burial", &BoulderLayerOptions::maxBurial)
+        .def_rw("max_lean", &BoulderLayerOptions::maxLean)
+        .def_rw("relief", &BoulderLayerOptions::relief)
+        .def_rw("models", &BoulderLayerOptions::models)
+        .def_rw("shapes", &BoulderLayerOptions::shapes)
+        .def_rw("shape_prototypes", &BoulderLayerOptions::shapePrototypes)
+        .def_rw("fade", &BoulderLayerOptions::fade);
 
-    nb::class_<RockLayer, Layer>(
-        m, "RockLayer",
-        "Rocks drawn into the heights, the largest optionally placed as 3D boulders; `craters` "
-        "supplies the craters that throw ejecta rocks.")
+    nb::class_<BoulderLayer, Layer>(m, "BoulderLayer",
+                                    "Boulders drawn into the heights, the largest optionally "
+                                    "placed as 3D boulder models; `craters` "
+                                    "supplies the craters that throw ejecta boulders.")
         .def(
             "__init__",
-            [](RockLayer* self, RockLayerOptions options, std::shared_ptr<CraterLayer> craters,
-               const Surface& surface) {
-                new (self) RockLayer(std::move(options), std::move(craters), surface);
+            [](BoulderLayer* self, BoulderLayerOptions options,
+               std::shared_ptr<CraterLayer> craters, const Surface& surface) {
+                new (self) BoulderLayer(std::move(options), std::move(craters), surface);
             },
-            "options"_a = RockLayerOptions{}, "craters"_a = nb::none(), "surface"_a = Surface{})
+            "options"_a = BoulderLayerOptions{}, "craters"_a = nb::none(), "surface"_a = Surface{})
         .def(
-            "rocks",
-            [](const RockLayer& layer, std::tuple<double, double, double, double> region,
-               double spacing) { return RockTable(layer.Rocks(BoundsOf(region), spacing)); },
+            "boulders",
+            [](const BoulderLayer& layer, std::tuple<double, double, double, double> region,
+               double spacing) { return BoulderTable(layer.Boulders(BoundsOf(region), spacing)); },
             "region"_a, "spacing"_a = 0.0,
-            "The rocks over `region` (min_x, min_y, max_x, max_y) as NumPy columns, without "
+            "The boulders over `region` (min_x, min_y, max_x, max_y) as NumPy columns, without "
             "evaluating any heights or ground.")
         .def(
             "abundance_at",
-            [](const RockLayer& layer, double x, double y, const PyTerrain* terrain,
+            [](const BoulderLayer& layer, double x, double y, const PyTerrain* terrain,
                std::size_t layers) {
-                RockAbundance abundance;
+                BoulderAbundance abundance;
                 if (terrain == nullptr) {
                     abundance = layer.AbundanceAt(x, y);
                 } else {
@@ -927,11 +929,11 @@ void BindRockLayers(nb::module_& m) {
                 return std::pair{abundance.background, abundance.ejecta};
             },
             "x"_a, "y"_a, "terrain"_a = nb::none(), "layers"_a = 0,
-            "The rock abundance at (x, y): (background, ejecta). With the exposure field, give "
-            "the ground beneath the rocks: `terrain`'s source and its first `layers` layers.")
+            "The boulder abundance at (x, y): (background, ejecta). With the exposure field, give "
+            "the ground beneath the boulders: `terrain`'s source and its first `layers` layers.")
         .def(
             "density_at",
-            [](const RockLayer& layer, double diameter, double x, double y,
+            [](const BoulderLayer& layer, double diameter, double x, double y,
                const PyTerrain* terrain, std::size_t layers) {
                 if (terrain == nullptr) {
                     return layer.DensityAt(diameter, x, y);
@@ -941,8 +943,8 @@ void BindRockLayers(nb::module_& m) {
                 return layer.DensityAt(diameter, x, y, &ground);
             },
             "diameter"_a, "x"_a, "y"_a, "terrain"_a = nb::none(), "layers"_a = 0,
-            "Rocks at least `diameter` across per square metre at (x, y).")
-        .def_prop_ro("options", &RockLayer::Options);
+            "Boulders at least `diameter` across per square metre at (x, y).")
+        .def_prop_ro("options", &BoulderLayer::Options);
 }
 
 void BindFilters(nb::module_& m) {
@@ -997,7 +999,7 @@ void BindEvaluation(nb::module_& m) {
         .def_rw("filters", &PyTerrain::filters);
 
     nb::class_<EvaluatedTerrain>(m, "EvaluatedTerrain",
-                                 "Heights over a grid and the craters and rocks placed there.")
+                                 "Heights over a grid and the craters and boulders placed there.")
         .def_prop_ro(
             "heights", [](EvaluatedTerrain& terrain) -> Raster<float>& { return terrain.heights; },
             nb::rv_policy::reference_internal)
@@ -1009,20 +1011,22 @@ void BindEvaluation(nb::module_& m) {
             "The craters applied, as NumPy columns 'x', 'y', 'diameter', 'age_gyr', 'id' and "
             "'manual', and 'floor_depth', 'rim_height', 'depth_ratio', 'freshness' and 'complex'.")
         .def_prop_ro(
-            "rocks",
-            [](const EvaluatedTerrain& terrain) { return RockTable(terrain.features.rocks); },
-            "The rocks placed, as NumPy columns 'x', 'y', 'ground', 'diameter', 'height', "
+            "boulders",
+            [](const EvaluatedTerrain& terrain) { return BoulderTable(terrain.features.boulders); },
+            "The boulders placed, as NumPy columns 'x', 'y', 'ground', 'diameter', 'height', "
             "'burial', 'yaw', 'lean', 'id' and 'model'.")
         .def_prop_ro(
-            "boulder_count",
-            [](const EvaluatedTerrain& terrain) { return terrain.features.boulders.size(); },
-            "How many rocks were placed as 3D boulder models.")
+            "boulder_model_count",
+            [](const EvaluatedTerrain& terrain) { return terrain.features.boulderModels.size(); },
+            "How many boulders were placed as 3D boulder models.")
         .def_prop_ro(
-            "boulders", [](const EvaluatedTerrain& terrain) { return terrain.features.boulders; },
-            "The rocks placed as 3D models, with their shapes and placements.")
+            "boulder_models",
+            [](const EvaluatedTerrain& terrain) { return terrain.features.boulderModels; },
+            "The boulders placed as 3D models, with their shapes and placements.")
         .def_prop_ro(
-            "rock_list", [](const EvaluatedTerrain& terrain) { return terrain.features.rocks; },
-            "The rocks placed, as Rock objects.")
+            "boulder_list",
+            [](const EvaluatedTerrain& terrain) { return terrain.features.boulders; },
+            "The boulders placed, as Boulder objects.")
         .def_prop_ro(
             "crater_list", [](const EvaluatedTerrain& terrain) { return terrain.features.craters; },
             "The craters applied, as a CraterList.")
@@ -1036,17 +1040,17 @@ void BindEvaluation(nb::module_& m) {
             },
             "path"_a, "Writes the craters as CSV, or JSON for a .json path.")
         .def(
-            "write_rock_list",
+            "write_boulder_list",
             [](const EvaluatedTerrain& terrain, const std::filesystem::path& path) {
                 const CraterListFormat format =
                     path.extension() == ".json" ? CraterListFormat::Json : CraterListFormat::Csv;
-                WriteRockList(terrain.features.rocks, path, format);
+                WriteBoulderList(terrain.features.boulders, path, format);
             },
-            "path"_a, "Writes the rocks as CSV, or JSON for a .json path.")
+            "path"_a, "Writes the boulders as CSV, or JSON for a .json path.")
         .def(
             "write_boulder_models",
             [](const EvaluatedTerrain& terrain, const std::filesystem::path& path) {
-                WriteBoulderModels(terrain.features.boulders, path);
+                WriteBoulderModels(terrain.features.boulderModels, path);
             },
             "path"_a, "Writes the boulder models as a glTF scene (.glb) or one PLY mesh (.ply).");
 
@@ -1187,7 +1191,7 @@ void BindEvaluation(nb::module_& m) {
 
     nb::class_<ExposureField>(
         m, "ExposureField",
-        "How exposed the ground is, from 0 (buried under regolith) to 1 (bare rock): crests and "
+        "How exposed the ground is, from 0 (buried under regolith) to 1 (bare boulder): crests and "
         "steep slopes shed regolith, read over `params.reach` metres.")
         .def(nb::init<ExposureParams, Surface>(), "params"_a = ExposureParams{},
              "surface"_a = Surface{})
@@ -1224,7 +1228,7 @@ void BindTerrain(nb::module_& m) {
     BindLayerBase(m);
     BindCraterLayers(m);
     BindBoulderShapes(m);
-    BindRockLayers(m);
+    BindBoulderLayers(m);
     BindFilters(m);
     BindEvaluation(m);
 }

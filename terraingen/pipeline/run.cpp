@@ -323,21 +323,21 @@ void ValidateCraters(const CraterLayerSpec& craters, const RasterGrid& grid,
     }
 }
 
-/// The distribution `spec` names, or null for the layer's Golombek-Rapp rocks.
-std::shared_ptr<SizeFrequencyDistribution> BuildRockSizes(const RockSizesSpec& spec) {
+/// The distribution `spec` names, or null for the layer's Golombek-Rapp boulders.
+std::shared_ptr<SizeFrequencyDistribution> BuildBoulderSizes(const BoulderSizesSpec& spec) {
     using Result = std::shared_ptr<SizeFrequencyDistribution>;
     const auto density = [](const DensitySpec& named) {
         return std::const_pointer_cast<SizeFrequencyDistribution>(BuildDensity(named));
     };
     return std::visit(
         Overloaded{
-            [](const GolombekRappRocksSpec&) -> Result { return nullptr; },
-            [](const Sp8023IntercraterRocksSpec& s) -> Result {
+            [](const GolombekRappBouldersSpec&) -> Result { return nullptr; },
+            [](const Sp8023IntercraterBouldersSpec& s) -> Result {
                 return Sp8023IntercraterBlocks(s.curve);
             },
-            [](const Sp8023CraterRocksSpec& s) -> Result { return Sp8023CraterBlocks(s.curve); },
-            [](const SynthterrainRocksSpec& s) -> Result {
-                return SynthterrainRockDistribution(s.model);
+            [](const Sp8023CraterBouldersSpec& s) -> Result { return Sp8023CraterBlocks(s.curve); },
+            [](const SynthterrainBouldersSpec& s) -> Result {
+                return SynthterrainBoulderDistribution(s.model);
             },
             [&](const PowerLawSpec& s) -> Result { return density(s); },
             [&](const PiecewisePowerLawSpec& s) -> Result { return density(s); },
@@ -347,10 +347,10 @@ std::shared_ptr<SizeFrequencyDistribution> BuildRockSizes(const RockSizesSpec& s
 }
 
 /// The options `spec` describes, with its size distributions built.
-RockLayerOptions BuildRockOptions(const RockLayerSpec& spec, const std::string& path) {
-    RockLayerOptions options = spec.rocks;
-    const auto sizes = [&](const RockSizesSpec& named, const std::string& key) {
-        auto built = At(path + "." + key, [&] { return BuildRockSizes(named); });
+BoulderLayerOptions BuildBoulderOptions(const BoulderLayerSpec& spec, const std::string& path) {
+    BoulderLayerOptions options = spec.boulders;
+    const auto sizes = [&](const BoulderSizesSpec& named, const std::string& key) {
+        auto built = At(path + "." + key, [&] { return BuildBoulderSizes(named); });
         if (built && spec.extrapolate) {
             built->SetAllowExtrapolation(true);
         }
@@ -361,26 +361,26 @@ RockLayerOptions BuildRockOptions(const RockLayerSpec& spec, const std::string& 
     return options;
 }
 
-void ValidateRocks(const RockLayerSpec& spec, bool craters, const RasterGrid& grid,
-                   const std::string& path, const Surface& surface) {
-    const RockLayerOptions rocks = BuildRockOptions(spec, path);
-    At(path, [&] { ValidateRockLayerOptions(rocks); });
-    if (rocks.ejecta.MinCraterDiameter() > 0.0 && !craters) {
+void ValidateBoulders(const BoulderLayerSpec& spec, bool craters, const RasterGrid& grid,
+                      const std::string& path, const Surface& surface) {
+    const BoulderLayerOptions boulders = BuildBoulderOptions(spec, path);
+    At(path, [&] { ValidateBoulderLayerOptions(boulders); });
+    if (boulders.ejecta.MinCraterDiameter() > 0.0 && !craters) {
         throw ConfigError(path + ".ejecta.min_crater_diameter",
                           "ejecta need a crater layer before this one");
     }
     const double minDiameter =
-        std::fmax(rocks.minDiameter, rocks.fade.startSamples * grid.Spacing(surface));
-    if (minDiameter >= rocks.maxDiameter) {
+        std::fmax(boulders.minDiameter, boulders.fade.startSamples * grid.Spacing(surface));
+    if (minDiameter >= boulders.maxDiameter) {
         return;
     }
-    const double expected = RockCandidates(rocks)->ExpectedCount(grid.SurfaceArea(surface),
-                                                                 minDiameter, rocks.maxDiameter);
+    const double expected = BoulderCandidates(boulders)->ExpectedCount(
+        grid.SurfaceArea(surface), minDiameter, boulders.maxDiameter);
     const double limit = CraterGenerationOptions{}.maxExpectedCraters;
     if (expected > limit) {
         throw ConfigError(path + ".min_diameter",
                           "about " + std::to_string(static_cast<long long>(expected)) +
-                              " candidate rocks expected, more than the limit of " +
+                              " candidate boulders expected, more than the limit of " +
                               std::to_string(static_cast<long long>(limit)) +
                               "; raise min_diameter or lower coverage");
     }
@@ -410,7 +410,9 @@ void ValidateLayer(const LayerSpec& spec, const RasterGrid& grid, const std::str
                 ValidateCraters(layer, grid, path, surface);
                 craters = true;
             },
-            [&](const RockLayerSpec& layer) { ValidateRocks(layer, craters, grid, path, surface); },
+            [&](const BoulderLayerSpec& layer) {
+                ValidateBoulders(layer, craters, grid, path, surface);
+            },
             [&](const SecondaryLayerSpec& layer) {
                 if (!craters) {
                     throw ConfigError(path, "secondaries need a crater layer before this one");
@@ -449,7 +451,7 @@ void ValidateLayer(const LayerSpec& spec, const RasterGrid& grid, const std::str
         spec);
 }
 
-/// The layer `spec` describes; rock ejecta come from `ejecta`, the last crater layer before it.
+/// The layer `spec` describes; boulder ejecta come from `ejecta`, the last crater layer before it.
 std::shared_ptr<const Layer> BuildLayer(const LayerSpec& spec, const Source& source,
                                         const std::shared_ptr<const CraterLayer>& ejecta,
                                         const Surface& surface) {
@@ -481,10 +483,11 @@ std::shared_ptr<const Layer> BuildLayer(const LayerSpec& spec, const Source& sou
     if (const auto* roughness = std::get_if<RoughnessLayerSpec>(&spec)) {
         return std::make_shared<RoughnessLayer>(roughness->roughness, surface);
     }
-    if (const auto* rocks = std::get_if<RockLayerSpec>(&spec)) {
-        RockLayerOptions options = BuildRockOptions(*rocks, "rocks");
+    if (const auto* boulders = std::get_if<BoulderLayerSpec>(&spec)) {
+        BoulderLayerOptions options = BuildBoulderOptions(*boulders, "boulders");
         const bool throws = options.ejecta.MinCraterDiameter() > 0.0;
-        return std::make_shared<RockLayer>(std::move(options), throws ? ejecta : nullptr, surface);
+        return std::make_shared<BoulderLayer>(std::move(options), throws ? ejecta : nullptr,
+                                              surface);
     }
     const auto& craters = std::get<CraterLayerSpec>(spec);
     CraterLayerOptions options;
@@ -815,7 +818,7 @@ void ValidateConfig(const TerrainConfig& config, const std::filesystem::path& di
                         throw ConfigError(path + ".path", "must not be empty");
                     }
                 },
-                [&](const RockListOutput& output) {
+                [&](const BoulderListOutput& output) {
                     if (output.path.empty()) {
                         throw ConfigError(path + ".path", "must not be empty");
                     }
@@ -958,7 +961,7 @@ GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
     }
     LogInfo("pipeline", "Generated ", generated.heights.Width(), "x", generated.heights.Height(),
             " terrain with ", generated.features.craters.Size(), " craters and ",
-            generated.features.rocks.size(), " rocks in ",
+            generated.features.boulders.size(), " boulders in ",
             FormatDuration(stopwatch.Milliseconds()));
     return generated;
 }
@@ -1017,36 +1020,38 @@ void WriteCraterList(const CraterList& craters, const std::filesystem::path& pat
     }
 }
 
-void WriteRockList(const std::vector<Rock>& rocks, const std::filesystem::path& path,
-                   CraterListFormat format) {
+void WriteBoulderList(const std::vector<Boulder>& boulders, const std::filesystem::path& path,
+                      CraterListFormat format) {
     std::ofstream file(path, std::ios::binary);
     if (!file) {
         throw std::runtime_error("Cannot write " + path.string());
     }
     if (format == CraterListFormat::Csv) {
         file << "x,y,ground,diameter,height,burial,yaw,lean,id,model\n";
-        for (const Rock& rock : rocks) {
-            file << Number(rock.x) << ',' << Number(rock.y) << ','
-                 << (rock.ground ? Number(*rock.ground) : std::string()) << ','
-                 << Number(rock.diameter) << ',' << Number(rock.height) << ','
-                 << Number(rock.burial) << ',' << Number(rock.yaw) << ',' << Number(rock.lean)
-                 << ',' << rock.id << ',' << (rock.model ? 1 : 0) << '\n';
+        for (const Boulder& boulder : boulders) {
+            file << Number(boulder.x) << ',' << Number(boulder.y) << ','
+                 << (boulder.ground ? Number(*boulder.ground) : std::string()) << ','
+                 << Number(boulder.diameter) << ',' << Number(boulder.height) << ','
+                 << Number(boulder.burial) << ',' << Number(boulder.yaw) << ','
+                 << Number(boulder.lean) << ',' << boulder.id << ',' << (boulder.model ? 1 : 0)
+                 << '\n';
         }
     } else {
         nlohmann::ordered_json json;
-        json["rocks"] = nlohmann::ordered_json::array();
-        for (const Rock& rock : rocks) {
-            json["rocks"].push_back({{"x", rock.x},
-                                     {"y", rock.y},
-                                     {"ground", rock.ground ? nlohmann::ordered_json(*rock.ground)
-                                                            : nlohmann::ordered_json(nullptr)},
-                                     {"diameter", rock.diameter},
-                                     {"height", rock.height},
-                                     {"burial", rock.burial},
-                                     {"yaw", rock.yaw},
-                                     {"lean", rock.lean},
-                                     {"id", rock.id},
-                                     {"model", rock.model}});
+        json["boulders"] = nlohmann::ordered_json::array();
+        for (const Boulder& boulder : boulders) {
+            json["boulders"].push_back(
+                {{"x", boulder.x},
+                 {"y", boulder.y},
+                 {"ground", boulder.ground ? nlohmann::ordered_json(*boulder.ground)
+                                           : nlohmann::ordered_json(nullptr)},
+                 {"diameter", boulder.diameter},
+                 {"height", boulder.height},
+                 {"burial", boulder.burial},
+                 {"yaw", boulder.yaw},
+                 {"lean", boulder.lean},
+                 {"id", boulder.id},
+                 {"model", boulder.model}});
         }
         file << json.dump(2) << '\n';
     }
@@ -1072,8 +1077,8 @@ void WriteBoulderModels(const std::vector<BoulderModel>& boulders,
         TriangleMesh merged;
         for (const BoulderModel& boulder : boulders) {
             const auto first = static_cast<std::uint32_t>(merged.positions.size());
-            const BoulderPlacement placement =
-                PlacementAtSite(boulder.placement, {boulder.rock.x, boulder.rock.y}, site, surface);
+            const BoulderPlacement placement = PlacementAtSite(
+                boulder.placement, {boulder.boulder.x, boulder.boulder.y}, site, surface);
             for (const Vec3d& p : boulder.shape->mesh.positions) {
                 merged.positions.push_back(placement.Apply(p));
             }
@@ -1094,8 +1099,8 @@ void WriteBoulderModels(const std::vector<BoulderModel>& boulders,
             ShadedMesh shaded = WithCreases(boulder.shape->mesh, radians);
             meshes.push_back({std::move(shaded.mesh), std::move(shaded.normals)});
         }
-        const BoulderPlacement placement =
-            PlacementAtSite(boulder.placement, {boulder.rock.x, boulder.rock.y}, site, surface);
+        const BoulderPlacement placement = PlacementAtSite(
+            boulder.placement, {boulder.boulder.x, boulder.boulder.y}, site, surface);
         nodes.push_back({found->second, placement.scale, placement.pose});
     }
     WriteGlbScene(path, meshes, nodes);
@@ -1132,21 +1137,22 @@ std::vector<std::filesystem::path> WriteOutputs(const TerrainConfig& config,
             }
             WriteGeoTiff(path, terrain.albedo, terrain.geoKeys,
                          {.compression = albedo->compression, .tileSize = albedo->tileSize});
-        } else if (const auto* rocks = std::get_if<RockListOutput>(&spec)) {
-            WriteRockList(terrain.features.rocks, path, rocks->format);
-            LogInfo("pipeline", "Wrote ", terrain.features.rocks.size(), " rocks to ",
+        } else if (const auto* boulders = std::get_if<BoulderListOutput>(&spec)) {
+            WriteBoulderList(terrain.features.boulders, path, boulders->format);
+            LogInfo("pipeline", "Wrote ", terrain.features.boulders.size(), " boulders to ",
                     path.string());
         } else if (const auto* models = std::get_if<BoulderModelsOutput>(&spec)) {
-            if (terrain.features.boulders.empty()) {
+            if (terrain.features.boulderModels.empty()) {
                 LogWarning("pipeline", "No boulder models to write to ", path.string());
                 continue;
             }
             const Bounds2d bounds = RasterGrid::Of(terrain.heights).Bounds();
             WriteBoulderModels(
-                terrain.features.boulders, path, models->creaseAngle, BuildSurface(config.surface),
+                terrain.features.boulderModels, path, models->creaseAngle,
+                BuildSurface(config.surface),
                 {0.5 * (bounds.minX + bounds.maxX), 0.5 * (bounds.minY + bounds.maxY)});
-            LogInfo("pipeline", "Wrote ", terrain.features.boulders.size(), " boulder models to ",
-                    path.string());
+            LogInfo("pipeline", "Wrote ", terrain.features.boulderModels.size(),
+                    " boulder models to ", path.string());
         } else {
             const auto& list = std::get<CraterListOutput>(spec);
             WriteCraterList(terrain.features.craters, path, list.format,

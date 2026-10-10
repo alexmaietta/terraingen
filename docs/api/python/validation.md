@@ -8,6 +8,8 @@ Check settings without building anything; constructors raise the same errors.
 
 ::: terraingen.validate_bedform_options
 
+::: terraingen.validate_boulder_layer_options
+
 ::: terraingen.validate_boulder_shape_options
 
 ::: terraingen.validate_complex_crater_shape
@@ -39,8 +41,6 @@ Check settings without building anything; constructors raise the same errors.
 ::: terraingen.validate_resolution_fade
 
 ::: terraingen.validate_rim_smoothing
-
-::: terraingen.validate_rock_layer_options
 
 ::: terraingen.validate_roughness_options
 

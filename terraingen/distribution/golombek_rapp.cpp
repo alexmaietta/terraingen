@@ -64,7 +64,7 @@ double ExponentialIntegral(int n, double x) {
 GolombekRappSfd::GolombekRappSfd(double coverage, double qa, double qb, DiameterRange range)
     : SizeFrequencyDistribution(SfdKind::Density, range), coverage_(coverage) {
     if (!(coverage_ > 0.0 && coverage_ < 1.0)) {
-        throw std::invalid_argument("Rock coverage k must be between 0 and 1");
+        throw std::invalid_argument("Boulder coverage k must be between 0 and 1");
     }
     if (!(std::isfinite(qa) && std::isfinite(qb) && qa >= 0.0 && qb >= 0.0)) {
         throw std::invalid_argument("Golombek-Rapp qa and qb must be finite and not negative");

@@ -115,7 +115,7 @@ void BindPipeline(nb::module_& m) {
         },
         "Every configuration type with its defaults, as a dict: the lists 'surface', 'source', "
         "'layers', 'filters' and 'outputs', the 'albedo', and the 'models' (densities, ages, "
-        "degradation, profiles, rock sizes, region shapes and albedo sources and layers).");
+        "degradation, profiles, boulder sizes, region shapes and albedo sources and layers).");
 
     m.def(
         "config_schema",
@@ -131,7 +131,7 @@ void BindPipeline(nb::module_& m) {
 
     nb::class_<GeneratedTerrain>(m, "GeneratedTerrain",
                                  "A generated terrain: heights, albedo bands and the craters and "
-                                 "rocks its layers placed.")
+                                 "boulders its layers placed.")
         .def_prop_ro(
             "heights", [](GeneratedTerrain& terrain) -> Raster<float>& { return terrain.heights; },
             nb::rv_policy::reference_internal, "Heights in metres over the source's grid.")
@@ -155,15 +155,16 @@ void BindPipeline(nb::module_& m) {
             "'manual' (1 for manual craters), in the surface's coordinates, and their attributes "
             "'floor_depth' and 'rim_height' (m), 'depth_ratio', 'freshness' and 'complex'.")
         .def_prop_ro(
-            "rocks",
-            [](const GeneratedTerrain& terrain) { return RockTable(terrain.features.rocks); },
-            "The rocks placed, as NumPy columns 'x', 'y', 'ground' (NaN when unknown), "
-            "'diameter', 'height', 'burial', 'yaw', 'lean', 'id' and 'model' (1 for rocks placed "
+            "boulders",
+            [](const GeneratedTerrain& terrain) { return BoulderTable(terrain.features.boulders); },
+            "The boulders placed, as NumPy columns 'x', 'y', 'ground' (NaN when unknown), "
+            "'diameter', 'height', 'burial', 'yaw', 'lean', 'id' and 'model' (1 for boulders "
+            "placed "
             "as 3D models).")
         .def_prop_ro(
-            "boulder_count",
-            [](const GeneratedTerrain& terrain) { return terrain.features.boulders.size(); },
-            "How many rocks were placed as 3D boulder models.");
+            "boulder_model_count",
+            [](const GeneratedTerrain& terrain) { return terrain.features.boulderModels.size(); },
+            "How many boulders were placed as 3D boulder models.");
 
     m.def(
         "generate_terrain",

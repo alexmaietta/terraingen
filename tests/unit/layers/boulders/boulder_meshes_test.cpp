@@ -1,20 +1,20 @@
-#include "terraingen/layers/rocks/boulder_meshes.h"
+#include "terraingen/layers/boulders/boulder_meshes.h"
 
 #include <gtest/gtest.h>
 
 #include <cmath>
 #include <numbers>
 
-using terraingen::Rock;
+using terraingen::Boulder;
 
-TEST(PlaceBoulder, StandsTheShapeAtTheRocksSizeBurialAndHeading) {
+TEST(PlaceBoulderModel, StandsTheShapeAtTheBouldersSizeBurialAndHeading) {
     const terraingen::BoulderShapeOptions options;
-    const Rock rock{5.0, -3.0, 2.0, 1.0, 0.25, 0.4, 0.0, 42u};
-    const auto shape = terraingen::GenerateBoulderShape(rock.id, options);
-    const auto mesh = terraingen::BoulderMesh(rock, options, 10.0);
+    const Boulder boulder{5.0, -3.0, 2.0, 1.0, 0.25, 0.4, 0.0, 42u};
+    const auto shape = terraingen::GenerateBoulderShape(boulder.id, options);
+    const auto mesh = terraingen::BoulderMesh(boulder, options, 10.0);
     const auto box = terraingen::Bounds(mesh);
     EXPECT_NEAR(box.min.z, 10.0 - 0.25, 1e-12) << "a quarter of its height below the ground";
-    EXPECT_NEAR(box.max.z - 10.0, rock.ExposedHeight(), 1e-12);
+    EXPECT_NEAR(box.max.z - 10.0, boulder.ExposedHeight(), 1e-12);
     EXPECT_NEAR(terraingen::Volume(mesh),
                 terraingen::Volume(shape.mesh) * 2.0 * 2.0 * (1.0 / shape.shortAxis), 1e-9);
     double along = 0.0;
@@ -25,26 +25,26 @@ TEST(PlaceBoulder, StandsTheShapeAtTheRocksSizeBurialAndHeading) {
         along = std::fmax(along, t);
         low = std::fmin(low, t);
     }
-    EXPECT_NEAR(along - low, rock.diameter, 1e-9) << "the long axis follows the yaw";
+    EXPECT_NEAR(along - low, boulder.diameter, 1e-9) << "the long axis follows the yaw";
 
-    const auto placement = terraingen::PlaceBoulder(rock, shape, 10.0);
+    const auto placement = terraingen::PlaceBoulderModel(boulder, shape, 10.0);
     EXPECT_EQ(placement.Apply(shape.mesh.positions[3]), mesh.positions[3]);
     EXPECT_EQ(placement.scale.x, 2.0);
 }
 
-TEST(PlaceBoulder, BuriesItsShareOfTheLeanedHeightAndSharesPrototypes) {
+TEST(PlaceBoulderModel, BuriesItsShareOfTheLeanedHeightAndSharesPrototypes) {
     const terraingen::BoulderShapeOptions options;
-    const Rock rock{0.0, 0.0, 1.0, 0.5, 0.4, 0.0, std::numbers::pi / 6.0, 7u};
-    const auto box = terraingen::Bounds(terraingen::BoulderMesh(rock, options, 0.0));
+    const Boulder boulder{0.0, 0.0, 1.0, 0.5, 0.4, 0.0, std::numbers::pi / 6.0, 7u};
+    const auto box = terraingen::Bounds(terraingen::BoulderMesh(boulder, options, 0.0));
     const double extent = box.max.z - box.min.z;
-    EXPECT_GT(extent, rock.height) << "leaning raises the long axis";
+    EXPECT_GT(extent, boulder.height) << "leaning raises the long axis";
     EXPECT_NEAR(box.min.z, -0.4 * extent, 1e-12);
 
-    Rock other = rock;
+    Boulder other = boulder;
     other.id = 8u;
-    const auto a = terraingen::BoulderMesh(rock, options, 0.0, 1);
+    const auto a = terraingen::BoulderMesh(boulder, options, 0.0, 1);
     const auto b = terraingen::BoulderMesh(other, options, 0.0, 1);
-    EXPECT_EQ(a.positions, b.positions) << "one prototype for every rock";
+    EXPECT_EQ(a.positions, b.positions) << "one prototype for every boulder";
 }
 
 TEST(TopSurface, IsTheHighestUpwardFaceAboveAPoint) {
@@ -71,19 +71,19 @@ TEST(PlacementAtSite, MovesLocalPlacementsIntoTheSitesFrame) {
     EXPECT_NEAR(same.pose.translation.z, 3.0, 1e-9);
     EXPECT_NEAR(same.pose.translation.x, 0.0, 1e-9);
 
-    const terraingen::Vec2d rock = moon.Locate(site, {800.0, -300.0});
-    const auto moved = terraingen::PlacementAtSite(local, rock, site, moon);
+    const terraingen::Vec2d boulder = moon.Locate(site, {800.0, -300.0});
+    const auto moved = terraingen::PlacementAtSite(local, boulder, site, moon);
     const terraingen::Vec3d q{0.4, -0.2, 0.5};
     const terraingen::Vec3d atSite = moved.Apply(q);
-    const terraingen::Vec3d inRock = local.Apply(q);
+    const terraingen::Vec3d inBoulder = local.Apply(q);
     terraingen::Vec3d e;
     terraingen::Vec3d n;
     terraingen::Vec3d u;
-    moon.Frame(rock, e, n, u);
-    const terraingen::Vec3d pr = moon.Position(rock);
-    const terraingen::Vec3d body{pr.x + e.x * inRock.x + n.x * inRock.y + u.x * inRock.z,
-                                 pr.y + e.y * inRock.x + n.y * inRock.y + u.y * inRock.z,
-                                 pr.z + e.z * inRock.x + n.z * inRock.y + u.z * inRock.z};
+    moon.Frame(boulder, e, n, u);
+    const terraingen::Vec3d pr = moon.Position(boulder);
+    const terraingen::Vec3d body{pr.x + e.x * inBoulder.x + n.x * inBoulder.y + u.x * inBoulder.z,
+                                 pr.y + e.y * inBoulder.x + n.y * inBoulder.y + u.y * inBoulder.z,
+                                 pr.z + e.z * inBoulder.x + n.z * inBoulder.y + u.z * inBoulder.z};
     moon.Frame(site, e, n, u);
     const terraingen::Vec3d ps = moon.Position(site);
     const terraingen::Vec3d back{ps.x + e.x * atSite.x + n.x * atSite.y + u.x * atSite.z,

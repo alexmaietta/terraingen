@@ -78,12 +78,12 @@ GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
 void WriteCraterList(const CraterList& craters, const std::filesystem::path& path,
                      CraterListFormat format, const std::vector<CraterAttributes>& attributes = {});
 
-/// Writes `rocks` as CSV (columns x, y, ground, diameter, height, burial, yaw, lean, id, model) or
-/// as JSON ({"rocks": [...]}), doubles written exactly and an unknown ground left empty (CSV) or
-/// null (JSON).
+/// Writes `boulders` as CSV (columns x, y, ground, diameter, height, burial, yaw, lean, id, model)
+/// or as JSON ({"boulders": [...]}), doubles written exactly and an unknown ground left empty (CSV)
+/// or null (JSON).
 /// @throws std::runtime_error if the file cannot be written.
-void WriteRockList(const std::vector<Rock>& rocks, const std::filesystem::path& path,
-                   CraterListFormat format);
+void WriteBoulderList(const std::vector<Boulder>& boulders, const std::filesystem::path& path,
+                      CraterListFormat format);
 
 /// Writes `boulders` as a glTF scene (a path ending in .glb), each shape once with crease normals
 /// split at `creaseAngle` degrees and drawn once per boulder, or (.ply) as one mesh of every

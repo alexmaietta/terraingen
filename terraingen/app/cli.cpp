@@ -96,7 +96,7 @@ int Generate(const std::vector<std::string>& args, std::ostream& out, std::ostre
         const std::chrono::duration<double> elapsed = std::chrono::steady_clock::now() - start;
         out << "Generated a " << terrain.heights.Width() << "x" << terrain.heights.Height()
             << " terrain with " << terrain.features.craters.Size() << " craters and "
-            << terrain.features.rocks.size() << " rocks in " << elapsed.count() << " s\n";
+            << terrain.features.boulders.size() << " boulders in " << elapsed.count() << " s\n";
         for (const auto& path : written) {
             out << "Wrote " << path.string() << "\n";
         }

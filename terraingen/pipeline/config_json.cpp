@@ -184,21 +184,21 @@ template <> struct EnumNames<EjectaAging> {
     }};
 };
 
-template <> struct EnumNames<RockModelCurve> {
-    static constexpr std::array<EnumEntry<RockModelCurve>, 3> kValues{{
-        {"minimum", RockModelCurve::Minimum, "The model's minimum curve: the fewest rocks."},
-        {"nominal", RockModelCurve::Nominal, "The model's nominal curve."},
-        {"maximum", RockModelCurve::Maximum, "The model's maximum curve: the most rocks."},
+template <> struct EnumNames<SpecificationCurve> {
+    static constexpr std::array<EnumEntry<SpecificationCurve>, 3> kValues{{
+        {"minimum", SpecificationCurve::Minimum, "The model's minimum curve: the fewest boulders."},
+        {"nominal", SpecificationCurve::Nominal, "The model's nominal curve."},
+        {"maximum", SpecificationCurve::Maximum, "The model's maximum curve: the most boulders."},
     }};
 };
 
-template <> struct EnumNames<SynthterrainRocks> {
-    static constexpr std::array<EnumEntry<SynthterrainRocks>, 3> kValues{{
-        {"intercrater", SynthterrainRocks::InterCrater,
+template <> struct EnumNames<SynthterrainBoulders> {
+    static constexpr std::array<EnumEntry<SynthterrainBoulders>, 3> kValues{{
+        {"intercrater", SynthterrainBoulders::InterCrater,
          "0.0001 D^-1.75457 per m^2 with D in metres: synthetic_moon's \"low blockiness\"."},
-        {"haworth", SynthterrainRocks::Haworth,
+        {"haworth", SynthterrainBoulders::Haworth,
          "0.002 D^-2.6607 per m^2 with D in metres: synthetic_moon's \"high blockiness\"."},
-        {"viper_specification", SynthterrainRocks::ViperSpecification,
+        {"viper_specification", SynthterrainBoulders::ViperSpecification,
          "0.0003 D^-2.482 per m^2 with D in metres: the VIPER Environmental Specification."},
     }};
 };
@@ -273,14 +273,15 @@ template <> struct EnumNames<CraterBody> {
     }};
 };
 
-template <> struct EnumNames<RockRelief> {
-    static constexpr std::array<EnumEntry<RockRelief>, 3> kValues{{
-        {"dome", RockRelief::Dome,
-         "Each rock's exposed part drawn as a dome: cheap, and enough for small rocks."},
-        {"shape", RockRelief::Shape,
-         "The top surface of each rock's 3D boulder shape drawn into the heights."},
-        {"none", RockRelief::None,
-         "No rock relief in the heights, for programs that place every rock as a model of its "
+template <> struct EnumNames<BoulderRelief> {
+    static constexpr std::array<EnumEntry<BoulderRelief>, 3> kValues{{
+        {"dome", BoulderRelief::Dome,
+         "Each boulder's exposed part drawn as a dome: cheap, and enough for small boulders."},
+        {"shape", BoulderRelief::Shape,
+         "The top surface of each boulder's 3D boulder shape drawn into the heights."},
+        {"none", BoulderRelief::None,
+         "No boulder relief in the heights, for programs that place every boulder as a model of "
+         "its "
          "own."},
     }};
 };
@@ -359,10 +360,10 @@ template <> struct SpecName<CraterLayerSpec> {
         "Impact craters generated from a density and age model, or placed by hand, and cut into "
         "the terrain.";
 };
-template <> struct SpecName<RockLayerSpec> {
-    static constexpr std::string_view kName = "rocks";
+template <> struct SpecName<BoulderLayerSpec> {
+    static constexpr std::string_view kName = "boulders";
     static constexpr std::string_view kDescription =
-        "Rocks scattered over the ground from a size distribution, in patches and around fresh "
+        "Boulders scattered over the ground from a size distribution, in patches and around fresh "
         "craters, as relief or 3D models.";
 };
 template <> struct SpecName<RoughnessLayerSpec> {
@@ -370,27 +371,27 @@ template <> struct SpecName<RoughnessLayerSpec> {
     static constexpr std::string_view kDescription =
         "Fine roughness from octaves of noise, scaled to a given RMS slope over a baseline.";
 };
-template <> struct SpecName<GolombekRappRocksSpec> {
+template <> struct SpecName<GolombekRappBouldersSpec> {
     static constexpr std::string_view kName = "golombek_rapp";
     static constexpr std::string_view kDescription =
-        "Golombek and Rapp rock sizes, set by the fraction of ground the rocks cover and the "
+        "Golombek and Rapp boulder sizes, set by the fraction of ground the boulders cover and the "
         "layer's qa and qb.";
 };
-template <> struct SpecName<Sp8023IntercraterRocksSpec> {
+template <> struct SpecName<Sp8023IntercraterBouldersSpec> {
     static constexpr std::string_view kName = "sp8023_intercrater";
     static constexpr std::string_view kDescription =
         "Blocks between craters from NASA SP-8023, the lunar surface design model (Figure 7).";
 };
-template <> struct SpecName<Sp8023CraterRocksSpec> {
+template <> struct SpecName<Sp8023CraterBouldersSpec> {
     static constexpr std::string_view kName = "sp8023_crater";
     static constexpr std::string_view kDescription =
         "Blocks around blocky craters from NASA SP-8023 (Figure 9), for the ejecta of craters "
         "that reached bedrock.";
 };
-template <> struct SpecName<SynthterrainRocksSpec> {
+template <> struct SpecName<SynthterrainBouldersSpec> {
     static constexpr std::string_view kName = "synthterrain";
     static constexpr std::string_view kDescription =
-        "One of the power-law rock distributions synthterrain offers, for comparison with it.";
+        "One of the power-law boulder distributions synthterrain offers, for comparison with it.";
 };
 template <> struct SpecName<SecondaryLayerSpec> {
     static constexpr std::string_view kName = "secondaries";
@@ -547,15 +548,16 @@ template <> struct SpecName<MartinParkesDunstanSpec> {
         "Simple-crater profile of Martin, Parkes and Dunstan (2014), developed for the PANGU "
         "simulator; degradation rounds its rim.";
 };
-template <> struct SpecName<RockListOutput> {
-    static constexpr std::string_view kName = "rock_list";
+template <> struct SpecName<BoulderListOutput> {
+    static constexpr std::string_view kName = "boulder_list";
     static constexpr std::string_view kDescription =
-        "Writes every rock the layers placed, models and relief alike, as CSV or JSON.";
+        "Writes every boulder the layers placed, models and relief alike, as CSV or JSON.";
 };
 template <> struct SpecName<BoulderModelsOutput> {
     static constexpr std::string_view kName = "boulder_models";
     static constexpr std::string_view kDescription =
-        "Writes the rocks placed as 3D models on the ground, as a glTF scene (.glb) or one merged "
+        "Writes the boulders placed as 3D models on the ground, as a glTF scene (.glb) or one "
+        "merged "
         "PLY mesh (.ply).";
 };
 template <> struct SpecName<CraterListOutput> {
@@ -678,15 +680,15 @@ template <typename IO> void Fields(IO& io, ValueDistribution& distribution);
 template <typename IO> void Fields(IO& io, CraterIrregularity& irregularity);
 template <typename IO> void Fields(IO& io, RimSmoothing& smoothing);
 template <typename IO> void Fields(IO& io, CraterLayerSpec& craters);
-template <typename IO> void Fields(IO& io, RockPatches& patches);
-template <typename IO> void Fields(IO& io, RockEjecta& ejecta);
+template <typename IO> void Fields(IO& io, BoulderPatches& patches);
+template <typename IO> void Fields(IO& io, BoulderEjecta& ejecta);
 template <typename IO> void Fields(IO& io, ExposureParams& exposure);
-template <typename IO> void Fields(IO& io, RockLayerSpec& spec);
+template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec);
 template <typename IO> void Fields(IO& io, RoughnessLayerSpec& spec);
-template <typename IO> void Fields(IO& io, GolombekRappRocksSpec& spec);
-template <typename IO> void Fields(IO& io, Sp8023IntercraterRocksSpec& spec);
-template <typename IO> void Fields(IO& io, Sp8023CraterRocksSpec& spec);
-template <typename IO> void Fields(IO& io, SynthterrainRocksSpec& spec);
+template <typename IO> void Fields(IO& io, GolombekRappBouldersSpec& spec);
+template <typename IO> void Fields(IO& io, Sp8023IntercraterBouldersSpec& spec);
+template <typename IO> void Fields(IO& io, Sp8023CraterBouldersSpec& spec);
+template <typename IO> void Fields(IO& io, SynthterrainBouldersSpec& spec);
 template <typename IO> void Fields(IO& io, ScaleLayerSpec& spec);
 template <typename IO> void Fields(IO& io, BedformLayerSpec& spec);
 template <typename IO> void Fields(IO& io, SecondaryLayerSpec& spec);
@@ -715,9 +717,9 @@ template <typename IO> void Fields(IO& io, FassettThomsonSpec& spec);
 template <typename IO> void Fields(IO& io, MartinParkesDunstanSpec& spec);
 template <typename IO> void Fields(IO& io, ComplexProfileSpec& spec);
 template <typename IO> void Fields(IO& io, CraterListOutput& output);
-template <typename IO> void Fields(IO& io, RockListOutput& output);
+template <typename IO> void Fields(IO& io, BoulderListOutput& output);
 template <typename IO> void Fields(IO& io, BoulderModelsOutput& output);
-template <typename IO> void Fields(IO& io, RockModels& models);
+template <typename IO> void Fields(IO& io, BoulderModelThreshold& models);
 template <typename IO> void Fields(IO& io, ValueRange& range);
 template <typename IO> void Fields(IO& io, BoulderStyle& style);
 template <typename IO> void Fields(IO& io, BoulderShapeOptions& shapes);
@@ -841,7 +843,7 @@ void AfterRead(const Json& json, CraterListOutput& output) {
     InferListFormat(json, output);
 }
 
-void AfterRead(const Json& json, RockListOutput& output) {
+void AfterRead(const Json& json, BoulderListOutput& output) {
     InferListFormat(json, output);
 }
 
@@ -1300,22 +1302,23 @@ template <typename IO> void Fields(IO& io, CraterLayerSpec& craters) {
        "outlines.");
 }
 
-template <typename IO> void Fields(IO& io, RockPatches& patches) {
+template <typename IO> void Fields(IO& io, BoulderPatches& patches) {
     io("spread", patches.spread,
-       "Rock abundance varies from 1 / spread to spread times its mean, at least 1; 1 is the same "
+       "Boulder abundance varies from 1 / spread to spread times its mean, at least 1; 1 is the "
+       "same "
        "everywhere.");
-    io("size", patches.size, "Typical width of a patch of richer or poorer rock cover, in metres.",
-       "m");
+    io("size", patches.size,
+       "Typical width of a patch of richer or poorer boulder cover, in metres.", "m");
 }
 
-template <typename IO> void Fields(IO& io, RockEjecta& ejecta) {
+template <typename IO> void Fields(IO& io, BoulderEjecta& ejecta) {
     io("min_crater_diameter", ejecta.minCraterDiameter,
        "Smallest crater, in metres, that throws blocks out; 0 with no regolith thickness disables "
        "crater blocks.",
        "m");
     io("regolith_thickness", ejecta.regolithThickness,
        "Regolith thickness in metres: craters smaller than it over the excavation depth ratio dig "
-       "no rock and throw no blocks. Unset ignores the regolith.",
+       "no boulder and throw no blocks. Unset ignores the regolith.",
        "m");
     io("excavation_depth_ratio", ejecta.excavationDepthRatio,
        "Depth of excavation over crater diameter, in (0, 1]; with the regolith thickness it sets "
@@ -1348,22 +1351,22 @@ template <typename IO> void Fields(IO& io, RockEjecta& ejecta) {
        "thrown, after Bart and Melosh (2010). Unset applies no such limit.");
 }
 
-template <typename IO> void Fields(IO& /*io*/, GolombekRappRocksSpec& /*spec*/) {}
+template <typename IO> void Fields(IO& /*io*/, GolombekRappBouldersSpec& /*spec*/) {}
 
-template <typename IO> void Fields(IO& io, Sp8023IntercraterRocksSpec& spec) {
+template <typename IO> void Fields(IO& io, Sp8023IntercraterBouldersSpec& spec) {
     io("curve", spec.curve,
        "Which of the model's minimum, nominal and maximum curves to use, from fewest to most "
-       "rocks.");
+       "boulders.");
 }
 
-template <typename IO> void Fields(IO& io, Sp8023CraterRocksSpec& spec) {
+template <typename IO> void Fields(IO& io, Sp8023CraterBouldersSpec& spec) {
     io("curve", spec.curve,
        "Which of the model's minimum, nominal and maximum curves to use, from fewest to most "
-       "rocks.");
+       "boulders.");
 }
 
-template <typename IO> void Fields(IO& io, SynthterrainRocksSpec& spec) {
-    io("model", spec.model, "Which of synthterrain's power-law rock distributions to use.");
+template <typename IO> void Fields(IO& io, SynthterrainBouldersSpec& spec) {
+    io("model", spec.model, "Which of synthterrain's power-law boulder distributions to use.");
 }
 
 template <typename IO> void Fields(IO& io, ExposureParams& exposure) {
@@ -1374,11 +1377,11 @@ template <typename IO> void Fields(IO& io, ExposureParams& exposure) {
     io("rise_soil", exposure.riseSoil,
        "Height above the surroundings, as a share of the reach, at or below which the ground is "
        "soil.");
-    io("rise_rock", exposure.riseRock,
+    io("rise_boulder", exposure.riseBoulder,
        "Height above the surroundings, as a share of the reach, at or above which the ground is "
        "bedrock; above the soil threshold.");
     io("slope_soil", exposure.slopeSoil, "Slope, as rise over run, at or under which soil holds.");
-    io("slope_rock", exposure.slopeRock,
+    io("slope_boulder", exposure.slopeBoulder,
        "Slope, as rise over run, at or over which no soil holds and the ground is bedrock; above "
        "the soil threshold.");
     io("floor_cover", exposure.floorCover,
@@ -1389,68 +1392,79 @@ template <typename IO> void Fields(IO& io, ExposureParams& exposure) {
     io("seed", exposure.seed, "Seed of the bedrock patches on level ground.");
 }
 
-template <typename IO> void Fields(IO& io, RockLayerSpec& spec) {
-    RockLayerOptions& rocks = spec.rocks;
-    io("coverage", rocks.coverage,
-       "Golombek-Rapp k, the fraction of the ground covered by rocks, between 0 and 1; used with "
-       "golombek_rapp sizes, where higher values give more rocks.");
-    io("qa", rocks.qa,
+template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
+    BoulderLayerOptions& boulders = spec.boulders;
+    io("coverage", boulders.coverage,
+       "Golombek-Rapp k, the fraction of the ground covered by boulders, between 0 and 1; used "
+       "with "
+       "golombek_rapp sizes, where higher values give more boulders.");
+    io("qa", boulders.qa,
        "Constant term of the Golombek-Rapp q = qa + qb / k, per metre; a larger q leaves fewer "
-       "large rocks. Also used for golombek_rapp ejecta.",
+       "large boulders. Also used for golombek_rapp ejecta.",
        "1/m");
-    io("qb", rocks.qb,
+    io("qb", boulders.qb,
        "Term of the Golombek-Rapp q = qa + qb / k divided by the coverage k, per metre.", "1/m");
-    io("min_diameter", rocks.minDiameter,
-       "Smallest rock generated, in metres; lower values add many more small rocks.", "m");
-    io("max_diameter", rocks.maxDiameter,
-       "Largest rock generated, in metres, exclusive; above the smallest.", "m");
+    io("min_diameter", boulders.minDiameter,
+       "Smallest boulder generated, in metres; lower values add many more small boulders.", "m");
+    io("max_diameter", boulders.maxDiameter,
+       "Largest boulder generated, in metres, exclusive; above the smallest.", "m");
     io("sizes", spec.sizes,
-       "Size distribution of the rocks between craters, per m^2; patches and bedrock scale its "
+       "Size distribution of the boulders between craters, per m^2; patches and bedrock scale its "
        "density.");
-    io("seed", rocks.seed,
-       "Seed of the rocks, their attributes and the patches; changing it gives a different rock "
+    io("seed", boulders.seed,
+       "Seed of the boulders, their attributes and the patches; changing it gives a different "
+       "boulder "
        "field of the same statistics.");
-    io("patches", rocks.patches, "Patches of richer and poorer rock cover across the ground.");
-    io("ejecta", rocks.ejecta,
+    io("patches", boulders.patches,
+       "Patches of richer and poorer boulder cover across the ground.");
+    io("ejecta", boulders.ejecta,
        "Blocks thrown out by craters of the nearest crater layer before this one that dug into "
-       "rock, densest at the rim and thinning outward.");
+       "boulder, densest at the rim and thinning outward.");
     io("ejecta_sizes", spec.ejectaSizes,
        "Size distribution of the blocks at the rim of a fresh crater, per m^2; golombek_rapp uses "
        "the ejecta's coverage with qa and qb.");
     io("extrapolate", spec.extrapolate,
        "Lets the size distributions be evaluated outside their valid diameters, such as beyond a "
-       "table's published ones; otherwise they must cover the rock sizes.");
-    io("exposure", rocks.exposure,
-       "Raises the abundance of rocks where the ground beneath is bedrock, judged from its shape; "
+       "table's published ones; otherwise they must cover the boulder sizes.");
+    io("exposure", boulders.exposure,
+       "Raises the abundance of boulders where the ground beneath is bedrock, judged from its "
+       "shape; "
        "unset disables it.");
-    io("bedrock_abundance", rocks.bedrockAbundance,
-       "Rock abundance on bedrock over that on soil, and in between in proportion; used with the "
+    io("bedrock_abundance", boulders.bedrockAbundance,
+       "Boulder abundance on bedrock over that on soil, and in between in proportion; used with "
+       "the "
        "exposure field.");
-    io("exposure_spacing", rocks.exposureSpacing,
-       "Spacing in metres the ground is read at for the exposure field, fixed so that which rocks "
+    io("exposure_spacing", boulders.exposureSpacing,
+       "Spacing in metres the ground is read at for the exposure field, fixed so that which "
+       "boulders "
        "exist does not depend on the level of detail.",
        "m");
-    io("min_height_ratio", rocks.minHeightRatio,
-       "Smallest rock height over diameter; each rock's is drawn uniformly between the two "
+    io("min_height_ratio", boulders.minHeightRatio,
+       "Smallest boulder height over diameter; each boulder's is drawn uniformly between the two "
        "ratios.");
-    io("max_height_ratio", rocks.maxHeightRatio,
-       "Largest rock height over diameter; at least the smallest.");
-    io("min_burial", rocks.minBurial,
-       "Smallest buried share of a rock's height; each rock's is drawn uniformly between the two "
+    io("max_height_ratio", boulders.maxHeightRatio,
+       "Largest boulder height over diameter; at least the smallest.");
+    io("min_burial", boulders.minBurial,
+       "Smallest buried share of a boulder's height; each boulder's is drawn uniformly between the "
+       "two "
        "shares.");
-    io("max_burial", rocks.maxBurial,
-       "Largest buried share of a rock's height, below 1; more burial leaves less of the rock "
+    io("max_burial", boulders.maxBurial,
+       "Largest buried share of a boulder's height, below 1; more burial leaves less of the "
+       "boulder "
        "exposed.");
-    io("max_lean", rocks.maxLean, "Largest tilt of a rock from the vertical, in radians.", "rad");
-    io("relief", rocks.relief, "How the rocks drawn into the heights look there.");
-    io("models", rocks.models,
-       "Which rocks become 3D models of their own rather than relief in the heights; neither "
+    io("max_lean", boulders.maxLean, "Largest tilt of a boulder from the vertical, in radians.",
+       "rad");
+    io("relief", boulders.relief, "How the boulders drawn into the heights look there.");
+    io("models", boulders.models,
+       "Which boulders become 3D models of their own rather than relief in the heights; neither "
        "threshold set means no models.");
-    io("shapes", rocks.shapes, "The rocks' 3D boulder shapes, used by shape relief and by models.");
-    io("shape_prototypes", rocks.shapePrototypes,
-       "How many shapes the rocks share, so they can be drawn as instances; 0 gives every rock a "
+    io("shapes", boulders.shapes,
+       "The boulders' 3D boulder shapes, used by shape relief and by models.");
+    io("shape_prototypes", boulders.shapePrototypes,
+       "How many shapes the boulders share, so they can be drawn as instances; 0 gives every "
+       "boulder a "
        "shape of its own.");
-    io("fade", rocks.fade, "How rocks too small to resolve at the sample spacing fade out.");
+    io("fade", boulders.fade, "How boulders too small to resolve at the sample spacing fade out.");
 }
 
 template <typename IO> void Fields(IO& io, RoughnessLayerSpec& spec) {
@@ -1609,7 +1623,7 @@ template <typename IO> void Fields(IO& io, RegionLayerSpec& spec) {
     io("blend", spec.blend, "Curve of the fade across the feather.");
     io("layer", spec.layer,
        "Layer applied only inside the shape. A crater layer here does not count as the crater "
-       "layer for later rock ejecta or secondaries.");
+       "layer for later boulder ejecta or secondaries.");
 }
 
 template <typename IO> void Fields(IO& io, LunarSurfaceSpec& spec) {
@@ -1631,7 +1645,7 @@ template <typename IO> void Fields(IO& io, PowerLawSpec& spec) {
        "Coefficient of N(>=D) = coefficient D^-exponent, the cumulative count per m^2 with D in "
        "metres; scales how many there are.");
     io("exponent", spec.exponent,
-       "Exponent of the power law; larger values give relatively more small craters or rocks.");
+       "Exponent of the power law; larger values give relatively more small craters or boulders.");
 }
 
 template <typename IO> void Fields(IO& io, PiecewisePowerLawSpec& spec) {
@@ -1734,7 +1748,7 @@ template <typename IO> void Fields(IO& io, ComplexProfileSpec& spec) {
        "diameter.");
 }
 
-template <typename IO> void Fields(IO& io, RockListOutput& output) {
+template <typename IO> void Fields(IO& io, BoulderListOutput& output) {
     io("path", output.path,
        "File to write; relative paths resolve against the output folder (the CLI's "
        "--output-dir), else the configuration's folder.");
@@ -1753,13 +1767,13 @@ template <typename IO> void Fields(IO& io, BoulderModelsOutput& output) {
        "deg");
 }
 
-template <typename IO> void Fields(IO& io, RockModels& models) {
+template <typename IO> void Fields(IO& io, BoulderModelThreshold& models) {
     io("min_diameter", models.minDiameter,
-       "Rocks at least this many metres across become 3D models; unset applies no diameter "
+       "Boulders at least this many metres across become 3D models; unset applies no diameter "
        "threshold.",
        "m");
     io("min_samples", models.minSamples,
-       "Rocks spanning at least this many samples at the spacing evaluated become 3D models, so "
+       "Boulders spanning at least this many samples at the spacing evaluated become 3D models, so "
        "finer levels of detail make more of them; unset applies no such threshold.");
 }
 
@@ -2314,7 +2328,7 @@ std::string ConfigCatalog(int indent) {
     models["ages"] = Alternatives<AgesSpec>();
     models["degradation"] = Alternatives<DegradationSpec>();
     models["profile"] = Alternatives<ProfileSpec>();
-    models["rock_sizes"] = Alternatives<RockSizesSpec>();
+    models["boulder_sizes"] = Alternatives<BoulderSizesSpec>();
     models["region_shape"] = Alternatives<RegionShapeSpec>();
     models["albedo_source"] = Alternatives<AlbedoSourceSpec>();
     models["albedo_layer"] = Alternatives<AlbedoLayerSpec>();
@@ -2340,11 +2354,11 @@ std::string ConfigSchema(int indent) {
                                "output uses: flat, read from a GeoTIFF, or a chain of sources."));
     fields.push_back(RootField(builder, "layers", config.layers,
                                "Relief and features added to the source's heights, applied in "
-                               "order: noise, craters, rocks and more."));
+                               "order: noise, craters, boulders and more."));
     fields.push_back(RootField(builder, "filters", config.filters,
                                "Processing applied to the heights after every layer."));
     fields.push_back(RootField(builder, "outputs", config.outputs,
-                               "Files written after generation: heightmaps, crater and rock "
+                               "Files written after generation: heightmaps, crater and boulder "
                                "lists, boulder models, albedo and body meshes."));
     fields.push_back(RootField(builder, "albedo", config.albedo,
                                "The terrain's albedo: a source and the layers that change it, "

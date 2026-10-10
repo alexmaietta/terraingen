@@ -32,7 +32,7 @@ Worked recipes for common jobs, from a landing site to a whole planet.
 
     ---
 
-    Heights, rocks and boulders for physics and rendering engines.
+    Heights, boulders and boulder models for physics and rendering engines.
 
     [Read more](simulators.md)
 

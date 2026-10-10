@@ -93,11 +93,11 @@ TEST(SphereLayers, ExposureReadsTheSurroundingsInMetres) {
     } ground;
     terraingen::ExposureParams params;
     params.slopeSoil = 0.2;
-    params.slopeRock = 0.4;
+    params.slopeBoulder = 0.4;
     const terraingen::ExposureField field(params, kSphere);
     EXPECT_NEAR(field.Exposure(ground, 30.0, 60.0, 1.0), 1.0, 1e-6);
     params.slopeSoil = 0.6;
-    params.slopeRock = 0.8;
+    params.slopeBoulder = 0.8;
     EXPECT_NEAR(terraingen::ExposureField(params, kSphere).Exposure(ground, 30.0, 60.0, 1.0), 0.0,
                 1e-6);
     terraingen::ExposureParams patches;
@@ -160,20 +160,20 @@ TEST(SphereLayers, BedformsCoverAsMuchGroundAsOnAPlane) {
     CheckGridAndPoints(sphere, Geographic(100.0, 44.01, 1.0, 48), 1.0);
 }
 
-TEST(SphereLayers, RocksHaveThePlaneDensityAndPlaceModelsLocally) {
-    terraingen::RockLayerOptions options;
+TEST(SphereLayers, BouldersHaveThePlaneDensityAndPlaceModelsLocally) {
+    terraingen::BoulderLayerOptions options;
     options.coverage = 0.15;
     options.minDiameter = 0.5;
     options.maxDiameter = 4.0;
     options.models.minDiameter = 2.0;
-    options.relief = terraingen::RockRelief::Shape;
-    const terraingen::RockLayer sphere(options, nullptr, kSphere);
-    const terraingen::RockLayer plane(options);
+    options.relief = terraingen::BoulderRelief::Shape;
+    const terraingen::BoulderLayer sphere(options, nullptr, kSphere);
+    const terraingen::BoulderLayer plane(options);
     const double side = 120.0;
     const double dLat = side / kSphere.UnitLength();
     const double dLon = dLat / std::cos(50.0 * std::numbers::pi / 180.0);
-    const auto onSphere = sphere.Rocks({20.0, 50.0, 20.0 + dLon, 50.0 + dLat}, 0.05);
-    const auto onPlane = plane.Rocks({0.0, 0.0, side, side}, 0.05);
+    const auto onSphere = sphere.Boulders({20.0, 50.0, 20.0 + dLon, 50.0 + dLat}, 0.05);
+    const auto onPlane = plane.Boulders({0.0, 0.0, side, side}, 0.05);
     const double expected = static_cast<double>(onPlane.size());
     ASSERT_GT(expected, 100.0);
     EXPECT_NEAR(static_cast<double>(onSphere.size()), expected, 5.0 * std::sqrt(expected));
@@ -187,7 +187,7 @@ TEST(SphereLayers, RocksHaveThePlaneDensityAndPlaceModelsLocally) {
     EXPECT_GT(highest, 0.05f);
     TerrainFeatures features;
     sphere.Apply(heights, {.spacing = 0.1, .threads = 1, .ground = &flat}, features);
-    for (const auto& boulder : features.boulders) {
+    for (const auto& boulder : features.boulderModels) {
         EXPECT_LT(std::fabs(boulder.placement.pose.translation.x), 1e-9);
         EXPECT_LT(std::fabs(boulder.placement.pose.translation.y), 1e-9);
     }

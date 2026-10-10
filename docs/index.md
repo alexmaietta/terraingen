@@ -8,13 +8,13 @@ hide:
 
 <div class="tg-section" markdown>
 
-TerrainGen is an open-source suite for generating scientific terrain of planetary surfaces. It is a <span class="tg-nowrap">C++20</span> library with Python bindings and a command-line tool, made to plug into simulators, rendering pipelines and machine learning datasets.
+TerrainGen is an open-source suite for generating scientific terrain of planetary surfaces. It is a <span class="tg-nowrap">C++</span> library with Python bindings and a command-line tool, made to plug into simulators, rendering pipelines and machine learning datasets.
 
 <div class="grid cards tg-highlights" markdown>
 
 -   __Grounded in the literature__
 
-    Crater densities, ages, shapes and degradation, rock abundances and albedo come from published models, each cited in the code.
+    Crater densities, ages, shapes and degradation, boulder abundances and albedo come from published models, each cited in the code.
 
 -   __From a landing site to a whole body__
 
@@ -39,8 +39,8 @@ Every image comes from one of the [examples](https://github.com/alexmaietta/terr
 <div class="tg-gallery" markdown>
 
 <figure class="tg-gallery__square" markdown>
-![Rocks scattered among craters](images/home/rocks.png)
-<figcaption>Rocks from Golombek and Rapp's size model, small ones in the heights and large ones as 3D boulders. <a href="concepts/rocks/">Rocks</a></figcaption>
+![Boulders scattered among craters](images/home/boulders.png)
+<figcaption>Boulders from Golombek and Rapp's size model, small ones in the heights and large ones as 3D boulder models. <a href="concepts/boulders/">Boulders</a></figcaption>
 </figure>
 
 <figure class="tg-gallery__square" markdown>
@@ -75,7 +75,7 @@ Every image comes from one of the [examples](https://github.com/alexmaietta/terr
 
 <figure class="tg-gallery__wide" markdown>
 ![Top views of procedural boulder shapes](images/home/boulder-shapes.png)
-<figcaption>Procedural boulder shapes, each made again from its seed, for 3D rock models. <a href="concepts/rocks/">Rocks</a></figcaption>
+<figcaption>Procedural boulder shapes, each made again from its seed, for 3D boulder models. <a href="concepts/boulders/">Boulders</a></figcaption>
 </figure>
 
 </div>

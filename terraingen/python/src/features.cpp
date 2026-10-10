@@ -175,27 +175,27 @@ void BindCraterLists(nb::module_& m) {
           "The outline `irregularity` gives `crater`.");
 }
 
-void BindRocks(nb::module_& m) {
-    nb::class_<Rock>(m, "Rock", "One rock: centre, size, burial, orientation and ID.")
+void BindBoulders(nb::module_& m) {
+    nb::class_<Boulder>(m, "Boulder", "One boulder: centre, size, burial, orientation and ID.")
         .def(
             "__init__",
-            [](Rock* self, double x, double y, double diameter, double height, double burial,
+            [](Boulder* self, double x, double y, double diameter, double height, double burial,
                double yaw, double lean, std::uint64_t id) {
-                new (self) Rock{x, y, diameter, height, burial, yaw, lean, id};
+                new (self) Boulder{x, y, diameter, height, burial, yaw, lean, id};
             },
             "x"_a, "y"_a, "diameter"_a, "height"_a, "burial"_a = 0.0, "yaw"_a = 0.0, "lean"_a = 0.0,
             "id"_a = 0)
-        .def_rw("x", &Rock::x)
-        .def_rw("y", &Rock::y)
-        .def_rw("diameter", &Rock::diameter)
-        .def_rw("height", &Rock::height)
-        .def_rw("burial", &Rock::burial)
-        .def_rw("yaw", &Rock::yaw)
-        .def_rw("lean", &Rock::lean)
-        .def_rw("id", &Rock::id)
-        .def_rw("ground", &Rock::ground)
-        .def_rw("model", &Rock::model)
-        .def_prop_ro("exposed_height", &Rock::ExposedHeight);
+        .def_rw("x", &Boulder::x)
+        .def_rw("y", &Boulder::y)
+        .def_rw("diameter", &Boulder::diameter)
+        .def_rw("height", &Boulder::height)
+        .def_rw("burial", &Boulder::burial)
+        .def_rw("yaw", &Boulder::yaw)
+        .def_rw("lean", &Boulder::lean)
+        .def_rw("id", &Boulder::id)
+        .def_rw("ground", &Boulder::ground)
+        .def_rw("model", &Boulder::model)
+        .def_prop_ro("exposed_height", &Boulder::ExposedHeight);
     nb::class_<BoulderPlacement>(m, "BoulderPlacement",
                                  "Where a boulder shape goes: scaled per axis, then posed.")
         .def_prop_ro("scale", [](const BoulderPlacement& p) { return FromVec3(p.scale); })
@@ -207,9 +207,9 @@ void BindRocks(nb::module_& m) {
                     p.Apply({std::get<0>(point), std::get<1>(point), std::get<2>(point)}));
             },
             "point"_a);
-    nb::class_<BoulderModel>(m, "BoulderModel",
-                             "A rock placed as a 3D model: the rock, its shape and placement.")
-        .def_ro("rock", &BoulderModel::rock)
+    nb::class_<BoulderModel>(
+        m, "BoulderModel", "A boulder placed as a 3D model: the boulder, its shape and placement.")
+        .def_ro("boulder", &BoulderModel::boulder)
         .def_ro("shape_seed", &BoulderModel::shapeSeed)
         .def_prop_ro("shape", [](const BoulderModel& b) { return *b.shape; })
         .def_ro("placement", &BoulderModel::placement)
@@ -223,30 +223,30 @@ void BindRocks(nb::module_& m) {
                 return placed;
             },
             "The boulder's mesh placed in the world.");
-    m.def("place_boulder", &PlaceBoulder, "rock"_a, "shape"_a, "ground_height"_a,
-          "The placement of `shape` as `rock` on ground at `ground_height`.");
-    m.def("boulder_mesh", &BoulderMesh, "rock"_a, "options"_a, "ground_height"_a,
-          "prototypes"_a = 0, "`rock` as a mesh in the world, standing on the ground.");
+    m.def("place_boulder_model", &PlaceBoulderModel, "boulder"_a, "shape"_a, "ground_height"_a,
+          "The placement of `shape` as `boulder` on ground at `ground_height`.");
+    m.def("boulder_mesh", &BoulderMesh, "boulder"_a, "options"_a, "ground_height"_a,
+          "prototypes"_a = 0, "`boulder` as a mesh in the world, standing on the ground.");
     m.def(
         "placement_at_site",
-        [](const BoulderPlacement& placement, std::pair<double, double> rock,
+        [](const BoulderPlacement& placement, std::pair<double, double> boulder,
            std::pair<double, double> site, const Surface& surface) {
-            return PlacementAtSite(placement, {rock.first, rock.second}, {site.first, site.second},
-                                   surface);
+            return PlacementAtSite(placement, {boulder.first, boulder.second},
+                                   {site.first, site.second}, surface);
         },
-        "placement"_a, "rock"_a, "site"_a, "surface"_a,
-        "A rock's placement moved into the local east-north-up frame of `site`.");
+        "placement"_a, "boulder"_a, "site"_a, "surface"_a,
+        "A boulder's placement moved into the local east-north-up frame of `site`.");
     m.def("top_surface", &TopSurface, "placed"_a, "x"_a, "y"_a,
           "The height of a placed mesh's top above (x, y), or None outside it.");
     m.def("boulder_throw_distance", &BoulderThrowDistance, "crater_diameter"_a,
           "regolith_thickness"_a, "gravity"_a,
           "Bart and Melosh's (2010) farthest block throw (m) over a regolith blanket.");
     m.def(
-        "rock_candidates",
-        [](const RockLayerOptions& options) {
-            return std::const_pointer_cast<SizeFrequencyDistribution>(RockCandidates(options));
+        "boulder_candidates",
+        [](const BoulderLayerOptions& options) {
+            return std::const_pointer_cast<SizeFrequencyDistribution>(BoulderCandidates(options));
         },
-        "options"_a, "The distribution candidate rocks are drawn from before thinning.");
+        "options"_a, "The distribution candidate boulders are drawn from before thinning.");
     m.def("perlin_structure_function", &PerlinStructureFunction, "r"_a,
           "The structure function of 2D Perlin noise at lag `r` lattice units.");
     m.def("perlin3_structure_function", &Perlin3StructureFunction, "r"_a,
@@ -263,7 +263,7 @@ void BindValidators(nb::module_& m) {
     m.def("validate_complex_crater_shape", &ValidateComplexCraterShape, "shape"_a, doc);
     m.def("validate_power_law_diffusivity", &ValidatePowerLawDiffusivity, "law"_a, doc);
     m.def("validate_secondary_crater_options", &ValidateSecondaryCraterOptions, "options"_a, doc);
-    m.def("validate_rock_layer_options", &ValidateRockLayerOptions, "options"_a, doc);
+    m.def("validate_boulder_layer_options", &ValidateBoulderLayerOptions, "options"_a, doc);
     m.def("validate_boulder_shape_options", &ValidateBoulderShapeOptions, "options"_a, doc);
     m.def("validate_exposure_params", &ValidateExposureParams, "params"_a, doc);
     m.def("validate_region_shape", &ValidateRegionShape, "shape"_a, doc);
@@ -289,8 +289,8 @@ void BindFunctions(nb::module_& m) {
         "plane a + b dx + c dy, or None without a datum or ground.");
     m.def("max_outline_scale", &MaxOutlineScale, "irregularity"_a,
           "The largest outline scale `irregularity` can give, for reach.");
-    m.def("add_rock", &AddRock, "height"_a, "x"_a, "y"_a, "rock"_a, "weight"_a = 1.0,
-          "surface"_a = Surface{}, "`height` at (x, y) with `rock` drawn into it at `weight`.");
+    m.def("add_boulder", &AddBoulder, "height"_a, "x"_a, "y"_a, "boulder"_a, "weight"_a = 1.0,
+          "surface"_a = Surface{}, "`height` at (x, y) with `boulder` drawn into it at `weight`.");
     m.def(
         "smooth_crater_rims",
         [](Raster<float>& raster, const CraterList& craters, const RimSmoothing& smoothing,
@@ -313,7 +313,7 @@ void BindFunctions(nb::module_& m) {
 
 void BindFeatures(nb::module_& m) {
     BindCraterLists(m);
-    BindRocks(m);
+    BindBoulders(m);
     BindValidators(m);
     BindFunctions(m);
 }

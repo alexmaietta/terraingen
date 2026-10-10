@@ -171,32 +171,32 @@ def test_crater_lists_generation_and_application():
     assert terraingen.fit_crater_datum(terraingen.Crater(0.0, 0.0, 50.0), terraingen.CraterApplyOptions(), lambda x, y: 0.0) is None
 
 
-def test_rocks_boulders_and_layers():
+def test_boulders_boulders_and_layers():
     craters = terraingen.CraterLayer(
         lunar_models(), terraingen.CraterLayerOptions(generation=terraingen.CraterGenerationOptions(min_diameter=3.0, max_diameter=20.0))
     )
-    options = terraingen.RockLayerOptions(coverage=0.08, min_diameter=0.2, max_diameter=3.0, models=terraingen.RockModels(min_diameter=0.6))
-    rocks = terraingen.RockLayer(options, craters)
-    evaluated = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(201, 201, 0.1), [craters, rocks]))
-    assert len(evaluated.rock_list) == len(evaluated.rocks["x"]) and len(evaluated.crater_list) == len(evaluated.craters["x"])
-    boulder = evaluated.boulders[0]
-    assert boulder.rock.model and boulder.rock.exposed_height < boulder.rock.height
+    options = terraingen.BoulderLayerOptions(coverage=0.08, min_diameter=0.2, max_diameter=3.0, models=terraingen.BoulderModelThreshold(min_diameter=0.6))
+    boulders = terraingen.BoulderLayer(options, craters)
+    evaluated = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(201, 201, 0.1), [craters, boulders]))
+    assert len(evaluated.boulder_list) == len(evaluated.boulders["x"]) and len(evaluated.crater_list) == len(evaluated.craters["x"])
+    boulder = evaluated.boulder_models[0]
+    assert boulder.boulder.model and boulder.boulder.exposed_height < boulder.boulder.height
     placed = boulder.mesh
     assert placed.vertex_count == boulder.shape.mesh.vertex_count
-    top = terraingen.top_surface(placed, boulder.rock.x, boulder.rock.y)
+    top = terraingen.top_surface(placed, boulder.boulder.x, boulder.boulder.y)
     assert top is not None and terraingen.top_surface(placed, 1e6, 1e6) is None
-    again = terraingen.place_boulder(boulder.rock, boulder.shape, boulder.rock.ground)
+    again = terraingen.place_boulder_model(boulder.boulder, boulder.shape, boulder.boulder.ground)
     assert again.apply((0.0, 0.0, 0.0)) == pytest.approx(boulder.placement.apply((0.0, 0.0, 0.0)))
-    mesh = terraingen.boulder_mesh(boulder.rock, terraingen.BoulderShapeOptions(), 0.0)
+    mesh = terraingen.boulder_mesh(boulder.boulder, terraingen.BoulderShapeOptions(), 0.0)
     assert mesh.vertex_count > 0
     moon = terraingen.body_sphere(terraingen.Body.MOON)
     site = terraingen.placement_at_site(boulder.placement, (0.0, 0.0), (0.0, 0.0), moon)
     assert site.apply((0.0, 0.0, 0.0)) == pytest.approx(boulder.placement.apply((0.0, 0.0, 0.0)), abs=1e-6)
-    rock = terraingen.Rock(0.0, 0.0, 1.0, 0.5, burial=0.2)
-    assert terraingen.add_rock(0.0, 0.0, 0.0, rock) > 0.0 and rock.exposed_height == pytest.approx(0.4)
+    boulder = terraingen.Boulder(0.0, 0.0, 1.0, 0.5, burial=0.2)
+    assert terraingen.add_boulder(0.0, 0.0, 0.0, boulder) > 0.0 and boulder.exposed_height == pytest.approx(0.4)
     assert terraingen.boulder_throw_distance(100.0, 5.0, 1.62) > 0
-    assert terraingen.rock_candidates(options).cumulative(0.5) > 0
-    assert rocks.density_at(0.5, 0.0, 0.0) > 0
+    assert terraingen.boulder_candidates(options).cumulative(0.5) > 0
+    assert boulders.density_at(0.5, 0.0, 0.0) > 0
     assert terraingen.perlin_structure_function(1.0) > terraingen.perlin_structure_function(0.1)
     assert terraingen.perlin3_structure_function(1.0) > 0
     rough = terraingen.RoughnessLayer(terraingen.RoughnessOptions())
@@ -275,7 +275,7 @@ def test_backends_and_validators():
     for validate, bad in [
         (terraingen.validate_resolution_fade, terraingen.ResolutionFade(start_samples=3.0, end_samples=1.0)),
         (terraingen.validate_crater_spacing, terraingen.CraterSpacing(diameter_ratio=0.5)),
-        (terraingen.validate_rock_layer_options, terraingen.RockLayerOptions(coverage=-1.0)),
+        (terraingen.validate_boulder_layer_options, terraingen.BoulderLayerOptions(coverage=-1.0)),
         (terraingen.validate_rim_smoothing, terraingen.RimSmoothing(strength=2.0)),
         (terraingen.validate_crater_rays, terraingen.CraterRays(excess=-1.0)),
         (terraingen.validate_exposure_params, terraingen.ExposureParams(reach=-1.0)),

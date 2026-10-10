@@ -91,7 +91,7 @@ TEST(ExposureField, FillsGridsWithThePointValues) {
 TEST(ExposureField, RejectsInvalidParameters) {
     EXPECT_THROW(ExposureField({.reach = 0.0}), std::invalid_argument);
     EXPECT_THROW(ExposureField({.riseSoil = 0.05}), std::invalid_argument);
-    EXPECT_THROW(ExposureField({.slopeRock = 0.1}), std::invalid_argument);
+    EXPECT_THROW(ExposureField({.slopeBoulder = 0.1}), std::invalid_argument);
     EXPECT_THROW(ExposureField({.floorCover = 1.0}), std::invalid_argument);
     EXPECT_THROW(ExposureField({.floorPatch = -1.0}), std::invalid_argument);
     EXPECT_EQ(ExposureField().Params(), ExposureParams{});

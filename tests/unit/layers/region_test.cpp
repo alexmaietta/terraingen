@@ -136,17 +136,17 @@ TEST(RegionLayer, KeepsTheFeaturesCentredInTheRegionOrItsFeather) {
     ASSERT_EQ(wider.Size(), 2u) << "the crater 11 m off is inside a 12 m feather";
     EXPECT_EQ(wider.At(1).x, 16.0);
 
-    terraingen::RockLayerOptions options;
+    terraingen::BoulderLayerOptions options;
     options.minDiameter = 1.0;
     options.coverage = 0.3;
-    terraingen::TerrainFeatures rocks;
+    terraingen::TerrainFeatures boulders;
     auto heights = Slope();
-    RegionLayer(std::make_shared<terraingen::RockLayer>(options),
+    RegionLayer(std::make_shared<terraingen::BoulderLayer>(options),
                 RegionShape::Circle({0.0, 0.0}, 20.0))
-        .Apply(heights, {}, rocks);
-    ASSERT_FALSE(rocks.rocks.empty());
-    for (const auto& rock : rocks.rocks) {
-        EXPECT_LE(std::hypot(rock.x, rock.y), 20.0);
+        .Apply(heights, {}, boulders);
+    ASSERT_FALSE(boulders.boulders.empty());
+    for (const auto& boulder : boulders.boulders) {
+        EXPECT_LE(std::hypot(boulder.x, boulder.y), 20.0);
     }
 }
 

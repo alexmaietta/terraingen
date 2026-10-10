@@ -24,8 +24,8 @@ terraingen_add_library(
     region.cpp
     roughness.cpp
     transforms.cpp
-    rocks/boulder_meshes.cpp
-    rocks/rock_layer.cpp
+    boulders/boulder_meshes.cpp
+    boulders/boulder_layer.cpp
     PUBLIC
     terraingen_distribution
     terraingen_meshes

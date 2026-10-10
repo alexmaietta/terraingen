@@ -1,6 +1,6 @@
 # Crater size-frequency distributions
 
-Crater and rock densities, production functions and chronologies.
+Crater and boulder densities, production functions and chronologies.
 
 ::: terraingen.SizeFrequencyDistribution
 

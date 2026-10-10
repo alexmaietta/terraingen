@@ -4,9 +4,9 @@
 
 namespace terraingen {
 
-/// Rock sizes after Golombek and Rapp (1997): the cumulative fractional area covered by rocks at
-/// least D metres across is F(D) = k exp(-q D), with q = `qa` + `qb` / k per metre, where k, the
-/// total fractional area covered by rocks, sets how rocky the ground is (`coverage`).
+/// Boulder sizes after Golombek and Rapp (1997): the cumulative fractional area covered by boulders
+/// at least D metres across is F(D) = k exp(-q D), with q = `qa` + `qb` / k per metre, where k, the
+/// total fractional area covered by boulders, sets how rocky the ground is (`coverage`).
 ///
 /// As a number density, -dN/dD = k q exp(-q D) / (pi D^2 / 4) per m^2 per metre, so
 /// N(>=D) = (4 k q / pi) E2(q D) / D per m^2, with E2 the exponential integral of order 2. Lunar
@@ -36,7 +36,8 @@ class GolombekRappSfd final : public SizeFrequencyDistribution {
         return q_;
     }
 
-    /// F(D) = k exp(-q D): the fractional area covered by rocks at least `diameter` metres across.
+    /// F(D) = k exp(-q D): the fractional area covered by boulders at least `diameter` metres
+    /// across.
     double FractionalArea(double diameter) const;
 
   protected:

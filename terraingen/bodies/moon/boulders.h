@@ -8,7 +8,7 @@
 namespace terraingen {
 
 /// Which of the minimum, nominal and maximum curves of an engineering model to use.
-enum class RockModelCurve { Minimum, Nominal, Maximum };
+enum class SpecificationCurve { Minimum, Nominal, Maximum };
 
 /// Blocks per m^2 at least D metres across between craters on smooth mare, rough mare and upland
 /// terrains: Figure 7 of NASA SP-8023, the lunar surface design model, which its authors drew as a
@@ -26,7 +26,7 @@ enum class RockModelCurve { Minimum, Nominal, Maximum };
 /// - E. M. Shoemaker and E. C. Morris, "Physical characteristics of the lunar regolith determined
 ///   from Surveyor television observations", Radio Science 5(2):129-155, 1970.
 ///   https://doi.org/10.1029/RS005i002p00129
-std::shared_ptr<TabulatedSfd> Sp8023IntercraterBlocks(RockModelCurve curve);
+std::shared_ptr<TabulatedSfd> Sp8023IntercraterBlocks(SpecificationCurve curve);
 
 /// Blocks per m^2 at least D metres across in the annulus from the rim to two crater radii of
 /// blocky craters on smooth mare, rough mare and upland terrains (after H. J. Moore): Figure 9 of
@@ -39,21 +39,21 @@ std::shared_ptr<TabulatedSfd> Sp8023IntercraterBlocks(RockModelCurve curve);
 ///
 /// Reference: NASA SP-8023, 1969, section 3.4.3 and Figure 9.
 /// https://ntrs.nasa.gov/citations/19700009596
-std::shared_ptr<TabulatedSfd> Sp8023CraterBlocks(RockModelCurve curve);
+std::shared_ptr<TabulatedSfd> Sp8023CraterBlocks(SpecificationCurve curve);
 
-/// The rock distributions synthterrain offers, N per m^2 with D in metres, for comparison with it.
-/// Its sources carry no citation for them.
+/// The boulder distributions synthterrain offers, N per m^2 with D in metres, for comparison with
+/// it. Its sources carry no citation for them.
 ///
-/// Reference: synthterrain (NASA Ames, R. Beyer et al.), `synthterrain.rock.functions`.
+/// Reference: synthterrain (NASA Ames, R. Beyer et al.), `synthterrain.boulder.functions`.
 /// https://github.com/NeoGeographyToolkit/synthterrain
-enum class SynthterrainRocks {
+enum class SynthterrainBoulders {
     InterCrater,  ///< 0.0001 D^-1.75457: from synthetic_moon, "low blockiness".
     Haworth,      ///< 0.002 D^-2.6607: from synthetic_moon, "high blockiness".
     /// 0.0003 D^-2.482: the VIPER Environmental Specification, VIPER-MSE-SPEC-001 (2021).
     ViperSpecification,
 };
 
-/// The synthterrain rock distribution `rocks`, valid at every diameter.
-std::shared_ptr<PowerLawSfd> SynthterrainRockDistribution(SynthterrainRocks rocks);
+/// The synthterrain boulder distribution `boulders`, valid at every diameter.
+std::shared_ptr<PowerLawSfd> SynthterrainBoulderDistribution(SynthterrainBoulders boulders);
 
 }  // namespace terraingen

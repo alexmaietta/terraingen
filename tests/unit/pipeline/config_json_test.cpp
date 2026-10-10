@@ -96,8 +96,8 @@ TerrainConfig Everything() {
             .ellipticity = {terraingen::ValueDistribution::Kind::LogNormal, 1.2, 0.1, 1.0, 2.23},
             .heading = 0.3,
             .headingSpread = 0.2}};
-    terraingen::RockLayerSpec rocks;
-    rocks.rocks = {
+    terraingen::BoulderLayerSpec boulders;
+    boulders.boulders = {
         .coverage = 0.05,
         .qa = 1.5,
         .qb = 0.2,
@@ -126,7 +126,7 @@ TerrainConfig Everything() {
         .minBurial = 0.0,
         .maxBurial = 0.5,
         .maxLean = 0.1,
-        .relief = terraingen::RockRelief::Shape,
+        .relief = terraingen::BoulderRelief::Shape,
         .models = {.minDiameter = 2.0, .minSamples = 6.0},
         .shapes = {.styles = {terraingen::BoulderStyle{.name = "slab",
                                                        .weight = 2.0,
@@ -145,13 +145,15 @@ TerrainConfig Everything() {
                    .seed = 3},
         .shapePrototypes = 0,
         .fade = {1.0, 3.0, terraingen::BlendShape::Linear}};
-    rocks.sizes = terraingen::Sp8023IntercraterRocksSpec{terraingen::RockModelCurve::Maximum};
-    rocks.ejectaSizes = terraingen::Sp8023CraterRocksSpec{terraingen::RockModelCurve::Minimum};
-    rocks.extrapolate = true;
-    terraingen::RockLayerSpec synthterrain;
+    boulders.sizes =
+        terraingen::Sp8023IntercraterBouldersSpec{terraingen::SpecificationCurve::Maximum};
+    boulders.ejectaSizes =
+        terraingen::Sp8023CraterBouldersSpec{terraingen::SpecificationCurve::Minimum};
+    boulders.extrapolate = true;
+    terraingen::BoulderLayerSpec synthterrain;
     synthterrain.sizes =
-        terraingen::SynthterrainRocksSpec{terraingen::SynthterrainRocks::ViperSpecification};
-    terraingen::RockLayerSpec table;
+        terraingen::SynthterrainBouldersSpec{terraingen::SynthterrainBoulders::ViperSpecification};
+    terraingen::BoulderLayerSpec table;
     table.sizes = terraingen::TabulatedSpec{{0.1, 1.0}, {1.0, 0.001}};
     table.ejectaSizes = terraingen::PowerLawSpec{0.001, 3.0};
     const terraingen::RoughnessLayerSpec roughness{{.rmsSlope = 0.3,
@@ -165,8 +167,8 @@ TerrainConfig Everything() {
         noise,
         craters,
         CraterLayerSpec{},
-        rocks,
-        terraingen::RockLayerSpec{},
+        boulders,
+        terraingen::BoulderLayerSpec{},
         synthterrain,
         table,
         terraingen::BedformLayerSpec{terraingen::MarsLargeRipples()},
@@ -186,7 +188,7 @@ TerrainConfig Everything() {
         CraterListOutput{"out/craters.json", CraterListFormat::Json},
         CraterListOutput{"craters.txt", CraterListFormat::Csv},
         terraingen::HeightmapOutput{"dem.tif", terraingen::TiffCompression::Deflate, 512},
-        terraingen::RockListOutput{"rocks.json", CraterListFormat::Json},
+        terraingen::BoulderListOutput{"boulders.json", CraterListFormat::Json},
         terraingen::BoulderModelsOutput{"boulders.glb", 20.0}};
     return config;
 }
@@ -387,29 +389,31 @@ TEST(ConfigJson, OmittedKeysTakeDefaultsAndOmittedListsAreEmpty) {
     EXPECT_EQ(std::get<terraingen::RimSmoothing>(partial.filters[0]), terraingen::RimSmoothing{});
 }
 
-TEST(ConfigJson, ReadsRockLayersWithOptionalExposure) {
+TEST(ConfigJson, ReadsBoulderLayersWithOptionalExposure) {
     const TerrainConfig config = ParseConfig(R"({"schema_version": 1, "layers": [
-        {"type": "rocks", "coverage": 0.04, "relief": "none", "ejecta": {"min_crater_diameter": 20},
+        {"type": "boulders", "coverage": 0.04, "relief": "none", "ejecta": {"min_crater_diameter": 20},
          "exposure": {"reach": 6}},
-        {"type": "rocks", "exposure": null}]})");
+        {"type": "boulders", "exposure": null}]})");
     ASSERT_EQ(config.layers.size(), 2u);
-    const auto& rocks = std::get<terraingen::RockLayerSpec>(config.layers[0]).rocks;
-    EXPECT_EQ(rocks.coverage, 0.04);
-    EXPECT_EQ(rocks.relief, terraingen::RockRelief::None);
-    EXPECT_EQ(rocks.ejecta.minCraterDiameter, 20.0);
-    EXPECT_EQ(rocks.ejecta.coverage, terraingen::RockEjecta{}.coverage);
-    ASSERT_TRUE(rocks.exposure.has_value());
-    EXPECT_EQ(rocks.exposure->reach, 6.0);
-    EXPECT_EQ(rocks.exposure->riseRock, terraingen::ExposureParams{}.riseRock);
-    EXPECT_FALSE(std::get<terraingen::RockLayerSpec>(config.layers[1]).rocks.exposure);
+    const auto& boulders = std::get<terraingen::BoulderLayerSpec>(config.layers[0]).boulders;
+    EXPECT_EQ(boulders.coverage, 0.04);
+    EXPECT_EQ(boulders.relief, terraingen::BoulderRelief::None);
+    EXPECT_EQ(boulders.ejecta.minCraterDiameter, 20.0);
+    EXPECT_EQ(boulders.ejecta.coverage, terraingen::BoulderEjecta{}.coverage);
+    ASSERT_TRUE(boulders.exposure.has_value());
+    EXPECT_EQ(boulders.exposure->reach, 6.0);
+    EXPECT_EQ(boulders.exposure->riseBoulder, terraingen::ExposureParams{}.riseBoulder);
+    EXPECT_FALSE(std::get<terraingen::BoulderLayerSpec>(config.layers[1]).boulders.exposure);
     EXPECT_EQ(
-        ErrorPath(R"({"schema_version": 1, "layers": [{"type": "rocks", "relief": "mesh"}]})"),
+        ErrorPath(R"({"schema_version": 1, "layers": [{"type": "boulders", "relief": "mesh"}]})"),
         "layers[0].relief");
     EXPECT_EQ(
-        ErrorPath(R"({"schema_version": 1, "layers": [{"type": "rocks", "cache_rocks": 1}]})"),
-        "layers[0].cache_rocks");
+        ErrorPath(
+            R"({"schema_version": 1, "layers": [{"type": "boulders", "cache_boulders": 1}]})"),
+        "layers[0].cache_boulders");
     EXPECT_EQ(
-        ErrorPath(R"({"schema_version": 1, "layers": [{"type": "rocks", "exposure": {"x": 1}}]})"),
+        ErrorPath(
+            R"({"schema_version": 1, "layers": [{"type": "boulders", "exposure": {"x": 1}}]})"),
         "layers[0].exposure.x");
 }
 
@@ -491,7 +495,7 @@ TEST(ConfigJson, ReportsProblemsByTheirJsonPath) {
         "source.resampling");
     EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "source": {"type": "raster", "layers": []}})"),
               "source.layers");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "layers": [{"type": "boulders"}]})"),
+    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "layers": [{"type": "rocks"}]})"),
               "layers[0].type");
     EXPECT_EQ(
         ErrorPath(R"({"schema_version": 1, "filters": [{"type": "rim_smoothing", "sigma": 1}]})"),
@@ -900,10 +904,10 @@ TEST(ConfigCatalog, ListsEveryTypeAndEachEntryParsesWhereItBelongs) {
             parses({{"layers", Json::array({craters})}}, model);
         }
     }
-    for (const Json& entry : models["rock_sizes"]) {
-        Json rocks = layerOf("rocks");
-        rocks["sizes"] = entry;
-        parses({{"layers", Json::array({rocks})}}, "rock_sizes");
+    for (const Json& entry : models["boulder_sizes"]) {
+        Json boulders = layerOf("boulders");
+        boulders["sizes"] = entry;
+        parses({{"layers", Json::array({boulders})}}, "boulder_sizes");
     }
     for (const Json& entry : models["region_shape"]) {
         Json region = layerOf("region");

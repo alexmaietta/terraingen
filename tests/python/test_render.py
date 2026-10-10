@@ -23,7 +23,7 @@ def test_add_terrain_shares_cells_and_georeferencing():
     raster = make_raster()
     raster.nodata = -9999.0
     scene = ernie.Scene()
-    prim = render.add_terrain(scene, raster, exaggeration=2.0, material="/Looks/Rock")
+    prim = render.add_terrain(scene, raster, exaggeration=2.0, material="/Looks/Boulder")
     heights = scene.read(render.TERRAIN_PATH, ernie.tokens.HEIGHTS)
     assert np.shares_memory(heights, raster.values)
     assert heights.shape == (17, 33)
@@ -31,7 +31,7 @@ def test_add_terrain_shares_cells_and_georeferencing():
     assert prim.get(ernie.tokens.CELL_SIZE) == 2.0
     assert prim.get(ernie.tokens.NO_DATA) == -9999.0
     assert prim.get(ernie.tokens.EXAGGERATION) == 2.0
-    assert prim.get(ernie.tokens.MATERIAL_BINDING) == ernie.Path("/Looks/Rock")
+    assert prim.get(ernie.tokens.MATERIAL_BINDING) == ernie.Path("/Looks/Boulder")
 
     raster.nodata = None
     render.add_terrain(scene, raster)
