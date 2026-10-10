@@ -50,6 +50,9 @@ markdown_extensions:
   - pymdownx.highlight
   - pymdownx.inlinehilite
   - pymdownx.superfences
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 extra_css:
   - css/extra.css
@@ -57,11 +60,13 @@ extra_css:
 nav:
   - Home: index.md
   - Getting started:
+      - getting-started/index.md
       - Installation: getting-started/installation.md
       - Quickstart: getting-started/quickstart.md
       - Command line: getting-started/command-line.md
       - GUI: getting-started/gui.md
   - Concepts:
+      - concepts/index.md
       - Terrains, sources, layers and filters: concepts/terrain.md
       - Configuration files: concepts/configs.md
       - Surfaces, bodies and coordinates: concepts/surfaces.md
@@ -78,7 +83,7 @@ nav:
       - GPU backends: concepts/gpu.md
       - Logging: concepts/logging.md
   - Extending TerrainGen:
-      - Overview: extending/index.md
+      - extending/index.md
       - Terrain:
           - Custom sources: extending/custom-sources.md
           - Custom layers: extending/custom-layers.md
@@ -93,12 +98,13 @@ nav:
       - Python:
           - Writing models in Python: extending/python.md
   - Guides:
+      - guides/index.md
       - Landing site presets: guides/landing-sites.md
       - Adding detail to a measured DEM: guides/enhancing-dems.md
       - Whole planets and globes: guides/planets.md
       - Using TerrainGen in simulators: guides/simulators.md
   - Validation:
-      - Overview: validation/index.md
+      - validation/index.md
       - Crater size-frequency distributions: validation/crater-distributions.md
       - Crater morphometry: validation/crater-morphometry.md
       - Crater degradation: validation/crater-degradation.md
@@ -107,8 +113,9 @@ nav:
       - Albedo: validation/albedo.md
       - Comparison with other tools: validation/other-tools.md
   - API reference:
+      - api/index.md
       - Python:
-          - Overview: api/python/index.md
+          - api/python/index.md
           - Configs and the pipeline: api/python/configs-and-the-pipeline.md
           - Terrains and evaluation: api/python/terrains-and-evaluation.md
           - Surfaces and cells: api/python/surfaces-and-cells.md
@@ -129,7 +136,7 @@ nav:
           - Validation: api/python/validation.md
           - Logging and version: api/python/logging-and-version.md
       - C++:
-          - Overview: api/cpp.md
+          - api/cpp/index.md
           - Classes: cpp/annotated.md
           - Class hierarchy: cpp/hierarchy.md
           - Functions: cpp/namespace_member_functions.md
