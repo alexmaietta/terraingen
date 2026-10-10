@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use TerrainGen for published research, please cite it as below."
+type: software
+title: "TerrainGen: Scientific terrain generation for planetary surfaces"
+abstract: >-
+  A C++ and Python library, with a command-line tool, for generating scientific terrain of
+  planetary surfaces: crater and rock populations from published size-frequency distributions,
+  crater profiles and degradation, and albedo, on synthetic or measured elevation models.
+authors:
+  - family-names: Maietta
+    given-names: Alex
+repository-code: "https://github.com/alexmaietta/terraingen"
+url: "https://alexmaietta.github.io/terraingen/"
+license: BSD-3-Clause
+version: 0.1.0
+keywords:
+  - terrain
+  - moon
+  - mars
+  - craters
+  - planetary science
+  - simulation
