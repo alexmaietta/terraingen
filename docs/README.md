@@ -1,12 +1,10 @@
-# TerrainGen documentation
-
-Sphinx sources for the TerrainGen docs. Pages are Markdown (MyST); the API reference is generated
-from Python docstrings (autodoc) and C++ `///` comments (Doxygen + Breathe).
+# TerrainGen's documentation
 
 ```sh
-pip install -r docs/requirements.txt
-pip install -e .            # or a CMake build in build/; autodoc imports the module
-sudo apt install doxygen    # for the C++ reference
-make -C docs build          # output in docs/_build/html
-make -C docs serve          # serve at http://127.0.0.1:8000 with live reload
+pip install -r requirements.txt
+make build    # the site into ../site/
+make serve    # or preview it at http://127.0.0.1:8000
+make clean
 ```
+
+Build TerrainGen with Python into `build/` first (or `pip install .`): the Python API reference reads the module's stubs. The C++ API reference runs Doxygen on the public headers (mkdoxy), so `doxygen` must be installed. After adding a Python binding, run `PYTHONPATH=build/python python generate_python_api.py` to update the Python API pages.

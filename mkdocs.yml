@@ -1,0 +1,185 @@
+site_name: TerrainGen
+site_description: An open-source scientific terrain generation suite for planetary surfaces
+site_url: https://alexmaietta.github.io/terraingen/
+repo_url: https://github.com/alexmaietta/terraingen
+repo_name: terraingen
+docs_dir: docs
+site_dir: site
+strict: true
+exclude_docs: |
+  Makefile
+  README.md
+  requirements.txt
+  generate_python_api.py
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue grey
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue grey
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - toc.follow
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+
+extra_css:
+  - css/extra.css
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Installation: getting-started/installation.md
+      - Quickstart: getting-started/quickstart.md
+      - Command line: getting-started/command-line.md
+      - GUI: getting-started/gui.md
+  - Concepts:
+      - Terrains, sources, layers and filters: concepts/terrain.md
+      - Configuration files: concepts/configs.md
+      - Surfaces, bodies and coordinates: concepts/surfaces.md
+      - Tiles and levels of detail: concepts/tiles.md
+      - Seeds and reproducibility: concepts/reproducibility.md
+      - Size-frequency distributions: concepts/distributions.md
+      - Crater populations and ages: concepts/craters.md
+      - Crater profiles and degradation: concepts/crater-profiles.md
+      - Rocks and boulders: concepts/rocks.md
+      - Noise and synthetic relief: concepts/noise.md
+      - Albedo: concepts/albedo.md
+      - Rasters and GeoTIFF: concepts/rasters.md
+      - Outputs: concepts/outputs.md
+      - GPU backends: concepts/gpu.md
+      - Logging: concepts/logging.md
+  - Extending TerrainGen:
+      - Overview: extending/index.md
+      - Terrain:
+          - Custom sources: extending/custom-sources.md
+          - Custom layers: extending/custom-layers.md
+          - Custom filters: extending/custom-filters.md
+      - Craters:
+          - Custom size-frequency distributions: extending/custom-distributions.md
+          - Custom crater age models: extending/custom-age-models.md
+          - Custom crater profiles: extending/custom-crater-profiles.md
+          - Custom degradation models: extending/custom-degradation.md
+      - Albedo:
+          - Custom albedo layers: extending/custom-albedo.md
+      - Python:
+          - Writing models in Python: extending/python.md
+  - Guides:
+      - Landing site presets: guides/landing-sites.md
+      - Adding detail to a measured DEM: guides/enhancing-dems.md
+      - Whole planets and globes: guides/planets.md
+      - Using TerrainGen in simulators: guides/simulators.md
+  - Validation:
+      - Overview: validation/index.md
+      - Crater size-frequency distributions: validation/crater-distributions.md
+      - Crater morphometry: validation/crater-morphometry.md
+      - Crater degradation: validation/crater-degradation.md
+      - Rock abundances: validation/rocks.md
+      - Slopes and roughness: validation/slopes-and-roughness.md
+      - Albedo: validation/albedo.md
+      - Comparison with other tools: validation/other-tools.md
+  - API reference:
+      - Python:
+          - Overview: api/python/index.md
+          - Configs and the pipeline: api/python/configs-and-the-pipeline.md
+          - Terrains and evaluation: api/python/terrains-and-evaluation.md
+          - Surfaces and cells: api/python/surfaces-and-cells.md
+          - Sources: api/python/sources.md
+          - Synthetic terrain and noise: api/python/synthetic-terrain-and-noise.md
+          - Layers: api/python/layers.md
+          - Crater size-frequency distributions: api/python/crater-size-frequency-distributions.md
+          - Crater ages, degradation and profiles: api/python/crater-ages-degradation-and-profiles.md
+          - Craters: api/python/craters.md
+          - Rocks and boulders: api/python/rocks-and-boulders.md
+          - Filters: api/python/filters.md
+          - Albedo: api/python/albedo.md
+          - Tiles and whole bodies: api/python/tiles-and-whole-bodies.md
+          - Meshes: api/python/meshes.md
+          - Rasters and GeoTIFF: api/python/rasters-and-geotiff.md
+          - Hashing and random numbers: api/python/hashing-and-random-numbers.md
+          - Backends: api/python/backends.md
+          - Validation: api/python/validation.md
+          - Logging and version: api/python/logging-and-version.md
+      - C++:
+          - Overview: api/cpp.md
+          - Classes: cpp/annotated.md
+          - Class hierarchy: cpp/hierarchy.md
+          - Functions: cpp/namespace_member_functions.md
+          - Namespace terraingen: cpp/namespaceterraingen.md
+          - Files: cpp/files.md
+
+plugins:
+  - search
+  - mkdoxy:
+      projects:
+        cpp:
+          # The library's public headers, as installed; the Python bindings and the app are not
+          # part of the C++ API.
+          src-dirs: >-
+            terraingen/util terraingen/raster terraingen/noise terraingen/gpu terraingen/random
+            terraingen/meshes terraingen/distribution terraingen/sources terraingen/layers
+            terraingen/filters terraingen/albedo terraingen/bodies terraingen/pipeline
+          full-doc: true
+          doxy-cfg:
+            FILE_PATTERNS: "*.h"
+            RECURSIVE: true
+            EXTRACT_ALL: true
+            JAVADOC_AUTOBRIEF: true
+            # Includes as users write them: "terraingen/layers/layer.h".
+            FULL_PATH_NAMES: true
+            STRIP_FROM_PATH: .
+            STRIP_FROM_INC_PATH: .
+      save-api: .mkdoxy
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          # The built package: the module's stubs (nanobind's stubgen) beside its Python files.
+          paths: [build/python]
+          options:
+            docstring_style: google
+            docstring_section_style: table
+            show_source: false
+            show_root_heading: true
+            show_root_full_path: false
+            heading_level: 2
+            members_order: alphabetical
+            group_by_category: true
+            show_category_heading: false
+            summary: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            show_signature_annotations: true
+            separate_signature: true
+            line_length: 88
+            merge_init_into_class: true
+            show_if_no_docstring: true
+            show_bases: true

@@ -1,10 +1,11 @@
-"""Writes docs/api/python.md: every name terraingen exports, grouped by topic, after the guide to
-writing models in Python (docs/api/python_subclassing.md). Run it after adding a binding:
+"""Writes the Python API pages, docs/api/python/<topic>.md: every name terraingen exports, grouped
+by topic, for mkdocstrings. Run it after adding a binding, and list a new topic's page in the nav of
+mkdocs.yml:
 
     PYTHONPATH=build/python python docs/generate_python_api.py
 """
-import inspect
 import pathlib
+import re
 import sys
 
 import terraingen
@@ -85,21 +86,13 @@ extra = sorted(set(listed) - set(terraingen.__all__))
 if missing or extra:
     sys.exit(f"missing {missing}, unknown {extra}")
 
-lines = ["# Python API", "",
-         "The `terraingen` package wraps the C++ library with nanobind: every public class and function",
-         "of the C++ library has a Python counterpart (a test checks this against the headers). Rasters",
-         "share their cells with NumPy without copying, long-running functions release the GIL, and the",
-         "base classes (distributions, age and degradation models, profiles, sources, layers, filters and",
-         "albedo) can be subclassed in Python. Build the extension module first (`pip install -e .`, or a",
-         "CMake build in `build/`) so the reference can be generated.", "",
-         "```{eval-rst}", ".. automodule:: terraingen", "   :no-members:", "```", ""]
-lines += (pathlib.Path(__file__).parent / "api" / "python_subclassing.md").read_text().splitlines() + [""]
+pages = pathlib.Path(__file__).parent / "api" / "python"
+pages.mkdir(exist_ok=True)
 for title, intro, names in SECTIONS:
-    lines += [f"## {title}", "", intro, "", "```{eval-rst}"]
+    lines = [f"# {title}", "", intro, ""]
     for name in names:
-        obj = getattr(terraingen, name)
-        kind = "autoclass" if inspect.isclass(obj) else "autofunction" if callable(obj) else "autodata"
-        lines.append(f".. {kind}:: terraingen.{name}")
-    lines += ["```", ""]
-open(pathlib.Path(__file__).parent / "api" / "python.md", "w").write("\n".join(lines).rstrip() + "\n")
-print(len(listed), "names in", len(SECTIONS), "sections")
+        lines += [f"::: terraingen.{name}", ""]
+    slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+    (pages / f"{slug}.md").write_text("\n".join(lines).rstrip() + "\n")
+    print(f"          - {title}: api/python/{slug}.md")
+print(len(listed), "names in", len(SECTIONS), "pages", file=sys.stderr)

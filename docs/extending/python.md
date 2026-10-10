@@ -1,4 +1,4 @@
-## Writing your own models in Python
+# Writing models in Python
 
 Each base class can be subclassed in Python: `SizeFrequencyDistribution` (`cumulative_at`),
 `CraterAgeModel` (`lifetime_at`), `DegradationModel` (`state`), `CraterProfile` (`height`,

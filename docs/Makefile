@@ -1,22 +1,16 @@
-# Minimal Sphinx makefile: `make build`, `make serve`, `make clean`, or any other Sphinx builder name.
-SPHINXOPTS    ?=
-SPHINXBUILD   ?= sphinx-build
-SOURCEDIR     = .
-BUILDDIR      = _build
+# The documentation site: `make build` or `make serve` from docs/. Needs doxygen, the packages of
+# requirements.txt, and TerrainGen built with Python in build/.
+PYTHON ?= python
+ROOT := $(abspath ..)
 
-help:
-	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+.PHONY: build serve clean
 
 build:
-	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+	cd $(ROOT) && $(PYTHON) -m mkdocs build
 
 serve:
-	sphinx-autobuild "$(SOURCEDIR)" "$(BUILDDIR)/html" --watch ../terraingen --ignore "*/_doxygen/*" --ignore "*/_build/*" $(SPHINXOPTS) $(O)
+	cd $(ROOT) && $(PYTHON) -m mkdocs serve
 
+# Also mkdoxy's Doxygen output, which it reruns only when the headers change.
 clean:
-	rm -rf "$(BUILDDIR)" _doxygen
-
-.PHONY: help build serve clean Makefile
-
-%: Makefile
-	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+	rm -rf $(ROOT)/site $(ROOT)/.mkdoxy

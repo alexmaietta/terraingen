@@ -61,10 +61,16 @@ def test_every_public_cpp_name_is_bound_or_listed_as_internal():
     assert not missing, "C++ names without Python bindings:\n" + "\n".join(missing)
 
 
-def test_the_python_api_page_documents_every_exported_name():
+def test_the_python_api_pages_document_every_exported_name():
     import terraingen
 
-    page = (ROOT / "docs/api/python.md").read_text()
-    documented = set(re.findall(r"^\.\. auto\w+:: terraingen\.(\w+)$", page, re.M))
+    pages = "\n".join(p.read_text() for p in (ROOT / "docs/api/python").glob("*.md"))
+    documented = set(re.findall(r"^::: terraingen\.(\w+)$", pages, re.M))
     missing = sorted(set(terraingen.__all__) - documented)
-    assert not missing, "Exported but not on docs/api/python.md: " + ", ".join(missing)
+    assert not missing, "Exported but not on the docs/api/python/ pages: " + ", ".join(missing)
+
+
+def test_every_python_api_page_is_in_the_docs_nav():
+    nav = (ROOT / "mkdocs.yml").read_text()
+    missing = sorted(p.name for p in (ROOT / "docs/api/python").glob("*.md") if f"api/python/{p.name}" not in nav)
+    assert not missing, "Python API pages missing from the nav of mkdocs.yml: " + ", ".join(missing)

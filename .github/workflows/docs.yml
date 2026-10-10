@@ -6,6 +6,7 @@ on:
   pull_request:
     paths:
       - "docs/**"
+      - "mkdocs.yml"
       - "terraingen/**/*.h"
       - "terraingen/python/**"
       - ".github/workflows/docs.yml"
@@ -43,7 +44,7 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: docs/_build/html
+          path: site
 
   deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'

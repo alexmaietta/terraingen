@@ -1,0 +1,32 @@
+/* A little space between the API's classes and functions. */
+.doc-object {
+    margin-bottom: 2em;
+}
+
+/* The home page's gallery: square images three to a row, wide montages across the page. */
+.hero-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1.5em;
+    margin: 1.5em 0;
+}
+
+.hero-grid figure {
+    margin: 0;
+    max-width: none;
+}
+
+.hero-grid figure.wide {
+    grid-column: 1 / -1;
+}
+
+.hero-grid img {
+    width: 100%;
+    border-radius: 4px;
+}
+
+.hero-grid figcaption {
+    font-size: 0.75rem;
+    margin-top: 0.4em;
+    max-width: none;
+}
