@@ -24,3 +24,7 @@ set_target_properties(terraingen_app PROPERTIES OUTPUT_NAME terraingen)
 if(TERRAINGEN_INSTALL)
     install(TARGETS terraingen_app RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT runtime)
 endif()
+# In a Python wheel, the command goes in the scripts folder, which pip puts on PATH.
+if(SKBUILD)
+    install(TARGETS terraingen_app RUNTIME DESTINATION "${SKBUILD_SCRIPTS_DIR}")
+endif()

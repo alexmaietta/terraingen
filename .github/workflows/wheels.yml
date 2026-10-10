@@ -48,7 +48,7 @@ jobs:
           CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
           CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=11.0
           CIBW_TEST_REQUIRES: pytest
-          CIBW_TEST_COMMAND: pytest {project}/tests/python
+          CIBW_TEST_COMMAND: terraingen --version && pytest {project}/tests/python
 
       - uses: actions/upload-artifact@v7
         with:
