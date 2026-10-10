@@ -1,1 +1,0 @@
-# TerrainGen Development Guidelines
