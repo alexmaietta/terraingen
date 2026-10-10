@@ -158,7 +158,6 @@ from ._terraingen import (
     ValueDistribution,
     ValueDistributionKind,
     ValueRange,
-    __version__,
     add_rock,
     api_version,
     apply_craters,
@@ -313,6 +312,10 @@ from ._terraingen import (
     write_glb_scene,
     write_outputs,
 )
+from . import _terraingen
+
+#: The library's version, such as "0.1.0".
+__version__: str = _terraingen.__version__
 
 __all__ = [
     "Albedo",

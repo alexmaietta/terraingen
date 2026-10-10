@@ -33,8 +33,10 @@ std::filesystem::path Directory(const std::optional<std::filesystem::path>& dire
 }  // namespace
 
 void BindPipeline(nb::module_& m) {
+    // Named within the extension module, as nanobind names its own types, so its stubs list it.
+    const std::string configErrorName = nb::cast<std::string>(m.attr("__name__")) + ".ConfigError";
     static nb::object configError =
-        nb::steal(PyErr_NewExceptionWithDoc("terraingen.ConfigError",
+        nb::steal(PyErr_NewExceptionWithDoc(configErrorName.c_str(),
                                             "An invalid configuration; `path` is the JSON path of "
                                             "the offending value, empty for the whole document.",
                                             PyExc_ValueError, nullptr));

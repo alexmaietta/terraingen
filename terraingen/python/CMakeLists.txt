@@ -29,8 +29,25 @@ set_target_properties(_terraingen PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${package
 
 configure_file(terraingen/__init__.py "${package_dir}/__init__.py" COPYONLY)
 configure_file(terraingen/render.py "${package_dir}/render.py" COPYONLY)
-set_property(GLOBAL APPEND PROPERTY TERRAINGEN_TEST_TARGETS _terraingen)
+
+# Type stubs of the extension (signatures and docstrings for editors and type checkers), and the
+# py.typed marker that says the package has them, made from the built module after each build.
+# The module is imported alone, so generating them needs neither the package nor numpy.
+nanobind_add_stub(
+    _terraingen_stub
+    MODULE
+    _terraingen
+    OUTPUT
+    "${package_dir}/_terraingen.pyi"
+    MARKER_FILE
+    "${package_dir}/py.typed"
+    PYTHON_PATH
+    "${package_dir}"
+    DEPENDS
+    _terraingen)
+set_property(GLOBAL APPEND PROPERTY TERRAINGEN_TEST_TARGETS _terraingen _terraingen_stub)
 
 if(SKBUILD)
     install(TARGETS _terraingen LIBRARY DESTINATION terraingen)
+    install(FILES "${package_dir}/_terraingen.pyi" "${package_dir}/py.typed" DESTINATION terraingen)
 endif()
