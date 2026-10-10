@@ -19,13 +19,9 @@ exclude_docs: |
 theme:
   name: material
   custom_dir: docs/overrides
-  logo: assets/logo.svg
-  favicon: assets/logo.svg
-  icon:
-    repo: fontawesome/brands/github
   font:
-    text: Inter
-    code: JetBrains Mono
+    text: IBM Plex Sans
+    code: IBM Plex Mono
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
@@ -86,13 +82,6 @@ markdown_extensions:
 
 extra:
   generator: false
-  social:
-    - icon: fontawesome/brands/github
-      link: https://github.com/alexmaietta/terraingen
-      name: TerrainGen on GitHub
-    - icon: fontawesome/brands/python
-      link: https://pypi.org/project/terraingen/
-      name: TerrainGen on PyPI
 
 extra_css:
   - css/extra.css

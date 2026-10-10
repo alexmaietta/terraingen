@@ -123,28 +123,28 @@ A 1 km square of cratered lunar terrain: rolling fractal relief with craters fro
 
 <div class="grid cards" markdown>
 
--   :material-layers-triple:{ .lg .middle } __How a terrain is built__
+-   __How a terrain is built__
 
     ---
 
     Sources, layers and filters, and how they combine.
 
-    [:octicons-arrow-right-24: Concepts](../concepts/terrain.md)
+    [Concepts](../concepts/terrain.md)
 
--   :material-code-json:{ .lg .middle } __Configuration files__
+-   __Configuration files__
 
     ---
 
     Describe a whole terrain in JSON and run it with `terraingen`.
 
-    [:octicons-arrow-right-24: Configs](../concepts/configs.md)
+    [Configs](../concepts/configs.md)
 
--   :material-puzzle:{ .lg .middle } __Extend it__
+-   __Extend it__
 
     ---
 
     Your own sources, layers and crater models, in C++ or Python.
 
-    [:octicons-arrow-right-24: Extending](../extending/index.md)
+    [Extending](../extending/index.md)
 
 </div>

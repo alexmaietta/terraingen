@@ -12,19 +12,19 @@ TerrainGen is an open-source suite for generating scientific terrain of planetar
 
 <div class="grid cards tg-highlights" markdown>
 
--   :material-book-open-variant:{ .lg } __Grounded in the literature__
+-   __Grounded in the literature__
 
     Crater densities, ages, shapes and degradation, rock abundances and albedo come from published models, each cited in the code.
 
--   :material-earth:{ .lg } __From a landing site to a whole body__
+-   __From a landing site to a whole body__
 
     Flat grids, tiles of a sphere and whole bodies, with levels of detail that match each other.
 
--   :material-dice-multiple:{ .lg } __Reproducible__
+-   __Reproducible__
 
     The same seed gives the same terrain on any grid, tile or number of threads.
 
--   :material-puzzle:{ .lg } __Made to extend__
+-   __Made to extend__
 
     Sources, layers, filters, distributions, profiles and albedo are base classes to subclass in <span class="tg-nowrap">C++</span> or Python.
 

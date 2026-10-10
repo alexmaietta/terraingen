@@ -1,69 +1,137 @@
-/* TerrainGen's documentation theme: lunar slate with a sunlit amber accent, on Material. */
+/* TerrainGen's documentation theme: minimal and grayscale, flat matte surfaces and hairline rules. */
 
 /* ---- Colours ------------------------------------------------------------------------------ */
 
-:root {
-    --tg-amber: #e8a33a;
-    --tg-amber-strong: #c9821a;
-    --tg-slate-900: #0f141a;
-    --tg-slate-800: #161c24;
-    --tg-slate-700: #1e2630;
-    --tg-slate-600: #2a3542;
-    --tg-radius: 10px;
-}
-
 [data-md-color-scheme="default"] {
-    --md-primary-fg-color: var(--tg-slate-700);
-    --md-primary-fg-color--light: var(--tg-slate-600);
-    --md-primary-fg-color--dark: var(--tg-slate-800);
-    --md-accent-fg-color: var(--tg-amber-strong);
-    --md-accent-fg-color--transparent: rgba(201, 130, 26, 0.1);
-    --md-typeset-a-color: #1f5fa8;
-    --tg-surface: #f6f7f9;
-    --tg-border: #e3e6ea;
-    --tg-shadow: 0 1px 2px rgba(15, 20, 26, 0.06), 0 6px 18px rgba(15, 20, 26, 0.06);
+    --md-default-bg-color: #fbfbfa;
+    --md-default-fg-color: #1d1d1d;
+    --md-default-fg-color--light: #5c5c5c;
+    --md-default-fg-color--lighter: #8a8a8a;
+    --md-default-fg-color--lightest: #e4e4e2;
+    --md-primary-fg-color: #f3f3f1;
+    --md-primary-fg-color--light: #f7f7f5;
+    --md-primary-fg-color--dark: #e9e9e7;
+    --md-primary-bg-color: #1d1d1d;
+    --md-primary-bg-color--light: #5c5c5c;
+    --md-accent-fg-color: #1d1d1d;
+    --md-accent-fg-color--transparent: rgba(29, 29, 29, 0.06);
+    --md-typeset-a-color: #1d1d1d;
+    --md-code-bg-color: #f1f1ef;
+    --md-code-fg-color: #2b2b2b;
+    --md-footer-bg-color: #f3f3f1;
+    --md-footer-bg-color--dark: #ececea;
+    --md-footer-fg-color: #1d1d1d;
+    --md-footer-fg-color--light: #5c5c5c;
+    --md-footer-fg-color--lighter: #8a8a8a;
+    --tg-rule: #dcdcda;
+    --tg-rule-strong: #b5b5b3;
+    --tg-surface: #f6f6f4;
 }
 
 [data-md-color-scheme="slate"] {
-    --md-hue: 215;
-    --md-default-bg-color: var(--tg-slate-900);
-    --md-primary-fg-color: var(--tg-slate-800);
-    --md-primary-fg-color--light: var(--tg-slate-700);
-    --md-primary-fg-color--dark: var(--tg-slate-900);
-    --md-accent-fg-color: var(--tg-amber);
-    --md-accent-fg-color--transparent: rgba(232, 163, 58, 0.12);
-    --md-typeset-a-color: #8fb8ee;
-    --md-code-bg-color: #1a212b;
-    --tg-surface: var(--tg-slate-800);
-    --tg-border: #263040;
-    --tg-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.25);
+    --md-hue: 0;
+    --md-default-bg-color: #151515;
+    --md-default-fg-color: #dadada;
+    --md-default-fg-color--light: #a3a3a3;
+    --md-default-fg-color--lighter: #737373;
+    --md-default-fg-color--lightest: #2a2a2a;
+    --md-primary-fg-color: #1b1b1b;
+    --md-primary-fg-color--light: #222222;
+    --md-primary-fg-color--dark: #121212;
+    --md-primary-bg-color: #dadada;
+    --md-primary-bg-color--light: #a3a3a3;
+    --md-accent-fg-color: #ffffff;
+    --md-accent-fg-color--transparent: rgba(255, 255, 255, 0.06);
+    --md-typeset-a-color: #e6e6e6;
+    --md-code-bg-color: #1e1e1e;
+    --md-code-fg-color: #d0d0d0;
+    --md-footer-bg-color: #1b1b1b;
+    --md-footer-bg-color--dark: #121212;
+    --md-footer-fg-color: #dadada;
+    --md-footer-fg-color--light: #a3a3a3;
+    --md-footer-fg-color--lighter: #737373;
+    --tg-rule: #2c2c2c;
+    --tg-rule-strong: #4a4a4a;
+    --tg-surface: #1a1a1a;
+}
+
+/* Grayscale code: weight and shade instead of colour. */
+.md-typeset .highlight,
+.md-typeset .doc-signature {
+    --md-code-hl-keyword-color: var(--md-default-fg-color);
+    --md-code-hl-name-color: var(--md-code-fg-color);
+    --md-code-hl-function-color: var(--md-code-fg-color);
+    --md-code-hl-string-color: var(--md-default-fg-color--light);
+    --md-code-hl-number-color: var(--md-default-fg-color--light);
+    --md-code-hl-constant-color: var(--md-default-fg-color--light);
+    --md-code-hl-special-color: var(--md-default-fg-color--light);
+    --md-code-hl-operator-color: var(--md-default-fg-color--light);
+    --md-code-hl-punctuation-color: var(--md-default-fg-color--lighter);
+    --md-code-hl-comment-color: var(--md-default-fg-color--lighter);
+    --md-code-hl-generic-color: var(--md-default-fg-color--light);
+    --md-code-hl-variable-color: var(--md-code-fg-color);
+}
+
+.md-typeset .highlight .k,
+.md-typeset .highlight .kn,
+.md-typeset .highlight .kd,
+.md-typeset .highlight .kt {
+    font-weight: 600;
+}
+
+.md-typeset .highlight .c,
+.md-typeset .highlight .c1,
+.md-typeset .highlight .cm {
+    font-style: italic;
 }
 
 /* ---- Header and navigation ---------------------------------------------------------------- */
 
-.md-header {
+.md-header,
+.md-tabs {
     box-shadow: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid var(--tg-rule);
 }
 
 .md-header__title {
     font-weight: 600;
-    letter-spacing: 0.01em;
 }
 
-.md-tabs {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+/* No logo or repository icon: the name alone. */
+.md-header__button.md-logo,
+.md-nav__button.md-logo,
+.md-source__icon {
+    display: none;
+}
+
+.md-header__title {
+    margin-left: 0.8rem;
+}
+
+.md-source__repository {
+    margin-left: 0;
 }
 
 .md-tabs__link {
-    font-weight: 500;
-    opacity: 0.8;
+    opacity: 1;
+    color: var(--md-default-fg-color--light);
 }
 
 .md-tabs__link--active,
 .md-tabs__link:hover {
-    opacity: 1;
-    color: var(--tg-amber);
+    color: var(--md-default-fg-color);
+}
+
+.md-tabs__item--active .md-tabs__link {
+    text-decoration: underline;
+    text-underline-offset: 0.5em;
+    text-decoration-thickness: 1px;
+}
+
+.md-search__form {
+    background-color: var(--md-default-bg-color);
+    border: 1px solid var(--tg-rule);
+    box-shadow: none;
 }
 
 .md-nav__link--active {
@@ -72,171 +140,204 @@
 
 /* ---- Typography --------------------------------------------------------------------------- */
 
+.md-typeset {
+    font-size: 0.78rem;
+    line-height: 1.65;
+}
+
 .md-typeset h1 {
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-weight: 600;
+    letter-spacing: -0.01em;
     color: var(--md-default-fg-color);
+    margin-bottom: 0.8em;
 }
 
 .md-typeset h2 {
-    font-weight: 650;
-    letter-spacing: -0.01em;
-    margin-top: 2em;
+    font-weight: 600;
+    margin-top: 2.2em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid var(--tg-rule);
 }
 
 .md-typeset h3 {
     font-weight: 600;
 }
 
-/* A section's opening paragraph reads as an introduction. */
 .md-typeset h1 + p {
-    font-size: 1.05em;
     color: var(--md-default-fg-color--light);
-    max-width: 48em;
+    max-width: 46em;
 }
 
 .md-typeset a {
+    text-decoration: underline;
+    text-decoration-color: var(--tg-rule-strong);
+    text-decoration-thickness: 1px;
     text-underline-offset: 0.2em;
 }
 
+.md-typeset a:hover {
+    color: var(--md-default-fg-color);
+    text-decoration-color: currentColor;
+}
+
+.md-typeset .headerlink,
+.md-typeset .md-button,
+.md-typeset .doc-heading a {
+    text-decoration: none;
+}
+
+.md-typeset code {
+    border-radius: 2px;
+}
+
+.md-typeset pre > code {
+    border-radius: 2px;
+    border: 1px solid var(--tg-rule);
+}
+
 .md-typeset table:not([class]) {
-    border-radius: var(--tg-radius);
-    border: 1px solid var(--tg-border);
+    border: 1px solid var(--tg-rule);
+    border-radius: 2px;
     box-shadow: none;
-    overflow: hidden;
+    font-size: 0.72rem;
 }
 
 .md-typeset table:not([class]) th {
     background: var(--tg-surface);
+    font-weight: 600;
 }
 
-.md-typeset pre > code {
-    border-radius: var(--tg-radius);
+.md-typeset table:not([class]) td {
+    border-top-color: var(--tg-rule);
 }
 
-.md-typeset .tabbed-set {
-    border-radius: var(--tg-radius);
+.md-typeset .tabbed-labels > label {
+    font-weight: 500;
+}
+
+.md-typeset .tabbed-set > input:checked + label,
+.md-typeset .tabbed-labels > label:hover {
+    color: var(--md-default-fg-color);
+}
+
+.md-typeset .tabbed-labels::before {
+    background: var(--md-default-fg-color);
+    height: 1px;
 }
 
 /* ---- Buttons ------------------------------------------------------------------------------ */
 
 .md-typeset .md-button,
 .tg-hero .md-button {
-    border-radius: 999px;
-    padding: 0.55em 1.5em;
-    font-weight: 600;
-    transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+    border-radius: 2px;
+    border: 1px solid var(--tg-rule-strong);
+    color: var(--md-default-fg-color);
+    background: transparent;
+    padding: 0.45em 1.2em;
+    font-weight: 500;
+    transition: border-color 0.12s ease, background-color 0.12s ease;
 }
 
 .md-typeset .md-button:hover,
+.md-typeset .md-button:focus,
 .tg-hero .md-button:hover {
-    transform: translateY(-1px);
+    border-color: var(--md-default-fg-color);
+    background-color: var(--md-accent-fg-color--transparent);
+    color: var(--md-default-fg-color);
 }
 
 .md-typeset .md-button--primary,
 .tg-hero .md-button--primary {
-    background-color: var(--tg-amber);
-    border-color: var(--tg-amber);
-    color: var(--tg-slate-900);
+    background-color: var(--md-default-fg-color);
+    border-color: var(--md-default-fg-color);
+    color: var(--md-default-bg-color);
 }
 
 .md-typeset .md-button--primary:hover,
 .tg-hero .md-button--primary:hover {
-    background-color: #f2b85a;
-    border-color: #f2b85a;
-    color: var(--tg-slate-900);
+    background-color: var(--md-default-fg-color--light);
+    border-color: var(--md-default-fg-color--light);
+    color: var(--md-default-bg-color);
 }
 
-/* ---- Cards -------------------------------------------------------------------------------- */
+/* ---- Cards: a title, a line of text and a link, in a hairline frame ------------------------ */
 
 .md-typeset .grid.cards > ul > li,
 .md-typeset .grid > .card {
-    border: 1px solid var(--tg-border);
-    border-radius: var(--tg-radius);
-    background: var(--tg-surface);
-    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+    border: 1px solid var(--tg-rule);
+    border-radius: 2px;
+    background: transparent;
+    box-shadow: none;
+    transition: border-color 0.12s ease;
 }
 
 .md-typeset .grid.cards > ul > li:hover,
 .md-typeset .grid > .card:hover {
-    border-color: var(--md-accent-fg-color);
-    box-shadow: var(--tg-shadow);
-    transform: translateY(-2px);
-}
-
-.md-typeset .grid.cards .twemoji.lg {
-    color: var(--md-accent-fg-color);
+    border-color: var(--tg-rule-strong);
+    box-shadow: none;
 }
 
 .md-typeset .grid.cards > ul > li > hr {
-    margin: 0.6em 0;
-    border-bottom-color: var(--tg-border);
+    margin: 0.5em 0;
+    border-bottom-color: var(--tg-rule);
 }
 
 .md-typeset .grid.cards strong {
-    font-weight: 650;
+    font-weight: 600;
 }
 
-/* ---- Home page hero ----------------------------------------------------------------------- */
+.md-typeset .grid.cards > ul > li > p:last-child a {
+    font-size: 0.7rem;
+}
+
+/* ---- Home page ---------------------------------------------------------------------------- */
 
 .tg-hero {
-    color: #e9edf2;
-    background:
-        radial-gradient(1200px 500px at 85% 20%, rgba(232, 163, 58, 0.18), transparent 60%),
-        linear-gradient(160deg, var(--tg-slate-900) 0%, var(--tg-slate-700) 100%);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid var(--tg-rule);
 }
 
 .tg-hero__inner {
     display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
     align-items: center;
     gap: 3rem;
-    padding: 3.5rem 0.8rem 3.5rem;
+    padding: 3rem 0.8rem;
 }
 
 .tg-hero__eyebrow {
-    margin: 0 0 0.6rem;
-    font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
+    margin: 0 0 0.8rem;
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--tg-amber);
+    color: var(--md-default-fg-color--lighter);
 }
 
 .tg-hero h1 {
-    margin: 0 0 1rem;
-    font-size: 2.3rem;
-    line-height: 1.15;
-    font-weight: 750;
-    letter-spacing: -0.03em;
-    color: #ffffff;
+    margin: 0 0 0.9rem;
+    font-size: 1.9rem;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--md-default-fg-color);
 }
 
 .tg-hero__lead {
-    margin: 0 0 1.8rem;
-    font-size: 0.95rem;
-    line-height: 1.6;
-    color: rgba(233, 237, 242, 0.8);
-    max-width: 34rem;
+    margin: 0 0 1.6rem;
+    font-size: 0.85rem;
+    line-height: 1.65;
+    color: var(--md-default-fg-color--light);
+    max-width: 33rem;
 }
 
 .tg-hero__actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.6rem;
+    gap: 0.5rem;
 }
 
 .tg-hero .md-button {
-    font-size: 0.75rem;
-    color: #e9edf2;
-    border: 1px solid rgba(233, 237, 242, 0.35);
     display: inline-block;
-}
-
-.tg-hero .md-button:hover {
-    color: #ffffff;
-    border-color: #ffffff;
+    font-size: 0.7rem;
 }
 
 .tg-hero__figure {
@@ -248,52 +349,66 @@
     width: 100%;
     aspect-ratio: 1;
     object-fit: cover;
-    border-radius: 18px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--tg-rule);
 }
 
 @media screen and (max-width: 59.9375em) {
     .tg-hero__inner {
         grid-template-columns: minmax(0, 1fr);
         gap: 2rem;
-        padding: 2.5rem 0.8rem;
+        padding: 2rem 0.8rem;
     }
 
     .tg-hero h1 {
-        font-size: 1.8rem;
+        font-size: 1.5rem;
     }
 
     .tg-hero__figure {
-        max-width: 22rem;
+        max-width: 20rem;
     }
 }
 
-/* The home page has no page title of its own: the hero carries it. */
-.tg-section {
-    margin-top: 0.5rem;
-}
-
 .tg-section > p:first-child {
-    font-size: 0.95rem;
-    max-width: 48em;
+    max-width: 46em;
 }
 
-.tg-highlights {
-    margin-top: 1.5rem;
+.md-typeset .grid.cards.tg-highlights {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-top: 1.4rem;
 }
 
-/* ---- Home page gallery -------------------------------------------------------------------- */
+@media screen and (max-width: 76.1875em) {
+    .md-typeset .grid.cards.tg-highlights {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media screen and (max-width: 37.5em) {
+    .md-typeset .grid.cards.tg-highlights {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.tg-nowrap {
+    white-space: nowrap;
+}
+
+/* ---- Home page gallery: plates with numbered figure captions ------------------------------ */
 
 .tg-gallery {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 1.6rem 1.2rem;
-    margin: 1.5rem 0 2rem;
+    margin: 1.2rem 0 2rem;
+    counter-reset: plate;
 }
 
 .md-typeset .tg-gallery figure {
-    margin: 0;
+    display: block;
+    width: auto;
     max-width: none;
+    margin: 0;
+    counter-increment: plate;
 }
 
 .tg-gallery__square {
@@ -311,32 +426,23 @@
 .md-typeset .tg-gallery img {
     display: block;
     width: 100%;
-    border-radius: var(--tg-radius);
-    border: 1px solid var(--tg-border);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border: 1px solid var(--tg-rule);
 }
 
-.tg-gallery figure:hover img {
-    transform: scale(1.015);
-    box-shadow: var(--tg-shadow);
-}
-
-.tg-gallery figcaption {
-    margin: 0.6em 0 0;
+.md-typeset .tg-gallery figcaption {
+    margin: 0.5em 0 0;
     max-width: none;
-    font-size: 0.68rem;
+    font-size: 0.66rem;
+    font-style: normal;
     line-height: 1.5;
     text-align: left;
     color: var(--md-default-fg-color--light);
 }
 
-.tg-gallery figcaption a {
+.md-typeset .tg-gallery figcaption::before {
+    content: "Figure " counter(plate) ". ";
     font-weight: 600;
-    white-space: nowrap;
-}
-
-.tg-gallery figcaption a::after {
-    content: " \2192";
+    color: var(--md-default-fg-color);
 }
 
 @media screen and (max-width: 59.9375em) {
@@ -356,12 +462,12 @@
 /* ---- API reference ------------------------------------------------------------------------ */
 
 .doc-object {
-    margin-bottom: 2.5em;
+    margin-bottom: 2em;
 }
 
 .md-typeset .doc-heading {
-    border-top: 1px solid var(--tg-border);
-    padding-top: 1em;
+    border-top: 1px solid var(--tg-rule);
+    padding-top: 0.9em;
 }
 
 .md-typeset .doc-heading code {
@@ -370,52 +476,24 @@
 }
 
 .md-typeset .doc-signature {
-    border-left: 3px solid var(--md-accent-fg-color);
+    border-left: 2px solid var(--tg-rule-strong);
 }
 
-.md-typeset .doc-symbol {
-    border-radius: 4px;
-    font-weight: 600;
+/* Kind labels (class, func, attr) as plain gray text. */
+.md-typeset .doc-symbol,
+.md-nav .doc-symbol {
+    color: var(--md-default-fg-color--lighter) !important;
+    background-color: transparent !important;
+    font-weight: 500;
 }
 
-.md-typeset .doc-contents table:not([class]) {
-    font-size: 0.72rem;
+.md-typeset .doc-label code {
+    color: var(--md-default-fg-color--lighter);
+    background: transparent;
 }
 
-/* ---- Footer ------------------------------------------------------------------------------- */
+/* ---- Layout ------------------------------------------------------------------------------- */
 
-.md-footer-meta {
-    background-color: var(--tg-slate-900);
-}
-
-/* Four highlights in one row on wide screens, two on narrower ones. */
-.md-typeset .grid.cards.tg-highlights {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-@media screen and (max-width: 76.1875em) {
-    .md-typeset .grid.cards.tg-highlights {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-}
-
-@media screen and (max-width: 37.5em) {
-    .md-typeset .grid.cards.tg-highlights {
-        grid-template-columns: minmax(0, 1fr);
-    }
-}
-
-.tg-nowrap {
-    white-space: nowrap;
-}
-
-/* Material shrinks figures to their image; gallery figures fill their cell instead. */
-.md-typeset .tg-gallery figure {
-    display: block;
-    width: auto;
-}
-
-/* A little more room for code and the API reference on wide screens. */
 .md-grid {
     max-width: 66rem;
 }
