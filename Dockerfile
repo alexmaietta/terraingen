@@ -1,6 +1,3 @@
-# Builds and tests TerrainGen and its Python bindings on the oldest supported Ubuntu, then provides
-# an image with the installed library, headers and CMake package, and the terraingen Python package,
-# for building against TerrainGen.
 ARG UBUNTU_VERSION=22.04
 
 FROM ubuntu:${UBUNTU_VERSION} AS build
