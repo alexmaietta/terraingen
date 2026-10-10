@@ -1,8 +1,0 @@
-synthterrain @ git+https://github.com/NeoGeographyToolkit/synthterrain.git@e10ba36e9aa5b923bc7e6746ef089859af9ccaf8
-matplotlib
-numpy
-opensimplex
-pandas
-rasterio
-scipy
-shapely
