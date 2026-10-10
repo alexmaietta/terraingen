@@ -9,7 +9,7 @@ target_link_libraries(
 
 # `terraingen gui`: the GUI (gui/) on Ernie's app when the build has Ernie, else a stub that says
 # how to add it.
-if(TERRAINGEN_BUILD_GUI)
+if(TERRAINGEN_GUI)
     add_subdirectory(gui)
     target_sources(terraingen_cli PRIVATE gui/run.cpp)
     target_link_libraries(terraingen_cli PRIVATE terraingen_gui)

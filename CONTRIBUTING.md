@@ -26,7 +26,8 @@ ctest --test-dir build-coverage -j 8
 ```
 
 The 3D GUI (`terraingen CONFIG --gui`) builds with Ernie, the renderer, from a local checkout:
-`-DTERRAINGEN_BUILD_GUI=ON -DTERRAINGEN_ERNIE_DIR=../ernie`.
+`-DTERRAINGEN_ERNIE_DIR=../ernie`. Without one, configuring warns and builds everything else, and
+`--gui` says how to add it; `-DTERRAINGEN_BUILD_GUI=OFF` leaves the GUI out without the warning.
 
 ## Pull requests
 

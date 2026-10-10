@@ -124,8 +124,7 @@ TEST(Cli, GuiRejectsBadArgumentsOrExplainsHowToAddTheGui) {
     if (!terraingen::cli::GuiAvailable()) {
         const Result result = Cli({"a.json", "--gui"});
         EXPECT_EQ(result.code, kExitUsage);
-        EXPECT_NE(result.err.find("-DTERRAINGEN_BUILD_GUI=ON"), std::string::npos);
-        EXPECT_NE(result.err.find("TERRAINGEN_ERNIE_DIR"), std::string::npos);
+        EXPECT_NE(result.err.find("-DTERRAINGEN_ERNIE_DIR="), std::string::npos);
     }
 }
 
