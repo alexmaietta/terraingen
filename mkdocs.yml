@@ -3,7 +3,7 @@ site_description: An open-source scientific terrain generation suite for planeta
 site_author: Alex Maietta
 site_url: https://alexmaietta.github.io/terraingen/
 repo_url: https://github.com/alexmaietta/terraingen
-repo_name: alexmaietta/terraingen
+repo_name: GitHub
 edit_uri: edit/main/docs/
 copyright: Copyright &copy; 2026 Alex Maietta &middot; BSD 3-Clause License
 docs_dir: docs

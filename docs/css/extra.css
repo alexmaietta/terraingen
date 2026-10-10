@@ -87,14 +87,73 @@
 
 /* ---- Header and navigation ---------------------------------------------------------------- */
 
-.md-header,
-.md-tabs {
+.md-header {
     box-shadow: none;
     border-bottom: 1px solid var(--tg-rule);
 }
 
-.md-header__title {
+/* One row: the name, the sections, then the palette toggle, search and repository. */
+.md-header__inner {
+    align-items: center;
+}
+
+[dir="ltr"] .md-header__title.tg-header__name,
+.md-header__title.tg-header__name {
+    flex-grow: 0;
+    flex-shrink: 0;
+    margin: 0 1.6rem 0 0.6rem;
+    font-size: 0.9rem;
     font-weight: 600;
+    color: var(--md-default-fg-color);
+    line-height: 2.4rem;
+}
+
+.tg-header__sections {
+    display: flex;
+    flex-grow: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.tg-header__sections .md-tabs__item {
+    height: auto;
+    padding: 0 0.6rem;
+}
+
+.tg-header__sections .md-tabs__link {
+    display: block;
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 2.4rem;
+    opacity: 1;
+    color: var(--md-default-fg-color--light);
+}
+
+.tg-header__sections .md-tabs__item--active .md-tabs__link,
+.tg-header__sections .md-tabs__link:hover {
+    color: var(--md-default-fg-color);
+}
+
+.tg-header__sections .md-tabs__item--active .md-tabs__link {
+    text-decoration: underline;
+    text-underline-offset: 0.45em;
+    text-decoration-thickness: 1px;
+}
+
+/* On narrow screens the drawer lists the sections. */
+@media screen and (max-width: 76.1875em) {
+    .tg-header__sections {
+        display: none;
+    }
+
+    [dir="ltr"] .md-header__title.tg-header__name,
+    .md-header__title.tg-header__name {
+        flex-grow: 1;
+    }
 }
 
 /* No logo or repository icon: the name alone. */
@@ -104,29 +163,8 @@
     display: none;
 }
 
-[dir="ltr"] .md-header__title {
-    margin-left: 0.6rem;
-}
-
 .md-source__repository {
     margin-left: 0;
-}
-
-.md-tabs__link {
-    opacity: 1;
-    font-size: 0.8rem;
-    color: var(--md-default-fg-color--light);
-}
-
-.md-tabs__link--active,
-.md-tabs__link:hover {
-    color: var(--md-default-fg-color);
-}
-
-.md-tabs__item--active .md-tabs__link {
-    text-decoration: underline;
-    text-underline-offset: 0.5em;
-    text-decoration-thickness: 1px;
 }
 
 .md-search__form {
@@ -488,4 +526,25 @@
 
 .md-grid {
     max-width: 66rem;
+}
+
+/* A compact search box in the header row, wider while in use. */
+@media screen and (min-width: 76.25em) {
+    .md-search__inner {
+        width: 9rem;
+        transition: width 0.15s ease;
+    }
+
+    [data-md-toggle="search"]:checked ~ .md-header .md-search__inner {
+        width: 23.4rem;
+    }
+
+    .md-header__source {
+        width: 4.6rem;
+        margin-left: 0.8rem;
+    }
+
+    .md-header__source .md-source__repository {
+        max-width: none;
+    }
 }

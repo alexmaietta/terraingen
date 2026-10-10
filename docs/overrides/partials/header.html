@@ -1,0 +1,45 @@
+{#-
+  The header as one row: the site name, the top-level sections, then the palette toggle, search
+  and the repository. Adapted from Material's partials/header.html; the sections replace the
+  separate row of tabs, and on narrow screens the navigation drawer lists them instead.
+-#}
+{% import "partials/tabs-item.html" as item with context %}
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="{{ lang.t('header') }}">
+    <label class="md-header__button md-icon" for="__drawer">
+      {% set icon = config.theme.icon.menu or "material/menu" %}
+      {% include ".icons/" ~ icon ~ ".svg" %}
+    </label>
+    <a href="{{ config.extra.homepage | d(nav.homepage.url, true) | url }}" class="md-header__title tg-header__name" aria-label="{{ config.site_name }}">
+      {{ config.site_name }}
+    </a>
+    <ul class="md-tabs__list tg-header__sections" aria-label="{{ lang.t('tabs') }}">
+      {% for nav_item in nav.items %}
+        {{ item.render(nav_item) }}
+      {% endfor %}
+    </ul>
+    {% if config.theme.palette %}
+      {% if not config.theme.palette is mapping %}
+        {% include "partials/palette.html" %}
+      {% endif %}
+    {% endif %}
+    {% if not config.theme.palette is mapping %}
+      {% include "partials/javascripts/palette.html" %}
+    {% endif %}
+    {% if "material/search" in config.plugins %}
+      {% set search = config.plugins["material/search"] | attr("config") %}
+      {% if search.enabled %}
+        <label class="md-header__button md-icon" for="__search">
+          {% set icon = config.theme.icon.search or "material/magnify" %}
+          {% include ".icons/" ~ icon ~ ".svg" %}
+        </label>
+        {% include "partials/search.html" %}
+      {% endif %}
+    {% endif %}
+    {% if config.repo_url %}
+      <div class="md-header__source">
+        {% include "partials/source.html" %}
+      </div>
+    {% endif %}
+  </nav>
+</header>
