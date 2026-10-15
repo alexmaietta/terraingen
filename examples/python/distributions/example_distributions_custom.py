@@ -5,7 +5,7 @@ craters from it like any built-in distribution. This one is a power law that rol
 knee diameter, as crater counts do where small craters are erased faster than they form. The
 example checks that the generated counts match the expected ones and writes the terrain.
 
-    python example_distributions_custom.py [OUTPUT_DIR]
+    python example_distributions_custom.py [--viewer window|null] [--output-dir DIR] [--test]
 """
 
 import pathlib
@@ -16,7 +16,8 @@ import numpy as np
 import terraingen
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-from _common import hillshade, output_dir, write_png
+import _common
+from _common import hillshade, write_png
 
 
 class RolledOverPowerLaw(terraingen.SizeFrequencyDistribution):
@@ -33,28 +34,39 @@ class RolledOverPowerLaw(terraingen.SizeFrequencyDistribution):
         return at_knee * (diameter / self.knee) ** -self.shallow
 
 
-def main():
-    out = output_dir()
-    density = RolledOverPowerLaw()
-    ages = terraingen.UniformAges(3.0)
-    models = terraingen.CraterModels(
-        density, ages, terraingen.FreshnessDegradation(ages), terraingen.FassettThomsonProfile()
-    )
-    generation = terraingen.CraterGenerationOptions(min_diameter=6.0, max_diameter=300.0)
-    craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=5, generation=generation))
-    fbm = terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=800.0, amplitude=40.0))
-    terrain = terraingen.Terrain(terraingen.FlatSource(513, 513, 2.0), [terraingen.NoiseRelief([fbm]), craters])
-    evaluated = terraingen.evaluate(terrain)
+class Example(_common.Example):
+    def generate(self):
+        self.density = RolledOverPowerLaw()
+        ages = terraingen.UniformAges(3.0)
+        models = terraingen.CraterModels(self.density, ages, terraingen.FreshnessDegradation(ages), terraingen.FassettThomsonProfile())
+        generation = terraingen.CraterGenerationOptions(min_diameter=6.0, max_diameter=300.0)
+        craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=5, generation=generation))
+        fbm = terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=800.0, amplitude=40.0))
+        terrain = terraingen.Terrain(terraingen.FlatSource(513, 513, 2.0), [terraingen.NoiseRelief([fbm]), craters])
+        self.evaluated = terraingen.evaluate(terrain)
 
-    area = (513 * 2.0) ** 2
-    diameters = evaluated.craters["diameter"]
-    print(f"{'D (m)':>6s} {'expected':>9s} {'generated':>9s}")
-    for d in (6, 12, 20, 40, 80):
-        expected = density.expected_count(area, d, 300.0)
-        print(f"{d:6d} {expected:9.1f} {np.count_nonzero(diameters >= d):9d}")
-    terraingen.write_geotiff(out / "example_distributions_custom.tif", evaluated.heights)
-    print("wrote", write_png(out / "example_distributions_custom.png", hillshade(evaluated.heights.values, 2.0)))
+        self.area = (513 * 2.0) ** 2
+        diameters = self.evaluated.craters["diameter"]
+        print(f"{'D (m)':>6s} {'expected':>9s} {'generated':>9s}")
+        for d in (6, 12, 20, 40, 80):
+            expected = self.density.expected_count(self.area, d, 300.0)
+            print(f"{d:6d} {expected:9.1f} {np.count_nonzero(diameters >= d):9d}")
+        self.show("heights", self.evaluated.heights)
+
+    def save(self, out):
+        terraingen.write_geotiff(out / "example_distributions_custom.tif", self.evaluated.heights)
+        print("wrote", write_png(out / "example_distributions_custom.png", hillshade(self.evaluated.heights.values, 2.0)))
+
+    def test_final(self):
+        diameters = self.evaluated.craters["diameter"]
+        assert self.evaluated.heights.shape == (513, 513)
+        assert diameters.min() >= 6.0 and diameters.max() <= 300.0, "every crater is 6 to 300 m across"
+        expected = self.density.expected_count(self.area, 6.0, 300.0)
+        assert 0.7 * expected < len(diameters) < 1.3 * expected, "the craters drawn number within 30% of those expected"
+        counts = [np.count_nonzero(diameters >= d) for d in (6, 12, 40)]
+        assert counts[0] > counts[1] > counts[2], "fewer craters at larger sizes"
+        assert np.all(np.isfinite(self.evaluated.heights.values)), "the heights are finite"
 
 
 if __name__ == "__main__":
-    main()
+    _common.main(Example)

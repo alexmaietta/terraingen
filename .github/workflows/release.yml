@@ -1,9 +1,9 @@
 name: Release
 
-# On a version tag (vX.Y.Z, matching VERSION): the CLI, library, headers and CMake package for
-# Linux, macOS and Windows as archives, Debian packages (terraingen, terraingen-dev) built on the
-# oldest supported Ubuntu, and a GitHub release with them. Wheels, the Docker image and the docs
-# publish from their own workflows on the same tag.
+# On a version tag (vX.Y.Z, matching TERRAINGEN_FULL_VERSION in CMakeLists.txt): the CLI, library,
+# headers and CMake package for Linux, macOS and Windows as archives, Debian packages (terraingen,
+# terraingen-dev) built on the oldest supported Ubuntu, and a GitHub release with them. Wheels, the
+# Docker image and the docs publish from their own workflows on the same tag.
 
 on:
   push:
@@ -23,9 +23,9 @@ jobs:
       - id: version
         shell: bash
         run: |
-          version="$(head -n 1 VERSION)"
+          version="$(sed -nE 's/^set\(TERRAINGEN_FULL_VERSION "([^"]+)"\)$/\1/p' CMakeLists.txt)"
           if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" != "v${version}" ]]; then
-            echo "::error::Tag ${GITHUB_REF_NAME} does not match VERSION ${version}"
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match version ${version}"
             exit 1
           fi
           echo "version=${version}" >> "${GITHUB_OUTPUT}"

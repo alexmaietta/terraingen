@@ -1,6 +1,7 @@
 #pragma once
 
 #include "terraingen/app/gui/config_editor.h"
+#include "terraingen/raster/raster.h"
 
 #include <ernie/app/viewer.h>
 #include <ernie/scene/scene.h>
@@ -18,6 +19,7 @@ struct GuiAppOptions {
     std::filesystem::path open;  ///< Configuration (.json) or heights (.tif, .tiff); may be empty.
     unsigned threads = 0;        ///< Generation threads; 0 for every hardware thread.
     bool hidden = false;         ///< Render without showing the window, for tests.
+    std::string title = "TerrainGen";  ///< The window title.
 };
 
 /// TerrainGen's GUI (`terraingen --gui`): Ernie's viewer (`ernie::app::Viewer`) on a scene of the
@@ -54,6 +56,16 @@ class GuiApp {
     /// Opens a configuration (.json), putting it in the editor and generating it, or heights
     /// (.tif, .tiff), showing them at once. Errors go to the viewer's log and the panel's status.
     void Open(const std::filesystem::path& path);
+
+    /// Shows `heights`, with `albedo` when given (on the same grid), as the scene's terrain,
+    /// reporting `status`, and frames them when `frame` or when nothing was shown before, as for
+    /// terrains built in code (the examples' browser). Errors go to the log and the status.
+    /// @return whether the terrain was shown.
+    bool ShowHeights(const Raster<float>& heights, const Raster<float>* albedo, bool geographic,
+                     const std::string& status, bool frame = false);
+
+    /// Adds `text` to the viewer's log and makes it the status line.
+    void Report(ernie::app::LogLevel level, std::string text);
 
     /// Generates the editor's configuration in the background; relative paths in it resolve
     /// against the folder of the configuration file last opened or saved, else the working

@@ -7,7 +7,7 @@ when their sizes differ by at most `diameter_ratio`; off by default), and `max_c
 that many.
 Prints counts and nearest-neighbour distances and writes a montage of hillshades.
 
-    python example_craters_positioning.py [OUTPUT_DIR]
+    python example_craters_positioning.py [--viewer window|null] [--output-dir DIR] [--test]
 """
 
 import pathlib
@@ -18,7 +18,8 @@ import numpy as np
 import terraingen
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-from _common import hillshade, montage, output_dir, write_png
+import _common
+from _common import hillshade, montage, write_png
 
 REGION = (-256.0, -256.0, 256.0, 256.0)
 
@@ -29,29 +30,45 @@ def nearest_neighbour(x, y):
     return d.min(axis=1)
 
 
-def main():
-    out = output_dir()
-    surface = terraingen.lunar_surface(3.5)
-    models = terraingen.CraterModels(
-        surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages), terraingen.FassettThomsonProfile()
-    )
-    settings = {
-        "no spacing": terraingen.CraterGenerationOptions(spacing=terraingen.CraterSpacing(separation=0.0)),
-        "some spacing": terraingen.CraterGenerationOptions(spacing=terraingen.CraterSpacing(diameter_ratio=1.5, separation=0.5)),
-        "wide spacing": terraingen.CraterGenerationOptions(spacing=terraingen.CraterSpacing(diameter_ratio=3.0, separation=1.5)),
-        "at most 100": terraingen.CraterGenerationOptions(max_craters=100),
-    }
-    shades = []
-    for name, generation in settings.items():
-        generation.min_diameter, generation.max_diameter = 6.0, 120.0
-        layer = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=8, generation=generation))
-        table = layer.craters(REGION)
-        gaps = nearest_neighbour(table["x"], table["y"]) / table["diameter"]
-        print(f"{name:16s} {len(table['x']):5d} craters, median nearest neighbour {np.median(gaps):.2f} diameters")
-        heights = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(513, 513, 1.0), [layer])).heights.values
-        shades.append(hillshade(heights, 1.0))
-    print("wrote", write_png(out / "example_craters_positioning.png", montage(shades, columns=4)))
+class Example(_common.Example):
+    def generate(self):
+        surface = terraingen.lunar_surface(3.5)
+        models = terraingen.CraterModels(
+            surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages), terraingen.FassettThomsonProfile()
+        )
+        settings = {
+            "no spacing": terraingen.CraterGenerationOptions(spacing=terraingen.CraterSpacing(separation=0.0)),
+            "some spacing": terraingen.CraterGenerationOptions(spacing=terraingen.CraterSpacing(diameter_ratio=1.5, separation=0.5)),
+            "wide spacing": terraingen.CraterGenerationOptions(spacing=terraingen.CraterSpacing(diameter_ratio=3.0, separation=1.5)),
+            "at most 100": terraingen.CraterGenerationOptions(max_craters=100),
+        }
+        self.counts = {}
+        self.median_gaps = {}
+        self.heights = {}
+        for name, generation in settings.items():
+            generation.min_diameter, generation.max_diameter = 6.0, 120.0
+            layer = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=8, generation=generation))
+            table = layer.craters(REGION)
+            gaps = nearest_neighbour(table["x"], table["y"]) / table["diameter"]
+            self.counts[name] = len(table["x"])
+            self.median_gaps[name] = np.median(gaps)
+            print(f"{name:16s} {len(table['x']):5d} craters, median nearest neighbour {np.median(gaps):.2f} diameters")
+            evaluated = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(513, 513, 1.0), [layer]))
+            self.heights[name] = evaluated.heights.values
+            self.show(name, evaluated.heights)
+
+    def save(self, out):
+        shades = [hillshade(heights, 1.0) for heights in self.heights.values()]
+        print("wrote", write_png(out / "example_craters_positioning.png", montage(shades, columns=4)))
+
+    def test_final(self):
+        counts, gaps = self.counts, self.median_gaps
+        assert all(heights.shape == (513, 513) and np.all(np.isfinite(heights)) for heights in self.heights.values()), "every terrain is 513 x 513 and finite"
+        assert counts["no spacing"] > 100, "more than 100 craters without spacing"
+        assert counts["no spacing"] >= counts["some spacing"] >= counts["wide spacing"], "wider spacing keeps fewer craters"
+        assert gaps["wide spacing"] > gaps["no spacing"], "wider spacing moves neighbours apart"
+        assert counts["at most 100"] <= 100, "max_craters caps the count"
 
 
 if __name__ == "__main__":
-    main()
+    _common.main(Example)

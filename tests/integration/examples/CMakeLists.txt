@@ -1,5 +1,7 @@
-# Runs every example: each config through the terraingen command, each C++ example, and each
-# Python example when the bindings and NumPy are available. Outputs go under the build tree.
+# Runs every example: each config through the terraingen command, each C++ example and each
+# Python example (when the bindings and NumPy are available) with its checks (`--test`), and
+# `terraingen-examples` listing them and, with the GUI, opening one hidden. Outputs go under the
+# build tree.
 set(examples_dir "${PROJECT_SOURCE_DIR}/examples")
 set(output_dir "${CMAKE_CURRENT_BINARY_DIR}/output")
 
@@ -16,15 +18,19 @@ endif()
 file(GLOB_RECURSE cpp_examples CONFIGURE_DEPENDS "${examples_dir}/cpp/example_*.cpp")
 foreach(source IN LISTS cpp_examples)
     get_filename_component(example "${source}" NAME_WE)
-    if(NOT example STREQUAL "example_config_load")
-        add_test(NAME examples.cpp.${example} COMMAND ${example} "${output_dir}/cpp")
-        set_tests_properties(examples.cpp.${example} PROPERTIES LABELS "integration;examples")
-    endif()
+    add_test(NAME examples.cpp.${example} COMMAND ${example} --test --output-dir
+                                                  "${output_dir}/cpp")
+    set_tests_properties(examples.cpp.${example} PROPERTIES LABELS "integration;examples")
 endforeach()
-add_test(NAME examples.cpp.example_config_load
-         COMMAND example_config_load "${examples_dir}/config/craters/example_craters_simple.json"
-                 "${output_dir}/cpp")
-set_tests_properties(examples.cpp.example_config_load PROPERTIES LABELS "integration;examples")
+
+add_test(NAME examples.browser.list COMMAND terraingen_examples --list)
+set_tests_properties(examples.browser.list PROPERTIES LABELS "integration;examples"
+                                                      PASS_REGULAR_EXPRESSION "craters_simple")
+if(TERRAINGEN_GUI)
+    add_test(NAME examples.browser.window COMMAND terraingen_examples craters_simple --headless
+                                                  --test)
+    set_tests_properties(examples.browser.window PROPERTIES LABELS "integration;examples;gpu")
+endif()
 
 if(TARGET _terraingen)
     execute_process(
@@ -35,12 +41,18 @@ if(TARGET _terraingen)
         file(GLOB_RECURSE scripts CONFIGURE_DEPENDS "${examples_dir}/python/example_*.py")
         foreach(script IN LISTS scripts)
             get_filename_component(name "${script}" NAME_WE)
-            add_test(NAME examples.python.${name} COMMAND "${Python_EXECUTABLE}" "${script}"
-                                                          "${output_dir}/python")
+            add_test(NAME examples.python.${name}
+                     COMMAND "${Python_EXECUTABLE}" "${script}" --viewer null --test --output-dir
+                             "${output_dir}/python")
             set_tests_properties(
                 examples.python.${name}
                 PROPERTIES ENVIRONMENT "PYTHONPATH=${PROJECT_BINARY_DIR}/python" LABELS
                            "integration;examples;python")
         endforeach()
+        add_test(NAME examples.python.list COMMAND "${Python_EXECUTABLE}" "${examples_dir}/python")
+        set_tests_properties(
+            examples.python.list
+            PROPERTIES ENVIRONMENT "PYTHONPATH=${PROJECT_BINARY_DIR}/python" LABELS
+                       "integration;examples;python" PASS_REGULAR_EXPRESSION "craters_simple")
     endif()
 endif()

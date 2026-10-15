@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
 
-# VERSION holds the release being worked towards, such as 0.1.0, or for a development build a PEP 440
-# pre-release of it, such as 0.1.0.dev42, which only the Python package carries.
-file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" TERRAINGEN_FULL_VERSION LIMIT_COUNT 1)
+# The release being worked towards, such as 0.1.0, or for a development build a PEP 440 pre-release of
+# it, such as 0.1.0.dev42, which only the Python package carries.
+set(TERRAINGEN_FULL_VERSION "0.1.0")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TERRAINGEN_VERSION "${TERRAINGEN_FULL_VERSION}")
 
 project(
@@ -96,14 +96,14 @@ if(TERRAINGEN_BUILD_TESTS)
     enable_testing()
     include("${PROJECT_SOURCE_DIR}/cmake/TerrainGenTesting.cmake")
 endif()
+if(TERRAINGEN_BUILD_EXAMPLES)
+    add_subdirectory(examples/cpp)
+endif()
 if(TERRAINGEN_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
 if(TERRAINGEN_BUILD_BENCHMARKS)
     add_subdirectory(tests/benchmark)
-endif()
-if(TERRAINGEN_BUILD_EXAMPLES)
-    add_subdirectory(examples/cpp)
 endif()
 
 if(TERRAINGEN_INSTALL)

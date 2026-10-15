@@ -3,32 +3,46 @@
 Evaluates it over the source's grid, queries single points as a physics engine would, and writes
 a GeoTIFF and a hillshade. The same terrain as examples/config/terrain/example_terrain_fbm.json.
 
-    python example_terrain_fbm.py [OUTPUT_DIR]
+    python example_terrain_fbm.py [--viewer window|null] [--output-dir DIR] [--test]
 """
 
 import pathlib
 import sys
 
+import numpy as np
+
 import terraingen
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-from _common import hillshade, output_dir, write_png
+import _common
+from _common import hillshade, write_png
 
 
-def main():
-    out = output_dir()
-    fbm = terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=800.0, amplitude=40.0, octaves=8))
-    terrain = terraingen.Terrain(terraingen.FlatSource(513, 513, 2.0), [terraingen.NoiseRelief([fbm])])
+class Example(_common.Example):
+    def generate(self):
+        fbm = terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=800.0, amplitude=40.0, octaves=8))
+        terrain = terraingen.Terrain(terraingen.FlatSource(513, 513, 2.0), [terraingen.NoiseRelief([fbm])])
 
-    evaluated = terraingen.evaluate(terrain)
-    heights = evaluated.heights.values
-    print(f"heights from {heights.min():.2f} to {heights.max():.2f} m")
-    for x, y in ((0.0, 0.0), (120.5, -310.25)):
-        print(f"height at ({x}, {y}): {terraingen.evaluate_at(terrain, x, y, 2.0):.3f} m")
+        self.evaluated = terraingen.evaluate(terrain)
+        heights = self.evaluated.heights.values
+        print(f"heights from {heights.min():.2f} to {heights.max():.2f} m")
+        self.points = []
+        for x, y in ((0.0, 0.0), (120.5, -310.25)):
+            self.points.append(terraingen.evaluate_at(terrain, x, y, 2.0))
+            print(f"height at ({x}, {y}): {self.points[-1]:.3f} m")
+        self.show("heights", self.evaluated.heights)
 
-    terraingen.write_geotiff(out / "example_terrain_fbm.tif", evaluated.heights)
-    print("wrote", write_png(out / "example_terrain_fbm.png", hillshade(heights, 2.0, exaggeration=3.0)))
+    def save(self, out):
+        terraingen.write_geotiff(out / "example_terrain_fbm.tif", self.evaluated.heights)
+        print("wrote", write_png(out / "example_terrain_fbm.png", hillshade(self.evaluated.heights.values, 2.0, exaggeration=3.0)))
+
+    def test_final(self):
+        heights = self.evaluated.heights.values
+        assert heights.shape == (513, 513), "the heights are 513 x 513"
+        assert np.all(np.isfinite(heights)), "every height is finite"
+        assert 10.0 < heights.max() - heights.min() < 400.0, "the relief is tens of metres, as a 40 m amplitude gives"
+        assert all(np.isfinite(h) and heights.min() - 1.0 <= h <= heights.max() + 1.0 for h in self.points), "the point queries lie within the grid's height range"
 
 
 if __name__ == "__main__":
-    main()
+    _common.main(Example)

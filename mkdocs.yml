@@ -5,7 +5,6 @@ site_url: https://alexmaietta.github.io/terraingen/
 repo_url: https://github.com/alexmaietta/terraingen
 repo_name: GitHub
 edit_uri: edit/main/docs/
-copyright: Copyright &copy; 2026 Alex Maietta &middot; BSD 3-Clause License
 docs_dir: docs
 site_dir: site
 strict: true
@@ -13,7 +12,6 @@ exclude_docs: |
   Makefile
   README.md
   requirements.txt
-  generate_python_api.py
   overrides/
 
 theme:
@@ -94,83 +92,12 @@ nav:
       - Quickstart: getting-started/quickstart.md
       - Command line: getting-started/command-line.md
       - GUI: getting-started/gui.md
-  - Concepts:
-      - concepts/index.md
-      - Terrains, sources, layers and filters: concepts/terrain.md
-      - Configuration files: concepts/configs.md
-      - Surfaces, bodies and coordinates: concepts/surfaces.md
-      - Tiles and levels of detail: concepts/tiles.md
-      - Seeds and reproducibility: concepts/reproducibility.md
-      - Size-frequency distributions: concepts/distributions.md
-      - Crater populations and ages: concepts/craters.md
-      - Crater profiles and degradation: concepts/crater-profiles.md
-      - Boulders and boulder models: concepts/boulders.md
-      - Noise and synthetic relief: concepts/noise.md
-      - Albedo: concepts/albedo.md
-      - Rasters and GeoTIFF: concepts/rasters.md
-      - Outputs: concepts/outputs.md
-      - GPU backends: concepts/gpu.md
-      - Logging: concepts/logging.md
-  - Extending TerrainGen:
-      - extending/index.md
-      - Terrain:
-          - Custom sources: extending/custom-sources.md
-          - Custom layers: extending/custom-layers.md
-          - Custom filters: extending/custom-filters.md
-      - Craters:
-          - Custom size-frequency distributions: extending/custom-distributions.md
-          - Custom crater age models: extending/custom-age-models.md
-          - Custom crater profiles: extending/custom-crater-profiles.md
-          - Custom degradation models: extending/custom-degradation.md
-      - Albedo:
-          - Custom albedo layers: extending/custom-albedo.md
-      - Python:
-          - Writing models in Python: extending/python.md
-  - Guides:
-      - guides/index.md
-      - Landing site presets: guides/landing-sites.md
-      - Adding detail to a measured DEM: guides/enhancing-dems.md
-      - Whole planets and globes: guides/planets.md
-      - Using TerrainGen in simulators: guides/simulators.md
-  - Validation:
-      - validation/index.md
-      - Crater size-frequency distributions: validation/crater-distributions.md
-      - Crater morphometry: validation/crater-morphometry.md
-      - Crater degradation: validation/crater-degradation.md
-      - Boulder abundances: validation/boulders.md
-      - Slopes and roughness: validation/slopes-and-roughness.md
-      - Albedo: validation/albedo.md
-      - Comparison with other tools: validation/other-tools.md
-  - API reference:
-      - api/index.md
-      - Python:
-          - api/python/index.md
-          - Configs and the pipeline: api/python/configs-and-the-pipeline.md
-          - Terrains and evaluation: api/python/terrains-and-evaluation.md
-          - Surfaces and cells: api/python/surfaces-and-cells.md
-          - Sources: api/python/sources.md
-          - Synthetic terrain and noise: api/python/synthetic-terrain-and-noise.md
-          - Layers: api/python/layers.md
-          - Crater size-frequency distributions: api/python/crater-size-frequency-distributions.md
-          - Crater ages, degradation and profiles: api/python/crater-ages-degradation-and-profiles.md
-          - Craters: api/python/craters.md
-          - Boulders and boulder models: api/python/boulders-and-boulder-models.md
-          - Filters: api/python/filters.md
-          - Albedo: api/python/albedo.md
-          - Tiles and whole bodies: api/python/tiles-and-whole-bodies.md
-          - Meshes: api/python/meshes.md
-          - Rasters and GeoTIFF: api/python/rasters-and-geotiff.md
-          - Hashing and random numbers: api/python/hashing-and-random-numbers.md
-          - Backends: api/python/backends.md
-          - Validation: api/python/validation.md
-          - Logging and version: api/python/logging-and-version.md
-      - C++:
-          - api/cpp/index.md
-          - Classes: cpp/annotated.md
-          - Class hierarchy: cpp/hierarchy.md
-          - Functions: cpp/namespace_member_functions.md
-          - Namespace terraingen: cpp/namespaceterraingen.md
-          - Files: cpp/files.md
+  - Concepts: concepts/index.md
+  - Extending TerrainGen: extending/index.md
+  - Guides: guides/index.md
+  - Validation: validation/index.md
+  - Python API: api/python.md
+  - C++ API: api/cpp.md
 
 plugins:
   - search

@@ -6,11 +6,14 @@
 /// `SizeFrequencyDistribution` (a power law that rolls over below a knee), draws craters from it
 /// and compares the counts generated with those expected.
 ///
-///     example_distributions_csfd [OUTPUT_DIR]
+///     example_distributions_csfd [--output-dir DIR] [--test]
+///     terraingen-examples distributions_csfd
 
+#include "common/example.h"
 #include "terraingen/terraingen.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
@@ -48,17 +51,25 @@ double PerSquareKilometre(const terraingen::SizeFrequencyDistribution& sfd, doub
     return range.Contains(diameter) ? 1e6 * sfd.Cumulative(diameter) : std::nan("");
 }
 
-}  // namespace
+/// One line of the printed tables, formatted as by printf.
+template <typename... Args> std::string Format(const char* format, Args... args) {
+    std::array<char, 256> buffer{};
+    std::snprintf(buffer.data(), buffer.size(), format, args...);
+    return buffer.data();
+}
 
-int main(int argc, char** argv) {
-    const std::filesystem::path output = argc > 1 ? argv[1] : "output";
-    std::filesystem::create_directories(output);
+constexpr double kDMin = 6.0;
+constexpr double kDMax = 300.0;
+constexpr double kArea = 1026.0 * 1026.0;
 
-    const auto production =
-        std::make_shared<terraingen::SplicedSfd>(terraingen::ExtendedNeukumProductionFunction());
-    const std::vector<
-        std::pair<std::string, std::shared_ptr<const terraingen::SizeFrequencyDistribution>>>
-        distributions = {
+class DistributionsCsfd : public terraingen::examples::Example {
+  public:
+    using Example::Example;
+
+    void Generate() override {
+        const auto production = std::make_shared<terraingen::SplicedSfd>(
+            terraingen::ExtendedNeukumProductionFunction());
+        distributions_ = {
             {"production 0.1 Gyr",
              std::make_shared<terraingen::ProductionSurface>(production, 0.1)},
             {"production 3.8 Gyr",
@@ -73,33 +84,77 @@ int main(int argc, char** argv) {
                  terraingen::MooreDistribution(terraingen::MooreTerrain::RoughMare))},
             {"Mars surface 3 Gyr", terraingen::MarsSurface(3.0).density},
         };
-    std::printf("N(>= D) per km^2  %12s %12s %12s\n", "10 m", "100 m", "1000 m");
-    for (const auto& [name, sfd] : distributions) {
-        std::printf("%-22s %12.4g %12.4g %12.4g\n", name.c_str(), PerSquareKilometre(*sfd, 10.0),
-                    PerSquareKilometre(*sfd, 100.0), PerSquareKilometre(*sfd, 1000.0));
+        Out() << Format("N(>= D) per km^2  %12s %12s %12s\n", "10 m", "100 m", "1000 m");
+        for (const auto& [name, sfd] : distributions_) {
+            Out() << Format("%-22s %12.4g %12.4g %12.4g\n", name.c_str(),
+                            PerSquareKilometre(*sfd, 10.0), PerSquareKilometre(*sfd, 100.0),
+                            PerSquareKilometre(*sfd, 1000.0));
+        }
+
+        custom_ = std::make_shared<RolledOverPowerLaw>(0.05, 2.5, 1.2, 20.0);
+        const auto ages = std::make_shared<terraingen::UniformAges>(3.0);
+        terraingen::CraterLayerOptions options;
+        options.seed = 5;
+        options.generation.dMin = kDMin;
+        options.generation.dMax = kDMax;
+        const terraingen::CraterLayer craters(
+            {custom_, ages,
+             std::make_shared<terraingen::FreshnessDegradation>(
+                 ages, terraingen::LunarFreshCraterMorphometry),
+             std::make_shared<terraingen::FassettThomsonProfile>()},
+            options);
+        list_ = craters.Craters({-513.0, -513.0, 513.0, 513.0});
+        Out() << "\ncustom distribution  D (m)  expected  generated\n";
+        for (const double d : {6.0, 12.0, 20.0, 40.0, 80.0}) {
+            Out() << Format("%26.0f %9.1f %10ld\n", d, custom_->ExpectedCount(kArea, d, kDMax),
+                            static_cast<long>(CountAtLeast(d)));
+        }
     }
 
-    const auto custom = std::make_shared<RolledOverPowerLaw>(0.05, 2.5, 1.2, 20.0);
-    const auto ages = std::make_shared<terraingen::UniformAges>(3.0);
-    terraingen::CraterLayerOptions options;
-    options.seed = 5;
-    options.generation.dMin = 6.0;
-    options.generation.dMax = 300.0;
-    const terraingen::CraterLayer craters({custom, ages,
-                                           std::make_shared<terraingen::FreshnessDegradation>(
-                                               ages, terraingen::LunarFreshCraterMorphometry),
-                                           std::make_shared<terraingen::FassettThomsonProfile>()},
-                                          options);
-    const terraingen::CraterList list = craters.Craters({-513.0, -513.0, 513.0, 513.0});
-    const double area = 1026.0 * 1026.0;
-    std::printf("\ncustom distribution  D (m)  expected  generated\n");
-    for (const double d : {6.0, 12.0, 20.0, 40.0, 80.0}) {
-        const auto generated = std::count_if(list.Diameters().begin(), list.Diameters().end(),
-                                             [d](double diameter) { return diameter >= d; });
-        std::printf("%26.0f %9.1f %10ld\n", d, custom->ExpectedCount(area, d, 300.0),
-                    static_cast<long>(generated));
+    void Save(const std::filesystem::path& dir) override {
+        const auto path = dir / "example_distributions_csfd.csv";
+        terraingen::WriteCraterList(list_, path, terraingen::CraterListFormat::Csv);
+        Out() << "Wrote " << path.string() << "\n";
     }
-    terraingen::WriteCraterList(list, output / "example_distributions_csfd.csv",
-                                terraingen::CraterListFormat::Csv);
-    return 0;
-}
+
+    void Test() override {
+        Check(distributions_.size() == 7, "seven built-in distributions");
+        const auto& young = *distributions_[0].second;
+        const auto& old = *distributions_[1].second;
+        Check(PerSquareKilometre(old, 100.0) > 10.0 * PerSquareKilometre(young, 100.0),
+              "a 3.8 Gyr surface has over ten times the craters of a 0.1 Gyr one");
+        bool decreasing = true;
+        for (const auto& [name, sfd] : distributions_) {
+            const double n100 = PerSquareKilometre(*sfd, 100.0);
+            const double n1000 = PerSquareKilometre(*sfd, 1000.0);
+            decreasing = decreasing && std::isfinite(n100) && std::isfinite(n1000) && n1000 < n100;
+        }
+        Check(decreasing, "every distribution has fewer craters at 1000 m than at 100 m");
+        const auto& diameters = list_.Diameters();
+        Check(std::all_of(diameters.begin(), diameters.end(),
+                          [](double d) { return d >= kDMin && d <= kDMax; }),
+              "every crater drawn is 6 to 300 m across");
+        const double expected = custom_->ExpectedCount(kArea, kDMin, kDMax);
+        const auto generated = static_cast<double>(CountAtLeast(kDMin));
+        Check(generated > 0.7 * expected && generated < 1.3 * expected,
+              "the craters drawn number within 30% of those the custom distribution expects");
+        Check(CountAtLeast(12.0) < CountAtLeast(kDMin) && CountAtLeast(40.0) < CountAtLeast(12.0),
+              "fewer craters are drawn at larger sizes");
+    }
+
+  private:
+    std::ptrdiff_t CountAtLeast(double d) const {
+        return std::count_if(list_.Diameters().begin(), list_.Diameters().end(),
+                             [d](double diameter) { return diameter >= d; });
+    }
+
+    std::vector<
+        std::pair<std::string, std::shared_ptr<const terraingen::SizeFrequencyDistribution>>>
+        distributions_;
+    std::shared_ptr<RolledOverPowerLaw> custom_;
+    terraingen::CraterList list_;
+};
+
+}  // namespace
+
+TERRAINGEN_EXAMPLE(DistributionsCsfd, "Crater size-frequency distributions, built-in and custom")

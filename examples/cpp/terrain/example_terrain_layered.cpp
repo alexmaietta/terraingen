@@ -3,53 +3,94 @@
 /// regions and calms others. The gain of the crests is set from a Hurst exponent. The same terrain
 /// as examples/config/terrain/example_terrain_layered.json, plus the warp.
 ///
-///     example_terrain_layered [OUTPUT_DIR]
+///     example_terrain_layered [--output-dir DIR] [--test]
+///     terraingen-examples terrain_layered
 
+#include "common/example.h"
 #include "terraingen/terraingen.h"
 
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
 #include <filesystem>
-#include <iostream>
 #include <memory>
 
-int main(int argc, char** argv) {
-    const std::filesystem::path output = argc > 1 ? argv[1] : "output";
-    std::filesystem::create_directories(output);
+namespace {
 
-    terraingen::NoiseLayer rolling;
-    rolling.fractal.seed = 1;
-    rolling.fractal.wavelength = 800.0f;
-    rolling.fractal.amplitude = 40.0f;
+class TerrainLayered : public terraingen::examples::Example {
+  public:
+    using Example::Example;
 
-    terraingen::NoiseLayer crests;
-    crests.fractal.seed = 2;
-    crests.fractal.type = terraingen::FractalType::Ridged;
-    crests.fractal.wavelength = 250.0f;
-    crests.fractal.amplitude = 8.0f;
-    crests.fractal.octaves = 6;
-    crests.fractal.gain = terraingen::GainFromHurst(0.7f, crests.fractal.lacunarity);
-    crests.blend = terraingen::LayerBlend::Add;
-    crests.warpAmplitude = 60.0f;
-    crests.warpWavelength = 400.0f;
+    void Generate() override {
+        terraingen::NoiseLayer rolling;
+        rolling.fractal.seed = 1;
+        rolling.fractal.wavelength = 800.0f;
+        rolling.fractal.amplitude = 40.0f;
 
-    terraingen::NoiseLayer mask;
-    mask.fractal.seed = 3;
-    mask.fractal.basis = terraingen::NoiseBasis::Value;
-    mask.fractal.wavelength = 1200.0f;
-    mask.fractal.amplitude = 1.0f;
-    mask.fractal.octaves = 2;
-    mask.blend = terraingen::LayerBlend::Mask;
+        terraingen::NoiseLayer crests;
+        crests.fractal.seed = 2;
+        crests.fractal.type = terraingen::FractalType::Ridged;
+        crests.fractal.wavelength = 250.0f;
+        crests.fractal.amplitude = 8.0f;
+        crests.fractal.octaves = 6;
+        crests.fractal.gain = terraingen::GainFromHurst(0.7f, crests.fractal.lacunarity);
+        crests.blend = terraingen::LayerBlend::Add;
+        crests.warpAmplitude = 60.0f;
+        crests.warpWavelength = 400.0f;
 
-    terraingen::Terrain terrain;
-    terrain.source = std::make_shared<terraingen::FlatSource>(513, 513, 2.0);
-    terrain.layers.push_back(std::make_shared<terraingen::NoiseRelief>(
-        terraingen::SyntheticTerrainParams{{rolling, crests, mask}}));
+        terraingen::NoiseLayer mask;
+        mask.fractal.seed = 3;
+        mask.fractal.basis = terraingen::NoiseBasis::Value;
+        mask.fractal.wavelength = 1200.0f;
+        mask.fractal.amplitude = 1.0f;
+        mask.fractal.octaves = 2;
+        mask.blend = terraingen::LayerBlend::Mask;
 
-    const terraingen::EvaluatedTerrain evaluated = terraingen::Evaluate(terrain);
-    const terraingen::RasterStats stats = terraingen::ComputeStats(evaluated.heights);
-    std::cout << "Heights from " << stats.min << " to " << stats.max << " m\n";
+        terraingen::Terrain terrain;
+        terrain.source = std::make_shared<terraingen::FlatSource>(513, 513, 2.0);
+        terrain.layers.push_back(std::make_shared<terraingen::NoiseRelief>(
+            terraingen::SyntheticTerrainParams{{rolling, crests, mask}}));
 
-    const auto path = output / "example_terrain_layered.tif";
-    terraingen::WriteGeoTiff(path, evaluated.heights);
-    std::cout << "Wrote " << path.string() << "\n";
-    return 0;
-}
+        terraingen::Terrain rollingOnly;
+        rollingOnly.source = terrain.source;
+        rollingOnly.layers.push_back(std::make_shared<terraingen::NoiseRelief>(
+            terraingen::SyntheticTerrainParams{{rolling}}));
+
+        evaluated_ = terraingen::Evaluate(terrain);
+        rolling_ = terraingen::Evaluate(rollingOnly).heights;
+        stats_ = terraingen::ComputeStats(evaluated_.heights);
+        Out() << "Heights from " << stats_.min << " to " << stats_.max << " m\n";
+        Show("layered", evaluated_.heights);
+        Show("rolling fBm only", rolling_);
+    }
+
+    void Save(const std::filesystem::path& dir) override {
+        const auto path = dir / "example_terrain_layered.tif";
+        terraingen::WriteGeoTiff(path, evaluated_.heights);
+        Out() << "Wrote " << path.string() << "\n";
+    }
+
+    void Test() override {
+        Check(evaluated_.heights.Width() == 513 && evaluated_.heights.Height() == 513,
+              "the heights are 513 x 513");
+        Check(stats_.validCount == evaluated_.heights.Size(), "every height is finite");
+        Check(stats_.max - stats_.min > 10.0 && stats_.max - stats_.min < 500.0,
+              "the relief is tens of metres");
+        double differs = 0.0;
+        for (std::size_t i = 0; i < rolling_.Size(); ++i) {
+            const float change = evaluated_.heights.Values()[i] - rolling_.Values()[i];
+            differs = std::max(differs, static_cast<double>(std::abs(change)));
+        }
+        Check(differs > 0.5, "the crests and mask change the rolling fBm");
+    }
+
+  private:
+    terraingen::EvaluatedTerrain evaluated_;
+    terraingen::Raster<float> rolling_;
+    terraingen::RasterStats stats_;
+};
+
+}  // namespace
+
+TERRAINGEN_EXAMPLE(TerrainLayered,
+                   "Noise layers stacked by blend mode: fBm, warped ridges and a mask")

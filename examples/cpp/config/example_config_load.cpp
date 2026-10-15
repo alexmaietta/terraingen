@@ -1,42 +1,59 @@
 /// Generates the terrain a JSON config describes and writes its outputs, as the terraingen command
 /// does: LoadConfig, ValidateConfig, GenerateTerrain, WriteOutputs. The other examples build the
-/// same kinds of terrain from library objects instead.
+/// same kinds of terrain from library objects instead. Without CONFIG, generates
+/// examples/config/craters/example_craters_simple.json.
 ///
-///     example_config_load CONFIG [OUTPUT_DIR]
+///     example_config_load [CONFIG] [--output-dir DIR] [--test]
+///     terraingen-examples config_load [CONFIG]
 
+#include "common/example.h"
 #include "terraingen/terraingen.h"
 
-#include <exception>
 #include <filesystem>
-#include <iostream>
 
-int main(int argc, char** argv) {
-    if (argc < 2) {
-        std::cerr << "Usage: example_config_load CONFIG [OUTPUT_DIR]\n";
-        return 2;
+namespace {
+
+class ConfigLoad : public terraingen::examples::Example {
+  public:
+    using Example::Example;
+
+    void Generate() override {
+        path_ = Args().positional.empty() ? terraingen::examples::ExamplesDir() / "config" /
+                                                "craters" / "example_craters_simple.json"
+                                          : std::filesystem::path(Args().positional.front());
+        config_ = terraingen::LoadConfig(path_);
+        terraingen::ValidateConfig(config_, path_.parent_path());
+        terrain_ = terraingen::GenerateTerrain(config_, path_.parent_path());
+        Out() << "Generated " << terrain_.heights.Width() << "x" << terrain_.heights.Height()
+              << " heights with " << terrain_.features.craters.Size() << " craters and "
+              << terrain_.features.boulders.size() << " boulders\n";
+        Show(path_.stem().string(), terrain_.heights,
+             terrain_.albedo.empty() ? nullptr : &terrain_.albedo.front(),
+             terrain_.geoKeys.IsGeographic());
     }
-    try {
-        const std::filesystem::path path = argv[1];
-        const std::filesystem::path output = argc > 2 ? argv[2] : "output";
-        std::filesystem::create_directories(output);
 
-        const terraingen::TerrainConfig config = terraingen::LoadConfig(path);
-        terraingen::ValidateConfig(config, path.parent_path());
-        const terraingen::GeneratedTerrain terrain =
-            terraingen::GenerateTerrain(config, path.parent_path());
-
-        std::cout << "Generated " << terrain.heights.Width() << "x" << terrain.heights.Height()
-                  << " heights with " << terrain.features.craters.Size() << " craters and "
-                  << terrain.features.rocks.size() << " rocks\n";
-        for (const auto& written : terraingen::WriteOutputs(config, terrain, output)) {
-            std::cout << "Wrote " << written.string() << "\n";
+    void Save(const std::filesystem::path& dir) override {
+        for (const auto& written : terraingen::WriteOutputs(config_, terrain_, dir)) {
+            Out() << "Wrote " << written.string() << "\n";
         }
-    } catch (const terraingen::ConfigError& error) {
-        std::cerr << argv[1] << ": " << error.what() << "\n";
-        return 1;
-    } catch (const std::exception& error) {
-        std::cerr << error.what() << "\n";
-        return 1;
     }
-    return 0;
-}
+
+    void Test() override {
+        Check(!terrain_.heights.Empty(), "the config generates heights");
+        if (Args().positional.empty()) {
+            Check(terrain_.heights.Width() == 513 && terrain_.heights.Height() == 513,
+                  "example_craters_simple.json makes 513 x 513 heights");
+            Check(terrain_.features.craters.Size() > 100,
+                  "example_craters_simple.json makes more than 100 craters");
+        }
+    }
+
+  private:
+    std::filesystem::path path_;
+    terraingen::TerrainConfig config_;
+    terraingen::GeneratedTerrain terrain_;
+};
+
+}  // namespace
+
+TERRAINGEN_EXAMPLE(ConfigLoad, "Generate the terrain a JSON config describes")

@@ -1,1 +1,0 @@
-# Surfaces, bodies and coordinates

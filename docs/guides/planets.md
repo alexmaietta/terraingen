@@ -1,1 +1,0 @@
-# Whole planets and globes

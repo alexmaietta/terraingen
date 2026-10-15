@@ -4,40 +4,56 @@
 from 15 m), and Martian craters have their own fresh shape (`mars_fresh_crater_morphometry`).
 `BedformLayer` adds ripples and dunes, here Mars's large ripples. Writes heights and a hillshade.
 
-    python example_planets_mars.py [OUTPUT_DIR]
+    python example_planets_mars.py [--viewer window|null] [--output-dir DIR] [--test]
 """
 
 import pathlib
 import sys
 
+import numpy as np
+
 import terraingen
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-from _common import hillshade, output_dir, write_png
+import _common
+from _common import hillshade, write_png
 
 PIXEL = 1.0
 
 
-def main():
-    out = output_dir()
-    surface = terraingen.mars_surface(3.0)
-    fresh = terraingen.mars_fresh_crater_morphometry
-    print(f"fresh Martian 100 m crater: depth/diameter {fresh(100.0).depth_ratio:.3f}")
-    models = terraingen.CraterModels(
-        surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages, fresh=fresh), terraingen.FassettThomsonProfile()
-    )
-    generation = terraingen.CraterGenerationOptions(min_diameter=15.0, max_diameter=150.0)
-    craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=2, generation=generation))
-    ripples = terraingen.mars_large_ripples()
-    ripples.cover, ripples.field_size, ripples.wind_azimuth = 0.6, 80.0, 60.0
-    print(f"large ripples: wavelength {ripples.wavelength} m, height {ripples.height} m")
-    noise = terraingen.NoiseRelief([terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=150.0, amplitude=2.0, octaves=6))])
-    terrain = terraingen.Terrain(terraingen.FlatSource(513, 513, PIXEL), [noise, craters, terraingen.BedformLayer(ripples)])
-    evaluated = terraingen.evaluate(terrain)
-    print(f"{len(evaluated.craters['x'])} craters")
-    terraingen.write_geotiff(out / "example_planets_mars.tif", evaluated.heights)
-    print("wrote", write_png(out / "example_planets_mars.png", hillshade(evaluated.heights.values, PIXEL)))
+class Example(_common.Example):
+    def generate(self):
+        surface = terraingen.mars_surface(3.0)
+        fresh = terraingen.mars_fresh_crater_morphometry
+        self.depth_ratio = fresh(100.0).depth_ratio
+        print(f"fresh Martian 100 m crater: depth/diameter {self.depth_ratio:.3f}")
+        models = terraingen.CraterModels(
+            surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages, fresh=fresh), terraingen.FassettThomsonProfile()
+        )
+        generation = terraingen.CraterGenerationOptions(min_diameter=15.0, max_diameter=150.0)
+        craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=2, generation=generation))
+        self.ripples = terraingen.mars_large_ripples()
+        self.ripples.cover, self.ripples.field_size, self.ripples.wind_azimuth = 0.6, 80.0, 60.0
+        print(f"large ripples: wavelength {self.ripples.wavelength} m, height {self.ripples.height} m")
+        noise = terraingen.NoiseRelief([terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=150.0, amplitude=2.0, octaves=6))])
+        terrain = terraingen.Terrain(terraingen.FlatSource(513, 513, PIXEL), [noise, craters, terraingen.BedformLayer(self.ripples)])
+        self.evaluated = terraingen.evaluate(terrain)
+        print(f"{len(self.evaluated.craters['x'])} craters")
+        self.show("heights", self.evaluated.heights)
+
+    def save(self, out):
+        terraingen.write_geotiff(out / "example_planets_mars.tif", self.evaluated.heights)
+        print("wrote", write_png(out / "example_planets_mars.png", hillshade(self.evaluated.heights.values, PIXEL)))
+
+    def test_final(self):
+        heights = self.evaluated.heights.values
+        diameters = self.evaluated.craters["diameter"]
+        assert heights.shape == (513, 513) and np.isfinite(heights).all(), "finite 513 x 513 heights"
+        assert 0.1 < self.depth_ratio < 0.3, "a fresh Martian crater is 0.1 to 0.3 times as deep as it is wide"
+        assert 0.5 < self.ripples.wavelength < 10.0 and 0.0 < self.ripples.height < 1.0, "large ripples are metres apart and decimetres high"
+        assert len(diameters) > 100, "more than 100 craters"
+        assert diameters.min() >= 15.0 and diameters.max() <= 150.0, "every crater is 15 to 150 m across"
 
 
 if __name__ == "__main__":
-    main()
+    _common.main(Example)

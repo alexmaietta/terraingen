@@ -1,1 +1,0 @@
-# Slopes and roughness

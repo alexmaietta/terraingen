@@ -151,8 +151,8 @@ struct GuiApp::State {
             std::ostringstream text;
             text.precision(3);
             text << "Generated " << t.heights.Width() << " x " << t.heights.Height() << " with "
-                 << t.features.craters.Size() << " craters and " << t.features.rocks.size()
-                 << " rocks in " << done.seconds << " s";
+                 << t.features.craters.Size() << " craters and " << t.features.boulders.size()
+                 << " boulders in " << done.seconds << " s";
             Report(ernie::app::LogLevel::Info, text.str());
             Shown();
         } catch (const std::exception& error) {
@@ -173,7 +173,7 @@ GuiApp::GuiApp(const GuiAppOptions& options) : state_(std::make_unique<State>())
     s.threads = options.threads;
     SetUpScene(s.scene);
     ernie::app::ViewerOptions viewerOptions;
-    viewerOptions.title = "TerrainGen";
+    viewerOptions.title = options.title;
     viewerOptions.hidden = options.hidden;
     viewerOptions.docks.left = 0.2f;
     viewerOptions.docks.right = 0.3f;
@@ -265,6 +265,27 @@ void GuiApp::Open(const std::filesystem::path& path) {
     } catch (const std::exception& error) {
         s.Report(ernie::app::LogLevel::Error, "Cannot open " + path.string() + ": " + error.what());
     }
+}
+
+bool GuiApp::ShowHeights(const Raster<float>& heights, const Raster<float>* albedo, bool geographic,
+                         const std::string& status, bool frame) {
+    State& s = *state_;
+    try {
+        ShowTerrain(s.scene, heights, geographic, albedo);
+    } catch (const std::exception& error) {
+        s.Report(ernie::app::LogLevel::Error, std::string("Cannot show it: ") + error.what());
+        return false;
+    }
+    s.Report(ernie::app::LogLevel::Info, status);
+    if (frame) {
+        s.framed = false;
+    }
+    s.Shown();
+    return true;
+}
+
+void GuiApp::Report(ernie::app::LogLevel level, std::string text) {
+    state_->Report(level, std::move(text));
 }
 
 void GuiApp::Generate() {

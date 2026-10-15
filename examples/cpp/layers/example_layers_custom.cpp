@@ -2,13 +2,16 @@
 /// from. Here an inclined plane (`Source`), a sinuous rille (`Layer`) and a terrace quantization
 /// (`Filter`) mix with built-in noise and craters. Writes the terrain with and without the filter.
 ///
-///     example_layers_custom [OUTPUT_DIR]
+///     example_layers_custom [--output-dir DIR] [--test]
+///     terraingen-examples layers_custom
 
+#include "common/example.h"
 #include "terraingen/terraingen.h"
 
+#include <algorithm>
 #include <cmath>
-#include <cstdio>
 #include <filesystem>
+#include <iomanip>
 #include <memory>
 
 namespace {
@@ -86,39 +89,88 @@ class Terraces final : public terraingen::Filter {
     double step_;
 };
 
+/// The mean height of the `rows` x `cols` block of `heights` from (`col0`, `row0`).
+double BlockMean(const terraingen::Raster<float>& heights, std::size_t col0, std::size_t row0,
+                 std::size_t cols, std::size_t rows) {
+    double sum = 0.0;
+    for (std::size_t row = row0; row < row0 + rows; ++row) {
+        for (std::size_t col = col0; col < col0 + cols; ++col) {
+            sum += heights(col, row);
+        }
+    }
+    return sum / static_cast<double>(cols * rows);
+}
+
+class LayersCustom : public terraingen::examples::Example {
+  public:
+    using Example::Example;
+
+    void Generate() override {
+        terraingen::NoiseLayer fbm;
+        fbm.fractal.seed = 1;
+        fbm.fractal.wavelength = 200.0f;
+        fbm.fractal.amplitude = 4.0f;
+        const terraingen::SurfaceModel surface = terraingen::LunarSurface(3.5);
+        terraingen::CraterLayerOptions options;
+        options.generation.dMin = 8.0;
+        options.generation.dMax = 80.0;
+
+        terraingen::Terrain terrain;
+        terrain.source = std::make_shared<InclinedPlane>(0.02);
+        terrain.layers = {
+            std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{fbm}}),
+            std::make_shared<Rille>(),
+            std::make_shared<terraingen::CraterLayer>(
+                terraingen::CraterModels{surface.density, surface.ages,
+                                         std::make_shared<terraingen::FreshnessDegradation>(
+                                             surface.ages, terraingen::LunarFreshCraterMorphometry),
+                                         std::make_shared<terraingen::FassettThomsonProfile>()},
+                options)};
+        originHeight_ = terraingen::EvaluateAt(terrain, 0.0, 0.0, 2.0);
+        Out() << "height at the origin: " << std::fixed << std::setprecision(2) << originHeight_
+              << " m\n"
+              << std::defaultfloat;
+        plain_ = terraingen::Evaluate(terrain).heights;
+        terrain.filters.push_back(std::make_shared<Terraces>(4.0));
+        terraced_ = terraingen::Evaluate(terrain).heights;
+        Show("heights", plain_);
+        Show("terraced", terraced_);
+    }
+
+    void Save(const std::filesystem::path& dir) override {
+        terraingen::WriteGeoTiff(dir / "example_layers_custom.tif", plain_);
+        terraingen::WriteGeoTiff(dir / "example_layers_custom_terraced.tif", terraced_);
+        Out() << "Wrote example_layers_custom.tif and example_layers_custom_terraced.tif\n";
+    }
+
+    void Test() override {
+        Check(plain_.Width() == 257 && plain_.Height() == 257 && terraced_.Width() == 257 &&
+                  terraced_.Height() == 257,
+              "both terrains are 257 x 257");
+        Check(std::isfinite(originHeight_) &&
+                  std::all_of(plain_.Values().begin(), plain_.Values().end(),
+                              [](float h) { return std::isfinite(h); }),
+              "the heights are finite");
+        Check(BlockMean(plain_, 192, 0, 64, 64) > BlockMean(plain_, 0, 192, 64, 64) + 5.0,
+              "the inclined plane rises from the south-west to the north-east corner");
+        double largestShift = 0.0;
+        double totalShift = 0.0;
+        for (std::size_t i = 0; i < plain_.Values().size(); ++i) {
+            const double shift = std::abs(terraced_.Values()[i] - plain_.Values()[i]);
+            largestShift = std::max(largestShift, shift);
+            totalShift += shift;
+        }
+        Check(largestShift <= 1.0 + 1e-3,
+              "the terraces move no height more than a quarter of their 4 m step");
+        Check(totalShift > 0.0, "the terrace filter changes the heights");
+    }
+
+  private:
+    float originHeight_ = 0.0f;
+    terraingen::Raster<float> plain_;
+    terraingen::Raster<float> terraced_;
+};
+
 }  // namespace
 
-int main(int argc, char** argv) {
-    const std::filesystem::path output = argc > 1 ? argv[1] : "output";
-    std::filesystem::create_directories(output);
-
-    terraingen::NoiseLayer fbm;
-    fbm.fractal.seed = 1;
-    fbm.fractal.wavelength = 200.0f;
-    fbm.fractal.amplitude = 4.0f;
-    const terraingen::SurfaceModel surface = terraingen::LunarSurface(3.5);
-    terraingen::CraterLayerOptions options;
-    options.generation.dMin = 8.0;
-    options.generation.dMax = 80.0;
-
-    terraingen::Terrain terrain;
-    terrain.source = std::make_shared<InclinedPlane>(0.02);
-    terrain.layers = {
-        std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{fbm}}),
-        std::make_shared<Rille>(),
-        std::make_shared<terraingen::CraterLayer>(
-            terraingen::CraterModels{surface.density, surface.ages,
-                                     std::make_shared<terraingen::FreshnessDegradation>(
-                                         surface.ages, terraingen::LunarFreshCraterMorphometry),
-                                     std::make_shared<terraingen::FassettThomsonProfile>()},
-            options)};
-    std::printf("height at the origin: %.2f m\n",
-                static_cast<double>(terraingen::EvaluateAt(terrain, 0.0, 0.0, 2.0)));
-    terraingen::WriteGeoTiff(output / "example_layers_custom.tif",
-                             terraingen::Evaluate(terrain).heights);
-    terrain.filters.push_back(std::make_shared<Terraces>(4.0));
-    terraingen::WriteGeoTiff(output / "example_layers_custom_terraced.tif",
-                             terraingen::Evaluate(terrain).heights);
-    std::printf("Wrote example_layers_custom.tif and example_layers_custom_terraced.tif\n");
-    return 0;
-}
+TERRAINGEN_EXAMPLE(LayersCustom, "Sources, layers and filters of your own")

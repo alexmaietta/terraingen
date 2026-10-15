@@ -6,7 +6,7 @@ an ellipsoid, roughened by noise and cut by fracture planes. A shape is a pure f
 so any boulder's mesh can be made again from its seed. This example writes one shape of each default
 style and of a custom "egg" style as glTF, prints their axes, and shows top views of them.
 
-    python example_boulders_shapes.py [OUTPUT_DIR]
+    python example_boulders_shapes.py [--viewer window|null] [--output-dir DIR] [--test]
 """
 
 import pathlib
@@ -17,7 +17,8 @@ import numpy as np
 import terraingen
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-from _common import montage, output_dir, write_png
+import _common
+from _common import montage, write_png
 
 SIZE = 96
 
@@ -54,30 +55,43 @@ def top_view(mesh, light=(-0.5, 0.5, 0.7)):
     return image
 
 
-def main():
-    out = output_dir()
-    egg = terraingen.BoulderStyle(
-        name="egg",
-        solid=terraingen.BaseSolid.ICOSAHEDRON,
-        intermediate=terraingen.ValueRange(0.75, 0.8),
-        short_axis=terraingen.ValueRange(0.6, 0.65),
-        rounding=terraingen.ValueRange(1.0, 1.0),
-        noise_amplitude=0.01,
-    )
-    styles = terraingen.default_boulder_styles() + [egg]
-    views = []
-    for index, style in enumerate(styles):
-        options = terraingen.BoulderShapeOptions(styles=[style], subdivisions=3, seed=1)
-        shape = terraingen.generate_boulder_shape(index + 1, options)
-        print(
-            f"{style.name:8s} ({style.solid.name.lower():11s}) axes 1 : {shape.intermediate:.2f} : {shape.short_axis:.2f}, "
-            f"{shape.mesh.triangle_count} triangles"
+class Example(_common.Example):
+    def generate(self):
+        egg = terraingen.BoulderStyle(
+            name="egg",
+            solid=terraingen.BaseSolid.ICOSAHEDRON,
+            intermediate=terraingen.ValueRange(0.75, 0.8),
+            short_axis=terraingen.ValueRange(0.6, 0.65),
+            rounding=terraingen.ValueRange(1.0, 1.0),
+            noise_amplitude=0.01,
         )
-        shape.mesh.write_glb(out / f"example_boulders_shapes_{style.name}.glb")
-        views.append(top_view(shape.mesh))
-    print("ten boulders sharing 4 prototype shapes use seeds", sorted({terraingen.boulder_shape_seed(i, 4) for i in range(10)}))
-    print("wrote", write_png(out / "example_boulders_shapes.png", montage(views, columns=7)))
+        self.styles = terraingen.default_boulder_styles() + [egg]
+        self.shapes = []
+        for index, style in enumerate(self.styles):
+            options = terraingen.BoulderShapeOptions(styles=[style], subdivisions=3, seed=1)
+            shape = terraingen.generate_boulder_shape(index + 1, options)
+            print(
+                f"{style.name:8s} ({style.solid.name.lower():11s}) axes 1 : {shape.intermediate:.2f} : {shape.short_axis:.2f}, "
+                f"{shape.mesh.triangle_count} triangles"
+            )
+            self.shapes.append(shape)
+        self.seeds = sorted({terraingen.boulder_shape_seed(i, 4) for i in range(10)})
+        print("ten boulders sharing 4 prototype shapes use seeds", self.seeds)
+
+    def save(self, out):
+        for style, shape in zip(self.styles, self.shapes):
+            shape.mesh.write_glb(out / f"example_boulders_shapes_{style.name}.glb")
+        views = [top_view(shape.mesh) for shape in self.shapes]
+        print("wrote", write_png(out / "example_boulders_shapes.png", montage(views, columns=7)))
+
+    def test_final(self):
+        assert len(self.shapes) == len(self.styles) >= 2, "one shape for each style"
+        assert all(shape.mesh.triangle_count > 0 for shape in self.shapes), "every shape has triangles"
+        assert all(0.0 < s.short_axis <= s.intermediate <= 1.0 for s in self.shapes), "axes run long >= intermediate >= short > 0"
+        egg = self.shapes[-1]
+        assert 0.7 < egg.intermediate < 0.85 and 0.55 < egg.short_axis < 0.7, "the egg keeps near its axis ratios"
+        assert len(self.seeds) == 4, "ten boulders sharing 4 prototypes use 4 shapes"
 
 
 if __name__ == "__main__":
-    main()
+    _common.main(Example)

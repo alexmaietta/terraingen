@@ -5,19 +5,23 @@ finer pixel size, and given what it cannot resolve: fine noise and craters small
 pixels. This example first writes a coarse 16 m DEM of its own to stand in for real data, then
 builds the detailed 2 m terrain on it. Writes both and their hillshades.
 
-    python example_sources_raster_detail.py [OUTPUT_DIR]
+    python example_sources_raster_detail.py [--viewer window|null] [--output-dir DIR] [--test]
 """
 
 import pathlib
 import sys
+import tempfile
+
+import numpy as np
 
 import terraingen
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-from _common import hillshade, montage, output_dir, write_png
+import _common
+from _common import hillshade, montage, write_png
 
 
-def coarse_dem(path):
+def coarse_dem():
     """A 16 m DEM standing in for orbital data: broad relief and large craters."""
     surface = terraingen.lunar_surface(3.5)
     models = terraingen.CraterModels(
@@ -31,33 +35,46 @@ def coarse_dem(path):
             terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=4, generation=generation)),
         ],
     )
-    heights = terraingen.evaluate(terrain).heights
-    terraingen.write_geotiff(path, heights)
-    return heights
+    return terraingen.evaluate(terrain).heights
 
 
-def main():
-    out = output_dir()
-    dem = coarse_dem(out / "example_sources_raster_detail_coarse.tif")
-    source = terraingen.GeoTiffSource(
-        out / "example_sources_raster_detail_coarse.tif", pixel_size=2.0, resampling=terraingen.ResampleMethod.CUBIC
-    )
-    print(f"coarse DEM {dem.width} x {dem.height} at 16 m; source resampled to {source.width} x {source.height} at 2 m")
-    surface = terraingen.lunar_surface(3.5)
-    models = terraingen.CraterModels(
-        surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages), terraingen.FassettThomsonProfile()
-    )
-    small = terraingen.CraterLayer(
-        models, terraingen.CraterLayerOptions(seed=5, generation=terraingen.CraterGenerationOptions(min_diameter=6.0, max_diameter=100.0))
-    )
-    detail = terraingen.NoiseRelief([terraingen.NoiseLayer(terraingen.FractalParams(seed=6, wavelength=60.0, amplitude=1.5, octaves=5))])
-    evaluated = terraingen.evaluate(terraingen.Terrain(source, [detail, small]))
-    print(f"added {len(evaluated.craters['x'])} craters of 6 to 100 m")
-    terraingen.write_geotiff(out / "example_sources_raster_detail.tif", evaluated.heights)
-    coarse = terraingen.evaluate(terraingen.Terrain(source)).heights.values
-    shades = [hillshade(coarse, 2.0), hillshade(evaluated.heights.values, 2.0)]
-    print("wrote", write_png(out / "example_sources_raster_detail.png", montage(shades, columns=2)))
+class Example(_common.Example):
+    def generate(self):
+        self.dem = coarse_dem()
+        with tempfile.TemporaryDirectory() as temp:
+            path = pathlib.Path(temp) / "example_sources_raster_detail_coarse.tif"
+            terraingen.write_geotiff(path, self.dem)
+            source = terraingen.GeoTiffSource(path, pixel_size=2.0, resampling=terraingen.ResampleMethod.CUBIC)
+            print(f"coarse DEM {self.dem.width} x {self.dem.height} at 16 m; source resampled to {source.width} x {source.height} at 2 m")
+            surface = terraingen.lunar_surface(3.5)
+            models = terraingen.CraterModels(
+                surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages), terraingen.FassettThomsonProfile()
+            )
+            small = terraingen.CraterLayer(
+                models, terraingen.CraterLayerOptions(seed=5, generation=terraingen.CraterGenerationOptions(min_diameter=6.0, max_diameter=100.0))
+            )
+            detail = terraingen.NoiseRelief([terraingen.NoiseLayer(terraingen.FractalParams(seed=6, wavelength=60.0, amplitude=1.5, octaves=5))])
+            self.evaluated = terraingen.evaluate(terraingen.Terrain(source, [detail, small]))
+            print(f"added {len(self.evaluated.craters['x'])} craters of 6 to 100 m")
+            self.resampled = terraingen.evaluate(terraingen.Terrain(source)).heights
+        self.show("heights", self.evaluated.heights)
+        self.show("resampled DEM", self.resampled)
+
+    def save(self, out):
+        terraingen.write_geotiff(out / "example_sources_raster_detail_coarse.tif", self.dem)
+        terraingen.write_geotiff(out / "example_sources_raster_detail.tif", self.evaluated.heights)
+        shades = [hillshade(self.resampled.values, 2.0), hillshade(self.evaluated.heights.values, 2.0)]
+        print("wrote", write_png(out / "example_sources_raster_detail.png", montage(shades, columns=2)))
+
+    def test_final(self):
+        heights = self.evaluated.heights.values
+        diameters = self.evaluated.craters["diameter"]
+        assert self.dem.shape == (65, 65), "the coarse DEM is 65 x 65"
+        assert 512 <= heights.shape[0] <= 528 and 512 <= heights.shape[1] <= 528, "the 16 m DEM resamples to about 520 x 520 cells of 2 m"
+        assert self.resampled.values.shape == heights.shape and np.isfinite(heights).all(), "finite heights on the resampled grid"
+        assert len(diameters) > 500 and diameters.min() >= 6.0 and diameters.max() <= 100.0, "more than 500 detail craters of 6 to 100 m"
+        assert np.std(np.diff(heights, axis=1)) > np.std(np.diff(self.resampled.values, axis=1)), "the detail roughens the resampled DEM"
 
 
 if __name__ == "__main__":
-    main()
+    _common.main(Example)

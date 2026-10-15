@@ -1,7 +1,7 @@
 """Generate the terrain a JSON config describes and write its outputs, as the terraingen command
 does. The other examples build the same kinds of terrain from objects in code instead.
 
-    python example_config_load.py [OUTPUT_DIR] [CONFIG]
+    python example_config_load.py [CONFIG] [--viewer window|null] [--output-dir DIR] [--test]
 
 CONFIG defaults to examples/config/craters/example_craters_simple.json.
 """
@@ -12,21 +12,37 @@ import sys
 import terraingen
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-from _common import config_path, hillshade, output_dir, write_png
+import _common
+from _common import hillshade, write_png
 
 
-def main():
-    out = output_dir()
-    path = pathlib.Path(sys.argv[2]) if len(sys.argv) > 2 else config_path("example_craters_simple")
-    config = terraingen.Config.load(path)
-    config.validate(path.parent)
-    terrain = terraingen.generate_terrain(config, path.parent)
-    print(f"{terrain.heights.shape} heights, {len(terrain.craters['x'])} craters, {len(terrain.rocks['x'])} rocks")
-    for written in terraingen.write_outputs(config, terrain, out):
-        print("wrote", written)
-    pixel = terrain.heights.transform.pixel_width
-    print("wrote", write_png(out / "example_config_load.png", hillshade(terrain.heights.values, pixel)))
+class Example(_common.Example):
+    @classmethod
+    def create_parser(cls):
+        parser = super().create_parser()
+        parser.add_argument("config", nargs="?", default=str(_common.config_path("example_craters_simple")), help="the JSON config to generate")
+        return parser
+
+    def generate(self):
+        path = pathlib.Path(self.args.config)
+        self.config = terraingen.Config.load(path)
+        self.config.validate(path.parent)
+        self.terrain = terraingen.generate_terrain(self.config, path.parent)
+        print(f"{self.terrain.heights.shape} heights, {len(self.terrain.craters['x'])} craters, {len(self.terrain.boulders['x'])} boulders")
+        self.show(path.stem, self.terrain.heights)
+
+    def save(self, out):
+        for written in terraingen.write_outputs(self.config, self.terrain, out):
+            print("wrote", written)
+        pixel = self.terrain.heights.transform.pixel_width
+        print("wrote", write_png(out / "example_config_load.png", hillshade(self.terrain.heights.values, pixel)))
+
+    def test_final(self):
+        assert self.terrain.heights.values.size > 0, "the config generates heights"
+        if pathlib.Path(self.args.config).resolve() == _common.config_path("example_craters_simple").resolve():
+            assert self.terrain.heights.shape == (513, 513), "example_craters_simple.json makes 513 x 513 heights"
+            assert len(self.terrain.craters["x"]) > 100, "example_craters_simple.json makes more than 100 craters"
 
 
 if __name__ == "__main__":
-    main()
+    _common.main(Example)
