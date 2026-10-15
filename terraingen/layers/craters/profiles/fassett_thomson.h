@@ -30,13 +30,7 @@ enum class FassettThomsonRim {
 /// fit's floor leaves the fit unchanged. The rim height is fixed by the fit, so degraded rim
 /// heights are not represented.
 ///
-/// References:
-/// - C. I. Fassett and B. J. Thomson, "Crater degradation on the lunar maria: Topographic diffusion
-///   and the rate of erosion on the Moon", JGR Planets 119:2255-2271, 2014.
-///   https://doi.org/10.1002/2014JE004698
-/// - C. I. Fassett et al., JGR Planets 127, e2022JE007510, 2022 (Table 3).
-/// - synthterrain (NASA Ames), `synthterrain.crater.profile`: `FT_Crater` and `FTmod_Crater`.
-///   https://github.com/NeoGeographyToolkit/synthterrain
+/// See SCIENCE.md, "Fassett and Thomson profile".
 class FassettThomsonProfile final : public CraterProfile {
   public:
     explicit FassettThomsonProfile(FassettThomsonRim rim = FassettThomsonRim::Original)

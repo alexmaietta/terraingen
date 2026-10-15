@@ -13,13 +13,14 @@ namespace {
 
 /// Expected boulders over `region` from the layer's coverage, summed over 1 m cells.
 double ExpectedBoulders(const BoulderLayer& layer, const terraingen::Bounds2d& region) {
-    const BoulderLayerOptions& options = layer.Options();
+    const terraingen::BoulderSizes& sizes = layer.Options().sizes;
     double expected = 0.0;
     for (double y = region.minY + 0.5; y < region.maxY; y += 1.0) {
         for (double x = region.minX + 0.5; x < region.maxX; x += 1.0) {
-            const terraingen::GolombekRappSfd local(
-                options.coverage * layer.AbundanceAt(x, y).background, options.qa, options.qb);
-            expected += local.ExpectedCount(1.0, options.minDiameter, options.maxDiameter);
+            const terraingen::GolombekRappSfd local(sizes.coverage *
+                                                        layer.AbundanceAt(x, y).background,
+                                                    sizes.qConstant, sizes.qCoverageCoefficient);
+            expected += local.ExpectedCount(1.0, sizes.minDiameter, sizes.maxDiameter);
         }
     }
     return expected;
@@ -38,8 +39,8 @@ double CountBoulders(const BoulderLayer& layer, const terraingen::Bounds2d& regi
 
 TEST(BoulderLayerStatistics, CountsFollowGolombekAndRapp) {
     BoulderLayerOptions options;
-    options.coverage = 0.03;
-    options.minDiameter = 0.2;
+    options.sizes.coverage = 0.03;
+    options.sizes.minDiameter = 0.2;
     const BoulderLayer layer(options);
     const terraingen::Bounds2d region{-150.0, -150.0, 150.0, 150.0};
     const double expected =
@@ -49,8 +50,8 @@ TEST(BoulderLayerStatistics, CountsFollowGolombekAndRapp) {
 
 TEST(BoulderLayerStatistics, ThinningFollowsTheLocalCoverageInPatches) {
     BoulderLayerOptions options;
-    options.coverage = 0.03;
-    options.minDiameter = 0.2;
+    options.sizes.coverage = 0.03;
+    options.sizes.minDiameter = 0.2;
     options.patches = {3.0, 40.0};
     const BoulderLayer layer(options);
     const terraingen::Bounds2d region{-150.0, -150.0, 150.0, 150.0};
@@ -67,8 +68,8 @@ TEST(BoulderLayerStatistics, CountsFollowAnyDistribution) {
              terraingen::SynthterrainBoulderDistribution(
                  terraingen::SynthterrainBoulders::Haworth)}) {
         BoulderLayerOptions options;
-        options.distribution = distribution;
-        options.minDiameter = 0.2;
+        options.sizes.distribution = distribution;
+        options.sizes.minDiameter = 0.2;
         const BoulderLayer layer(options);
         const terraingen::Bounds2d region{-150.0, -150.0, 150.0, 150.0};
         const double expected = distribution->ExpectedCount(300.0 * 300.0, 0.2, 4.0);

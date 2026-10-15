@@ -1,3 +1,5 @@
+/// @file
+/// @brief A crater's shape measures and degradation state.
 #pragma once
 
 #include <functional>
@@ -21,6 +23,12 @@ struct CraterState {
     /// Diffusion age over diameter squared, kappa t / D^2, for profiles that diffuse the fresh
     /// shape (`DiffusedProfile`); 0 for none.
     double diffusion = 0.0;
+
+    /// @brief How fresh the crater looks: its depth now over its depth when fresh.
+    /// @return 1 for a fresh crater, falling as it degrades; 1 when it had no depth when fresh.
+    double Freshness() const {
+        return fresh.depthRatio > 0.0 ? current.depthRatio / fresh.depthRatio : 1.0;
+    }
 
     bool operator==(const CraterState&) const = default;
 };

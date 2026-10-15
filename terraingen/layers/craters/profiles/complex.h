@@ -55,19 +55,7 @@ void ValidateComplexCraterShape(const ComplexCraterShape& shape);
 /// - an exterior falling from the rim as x^-`ejectaExponent`, the ejecta thickness law of McGetchin
 ///   et al. (1973), shifted to reach zero at `reachRadii`.
 ///
-/// References:
-/// - R. J. Pike, "Size-dependence in the shape of fresh impact craters on the Moon", in Impact and
-///   Explosion Cratering, D. J. Roddy, R. O. Pepin and R. B. Merrill (eds), Pergamon, 489-510, 1977
-///   (floor diameters and the transition).
-/// - W. S. Hale and R. A. F. Grieve, "Volumetric analysis of complex lunar craters: implications
-/// for
-///   basin ring formation", Proc. Lunar Planet. Sci. Conf. 13, JGR 87:A65-A76, 1982 (central peak
-///   heights and volumes).
-/// - D. Stoffler et al., "Cratering history and lunar chronology", Reviews in Mineralogy and
-///   Geochemistry 60:519-596, 2006, Table 5.1 (the relations above, collected).
-///   https://doi.org/10.2138/rmg.2006.60.05
-/// - T. R. McGetchin, M. Settle and J. W. Head, "Radial thickness variation in impact crater
-///   ejecta: implications for lunar basin deposits", EPSL 20:226-236, 1973.
+/// See SCIENCE.md, "Complex crater profile".
 class ComplexCraterProfile final : public CraterProfile {
   public:
     /// @throws std::invalid_argument for a null `simple` or an invalid `shape`.

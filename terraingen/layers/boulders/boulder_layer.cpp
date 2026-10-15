@@ -1,21 +1,17 @@
 #include "terraingen/layers/boulders/boulder_layer.h"
 
-#include "terraingen/distribution/summed.h"
 #include "terraingen/layers/craters/ages/fresh.h"
-#include "terraingen/noise/kernels/perlin.h"
 #include "terraingen/noise/kernels/philox.h"
+#include "terraingen/random/stream.h"
+#include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/resample.h"
 #include "terraingen/util/cells.h"
-#include "terraingen/util/checks.h"
-#include "terraingen/util/parallel.h"
 
 #include <algorithm>
 #include <cmath>
-#include <limits>
 #include <numbers>
 #include <stdexcept>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -25,13 +21,6 @@ namespace {
 
 constexpr std::uint32_t kBoulderSeed = 0x524F434Bu;
 constexpr std::uint32_t kBoulderAttributes = 0x41545452u;
-constexpr std::uint32_t kBoulderPatches = 0x50415443u;
-
-/// Golombek-Rapp boulders per m^2 per metre of diameter at `diameter` for coverage `k`.
-double GolombekRappDensity(double diameter, double k, double qa, double qb) {
-    const double q = qa + qb / k;
-    return k * q * std::exp(-q * diameter) / (std::numbers::pi * diameter * diameter / 4.0);
-}
 
 /// A uniform in [0, 1) from two 32-bit words.
 double Uniform(std::uint32_t high, std::uint32_t low) {
@@ -39,211 +28,32 @@ double Uniform(std::uint32_t high, std::uint32_t low) {
     return static_cast<double>(bits >> 11) * 0x1.0p-53;
 }
 
-double Smoothstep(double t) {
-    t = std::clamp(t, 0.0, 1.0);
-    return t * t * (3.0 - 2.0 * t);
-}
-
-/// The rows and columns of `raster` within `reach` of (`x`, `y`).
-struct Window {
-    std::size_t col0 = 0;
-    std::size_t col1 = 0;
-    std::size_t row0 = 0;
-    std::size_t row1 = 0;
-};
-
-Window WindowAround(const Raster<float>& raster, double x, double y, double reach) {
-    const GeoTransform& transform = raster.Transform();
-    constexpr double kInf = std::numeric_limits<double>::infinity();
-    double colMin = kInf;
-    double colMax = -kInf;
-    double rowMin = kInf;
-    double rowMax = -kInf;
-    for (const double dx : {-reach, reach}) {
-        for (const double dy : {-reach, reach}) {
-            const Vec2d pixel = transform.WorldToPixel(x + dx, y + dy);
-            colMin = std::fmin(colMin, pixel.x);
-            colMax = std::fmax(colMax, pixel.x);
-            rowMin = std::fmin(rowMin, pixel.y);
-            rowMax = std::fmax(rowMax, pixel.y);
-        }
-    }
-    const auto clampTo = [](double value, std::size_t limit) {
-        return static_cast<std::size_t>(std::clamp(value, 0.0, static_cast<double>(limit)));
-    };
-    return {clampTo(std::floor(colMin), raster.Width()), clampTo(std::ceil(colMax), raster.Width()),
-            clampTo(std::floor(rowMin), raster.Height()),
-            clampTo(std::ceil(rowMax), raster.Height())};
-}
-
-/// The windows of `raster` within `reach` metres of (`x`, `y`): one on a plane, and on a sphere
-/// one for each turn the raster's longitudes cover.
-std::vector<Window> WindowsAround(const Raster<float>& raster, double x, double y, double reach,
-                                  const Surface& surface) {
+/// The box the relief of a boulder at (`x`, `y`) reaching `reach` metres is drawn over: on a
+/// sphere a square in degrees around the box `Surface::Expand` gives.
+Bounds2d ReliefBox(double x, double y, double reach, const Surface& surface) {
     if (!surface.IsSphere()) {
-        return {WindowAround(raster, x, y, reach)};
+        return {x - reach, y - reach, x + reach, y + reach};
     }
     const Bounds2d box = surface.Expand({x, y, x, y}, reach);
     const double cx = 0.5 * (box.minX + box.maxX);
     const double cy = 0.5 * (box.minY + box.maxY);
     const double half = std::fmax(0.5 * (box.maxX - box.minX), 0.5 * (box.maxY - box.minY));
-    std::vector<Window> windows;
-    for (const double shift : {-360.0, 0.0, 360.0}) {
-        const Window window = WindowAround(raster, cx + shift, cy, half);
-        if (window.col0 < window.col1 && window.row0 < window.row1) {
-            windows.push_back(window);
-        }
-    }
-    return windows;
+    return {cx - half, cy - half, cx + half, cy + half};
 }
 
-/// Whether `distribution` may be evaluated from `low` to `high` metres.
-bool Covers(const SizeFrequencyDistribution& distribution, double low, double high) {
-    return distribution.AllowsExtrapolation() ||
-           (distribution.ValidRange().min <= low && distribution.ValidRange().max >= high);
+/// How far a placed shape reaches from its boulder's centre `cx`, `cy` along either axis.
+double ShapeReach(const TriangleMesh& placed, double cx, double cy) {
+    const Box3d box = Bounds(placed);
+    return std::fmax(std::fmax(std::fabs(box.min.x - cx), std::fabs(box.max.x - cx)),
+                     std::fmax(std::fabs(box.min.y - cy), std::fabs(box.max.y - cy)));
 }
 
-/// The largest background abundance: the richest patches on bedrock.
-double MaxBackground(const BoulderLayerOptions& options) {
-    return options.patches.spread *
-           (options.exposure ? std::fmax(1.0, options.bedrockAbundance) : 1.0);
-}
-
-/// The sizes of the crater blocks at full share.
-std::shared_ptr<const SizeFrequencyDistribution> EjectaSizes(const BoulderLayerOptions& options) {
-    const BoulderEjecta& ejecta = options.ejecta;
-    if (ejecta.distribution) {
-        return ejecta.distribution;
-    }
-    return std::make_shared<GolombekRappSfd>(ejecta.coverage, options.qa, options.qb);
-}
-
-void CheckSizes(const SizeFrequencyDistribution& distribution, const BoulderLayerOptions& options,
-                const char* what) {
-    if (distribution.Kind() != SfdKind::Density) {
-        throw std::invalid_argument(std::string(what) + " must be a density, not a rate");
-    }
-    if (!Covers(distribution, options.minDiameter, options.maxDiameter)) {
-        throw std::invalid_argument(std::string(what) +
-                                    " must be valid from minDiameter to maxDiameter, or allow "
-                                    "extrapolation");
-    }
+/// A uniform in [`low`, `high`) from `u`.
+double Between(double low, double high, double u) {
+    return low + (high - low) * u;
 }
 
 }  // namespace
-
-double BoulderEjecta::MinCraterDiameter() const {
-    const double excavated = regolithThickness ? *regolithThickness / excavationDepthRatio : 0.0;
-    return std::fmax(minCraterDiameter, excavated);
-}
-
-double BoulderThrowDistance(double craterDiameter, double regolithThickness, double gravity) {
-    for (const double value : {craterDiameter, regolithThickness, gravity}) {
-        RequirePositive(value, "Crater diameter, regolith thickness and gravity");
-    }
-    return 138.5 / gravity * std::pow(craterDiameter / regolithThickness, 0.7086);
-}
-
-void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
-    if (!(IsPositive(options.minDiameter) && std::isfinite(options.maxDiameter) &&
-          options.maxDiameter > options.minDiameter)) {
-        throw std::invalid_argument("Boulder diameters must satisfy 0 < minDiameter < maxDiameter");
-    }
-    if (!(std::isfinite(options.patches.spread) && options.patches.spread >= 1.0 &&
-          IsPositive(options.patches.size))) {
-        throw std::invalid_argument("Boulder patches need spread >= 1 and a positive size");
-    }
-    RequirePositive(options.bedrockAbundance, "Boulder bedrockAbundance");
-    if (options.distribution) {
-        CheckSizes(*options.distribution, options, "The boulder distribution");
-    } else {
-        if (!(options.coverage > 0.0 && options.coverage < 1.0)) {
-            throw std::invalid_argument("Boulder coverage must be between 0 and 1");
-        }
-        if (options.coverage * MaxBackground(options) >= 1.0) {
-            throw std::invalid_argument(
-                "Boulder coverage times the patch spread and bedrock abundance must stay below 1");
-        }
-    }
-    const BoulderEjecta& ejecta = options.ejecta;
-    if (!IsNonNegative(ejecta.minCraterDiameter)) {
-        throw std::invalid_argument("Boulder ejecta minCraterDiameter must not be negative");
-    }
-    if (ejecta.regolithThickness && !IsPositive(*ejecta.regolithThickness)) {
-        throw std::invalid_argument("Boulder ejecta regolithThickness must be positive");
-    }
-    if (!(ejecta.excavationDepthRatio > 0.0 && ejecta.excavationDepthRatio <= 1.0)) {
-        throw std::invalid_argument("Boulder ejecta excavationDepthRatio must be in (0, 1]");
-    }
-    if (ejecta.MinCraterDiameter() > 0.0) {
-        if (ejecta.distribution) {
-            CheckSizes(*ejecta.distribution, options, "The boulder ejecta distribution");
-        } else if (!(ejecta.coverage > 0.0 && ejecta.coverage < 1.0)) {
-            throw std::invalid_argument("Boulder ejecta coverage must be between 0 and 1");
-        }
-        if (!(std::isfinite(ejecta.reach) && ejecta.reach > 1.0)) {
-            throw std::invalid_argument("Boulder ejecta need a reach over 1 radius");
-        }
-        if (!(IsPositive(ejecta.decayRadii) && IsInUnitInterval(ejecta.floorShare))) {
-            throw std::invalid_argument(
-                "Boulder ejecta need a positive decayRadii and a floorShare in [0, 1]");
-        }
-        if (!(ejecta.minFreshness >= 0.0 && ejecta.minFreshness < 1.0 &&
-              IsPositive(ejecta.lifetimeGyr) && IsNonNegative(ejecta.agingExponent))) {
-            throw std::invalid_argument("Boulder ejecta need minFreshness in [0, 1), a positive "
-                                        "lifetimeGyr and a non-negative agingExponent");
-        }
-        if (ejecta.gravity && !IsPositive(*ejecta.gravity)) {
-            throw std::invalid_argument("Boulder ejecta gravity must be positive");
-        }
-    }
-    if (options.exposure) {
-        ValidateExposureParams(*options.exposure);
-    }
-    if (!IsPositive(options.exposureSpacing)) {
-        throw std::invalid_argument("Boulder exposureSpacing must be positive");
-    }
-    if (!(options.minHeightRatio > 0.0 && options.maxHeightRatio >= options.minHeightRatio &&
-          std::isfinite(options.maxHeightRatio))) {
-        throw std::invalid_argument("Boulder height ratios must satisfy 0 < min <= max");
-    }
-    if (!(options.minBurial >= 0.0 && options.maxBurial >= options.minBurial &&
-          options.maxBurial < 1.0)) {
-        throw std::invalid_argument("Boulder burial must satisfy 0 <= min <= max < 1");
-    }
-    if (!IsNonNegative(options.maxLean)) {
-        throw std::invalid_argument("Boulder maxLean must not be negative");
-    }
-    ValidateResolutionFade(options.fade);
-    for (const auto& threshold : {options.models.minDiameter, options.models.minSamples}) {
-        if (threshold) {
-            RequirePositive(*threshold, "Boulder model thresholds");
-        }
-    }
-    ValidateBoulderShapeOptions(options.shapes);
-}
-
-bool BoulderModelThreshold::IsModel(double diameter, double spacing) const {
-    return (minDiameter && diameter >= *minDiameter) ||
-           (minSamples && spacing > 0.0 && diameter >= *minSamples * spacing);
-}
-
-std::shared_ptr<const SizeFrequencyDistribution>
-BoulderCandidates(const BoulderLayerOptions& options) {
-    ValidateBoulderLayerOptions(options);
-    const double richest = MaxBackground(options);
-    std::vector<WeightedSfd> terms;
-    if (options.distribution) {
-        terms.push_back({richest, options.distribution});
-    } else {
-        terms.push_back({1.0, std::make_shared<GolombekRappSfd>(options.coverage * richest,
-                                                                options.qa, options.qb)});
-    }
-    if (options.ejecta.MinCraterDiameter() > 0.0) {
-        terms.push_back({1.0, EjectaSizes(options)});
-    }
-    return std::make_shared<SummedSfd>(std::move(terms));
-}
 
 BoulderLayer::BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const CraterLayer> craters,
                            Surface surface)
@@ -262,32 +72,37 @@ BoulderLayer::BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const Cr
         throw std::invalid_argument(
             "Boulder ejecta need the crater layer whose craters throw them");
     }
-    maxBackground_ = MaxBackground(options_);
+    maxBackground_ = MaxBackgroundAbundance(options_);
     ejectaSizes_ = minCraterDiameter_ > 0.0 ? EjectaSizes(options_) : nullptr;
     if (options_.cacheBoulders > 0) {
         cache_ = std::make_shared<CraterCellCache>(options_.cacheBoulders);
     }
-    if (options_.exposure) {
-        exposure_.emplace(*options_.exposure, surface_);
+    if (options_.bedrock.exposure) {
+        exposure_.emplace(*options_.bedrock.exposure, surface_);
     }
+    const std::uint32_t prototypes = options_.rendering.shapePrototypes;
     shapes_ = std::make_shared<LruCache<std::uint64_t, BoulderShape>>(
-        options_.shapePrototypes > 0 ? options_.shapePrototypes : 4096,
-        [](const BoulderShape&) { return std::size_t{1}; });
+        prototypes > 0 ? prototypes : 4096, [](const BoulderShape&) { return std::size_t{1}; });
 }
 
 std::shared_ptr<const BoulderShape> BoulderLayer::Shape(const Boulder& boulder) const {
-    const std::uint64_t seed = BoulderShapeSeed(boulder.id, options_.shapePrototypes);
-    return shapes_->Get(seed, [&] { return GenerateBoulderShape(seed, options_.shapes); });
+    const std::uint64_t seed = BoulderShapeSeed(boulder.id, options_.rendering.shapePrototypes);
+    return shapes_->Get(seed,
+                        [&] { return GenerateBoulderShape(seed, options_.rendering.shapes); });
 }
 
-TriangleMesh BoulderLayer::PlacedOnLevel(const Boulder& boulder) const {
-    const auto shape = Shape(boulder);
+Boulder BoulderLayer::InLocalFrame(const Boulder& boulder) const {
     Boulder local = boulder;
     if (surface_.IsSphere()) {
         local.x = 0.0;
         local.y = 0.0;
     }
-    const BoulderPlacement placement = PlaceBoulderModel(local, *shape, 0.0);
+    return local;
+}
+
+TriangleMesh BoulderLayer::PlacedOnLevel(const Boulder& boulder) const {
+    const auto shape = Shape(boulder);
+    const BoulderPlacement placement = PlaceBoulderModel(InLocalFrame(boulder), *shape, 0.0);
     TriangleMesh mesh = shape->mesh;
     for (Vec3d& p : mesh.positions) {
         p = placement.Apply(p);
@@ -313,178 +128,71 @@ float BoulderLayer::AddRelief(float height, double x, double y, const Boulder& b
     return static_cast<float>(static_cast<double>(height) + weight * *top);
 }
 
-CraterList BoulderLayer::EjectaCraters(const Bounds2d& region) const {
-    if (minCraterDiameter_ <= 0.0) {
-        return {};
-    }
-    const double margin = options_.ejecta.reach * 0.5 * craters_->MaxFeatureDiameter();
-    const double spacing = minCraterDiameter_ / craters_->Options().apply.fade.startSamples;
-    const CraterList all = craters_->Craters(surface_.Expand(region, margin), spacing);
-    CraterList large;
-    for (std::size_t n = 0; n < all.Size(); ++n) {
-        if (all.At(n).diameter >= minCraterDiameter_) {
-            large.Append(all.At(n));
-        }
-    }
-    return large;
-}
-
-BoulderAbundance BoulderLayer::Abundance(double x, double y, const Ground* ground,
-                                         const CraterList& ejecta) const {
-    BoulderAbundance abundance;
-    const BoulderPatches& patches = options_.patches;
-    if (patches.spread > 1.0) {
-        const std::uint32_t seed = options_.seed ^ kBoulderPatches;
-        double coarse = 0.0;
-        double fine = 0.0;
-        if (surface_.IsSphere()) {
-            const Vec3d p = surface_.Position({x, y});
-            const double s = 1.0 / patches.size;
-            coarse = static_cast<double>(PerlinNoise3Precise(s * p.x, s * p.y, s * p.z, seed));
-            fine = static_cast<double>(
-                PerlinNoise3Precise(4.0 * s * p.x, 4.0 * s * p.y, 4.0 * s * p.z, seed + 1u));
-        } else {
-            const auto px = static_cast<float>(x / patches.size);
-            const auto py = static_cast<float>(y / patches.size);
-            coarse = static_cast<double>(PerlinNoise2(px, py, seed));
-            fine = static_cast<double>(PerlinNoise2(4.0f * px, 4.0f * py, seed + 1u));
-        }
-        const double noise = std::clamp(2.5 * (0.7 * coarse + 0.3 * fine), -1.0, 1.0);
-        abundance.background = std::pow(patches.spread, noise);
-    }
-    if (exposure_) {
-        if (ground == nullptr) {
-            throw std::invalid_argument("Boulders that read the exposure field need the ground");
-        }
-        const double bedrock = exposure_->Exposure(*ground, x, y, options_.exposureSpacing);
-        abundance.background *= 1.0 + bedrock * (options_.bedrockAbundance - 1.0);
-    }
-    abundance.background = std::min(abundance.background, maxBackground_);
-    const BoulderEjecta& eject = options_.ejecta;
-    if (ejecta.Empty()) {
-        return abundance;
-    }
-    const DegradationModel& degradation = *craters_->Models().degradation;
-    for (std::size_t n = 0; n < ejecta.Size(); ++n) {
-        const Crater crater = ejecta.At(n);
-        const double radius = 0.5 * crater.diameter;
-        double reach = eject.reach;
-        if (eject.gravity && eject.regolithThickness) {
-            reach = std::fmin(reach, std::fmax(1.0, BoulderThrowDistance(crater.diameter,
-                                                                         *eject.regolithThickness,
-                                                                         *eject.gravity) /
-                                                        radius));
-        }
-        const double rho = (surface_.IsSphere() ? surface_.Distance({crater.x, crater.y}, {x, y})
-                                                : std::hypot(x - crater.x, y - crater.y)) /
-                           radius;
-        if (rho >= reach) {
-            continue;
-        }
-        double radial = 1.0;
-        if (eject.profile == EjectaProfile::Smoothstep) {
-            radial = rho <= 1.0 ? 1.0 : Smoothstep((reach - rho) / (reach - 1.0));
-        } else {
-            radial = rho <= 1.0 ? eject.floorShare : std::exp(-(rho - 1.0) / eject.decayRadii);
-        }
-        if (radial <= abundance.ejecta) {
-            continue;
-        }
-        double kept = 1.0;
-        if (eject.aging == EjectaAging::Freshness) {
-            const CraterState state = degradation.State(crater);
-            const double freshness = state.fresh.depthRatio > 0.0
-                                         ? state.current.depthRatio / state.fresh.depthRatio
-                                         : 0.0;
-            kept = Smoothstep((freshness - eject.minFreshness) / (1.0 - eject.minFreshness));
-        } else {
-            kept = std::pow(std::fmax(0.0, 1.0 - crater.ageGyr / eject.lifetimeGyr),
-                            eject.agingExponent);
-        }
-        abundance.ejecta = std::fmax(abundance.ejecta, kept * radial);
-    }
-    return abundance;
-}
-
-BoulderAbundance BoulderLayer::AbundanceAt(double x, double y, const Ground* ground) const {
-    return Abundance(x, y, ground, EjectaCraters(PointBounds(x, y)));
-}
-
-double BoulderLayer::Density(double diameter, const BoulderAbundance& abundance) const {
-    double density = options_.distribution
-                         ? abundance.background * options_.distribution->Incremental(diameter)
-                         : GolombekRappDensity(diameter, options_.coverage * abundance.background,
-                                               options_.qa, options_.qb);
-    if (abundance.ejecta > 0.0) {
-        density += abundance.ejecta * ejectaSizes_->Incremental(diameter);
-    }
-    return density;
-}
-
-double BoulderLayer::DensityAt(double diameter, double x, double y, const Ground* ground) const {
-    return Density(diameter, AbundanceAt(x, y, ground));
-}
-
-std::vector<Boulder> BoulderLayer::Boulders(const Bounds2d& region, double spacing,
-                                            const Ground* ground) const {
-    if (exposure_ && ground == nullptr) {
-        throw std::invalid_argument("Boulders that read the exposure field need the ground");
-    }
+CraterList BoulderLayer::ScatterBoulderCandidates(const Bounds2d& region, double spacing) const {
     const std::uint32_t seed = options_.seed ^ kBoulderSeed;
     const FreshAges ages;
     CraterGenerationOptions generation{
-        .dMin = options_.minDiameter, .dMax = options_.maxDiameter, .marginRadii = 1.0};
+        .dMin = options_.sizes.minDiameter, .dMax = options_.sizes.maxDiameter, .marginRadii = 1.0};
     generation.surface = surface_;
     if (spacing > 0.0) {
         generation.minResolvedDiameter = options_.fade.startSamples * spacing;
     }
     if (cache_) {
-        generation.cellCraters = [this, seed, &ages](const CraterBand& band,
-                                                     const CellIndex& cell) {
-            return cache_->Get(band.exponent, cell, [&] {
-                return GenerateCellCraters(*cells_, band, cell, *candidates_, ages, seed);
-            });
-        };
+        generation.cellCraters = CachedCellCraters(*cache_, *cells_, *candidates_, ages, seed);
     }
-    const CraterList candidates =
-        GenerateCraters(*cells_, region, *candidates_, ages, seed, generation);
+    return GenerateCraters(*cells_, region, *candidates_, ages, seed, generation);
+}
+
+std::optional<Boulder> BoulderLayer::DrawBoulder(const Crater& candidate, double spacing,
+                                                 const Ground* ground,
+                                                 const CraterList& ejecta) const {
+    const IdWords id = SplitId(candidate.id);
+    const U32x4 draw =
+        Philox4x32({id.low, id.high, kBoulderAttributes, 0u}, {options_.seed, kBoulderSeed});
+    const BoulderAbundance abundance = Abundance(candidate.x, candidate.y, ground, ejecta);
+    const double keep =
+        Density(candidate.diameter, abundance) / candidates_->Incremental(candidate.diameter);
+    if (Uniform(draw.x, draw.y) >= keep) {
+        return std::nullopt;
+    }
+    const U32x4 shape =
+        Philox4x32({id.low, id.high, kBoulderAttributes, 1u}, {options_.seed, kBoulderSeed});
+    const BoulderPose& pose = options_.pose;
+    const double ratio =
+        Between(pose.minHeightRatio, pose.maxHeightRatio, Uniform(shape.x, shape.y));
+    const double burial = Between(pose.minBurial, pose.maxBurial, Uniform(draw.z, draw.w));
+    Boulder boulder{candidate.x,
+                    candidate.y,
+                    candidate.diameter,
+                    ratio * candidate.diameter,
+                    burial,
+                    2.0 * std::numbers::pi * Uniform(shape.z, shape.w),
+                    pose.maxLean * Uniform(shape.w, shape.x),
+                    candidate.id};
+    boulder.model = options_.rendering.models.IsModel(boulder.diameter, spacing);
+    if (ground != nullptr) {
+        const double height =
+            ground->HeightAt(boulder.x, boulder.y, options_.bedrock.exposureSpacing);
+        if (!std::isnan(height)) {
+            boulder.ground = height;
+        }
+    }
+    return boulder;
+}
+
+std::vector<Boulder> BoulderLayer::Boulders(const Bounds2d& region, double spacing,
+                                            const Ground* ground) const {
+    if (exposure_) {
+        RequireGround(ground, "Boulders that read the exposure field");
+    }
+    const CraterList candidates = ScatterBoulderCandidates(region, spacing);
     const CraterList ejecta = EjectaCraters(region);
     std::vector<Boulder> boulders;
     for (std::size_t n = 0; n < candidates.Size(); ++n) {
-        const Crater candidate = candidates.At(n);
-        const auto low = static_cast<std::uint32_t>(candidate.id);
-        const auto high = static_cast<std::uint32_t>(candidate.id >> 32);
-        const U32x4 draw =
-            Philox4x32({low, high, kBoulderAttributes, 0u}, {options_.seed, kBoulderSeed});
-        const BoulderAbundance abundance = Abundance(candidate.x, candidate.y, ground, ejecta);
-        const double keep =
-            Density(candidate.diameter, abundance) / candidates_->Incremental(candidate.diameter);
-        if (Uniform(draw.x, draw.y) >= keep) {
-            continue;
+        if (const std::optional<Boulder> boulder =
+                DrawBoulder(candidates.At(n), spacing, ground, ejecta)) {
+            boulders.push_back(*boulder);
         }
-        const U32x4 shape =
-            Philox4x32({low, high, kBoulderAttributes, 1u}, {options_.seed, kBoulderSeed});
-        const double ratio =
-            options_.minHeightRatio +
-            (options_.maxHeightRatio - options_.minHeightRatio) * Uniform(shape.x, shape.y);
-        const double burial = options_.minBurial +
-                              (options_.maxBurial - options_.minBurial) * Uniform(draw.z, draw.w);
-        Boulder boulder{candidate.x,
-                        candidate.y,
-                        candidate.diameter,
-                        ratio * candidate.diameter,
-                        burial,
-                        2.0 * std::numbers::pi * Uniform(shape.z, shape.w),
-                        options_.maxLean * Uniform(shape.w, shape.x),
-                        candidate.id};
-        boulder.model = options_.models.IsModel(boulder.diameter, spacing);
-        if (ground != nullptr) {
-            const double height = ground->HeightAt(boulder.x, boulder.y, options_.exposureSpacing);
-            if (!std::isnan(height)) {
-                boulder.ground = height;
-            }
-        }
-        boulders.push_back(boulder);
     }
     return boulders;
 }
@@ -503,6 +211,40 @@ float AddBoulder(float height, double x, double y, const Boulder& boulder, doubl
                               weight * boulder.ExposedHeight() * std::sqrt(1.0 - r2));
 }
 
+void BoulderLayer::DrawRelief(Raster<float>& heights, const std::vector<Boulder>& boulders,
+                              double spacing, unsigned threads) const {
+    const bool shaped = options_.rendering.relief == BoulderRelief::Shape;
+    std::vector<std::vector<PixelWindow>> windows(boulders.size());
+    std::vector<double> weights(boulders.size(), 0.0);
+    std::vector<TriangleMesh> placed(shaped ? boulders.size() : 0);
+    for (std::size_t n = 0; n < boulders.size(); ++n) {
+        const Boulder& boulder = boulders[n];
+        if (boulder.model) {
+            continue;
+        }
+        weights[n] = ResolutionWeight(boulder.diameter, spacing, options_.fade);
+        if (weights[n] == 0.0) {
+            continue;
+        }
+        double reach = 0.5 * boulder.diameter;
+        if (shaped) {
+            placed[n] = PlacedOnLevel(boulder);
+            const Boulder local = InLocalFrame(boulder);
+            reach = ShapeReach(placed[n], local.x, local.y);
+        }
+        windows[n] =
+            WindowsAround(heights, ReliefBox(boulder.x, boulder.y, reach, surface_), surface_);
+    }
+    ForEachFeatureCell(
+        heights, threads, boulders.size(),
+        [&](std::size_t n) -> const std::vector<PixelWindow>& { return windows[n]; },
+        [&](float& cell, const FeatureCell& at) {
+            const TriangleMesh* shape = shaped ? &placed[at.feature] : nullptr;
+            cell = AddRelief(cell, at.centre.x, at.centre.y, boulders[at.feature], shape,
+                             weights[at.feature]);
+        });
+}
+
 void BoulderLayer::Apply(Raster<float>& heights, const LayerContext& context,
                          TerrainFeatures& features) const {
     const RasterGrid grid = RasterGrid::Of(heights);
@@ -517,80 +259,23 @@ void BoulderLayer::Apply(Raster<float>& heights, const LayerContext& context,
             }
         }
     }
-    if (options_.relief != BoulderRelief::None) {
-        const bool shaped = options_.relief == BoulderRelief::Shape;
-        std::vector<std::vector<Window>> windows(boulders.size());
-        std::vector<double> weights(boulders.size(), 0.0);
-        std::vector<TriangleMesh> placed(shaped ? boulders.size() : 0);
-        for (std::size_t n = 0; n < boulders.size(); ++n) {
-            const Boulder& boulder = boulders[n];
-            if (boulder.model) {
-                continue;
-            }
-            weights[n] = ResolutionWeight(boulder.diameter, resolved, options_.fade);
-            if (weights[n] == 0.0) {
-                continue;
-            }
-            if (shaped) {
-                placed[n] = PlacedOnLevel(boulder);
-                const Box3d box = Bounds(placed[n]);
-                const double cx = surface_.IsSphere() ? 0.0 : boulder.x;
-                const double cy = surface_.IsSphere() ? 0.0 : boulder.y;
-                const double reach =
-                    std::fmax(std::fmax(std::fabs(box.min.x - cx), std::fabs(box.max.x - cx)),
-                              std::fmax(std::fabs(box.min.y - cy), std::fabs(box.max.y - cy)));
-                windows[n] = WindowsAround(heights, boulder.x, boulder.y, reach, surface_);
-            } else {
-                windows[n] =
-                    WindowsAround(heights, boulder.x, boulder.y, 0.5 * boulder.diameter, surface_);
-            }
-        }
-        constexpr std::size_t kBandRows = 32;
-        const std::size_t bands = (heights.Height() + kBandRows - 1) / kBandRows;
-        ParallelFor(bands, context.threads, [&](std::size_t band) {
-            const std::size_t bandBegin = band * kBandRows;
-            const std::size_t bandEnd = std::min(heights.Height(), bandBegin + kBandRows);
-            for (std::size_t n = 0; n < boulders.size(); ++n) {
-                if (weights[n] == 0.0) {
-                    continue;
-                }
-                const TriangleMesh* shape = shaped ? &placed[n] : nullptr;
-                for (const Window& window : windows[n]) {
-                    for (std::size_t row = std::max(bandBegin, window.row0);
-                         row < std::min(bandEnd, window.row1); ++row) {
-                        for (std::size_t col = window.col0; col < window.col1; ++col) {
-                            float& cell = heights(col, row);
-                            if (heights.IsNoData(cell)) {
-                                continue;
-                            }
-                            const Vec2d centre = heights.CellCenter(col, row);
-                            cell =
-                                AddRelief(cell, centre.x, centre.y, boulders[n], shape, weights[n]);
-                        }
-                    }
-                }
-            }
-        });
+    if (options_.rendering.relief != BoulderRelief::None) {
+        DrawRelief(heights, boulders, resolved, context.threads);
     }
     for (const Boulder& boulder : boulders) {
         if (boulder.model && boulder.ground) {
             const auto shape = Shape(boulder);
-            Boulder local = boulder;
-            if (surface_.IsSphere()) {
-                local.x = 0.0;
-                local.y = 0.0;
-            }
             features.boulderModels.push_back(
-                {boulder, BoulderShapeSeed(boulder.id, options_.shapePrototypes), shape,
-                 PlaceBoulderModel(local, *shape, *boulder.ground)});
+                {boulder, BoulderShapeSeed(boulder.id, options_.rendering.shapePrototypes), shape,
+                 PlaceBoulderModel(InLocalFrame(boulder), *shape, *boulder.ground)});
         }
     }
     features.boulders.insert(features.boulders.end(), boulders.begin(), boulders.end());
 }
 
 float BoulderLayer::ApplyAt(float height, double x, double y, const LayerContext& context) const {
-    RequirePositive(context.spacing, "Sample spacing");
-    if (std::isnan(height) || options_.relief == BoulderRelief::None) {
+    ValidatePointContext(context);
+    if (std::isnan(height) || options_.rendering.relief == BoulderRelief::None) {
         return height;
     }
     for (const Boulder& boulder : Boulders(PointBounds(x, y), context.spacing, context.ground)) {
@@ -598,7 +283,7 @@ float BoulderLayer::ApplyAt(float height, double x, double y, const LayerContext
         if (boulder.model || weight <= 0.0) {
             continue;
         }
-        if (options_.relief == BoulderRelief::Shape) {
+        if (options_.rendering.relief == BoulderRelief::Shape) {
             const TriangleMesh placed = PlacedOnLevel(boulder);
             height = AddRelief(height, x, y, boulder, &placed, weight);
         } else {

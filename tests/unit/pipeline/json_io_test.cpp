@@ -86,10 +86,8 @@ TerrainConfig Everything() {
         .irregularity = {
             .enabled = true,
             .seed = 4,
-            .minDiameter = 10.0,
-            .maxDiameter = 500.0,
-            .minAgeGyr = 0.1,
-            .manual = true,
+            .selection =
+                {.minDiameter = 10.0, .maxDiameter = 500.0, .minAgeGyr = 0.1, .manual = true},
             .roughShare = 0.5,
             .model = terraingen::RimRoughnessModel::Du2024,
             .scatter = false,
@@ -104,11 +102,11 @@ TerrainConfig Everything() {
             .headingSpread = 0.2}};
     terraingen::BoulderLayerSpec boulders;
     boulders.boulders = {
-        .coverage = 0.05,
-        .qa = 1.5,
-        .qb = 0.2,
-        .minDiameter = 0.25,
-        .maxDiameter = 6.0,
+        .sizes = {.coverage = 0.05,
+                  .qConstant = 1.5,
+                  .qCoverageCoefficient = 0.2,
+                  .minDiameter = 0.25,
+                  .maxDiameter = 6.0},
         .seed = 17,
         .patches = {2.0, 80.0},
         .ejecta = {.minCraterDiameter = 10.0,
@@ -124,32 +122,33 @@ TerrainConfig Everything() {
                    .lifetimeGyr = 3.0,
                    .agingExponent = 2.0,
                    .gravity = 1.62},
-        .exposure = terraingen::ExposureParams{8.0, 0.02, 0.05, 0.1, 0.5, 0.3, 40.0, 5},
-        .bedrockAbundance = 2.5,
-        .exposureSpacing = 0.5,
-        .minHeightRatio = 0.3,
-        .maxHeightRatio = 0.7,
-        .minBurial = 0.0,
-        .maxBurial = 0.5,
-        .maxLean = 0.1,
-        .relief = terraingen::BoulderRelief::Shape,
-        .models = {.minDiameter = 2.0, .minSamples = 6.0},
-        .shapes = {.styles = {terraingen::BoulderStyle{.name = "slab",
-                                                       .weight = 2.0,
-                                                       .solid = terraingen::BaseSolid::Prism,
-                                                       .intermediate = {0.5, 0.7},
-                                                       .shortAxis = {0.1, 0.2},
-                                                       .rounding = {0.1, 0.3},
-                                                       .minFractures = 2,
-                                                       .maxFractures = 4,
-                                                       .fractureDepth = {0.5, 0.8},
-                                                       .maxFractureTilt = 0.2,
-                                                       .noiseAmplitude = 0.01,
-                                                       .noiseWavelength = 0.4,
-                                                       .noiseOctaves = 2}},
-                   .subdivisions = 1,
-                   .seed = 3},
-        .shapePrototypes = 0,
+        .bedrock = {.exposure = terraingen::ExposureParams{8.0, 0.02, 0.05, 0.1, 0.5, 0.3, 40.0, 5},
+                    .abundance = 2.5,
+                    .exposureSpacing = 0.5},
+        .pose = {.minHeightRatio = 0.3,
+                 .maxHeightRatio = 0.7,
+                 .minBurial = 0.0,
+                 .maxBurial = 0.5,
+                 .maxLean = 0.1},
+        .rendering = {.relief = terraingen::BoulderRelief::Shape,
+                      .models = {.minDiameter = 2.0, .minSamples = 6.0},
+                      .shapes = {.styles = {terraingen::BoulderStyle{
+                                     .name = "slab",
+                                     .weight = 2.0,
+                                     .solid = terraingen::BaseSolid::Prism,
+                                     .intermediate = {0.5, 0.7},
+                                     .shortAxis = {0.1, 0.2},
+                                     .rounding = {0.1, 0.3},
+                                     .minFractures = 2,
+                                     .maxFractures = 4,
+                                     .fractureDepth = {0.5, 0.8},
+                                     .maxFractureTilt = 0.2,
+                                     .noiseAmplitude = 0.01,
+                                     .noiseWavelength = 0.4,
+                                     .noiseOctaves = 2}},
+                                 .subdivisions = 1,
+                                 .seed = 3},
+                      .shapePrototypes = 0},
         .fade = {1.0, 3.0, terraingen::BlendShape::Linear}};
     boulders.sizes =
         terraingen::Sp8023IntercraterBouldersSpec{terraingen::SpecificationCurve::Maximum};
@@ -380,8 +379,8 @@ TEST(ConfigJson, RoundTripsAlbedos) {
     synthetic.hueNoise = {terraingen::NoiseLayerConfig{}};
     terraingen::CraterAlbedoSpec craters;
     craters.craterLayer = 1;
-    craters.options.maxDiameter = 5000.0;
-    craters.options.maxAgeGyr = 0.5;
+    craters.options.selection.maxDiameter = 5000.0;
+    craters.options.selection.maxAgeGyr = 0.5;
     craters.options.rays.count = {terraingen::ValueDistribution::Kind::Uniform, 4.0, 9.0};
     craters.options.retention.largeMyr = 2000.0;
     craters.options.fadeExponent = 2.0;
@@ -408,7 +407,7 @@ TEST(ConfigJson, RoundTripsAlbedos) {
             "layers": [{"type": "craters", "min_diameter": 100, "rays": {"enabled": false}}]}})");
     ASSERT_TRUE(parsed.albedo);
     const auto& layer = std::get<terraingen::CraterAlbedoSpec>(parsed.albedo->layers.at(0));
-    EXPECT_EQ(layer.options.minDiameter, 100.0);
+    EXPECT_EQ(layer.options.selection.minDiameter, 100.0);
     EXPECT_FALSE(layer.options.rays.enabled);
     EXPECT_EQ(layer.options.backgroundMaturity, 0.202);
     EXPECT_FALSE(layer.craterLayer);
@@ -433,10 +432,10 @@ TEST(ConfigJson, ReadsInfiniteBoundsAsUnset) {
         R"({"schema_version": 1, "layers": [{"type": "craters", "apply": {"irregularity":
             {"max_diameter": 30, "roughness": {"min": -1, "max": null}}}}]})");
     const auto& irregularity = std::get<CraterLayerSpec>(parsed.layers[0]).apply.irregularity;
-    EXPECT_EQ(irregularity.maxDiameter, 30.0);
+    EXPECT_EQ(irregularity.selection.maxDiameter, 30.0);
     EXPECT_EQ(irregularity.roughness.min, -1.0);
     EXPECT_EQ(irregularity.roughness.max, std::numeric_limits<double>::infinity());
-    EXPECT_EQ(irregularity.maxAgeGyr, std::numeric_limits<double>::infinity());
+    EXPECT_EQ(irregularity.selection.maxAgeGyr, std::numeric_limits<double>::infinity());
 }
 
 TEST(ConfigJson, RoundTripsSurfacesAndFlatCentres) {
@@ -493,8 +492,8 @@ TEST(ConfigJson, RoundTripsSecondaryLayers) {
     secondaries.secondaries.onsetCount = 12.0;
     secondaries.secondaries.maxDiameter = 80.0;
     secondaries.secondaries.outerRange = 6.0;
-    secondaries.secondaries.maxAgeGyr = 0.5;
-    secondaries.secondaries.maxPrimaryDiameter = 900.0;
+    secondaries.secondaries.selection.maxAgeGyr = 0.5;
+    secondaries.secondaries.selection.maxDiameter = 900.0;
     secondaries.depthRatio = 0.12;
     secondaries.body = terraingen::CraterBody::Mars;
     config.layers = {CraterLayerSpec{}, secondaries};
@@ -539,14 +538,15 @@ TEST(ConfigJson, ReadsBoulderLayersWithOptionalExposure) {
         {"type": "boulders", "exposure": null}]})");
     ASSERT_EQ(config.layers.size(), 2u);
     const auto& boulders = std::get<terraingen::BoulderLayerSpec>(config.layers[0]).boulders;
-    EXPECT_EQ(boulders.coverage, 0.04);
-    EXPECT_EQ(boulders.relief, terraingen::BoulderRelief::None);
+    EXPECT_EQ(boulders.sizes.coverage, 0.04);
+    EXPECT_EQ(boulders.rendering.relief, terraingen::BoulderRelief::None);
     EXPECT_EQ(boulders.ejecta.minCraterDiameter, 20.0);
     EXPECT_EQ(boulders.ejecta.coverage, terraingen::BoulderEjecta{}.coverage);
-    ASSERT_TRUE(boulders.exposure.has_value());
-    EXPECT_EQ(boulders.exposure->reach, 6.0);
-    EXPECT_EQ(boulders.exposure->riseBoulder, terraingen::ExposureParams{}.riseBoulder);
-    EXPECT_FALSE(std::get<terraingen::BoulderLayerSpec>(config.layers[1]).boulders.exposure);
+    ASSERT_TRUE(boulders.bedrock.exposure.has_value());
+    EXPECT_EQ(boulders.bedrock.exposure->reach, 6.0);
+    EXPECT_EQ(boulders.bedrock.exposure->riseBoulder, terraingen::ExposureParams{}.riseBoulder);
+    EXPECT_FALSE(
+        std::get<terraingen::BoulderLayerSpec>(config.layers[1]).boulders.bedrock.exposure);
     EXPECT_EQ(
         ErrorPath(R"({"schema_version": 1, "layers": [{"type": "boulders", "relief": "mesh"}]})"),
         "layers[0].relief");

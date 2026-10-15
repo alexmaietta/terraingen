@@ -137,8 +137,8 @@ TEST(RegionLayer, KeepsTheFeaturesCentredInTheRegionOrItsFeather) {
     EXPECT_EQ(wider.At(1).x, 16.0);
 
     terraingen::BoulderLayerOptions options;
-    options.minDiameter = 1.0;
-    options.coverage = 0.3;
+    options.sizes.minDiameter = 1.0;
+    options.sizes.coverage = 0.3;
     terraingen::TerrainFeatures boulders;
     auto heights = Slope();
     RegionLayer(std::make_shared<terraingen::BoulderLayer>(options),

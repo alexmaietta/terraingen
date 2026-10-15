@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <numbers>
 #include <stdexcept>
 #include <string>
@@ -20,11 +21,21 @@ namespace {
 
 constexpr std::uint32_t kSecondaryStream = 0x53454344u;
 
+/// Singer et al. (2020, Table 3): d = a R^-b, a = kSingerScale D^kSingerSizeExponent, b =
+/// kSingerRangeExponent ln D, in km.
+constexpr double kSingerScale = 0.022;
+constexpr double kSingerSizeExponent = 1.96;
+constexpr double kSingerRangeExponent = 0.14;
+
+/// The outer range of rays as a multiple of their median length (Elliott et al. 2018).
+constexpr double kLongestRayOverMedian = 1.6;
+
 /// The primary's ID mixed with a cell's indices into a secondary's ID.
 std::uint64_t SecondaryId(std::uint64_t primary, int band, std::int64_t ring, std::int64_t sector,
                           std::uint32_t index) {
+    const IdWords id = SplitId(primary);
     const U32x4 block = Philox4x32(
-        {static_cast<std::uint32_t>(primary), static_cast<std::uint32_t>(primary >> 32),
+        {id.low, id.high,
          static_cast<std::uint32_t>(band) ^ (static_cast<std::uint32_t>(ring) << 8), index},
         {static_cast<std::uint32_t>(sector), kSecondaryStream});
     return (static_cast<std::uint64_t>(block.x) << 32) | block.y;
@@ -75,12 +86,201 @@ Footprint FootprintOf(const Vec2d& centre, const Bounds2d& region, const Surface
     return footprint;
 }
 
+/// The sectors [first, last) of a ring of `sectors` sectors of angle `width` at inner radius `r0`
+/// that can reach a footprint, in cells of side `cell`; indices may run past a turn.
+std::pair<std::int64_t, std::int64_t> SectorRange(const Footprint& footprint, double cell,
+                                                  double r0, double width, std::int64_t sectors) {
+    if (footprint.half < std::numbers::pi) {
+        const double margin = cell / r0 + width;
+        const double from = footprint.mid - footprint.half - margin;
+        const double to = footprint.mid + footprint.half + margin;
+        if (to - from < 2.0 * std::numbers::pi) {
+            return {static_cast<std::int64_t>(std::floor(from / width)),
+                    static_cast<std::int64_t>(std::ceil(to / width))};
+        }
+    }
+    return {0, sectors};
+}
+
+/// One primary, with what its secondaries depend on.
+struct Primary {
+    Crater crater;
+    double onset = 0.0;      ///< `SecondaryOnsetRange`.
+    double outer = 0.0;      ///< The outer range.
+    double density0 = 0.0;   ///< Secondaries per m^2 at the onset at least `reference` across.
+    double reference = 0.0;  ///< `countFraction` times the diameter.
+    Footprint footprint;     ///< The region secondaries are wanted in, seen from the primary.
+};
+
+/// One ring of a size band of a primary's polar cells.
+struct Ring {
+    int band = 0;
+    double low = 0.0;        ///< Smallest diameter of the band.
+    double bandShare = 0.0;  ///< The band's share of the cumulative count at `reference`.
+    std::int64_t index = 0;
+    double r0 = 0.0;
+    double r1 = 0.0;
+    double r = 0.0;      ///< Chapman's distance, 1 + (r0 - onset) / D.
+    double width = 0.0;  ///< Angle of a sector.
+    double mean = 0.0;   ///< Secondaries expected in a sector.
+};
+
+/// Draws the secondaries of primaries into one list, keeping count of those expected.
+class Scatter {
+  public:
+    Scatter(const SecondaryCraterLayer& layer, const Surface& surface, const Bounds2d& region,
+            const Bounds2d& wanted, double reachRadii, double skipBelow)
+        : layer_(layer), options_(layer.Options()), surface_(surface), region_(region),
+          wanted_(wanted), reachRadii_(reachRadii), skipBelow_(skipBelow) {}
+
+    /// Draws the secondaries `crater` throws, if it is a selected primary.
+    void Throws(const Crater& crater) {
+        if (!options_.selection.Includes(crater)) {
+            return;
+        }
+        const double diameter = crater.diameter;
+        Primary primary;
+        primary.crater = crater;
+        primary.onset = SecondaryOnsetRange(diameter);
+        primary.outer = layer_.OuterRange(diameter);
+        if (!(primary.outer > primary.onset)) {
+            return;
+        }
+        primary.footprint = FootprintOf({crater.x, crater.y}, wanted_, surface_);
+        primary.density0 = *options_.onsetCount / (0.25 * std::numbers::pi * diameter * diameter);
+        primary.reference = options_.countFraction * diameter;
+        const double biggest = std::fmin(
+            options_.maxDiameter, std::fmax(SingerMaxSecondaryDiameter(diameter, primary.onset),
+                                            SingerMaxSecondaryDiameter(diameter, primary.outer)));
+        const int firstBand = std::ilogb(std::fmax(options_.minDiameter, 1e-9));
+        const int lastBand = std::ilogb(biggest);
+        for (int band = firstBand; band <= lastBand; ++band) {
+            DrawBand(primary, band);
+        }
+    }
+
+    CraterList Take() {
+        return std::move(secondaries_);
+    }
+
+  private:
+    void DrawBand(const Primary& primary, int band) {
+        const double low = std::fmax(options_.minDiameter, std::ldexp(1.0, band));
+        const double high = std::fmin(options_.maxDiameter, std::ldexp(1.0, band + 1));
+        if (!(high > low) || high <= skipBelow_) {
+            return;
+        }
+        const double diameter = primary.crater.diameter;
+        const double far = std::fmin(primary.outer, SingerRangeForSize(diameter, low));
+        const double cell = options_.cellSizeFactor * high;
+        const double inner = std::fmax(primary.onset, primary.footprint.near - cell);
+        const double outerEdge = std::fmin(far, primary.footprint.far + cell);
+        if (!(outerEdge > inner)) {
+            return;
+        }
+        const auto firstRing =
+            static_cast<std::int64_t>(std::floor((inner - primary.onset) / cell));
+        const auto lastRing =
+            static_cast<std::int64_t>(std::ceil((outerEdge - primary.onset) / cell));
+        const double s = options_.sizeSlope;
+        Ring ring;
+        ring.band = band;
+        ring.low = low;
+        ring.bandShare =
+            std::pow(low / primary.reference, -s) - std::pow(high / primary.reference, -s);
+        for (ring.index = firstRing; ring.index < lastRing; ++ring.index) {
+            ring.r0 = primary.onset + static_cast<double>(ring.index) * cell;
+            ring.r1 = std::fmin(far, ring.r0 + cell);
+            if (!(ring.r1 > ring.r0)) {
+                continue;
+            }
+            DrawRing(primary, ring, cell);
+        }
+    }
+
+    void DrawRing(const Primary& primary, Ring& ring, double cell) {
+        const auto sectors = std::max<std::int64_t>(
+            1, static_cast<std::int64_t>(
+                   std::ceil(2.0 * std::numbers::pi * 0.5 * (ring.r0 + ring.r1) / cell)));
+        ring.width = 2.0 * std::numbers::pi / static_cast<double>(sectors);
+        const auto [first, last] =
+            SectorRange(primary.footprint, cell, ring.r0, ring.width, sectors);
+        ring.r = 1.0 + (ring.r0 - primary.onset) / primary.crater.diameter;
+        const double area = 0.5 * ring.width * (ring.r1 * ring.r1 - ring.r0 * ring.r0);
+        ring.mean = primary.density0 / (ring.r * ring.r) * ring.bandShare * area;
+        for (std::int64_t raw = first; raw < last; ++raw) {
+            expected_ += ring.mean;
+            if (expected_ > options_.maxExpected) {
+                throw std::invalid_argument("Expected secondary count exceeds maxExpected");
+            }
+            DrawSector(primary, ring, ((raw % sectors) + sectors) % sectors);
+        }
+    }
+
+    void DrawSector(const Primary& primary, const Ring& ring, std::int64_t sector) {
+        const Crater& crater = primary.crater;
+        const IdWords id = SplitId(crater.id);
+        RandomStream random(options_.seed, kSecondaryStream, id.low ^ id.high,
+                            static_cast<std::uint32_t>(ring.band) ^
+                                (static_cast<std::uint32_t>(ring.index) << 8),
+                            static_cast<std::uint32_t>(sector));
+        const double s = options_.sizeSlope;
+        const double reference = primary.reference;
+        const std::uint64_t count = SamplePoisson(random, ring.mean);
+        for (std::uint64_t index = 0; index < count; ++index) {
+            const double range = std::sqrt(
+                ring.r0 * ring.r0 + random.NextDouble() * (ring.r1 * ring.r1 - ring.r0 * ring.r0));
+            const double azimuth = (static_cast<double>(sector) + random.NextDouble()) * ring.width;
+            const double u = random.NextDouble();
+            const double size =
+                reference *
+                std::pow(std::pow(ring.low / reference, -s) - u * ring.bandShare, -1.0 / s);
+            const double keep = random.NextDouble();
+            const double here = 1.0 + (range - primary.onset) / crater.diameter;
+            if (keep >= (ring.r * ring.r) / (here * here) ||
+                size >= SingerMaxSecondaryDiameter(crater.diameter, range)) {
+                continue;
+            }
+            const Vec2d at = surface_.Locate(
+                {crater.x, crater.y}, {range * std::cos(azimuth), range * std::sin(azimuth)});
+            const double margin = 0.5 * reachRadii_ * size;
+            if (!surface_.Contains(surface_.Expand(region_, margin), at)) {
+                continue;
+            }
+            secondaries_.Append({at.x, at.y, size, crater.ageGyr,
+                                 SecondaryId(crater.id, ring.band, ring.index, sector,
+                                             static_cast<std::uint32_t>(index))});
+        }
+    }
+
+    const SecondaryCraterLayer& layer_;
+    const SecondaryCraterOptions& options_;
+    const Surface& surface_;
+    const Bounds2d& region_;
+    const Bounds2d& wanted_;
+    double reachRadii_;
+    double skipBelow_;
+    CraterList secondaries_;
+    double expected_ = 0.0;
+};
+
 }  // namespace
 
 double SingerMaxSecondaryDiameter(double diameter, double range) {
     const double d = diameter / 1000.0;
     const double r = range / 1000.0;
-    return 1000.0 * 0.022 * std::pow(d, 1.96) * std::pow(r, -0.14 * std::log(d));
+    return 1000.0 * kSingerScale * std::pow(d, kSingerSizeExponent) *
+           std::pow(r, -kSingerRangeExponent * std::log(d));
+}
+
+double SingerRangeForSize(double diameter, double size) {
+    const double d = diameter / 1000.0;
+    const double logD = std::log(d);
+    if (!(logD > 0.0)) {
+        return std::numeric_limits<double>::infinity();
+    }
+    const double a = kSingerScale * std::pow(d, kSingerSizeExponent);
+    return 1000.0 * std::pow(a / (size / 1000.0), 1.0 / (kSingerRangeExponent * logD));
 }
 
 double SecondaryOnsetRange(double diameter) {
@@ -94,6 +294,10 @@ double SecondaryOnsetRange(double diameter) {
         rim = 1.8 + t * (1.3 - 1.8);
     }
     return (0.5 + rim) * diameter;
+}
+
+double ElliottMedianRayLength(double diameter, double coefficient, double exponent) {
+    return 1000.0 * coefficient * std::pow(0.0005 * diameter, exponent);
 }
 
 void ValidateSecondaryCraterOptions(const SecondaryCraterOptions& options) {
@@ -110,19 +314,15 @@ void ValidateSecondaryCraterOptions(const SecondaryCraterOptions& options) {
     if (options.outerRange && !IsPositive(*options.outerRange)) {
         throw std::invalid_argument("The secondary outer range must be positive");
     }
-    if (!(options.minPrimaryDiameter >= 0.0 &&
-          options.maxPrimaryDiameter >= options.minPrimaryDiameter && options.minAgeGyr >= 0.0 &&
-          options.maxAgeGyr >= options.minAgeGyr)) {
-        throw std::invalid_argument("Primary size and age ranges must be ordered and >= 0");
-    }
+    ValidateCraterSelection(options.selection, "Primary");
     if (!(IsPositive(options.cellSizeFactor) && IsPositive(options.maxExpected))) {
         throw std::invalid_argument("The cell size factor and expected limit must be positive");
     }
 }
 
 SecondaryCraterLayer::SecondaryCraterLayer(std::shared_ptr<const CraterLayer> primaries,
-                                           SecondaryCraterModels models,
-                                           SecondaryCraterOptions options, CraterApplyOptions apply)
+                                           CraterShapeModels models, SecondaryCraterOptions options,
+                                           CraterApplyOptions apply)
     : primaries_(std::move(primaries)), models_(std::move(models)), options_(options),
       apply_(apply) {
     if (!primaries_ || !models_.profile || !models_.degradation) {
@@ -140,8 +340,7 @@ double SecondaryCraterLayer::OuterRange(double diameter) const {
     if (options_.outerRange) {
         return *options_.outerRange * diameter;
     }
-    const double median = 1000.0 * 6.59 * std::pow(0.0005 * diameter, 1.27);
-    return 1.6 * median;
+    return kLongestRayOverMedian * ElliottMedianRayLength(diameter);
 }
 
 double SecondaryCraterLayer::MaxFeatureDiameter() const {
@@ -157,125 +356,15 @@ CraterList SecondaryCraterLayer::Secondaries(const Bounds2d& region, double spac
     const Surface& surface = apply_.surface;
     const double reachRadii = models_.profile->ReachRadii();
     const double largest = primaries_->MaxFeatureDiameter();
-    const double secondaryReach = 0.5 * reachRadii * MaxFeatureDiameter();
-    const Bounds2d wanted = surface.Expand(region, secondaryReach);
+    const Bounds2d wanted = surface.Expand(region, 0.5 * reachRadii * MaxFeatureDiameter());
     const CraterList primaries =
         primaries_->Craters(surface.Expand(wanted, OuterRange(largest)), 0.0);
     const double skipBelow = spacing > 0.0 ? apply_.fade.startSamples * spacing : 0.0;
-    const double s = options_.sizeSlope;
-    CraterList secondaries;
-    double expected = 0.0;
+    Scatter scatter(*this, surface, region, wanted, reachRadii, skipBelow);
     for (std::size_t n = 0; n < primaries.Size(); ++n) {
-        const Crater primary = primaries.At(n);
-        const double diameter = primary.diameter;
-        if ((primary.manual && !options_.manual) || diameter < options_.minPrimaryDiameter ||
-            diameter > options_.maxPrimaryDiameter || primary.ageGyr < options_.minAgeGyr ||
-            primary.ageGyr > options_.maxAgeGyr) {
-            continue;
-        }
-        const double onset = SecondaryOnsetRange(diameter);
-        const double outer = OuterRange(diameter);
-        if (!(outer > onset)) {
-            continue;
-        }
-        const Footprint footprint = FootprintOf({primary.x, primary.y}, wanted, surface);
-        const double density0 =
-            *options_.onsetCount / (0.25 * std::numbers::pi * diameter * diameter);
-        const double reference = options_.countFraction * diameter;
-        const double dk = std::log(diameter / 1000.0);
-        const double biggest =
-            std::fmin(options_.maxDiameter, std::fmax(SingerMaxSecondaryDiameter(diameter, onset),
-                                                      SingerMaxSecondaryDiameter(diameter, outer)));
-        const int firstBand = std::ilogb(std::fmax(options_.minDiameter, 1e-9));
-        const int lastBand = std::ilogb(biggest);
-        for (int band = firstBand; band <= lastBand; ++band) {
-            const double low = std::fmax(options_.minDiameter, std::ldexp(1.0, band));
-            const double high = std::fmin(options_.maxDiameter, std::ldexp(1.0, band + 1));
-            if (!(high > low) || high <= skipBelow) {
-                continue;
-            }
-            double far = outer;
-            if (dk > 0.0) {
-                const double a = 0.022 * std::pow(diameter / 1000.0, 1.96);
-                far = std::fmin(outer, 1000.0 * std::pow(a / (low / 1000.0), 1.0 / (0.14 * dk)));
-            }
-            const double cell = options_.cellSizeFactor * high;
-            const double inner = std::fmax(onset, footprint.near - cell);
-            const double outerEdge = std::fmin(far, footprint.far + cell);
-            if (!(outerEdge > inner)) {
-                continue;
-            }
-            const auto firstRing = static_cast<std::int64_t>(std::floor((inner - onset) / cell));
-            const auto lastRing = static_cast<std::int64_t>(std::ceil((outerEdge - onset) / cell));
-            const double bandShare = std::pow(low / reference, -s) - std::pow(high / reference, -s);
-            for (std::int64_t ring = firstRing; ring < lastRing; ++ring) {
-                const double r0 = onset + static_cast<double>(ring) * cell;
-                const double r1 = std::fmin(far, r0 + cell);
-                if (!(r1 > r0)) {
-                    continue;
-                }
-                const auto sectors = std::max<std::int64_t>(
-                    1, static_cast<std::int64_t>(
-                           std::ceil(2.0 * std::numbers::pi * 0.5 * (r0 + r1) / cell)));
-                const double width = 2.0 * std::numbers::pi / static_cast<double>(sectors);
-                std::int64_t s0 = 0;
-                std::int64_t s1 = sectors;
-                if (footprint.half < std::numbers::pi) {
-                    const double margin = cell / r0 + width;
-                    const double from = footprint.mid - footprint.half - margin;
-                    const double to = footprint.mid + footprint.half + margin;
-                    if (to - from < 2.0 * std::numbers::pi) {
-                        s0 = static_cast<std::int64_t>(std::floor(from / width));
-                        s1 = static_cast<std::int64_t>(std::ceil(to / width));
-                    }
-                }
-                const double r = 1.0 + (r0 - onset) / diameter;
-                const double area = 0.5 * width * (r1 * r1 - r0 * r0);
-                const double mean = density0 / (r * r) * bandShare * area;
-                for (std::int64_t raw = s0; raw < s1; ++raw) {
-                    const std::int64_t sector = ((raw % sectors) + sectors) % sectors;
-                    expected += mean;
-                    if (expected > options_.maxExpected) {
-                        throw std::invalid_argument("Expected secondary count exceeds maxExpected");
-                    }
-                    RandomStream random(options_.seed, kSecondaryStream,
-                                        static_cast<std::uint32_t>(primary.id) ^
-                                            static_cast<std::uint32_t>(primary.id >> 32),
-                                        static_cast<std::uint32_t>(band) ^
-                                            (static_cast<std::uint32_t>(ring) << 8),
-                                        static_cast<std::uint32_t>(sector));
-                    const std::uint64_t count = SamplePoisson(random, mean);
-                    for (std::uint64_t index = 0; index < count; ++index) {
-                        const double range =
-                            std::sqrt(r0 * r0 + random.NextDouble() * (r1 * r1 - r0 * r0));
-                        const double azimuth =
-                            (static_cast<double>(sector) + random.NextDouble()) * width;
-                        const double u = random.NextDouble();
-                        const double size =
-                            reference *
-                            std::pow(std::pow(low / reference, -s) - u * bandShare, -1.0 / s);
-                        const double keep = random.NextDouble();
-                        const double here = 1.0 + (range - onset) / diameter;
-                        if (keep >= (r * r) / (here * here) ||
-                            size >= SingerMaxSecondaryDiameter(diameter, range)) {
-                            continue;
-                        }
-                        const Vec2d at =
-                            surface.Locate({primary.x, primary.y},
-                                           {range * std::cos(azimuth), range * std::sin(azimuth)});
-                        const double margin = 0.5 * reachRadii * size;
-                        if (!surface.Contains(surface.Expand(region, margin), at)) {
-                            continue;
-                        }
-                        secondaries.Append({at.x, at.y, size, primary.ageGyr,
-                                            SecondaryId(primary.id, band, ring, sector,
-                                                        static_cast<std::uint32_t>(index))});
-                    }
-                }
-            }
-        }
+        scatter.Throws(primaries.At(n));
     }
-    return secondaries;
+    return scatter.Take();
 }
 
 void SecondaryCraterLayer::Apply(Raster<float>& heights, const LayerContext& context,
@@ -283,33 +372,23 @@ void SecondaryCraterLayer::Apply(Raster<float>& heights, const LayerContext& con
     const RasterGrid grid = RasterGrid::Of(heights);
     const double resolved = std::max(context.spacing, grid.Spacing(apply_.surface));
     const CraterList secondaries = Secondaries(grid.Bounds(), resolved);
-    ApplyCraters(heights, secondaries, *models_.profile, *models_.degradation, apply_, resolved,
-                 context.threads);
-    for (std::size_t n = 0; n < secondaries.Size(); ++n) {
-        const Crater crater = secondaries.At(n);
-        features.craterAttributes.push_back(
-            ComputeCraterAttributes(crater, models_.degradation->State(crater), *models_.profile));
-    }
-    features.craters.Append(secondaries);
+    ApplyCraters(heights, secondaries, models_, apply_, {resolved, context.threads});
+    features.AddCraters(secondaries, [&](const Crater& crater) {
+        return ComputeCraterAttributes(crater, models_.degradation->State(crater),
+                                       *models_.profile);
+    });
 }
 
 float SecondaryCraterLayer::ApplyAt(float height, double x, double y,
                                     const LayerContext& context) const {
-    const double spacing = context.spacing;
-    RequirePositive(spacing, "Sample spacing");
+    ValidatePointContext(context);
     if (std::isnan(height)) {
         return height;
     }
-    const CraterList secondaries = Secondaries(PointBounds(x, y), spacing);
-    for (const std::size_t index : CraterApplyOrder(secondaries, apply_.order)) {
-        const Crater crater = secondaries.At(index);
-        const double resolution = ResolutionWeight(crater.diameter, spacing, apply_.fade);
-        if (resolution == 0.0) {
-            continue;
-        }
-        height = ApplyCraterTo(height, x, y, crater, models_.degradation->State(crater), resolution,
-                               std::nullopt, *models_.profile, apply_,
-                               OutlineOf(crater, apply_.irregularity));
+    const CraterList secondaries = Secondaries(PointBounds(x, y), context.spacing);
+    for (const PreparedCrater& crater :
+         PrepareCraters(secondaries, apply_, context.spacing, *models_.degradation)) {
+        height = ApplyCraterTo(height, x, y, crater, *models_.profile, apply_);
     }
     return height;
 }

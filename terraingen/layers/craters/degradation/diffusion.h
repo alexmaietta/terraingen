@@ -36,32 +36,12 @@ struct PowerLawDiffusivity {
 /// diameter that is not finite, or a negative minimum diameter.
 void ValidatePowerLawDiffusivity(const PowerLawDiffusivity& law);
 
-/// A fresh crater profile worn by topographic diffusion, dh/dt = kappa del^2 h (Culling 1960), as
-/// Fassett and Thomson (2014) model crater degradation and synthterrain implements it.
-///
-/// An isolated crater on level ground stays axisymmetric as it diffuses, so the 2D equation reduces
-/// to the radial dh/dt = kappa (h'' + h' / r), and in units of the diameter D it depends only on
-/// the dimensionless diffusion age tau = kappa t / D^2 (`CraterState::diffusion`): a larger crater
-/// at the same kappa t looks fresher, by the square of its size. For each fresh shape the profile
-/// solves it once, implicitly (backward Euler on a finite-volume radial grid of `cells` cells out
-/// to `reachRadii` radii, held at 0 there), and tabulates the shape at 0 and at tau from 1e-5 to
-/// 0.5 in geometric steps; heights are interpolated linearly in distance and in log tau. Craters
-/// older than the table keep its last, nearly flat shape.
-///
-/// The fresh shape comes from `fresh` at the crater's fresh morphometry (`CraterState::fresh`),
-/// assumed self-similar for simple craters (computed once at a 1 km reference diameter for each
-/// fresh morphometry) and computed at each diameter for complex ones. Tables are kept in a cache
-/// of `cacheTables` entries. Point and grid evaluations read the same table, so they agree.
-///
-/// References:
-/// - W. E. H. Culling, "Analytical theory of erosion", Journal of Geology 68(3):336-344, 1960.
-///   https://doi.org/10.1086/626663
-/// - C. I. Fassett and B. J. Thomson, "Crater degradation on the lunar maria: Topographic diffusion
-///   and the rate of erosion on the Moon", JGR Planets 119:2255-2271, 2014.
-///   https://doi.org/10.1002/2014JE004698
-/// - synthterrain (NASA Ames), `synthterrain.crater.diffusion.diffuse_d_over_D`, an explicit 2D
-///   solution over a grid two diameters across, which inspired this one.
-///   https://github.com/NeoGeographyToolkit/synthterrain
+/// A fresh crater profile worn by topographic diffusion, dh/dt = kappa del^2 h, solved radially in
+/// the diffusion age tau = kappa t / D^2 (`CraterState::diffusion`) once per fresh shape and
+/// tabulated from tau = 1e-5 to 0.5; heights are interpolated linearly in distance and in log tau,
+/// and craters older than the table keep its last shape. Simple craters share one table per fresh
+/// morphometry, complex ones get one per diameter, kept in a cache of `cacheTables` entries. Point
+/// and grid evaluations read the same table, so they agree. See SCIENCE.md, "Crater degradation".
 class DiffusedProfile final : public CraterProfile {
   public:
     /// @throws std::invalid_argument for a null `fresh`, `reachRadii` below the fresh profile's

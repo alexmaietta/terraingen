@@ -294,7 +294,7 @@ LayerPtr BuildCraterLayer(const CraterLayerSpec& craters, const std::string& pat
 
 LayerPtr BuildSecondaryLayer(const SecondaryLayerSpec& spec,
                              const std::shared_ptr<const CraterLayer>& primaries) {
-    const SecondaryCraterModels models{
+    const CraterShapeModels models{
         primaries->Models().profile,
         std::make_shared<NoDegradation>(BodyMorphometry(spec.body), spec.depthRatio)};
     return std::make_shared<SecondaryCraterLayer>(primaries, models, spec.secondaries);
@@ -421,7 +421,7 @@ BoulderLayerOptions BuildBoulderOptions(const BoulderLayerSpec& spec, const std:
         }
         return built;
     };
-    options.distribution = sizes(spec.sizes, "sizes");
+    options.sizes.distribution = sizes(spec.sizes, "sizes");
     options.ejecta.distribution = sizes(spec.ejectaSizes, "ejecta_sizes");
     return options;
 }

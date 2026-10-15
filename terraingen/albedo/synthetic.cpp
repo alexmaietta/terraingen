@@ -1,5 +1,6 @@
 #include "terraingen/albedo/synthetic.h"
 
+#include "terraingen/layers/surface_noise.h"
 #include "terraingen/sources/synthetic_terrain.h"
 #include "terraingen/util/checks.h"
 
@@ -77,14 +78,7 @@ double SyntheticAlbedo::Noise(const std::vector<NoiseLayer>& layers, double x, d
     if (layers.empty()) {
         return 0.0;
     }
-    if (surface_.IsSphere()) {
-        const Vec3d p = surface_.Position({x, y});
-        return static_cast<double>(
-            EvaluateNoiseLayers3(p.x, p.y, p.z, layers.data(), layers.size()));
-    }
-    return static_cast<double>(EvaluateNoiseLayers(static_cast<float>(x - origin_.x),
-                                                   static_cast<float>(y - origin_.y), layers.data(),
-                                                   layers.size()));
+    return static_cast<double>(NoiseLayersAt(layers, origin_, surface_, x, y));
 }
 
 AlbedoSample SyntheticAlbedo::ValueAt(double x, double y, const AlbedoContext& /*context*/) const {

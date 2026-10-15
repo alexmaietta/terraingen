@@ -1,2 +1,8 @@
-terraingen_add_test_suite(random SOURCES samplers_test.cpp stream_test.cpp LIBRARIES
-                          terraingen::random)
+terraingen_add_test_suite(
+    random
+    SOURCES
+    samplers_test.cpp
+    stream_test.cpp
+    value_distribution_test.cpp
+    LIBRARIES
+    terraingen::random)

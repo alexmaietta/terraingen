@@ -1,6 +1,6 @@
 #pragma once
 
-#include "terraingen/layers/craters/apply.h"
+#include "terraingen/layers/fade.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/util/surface.h"
 
@@ -10,16 +10,9 @@
 
 namespace terraingen {
 
-/// Settings for a `RoughnessLayer`.
-///
-/// Roughness is given as Shepard et al. (2001) do: the RMS slope over a baseline, the RMS height
-/// difference between points `baseline` apart divided by `baseline`, and the Hurst exponent, how
-/// that RMS height difference grows with the baseline (as baseline^H). Rougher at fine scales is a
-/// smaller H.
-///
-/// Reference: M. K. Shepard, B. A. Campbell, M. H. Bulmer, T. G. Farr, L. R. Gaddis and J. J.
-/// Plaut, "The roughness of natural terrain: A planetary and remote sensing perspective", JGR
-/// Planets 106(E12):32777-32795, 2001. https://doi.org/10.1029/2000JE001429
+/// The roughness a `RoughnessLayer` adds, as Shepard et al. (2001) give it: the RMS slope over a
+/// baseline and the Hurst exponent H, how the RMS height difference grows with the baseline (as
+/// baseline^H). See SCIENCE.md, "Roughness".
 struct RoughnessOptions {
     double rmsSlope = 0.15;       ///< RMS slope (rise over run) over `baseline`.
     double baseline = 0.25;       ///< Baseline the RMS slope is given over (m).
@@ -59,9 +52,6 @@ class RoughnessLayer final : public Layer {
   public:
     /// On a sphere each octave is 3D Perlin noise at the 3D point, its lattice turned by a uniform
     /// random rotation (Shoemake 1992) and calibrated with `Perlin3StructureFunction`.
-    ///
-    /// Reference: K. Shoemake, "Uniform random rotations", in D. Kirk (ed.), Graphics Gems III,
-    /// Academic Press, 124-132, 1992.
     /// @throws std::invalid_argument for invalid options.
     explicit RoughnessLayer(RoughnessOptions options, Surface surface = {});
 
@@ -95,6 +85,11 @@ class RoughnessLayer final : public Layer {
         double offsetZ = 0.0;
     };
 
+    /// Octave `i` of `wavelength`, before its amplitude is scaled to the RMS slope.
+    Octave MakeOctave(std::uint32_t i, double wavelength) const;
+    /// The noise of one octave at (`x`, `y`), in [-1, 1].
+    double OctaveNoise(const Octave& octave, double x, double y) const;
+    /// The sum of the octaves at (`x`, `y`) resolved at `spacing`.
     float Roughness(double x, double y, double spacing) const;
 
     RoughnessOptions options_;

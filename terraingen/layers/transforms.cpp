@@ -1,8 +1,7 @@
 #include "terraingen/layers/transforms.h"
 
+#include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/grid.h"
-#include "terraingen/util/checks.h"
-#include "terraingen/util/parallel.h"
 
 #include <algorithm>
 #include <cmath>
@@ -12,19 +11,6 @@
 namespace terraingen {
 
 namespace {
-
-/// Sets each cell of `heights` holding data to `map(height, centre)`, rows over up to `threads`
-/// threads.
-template <typename Map> void MapCells(Raster<float>& heights, unsigned threads, const Map& map) {
-    ParallelFor(heights.Height(), threads, [&](std::size_t row) {
-        for (std::size_t col = 0; col < heights.Width(); ++col) {
-            float& cell = heights(col, row);
-            if (!heights.IsNoData(cell)) {
-                cell = map(cell, heights.CellCenter(col, row));
-            }
-        }
-    });
-}
 
 float Scaled(float height, double scale, double offset) {
     return static_cast<float>(static_cast<double>(height) * scale + offset);
@@ -96,7 +82,7 @@ void FunctionLayer::Apply(Raster<float>& heights, const LayerContext& context,
 }
 
 float FunctionLayer::ApplyAt(float height, double x, double y, const LayerContext& context) const {
-    RequirePositive(context.spacing, "Sample spacing");
+    ValidatePointContext(context);
     if (std::isnan(height)) {
         return height;
     }

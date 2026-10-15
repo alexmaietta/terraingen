@@ -33,11 +33,11 @@ TEST(FreshAges, GivesEveryCraterAgeZeroAndFreshnessOne) {
     RandomStream stream(1u, 1u);
     EXPECT_EQ(fresh.LifetimeGyr(10.0), 0.0);
     EXPECT_EQ(fresh.SampleAgeGyr(stream, 10.0), 0.0);
-    EXPECT_EQ(fresh.Freshness(10.0, 0.0), 1.0);
-    EXPECT_EQ(fresh.Freshness(10.0, 2.0), 1.0);
+    EXPECT_EQ(fresh.RemainingLifetime(10.0, 0.0), 1.0);
+    EXPECT_EQ(fresh.RemainingLifetime(10.0, 2.0), 1.0);
     EXPECT_THROW(fresh.LifetimeGyr(0.0), std::domain_error);
     EXPECT_THROW(fresh.SampleAgeGyr(stream, kNaN), std::domain_error);
-    EXPECT_THROW(fresh.Freshness(-1.0, 0.0), std::domain_error);
+    EXPECT_THROW(fresh.RemainingLifetime(-1.0, 0.0), std::domain_error);
     const std::unique_ptr<CraterAgeModel> base = std::make_unique<FreshAges>();
     EXPECT_EQ(base->LifetimeGyr(1.0), 0.0);
 }

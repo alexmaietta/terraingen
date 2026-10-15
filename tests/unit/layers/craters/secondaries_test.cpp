@@ -33,7 +33,7 @@ std::shared_ptr<const CraterLayer> Primaries(const Crater& primary, Surface surf
         options);
 }
 
-terraingen::SecondaryCraterModels Models() {
+terraingen::CraterShapeModels Models() {
     return {
         std::make_shared<terraingen::FassettThomsonProfile>(),
         std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry, 0.11)};
@@ -158,19 +158,19 @@ TEST(SecondaryCraterLayer, KeepsOnlyEligiblePrimaries) {
     const Crater primary{0.0, 0.0, 2000.0, 0.5, 9u, true};
     const double outer = 20000.0;
     SecondaryCraterOptions options = Options();
-    options.maxAgeGyr = 0.4;
+    options.selection.maxAgeGyr = 0.4;
     EXPECT_EQ(SecondaryCraterLayer(Primaries(primary), Models(), options)
                   .Secondaries({-outer, -outer, outer, outer})
                   .Size(),
               0u);
     options = Options();
-    options.minPrimaryDiameter = 3000.0;
+    options.selection.minDiameter = 3000.0;
     EXPECT_EQ(SecondaryCraterLayer(Primaries(primary), Models(), options)
                   .Secondaries({-outer, -outer, outer, outer})
                   .Size(),
               0u);
     options = Options();
-    options.manual = false;
+    options.selection.manual = false;
     EXPECT_EQ(SecondaryCraterLayer(Primaries(primary), Models(), options)
                   .Secondaries({-outer, -outer, outer, outer})
                   .Size(),
@@ -212,8 +212,11 @@ TEST(SecondaryCraterLayer, RejectsInvalidSettings) {
     rejects([](auto& o) { o.minDiameter = 0.0; });
     rejects([](auto& o) { o.maxDiameter = 10.0; });
     rejects([](auto& o) { o.outerRange = -1.0; });
-    rejects([](auto& o) { o.maxPrimaryDiameter = -1.0; });
-    rejects([](auto& o) { o.minAgeGyr = 2.0, o.maxAgeGyr = 1.0; });
+    rejects([](auto& o) { o.selection.maxDiameter = -1.0; });
+    rejects([](auto& o) {
+        o.selection.minAgeGyr = 2.0;
+        o.selection.maxAgeGyr = 1.0;
+    });
     rejects([](auto& o) { o.cellSizeFactor = 0.0; });
     EXPECT_THROW(SecondaryCraterLayer(nullptr, Models(), Options()), std::invalid_argument);
     EXPECT_THROW(SecondaryCraterLayer(primaries, {}, Options()), std::invalid_argument);
@@ -224,4 +227,21 @@ TEST(SecondaryCraterLayer, RejectsInvalidSettings) {
     EXPECT_THROW(
         SecondaryCraterLayer(primaries, Models(), Options()).ApplyAt(0.0f, 0.0, 0.0, {0.0}),
         std::invalid_argument);
+}
+
+TEST(SingerRangeForSize, InvertsTheLargestSecondaryInRange) {
+    for (const double range : {30000.0, 80000.0, 200000.0}) {
+        const double largest = terraingen::SingerMaxSecondaryDiameter(20000.0, range);
+        EXPECT_NEAR(terraingen::SingerRangeForSize(20000.0, largest), range, 1e-6 * range);
+    }
+    EXPECT_TRUE(std::isinf(terraingen::SingerRangeForSize(800.0, 5.0)))
+        << "below 1 km the largest secondary does not shrink with range";
+}
+
+TEST(ElliottMedianRayLength, FollowsTheirPowerLawInRadiusInKilometres) {
+    EXPECT_DOUBLE_EQ(terraingen::ElliottMedianRayLength(2000.0), 6590.0);
+    EXPECT_DOUBLE_EQ(terraingen::ElliottMedianRayLength(4000.0, 2.0, 1.0), 4000.0);
+    const SecondaryCraterLayer layer(Primaries({0.0, 0.0, 2000.0, 0.0, 9u, true}), Models(),
+                                     Options());
+    EXPECT_DOUBLE_EQ(layer.OuterRange(2000.0), 1.6 * 6590.0);
 }

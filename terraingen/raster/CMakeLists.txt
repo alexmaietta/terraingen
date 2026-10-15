@@ -8,6 +8,7 @@ set_target_properties(terraingen_miniz PROPERTIES POSITION_INDEPENDENT_CODE ON)
 terraingen_add_library(
     raster
     SOURCES
+    cell_loops.cpp
     filters.cpp
     grid.cpp
     geotiff.cpp

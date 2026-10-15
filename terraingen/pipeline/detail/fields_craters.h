@@ -73,18 +73,19 @@ template <typename IO> void Fields(IO& io, CraterIrregularity& irregularity) {
     io("seed", irregularity.seed,
        "Seed the outlines are drawn with, along with each crater's ID; changing it reshapes every "
        "irregular crater.");
-    io("min_diameter", irregularity.minDiameter,
+    CraterSelection& selection = irregularity.selection;
+    io("min_diameter", selection.minDiameter,
        "Smallest diameter, in metres, of craters made irregular.", "m");
-    OptionalBound(io, "max_diameter", irregularity.maxDiameter,
+    OptionalBound(io, "max_diameter", selection.maxDiameter,
                   "Largest diameter, in metres, of craters made irregular; unset has no upper "
                   "limit.",
                   "m");
-    io("min_age_gyr", irregularity.minAgeGyr, "Youngest age, in Gyr, of craters made irregular.",
+    io("min_age_gyr", selection.minAgeGyr, "Youngest age, in Gyr, of craters made irregular.",
        "Gyr");
-    OptionalBound(io, "max_age_gyr", irregularity.maxAgeGyr,
+    OptionalBound(io, "max_age_gyr", selection.maxAgeGyr,
                   "Oldest age, in Gyr, of craters made irregular; unset has no upper limit.",
                   "Gyr");
-    io("manual", irregularity.manual,
+    io("manual", selection.manual,
        "Makes manual craters irregular too; otherwise only generated craters are.");
     io("rough_share", irregularity.roughShare,
        "Share of eligible craters, from 0 to 1, given rough, wavy rims.");
@@ -205,17 +206,18 @@ template <typename IO> void Fields(IO& io, SecondaryLayerSpec& spec) {
     io("outer_range", o.outerRange,
        "How far secondaries reach, in primary diameters from its centre; unset uses the longest "
        "typical ray of Elliott et al. (2018).");
-    io("min_primary_diameter", o.minPrimaryDiameter,
+    io("min_primary_diameter", o.selection.minDiameter,
        "Smallest primary crater, in metres, that throws secondaries.", "m");
-    OptionalBound(io, "max_primary_diameter", o.maxPrimaryDiameter,
+    OptionalBound(io, "max_primary_diameter", o.selection.maxDiameter,
                   "Largest primary crater, in metres, that throws secondaries; unset has no upper "
                   "limit.",
                   "m");
-    io("min_age_gyr", o.minAgeGyr, "Youngest primary, in Gyr, that throws secondaries.", "Gyr");
-    OptionalBound(io, "max_age_gyr", o.maxAgeGyr,
+    io("min_age_gyr", o.selection.minAgeGyr, "Youngest primary, in Gyr, that throws secondaries.",
+       "Gyr");
+    OptionalBound(io, "max_age_gyr", o.selection.maxAgeGyr,
                   "Oldest primary, in Gyr, that throws secondaries; unset has no upper limit.",
                   "Gyr");
-    io("manual", o.manual,
+    io("manual", o.selection.manual,
        "Lets manual primary craters throw secondaries too; otherwise only generated ones do.");
     io("cell_size_factor", o.cellSizeFactor,
        "Side of the polar cells secondaries are drawn in, as a multiple of each size band's "

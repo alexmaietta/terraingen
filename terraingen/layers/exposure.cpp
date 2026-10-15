@@ -1,6 +1,7 @@
 #include "terraingen/layers/exposure.h"
 
-#include "terraingen/noise/kernels/perlin.h"
+#include "terraingen/layers/fade.h"
+#include "terraingen/layers/surface_noise.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/parallel.h"
 
@@ -15,8 +16,7 @@ namespace {
 
 /// Smoothstep of where `value` lies between `low` and `high`.
 double Share(double value, double low, double high) {
-    const double t = std::clamp((value - low) / (high - low), 0.0, 1.0);
-    return t * t * (3.0 - 2.0 * t);
+    return Smoothstep((value - low) / (high - low));
 }
 
 }  // namespace
@@ -67,22 +67,7 @@ double ExposureField::Exposure(const Ground& ground, double x, double y, double 
     double exposure = std::max(Share(rise, params_.riseSoil, params_.riseBoulder),
                                Share(slope, params_.slopeSoil, params_.slopeBoulder));
     if (params_.floorCover > 0.0) {
-        double coarse = 0.0;
-        double fine = 0.0;
-        if (surface_.IsSphere()) {
-            const Vec3d p = surface_.Position({x, y});
-            const double s = 1.0 / params_.floorPatch;
-            coarse =
-                static_cast<double>(PerlinNoise3Precise(s * p.x, s * p.y, s * p.z, params_.seed));
-            fine = static_cast<double>(PerlinNoise3Precise(4.0 * s * p.x, 4.0 * s * p.y,
-                                                           4.0 * s * p.z, params_.seed + 1u));
-        } else {
-            const auto px = static_cast<float>(x / params_.floorPatch);
-            const auto py = static_cast<float>(y / params_.floorPatch);
-            coarse = static_cast<double>(PerlinNoise2(px, py, params_.seed));
-            fine = static_cast<double>(PerlinNoise2(4.0f * px, 4.0f * py, params_.seed + 1u));
-        }
-        const double noise = std::clamp(2.5 * (0.7 * coarse + 0.3 * fine), -1.0, 1.0);
+        const double noise = PatchNoise(surface_, x, y, params_.floorPatch, params_.seed);
         const double threshold = 1.0 - 2.0 * params_.floorCover;
         exposure = std::max(exposure, Share(noise, threshold - 0.2, threshold + 0.2));
     }

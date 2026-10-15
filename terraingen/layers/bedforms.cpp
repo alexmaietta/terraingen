@@ -2,9 +2,9 @@
 
 #include "terraingen/noise/kernels/perlin.h"
 #include "terraingen/random/stream.h"
+#include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/checks.h"
-#include "terraingen/util/parallel.h"
 
 #include <algorithm>
 #include <cmath>
@@ -26,10 +26,7 @@ constexpr double kWavelengthSpan = 0.4;
 constexpr double kWanderWavelengths = 5.0;
 constexpr double kRagRadii = 0.5;
 
-double Smoothstep(double t) {
-    t = std::clamp(t, 0.0, 1.0);
-    return t * t * (3.0 - 2.0 * t);
-}
+constexpr const char* kExposureReader = "Bedforms that read the exposure field";
 
 }  // namespace
 
@@ -120,8 +117,8 @@ BedformLayer::Point BedformLayer::Evaluate(double x, double y, const Ground* gro
     if (density_ <= 0.0) {
         return point;
     }
-    if (exposure_ && ground == nullptr) {
-        throw std::invalid_argument("Bedforms that read the exposure field need the ground");
+    if (exposure_) {
+        RequireGround(ground, kExposureReader);
     }
     if (cells_) {
         const CellIndex home = cells_->CellOf(x, y, cell_);
@@ -178,23 +175,17 @@ float BedformLayer::Add(float height, double x, double y, double spacing,
 
 void BedformLayer::Apply(Raster<float>& heights, const LayerContext& context,
                          TerrainFeatures& /*features*/) const {
-    if (exposure_ && context.ground == nullptr) {
-        throw std::invalid_argument("Bedforms that read the exposure field need the ground");
+    if (exposure_) {
+        RequireGround(context.ground, kExposureReader);
     }
     const double spacing = std::max(context.spacing, RasterGrid::Of(heights).Spacing(surface_));
-    ParallelFor(heights.Height(), context.threads, [&](std::size_t row) {
-        for (std::size_t col = 0; col < heights.Width(); ++col) {
-            float& cell = heights(col, row);
-            if (!heights.IsNoData(cell)) {
-                const Vec2d centre = heights.CellCenter(col, row);
-                cell = Add(cell, centre.x, centre.y, spacing, context.ground);
-            }
-        }
+    MapCells(heights, context.threads, [&](float height, const Vec2d& centre) {
+        return Add(height, centre.x, centre.y, spacing, context.ground);
     });
 }
 
 float BedformLayer::ApplyAt(float height, double x, double y, const LayerContext& context) const {
-    RequirePositive(context.spacing, "Sample spacing");
+    ValidatePointContext(context);
     if (std::isnan(height)) {
         return height;
     }

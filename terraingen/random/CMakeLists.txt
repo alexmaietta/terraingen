@@ -3,6 +3,7 @@ terraingen_add_library(
     SOURCES
     samplers.cpp
     stream.cpp
+    value_distribution.cpp
     PUBLIC
     terraingen_noise
     terraingen_util)

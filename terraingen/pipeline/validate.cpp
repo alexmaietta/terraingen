@@ -6,7 +6,7 @@
 #include "terraingen/albedo/crater_albedo.h"
 #include "terraingen/albedo/raster_albedo.h"
 #include "terraingen/albedo/synthetic.h"
-#include "terraingen/layers/craters/filters.h"
+#include "terraingen/layers/craters/spacing.h"
 #include "terraingen/layers/transforms.h"
 #include "terraingen/noise/kernels/layers.h"
 #include "terraingen/pipeline/config_checks.h"
@@ -132,13 +132,14 @@ void ValidateBoulders(const BoulderLayerSpec& spec, const std::string& path,
         throw ConfigError(Child(Child(path, "ejecta"), "min_crater_diameter"),
                           "ejecta need a crater layer before this one");
     }
+    const BoulderSizes& sizes = boulders.sizes;
     const double minDiameter = std::fmax(
-        boulders.minDiameter, boulders.fade.startSamples * context.grid.Spacing(context.surface));
-    if (minDiameter >= boulders.maxDiameter) {
+        sizes.minDiameter, boulders.fade.startSamples * context.grid.Spacing(context.surface));
+    if (minDiameter >= sizes.maxDiameter) {
         return;
     }
     const double expected = BoulderCandidates(boulders)->ExpectedCount(
-        context.grid.SurfaceArea(context.surface), minDiameter, boulders.maxDiameter);
+        context.grid.SurfaceArea(context.surface), minDiameter, sizes.maxDiameter);
     CheckExpectedCount(expected, "candidate boulders", "raise min_diameter or lower coverage",
                        Child(path, "min_diameter"));
 }

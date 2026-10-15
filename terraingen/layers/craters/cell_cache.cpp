@@ -20,4 +20,14 @@ CraterCellCache::CraterCellCache(std::size_t maxCraters)
                        maxCraters, " craters");
           }) {}
 
+CellCraterSource CachedCellCraters(CraterCellCache& cache, const SurfaceCells& cells,
+                                   const SizeFrequencyDistribution& density,
+                                   const CraterAgeModel& ages, std::uint32_t seed) {
+    return [&cache, &cells, &density, &ages, seed](const CraterBand& band, const CellIndex& cell) {
+        return cache.Get(band.exponent, cell, [&] {
+            return GenerateCellCraters(cells, band, cell, density, ages, seed);
+        });
+    };
+}
+
 }  // namespace terraingen

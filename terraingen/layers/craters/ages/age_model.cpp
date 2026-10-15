@@ -28,7 +28,7 @@ double CraterAgeModel::SampleAgeGyr(RandomStream& random, double diameter) const
     return std::clamp(SampleAgeAt(random, diameter, lifetime), 0.0, lifetime);
 }
 
-double CraterAgeModel::Freshness(double diameter, double ageGyr) const {
+double CraterAgeModel::RemainingLifetime(double diameter, double ageGyr) const {
     const double lifetime = LifetimeGyr(diameter);
     if (lifetime == 0.0) {
         return 1.0;

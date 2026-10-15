@@ -1,11 +1,10 @@
 #include "terraingen/layers/region.h"
 
-#include "terraingen/raster/grid.h"
+#include "terraingen/raster/cell_loops.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/parallel.h"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <limits>
 #include <numbers>
@@ -23,6 +22,39 @@ float Blend(float height, float inner, double weight) {
     }
     return static_cast<float>(static_cast<double>(height) +
                               weight * (static_cast<double>(inner) - static_cast<double>(height)));
+}
+
+/// The smallest window holding every one of `windows`; empty when there is none.
+PixelWindow UnionOf(const std::vector<PixelWindow>& windows) {
+    if (windows.empty()) {
+        return {};
+    }
+    PixelWindow joined = windows.front();
+    for (const PixelWindow& window : windows) {
+        joined.colBegin = std::min(joined.colBegin, window.colBegin);
+        joined.colEnd = std::max(joined.colEnd, window.colEnd);
+        joined.rowBegin = std::min(joined.rowBegin, window.rowBegin);
+        joined.rowEnd = std::max(joined.rowEnd, window.rowEnd);
+    }
+    return joined;
+}
+
+/// The cells of `window` of `heights` as a raster of their own, on the same lattice.
+Raster<float> CopyWindow(const Raster<float>& heights, const PixelWindow& window) {
+    Raster<float> copy(window.colEnd - window.colBegin, window.rowEnd - window.rowBegin);
+    GeoTransform transform = heights.Transform();
+    const Vec2d origin = transform.PixelToWorld(static_cast<double>(window.colBegin),
+                                                static_cast<double>(window.rowBegin));
+    transform.originX = origin.x;
+    transform.originY = origin.y;
+    copy.SetTransform(transform);
+    copy.SetNoData(heights.NoData());
+    for (std::size_t row = window.rowBegin; row < window.rowEnd; ++row) {
+        for (std::size_t col = window.colBegin; col < window.colEnd; ++col) {
+            copy(col - window.colBegin, row - window.rowBegin) = heights(col, row);
+        }
+    }
+    return copy;
 }
 
 }  // namespace
@@ -93,69 +125,22 @@ double RegionLayer::Weight(double x, double y) const {
     if (distance >= feather_) {
         return 0.0;
     }
-    return CraterBlendWeight(distance, CraterBlend{0.0, feather_, blend_});
+    return Falloff(distance, 0.0, feather_, blend_);
 }
 
 void RegionLayer::Apply(Raster<float>& heights, const LayerContext& context,
                         TerrainFeatures& features) const {
     const Bounds2d reach = surface_.Expand(shape_.Bounds(surface_), feather_);
-    const GeoTransform& transform = heights.Transform();
-    const auto width = static_cast<double>(heights.Width());
-    const auto height = static_cast<double>(heights.Height());
-    std::size_t col0 = heights.Width();
-    std::size_t col1 = 0;
-    std::size_t row0 = heights.Height();
-    std::size_t row1 = 0;
-    const std::vector<double> shifts =
-        surface_.IsSphere() ? std::vector<double>{-360.0, 0.0, 360.0} : std::vector<double>{0.0};
-    for (const double shift : shifts) {
-        double minCol = std::numeric_limits<double>::infinity();
-        double minRow = minCol;
-        double maxCol = -minCol;
-        double maxRow = -minCol;
-        for (const auto& [x, y] : std::array<Vec2d, 4>{{{reach.minX + shift, reach.minY},
-                                                        {reach.minX + shift, reach.maxY},
-                                                        {reach.maxX + shift, reach.minY},
-                                                        {reach.maxX + shift, reach.maxY}}}) {
-            const Vec2d pixel = transform.WorldToPixel(x, y);
-            minCol = std::fmin(minCol, pixel.x);
-            maxCol = std::fmax(maxCol, pixel.x);
-            minRow = std::fmin(minRow, pixel.y);
-            maxRow = std::fmax(maxRow, pixel.y);
-        }
-        const auto c0 = static_cast<std::size_t>(std::clamp(std::floor(minCol), 0.0, width));
-        const auto c1 = static_cast<std::size_t>(std::clamp(std::ceil(maxCol), 0.0, width));
-        const auto r0 = static_cast<std::size_t>(std::clamp(std::floor(minRow), 0.0, height));
-        const auto r1 = static_cast<std::size_t>(std::clamp(std::ceil(maxRow), 0.0, height));
-        if (c0 < c1 && r0 < r1) {
-            col0 = std::min(col0, c0);
-            col1 = std::max(col1, c1);
-            row0 = std::min(row0, r0);
-            row1 = std::max(row1, r1);
-        }
-    }
-    if (col0 >= col1 || row0 >= row1) {
+    const PixelWindow window = UnionOf(WindowsAround(heights, reach, surface_));
+    if (window.Empty()) {
         return;
     }
-
-    Raster<float> window(col1 - col0, row1 - row0);
-    GeoTransform windowTransform = transform;
-    const Vec2d origin =
-        transform.PixelToWorld(static_cast<double>(col0), static_cast<double>(row0));
-    windowTransform.originX = origin.x;
-    windowTransform.originY = origin.y;
-    window.SetTransform(windowTransform);
-    window.SetNoData(heights.NoData());
-    for (std::size_t row = row0; row < row1; ++row) {
-        for (std::size_t col = col0; col < col1; ++col) {
-            window(col - col0, row - row0) = heights(col, row);
-        }
-    }
+    Raster<float> inner = CopyWindow(heights, window);
     TerrainFeatures placed;
-    inner_->Apply(window, context, placed);
-    ParallelFor(row1 - row0, context.threads, [&](std::size_t r) {
-        const std::size_t row = row0 + r;
-        for (std::size_t col = col0; col < col1; ++col) {
+    inner_->Apply(inner, context, placed);
+    ParallelFor(window.rowEnd - window.rowBegin, context.threads, [&](std::size_t r) {
+        const std::size_t row = window.rowBegin + r;
+        for (std::size_t col = window.colBegin; col < window.colEnd; ++col) {
             float& cell = heights(col, row);
             if (heights.IsNoData(cell)) {
                 continue;
@@ -163,11 +148,15 @@ void RegionLayer::Apply(Raster<float>& heights, const LayerContext& context,
             const Vec2d centre = heights.CellCenter(col, row);
             const double weight = Weight(centre.x, centre.y);
             if (weight > 0.0) {
-                cell = Blend(cell, window(col - col0, r), weight);
+                cell = Blend(cell, inner(col - window.colBegin, r), weight);
             }
         }
     });
+    KeepFeaturesInside(placed, features);
+}
 
+void RegionLayer::KeepFeaturesInside(const TerrainFeatures& placed,
+                                     TerrainFeatures& features) const {
     for (std::size_t n = 0; n < placed.craters.Size(); ++n) {
         const Crater crater = placed.craters.At(n);
         if (shape_.DistanceOutside(crater.x, crater.y, surface_) <= feather_) {

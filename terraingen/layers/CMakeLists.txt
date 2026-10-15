@@ -7,25 +7,34 @@ terraingen_add_library(
     craters/ages/uniform.cpp
     craters/attributes.cpp
     craters/apply.cpp
+    craters/apply_options.cpp
     craters/cell_cache.cpp
     craters/crater_layer.cpp
+    craters/datum.cpp
     craters/degradation/diffusion.cpp
     craters/degradation/freshness.cpp
     craters/degradation/none.cpp
-    craters/filters.cpp
     craters/irregularity.cpp
     craters/population.cpp
+    craters/prepared.cpp
     craters/secondaries.cpp
+    craters/selection.cpp
+    craters/spacing.cpp
     craters/profiles/complex.cpp
     craters/profiles/fassett_thomson.cpp
     craters/profiles/martin_parkes_dunstan.cpp
     exposure.cpp
+    fade.cpp
+    layer.cpp
     noise_relief.cpp
     region.cpp
     roughness.cpp
+    surface_noise.cpp
     transforms.cpp
+    boulders/abundance.cpp
     boulders/boulder_meshes.cpp
     boulders/boulder_layer.cpp
+    boulders/boulder_options.cpp
     PUBLIC
     terraingen_distribution
     terraingen_meshes

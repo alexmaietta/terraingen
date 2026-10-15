@@ -11,6 +11,7 @@
 #include <nanobind/stl/pair.h>
 #include <nanobind/stl/shared_ptr.h>
 #include <nanobind/stl/string.h>
+#include <nanobind/stl/string_view.h>
 #include <nanobind/stl/tuple.h>
 #include <nanobind/stl/vector.h>
 #include <nanobind/trampoline.h>
@@ -608,7 +609,9 @@ void BindCraterLayers(nb::module_& m) {
     BindKwargsInit<CraterBlend>(blend);
     blend.def_rw("start_radii", &CraterBlend::startRadii)
         .def_rw("end_radii", &CraterBlend::endRadii)
-        .def_rw("shape", &CraterBlend::shape);
+        .def_rw("shape", &CraterBlend::shape)
+        .def("weight", &CraterBlend::Weight, "radii"_a,
+             "The interior weight `radii` crater radii from the centre.");
 
     nb::enum_<ValueDistribution::Kind>(m, "ValueDistributionKind")
         .value("CONSTANT", ValueDistribution::Kind::Constant)
@@ -636,6 +639,20 @@ void BindCraterLayers(nb::module_& m) {
     nb::enum_<RimRoughnessModel>(m, "RimRoughnessModel", "How irregular crater rims are drawn.")
         .value("POWER_LAW", RimRoughnessModel::PowerLaw)
         .value("DU_2024", RimRoughnessModel::Du2024);
+    auto selection = nb::class_<CraterSelection>(
+        m, "CraterSelection",
+        "Which craters a model applies to: diameters (m) and ages (Gyr) within ranges, and manual "
+        "craters only with `manual`.");
+    BindKwargsInit<CraterSelection>(selection);
+    selection.def_rw("min_diameter", &CraterSelection::minDiameter)
+        .def_rw("max_diameter", &CraterSelection::maxDiameter)
+        .def_rw("min_age_gyr", &CraterSelection::minAgeGyr)
+        .def_rw("max_age_gyr", &CraterSelection::maxAgeGyr)
+        .def_rw("manual", &CraterSelection::manual)
+        .def("includes", &CraterSelection::Includes, "crater"_a, "Whether `crater` is selected.");
+    m.def("validate_crater_selection", &ValidateCraterSelection, "selection"_a,
+          "what"_a = "Crater selection", "Raises ValueError naming the first invalid setting.");
+
     auto irregularity = nb::class_<CraterIrregularity>(
         m, "CraterIrregularity",
         "Irregular, elongated crater outlines for the craters it selects: rims roughened by "
@@ -643,12 +660,9 @@ void BindCraterLayers(nb::module_& m) {
     BindKwargsInit<CraterIrregularity>(irregularity);
     irregularity.def_rw("enabled", &CraterIrregularity::enabled)
         .def_rw("seed", &CraterIrregularity::seed)
-        .def_rw("min_diameter", &CraterIrregularity::minDiameter)
-        .def_rw("max_diameter", &CraterIrregularity::maxDiameter)
-        .def_rw("min_age_gyr", &CraterIrregularity::minAgeGyr)
-        .def_rw("max_age_gyr", &CraterIrregularity::maxAgeGyr)
-        .def_rw("manual", &CraterIrregularity::manual)
-        .def_rw("rough_share", &CraterIrregularity::roughShare)
+        .def_rw("selection", &CraterIrregularity::selection);
+    BindSelection(irregularity, &CraterIrregularity::selection, "min_diameter", "max_diameter");
+    irregularity.def_rw("rough_share", &CraterIrregularity::roughShare)
         .def_rw("model", &CraterIrregularity::model)
         .def_rw("scatter", &CraterIrregularity::scatter)
         .def_rw("max_deviation", &CraterIrregularity::maxDeviation)
@@ -726,11 +740,9 @@ void BindCraterLayers(nb::module_& m) {
         .def_rw("min_diameter", &SecondaryCraterOptions::minDiameter)
         .def_rw("max_diameter", &SecondaryCraterOptions::maxDiameter)
         .def_rw("outer_range", &SecondaryCraterOptions::outerRange)
-        .def_rw("min_primary_diameter", &SecondaryCraterOptions::minPrimaryDiameter)
-        .def_rw("max_primary_diameter", &SecondaryCraterOptions::maxPrimaryDiameter)
-        .def_rw("min_age_gyr", &SecondaryCraterOptions::minAgeGyr)
-        .def_rw("max_age_gyr", &SecondaryCraterOptions::maxAgeGyr)
-        .def_rw("manual", &SecondaryCraterOptions::manual);
+        .def_rw("selection", &SecondaryCraterOptions::selection);
+    BindSelection(secondary, &SecondaryCraterOptions::selection, "min_primary_diameter",
+                  "max_primary_diameter");
     nb::class_<SecondaryCraterLayer, Layer>(
         m, "SecondaryCraterLayer",
         "Secondary craters around the craters of `primaries` (Singer et al. 2020 sizes, "
@@ -758,6 +770,12 @@ void BindCraterLayers(nb::module_& m) {
           "(Singer et al. 2020).");
     m.def("secondary_onset_range", &SecondaryOnsetRange, "diameter"_a,
           "How far from its centre (m) a primary throws its first secondaries.");
+    m.def("singer_range_for_size", &SingerRangeForSize, "diameter"_a, "size"_a,
+          "The range (m) beyond which a primary `diameter` metres across throws no secondary "
+          "`size` metres across (Singer et al. 2020); infinite up to 1 km.");
+    m.def("elliott_median_ray_length", &ElliottMedianRayLength, "diameter"_a,
+          "coefficient"_a = 6.59, "exponent"_a = 1.27,
+          "The median ray length (m) of a crater `diameter` metres across (Elliott et al. 2018).");
 }
 
 void BindBoulderShapes(nb::module_& m) {
@@ -873,28 +891,34 @@ void BindBoulderLayers(nb::module_& m) {
         "and "
         "`models` how they are drawn.");
     BindKwargsInit<BoulderLayerOptions>(boulderOptionsClass);
-    boulderOptionsClass.def_rw("coverage", &BoulderLayerOptions::coverage)
-        .def_rw("qa", &BoulderLayerOptions::qa)
-        .def_rw("qb", &BoulderLayerOptions::qb)
-        .def_rw("distribution", &BoulderLayerOptions::distribution)
-        .def_rw("min_diameter", &BoulderLayerOptions::minDiameter)
-        .def_rw("max_diameter", &BoulderLayerOptions::maxDiameter)
-        .def_rw("seed", &BoulderLayerOptions::seed)
-        .def_rw("patches", &BoulderLayerOptions::patches)
-        .def_rw("ejecta", &BoulderLayerOptions::ejecta)
-        .def_rw("exposure", &BoulderLayerOptions::exposure)
-        .def_rw("bedrock_abundance", &BoulderLayerOptions::bedrockAbundance)
-        .def_rw("exposure_spacing", &BoulderLayerOptions::exposureSpacing)
-        .def_rw("min_height_ratio", &BoulderLayerOptions::minHeightRatio)
-        .def_rw("max_height_ratio", &BoulderLayerOptions::maxHeightRatio)
-        .def_rw("min_burial", &BoulderLayerOptions::minBurial)
-        .def_rw("max_burial", &BoulderLayerOptions::maxBurial)
-        .def_rw("max_lean", &BoulderLayerOptions::maxLean)
-        .def_rw("relief", &BoulderLayerOptions::relief)
-        .def_rw("models", &BoulderLayerOptions::models)
-        .def_rw("shapes", &BoulderLayerOptions::shapes)
-        .def_rw("shape_prototypes", &BoulderLayerOptions::shapePrototypes)
-        .def_rw("fade", &BoulderLayerOptions::fade);
+    using Options = BoulderLayerOptions;
+    BindGrouped(boulderOptionsClass, "coverage", &Options::sizes, &BoulderSizes::coverage);
+    BindGrouped(boulderOptionsClass, "qa", &Options::sizes, &BoulderSizes::qConstant);
+    BindGrouped(boulderOptionsClass, "qb", &Options::sizes, &BoulderSizes::qCoverageCoefficient);
+    BindGrouped(boulderOptionsClass, "distribution", &Options::sizes, &BoulderSizes::distribution);
+    BindGrouped(boulderOptionsClass, "min_diameter", &Options::sizes, &BoulderSizes::minDiameter);
+    BindGrouped(boulderOptionsClass, "max_diameter", &Options::sizes, &BoulderSizes::maxDiameter);
+    boulderOptionsClass.def_rw("seed", &Options::seed)
+        .def_rw("patches", &Options::patches)
+        .def_rw("ejecta", &Options::ejecta);
+    BindGrouped(boulderOptionsClass, "exposure", &Options::bedrock, &BoulderBedrock::exposure);
+    BindGrouped(boulderOptionsClass, "bedrock_abundance", &Options::bedrock,
+                &BoulderBedrock::abundance);
+    BindGrouped(boulderOptionsClass, "exposure_spacing", &Options::bedrock,
+                &BoulderBedrock::exposureSpacing);
+    BindGrouped(boulderOptionsClass, "min_height_ratio", &Options::pose,
+                &BoulderPose::minHeightRatio);
+    BindGrouped(boulderOptionsClass, "max_height_ratio", &Options::pose,
+                &BoulderPose::maxHeightRatio);
+    BindGrouped(boulderOptionsClass, "min_burial", &Options::pose, &BoulderPose::minBurial);
+    BindGrouped(boulderOptionsClass, "max_burial", &Options::pose, &BoulderPose::maxBurial);
+    BindGrouped(boulderOptionsClass, "max_lean", &Options::pose, &BoulderPose::maxLean);
+    BindGrouped(boulderOptionsClass, "relief", &Options::rendering, &BoulderRendering::relief);
+    BindGrouped(boulderOptionsClass, "models", &Options::rendering, &BoulderRendering::models);
+    BindGrouped(boulderOptionsClass, "shapes", &Options::rendering, &BoulderRendering::shapes);
+    BindGrouped(boulderOptionsClass, "shape_prototypes", &Options::rendering,
+                &BoulderRendering::shapePrototypes);
+    boulderOptionsClass.def_rw("fade", &Options::fade);
 
     nb::class_<BoulderLayer, Layer>(m, "BoulderLayer",
                                     "Boulders drawn into the heights, the largest optionally "

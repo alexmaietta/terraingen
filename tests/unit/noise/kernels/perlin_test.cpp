@@ -159,3 +159,10 @@ TEST(PerlinGradient3, UsesTheTwelveCubeEdgeVectors) {
     EXPECT_EQ(PerlinGradient3(14u, 1.0f, 2.0f, 4.0f), 1.0f);
     EXPECT_EQ(PerlinGradient3(16u, 1.0f, 2.0f, 4.0f), PerlinGradient3(0u, 1.0f, 2.0f, 4.0f));
 }
+
+TEST(PerlinNoise2Precise, SplitsTheCellBeforeNarrowingToFloat) {
+    EXPECT_EQ(terraingen::PerlinNoise2Precise(3.25, -1.5, 7u), PerlinNoise2(3.25f, -1.5f, 7u));
+    const double far = 4294967296.0 + 12.375;
+    EXPECT_EQ(terraingen::PerlinNoise2Precise(far, 0.5, 7u), PerlinNoise2(12, 0, 0.375f, 0.5f, 7u))
+        << "cells wrap modulo 2^32 and the fraction stays exact";
+}

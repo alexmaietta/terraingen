@@ -1,5 +1,8 @@
 #include "terraingen/layers/craters/cell_cache.h"
 
+#include "terraingen/distribution/power_law.h"
+#include "terraingen/layers/craters/ages/uniform.h"
+
 #include <gtest/gtest.h>
 
 #include <stdexcept>
@@ -55,4 +58,20 @@ TEST(CraterCellCache, StaysWithinItsBudgetByEvictingTheLeastRecentlyUsed) {
     EXPECT_EQ(calls, 1) << "an evicted cell is generated again";
     EXPECT_EQ(craters->At(0).x, 0.0);
     EXPECT_THROW(CraterCellCache(0), std::invalid_argument);
+}
+
+TEST(CachedCellCraters, DrawsEachCellOnceAsGenerateCellCratersWould) {
+    CraterCellCache cache(100000);
+    const terraingen::PlanarCells cells;
+    const terraingen::PowerLawSfd density(0.05, 2.0);
+    const terraingen::UniformAges ages(1.0);
+    const terraingen::CellCraterSource source =
+        terraingen::CachedCellCraters(cache, cells, density, ages, 4u);
+    const terraingen::CraterBand band = terraingen::CraterBands(4.0, 8.0, 16.0).front();
+    const CellIndex cell{1, -2};
+    const auto first = source(band, cell);
+    EXPECT_EQ(first->Ids(),
+              terraingen::GenerateCellCraters(cells, band, cell, density, ages, 4u).Ids());
+    EXPECT_EQ(source(band, cell).get(), first.get()) << "held in the cache";
+    EXPECT_EQ(cache.Size(), first->Size());
 }

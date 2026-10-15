@@ -52,8 +52,8 @@ TEST(GenerateTerrain, MatchesComposingTheLibraryCalls) {
     const terraingen::HeightSampler ground = [&](double x, double y) {
         return noise.ApplyAt(0.0f, x, y, {2.0});
     };
-    terraingen::ApplyCraters(expected, generate(bounds.Expanded(margin)), *models.profile,
-                             *models.degradation, Craters(config).apply, 2.0, 1, ground);
+    terraingen::ApplyCraters(expected, generate(bounds.Expanded(margin)), models.Shape(),
+                             Craters(config).apply, {2.0, 1, ground});
     terraingen::SmoothCraterRims(expected, craters, {.sigmaRadii = 0.05});
     EXPECT_EQ(terrain.features.craters.Ids(), craters.Ids());
     ASSERT_EQ(terrain.heights.Size(), expected.Size());
@@ -175,7 +175,7 @@ TEST(GenerateTerrain, DrawsBouldersFromEachKindOfSizeDistribution) {
     TerrainConfig config = Small();
     Flat(config).pixelSize = 0.5;
     terraingen::BoulderLayerSpec boulders;
-    boulders.boulders.minDiameter = 0.5;
+    boulders.boulders.sizes.minDiameter = 0.5;
     boulders.boulders.ejecta.minCraterDiameter = 8.0;
     boulders.boulders.ejecta.minFreshness = 0.0;
     boulders.sizes =
@@ -215,12 +215,12 @@ TEST(GenerateTerrain, AddsBouldersWithEjectaFromTheLastCraterLayerBeforeThem) {
     Flat(config).pixelSize = 0.5;
     Craters(config).minDiameter = 4.0;
     terraingen::BoulderLayerSpec boulders;
-    boulders.boulders.minDiameter = 0.5;
-    boulders.boulders.coverage = 0.03;
+    boulders.boulders.sizes.minDiameter = 0.5;
+    boulders.boulders.sizes.coverage = 0.03;
     boulders.boulders.ejecta.coverage = 0.2;
     boulders.boulders.ejecta.minCraterDiameter = 8.0;
     boulders.boulders.ejecta.minFreshness = 0.0;
-    boulders.boulders.exposure = terraingen::ExposureParams{};
+    boulders.boulders.bedrock.exposure = terraingen::ExposureParams{};
     config.layers.push_back(boulders);
     const auto generated = GenerateTerrain(config, {}, 4);
     ASSERT_FALSE(generated.features.boulders.empty());

@@ -278,3 +278,34 @@ def test_backends_and_validators():
             validate(bad)
     terraingen.validate_crater_apply_options(terraingen.CraterApplyOptions())
     terraingen.validate_boulder_shape_options(terraingen.BoulderShapeOptions())
+
+
+def test_crater_selections_falloffs_and_secondary_laws():
+    selection = terraingen.CraterSelection(min_diameter=10.0)
+    assert selection.includes(terraingen.Crater(0.0, 0.0, 20.0))
+    assert not selection.includes(terraingen.Crater(0.0, 0.0, 5.0))
+    selection.manual = False
+    assert not selection.includes(terraingen.Crater(0.0, 0.0, 20.0)), "craters made in Python are manual"
+    with pytest.raises(ValueError):
+        terraingen.validate_crater_selection(terraingen.CraterSelection(min_age_gyr=-1.0))
+    secondaries = terraingen.SecondaryCraterOptions(min_primary_diameter=3000.0, max_age_gyr=0.5)
+    assert secondaries.selection.min_diameter == 3000.0 and secondaries.selection.max_age_gyr == 0.5
+    irregularity = terraingen.CraterIrregularity(max_diameter=50.0)
+    assert irregularity.selection.max_diameter == 50.0 and not irregularity.manual
+    albedo = terraingen.CraterAlbedoOptions(min_diameter=100.0)
+    assert albedo.selection.min_diameter == 100.0
+
+    assert terraingen.smoothstep(0.5) == 0.5 and terraingen.smoothstep(2.0) == 1.0
+    assert terraingen.falloff(1.0, 0.8, 1.2, terraingen.BlendShape.LINEAR) == pytest.approx(0.5)
+    blend = terraingen.CraterBlend(start_radii=0.8, end_radii=1.2, shape=terraingen.BlendShape.LINEAR)
+    assert terraingen.crater_blend_weight(1.0, blend) == pytest.approx(0.5)
+
+    largest = terraingen.singer_max_secondary_diameter(20000.0, 60000.0)
+    assert terraingen.singer_range_for_size(20000.0, largest) == pytest.approx(60000.0)
+    assert math.isinf(terraingen.singer_range_for_size(800.0, 10.0))
+    assert terraingen.elliott_median_ray_length(2000.0) == pytest.approx(6590.0)
+
+    state = terraingen.CraterState(terraingen.CraterMorphometry(0.2, 0.04), terraingen.CraterMorphometry(0.1, 0.02))
+    assert state.freshness == pytest.approx(0.5)
+    boulders = terraingen.BoulderLayerOptions(qa=1.5, bedrock_abundance=2.0, max_lean=0.1, shape_prototypes=8)
+    assert (boulders.qa, boulders.bedrock_abundance, boulders.max_lean, boulders.shape_prototypes) == (1.5, 2.0, 0.1, 8)

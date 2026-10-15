@@ -52,6 +52,31 @@ std::pair<std::size_t, double> RowOf(double tau) {
     return {below, std::log(tau / ages[below]) / std::log(ages[above] / ages[below])};
 }
 
+/// A tridiagonal system lower[i] x[i-1] + diag[i] x[i] + upper[i] x[i+1] = rhs[i] for rows i < n,
+/// with x[n] given.
+struct Tridiagonal {
+    std::vector<double> lower;
+    std::vector<double> diag;
+    std::vector<double> upper;
+};
+
+/// Solves `system` by the Thomas algorithm: `x` holds the right-hand side of rows 0 to n - 1 and
+/// the fixed x[n], and is replaced by the solution. `c` and `d` are scratch of n values.
+void SolveTridiagonal(const Tridiagonal& system, std::vector<double>& x, std::vector<double>& c,
+                      std::vector<double>& d) {
+    const std::size_t n = system.diag.size();
+    c[0] = system.upper[0] / system.diag[0];
+    d[0] = x[0] / system.diag[0];
+    for (std::size_t i = 1; i < n; ++i) {
+        const double m = system.diag[i] - system.lower[i] * c[i - 1];
+        c[i] = system.upper[i] / m;
+        d[i] = (x[i] - system.lower[i] * d[i - 1]) / m;
+    }
+    for (std::size_t i = n; i-- > 0;) {
+        x[i] = d[i] - c[i] * x[i + 1];
+    }
+}
+
 }  // namespace
 
 double PowerLawDiffusivity::Diffusivity(double diameter) const {
@@ -121,22 +146,17 @@ DiffusedProfile::Table DiffusedProfile::Solve(const CraterMorphometry& fresh,
     Table table;
     const std::vector<double>& ages = TableAges();
     table.heights.reserve(ages.size() * (n + 1));
-    std::vector<double> c(n + 1);
-    std::vector<double> d(n + 1);
+    Tridiagonal system{std::vector<double>(n), std::vector<double>(n), std::vector<double>(n)};
+    std::vector<double> c(n);
+    std::vector<double> d(n);
     const auto step = [&](double dt) {
-        c[0] = -dt * above[0] / (1.0 + dt * above[0]);
-        d[0] = h[0] / (1.0 + dt * above[0]);
-        for (std::size_t i = 1; i < n; ++i) {
-            const double a = -dt * below[i];
-            const double b = 1.0 + dt * (below[i] + above[i]);
-            const double m = b - a * c[i - 1];
-            c[i] = -dt * above[i] / m;
-            d[i] = (h[i] - a * d[i - 1]) / m;
+        for (std::size_t i = 0; i < n; ++i) {
+            system.lower[i] = -dt * below[i];
+            system.diag[i] = 1.0 + dt * (below[i] + above[i]);
+            system.upper[i] = -dt * above[i];
         }
         h[n] = 0.0;
-        for (std::size_t i = n; i-- > 0;) {
-            h[i] = d[i] - c[i] * h[i + 1];
-        }
+        SolveTridiagonal(system, h, c, d);
     };
     double tau = 0.0;
     for (const double target : ages) {

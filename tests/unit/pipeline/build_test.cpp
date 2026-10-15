@@ -152,13 +152,13 @@ TEST(BuildCraterModels, ReportsEachModelsProblemsAtItsKey) {
 
 TEST(BuildBoulderOptions, BuildsTheSizesAndReportsThemAtTheirKeys) {
     terraingen::BoulderLayerSpec spec;
-    EXPECT_EQ(terraingen::BuildBoulderOptions(spec, "layers[3]").distribution, nullptr)
+    EXPECT_EQ(terraingen::BuildBoulderOptions(spec, "layers[3]").sizes.distribution, nullptr)
         << "golombek_rapp sizes come from the layer";
     spec.sizes = terraingen::PowerLawSpec{0.001, 2.5};
     spec.ejectaSizes = terraingen::Sp8023CraterBouldersSpec{};
     const auto options = terraingen::BuildBoulderOptions(spec, "layers[3]");
-    ASSERT_NE(options.distribution, nullptr);
-    EXPECT_DOUBLE_EQ(options.distribution->Cumulative(2.0), 0.001 * std::pow(2.0, -2.5));
+    ASSERT_NE(options.sizes.distribution, nullptr);
+    EXPECT_DOUBLE_EQ(options.sizes.distribution->Cumulative(2.0), 0.001 * std::pow(2.0, -2.5));
     EXPECT_NE(options.ejecta.distribution, nullptr);
     spec.ejectaSizes = terraingen::TabulatedSpec{{1.0}, {0.01}};
     try {
@@ -195,7 +195,7 @@ TEST(IsMeshFile, AcceptsGlbAndPly) {
 TEST(BuildTerrain, BuildsEveryLayerKindInOrder) {
     TerrainConfig config = Small();
     terraingen::BoulderLayerSpec boulders;
-    boulders.boulders.minDiameter = 1.0;
+    boulders.boulders.sizes.minDiameter = 1.0;
     boulders.boulders.ejecta.minCraterDiameter = 10.0;
     terraingen::SecondaryLayerSpec secondaries;
     secondaries.secondaries.onsetCount = 5.0;

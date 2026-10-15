@@ -74,7 +74,7 @@ def test_ages_degradation_and_profiles():
     assert steady.surface_age_gyr == 3.5
     assert steady.lifetime_gyr(10.0) < steady.lifetime_gyr(1000.0) <= 3.5
     assert steady.equilibrium_lifetime_gyr(10.0) == pytest.approx(steady.lifetime_gyr(10.0))
-    assert terraingen.UniformAges(2.0).freshness(10.0, 1.0) == pytest.approx(0.5)
+    assert terraingen.UniformAges(2.0).remaining_lifetime(10.0, 1.0) == pytest.approx(0.5)
 
     fresh = terraingen.lunar_fresh_crater_morphometry(100.0)
     assert 0.1 < fresh.depth_ratio < 0.25 and fresh.rim_height_ratio > 0

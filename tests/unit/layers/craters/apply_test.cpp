@@ -11,8 +11,6 @@
 using terraingen::BlendShape;
 using terraingen::Crater;
 using terraingen::CraterApplyOptions;
-using terraingen::CraterBlend;
-using terraingen::CraterBlendWeight;
 using terraingen::CraterDatum;
 using terraingen::CraterList;
 using terraingen::CraterOrder;
@@ -31,7 +29,12 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters,
                   const terraingen::CraterProfile& profile, const CraterApplyOptions& options = {},
                   double spacing = 0.0, unsigned threads = 1,
                   const terraingen::HeightSampler& ground = {}) {
-    terraingen::ApplyCraters(raster, craters, profile, kFresh, options, spacing, threads, ground);
+    const terraingen::CraterShapeModels models{
+        std::shared_ptr<const terraingen::CraterProfile>(
+            std::shared_ptr<const terraingen::CraterProfile>{}, &profile),
+        std::shared_ptr<const terraingen::DegradationModel>(
+            std::shared_ptr<const terraingen::DegradationModel>{}, &kFresh)};
+    terraingen::ApplyCraters(raster, craters, models, options, {spacing, threads, ground});
 }
 
 /// A `size` x `size` north-up raster of 1 m pixels centred on the origin.
@@ -305,30 +308,12 @@ TEST(ApplyCraters, InteriorReplacementBlendsOldReliefWithTheDatum) {
     EXPECT_NEAR(relief(0.0), 1.0f, 0.05f);
 }
 
-TEST(CraterBlendWeight, FallsFromOneToZeroAcrossTheBand) {
-    for (const BlendShape shape : {BlendShape::Linear, BlendShape::Smoothstep,
-                                   BlendShape::Smootherstep, BlendShape::Gaussian}) {
-        const CraterBlend blend{0.8, 1.2, shape};
-        EXPECT_EQ(CraterBlendWeight(0.0, blend), 1.0);
-        EXPECT_EQ(CraterBlendWeight(0.8, blend), 1.0);
-        EXPECT_EQ(CraterBlendWeight(1.2, blend), 0.0);
-        EXPECT_EQ(CraterBlendWeight(5.0, blend), 0.0);
-        EXPECT_NEAR(CraterBlendWeight(0.8 + 1e-9, blend), 1.0, 1e-6);
-        EXPECT_NEAR(CraterBlendWeight(1.2 - 1e-9, blend), 0.0, 1e-6);
-        double previous = 1.0;
-        for (int i = 1; i < 40; ++i) {
-            const double weight = CraterBlendWeight(0.8 + 0.01 * i, blend);
-            EXPECT_LE(weight, previous);
-            previous = weight;
-        }
-    }
-    EXPECT_DOUBLE_EQ(CraterBlendWeight(1.0, {0.8, 1.2, BlendShape::Linear}), 0.5);
-    EXPECT_DOUBLE_EQ(CraterBlendWeight(1.0, {0.8, 1.2, BlendShape::Smoothstep}), 0.5);
-    EXPECT_DOUBLE_EQ(CraterBlendWeight(1.0, {0.8, 1.2, BlendShape::Smootherstep}), 0.5);
-    const double tail = std::exp(-4.5);
-    EXPECT_NEAR(CraterBlendWeight(1.0, {0.8, 1.2, BlendShape::Gaussian}),
-                (std::exp(-1.125) - tail) / (1.0 - tail), 1e-12);
-    EXPECT_NEAR(CraterBlendWeight(0.9, {0.8, 1.2, BlendShape::Linear}), 0.75, 1e-12);
+TEST(CraterBlend, WeighsTheInteriorAlongItsFalloff) {
+    const terraingen::CraterBlend blend{0.8, 1.2, BlendShape::Linear};
+    EXPECT_EQ(blend.Weight(0.5), 1.0);
+    EXPECT_NEAR(blend.Weight(0.9), 0.75, 1e-12);
+    EXPECT_EQ(blend.Weight(1.3), 0.0);
+    EXPECT_EQ(blend.Weight(1.0), terraingen::Falloff(1.0, 0.8, 1.2, BlendShape::Linear));
 }
 
 TEST(ApplyCraters, RejectsInvalidDatumAndBlendOptions) {
@@ -342,25 +327,6 @@ TEST(ApplyCraters, RejectsInvalidDatumAndBlendOptions) {
     EXPECT_THROW(apply({.interiorReplacement = -0.1}), std::invalid_argument);
     EXPECT_THROW(apply({.blend = {1.2, 1.2, BlendShape::Linear}}), std::invalid_argument);
     EXPECT_THROW(apply({.blend = {-0.1, 1.2, BlendShape::Linear}}), std::invalid_argument);
-}
-
-TEST(ResolutionWeight, FadesFromStartToEndSamples) {
-    const terraingen::ResolutionFade fade{};
-    EXPECT_EQ(terraingen::ResolutionWeight(1.0, 1.0, fade), 0.0);
-    EXPECT_EQ(terraingen::ResolutionWeight(2.0, 1.0, fade), 0.0);
-    EXPECT_DOUBLE_EQ(terraingen::ResolutionWeight(3.0, 1.0, fade), 0.5);
-    EXPECT_EQ(terraingen::ResolutionWeight(4.0, 1.0, fade), 1.0);
-    EXPECT_EQ(terraingen::ResolutionWeight(40.0, 10.0, fade), 1.0);
-    double previous = 0.0;
-    for (double samples = 2.0; samples <= 4.0; samples += 0.01) {
-        const double weight = terraingen::ResolutionWeight(samples, 1.0, fade);
-        EXPECT_GE(weight, previous);
-        previous = weight;
-    }
-    const terraingen::ResolutionFade linear{1.0, 3.0, terraingen::BlendShape::Linear};
-    EXPECT_DOUBLE_EQ(terraingen::ResolutionWeight(1.5, 1.0, linear), 0.25);
-    EXPECT_NO_THROW(terraingen::ValidateResolutionFade({0.0, 0.5}));
-    EXPECT_THROW(terraingen::ValidateResolutionFade({3.0, 3.0}), std::invalid_argument);
 }
 
 TEST(ApplyCraters, FadesCratersWithTheSpacing) {
@@ -398,57 +364,31 @@ TEST(ApplyCraters, GivesTheSameBitsOnAnyNumberOfThreads) {
     }
 }
 
-TEST(FitCraterDatum, FitsTheGroundOnALatticeAroundTheCrater) {
-    const terraingen::HeightSampler slope = [](double x, double y) {
-        return static_cast<float>(10.0 + 0.5 * x - 0.25 * y);
-    };
-    const terraingen::Crater crater{100.0, -40.0, 20.0, 0.0, 1u};
-    terraingen::CraterApplyOptions options;
-    options.datum = terraingen::CraterDatum::Plane;
-    const auto plane = terraingen::FitCraterDatum(crater, options, slope);
-    ASSERT_TRUE(plane.has_value());
-    EXPECT_NEAR((*plane)[0], 10.0 + 50.0 + 10.0, 1e-4) << "height under the centre";
-    EXPECT_NEAR((*plane)[1], 0.5, 1e-6);
-    EXPECT_NEAR((*plane)[2], -0.25, 1e-6);
-    options.datum = terraingen::CraterDatum::MeanHeight;
-    EXPECT_NEAR((*terraingen::FitCraterDatum(crater, options, slope))[0], 70.0, 1e-4);
-    options.datum = terraingen::CraterDatum::CentreHeight;
-    EXPECT_FLOAT_EQ(static_cast<float>((*terraingen::FitCraterDatum(crater, options, slope))[0]),
-                    70.0f);
-    const terraingen::HeightSampler none = [](double, double) { return std::nanf(""); };
-    EXPECT_FALSE(terraingen::FitCraterDatum(crater, options, none).has_value());
-    options.datum = terraingen::CraterDatum::Plane;
-    EXPECT_FALSE(terraingen::FitCraterDatum(crater, options, none).has_value());
-    options.datum = terraingen::CraterDatum::None;
-    EXPECT_FALSE(terraingen::FitCraterDatum(crater, options, slope).has_value());
+TEST(PrepareCraters, KeepsResolvedCratersInApplyOrderWithStateAndOutline) {
+    CraterList craters;
+    craters.Append({0.0, 0.0, 10.0, 0.5, 1u});
+    craters.Append({5.0, 0.0, 1.0, 0.0, 2u});
+    craters.Append({9.0, 0.0, 20.0, 1.0, 3u});
+    const auto prepared = terraingen::PrepareCraters(craters, {}, 1.0, kFresh);
+    ASSERT_EQ(prepared.size(), 2u) << "the 1 m crater spans a single sample";
+    EXPECT_EQ(prepared[0].crater.id, 3u) << "oldest first";
+    EXPECT_EQ(prepared[1].crater.id, 1u);
+    EXPECT_EQ(prepared[1].resolution, 1.0);
+    EXPECT_EQ(prepared[1].state, kFresh.State(craters.At(0)));
+    EXPECT_TRUE(prepared[1].outline.Round());
+    EXPECT_FALSE(prepared[1].datum.has_value());
 }
 
-TEST(CraterInfluence, SumsEarlierCratersReachingAPointWhateverElseTheListHolds) {
+TEST(ApplyCraterTo, AddsTheProfileAndMovesTowardTheDatumInside) {
     const FassettThomsonProfile profile;
-    const terraingen::CraterState fresh = kFresh.State({0, 0, 10, 0, 1});
-    std::vector<terraingen::CraterInfluence::Entry> near{{{0.0, 0.0, 10.0, 0.0, 1u}, 1.0, fresh},
-                                                         {{3.0, 1.0, 6.0, 0.0, 2u}, 0.5, fresh},
-                                                         {{1.0, -2.0, 8.0, 0.0, 3u}, 1.0, fresh}};
-    const terraingen::CraterInfluence small(near, profile);
-    EXPECT_EQ(small.ReliefBefore(1.0, 0.5, 0), 0.0);
-    const double first = small.ReliefBefore(1.0, 0.5, 1);
-    EXPECT_DOUBLE_EQ(first, profile.Height(std::hypot(1.0, 0.5), 10.0, fresh));
-    const double two = small.ReliefBefore(1.0, 0.5, 2);
-    EXPECT_DOUBLE_EQ(two, first + 0.5 * profile.Height(std::hypot(2.0, 0.5), 6.0, fresh));
-    std::vector<terraingen::CraterInfluence::Entry> more = near;
-    more.insert(more.begin() + 1, {{500.0, 500.0, 40.0, 0.0, 9u}, 1.0, fresh});
-    more.push_back({{-300.0, 0.0, 12.0, 0.0, 10u}, 1.0, fresh});
-    const terraingen::CraterInfluence large(more, profile);
-    EXPECT_EQ(large.ReliefBefore(1.0, 0.5, 4), small.ReliefBefore(1.0, 0.5, 3));
-    EXPECT_EQ(large.Entries().size(), 5u);
-}
-
-TEST(DatumMargin, CoversTheFitFootprintAndReachOfTheLargestCrater) {
-    const FassettThomsonProfile profile;
-    EXPECT_EQ(terraingen::DatumMargin({}, profile, 100.0), 0.0);
-    terraingen::CraterApplyOptions options;
-    options.datum = terraingen::CraterDatum::Plane;
-    options.datumFitRadii = 1.5;
-    EXPECT_DOUBLE_EQ(terraingen::DatumMargin(options, profile, 100.0),
-                     (1.5 + profile.ReachRadii()) * 50.0);
+    const Crater crater{0.0, 0.0, 20.0, 0.0, 1u};
+    terraingen::PreparedCrater prepared{crater, 0.5, kFresh.State(crater)};
+    const double height = profile.Height(3.0, 20.0, prepared.state);
+    EXPECT_FLOAT_EQ(terraingen::ApplyCraterTo(2.0f, 3.0, 0.0, prepared, profile, {}),
+                    static_cast<float>(2.0 + 0.5 * height));
+    EXPECT_EQ(terraingen::ApplyCraterTo(2.0f, 40.0, 0.0, prepared, profile, {}), 2.0f)
+        << "beyond the profile's reach";
+    prepared.datum = terraingen::Plane{1.0, 0.0, 0.0};
+    EXPECT_FLOAT_EQ(terraingen::ApplyCraterTo(2.0f, 3.0, 0.0, prepared, profile, {}),
+                    static_cast<float>(2.0 + 0.5 * height + 0.5 * (1.0 - 2.0)));
 }

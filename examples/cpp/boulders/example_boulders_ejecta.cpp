@@ -48,20 +48,18 @@ class BouldersEjecta : public terraingen::examples::Example {
             craterOptions);
 
         terraingen::BoulderLayerOptions options;
-        options.coverage = 0.03;
-        options.minDiameter = 0.2;
-        options.maxDiameter = 3.0;
+        options.sizes = {.coverage = 0.03, .minDiameter = 0.2, .maxDiameter = 3.0};
         options.patches = {.spread = 3.0, .size = 15.0};
         options.ejecta.minCraterDiameter = 5.0;
         options.ejecta.coverage = 0.25;
         options.ejecta.reach = 3.0;
-        options.minHeightRatio = 0.6;
-        options.maxHeightRatio = 0.9;
-        options.minBurial = 0.0;
-        options.maxBurial = 0.1;
-        options.maxLean = 0.5;
-        options.relief = terraingen::BoulderRelief::Shape;
-        options.models.minDiameter = 0.8;
+        options.pose = {.minHeightRatio = 0.6,
+                        .maxHeightRatio = 0.9,
+                        .minBurial = 0.0,
+                        .maxBurial = 0.1,
+                        .maxLean = 0.5};
+        options.rendering.relief = terraingen::BoulderRelief::Shape;
+        options.rendering.models.minDiameter = 0.8;
         const auto boulders = std::make_shared<terraingen::BoulderLayer>(options, craters);
 
         Out() << "abundance (background, ejecta) across the crater:\n";

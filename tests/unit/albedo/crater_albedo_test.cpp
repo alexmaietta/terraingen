@@ -36,7 +36,7 @@ std::shared_ptr<const terraingen::CraterLayer> Craters(const std::vector<Crater>
     }
     if (irregular) {
         options.apply.irregularity.enabled = true;
-        options.apply.irregularity.manual = true;
+        options.apply.irregularity.selection.manual = true;
         options.apply.irregularity.elongatedShare = 1.0;
         options.apply.irregularity.ellipticity = {ValueDistribution::Kind::Constant, 1.5};
         options.apply.irregularity.heading = 0.0;
@@ -128,16 +128,16 @@ TEST(CraterAlbedo, FadesWithAgeOverTheRetentionTime) {
 TEST(CraterAlbedo, KeepsOnlyEligibleCraters) {
     const auto craters = Craters({{0.0, 0.0, 1000.0, 0.0, 7u, true}});
     CraterAlbedoOptions options = NoRays();
-    options.minDiameter = 2000.0;
+    options.selection.minDiameter = 2000.0;
     EXPECT_FLOAT_EQ(At(Grey(std::make_shared<CraterAlbedo>(craters, options)), 0.0, 0.0), 0.11f);
     options = NoRays();
-    options.maxDiameter = 500.0;
+    options.selection.maxDiameter = 500.0;
     EXPECT_FLOAT_EQ(At(Grey(std::make_shared<CraterAlbedo>(craters, options)), 0.0, 0.0), 0.11f);
     options = NoRays();
-    options.minAgeGyr = 0.1;
+    options.selection.minAgeGyr = 0.1;
     EXPECT_FLOAT_EQ(At(Grey(std::make_shared<CraterAlbedo>(craters, options)), 0.0, 0.0), 0.11f);
     options = NoRays();
-    options.manual = false;
+    options.selection.manual = false;
     EXPECT_FLOAT_EQ(At(Grey(std::make_shared<CraterAlbedo>(craters, options)), 0.0, 0.0), 0.11f);
     options = NoRays();
     options.share = 0.0;
@@ -242,7 +242,7 @@ TEST(CraterAlbedo, GridsTilesAndPointsAgree) {
 TEST(CraterAlbedo, SkipsNoDataAndEmptyBandsAndIneligibleCraters) {
     const Crater crater{0.0, 0.0, 1000.0, 0.0, 7u, true};
     CraterAlbedoOptions options = NoRays();
-    options.minDiameter = 5000.0;
+    options.selection.minDiameter = 5000.0;
     EXPECT_EQ(CraterAlbedo(Craters({crater}), options).Excess(crater, 0.0, 0.0, 1.0), 0.0);
     const CraterAlbedo layer(Craters({crater}), NoRays());
     AlbedoSample value{NAN, 0.2f, 0.0f};
@@ -277,8 +277,11 @@ TEST(CraterAlbedo, RejectsInvalidOptions) {
     rejects([](CraterAlbedoOptions& o) { o.retention.midDiameter = 500.0; });
     rejects([](CraterAlbedoOptions& o) { o.retention.smallMyr = 0.0; });
     rejects([](CraterAlbedoOptions& o) { o.fade.endSamples = 1.0; });
-    rejects([](CraterAlbedoOptions& o) { o.minDiameter = 10.0, o.maxDiameter = 5.0; });
-    rejects([](CraterAlbedoOptions& o) { o.minAgeGyr = -1.0; });
+    rejects([](CraterAlbedoOptions& o) {
+        o.selection.minDiameter = 10.0;
+        o.selection.maxDiameter = 5.0;
+    });
+    rejects([](CraterAlbedoOptions& o) { o.selection.minAgeGyr = -1.0; });
     rejects([](CraterAlbedoOptions& o) { o.share = 1.5; });
     rejects([](CraterAlbedoOptions& o) { o.backgroundMaturity = 0.0; });
     rejects([](CraterAlbedoOptions& o) { o.maxMaturity = 0.1; });

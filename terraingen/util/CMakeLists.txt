@@ -4,6 +4,7 @@ terraingen_add_library(
     SOURCES
     cells.cpp
     checks.cpp
+    fft.cpp
     surface.cpp
     log.cpp
     parallel.cpp

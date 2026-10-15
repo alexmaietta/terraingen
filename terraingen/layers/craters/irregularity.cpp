@@ -2,6 +2,7 @@
 
 #include "terraingen/random/stream.h"
 #include "terraingen/util/checks.h"
+#include "terraingen/util/fft.h"
 
 #include <algorithm>
 #include <cmath>
@@ -17,41 +18,11 @@ constexpr std::uint32_t kIrregularityStream = 0x49525247u;
 
 constexpr std::size_t kTableSize = 1024;
 
-/// A standard normal from two uniforms (Box-Muller).
+/// A standard normal from the next two uniforms of `random`.
 double Normal(RandomStream& random) {
     const double u1 = random.NextDouble();
     const double u2 = random.NextDouble();
-    return std::sqrt(-2.0 * std::log1p(-u1)) * std::cos(2.0 * std::numbers::pi * u2);
-}
-
-/// In-place iterative radix-2 FFT of `values` (size a power of 2), with the sign of the exponent
-/// `sign`.
-void Fft(std::vector<std::complex<double>>& values, double sign) {
-    const std::size_t n = values.size();
-    for (std::size_t i = 1, j = 0; i < n; ++i) {
-        std::size_t bit = n >> 1;
-        for (; (j & bit) != 0; bit >>= 1) {
-            j ^= bit;
-        }
-        j ^= bit;
-        if (i < j) {
-            std::swap(values[i], values[j]);
-        }
-    }
-    for (std::size_t length = 2; length <= n; length <<= 1) {
-        const double angle = sign * 2.0 * std::numbers::pi / static_cast<double>(length);
-        const std::complex<double> step(std::cos(angle), std::sin(angle));
-        for (std::size_t start = 0; start < n; start += length) {
-            std::complex<double> w(1.0, 0.0);
-            for (std::size_t k = 0; k < length / 2; ++k) {
-                const std::complex<double> even = values[start + k];
-                const std::complex<double> odd = values[start + k + length / 2] * w;
-                values[start + k] = even + odd;
-                values[start + k + length / 2] = even - odd;
-                w *= step;
-            }
-        }
-    }
+    return StandardNormal(u1, u2);
 }
 
 /// y = a D + b in a crater's diameter D (km), with one line up to 20 km and another above, as Du et
@@ -74,49 +45,70 @@ constexpr PiecewiseFit kLogPower4{0.066, -1.1, 1.00, 0.0062, 0.059, 0.69};
 constexpr double kSpectrumSigma = 0.55;
 constexpr double kSpectrumVertices = 5000.0;
 
-std::vector<double> DuRimTable(double diameter, bool scatter, double maxDeviation,
-                               RandomStream& random) {
-    const double kilometres = std::clamp(diameter / 1000.0, 1.0, 140.0);
-    const auto draw = [&] { return scatter ? Normal(random) : 0.0; };
-    const double slope = kSlope12.At(kilometres, draw());
-    const double logWavelength2 = kLogWavelength2.At(kilometres, draw());
-    const double logPower2 = kLogPower2.At(kilometres, draw());
-    const double logPower3 = kLogPower3.At(kilometres, draw());
-    const double logPower4 = kLogPower4.At(kilometres, draw());
-    const double logPi = std::log10(std::numbers::pi);
-    std::vector<std::complex<double>> spectrum(kTableSize);
-    for (std::size_t k = 1; k < kTableSize / 2; ++k) {
-        const double logWavelength = std::log10(2.0 * std::numbers::pi / static_cast<double>(k));
-        double logPower = 0.0;
+/// The breakpoints of one crater's rim spectrum, from the fits at its diameter.
+struct DuSpectrum {
+    double slope;
+    double logWavelength2;
+    double logPower2;
+    double logPower3;
+    double logPower4;
+
+    /// log10 power of harmonic `k`.
+    double LogPower(std::size_t k) const {
         if (k == 1) {
-            logPower = logPower4;
-        } else if (k == 2) {
-            logPower = logPower3;
-        } else if (logWavelength >= logWavelength2) {
-            logPower = logPower2 + (logWavelength - logWavelength2) / (logPi - logWavelength2) *
-                                       (logPower3 - logPower2);
-        } else {
-            logPower = logPower2 + slope * (logWavelength - logWavelength2);
+            return logPower4;
         }
-        const double noise = scatter ? kSpectrumSigma * Normal(random) : 0.0;
-        const double amplitude =
-            std::sqrt(std::pow(10.0, logPower + noise) * 2.0 * std::numbers::pi) /
-            kSpectrumVertices;
-        const double phase = 2.0 * std::numbers::pi * random.NextDouble();
-        spectrum[k] = std::complex<double>(0.0, -1.0) * std::polar(amplitude, phase);
+        if (k == 2) {
+            return logPower3;
+        }
+        const double logPi = std::log10(std::numbers::pi);
+        const double logWavelength = std::log10(2.0 * std::numbers::pi / static_cast<double>(k));
+        if (logWavelength >= logWavelength2) {
+            return logPower2 + (logWavelength - logWavelength2) / (logPi - logWavelength2) *
+                                   (logPower3 - logPower2);
+        }
+        return logPower2 + slope * (logWavelength - logWavelength2);
     }
-    Fft(spectrum, 1.0);
-    std::vector<double> table(kTableSize);
+};
+
+/// `table` scaled down so that no value exceeds `maxDeviation` in magnitude.
+void LimitDeviation(std::vector<double>& table, double maxDeviation) {
     double largest = 0.0;
-    for (std::size_t n = 0; n < kTableSize; ++n) {
-        table[n] = spectrum[n].real();
-        largest = std::fmax(largest, std::fabs(table[n]));
+    for (const double value : table) {
+        largest = std::fmax(largest, std::fabs(value));
     }
     if (largest > maxDeviation) {
         for (double& value : table) {
             value *= maxDeviation / largest;
         }
     }
+}
+
+std::vector<double> DuRimTable(double diameter, bool scatter, double maxDeviation,
+                               RandomStream& random) {
+    const double kilometres = std::clamp(diameter / 1000.0, 1.0, 140.0);
+    const auto draw = [&] { return scatter ? Normal(random) : 0.0; };
+    DuSpectrum fit{};
+    fit.slope = kSlope12.At(kilometres, draw());
+    fit.logWavelength2 = kLogWavelength2.At(kilometres, draw());
+    fit.logPower2 = kLogPower2.At(kilometres, draw());
+    fit.logPower3 = kLogPower3.At(kilometres, draw());
+    fit.logPower4 = kLogPower4.At(kilometres, draw());
+    std::vector<std::complex<double>> spectrum(kTableSize);
+    for (std::size_t k = 1; k < kTableSize / 2; ++k) {
+        const double noise = scatter ? kSpectrumSigma * Normal(random) : 0.0;
+        const double amplitude =
+            std::sqrt(std::pow(10.0, fit.LogPower(k) + noise) * 2.0 * std::numbers::pi) /
+            kSpectrumVertices;
+        const double phase = 2.0 * std::numbers::pi * random.NextDouble();
+        spectrum[k] = std::complex<double>(0.0, -1.0) * std::polar(amplitude, phase);
+    }
+    Fft(spectrum, 1.0);
+    std::vector<double> table(kTableSize);
+    for (std::size_t n = 0; n < kTableSize; ++n) {
+        table[n] = spectrum[n].real();
+    }
+    LimitDeviation(table, maxDeviation);
     return table;
 }
 
@@ -129,73 +121,37 @@ double PowerSum(int first, int last, double slope) {
     return sum;
 }
 
+/// The uniforms an outline is drawn from, in the order drawn.
+struct OutlineDraws {
+    double rough, elongated, r1, r2, s1, s2, e1, e2, h;
+};
+
+OutlineDraws DrawOutline(RandomStream& random) {
+    OutlineDraws draws{};
+    for (double* draw : {&draws.rough, &draws.elongated, &draws.r1, &draws.r2, &draws.s1, &draws.s2,
+                         &draws.e1, &draws.e2, &draws.h}) {
+        *draw = random.NextDouble();
+    }
+    return draws;
+}
+
+/// Adds the power-law harmonics of `irregularity` to `outline`.
+void AddHarmonics(CraterOutline& outline, const CraterIrregularity& irregularity,
+                  const OutlineDraws& draws, RandomStream& random) {
+    const double roughness = irregularity.roughness.Sample(draws.r1, draws.r2);
+    const double slope = irregularity.spectralSlope.Sample(draws.s1, draws.s2);
+    const double norm = roughness * std::sqrt(2.0 / PowerSum(irregularity.minHarmonic,
+                                                             irregularity.maxHarmonic, slope));
+    outline.firstHarmonic = irregularity.minHarmonic;
+    if (roughness > 0.0) {
+        for (int k = irregularity.minHarmonic; k <= irregularity.maxHarmonic; ++k) {
+            outline.amplitudes.push_back(norm * std::pow(static_cast<double>(k), -slope));
+            outline.phases.push_back(2.0 * std::numbers::pi * random.NextDouble());
+        }
+    }
+}
+
 }  // namespace
-
-double ValueDistribution::Sample(double u1, double u2) const {
-    double value = a;
-    const auto normal = [&] {
-        return std::sqrt(-2.0 * std::log1p(-u1)) * std::cos(2.0 * std::numbers::pi * u2);
-    };
-    switch (kind) {
-    case Kind::Constant:
-        break;
-    case Kind::Uniform:
-        value = a + (b - a) * u1;
-        break;
-    case Kind::Normal:
-        value = a + b * normal();
-        break;
-    case Kind::LogNormal:
-        value = a * std::exp(b * normal());
-        break;
-    }
-    return std::clamp(value, min, max);
-}
-
-double ValueDistribution::Lowest() const {
-    switch (kind) {
-    case Kind::Constant:
-    case Kind::Uniform:
-        return std::clamp(a, min, max);
-    case Kind::Normal:
-        return min;
-    case Kind::LogNormal:
-        return std::fmax(0.0, min);
-    }
-    return min;
-}
-
-double ValueDistribution::Highest() const {
-    switch (kind) {
-    case Kind::Constant:
-        return std::clamp(a, min, max);
-    case Kind::Uniform:
-        return std::clamp(b, min, max);
-    case Kind::Normal:
-    case Kind::LogNormal:
-        return max;
-    }
-    return max;
-}
-
-void ValidateValueDistribution(const ValueDistribution& d) {
-    if (!(std::isfinite(d.a) && std::isfinite(d.b)) || std::isnan(d.min) || std::isnan(d.max) ||
-        d.min > d.max) {
-        throw std::invalid_argument("Distribution parameters must be finite with min <= max");
-    }
-    if (d.kind == ValueDistribution::Kind::Uniform && d.b < d.a) {
-        throw std::invalid_argument("A uniform distribution needs b >= a");
-    }
-    if ((d.kind == ValueDistribution::Kind::Normal ||
-         d.kind == ValueDistribution::Kind::LogNormal) &&
-        (d.b < 0.0 || !std::isfinite(d.max))) {
-        throw std::invalid_argument(
-            "Normal and log-normal distributions need a non-negative spread and a finite max");
-    }
-    if (d.kind == ValueDistribution::Kind::LogNormal && !(d.a > 0.0)) {
-        throw std::invalid_argument("A log-normal distribution needs a positive median");
-    }
-}
 
 void ValidateCraterIrregularity(const CraterIrregularity& irregularity) {
     ValidateValueDistribution(irregularity.roughness);
@@ -204,11 +160,7 @@ void ValidateCraterIrregularity(const CraterIrregularity& irregularity) {
     for (const double share : {irregularity.roughShare, irregularity.elongatedShare}) {
         RequireUnitInterval(share, "Crater irregularity shares");
     }
-    if (!(irregularity.minDiameter >= 0.0 && irregularity.maxDiameter >= irregularity.minDiameter &&
-          irregularity.minAgeGyr >= 0.0 && irregularity.maxAgeGyr >= irregularity.minAgeGyr)) {
-        throw std::invalid_argument(
-            "Crater irregularity size and age ranges must satisfy 0 <= min <= max");
-    }
+    ValidateCraterSelection(irregularity.selection, "Crater irregularity");
     if (!(irregularity.minHarmonic >= 1 && irregularity.minHarmonic <= irregularity.maxHarmonic &&
           irregularity.maxHarmonic <= 64)) {
         throw std::invalid_argument("Crater harmonics must satisfy 1 <= min <= max <= 64");
@@ -273,44 +225,24 @@ double CraterOutline::MaxScale() const {
 
 CraterOutline OutlineOf(const Crater& crater, const CraterIrregularity& irregularity) {
     CraterOutline outline;
-    if (!irregularity.enabled || (crater.manual && !irregularity.manual) ||
-        crater.diameter < irregularity.minDiameter || crater.diameter > irregularity.maxDiameter ||
-        crater.ageGyr < irregularity.minAgeGyr || crater.ageGyr > irregularity.maxAgeGyr) {
+    if (!irregularity.enabled || !irregularity.selection.Includes(crater)) {
         return outline;
     }
-    RandomStream random(irregularity.seed, kIrregularityStream,
-                        static_cast<std::uint32_t>(crater.id),
-                        static_cast<std::uint32_t>(crater.id >> 32));
-    const double rough = random.NextDouble();
-    const double elongated = random.NextDouble();
-    const double r1 = random.NextDouble();
-    const double r2 = random.NextDouble();
-    const double s1 = random.NextDouble();
-    const double s2 = random.NextDouble();
-    const double e1 = random.NextDouble();
-    const double e2 = random.NextDouble();
-    const double h = random.NextDouble();
-    if (elongated < irregularity.elongatedShare) {
-        outline.ellipticity = irregularity.ellipticity.Sample(e1, e2);
-        outline.heading = irregularity.heading
-                              ? *irregularity.heading + irregularity.headingSpread * (2.0 * h - 1.0)
-                              : std::numbers::pi * h;
+    const IdWords id = SplitId(crater.id);
+    RandomStream random(irregularity.seed, kIrregularityStream, id.low, id.high);
+    const OutlineDraws draws = DrawOutline(random);
+    if (draws.elongated < irregularity.elongatedShare) {
+        outline.ellipticity = irregularity.ellipticity.Sample(draws.e1, draws.e2);
+        outline.heading =
+            irregularity.heading
+                ? *irregularity.heading + irregularity.headingSpread * (2.0 * draws.h - 1.0)
+                : std::numbers::pi * draws.h;
     }
-    if (rough < irregularity.roughShare && irregularity.model == RimRoughnessModel::Du2024) {
+    if (draws.rough < irregularity.roughShare && irregularity.model == RimRoughnessModel::Du2024) {
         outline.table =
             DuRimTable(crater.diameter, irregularity.scatter, irregularity.maxDeviation, random);
-    } else if (rough < irregularity.roughShare) {
-        const double roughness = irregularity.roughness.Sample(r1, r2);
-        const double slope = irregularity.spectralSlope.Sample(s1, s2);
-        const double norm = roughness * std::sqrt(2.0 / PowerSum(irregularity.minHarmonic,
-                                                                 irregularity.maxHarmonic, slope));
-        outline.firstHarmonic = irregularity.minHarmonic;
-        if (roughness > 0.0) {
-            for (int k = irregularity.minHarmonic; k <= irregularity.maxHarmonic; ++k) {
-                outline.amplitudes.push_back(norm * std::pow(static_cast<double>(k), -slope));
-                outline.phases.push_back(2.0 * std::numbers::pi * random.NextDouble());
-            }
-        }
+    } else if (draws.rough < irregularity.roughShare) {
+        AddHarmonics(outline, irregularity, draws, random);
     }
     return outline;
 }
@@ -329,6 +261,13 @@ double MaxOutlineScale(const CraterIrregularity& irregularity) {
     const double elongated =
         irregularity.elongatedShare > 0.0 ? std::sqrt(irregularity.ellipticity.Highest()) : 1.0;
     return rough * elongated;
+}
+
+double CraterProfileDistance(const Crater& crater, const CraterOutline& outline, double x, double y,
+                             const Surface& surface) {
+    const Vec2d offset = surface.Offset({crater.x, crater.y}, {x, y});
+    const double distance = std::sqrt(offset.x * offset.x + offset.y * offset.y);
+    return outline.Round() ? distance : distance / outline.Scale(offset.x, offset.y);
 }
 
 }  // namespace terraingen

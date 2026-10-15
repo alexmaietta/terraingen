@@ -1,6 +1,6 @@
 #pragma once
 
-#include "terraingen/layers/craters/apply.h"
+#include "terraingen/layers/fade.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/util/geometry.h"
 
@@ -73,6 +73,9 @@ class RegionLayer final : public Layer {
     }
 
   private:
+    /// Adds the features of `placed` centred within the region or its feather to `features`.
+    void KeepFeaturesInside(const TerrainFeatures& placed, TerrainFeatures& features) const;
+
     std::shared_ptr<const Layer> inner_;
     RegionShape shape_;
     double feather_;

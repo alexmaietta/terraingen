@@ -90,6 +90,22 @@ class CraterList {
     std::vector<std::uint8_t> manual_;
 };
 
+/// @brief The craters a predicate keeps, in their order.
+/// @param craters The craters.
+/// @param keep `keep(index, crater)` returning whether to keep the crater at `index`.
+/// @return The craters kept.
+template <typename Keep> CraterList FilterCraters(const CraterList& craters, const Keep& keep) {
+    CraterList kept;
+    kept.Reserve(craters.Size());
+    for (std::size_t n = 0; n < craters.Size(); ++n) {
+        const Crater crater = craters.At(n);
+        if (keep(n, crater)) {
+            kept.Append(crater);
+        }
+    }
+    return kept;
+}
+
 /// Appends the craters of `manual` that `keep` accepts (all when `keep` is empty) to `craters`,
 /// flagged manual and given a `ManualCraterId` where their ID is 0.
 /// @throws std::invalid_argument for a crater with a non-finite position, a diameter that is not
@@ -145,7 +161,7 @@ CraterList GenerateCellCraters(const SurfaceCells& cells, const CraterBand& band
 using CellCraterSource =
     std::function<std::shared_ptr<const CraterList>(const CraterBand& band, const CellIndex& cell)>;
 
-/// Settings for `GenerateCraters`.
+/// Which craters `GenerateCraters` draws, and how.
 struct CraterGenerationOptions {
     /// Smallest diameter generated, in metres; must be set to a positive value.
     double dMin = 0.0;
@@ -180,6 +196,13 @@ struct CraterGenerationOptions {
     /// latitude boxes and margins are metres, and `cells` must be `CubeSphereCells` of its radius.
     Surface surface{};
 };
+
+/// @brief The largest diameter generated: `dMax`, or for an unbounded `dMax` the top of the
+/// density's valid range.
+/// @param dMax The requested largest diameter, in metres; may be infinite.
+/// @param density The crater density.
+/// @return The diameter, in metres; infinite when both are unbounded.
+double ResolveDMax(double dMax, const SizeFrequencyDistribution& density);
 
 /// The smallest diameter in [`dMin`, `dMax`) from which `density` expects about `count` craters
 /// over `area` m^2, found by bisection in log diameter; `dMin` if even that expects fewer.

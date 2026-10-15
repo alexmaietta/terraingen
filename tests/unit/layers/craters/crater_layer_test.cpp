@@ -52,7 +52,7 @@ TEST(CraterLayer, GeneratesAndAppliesCratersOverTheGrid) {
         terraingen::PlanarCells(), {-64.0, -64.0, 64.0, 64.0}, *models.density, *models.ages, 3u,
         {.dMin = 6.0, .dMax = 40.0, .marginRadii = models.profile->ReachRadii()});
     Raster<float> expected = Grid();
-    terraingen::ApplyCraters(expected, craters, *models.profile, *models.degradation);
+    terraingen::ApplyCraters(expected, craters, models.Shape());
     ASSERT_GT(craters.Size(), 0u);
     EXPECT_EQ(features.craters.Ids(), craters.Ids());
     ASSERT_EQ(features.craterAttributes.size(), craters.Size());

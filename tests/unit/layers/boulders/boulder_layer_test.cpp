@@ -52,7 +52,7 @@ class Analytic final : public terraingen::Ground {
 
 TEST(BoulderLayer, GivesEachBoulderStableAttributesInTheirRanges) {
     BoulderLayerOptions options;
-    options.coverage = 0.05;
+    options.sizes.coverage = 0.05;
     const BoulderLayer layer(options);
     const auto boulders = layer.Boulders({-20.0, -20.0, 20.0, 20.0});
     ASSERT_GT(boulders.size(), 50u);
@@ -76,7 +76,7 @@ TEST(BoulderLayer, GivesEachBoulderStableAttributesInTheirRanges) {
 
 TEST(BoulderLayer, GivesTheSameBouldersInEveryRegionAndSkipsOnlyUnresolvedOnes) {
     BoulderLayerOptions options;
-    options.coverage = 0.05;
+    options.sizes.coverage = 0.05;
     options.patches = {2.0, 30.0};
     const BoulderLayer layer(options);
     const auto whole = layer.Boulders({-30.0, -30.0, 30.0, 30.0});
@@ -174,17 +174,18 @@ TEST(BoulderLayer, LimitsCraterBlocksToHowFarTheyAreThrownOverRegolith) {
 
 TEST(BoulderLayer, DrawsBouldersAndCraterBlocksFromAnyDistribution) {
     BoulderLayerOptions options;
-    options.distribution = terraingen::SynthterrainBoulderDistribution(
+    options.sizes.distribution = terraingen::SynthterrainBoulderDistribution(
         terraingen::SynthterrainBoulders::ViperSpecification);
-    options.minDiameter = 1.0;
-    options.maxDiameter = 8.0;
+    options.sizes.minDiameter = 1.0;
+    options.sizes.maxDiameter = 8.0;
     options.ejecta.minCraterDiameter = 50.0;
     options.ejecta.distribution =
         terraingen::Sp8023CraterBlocks(terraingen::SpecificationCurve::Nominal);
     const BoulderLayer layer(options, Craters({{0.0, 0.0, 100.0, 0.0, 0u}}));
-    EXPECT_DOUBLE_EQ(layer.DensityAt(2.0, 400.0, 0.0), options.distribution->Incremental(2.0));
+    EXPECT_DOUBLE_EQ(layer.DensityAt(2.0, 400.0, 0.0),
+                     options.sizes.distribution->Incremental(2.0));
     EXPECT_DOUBLE_EQ(layer.DensityAt(2.0, 50.0, 0.0),
-                     options.distribution->Incremental(2.0) +
+                     options.sizes.distribution->Incremental(2.0) +
                          options.ejecta.distribution->Incremental(2.0));
     const auto boulders = layer.Boulders({-100.0, -100.0, 100.0, 100.0});
     ASSERT_FALSE(boulders.empty());
@@ -192,7 +193,7 @@ TEST(BoulderLayer, DrawsBouldersAndCraterBlocksFromAnyDistribution) {
         EXPECT_GE(boulder.diameter, 1.0);
         EXPECT_LT(boulder.diameter, 8.0);
     }
-    options.minDiameter = 0.1;
+    options.sizes.minDiameter = 0.1;
     EXPECT_THROW(BoulderLayer(options, Craters({})), std::invalid_argument)
         << "the crater table starts at 0.85 m";
     auto extrapolated = terraingen::Sp8023CraterBlocks(terraingen::SpecificationCurve::Nominal);
@@ -205,8 +206,8 @@ TEST(BoulderLayer, RaisesTheAbundanceWhereBedrockShows) {
     BoulderLayerOptions options;
     options.patches.spread = 3.0;
     options.patches.size = 1e6;
-    options.coverage = 0.01;
-    options.exposure = terraingen::ExposureParams{};
+    options.sizes.coverage = 0.01;
+    options.bedrock.exposure = terraingen::ExposureParams{};
     const BoulderLayer layer(options);
     const Analytic steep([](double x, double) { return static_cast<float>(0.8 * x); });
     const Analytic level([](double, double) { return 0.0f; });
@@ -219,8 +220,8 @@ TEST(BoulderLayer, RaisesTheAbundanceWhereBedrockShows) {
 
 TEST(BoulderLayer, AddsDomesThatPointQueriesMatchToTheBit) {
     BoulderLayerOptions options;
-    options.coverage = 0.1;
-    options.minDiameter = 0.5;
+    options.sizes.coverage = 0.1;
+    options.sizes.minDiameter = 0.5;
     const BoulderLayer layer(options);
     Raster<float> heights(80, 60, 1.0f);
     heights.SetTransform(GeoTransform::NorthUp(-20.0, 15.0, 0.5));
@@ -255,8 +256,8 @@ TEST(AddBoulder, IsADomeOfTheExposedHeight) {
 
 TEST(BoulderLayer, LeavesHeightsAloneWithoutReliefAndRejectsBadOptions) {
     BoulderLayerOptions options;
-    options.coverage = 0.1;
-    options.relief = terraingen::BoulderRelief::None;
+    options.sizes.coverage = 0.1;
+    options.rendering.relief = terraingen::BoulderRelief::None;
     const BoulderLayer layer(options);
     Raster<float> heights(120, 120, 2.0f);
     heights.SetTransform(GeoTransform::NorthUp(0.0, 60.0, 0.5));
@@ -271,8 +272,8 @@ TEST(BoulderLayer, LeavesHeightsAloneWithoutReliefAndRejectsBadOptions) {
     EXPECT_THROW(BoulderLayer({}).ApplyAt(0.0f, 1.0, 1.0, {0.0}), std::invalid_argument);
     EXPECT_EQ(layer.MaxFeatureDiameter(), 4.0);
     const std::vector<std::function<void(BoulderLayerOptions&)>> changes{
-        [](BoulderLayerOptions& o) { o.coverage = 0.0; },
-        [](BoulderLayerOptions& o) { o.maxDiameter = 0.05; },
+        [](BoulderLayerOptions& o) { o.sizes.coverage = 0.0; },
+        [](BoulderLayerOptions& o) { o.sizes.maxDiameter = 0.05; },
         [](BoulderLayerOptions& o) { o.patches.spread = 0.5; },
         [](BoulderLayerOptions& o) { o.patches.spread = 60.0; },
         [](BoulderLayerOptions& o) {
@@ -293,21 +294,24 @@ TEST(BoulderLayer, LeavesHeightsAloneWithoutReliefAndRejectsBadOptions) {
         },
         [](BoulderLayerOptions& o) { o.ejecta.regolithThickness = -1.0; },
         [](BoulderLayerOptions& o) { o.ejecta.excavationDepthRatio = 0.0; },
-        [](BoulderLayerOptions& o) { o.bedrockAbundance = 0.0; },
+        [](BoulderLayerOptions& o) { o.bedrock.abundance = 0.0; },
         [](BoulderLayerOptions& o) {
-            o.exposure = terraingen::ExposureParams{};
-            o.coverage = 0.4;
+            o.bedrock.exposure = terraingen::ExposureParams{};
+            o.sizes.coverage = 0.4;
         },
         [](BoulderLayerOptions& o) {
-            o.distribution = std::make_shared<terraingen::PowerLawSfd>(
+            o.sizes.distribution = std::make_shared<terraingen::PowerLawSfd>(
                 1.0, 2.0, terraingen::SfdKind::ProductionRate);
         },
         [](BoulderLayerOptions& o) { o.ejecta.minCraterDiameter = -1.0; },
-        [](BoulderLayerOptions& o) { o.exposureSpacing = 0.0; },
-        [](BoulderLayerOptions& o) { o.exposure = terraingen::ExposureParams{.reach = 0.0}; },
-        [](BoulderLayerOptions& o) { o.maxHeightRatio = 0.1; },
-        [](BoulderLayerOptions& o) { o.maxBurial = 1.0; },
-        [](BoulderLayerOptions& o) { o.maxLean = -1.0; },
+        [](BoulderLayerOptions& o) { o.bedrock.exposureSpacing = 0.0; },
+        [](BoulderLayerOptions& o) {
+            o.bedrock.exposure = terraingen::ExposureParams{.reach = 0.0};
+        },
+        [](BoulderLayerOptions& o) { o.pose.maxHeightRatio = 0.1; },
+        [](BoulderLayerOptions& o) { o.pose.maxBurial = 1.0; },
+        [](BoulderLayerOptions& o) { o.pose.maxLean = -1.0; },
+        [](BoulderLayerOptions& o) { o.rendering.models.minDiameter = 0.0; },
         [](BoulderLayerOptions& o) { o.fade = {3.0, 3.0}; }};
     for (const auto& bad : changes) {
         BoulderLayerOptions invalid;
@@ -330,9 +334,9 @@ TEST(BoulderModelThreshold, SplitsBouldersByDiameterOrBySamplesAtTheSpacing) {
 
 TEST(BoulderLayer, PlacesLargeBouldersAsModelsOnTheGroundAndLeavesThemOutOfTheHeights) {
     BoulderLayerOptions options;
-    options.coverage = 0.15;
-    options.minDiameter = 0.5;
-    options.models.minDiameter = 1.0;
+    options.sizes.coverage = 0.15;
+    options.sizes.minDiameter = 0.5;
+    options.rendering.models.minDiameter = 1.0;
     const BoulderLayer layer(options);
     Raster<float> heights(160, 160, 2.0f);
     heights.SetTransform(GeoTransform::NorthUp(-40.0, 40.0, 0.5));
@@ -361,7 +365,7 @@ TEST(BoulderLayer, PlacesLargeBouldersAsModelsOnTheGroundAndLeavesThemOutOfTheHe
         EXPECT_NEAR(0.5 * (box.min.x + box.max.x), boulder.boulder.x, boulder.boulder.diameter);
     }
 
-    options.models.minDiameter = options.minDiameter;
+    options.rendering.models.minDiameter = options.sizes.minDiameter;
     Raster<float> flat(160, 160, 2.0f);
     flat.SetTransform(heights.Transform());
     terraingen::TerrainFeatures all;
@@ -374,9 +378,9 @@ TEST(BoulderLayer, PlacesLargeBouldersAsModelsOnTheGroundAndLeavesThemOutOfTheHe
 
 TEST(BoulderLayer, ReadsTheGroundBeneathEachBoulder) {
     BoulderLayerOptions options;
-    options.coverage = 0.15;
-    options.minDiameter = 1.0;
-    options.models.minDiameter = 1.0;
+    options.sizes.coverage = 0.15;
+    options.sizes.minDiameter = 1.0;
+    options.rendering.models.minDiameter = 1.0;
     const BoulderLayer layer(options);
     const Analytic slope([](double x, double) { return static_cast<float>(0.1 * x); });
     const auto boulders = layer.Boulders({0.0, 0.0, 40.0, 40.0}, 0.5, &slope);
@@ -390,10 +394,10 @@ TEST(BoulderLayer, ReadsTheGroundBeneathEachBoulder) {
 
 TEST(BoulderLayer, DrawsTheTopsOfBoulderShapesThatPointQueriesMatch) {
     BoulderLayerOptions options;
-    options.coverage = 0.1;
-    options.minDiameter = 0.5;
-    options.relief = terraingen::BoulderRelief::Shape;
-    options.shapes.subdivisions = 2;
+    options.sizes.coverage = 0.1;
+    options.sizes.minDiameter = 0.5;
+    options.rendering.relief = terraingen::BoulderRelief::Shape;
+    options.rendering.shapes.subdivisions = 2;
     const BoulderLayer layer(options);
     Raster<float> heights(60, 50, 1.0f);
     heights.SetTransform(GeoTransform::NorthUp(-15.0, 12.5, 0.5));
@@ -414,7 +418,7 @@ TEST(BoulderLayer, DrawsTheTopsOfBoulderShapesThatPointQueriesMatch) {
     }
     EXPECT_GT(highest, 0.0);
     EXPECT_LE(highest, 2.0 * tallest) << "overlapping boulders add up";
-    options.relief = terraingen::BoulderRelief::Dome;
+    options.rendering.relief = terraingen::BoulderRelief::Dome;
     Raster<float> domes(60, 50, 1.0f);
     domes.SetTransform(heights.Transform());
     terraingen::TerrainFeatures again;
@@ -425,13 +429,13 @@ TEST(BoulderLayer, DrawsTheTopsOfBoulderShapesThatPointQueriesMatch) {
 
 TEST(BoulderLayer, SharesShapesBetweenBouldersOfOnePrototype) {
     BoulderLayerOptions options;
-    options.shapePrototypes = 1;
+    options.rendering.shapePrototypes = 1;
     const BoulderLayer layer(options);
     EXPECT_EQ(layer.Shape(Boulder{.id = 1}).get(), layer.Shape(Boulder{.id = 99}).get());
-    options.shapePrototypes = 0;
+    options.rendering.shapePrototypes = 0;
     const BoulderLayer unique(options);
     EXPECT_NE(unique.Shape(Boulder{.id = 1})->mesh.positions,
               unique.Shape(Boulder{.id = 99})->mesh.positions);
-    options.models.minSamples = -1.0;
+    options.rendering.models.minSamples = -1.0;
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
 }

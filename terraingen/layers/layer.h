@@ -1,3 +1,5 @@
+/// @file
+/// @brief `Layer`, relief added on top of a source, and what layers place besides heights.
 #pragma once
 
 #include "terraingen/layers/boulders/boulder.h"
@@ -7,8 +9,8 @@
 #include "terraingen/layers/ground.h"
 #include "terraingen/raster/geo_transform.h"
 #include "terraingen/raster/raster.h"
-#include "terraingen/util/checks.h"
 
+#include <string_view>
 #include <vector>
 
 namespace terraingen {
@@ -18,11 +20,22 @@ struct TerrainFeatures {
     CraterList craters;  ///< Every crater the layers applied, in the order they applied them.
     /// The attributes of `craters`, in the same order; layers that record craters record these too.
     std::vector<CraterAttributes> craterAttributes;
-    std::vector<Boulder>
-        boulders;  ///< Every boulder the layers placed, in the order they placed them.
+    /// Every boulder the layers placed, in the order they placed them.
+    std::vector<Boulder> boulders;
     /// The boulders placed as 3D models of their own (`Boulder::model`), with their shapes and
     /// placements.
     std::vector<BoulderModel> boulderModels;
+
+    /// @brief Records craters with their attributes, keeping the two lists in step.
+    /// @param added The craters, in the order applied.
+    /// @param attributesOf `attributesOf(crater)` gives a crater's `CraterAttributes`.
+    template <typename AttributesOf>
+    void AddCraters(const CraterList& added, const AttributesOf& attributesOf) {
+        for (std::size_t n = 0; n < added.Size(); ++n) {
+            craterAttributes.push_back(attributesOf(added.At(n)));
+        }
+        craters.Append(added);
+    }
 };
 
 /// How a layer is evaluated.
@@ -37,6 +50,17 @@ struct LayerContext {
     const Ground* ground = nullptr;
 };
 
+/// @brief Checks the context of a point query (`Layer::ApplyAt`).
+/// @param context The context to check.
+/// @throws std::invalid_argument if `context.spacing` is not positive and finite.
+void ValidatePointContext(const LayerContext& context);
+
+/// @brief Checks that a layer that reads the ground beneath it was given one.
+/// @param ground The ground, or null.
+/// @param what What reads it, which starts the error message ("<what> need the ground").
+/// @throws std::invalid_argument if `ground` is null.
+void RequireGround(const Ground* ground, std::string_view what);
+
 /// Relief added on top of a source: noise, craters, or a layer of your own.
 ///
 /// A layer must be deterministic and safe to call from several threads at once, and must place the
@@ -48,26 +72,26 @@ class Layer {
   public:
     virtual ~Layer() = default;
 
-    /// Adds the layer's relief to the cells of `heights` that hold data, and records the features
-    /// it placed in `features`.
+    /// @brief Adds the layer's relief to the cells of `heights` that hold data.
+    /// @param heights The heights to change in place.
+    /// @param context How the layer is evaluated.
+    /// @param features Where the features the layer placed are recorded.
     virtual void Apply(Raster<float>& heights, const LayerContext& context,
                        TerrainFeatures& features) const = 0;
 
-    /// The height at (`x`, `y`) after this layer, given `height` there before it: what `Apply`
-    /// makes of a cell centred there, to the same bits. The default applies the layer to one cell
-    /// of side `context.spacing`; layers override it with something faster where they can.
-    /// @throws std::invalid_argument if `context.spacing` is not positive and finite.
-    virtual float ApplyAt(float height, double x, double y, const LayerContext& context) const {
-        RequirePositive(context.spacing, "Sample spacing");
-        Raster<float> cell(1, 1, height);
-        cell.SetTransform(GeoTransform::NorthUp(x - 0.5 * context.spacing,
-                                                y + 0.5 * context.spacing, context.spacing));
-        TerrainFeatures features;
-        Apply(cell, context, features);
-        return cell(0, 0);
-    }
+    /// @brief The height at a point after this layer: what `Apply` makes of a cell centred there,
+    /// to the same bits. The default applies the layer to one cell of side `context.spacing`;
+    /// layers override it with something faster where they can.
+    /// @param height The height there before the layer.
+    /// @param x World x of the point.
+    /// @param y World y of the point.
+    /// @param context How the layer is evaluated.
+    /// @return The height after the layer.
+    /// @throws std::invalid_argument as `ValidatePointContext`.
+    virtual float ApplyAt(float height, double x, double y, const LayerContext& context) const;
 
-    /// The largest feature the layer places, in world units, for filters' margins; 0 for none.
+    /// @brief The largest feature the layer places, for filters' margins.
+    /// @return Its diameter in world units; 0 for none.
     virtual double MaxFeatureDiameter() const {
         return 0.0;
     }

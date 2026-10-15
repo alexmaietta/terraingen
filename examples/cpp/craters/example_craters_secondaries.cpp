@@ -40,9 +40,9 @@ class CratersSecondaries : public terraingen::examples::Example {
         options.minDiameter = 30.0;
         const auto secondaries = std::make_shared<terraingen::SecondaryCraterLayer>(
             primaries,
-            terraingen::SecondaryCraterModels{std::make_shared<terraingen::FassettThomsonProfile>(),
-                                              std::make_shared<terraingen::NoDegradation>(
-                                                  terraingen::LunarFreshCraterMorphometry, 0.11)},
+            terraingen::CraterShapeModels{std::make_shared<terraingen::FassettThomsonProfile>(),
+                                          std::make_shared<terraingen::NoDegradation>(
+                                              terraingen::LunarFreshCraterMorphometry, 0.11)},
             options);
 
         onset_ = terraingen::SecondaryOnsetRange(2000.0);

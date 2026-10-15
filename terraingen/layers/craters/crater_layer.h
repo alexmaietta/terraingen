@@ -1,3 +1,5 @@
+/// @file
+/// @brief `CraterLayer`, craters generated over the grid being evaluated and applied to it.
 #pragma once
 
 #include "terraingen/distribution/size_frequency.h"
@@ -20,9 +22,15 @@ struct CraterModels {
     std::shared_ptr<const CraterAgeModel> ages;
     std::shared_ptr<const DegradationModel> degradation;
     std::shared_ptr<const CraterProfile> profile;
+
+    /// @brief The models that shape the craters.
+    /// @return The profile and degradation.
+    CraterShapeModels Shape() const {
+        return {profile, degradation};
+    }
 };
 
-/// Settings for a `CraterLayer`.
+/// How a `CraterLayer` generates and applies its craters.
 struct CraterLayerOptions {
     /// Generate craters from the density; otherwise only the manual craters in `generation` apply.
     bool generate = true;
@@ -38,13 +46,15 @@ struct CraterLayerOptions {
     Surface surface{};
 };
 
-/// Craters generated over the grid being evaluated and applied to it: `GenerateCraters` with
-/// `PlanarCells`, then `ApplyCraters` at the evaluation's sample spacing. Generated craters are the
-/// same in a tile as in any larger grid containing it, unless `maxCraters` caps them over the whole
-/// grid. Cells are kept in a `CraterCellCache`, and bands too small to resolve at the spacing are
-/// not generated at all.
+/// Craters generated over the grid being evaluated and applied to it: `GenerateCraters`, then
+/// `ApplyCraters` at the evaluation's sample spacing. Generated craters are the same in a tile as
+/// in any larger grid containing it, unless `maxCraters` caps them over the whole grid. Cells are
+/// kept in a `CraterCellCache`, and bands too small to resolve at the spacing are not generated.
 class CraterLayer final : public Layer {
   public:
+    /// @brief Builds a crater layer.
+    /// @param models The density, ages, degradation and profile; none may be null.
+    /// @param options How craters are generated and applied.
     /// @throws std::invalid_argument for a missing model or invalid options.
     CraterLayer(CraterModels models, CraterLayerOptions options);
 
@@ -53,26 +63,34 @@ class CraterLayer final : public Layer {
     void Apply(Raster<float>& heights, const LayerContext& context,
                TerrainFeatures& features) const override;
 
-    /// `dMax` (the density's largest valid diameter when unbounded) or the largest manual crater.
+    /// @brief The largest crater the layer places.
+    /// @return `dMax` (the density's largest valid diameter when unbounded) or the largest manual
+    /// crater, in metres.
     double MaxFeatureDiameter() const override;
 
     /// The craters reaching (`x`, `y`) added to `height` there, in the order `ApplyCraters` applies
     /// them, to the same bits as a cell centred there; NaN stays NaN. Datums are fitted to
     /// `context.ground`.
-    /// @throws std::invalid_argument if `context.spacing` is not positive and finite, the layer
-    /// has a datum and `context.ground` is null, or the layer has `maxCraters` (which depends on
-    /// the whole grid).
+    /// @throws std::invalid_argument as `ValidatePointContext`, if the layer has a datum and
+    /// `context.ground` is null, or if the layer has `maxCraters` (which depends on the whole
+    /// grid).
     float ApplyAt(float height, double x, double y, const LayerContext& context) const override;
 
-    /// The craters this layer applies to a grid covering `region`: those generated, and the manual
-    /// ones, centred in it or within the profile's reach of it. With a positive `spacing`, bands
-    /// too small to resolve at it are skipped (`CraterGenerationOptions::minResolvedDiameter`).
+    /// @brief The craters this layer applies to a grid covering a region: those generated, and the
+    /// manual ones, centred in it or within the profile's reach of it.
+    /// @param region The region, in surface coordinates.
+    /// @param spacing The sample spacing; bands too small to resolve at it are skipped
+    /// (`CraterGenerationOptions::minResolvedDiameter`). 0 generates every band.
+    /// @return The craters.
     CraterList Craters(const Bounds2d& region, double spacing = 0.0) const;
 
-    /// `crater`'s depth, rim height and freshness in the state the degradation model gives it.
+    /// @brief A crater's attributes in the state the degradation model gives it.
+    /// @param crater The crater.
+    /// @return Its depth, rim height and freshness.
     CraterAttributes Attributes(const Crater& crater) const;
 
-    /// The cell cache, or null when `cacheCraters` is 0.
+    /// @brief The cell cache.
+    /// @return The cache, or null when `cacheCraters` is 0.
     const CraterCellCache* Cache() const {
         return cache_.get();
     }

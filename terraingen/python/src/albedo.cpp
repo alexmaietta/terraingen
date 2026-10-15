@@ -222,12 +222,9 @@ void BindAlbedo(nb::module_& m) {
         "interiors and ejecta are in optical maturity, their rays, and how fast it all fades.");
     BindKwargsInit<CraterAlbedoOptions>(craterOptions);
     craterOptions.def_rw("seed", &CraterAlbedoOptions::seed)
-        .def_rw("min_diameter", &CraterAlbedoOptions::minDiameter)
-        .def_rw("max_diameter", &CraterAlbedoOptions::maxDiameter)
-        .def_rw("min_age_gyr", &CraterAlbedoOptions::minAgeGyr)
-        .def_rw("max_age_gyr", &CraterAlbedoOptions::maxAgeGyr)
-        .def_rw("manual", &CraterAlbedoOptions::manual)
-        .def_rw("share", &CraterAlbedoOptions::share)
+        .def_rw("selection", &CraterAlbedoOptions::selection);
+    BindSelection(craterOptions, &CraterAlbedoOptions::selection, "min_diameter", "max_diameter");
+    craterOptions.def_rw("share", &CraterAlbedoOptions::share)
         .def_rw("background_maturity", &CraterAlbedoOptions::backgroundMaturity)
         .def_rw("max_maturity", &CraterAlbedoOptions::maxMaturity)
         .def_rw("interior_excess", &CraterAlbedoOptions::interiorExcess)

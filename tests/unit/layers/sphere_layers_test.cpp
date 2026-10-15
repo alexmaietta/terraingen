@@ -162,11 +162,9 @@ TEST(SphereLayers, BedformsCoverAsMuchGroundAsOnAPlane) {
 
 TEST(SphereLayers, BouldersHaveThePlaneDensityAndPlaceModelsLocally) {
     terraingen::BoulderLayerOptions options;
-    options.coverage = 0.15;
-    options.minDiameter = 0.5;
-    options.maxDiameter = 4.0;
-    options.models.minDiameter = 2.0;
-    options.relief = terraingen::BoulderRelief::Shape;
+    options.sizes = {.coverage = 0.15, .minDiameter = 0.5, .maxDiameter = 4.0};
+    options.rendering.models.minDiameter = 2.0;
+    options.rendering.relief = terraingen::BoulderRelief::Shape;
     const terraingen::BoulderLayer sphere(options, nullptr, kSphere);
     const terraingen::BoulderLayer plane(options);
     const double side = 120.0;

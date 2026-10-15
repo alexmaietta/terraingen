@@ -193,18 +193,22 @@ template <> struct SpecName<BoulderLayerSpec> {
 };
 template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
     BoulderLayerOptions& boulders = spec.boulders;
-    io("coverage", boulders.coverage,
+    BoulderSizes& sizes = boulders.sizes;
+    BoulderBedrock& bedrock = boulders.bedrock;
+    BoulderPose& pose = boulders.pose;
+    BoulderRendering& rendering = boulders.rendering;
+    io("coverage", sizes.coverage,
        "Golombek-Rapp k, the fraction of the ground covered by boulders, between 0 and 1; used "
        "with golombek_rapp sizes, where higher values give more boulders.");
-    io("qa", boulders.qa,
+    io("qa", sizes.qConstant,
        "Constant term of the Golombek-Rapp q = qa + qb / k, per metre; a larger q leaves fewer "
        "large boulders. Also used for golombek_rapp ejecta.",
        "1/m");
-    io("qb", boulders.qb,
+    io("qb", sizes.qCoverageCoefficient,
        "Term of the Golombek-Rapp q = qa + qb / k divided by the coverage k, per metre.", "1/m");
-    io("min_diameter", boulders.minDiameter,
+    io("min_diameter", sizes.minDiameter,
        "Smallest boulder generated, in metres; lower values add many more small boulders.", "m");
-    io("max_diameter", boulders.maxDiameter,
+    io("max_diameter", sizes.maxDiameter,
        "Largest boulder generated, in metres, exclusive; above the smallest.", "m");
     io("sizes", spec.sizes,
        "Size distribution of the boulders between craters, per m^2; patches and bedrock scale its "
@@ -223,36 +227,35 @@ template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
     io("extrapolate", spec.extrapolate,
        "Lets the size distributions be evaluated outside their valid diameters, such as beyond a "
        "table's published ones; otherwise they must cover the boulder sizes.");
-    io("exposure", boulders.exposure,
+    io("exposure", bedrock.exposure,
        "Raises the abundance of boulders where the ground beneath is bedrock, judged from its "
        "shape; unset disables it.");
-    io("bedrock_abundance", boulders.bedrockAbundance,
+    io("bedrock_abundance", bedrock.abundance,
        "Boulder abundance on bedrock over that on soil, and in between in proportion; used with "
        "the exposure field.");
-    io("exposure_spacing", boulders.exposureSpacing,
+    io("exposure_spacing", bedrock.exposureSpacing,
        "Spacing in metres the ground is read at for the exposure field, fixed so that which "
        "boulders exist does not depend on the level of detail.",
        "m");
-    io("min_height_ratio", boulders.minHeightRatio,
+    io("min_height_ratio", pose.minHeightRatio,
        "Smallest boulder height over diameter; each boulder's is drawn uniformly between the two "
        "ratios.");
-    io("max_height_ratio", boulders.maxHeightRatio,
+    io("max_height_ratio", pose.maxHeightRatio,
        "Largest boulder height over diameter; at least the smallest.");
-    io("min_burial", boulders.minBurial,
+    io("min_burial", pose.minBurial,
        "Smallest buried share of a boulder's height; each boulder's is drawn uniformly between the "
        "two shares.");
-    io("max_burial", boulders.maxBurial,
+    io("max_burial", pose.maxBurial,
        "Largest buried share of a boulder's height, below 1; more burial leaves less of the "
        "boulder exposed.");
-    io("max_lean", boulders.maxLean, "Largest tilt of a boulder from the vertical, in radians.",
-       "rad");
-    io("relief", boulders.relief, "How the boulders drawn into the heights look there.");
-    io("models", boulders.models,
+    io("max_lean", pose.maxLean, "Largest tilt of a boulder from the vertical, in radians.", "rad");
+    io("relief", rendering.relief, "How the boulders drawn into the heights look there.");
+    io("models", rendering.models,
        "Which boulders become 3D models of their own rather than relief in the heights; neither "
        "threshold set means no models.");
-    io("shapes", boulders.shapes,
+    io("shapes", rendering.shapes,
        "The boulders' 3D boulder shapes, used by shape relief and by models.");
-    io("shape_prototypes", boulders.shapePrototypes,
+    io("shape_prototypes", rendering.shapePrototypes,
        "How many shapes the boulders share, so they can be drawn as instances; 0 gives every "
        "boulder a shape of its own.");
     io("fade", boulders.fade, "How boulders too small to resolve at the sample spacing fade out.");

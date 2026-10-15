@@ -25,21 +25,34 @@ INTERNAL = {
     # The GPU's fixed-size layer block and device internals; Python selects backends.
     "NoiseLayers", "ComputeKernel", "VulkanCompute", "DeviceName", "Reason", "Run",
     # Internal steps of crater, boulder and albedo evaluation, reached through their layers.
-    "Entries", "ReliefBefore", "DatumGround", "DatumMargin", "CraterInfluence", "CraterProfileDistance",
-    "ApplyCraterTo", "GenerateCellCraters", "SpacingConflicts", "Solve", "TableFor", "Morphometry",
-    "AddField", "EjectaCraters", "Abundance", "AddRelief", "PlacedOnLevel", "Roughness", "Smoothing",
-    "ApplyParallel", "Gather", "Prepare", "ForEachAlbedoCell", "MaxStretch", "NoiseAt", "SegmentAt",
-    "PieceAt", "IntervalAt", "LowestAt", "Derivative", "Polynomial", "BoulderMesh", "SceneMesh",
-    "IsModel", "MinCraterDiameter", "AppendManualCraters",
+    "Craters", "ReliefBefore", "AddBucket", "DatumGround", "DatumMargin", "CraterReliefIndex",
+    "PlaneFit", "Mean", "PreparedCrater", "PrepareCraters", "CraterSampling", "CraterProfileDistance",
+    "ApplyCraterTo", "GenerateCellCraters", "CachedCellCraters", "FilterCraters", "ResolveDMax",
+    "SpacingConflicts", "Solve", "TableFor", "Morphometry", "AddField", "EjectaCraters", "Abundance",
+    "BackgroundAbundance", "EjectaAbundance", "ScatterBoulderCandidates", "DrawBoulder", "DrawRelief",
+    "InLocalFrame", "AddRelief", "PlacedOnLevel", "Roughness", "MakeOctave", "OctaveNoise",
+    "KeepFeaturesInside", "Smoothing", "ApplyParallel", "Gather", "Prepare", "Eligible", "DrawRay", "AddRays",
+    "ForEachAlbedoCell", "ForEachAlbedoBlock", "MeasureRoughness", "DetailSum", "LogBrightnessGrid",
+    "StructureFunction", "FitSlope", "MaxStretch", "NoiseAt", "SegmentAt", "PieceAt", "IntervalAt",
+    "LowestAt", "Derivative", "Polynomial", "BoulderMesh", "SceneMesh", "IsModel",
+    "MinCraterDiameter", "AppendManualCraters", "AddCraters", "ValidatePointContext", "RequireGround",
+    # Noise, random and raster-loop helpers shared by the layers; Python works on whole rasters.
+    "PatchNoise", "NoiseLayersAt", "PerlinNoise2Precise", "IdWords", "SplitId", "StandardNormal",
+    "Fft", "PixelWindow", "WindowOf", "WindowsAround", "FeatureCell", "ForEachFeatureCell",
+    "MapCells", "ResolvedSpacing",
+    # The groups of BoulderLayerOptions and their checks; Python keeps the flat config attributes
+    # and checks them through validate_boulder_layer_options.
+    "ValidateBoulderSizes", "ValidateBoulderPatches", "ValidateBoulderEjecta",
+    "ValidateBoulderBedrock", "ValidateBoulderPose", "ValidateBoulderRendering",
+    "MaxBackgroundAbundance", "EjectaSizes",
     # Argument checks and the JSON paths of configuration errors; Python sees the exceptions.
     "IsPositive", "IsNonNegative", "IsInUnitInterval", "RequirePositive", "RequireNonNegative",
     "RequireFinite", "RequireUnitInterval", "RequireNonEmpty", "At", "Child", "Element",
     # Vector arithmetic and geometry helpers; Python uses NumPy.
     "Cross", "Dot", "Length", "Normalized", "Box3d", "Extents", "ShadedMesh", "After", "Expanded",
     "SphereLocate", "SphereOffset", "UnitVector", "Bucket", "GetKind", "PointBounds",
-    # Python's perlin_noise3 is the double-precision form (PerlinNoise3Precise), and
-    # SecondaryCraterLayer takes the profile and degradation of SecondaryCraterModels as arguments.
-    "PerlinNoise3", "SecondaryCraterModels",
+    # Python's perlin_noise3 is the double-precision form (PerlinNoise3Precise).
+    "PerlinNoise3",
     # Small accessors and checks reached through properties or constructors.
     "Empty", "Row", "Contains", "CheckBounds", "CheckDiameter", "Reserve", "Enabled",
     "Lowest", "Highest", "ExposedHeight", "Sampler", "Ground", "Production", "Inner", "GetSurface",

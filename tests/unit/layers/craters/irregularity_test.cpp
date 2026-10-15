@@ -39,43 +39,15 @@ std::pair<double, double> Stretch(const terraingen::CraterOutline& outline) {
 
 }  // namespace
 
-TEST(ValueDistribution, SamplesEachKindWithinItsBounds) {
-    const ValueDistribution constant{ValueDistribution::Kind::Constant, 2.0};
-    EXPECT_EQ(constant.Sample(0.3, 0.7), 2.0);
-    EXPECT_EQ(constant.Lowest(), 2.0);
-    EXPECT_EQ(constant.Highest(), 2.0);
-    const ValueDistribution uniform{ValueDistribution::Kind::Uniform, 1.0, 3.0};
-    EXPECT_EQ(uniform.Sample(0.25, 0.0), 1.5);
-    EXPECT_EQ(uniform.Highest(), 3.0);
-    const ValueDistribution normal{ValueDistribution::Kind::Normal, 5.0, 1.0, 4.0, 6.0};
-    const ValueDistribution logNormal{ValueDistribution::Kind::LogNormal, 2.0, 0.5, 0.0, 10.0};
-    double mean = 0.0;
-    std::vector<double> logs;
-    for (int n = 1; n < 2000; ++n) {
-        const double u1 = n / 2000.0;
-        const double u2 = std::fmod(n * 0.618034, 1.0);
-        const double value = normal.Sample(u1, u2);
-        EXPECT_GE(value, 4.0);
-        EXPECT_LE(value, 6.0);
-        mean += value;
-        logs.push_back(std::log(logNormal.Sample(u1, u2)));
-    }
-    EXPECT_NEAR(mean / 1999.0, 5.0, 0.05);
-    std::sort(logs.begin(), logs.end());
-    EXPECT_NEAR(std::exp(logs[logs.size() / 2]), 2.0, 0.1) << "the median";
-    EXPECT_EQ(normal.Lowest(), 4.0);
-    EXPECT_EQ(logNormal.Lowest(), 0.0);
-    EXPECT_EQ(logNormal.Highest(), 10.0);
-    const std::vector<ValueDistribution> invalid{
-        {ValueDistribution::Kind::Uniform, 3.0, 1.0},
-        {ValueDistribution::Kind::Normal, 1.0, 1.0},
-        {ValueDistribution::Kind::Normal, 1.0, -1.0, 0.0, 2.0},
-        {ValueDistribution::Kind::LogNormal, 0.0, 1.0, 0.0, 2.0},
-        {ValueDistribution::Kind::Constant, std::nan("")},
-        {ValueDistribution::Kind::Constant, 1.0, 0.0, 2.0, 1.0}};
-    for (const auto& distribution : invalid) {
-        EXPECT_THROW(terraingen::ValidateValueDistribution(distribution), std::invalid_argument);
-    }
+TEST(CraterProfileDistance, StretchesTheDistanceByTheOutline) {
+    const Crater crater = At(1);
+    EXPECT_DOUBLE_EQ(terraingen::CraterProfileDistance(crater, {}, 3.0, 4.0), 5.0);
+    terraingen::CraterOutline elliptical;
+    elliptical.ellipticity = 4.0;
+    EXPECT_DOUBLE_EQ(terraingen::CraterProfileDistance(crater, elliptical, 10.0, 0.0),
+                     10.0 / elliptical.Scale(10.0, 0.0));
+    EXPECT_DOUBLE_EQ(terraingen::CraterProfileDistance(crater, elliptical, 10.0, 0.0), 5.0)
+        << "twice as long along the heading";
 }
 
 TEST(OutlineOf, ShapesOnlyEligibleCratersAndStaysTheSameForAnID) {
@@ -85,22 +57,23 @@ TEST(OutlineOf, ShapesOnlyEligibleCratersAndStaysTheSameForAnID) {
     EXPECT_FALSE(OutlineOf(At(1), irregularity).Round());
     EXPECT_EQ(OutlineOf(At(1), irregularity).amplitudes, OutlineOf(At(1), irregularity).amplitudes);
     EXPECT_NE(OutlineOf(At(1), irregularity).phases, OutlineOf(At(2), irregularity).phases);
-    irregularity.minDiameter = 200.0;
+    terraingen::CraterSelection& selection = irregularity.selection;
+    selection.minDiameter = 200.0;
     EXPECT_TRUE(OutlineOf(At(1), irregularity).Round());
-    irregularity.minDiameter = 0.0;
-    irregularity.maxDiameter = 50.0;
+    selection.minDiameter = 0.0;
+    selection.maxDiameter = 50.0;
     EXPECT_TRUE(OutlineOf(At(1), irregularity).Round());
-    irregularity.maxDiameter = 1000.0;
-    irregularity.minAgeGyr = 2.0;
+    selection.maxDiameter = 1000.0;
+    selection.minAgeGyr = 2.0;
     EXPECT_TRUE(OutlineOf(At(1), irregularity).Round()) << "too young";
-    irregularity.minAgeGyr = 0.0;
-    irregularity.maxAgeGyr = 0.5;
+    selection.minAgeGyr = 0.0;
+    selection.maxAgeGyr = 0.5;
     EXPECT_TRUE(OutlineOf(At(1), irregularity).Round()) << "too old";
-    irregularity.maxAgeGyr = 4.0;
+    selection.maxAgeGyr = 4.0;
     Crater manual = At(1);
     manual.manual = true;
     EXPECT_TRUE(OutlineOf(manual, irregularity).Round());
-    irregularity.manual = true;
+    selection.manual = true;
     EXPECT_FALSE(OutlineOf(manual, irregularity).Round());
     irregularity.seed = 5;
     EXPECT_NE(OutlineOf(At(1), irregularity).phases,
@@ -226,8 +199,11 @@ TEST(ValidateCraterIrregularity, RejectsInvalidSettings) {
     const std::vector<std::function<void(CraterIrregularity&)>> changes{
         [](CraterIrregularity& c) { c.roughShare = 2.0; },
         [](CraterIrregularity& c) { c.elongatedShare = -0.1; },
-        [](CraterIrregularity& c) { c.minDiameter = 10.0, c.maxDiameter = 5.0; },
-        [](CraterIrregularity& c) { c.minAgeGyr = -1.0; },
+        [](CraterIrregularity& c) {
+            c.selection.minDiameter = 10.0;
+            c.selection.maxDiameter = 5.0;
+        },
+        [](CraterIrregularity& c) { c.selection.minAgeGyr = -1.0; },
         [](CraterIrregularity& c) { c.minHarmonic = 0; },
         [](CraterIrregularity& c) { c.maxHarmonic = 65; },
         [](CraterIrregularity& c) { c.roughness = {ValueDistribution::Kind::Constant, 0.2}; },
@@ -253,7 +229,7 @@ TEST(ApplyCraters, StretchesElongatedCratersAndKeepsPointQueriesOnTheGrid) {
     options.generation.manual.Append({0.5, 0.5, 40.0, 0.0, 7u, true});
     options.apply.datum = terraingen::CraterDatum::Plane;
     options.apply.irregularity.enabled = true;
-    options.apply.irregularity.manual = true;
+    options.apply.irregularity.selection.manual = true;
     options.apply.irregularity.elongatedShare = 1.0;
     options.apply.irregularity.ellipticity = {ValueDistribution::Kind::Constant, 2.0};
     options.apply.irregularity.heading = 0.0;

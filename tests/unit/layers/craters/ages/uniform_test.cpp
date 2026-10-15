@@ -39,9 +39,9 @@ TEST(UniformAges, DrawsAgesUniformlyOverOneLifetime) {
         EXPECT_DOUBLE_EQ(uniform.SampleAgeGyr(stream, 1.0 + i), expected);
     }
     EXPECT_EQ(uniform.LifetimeGyr(1e4), 2.0);
-    EXPECT_DOUBLE_EQ(uniform.Freshness(5.0, 0.5), 0.75);
-    EXPECT_EQ(uniform.Freshness(5.0, 3.0), 0.0);
-    EXPECT_EQ(uniform.Freshness(5.0, -1.0), 1.0);
+    EXPECT_DOUBLE_EQ(uniform.RemainingLifetime(5.0, 0.5), 0.75);
+    EXPECT_EQ(uniform.RemainingLifetime(5.0, 3.0), 0.0);
+    EXPECT_EQ(uniform.RemainingLifetime(5.0, -1.0), 1.0);
     EXPECT_THROW(UniformAges(0.0), std::invalid_argument);
     EXPECT_THROW(UniformAges{kInf}, std::invalid_argument);
     EXPECT_THROW(UniformAges{kNaN}, std::invalid_argument);

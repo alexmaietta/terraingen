@@ -130,6 +130,21 @@ inline float PerlinNoise2(float x, float y, uint32_t seed) {
     return PerlinNoise2(int32_t(cellX), int32_t(cellY), x - cellX, y - cellY, seed);
 }
 
+/// 2D improved Perlin gradient noise at (`x`, `y`) in lattice units given in double precision,
+/// split into an integer cell and a fraction before narrowing, so it stays exact far from the
+/// origin.
+///
+/// @return Noise in [-1, 1].
+#ifndef __SLANG__
+inline float PerlinNoise2Precise(double x, double y, uint32_t seed) {
+    const double cellX = floor(x);
+    const double cellY = floor(y);
+    return PerlinNoise2(int32_t(static_cast<std::int64_t>(cellX)),
+                        int32_t(static_cast<std::int64_t>(cellY)), float(x - cellX),
+                        float(y - cellY), seed);
+}
+#endif
+
 /// 3D improved Perlin gradient noise at lattice cell (`ix`, `iy`, `iz`) plus fractional offset
 /// (`fx`, `fy`, `fz`) in [0, 1).
 ///

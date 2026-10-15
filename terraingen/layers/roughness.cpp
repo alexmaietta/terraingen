@@ -2,10 +2,10 @@
 
 #include "terraingen/noise/kernels/hash.h"
 #include "terraingen/noise/kernels/perlin.h"
+#include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/log.h"
-#include "terraingen/util/parallel.h"
 
 #include <algorithm>
 #include <array>
@@ -18,6 +18,39 @@ namespace terraingen {
 namespace {
 
 constexpr int kMaxOctaves = 40;
+
+/// Salts of the hashes giving each octave its offsets and seed, its 3D rotation, and its 3D
+/// offset.
+constexpr std::uint32_t kOctaveSalt = 0x524F5547u;
+constexpr std::uint32_t kRotationSalt = 0x524F5433u;
+constexpr std::uint32_t kOffsetZSalt = 7u;
+
+/// The golden angle, in radians, by which each octave is turned from the last.
+constexpr double kGoldenAngle = 2.39996322972865332;
+
+/// A uniform in [0, 1024) from the top 16 bits of a hash, for lattice offsets.
+double LatticeOffset(std::uint32_t hash) {
+    return static_cast<double>(hash >> 16) / 65536.0 * 1024.0;
+}
+
+/// The rotation matrix, row-major, of a uniform random rotation from three uniform hashes, by
+/// Shoemake's (1992) unit quaternion.
+std::array<double, 9> UniformRotation(const UVec3& turn) {
+    const double u1 = HashToUnitFloat(turn.x);
+    const double u2 = 2.0 * std::numbers::pi * static_cast<double>(HashToUnitFloat(turn.y));
+    const double u3 = 2.0 * std::numbers::pi * static_cast<double>(HashToUnitFloat(turn.z));
+    const double a = std::sqrt(1.0 - u1);
+    const double b = std::sqrt(u1);
+    const double qx = a * std::sin(u2);
+    const double qy = a * std::cos(u2);
+    const double qz = b * std::sin(u3);
+    const double qw = b * std::cos(u3);
+    return {1.0 - 2.0 * (qy * qy + qz * qz), 2.0 * (qx * qy - qz * qw),
+            2.0 * (qx * qz + qy * qw),       2.0 * (qx * qy + qz * qw),
+            1.0 - 2.0 * (qx * qx + qz * qz), 2.0 * (qy * qz - qx * qw),
+            2.0 * (qx * qz - qy * qw),       2.0 * (qy * qz + qx * qw),
+            1.0 - 2.0 * (qx * qx + qy * qy)};
+}
 
 /// `PerlinStructureFunction(r) / r^2` at r = 2^(k / 4) for k from `kFirstQuarter`, estimated from
 /// 2^26 pairs each.
@@ -85,44 +118,47 @@ double Perlin3StructureFunction(double r) {
 RoughnessLayer::RoughnessLayer(RoughnessOptions options, Surface surface)
     : options_(options), surface_(surface) {
     ValidateRoughnessOptions(options_);
-    constexpr double kGoldenAngle = 2.39996322972865332;
     const double shortest = options_.minWavelength * (1.0 - 1e-12);
     double wavelength = options_.maxWavelength;
     for (std::uint32_t i = 0; wavelength >= shortest; ++i, wavelength *= 0.5) {
-        const UVec3 hash = Pcg3dHash({options_.seed, i, 0x524F5547u});
-        const double angle = kGoldenAngle * static_cast<double>(i);
-        Octave octave{wavelength,
-                      std::pow(wavelength, options_.hurst),
-                      std::cos(angle),
-                      std::sin(angle),
-                      static_cast<double>(hash.x >> 16) / 65536.0 * 1024.0,
-                      static_cast<double>(hash.y >> 16) / 65536.0 * 1024.0,
-                      hash.z};
-        if (surface_.IsSphere()) {
-            const UVec3 turn = Pcg3dHash({options_.seed, i, 0x524F5433u});
-            const double u1 = HashToUnitFloat(turn.x);
-            const double u2 = 2.0 * std::numbers::pi * static_cast<double>(HashToUnitFloat(turn.y));
-            const double u3 = 2.0 * std::numbers::pi * static_cast<double>(HashToUnitFloat(turn.z));
-            const double a = std::sqrt(1.0 - u1);
-            const double b = std::sqrt(u1);
-            const double qx = a * std::sin(u2);
-            const double qy = a * std::cos(u2);
-            const double qz = b * std::sin(u3);
-            const double qw = b * std::cos(u3);
-            octave.rotation = {1.0 - 2.0 * (qy * qy + qz * qz), 2.0 * (qx * qy - qz * qw),
-                               2.0 * (qx * qz + qy * qw),       2.0 * (qx * qy + qz * qw),
-                               1.0 - 2.0 * (qx * qx + qz * qz), 2.0 * (qy * qz - qx * qw),
-                               2.0 * (qx * qz - qy * qw),       2.0 * (qy * qz + qx * qw),
-                               1.0 - 2.0 * (qx * qx + qy * qy)};
-            octave.offsetZ =
-                static_cast<double>(Pcg3dHash({hash.z, i, 7u}).x >> 16) / 65536.0 * 1024.0;
-        }
-        octaves_.push_back(octave);
+        octaves_.push_back(MakeOctave(i, wavelength));
     }
     const double scale = options_.rmsSlope / RmsSlope(options_.baseline);
     for (Octave& octave : octaves_) {
         octave.amplitude *= scale;
     }
+}
+
+RoughnessLayer::Octave RoughnessLayer::MakeOctave(std::uint32_t i, double wavelength) const {
+    const UVec3 hash = Pcg3dHash({options_.seed, i, kOctaveSalt});
+    const double angle = kGoldenAngle * static_cast<double>(i);
+    Octave octave{wavelength,
+                  std::pow(wavelength, options_.hurst),
+                  std::cos(angle),
+                  std::sin(angle),
+                  LatticeOffset(hash.x),
+                  LatticeOffset(hash.y),
+                  hash.z};
+    if (surface_.IsSphere()) {
+        octave.rotation = UniformRotation(Pcg3dHash({options_.seed, i, kRotationSalt}));
+        octave.offsetZ = LatticeOffset(Pcg3dHash({hash.z, i, kOffsetZSalt}).x);
+    }
+    return octave;
+}
+
+double RoughnessLayer::OctaveNoise(const Octave& octave, double x, double y) const {
+    if (surface_.IsSphere()) {
+        const Vec3d p = surface_.Position({x, y});
+        const std::array<double, 9>& m = octave.rotation;
+        const double scale = 1.0 / octave.wavelength;
+        return static_cast<double>(PerlinNoise3Precise(
+            scale * (m[0] * p.x + m[1] * p.y + m[2] * p.z) + octave.offsetX,
+            scale * (m[3] * p.x + m[4] * p.y + m[5] * p.z) + octave.offsetY,
+            scale * (m[6] * p.x + m[7] * p.y + m[8] * p.z) + octave.offsetZ, octave.seed));
+    }
+    const double u = (octave.cos * x + octave.sin * y) / octave.wavelength + octave.offsetX;
+    const double v = (octave.cos * y - octave.sin * x) / octave.wavelength + octave.offsetY;
+    return static_cast<double>(PerlinNoise2Precise(u, v, octave.seed));
 }
 
 double RoughnessLayer::RmsSlope(double baseline) const {
@@ -151,26 +187,7 @@ float RoughnessLayer::Roughness(double x, double y, double spacing) const {
         if (weight <= 0.0) {
             break;
         }
-        if (surface_.IsSphere()) {
-            const Vec3d p = surface_.Position({x, y});
-            const std::array<double, 9>& m = octave.rotation;
-            const double scale = 1.0 / octave.wavelength;
-            const float noise = PerlinNoise3Precise(
-                scale * (m[0] * p.x + m[1] * p.y + m[2] * p.z) + octave.offsetX,
-                scale * (m[3] * p.x + m[4] * p.y + m[5] * p.z) + octave.offsetY,
-                scale * (m[6] * p.x + m[7] * p.y + m[8] * p.z) + octave.offsetZ, octave.seed);
-            sum += weight * octave.amplitude * static_cast<double>(noise);
-            continue;
-        }
-        const double u = (octave.cos * x + octave.sin * y) / octave.wavelength + octave.offsetX;
-        const double v = (octave.cos * y - octave.sin * x) / octave.wavelength + octave.offsetY;
-        const double cellU = std::floor(u);
-        const double cellV = std::floor(v);
-        const float noise = PerlinNoise2(
-            static_cast<std::int32_t>(static_cast<std::uint32_t>(static_cast<std::int64_t>(cellU))),
-            static_cast<std::int32_t>(static_cast<std::uint32_t>(static_cast<std::int64_t>(cellV))),
-            static_cast<float>(u - cellU), static_cast<float>(v - cellV), octave.seed);
-        sum += weight * octave.amplitude * static_cast<double>(noise);
+        sum += weight * octave.amplitude * OctaveNoise(octave, x, y);
     }
     return static_cast<float>(sum);
 }
@@ -179,22 +196,15 @@ void RoughnessLayer::Apply(Raster<float>& heights, const LayerContext& context,
                            TerrainFeatures& /*features*/) const {
     const Stopwatch stopwatch;
     const double spacing = std::max(context.spacing, RasterGrid::Of(heights).Spacing(surface_));
-    ParallelFor(heights.Height(), context.threads, [&](std::size_t row) {
-        for (std::size_t col = 0; col < heights.Width(); ++col) {
-            float& cell = heights(col, row);
-            if (heights.IsNoData(cell)) {
-                continue;
-            }
-            const Vec2d centre = heights.CellCenter(col, row);
-            cell += Roughness(centre.x, centre.y, spacing);
-        }
+    MapCells(heights, context.threads, [&](float height, const Vec2d& centre) {
+        return height + Roughness(centre.x, centre.y, spacing);
     });
     LogInfo("layers", "Added roughness to ", heights.Width(), "x", heights.Height(), " cells in ",
             FormatDuration(stopwatch.Milliseconds()));
 }
 
 float RoughnessLayer::ApplyAt(float height, double x, double y, const LayerContext& context) const {
-    RequirePositive(context.spacing, "Sample spacing");
+    ValidatePointContext(context);
     if (std::isnan(height)) {
         return height;
     }

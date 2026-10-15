@@ -141,7 +141,12 @@ void BindCraterLists(nb::module_& m) {
         [](Raster<float>& raster, const CraterList& craters, const CraterProfile& profile,
            const DegradationModel& degradation, const CraterApplyOptions& options, double spacing,
            unsigned threads) {
-            ApplyCraters(raster, craters, profile, degradation, options, spacing, threads);
+            const CraterShapeModels models{
+                std::shared_ptr<const CraterProfile>(std::shared_ptr<const CraterProfile>{},
+                                                     &profile),
+                std::shared_ptr<const DegradationModel>(std::shared_ptr<const DegradationModel>{},
+                                                        &degradation)};
+            ApplyCraters(raster, craters, models, options, {spacing, threads});
         },
         "raster"_a, "craters"_a, "profile"_a, "degradation"_a, "options"_a = CraterApplyOptions{},
         "spacing"_a = 0.0, "threads"_a = 1, nb::call_guard<nb::gil_scoped_release>(),
@@ -149,8 +154,13 @@ void BindCraterLists(nb::module_& m) {
         "datum, the ground is the raster as given.");
     m.def("crater_apply_order", &CraterApplyOrder, "craters"_a, "order"_a,
           "The indices of `craters` in the order they are applied.");
-    m.def("crater_blend_weight", &CraterBlendWeight, "radii"_a, "blend"_a,
-          "The interior weight `radii` crater radii from the centre.");
+    m.def(
+        "crater_blend_weight",
+        [](double radii, const CraterBlend& blend) { return blend.Weight(radii); }, "radii"_a,
+        "blend"_a, "The interior weight `radii` crater radii from the centre.");
+    m.def("falloff", &Falloff, "x"_a, "start"_a, "end"_a, "shape"_a,
+          "The weight at `x` of a falloff from 1 at `start` to 0 at `end` along `shape`.");
+    m.def("smoothstep", &Smoothstep, "t"_a, "The cubic smoothstep of `t` clamped to [0, 1].");
     m.def("resolution_weight", &ResolutionWeight, "diameter"_a, "spacing"_a, "fade"_a,
           "The weight of a feature `diameter` across sampled every `spacing`.");
     m.def("compute_crater_attributes", &ComputeCraterAttributes, "crater"_a, "state"_a, "profile"_a,
@@ -281,8 +291,13 @@ void BindValidators(nb::module_& m) {
 void BindFunctions(nb::module_& m) {
     m.def(
         "fit_crater_datum",
-        [](const Crater& crater, const CraterApplyOptions& options, HeightSampler ground) {
-            return FitCraterDatum(crater, options, ground);
+        [](const Crater& crater, const CraterApplyOptions& options,
+           HeightSampler ground) -> std::optional<std::tuple<double, double, double>> {
+            const std::optional<Plane> plane = FitCraterDatum(crater, options, ground);
+            if (!plane) {
+                return std::nullopt;
+            }
+            return std::tuple{plane->a, plane->b, plane->c};
         },
         "crater"_a, "options"_a, "ground"_a,
         "The datum `options` asks for under `crater`, fitted to `ground(x, y)`: (a, b, c) of the "

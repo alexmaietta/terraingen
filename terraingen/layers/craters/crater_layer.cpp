@@ -1,12 +1,12 @@
 #include "terraingen/layers/craters/crater_layer.h"
 
-#include "terraingen/layers/craters/filters.h"
+#include "terraingen/layers/craters/spacing.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/cells.h"
-#include "terraingen/util/checks.h"
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -42,12 +42,8 @@ CraterList CraterLayer::Craters(const Bounds2d& region, double spacing) const {
             generation.minResolvedDiameter = options_.apply.fade.startSamples * spacing;
         }
         if (cache_) {
-            generation.cellCraters = [this](const CraterBand& band, const CellIndex& cell) {
-                return cache_->Get(band.exponent, cell, [&] {
-                    return GenerateCellCraters(*cells_, band, cell, *models_.density, *models_.ages,
-                                               options_.seed);
-                });
-            };
+            generation.cellCraters =
+                CachedCellCraters(*cache_, *cells_, *models_.density, *models_.ages, options_.seed);
         }
         return GenerateCraters(*cells_, region, *models_.density, *models_.ages, options_.seed,
                                generation);
@@ -70,13 +66,10 @@ void CraterLayer::Apply(Raster<float>& heights, const LayerContext& context,
     const CraterList craters = Craters(options_.surface.Expand(bounds, margin), resolved);
     const HeightSampler ground =
         context.ground ? context.ground->Sampler(resolved) : HeightSampler{};
-    ApplyCraters(heights, craters, *models_.profile, *models_.degradation, options_.apply, resolved,
-                 context.threads, ground);
+    ApplyCraters(heights, craters, models_.Shape(), options_.apply,
+                 {resolved, context.threads, ground});
     const CraterList recorded = margin > 0.0 ? Craters(bounds, resolved) : craters;
-    for (std::size_t n = 0; n < recorded.Size(); ++n) {
-        features.craterAttributes.push_back(Attributes(recorded.At(n)));
-    }
-    features.craters.Append(recorded);
+    features.AddCraters(recorded, [&](const Crater& crater) { return Attributes(crater); });
 }
 
 CraterAttributes CraterLayer::Attributes(const Crater& crater) const {
@@ -85,10 +78,7 @@ CraterAttributes CraterLayer::Attributes(const Crater& crater) const {
 
 double CraterLayer::MaxFeatureDiameter() const {
     const CraterGenerationOptions& generation = options_.generation;
-    double largest = 0.0;
-    if (options_.generate) {
-        largest = std::isinf(generation.dMax) ? models_.density->ValidRange().max : generation.dMax;
-    }
+    double largest = options_.generate ? ResolveDMax(generation.dMax, *models_.density) : 0.0;
     for (std::size_t n = 0; n < generation.manual.Size(); ++n) {
         largest = std::fmax(largest, generation.manual.At(n).diameter);
     }
@@ -96,12 +86,10 @@ double CraterLayer::MaxFeatureDiameter() const {
 }
 
 float CraterLayer::ApplyAt(float height, double x, double y, const LayerContext& context) const {
-    const double spacing = context.spacing;
-    RequirePositive(spacing, "Sample spacing");
+    ValidatePointContext(context);
     const bool datum = options_.apply.datum != CraterDatum::None;
-    if (datum && context.ground == nullptr) {
-        throw std::invalid_argument(
-            "Point queries of craters with a datum need the ground beneath the layer");
+    if (datum) {
+        RequireGround(context.ground, "Point queries of craters with a datum");
     }
     if (options_.generation.maxCraters > 0) {
         throw std::invalid_argument(
@@ -110,34 +98,30 @@ float CraterLayer::ApplyAt(float height, double x, double y, const LayerContext&
     if (std::isnan(height)) {
         return height;
     }
-    const double margin = DatumMargin(options_.apply, *models_.profile, MaxFeatureDiameter());
-    const Bounds2d point = options_.surface.Expand(PointBounds(x, y), margin);
-    const CraterList craters = Craters(point, spacing);
+    const double spacing = context.spacing;
     const CraterProfile& profile = *models_.profile;
-    std::vector<CraterInfluence::Entry> resolvedCraters;
-    for (const std::size_t index : CraterApplyOrder(craters, options_.apply.order)) {
-        const Crater crater = craters.At(index);
-        const double resolution = ResolutionWeight(crater.diameter, spacing, options_.apply.fade);
-        if (resolution > 0.0) {
-            resolvedCraters.push_back({crater, resolution, models_.degradation->State(crater),
-                                       OutlineOf(crater, options_.apply.irregularity)});
-        }
+    const double margin = DatumMargin(options_.apply, profile, MaxFeatureDiameter());
+    const CraterList craters = Craters(options_.surface.Expand(PointBounds(x, y), margin), spacing);
+    std::vector<PreparedCrater> prepared =
+        PrepareCraters(craters, options_.apply, spacing, *models_.degradation);
+    std::optional<CraterReliefIndex> index;
+    HeightSampler ground;
+    if (datum) {
+        index.emplace(prepared, profile, MaxOutlineScale(options_.apply.irregularity),
+                      options_.surface);
+        ground = context.ground->Sampler(spacing);
     }
-    const CraterInfluence influence(std::move(resolvedCraters), profile,
-                                    MaxOutlineScale(options_.apply.irregularity), options_.surface);
-    const HeightSampler ground = datum ? context.ground->Sampler(spacing) : HeightSampler{};
-    const auto& entries = influence.Entries();
-    for (std::size_t k = 0; k < entries.size(); ++k) {
-        const CraterInfluence::Entry& entry = entries[k];
-        if (CraterProfileDistance(entry.crater, entry.outline, x, y, options_.surface) >=
-            profile.ReachRadii() * 0.5 * entry.crater.diameter) {
+    for (std::size_t k = 0; k < prepared.size(); ++k) {
+        PreparedCrater& crater = prepared[k];
+        if (CraterProfileDistance(crater.crater, crater.outline, x, y, options_.surface) >=
+            profile.ReachRadii() * 0.5 * crater.crater.diameter) {
             continue;
         }
-        const auto fitted =
-            datum ? FitCraterDatum(entry.crater, options_.apply, DatumGround(ground, influence, k))
-                  : std::nullopt;
-        height = ApplyCraterTo(height, x, y, entry.crater, entry.state, entry.resolution, fitted,
-                               profile, options_.apply, entry.outline);
+        if (index) {
+            crater.datum =
+                FitCraterDatum(crater.crater, options_.apply, DatumGround(ground, *index, k));
+        }
+        height = ApplyCraterTo(height, x, y, crater, profile, options_.apply);
     }
     return height;
 }

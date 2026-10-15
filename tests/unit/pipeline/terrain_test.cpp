@@ -393,13 +393,13 @@ TEST(Evaluate, BouldersFromCraterEjectaAndBedrockAgreeOnGridsTilesAndPoints) {
         std::dynamic_pointer_cast<const terraingen::CraterLayer>(terrain.layers[1]);
     ASSERT_NE(craters, nullptr);
     terraingen::BoulderLayerOptions options;
-    options.minDiameter = 1.0;
-    options.coverage = 0.05;
+    options.sizes.minDiameter = 1.0;
+    options.sizes.coverage = 0.05;
     options.patches = {2.0, 60.0};
     options.ejecta.coverage = 0.15;
     options.ejecta.minCraterDiameter = 20.0;
     options.ejecta.minFreshness = 0.0;
-    options.exposure = terraingen::ExposureParams{};
+    options.bedrock.exposure = terraingen::ExposureParams{};
     options.fade = {1.0, 2.0};
     terrain.layers.push_back(std::make_shared<terraingen::BoulderLayer>(options, craters));
 

@@ -45,4 +45,12 @@ struct RasterGrid {
     bool operator==(const RasterGrid&) const = default;
 };
 
+/// @brief The spacing a raster is sampled at: a requested spacing raised to the raster's own.
+/// @param raster The raster.
+/// @param spacing The requested spacing in metres; 0 for the raster's own.
+/// @param surface What the raster lies on (`RasterGrid::Spacing`).
+/// @return The larger of `spacing` and the raster's spacing on `surface`.
+/// @throws std::domain_error if the raster's transform is not invertible.
+double ResolvedSpacing(const Raster<float>& raster, double spacing, const Surface& surface);
+
 }  // namespace terraingen

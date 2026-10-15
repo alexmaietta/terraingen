@@ -92,10 +92,24 @@ std::vector<Raster<float>> EvaluateAlbedo(const Albedo& albedo, const RasterGrid
 AlbedoSample EvaluateAlbedoAt(const Albedo& albedo, double x, double y,
                               const AlbedoContext& context);
 
+/// Visits the albedo at one cell centre: `visit(value, x, y)` may change `value`.
+using AlbedoCellVisitor = std::function<void(AlbedoSample& value, double x, double y)>;
+
 /// Calls `visit(value, x, y)` for the albedo at every cell centre of `bands` on `threads` threads,
 /// writing back what it leaves in `value`: the cell loop shared by `AlbedoSource::Fill` and
 /// `AlbedoLayer::Apply`.
 void ForEachAlbedoCell(std::vector<Raster<float>>& bands, unsigned threads,
-                       const std::function<void(AlbedoSample& value, double x, double y)>& visit);
+                       const AlbedoCellVisitor& visit);
+
+/// @brief `ForEachAlbedoCell` in blocks of rows, for visitors that prepare per block, such as a
+/// list of the features near it.
+/// @param bands The bands, one raster per band on one grid.
+/// @param threads Threads to split the blocks over; 0 for every hardware thread.
+/// @param blockRows Rows per block; positive.
+/// @param visitorFor `visitorFor(rowBegin, rowEnd)` returns the visitor of the cells of rows
+/// [`rowBegin`, `rowEnd`), called once per block on the thread that visits it.
+void ForEachAlbedoBlock(
+    std::vector<Raster<float>>& bands, unsigned threads, std::size_t blockRows,
+    const std::function<AlbedoCellVisitor(std::size_t rowBegin, std::size_t rowEnd)>& visitorFor);
 
 }  // namespace terraingen

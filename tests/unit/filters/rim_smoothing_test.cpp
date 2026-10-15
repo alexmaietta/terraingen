@@ -17,13 +17,18 @@ using terraingen::SmoothCraterRims;
 
 namespace {
 
+/// Fresh lunar craters of the Fassett and Thomson profile.
+terraingen::CraterShapeModels FreshCraters() {
+    return {std::make_shared<FassettThomsonProfile>(),
+            std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry)};
+}
+
 /// A flat 1 m raster centred on the origin with one 40 m fresh crater applied at the centre.
 Raster<float> Cratered(CraterList& craters) {
     Raster<float> raster(120, 120, 0.0f);
     raster.SetTransform(GeoTransform::NorthUp(-60.0, 60.0, 1.0));
     craters.Append({0.5, 0.5, 40.0, 0.0, 1u});
-    ApplyCraters(raster, craters, FassettThomsonProfile(),
-                 terraingen::NoDegradation(terraingen::LunarFreshCraterMorphometry));
+    ApplyCraters(raster, craters, FreshCraters());
     return raster;
 }
 
@@ -105,8 +110,7 @@ TEST(SmoothCraterRims, SmoothsFromTheUnsmoothedTerrainOnAnyNumberOfThreads) {
     CraterList craters;
     Raster<float> raster = Cratered(craters);
     craters.Append({20.5, 0.5, 30.0, 0.0, 2u});
-    ApplyCraters(raster, CraterList(), FassettThomsonProfile(),
-                 terraingen::NoDegradation(terraingen::LunarFreshCraterMorphometry));
+    ApplyCraters(raster, CraterList(), FreshCraters());
     Raster<float> serial = raster;
     SmoothCraterRims(serial, craters, {.sigmaRadii = 0.08}, 0.0, 1);
     for (const unsigned threads : {2u, 0u}) {

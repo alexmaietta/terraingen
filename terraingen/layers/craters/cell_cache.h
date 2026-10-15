@@ -56,4 +56,16 @@ class CraterCellCache {
     LruCache<Key, CraterList, KeyHash> cache_;
 };
 
+/// @brief A source of cell craters that draws each cell with `GenerateCellCraters` once and keeps
+/// it in `cache`; every argument must outlive the source.
+/// @param cache The cache the cells are kept in.
+/// @param cells The cells craters are drawn in.
+/// @param density The crater density.
+/// @param ages The age model.
+/// @param seed The generation seed.
+/// @return The source, for `CraterGenerationOptions::cellCraters`.
+CellCraterSource CachedCellCraters(CraterCellCache& cache, const SurfaceCells& cells,
+                                   const SizeFrequencyDistribution& density,
+                                   const CraterAgeModel& ages, std::uint32_t seed);
+
 }  // namespace terraingen

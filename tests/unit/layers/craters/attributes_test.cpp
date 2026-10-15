@@ -47,3 +47,9 @@ TEST(ComputeCraterAttributes, FindsTheFloorOfComplexCratersBesideTheirPeaks) {
     EXPECT_NEAR(attributes.rimHeight, morphometry.rimHeightRatio * 30000.0, 1e-6);
     EXPECT_FALSE(ComputeCraterAttributes({0.0, 0.0, 300.0, 1.0, 1u}, state, profile).complex);
 }
+
+TEST(CraterState, FreshnessIsTheDepthNowOverTheDepthWhenFresh) {
+    EXPECT_EQ((CraterState{{0.2, 0.04}, {0.05, 0.01}}.Freshness()), 0.25);
+    EXPECT_EQ((CraterState{{0.2, 0.04}, {0.2, 0.04}}.Freshness()), 1.0);
+    EXPECT_EQ(CraterState{}.Freshness(), 1.0) << "no depth when fresh";
+}

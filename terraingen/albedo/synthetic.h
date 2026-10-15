@@ -8,7 +8,7 @@
 
 namespace terraingen {
 
-/// Settings for a `SyntheticAlbedo`: a base colour in hue, saturation and value, each varied by a
+/// The colour of a `SyntheticAlbedo`: a base colour in hue, saturation and value, each varied by a
 /// stack of noise layers (`EvaluateNoiseLayers`, as for heights, with amplitudes in the channel's
 /// units).
 struct SyntheticAlbedoParams {

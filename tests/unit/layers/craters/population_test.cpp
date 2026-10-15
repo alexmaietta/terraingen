@@ -480,3 +480,23 @@ TEST(GenerateCraters, SkippingUnresolvedBandsKeepsEveryResolvedCrater) {
         terraingen::GenerateCraters(terraingen::PlanarCells(), region, density, ages, 9u, bad),
         std::invalid_argument);
 }
+
+TEST(ResolveDMax, FallsBackToTheTopOfTheDensitysRange) {
+    const terraingen::PowerLawSfd unbounded(0.05, 2.0);
+    EXPECT_EQ(terraingen::ResolveDMax(50.0, unbounded), 50.0);
+    EXPECT_TRUE(std::isinf(terraingen::ResolveDMax(INFINITY, unbounded)));
+    const terraingen::PowerLawSfd bounded(0.05, 2.0, terraingen::SfdKind::Density, {1.0, 300.0});
+    EXPECT_EQ(terraingen::ResolveDMax(INFINITY, bounded), 300.0);
+}
+
+TEST(FilterCraters, KeepsWhatThePredicateAcceptsInOrder) {
+    CraterList craters;
+    for (std::uint64_t id = 1; id <= 5; ++id) {
+        craters.Append({0.0, 0.0, static_cast<double>(id), 0.0, id});
+    }
+    const CraterList kept =
+        terraingen::FilterCraters(craters, [](std::size_t n, const terraingen::Crater& crater) {
+            return n != 0 && crater.diameter < 5.0;
+        });
+    EXPECT_EQ(kept.Ids(), (std::vector<std::uint64_t>{2, 3, 4}));
+}

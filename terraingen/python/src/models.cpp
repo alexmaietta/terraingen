@@ -425,8 +425,9 @@ void BindAges(nb::module_& m) {
             "An age (Gyr) within the lifetime; uniform unless overridden.")
         .def("lifetime_gyr", &CraterAgeModel::LifetimeGyr, "diameter"_a)
         .def("sample_age_gyr", &CraterAgeModel::SampleAgeGyr, "random"_a, "diameter"_a)
-        .def("freshness", &CraterAgeModel::Freshness, "diameter"_a, "age_gyr"_a,
-             "1 for a new crater, falling to 0 at the end of its lifetime.");
+        .def("remaining_lifetime", &CraterAgeModel::RemainingLifetime, "diameter"_a, "age_gyr"_a,
+             "The share of a crater's lifetime left: 1 for a new crater, falling to 0 at the end "
+             "of its lifetime.");
     nb::class_<FreshAges, CraterAgeModel>(m, "FreshAges", "Every crater is new (age 0).")
         .def(nb::init<>());
     nb::class_<UniformAges, CraterAgeModel>(
@@ -483,7 +484,9 @@ void BindDegradation(nb::module_& m) {
             "fresh"_a = CraterMorphometry{}, "current"_a = CraterMorphometry{}, "diffusion"_a = 0.0)
         .def_rw("fresh", &CraterState::fresh)
         .def_rw("current", &CraterState::current)
-        .def_rw("diffusion", &CraterState::diffusion);
+        .def_rw("diffusion", &CraterState::diffusion)
+        .def_prop_ro("freshness", &CraterState::Freshness,
+                     "The depth now over the depth when fresh; 1 for a fresh crater.");
     m.def("lunar_fresh_crater_morphometry", &LunarFreshCraterMorphometry, "diameter"_a,
           "A fresh lunar crater's depth and rim height ratios.");
     m.def("lunar_fresh_crater_depth_ratio", &LunarFreshCraterDepthRatio, "diameter"_a,

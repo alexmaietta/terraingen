@@ -50,11 +50,11 @@ TEST(WriteOutputs, WritesBoulderListsAndBoulderModels) {
     TerrainConfig config = Small();
     Flat(config) = {200, 200, 0.5};
     terraingen::BoulderLayerSpec boulders;
-    boulders.boulders.coverage = 0.3;
-    boulders.boulders.minDiameter = 0.5;
-    boulders.boulders.relief = terraingen::BoulderRelief::Shape;
-    boulders.boulders.models.minDiameter = 1.5;
-    boulders.boulders.shapes.subdivisions = 1;
+    boulders.boulders.sizes.coverage = 0.3;
+    boulders.boulders.sizes.minDiameter = 0.5;
+    boulders.boulders.rendering.relief = terraingen::BoulderRelief::Shape;
+    boulders.boulders.rendering.models.minDiameter = 1.5;
+    boulders.boulders.rendering.shapes.subdivisions = 1;
     config.layers.push_back(boulders);
     config.outputs = {terraingen::BoulderListOutput{"boulders.csv"},
                       terraingen::BoulderListOutput{"boulders.json", ListFormat::Json},
@@ -79,7 +79,7 @@ TEST(WriteOutputs, WritesBoulderListsAndBoulderModels) {
     EXPECT_EQ(ReadText(written[3]).substr(0, 3), "ply");
 
     terraingen::BoulderLayerSpec none;
-    none.boulders.minDiameter = 0.5;
+    none.boulders.sizes.minDiameter = 0.5;
     config.layers.back() = none;
     config.outputs = {terraingen::BoulderModelsOutput{"empty.glb"}};
     EXPECT_TRUE(WriteOutputs(config, GenerateTerrain(config), directory).empty())
@@ -167,10 +167,10 @@ TEST(WriteOutputs, WritesBoulderModelsOnASphereAboutTheGridCentre) {
     flat.centreY = 60.0;
     config.source = flat;
     terraingen::BoulderLayerSpec boulders;
-    boulders.boulders.coverage = 0.3;
-    boulders.boulders.minDiameter = 0.5;
-    boulders.boulders.maxDiameter = 3.0;
-    boulders.boulders.models.minDiameter = 1.0;
+    boulders.boulders.sizes.coverage = 0.3;
+    boulders.boulders.sizes.minDiameter = 0.5;
+    boulders.boulders.sizes.maxDiameter = 3.0;
+    boulders.boulders.rendering.models.minDiameter = 1.0;
     config.layers = {boulders};
     config.outputs = {terraingen::BoulderModelsOutput{"boulders.ply"}};
     const auto terrain = GenerateTerrain(config);

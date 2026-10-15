@@ -1,7 +1,9 @@
 #include "terraingen/raster/grid.h"
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
+#include <stdexcept>
 
 namespace terraingen {
 
@@ -40,6 +42,14 @@ double RasterGrid::Spacing(const Surface& surface) const {
         return PixelSize();
     }
     return std::hypot(transform.rowRotation, transform.pixelHeight) * surface.UnitLength();
+}
+
+double ResolvedSpacing(const Raster<float>& raster, double spacing, const Surface& surface) {
+    const RasterGrid grid = RasterGrid::Of(raster);
+    if (!(grid.PixelSize() > 0.0)) {
+        throw std::domain_error("The raster's transform is not invertible");
+    }
+    return std::max(spacing, grid.Spacing(surface));
 }
 
 double RasterGrid::SurfaceArea(const Surface& surface) const {

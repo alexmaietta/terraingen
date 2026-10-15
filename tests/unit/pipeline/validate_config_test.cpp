@@ -170,20 +170,20 @@ TEST(ValidateConfig, ReportsBoulderLayerProblemsByPath) {
     const auto withBoulders = [](auto change) {
         return ErrorPath([&](TerrainConfig& c) {
             terraingen::BoulderLayerSpec boulders;
-            boulders.boulders.minDiameter = 1.0;
+            boulders.boulders.sizes.minDiameter = 1.0;
             change(boulders.boulders);
             c.layers.push_back(boulders);
         });
     };
     EXPECT_EQ(withBoulders([](terraingen::BoulderLayerOptions&) {}), "valid");
-    EXPECT_EQ(withBoulders([](terraingen::BoulderLayerOptions& r) { r.coverage = 2.0; }),
+    EXPECT_EQ(withBoulders([](terraingen::BoulderLayerOptions& r) { r.sizes.coverage = 2.0; }),
               "layers[2]");
     EXPECT_EQ(
         withBoulders([](terraingen::BoulderLayerOptions& r) { r.ejecta.minCraterDiameter = 10.0; }),
         "valid");
-    EXPECT_EQ(withBoulders([](terraingen::BoulderLayerOptions& r) { r.minDiameter = 0.01; }),
+    EXPECT_EQ(withBoulders([](terraingen::BoulderLayerOptions& r) { r.sizes.minDiameter = 0.01; }),
               "valid");
-    EXPECT_EQ(withBoulders([](terraingen::BoulderLayerOptions& r) { r.maxDiameter = 2.0; }),
+    EXPECT_EQ(withBoulders([](terraingen::BoulderLayerOptions& r) { r.sizes.maxDiameter = 2.0; }),
               "valid");
     EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
                   terraingen::BoulderLayerSpec boulders;
@@ -194,7 +194,7 @@ TEST(ValidateConfig, ReportsBoulderLayerProblemsByPath) {
     EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
                   Flat(c) = {60000, 60000, 0.1};
                   terraingen::BoulderLayerSpec boulders;
-                  boulders.boulders.coverage = 0.5;
+                  boulders.boulders.sizes.coverage = 0.5;
                   c.layers = {boulders};
               }),
               "layers[0].min_diameter");
@@ -204,7 +204,7 @@ TEST(ValidateConfig, ReportsBoulderSizeProblemsByPath) {
     TerrainConfig config = Small();
     Flat(config).pixelSize = 0.5;
     terraingen::BoulderLayerSpec boulders;
-    boulders.boulders.minDiameter = 0.5;
+    boulders.boulders.sizes.minDiameter = 0.5;
     boulders.boulders.ejecta.minCraterDiameter = 8.0;
     boulders.sizes =
         terraingen::Sp8023IntercraterBouldersSpec{terraingen::SpecificationCurve::Maximum};

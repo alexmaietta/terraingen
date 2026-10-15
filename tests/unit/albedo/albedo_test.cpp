@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <memory>
 #include <stdexcept>
@@ -367,4 +368,41 @@ TEST(RasterAlbedo, AddsDetailInMetresOnASphere) {
     const auto centre = bands[0].CellCenter(17, 23);
     EXPECT_EQ(EvaluateAlbedoAt(composed, centre.x, centre.y, {.spacing = 100.0 / 8.0})[0],
               bands[0](17, 23));
+}
+
+TEST(RasterAlbedoStatistics, MeasureTheMapsLogBrightness) {
+    terraingen::Raster<float> red(3, 2, 1.0f);
+    terraingen::Raster<float> green(3, 2, 3.0f);
+    green.SetNoData(0.0f);
+    green(2, 1) = 0.0f;
+    const std::vector<double> logs = terraingen::LogBrightnessGrid({red, green});
+    ASSERT_EQ(logs.size(), 6u);
+    EXPECT_DOUBLE_EQ(logs[0], std::log(2.0));
+    EXPECT_TRUE(std::isnan(logs[5]));
+
+    const std::vector<double> ramp{0.0, 1.0, 2.0, 3.0, 4.0, 5.0};
+    EXPECT_DOUBLE_EQ(*terraingen::StructureFunction(ramp, 3, 2, 1), (4.0 + 3.0 * 9.0) / 7.0);
+    EXPECT_FALSE(terraingen::StructureFunction(ramp, 3, 2, 3)) << "no pairs that far apart";
+    EXPECT_FALSE(terraingen::StructureFunction(std::vector<double>(6, 1.0), 3, 2, 1))
+        << "a uniform map";
+    EXPECT_DOUBLE_EQ(terraingen::FitSlope({0.0, 1.0, 2.0}, {1.0, 3.0, 5.0}), 2.0);
+}
+
+TEST(ForEachAlbedoBlock, PreparesEachBlockOnceAndVisitsItsCells) {
+    std::vector<terraingen::Raster<float>> bands{terraingen::Raster<float>(4, 70, 1.0f)};
+    std::atomic<int> blocks = 0;
+    terraingen::ForEachAlbedoBlock(bands, 2, 32, [&](std::size_t rowBegin, std::size_t rowEnd) {
+        ++blocks;
+        const auto offset = static_cast<float>(rowEnd - rowBegin);
+        return terraingen::AlbedoCellVisitor(
+            [offset](AlbedoSample& value, double, double) { value[0] += offset; });
+    });
+    EXPECT_EQ(blocks, 3);
+    EXPECT_EQ(bands[0](0, 0), 33.0f);
+    EXPECT_EQ(bands[0](3, 69), 7.0f) << "the last block holds 6 rows";
+    std::vector<terraingen::Raster<float>> none;
+    terraingen::ForEachAlbedoBlock(none, 1, 32, [](std::size_t, std::size_t) {
+        ADD_FAILURE();
+        return terraingen::AlbedoCellVisitor();
+    });
 }

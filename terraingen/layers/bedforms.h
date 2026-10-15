@@ -1,7 +1,7 @@
 #pragma once
 
-#include "terraingen/layers/craters/apply.h"
 #include "terraingen/layers/exposure.h"
+#include "terraingen/layers/fade.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/util/cells.h"
@@ -11,7 +11,7 @@
 
 namespace terraingen {
 
-/// Settings for a `BedformLayer`.
+/// The bedform fields a `BedformLayer` scatters: their ripples, cover and wind.
 struct BedformOptions {
     double wavelength = 1.0;  ///< Crest to crest (m); each field's varies from 0.8 to 1.2 times it.
     double height = 0.1;      ///< Trough to crest (m), scaled with each field's wavelength.

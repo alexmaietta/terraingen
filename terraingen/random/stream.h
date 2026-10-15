@@ -37,4 +37,17 @@ class RandomStream {
     int used_ = 4;
 };
 
+/// A 64-bit ID as two 32-bit words, for keying `RandomStream` and `Philox4x32` by it.
+struct IdWords {
+    std::uint32_t low = 0;
+    std::uint32_t high = 0;
+};
+
+/// @brief Splits a 64-bit ID into its low and high 32-bit words.
+/// @param id The ID.
+/// @return Its low and high words.
+constexpr IdWords SplitId(std::uint64_t id) {
+    return {static_cast<std::uint32_t>(id), static_cast<std::uint32_t>(id >> 32)};
+}
+
 }  // namespace terraingen

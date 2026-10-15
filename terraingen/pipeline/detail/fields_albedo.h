@@ -166,18 +166,19 @@ template <typename IO> void Fields(IO& io, CraterAlbedoOptions& options) {
     io("seed", options.seed,
        "Seed of which craters get bright material, their rays and their impacts; changing it "
        "gives a different pattern of the same statistics.");
-    io("min_diameter", options.minDiameter,
+    CraterSelection& selection = options.selection;
+    io("min_diameter", selection.minDiameter,
        "Smallest diameter, in metres, of craters given bright material.", "m");
-    OptionalBound(io, "max_diameter", options.maxDiameter,
+    OptionalBound(io, "max_diameter", selection.maxDiameter,
                   "Largest diameter, in metres, of craters given bright material; unset has no "
                   "upper limit.",
                   "m");
-    io("min_age_gyr", options.minAgeGyr, "Youngest age, in Gyr, of craters given bright material.",
-       "Gyr");
-    OptionalBound(io, "max_age_gyr", options.maxAgeGyr,
+    io("min_age_gyr", selection.minAgeGyr,
+       "Youngest age, in Gyr, of craters given bright material.", "Gyr");
+    OptionalBound(io, "max_age_gyr", selection.maxAgeGyr,
                   "Oldest age, in Gyr, of craters given bright material; unset has no upper limit.",
                   "Gyr");
-    io("manual", options.manual,
+    io("manual", selection.manual,
        "Gives manual craters bright material too; otherwise only generated craters have it.");
     io("share", options.share, "Share of eligible craters, from 0 to 1, given bright material.");
     io("background_maturity", options.backgroundMaturity,

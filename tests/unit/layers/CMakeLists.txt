@@ -9,24 +9,30 @@ terraingen_add_test_suite(
     craters/attributes_test.cpp
     craters/cell_cache_test.cpp
     craters/crater_layer_test.cpp
+    craters/datum_test.cpp
     craters/degradation/diffusion_test.cpp
     craters/degradation/freshness_test.cpp
     craters/degradation/none_test.cpp
-    craters/filters_test.cpp
     craters/irregularity_test.cpp
     craters/population_test.cpp
     craters/profiles/complex_test.cpp
     craters/profiles/fassett_thomson_test.cpp
     craters/profiles/martin_parkes_dunstan_test.cpp
     craters/secondaries_test.cpp
+    craters/selection_test.cpp
+    craters/spacing_test.cpp
     craters/sphere_test.cpp
     exposure_test.cpp
+    fade_test.cpp
+    layer_test.cpp
     noise_relief_test.cpp
     region_test.cpp
     roughness_test.cpp
     sphere_layers_test.cpp
+    surface_noise_test.cpp
     transforms_test.cpp
     boulders/boulder_meshes_test.cpp
     boulders/boulder_layer_test.cpp
+    boulders/boulder_options_test.cpp
     LIBRARIES
     terraingen::bodies)

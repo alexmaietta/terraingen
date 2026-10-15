@@ -15,6 +15,14 @@ namespace terraingen {
 
 namespace {
 
+/// Seed of the fixed sample the RMS of `PerlinNoise2` is measured on.
+constexpr std::uint32_t kRmsSeed = 0x5eed1234u;
+/// Step between the seeds of successive detail octaves (2^32 over the golden ratio).
+constexpr std::uint32_t kOctaveSeedStep = 0x9e3779b9u;
+
+/// The lags, in cells, the map's structure function is measured at.
+constexpr std::array<std::size_t, 4> kLags{1, 2, 4, 8};
+
 /// The RMS of `PerlinNoise2` over a fixed set of points, so octaves can be given an RMS.
 double PerlinRms() {
     static const double rms = [] {
@@ -24,7 +32,7 @@ double PerlinRms() {
             for (int i = 0; i < kSide; ++i) {
                 const float v =
                     PerlinNoise2(i / 8, j / 8, static_cast<float>(i % 8) / 8.0f + 1.0f / 16.0f,
-                                 static_cast<float>(j % 8) / 8.0f + 1.0f / 16.0f, 0x5eed1234u);
+                                 static_cast<float>(j % 8) / 8.0f + 1.0f / 16.0f, kRmsSeed);
                 sum += static_cast<double>(v) * static_cast<double>(v);
             }
         }
@@ -47,6 +55,62 @@ double LogBrightness(const std::vector<Raster<float>>& bands, std::size_t col, s
 }
 
 }  // namespace
+
+std::vector<double> LogBrightnessGrid(const std::vector<Raster<float>>& bands) {
+    const std::size_t width = bands.front().Width();
+    const std::size_t height = bands.front().Height();
+    std::vector<double> logs(width * height);
+    for (std::size_t row = 0; row < height; ++row) {
+        for (std::size_t col = 0; col < width; ++col) {
+            logs[row * width + col] = LogBrightness(bands, col, row);
+        }
+    }
+    return logs;
+}
+
+std::optional<double> StructureFunction(const std::vector<double>& values, std::size_t width,
+                                        std::size_t height, std::size_t lag) {
+    double sum = 0.0;
+    std::size_t pairs = 0;
+    const auto add = [&](double a, double b) {
+        if (std::isfinite(a) && std::isfinite(b)) {
+            sum += (a - b) * (a - b);
+            ++pairs;
+        }
+    };
+    for (std::size_t row = 0; row < height; ++row) {
+        for (std::size_t col = 0; col < width; ++col) {
+            const double here = values[row * width + col];
+            if (col + lag < width) {
+                add(here, values[row * width + col + lag]);
+            }
+            if (row + lag < height) {
+                add(here, values[(row + lag) * width + col]);
+            }
+        }
+    }
+    if (!(pairs > 0 && sum > 0.0)) {
+        return std::nullopt;
+    }
+    return sum / static_cast<double>(pairs);
+}
+
+double FitSlope(const std::vector<double>& x, const std::vector<double>& y) {
+    const auto n = static_cast<double>(x.size());
+    double mx = 0.0;
+    double my = 0.0;
+    for (std::size_t i = 0; i < x.size(); ++i) {
+        mx += x[i] / n;
+        my += y[i] / n;
+    }
+    double sxy = 0.0;
+    double sxx = 0.0;
+    for (std::size_t i = 0; i < x.size(); ++i) {
+        sxy += (x[i] - mx) * (y[i] - my);
+        sxx += (x[i] - mx) * (x[i] - mx);
+    }
+    return sxy / sxx;
+}
 
 void ValidateAlbedoDetail(const AlbedoDetail& detail) {
     if (detail.octaves < 1 || detail.octaves > 16) {
@@ -80,64 +144,55 @@ RasterAlbedo::RasterAlbedo(std::vector<Raster<float>> bands, RasterAlbedoOptions
     }
     ValidateAlbedoDetail(options_.detail);
     cell_ = RasterGrid::Of(first).Spacing(surface_);
-
-    const std::size_t width = first.Width();
-    const std::size_t height = first.Height();
-    std::vector<double> logs(width * height);
-    for (std::size_t row = 0; row < height; ++row) {
-        for (std::size_t col = 0; col < width; ++col) {
-            logs[row * width + col] = LogBrightness(bands_, col, row);
-        }
-    }
-    std::vector<double> lags;
-    std::vector<double> structure;
-    for (const std::size_t lag : std::array<std::size_t, 4>{1, 2, 4, 8}) {
-        double sum = 0.0;
-        std::size_t pairs = 0;
-        const auto add = [&](double a, double b) {
-            if (std::isfinite(a) && std::isfinite(b)) {
-                sum += (a - b) * (a - b);
-                ++pairs;
-            }
-        };
-        for (std::size_t row = 0; row < height; ++row) {
-            for (std::size_t col = 0; col < width; ++col) {
-                const double here = logs[row * width + col];
-                if (col + lag < width) {
-                    add(here, logs[row * width + col + lag]);
-                }
-                if (row + lag < height) {
-                    add(here, logs[(row + lag) * width + col]);
-                }
-            }
-        }
-        if (pairs > 0 && sum > 0.0) {
-            lags.push_back(std::log(static_cast<double>(lag)));
-            structure.push_back(std::log(sum / static_cast<double>(pairs)));
-        }
-    }
-    if (!lags.empty() && lags.front() == 0.0) {
-        roughness_ = std::sqrt(0.5 * std::exp(structure.front()));
-    }
-    if (lags.size() >= 2) {
-        const auto n = static_cast<double>(lags.size());
-        double mx = 0.0;
-        double my = 0.0;
-        for (std::size_t i = 0; i < lags.size(); ++i) {
-            mx += lags[i] / n;
-            my += structure[i] / n;
-        }
-        double sxy = 0.0;
-        double sxx = 0.0;
-        for (std::size_t i = 0; i < lags.size(); ++i) {
-            sxy += (lags[i] - mx) * (structure[i] - my);
-            sxx += (lags[i] - mx) * (lags[i] - mx);
-        }
-        hurst_ = std::clamp(0.5 * sxy / sxx, 0.0, 1.0);
-    }
+    MeasureRoughness();
     if (options_.detail.hurst) {
         hurst_ = *options_.detail.hurst;
     }
+}
+
+void RasterAlbedo::MeasureRoughness() {
+    const std::size_t width = bands_.front().Width();
+    const std::size_t height = bands_.front().Height();
+    const std::vector<double> logs = LogBrightnessGrid(bands_);
+    std::vector<double> logLags;
+    std::vector<double> logStructure;
+    for (const std::size_t lag : kLags) {
+        if (const std::optional<double> structure = StructureFunction(logs, width, height, lag)) {
+            logLags.push_back(std::log(static_cast<double>(lag)));
+            logStructure.push_back(std::log(*structure));
+        }
+    }
+    if (!logLags.empty() && logLags.front() == 0.0) {
+        roughness_ = std::sqrt(0.5 * std::exp(logStructure.front()));
+    }
+    if (logLags.size() >= 2) {
+        hurst_ = std::clamp(0.5 * FitSlope(logLags, logStructure), 0.0, 1.0);
+    }
+}
+
+double RasterAlbedo::DetailSum(double x, double y, double spacing) const {
+    const AlbedoDetail& detail = options_.detail;
+    const Vec2d origin = bands_.front().CellCenter(0, 0);
+    double sum = 0.0;
+    for (int octave = 0; octave < detail.octaves; ++octave) {
+        const double wavelength = cell_ / std::exp2(octave + 1);
+        const double weight = ResolutionWeight(wavelength, spacing, detail.fade);
+        if (weight == 0.0) {
+            break;
+        }
+        const std::uint32_t seed =
+            PcgHash(detail.seed + kOctaveSeedStep * static_cast<std::uint32_t>(octave));
+        float noise = 0.0f;
+        if (surface_.IsSphere()) {
+            const Vec3d p = surface_.Position({x, y});
+            noise = PerlinNoise3Precise(p.x / wavelength, p.y / wavelength, p.z / wavelength, seed);
+        } else {
+            noise =
+                PerlinNoise2Precise((x - origin.x) / wavelength, (y - origin.y) / wavelength, seed);
+        }
+        sum += weight * std::exp2(-(octave + 1) * hurst_) * static_cast<double>(noise);
+    }
+    return sum;
 }
 
 AlbedoSample RasterAlbedo::ValueAt(double x, double y, const AlbedoContext& context) const {
@@ -153,33 +208,7 @@ AlbedoSample RasterAlbedo::ValueAt(double x, double y, const AlbedoContext& cont
     if (!detail.enabled || detail.scale == 0.0 || roughness_ == 0.0) {
         return value;
     }
-    const Vec2d origin = bands_.front().CellCenter(0, 0);
-    double sum = 0.0;
-    for (int octave = 0; octave < detail.octaves; ++octave) {
-        const double wavelength = cell_ / std::exp2(octave + 1);
-        const double weight = ResolutionWeight(wavelength, context.spacing, detail.fade);
-        if (weight == 0.0) {
-            break;
-        }
-        if (surface_.IsSphere()) {
-            const Vec3d p = surface_.Position({x, y});
-            const float noise = PerlinNoise3Precise(
-                p.x / wavelength, p.y / wavelength, p.z / wavelength,
-                PcgHash(detail.seed + 0x9e3779b9u * static_cast<std::uint32_t>(octave)));
-            sum += weight * std::exp2(-(octave + 1) * hurst_) * static_cast<double>(noise);
-            continue;
-        }
-        const double u = (x - origin.x) / wavelength;
-        const double v = (y - origin.y) / wavelength;
-        const double iu = std::floor(u);
-        const double iv = std::floor(v);
-        const float noise =
-            PerlinNoise2(static_cast<std::int32_t>(static_cast<std::int64_t>(iu)),
-                         static_cast<std::int32_t>(static_cast<std::int64_t>(iv)),
-                         static_cast<float>(u - iu), static_cast<float>(v - iv),
-                         PcgHash(detail.seed + 0x9e3779b9u * static_cast<std::uint32_t>(octave)));
-        sum += weight * std::exp2(-(octave + 1) * hurst_) * static_cast<double>(noise);
-    }
+    const double sum = DetailSum(x, y, context.spacing);
     const double rms =
         surface_.IsSphere() ? std::sqrt(0.5 * Perlin3StructureFunction(1e6)) : PerlinRms();
     const double factor = std::exp(detail.scale * roughness_ * sum / rms);

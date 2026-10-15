@@ -49,9 +49,9 @@ class TilesRoverContacts : public terraingen::examples::Example {
             craterOptions);
         terraingen::BoulderLayerOptions boulderOptions;
         boulderOptions.seed = 6;
-        boulderOptions.coverage = 0.06;
-        boulderOptions.minDiameter = 0.1;
-        boulderOptions.maxDiameter = 1.0;
+        boulderOptions.sizes.coverage = 0.06;
+        boulderOptions.sizes.minDiameter = 0.1;
+        boulderOptions.sizes.maxDiameter = 1.0;
         terraingen::NoiseLayer fbm;
         fbm.fractal.seed = 6;
         fbm.fractal.wavelength = 50.0f;

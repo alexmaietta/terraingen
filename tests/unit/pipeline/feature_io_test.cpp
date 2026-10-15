@@ -103,10 +103,10 @@ TEST(WriteBoulderModels, RejectsOtherFilesAnglesAndNoBoulders) {
     terraingen::TerrainConfig config = terraingen::testing::Small();
     terraingen::testing::Flat(config) = {200, 200, 0.5};
     terraingen::BoulderLayerSpec boulders;
-    boulders.boulders.coverage = 0.3;
-    boulders.boulders.minDiameter = 0.5;
-    boulders.boulders.models.minDiameter = 1.5;
-    boulders.boulders.shapes.subdivisions = 0;
+    boulders.boulders.sizes.coverage = 0.3;
+    boulders.boulders.sizes.minDiameter = 0.5;
+    boulders.boulders.rendering.models.minDiameter = 1.5;
+    boulders.boulders.rendering.shapes.subdivisions = 0;
     config.layers.push_back(boulders);
     const auto models = terraingen::GenerateTerrain(config).features.boulderModels;
     ASSERT_FALSE(models.empty());

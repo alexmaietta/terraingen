@@ -1,8 +1,8 @@
 #include "terraingen/layers/noise_relief.h"
 
-#include "terraingen/noise/kernels/layers.h"
+#include "terraingen/layers/surface_noise.h"
+#include "terraingen/raster/cell_loops.h"
 #include "terraingen/util/log.h"
-#include "terraingen/util/parallel.h"
 
 #include <cmath>
 #include <stdexcept>
@@ -24,26 +24,14 @@ NoiseRelief::NoiseRelief(SyntheticTerrainParams params, Vec2d origin, Surface su
 }
 
 float NoiseRelief::NoiseAt(double x, double y) const {
-    if (surface_.IsSphere()) {
-        const Vec3d p = surface_.Position({x, y});
-        return EvaluateNoiseLayers3(p.x, p.y, p.z, params_.layers.data(), params_.layers.size());
-    }
-    return EvaluateNoiseLayers(static_cast<float>(x - origin_.x), static_cast<float>(y - origin_.y),
-                               params_.layers.data(), params_.layers.size());
+    return NoiseLayersAt(params_.layers, origin_, surface_, x, y);
 }
 
 void NoiseRelief::Apply(Raster<float>& heights, const LayerContext& context,
                         TerrainFeatures& /*features*/) const {
     const Stopwatch stopwatch;
-    ParallelFor(heights.Height(), context.threads, [&](std::size_t row) {
-        for (std::size_t col = 0; col < heights.Width(); ++col) {
-            float& cell = heights(col, row);
-            if (heights.IsNoData(cell)) {
-                continue;
-            }
-            const Vec2d centre = heights.CellCenter(col, row);
-            cell += NoiseAt(centre.x, centre.y);
-        }
+    MapCells(heights, context.threads, [&](float height, const Vec2d& centre) {
+        return height + NoiseAt(centre.x, centre.y);
     });
     LogInfo("layers", "Added ", params_.layers.size(),
             params_.layers.size() == 1 ? " noise layer" : " noise layers", " to ", heights.Width(),

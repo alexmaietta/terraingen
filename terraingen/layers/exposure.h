@@ -8,8 +8,8 @@
 
 namespace terraingen {
 
-/// Settings for an `ExposureField`. The thresholds are a rule of thumb, not a measurement of any
-/// site; they follow Chrono::Planet's `ChExposureField`.
+/// The thresholds an `ExposureField` tells soil from bedrock by. They are a rule of thumb, not a
+/// measurement of any site; they follow Chrono::Planet's `ChExposureField`.
 struct ExposureParams {
     double reach = 12.0;  ///< How far around a point its surroundings are read (m).
     double riseSoil =

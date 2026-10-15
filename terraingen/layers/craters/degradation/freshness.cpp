@@ -22,7 +22,8 @@ FreshnessDegradation::FreshnessDegradation(std::shared_ptr<const CraterAgeModel>
 CraterState FreshnessDegradation::State(const Crater& crater) const {
     const CraterMorphometry fresh = fresh_(crater.diameter);
     const double floor = cutoffDepthRatio_ / fresh.depthRatio;
-    const double erosion = floor + (1.0 - floor) * ages_->Freshness(crater.diameter, crater.ageGyr);
+    const double erosion =
+        floor + (1.0 - floor) * ages_->RemainingLifetime(crater.diameter, crater.ageGyr);
     return {fresh, {erosion * fresh.depthRatio, erosion * fresh.rimHeightRatio}};
 }
 

@@ -3,6 +3,7 @@ terraingen_add_test_suite(
     SOURCES
     cells_test.cpp
     checks_test.cpp
+    fft_test.cpp
     geometry_test.cpp
     log_test.cpp
     lru_cache_test.cpp
