@@ -8,14 +8,12 @@
 #include "terraingen/util/version.h"
 
 #include <algorithm>
-#include <chrono>
 #include <cstddef>
 #include <exception>
 #include <filesystem>
 #include <optional>
 #include <stdexcept>
 #include <string>
-#include <variant>
 
 namespace terraingen::cli {
 
@@ -46,9 +44,9 @@ GenerateArgs ParseGenerate(const std::vector<std::string>& args) {
             const std::string& name = value();
             const std::optional<LogLevel> level = ParseLogLevel(name);
             if (!level) {
-                throw std::invalid_argument("--log-level needs trace, debug, info, warning, error "
-                                            "or off, not '" +
-                                            name + "'");
+                throw std::invalid_argument(
+                    "--log-level needs trace, debug, info, warning, error or off, not '" + name +
+                    "'");
             }
             parsed.logLevel = *level;
         } else if (arg == "--threads") {
@@ -84,30 +82,35 @@ class LogLevelScope {
     LogLevel previous_;
 };
 
+/// Runs `command`, reporting a configuration error against the file `config` and any other error
+/// as terraingen's, and returns the exit code.
+template <typename Command>
+int RunReporting(const std::filesystem::path& config, std::ostream& err, Command command) {
+    try {
+        command();
+    } catch (const ConfigError& error) {
+        err << config.string() << ": " << error.what() << "\n";
+        return kExitInvalidConfig;
+    } catch (const std::exception& error) {
+        err << "terraingen: " << error.what() << "\n";
+        return kExitFailure;
+    }
+    return kExitSuccess;
+}
+
 int Generate(const std::vector<std::string>& args, std::ostream& out, std::ostream& err) {
     const GenerateArgs parsed = ParseGenerate(args);
     const LogLevelScope level(parsed.logLevel);
-    try {
-        const auto start = std::chrono::steady_clock::now();
+    return RunReporting(parsed.config, err, [&] {
         const TerrainConfig config = LoadConfig(parsed.config);
         const std::filesystem::path inputs = parsed.config.parent_path();
         const GeneratedTerrain terrain = GenerateTerrain(config, inputs, parsed.threads);
         const auto written = WriteOutputs(config, terrain, parsed.outputDir.value_or(inputs));
-        const std::chrono::duration<double> elapsed = std::chrono::steady_clock::now() - start;
-        out << "Generated a " << terrain.heights.Width() << "x" << terrain.heights.Height()
-            << " terrain with " << terrain.features.craters.Size() << " craters and "
-            << terrain.features.boulders.size() << " boulders in " << elapsed.count() << " s\n";
+        out << Summary(terrain) << "\n";
         for (const auto& path : written) {
             out << "Wrote " << path.string() << "\n";
         }
-    } catch (const ConfigError& error) {
-        err << parsed.config.string() << ": " << error.what() << "\n";
-        return kExitInvalidConfig;
-    } catch (const std::exception& error) {
-        err << "terraingen: " << error.what() << "\n";
-        return kExitInvalidConfig;
-    }
-    return kExitSuccess;
+    });
 }
 
 int Validate(const std::vector<std::string>& args, std::ostream& out, std::ostream& err) {
@@ -115,37 +118,18 @@ int Validate(const std::vector<std::string>& args, std::ostream& out, std::ostre
         throw std::invalid_argument("validate needs exactly one configuration file");
     }
     const std::filesystem::path path = args[1];
-    try {
+    return RunReporting(path, err, [&] {
         const TerrainConfig config = LoadConfig(path);
-        ValidateConfig(config, path.parent_path());
-        const Surface surface = BuildSurface(config.surface);
-        const RasterGrid grid = DescribeSource(config.source, path.parent_path(), surface);
-        out << path.string() << " is valid: a " << grid.width << "x" << grid.height << " grid";
-        double expected = 0.0;
-        bool generates = false;
-        for (const LayerSpec& layer : config.layers) {
-            const auto* craters = std::get_if<CraterLayerSpec>(&layer);
-            if (craters == nullptr || !craters->generate) {
-                continue;
-            }
-            const CraterModels models = BuildCraterModels(*craters);
-            expected += models.density->ExpectedCount(grid.SurfaceArea(surface),
-                                                      craters->minDiameter, craters->maxDiameter);
-            generates = true;
-        }
-        if (generates) {
-            out << ", about " << static_cast<long long>(expected) << " craters expected";
+        const ConfigSummary summary = ValidateConfig(config, path.parent_path());
+        out << path.string() << " is valid: a " << summary.grid.width << "x" << summary.grid.height
+            << " grid";
+        if (summary.expectedCraters) {
+            out << ", about " << static_cast<long long>(*summary.expectedCraters)
+                << " craters expected";
         }
         out << ", " << config.layers.size() << " layers, " << config.filters.size()
             << " filters and " << config.outputs.size() << " outputs\n";
-    } catch (const ConfigError& error) {
-        err << path.string() << ": " << error.what() << "\n";
-        return kExitInvalidConfig;
-    } catch (const std::exception& error) {
-        err << "terraingen: " << error.what() << "\n";
-        return kExitInvalidConfig;
-    }
-    return kExitSuccess;
+    });
 }
 
 }  // namespace
@@ -159,9 +143,8 @@ unsigned ParseThreads(const std::string& text) {
         used = 0;
     }
     if (used == 0 || used != text.size() || text.front() == '-' || value > 4096) {
-        throw std::invalid_argument("--threads needs a count from 0 (every hardware thread) to "
-                                    "4096, not '" +
-                                    text + "'");
+        throw std::invalid_argument(
+            "--threads needs a count from 0 (every hardware thread) to 4096, not '" + text + "'");
     }
     return static_cast<unsigned>(value);
 }

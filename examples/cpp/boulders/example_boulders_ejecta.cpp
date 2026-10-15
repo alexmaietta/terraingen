@@ -87,7 +87,7 @@ class BouldersEjecta : public terraingen::examples::Example {
         const auto models = dir / "example_boulders_ejecta.glb";
         terraingen::WriteGeoTiff(heights, evaluated_.heights);
         terraingen::WriteBoulderList(evaluated_.features.boulders, list,
-                                     terraingen::CraterListFormat::Csv);
+                                     terraingen::ListFormat::Csv);
         terraingen::WriteBoulderModels(evaluated_.features.boulderModels, models);
         Out() << "Wrote " << heights.string() << ", " << list.string() << " and " << models.string()
               << "\n";

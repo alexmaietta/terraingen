@@ -1,5 +1,6 @@
 """Every public class, struct, enum and function of the C++ headers is bound in Python, apart from
-the internals listed in INTERNAL with the reason they are left out."""
+the internals listed in INTERNAL with the reason they are left out and the private headers in
+detail/ folders."""
 
 import pathlib
 import re
@@ -17,7 +18,10 @@ INTERNAL = {
     # Config spec structs: Python builds configs as dicts (Config.from_dict) and library objects.
     "Boxed", "Effective", "CraterBody", "DiffusivityModel", "EquilibriumModel", "NoiseLayerConfig",
     "HeightmapOutput", "CraterListOutput", "BoulderListOutput", "BoulderModelsOutput", "AlbedoOutput",
-    "BodyMeshOutput", "BuildCraterModels", "BuildSurface", "DescribeSource", "TileKeyHash", "Scheme",
+    "BodyMeshOutput", "ListOutput", "GeoTiffOutput", "BuildCraterModels", "BuildSurface",
+    "DescribeSource", "TileKeyHash", "Scheme",
+    # What the CLI's validate command prints; Python reads Config.grid() and validate() raises.
+    "ConfigSummary",
     # The GPU's fixed-size layer block and device internals; Python selects backends.
     "NoiseLayers", "ComputeKernel", "VulkanCompute", "DeviceName", "Reason", "Run",
     # Internal steps of crater, boulder and albedo evaluation, reached through their layers.
@@ -29,7 +33,7 @@ INTERNAL = {
     "IsModel", "MinCraterDiameter", "AppendManualCraters",
     # Argument checks and the JSON paths of configuration errors; Python sees the exceptions.
     "IsPositive", "IsNonNegative", "IsInUnitInterval", "RequirePositive", "RequireNonNegative",
-    "RequireFinite", "RequireUnitInterval", "Child", "Element",
+    "RequireFinite", "RequireUnitInterval", "RequireNonEmpty", "At", "Child", "Element",
     # Vector arithmetic and geometry helpers; Python uses NumPy.
     "Cross", "Dot", "Length", "Normalized", "Box3d", "Extents", "ShadedMesh", "After", "Expanded",
     "SphereLocate", "SphereOffset", "UnitVector", "Bucket", "GetKind", "PointBounds",
@@ -58,6 +62,8 @@ def test_every_public_cpp_name_is_bound_or_listed_as_internal():
     missing = []
     for module in MODULES:
         for header in sorted((ROOT / "terraingen" / module).rglob("*.h")):
+            if "detail" in header.parts:  # A module's private headers, not installed.
+                continue
             for name in sorted(public_names(header) - INTERNAL):
                 if not re.search(r"\b" + name + r"\b", bound):
                     missing.append(f"{header.relative_to(ROOT)}: {name}")

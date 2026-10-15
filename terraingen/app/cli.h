@@ -9,6 +9,9 @@ namespace terraingen::cli {
 /// Exit codes of `terraingen`.
 inline constexpr int kExitSuccess = 0;
 inline constexpr int kExitInvalidConfig = 1;
+/// Any other failure, such as an output that cannot be written; the same code as an invalid
+/// configuration, which scripts already treat as a failed run.
+inline constexpr int kExitFailure = 1;
 inline constexpr int kExitUsage = 2;
 
 /// Usage text for `terraingen --help`.
@@ -29,8 +32,8 @@ unsigned ParseThreads(const std::string& text);
 /// - `[PATH] --gui [--threads N]`, `--gui` anywhere, opens the GUI (`RunGui`) on a configuration
 ///   or heights instead of generating, when the build has it;
 /// - `-V` or `--version`, and `-h` or `--help`.
-/// @return `kExitSuccess`, `kExitInvalidConfig` for a configuration, input or output error, or
-/// `kExitUsage` for bad arguments.
+/// @return `kExitSuccess`, `kExitInvalidConfig` for a `ConfigError`, `kExitFailure` for another
+/// error such as an unreadable input or an unwritable output, or `kExitUsage` for bad arguments.
 int Run(const std::vector<std::string>& args, std::ostream& out, std::ostream& err);
 
 }  // namespace terraingen::cli

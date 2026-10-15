@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 
@@ -55,6 +56,32 @@ inline void RequireNonNegative(double value, const std::string& path) {
 inline void RequireFinite(double value, const std::string& path) {
     if (!std::isfinite(value)) {
         throw ConfigError(path, "must be finite");
+    }
+}
+
+/// @brief Checks that a configuration string, such as a file path, is not empty.
+/// @param value The string to check.
+/// @param path The value's JSON path.
+/// @throws ConfigError "must not be empty" at `path` otherwise.
+inline void RequireNonEmpty(const std::string& value, const std::string& path) {
+    if (value.empty()) {
+        throw ConfigError(path, "must not be empty");
+    }
+}
+
+/// @brief Runs a library check or build step, reporting its errors at a configuration path.
+/// @param path The JSON path of what `check` checks.
+/// @param check A callable taking no arguments.
+/// @return What `check` returns.
+/// @throws ConfigError at `path` with the message of a std::invalid_argument or std::domain_error
+/// that `check` throws.
+template <typename Check> auto At(const std::string& path, Check check) {
+    try {
+        return check();
+    } catch (const std::invalid_argument& error) {
+        throw ConfigError(path, error.what());
+    } catch (const std::domain_error& error) {
+        throw ConfigError(path, error.what());
     }
 }
 

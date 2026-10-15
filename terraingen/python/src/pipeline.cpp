@@ -164,7 +164,11 @@ void BindPipeline(nb::module_& m) {
         .def_prop_ro(
             "boulder_model_count",
             [](const GeneratedTerrain& terrain) { return terrain.features.boulderModels.size(); },
-            "How many boulders were placed as 3D boulder models.");
+            "How many boulders were placed as 3D boulder models.")
+        .def_ro("seconds", &GeneratedTerrain::seconds,
+                "Wall-clock time the heights and albedo took to evaluate, in seconds.")
+        .def("summary", &Summary,
+             "One line describing the terrain: its size, crater and boulder counts and time.");
 
     m.def(
         "generate_terrain",

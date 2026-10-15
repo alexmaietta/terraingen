@@ -6,6 +6,7 @@ terraingen_add_test_suite(
     geometry_test.cpp
     log_test.cpp
     lru_cache_test.cpp
+    overloaded_test.cpp
     parallel_test.cpp
     surface_test.cpp
     version_test.cpp

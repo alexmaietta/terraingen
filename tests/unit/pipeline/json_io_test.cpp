@@ -1,17 +1,13 @@
+/// @file
+/// @brief Tests of reading and writing configurations as JSON (pipeline/json_io.cpp).
+#include "terraingen/bodies/mars/bedforms.h"
 #include "terraingen/pipeline/config_json.h"
 
-#include "terraingen/bodies/mars/bedforms.h"
-
 #include <gtest/gtest.h>
-#include <nlohmann/json.hpp>
 
-#include <algorithm>
 #include <filesystem>
 #include <fstream>
-#include <map>
-#include <set>
 #include <string>
-#include <utility>
 #include <variant>
 #include <vector>
 
@@ -19,10 +15,10 @@ using terraingen::AgesSpec;
 using terraingen::ConfigError;
 using terraingen::ConfigToJson;
 using terraingen::CraterLayerSpec;
-using terraingen::CraterListFormat;
 using terraingen::CraterListOutput;
 using terraingen::DensitySpec;
 using terraingen::LayerSpec;
+using terraingen::ListFormat;
 using terraingen::LoadConfig;
 using terraingen::ParseConfig;
 using terraingen::TerrainConfig;
@@ -35,6 +31,16 @@ std::string ErrorPath(const std::string& json) {
         ParseConfig(json);
     } catch (const ConfigError& error) {
         return error.Path();
+    }
+    return "no error";
+}
+
+/// The message of the `ConfigError` that parsing `json` throws, or "no error".
+std::string ErrorMessage(const std::string& json) {
+    try {
+        ParseConfig(json);
+    } catch (const ConfigError& error) {
+        return error.what();
     }
     return "no error";
 }
@@ -67,7 +73,7 @@ TerrainConfig Everything() {
     craters.maxDiameter = 90.0;
     craters.spacing = {2.0, 0.75};
     craters.maxCraters = 1234;
-    craters.manual = {{1.5, -2.25, 30.0, 0.1, 7u, true}};
+    craters.manual = {{1.5, -2.25, 30.0, 0.1, 7u}};
     craters.profile = terraingen::ComplexProfileSpec{terraingen::MartinParkesDunstanSpec{}};
     craters.degradation = terraingen::NoDegradationSpec{0.17};
     craters.apply = {
@@ -185,15 +191,123 @@ TerrainConfig Everything() {
     config.filters = {terraingen::RimSmoothing{
         .sigmaRadii = 0.1, .strength = 0.5, .fade = {0.5, 6.0, terraingen::BlendShape::Gaussian}}};
     config.outputs = {
-        CraterListOutput{"out/craters.json", CraterListFormat::Json},
-        CraterListOutput{"craters.txt", CraterListFormat::Csv},
+        CraterListOutput{"out/craters.json", ListFormat::Json},
+        CraterListOutput{"craters.txt", ListFormat::Csv},
         terraingen::HeightmapOutput{"dem.tif", terraingen::TiffCompression::Deflate, 512},
-        terraingen::BoulderListOutput{"boulders.json", CraterListFormat::Json},
+        terraingen::BoulderListOutput{"boulders.json", ListFormat::Json},
         terraingen::BoulderModelsOutput{"boulders.glb", 20.0}};
     return config;
 }
 
+/// A configuration JSON and the path of the error parsing it reports.
+struct ParseCase {
+    const char* name;
+    const char* json;
+    const char* path;
+};
+
+const ParseCase kParseCases[] = {
+    {"Truncated", "{", ""},
+    {"NotAnObject", "[]", ""},
+    {"NoSchemaVersion", "{}", "schema_version"},
+    {"NewerSchemaVersion", R"({"schema_version": 2})", "schema_version"},
+    {"NewerVersionWithNewKeys", R"({"schema_version": 2, "terrain": {}})", "schema_version"},
+    {"SchemaVersionAsString", R"({"schema_version": "1"})", "schema_version"},
+    {"HugeSchemaVersion", R"({"schema_version": 3000000000})", "schema_version"},
+    {"NegativeSchemaVersion", R"({"schema_version": -3000000000})", "schema_version"},
+    {"UnknownRootKey", R"({"schema_version": 1, "colour": 3})", "colour"},
+    {"UnknownRootObject", R"({"schema_version": 1, "grid": {}})", "grid"},
+    {"RetiredCratersKey", R"({"schema_version": 1, "craters": {}})", "craters"},
+    {"NegativeWidth", R"({"schema_version": 1, "source": {"type": "flat", "width": -1}})",
+     "source.width"},
+    {"FractionalWidth", R"({"schema_version": 1, "source": {"type": "flat", "width": 2.5}})",
+     "source.width"},
+    {"HeightAsString", R"({"schema_version": 1, "source": {"type": "flat", "height": "tall"}})",
+     "source.height"},
+    {"PixelSizeAsString", R"({"schema_version": 1, "source": {"type": "flat", "pixel_size": "1"}})",
+     "source.pixel_size"},
+    {"PixelSizeOverflow",
+     R"({"schema_version": 1, "source": {"type": "flat", "pixel_size": 1e400}})", ""},
+    {"SourceAsArray", R"({"schema_version": 1, "source": []})", "source"},
+    {"UnknownSourceType", R"({"schema_version": 1, "source": {"type": "dem"}})", "source.type"},
+    {"SourceWithoutType", R"({"schema_version": 1, "source": {"width": 3}})", "source.type"},
+    {"UnknownResampling",
+     R"({"schema_version": 1, "source": {"type": "raster", "resampling": "lanczos"}})",
+     "source.resampling"},
+    {"UnknownRasterKey", R"({"schema_version": 1, "source": {"type": "raster", "layers": []}})",
+     "source.layers"},
+    {"StackAsObject", R"({"schema_version": 1, "layers": [{"type": "noise", "stack": {}}]})",
+     "layers[0].stack"},
+    {"RetiredLayerType", R"({"schema_version": 1, "layers": [{"type": "rocks"}]})",
+     "layers[0].type"},
+    {"UnknownFilterKey",
+     R"({"schema_version": 1, "filters": [{"type": "rim_smoothing", "sigma": 1}]})",
+     "filters[0].sigma"},
+    {"UnknownCompression",
+     R"({"schema_version": 1, "outputs": [{"type": "heightmap", "compression": "zstd"}]})",
+     "outputs[0].compression"},
+    {"UnknownNoiseKey",
+     R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{}, {"octave": 3}]}]})",
+     "layers[0].stack[1].octave"},
+    {"UnknownBasis",
+     R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"basis": "curl"}]}]})",
+     "layers[0].stack[0].basis"},
+    {"FloatOverflow",
+     R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"amplitude": 1e300}]}]})",
+     "layers[0].stack[0].amplitude"},
+    {"IntegerOverflow",
+     R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"octaves": 1e12}]}]})",
+     "layers[0].stack[0].octaves"},
+    {"SeedOverflow",
+     R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"seed": 5000000000}]}]})",
+     "layers[0].stack[0].seed"},
+    {"EnabledAsNumber",
+     R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"enabled": 1}]}]})",
+     "layers[0].stack[0].enabled"},
+    {"DensityWithoutType",
+     R"({"schema_version": 1, "layers": [{"type": "craters", "density": {"age_gyr": 3}}]})",
+     "layers[0].density.type"},
+    {"MisspelledDensity",
+     R"({"schema_version": 1, "layers": [{"type": "craters", "density": {"type": "hartman"}}]})",
+     "layers[0].density.type"},
+    {"DensityAsString",
+     R"({"schema_version": 1, "layers": [{"type": "craters", "density": "trask"}]})",
+     "layers[0].density"},
+    {"KeyOfAnotherDensity",
+     R"({"schema_version": 1, "layers": [{"type": "craters", "density": {"type": "trask", "age_gyr": 3}}]})",
+     "layers[0].density.age_gyr"},
+    {"UnknownManualKey",
+     R"({"schema_version": 1, "layers": [{"type": "craters", "manual": [{"x": 1, "pinned": true}]}]})",
+     "layers[0].manual[0].pinned"},
+    {"AgesTypeAsNumber",
+     R"({"schema_version": 1, "layers": [{"type": "craters", "ages": {"type": 3}}]})",
+     "layers[0].ages.type"},
+    {"UnknownOutputType", R"({"schema_version": 1, "outputs": [{"type": "mesh"}]})",
+     "outputs[0].type"},
+    {"FormatAsNumber",
+     R"({"schema_version": 1, "outputs": [{"type": "crater_list", "format": 1}]})",
+     "outputs[0].format"},
+    {"OutputsAsObject", R"({"schema_version": 1, "outputs": {}})", "outputs"},
+    {"NullHurst",
+     R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"hurst": null}]}]})",
+     "no error"},
+    {"NullDepthRatio",
+     R"({"schema_version": 1, "layers": [{"type": "craters", "degradation": {"type": "none", "depth_ratio": null}}]})",
+     "no error"},
+};
+
+class ParseConfigPaths : public ::testing::TestWithParam<ParseCase> {};
+
 }  // namespace
+
+TEST_P(ParseConfigPaths, ReportsTheProblemByItsJsonPath) {
+    EXPECT_EQ(ErrorPath(GetParam().json), GetParam().path) << GetParam().json;
+}
+
+INSTANTIATE_TEST_SUITE_P(Json, ParseConfigPaths, ::testing::ValuesIn(kParseCases),
+                         [](const ::testing::TestParamInfo<ParseCase>& param) {
+                             return std::string(param.param.name);
+                         });
 
 TEST(ConfigJson, RoundTripsTheDefaultsAndEveryNonDefaultValue) {
     for (const TerrainConfig& config : {TerrainConfig{}, Everything()}) {
@@ -201,6 +315,16 @@ TEST(ConfigJson, RoundTripsTheDefaultsAndEveryNonDefaultValue) {
         EXPECT_EQ(ParseConfig(json), config) << json;
         EXPECT_EQ(ConfigToJson(ParseConfig(json)), json);
     }
+}
+
+TEST(ConfigJson, WritesTheRootKeysInOrderAndNoAlbedoWhenUnset) {
+    const std::string json = ConfigToJson(TerrainConfig{});
+    EXPECT_EQ(json.rfind("{\n  \"schema_version\": 1,\n  \"surface\": {", 0), 0u) << json;
+    EXPECT_EQ(json.find("\"albedo\""), std::string::npos) << json;
+    EXPECT_LT(json.find("\"filters\""), json.find("\"outputs\""));
+    TerrainConfig config;
+    config.albedo = terraingen::AlbedoSpec{};
+    EXPECT_NE(ConfigToJson(config).find("\"albedo\""), std::string::npos);
 }
 
 TEST(ConfigJson, RoundTripsEveryModelType) {
@@ -294,6 +418,25 @@ TEST(ConfigJson, RoundTripsAlbedos) {
     EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "albedo": {"layers": [{"type": "craters",
               "rays": {"glow": 1}}]}})"),
               "albedo.layers[0].rays.glow");
+}
+
+TEST(ConfigJson, ReadsInfiniteBoundsAsUnset) {
+    TerrainConfig config;
+    terraingen::SecondaryLayerSpec secondaries;
+    secondaries.secondaries.maxDiameter = 80.0;
+    config.layers = {CraterLayerSpec{}, secondaries};
+    const std::string json = ConfigToJson(config);
+    EXPECT_NE(json.find("\"max_diameter\": 80.0"), std::string::npos) << json;
+    EXPECT_NE(json.find("\"max_age_gyr\": null"), std::string::npos) << json;
+    EXPECT_NE(json.find("\"min\": null"), std::string::npos) << "an unbounded distribution";
+    const TerrainConfig parsed = ParseConfig(
+        R"({"schema_version": 1, "layers": [{"type": "craters", "apply": {"irregularity":
+            {"max_diameter": 30, "roughness": {"min": -1, "max": null}}}}]})");
+    const auto& irregularity = std::get<CraterLayerSpec>(parsed.layers[0]).apply.irregularity;
+    EXPECT_EQ(irregularity.maxDiameter, 30.0);
+    EXPECT_EQ(irregularity.roughness.min, -1.0);
+    EXPECT_EQ(irregularity.roughness.max, std::numeric_limits<double>::infinity());
+    EXPECT_EQ(irregularity.maxAgeGyr, std::numeric_limits<double>::infinity());
 }
 
 TEST(ConfigJson, RoundTripsSurfacesAndFlatCentres) {
@@ -459,129 +602,33 @@ TEST(ConfigJson, ReadsTransformsAndNestedRegions) {
               "layers[0].shape.type");
 }
 
-TEST(ConfigJson, InfersTheCraterListFormatFromTheExtension) {
+TEST(ConfigJson, InfersTheListFormatFromTheExtension) {
     const TerrainConfig config = ParseConfig(R"({"schema_version": 1, "outputs": [
         {"type": "crater_list", "path": "a.json"},
         {"type": "crater_list", "path": "b.csv"},
-        {"type": "crater_list", "path": "c.json", "format": "csv"}]})");
-    ASSERT_EQ(config.outputs.size(), 3u);
-    EXPECT_EQ(std::get<CraterListOutput>(config.outputs[0]).format, CraterListFormat::Json);
-    EXPECT_EQ(std::get<CraterListOutput>(config.outputs[1]).format, CraterListFormat::Csv);
-    EXPECT_EQ(std::get<CraterListOutput>(config.outputs[2]).format, CraterListFormat::Csv);
-}
-
-TEST(ConfigJson, ReportsProblemsByTheirJsonPath) {
-    EXPECT_EQ(ErrorPath("{"), "");
-    EXPECT_EQ(ErrorPath("[]"), "");
-    EXPECT_EQ(ErrorPath("{}"), "schema_version");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 2})"), "schema_version");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": "1"})"), "schema_version");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "colour": 3})"), "colour");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "source": {"type": "flat", "width": -1}})"),
-              "source.width");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "source": {"type": "flat", "width": 2.5}})"),
-              "source.width");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "source": {"type": "flat", "pixel_size": "1"}})"),
-              "source.pixel_size");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "source": []})"), "source");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "grid": {}})"), "grid");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "source": {"type": "dem"}})"), "source.type");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "source": {"width": 3}})"), "source.type");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "layers": [{"type": "noise", "stack": {}}]})"),
-              "layers[0].stack");
-    EXPECT_EQ(
-        ErrorPath(
-            R"({"schema_version": 1, "source": {"type": "raster", "resampling": "lanczos"}})"),
-        "source.resampling");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "source": {"type": "raster", "layers": []}})"),
-              "source.layers");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "layers": [{"type": "rocks"}]})"),
-              "layers[0].type");
-    EXPECT_EQ(
-        ErrorPath(R"({"schema_version": 1, "filters": [{"type": "rim_smoothing", "sigma": 1}]})"),
-        "filters[0].sigma");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "craters": {}})"), "craters");
-    EXPECT_EQ(
-        ErrorPath(
-            R"({"schema_version": 1, "outputs": [{"type": "heightmap", "compression": "zstd"}]})"),
-        "outputs[0].compression");
-    EXPECT_EQ(
-        ErrorPath(
-            R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{}, {"octave": 3}]}]})"),
-        "layers[0].stack[1].octave");
-    EXPECT_EQ(
-        ErrorPath(
-            R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"basis": "curl"}]}]})"),
-        "layers[0].stack[0].basis");
-    EXPECT_EQ(
-        ErrorPath(
-            R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"amplitude": 1e300}]}]})"),
-        "layers[0].stack[0].amplitude");
-    EXPECT_EQ(
-        ErrorPath(
-            R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"octaves": 1e12}]}]})"),
-        "layers[0].stack[0].octaves");
-    EXPECT_EQ(
-        ErrorPath(
-            R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"seed": 5000000000}]}]})"),
-        "layers[0].stack[0].seed");
-    EXPECT_EQ(
-        ErrorPath(
-            R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"enabled": 1}]}]})"),
-        "layers[0].stack[0].enabled");
-    EXPECT_EQ(
-        ErrorPath(
-            R"({"schema_version": 1, "layers": [{"type": "craters", "density": {"age_gyr": 3}}]})"),
-        "layers[0].density.type");
-    EXPECT_EQ(
-        ErrorPath(
-            R"({"schema_version": 1, "layers": [{"type": "craters", "density": {"type": "hartman"}}]})"),
-        "layers[0].density.type");
-    EXPECT_EQ(
-        ErrorPath(R"({"schema_version": 1, "layers": [{"type": "craters", "density": "trask"}]})"),
-        "layers[0].density");
-    EXPECT_EQ(
-        ErrorPath(
-            R"({"schema_version": 1, "layers": [{"type": "craters", "density": {"type": "trask", "age_gyr": 3}}]})"),
-        "layers[0].density.age_gyr");
-    EXPECT_EQ(
-        ErrorPath(
-            R"({"schema_version": 1, "layers": [{"type": "craters", "manual": [{"x": 1, "pinned": true}]}]})"),
-        "layers[0].manual[0].pinned");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "outputs": [{"type": "mesh"}]})"),
-              "outputs[0].type");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 3000000000})"), "schema_version");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": -3000000000})"), "schema_version");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "source": {"type": "flat", "height": "tall"}})"),
-              "source.height");
-    EXPECT_EQ(
-        ErrorPath(R"({"schema_version": 1, "source": {"type": "flat", "pixel_size": 1e400}})"), "");
-    EXPECT_EQ(
-        ErrorPath(R"({"schema_version": 1, "outputs": [{"type": "crater_list", "format": 1}]})"),
-        "outputs[0].format");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "outputs": {}})"), "outputs");
-    EXPECT_EQ(
-        ErrorPath(R"({"schema_version": 1, "layers": [{"type": "craters", "ages": {"type": 3}}]})"),
-        "layers[0].ages.type");
-    EXPECT_EQ(
-        ErrorPath(
-            R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"hurst": null}]}]})"),
-        "no error");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1,
-                            "layers": [{"type": "craters", "degradation": {"type": "none", "depth_ratio": null}}]})"),
-              "no error");
+        {"type": "crater_list", "path": "c.json", "format": "csv"},
+        {"type": "boulder_list", "path": "d.json"},
+        {"type": "boulder_list", "path": "e.txt"}]})");
+    ASSERT_EQ(config.outputs.size(), 5u);
+    EXPECT_EQ(std::get<CraterListOutput>(config.outputs[0]).format, ListFormat::Json);
+    EXPECT_EQ(std::get<CraterListOutput>(config.outputs[1]).format, ListFormat::Csv);
+    EXPECT_EQ(std::get<CraterListOutput>(config.outputs[2]).format, ListFormat::Csv);
+    EXPECT_EQ(std::get<terraingen::BoulderListOutput>(config.outputs[3]).format, ListFormat::Json);
+    EXPECT_EQ(std::get<terraingen::BoulderListOutput>(config.outputs[4]).format, ListFormat::Csv);
 }
 
 TEST(ConfigJson, ErrorMessagesNameThePathAndTheAlternatives) {
-    try {
-        ParseConfig(
-            R"({"schema_version": 1, "layers": [{"type": "craters", "profile": {"type": "bowl"}}]})");
-        FAIL() << "expected a ConfigError";
-    } catch (const ConfigError& error) {
-        const std::string message = error.what();
-        EXPECT_EQ(message.rfind("layers[0].profile.type: unknown type \"bowl\"", 0), 0u) << message;
-        EXPECT_NE(message.find("fassett_thomson, martin_parkes_dunstan"), std::string::npos);
-    }
+    const std::string message = ErrorMessage(
+        R"({"schema_version": 1, "layers": [{"type": "craters", "profile": {"type": "bowl"}}]})");
+    EXPECT_EQ(message.rfind("layers[0].profile.type: unknown type \"bowl\"", 0), 0u) << message;
+    EXPECT_NE(message.find("fassett_thomson, martin_parkes_dunstan"), std::string::npos);
+    EXPECT_EQ(ErrorMessage(R"({"schema_version": 2})"),
+              "schema_version: version 2 is not supported; this library reads version 1");
+    EXPECT_EQ(ErrorMessage("{}"), "schema_version: required; this library reads version 1");
+    EXPECT_EQ(ErrorMessage(R"({"schema_version": 1, "colour": 3})")
+                  .rfind("colour: unknown key; expected one of: ", 0),
+              0u);
+    EXPECT_EQ(ErrorMessage("[]"), "expected an object, not array");
 }
 
 TEST(LoadConfig, ReadsFilesAndReportsUnreadableOnes) {
@@ -594,337 +641,4 @@ TEST(LoadConfig, ReadsFilesAndReportsUnreadableOnes) {
     EXPECT_EQ(LoadConfig(path), Everything());
     std::filesystem::remove(path);
     EXPECT_THROW(LoadConfig(path), ConfigError);
-}
-
-namespace {
-
-using SchemaJson = nlohmann::json;
-
-/// The schema `node` stands for, following a reference into `schema`'s definitions.
-const SchemaJson& Resolve(const SchemaJson& schema, const SchemaJson& node) {
-    return node["kind"] == "ref" ? schema["definitions"].at(node["ref"].get<std::string>()) : node;
-}
-
-/// Checks that `value` fits `node` (as a field's default must), recursing into objects, choices
-/// and arrays; counts the kinds seen.
-void CheckFits(const SchemaJson& schema, const SchemaJson& node, const SchemaJson& value,
-               const std::string& where, std::map<std::string, int>& kinds) {
-    const SchemaJson& resolved = Resolve(schema, node);
-    const std::string kind = resolved["kind"];
-    ++kinds[kind];
-    if (kind == "number") {
-        EXPECT_TRUE(value.is_number()) << where;
-    } else if (kind == "integer") {
-        EXPECT_TRUE(value.is_number_integer()) << where;
-    } else if (kind == "boolean") {
-        EXPECT_TRUE(value.is_boolean()) << where;
-    } else if (kind == "string") {
-        EXPECT_TRUE(value.is_string()) << where;
-    } else if (kind == "enum") {
-        ASSERT_TRUE(value.is_string()) << where;
-        const SchemaJson& choices = resolved["choices"];
-        EXPECT_NE(std::find(choices.begin(), choices.end(), value), choices.end()) << where;
-    } else if (kind == "optional") {
-        if (!value.is_null()) {
-            CheckFits(schema, resolved["of"], value, where, kinds);
-        }
-        CheckFits(schema, resolved["of"], resolved["default"], where + "?", kinds);
-    } else if (kind == "array") {
-        ASSERT_TRUE(value.is_array()) << where;
-        for (const SchemaJson& item : value) {
-            CheckFits(schema, resolved["of"], item, where + "[]", kinds);
-        }
-    } else if (kind == "object") {
-        ASSERT_TRUE(value.is_object()) << where;
-        for (const SchemaJson& field : resolved["fields"]) {
-            const std::string name = field["name"];
-            ASSERT_TRUE(value.contains(name)) << where << "." << name;
-            CheckFits(schema, field["schema"], value[name], where + "." + name, kinds);
-        }
-    } else if (kind == "choice") {
-        ASSERT_TRUE(value.is_object() && value.contains("type")) << where;
-        bool found = false;
-        for (const SchemaJson& alternative : resolved["alternatives"]) {
-            if (alternative["type"] != value["type"]) {
-                continue;
-            }
-            found = true;
-            for (const SchemaJson& field : alternative["fields"]) {
-                const std::string name = field["name"];
-                ASSERT_TRUE(value.contains(name)) << where << "." << name;
-                CheckFits(schema, field["schema"], value[name], where + "." + name, kinds);
-            }
-        }
-        EXPECT_TRUE(found) << where << " has type " << value["type"];
-    } else {
-        ADD_FAILURE() << where << ": unknown kind " << kind;
-    }
-}
-
-}  // namespace
-
-TEST(ConfigSchema, DescribesEveryFieldAndEveryDefaultFitsIt) {
-    const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
-    EXPECT_EQ(schema["schema_version"], terraingen::kConfigSchemaVersion);
-    const SchemaJson& root = schema["root"];
-    std::vector<std::string> names;
-    for (const SchemaJson& field : root["fields"]) {
-        names.push_back(field["name"]);
-    }
-    EXPECT_EQ(names, (std::vector<std::string>{"schema_version", "surface", "source", "layers",
-                                               "filters", "outputs", "albedo"}));
-
-    // Every alternative's default, and every field's, fits its schema.
-    std::map<std::string, int> kinds;
-    for (const auto& [id, definition] : schema["definitions"].items()) {
-        if (definition["kind"] == "choice") {
-            for (const SchemaJson& alternative : definition["alternatives"]) {
-                CheckFits(schema, definition, alternative["default"],
-                          id + ":" + alternative["type"].get<std::string>(), kinds);
-            }
-        } else {
-            for (const SchemaJson& field : definition["fields"]) {
-                CheckFits(schema, field["schema"], field["default"],
-                          id + "." + field["name"].get<std::string>(), kinds);
-            }
-        }
-    }
-    for (const char* kind : {"number", "integer", "boolean", "string", "enum", "optional", "array",
-                             "object", "choice"}) {
-        EXPECT_GT(kinds[kind], 0) << kind;
-    }
-
-    // A default configuration built from the schema parses.
-    SchemaJson config = SchemaJson::object();
-    for (const SchemaJson& field : root["fields"]) {
-        config[field["name"].get<std::string>()] = field["default"];
-    }
-    EXPECT_NO_THROW(ParseConfig(config.dump())) << config.dump();
-}
-
-TEST(ConfigSchema, DescribesEveryFieldTypeAndChoice) {
-    const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
-    std::vector<std::string> missing;
-    std::set<std::string> enums;
-    const auto describedAs = [&](const SchemaJson& item, const std::string& where) {
-        const std::string text = item.value("description", "");
-        if (text.empty()) {
-            missing.push_back(where);
-            return;
-        }
-        EXPECT_TRUE(std::all_of(text.begin(), text.end(),
-                                [](unsigned char c) { return c >= 32 && c < 127; }))
-            << where << " is not plain ASCII: " << text;
-        EXPECT_EQ(text.back(), '.') << where << " does not end with a full stop: " << text;
-        EXPECT_LE(text.size(), 400u) << where << " is long for a tooltip";
-    };
-    const auto checkEnums = [&](const SchemaJson& node, const std::string& where) {
-        const SchemaJson* resolved = &node;
-        while ((*resolved)["kind"] == "optional" || (*resolved)["kind"] == "array") {
-            resolved = &(*resolved)["of"];
-        }
-        if ((*resolved)["kind"] != "enum" || !enums.insert(resolved->dump()).second) {
-            return;
-        }
-        const SchemaJson& choices = (*resolved)["choices"];
-        const SchemaJson& descriptions = (*resolved)["descriptions"];
-        ASSERT_EQ(descriptions.size(), choices.size()) << where;
-        for (std::size_t i = 0; i < choices.size(); ++i) {
-            describedAs(SchemaJson{{"description", descriptions[i]}},
-                        where + "=" + choices[i].get<std::string>());
-        }
-    };
-    const auto checkFields = [&](const SchemaJson& fields, const std::string& where) {
-        for (const SchemaJson& field : fields) {
-            const std::string at = where + "." + field["name"].get<std::string>();
-            describedAs(field, at);
-            checkEnums(field["schema"], at);
-        }
-    };
-    checkFields(schema["root"]["fields"], "root");
-    for (const auto& [id, definition] : schema["definitions"].items()) {
-        if (definition["kind"] == "choice") {
-            for (const SchemaJson& alternative : definition["alternatives"]) {
-                const std::string type = alternative["type"];
-                describedAs(alternative, type);
-                checkFields(alternative["fields"], type);
-            }
-        } else {
-            checkFields(definition["fields"], id);
-        }
-    }
-    std::string list;
-    for (const std::string& where : missing) {
-        list += "\n  " + where;
-    }
-    EXPECT_TRUE(missing.empty()) << missing.size() << " without a description:" << list;
-}
-
-TEST(ConfigSchema, GivesUnitsOnlyToNumbersAndFromAFixedSet) {
-    const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
-    const std::set<std::string> units = {"",    "m",   "m^2",   "km",     "deg", "rad",    "Gyr",
-                                         "Myr", "1/m", "1/m^2", "1/km^2", "px",  "m^2/Myr"};
-    int withUnits = 0;
-    const auto numeric = [&](const SchemaJson& node) {
-        const SchemaJson* resolved = &node;
-        while ((*resolved)["kind"] == "optional" || (*resolved)["kind"] == "array") {
-            resolved = &(*resolved)["of"];
-        }
-        return (*resolved)["kind"] == "number" || (*resolved)["kind"] == "integer";
-    };
-    const auto check = [&](const SchemaJson& fields, const std::string& where) {
-        for (const SchemaJson& field : fields) {
-            const std::string unit = field.value("unit", "");
-            const std::string at = where + "." + field["name"].get<std::string>();
-            EXPECT_TRUE(units.contains(unit)) << at << " has unit \"" << unit << "\"";
-            if (!unit.empty()) {
-                ++withUnits;
-                EXPECT_TRUE(numeric(field["schema"])) << at << " is not a number";
-            }
-        }
-    };
-    for (const auto& [id, definition] : schema["definitions"].items()) {
-        if (definition["kind"] == "choice") {
-            for (const SchemaJson& alternative : definition["alternatives"]) {
-                check(alternative["fields"], alternative["type"].get<std::string>());
-            }
-        } else {
-            check(definition["fields"], id);
-        }
-    }
-    EXPECT_GT(withUnits, 50) << "lengths, angles and ages carry units";
-}
-
-TEST(ConfigSchema, ListsTheParsersChoicesAndRefersToRecursiveTypes) {
-    const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
-    const auto field = [&](const SchemaJson& object, const std::string& name) {
-        for (const SchemaJson& f : object["fields"]) {
-            if (f["name"] == name) {
-                return f;
-            }
-        }
-        ADD_FAILURE() << "no field " << name;
-        return SchemaJson::object();
-    };
-    const auto alternative = [&](const SchemaJson& choice, const std::string& type) {
-        for (const SchemaJson& a : choice["alternatives"]) {
-            if (a["type"] == type) {
-                return a;
-            }
-        }
-        ADD_FAILURE() << "no alternative " << type;
-        return SchemaJson::object();
-    };
-
-    const SchemaJson source = field(schema["root"], "source")["schema"];
-    ASSERT_EQ(source["kind"], "ref");
-    const SchemaJson& sources = Resolve(schema, source);
-    ASSERT_EQ(sources["kind"], "choice");
-    const SchemaJson chain = field(alternative(sources, "chain"), "sources")["schema"];
-    EXPECT_EQ(chain["kind"], "array");
-    EXPECT_EQ(chain["of"], source) << "a chain holds sources of the same choice";
-
-    const SchemaJson layers = field(schema["root"], "layers")["schema"];
-    ASSERT_EQ(layers["kind"], "array");
-    const SchemaJson& layerChoice = Resolve(schema, layers["of"]);
-    EXPECT_EQ(layerChoice["alternatives"].size(), std::variant_size_v<LayerSpec>);
-    const SchemaJson stack = field(alternative(layerChoice, "noise"), "stack")["schema"];
-    const SchemaJson& noise = Resolve(schema, stack["of"]);
-    const SchemaJson basis = field(noise, "basis")["schema"];
-    ASSERT_EQ(basis["kind"], "enum");
-    EXPECT_EQ(basis["choices"].size(), 6u);
-    for (const SchemaJson& choice : basis["choices"]) {
-        const std::string config =
-            R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"basis": )" +
-            choice.dump() + "}]}]}";
-        EXPECT_NO_THROW(ParseConfig(config)) << choice;
-    }
-    const SchemaJson octaves = field(noise, "octaves");
-    EXPECT_EQ(octaves["schema"]["kind"], "integer");
-    EXPECT_EQ(octaves["default"], 8);
-    const SchemaJson hurst = field(noise, "hurst");
-    EXPECT_EQ(hurst["schema"]["kind"], "optional");
-    EXPECT_TRUE(hurst["default"].is_null());
-    EXPECT_TRUE(hurst["schema"]["default"].is_number());
-    EXPECT_TRUE(field(schema["root"], "schema_version")["schema"]["fixed"]);
-}
-
-TEST(ConfigCatalog, ListsEveryTypeAndEachEntryParsesWhereItBelongs) {
-    using Json = nlohmann::json;
-    const Json catalog = Json::parse(terraingen::ConfigCatalog());
-    EXPECT_EQ(catalog["schema_version"], terraingen::kConfigSchemaVersion);
-    const auto types = [](const Json& list) {
-        std::vector<std::string> names;
-        for (const Json& entry : list) {
-            names.push_back(entry["type"].get<std::string>());
-        }
-        return names;
-    };
-    EXPECT_EQ(types(catalog["surface"]), (std::vector<std::string>{"plane", "sphere"}));
-    EXPECT_EQ(catalog["layers"].size(), std::variant_size_v<LayerSpec>);
-    EXPECT_EQ(catalog["outputs"].size(), std::variant_size_v<terraingen::OutputSpec>);
-    EXPECT_EQ(catalog["models"]["density"].size(), std::variant_size_v<DensitySpec>);
-    EXPECT_EQ(catalog["models"]["ages"].size(), std::variant_size_v<AgesSpec>);
-
-    const auto parses = [](const Json& config, const std::string& what) {
-        Json document = config;
-        document["schema_version"] = terraingen::kConfigSchemaVersion;
-        EXPECT_NO_THROW(ParseConfig(document.dump())) << what << ": " << document.dump();
-    };
-    for (const Json& surface : catalog["surface"]) {
-        parses({{"surface", surface}}, "surface");
-    }
-    for (const Json& source : catalog["source"]) {
-        parses({{"source", source}}, "source");
-    }
-    for (const char* list : {"layers", "filters", "outputs"}) {
-        for (const Json& entry : catalog[list]) {
-            parses({{list, Json::array({entry})}}, list);
-        }
-    }
-    parses({{"albedo", catalog["albedo"]}}, "albedo");
-
-    const auto layerOf = [&](const std::string& type) {
-        for (const Json& layer : catalog["layers"]) {
-            if (layer["type"] == type) {
-                return layer;
-            }
-        }
-        ADD_FAILURE() << "no " << type << " layer";
-        return Json::object();
-    };
-    const Json& models = catalog["models"];
-    for (const auto& [model, key] : {std::pair<const char*, const char*>{"density", "density"},
-                                     {"ages", "ages"},
-                                     {"degradation", "degradation"},
-                                     {"profile", "profile"}}) {
-        for (const Json& entry : models[model]) {
-            Json craters = layerOf("craters");
-            craters[key] = entry;
-            parses({{"layers", Json::array({craters})}}, model);
-        }
-    }
-    for (const Json& entry : models["boulder_sizes"]) {
-        Json boulders = layerOf("boulders");
-        boulders["sizes"] = entry;
-        parses({{"layers", Json::array({boulders})}}, "boulder_sizes");
-    }
-    for (const Json& entry : models["region_shape"]) {
-        Json region = layerOf("region");
-        region["shape"] = entry;
-        parses({{"layers", Json::array({region})}}, "region_shape");
-    }
-    Json noise = layerOf("noise");
-    noise["stack"] = Json::array({models["noise_layer"]});
-    parses({{"layers", Json::array({noise})}}, "noise_layer");
-    for (const Json& entry : models["albedo_source"]) {
-        Json albedo = catalog["albedo"];
-        albedo["source"] = entry;
-        parses({{"albedo", albedo}}, "albedo_source");
-    }
-    for (const Json& entry : models["albedo_layer"]) {
-        Json albedo = catalog["albedo"];
-        albedo["layers"] = Json::array({entry});
-        parses({{"albedo", albedo}}, "albedo_layer");
-    }
 }

@@ -113,7 +113,7 @@ class DistributionsCsfd : public terraingen::examples::Example {
 
     void Save(const std::filesystem::path& dir) override {
         const auto path = dir / "example_distributions_csfd.csv";
-        terraingen::WriteCraterList(list_, path, terraingen::CraterListFormat::Csv);
+        terraingen::WriteCraterList(list_, path, terraingen::ListFormat::Csv);
         Out() << "Wrote " << path.string() << "\n";
     }
 

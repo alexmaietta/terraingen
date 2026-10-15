@@ -64,7 +64,7 @@ class BouldersLayer : public terraingen::examples::Example {
         const auto list = dir / "example_boulders_layer.csv";
         const auto models = dir / "example_boulders_layer.glb";
         terraingen::WriteGeoTiff(heights, evaluated_.heights);
-        terraingen::WriteBoulderList(features.boulders, list, terraingen::CraterListFormat::Csv);
+        terraingen::WriteBoulderList(features.boulders, list, terraingen::ListFormat::Csv);
         terraingen::WriteBoulderModels(features.boulderModels, models);
         Out() << "Wrote " << heights.string() << ", " << list.string() << " and " << models.string()
               << "\n";

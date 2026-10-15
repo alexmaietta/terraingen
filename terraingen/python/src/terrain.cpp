@@ -1033,8 +1033,8 @@ void BindEvaluation(nb::module_& m) {
         .def(
             "write_crater_list",
             [](const EvaluatedTerrain& terrain, const std::filesystem::path& path) {
-                const CraterListFormat format =
-                    path.extension() == ".json" ? CraterListFormat::Json : CraterListFormat::Csv;
+                const ListFormat format =
+                    path.extension() == ".json" ? ListFormat::Json : ListFormat::Csv;
                 WriteCraterList(terrain.features.craters, path, format,
                                 terrain.features.craterAttributes);
             },
@@ -1042,8 +1042,8 @@ void BindEvaluation(nb::module_& m) {
         .def(
             "write_boulder_list",
             [](const EvaluatedTerrain& terrain, const std::filesystem::path& path) {
-                const CraterListFormat format =
-                    path.extension() == ".json" ? CraterListFormat::Json : CraterListFormat::Csv;
+                const ListFormat format =
+                    path.extension() == ".json" ? ListFormat::Json : ListFormat::Csv;
                 WriteBoulderList(terrain.features.boulders, path, format);
             },
             "path"_a, "Writes the boulders as CSV, or JSON for a .json path.")

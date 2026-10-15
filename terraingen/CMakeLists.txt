@@ -132,6 +132,7 @@ if(TERRAINGEN_INSTALL)
         COMPONENT development
         FILES_MATCHING
         PATTERN "*.h"
+        PATTERN "detail" EXCLUDE
         PATTERN "python" EXCLUDE
         PATTERN "app" EXCLUDE)
     install(

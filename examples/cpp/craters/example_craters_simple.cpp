@@ -59,8 +59,7 @@ class CratersSimple : public terraingen::examples::Example {
         const auto heights = dir / "example_craters_simple.tif";
         const auto list = dir / "example_craters_simple.csv";
         terraingen::WriteGeoTiff(heights, evaluated_.heights);
-        terraingen::WriteCraterList(evaluated_.features.craters, list,
-                                    terraingen::CraterListFormat::Csv);
+        terraingen::WriteCraterList(evaluated_.features.craters, list, terraingen::ListFormat::Csv);
         Out() << "Wrote " << heights.string() << " and " << list.string() << "\n";
     }
 

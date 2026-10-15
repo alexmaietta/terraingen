@@ -217,6 +217,7 @@ using ProfileSpec = std::variant<FassettThomsonSpec, MartinParkesDunstanSpec, Co
 
 /// The body a crater layer's craters are shaped for: its fresh morphometry
 /// (`LunarFreshCraterMorphometry`, `MarsFreshCraterMorphometry`) and complex crater shape.
+/// Separate from `Body` because only these two bodies have crater morphometry.
 enum class CraterBody { Moon, Mars };
 
 /// "craters": craters generated over the grid and applied to it (`CraterLayer`). With `body` Mars,
@@ -395,48 +396,45 @@ struct RegionLayerSpec {
 using FilterSpec = std::variant<RimSmoothing>;
 
 /// Formats for crater and boulder lists.
-enum class CraterListFormat { Csv, Json };
+enum class ListFormat { Csv, Json };
 
-/// "crater_list": writes the generated and manual craters.
-struct CraterListOutput {
+/// A list file to write; the format follows the extension (.json or else CSV) unless given.
+struct ListOutput {
     std::string path;
-    CraterListFormat format = CraterListFormat::Csv;
-    bool operator==(const CraterListOutput&) const = default;
+    ListFormat format = ListFormat::Csv;
+    bool operator==(const ListOutput&) const = default;
 };
-/// "heightmap": writes the generated heights as a float32 GeoTIFF, with a raster source's
-/// projection.
-struct HeightmapOutput {
+
+/// A float32 GeoTIFF file to write, with a raster source's projection.
+struct GeoTiffOutput {
     std::string path;
     TiffCompression compression = TiffCompression::Lzw;  ///< None, Lzw or Deflate.
     std::uint32_t tileSize = 256;
-    bool operator==(const HeightmapOutput&) const = default;
+    bool operator==(const GeoTiffOutput&) const = default;
 };
 
-/// "boulder_list": writes every boulder the layers placed, models and relief alike; the format
-/// follows the extension unless given.
-struct BoulderListOutput {
-    std::string path;
-    CraterListFormat format = CraterListFormat::Csv;
-    bool operator==(const BoulderListOutput&) const = default;
-};
+/// "crater_list": writes the generated and manual craters.
+struct CraterListOutput : ListOutput {};
+
+/// "heightmap": writes the generated heights.
+struct HeightmapOutput : GeoTiffOutput {};
+
+/// "boulder_list": writes every boulder the layers placed, models and relief alike.
+struct BoulderListOutput : ListOutput {};
+
 /// "boulder_models": writes the boulders placed as 3D models (`BoulderModelThreshold`) on the
 /// ground beneath them, as a glTF scene (.glb) drawing each shared shape once per boulder, or as
-/// one merged PLY mesh
-/// (.ply). Vertices are split where faces meet at more than `creaseAngle` degrees.
+/// one merged PLY mesh (.ply). Vertices are split where faces meet at more than `creaseAngle`
+/// degrees.
 struct BoulderModelsOutput {
     std::string path;
     double creaseAngle = 35.0;
     bool operator==(const BoulderModelsOutput&) const = default;
 };
 
-/// "albedo": writes the albedo (`TerrainConfig::albedo`) as a float32 GeoTIFF of one band, or of
-/// three (red, green, blue), with a raster source's projection.
-struct AlbedoOutput {
-    std::string path;
-    TiffCompression compression = TiffCompression::Lzw;  ///< None, Lzw or Deflate.
-    std::uint32_t tileSize = 256;
-    bool operator==(const AlbedoOutput&) const = default;
-};
+/// "albedo": writes the albedo (`TerrainConfig::albedo`) with one band, or three (red, green,
+/// blue).
+struct AlbedoOutput : GeoTiffOutput {};
 
 /// "body_mesh": a mesh of the whole body on a sphere (`BodyMesh`), `cellsPerFace` quads along each
 /// edge of the six cube faces, sampled every `spacing` metres (by default a quad's side), as a

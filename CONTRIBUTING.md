@@ -37,7 +37,7 @@ The 3D GUI (`terraingen CONFIG --gui`) builds with Ernie, the renderer, from a l
 - **Plain ASCII** in code, comments, docs and commit messages: write "metres", "degrees", "D^-2" and "sigma" rather than Unicode symbols.
 - **Document public headers** with `///` comments that say what a function does, its units and what it throws; prefer clear names and doc comments to inline comments.
 - **Dependencies:** TerrainGen stays light. Please discuss a new third-party library in an issue before adding it; vendored code in `third_party/` stays byte-identical to upstream.
-- **Configuration fields** carry a description and, for numbers, a unit (see `terraingen/pipeline/config_json.cpp`); a test checks every field has them.
+- **Configuration fields** carry a description and, for numbers, a unit (see the field lists in `terraingen/pipeline/detail/fields_*.h`); a test checks every field has them.
 
 ## Reporting bugs
 

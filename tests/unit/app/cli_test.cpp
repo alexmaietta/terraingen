@@ -15,6 +15,7 @@
 
 namespace {
 
+using terraingen::cli::kExitFailure;
 using terraingen::cli::kExitInvalidConfig;
 using terraingen::cli::kExitSuccess;
 using terraingen::cli::kExitUsage;
@@ -137,6 +138,12 @@ TEST(Cli, ValidatesAConfigAndReportsItsGridAndCraters) {
     EXPECT_NE(valid.out.find("2 layers, 0 filters and 2 outputs"), std::string::npos);
     EXPECT_FALSE(std::filesystem::exists(directory / "heights.tif"));
 
+    const auto flat = Write(directory / "flat.json", R"({"schema_version": 1})");
+    const Result plain = Cli({"validate", flat.string()});
+    EXPECT_EQ(plain.code, kExitSuccess) << plain.err;
+    EXPECT_EQ(plain.out,
+              flat.string() + " is valid: a 513x513 grid, 0 layers, 0 filters and 0 outputs\n");
+
     const auto bad = Write(directory / "bad.json",
                            R"({"schema_version": 1, "layers": [{"type": "noise", "stack": []}]})");
     const Result invalid = Cli({"validate", bad.string()});
@@ -180,6 +187,6 @@ TEST(Cli, ReportsConfigAndOutputErrorsWhenGenerating) {
     const auto blocked = directory / "blocked";
     Write(blocked, "a file, not a folder");
     const Result unwritable = Cli({config.string(), "--output-dir", blocked.string()});
-    EXPECT_EQ(unwritable.code, kExitInvalidConfig);
+    EXPECT_EQ(unwritable.code, kExitFailure);
     EXPECT_EQ(unwritable.err.rfind("terraingen: ", 0), 0u) << unwritable.err;
 }
