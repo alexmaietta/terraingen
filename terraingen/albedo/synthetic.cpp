@@ -1,6 +1,7 @@
 #include "terraingen/albedo/synthetic.h"
 
 #include "terraingen/sources/synthetic_terrain.h"
+#include "terraingen/util/checks.h"
 
 #include <algorithm>
 #include <cmath>
@@ -23,11 +24,8 @@ void ValidateStack(const std::vector<NoiseLayer>& layers) {
 }  // namespace
 
 void ValidateSyntheticAlbedo(const SyntheticAlbedoParams& params) {
-    if (!std::isfinite(params.hue)) {
-        throw std::invalid_argument("The albedo hue must be finite");
-    }
-    if (!(params.saturation >= 0.0 && params.saturation <= 1.0 && params.value >= 0.0 &&
-          params.value <= 1.0)) {
+    RequireFinite(params.hue, "The albedo hue");
+    if (!(IsInUnitInterval(params.saturation) && IsInUnitInterval(params.value))) {
         throw std::invalid_argument("The albedo saturation and value must be in [0, 1]");
     }
     ValidateStack(params.hueNoise);

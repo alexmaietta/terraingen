@@ -1,6 +1,6 @@
 #include "terraingen/distribution/log_polynomial.h"
 
-#include "terraingen/distribution/checks.h"
+#include "terraingen/util/checks.h"
 
 #include <algorithm>
 #include <cmath>
@@ -17,7 +17,7 @@ LogPolynomialSfd::LogPolynomialSfd(std::vector<double> coefficients, DiameterRan
                                               [](double value) { return std::isfinite(value); })) {
         throw std::invalid_argument("A log polynomial needs finite coefficients");
     }
-    if (!detail::PositiveFinite(diameterUnit_) || !detail::PositiveFinite(areaUnit_)) {
+    if (!IsPositive(diameterUnit_) || !IsPositive(areaUnit_)) {
         throw std::invalid_argument("Diameter and area units must be positive and finite");
     }
     if (!(range.min > 0.0 && std::isfinite(range.max))) {

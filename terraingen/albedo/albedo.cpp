@@ -1,5 +1,6 @@
 #include "terraingen/albedo/albedo.h"
 
+#include "terraingen/util/checks.h"
 #include "terraingen/util/parallel.h"
 
 #include <cmath>
@@ -9,9 +10,7 @@
 namespace terraingen {
 
 void ValidateAlbedoContext(const AlbedoContext& context) {
-    if (!(std::isfinite(context.spacing) && context.spacing > 0.0)) {
-        throw std::invalid_argument("Albedo sample spacing must be positive and finite");
-    }
+    RequirePositive(context.spacing, "Albedo sample spacing");
 }
 
 void ForEachAlbedoCell(std::vector<Raster<float>>& bands, unsigned threads,
@@ -74,9 +73,7 @@ std::vector<Raster<float>> EvaluateAlbedo(const Albedo& albedo, const RasterGrid
     if (grid.width == 0 || grid.height == 0) {
         throw std::invalid_argument("Cannot evaluate an albedo over an empty grid");
     }
-    if (!(std::isfinite(context.spacing) && context.spacing >= 0.0)) {
-        throw std::invalid_argument("Albedo sample spacing must be finite and not negative");
-    }
+    RequireNonNegative(context.spacing, "Albedo sample spacing");
     context.spacing = std::fmax(context.spacing, grid.Spacing(albedo.surface));
     const std::size_t count = CheckAlbedo(albedo, context);
     std::vector<Raster<float>> bands;

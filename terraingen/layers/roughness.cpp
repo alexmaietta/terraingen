@@ -3,6 +3,7 @@
 #include "terraingen/noise/kernels/hash.h"
 #include "terraingen/noise/kernels/perlin.h"
 #include "terraingen/raster/grid.h"
+#include "terraingen/util/checks.h"
 #include "terraingen/util/log.h"
 #include "terraingen/util/parallel.h"
 
@@ -56,12 +57,8 @@ double Interpolated(const std::array<double, 33>& table, double large, double r)
 }  // namespace
 
 void ValidateRoughnessOptions(const RoughnessOptions& options) {
-    if (!(std::isfinite(options.rmsSlope) && options.rmsSlope > 0.0)) {
-        throw std::invalid_argument("Roughness rmsSlope must be positive and finite");
-    }
-    if (!(std::isfinite(options.baseline) && options.baseline > 0.0)) {
-        throw std::invalid_argument("Roughness baseline must be positive and finite");
-    }
+    RequirePositive(options.rmsSlope, "Roughness rmsSlope");
+    RequirePositive(options.baseline, "Roughness baseline");
     if (!(options.hurst > 0.0 && options.hurst <= 1.0)) {
         throw std::invalid_argument("Roughness hurst must be in (0, 1]");
     }
@@ -197,9 +194,7 @@ void RoughnessLayer::Apply(Raster<float>& heights, const LayerContext& context,
 }
 
 float RoughnessLayer::ApplyAt(float height, double x, double y, const LayerContext& context) const {
-    if (!(std::isfinite(context.spacing) && context.spacing > 0.0)) {
-        throw std::invalid_argument("Sample spacing must be positive and finite");
-    }
+    RequirePositive(context.spacing, "Sample spacing");
     if (std::isnan(height)) {
         return height;
     }

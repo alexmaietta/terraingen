@@ -1,6 +1,6 @@
 #include "terraingen/distribution/size_frequency.h"
 
-#include "terraingen/distribution/checks.h"
+#include "terraingen/util/checks.h"
 
 #include <algorithm>
 #include <cmath>
@@ -19,7 +19,7 @@ void CheckRange(const DiameterRange& range) {
 }
 
 void CheckInterval(double dMin, double dMax) {
-    if (!(detail::PositiveFinite(dMin) && dMax > dMin) || std::isnan(dMax)) {
+    if (!(IsPositive(dMin) && dMax > dMin) || std::isnan(dMax)) {
         throw std::invalid_argument("Diameter interval must satisfy 0 < dMin < dMax");
     }
 }
@@ -32,7 +32,7 @@ SizeFrequencyDistribution::SizeFrequencyDistribution(SfdKind kind, DiameterRange
 }
 
 void SizeFrequencyDistribution::CheckDiameter(double diameter) const {
-    if (!detail::PositiveFinite(diameter)) {
+    if (!IsPositive(diameter)) {
         throw std::domain_error("Diameter must be positive and finite");
     }
     if (!extrapolate_ && !range_.Contains(diameter)) {
@@ -77,9 +77,7 @@ double SizeFrequencyDistribution::InvertCumulative(double target, double dMin, d
 
 double SizeFrequencyDistribution::ExpectedCount(double area, double dMin, double dMax) const {
     CheckInterval(dMin, dMax);
-    if (!(std::isfinite(area) && area >= 0.0)) {
-        throw std::invalid_argument("Area must be finite and not negative");
-    }
+    RequireNonNegative(area, "Area");
     double upper = 0.0;
     if (std::isinf(dMax)) {
         if (!extrapolate_ && !std::isinf(range_.max)) {

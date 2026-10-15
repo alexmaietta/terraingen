@@ -3,6 +3,7 @@
 #include "terraingen/noise/kernels/perlin.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/grid.h"
+#include "terraingen/util/checks.h"
 #include "terraingen/util/parallel.h"
 
 #include <algorithm>
@@ -33,11 +34,10 @@ double Smoothstep(double t) {
 }  // namespace
 
 void ValidateBedformOptions(const BedformOptions& options) {
-    if (!(std::isfinite(options.wavelength) && options.wavelength > 0.0 &&
-          std::isfinite(options.fieldSize) && options.fieldSize > 0.0)) {
+    if (!(IsPositive(options.wavelength) && IsPositive(options.fieldSize))) {
         throw std::invalid_argument("Bedform wavelength and field size must be positive");
     }
-    if (!(std::isfinite(options.height) && options.height >= 0.0)) {
+    if (!IsNonNegative(options.height)) {
         throw std::invalid_argument("Bedform height must not be negative");
     }
     if (!(options.leeFraction > 0.0 && options.leeFraction < 1.0)) {
@@ -46,13 +46,12 @@ void ValidateBedformOptions(const BedformOptions& options) {
     if (!(options.cover >= 0.0 && options.cover <= 0.9)) {
         throw std::invalid_argument("Bedform cover must be in [0, 0.9]");
     }
-    if (!(std::isfinite(options.sinuosity) && options.sinuosity >= 0.0 &&
-          std::isfinite(options.azimuthSpread) && options.azimuthSpread >= 0.0 &&
+    if (!(IsNonNegative(options.sinuosity) && IsNonNegative(options.azimuthSpread) &&
           std::isfinite(options.windAzimuth))) {
         throw std::invalid_argument(
             "Bedform sinuosity and azimuth spread must be finite and not negative");
     }
-    if (!(std::isfinite(options.exposureSpacing) && options.exposureSpacing > 0.0)) {
+    if (!IsPositive(options.exposureSpacing)) {
         throw std::invalid_argument("Bedform exposureSpacing must be positive");
     }
     if (options.exposure) {
@@ -195,9 +194,7 @@ void BedformLayer::Apply(Raster<float>& heights, const LayerContext& context,
 }
 
 float BedformLayer::ApplyAt(float height, double x, double y, const LayerContext& context) const {
-    if (!(std::isfinite(context.spacing) && context.spacing > 0.0)) {
-        throw std::invalid_argument("Sample spacing must be positive and finite");
-    }
+    RequirePositive(context.spacing, "Sample spacing");
     if (std::isnan(height)) {
         return height;
     }

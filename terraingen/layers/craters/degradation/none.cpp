@@ -1,5 +1,7 @@
 #include "terraingen/layers/craters/degradation/none.h"
 
+#include "terraingen/util/checks.h"
+
 #include <cmath>
 #include <stdexcept>
 #include <utility>
@@ -11,8 +13,8 @@ NoDegradation::NoDegradation(FreshMorphometry fresh, std::optional<double> depth
     if (!fresh_) {
         throw std::invalid_argument("No degradation needs the fresh crater morphometry");
     }
-    if (depthRatio_ && !(std::isfinite(*depthRatio_) && *depthRatio_ > 0.0)) {
-        throw std::invalid_argument("Depth/diameter ratio must be positive and finite");
+    if (depthRatio_) {
+        RequirePositive(*depthRatio_, "Depth/diameter ratio");
     }
 }
 

@@ -1,5 +1,7 @@
 #include "terraingen/pipeline/config_json.h"
 
+#include "terraingen/pipeline/config_checks.h"
+
 #include <nlohmann/json.hpp>
 
 #include <array>
@@ -24,14 +26,8 @@ namespace terraingen {
 namespace {
 
 using Json = nlohmann::ordered_json;
-
-std::string Child(const std::string& path, std::string_view key) {
-    return path.empty() ? std::string(key) : path + "." + std::string(key);
-}
-
-std::string Element(const std::string& path, std::size_t index) {
-    return path + "[" + std::to_string(index) + "]";
-}
+using config::Child;
+using config::Element;
 
 std::string TypeName(const Json& json) {
     return json.type_name();

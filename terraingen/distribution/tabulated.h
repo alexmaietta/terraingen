@@ -32,6 +32,8 @@ class TabulatedSfd final : public SizeFrequencyDistribution {
   protected:
     double CumulativeAt(double diameter) const override;
     double IncrementalAt(double diameter) const override;
+    /// The power-law inverse within the interval holding `target`; a flat interval, where
+    /// N(>=D) never reaches `target`, gives its start diameter.
     double InvertCumulative(double target, double dMin, double dMax) const override;
 
   private:

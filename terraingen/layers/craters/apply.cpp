@@ -3,6 +3,7 @@
 #include "terraingen/layers/craters/degradation/none.h"
 #include "terraingen/noise/kernels/hash.h"
 #include "terraingen/raster/grid.h"
+#include "terraingen/util/checks.h"
 #include "terraingen/util/log.h"
 #include "terraingen/util/parallel.h"
 
@@ -190,9 +191,7 @@ double ResolutionWeight(double diameter, double spacing, const ResolutionFade& f
 void ValidateCraterApplyOptions(const CraterApplyOptions& options) {
     ValidateResolutionFade(options.fade);
     ValidateCraterIrregularity(options.irregularity);
-    if (!(std::isfinite(options.datumFitRadii) && options.datumFitRadii > 0.0)) {
-        throw std::invalid_argument("datumFitRadii must be positive and finite");
-    }
+    RequirePositive(options.datumFitRadii, "datumFitRadii");
     if (!(options.interiorReplacement >= 0.0 && options.interiorReplacement <= 1.0)) {
         throw std::invalid_argument("interiorReplacement must be between 0 and 1");
     }
@@ -417,9 +416,7 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
                   const DegradationModel& degradation, const CraterApplyOptions& options,
                   double spacing, unsigned threads, const HeightSampler& ground) {
     ValidateCraterApplyOptions(options);
-    if (!(std::isfinite(spacing) && spacing >= 0.0)) {
-        throw std::invalid_argument("Sample spacing must be finite and not negative");
-    }
+    RequireNonNegative(spacing, "Sample spacing");
     if (raster.Empty() || craters.Empty()) {
         return;
     }

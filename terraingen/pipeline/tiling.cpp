@@ -1,6 +1,7 @@
 #include "terraingen/pipeline/tiling.h"
 
 #include "terraingen/noise/kernels/hash.h"
+#include "terraingen/util/checks.h"
 
 #include <cmath>
 #include <stdexcept>
@@ -53,9 +54,7 @@ TileScheme TileScheme::Covering(const RasterGrid& grid, std::size_t cells) {
 }
 
 void TileScheme::Validate() const {
-    if (!(std::isfinite(rootSize) && rootSize > 0.0)) {
-        throw std::invalid_argument("Tile root size must be positive and finite");
-    }
+    RequirePositive(rootSize, "Tile root size");
     if (!(std::isfinite(origin.x) && std::isfinite(origin.y))) {
         throw std::invalid_argument("Tile origin must be finite");
     }
@@ -74,9 +73,7 @@ double TileScheme::Spacing(int level) const {
 }
 
 int TileScheme::LevelFor(double spacing) const {
-    if (!(std::isfinite(spacing) && spacing > 0.0)) {
-        throw std::invalid_argument("Spacing must be positive and finite");
-    }
+    RequirePositive(spacing, "Spacing");
     int level = 0;
     while (level < kMaxLevel && Spacing(level) > spacing) {
         ++level;

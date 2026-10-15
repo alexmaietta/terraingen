@@ -1,5 +1,7 @@
 #include "terraingen/distribution/golombek_rapp.h"
 
+#include "terraingen/util/checks.h"
+
 #include <cmath>
 #include <limits>
 #include <numbers>
@@ -66,7 +68,7 @@ GolombekRappSfd::GolombekRappSfd(double coverage, double qa, double qb, Diameter
     if (!(coverage_ > 0.0 && coverage_ < 1.0)) {
         throw std::invalid_argument("Boulder coverage k must be between 0 and 1");
     }
-    if (!(std::isfinite(qa) && std::isfinite(qb) && qa >= 0.0 && qb >= 0.0)) {
+    if (!(IsNonNegative(qa) && IsNonNegative(qb))) {
         throw std::invalid_argument("Golombek-Rapp qa and qb must be finite and not negative");
     }
     q_ = qa + qb / coverage_;

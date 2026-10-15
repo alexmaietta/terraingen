@@ -10,6 +10,7 @@
 #include <map>
 #include <mutex>
 #include <stdexcept>
+#include <tuple>
 #include <utility>
 
 namespace terraingen {
@@ -51,7 +52,9 @@ struct VulkanCompute::State {
     std::uint32_t maxPushConstants = 0;
     std::string name;
     std::mutex mutex;
-    std::map<std::pair<const unsigned char*, std::size_t>, Pipeline> pipelines;
+    /// Pipelines keyed by kernel code, binding count and push-constant size, which all shape the
+    /// pipeline layout.
+    std::map<std::tuple<const unsigned char*, std::size_t, std::size_t>, Pipeline> pipelines;
 
     std::uint32_t MemoryType(std::uint32_t bits, VkMemoryPropertyFlags flags) const {
         for (std::uint32_t i = 0; i < memory.memoryTypeCount; ++i) {
@@ -98,7 +101,8 @@ struct VulkanCompute::State {
 
     const Pipeline& PipelineFor(const ComputeKernel& kernel, std::size_t bindings,
                                 std::size_t pushSize) {
-        auto found = pipelines.find({kernel.spirv, bindings});
+        const auto key = std::make_tuple(kernel.spirv, bindings, pushSize);
+        auto found = pipelines.find(key);
         if (found != pipelines.end()) {
             return found->second;
         }
@@ -139,7 +143,7 @@ struct VulkanCompute::State {
         Check(vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr,
                                        &p.pipeline),
               "compute pipeline");
-        return pipelines.emplace(std::make_pair(kernel.spirv, bindings), p).first->second;
+        return pipelines.emplace(key, p).first->second;
     }
 };
 

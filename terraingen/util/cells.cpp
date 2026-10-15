@@ -1,5 +1,6 @@
 #include "terraingen/util/cells.h"
 
+#include "terraingen/util/checks.h"
 #include "terraingen/util/surface.h"
 
 #include <algorithm>
@@ -24,9 +25,7 @@ std::int32_t CellCoordinate(double value) {
 }  // namespace
 
 std::vector<CellIndex> PlanarCells::CellsCovering(const Bounds2d& region, double cellSize) const {
-    if (!(std::isfinite(cellSize) && cellSize > 0.0)) {
-        throw std::invalid_argument("Cell size must be positive and finite");
-    }
+    RequirePositive(cellSize, "Cell size");
     if (!(std::isfinite(region.minX) && std::isfinite(region.minY) && std::isfinite(region.maxX) &&
           std::isfinite(region.maxY) && region.maxX > region.minX && region.maxY > region.minY)) {
         throw std::invalid_argument("Region must be finite and not empty");
@@ -76,11 +75,6 @@ constexpr std::array<Face, 6> kFaces{{
 }};
 
 constexpr double kQuarter = std::numbers::pi / 4.0;
-constexpr double kDegree = std::numbers::pi / 180.0;
-
-double Dot(const Vec3d& a, const Vec3d& b) {
-    return a.x * b.x + a.y * b.y + a.z * b.z;
-}
 
 /// The solid angle of the gnomonic rectangle [0, `a`] x [0, `b`] on a face, signed.
 double Corner(double a, double b) {
@@ -92,22 +86,14 @@ double Edge(std::int32_t k, std::int32_t n) {
     return std::tan(-kQuarter + 2.0 * kQuarter * static_cast<double>(k) / static_cast<double>(n));
 }
 
-void CheckCellSize(double cellSize) {
-    if (!(std::isfinite(cellSize) && cellSize > 0.0)) {
-        throw std::invalid_argument("Cell size must be positive and finite");
-    }
-}
-
 }  // namespace
 
 CubeSphereCells::CubeSphereCells(double radius) : radius_(radius) {
-    if (!(std::isfinite(radius) && radius > 0.0)) {
-        throw std::invalid_argument("A sphere's radius must be positive and finite");
-    }
+    RequirePositive(radius, "A sphere's radius");
 }
 
 std::int32_t CubeSphereCells::CellsPerEdge(double cellSize) const {
-    CheckCellSize(cellSize);
+    RequirePositive(cellSize, "Cell size");
     const double n = std::ceil(radius_ * 2.0 * kQuarter / cellSize);
     if (!(n < static_cast<double>(std::numeric_limits<std::int32_t>::max() / 6))) {
         throw std::invalid_argument("Cells are too small for the sphere");
@@ -180,7 +166,7 @@ std::vector<CellIndex> CubeSphereCells::Neighbours(const CellIndex& cell, double
 
 std::vector<CellIndex> CubeSphereCells::CellsCovering(const Bounds2d& region,
                                                       double cellSize) const {
-    CheckCellSize(cellSize);
+    RequirePositive(cellSize, "Cell size");
     if (!(std::isfinite(region.minX) && std::isfinite(region.minY) && std::isfinite(region.maxX) &&
           std::isfinite(region.maxY) && region.maxX >= region.minX && region.maxY >= region.minY)) {
         throw std::invalid_argument("Region must be finite and not inverted");

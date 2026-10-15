@@ -4,13 +4,6 @@ import pytest
 import terraingen
 
 
-def lunar_models():
-    surface = terraingen.lunar_surface(3.8)
-    return terraingen.CraterModels(
-        surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages), terraingen.FassettThomsonProfile()
-    )
-
-
 def test_surfaces_and_bodies():
     moon = terraingen.body_sphere(terraingen.Body.MOON)
     assert moon.is_sphere and moon.radius == pytest.approx(1737400.0)
@@ -26,13 +19,13 @@ def test_surfaces_and_bodies():
     assert terraingen.Surface.plane().distance((0.0, 0.0), (3.0, 4.0)) == pytest.approx(5.0)
 
 
-def test_terrain_on_a_sphere_and_body_mesh(tmp_path):
+def test_terrain_on_a_sphere_and_body_mesh(tmp_path, lunar_models):
     moon = terraingen.body_sphere(terraingen.Body.MOON)
     noise = terraingen.NoiseRelief(
         [terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=400000.0, amplitude=3000.0))], surface=moon
     )
     generation = terraingen.CraterGenerationOptions(min_diameter=20000.0, max_diameter=300000.0)
-    craters = terraingen.CraterLayer(lunar_models(), terraingen.CraterLayerOptions(surface=moon, generation=generation))
+    craters = terraingen.CraterLayer(lunar_models(3.8), terraingen.CraterLayerOptions(surface=moon, generation=generation))
     site = terraingen.FlatSource(65, 65, 4000.0, centre=(23.47, 0.67), surface=moon)
     assert site.transform.pixel_width == pytest.approx(4000.0 / moon.unit_length)
     terrain = terraingen.Terrain(site, [noise, craters], surface=moon)
@@ -64,10 +57,10 @@ def test_terrain_on_a_sphere_and_body_mesh(tmp_path):
     assert all(part is not None for part in (rough, boulders, smoothing, bedforms))
 
 
-def test_tiles_match_the_whole_grid():
+def test_tiles_match_the_whole_grid(lunar_models):
     noise = terraingen.NoiseRelief([terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=100.0, amplitude=5.0))])
     generation = terraingen.CraterGenerationOptions(min_diameter=6.0, max_diameter=60.0)
-    craters = terraingen.CraterLayer(lunar_models(), terraingen.CraterLayerOptions(generation=generation))
+    craters = terraingen.CraterLayer(lunar_models(3.8), terraingen.CraterLayerOptions(generation=generation))
     grid = terraingen.RasterGrid.centred(128, 128, 2.0)
     terrain = terraingen.Terrain(terraingen.FlatSource(128, 128, 2.0), [noise, craters])
     whole = terraingen.evaluate(terrain, grid=grid).heights.values

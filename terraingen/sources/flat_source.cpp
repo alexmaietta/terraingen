@@ -1,5 +1,7 @@
 #include "terraingen/sources/flat_source.h"
 
+#include "terraingen/util/checks.h"
+
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
@@ -12,9 +14,7 @@ FlatSource::FlatSource(std::size_t width, std::size_t height, double pixelSize, 
     if (width == 0 || height == 0) {
         throw std::invalid_argument("A flat source needs at least one cell in each direction");
     }
-    if (!(std::isfinite(pixelSize) && pixelSize > 0.0)) {
-        throw std::invalid_argument("Pixel size must be positive and finite");
-    }
+    RequirePositive(pixelSize, "Pixel size");
     if (!(std::isfinite(elevation) && std::isfinite(centre.x) && std::isfinite(centre.y))) {
         throw std::invalid_argument("Elevation and centre must be finite");
     }

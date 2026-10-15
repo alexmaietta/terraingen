@@ -1,5 +1,7 @@
 #include "terraingen/raster/resample.h"
 
+#include "terraingen/util/checks.h"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -112,9 +114,7 @@ Raster<float> Resample(const Raster<float>& raster, double pixelSize, ResampleMe
     if (raster.Empty()) {
         throw std::invalid_argument("Cannot resample an empty raster");
     }
-    if (!(std::isfinite(pixelSize) && pixelSize > 0.0)) {
-        throw std::invalid_argument("Pixel size must be positive and finite");
-    }
+    RequirePositive(pixelSize, "Pixel size");
     const GeoTransform& source = raster.Transform();
     if (source.rowRotation != 0.0 || source.colRotation != 0.0) {
         throw std::invalid_argument("Cannot resample a rotated raster");

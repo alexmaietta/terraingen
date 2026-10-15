@@ -15,15 +15,6 @@ struct TriangleMesh {
     std::vector<std::array<std::uint32_t, 3>> triangles;
 };
 
-Vec3d operator+(const Vec3d& a, const Vec3d& b);
-Vec3d operator-(const Vec3d& a, const Vec3d& b);
-Vec3d operator*(const Vec3d& v, double s);
-double Dot(const Vec3d& a, const Vec3d& b);
-Vec3d Cross(const Vec3d& a, const Vec3d& b);
-double Length(const Vec3d& v);
-/// `v` scaled to unit length; the zero vector stays zero.
-Vec3d Normalized(const Vec3d& v);
-
 /// The smallest axis-aligned box holding a set of points.
 struct Box3d {
     Vec3d min;

@@ -1,5 +1,6 @@
 #include "terraingen/sources/geotiff_source.h"
 
+#include "support/temp_path.h"
 #include "terraingen/raster/geotiff.h"
 #include "terraingen/raster/resample.h"
 #include "tests/unit/raster/gdal_fixtures.h"
@@ -17,6 +18,7 @@ using terraingen::GeoTransform;
 using terraingen::Raster;
 using terraingen::RasterGrid;
 using terraingen::ResampleMethod;
+using terraingen::testing::TempPath;
 
 namespace {
 
@@ -35,10 +37,6 @@ Raster<float> WriteDem(const std::filesystem::path& path, const GeoKeys& keys = 
     }
     terraingen::WriteGeoTiff(path, dem, keys);
     return dem;
-}
-
-std::filesystem::path TempPath(const std::string& name) {
-    return std::filesystem::path(::testing::TempDir()) / name;
 }
 
 }  // namespace

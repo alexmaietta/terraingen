@@ -26,15 +26,18 @@ INTERNAL = {
     "AddField", "EjectaCraters", "Abundance", "AddRelief", "PlacedOnLevel", "Roughness", "Smoothing",
     "ApplyParallel", "Gather", "Prepare", "ForEachAlbedoCell", "MaxStretch", "NoiseAt", "SegmentAt",
     "PieceAt", "IntervalAt", "LowestAt", "Derivative", "Polynomial", "BoulderMesh", "SceneMesh",
-    "IsModel", "MinCraterDiameter",
+    "IsModel", "MinCraterDiameter", "AppendManualCraters",
+    # Argument checks and the JSON paths of configuration errors; Python sees the exceptions.
+    "IsPositive", "IsNonNegative", "IsInUnitInterval", "RequirePositive", "RequireNonNegative",
+    "RequireFinite", "RequireUnitInterval", "Child", "Element",
     # Vector arithmetic and geometry helpers; Python uses NumPy.
     "Cross", "Dot", "Length", "Normalized", "Box3d", "Extents", "ShadedMesh", "After", "Expanded",
-    "SphereLocate", "SphereOffset", "UnitVector", "Bucket", "GetKind",
+    "SphereLocate", "SphereOffset", "UnitVector", "Bucket", "GetKind", "PointBounds",
     # Python's perlin_noise3 is the double-precision form (PerlinNoise3Precise), and
     # SecondaryCraterLayer takes the profile and degradation of SecondaryCraterModels as arguments.
     "PerlinNoise3", "SecondaryCraterModels",
     # Small accessors and checks reached through properties or constructors.
-    "Empty", "Row", "Contains", "CheckBounds", "CheckDiameter", "PositiveFinite", "Reserve", "Enabled",
+    "Empty", "Row", "Contains", "CheckBounds", "CheckDiameter", "Reserve", "Enabled",
     "Lowest", "Highest", "ExposedHeight", "Sampler", "Ground", "Production", "Inner", "GetSurface",
     "Params", "Sources", "Scale", "IsNoData", "PixelIsPoint", "IsGeographic", "Area", "PixelSize",
     "SurfaceArea", "WrapBodyTile", "ExponentialIntegral", "ValidateSyntheticAlbedo", "ValidateConfig",

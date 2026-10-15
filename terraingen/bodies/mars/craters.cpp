@@ -1,12 +1,14 @@
 #include "terraingen/bodies/mars/craters.h"
 
+#include "terraingen/util/checks.h"
+
 #include <cmath>
 #include <stdexcept>
 
 namespace terraingen {
 
 CraterMorphometry MarsFreshCraterMorphometry(double diameter) {
-    if (!(std::isfinite(diameter) && diameter > 0.0)) {
+    if (!IsPositive(diameter)) {
         throw std::domain_error("Diameter must be positive and finite");
     }
     if (diameter >= kMarsComplexCraterDiameter) {

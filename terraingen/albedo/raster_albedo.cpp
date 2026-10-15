@@ -3,6 +3,7 @@
 #include "terraingen/layers/roughness.h"
 #include "terraingen/noise/kernels/hash.h"
 #include "terraingen/noise/kernels/perlin.h"
+#include "terraingen/util/checks.h"
 
 #include <algorithm>
 #include <array>
@@ -51,11 +52,11 @@ void ValidateAlbedoDetail(const AlbedoDetail& detail) {
     if (detail.octaves < 1 || detail.octaves > 16) {
         throw std::invalid_argument("Albedo detail needs 1 to 16 octaves");
     }
-    if (!(std::isfinite(detail.scale) && detail.scale >= 0.0)) {
+    if (!IsNonNegative(detail.scale)) {
         throw std::invalid_argument("The albedo detail scale must not be negative");
     }
-    if (detail.hurst && !(*detail.hurst >= 0.0 && *detail.hurst <= 1.0)) {
-        throw std::invalid_argument("The albedo detail Hurst exponent must be in [0, 1]");
+    if (detail.hurst) {
+        RequireUnitInterval(*detail.hurst, "The albedo detail Hurst exponent");
     }
     ValidateResolutionFade(detail.fade);
 }

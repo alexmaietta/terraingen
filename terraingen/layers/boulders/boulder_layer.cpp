@@ -7,6 +7,7 @@
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/resample.h"
 #include "terraingen/util/cells.h"
+#include "terraingen/util/checks.h"
 #include "terraingen/util/parallel.h"
 
 #include <algorithm>
@@ -138,26 +139,21 @@ double BoulderEjecta::MinCraterDiameter() const {
 
 double BoulderThrowDistance(double craterDiameter, double regolithThickness, double gravity) {
     for (const double value : {craterDiameter, regolithThickness, gravity}) {
-        if (!(std::isfinite(value) && value > 0.0)) {
-            throw std::invalid_argument(
-                "Crater diameter, regolith thickness and gravity must be positive and finite");
-        }
+        RequirePositive(value, "Crater diameter, regolith thickness and gravity");
     }
     return 138.5 / gravity * std::pow(craterDiameter / regolithThickness, 0.7086);
 }
 
 void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
-    if (!(std::isfinite(options.minDiameter) && options.minDiameter > 0.0 &&
-          std::isfinite(options.maxDiameter) && options.maxDiameter > options.minDiameter)) {
+    if (!(IsPositive(options.minDiameter) && std::isfinite(options.maxDiameter) &&
+          options.maxDiameter > options.minDiameter)) {
         throw std::invalid_argument("Boulder diameters must satisfy 0 < minDiameter < maxDiameter");
     }
     if (!(std::isfinite(options.patches.spread) && options.patches.spread >= 1.0 &&
-          std::isfinite(options.patches.size) && options.patches.size > 0.0)) {
+          IsPositive(options.patches.size))) {
         throw std::invalid_argument("Boulder patches need spread >= 1 and a positive size");
     }
-    if (!(std::isfinite(options.bedrockAbundance) && options.bedrockAbundance > 0.0)) {
-        throw std::invalid_argument("Boulder bedrockAbundance must be positive and finite");
-    }
+    RequirePositive(options.bedrockAbundance, "Boulder bedrockAbundance");
     if (options.distribution) {
         CheckSizes(*options.distribution, options, "The boulder distribution");
     } else {
@@ -170,11 +166,10 @@ void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
         }
     }
     const BoulderEjecta& ejecta = options.ejecta;
-    if (!(std::isfinite(ejecta.minCraterDiameter) && ejecta.minCraterDiameter >= 0.0)) {
+    if (!IsNonNegative(ejecta.minCraterDiameter)) {
         throw std::invalid_argument("Boulder ejecta minCraterDiameter must not be negative");
     }
-    if (ejecta.regolithThickness &&
-        !(std::isfinite(*ejecta.regolithThickness) && *ejecta.regolithThickness > 0.0)) {
+    if (ejecta.regolithThickness && !IsPositive(*ejecta.regolithThickness)) {
         throw std::invalid_argument("Boulder ejecta regolithThickness must be positive");
     }
     if (!(ejecta.excavationDepthRatio > 0.0 && ejecta.excavationDepthRatio <= 1.0)) {
@@ -189,25 +184,23 @@ void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
         if (!(std::isfinite(ejecta.reach) && ejecta.reach > 1.0)) {
             throw std::invalid_argument("Boulder ejecta need a reach over 1 radius");
         }
-        if (!(std::isfinite(ejecta.decayRadii) && ejecta.decayRadii > 0.0 &&
-              ejecta.floorShare >= 0.0 && ejecta.floorShare <= 1.0)) {
+        if (!(IsPositive(ejecta.decayRadii) && IsInUnitInterval(ejecta.floorShare))) {
             throw std::invalid_argument(
                 "Boulder ejecta need a positive decayRadii and a floorShare in [0, 1]");
         }
         if (!(ejecta.minFreshness >= 0.0 && ejecta.minFreshness < 1.0 &&
-              std::isfinite(ejecta.lifetimeGyr) && ejecta.lifetimeGyr > 0.0 &&
-              std::isfinite(ejecta.agingExponent) && ejecta.agingExponent >= 0.0)) {
+              IsPositive(ejecta.lifetimeGyr) && IsNonNegative(ejecta.agingExponent))) {
             throw std::invalid_argument("Boulder ejecta need minFreshness in [0, 1), a positive "
                                         "lifetimeGyr and a non-negative agingExponent");
         }
-        if (ejecta.gravity && !(std::isfinite(*ejecta.gravity) && *ejecta.gravity > 0.0)) {
+        if (ejecta.gravity && !IsPositive(*ejecta.gravity)) {
             throw std::invalid_argument("Boulder ejecta gravity must be positive");
         }
     }
     if (options.exposure) {
         ValidateExposureParams(*options.exposure);
     }
-    if (!(std::isfinite(options.exposureSpacing) && options.exposureSpacing > 0.0)) {
+    if (!IsPositive(options.exposureSpacing)) {
         throw std::invalid_argument("Boulder exposureSpacing must be positive");
     }
     if (!(options.minHeightRatio > 0.0 && options.maxHeightRatio >= options.minHeightRatio &&
@@ -218,13 +211,13 @@ void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
           options.maxBurial < 1.0)) {
         throw std::invalid_argument("Boulder burial must satisfy 0 <= min <= max < 1");
     }
-    if (!(std::isfinite(options.maxLean) && options.maxLean >= 0.0)) {
+    if (!IsNonNegative(options.maxLean)) {
         throw std::invalid_argument("Boulder maxLean must not be negative");
     }
     ValidateResolutionFade(options.fade);
     for (const auto& threshold : {options.models.minDiameter, options.models.minSamples}) {
-        if (threshold && !(std::isfinite(*threshold) && *threshold > 0.0)) {
-            throw std::invalid_argument("Boulder model thresholds must be positive and finite");
+        if (threshold) {
+            RequirePositive(*threshold, "Boulder model thresholds");
         }
     }
     ValidateBoulderShapeOptions(options.shapes);
@@ -414,9 +407,7 @@ BoulderAbundance BoulderLayer::Abundance(double x, double y, const Ground* groun
 }
 
 BoulderAbundance BoulderLayer::AbundanceAt(double x, double y, const Ground* ground) const {
-    constexpr double kInf = std::numeric_limits<double>::infinity();
-    return Abundance(x, y, ground,
-                     EjectaCraters({x, y, std::nextafter(x, kInf), std::nextafter(y, kInf)}));
+    return Abundance(x, y, ground, EjectaCraters(PointBounds(x, y)));
 }
 
 double BoulderLayer::Density(double diameter, const BoulderAbundance& abundance) const {
@@ -598,15 +589,11 @@ void BoulderLayer::Apply(Raster<float>& heights, const LayerContext& context,
 }
 
 float BoulderLayer::ApplyAt(float height, double x, double y, const LayerContext& context) const {
-    if (!(std::isfinite(context.spacing) && context.spacing > 0.0)) {
-        throw std::invalid_argument("Sample spacing must be positive and finite");
-    }
+    RequirePositive(context.spacing, "Sample spacing");
     if (std::isnan(height) || options_.relief == BoulderRelief::None) {
         return height;
     }
-    constexpr double kInf = std::numeric_limits<double>::infinity();
-    const Bounds2d point{x, y, std::nextafter(x, kInf), std::nextafter(y, kInf)};
-    for (const Boulder& boulder : Boulders(point, context.spacing, context.ground)) {
+    for (const Boulder& boulder : Boulders(PointBounds(x, y), context.spacing, context.ground)) {
         const double weight = ResolutionWeight(boulder.diameter, context.spacing, options_.fade);
         if (boulder.model || weight <= 0.0) {
             continue;

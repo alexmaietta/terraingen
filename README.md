@@ -12,17 +12,20 @@
 
 A high-performance scientific terrain generation tool for interplanetary bodies.
 
-TerrainGen provides a core C++ and Python library designed to easily integrate into external workflows. It is designed with modularity and interoperability in mind. The core requires minimal dependencies and users can extend the base classes for custom functionality. We also provide a command-line interface, a lightweight viewer, a series of example usages, and a standalone demo that integrates TerrainGen into a planetary-scale renderer that synthesizes terrain detail on the GPU, on the fly, while navigating around the Moon.
+TerrainGen can:
 
-TerrainGen can
+- Generate synthetic terrain from scratch, or add fine detail to existing elevation models.
+- Populate craters and boulders from cumulative size-frequency distributions.
+- Model each crater's profile, age, degradation, irregular outline and secondary craters.
+- Bake boulders into the heightmap or place them as 3D models.
+- Produce synthetic albedo maps with crater ejecta and rays that fade with crater age.
+- Run on the GPU, and give the same terrain for the same seed on any grid, tile or thread count.
+
+We provide a core C++ and Python library designed to easily integrate into external workflows including simulations. It is designed with modularity and interoperability in mind. The core requires minimal dependencies and users can extend the base classes for custom functionality. We also provide a command-line interface, a lightweight viewer, a series of example usages, and a standalone demo that integrates TerrainGen into a planetary-scale renderer that synthesizes terrain detail on the GPU, on the fly, while navigating around the Moon.
+
+We also provide examples or full integrations into existing third-party simulation tools such as Project Chrono, Newton, IsaacLab, and NASA Trick.
 
 For more information on the concepts behind TerrainGen and the API, see our latest [documentation](https://alexmaietta.github.io/terraingen/).
-
-TerrainGen plugs into downstream simulation and rendering engines such as [Project Chrono](https://github.com/projectchrono/chrono). See [Third-party Integrations and Use Cases](#third-party-integrations-and-use-cases) for current and planned integrations.
-
-TerrainGen is also heavily validated against existing planetary datasets. For more information, see the [validation](https://alexmaietta.github.io/terraingen/validation/) section.
-
-Future work includes extending TerrainGen for other planetary and celestial bodies such as Mars and asteroids.
 
 ## Getting Started
 
@@ -62,30 +65,13 @@ TerrainGen is licensed under the [BSD 3-Clause License](LICENSE).
 
 Third-party code and assets keep their own licenses, listed in [third_party/README.md](third_party/README.md).
 
-## Third-party Integrations and Use Cases
-
-TerrainGen is designed to be integrated into downstream simulation, rendering, and machine learning pipelines. Terrain products from TerrainGen can drive physics simulations or be used to render photorealistic imagery for crater and boulder identification pipelines.
-
-**Simulation integrations**
-
-* [Newton](https://github.com/newton-physics/newton)
-* [Nvidia Omniverse](https://www.nvidia.com/en-us/omniverse/)
-* [Project Chrono](https://github.com/projectchrono/chrono)
-* [IsaacLab](https://isaac-sim.github.io/IsaacLab/)
-
-**Use cases**
-
-* Training crater and boulder identification ML models
-* Planetary surface simulations
-* Lunar landing optical navigation
-
 ## Acknowledgements
 
 TerrainGen draws inspiration from existing lunar terrain generation tools:
 
-| Name | Organization | Availability | Capabilities |
-| --- | --- | --- | --- |
-| [synthterrain](https://github.com/NeoGeographyToolkit/synthterrain) | NASA Ames | Open source (Apache-2.0) | Crater and boulder populations from size-frequency distributions, crater profiles and DEMs on flat terrain |
-| [lunasynth](https://github.com/nasa-jpl/lunasynth) | NASA JPL | Open source (Apache-2.0) | Adds craters and boulders to a lunar base DEM, down to 1 cm pixels, and renders images under varying camera and sun positions |
-| [DLES Terrain Crafting](https://doi.org/10.1109/AERO63441.2025.11068736) | NASA JSC | Not publicly released (paper) | Enhances LOLA and NAC-derived DEMs of the lunar south pole to 20 cm with synthetic craters and boulders, including hand-placed craters from imagery |
-| [PANGU](https://pangu.software/) | University of Dundee / STAR-Dundee | Commercial | Multi-resolution planet and asteroid surfaces from real or fractal DEMs with statistical craters and boulders; GPU camera, LiDAR and thermal sensor simulation |
+| Name | Organization | Availability | Capabilities | Limitations |
+| --- | --- | --- | --- | --- |
+| [synthterrain](https://github.com/NeoGeographyToolkit/synthterrain) | NASA Ames | Open source (Apache-2.0) | Crater and boulder populations from size-frequency distributions, crater profiles and DEMs on flat terrain | Doesn't generate surface detail or upscale existing DEMs, not actively contributed to. |
+| [lunasynth](https://github.com/nasa-jpl/lunasynth) | NASA JPL | Open source (Apache-2.0) | Adds craters and boulders to a lunar base DEM, down to 1 cm pixels, and renders images under varying camera and sun positions | Project is not actively-maintained |
+| [DLES Terrain Crafting](https://doi.org/10.1109/AERO63441.2025.11068736) | NASA JSC | Not publicly released (paper) | Enhances LOLA and NAC-derived DEMs of the lunar south pole to 20 cm with synthetic craters and boulders, including hand-placed craters from imagery | Not publicly released, |
+| [PANGU](https://pangu.software/) | University of Dundee / STAR-Dundee | Commercial | Multi-resolution planet and asteroid surfaces from real or fractal DEMs with statistical craters and boulders; GPU camera, LiDAR and thermal sensor simulation | Commercial software |

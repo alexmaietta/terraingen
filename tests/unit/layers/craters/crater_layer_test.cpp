@@ -95,6 +95,19 @@ TEST(CraterLayer, AppliesOnlyManualCratersWithoutGenerating) {
     EXPECT_LT(heights(32, 32), -1.0f);
 }
 
+TEST(CraterLayer, RejectsInvalidManualCratersWithoutGenerating) {
+    const double nan = std::nan("");
+    for (const terraingen::Crater& bad :
+         {terraingen::Crater{nan, 0.0, 30.0, 0.5, 0u}, terraingen::Crater{0.0, 0.0, -30.0, 0.5, 0u},
+          terraingen::Crater{5000.0, 0.0, 30.0, -1.0, 0u}}) {
+        CraterLayerOptions options = Options();
+        options.generate = false;
+        options.generation.manual.Append(bad);
+        const CraterLayer layer(Models(), options);
+        EXPECT_THROW(layer.Craters({-64.0, -64.0, 64.0, 64.0}), std::invalid_argument);
+    }
+}
+
 TEST(CraterLayer, FadesCratersOutAsTheSpacingCoarsens) {
     CraterLayerOptions options = Options();
     options.generate = false;

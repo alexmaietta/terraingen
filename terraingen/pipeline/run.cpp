@@ -25,6 +25,7 @@
 #include "terraingen/layers/transforms.h"
 #include "terraingen/meshes/mesh_io.h"
 #include "terraingen/noise/kernels/layers.h"
+#include "terraingen/pipeline/config_checks.h"
 #include "terraingen/pipeline/config_json.h"
 #include "terraingen/sources/flat_source.h"
 #include "terraingen/sources/geotiff_source.h"
@@ -213,9 +214,9 @@ void ValidateLayers(const std::vector<NoiseLayerConfig>& layers, const std::stri
                                     std::to_string(kMaxNoiseLayers) + " layers");
     }
     for (std::size_t i = 0; i < layers.size(); ++i) {
-        const std::string layer = path + "[" + std::to_string(i) + "]";
-        if (layers[i].hurst && !std::isfinite(*layers[i].hurst)) {
-            throw ConfigError(layer + ".hurst", "must be finite");
+        const std::string layer = config::Element(path, i);
+        if (layers[i].hurst) {
+            config::RequireFinite(*layers[i].hurst, config::Child(layer, "hurst"));
         }
         At(layer, [&] { ValidateNoiseLayer(layers[i].Effective()); });
     }
@@ -226,7 +227,7 @@ void ValidateLayers(const std::vector<NoiseLayerConfig>& layers, const std::stri
 void CheckBases3(const std::vector<NoiseLayerConfig>& stack, const std::string& path) {
     for (std::size_t i = 0; i < stack.size(); ++i) {
         if (!HasBasisNoise3(stack[i].layer.fractal.basis)) {
-            throw ConfigError(path + "[" + std::to_string(i) + "].basis",
+            throw ConfigError(config::Child(config::Element(path, i), "basis"),
                               "on a sphere noise needs a basis with a 3D form: perlin or value");
         }
     }
@@ -253,16 +254,12 @@ void ValidateCraters(const CraterLayerSpec& craters, const RasterGrid& grid,
                      const std::string& path, const Surface& surface) {
     for (std::size_t n = 0; n < craters.manual.size(); ++n) {
         const Crater& crater = craters.manual[n];
-        const std::string manual = path + ".manual[" + std::to_string(n) + "]";
+        const std::string manual = config::Element(config::Child(path, "manual"), n);
         if (!(std::isfinite(crater.x) && std::isfinite(crater.y))) {
             throw ConfigError(manual, "position must be finite");
         }
-        if (!(std::isfinite(crater.diameter) && crater.diameter > 0.0)) {
-            throw ConfigError(manual + ".diameter", "must be positive");
-        }
-        if (!(std::isfinite(crater.ageGyr) && crater.ageGyr >= 0.0)) {
-            throw ConfigError(manual + ".age_gyr", "must not be negative");
-        }
+        config::RequirePositive(crater.diameter, config::Child(manual, "diameter"));
+        config::RequireNonNegative(crater.ageGyr, config::Child(manual, "age_gyr"));
     }
     At(path + ".spacing", [&] { ValidateCraterSpacing(craters.spacing); });
     At(path + ".apply", [&] { ValidateCraterApplyOptions(craters.apply); });
@@ -303,9 +300,7 @@ void ValidateCraters(const CraterLayerSpec& craters, const RasterGrid& grid,
     if (!craters.generate) {
         return;
     }
-    if (!(std::isfinite(craters.minDiameter) && craters.minDiameter > 0.0)) {
-        throw ConfigError(path + ".min_diameter", "must be positive");
-    }
+    config::RequirePositive(craters.minDiameter, config::Child(path, "min_diameter"));
     if (!(std::isfinite(craters.maxDiameter) && craters.maxDiameter > craters.minDiameter)) {
         throw ConfigError(path + ".max_diameter", "must exceed min_diameter");
     }
@@ -423,9 +418,7 @@ void ValidateLayer(const LayerSpec& spec, const RasterGrid& grid, const std::str
                                       "number");
                 }
                 At(path, [&] { ValidateSecondaryCraterOptions(layer.secondaries); });
-                if (!(std::isfinite(layer.depthRatio) && layer.depthRatio > 0.0)) {
-                    throw ConfigError(path + ".depth_ratio", "must be positive");
-                }
+                config::RequirePositive(layer.depthRatio, config::Child(path, "depth_ratio"));
             },
             [&](const RoughnessLayerSpec& layer) {
                 At(path, [&] { ValidateRoughnessOptions(layer.roughness); });
@@ -441,9 +434,7 @@ void ValidateLayer(const LayerSpec& spec, const RasterGrid& grid, const std::str
             },
             [&](const RegionLayerSpec& layer) {
                 At(path + ".shape", [&] { ValidateRegionShape(BuildRegionShape(layer.shape)); });
-                if (!(std::isfinite(layer.feather) && layer.feather >= 0.0)) {
-                    throw ConfigError(path + ".feather", "must not be negative");
-                }
+                config::RequireNonNegative(layer.feather, config::Child(path, "feather"));
                 bool inner = craters;
                 ValidateLayer(*layer.layer, grid, path + ".layer", inner, surface);
             },
@@ -563,9 +554,7 @@ RasterGrid DescribeSourceAt(const SourceSpec& source, const std::filesystem::pat
         return grid;
     }
     if (const auto* flat = std::get_if<FlatSourceSpec>(&source)) {
-        if (!(std::isfinite(flat->pixelSize) && flat->pixelSize > 0.0)) {
-            throw ConfigError(path + ".pixel_size", "must be positive");
-        }
+        config::RequirePositive(flat->pixelSize, config::Child(path, "pixel_size"));
         CheckGridSize(flat->width, flat->height, path + ".width");
         if (!(std::isfinite(flat->centreX) && std::isfinite(flat->centreY))) {
             throw ConfigError(path + ".centre_x", "the centre must be finite");
@@ -609,9 +598,7 @@ RasterGrid DescribeSourceAt(const SourceSpec& source, const std::filesystem::pat
     }
     RasterGrid grid{info.width, info.height, info.transform};
     if (raster.pixelSize) {
-        if (!(std::isfinite(*raster.pixelSize) && *raster.pixelSize > 0.0)) {
-            throw ConfigError(path + ".pixel_size", "must be positive");
-        }
+        config::RequirePositive(*raster.pixelSize, config::Child(path, "pixel_size"));
         if (grid.transform.rowRotation != 0.0 || grid.transform.colRotation != 0.0) {
             throw ConfigError(path + ".pixel_size", "rotated rasters cannot be resampled");
         }
@@ -846,9 +833,8 @@ void ValidateConfig(const TerrainConfig& config, const std::filesystem::path& di
                     if (output.cellsPerFace == 0 || output.cellsPerFace > 4096) {
                         throw ConfigError(path + ".cells_per_face", "must be 1 to 4096");
                     }
-                    if (output.spacing &&
-                        !(std::isfinite(*output.spacing) && *output.spacing > 0.0)) {
-                        throw ConfigError(path + ".spacing", "must be positive");
+                    if (output.spacing) {
+                        config::RequirePositive(*output.spacing, config::Child(path, "spacing"));
                     }
                 },
                 [&](const AlbedoOutput& output) {

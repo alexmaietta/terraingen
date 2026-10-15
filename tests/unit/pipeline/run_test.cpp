@@ -1,5 +1,7 @@
 #include "terraingen/pipeline/run.h"
 
+#include "support/raster_equality.h"
+#include "support/temp_path.h"
 #include "terraingen/pipeline/config_json.h"
 #include "terraingen/raster/geotiff.h"
 #include "terraingen/raster/resample.h"
@@ -24,6 +26,8 @@ using terraingen::CraterListOutput;
 using terraingen::GenerateTerrain;
 using terraingen::TerrainConfig;
 using terraingen::ValidateConfig;
+using terraingen::testing::ExpectSameRaster;
+using terraingen::testing::TempPath;
 
 namespace {
 
@@ -72,18 +76,6 @@ std::string Read(const std::filesystem::path& path) {
     std::ostringstream text;
     text << file.rdbuf();
     return text.str();
-}
-
-void ExpectSameRaster(const terraingen::Raster<float>& a, const terraingen::Raster<float>& b) {
-    ASSERT_EQ(a.Width(), b.Width());
-    ASSERT_EQ(a.Height(), b.Height());
-    for (std::size_t i = 0; i < a.Size(); ++i) {
-        ASSERT_EQ(a.Values()[i], b.Values()[i]) << i;
-    }
-}
-
-std::filesystem::path TempPath(const std::string& name) {
-    return std::filesystem::path(::testing::TempDir()) / name;
 }
 
 }  // namespace

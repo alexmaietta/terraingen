@@ -11,4 +11,5 @@ terraingen_add_library(
     summed.cpp
     tabulated.cpp
     PUBLIC
-    terraingen_random)
+    terraingen_random
+    terraingen_util)

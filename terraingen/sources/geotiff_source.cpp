@@ -1,5 +1,7 @@
 #include "terraingen/sources/geotiff_source.h"
 
+#include "terraingen/util/checks.h"
+
 #include <cmath>
 #include <limits>
 #include <stdexcept>
@@ -42,9 +44,7 @@ GeoTiffSource::GeoTiffSource(std::filesystem::path path, std::size_t band,
     }
     grid_ = {info_.width, info_.height, info_.transform};
     if (pixelSize_) {
-        if (!(std::isfinite(*pixelSize_) && *pixelSize_ > 0.0)) {
-            throw std::invalid_argument("Pixel size must be positive and finite");
-        }
+        RequirePositive(*pixelSize_, "Pixel size");
         GeoTransform& t = grid_.transform;
         if (t.rowRotation != 0.0 || t.colRotation != 0.0) {
             throw std::invalid_argument("Rotated rasters cannot be resampled");

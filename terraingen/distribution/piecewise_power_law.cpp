@@ -1,6 +1,6 @@
 #include "terraingen/distribution/piecewise_power_law.h"
 
-#include "terraingen/distribution/checks.h"
+#include "terraingen/util/checks.h"
 
 #include <cmath>
 #include <stdexcept>
@@ -21,8 +21,7 @@ PiecewisePowerLawSfd::PiecewisePowerLawSfd(std::vector<PowerLawSegment> segments
     }
     for (std::size_t i = 0; i < segments_.size(); ++i) {
         const PowerLawSegment& segment = segments_[i];
-        if (!detail::PositiveFinite(segment.coefficient) ||
-            !detail::PositiveFinite(segment.exponent)) {
+        if (!IsPositive(segment.coefficient) || !IsPositive(segment.exponent)) {
             throw std::invalid_argument("Segment coefficients and exponents must be positive");
         }
         if (i == 0) {

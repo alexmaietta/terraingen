@@ -1,6 +1,6 @@
 #include "terraingen/distribution/tabulated.h"
 
-#include "terraingen/distribution/checks.h"
+#include "terraingen/util/checks.h"
 
 #include <algorithm>
 #include <cmath>
@@ -17,11 +17,11 @@ DiameterRange TableRange(const std::vector<double>& diameters,
     if (diameters.size() < 2 || diameters.size() != cumulative.size()) {
         throw std::invalid_argument("A table needs at least two diameters with one value each");
     }
-    if (!detail::PositiveFinite(diameterUnit) || !detail::PositiveFinite(areaUnit)) {
+    if (!IsPositive(diameterUnit) || !IsPositive(areaUnit)) {
         throw std::invalid_argument("Diameter and area units must be positive and finite");
     }
     for (std::size_t i = 0; i < diameters.size(); ++i) {
-        if (!detail::PositiveFinite(diameters[i]) || !detail::PositiveFinite(cumulative[i])) {
+        if (!IsPositive(diameters[i]) || !IsPositive(cumulative[i])) {
             throw std::invalid_argument("Table diameters and values must be positive and finite");
         }
         if (i > 0 && !(diameters[i] > diameters[i - 1])) {
@@ -70,6 +70,9 @@ double TabulatedSfd::InvertCumulative(double target, double /*dMin*/, double /*d
                                             [target](double value) { return value > target; });
     const auto index = static_cast<std::size_t>(above - cumulative_.begin());
     const std::size_t i = std::clamp<std::size_t>(index, 1, cumulative_.size() - 1) - 1;
+    if (slopes_[i] == 0.0) {
+        return diameters_[i];
+    }
     return diameters_[i] * std::pow(target / cumulative_[i], 1.0 / slopes_[i]);
 }
 

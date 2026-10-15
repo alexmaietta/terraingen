@@ -3,6 +3,7 @@
 #include "terraingen/layers/craters/filters.h"
 #include "terraingen/noise/kernels/philox.h"
 #include "terraingen/random/samplers.h"
+#include "terraingen/util/checks.h"
 #include "terraingen/util/log.h"
 
 #include <algorithm>
@@ -32,24 +33,16 @@ std::uint64_t CraterId(std::uint32_t seed, const CraterBand& band, const CellInd
 
 void CheckOptions(const CraterGenerationOptions& options) {
     ValidateCraterSpacing(options.spacing);
-    if (!(std::isfinite(options.dMin) && options.dMin > 0.0)) {
-        throw std::invalid_argument("dMin must be positive and finite");
-    }
+    RequirePositive(options.dMin, "dMin");
     if (!(options.dMax > options.dMin)) {
         throw std::invalid_argument("dMax must exceed dMin");
     }
-    if (!(std::isfinite(options.marginRadii) && options.marginRadii >= 0.0)) {
-        throw std::invalid_argument("marginRadii must be finite and not negative");
-    }
-    if (!(std::isfinite(options.cellSizeFactor) && options.cellSizeFactor > 0.0)) {
-        throw std::invalid_argument("cellSizeFactor must be positive and finite");
-    }
+    RequireNonNegative(options.marginRadii, "marginRadii");
+    RequirePositive(options.cellSizeFactor, "cellSizeFactor");
     if (!(options.maxExpectedCraters >= 0.0)) {
         throw std::invalid_argument("maxExpectedCraters must not be negative");
     }
-    if (!(std::isfinite(options.minResolvedDiameter) && options.minResolvedDiameter >= 0.0)) {
-        throw std::invalid_argument("minResolvedDiameter must be finite and not negative");
-    }
+    RequireNonNegative(options.minResolvedDiameter, "minResolvedDiameter");
 }
 
 }  // namespace
@@ -98,6 +91,25 @@ std::uint64_t ManualCraterId(double x, double y, double diameter) {
                     static_cast<std::uint32_t>(yBits), static_cast<std::uint32_t>(yBits >> 32)},
                    {static_cast<std::uint32_t>(dBits), static_cast<std::uint32_t>(dBits >> 32)});
     return (static_cast<std::uint64_t>(block.x) << 32) | block.y;
+}
+
+void AppendManualCraters(const CraterList& manual, CraterList& craters,
+                         const std::function<bool(const Crater&)>& keep) {
+    for (std::size_t n = 0; n < manual.Size(); ++n) {
+        Crater crater = manual.At(n);
+        if (!(std::isfinite(crater.x) && std::isfinite(crater.y) && IsPositive(crater.diameter) &&
+              IsNonNegative(crater.ageGyr))) {
+            throw std::invalid_argument("Manual craters need finite positions, positive diameters "
+                                        "and non-negative ages");
+        }
+        crater.manual = true;
+        if (crater.id == 0) {
+            crater.id = ManualCraterId(crater.x, crater.y, crater.diameter);
+        }
+        if (!keep || keep(crater)) {
+            craters.Append(crater);
+        }
+    }
 }
 
 void CraterList::Reserve(std::size_t count) {
@@ -214,20 +226,7 @@ CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
         }
     }
     const std::size_t generated = craters.Size();
-    for (std::size_t n = 0; n < options.manual.Size(); ++n) {
-        Crater crater = options.manual.At(n);
-        if (!(std::isfinite(crater.x) && std::isfinite(crater.y) &&
-              std::isfinite(crater.diameter) && crater.diameter > 0.0 &&
-              std::isfinite(crater.ageGyr) && crater.ageGyr >= 0.0)) {
-            throw std::invalid_argument("Manual craters need finite positions, positive diameters "
-                                        "and non-negative ages");
-        }
-        crater.manual = true;
-        if (crater.id == 0) {
-            crater.id = ManualCraterId(crater.x, crater.y, crater.diameter);
-        }
-        craters.Append(crater);
-    }
+    AppendManualCraters(options.manual, craters);
     std::size_t removed = 0;
     if (!spacing.Enabled() && options.manual.Size() > 0) {
         CraterList kept;
@@ -311,10 +310,10 @@ CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
 
 double MinDiameterForCount(const SizeFrequencyDistribution& density, double area, double count,
                            double dMin, double dMax) {
-    if (!(std::isfinite(count) && count > 0.0 && std::isfinite(area) && area > 0.0)) {
+    if (!(IsPositive(count) && IsPositive(area))) {
         throw std::invalid_argument("Count and area must be positive and finite");
     }
-    if (!(std::isfinite(dMin) && dMin > 0.0 && dMax > dMin && std::isfinite(dMax))) {
+    if (!(IsPositive(dMin) && dMax > dMin && std::isfinite(dMax))) {
         throw std::invalid_argument("Diameter interval must satisfy 0 < dMin < dMax");
     }
     if (density.ExpectedCount(area, dMin, dMax) <= count) {

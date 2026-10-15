@@ -50,6 +50,26 @@ TEST(VulkanCompute, RunsTheSharedHashKernelsBitForBitAsTheCpu) {
     }
 }
 
+TEST(VulkanCompute, RunsOneKernelWithDifferentPushConstantSizes) {
+    if (terraingen::VulkanCompute::Get() == nullptr) {
+        GTEST_SKIP() << terraingen::VulkanCompute::Reason();
+    }
+    terraingen::VulkanCompute& compute = *terraingen::VulkanCompute::Get();
+    const terraingen::ComputeKernel kernel{terraingen_test_hash_conformance,
+                                           terraingen_test_hash_conformance_size};
+    for (const std::uint32_t padding : {0u, 3u, 0u}) {
+        const std::uint32_t count = 64u + padding;
+        std::vector<std::uint32_t> push(1u + padding, 0u);
+        push[0] = count;
+        std::vector<std::uint32_t> outputs(5u * count, 0u);
+        compute.Run(kernel, {std::as_writable_bytes(std::span(outputs))},
+                    std::as_bytes(std::span(push)), {(count + 63u) / 64u, 1u, 1u});
+        for (std::uint32_t i = 0; i < count; ++i) {
+            ASSERT_EQ(outputs[5u * i], terraingen::PcgHash(i * 7919u)) << padding << " " << i;
+        }
+    }
+}
+
 TEST(VulkanCompute, RejectsPushConstantsPastTheDeviceLimit) {
     if (terraingen::VulkanCompute::Get() == nullptr) {
         GTEST_SKIP() << terraingen::VulkanCompute::Reason();

@@ -1,5 +1,7 @@
 #include "terraingen/layers/craters/filters.h"
 
+#include "terraingen/util/checks.h"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -43,9 +45,7 @@ void ValidateCraterSpacing(const CraterSpacing& spacing) {
     if (!(std::isfinite(spacing.diameterRatio) && spacing.diameterRatio >= 1.0)) {
         throw std::invalid_argument("Crater spacing diameter ratio must be at least 1");
     }
-    if (!(std::isfinite(spacing.separation) && spacing.separation >= 0.0)) {
-        throw std::invalid_argument("Crater spacing separation must be finite and not negative");
-    }
+    RequireNonNegative(spacing.separation, "Crater spacing separation");
 }
 
 bool CratersConflict(const Crater& a, const Crater& b, const CraterSpacing& spacing,

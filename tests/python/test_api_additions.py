@@ -6,13 +6,6 @@ import pytest
 import terraingen
 
 
-def lunar_models(degradation=None):
-    surface = terraingen.lunar_surface(3.5)
-    return terraingen.CraterModels(
-        surface.density, surface.ages, degradation or terraingen.FreshnessDegradation(surface.ages), terraingen.FassettThomsonProfile()
-    )
-
-
 def test_noise_in_3d_and_layer_helpers():
     x = np.array([0.3, 1.7e6, -2.5e5], dtype=np.float64)
     y = np.array([0.2, -3.1e5, 7.0], dtype=np.float64)
@@ -171,7 +164,7 @@ def test_crater_lists_generation_and_application():
     assert terraingen.fit_crater_datum(terraingen.Crater(0.0, 0.0, 50.0), terraingen.CraterApplyOptions(), lambda x, y: 0.0) is None
 
 
-def test_boulders_models_and_layers():
+def test_boulders_models_and_layers(lunar_models):
     craters = terraingen.CraterLayer(
         lunar_models(), terraingen.CraterLayerOptions(generation=terraingen.CraterGenerationOptions(min_diameter=3.0, max_diameter=20.0))
     )
@@ -208,7 +201,7 @@ def test_boulders_models_and_layers():
     np.testing.assert_allclose(heights[0], np.arange(-3.5, 4.5))
 
 
-def test_albedo_bodies_distributions_and_pipeline(tmp_path):
+def test_albedo_bodies_distributions_and_pipeline(tmp_path, lunar_models):
     assert terraingen.optical_maturity(0.08, 0.08 * 1.19) == pytest.approx(0.0, abs=1e-9)
     assert terraingen.reflectance_at_maturity(0.11, 0.2, 0.4) > 0.11
     assert terraingen.OpticalMaturityOrigin(ratio=1.2).ratio == 1.2

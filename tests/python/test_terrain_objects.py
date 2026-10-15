@@ -8,13 +8,6 @@ def fbm(seed=1, wavelength=200.0, amplitude=10.0):
     return terraingen.NoiseLayer(terraingen.FractalParams(seed=seed, wavelength=wavelength, amplitude=amplitude, octaves=5))
 
 
-def lunar_models(age=3.5):
-    surface = terraingen.lunar_surface(age)
-    return terraingen.CraterModels(
-        surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages), terraingen.FassettThomsonProfile()
-    )
-
-
 def test_flat_source_describes_its_grid():
     source = terraingen.FlatSource(65, 33, 2.0, elevation=5.0, centre=(100.0, -50.0))
     assert (source.width, source.height) == (65, 33)
@@ -40,7 +33,7 @@ def test_noise_terrain_matches_the_kernels_and_point_queries():
         terraingen.NoiseRelief([])
 
 
-def test_craters_from_a_surface_model_and_by_hand():
+def test_craters_from_a_surface_model_and_by_hand(lunar_models):
     surface = terraingen.lunar_surface(3.5)
     assert surface.density.cumulative(10.0) > surface.density.cumulative(100.0) > 0
     assert surface.density.expected_count(1e6, 10.0, 100.0) > 0
@@ -79,7 +72,7 @@ def test_craters_from_a_surface_model_and_by_hand():
     assert terraingen.mars_surface(3.0).density.cumulative(100.0) > 0
 
 
-def test_boulders_layer_filters_and_writers(tmp_path):
+def test_boulders_layer_filters_and_writers(tmp_path, lunar_models):
     craters = terraingen.CraterLayer(lunar_models(), terraingen.CraterLayerOptions(generation=terraingen.CraterGenerationOptions(min_diameter=3.0, max_diameter=20.0)))
     boulders = terraingen.BoulderLayer(
         terraingen.BoulderLayerOptions(
@@ -110,7 +103,7 @@ def test_boulders_layer_filters_and_writers(tmp_path):
     assert terraingen.evaluate_at(smoothed, 0.0, 0.0, 0.1) == terraingen.evaluate_at(plain, 0.0, 0.0, 0.1)
 
 
-def test_albedo_with_crater_rays_and_geotiffs(tmp_path):
+def test_albedo_with_crater_rays_and_geotiffs(tmp_path, lunar_models):
     young = terraingen.Crater(0.0, 0.0, 250.0, age_gyr=0.002)
     craters = terraingen.CraterLayer(
         lunar_models(3.2), terraingen.CraterLayerOptions(generation=terraingen.CraterGenerationOptions(min_diameter=60.0, max_diameter=300.0, manual=[young]))

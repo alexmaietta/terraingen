@@ -3,6 +3,7 @@
 #include "terraingen/noise/kernels/hash.h"
 #include "terraingen/noise/kernels/value.h"
 #include "terraingen/random/stream.h"
+#include "terraingen/util/checks.h"
 #include "terraingen/util/parallel.h"
 
 #include <algorithm>
@@ -18,10 +19,6 @@ namespace {
 constexpr std::uint32_t kCraterAlbedoStream = 0x414c4244u;
 constexpr std::uint32_t kObliqueStream = 0x4f424c51u;
 constexpr std::size_t kBlockRows = 32;
-
-bool Positive(double value) {
-    return std::isfinite(value) && value > 0.0;
-}
 
 }  // namespace
 
@@ -39,13 +36,13 @@ double RayRetention::Myr(double diameter) const {
 }
 
 void ValidateRayRetention(const RayRetention& retention) {
-    if (!(Positive(retention.smallDiameter) && Positive(retention.midDiameter) &&
-          Positive(retention.largeDiameter) && retention.smallDiameter < retention.midDiameter &&
+    if (!(IsPositive(retention.smallDiameter) && IsPositive(retention.midDiameter) &&
+          IsPositive(retention.largeDiameter) && retention.smallDiameter < retention.midDiameter &&
           retention.midDiameter <= retention.largeDiameter)) {
         throw std::invalid_argument("Ray retention diameters must be positive and increasing");
     }
-    if (!(Positive(retention.smallMyr) && Positive(retention.midMyr) &&
-          Positive(retention.largeMyr) && Positive(retention.scale))) {
+    if (!(IsPositive(retention.smallMyr) && IsPositive(retention.midMyr) &&
+          IsPositive(retention.largeMyr) && IsPositive(retention.scale))) {
         throw std::invalid_argument("Ray retention times and their scale must be positive");
     }
 }
@@ -93,13 +90,13 @@ void ValidateCraterRays(const CraterRays& rays) {
     if (!(rays.widthDegrees.Lowest() > 0.0 && rays.widthDegrees.Highest() < 180.0)) {
         throw std::invalid_argument("Ray widths must be in (0, 180) degrees");
     }
-    if (!(Positive(rays.lengthCoefficient) && Positive(rays.lengthExponent))) {
+    if (!(IsPositive(rays.lengthCoefficient) && IsPositive(rays.lengthExponent))) {
         throw std::invalid_argument("The ray length law needs a positive coefficient and exponent");
     }
-    if (!(std::isfinite(rays.excess) && rays.excess >= 0.0)) {
+    if (!IsNonNegative(rays.excess)) {
         throw std::invalid_argument("The ray maturity excess must not be negative");
     }
-    if (!(rays.patchiness >= 0.0 && rays.patchiness <= 1.0 && Positive(rays.patchRadii))) {
+    if (!(IsInUnitInterval(rays.patchiness) && IsPositive(rays.patchRadii))) {
         throw std::invalid_argument(
             "Ray patchiness must be in [0, 1] with a positive patch wavelength");
     }
@@ -114,20 +111,17 @@ void ValidateCraterAlbedo(const CraterAlbedoOptions& options) {
           options.minAgeGyr >= 0.0 && options.minAgeGyr <= options.maxAgeGyr)) {
         throw std::invalid_argument("Crater albedo size and age ranges must be ordered and >= 0");
     }
-    if (!(options.share >= 0.0 && options.share <= 1.0)) {
-        throw std::invalid_argument("The share of craters with bright material must be in [0, 1]");
-    }
-    if (!(Positive(options.backgroundMaturity) && std::isfinite(options.maxMaturity) &&
+    RequireUnitInterval(options.share, "The share of craters with bright material");
+    if (!(IsPositive(options.backgroundMaturity) && std::isfinite(options.maxMaturity) &&
           options.maxMaturity >= options.backgroundMaturity)) {
         throw std::invalid_argument(
             "The background maturity must be positive and the cap at least as high");
     }
-    if (!(std::isfinite(options.interiorExcess) && options.interiorExcess >= 0.0 &&
-          std::isfinite(options.ejectaExcess) && options.ejectaExcess >= 0.0)) {
+    if (!(IsNonNegative(options.interiorExcess) && IsNonNegative(options.ejectaExcess))) {
         throw std::invalid_argument("Crater maturity excesses must not be negative");
     }
-    if (!(Positive(options.ejectaExponent) && std::isfinite(options.ejectaReachRadii) &&
-          options.ejectaReachRadii > 1.0 && Positive(options.fadeExponent) &&
+    if (!(IsPositive(options.ejectaExponent) && std::isfinite(options.ejectaReachRadii) &&
+          options.ejectaReachRadii > 1.0 && IsPositive(options.fadeExponent) &&
           std::isfinite(options.originReflectance))) {
         throw std::invalid_argument("Crater albedo needs a positive ejecta exponent and fade "
                                     "exponent and a reach over 1 radius");

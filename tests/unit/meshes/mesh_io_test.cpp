@@ -1,5 +1,6 @@
 #include "terraingen/meshes/mesh_io.h"
 
+#include "support/temp_path.h"
 #include "terraingen/meshes/polyhedra.h"
 
 #include <gtest/gtest.h>
@@ -14,6 +15,8 @@
 #include <string>
 #include <vector>
 
+using terraingen::testing::TempPath;
+
 namespace {
 
 std::string Read(const std::filesystem::path& path) {
@@ -25,10 +28,6 @@ std::uint32_t Word(const std::string& bytes, std::size_t offset) {
     std::uint32_t value = 0;
     std::memcpy(&value, bytes.data() + offset, 4);
     return value;
-}
-
-std::filesystem::path TempPath(const std::string& name) {
-    return std::filesystem::path(::testing::TempDir()) / name;
 }
 
 }  // namespace

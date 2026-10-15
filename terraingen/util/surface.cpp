@@ -1,27 +1,14 @@
 #include "terraingen/util/surface.h"
 
+#include "terraingen/util/checks.h"
+
 #include <algorithm>
 #include <cmath>
 #include <numbers>
-#include <stdexcept>
 
 namespace terraingen {
 
 namespace {
-
-constexpr double kDegree = std::numbers::pi / 180.0;
-
-double Dot(const Vec3d& a, const Vec3d& b) {
-    return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
-Vec3d Cross(const Vec3d& a, const Vec3d& b) {
-    return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x};
-}
-
-double Length(const Vec3d& v) {
-    return std::sqrt(Dot(v, v));
-}
 
 /// The east and north unit vectors at longitude `lon` and latitude `lat` (radians).
 void LocalAxes(double lon, double lat, Vec3d& east, Vec3d& north) {
@@ -42,9 +29,7 @@ Vec3d UnitVector(double lonDeg, double latDeg) {
 }
 
 Surface Surface::Sphere(double radius) {
-    if (!(std::isfinite(radius) && radius > 0.0)) {
-        throw std::invalid_argument("A sphere's radius must be positive and finite");
-    }
+    RequirePositive(radius, "A sphere's radius");
     Surface surface;
     surface.kind_ = Kind::Sphere;
     surface.radius_ = radius;

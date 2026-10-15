@@ -1,5 +1,7 @@
 #include "terraingen/meshes/mesh.h"
 
+#include "terraingen/util/checks.h"
+
 #include <cmath>
 #include <cstddef>
 #include <map>
@@ -8,35 +10,6 @@
 #include <utility>
 
 namespace terraingen {
-
-Vec3d operator+(const Vec3d& a, const Vec3d& b) {
-    return {a.x + b.x, a.y + b.y, a.z + b.z};
-}
-
-Vec3d operator-(const Vec3d& a, const Vec3d& b) {
-    return {a.x - b.x, a.y - b.y, a.z - b.z};
-}
-
-Vec3d operator*(const Vec3d& v, double s) {
-    return {v.x * s, v.y * s, v.z * s};
-}
-
-double Dot(const Vec3d& a, const Vec3d& b) {
-    return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
-Vec3d Cross(const Vec3d& a, const Vec3d& b) {
-    return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x};
-}
-
-double Length(const Vec3d& v) {
-    return std::sqrt(Dot(v, v));
-}
-
-Vec3d Normalized(const Vec3d& v) {
-    const double length = Length(v);
-    return length > 0.0 ? v * (1.0 / length) : v;
-}
 
 Box3d Bounds(const TriangleMesh& mesh) {
     if (mesh.positions.empty()) {
@@ -92,9 +65,7 @@ std::vector<Vec3d> VertexNormals(const TriangleMesh& mesh) {
 }
 
 ShadedMesh WithCreases(const TriangleMesh& mesh, double creaseAngle) {
-    if (!(std::isfinite(creaseAngle) && creaseAngle >= 0.0)) {
-        throw std::invalid_argument("Crease angle must be finite and not negative");
-    }
+    RequireNonNegative(creaseAngle, "Crease angle");
     const double cosine = std::cos(creaseAngle);
     std::vector<Vec3d> areaNormals;
     std::vector<Vec3d> unitNormals;

@@ -3,10 +3,10 @@
 #include "terraingen/layers/craters/filters.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/cells.h"
+#include "terraingen/util/checks.h"
 
 #include <algorithm>
 #include <cmath>
-#include <limits>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -53,18 +53,11 @@ CraterList CraterLayer::Craters(const Bounds2d& region, double spacing) const {
                                generation);
     }
     CraterList craters;
-    for (std::size_t n = 0; n < generation.manual.Size(); ++n) {
-        Crater crater = generation.manual.At(n);
-        crater.manual = true;
-        if (crater.id == 0) {
-            crater.id = ManualCraterId(crater.x, crater.y, crater.diameter);
-        }
+    AppendManualCraters(generation.manual, craters, [&](const Crater& crater) {
         const double margin = 0.5 * generation.marginRadii * crater.diameter;
-        if (options_.surface.Contains(options_.surface.Expand(region, margin),
-                                      {crater.x, crater.y})) {
-            craters.Append(crater);
-        }
-    }
+        return options_.surface.Contains(options_.surface.Expand(region, margin),
+                                         {crater.x, crater.y});
+    });
     return craters;
 }
 
@@ -104,9 +97,7 @@ double CraterLayer::MaxFeatureDiameter() const {
 
 float CraterLayer::ApplyAt(float height, double x, double y, const LayerContext& context) const {
     const double spacing = context.spacing;
-    if (!(std::isfinite(spacing) && spacing > 0.0)) {
-        throw std::invalid_argument("Sample spacing must be positive and finite");
-    }
+    RequirePositive(spacing, "Sample spacing");
     const bool datum = options_.apply.datum != CraterDatum::None;
     if (datum && context.ground == nullptr) {
         throw std::invalid_argument(
@@ -119,10 +110,8 @@ float CraterLayer::ApplyAt(float height, double x, double y, const LayerContext&
     if (std::isnan(height)) {
         return height;
     }
-    constexpr double kInf = std::numeric_limits<double>::infinity();
     const double margin = DatumMargin(options_.apply, *models_.profile, MaxFeatureDiameter());
-    const Bounds2d point = options_.surface.Expand(
-        Bounds2d{x, y, std::nextafter(x, kInf), std::nextafter(y, kInf)}, margin);
+    const Bounds2d point = options_.surface.Expand(PointBounds(x, y), margin);
     const CraterList craters = Craters(point, spacing);
     const CraterProfile& profile = *models_.profile;
     std::vector<CraterInfluence::Entry> resolvedCraters;

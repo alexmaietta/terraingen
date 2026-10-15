@@ -1,11 +1,12 @@
 #include "terraingen/pipeline/terrain.h"
-#include "terraingen/util/cells.h"
-#include <numbers>
 
+#include "terraingen/util/cells.h"
+#include "terraingen/util/checks.h"
 #include "terraingen/util/parallel.h"
 
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 #include <stdexcept>
 
 namespace terraingen {
@@ -33,9 +34,7 @@ EvaluatedTerrain Evaluate(const Terrain& terrain, const RasterGrid& grid, double
 EvaluatedTerrain Evaluate(const Terrain& terrain, const RasterGrid& grid,
                           const EvaluationOptions& options) {
     CheckTerrain(terrain);
-    if (!(std::isfinite(options.spacing) && options.spacing >= 0.0)) {
-        throw std::invalid_argument("Sample spacing must be finite and not negative");
-    }
+    RequireNonNegative(options.spacing, "Sample spacing");
     const double resolved = std::max(options.spacing, grid.Spacing(terrain.surface));
     EvaluatedTerrain result{grid.MakeRaster(), {}};
     terrain.source->Fill(result.heights);
@@ -117,9 +116,7 @@ float EvaluateAt(const Terrain& terrain, double x, double y, double spacing) {
         throw std::invalid_argument(
             "Point queries cannot run filters, which read neighbouring cells; evaluate a grid");
     }
-    if (!(std::isfinite(spacing) && spacing > 0.0)) {
-        throw std::invalid_argument("Sample spacing must be positive and finite");
-    }
+    RequirePositive(spacing, "Sample spacing");
     if (std::any_of(terrain.layers.begin(), terrain.layers.end(),
                     [](const auto& l) { return !l; })) {
         throw std::invalid_argument("A terrain's layers must not be null");
@@ -159,9 +156,7 @@ TriangleMesh BodyMesh(const Terrain& terrain, std::size_t cellsPerFace, double s
     if (cellsPerFace == 0) {
         throw std::invalid_argument("A body mesh needs at least one cell per face");
     }
-    if (!(std::isfinite(spacing) && spacing >= 0.0)) {
-        throw std::invalid_argument("Sample spacing must be finite and not negative");
-    }
+    RequireNonNegative(spacing, "Sample spacing");
     const double radius = terrain.surface.Radius();
     const double quarter = std::numbers::pi / 4.0;
     const double step = 2.0 * quarter / static_cast<double>(cellsPerFace);

@@ -1,5 +1,7 @@
 #include "terraingen/layers/craters/degradation/diffusion.h"
 
+#include "terraingen/util/checks.h"
+
 #include <algorithm>
 #include <bit>
 #include <cmath>
@@ -61,11 +63,8 @@ double PowerLawDiffusivity::operator()(double diameter, double ageGyr) const {
 }
 
 void ValidatePowerLawDiffusivity(const PowerLawDiffusivity& law) {
-    if (!(std::isfinite(law.coefficient) && law.coefficient > 0.0)) {
-        throw std::invalid_argument("A diffusivity coefficient must be positive and finite");
-    }
-    if (!(std::isfinite(law.exponent) && std::isfinite(law.minDiameter) &&
-          law.minDiameter >= 0.0)) {
+    RequirePositive(law.coefficient, "A diffusivity coefficient");
+    if (!(std::isfinite(law.exponent) && IsNonNegative(law.minDiameter))) {
         throw std::invalid_argument(
             "A diffusivity exponent must be finite and its minimum diameter not negative");
     }
@@ -222,14 +221,14 @@ DiffusionDegradation::DiffusionDegradation(FreshMorphometry fresh, DiffusionAgeM
 }
 
 CraterState DiffusionDegradation::State(const Crater& crater) const {
-    if (!(std::isfinite(crater.diameter) && crater.diameter > 0.0)) {
+    if (!IsPositive(crater.diameter)) {
         throw std::domain_error("Crater diameter must be positive and finite");
     }
-    if (!(std::isfinite(crater.ageGyr) && crater.ageGyr >= 0.0)) {
+    if (!IsNonNegative(crater.ageGyr)) {
         throw std::domain_error("Crater age must be finite and not negative");
     }
     const double kappaT = ages_(crater.diameter, crater.ageGyr);
-    if (!(std::isfinite(kappaT) && kappaT >= 0.0)) {
+    if (!IsNonNegative(kappaT)) {
         throw std::domain_error("A crater's diffusion age must be finite and not negative");
     }
     const CraterMorphometry fresh = fresh_(crater.diameter);

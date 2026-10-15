@@ -1,6 +1,7 @@
 #include "terraingen/layers/exposure.h"
 
 #include "terraingen/noise/kernels/perlin.h"
+#include "terraingen/util/checks.h"
 #include "terraingen/util/parallel.h"
 
 #include <algorithm>
@@ -21,9 +22,7 @@ double Share(double value, double low, double high) {
 }  // namespace
 
 void ValidateExposureParams(const ExposureParams& params) {
-    if (!(std::isfinite(params.reach) && params.reach > 0.0)) {
-        throw std::invalid_argument("Exposure reach must be positive and finite");
-    }
+    RequirePositive(params.reach, "Exposure reach");
     if (!(params.riseBoulder > params.riseSoil && std::isfinite(params.riseSoil) &&
           std::isfinite(params.riseBoulder))) {
         throw std::invalid_argument("Exposure riseBoulder must exceed riseSoil");
@@ -35,9 +34,7 @@ void ValidateExposureParams(const ExposureParams& params) {
     if (!(params.floorCover >= 0.0 && params.floorCover < 1.0)) {
         throw std::invalid_argument("Exposure floorCover must be in [0, 1)");
     }
-    if (!(std::isfinite(params.floorPatch) && params.floorPatch > 0.0)) {
-        throw std::invalid_argument("Exposure floorPatch must be positive and finite");
-    }
+    RequirePositive(params.floorPatch, "Exposure floorPatch");
 }
 
 ExposureField::ExposureField(const ExposureParams& params, const Surface& surface)

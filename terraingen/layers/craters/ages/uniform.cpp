@@ -1,14 +1,13 @@
 #include "terraingen/layers/craters/ages/uniform.h"
 
+#include "terraingen/util/checks.h"
+
 #include <cmath>
-#include <stdexcept>
 
 namespace terraingen {
 
 UniformAges::UniformAges(double lifetimeGyr) : lifetimeGyr_(lifetimeGyr) {
-    if (!(std::isfinite(lifetimeGyr_) && lifetimeGyr_ > 0.0)) {
-        throw std::invalid_argument("Lifetime must be positive and finite");
-    }
+    RequirePositive(lifetimeGyr_, "Lifetime");
 }
 
 double UniformAges::LifetimeAt(double /*diameter*/) const {

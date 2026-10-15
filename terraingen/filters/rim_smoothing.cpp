@@ -2,6 +2,7 @@
 
 #include "terraingen/raster/filters.h"
 #include "terraingen/raster/grid.h"
+#include "terraingen/util/checks.h"
 #include "terraingen/util/parallel.h"
 
 #include <algorithm>
@@ -14,12 +15,8 @@
 
 namespace terraingen {
 
-namespace {}  // namespace
-
 void ValidateRimSmoothing(const RimSmoothing& smoothing) {
-    if (!(std::isfinite(smoothing.sigmaRadii) && smoothing.sigmaRadii >= 0.0)) {
-        throw std::invalid_argument("Rim smoothing sigma must be finite and not negative");
-    }
+    RequireNonNegative(smoothing.sigmaRadii, "Rim smoothing sigma");
     if (!(smoothing.strength >= 0.0 && smoothing.strength <= 1.0)) {
         throw std::invalid_argument("Rim smoothing strength must be between 0 and 1");
     }
@@ -46,9 +43,7 @@ void SmoothCraterRims(Raster<float>& raster, const CraterList& craters,
                       const RimSmoothing& smoothing, double spacing, unsigned threads,
                       const Surface& surface) {
     ValidateRimSmoothing(smoothing);
-    if (!(std::isfinite(spacing) && spacing >= 0.0)) {
-        throw std::invalid_argument("Sample spacing must be finite and not negative");
-    }
+    RequireNonNegative(spacing, "Sample spacing");
     if (raster.Empty() || craters.Empty() || smoothing.sigmaRadii == 0.0 ||
         smoothing.strength == 0.0) {
         return;

@@ -1,5 +1,7 @@
 #include "terraingen/raster/geotiff.h"
 
+#include "support/raster_equality.h"
+#include "support/temp_path.h"
 #include "terraingen/raster/tiff_codecs.h"
 #include "tests/unit/raster/gdal_fixtures.h"
 
@@ -30,10 +32,6 @@ namespace {
 
 using namespace terraingen::testing;  // NOLINT(google-build-using-namespace): the fixtures
 
-std::filesystem::path TempPath(const std::string& name) {
-    return std::filesystem::path(::testing::TempDir()) / name;
-}
-
 std::filesystem::path WriteBytes(const std::string& name, const std::vector<std::uint8_t>& bytes) {
     const auto path = TempPath(name);
     std::ofstream file(path, std::ios::binary);
@@ -54,14 +52,6 @@ Raster<float> Sample(std::size_t width, std::size_t height) {
     }
     raster.SetTransform(GeoTransform::NorthUp(-1000.25, 2500.5, 0.5));
     return raster;
-}
-
-void ExpectSamePixels(const Raster<float>& a, const Raster<float>& b) {
-    ASSERT_EQ(a.Width(), b.Width());
-    ASSERT_EQ(a.Height(), b.Height());
-    for (std::size_t i = 0; i < a.Size(); ++i) {
-        ASSERT_EQ(a.Values()[i], b.Values()[i]) << i;
-    }
 }
 
 std::vector<std::uint8_t> Bytes(std::initializer_list<std::uint8_t> bytes) {
@@ -210,7 +200,7 @@ TEST(WriteGeoTiff, RoundTripsValuesTransformNoDataAndGeoKeys) {
             EXPECT_EQ(info.bigTiff, bigTiff);
             EXPECT_TRUE(info.tiled);
             const auto read = ReadGeoTiff(path);
-            ExpectSamePixels(read.raster, raster);
+            ExpectSameRaster(read.raster, raster);
             EXPECT_EQ(read.raster.Transform(), raster.Transform());
             EXPECT_EQ(read.raster.NoData(), raster.NoData());
             EXPECT_EQ(read.geoKeys, source.geoKeys);
@@ -252,13 +242,13 @@ TEST(WriteGeoTiff, WritesSeveralBandsOneAfterAnother) {
     EXPECT_EQ(ReadGeoTiffInfo(path).bands, 3u);
     for (std::size_t band = 0; band < bands.size(); ++band) {
         const auto read = ReadGeoTiff(path, band);
-        ExpectSamePixels(read.raster, bands[band]);
+        ExpectSameRaster(read.raster, bands[band]);
         EXPECT_EQ(read.raster.Transform(), bands[band].Transform());
         EXPECT_EQ(read.raster.NoData(), bands[band].NoData());
     }
     WriteGeoTiff(path, std::vector<Raster<float>>{bands[0]});
     EXPECT_EQ(ReadGeoTiffInfo(path).bands, 1u);
-    ExpectSamePixels(ReadGeoTiff(path).raster, bands[0]);
+    ExpectSameRaster(ReadGeoTiff(path).raster, bands[0]);
 
     EXPECT_THROW(WriteGeoTiff(path, std::vector<Raster<float>>{}), GeoTiffError);
     bands[1] = Sample(20, 19);

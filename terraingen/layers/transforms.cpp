@@ -1,6 +1,7 @@
 #include "terraingen/layers/transforms.h"
 
 #include "terraingen/raster/grid.h"
+#include "terraingen/util/checks.h"
 #include "terraingen/util/parallel.h"
 
 #include <algorithm>
@@ -38,12 +39,6 @@ float Clamped(float height, const std::optional<double>& min, const std::optiona
         value = std::min(value, *max);
     }
     return static_cast<float>(value);
-}
-
-void CheckSpacing(double spacing) {
-    if (!(std::isfinite(spacing) && spacing > 0.0)) {
-        throw std::invalid_argument("Sample spacing must be positive and finite");
-    }
 }
 
 }  // namespace
@@ -101,7 +96,7 @@ void FunctionLayer::Apply(Raster<float>& heights, const LayerContext& context,
 }
 
 float FunctionLayer::ApplyAt(float height, double x, double y, const LayerContext& context) const {
-    CheckSpacing(context.spacing);
+    RequirePositive(context.spacing, "Sample spacing");
     if (std::isnan(height)) {
         return height;
     }

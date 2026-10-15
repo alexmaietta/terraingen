@@ -1,6 +1,6 @@
 #include "terraingen/distribution/power_law.h"
 
-#include "terraingen/distribution/checks.h"
+#include "terraingen/util/checks.h"
 
 #include <cmath>
 #include <stdexcept>
@@ -9,7 +9,7 @@ namespace terraingen {
 
 PowerLawSfd::PowerLawSfd(double coefficient, double exponent, SfdKind kind, DiameterRange range)
     : SizeFrequencyDistribution(kind, range), coefficient_(coefficient), exponent_(exponent) {
-    if (!detail::PositiveFinite(coefficient_) || !detail::PositiveFinite(exponent_)) {
+    if (!IsPositive(coefficient_) || !IsPositive(exponent_)) {
         throw std::invalid_argument(
             "Power law coefficient and exponent must be positive and finite");
     }

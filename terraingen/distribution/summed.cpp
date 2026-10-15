@@ -1,5 +1,7 @@
 #include "terraingen/distribution/summed.h"
 
+#include "terraingen/util/checks.h"
+
 #include <cmath>
 #include <limits>
 #include <stdexcept>
@@ -17,9 +19,7 @@ const std::vector<WeightedSfd>& Checked(const std::vector<WeightedSfd>& terms) {
         if (!term.distribution) {
             throw std::invalid_argument("A summed distribution cannot hold a null term");
         }
-        if (!(std::isfinite(term.weight) && term.weight > 0.0)) {
-            throw std::invalid_argument("Summed distribution weights must be positive and finite");
-        }
+        RequirePositive(term.weight, "Summed distribution weights");
         if (term.distribution->Kind() != terms.front().distribution->Kind()) {
             throw std::invalid_argument("Summed terms must be distributions of one kind");
         }

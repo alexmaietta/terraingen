@@ -1,6 +1,7 @@
 terraingen_add_test_suite(
     pipeline
     SOURCES
+    config_checks_test.cpp
     config_json_test.cpp
     run_test.cpp
     terrain_test.cpp

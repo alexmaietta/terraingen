@@ -2,6 +2,7 @@
 
 #include "terraingen/raster/tiff_codecs.h"
 
+#include "terraingen/util/checks.h"
 #include "terraingen/util/log.h"
 
 #include <algorithm>
@@ -832,9 +833,7 @@ std::string NoDataText(float value) {
 }  // namespace
 
 GeoKeys GeographicSphereKeys(double radius) {
-    if (!(std::isfinite(radius) && radius > 0.0)) {
-        throw std::invalid_argument("A sphere's radius must be positive and finite");
-    }
+    RequirePositive(radius, "A sphere's radius");
     constexpr std::uint16_t kDoubles = 34736;
     GeoKeys keys;
     keys.directory = {1,    1, 0, 8,     1024, 0,        1, 2,     1025, 0,        1, 1,

@@ -46,7 +46,6 @@ double RasterGrid::SurfaceArea(const Surface& surface) const {
     if (!surface.IsSphere()) {
         return Area();
     }
-    constexpr double kDegree = 3.14159265358979323846 / 180.0;
     const Bounds2d box = Bounds();
     const double turn = std::fmin(box.maxX - box.minX, 360.0) * kDegree;
     const double south = std::fmax(box.minY, -90.0) * kDegree;

@@ -1,6 +1,7 @@
 #include "terraingen/layers/craters/irregularity.h"
 
 #include "terraingen/random/stream.h"
+#include "terraingen/util/checks.h"
 
 #include <algorithm>
 #include <cmath>
@@ -201,9 +202,7 @@ void ValidateCraterIrregularity(const CraterIrregularity& irregularity) {
     ValidateValueDistribution(irregularity.spectralSlope);
     ValidateValueDistribution(irregularity.ellipticity);
     for (const double share : {irregularity.roughShare, irregularity.elongatedShare}) {
-        if (!(share >= 0.0 && share <= 1.0)) {
-            throw std::invalid_argument("Crater irregularity shares must be in [0, 1]");
-        }
+        RequireUnitInterval(share, "Crater irregularity shares");
     }
     if (!(irregularity.minDiameter >= 0.0 && irregularity.maxDiameter >= irregularity.minDiameter &&
           irregularity.minAgeGyr >= 0.0 && irregularity.maxAgeGyr >= irregularity.minAgeGyr)) {
@@ -228,7 +227,7 @@ void ValidateCraterIrregularity(const CraterIrregularity& irregularity) {
         throw std::invalid_argument("Crater maxDeviation must be in (0, 0.5]");
     }
     if ((irregularity.heading && !std::isfinite(*irregularity.heading)) ||
-        !(std::isfinite(irregularity.headingSpread) && irregularity.headingSpread >= 0.0)) {
+        !IsNonNegative(irregularity.headingSpread)) {
         throw std::invalid_argument("Crater heading and spread must be finite, the spread >= 0");
     }
 }

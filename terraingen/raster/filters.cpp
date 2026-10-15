@@ -1,5 +1,7 @@
 #include "terraingen/raster/filters.h"
 
+#include "terraingen/util/checks.h"
+
 #include <cmath>
 #include <cstddef>
 #include <stdexcept>
@@ -56,8 +58,7 @@ Raster<float> GaussianBlur(const Raster<float>& raster, double sigmaPixels) {
 }
 
 Raster<float> GaussianBlur(const Raster<float>& raster, double sigmaColumns, double sigmaRows) {
-    if (!(std::isfinite(sigmaColumns) && sigmaColumns >= 0.0 && std::isfinite(sigmaRows) &&
-          sigmaRows >= 0.0)) {
+    if (!(IsNonNegative(sigmaColumns) && IsNonNegative(sigmaRows))) {
         throw std::invalid_argument("Gaussian sigma must be finite and not negative");
     }
     Raster<float> result = raster;

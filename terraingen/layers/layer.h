@@ -7,9 +7,8 @@
 #include "terraingen/layers/ground.h"
 #include "terraingen/raster/geo_transform.h"
 #include "terraingen/raster/raster.h"
+#include "terraingen/util/checks.h"
 
-#include <cmath>
-#include <stdexcept>
 #include <vector>
 
 namespace terraingen {
@@ -59,9 +58,7 @@ class Layer {
     /// of side `context.spacing`; layers override it with something faster where they can.
     /// @throws std::invalid_argument if `context.spacing` is not positive and finite.
     virtual float ApplyAt(float height, double x, double y, const LayerContext& context) const {
-        if (!(std::isfinite(context.spacing) && context.spacing > 0.0)) {
-            throw std::invalid_argument("Sample spacing must be positive and finite");
-        }
+        RequirePositive(context.spacing, "Sample spacing");
         Raster<float> cell(1, 1, height);
         cell.SetTransform(GeoTransform::NorthUp(x - 0.5 * context.spacing,
                                                 y + 0.5 * context.spacing, context.spacing));

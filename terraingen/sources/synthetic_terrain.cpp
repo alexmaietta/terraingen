@@ -1,5 +1,6 @@
 #include "terraingen/sources/synthetic_terrain.h"
 
+#include "terraingen/util/checks.h"
 #include "terraingen/util/log.h"
 
 #include <cmath>
@@ -8,39 +9,23 @@
 
 namespace terraingen {
 
-namespace {
-
-bool PositiveFinite(float value) {
-    return std::isfinite(value) && value > 0.0f;
-}
-
-}  // namespace
-
 void ValidateFractalParams(const FractalParams& params) {
-    if (!PositiveFinite(params.wavelength)) {
-        throw std::invalid_argument("Fractal wavelength must be positive and finite");
-    }
-    if (!std::isfinite(params.amplitude)) {
-        throw std::invalid_argument("Fractal amplitude must be finite");
-    }
+    RequirePositive(params.wavelength, "Fractal wavelength");
+    RequireFinite(params.amplitude, "Fractal amplitude");
     if (params.octaves < 1 || params.octaves > 32) {
         throw std::invalid_argument("Fractal octaves must be between 1 and 32");
     }
     if (!(std::isfinite(params.lacunarity) && params.lacunarity > 1.0f)) {
         throw std::invalid_argument("Fractal lacunarity must be greater than 1 and finite");
     }
-    if (!PositiveFinite(params.gain)) {
-        throw std::invalid_argument("Fractal gain must be positive and finite");
-    }
+    RequirePositive(params.gain, "Fractal gain");
     if (static_cast<std::uint32_t>(params.basis) >= kNoiseBasisCount) {
         throw std::invalid_argument("Unknown noise basis");
     }
     if (static_cast<std::uint32_t>(params.type) >= kFractalTypeCount) {
         throw std::invalid_argument("Unknown fractal type");
     }
-    if (!PositiveFinite(params.offset)) {
-        throw std::invalid_argument("Fractal offset must be positive and finite");
-    }
+    RequirePositive(params.offset, "Fractal offset");
 }
 
 void ValidateNoiseLayer(const NoiseLayer& layer) {
@@ -48,12 +33,8 @@ void ValidateNoiseLayer(const NoiseLayer& layer) {
     if (static_cast<std::uint32_t>(layer.blend) >= kLayerBlendCount) {
         throw std::invalid_argument("Unknown layer blend mode");
     }
-    if (!(std::isfinite(layer.warpAmplitude) && layer.warpAmplitude >= 0.0f)) {
-        throw std::invalid_argument("Warp amplitude must be finite and not negative");
-    }
-    if (!PositiveFinite(layer.warpWavelength)) {
-        throw std::invalid_argument("Warp wavelength must be positive and finite");
-    }
+    RequireNonNegative(layer.warpAmplitude, "Warp amplitude");
+    RequirePositive(layer.warpWavelength, "Warp wavelength");
 }
 
 void ValidateSyntheticTerrain(const SyntheticTerrainParams& params) {
@@ -91,9 +72,7 @@ Raster<float> GenerateSyntheticTerrain(std::size_t width, std::size_t height, do
     if (width == 0 || height == 0) {
         throw std::invalid_argument("Raster width and height must be at least 1");
     }
-    if (!(std::isfinite(pixelSize) && pixelSize > 0.0)) {
-        throw std::invalid_argument("Pixel size must be positive and finite");
-    }
+    RequirePositive(pixelSize, "Pixel size");
     ValidateSyntheticTerrain(params);
 
     Raster<float> raster(width, height);

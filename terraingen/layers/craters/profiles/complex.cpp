@@ -1,5 +1,7 @@
 #include "terraingen/layers/craters/profiles/complex.h"
 
+#include "terraingen/util/checks.h"
+
 #include <algorithm>
 #include <cmath>
 #include <numbers>
@@ -14,21 +16,20 @@ double KilometrePowerLaw::At(double diameter, bool volume) const {
 }
 
 void ValidateComplexCraterShape(const ComplexCraterShape& shape) {
-    if (!(std::isfinite(shape.transitionDiameter) && shape.transitionDiameter > 0.0)) {
+    if (!IsPositive(shape.transitionDiameter)) {
         throw std::invalid_argument("The complex crater transition diameter must be positive");
     }
     const KilometrePowerLaw peakWidth = shape.peakDiameter ? *shape.peakDiameter : shape.peakVolume;
     for (const KilometrePowerLaw& law : {shape.floorDiameter, shape.peakHeight, peakWidth}) {
-        if (!(std::isfinite(law.coefficient) && law.coefficient > 0.0 &&
-              std::isfinite(law.exponent))) {
+        if (!(IsPositive(law.coefficient) && std::isfinite(law.exponent))) {
             throw std::invalid_argument("Complex crater power laws need a positive coefficient");
         }
     }
-    if (!(std::isfinite(shape.peakFitMaxDiameter) && shape.peakFitMaxDiameter >= 0.0)) {
+    if (!IsNonNegative(shape.peakFitMaxDiameter)) {
         throw std::invalid_argument("The peak fit limit must not be negative");
     }
-    if (!(std::isfinite(shape.ejectaExponent) && shape.ejectaExponent > 0.0 &&
-          std::isfinite(shape.reachRadii) && shape.reachRadii > 1.0)) {
+    if (!(IsPositive(shape.ejectaExponent) && std::isfinite(shape.reachRadii) &&
+          shape.reachRadii > 1.0)) {
         throw std::invalid_argument(
             "Complex craters need a positive ejecta exponent and a reach over 1 radius");
     }

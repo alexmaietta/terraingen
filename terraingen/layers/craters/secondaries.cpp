@@ -4,6 +4,7 @@
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/grid.h"
+#include "terraingen/util/checks.h"
 
 #include <algorithm>
 #include <cmath>
@@ -18,10 +19,6 @@ namespace terraingen {
 namespace {
 
 constexpr std::uint32_t kSecondaryStream = 0x53454344u;
-
-bool Positive(double value) {
-    return std::isfinite(value) && value > 0.0;
-}
 
 /// The primary's ID mixed with a cell's indices into a secondary's ID.
 std::uint64_t SecondaryId(std::uint64_t primary, int band, std::int64_t ring, std::int64_t sector,
@@ -100,17 +97,17 @@ double SecondaryOnsetRange(double diameter) {
 }
 
 void ValidateSecondaryCraterOptions(const SecondaryCraterOptions& options) {
-    if (!(options.onsetCount && Positive(*options.onsetCount))) {
+    if (!(options.onsetCount && IsPositive(*options.onsetCount))) {
         throw std::invalid_argument("Secondary craters need an onset count: the sources give their "
                                     "sizes, not their number");
     }
-    if (!(Positive(options.countFraction) && Positive(options.sizeSlope))) {
+    if (!(IsPositive(options.countFraction) && IsPositive(options.sizeSlope))) {
         throw std::invalid_argument("The secondary count fraction and size slope must be positive");
     }
-    if (!(Positive(options.minDiameter) && options.maxDiameter > options.minDiameter)) {
+    if (!(IsPositive(options.minDiameter) && options.maxDiameter > options.minDiameter)) {
         throw std::invalid_argument("Secondary diameters must satisfy 0 < min < max");
     }
-    if (options.outerRange && !Positive(*options.outerRange)) {
+    if (options.outerRange && !IsPositive(*options.outerRange)) {
         throw std::invalid_argument("The secondary outer range must be positive");
     }
     if (!(options.minPrimaryDiameter >= 0.0 &&
@@ -118,7 +115,7 @@ void ValidateSecondaryCraterOptions(const SecondaryCraterOptions& options) {
           options.maxAgeGyr >= options.minAgeGyr)) {
         throw std::invalid_argument("Primary size and age ranges must be ordered and >= 0");
     }
-    if (!(Positive(options.cellSizeFactor) && Positive(options.maxExpected))) {
+    if (!(IsPositive(options.cellSizeFactor) && IsPositive(options.maxExpected))) {
         throw std::invalid_argument("The cell size factor and expected limit must be positive");
     }
 }
@@ -299,15 +296,11 @@ void SecondaryCraterLayer::Apply(Raster<float>& heights, const LayerContext& con
 float SecondaryCraterLayer::ApplyAt(float height, double x, double y,
                                     const LayerContext& context) const {
     const double spacing = context.spacing;
-    if (!(std::isfinite(spacing) && spacing > 0.0)) {
-        throw std::invalid_argument("Sample spacing must be positive and finite");
-    }
+    RequirePositive(spacing, "Sample spacing");
     if (std::isnan(height)) {
         return height;
     }
-    constexpr double kInf = std::numeric_limits<double>::infinity();
-    const CraterList secondaries =
-        Secondaries({x, y, std::nextafter(x, kInf), std::nextafter(y, kInf)}, spacing);
+    const CraterList secondaries = Secondaries(PointBounds(x, y), spacing);
     for (const std::size_t index : CraterApplyOrder(secondaries, apply_.order)) {
         const Crater crater = secondaries.At(index);
         const double resolution = ResolutionWeight(crater.diameter, spacing, apply_.fade);

@@ -1,5 +1,7 @@
 #include "terraingen/random/samplers.h"
 
+#include "terraingen/util/checks.h"
+
 #include <algorithm>
 #include <cmath>
 #include <iterator>
@@ -59,12 +61,10 @@ std::uint64_t SamplePoisson(RandomStream& random, double mean) {
 }
 
 double SampleTruncatedPowerLaw(RandomStream& random, double min, double max, double exponent) {
-    if (!(std::isfinite(min) && min > 0.0 && max > min && !std::isnan(max))) {
+    if (!(IsPositive(min) && max > min && !std::isnan(max))) {
         throw std::invalid_argument("Power law bounds must satisfy 0 < min < max");
     }
-    if (!(std::isfinite(exponent) && exponent > 0.0)) {
-        throw std::invalid_argument("Power law exponent must be positive and finite");
-    }
+    RequirePositive(exponent, "Power law exponent");
     const double low = std::pow(min, -exponent);
     const double high = std::isinf(max) ? 0.0 : std::pow(max, -exponent);
     const double u = random.NextDouble();
@@ -73,14 +73,12 @@ double SampleTruncatedPowerLaw(RandomStream& random, double min, double max, dou
 }
 
 double SampleExponential(RandomStream& random, double rate) {
-    if (!(std::isfinite(rate) && rate > 0.0)) {
-        throw std::invalid_argument("Exponential rate must be positive and finite");
-    }
+    RequirePositive(rate, "Exponential rate");
     return -std::log(random.NextDoubleOpenBelow()) / rate;
 }
 
 double SampleNormal(RandomStream& random, double mean, double sigma) {
-    if (!std::isfinite(mean) || !(std::isfinite(sigma) && sigma >= 0.0)) {
+    if (!(std::isfinite(mean) && IsNonNegative(sigma))) {
         throw std::invalid_argument("Normal mean must be finite and sigma finite and not negative");
     }
     constexpr double kTwoPi = 6.283185307179586477;

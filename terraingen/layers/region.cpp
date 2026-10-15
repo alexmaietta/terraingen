@@ -1,6 +1,7 @@
 #include "terraingen/layers/region.h"
 
 #include "terraingen/raster/grid.h"
+#include "terraingen/util/checks.h"
 #include "terraingen/util/parallel.h"
 
 #include <algorithm>
@@ -62,7 +63,7 @@ Bounds2d RegionShape::Bounds(const Surface& surface) const {
 void ValidateRegionShape(const RegionShape& shape) {
     if (shape.kind == RegionShape::Kind::Circle) {
         if (!(std::isfinite(shape.centre.x) && std::isfinite(shape.centre.y) &&
-              std::isfinite(shape.radius) && shape.radius >= 0.0)) {
+              IsNonNegative(shape.radius))) {
             throw std::invalid_argument("A circular region needs a finite centre and radius >= 0");
         }
         return;
@@ -81,9 +82,7 @@ RegionLayer::RegionLayer(std::shared_ptr<const Layer> inner, RegionShape shape, 
         throw std::invalid_argument("A region layer needs a layer to apply");
     }
     ValidateRegionShape(shape_);
-    if (!(std::isfinite(feather_) && feather_ >= 0.0)) {
-        throw std::invalid_argument("Region feather must be finite and not negative");
-    }
+    RequireNonNegative(feather_, "Region feather");
 }
 
 double RegionLayer::Weight(double x, double y) const {

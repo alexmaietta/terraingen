@@ -1,5 +1,7 @@
 #include "terraingen/layers/craters/ages/age_model.h"
 
+#include "terraingen/util/checks.h"
+
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
@@ -9,7 +11,7 @@ namespace terraingen {
 namespace {
 
 void CheckDiameter(double diameter) {
-    if (!(std::isfinite(diameter) && diameter > 0.0)) {
+    if (!IsPositive(diameter)) {
         throw std::domain_error("Diameter must be positive and finite");
     }
 }

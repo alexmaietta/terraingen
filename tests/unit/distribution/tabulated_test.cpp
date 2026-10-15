@@ -69,6 +69,34 @@ TEST(TabulatedSfd, FlatIntervalsHoldNoMass) {
     }
 }
 
+namespace {
+
+/// Exposes a distribution's protected `InvertCumulative`.
+class Inverter final : public SizeFrequencyDistribution {
+  public:
+    Inverter() : SizeFrequencyDistribution(SfdKind::Density, DiameterRange{1.0, 2.0}) {}
+
+    static double Invert(const SizeFrequencyDistribution& sfd, double target) {
+        return InvertCumulativeOf(sfd, target, 0.0, kInf);
+    }
+
+  protected:
+    double CumulativeAt(double /*diameter*/) const override {
+        return 0.0;
+    }
+};
+
+}  // namespace
+
+TEST(TabulatedSfd, InvertsFlatEndIntervalsToTheirStart) {
+    const TabulatedSfd flatEnd({1.0, 2.0, 4.0}, {1.0, 0.25, 0.25});
+    EXPECT_EQ(Inverter::Invert(flatEnd, 0.1), 2.0);
+    EXPECT_DOUBLE_EQ(Inverter::Invert(flatEnd, 0.5), std::sqrt(2.0));
+    const TabulatedSfd flatStart({1.0, 2.0, 4.0}, {1.0, 1.0, 0.25});
+    EXPECT_EQ(Inverter::Invert(flatStart, 2.0), 1.0);
+    EXPECT_DOUBLE_EQ(Inverter::Invert(flatStart, 0.5), 2.0 * std::sqrt(2.0));
+}
+
 TEST(TabulatedSfd, ExtrapolatesTheEndSlopesByOptIn) {
     TabulatedSfd table({1.0, 10.0, 100.0}, {1.0, 0.1, 0.0001});
     table.SetAllowExtrapolation(true);

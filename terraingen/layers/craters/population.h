@@ -90,6 +90,13 @@ class CraterList {
     std::vector<std::uint8_t> manual_;
 };
 
+/// Appends the craters of `manual` that `keep` accepts (all when `keep` is empty) to `craters`,
+/// flagged manual and given a `ManualCraterId` where their ID is 0.
+/// @throws std::invalid_argument for a crater with a non-finite position, a diameter that is not
+/// positive and finite, or a negative or non-finite age, whether `keep` accepts it or not.
+void AppendManualCraters(const CraterList& manual, CraterList& craters,
+                         const std::function<bool(const Crater&)>& keep = {});
+
 /// Keeps craters of similar size apart: two craters conflict when their diameters differ by at most
 /// `diameterRatio` and their centres are closer than `separation` times the larger diameter.
 ///

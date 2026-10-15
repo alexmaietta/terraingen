@@ -1,5 +1,6 @@
 #include "terraingen/pipeline/terrain.h"
 
+#include "support/raster_equality.h"
 #include "terraingen/terraingen.h"
 
 #include <gtest/gtest.h>
@@ -16,6 +17,7 @@ using terraingen::Evaluate;
 using terraingen::GeoTransform;
 using terraingen::RasterGrid;
 using terraingen::Terrain;
+using terraingen::testing::ExpectSameRaster;
 
 namespace {
 
@@ -235,14 +237,6 @@ Terrain Smoothed() {
     return terrain;
 }
 
-void ExpectSameHeights(const terraingen::Raster<float>& a, const terraingen::Raster<float>& b) {
-    ASSERT_EQ(a.Width(), b.Width());
-    ASSERT_EQ(a.Height(), b.Height());
-    for (std::size_t i = 0; i < a.Size(); ++i) {
-        ASSERT_EQ(a.Values()[i], b.Values()[i]) << i;
-    }
-}
-
 }  // namespace
 
 TEST(Evaluate, GivesTheSameBitsOnAnyNumberOfThreads) {
@@ -251,7 +245,7 @@ TEST(Evaluate, GivesTheSameBitsOnAnyNumberOfThreads) {
     const auto serial = Evaluate(terrain, grid, terraingen::EvaluationOptions{0.0, 1});
     for (const unsigned threads : {2u, 8u, 0u}) {
         const auto parallel = Evaluate(terrain, grid, terraingen::EvaluationOptions{0.0, threads});
-        ExpectSameHeights(parallel.heights, serial.heights);
+        ExpectSameRaster(parallel.heights, serial.heights);
         EXPECT_EQ(parallel.features.craters.Ids(), serial.features.craters.Ids());
     }
     EXPECT_THROW(Evaluate(terrain, grid, terraingen::EvaluationOptions{-1.0, 1}),
@@ -290,7 +284,7 @@ TEST(EvaluateTile, MatchesGridsEvaluatedAtEachLevelsSpacing) {
         const terraingen::TileKey key{level, 0, 0};
         const auto tile = terraingen::EvaluateTile(terrain, scheme, key);
         const auto grid = Evaluate(terrain, scheme.Grid(key));
-        ExpectSameHeights(tile.heights, grid.heights);
+        ExpectSameRaster(tile.heights, grid.heights);
     }
     EXPECT_EQ(terraingen::FilterMargin(terrain, 2.0), 0.0);
 }
@@ -302,8 +296,8 @@ TEST(EvaluateTiles, EvaluatesEveryTileInOrder) {
     const auto tiles = terraingen::EvaluateTiles(terrain, scheme, keys, 4);
     ASSERT_EQ(tiles.size(), keys.size());
     for (std::size_t n = 0; n < keys.size(); ++n) {
-        ExpectSameHeights(tiles[n].heights,
-                          terraingen::EvaluateTile(terrain, scheme, keys[n]).heights);
+        ExpectSameRaster(tiles[n].heights,
+                         terraingen::EvaluateTile(terrain, scheme, keys[n]).heights);
     }
     EXPECT_THROW(
         terraingen::EvaluateTile(terrain, terraingen::TileScheme{{0.0, 0.0}, -1.0, 16}, {0, 0, 0}),
@@ -316,7 +310,7 @@ TEST(Layer, DefaultsRunApplyAndPlaceNoFeatures) {
     terrain.layers.push_back(std::make_shared<Bump>());
     const auto parallel =
         Evaluate(terrain, terrain.source->Grid(), terraingen::EvaluationOptions{0.0, 4});
-    ExpectSameHeights(parallel.heights, Evaluate(terrain).heights);
+    ExpectSameRaster(parallel.heights, Evaluate(terrain).heights);
     EXPECT_EQ(Bump().MaxFeatureDiameter(), 0.0);
 }
 
@@ -362,8 +356,8 @@ TEST(EvaluateTile, CratersCutToADatumEqualALargerGrid) {
     const terraingen::TileScheme scheme{{-96.0, 64.0}, 128.0, 16};
     const RasterGrid large{120, 100, GeoTransform::NorthUp(-120.0, 100.0, 2.0)};
     const auto whole = Evaluate(terrain, large, terraingen::EvaluationOptions{0.0, 4});
-    ExpectSameHeights(whole.heights,
-                      Evaluate(terrain, large, terraingen::EvaluationOptions{0.0, 1}).heights);
+    ExpectSameRaster(whole.heights,
+                     Evaluate(terrain, large, terraingen::EvaluationOptions{0.0, 1}).heights);
     for (const terraingen::TileKey key :
          {terraingen::TileKey{2, 1, 1}, terraingen::TileKey{2, 0, 0}}) {
         const auto tile = terraingen::EvaluateTile(terrain, scheme, key);

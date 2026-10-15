@@ -3,6 +3,7 @@
 #include "terraingen/noise/kernels/hash.h"
 #include "terraingen/noise/kernels/perlin.h"
 #include "terraingen/random/stream.h"
+#include "terraingen/util/checks.h"
 
 #include <algorithm>
 #include <cmath>
@@ -98,9 +99,7 @@ void ValidateBoulderShapeOptions(const BoulderShapeOptions& options) {
     }
     double total = 0.0;
     for (const BoulderStyle& style : options.styles) {
-        if (!(std::isfinite(style.weight) && style.weight >= 0.0)) {
-            throw std::invalid_argument("Boulder style weights must be finite and not negative");
-        }
+        RequireNonNegative(style.weight, "Boulder style weights");
         total += style.weight;
         CheckRange(style.intermediate, 1e-3, 1.0, "intermediate");
         CheckRange(style.shortAxis, 1e-3, 1.0, "shortAxis");
@@ -111,12 +110,10 @@ void ValidateBoulderShapeOptions(const BoulderShapeOptions& options) {
             throw std::invalid_argument(
                 "Boulder style fractures must satisfy 0 <= min <= max <= 64");
         }
-        if (!(style.maxFractureTilt >= 0.0 && style.maxFractureTilt <= 1.0)) {
-            throw std::invalid_argument("Boulder style maxFractureTilt must be in [0, 1]");
-        }
-        if (!(std::isfinite(style.noiseAmplitude) && style.noiseAmplitude >= 0.0 &&
-              style.noiseAmplitude < 1.0 && std::isfinite(style.noiseWavelength) &&
-              style.noiseWavelength > 0.0 && style.noiseOctaves > 0 && style.noiseOctaves <= 12)) {
+        RequireUnitInterval(style.maxFractureTilt, "Boulder style maxFractureTilt");
+        if (!(style.noiseAmplitude >= 0.0 && style.noiseAmplitude < 1.0 &&
+              IsPositive(style.noiseWavelength) && style.noiseOctaves > 0 &&
+              style.noiseOctaves <= 12)) {
             throw std::invalid_argument("Boulder style noise needs an amplitude in [0, 1), a "
                                         "positive wavelength and 1 to 12 octaves");
         }
