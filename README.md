@@ -1,9 +1,10 @@
 > 🚧 **This project is in active beta development.** This means the API is unstable, features may be added or removed, and breaking changes are likely to occur frequently and without notice as the design is refined.
 
 [![pipeline](https://github.com/alexmaietta/terraingen/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/alexmaietta/terraingen/actions/workflows/ci.yml)
-[![coverage](https://codecov.io/gh/alexmaietta/terraingen/graph/badge.svg)](https://codecov.io/gh/alexmaietta/terraingen)
+[![release](https://img.shields.io/github/v/release/alexmaietta/terraingen)](https://github.com/alexmaietta/terraingen/releases)
 [![pypi](https://img.shields.io/pypi/v/terraingen)](https://pypi.org/project/terraingen/)
-[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue)](LICENSE)
+[![docs](https://github.com/alexmaietta/terraingen/actions/workflows/docs.yml/badge.svg?branch=main)](https://alexmaietta.github.io/terraingen/)
+[![license](https://img.shields.io/badge/License-BSD_3--Clause-blue)](LICENSE)
 
 # TerrainGen
 
@@ -13,7 +14,9 @@ A high-performance scientific terrain generation tool for interplanetary bodies.
 
 TerrainGen provides a core C++ and Python library designed to easily integrate into external workflows. It is designed with modularity and interoperability in mind. The core requires minimal dependencies and users can extend the base classes for custom functionality. We also provide a command-line interface, a lightweight viewer, a series of example usages, and a standalone demo that integrates TerrainGen into a planetary-scale renderer that synthesizes terrain detail on the GPU, on the fly, while navigating around the Moon.
 
-For information on the concepts behind TerrainGen and the API, see our latest [documentation](https://alexmaietta.github.io/terraingen/).
+TerrainGen can
+
+For more information on the concepts behind TerrainGen and the API, see our latest [documentation](https://alexmaietta.github.io/terraingen/).
 
 TerrainGen plugs into downstream simulation and rendering engines such as [Project Chrono](https://github.com/projectchrono/chrono). See [Third-party Integrations and Use Cases](#third-party-integrations-and-use-cases) for current and planned integrations.
 
@@ -29,6 +32,14 @@ To quickly get started with TerrainGen, it is recommended to install the Python 
 pip install terraingen
 terraingen --gui
 ```
+
+For more information, such as building from source or integrating TerrainGen into your own projects, see our [installation guide]().
+
+## Validation
+
+A large focus of TerrainGen is accuracy, so we put a lot of effort into validating TerrainGen against real planetary imagery and terrains. There are three core methods that we use to do this.
+
+For more information, see our detailed [validation]() documentation.
 
 ## Citation
 

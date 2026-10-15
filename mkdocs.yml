@@ -93,11 +93,11 @@ nav:
       - Command line: getting-started/command-line.md
       - GUI: getting-started/gui.md
   - Concepts: concepts/index.md
-  - Extending TerrainGen: extending/index.md
   - Guides: guides/index.md
   - Validation: validation/index.md
-  - Python API: api/python.md
-  - C++ API: api/cpp.md
+  - API:
+      - Python: api/python.md
+      - C++: api/cpp.md
 
 plugins:
   - search

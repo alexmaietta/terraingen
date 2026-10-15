@@ -1,8 +1,11 @@
+import re
+
 import terraingen as tg
 
 
-def test_version_matches_version_file(repo_root):
-    expected = (repo_root / "VERSION").read_text().strip()
+def test_version_matches_cmake(repo_root):
+    cmake = (repo_root / "CMakeLists.txt").read_text()
+    expected = re.search(r'set\(TERRAINGEN_FULL_VERSION "([^"]+)"\)', cmake).group(1)
     assert tg.__version__ == expected
     assert ".".join(str(part) for part in tg.version()) == expected
 

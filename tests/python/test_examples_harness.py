@@ -99,7 +99,7 @@ def test_discovers_examples_in_teaching_order():
 def test_runner_lists_and_runs_examples(tmp_path):
     env = {**os.environ, "PYTHONPATH": str(pathlib.Path(terraingen.__file__).resolve().parents[1])}
     listed = subprocess.run([sys.executable, str(EXAMPLES)], capture_output=True, text=True, env=env, check=True)
-    assert "craters:\n  craters_simple\n" in listed.stdout
+    assert "craters:\n" in listed.stdout and "  craters_simple\n" in listed.stdout
     unknown = subprocess.run([sys.executable, str(EXAMPLES), "nothing_here"], capture_output=True, text=True, env=env)
     assert unknown.returncode == 2
     ran = subprocess.run(

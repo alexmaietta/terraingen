@@ -1,8 +1,8 @@
 name: Wheels
 
 # Python wheels for Linux, macOS and Windows, tested against the Python tests. Pushes to main
-# publish a development version (the version with .devN) to PyPI and version tags publish the release, both
-# through PyPI trusted publishing (the "pypi" environment).
+# publish a development version (the version with .devN) to PyPI and version tags publish the
+# release, both through PyPI trusted publishing (the "pypi" environment).
 
 on:
   push:

@@ -13,7 +13,7 @@
     <a href="{{ config.extra.homepage | d(nav.homepage.url, true) | url }}" class="md-header__title tg-header__name" aria-label="{{ config.site_name }}">
       {{ config.site_name }}
     </a>
-    <ul class="md-tabs__list tg-header__sections" aria-label="{{ lang.t('tabs') }}">
+    <ul class="md-tabs__list tg-header__sections" aria-label="{{ lang.t('tabs') }}" data-md-component="tabs">
       {% for nav_item in nav.items %}
         {{ item.render(nav_item) }}
       {% endfor %}
