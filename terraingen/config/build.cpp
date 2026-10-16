@@ -24,7 +24,7 @@
 #include "terraingen/layers/craters/shaping/morphometry.h"
 #include "terraingen/layers/noise_relief.h"
 #include "terraingen/layers/transforms.h"
-#include "terraingen/mesh/mesh_io.h"
+#include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/sources/flat_source.h"
 #include "terraingen/sources/geotiff_source.h"
 #include "terraingen/sources/source_chain.h"

@@ -3,12 +3,12 @@ include("${PROJECT_SOURCE_DIR}/cmake/third_party/mesh_formats.cmake")
 terraingen_add_library(
     mesh
     SOURCES
-    gltf_io.cpp
+    io/gltf.cpp
+    io/mesh_io.cpp
+    io/obj.cpp
+    io/stl.cpp
     mesh.cpp
-    mesh_io.cpp
-    obj_io.cpp
     polyhedra.cpp
-    stl_io.cpp
     PUBLIC
     terraingen_util
     PRIVATE

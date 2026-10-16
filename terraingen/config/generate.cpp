@@ -1,7 +1,7 @@
 #include "terraingen/config/generate.h"
 
 #include "terraingen/config/build.h"
-#include "terraingen/mesh/mesh_io.h"
+#include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/pipeline/body_mesh.h"
 #include "terraingen/pipeline/height_mesh.h"
 #include "terraingen/sources/geotiff_source.h"

@@ -1,6 +1,6 @@
-#include "terraingen/mesh/mesh_io.h"
+#include "terraingen/mesh/io/mesh_io.h"
 
-#include "terraingen/mesh/formats.h"
+#include "terraingen/mesh/io/formats.h"
 
 #include <cctype>
 #include <cmath>

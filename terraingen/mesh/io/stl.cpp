@@ -1,4 +1,4 @@
-#include "terraingen/mesh/formats.h"
+#include "terraingen/mesh/io/formats.h"
 
 #include <array>
 #include <cstdint>

@@ -1,8 +1,9 @@
 /// @file
-/// @brief The format writers and readers behind `WriteScene` and `ReadMesh`, and what they share.
+/// @brief The format writers and readers behind `WriteScene` and `ReadMesh` (gltf.cpp, obj.cpp,
+/// stl.cpp), and what they share.
 #pragma once
 
-#include "terraingen/mesh/mesh_io.h"
+#include "terraingen/mesh/io/mesh_io.h"
 
 #include <array>
 #include <filesystem>

@@ -1,4 +1,4 @@
-#include "terraingen/mesh/mesh_io.h"
+#include "terraingen/mesh/io/mesh_io.h"
 
 #include "support/temp_path.h"
 #include "terraingen/mesh/polyhedra.h"

@@ -1,4 +1,4 @@
-#include "terraingen/mesh/formats.h"
+#include "terraingen/mesh/io/formats.h"
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>

@@ -1,6 +1,6 @@
 #include "terraingen/config/build.h"
 #include "terraingen/config/generate.h"
-#include "terraingen/mesh/mesh_io.h"
+#include "terraingen/mesh/io/mesh_io.h"
 
 #include <nlohmann/json.hpp>
 

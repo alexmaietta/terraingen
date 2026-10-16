@@ -1,4 +1,4 @@
-#include "terraingen/mesh/formats.h"
+#include "terraingen/mesh/io/formats.h"
 
 #define CGLTF_IMPLEMENTATION
 #define CGLTF_WRITE_IMPLEMENTATION

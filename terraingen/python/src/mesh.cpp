@@ -2,8 +2,8 @@
 #include "common.h"
 #include "tables.h"
 
+#include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/mesh/mesh.h"
-#include "terraingen/mesh/mesh_io.h"
 #include "terraingen/mesh/polyhedra.h"
 
 #include <nanobind/ndarray.h>

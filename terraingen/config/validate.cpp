@@ -8,7 +8,7 @@
 #include "terraingen/config/generate.h"
 #include "terraingen/layers/craters/generation/spacing.h"
 #include "terraingen/layers/transforms.h"
-#include "terraingen/mesh/mesh_io.h"
+#include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/noise/noise_layers.h"
 #include "terraingen/sources/flat_source.h"
 #include "terraingen/util/overloaded.h"

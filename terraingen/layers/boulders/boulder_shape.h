@@ -2,8 +2,8 @@
 /// @brief Procedural boulder meshes: styles, shape options and seeded shape generation.
 #pragma once
 
+#include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/mesh/mesh.h"
-#include "terraingen/mesh/mesh_io.h"
 #include "terraingen/mesh/polyhedra.h"
 
 #include <cstddef>
