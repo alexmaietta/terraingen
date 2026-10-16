@@ -64,7 +64,7 @@ class SourcesRasterDetail : public terraingen::examples::Example {
         terraingen::WriteGeoTiff(dem, coarse_);
 
         const auto raster = std::make_shared<terraingen::GeoTiffSource>(
-            dem, 0, 2.0, terraingen::ResampleMethod::Cubic);
+            dem, terraingen::GeoTiffSourceOptions{.pixelSize = 2.0});
         const auto chain = std::make_shared<terraingen::SourceChain>(
             std::vector<std::shared_ptr<const terraingen::Source>>{
                 raster, std::make_shared<terraingen::FlatSource>(1, 1, 2.0)});

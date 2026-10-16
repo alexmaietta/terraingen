@@ -14,6 +14,23 @@
 
 namespace terraingen {
 
+/// How a `GeoTiffSource` reads its band.
+struct GeoTiffSourceOptions {
+    std::size_t band = 0;  ///< Zero-based band index.
+    /// Cell size to resample to, in CRS units; unset keeps the file's cells.
+    std::optional<double> pixelSize{};
+    /// Interpolation for resampling and for cells off the source's lattice.
+    ResampleMethod resampling = ResampleMethod::Cubic;
+    std::optional<double> scale{};   ///< Replaces the band's scale when set; finite.
+    std::optional<double> offset{};  ///< Replaces the band's offset when set; finite.
+    /// Standard deviation in metres of a Gaussian low-pass applied to the file's heights once,
+    /// before any resampling: the low frequencies of a DEM to add finer synthetic detail to
+    /// (`DetailLayer` can add the removed detail back). 0 keeps every frequency.
+    double lowPass = 0.0;
+
+    bool operator==(const GeoTiffSourceOptions&) const = default;
+};
+
 /// Heights from one band of a GeoTIFF in a projected CRS, optionally resampled to square
 /// cells of `pixelSize` over the file's extent.
 ///
@@ -24,20 +41,12 @@ namespace terraingen {
 class GeoTiffSource final : public Source {
   public:
     /// Reads the file's header.
-    /// @param band Zero-based band index.
-    /// @param pixelSize Cell size to resample to, in CRS units; unset keeps the file's cells.
-    /// @param resampling Interpolation for resampling and for cells off the lattice.
-    /// @param scale Replaces the band's scale when set; finite.
-    /// @param offset Replaces the band's offset when set; finite.
     /// @throws GeoTiffError if the file cannot be read.
     /// @throws std::invalid_argument for a missing band, a geographic CRS (craters are sized in
-    /// metres), a non-positive `pixelSize`, a rotated raster that would need resampling, or a
-    /// `scale` or `offset` that is not finite.
-    explicit GeoTiffSource(std::filesystem::path path, std::size_t band = 0,
-                           std::optional<double> pixelSize = std::nullopt,
-                           ResampleMethod resampling = ResampleMethod::Cubic,
-                           std::optional<double> scale = std::nullopt,
-                           std::optional<double> offset = std::nullopt);
+    /// metres), a non-positive `pixelSize`, a rotated raster that would need resampling, a
+    /// `scale` or `offset` that is not finite, or a negative or non-finite
+    /// `lowPass`.
+    explicit GeoTiffSource(std::filesystem::path path, GeoTiffSourceOptions options = {});
 
     /// The file's grid, resampled to `pixelSize` when set.
     RasterGrid Grid() const override {
@@ -81,15 +90,13 @@ class GeoTiffSource final : public Source {
     void CopyFromLattice(Raster<float>& heights, LatticeOffset offset) const;
     /// Sets each cell of `heights` to `HeightAt` its centre.
     void FillBySampling(Raster<float>& heights) const;
-    /// Reads the file, and resamples it to `pixelSize` when set, once.
+    /// Reads the file once, low-passes and resamples it as the options say.
     void Load() const;
     const Raster<float>& Heights() const;
     const Raster<float>& Native() const;
 
     std::filesystem::path path_;
-    std::size_t band_;
-    std::optional<double> pixelSize_;
-    ResampleMethod resampling_;
+    GeoTiffSourceOptions options_;
     GeoTiffInfo info_;
     BandScaling scaling_;
     RasterGrid grid_;

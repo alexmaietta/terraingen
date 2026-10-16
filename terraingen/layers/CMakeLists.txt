@@ -2,6 +2,7 @@ terraingen_add_library(
     layers
     SOURCES
     bedforms.cpp
+    detail.cpp
     exposure.cpp
     fade.cpp
     layer.cpp

@@ -83,14 +83,19 @@ void BindSourceTypes(nb::module_& m) {
             "metres, converted to degrees along a meridian.");
     nb::class_<GeoTiffSource, Source>(
         m, "GeoTiffSource",
-        "Heights from band `band` of a GeoTIFF, optionally resampled to `pixel_size` metres and "
-        "scaled (height * scale + offset).")
-        .def(nb::init<std::filesystem::path, std::size_t, std::optional<double>, ResampleMethod,
-                      std::optional<double>, std::optional<double>>(),
-             "path"_a, "band"_a = 0, "pixel_size"_a = nb::none(),
-             "resampling"_a = ResampleMethod::Cubic, "scale"_a = nb::none(),
-             "offset"_a = nb::none(),
-             "`pixel_size` is in the file's units (degrees for a geographic file).");
+        "Heights from band `band` of a GeoTIFF, optionally low-passed by a Gaussian of `low_pass` "
+        "metres, resampled to `pixel_size` metres and scaled (height * scale + offset).")
+        .def(
+            "__init__",
+            [](GeoTiffSource* self, const std::filesystem::path& path, std::size_t band,
+               std::optional<double> pixelSize, ResampleMethod resampling,
+               std::optional<double> scale, std::optional<double> offset, double lowPass) {
+                new (self)
+                    GeoTiffSource(path, {band, pixelSize, resampling, scale, offset, lowPass});
+            },
+            "path"_a, "band"_a = 0, "pixel_size"_a = nb::none(),
+            "resampling"_a = ResampleMethod::Cubic, "scale"_a = nb::none(), "offset"_a = nb::none(),
+            "low_pass"_a = 0.0);
     nb::class_<SourceChain, Source>(
         m, "SourceChain",
         "Several sources tried in order, each filling where those before it have no data; the "

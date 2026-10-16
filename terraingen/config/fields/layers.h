@@ -121,6 +121,31 @@ template <typename IO> void Fields(IO& io, BedformLayerSpec& spec) {
        "How bedforms too fine for the sample spacing fade out, by samples per wavelength.");
 }
 
+template <> struct SpecName<DemDetailLayerSpec> {
+    static constexpr std::string_view kName = "dem_detail";
+    static constexpr std::string_view kDescription =
+        "Adds the detail a GeoTIFF DEM has above its own low-pass, to restore measured relief over "
+        "a "
+        "raster source read with the same low_pass.";
+};
+template <typename IO> void Fields(IO& io, DemDetailLayerSpec& spec) {
+    io("path", spec.path, InputPathHelp("GeoTIFF DEM to take the detail from"));
+    io("band", spec.read.band, "Band of the file to read, counting from 0.");
+    io("resampling", spec.read.resampling, "Interpolation used between the DEM's cells.");
+    io("scale", spec.read.scale,
+       "Factor each sample is multiplied by, replacing the band's scale from the file's GDAL "
+       "metadata. Unset keeps the file's.");
+    io("offset", spec.read.offset,
+       "Added to each scaled sample, replacing the band's offset from the file's GDAL metadata. "
+       "Unset keeps the file's.",
+       "m");
+    io("low_pass", spec.read.lowPass,
+       "Standard deviation in metres of the Gaussian low-pass the detail is measured above; "
+       "positive, and the same as the raster source's low_pass to restore the DEM whole.",
+       "m");
+    io("weight", spec.weight, "Share of the detail added; 1 restores it whole, 0.5 halves it.");
+}
+
 template <> struct SpecName<ScaleLayerSpec> {
     static constexpr std::string_view kName = "scale";
     static constexpr std::string_view kDescription =

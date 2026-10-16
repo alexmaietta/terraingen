@@ -22,6 +22,7 @@
 #include "terraingen/layers/craters/degradation/freshness.h"
 #include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
 #include "terraingen/layers/craters/shaping/morphometry.h"
+#include "terraingen/layers/detail.h"
 #include "terraingen/layers/noise_relief.h"
 #include "terraingen/layers/transforms.h"
 #include "terraingen/mesh/io/mesh_io.h"
@@ -232,30 +233,29 @@ std::shared_ptr<const Source> BuildSource(const SourceSpec& spec,
                                           const std::filesystem::path& directory,
                                           const Surface& surface) {
     using Result = std::shared_ptr<const Source>;
-    return std::visit(Overloaded{
-                          [&](const FlatSourceSpec& s) -> Result {
-                              return std::make_shared<FlatSource>(
-                                  s.width, s.height, s.pixelSize / surface.UnitLength(),
-                                  s.elevation, Vec2d{s.centreX, s.centreY});
-                          },
-                          [&](const RasterSourceSpec& s) -> Result {
-                              std::optional<double> cell;
-                              if (s.pixelSize) {
-                                  cell = *s.pixelSize / surface.UnitLength();
-                              }
-                              return std::make_shared<GeoTiffSource>(Resolve(s.path, directory),
-                                                                     s.band, cell, s.resampling,
-                                                                     s.scale, s.offset);
-                          },
-                          [&](const ChainSourceSpec& s) -> Result {
-                              std::vector<Result> sources;
-                              for (const SourceSpec& source : s.sources) {
-                                  sources.push_back(BuildSource(source, directory, surface));
-                              }
-                              return std::make_shared<SourceChain>(std::move(sources));
-                          },
-                      },
-                      spec);
+    return std::visit(
+        Overloaded{
+            [&](const FlatSourceSpec& s) -> Result {
+                return std::make_shared<FlatSource>(s.width, s.height,
+                                                    s.pixelSize / surface.UnitLength(), s.elevation,
+                                                    Vec2d{s.centreX, s.centreY});
+            },
+            [&](const RasterSourceSpec& s) -> Result {
+                GeoTiffSourceOptions read = s.read;
+                if (read.pixelSize) {
+                    *read.pixelSize /= surface.UnitLength();
+                }
+                return std::make_shared<GeoTiffSource>(Resolve(s.path, directory), read);
+            },
+            [&](const ChainSourceSpec& s) -> Result {
+                std::vector<Result> sources;
+                for (const SourceSpec& source : s.sources) {
+                    sources.push_back(BuildSource(source, directory, surface));
+                }
+                return std::make_shared<SourceChain>(std::move(sources));
+            },
+        },
+        spec);
 }
 
 /// What a layer is built on: the source, the last top-level crater layer so far (for boulder
@@ -295,43 +295,51 @@ LayerPtr BuildSecondaryLayer(const SecondaryLayerSpec& spec,
 
 LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerInputs& context) {
     const Surface& surface = context.surface;
-    return std::visit(Overloaded{
-                          [&](const NoiseLayerSpec& s) -> LayerPtr {
-                              return std::make_shared<NoiseRelief>(
-                                  s.Params(), context.source.ReferencePoint(), surface);
-                          },
-                          [&](const CraterLayerSpec& s) -> LayerPtr {
-                              return BuildCraterLayer(s, path, surface);
-                          },
-                          [&](const BoulderLayerSpec& s) -> LayerPtr {
-                              BoulderLayerOptions options =
-                                  BuildBoulderOptions(s, path, context.directory);
-                              const bool throws = options.ejecta.MinCraterDiameter() > 0.0;
-                              return std::make_shared<BoulderLayer>(
-                                  std::move(options), throws ? context.craters : nullptr, surface);
-                          },
-                          [&](const RoughnessLayerSpec& s) -> LayerPtr {
-                              return std::make_shared<RoughnessLayer>(s.roughness, surface);
-                          },
-                          [&](const BedformLayerSpec& s) -> LayerPtr {
-                              return std::make_shared<BedformLayer>(s.bedforms, surface);
-                          },
-                          [&](const ScaleLayerSpec& s) -> LayerPtr {
-                              return std::make_shared<ScaleLayer>(s.scale, s.offset);
-                          },
-                          [&](const ClampLayerSpec& s) -> LayerPtr {
-                              return std::make_shared<ClampLayer>(s.min, s.max);
-                          },
-                          [&](const RegionLayerSpec& s) -> LayerPtr {
-                              return std::make_shared<RegionLayer>(
-                                  BuildLayer(*s.layer, Child(path, "layer"), context),
-                                  BuildRegionShape(s.shape), s.feather, s.blend, surface);
-                          },
-                          [&](const SecondaryLayerSpec& s) -> LayerPtr {
-                              return BuildSecondaryLayer(s, context.craters);
-                          },
-                      },
-                      spec);
+    return std::visit(
+        Overloaded{
+            [&](const NoiseLayerSpec& s) -> LayerPtr {
+                return std::make_shared<NoiseRelief>(s.Params(), context.source.ReferencePoint(),
+                                                     surface);
+            },
+            [&](const CraterLayerSpec& s) -> LayerPtr {
+                return BuildCraterLayer(s, path, surface);
+            },
+            [&](const BoulderLayerSpec& s) -> LayerPtr {
+                BoulderLayerOptions options = BuildBoulderOptions(s, path, context.directory);
+                const bool throws = options.ejecta.MinCraterDiameter() > 0.0;
+                return std::make_shared<BoulderLayer>(std::move(options),
+                                                      throws ? context.craters : nullptr, surface);
+            },
+            [&](const RoughnessLayerSpec& s) -> LayerPtr {
+                return std::make_shared<RoughnessLayer>(s.roughness, surface);
+            },
+            [&](const BedformLayerSpec& s) -> LayerPtr {
+                return std::make_shared<BedformLayer>(s.bedforms, surface);
+            },
+            [&](const ScaleLayerSpec& s) -> LayerPtr {
+                return std::make_shared<ScaleLayer>(s.scale, s.offset);
+            },
+            [&](const ClampLayerSpec& s) -> LayerPtr {
+                return std::make_shared<ClampLayer>(s.min, s.max);
+            },
+            [&](const RegionLayerSpec& s) -> LayerPtr {
+                return std::make_shared<RegionLayer>(
+                    BuildLayer(*s.layer, Child(path, "layer"), context), BuildRegionShape(s.shape),
+                    s.feather, s.blend, surface);
+            },
+            [&](const SecondaryLayerSpec& s) -> LayerPtr {
+                return BuildSecondaryLayer(s, context.craters);
+            },
+            [&](const DemDetailLayerSpec& s) -> LayerPtr {
+                const auto file = Resolve(s.path, context.directory);
+                GeoTiffSourceOptions full = s.read;
+                full.lowPass = 0.0;
+                return std::make_shared<DetailLayer>(std::make_shared<GeoTiffSource>(file, full),
+                                                     std::make_shared<GeoTiffSource>(file, s.read),
+                                                     s.weight, surface);
+            },
+        },
+        spec);
 }
 
 /// The bands of a raster albedo map, scaled as its metadata or the spec says.

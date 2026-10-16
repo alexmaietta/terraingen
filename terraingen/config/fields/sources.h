@@ -53,18 +53,24 @@ template <> struct SpecName<RasterSourceSpec> {
 };
 template <typename IO> void Fields(IO& io, RasterSourceSpec& source) {
     io("path", source.path, InputPathHelp("GeoTIFF to read the heights from"));
-    io("band", source.band, "Band of the file to read, counting from 0.");
-    io("pixel_size", source.pixelSize,
+    GeoTiffSourceOptions& read = source.read;
+    io("band", read.band, "Band of the file to read, counting from 0.");
+    io("pixel_size", read.pixelSize,
        "Cell size in metres to resample the raster to over the same extent, as when upscaling a "
        "DEM. Unset keeps the file's.",
        "m");
-    io("resampling", source.resampling, "Interpolation used when resampling to the cell size.");
-    io("scale", source.scale,
+    io("resampling", read.resampling, "Interpolation used when resampling to the cell size.");
+    io("scale", read.scale,
        "Factor each sample is multiplied by, replacing the band's scale from the file's GDAL "
        "metadata. Unset keeps the file's.");
-    io("offset", source.offset,
+    io("offset", read.offset,
        "Added to each scaled sample, replacing the band's offset from the file's GDAL metadata. "
        "Unset keeps the file's.",
+       "m");
+    io("low_pass", read.lowPass,
+       "Standard deviation in metres of a Gaussian low-pass applied to the file's heights before "
+       "any resampling, keeping a DEM's low frequencies for synthetic detail to be added to; a "
+       "dem_detail layer can add the removed detail back. 0 keeps every frequency.",
        "m");
 }
 

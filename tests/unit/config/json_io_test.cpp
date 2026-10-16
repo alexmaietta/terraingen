@@ -225,12 +225,11 @@ TEST(ConfigJson, RoundTripsEveryModelType) {
                                         ChronologyModel::Ivanov}};
     for (const terraingen::SourceSpec& source :
          {terraingen::SourceSpec{terraingen::RasterSourceSpec{
-              "dem.tif", 2, 0.25, terraingen::ResampleMethod::Bilinear}},
-          terraingen::SourceSpec{terraingen::RasterSourceSpec{"x.tif", 0, std::nullopt,
-                                                              terraingen::ResampleMethod::Cubic}},
+              "dem.tif", {2, 0.25, terraingen::ResampleMethod::Bilinear, {}, {}, 30.0}}},
+          terraingen::SourceSpec{terraingen::RasterSourceSpec{"x.tif"}},
           terraingen::SourceSpec{terraingen::ChainSourceSpec{
-              {terraingen::RasterSourceSpec{"a.tif", 1, 2.0, terraingen::ResampleMethod::Nearest,
-                                            0.001, -250.0},
+              {terraingen::RasterSourceSpec{
+                   "a.tif", {1, 2.0, terraingen::ResampleMethod::Nearest, 0.001, -250.0}},
                terraingen::FlatSourceSpec{3, 4, 5.0, 6.0f}, terraingen::ChainSourceSpec{}}}}}) {
         TerrainConfig config;
         config.source = source;

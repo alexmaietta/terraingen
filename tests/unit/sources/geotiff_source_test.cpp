@@ -1,6 +1,7 @@
 #include "terraingen/sources/geotiff_source.h"
 
 #include "support/temp_path.h"
+#include "terraingen/raster/gaussian_blur.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/resample.h"
 #include "tests/unit/raster/gdal_fixtures.h"
@@ -79,7 +80,7 @@ TEST(GeoTiffSource, FillsTilesOnItsLatticeAndNoDataBeyondTheFile) {
 TEST(GeoTiffSource, InterpolatesOntoGridsOffItsLattice) {
     const auto path = TempPath("geotiff_source_off.tif");
     const Raster<float> dem = WriteDem(path);
-    const GeoTiffSource source(path, 0, std::nullopt, ResampleMethod::Bilinear);
+    const GeoTiffSource source(path, {.resampling = ResampleMethod::Bilinear});
     for (const RasterGrid& grid : {RasterGrid{6, 4, GeoTransform::NorthUp(1001.0, 1999.0, 4.0)},
                                    RasterGrid{8, 6, GeoTransform::NorthUp(1000.0, 2000.0, 2.0)},
                                    RasterGrid{5, 5, GeoTransform::NorthUp(990.0, 2010.0, 8.0)}}) {
@@ -104,7 +105,7 @@ TEST(GeoTiffSource, InterpolatesOntoGridsOffItsLattice) {
 TEST(GeoTiffSource, ResamplesToThePixelSize) {
     const auto path = TempPath("geotiff_source_resampled.tif");
     const Raster<float> dem = WriteDem(path);
-    const GeoTiffSource source(path, 0, 2.0, ResampleMethod::Bilinear);
+    const GeoTiffSource source(path, {.pixelSize = 2.0, .resampling = ResampleMethod::Bilinear});
     EXPECT_EQ(source.Grid().width, 40u);
     EXPECT_EQ(source.Grid().height, 20u);
     auto heights = source.Grid().MakeRaster();
@@ -118,8 +119,8 @@ TEST(GeoTiffSource, ResamplesToThePixelSize) {
 TEST(GeoTiffSource, RejectsUnusableFiles) {
     const auto path = TempPath("geotiff_source_errors.tif");
     WriteDem(path);
-    EXPECT_THROW(GeoTiffSource(path, 1), std::invalid_argument);
-    EXPECT_THROW(GeoTiffSource(path, 0, -1.0), std::invalid_argument);
+    EXPECT_THROW(GeoTiffSource(path, {.band = 1}), std::invalid_argument);
+    EXPECT_THROW(GeoTiffSource(path, {.pixelSize = -1.0}), std::invalid_argument);
     EXPECT_THROW(GeoTiffSource(TempPath("geotiff_source_missing.tif")), terraingen::GeoTiffError);
     const auto degrees = TempPath("geotiff_source_degrees.tif");
     WriteDem(degrees, Keys(true));
@@ -129,7 +130,7 @@ TEST(GeoTiffSource, RejectsUnusableFiles) {
     const auto turned = TempPath("geotiff_source_rotated.tif");
     terraingen::WriteGeoTiff(turned, rotated, Keys());
     EXPECT_NO_THROW(GeoTiffSource{turned});
-    EXPECT_THROW(GeoTiffSource(turned, 0, 0.5), std::invalid_argument);
+    EXPECT_THROW(GeoTiffSource(turned, {.pixelSize = 0.5}), std::invalid_argument);
 }
 
 TEST(GeoTiffSource, GivesCellsAtTheirCentresAndInterpolatesElsewhere) {
@@ -176,9 +177,8 @@ TEST(GeoTiffSource, ScalesSamplesByTheBandsMetadataOrOverrides) {
     };
     const auto path = write(single);
     expect(GeoTiffSource(path), single, 0.5, -1000.0);
-    expect(GeoTiffSource(path, 0, std::nullopt, ResampleMethod::Cubic, 2.0), single, 2.0, -1000.0);
-    expect(GeoTiffSource(path, 0, std::nullopt, ResampleMethod::Cubic, std::nullopt, 0.0), single,
-           0.5, 0.0);
+    expect(GeoTiffSource(path, {.scale = 2.0}), single, 2.0, -1000.0);
+    expect(GeoTiffSource(path, {.offset = 0.0}), single, 0.5, 0.0);
     auto heights = GeoTiffSource(path).Grid().MakeRaster();
     GeoTiffSource(path).Fill(heights);
     ASSERT_TRUE(heights.NoData().has_value());
@@ -187,11 +187,25 @@ TEST(GeoTiffSource, ScalesSamplesByTheBandsMetadataOrOverrides) {
         GeoTiffSource(path).HeightAt(-1200.0 + 4 * 2.5 + 1.25, 3400.0 - 3 * 2.5 - 1.25)));
 
     const GdalFixture& bands = terraingen::testing::uint16_three_band_scaled;
-    expect(GeoTiffSource(write(bands), 1), bands, 0.25, 10.0);
-    EXPECT_EQ(GeoTiffSource(write(bands), 0).Scaling(), terraingen::BandScaling{});
+    expect(GeoTiffSource(write(bands), {.band = 1}), bands, 0.25, 10.0);
+    EXPECT_EQ(GeoTiffSource(write(bands)).Scaling(), terraingen::BandScaling{});
 
-    EXPECT_THROW(GeoTiffSource(path, 0, std::nullopt, ResampleMethod::Cubic, std::nan("")),
-                 std::invalid_argument);
-    EXPECT_THROW(GeoTiffSource(path, 0, std::nullopt, ResampleMethod::Cubic, 1.0, INFINITY),
-                 std::invalid_argument);
+    EXPECT_THROW(GeoTiffSource(path, {.scale = std::nan("")}), std::invalid_argument);
+    EXPECT_THROW(GeoTiffSource(path, {.scale = 1.0, .offset = INFINITY}), std::invalid_argument);
+}
+
+TEST(GeoTiffSource, LowPassesTheFileByAGaussianInMetres) {
+    const auto path = TempPath("geotiff_source_low_pass.tif");
+    const Raster<float> dem = WriteDem(path);
+    const GeoTiffSource smooth(path, {.lowPass = 8.0});
+    const Raster<float> expected = terraingen::GaussianBlur(dem, 2.0);
+    auto heights = smooth.Grid().MakeRaster();
+    smooth.Fill(heights);
+    for (std::size_t i = 0; i < expected.Size(); ++i) {
+        ASSERT_EQ(heights.Values()[i], expected.Values()[i]) << i;
+    }
+    const auto centre = dem.CellCenter(5, 4);
+    EXPECT_EQ(smooth.HeightAt(centre.x, centre.y), expected(5, 4));
+    EXPECT_NE(smooth.HeightAt(centre.x, centre.y), dem(5, 4)) << "detail is removed";
+    EXPECT_THROW(GeoTiffSource(path, {.lowPass = -1.0}), std::invalid_argument);
 }

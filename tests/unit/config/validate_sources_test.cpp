@@ -43,7 +43,7 @@ TEST(ValidateConfig, ReportsRasterSourceProblems) {
     EXPECT_NE(
         error([](TerrainConfig& c) { RasterSpec(c).path = "missing.tif"; }).find("cannot open"),
         std::string::npos);
-    EXPECT_NE(error([](TerrainConfig& c) { RasterSpec(c).band = 1; }).find("source.band"),
+    EXPECT_NE(error([](TerrainConfig& c) { RasterSpec(c).read.band = 1; }).find("source.band"),
               std::string::npos);
     EXPECT_NE(
         error([](TerrainConfig& c) { RasterSpec(c).path = "degrees.tif"; }).find("geographic"),
@@ -53,14 +53,14 @@ TEST(ValidateConfig, ReportsRasterSourceProblems) {
               }).find("source.path: on a sphere the raster must be in longitude and latitude"),
               std::string::npos);
     EXPECT_EQ(error([](TerrainConfig& c) {
-                  RasterSpec(c).pixelSize = -1.0;
+                  RasterSpec(c).read.pixelSize = -1.0;
               }).rfind("source.pixel_size", 0),
               0u);
     EXPECT_EQ(error([](TerrainConfig& c) {
-                  RasterSpec(c).pixelSize = 1e-6;
+                  RasterSpec(c).read.pixelSize = 1e-6;
               }).rfind("source.pixel_size", 0),
               0u);
-    EXPECT_EQ(error([](TerrainConfig& c) { RasterSpec(c).pixelSize = 1.0; }), "valid");
+    EXPECT_EQ(error([](TerrainConfig& c) { RasterSpec(c).read.pixelSize = 1.0; }), "valid");
     EXPECT_EQ(error([](TerrainConfig& c) {
                   terraingen::NoiseLayerSpec noise;
                   noise.stack[0].layer.fractal.octaves = 0;
@@ -78,7 +78,7 @@ TEST(ValidateConfig, ReportsRasterSourceProblems) {
     terraingen::WriteGeoTiff(folder / "rotated.tif", rotated, terraingen::testing::Keys());
     EXPECT_EQ(error([](TerrainConfig& c) {
                   RasterSpec(c).path = "rotated.tif";
-                  RasterSpec(c).pixelSize = 0.5;
+                  RasterSpec(c).read.pixelSize = 0.5;
               }).rfind("source.pixel_size", 0),
               0u);
     terraingen::WriteGeoTiff(folder / "tiny.tif", terraingen::Raster<float>(1, 1, 0.0f),
@@ -91,10 +91,7 @@ TEST(ValidateConfig, ReportsRasterSourceProblems) {
 TEST(ValidateConfig, ReportsChainProblemsByPath) {
     const auto folder = TempPath("terraingen_chain_errors");
     terraingen::testing::WriteDem(folder, "dem.tif");
-    const auto raster = [](const std::string& path) {
-        return terraingen::RasterSourceSpec{path, 0, std::nullopt,
-                                            terraingen::ResampleMethod::Cubic};
-    };
+    const auto raster = [](const std::string& path) { return terraingen::RasterSourceSpec{path}; };
     const auto error = [&](terraingen::ChainSourceSpec chain) {
         TerrainConfig config;
         config.source = std::move(chain);
@@ -195,7 +192,7 @@ TEST(DescribeSource, ReadsTheRasterHeaderAndResampledSize) {
     EXPECT_EQ(bounds.maxX, 1200.0);
     EXPECT_EQ(bounds.minY, 1850.0);
     EXPECT_EQ(bounds.maxY, 2000.0);
-    terraingen::testing::RasterSpec(config).pixelSize = 2.5;
+    terraingen::testing::RasterSpec(config).read.pixelSize = 2.5;
     const auto fine = terraingen::DescribeSource(config.source, folder);
     EXPECT_EQ(fine.width, 80u);
     EXPECT_EQ(fine.height, 60u);

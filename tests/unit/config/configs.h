@@ -205,7 +205,7 @@ inline Raster<float> WriteDem(const std::filesystem::path& folder, const std::st
 /// @return The configuration.
 inline TerrainConfig RasterConfig(const std::string& path) {
     TerrainConfig config;
-    config.source = RasterSourceSpec{path, 0, std::nullopt, ResampleMethod::Cubic};
+    config.source = RasterSourceSpec{path};
     return config;
 }
 

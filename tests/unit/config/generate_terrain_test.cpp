@@ -263,23 +263,23 @@ TEST(GenerateTerrain, LoadsResamplesAndDetailsARasterSource) {
     EXPECT_EQ(plain.geoKeys, Keys());
     EXPECT_EQ(plain.heights.Transform(), dem.Transform());
 
-    RasterSpec(config).scale = 1000.0;
-    RasterSpec(config).offset = -5.0;
+    RasterSpec(config).read.scale = 1000.0;
+    RasterSpec(config).read.offset = -5.0;
     const auto scaled = GenerateTerrain(config, folder);
     for (std::size_t i = 0; i < dem.Size(); ++i) {
         ASSERT_EQ(scaled.heights.Values()[i],
                   static_cast<float>(static_cast<double>(dem.Values()[i]) * 1000.0 - 5.0));
     }
-    RasterSpec(config).scale.reset();
-    RasterSpec(config).offset.reset();
+    RasterSpec(config).read.scale.reset();
+    RasterSpec(config).read.offset.reset();
 
-    RasterSpec(config).pixelSize = 2.5;
-    RasterSpec(config).resampling = terraingen::ResampleMethod::Bilinear;
+    RasterSpec(config).read.pixelSize = 2.5;
+    RasterSpec(config).read.resampling = terraingen::ResampleMethod::Bilinear;
     const auto resampled = GenerateTerrain(config, folder);
     ExpectSameRaster(resampled.heights,
                      terraingen::Resample(dem, 2.5, terraingen::ResampleMethod::Bilinear));
 
-    RasterSpec(config).pixelSize.reset();
+    RasterSpec(config).read.pixelSize.reset();
     terraingen::NoiseLayerConfig detail;
     detail.layer.fractal.wavelength = 20.0f;
     detail.layer.fractal.amplitude = 1.5f;
@@ -331,10 +331,7 @@ TEST(GenerateTerrain, FillsARastersGapsFromTheSourcesChainedAfterIt) {
         }
     }
     terraingen::WriteGeoTiff(folder / "holes.tif", holes, Keys());
-    const auto raster = [](const std::string& path) {
-        return terraingen::RasterSourceSpec{path, 0, std::nullopt,
-                                            terraingen::ResampleMethod::Cubic};
-    };
+    const auto raster = [](const std::string& path) { return terraingen::RasterSourceSpec{path}; };
     TerrainConfig config;
     config.source = terraingen::ChainSourceSpec{{raster("holes.tif"), raster("dem.tif")}};
     const auto filled = GenerateTerrain(config, folder);
@@ -454,4 +451,24 @@ TEST(Summary, DescribesTheTerrainAndItsTime) {
     EXPECT_GE(terrain.seconds, 0.0);
     terrain.seconds = 1.5;
     EXPECT_EQ(terraingen::Summary(terrain), "Generated a 65x49 terrain in 1.5 s");
+}
+
+TEST(GenerateTerrain, SplitsADemIntoItsLowPassAndTheDetailAddedBack) {
+    const auto folder = TempPath("terraingen_dem_detail");
+    const auto dem = WriteDem(folder, "dem.tif");
+    TerrainConfig config = RasterConfig("dem.tif");
+    terraingen::testing::RasterSpec(config).read.lowPass = 15.0;
+    const auto smooth = GenerateTerrain(config, folder);
+    EXPECT_FALSE(std::ranges::equal(smooth.heights.Values(), dem.Values()));
+    terraingen::DemDetailLayerSpec detail;
+    detail.path = "dem.tif";
+    detail.read.lowPass = 15.0;
+    config.layers = {detail};
+    const auto restored = GenerateTerrain(config, folder);
+    for (std::size_t i = 0; i < dem.Size(); ++i) {
+        ASSERT_NEAR(restored.heights.Values()[i], dem.Values()[i], 1e-3) << i;
+    }
+    detail.read.lowPass = 0.0;
+    config.layers = {detail};
+    EXPECT_THROW(terraingen::ValidateConfig(config, folder), ConfigError);
 }

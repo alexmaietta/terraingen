@@ -7,6 +7,7 @@
 #include "terraingen/config/fields/checks.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/layers/craters/generation/spacing.h"
+#include "terraingen/layers/detail.h"
 #include "terraingen/layers/transforms.h"
 #include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/noise/noise_layers.h"
@@ -149,39 +150,6 @@ void ValidateSecondaries(const SecondaryLayerSpec& layer, const std::string& pat
     RequirePositive(layer.depthRatio, Child(path, "depth_ratio"));
 }
 
-void ValidateLayer(const LayerSpec& spec, const std::string& path, LayerChecks& context) {
-    std::visit(
-        Overloaded{
-            [&](const NoiseLayerSpec& noise) {
-                ValidateNoiseStack(noise.stack, Child(path, "stack"), false);
-            },
-            [&](const CraterLayerSpec& layer) { ValidateCraters(layer, path, context); },
-            [&](const BoulderLayerSpec& layer) { ValidateBoulders(layer, path, context); },
-            [&](const SecondaryLayerSpec& layer) { ValidateSecondaries(layer, path, context); },
-            [&](const RoughnessLayerSpec& layer) {
-                At(path, [&] { ValidateRoughnessOptions(layer.roughness); });
-            },
-            [&](const BedformLayerSpec& layer) {
-                At(path, [&] { ValidateBedformOptions(layer.bedforms); });
-            },
-            [&](const ScaleLayerSpec& layer) {
-                At(path, [&] { ScaleLayer(layer.scale, layer.offset); });
-            },
-            [&](const ClampLayerSpec& layer) {
-                At(path, [&] { ClampLayer(layer.min, layer.max); });
-            },
-            [&](const RegionLayerSpec& layer) {
-                At(Child(path, "shape"),
-                   [&] { ValidateRegionShape(BuildRegionShape(layer.shape)); });
-                RequireNonNegative(layer.feather, Child(path, "feather"));
-                // Crater layers inside a region count for neither later layers nor the summary.
-                LayerChecks inner = context;
-                ValidateLayer(*layer.layer, Child(path, "layer"), inner);
-            },
-        },
-        spec);
-}
-
 /// @throws ConfigError at `path` for a raster file that cannot be read.
 GeoTiffInfo ReadRasterInfo(const std::string& file, const std::filesystem::path& directory,
                            const std::string& path) {
@@ -251,26 +219,72 @@ void CheckRasterCrs(const GeoTiffInfo& info, const Surface& surface, const std::
     }
 }
 
+void ValidateLayer(const LayerSpec& spec, const std::string& path, LayerChecks& context) {
+    std::visit(
+        Overloaded{
+            [&](const NoiseLayerSpec& noise) {
+                ValidateNoiseStack(noise.stack, Child(path, "stack"), false);
+            },
+            [&](const CraterLayerSpec& layer) { ValidateCraters(layer, path, context); },
+            [&](const BoulderLayerSpec& layer) { ValidateBoulders(layer, path, context); },
+            [&](const SecondaryLayerSpec& layer) { ValidateSecondaries(layer, path, context); },
+            [&](const RoughnessLayerSpec& layer) {
+                At(path, [&] { ValidateRoughnessOptions(layer.roughness); });
+            },
+            [&](const BedformLayerSpec& layer) {
+                At(path, [&] { ValidateBedformOptions(layer.bedforms); });
+            },
+            [&](const ScaleLayerSpec& layer) {
+                At(path, [&] { ScaleLayer(layer.scale, layer.offset); });
+            },
+            [&](const ClampLayerSpec& layer) {
+                At(path, [&] { ClampLayer(layer.min, layer.max); });
+            },
+            [&](const DemDetailLayerSpec& layer) {
+                const std::string file = Child(path, "path");
+                RequireNonEmpty(layer.path, file);
+                const GeoTiffInfo info = ReadRasterInfo(layer.path, context.directory, file);
+                CheckBand(layer.read.band, info, Child(path, "band"));
+                CheckRasterCrs(info, context.surface, file);
+                RequirePositive(layer.read.lowPass, Child(path, "low_pass"));
+                At(Child(path, "weight"), [&] {
+                    DetailLayer(std::make_shared<FlatSource>(2, 2, 1.0),
+                                std::make_shared<FlatSource>(2, 2, 1.0), layer.weight);
+                });
+            },
+            [&](const RegionLayerSpec& layer) {
+                At(Child(path, "shape"),
+                   [&] { ValidateRegionShape(BuildRegionShape(layer.shape)); });
+                RequireNonNegative(layer.feather, Child(path, "feather"));
+                // Crater layers inside a region count for neither later layers nor the summary.
+                LayerChecks inner = context;
+                ValidateLayer(*layer.layer, Child(path, "layer"), inner);
+            },
+        },
+        spec);
+}
+
 RasterGrid DescribeRaster(const RasterSourceSpec& raster, const std::filesystem::path& directory,
                           const std::string& path, const Surface& surface) {
     const std::string file = Child(path, "path");
     RequireNonEmpty(raster.path, file);
     const GeoTiffInfo info = ReadRasterInfo(raster.path, directory, file);
-    CheckBand(raster.band, info, Child(path, "band"));
+    CheckBand(raster.read.band, info, Child(path, "band"));
     CheckRasterCrs(info, surface, file);
+    RequireNonNegative(raster.read.lowPass, Child(path, "low_pass"));
     RasterGrid grid{info.width, info.height, info.transform};
-    if (!raster.pixelSize) {
+    if (!raster.read.pixelSize) {
         CheckGridSize(grid.width, grid.height, file);
         return grid;
     }
     const std::string pixelSize = Child(path, "pixel_size");
-    RequirePositive(*raster.pixelSize, pixelSize);
+    RequirePositive(*raster.read.pixelSize, pixelSize);
     if (grid.transform.rowRotation != 0.0 || grid.transform.colRotation != 0.0) {
         throw ConfigError(pixelSize, "rotated rasters cannot be resampled");
     }
     RasterGrid resampled;
     try {
-        resampled = ResampledGrid(grid, *raster.pixelSize / surface.UnitLength());
+        resampled = ResampledGrid(grid, *raster.read.pixelSize / surface.UnitLength());
     } catch (const std::invalid_argument&) {
         throw ConfigError(pixelSize, "resampling would exceed " +
                                          std::to_string(kMaxConfigGridSize) + " cells per side");

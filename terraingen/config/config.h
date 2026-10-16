@@ -22,6 +22,7 @@
 #include "terraingen/noise/noise_layers.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/resample.h"
+#include "terraingen/sources/geotiff_source.h"
 #include "terraingen/sources/synthetic_terrain.h"
 
 #include <concepts>
@@ -75,11 +76,7 @@ struct FlatSourceSpec {
 /// a projection in metres.
 struct RasterSourceSpec {
     std::string path;
-    std::size_t band = 0;             ///< From 0.
-    std::optional<double> pixelSize;  ///< Resample to this cell size; unset keeps the file's.
-    ResampleMethod resampling = ResampleMethod::Cubic;
-    std::optional<double> scale{};   ///< Replaces the band's scale from the file's GDAL metadata.
-    std::optional<double> offset{};  ///< Replaces the band's offset from the file's GDAL metadata.
+    GeoTiffSourceOptions read{};  ///< How the band is read; `pixelSize` and `lowPass` in metres.
 
     bool operator==(const RasterSourceSpec&) const = default;
 };
@@ -346,6 +343,18 @@ struct SecondaryLayerSpec {
     bool operator==(const SecondaryLayerSpec&) const = default;
 };
 
+/// Layer "dem_detail": the detail a GeoTIFF DEM has above its own low-pass, added to the heights
+/// (`DetailLayer`), to restore measured relief over a source that keeps only the DEM's low
+/// frequencies.
+struct DemDetailLayerSpec {
+    std::string path;
+    GeoTiffSourceOptions read{.lowPass =
+                                  50.0};  ///< How the DEM is read; its `lowPass` is required.
+    double weight = 1.0;                  ///< Share of the detail added; 1 restores it whole.
+
+    bool operator==(const DemDetailLayerSpec&) const = default;
+};
+
 /// Layer "scale": height * `scale` + `offset` (`ScaleLayer`).
 struct ScaleLayerSpec {
     double scale = 1.0;
@@ -426,7 +435,7 @@ struct RegionLayerSpec;
 /// A layer, named in JSON by its "type".
 using LayerSpec = std::variant<NoiseLayerSpec, CraterLayerSpec, BoulderLayerSpec,
                                RoughnessLayerSpec, BedformLayerSpec, ScaleLayerSpec, ClampLayerSpec,
-                               RegionLayerSpec, SecondaryLayerSpec>;
+                               RegionLayerSpec, SecondaryLayerSpec, DemDetailLayerSpec>;
 
 /// Layer "region": `layer` applied only inside `shape` (`RegionLayer`). Boulder ejecta do
 /// not see crater layers inside regions.

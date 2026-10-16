@@ -100,3 +100,13 @@ def test_synthetic_terrain_samples_the_noise_layers_at_cell_centres():
 def test_synthetic_terrain_rejects_an_empty_grid():
     with pytest.raises(ValueError):
         terraingen.generate_synthetic_terrain(0, 4, 1.0, terraingen.SyntheticTerrainParams())
+
+
+def test_a_low_passed_dem_plus_its_detail_restores_it(tmp_path, coarse_dem):
+    full = terraingen.GeoTiffSource(tmp_path / "dem.tif")
+    smooth = terraingen.GeoTiffSource(tmp_path / "dem.tif", low_pass=24.0)
+    low = terraingen.evaluate(terraingen.Terrain(smooth)).values
+    assert not np.array_equal(low, coarse_dem.values)
+    detail = terraingen.DetailLayer(full, smooth)
+    restored = terraingen.evaluate(terraingen.Terrain(smooth, [detail])).values
+    np.testing.assert_allclose(restored, coarse_dem.values, atol=1e-3)

@@ -1,5 +1,6 @@
 #include "terraingen/sources/geotiff_source.h"
 
+#include "terraingen/raster/gaussian_blur.h"
 #include "terraingen/util/checks.h"
 
 #include <cmath>
@@ -22,29 +23,30 @@ std::optional<long long> Whole(double value) {
 
 }  // namespace
 
-GeoTiffSource::GeoTiffSource(std::filesystem::path path, std::size_t band,
-                             std::optional<double> pixelSize, ResampleMethod resampling,
-                             std::optional<double> scale, std::optional<double> offset)
-    : path_(std::move(path)), band_(band), pixelSize_(pixelSize), resampling_(resampling),
-      info_(ReadGeoTiffInfo(path_)) {
-    if (band_ >= info_.bands) {
-        throw std::invalid_argument("Band " + std::to_string(band_) + " is missing; the file has " +
+GeoTiffSource::GeoTiffSource(std::filesystem::path path, GeoTiffSourceOptions options)
+    : path_(std::move(path)), options_(options), info_(ReadGeoTiffInfo(path_)) {
+    const std::size_t band = options_.band;
+    if (band >= info_.bands) {
+        throw std::invalid_argument("Band " + std::to_string(band) + " is missing; the file has " +
                                     std::to_string(info_.bands) +
                                     (info_.bands == 1 ? " band" : " bands"));
     }
+    const std::optional<double>& scale = options_.scale;
+    const std::optional<double>& offset = options_.offset;
     if ((scale && !std::isfinite(*scale)) || (offset && !std::isfinite(*offset))) {
         throw std::invalid_argument("Scale and offset must be finite");
     }
-    scaling_ = {scale.value_or(info_.bandScaling[band_].scale),
-                offset.value_or(info_.bandScaling[band_].offset)};
+    RequireNonNegative(options_.lowPass, "Low-pass deviation");
+    scaling_ = {scale.value_or(info_.bandScaling[band].scale),
+                offset.value_or(info_.bandScaling[band].offset)};
     if (info_.geoKeys.IsGeographic()) {
         throw std::invalid_argument(
             "The raster's CRS is geographic (degrees); craters are sized in metres, so reproject "
             "it first, for example with gdalwarp -t_srs");
     }
     grid_ = {info_.width, info_.height, info_.transform};
-    if (pixelSize_) {
-        grid_ = ResampledGrid(grid_, *pixelSize_);
+    if (options_.pixelSize) {
+        grid_ = ResampledGrid(grid_, *options_.pixelSize);
     }
 }
 
@@ -54,7 +56,7 @@ Vec2d GeoTiffSource::ReferencePoint() const {
 
 void GeoTiffSource::Load() const {
     std::call_once(loaded_, [this] {
-        GeoTiff tiff = ReadGeoTiff(path_, band_);
+        GeoTiff tiff = ReadGeoTiff(path_, options_.band);
         if (!scaling_.Identity()) {
             Raster<float>& raster = tiff.raster;
             constexpr float kMissing = std::numeric_limits<float>::quiet_NaN();
@@ -68,10 +70,16 @@ void GeoTiffSource::Load() const {
                 raster.SetNoData(kMissing);
             }
         }
+        if (options_.lowPass > 0.0) {
+            const GeoTransform& transform = tiff.raster.Transform();
+            tiff.raster =
+                GaussianBlur(tiff.raster, options_.lowPass / std::fabs(transform.pixelWidth),
+                             options_.lowPass / std::fabs(transform.pixelHeight));
+        }
         native_ = std::make_shared<const Raster<float>>(std::move(tiff.raster));
-        heights_ = pixelSize_ ? std::make_shared<const Raster<float>>(
-                                    Resample(*native_, *pixelSize_, resampling_))
-                              : native_;
+        heights_ = options_.pixelSize ? std::make_shared<const Raster<float>>(Resample(
+                                            *native_, *options_.pixelSize, options_.resampling))
+                                      : native_;
     });
 }
 
@@ -149,7 +157,7 @@ float GeoTiffSource::HeightAt(double x, double y) const {
     const bool centred =
         std::fabs(pixel.x - col - 0.5) < 1e-9 && std::fabs(pixel.y - row - 0.5) < 1e-9;
     if (!centred) {
-        return SampleRaster(Native(), x, y, resampling_);
+        return SampleRaster(Native(), x, y, options_.resampling);
     }
     if (!(col >= 0.0 && row >= 0.0 && col < static_cast<double>(data.Width()) &&
           row < static_cast<double>(data.Height()))) {

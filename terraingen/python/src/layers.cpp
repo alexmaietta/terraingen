@@ -4,6 +4,7 @@
 #include "trampolines.h"
 
 #include "terraingen/layers/bedforms.h"
+#include "terraingen/layers/detail.h"
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/layers/layer.h"
@@ -124,6 +125,17 @@ void BindTransforms(nb::module_& m) {
             "`origin` is unused.");
     nb::class_<ScaleLayer, Layer>(m, "ScaleLayer", "height * scale + offset.")
         .def(nb::init<double, double>(), "scale"_a, "offset"_a = 0.0);
+    nb::class_<DetailLayer, Layer>(
+        m, "DetailLayer",
+        "Adds `weight` times the detail of `full` above `smooth` at each sample, such as a DEM's "
+        "detail above its own low-pass.")
+        .def(
+            "__init__",
+            [](DetailLayer* self, std::shared_ptr<Source> full, std::shared_ptr<Source> smooth,
+               double weight, const Surface& surface) {
+                new (self) DetailLayer(std::move(full), std::move(smooth), weight, surface);
+            },
+            "full"_a, "smooth"_a, "weight"_a = 1.0, "surface"_a = Surface{});
     nb::class_<ClampLayer, Layer>(m, "ClampLayer", "Heights held between `min` and `max`.")
         .def(nb::init<std::optional<double>, std::optional<double>>(), "min"_a = nb::none(),
              "max"_a = nb::none());
