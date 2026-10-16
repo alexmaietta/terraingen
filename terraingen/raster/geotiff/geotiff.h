@@ -86,7 +86,9 @@ struct GeoTiffInfo {
     std::size_t height = 0;  ///< Rows.
     std::size_t bands = 0;   ///< Samples per pixel.
     int bitsPerSample = 0;   ///< Bits of each sample.
+    /// How samples are stored.
     TiffSampleFormat sampleFormat = TiffSampleFormat::UnsignedInteger;
+    /// How the image data is compressed.
     TiffCompression compression = TiffCompression::None;
     int predictor = 1;       ///< 1 none, 2 horizontal differencing, 3 floating point.
     bool tiled = false;      ///< Tiles rather than strips.

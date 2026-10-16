@@ -15,8 +15,8 @@ namespace terraingen {
 
 /// Craters and their attributes, in step.
 struct CraterFeatures {
-    CraterList craters;
-    std::vector<CraterAttributes> attributes;
+    CraterList craters;                        ///< The craters, in the order applied.
+    std::vector<CraterAttributes> attributes;  ///< Each crater's attributes, in step.
 
     /// Appends `other`'s craters and attributes.
     void Append(const CraterFeatures& other);

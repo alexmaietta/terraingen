@@ -23,9 +23,9 @@ std::optional<LogLevel> ParseLogLevel(std::string_view name);
 
 /// One log message.
 struct LogRecord {
-    LogLevel level = LogLevel::Info;
-    std::string category;  ///< The part of TerrainGen that logged it, such as "craters".
-    std::string message;
+    LogLevel level = LogLevel::Info;  ///< How severe it is.
+    std::string category;             ///< The part of TerrainGen that logged it, such as "craters".
+    std::string message;              ///< The text, without a trailing newline.
     std::chrono::system_clock::time_point time;  ///< When it was logged.
 };
 

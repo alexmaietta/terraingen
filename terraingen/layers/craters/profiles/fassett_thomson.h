@@ -23,6 +23,7 @@ enum class FassettThomsonRim {
 /// represented.
 class FassettThomsonProfile final : public CraterProfile {
   public:
+    /// @param rim How the interior and exterior fits are joined at the rim.
     explicit FassettThomsonProfile(FassettThomsonRim rim = FassettThomsonRim::Original)
         : rim_(rim) {}
 

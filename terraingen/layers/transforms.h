@@ -17,6 +17,7 @@ class ScaleLayer final : public FormulaLayer {
     /// @throws std::invalid_argument unless `scale` and `offset` are finite.
     ScaleLayer(double scale, double offset = 0.0);
 
+    /// The factor on the heights.
     double Scale() const {
         return scale_;
     }
@@ -42,9 +43,11 @@ class ClampLayer final : public FormulaLayer {
     /// @throws std::invalid_argument for a bound that is not finite or `min` above `max`.
     ClampLayer(std::optional<double> min, std::optional<double> max);
 
+    /// The lowest height kept, in metres; none for no floor.
     std::optional<double> Min() const {
         return min_;
     }
+    /// The highest height kept, in metres; none for no cap.
     std::optional<double> Max() const {
         return max_;
     }
