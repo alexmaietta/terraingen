@@ -114,6 +114,24 @@ def test_surfaces_compare_by_value(moon):
     assert moon == terraingen.Surface.sphere(1737400.0) and moon != terraingen.Surface()
 
 
+def test_ellipsoid_of_equal_radii_is_the_sphere(moon):
+    assert terraingen.Surface.ellipsoid(1737400.0, 1737400.0, 1737400.0) == moon
+    assert moon.radii == (1737400.0, 1737400.0, 1737400.0)
+
+
+def test_ellipsoid_lies_on_its_radii_and_offsets_invert_locate():
+    body = terraingen.Surface.ellipsoid(270.0, 147.0, 104.0)
+    assert body.is_sphere and body.radii == (270.0, 147.0, 104.0)
+    assert body.radius_at((0.0, 0.0)) == pytest.approx(270.0)
+    assert body.radius_at((0.0, 90.0)) == pytest.approx(104.0)
+    assert body.area_per_steradian((90.0, 0.0)) == pytest.approx(147.0**2)
+    point = body.locate((30.0, 10.0), (4.0, -3.0))
+    assert body.offset((30.0, 10.0), point) == pytest.approx((4.0, -3.0))
+    assert body.distance((30.0, 10.0), point) == pytest.approx(5.0, rel=1e-3)
+    with pytest.raises(ValueError):
+        terraingen.Surface.ellipsoid(1.0, 0.0, 1.0)
+
+
 def test_plane_surface_has_unit_length_and_euclidean_distance():
     plane = terraingen.Surface()
     assert not plane.is_sphere and plane.unit_length == 1.0

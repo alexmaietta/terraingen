@@ -115,6 +115,14 @@ void BindSurface(nb::module_& m) {
     surface.def(nb::init<>(), "A plane.")
         .def_static("plane", &Surface::Plane)
         .def_static("sphere", &Surface::Sphere, "radius"_a, "A sphere of `radius` metres.")
+        .def_static("ellipsoid", &Surface::Ellipsoid, "a"_a, "b"_a, "c"_a,
+                    "A triaxial ellipsoid with semi-axes `a`, `b` and `c` metres along x, y and z; "
+                    "equal radii give a sphere.")
+        .def_prop_ro("radii", &Surface::Radii, "The semi-axes (a, b, c) in metres.")
+        .def("radius_at", &Surface::RadiusAt, "point"_a,
+             "The distance in metres from the centre to the surface at (longitude, latitude).")
+        .def("area_per_steradian", &Surface::AreaPerSteradian, "point"_a,
+             "The surface area per steradian of direction from the centre at a point, in m^2.")
         .def_prop_ro("is_sphere", &Surface::IsSphere)
         .def_prop_ro("radius", &Surface::Radius)
         .def_prop_ro("unit_length", &Surface::UnitLength,

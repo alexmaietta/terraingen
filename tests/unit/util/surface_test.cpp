@@ -279,3 +279,131 @@ TEST(Surface, BucketsAreCubesOfThePositionAndFlatOnAPlane) {
     EXPECT_EQ(bucket.i, 0);
     EXPECT_EQ(bucket.k, static_cast<long long>(std::floor(kMoon / 1000.0)));
 }
+
+namespace {
+
+/// An elongated body like Itokawa, in metres.
+const Surface kEllipsoid = Surface::Ellipsoid(270.0, 147.0, 104.0);
+
+double Dot3(const Vec3d& a, const Vec3d& b) {
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+}  // namespace
+
+TEST(Surface, AnEllipsoidOfEqualRadiiIsTheSphere) {
+    EXPECT_EQ(Surface::Ellipsoid(kMoon, kMoon, kMoon), Surface::Sphere(kMoon));
+    EXPECT_EQ(Surface::Sphere(kMoon).Radii(), (Vec3d{kMoon, kMoon, kMoon}));
+    EXPECT_EQ(Surface::Sphere(kMoon).RadiusAt({30.0, 20.0}), kMoon);
+    EXPECT_EQ(Surface::Sphere(kMoon).AreaPerSteradian({30.0, 20.0}), kMoon * kMoon);
+    EXPECT_EQ(Surface().RadiusAt({30.0, 20.0}), 0.0);
+    EXPECT_EQ(Surface().AreaPerSteradian({30.0, 20.0}), 1.0);
+    EXPECT_NE(kEllipsoid, Surface::Ellipsoid(270.0, 104.0, 147.0));
+    EXPECT_TRUE(kEllipsoid.IsSphere());
+    EXPECT_NEAR(kEllipsoid.Radius(), std::cbrt(270.0 * 147.0 * 104.0), 1e-9);
+    EXPECT_THROW(Surface::Ellipsoid(0.0, 1.0, 1.0), std::invalid_argument);
+    EXPECT_THROW(Surface::Ellipsoid(1.0, -1.0, 1.0), std::invalid_argument);
+    EXPECT_THROW(Surface::Ellipsoid(1.0, 1.0, NAN), std::invalid_argument);
+}
+
+TEST(Surface, EllipsoidPositionsLieOnItInTheirDirection) {
+    const Vec3d radii = kEllipsoid.Radii();
+    for (int i = 0; i < 200; ++i) {
+        const Vec2d point{static_cast<double>(i * 37 % 360) - 180.0,
+                          static_cast<double>(i * 13 % 179) - 89.0};
+        const Vec3d p = kEllipsoid.Position(point);
+        EXPECT_NEAR(p.x * p.x / (radii.x * radii.x) + p.y * p.y / (radii.y * radii.y) +
+                        p.z * p.z / (radii.z * radii.z),
+                    1.0, 1e-12);
+        EXPECT_NEAR(terraingen::Length(p), kEllipsoid.RadiusAt(point), 1e-9);
+        const Vec2d back = kEllipsoid.PointOf(p);
+        EXPECT_NEAR(back.y, point.y, 1e-9);
+    }
+    EXPECT_NEAR(kEllipsoid.RadiusAt({0.0, 0.0}), 270.0, 1e-12);
+    EXPECT_NEAR(kEllipsoid.RadiusAt({90.0, 0.0}), 147.0, 1e-12);
+    EXPECT_NEAR(kEllipsoid.RadiusAt({0.0, 90.0}), 104.0, 1e-12);
+}
+
+TEST(Surface, EllipsoidFramesAreRightHandedWithUpAlongTheNormal) {
+    const Vec3d radii = kEllipsoid.Radii();
+    for (const Vec2d point : {Vec2d{40.0, -30.0}, Vec2d{-170.0, 60.0}, Vec2d{10.0, 89.0}}) {
+        const terraingen::LocalFrame frame = kEllipsoid.Frame(point);
+        EXPECT_NEAR(Dot3(frame.east, frame.east), 1.0, 1e-12);
+        EXPECT_NEAR(Dot3(frame.north, frame.north), 1.0, 1e-12);
+        EXPECT_NEAR(Dot3(frame.east, frame.north), 0.0, 1e-12);
+        EXPECT_NEAR(Dot3(frame.east, frame.up), 0.0, 1e-12);
+        const Vec3d cross = terraingen::Cross(frame.east, frame.north);
+        EXPECT_NEAR(Dot3(cross, frame.up), 1.0, 1e-12);
+        const Vec3d p = kEllipsoid.Position(point);
+        const Vec3d g{p.x / (radii.x * radii.x), p.y / (radii.y * radii.y),
+                      p.z / (radii.z * radii.z)};
+        EXPECT_NEAR(Dot3(g, frame.up), terraingen::Length(g), 1e-12) << "up is the normal";
+        EXPECT_GT(Dot3(frame.north, Vec3d{0.0, 0.0, 1.0}), 0.0) << "north points poleward";
+    }
+}
+
+TEST(Surface, EllipsoidOffsetsAndLocateInvertEachOther) {
+    for (int i = 0; i < 400; ++i) {
+        const Vec2d centre{static_cast<double>(i * 53 % 360) - 180.0,
+                           static_cast<double>(i * 17 % 160) - 80.0};
+        const Vec2d offset{static_cast<double>(i % 21 - 10) * 3.0,
+                           static_cast<double>(i % 17 - 8) * 3.0};
+        const Vec2d point = kEllipsoid.Locate(centre, offset);
+        const Vec2d back = kEllipsoid.Offset(centre, point);
+        EXPECT_NEAR(back.x, offset.x, 1e-8) << centre.x << ", " << centre.y;
+        EXPECT_NEAR(back.y, offset.y, 1e-8) << centre.x << ", " << centre.y;
+    }
+    EXPECT_EQ(kEllipsoid.Locate({12.0, 34.0}, {0.0, 0.0}), (Vec2d{12.0, 34.0}));
+}
+
+TEST(Surface, ShortEllipsoidOffsetsMatchTheDistance) {
+    for (int i = 0; i < 200; ++i) {
+        const Vec2d centre{static_cast<double>(i * 29 % 360) - 180.0,
+                           static_cast<double>(i * 11 % 160) - 80.0};
+        const Vec2d point = kEllipsoid.Locate(centre, {0.6, -0.8});
+        const double distance = kEllipsoid.Distance(centre, point);
+        EXPECT_NEAR(distance, 1.0, 1e-3);
+        EXPECT_DOUBLE_EQ(distance, kEllipsoid.Distance(point, centre));
+    }
+}
+
+TEST(Surface, EllipsoidExpandCoversEveryPointWithinTheDistance) {
+    const Bounds2d region{20.0, -10.0, 30.0, 5.0};
+    for (const double metres : {5.0, 40.0, 90.0}) {
+        const Bounds2d expanded = kEllipsoid.Expand(region, metres);
+        for (int i = 0; i < 20000; ++i) {
+            const Vec2d point{static_cast<double>(i % 200) * 1.8 - 180.0,
+                              static_cast<double>(i / 200) * 1.8 - 90.0};
+            const Vec2d nearest{std::clamp(point.x, region.minX, region.maxX),
+                                std::clamp(point.y, region.minY, region.maxY)};
+            if (kEllipsoid.Distance(nearest, point) <= metres) {
+                EXPECT_TRUE(kEllipsoid.Contains(expanded, point))
+                    << metres << ": " << point.x << ", " << point.y;
+            }
+        }
+    }
+    const Bounds2d whole = kEllipsoid.Expand(region, 104.0);
+    EXPECT_EQ(whole.minX, -180.0);
+    EXPECT_EQ(whole.minY, -90.0);
+}
+
+TEST(Surface, EllipsoidAreaPerSteradianIntegratesToItsArea) {
+    const double a = 3000.0;
+    const double c = 1000.0;
+    const Surface spheroid = Surface::Ellipsoid(a, a, c);
+    const int steps = 720;
+    const double step = std::numbers::pi / steps;
+    double area = 0.0;
+    for (int j = 0; j < steps; ++j) {
+        const double lat = -90.0 + (j + 0.5) * 180.0 / steps;
+        for (int i = 0; i < 2 * steps; ++i) {
+            const double lon = -180.0 + (i + 0.5) * 180.0 / steps;
+            area += spheroid.AreaPerSteradian({lon, lat}) *
+                    std::cos(lat * std::numbers::pi / 180.0) * step * step;
+        }
+    }
+    const double e = std::sqrt(1.0 - c * c / (a * a));
+    const double expected =
+        2.0 * std::numbers::pi * a * a * (1.0 + (1.0 - e * e) / e * std::atanh(e));
+    EXPECT_NEAR(area / expected, 1.0, 1e-5);
+}
