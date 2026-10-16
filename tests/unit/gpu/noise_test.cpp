@@ -24,7 +24,7 @@ using terraingen::NoiseLayers;
 
 namespace {
 
-constexpr std::uint32_t kValues = 17;
+constexpr std::uint32_t kValues = 22;
 
 static_assert(sizeof(NoiseLayer) == 52 && sizeof(NoiseLayers) == 420,
               "NoiseLayers must match its std430 layout in GPU kernels");
@@ -110,6 +110,7 @@ TEST(GpuNoise, MatchesTheCpuWithinTolerancesAndPhiloxExactly) {
         cpuBlock.layers[cpuBlock.count++] = layer;
     }
     std::vector<double> worst(kValues, 0.0);
+    std::uint32_t cellMismatches = 0;
     for (std::uint32_t i = 0; i < count; ++i) {
         const float x = points[3u * i + 0u];
         const float y = points[3u * i + 1u];
@@ -129,7 +130,21 @@ TEST(GpuNoise, MatchesTheCpuWithinTolerancesAndPhiloxExactly) {
         expected[15] = terraingen::EvaluateNoiseLayers(100.0f * x, 100.0f * y, cpuBlock);
         expected[16] =
             terraingen::HashToUnitFloat(terraingen::PcgHash(std::bit_cast<std::uint32_t>(x)));
+        const terraingen::WorleyDistances worley3 = terraingen::Worley3(x, y, z, seed);
+        expected[17] = worley.value;
+        expected[18] = worley3.f1;
+        expected[19] = worley3.f2;
+        expected[20] = worley3.value;
+        expected[21] = terraingen::SimplexNoise3(x, y, z, seed);
+        for (const std::uint32_t k : {17u, 20u}) {
+            if (values[kValues * i + k] != expected[k]) {
+                ++cellMismatches;
+            }
+        }
         for (std::uint32_t k = 0; k < kValues; ++k) {
+            if (k == 17u || k == 20u) {
+                continue;
+            }
             const double scale = std::max(1.0, std::fabs(static_cast<double>(expected[k])));
             worst[k] = std::max(
                 worst[k],
@@ -147,4 +162,5 @@ TEST(GpuNoise, MatchesTheCpuWithinTolerancesAndPhiloxExactly) {
         EXPECT_LT(worst[k], 1e-4) << "value " << k << " on " << compute->DeviceName();
     }
     EXPECT_EQ(worst[16], 0.0);
+    EXPECT_LE(cellMismatches, count / 500u) << "Voronoi cells differ only at near-ties";
 }

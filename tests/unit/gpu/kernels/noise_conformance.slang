@@ -1,6 +1,6 @@
 // Evaluates the shared noise kernels on the GPU for comparison with the C++ build of the same
-// headers: per sample, every 2D basis, both 3D bases, each layer of a block and the whole stack,
-// and one Philox block.
+// headers: per sample, every 2D basis, Perlin, simplex, value and Worley 3D noise, the Voronoi
+// cell values, each layer of a block and the whole stack, and one Philox block.
 #include "terraingen/noise/noise_layers.h"
 #include "terraingen/random/philox.h"
 
@@ -15,7 +15,7 @@ struct Params {
 };
 [[vk::push_constant]] ConstantBuffer<Params> params;
 
-static const uint kValues = 17u;
+static const uint kValues = 22u;
 
 [shader("compute")]
 [numthreads(64, 1, 1)]
@@ -45,6 +45,12 @@ void main(uint3 id : SV_DispatchThreadID) {
     }
     values[base + 15u] = terraingen::EvaluateNoiseLayers(100.0f * x, 100.0f * y, block);
     values[base + 16u] = terraingen::HashToUnitFloat(terraingen::PcgHash(asuint(x)));
+    values[base + 17u] = worley.value;
+    const terraingen::WorleyDistances worley3 = terraingen::Worley3(x, y, z, seed);
+    values[base + 18u] = worley3.f1;
+    values[base + 19u] = worley3.f2;
+    values[base + 20u] = worley3.value;
+    values[base + 21u] = terraingen::SimplexNoise3(x, y, z, seed);
     terraingen::U32x4 counter = {i, asuint(x), asuint(y), seed};
     terraingen::U32x2 key = {seed, ~i};
     const terraingen::U32x4 block4 = terraingen::Philox4x32(counter, key);

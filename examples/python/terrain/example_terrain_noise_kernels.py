@@ -1,9 +1,9 @@
 """Use the noise kernels directly, without a terrain.
 
 The kernels behind `NoiseRelief` are available as functions: single-octave bases
-(`perlin_noise2`, `simplex_noise2`, `value_noise2`, `worley2`) and fractals built from them
-(`fractal2` with `FractalParams`). This example samples each over the same window and writes them
-side by side.
+(`perlin_noise2`, `simplex_noise2`, `value_noise2`, and `worley2`, whose third value is the
+Voronoi cell value) and fractals built from them (`fractal2` with `FractalParams`). This example
+samples each over the same window and writes them side by side.
 
     python example_terrain_noise_kernels.py [--viewer window|null] [--output-dir DIR] [--test]
 """
@@ -35,6 +35,7 @@ class Example(_common.Example):
             "simplex": lambda x, y: terraingen.simplex_noise2(x, y, 1),
             "value": lambda x, y: terraingen.value_noise2(x, y, 1),
             "worley F1": lambda x, y: terraingen.worley2(x, y, 1)[0],
+            "voronoi": lambda x, y: terraingen.worley2(x, y, 1)[2],
         }
         self.values = {}
         for name, function in bases.items():
@@ -60,7 +61,7 @@ class Example(_common.Example):
         print("wrote", write_png(out / "example_terrain_noise_kernels.png", montage(tiles, columns=4)))
 
     def test_final(self):
-        assert len(self.values) == 8, "four bases and four fractals"
+        assert len(self.values) == 9, "five bases and four fractals"
         assert all(
             values.shape == (SIZE, SIZE) and np.all(np.isfinite(values)) for values in self.values.values()
         ), "every sample is finite"

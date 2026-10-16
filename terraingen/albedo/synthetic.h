@@ -48,8 +48,7 @@ class SyntheticAlbedo final : public AlbedoSource {
     /// The synthetic albedo with the colour and noise of `params`.
     /// @param origin Point noise is measured from, keeping single-precision noise accurate where
     /// coordinates are large.
-    /// @throws std::invalid_argument as `ValidateSyntheticAlbedo`, or on a sphere for a noise
-    /// basis without a 3D form.
+    /// @throws std::invalid_argument as `ValidateSyntheticAlbedo`.
     explicit SyntheticAlbedo(SyntheticAlbedoParams params, Vec2d origin = {}, Surface surface = {});
 
     /// 3 bands when `rgb` is set, otherwise 1.

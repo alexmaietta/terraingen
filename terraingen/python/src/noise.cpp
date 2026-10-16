@@ -126,21 +126,30 @@ float ValueAt(float x, float y, std::uint32_t seed) {
     return ValueNoise2(x, y, seed);
 }
 
-nb::tuple WorleyArrays(const InputArray& x, const InputArray& y, std::uint32_t seed) {
-    const std::vector<std::size_t> shape = SameShape("x and y", x, y);
+/// F1, F2 and the cell value of `worley(i)` for each of `count` points, as arrays of `shape`.
+template <typename Worley>
+nb::tuple WorleyArrays(const std::vector<std::size_t>& shape, std::size_t count,
+                       const Worley& worley) {
     float* f1 = nullptr;
     float* f2 = nullptr;
-    OutputArray first = NewArray(shape, x.size(), f1);
-    OutputArray second = NewArray(shape, x.size(), f2);
+    float* value = nullptr;
+    OutputArray first = NewArray(shape, count, f1);
+    OutputArray second = NewArray(shape, count, f2);
+    OutputArray cell = NewArray(shape, count, value);
     {
         nb::gil_scoped_release release;
-        for (std::size_t i = 0; i < x.size(); ++i) {
-            const WorleyDistances d = Worley2(x.data()[i], y.data()[i], seed);
+        for (std::size_t i = 0; i < count; ++i) {
+            const WorleyDistances d = worley(i);
             f1[i] = d.f1;
             f2[i] = d.f2;
+            value[i] = d.value;
         }
     }
-    return nb::make_tuple(first, second);
+    return nb::make_tuple(first, second, cell);
+}
+
+nb::tuple WorleyTuple(const WorleyDistances& d) {
+    return nb::make_tuple(d.f1, d.f2, d.value);
 }
 
 void BindBasisNoise(nb::module_& m) {
@@ -149,16 +158,38 @@ void BindBasisNoise(nb::module_& m) {
     BindScalarNoise<&SimplexAt>(m, "simplex_noise2",
                                 "Simplex noise (Perlin 2001, Gustavson 2005) in [-1, 1].");
     BindScalarNoise<&ValueAt>(m, "value_noise2", "Value noise in [-1, 1], in lattice units.");
-    m.def("worley2", &WorleyArrays, "x"_a, "y"_a, "seed"_a,
-          "Worley cellular distances (F1, F2) to the nearest and second-nearest feature points "
-          "(Worley 1996), in lattice units.");
     m.def(
         "worley2",
-        [](float x, float y, std::uint32_t seed) {
-            const WorleyDistances d = Worley2(x, y, seed);
-            return nb::make_tuple(d.f1, d.f2);
+        [](const InputArray& x, const InputArray& y, std::uint32_t seed) {
+            return WorleyArrays(SameShape("x and y", x, y), x.size(), [&](std::size_t i) {
+                return Worley2(x.data()[i], y.data()[i], seed);
+            });
         },
+        "x"_a, "y"_a, "seed"_a,
+        "Worley cellular noise (Worley 1996) in lattice units: the distances (F1, F2) to the "
+        "nearest and second-nearest feature points, and the nearest point's Voronoi cell value in "
+        "[-1, 1).");
+    m.def(
+        "worley2",
+        [](float x, float y, std::uint32_t seed) { return WorleyTuple(Worley2(x, y, seed)); },
         "x"_a, "y"_a, "seed"_a);
+    m.def(
+        "worley3",
+        [](const InputArray64& x, const InputArray64& y, const InputArray64& z,
+           std::uint32_t seed) {
+            return WorleyArrays(SameShape("x, y and z", x, y, z), x.size(), [&](std::size_t i) {
+                return Worley3(SplitLatticePrecise3(x.data()[i], y.data()[i], z.data()[i]), seed);
+            });
+        },
+        "x"_a, "y"_a, "z"_a, "seed"_a,
+        "3D Worley cellular noise in lattice units, as `worley2`: (F1, F2, cell value); the cell "
+        "is found in double precision.");
+    m.def(
+        "worley3",
+        [](double x, double y, double z, std::uint32_t seed) {
+            return WorleyTuple(Worley3(SplitLatticePrecise3(x, y, z), seed));
+        },
+        "x"_a, "y"_a, "z"_a, "seed"_a);
 }
 
 void BindEnums(nb::module_& m) {
@@ -168,7 +199,8 @@ void BindEnums(nb::module_& m) {
         .value("VALUE", NoiseBasis::Value)
         .value("WORLEY_F1", NoiseBasis::WorleyF1)
         .value("WORLEY_F2", NoiseBasis::WorleyF2)
-        .value("WORLEY_F2_MINUS_F1", NoiseBasis::WorleyF2MinusF1);
+        .value("WORLEY_F2_MINUS_F1", NoiseBasis::WorleyF2MinusF1)
+        .value("VORONOI", NoiseBasis::Voronoi);
     nb::enum_<FractalType>(m, "FractalType", "How octaves of the basis noise are combined.")
         .value("FBM", FractalType::Fbm)
         .value("RIDGED", FractalType::Ridged)
@@ -305,8 +337,23 @@ void BindBasisNoise3(nb::module_& m) {
             return ValueNoise3(SplitLatticePrecise3(x, y, z), seed);
         },
         "x"_a, "y"_a, "z"_a, "seed"_a, "3D value noise in [-1, 1], in lattice units.");
-    m.def("has_basis_noise3", &HasBasisNoise3, "basis"_a,
-          "Whether `basis` has a 3D form (Perlin and value noise).");
+    m.def(
+        "simplex_noise3",
+        [](const InputArray64& x, const InputArray64& y, const InputArray64& z,
+           std::uint32_t seed) {
+            return Evaluate3(x, y, z, [seed](double px, double py, double pz) {
+                return SimplexNoise3(SplitLatticePrecise3(px, py, pz), seed);
+            });
+        },
+        "x"_a, "y"_a, "z"_a, "seed"_a,
+        "3D simplex noise in [-1, 1] at each point, in lattice units; the cell is found in double "
+        "precision, so it stays exact far from the origin.");
+    m.def(
+        "simplex_noise3",
+        [](double x, double y, double z, std::uint32_t seed) {
+            return SimplexNoise3(SplitLatticePrecise3(x, y, z), seed);
+        },
+        "x"_a, "y"_a, "z"_a, "seed"_a);
     m.def(
         "basis_noise3",
         [](NoiseBasis basis, std::int32_t ix, std::int32_t iy, std::int32_t iz, float fx, float fy,

@@ -256,7 +256,7 @@ TEST(ConfigSchema, ListsTheParsersChoicesAndRefersToRecursiveTypes) {
     const SchemaJson& noise = Resolve(schema, stack["of"]);
     const SchemaJson basis = FieldOf(noise, "basis")["schema"];
     ASSERT_EQ(basis["kind"], "enum");
-    EXPECT_EQ(basis["choices"].size(), 6u);
+    EXPECT_EQ(basis["choices"].size(), 7u);
     for (const SchemaJson& choice : basis["choices"]) {
         const std::string config =
             R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"basis": )" +

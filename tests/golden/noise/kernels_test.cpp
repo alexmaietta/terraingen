@@ -73,3 +73,29 @@ TEST(KernelsGolden, LayersWithWarp) {
     layers[1].warpAmplitude = 50.0f;
     EXPECT_EQ(EvaluateNoiseLayers(0x1.004p+9f, -0x1.001p+10f, layers, 2), -0x1.38f3cp+4f);
 }
+
+TEST(KernelsGolden, VoronoiAndWorley3) {
+    EXPECT_EQ(Worley2(0x1p-2f, 0x1.8p-1f, 1234u).value, -0x1.73b024p-1f);
+    const auto worley3 = terraingen::Worley3(0x1p-2f, 0x1.8p-1f, -0x1.8p+0f, 1234u);
+    EXPECT_EQ(worley3.f1, 0x1.113fap-1f);
+    EXPECT_EQ(worley3.f2, 0x1.dc0d32p-1f);
+    EXPECT_EQ(worley3.value, -0x1.20f528p-1f);
+    EXPECT_EQ(terraingen::BasisNoise2(NoiseBasis::Voronoi, -0x1.9p+3f, 0x1.9p+1f, 1234u),
+              -0x1.e2e784p-1f);
+    FractalParams params;
+    params.seed = 42u;
+    params.basis = NoiseBasis::Voronoi;
+    EXPECT_EQ(Fractal2(0x1.0008p+9f, -0x1.004p+10f, params), -0x1.ab66bp+5f);
+    EXPECT_EQ(terraingen::Fractal3(512.0625, -1025.0, 300.5, params), -0x1.d05156p+5f);
+    params.basis = NoiseBasis::WorleyF2MinusF1;
+    EXPECT_EQ(terraingen::Fractal3(512.0625, -1025.0, 300.5, params), -0x1.605be8p+6f);
+}
+
+TEST(KernelsGolden, Simplex3) {
+    EXPECT_EQ(terraingen::SimplexNoise3(0x1p-2f, 0x1.8p-1f, -0x1.8p+0f, 1234u), 0x1.62c8a8p-3f);
+    EXPECT_EQ(terraingen::SimplexNoise3(-0x1.9p+3f, 0x1.9p+1f, 0x1.c4p+2f, 1234u), 0x1.24874ep-6f);
+    FractalParams params;
+    params.seed = 42u;
+    params.basis = NoiseBasis::Simplex;
+    EXPECT_EQ(terraingen::Fractal3(512.0625, -1025.0, 300.5, params), -0x1.e90b4p+4f);
+}

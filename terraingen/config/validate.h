@@ -39,7 +39,6 @@ RasterGrid DescribeSource(const SourceSpec& source, const std::filesystem::path&
 /// Checks a configuration's albedo against its crater layers and files.
 /// @param config A configuration with an albedo.
 /// @throws ConfigError naming the first invalid value under "albedo".
-void ValidateAlbedo(const TerrainConfig& config, const std::filesystem::path& directory,
-                    const Surface& surface);
+void ValidateAlbedo(const TerrainConfig& config, const std::filesystem::path& directory);
 
 }  // namespace terraingen

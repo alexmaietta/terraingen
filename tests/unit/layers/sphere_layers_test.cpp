@@ -75,10 +75,14 @@ TEST(SphereLayers, NoiseIsSeamlessAcrossTheAntimeridianAndPoles) {
                     noise.ApplyAt(0.0f, -180.0, 10.0, {1.0}));
     EXPECT_NEAR(noise.ApplyAt(0.0f, 0.0, 90.0, {1.0}), noise.ApplyAt(0.0f, 123.0, 90.0, {1.0}),
                 1e-4);
-    terraingen::SyntheticTerrainParams simplex = params;
-    simplex.layers[0].fractal.basis = terraingen::NoiseBasis::Simplex;
-    EXPECT_THROW(terraingen::NoiseRelief(simplex, {}, kSphere), std::invalid_argument);
-    EXPECT_NO_THROW(terraingen::NoiseRelief(simplex, {}, Surface::Plane()));
+    for (std::uint32_t b = 0; b < terraingen::kNoiseBasisCount; ++b) {
+        SCOPED_TRACE(b);
+        terraingen::SyntheticTerrainParams basis = params;
+        basis.layers[0].fractal.basis = static_cast<terraingen::NoiseBasis>(b);
+        const terraingen::NoiseRelief relief(basis, {}, kSphere);
+        EXPECT_FLOAT_EQ(relief.ApplyAt(0.0f, 180.0, 10.0, {1.0}),
+                        relief.ApplyAt(0.0f, -180.0, 10.0, {1.0}));
+    }
 }
 
 TEST(SphereLayers, ExposureReadsTheSurroundingsInMetres) {

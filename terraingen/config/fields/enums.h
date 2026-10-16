@@ -10,22 +10,22 @@
 
 namespace terraingen::config {
 
-/// @brief One named value of an enum in the configuration, and what it means, for editors.
+/// One named value of an enum in the configuration, and what it means, for editors.
 template <typename E> struct EnumEntry {
     std::string_view name;           ///< The JSON name.
     E value;                         ///< The value.
     std::string_view description{};  ///< What it means, for editors' tooltips.
 };
 
-/// @brief Every value of the enum `E` as an `EnumEntry` (`kValues`), specialized per enum below.
+/// Every value of the enum `E` as an `EnumEntry` (`kValues`), specialized per enum below.
 template <typename E> struct EnumNames;
 
-/// @brief An enum with `EnumNames`, read and written by name.
+/// An enum with `EnumNames`, read and written by name.
 template <typename E>
 concept NamedEnum = std::is_enum_v<E> && requires { EnumNames<E>::kValues; };
 
 template <> struct EnumNames<NoiseBasis> {
-    static constexpr std::array<EnumEntry<NoiseBasis>, 6> kValues{{
+    static constexpr std::array<EnumEntry<NoiseBasis>, 7> kValues{{
         {"perlin", NoiseBasis::Perlin,
          "Improved Perlin gradient noise: smooth, general-purpose relief."},
         {"simplex", NoiseBasis::Simplex,
@@ -38,6 +38,8 @@ template <> struct EnumNames<NoiseBasis> {
          "Cellular noise from the distance to the second-nearest feature point."},
         {"worley_f2_minus_f1", NoiseBasis::WorleyF2MinusF1,
          "Cellular noise F2 - F1: ridges along cell borders, like cracked ground."},
+        {"voronoi", NoiseBasis::Voronoi,
+         "Voronoi cells, each at one random height: flat polygonal plateaus and terraces."},
     }};
 };
 

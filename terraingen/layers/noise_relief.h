@@ -14,7 +14,6 @@ namespace terraingen {
 
 /// The summed noise of `layers` at surface (x, y): 2D relative to `origin` on a plane (keeping
 /// single precision accurate), 3D at the point's 3D position on a sphere.
-/// @param layers On a sphere each needs a basis with a 3D form.
 /// @param origin Where plane coordinates are measured from; unused on a sphere.
 float NoiseLayersAt(const std::vector<NoiseLayer>& layers, const Vec2d& origin,
                     const Surface& surface, double x, double y);
@@ -24,8 +23,7 @@ float NoiseLayersAt(const std::vector<NoiseLayer>& layers, const Vec2d& origin,
 class NoiseRelief final : public FormulaLayer {
   public:
     /// @param origin Where plane coordinates are measured from; unused on a sphere.
-    /// @throws std::invalid_argument if `params` are invalid, or on a sphere use a basis without a
-    /// 3D form (`HasBasisNoise3`).
+    /// @throws std::invalid_argument if `params` are invalid.
     explicit NoiseRelief(SyntheticTerrainParams params, Vec2d origin = {}, Surface surface = {});
 
     /// The noise layers the layer was made with.

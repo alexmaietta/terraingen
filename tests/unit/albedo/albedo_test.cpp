@@ -339,8 +339,10 @@ TEST(SyntheticAlbedo, UsesSeamlessNoiseOnASphere) {
         EXPECT_FLOAT_EQ(east[band], west[band]);
     }
     EXPECT_NE(albedo.ValueAt(10.0, 3.0, context)[0], east[0]);
-    params.valueNoise[0].fractal.basis = terraingen::NoiseBasis::WorleyF1;
-    EXPECT_THROW(SyntheticAlbedo(params, {}, moon), std::invalid_argument);
+    params.valueNoise[0].fractal.basis = terraingen::NoiseBasis::Simplex;
+    const SyntheticAlbedo simplex(params, {}, moon);
+    EXPECT_FLOAT_EQ(simplex.ValueAt(180.0, 3.0, context)[0],
+                    simplex.ValueAt(-180.0, 3.0, context)[0]);
 }
 
 TEST(RasterAlbedo, AddsDetailInMetresOnASphere) {

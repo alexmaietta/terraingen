@@ -29,7 +29,7 @@ def test_basis_noise_matches_cpp_golden_values():
     assert np.float32(terraingen.perlin_noise2(0.25, 0.75, 1234)) == f32("0x1.93a3e6p-4")
     assert np.float32(terraingen.simplex_noise2(0.25, 0.75, 1234)) == f32("0x1.bac986p-4")
     assert np.float32(terraingen.value_noise2(0.25, 0.75, 1234)) == f32("-0x1.0ed85ap-1")
-    f1, f2 = terraingen.worley2(0.25, 0.75, 1234)
+    f1, f2, _ = terraingen.worley2(0.25, 0.75, 1234)
     assert (np.float32(f1), np.float32(f2)) == (f32("0x1.0f7b3p-1"), f32("0x1.2e7808p-1"))
 
 
@@ -48,13 +48,25 @@ def test_vectorized_noise_matches_scalar_and_keeps_shape(noise):
     assert np.all(np.abs(values) <= 1.0)
 
 
-def test_vectorized_worley_returns_both_distances():
+def test_vectorized_worley_returns_both_distances_and_the_cell_value():
     x = np.linspace(-3, 3, 12, dtype=np.float32).reshape(3, 4)
-    f1, f2 = terraingen.worley2(x, x.T.copy().reshape(3, 4), 5)
-    assert f1.shape == f2.shape == (3, 4)
+    f1, f2, value = terraingen.worley2(x, x.T.copy().reshape(3, 4), 5)
+    assert f1.shape == f2.shape == value.shape == (3, 4)
     assert np.all(f1 <= f2)
+    assert np.all((value >= -1.0) & (value < 1.0))
     scalar = terraingen.worley2(float(x[1, 2]), float(x.T.copy().reshape(3, 4)[1, 2]), 5)
-    assert (np.float32(scalar[0]), np.float32(scalar[1])) == (f1[1, 2], f2[1, 2])
+    assert tuple(np.float32(v) for v in scalar) == (f1[1, 2], f2[1, 2], value[1, 2])
+
+
+def test_vectorized_worley3_matches_scalar():
+    rng = np.random.default_rng(1)
+    x, y, z = (rng.uniform(-20, 20, size=(4, 5)).astype(np.float32) for _ in range(3))
+    f1, f2, value = terraingen.worley3(x, y, z, 9)
+    assert f1.shape == f2.shape == value.shape == (4, 5)
+    assert np.all(f1 <= f2)
+    assert np.all(f1 <= np.sqrt(3.0))
+    scalar = terraingen.worley3(float(x[2, 3]), float(y[2, 3]), float(z[2, 3]), 9)
+    assert tuple(np.float32(v) for v in scalar) == (f1[2, 3], f2[2, 3], value[2, 3])
 
 
 def test_vectorized_noise_converts_float64_input():
@@ -96,9 +108,15 @@ def test_value_noise3_stays_in_range():
     assert -1.0 <= terraingen.value_noise3(0.5, 0.25, 0.75, 4) <= 1.0
 
 
-def test_has_basis_noise3_lists_the_3d_bases():
-    assert terraingen.has_basis_noise3(terraingen.NoiseBasis.VALUE)
-    assert not terraingen.has_basis_noise3(terraingen.NoiseBasis.SIMPLEX)
+def test_simplex_noise3_matches_its_basis_and_vectorizes():
+    assert terraingen.simplex_noise3(1.25, -0.5, 3.75, 4) == terraingen.basis_noise3(
+        terraingen.NoiseBasis.SIMPLEX, 1, -1, 3, 0.25, 0.5, 0.75, 4
+    )
+    x = np.linspace(-4.0, 4.0, 12).reshape(3, 4)
+    values = terraingen.simplex_noise3(x, x * 0.5, -x, 9)
+    assert values.shape == (3, 4)
+    assert np.all(np.abs(values) <= 1.0)
+    assert values[1, 2] == np.float32(terraingen.simplex_noise3(x[1, 2], x[1, 2] * 0.5, -x[1, 2], 9))
 
 
 def test_noise3_rejects_mismatched_shapes():

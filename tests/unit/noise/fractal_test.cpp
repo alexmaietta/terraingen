@@ -53,6 +53,7 @@ TEST(BasisNoise2, DispatchesToEachKernel) {
                     2.0f * d.f2 / std::sqrt(5.0f) - 1.0f);
     EXPECT_FLOAT_EQ(BasisNoise2(NoiseBasis::WorleyF2MinusF1, x, y, 5u),
                     2.0f * (d.f2 - d.f1) / std::sqrt(5.0f) - 1.0f);
+    EXPECT_EQ(BasisNoise2(NoiseBasis::Voronoi, x, y, 5u), d.value);
 }
 
 TEST(BasisNoise2, EveryBasisStaysWithinUnitRange) {

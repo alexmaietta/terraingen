@@ -98,6 +98,14 @@ constexpr UVec3 ValueLatticeKey3(uint32_t x, uint32_t y, uint32_t z, uint32_t se
     return key;
 }
 
+/// The `pcg3d` key of a cell of 3D Worley noise: `seedKey`, the hashed seed, is XORed into x so
+/// the feature points do not follow the value noise lattice. Frozen for reproducibility.
+/// @param seedKey `PcgHash` of the noise seed.
+constexpr UVec3 CellularLatticeKey3(uint32_t x, uint32_t y, uint32_t z, uint32_t seedKey) {
+    const UVec3 key = {x ^ seedKey, y, z};
+    return key;
+}
+
 /// The `pcg3d` key of a fractal octave's seed and lattice offset: (seed, octave, `word`).
 /// Frozen for reproducibility.
 /// @param seed The fractal seed.

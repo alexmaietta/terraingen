@@ -62,17 +62,6 @@ AlbedoSample HsvToRgb(double hue, double saturation, double value) {
 SyntheticAlbedo::SyntheticAlbedo(SyntheticAlbedoParams params, Vec2d origin, Surface surface)
     : params_(std::move(params)), origin_(origin), surface_(surface) {
     ValidateSyntheticAlbedo(params_);
-    if (surface_.IsSphere()) {
-        for (const auto* stack :
-             {&params_.hueNoise, &params_.saturationNoise, &params_.valueNoise}) {
-            for (const NoiseLayer& layer : *stack) {
-                if (!HasBasisNoise3(layer.fractal.basis)) {
-                    throw std::invalid_argument(
-                        "Albedo noise on a sphere needs a basis with a 3D form: perlin or value");
-                }
-            }
-        }
-    }
 }
 
 double SyntheticAlbedo::Noise(const std::vector<NoiseLayer>& layers, double x, double y) const {

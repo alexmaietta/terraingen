@@ -18,10 +18,11 @@ enum class NoiseBasis : uint32_t {
     WorleyF1 = 3,         ///< Distance to the nearest feature point; cones and basins.
     WorleyF2 = 4,         ///< Distance to the second-nearest feature point.
     WorleyF2MinusF1 = 5,  ///< F2 - F1; ridges along cell borders, like cracked ground.
+    Voronoi = 6,          ///< Value of the nearest feature point's cell; flat polygonal plateaus.
 };
 
 /// Number of `NoiseBasis` values.
-static const uint32_t kNoiseBasisCount = 6;
+static const uint32_t kNoiseBasisCount = 7;
 
 /// How octaves of the basis noise are combined.
 enum class FractalType : uint32_t {
@@ -64,7 +65,7 @@ inline float GainFromHurst(float hurst, float lacunarity) {
 }
 
 /// One octave of 2D `basis` noise; Worley distances are mapped linearly from [0, bound] to
-/// [-1, 1].
+/// [-1, 1], and Voronoi gives the cell value.
 /// @param basis The basis; unknown values fall back to Perlin.
 /// @return Noise in [-1, 1].
 inline float BasisNoise2(NoiseBasis basis, float x, float y, uint32_t seed) {
@@ -83,24 +84,37 @@ inline float BasisNoise2(NoiseBasis basis, float x, float y, uint32_t seed) {
         const WorleyDistances d = Worley2(x, y, seed);
         return 2.0f * min((d.f2 - d.f1) * kInvSqrt5, 1.0f) - 1.0f;
     }
+    case NoiseBasis::Voronoi:
+        return Worley2(x, y, seed).value;
     default:
         return PerlinNoise2(x, y, seed);
     }
 }
 
-/// Whether a basis has a 3D form for `Fractal3`: true for Perlin and value noise.
-inline bool HasBasisNoise3(NoiseBasis basis) {
-    return basis == NoiseBasis::Perlin || basis == NoiseBasis::Value;
-}
-
-/// One octave of 3D `basis` noise: value noise for `NoiseBasis::Value`, Perlin noise
-/// otherwise.
+/// One octave of 3D `basis` noise, mapped like `BasisNoise2` with the 3D Worley bounds sqrt(3)
+/// for F1 and sqrt(6) for F2; unknown values fall back to Perlin.
 /// @return Noise in [-1, 1].
 inline float BasisNoise3(NoiseBasis basis, LatticePoint3 point, uint32_t seed) {
-    if (basis == NoiseBasis::Value) {
+    constexpr float kInvSqrt3 = 0.577350269189625765f;
+    constexpr float kInvSqrt6 = 0.408248290463863016f;
+    switch (basis) {
+    case NoiseBasis::Simplex:
+        return SimplexNoise3(point, seed);
+    case NoiseBasis::Value:
         return ValueNoise3(point, seed);
+    case NoiseBasis::WorleyF1:
+        return 2.0f * min(Worley3(point, seed).f1 * kInvSqrt3, 1.0f) - 1.0f;
+    case NoiseBasis::WorleyF2:
+        return 2.0f * min(Worley3(point, seed).f2 * kInvSqrt6, 1.0f) - 1.0f;
+    case NoiseBasis::WorleyF2MinusF1: {
+        const WorleyDistances d = Worley3(point, seed);
+        return 2.0f * min((d.f2 - d.f1) * kInvSqrt6, 1.0f) - 1.0f;
     }
-    return PerlinNoise3(point, seed);
+    case NoiseBasis::Voronoi:
+        return Worley3(point, seed).value;
+    default:
+        return PerlinNoise3(point, seed);
+    }
 }
 
 namespace detail {
@@ -203,7 +217,7 @@ inline float Fractal2(float x, float y, FractalParams params) {
 /// `Fractal2` in 3D, for noise on a sphere; lattice coordinates are split in double
 /// precision so noise stays exact at a planet's radius.
 /// @param x, y, z World coordinates in metres.
-/// @param params The fractal, assumed valid; bases without `HasBasisNoise3` fall back to Perlin.
+/// @param params The fractal, assumed valid.
 /// @return Height in [-amplitude, amplitude] world units.
 inline float Fractal3(double x, double y, double z, FractalParams params) {
     /// The golden angle about the axis (1, 2, 3) / sqrt(14), which lies along no lattice axis.

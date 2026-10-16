@@ -72,16 +72,6 @@ void ValidateNoiseStack(const std::vector<NoiseLayerConfig>& layers, const std::
     }
 }
 
-/// @throws ConfigError for a layer whose basis has no 3D form, which noise on a sphere needs.
-void CheckBases3(const std::vector<NoiseLayerConfig>& stack, const std::string& path) {
-    for (std::size_t i = 0; i < stack.size(); ++i) {
-        if (!HasBasisNoise3(stack[i].layer.fractal.basis)) {
-            throw ConfigError(Child(Element(path, i), "basis"),
-                              "on a sphere noise needs a basis with a 3D form: perlin or value");
-        }
-    }
-}
-
 /// What a layer is checked against, and what the layers before it found.
 struct LayerChecks {
     const RasterGrid& grid;
@@ -163,9 +153,6 @@ void ValidateLayer(const LayerSpec& spec, const std::string& path, LayerChecks& 
         Overloaded{
             [&](const NoiseLayerSpec& noise) {
                 ValidateNoiseStack(noise.stack, Child(path, "stack"), false);
-                if (context.surface.IsSphere()) {
-                    CheckBases3(noise.stack, Child(path, "stack"));
-                }
             },
             [&](const CraterLayerSpec& layer) { ValidateCraters(layer, path, context); },
             [&](const BoulderLayerSpec& layer) { ValidateBoulders(layer, path, context); },
@@ -365,19 +352,13 @@ void ValidateOutput(const BodyMeshOutput& output, const std::string& path,
     }
 }
 
-void CheckSyntheticAlbedo(const SyntheticAlbedoSpec& spec, const std::string& path,
-                          const Surface& surface) {
+void CheckSyntheticAlbedo(const SyntheticAlbedoSpec& spec, const std::string& path) {
     const std::vector<std::pair<const std::vector<NoiseLayerConfig>*, std::string>> stacks{
         {&spec.hueNoise, Child(path, "hue_noise")},
         {&spec.saturationNoise, Child(path, "saturation_noise")},
         {&spec.valueNoise, Child(path, "value_noise")}};
     for (const auto& [stack, at] : stacks) {
         ValidateNoiseStack(*stack, at, true);
-    }
-    if (surface.IsSphere()) {
-        for (const auto& [stack, at] : stacks) {
-            CheckBases3(*stack, at);
-        }
     }
     At(path, [&] { ValidateSyntheticAlbedo(spec.Params()); });
 }
@@ -423,14 +404,11 @@ RasterGrid DescribeSource(const SourceSpec& source, const std::filesystem::path&
     return DescribeSourceAt(source, directory, "source", surface);
 }
 
-void ValidateAlbedo(const TerrainConfig& config, const std::filesystem::path& directory,
-                    const Surface& surface) {
+void ValidateAlbedo(const TerrainConfig& config, const std::filesystem::path& directory) {
     const AlbedoSpec& albedo = *config.albedo;
     std::visit(
         Overloaded{
-            [&](const SyntheticAlbedoSpec& s) {
-                CheckSyntheticAlbedo(s, "albedo.source", surface);
-            },
+            [&](const SyntheticAlbedoSpec& s) { CheckSyntheticAlbedo(s, "albedo.source"); },
             [&](const RasterAlbedoSpec& s) { CheckRasterAlbedo(s, directory, "albedo.source"); },
         },
         albedo.source);
@@ -467,7 +445,7 @@ ConfigSummary ValidateConfig(const TerrainConfig& config, const std::filesystem:
             config.outputs[i]);
     }
     if (config.albedo) {
-        ValidateAlbedo(config, directory, surface);
+        ValidateAlbedo(config, directory);
     }
     return {grid, layers.expectedCraters};
 }

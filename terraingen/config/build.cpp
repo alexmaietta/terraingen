@@ -507,7 +507,7 @@ Albedo BuildAlbedo(const TerrainConfig& config, const Terrain& terrain,
     if (!config.albedo) {
         throw ConfigError("albedo", "the configuration has no albedo");
     }
-    ValidateAlbedo(config, directory, terrain.surface);
+    ValidateAlbedo(config, directory);
     return BuildValidAlbedo(config, terrain, directory);
 }
 

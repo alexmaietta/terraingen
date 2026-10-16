@@ -143,20 +143,23 @@ TEST(ValidateConfig, ReportsSphereProblemsByPath) {
               "surface.radius");
     EXPECT_EQ(error([](TerrainConfig& c) { Flat(c).centreY = 89.999; }), "source.height");
     EXPECT_EQ(error([](TerrainConfig& c) { Flat(c).centreX = NAN; }), "source.centre_x");
-    EXPECT_EQ(error([](TerrainConfig& c) {
-                  Noise(c).stack[0].layer.fractal.basis = terraingen::NoiseBasis::Simplex;
-              }),
-              "layers[0].stack[0].basis");
+    for (std::uint32_t b = 0; b < terraingen::kNoiseBasisCount; ++b) {
+        const auto basis = static_cast<terraingen::NoiseBasis>(b);
+        SCOPED_TRACE(b);
+        EXPECT_EQ(
+            error([basis](TerrainConfig& c) { Noise(c).stack[0].layer.fractal.basis = basis; }),
+            "valid");
+        EXPECT_EQ(error([basis](TerrainConfig& c) {
+                      terraingen::SyntheticAlbedoSpec synthetic;
+                      synthetic.valueNoise = {terraingen::NoiseLayerConfig{}};
+                      synthetic.valueNoise[0].layer.fractal.basis = basis;
+                      c.albedo = terraingen::AlbedoSpec{synthetic, {}};
+                  }),
+                  "valid");
+    }
     EXPECT_EQ(
         error([](TerrainConfig& c) { c.outputs = {terraingen::BoulderModelsOutput{"b.glb"}}; }),
         "valid");
-    EXPECT_EQ(error([](TerrainConfig& c) {
-                  terraingen::SyntheticAlbedoSpec synthetic;
-                  synthetic.valueNoise = {terraingen::NoiseLayerConfig{}};
-                  synthetic.valueNoise[0].layer.fractal.basis = terraingen::NoiseBasis::WorleyF1;
-                  c.albedo = terraingen::AlbedoSpec{synthetic, {}};
-              }),
-              "albedo.source.value_noise[0].basis");
 }
 
 TEST(ValidateConfig, ReportsBodyMeshProblemsByPath) {

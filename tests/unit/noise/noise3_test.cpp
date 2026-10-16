@@ -10,13 +10,13 @@ using terraingen::EvaluateNoiseLayers3;
 using terraingen::Fractal3;
 using terraingen::FractalParams;
 using terraingen::FractalType;
-using terraingen::HasBasisNoise3;
 using terraingen::LatticePoint2;
 using terraingen::LatticePoint3;
 using terraingen::LayerBlend;
 using terraingen::NoiseBasis;
 using terraingen::NoiseLayer;
 using terraingen::PerlinNoise3;
+using terraingen::SimplexNoise3;
 using terraingen::SplitLattice2;
 using terraingen::SplitLattice3;
 using terraingen::ValueNoise3;
@@ -43,15 +43,12 @@ TEST(ValueNoise3, InterpolatesLatticeValuesWithinRangeAndContinuously) {
               ValueNoise3({2, 3, 4, 0.0f, 0.0f, 0.0f}, 10u));
 }
 
-TEST(BasisNoise3, OffersPerlinAndValueNoise) {
-    EXPECT_TRUE(HasBasisNoise3(NoiseBasis::Perlin));
-    EXPECT_TRUE(HasBasisNoise3(NoiseBasis::Value));
-    EXPECT_FALSE(HasBasisNoise3(NoiseBasis::Simplex));
-    EXPECT_FALSE(HasBasisNoise3(NoiseBasis::WorleyF1));
+TEST(BasisNoise3, DispatchesToEachKernel) {
     const LatticePoint3 point = {1, 2, 3, 0.3f, 0.6f, 0.2f};
     EXPECT_EQ(BasisNoise3(NoiseBasis::Perlin, point, 5u), PerlinNoise3(point, 5u));
     EXPECT_EQ(BasisNoise3(NoiseBasis::Value, point, 5u), ValueNoise3(point, 5u));
-    EXPECT_EQ(BasisNoise3(NoiseBasis::Simplex, point, 5u), PerlinNoise3(point, 5u));
+    EXPECT_EQ(BasisNoise3(NoiseBasis::Simplex, point, 5u), SimplexNoise3(point, 5u));
+    EXPECT_EQ(BasisNoise3(static_cast<NoiseBasis>(99u), point, 5u), PerlinNoise3(point, 5u));
     EXPECT_EQ(PerlinNoise3(1.3f, 2.6f, 3.2f, 5u),
               PerlinNoise3(SplitLattice3(1.3f, 2.6f, 3.2f), 5u));
 }
@@ -208,4 +205,87 @@ TEST(EvaluateNoiseLayers3, BlendsWarpsAndSkipsDisabledLayers) {
     warped.warpWavelength = 400.0f;
     EXPECT_NE(EvaluateNoiseLayers3(x, y, z, &warped, 1), first);
     EXPECT_LE(std::fabs(EvaluateNoiseLayers3(x, y, z, &warped, 1)), 10.0f + 1e-4f);
+}
+
+TEST(BasisNoise3, MapsTheCellularBasesLikeTheir2DForms) {
+    const LatticePoint3 point = {1, 2, 3, 0.3f, 0.6f, 0.2f};
+    const auto d = terraingen::Worley3(point, 5u);
+    EXPECT_FLOAT_EQ(BasisNoise3(NoiseBasis::WorleyF1, point, 5u),
+                    2.0f * d.f1 / std::sqrt(3.0f) - 1.0f);
+    EXPECT_FLOAT_EQ(BasisNoise3(NoiseBasis::WorleyF2, point, 5u),
+                    2.0f * d.f2 / std::sqrt(6.0f) - 1.0f);
+    EXPECT_FLOAT_EQ(BasisNoise3(NoiseBasis::WorleyF2MinusF1, point, 5u),
+                    2.0f * (d.f2 - d.f1) / std::sqrt(6.0f) - 1.0f);
+    EXPECT_EQ(BasisNoise3(NoiseBasis::Voronoi, point, 5u), d.value);
+}
+
+TEST(BasisNoise3, EveryBasisStaysWithinUnitRange) {
+    for (std::uint32_t b = 0; b < terraingen::kNoiseBasisCount; ++b) {
+        for (int i = 0; i < 2000; ++i) {
+            const LatticePoint3 point = SplitLattice3(static_cast<float>(i % 17) * 0.61f - 5.0f,
+                                                      static_cast<float>(i / 17 % 11) * 0.47f,
+                                                      static_cast<float>(i / 187) * 0.53f - 2.0f);
+            const float n = BasisNoise3(static_cast<NoiseBasis>(b), point, 3u);
+            EXPECT_GE(n, -1.0f) << b;
+            EXPECT_LE(n, 1.0f) << b;
+        }
+    }
+}
+
+TEST(Fractal3, LayersVoronoiCellsIntoPlateaus) {
+    FractalParams params;
+    params.basis = NoiseBasis::Voronoi;
+    params.octaves = 1;
+    params.amplitude = 1.0f;
+    params.wavelength = 1.0f;
+    const float a = Fractal3(0.5, 0.5, 0.5, params);
+    const float b = Fractal3(0.5 + 1e-4, 0.5, 0.5, params);
+    EXPECT_EQ(a, b) << "a single Voronoi octave is flat inside a cell";
+}
+
+TEST(SimplexNoise3, StaysWithinRangeWithZeroMean) {
+    double sum = 0.0;
+    float peak = 0.0f;
+    const int count = 20000;
+    for (int i = 0; i < count; ++i) {
+        const float v = SimplexNoise3(static_cast<float>(i % 31) * 0.37f - 5.0f,
+                                      static_cast<float>(i / 31 % 29) * 0.41f,
+                                      static_cast<float>(i / 899) * 0.53f - 2.0f, 4u);
+        EXPECT_GE(v, -1.0f);
+        EXPECT_LE(v, 1.0f);
+        sum += static_cast<double>(v);
+        peak = std::fmax(peak, std::fabs(v));
+    }
+    EXPECT_NEAR(sum / count, 0.0, 0.05);
+    EXPECT_GT(peak, 0.5f) << "the scale uses most of [-1, 1]";
+}
+
+TEST(SimplexNoise3, IsContinuousAcrossCellsAndSimplices) {
+    constexpr float kEps = 1e-4f;
+    for (int i = 0; i < 2000; ++i) {
+        const float x = static_cast<float>(i) * 0.0173f - 17.0f;
+        const float y = 2.5f + 0.3f * std::sin(static_cast<float>(i) * 0.1f);
+        EXPECT_NEAR(SimplexNoise3(x, y, -0.7f, 6u), SimplexNoise3(x + kEps, y, -0.7f, 6u), 2e-3f)
+            << x;
+    }
+}
+
+TEST(SimplexNoise3, KeepsItsPrecisionFarFromTheOrigin) {
+    const LatticePoint3 near = terraingen::SplitLatticePrecise3(0.3, 0.7, 0.2);
+    const LatticePoint3 far = terraingen::SplitLatticePrecise3(3.0e6 + 0.3, -3.0e6 + 0.7, 0.2);
+    const float a = SimplexNoise3(far, 8u);
+    const float b =
+        SimplexNoise3(terraingen::SplitLatticePrecise3(3.0e6 + 0.3001, -3.0e6 + 0.7, 0.2), 8u);
+    EXPECT_NEAR(a, b, 2e-3f);
+    EXPECT_NE(a, SimplexNoise3(near, 8u));
+}
+
+TEST(SimplexNoise3, IsZeroAtLatticePointsOfTheSkewedGridAndDependsOnSeed) {
+    EXPECT_EQ(SimplexNoise3({0, 0, 0, 0.0f, 0.0f, 0.0f}, 3u), 0.0f);
+    EXPECT_NE(SimplexNoise3(1.3f, 2.7f, 0.4f, 1u), SimplexNoise3(1.3f, 2.7f, 0.4f, 2u));
+}
+
+TEST(SimplexNoise3, MatchesTheFloatOverload) {
+    EXPECT_EQ(SimplexNoise3(1.3f, -2.6f, 7.2f, 5u),
+              SimplexNoise3(SplitLattice3(1.3f, -2.6f, 7.2f), 5u));
 }
