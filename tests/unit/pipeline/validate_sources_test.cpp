@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <limits>
 #include <optional>
 #include <string>
 #include <utility>
@@ -164,7 +165,7 @@ TEST(ValidateConfig, ReportsSphereProblemsByPath) {
 TEST(ValidateConfig, ReportsBodyMeshProblemsByPath) {
     const auto error = [](auto mutate) {
         TerrainConfig config;
-        config.surface = terraingen::SphereSurfaceSpec{0.0, terraingen::Body::Mars};
+        config.surface = terraingen::SphereSurfaceSpec{3389500.0};
         config.source = terraingen::FlatSourceSpec{4, 4, 1000.0};
         terraingen::BodyMeshOutput output{"m.glb", 8, std::nullopt};
         mutate(config, output);
@@ -202,15 +203,33 @@ TEST(DescribeSource, ReadsTheRasterHeaderAndResampledSize) {
     EXPECT_EQ(fine.transform.pixelHeight, -2.5) << "keeps the north-up sign";
 }
 
-TEST(BuildSurface, BuildsPlanesAndSpheresOfARadiusOrABody) {
+TEST(BuildSurface, BuildsPlanesAndSpheresOfARadius) {
     EXPECT_EQ(terraingen::BuildSurface(terraingen::PlaneSurfaceSpec{}),
               terraingen::Surface::Plane());
     EXPECT_EQ(terraingen::BuildSurface(terraingen::SphereSurfaceSpec{3389500.0}),
               terraingen::Surface::Sphere(3389500.0));
-    EXPECT_EQ(terraingen::BuildSurface(terraingen::SphereSurfaceSpec{0.0, terraingen::Body::Moon}),
+    EXPECT_EQ(terraingen::BuildSurface(terraingen::SphereSurfaceSpec{1737400.0}),
               terraingen::Surface::Sphere(1737400.0));
-    EXPECT_THROW(terraingen::BuildSurface(terraingen::SphereSurfaceSpec{-1.0}), ConfigError);
-    EXPECT_THROW(
-        terraingen::BuildSurface(terraingen::SphereSurfaceSpec{5.0, terraingen::Body::Moon}),
-        ConfigError);
+}
+
+TEST(BuildSurface, ASphereRadiusThatIsNotPositiveIsAnErrorAtTheRadius) {
+    for (const double radius : {0.0, -1.0, std::numeric_limits<double>::infinity(),
+                                std::numeric_limits<double>::quiet_NaN()}) {
+        try {
+            terraingen::BuildSurface(terraingen::SphereSurfaceSpec{radius});
+            ADD_FAILURE() << "expected a ConfigError for " << radius;
+        } catch (const ConfigError& error) {
+            EXPECT_EQ(error.Path(), "surface.radius") << radius;
+        }
+    }
+}
+
+TEST(ValidateConfig, ReportsASphereWithoutARadiusAtTheRadius) {
+    TerrainConfig config;
+    config.surface = terraingen::SphereSurfaceSpec{};
+    EXPECT_EQ(ValidationErrorPath(config), "surface.radius");
+    config.surface = terraingen::SphereSurfaceSpec{-1737400.0};
+    EXPECT_EQ(ValidationErrorPath(config), "surface.radius");
+    config.surface = terraingen::SphereSurfaceSpec{1737400.0};
+    EXPECT_EQ(ValidationErrorPath(config), "valid");
 }

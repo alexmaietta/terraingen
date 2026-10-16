@@ -25,11 +25,21 @@ class CratersSimple : public terraingen::examples::Example {
         fbm.fractal.wavelength = 800.0f;
         fbm.fractal.amplitude = 40.0f;
 
-        const terraingen::SurfaceModel surface = terraingen::LunarSurface(3.5);
+        const auto production = std::make_shared<terraingen::SplicedSfd>(
+            terraingen::ExtendedNeukumProductionFunction());
+        const auto equilibrium =
+            std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium());
+        const auto density = std::make_shared<terraingen::MinimumSfd>(
+            std::vector<std::shared_ptr<const terraingen::SizeFrequencyDistribution>>{
+                std::make_shared<terraingen::ProductionSurface>(production, 3.5,
+                                                                terraingen::NeukumLunarChronology),
+                equilibrium});
+        const auto ages = std::make_shared<terraingen::SteadyStateAges>(
+            production, equilibrium, 3.5, terraingen::NeukumLunarChronology);
         const terraingen::CraterModels models{
-            surface.density, surface.ages,
+            density, ages,
             std::make_shared<terraingen::FreshnessDegradation>(
-                surface.ages, terraingen::LunarFreshCraterMorphometry),
+                ages, terraingen::LunarFreshCraterMorphometry),
             std::make_shared<terraingen::FassettThomsonProfile>()};
         terraingen::CraterLayerOptions options;
         options.seed = 1;

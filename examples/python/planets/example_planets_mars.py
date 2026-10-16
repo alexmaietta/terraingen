@@ -1,7 +1,8 @@
 """Martian terrain: Martian craters and wind-blown bedforms.
 
-`mars_surface` gives Martian crater densities and ages (Ivanov's chronology and production, valid
-from 15 m), and Martian craters have their own fresh shape (`mars_fresh_crater_morphometry`).
+A `ProductionSurface` of Ivanov's production and chronology gives Martian crater densities (valid
+from 15 m), with ages uniform over the surface's age, and Martian craters have their own fresh
+shape (`mars_fresh_crater_morphometry`).
 `BedformLayer` adds ripples and dunes, here Mars's large ripples. Writes heights and a hillshade.
 
     python example_planets_mars.py [--viewer window|null] [--output-dir DIR] [--test]
@@ -23,14 +24,17 @@ PIXEL = 1.0
 
 class Example(_common.Example):
     def generate(self):
-        surface = terraingen.mars_surface(3.0)
+        density = terraingen.ProductionSurface(
+            terraingen.ivanov_mars_production_function(), 3.0, terraingen.ivanov_mars_chronology
+        )
+        ages = terraingen.UniformAges(3.0)
         fresh = terraingen.mars_fresh_crater_morphometry
         self.depth_ratio = fresh(100.0).depth_ratio
         print(f"fresh Martian 100 m crater: depth/diameter {self.depth_ratio:.3f}")
         models = terraingen.CraterModels(
-            surface.density,
-            surface.ages,
-            terraingen.FreshnessDegradation(surface.ages, fresh=fresh),
+            density,
+            ages,
+            terraingen.FreshnessDegradation(ages, fresh=fresh),
             terraingen.FassettThomsonProfile(),
         )
         generation = terraingen.CraterGenerationOptions(min_diameter=15.0, max_diameter=150.0)

@@ -116,6 +116,11 @@ def test_bedform_cover_is_non_negative():
     assert terraingen.BedformLayer(ripples).cover_at(0.0, 0.0) >= 0.0
 
 
+def test_mars_transverse_aeolian_ridges_are_longer_than_large_ripples():
+    ripples = terraingen.mars_large_ripples()
+    assert terraingen.mars_transverse_aeolian_ridges().wavelength > ripples.wavelength
+
+
 def bedforms_on_noise(noise_relief):
     exposure = terraingen.ExposureParams(reach=8.0)
     sand = terraingen.BedformLayer(
@@ -220,7 +225,7 @@ def test_base_layer_without_overrides_raises(paraboloid):
 
 
 def test_region_weight_on_a_sphere_uses_degrees():
-    moon = terraingen.body_sphere(terraingen.Body.MOON)
+    moon = terraingen.Surface.sphere(1737400.0)
     region = terraingen.RegionLayer(
         terraingen.ScaleLayer(1.0, 100.0), terraingen.RegionShape.circle(23.47, 0.67, 1.0), surface=moon
     )
@@ -228,7 +233,7 @@ def test_region_weight_on_a_sphere_uses_degrees():
 
 
 def test_layers_and_filters_accept_a_sphere_surface(lunar_models):
-    moon = terraingen.body_sphere(terraingen.Body.MOON)
+    moon = terraingen.Surface.sphere(1737400.0)
     generation = terraingen.CraterGenerationOptions(min_diameter=20000.0, max_diameter=300000.0)
     craters = terraingen.CraterLayer(
         lunar_models(3.8), terraingen.CraterLayerOptions(surface=moon, generation=generation)

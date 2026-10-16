@@ -19,10 +19,20 @@
 namespace {
 
 terraingen::CraterModels LunarModels() {
-    const terraingen::SurfaceModel surface = terraingen::LunarSurface(3.5);
-    return {surface.density, surface.ages,
+    const auto production =
+        std::make_shared<terraingen::SplicedSfd>(terraingen::ExtendedNeukumProductionFunction());
+    const auto equilibrium =
+        std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium());
+    const auto density = std::make_shared<terraingen::MinimumSfd>(
+        std::vector<std::shared_ptr<const terraingen::SizeFrequencyDistribution>>{
+            std::make_shared<terraingen::ProductionSurface>(production, 3.5,
+                                                            terraingen::NeukumLunarChronology),
+            equilibrium});
+    const auto ages = std::make_shared<terraingen::SteadyStateAges>(
+        production, equilibrium, 3.5, terraingen::NeukumLunarChronology);
+    return {density, ages,
             std::make_shared<terraingen::FreshnessDegradation>(
-                surface.ages, terraingen::LunarFreshCraterMorphometry),
+                ages, terraingen::LunarFreshCraterMorphometry),
             std::make_shared<terraingen::FassettThomsonProfile>()};
 }
 

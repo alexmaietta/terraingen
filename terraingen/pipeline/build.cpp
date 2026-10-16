@@ -5,13 +5,13 @@
 #include "terraingen/albedo/crater_albedo.h"
 #include "terraingen/albedo/raster_albedo.h"
 #include "terraingen/albedo/synthetic.h"
-#include "terraingen/bodies/mars/surface.h"
-#include "terraingen/bodies/moon/surface.h"
 #include "terraingen/distribution/equilibrium.h"
 #include "terraingen/distribution/ivanov.h"
 #include "terraingen/distribution/log_polynomial.h"
+#include "terraingen/distribution/minimum.h"
 #include "terraingen/distribution/neukum.h"
 #include "terraingen/distribution/power_law.h"
+#include "terraingen/distribution/production_surface.h"
 #include "terraingen/distribution/spliced.h"
 #include "terraingen/distribution/tabulated.h"
 #include "terraingen/layers/craters/ages/fresh.h"
@@ -50,11 +50,42 @@ using config::Element;
 using SfdPtr = std::shared_ptr<const SizeFrequencyDistribution>;
 using LayerPtr = std::shared_ptr<const Layer>;
 
+SfdPtr BuildProduction(ProductionFunction production) {
+    switch (production) {
+    case ProductionFunction::Neukum:
+        return std::make_shared<LogPolynomialSfd>(NeukumProductionFunction());
+    case ProductionFunction::Ivanov:
+        return std::make_shared<LogPolynomialSfd>(IvanovMarsProductionFunction());
+    case ProductionFunction::ExtendedNeukum:
+        break;
+    }
+    return std::make_shared<SplicedSfd>(ExtendedNeukumProductionFunction());
+}
+
+Chronology BuildChronology(ChronologyModel chronology) {
+    return chronology == ChronologyModel::Ivanov ? Chronology(IvanovMarsChronology)
+                                                 : Chronology(NeukumLunarChronology);
+}
+
+SfdPtr BuildEquilibrium(EquilibriumModel equilibrium) {
+    return std::make_shared<PowerLawSfd>(
+        equilibrium == EquilibriumModel::Hartmann ? HartmannEquilibrium() : TraskEquilibrium());
+}
+
 SfdPtr BuildDensity(const DensitySpec& spec) {
     return std::visit(
         Overloaded{
-            [](const LunarSurfaceSpec& s) -> SfdPtr { return LunarSurface(s.ageGyr).density; },
-            [](const MarsSurfaceSpec& s) -> SfdPtr { return MarsSurface(s.ageGyr).density; },
+            [](const ProductionSurfaceSpec& s) -> SfdPtr {
+                return std::make_shared<ProductionSurface>(BuildProduction(s.production), s.ageGyr,
+                                                           BuildChronology(s.chronology));
+            },
+            [](const MinimumSpec& s) -> SfdPtr {
+                std::vector<SfdPtr> distributions;
+                for (const DensitySpec& distribution : s.distributions) {
+                    distributions.push_back(BuildDensity(distribution));
+                }
+                return std::make_shared<MinimumSfd>(std::move(distributions));
+            },
             [](const PowerLawSpec& s) -> SfdPtr {
                 return std::make_shared<PowerLawSfd>(s.coefficient, s.exponent);
             },
@@ -83,45 +114,30 @@ SfdPtr BuildDensity(const DensitySpec& spec) {
         spec);
 }
 
-/// Neukum production with the Trask or Hartmann equilibrium.
-std::shared_ptr<const CraterAgeModel> BuildSteadyStateAges(const SteadyStateAgesSpec& spec) {
-    SfdPtr production;
-    if (spec.extendedProduction) {
-        production = std::make_shared<SplicedSfd>(ExtendedNeukumProductionFunction());
-    } else {
-        production = std::make_shared<LogPolynomialSfd>(NeukumProductionFunction());
-    }
-    const PowerLawSfd equilibrium =
-        spec.equilibrium == EquilibriumModel::Trask ? TraskEquilibrium() : HartmannEquilibrium();
-    return std::make_shared<SteadyStateAges>(production, std::make_shared<PowerLawSfd>(equilibrium),
-                                             spec.ageGyr, NeukumLunarChronology);
-}
-
-std::shared_ptr<const CraterAgeModel> BuildAges(const AgesSpec& spec, const DensitySpec& density) {
+std::shared_ptr<const CraterAgeModel> BuildAges(const AgesSpec& spec) {
     using Result = std::shared_ptr<const CraterAgeModel>;
     return std::visit(
         Overloaded{
-            [&](const AutoAgesSpec&) -> Result {
-                if (const auto* lunar = std::get_if<LunarSurfaceSpec>(&density)) {
-                    return LunarSurface(lunar->ageGyr).ages;
-                }
-                if (const auto* mars = std::get_if<MarsSurfaceSpec>(&density)) {
-                    return MarsSurface(mars->ageGyr).ages;
-                }
-                return std::make_shared<UniformAges>(1.0);
-            },
             [](const FreshAgesSpec&) -> Result { return std::make_shared<FreshAges>(); },
             [](const UniformAgesSpec& s) -> Result {
                 return std::make_shared<UniformAges>(s.lifetimeGyr);
             },
-            [](const SteadyStateAgesSpec& s) -> Result { return BuildSteadyStateAges(s); },
+            [](const SteadyStateAgesSpec& s) -> Result {
+                return std::make_shared<SteadyStateAges>(BuildProduction(s.production),
+                                                         BuildEquilibrium(s.equilibrium), s.ageGyr,
+                                                         BuildChronology(s.chronology));
+            },
         },
         spec);
 }
 
-FreshMorphometry BodyMorphometry(CraterBody body) {
-    return body == CraterBody::Mars ? FreshMorphometry(MarsFreshCraterMorphometry)
-                                    : FreshMorphometry(LunarFreshCraterMorphometry);
+FreshMorphometry MorphometryOf(CraterMorphometryFit fit) {
+    return fit == CraterMorphometryFit::Mars ? FreshMorphometry(MarsFreshCraterMorphometry)
+                                             : FreshMorphometry(LunarFreshCraterMorphometry);
+}
+
+ComplexCraterShape ComplexShapeOf(CraterMorphometryFit fit) {
+    return fit == CraterMorphometryFit::Mars ? MarsComplexCraterShape() : LunarComplexCraterShape();
 }
 
 DiffusionAgeModel BuildDiffusionAges(const DiffusionDegradationSpec& spec) {
@@ -141,7 +157,8 @@ DiffusionAgeModel BuildDiffusionAges(const DiffusionDegradationSpec& spec) {
     return Fassett2022HartmannDiffusivity();
 }
 
-std::shared_ptr<const CraterProfile> BuildProfile(const ProfileSpec& spec, CraterBody body) {
+std::shared_ptr<const CraterProfile> BuildProfile(const ProfileSpec& spec,
+                                                  CraterMorphometryFit morphometry) {
     using Result = std::shared_ptr<const CraterProfile>;
     const auto simple = [](const SimpleProfileSpec& simpleSpec) {
         return std::visit(Overloaded{
@@ -159,9 +176,7 @@ std::shared_ptr<const CraterProfile> BuildProfile(const ProfileSpec& spec, Crate
                           [&](const MartinParkesDunstanSpec& s) -> Result { return simple(s); },
                           [&](const ComplexProfileSpec& s) -> Result {
                               return std::make_shared<ComplexCraterProfile>(
-                                  simple(s.simple), body == CraterBody::Mars
-                                                        ? MarsComplexCraterShape()
-                                                        : LunarComplexCraterShape());
+                                  simple(s.simple), ComplexShapeOf(morphometry));
                           },
                       },
                       spec);
@@ -169,7 +184,7 @@ std::shared_ptr<const CraterProfile> BuildProfile(const ProfileSpec& spec, Crate
 
 /// Sets `models.degradation` from `craters`; diffusion also wears `models.profile`.
 void AddDegradation(const CraterLayerSpec& craters, CraterModels& models) {
-    const FreshMorphometry fresh = BodyMorphometry(craters.body);
+    const FreshMorphometry fresh = MorphometryOf(craters.morphometry);
     std::visit(
         Overloaded{
             [&](const FreshnessDegradationSpec& s) {
@@ -187,32 +202,6 @@ void AddDegradation(const CraterLayerSpec& craters, CraterModels& models) {
             },
         },
         craters.degradation);
-}
-
-/// Checks that a crater layer's models suit its body.
-/// @throws ConfigError for a density, ages or diffusivity model of another body than the layer's.
-void CheckCraterBody(const CraterLayerSpec& craters, const std::string& path) {
-    if (craters.body == CraterBody::Moon) {
-        if (std::holds_alternative<MarsSurfaceSpec>(craters.density)) {
-            throw ConfigError(Child(path, "density"),
-                              "mars_surface is Mars's; set the layer's body to mars");
-        }
-        return;
-    }
-    if (std::holds_alternative<LunarSurfaceSpec>(craters.density)) {
-        throw ConfigError(Child(path, "density"),
-                          "lunar_surface is the Moon's; on Mars give mars_surface, a power_law, "
-                          "piecewise_power_law or tabulated");
-    }
-    if (std::holds_alternative<SteadyStateAgesSpec>(craters.ages)) {
-        throw ConfigError(Child(path, "ages"),
-                          "steady_state ages are the Moon's; on Mars give fresh or uniform");
-    }
-    const auto* diffusion = std::get_if<DiffusionDegradationSpec>(&craters.degradation);
-    if (diffusion && diffusion->diffusivity != DiffusivityModel::PowerLaw) {
-        throw ConfigError(Child(Child(path, "degradation"), "diffusivity"),
-                          "the diffusivity models are the Moon's; on Mars give a power_law");
-    }
 }
 
 /// The distribution a boulder size spec names, or null for the layer's Golombek-Rapp boulders.
@@ -298,7 +287,7 @@ LayerPtr BuildSecondaryLayer(const SecondaryLayerSpec& spec,
                              const std::shared_ptr<const CraterLayer>& primaries) {
     const CraterShapeModels models{
         primaries->Models().profile,
-        std::make_shared<NoDegradation>(BodyMorphometry(spec.body), spec.depthRatio)};
+        std::make_shared<NoDegradation>(MorphometryOf(spec.morphometry), spec.depthRatio)};
     return std::make_shared<SecondaryCraterLayer>(primaries, models, spec.secondaries);
 }
 
@@ -397,8 +386,8 @@ bool IsMeshFile(const std::filesystem::path& path) {
 CraterModels BuildCraterModels(const CraterLayerSpec& craters) {
     CraterModels models;
     models.density = BuildDensity(craters.density);
-    models.ages = BuildAges(craters.ages, craters.density);
-    models.profile = BuildProfile(craters.profile, craters.body);
+    models.ages = BuildAges(craters.ages);
+    models.profile = BuildProfile(craters.profile, craters.morphometry);
     AddDegradation(craters, models);
     return models;
 }
@@ -406,10 +395,9 @@ CraterModels BuildCraterModels(const CraterLayerSpec& craters) {
 CraterModels BuildCraterModels(const CraterLayerSpec& craters, const std::string& path) {
     CraterModels models;
     models.density = At(Child(path, "density"), [&] { return BuildDensity(craters.density); });
-    models.ages = At(Child(path, "ages"), [&] { return BuildAges(craters.ages, craters.density); });
-    CheckCraterBody(craters, path);
-    models.profile =
-        At(Child(path, "profile"), [&] { return BuildProfile(craters.profile, craters.body); });
+    models.ages = At(Child(path, "ages"), [&] { return BuildAges(craters.ages); });
+    models.profile = At(Child(path, "profile"),
+                        [&] { return BuildProfile(craters.profile, craters.morphometry); });
     At(Child(path, "degradation"), [&] { AddDegradation(craters, models); });
     return models;
 }
@@ -440,24 +428,17 @@ RegionShape BuildRegionShape(const RegionShapeSpec& spec) {
 }
 
 Surface BuildSurface(const SurfaceSpec& spec) {
-    return std::visit(
-        Overloaded{
-            [](const PlaneSurfaceSpec&) -> Surface { return Surface::Plane(); },
-            [](const SphereSurfaceSpec& s) -> Surface {
-                if (s.body) {
-                    if (s.radius != 0.0) {
-                        throw ConfigError("surface.radius", "give a radius or a body, not both");
-                    }
-                    return BodySphere(*s.body);
-                }
-                if (!(std::isfinite(s.radius) && s.radius > 0.0)) {
-                    throw ConfigError("surface.radius",
-                                      "must be positive; give the body's radius or a body");
-                }
-                return Surface::Sphere(s.radius);
-            },
-        },
-        spec);
+    return std::visit(Overloaded{
+                          [](const PlaneSurfaceSpec&) -> Surface { return Surface::Plane(); },
+                          [](const SphereSurfaceSpec& s) -> Surface {
+                              if (!(std::isfinite(s.radius) && s.radius > 0.0)) {
+                                  throw ConfigError("surface.radius",
+                                                    "must be positive: the body's radius");
+                              }
+                              return Surface::Sphere(s.radius);
+                          },
+                      },
+                      spec);
 }
 
 Terrain BuildValidTerrain(const TerrainConfig& config, const std::filesystem::path& directory) {

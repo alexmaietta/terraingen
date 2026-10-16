@@ -86,7 +86,7 @@ def cases():
     )
     profile, degradation, density = (
         terraingen.FassettThomsonProfile(),
-        terraingen.NoDegradation(depth_ratio=0.12),
+        terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry, depth_ratio=0.12),
         terraingen.PowerLawSfd(0.05, 2.0),
     )
     return {

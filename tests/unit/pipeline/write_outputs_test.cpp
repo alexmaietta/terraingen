@@ -161,7 +161,7 @@ TEST(WriteOutputs, WritesGeographicRastersAndListsOnASphere) {
 
 TEST(WriteOutputs, WritesBoulderModelsOnASphereAboutTheGridCentre) {
     TerrainConfig config;
-    config.surface = terraingen::SphereSurfaceSpec{0.0, terraingen::Body::Moon};
+    config.surface = terraingen::SphereSurfaceSpec{1737400.0};
     terraingen::FlatSourceSpec flat{160, 160, 0.25};
     flat.centreX = -30.0;
     flat.centreY = 60.0;
@@ -192,7 +192,7 @@ TEST(WriteOutputs, WritesBoulderModelsOnASphereAboutTheGridCentre) {
 
 TEST(WriteOutputs, WritesWholeBodyMeshes) {
     TerrainConfig config;
-    config.surface = terraingen::SphereSurfaceSpec{0.0, terraingen::Body::Moon};
+    config.surface = terraingen::SphereSurfaceSpec{1737400.0};
     config.source = terraingen::FlatSourceSpec{4, 4, 1000.0, 5.0f};
     config.outputs = {terraingen::BodyMeshOutput{"body.glb", 6, std::nullopt},
                       terraingen::BodyMeshOutput{"body.ply", 4, 20000.0}};

@@ -24,11 +24,16 @@ HALF = 513 * PIXEL / 2
 
 
 def craters(age_gyr, seed):
-    surface = terraingen.lunar_surface(age_gyr)
+    production = terraingen.extended_neukum_production_function()
+    equilibrium = terraingen.trask_equilibrium()
+    density = terraingen.MinimumSfd(
+        [terraingen.ProductionSurface(production, age_gyr, terraingen.neukum_lunar_chronology), equilibrium]
+    )
+    ages = terraingen.SteadyStateAges(production, equilibrium, age_gyr, terraingen.neukum_lunar_chronology)
     models = terraingen.CraterModels(
-        surface.density,
-        surface.ages,
-        terraingen.FreshnessDegradation(surface.ages),
+        density,
+        ages,
+        terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry),
         terraingen.FassettThomsonProfile(),
     )
     generation = terraingen.CraterGenerationOptions(min_diameter=10.0, max_diameter=200.0)

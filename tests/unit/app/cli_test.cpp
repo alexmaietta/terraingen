@@ -54,7 +54,12 @@ const char* const kConfig = R"({
   "layers": [
     {"type": "noise", "stack": [{"wavelength": 60, "amplitude": 3, "octaves": 3}]},
     {"type": "craters", "min_diameter": 6, "max_diameter": 40,
-     "density": {"type": "lunar_surface", "age_gyr": 3.5}}
+     "density": {"type": "minimum", "distributions": [
+         {"type": "production_surface", "production": "extended_neukum", "chronology": "neukum",
+          "age_gyr": 3.5},
+         {"type": "trask"}]},
+     "ages": {"type": "steady_state", "age_gyr": 3.5, "production": "extended_neukum",
+              "equilibrium": "trask", "chronology": "neukum"}}
   ],
   "outputs": [{"type": "heightmap", "path": "heights.tif"},
               {"type": "crater_list", "path": "craters.csv"}]

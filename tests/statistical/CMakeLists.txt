@@ -16,7 +16,7 @@ terraingen_add_test_suite(
     layers/roughness_test.cpp
     layers/boulders/boulder_layer_test.cpp
     LIBRARIES
-    terraingen::bodies
+    terraingen::layers
     LABELS
     statistical)
 terraingen_add_test_suite(

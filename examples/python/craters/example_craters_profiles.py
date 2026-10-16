@@ -43,6 +43,7 @@ class Example(_common.Example):
         fresh = terraingen.lunar_fresh_crater_morphometry(DIAMETER)
         state = terraingen.CraterState(fresh, fresh, 0.0)
         diffused = terraingen.DiffusionDegradation(
+            terraingen.lunar_fresh_crater_morphometry,
             terraingen.fassett_thomson_2014_diffusivity(),
             terraingen.DiffusedProfile(terraingen.FassettThomsonProfile()),
         )
@@ -79,14 +80,22 @@ class Example(_common.Example):
             )
         print("legend:", ", ".join(f"{colour_name(i)} {n}" for i, n in enumerate(profiles)))
 
-        surface = terraingen.lunar_surface(3.5)
+        production = terraingen.extended_neukum_production_function()
+        equilibrium = terraingen.trask_equilibrium()
+        density = terraingen.MinimumSfd(
+            [terraingen.ProductionSurface(production, 3.5, terraingen.neukum_lunar_chronology), equilibrium]
+        )
+        ages = terraingen.SteadyStateAges(production, equilibrium, 3.5, terraingen.neukum_lunar_chronology)
         generation = terraingen.CraterGenerationOptions(min_diameter=8.0, max_diameter=150.0)
         self.terrains = {}
         for name, (profile, _) in profiles.items():
             if isinstance(profile, terraingen.DiffusedProfile):
                 continue
             models = terraingen.CraterModels(
-                surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages), profile
+                density,
+                ages,
+                terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry),
+                profile,
             )
             craters = terraingen.CraterLayer(
                 models, terraingen.CraterLayerOptions(seed=2, generation=generation)

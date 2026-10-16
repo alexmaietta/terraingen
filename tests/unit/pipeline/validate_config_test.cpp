@@ -54,7 +54,7 @@ const PathCase kPathCases[] = {
      },
      "outputs[0].tile_size"},
     {"LunarSurfaceTooOld",
-     [](TerrainConfig& c) { Craters(c).density = terraingen::LunarSurfaceSpec{9.0}; },
+     [](TerrainConfig& c) { Craters(c).density = terraingen::testing::LunarDensitySpec(9.0); },
      "layers[1].density"},
     {"NoLifetime", [](TerrainConfig& c) { Craters(c).ages = terraingen::UniformAgesSpec{0.0}; },
      "layers[1].ages"},
@@ -108,17 +108,19 @@ const PathCase kPathCases[] = {
     {"BoulderModelsCreaseTooWide",
      [](TerrainConfig& c) { c.outputs = {terraingen::BoulderModelsOutput{"boulders.glb", 200.0}}; },
      "outputs[0].crease_angle"},
-    {"MarsCratersOnLunarSurface",
-     [](TerrainConfig& c) { Craters(c).body = terraingen::CraterBody::Mars; }, "layers[1].density"},
-    {"LunarCratersOnMarsSurface",
-     [](TerrainConfig& c) { Craters(c).density = terraingen::MarsSurfaceSpec{3.0}; },
-     "layers[1].density"},
-    {"SteadyStateAgesOnMars",
+    {"EmptyMinimumDensity",
+     [](TerrainConfig& c) { Craters(c).density = terraingen::MinimumSpec{}; }, "layers[1].density"},
+    {"MarsMorphometryOnALunarSurface",
+     [](TerrainConfig& c) { Craters(c).morphometry = terraingen::CraterMorphometryFit::Mars; },
+     "valid"},
+    {"IvanovChronologyTooOld",
      [](TerrainConfig& c) {
-         Craters(c).body = terraingen::CraterBody::Mars;
-         Craters(c).density = terraingen::PowerLawSpec{0.1, 2.0};
-         Craters(c).ages = terraingen::SteadyStateAgesSpec{};
+         Craters(c).density = terraingen::ProductionSurfaceSpec{
+             terraingen::ProductionFunction::Ivanov, terraingen::ChronologyModel::Ivanov, 9.0};
      },
+     "layers[1].density"},
+    {"SteadyStateAgesTooOld",
+     [](TerrainConfig& c) { Craters(c).ages = terraingen::testing::LunarAgesSpec(9.0); },
      "layers[1].ages"},
     {"RoughnessHurstAboveOne",
      [](TerrainConfig& c) { c.layers.push_back(terraingen::RoughnessLayerSpec{{.hurst = 2.0}}); },
@@ -275,14 +277,8 @@ TEST(ValidateConfig, ReportsDiffusionProblemsByPath) {
                   d.powerLaw = {0.0, 1.0, 0.0};
               }),
               "layers[1].degradation");
-    EXPECT_EQ(error([](auto&, auto& c) {
-                  c.body = terraingen::CraterBody::Mars;
-                  c.density = terraingen::MarsSurfaceSpec{};
-                  c.ages = terraingen::UniformAgesSpec{};
-              }),
-              "layers[1].degradation.diffusivity");
     EXPECT_EQ(error([](auto& d, auto& c) {
-                  c.body = terraingen::CraterBody::Mars;
+                  c.morphometry = terraingen::CraterMorphometryFit::Mars;
                   c.density = terraingen::PowerLawSpec{};
                   c.ages = terraingen::UniformAgesSpec{};
                   d.diffusivity = terraingen::DiffusivityModel::PowerLaw;

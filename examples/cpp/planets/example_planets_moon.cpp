@@ -20,6 +20,9 @@
 
 namespace {
 
+/// Volumetric mean radius of the Moon, in metres, from the NASA NSSDCA Moon fact sheet.
+constexpr double kMoonRadius = 1737400.0;
+
 class PlanetsMoon : public terraingen::examples::Example {
   public:
     using Example::Example;
@@ -37,7 +40,17 @@ class PlanetsMoon : public terraingen::examples::Example {
         const auto noise = std::make_shared<terraingen::NoiseRelief>(
             terraingen::SyntheticTerrainParams{{broad, fine}}, terraingen::Vec2d{}, moon_);
 
-        const terraingen::SurfaceModel surface = terraingen::LunarSurface(3.8);
+        const auto production = std::make_shared<terraingen::SplicedSfd>(
+            terraingen::ExtendedNeukumProductionFunction());
+        const auto equilibrium =
+            std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium());
+        const auto density = std::make_shared<terraingen::MinimumSfd>(
+            std::vector<std::shared_ptr<const terraingen::SizeFrequencyDistribution>>{
+                std::make_shared<terraingen::ProductionSurface>(production, 3.8,
+                                                                terraingen::NeukumLunarChronology),
+                equilibrium});
+        const auto ages = std::make_shared<terraingen::SteadyStateAges>(
+            production, equilibrium, 3.8, terraingen::NeukumLunarChronology);
         terraingen::CraterLayerOptions options;
         options.seed = 3;
         options.surface = moon_;
@@ -45,9 +58,9 @@ class PlanetsMoon : public terraingen::examples::Example {
         options.generation.dMax = 30000.0;
         options.generation.manual.Append({0.0, 0.0, 300000.0, 3.9, 0u, true});
         const auto craters = std::make_shared<terraingen::CraterLayer>(
-            terraingen::CraterModels{surface.density, surface.ages,
+            terraingen::CraterModels{density, ages,
                                      std::make_shared<terraingen::FreshnessDegradation>(
-                                         surface.ages, terraingen::LunarFreshCraterMorphometry),
+                                         ages, terraingen::LunarFreshCraterMorphometry),
                                      std::make_shared<terraingen::FassettThomsonProfile>()},
             options);
 
@@ -72,7 +85,7 @@ class PlanetsMoon : public terraingen::examples::Example {
         terraingen::Terrain global = terrain;
         global.layers = {noise, std::make_shared<terraingen::CraterLayer>(
                                     terraingen::CraterModels{
-                                        surface.density, surface.ages,
+                                        density, ages,
                                         std::make_shared<terraingen::NoDegradation>(
                                             terraingen::LunarFreshCraterMorphometry),
                                         std::make_shared<terraingen::FassettThomsonProfile>()},
@@ -117,7 +130,7 @@ class PlanetsMoon : public terraingen::examples::Example {
     }
 
   private:
-    terraingen::Surface moon_ = terraingen::BodySphere(terraingen::Body::Moon);
+    terraingen::Surface moon_ = terraingen::Surface::Sphere(kMoonRadius);
     terraingen::Vec2d east_;
     terraingen::EvaluatedTerrain site_;
     float siteHeight_ = 0.0f;

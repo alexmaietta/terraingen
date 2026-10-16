@@ -1,4 +1,3 @@
-# Some tests use the lunar models as realistic inputs, so the suite links terraingen::bodies too.
 terraingen_add_test_suite(
     craters
     SOURCES
@@ -37,4 +36,4 @@ terraingen_add_test_suite(
     boulders/boulder_layer_test.cpp
     boulders/boulder_options_test.cpp
     LIBRARIES
-    terraingen::bodies)
+    terraingen::layers)

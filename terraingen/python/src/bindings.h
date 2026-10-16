@@ -21,7 +21,6 @@ void BindCraters(nanobind::module_& m);
 void BindBoulders(nanobind::module_& m);
 void BindFilters(nanobind::module_& m);
 void BindAlbedo(nanobind::module_& m);
-void BindBodies(nanobind::module_& m);
 void BindPipeline(nanobind::module_& m);
 
 }  // namespace terraingen::python

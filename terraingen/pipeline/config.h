@@ -6,7 +6,6 @@
 #include "terraingen/albedo/crater_albedo.h"
 #include "terraingen/albedo/raster_albedo.h"
 #include "terraingen/albedo/synthetic.h"
-#include "terraingen/bodies/radii.h"
 #include "terraingen/distribution/moore.h"
 #include "terraingen/distribution/piecewise_power_law.h"
 #include "terraingen/distribution/sp8023.h"
@@ -113,16 +112,6 @@ struct NoiseLayerSpec {
     bool operator==(const NoiseLayerSpec&) const = default;
 };
 
-/// @brief Crater density "lunar_surface": `LunarSurface(ageGyr)`, density and ages.
-struct LunarSurfaceSpec {
-    double ageGyr = 3.5;
-    bool operator==(const LunarSurfaceSpec&) const = default;
-};
-/// @brief Crater density "mars_surface": `MarsSurface(ageGyr)`, density and ages.
-struct MarsSurfaceSpec {
-    double ageGyr = 3.0;
-    bool operator==(const MarsSurfaceSpec&) const = default;
-};
 /// @brief Density "power_law": `PowerLawSfd`, N per m^2 with D in metres.
 struct PowerLawSpec {
     double coefficient = 0.1;
@@ -159,15 +148,37 @@ struct MooreSpec {
 struct ViperSpec {
     bool operator==(const ViperSpec&) const = default;
 };
+/// @brief A published crater production function, a `ProductionRate`.
+enum class ProductionFunction {
+    Neukum,          ///< "neukum": `NeukumProductionFunction`, 10 m to 300 km.
+    ExtendedNeukum,  ///< "extended_neukum": `ExtendedNeukumProductionFunction`, 2.5 m to 300 km.
+    Ivanov,          ///< "ivanov": `IvanovMarsProductionFunction`, 15 m to 362 km.
+};
+/// @brief A published crater chronology, N(>=1 km) by surface age.
+enum class ChronologyModel {
+    Neukum,  ///< "neukum": `NeukumLunarChronology`.
+    Ivanov,  ///< "ivanov": `IvanovMarsChronology`.
+};
+/// @brief Crater density "production_surface": `ProductionSurface`, the craters `production`
+/// leaves on a surface `ageGyr` old by `chronology`, with no erosion.
+struct ProductionSurfaceSpec {
+    ProductionFunction production = ProductionFunction::ExtendedNeukum;
+    ChronologyModel chronology = ChronologyModel::Neukum;
+    double ageGyr = 3.5;
+    bool operator==(const ProductionSurfaceSpec&) const = default;
+};
+struct MinimumSpec;
 /// @brief A crater density, named in JSON by its "type".
 using DensitySpec =
-    std::variant<LunarSurfaceSpec, MarsSurfaceSpec, PowerLawSpec, PiecewisePowerLawSpec,
-                 TabulatedSpec, TraskSpec, HartmannSpec, MooreSpec, ViperSpec>;
-
-/// @brief Crater ages "auto": the lunar or Martian surface's ages, otherwise uniform 1 Gyr.
-struct AutoAgesSpec {
-    bool operator==(const AutoAgesSpec&) const = default;
+    std::variant<PowerLawSpec, PiecewisePowerLawSpec, TabulatedSpec, ProductionSurfaceSpec,
+                 MinimumSpec, TraskSpec, HartmannSpec, MooreSpec, ViperSpec>;
+/// @brief Crater density "minimum": `MinimumSfd`, the least of `distributions` at each diameter,
+/// such as a production surface capped by an equilibrium.
+struct MinimumSpec {
+    std::vector<DensitySpec> distributions;
+    bool operator==(const MinimumSpec&) const = default;
 };
+
 /// @brief Crater ages "fresh": `FreshAges`.
 struct FreshAgesSpec {
     bool operator==(const FreshAgesSpec&) const = default;
@@ -179,15 +190,17 @@ struct UniformAgesSpec {
 };
 /// @brief Equilibrium densities for `SteadyStateAgesSpec`.
 enum class EquilibriumModel { Trask, Hartmann };
-/// @brief Crater ages "steady_state": `SteadyStateAges` with the Neukum production.
+/// @brief Crater ages "steady_state": `SteadyStateAges` from `production`, `equilibrium` and
+/// `chronology`.
 struct SteadyStateAgesSpec {
     double ageGyr = 3.5;
+    ProductionFunction production = ProductionFunction::ExtendedNeukum;
     EquilibriumModel equilibrium = EquilibriumModel::Trask;
-    bool extendedProduction = true;  ///< Extend the production function below 10 m.
+    ChronologyModel chronology = ChronologyModel::Neukum;
     bool operator==(const SteadyStateAgesSpec&) const = default;
 };
 /// @brief A crater age model, named in JSON by its "type".
-using AgesSpec = std::variant<AutoAgesSpec, FreshAgesSpec, UniformAgesSpec, SteadyStateAgesSpec>;
+using AgesSpec = std::variant<UniformAgesSpec, FreshAgesSpec, SteadyStateAgesSpec>;
 
 /// @brief Degradation "none": `NoDegradation`, optionally with a fixed depth-to-diameter ratio.
 struct NoDegradationSpec {
@@ -210,7 +223,7 @@ enum class DiffusivityModel {
 };
 
 /// @brief Degradation "diffusion": `DiffusionDegradation`, the layer's profile worn by topographic
-/// diffusion (`DiffusedProfile`). The lunar diffusivity models are refused on Mars.
+/// diffusion (`DiffusedProfile`).
 struct DiffusionDegradationSpec {
     DiffusivityModel diffusivity = DiffusivityModel::Fassett2022Hartmann;
     PowerLawDiffusivity powerLaw{};  ///< Used when `diffusivity` is `PowerLaw`.
@@ -232,9 +245,9 @@ struct MartinParkesDunstanSpec {
 };
 /// @brief A simple crater profile, named in JSON by its "type".
 using SimpleProfileSpec = std::variant<FassettThomsonSpec, MartinParkesDunstanSpec>;
-/// @brief Crater profile "complex": `simple` below the layer's body's simple-to-complex transition,
-/// and complex craters, with flat floors and central peaks, from it (`ComplexCraterProfile` with
-/// `LunarComplexCraterShape` or `MarsComplexCraterShape`).
+/// @brief Crater profile "complex": `simple` below the simple-to-complex transition of the layer's
+/// morphometry, and complex craters, with flat floors and central peaks, from it
+/// (`ComplexCraterProfile` with `LunarComplexCraterShape` or `MarsComplexCraterShape`).
 struct ComplexProfileSpec {
     SimpleProfileSpec simple{};
     bool operator==(const ComplexProfileSpec&) const = default;
@@ -242,17 +255,16 @@ struct ComplexProfileSpec {
 /// @brief A crater profile, named in JSON by its "type".
 using ProfileSpec = std::variant<FassettThomsonSpec, MartinParkesDunstanSpec, ComplexProfileSpec>;
 
-/// @brief The body a crater layer's craters are shaped for: its fresh morphometry
-/// (`LunarFreshCraterMorphometry`, `MarsFreshCraterMorphometry`) and complex crater shape.
-/// Separate from `Body` because only these two bodies have crater morphometry.
-enum class CraterBody { Moon, Mars };
+/// @brief The published fits of fresh crater depth, rim height and complex crater shape that a
+/// crater layer shapes its craters with.
+enum class CraterMorphometryFit {
+    Lunar,  ///< "lunar": `LunarFreshCraterMorphometry` and `LunarComplexCraterShape`.
+    Mars,   ///< "mars": `MarsFreshCraterMorphometry` and `MarsComplexCraterShape`.
+};
 
 /// @brief Layer "craters": craters generated over the grid and applied to it (`CraterLayer`).
-///
-/// With `body` Mars, the lunar-only density "lunar_surface", ages "steady_state" and diffusivity
-/// models other than "power_law" are refused; with `body` Moon, the density "mars_surface".
 struct CraterLayerSpec {
-    CraterBody body = CraterBody::Moon;
+    CraterMorphometryFit morphometry = CraterMorphometryFit::Lunar;
     bool generate = true;  ///< Generate craters from `density`; otherwise only `manual` ones.
     std::uint32_t seed = 1;
     DensitySpec density{};
@@ -325,12 +337,12 @@ struct BedformLayerSpec {
 
 /// @brief Layer "secondaries": secondary craters around the craters of the last crater layer
 /// before this one (`SecondaryCraterLayer`), shaped with that layer's profile at a fixed depth
-/// ratio and the fresh rim of `body`. `secondaries.onsetCount` must be given.
+/// ratio and the fresh rim of `morphometry`. `secondaries.onsetCount` must be given.
 struct SecondaryLayerSpec {
     SecondaryCraterOptions secondaries{};
     /// Depth-to-diameter ratio.
     double depthRatio = 0.11;
-    CraterBody body = CraterBody::Moon;
+    CraterMorphometryFit morphometry = CraterMorphometryFit::Lunar;
 
     bool operator==(const SecondaryLayerSpec&) const = default;
 };
@@ -553,9 +565,7 @@ struct PlaneSurfaceSpec {
 /// @brief Surface "sphere": a body such as a planet or moon (`Surface`); grids and positions are
 /// longitude and latitude in degrees, and features are generated over the whole body.
 struct SphereSurfaceSpec {
-    double radius = 0.0;  ///< Metres; give this or `body`, not both.
-    /// "moon", "mars" or "mercury", for its mean radius (`MeanRadius`).
-    std::optional<Body> body{};
+    double radius = 0.0;  ///< Metres; must be given.
     bool operator==(const SphereSurfaceSpec&) const = default;
 };
 

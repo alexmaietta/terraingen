@@ -13,10 +13,13 @@ class Negate(terraingen.Filter):
         heights.values[:] *= -1
 
 
-def undegraded_craters(crater_layer):
-    surface = terraingen.lunar_surface(3.5)
+def undegraded_craters(crater_layer, lunar_craters):
+    density, ages = lunar_craters(3.5)
     models = terraingen.CraterModels(
-        surface.density, surface.ages, terraingen.NoDegradation(), terraingen.FassettThomsonProfile()
+        density,
+        ages,
+        terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry),
+        terraingen.FassettThomsonProfile(),
     )
     return crater_layer(models, 10.0, 60.0)
 
@@ -27,8 +30,8 @@ def smoothed_heights(craters, smoothing):
     return terraingen.evaluate(terraingen.Terrain(source, [craters], filters)).heights.values
 
 
-def test_rim_smoothing_lowers_the_highest_rim(crater_layer):
-    craters = undegraded_craters(crater_layer)
+def test_rim_smoothing_lowers_the_highest_rim(crater_layer, lunar_craters):
+    craters = undegraded_craters(crater_layer, lunar_craters)
     plain = terraingen.evaluate(
         terraingen.Terrain(terraingen.FlatSource(129, 129, 1.0), [craters])
     ).heights.values
@@ -38,8 +41,8 @@ def test_rim_smoothing_lowers_the_highest_rim(crater_layer):
     assert smoothed_heights(craters, soft).max() < plain.max()
 
 
-def test_rim_smoothing_at_zero_strength_changes_nothing(crater_layer):
-    craters = undegraded_craters(crater_layer)
+def test_rim_smoothing_at_zero_strength_changes_nothing(crater_layer, lunar_craters):
+    craters = undegraded_craters(crater_layer, lunar_craters)
     plain = terraingen.evaluate(
         terraingen.Terrain(terraingen.FlatSource(129, 129, 1.0), [craters])
     ).heights.values

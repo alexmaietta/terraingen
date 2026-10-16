@@ -25,7 +25,7 @@ class Example(_common.Example):
         models = terraingen.CraterModels(
             density=terraingen.PowerLawSfd(1e-6, 2.0),
             ages=ages,
-            degradation=terraingen.FreshnessDegradation(ages),
+            degradation=terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry),
             profile=terraingen.FassettThomsonProfile(),
         )
         manual = [

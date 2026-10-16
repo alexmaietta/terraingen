@@ -272,16 +272,9 @@ void BindProductionSurface(nb::module_& m) {
     nb::class_<ProductionSurface, Sfd>(
         m, "ProductionSurface",
         "The craters a production function leaves on a surface `age_gyr` old: its shape scaled "
-        "by `chronology` (by default Neukum's lunar chronology).")
-        .def(
-            "__init__",
-            [](ProductionSurface* self, SfdPointer production, double ageGyr,
-               std::optional<Chronology> chronology) {
-                new (self)
-                    ProductionSurface(std::move(production), ageGyr,
-                                      chronology.value_or(Chronology(NeukumLunarChronology)));
-            },
-            "production"_a, "age_gyr"_a, "chronology"_a = nb::none())
+        "by `chronology`, such as `neukum_lunar_chronology`.")
+        .def(nb::init<SfdPointer, double, const Chronology&>(), "production"_a, "age_gyr"_a,
+             "chronology"_a)
         .def_prop_ro("age_gyr", &ProductionSurface::AgeGyr)
         .def_prop_ro("production", &ProductionSurface::Production,
                      nb::rv_policy::reference_internal,

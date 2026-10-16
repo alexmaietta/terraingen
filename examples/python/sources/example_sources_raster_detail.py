@@ -23,11 +23,16 @@ from _common import hillshade, montage, write_png
 
 def coarse_dem():
     """A 16 m DEM standing in for orbital data: broad relief and large craters."""
-    surface = terraingen.lunar_surface(3.5)
+    production = terraingen.extended_neukum_production_function()
+    equilibrium = terraingen.trask_equilibrium()
+    density = terraingen.MinimumSfd(
+        [terraingen.ProductionSurface(production, 3.5, terraingen.neukum_lunar_chronology), equilibrium]
+    )
+    ages = terraingen.SteadyStateAges(production, equilibrium, 3.5, terraingen.neukum_lunar_chronology)
     models = terraingen.CraterModels(
-        surface.density,
-        surface.ages,
-        terraingen.FreshnessDegradation(surface.ages),
+        density,
+        ages,
+        terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry),
         terraingen.FassettThomsonProfile(),
     )
     generation = terraingen.CraterGenerationOptions(min_diameter=100.0, max_diameter=600.0)
@@ -55,11 +60,21 @@ class Example(_common.Example):
             print(
                 f"coarse DEM {self.dem.width} x {self.dem.height} at 16 m; source resampled to {source.width} x {source.height} at 2 m"
             )
-            surface = terraingen.lunar_surface(3.5)
+            production = terraingen.extended_neukum_production_function()
+            equilibrium = terraingen.trask_equilibrium()
+            density = terraingen.MinimumSfd(
+                [
+                    terraingen.ProductionSurface(production, 3.5, terraingen.neukum_lunar_chronology),
+                    equilibrium,
+                ]
+            )
+            ages = terraingen.SteadyStateAges(
+                production, equilibrium, 3.5, terraingen.neukum_lunar_chronology
+            )
             models = terraingen.CraterModels(
-                surface.density,
-                surface.ages,
-                terraingen.FreshnessDegradation(surface.ages),
+                density,
+                ages,
+                terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry),
                 terraingen.FassettThomsonProfile(),
             )
             small = terraingen.CraterLayer(

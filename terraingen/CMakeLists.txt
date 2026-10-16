@@ -10,7 +10,6 @@
 #   layers        relief added on top of a source: craters (populations, profiles, degradation)
 #   filters       transforms of the heights so far: crater rim smoothing
 #   albedo        surface albedo: orbital maps upscaled, synthetic colour and bright crater rays
-#   bodies        calibrations for particular bodies: the Moon's chronology, production and presets
 #   pipeline      JSON terrain configs and the generation pipeline
 # Headers sit next to their sources and are included from the repository root as
 # "terraingen/<module>/<file>.h"; terraingen::terraingen links every module and the build info.
@@ -60,7 +59,6 @@ add_subdirectory(sources)
 add_subdirectory(layers)
 add_subdirectory(filters)
 add_subdirectory(albedo)
-add_subdirectory(bodies)
 add_subdirectory(pipeline)
 
 get_property(modules GLOBAL PROPERTY TERRAINGEN_MODULES)

@@ -7,7 +7,7 @@ import terraingen
 
 SPHERE_CONFIG = {
     "schema_version": 1,
-    "surface": {"type": "sphere", "body": "moon"},
+    "surface": {"type": "sphere", "radius": 1737400},
     "source": {"type": "flat", "width": 17, "height": 17, "pixel_size": 100},
     "layers": [{"type": "noise", "stack": [{"wavelength": 2000, "amplitude": 10}]}],
     "albedo": {"source": {"type": "synthetic", "value": 0.12}},
@@ -107,7 +107,7 @@ def test_terrain_needs_a_source():
 
 @pytest.fixture
 def moon():
-    return terraingen.body_sphere(terraingen.Body.MOON)
+    return terraingen.Surface.sphere(1737400.0)
 
 
 @pytest.fixture

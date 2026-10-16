@@ -19,15 +19,25 @@
 namespace {
 
 std::shared_ptr<terraingen::CraterLayer> Craters(double ageGyr, std::uint32_t seed) {
-    const terraingen::SurfaceModel surface = terraingen::LunarSurface(ageGyr);
+    const auto production =
+        std::make_shared<terraingen::SplicedSfd>(terraingen::ExtendedNeukumProductionFunction());
+    const auto equilibrium =
+        std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium());
+    const auto density = std::make_shared<terraingen::MinimumSfd>(
+        std::vector<std::shared_ptr<const terraingen::SizeFrequencyDistribution>>{
+            std::make_shared<terraingen::ProductionSurface>(production, ageGyr,
+                                                            terraingen::NeukumLunarChronology),
+            equilibrium});
+    const auto ages = std::make_shared<terraingen::SteadyStateAges>(
+        production, equilibrium, ageGyr, terraingen::NeukumLunarChronology);
     terraingen::CraterLayerOptions options;
     options.seed = seed;
     options.generation.dMin = 10.0;
     options.generation.dMax = 200.0;
     return std::make_shared<terraingen::CraterLayer>(
-        terraingen::CraterModels{surface.density, surface.ages,
+        terraingen::CraterModels{density, ages,
                                  std::make_shared<terraingen::FreshnessDegradation>(
-                                     surface.ages, terraingen::LunarFreshCraterMorphometry),
+                                     ages, terraingen::LunarFreshCraterMorphometry),
                                  std::make_shared<terraingen::FassettThomsonProfile>()},
         options);
 }

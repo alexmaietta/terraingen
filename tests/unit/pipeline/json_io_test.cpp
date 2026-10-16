@@ -45,11 +45,12 @@ TerrainConfig Everything() {
     noise.stack.push_back(second);
     CraterLayerSpec craters;
     craters.generate = false;
-    craters.body = terraingen::CraterBody::Mars;
+    craters.morphometry = terraingen::CraterMorphometryFit::Mars;
     craters.seed = 99;
     craters.density = terraingen::PiecewisePowerLawSpec{{{1.0, 0.2, 2.0}, {50.0, 10.0, 3.0}}};
-    craters.ages =
-        terraingen::SteadyStateAgesSpec{2.0, terraingen::EquilibriumModel::Hartmann, false};
+    craters.ages = terraingen::SteadyStateAgesSpec{2.0, terraingen::ProductionFunction::Ivanov,
+                                                   terraingen::EquilibriumModel::Hartmann,
+                                                   terraingen::ChronologyModel::Ivanov};
     craters.minDiameter = 2.0;
     craters.maxDiameter = 90.0;
     craters.spacing = {2.0, 0.75};
@@ -200,17 +201,31 @@ TEST(ConfigJson, WritesTheRootKeysInOrderAndNoAlbedoWhenUnset) {
 }
 
 TEST(ConfigJson, RoundTripsEveryModelType) {
+    using terraingen::ChronologyModel;
+    using terraingen::ProductionFunction;
     const std::vector<DensitySpec> densities{
-        terraingen::LunarSurfaceSpec{2.0},
-        terraingen::MarsSurfaceSpec{1.5},
+        terraingen::ProductionSurfaceSpec{ProductionFunction::Neukum, ChronologyModel::Ivanov, 2.0},
+        terraingen::ProductionSurfaceSpec{ProductionFunction::ExtendedNeukum,
+                                          ChronologyModel::Neukum, 1.0},
+        terraingen::ProductionSurfaceSpec{ProductionFunction::Ivanov, ChronologyModel::Ivanov, 1.5},
+        terraingen::MinimumSpec{},
+        terraingen::MinimumSpec{{terraingen::ProductionSurfaceSpec{}, terraingen::TraskSpec{},
+                                 terraingen::MinimumSpec{{terraingen::PowerLawSpec{0.2, 2.1}}}}},
         terraingen::PowerLawSpec{0.3, 1.8},
         terraingen::TabulatedSpec{{1.0, 10.0}, {1.0, 0.01}, 1000.0, 1e6},
         terraingen::TraskSpec{},
         terraingen::HartmannSpec{},
         terraingen::MooreSpec{terraingen::MooreTerrain::Uplands},
         terraingen::ViperSpec{}};
-    const std::vector<AgesSpec> ages{terraingen::AutoAgesSpec{}, terraingen::FreshAgesSpec{},
-                                     terraingen::UniformAgesSpec{2.5}};
+    const std::vector<AgesSpec> ages{
+        terraingen::FreshAgesSpec{}, terraingen::UniformAgesSpec{2.5},
+        terraingen::SteadyStateAgesSpec{},
+        terraingen::SteadyStateAgesSpec{3.0, ProductionFunction::Neukum,
+                                        terraingen::EquilibriumModel::Hartmann,
+                                        ChronologyModel::Neukum},
+        terraingen::SteadyStateAgesSpec{1.0, ProductionFunction::Ivanov,
+                                        terraingen::EquilibriumModel::Trask,
+                                        ChronologyModel::Ivanov}};
     for (const terraingen::SourceSpec& source :
          {terraingen::SourceSpec{terraingen::RasterSourceSpec{
               "dem.tif", 2, 0.25, terraingen::ResampleMethod::Bilinear}},
@@ -308,16 +323,78 @@ TEST(ConfigJson, RoundTripsSurfacesAndFlatCentres) {
         ParseConfig(R"({"schema_version": 1})").surface));
     EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "surface": {"type": "torus"}})"),
               "surface.type");
-    const TerrainConfig mars =
-        ParseConfig(R"({"schema_version": 1, "surface": {"type": "sphere", "body": "mars"}})");
-    EXPECT_EQ(std::get<terraingen::SphereSurfaceSpec>(mars.surface).body, terraingen::Body::Mars);
-    EXPECT_EQ(ParseConfig(ConfigToJson(mars)), mars);
-    TerrainConfig meshed = mars;
+    EXPECT_EQ(ParseConfig(ConfigToJson(parsed)), parsed);
+    TerrainConfig meshed = parsed;
     meshed.outputs = {terraingen::BodyMeshOutput{"m.glb", 64, 300.0}};
     EXPECT_EQ(ParseConfig(ConfigToJson(meshed)), meshed);
     EXPECT_EQ(
-        ParseErrorPath(R"({"schema_version": 1, "surface": {"type": "sphere", "body": "pluto"}})"),
+        ParseErrorPath(R"({"schema_version": 1, "surface": {"type": "sphere", "body": "mars"}})"),
         "surface.body");
+}
+
+TEST(ConfigJson, ReadsProductionSurfacesMinimumsAndSteadyStateAges) {
+    const TerrainConfig config = ParseConfig(R"({"schema_version": 1, "layers": [{
+        "type": "craters", "morphometry": "mars",
+        "density": {"type": "minimum", "distributions": [
+            {"type": "production_surface", "production": "ivanov", "chronology": "ivanov",
+             "age_gyr": 2.5},
+            {"type": "trask"}]},
+        "ages": {"type": "steady_state", "age_gyr": 2.5, "production": "neukum",
+                 "equilibrium": "hartmann", "chronology": "ivanov"}}]})");
+    const auto& craters = std::get<CraterLayerSpec>(config.layers.at(0));
+    EXPECT_EQ(craters.morphometry, terraingen::CraterMorphometryFit::Mars);
+    const terraingen::MinimumSpec expected{
+        {terraingen::ProductionSurfaceSpec{terraingen::ProductionFunction::Ivanov,
+                                           terraingen::ChronologyModel::Ivanov, 2.5},
+         terraingen::TraskSpec{}}};
+    EXPECT_EQ(craters.density, DensitySpec{expected});
+    const terraingen::SteadyStateAgesSpec ages{2.5, terraingen::ProductionFunction::Neukum,
+                                               terraingen::EquilibriumModel::Hartmann,
+                                               terraingen::ChronologyModel::Ivanov};
+    EXPECT_EQ(craters.ages, AgesSpec{ages});
+    const TerrainConfig secondaries = ParseConfig(R"({"schema_version": 1, "layers": [
+        {"type": "craters"}, {"type": "secondaries", "onset_count": 3, "morphometry": "lunar"}]})");
+    EXPECT_EQ(std::get<terraingen::SecondaryLayerSpec>(secondaries.layers.at(1)).morphometry,
+              terraingen::CraterMorphometryFit::Lunar);
+}
+
+TEST(ConfigJson, DefaultsCraterLayersToAPowerLawWithUniformAges) {
+    const TerrainConfig config =
+        ParseConfig(R"({"schema_version": 1, "layers": [{"type": "craters"}]})");
+    const auto& craters = std::get<CraterLayerSpec>(config.layers.at(0));
+    EXPECT_EQ(craters.density, DensitySpec{terraingen::PowerLawSpec{}});
+    EXPECT_EQ(craters.ages, AgesSpec{terraingen::UniformAgesSpec{1.0}});
+    EXPECT_EQ(craters.morphometry, terraingen::CraterMorphometryFit::Lunar);
+    const auto& production = std::get<terraingen::ProductionSurfaceSpec>(
+        std::get<CraterLayerSpec>(ParseConfig(R"({"schema_version": 1, "layers": [{"type":
+            "craters", "density": {"type": "production_surface"}}]})")
+                                      .layers.at(0))
+            .density);
+    EXPECT_EQ(production, terraingen::ProductionSurfaceSpec{});
+}
+
+TEST(ConfigJson, RejectsUnknownProductionsChronologiesAndMorphometries) {
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [{"type": "craters",
+              "density": {"type": "production_surface", "production": "hartmann"}}]})"),
+              "layers[0].density.production");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [{"type": "craters",
+              "density": {"type": "production_surface", "chronology": "mars"}}]})"),
+              "layers[0].density.chronology");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [{"type": "craters",
+              "density": {"type": "minimum", "distributions": [{"type": "lunar_surface"}]}}]})"),
+              "layers[0].density.distributions[0].type");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [{"type": "craters",
+              "ages": {"type": "steady_state", "chronology": "hartmann"}}]})"),
+              "layers[0].ages.chronology");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [{"type": "craters",
+              "ages": {"type": "auto"}}]})"),
+              "layers[0].ages.type");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [{"type": "craters",
+              "morphometry": "moon"}]})"),
+              "layers[0].morphometry");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [{"type": "craters",
+              "body": "mars"}]})"),
+              "layers[0].body");
 }
 
 TEST(ConfigJson, RoundTripsDiffusionDegradation) {
@@ -351,7 +428,7 @@ TEST(ConfigJson, RoundTripsSecondaryLayers) {
     secondaries.secondaries.selection.maxAgeGyr = 0.5;
     secondaries.secondaries.selection.maxDiameter = 900.0;
     secondaries.depthRatio = 0.12;
-    secondaries.body = terraingen::CraterBody::Mars;
+    secondaries.morphometry = terraingen::CraterMorphometryFit::Mars;
     config.layers = {CraterLayerSpec{}, secondaries};
     const std::string json = ConfigToJson(config);
     EXPECT_EQ(ParseConfig(json), config) << json;

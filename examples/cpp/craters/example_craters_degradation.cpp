@@ -27,7 +27,17 @@ class CratersDegradation : public terraingen::examples::Example {
     using Example::Example;
 
     void Generate() override {
-        const terraingen::SurfaceModel surface = terraingen::LunarSurface(3.5);
+        const auto production = std::make_shared<terraingen::SplicedSfd>(
+            terraingen::ExtendedNeukumProductionFunction());
+        const auto equilibrium =
+            std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium());
+        const auto density = std::make_shared<terraingen::MinimumSfd>(
+            std::vector<std::shared_ptr<const terraingen::SizeFrequencyDistribution>>{
+                std::make_shared<terraingen::ProductionSurface>(production, 3.5,
+                                                                terraingen::NeukumLunarChronology),
+                equilibrium});
+        const auto ages = std::make_shared<terraingen::SteadyStateAges>(
+            production, equilibrium, 3.5, terraingen::NeukumLunarChronology);
         const auto fresh = terraingen::LunarFreshCraterMorphometry;
         const auto diffused = std::make_shared<terraingen::DiffusedProfile>(
             std::make_shared<terraingen::FassettThomsonProfile>());
@@ -36,8 +46,7 @@ class CratersDegradation : public terraingen::examples::Example {
             models = {
                 {"none", std::make_shared<terraingen::NoDegradation>(fresh)},
                 {"fixed", std::make_shared<terraingen::NoDegradation>(fresh, 0.1)},
-                {"freshness",
-                 std::make_shared<terraingen::FreshnessDegradation>(surface.ages, fresh)},
+                {"freshness", std::make_shared<terraingen::FreshnessDegradation>(ages, fresh)},
                 {"diffusion_ft2014",
                  std::make_shared<terraingen::DiffusionDegradation>(
                      fresh, terraingen::FassettThomson2014Diffusivity(), diffused)},
@@ -55,7 +64,7 @@ class CratersDegradation : public terraingen::examples::Example {
             terraingen::Terrain terrain;
             terrain.source = std::make_shared<terraingen::FlatSource>(257, 257, 1.0);
             terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(
-                terraingen::CraterModels{surface.density, surface.ages, degradation,
+                terraingen::CraterModels{density, ages, degradation,
                                          std::make_shared<terraingen::FassettThomsonProfile>()},
                 options));
             evaluated_.emplace_back(name, terraingen::Evaluate(terrain));

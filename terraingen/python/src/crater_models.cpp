@@ -79,11 +79,6 @@ class PyCraterProfile : public CraterProfile {
     }
 };
 
-/// @brief `fresh`, or the lunar fresh crater shape without one.
-FreshMorphometry FreshOf(std::optional<FreshMorphometry> fresh) {
-    return fresh ? *fresh : FreshMorphometry(LunarFreshCraterMorphometry);
-}
-
 void BindAges(nb::module_& m) {
     nb::class_<CraterAgeModel, PyCraterAgeModel>(
         m, "CraterAgeModel",
@@ -157,26 +152,15 @@ void BindDegradationModels(nb::module_& m) {
     nb::class_<NoDegradation, DegradationModel>(
         m, "NoDegradation",
         "Craters keep their fresh shape (`fresh`, a function of diameter giving a "
-        "CraterMorphometry, lunar by default), or a fixed `depth_ratio`.")
-        .def(
-            "__init__",
-            [](NoDegradation* self, std::optional<double> depthRatio,
-               std::optional<FreshMorphometry> fresh) {
-                new (self) NoDegradation(FreshOf(std::move(fresh)), depthRatio);
-            },
-            "depth_ratio"_a = nb::none(), "fresh"_a = nb::none());
+        "CraterMorphometry, such as `lunar_fresh_crater_morphometry`), or a fixed `depth_ratio`.")
+        .def(nb::init<FreshMorphometry, std::optional<double>>(), "fresh"_a,
+             "depth_ratio"_a = nb::none());
     nb::class_<FreshnessDegradation, DegradationModel>(
         m, "FreshnessDegradation",
         "Craters shallow from their fresh shape with their freshness under `ages`, down to "
         "`cutoff_depth_ratio`.")
-        .def(
-            "__init__",
-            [](FreshnessDegradation* self, std::shared_ptr<CraterAgeModel> ages,
-               double cutoffDepthRatio, std::optional<FreshMorphometry> fresh) {
-                new (self) FreshnessDegradation(std::move(ages), FreshOf(std::move(fresh)),
-                                                cutoffDepthRatio);
-            },
-            "ages"_a, "cutoff_depth_ratio"_a = 0.04, "fresh"_a = nb::none());
+        .def(nb::init<std::shared_ptr<CraterAgeModel>, FreshMorphometry, double>(), "ages"_a,
+             "fresh"_a, "cutoff_depth_ratio"_a = 0.04);
 }
 
 void BindDiffusion(nb::module_& m) {
@@ -199,20 +183,19 @@ void BindDiffusion(nb::module_& m) {
         "age, as PowerLawDiffusivity does, and `profile` the diffused shape.")
         .def(
             "__init__",
-            [](DiffusionDegradation* self, DiffusionAgeModel diffusivity,
-               std::shared_ptr<DiffusedProfile> profile, std::optional<FreshMorphometry> fresh) {
-                new (self) DiffusionDegradation(FreshOf(std::move(fresh)), std::move(diffusivity),
+            [](DiffusionDegradation* self, FreshMorphometry fresh, DiffusionAgeModel diffusivity,
+               std::shared_ptr<DiffusedProfile> profile) {
+                new (self) DiffusionDegradation(std::move(fresh), std::move(diffusivity),
                                                 std::move(profile));
             },
-            "diffusivity"_a, "profile"_a, "fresh"_a = nb::none())
+            "fresh"_a, "diffusivity"_a, "profile"_a)
         .def(
             "__init__",
-            [](DiffusionDegradation* self, const PowerLawDiffusivity& diffusivity,
-               std::shared_ptr<DiffusedProfile> profile, std::optional<FreshMorphometry> fresh) {
-                new (self) DiffusionDegradation(FreshOf(std::move(fresh)), diffusivity,
-                                                std::move(profile));
+            [](DiffusionDegradation* self, FreshMorphometry fresh,
+               const PowerLawDiffusivity& diffusivity, std::shared_ptr<DiffusedProfile> profile) {
+                new (self) DiffusionDegradation(std::move(fresh), diffusivity, std::move(profile));
             },
-            "diffusivity"_a, "profile"_a, "fresh"_a = nb::none());
+            "fresh"_a, "diffusivity"_a, "profile"_a);
 }
 
 void BindSimpleProfiles(nb::module_& m) {

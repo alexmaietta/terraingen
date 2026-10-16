@@ -25,7 +25,17 @@ class AlbedoCraterRays : public terraingen::examples::Example {
         fbm.fractal.wavelength = 3000.0f;
         fbm.fractal.amplitude = 60.0f;
 
-        const terraingen::SurfaceModel surface = terraingen::LunarSurface(3.2);
+        const auto production = std::make_shared<terraingen::SplicedSfd>(
+            terraingen::ExtendedNeukumProductionFunction());
+        const auto equilibrium =
+            std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium());
+        const auto density = std::make_shared<terraingen::MinimumSfd>(
+            std::vector<std::shared_ptr<const terraingen::SizeFrequencyDistribution>>{
+                std::make_shared<terraingen::ProductionSurface>(production, 3.2,
+                                                                terraingen::NeukumLunarChronology),
+                equilibrium});
+        const auto ages = std::make_shared<terraingen::SteadyStateAges>(
+            production, equilibrium, 3.2, terraingen::NeukumLunarChronology);
         terraingen::CraterLayerOptions craterOptions;
         craterOptions.seed = 1;
         craterOptions.generation.dMin = 30.0;
@@ -33,9 +43,9 @@ class AlbedoCraterRays : public terraingen::examples::Example {
         craterOptions.generation.manual.Append(
             terraingen::Crater{.x = 0.0, .y = 0.0, .diameter = 250.0, .ageGyr = 0.002});
         const auto craters = std::make_shared<terraingen::CraterLayer>(
-            terraingen::CraterModels{surface.density, surface.ages,
+            terraingen::CraterModels{density, ages,
                                      std::make_shared<terraingen::FreshnessDegradation>(
-                                         surface.ages, terraingen::LunarFreshCraterMorphometry),
+                                         ages, terraingen::LunarFreshCraterMorphometry),
                                      std::make_shared<terraingen::FassettThomsonProfile>()},
             craterOptions);
 

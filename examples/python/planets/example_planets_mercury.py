@@ -1,7 +1,7 @@
 """A site on Mercury, on a sphere of Mercury's mean radius.
 
-Any body works as a sphere: `body_sphere(Body.MERCURY)` uses Mercury's mean radius from NASA's
-planetary fact sheet. TerrainGen has no Mercury crater calibration, so this example uses Trask's
+Any body works as a sphere: `Surface.sphere(radius)` with the body's radius, here Mercury's mean radius
+from NASA's planetary fact sheet. TerrainGen has no Mercury crater calibration, so this example uses Trask's
 lunar equilibrium as a stand-in for a saturated, heavily cratered surface; give your own
 distribution (see example_distributions_custom.py) for a calibrated one. Writes heights and a
 hillshade.
@@ -21,11 +21,13 @@ import _common
 from _common import hillshade, write_png
 
 PIXEL = 200.0
+# Volumetric mean radius of Mercury in metres, from the NASA NSSDCA Mercury fact sheet.
+MERCURY_RADIUS = 2439700.0
 
 
 class Example(_common.Example):
     def generate(self):
-        self.mercury = terraingen.body_sphere(terraingen.Body.MERCURY)
+        self.mercury = terraingen.Surface.sphere(MERCURY_RADIUS)
         print(
             f"Mercury radius {self.mercury.radius / 1000:.1f} km, {self.mercury.unit_length:.0f} m per degree"
         )
@@ -44,7 +46,7 @@ class Example(_common.Example):
         models = terraingen.CraterModels(
             terraingen.trask_equilibrium(),
             ages,
-            terraingen.FreshnessDegradation(ages),
+            terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry),
             terraingen.FassettThomsonProfile(),
         )
         generation = terraingen.CraterGenerationOptions(min_diameter=1000.0, max_diameter=30000.0)

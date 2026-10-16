@@ -30,15 +30,21 @@ class Example(_common.Example):
     def generate(self):
         self.diameters = np.geomspace(3.0, 2000.0, 60)
         production = terraingen.extended_neukum_production_function()
+        chronology = terraingen.neukum_lunar_chronology
+        equilibrium = terraingen.trask_equilibrium()
         distributions = {
-            "production 0.1 Gyr": terraingen.ProductionSurface(production, 0.1),
-            "production 1 Gyr": terraingen.ProductionSurface(production, 1.0),
-            "production 3.8 Gyr": terraingen.ProductionSurface(production, 3.8),
-            "Trask equilibrium": terraingen.trask_equilibrium(),
+            "production 0.1 Gyr": terraingen.ProductionSurface(production, 0.1, chronology),
+            "production 1 Gyr": terraingen.ProductionSurface(production, 1.0, chronology),
+            "production 3.8 Gyr": terraingen.ProductionSurface(production, 3.8, chronology),
+            "Trask equilibrium": equilibrium,
             "Hartmann equilibrium": terraingen.hartmann_equilibrium(),
-            "lunar surface 3.8 Gyr": terraingen.lunar_surface(3.8).density,
+            "lunar surface 3.8 Gyr": terraingen.MinimumSfd(
+                [terraingen.ProductionSurface(production, 3.8, chronology), equilibrium]
+            ),
             "Moore rough mare": terraingen.moore_distribution(terraingen.MooreTerrain.ROUGH_MARE),
-            "Mars surface 3 Gyr": terraingen.mars_surface(3.0).density,
+            "Mars surface 3 Gyr": terraingen.ProductionSurface(
+                terraingen.ivanov_mars_production_function(), 3.0, terraingen.ivanov_mars_chronology
+            ),
         }
         self.columns = {name: curve(sfd, self.diameters) for name, sfd in distributions.items()}
 

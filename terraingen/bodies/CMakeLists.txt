@@ -1,9 +1,0 @@
-terraingen_add_library(
-    bodies
-    SOURCES
-    mars/surface.cpp
-    moon/surface.cpp
-    radii.cpp
-    PUBLIC
-    terraingen_distribution
-    terraingen_layers)

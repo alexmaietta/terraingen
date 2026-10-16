@@ -36,15 +36,25 @@ class TilesRoverContacts : public terraingen::examples::Example {
     using Example::Example;
 
     void Generate() override {
-        const terraingen::SurfaceModel surface = terraingen::LunarSurface(3.5);
+        const auto production = std::make_shared<terraingen::SplicedSfd>(
+            terraingen::ExtendedNeukumProductionFunction());
+        const auto equilibrium =
+            std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium());
+        const auto density = std::make_shared<terraingen::MinimumSfd>(
+            std::vector<std::shared_ptr<const terraingen::SizeFrequencyDistribution>>{
+                std::make_shared<terraingen::ProductionSurface>(production, 3.5,
+                                                                terraingen::NeukumLunarChronology),
+                equilibrium});
+        const auto ages = std::make_shared<terraingen::SteadyStateAges>(
+            production, equilibrium, 3.5, terraingen::NeukumLunarChronology);
         terraingen::CraterLayerOptions craterOptions;
         craterOptions.seed = 6;
         craterOptions.generation.dMin = 2.5;
         craterOptions.generation.dMax = 40.0;
         const auto craters = std::make_shared<terraingen::CraterLayer>(
-            terraingen::CraterModels{surface.density, surface.ages,
+            terraingen::CraterModels{density, ages,
                                      std::make_shared<terraingen::FreshnessDegradation>(
-                                         surface.ages, terraingen::LunarFreshCraterMorphometry),
+                                         ages, terraingen::LunarFreshCraterMorphometry),
                                      std::make_shared<terraingen::FassettThomsonProfile>()},
             craterOptions);
         terraingen::BoulderLayerOptions boulderOptions;

@@ -45,15 +45,19 @@ def test_uniform_ages_remaining_lifetime():
 
 def test_no_degradation_keeps_the_fresh_depth_ratio(crater):
     fresh = terraingen.lunar_fresh_crater_morphometry(100.0)
-    assert terraingen.NoDegradation().state(crater).current.depth_ratio == pytest.approx(fresh.depth_ratio)
+    assert terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry).state(
+        crater
+    ).current.depth_ratio == pytest.approx(fresh.depth_ratio)
 
 
 def test_no_degradation_can_fix_the_depth_ratio(crater):
-    assert terraingen.NoDegradation(depth_ratio=0.1).state(crater).current.depth_ratio == pytest.approx(0.1)
+    assert terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry, depth_ratio=0.1).state(
+        crater
+    ).current.depth_ratio == pytest.approx(0.1)
 
 
 def test_no_degradation_takes_a_fresh_morphometry_law(crater):
-    mars = terraingen.NoDegradation(fresh=terraingen.mars_fresh_crater_morphometry)
+    mars = terraingen.NoDegradation(terraingen.mars_fresh_crater_morphometry)
     assert mars.state(crater).fresh.depth_ratio == pytest.approx(
         terraingen.mars_fresh_crater_morphometry(100.0).depth_ratio
     )
@@ -61,7 +65,9 @@ def test_no_degradation_takes_a_fresh_morphometry_law(crater):
 
 def test_freshness_degradation_shallows_old_craters(crater):
     fresh = terraingen.lunar_fresh_crater_morphometry(100.0)
-    freshness = terraingen.FreshnessDegradation(terraingen.UniformAges(2.0))
+    freshness = terraingen.FreshnessDegradation(
+        terraingen.UniformAges(2.0), terraingen.lunar_fresh_crater_morphometry
+    )
     assert freshness.state(crater).current.depth_ratio < fresh.depth_ratio
 
 
@@ -76,7 +82,9 @@ def test_power_law_diffusivity_keeps_its_coefficient():
 )
 def test_diffusion_degradation_shallows_craters(diffusivity, crater):
     diffused = terraingen.DiffusedProfile(terraingen.FassettThomsonProfile())
-    state = terraingen.DiffusionDegradation(diffusivity, diffused).state(crater)
+    state = terraingen.DiffusionDegradation(
+        terraingen.lunar_fresh_crater_morphometry, diffusivity, diffused
+    ).state(crater)
     assert state.diffusion > 0 and state.current.depth_ratio < state.fresh.depth_ratio
 
 
@@ -155,3 +163,74 @@ def test_python_models_evaluate_the_same_on_any_thread_count(custom_craters):
     terrain = terraingen.Terrain(terraingen.FlatSource(65, 65, 2.0), [custom_craters()])
     heights = terraingen.evaluate(terrain, threads=4).heights.values
     np.testing.assert_array_equal(terraingen.evaluate(terrain, threads=1).heights.values, heights)
+
+
+def test_lunar_fresh_craters_are_simple_bowls_with_rims():
+    fresh = terraingen.lunar_fresh_crater_morphometry(100.0)
+    assert 0.1 < fresh.depth_ratio < 0.25 and fresh.rim_height_ratio > 0
+
+
+def test_lunar_fresh_depth_ratio_matches_the_morphometry():
+    assert terraingen.lunar_fresh_crater_depth_ratio(100.0) == pytest.approx(
+        terraingen.lunar_fresh_crater_morphometry(100.0).depth_ratio
+    )
+
+
+def test_mars_fresh_crater_depth_ratio_is_positive():
+    assert terraingen.mars_fresh_crater_morphometry(100.0).depth_ratio > 0
+
+
+def test_complex_crater_transition_diameters():
+    assert terraingen.lunar_complex_crater_shape().transition_diameter == pytest.approx(15000.0)
+    assert terraingen.mars_complex_crater_shape().transition_diameter == pytest.approx(7000.0)
+
+
+def test_fassett_2022_hartmann_diffusivity_grows_with_age():
+    law = terraingen.fassett_2022_hartmann_diffusivity()
+    assert law(100.0, 1.0) > law(100.0, 0.5) > 0 and law.diffusivity(100.0) > 0
+
+
+def test_fassett_thomson_2014_diffusivity_coefficient():
+    assert terraingen.fassett_thomson_2014_diffusivity().coefficient == pytest.approx(5.5)
+
+
+def test_fassett_2022_trask_diffusivity_exponent_is_positive():
+    assert terraingen.fassett_2022_trask_diffusivity().exponent > 0
+
+
+def test_fassett_thomson_2014_diffusion_age_is_positive():
+    assert terraingen.fassett_thomson_2014_diffusion_age(3.0) > 0
+
+
+def test_steady_state_ages_take_any_production_and_chronology():
+    mars = terraingen.SteadyStateAges(
+        terraingen.ivanov_mars_production_function(),
+        terraingen.hartmann_equilibrium(),
+        3.0,
+        terraingen.ivanov_mars_chronology,
+    )
+    assert mars.surface_age_gyr == 3.0 and 0 < mars.lifetime_gyr(100.0) <= 3.0
+
+
+@pytest.mark.parametrize(
+    "build",
+    [
+        lambda: terraingen.NoDegradation(),
+        lambda: terraingen.FreshnessDegradation(terraingen.UniformAges(1.0)),
+        lambda: terraingen.DiffusionDegradation(
+            terraingen.fassett_2022_hartmann_diffusivity(), terraingen.FassettThomsonProfile()
+        ),
+    ],
+)
+def test_degradation_models_need_a_fresh_morphometry(build):
+    with pytest.raises(TypeError):
+        build()
+
+
+def test_freshness_degradation_takes_its_cutoff_after_the_morphometry(crater):
+    deep = terraingen.FreshnessDegradation(
+        terraingen.UniformAges(2.0), terraingen.mars_fresh_crater_morphometry, cutoff_depth_ratio=0.05
+    )
+    assert deep.state(crater).fresh.depth_ratio == pytest.approx(
+        terraingen.mars_fresh_crater_morphometry(100.0).depth_ratio
+    )

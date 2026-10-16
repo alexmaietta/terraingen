@@ -69,20 +69,30 @@ class DistributionsCsfd : public terraingen::examples::Example {
     void Generate() override {
         const auto production = std::make_shared<terraingen::SplicedSfd>(
             terraingen::ExtendedNeukumProductionFunction());
+        const auto equilibrium =
+            std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium());
+        const auto lunarSurface = std::make_shared<terraingen::MinimumSfd>(
+            std::vector<std::shared_ptr<const terraingen::SizeFrequencyDistribution>>{
+                std::make_shared<terraingen::ProductionSurface>(production, 3.8,
+                                                                terraingen::NeukumLunarChronology),
+                equilibrium});
+        const auto marsSurface = std::make_shared<terraingen::ProductionSurface>(
+            std::make_shared<terraingen::LogPolynomialSfd>(
+                terraingen::IvanovMarsProductionFunction()),
+            3.0, terraingen::IvanovMarsChronology);
         distributions_ = {
             {"production 0.1 Gyr", std::make_shared<terraingen::ProductionSurface>(
                                        production, 0.1, terraingen::NeukumLunarChronology)},
             {"production 3.8 Gyr", std::make_shared<terraingen::ProductionSurface>(
                                        production, 3.8, terraingen::NeukumLunarChronology)},
-            {"Trask equilibrium",
-             std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium())},
+            {"Trask equilibrium", equilibrium},
             {"Hartmann equilibrium",
              std::make_shared<terraingen::PowerLawSfd>(terraingen::HartmannEquilibrium())},
-            {"lunar surface 3.8 Gyr", terraingen::LunarSurface(3.8).density},
+            {"lunar surface 3.8 Gyr", lunarSurface},
             {"Moore rough mare",
              std::make_shared<terraingen::PiecewisePowerLawSfd>(
                  terraingen::MooreDistribution(terraingen::MooreTerrain::RoughMare))},
-            {"Mars surface 3 Gyr", terraingen::MarsSurface(3.0).density},
+            {"Mars surface 3 Gyr", marsSurface},
         };
         Out() << Format("N(>= D) per km^2  %12s %12s %12s\n", "10 m", "100 m", "1000 m");
         for (const auto& [name, sfd] : distributions_) {

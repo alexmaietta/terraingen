@@ -11,14 +11,12 @@ using terraingen::CraterAgeModel;
 using terraingen::ExtendedNeukumProductionFunction;
 using terraingen::FreshAges;
 using terraingen::LogPolynomialSfd;
-using terraingen::LunarSurface;
 using terraingen::NeukumLunarChronology;
 using terraingen::NeukumProductionFunction;
 using terraingen::PowerLawSfd;
 using terraingen::RandomStream;
 using terraingen::SfdKind;
 using terraingen::SteadyStateAges;
-using terraingen::SurfaceModel;
 using terraingen::TraskEquilibrium;
 using terraingen::UniformAges;
 

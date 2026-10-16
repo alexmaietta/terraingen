@@ -29,7 +29,7 @@ class Example(_common.Example):
         models = terraingen.CraterModels(
             terraingen.PowerLawSfd(1e-6, 2.0),
             ages,
-            terraingen.NoDegradation(),
+            terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry),
             terraingen.FassettThomsonProfile(),
         )
         primaries = terraingen.CraterLayer(
@@ -40,7 +40,10 @@ class Example(_common.Example):
         )
         options = terraingen.SecondaryCraterOptions(seed=4, onset_count=20.0, min_diameter=30.0)
         secondaries = terraingen.SecondaryCraterLayer(
-            primaries, terraingen.FassettThomsonProfile(), terraingen.NoDegradation(depth_ratio=0.11), options
+            primaries,
+            terraingen.FassettThomsonProfile(),
+            terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry, depth_ratio=0.11),
+            options,
         )
         self.onset = terraingen.secondary_onset_range(primary.diameter)
         self.outer = secondaries.outer_range(primary.diameter)

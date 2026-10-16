@@ -110,7 +110,17 @@ class LayersCustom : public terraingen::examples::Example {
         fbm.fractal.seed = 1;
         fbm.fractal.wavelength = 200.0f;
         fbm.fractal.amplitude = 4.0f;
-        const terraingen::SurfaceModel surface = terraingen::LunarSurface(3.5);
+        const auto production = std::make_shared<terraingen::SplicedSfd>(
+            terraingen::ExtendedNeukumProductionFunction());
+        const auto equilibrium =
+            std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium());
+        const auto density = std::make_shared<terraingen::MinimumSfd>(
+            std::vector<std::shared_ptr<const terraingen::SizeFrequencyDistribution>>{
+                std::make_shared<terraingen::ProductionSurface>(production, 3.5,
+                                                                terraingen::NeukumLunarChronology),
+                equilibrium});
+        const auto ages = std::make_shared<terraingen::SteadyStateAges>(
+            production, equilibrium, 3.5, terraingen::NeukumLunarChronology);
         terraingen::CraterLayerOptions options;
         options.generation.dMin = 8.0;
         options.generation.dMax = 80.0;
@@ -121,9 +131,9 @@ class LayersCustom : public terraingen::examples::Example {
             std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{fbm}}),
             std::make_shared<Rille>(),
             std::make_shared<terraingen::CraterLayer>(
-                terraingen::CraterModels{surface.density, surface.ages,
+                terraingen::CraterModels{density, ages,
                                          std::make_shared<terraingen::FreshnessDegradation>(
-                                             surface.ages, terraingen::LunarFreshCraterMorphometry),
+                                             ages, terraingen::LunarFreshCraterMorphometry),
                                          std::make_shared<terraingen::FassettThomsonProfile>()},
                 options)};
         originHeight_ = terraingen::EvaluateAt(terrain, 0.0, 0.0, 2.0);

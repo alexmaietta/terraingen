@@ -16,7 +16,6 @@ terraingen_add_library(
     validate.cpp
     PUBLIC
     terraingen_albedo
-    terraingen_bodies
     terraingen_distribution
     terraingen_filters
     terraingen_layers

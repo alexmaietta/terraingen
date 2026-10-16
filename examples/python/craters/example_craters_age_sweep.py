@@ -1,6 +1,6 @@
 """The same cratered terrain at several surface ages.
 
-`lunar_surface` is the Neukum production for the surface's age, capped at Trask's equilibrium:
+Each surface is the Neukum production for its age, capped at Trask's equilibrium by a `MinimumSfd`:
 young surfaces gain craters quickly, and craters of tens of metres saturate within about a billion
 years, after which new craters erase as many as they add. The seed stays fixed, so each panel
 differs only by age. Prints counts and writes a montage of hillshades.
@@ -28,11 +28,21 @@ class Example(_common.Example):
         fbm = terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=400.0, amplitude=10.0))
         self.evaluated = []
         for age in AGES:
-            surface = terraingen.lunar_surface(age)
+            production = terraingen.extended_neukum_production_function()
+            equilibrium = terraingen.trask_equilibrium()
+            density = terraingen.MinimumSfd(
+                [
+                    terraingen.ProductionSurface(production, age, terraingen.neukum_lunar_chronology),
+                    equilibrium,
+                ]
+            )
+            ages = terraingen.SteadyStateAges(
+                production, equilibrium, age, terraingen.neukum_lunar_chronology
+            )
             models = terraingen.CraterModels(
-                surface.density,
-                surface.ages,
-                terraingen.FreshnessDegradation(surface.ages),
+                density,
+                ages,
+                terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry),
                 terraingen.FassettThomsonProfile(),
             )
             craters = terraingen.CraterLayer(

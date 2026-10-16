@@ -23,11 +23,13 @@ from _common import hillshade, montage, normalize, write_png
 
 SITE = (23.47, 0.67)
 PIXEL = 200.0
+# Volumetric mean radius of the Moon in metres, from the NASA NSSDCA Moon fact sheet.
+MOON_RADIUS = 1737400.0
 
 
 class Example(_common.Example):
     def generate(self):
-        moon = terraingen.body_sphere(terraingen.Body.MOON)
+        moon = terraingen.Surface.sphere(MOON_RADIUS)
         noise = terraingen.NoiseRelief(
             [
                 terraingen.NoiseLayer(
@@ -39,11 +41,16 @@ class Example(_common.Example):
             ],
             surface=moon,
         )
-        surface = terraingen.lunar_surface(3.6)
+        production = terraingen.extended_neukum_production_function()
+        equilibrium = terraingen.trask_equilibrium()
+        density = terraingen.MinimumSfd(
+            [terraingen.ProductionSurface(production, 3.6, terraingen.neukum_lunar_chronology), equilibrium]
+        )
+        ages = terraingen.SteadyStateAges(production, equilibrium, 3.6, terraingen.neukum_lunar_chronology)
         models = terraingen.CraterModels(
-            surface.density,
-            surface.ages,
-            terraingen.FreshnessDegradation(surface.ages),
+            density,
+            ages,
+            terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry),
             terraingen.FassettThomsonProfile(),
         )
         young = terraingen.Crater(23.5, 0.7, 4000.0, age_gyr=0.002)

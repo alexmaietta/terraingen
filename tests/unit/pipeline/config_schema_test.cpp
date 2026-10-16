@@ -377,3 +377,73 @@ TEST(ConfigCatalog, ListsEveryTypeAndEachEntryParsesWhereItBelongs) {
         parses({{"albedo", albedo}}, "albedo_layer");
     }
 }
+
+TEST(ConfigSchema, ListsProductionSurfacesMinimumsAndTheirModels) {
+    const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
+    const SchemaJson layers = FieldOf(schema["root"], "layers")["schema"];
+    const SchemaJson& layerChoice = Resolve(schema, layers["of"]);
+    const SchemaJson craters = AlternativeOf(layerChoice, "craters");
+    const SchemaJson density = FieldOf(craters, "density")["schema"];
+    const SchemaJson& densities = Resolve(schema, density);
+    ASSERT_EQ(densities["kind"], "choice");
+    EXPECT_EQ(densities["alternatives"].size(), std::variant_size_v<DensitySpec>);
+
+    const SchemaJson surface = AlternativeOf(densities, "production_surface");
+    EXPECT_EQ(FieldOf(surface, "production")["schema"]["choices"],
+              (SchemaJson{"neukum", "extended_neukum", "ivanov"}));
+    EXPECT_EQ(FieldOf(surface, "chronology")["schema"]["choices"],
+              (SchemaJson{"neukum", "ivanov"}));
+    EXPECT_EQ(FieldOf(surface, "age_gyr")["unit"], "Gyr");
+    const SchemaJson distributions =
+        FieldOf(AlternativeOf(densities, "minimum"), "distributions")["schema"];
+    EXPECT_EQ(distributions["kind"], "array");
+    EXPECT_EQ(distributions["of"], density) << "a minimum holds densities of the same choice";
+
+    const SchemaJson ages = Resolve(schema, FieldOf(craters, "ages")["schema"]);
+    std::vector<std::string> types;
+    for (const SchemaJson& alternative : ages["alternatives"]) {
+        types.push_back(alternative["type"]);
+    }
+    EXPECT_EQ(types, (std::vector<std::string>{"uniform", "fresh", "steady_state"}));
+    EXPECT_EQ(FieldOf(craters, "ages")["default"],
+              (SchemaJson{{"type", "uniform"}, {"lifetime_gyr", 1.0}}));
+    EXPECT_EQ(FieldOf(craters, "density")["default"]["type"], "power_law");
+    const SchemaJson steady = AlternativeOf(ages, "steady_state");
+    EXPECT_EQ(FieldOf(steady, "production")["schema"]["choices"],
+              (SchemaJson{"neukum", "extended_neukum", "ivanov"}));
+    EXPECT_EQ(FieldOf(steady, "equilibrium")["schema"]["choices"],
+              (SchemaJson{"trask", "hartmann"}));
+    EXPECT_EQ(FieldOf(steady, "chronology")["schema"]["choices"], (SchemaJson{"neukum", "ivanov"}));
+
+    const SchemaJson morphometry = FieldOf(craters, "morphometry");
+    EXPECT_EQ(morphometry["schema"]["choices"], (SchemaJson{"lunar", "mars"}));
+    EXPECT_EQ(morphometry["default"], "lunar");
+    EXPECT_EQ(FieldOf(AlternativeOf(layerChoice, "secondaries"), "morphometry")["schema"],
+              morphometry["schema"]);
+}
+
+TEST(ConfigSchema, GivesASphereOnlyARadiusInMetres) {
+    const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
+    const SchemaJson surfaces = Resolve(schema, FieldOf(schema["root"], "surface")["schema"]);
+    const SchemaJson sphere = AlternativeOf(surfaces, "sphere");
+    ASSERT_EQ(sphere["fields"].size(), 1u);
+    EXPECT_EQ(sphere["fields"][0]["name"], "radius");
+    EXPECT_EQ(sphere["fields"][0]["unit"], "m");
+}
+
+TEST(ConfigCatalog, ListsTheNewDensitiesAndAges) {
+    using Json = nlohmann::json;
+    const Json catalog = Json::parse(terraingen::ConfigCatalog());
+    std::vector<std::string> densities;
+    for (const Json& entry : catalog["models"]["density"]) {
+        densities.push_back(entry["type"]);
+    }
+    EXPECT_NE(std::find(densities.begin(), densities.end(), "production_surface"), densities.end());
+    EXPECT_NE(std::find(densities.begin(), densities.end(), "minimum"), densities.end());
+    EXPECT_EQ(std::find(densities.begin(), densities.end(), "lunar_surface"), densities.end());
+    std::vector<std::string> ages;
+    for (const Json& entry : catalog["models"]["ages"]) {
+        ages.push_back(entry["type"]);
+    }
+    EXPECT_EQ(ages, (std::vector<std::string>{"uniform", "fresh", "steady_state"}));
+}

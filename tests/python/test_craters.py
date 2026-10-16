@@ -10,9 +10,9 @@ import terraingen
 REGION = (-200.0, -200.0, 200.0, 200.0)
 
 
-def generate_lunar_craters(region=REGION):
+def generate_lunar_craters(lunar_craters, region=REGION):
     """Fresh lunar craters 8 to 100 m across over `region`, seed 3."""
-    density = terraingen.lunar_surface(3.5).density
+    density, _ = lunar_craters(3.5)
     options = terraingen.CraterGenerationOptions(min_diameter=8.0, max_diameter=100.0)
     return terraingen.generate_craters(
         terraingen.PlanarCells(), region, density, terraingen.FreshAges(), 3, options
@@ -23,7 +23,11 @@ def carved_raster(craters):
     """A 200 x 200 raster at 2 m with `craters` applied."""
     raster = terraingen.RasterGrid.centred(200, 200, 2.0).make_raster()
     terraingen.apply_craters(
-        raster, craters, terraingen.FassettThomsonProfile(), terraingen.NoDegradation(), spacing=2.0
+        raster,
+        craters,
+        terraingen.FassettThomsonProfile(),
+        terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry),
+        spacing=2.0,
     )
     return raster
 
@@ -43,25 +47,25 @@ def conflicting_pair():
     return a, b
 
 
-def test_generate_craters_respects_the_minimum_diameter():
-    craters = generate_lunar_craters()
+def test_generate_craters_respects_the_minimum_diameter(lunar_craters):
+    craters = generate_lunar_craters(lunar_craters)
     assert len(craters) > 50 and craters[0].diameter >= 8.0
 
 
-def test_generate_craters_is_stable_for_sub_regions():
-    craters = generate_lunar_craters()
-    again = generate_lunar_craters((-200.0, -200.0, 0.0, 200.0))
+def test_generate_craters_is_stable_for_sub_regions(lunar_craters):
+    craters = generate_lunar_craters(lunar_craters)
+    again = generate_lunar_craters(lunar_craters, (-200.0, -200.0, 0.0, 200.0))
     assert set(again.table["id"]) <= set(craters.table["id"])
 
 
-def test_crater_list_round_trips_through_a_table():
-    craters = generate_lunar_craters()
+def test_crater_list_round_trips_through_a_table(lunar_craters):
+    craters = generate_lunar_craters(lunar_craters)
     copied = terraingen.CraterList.from_table(craters.table)
     assert len(copied) == len(craters) and copied[5].id == craters[5].id
 
 
-def test_crater_list_appends_and_extends():
-    copied = terraingen.CraterList.from_table(generate_lunar_craters().table)
+def test_crater_list_appends_and_extends(lunar_craters):
+    copied = terraingen.CraterList.from_table(generate_lunar_craters(lunar_craters).table)
     listed = terraingen.CraterList([terraingen.Crater(0.0, 0.0, 50.0, age_gyr=1.0)])
     listed.append(terraingen.Crater(80.0, 0.0, 30.0))
     listed.extend(copied)
@@ -85,8 +89,8 @@ def test_crater_bands_span_the_diameter_range():
     assert bands[0].low == 8.0 and bands[-1].high == 100.0
 
 
-def test_min_diameter_for_count_exceeds_the_lower_bound():
-    density = terraingen.lunar_surface(3.5).density
+def test_min_diameter_for_count_exceeds_the_lower_bound(lunar_craters):
+    density, _ = lunar_craters(3.5)
     assert terraingen.min_diameter_for_count(density, 1e6, 100.0, 8.0, 1000.0) > 8.0
 
 
@@ -94,18 +98,18 @@ def test_manual_crater_id_is_deterministic():
     assert terraingen.manual_crater_id(1.0, 2.0, 3.0) == terraingen.manual_crater_id(1.0, 2.0, 3.0)
 
 
-def test_apply_craters_carves_the_raster():
-    assert carved_raster(generate_lunar_craters()).values.min() < -5.0
+def test_apply_craters_carves_the_raster(lunar_craters):
+    assert carved_raster(generate_lunar_craters(lunar_craters)).values.min() < -5.0
 
 
-def test_crater_apply_order_puts_the_largest_first():
-    craters = generate_lunar_craters()
+def test_crater_apply_order_puts_the_largest_first(lunar_craters):
+    craters = generate_lunar_craters(lunar_craters)
     order = terraingen.crater_apply_order(craters, terraingen.CraterOrder.LARGEST_FIRST)
     assert craters[order[0]].diameter == max(craters[i].diameter for i in range(len(craters)))
 
 
-def test_smooth_crater_rims_lowers_the_highest_rim():
-    craters = generate_lunar_craters()
+def test_smooth_crater_rims_lowers_the_highest_rim(lunar_craters):
+    craters = generate_lunar_craters(lunar_craters)
     raster = carved_raster(craters)
     smoothed = terraingen.Raster.from_array(raster.values.copy(), raster.transform)
     terraingen.smooth_crater_rims(smoothed, craters, terraingen.RimSmoothing(sigma_radii=0.1), 2.0)
@@ -236,7 +240,10 @@ def test_secondaries_fall_beyond_the_onset_range(lunar_models):
     )
     options = terraingen.SecondaryCraterOptions(seed=4, onset_count=20.0, min_diameter=20.0)
     secondaries = terraingen.SecondaryCraterLayer(
-        primary, terraingen.FassettThomsonProfile(), terraingen.NoDegradation(depth_ratio=0.11), options
+        primary,
+        terraingen.FassettThomsonProfile(),
+        terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry, depth_ratio=0.11),
+        options,
     )
     outer = secondaries.outer_range(2000.0)
     table = secondaries.secondaries((-outer, -outer, outer, outer))
@@ -320,7 +327,7 @@ def test_a_manual_crater_is_carved_alone():
     models = terraingen.CraterModels(
         terraingen.PowerLawSfd(1e-6, 2.0),
         terraingen.UniformAges(3.5),
-        terraingen.NoDegradation(),
+        terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry),
         terraingen.MartinParkesDunstanProfile(),
     )
     manual = terraingen.CraterLayer(
@@ -342,7 +349,7 @@ def test_crater_layer_accepts_fresh_ages_and_a_plateau_profile(crater_layer):
     fresh = terraingen.CraterModels(
         terraingen.PowerLawSfd(1e-3, 2.0),
         terraingen.FreshAges(),
-        terraingen.NoDegradation(depth_ratio=0.1),
+        terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry, depth_ratio=0.1),
         terraingen.FassettThomsonProfile(terraingen.FassettThomsonRim.PLATEAU),
     )
     assert crater_layer(fresh, 4.0, 20.0) is not None

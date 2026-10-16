@@ -23,11 +23,13 @@ from _common import normalize, write_png
 
 CELLS = 64
 LEVELS = 3
+# Volumetric mean radius of the Moon in metres, from the NASA NSSDCA Moon fact sheet.
+MOON_RADIUS = 1737400.0
 
 
 class Example(_common.Example):
     def generate(self):
-        moon = terraingen.body_sphere(terraingen.Body.MOON)
+        moon = terraingen.Surface.sphere(MOON_RADIUS)
         noise = terraingen.NoiseRelief(
             [
                 terraingen.NoiseLayer(
@@ -40,7 +42,7 @@ class Example(_common.Example):
         models = terraingen.CraterModels(
             terraingen.PowerLawSfd(1e-15, 2.0),
             ages,
-            terraingen.FreshnessDegradation(ages),
+            terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry),
             terraingen.FassettThomsonProfile(),
         )
         basins = [

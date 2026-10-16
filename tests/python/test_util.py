@@ -18,7 +18,7 @@ def restore_logging():
 
 @pytest.fixture
 def moon():
-    return terraingen.body_sphere(terraingen.Body.MOON)
+    return terraingen.Surface.sphere(1737400.0)
 
 
 def test_version_matches_cmake(repo_root):
@@ -111,7 +111,7 @@ def test_sphere_contains_regions_across_the_antimeridian(moon):
 
 
 def test_surfaces_compare_by_value(moon):
-    assert moon == terraingen.body_sphere(terraingen.Body.MOON) and moon != terraingen.Surface()
+    assert moon == terraingen.Surface.sphere(1737400.0) and moon != terraingen.Surface()
 
 
 def test_plane_surface_has_unit_length_and_euclidean_distance():

@@ -47,8 +47,25 @@
                 "type": "craters",
                 "seed": 9,
                 "density": {
-                    "type": "lunar_surface",
-                    "age_gyr": 3.9
+                    "type": "minimum",
+                    "distributions": [
+                        {
+                            "type": "production_surface",
+                            "production": "extended_neukum",
+                            "chronology": "neukum",
+                            "age_gyr": 3.9
+                        },
+                        {
+                            "type": "trask"
+                        }
+                    ]
+                },
+                "ages": {
+                    "type": "steady_state",
+                    "age_gyr": 3.9,
+                    "production": "extended_neukum",
+                    "equilibrium": "trask",
+                    "chronology": "neukum"
                 },
                 "min_diameter": 10,
                 "max_diameter": 200
@@ -68,8 +85,25 @@
                 "type": "craters",
                 "seed": 10,
                 "density": {
-                    "type": "lunar_surface",
-                    "age_gyr": 1.0
+                    "type": "minimum",
+                    "distributions": [
+                        {
+                            "type": "production_surface",
+                            "production": "extended_neukum",
+                            "chronology": "neukum",
+                            "age_gyr": 1.0
+                        },
+                        {
+                            "type": "trask"
+                        }
+                    ]
+                },
+                "ages": {
+                    "type": "steady_state",
+                    "age_gyr": 1.0,
+                    "production": "extended_neukum",
+                    "equilibrium": "trask",
+                    "chronology": "neukum"
                 },
                 "min_diameter": 10,
                 "max_diameter": 200

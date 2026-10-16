@@ -58,11 +58,15 @@ class AgesModels : public terraingen::examples::Example {
     using Example::Example;
 
     void Generate() override {
-        const terraingen::SurfaceModel surface = terraingen::LunarSurface(3.5);
         const auto production = std::make_shared<terraingen::SplicedSfd>(
             terraingen::ExtendedNeukumProductionFunction());
         const auto equilibrium =
             std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium());
+        const auto density = std::make_shared<terraingen::MinimumSfd>(
+            std::vector<std::shared_ptr<const terraingen::SizeFrequencyDistribution>>{
+                std::make_shared<terraingen::ProductionSurface>(production, 3.5,
+                                                                terraingen::NeukumLunarChronology),
+                equilibrium});
         const std::vector<std::pair<std::string, std::shared_ptr<const terraingen::CraterAgeModel>>>
             models = {
                 {"fresh", std::make_shared<terraingen::FreshAges>()},
@@ -87,7 +91,7 @@ class AgesModels : public terraingen::examples::Example {
             terraingen::Terrain terrain;
             terrain.source = std::make_shared<terraingen::FlatSource>(257, 257, 2.0);
             terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(
-                terraingen::CraterModels{surface.density, ages, diffusion,
+                terraingen::CraterModels{density, ages, diffusion,
                                          std::make_shared<terraingen::FassettThomsonProfile>()},
                 options));
             terrains_.emplace_back(name, terraingen::Evaluate(terrain));

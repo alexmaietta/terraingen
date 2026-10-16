@@ -87,6 +87,27 @@ template <> struct EnumNames<EquilibriumModel> {
     }};
 };
 
+template <> struct EnumNames<ProductionFunction> {
+    static constexpr std::array<EnumEntry<ProductionFunction>, 3> kValues{{
+        {"neukum", ProductionFunction::Neukum,
+         "Neukum et al. (2001) lunar production function, valid from 10 m to 300 km."},
+        {"extended_neukum", ProductionFunction::ExtendedNeukum,
+         "The Neukum production function continued below 10 m as a power law of slope -2.85, "
+         "valid from 2.5 m to 300 km."},
+        {"ivanov", ProductionFunction::Ivanov,
+         "Ivanov (2001) Martian production function, valid from 15 m to 362 km."},
+    }};
+};
+
+template <> struct EnumNames<ChronologyModel> {
+    static constexpr std::array<EnumEntry<ChronologyModel>, 2> kValues{{
+        {"neukum", ChronologyModel::Neukum,
+         "Neukum et al. (2001) lunar chronology, for surfaces 0 to 4.6 Gyr old."},
+        {"ivanov", ChronologyModel::Ivanov,
+         "Ivanov (2001) Martian chronology, for surfaces 0 to 4.6 Gyr old."},
+    }};
+};
+
 template <> struct EnumNames<FassettThomsonRim> {
     static constexpr std::array<EnumEntry<FassettThomsonRim>, 3> kValues{{
         {"original", FassettThomsonRim::Original,
@@ -229,20 +250,14 @@ template <> struct EnumNames<DiffusivityModel> {
     }};
 };
 
-template <> struct EnumNames<Body> {
-    static constexpr std::array<EnumEntry<Body>, 3> kValues{{
-        {"moon", Body::Moon, "The Moon, mean radius 1737.4 km."},
-        {"mars", Body::Mars, "Mars, mean radius 3389.5 km."},
-        {"mercury", Body::Mercury, "Mercury, mean radius 2439.7 km."},
-    }};
-};
-
-template <> struct EnumNames<CraterBody> {
-    static constexpr std::array<EnumEntry<CraterBody>, 2> kValues{{
-        {"moon", CraterBody::Moon,
-         "Craters shaped for the Moon: lunar fresh morphometry and complex crater shape."},
-        {"mars", CraterBody::Mars,
-         "Craters shaped for Mars: Martian fresh morphometry and complex crater shape."},
+template <> struct EnumNames<CraterMorphometryFit> {
+    static constexpr std::array<EnumEntry<CraterMorphometryFit>, 2> kValues{{
+        {"lunar", CraterMorphometryFit::Lunar,
+         "Fresh lunar craters: Fassett et al. (2022) depth and rim height below 15 km, Pike's "
+         "(1977) complex crater fits above."},
+        {"mars", CraterMorphometryFit::Mars,
+         "Fresh Martian craters: depth and rim height capped for small craters, Garvin et al.'s "
+         "(2003) fits for large and complex craters from 7 km."},
     }};
 };
 

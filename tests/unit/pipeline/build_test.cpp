@@ -31,31 +31,134 @@ std::string ModelErrorPath(const CraterLayerSpec& craters) {
 
 }  // namespace
 
-TEST(BuildCraterModels, ShapesCratersForTheirBody) {
+TEST(BuildCraterModels, ShapesCratersWithTheirMorphometry) {
     CraterLayerSpec craters;
     craters.profile = terraingen::ComplexProfileSpec{};
-    const auto moon = BuildCraterModels(craters);
-    craters.body = terraingen::CraterBody::Mars;
-    craters.density = terraingen::PowerLawSpec{0.1, 2.0};
+    const auto lunar = BuildCraterModels(craters);
+    craters.morphometry = terraingen::CraterMorphometryFit::Mars;
     const auto mars = BuildCraterModels(craters);
     const terraingen::Crater crater{0.0, 0.0, 10000.0, 0.0, 1u};
-    EXPECT_FALSE(moon.profile->IsComplex(10000.0));
+    EXPECT_FALSE(lunar.profile->IsComplex(10000.0));
     EXPECT_TRUE(mars.profile->IsComplex(10000.0));
     EXPECT_EQ(mars.degradation->State(crater).fresh,
               terraingen::MarsFreshCraterMorphometry(10000.0));
-    EXPECT_EQ(moon.degradation->State(crater).fresh,
+    EXPECT_EQ(lunar.degradation->State(crater).fresh,
               terraingen::LunarFreshCraterMorphometry(10000.0));
+}
 
-    craters.density = terraingen::MarsSurfaceSpec{3.0};
+TEST(BuildCraterModels, NoDegradationTakesTheDepthRatioOfTheMorphometry) {
+    CraterLayerSpec craters;
+    craters.degradation = terraingen::NoDegradationSpec{};
+    const terraingen::Crater crater{0.0, 0.0, 5000.0, 0.0, 1u};
+    const double lunar = BuildCraterModels(craters).degradation->State(crater).current.depthRatio;
+    craters.morphometry = terraingen::CraterMorphometryFit::Mars;
+    const double mars = BuildCraterModels(craters).degradation->State(crater).current.depthRatio;
+    EXPECT_DOUBLE_EQ(lunar, terraingen::LunarFreshCraterMorphometry(5000.0).depthRatio);
+    EXPECT_DOUBLE_EQ(mars, terraingen::MarsFreshCraterMorphometry(5000.0).depthRatio);
+    EXPECT_NE(lunar, mars);
+}
+
+TEST(BuildCraterModels, BuildsAProductionSurfaceForEachProductionAndChronology) {
+    using terraingen::ChronologyModel;
+    using terraingen::ProductionFunction;
+    CraterLayerSpec craters;
+    for (const auto production : {ProductionFunction::Neukum, ProductionFunction::ExtendedNeukum,
+                                  ProductionFunction::Ivanov}) {
+        for (const auto chronology : {ChronologyModel::Neukum, ChronologyModel::Ivanov}) {
+            craters.density = terraingen::ProductionSurfaceSpec{production, chronology, 3.0};
+            const auto models = BuildCraterModels(craters, "layers[0]");
+            const double expected = chronology == ChronologyModel::Ivanov
+                                        ? terraingen::IvanovMarsChronology(3.0)
+                                        : terraingen::NeukumLunarChronology(3.0);
+            EXPECT_NEAR(models.density->Cumulative(1000.0) / expected, 1.0, 1e-12)
+                << static_cast<int>(production) << " " << static_cast<int>(chronology);
+        }
+    }
+}
+
+TEST(BuildCraterModels, ProductionSurfacesKeepTheirProductionsShape) {
+    using terraingen::ProductionFunction;
+    CraterLayerSpec craters;
+    const auto ratio = [&](ProductionFunction production) {
+        craters.density = terraingen::ProductionSurfaceSpec{production};
+        const auto density = BuildCraterModels(craters).density;
+        return density->Cumulative(100.0) / density->Cumulative(1000.0);
+    };
+    EXPECT_NEAR(ratio(ProductionFunction::Neukum),
+                terraingen::NeukumProductionFunction().Cumulative(100.0) /
+                    terraingen::NeukumProductionFunction().Cumulative(1000.0),
+                1e-9);
+    EXPECT_NEAR(ratio(ProductionFunction::Ivanov),
+                terraingen::IvanovMarsProductionFunction().Cumulative(100.0) /
+                    terraingen::IvanovMarsProductionFunction().Cumulative(1000.0),
+                1e-9);
+    craters.density = terraingen::ProductionSurfaceSpec{ProductionFunction::ExtendedNeukum};
+    EXPECT_GT(BuildCraterModels(craters).density->Cumulative(5.0), 0.0);
+    craters.density = terraingen::ProductionSurfaceSpec{ProductionFunction::Neukum};
+    EXPECT_THROW(BuildCraterModels(craters).density->Cumulative(5.0), std::domain_error);
+}
+
+TEST(BuildCraterModels, MinimumIsTheLeastOfItsDistributions) {
+    CraterLayerSpec craters;
+    const terraingen::ProductionSurfaceSpec production{};
+    craters.density = production;
+    const auto surface = BuildCraterModels(craters).density;
+    craters.density = terraingen::MinimumSpec{{production, terraingen::TraskSpec{}}};
+    const auto minimum = BuildCraterModels(craters).density;
+    const auto trask = terraingen::TraskEquilibrium();
+    for (const double d : {5.0, 50.0, 500.0, 5000.0}) {
+        EXPECT_DOUBLE_EQ(minimum->Cumulative(d),
+                         std::min(surface->Cumulative(d), trask.Cumulative(d)))
+            << d;
+    }
+    EXPECT_LT(trask.Cumulative(5.0), surface->Cumulative(5.0));
+    EXPECT_LT(surface->Cumulative(5000.0), trask.Cumulative(5000.0));
+}
+
+TEST(BuildCraterModels, AnEmptyMinimumIsAnErrorAtTheDensity) {
+    CraterLayerSpec craters;
+    craters.density = terraingen::MinimumSpec{};
+    EXPECT_EQ(ModelErrorPath(craters), "layers[0].density");
+}
+
+TEST(BuildCraterModels, BuildsSteadyStateAgesFromEachModel) {
+    using terraingen::ChronologyModel;
+    using terraingen::EquilibriumModel;
+    using terraingen::ProductionFunction;
+    using terraingen::SteadyStateAgesSpec;
+    CraterLayerSpec craters;
+    const auto lifetime = [&](SteadyStateAgesSpec spec, double diameter) {
+        craters.ages = spec;
+        return BuildCraterModels(craters).ages->LifetimeGyr(diameter);
+    };
+    const double trask = lifetime({}, 20.0);
+    const double hartmann =
+        lifetime({3.5, ProductionFunction::ExtendedNeukum, EquilibriumModel::Hartmann}, 20.0);
+    EXPECT_GT(trask, 0.0);
+    EXPECT_GT(hartmann, 0.0);
+    EXPECT_NE(trask, hartmann);
+
+    const double extended = lifetime({}, 50.0);
+    const double neukum = lifetime({3.5, ProductionFunction::Neukum}, 50.0);
+    EXPECT_GT(neukum, 0.0);
+    EXPECT_NEAR(neukum / extended, 1.0, 0.05);
+    EXPECT_THROW(lifetime({3.5, ProductionFunction::Neukum}, 5.0), std::domain_error);
+    EXPECT_GT(lifetime({}, 5.0), 0.0);
+
+    const SteadyStateAgesSpec ivanov{3.0, ProductionFunction::Ivanov, EquilibriumModel::Trask,
+                                     ChronologyModel::Ivanov};
+    craters.ages = ivanov;
     const auto models = BuildCraterModels(craters);
-    EXPECT_NEAR(models.density->Cumulative(1000.0), terraingen::IvanovMarsChronology(3.0), 1e-15);
-    EXPECT_NE(dynamic_cast<const terraingen::UniformAges*>(models.ages.get()), nullptr);
+    const auto& ages = dynamic_cast<const terraingen::SteadyStateAges&>(*models.ages);
+    EXPECT_EQ(ages.SurfaceAgeGyr(), 3.0);
+    EXPECT_GT(ages.LifetimeGyr(100.0), 0.0);
+    EXPECT_LE(ages.LifetimeGyr(100.0), 3.0);
 }
 
 TEST(BuildCraterModels, BuildsEachSelectedModel) {
     CraterLayerSpec craters;
     auto models = BuildCraterModels(craters);
-    EXPECT_NE(dynamic_cast<const terraingen::SteadyStateAges*>(models.ages.get()), nullptr);
+    EXPECT_NE(dynamic_cast<const terraingen::UniformAges*>(models.ages.get()), nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::FreshnessDegradation*>(models.degradation.get()),
               nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::FassettThomsonProfile*>(models.profile.get()),
@@ -94,8 +197,8 @@ TEST(BuildCraterModels, BuildsEachSelectedModel) {
     craters.ages = terraingen::SteadyStateAgesSpec{};
     const auto extended = BuildCraterModels(craters);
     EXPECT_GT(extended.ages->LifetimeGyr(5.0), 0.0);
-    craters.ages =
-        terraingen::SteadyStateAgesSpec{3.0, terraingen::EquilibriumModel::Hartmann, false};
+    craters.ages = terraingen::SteadyStateAgesSpec{3.0, terraingen::ProductionFunction::Neukum,
+                                                   terraingen::EquilibriumModel::Hartmann};
     const auto steady = BuildCraterModels(craters);
     EXPECT_EQ(dynamic_cast<const terraingen::SteadyStateAges&>(*steady.ages).SurfaceAgeGyr(), 3.0);
     EXPECT_THROW(steady.ages->LifetimeGyr(5.0), std::domain_error);
@@ -126,7 +229,8 @@ TEST(BuildCraterModels, WearsTheProfileByDiffusion) {
 TEST(BuildCraterModels, ReportsEachModelsProblemsAtItsKey) {
     CraterLayerSpec craters;
     EXPECT_EQ(ModelErrorPath(craters), "built");
-    craters.density = terraingen::LunarSurfaceSpec{9.0};
+    craters.density = terraingen::ProductionSurfaceSpec{
+        terraingen::ProductionFunction::ExtendedNeukum, terraingen::ChronologyModel::Neukum, 9.0};
     EXPECT_EQ(ModelErrorPath(craters), "layers[0].density");
     craters.density = terraingen::PowerLawSpec{};
     craters.ages = terraingen::UniformAgesSpec{0.0};
@@ -139,14 +243,8 @@ TEST(BuildCraterModels, ReportsEachModelsProblemsAtItsKey) {
     diffusion.powerLaw = {0.0, 1.0, 0.0};
     craters.degradation = diffusion;
     EXPECT_EQ(ModelErrorPath(craters), "layers[0].degradation");
-    craters.body = terraingen::CraterBody::Mars;
-    craters.degradation = terraingen::DiffusionDegradationSpec{};
-    EXPECT_EQ(ModelErrorPath(craters), "layers[0].degradation.diffusivity");
     craters.degradation = terraingen::NoDegradationSpec{};
-    craters.density = terraingen::LunarSurfaceSpec{};
-    EXPECT_EQ(ModelErrorPath(craters), "layers[0].density");
-    craters.density = terraingen::MarsSurfaceSpec{};
-    craters.ages = terraingen::SteadyStateAgesSpec{};
+    craters.ages = terraingen::SteadyStateAgesSpec{9.0};
     EXPECT_EQ(ModelErrorPath(craters), "layers[0].ages");
 }
 

@@ -38,8 +38,27 @@ inline CraterLayerSpec& Craters(TerrainConfig& config) {
     return std::get<CraterLayerSpec>(config.layers.at(1));
 }
 
+/// @brief The density of a lunar surface: the least of an extended Neukum production surface and
+/// Trask equilibrium.
+/// @param ageGyr The surface age in Gyr.
+/// @return The density spec.
+inline MinimumSpec LunarDensitySpec(double ageGyr = 3.5) {
+    return MinimumSpec{
+        {ProductionSurfaceSpec{ProductionFunction::ExtendedNeukum, ChronologyModel::Neukum, ageGyr},
+         TraskSpec{}}};
+}
+
+/// @brief The ages of a lunar surface: steady state from the extended Neukum production function
+/// and Trask equilibrium.
+/// @param ageGyr The surface age in Gyr.
+/// @return The ages spec.
+inline SteadyStateAgesSpec LunarAgesSpec(double ageGyr = 3.5) {
+    return SteadyStateAgesSpec{ageGyr, ProductionFunction::ExtendedNeukum, EquilibriumModel::Trask,
+                               ChronologyModel::Neukum};
+}
+
 /// @brief A small, fast configuration: a 65 x 49 flat source of 2 m cells, a noise layer, then a
-/// crater layer of 8 to 60 m craters.
+/// crater layer of 8 to 60 m craters on a 3.5 Gyr lunar surface.
 /// @return The configuration.
 inline TerrainConfig Small() {
     TerrainConfig config;
@@ -50,6 +69,8 @@ inline TerrainConfig Small() {
     CraterLayerSpec craters;
     craters.minDiameter = 8.0;
     craters.maxDiameter = 60.0;
+    craters.density = LunarDensitySpec();
+    craters.ages = LunarAgesSpec();
     config.layers = {noise, craters};
     return config;
 }

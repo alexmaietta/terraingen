@@ -9,6 +9,27 @@ import terraingen
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
+LUNAR_DENSITY = {
+    "type": "minimum",
+    "distributions": [
+        {
+            "type": "production_surface",
+            "production": "extended_neukum",
+            "chronology": "neukum",
+            "age_gyr": 3.5,
+        },
+        {"type": "trask"},
+    ],
+}
+
+LUNAR_AGES = {
+    "type": "steady_state",
+    "age_gyr": 3.5,
+    "production": "extended_neukum",
+    "equilibrium": "trask",
+    "chronology": "neukum",
+}
+
 SMALL_CONFIG = {
     "schema_version": 1,
     "source": {"type": "flat", "width": 81, "height": 65, "pixel_size": 0.5},
@@ -18,7 +39,8 @@ SMALL_CONFIG = {
             "type": "craters",
             "min_diameter": 3,
             "max_diameter": 15,
-            "density": {"type": "lunar_surface", "age_gyr": 3.5},
+            "density": copy.deepcopy(LUNAR_DENSITY),
+            "ages": copy.deepcopy(LUNAR_AGES),
         },
         {"type": "boulders", "coverage": 0.1, "min_diameter": 0.5, "max_diameter": 2},
     ],
@@ -40,13 +62,33 @@ def small_config():
     return copy.deepcopy(SMALL_CONFIG)
 
 
+def build_lunar_craters(age=3.5):
+    """The crater density and ages of a lunar surface `age` Gyr old.
+
+    The density is the least of the extended Neukum production surface and Trask equilibrium; the
+    ages are steady state from the same two distributions.
+    """
+    production = terraingen.extended_neukum_production_function()
+    equilibrium = terraingen.trask_equilibrium()
+    surface = terraingen.ProductionSurface(production, age, terraingen.neukum_lunar_chronology)
+    density = terraingen.MinimumSfd([surface, equilibrium])
+    ages = terraingen.SteadyStateAges(production, equilibrium, age, terraingen.neukum_lunar_chronology)
+    return density, ages
+
+
+@pytest.fixture(scope="session")
+def lunar_craters():
+    """The `build_lunar_craters` factory."""
+    return build_lunar_craters
+
+
 def build_lunar_models(age=3.5, degradation=None):
     """Crater models of a lunar surface `age` Gyr old, with freshness degradation by default."""
-    surface = terraingen.lunar_surface(age)
+    density, ages = build_lunar_craters(age)
     return terraingen.CraterModels(
-        surface.density,
-        surface.ages,
-        degradation or terraingen.FreshnessDegradation(surface.ages),
+        density,
+        ages,
+        degradation or terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry),
         terraingen.FassettThomsonProfile(),
     )
 

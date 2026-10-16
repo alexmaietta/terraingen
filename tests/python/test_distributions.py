@@ -1,5 +1,7 @@
 """distribution: size-frequency distribution shapes, combinations and Python subclasses."""
 
+import math
+
 import pytest
 
 import terraingen
@@ -78,7 +80,9 @@ def test_log_polynomial_sfd_exposes_its_coefficients():
 
 
 def test_minimum_sfd_takes_the_smaller_cumulative():
-    surface = terraingen.ProductionSurface(terraingen.extended_neukum_production_function(), 3.5)
+    surface = terraingen.ProductionSurface(
+        terraingen.extended_neukum_production_function(), 3.5, terraingen.neukum_lunar_chronology
+    )
     trask = terraingen.trask_equilibrium()
     capped = terraingen.MinimumSfd([surface, trask])
     assert capped.cumulative(5.0) == pytest.approx(min(surface.cumulative(5.0), trask.cumulative(5.0)))
@@ -90,13 +94,15 @@ def test_minimum_sfd_exposes_its_distributions():
 
 
 def test_production_surface_is_a_density_of_its_age():
-    surface = terraingen.ProductionSurface(terraingen.extended_neukum_production_function(), 3.5)
+    surface = terraingen.ProductionSurface(
+        terraingen.extended_neukum_production_function(), 3.5, terraingen.neukum_lunar_chronology
+    )
     assert surface.age_gyr == 3.5 and surface.kind == terraingen.SfdKind.DENSITY
 
 
 def test_production_surface_scales_with_a_custom_chronology():
     production = terraingen.extended_neukum_production_function()
-    surface = terraingen.ProductionSurface(production, 3.5)
+    surface = terraingen.ProductionSurface(production, 3.5, terraingen.neukum_lunar_chronology)
     doubled = terraingen.ProductionSurface(
         production, 3.5, lambda age: 2 * terraingen.neukum_lunar_chronology(age)
     )
@@ -104,7 +110,9 @@ def test_production_surface_scales_with_a_custom_chronology():
 
 
 def test_production_surface_keeps_its_production_function():
-    surface = terraingen.ProductionSurface(terraingen.extended_neukum_production_function(), 3.0)
+    surface = terraingen.ProductionSurface(
+        terraingen.extended_neukum_production_function(), 3.0, terraingen.neukum_lunar_chronology
+    )
     assert surface.production.kind == terraingen.SfdKind.PRODUCTION_RATE
 
 
@@ -133,3 +141,79 @@ def test_python_distribution_without_cumulative_at_raises():
 
     with pytest.raises(RuntimeError):
         Incomplete().cumulative(10.0)
+
+
+def test_trask_equilibrium_matches_its_power_law():
+    assert terraingen.trask_equilibrium().cumulative(10.0) == pytest.approx(10**-1.1 * 10.0**-2, rel=1e-6)
+
+
+def test_hartmann_equilibrium_is_positive():
+    assert terraingen.hartmann_equilibrium().cumulative(100.0) > 0
+
+
+@pytest.mark.parametrize("terrain", list(terraingen.MooreTerrain))
+def test_moore_distributions_cover_every_terrain(terrain):
+    assert terraingen.moore_distribution(terrain).cumulative(10.0) > 0
+
+
+def test_viper_specification_is_positive():
+    assert terraingen.viper_specification().cumulative(10.0) > 0
+
+
+def test_neukum_production_function_is_a_rate():
+    assert terraingen.neukum_production_function().kind == terraingen.SfdKind.PRODUCTION_RATE
+
+
+def test_extended_neukum_production_function_reaches_smaller_craters():
+    production = terraingen.neukum_production_function()
+    assert terraingen.extended_neukum_production_function().cumulative(5.0) > production.cumulative(20.0)
+
+
+def test_lunar_chronology_grows_with_age():
+    assert terraingen.neukum_lunar_chronology(3.8) > terraingen.neukum_lunar_chronology(1.0) > 0
+
+
+def test_lunar_chronology_rate_grows_with_age():
+    assert terraingen.neukum_lunar_chronology_rate(3.8) > terraingen.neukum_lunar_chronology_rate(1.0) > 0
+
+
+def test_mars_chronology_and_its_rate_are_positive():
+    assert terraingen.ivanov_mars_chronology(3.0) > 0
+    assert terraingen.ivanov_mars_chronology_rate(3.0) > 0
+
+
+def test_mars_production_function_is_positive():
+    assert terraingen.ivanov_mars_production_function().cumulative(100.0) > 0
+
+
+def test_mars_production_surface_follows_the_mars_chronology_at_one_kilometre():
+    surface = terraingen.ProductionSurface(
+        terraingen.ivanov_mars_production_function(), 3.0, terraingen.ivanov_mars_chronology
+    )
+    assert surface.cumulative(1000.0) == pytest.approx(terraingen.ivanov_mars_chronology(3.0), rel=1e-9)
+    assert surface.cumulative(100.0) > surface.cumulative(1000.0)
+
+
+def test_production_surface_needs_a_chronology():
+    with pytest.raises(TypeError):
+        terraingen.ProductionSurface(terraingen.extended_neukum_production_function(), 3.5)
+
+
+def test_lunar_crater_density_falls_with_diameter(lunar_craters):
+    density, _ = lunar_craters(3.5)
+    assert density.cumulative(10.0) > density.cumulative(100.0) > 0
+    assert density.expected_count(1e6, 10.0, 100.0) > 0
+
+
+def boulder_specifications():
+    blocks = [terraingen.sp8023_intercrater_blocks(c) for c in terraingen.SpecificationCurve]
+    blocks += [terraingen.sp8023_crater_blocks(c) for c in terraingen.SpecificationCurve]
+    blocks += [terraingen.synthterrain_boulder_distribution(kind) for kind in terraingen.SynthterrainBoulders]
+    return blocks
+
+
+@pytest.mark.parametrize("sfd", boulder_specifications())
+def test_boulder_specifications_are_positive_in_their_range(sfd):
+    low, high = sfd.valid_range
+    low = max(low, 0.1)
+    assert sfd.cumulative(math.sqrt(low * min(high, 100.0 * low))) > 0

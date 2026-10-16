@@ -25,24 +25,37 @@ PIXEL = 1.0
 
 class Example(_common.Example):
     def generate(self):
-        surface = terraingen.lunar_surface(3.5)
+        production = terraingen.extended_neukum_production_function()
+        equilibrium = terraingen.trask_equilibrium()
+        density = terraingen.MinimumSfd(
+            [terraingen.ProductionSurface(production, 3.5, terraingen.neukum_lunar_chronology), equilibrium]
+        )
+        ages = terraingen.SteadyStateAges(production, equilibrium, 3.5, terraingen.neukum_lunar_chronology)
         diffused = terraingen.DiffusedProfile(terraingen.FassettThomsonProfile())
         models = {
-            "none": terraingen.NoDegradation(),
-            "fixed d/D 0.1": terraingen.NoDegradation(depth_ratio=0.1),
-            "freshness": terraingen.FreshnessDegradation(surface.ages, cutoff_depth_ratio=0.04),
+            "none": terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry),
+            "fixed d/D 0.1": terraingen.NoDegradation(
+                terraingen.lunar_fresh_crater_morphometry, depth_ratio=0.1
+            ),
+            "freshness": terraingen.FreshnessDegradation(
+                ages, terraingen.lunar_fresh_crater_morphometry, cutoff_depth_ratio=0.04
+            ),
             "diffusion FT2014": terraingen.DiffusionDegradation(
-                terraingen.fassett_thomson_2014_diffusivity(), diffused
+                terraingen.lunar_fresh_crater_morphometry,
+                terraingen.fassett_thomson_2014_diffusivity(),
+                diffused,
             ),
             "diffusion F2022": terraingen.DiffusionDegradation(
-                terraingen.fassett_2022_hartmann_diffusivity(), diffused
+                terraingen.lunar_fresh_crater_morphometry,
+                terraingen.fassett_2022_hartmann_diffusivity(),
+                diffused,
             ),
         }
         generation = terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=150.0)
         self.evaluated = {}
         for name, degradation in models.items():
             crater_models = terraingen.CraterModels(
-                surface.density, surface.ages, degradation, terraingen.FassettThomsonProfile()
+                density, ages, degradation, terraingen.FassettThomsonProfile()
             )
             craters = terraingen.CraterLayer(
                 crater_models, terraingen.CraterLayerOptions(seed=31, generation=generation)

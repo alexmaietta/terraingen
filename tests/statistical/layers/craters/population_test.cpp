@@ -1,3 +1,4 @@
+#include "support/lunar_craters.h"
 #include "support/statistics.h"
 #include "terraingen/terraingen.h"
 
@@ -10,36 +11,34 @@ using terraingen::Bounds2d;
 using terraingen::CraterList;
 using terraingen::FreshAges;
 using terraingen::GenerateCraters;
-using terraingen::LunarSurface;
 using terraingen::PlanarCells;
 using terraingen::PowerLawSfd;
-using terraingen::SurfaceModel;
 using terraingen::testing::ChiSquareCritical;
 using terraingen::testing::KolmogorovSmirnov;
 using terraingen::testing::KolmogorovSmirnovCritical;
 
 TEST(CraterPopulationStatistics, CountMatchesTheExpectedCountOverTheRegion) {
-    const SurfaceModel surface = LunarSurface(3.5);
+    const auto density = terraingen::testing::LunarCraterDensity(3.5);
+    const auto ages = terraingen::testing::LunarCraterAges(3.5);
     const Bounds2d region{-750.0, -500.0, 750.0, 1000.0};
     const double area = 1500.0 * 1500.0;
-    const CraterList craters = GenerateCraters(PlanarCells(), region, *surface.density,
-                                               *surface.ages, 21u, {.dMin = 2.5, .dMax = 1000.0});
-    const double mean = surface.density->ExpectedCount(area, 2.5, 1000.0);
+    const CraterList craters =
+        GenerateCraters(PlanarCells(), region, *density, *ages, 21u, {.dMin = 2.5, .dMax = 1000.0});
+    const double mean = density->ExpectedCount(area, 2.5, 1000.0);
     EXPECT_NEAR(static_cast<double>(craters.Size()), mean, 5.0 * std::sqrt(mean));
 }
 
 TEST(CraterPopulationStatistics, DiametersMatchTheDensityAcrossBands) {
-    const SurfaceModel surface = LunarSurface(3.5);
-    const CraterList craters =
-        GenerateCraters(PlanarCells(), {0.0, 0.0, 1200.0, 1200.0}, *surface.density, *surface.ages,
-                        22u, {.dMin = 3.0, .dMax = 300.0});
-    const double top = surface.density->Cumulative(3.0);
-    const double bottom = surface.density->Cumulative(300.0);
+    const auto density = terraingen::testing::LunarCraterDensity(3.5);
+    const auto ages = terraingen::testing::LunarCraterAges(3.5);
+    const CraterList craters = GenerateCraters(PlanarCells(), {0.0, 0.0, 1200.0, 1200.0}, *density,
+                                               *ages, 22u, {.dMin = 3.0, .dMax = 300.0});
+    const double top = density->Cumulative(3.0);
+    const double bottom = density->Cumulative(300.0);
     ASSERT_GT(craters.Size(), 10000u);
-    EXPECT_LT(KolmogorovSmirnov(craters.Diameters(),
-                                [&](double d) {
-                                    return (top - surface.density->Cumulative(d)) / (top - bottom);
-                                }),
+    EXPECT_LT(KolmogorovSmirnov(
+                  craters.Diameters(),
+                  [&](double d) { return (top - density->Cumulative(d)) / (top - bottom); }),
               KolmogorovSmirnovCritical(craters.Size()));
 }
 

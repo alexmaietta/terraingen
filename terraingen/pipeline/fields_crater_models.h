@@ -9,32 +9,6 @@
 
 namespace terraingen::config {
 
-template <> struct SpecName<LunarSurfaceSpec> {
-    static constexpr std::string_view kName = "lunar_surface";
-    static constexpr std::string_view kDescription =
-        "Crater density of a lunar surface of a given age as the DSNE builds it: Neukum "
-        "production capped by the Trask equilibrium.";
-};
-template <typename IO> void Fields(IO& io, LunarSurfaceSpec& spec) {
-    io("age_gyr", spec.ageGyr,
-       "Age of the lunar surface in Gyr, from 0 to 4.6; older surfaces hold more craters, up to "
-       "the Trask equilibrium. Also sets auto crater ages.",
-       "Gyr");
-}
-
-template <> struct SpecName<MarsSurfaceSpec> {
-    static constexpr std::string_view kName = "mars_surface";
-    static constexpr std::string_view kDescription =
-        "Crater density of a Martian surface of a given age, from Ivanov's production function "
-        "and chronology, with no erosion.";
-};
-template <typename IO> void Fields(IO& io, MarsSurfaceSpec& spec) {
-    io("age_gyr", spec.ageGyr,
-       "Age of the Martian surface in Gyr, above 0 and at most 4.6; older surfaces hold more "
-       "craters. Also sets auto crater ages.",
-       "Gyr");
-}
-
 template <> struct SpecName<PowerLawSpec> {
     static constexpr std::string_view kName = "power_law";
     static constexpr std::string_view kDescription =
@@ -88,6 +62,31 @@ template <typename IO> void Fields(IO& io, TabulatedSpec& spec) {
        "m^2");
 }
 
+template <> struct SpecName<ProductionSurfaceSpec> {
+    static constexpr std::string_view kName = "production_surface";
+    static constexpr std::string_view kDescription =
+        "The craters a production function leaves on a surface of a given age, scaled by a "
+        "chronology, with no erosion; cap it with an equilibrium in a minimum.";
+};
+template <typename IO> void Fields(IO& io, ProductionSurfaceSpec& spec) {
+    io("production", spec.production, "Production function that gives the craters' sizes.");
+    io("chronology", spec.chronology,
+       "Chronology that gives how many craters at least 1 km across the surface holds.");
+    io("age_gyr", spec.ageGyr,
+       "Age of the surface in Gyr, from 0 to 4.6; older surfaces hold more craters.", "Gyr");
+}
+
+template <> struct SpecName<MinimumSpec> {
+    static constexpr std::string_view kName = "minimum";
+    static constexpr std::string_view kDescription =
+        "The least of several densities at each diameter, such as a production surface capped "
+        "by an equilibrium.";
+};
+template <typename IO> void Fields(IO& io, MinimumSpec& spec) {
+    io("distributions", spec.distributions,
+       "Densities whose least cumulative count at each diameter is used; at least one.");
+}
+
 template <> struct SpecName<TraskSpec> {
     static constexpr std::string_view kName = "trask";
     static constexpr std::string_view kDescription =
@@ -120,14 +119,6 @@ template <> struct SpecName<ViperSpec> {
 };
 template <typename IO> void Fields(IO& /*io*/, ViperSpec& /*spec*/) {}
 
-template <> struct SpecName<AutoAgesSpec> {
-    static constexpr std::string_view kName = "auto";
-    static constexpr std::string_view kDescription =
-        "The ages of a lunar_surface or mars_surface density, otherwise ages uniform over a 1 Gyr "
-        "lifetime.";
-};
-template <typename IO> void Fields(IO& /*io*/, AutoAgesSpec& /*spec*/) {}
-
 template <> struct SpecName<FreshAgesSpec> {
     static constexpr std::string_view kName = "fresh";
     static constexpr std::string_view kDescription =
@@ -151,20 +142,22 @@ template <typename IO> void Fields(IO& io, UniformAgesSpec& spec) {
 template <> struct SpecName<SteadyStateAgesSpec> {
     static constexpr std::string_view kName = "steady_state";
     static constexpr std::string_view kDescription =
-        "Lunar crater ages where small craters are in equilibrium, from the Neukum production "
-        "and an equilibrium density.";
+        "Crater ages where small craters are in equilibrium: a crater lasts until the production "
+        "rate replaces the equilibrium density, or the surface's age, with ages drawn from the "
+        "chronology's formation rate.";
 };
 template <typename IO> void Fields(IO& io, SteadyStateAgesSpec& spec) {
     io("age_gyr", spec.ageGyr,
        "Age of the surface in Gyr, from 0 to 4.6; it caps every crater's lifetime, so larger "
        "craters on an older surface can be older.",
        "Gyr");
+    io("production", spec.production,
+       "Production function whose rate, with the equilibrium, sets how long small craters last.");
     io("equilibrium", spec.equilibrium,
        "Equilibrium density that, with the production rate, sets how long small craters last "
        "before they are erased.");
-    io("extended_production", spec.extendedProduction,
-       "Extends the Neukum production function below its 10 m limit as a power law of slope "
-       "-2.85, down to 2.5 m; off uses it only from 10 m.");
+    io("chronology", spec.chronology,
+       "Chronology whose formation rate the craters' ages are drawn from.");
 }
 
 template <> struct SpecName<FreshnessDegradationSpec> {

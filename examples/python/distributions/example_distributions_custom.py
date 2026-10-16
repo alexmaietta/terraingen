@@ -39,7 +39,10 @@ class Example(_common.Example):
         self.density = RolledOverPowerLaw()
         ages = terraingen.UniformAges(3.0)
         models = terraingen.CraterModels(
-            self.density, ages, terraingen.FreshnessDegradation(ages), terraingen.FassettThomsonProfile()
+            self.density,
+            ages,
+            terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry),
+            terraingen.FassettThomsonProfile(),
         )
         generation = terraingen.CraterGenerationOptions(min_diameter=6.0, max_diameter=300.0)
         craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=5, generation=generation))

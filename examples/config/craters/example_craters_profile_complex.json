@@ -22,8 +22,25 @@
             "type": "craters",
             "seed": 1,
             "density": {
-                "type": "lunar_surface",
-                "age_gyr": 3.8
+                "type": "minimum",
+                "distributions": [
+                    {
+                        "type": "production_surface",
+                        "production": "extended_neukum",
+                        "chronology": "neukum",
+                        "age_gyr": 3.8
+                    },
+                    {
+                        "type": "trask"
+                    }
+                ]
+            },
+            "ages": {
+                "type": "steady_state",
+                "age_gyr": 3.8,
+                "production": "extended_neukum",
+                "equilibrium": "trask",
+                "chronology": "neukum"
             },
             "min_diameter": 3000,
             "max_diameter": 60000,

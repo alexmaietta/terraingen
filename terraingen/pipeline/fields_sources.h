@@ -23,10 +23,7 @@ template <> struct SpecName<SphereSurfaceSpec> {
         "features generated over the whole body.";
 };
 template <typename IO> void Fields(IO& io, SphereSurfaceSpec& spec) {
-    io("radius", spec.radius,
-       "Radius of the body's datum sphere, in metres; give it or a body, not both.", "m");
-    io("body", spec.body,
-       "Body whose mean radius to use instead of a radius; unset requires the radius.");
+    io("radius", spec.radius, "Radius of the body's datum sphere, in metres; required.", "m");
 }
 
 template <> struct SpecName<FlatSourceSpec> {

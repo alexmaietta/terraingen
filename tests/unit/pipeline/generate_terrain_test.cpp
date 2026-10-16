@@ -245,8 +245,10 @@ TEST(GenerateTerrain, AddsBouldersWithEjectaFromTheLastCraterLayerBeforeThem) {
 
 TEST(GenerateTerrain, ShapesMarsCraters) {
     TerrainConfig surface = Small();
-    Craters(surface).body = terraingen::CraterBody::Mars;
-    Craters(surface).density = terraingen::MarsSurfaceSpec{3.0};
+    Craters(surface).morphometry = terraingen::CraterMorphometryFit::Mars;
+    Craters(surface).density = terraingen::ProductionSurfaceSpec{
+        terraingen::ProductionFunction::Ivanov, terraingen::ChronologyModel::Ivanov, 3.0};
+    Craters(surface).ages = terraingen::UniformAgesSpec{3.0};
     Craters(surface).minDiameter = 20.0;
     EXPECT_FALSE(GenerateTerrain(surface).features.craters.Empty());
 }
@@ -427,6 +429,25 @@ TEST(GenerateTerrain, AddsSecondariesAroundTheCratersBeforeThem) {
     ASSERT_GT(generated.features.craters.Size(), 2u);
     EXPECT_EQ(generated.features.craters.At(0).id, 3u);
     EXPECT_EQ(generated.features.craterAttributes.size(), generated.features.craters.Size());
+}
+
+TEST(GenerateTerrain, ShapesSecondariesWithTheirMorphometry) {
+    TerrainConfig config = Small();
+    Flat(config) = {400, 400, 8.0};
+    CraterLayerSpec& craters = Craters(config);
+    craters.generate = false;
+    craters.manual = {{-3000.0, 0.0, 2000.0, 0.0, 3u}};
+    terraingen::SecondaryLayerSpec secondaries;
+    secondaries.secondaries.onsetCount = 40.0;
+    secondaries.secondaries.minDiameter = 16.0;
+    config.layers.push_back(secondaries);
+    const auto lunar = GenerateTerrain(config, {}, 2);
+    secondaries.morphometry = terraingen::CraterMorphometryFit::Mars;
+    config.layers.back() = secondaries;
+    const auto mars = GenerateTerrain(config, {}, 2);
+    ASSERT_EQ(lunar.features.craters.Size(), mars.features.craters.Size());
+    ASSERT_GT(mars.features.craters.Size(), 2u);
+    EXPECT_FALSE(std::ranges::equal(lunar.heights.Values(), mars.heights.Values()));
 }
 
 TEST(Summary, DescribesTheTerrainAndItsTime) {

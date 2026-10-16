@@ -25,13 +25,15 @@ namespace {
 
 constexpr std::size_t kCells = 64;
 constexpr int kLevels = 3;
+/// Volumetric mean radius of the Moon, in metres, from the NASA NSSDCA Moon fact sheet.
+constexpr double kMoonRadius = 1737400.0;
 
 class TilesBodyPyramid : public terraingen::examples::Example {
   public:
     using Example::Example;
 
     void Generate() override {
-        moon_ = terraingen::BodySphere(terraingen::Body::Moon);
+        moon_ = terraingen::Surface::Sphere(kMoonRadius);
         terraingen::NoiseLayer broad;
         broad.fractal.seed = 8;
         broad.fractal.wavelength = 400000.0f;

@@ -1,4 +1,5 @@
 #include "support/log_capture.h"
+#include "support/lunar_craters.h"
 #include "terraingen/terraingen.h"
 
 #include <gtest/gtest.h>
@@ -18,11 +19,9 @@ using terraingen::CraterGenerationOptions;
 using terraingen::CraterList;
 using terraingen::FreshAges;
 using terraingen::GenerateCraters;
-using terraingen::LunarSurface;
 using terraingen::PlanarCells;
 using terraingen::PowerLawSfd;
 using terraingen::SfdKind;
-using terraingen::SurfaceModel;
 using terraingen::UniformAges;
 
 namespace {
@@ -119,12 +118,13 @@ TEST(GenerateCraters, TilesJoinToTheWholeRegion) {
 }
 
 TEST(GenerateCraters, LoweringDMinKeepsLargerBandsInPlace) {
-    const SurfaceModel surface = LunarSurface(3.5);
+    const auto density = terraingen::testing::LunarCraterDensity(3.5);
+    const auto ages = terraingen::testing::LunarCraterAges(3.5);
     const Bounds2d region{0.0, 0.0, 400.0, 400.0};
-    const CraterList coarse = GenerateCraters(kCells, region, *surface.density, *surface.ages, 11u,
-                                              {.dMin = 3.0, .dMax = 100.0});
-    const CraterList fine = GenerateCraters(kCells, region, *surface.density, *surface.ages, 11u,
-                                            {.dMin = 2.5, .dMax = 100.0});
+    const CraterList coarse =
+        GenerateCraters(kCells, region, *density, *ages, 11u, {.dMin = 3.0, .dMax = 100.0});
+    const CraterList fine =
+        GenerateCraters(kCells, region, *density, *ages, 11u, {.dMin = 2.5, .dMax = 100.0});
     ExpectSameCraters(Filter(coarse, region, 4.0), Filter(fine, region, 4.0));
     EXPECT_GT(fine.Size(), coarse.Size());
 }

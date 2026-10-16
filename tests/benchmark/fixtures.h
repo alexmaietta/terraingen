@@ -1,5 +1,8 @@
+/// @file
+/// @brief Terrains that the benchmarks evaluate.
 #pragma once
 
+#include "support/lunar_craters.h"
 #include "terraingen/terraingen.h"
 
 #include <memory>
@@ -21,19 +24,19 @@ inline Terrain LunarMare(double size, double pixelSize, double maxDiameter = 200
     noise.layers[0].fractal.wavelength = 400.0f;
     noise.layers[0].fractal.amplitude = 8.0f;
     terrain.layers.push_back(std::make_shared<NoiseRelief>(noise, Vec2d{}, body));
-    const SurfaceModel surface = LunarSurface(3.5);
+    const auto density = testing::LunarCraterDensity(3.5);
+    const auto ages = testing::LunarCraterAges(3.5);
     CraterLayerOptions options;
     options.generation.dMin = 2.5;
     options.generation.dMax = maxDiameter;
     options.cacheCraters = cacheCraters;
     options.apply.datum = datum;
     options.surface = body;
-    terrain.layers.push_back(
-        std::make_shared<CraterLayer>(CraterModels{surface.density, surface.ages,
-                                                   std::make_shared<FreshnessDegradation>(
-                                                       surface.ages, LunarFreshCraterMorphometry),
-                                                   std::make_shared<FassettThomsonProfile>()},
-                                      options));
+    terrain.layers.push_back(std::make_shared<CraterLayer>(
+        CraterModels{density, ages,
+                     std::make_shared<FreshnessDegradation>(ages, LunarFreshCraterMorphometry),
+                     std::make_shared<FassettThomsonProfile>()},
+        options));
     return terrain;
 }
 

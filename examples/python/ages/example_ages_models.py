@@ -33,13 +33,12 @@ class SizeLimitedLifetimes(terraingen.CraterAgeModel):
 
 class Example(_common.Example):
     def generate(self):
-        surface = terraingen.lunar_surface(3.5)
-        steady = terraingen.SteadyStateAges(
-            terraingen.extended_neukum_production_function(),
-            terraingen.trask_equilibrium(),
-            3.5,
-            terraingen.neukum_lunar_chronology,
+        production = terraingen.extended_neukum_production_function()
+        equilibrium = terraingen.trask_equilibrium()
+        density = terraingen.MinimumSfd(
+            [terraingen.ProductionSurface(production, 3.5, terraingen.neukum_lunar_chronology), equilibrium]
         )
+        steady = terraingen.SteadyStateAges(production, equilibrium, 3.5, terraingen.neukum_lunar_chronology)
         age_models = {
             "fresh": terraingen.FreshAges(),
             "uniform 3.5 Gyr": terraingen.UniformAges(3.5),
@@ -47,6 +46,7 @@ class Example(_common.Example):
             "custom": SizeLimitedLifetimes(),
         }
         diffusion = terraingen.DiffusionDegradation(
+            terraingen.lunar_fresh_crater_morphometry,
             terraingen.fassett_2022_hartmann_diffusivity(),
             terraingen.DiffusedProfile(terraingen.FassettThomsonProfile()),
         )
@@ -55,9 +55,7 @@ class Example(_common.Example):
         self.evaluated = {}
         print(f"{'ages':16s} {'10%':>7s} {'50%':>7s} {'90%':>7s}  (Gyr)")
         for name, ages in age_models.items():
-            models = terraingen.CraterModels(
-                surface.density, ages, diffusion, terraingen.FassettThomsonProfile()
-            )
+            models = terraingen.CraterModels(density, ages, diffusion, terraingen.FassettThomsonProfile())
             craters = terraingen.CraterLayer(
                 models, terraingen.CraterLayerOptions(seed=1, generation=generation)
             )

@@ -2,7 +2,7 @@
     "schema_version": 1,
     "surface": {
         "type": "sphere",
-        "body": "mercury"
+        "radius": 2439700
     },
     "source": {
         "type": "flat",

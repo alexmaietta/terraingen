@@ -60,7 +60,7 @@ def test_boulder_mesh_has_vertices(first_model):
 
 
 def test_placement_at_the_site_origin_is_unchanged(first_model):
-    moon = terraingen.body_sphere(terraingen.Body.MOON)
+    moon = terraingen.Surface.sphere(1737400.0)
     site = terraingen.placement_at_site(first_model.placement, (0.0, 0.0), (0.0, 0.0), moon)
     assert site.apply((0.0, 0.0, 0.0)) == pytest.approx(
         first_model.placement.apply((0.0, 0.0, 0.0)), abs=1e-6

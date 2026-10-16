@@ -87,11 +87,16 @@ class SlopeBrightening(terraingen.AlbedoLayer):
 class Example(_common.Example):
     def generate(self):
         fbm = terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=200.0, amplitude=4.0))
-        surface = terraingen.lunar_surface(3.5)
+        production = terraingen.extended_neukum_production_function()
+        equilibrium = terraingen.trask_equilibrium()
+        density = terraingen.MinimumSfd(
+            [terraingen.ProductionSurface(production, 3.5, terraingen.neukum_lunar_chronology), equilibrium]
+        )
+        ages = terraingen.SteadyStateAges(production, equilibrium, 3.5, terraingen.neukum_lunar_chronology)
         models = terraingen.CraterModels(
-            surface.density,
-            surface.ages,
-            terraingen.FreshnessDegradation(surface.ages),
+            density,
+            ages,
+            terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry),
             terraingen.FassettThomsonProfile(),
         )
         generation = terraingen.CraterGenerationOptions(min_diameter=8.0, max_diameter=80.0)

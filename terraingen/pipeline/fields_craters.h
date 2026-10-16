@@ -144,9 +144,9 @@ template <> struct SpecName<CraterLayerSpec> {
         "the terrain.";
 };
 template <typename IO> void Fields(IO& io, CraterLayerSpec& craters) {
-    io("body", craters.body,
-       "Body the craters are shaped for, which sets their fresh morphometry and complex crater "
-       "shape and which densities and ages are allowed.");
+    io("morphometry", craters.morphometry,
+       "Published fits of fresh crater depth, rim height and complex crater shape the craters "
+       "are shaped with.");
     io("generate", craters.generate,
        "Generates craters from the density; off places only the manual craters.");
     io("seed", craters.seed,
@@ -225,7 +225,8 @@ template <typename IO> void Fields(IO& io, SecondaryLayerSpec& spec) {
     io("depth_ratio", spec.depthRatio,
        "Depth over diameter every secondary is given, with no wear by age; lower values give "
        "shallower secondaries.");
-    io("body", spec.body, "Body whose fresh crater rim the secondaries are shaped with.");
+    io("morphometry", spec.morphometry,
+       "Published fits whose fresh crater rim the secondaries are shaped with.");
 }
 
 template <> struct SpecName<RimSmoothing> {

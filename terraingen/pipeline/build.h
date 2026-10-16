@@ -29,8 +29,7 @@ bool IsMeshFile(const std::filesystem::path& path);
 /// @param craters The crater layer.
 /// @param path The layer's JSON path.
 /// @return Its density, ages, profile and degradation.
-/// @throws ConfigError at `path`.density, .ages, .profile or .degradation for an invalid model, or
-/// for a model the layer's body does not allow.
+/// @throws ConfigError at `path`.density, .ages, .profile or .degradation for an invalid model.
 CraterModels BuildCraterModels(const CraterLayerSpec& craters, const std::string& path);
 
 /// @brief The boulder options a layer describes, with its size distributions built.

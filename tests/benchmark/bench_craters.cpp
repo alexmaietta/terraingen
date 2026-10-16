@@ -9,13 +9,14 @@ namespace {
 /// Lunar craters from 2.5 m to 200 m generated over a square region whose side, in metres, is the
 /// argument.
 void BM_GenerateCraters(benchmark::State& state) {
-    const SurfaceModel surface = LunarSurface(3.5);
+    const auto density = testing::LunarCraterDensity(3.5);
+    const auto ages = testing::LunarCraterAges(3.5);
     const double half = 0.5 * static_cast<double>(state.range(0));
     const Bounds2d region{-half, -half, half, half};
     std::size_t craters = 0;
     for (auto _ : state) {
-        CraterList list = GenerateCraters(PlanarCells(), region, *surface.density, *surface.ages,
-                                          1u, {.dMin = 2.5, .dMax = 200.0});
+        CraterList list = GenerateCraters(PlanarCells(), region, *density, *ages, 1u,
+                                          {.dMin = 2.5, .dMax = 200.0});
         craters = list.Size();
         benchmark::DoNotOptimize(list);
     }
@@ -27,15 +28,16 @@ BENCHMARK(BM_GenerateCraters)->RangeMultiplier(4)->Range(256, 4096)->Unit(benchm
 /// Those craters stamped onto a 1 m grid of the same region on the number of threads given by the
 /// second argument (0 for every hardware thread).
 void BM_ApplyCraters(benchmark::State& state) {
-    const SurfaceModel surface = LunarSurface(3.5);
+    const auto density = testing::LunarCraterDensity(3.5);
+    const auto ages = testing::LunarCraterAges(3.5);
     const auto side = static_cast<std::size_t>(state.range(0));
     const double half = 0.5 * static_cast<double>(side);
     const CraterList craters =
-        GenerateCraters(PlanarCells(), {-half, -half, half, half}, *surface.density, *surface.ages,
-                        1u, {.dMin = 2.5, .dMax = 200.0, .marginRadii = 1.5});
+        GenerateCraters(PlanarCells(), {-half, -half, half, half}, *density, *ages, 1u,
+                        {.dMin = 2.5, .dMax = 200.0, .marginRadii = 1.5});
     const terraingen::CraterShapeModels models{
         std::make_shared<FassettThomsonProfile>(),
-        std::make_shared<FreshnessDegradation>(surface.ages, LunarFreshCraterMorphometry)};
+        std::make_shared<FreshnessDegradation>(ages, LunarFreshCraterMorphometry)};
     Raster<float> heights(side, side, 0.0f);
     heights.SetTransform(GeoTransform::NorthUp(-half, half, 1.0));
     for (auto _ : state) {

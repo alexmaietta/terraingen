@@ -1,3 +1,4 @@
+#include "support/lunar_craters.h"
 #include "support/statistics.h"
 #include "terraingen/terraingen.h"
 
@@ -7,10 +8,8 @@
 #include <vector>
 
 using terraingen::CraterAgeModel;
-using terraingen::LunarSurface;
 using terraingen::NeukumLunarChronology;
 using terraingen::RandomStream;
-using terraingen::SurfaceModel;
 using terraingen::UniformAges;
 using terraingen::testing::KolmogorovSmirnov;
 using terraingen::testing::KolmogorovSmirnovCritical;
@@ -38,11 +37,11 @@ TEST(CraterAgeStatistics, UniformFreshnessAgesAreUniform) {
 }
 
 TEST(CraterAgeStatistics, SteadyStateAgesFollowTheChronologyInBothRegimes) {
-    const SurfaceModel surface = LunarSurface(3.5);
+    const auto model = terraingen::testing::LunarCraterAges(3.5);
     for (const double d : {10.0, 1000.0}) {
-        const double lifetime = surface.ages->LifetimeGyr(d);
-        const auto ages = SampleAges(*surface.ages, d, d == 10.0 ? 2u : 3u);
-        EXPECT_LT(KolmogorovSmirnov(ages,
+        const double lifetime = model->LifetimeGyr(d);
+        const auto samples = SampleAges(*model, d, d == 10.0 ? 2u : 3u);
+        EXPECT_LT(KolmogorovSmirnov(samples,
                                     [lifetime](double age) {
                                         return NeukumLunarChronology(age) /
                                                NeukumLunarChronology(lifetime);
@@ -53,25 +52,24 @@ TEST(CraterAgeStatistics, SteadyStateAgesFollowTheChronologyInBothRegimes) {
 }
 
 TEST(CraterAgeStatistics, ShortLifetimeAgesAreNearlyUniform) {
-    const SurfaceModel surface = LunarSurface(3.5);
-    const double lifetime = surface.ages->LifetimeGyr(10.0);
-    const auto ages = SampleAges(*surface.ages, 10.0, 4u);
-    EXPECT_LT(KolmogorovSmirnov(ages, [lifetime](double age) { return age / lifetime; }),
+    const auto model = terraingen::testing::LunarCraterAges(3.5);
+    const double lifetime = model->LifetimeGyr(10.0);
+    const auto samples = SampleAges(*model, 10.0, 4u);
+    EXPECT_LT(KolmogorovSmirnov(samples, [lifetime](double age) { return age / lifetime; }),
               KolmogorovSmirnovCritical(kSamples));
 }
 
 TEST(CraterAgeStatistics, LunarSurfaceDiametersMatchTheirCdfAcrossTheCrossover) {
-    const SurfaceModel surface = LunarSurface(3.5);
+    const auto density = terraingen::testing::LunarCraterDensity(3.5);
     RandomStream stream(9u, 9u);
     std::vector<double> diameters(kSamples);
     for (double& d : diameters) {
-        d = surface.density->SampleDiameter(stream, 50.0, 2000.0);
+        d = density->SampleDiameter(stream, 50.0, 2000.0);
     }
-    const double top = surface.density->Cumulative(50.0);
-    const double bottom = surface.density->Cumulative(2000.0);
-    EXPECT_LT(KolmogorovSmirnov(diameters,
-                                [&](double d) {
-                                    return (top - surface.density->Cumulative(d)) / (top - bottom);
-                                }),
-              KolmogorovSmirnovCritical(kSamples));
+    const double top = density->Cumulative(50.0);
+    const double bottom = density->Cumulative(2000.0);
+    EXPECT_LT(
+        KolmogorovSmirnov(
+            diameters, [&](double d) { return (top - density->Cumulative(d)) / (top - bottom); }),
+        KolmogorovSmirnovCritical(kSamples));
 }

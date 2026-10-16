@@ -5,4 +5,4 @@ terraingen_add_test_suite(
     crater_albedo_test.cpp
     LIBRARIES
     terraingen::albedo
-    terraingen::bodies)
+    terraingen::layers)

@@ -20,11 +20,17 @@
         },
         {
             "type": "craters",
-            "body": "mars",
+            "morphometry": "mars",
             "seed": 2,
             "density": {
-                "type": "mars_surface",
+                "type": "production_surface",
+                "production": "ivanov",
+                "chronology": "ivanov",
                 "age_gyr": 3.0
+            },
+            "ages": {
+                "type": "uniform",
+                "lifetime_gyr": 3.0
             },
             "min_diameter": 15,
             "max_diameter": 500
