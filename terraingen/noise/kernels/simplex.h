@@ -1,3 +1,5 @@
+/// @file
+/// @brief 2D simplex noise.
 #pragma once
 
 #include "terraingen/noise/kernels/perlin.h"
@@ -6,7 +8,13 @@ namespace terraingen {
 
 namespace detail {
 
-/// The contribution of simplex corner (`ci`, `cj`) at offset (`dx`, `dy`) from it.
+/// @brief The contribution (0.5 - r^2)^4 dot(g, d) of one simplex corner.
+/// @param ci Corner x on the skewed lattice, wrapped to 32 bits.
+/// @param cj Corner y on the skewed lattice, wrapped to 32 bits.
+/// @param dx Offset x from the corner, unskewed.
+/// @param dy Offset y from the corner, unskewed.
+/// @param seed The noise seed.
+/// @return The contribution; 0 for r^2 >= 0.5.
 inline float SimplexCorner(uint32_t ci, uint32_t cj, float dx, float dy, uint32_t seed) {
     const float t = 0.5f - dx * dx - dy * dy;
     if (t <= 0.0f) {
@@ -18,21 +26,11 @@ inline float SimplexCorner(uint32_t ci, uint32_t cj, float dx, float dy, uint32_
 
 }  // namespace detail
 
-/// 2D simplex noise at (`x`, `y`) in lattice units.
-///
-/// The plane is skewed onto a lattice of equilateral triangles; each of the three corners of the
-/// containing triangle contributes `(0.5 - r^2)^4 dot(g, d)` for its gradient `g` and offset `d`.
-/// Compared with Perlin's gradient noise it needs three corners instead of four and has fewer
-/// axis-aligned artefacts. Gradients use the same eight unit directions and `pcg3d` corner hash as
-/// `PerlinNoise2`. With these gradients the raw amplitude never exceeds 0.010081 (found by dense
-/// search over a simplex), so the result is scaled by 99 to span almost [-1, 1].
-///
-/// Perlin's simplex noise patent (US 6,867,776) expired in January 2022.
-///
-/// References:
-/// - K. Perlin, "Noise Hardware", in Real-Time Shading, SIGGRAPH 2001 Course Notes, 2001.
-/// - S. Gustavson, "Simplex Noise Demystified", Linkoping University, 2005.
-///
+/// @brief 2D simplex noise at a point in lattice units, with the gradients and corner hash of
+/// `PerlinNoise2`.
+/// @param x Lattice x.
+/// @param y Lattice y.
+/// @param seed The noise seed.
 /// @return Noise in [-1, 1].
 inline float SimplexNoise2(float x, float y, uint32_t seed) {
     constexpr float kSkew = 0.366025403784438647f;    // (sqrt(3) - 1) / 2

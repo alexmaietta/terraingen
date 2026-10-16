@@ -1,3 +1,5 @@
+/// @file
+/// @brief Lunar crater size distributions from engineering specifications.
 #include "terraingen/bodies/moon/specifications.h"
 
 #include <cmath>

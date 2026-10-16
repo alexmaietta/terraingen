@@ -1,3 +1,5 @@
+/// @file
+/// @brief Region shapes and `RegionLayer`: confining a layer to an area with a feathered edge.
 #include "terraingen/layers/region.h"
 
 #include "terraingen/raster/cell_loops.h"
@@ -16,6 +18,7 @@ namespace terraingen {
 
 namespace {
 
+/// `height` moved towards `inner` by `weight` in [0, 1].
 float Blend(float height, float inner, double weight) {
     if (weight >= 1.0) {
         return inner;

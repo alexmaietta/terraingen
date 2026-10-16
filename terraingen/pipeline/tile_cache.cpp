@@ -1,3 +1,5 @@
+/// @file
+/// @brief The tile cache's evaluation and byte accounting.
 #include "terraingen/pipeline/tile_cache.h"
 
 #include <utility>

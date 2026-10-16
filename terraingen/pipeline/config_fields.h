@@ -14,6 +14,9 @@
 
 namespace terraingen::config {
 
+/// @brief The fields of the root configuration.
+/// @param io The field reader, writer or describer.
+/// @param config The configuration.
 template <typename IO> void Fields(IO& io, TerrainConfig& config) {
     io("schema_version", config.schemaVersion,
        "Version of the configuration format, which this library reads; required.");

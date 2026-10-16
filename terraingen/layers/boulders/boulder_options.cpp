@@ -1,3 +1,5 @@
+/// @file
+/// @brief Boulder option checks, throw distance and the candidate size distributions.
 #include "terraingen/layers/boulders/boulder_options.h"
 
 #include "terraingen/distribution/golombek_rapp.h"
@@ -20,6 +22,7 @@ bool Covers(const SizeFrequencyDistribution& distribution, double low, double hi
            (distribution.ValidRange().min <= low && distribution.ValidRange().max >= high);
 }
 
+/// Throws unless `distribution` is a density valid over the boulder sizes.
 void CheckDistribution(const SizeFrequencyDistribution& distribution, const BoulderSizes& sizes,
                        const char* what) {
     if (distribution.Kind() != SfdKind::Density) {

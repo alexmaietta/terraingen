@@ -1,3 +1,5 @@
+/// @file
+/// @brief The `terraingen` executable's entry point.
 #include "terraingen/app/cli.h"
 
 #include <iostream>

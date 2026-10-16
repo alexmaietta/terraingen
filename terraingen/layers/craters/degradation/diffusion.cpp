@@ -1,3 +1,5 @@
+/// @file
+/// @brief Radial diffusion solver and tables for `DiffusedProfile`, and `DiffusionDegradation`.
 #include "terraingen/layers/craters/degradation/diffusion.h"
 
 #include "terraingen/util/checks.h"
@@ -18,6 +20,7 @@ constexpr double kLastAge = 0.5;
 constexpr std::size_t kAgeSteps = 160;
 constexpr double kReferenceDiameter = 1000.0;
 
+/// The tabulated diffusion ages: 0, then geometric from `kFirstAge` to `kLastAge`.
 const std::vector<double>& TableAges() {
     static const std::vector<double> ages = [] {
         std::vector<double> values{0.0};

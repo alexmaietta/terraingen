@@ -1,3 +1,5 @@
+/// @file
+/// @brief Evaluating a terrain over grids, tiles, points and a whole body.
 #include "terraingen/pipeline/terrain.h"
 
 #include "terraingen/util/cells.h"

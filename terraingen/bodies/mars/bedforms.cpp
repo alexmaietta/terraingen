@@ -1,3 +1,5 @@
+/// @file
+/// @brief Bedform presets for Martian aeolian features.
 #include "terraingen/bodies/mars/bedforms.h"
 
 #include <cmath>

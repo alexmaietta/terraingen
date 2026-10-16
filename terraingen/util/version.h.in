@@ -1,3 +1,5 @@
+/// @file
+/// @brief The library version and API version, configured by CMake.
 #pragma once
 
 namespace terraingen {
@@ -9,14 +11,19 @@ namespace terraingen {
 
 #define TERRAINGEN_API_VERSION 1
 
+/// @brief A semantic version number.
 struct Version {
-    int major;
-    int minor;
-    int patch;
+    int major;  ///< Major version.
+    int minor;  ///< Minor version.
+    int patch;  ///< Patch version.
 };
 
+/// @brief The version of the linked library.
+/// @return Major, minor and patch numbers.
 Version GetVersion();
 
+/// @brief The API version of the linked library.
+/// @return `TERRAINGEN_API_VERSION` as compiled into the library.
 int GetApiVersion();
 
 }  // namespace terraingen

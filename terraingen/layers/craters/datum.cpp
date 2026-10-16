@@ -1,3 +1,5 @@
+/// @file
+/// @brief Plane fits, crater datums, the crater relief index and datum margins.
 #include "terraingen/layers/craters/datum.h"
 
 #include "terraingen/noise/kernels/hash.h"

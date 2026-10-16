@@ -1,3 +1,5 @@
+/// @file
+/// @brief The Martin, Parkes and Dunstan (2014) crater profile.
 #include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
 
 #include <cmath>

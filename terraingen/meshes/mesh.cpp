@@ -1,3 +1,5 @@
+/// @file
+/// @brief Mesh measures, vertex normals, crease splitting and rigid transforms.
 #include "terraingen/meshes/mesh.h"
 
 #include "terraingen/util/checks.h"

@@ -17,7 +17,6 @@ namespace terraingen {
 
 /// @brief The largest secondary crater at a range from a primary, after the generalized fit of
 /// Singer et al. (2020): d = a R^-b with a = 0.022 D^1.96 and b = 0.14 ln D, D and R in km.
-/// See SCIENCE.md, "Secondary craters".
 /// @param diameter The primary's diameter, in metres.
 /// @param range The distance from the primary's centre, in metres.
 /// @return The largest secondary's diameter, in metres.
@@ -31,11 +30,9 @@ double SingerMaxSecondaryDiameter(double diameter, double range);
 /// does not shrink with range.
 double SingerRangeForSize(double diameter, double size);
 
-/// @brief How far from its centre a primary throws its first secondaries: its radius plus about
-/// 1.8 diameters for primaries up to 3 km and 1.3 from 31 km, interpolated in log diameter
-/// between (Singer et al. 2020).
+/// @brief How far from its centre a primary throws its first secondaries (Singer et al. 2020).
 /// @param diameter The primary's diameter, in metres.
-/// @return The onset range, in metres.
+/// @return The radius plus about 1.8 diameters up to 3 km and 1.3 from 31 km, in metres.
 double SecondaryOnsetRange(double diameter);
 
 /// @brief The median ray length of Elliott et al. (2018, eq. 2): `coefficient` R^`exponent` km
@@ -46,22 +43,20 @@ double SecondaryOnsetRange(double diameter);
 /// @return The median ray length, in metres.
 double ElliottMedianRayLength(double diameter, double coefficient = 6.59, double exponent = 1.27);
 
-/// Which primaries throw secondaries, how many, and over what sizes.
+/// @brief Which primaries throw secondaries, how many, and over what sizes.
 ///
-/// At range R from a primary of diameter D, the secondaries at least d across number, per square
-/// metre, n(R) (d / (`countFraction` D))^-`sizeSlope` below `SingerMaxSecondaryDiameter`, between
-/// `SecondaryOnsetRange` and an outer range, with n falling as r^-2 for r = 1 + (R - onset) / D.
-/// `onsetCount`, the number at least `countFraction` D across in an area the size of the primary
-/// at the onset, must be given: the sources fix the sizes, not the number. Secondaries take their
-/// primary's age and are placed uniformly in direction. See SCIENCE.md, "Secondary craters".
+/// At range R from a primary of diameter D, secondaries at least d across number
+/// n(R) (d / (`countFraction` D))^-`sizeSlope` per m^2, below `SingerMaxSecondaryDiameter` and
+/// between `SecondaryOnsetRange` and the outer range.
 struct SecondaryCraterOptions {
-    std::uint32_t seed = 0;
+    std::uint32_t seed = 0;  ///< Varies the secondaries.
+    /// Secondaries at least `countFraction` D across in an area the size of the primary at the
+    /// onset; required, as the sources fix sizes but not numbers.
     std::optional<double> onsetCount;
-    double countFraction = 0.01;
-    double sizeSlope = 4.0;
-    /// Diameters of secondaries generated (m).
-    double minDiameter = 1.0;
-    double maxDiameter = std::numeric_limits<double>::infinity();
+    double countFraction = 0.01;  ///< Reference size of `onsetCount`, over D.
+    double sizeSlope = 4.0;       ///< Cumulative size slope, positive.
+    double minDiameter = 1.0;     ///< Smallest secondary generated (m).
+    double maxDiameter = std::numeric_limits<double>::infinity();  ///< Largest (m), exclusive.
     /// Outer range in primary diameters from the centre; unset uses 1.6 times Elliott et al.'s
     /// median ray length (`ElliottMedianRayLength`).
     std::optional<double> outerRange;
@@ -82,10 +77,11 @@ struct SecondaryCraterOptions {
 /// invalid selection, or a non-positive cell size factor or limit.
 void ValidateSecondaryCraterOptions(const SecondaryCraterOptions& options);
 
-/// Secondary craters around the craters of a `CraterLayer`, as `SecondaryCraterOptions` describes,
-/// applied with `ApplyCraters` (additively; datums are not supported). They are drawn per primary,
-/// in polar cells keyed to its ID, size band, ring and sector, so a tile holds the same secondaries
-/// as any larger grid; bands too small for the sample spacing are skipped, as for primaries.
+/// @brief Secondary craters around the craters of a `CraterLayer`, applied additively with
+/// `ApplyCraters`.
+///
+/// Drawn per primary in polar cells keyed to its ID, size band, ring and sector, so a tile holds
+/// the same secondaries as any larger grid; bands too small for the spacing are skipped.
 class SecondaryCraterLayer final : public Layer {
   public:
     /// @brief Builds a secondary crater layer.
@@ -98,12 +94,27 @@ class SecondaryCraterLayer final : public Layer {
     SecondaryCraterLayer(std::shared_ptr<const CraterLayer> primaries, CraterShapeModels models,
                          SecondaryCraterOptions options, CraterApplyOptions apply = {});
 
+    /// @brief Applies the secondaries reaching the grid.
+    /// @param heights The heights to change in place.
+    /// @param context How the layer is evaluated.
+    /// @param features Receives the secondaries applied, with their attributes.
+    /// @throws std::invalid_argument if more than `maxExpected` secondaries are expected.
     void Apply(Raster<float>& heights, const LayerContext& context,
                TerrainFeatures& features) const override;
 
-    /// @throws std::invalid_argument as `ValidatePointContext`.
+    /// @brief The secondaries reaching a point applied to `height`, bit-identical to a cell
+    /// centred there.
+    /// @param height The height before the layer; NaN stays NaN.
+    /// @param x Surface x of the point.
+    /// @param y Surface y of the point.
+    /// @param context How the layer is evaluated.
+    /// @return The height after the layer.
+    /// @throws std::invalid_argument as `ValidatePointContext`, or if more than `maxExpected`
+    /// secondaries are expected.
     float ApplyAt(float height, double x, double y, const LayerContext& context) const override;
 
+    /// @brief The largest secondary the layer places.
+    /// @return Its diameter, in metres.
     double MaxFeatureDiameter() const override;
 
     /// @brief The secondaries a grid covering a region gets: those centred in it or within the
@@ -119,6 +130,8 @@ class SecondaryCraterLayer final : public Layer {
     /// @return The range from its centre, in metres.
     double OuterRange(double diameter) const;
 
+    /// @brief The secondary crater options.
+    /// @return The options the layer was made with.
     const SecondaryCraterOptions& Options() const {
         return options_;
     }

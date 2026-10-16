@@ -9,10 +9,10 @@
 
 namespace terraingen {
 
-/// A surface's crater density and age model, the inputs to crater generation.
+/// @brief A surface's crater density and age model, the inputs to crater generation.
 struct SurfaceModel {
-    std::shared_ptr<const SizeFrequencyDistribution> density;
-    std::shared_ptr<const CraterAgeModel> ages;
+    std::shared_ptr<const SizeFrequencyDistribution> density;  ///< Craters per m^2.
+    std::shared_ptr<const CraterAgeModel> ages;                ///< Crater lifetimes and ages.
 };
 
 }  // namespace terraingen

@@ -1,3 +1,5 @@
+/// @file
+/// @brief The Fassett and Thomson (2014) crater profile.
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
 
 #include <cmath>
@@ -6,10 +8,12 @@ namespace terraingen {
 
 namespace {
 
+/// The interior fit, in units of D at x = r / R.
 double Interior(double x) {
     return -0.228809953 + x * (0.227533882 + x * (0.083116795 - x * 0.039499407));
 }
 
+/// The exterior fit, in units of D at x = r / R.
 double Exterior(double x) {
     return 0.188253307 + x * (-0.187050452 + x * (0.01844746 + x * 0.01505647));
 }

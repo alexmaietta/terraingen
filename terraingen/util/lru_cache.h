@@ -1,3 +1,5 @@
+/// @file
+/// @brief `LruCache`, a sharded thread-safe least-recently-used cache.
 #pragma once
 
 #include <algorithm>
@@ -13,20 +15,23 @@
 
 namespace terraingen {
 
-/// A thread-safe cache of values that can always be recomputed, holding at most about `capacity`
-/// units of cost (counts or bytes, as `Cost` measures them) and evicting the least recently used.
+/// @brief A thread-safe cache of recomputable values, holding about `capacity` units of cost and
+/// evicting the least recently used.
 ///
-/// Keys are spread over 16 shards, each with its own lock and an even share of the capacity, so
-/// threads working on different keys rarely wait for one another. A shard always keeps its newest
-/// value, so values larger than a sixteenth of the capacity can exceed it by up to one value per
-/// shard. A value is computed outside the lock; if
-/// two threads compute the same key at once, both get the first value stored.
+/// Keys are spread over 16 shards with even shares of the capacity; a shard always keeps its
+/// newest value, so it can exceed its share by one value. If two threads compute the same key at
+/// once, both get the first value stored.
 template <typename Key, typename Value, typename Hash = std::hash<Key>> class LruCache {
   public:
+    /// @brief Measures a value's cost (a count or bytes).
     using Cost = std::function<std::size_t(const Value&)>;
+    /// @brief Told how many values one store evicted.
     using OnEvict = std::function<void(std::size_t evicted)>;
 
-    /// `onEvict`, if given, is told how many values a store evicted, outside any lock.
+    /// @brief An empty cache.
+    /// @param capacity The total cost held, in `cost` units.
+    /// @param cost Measures each value's cost.
+    /// @param onEvict If given, told how many values a store evicted, outside any lock.
     /// @throws std::invalid_argument if `capacity` is zero.
     LruCache(std::size_t capacity, Cost cost, OnEvict onEvict = {})
         : capacity_(capacity), cost_(std::move(cost)), onEvict_(std::move(onEvict)) {
@@ -35,7 +40,11 @@ template <typename Key, typename Value, typename Hash = std::hash<Key>> class Lr
         }
     }
 
-    /// The value for `key`, from `compute` when it is not held.
+    /// @brief The value for a key, computed outside the lock when it is not held.
+    /// @param key The key.
+    /// @param compute Computes the value when it is not held.
+    /// @return The held or newly stored value.
+    /// @throws Whatever `compute` throws; nothing is stored then.
     std::shared_ptr<const Value> Get(const Key& key, const std::function<Value()>& compute) {
         Shard& shard = shards_[Hash{}(key) % kShards];
         {
@@ -72,16 +81,20 @@ template <typename Key, typename Value, typename Hash = std::hash<Key>> class Lr
         return value;
     }
 
-    /// The cost of every value held.
+    /// @brief The cost of every value held.
+    /// @return The total cost, in `Cost` units.
     std::size_t Size() const {
         return Sum([](const Shard& shard) { return shard.cost; });
     }
 
-    /// Values evicted since construction.
+    /// @brief The number of values evicted since construction.
+    /// @return The eviction count.
     std::size_t Evictions() const {
         return Sum([](const Shard& shard) { return shard.evictions; });
     }
 
+    /// @brief The capacity given at construction.
+    /// @return The capacity, in `Cost` units.
     std::size_t Capacity() const {
         return capacity_;
     }

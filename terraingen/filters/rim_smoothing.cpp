@@ -1,3 +1,5 @@
+/// @file
+/// @brief Rounding crater rims by blending them toward a blurred copy of the terrain.
 #include "terraingen/filters/rim_smoothing.h"
 
 #include "terraingen/raster/cell_loops.h"

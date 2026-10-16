@@ -1,3 +1,5 @@
+/// @file
+/// @brief Fresh Martian crater morphometry.
 #include "terraingen/bodies/mars/craters.h"
 
 #include "terraingen/util/checks.h"

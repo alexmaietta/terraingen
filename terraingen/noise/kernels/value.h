@@ -1,3 +1,5 @@
+/// @file
+/// @brief Value noise in 2D and 3D.
 #pragma once
 
 #include "terraingen/noise/kernels/hash.h"
@@ -7,7 +9,9 @@ namespace terraingen {
 
 namespace detail {
 
-/// The value in [-1, 1) that value noise gives the lattice point with `pcg3d` key `key`.
+/// @brief The value value noise gives one lattice point.
+/// @param key The point's `pcg3d` key.
+/// @return A value in [-1, 1).
 inline float LatticeValue(UVec3 key) {
     return 2.0f * HashToUnitFloat(Pcg3dHash(key).y) - 1.0f;
 }
@@ -25,15 +29,13 @@ inline float ValueCorner3(LatticePoint3 point, uint32_t corner, uint32_t seedKey
 
 }  // namespace detail
 
-/// 2D value noise at lattice cell (`ix`, `iy`) plus fractional offset (`fx`, `fy`) in [0, 1).
-///
-/// Each lattice point gets a pseudo-random value in [-1, 1) from `pcg3d`, and values are blended
-/// with Perlin's quintic fade curve. Cheaper than gradient noise but blobbier, with visible
-/// lattice alignment; mostly useful as a baseline or a soft mask.
-///
-/// Reference: D. R. Peachey, "Building Procedural Textures", in D. S. Ebert et al., Texturing and
-/// Modeling: A Procedural Approach, 3rd ed., Morgan Kaufmann, 2003 (value noise).
-///
+/// @brief 2D value noise at a lattice cell plus fraction: random lattice values blended with the
+/// quintic fade.
+/// @param ix Lattice cell x.
+/// @param iy Lattice cell y.
+/// @param fx Fraction in x, in [0, 1).
+/// @param fy Fraction in y, in [0, 1).
+/// @param seed The noise seed.
 /// @return Noise in [-1, 1].
 inline float ValueNoise2(int32_t ix, int32_t iy, float fx, float fy, uint32_t seed) {
     const uint32_t x0 = uint32_t(ix);
@@ -47,17 +49,20 @@ inline float ValueNoise2(int32_t ix, int32_t iy, float fx, float fy, uint32_t se
     return detail::Lerp(v, detail::Lerp(u, v00, v10), detail::Lerp(u, v01, v11));
 }
 
-/// 2D value noise at (`x`, `y`) in lattice units; see the cell-and-offset overload.
-///
+/// @brief 2D value noise at a point in lattice units.
+/// @param x Lattice x.
+/// @param y Lattice y.
+/// @param seed The noise seed.
 /// @return Noise in [-1, 1].
 inline float ValueNoise2(float x, float y, uint32_t seed) {
     const LatticePoint2 point = SplitLattice2(x, y);
     return ValueNoise2(point.ix, point.iy, point.fx, point.fy, seed);
 }
 
-/// 3D value noise at lattice cell and fraction `point`, as the 2D overload, blended trilinearly
-/// with the quintic fade.
-///
+/// @brief 3D value noise at a lattice cell and fraction, blended trilinearly with the quintic
+/// fade.
+/// @param point The cell and the fraction within it.
+/// @param seed The noise seed.
 /// @return Noise in [-1, 1].
 inline float ValueNoise3(LatticePoint3 point, uint32_t seed) {
     const uint32_t key = PcgHash(seed);

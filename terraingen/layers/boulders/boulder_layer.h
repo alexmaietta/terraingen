@@ -19,33 +19,28 @@
 
 namespace terraingen {
 
-/// How rich the boulders are at a point.
+/// @brief How rich the boulders are at a point.
 struct BoulderAbundance {
-    /// The density of the boulders between craters over its mean: the patches and the bedrock.
+    /// Density of the boulders between craters over its mean, from patches and bedrock.
     double background = 1.0;
-    /// The share of fresh crater blocks: from the profile and age of the craters around.
+    /// Share of fresh crater blocks, from the profile and age of the craters around.
     double ejecta = 0.0;
 
     bool operator==(const BoulderAbundance&) const = default;
 };
 
-/// Boulders scattered over the ground: boulders between craters, whose abundance varies in patches
-/// and rises where bedrock shows (which reads the ground beneath the layer), plus the blocks
-/// around fresh craters (which need `craters`).
+/// @brief Boulders scattered over the ground: between craters, in patches and richer on bedrock,
+/// plus blocks around fresh craters (which need `craters`).
 ///
-/// Candidates are drawn per cell in size bands like craters (`ScatterBoulderCandidates`) from
-/// `BoulderCandidates`, and each is kept with probability n(D; x) / n_candidates(D), from a uniform
-/// keyed by its ID; each boulder's height, burial, yaw and lean come from its ID too. Everything
-/// depends only on position, so boulders are the same in every grid, tile and point query; bands
-/// too small to resolve at the spacing are not generated. See SCIENCE.md, "Boulder thinning".
+/// Candidates are drawn per cell in size bands and thinned by a uniform keyed by each ID, so
+/// boulders depend only on position and agree on every grid, tile and point.
 class BoulderLayer final : public Layer {
   public:
     /// @brief Builds a boulder layer.
     ///
-    /// On a sphere, candidates are drawn in `CubeSphereCells`, patches are 3D noise, distances
-    /// are great-circle, each boulder's relief is shaped in its local frame, and boulder model
-    /// placements are in the boulder's local east, north and up frame, its origin on the datum
-    /// below the boulder.
+    /// On a sphere, candidates are drawn in `CubeSphereCells`, distances are great-circle, and
+    /// relief and model placements are in each boulder's local east, north and up frame, its
+    /// origin on the datum below the boulder.
     /// @param options How boulders are sized, placed, posed and drawn.
     /// @param craters The crater layer whose craters throw blocks; may be null without ejecta.
     /// @param surface What the boulders lie on; the crater layer's surface.
@@ -54,17 +49,27 @@ class BoulderLayer final : public Layer {
     BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const CraterLayer> craters = nullptr,
                  Surface surface = {});
 
-    /// Adds the exposed parts of the boulders drawn into the heights, as the relief option says,
-    /// and records the boulders centred in the grid or within a radius of it, the models among them
-    /// with their shapes placed on the ground beneath (the ground from `context`, otherwise the
-    /// heights as given). The ground under a boulder is read at its centre.
+    /// @brief Draws the exposed parts of non-model boulders into the heights and records the
+    /// boulders centred in or within a radius of the grid.
+    ///
+    /// Models are placed on the ground read at their centres: from `context.ground`, otherwise the
+    /// heights as given.
+    /// @param heights The heights to change in place.
+    /// @param context How the layer is evaluated.
+    /// @param features Receives the boulders and the boulder models.
     /// @throws std::invalid_argument if the exposure field is enabled and `context.ground` is null.
     void Apply(Raster<float>& heights, const LayerContext& context,
                TerrainFeatures& features) const override;
 
-    /// The boulders drawn into the heights that reach (`x`, `y`) added to `height` there, to the
-    /// same bits as a cell centred there; NaN stays NaN.
-    /// @throws std::invalid_argument as `ValidatePointContext`.
+    /// @brief The non-model boulders reaching a point added to `height`, bit-identical to a cell
+    /// centred there.
+    /// @param height The height before the layer; NaN stays NaN.
+    /// @param x Surface x of the point.
+    /// @param y Surface y of the point.
+    /// @param context How the layer is evaluated.
+    /// @return The height after the layer.
+    /// @throws std::invalid_argument as `ValidatePointContext`, or if the exposure field is
+    /// enabled and `context.ground` is null.
     float ApplyAt(float height, double x, double y, const LayerContext& context) const override;
 
     /// @brief The boulders of a region.
@@ -91,12 +96,17 @@ class BoulderLayer final : public Layer {
     /// @param y Surface y of the point.
     /// @param ground The ground; needed with the exposure field.
     /// @return -dN/dD, per m^2 per metre of diameter.
+    /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
     double DensityAt(double diameter, double x, double y, const Ground* ground = nullptr) const;
 
+    /// @brief The largest boulder.
+    /// @return `sizes.maxDiameter`, in metres.
     double MaxFeatureDiameter() const override {
         return options_.sizes.maxDiameter;
     }
 
+    /// @brief The layer options.
+    /// @return The options the layer was made with.
     const BoulderLayerOptions& Options() const {
         return options_;
     }
@@ -126,6 +136,7 @@ class BoulderLayer final : public Layer {
 
     /// The ejecta craters that can add blocks in `region`.
     CraterList EjectaCraters(const Bounds2d& region) const;
+    /// The abundance at (`x`, `y`) with the ejecta craters `ejecta` around.
     BoulderAbundance Abundance(double x, double y, const Ground* ground,
                                const CraterList& ejecta) const;
     double BackgroundAbundance(double x, double y, const Ground* ground) const;
@@ -145,8 +156,8 @@ class BoulderLayer final : public Layer {
     std::shared_ptr<const SurfaceCells> cells_;
 };
 
-/// @brief The height at a point after a boulder's exposed part, a dome of the boulder's exposed
-/// height over its diameter: what `BoulderLayer` adds to each cell.
+/// @brief The height at a point after a boulder's exposed part: a dome of its exposed height over
+/// its diameter, as `BoulderRelief::Dome` draws it.
 /// @param height The height before the boulder.
 /// @param x Surface x of the point.
 /// @param y Surface y of the point.

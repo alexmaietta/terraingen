@@ -12,12 +12,12 @@
 
 namespace terraingen {
 
-/// A crater's datum: the plane h = `a` + `b` dx + `c` dy in metres east (dx) and north (dy) of its
-/// centre.
+/// @brief A crater's datum: the plane h = `a` + `b` dx + `c` dy, dx and dy in metres east and
+/// north of its centre.
 struct Plane {
-    double a = 0.0;
-    double b = 0.0;
-    double c = 0.0;
+    double a = 0.0;  ///< Height at the centre (m).
+    double b = 0.0;  ///< Slope eastward (m/m).
+    double c = 0.0;  ///< Slope northward (m/m).
 
     /// @brief The plane's height at an offset from the crater's centre.
     /// @param dx East offset, in metres.
@@ -30,13 +30,12 @@ struct Plane {
     bool operator==(const Plane&) const = default;
 };
 
-/// A crater ready to shape: its weight at the sample spacing, its degradation state, its outline
-/// and, once fitted, its datum.
+/// @brief A crater ready to shape at one sample spacing.
 struct PreparedCrater {
-    Crater crater;
-    double resolution = 1.0;  ///< `ResolutionWeight` at the sample spacing.
-    CraterState state;
-    CraterOutline outline{};
+    Crater crater;                 ///< The crater.
+    double resolution = 1.0;       ///< `ResolutionWeight` at the sample spacing.
+    CraterState state;             ///< Its degradation state.
+    CraterOutline outline{};       ///< Its outline.
     std::optional<Plane> datum{};  ///< From `FitCraterDatum`; none without a datum.
 };
 
@@ -46,6 +45,7 @@ struct PreparedCrater {
 /// @param spacing The sample spacing, in metres; positive.
 /// @param degradation Gives each crater's state.
 /// @return The craters with a non-zero resolution weight, in `CraterApplyOrder`, without datums.
+/// @throws std::domain_error as `DegradationModel::State`.
 std::vector<PreparedCrater> PrepareCraters(const CraterList& craters,
                                            const CraterApplyOptions& options, double spacing,
                                            const DegradationModel& degradation);

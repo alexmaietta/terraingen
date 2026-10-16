@@ -1,3 +1,5 @@
+/// @file
+/// @brief Fully synthetic terrains made from stacks of noise layers.
 #include "terraingen/sources/synthetic_terrain.h"
 
 #include "terraingen/util/checks.h"

@@ -1,3 +1,5 @@
+/// @file
+/// @brief `BedformLayer`, fields of wind-blown ripples or dunes.
 #pragma once
 
 #include "terraingen/layers/exposure.h"
@@ -11,7 +13,7 @@
 
 namespace terraingen {
 
-/// The bedform fields a `BedformLayer` scatters: their ripples, cover and wind.
+/// @brief The bedform fields a `BedformLayer` scatters: their ripples, cover and wind.
 struct BedformOptions {
     double wavelength = 1.0;  ///< Crest to crest (m); each field's varies from 0.8 to 1.2 times it.
     double height = 0.1;      ///< Trough to crest (m), scaled with each field's wavelength.
@@ -23,9 +25,9 @@ struct BedformOptions {
     double sinuosity = 0.5;    ///< How far a crest wanders along its length, in wavelengths.
     double cover = 0.0;        ///< Share of the ground under fields, in [0, 0.9].
     double fieldSize = 100.0;  ///< Typical width of a field (m).
-    std::uint32_t seed = 1;
-    /// Sand settles in lows: with the exposure field, a field whose centre is on bedrock is left
-    /// out, the likelier the barer the ground there. Read from the ground beneath the layer.
+    std::uint32_t seed = 1;    ///< Varies the fields.
+    /// When set, a field is left out with probability the exposure at its centre, read from the
+    /// ground beneath the layer.
     std::optional<ExposureParams> exposure;
     double exposureSpacing = 1.0;  ///< Spacing the ground is read at for the exposure field (m).
     /// How bedforms too fine for the spacing fade out, by samples per wavelength.
@@ -34,40 +36,55 @@ struct BedformOptions {
     bool operator==(const BedformOptions&) const = default;
 };
 
+/// @brief Checks bedform options.
+/// @param options The options to check.
 /// @throws std::invalid_argument for a non-positive wavelength or field size, a negative height,
 /// a lee fraction outside (0, 1), a cover outside [0, 0.9], a negative sinuosity or spread, a
 /// non-positive exposure spacing, or an invalid fade or exposure.
 void ValidateBedformOptions(const BedformOptions& options);
 
-/// Fields of wind-blown bedforms, ripples or dunes, added to the terrain: each lattice cell may
-/// hold a field with a ragged edge, whose crests run across its wind, wander along their length,
-/// and rise along a gentle upwind face and fall down a lee face, C1 continuous and zero in the
-/// troughs. Where fields overlap, their relief is their mean weighted by cover, so sand is shared
-/// out rather than piled. Everything is a function of position, so grids, tiles and point queries
-/// agree.
+/// @brief Fields of wind-blown bedforms, ripples or dunes, added to the terrain.
 ///
-/// After Chrono::Planet's bedform layer, with its constants: field radii 0.4 to 0.7 lattice cells
-/// with edges 30% ragged, thinning over their outer 35%, and crests wandering over 5 wavelengths.
+/// Each lattice cell may hold a field with a ragged edge whose crests run across its wind; relief
+/// is C1 and zero in the troughs, and overlapping fields average by cover. A function of position
+/// only, so grids, tiles and points agree.
 class BedformLayer final : public Layer {
   public:
-    /// On a sphere, fields are drawn in `CubeSphereCells` (each with a chance in proportion to its
-    /// area), shaped in their centres' local frames, and the wind azimuth is counter-clockwise from
-    /// local east.
-    /// @throws std::invalid_argument for invalid options.
+    /// @brief Makes the layer; on a sphere, fields are drawn in `CubeSphereCells`, shaped in their
+    /// centres' local frames, with the azimuth counter-clockwise from local east.
+    /// @param options The bedform fields.
+    /// @param surface What the terrain lies on.
+    /// @throws std::invalid_argument as `ValidateBedformOptions`.
     explicit BedformLayer(BedformOptions options, Surface surface = {});
 
+    /// @brief Adds the bedforms to every cell of `heights`.
+    /// @param heights The heights to change in place.
+    /// @param context How the layer is evaluated.
+    /// @param features Unused.
     /// @throws std::invalid_argument if the exposure field is enabled and `context.ground` is null.
     void Apply(Raster<float>& heights, const LayerContext& context,
                TerrainFeatures& features) const override;
 
-    /// The bedforms at (`x`, `y`) added to `height`, to the same bits as a cell centred there; NaN
-    /// stays NaN.
+    /// @brief The bedforms at a point added to `height`, bit-identical to a cell centred there.
+    /// @param height The height before the layer; NaN stays NaN.
+    /// @param x World x of the point.
+    /// @param y World y of the point.
+    /// @param context How the layer is evaluated.
+    /// @return The height after the layer.
+    /// @throws std::invalid_argument as `ValidatePointContext`, or if the exposure field is
+    /// enabled and `context.ground` is null.
     float ApplyAt(float height, double x, double y, const LayerContext& context) const override;
 
-    /// How fully (`x`, `y`) lies in a field, in [0, 1]; it does not depend on the spacing.
+    /// @brief How fully a point lies in a field; independent of the spacing.
+    /// @param x World x of the point.
+    /// @param y World y of the point.
+    /// @param ground The ground, read by the exposure field; may be null without one.
+    /// @return The cover, in [0, 1].
     /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
     double CoverAt(double x, double y, const Ground* ground = nullptr) const;
 
+    /// @brief The bedform options.
+    /// @return The options the layer was made with.
     const BedformOptions& Options() const {
         return options_;
     }

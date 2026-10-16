@@ -1,3 +1,5 @@
+/// @file
+/// @brief Reading and writing GeoTIFF rasters, with their projection keys and band scaling.
 #pragma once
 
 #include "terraingen/raster/geo_transform.h"
@@ -13,45 +15,43 @@
 
 namespace terraingen {
 
-/// A GeoTIFF that cannot be read or written, with the reason.
+/// @brief A GeoTIFF that cannot be read or written, with the reason.
 class GeoTiffError : public std::runtime_error {
   public:
     using std::runtime_error::runtime_error;
 };
 
-/// A GeoTIFF's projection, kept as the raw GeoKey tags so it can be written back unchanged.
+/// @brief A GeoTIFF's projection as raw GeoKey tags, written back unchanged.
 ///
-/// TerrainGen does not interpret projections: a raster read from a GeoTIFF keeps its CRS by
-/// carrying these keys to the GeoTIFF it is written to, while the pixel-to-world transform travels
-/// in the raster's `GeoTransform`. Reprojection needs a GDAL-backed reader.
-///
-/// Reference: OGC GeoTIFF Standard 1.1, OGC 19-008r4, 2019.
-/// https://docs.ogc.org/is/19-008r4/19-008r4.html
+/// Projections are not interpreted.
 struct GeoKeys {
     std::vector<std::uint16_t> directory;  ///< GeoKeyDirectoryTag (34735).
     std::vector<double> doubleParams;      ///< GeoDoubleParamsTag (34736).
     std::string asciiParams;               ///< GeoAsciiParamsTag (34737).
 
+    /// @brief Whether there are no keys.
+    /// @return True when the directory is empty.
     bool Empty() const {
         return directory.empty();
     }
 
-    /// Whether GTRasterTypeGeoKey says pixel coordinates name pixel centres (PixelIsPoint) rather
-    /// than pixel areas.
+    /// @brief Whether GTRasterTypeGeoKey is PixelIsPoint.
+    /// @return True when pixel coordinates name pixel centres rather than pixel areas.
     bool PixelIsPoint() const;
 
-    /// Whether GTModelTypeGeoKey says the CRS is geographic, with coordinates in angles rather than
-    /// a projection's linear units.
+    /// @brief Whether GTModelTypeGeoKey is geographic.
+    /// @return True when coordinates are angles rather than a projection's linear units.
     bool IsGeographic() const;
 
-    /// The value of the SHORT GeoKey `key` stored in the directory, if present.
+    /// @brief A SHORT GeoKey stored inline in the directory.
+    /// @param key The GeoKey number.
+    /// @return Its value, if present.
     std::optional<std::uint16_t> ShortKey(std::uint16_t key) const;
 
     bool operator==(const GeoKeys&) const = default;
 };
 
-/// Compression schemes this library reads and writes. Others, such as JPEG, ZSTD and LERC, are
-/// reported as unsupported; `gdal_translate -co COMPRESS=DEFLATE` converts them.
+/// @brief Compression schemes this library reads and writes; others are reported as unsupported.
 enum class TiffCompression {
     None,      ///< Code 1.
     Lzw,       ///< Code 5, with TIFF 6.0's early code-width change.
@@ -59,15 +59,17 @@ enum class TiffCompression {
     Deflate,   ///< Codes 8 and 32946 (zlib streams), decoded and encoded with miniz.
 };
 
-/// How sample bits are interpreted.
+/// @brief How sample bits are interpreted.
 enum class TiffSampleFormat { UnsignedInteger, SignedInteger, Float };
 
-/// A band's scale and offset: a sample `s` stands for `s * scale + offset`, as GDAL's band SCALE
-/// and OFFSET metadata say, for DEMs stored as integers or in other units.
+/// @brief A band's scale and offset: a sample `s` stands for `s * scale + offset`, as GDAL's band
+/// SCALE and OFFSET metadata say.
 struct BandScaling {
-    double scale = 1.0;
-    double offset = 0.0;
+    double scale = 1.0;   ///< Multiplier of the stored sample.
+    double offset = 0.0;  ///< Added after scaling.
 
+    /// @brief Whether the scaling leaves samples unchanged.
+    /// @return True for scale 1 and offset 0.
     bool Identity() const {
         return scale == 1.0 && offset == 0.0;
     }
@@ -75,85 +77,72 @@ struct BandScaling {
     bool operator==(const BandScaling&) const = default;
 };
 
-/// The scaling of each of `bands` bands that the XML of a GDAL_METADATA tag (42112) gives in its
-/// `<Item name="SCALE" sample="n" role="scale">` and `role="offset"` items; 1 and 0 for bands it
-/// does not mention. Items for bands beyond `bands`, without a band, or whose value is not a number
-/// are ignored.
+/// @brief The band scaling a GDAL_METADATA tag (42112) gives.
 ///
-/// Reference: GDAL GTiff driver, metadata. https://gdal.org/en/stable/drivers/raster/gtiff.html
+/// Reads `<Item name="SCALE" sample="n" role="scale">` and `role="offset"` items; items for bands
+/// beyond `bands`, without a band, or whose value is not a number are ignored.
+/// @param xml The tag's XML.
+/// @param bands The number of bands.
+/// @return One scaling per band; scale 1 and offset 0 for bands not mentioned.
 std::vector<BandScaling> ParseGdalBandScaling(const std::string& xml, std::size_t bands);
 
-/// The layout and georeferencing of a GeoTIFF's first image.
+/// @brief The layout and georeferencing of a GeoTIFF's first image.
 struct GeoTiffInfo {
-    std::size_t width = 0;
-    std::size_t height = 0;
-    std::size_t bands = 0;
-    int bitsPerSample = 0;
+    std::size_t width = 0;   ///< Columns.
+    std::size_t height = 0;  ///< Rows.
+    std::size_t bands = 0;   ///< Samples per pixel.
+    int bitsPerSample = 0;   ///< Bits of each sample.
     TiffSampleFormat sampleFormat = TiffSampleFormat::UnsignedInteger;
     TiffCompression compression = TiffCompression::None;
-    int predictor = 1;  ///< 1 none, 2 horizontal differencing, 3 floating point.
-    bool tiled = false;
-    bool bigTiff = false;
-    bool bigEndian = false;
-    /// Pixel-to-world transform, the identity when the file has none; with PixelIsPoint the
-    /// origin is shifted half a pixel so it names the corner of the first pixel, as GDAL does.
+    int predictor = 1;       ///< 1 none, 2 horizontal differencing, 3 floating point.
+    bool tiled = false;      ///< Tiles rather than strips.
+    bool bigTiff = false;    ///< BigTIFF rather than classic TIFF.
+    bool bigEndian = false;  ///< Big-endian ("MM") byte order.
+    /// Pixel-to-world transform, the identity without one; for PixelIsPoint shifted half a pixel
+    /// to name the first pixel's corner, as GDAL does.
     GeoTransform transform{};
-    bool georeferenced = false;
+    bool georeferenced = false;    ///< Whether the file has a transform.
     std::optional<double> noData;  ///< From the GDAL_NODATA tag (42113).
     /// One per band, from the GDAL_METADATA tag (42112); `ReadGeoTiff` returns raw samples.
     std::vector<BandScaling> bandScaling;
-    GeoKeys geoKeys;
+    GeoKeys geoKeys;  ///< The projection keys.
 };
 
-/// Reads the layout and georeferencing of the GeoTIFF at `path` without reading pixels.
+/// @brief Reads the layout and georeferencing of a GeoTIFF's first image without its pixels.
 ///
-/// Classic TIFF and BigTIFF, in either byte order, are supported; only the first image is read,
-/// which is the full-resolution image of a cloud-optimized GeoTIFF.
-///
-/// References:
-/// - Aldus Corporation, "TIFF Revision 6.0", 1992.
-///   https://www.itu.int/itudoc/itu-t/com16/tiff-fx/docs/tiff6.pdf
-/// - BigTIFF file format, LibTIFF documentation.
-///   https://libtiff.gitlab.io/libtiff/specification/bigtiff.html
-/// - OGC GeoTIFF Standard 1.1, OGC 19-008r4, 2019.
-///   https://docs.ogc.org/is/19-008r4/19-008r4.html
-/// - GDAL GTiff driver: GDAL_NODATA tag and PixelIsPoint handling.
-///   https://gdal.org/en/stable/drivers/raster/gtiff.html
+/// Classic TIFF and BigTIFF in either byte order.
+/// @param path The file.
+/// @return The first image's layout and georeferencing.
 /// @throws GeoTiffError for unreadable or malformed files.
 GeoTiffInfo ReadGeoTiffInfo(const std::filesystem::path& path);
 
-/// A raster read from a GeoTIFF with the projection keys to write it back with.
+/// @brief A raster read from a GeoTIFF with the projection keys to write it back with.
 struct GeoTiff {
-    Raster<float> raster;
-    GeoKeys geoKeys;
+    Raster<float> raster;  ///< The band read, with the file's transform and no-data value.
+    GeoKeys geoKeys;       ///< The file's projection keys.
 };
 
-/// Reads band `band` (from 0) of the GeoTIFF at `path` as heights.
+/// @brief Reads one band of a GeoTIFF's first image as `float` samples.
 ///
-/// Strips and tiles, chunky and planar band layouts, 8- to 64-bit integer and 32- and 64-bit float
-/// samples, no compression, LZW, Deflate and PackBits, and horizontal and floating-point predictors
-/// are supported. Samples are converted to `float`. The raster gets the file's transform and
-/// no-data value; the GeoKeys are returned alongside. See `ReadGeoTiffInfo` for the specifications.
-///
-/// Reference for the floating-point predictor: Adobe, "Adobe Photoshop TIFF Technical Note 3",
-/// 2005. http://chriscox.org/TIFFTN3d1.pdf
+/// Strips or tiles, chunky or planar bands, 8- to 64-bit integer and 32- and 64-bit float samples,
+/// LZW, Deflate or PackBits, with or without a predictor. Band scaling is not applied.
+/// @param path The file.
+/// @param band The band, from 0.
+/// @return The band with the file's transform and no-data value, and the file's GeoKeys.
 /// @throws GeoTiffError for unreadable, malformed or unsupported files, or a missing band.
 GeoTiff ReadGeoTiff(const std::filesystem::path& path, std::size_t band = 0);
 
-/// GeoKeys for longitude and latitude in degrees on a sphere of radius `radius` metres, such as a
-/// planet or moon: a user-defined geographic CRS (GTModelTypeGeoKey 2, GeographicTypeGeoKey,
-/// GeogGeodeticDatumGeoKey and GeogEllipsoidGeoKey 32767), angular unit degree (9102), and
-/// semi-major and semi-minor axes both `radius`, with pixel-is-area rasters.
+/// @brief GeoKeys for longitude and latitude in degrees on a sphere, such as a planet or moon.
 ///
-/// Reference: OGC GeoTIFF Standard 1.1, OGC 19-008r4, 2019, sections 7.4 and 7.5.
-/// https://docs.ogc.org/is/19-008r4/19-008r4.html
+/// A user-defined geographic CRS with both axes `radius` and pixel-is-area rasters.
+/// @param radius The sphere's radius in metres; positive and finite.
+/// @return The keys.
 /// @throws std::invalid_argument unless `radius` is positive and finite.
 GeoKeys GeographicSphereKeys(double radius);
 
-/// Settings for `WriteGeoTiff`.
+/// @brief Settings for `WriteGeoTiff`.
 struct GeoTiffWriteOptions {
-    /// `None`, `Lzw` or `Deflate`; compressed files use the floating-point predictor, which suits
-    /// elevation data.
+    /// `None`, `Lzw` or `Deflate`; compressed files use the floating-point predictor.
     TiffCompression compression = TiffCompression::Lzw;
     /// Tile width and height in pixels; a positive multiple of 16.
     std::uint32_t tileSize = 256;
@@ -161,26 +150,38 @@ struct GeoTiffWriteOptions {
     bool bigTiff = false;
 };
 
-/// Writes `raster` as a tiled, little-endian float32 GeoTIFF.
+/// @brief Writes a raster as a tiled, little-endian float32 GeoTIFF.
 ///
-/// The raster's transform is written as ModelPixelScale and ModelTiepoint (or
-/// ModelTransformation when it is rotated), shifted back half a pixel when `geoKeys` say
-/// PixelIsPoint, so a raster read with `ReadGeoTiff`, resampled and written with its `geoKeys`
-/// keeps its projection. Georeferencing is omitted for a raster with the identity transform and no
-/// keys. The no-data value is written as GDAL_NODATA. Edge tiles are padded with the no-data value,
-/// or 0 without one.
+/// The transform is written as ModelPixelScale and ModelTiepoint, or ModelTransformation when
+/// rotated, shifted back half a pixel when `geoKeys` say PixelIsPoint; it is omitted for the
+/// identity transform without keys. The no-data value is written as GDAL_NODATA. Edge tiles are
+/// padded with the no-data value, or 0 without one.
+/// @param path The file to write.
+/// @param raster The raster; not empty.
+/// @param geoKeys The projection keys, as `ReadGeoTiff` returned them.
+/// @param options Compression, tile size and BigTIFF.
 /// @throws GeoTiffError for an empty raster, invalid options, or a file that cannot be written.
 void WriteGeoTiff(const std::filesystem::path& path, const Raster<float>& raster,
                   const GeoKeys& geoKeys = {}, const GeoTiffWriteOptions& options = {});
 
-/// Writes `bands` as one GeoTIFF of as many float32 bands, stored band after band (planar
-/// configuration 2) when there are several, with the first band's transform and no-data value;
-/// otherwise as `WriteGeoTiff` for one raster. `ReadGeoTiff` reads each band back.
-/// @throws GeoTiffError as for one raster, or for bands on different grids.
+/// @brief Writes rasters as one GeoTIFF of as many float32 bands.
+///
+/// Several bands are stored band after band (planar configuration 2), with the first band's
+/// transform and no-data value; otherwise as `WriteGeoTiff` for one raster.
+/// @param path The file to write.
+/// @param bands The bands; at least one, all on one grid.
+/// @param geoKeys The projection keys.
+/// @param options Compression, tile size and BigTIFF.
+/// @throws GeoTiffError as for one raster, or for no bands or bands on different grids.
 void WriteGeoTiff(const std::filesystem::path& path, const std::vector<Raster<float>>& bands,
                   const GeoKeys& geoKeys = {}, const GeoTiffWriteOptions& options = {});
 
-/// `WriteGeoTiff` for bands held elsewhere.
+/// @brief `WriteGeoTiff` for bands held elsewhere.
+/// @param path The file to write.
+/// @param bands The bands; at least one, all on one grid.
+/// @param geoKeys The projection keys.
+/// @param options Compression, tile size and BigTIFF.
+/// @throws GeoTiffError as for one raster, or for no bands or bands on different grids.
 void WriteGeoTiff(const std::filesystem::path& path, const std::vector<const Raster<float>*>& bands,
                   const GeoKeys& geoKeys = {}, const GeoTiffWriteOptions& options = {});
 

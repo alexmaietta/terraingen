@@ -1,3 +1,5 @@
+/// @file
+/// @brief TerrainGen's GUI: a viewer of the terrain with panels to open, edit and generate it.
 #pragma once
 
 #include "terraingen/app/gui/config_editor.h"
@@ -14,7 +16,7 @@
 
 namespace terraingen::gui {
 
-/// Options for opening a `GuiApp`.
+/// @brief Options for opening a `GuiApp`.
 struct GuiAppOptions {
     std::filesystem::path open;  ///< Configuration (.json) or heights (.tif, .tiff); may be empty.
     unsigned threads = 0;        ///< Generation threads; 0 for every hardware thread.
@@ -22,99 +24,124 @@ struct GuiAppOptions {
     std::string title = "TerrainGen";  ///< The window title.
 };
 
-/// TerrainGen's GUI (`terraingen --gui`): Ernie's viewer (`ernie::app::Viewer`) on a scene of the
-/// terrain, with
-/// Ernie's own panels hidden (the Window menu shows them again) but for its log, the viewport's
-/// ground grid, light gizmos, selection outline and toolbar menus but its settings and eye off
-/// (the eye menu shows them again), and two panels of its own:
-/// - Terrain, on the left: a toolbar to open (Ctrl+O), save (Ctrl+S) and generate (F5) with Live
-///   regeneration, the file and status, and the configuration's outliner (`ConfigEditor`);
-/// - Inspector, on the right: the settings of what the outliner selects, and the whole
-///   configuration as JSON.
-/// Opening and saving go through the viewer's file dialogs (also under the File menu).
+/// @brief TerrainGen's GUI (`terraingen --gui`): Ernie's viewer showing the terrain, with two
+/// panels of its own.
 ///
-/// Generation runs on a thread of its own, so the GUI stays responsive; the finished terrain
-/// replaces the scene's on the next frame, and the first one is framed.
+/// - Terrain, on the left: open (Ctrl+O), save (Ctrl+S), generate (F5) and Live regeneration, the
+///   file and status, and the configuration's outliner (`ConfigEditor`);
+/// - Inspector, on the right: the settings of the outliner's selection, and the configuration as
+///   JSON.
+///
+/// Of Ernie's own panels only the log starts visible, and the viewport's grid, light gizmos,
+/// selection outline and most toolbar menus start off; the Window and eye menus bring them back.
+/// Generation runs on a thread of its own; the finished terrain replaces the scene's on the next
+/// frame, and the first one shown is framed.
 class GuiApp {
   public:
-    /// Opens the window, then `Open`s `options.open` when given.
+    /// @brief Opens the window, then `Open`s `options.open` when given.
+    /// @param options The file to open, threads, visibility and title.
     /// @throws std::runtime_error if the window or GPU cannot be initialized.
     explicit GuiApp(const GuiAppOptions& options = {});
+    /// @brief Waits for a running generation, then closes the window.
     ~GuiApp();
     GuiApp(const GuiApp&) = delete;
     GuiApp& operator=(const GuiApp&) = delete;
 
-    /// Draws frames until the window closes.
+    /// @brief Draws frames until the window closes.
     void Run();
 
-    /// Draws one frame; returns whether the window is still open.
+    /// @brief Draws one frame.
+    /// @return Whether the window is still open.
     bool Step();
 
+    /// @brief The viewer the GUI runs in.
+    /// @return The viewer.
     ernie::app::Viewer& Viewer();
+    /// @brief The scene the viewer shows.
+    /// @return The scene.
     ernie::Scene& Scene();
 
-    /// Opens a configuration (.json), putting it in the editor and generating it, or heights
-    /// (.tif, .tiff), showing them at once. Errors go to the viewer's log and the panel's status.
+    /// @brief Opens a configuration, putting it in the editor and generating it, or heights,
+    /// showing them at once. Errors go to the log and the status.
+    /// @param path A configuration (.json) or heights (.tif, .tiff).
     void Open(const std::filesystem::path& path);
 
-    /// Shows `heights`, with `albedo` when given (on the same grid), as the scene's terrain,
-    /// reporting `status`, and frames them when `frame` or when nothing was shown before, as for
-    /// terrains built in code (the examples' browser). Errors go to the log and the status.
-    /// @return whether the terrain was shown.
+    /// @brief Shows heights built elsewhere, such as in code, as the scene's terrain. Errors go to
+    /// the log and the status.
+    /// @param heights The heights.
+    /// @param albedo The albedo on the heights' grid, or null.
+    /// @param geographic Whether the heights are in longitude and latitude.
+    /// @param status The status line to report once shown.
+    /// @param frame Whether to frame the terrain; the first terrain shown is always framed.
+    /// @return Whether the terrain was shown.
     bool ShowHeights(const Raster<float>& heights, const Raster<float>* albedo, bool geographic,
                      const std::string& status, bool frame = false);
 
-    /// Adds `text` to the viewer's log and makes it the status line.
+    /// @brief Adds a message to the viewer's log and makes it the status line.
+    /// @param level The log level.
+    /// @param text The message.
     void Report(ernie::app::LogLevel level, std::string text);
 
-    /// Generates the editor's configuration in the background; relative paths in it resolve
-    /// against the folder of the configuration file last opened or saved, else the working
-    /// directory. Does nothing while a generation runs.
+    /// @brief Generates the editor's configuration in the background; does nothing while a
+    /// generation runs. Relative paths resolve against the folder of the configuration file last
+    /// opened or saved, else the working directory.
     void Generate();
 
-    /// Whether a generation is running.
+    /// @brief Whether a generation is running.
+    /// @return True while a generation runs.
     bool Generating() const;
 
-    /// The configuration being edited, as JSON text (the Inspector's JSON tab).
+    /// @brief The configuration being edited, as JSON text (the Inspector's JSON tab).
+    /// @return The text.
     const std::string& ConfigText() const;
+    /// @brief Replaces the configuration's text and parses it.
+    /// @param json The new JSON text.
     void SetConfigText(std::string json);
 
-    /// The configuration parsed, as the outliner and inspector edit it: the last text that
-    /// parsed.
+    /// @brief The configuration as the outliner and inspector edit it: the last text that parsed.
+    /// @return The parsed document.
     const nlohmann::json& ConfigDocument() const;
 
-    /// Why `ConfigText()` does not parse as JSON; empty when it does.
+    /// @brief Why `ConfigText()` does not parse as JSON.
+    /// @return The parse error; empty when the text parses.
     const std::string& ConfigParseError() const;
 
-    /// Edits the configuration as the outliner and inspector do: `edit` changes the document,
-    /// the text follows, and with `Live` a generation starts shortly after.
+    /// @brief Edits the configuration as the outliner and inspector do: the text follows the
+    /// document, and with `Live` a generation starts shortly after.
+    /// @param edit Changes the document.
     void EditConfig(const std::function<void(nlohmann::json&)>& edit);
 
-    /// The outliner's and inspector's editor.
+    /// @brief The outliner's and inspector's editor.
+    /// @return The editor.
     ConfigEditor& Editor();
 
-    /// Whether each edit regenerates the terrain, a quarter second after the last one.
+    /// @brief Whether each edit regenerates the terrain, a quarter second after the last one.
+    /// @return True when Live is on.
     bool Live() const;
+    /// @brief Turns Live regeneration on or off.
+    /// @param live Whether edits regenerate the terrain.
     void SetLive(bool live);
 
-    /// Writes the editor's configuration to `path`, after checking it parses, and makes it the
-    /// file `Generate` resolves paths against. Errors go to the log and the status.
+    /// @brief Writes the editor's configuration, after checking it parses, and makes it the file
+    /// `Generate` resolves paths against. Errors go to the log and the status.
+    /// @param path The file to write.
     void SaveConfig(const std::filesystem::path& path);
 
-    /// Opens the viewer's file dialog to choose a configuration or heights to `Open`, starting in
-    /// the folder of the configuration file, as the panel's Open button and File > Open do.
+    /// @brief Opens the viewer's file dialog to choose a configuration or heights to `Open`,
+    /// starting at the configuration file.
     void ShowOpenDialog();
 
-    /// Opens the viewer's file dialog to choose where to `SaveConfig`, as Save As does.
+    /// @brief Opens the viewer's file dialog to choose where to `SaveConfig`.
     void ShowSaveDialog();
 
-    /// One line on what last happened: generated, opened, saved or failed.
+    /// @brief One line on what last happened: generated, opened, saved or failed.
+    /// @return The status line.
     const std::string& Status() const;
 
   private:
-    /// The Terrain panel: the toolbar, the file and status, and the outliner.
+    /// @brief Draws the Terrain panel: the toolbar, the file and status, and the outliner.
     void DrawTerrainPanel();
-    /// The Inspector panel: the selection's settings, and the configuration as JSON.
+    /// @brief Draws the Inspector panel: the selection's settings, and the configuration as JSON.
     void DrawInspectorPanel();
 
     struct State;

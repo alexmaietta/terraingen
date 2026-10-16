@@ -1,3 +1,5 @@
+/// @file
+/// @brief Preparing craters for one sample spacing.
 #include "terraingen/layers/craters/prepared.h"
 
 namespace terraingen {

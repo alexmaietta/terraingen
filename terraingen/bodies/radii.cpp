@@ -1,3 +1,5 @@
+/// @file
+/// @brief Mean radii of the bodies with presets.
 #include "terraingen/bodies/radii.h"
 
 namespace terraingen {

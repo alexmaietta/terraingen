@@ -1,3 +1,5 @@
+/// @file
+/// @brief Boulder placements, site frames, top surfaces and boulder meshes.
 #include "terraingen/layers/boulders/boulder_meshes.h"
 
 #include <array>
@@ -8,6 +10,7 @@ namespace terraingen {
 
 namespace {
 
+/// Axis `index` of `frame`: 0 east, 1 north, 2 up.
 const Vec3d& Axis(const LocalFrame& frame, int index) {
     return index == 0 ? frame.east : (index == 1 ? frame.north : frame.up);
 }

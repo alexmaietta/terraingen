@@ -1,3 +1,5 @@
+/// @file
+/// @brief Improved Perlin gradient noise in 2D and 3D.
 #pragma once
 
 #include "terraingen/noise/kernels/hash.h"
@@ -7,24 +9,28 @@ namespace terraingen {
 
 namespace detail {
 
-/// Quintic fade curve 6t^5 - 15t^4 + 10t^3, which has zero first and second derivatives at t = 0
-/// and t = 1, so noise is C^2 continuous across cell edges.
-///
-/// Reference: K. Perlin, "Improving Noise", ACM Transactions on Graphics 21(3):681-682, 2002
-/// (SIGGRAPH 2002). https://doi.org/10.1145/566654.566636
+/// @brief Perlin's quintic fade 6t^5 - 15t^4 + 10t^3, C^2 across cell edges.
+/// @param t The fraction within a cell, in [0, 1].
+/// @return The faded fraction, in [0, 1].
 constexpr float PerlinFade(float t) {
     return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
 }
 
+/// @brief Linear interpolation.
+/// @param t The weight of `b`.
+/// @param a The value at `t` = 0.
+/// @param b The value at `t` = 1.
+/// @return a + t (b - a).
 constexpr float Lerp(float t, float a, float b) {
     return a + t * (b - a);
 }
 
-/// Dot product of the offset (x, y) with one of eight unit gradients: the four axis directions and
-/// the four diagonals.
-///
-/// Perlin (2002) replaced random gradients with a small fixed set to avoid clumping; this is the 2D
-/// analogue of his twelve cube-edge gradients, normalized so every gradient has unit length.
+/// @brief Dot product of an offset with one of eight unit gradients: the axis directions and the
+/// diagonals.
+/// @param hash Corner hash; its low three bits pick the gradient.
+/// @param x Offset x from the corner.
+/// @param y Offset y from the corner.
+/// @return The dot product.
 inline float PerlinGradient2(uint32_t hash, float x, float y) {
     constexpr float kInvSqrt2 = 0.707106781186547524f;
     switch (hash & 7u) {
@@ -47,13 +53,22 @@ inline float PerlinGradient2(uint32_t hash, float x, float y) {
     }
 }
 
+/// @brief The hash of a 2D lattice corner, shared by Perlin and simplex noise.
+/// @param ix Corner x, wrapped to 32 bits.
+/// @param iy Corner y, wrapped to 32 bits.
+/// @param seed The noise seed.
+/// @return The hash.
 inline uint32_t PerlinCornerHash(uint32_t ix, uint32_t iy, uint32_t seed) {
     return Pcg3dHash(SeededLatticeKey2(ix, iy, seed)).x;
 }
 
-/// Dot product of the offset (x, y, z) with one of Perlin's (2002) twelve gradients, the vectors
-/// from the centre of a cube to the midpoints of its edges, chosen by the low four bits of `hash`
-/// with four of them repeated to make sixteen, as in his reference implementation.
+/// @brief Dot product of an offset with one of Perlin's twelve cube-edge gradients (sixteen with
+/// repeats).
+/// @param hash Corner hash; its low four bits pick the gradient.
+/// @param x Offset x from the corner.
+/// @param y Offset y from the corner.
+/// @param z Offset z from the corner.
+/// @return The dot product.
 inline float PerlinGradient3(uint32_t hash, float x, float y, float z) {
     const uint32_t h = hash & 15u;
     const float u = h < 8u ? x : y;
@@ -61,6 +76,12 @@ inline float PerlinGradient3(uint32_t hash, float x, float y, float z) {
     return ((h & 1u) == 0u ? u : -u) + ((h & 2u) == 0u ? v : -v);
 }
 
+/// @brief The hash of a 3D Perlin lattice corner.
+/// @param ix Corner x, wrapped to 32 bits.
+/// @param iy Corner y, wrapped to 32 bits.
+/// @param iz Corner z, wrapped to 32 bits.
+/// @param seed The noise seed.
+/// @return The hash.
 inline uint32_t PerlinCornerHash3(uint32_t ix, uint32_t iy, uint32_t iz, uint32_t seed) {
     return Pcg3dHash(PerlinLatticeKey3(ix, iy, iz, seed)).x;
 }
@@ -81,28 +102,13 @@ inline float PerlinCorner3(LatticePoint3 point, uint32_t corner, uint32_t seed) 
 
 }  // namespace detail
 
-/// 2D improved Perlin gradient noise at lattice cell (`ix`, `iy`) plus fractional offset
-/// (`fx`, `fy`) in [0, 1).
-///
-/// Taking the integer cell separately lets callers keep sub-cell precision far from the origin,
-/// where a single `float` coordinate would run out of mantissa bits.
-///
-/// Gradient noise (Perlin 1985) interpolates, with the quintic fade of Perlin (2002), the dot
-/// products of pseudo-random unit gradients at the four cell corners with the offsets to those
-/// corners. Perlin's permutation table is replaced by a stateless `pcg3d` hash of (cell, seed)
-/// (Jarzynski and Olano 2020), so any seed works without tables and the function ports directly to
-/// GPU shading languages.
-///
-/// Noise is zero at every lattice point. With unit gradients its magnitude is at most sqrt(2)/2,
-/// reached at cell centres, so the result is scaled by sqrt(2) to span [-1, 1].
-///
-/// References:
-/// - K. Perlin, "An Image Synthesizer", SIGGRAPH '85, Computer Graphics 19(3):287-296, 1985.
-///   https://doi.org/10.1145/325165.325247
-/// - K. Perlin, "Improving Noise", ACM Transactions on Graphics 21(3):681-682, 2002.
-///   https://doi.org/10.1145/566654.566636
-/// - M. Jarzynski and M. Olano, "Hash Functions for GPU Rendering", JCGT 9(3), 2020.
-///
+/// @brief 2D improved Perlin gradient noise at a lattice cell plus fraction; zero at lattice
+/// points. Passing the cell separately keeps precision far from the origin.
+/// @param ix Lattice cell x.
+/// @param iy Lattice cell y.
+/// @param fx Fraction in x, in [0, 1).
+/// @param fy Fraction in y, in [0, 1).
+/// @param seed The noise seed.
 /// @return Noise in [-1, 1].
 inline float PerlinNoise2(int32_t ix, int32_t iy, float fx, float fy, uint32_t seed) {
     const uint32_t x0 = uint32_t(ix);
@@ -125,19 +131,21 @@ inline float PerlinNoise2(int32_t ix, int32_t iy, float fx, float fy, uint32_t s
     return kSqrt2 * detail::Lerp(v, detail::Lerp(u, n00, n10), detail::Lerp(u, n01, n11));
 }
 
-/// 2D improved Perlin gradient noise at (`x`, `y`) in lattice units; see the cell-and-offset
-/// overload for the method and references.
-///
+/// @brief 2D improved Perlin gradient noise at a point in lattice units.
+/// @param x Lattice x.
+/// @param y Lattice y.
+/// @param seed The noise seed.
 /// @return Noise in [-1, 1].
 inline float PerlinNoise2(float x, float y, uint32_t seed) {
     const LatticePoint2 point = SplitLattice2(x, y);
     return PerlinNoise2(point.ix, point.iy, point.fx, point.fy, seed);
 }
 
-/// 2D improved Perlin gradient noise at (`x`, `y`) in lattice units given in double precision,
-/// split into an integer cell and a fraction before narrowing, so it stays exact far from the
-/// origin.
-///
+/// @brief 2D improved Perlin gradient noise at a double-precision point in lattice units, split
+/// into cell and fraction before narrowing so it stays exact far from the origin.
+/// @param x Lattice x.
+/// @param y Lattice y.
+/// @param seed The noise seed.
 /// @return Noise in [-1, 1].
 #ifndef __SLANG__
 inline float PerlinNoise2Precise(double x, double y, uint32_t seed) {
@@ -146,22 +154,10 @@ inline float PerlinNoise2Precise(double x, double y, uint32_t seed) {
 }
 #endif
 
-/// 3D improved Perlin gradient noise at lattice cell and fraction `point`.
-///
-/// Perlin's (2002) improved noise: the dot products of the offsets to the cell's eight corners with
-/// gradients from his set of twelve cube-edge vectors, interpolated with the quintic fade. As in
-/// `PerlinNoise2`, his permutation table is replaced by a stateless `pcg3d` hash of (cell, seed)
-/// (Jarzynski and Olano 2020), so any seed works and the function ports to GPU shading languages.
-/// Noise is zero at every lattice point. Over 2e7 random samples it stays within 0.9995 of zero,
-/// with an RMS of 0.27; it is clamped to [-1, 1] so that no rare corner case can leave it.
-///
-/// References:
-/// - K. Perlin, "Improving Noise", ACM Transactions on Graphics 21(3):681-682, 2002.
-///   https://doi.org/10.1145/566654.566636
-/// - K. Perlin, "Improved Noise reference implementation", 2002.
-/// https://mrl.cs.nyu.edu/~perlin/noise/
-/// - M. Jarzynski and M. Olano, "Hash Functions for GPU Rendering", JCGT 9(3), 2020.
-///
+/// @brief 3D improved Perlin gradient noise at a lattice cell and fraction; zero at lattice
+/// points and clamped to [-1, 1].
+/// @param point The cell and the fraction within it.
+/// @param seed The noise seed.
 /// @return Noise in [-1, 1].
 inline float PerlinNoise3(LatticePoint3 point, uint32_t seed) {
     const float c000 = detail::PerlinCorner3(point, 0u, seed);
@@ -180,10 +176,12 @@ inline float PerlinNoise3(LatticePoint3 point, uint32_t seed) {
     return clamp(detail::Lerp(w, near, far), -1.0f, 1.0f);
 }
 
-/// 3D improved Perlin gradient noise at (`x`, `y`, `z`) in lattice units given in double precision,
-/// split into an integer cell and a fraction before narrowing, so it stays exact far from the
-/// origin, such as on a planet's surface.
-///
+/// @brief 3D improved Perlin gradient noise at a double-precision point in lattice units, split
+/// into cell and fraction before narrowing so it stays exact on a planet's surface.
+/// @param x Lattice x.
+/// @param y Lattice y.
+/// @param z Lattice z.
+/// @param seed The noise seed.
 /// @return Noise in [-1, 1].
 #ifndef __SLANG__
 inline float PerlinNoise3Precise(double x, double y, double z, uint32_t seed) {
@@ -191,9 +189,11 @@ inline float PerlinNoise3Precise(double x, double y, double z, uint32_t seed) {
 }
 #endif
 
-/// 3D improved Perlin gradient noise at (`x`, `y`, `z`) in lattice units; see the cell-and-offset
-/// overload for the method and references.
-///
+/// @brief 3D improved Perlin gradient noise at a point in lattice units.
+/// @param x Lattice x.
+/// @param y Lattice y.
+/// @param z Lattice z.
+/// @param seed The noise seed.
 /// @return Noise in [-1, 1].
 inline float PerlinNoise3(float x, float y, float z, uint32_t seed) {
     return PerlinNoise3(SplitLattice3(x, y, z), seed);

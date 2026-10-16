@@ -1,3 +1,6 @@
+/// @file
+/// @brief Configurations as JSON: parsing, loading, writing, and the catalog and schema of the
+/// format.
 #pragma once
 
 #include "terraingen/pipeline/config.h"
@@ -9,13 +12,18 @@
 
 namespace terraingen {
 
-/// A problem with a configuration, located by the JSON path of the offending value, such as
+/// @brief A problem with a configuration, located by the JSON path of the offending value, such as
 /// "layers[1].density.age_gyr" or "layers[0].stack[1].octaves".
 class ConfigError : public std::runtime_error {
   public:
+    /// @brief An error at a path; the message is "path: message", or the message alone at the
+    /// root.
+    /// @param path The JSON path of the value; empty for the document as a whole.
+    /// @param message What is wrong.
     ConfigError(std::string path, const std::string& message);
 
-    /// JSON path of the value, empty for the document as a whole.
+    /// @brief The JSON path of the value.
+    /// @return The path; empty for the document as a whole.
     const std::string& Path() const {
         return path_;
     }
@@ -24,9 +32,7 @@ class ConfigError : public std::runtime_error {
     std::string path_;
 };
 
-/// Reads a configuration from JSON text.
-///
-/// A configuration has a "source", then "layers" and "filters" applied in order, and "outputs":
+/// @brief Reads a configuration from JSON text.
 ///
 ///     {"schema_version": 1,
 ///      "source": {"type": "flat", "width": 513, "height": 513, "pixel_size": 2},
@@ -35,43 +41,51 @@ class ConfigError : public std::runtime_error {
 ///      "filters": [{"type": "rim_smoothing", "sigma_radii": 0.05}],
 ///      "outputs": [{"type": "heightmap", "path": "terrain.tif"}]}
 ///
-/// Keys are snake_case versions of the C++ fields (`pixel_size`, `age_gyr`); sources, layers,
-/// filters, outputs and models are objects with a "type". Omitted keys take their defaults, and
-/// omitted lists are empty; unknown keys, wrong types and an unsupported `schema_version` are
-/// errors.
-/// @throws ConfigError for malformed JSON or a value that does not fit the format.
+/// Keys are snake_case versions of the C++ fields; sources, layers, filters, outputs and models are
+/// objects with a "type". Omitted keys take their defaults and omitted lists are empty.
+/// @param json The JSON text.
+/// @return The configuration.
+/// @throws ConfigError for malformed JSON, a missing or unsupported "schema_version", an unknown
+/// key, or a value of the wrong type.
 TerrainConfig ParseConfig(std::string_view json);
 
-/// `ParseConfig` on the contents of the file at `path`.
+/// @brief `ParseConfig` on the contents of a file.
+/// @param path The file.
+/// @return The configuration.
 /// @throws ConfigError as `ParseConfig`, or when the file cannot be read.
 TerrainConfig LoadConfig(const std::filesystem::path& path);
 
-/// The configuration as JSON with every value written out, indented by `indent` spaces; parsing the
-/// result gives back an equal configuration.
+/// @brief A configuration as JSON with every value written out; parsing it gives back an equal
+/// configuration.
+/// @param config The configuration.
+/// @param indent Spaces per indent level.
+/// @return The JSON text.
 std::string ConfigToJson(const TerrainConfig& config, int indent = 2);
 
-/// A reference of every configuration type with its defaults, as JSON: each surface, source,
-/// layer, filter and output type (as the lists "surface", "source", "layers", "filters" and
-/// "outputs"), the albedo, and under "models" one noise layer and every density, ages, degradation,
-/// profile, boulder size, region shape, albedo source and albedo layer type. Each entry is an
-/// object that parses where its kind belongs in a configuration.
+/// @brief A reference of every configuration type with its defaults, as JSON.
+///
+/// The lists "surface", "source", "layers", "filters" and "outputs" hold each type of their kind,
+/// "albedo" the albedo, and "models" one noise layer and every density, ages, degradation,
+/// profile, boulder size, region shape, albedo source and albedo layer type. Each entry parses
+/// where its kind belongs in a configuration.
+/// @param indent Spaces per indent level.
+/// @return The JSON text.
 std::string ConfigCatalog(int indent = 2);
 
-/// The structure of a configuration as JSON, for editors: what each field holds and its default.
+/// @brief The structure of a configuration as JSON, for editors: what each field holds and its
+/// default, from the same field lists the parser reads.
 ///
-/// The document has "root", the configuration object, and "definitions", every struct and choice
-/// of types described once by id ("d0", "d1", ...) and referred to as {"kind": "ref", "ref": id},
-/// since some contain themselves (a chain of sources). A schema has a "kind":
-/// - "number", "integer" (with "minimum" 0 for counts; "fixed" for the schema version),
-///   "boolean", "string";
-/// - "enum" with its "choices" and, for each, its "descriptions";
+/// The document has "schema_version", "root" (the configuration object) and "definitions", each
+/// struct and choice described once by id ("d0", "d1", ...) and referred to as
+/// {"kind": "ref", "ref": id}. A schema has a "kind":
+/// - "number", "integer" ("minimum" 0 for counts, "fixed" for the schema version), "boolean",
+///   "string";
+/// - "enum" with its "choices" and their "descriptions";
 /// - "optional" and "array" with the schema "of" what they hold and that thing's "default";
-/// - "object" with its "fields", in order, each {"name", "description", "unit", "schema",
-///   "default"}, "unit" the value's unit symbol (such as "m", "deg", "Gyr") or empty without one;
-/// - "choice" with its "alternatives", each {"type", "description", "fields", "default"}: an
-///   object whose "type" names which.
-/// Every field, type and enum value has a description, a sentence or two for editors' tooltips.
-/// It comes from the same field lists the parser reads, so it always matches it.
+/// - "object" with its "fields", each {"name", "description", "unit", "schema", "default"};
+/// - "choice" with its "alternatives", each {"type", "description", "fields", "default"}.
+/// @param indent Spaces per indent level.
+/// @return The JSON text.
 std::string ConfigSchema(int indent = 2);
 
 }  // namespace terraingen

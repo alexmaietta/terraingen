@@ -9,14 +9,13 @@
 
 namespace terraingen {
 
-/// Which craters a model applies to: diameters (m) and ages (Gyr) within these ranges, and manual
-/// craters only with `manual`.
+/// @brief Which craters a model applies to, by diameter, age and whether manual.
 struct CraterSelection {
-    double minDiameter = 0.0;
-    double maxDiameter = std::numeric_limits<double>::infinity();
-    double minAgeGyr = 0.0;
-    double maxAgeGyr = std::numeric_limits<double>::infinity();
-    bool manual = true;
+    double minDiameter = 0.0;                                      ///< Smallest diameter (m).
+    double maxDiameter = std::numeric_limits<double>::infinity();  ///< Largest diameter (m).
+    double minAgeGyr = 0.0;                                        ///< Youngest age (Gyr).
+    double maxAgeGyr = std::numeric_limits<double>::infinity();    ///< Oldest age (Gyr).
+    bool manual = true;  ///< Whether manual craters are included.
 
     /// @brief Whether a crater is selected.
     /// @param crater The crater.

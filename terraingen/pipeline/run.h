@@ -18,7 +18,7 @@
 
 namespace terraingen {
 
-/// Largest grid side a configuration may request.
+/// @brief Largest grid side, in cells, a configuration may request.
 inline constexpr std::size_t kMaxConfigGridSize = 65536;
 
 /// @brief Builds the models a crater layer selects.
@@ -35,7 +35,7 @@ CraterModels BuildCraterModels(const CraterLayerSpec& craters);
 /// @param directory Folder relative paths resolve against.
 /// @param surface The surface the grid lies on.
 /// @return The source's grid; a chain's is its first source's.
-/// @throws ConfigError for an unreadable raster or invalid grid parameters.
+/// @throws ConfigError at the source's path for an unreadable raster or invalid grid parameters.
 RasterGrid DescribeSource(const SourceSpec& source, const std::filesystem::path& directory = {},
                           const Surface& surface = {});
 
@@ -46,7 +46,7 @@ RasterGrid DescribeSource(const SourceSpec& source, const std::filesystem::path&
 /// a body.
 Surface BuildSurface(const SurfaceSpec& spec);
 
-/// What a valid configuration generates, as `ValidateConfig` finds it.
+/// @brief What a valid configuration generates, as `ValidateConfig` finds it.
 struct ConfigSummary {
     RasterGrid grid;  ///< The source's grid.
     /// Craters the top-level crater layers are expected to generate; unset when none generate.
@@ -84,12 +84,13 @@ Terrain BuildTerrain(const TerrainConfig& config, const std::filesystem::path& d
 Albedo BuildAlbedo(const TerrainConfig& config, const Terrain& terrain,
                    const std::filesystem::path& directory = {});
 
-/// A generated terrain: heights, the features the layers placed, the projection keys of a raster
-/// source, and the albedo bands when the configuration has an albedo.
+/// @brief A terrain generated from a configuration.
 struct GeneratedTerrain {
-    Raster<float> heights;
-    TerrainFeatures features;
+    Raster<float> heights;     ///< The heights over the source's grid.
+    TerrainFeatures features;  ///< The features the layers placed.
+    /// The projection of a raster source, or geographic keys on a sphere without one.
     GeoKeys geoKeys;
+    /// The albedo bands; empty without an albedo.
     std::vector<Raster<float>> albedo{};
     double seconds = 0.0;  ///< Wall-clock time the heights and albedo took to evaluate.
 };

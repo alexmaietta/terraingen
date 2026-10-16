@@ -1,3 +1,5 @@
+/// @file
+/// @brief `VulkanCompute` on volk: device selection, cached pipelines and blocking dispatch.
 #include "terraingen/gpu/vulkan.h"
 
 #include "terraingen/util/log.h"
@@ -17,6 +19,7 @@ namespace terraingen {
 
 namespace {
 
+/// Throws std::runtime_error naming `what` and the result unless `result` is VK_SUCCESS.
 void Check(VkResult result, const char* what) {
     if (result != VK_SUCCESS) {
         throw std::runtime_error(std::string("Vulkan ") + what + " failed (" +
@@ -39,6 +42,7 @@ struct Buffer {
     void* mapped = nullptr;
 };
 
+/// The first memory type allowed by `bits` that has all of `flags`.
 std::uint32_t MemoryType(const VkPhysicalDeviceMemoryProperties& memory, std::uint32_t bits,
                          VkMemoryPropertyFlags flags) {
     for (std::uint32_t i = 0; i < memory.memoryTypeCount; ++i) {
@@ -87,6 +91,7 @@ void MakeBuffer(VkDevice device, const VkPhysicalDeviceMemoryProperties& memory,
           "memory mapping");
 }
 
+/// Automatic device preference, lowest first: discrete, integrated, virtual, other.
 int DeviceRank(VkPhysicalDeviceType type) {
     switch (type) {
     case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:

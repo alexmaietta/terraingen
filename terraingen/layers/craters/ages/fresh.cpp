@@ -1,3 +1,5 @@
+/// @file
+/// @brief `FreshAges`: zero lifetimes and ages.
 #include "terraingen/layers/craters/ages/fresh.h"
 
 namespace terraingen {

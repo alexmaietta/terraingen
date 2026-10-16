@@ -1,3 +1,5 @@
+/// @file
+/// @brief Separable normalized Gaussian convolution of rasters.
 #include "terraingen/raster/filters.h"
 
 #include "terraingen/util/checks.h"
@@ -11,6 +13,7 @@ namespace terraingen {
 
 namespace {
 
+/// Unnormalized Gaussian weights of standard deviation `sigma` cells out to three sigma.
 std::vector<double> GaussianKernel(double sigma) {
     if (sigma == 0.0) {
         return {1.0};

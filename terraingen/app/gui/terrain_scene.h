@@ -1,3 +1,5 @@
+/// @file
+/// @brief The GUI's scene: its prims, lighting and settings, and terrain heights shown in it.
 #pragma once
 
 #include "terraingen/raster/raster.h"
@@ -7,21 +9,29 @@
 
 namespace terraingen::gui {
 
-/// The prims `ShowTerrain` and `SetUpScene` define.
+/// @brief The terrain prim `ShowTerrain` writes.
 inline const ernie::Path kTerrainPrim{"/World/Terrain"};
+/// @brief The terrain's material prim.
 inline const ernie::Path kMaterialPrim{"/Looks/Terrain"};
+/// @brief The sun prim `SetUpScene` defines.
 inline const ernie::Path kSunPrim{"/World/Sun"};
+/// @brief The render settings prim `SetUpScene` defines.
 inline const ernie::Path kSettingsPrim{"/Render/Settings"};
 
-/// Defines what a TerrainGen scene needs besides its terrain, keeping prims already there: a
-/// sun 30 degrees up in the north-east, the terrain's grey material, and render settings that
+/// @brief Defines what a TerrainGen scene needs besides its terrain, keeping prims already there:
+/// a sun 30 degrees up in the north-east, the terrain's grey material, and render settings that
 /// shade it with an elevation colormap.
+/// @param scene The scene to set up.
 void SetUpScene(ernie::Scene& scene);
 
-/// Writes `heights` as the scene's Terrain prim (`kTerrainPrim`), bound to `kMaterialPrim`, and
-/// `albedo`, when given, as that material's albedo map; or clears the map. Rasters are copied.
-/// @throws std::invalid_argument for a raster that is empty, rotated, not north-up, without
-/// square cells or with angular (geographic) coordinates, or an albedo raster on another grid.
+/// @brief Writes heights as the scene's terrain prim (`kTerrainPrim`), bound to `kMaterialPrim`,
+/// and an albedo as that material's albedo map, or clears the map. Rasters are copied.
+/// @param scene The scene to write to.
+/// @param heights The heights, north-up with square cells.
+/// @param geographic Whether the heights are in longitude and latitude, which cannot be shown yet.
+/// @param albedo The albedo on the heights' grid; null or empty clears the map.
+/// @throws std::invalid_argument for geographic heights, a raster with fewer than 2 x 2 cells,
+/// rotated, not north-up or without square cells, or an albedo on another grid.
 void ShowTerrain(ernie::Scene& scene, const Raster<float>& heights, bool geographic = false,
                  const Raster<float>* albedo = nullptr);
 

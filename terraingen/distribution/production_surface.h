@@ -10,14 +10,13 @@
 
 namespace terraingen {
 
-/// N(>=1 km) per m^2 on a surface `ageGyr` old, such as `NeukumLunarChronology`.
+/// @brief N(>=1 km) per m^2 on a surface `ageGyr` old, such as `NeukumLunarChronology`.
 using Chronology = std::function<double(double ageGyr)>;
 
-/// The cumulative density of craters on a surface of a given age: a production function scaled so
-/// that N(>=1 km) follows a chronology, N(D, T) = Phi(D) * N1(T) / Phi(1 km).
+/// @brief The cumulative crater density on a surface of a given age: a production function scaled
+/// so that N(>=1 km) follows a chronology, N(D, T) = Phi(D) * N1(T) / Phi(1 km).
 ///
-/// This is the population a surface would have with no erosion; small craters exceed equilibrium
-/// on old surfaces.
+/// This is the population with no erosion; small craters exceed equilibrium on old surfaces.
 class ProductionSurface final : public SizeFrequencyDistribution {
   public:
     /// @brief The surface `ageGyr` old.
@@ -31,10 +30,14 @@ class ProductionSurface final : public SizeFrequencyDistribution {
     ProductionSurface(std::shared_ptr<const SizeFrequencyDistribution> production, double ageGyr,
                       const Chronology& chronology);
 
+    /// @brief The production function.
+    /// @return The `ProductionRate` distribution the surface scales.
     const SizeFrequencyDistribution& Production() const {
         return *production_;
     }
 
+    /// @brief The surface age.
+    /// @return Age in Gyr.
     double AgeGyr() const {
         return ageGyr_;
     }

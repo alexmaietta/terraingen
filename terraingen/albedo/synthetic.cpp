@@ -1,3 +1,5 @@
+/// @file
+/// @brief Synthetic albedos: a base colour with noise in hue, saturation and value.
 #include "terraingen/albedo/synthetic.h"
 
 #include "terraingen/layers/surface_noise.h"
@@ -13,6 +15,7 @@ namespace terraingen {
 
 namespace {
 
+/// Checks one noise stack's size and layers.
 void ValidateStack(const std::vector<NoiseLayer>& layers) {
     if (layers.size() > kMaxNoiseLayers) {
         throw std::invalid_argument("Too many albedo noise layers");

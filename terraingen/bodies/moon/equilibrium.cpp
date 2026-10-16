@@ -1,3 +1,5 @@
+/// @file
+/// @brief Lunar crater equilibrium densities.
 #include "terraingen/bodies/moon/equilibrium.h"
 
 #include <cmath>

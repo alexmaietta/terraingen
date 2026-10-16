@@ -15,30 +15,28 @@
 
 namespace terraingen {
 
-/// The models craters are shaped with: their profile and the degradation state it is drawn in.
+/// @brief The models craters are shaped with: their profile and the degradation state it is drawn
+/// in.
 struct CraterShapeModels {
-    std::shared_ptr<const CraterProfile> profile;
-    std::shared_ptr<const DegradationModel> degradation;
+    std::shared_ptr<const CraterProfile> profile;         ///< Height by distance from the centre.
+    std::shared_ptr<const DegradationModel> degradation;  ///< Each crater's state.
 };
 
-/// How `ApplyCraters` samples a raster.
+/// @brief How `ApplyCraters` samples a raster.
 struct CraterSampling {
-    /// Sample spacing in world units; 0 means the raster's cell size, and a finer spacing is
-    /// raised to it.
+    /// Sample spacing in world units; 0 or anything finer means the raster's cell size.
     double spacing = 0.0;
-    /// Threads to split the work over; 0 for every hardware thread. The result does not depend on
-    /// it.
-    unsigned threads = 1;
+    unsigned threads = 1;  ///< Worker threads, 0 for all; the result does not depend on it.
     /// The ground datums are fitted to; empty for the raster as passed in, interpolated
     /// bilinearly.
     HeightSampler ground{};
 };
 
-/// @brief The height at a point after one crater: what `ApplyCraters` does to a cell centred
-/// there, shared with point queries so both give the same bits.
+/// @brief The height at a point after one crater, bit-identical to what `ApplyCraters` does to a
+/// cell centred there.
 ///
-/// Without a datum the profile, weighted by the crater's resolution, is added. With one, the
-/// terrain is also moved toward the datum by `interiorReplacement` times the blend weight.
+/// Adds the profile weighted by the crater's resolution; with a datum, also moves the terrain
+/// toward the datum by `interiorReplacement` times the blend weight.
 /// @param height The height before the crater.
 /// @param x Surface x of the point.
 /// @param y Surface y of the point.
@@ -51,18 +49,12 @@ float ApplyCraterTo(float height, double x, double y, const PreparedCrater& crat
 
 /// @brief Applies craters to a raster, in turn, in the order `options` gives.
 ///
-/// Each crater is shaped by `models.profile` in the state `models.degradation` gives it, weighted
-/// by `ResolutionWeight` at the sample spacing. With a datum, each datum is fitted
-/// (`FitCraterDatum`) to `sampling.ground` plus the relief of the craters before it
-/// (`DatumGround`); craters off the raster still count toward the datums of craters on it, so
-/// callers pass the craters within `DatumMargin` of the raster. Every cell depends only on the
-/// craters reaching it and their datums, so with a ground that covers the footprints a tile of a
-/// larger raster gets the same cells as the larger raster. Cells holding the raster's no-data
-/// value are left unchanged and excluded from the fit. See SCIENCE.md, "Crater datums and
-/// blends".
+/// Each crater is weighted by `ResolutionWeight`; with a datum, each is fitted to `sampling.ground`
+/// plus the relief of the craters before it. No-data cells are left unchanged and excluded from
+/// the fit.
 /// @param raster The heights to change; its transform maps pixels to the craters' surface
 /// coordinates.
-/// @param craters The craters.
+/// @param craters The craters; with a datum, those within `DatumMargin` of the raster.
 /// @param models The profile and degradation; neither may be null.
 /// @param options How the craters are applied.
 /// @param sampling The sample spacing, threads and ground.

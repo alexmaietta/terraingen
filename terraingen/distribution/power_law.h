@@ -8,12 +8,12 @@
 
 namespace terraingen {
 
-/// A power law N(>=D) = `coefficient` * D^(-`exponent`) from `start` metres, alone or as one
-/// segment of a `PiecewisePowerLawSfd`.
+/// @brief A power law N(>=D) = `coefficient` * D^(-`exponent`) from `start` metres, alone or as
+/// one segment of a `PiecewisePowerLawSfd`.
 struct PowerLawSegment {
-    double start = 0.0;
-    double coefficient = 1.0;
-    double exponent = 2.0;
+    double start = 0.0;        ///< First diameter, metres.
+    double coefficient = 1.0;  ///< N(>=1 m), per m^2 (or per m^2 per Gyr); positive.
+    double exponent = 2.0;     ///< Cumulative slope; positive.
 
     /// @brief N(>=D).
     /// @param diameter D in metres.
@@ -39,18 +39,28 @@ struct PowerLawSegment {
     bool operator==(const PowerLawSegment&) const = default;
 };
 
-/// N(>=D) = `coefficient` * D^(-`exponent`), with D in metres and N per m^2 (or per m^2 per Gyr).
+/// @brief N(>=D) = `coefficient` * D^(-`exponent`), with D in metres and N per m^2 (or per m^2 per
+/// Gyr).
 class PowerLawSfd final : public SizeFrequencyDistribution {
   public:
+    /// @brief The power law with the given coefficient and exponent.
+    /// @param coefficient N(>=1 m), per m^2 (or per m^2 per Gyr).
+    /// @param exponent The cumulative slope.
+    /// @param kind What the values measure.
+    /// @param range The valid range, in metres.
     /// @throws std::invalid_argument unless `coefficient` and `exponent` are positive and finite
     /// and the range is valid.
     PowerLawSfd(double coefficient, double exponent, SfdKind kind = SfdKind::Density,
                 DiameterRange range = {});
 
+    /// @brief The coefficient.
+    /// @return N(>=1 m), per m^2 (or per m^2 per Gyr).
     double Coefficient() const {
         return law_.coefficient;
     }
 
+    /// @brief The exponent.
+    /// @return The cumulative slope.
     double Exponent() const {
         return law_.exponent;
     }

@@ -1,3 +1,5 @@
+/// @file
+/// @brief `ScaleLayer`, `ClampLayer` and `FunctionLayer`.
 #include "terraingen/layers/transforms.h"
 
 #include "terraingen/raster/cell_loops.h"

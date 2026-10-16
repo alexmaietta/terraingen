@@ -1,3 +1,5 @@
+/// @file
+/// @brief Size-frequency distributions spliced from others.
 #include "terraingen/distribution/spliced.h"
 
 #include "terraingen/distribution/combined.h"

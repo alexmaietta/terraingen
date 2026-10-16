@@ -1,8 +1,8 @@
-#pragma once
-
-/// The prelude that lets kernel headers compile both as C++, for the CPU, and as Slang, for GPU
-/// backends, so each kernel has one source (see "GPU strategy" in ARCHITECTURE.md). Kernel headers
-/// are plain C++ in the subset both languages accept:
+/// @file
+/// @brief Prelude that compiles kernel headers both as C++ (CPU) and as Slang (GPU).
+///
+/// Each kernel has one source (see "GPU strategy" in ARCHITECTURE.md). Kernel headers are plain C++
+/// in the subset both languages accept:
 ///
 /// - `uint32_t`, `int32_t`, `int`, `float` and `bool`, with `abs`, `clamp`, `floor`, `min`, `max`,
 ///   `pow` and `sqrt` unqualified;
@@ -14,6 +14,7 @@
 /// - `constexpr` and `inline` functions, which Slang compiles as ordinary functions;
 /// - no templates, lambdas or standard library. C++-only extras, such as comparison operators and
 ///   double-precision entry points, go under `#ifndef __SLANG__`.
+#pragma once
 
 #ifdef __SLANG__
 

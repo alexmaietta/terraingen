@@ -1,3 +1,5 @@
+/// @file
+/// @brief Crater ages on lunar surfaces where small craters are in equilibrium.
 #include "terraingen/bodies/moon/steady_state.h"
 
 #include <cmath>
@@ -8,6 +10,7 @@ namespace terraingen {
 
 namespace {
 
+/// An age in [0, `maxAgeGyr`] drawn from the Neukum formation rate, by bisection on N1(T).
 double SampleNeukumFormationAge(RandomStream& random, double maxAgeGyr) {
     const double target = random.NextDouble() * NeukumLunarChronology(maxAgeGyr);
     double low = 0.0;

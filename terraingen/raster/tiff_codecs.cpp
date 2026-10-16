@@ -1,3 +1,5 @@
+/// @file
+/// @brief TIFF LZW codec, and Deflate and PackBits decoding and Deflate encoding.
 #include "terraingen/raster/tiff_codecs.h"
 
 #include "terraingen/raster/geotiff.h"

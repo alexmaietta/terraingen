@@ -1,3 +1,5 @@
+/// @file
+/// @brief Falloff curves and resolution weights.
 #include "terraingen/layers/fade.h"
 
 #include <algorithm>

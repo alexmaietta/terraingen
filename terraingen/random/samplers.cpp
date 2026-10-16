@@ -1,3 +1,5 @@
+/// @file
+/// @brief Samplers for Poisson, power-law, exponential, normal and tabulated distributions.
 #include "terraingen/random/samplers.h"
 
 #include "terraingen/util/checks.h"
@@ -12,6 +14,8 @@ namespace terraingen {
 
 namespace {
 
+/// Poisson count by multiplying uniforms until the product falls below exp(-`mean`); for small
+/// means.
 std::uint64_t PoissonMultiplication(RandomStream& random, double mean) {
     const double limit = std::exp(-mean);
     std::uint64_t count = 0;
@@ -23,6 +27,7 @@ std::uint64_t PoissonMultiplication(RandomStream& random, double mean) {
     return count;
 }
 
+/// Poisson count by Hormann's transformed rejection with squeeze (PTRS); for means of 10 or more.
 std::uint64_t PoissonPtrs(RandomStream& random, double mean) {
     const double sqrtMean = std::sqrt(mean);
     const double logMean = std::log(mean);

@@ -1,3 +1,5 @@
+/// @file
+/// @brief Bright, immature ejecta, interiors and rays around fresh craters.
 #include "terraingen/albedo/crater_albedo.h"
 
 #include "terraingen/layers/craters/secondaries.h"
@@ -336,6 +338,7 @@ std::vector<CraterAlbedo::Prepared> CraterAlbedo::Gather(const Bounds2d& region,
 
 namespace {
 
+/// Moves `value` to the reflectance at the background maturity plus `excess`, capped.
 void Brighten(AlbedoSample& value, std::size_t bands, double excess, const CraterAlbedoOptions& o) {
     if (excess == 0.0) {
         return;

@@ -1,3 +1,5 @@
+/// @file
+/// @brief `CraterAgeModel`'s checked lifetimes, ages and remaining lifetimes.
 #include "terraingen/layers/craters/ages/age_model.h"
 
 #include "terraingen/util/checks.h"

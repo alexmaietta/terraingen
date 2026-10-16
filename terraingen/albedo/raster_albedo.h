@@ -13,20 +13,17 @@
 
 namespace terraingen {
 
-/// Detail below a map's resolution: fractal noise that continues the map's own roughness to finer
-/// scales. The map's roughness is measured once from the structure function of the logarithm of
-/// its brightness at lags of 1, 2, 4 and 8 cells; octave i of the detail has wavelength c / 2^(i+1)
-/// for cell size c and RMS sqrt(D(c) / 2) 2^(-(i+1)H) for Hurst exponent H, and the albedo is
-/// multiplied by e to their sum. Octaves too fine for the sample spacing fade out
-/// (`ResolutionFade`). See SCIENCE.md, "Albedo detail".
+/// @brief Detail below a map's resolution: fractal noise that continues the map's own measured
+/// roughness to finer scales, multiplying the albedo. Octaves too fine for the sample spacing fade
+/// out.
 struct AlbedoDetail {
-    bool enabled = true;
-    std::uint32_t seed = 0;
-    int octaves = 4;     ///< Octaves of detail; 1 to 16.
-    double scale = 1.0;  ///< Multiplies the RMS of every octave; 0 adds none.
+    bool enabled = true;     ///< Whether detail is added.
+    std::uint32_t seed = 0;  ///< Noise seed.
+    int octaves = 4;         ///< Octaves of detail; 1 to 16.
+    double scale = 1.0;      ///< Multiplies the RMS of every octave; 0 adds none.
     /// The Hurst exponent to use instead of the measured one, in [0, 1].
     std::optional<double> hurst;
-    ResolutionFade fade{};
+    ResolutionFade fade{};  ///< How octaves too fine for the sample spacing fade out.
 
     bool operator==(const AlbedoDetail&) const = default;
 };
@@ -37,10 +34,10 @@ struct AlbedoDetail {
 /// Hurst exponent outside [0, 1], or an invalid fade.
 void ValidateAlbedoDetail(const AlbedoDetail& detail);
 
-/// How a `RasterAlbedo` interpolates its map and adds detail.
+/// @brief How a `RasterAlbedo` interpolates its map and adds detail.
 struct RasterAlbedoOptions {
-    ResampleMethod method = ResampleMethod::Cubic;
-    AlbedoDetail detail{};
+    ResampleMethod method = ResampleMethod::Cubic;  ///< Interpolation of the map.
+    AlbedoDetail detail{};                          ///< Sub-cell detail.
 
     bool operator==(const RasterAlbedoOptions&) const = default;
 };
@@ -66,9 +63,9 @@ std::optional<double> StructureFunction(const std::vector<double>& values, std::
 /// @return The slope.
 double FitSlope(const std::vector<double>& x, const std::vector<double>& y);
 
-/// An albedo map, such as a normal albedo mosaic from orbit, upscaled to the grid: interpolated
-/// with `method` (`SampleRaster`), then given sub-cell detail (`AlbedoDetail`). Outside the map,
-/// or where it has no data, the albedo is NaN.
+/// @brief An albedo map, such as a normal albedo mosaic from orbit, upscaled to the grid:
+/// interpolated with `method` (`SampleRaster`), then given sub-cell detail (`AlbedoDetail`).
+/// Outside the map, or where it has no data, the albedo is NaN.
 class RasterAlbedo final : public AlbedoSource {
   public:
     /// @brief Builds the albedo and measures the map's roughness.
@@ -83,10 +80,17 @@ class RasterAlbedo final : public AlbedoSource {
     RasterAlbedo(std::vector<Raster<float>> bands, RasterAlbedoOptions options = {},
                  Surface surface = {});
 
+    /// @brief The number of bands.
+    /// @return 1 or 3, as the map has.
     std::size_t Bands() const override {
         return bands_.size();
     }
 
+    /// @brief The map interpolated at a point, with detail resolved at `context.spacing`.
+    /// @param x World x (longitude on a sphere).
+    /// @param y World y (latitude on a sphere).
+    /// @param context How the albedo is evaluated.
+    /// @return The albedo; NaN outside the map or where it has no data.
     AlbedoSample ValueAt(double x, double y, const AlbedoContext& context) const override;
 
     /// @brief The Hurst exponent the detail uses.
@@ -102,6 +106,8 @@ class RasterAlbedo final : public AlbedoSource {
         return roughness_;
     }
 
+    /// @brief The options.
+    /// @return Interpolation and detail.
     const RasterAlbedoOptions& Options() const {
         return options_;
     }

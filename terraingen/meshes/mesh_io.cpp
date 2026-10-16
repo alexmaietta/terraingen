@@ -1,3 +1,5 @@
+/// @file
+/// @brief PLY and binary glTF writers for meshes and instanced scenes.
 #include "terraingen/meshes/mesh_io.h"
 
 #include <array>
@@ -19,6 +21,8 @@ namespace {
 static_assert(std::endian::native == std::endian::little,
               "The mesh writers assume a little-endian host");
 
+/// Throws for normals that are neither empty nor one per vertex, or a triangle indexing past the
+/// vertices.
 void CheckMesh(const TriangleMesh& mesh, const std::vector<Vec3d>& normals) {
     if (!normals.empty() && normals.size() != mesh.positions.size()) {
         throw std::invalid_argument("Normals must be empty or one per vertex");
@@ -94,6 +98,7 @@ constexpr std::uint32_t kGlbVersion = 2;
 constexpr std::uint32_t kJsonChunk = 0x4E4F534Au;
 constexpr std::uint32_t kBinChunk = 0x004E4942u;
 
+/// `value` as JSON with 9 significant digits, negative zero written as 0.
 std::string Number(double value) {
     std::array<char, 32> buffer{};
     std::snprintf(buffer.data(), buffer.size(), "%.9g", value == 0.0 ? 0.0 : value);

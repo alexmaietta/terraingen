@@ -17,18 +17,17 @@
 
 namespace terraingen {
 
-/// How long a crater keeps its immature, bright material, by diameter, after Werner and Medvedev
-/// (2010): `smallMyr` up to `smallDiameter`, a power law of diameter up to `midDiameter`, `midMyr`
-/// up to `largeDiameter` and `largeMyr` beyond, every time multiplied by `scale`. See SCIENCE.md,
-/// "Ray retention".
+/// @brief How long a crater keeps its immature, bright material, by diameter, after Werner and
+/// Medvedev (2010): `smallMyr` up to `smallDiameter`, a power law of diameter up to `midDiameter`,
+/// `midMyr` up to `largeDiameter` and `largeMyr` beyond, every time multiplied by `scale`.
 struct RayRetention {
-    double smallDiameter = 1000.0;  ///< At or below this diameter (m), `smallMyr`.
-    double smallMyr = 5.0;
-    double midDiameter = 5000.0;  ///< From this diameter (m) to `largeDiameter`, `midMyr`.
-    double midMyr = 750.0;
+    double smallDiameter = 1000.0;   ///< At or below this diameter (m), `smallMyr`.
+    double smallMyr = 5.0;           ///< Retention of small craters, Myr.
+    double midDiameter = 5000.0;     ///< From this diameter (m) to `largeDiameter`, `midMyr`.
+    double midMyr = 750.0;           ///< Retention of mid-sized craters, Myr.
     double largeDiameter = 50000.0;  ///< Above this diameter (m), `largeMyr`.
-    double largeMyr = 750.0;
-    double scale = 1.0;
+    double largeMyr = 750.0;         ///< Retention of large craters, Myr.
+    double scale = 1.0;              ///< Multiplies every time.
 
     /// @brief The retention time of a crater.
     /// @param diameter The crater's diameter, in metres.
@@ -44,20 +43,18 @@ struct RayRetention {
 /// and scale positive, all finite.
 void ValidateRayRetention(const RayRetention& retention);
 
-/// How oblique impacts shape a crater's rays. Each crater gets an impact angle from the horizontal
-/// with P(< theta) = sin^2 theta and a downrange direction, `heading` or uniform at random. Below
-/// `asymmetricDegrees` rays are longer downrange, by a downrange over uprange ejection speed ratio
-/// drawn from `downrangeSpeedRatio`; below `forbiddenDegrees` rays within `zoneHalfWidthDegrees` of
-/// uprange are dropped; below `butterflyDegrees` those near downrange are dropped too. See
-/// SCIENCE.md, "Oblique impacts".
+/// @brief How oblique impacts shape a crater's rays. Each crater gets an impact angle from the
+/// horizontal with P(< theta) = sin^2 theta and a downrange direction, `heading` or uniform at
+/// random.
 struct ObliqueImpacts {
-    bool enabled = true;
-    std::optional<double> heading;  ///< Downrange, radians counter-clockwise from east.
-    double asymmetricDegrees = 45.0;
-    double forbiddenDegrees = 25.0;
-    double butterflyDegrees = 10.0;
+    bool enabled = true;              ///< Whether impacts can be oblique; otherwise all vertical.
+    std::optional<double> heading;    ///< Downrange, radians counter-clockwise from east.
+    double asymmetricDegrees = 45.0;  ///< Below this angle rays are longer downrange.
+    double forbiddenDegrees = 25.0;   ///< Below this angle rays near uprange are dropped.
+    double butterflyDegrees = 10.0;   ///< Below this angle rays near downrange are dropped too.
+    /// Downrange over uprange ejection speed, at least 1.
     ValueDistribution downrangeSpeedRatio{ValueDistribution::Kind::Uniform, 1.2, 1.4};
-    double zoneHalfWidthDegrees = 45.0;
+    double zoneHalfWidthDegrees = 45.0;  ///< Half width of a forbidden zone, in [0, 180].
 
     /// @brief The most a ray's length can be multiplied by.
     /// @return (1 + a)^2 / (1 + a^2 / 2) for the highest speed ratio's asymmetry a; 1 when
@@ -67,7 +64,7 @@ struct ObliqueImpacts {
     bool operator==(const ObliqueImpacts&) const = default;
 };
 
-/// The impact that formed a crater, as `ObliqueImpacts` draws it.
+/// @brief The impact that formed a crater, as `ObliqueImpacts` draws it.
 struct CraterImpact {
     double angleDegrees = 90.0;  ///< From the horizontal.
     double heading = 0.0;        ///< Downrange, radians counter-clockwise from east.
@@ -81,23 +78,23 @@ struct CraterImpact {
 /// width outside [0, 180], or a heading that is not finite.
 void ValidateObliqueImpacts(const ObliqueImpacts& oblique);
 
-/// The rays of a crater: narrow streaks of immature material running out from the rim, after
-/// Elliott et al. (2018). A crater has `count` rays at uniform azimuths, each the median length
-/// (`ElliottMedianRayLength` with `lengthCoefficient` and `lengthExponent`) times e to
-/// `lengthSpread`, spanning `widthDegrees` 2 radii from the centre and its width there beyond, of
-/// maturity excess `excess` at the rim falling linearly to 0 at its end, broken by value noise of
-/// wavelength `patchRadii` radii taking up to `patchiness` away. See SCIENCE.md, "Crater rays".
+/// @brief The rays of a crater: narrow streaks of immature material running out from the rim,
+/// after Elliott et al. (2018), at uniform azimuths, fading linearly to their ends and broken by
+/// value noise.
 struct CraterRays {
-    bool enabled = true;
+    bool enabled = true;  ///< Whether craters have rays.
+    /// Rays per crater, 0 to 64.
     ValueDistribution count{ValueDistribution::Kind::Normal, 10.7, 3.1, 6.0, 20.0};
-    double lengthCoefficient = 6.59;
-    double lengthExponent = 1.27;
+    double lengthCoefficient = 6.59;  ///< Coefficient of `ElliottMedianRayLength`.
+    double lengthExponent = 1.27;     ///< Exponent of `ElliottMedianRayLength`.
+    /// Natural log of a ray's length over the median.
     ValueDistribution lengthSpread{ValueDistribution::Kind::Uniform, -0.356, 0.468};
+    /// Angular width 2 radii from the centre, in (0, 180) degrees; the width there holds beyond.
     ValueDistribution widthDegrees{ValueDistribution::Kind::Normal, 22.0, 8.3, 5.4, 38.6};
-    double excess = 0.048;
-    double patchiness = 0.5;
-    double patchRadii = 0.5;
-    ObliqueImpacts oblique{};
+    double excess = 0.048;     ///< Maturity excess at the rim, in OMAT; >= 0.
+    double patchiness = 0.5;   ///< Most of the excess the noise takes away, in [0, 1].
+    double patchRadii = 0.5;   ///< Noise wavelength, in crater radii; positive.
+    ObliqueImpacts oblique{};  ///< How oblique impacts shape the rays.
 
     /// @brief The median ray length of a crater.
     /// @param diameter The crater's diameter, in metres.
@@ -114,29 +111,28 @@ struct CraterRays {
 /// a patchiness outside [0, 1] or a non-positive patch wavelength.
 void ValidateCraterRays(const CraterRays& rays);
 
-/// The bright material of fresh craters, in optical maturity (OMAT) over the background's
-/// `backgroundMaturity`: `interiorExcess` inside the rim, `ejectaExcess` at the rim falling as
-/// (r / R)^-`ejectaExponent` to 0 at `ejectaReachRadii`, and the rays of `CraterRays`. Excesses
-/// fade with age t as max(0, 1 - t / T)^`fadeExponent` for retention time T (`RayRetention`), add
-/// over overlapping craters and are capped at `maxMaturity`; the albedo then moves with maturity
-/// (`ReflectanceAtMaturity`). The defaults are Tycho's. See SCIENCE.md, "Crater albedo".
+/// @brief The bright material of fresh craters, in optical maturity (OMAT) over the background's:
+/// an interior excess, ejecta falling as a power of distance, and rays. Excesses fade with age
+/// over the retention time, add over overlapping craters and are capped; the albedo then moves
+/// with maturity (`ReflectanceAtMaturity`). The defaults are Tycho's.
 struct CraterAlbedoOptions {
-    std::uint32_t seed = 0;
+    std::uint32_t seed = 0;  ///< Seed of the per-crater draws.
     /// The craters with bright material at all.
     CraterSelection selection{};
     double share = 1.0;  ///< Share of selected craters with bright material.
 
-    double backgroundMaturity = 0.202;
-    double maxMaturity = 0.42;
-    double interiorExcess = 0.132;
-    double ejectaExcess = 0.076;
-    double ejectaExponent = 3.0;
-    double ejectaReachRadii = 3.0;
-    CraterRays rays{};
-    RayRetention retention{};
-    double fadeExponent = 1.0;
+    double backgroundMaturity = 0.202;  ///< OMAT of the background; positive.
+    double maxMaturity = 0.42;          ///< Cap on OMAT; >= `backgroundMaturity`.
+    double interiorExcess = 0.132;      ///< Excess inside the rim.
+    double ejectaExcess = 0.076;        ///< Excess of the ejecta at the rim.
+    double ejectaExponent = 3.0;        ///< The ejecta excess falls as (r / R)^-this.
+    double ejectaReachRadii = 3.0;      ///< Where the ejecta excess reaches 0, in radii; > 1.
+    CraterRays rays{};                  ///< The rays.
+    RayRetention retention{};           ///< Retention time T by diameter.
+    double fadeExponent = 1.0;          ///< Excesses fade as max(0, 1 - t / T)^this.
+    /// Reflectance of the optical maturity origin (`ReflectanceAtMaturity`).
     double originReflectance = OpticalMaturityOrigin{}.reflectance;
-    ResolutionFade fade{};
+    ResolutionFade fade{};  ///< How craters too small to resolve fade out.
 
     bool operator==(const CraterAlbedoOptions&) const = default;
 };
@@ -148,7 +144,7 @@ struct CraterAlbedoOptions {
 /// non-positive ejecta exponent, a reach of 1 radius or less, or a non-positive fade exponent.
 void ValidateCraterAlbedo(const CraterAlbedoOptions& options);
 
-/// The bright ejecta, interiors and rays of the craters of a `CraterLayer`, as
+/// @brief The bright ejecta, interiors and rays of the craters of a `CraterLayer`, as
 /// `CraterAlbedoOptions` describes, shaped by the craters' irregular outlines where the layer has
 /// them. The craters come from the layer for the region being evaluated, widened by the longest
 /// ray, so every grid, tile and point agrees; excesses are summed in crater ID order.
@@ -160,9 +156,18 @@ class CraterAlbedo final : public AlbedoLayer {
     /// @throws std::invalid_argument for a null layer or invalid options.
     CraterAlbedo(std::shared_ptr<const CraterLayer> craters, CraterAlbedoOptions options = {});
 
+    /// @brief Brightens the albedo at one point by the craters' summed excess.
+    /// @param value The albedo there, changed in place; NaN stays NaN.
+    /// @param bands Bands of `value` in use.
+    /// @param x World x.
+    /// @param y World y.
+    /// @param context How the albedo is evaluated.
     void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
                  const AlbedoContext& context) const override;
 
+    /// @brief `ApplyAt` at every cell centre, gathering craters once per block of rows.
+    /// @param bands One raster per band on one grid, changed in place.
+    /// @param context How the albedo is evaluated.
     void Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const override;
 
     /// @brief The excess optical maturity a crater gives a point.
@@ -183,6 +188,8 @@ class CraterAlbedo final : public AlbedoLayer {
     /// @return The farthest of its ejecta and its rays, in metres; 0 without bright material.
     double Reach(const Crater& crater) const;
 
+    /// @brief The options.
+    /// @return How bright, and for how long.
     const CraterAlbedoOptions& Options() const {
         return options_;
     }

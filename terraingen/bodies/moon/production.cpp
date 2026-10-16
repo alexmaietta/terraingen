@@ -1,3 +1,5 @@
+/// @file
+/// @brief The Neukum et al. (2001) lunar production function and its small-crater extension.
 #include "terraingen/bodies/moon/production.h"
 
 #include "terraingen/distribution/power_law.h"

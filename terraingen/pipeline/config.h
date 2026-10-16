@@ -1,3 +1,6 @@
+/// @file
+/// @brief The configuration specs: what a terrain configuration holds, as plain structs and
+/// variants.
 #pragma once
 
 #include "terraingen/albedo/crater_albedo.h"
@@ -35,41 +38,43 @@
 
 namespace terraingen {
 
-/// Version of the configuration format that this library reads and writes.
+/// @brief Version of the configuration format that this library reads and writes.
 inline constexpr int kConfigSchemaVersion = 1;
 
-/// One noise layer; when `hurst` is set, the octave gain is derived from it (`GainFromHurst`)
-/// instead of `layer.fractal.gain`.
+/// @brief One noise layer, its octave gain optionally derived from a Hurst exponent.
 struct NoiseLayerConfig {
     NoiseLayer layer{};
+    /// When set, the octave gain comes from it (`GainFromHurst`) instead of `layer.fractal.gain`.
     std::optional<float> hurst;
 
-    /// `layer` with the gain from `hurst` applied.
+    /// @brief The layer with the gain from `hurst` applied.
+    /// @return `layer`, its gain replaced when `hurst` is set.
     NoiseLayer Effective() const;
 
     bool operator==(const NoiseLayerConfig&) const = default;
 };
 
-/// "flat": a level datum at `elevation` over a `width` x `height` grid of `pixelSize` metres,
-/// centred on (`centreX`, `centreY`) in surface coordinates, the origin by default (`FlatSource`).
+/// @brief Source "flat": a level datum over a `width` x `height` grid (`FlatSource`).
+///
 /// On a sphere the centre is a longitude and latitude, and cells are `pixelSize` metres along a
 /// meridian, the same in degrees of longitude.
 struct FlatSourceSpec {
-    std::size_t width = 513;
-    std::size_t height = 513;
-    double pixelSize = 2.0;
-    float elevation = 0.0f;
-    double centreX = 0.0;
-    double centreY = 0.0;
+    std::size_t width = 513;   ///< Cells.
+    std::size_t height = 513;  ///< Cells.
+    double pixelSize = 2.0;    ///< Metres.
+    float elevation = 0.0f;    ///< The datum's height, in metres.
+    double centreX = 0.0;      ///< Centre in surface coordinates.
+    double centreY = 0.0;      ///< Centre in surface coordinates.
 
     bool operator==(const FlatSourceSpec&) const = default;
 };
 
-/// "raster": a heightmap read from a GeoTIFF, in its own projected coordinates (`GeoTiffSource`).
+/// @brief Source "raster": a heightmap read from a GeoTIFF, in its own projected coordinates
+/// (`GeoTiffSource`).
 ///
 /// Relative paths resolve against the configuration's folder. The raster can be resampled to
-/// `pixelSize` metres over the same extent, as when upscaling a DEM; layers then add relief in its
-/// coordinates, which must be a projection in metres.
+/// `pixelSize` metres over the same extent, as when upscaling a DEM; its coordinates must then be
+/// a projection in metres.
 struct RasterSourceSpec {
     std::string path;
     std::size_t band = 0;             ///< From 0.
@@ -83,100 +88,116 @@ struct RasterSourceSpec {
 
 struct ChainSourceSpec;
 
+/// @brief A source, named in JSON by its "type".
 using SourceSpec = std::variant<FlatSourceSpec, RasterSourceSpec, ChainSourceSpec>;
 
-/// "chain": `sources` tried in order, each filling where those before it have no data
-/// (`SourceChain`); the terrain covers the first source's grid.
+/// @brief Source "chain": `sources` tried in order, each filling where those before it have no
+/// data (`SourceChain`); the terrain covers the first source's grid.
 struct ChainSourceSpec {
     std::vector<SourceSpec> sources;
 
     bool operator==(const ChainSourceSpec&) const = default;
 };
 
-/// "noise": a stack of noise layers added to the terrain (`NoiseRelief`), from 1 to
-/// `kMaxNoiseLayers`, measured from the source's reference point.
+/// @brief Layer "noise": a stack of 1 to `kMaxNoiseLayers` noise layers added to the terrain
+/// (`NoiseRelief`), measured from the source's reference point.
 struct NoiseLayerSpec {
     std::vector<NoiseLayerConfig> stack{NoiseLayerConfig{}};
 
-    /// The stack as `SyntheticTerrainParams`, with each layer's Hurst exponent applied.
+    /// @brief The stack as terrain parameters.
+    /// @return The parameters, with each layer's Hurst exponent applied.
     SyntheticTerrainParams Params() const;
 
     bool operator==(const NoiseLayerSpec&) const = default;
 };
 
-/// Crater densities, named in JSON by their "type".
-struct LunarSurfaceSpec {  ///< "lunar_surface": `LunarSurface(ageGyr)`, density and ages.
+/// @brief Crater density "lunar_surface": `LunarSurface(ageGyr)`, density and ages.
+struct LunarSurfaceSpec {
     double ageGyr = 3.5;
     bool operator==(const LunarSurfaceSpec&) const = default;
 };
-struct MarsSurfaceSpec {  ///< "mars_surface": `MarsSurface(ageGyr)`, density and ages.
+/// @brief Crater density "mars_surface": `MarsSurface(ageGyr)`, density and ages.
+struct MarsSurfaceSpec {
     double ageGyr = 3.0;
     bool operator==(const MarsSurfaceSpec&) const = default;
 };
-struct PowerLawSpec {  ///< "power_law": `PowerLawSfd`, N per m^2 with D in metres.
+/// @brief Density "power_law": `PowerLawSfd`, N per m^2 with D in metres.
+struct PowerLawSpec {
     double coefficient = 0.1;
     double exponent = 2.0;
     bool operator==(const PowerLawSpec&) const = default;
 };
-struct PiecewisePowerLawSpec {  ///< "piecewise_power_law": `PiecewisePowerLawSfd`.
+/// @brief Density "piecewise_power_law": `PiecewisePowerLawSfd`.
+struct PiecewisePowerLawSpec {
     std::vector<PowerLawSegment> segments{PowerLawSegment{}};
     bool operator==(const PiecewisePowerLawSpec&) const = default;
 };
-struct TabulatedSpec {  ///< "tabulated": `TabulatedSfd` from (D, N(>=D)) rows.
+/// @brief Density "tabulated": `TabulatedSfd` from (D, N(>=D)) rows.
+struct TabulatedSpec {
     std::vector<double> diameters;
     std::vector<double> cumulative;
     double diameterUnit = 1.0;  ///< Metres per table diameter unit; 1000 for km.
     double areaUnit = 1.0;      ///< Square metres per table area unit; 1e6 for km^2.
     bool operator==(const TabulatedSpec&) const = default;
 };
-struct TraskSpec {  ///< "trask": `TraskEquilibrium`.
+/// @brief Crater density "trask": `TraskEquilibrium`.
+struct TraskSpec {
     bool operator==(const TraskSpec&) const = default;
 };
-struct HartmannSpec {  ///< "hartmann": `HartmannEquilibrium`.
+/// @brief Crater density "hartmann": `HartmannEquilibrium`.
+struct HartmannSpec {
     bool operator==(const HartmannSpec&) const = default;
 };
-struct MooreSpec {  ///< "moore": `MooreDistribution(terrain)`.
+/// @brief Crater density "moore": `MooreDistribution(terrain)`.
+struct MooreSpec {
     MooreTerrain terrain = MooreTerrain::RoughMare;
     bool operator==(const MooreSpec&) const = default;
 };
-struct ViperSpec {  ///< "viper": `ViperSpecification`.
+/// @brief Crater density "viper": `ViperSpecification`.
+struct ViperSpec {
     bool operator==(const ViperSpec&) const = default;
 };
+/// @brief A crater density, named in JSON by its "type".
 using DensitySpec =
     std::variant<LunarSurfaceSpec, MarsSurfaceSpec, PowerLawSpec, PiecewisePowerLawSpec,
                  TabulatedSpec, TraskSpec, HartmannSpec, MooreSpec, ViperSpec>;
 
-/// Crater age models.
-struct AutoAgesSpec {  ///< "auto": the lunar or Martian surface's ages, otherwise uniform 1 Gyr.
+/// @brief Crater ages "auto": the lunar or Martian surface's ages, otherwise uniform 1 Gyr.
+struct AutoAgesSpec {
     bool operator==(const AutoAgesSpec&) const = default;
 };
-struct FreshAgesSpec {  ///< "fresh": `FreshAges`.
+/// @brief Crater ages "fresh": `FreshAges`.
+struct FreshAgesSpec {
     bool operator==(const FreshAgesSpec&) const = default;
 };
-struct UniformAgesSpec {  ///< "uniform": `UniformAges(lifetimeGyr)`.
+/// @brief Crater ages "uniform": `UniformAges(lifetimeGyr)`.
+struct UniformAgesSpec {
     double lifetimeGyr = 1.0;
     bool operator==(const UniformAgesSpec&) const = default;
 };
-/// Equilibrium densities for `SteadyStateAgesSpec`.
+/// @brief Equilibrium densities for `SteadyStateAgesSpec`.
 enum class EquilibriumModel { Trask, Hartmann };
-struct SteadyStateAgesSpec {  ///< "steady_state": `SteadyStateAges` with the Neukum production.
+/// @brief Crater ages "steady_state": `SteadyStateAges` with the Neukum production.
+struct SteadyStateAgesSpec {
     double ageGyr = 3.5;
     EquilibriumModel equilibrium = EquilibriumModel::Trask;
     bool extendedProduction = true;  ///< Extend the production function below 10 m.
     bool operator==(const SteadyStateAgesSpec&) const = default;
 };
+/// @brief A crater age model, named in JSON by its "type".
 using AgesSpec = std::variant<AutoAgesSpec, FreshAgesSpec, UniformAgesSpec, SteadyStateAgesSpec>;
 
-/// Degradation models.
-struct NoDegradationSpec {  ///< "none": `NoDegradation`, optionally with a fixed d/D.
+/// @brief Degradation "none": `NoDegradation`, optionally with a fixed depth-to-diameter ratio.
+struct NoDegradationSpec {
     std::optional<double> depthRatio;
     bool operator==(const NoDegradationSpec&) const = default;
 };
-struct FreshnessDegradationSpec {  ///< "freshness": `FreshnessDegradation`.
+/// @brief Degradation "freshness": `FreshnessDegradation`.
+struct FreshnessDegradationSpec {
     double cutoffDepthRatio = 0.04;
     bool operator==(const FreshnessDegradationSpec&) const = default;
 };
-/// Where "diffusion" degradation takes its diffusion ages from.
+/// @brief Where "diffusion" degradation takes its diffusion ages from.
 enum class DiffusivityModel {
     Fassett2022Hartmann,  ///< "fassett_2022_hartmann": `Fassett2022HartmannDiffusivity`.
     Fassett2022Trask,     ///< "fassett_2022_trask": `Fassett2022TraskDiffusivity`.
@@ -186,43 +207,48 @@ enum class DiffusivityModel {
     PowerLaw,  ///< "power_law": the spec's `powerLaw`.
 };
 
-/// "diffusion": `DiffusionDegradation`, with the layer's profile worn by topographic diffusion
-/// (`DiffusedProfile` reaching `reachRadii` radii). The lunar models are refused on Mars.
+/// @brief Degradation "diffusion": `DiffusionDegradation`, the layer's profile worn by topographic
+/// diffusion (`DiffusedProfile`). The lunar diffusivity models are refused on Mars.
 struct DiffusionDegradationSpec {
     DiffusivityModel diffusivity = DiffusivityModel::Fassett2022Hartmann;
-    PowerLawDiffusivity powerLaw{};
-    double reachRadii = 3.0;
+    PowerLawDiffusivity powerLaw{};  ///< Used when `diffusivity` is `PowerLaw`.
+    double reachRadii = 3.0;         ///< How far the diffused profile reaches, in crater radii.
     bool operator==(const DiffusionDegradationSpec&) const = default;
 };
+/// @brief A degradation model, named in JSON by its "type".
 using DegradationSpec =
     std::variant<FreshnessDegradationSpec, NoDegradationSpec, DiffusionDegradationSpec>;
 
-/// Crater profiles.
-struct FassettThomsonSpec {  ///< "fassett_thomson": `FassettThomsonProfile(rim)`.
+/// @brief Crater profile "fassett_thomson": `FassettThomsonProfile(rim)`.
+struct FassettThomsonSpec {
     FassettThomsonRim rim = FassettThomsonRim::Original;
     bool operator==(const FassettThomsonSpec&) const = default;
 };
-struct MartinParkesDunstanSpec {  ///< "martin_parkes_dunstan": `MartinParkesDunstanProfile`.
+/// @brief Crater profile "martin_parkes_dunstan": `MartinParkesDunstanProfile`.
+struct MartinParkesDunstanSpec {
     bool operator==(const MartinParkesDunstanSpec&) const = default;
 };
+/// @brief A simple crater profile, named in JSON by its "type".
 using SimpleProfileSpec = std::variant<FassettThomsonSpec, MartinParkesDunstanSpec>;
-/// "complex": `simple` below the crater layer's body's simple-to-complex transition and complex
-/// craters, with flat floors and central peaks, from it (`ComplexCraterProfile` with
+/// @brief Crater profile "complex": `simple` below the layer's body's simple-to-complex transition,
+/// and complex craters, with flat floors and central peaks, from it (`ComplexCraterProfile` with
 /// `LunarComplexCraterShape` or `MarsComplexCraterShape`).
 struct ComplexProfileSpec {
     SimpleProfileSpec simple{};
     bool operator==(const ComplexProfileSpec&) const = default;
 };
+/// @brief A crater profile, named in JSON by its "type".
 using ProfileSpec = std::variant<FassettThomsonSpec, MartinParkesDunstanSpec, ComplexProfileSpec>;
 
-/// The body a crater layer's craters are shaped for: its fresh morphometry
+/// @brief The body a crater layer's craters are shaped for: its fresh morphometry
 /// (`LunarFreshCraterMorphometry`, `MarsFreshCraterMorphometry`) and complex crater shape.
 /// Separate from `Body` because only these two bodies have crater morphometry.
 enum class CraterBody { Moon, Mars };
 
-/// "craters": craters generated over the grid and applied to it (`CraterLayer`). With `body` Mars,
-/// the lunar-only density "lunar_surface" and ages "steady_state" are refused, and with `body` Moon
-/// the density "mars_surface".
+/// @brief Layer "craters": craters generated over the grid and applied to it (`CraterLayer`).
+///
+/// With `body` Mars, the lunar-only density "lunar_surface", ages "steady_state" and diffusivity
+/// models other than "power_law" are refused; with `body` Moon, the density "mars_surface".
 struct CraterLayerSpec {
     CraterBody body = CraterBody::Moon;
     bool generate = true;  ///< Generate craters from `density`; otherwise only `manual` ones.
@@ -242,105 +268,114 @@ struct CraterLayerSpec {
     bool operator==(const CraterLayerSpec&) const = default;
 };
 
-/// Boulder size distributions, named in JSON by their "type"; "power_law", "piecewise_power_law"
-/// and "tabulated" are also accepted, as for crater densities.
-struct GolombekRappBouldersSpec {  ///< "golombek_rapp": the layer's coverage, qa and qb.
+/// @brief Boulder sizes "golombek_rapp": the layer's coverage, qa and qb.
+struct GolombekRappBouldersSpec {
     bool operator==(const GolombekRappBouldersSpec&) const = default;
 };
-struct Sp8023IntercraterBouldersSpec {  ///< "sp8023_intercrater": `Sp8023IntercraterBlocks(curve)`.
+/// @brief Boulder sizes "sp8023_intercrater": `Sp8023IntercraterBlocks(curve)`.
+struct Sp8023IntercraterBouldersSpec {
     SpecificationCurve curve = SpecificationCurve::Nominal;
     bool operator==(const Sp8023IntercraterBouldersSpec&) const = default;
 };
-struct Sp8023CraterBouldersSpec {  ///< "sp8023_crater": `Sp8023CraterBlocks(curve)`.
+/// @brief Boulder sizes "sp8023_crater": `Sp8023CraterBlocks(curve)`.
+struct Sp8023CraterBouldersSpec {
     SpecificationCurve curve = SpecificationCurve::Nominal;
     bool operator==(const Sp8023CraterBouldersSpec&) const = default;
 };
-struct SynthterrainBouldersSpec {  ///< "synthterrain": `SynthterrainBoulderDistribution(model)`.
+/// @brief Boulder sizes "synthterrain": `SynthterrainBoulderDistribution(model)`.
+struct SynthterrainBouldersSpec {
     SynthterrainBoulders model = SynthterrainBoulders::InterCrater;
     bool operator==(const SynthterrainBouldersSpec&) const = default;
 };
+/// @brief A boulder size distribution, named in JSON by its "type"; "power_law",
+/// "piecewise_power_law" and "tabulated" are as for crater densities.
 using BoulderSizesSpec =
     std::variant<GolombekRappBouldersSpec, Sp8023IntercraterBouldersSpec, Sp8023CraterBouldersSpec,
                  SynthterrainBouldersSpec, PowerLawSpec, PiecewisePowerLawSpec, TabulatedSpec>;
 
-/// "boulders": boulders scattered over the terrain (`BoulderLayer`). Ejecta come from the nearest
-/// crater layer before this one, which must exist when crater blocks are enabled. `sizes` and
-/// `ejectaSizes` give `boulders.distribution` and `boulders.ejecta.distribution`; with
-/// `extrapolate`, tables may be evaluated beyond their published diameters.
-/// `boulders.cacheBoulders` is not part of the configuration.
+/// @brief Layer "boulders": boulders scattered over the terrain (`BoulderLayer`).
+///
+/// Ejecta come from the nearest crater layer before this one, which must exist when crater blocks
+/// are enabled. `boulders.cacheBoulders` is not part of the configuration.
 struct BoulderLayerSpec {
     BoulderLayerOptions boulders{};
-    BoulderSizesSpec sizes{};
-    BoulderSizesSpec ejectaSizes{};
-    bool extrapolate = false;
+    BoulderSizesSpec sizes{};        ///< Gives `boulders.sizes.distribution`.
+    BoulderSizesSpec ejectaSizes{};  ///< Gives `boulders.ejecta.distribution`.
+    bool extrapolate = false;        ///< Let tables be evaluated beyond their published diameters.
 
     bool operator==(const BoulderLayerSpec&) const = default;
 };
 
-/// "roughness": fine roughness of a given RMS slope (`RoughnessLayer`).
+/// @brief Layer "roughness": fine roughness of a given RMS slope (`RoughnessLayer`).
 struct RoughnessLayerSpec {
     RoughnessOptions roughness{};
 
     bool operator==(const RoughnessLayerSpec&) const = default;
 };
 
-/// "bedforms": fields of wind-blown ripples or dunes (`BedformLayer`); angles in radians.
+/// @brief Layer "bedforms": fields of wind-blown ripples or dunes (`BedformLayer`); angles in
+/// radians.
 struct BedformLayerSpec {
     BedformOptions bedforms{};
 
     bool operator==(const BedformLayerSpec&) const = default;
 };
 
-/// "secondaries": secondary craters around the craters of the last crater layer before this one
-/// (`SecondaryCraterLayer`), shaped with that layer's profile at a fixed depth ratio `depthRatio`
-/// (0.11, the average Pike and Wilhelms (1978) found for simple lunar secondaries, as Singer et al.
-/// (2020) report it) and the fresh rim of `body`. `secondaries.onsetCount` must be given.
+/// @brief Layer "secondaries": secondary craters around the craters of the last crater layer
+/// before this one (`SecondaryCraterLayer`), shaped with that layer's profile at a fixed depth
+/// ratio and the fresh rim of `body`. `secondaries.onsetCount` must be given.
 struct SecondaryLayerSpec {
     SecondaryCraterOptions secondaries{};
+    /// Depth-to-diameter ratio.
     double depthRatio = 0.11;
     CraterBody body = CraterBody::Moon;
 
     bool operator==(const SecondaryLayerSpec&) const = default;
 };
 
-/// "scale": height * `scale` + `offset` (`ScaleLayer`).
+/// @brief Layer "scale": height * `scale` + `offset` (`ScaleLayer`).
 struct ScaleLayerSpec {
     double scale = 1.0;
-    double offset = 0.0;
+    double offset = 0.0;  ///< Metres.
 
     bool operator==(const ScaleLayerSpec&) const = default;
 };
 
-/// "clamp": heights clamped to [`min`, `max`], either optional (`ClampLayer`).
+/// @brief Layer "clamp": heights clamped to [`min`, `max`], either optional (`ClampLayer`).
 struct ClampLayerSpec {
-    std::optional<double> min;
-    std::optional<double> max;
+    std::optional<double> min;  ///< Metres; unset for no lower bound.
+    std::optional<double> max;  ///< Metres; unset for no upper bound.
 
     bool operator==(const ClampLayerSpec&) const = default;
 };
 
-/// Region shapes, named in JSON by their "type".
-struct RectangleRegionSpec {  ///< "rectangle": [`minX`, `maxX`] x [`minY`, `maxY`].
+/// @brief Region shape "rectangle": [`minX`, `maxX`] x [`minY`, `maxY`] in surface coordinates.
+struct RectangleRegionSpec {
     double minX = 0.0;
     double minY = 0.0;
     double maxX = 0.0;
     double maxY = 0.0;
     bool operator==(const RectangleRegionSpec&) const = default;
 };
-struct CircleRegionSpec {  ///< "circle": centred on (`x`, `y`).
+/// @brief Region shape "circle": centred on (`x`, `y`) in surface coordinates.
+struct CircleRegionSpec {
     double x = 0.0;
     double y = 0.0;
-    double radius = 0.0;
+    double radius = 0.0;  ///< Metres.
     bool operator==(const CircleRegionSpec&) const = default;
 };
+/// @brief A region shape, named in JSON by its "type".
 using RegionShapeSpec = std::variant<RectangleRegionSpec, CircleRegionSpec>;
 
-/// A value held by pointer, so that a spec can hold the variant it belongs to; it is copied and
-/// compared by value.
+/// @brief A value held by pointer, so that a spec can hold the variant it belongs to; it is copied
+/// and compared by value.
 template <typename T> class Boxed {
   public:
+    /// @brief A default-constructed value.
     Boxed() : value_(std::make_unique<T>()) {}
-    /// From anything `T` can be made from, such as one alternative of a variant.
+    /// @brief A value made from anything `T` can be made from, such as one alternative of a
+    /// variant.
+    /// @param value What to make the value from.
     template <typename U>
         requires(!std::same_as<std::remove_cvref_t<U>, Boxed> && std::constructible_from<T, U &&>)
     Boxed(U&& value)  // NOLINT(google-explicit-constructor): converts implicitly by design
@@ -377,82 +412,81 @@ template <typename T> class Boxed {
 
 struct RegionLayerSpec;
 
+/// @brief A layer, named in JSON by its "type".
 using LayerSpec = std::variant<NoiseLayerSpec, CraterLayerSpec, BoulderLayerSpec,
                                RoughnessLayerSpec, BedformLayerSpec, ScaleLayerSpec, ClampLayerSpec,
                                RegionLayerSpec, SecondaryLayerSpec>;
 
-/// "region": `layer` applied only inside `shape`, feathered over `feather` metres outside it
-/// (`RegionLayer`). Boulder ejecta do not see crater layers inside regions.
+/// @brief Layer "region": `layer` applied only inside `shape` (`RegionLayer`). Boulder ejecta do
+/// not see crater layers inside regions.
 struct RegionLayerSpec {
     RegionShapeSpec shape{};
-    double feather = 0.0;
+    double feather = 0.0;  ///< Metres outside the shape over which the layer fades out.
     BlendShape blend = BlendShape::Smoothstep;
     Boxed<LayerSpec> layer{};
 
     bool operator==(const RegionLayerSpec&) const = default;
 };
 
-/// Filters, named in JSON by their "type": "rim_smoothing" is `RimSmoothingFilter`.
+/// @brief A filter, named in JSON by its "type": "rim_smoothing" is `RimSmoothingFilter`.
 using FilterSpec = std::variant<RimSmoothing>;
 
-/// Formats for crater and boulder lists.
+/// @brief Formats for crater and boulder lists.
 enum class ListFormat { Csv, Json };
 
-/// A list file to write; the format follows the extension (.json or else CSV) unless given.
+/// @brief A list file to write; the format follows the extension (.json or else CSV) unless given.
 struct ListOutput {
     std::string path;
     ListFormat format = ListFormat::Csv;
     bool operator==(const ListOutput&) const = default;
 };
 
-/// A float32 GeoTIFF file to write, with a raster source's projection.
+/// @brief A float32 GeoTIFF file to write, with a raster source's projection.
 struct GeoTiffOutput {
     std::string path;
     TiffCompression compression = TiffCompression::Lzw;  ///< None, Lzw or Deflate.
-    std::uint32_t tileSize = 256;
+    std::uint32_t tileSize = 256;                        ///< Pixels per tile side.
     bool operator==(const GeoTiffOutput&) const = default;
 };
 
-/// "crater_list": writes the generated and manual craters.
+/// @brief Output "crater_list": writes the generated and manual craters.
 struct CraterListOutput : ListOutput {};
 
-/// "heightmap": writes the generated heights.
+/// @brief Output "heightmap": writes the generated heights.
 struct HeightmapOutput : GeoTiffOutput {};
 
-/// "boulder_list": writes every boulder the layers placed, models and relief alike.
+/// @brief Output "boulder_list": writes every boulder the layers placed, models and relief alike.
 struct BoulderListOutput : ListOutput {};
 
-/// "boulder_models": writes the boulders placed as 3D models (`BoulderModelThreshold`) on the
-/// ground beneath them, as a glTF scene (.glb) drawing each shared shape once per boulder, or as
-/// one merged PLY mesh (.ply). Vertices are split where faces meet at more than `creaseAngle`
-/// degrees.
+/// @brief Output "boulder_models": writes the boulders placed as 3D models
+/// (`BoulderModelThreshold`) on the ground beneath them, as a glTF scene (.glb) drawing each
+/// shared shape once per boulder, or as one merged PLY mesh (.ply).
 struct BoulderModelsOutput {
     std::string path;
-    double creaseAngle = 35.0;
+    double creaseAngle = 35.0;  ///< Degrees between faces above which vertices are split.
     bool operator==(const BoulderModelsOutput&) const = default;
 };
 
-/// "albedo": writes the albedo (`TerrainConfig::albedo`) with one band, or three (red, green,
-/// blue).
+/// @brief Output "albedo": writes the albedo (`TerrainConfig::albedo`) with one band, or three
+/// (red, green, blue).
 struct AlbedoOutput : GeoTiffOutput {};
 
-/// "body_mesh": a mesh of the whole body on a sphere (`BodyMesh`), `cellsPerFace` quads along each
-/// edge of the six cube faces, sampled every `spacing` metres (by default a quad's side), as a
-/// glTF binary (.glb, with smooth normals) or PLY (.ply).
+/// @brief Output "body_mesh": a mesh of the whole body on a sphere (`BodyMesh`), as a glTF binary
+/// (.glb, with smooth normals) or PLY (.ply).
 struct BodyMeshOutput {
     std::string path;
-    std::size_t cellsPerFace = 128;
-    std::optional<double> spacing{};
+    std::size_t cellsPerFace = 128;   ///< Quads along each edge of the six cube faces.
+    std::optional<double> spacing{};  ///< Sample spacing in metres; unset for a quad's side.
     bool operator==(const BodyMeshOutput&) const = default;
 };
 
+/// @brief An output, named in JSON by its "type".
 using OutputSpec = std::variant<HeightmapOutput, CraterListOutput, BoulderListOutput,
                                 BoulderModelsOutput, AlbedoOutput, BodyMeshOutput>;
 
-/// Albedo sources, named in JSON by their "type".
-///
-/// "synthetic": `SyntheticAlbedo`, a base colour with a noise stack per channel (each 0 to
-/// `kMaxNoiseLayers` layers), measured from the terrain source's reference point.
+/// @brief Albedo source "synthetic": `SyntheticAlbedo`, a base colour with a noise stack per
+/// channel (each 0 to `kMaxNoiseLayers` layers), measured from the terrain source's reference
+/// point.
 struct SyntheticAlbedoSpec {
     bool rgb = false;
     double hue = 0.0;
@@ -462,19 +496,21 @@ struct SyntheticAlbedoSpec {
     std::vector<NoiseLayerConfig> saturationNoise;
     std::vector<NoiseLayerConfig> valueNoise;
 
-    /// The parameters, with each noise layer's Hurst exponent applied.
+    /// @brief The albedo parameters.
+    /// @return The parameters, with each noise layer's Hurst exponent applied.
     SyntheticAlbedoParams Params() const;
 
     bool operator==(const SyntheticAlbedoSpec&) const = default;
 };
 
-/// "raster": `RasterAlbedo` from one or three `bands` (from 0) of a GeoTIFF in the terrain's
-/// projected coordinates, such as an orbital normal albedo map. Relative paths resolve against the
-/// configuration's folder. Samples are scaled as the file's GDAL metadata says, or by `scale` and
-/// `offset` when given, for maps stored as integers.
+/// @brief Albedo source "raster": `RasterAlbedo` from one or three bands of a GeoTIFF in the
+/// terrain's projected coordinates, such as an orbital normal albedo map.
+///
+/// Relative paths resolve against the configuration's folder. Samples are scaled as the file's
+/// GDAL metadata says, or by `scale` and `offset` when given, for maps stored as integers.
 struct RasterAlbedoSpec {
     std::string path;
-    std::vector<std::size_t> bands{0};
+    std::vector<std::size_t> bands{0};  ///< One or three bands, from 0.
     std::optional<double> scale{};
     std::optional<double> offset{};
     RasterAlbedoOptions options{};
@@ -482,22 +518,23 @@ struct RasterAlbedoSpec {
     bool operator==(const RasterAlbedoSpec&) const = default;
 };
 
+/// @brief An albedo source, named in JSON by its "type".
 using AlbedoSourceSpec = std::variant<SyntheticAlbedoSpec, RasterAlbedoSpec>;
 
-/// Albedo layers, named in JSON by their "type".
-///
-/// "craters": `CraterAlbedo`, bright ejecta and rays of the craters of the `craterLayer`th
-/// top-level crater layer (from 0), or of every top-level crater layer when unset.
+/// @brief Albedo layer "craters": `CraterAlbedo`, bright ejecta and rays of the craters of one
+/// top-level crater layer, or of every one.
 struct CraterAlbedoSpec {
+    /// Index of the top-level crater layer, from 0; unset for every crater layer.
     std::optional<std::size_t> craterLayer;
     CraterAlbedoOptions options{};
 
     bool operator==(const CraterAlbedoSpec&) const = default;
 };
 
+/// @brief An albedo layer, named in JSON by its "type".
 using AlbedoLayerSpec = std::variant<CraterAlbedoSpec>;
 
-/// The albedo of the terrain: a source and the layers that change it, evaluated over the
+/// @brief The albedo of the terrain: a source and the layers that change it, evaluated over the
 /// terrain's grid.
 struct AlbedoSpec {
     AlbedoSourceSpec source{};
@@ -506,28 +543,26 @@ struct AlbedoSpec {
     bool operator==(const AlbedoSpec&) const = default;
 };
 
-/// What a terrain lies on, named in JSON by its "type".
-///
-/// "plane": a projected frame in metres, the default.
+/// @brief Surface "plane": a projected frame in metres, the default.
 struct PlaneSurfaceSpec {
     bool operator==(const PlaneSurfaceSpec&) const = default;
 };
 
-/// "sphere": a body of `radius` metres, such as a planet or moon; grids and positions are
-/// longitude and latitude in degrees, and features are generated over the whole body (`Surface`).
-/// Give the radius, or a `body` ("moon", "mars", "mercury") for its mean radius (`MeanRadius`),
-/// not both.
+/// @brief Surface "sphere": a body such as a planet or moon (`Surface`); grids and positions are
+/// longitude and latitude in degrees, and features are generated over the whole body.
 struct SphereSurfaceSpec {
-    double radius = 0.0;
+    double radius = 0.0;  ///< Metres; give this or `body`, not both.
+    /// "moon", "mars" or "mercury", for its mean radius (`MeanRadius`).
     std::optional<Body> body{};
     bool operator==(const SphereSurfaceSpec&) const = default;
 };
 
+/// @brief What a terrain lies on, named in JSON by its "type".
 using SurfaceSpec = std::variant<PlaneSurfaceSpec, SphereSurfaceSpec>;
 
-/// Everything needed to generate a terrain: the surface it lies on, a source, the layers added to
-/// it in order, the filters applied after them in order, the outputs to write, and optionally its
-/// albedo.
+/// @brief Everything needed to generate a terrain: the surface it lies on, a source, the layers
+/// added to it in order, the filters applied after them in order, the outputs to write, and
+/// optionally its albedo.
 struct TerrainConfig {
     int schemaVersion = kConfigSchemaVersion;
     SurfaceSpec surface{};

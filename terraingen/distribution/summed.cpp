@@ -1,3 +1,5 @@
+/// @file
+/// @brief Weighted sums of size-frequency distributions.
 #include "terraingen/distribution/summed.h"
 
 #include "terraingen/distribution/combined.h"

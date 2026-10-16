@@ -3,8 +3,8 @@
 ///
 /// Each configuration struct has a `Fields(IO& io, Struct& value)` that calls
 /// `io(key, member, description, unit)` for each JSON key in order; the same list is read, written
-/// and described (`ConfigSchema`) by passing a different `IO`. Each alternative of a variant also
-/// has a `SpecName`, its JSON "type" and description, next to its `Fields`.
+/// and described (`ConfigSchema`) by passing a different `IO` (`Reader`, `Writer` or a schema
+/// writer). Each alternative of a variant also has a `SpecName` next to its `Fields`.
 #pragma once
 
 #include <cmath>
@@ -15,7 +15,8 @@
 
 namespace terraingen::config {
 
-/// `kName`, the JSON "type" of the variant alternative `Spec`, and `kDescription`, what it is.
+/// @brief The JSON "type" of the variant alternative `Spec` (`kName`) and what it is
+/// (`kDescription`).
 template <typename Spec> struct SpecName;
 
 /// @brief Reads or writes a bound that is unset when infinite, as an optional field.

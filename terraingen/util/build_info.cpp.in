@@ -1,3 +1,5 @@
+/// @file
+/// @brief Build metadata, configured by cmake/BuildInfo.cmake.
 #include "terraingen/util/build_info.h"
 
 namespace terraingen {

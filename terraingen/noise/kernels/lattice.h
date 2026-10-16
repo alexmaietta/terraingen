@@ -6,22 +6,22 @@
 
 namespace terraingen {
 
-/// A 2D point as its integer lattice cell and its fraction within the cell, in [0, 1).
+/// @brief A 2D point as its integer lattice cell and its fraction within the cell.
 struct LatticePoint2 {
-    int32_t ix = 0;
-    int32_t iy = 0;
-    float fx = 0.0f;
-    float fy = 0.0f;
+    int32_t ix = 0;   ///< Cell x.
+    int32_t iy = 0;   ///< Cell y.
+    float fx = 0.0f;  ///< Fraction in x, in [0, 1).
+    float fy = 0.0f;  ///< Fraction in y, in [0, 1).
 };
 
-/// A 3D point as its integer lattice cell and its fraction within the cell, in [0, 1).
+/// @brief A 3D point as its integer lattice cell and its fraction within the cell.
 struct LatticePoint3 {
-    int32_t ix = 0;
-    int32_t iy = 0;
-    int32_t iz = 0;
-    float fx = 0.0f;
-    float fy = 0.0f;
-    float fz = 0.0f;
+    int32_t ix = 0;   ///< Cell x.
+    int32_t iy = 0;   ///< Cell y.
+    int32_t iz = 0;   ///< Cell z.
+    float fx = 0.0f;  ///< Fraction in x, in [0, 1).
+    float fy = 0.0f;  ///< Fraction in y, in [0, 1).
+    float fz = 0.0f;  ///< Fraction in z, in [0, 1).
 };
 
 /// @brief The lattice cell and fraction of (`x`, `y`) in lattice units.

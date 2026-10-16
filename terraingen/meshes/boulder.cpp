@@ -1,3 +1,5 @@
+/// @file
+/// @brief Default boulder styles, option validation and seeded boulder shape generation.
 #include "terraingen/meshes/boulder.h"
 
 #include "terraingen/noise/kernels/hash.h"
@@ -16,6 +18,7 @@ namespace {
 
 constexpr std::uint32_t kBoulderStream = 0x424F554Cu;
 
+/// Throws unless `low` <= `range.min` <= `range.max` <= `high`.
 void CheckRange(const ValueRange& range, double low, double high, const char* what) {
     if (!(range.min >= low && range.min <= range.max && range.max <= high)) {
         throw std::invalid_argument(std::string("Boulder style ") + what + " must satisfy " +

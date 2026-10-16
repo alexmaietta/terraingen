@@ -1,3 +1,5 @@
+/// @file
+/// @brief Applying craters to points and rasters, with datum fitting.
 #include "terraingen/layers/craters/apply.h"
 
 #include "terraingen/raster/cell_loops.h"

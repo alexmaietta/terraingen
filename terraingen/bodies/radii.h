@@ -1,3 +1,5 @@
+/// @file
+/// @brief Mean radii of the bodies with presets, and their spheres.
 #pragma once
 
 #include "terraingen/util/surface.h"
@@ -7,22 +9,23 @@
 
 namespace terraingen {
 
-/// Bodies with a radius preset.
+/// @brief Bodies with a radius preset.
 enum class Body { Moon, Mars, Mercury };
 
-/// The volumetric mean radius of `body` in metres, from NASA's planetary fact sheets: the Moon
-/// 1737.4 km, Mars 3389.5 km and Mercury 2439.7 km (equatorial and polar radii 1738.1 and 1736.0,
-/// 3396.2 and 3376.2, and 2440.5 and 2438.3 km).
-///
-/// Reference: D. R. Williams, NASA Space Science Data Coordinated Archive, Planetary Fact Sheets
-/// (Moon, Mars and Mercury), last updated 11 January 2024.
-/// https://nssdc.gsfc.nasa.gov/planetary/factsheet/
+/// @brief The volumetric mean radius of `body`: the Moon 1737.4 km, Mars 3389.5 km and Mercury
+/// 2439.7 km.
+/// @param body The body.
+/// @return The radius in metres.
 double MeanRadius(Body body);
 
-/// The sphere of `body`'s mean radius.
+/// @brief The sphere of `body`'s mean radius.
+/// @param body The body.
+/// @return A spherical surface of radius `MeanRadius(body)`.
 Surface BodySphere(Body body);
 
-/// The body named `name` ("moon", "mars" or "mercury"), if any.
+/// @brief The body named `name`.
+/// @param name "moon", "mars" or "mercury".
+/// @return The body, or nullopt for any other name.
 std::optional<Body> BodyNamed(std::string_view name);
 
 }  // namespace terraingen

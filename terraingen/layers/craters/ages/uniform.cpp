@@ -1,3 +1,5 @@
+/// @file
+/// @brief `UniformAges`: one lifetime, ages drawn uniformly within it.
 #include "terraingen/layers/craters/ages/uniform.h"
 
 #include "terraingen/util/checks.h"

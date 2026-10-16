@@ -1,3 +1,5 @@
+/// @file
+/// @brief TIFF field and compression codes, GeoKey lookup, GDAL band scaling and sphere GeoKeys.
 #include "terraingen/raster/geotiff.h"
 
 #include "terraingen/raster/tiff_format.h"

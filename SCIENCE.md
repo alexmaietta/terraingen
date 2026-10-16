@@ -5,7 +5,459 @@ headers state what each function and type does; where a model rests on the liter
 here by section name, as in `See SCIENCE.md, "Crater datums and blends"`. Sections follow the
 library's modules.
 
+## Util
+
+### Surface cells
+
+`SurfaceCells` partitions a surface into cells so features can be generated per cell, each from its
+own random substream, and any region regenerated identically regardless of how it is tiled. Each
+surface type supplies its own cells: square cells on a plane now, near-equal-area cells on
+cube-sphere faces or shape models later. Feature generators use only this interface, so they do
+not depend on the surface's geometry.
+
+### Cube-sphere cells
+
+`CubeSphereCells` splits the six faces of a cube into n x n cells along equiangular coordinates
+(Ronchi et al. 1996), the angle from the face's centre along each axis, so cells are near squares
+of about the same area.
+
+For a cell side L, n = ceil(R pi / (2 L)), so cells are at most L across at a face's centre and a
+little smaller towards its corners. Cell (i, j) is column i mod n and row j of face i / n (+x, -x,
++y, -y, +z, -z). Areas are the exact solid angles of the cells, and `SamplePoint` maps uniform
+(u, v) to points uniform over the cell, so features are drawn with the right density everywhere.
+
+`CellsCovering` returns every cell reaching into the region and some next to them: the cells of
+points sampled over the region a quarter cell apart, with their `Neighbours` one ring out.
+`Neighbours` continues past a face's edge by taking the cells of points spread over each step past
+the edge on the face's extended plane.
+
+Reference:
+- C. Ronchi, R. Iacono and P. S. Paolucci, "The 'Cubed Sphere': a new method for the solution of
+  partial differential equations in spherical geometry", Journal of Computational Physics
+  124:93-114, 1996. https://doi.org/10.1006/jcph.1996.0047
+
+### Surfaces
+
+`Surface` is the shape a terrain lies on: a plane, or a sphere such as a planet or moon. It says
+what surface coordinates mean and measures distances and directions between them, so features
+defined in a local frame around their centre (crater profiles, boulders, rays) work on either.
+
+- On a plane, surface coordinates are metres in a projected frame, and the local frame of a point
+  is that frame shifted to it.
+- On a sphere of radius R, surface coordinates are longitude and latitude in degrees (east and
+  north positive), as a geographic raster's transform gives them, and the local frame of a point is
+  its azimuthal equidistant projection: east and north in metres, with the distance and azimuth
+  from the point exact.
+
+It is a value type rather than a class hierarchy, so the plane path stays inline in inner loops.
+
+### LRU cache sharding
+
+`LruCache` spreads keys over 16 shards, each with its own lock and an even share of the capacity,
+so threads working on different keys rarely wait for one another. A shard always keeps its newest
+value, so values larger than a sixteenth of the capacity can exceed it by up to one value per
+shard. A value is computed outside the lock; if two threads compute the same key at once, both get
+the first value stored.
+
+### Exponential integral
+
+`ExponentialIntegral` evaluates E_n(x) by its power series for 0 < x <= 1 and by its continued
+fraction, evaluated with Lentz's method, for x > 1.
+
+Reference:
+- W. H. Press, S. A. Teukolsky, W. T. Vetterling and B. P. Flannery, "Numerical Recipes", 3rd ed.,
+  Cambridge University Press, 2007, section 6.3.
+
+## Raster
+
+### Gaussian blur
+
+`GaussianBlur` truncates the kernel at three standard deviations and applies it separably along
+rows and columns. Cells holding the raster's no-data value keep it and do not contribute to their
+neighbours: the kernel is renormalized over valid cells (normalized convolution), which also keeps
+the edges of the raster from being pulled towards zero.
+
+Gaussian smoothing of a surface with standard deviation sigma is the solution of linear diffusion
+of that surface for time t with diffusivity kappa where sigma^2 = 2 kappa t, the model of
+hillslope and crater degradation by Culling (1960) and Fassett and Thomson (2014).
+
+References:
+- H. Knutsson and C.-F. Westin, "Normalized and differential convolution", Proc. IEEE Conference
+  on Computer Vision and Pattern Recognition, 515-523, 1993.
+  https://doi.org/10.1109/CVPR.1993.341081
+- W. E. H. Culling, "Analytical theory of erosion", Journal of Geology 68(3):336-344, 1960.
+  https://doi.org/10.1086/626663
+
+### Cubic convolution
+
+`ResampleMethod::Cubic` is Keys cubic convolution with a = -0.5 over the sixteen surrounding
+cells.
+
+Reference: R. Keys, "Cubic convolution interpolation for digital image processing", IEEE
+Transactions on Acoustics, Speech, and Signal Processing 29(6):1153-1160, 1981.
+https://doi.org/10.1109/TASSP.1981.1163711
+
+### GeoTIFF projections
+
+TerrainGen does not interpret projections: a raster read from a GeoTIFF keeps its CRS by carrying
+its raw GeoKey tags (`GeoKeys`) to the GeoTIFF it is written to, while the pixel-to-world
+transform travels in the raster's `GeoTransform`. Reprojection needs a GDAL-backed reader.
+
+`GeographicSphereKeys` describes longitude and latitude in degrees on a sphere, such as a planet
+or moon: a user-defined geographic CRS (GTModelTypeGeoKey 2, GeographicTypeGeoKey,
+GeogGeodeticDatumGeoKey and GeogEllipsoidGeoKey 32767), angular unit degree (9102), and
+semi-major and semi-minor axes both the radius, with pixel-is-area rasters (sections 7.4 and 7.5
+of the standard).
+
+With PixelIsPoint, the reader shifts the origin half a pixel so it names the corner of the first
+pixel, as GDAL does, and the writer shifts it back.
+
+References:
+- OGC GeoTIFF Standard 1.1, OGC 19-008r4, 2019.
+  https://docs.ogc.org/is/19-008r4/19-008r4.html
+- GDAL GTiff driver: GDAL_NODATA tag, GDAL_METADATA band SCALE and OFFSET, and PixelIsPoint
+  handling. https://gdal.org/en/stable/drivers/raster/gtiff.html
+
+### TIFF reading and writing
+
+The reader handles classic TIFF and BigTIFF in either byte order, and reads only the first image,
+which is the full-resolution image of a cloud-optimized GeoTIFF. It supports strips and tiles,
+chunky and planar band layouts, 8- to 64-bit integer and 32- and 64-bit float samples, no
+compression, LZW, Deflate and PackBits, and horizontal and floating-point predictors. Other
+compressions, such as JPEG, ZSTD and LERC, are reported as unsupported; `gdal_translate -co
+COMPRESS=DEFLATE` converts them.
+
+The writer writes tiled, little-endian float32 files; compressed files use the floating-point
+predictor, which suits elevation data.
+
+LZW follows TIFF 6.0 section 13: MSB-first 9- to 12-bit codes, Clear 256, EndOfInfo 257, and the
+code width increasing one code early. Old-style (LSB-first) LZW is not supported. Deflate data is
+zlib-wrapped (TIFF compression 8 and 32946) and decoded and encoded with miniz. PackBits follows
+TIFF 6.0 section 9.
+
+References:
+- Aldus Corporation, "TIFF Revision 6.0", 1992.
+  https://www.itu.int/itudoc/itu-t/com16/tiff-fx/docs/tiff6.pdf
+- BigTIFF file format, LibTIFF documentation.
+  https://libtiff.gitlab.io/libtiff/specification/bigtiff.html
+- Adobe, "Adobe Photoshop TIFF Technical Note 3", 2005 (floating-point predictor).
+  http://chriscox.org/TIFFTN3d1.pdf
+- T. A. Welch, "A Technique for High-Performance Data Compression", Computer 17(6):8-19, 1984.
+  https://doi.org/10.1109/MC.1984.1659158
+- P. Deutsch, "DEFLATE Compressed Data Format Specification version 1.3", RFC 1951, 1996.
+  https://www.rfc-editor.org/rfc/rfc1951
+- P. Deutsch and J.-L. Gailly, "ZLIB Compressed Data Format Specification version 3.3",
+  RFC 1950, 1996. https://www.rfc-editor.org/rfc/rfc1950
+- Adobe, "TIFF Specification Supplement 2", 2002 (Deflate in TIFF).
+
+## Noise
+
+### Hashing
+
+`PcgHash` is a PCG-RXS-M-XS output permutation applied to one LCG step. `Pcg3dHash` maps three
+32-bit words to three well-mixed words. Both are stateless and integer-only, so they give
+bit-identical results on CPUs, GPUs and WebAssembly. Noise kernels hash lattice coordinates and the
+seed with `pcg3d` instead of a permutation table, so any seed works without tables and the kernels
+port directly to GPU shading languages. `HashToUnitFloat` keeps the top 24 bits of a hash, which a
+`float` represents exactly.
+
+References:
+- M. E. O'Neill, "PCG: A Family of Simple Fast Space-Efficient Statistically Good Algorithms for
+  Random Number Generation", Harvey Mudd College, HMC-CS-2014-0905, 2014.
+- M. Jarzynski and M. Olano, "Hash Functions for GPU Rendering", Journal of Computer Graphics
+  Techniques 9(3), 2020 (the `pcg` and `pcg3d` hashes). https://jcgt.org/published/0009/03/02/
+
+### Counter-based random numbers
+
+`Philox4x32` is Philox4x32-10, a counter-based generator: every output is a bijection of its
+counter under the key, so any element of any stream can be computed directly, in any order, on any
+thread or tile. It passes TestU01 BigCrush. It is integer-only, so results are bit-identical on
+every platform and GPU; GPUs without 64-bit integers form the 64-bit products from 16-bit halves,
+with the same result.
+
+Reference: J. K. Salmon, M. A. Moraes, R. O. Dror and D. E. Shaw, "Parallel Random Numbers: As
+Easy as 1, 2, 3", Proc. SC '11, 2011. https://doi.org/10.1145/2063384.2063405 (Random123).
+
+### Perlin noise
+
+Gradient noise (Perlin 1985) interpolates the dot products of pseudo-random unit gradients at the
+cell corners with the offsets to those corners, using the quintic fade 6t^5 - 15t^4 + 10t^3 of
+Perlin (2002). The fade has zero first and second derivatives at t = 0 and t = 1, so noise is C^2
+continuous across cell edges. Perlin's permutation table is replaced by a stateless `pcg3d` hash of
+(cell, seed) (Jarzynski and Olano 2020); see "Hashing".
+
+Perlin (2002) replaced random gradients with a small fixed set to avoid clumping. In 3D these are
+his twelve gradients, the vectors from the centre of a cube to the midpoints of its edges, chosen
+by the low four bits of the hash with four of them repeated to make sixteen, as in his reference
+implementation. In 2D the analogue is eight unit gradients: the four axis directions and the four
+diagonals, normalized so every gradient has unit length.
+
+Noise is zero at every lattice point. In 2D, with unit gradients, its magnitude is at most
+sqrt(2)/2, reached at cell centres, so the result is scaled by sqrt(2) to span [-1, 1]. In 3D, over
+2e7 random samples it stays within 0.9995 of zero, with an RMS of 0.27; it is clamped to [-1, 1] so
+that no rare corner case can leave it.
+
+The kernels take the integer cell and the fraction within it separately, which keeps sub-cell
+precision far from the origin, where a single `float` coordinate would run out of mantissa bits;
+the double-precision entry points split before narrowing, so noise stays exact on a planet's
+surface.
+
+References:
+- K. Perlin, "An Image Synthesizer", SIGGRAPH '85, Computer Graphics 19(3):287-296, 1985.
+  https://doi.org/10.1145/325165.325247
+- K. Perlin, "Improving Noise", ACM Transactions on Graphics 21(3):681-682, 2002 (SIGGRAPH 2002).
+  https://doi.org/10.1145/566654.566636
+- K. Perlin, "Improved Noise reference implementation", 2002.
+  https://mrl.cs.nyu.edu/~perlin/noise/
+- M. Jarzynski and M. Olano, "Hash Functions for GPU Rendering", JCGT 9(3), 2020.
+
+### Simplex noise
+
+The plane is skewed onto a lattice of equilateral triangles; each of the three corners of the
+containing triangle contributes (0.5 - r^2)^4 dot(g, d) for its gradient g and offset d. Compared
+with Perlin's gradient noise it needs three corners instead of four and has fewer axis-aligned
+artefacts. Gradients use the same eight unit directions and `pcg3d` corner hash as `PerlinNoise2`.
+With these gradients the raw amplitude never exceeds 0.010081 (found by dense search over a
+simplex), so the result is scaled by 99 to span almost [-1, 1].
+
+Perlin's simplex noise patent (US 6,867,776) expired in January 2022.
+
+References:
+- K. Perlin, "Noise Hardware", in Real-Time Shading, SIGGRAPH 2001 Course Notes, 2001.
+- S. Gustavson, "Simplex Noise Demystified", Linkoping University, 2005.
+
+### Value noise
+
+Each lattice point gets a pseudo-random value in [-1, 1) from `pcg3d`, and values are blended with
+Perlin's quintic fade. Cheaper than gradient noise but blobbier, with visible lattice alignment;
+mostly useful as a baseline or a soft mask.
+
+Reference: D. R. Peachey, "Building Procedural Textures", in D. S. Ebert et al., Texturing and
+Modeling: A Procedural Approach, 3rd ed., Morgan Kaufmann, 2003 (value noise).
+
+### Worley noise
+
+Every lattice cell holds one feature point at a pseudo-random position from `pcg3d`. The 5 x 5
+cells around the point are searched, which makes F1 exact (it never exceeds sqrt(2), and points
+outside the window are at least 2 away) and F2 exact except in rare configurations where the
+second-nearest point lies more than two cells away.
+
+As a fractal basis, Worley distances are mapped linearly from [0, bound] to [-1, 1], where the
+bound is the largest possible distance with one feature point per cell: sqrt(2) for F1, and
+sqrt(5) for F2 and F2 - F1.
+
+Reference: S. Worley, "A Cellular Texture Basis Function", SIGGRAPH '96, 291-294, 1996.
+https://doi.org/10.1145/237170.237267
+
+### Fractals
+
+Octave i has wavelength `wavelength / lacunarity^i` and spectral weight `gain^i`. Choosing
+`gain = lacunarity^(-H)` gives a surface with Hurst exponent H (`GainFromHurst`); H near 1 is
+smooth, lower H is rougher at short baselines. Lunar topography is self-affine over limited
+baselines with baseline-dependent Hurst exponents (Rosenburg et al. 2011), which is what makes H
+the natural roughness control here.
+
+Each octave uses its own seed, a pseudo-random sub-cell lattice offset from `pcg3d` and a lattice
+turned by the golden angle (about 137.5 degrees) from the octave before. Without the offset every
+octave's lattice would share the origin, leaving a visible fixed point; without the turn the
+creases that axis-aligned gradients leave along lattice lines would line up from octave to octave
+into a grid, most visibly in ridged and billow fractals. In 2D the turn is accumulated by
+multiplication rather than `cos` and `sin`, whose last bits differ between platforms, so results
+stay bit-identical everywhere. In 3D the turn is the golden angle about the axis
+(1, 2, 3) / sqrt(14), which lies along no lattice axis.
+
+Every fractal type is normalized by its largest possible value so the bound
+[-amplitude, amplitude] holds for any parameters:
+- `Fbm`: sum(w_i n_i) / sum(w_i).
+- `Billow`: fBm of 2|n_i| - 1.
+- `Ridged`: Musgrave's ridged multifractal, s_i = (offset - |n_i|)^2 weighted by the previous
+  octave's signal (feedback gain 2, clamped to [0, 1]), rescaled from [0, 1] to [-1, 1].
+- `HybridMultifractal`: Musgrave's hybrid multifractal with (n_i + offset) signals and the running
+  weight clamped to [0, 1], divided by (1 + offset) * sum(w_i).
+
+References:
+- B. B. Mandelbrot and J. W. Van Ness, "Fractional Brownian Motions, Fractional Noises and
+  Applications", SIAM Review 10(4):422-437, 1968. https://doi.org/10.1137/1010093
+- F. K. Musgrave, C. E. Kolb and R. S. Mace, "The Synthesis and Rendering of Eroded Fractal
+  Terrains", SIGGRAPH '89, Computer Graphics 23(3):41-50, 1989.
+  https://doi.org/10.1145/74334.74337
+- F. K. Musgrave, "Procedural Fractal Terrains", in D. S. Ebert et al., Texturing and Modeling:
+  A Procedural Approach, 3rd ed., Morgan Kaufmann, 2003 (ridged and hybrid multifractals).
+- M. A. Rosenburg et al., "Global Surface Slopes and Roughness of the Moon from the Lunar
+  Orbiter Laser Altimeter", Journal of Geophysical Research 116, E02001, 2011.
+  https://doi.org/10.1029/2010JE003716
+
+### Domain warping
+
+A layer's domain warp displaces the point at which its fractal is evaluated by independent warp
+fields, one per axis: 4-octave Perlin fBm with the layer's warp wavelength and amplitude, the first
+seeded from the layer's seed and a frozen salt, each further one with `PcgHash` of the one before.
+
+Reference: I. Quilez, "Domain Warping", 2002. https://iquilezles.org/articles/warp/
+
+## Random
+
+### Poisson sampling
+
+`SamplePoisson` uses the multiplication method for means below 10 and Hormann's transformed
+rejection with squeeze (PTRS) above.
+
+References:
+- W. Hormann, "The Transformed Rejection Method for Generating Poisson Random Variables",
+  Insurance: Mathematics and Economics 12(1):39-45, 1993.
+  https://doi.org/10.1016/0167-6687(93)90997-4
+
+### Normal sampling
+
+`SampleNormal`, `StandardNormal` and the normal and log-normal kinds of `ValueDistribution` draw
+normal deviates with the Box-Muller transform: sqrt(-2 ln u1) cos(2 pi u2) for independent
+uniforms u1 and u2.
+
+References:
+- G. E. P. Box and M. E. Muller, "A Note on the Generation of Random Normal Deviates", Annals of
+  Mathematical Statistics 29(2):610-611, 1958.
+
+## Meshes
+
+### Boulder shapes
+
+`GenerateBoulderShape` builds a shape from a `BoulderStyle`'s `solid` subdivided, every vertex
+moved only along its ray from the origin:
+1. stretched to axes 1 : b : c, b from `intermediate` and c from `shortAxis`;
+2. rounded toward the ellipsoid of those axes by a share drawn from `rounding` (0 keeps the
+   solid's edges and corners, 1 is the ellipsoid);
+3. roughened by 3D Perlin noise (`PerlinNoise3`), `noiseOctaves` octaves halving in wavelength
+   from `noiseWavelength` (in long-axis lengths), changing the radius by up to `noiseAmplitude`;
+4. cut by `fractures` planes, flat fracture faces at a share drawn from `fractureDepth` of the
+   shape's reach along each plane's normal, whose normals lie within `maxFractureTilt` (0 to 1,
+   the largest |z| of the unit normal) of horizontal, so a slab is cut about its rim only.
+
+Because the solid is convex about the origin and every step moves vertices along their rays, the
+mesh can never fold over itself. The fracture planes are fitted to the solid's original corners,
+which come first at every subdivision level, so every level shows the same shape in finer detail.
+
+`DefaultBoulderStyles` mixes blocks and slabs of broken boulder most of all, then rounded,
+weathered boulders, wedges, pyramids and shards, so that a field reads as broken boulder rather
+than as pebbles. The mix, the rounding, the noise and the fractures are chosen for their look,
+after Chrono::Planet's boulder library; the axis ratios are centred on the mean shape of impact
+fragments, a : b : c = 2 : sqrt(2) : 1, which surveys of lunar and asteroid boulders also find.
+
+References:
+- A. Fujiwara, G. Kamimoto and A. Tsukamoto, "Expected shape distribution of asteroids obtained
+  from laboratory impact experiments", Nature 272:602-603, 1978.
+  https://doi.org/10.1038/272602a0
+- T. Michikami et al., "Fragment shapes in impact experiments ranging from cratering to
+  catastrophic disruption", Icarus 264:316-330, 2016.
+  https://doi.org/10.1016/j.icarus.2015.09.038
+
+### Subdivision and icospheres
+
+`Subdivide` splits each triangle into four at its edges' midpoints, as in Loop's subdivision
+without its smoothing. Midpoints are shared between the triangles on either side of an edge, so a
+closed mesh stays closed, and new vertices are appended after the old ones, so a coarser level's
+vertices are a prefix of every finer level's: a shape computed per vertex agrees across the levels
+of detail.
+
+`Icosphere` subdivides the icosahedron with every new vertex pushed out to the unit sphere, giving
+10 * 4^levels + 2 vertices and 20 * 4^levels nearly equilateral triangles, which take displacement
+more evenly than a latitude-longitude sphere.
+
+References:
+- C. Loop, "Smooth Subdivision Surfaces Based on Triangles", M.S. thesis, University of Utah, 1987
+  (the 1-to-4 split).
+- J. R. Baumgardner and P. O. Frederickson, "Icosahedral discretization of the two-sphere", SIAM
+  Journal on Numerical Analysis 22(6):1107-1115, 1985. https://doi.org/10.1137/0722066
+
+### Rotation quaternions
+
+`RotationQuaternion` follows Shepperd's method, choosing the largest of the trace and the diagonal
+entries to divide by for numerical stability.
+
+References:
+- S. W. Shepperd, "Quaternion from rotation matrix", Journal of Guidance and Control
+  1(3):223-224, 1978. https://doi.org/10.2514/3.55767b
+
+### Mesh file formats
+
+`WritePly` writes binary little-endian PLY. `WriteGlb` and `WriteGlbScene` write binary glTF 2.0;
+glTF is y-up, so a point (x, y, z) in TerrainGen's z-up frame is written as (x, z, -y). Scene nodes
+compose scale, rotation and translation as glTF does, so a field of boulders sharing a few shapes
+stores each shape once.
+
+References:
+- G. Turk, "The PLY Polygon File Format", 1994. http://paulbourke.net/dataformats/ply/
+- The Khronos Group, "glTF 2.0 Specification", 2021, sections 3.5 (nodes) and 3.7 (meshes).
+  https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html
+
+## Distribution
+
+### Size-frequency distributions
+
+A size-frequency distribution is held as its cumulative form N(>=D), the number of features per
+m^2 (or per m^2 per Gyr for a production function) with diameter at least D, which decreases
+monotonically. Evaluating outside the diameters a fit was measured over throws unless
+extrapolation has been allowed, because published fits are only valid where they were measured.
+
+Terminology follows Robbins et al. (2018).
+
+References:
+- S. J. Robbins et al., "Revised Recommended Methods for Analyzing Crater Size-Frequency
+  Distributions", Meteoritics & Planetary Science 53(4):891-931, 2018.
+  https://doi.org/10.1111/maps.12990
+
+### Golombek-Rapp boulder sizes
+
+Boulder sizes after Golombek and Rapp (1997): the cumulative fractional area covered by boulders
+at least D metres across is F(D) = k exp(-q D), with q = qa + qb / k per metre, where k, the total
+fractional area covered by boulders, sets how rocky the ground is (`coverage`). The defaults are
+qa = 1.79 and qb = 0.152 per metre.
+
+As a number density, -dN/dD = k q exp(-q D) / (pi D^2 / 4) per m^2 per metre, so
+N(>=D) = (4 k q / pi) E2(q D) / D per m^2, with E2 the exponential integral of order 2. Lunar
+surfaces have k of about 0.005 to 0.03 away from fresh craters (0.02 is Chrono::Planet's lunar
+default); Mars landing sites range up to about 0.2.
+
+References:
+- M. P. Golombek and D. Rapp, "Size-frequency distributions of rocks on Mars and Earth analog
+  sites: Implications for future landed missions", Journal of Geophysical Research 102(E2):
+  4117-4129, 1997. https://doi.org/10.1029/96JE03319
+- M. Golombek et al., "Rock size-frequency distributions on Mars and implications for Mars
+  Exploration Rover landing safety and operations", Journal of Geophysical Research 108(E12),
+  2003. https://doi.org/10.1029/2002JE002035
+
 ## Layers
+
+### Crater generation
+
+`GenerateCraters` groups diameters into bands [2^k, 2^(k+1)) metres, clipped to [`dMin`, `dMax`).
+Band k uses cells of side `cellSizeFactor` * 2^(k+1); each cell draws its crater count from a
+Poisson distribution with the density's expected count over the cell, then each crater's diameter,
+position and age, all from random substreams keyed by (`seed`, k, cell). Consequently:
+- any region, however tiled, contains the same craters: generating tiles and joining them equals
+  generating their union;
+- bands lying wholly inside [`dMin`, `dMax`) do not depend on `dMin` or `dMax`, so lowering `dMin`
+  adds smaller craters without moving larger ones;
+- ages come from a separate substream, so changing the age model never moves a crater.
+
+Crater IDs hash (`seed`, band, cell, index) with Philox and are stable under all of the above.
+Craters are ordered by band, then cell, then index within the cell. Manual craters get a stable ID
+hashed from their position and diameter with `Philox4x32` where they have none, so the same crater
+gets the same ID in every run.
+
+Margins (`marginRadii`) keep craters centred outside a region whose rims or ejecta reach into it;
+`CraterLayer` sets them from the profile's reach. Craters near the edge of a region can only be
+judged by spacing against the craters the list contains, so for results that join across tiles,
+spacing thins a list that extends `SpacingReach` beyond the region and crops afterwards.
+
+Spacing example: a `diameterRatio` of 1.5 and a `separation` of 0.5 forbid a crater from lying
+within one radius of a crater between two thirds and one and a half times its size, while small
+craters may still sit inside large ones.
+
+A hard cap (`maxCraters`) ranks the whole list, so a capped region no longer equals its tiles
+joined. Raising `dMin` to `MinDiameterForCount` instead bounds the number of craters while keeping
+the distribution's shape above it, so tiles still join. `minResolvedDiameter` lets a renderer skip
+bands too small to resolve at its spacing: craters at or above it are the same as without
+skipping.
 
 ### Fades and blends
 
@@ -144,6 +596,27 @@ References:
 
 ### Fassett and Thomson profile
 
+`FassettThomsonProfile` is the fresh simple-crater profile of Fassett and Thomson (2014, eq. 4),
+with the coefficients and variants used by synthterrain. With x = distance / radius and heights in
+units of D:
+
+    -0.181                                                    x <= 0.2  (Original, AtOneRadius)
+    -0.228809953 + 0.227533882x + 0.083116795x^2 - 0.039499407x^3   interior
+     0.188253307 - 0.187050452x + 0.01844746x^2 + 0.01505647x^3     exterior, to x = 1.5
+
+The rim variants (`FassettThomsonRim`):
+- `Original`: the published fits, which meet within 1e-5 D at 0.98 radii.
+- `AtOneRadius`: the interior fit extended to 1.0 radii so the rim lies at the stated diameter, as
+  synthterrain's default `FT_Crater`; leaves a 0.0076 D step at the rim.
+- `Plateau`: Fassett et al. (2022) Table 3, synthterrain's `FTmod_Crater`: a flat rim at the fresh
+  rim height (`state.fresh.rimHeightRatio`, 0.0368 D on the Moon) from 0.98 to 1.02 radii; leaves a
+  0.0042 D step at 1.02 radii on the Moon.
+
+Every variant flattens the interior at a floor `state.current.depthRatio` below the fresh rim
+height `state.fresh.rimHeightRatio`, as Fassett et al. (2022) do for size-dependent fresh depths
+with the lunar 0.0368 D (`LunarFreshCraterMorphometry`); a depth beyond the fit's floor leaves the
+fit unchanged. The rim height is fixed by the fit, so degraded rim heights are not represented.
+
 References:
 - C. I. Fassett and B. J. Thomson, "Crater degradation on the lunar maria: Topographic diffusion
   and the rate of erosion on the Moon", JGR Planets 119:2255-2271, 2014.
@@ -153,6 +626,23 @@ References:
   https://github.com/NeoGeographyToolkit/synthterrain
 
 ### Complex crater profile
+
+`ComplexCraterProfile` shapes simple craters up to a transition diameter with the simple profile
+and complex ones from it. With x = r / R, depth d and rim height h from the crater's current state,
+a complex crater has:
+- a flat floor at h - d out to the floor radius `floorDiameter(D)` / 2;
+- a concave wall from the floor to the rim, h - d + d t^2 with t from 0 at the floor's edge to 1
+  at the rim, steepest just below the rim as terraced walls are;
+- a central peak, a smooth dome h_p (1 - (r / r_b)^2)^2 of height `peakHeight` and base radius
+  r_b, half `peakDiameter`, or from `peakVolume` (r_b^2 = 3 V / (pi h_p)), lowered with the crater
+  as it wears (by its depth now over its depth when fresh);
+- an exterior falling from the rim as x^-`ejectaExponent`, the ejecta thickness law of McGetchin
+  et al. (1973), shifted to reach zero at `reachRadii`.
+
+Morphometric relations are published as power laws in kilometres (`KilometrePowerLaw`). Craters
+larger than `peakFitMaxDiameter`, the largest the peak relations were fitted to, keep the peak
+height of that size and a base radius in proportion to the diameter, as peaks stop growing (Pike
+1977) rather than follow the power laws out of range.
 
 References:
 - R. J. Pike, "Size-dependence in the shape of fresh impact craters on the Moon", in Impact and
@@ -287,6 +777,83 @@ References:
   106(E12):32777-32795, 2001. https://doi.org/10.1029/2000JE001429
 - K. Shoemake, "Uniform random rotations", in D. Kirk (ed.), Graphics Gems III, Academic Press,
   124-132, 1992.
+
+### Exposure
+
+`ExposureField` tells how far the ground at a point is bedrock rather than soil from the shape of
+the ground alone: loose material moves downhill and settles in lows, so rises and steep ground are
+left bare. A point standing above the mean of eight points a reach around it is bedrock, as is a
+slope too steep to hold soil; each grades from soil to bedrock with a smoothstep between its two
+thresholds, and the larger share wins. Level ground can be bedrock too, such as a swept lava
+floor, which the shape cannot reveal, so `floorCover` of it is bedrock in noise patches.
+
+It changes no height. Layers that place material, such as boulders, and renderers ask it where the
+bedrock is, so they agree. The thresholds (`ExposureParams`) are a rule of thumb, not a
+measurement of any site; they follow Chrono::Planet's `ChExposureField`.
+
+### Perlin structure functions
+
+`PerlinStructureFunction` is the structure function of `PerlinNoise2` at a lag of r lattice units:
+the mean squared difference between values r apart, over positions, directions and seeds. It grows
+as 0.7724 r^2 for small lags and levels off at 0.18312, twice the variance, from about 4 lattice
+units; in between it is interpolated from a table computed by Monte Carlo to about 0.1% (2^26
+pairs per lag, tabulated as the value over r^2 at r = 2^(k/4)).
+
+`Perlin3StructureFunction` is the structure function of `PerlinNoise3` at a lag of r lattice units
+in a random 3D direction, as a surface cutting the lattice at a random angle sees it: about
+0.4941 r^2 for small lags, levelling off at 0.14520 from about 4 lattice units, interpolated in
+between from a table computed by Monte Carlo (2^24 pairs per lag).
+
+`RoughnessLayer` scales its octaves with these so that the RMS slope over the baseline is the one
+asked for; on a sphere each octave's 3D lattice is turned by a uniform random rotation (Shoemake
+1992) and calibrated with `Perlin3StructureFunction`. Each octave fades out at spacings too coarse
+to resolve it, so coarse levels of detail see the same surface low-passed.
+
+### Bedforms
+
+`BedformLayer` adds fields of wind-blown bedforms, ripples or dunes: each lattice cell may hold a
+field with a ragged edge, whose crests run across its wind, wander along their length, and rise
+along a gentle upwind face and fall down a lee face, C1 continuous and zero in the troughs. Where
+fields overlap, their relief is their mean weighted by cover, so sand is shared out rather than
+piled. Everything is a function of position, so grids, tiles and point queries agree.
+
+It follows Chrono::Planet's bedform layer, with its constants: field radii 0.4 to 0.7 lattice
+cells with edges 30% ragged, thinning over their outer 35%, and crests wandering over 5
+wavelengths. On a sphere, fields are drawn in `CubeSphereCells`, each with a chance in proportion
+to its area.
+
+Sand settles in lows: with the exposure field (`BedformOptions::exposure`), a field whose centre is
+on bedrock is left out, the likelier the barer the ground there.
+
+### Boulder models
+
+`BoulderModelThreshold` decides which boulders become 3D models of their own rather than relief in
+the heights: those at least `minDiameter` metres across, or spanning at least `minSamples` samples
+at the spacing evaluated. Boulders too small to resolve are left out (`ResolutionFade`), boulders
+from there up to the threshold are drawn into the heights, and boulders above it are models.
+Neither set means no models. With `minSamples`, a boulder drawn into a coarse level of detail
+becomes a model at a finer one.
+
+Ejecta blocks (`BoulderEjecta`) are densest at the rim and thin outward, and are broken down over
+time, so few are left around old craters. Where the ejecta of several craters overlap, the largest
+share counts.
+
+`PlacementAtSite` moves placements on a sphere into the east, north and up frame of a site on the
+datum sphere, so a scene of boulders about a site keeps metre-scale coordinates (glTF stores single
+precision). Boulders placed by a `BoulderLayer` on a sphere have their placements in their own
+local frames.
+
+### Secondary crater depth
+
+A "secondaries" layer (`SecondaryLayerSpec`) shapes its craters with the profile of the crater
+layer before it at a fixed depth-to-diameter ratio, 0.11 by default: the average Pike and Wilhelms
+(1978) found for simple lunar secondaries, as Singer et al. (2020) report it.
+
+References:
+- K. N. Singer, B. L. Jolliff and W. B. McKinnon, "Lunar secondary craters and estimated ejecta
+  block sizes reveal a scale-dependent fragmentation trend", JGR Planets 125, e2019JE006313,
+  2020. https://doi.org/10.1029/2019JE006313
+- R. J. Pike and D. E. Wilhelms, 1978, as cited by Singer et al. (2020).
 
 ## Filters
 
@@ -452,3 +1019,260 @@ References:
 - B. R. Hawke et al., "The origin of lunar crater rays", Icarus 170:1-16, 2004: rays are bright
   from immature material, from material of contrasting composition, or both; only immaturity is
   modelled here. https://doi.org/10.1016/j.icarus.2004.02.013
+
+### Synthetic albedo
+
+`SyntheticAlbedo` varies a base colour in hue, saturation and value with noise and converts it to
+red, green and blue by Smith's (1978) hexcone model. The default value, 0.110, is the 750 nm
+reflectance of mature Apollo 12 mare soil 12070 (Lucey et al. 2000, Table 1); their highland soils
+range from about 0.19 to 0.41.
+
+References:
+- A. R. Smith, "Color gamut transform pairs", SIGGRAPH '78, Computer Graphics 12(3):12-19, 1978.
+  https://doi.org/10.1145/965139.807361
+- P. G. Lucey et al. (2000); see "Optical maturity".
+
+## Bodies
+
+### Body radii
+
+`MeanRadius` returns the volumetric mean radius from NASA's planetary fact sheets: the Moon
+1737.4 km, Mars 3389.5 km and Mercury 2439.7 km. Their equatorial and polar radii are 1738.1 and
+1736.0 km, 3396.2 and 3376.2 km, and 2440.5 and 2438.3 km.
+
+Reference:
+- D. R. Williams, NASA Space Science Data Coordinated Archive, Planetary Fact Sheets (Moon, Mars
+  and Mercury), last updated 11 January 2024. https://nssdc.gsfc.nasa.gov/planetary/factsheet/
+
+### Lunar chronology
+
+Neukum et al. (2001, eq. 5) give the cumulative density of craters at least 1 km across on a
+lunar surface T Gyr old as N1(T) = 5.44e-14 (e^(6.93 T) - 1) + 8.38e-4 T per km^2. The linear
+term is the present-day rate, which equals 10^a_0 of the Neukum production function. Ages are
+accepted up to 4.6 Gyr.
+
+Reference:
+- G. Neukum, B. A. Ivanov and W. K. Hartmann, "Cratering Records in the Inner Solar System in
+  Relation to the Lunar Reference System", Space Science Reviews 96:55-86, 2001.
+  https://doi.org/10.1023/A:1011989004263
+
+### Lunar production function
+
+`NeukumProductionFunction` is the Neukum et al. (2001) lunar production function (eq. 2, table 1
+"new" N(D)), valid from 10 m to 300 km, as a production rate per m^2 per Gyr at the present-day
+flux.
+
+a_0 is log10(8.38e-4) = -3.076756, as in synthterrain; the paper prints -3.0876, which
+craterstats treats as a typo for -3.0768. Combined with the Neukum chronology in a
+`ProductionSurface` it reproduces the large-crater values of the DSNE 3.5 Ga mare table (NASA
+SLS-SPEC-159 Revision I, Table 3.4.1.1-1).
+
+`ExtendedNeukumProductionFunction` extends it below 10 m as a cumulative power law of slope
+-2.85, continuous at 10 m, and valid from 2.5 to 300000 m. Oetting et al. (2025) measured a mean
+cumulative slope of -2.85 for craters of at most 10 m on young impact melt deposits, fitted by
+maximum likelihood on unbinned data, and concluded that production functions can be extended down
+to 2.5 m.
+
+References:
+- G. Neukum, B. A. Ivanov and W. K. Hartmann (2001); see "Lunar chronology".
+- A. Oetting et al., "Slopes of Lunar Crater Size-Frequency Distributions on Exterior Impact Melt
+  Deposits of Young Craters", JGR Planets 130, e2024JE008589, 2025.
+  https://doi.org/10.1029/2024JE008589
+
+### Lunar equilibrium
+
+Trask's (1966) lunar equilibrium is N(>=D) = 10^-1.1 D^-2 (the same in km/km^2 and m/m^2). The
+DSNE uses it as the upper limit on the density of craters smaller than about 100-200 m on any
+surface.
+
+Hartmann's (1984) lunar equilibrium is N(>=D) = 10^-1.14 D_km^-1.83 per km^2, as given by Fassett
+et al. (2022, eq. 3b).
+
+References:
+- N. J. Trask, in Ranger VIII and IX Part II, JPL Technical Report 32-800, 1966.
+- NASA SLS-SPEC-159 (DSNE) Revision I, Section 3.4.1.1.
+- C. I. Fassett et al., "Topographic Diffusion Revisited", JGR Planets 127, 2022.
+  https://doi.org/10.1029/2022JE007510
+
+### Lunar surfaces and steady-state ages
+
+`LunarSurface` follows the DSNE construction of a lunar surface: the crater density is the lesser
+of the `ExtendedNeukumProductionFunction` surface of the given age and `TraskEquilibrium`, valid
+from 2.5 m to 300 km, with `SteadyStateAges` from the same two distributions.
+
+In equilibrium, craters of a size are erased as fast as they form, so their count is the
+production rate times their lifetime: tau(D) = n_eq(D) / n_prod(D), from the incremental
+equilibrium density and present-day production rate (as in synthterrain, which uses 0.1 dex bins
+rather than the derivative). The lifetime is capped at the surface age; craters whose lifetime
+exceeds it are production limited and all retained.
+
+Ages follow the formation rate of the Neukum et al. (2001) chronology over [0, min(tau(D), T)],
+which is nearly uniform for short lifetimes and weighted towards the early bombardment for
+production-limited craters, with no switch between the two regimes.
+
+Reference:
+- NASA SLS-SPEC-159 (DSNE) Revision I, Section 3.4.1.1.
+
+### Fresh lunar craters
+
+Fresh lunar craters have a rim height of 0.0368 diameters (Fassett et al. 2022, Table 3; Stopar
+et al. 2017 find about 0.04 with no size trend from 65 m to 10 km).
+
+Their initial rim-to-floor depth/diameter ratio (Fassett et al. 2022, Table 2) is 0.10 up to
+10 m, 0.11 below 40 m, 0.13 below 100 m, 0.15 below 200 m, 0.17 below 400 m and 0.21 above. The
+values above 40 m follow Stopar et al. (2017); those below are extrapolated.
+
+Craters become complex at 15 km (Pike 1977); Kruger et al. (2018) find that transitional and
+complex craters differ between the maria and the highlands. Complex craters have depth
+1.044 D^0.301 (Pike 1974) and rim height 0.236 D^0.399 (Pike 1977), D and both in km. Their
+shape has floor diameter 0.187 D^1.249 (Pike 1977, fitted 20 to 125 km), central peak height
+0.589e-3 D^1.969 and volume 0.987e-7 D^5.078 km^3 (Hale and Grieve 1982, fitted 17 to 51 km, so
+held at 51 km beyond), D in km, collected in Stoffler et al. (2006, Table 5.1).
+
+References:
+- C. I. Fassett et al., "Topographic Diffusion Revisited: Small Crater Lifetime on the Moon and
+  Implications for Volatile Exploration", JGR Planets 127, e2022JE007510, 2022.
+  https://doi.org/10.1029/2022JE007510
+- J. D. Stopar et al., Icarus 298, 2017 (fresh-crater d/D by size; also DSNE Table 3.4.1.2-1).
+- R. J. Pike, "Depth/diameter relations of fresh lunar craters: revision from spacecraft data",
+  Geophysical Research Letters 1:291-294, 1974. https://doi.org/10.1029/GL001i007p00291
+- R. J. Pike, "Size-dependence in the shape of fresh impact craters on the Moon", in Impact and
+  Explosion Cratering, Pergamon, 489-510, 1977.
+- T. Kruger, S. Hergarten and T. Kenkmann, "Deriving morphometric parameters and the
+  simple-to-complex transition diameter from a high-resolution, global database of fresh lunar
+  impact craters (D >= ~3 km)", JGR Planets 123:2667-2690, 2018.
+  https://doi.org/10.1029/2018JE005545
+- D. Stoffler et al., "Cratering history and lunar chronology", Reviews in Mineralogy and
+  Geochemistry 60:519-596, 2006, Table 5.1.
+
+### Lunar crater diffusivity
+
+Fassett and Thomson (2014) find a lunar diffusivity of 5.5 m^2/Myr on average for 800 m to 5 km
+mare craters over the last 3 Gyr; `FassettThomson2014Diffusivity` applies it to every size. With
+it a 1 km crater keeps about 52% of its depth after 3 Gyr and a 300 m crater about 7%.
+
+Fassett et al. (2022, Figure 2) find a size-dependent diffusivity needed to hold the Hartmann
+equilibrium of small craters, kappa = 3.6 D^0.87 m^2/Myr with D in km, fitted above 5 m and held
+at its 5 m value below (where production is less certain); for the Trask equilibrium it is
+kappa = 3.1 D^1.05 m^2/Myr. They find it 2 to 4 times uncertain, and extrapolated to the
+kilometre scale it gives 2.8 to 3.2 m^2/Myr against Fassett and Thomson's (2014) 5.5.
+
+Fassett and Thomson (2014, eq. 6) calibrate the diffusion age kappa t (m^2) against crater age t
+in Gyr for 800 m to 5 km mare craters: 435.83 t^5 - 3621.2 t^4 + 11204 t^3 - 16811 t^2 +
+17546 t, faster in the last 0.7 Gyr than before; it is clamped at 0. It does not depend on size,
+so it suits kilometre-scale craters.
+
+References:
+- C. I. Fassett and B. J. Thomson, "Crater degradation on the lunar maria: Topographic diffusion
+  and the rate of erosion on the Moon", JGR Planets 119:2255-2271, 2014.
+  https://doi.org/10.1002/2014JE004698
+- C. I. Fassett, R. A. Beyer, A. N. Deutsch, M. Hirabayashi, C. J. Leight, P. Mahanti et al.,
+  "Topographic diffusion revisited: small crater lifetime on the Moon and implications for
+  volatile exploration", JGR Planets 127, e2022JE007510, 2022.
+  https://doi.org/10.1029/2022JE007510
+
+### Lunar crater specifications
+
+Moore's terrain-specific cumulative distributions for Lunar Roving Vehicle trafficability (H. J.
+Moore, USGS "Section C", c. 1970), N per m^2 with D in metres: rough mare 10^-1 D^-2 below 100 m
+and 10 D^-3 above; smooth mare 10^-1 D^-2 below 40 m, then 10^0.602 D^-3, 10^-2.038 D^-1.68 and
+10 D^-3; uplands 10^-1 D^-2 below 1 km and 10^2 D^-3 above; heavily cratered 10^-1 D^-2 up to
+10 km. The published coefficients are rounded, so segments agree at their joins only to within
+0.2%; the presets accept joins within 0.5%.
+
+The VIPER environmental specification (VIPER-MSE-SPEC-001, 2021) as used by synthterrain is
+N = 29174 D^-1.92 per km^2 for D <= 80 m and 156228 D^-2.389 above (D in m). It is kept for
+comparison with synthterrain; its segments disagree by a factor of 1.46 at 80 m, and Allan et al.
+(2017) found it predicts too many craters against a NAC image.
+
+### Lunar boulders
+
+NASA SP-8023, the lunar surface design model, gives in its Figure 7 the blocks per m^2 at least D
+metres across between craters on smooth mare, rough mare and upland terrains, which its authors
+drew as a compromise between the Surveyor block counts of Shoemaker and Morris and of Choate. The
+curves are published only as a figure. The tables were digitized from a 300 dpi scan of it,
+reading each curve's crossings and fitting the straight segments; they agree with the printed
+curves to about 0.03 in log10 N. They span 0.03 mm to about 6 to 9 m (to 10^-6 blocks per m^2);
+the maximum curve steepens from about -1.8 to -3.1 at 0.24 m and the nominal from about -2.1 to
+-3.2 near 0.85 m, while the minimum keeps a slope of about -2.55.
+
+Its Figure 9 gives the blocks per m^2 in the annulus from the rim to two crater radii of blocky
+craters on the same terrains (after H. J. Moore), the model for the ejecta of craters that
+reached bedrock. It was digitized the same way, to about 0.03 in log10 N. The tables span from
+where each curve leaves the top of the figure (10^-2 blocks per m^2, at 0.85 m for the nominal
+and minimum curves and 1.4 m for the maximum) to 10^-6 blocks per m^2 (7 to 24 m). None is a
+power law: the maximum curve steepens from a slope of about -2.1 to -4.5.
+
+synthterrain offers three power-law boulder distributions, N per m^2 with D in metres, kept for
+comparison; its sources carry no citation for them: 0.0001 D^-1.75457 ("low blockiness", from
+synthetic_moon), 0.002 D^-2.6607 ("high blockiness", from synthetic_moon, named Haworth) and
+0.0003 D^-2.482 (the VIPER Environmental Specification, VIPER-MSE-SPEC-001, 2021).
+
+References:
+- NASA, "Lunar Surface Models", Space Vehicle Design Criteria (Environment), NASA SP-8023, 1969,
+  sections 3.4.2 and 3.4.3, Figures 7 and 9. https://ntrs.nasa.gov/citations/19700009596
+- E. M. Shoemaker and E. C. Morris, "Physical characteristics of the lunar regolith determined
+  from Surveyor television observations", Radio Science 5(2):129-155, 1970.
+  https://doi.org/10.1029/RS005i002p00129
+- synthterrain (NASA Ames, R. Beyer et al.), `synthterrain.boulder.functions`.
+  https://github.com/NeoGeographyToolkit/synthterrain
+
+### Martian chronology and production function
+
+Ivanov's (2001) Martian chronology gives the cumulative density of craters at least 1 km across on
+a surface T Gyr old as N1(T) = 2.68e-14 (e^(6.93 T) - 1) + 4.13e-4 T per km^2. The linear term
+is the present-day rate, 10^a_0 of the production function. Ages are accepted up to 4.6 Gyr.
+
+Ivanov's (2001) Martian production function, derived from the lunar one of Neukum et al. (2001),
+is a degree-11 polynomial in log D, valid from 15 m to 362 km. `MarsSurface` scales it by the
+chronology with no erosion and no equilibrium cap, and draws crater ages uniformly over the
+surface's age, which suits surfaces younger than about 3 Gyr, when the flux was nearly steady.
+
+Reference:
+- B. A. Ivanov, "Mars/Moon cratering rate ratio estimates", Space Science Reviews 96:87-104, 2001
+  (coefficients as in craterstats, G. Michael, https://github.com/ggmichael/craterstats).
+
+### Fresh Martian craters
+
+Fresh Martian craters become complex at 7 km, where Garvin et al. (2003) start their complex fits
+(Pike 1980 finds the transition between 3 and 8 km). With D in km for the fits:
+- depth over diameter is 0.23, the mean of new, dated decametre-scale impacts (Daubar et al.
+  2014), or Garvin et al.'s (2003) simple-crater fit d = 0.21 D^0.81 where that is shallower (from
+  about 0.6 km), and their complex fit d = 0.36 D^0.49 from 7 km;
+- rim height over diameter is 0.03, that of the most pristine 10 m to 1.2 km craters at InSight's
+  site (Sweeney et al. 2018), or Garvin et al.'s simple fit h = 0.04 D^0.31 where that is lower
+  (from about 1.5 km), their complex fit h = 0.02 D^0.84, and h = 0.12 D^0.35 above 100 km.
+
+Complex craters have central peaks of height 0.04 D^0.51 and diameter 0.25 D^1.05 (Garvin et al.
+2003, fitted 7 to 100 km, so held at 100 km beyond), D in km. No Martian fit of the floor's
+diameter was found, so the lunar one of Pike (1977), 0.187 D^1.249, stands in.
+
+References:
+- I. J. Daubar, C. Atwood-Stone, S. Byrne, A. S. McEwen and P. S. Russell, "The morphology of
+  small fresh craters on Mars and the Moon", JGR Planets 119:2620-2639, 2014.
+  https://doi.org/10.1002/2014JE004671
+- J. Sweeney et al., "Degradation of 100-m-scale rocky ejecta craters at the InSight landing
+  site on Mars and implications for surface processes and erosion rates in the Hesperian and
+  Amazonian", JGR Planets 123:2732-2759, 2018. https://doi.org/10.1029/2018JE005618
+- J. B. Garvin, S. E. H. Sakimoto and J. J. Frawley, "Craters on Mars: global geometric
+  properties from gridded MOLA topography", Sixth International Conference on Mars, abstract
+  3277, 2003, Table 1. https://www.lpi.usra.edu/meetings/sixthmars2003/pdf/3277.pdf
+- R. J. Pike, "Formation of complex impact craters: evidence from Mars and other planets",
+  Icarus 43:1-19, 1980.
+
+### Martian bedforms
+
+Martian large wind ripples are metre-scale bedforms with sinuous crests and lee faces at the
+angle of repose (Lapotre et al. 2016). The preset uses a 2 m wavelength, a height of a tenth of it
+(an assumption: no measured height was found), a lee share giving a 30 degree lee slope, and
+sinuous crests. The cover (15%) and field size (80 m) are not from a source.
+
+Martian transverse aeolian ridges are symmetric ridges; the preset uses the typical size
+Hugenholtz et al. (2017) measured on 2295 TARs in HiRISE terrain models: a 25.8 m wavelength and
+1.3 m height. The cover (7%) and field size (250 m) are not from a source.
+
+References:
+- M. G. A. Lapotre et al., "Large wind ripples on Mars: a record of atmospheric evolution",
+  Science 353(6294):55-58, 2016. https://doi.org/10.1126/science.aaf3206
+- C. H. Hugenholtz, T. E. Barchyn and E. A. Boulding, "Morphology of transverse aeolian ridges
+  (TARs) on Mars from a large sample", Icarus 286, 2017.

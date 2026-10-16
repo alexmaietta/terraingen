@@ -1,3 +1,5 @@
+/// @file
+/// @brief Layer context checks and the default one-cell `Layer::ApplyAt`.
 #include "terraingen/layers/layer.h"
 
 #include "terraingen/util/checks.h"

@@ -1,3 +1,5 @@
+/// @file
+/// @brief Power-law size-frequency distributions.
 #include "terraingen/distribution/power_law.h"
 
 #include "terraingen/util/checks.h"

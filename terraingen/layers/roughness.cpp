@@ -1,3 +1,5 @@
+/// @file
+/// @brief `RoughnessLayer` and the tabulated structure functions of Perlin noise.
 #include "terraingen/layers/roughness.h"
 
 #include "terraingen/noise/kernels/hash.h"
@@ -70,6 +72,7 @@ constexpr std::array<double, 33> kStructure3OverSquare{
     0.051596, 0.036333, 0.025663, 0.018156, 0.012839, 0.009067};
 constexpr double kLargeLag3 = 0.145198;
 
+/// A structure function at lag `r` from its `table` of value over r^2, `large` beyond the table.
 double Interpolated(const std::array<double, 33>& table, double large, double r) {
     if (!(r > 0.0)) {
         return 0.0;

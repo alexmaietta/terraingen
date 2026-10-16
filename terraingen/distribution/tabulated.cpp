@@ -1,3 +1,5 @@
+/// @file
+/// @brief Tabulated size-frequency distributions.
 #include "terraingen/distribution/tabulated.h"
 
 #include "terraingen/util/checks.h"
@@ -11,6 +13,7 @@ namespace terraingen {
 
 namespace {
 
+/// The table's diameter range in metres, after checking the table and units.
 DiameterRange TableRange(const std::vector<double>& diameters,
                          const std::vector<double>& cumulative, double diameterUnit,
                          double areaUnit) {

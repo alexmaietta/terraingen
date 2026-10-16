@@ -1,3 +1,5 @@
+/// @file
+/// @brief A source of constant elevation.
 #include "terraingen/sources/flat_source.h"
 
 #include "terraingen/util/checks.h"

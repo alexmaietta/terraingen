@@ -1,6 +1,6 @@
+/// @file
+/// @brief The whole TerrainGen library: includes every public header.
 #pragma once
-
-/// The whole TerrainGen library.
 
 #include "terraingen/albedo/albedo.h"
 #include "terraingen/albedo/crater_albedo.h"

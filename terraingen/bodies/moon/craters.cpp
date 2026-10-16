@@ -1,3 +1,5 @@
+/// @file
+/// @brief Fresh lunar crater morphometry and lunar topographic diffusivities.
 #include "terraingen/bodies/moon/craters.h"
 
 #include "terraingen/util/checks.h"

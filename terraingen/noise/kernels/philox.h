@@ -1,25 +1,27 @@
+/// @file
+/// @brief The Philox4x32-10 counter-based generator for the CPU and GPU backends.
 #pragma once
 
 #include "terraingen/noise/kernels/portable.h"
 
 namespace terraingen {
 
-/// Four 32-bit words: a Philox counter or output block.
+/// @brief Four 32-bit words: a Philox counter or output block.
 struct U32x4 {
-    uint32_t x = 0;
-    uint32_t y = 0;
-    uint32_t z = 0;
-    uint32_t w = 0;
+    uint32_t x = 0;  ///< First word.
+    uint32_t y = 0;  ///< Second word.
+    uint32_t z = 0;  ///< Third word.
+    uint32_t w = 0;  ///< Fourth word.
 
 #ifndef __SLANG__
     bool operator==(const U32x4&) const = default;
 #endif
 };
 
-/// Two 32-bit words: a Philox key.
+/// @brief Two 32-bit words: a Philox key.
 struct U32x2 {
-    uint32_t x = 0;
-    uint32_t y = 0;
+    uint32_t x = 0;  ///< First word.
+    uint32_t y = 0;  ///< Second word.
 
 #ifndef __SLANG__
     bool operator==(const U32x2&) const = default;
@@ -28,8 +30,11 @@ struct U32x2 {
 
 namespace detail {
 
-/// The high (`x`) and low (`y`) words of the 64-bit product of `a` and `b`. GPUs without 64-bit
-/// integers get it from 16-bit halves, with the same result.
+/// @brief The 64-bit product of two words, built from 16-bit halves on GPUs without 64-bit
+/// integers, with the same result.
+/// @param a First factor.
+/// @param b Second factor.
+/// @return The high (`x`) and low (`y`) words of `a * b`.
 constexpr U32x2 MulHiLo32(uint32_t a, uint32_t b) {
     U32x2 result = {};
 #ifdef __SLANG__
@@ -50,6 +55,10 @@ constexpr U32x2 MulHiLo32(uint32_t a, uint32_t b) {
     return result;
 }
 
+/// @brief One Philox4x32 round.
+/// @param counter The block before the round.
+/// @param key The round key.
+/// @return The block after the round.
 constexpr U32x4 PhiloxRound(U32x4 counter, U32x2 key) {
     const U32x2 first = MulHiLo32(0xD2511F53u, counter.x);
     const U32x2 second = MulHiLo32(0xCD9E8D57u, counter.z);
@@ -60,14 +69,11 @@ constexpr U32x4 PhiloxRound(U32x4 counter, U32x2 key) {
 
 }  // namespace detail
 
-/// Philox4x32-10: maps a 128-bit `counter` and 64-bit `key` to 128 pseudo-random bits.
-///
-/// A counter-based generator: every output is a bijection of its counter under the key, so any
-/// element of any stream can be computed directly, in any order, on any thread or tile. Passes
-/// TestU01 BigCrush. Integer-only, so results are bit-identical on every platform and GPU.
-///
-/// Reference: J. K. Salmon, M. A. Moraes, R. O. Dror and D. E. Shaw, "Parallel Random Numbers: As
-/// Easy as 1, 2, 3", Proc. SC '11, 2011. https://doi.org/10.1145/2063384.2063405 (Random123).
+/// @brief Philox4x32-10: 128 pseudo-random bits, a bijection of the counter under the key, so any
+/// element of any stream can be computed directly. Bit-identical on every platform and GPU.
+/// @param counter The 128-bit counter.
+/// @param key The 64-bit key.
+/// @return The 128 output bits.
 constexpr U32x4 Philox4x32(U32x4 counter, U32x2 key) {
     for (int round = 0; round < 10; ++round) {
         if (round > 0) {

@@ -188,6 +188,7 @@ void AddDegradation(const CraterLayerSpec& craters, CraterModels& models) {
         craters.degradation);
 }
 
+/// Checks that a crater layer's models suit its body.
 /// @throws ConfigError for a density, ages or diffusivity model of another body than the layer's.
 void CheckCraterBody(const CraterLayerSpec& craters, const std::string& path) {
     if (craters.body == CraterBody::Moon) {

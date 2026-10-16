@@ -1,3 +1,5 @@
+/// @file
+/// @brief Golombek-Rapp boulder size distributions.
 #include "terraingen/distribution/golombek_rapp.h"
 
 #include "terraingen/util/checks.h"

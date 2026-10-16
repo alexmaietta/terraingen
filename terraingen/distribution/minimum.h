@@ -1,3 +1,5 @@
+/// @file
+/// @brief The pointwise minimum of size-frequency distributions.
 #pragma once
 
 #include "terraingen/distribution/size_frequency.h"
@@ -7,19 +9,22 @@
 
 namespace terraingen {
 
-/// The pointwise minimum of distributions of one kind, such as the DSNE construction of a surface's
-/// crater density: the lesser of the production surface and the equilibrium density at every
-/// diameter.
+/// @brief The pointwise minimum of distributions of one kind, such as the DSNE crater density: the
+/// lesser of the production surface and the equilibrium density at every diameter.
 ///
 /// The valid range is the intersection of the inputs' valid ranges, even for inputs that allow
 /// extrapolation, which `SummedSfd` and `SplicedSfd` treat as valid everywhere.
 class MinimumSfd final : public SizeFrequencyDistribution {
   public:
+    /// @brief The minimum of `distributions`.
+    /// @param distributions The inputs, all of one kind.
     /// @throws std::invalid_argument if `distributions` is empty, holds a null pointer, mixes
     /// kinds, or the valid ranges do not overlap.
     explicit MinimumSfd(
         std::vector<std::shared_ptr<const SizeFrequencyDistribution>> distributions);
 
+    /// @brief The inputs.
+    /// @return The distributions whose minimum this is.
     const std::vector<std::shared_ptr<const SizeFrequencyDistribution>>& Distributions() const {
         return distributions_;
     }

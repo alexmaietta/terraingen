@@ -6,9 +6,9 @@
 
 namespace terraingen {
 
-/// Boulder densities whose cumulative fractional area is F(D) = k exp(-q D), with q = `qa` +
+/// @brief Boulder densities whose cumulative fractional area is F(D) = k exp(-q D), with q = `qa` +
 /// `qb` / k per metre and k the fraction of ground the boulders cover (`coverage`); N(>=D) =
-/// (4 k q / pi) E2(q D) / D per m^2. See SCIENCE.md, "Golombek-Rapp boulder sizes".
+/// (4 k q / pi) E2(q D) / D per m^2.
 class GolombekRappSfd final : public SizeFrequencyDistribution {
   public:
     /// @brief The distribution for coverage k.
@@ -21,11 +21,14 @@ class GolombekRappSfd final : public SizeFrequencyDistribution {
     explicit GolombekRappSfd(double coverage, double qa = 1.79, double qb = 0.152,
                              DiameterRange range = {});
 
+    /// @brief The fractional area covered by boulders.
+    /// @return k, in (0, 1).
     double Coverage() const {
         return coverage_;
     }
 
-    /// q = qa + qb / k, per metre.
+    /// @brief The size scale of the exponential.
+    /// @return q = qa + qb / k, per metre.
     double Q() const {
         return q_;
     }

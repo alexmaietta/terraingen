@@ -1,3 +1,5 @@
+/// @file
+/// @brief Nearest, bilinear and cubic interpolation and resampling of rasters.
 #include "terraingen/raster/resample.h"
 
 #include <algorithm>

@@ -1,3 +1,5 @@
+/// @file
+/// @brief Raster grid bounds, areas, spacings and resampled grids.
 #include "terraingen/raster/grid.h"
 
 #include "terraingen/util/checks.h"

@@ -1,3 +1,5 @@
+/// @file
+/// @brief Fully synthetic terrains made from stacks of noise layers.
 #pragma once
 
 #include "terraingen/noise/kernels/fractal.h"
@@ -10,27 +12,31 @@
 
 namespace terraingen {
 
-/// A synthetic terrain: a stack of noise layers, from 1 to `kMaxNoiseLayers`, evaluated with
-/// `EvaluateNoiseLayers`. The default is a single Perlin fBm layer.
+/// @brief A synthetic terrain: a stack of noise layers evaluated with `EvaluateNoiseLayers`.
 struct SyntheticTerrainParams {
-    std::vector<NoiseLayer> layers{NoiseLayer{}};
+    std::vector<NoiseLayer> layers{NoiseLayer{}};  ///< 1 to `kMaxNoiseLayers`; one Perlin fBm.
 
     bool operator==(const SyntheticTerrainParams&) const = default;
 };
 
-/// Checks the layer count and every layer (`ValidateNoiseLayer`).
+/// @brief Checks the layer count and every layer (`ValidateNoiseLayer`).
+/// @param params The terrain to check.
 /// @throws std::invalid_argument naming the first problem.
 void ValidateSyntheticTerrain(const SyntheticTerrainParams& params);
 
-/// Sets every cell of `raster` to the synthetic terrain height at the cell's centre, in metres.
-///
-/// Cell centres come from the raster's `GeoTransform`, so rasters that tile a larger grid on the
-/// same lattice produce the same values as the larger grid.
+/// @brief Sets every cell of `raster` to the synthetic height at its centre, placed by its
+/// `GeoTransform`, so tiles of a larger grid on the same lattice match it.
+/// @param raster Raster to fill, heights in metres.
+/// @param params The terrain.
 /// @throws std::invalid_argument if `params` are invalid.
 void FillSyntheticTerrain(Raster<float>& raster, const SyntheticTerrainParams& params);
 
-/// Generates a `width` x `height` north-up synthetic terrain centred on the world origin, with
-/// square pixels of `pixelSize` world units (metres).
+/// @brief Generates a north-up synthetic terrain centred on the world origin.
+/// @param width Columns, at least 1.
+/// @param height Rows, at least 1.
+/// @param pixelSize Cell size in world units (metres), positive and finite.
+/// @param params The terrain.
+/// @return The heights in metres.
 /// @throws std::invalid_argument if `width` or `height` is zero, `pixelSize` is not positive and
 /// finite, or `params` are invalid.
 Raster<float> GenerateSyntheticTerrain(std::size_t width, std::size_t height, double pixelSize,

@@ -1,3 +1,5 @@
+/// @file
+/// @brief Crater selection by diameter, age and manual flag.
 #include "terraingen/layers/craters/selection.h"
 
 #include <stdexcept>

@@ -30,12 +30,8 @@ bool CratersConflict(const Crater& a, const Crater& b, const CraterSpacing& spac
 /// @return True when `a` wins.
 bool CraterTakesPrecedence(const Crater& a, const Crater& b);
 
-/// @brief For each crater, whether it conflicts with a crater that takes precedence over it.
-///
-/// This is Matern type II hard-core thinning: a crater is removed whenever a conflicting crater
-/// takes precedence, even if that crater is itself removed, so each decision depends only on
-/// craters within reach and not on the order of the list. Manual craters are never marked. See
-/// SCIENCE.md, "Crater spacing".
+/// @brief For each crater, whether it conflicts with a crater that takes precedence over it
+/// (Matern type II thinning); manual craters are never marked.
 /// @param craters The craters.
 /// @param spacing The spacing settings.
 /// @param surface What the craters lie on.
@@ -46,9 +42,8 @@ std::vector<bool> SpacingConflicts(const CraterList& craters, const CraterSpacin
 
 /// @brief Craters without those `SpacingConflicts` marks, in their original order.
 ///
-/// Craters near the edge of a region can only be judged against the craters the list contains, so
-/// for results that join across tiles, thin a list that extends `SpacingReach` beyond the region
-/// and crop afterwards (`GenerateCraters` does this when given `spacing`).
+/// For results that join across tiles, thin a list extending `SpacingReach` beyond the region and
+/// crop afterwards, as `GenerateCraters` does.
 /// @param craters The craters.
 /// @param spacing The spacing settings.
 /// @param surface What the craters lie on.

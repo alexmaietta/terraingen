@@ -1,3 +1,5 @@
+/// @file
+/// @brief The Neukum et al. (2001) lunar chronology.
 #include "terraingen/bodies/moon/chronology.h"
 
 #include <cmath>

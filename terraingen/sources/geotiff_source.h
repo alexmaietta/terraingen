@@ -1,3 +1,5 @@
+/// @file
+/// @brief Heights read from a band of a GeoTIFF DEM.
 #pragma once
 
 #include "terraingen/raster/geotiff.h"
@@ -12,20 +14,22 @@
 
 namespace terraingen {
 
-/// Heights from one band of a GeoTIFF in a projected CRS, optionally resampled to square cells of
-/// `pixelSize` over the file's extent, as when a DEM is upscaled before relief is added.
+/// @brief Heights from one band of a GeoTIFF in a projected CRS, optionally resampled to square
+/// cells of `pixelSize` over the file's extent.
 ///
-/// The file is read the first time heights are needed and kept for later calls. On the source's own
-/// lattice, such as a tile of its grid, `Fill` copies cells exactly; on any other grid, such as a
-/// tile at another level of detail, each cell is the file interpolated at its centre with
-/// `resampling`. Cells beyond the file are no-data.
-///
-/// Samples are scaled to heights with the band's scale and offset (`GeoTiffInfo::bandScaling`),
-/// either of which `scale` and `offset` replace, before resampling. When that changes the samples,
-/// cells without data become NaN, so that no height can be mistaken for the file's no-data value.
+/// The file is read on first use and kept. On the source's own lattice `Fill` copies cells exactly;
+/// on any other grid each cell is the file interpolated at its centre with `resampling`. Cells
+/// beyond the file are no-data. Samples are scaled with the band's scale and offset, which `scale`
+/// and `offset` replace; when that changes the samples, cells without data become NaN.
 class GeoTiffSource final : public Source {
   public:
-    /// Reads the file's header.
+    /// @brief Reads the file's header.
+    /// @param path The GeoTIFF.
+    /// @param band Zero-based band index.
+    /// @param pixelSize Cell size to resample to, in CRS units; unset keeps the file's cells.
+    /// @param resampling Interpolation for resampling and for cells off the lattice.
+    /// @param scale Replaces the band's scale when set; finite.
+    /// @param offset Replaces the band's offset when set; finite.
     /// @throws GeoTiffError if the file cannot be read.
     /// @throws std::invalid_argument for a missing band, a geographic CRS (craters are sized in
     /// metres), a non-positive `pixelSize`, a rotated raster that would need resampling, or a
@@ -36,28 +40,38 @@ class GeoTiffSource final : public Source {
                            std::optional<double> scale = std::nullopt,
                            std::optional<double> offset = std::nullopt);
 
+    /// @brief The file's grid, resampled to `pixelSize` when set.
+    /// @return The grid.
     RasterGrid Grid() const override {
         return grid_;
     }
 
-    /// The top-left corner of the grid.
+    /// @brief The top-left corner of the grid.
+    /// @return The corner in CRS units.
     Vec2d ReferencePoint() const override;
 
+    /// @brief Copies cells on the source's lattice, otherwise samples the file at cell centres.
+    /// @param heights Raster to fill.
     /// @throws std::invalid_argument for a rotated grid off the source's lattice.
     /// @throws GeoTiffError if the file cannot be read.
     void Fill(Raster<float>& heights) const override;
 
-    /// The source cell centred at (`x`, `y`) when there is one, otherwise the file interpolated
-    /// there with `resampling` (`SampleRaster`); NaN beyond the file and where it has no data.
+    /// @brief The source cell centred at (`x`, `y`) when there is one, otherwise the file
+    /// interpolated there with `resampling` (`SampleRaster`).
+    /// @param x CRS x.
+    /// @param y CRS y.
+    /// @return Height in metres; NaN beyond the file and where it has no data.
     /// @throws GeoTiffError if the file cannot be read.
     float HeightAt(double x, double y) const override;
 
-    /// The file's projection, to write outputs with.
+    /// @brief The file's projection, to write outputs with.
+    /// @return The GeoKeys.
     const GeoKeys& Keys() const {
         return info_.geoKeys;
     }
 
-    /// The scale and offset the samples are read with.
+    /// @brief The scale and offset the samples are read with.
+    /// @return The band scaling.
     const BandScaling& Scaling() const {
         return scaling_;
     }

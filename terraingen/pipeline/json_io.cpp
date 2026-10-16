@@ -82,7 +82,7 @@ void Read(const Json& json, const std::string& path, int& value) {
 
 namespace {
 
-/// The list format a path's extension names when the configuration gives none.
+/// Sets `output.format` from its path's extension (.json or else CSV) when `json` gives none.
 void InferListFormat(const Json& json, ListOutput& output) {
     if (!json.contains("format")) {
         const std::string& path = output.path;
@@ -91,8 +91,9 @@ void InferListFormat(const Json& json, ListOutput& output) {
     }
 }
 
+/// Checks a configuration's "schema_version" before any other key, which a newer version may add.
 /// @throws ConfigError at "schema_version" when the object `json` has none, or another version
-/// than this library reads; checked before any other key, which a newer version may add.
+/// than this library reads.
 void CheckSchemaVersion(const Json& json) {
     if (!json.is_object()) {
         return;

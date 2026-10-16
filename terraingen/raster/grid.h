@@ -1,3 +1,5 @@
+/// @file
+/// @brief Raster grids without values, and resampled grids and spacings derived from them.
 #pragma once
 
 #include "terraingen/raster/geo_transform.h"
@@ -9,44 +11,56 @@
 
 namespace terraingen {
 
-/// A grid of cells without values: its size and its pixel-to-world transform. Terrains are
-/// evaluated over grids, so a tile of a larger grid is a grid on the same lattice.
+/// @brief A grid of cells without values: its size and pixel-to-world transform.
+///
+/// Terrains are evaluated over grids, so a tile of a larger grid is a grid on the same lattice.
 struct RasterGrid {
-    std::size_t width = 0;
-    std::size_t height = 0;
-    GeoTransform transform{};
+    std::size_t width = 0;     ///< Columns.
+    std::size_t height = 0;    ///< Rows.
+    GeoTransform transform{};  ///< Pixel-to-world transform.
 
-    /// The grid of `raster`.
+    /// @brief The grid of a raster.
+    /// @param raster The raster.
+    /// @return Its size and transform.
     static RasterGrid Of(const Raster<float>& raster) {
         return {raster.Width(), raster.Height(), raster.Transform()};
     }
 
-    /// The axis-aligned box in world coordinates that the grid covers.
+    /// @brief The axis-aligned box the grid covers.
+    /// @return The box in world coordinates.
     Bounds2d Bounds() const;
 
-    /// Area of the grid in square world units.
+    /// @brief The grid's area.
+    /// @return The area in square world units.
     double Area() const;
 
-    /// Side of a cell: the square root of a cell's area.
+    /// @brief The side of a cell: the square root of a cell's area.
+    /// @return The side in world units.
     double PixelSize() const;
 
-    /// The area the grid covers on `surface`, in m^2: `Area` on a plane, and on a sphere of radius
-    /// R the area of its longitude-latitude box, R^2 (lon2 - lon1) (sin lat2 - sin lat1), with
-    /// latitudes clamped to [-90, 90] and at most a full turn of longitude.
+    /// @brief The area the grid covers on a surface.
+    ///
+    /// On a sphere of radius R this is R^2 (lon2 - lon1) (sin lat2 - sin lat1) over the grid's
+    /// longitude-latitude box, with latitudes clamped to [-90, 90] and at most a full turn.
+    /// @param surface What the grid lies on.
+    /// @return The area in m^2: `Area` on a plane.
     double SurfaceArea(const Surface& surface) const;
 
-    /// The grid's sample spacing in metres on `surface`: `PixelSize` on a plane, and on a sphere
-    /// the latitude step of a cell (its largest side) in metres.
+    /// @brief The grid's sample spacing on a surface.
+    /// @param surface What the grid lies on.
+    /// @return The spacing in metres: `PixelSize` on a plane, on a sphere the latitude step of a
+    /// cell (its largest side).
     double Spacing(const Surface& surface) const;
 
-    /// A raster on this grid filled with `fill`.
+    /// @brief A raster on this grid.
+    /// @param fill The value of every cell.
+    /// @return The raster, with this grid's size and transform and no no-data value.
     Raster<float> MakeRaster(float fill = 0.0f) const;
 
     bool operator==(const RasterGrid&) const = default;
 };
 
-/// @brief `grid` with square cells of `pixelSize` over the same extent, the same origin and the
-/// same axis directions.
+/// @brief A grid with square cells over the same extent, origin and axis directions.
 /// @param grid An unrotated grid.
 /// @param pixelSize The new cell side in world units; positive and finite.
 /// @return A grid of round(width * |pixelWidth| / `pixelSize`) x round(height * |pixelHeight| /

@@ -1,3 +1,5 @@
+/// @file
+/// @brief Pixel windows of a raster around boxes on a plane or sphere.
 #include "terraingen/raster/cell_loops.h"
 
 #include <cmath>

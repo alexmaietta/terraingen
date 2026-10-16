@@ -1,3 +1,5 @@
+/// @file
+/// @brief The `terraingen --gui` command, with or without the GUI in the build.
 #pragma once
 
 #include <ostream>
@@ -6,15 +8,19 @@
 
 namespace terraingen::cli {
 
-/// Whether this build has the GUI (`TERRAINGEN_BUILD_GUI`).
+/// @brief Whether this build has the GUI (`TERRAINGEN_BUILD_GUI`).
+/// @return True when the GUI is built in.
 bool GuiAvailable();
 
-/// Runs `terraingen [PATH] --gui [--threads N]`, with `args` the arguments but `--gui`: opens the
-/// GUI on the terrain configuration (.json) or heights (.tif, .tiff) at PATH, or none, and returns
-/// once its window closes. Without the GUI in the build it explains how to add it.
-/// @return `kExitSuccess`, `kExitInvalidConfig` if the GUI cannot start, or `kExitUsage` for bad
-/// arguments or a build without the GUI.
-/// @throws std::invalid_argument for bad arguments, as `Run` reports them.
+/// @brief Runs `terraingen [PATH] --gui [--threads N]`: opens the GUI on a configuration (.json),
+/// heights (.tif, .tiff) or nothing, and returns once its window closes. Without the GUI in the
+/// build it explains how to add it.
+/// @param args The arguments, without the program name and `--gui`.
+/// @param out Stream for results.
+/// @param err Stream for errors.
+/// @return `kExitSuccess`, `kExitInvalidConfig` if the GUI cannot start or stops on an error, or
+/// `kExitUsage` for a build without the GUI.
+/// @throws std::invalid_argument for bad arguments, which `Run` reports as usage errors.
 int RunGui(const std::vector<std::string>& args, std::ostream& out, std::ostream& err);
 
 }  // namespace terraingen::cli

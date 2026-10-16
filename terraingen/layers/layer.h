@@ -15,16 +15,12 @@
 
 namespace terraingen {
 
-/// What layers place besides heights, for the filters and outputs that follow them.
+/// @brief What layers place besides heights, for the filters and outputs that follow them.
 struct TerrainFeatures {
     CraterList craters;  ///< Every crater the layers applied, in the order they applied them.
-    /// The attributes of `craters`, in the same order; layers that record craters record these too.
-    std::vector<CraterAttributes> craterAttributes;
-    /// Every boulder the layers placed, in the order they placed them.
-    std::vector<Boulder> boulders;
-    /// The boulders placed as 3D models of their own (`Boulder::model`), with their shapes and
-    /// placements.
-    std::vector<BoulderModel> boulderModels;
+    std::vector<CraterAttributes> craterAttributes;  ///< Attributes of `craters`, in step with it.
+    std::vector<Boulder> boulders;  ///< Every boulder the layers placed, in the order placed.
+    std::vector<BoulderModel> boulderModels;  ///< Boulders placed as their own 3D models.
 
     /// @brief Records craters with their attributes, keeping the two lists in step.
     /// @param added The craters, in the order applied.
@@ -38,16 +34,13 @@ struct TerrainFeatures {
     }
 };
 
-/// How a layer is evaluated.
+/// @brief How a layer is evaluated.
 struct LayerContext {
-    /// Sample spacing in world units: features that cannot be resolved at it are left out. In
-    /// `Layer::Apply` it is at least the grid's cell size; in `Layer::ApplyAt` it must be positive.
+    /// Sample spacing in world units; features unresolvable at it are left out. At least the cell
+    /// size in `Layer::Apply`; positive in `Layer::ApplyAt`.
     double spacing = 0.0;
-    /// Threads the layer may split its work over; 0 for every hardware thread. The result does not
-    /// depend on it.
-    unsigned threads = 1;
-    /// The terrain beneath the layer, for layers that read it; may be null where none is needed.
-    const Ground* ground = nullptr;
+    unsigned threads = 1;  ///< Worker threads, 0 for all; the result does not depend on it.
+    const Ground* ground = nullptr;  ///< The terrain beneath the layer; null where none is needed.
 };
 
 /// @brief Checks the context of a point query (`Layer::ApplyAt`).
@@ -61,13 +54,11 @@ void ValidatePointContext(const LayerContext& context);
 /// @throws std::invalid_argument if `ground` is null.
 void RequireGround(const Ground* ground, std::string_view what);
 
-/// Relief added on top of a source: noise, craters, or a layer of your own.
+/// @brief Relief added on top of a source: noise, craters, or a layer of your own.
 ///
-/// A layer must be deterministic and safe to call from several threads at once, and must place the
-/// same features in a tile as in any larger grid containing it, so that a terrain evaluated tile by
-/// tile equals the terrain evaluated whole. A layer that needs another layer's features, such as
-/// boulders around fresh craters, holds a reference to that layer and queries it (for example
-/// `CraterLayer::Craters`), so its point queries see the same features as its grids.
+/// Implementations must be deterministic and thread-safe, and place the same features in a tile as
+/// in any larger grid containing it. A layer needing another layer's features holds a reference to
+/// it and queries it (e.g. `CraterLayer::Craters`).
 class Layer {
   public:
     virtual ~Layer() = default;
@@ -79,9 +70,8 @@ class Layer {
     virtual void Apply(Raster<float>& heights, const LayerContext& context,
                        TerrainFeatures& features) const = 0;
 
-    /// @brief The height at a point after this layer: what `Apply` makes of a cell centred there,
-    /// to the same bits. The default applies the layer to one cell of side `context.spacing`;
-    /// layers override it with something faster where they can.
+    /// @brief The height at a point after this layer, bit-identical to `Apply` on a cell centred
+    /// there. The default applies the layer to one cell of side `context.spacing`.
     /// @param height The height there before the layer.
     /// @param x World x of the point.
     /// @param y World y of the point.

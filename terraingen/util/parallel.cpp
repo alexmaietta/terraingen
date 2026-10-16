@@ -1,3 +1,5 @@
+/// @file
+/// @brief A parallel loop on a temporary thread pool.
 #include "terraingen/util/parallel.h"
 
 #include <algorithm>

@@ -1,3 +1,5 @@
+/// @file
+/// @brief Crater lists, manual craters, size bands and cell-by-cell crater generation.
 #include "terraingen/layers/craters/population.h"
 
 #include "terraingen/layers/craters/spacing.h"

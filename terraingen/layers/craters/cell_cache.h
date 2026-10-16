@@ -1,3 +1,5 @@
+/// @file
+/// @brief `CraterCellCache`, the craters of generated cells kept for reuse.
 #pragma once
 
 #include "terraingen/layers/craters/population.h"
@@ -10,33 +12,42 @@
 
 namespace terraingen {
 
-/// The craters drawn in each cell of each band, kept so that tiles and point queries over the same
-/// ground generate each cell once.
+/// @brief The craters drawn in each cell of each band, kept so tiles and point queries generate
+/// each cell once.
 ///
-/// Holds at most about `maxCraters` craters, evicting the least recently used cells, and is safe to
-/// use from several threads at once. Since cells are regenerated identically, eviction never
-/// changes results.
+/// Holds about `maxCraters` craters at most, evicting least recently used cells; thread-safe.
+/// Cells regenerate identically, so eviction never changes results.
 class CraterCellCache {
   public:
+    /// @brief Makes an empty cache.
+    /// @param maxCraters Most craters held across every cell; positive.
     /// @throws std::invalid_argument if `maxCraters` is zero.
     explicit CraterCellCache(std::size_t maxCraters = 4000000);
 
-    /// The craters of `cell` in band `exponent`, from `generate` when they are not held.
+    /// @brief The craters of a cell, generated when not held.
+    /// @param exponent The size band's exponent.
+    /// @param cell The cell.
+    /// @param generate Draws the cell's craters.
+    /// @return The cell's craters.
     std::shared_ptr<const CraterList> Get(int exponent, const CellIndex& cell,
                                           const std::function<CraterList()>& generate) {
         return cache_.Get({exponent, cell.i, cell.j}, generate);
     }
 
-    /// Craters held across every cell.
+    /// @brief Craters held across every cell.
+    /// @return Their number.
     std::size_t Size() const {
         return cache_.Size();
     }
 
+    /// @brief The capacity.
+    /// @return The most craters held.
     std::size_t MaxCraters() const {
         return cache_.Capacity();
     }
 
-    /// Cells evicted since construction.
+    /// @brief Cells evicted since construction.
+    /// @return Their number.
     std::size_t Evictions() const {
         return cache_.Evictions();
     }

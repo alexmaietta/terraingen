@@ -1,3 +1,5 @@
+/// @file
+/// @brief Base solid meshes, midpoint subdivision and icospheres.
 #include "terraingen/meshes/polyhedra.h"
 
 #include <algorithm>

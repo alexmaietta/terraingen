@@ -1,3 +1,5 @@
+/// @file
+/// @brief Ivanov's (2001) Martian chronology and production function, and Martian surfaces.
 #include "terraingen/bodies/mars/production.h"
 
 #include "terraingen/layers/craters/ages/uniform.h"

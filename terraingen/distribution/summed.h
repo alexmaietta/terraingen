@@ -1,3 +1,5 @@
+/// @file
+/// @brief Weighted sums of size-frequency distributions.
 #pragma once
 
 #include "terraingen/distribution/size_frequency.h"
@@ -7,23 +9,27 @@
 
 namespace terraingen {
 
-/// One term of a `SummedSfd`: `distribution` scaled by `weight`.
+/// @brief One term of a `SummedSfd`: `distribution` scaled by `weight`.
 struct WeightedSfd {
-    double weight = 1.0;
-    std::shared_ptr<const SizeFrequencyDistribution> distribution;
+    double weight = 1.0;                                            ///< Positive, finite factor.
+    std::shared_ptr<const SizeFrequencyDistribution> distribution;  ///< The scaled distribution.
 };
 
-/// The sum of weighted distributions of one kind, N(>=D) = sum of weight * N_i(>=D), such as
-/// boulders between craters plus the blocks thrown out by them, or a population scaled by a factor.
+/// @brief The sum of weighted distributions of one kind, N(>=D) = sum of weight * N_i(>=D), such
+/// as boulders between craters plus the blocks thrown out by them.
 ///
 /// It is valid where every term is: the intersection of their valid ranges, with a term that allows
 /// extrapolation counting as valid everywhere.
 class SummedSfd final : public SizeFrequencyDistribution {
   public:
+    /// @brief The sum of `terms`.
+    /// @param terms The weighted terms, all of one kind.
     /// @throws std::invalid_argument for no terms, a null term, mixed kinds, a weight that is not
     /// positive and finite, or terms whose valid ranges do not overlap.
     explicit SummedSfd(std::vector<WeightedSfd> terms);
 
+    /// @brief The terms.
+    /// @return The weighted terms of the sum.
     const std::vector<WeightedSfd>& Terms() const {
         return terms_;
     }

@@ -1,3 +1,5 @@
+/// @file
+/// @brief `VulkanCompute` for builds without Vulkan: never available.
 #include "terraingen/gpu/vulkan.h"
 
 #include <stdexcept>

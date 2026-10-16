@@ -1,3 +1,5 @@
+/// @file
+/// @brief `RoughnessLayer`, fine self-affine roughness from octaves of Perlin noise.
 #pragma once
 
 #include "terraingen/layers/fade.h"
@@ -10,64 +12,81 @@
 
 namespace terraingen {
 
-/// The roughness a `RoughnessLayer` adds, as Shepard et al. (2001) give it: the RMS slope over a
-/// baseline and the Hurst exponent H, how the RMS height difference grows with the baseline (as
-/// baseline^H). See SCIENCE.md, "Roughness".
+/// @brief The roughness a `RoughnessLayer` adds: RMS slope over a baseline and Hurst exponent, as
+/// Shepard et al. (2001) give it.
 struct RoughnessOptions {
     double rmsSlope = 0.15;       ///< RMS slope (rise over run) over `baseline`.
     double baseline = 0.25;       ///< Baseline the RMS slope is given over (m).
     double hurst = 0.8;           ///< Hurst exponent, in (0, 1].
     double maxWavelength = 4.0;   ///< Longest octave (m).
     double minWavelength = 0.01;  ///< Shortest octave (m); octaves halve down to it.
-    std::uint32_t seed = 1;
+    std::uint32_t seed = 1;       ///< Varies the octaves' offsets and rotations.
     /// How octaves too fine to resolve fade out, by samples per wavelength.
     ResolutionFade fade{};
 
     bool operator==(const RoughnessOptions&) const = default;
 };
 
+/// @brief Checks roughness options.
+/// @param options The options to check.
 /// @throws std::invalid_argument for a non-positive `rmsSlope` or `baseline`, a `hurst` outside
 /// (0, 1], wavelengths that do not satisfy 0 < `minWavelength` <= `maxWavelength` or that span more
 /// than 40 octaves, or an invalid `fade`.
 void ValidateRoughnessOptions(const RoughnessOptions& options);
 
-/// The structure function of `PerlinNoise2` at a lag of `r` lattice units: the mean squared
-/// difference between values `r` apart, over positions, directions and seeds. It grows as 0.7724
-/// r^2 for small lags and levels off at 0.18312, twice the variance, from about 4 lattice units;
-/// in between it is interpolated from a table computed by Monte Carlo to about 0.1%.
+/// @brief The structure function of `PerlinNoise2`: mean squared difference of values a lag apart,
+/// over positions, directions and seeds.
+/// @param r The lag, in lattice units.
+/// @return The structure function; 0 for `r` <= 0.
 double PerlinStructureFunction(double r);
 
-/// The structure function of `PerlinNoise3` at a lag of `r` lattice units in a random 3D direction,
-/// as a surface cutting the lattice at a random angle sees it: about 0.4941 r^2 for small lags,
-/// levelling off at 0.14520 from about 4 lattice units, interpolated in between from a table
-/// computed by Monte Carlo (2^24 pairs per lag).
+/// @brief The structure function of `PerlinNoise3` at a lag in a random 3D direction.
+/// @param r The lag, in lattice units.
+/// @return The structure function; 0 for `r` <= 0.
 double Perlin3StructureFunction(double r);
 
-/// Fine roughness added to the terrain: octaves of Perlin noise halving in wavelength from
-/// `maxWavelength` to `minWavelength`, with amplitudes growing as wavelength^H and scaled so that
-/// the RMS slope over `baseline` is `rmsSlope` when every octave is resolved. Each octave is
-/// rotated and offset so the octaves' lattices do not line up, and fades out at spacings too
-/// coarse to resolve it, so coarse levels of detail see the same surface low-passed.
+/// @brief Fine roughness: octaves of Perlin noise halving in wavelength from `maxWavelength` to
+/// `minWavelength`, amplitudes growing as wavelength^H.
+///
+/// Amplitudes are scaled so the RMS slope over `baseline` is `rmsSlope` with every octave
+/// resolved. Octaves are rotated and offset so their lattices do not line up, and fade out at
+/// spacings too coarse to resolve them.
 class RoughnessLayer final : public Layer {
   public:
-    /// On a sphere each octave is 3D Perlin noise at the 3D point, its lattice turned by a uniform
-    /// random rotation (Shoemake 1992) and calibrated with `Perlin3StructureFunction`.
-    /// @throws std::invalid_argument for invalid options.
+    /// @brief Makes the layer; on a sphere each octave is 3D Perlin noise at the 3D point, its
+    /// lattice turned by a uniform random rotation.
+    /// @param options The roughness.
+    /// @param surface What the terrain lies on.
+    /// @throws std::invalid_argument as `ValidateRoughnessOptions`.
     explicit RoughnessLayer(RoughnessOptions options, Surface surface = {});
 
+    /// @brief Adds the roughness resolved at the grid's spacing to every cell of `heights`.
+    /// @param heights The heights to change in place.
+    /// @param context How the layer is evaluated.
+    /// @param features Unused; roughness places no features.
     void Apply(Raster<float>& heights, const LayerContext& context,
                TerrainFeatures& features) const override;
 
-    /// The roughness at (`x`, `y`) added to `height`, to the same bits as a cell centred there;
-    /// NaN stays NaN.
+    /// @brief The roughness at a point added to `height`, bit-identical to a cell centred there.
+    /// @param height The height before the layer; NaN stays NaN.
+    /// @param x World x of the point.
+    /// @param y World y of the point.
+    /// @param context How the layer is evaluated.
+    /// @return The height after the layer.
+    /// @throws std::invalid_argument as `ValidatePointContext`.
     float ApplyAt(float height, double x, double y, const LayerContext& context) const override;
 
-    /// The RMS slope over `baseline` (m) of the roughness with every octave resolved.
+    /// @brief The RMS slope of the roughness with every octave resolved.
+    /// @param baseline The baseline, in metres.
+    /// @return The RMS slope (rise over run) over `baseline`.
     double RmsSlope(double baseline) const;
 
-    /// The octaves' wavelengths (m), longest first.
+    /// @brief The octaves' wavelengths.
+    /// @return The wavelengths in metres, longest first.
     std::vector<double> Wavelengths() const;
 
+    /// @brief The roughness options.
+    /// @return The options the layer was made with.
     const RoughnessOptions& Options() const {
         return options_;
     }

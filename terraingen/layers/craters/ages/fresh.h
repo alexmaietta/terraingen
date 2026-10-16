@@ -1,10 +1,12 @@
+/// @file
+/// @brief `FreshAges`, an age model under which every crater is fresh.
 #pragma once
 
 #include "terraingen/layers/craters/ages/age_model.h"
 
 namespace terraingen {
 
-/// Every crater is fresh: age and lifetime zero.
+/// @brief Every crater is fresh: age and lifetime zero.
 class FreshAges final : public CraterAgeModel {
   protected:
     double LifetimeAt(double diameter) const override;

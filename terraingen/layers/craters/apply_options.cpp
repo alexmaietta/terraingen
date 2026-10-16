@@ -1,3 +1,5 @@
+/// @file
+/// @brief Crater apply option checks and the apply order.
 #include "terraingen/layers/craters/apply_options.h"
 
 #include "terraingen/util/checks.h"

@@ -1,16 +1,13 @@
+/// @file
+/// @brief Build metadata of the linked library.
 #pragma once
 
 #include <string>
 
 namespace terraingen {
 
-/// Build metadata captured when the library was compiled.
-///
-/// Regenerated whenever a module library is rebuilt or the git state changes
-/// (see cmake/BuildInfo.cmake), so it describes the linked libraries, not the
-/// headers a caller compiled against. Builds without changes keep it, and
-/// relink nothing. Provided by terraingen::build_info, which
-/// terraingen::terraingen links.
+/// @brief Build metadata captured when the linked library was last rebuilt (see
+/// cmake/BuildInfo.cmake); it describes the linked libraries, not the headers compiled against.
 struct BuildInfo {
     std::string gitSha;  ///< Short commit SHA, or "unknown" outside a git checkout.
     bool gitDirty;       ///< True if built from a working tree with uncommitted changes.
@@ -19,7 +16,8 @@ struct BuildInfo {
     std::string buildDate;
 };
 
-/// Returns build metadata for the linked library.
+/// @brief Returns build metadata for the linked library (terraingen::build_info).
+/// @return The commit, dirty flag and build date.
 BuildInfo GetBuildInfo();
 
 }  // namespace terraingen

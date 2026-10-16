@@ -6,12 +6,7 @@
 
 namespace terraingen {
 
-/// Assigns ages to craters by diameter.
-///
-/// Each model has a visible lifetime per diameter, the span over which craters of that size are
-/// found, and draws ages within it. `RemainingLifetime`, 1 - age / lifetime, expresses the same
-/// age as the share of the lifetime left, for degradation models that work in it rather than in
-/// years.
+/// @brief Assigns ages to craters by diameter, within a visible lifetime per diameter.
 class CraterAgeModel {
   public:
     virtual ~CraterAgeModel() = default;
@@ -39,10 +34,16 @@ class CraterAgeModel {
     double RemainingLifetime(double diameter, double ageGyr) const;
 
   protected:
-    /// Lifetime for a valid diameter.
+    /// @brief The lifetime for a diameter already checked positive and finite.
+    /// @param diameter The craters' diameter, in metres.
+    /// @return The lifetime, in Gyr.
     virtual double LifetimeAt(double diameter) const = 0;
 
-    /// Age for a valid diameter with lifetime `lifetimeGyr`.
+    /// @brief Draws an age; the caller clamps it to [0, `lifetimeGyr`].
+    /// @param random The stream to draw from.
+    /// @param diameter The crater's diameter, in metres.
+    /// @param lifetimeGyr Its lifetime, in Gyr.
+    /// @return The age, in Gyr.
     virtual double SampleAgeAt(RandomStream& random, double diameter, double lifetimeGyr) const = 0;
 };
 

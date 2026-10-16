@@ -1,3 +1,5 @@
+/// @file
+/// @brief `NoiseRelief`: noise layers added over grids and at points.
 #include "terraingen/layers/noise_relief.h"
 
 #include "terraingen/layers/surface_noise.h"

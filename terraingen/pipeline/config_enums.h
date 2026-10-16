@@ -10,17 +10,17 @@
 
 namespace terraingen::config {
 
-/// One named value of an enum in the configuration, and what it means, for editors.
+/// @brief One named value of an enum in the configuration, and what it means, for editors.
 template <typename E> struct EnumEntry {
-    std::string_view name;
-    E value;
-    std::string_view description{};
+    std::string_view name;           ///< The JSON name.
+    E value;                         ///< The value.
+    std::string_view description{};  ///< What it means, for editors' tooltips.
 };
 
-/// `kValues`: every value of the enum `E` as an `EnumEntry`.
+/// @brief Every value of the enum `E` as an `EnumEntry` (`kValues`), specialized per enum below.
 template <typename E> struct EnumNames;
 
-/// An enum with `EnumNames`, read and written by name.
+/// @brief An enum with `EnumNames`, read and written by name.
 template <typename E>
 concept NamedEnum = std::is_enum_v<E> && requires { EnumNames<E>::kValues; };
 

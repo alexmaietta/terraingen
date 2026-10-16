@@ -1,3 +1,5 @@
+/// @file
+/// @brief Size-frequency distributions given as tables, interpolated in log-log space.
 #pragma once
 
 #include "terraingen/distribution/size_frequency.h"
@@ -7,24 +9,33 @@
 
 namespace terraingen {
 
-/// A cumulative distribution given as a table of (D, N(>=D)) points, interpolated linearly in log D
-/// and log N, so each interval is a power law. Extrapolation continues the end intervals' slopes.
+/// @brief A cumulative distribution given as a table of (D, N(>=D)) points, interpolated linearly
+/// in log D and log N, so each interval is a power law. Extrapolation continues the end intervals'
+/// slopes.
 class TabulatedSfd final : public SizeFrequencyDistribution {
   public:
+    /// @brief The distribution through the table's points.
     /// @param diameters At least two strictly increasing positive diameters, in `diameterUnit`
     /// metres.
     /// @param cumulative N(>=D) at each diameter, positive, finite and not increasing, per
     /// `areaUnit` m^2.
-    /// @throws std::invalid_argument for malformed tables or units.
+    /// @param kind What the values measure.
+    /// @param diameterUnit Metres per table diameter unit.
+    /// @param areaUnit m^2 per table area unit.
+    /// @throws std::invalid_argument for fewer than two points, mismatched lengths, units or values
+    /// that are not positive and finite, diameters that do not strictly increase, or values that
+    /// increase.
     TabulatedSfd(std::vector<double> diameters, std::vector<double> cumulative,
                  SfdKind kind = SfdKind::Density, double diameterUnit = 1.0, double areaUnit = 1.0);
 
-    /// Table diameters in metres.
+    /// @brief The table's diameters.
+    /// @return Diameters in metres.
     const std::vector<double>& Diameters() const {
         return diameters_;
     }
 
-    /// Table values per m^2 (or per m^2 per Gyr).
+    /// @brief The table's values.
+    /// @return N(>=D) per m^2 (or per m^2 per Gyr).
     const std::vector<double>& CumulativeValues() const {
         return cumulative_;
     }
@@ -32,8 +43,12 @@ class TabulatedSfd final : public SizeFrequencyDistribution {
   protected:
     double CumulativeAt(double diameter) const override;
     double IncrementalAt(double diameter) const override;
-    /// The power-law inverse within the interval holding `target`; a flat interval, where
+    /// @brief The power-law inverse within the interval holding `target`; a flat interval, where
     /// N(>=D) never reaches `target`, gives its start diameter.
+    /// @param target Cumulative count to invert.
+    /// @param dMin Unused.
+    /// @param dMax Unused.
+    /// @return The diameter in metres.
     double InvertCumulative(double target, double dMin, double dMax) const override;
 
   private:

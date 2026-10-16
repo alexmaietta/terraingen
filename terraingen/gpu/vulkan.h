@@ -1,3 +1,5 @@
+/// @file
+/// @brief The shared Vulkan compute device and SPIR-V kernel dispatch.
 #pragma once
 
 #include <array>
@@ -10,37 +12,48 @@
 
 namespace terraingen {
 
-/// A compute kernel compiled to SPIR-V at build time, with entry point "main".
+/// @brief A compute kernel compiled to SPIR-V at build time, with entry point "main".
 struct ComputeKernel {
-    const unsigned char* spirv = nullptr;
-    std::size_t size = 0;
+    const unsigned char* spirv = nullptr;  ///< The SPIR-V words; also the pipeline cache key.
+    std::size_t size = 0;                  ///< Size of `spirv` in bytes.
 };
 
-/// The Vulkan compute device TerrainGen uses, opened on first use: volk opens the Vulkan loader at
-/// run time, and the device is the one `TERRAINGEN_DEVICE` (an index into the physical devices)
-/// names, otherwise the first discrete GPU, then integrated GPU, then any device (such as Mesa's
-/// lavapipe on machines without a GPU). Safe to use from several threads; submissions are
+/// @brief The Vulkan compute device TerrainGen uses, opened on first use.
+///
+/// volk opens the Vulkan loader at run time. The device is the one `TERRAINGEN_DEVICE` (an index
+/// into the physical devices) names, otherwise the first discrete GPU, then integrated GPU, then
+/// any device (such as Mesa's lavapipe on machines without a GPU). Thread-safe; submissions are
 /// serialized.
 class VulkanCompute {
   public:
-    /// The device, or null when Vulkan is unavailable (see `Reason`).
+    /// @brief The shared device, opened on the first call.
+    /// @return The device, or null when Vulkan is unavailable (see `Reason`).
     static VulkanCompute* Get();
 
-    /// Why Vulkan is unavailable, empty when it is.
+    /// @brief Why Vulkan is unavailable.
+    /// @return The reason, empty when Vulkan is available.
     static std::string Reason();
 
-    /// The device's name.
+    /// @brief The device's name.
+    /// @return The name the driver reports.
+    /// @throws std::logic_error in a build without Vulkan, which has no device.
     const std::string& DeviceName() const;
 
-    /// Runs `kernel` over `groups` workgroups with `buffers` bound as storage buffers 0, 1, ... of
-    /// set 0 and `pushConstants` as its push constants, then copies every buffer back: each buffer
-    /// is uploaded, used and read back in place.
-    /// @throws std::runtime_error for a Vulkan failure.
+    /// @brief Runs a kernel and copies every buffer back in place.
+    /// @param kernel The kernel to run.
+    /// @param buffers Host buffers bound as storage buffers 0, 1, ... of set 0; each is uploaded,
+    ///        used and read back in place.
+    /// @param pushConstants The kernel's push constants, at most the device's limit in bytes.
+    /// @param groups Workgroup counts in x, y and z.
+    /// @throws std::runtime_error for a Vulkan failure or push constants past the device's limit.
+    /// @throws std::logic_error in a build without Vulkan.
     void Run(const ComputeKernel& kernel, const std::vector<std::span<std::byte>>& buffers,
              std::span<const std::byte> pushConstants, std::array<std::uint32_t, 3> groups);
 
     VulkanCompute(const VulkanCompute&) = delete;
     VulkanCompute& operator=(const VulkanCompute&) = delete;
+
+    /// @brief Releases the device and its cached pipelines.
     ~VulkanCompute();
 
   private:

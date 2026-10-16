@@ -1,3 +1,5 @@
+/// @file
+/// @brief The DSNE model of a lunar surface of a given age.
 #include "terraingen/bodies/moon/surface.h"
 
 #include "terraingen/bodies/moon/equilibrium.h"

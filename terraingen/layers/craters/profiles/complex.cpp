@@ -1,3 +1,5 @@
+/// @file
+/// @brief The complex crater profile and its shape checks.
 #include "terraingen/layers/craters/profiles/complex.h"
 
 #include "terraingen/util/checks.h"

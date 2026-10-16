@@ -1,3 +1,5 @@
+/// @file
+/// @brief Patch noise and noise-layer stacks read on a plane or a sphere.
 #include "terraingen/layers/surface_noise.h"
 
 #include "terraingen/noise/kernels/perlin.h"

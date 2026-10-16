@@ -1,3 +1,5 @@
+/// @file
+/// @brief Heights read from a band of a GeoTIFF DEM.
 #include "terraingen/sources/geotiff_source.h"
 
 #include "terraingen/util/checks.h"

@@ -1,3 +1,5 @@
+/// @file
+/// @brief Piecewise power-law size-frequency distributions.
 #include "terraingen/distribution/piecewise_power_law.h"
 
 #include "terraingen/distribution/combined.h"

@@ -1,3 +1,5 @@
+/// @file
+/// @brief Digitized SP-8023 block tables and synthterrain boulder distributions.
 #include "terraingen/bodies/moon/boulders.h"
 
 #include <array>
@@ -83,6 +85,7 @@ constexpr std::array<LogPoint, 8> kCraterMinimum{{{-0.071, -2.606},
                                                   {0.730, -5.422},
                                                   {0.863, -5.889}}};
 
+/// The table through the points of `first` then `second`, converted from log10.
 std::shared_ptr<TabulatedSfd> Table(std::span<const LogPoint> first,
                                     std::span<const LogPoint> second = {}) {
     std::vector<double> diameters;

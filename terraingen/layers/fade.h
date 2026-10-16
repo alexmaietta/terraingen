@@ -4,7 +4,7 @@
 
 namespace terraingen {
 
-/// Shape of a falloff from 1 to 0. See SCIENCE.md, "Fades and blends".
+/// @brief Shape of a falloff from 1 to 0.
 enum class BlendShape {
     Linear,        ///< Straight ramp; continuous, with kinks at both ends.
     Smoothstep,    ///< Cubic 3t^2 - 2t^3; continuous first derivative.
@@ -25,15 +25,12 @@ double Smoothstep(double t);
 /// @return The weight, in [0, 1].
 double Falloff(double x, double start, double end, BlendShape shape);
 
-/// How features too small to resolve at the sample spacing fade out, by how many samples span
-/// their diameter: absent up to `startSamples`, whole from `endSamples`, and `shape` in between.
-///
-/// Fading rather than cutting keeps levels of detail consistent: a crater sampled at a coarse and
-/// at a fine spacing changes continuously instead of appearing or vanishing at one spacing.
+/// @brief How features too small to resolve at the sample spacing fade out, by the samples across
+/// their diameter.
 struct ResolutionFade {
-    double startSamples = 2.0;
-    double endSamples = 4.0;
-    BlendShape shape = BlendShape::Smoothstep;
+    double startSamples = 2.0;  ///< Samples across at or below which the feature is absent.
+    double endSamples = 4.0;    ///< Samples across from which it is whole; above `startSamples`.
+    BlendShape shape = BlendShape::Smoothstep;  ///< The curve in between.
 
     bool operator==(const ResolutionFade&) const = default;
 };

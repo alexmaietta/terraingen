@@ -1,3 +1,5 @@
+/// @file
+/// @brief The albedo source and layer interfaces, albedo compositions and their evaluation.
 #pragma once
 
 #include "terraingen/raster/grid.h"
@@ -12,92 +14,116 @@
 
 namespace terraingen {
 
-/// The most bands an albedo has: three for red, green and blue.
+/// @brief The most bands an albedo has: three for red, green and blue.
 inline constexpr std::size_t kMaxAlbedoBands = 3;
 
-/// An albedo at one point: the first `Bands()` values are used, the rest are 0.
+/// @brief An albedo at one point: the first `Bands()` values are used, the rest are 0.
 using AlbedoSample = std::array<float, kMaxAlbedoBands>;
 
-/// How an albedo is evaluated.
+/// @brief How an albedo is evaluated.
 struct AlbedoContext {
-    /// Sample spacing in world units: detail that cannot be resolved at it is left out. It must be
-    /// positive and finite.
+    /// Sample spacing in world units, positive and finite: detail that cannot be resolved at it is
+    /// left out.
     double spacing = 1.0;
     /// Threads a grid may be split over; 0 for every hardware thread. The result does not depend
     /// on it.
     unsigned threads = 1;
 };
 
+/// @brief Checks an evaluation context.
+/// @param context The context to check.
 /// @throws std::invalid_argument if `context.spacing` is not positive and finite.
 void ValidateAlbedoContext(const AlbedoContext& context);
 
-/// Where an albedo starts: a map from orbit, a synthetic colour, or a source of your own. Albedo
-/// layers change what it gives. Values are reflectances (normal albedo, or reflectance at a
-/// wavelength), one per band.
+/// @brief Where an albedo starts: a map from orbit, a synthetic colour, or a source of your own.
+/// Values are reflectances (normal albedo, or reflectance at a wavelength), one per band.
 ///
-/// Sources must be deterministic and safe to call from several threads at once, and `Fill` must
-/// give every cell the bits `ValueAt` gives at its centre, so tiles agree with the whole.
+/// Sources must be deterministic and thread safe, and `Fill` must give every cell the bits
+/// `ValueAt` gives at its centre, so tiles agree with the whole.
 class AlbedoSource {
   public:
     virtual ~AlbedoSource() = default;
 
-    /// 1 for a single band, or 3 for red, green and blue.
+    /// @brief The number of bands.
+    /// @return 1 for a single band, or 3 for red, green and blue.
     virtual std::size_t Bands() const = 0;
 
-    /// The albedo at (`x`, `y`); NaN in every band where the source has no data.
+    /// @brief The albedo at a point.
+    /// @param x World x.
+    /// @param y World y.
+    /// @param context How the albedo is evaluated.
+    /// @return The albedo; NaN in every band where the source has no data.
     virtual AlbedoSample ValueAt(double x, double y, const AlbedoContext& context) const = 0;
 
-    /// Sets every cell of each of `bands` (`Bands()` rasters on one grid) to `ValueAt` at its
-    /// centre. The default does exactly that, cell by cell, on `context.threads` threads.
+    /// @brief Sets every cell of each band to `ValueAt` at its centre; the default does exactly
+    /// that, cell by cell, on `context.threads` threads.
+    /// @param bands `Bands()` rasters on one grid.
+    /// @param context How the albedo is evaluated.
     virtual void Fill(std::vector<Raster<float>>& bands, const AlbedoContext& context) const;
 };
 
-/// A change to an albedo: bright ejecta around fresh craters, or a layer of your own.
+/// @brief A change to an albedo: bright ejecta around fresh craters, or a layer of your own.
 ///
-/// Layers must be deterministic and safe to call from several threads at once, and `Apply` must
-/// give every cell the bits `ApplyAt` gives at its centre.
+/// Layers must be deterministic and thread safe, and `Apply` must give every cell the bits
+/// `ApplyAt` gives at its centre.
 class AlbedoLayer {
   public:
     virtual ~AlbedoLayer() = default;
 
-    /// `value`, `bands` bands of albedo at (`x`, `y`), after this layer. NaN stays NaN.
+    /// @brief Applies the layer at one point; NaN stays NaN.
+    /// @param value The albedo there, changed in place.
+    /// @param bands Bands of `value` in use.
+    /// @param x World x.
+    /// @param y World y.
+    /// @param context How the albedo is evaluated.
     virtual void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
                          const AlbedoContext& context) const = 0;
 
-    /// Applies the layer to every cell of `bands`. The default calls `ApplyAt` at each cell
-    /// centre on `context.threads` threads; layers override it with something faster where they
-    /// can.
+    /// @brief Applies the layer to every cell; the default calls `ApplyAt` at each cell centre on
+    /// `context.threads` threads.
+    /// @param bands One raster per band on one grid, changed in place.
+    /// @param context How the albedo is evaluated.
     virtual void Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const;
 };
 
-/// An albedo as a composition: values from `source`, then each of `layers` in order, on
-/// `surface`, which sets how a grid's cell size turns into a spacing in metres.
+/// @brief An albedo as a composition: values from `source`, then each of `layers` in order.
 struct Albedo {
-    std::shared_ptr<const AlbedoSource> source;
-    std::vector<std::shared_ptr<const AlbedoLayer>> layers;
+    std::shared_ptr<const AlbedoSource> source;              ///< Where values start; required.
+    std::vector<std::shared_ptr<const AlbedoLayer>> layers;  ///< Applied in order; none null.
+    /// Sets how a grid's cell size turns into a spacing in metres.
     Surface surface{};
 };
 
-/// The bands of `albedo` over `grid`, sampled every `context.spacing` metres (0 or anything
-/// smaller than the grid's spacing on the albedo's surface, `RasterGrid::Spacing`, is raised to
-/// it), one raster per band with no-data NaN.
+/// @brief Evaluates `albedo` over `grid`.
+/// @param albedo The albedo.
+/// @param grid The grid.
+/// @param context `spacing` in metres, raised to the grid's spacing on the albedo's surface
+/// (`RasterGrid::Spacing`) when smaller or 0.
+/// @return One raster per band, with no-data NaN.
 /// @throws std::invalid_argument if `albedo` has no source, holds a null layer, the source has a
 /// band count other than 1 or 3, `grid` is empty, or the spacing is negative or not finite.
 std::vector<Raster<float>> EvaluateAlbedo(const Albedo& albedo, const RasterGrid& grid,
                                           AlbedoContext context);
 
-/// The albedo at (`x`, `y`) sampled every `context.spacing` world units: the cell centred there of
-/// `EvaluateAlbedo` over a grid of that spacing, to the same bits.
+/// @brief The albedo at a point: the cell centred there of `EvaluateAlbedo` over a grid of
+/// `context.spacing`, to the same bits.
+/// @param albedo The albedo.
+/// @param x World x.
+/// @param y World y.
+/// @param context How the albedo is evaluated.
+/// @return The albedo sample.
 /// @throws std::invalid_argument as `EvaluateAlbedo`.
 AlbedoSample EvaluateAlbedoAt(const Albedo& albedo, double x, double y,
                               const AlbedoContext& context);
 
-/// Visits the albedo at one cell centre: `visit(value, x, y)` may change `value`.
+/// @brief Visits the albedo at one cell centre: `visit(value, x, y)` may change `value`.
 using AlbedoCellVisitor = std::function<void(AlbedoSample& value, double x, double y)>;
 
-/// Calls `visit(value, x, y)` for the albedo at every cell centre of `bands` on `threads` threads,
-/// writing back what it leaves in `value`: the cell loop shared by `AlbedoSource::Fill` and
-/// `AlbedoLayer::Apply`.
+/// @brief Calls `visit` for the albedo at every cell centre, writing back what it leaves in
+/// `value`: the cell loop shared by `AlbedoSource::Fill` and `AlbedoLayer::Apply`.
+/// @param bands The bands, one raster per band on one grid.
+/// @param threads Threads to split the rows over; 0 for every hardware thread.
+/// @param visit The visitor.
 void ForEachAlbedoCell(std::vector<Raster<float>>& bands, unsigned threads,
                        const AlbedoCellVisitor& visit);
 

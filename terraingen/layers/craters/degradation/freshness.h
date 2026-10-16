@@ -9,11 +9,8 @@
 
 namespace terraingen {
 
-/// Degrades craters linearly with the share of their lifetime left (`RemainingLifetime`), scaling
-/// fresh depth and rim height by one erosion factor e = c + (1 - c) * remaining, where c makes a
-/// crater at the end of its lifetime exactly `cutoffDepthRatio` deep. Real degradation is fast when
-/// fresh and slows with age, as `DiffusionDegradation` models. See SCIENCE.md, "Crater
-/// degradation".
+/// @brief Scales fresh depth and rim height by e = c + (1 - c) * `RemainingLifetime`, with c
+/// making a crater at the end of its lifetime exactly `cutoffDepthRatio` deep.
 class FreshnessDegradation final : public DegradationModel {
   public:
     /// @brief Builds the model.
@@ -25,6 +22,10 @@ class FreshnessDegradation final : public DegradationModel {
     FreshnessDegradation(std::shared_ptr<const CraterAgeModel> ages, FreshMorphometry fresh,
                          double cutoffDepthRatio = 0.04);
 
+    /// @brief The crater's state at its age.
+    /// @param crater The crater.
+    /// @return Its fresh morphometry, and that scaled by the erosion factor.
+    /// @throws std::domain_error as `CraterAgeModel::LifetimeGyr`.
     CraterState State(const Crater& crater) const override;
 
   private:

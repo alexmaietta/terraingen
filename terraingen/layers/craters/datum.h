@@ -16,13 +16,13 @@
 
 namespace terraingen {
 
-/// A least-squares plane h = a + b dx + c dy through points added one at a time.
+/// @brief A least-squares plane h = a + b dx + c dy through points added one at a time.
 class PlaneFit {
   public:
     /// @brief Adds a point.
-    /// @param dx East offset of the point.
-    /// @param dy North offset of the point.
-    /// @param h Its height.
+    /// @param dx East offset of the point, in metres.
+    /// @param dy North offset of the point, in metres.
+    /// @param h Its height, in metres.
     void Add(double dx, double dy, double h);
 
     /// @brief Whether no point was added.
@@ -56,10 +56,8 @@ class PlaneFit {
 
 /// @brief The datum a crater is cut to, fitted to the ground beneath it.
 ///
-/// `CentreHeight` reads the ground at the centre; `MeanHeight` and `Plane` fit the ground at the
-/// points of a 7 x 7 lattice spanning `datumFitRadii` radii that lie inside that footprint. The
-/// lattice depends only on the crater, so the datum is the same on every grid, tile and level of
-/// detail.
+/// `CentreHeight` reads the ground at the centre; `MeanHeight` and `Plane` fit it at the points of
+/// a 7 x 7 lattice inside the `datumFitRadii` footprint.
 /// @param crater The crater.
 /// @param options Its datum kind, fit footprint and surface.
 /// @param ground The ground beneath it.
@@ -67,9 +65,10 @@ class PlaneFit {
 std::optional<Plane> FitCraterDatum(const Crater& crater, const CraterApplyOptions& options,
                                     const HeightSampler& ground);
 
-/// The prepared craters of a list indexed by position, so that the relief of the craters applied
-/// before any one of them can be summed at a point quickly. Craters are bucketed by size band, each
-/// band in square buckets twice its largest reach, so a point reads only the buckets around it.
+/// @brief Prepared craters indexed by position, to sum the relief of the craters before any one of
+/// them at a point quickly.
+///
+/// Craters are bucketed by size band, each band in square buckets twice its largest reach.
 class CraterReliefIndex {
   public:
     /// @brief Indexes craters; they and `profile` must outlive the index.
@@ -81,11 +80,8 @@ class CraterReliefIndex {
     CraterReliefIndex(const std::vector<PreparedCrater>& craters, const CraterProfile& profile,
                       double outlineScale = 1.0, const Surface& surface = {});
 
-    /// @brief The relief at a point of the craters before one of them.
-    ///
-    /// Sums `resolution` times the profile height of the craters before crater `k` that reach the
-    /// point, in a fixed order that does not depend on which other craters the list holds, so lists
-    /// sharing the craters near a point give the same bits there.
+    /// @brief The relief at a point of the craters before one of them: `resolution` times the
+    /// profile height of each, summed in an order independent of the other craters in the list.
     /// @param x Surface x of the point.
     /// @param y Surface y of the point.
     /// @param k Index of the crater; only craters before it count.
@@ -123,11 +119,7 @@ class CraterReliefIndex {
 };
 
 /// @brief The ground a crater's datum is fitted to: the ground plus the relief of the craters
-/// applied before it, as if they were added without their own datums.
-///
-/// A crater landing in an earlier crater's bowl is thus cut relative to the bowl, while its datum
-/// still depends only on the ground and the craters near it, so it is the same on every grid, tile
-/// and point.
+/// applied before it, as if added without their own datums.
 /// @param ground The ground beneath the craters; must outlive the result.
 /// @param index The craters; must outlive the result.
 /// @param k Index of the crater in `index`.

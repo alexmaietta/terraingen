@@ -1,3 +1,5 @@
+/// @file
+/// @brief 2D Worley cellular noise distances.
 #pragma once
 
 #include "terraingen/noise/kernels/hash.h"
@@ -5,22 +7,20 @@
 
 namespace terraingen {
 
-/// Distances from a point to its nearest (F1) and second-nearest (F2) feature points, in lattice
-/// units.
+/// @brief Distances from a point to its nearest and second-nearest feature points.
 struct WorleyDistances {
-    float f1 = 0.0f;
-    float f2 = 0.0f;
+    float f1 = 0.0f;  ///< Distance to the nearest feature point (F1), in lattice units.
+    float f2 = 0.0f;  ///< Distance to the second-nearest feature point (F2), in lattice units.
 };
 
-/// Worley cellular distances at lattice cell (`ix`, `iy`) plus fractional offset (`fx`, `fy`).
-///
-/// Every lattice cell holds one feature point at a pseudo-random position from `pcg3d`. The 5 x 5
-/// cells around the point are searched, which makes F1 exact (it never exceeds sqrt(2), and points
-/// outside the window are at least 2 away) and F2 exact except in rare configurations where the
-/// second-nearest point lies more than two cells away.
-///
-/// Reference: S. Worley, "A Cellular Texture Basis Function", SIGGRAPH '96, 291-294, 1996.
-/// https://doi.org/10.1145/237170.237267
+/// @brief Worley cellular distances at a lattice cell plus fraction, one feature point per cell,
+/// searching the 5 x 5 cells around it: F1 is exact, F2 exact but for rare configurations.
+/// @param ix Lattice cell x.
+/// @param iy Lattice cell y.
+/// @param fx Fraction in x, in [0, 1).
+/// @param fy Fraction in y, in [0, 1).
+/// @param seed The noise seed.
+/// @return F1 in [0, sqrt(2)] and F2 >= F1.
 inline WorleyDistances Worley2(int32_t ix, int32_t iy, float fx, float fy, uint32_t seed) {
     float d1 = 1e30f;
     float d2 = 1e30f;
@@ -43,7 +43,11 @@ inline WorleyDistances Worley2(int32_t ix, int32_t iy, float fx, float fy, uint3
     return distances;
 }
 
-/// Worley cellular distances at (`x`, `y`) in lattice units; see the cell-and-offset overload.
+/// @brief Worley cellular distances at a point in lattice units.
+/// @param x Lattice x.
+/// @param y Lattice y.
+/// @param seed The noise seed.
+/// @return F1 in [0, sqrt(2)] and F2 >= F1.
 inline WorleyDistances Worley2(float x, float y, uint32_t seed) {
     const LatticePoint2 point = SplitLattice2(x, y);
     return Worley2(point.ix, point.iy, point.fx, point.fy, seed);

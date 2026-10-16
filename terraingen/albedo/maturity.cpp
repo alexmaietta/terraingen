@@ -1,3 +1,5 @@
+/// @file
+/// @brief Lucey et al.'s (2000) optical maturity parameter and the reflectance it implies.
 #include "terraingen/albedo/maturity.h"
 
 #include "terraingen/util/checks.h"

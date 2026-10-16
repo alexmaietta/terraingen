@@ -1,3 +1,5 @@
+/// @file
+/// @brief The GUI's panels, background generation and file handling.
 #include "terraingen/app/gui/gui_app.h"
 
 #include "terraingen/app/gui/config_editor.h"

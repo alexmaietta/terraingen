@@ -1,3 +1,5 @@
+/// @file
+/// @brief Writers for triangle meshes and instanced scenes as PLY and binary glTF.
 #pragma once
 
 #include "terraingen/meshes/mesh.h"
@@ -8,49 +10,47 @@
 
 namespace terraingen {
 
-/// Writes `mesh` as a binary little-endian PLY file: float32 vertex positions, with float32 normals
-/// when `normals` holds one per vertex, and triangles as lists of uint32 indices.
-///
-/// Reference: G. Turk, "The PLY Polygon File Format", 1994.
-/// http://paulbourke.net/dataformats/ply/
+/// @brief Writes a mesh as a binary little-endian PLY file, float32 positions and normals and
+/// uint32 indices.
+/// @param path The file to write.
+/// @param mesh The mesh.
+/// @param normals Empty, or one unit normal per vertex.
 /// @throws std::invalid_argument for normals that are neither empty nor one per vertex, or a
 /// triangle indexing past the vertices.
 /// @throws std::runtime_error if the file cannot be written.
 void WritePly(const std::filesystem::path& path, const TriangleMesh& mesh,
               const std::vector<Vec3d>& normals = {});
 
-/// Writes `mesh` as a binary glTF 2.0 file (.glb) with one node and one triangle primitive, with
-/// normals when `normals` holds one per vertex. glTF is y-up, so a point (x, y, z) in TerrainGen's
-/// z-up frame is written as (x, z, -y), in metres.
-///
-/// Reference: The Khronos Group, "glTF 2.0 Specification", 2021.
-/// https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html
+/// @brief Writes a mesh as a binary glTF 2.0 file (.glb) with one node and one triangle primitive,
+/// converted from z-up to glTF's y-up frame.
+/// @param path The file to write.
+/// @param mesh The mesh, in metres.
+/// @param normals Empty, or one unit normal per vertex.
 /// @throws std::invalid_argument for an empty mesh, normals that are neither empty nor one per
 /// vertex, or a triangle indexing past the vertices.
 /// @throws std::runtime_error if the file cannot be written.
 void WriteGlb(const std::filesystem::path& path, const TriangleMesh& mesh,
               const std::vector<Vec3d>& normals = {});
 
-/// A mesh of a glTF scene, with normals when they hold one per vertex.
+/// @brief A mesh of a glTF scene.
 struct SceneMesh {
-    TriangleMesh mesh;
-    std::vector<Vec3d> normals;
+    TriangleMesh mesh;           ///< The mesh, in metres.
+    std::vector<Vec3d> normals;  ///< Empty, or one unit normal per vertex.
 };
 
-/// An instance of a scene mesh: the mesh's vertices scaled per axis by `scale`, then moved by
+/// @brief An instance of a scene mesh: its vertices scaled per axis by `scale`, then moved by
 /// `pose`, as glTF composes a node's scale, rotation and translation.
 struct SceneNode {
-    std::size_t mesh = 0;  ///< Index into the scene's meshes.
-    Vec3d scale{1.0, 1.0, 1.0};
-    RigidTransform pose{};
+    std::size_t mesh = 0;        ///< Index into the scene's meshes.
+    Vec3d scale{1.0, 1.0, 1.0};  ///< Per-axis scale, nonzero and finite.
+    RigidTransform pose{};       ///< Rotation and translation applied after the scale.
 };
 
-/// Writes a binary glTF 2.0 file (.glb) of `meshes` drawn once per node of `nodes`, each with its
-/// own scale, rotation and translation, so a field of boulders sharing a few shapes is stored once
-/// per shape. Converted to glTF's y-up frame as `WriteGlb` is.
-///
-/// Reference: The Khronos Group, "glTF 2.0 Specification", 2021, sections 3.5 (nodes) and 3.7
-/// (meshes). https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html
+/// @brief Writes a binary glTF 2.0 file (.glb) of meshes drawn once per node, so each shared
+/// shape is stored once; converted to y-up as `WriteGlb` is.
+/// @param path The file to write.
+/// @param meshes The meshes.
+/// @param nodes The instances.
 /// @throws std::invalid_argument for no meshes or nodes, an empty mesh, mismatched normals, a
 /// triangle indexing past its vertices, a node naming no mesh, a scale that is zero or not finite,
 /// or a pose whose rotation is not a rotation.
