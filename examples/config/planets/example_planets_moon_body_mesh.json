@@ -1,14 +1,8 @@
 {
     "schema_version": 1,
-    "surface": {
+    "body": {
         "type": "sphere",
         "radius": 1737400
-    },
-    "source": {
-        "type": "flat",
-        "width": 64,
-        "height": 64,
-        "pixel_size": 20000
     },
     "layers": [
         {
@@ -55,7 +49,7 @@
     ],
     "outputs": [
         {
-            "type": "body_mesh",
+            "type": "mesh",
             "path": "example_planets_moon_body_mesh.glb",
             "cells_per_face": 64
         }

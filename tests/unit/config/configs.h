@@ -17,24 +17,59 @@
 #include <sstream>
 #include <string>
 #include <variant>
+#include <vector>
 
 namespace terraingen::testing {
 
-/// The craters a generated terrain's layers apply over its grid.
+/// The heights a generated terrain has over its first grid.
+inline const Raster<float>& HeightsOf(const GeneratedTerrain& terrain) {
+    return terrain.grids.at(0).heights;
+}
+
+/// The albedo bands a generated terrain has over its first grid.
+inline const std::vector<Raster<float>>& AlbedoOf(const GeneratedTerrain& terrain) {
+    return terrain.grids.at(0).albedo;
+}
+
+/// The craters a generated terrain's layers apply over its first grid.
 inline CraterFeatures CratersOf(const GeneratedTerrain& terrain) {
-    return PlacedCraters(terrain.terrain, RasterGrid::Of(terrain.heights));
+    return PlacedCraters(terrain.terrain, RasterGrid::Of(HeightsOf(terrain)));
 }
 
-/// The boulders a generated terrain's layers place over its grid, and the models among them.
+/// The boulders a generated terrain's layers place over its first grid, and the models among them.
 inline BoulderFeatures BouldersOf(const GeneratedTerrain& terrain) {
-    return PlacedBoulders(terrain.terrain, RasterGrid::Of(terrain.heights));
+    return PlacedBoulders(terrain.terrain, RasterGrid::Of(HeightsOf(terrain)));
 }
 
-/// @brief The flat source of a configuration.
-/// @param config A configuration with a flat source.
-/// @return Its source spec.
-inline FlatSourceSpec& Flat(TerrainConfig& config) {
-    return std::get<FlatSourceSpec>(config.source);
+/// The craters a generated terrain's layers apply over `region`.
+inline CraterFeatures CratersOf(const GeneratedTerrain& terrain, const GridRegionSpec& region) {
+    return PlacedCraters(terrain.terrain, config::RegionGrid(region, terrain.terrain.surface));
+}
+
+/// The boulders a generated terrain's layers place over `region`.
+inline BoulderFeatures BouldersOf(const GeneratedTerrain& terrain, const GridRegionSpec& region) {
+    return PlacedBoulders(terrain.terrain, config::RegionGrid(region, terrain.terrain.surface));
+}
+
+/// The region of `Small`'s heightmap: 65 x 49 cells of 2 m.
+inline GridRegionSpec SmallRegion() {
+    return {65, 49, 2.0};
+}
+
+/// A heightmap output to `path` over `region`.
+inline HeightmapOutput Heightmap(const std::string& path,
+                                 std::optional<GridRegionSpec> region = SmallRegion()) {
+    HeightmapOutput output;
+    output.path = path;
+    output.region = region;
+    return output;
+}
+
+/// @brief The region of a configuration's first output, a heightmap with a region.
+/// @param config A configuration such as `Small`.
+/// @return Its region spec.
+inline GridRegionSpec& Region(TerrainConfig& config) {
+    return *std::get<HeightmapOutput>(config.outputs.at(0)).region;
 }
 
 /// @brief The noise layer of a `Small` configuration.
@@ -70,12 +105,12 @@ inline SteadyStateAgesSpec LunarAgesSpec(double ageGyr = 3.5) {
                                ChronologyModel::Neukum};
 }
 
-/// @brief A small, fast configuration: a 65 x 49 flat source of 2 m cells, a noise layer, then a
-/// crater layer of 8 to 60 m craters on a 3.5 Gyr lunar surface.
+/// @brief A small, fast configuration: a noise layer, then a crater layer of 8 to 60 m craters on
+/// a 3.5 Gyr lunar surface, and a heightmap over 65 x 49 cells of 2 m (`SmallRegion`).
 /// @return The configuration.
 inline TerrainConfig Small() {
     TerrainConfig config;
-    config.source = FlatSourceSpec{65, 49, 2.0};
+    config.outputs = {Heightmap("terrain.tif")};
     NoiseLayerSpec noise;
     noise.stack[0].layer.fractal.wavelength = 200.0f;
     noise.stack[0].layer.fractal.amplitude = 10.0f;
@@ -88,7 +123,8 @@ inline TerrainConfig Small() {
     return config;
 }
 
-/// @brief `Small` with a synthetic albedo and bright crater material from its crater layer.
+/// @brief `Small` with a synthetic albedo and bright crater material from its crater layer, and an
+/// albedo output over its heightmap's region.
 /// @return The configuration.
 inline TerrainConfig WithAlbedo() {
     TerrainConfig config = Small();
@@ -100,17 +136,21 @@ inline TerrainConfig WithAlbedo() {
     synthetic.valueNoise[0].layer.fractal.amplitude = 0.2f;
     synthetic.valueNoise[0].layer.fractal.wavelength = 40.0f;
     config.albedo = AlbedoSpec{synthetic, {CraterAlbedoSpec{}}};
+    AlbedoOutput output;
+    output.path = "albedo.tif";
+    output.region = SmallRegion();
+    config.outputs.push_back(output);
     return config;
 }
 
-/// @brief `Small` on a lunar-sized sphere: a flat source of 4 m cells at (30, -45).
+/// @brief `Small` on a lunar-sized sphere: its heightmap of 4 m cells at (30, -45).
 /// @return The configuration.
 inline TerrainConfig OnASphere() {
     TerrainConfig config = Small();
-    config.surface = SphereSurfaceSpec{1737400.0};
-    Flat(config).centreX = 30.0;
-    Flat(config).centreY = -45.0;
-    Flat(config).pixelSize = 4.0;
+    config.body = SphereSurfaceSpec{1737400.0};
+    Region(config).centreX = 30.0;
+    Region(config).centreY = -45.0;
+    Region(config).pixelSize = 4.0;
     return config;
 }
 
@@ -200,20 +240,21 @@ inline Raster<float> WriteDem(const std::filesystem::path& folder, const std::st
     return dem;
 }
 
-/// @brief A configuration with a raster source.
+/// @brief A configuration with a raster base and a heightmap over its grid.
 /// @param path The raster's path.
 /// @return The configuration.
 inline TerrainConfig RasterConfig(const std::string& path) {
     TerrainConfig config;
-    config.source = RasterSourceSpec{path};
+    config.base = RasterSourceSpec{path};
+    config.outputs = {Heightmap("terrain.tif", std::nullopt)};
     return config;
 }
 
-/// @brief The raster source of a `RasterConfig`.
-/// @param config A configuration with a raster source.
-/// @return Its source spec.
+/// @brief The raster base of a `RasterConfig`.
+/// @param config A configuration with a raster base.
+/// @return Its base spec.
 inline RasterSourceSpec& RasterSpec(TerrainConfig& config) {
-    return std::get<RasterSourceSpec>(config.source);
+    return std::get<RasterSourceSpec>(*config.base);
 }
 
 }  // namespace terraingen::testing

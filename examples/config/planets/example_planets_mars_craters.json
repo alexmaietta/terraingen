@@ -1,11 +1,5 @@
 {
     "schema_version": 1,
-    "source": {
-        "type": "flat",
-        "width": 513,
-        "height": 513,
-        "pixel_size": 4
-    },
     "layers": [
         {
             "type": "noise",
@@ -39,11 +33,21 @@
     "outputs": [
         {
             "type": "heightmap",
-            "path": "example_planets_mars_craters.tif"
+            "path": "example_planets_mars_craters.tif",
+            "region": {
+                "width": 513,
+                "height": 513,
+                "pixel_size": 4
+            }
         },
         {
             "type": "crater_list",
-            "path": "example_planets_mars_craters.csv"
+            "path": "example_planets_mars_craters.csv",
+            "region": {
+                "width": 513,
+                "height": 513,
+                "pixel_size": 4
+            }
         }
     ]
 }

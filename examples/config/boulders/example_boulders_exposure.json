@@ -1,11 +1,5 @@
 {
     "schema_version": 1,
-    "source": {
-        "type": "flat",
-        "width": 401,
-        "height": 401,
-        "pixel_size": 0.25
-    },
     "layers": [
         {
             "type": "noise",
@@ -34,11 +28,21 @@
     "outputs": [
         {
             "type": "heightmap",
-            "path": "example_boulders_exposure.tif"
+            "path": "example_boulders_exposure.tif",
+            "region": {
+                "width": 401,
+                "height": 401,
+                "pixel_size": 0.25
+            }
         },
         {
             "type": "boulder_list",
-            "path": "example_boulders_exposure.csv"
+            "path": "example_boulders_exposure.csv",
+            "region": {
+                "width": 401,
+                "height": 401,
+                "pixel_size": 0.25
+            }
         }
     ]
 }

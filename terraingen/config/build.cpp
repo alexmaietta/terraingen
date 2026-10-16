@@ -28,11 +28,11 @@
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/mesh/shape_model.h"
-#include "terraingen/sources/flat_source.h"
 #include "terraingen/sources/geotiff_source.h"
 #include "terraingen/sources/source_chain.h"
 #include "terraingen/util/overloaded.h"
 
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <map>
@@ -245,35 +245,35 @@ std::shared_ptr<const Source> BuildSource(const SourceSpec& spec,
                                           const std::filesystem::path& directory,
                                           const Surface& surface) {
     using Result = std::shared_ptr<const Source>;
-    return std::visit(
-        Overloaded{
-            [&](const FlatSourceSpec& s) -> Result {
-                return std::make_shared<FlatSource>(s.width, s.height,
-                                                    s.pixelSize / surface.UnitLength(), s.elevation,
-                                                    Vec2d{s.centreX, s.centreY});
-            },
-            [&](const RasterSourceSpec& s) -> Result {
-                GeoTiffSourceOptions read = s.read;
-                if (read.pixelSize) {
-                    *read.pixelSize /= surface.UnitLength();
-                }
-                return std::make_shared<GeoTiffSource>(Resolve(s.path, directory), read);
-            },
-            [&](const ChainSourceSpec& s) -> Result {
-                std::vector<Result> sources;
-                for (const SourceSpec& source : s.sources) {
-                    sources.push_back(BuildSource(source, directory, surface));
-                }
-                return std::make_shared<SourceChain>(std::move(sources));
-            },
-        },
-        spec);
+    return std::visit(Overloaded{
+                          [&](const RasterSourceSpec& s) -> Result {
+                              GeoTiffSourceOptions read = s.read;
+                              if (read.pixelSize) {
+                                  *read.pixelSize /= surface.UnitLength();
+                              }
+                              return std::make_shared<GeoTiffSource>(Resolve(s.path, directory),
+                                                                     read);
+                          },
+                          [&](const ChainSourceSpec& s) -> Result {
+                              std::vector<Result> sources;
+                              for (const SourceSpec& source : s.sources) {
+                                  sources.push_back(BuildSource(source, directory, surface));
+                              }
+                              return std::make_shared<SourceChain>(std::move(sources));
+                          },
+                      },
+                      spec);
 }
 
-/// What a layer is built on: the source, the last top-level crater layer so far (for boulder
-/// ejecta and secondaries) and the surface.
+/// The point noise is measured from: the base's reference point, or the origin without a base.
+Vec2d ReferencePoint(const Terrain& terrain) {
+    return terrain.source ? terrain.source->ReferencePoint() : Vec2d{};
+}
+
+/// What a layer is built on: the base's reference point, the last top-level crater layer so far
+/// (for boulder ejecta and secondaries) and the surface.
 struct LayerInputs {
-    const Source& source;
+    Vec2d referencePoint;
     const std::filesystem::path& directory;
     const std::shared_ptr<const CraterLayer>& craters;
     const Surface& surface;
@@ -310,8 +310,7 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
     return std::visit(
         Overloaded{
             [&](const NoiseLayerSpec& s) -> LayerPtr {
-                return std::make_shared<NoiseRelief>(s.Params(), context.source.ReferencePoint(),
-                                                     surface);
+                return std::make_shared<NoiseRelief>(s.Params(), context.referencePoint, surface);
             },
             [&](const CraterLayerSpec& s) -> LayerPtr {
                 return BuildCraterLayer(s, path, surface);
@@ -384,7 +383,7 @@ std::shared_ptr<const AlbedoSource> BuildAlbedoSource(const AlbedoSourceSpec& sp
     return std::visit(Overloaded{
                           [&](const SyntheticAlbedoSpec& s) -> Result {
                               return std::make_shared<SyntheticAlbedo>(
-                                  s.Params(), terrain.source->ReferencePoint(), terrain.surface);
+                                  s.Params(), ReferencePoint(terrain), terrain.surface);
                           },
                           [&](const RasterAlbedoSpec& s) -> Result {
                               return std::make_shared<RasterAlbedo>(LoadAlbedoBands(s, directory),
@@ -427,6 +426,43 @@ BoulderLayerOptions BuildBoulderOptions(const BoulderLayerSpec& spec, const std:
     return options;
 }
 
+RasterGrid RegionGrid(const GridRegionSpec& region, const Surface& surface) {
+    const double cell = region.pixelSize / surface.UnitLength();
+    const double halfX = 0.5 * static_cast<double>(region.width) * cell;
+    const double halfY = 0.5 * static_cast<double>(region.height) * cell;
+    return {region.width, region.height,
+            GeoTransform::NorthUp(region.centreX - halfX, region.centreY + halfY, cell)};
+}
+
+RasterGrid WholeBodyGrid(const Surface& surface, double spacing) {
+    const auto rows =
+        static_cast<std::size_t>(std::max(1.0, std::ceil(180.0 * surface.UnitLength() / spacing)));
+    return {2 * rows, rows, GeoTransform::NorthUp(-180.0, 90.0, 180.0 / static_cast<double>(rows))};
+}
+
+std::optional<RasterGrid> OutputGrid(const OutputSpec& output,
+                                     const std::optional<RasterGrid>& base,
+                                     const Surface& surface) {
+    const auto covered = [&](const std::optional<GridRegionSpec>& region) {
+        return region ? std::optional<RasterGrid>(RegionGrid(*region, surface)) : base;
+    };
+    const auto listed = [&](const auto& list) -> std::optional<RasterGrid> {
+        if (list.region || base || !surface.IsBody() || !list.spacing) {
+            return covered(list.region);
+        }
+        return WholeBodyGrid(surface, *list.spacing);
+    };
+    return std::visit(
+        Overloaded{
+            [&](const GeoTiffOutput& o) { return covered(o.region); },
+            [&](const TerrainMeshOutput& o) { return covered(o.region); },
+            [&](const ListOutput& o) { return listed(o); },
+            [&](const BoulderModelsOutput& o) { return listed(o); },
+            [](const MeshOutput&) -> std::optional<RasterGrid> { return std::nullopt; },
+        },
+        output);
+}
+
 RegionShape BuildRegionShape(const RegionShapeSpec& spec) {
     return std::visit(
         Overloaded{
@@ -454,21 +490,21 @@ namespace {
 
 /// The radial shape a shape model spec describes, loaded once per file, modification time, Q and
 /// unit, as validating and building a terrain both need it.
-/// @throws ConfigError at "surface.path", "surface.q" or "surface.metres_per_unit".
+/// @throws ConfigError at "body.path", "body.q" or "body.metres_per_unit".
 std::shared_ptr<const RadialShape> LoadShapeModel(const ShapeModelSurfaceSpec& spec,
                                                   const std::filesystem::path& directory) {
-    config::RequireNonEmpty(spec.path, "surface.path");
+    config::RequireNonEmpty(spec.path, "body.path");
     if (spec.q && (*spec.q == 0 || *spec.q > 4096)) {
-        throw ConfigError("surface.q", "must be 1 to 4096");
+        throw ConfigError("body.q", "must be 1 to 4096");
     }
     if (spec.metresPerUnit && !(std::isfinite(*spec.metresPerUnit) && *spec.metresPerUnit > 0.0)) {
-        throw ConfigError("surface.metres_per_unit", "must be positive");
+        throw ConfigError("body.metres_per_unit", "must be positive");
     }
     const std::filesystem::path file = Resolve(spec.path, directory);
     std::error_code error;
     const auto modified = std::filesystem::last_write_time(file, error);
     if (error) {
-        throw ConfigError("surface.path", "cannot read " + file.string());
+        throw ConfigError("body.path", "cannot read " + file.string());
     }
     using Key = std::tuple<std::string, std::filesystem::file_time_type, std::size_t, double>;
     static std::mutex mutex;
@@ -479,7 +515,7 @@ std::shared_ptr<const RadialShape> LoadShapeModel(const ShapeModelSurfaceSpec& s
     if (const auto found = loaded.find(key); found != loaded.end()) {
         return found->second;
     }
-    const auto shape = At("surface.path", [&] {
+    const auto shape = At("body.path", [&] {
         try {
             if (IsIcqPath(file)) {
                 const IcqModel model = ReadIcq(file, spec.metresPerUnit.value_or(1000.0));
@@ -504,17 +540,17 @@ Surface BuildSurface(const SurfaceSpec& spec, const std::filesystem::path& direc
             [](const PlaneSurfaceSpec&) -> Surface { return Surface::Plane(); },
             [](const SphereSurfaceSpec& s) -> Surface {
                 if (!(std::isfinite(s.radius) && s.radius > 0.0)) {
-                    throw ConfigError("surface.radius", "must be positive: the body's radius");
+                    throw ConfigError("body.radius", "must be positive: the body's radius");
                 }
                 return Surface::Sphere(s.radius);
             },
             [](const EllipsoidSurfaceSpec& s) -> Surface {
                 if (s.radii.size() != 3) {
-                    throw ConfigError("surface.radii", "must hold exactly three semi-axes a, b, c");
+                    throw ConfigError("body.radii", "must hold exactly three semi-axes a, b, c");
                 }
                 for (std::size_t i = 0; i < 3; ++i) {
                     if (!(std::isfinite(s.radii[i]) && s.radii[i] > 0.0)) {
-                        throw ConfigError(Element("surface.radii", i),
+                        throw ConfigError(Element("body.radii", i),
                                           "must be positive: a semi-axis in metres");
                     }
                 }
@@ -531,11 +567,13 @@ namespace {
 
 Terrain BuildValidTerrain(const TerrainConfig& config, const std::filesystem::path& directory) {
     Terrain terrain;
-    terrain.surface = BuildSurface(config.surface, directory);
-    terrain.source = BuildSource(config.source, directory, terrain.surface);
+    terrain.surface = BuildSurface(config.body, directory);
+    if (config.base) {
+        terrain.source = BuildSource(*config.base, directory, terrain.surface);
+    }
     std::shared_ptr<const CraterLayer> craters;
     for (std::size_t i = 0; i < config.layers.size(); ++i) {
-        const LayerInputs context{*terrain.source, directory, craters, terrain.surface};
+        const LayerInputs context{ReferencePoint(terrain), directory, craters, terrain.surface};
         terrain.layers.push_back(BuildLayer(config.layers[i], Element("layers", i), context));
         if (std::holds_alternative<CraterLayerSpec>(config.layers[i])) {
             craters = std::static_pointer_cast<const CraterLayer>(terrain.layers.back());

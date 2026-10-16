@@ -44,12 +44,6 @@ constexpr const char* kHiddenPanels[] = {"Stage", "Properties", "Settings", "Cam
 /// A configuration to start from when nothing is opened: rolling noise on a 1 km square.
 constexpr const char* kStarterConfig = R"({
     "schema_version": 1,
-    "source": {
-        "type": "flat",
-        "width": 513,
-        "height": 513,
-        "pixel_size": 2
-    },
     "layers": [
         {
             "type": "noise",
@@ -62,6 +56,17 @@ constexpr const char* kStarterConfig = R"({
                     "octaves": 6
                 }
             ]
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "terrain.tif",
+            "region": {
+                "width": 513,
+                "height": 513,
+                "pixel_size": 2
+            }
         }
     ]
 }
@@ -146,12 +151,18 @@ struct GuiApp::State {
         try {
             const Generated done = generation.get();
             const GeneratedTerrain& t = done.terrain;
-            ShowTerrain(scene, t.heights, t.geoKeys.IsGeographic(),
-                        t.albedo.empty() ? nullptr : &t.albedo.front());
+            if (t.grids.empty()) {
+                Report(ernie::app::LogLevel::Warning,
+                       "Nothing to show: no heightmap, albedo or terrain mesh output");
+                return;
+            }
+            const GeneratedGrid& shown = t.grids.front();
+            ShowTerrain(scene, shown.heights, t.geoKeys.IsGeographic(),
+                        shown.albedo.empty() ? nullptr : &shown.albedo.front());
             std::ostringstream text;
             text.precision(3);
-            text << "Generated " << t.heights.Width() << " x " << t.heights.Height() << " in "
-                 << done.seconds << " s";
+            text << "Generated " << shown.heights.Width() << " x " << shown.heights.Height()
+                 << " in " << done.seconds << " s";
             Report(ernie::app::LogLevel::Info, text.str());
             Shown();
         } catch (const std::exception& error) {

@@ -113,7 +113,7 @@ TEST(ConfigSchema, DescribesEveryFieldAndEveryDefaultFitsIt) {
     for (const SchemaJson& field : root["fields"]) {
         names.push_back(field["name"]);
     }
-    EXPECT_EQ(names, (std::vector<std::string>{"schema_version", "surface", "source", "layers",
+    EXPECT_EQ(names, (std::vector<std::string>{"schema_version", "body", "base", "layers",
                                                "outputs", "albedo"}));
 
     // Every alternative's default, and every field's, fits its schema.
@@ -240,7 +240,9 @@ TEST(ConfigSchema, GivesUnitsOnlyToNumbersAndFromAFixedSet) {
 
 TEST(ConfigSchema, ListsTheParsersChoicesAndRefersToRecursiveTypes) {
     const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
-    const SchemaJson source = FieldOf(schema["root"], "source")["schema"];
+    const SchemaJson base = FieldOf(schema["root"], "base")["schema"];
+    ASSERT_EQ(base["kind"], "optional");
+    const SchemaJson source = base["of"];
     ASSERT_EQ(source["kind"], "ref");
     const SchemaJson& sources = Resolve(schema, source);
     ASSERT_EQ(sources["kind"], "choice");
@@ -298,8 +300,8 @@ TEST(ConfigCatalog, ListsEveryTypeAndEachEntryParsesWhereItBelongs) {
     for (const auto& [key, value] : ordered.items()) {
         keys.push_back(key);
     }
-    EXPECT_EQ(keys, (std::vector<std::string>{"schema_version", "surface", "source", "layers",
-                                              "outputs", "albedo", "models"}));
+    EXPECT_EQ(keys, (std::vector<std::string>{"schema_version", "body", "base", "layers", "outputs",
+                                              "albedo", "models"}));
     const auto types = [](const Json& list) {
         std::vector<std::string> names;
         for (const Json& entry : list) {
@@ -307,7 +309,7 @@ TEST(ConfigCatalog, ListsEveryTypeAndEachEntryParsesWhereItBelongs) {
         }
         return names;
     };
-    EXPECT_EQ(types(catalog["surface"]),
+    EXPECT_EQ(types(catalog["body"]),
               (std::vector<std::string>{"plane", "sphere", "ellipsoid", "shape_model"}));
     EXPECT_EQ(catalog["layers"].size(), std::variant_size_v<LayerSpec>);
     EXPECT_EQ(catalog["outputs"].size(), std::variant_size_v<terraingen::OutputSpec>);
@@ -319,11 +321,11 @@ TEST(ConfigCatalog, ListsEveryTypeAndEachEntryParsesWhereItBelongs) {
         document["schema_version"] = terraingen::kConfigSchemaVersion;
         EXPECT_NO_THROW(ParseConfig(document.dump())) << what << ": " << document.dump();
     };
-    for (const Json& surface : catalog["surface"]) {
-        parses({{"surface", surface}}, "surface");
+    for (const Json& body : catalog["body"]) {
+        parses({{"body", body}}, "body");
     }
-    for (const Json& source : catalog["source"]) {
-        parses({{"source", source}}, "source");
+    for (const Json& base : catalog["base"]) {
+        parses({{"base", base}}, "base");
     }
     for (const char* list : {"layers", "outputs"}) {
         for (const Json& entry : catalog[list]) {
@@ -423,7 +425,7 @@ TEST(ConfigSchema, ListsProductionSurfacesMinimumsAndTheirModels) {
 
 TEST(ConfigSchema, GivesASphereOnlyARadiusInMetres) {
     const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
-    const SchemaJson surfaces = Resolve(schema, FieldOf(schema["root"], "surface")["schema"]);
+    const SchemaJson surfaces = Resolve(schema, FieldOf(schema["root"], "body")["schema"]);
     const SchemaJson sphere = AlternativeOf(surfaces, "sphere");
     ASSERT_EQ(sphere["fields"].size(), 1u);
     EXPECT_EQ(sphere["fields"][0]["name"], "radius");

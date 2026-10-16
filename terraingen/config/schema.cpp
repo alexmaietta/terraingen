@@ -20,8 +20,8 @@ template <typename Variant> Json Alternatives() {
     return Alternatives(static_cast<const Variant*>(nullptr));
 }
 
-/// What a catalog lists for a field: every alternative of a variant (or of a list of them), and
-/// the default of anything else, an optional's value included.
+/// What a catalog lists for a field: every alternative of a variant (or of a list or optional of
+/// them), and the default of anything else, an optional's value included.
 template <typename T> Json CatalogEntry(const T& value) {
     return ToJson(value);
 }
@@ -33,6 +33,9 @@ template <typename... Ts> Json CatalogEntry(const std::vector<std::variant<Ts...
 }
 template <typename T> Json CatalogEntry(const std::optional<T>& /*value*/) {
     return ToJson(T{});
+}
+template <typename... Ts> Json CatalogEntry(const std::optional<std::variant<Ts...>>& /*value*/) {
+    return Alternatives<std::variant<Ts...>>();
 }
 
 /// Writes each field a `Fields` function visits as its `CatalogEntry`.

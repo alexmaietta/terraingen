@@ -1,11 +1,5 @@
 {
     "schema_version": 1,
-    "source": {
-        "type": "flat",
-        "width": 513,
-        "height": 513,
-        "pixel_size": 2
-    },
     "layers": [
         {
             "type": "noise",
@@ -36,11 +30,21 @@
     "outputs": [
         {
             "type": "heightmap",
-            "path": "example_albedo_synthetic_heights.tif"
+            "path": "example_albedo_synthetic_heights.tif",
+            "region": {
+                "width": 513,
+                "height": 513,
+                "pixel_size": 2
+            }
         },
         {
             "type": "albedo",
-            "path": "example_albedo_synthetic.tif"
+            "path": "example_albedo_synthetic.tif",
+            "region": {
+                "width": 513,
+                "height": 513,
+                "pixel_size": 2
+            }
         }
     ]
 }

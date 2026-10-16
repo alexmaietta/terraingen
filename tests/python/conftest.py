@@ -30,9 +30,10 @@ LUNAR_AGES = {
     "chronology": "neukum",
 }
 
+SMALL_REGION = {"width": 81, "height": 65, "pixel_size": 0.5}
+
 SMALL_CONFIG = {
     "schema_version": 1,
-    "source": {"type": "flat", "width": 81, "height": 65, "pixel_size": 0.5},
     "layers": [
         {"type": "noise", "stack": [{"wavelength": 20, "amplitude": 0.5, "octaves": 3}]},
         {
@@ -45,8 +46,8 @@ SMALL_CONFIG = {
         {"type": "boulders", "coverage": 0.1, "min_diameter": 0.5, "max_diameter": 2},
     ],
     "outputs": [
-        {"type": "heightmap", "path": "heights.tif"},
-        {"type": "crater_list", "path": "craters.csv"},
+        {"type": "heightmap", "path": "heights.tif", "region": SMALL_REGION},
+        {"type": "crater_list", "path": "craters.csv", "region": SMALL_REGION},
     ],
 }
 

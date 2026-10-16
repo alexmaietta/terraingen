@@ -22,7 +22,8 @@ using terraingen::gui::kTerrainPrim;
 
 const char* const kConfig = R"({
     "schema_version": 1,
-    "source": {"type": "flat", "width": 65, "height": 33, "pixel_size": 2},
+    "outputs": [{"type": "heightmap", "path": "terrain.tif",
+                 "region": {"width": 65, "height": 33, "pixel_size": 2}}],
     "layers": [{"type": "noise", "stack": [{"wavelength": 40, "amplitude": 3, "octaves": 3}]}]
 })";
 
@@ -110,14 +111,15 @@ TEST(GuiApp, LiveEditsRegenerateAndBadJsonKeepsTheLastDocument) {
     std::ofstream(dir / "terrain.json") << kConfig;
     GuiApp app({dir / "terrain.json", 1, true});
     Settle(app);
-    EXPECT_EQ(app.ConfigDocument()["source"]["width"], 65);
+    EXPECT_EQ(app.ConfigDocument()["outputs"][0]["region"]["width"], 65);
     EXPECT_TRUE(app.ConfigParseError().empty());
 
     app.SetLive(true);
     EXPECT_TRUE(app.Live());
-    app.EditConfig([](nlohmann::ordered_json& config) { config["source"]["width"] = 33; });
+    app.EditConfig(
+        [](nlohmann::ordered_json& config) { config["outputs"][0]["region"]["width"] = 33; });
     EXPECT_NE(app.ConfigText().find("\"width\": 33"), std::string::npos) << "the text follows";
-    EXPECT_LT(app.ConfigText().find("\"source\""), app.ConfigText().find("\"layers\""))
+    EXPECT_LT(app.ConfigText().find("\"outputs\""), app.ConfigText().find("\"layers\""))
         << "an edit keeps the file's key order";
     const auto give_up = std::chrono::steady_clock::now() + std::chrono::minutes(1);
     while (HeightsShape(app) != std::vector<std::int64_t>{33, 33} &&
@@ -128,9 +130,10 @@ TEST(GuiApp, LiveEditsRegenerateAndBadJsonKeepsTheLastDocument) {
     app.Editor().ExpandAll();
     app.Step();
 
-    app.SetConfigText("{ \"source\": ");
+    app.SetConfigText("{ \"outputs\": ");
     EXPECT_FALSE(app.ConfigParseError().empty());
-    EXPECT_EQ(app.ConfigDocument()["source"]["width"], 33) << "the last good document stays";
+    EXPECT_EQ(app.ConfigDocument()["outputs"][0]["region"]["width"], 33)
+        << "the last good document stays";
     app.SetLive(false);
     app.Step();
     EXPECT_FALSE(app.Generating());
@@ -163,7 +166,7 @@ TEST(GuiApp, ReportsErrorsWithoutStopping) {
     EXPECT_EQ(app.Status().rfind("Cannot save", 0), 0u) << app.Status();
     EXPECT_FALSE(std::filesystem::exists(dir / "bad.json"));
 
-    app.SetConfigText(R"({"schema_version": 1, "source": {"type": "raster", "path": "no.tif"}})");
+    app.SetConfigText(R"({"schema_version": 1, "base": {"type": "raster", "path": "no.tif"}})");
     app.Generate();
     Settle(app);
     EXPECT_EQ(app.Status().rfind("Generation failed", 0), 0u) << app.Status();

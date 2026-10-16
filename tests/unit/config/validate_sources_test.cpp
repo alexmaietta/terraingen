@@ -16,8 +16,8 @@ using terraingen::ConfigError;
 using terraingen::CraterLayerSpec;
 using terraingen::TerrainConfig;
 using terraingen::ValidateConfig;
-using terraingen::testing::Flat;
 using terraingen::testing::Noise;
+using terraingen::testing::Region;
 using terraingen::testing::TempPath;
 using terraingen::testing::ValidationErrorPath;
 
@@ -39,27 +39,27 @@ TEST(ValidateConfig, ReportsRasterSourceProblems) {
         return std::string("valid");
     };
     EXPECT_EQ(error([](TerrainConfig&) {}), "valid");
-    EXPECT_EQ(error([](TerrainConfig& c) { RasterSpec(c).path.clear(); }).rfind("source.path", 0),
+    EXPECT_EQ(error([](TerrainConfig& c) { RasterSpec(c).path.clear(); }).rfind("base.path", 0),
               0u);
     EXPECT_NE(
         error([](TerrainConfig& c) { RasterSpec(c).path = "missing.tif"; }).find("cannot open"),
         std::string::npos);
-    EXPECT_NE(error([](TerrainConfig& c) { RasterSpec(c).read.band = 1; }).find("source.band"),
+    EXPECT_NE(error([](TerrainConfig& c) { RasterSpec(c).read.band = 1; }).find("base.band"),
               std::string::npos);
     EXPECT_NE(
         error([](TerrainConfig& c) { RasterSpec(c).path = "degrees.tif"; }).find("geographic"),
         std::string::npos);
     EXPECT_NE(error([](TerrainConfig& c) {
-                  c.surface = terraingen::SphereSurfaceSpec{1737400.0};
-              }).find("source.path: on a sphere the raster must be in longitude and latitude"),
+                  c.body = terraingen::SphereSurfaceSpec{1737400.0};
+              }).find("base.path: on a body the raster must be in longitude and latitude"),
               std::string::npos);
     EXPECT_EQ(error([](TerrainConfig& c) {
                   RasterSpec(c).read.pixelSize = -1.0;
-              }).rfind("source.pixel_size", 0),
+              }).rfind("base.pixel_size", 0),
               0u);
     EXPECT_EQ(error([](TerrainConfig& c) {
                   RasterSpec(c).read.pixelSize = 1e-6;
-              }).rfind("source.pixel_size", 0),
+              }).rfind("base.pixel_size", 0),
               0u);
     EXPECT_EQ(error([](TerrainConfig& c) { RasterSpec(c).read.pixelSize = 1.0; }), "valid");
     EXPECT_EQ(error([](TerrainConfig& c) {
@@ -80,13 +80,12 @@ TEST(ValidateConfig, ReportsRasterSourceProblems) {
     EXPECT_EQ(error([](TerrainConfig& c) {
                   RasterSpec(c).path = "rotated.tif";
                   RasterSpec(c).read.pixelSize = 0.5;
-              }).rfind("source.pixel_size", 0),
+              }).rfind("base.pixel_size", 0),
               0u);
     terraingen::WriteGeoTiff(folder / "tiny.tif", terraingen::Raster<float>(1, 1, 0.0f),
                              terraingen::testing::Keys());
     EXPECT_EQ(
-        error([](TerrainConfig& c) { RasterSpec(c).path = "tiny.tif"; }).rfind("source.path", 0),
-        0u);
+        error([](TerrainConfig& c) { RasterSpec(c).path = "tiny.tif"; }).rfind("base.path", 0), 0u);
 }
 
 TEST(ValidateConfig, ReportsChainProblemsByPath) {
@@ -95,14 +94,50 @@ TEST(ValidateConfig, ReportsChainProblemsByPath) {
     const auto raster = [](const std::string& path) { return terraingen::RasterSourceSpec{path}; };
     const auto error = [&](terraingen::ChainSourceSpec chain) {
         TerrainConfig config;
-        config.source = std::move(chain);
+        config.base = std::move(chain);
         return ValidationErrorPath(config, folder);
     };
-    EXPECT_EQ(error({{raster("dem.tif"), terraingen::FlatSourceSpec{2, 2, 1.0}}}), "valid");
-    EXPECT_EQ(error({}), "source.sources");
-    EXPECT_EQ(error({{raster("dem.tif"), raster("missing.tif")}}), "source.sources[1].path");
-    EXPECT_EQ(error({{terraingen::ChainSourceSpec{{terraingen::FlatSourceSpec{1, 1, 1.0}}}}}),
-              "source.sources[0].sources[0].width");
+    EXPECT_EQ(error({{raster("dem.tif"), raster("dem.tif")}}), "valid");
+    EXPECT_EQ(error({}), "base.sources");
+    EXPECT_EQ(error({{raster("dem.tif"), raster("missing.tif")}}), "base.sources[1].path");
+    EXPECT_EQ(error({{terraingen::ChainSourceSpec{{raster("")}}}}),
+              "base.sources[0].sources[0].path");
+}
+
+TEST(ValidateConfig, ReportsOutputGridProblemsByPath) {
+    const auto folder = TempPath("terraingen_output_grids");
+    terraingen::testing::WriteDem(folder, "dem.tif");
+    const auto error = [&](terraingen::OutputSpec output, auto mutate) {
+        TerrainConfig config;
+        config.outputs = {std::move(output)};
+        mutate(config);
+        return ValidationErrorPath(config, folder);
+    };
+    const auto unchanged = [](TerrainConfig&) {};
+    const auto moon = [](TerrainConfig& c) { c.body = terraingen::SphereSurfaceSpec{1737400.0}; };
+    const auto dem = [](TerrainConfig& c) { c.base = terraingen::RasterSourceSpec{"dem.tif"}; };
+    const terraingen::OutputSpec heightmap = terraingen::testing::Heightmap("h.tif", std::nullopt);
+    EXPECT_EQ(error(heightmap, unchanged), "outputs[0].region");
+    EXPECT_EQ(error(heightmap, moon), "outputs[0].region");
+    EXPECT_EQ(error(heightmap, dem), "valid") << "the base's grid";
+    EXPECT_EQ(error(terraingen::testing::Heightmap("h.tif", {{0, 4, 1.0}}), unchanged),
+              "outputs[0].region.width");
+    EXPECT_EQ(error(terraingen::testing::Heightmap("h.tif", {{4, 4, -1.0}}), unchanged),
+              "outputs[0].region.pixel_size");
+    EXPECT_EQ(error(terraingen::TerrainMeshOutput{"t.glb"}, unchanged), "outputs[0].region");
+
+    const terraingen::OutputSpec list = terraingen::CraterListOutput{{"c.csv"}};
+    EXPECT_EQ(error(list, unchanged), "outputs[0].region");
+    EXPECT_EQ(error(list, moon), "outputs[0].region") << "the whole body needs a spacing";
+    EXPECT_EQ(error(list, dem), "valid");
+    const terraingen::OutputSpec whole = terraingen::CraterListOutput{{"c.csv", {}, {}, 1000.0}};
+    EXPECT_EQ(error(whole, moon), "valid");
+    EXPECT_EQ(error(whole, unchanged), "outputs[0].region") << "a plane has no whole body";
+    EXPECT_EQ(error(terraingen::CraterListOutput{{"c.csv", {}, {}, -1.0}}, moon),
+              "outputs[0].spacing");
+    EXPECT_EQ(error(terraingen::CraterListOutput{{"c.csv", {}, {}, 1e-9}}, moon),
+              "outputs[0].spacing");
+    EXPECT_EQ(error(terraingen::BoulderModelsOutput{"b.glb", 35.0, {}, 1000.0}, moon), "valid");
 }
 
 TEST(ValidateConfig, ReportsRasterAlbedoProblemsByPath) {
@@ -129,7 +164,7 @@ TEST(ValidateConfig, ReportsRasterAlbedoProblemsByPath) {
     EXPECT_EQ(rejected({"rotated.tif", {0}, {}, {}, {}}), "albedo.source.path");
 }
 
-TEST(ValidateConfig, ReportsSphereProblemsByPath) {
+TEST(ValidateConfig, ReportsBodyProblemsByPath) {
     using terraingen::testing::OnASphere;
     const auto error = [](auto mutate) {
         TerrainConfig config = OnASphere();
@@ -137,10 +172,12 @@ TEST(ValidateConfig, ReportsSphereProblemsByPath) {
         return ValidationErrorPath(config);
     };
     EXPECT_EQ(error([](TerrainConfig&) {}), "valid");
-    EXPECT_EQ(error([](TerrainConfig& c) { c.surface = terraingen::SphereSurfaceSpec{}; }),
-              "surface.radius");
-    EXPECT_EQ(error([](TerrainConfig& c) { Flat(c).centreY = 89.999; }), "source.height");
-    EXPECT_EQ(error([](TerrainConfig& c) { Flat(c).centreX = NAN; }), "source.centre_x");
+    EXPECT_EQ(error([](TerrainConfig& c) { c.body = terraingen::SphereSurfaceSpec{}; }),
+              "body.radius");
+    EXPECT_EQ(error([](TerrainConfig& c) { Region(c).centreY = 89.999; }),
+              "outputs[0].region.height");
+    EXPECT_EQ(error([](TerrainConfig& c) { Region(c).centreX = NAN; }),
+              "outputs[0].region.centre_x");
     for (std::uint32_t b = 0; b < terraingen::kNoiseBasisCount; ++b) {
         const auto basis = static_cast<terraingen::NoiseBasis>(b);
         SCOPED_TRACE(b);
@@ -155,24 +192,24 @@ TEST(ValidateConfig, ReportsSphereProblemsByPath) {
                   }),
                   "valid");
     }
-    EXPECT_EQ(
-        error([](TerrainConfig& c) { c.outputs = {terraingen::BoulderModelsOutput{"b.glb"}}; }),
-        "valid");
+    EXPECT_EQ(error([](TerrainConfig& c) {
+                  c.outputs.push_back(
+                      terraingen::BoulderModelsOutput{"b.glb", 35.0, Region(c), std::nullopt});
+              }),
+              "valid");
 }
 
-TEST(ValidateConfig, ReportsBodyMeshProblemsByPath) {
+TEST(ValidateConfig, ReportsMeshProblemsByPath) {
     const auto error = [](auto mutate) {
         TerrainConfig config;
-        config.surface = terraingen::SphereSurfaceSpec{3389500.0};
-        config.source = terraingen::FlatSourceSpec{4, 4, 1000.0};
-        terraingen::BodyMeshOutput output{"m.glb", 8, std::nullopt};
+        config.body = terraingen::SphereSurfaceSpec{3389500.0};
+        terraingen::MeshOutput output{"m.glb", 8, std::nullopt};
         mutate(config, output);
         config.outputs = {output};
         return ValidationErrorPath(config);
     };
     EXPECT_EQ(error([](auto&, auto&) {}), "valid");
-    EXPECT_EQ(error([](auto& c, auto&) { c.surface = terraingen::PlaneSurfaceSpec{}; }),
-              "outputs[0]");
+    EXPECT_EQ(error([](auto& c, auto&) { c.body = terraingen::PlaneSurfaceSpec{}; }), "outputs[0]");
     EXPECT_EQ(error([](auto&, auto& o) { o.path = "m.fbx"; }), "outputs[0].path");
     EXPECT_EQ(error([](auto&, auto& o) { o.cellsPerFace = 0; }), "outputs[0].cells_per_face");
     EXPECT_EQ(error([](auto&, auto& o) { o.spacing = -1.0; }), "outputs[0].spacing");
@@ -182,7 +219,7 @@ TEST(DescribeSource, ReadsTheRasterHeaderAndResampledSize) {
     const auto folder = TempPath("terraingen_describe");
     terraingen::testing::WriteDem(folder, "dem.tif");
     TerrainConfig config = terraingen::testing::RasterConfig("dem.tif");
-    const auto grid = terraingen::DescribeSource(config.source, folder);
+    const auto grid = terraingen::DescribeSource(*config.base, folder);
     EXPECT_EQ(grid.width, 40u);
     EXPECT_EQ(grid.height, 30u);
     EXPECT_EQ(grid.transform, terraingen::GeoTransform::NorthUp(1000.0, 2000.0, 5.0));
@@ -194,7 +231,7 @@ TEST(DescribeSource, ReadsTheRasterHeaderAndResampledSize) {
     EXPECT_EQ(bounds.minY, 1850.0);
     EXPECT_EQ(bounds.maxY, 2000.0);
     terraingen::testing::RasterSpec(config).read.pixelSize = 2.5;
-    const auto fine = terraingen::DescribeSource(config.source, folder);
+    const auto fine = terraingen::DescribeSource(*config.base, folder);
     EXPECT_EQ(fine.width, 80u);
     EXPECT_EQ(fine.height, 60u);
     EXPECT_DOUBLE_EQ(fine.PixelSize(), 2.5);
@@ -217,18 +254,18 @@ TEST(BuildSurface, ASphereRadiusThatIsNotPositiveIsAnErrorAtTheRadius) {
             terraingen::BuildSurface(terraingen::SphereSurfaceSpec{radius});
             ADD_FAILURE() << "expected a ConfigError for " << radius;
         } catch (const ConfigError& error) {
-            EXPECT_EQ(error.Path(), "surface.radius") << radius;
+            EXPECT_EQ(error.Path(), "body.radius") << radius;
         }
     }
 }
 
 TEST(ValidateConfig, ReportsASphereWithoutARadiusAtTheRadius) {
     TerrainConfig config;
-    config.surface = terraingen::SphereSurfaceSpec{};
-    EXPECT_EQ(ValidationErrorPath(config), "surface.radius");
-    config.surface = terraingen::SphereSurfaceSpec{-1737400.0};
-    EXPECT_EQ(ValidationErrorPath(config), "surface.radius");
-    config.surface = terraingen::SphereSurfaceSpec{1737400.0};
+    config.body = terraingen::SphereSurfaceSpec{};
+    EXPECT_EQ(ValidationErrorPath(config), "body.radius");
+    config.body = terraingen::SphereSurfaceSpec{-1737400.0};
+    EXPECT_EQ(ValidationErrorPath(config), "body.radius");
+    config.body = terraingen::SphereSurfaceSpec{1737400.0};
     EXPECT_EQ(ValidationErrorPath(config), "valid");
 }
 
@@ -248,18 +285,18 @@ TEST(BuildSurface, EllipsoidRadiiOfTheWrongCountOrSignAreErrorsAtThem) {
         }
         return std::string("valid");
     };
-    EXPECT_EQ(path({}), "surface.radii");
-    EXPECT_EQ(path({1.0, 2.0}), "surface.radii");
-    EXPECT_EQ(path({1.0, 2.0, 3.0, 4.0}), "surface.radii");
-    EXPECT_EQ(path({1.0, -2.0, 3.0}), "surface.radii[1]");
-    EXPECT_EQ(path({1.0, 2.0, std::numeric_limits<double>::quiet_NaN()}), "surface.radii[2]");
+    EXPECT_EQ(path({}), "body.radii");
+    EXPECT_EQ(path({1.0, 2.0}), "body.radii");
+    EXPECT_EQ(path({1.0, 2.0, 3.0, 4.0}), "body.radii");
+    EXPECT_EQ(path({1.0, -2.0, 3.0}), "body.radii[1]");
+    EXPECT_EQ(path({1.0, 2.0, std::numeric_limits<double>::quiet_NaN()}), "body.radii[2]");
     EXPECT_EQ(path({1.0, 2.0, 3.0}), "valid");
 }
 
 TEST(ValidateConfig, ReportsEllipsoidRadiiByPath) {
     TerrainConfig config;
-    config.surface = terraingen::EllipsoidSurfaceSpec{{270.0, 0.0, 104.0}};
-    EXPECT_EQ(ValidationErrorPath(config), "surface.radii[1]");
-    config.surface = terraingen::EllipsoidSurfaceSpec{{270000.0, 147000.0, 104000.0}};
+    config.body = terraingen::EllipsoidSurfaceSpec{{270.0, 0.0, 104.0}};
+    EXPECT_EQ(ValidationErrorPath(config), "body.radii[1]");
+    config.body = terraingen::EllipsoidSurfaceSpec{{270000.0, 147000.0, 104000.0}};
     EXPECT_EQ(ValidationErrorPath(config), "valid");
 }

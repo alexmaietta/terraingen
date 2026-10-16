@@ -27,11 +27,8 @@ namespace {
 /// A configuration using a non-default alternative or value for everything.
 TerrainConfig Everything() {
     TerrainConfig config;
-    auto& source = std::get<terraingen::FlatSourceSpec>(config.source);
-    source.width = 33;
-    source.height = 21;
-    source.pixelSize = 0.5;
-    source.elevation = -1200.5f;
+    config.body = terraingen::SphereSurfaceSpec{3389500.0};
+    config.base = terraingen::RasterSourceSpec{"dem.tif"};
     terraingen::NoiseLayerSpec noise;
     terraingen::NoiseLayerConfig second;
     second.layer.blend = terraingen::LayerBlend::Mask;
@@ -169,12 +166,15 @@ TerrainConfig Everything() {
             terraingen::RectangleRegionSpec{-1.0, -2.0, 3.0, 4.0}, 0.0,
             terraingen::BlendShape::Linear,
             terraingen::RegionLayerSpec{{}, 1.0, {}, terraingen::ClampLayerSpec{0.0, 1.0}}}};
+    const terraingen::GridRegionSpec region{33, 21, 0.5, 30.0, -45.0};
     config.outputs = {
-        CraterListOutput{"out/craters.json", ListFormat::Json},
-        CraterListOutput{"craters.txt", ListFormat::Csv},
-        terraingen::HeightmapOutput{"dem.tif", terraingen::TiffCompression::Deflate, 512},
-        terraingen::BoulderListOutput{"boulders.json", ListFormat::Json},
-        terraingen::BoulderModelsOutput{"boulders.glb", 20.0}};
+        CraterListOutput{"out/craters.json", ListFormat::Json, region, 4.0},
+        CraterListOutput{"craters.txt", ListFormat::Csv, {}, 100.0},
+        terraingen::HeightmapOutput{"dem.tif", terraingen::TiffCompression::Deflate, 512, region},
+        terraingen::BoulderListOutput{"boulders.json", ListFormat::Json, region},
+        terraingen::BoulderModelsOutput{"boulders.glb", 20.0, region, 2.0},
+        terraingen::MeshOutput{"body.icq", 64, 300.0},
+        terraingen::TerrainMeshOutput{"site.glb", region}};
     return config;
 }
 
@@ -190,7 +190,8 @@ TEST(ConfigJson, RoundTripsTheDefaultsAndEveryNonDefaultValue) {
 
 TEST(ConfigJson, WritesTheRootKeysInOrderAndNoAlbedoWhenUnset) {
     const std::string json = ConfigToJson(TerrainConfig{});
-    EXPECT_EQ(json.rfind("{\n  \"schema_version\": 1,\n  \"surface\": {", 0), 0u) << json;
+    EXPECT_EQ(json.rfind("{\n  \"schema_version\": 1,\n  \"body\": {", 0), 0u) << json;
+    EXPECT_EQ(json.find("\"base\""), std::string::npos) << json;
     EXPECT_EQ(json.find("\"albedo\""), std::string::npos) << json;
     EXPECT_LT(json.find("\"layers\""), json.find("\"outputs\""));
     TerrainConfig config;
@@ -231,9 +232,9 @@ TEST(ConfigJson, RoundTripsEveryModelType) {
           terraingen::SourceSpec{terraingen::ChainSourceSpec{
               {terraingen::RasterSourceSpec{
                    "a.tif", {1, 2.0, terraingen::ResampleMethod::Nearest, 0.001, -250.0}},
-               terraingen::FlatSourceSpec{3, 4, 5.0, 6.0f}, terraingen::ChainSourceSpec{}}}}}) {
+               terraingen::ChainSourceSpec{}}}}}) {
         TerrainConfig config;
-        config.source = source;
+        config.base = source;
         EXPECT_EQ(ParseConfig(ConfigToJson(config)), config);
     }
     for (const DensitySpec& density : densities) {
@@ -304,39 +305,44 @@ TEST(ConfigJson, RoundTripsAlbedos) {
               "albedo.layers[0].rays.glow");
 }
 
-TEST(ConfigJson, RoundTripsSurfacesAndFlatCentres) {
-    TerrainConfig config;
-    config.surface = terraingen::SphereSurfaceSpec{1737400.0};
-    terraingen::FlatSourceSpec flat;
-    flat.centreX = 30.0;
-    flat.centreY = -45.0;
-    config.source = flat;
-    const std::string json = ConfigToJson(config);
-    EXPECT_EQ(ParseConfig(json), config) << json;
+TEST(ConfigJson, RoundTripsBodiesBasesAndRegions) {
     const TerrainConfig parsed =
-        ParseConfig(R"({"schema_version": 1, "surface": {"type": "sphere", "radius": 3389500}})");
-    EXPECT_EQ(std::get<terraingen::SphereSurfaceSpec>(parsed.surface).radius, 3389500.0);
+        ParseConfig(R"({"schema_version": 1, "body": {"type": "sphere", "radius": 3389500}})");
+    EXPECT_EQ(std::get<terraingen::SphereSurfaceSpec>(parsed.body).radius, 3389500.0);
+    EXPECT_EQ(ParseConfig(ConfigToJson(parsed)), parsed);
     const TerrainConfig ellipsoid = ParseConfig(
-        R"({"schema_version": 1, "surface": {"type": "ellipsoid", "radii": [270, 147, 104]}})");
-    EXPECT_EQ(std::get<terraingen::EllipsoidSurfaceSpec>(ellipsoid.surface).radii,
+        R"({"schema_version": 1, "body": {"type": "ellipsoid", "radii": [270, 147, 104]}})");
+    EXPECT_EQ(std::get<terraingen::EllipsoidSurfaceSpec>(ellipsoid.body).radii,
               (std::vector<double>{270.0, 147.0, 104.0}));
     EXPECT_EQ(ParseConfig(ConfigToJson(ellipsoid)), ellipsoid);
-    const TerrainConfig shape = ParseConfig(R"({"schema_version": 1, "surface": {
+    const TerrainConfig shape = ParseConfig(R"({"schema_version": 1, "body": {
         "type": "shape_model", "path": "itokawa.icq", "q": 64, "metres_per_unit": 1000}})");
-    EXPECT_EQ(std::get<terraingen::ShapeModelSurfaceSpec>(shape.surface),
+    EXPECT_EQ(std::get<terraingen::ShapeModelSurfaceSpec>(shape.body),
               (terraingen::ShapeModelSurfaceSpec{"itokawa.icq", 64, 1000.0}));
     EXPECT_EQ(ParseConfig(ConfigToJson(shape)), shape);
     EXPECT_TRUE(std::holds_alternative<terraingen::PlaneSurfaceSpec>(
-        ParseConfig(R"({"schema_version": 1})").surface));
-    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "surface": {"type": "torus"}})"),
-              "surface.type");
-    EXPECT_EQ(ParseConfig(ConfigToJson(parsed)), parsed);
-    TerrainConfig meshed = parsed;
-    meshed.outputs = {terraingen::BodyMeshOutput{"m.glb", 64, 300.0}};
-    EXPECT_EQ(ParseConfig(ConfigToJson(meshed)), meshed);
-    EXPECT_EQ(
-        ParseErrorPath(R"({"schema_version": 1, "surface": {"type": "sphere", "body": "mars"}})"),
-        "surface.body");
+        ParseConfig(R"({"schema_version": 1})").body));
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "body": {"type": "torus"}})"), "body.type");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "body": {"type": "sphere", "body": 1}})"),
+              "body.body");
+
+    const TerrainConfig based = ParseConfig(R"({"schema_version": 1,
+        "base": {"type": "raster", "path": "dem.tif"},
+        "outputs": [{"type": "mesh", "path": "m.glb", "cells_per_face": 64},
+                    {"type": "heightmap", "path": "h.tif",
+                     "region": {"width": 10, "height": 20, "pixel_size": 4,
+                                "centre_x": 30, "centre_y": -45}}]})");
+    EXPECT_EQ(std::get<terraingen::RasterSourceSpec>(*based.base).path, "dem.tif");
+    EXPECT_EQ(std::get<terraingen::MeshOutput>(based.outputs.at(0)).cellsPerFace, 64u);
+    EXPECT_EQ(std::get<terraingen::HeightmapOutput>(based.outputs.at(1)).region,
+              (terraingen::GridRegionSpec{10, 20, 4.0, 30.0, -45.0}));
+    EXPECT_EQ(ParseConfig(ConfigToJson(based)), based);
+    for (const char* removed : {R"({"schema_version": 1, "surface": {"type": "plane"}})",
+                                R"({"schema_version": 1, "source": {"type": "raster"}})",
+                                R"({"schema_version": 1, "base": {"type": "flat"}})",
+                                R"({"schema_version": 1, "outputs": [{"type": "body_mesh"}]})"}) {
+        EXPECT_NE(ParseErrorPath(removed), "no error") << removed;
+    }
 }
 
 TEST(ConfigJson, ReadsProductionSurfacesMinimumsAndSteadyStateAges) {

@@ -1,5 +1,5 @@
 /// @file
-/// @brief A terrain as a source and layers, evaluated over grids or at points.
+/// @brief A terrain as optional starting heights and layers, evaluated over grids or at points.
 #pragma once
 
 #include "terraingen/layers/layer.h"
@@ -14,14 +14,14 @@
 
 namespace terraingen {
 
-/// A terrain as a composition: heights from `source`, plus each of `layers` in order.
+/// A terrain as a composition: heights from `source` (the datum, 0 m, without one), plus each of
+/// `layers` in order.
 ///
 /// Every part is a pure function of where it is evaluated, so a terrain can be evaluated over any
-/// grid on its source's lattice, such as a tile, at any sample spacing. On a sphere, grids are in
-/// longitude and latitude and spacings in metres (`RasterGrid::Spacing`). The layers must be built
-/// for `surface`.
+/// grid, such as a tile, at any sample spacing. On a body, grids are in longitude and latitude and
+/// spacings in metres (`RasterGrid::Spacing`). The layers must be built for `surface`.
 struct Terrain {
-    std::shared_ptr<const Source> source;              ///< The starting heights.
+    std::shared_ptr<const Source> source;              ///< The starting heights; may be null.
     std::vector<std::shared_ptr<const Layer>> layers;  ///< Applied in order.
     Surface surface{};                                 ///< What the terrain lies on.
 };
@@ -36,17 +36,17 @@ struct EvaluationOptions {
     unsigned threads = 0;
 };
 
-/// The ground beneath one layer of a terrain: its source and the layers before it,
+/// The ground beneath one layer of a terrain: its starting heights and the layers before it,
 /// evaluated at points as `EvaluatePoints`. `Evaluate` and `EvaluatePoints` give each layer the
 /// ground beneath it.
 class TerrainGround final : public Ground {
   public:
     /// The ground beneath layer `layers` of `terrain`, which must outlive it.
     /// @param layers The number of layers the ground includes.
-    /// @throws std::invalid_argument if `terrain` has no source or fewer than `layers` layers.
+    /// @throws std::invalid_argument if `terrain` has fewer than `layers` layers.
     TerrainGround(const Terrain& terrain, std::size_t layers);
 
-    /// The source's height at surface point (`x`, `y`) after each included layer's `ApplyAt`, at
+    /// The starting height at surface point (`x`, `y`) after each included layer's `ApplyAt`, at
     /// a sample spacing of `spacing` metres.
     float HeightAt(double x, double y, double spacing) const override;
 
@@ -68,15 +68,15 @@ Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid,
                        const EvaluationOptions& options);
 
 /// Checks that a terrain can be evaluated.
-/// @throws std::invalid_argument if `terrain` has no source or holds a null layer.
+/// @throws std::invalid_argument if `terrain` holds a null layer.
 void ValidateTerrain(const Terrain& terrain);
 
 /// The heights of `terrain` over its source's grid.
-/// @throws std::invalid_argument as `Evaluate` over a grid.
+/// @throws std::invalid_argument as `Evaluate` over a grid, or for a terrain without a source.
 Raster<float> Evaluate(const Terrain& terrain);
 
 /// The heights of a terrain at scattered points, such as wheel contacts or mesh vertices: the
-/// source's heights there, then each layer applied to all of them at once. Each equals the cell
+/// starting heights there, then each layer applied to all of them at once. Each equals the cell
 /// centred at its point of `Evaluate` over a grid of `spacing` metres, to the same bits, whatever
 /// the batch and thread count.
 /// @param points Positions in surface coordinates.

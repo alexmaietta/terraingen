@@ -49,13 +49,13 @@ class HeadlessImGui : public ::testing::Test {
     }
 };
 
-/// A configuration using every source, layer, filter and output type of the catalog, a chain of
-/// sources and an albedo.
+/// A configuration using every base, layer and output type of the catalog, a chain of bases and an
+/// albedo.
 Json Everything() {
     const Json catalog = Json::parse(terraingen::ConfigCatalog());
     Json config = Json{{"schema_version", terraingen::kConfigSchemaVersion}};
-    config["surface"] = catalog["surface"].back();
-    config["source"] = Json{{"type", "chain"}, {"sources", catalog["source"]}};
+    config["body"] = catalog["body"].back();
+    config["base"] = Json{{"type", "chain"}, {"sources", catalog["base"]}};
     config["layers"] = catalog["layers"];
     config["outputs"] = catalog["outputs"];
     config["albedo"] = catalog["albedo"];
@@ -75,10 +75,11 @@ TEST(ConfigEditor, MakesNewValuesFromTheSchema) {
         }
         return Json();
     };
-    EXPECT_EQ(editor.NewValue(field("source")), (Json{{"type", "flat"}}));
+    EXPECT_EQ(editor.NewValue(field("body")), (Json{{"type", "plane"}}));
+    EXPECT_TRUE(editor.NewValue(field("base")).is_null());
     EXPECT_EQ(editor.NewValue(field("layers")), Json::array());
     EXPECT_TRUE(editor.NewValue(field("albedo")).is_null());
-    EXPECT_EQ(editor.Resolve(field("source"))["kind"], "choice");
+    EXPECT_EQ(editor.Resolve(field("body"))["kind"], "choice");
     EXPECT_EQ(editor.NewValue(Json{{"kind", "boolean"}}), false);
     EXPECT_EQ(editor.NewValue(Json{{"kind", "string"}}), "");
     EXPECT_EQ(editor.NewValue(Json{{"kind", "integer"}}), 0);
@@ -89,20 +90,20 @@ TEST(ConfigEditor, MakesNewValuesFromTheSchema) {
 
 TEST(ConfigEditor, SwitchingTypeKeepsTheFieldsBothTypesHave) {
     const ConfigEditor editor;
-    Json source = Json{{"type", "flat"}, {"pixel_size", 3.0}, {"width", 65}};
-    Json sourceNode;
+    Json output = Json{{"type", "heightmap"}, {"path", "a.tif"}, {"tile_size", 64}};
+    Json outputNode;
     for (const Json& f : editor.Schema()["root"]["fields"]) {
-        if (f["name"] == "source") {
-            sourceNode = f["schema"];
+        if (f["name"] == "outputs") {
+            outputNode = f["schema"]["of"];
         }
     }
-    editor.SetType(source, sourceNode, "raster");
-    EXPECT_EQ(source, (Json{{"type", "raster"}, {"pixel_size", 3.0}}));
-    editor.SetType(source, sourceNode, "no_such_type");
-    EXPECT_EQ(source["type"], "raster") << "an unknown type changes nothing";
+    editor.SetType(output, outputNode, "crater_list");
+    EXPECT_EQ(output, (Json{{"type", "crater_list"}, {"path", "a.tif"}}));
+    editor.SetType(output, outputNode, "no_such_type");
+    EXPECT_EQ(output["type"], "crater_list") << "an unknown type changes nothing";
     Json notAnObject = 5;
-    editor.SetType(notAnObject, sourceNode, "chain");
-    EXPECT_EQ(notAnObject, (Json{{"type", "chain"}}));
+    editor.SetType(notAnObject, outputNode, "mesh");
+    EXPECT_EQ(notAnObject, (Json{{"type", "mesh"}}));
 }
 
 TEST(ConfigEditor, LabelsKeysInWordsWithoutTheirUnit) {
@@ -120,7 +121,7 @@ TEST(ConfigEditor, AddsRemovesAndMovesItemsWithTheSelectionFollowing) {
     ConfigEditor editor;
     Json config = Json::object();
     EXPECT_FALSE(editor.AddItem(config, "layers", "no_such_type"));
-    EXPECT_FALSE(editor.AddItem(config, "source", "flat")) << "not a list";
+    EXPECT_FALSE(editor.AddItem(config, "body", "sphere")) << "not a list";
     EXPECT_FALSE(editor.AddItem(config, "nothing", "noise"));
     ASSERT_TRUE(editor.AddItem(config, "layers", "noise"));
     ASSERT_TRUE(editor.AddItem(config, "layers", "craters"));
@@ -155,7 +156,7 @@ TEST_F(HeadlessImGui, DrawsEverySelectionWithoutChangingTheConfiguration) {
     ConfigEditor editor;
     Json config = Everything();
     const Json before = config;
-    std::vector<std::string> selections = {"", "/surface", "/source", "/albedo"};
+    std::vector<std::string> selections = {"", "/body", "/base", "/albedo"};
     for (const char* list : {"layers", "outputs"}) {
         for (std::size_t i = 0; i < config[list].size(); ++i) {
             selections.push_back("/" + std::string(list) + "/" + std::to_string(i));

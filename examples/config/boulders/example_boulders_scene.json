@@ -1,11 +1,5 @@
 {
     "schema_version": 1,
-    "source": {
-        "type": "flat",
-        "width": 201,
-        "height": 201,
-        "pixel_size": 0.1
-    },
     "layers": [
         {
             "type": "noise",
@@ -32,19 +26,39 @@
     "outputs": [
         {
             "type": "terrain_mesh",
-            "path": "example_boulders_scene_terrain.obj"
+            "path": "example_boulders_scene_terrain.obj",
+            "region": {
+                "width": 201,
+                "height": 201,
+                "pixel_size": 0.1
+            }
         },
         {
             "type": "boulder_models",
-            "path": "example_boulders_scene_boulders.obj"
+            "path": "example_boulders_scene_boulders.obj",
+            "region": {
+                "width": 201,
+                "height": 201,
+                "pixel_size": 0.1
+            }
         },
         {
             "type": "terrain_mesh",
-            "path": "example_boulders_scene_terrain.glb"
+            "path": "example_boulders_scene_terrain.glb",
+            "region": {
+                "width": 201,
+                "height": 201,
+                "pixel_size": 0.1
+            }
         },
         {
             "type": "boulder_models",
-            "path": "example_boulders_scene_boulders.glb"
+            "path": "example_boulders_scene_boulders.glb",
+            "region": {
+                "width": 201,
+                "height": 201,
+                "pixel_size": 0.1
+            }
         }
     ]
 }

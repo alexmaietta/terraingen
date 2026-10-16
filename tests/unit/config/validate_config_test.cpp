@@ -12,8 +12,8 @@ using terraingen::TerrainConfig;
 using terraingen::ValidateConfig;
 using terraingen::testing::Craters;
 using terraingen::testing::ErrorPath;
-using terraingen::testing::Flat;
 using terraingen::testing::Noise;
+using terraingen::testing::Region;
 using terraingen::testing::Small;
 using terraingen::testing::ValidationErrorPath;
 
@@ -30,24 +30,27 @@ struct PathCase {
 
 const PathCase kPathCases[] = {
     {"Unchanged", [](TerrainConfig&) {}, "valid"},
-    {"NarrowGrid", [](TerrainConfig& c) { Flat(c).width = 1; }, "source.width"},
-    {"TallGrid", [](TerrainConfig& c) { Flat(c).height = 100000; }, "source.width"},
-    {"ZeroPixelSize", [](TerrainConfig& c) { Flat(c).pixelSize = 0.0; }, "source.pixel_size"},
+    {"NarrowGrid", [](TerrainConfig& c) { Region(c).width = 1; }, "outputs[0].region.width"},
+    {"TallGrid", [](TerrainConfig& c) { Region(c).height = 100000; }, "outputs[0].region.width"},
+    {"ZeroPixelSize", [](TerrainConfig& c) { Region(c).pixelSize = 0.0; },
+     "outputs[0].region.pixel_size"},
     {"EmptyNoiseStack", [](TerrainConfig& c) { Noise(c).stack.clear(); }, "layers[0].stack"},
     {"NoOctaves", [](TerrainConfig& c) { Noise(c).stack[0].layer.fractal.octaves = 0; },
      "layers[0].stack[0]"},
     {"InfiniteHurst", [](TerrainConfig& c) { Noise(c).stack[0].hurst = 1.0f / 0.0f; },
      "layers[0].stack[0].hurst"},
-    {"HeightmapWithoutPath", [](TerrainConfig& c) { c.outputs = {terraingen::HeightmapOutput{}}; },
-     "outputs[0].path"},
+    {"HeightmapWithoutPath",
+     [](TerrainConfig& c) { c.outputs = {terraingen::testing::Heightmap("")}; }, "outputs[0].path"},
     {"PackBitsHeightmap",
      [](TerrainConfig& c) {
-         c.outputs = {terraingen::HeightmapOutput{"a.tif", terraingen::TiffCompression::PackBits}};
+         c.outputs = {terraingen::HeightmapOutput{"a.tif", terraingen::TiffCompression::PackBits,
+                                                  256, terraingen::testing::SmallRegion()}};
      },
      "outputs[0].compression"},
     {"OddTileSize",
      [](TerrainConfig& c) {
-         c.outputs = {terraingen::HeightmapOutput{"a.tif", terraingen::TiffCompression::Lzw, 20}};
+         c.outputs = {terraingen::HeightmapOutput{"a.tif", terraingen::TiffCompression::Lzw, 20,
+                                                  terraingen::testing::SmallRegion()}};
      },
      "outputs[0].tile_size"},
     {"LunarSurfaceTooOld",
@@ -140,15 +143,24 @@ TEST(ValidateConfig, AcceptsTheDefaults) {
     EXPECT_NO_THROW(ValidateConfig(TerrainConfig{}));
 }
 
-TEST(ValidateConfig, SummarisesTheGridAndTheCratersExpected) {
+TEST(ValidateConfig, SummarisesTheGridsAndTheCratersExpected) {
     TerrainConfig config = Small();
     const terraingen::ConfigSummary summary = ValidateConfig(config);
-    EXPECT_EQ(summary.grid.width, 65u);
-    EXPECT_EQ(summary.grid.height, 49u);
+    EXPECT_FALSE(summary.base);
+    ASSERT_EQ(summary.outputGrids.size(), 1u);
+    const terraingen::RasterGrid grid = summary.outputGrids[0].value();
+    EXPECT_EQ(grid.width, 65u);
+    EXPECT_EQ(grid.height, 49u);
     ASSERT_TRUE(summary.expectedCraters);
     const auto models = terraingen::BuildCraterModels(Craters(config));
-    const double expected = models.density->ExpectedCount(summary.grid.SurfaceArea({}), 8.0, 60.0);
+    const double expected = models.density->ExpectedCount(grid.SurfaceArea({}), 8.0, 60.0);
     EXPECT_DOUBLE_EQ(*summary.expectedCraters, expected);
+
+    TerrainConfig larger = config;
+    larger.outputs.push_back(terraingen::testing::Heightmap("big.tif", {{130, 98, 2.0}}));
+    EXPECT_DOUBLE_EQ(*ValidateConfig(larger).expectedCraters,
+                     models.density->ExpectedCount(4.0 * grid.SurfaceArea({}), 8.0, 60.0))
+        << "the output grid with the most";
 
     config.layers.push_back(Craters(config));
     EXPECT_DOUBLE_EQ(*ValidateConfig(config).expectedCraters, 2.0 * expected);
@@ -187,7 +199,7 @@ TEST(ValidateConfig, ReportsBoulderLayerProblemsByPath) {
               }),
               "layers[1].ejecta.min_crater_diameter");
     EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
-                  Flat(c) = {60000, 60000, 0.1};
+                  Region(c) = {60000, 60000, 0.1};
                   terraingen::BoulderLayerSpec boulders;
                   boulders.boulders.sizes.coverage = 0.5;
                   c.layers = {boulders};
@@ -197,7 +209,7 @@ TEST(ValidateConfig, ReportsBoulderLayerProblemsByPath) {
 
 TEST(ValidateConfig, ReportsBoulderSizeProblemsByPath) {
     TerrainConfig config = Small();
-    Flat(config).pixelSize = 0.5;
+    Region(config).pixelSize = 0.5;
     terraingen::BoulderLayerSpec boulders;
     boulders.boulders.sizes.minDiameter = 0.5;
     boulders.boulders.ejecta.minCraterDiameter = 8.0;

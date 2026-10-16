@@ -1,5 +1,5 @@
 /// @file
-/// @brief The JSON fields of surfaces and sources.
+/// @brief The JSON fields of bodies and bases.
 #pragma once
 
 #include "terraingen/config/config.h"
@@ -61,25 +61,6 @@ template <typename IO> void Fields(IO& io, ShapeModelSurfaceSpec& spec) {
        "m");
 }
 
-template <> struct SpecName<FlatSourceSpec> {
-    static constexpr std::string_view kName = "flat";
-    static constexpr std::string_view kDescription =
-        "A level datum over a grid of square cells, to build a synthetic terrain on from scratch.";
-};
-template <typename IO> void Fields(IO& io, FlatSourceSpec& source) {
-    io("width", source.width, "Columns of the grid.");
-    io("height", source.height, "Rows of the grid.");
-    io("pixel_size", source.pixelSize,
-       "Cell size in metres; on a sphere, metres along a meridian, the same in degrees of "
-       "longitude.",
-       "m");
-    io("elevation", source.elevation, "Height of the level datum, in metres.", "m");
-    io("centre_x", source.centreX,
-       "Centre of the grid along x in surface coordinates; the longitude in degrees on a sphere.");
-    io("centre_y", source.centreY,
-       "Centre of the grid along y in surface coordinates; the latitude in degrees on a sphere.");
-}
-
 template <> struct SpecName<RasterSourceSpec> {
     static constexpr std::string_view kName = "raster";
     static constexpr std::string_view kDescription =
@@ -112,13 +93,13 @@ template <typename IO> void Fields(IO& io, RasterSourceSpec& source) {
 template <> struct SpecName<ChainSourceSpec> {
     static constexpr std::string_view kName = "chain";
     static constexpr std::string_view kDescription =
-        "Several sources tried in order, each filling where those before it have no data; the "
-        "terrain covers the first source's grid.";
+        "Several bases tried in order, each filling where those before it have no data; its grid "
+        "is the first one's.";
 };
 template <typename IO> void Fields(IO& io, ChainSourceSpec& source) {
     io("sources", source.sources,
-       "Sources tried in order, each filling where those before it have no data; the terrain "
-       "covers the first source's grid.");
+       "Bases tried in order, each filling where those before it have no data; the chain's grid "
+       "is the first one's.");
 }
 
 }  // namespace terraingen::config

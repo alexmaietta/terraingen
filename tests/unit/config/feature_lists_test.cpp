@@ -98,7 +98,7 @@ TEST(WriteBoulderList, WritesCsvAndJsonWithUnknownGroundsLeftOut) {
 
 TEST(WriteBoulderModels, RejectsOtherFilesAnglesAndNoBoulders) {
     terraingen::TerrainConfig config = terraingen::testing::Small();
-    terraingen::testing::Flat(config) = {200, 200, 0.5};
+    terraingen::testing::Region(config) = {200, 200, 0.5};
     terraingen::BoulderLayerSpec boulders;
     boulders.boulders.sizes.coverage = 0.3;
     boulders.boulders.sizes.minDiameter = 0.5;

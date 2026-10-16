@@ -28,15 +28,33 @@ def test_default_config_has_only_a_schema_version():
     assert terraingen.Config() == terraingen.Config.from_dict({"schema_version": 1})
 
 
-def test_config_on_a_sphere_describes_its_grid():
+def test_config_on_a_sphere_describes_its_grids():
+    region = {"width": 17, "height": 9, "pixel_size": 100}
     config = terraingen.Config.from_dict(
         {
             "schema_version": 1,
-            "surface": {"type": "sphere", "radius": 1737400},
-            "source": {"type": "flat", "width": 17, "height": 17, "pixel_size": 100},
+            "body": {"type": "sphere", "radius": 1737400},
+            "outputs": [
+                {"type": "heightmap", "path": "h.tif", "region": region},
+                {"type": "mesh", "path": "moon.glb", "cells_per_face": 4},
+                {"type": "crater_list", "path": "c.csv", "spacing": 50000},
+            ],
         }
     )
-    assert config.surface.is_body and config.grid().width == 17
+    assert config.body().is_body and config.base_grid() is None
+    site, mesh, whole = config.output_grids()
+    assert (site.width, site.height) == (17, 9)
+    assert mesh is None
+    assert whole.bounds == pytest.approx((-180.0, -90.0, 180.0, 90.0))
+
+
+def test_a_config_without_a_base_or_region_cannot_write_a_heightmap():
+    config = terraingen.Config.from_dict(
+        {"schema_version": 1, "outputs": [{"type": "heightmap", "path": "h.tif"}]}
+    )
+    with pytest.raises(terraingen.ConfigError) as missing:
+        config.validate()
+    assert missing.value.path == "outputs[0].region"
 
 
 def test_unknown_keys_name_their_path():
@@ -54,13 +72,13 @@ def test_validation_errors_name_their_path():
     assert empty.value.path == "layers[0].stack"
 
 
-def test_missing_source_files_fail_validation():
+def test_missing_base_files_fail_validation():
     config = terraingen.Config.from_dict(
-        {"schema_version": 1, "source": {"type": "raster", "path": "none.tif"}}
+        {"schema_version": 1, "base": {"type": "raster", "path": "none.tif"}}
     )
     with pytest.raises(terraingen.ConfigError) as missing:
         config.validate("/nonexistent")
-    assert missing.value.path.startswith("source")
+    assert missing.value.path.startswith("base")
 
 
 def test_loading_a_missing_file_raises_a_config_error():
@@ -72,18 +90,21 @@ def test_schema_describes_fields_with_units_and_choices():
     schema = terraingen.config_schema()
     assert schema["schema_version"] == 1
     root = {f["name"]: f for f in schema["root"]["fields"]}
-    assert list(root)[:3] == ["schema_version", "surface", "source"]
+    assert list(root)[:3] == ["schema_version", "body", "base"]
     assert root["layers"]["description"].endswith(".")
-    source = schema["definitions"][root["source"]["schema"]["ref"]]
-    flat = next(a for a in source["alternatives"] if a["type"] == "flat")
-    pixel_size = next(f for f in flat["fields"] if f["name"] == "pixel_size")
+    assert root["base"]["schema"]["kind"] == "optional"
+    outputs = schema["definitions"][root["outputs"]["schema"]["of"]["ref"]]
+    heightmap = next(a for a in outputs["alternatives"] if a["type"] == "heightmap")
+    region = next(f for f in heightmap["fields"] if f["name"] == "region")
+    grid = schema["definitions"][region["schema"]["of"]["ref"]]
+    pixel_size = next(f for f in grid["fields"] if f["name"] == "pixel_size")
     assert pixel_size["unit"] == "m" and pixel_size["default"] == 2.0
 
 
 def test_catalog_lists_every_type():
     catalog = terraingen.config_catalog()
     assert catalog["schema_version"] == 1
-    assert [s["type"] for s in catalog["surface"]] == ["plane", "sphere", "ellipsoid", "shape_model"]
+    assert [s["type"] for s in catalog["body"]] == ["plane", "sphere", "ellipsoid", "shape_model"]
     assert "craters" in [layer["type"] for layer in catalog["layers"]]
     assert "density" in catalog["models"]
 
@@ -155,9 +176,7 @@ def test_an_empty_minimum_fails_validation_at_the_density():
 
 @pytest.mark.parametrize("radius", [0, -1737400])
 def test_a_sphere_needs_a_positive_radius(radius):
-    config = terraingen.Config.from_dict(
-        {"schema_version": 1, "surface": {"type": "sphere", "radius": radius}}
-    )
+    config = terraingen.Config.from_dict({"schema_version": 1, "body": {"type": "sphere", "radius": radius}})
     with pytest.raises(terraingen.ConfigError) as sphere:
         config.validate()
-    assert sphere.value.path == "surface.radius"
+    assert sphere.value.path == "body.radius"

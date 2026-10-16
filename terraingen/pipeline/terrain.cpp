@@ -16,7 +16,7 @@ namespace {
 void EvaluateStack(const Terrain& terrain, std::size_t layers, std::span<const Vec2d> points,
                    std::span<float> heights, double spacing) {
     for (std::size_t i = 0; i < points.size(); ++i) {
-        heights[i] = terrain.source->HeightAt(points[i].x, points[i].y);
+        heights[i] = terrain.source ? terrain.source->HeightAt(points[i].x, points[i].y) : 0.0f;
     }
     for (std::size_t n = 0; n < layers; ++n) {
         const TerrainGround ground(terrain, n);
@@ -37,7 +37,9 @@ Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid,
     RequireNonNegative(options.spacing, "Sample spacing");
     const double resolved = std::max(options.spacing, grid.Spacing(terrain.surface));
     Raster<float> heights = grid.MakeRaster();
-    terrain.source->Fill(heights);
+    if (terrain.source) {
+        terrain.source->Fill(heights);
+    }
     for (std::size_t n = 0; n < terrain.layers.size(); ++n) {
         const TerrainGround ground(terrain, n);
         terrain.layers[n]->Apply(heights, LayerContext{resolved, options.threads, &ground});
@@ -46,9 +48,6 @@ Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid,
 }
 
 void ValidateTerrain(const Terrain& terrain) {
-    if (!terrain.source) {
-        throw std::invalid_argument("A terrain needs a source");
-    }
     if (std::any_of(terrain.layers.begin(), terrain.layers.end(),
                     [](const auto& l) { return !l; })) {
         throw std::invalid_argument("A terrain's layers must not be null");
@@ -77,9 +76,6 @@ float EvaluateAt(const Terrain& terrain, double x, double y, double spacing) {
 
 TerrainGround::TerrainGround(const Terrain& terrain, std::size_t layers)
     : terrain_(terrain), layers_(layers) {
-    if (!terrain_.source) {
-        throw std::invalid_argument("A terrain needs a source");
-    }
     if (layers_ > terrain_.layers.size()) {
         throw std::invalid_argument("The terrain has fewer layers than the ground asks for");
     }
@@ -94,6 +90,9 @@ float TerrainGround::HeightAt(double x, double y, double spacing) const {
 
 Raster<float> Evaluate(const Terrain& terrain) {
     ValidateTerrain(terrain);
+    if (!terrain.source) {
+        throw std::invalid_argument("A terrain without a source needs a grid to evaluate over");
+    }
     return Evaluate(terrain, terrain.source->Grid());
 }
 

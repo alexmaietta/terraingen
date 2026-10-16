@@ -1,11 +1,5 @@
 {
     "schema_version": 1,
-    "source": {
-        "type": "flat",
-        "width": 513,
-        "height": 513,
-        "pixel_size": 2
-    },
     "layers": [
         {
             "type": "noise",
@@ -57,7 +51,12 @@
     "outputs": [
         {
             "type": "heightmap",
-            "path": "example_craters_interior_replacement.tif"
+            "path": "example_craters_interior_replacement.tif",
+            "region": {
+                "width": 513,
+                "height": 513,
+                "pixel_size": 2
+            }
         }
     ]
 }

@@ -57,6 +57,18 @@ nb::object FromJson(const std::string& text) {
     return nb::module_::import_("json").attr("loads")(text);
 }
 
+/// @brief `grid`, or else the grid of `terrain`'s source.
+/// @throws std::invalid_argument when there is neither.
+RasterGrid GridOr(const Terrain& terrain, const std::optional<RasterGrid>& grid) {
+    if (grid) {
+        return *grid;
+    }
+    if (!terrain.source) {
+        throw std::invalid_argument("A terrain without a source needs a grid");
+    }
+    return terrain.source->Grid();
+}
+
 /// @brief The list format a file's extension asks for: JSON for .json, CSV otherwise.
 ListFormat FormatOf(const std::filesystem::path& path) {
     return path.extension() == ".json" ? ListFormat::Json : ListFormat::Csv;
@@ -64,15 +76,16 @@ ListFormat FormatOf(const std::filesystem::path& path) {
 
 void BindTerrainClass(nb::module_& m) {
     nb::class_<PyTerrain>(m, "Terrain",
-                          "A terrain: heights from `source`, plus each of `layers` in order.")
+                          "A terrain: heights from `source` (the datum, 0 m, when None), plus "
+                          "each of `layers` in order.")
         .def(
             "__init__",
             [](PyTerrain* self, std::shared_ptr<Source> source,
                std::vector<std::shared_ptr<Layer>> layers, const Surface& surface) {
                 new (self) PyTerrain{std::move(source), std::move(layers), surface};
             },
-            "source"_a, "layers"_a = std::vector<std::shared_ptr<Layer>>{}, "surface"_a = Surface{},
-            "`surface` must be the one the layers were built for.")
+            "source"_a = nb::none(), "layers"_a = std::vector<std::shared_ptr<Layer>>{},
+            "surface"_a = Surface{}, "`surface` must be the one the layers were built for.")
         .def_rw("surface", &PyTerrain::surface)
         .def_rw("source", &PyTerrain::source)
         .def_rw("layers", &PyTerrain::layers);
@@ -118,7 +131,7 @@ void BindFeatures(nb::module_& m) {
         "placed_craters",
         [](const PyTerrain& terrain, std::optional<RasterGrid> grid, double spacing) {
             const Terrain built = terrain.Get();
-            return PlacedCraters(built, grid.value_or(built.source->Grid()), spacing);
+            return PlacedCraters(built, GridOr(built, grid), spacing);
         },
         "terrain"_a, "grid"_a = nb::none(), "spacing"_a = 0.0,
         nb::call_guard<nb::gil_scoped_release>(),
@@ -128,7 +141,7 @@ void BindFeatures(nb::module_& m) {
         "placed_boulders",
         [](const PyTerrain& terrain, std::optional<RasterGrid> grid, double spacing) {
             const Terrain built = terrain.Get();
-            return PlacedBoulders(built, grid.value_or(built.source->Grid()), spacing);
+            return PlacedBoulders(built, GridOr(built, grid), spacing);
         },
         "terrain"_a, "grid"_a = nb::none(), "spacing"_a = 0.0,
         nb::call_guard<nb::gil_scoped_release>(),
@@ -142,11 +155,7 @@ void BindEvaluation(nb::module_& m) {
         [](const PyTerrain& terrain, double spacing, unsigned threads,
            std::optional<RasterGrid> grid) {
             const Terrain built = terrain.Get();
-            if (!built.source) {
-                throw std::invalid_argument("The terrain has no source");
-            }
-            return Evaluate(built, grid.value_or(built.source->Grid()),
-                            EvaluationOptions{spacing, threads});
+            return Evaluate(built, GridOr(built, grid), EvaluationOptions{spacing, threads});
         },
         "terrain"_a, "spacing"_a = 0.0, "threads"_a = 0, "grid"_a = nb::none(),
         nb::call_guard<nb::gil_scoped_release>(),
@@ -339,16 +348,34 @@ void BindConfigQueries(nb::class_<TerrainConfig>& config) {
             "expected crater counts); relative input paths resolve against `directory`. Raises "
             "ConfigError naming the first invalid value.")
         .def("__eq__", [](const TerrainConfig& a, const TerrainConfig& b) { return a == b; })
-        .def_prop_ro(
-            "surface", [](const TerrainConfig& c) { return BuildSurface(c.surface); },
-            "The Surface the configuration's terrain lies on.")
         .def(
-            "grid",
+            "body",
             [](const TerrainConfig& c, const OptionalPath& directory) {
-                return DescribeSource(c.source, Directory(directory), BuildSurface(c.surface));
+                return BuildSurface(c.body, Directory(directory));
             },
             "directory"_a = nb::none(),
-            "The grid the configuration's source covers, reading only a raster source's header.")
+            "The Surface the configuration's terrain lies on; a shape model's path resolves "
+            "against `directory`.")
+        .def(
+            "base_grid",
+            [](const TerrainConfig& c, const OptionalPath& directory) -> std::optional<RasterGrid> {
+                if (!c.base) {
+                    return std::nullopt;
+                }
+                return DescribeSource(*c.base, Directory(directory),
+                                      BuildSurface(c.body, Directory(directory)));
+            },
+            "directory"_a = nb::none(),
+            "The grid the configuration's base covers, reading only a raster's header; None "
+            "without a base.")
+        .def(
+            "output_grids",
+            [](const TerrainConfig& c, const OptionalPath& directory) {
+                return ValidateConfig(c, Directory(directory)).outputGrids;
+            },
+            "directory"_a = nb::none(),
+            "The grid each output covers, in order (None for a mesh), after validating the "
+            "configuration.")
         .def("__repr__", [](const TerrainConfig& c) {
             return "Config(" + std::to_string(c.layers.size()) + " layers, " +
                    std::to_string(c.outputs.size()) + " outputs)";
@@ -358,14 +385,14 @@ void BindConfigQueries(nb::class_<TerrainConfig>& config) {
 void BindConfig(nb::module_& m) {
     BindConfigError(m);
     nb::class_<TerrainConfig> config(m, "Config",
-                                     "A terrain configuration: a surface, a source, layers, "
+                                     "A terrain configuration: a body, optionally a base, layers, "
                                      "outputs and optionally an albedo, as the JSON configs of the "
                                      "terraingen command describe.");
     BindConfigIo(config);
     BindConfigQueries(config);
     m.def(
         "config_catalog", [] { return FromJson(ConfigCatalog(-1)); },
-        "Every configuration type with its defaults, as a dict: the lists 'surface', 'source', "
+        "Every configuration type with its defaults, as a dict: the lists 'body', 'base', "
         "'layers' and 'outputs', the 'albedo', and the 'models' (densities, ages, "
         "degradation, profiles, boulder sizes, region shapes and albedo sources and layers).");
     m.def(
@@ -377,37 +404,69 @@ void BindConfig(nb::module_& m) {
         "and their 'descriptions'), optional, array, object and choice (with 'alternatives').");
 }
 
+/// @brief `grid`, or else the first grid `terrain` generated.
+/// @throws std::invalid_argument when there is neither.
+RasterGrid GeneratedGridOr(const GeneratedTerrain& terrain, const std::optional<RasterGrid>& grid) {
+    if (grid) {
+        return *grid;
+    }
+    if (terrain.grids.empty()) {
+        throw std::invalid_argument("The terrain generated no grid; give one");
+    }
+    return RasterGrid::Of(terrain.grids.front().heights);
+}
+
 void BindGeneratedTerrain(nb::module_& m) {
-    nb::class_<GeneratedTerrain> terrain(m, "GeneratedTerrain",
-                                         "A generated terrain: heights and albedo bands, and the "
-                                         "craters and boulders it places on request.");
-    terrain
+    nb::class_<GeneratedGrid>(m, "GeneratedGrid",
+                              "A terrain's heights, and its albedo bands, over one grid.")
         .def_prop_ro(
-            "heights", [](GeneratedTerrain& t) -> Raster<float>& { return t.heights; },
-            nb::rv_policy::reference_internal, "Heights in metres over the source's grid.")
+            "heights", [](GeneratedGrid& g) -> Raster<float>& { return g.heights; },
+            nb::rv_policy::reference_internal, "Heights in metres over the grid.")
         .def_prop_ro(
             "albedo",
             [](nb::handle self) {
                 nb::list bands;
-                for (Raster<float>& band : nb::cast<GeneratedTerrain&>(self).albedo) {
+                for (Raster<float>& band : nb::cast<GeneratedGrid&>(self).albedo) {
                     bands.append(nb::cast(&band, nb::rv_policy::reference_internal, self));
                 }
                 return bands;
             },
-            "Albedo bands, empty without an albedo in the configuration.");
+            "Albedo bands, empty unless an albedo output covers the grid.")
+        .def_prop_ro(
+            "grid", [](const GeneratedGrid& g) { return RasterGrid::Of(g.heights); },
+            "The grid the heights cover.");
+    nb::class_<GeneratedTerrain> terrain(m, "GeneratedTerrain",
+                                         "A generated terrain: the heights and albedo over each "
+                                         "grid its outputs cover, and the craters and boulders it "
+                                         "places on request.");
+    terrain.def_prop_ro(
+        "grids",
+        [](nb::handle self) {
+            nb::list grids;
+            for (GeneratedGrid& grid : nb::cast<GeneratedTerrain&>(self).grids) {
+                grids.append(nb::cast(&grid, nb::rv_policy::reference_internal, self));
+            }
+            return grids;
+        },
+        "The GeneratedGrid of each distinct grid a heightmap, albedo or terrain mesh output "
+        "covers, in output order.");
     terrain
         .def(
             "placed_craters",
-            [](const GeneratedTerrain& t) {
-                return PlacedCraters(t.terrain, RasterGrid::Of(t.heights));
+            [](const GeneratedTerrain& t, std::optional<RasterGrid> grid, double spacing) {
+                return PlacedCraters(t.terrain, GeneratedGridOr(t, grid), spacing);
             },
-            "The craters the terrain's layers apply over its grid.")
+            "grid"_a = nb::none(), "spacing"_a = 0.0,
+            "The craters the terrain's layers apply over `grid` (by default its first generated "
+            "grid) at `spacing` metres (0 for the grid's).")
         .def(
             "placed_boulders",
-            [](const GeneratedTerrain& t) {
-                return PlacedBoulders(t.terrain, RasterGrid::Of(t.heights));
+            [](const GeneratedTerrain& t, std::optional<RasterGrid> grid, double spacing) {
+                return PlacedBoulders(t.terrain, GeneratedGridOr(t, grid), spacing);
             },
-            "The boulders the terrain's layers place over its grid, and the models among them.")
+            "grid"_a = nb::none(), "spacing"_a = 0.0,
+            "The boulders the terrain's layers place over `grid` (by default its first generated "
+            "grid) at `spacing` metres (0 for the grid's), and the models among them.")
         .def_ro("seconds", &GeneratedTerrain::seconds,
                 "Wall-clock time the heights and albedo took to evaluate, in seconds.")
         .def("summary", &Summary, "One line describing the terrain: its size and time.");
@@ -421,8 +480,9 @@ void BindRun(nb::module_& m) {
         },
         "config"_a, "directory"_a = nb::none(), "threads"_a = 0,
         nb::call_guard<nb::gil_scoped_release>(),
-        "Generates the terrain `config` describes over its source's grid on up to `threads` "
-        "threads (0 for every hardware thread; the result does not depend on it). Relative input "
+        "Generates the terrain `config` describes over each grid its outputs cover, on up to "
+        "`threads` threads (0 for every hardware thread; the result does not depend on it). "
+        "Relative input "
         "paths resolve against `directory`. Raises ConfigError for an invalid configuration.");
     m.def(
         "build_terrain",

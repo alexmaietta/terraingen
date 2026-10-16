@@ -1,11 +1,5 @@
 {
     "schema_version": 1,
-    "source": {
-        "type": "flat",
-        "width": 513,
-        "height": 513,
-        "pixel_size": 4
-    },
     "layers": [
         {
             "type": "noise",
@@ -113,7 +107,12 @@
     "outputs": [
         {
             "type": "heightmap",
-            "path": "example_layers_regions.tif"
+            "path": "example_layers_regions.tif",
+            "region": {
+                "width": 513,
+                "height": 513,
+                "pixel_size": 4
+            }
         }
     ]
 }

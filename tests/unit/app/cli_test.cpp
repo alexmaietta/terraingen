@@ -50,7 +50,6 @@ std::filesystem::path Write(const std::filesystem::path& path, const std::string
 
 const char* const kConfig = R"({
   "schema_version": 1,
-  "source": {"type": "flat", "width": 65, "height": 49, "pixel_size": 2},
   "layers": [
     {"type": "noise", "stack": [{"wavelength": 60, "amplitude": 3, "octaves": 3}]},
     {"type": "craters", "min_diameter": 6, "max_diameter": 40,
@@ -61,8 +60,8 @@ const char* const kConfig = R"({
      "ages": {"type": "steady_state", "age_gyr": 3.5, "production": "extended_neukum",
               "equilibrium": "trask", "chronology": "neukum"}}
   ],
-  "outputs": [{"type": "heightmap", "path": "heights.tif"},
-              {"type": "crater_list", "path": "craters.csv"}]
+  "outputs": [{"type": "heightmap", "path": "heights.tif", "region": {"width": 65, "height": 49}},
+              {"type": "crater_list", "path": "craters.csv", "region": {"width": 65, "height": 49}}]
 })";
 
 }  // namespace
@@ -146,7 +145,7 @@ TEST(Cli, ValidatesAConfigAndReportsItsGridAndCraters) {
     const auto flat = Write(directory / "flat.json", R"({"schema_version": 1})");
     const Result plain = Cli({"validate", flat.string()});
     EXPECT_EQ(plain.code, kExitSuccess) << plain.err;
-    EXPECT_EQ(plain.out, flat.string() + " is valid: a 513x513 grid, 0 layers and 0 outputs\n");
+    EXPECT_EQ(plain.out, flat.string() + " is valid: no grids, 0 layers and 0 outputs\n");
 
     const auto bad = Write(directory / "bad.json",
                            R"({"schema_version": 1, "layers": [{"type": "noise", "stack": []}]})");
@@ -157,7 +156,7 @@ TEST(Cli, ValidatesAConfigAndReportsItsGridAndCraters) {
 
     const auto raster = Write(directory / "raster.json",
                               R"({"schema_version": 1,
-                                  "source": {"type": "raster", "path": "nowhere.tif"}})");
+                                  "base": {"type": "raster", "path": "nowhere.tif"}})");
     EXPECT_EQ(Cli({"validate", raster.string()}).code, kExitInvalidConfig);
 }
 

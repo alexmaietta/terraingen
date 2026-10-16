@@ -36,19 +36,19 @@ TEST(ConfigJson, ReadsInfiniteBoundsAsUnset) {
 
 TEST(ConfigJson, OmittedKeysTakeDefaultsAndOmittedListsAreEmpty) {
     const TerrainConfig minimal = ParseConfig(R"({"schema_version": 1})");
-    EXPECT_EQ(minimal.source, terraingen::SourceSpec{});
+    EXPECT_FALSE(minimal.base.has_value());
+    EXPECT_TRUE(std::holds_alternative<terraingen::PlaneSurfaceSpec>(minimal.body));
     EXPECT_TRUE(minimal.layers.empty());
     EXPECT_TRUE(minimal.outputs.empty());
     const TerrainConfig partial = ParseConfig(R"({
         "schema_version": 1,
-        "source": {"type": "flat", "width": 64},
         "layers": [{"type": "noise", "stack": [{"octaves": 3, "hurst": 0.7}]},
                    {"type": "craters", "density": {"type": "trask"}}],
-        "outputs": []
+        "outputs": [{"type": "heightmap", "path": "h.tif", "region": {"width": 64}}]
     })");
-    const auto& flat = std::get<terraingen::FlatSourceSpec>(partial.source);
-    EXPECT_EQ(flat.width, 64u);
-    EXPECT_EQ(flat.height, 513u);
+    const auto& region = *std::get<terraingen::HeightmapOutput>(partial.outputs.at(0)).region;
+    EXPECT_EQ(region.width, 64u);
+    EXPECT_EQ(region.height, 513u);
     ASSERT_EQ(partial.layers.size(), 2u);
     const auto& noise = std::get<terraingen::NoiseLayerSpec>(partial.layers[0]);
     EXPECT_EQ(noise.stack.at(0).layer.fractal.octaves, 3);

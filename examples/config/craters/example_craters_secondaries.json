@@ -1,11 +1,5 @@
 {
     "schema_version": 1,
-    "source": {
-        "type": "flat",
-        "width": 1537,
-        "height": 1537,
-        "pixel_size": 12
-    },
     "layers": [
         {
             "type": "craters",
@@ -29,11 +23,21 @@
     "outputs": [
         {
             "type": "heightmap",
-            "path": "example_craters_secondaries.tif"
+            "path": "example_craters_secondaries.tif",
+            "region": {
+                "width": 1537,
+                "height": 1537,
+                "pixel_size": 12
+            }
         },
         {
             "type": "crater_list",
-            "path": "example_craters_secondaries.csv"
+            "path": "example_craters_secondaries.csv",
+            "region": {
+                "width": 1537,
+                "height": 1537,
+                "pixel_size": 12
+            }
         }
     ]
 }

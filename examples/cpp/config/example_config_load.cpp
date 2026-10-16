@@ -24,12 +24,16 @@ class ConfigLoad : public terraingen::examples::Example {
         config_ = terraingen::LoadConfig(path_);
         terraingen::ValidateConfig(config_, path_.parent_path());
         terrain_ = terraingen::GenerateTerrain(config_, path_.parent_path());
-        craters_ = terraingen::PlacedCraters(terrain_.terrain,
-                                             terraingen::RasterGrid::Of(terrain_.heights));
-        Out() << "Generated " << terrain_.heights.Width() << "x" << terrain_.heights.Height()
-              << " heights with " << craters_.craters.Size() << " craters\n";
-        Show(path_.stem().string(), terrain_.heights,
-             terrain_.albedo.empty() ? nullptr : &terrain_.albedo.front(),
+        Out() << terraingen::Summary(terrain_) << "\n";
+        if (terrain_.grids.empty()) {
+            return;
+        }
+        const terraingen::GeneratedGrid& first = terrain_.grids.front();
+        craters_ =
+            terraingen::PlacedCraters(terrain_.terrain, terraingen::RasterGrid::Of(first.heights));
+        Out() << craters_.craters.Size() << " craters over the first grid\n";
+        Show(path_.stem().string(), first.heights,
+             first.albedo.empty() ? nullptr : &first.albedo.front(),
              terrain_.geoKeys.IsGeographic());
     }
 
@@ -40,9 +44,10 @@ class ConfigLoad : public terraingen::examples::Example {
     }
 
     void Test() override {
-        Check(!terrain_.heights.Empty(), "the config generates heights");
         if (Args().positional.empty()) {
-            Check(terrain_.heights.Width() == 513 && terrain_.heights.Height() == 513,
+            Check(terrain_.grids.size() == 1, "example_craters_simple.json makes one grid");
+            const terraingen::Raster<float>& heights = terrain_.grids.front().heights;
+            Check(heights.Width() == 513 && heights.Height() == 513,
                   "example_craters_simple.json makes 513 x 513 heights");
             Check(craters_.craters.Size() > 100,
                   "example_craters_simple.json makes more than 100 craters");

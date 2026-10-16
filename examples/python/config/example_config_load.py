@@ -33,28 +33,31 @@ class Example(_common.Example):
         self.config = terraingen.Config.load(path)
         self.config.validate(path.parent)
         self.terrain = terraingen.generate_terrain(self.config, path.parent)
+        print(self.terrain.summary())
+        self.heights = self.terrain.grids[0].heights if self.terrain.grids else None
+        self.craters = []
+        if self.heights is None:
+            return
         self.craters = self.terrain.placed_craters().craters
         boulders = self.terrain.placed_boulders().boulders
-        print(f"{self.terrain.summary()}: {len(self.craters)} craters, {len(boulders)} boulders")
-        self.show(path.stem, self.terrain.heights)
+        print(f"{len(self.craters)} craters and {len(boulders)} boulders over the first grid")
+        self.show(path.stem, self.heights)
 
     def save(self, out):
         for written in terraingen.write_outputs(self.config, self.terrain, out):
             print("wrote", written)
-        pixel = self.terrain.heights.transform.pixel_width
-        print(
-            "wrote", write_png(out / "example_config_load.png", hillshade(self.terrain.heights.values, pixel))
-        )
+        if self.heights is not None:
+            pixel = self.heights.transform.pixel_width
+            png = write_png(out / "example_config_load.png", hillshade(self.heights.values, pixel))
+            print("wrote", png)
 
     def test_final(self):
-        assert self.terrain.heights.values.size > 0, "the config generates heights"
         if (
             pathlib.Path(self.args.config).resolve()
             == _common.config_path("example_craters_simple").resolve()
         ):
-            assert self.terrain.heights.shape == (513, 513), (
-                "example_craters_simple.json makes 513 x 513 heights"
-            )
+            assert len(self.terrain.grids) == 1, "example_craters_simple.json makes one grid"
+            assert self.heights.shape == (513, 513), "example_craters_simple.json makes 513 x 513 heights"
             assert len(self.craters) > 100, "example_craters_simple.json makes more than 100 craters"
 
 

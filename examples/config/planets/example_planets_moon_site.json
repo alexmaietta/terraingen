@@ -1,16 +1,8 @@
 {
     "schema_version": 1,
-    "surface": {
+    "body": {
         "type": "sphere",
         "radius": 1737400
-    },
-    "source": {
-        "type": "flat",
-        "width": 257,
-        "height": 257,
-        "pixel_size": 200,
-        "centre_x": 23.47,
-        "centre_y": 0.67
     },
     "layers": [
         {
@@ -61,11 +53,25 @@
     "outputs": [
         {
             "type": "heightmap",
-            "path": "example_planets_moon_site.tif"
+            "path": "example_planets_moon_site.tif",
+            "region": {
+                "width": 257,
+                "height": 257,
+                "pixel_size": 200,
+                "centre_x": 23.47,
+                "centre_y": 0.67
+            }
         },
         {
             "type": "crater_list",
-            "path": "example_planets_moon_site.csv"
+            "path": "example_planets_moon_site.csv",
+            "region": {
+                "width": 257,
+                "height": 257,
+                "pixel_size": 200,
+                "centre_x": 23.47,
+                "centre_y": 0.67
+            }
         }
     ]
 }

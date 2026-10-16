@@ -18,20 +18,20 @@ namespace terraingen::config {
 template <typename IO> void Fields(IO& io, TerrainConfig& config) {
     io("schema_version", config.schemaVersion,
        "Version of the configuration format, which this library reads; required.");
-    io("surface", config.surface,
-       "What the terrain lies on: a plane in metres, or a sphere (a planet or moon) in longitude "
-       "and latitude degrees.");
-    io("source", config.source,
-       "The starting heights and the grid every layer and output uses: flat, read from a "
-       "GeoTIFF, or a chain of sources.");
+    io("body", config.body,
+       "What the terrain lies on: a plane in metres, or a whole body (a sphere, ellipsoid or "
+       "shape model) in longitude and latitude degrees.");
+    io("base", config.base,
+       "The starting heights, read from a GeoTIFF or a chain of them, whose grid outputs cover "
+       "unless they give a region; unset for the body's datum, 0 m, everywhere.");
     io("layers", config.layers,
-       "Relief and features added to the source's heights, applied in order: noise, craters, "
+       "Relief and features added to the base's heights, applied in order: noise, craters, "
        "boulders and more.");
     io("outputs", config.outputs,
-       "Files written after generation: heightmaps, crater and boulder lists, boulder models, "
-       "albedo and body meshes.");
+       "Files written after generation, each over its own region or the whole body: heightmaps, "
+       "crater and boulder lists, boulder models, albedo and meshes.");
     io("albedo", config.albedo,
-       "The terrain's albedo: a source and the layers that change it, over the terrain's grid; "
+       "The terrain's albedo: a source and the layers that change it, written by albedo outputs; "
        "none when unset.");
 }
 

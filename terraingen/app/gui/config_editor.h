@@ -14,7 +14,7 @@ namespace terraingen::gui {
 /// An editor for a terrain configuration held as JSON, its widgets chosen from the
 /// configuration's schema (`ConfigSchema`).
 ///
-/// - The outliner (`DrawOutliner`) lists the surface, source, layers, outputs and albedo;
+/// - The outliner (`DrawOutliner`) lists the body, base, layers, outputs and albedo;
 ///   lists add items of a chosen type, reorder by dragging and remove them, and selecting an item
 ///   opens it in the inspector.
 /// - The inspector (`DrawInspector`) edits the selected item: its type and each setting, with a
@@ -46,14 +46,14 @@ class ConfigEditor {
     /// alternative also has; does nothing for an unknown type.
     void SetType(Json& value, const Json& node, const std::string& type) const;
 
-    /// The schema entry of a root field such as "source" or "layers"; null if there is none.
+    /// The schema entry of a root field such as "base" or "layers"; null if there is none.
     const Json* RootField(std::string_view name) const;
 
     /// A setting's label: its key in words, capitalised, without a last word that only
     /// repeats its unit ("age_gyr" with unit "Gyr" is "Age").
     static std::string Label(std::string_view key, std::string_view unit = {});
 
-    /// The outliner's selection, a JSON pointer such as "/layers/1" or "/source"; empty for none.
+    /// The outliner's selection, a JSON pointer such as "/layers/1" or "/base"; empty for none.
     const std::string& Selection() const {
         return selection_;
     }

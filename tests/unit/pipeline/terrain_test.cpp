@@ -263,5 +263,17 @@ TEST(TerrainGround, IsTheSourceAndTheLayersBeneath) {
     EXPECT_EQ(all.HeightAt(3.0, 4.0, 2.0), terraingen::EvaluateAt(terrain, 3.0, 4.0, 2.0));
     EXPECT_EQ(noise.Sampler(2.0)(3.0, 4.0), noise.HeightAt(3.0, 4.0, 2.0));
     EXPECT_THROW(terraingen::TerrainGround(terrain, 3), std::invalid_argument);
-    EXPECT_THROW(terraingen::TerrainGround(Terrain{}, 0), std::invalid_argument);
+    EXPECT_EQ(terraingen::TerrainGround(Terrain{}, 0).HeightAt(3.0, 4.0, 2.0), 0.0f)
+        << "the datum without a source";
+}
+
+TEST(Evaluate, StartsATerrainWithoutASourceAtTheDatum) {
+    Terrain terrain;
+    terrain.layers = {std::make_shared<terraingen::ScaleLayer>(1.0, 7.5)};
+    const RasterGrid grid{6, 4, GeoTransform::NorthUp(100.0, 50.0, 2.0)};
+    const auto heights = Evaluate(terrain, grid);
+    EXPECT_TRUE(std::all_of(heights.Values().begin(), heights.Values().end(),
+                            [](float h) { return h == 7.5f; }));
+    EXPECT_EQ(terraingen::EvaluateAt(terrain, 101.0, 49.0, 2.0), 7.5f);
+    EXPECT_THROW(Evaluate(terrain), std::invalid_argument) << "no source grid to default to";
 }

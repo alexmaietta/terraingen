@@ -7,8 +7,10 @@ import terraingen
 
 SPHERE_CONFIG = {
     "schema_version": 1,
-    "surface": {"type": "sphere", "radius": 1737400},
-    "source": {"type": "flat", "width": 17, "height": 17, "pixel_size": 100},
+    "body": {"type": "sphere", "radius": 1737400},
+    "outputs": [
+        {"type": "heightmap", "path": "h.tif", "region": {"width": 17, "height": 17, "pixel_size": 100}}
+    ],
     "layers": [{"type": "noise", "stack": [{"wavelength": 2000, "amplitude": 10}]}],
     "albedo": {"source": {"type": "synthetic", "value": 0.12}},
 }
@@ -35,8 +37,8 @@ def generated(small_config):
 
 
 def test_generate_terrain_fills_finite_varied_heights(generated):
-    assert generated.heights.shape == (65, 81)
-    heights = generated.heights.values
+    assert generated.grids[0].heights.shape == (65, 81)
+    heights = generated.grids[0].heights.values
     assert np.isfinite(heights).all() and np.ptp(heights) > 0
 
 
@@ -52,23 +54,27 @@ def test_generate_terrain_returns_the_crater_table(generated):
 def test_generate_terrain_returns_the_boulder_table(generated):
     placed = generated.placed_boulders()
     assert len(placed.table["x"]) > 0 and placed.table["diameter"].min() >= 0.5
-    assert len(placed.models) == 0 and generated.albedo == []
+    assert len(placed.models) == 0 and generated.grids[0].albedo == []
 
 
 def test_generate_terrain_is_the_same_on_one_thread(generated, small_config):
     again = terraingen.generate_terrain(terraingen.Config.from_dict(small_config), threads=1)
-    np.testing.assert_array_equal(again.heights.values, generated.heights.values)
+    np.testing.assert_array_equal(again.grids[0].heights.values, generated.grids[0].heights.values)
 
 
 def albedo_config(small_config):
     small_config["albedo"] = terraingen.config_catalog()["albedo"]
-    small_config["outputs"] = small_config["outputs"] + [{"type": "albedo", "path": "albedo.tif"}]
+    region = small_config["outputs"][0]["region"]
+    small_config["outputs"] = small_config["outputs"] + [
+        {"type": "albedo", "path": "albedo.tif", "region": region}
+    ]
     return terraingen.Config.from_dict(small_config)
 
 
 def test_generate_terrain_evaluates_the_albedo(tmp_path, small_config):
     terrain = terraingen.generate_terrain(albedo_config(small_config), tmp_path)
-    assert len(terrain.albedo) >= 1 and terrain.albedo[0].shape == (65, 81)
+    albedo = terrain.grids[0].albedo
+    assert len(albedo) >= 1 and albedo[0].shape == (65, 81)
 
 
 def test_write_outputs_writes_every_output(tmp_path, small_config):
@@ -85,19 +91,29 @@ def test_build_terrain_keeps_the_surface_and_layers():
 
 def test_evaluating_a_built_terrain_matches_generate_terrain():
     config = terraingen.Config.from_dict(SPHERE_CONFIG)
-    heights = terraingen.evaluate(terraingen.build_terrain(config)).values
-    np.testing.assert_array_equal(heights, terraingen.generate_terrain(config).heights.values)
+    grid = config.output_grids()[0]
+    heights = terraingen.evaluate(terraingen.build_terrain(config), grid=grid).values
+    np.testing.assert_array_equal(heights, terraingen.generate_terrain(config).grids[0].heights.values)
 
 
 def test_build_albedo_evaluates_the_configured_albedo():
     config = terraingen.Config.from_dict(SPHERE_CONFIG)
     built_albedo = terraingen.build_albedo(config, terraingen.build_terrain(config))
-    assert terraingen.evaluate_albedo(built_albedo, config.grid())[0].values.mean() == pytest.approx(0.12)
+    assert terraingen.evaluate_albedo(built_albedo, config.output_grids()[0])[
+        0
+    ].values.mean() == pytest.approx(0.12)
 
 
-def test_terrain_needs_a_source():
-    with pytest.raises(TypeError):
-        terraingen.Terrain(None)
+def test_a_terrain_without_a_source_starts_at_the_datum():
+    terrain = terraingen.Terrain()
+    assert terrain.source is None
+    grid = terraingen.FlatSource(4, 3, 2.0).grid()
+    assert (terraingen.evaluate(terrain, grid=grid).values == 0.0).all()
+    assert terraingen.evaluate_at(terrain, 5.0, -2.0, 1.0) == 0.0
+    with pytest.raises(ValueError):
+        terraingen.evaluate(terrain)
+    with pytest.raises(ValueError):
+        terraingen.placed_craters(terrain)
 
 
 @pytest.fixture
@@ -172,3 +188,13 @@ def test_height_mesh_has_a_vertex_per_cell(paraboloid):
 def test_body_mesh_needs_a_sphere():
     with pytest.raises(ValueError):
         terraingen.body_mesh(terraingen.Terrain(terraingen.FlatSource(8, 8, 1.0)), 4)
+
+
+def test_generated_grids_know_their_grid_and_list_features_over_any(generated):
+    (grid,) = [g.grid for g in generated.grids]
+    assert (grid.width, grid.height) == (81, 65)
+    half = terraingen.FlatSource(40, 32, 0.5).grid()
+    assert len(generated.placed_craters(half).craters) <= len(generated.placed_craters().craters)
+    assert len(generated.placed_craters(grid, spacing=4.0).craters) <= len(
+        generated.placed_craters(grid).craters
+    )

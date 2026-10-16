@@ -150,6 +150,9 @@ TerrainConfig LoadConfig(const std::filesystem::path& path) {
 
 std::string ConfigToJson(const TerrainConfig& terrainConfig, int indent) {
     config::Json json = config::ToJson(terrainConfig);
+    if (!terrainConfig.base) {
+        json.erase("base");
+    }
     if (!terrainConfig.albedo) {
         json.erase("albedo");
     }

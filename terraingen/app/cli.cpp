@@ -16,6 +16,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace terraingen::cli {
 
@@ -123,8 +124,15 @@ int Validate(const std::vector<std::string>& args, std::ostream& out, std::ostre
     return RunReporting(path, err, [&] {
         const TerrainConfig config = LoadConfig(path);
         const ConfigSummary summary = ValidateConfig(config, path.parent_path());
-        out << path.string() << " is valid: a " << summary.grid.width << "x" << summary.grid.height
-            << " grid";
+        out << path.string() << " is valid: ";
+        std::vector<RasterGrid> grids;
+        for (const std::optional<RasterGrid>& grid : summary.outputGrids) {
+            if (grid && std::find(grids.begin(), grids.end(), *grid) == grids.end()) {
+                out << (grids.empty() ? "a " : " and ") << grid->width << "x" << grid->height;
+                grids.push_back(*grid);
+            }
+        }
+        out << (grids.empty() ? "no grids" : grids.size() == 1 ? " grid" : " grids");
         if (summary.expectedCraters) {
             out << ", about " << static_cast<long long>(*summary.expectedCraters)
                 << " craters expected";

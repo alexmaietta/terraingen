@@ -1,11 +1,5 @@
 {
     "schema_version": 1,
-    "source": {
-        "type": "flat",
-        "width": 513,
-        "height": 513,
-        "pixel_size": 2
-    },
     "layers": [
         {
             "type": "noise",
@@ -49,11 +43,21 @@
     "outputs": [
         {
             "type": "heightmap",
-            "path": "example_ages_fresh.tif"
+            "path": "example_ages_fresh.tif",
+            "region": {
+                "width": 513,
+                "height": 513,
+                "pixel_size": 2
+            }
         },
         {
             "type": "crater_list",
-            "path": "example_ages_fresh.csv"
+            "path": "example_ages_fresh.csv",
+            "region": {
+                "width": 513,
+                "height": 513,
+                "pixel_size": 2
+            }
         }
     ]
 }

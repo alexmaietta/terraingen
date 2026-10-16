@@ -20,6 +20,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <variant>
 #include <vector>
 
@@ -74,13 +75,21 @@ void ValidateNoiseStack(const std::vector<NoiseLayerConfig>& layers, const std::
     }
 }
 
+/// Where an output evaluates the layers: the area it covers and its sample spacing.
+struct Extent {
+    double area = 0.0;     ///< Square metres.
+    double spacing = 0.0;  ///< Metres.
+};
+
 /// What a layer is checked against, and what the layers before it found.
 struct LayerChecks {
-    const RasterGrid& grid;
+    const std::vector<Extent>& extents;
     const std::filesystem::path& directory;
     const Surface& surface;
     bool craters = false;  ///< Whether a crater layer came before.
-    std::optional<double> expectedCraters{};
+    /// Craters the crater layers so far are expected to generate over each extent; empty when
+    /// none generate.
+    std::vector<double> expectedCraters{};
 };
 
 void CheckManualCraters(const std::vector<Crater>& manual, const std::string& path) {
@@ -110,12 +119,15 @@ void ValidateCraters(const CraterLayerSpec& craters, const std::string& path,
     if (!(std::isfinite(craters.maxDiameter) && craters.maxDiameter > craters.minDiameter)) {
         throw ConfigError(Child(path, "max_diameter"), "must exceed min_diameter");
     }
-    const double area = context.grid.SurfaceArea(context.surface);
-    const double expected = At(minPath, [&] {
-        return models.density->ExpectedCount(area, craters.minDiameter, craters.maxDiameter);
-    });
-    CheckExpectedCount(expected, "craters", "raise min_diameter or set max_craters", minPath);
-    context.expectedCraters = context.expectedCraters.value_or(0.0) + expected;
+    context.expectedCraters.resize(context.extents.size(), 0.0);
+    for (std::size_t i = 0; i < context.extents.size(); ++i) {
+        const double expected = At(minPath, [&] {
+            return models.density->ExpectedCount(context.extents[i].area, craters.minDiameter,
+                                                 craters.maxDiameter);
+        });
+        CheckExpectedCount(expected, "craters", "raise min_diameter or set max_craters", minPath);
+        context.expectedCraters[i] += expected;
+    }
 }
 
 void ValidateBoulders(const BoulderLayerSpec& spec, const std::string& path,
@@ -127,15 +139,17 @@ void ValidateBoulders(const BoulderLayerSpec& spec, const std::string& path,
                           "ejecta need a crater layer before this one");
     }
     const BoulderSizes& sizes = boulders.sizes;
-    const double minDiameter = std::fmax(
-        sizes.minDiameter, boulders.fade.startSamples * context.grid.Spacing(context.surface));
-    if (minDiameter >= sizes.maxDiameter) {
-        return;
+    for (const Extent& extent : context.extents) {
+        const double minDiameter =
+            std::fmax(sizes.minDiameter, boulders.fade.startSamples * extent.spacing);
+        if (minDiameter >= sizes.maxDiameter) {
+            continue;
+        }
+        const double expected =
+            BoulderCandidates(boulders)->ExpectedCount(extent.area, minDiameter, sizes.maxDiameter);
+        CheckExpectedCount(expected, "candidate boulders", "raise min_diameter or lower coverage",
+                           Child(path, "min_diameter"));
     }
-    const double expected = BoulderCandidates(boulders)->ExpectedCount(
-        context.grid.SurfaceArea(context.surface), minDiameter, sizes.maxDiameter);
-    CheckExpectedCount(expected, "candidate boulders", "raise min_diameter or lower coverage",
-                       Child(path, "min_diameter"));
 }
 
 void ValidateSecondaries(const SecondaryLayerSpec& layer, const std::string& path,
@@ -189,22 +203,21 @@ RasterGrid DescribeChain(const ChainSourceSpec& chain, const std::filesystem::pa
     return grid;
 }
 
-RasterGrid DescribeFlat(const FlatSourceSpec& flat, const std::string& path,
-                        const Surface& surface) {
-    RequirePositive(flat.pixelSize, Child(path, "pixel_size"));
-    CheckGridSize(flat.width, flat.height, Child(path, "width"));
-    if (!(std::isfinite(flat.centreX) && std::isfinite(flat.centreY))) {
+RasterGrid DescribeRegion(const GridRegionSpec& region, const std::string& path,
+                          const Surface& surface) {
+    RequirePositive(region.pixelSize, Child(path, "pixel_size"));
+    CheckGridSize(region.width, region.height, Child(path, "width"));
+    if (!(std::isfinite(region.centreX) && std::isfinite(region.centreY))) {
         throw ConfigError(Child(path, "centre_x"), "the centre must be finite");
     }
-    const double cell = flat.pixelSize / surface.UnitLength();
+    const double cell = region.pixelSize / surface.UnitLength();
     if (surface.IsBody() &&
-        !(std::fabs(flat.centreY) + 0.5 * cell * static_cast<double>(flat.height) <= 90.0 &&
-          cell * static_cast<double>(flat.width) <= 360.0)) {
+        !(std::fabs(region.centreY) + 0.5 * cell * static_cast<double>(region.height) <= 90.0 &&
+          cell * static_cast<double>(region.width) <= 360.0)) {
         throw ConfigError(Child(path, "height"),
                           "the grid must lie within latitudes -90 to 90 and one turn of longitude");
     }
-    return FlatSource(flat.width, flat.height, cell, flat.elevation, {flat.centreX, flat.centreY})
-        .Grid();
+    return config::RegionGrid(region, surface);
 }
 
 /// @throws ConfigError for a raster whose coordinates do not suit the surface.
@@ -212,11 +225,11 @@ void CheckRasterCrs(const GeoTiffInfo& info, const Surface& surface, const std::
     if (info.geoKeys.IsGeographic() && !surface.IsBody()) {
         throw ConfigError(path, "the raster's CRS is geographic (degrees); craters are sized in "
                                 "metres, so reproject it first, for example with gdalwarp -t_srs, "
-                                "or set the surface to a sphere");
+                                "or set the body to a sphere");
     }
     if (surface.IsBody() && !info.geoKeys.Empty() && !info.geoKeys.IsGeographic()) {
         throw ConfigError(
-            path, "on a sphere the raster must be in longitude and latitude (a geographic CRS)");
+            path, "on a body the raster must be in longitude and latitude (a geographic CRS)");
     }
 }
 
@@ -298,16 +311,58 @@ RasterGrid DescribeSourceAt(const SourceSpec& source, const std::filesystem::pat
                             const std::string& path, const Surface& surface) {
     return std::visit(
         Overloaded{
-            [&](const FlatSourceSpec& s) { return DescribeFlat(s, path, surface); },
             [&](const RasterSourceSpec& s) { return DescribeRaster(s, directory, path, surface); },
             [&](const ChainSourceSpec& s) { return DescribeChain(s, directory, path, surface); },
         },
         source);
 }
 
+/// Rows of a whole-body list's grid above which its spacing is too fine.
+constexpr double kMaxWholeBodyRows = 1e9;
+
+/// The grid the output at `path` covers (`OutputGrid`), its region and spacing checked; none for a
+/// mesh.
+/// @throws ConfigError for an invalid region or spacing, or an output with no grid to cover.
+std::optional<RasterGrid> CheckOutputGrid(const OutputSpec& output, const std::string& path,
+                                          const std::optional<RasterGrid>& base,
+                                          const Surface& surface) {
+    if (std::holds_alternative<MeshOutput>(output)) {
+        return std::nullopt;
+    }
+    bool listed = false;
+    std::visit(
+        [&](const auto& o) {
+            if constexpr (requires { o.region; }) {
+                if (o.region) {
+                    DescribeRegion(*o.region, Child(path, "region"), surface);
+                }
+            }
+            if constexpr (config::FeatureOutput<std::decay_t<decltype(o)>>) {
+                listed = true;
+                if (o.spacing) {
+                    const std::string spacing = Child(path, "spacing");
+                    RequirePositive(*o.spacing, spacing);
+                    if (!o.region && !base && surface.IsBody() &&
+                        180.0 * surface.UnitLength() / *o.spacing > kMaxWholeBodyRows) {
+                        throw ConfigError(spacing, "is too fine to list features over the body");
+                    }
+                }
+            }
+        },
+        output);
+    std::optional<RasterGrid> grid = config::OutputGrid(output, base, surface);
+    if (!grid) {
+        throw ConfigError(Child(path, "region"),
+                          listed && surface.IsBody()
+                              ? "required without a base, or a spacing to list the whole body"
+                              : "required without a base: the grid of square cells to cover");
+    }
+    return grid;
+}
+
 /// What outputs are checked against.
 struct OutputContext {
-    bool sphere = false;  ///< Whether the surface is a sphere.
+    bool body = false;    ///< Whether the surface is a body.
     bool albedo = false;  ///< Whether the configuration has an albedo.
 };
 
@@ -354,11 +409,11 @@ void ValidateOutput(const BoulderModelsOutput& output, const std::string& path,
     }
 }
 
-void ValidateOutput(const BodyMeshOutput& output, const std::string& path,
+void ValidateOutput(const MeshOutput& output, const std::string& path,
                     const OutputContext& context) {
-    if (!context.sphere) {
-        throw ConfigError(path,
-                          "a body mesh needs a body surface: a sphere, ellipsoid or shape model");
+    if (!context.body) {
+        throw ConfigError(path, "a mesh needs a whole body: a sphere, ellipsoid or shape model; "
+                                "use terrain_mesh on a plane");
     }
     if (!IsIcqPath(output.path)) {
         RequireMeshFile(output.path, Child(path, "path"));
@@ -425,7 +480,7 @@ void CheckCraterAlbedo(const CraterAlbedoSpec& craters, std::size_t craterLayers
 
 RasterGrid DescribeSource(const SourceSpec& source, const std::filesystem::path& directory,
                           const Surface& surface) {
-    return DescribeSourceAt(source, directory, "source", surface);
+    return DescribeSourceAt(source, directory, "base", surface);
 }
 
 void ValidateAlbedo(const TerrainConfig& config, const std::filesystem::path& directory) {
@@ -450,22 +505,45 @@ void ValidateAlbedo(const TerrainConfig& config, const std::filesystem::path& di
 }
 
 ConfigSummary ValidateConfig(const TerrainConfig& config, const std::filesystem::path& directory) {
-    const Surface surface = BuildSurface(config.surface, directory);
-    const RasterGrid grid = DescribeSource(config.source, directory, surface);
-    LayerChecks layers{grid, directory, surface};
+    ConfigSummary summary;
+    const Surface surface = BuildSurface(config.body, directory);
+    if (config.base) {
+        summary.base = DescribeSource(*config.base, directory, surface);
+    }
+    const OutputContext outputs{surface.IsBody(), config.albedo.has_value()};
+    std::vector<Extent> extents;
+    for (std::size_t i = 0; i < config.outputs.size(); ++i) {
+        const OutputSpec& output = config.outputs[i];
+        std::visit([&](const auto& o) { ValidateOutput(o, Element("outputs", i), outputs); },
+                   output);
+        const std::optional<RasterGrid> grid =
+            CheckOutputGrid(output, Element("outputs", i), summary.base, surface);
+        summary.outputGrids.push_back(grid);
+        if (grid) {
+            const double spacing = std::visit(
+                [](const auto& o) {
+                    if constexpr (config::FeatureOutput<std::decay_t<decltype(o)>>) {
+                        return o.spacing.value_or(0.0);
+                    }
+                    return 0.0;
+                },
+                output);
+            extents.push_back(
+                {grid->SurfaceArea(surface), std::fmax(spacing, grid->Spacing(surface))});
+        }
+    }
+    LayerChecks layers{extents, directory, surface};
     for (std::size_t i = 0; i < config.layers.size(); ++i) {
         ValidateLayer(config.layers[i], Element("layers", i), layers);
     }
-    const OutputContext outputs{surface.IsBody(), config.albedo.has_value()};
-    for (std::size_t i = 0; i < config.outputs.size(); ++i) {
-        std::visit(
-            [&](const auto& output) { ValidateOutput(output, Element("outputs", i), outputs); },
-            config.outputs[i]);
+    if (!layers.expectedCraters.empty()) {
+        summary.expectedCraters =
+            *std::max_element(layers.expectedCraters.begin(), layers.expectedCraters.end());
     }
     if (config.albedo) {
         ValidateAlbedo(config, directory);
     }
-    return {grid, layers.expectedCraters};
+    return summary;
 }
 
 }  // namespace terraingen

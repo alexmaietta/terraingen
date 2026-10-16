@@ -53,22 +53,7 @@ struct NoiseLayerConfig {
     bool operator==(const NoiseLayerConfig&) const = default;
 };
 
-/// Source "flat": a level datum over a `width` x `height` grid (`FlatSource`).
-///
-/// On a sphere the centre is a longitude and latitude, and cells are `pixelSize` metres along a
-/// meridian, the same in degrees of longitude.
-struct FlatSourceSpec {
-    std::size_t width = 513;   ///< Cells.
-    std::size_t height = 513;  ///< Cells.
-    double pixelSize = 2.0;    ///< Metres.
-    float elevation = 0.0f;    ///< The datum's height, in metres.
-    double centreX = 0.0;      ///< Centre in surface coordinates.
-    double centreY = 0.0;      ///< Centre in surface coordinates.
-
-    bool operator==(const FlatSourceSpec&) const = default;
-};
-
-/// Source "raster": a heightmap read from a GeoTIFF, in its own projected coordinates
+/// Base "raster": a heightmap read from a GeoTIFF, in its own projected coordinates
 /// (`GeoTiffSource`).
 ///
 /// Relative paths resolve against the configuration's folder. The raster can be resampled to
@@ -83,11 +68,11 @@ struct RasterSourceSpec {
 
 struct ChainSourceSpec;
 
-/// A source, named in JSON by its "type".
-using SourceSpec = std::variant<FlatSourceSpec, RasterSourceSpec, ChainSourceSpec>;
+/// The starting heights of a terrain, its base, named in JSON by its "type".
+using SourceSpec = std::variant<RasterSourceSpec, ChainSourceSpec>;
 
-/// Source "chain": `sources` tried in order, each filling where those before it have no
-/// data (`SourceChain`); the terrain covers the first source's grid.
+/// Base "chain": `sources` tried in order, each filling where those before it have no
+/// data (`SourceChain`); its grid is the first source's.
 struct ChainSourceSpec {
     std::vector<SourceSpec> sources;
 
@@ -95,7 +80,7 @@ struct ChainSourceSpec {
 };
 
 /// Layer "noise": a stack of 1 to `kMaxNoiseLayers` noise layers added to the terrain
-/// (`NoiseRelief`), measured from the source's reference point.
+/// (`NoiseRelief`), measured from the base's reference point.
 struct NoiseLayerSpec {
     std::vector<NoiseLayerConfig> stack{NoiseLayerConfig{}};
 
@@ -455,18 +440,41 @@ struct RegionLayerSpec {
 /// Formats for crater and boulder lists.
 enum class ListFormat { Csv, Json };
 
+/// The north-up grid of square cells an output covers: `width` x `height` cells of `pixelSize`
+/// centred on (`centreX`, `centreY`).
+///
+/// On a body the centre is a longitude and latitude, and cells are `pixelSize` metres along a
+/// meridian, the same in degrees of longitude.
+struct GridRegionSpec {
+    std::size_t width = 513;   ///< Cells.
+    std::size_t height = 513;  ///< Cells.
+    double pixelSize = 2.0;    ///< Metres.
+    double centreX = 0.0;      ///< Centre in surface coordinates.
+    double centreY = 0.0;      ///< Centre in surface coordinates.
+
+    bool operator==(const GridRegionSpec&) const = default;
+};
+
 /// A list file to write; the format follows the extension (.json or else CSV) unless given.
+///
+/// The list covers `region`, or the base's grid without one, or else the whole body on a body.
 struct ListOutput {
     std::string path;
     ListFormat format = ListFormat::Csv;
+    std::optional<GridRegionSpec> region{};
+    /// Sample spacing in metres the features are listed at, as a heightmap of that pixel size
+    /// applies them; unset for the grid's. A whole-body list needs it.
+    std::optional<double> spacing{};
     bool operator==(const ListOutput&) const = default;
 };
 
-/// A float32 GeoTIFF file to write, with a raster source's projection.
+/// A float32 GeoTIFF file to write over `region`, or the base's grid without one, with the base's
+/// projection.
 struct GeoTiffOutput {
     std::string path;
     TiffCompression compression = TiffCompression::Lzw;  ///< None, Lzw or Deflate.
     std::uint32_t tileSize = 256;                        ///< Pixels per tile side.
+    std::optional<GridRegionSpec> region{};
     bool operator==(const GeoTiffOutput&) const = default;
 };
 
@@ -480,10 +488,13 @@ struct HeightmapOutput : GeoTiffOutput {};
 struct BoulderListOutput : ListOutput {};
 
 /// Output "boulder_models": writes the boulders placed as 3D models
-/// (`BoulderModelThreshold`) on the ground beneath them, as `WriteBoulderModels` does.
+/// (`BoulderModelThreshold`) on the ground beneath them, as `WriteBoulderModels` does, over the
+/// grid a list would cover.
 struct BoulderModelsOutput {
     std::string path;
     double creaseAngle = 35.0;  ///< Degrees between faces above which vertices are split.
+    std::optional<GridRegionSpec> region{};
+    std::optional<double> spacing{};  ///< As `ListOutput::spacing`.
     bool operator==(const BoulderModelsOutput&) const = default;
 };
 
@@ -491,29 +502,30 @@ struct BoulderModelsOutput {
 /// (red, green, blue).
 struct AlbedoOutput : GeoTiffOutput {};
 
-/// Output "body_mesh": the whole body on a sphere or ellipsoid, as a mesh (`BodyMesh`) with smooth
-/// normals in any format `WriteMesh` writes, or as an ICQ shape model (`BodyIcq`) for an .icq path.
-struct BodyMeshOutput {
+/// Output "mesh": the whole body, as a mesh (`BodyMesh`) with smooth normals in any format
+/// `WriteMesh` writes, or as an ICQ shape model (`BodyIcq`) for an .icq path.
+struct MeshOutput {
     std::string path;
     std::size_t cellsPerFace = 128;   ///< Quads along each edge of the six cube faces.
     std::optional<double> spacing{};  ///< Sample spacing in metres; unset for a quad's side.
-    bool operator==(const BodyMeshOutput&) const = default;
+    bool operator==(const MeshOutput&) const = default;
 };
 
-/// Output "terrain_mesh": the generated heights as a mesh (`HeightMesh`), with smooth normals, in
-/// any format `WriteMesh` writes and in the frame boulder models are written in.
+/// Output "terrain_mesh": the heights over `region`, or the base's grid without one, as a mesh
+/// (`HeightMesh`) with smooth normals, in any format `WriteMesh` writes and in the frame boulder
+/// models are written in.
 struct TerrainMeshOutput {
     std::string path;
+    std::optional<GridRegionSpec> region{};
     bool operator==(const TerrainMeshOutput&) const = default;
 };
 
 /// An output, named in JSON by its "type".
-using OutputSpec =
-    std::variant<HeightmapOutput, CraterListOutput, BoulderListOutput, BoulderModelsOutput,
-                 AlbedoOutput, BodyMeshOutput, TerrainMeshOutput>;
+using OutputSpec = std::variant<HeightmapOutput, CraterListOutput, BoulderListOutput,
+                                BoulderModelsOutput, AlbedoOutput, MeshOutput, TerrainMeshOutput>;
 
 /// Albedo source "synthetic": `SyntheticAlbedo`, a base colour with a noise stack per
-/// channel (each 0 to `kMaxNoiseLayers` layers), measured from the terrain source's reference
+/// channel (each 0 to `kMaxNoiseLayers` layers), measured from the base's reference
 /// point.
 struct SyntheticAlbedoSpec {
     bool rgb = false;
@@ -570,19 +582,19 @@ struct AlbedoSpec {
     bool operator==(const AlbedoSpec&) const = default;
 };
 
-/// Surface "plane": a projected frame in metres, the default.
+/// Body "plane": a projected frame in metres, the default.
 struct PlaneSurfaceSpec {
     bool operator==(const PlaneSurfaceSpec&) const = default;
 };
 
-/// Surface "sphere": a body such as a planet or moon (`Surface`); grids and positions are
+/// Body "sphere": a body such as a planet or moon (`Surface`); grids and positions are
 /// longitude and latitude in degrees, and features are generated over the whole body.
 struct SphereSurfaceSpec {
     double radius = 0.0;  ///< Metres; must be given.
     bool operator==(const SphereSurfaceSpec&) const = default;
 };
 
-/// Surface "ellipsoid": a body shaped as a triaxial ellipsoid (`Surface::Ellipsoid`), with
+/// Body "ellipsoid": a body shaped as a triaxial ellipsoid (`Surface::Ellipsoid`), with
 /// planetocentric longitude and latitude in degrees and heights along the direction from the
 /// centre.
 struct EllipsoidSurfaceSpec {
@@ -590,7 +602,7 @@ struct EllipsoidSurfaceSpec {
     bool operator==(const EllipsoidSurfaceSpec&) const = default;
 };
 
-/// Surface "shape_model": a star-shaped body from a shape model file (`Surface::ShapeModel`), an
+/// Body "shape_model": a star-shaped body from a shape model file (`Surface::ShapeModel`), an
 /// ICQ model or a closed mesh around its origin in body-fixed coordinates, as a `RadialShape`.
 struct ShapeModelSurfaceSpec {
     std::string path;
@@ -602,16 +614,16 @@ struct ShapeModelSurfaceSpec {
     bool operator==(const ShapeModelSurfaceSpec&) const = default;
 };
 
-/// What a terrain lies on, named in JSON by its "type".
+/// The body a terrain lies on, a plane or a whole body, named in JSON by its "type".
 using SurfaceSpec =
     std::variant<PlaneSurfaceSpec, SphereSurfaceSpec, EllipsoidSurfaceSpec, ShapeModelSurfaceSpec>;
 
-/// Everything needed to generate a terrain: the surface it lies on, a source, the layers
-/// added to it in order, the outputs to write, and optionally its albedo.
+/// Everything needed to generate a terrain: the body it lies on, optionally its base heights, the
+/// layers added to them in order, the outputs to write, and optionally its albedo.
 struct TerrainConfig {
     int schemaVersion = kConfigSchemaVersion;
-    SurfaceSpec surface{};
-    SourceSpec source{};
+    SurfaceSpec body{};
+    std::optional<SourceSpec> base{};  ///< None for the body's datum, 0 m, everywhere.
     std::vector<LayerSpec> layers;
     std::vector<OutputSpec> outputs;
     std::optional<AlbedoSpec> albedo;  ///< None by default.

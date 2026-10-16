@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <optional>
+#include <vector>
 
 namespace terraingen {
 
@@ -17,22 +18,26 @@ inline constexpr std::size_t kMaxConfigGridSize = 65536;
 
 /// What a valid configuration generates, as `ValidateConfig` finds it.
 struct ConfigSummary {
-    RasterGrid grid;  ///< The source's grid.
-    /// Craters the top-level crater layers are expected to generate; unset when none generate.
+    std::optional<RasterGrid> base;  ///< The base's grid; none without a base.
+    /// The grid each output covers (`config::OutputGrid`), in order; none for a mesh.
+    std::vector<std::optional<RasterGrid>> outputGrids;
+    /// Craters the top-level crater layers are expected to generate over the output grid with the
+    /// most; unset when none generate or no output covers a grid.
     std::optional<double> expectedCraters;
 };
 
 /// Checks everything that parsing cannot, such as grid limits, the raster file, model parameters,
-/// outputs and the expected crater count, and returns the grid and that count.
+/// outputs and their grids, and the expected crater counts over each, and returns the grids and
+/// the largest count.
 /// @param directory Folder relative input paths resolve against.
 /// @throws ConfigError naming the first invalid value by its JSON path.
 ConfigSummary ValidateConfig(const TerrainConfig& config,
                              const std::filesystem::path& directory = {});
 
-/// The grid a source covers, reading only the header of a raster source's file; a chain's is
-/// its first source's. On a sphere grids are in degrees, a pixel size in metres along a meridian.
+/// The grid a base covers, reading only the header of a raster's file; a chain's is its first
+/// source's. On a body grids are in degrees, a pixel size in metres along a meridian.
 /// @param directory Folder relative paths resolve against.
-/// @throws ConfigError at the source's path for an unreadable raster or invalid grid parameters.
+/// @throws ConfigError under "base" for an unreadable raster or invalid grid parameters.
 RasterGrid DescribeSource(const SourceSpec& source, const std::filesystem::path& directory = {},
                           const Surface& surface = {});
 

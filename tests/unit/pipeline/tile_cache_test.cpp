@@ -39,6 +39,6 @@ TEST(TileCache, EvaluatesEachTileOnceAndStaysWithinItsBudget) {
     EXPECT_GT(cache.Evictions(), 0u);
     EXPECT_EQ(cache.Scheme().cells, 16u);
     EXPECT_THROW(TileCache(Noise(), TileScheme{{0.0, 0.0}, 0.0, 16}), std::invalid_argument);
-    EXPECT_THROW(TileCache(terraingen::Terrain{}, scheme), std::invalid_argument);
+    EXPECT_THROW(TileCache(terraingen::Terrain{nullptr, {nullptr}}, scheme), std::invalid_argument);
     EXPECT_THROW(TileCache(Noise(), scheme, 0), std::invalid_argument);
 }

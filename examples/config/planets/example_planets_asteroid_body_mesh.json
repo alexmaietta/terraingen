@@ -1,18 +1,12 @@
 {
     "schema_version": 1,
-    "surface": {
+    "body": {
         "type": "ellipsoid",
         "radii": [
             267.5,
             147,
             104.5
         ]
-    },
-    "source": {
-        "type": "flat",
-        "width": 64,
-        "height": 64,
-        "pixel_size": 2
     },
     "layers": [
         {
@@ -41,12 +35,12 @@
     ],
     "outputs": [
         {
-            "type": "body_mesh",
+            "type": "mesh",
             "path": "example_planets_asteroid_body_mesh.glb",
             "cells_per_face": 64
         },
         {
-            "type": "body_mesh",
+            "type": "mesh",
             "path": "example_planets_asteroid_body_mesh.icq",
             "cells_per_face": 64
         }

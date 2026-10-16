@@ -334,7 +334,7 @@ TEST(BuildTerrain, BuildsEveryLayerKindInOrder) {
     EXPECT_NE(dynamic_cast<const terraingen::ClampLayer*>(terrain.layers[7].get()), nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::RegionLayer*>(terrain.layers[8].get()), nullptr);
     TerrainConfig narrow;
-    narrow.source = terraingen::FlatSourceSpec{1};
+    narrow.outputs = {terraingen::testing::Heightmap("n.tif", terraingen::GridRegionSpec{1})};
     EXPECT_THROW(terraingen::BuildTerrain(narrow), ConfigError);
 }
 
@@ -405,13 +405,12 @@ TEST(BuildSurface, ResamplesAMeshShapeModelScaledToMetres) {
 }
 
 TEST(BuildSurface, ReportsShapeModelProblemsAtTheirKeys) {
-    EXPECT_EQ(SurfaceErrorPath(terraingen::ShapeModelSurfaceSpec{}), "surface.path");
-    EXPECT_EQ(SurfaceErrorPath(terraingen::ShapeModelSurfaceSpec{"missing.icq"}), "surface.path");
-    EXPECT_EQ(SurfaceErrorPath(terraingen::ShapeModelSurfaceSpec{"missing.icq", 0}), "surface.q");
-    EXPECT_EQ(SurfaceErrorPath(terraingen::ShapeModelSurfaceSpec{"missing.icq", 5000}),
-              "surface.q");
+    EXPECT_EQ(SurfaceErrorPath(terraingen::ShapeModelSurfaceSpec{}), "body.path");
+    EXPECT_EQ(SurfaceErrorPath(terraingen::ShapeModelSurfaceSpec{"missing.icq"}), "body.path");
+    EXPECT_EQ(SurfaceErrorPath(terraingen::ShapeModelSurfaceSpec{"missing.icq", 0}), "body.q");
+    EXPECT_EQ(SurfaceErrorPath(terraingen::ShapeModelSurfaceSpec{"missing.icq", 5000}), "body.q");
     EXPECT_EQ(SurfaceErrorPath(terraingen::ShapeModelSurfaceSpec{"missing.icq", {}, -1.0}),
-              "surface.metres_per_unit");
+              "body.metres_per_unit");
     terraingen::SceneMesh off;
     off.mesh = terraingen::Icosphere(1);
     for (terraingen::Vec3d& p : off.mesh.positions) {
@@ -419,9 +418,9 @@ TEST(BuildSurface, ReportsShapeModelProblemsAtTheirKeys) {
     }
     terraingen::WriteMesh(terraingen::testing::TempPath("config_off_centre.obj"), off);
     EXPECT_EQ(SurfaceErrorPath(terraingen::ShapeModelSurfaceSpec{"config_off_centre.obj", 4}),
-              "surface.path");
+              "body.path");
     const auto corrupt = terraingen::testing::TempPath("config_corrupt.icq");
     std::ofstream(corrupt) << "not an ICQ model\n";
     EXPECT_EQ(SurfaceErrorPath(terraingen::ShapeModelSurfaceSpec{"config_corrupt.icq"}),
-              "surface.path");
+              "body.path");
 }

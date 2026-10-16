@@ -1,11 +1,5 @@
 {
     "schema_version": 1,
-    "source": {
-        "type": "flat",
-        "width": 401,
-        "height": 401,
-        "pixel_size": 0.1
-    },
     "layers": [
         {
             "type": "noise",
@@ -33,11 +27,21 @@
     "outputs": [
         {
             "type": "heightmap",
-            "path": "example_boulders_patches.tif"
+            "path": "example_boulders_patches.tif",
+            "region": {
+                "width": 401,
+                "height": 401,
+                "pixel_size": 0.1
+            }
         },
         {
             "type": "boulder_list",
-            "path": "example_boulders_patches_boulders.csv"
+            "path": "example_boulders_patches_boulders.csv",
+            "region": {
+                "width": 401,
+                "height": 401,
+                "pixel_size": 0.1
+            }
         }
     ]
 }

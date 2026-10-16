@@ -5,17 +5,48 @@
 #include "terraingen/config/config.h"
 #include "terraingen/config/fields/common.h"
 
+#include <string>
 #include <string_view>
 
 namespace terraingen::config {
 
+template <typename IO> void Fields(IO& io, GridRegionSpec& region) {
+    io("width", region.width, "Columns of the grid.");
+    io("height", region.height, "Rows of the grid.");
+    io("pixel_size", region.pixelSize,
+       "Cell size in metres; on a body, metres along a meridian, the same in degrees of "
+       "longitude.",
+       "m");
+    io("centre_x", region.centreX,
+       "Centre of the grid along x in surface coordinates; the longitude in degrees on a body.");
+    io("centre_y", region.centreY,
+       "Centre of the grid along y in surface coordinates; the latitude in degrees on a body.");
+}
+
+/// The description of an output's region: `what` it covers.
+inline std::string RegionHelp(std::string_view what) {
+    return "Grid of square cells " + std::string(what) + "; unset for the base's grid";
+}
+
 /// The fields of heightmap and albedo outputs.
 template <typename IO> void GeoTiffOutputFields(IO& io, GeoTiffOutput& output) {
     io("path", output.path, OutputPathHelp("GeoTIFF file to write"));
+    io("region", output.region, RegionHelp("the file covers") + ".");
     io("compression", output.compression,
        "Compression of the file; compressed files use the floating-point predictor.");
     io("tile_size", output.tileSize,
        "Width and height of the file's tiles in pixels; a positive multiple of 16.", "px");
+}
+
+/// The fields of where features are listed: a region and a sample spacing.
+template <typename IO, typename Output> void FeatureExtentFields(IO& io, Output& output) {
+    io("region", output.region,
+       RegionHelp("the features are listed over") +
+           ", or without a base the whole body on a body.");
+    io("spacing", output.spacing,
+       "Sample spacing in metres the features are listed at, as a heightmap of that pixel size "
+       "applies them; unset for the region's pixel size. A whole-body list needs it.",
+       "m");
 }
 
 /// The fields of crater and boulder list outputs.
@@ -23,12 +54,13 @@ template <typename IO> void ListOutputFields(IO& io, ListOutput& output) {
     io("path", output.path, OutputPathHelp("File to write"));
     io("format", output.format,
        "Format of the file; when not given, .json paths are written as JSON and others as CSV.");
+    FeatureExtentFields(io, output);
 }
 
 template <> struct SpecName<HeightmapOutput> {
     static constexpr std::string_view kName = "heightmap";
     static constexpr std::string_view kDescription =
-        "Writes the generated heights as a float32 GeoTIFF, with a raster source's projection.";
+        "Writes the generated heights as a float32 GeoTIFF, with a raster base's projection.";
 };
 template <typename IO> void Fields(IO& io, HeightmapOutput& output) {
     GeoTiffOutputFields(io, output);
@@ -65,6 +97,7 @@ template <typename IO> void Fields(IO& io, BoulderModelsOutput& output) {
        "Angle in degrees, from 0 to 180: vertices are split where faces meet at more than it, "
        "giving sharp edges.",
        "deg");
+    FeatureExtentFields(io, output);
 }
 
 template <> struct SpecName<AlbedoOutput> {
@@ -76,14 +109,14 @@ template <typename IO> void Fields(IO& io, AlbedoOutput& output) {
     GeoTiffOutputFields(io, output);
 }
 
-template <> struct SpecName<BodyMeshOutput> {
-    static constexpr std::string_view kName = "body_mesh";
+template <> struct SpecName<MeshOutput> {
+    static constexpr std::string_view kName = "mesh";
     static constexpr std::string_view kDescription =
-        "Writes the whole body on a sphere or ellipsoid, from six cube faces: a mesh as glTF (.glb "
-        "or .gltf), OBJ (.obj) or STL (.stl), or a Gaskell ICQ shape model in kilometres (.icq), "
-        "whose Q is cells_per_face.";
+        "Writes the whole body, from six cube faces: a mesh as glTF (.glb or .gltf), OBJ (.obj) or "
+        "STL (.stl), or a Gaskell ICQ shape model in kilometres (.icq), whose Q is "
+        "cells_per_face.";
 };
-template <typename IO> void Fields(IO& io, BodyMeshOutput& output) {
+template <typename IO> void Fields(IO& io, MeshOutput& output) {
     io("path", output.path,
        OutputPathHelp("File to write, ending in .glb, .gltf, .obj, .stl or .icq"));
     io("cells_per_face", output.cellsPerFace,
@@ -103,6 +136,7 @@ template <> struct SpecName<TerrainMeshOutput> {
 };
 template <typename IO> void Fields(IO& io, TerrainMeshOutput& output) {
     io("path", output.path, OutputPathHelp("File to write, ending in .glb, .gltf, .obj or .stl"));
+    io("region", output.region, RegionHelp("the mesh covers") + ".");
 }
 
 }  // namespace terraingen::config
