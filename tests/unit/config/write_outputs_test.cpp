@@ -59,7 +59,7 @@ TEST(WriteOutputs, WritesBoulderListsAndBoulderModels) {
     config.outputs = {terraingen::BoulderListOutput{"boulders.csv"},
                       terraingen::BoulderListOutput{"boulders.json", ListFormat::Json},
                       terraingen::BoulderModelsOutput{"boulders.glb"},
-                      terraingen::BoulderModelsOutput{"boulders.ply"}};
+                      terraingen::BoulderModelsOutput{"boulders.stl"}};
     const auto terrain = GenerateTerrain(config);
     ASSERT_FALSE(BouldersOf(terrain).models.empty());
     for (const auto& boulder : BouldersOf(terrain).models) {
@@ -76,7 +76,7 @@ TEST(WriteOutputs, WritesBoulderListsAndBoulderModels) {
               static_cast<long>(BouldersOf(terrain).boulders.size() + 1));
     EXPECT_NE(ReadText(written[1]).find("\"model\": true"), std::string::npos);
     EXPECT_EQ(ReadText(written[2]).substr(0, 4), "glTF");
-    EXPECT_EQ(ReadText(written[3]).substr(0, 3), "ply");
+    EXPECT_EQ(ReadText(written[3]).substr(0, 10), "TerrainGen") << "a binary STL";
 
     terraingen::BoulderLayerSpec none;
     none.boulders.sizes.minDiameter = 0.5;
@@ -172,7 +172,7 @@ TEST(WriteOutputs, WritesBoulderModelsOnASphereAboutTheGridCentre) {
     boulders.boulders.sizes.maxDiameter = 3.0;
     boulders.boulders.rendering.models.minDiameter = 1.0;
     config.layers = {boulders};
-    config.outputs = {terraingen::BoulderModelsOutput{"boulders.ply"}};
+    config.outputs = {terraingen::BoulderModelsOutput{"boulders.stl"}};
     const auto terrain = GenerateTerrain(config);
     ASSERT_FALSE(BouldersOf(terrain).models.empty());
     const auto directory = TempPath("terraingen_sphere_boulders");
@@ -195,7 +195,7 @@ TEST(WriteOutputs, WritesWholeBodyMeshes) {
     config.surface = terraingen::SphereSurfaceSpec{1737400.0};
     config.source = terraingen::FlatSourceSpec{4, 4, 1000.0, 5.0f};
     config.outputs = {terraingen::BodyMeshOutput{"body.glb", 6, std::nullopt},
-                      terraingen::BodyMeshOutput{"body.ply", 4, 20000.0}};
+                      terraingen::BodyMeshOutput{"body.stl", 4, 20000.0}};
     const auto terrain = GenerateTerrain(config);
     const auto directory = TempPath("terraingen_body_mesh");
     std::filesystem::remove_all(directory);
@@ -248,6 +248,6 @@ TEST(WriteOutputs, DrawsBoulderModelsFromRockFilesAndWritesTheTerrainMesh) {
                   "layers[" + std::to_string(config.layers.size() - 1) + "].shape_files[0]");
     }
     config.layers.pop_back();
-    config.outputs = {terraingen::TerrainMeshOutput{"terrain.stl"}};
+    config.outputs = {terraingen::TerrainMeshOutput{"terrain.fbx"}};
     EXPECT_THROW(terraingen::ValidateConfig(config, directory), terraingen::ConfigError);
 }

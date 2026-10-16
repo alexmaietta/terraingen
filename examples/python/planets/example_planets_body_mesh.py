@@ -2,7 +2,7 @@
 
 `body_mesh` samples a terrain on a sphere at the vertices of a cube-sphere (six faces of
 `cells_per_face` squared quads) and places each vertex at the radius plus the height there. Here
-the terrain is global noise and three large basins. Writes the mesh as glTF and PLY, and a
+the terrain is global noise and three large basins. Writes the mesh as glTF and STL, and a
 longitude-latitude map of the heights sampled at the vertices.
 
     python example_planets_body_mesh.py [--viewer window|null] [--output-dir DIR] [--test]
@@ -71,7 +71,7 @@ class Example(_common.Example):
 
     def save(self, out):
         self.mesh.write(out / "example_planets_body_mesh.glb")
-        self.mesh.write(out / "example_planets_body_mesh.ply")
+        self.mesh.write(out / "example_planets_body_mesh.stl")
         print("wrote", write_png(out / "example_planets_body_mesh.png", normalize(self.map)))
 
     def test_final(self):

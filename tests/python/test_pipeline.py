@@ -161,7 +161,7 @@ def test_body_mesh_lies_near_the_body_radius(lunar_site, moon):
 
 def test_body_mesh_writes_ply_and_glb(tmp_path, lunar_site):
     mesh = terraingen.body_mesh(lunar_site, 8)
-    for name in ("moon.ply", "moon.obj", "moon.glb"):
+    for name in ("moon.stl", "moon.obj", "moon.glb"):
         mesh.write(tmp_path / name)
     assert (tmp_path / "moon.glb").read_bytes()[:4] == b"glTF"
     assert terraingen.read_mesh(tmp_path / "moon.obj").mesh.triangle_count == mesh.triangle_count

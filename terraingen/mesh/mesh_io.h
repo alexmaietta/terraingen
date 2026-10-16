@@ -1,5 +1,5 @@
 /// @file
-/// @brief Reading and writing triangle meshes and instanced scenes as PLY, OBJ with MTL, and glTF.
+/// @brief Reading and writing triangle meshes and instanced scenes as OBJ with MTL, glTF and STL.
 #pragma once
 
 #include "terraingen/mesh/mesh.h"
@@ -35,13 +35,13 @@ struct SceneNode {
     RigidTransform pose{};       ///< Rotation and translation applied after the scale.
 };
 
-/// Whether `path` names a mesh format by its extension: .ply, .obj, .gltf or .glb.
+/// Whether `path` names a mesh format by its extension: .obj, .gltf, .glb or .stl.
 bool IsMeshPath(const std::filesystem::path& path);
 
 /// Writes meshes drawn once per node, in the format the extension names. glTF (.glb, or .gltf
 /// with a .bin beside it) stores each mesh once and instances it; OBJ (with an .mtl beside it)
-/// writes one object per node, and PLY one merged mesh. OBJ and glTF are y-up: TerrainGen's z-up
-/// (x, y, z) is written as (x, z, -y).
+/// writes one object per node; both are y-up, TerrainGen's z-up (x, y, z) written as (x, z, -y).
+/// STL (binary) gets every node's mesh merged, z-up, without materials.
 /// @throws std::invalid_argument for another extension, no meshes or nodes, an empty or invalid
 /// mesh, mismatched normals, a node naming no mesh, a scale that is zero or not finite, or a pose
 /// whose rotation is not a rotation.
@@ -53,9 +53,10 @@ void WriteScene(const std::filesystem::path& path, const std::vector<SceneMesh>&
 /// @throws std::invalid_argument and std::runtime_error as `WriteScene`.
 void WriteMesh(const std::filesystem::path& path, const SceneMesh& mesh);
 
-/// Reads every triangle of an .obj (polygons triangulated) or a .gltf or .glb (every triangle
-/// primitive of the default scene, with its nodes' transforms), converted to z-up, with the first
-/// material's diffuse colour. Normals are not read.
+/// Reads every triangle of an .obj (polygons triangulated), a .gltf or .glb (every triangle
+/// primitive of the default scene, with its nodes' transforms) or a binary or ASCII .stl, in
+/// z-up, with the first material's diffuse colour where the format has one. Normals are not
+/// read.
 /// @throws std::invalid_argument for another extension.
 /// @throws std::runtime_error if the file cannot be read or holds no triangles.
 SceneMesh ReadMesh(const std::filesystem::path& path);

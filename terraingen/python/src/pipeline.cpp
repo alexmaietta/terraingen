@@ -117,7 +117,8 @@ void BindFeatures(nb::module_& m) {
             [](const BoulderFeatures& f, const std::filesystem::path& path) {
                 WriteBoulderModels(f.models, path);
             },
-            "path"_a, "Writes the boulder models as a glTF scene (.glb) or one PLY mesh (.ply).");
+            "path"_a,
+            "Writes the boulder models as a glTF scene (.glb or .gltf), OBJ (.obj) or STL (.stl).");
     m.def(
         "placed_craters",
         [](const PyTerrain& terrain, std::optional<RasterGrid> grid, double spacing) {

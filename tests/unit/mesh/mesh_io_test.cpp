@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -61,26 +62,33 @@ std::vector<Vec3d> PlacedVertices(const TriangleMesh& mesh, const SceneNode& nod
 }  // namespace
 
 TEST(IsMeshPath, KnowsEveryMeshFormat) {
-    for (const char* path : {"out/b.glb", "b.gltf", "b.OBJ", "b.ply"}) {
+    for (const char* path : {"out/b.glb", "b.gltf", "b.OBJ", "b.stl"}) {
         EXPECT_TRUE(terraingen::IsMeshPath(path)) << path;
     }
-    EXPECT_FALSE(terraingen::IsMeshPath("b.stl"));
+    EXPECT_FALSE(terraingen::IsMeshPath("b.ply"));
     EXPECT_FALSE(terraingen::IsMeshPath(""));
 }
 
-TEST(WriteMesh, WritesABinaryPlyWithOptionalNormals) {
+TEST(WriteMesh, WritesABinaryStlAndReadsItBackWelded) {
     const auto cube = terraingen::BaseSolidMesh(terraingen::BaseSolid::Cube);
-    const auto path = TempPath("cube.ply");
+    const auto path = TempPath("cube.stl");
     terraingen::WriteMesh(path, {cube, {}, {}});
-    const std::string plain = Read(path);
-    EXPECT_EQ(plain.substr(0, 4), "ply\n");
-    EXPECT_NE(plain.find("element vertex 8\n"), std::string::npos);
-    EXPECT_NE(plain.find("element face 12\n"), std::string::npos);
-    EXPECT_EQ(plain.find("property float nx"), std::string::npos);
-    const std::size_t body = plain.find("end_header\n") + 11;
-    EXPECT_EQ(plain.size() - body, 8u * 12u + 12u * 13u);
-    terraingen::WriteMesh(path, {cube, terraingen::VertexNormals(cube), {}});
-    EXPECT_NE(Read(path).find("property float nx"), std::string::npos);
+    const std::string bytes = Read(path);
+    EXPECT_EQ(bytes.substr(0, 10), "TerrainGen");
+    EXPECT_EQ(Word(bytes, 80), 12u);
+    EXPECT_EQ(bytes.size(), 84u + 12u * 50u);
+    const TriangleMesh read = terraingen::ReadMesh(path).mesh;
+    EXPECT_EQ(read.positions.size(), 8u) << "shared corners joined";
+    EXPECT_EQ(read.triangles.size(), 12u);
+    EXPECT_NEAR(terraingen::Volume(read), terraingen::Volume(cube), 1e-6) << "still outward";
+}
+
+TEST(ReadMesh, ReadsAsciiStl) {
+    const auto path = TempPath("facet.stl");
+    std::ofstream(path) << "solid facet\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\n"
+                           "vertex 1 0 0\nvertex 0 1 0\nendloop\nendfacet\nendsolid facet\n";
+    const TriangleMesh read = terraingen::ReadMesh(path).mesh;
+    ExpectSameMesh(read, {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}}, 1);
 }
 
 TEST(WriteMesh, RoundTripsThroughObjAndGltfInZUp) {
@@ -116,7 +124,7 @@ TEST(WriteMesh, WritesAValidBinaryGltfContainer) {
     EXPECT_NE(json.find("\"TerrainGen\""), std::string::npos);
     EXPECT_EQ(json.find("\"NORMAL\""), std::string::npos);
     EXPECT_THROW(terraingen::WriteMesh(path, {TriangleMesh{}, {}, {}}), std::invalid_argument);
-    EXPECT_THROW(terraingen::WriteMesh(TempPath("sphere.stl"), {sphere, {}, {}}),
+    EXPECT_THROW(terraingen::WriteMesh(TempPath("sphere.ply"), {sphere, {}, {}}),
                  std::invalid_argument);
     EXPECT_THROW(terraingen::WriteMesh(path, {sphere, {{0, 0, 1}}, {}}), std::invalid_argument);
     EXPECT_THROW(terraingen::WriteMesh(TempPath("missing/dir/x.glb"), {sphere, {}, {}}),
@@ -145,6 +153,15 @@ TEST(WriteScene, PlacesEveryNodeAlikeInEveryFormat) {
         const auto path = TempPath(name);
         terraingen::WriteScene(path, scene, nodes);
         ExpectSameMesh(terraingen::ReadMesh(path).mesh, expected, triangles);
+    }
+    const auto stl = TempPath("scene.stl");
+    terraingen::WriteScene(stl, scene, nodes);
+    const TriangleMesh merged = terraingen::ReadMesh(stl).mesh;
+    EXPECT_EQ(merged.triangles.size(), triangles);
+    for (const Vec3d& p : merged.positions) {
+        EXPECT_TRUE(std::any_of(expected.begin(), expected.end(), [&](const Vec3d& q) {
+            return std::fabs(p.x - q.x) + std::fabs(p.y - q.y) + std::fabs(p.z - q.z) < 1e-5;
+        })) << "every STL vertex is a placed vertex, z-up";
     }
     const auto path = TempPath("bad.glb");
     EXPECT_THROW(terraingen::WriteScene(path, {}, nodes), std::invalid_argument);

@@ -36,10 +36,6 @@ Vec3d PlacedNormal(const SceneNode& node, const Vec3d& n);
 /// @throws std::runtime_error if the file cannot be written.
 void Save(const std::filesystem::path& path, const std::string& bytes);
 
-/// `WriteScene` for .ply: every node's mesh placed and merged into one binary PLY mesh.
-void WritePly(const std::filesystem::path& path, const std::vector<SceneMesh>& meshes,
-              const std::vector<SceneNode>& nodes);
-
 /// `WriteScene` for .obj, with the materials in an .mtl of the same stem beside it.
 void WriteObj(const std::filesystem::path& path, const std::vector<SceneMesh>& meshes,
               const std::vector<SceneNode>& nodes);
@@ -47,6 +43,13 @@ void WriteObj(const std::filesystem::path& path, const std::vector<SceneMesh>& m
 /// `WriteScene` for .gltf (with a .bin beside it) or .glb.
 void WriteGltf(const std::filesystem::path& path, const std::vector<SceneMesh>& meshes,
                const std::vector<SceneNode>& nodes);
+
+/// `WriteScene` for .stl: every node's mesh placed and merged into one binary STL, z-up.
+void WriteStl(const std::filesystem::path& path, const std::vector<SceneMesh>& meshes,
+              const std::vector<SceneNode>& nodes);
+
+/// `ReadMesh` for binary or ASCII .stl, corners at the same position joined into one vertex.
+SceneMesh ReadStl(const std::filesystem::path& path);
 
 /// `ReadMesh` for .obj.
 SceneMesh ReadObj(const std::filesystem::path& path);

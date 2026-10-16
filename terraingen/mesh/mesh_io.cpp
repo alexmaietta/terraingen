@@ -2,10 +2,8 @@
 
 #include "terraingen/mesh/formats.h"
 
-#include <bit>
 #include <cctype>
 #include <cmath>
-#include <cstdint>
 #include <fstream>
 #include <stdexcept>
 #include <string>
@@ -13,9 +11,6 @@
 namespace terraingen {
 
 namespace {
-
-static_assert(std::endian::native == std::endian::little,
-              "The mesh writers assume a little-endian host");
 
 /// The extension of `path`, lower case.
 std::string Extension(const std::filesystem::path& path) {
@@ -54,11 +49,6 @@ void CheckScene(const std::vector<SceneMesh>& meshes, const std::vector<SceneNod
     }
 }
 
-/// Appends `value`'s bytes, little-endian on the hosts supported.
-template <typename T> void Put(std::string& bytes, T value) {
-    bytes.append(reinterpret_cast<const char*>(&value), sizeof(T));
-}
-
 }  // namespace
 
 namespace detail {
@@ -84,74 +74,26 @@ void Save(const std::filesystem::path& path, const std::string& bytes) {
     }
 }
 
-void WritePly(const std::filesystem::path& path, const std::vector<SceneMesh>& meshes,
-              const std::vector<SceneNode>& nodes) {
-    bool normals = true;
-    std::size_t vertices = 0;
-    std::size_t triangles = 0;
-    for (const SceneNode& node : nodes) {
-        const SceneMesh& scene = meshes[node.mesh];
-        normals = normals && !scene.normals.empty();
-        vertices += scene.mesh.positions.size();
-        triangles += scene.mesh.triangles.size();
-    }
-    std::string bytes =
-        "ply\nformat binary_little_endian 1.0\ncomment TerrainGen\nelement vertex " +
-        std::to_string(vertices) + "\nproperty float x\nproperty float y\nproperty float z\n";
-    if (normals) {
-        bytes += "property float nx\nproperty float ny\nproperty float nz\n";
-    }
-    bytes += "element face " + std::to_string(triangles) +
-             "\nproperty list uchar uint vertex_indices\nend_header\n";
-    for (const SceneNode& node : nodes) {
-        const SceneMesh& scene = meshes[node.mesh];
-        for (std::size_t v = 0; v < scene.mesh.positions.size(); ++v) {
-            const Vec3d p = Placed(node, scene.mesh.positions[v]);
-            for (const double c : {p.x, p.y, p.z}) {
-                Put(bytes, static_cast<float>(c));
-            }
-            if (normals) {
-                const Vec3d n = PlacedNormal(node, scene.normals[v]);
-                for (const double c : {n.x, n.y, n.z}) {
-                    Put(bytes, static_cast<float>(c));
-                }
-            }
-        }
-    }
-    std::uint32_t offset = 0;
-    for (const SceneNode& node : nodes) {
-        const TriangleMesh& mesh = meshes[node.mesh].mesh;
-        for (const auto& t : mesh.triangles) {
-            Put(bytes, static_cast<std::uint8_t>(3));
-            for (const std::uint32_t v : t) {
-                Put(bytes, offset + v);
-            }
-        }
-        offset += static_cast<std::uint32_t>(mesh.positions.size());
-    }
-    Save(path, bytes);
-}
-
 }  // namespace detail
 
 bool IsMeshPath(const std::filesystem::path& path) {
     const std::string extension = Extension(path);
-    return extension == ".ply" || extension == ".obj" || extension == ".gltf" ||
-           extension == ".glb";
+    return extension == ".obj" || extension == ".gltf" || extension == ".glb" ||
+           extension == ".stl";
 }
 
 void WriteScene(const std::filesystem::path& path, const std::vector<SceneMesh>& meshes,
                 const std::vector<SceneNode>& nodes) {
     if (!IsMeshPath(path)) {
-        throw std::invalid_argument("Mesh files must end in .ply, .obj, .gltf or .glb: " +
+        throw std::invalid_argument("Mesh files must end in .obj, .gltf, .glb or .stl: " +
                                     path.string());
     }
     CheckScene(meshes, nodes);
     const std::string extension = Extension(path);
-    if (extension == ".ply") {
-        detail::WritePly(path, meshes, nodes);
-    } else if (extension == ".obj") {
+    if (extension == ".obj") {
         detail::WriteObj(path, meshes, nodes);
+    } else if (extension == ".stl") {
+        detail::WriteStl(path, meshes, nodes);
     } else {
         detail::WriteGltf(path, meshes, nodes);
     }
@@ -168,8 +110,11 @@ SceneMesh ReadMesh(const std::filesystem::path& path) {
         read = detail::ReadObj(path);
     } else if (extension == ".gltf" || extension == ".glb") {
         read = detail::ReadGltf(path);
+    } else if (extension == ".stl") {
+        read = detail::ReadStl(path);
     } else {
-        throw std::invalid_argument("Meshes are read from .obj, .gltf or .glb: " + path.string());
+        throw std::invalid_argument("Meshes are read from .obj, .gltf, .glb or .stl: " +
+                                    path.string());
     }
     if (read.mesh.triangles.empty()) {
         throw std::runtime_error("No triangles in " + path.string());

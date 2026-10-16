@@ -110,7 +110,7 @@ TEST(WriteBoulderModels, RejectsOtherFilesAnglesAndNoBoulders) {
     const auto directory = TempPath("terraingen_boulder_models");
     std::filesystem::create_directories(directory);
     EXPECT_THROW(terraingen::WriteBoulderModels({}, directory / "x.glb"), std::invalid_argument);
-    EXPECT_THROW(terraingen::WriteBoulderModels(models, directory / "x.stl"),
+    EXPECT_THROW(terraingen::WriteBoulderModels(models, directory / "x.fbx"),
                  std::invalid_argument);
     EXPECT_THROW(terraingen::WriteBoulderModels(models, directory / "x.glb", -1.0),
                  std::invalid_argument);

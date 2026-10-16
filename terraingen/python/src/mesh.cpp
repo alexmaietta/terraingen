@@ -98,7 +98,7 @@ void BindMeshFiles(nb::class_<TriangleMesh>& mesh) {
             WriteMesh(path, {self, OptionalNormals(normals), material});
         },
         "path"_a, "normals"_a = nb::none(), "material"_a = MeshMaterial{},
-        "Writes the mesh as .ply, .obj (with an .mtl), .gltf (with a .bin) or .glb, by extension.");
+        "Writes the mesh as .obj (with an .mtl), .gltf (with a .bin), .glb or .stl, by extension.");
 }
 
 void BindTriangleMesh(nb::module_& m) {
@@ -176,10 +176,11 @@ void BindScene(nb::module_& m) {
         .def_rw("mesh", &SceneMesh::mesh)
         .def_rw("material", &SceneMesh::material);
     m.def("read_mesh", &ReadMesh, "path"_a,
-          "Every triangle of an .obj, .gltf or .glb file in z-up metres, with its first material.");
+          "Every triangle of an .obj, .gltf, .glb or .stl file in z-up metres, with its first "
+          "material.");
     m.def(
         "is_mesh_path", [](const std::filesystem::path& path) { return IsMeshPath(path); },
-        "path"_a, "Whether the extension names a mesh format: .ply, .obj, .gltf or .glb.");
+        "path"_a, "Whether the extension names a mesh format: .obj, .gltf, .glb or .stl.");
     nb::class_<SceneNode>(m, "SceneNode",
                           "An instance of a scene mesh: scaled per axis, then moved by `pose`.")
         .def(
@@ -192,7 +193,7 @@ void BindScene(nb::module_& m) {
         .def_rw("pose", &SceneNode::pose);
     m.def("write_scene", &WriteScene, "path"_a, "meshes"_a, "nodes"_a,
           "Writes `meshes` (SceneMesh) drawn once per node: a glTF scene storing each mesh once, "
-          "an OBJ with one object per node, or one merged PLY mesh.");
+          "an OBJ with one object per node, or one merged STL mesh.");
 }
 
 }  // namespace

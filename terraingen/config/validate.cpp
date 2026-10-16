@@ -298,7 +298,7 @@ struct OutputContext {
 
 void RequireMeshFile(const std::string& file, const std::string& path) {
     if (!IsMeshPath(file)) {
-        throw ConfigError(path, "must end in .ply, .obj, .gltf or .glb");
+        throw ConfigError(path, "must end in .obj, .gltf, .glb or .stl");
     }
 }
 

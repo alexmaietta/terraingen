@@ -58,7 +58,7 @@ void WriteBoulderList(const std::vector<Boulder>& boulders, const std::filesyste
 
 /// Writes boulder models as a scene (`WriteScene`): each shape once with crease normals and its
 /// material, drawn once per boulder (glTF), one object per boulder (OBJ) or one merged mesh
-/// (PLY). On a sphere the world is the east-north-up frame of `site` on the datum sphere
+/// (STL). On a sphere the world is the east-north-up frame of `site` on the datum sphere
 /// (`PlacementAtSite`), so coordinates stay small; `WriteOutputs` uses the grid's centre.
 /// @param creaseAngle Angle in degrees, from 0 to 180, above which normals are split.
 /// @throws std::invalid_argument for no boulders, an angle outside [0, 180] or as `WriteScene`.

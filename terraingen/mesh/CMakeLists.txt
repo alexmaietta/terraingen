@@ -8,6 +8,7 @@ terraingen_add_library(
     mesh_io.cpp
     obj_io.cpp
     polyhedra.cpp
+    stl_io.cpp
     PUBLIC
     terraingen_util
     PRIVATE

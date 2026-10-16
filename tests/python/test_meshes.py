@@ -75,8 +75,8 @@ def test_subdivision_quadruples_the_triangles(cube):
 
 
 def test_meshes_write_ply_and_glb_scenes(tmp_path, cube):
-    cube.write(tmp_path / "cube.ply", normals=cube.vertex_normals())
-    assert (tmp_path / "cube.ply").read_bytes()[:3] == b"ply"
+    cube.write(tmp_path / "cube.stl")
+    assert terraingen.read_mesh(tmp_path / "cube.stl").mesh.vertex_count == cube.vertex_count
     terraingen.write_scene(
         tmp_path / "scene.glb",
         [terraingen.SceneMesh(cube), terraingen.SceneMesh(terraingen.icosphere(3))],
@@ -93,7 +93,7 @@ def test_meshes_round_trip_with_their_material(tmp_path, cube, name):
     np.testing.assert_allclose(read.mesh.arrays[0], cube.arrays[0], atol=1e-6)
     assert read.material.name == "basalt"
     assert read.material.colour == pytest.approx((0.2, 0.25, 0.3))
-    assert terraingen.is_mesh_path(tmp_path / name) and not terraingen.is_mesh_path("rock.stl")
+    assert terraingen.is_mesh_path(tmp_path / name) and not terraingen.is_mesh_path("rock.ply")
 
 
 def test_boulder_shapes_draw_from_a_library_of_rocks(cube):

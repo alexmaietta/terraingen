@@ -8,6 +8,7 @@
 #pragma GCC diagnostic pop
 
 #include <algorithm>
+#include <bit>
 #include <cstring>
 #include <deque>
 #include <limits>
@@ -18,6 +19,9 @@
 namespace terraingen::detail {
 
 namespace {
+
+static_assert(std::endian::native == std::endian::little,
+              "The glTF writer assumes a little-endian host");
 
 /// Appends `value`'s bytes, little-endian on the hosts supported.
 template <typename T> void Put(std::string& bytes, T value) {
