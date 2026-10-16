@@ -23,6 +23,12 @@ struct Boulder {
     /// Placed as a 3D model of its own rather than drawn into the heights
     /// (`BoulderModelThreshold`).
     bool model = false;
+    /// How worn it is, from 0 (fresh) to 1: its crater's wear for a crater block, uniform between
+    /// craters.
+    double wear = 0.0;
+    /// For a fragment, the ID of the boulder it broke from; 0 for a whole boulder.
+    std::uint64_t parent = 0;
+    std::uint32_t piece = 0;  ///< For a fragment, which piece of its parent it is.
 
     /// Height of the top above the surface it stands on, `height` (1 - `burial`), in metres.
     double ExposedHeight() const {

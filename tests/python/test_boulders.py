@@ -128,6 +128,31 @@ def test_boulder_fillets_and_burial_by_wear_are_options():
         terraingen.validate_boulder_fillet(terraingen.BoulderFillet(height_share=2.0))
 
 
+def test_worn_boulders_break_into_pieces_that_replace_them():
+    options = terraingen.BoulderLayerOptions(coverage=0.1, min_diameter=0.3, max_diameter=2.0)
+    whole = terraingen.BoulderLayer(options)
+    options.fragmentation = terraingen.BoulderFragmentation(min_diameter=0.3, split_wear=0.0)
+    broken = terraingen.BoulderLayer(options)
+    assert options.fragmentation.enabled
+    region = (-20.0, -20.0, 20.0, 20.0)
+    assert len(broken.boulders(region)["x"]) > len(whole.boulders(region)["x"])
+    piece = terraingen.Boulder(0.0, 0.0, 1.0, 0.5)
+    piece.parent, piece.piece = 7, 2
+    assert (piece.parent, piece.piece, piece.wear) == (7, 2, 0.0)
+    with pytest.raises(ValueError):
+        terraingen.validate_boulder_fragmentation(terraingen.BoulderFragmentation(min_pieces=1))
+
+
+def test_boulder_clusters_raise_the_abundance_near_their_centres():
+    clusters = terraingen.BoulderClusters(share=0.8, spacing=40.0, radius=4.0)
+    layer = terraingen.BoulderLayer(terraingen.BoulderLayerOptions(clusters=clusters))
+    abundances = [layer.abundance_at(x + 0.5, y + 0.5)[0] for x in range(0, 200, 2) for y in range(0, 200, 2)]
+    assert max(abundances) > 5.0 > 0.25 > min(abundances)
+    assert max(abundances) <= terraingen.max_cluster_abundance(clusters) + 1e-9
+    with pytest.raises(ValueError):
+        terraingen.validate_boulder_clusters(terraingen.BoulderClusters(radius=60.0))
+
+
 def test_boulder_layer_options_take_custom_shape_styles():
     egg = terraingen.BoulderStyle(
         name="egg",

@@ -27,8 +27,8 @@ struct BoulderPlacement {
 
 /// A boulder placed as a 3D model of its own.
 struct BoulderModel {
-    Boulder boulder;                            ///< Its record.
-    std::uint64_t shapeSeed = 0;                ///< The seed of its shape.
+    Boulder boulder;              ///< Its record.
+    std::uint64_t shapeSeed = 0;  ///< The seed of its shape, or of its parent's for a fragment.
     std::shared_ptr<const BoulderShape> shape;  ///< Its unit shape.
     BoulderPlacement placement;                 ///< The shape moved onto the ground beneath it.
 };

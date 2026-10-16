@@ -114,6 +114,9 @@ void BindBoulder(nb::module_& m) {
         .def_rw("id", &Boulder::id)
         .def_rw("ground", &Boulder::ground)
         .def_rw("model", &Boulder::model)
+        .def_rw("wear", &Boulder::wear)
+        .def_rw("parent", &Boulder::parent)
+        .def_rw("piece", &Boulder::piece)
         .def_prop_ro("exposed_height", &Boulder::ExposedHeight);
 }
 
@@ -150,6 +153,38 @@ void BindPatchesAndEjecta(nb::module_& m) {
         .def_rw("min_freshness", &BoulderEjecta::minFreshness)
         .def_rw("lifetime_gyr", &BoulderEjecta::lifetimeGyr)
         .def_rw("aging_exponent", &BoulderEjecta::agingExponent);
+}
+
+void BindClustersAndFragments(nb::module_& m) {
+    auto clusters = nb::class_<BoulderClusters>(
+        m, "BoulderClusters",
+        "Boulders between craters gathered in clusters: `share` of them crowd within about "
+        "`radius` metres of cluster centres about `spacing` metres apart; the mean density is "
+        "kept.");
+    BindKwargsInit<BoulderClusters>(clusters);
+    clusters.def_rw("share", &BoulderClusters::share)
+        .def_rw("spacing", &BoulderClusters::spacing)
+        .def_rw("radius", &BoulderClusters::radius);
+    m.def("validate_boulder_clusters", &ValidateBoulderClusters, "clusters"_a, kValidateDoc);
+    m.def("max_cluster_abundance", &MaxClusterAbundance, "clusters"_a,
+          "The most a cluster field multiplies the scattered boulder density by.");
+    auto fragmentation = nb::class_<BoulderFragmentation>(
+        m, "BoulderFragmentation",
+        "Boulders broken by wear into pieces that replace them: from `split_wear` boulders at "
+        "least `min_diameter` across split into `min_pieces` to `max_pieces` fitting pieces, "
+        "their cracks opening to `gap_ratio` diameters; from `rubble_wear` the pieces scatter up "
+        "to `spread_ratio` diameters further, turn and sink. A `split_wear` of 1 breaks nothing.");
+    BindKwargsInit<BoulderFragmentation>(fragmentation);
+    fragmentation.def_rw("min_diameter", &BoulderFragmentation::minDiameter)
+        .def_rw("split_wear", &BoulderFragmentation::splitWear)
+        .def_rw("rubble_wear", &BoulderFragmentation::rubbleWear)
+        .def_rw("min_pieces", &BoulderFragmentation::minPieces)
+        .def_rw("max_pieces", &BoulderFragmentation::maxPieces)
+        .def_rw("gap_ratio", &BoulderFragmentation::gapRatio)
+        .def_rw("spread_ratio", &BoulderFragmentation::spreadRatio)
+        .def_prop_ro("enabled", &BoulderFragmentation::Enabled);
+    m.def("validate_boulder_fragmentation", &ValidateBoulderFragmentation, "fragmentation"_a,
+          kValidateDoc);
 }
 
 void BindFillet(nb::module_& m) {
@@ -200,6 +235,7 @@ void BindGroupedOptions(nb::class_<BoulderLayerOptions>& options) {
     BindGrouped(options, "max_lean", &O::pose, &BoulderPose::maxLean);
     BindGrouped(options, "burial_by_wear", &O::pose, &BoulderPose::burialByWear);
     options.def_rw("fillet", &O::fillet);
+    options.def_rw("clusters", &O::clusters).def_rw("fragmentation", &O::fragmentation);
     BindGrouped(options, "relief", &O::rendering, &BoulderRendering::relief);
     BindGrouped(options, "models", &O::rendering, &BoulderRendering::models);
     BindGrouped(options, "shapes", &O::rendering, &BoulderRendering::shapes);
@@ -309,6 +345,7 @@ void BindBoulders(nb::module_& m) {
     BindBoulderShapes(m);
     BindBoulder(m);
     BindPatchesAndEjecta(m);
+    BindClustersAndFragments(m);
     BindFillet(m);
     BindRendering(m);
     BindLayerOptions(m);

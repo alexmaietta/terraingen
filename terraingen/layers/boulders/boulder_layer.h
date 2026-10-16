@@ -4,6 +4,7 @@
 
 #include "terraingen/distribution/size_frequency.h"
 #include "terraingen/layers/boulders/boulder.h"
+#include "terraingen/layers/boulders/boulder_fragments.h"
 #include "terraingen/layers/boulders/boulder_models.h"
 #include "terraingen/layers/boulders/boulder_options.h"
 #include "terraingen/layers/boulders/boulder_placer.h"
@@ -80,7 +81,8 @@ class BoulderLayer final : public Layer, public BoulderPlacer {
         return options_;
     }
 
-    /// The 3D shape of a boulder, shared between boulders with the same shape seed.
+    /// The 3D shape of a boulder, shared between boulders with the same shape seed; for a
+    /// fragment, its piece of its parent's shape.
     std::shared_ptr<const BoulderShape> Shape(const Boulder& boulder) const;
 
     /// The boulders of `boulders` to place as their own 3D models: those marked `model` whose
@@ -101,14 +103,29 @@ class BoulderLayer final : public Layer, public BoulderPlacer {
     /// `candidate` as a boulder, or nothing when thinning drops it.
     std::optional<Boulder> DrawBoulder(const Crater& candidate, double spacing,
                                        const Ground* ground, const CraterList& ejecta) const;
+    /// Whether boulders are drawn as the union of their solids and fillets over the ground before
+    /// any of them (with fillets or fragmentation) rather than added on one another.
+    bool Unites() const;
+    /// Margin in radii a boulder's own relief and fillet reach beyond its centre.
+    double OwnMarginRadii() const;
+    /// Margin in radii its pieces may scatter beyond that when boulders break.
+    double BreakMarginRadii() const;
+    /// The pieces `parent` breaks into at its wear, those resolved at `spacing`; `parent` alone
+    /// when it is too small or too fresh to break.
+    std::vector<Boulder> Break(const Boulder& parent, double spacing, const Ground* ground) const;
+    /// The pieces of the shape of seed `shapeSeed`, shared by every boulder of that shape.
+    std::shared_ptr<const std::vector<BoulderFragment>> FragmentsOf(std::uint64_t shapeSeed) const;
+    /// The shape of seed `shapeSeed`.
+    std::shared_ptr<const BoulderShape> ShapeOf(std::uint64_t shapeSeed) const;
     /// The wear (0 fresh to 1 worn) of a boulder of `diameter` keyed by `id`: that of the crater
     /// its block came from, drawn by each source's share of `density`, or uniform between craters.
     double Wear(double diameter, const BoulderAbundance& abundance, double density,
                 std::uint64_t id) const;
-    /// The higher of the boulder's exposed part and its fillet added to `height` at (`x`, `y`),
-    /// with `placed` its shape placed on level ground at 0 for `BoulderRelief::Shape`; without
-    /// `rock`, the fillet alone.
-    float AddRelief(float height, double x, double y, const Boulder& boulder,
+    /// `height` at (`x`, `y`) with the boulder's exposed part added and then raised to at least
+    /// `base` (the height before any boulder) plus its fillet, so fillets never stack on rock or on
+    /// each other; `placed` is its shape placed on level ground at 0 for `BoulderRelief::Shape`,
+    /// and without `rock` only the fillet is drawn.
+    float AddRelief(float height, float base, double x, double y, const Boulder& boulder,
                     const TriangleMesh* placed, double weight, bool rock) const;
     /// `boulder` in its local frame: centred at the origin on a sphere, unchanged on a plane.
     Boulder InLocalFrame(const Boulder& boulder) const;
@@ -135,6 +152,8 @@ class BoulderLayer final : public Layer, public BoulderPlacer {
     /// The abundance at (`x`, `y`) with the ejecta craters `ejecta` around.
     BoulderAbundance Abundance(double x, double y, const Ground* ground,
                                const CraterList& ejecta) const;
+    /// The distance (m) from surface (x, y) to the nearest cluster centre.
+    double NearestClusterDistance(double x, double y) const;
     double BackgroundAbundance(double x, double y, const Ground* ground) const;
     /// Sets `abundance`'s ejecta share and wear at (`x`, `y`) from the craters `ejecta`.
     void EjectaAbundance(double x, double y, const CraterList& ejecta,
@@ -145,10 +164,12 @@ class BoulderLayer final : public Layer, public BoulderPlacer {
     std::shared_ptr<const CraterLayer> craters_;
     double minCraterDiameter_ = 0.0;
     double maxBackground_ = 1.0;
+    double clusterMean_ = 1.0;
     std::shared_ptr<const SizeFrequencyDistribution> candidates_;
     std::shared_ptr<const SizeFrequencyDistribution> ejectaSizes_;
     std::shared_ptr<CraterCellCache> cache_;
     std::shared_ptr<LruCache<std::uint64_t, BoulderShape>> shapes_;
+    std::shared_ptr<LruCache<std::uint64_t, std::vector<BoulderFragment>>> fragments_;
     std::optional<ExposureField> exposure_;
     Surface surface_;
     std::shared_ptr<const SurfaceCells> cells_;

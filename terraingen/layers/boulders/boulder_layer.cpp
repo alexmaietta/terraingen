@@ -1,6 +1,7 @@
 #include "terraingen/layers/boulders/boulder_layer.h"
 
 #include "terraingen/layers/craters/ages/age_model.h"
+#include "terraingen/noise/hash.h"
 #include "terraingen/random/philox.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/cell_loops.h"
@@ -9,7 +10,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <numbers>
+#include <span>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -20,6 +23,7 @@ namespace {
 
 constexpr std::uint32_t kBoulderSeed = 0x524F434Bu;
 constexpr std::uint32_t kBoulderAttributes = 0x41545452u;
+constexpr std::uint32_t kBoulderPieces = 0x50494543u;
 
 /// A uniform in [0, 1) from two 32-bit words.
 double Uniform(std::uint32_t high, std::uint32_t low) {
@@ -72,6 +76,9 @@ BoulderLayer::BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const Cr
             "Boulder ejecta need the crater layer whose craters throw them");
     }
     maxBackground_ = MaxBackgroundAbundance(options_);
+    if (options_.clusters.share > 0.0) {
+        clusterMean_ = MeanClusterBump(options_.clusters);
+    }
     ejectaSizes_ = minCraterDiameter_ > 0.0 ? EjectaSizes(options_) : nullptr;
     if (options_.cacheBoulders > 0) {
         cache_ = std::make_shared<CraterCellCache>(options_.cacheBoulders);
@@ -82,12 +89,37 @@ BoulderLayer::BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const Cr
     const std::uint32_t prototypes = options_.rendering.shapePrototypes;
     shapes_ = std::make_shared<LruCache<std::uint64_t, BoulderShape>>(
         prototypes > 0 ? prototypes : 4096, [](const BoulderShape&) { return std::size_t{1}; });
+    fragments_ = std::make_shared<LruCache<std::uint64_t, std::vector<BoulderFragment>>>(
+        prototypes > 0 ? prototypes : 4096,
+        [](const std::vector<BoulderFragment>&) { return std::size_t{1}; });
+}
+
+std::shared_ptr<const BoulderShape> BoulderLayer::ShapeOf(std::uint64_t shapeSeed) const {
+    return shapes_->Get(shapeSeed,
+                        [&] { return GenerateBoulderShape(shapeSeed, options_.rendering.shapes); });
+}
+
+std::shared_ptr<const std::vector<BoulderFragment>>
+BoulderLayer::FragmentsOf(std::uint64_t shapeSeed) const {
+    return fragments_->Get(shapeSeed, [&] {
+        const BoulderFragmentation& fragmentation = options_.fragmentation;
+        const auto span =
+            static_cast<std::uint32_t>(fragmentation.maxPieces - fragmentation.minPieces + 1);
+        const int pieces =
+            fragmentation.minPieces +
+            static_cast<int>(PcgHash(static_cast<std::uint32_t>(shapeSeed) ^ kBoulderPieces) %
+                             span);
+        return FragmentBoulderShape(*ShapeOf(shapeSeed), pieces, shapeSeed);
+    });
 }
 
 std::shared_ptr<const BoulderShape> BoulderLayer::Shape(const Boulder& boulder) const {
-    const std::uint64_t seed = BoulderShapeSeed(boulder.id, options_.rendering.shapePrototypes);
-    return shapes_->Get(seed,
-                        [&] { return GenerateBoulderShape(seed, options_.rendering.shapes); });
+    const std::uint32_t prototypes = options_.rendering.shapePrototypes;
+    if (boulder.parent == 0) {
+        return ShapeOf(BoulderShapeSeed(boulder.id, prototypes));
+    }
+    const auto fragments = FragmentsOf(BoulderShapeSeed(boulder.parent, prototypes));
+    return {fragments, &(*fragments)[boulder.piece].shape};
 }
 
 Boulder BoulderLayer::InLocalFrame(const Boulder& boulder) const {
@@ -123,9 +155,9 @@ double BoulderLayer::Wear(double diameter, const BoulderAbundance& abundance, do
     return Uniform(draw.z, draw.w);
 }
 
-float BoulderLayer::AddRelief(float height, double x, double y, const Boulder& boulder,
+float BoulderLayer::AddRelief(float height, float base, double x, double y, const Boulder& boulder,
                               const TriangleMesh* placed, double weight, bool rock) const {
-    if (rock && placed == nullptr && options_.fillet.heightShare <= 0.0) {
+    if (rock && placed == nullptr && !Unites()) {
         return AddBoulder(height, x, y, boulder, weight, surface_);
     }
     const Vec2d offset = surface_.Offset({boulder.x, boulder.y}, {x, y});
@@ -139,21 +171,39 @@ float BoulderLayer::AddRelief(float height, double x, double y, const Boulder& b
             surface_.IsBody() ? TopSurface(*placed, offset.x, offset.y) : TopSurface(*placed, x, y);
         relief = top ? std::fmax(*top, 0.0) : 0.0;
     }
+    double result = static_cast<double>(height);
+    if (relief > 0.0) {
+        result = Unites() ? std::fmax(result, static_cast<double>(base) + weight * relief)
+                          : result + weight * relief;
+    }
     if (options_.fillet.heightShare > 0.0) {
-        const double distance = std::hypot(offset.x, offset.y);
-        relief = std::fmax(relief, FilletHeight(boulder, distance, options_.fillet));
+        const double fillet =
+            FilletHeight(boulder, std::hypot(offset.x, offset.y), options_.fillet);
+        if (fillet > 0.0) {
+            result = std::fmax(result, static_cast<double>(base) + weight * fillet);
+        }
     }
-    if (!(relief > 0.0)) {
-        return height;
-    }
-    return static_cast<float>(static_cast<double>(height) + weight * relief);
+    return static_cast<float>(result);
+}
+
+bool BoulderLayer::Unites() const {
+    return options_.fillet.heightShare > 0.0 || options_.fragmentation.Enabled();
+}
+
+double BoulderLayer::OwnMarginRadii() const {
+    return options_.fillet.heightShare > 0.0 ? 1.0 + 2.0 * options_.fillet.widthRatio : 1.0;
+}
+
+double BoulderLayer::BreakMarginRadii() const {
+    const BoulderFragmentation& fragmentation = options_.fragmentation;
+    return fragmentation.Enabled() ? 2.0 * (fragmentation.gapRatio + fragmentation.spreadRatio)
+                                   : 0.0;
 }
 
 CraterList BoulderLayer::ScatterBoulderCandidates(const Bounds2d& region, double spacing) const {
     const std::uint32_t seed = options_.seed ^ kBoulderSeed;
     const FreshAges ages;
-    const double margin =
-        options_.fillet.heightShare > 0.0 ? 1.0 + 2.0 * options_.fillet.widthRatio : 1.0;
+    const double margin = OwnMarginRadii() + BreakMarginRadii();
     CraterGenerationOptions generation{.dMin = options_.sizes.minDiameter,
                                        .dMax = options_.sizes.maxDiameter,
                                        .marginRadii = margin};
@@ -184,9 +234,9 @@ std::optional<Boulder> BoulderLayer::DrawBoulder(const Crater& candidate, double
     const BoulderPose& pose = options_.pose;
     const double ratio =
         Between(pose.minHeightRatio, pose.maxHeightRatio, Uniform(shape.x, shape.y));
+    const double wear = Wear(candidate.diameter, abundance, density, candidate.id);
     double share = Uniform(draw.z, draw.w);
     if (pose.burialByWear > 0.0) {
-        const double wear = Wear(candidate.diameter, abundance, density, candidate.id);
         share = (1.0 - pose.burialByWear) * share + pose.burialByWear * wear;
     }
     const double burial = Between(pose.minBurial, pose.maxBurial, share);
@@ -198,6 +248,7 @@ std::optional<Boulder> BoulderLayer::DrawBoulder(const Crater& candidate, double
                     2.0 * std::numbers::pi * Uniform(shape.z, shape.w),
                     pose.maxLean * Uniform(shape.w, shape.x),
                     candidate.id};
+    boulder.wear = wear;
     boulder.model = options_.rendering.models.IsModel(boulder.diameter, spacing);
     if (ground != nullptr) {
         const double height =
@@ -215,15 +266,112 @@ std::vector<Boulder> BoulderLayer::Boulders(const Bounds2d& region, double spaci
         RequireGround(ground, "Boulders that read the exposure field");
     }
     const CraterList candidates = ScatterBoulderCandidates(region, spacing);
-    const CraterList ejecta = EjectaCraters(region);
+    if (!options_.fragmentation.Enabled()) {
+        const CraterList ejecta = EjectaCraters(region);
+        std::vector<Boulder> boulders;
+        for (std::size_t n = 0; n < candidates.Size(); ++n) {
+            if (const std::optional<Boulder> boulder =
+                    DrawBoulder(candidates.At(n), spacing, ground, ejecta)) {
+                boulders.push_back(*boulder);
+            }
+        }
+        return boulders;
+    }
+    const double reach = 0.5 * options_.sizes.maxDiameter * (OwnMarginRadii() + BreakMarginRadii());
+    const CraterList ejecta = EjectaCraters(surface_.Expand(region, reach));
     std::vector<Boulder> boulders;
     for (std::size_t n = 0; n < candidates.Size(); ++n) {
-        if (const std::optional<Boulder> boulder =
-                DrawBoulder(candidates.At(n), spacing, ground, ejecta)) {
-            boulders.push_back(*boulder);
+        const std::optional<Boulder> parent =
+            DrawBoulder(candidates.At(n), spacing, ground, ejecta);
+        if (!parent) {
+            continue;
+        }
+        for (const Boulder& boulder : Break(*parent, spacing, ground)) {
+            const double own = 0.5 * boulder.diameter * OwnMarginRadii();
+            if (surface_.Contains(surface_.Expand(region, own), {boulder.x, boulder.y})) {
+                boulders.push_back(boulder);
+            }
         }
     }
     return boulders;
+}
+
+std::vector<Boulder> BoulderLayer::Break(const Boulder& parent, double spacing,
+                                         const Ground* ground) const {
+    const BoulderFragmentation& fragmentation = options_.fragmentation;
+    if (parent.diameter < fragmentation.minDiameter || parent.wear < fragmentation.splitWear) {
+        return {parent};
+    }
+    const bool rubble = parent.wear >= fragmentation.rubbleWear;
+    const double opening = rubble || fragmentation.rubbleWear <= fragmentation.splitWear
+                               ? 1.0
+                               : (parent.wear - fragmentation.splitWear) /
+                                     (fragmentation.rubbleWear - fragmentation.splitWear);
+    const double scatter =
+        !rubble ? 0.0
+        : fragmentation.rubbleWear < 1.0
+            ? (parent.wear - fragmentation.rubbleWear) / (1.0 - fragmentation.rubbleWear)
+            : 1.0;
+    const auto shape = Shape(parent);
+    const auto fragments =
+        FragmentsOf(BoulderShapeSeed(parent.id, options_.rendering.shapePrototypes));
+    Boulder origin = parent;
+    origin.x = 0.0;
+    origin.y = 0.0;
+    const BoulderPlacement placement = PlaceBoulderModel(origin, *shape, 0.0);
+    const IdWords id = SplitId(parent.id);
+    RandomStream random(options_.seed ^ kBoulderPieces, kBoulderSeed, id.low, id.high);
+    const double smallest = spacing > 0.0 ? options_.fade.startSamples * spacing : 0.0;
+    std::vector<Boulder> pieces;
+    for (std::size_t k = 0; k < fragments->size(); ++k) {
+        const BoulderFragment& fragment = (*fragments)[k];
+        const double push = random.NextDouble();
+        const double twist = random.NextDouble();
+        double low = std::numeric_limits<double>::infinity();
+        double high = -low;
+        for (const Vec3d& p : fragment.shape.mesh.positions) {
+            const double z = placement.Apply(fragment.centre + p * fragment.scale).z;
+            low = std::fmin(low, z);
+            high = std::fmax(high, z);
+        }
+        const Vec3d centre = placement.Apply(fragment.centre);
+        const double out = std::hypot(centre.x, centre.y);
+        const double angle =
+            out > 0.0 ? std::atan2(centre.y, centre.x) : 2.0 * std::numbers::pi * push;
+        const double gap = (opening * fragmentation.gapRatio +
+                            scatter * fragmentation.spreadRatio * (0.5 + 0.5 * push)) *
+                           parent.diameter;
+        Boulder piece = parent;
+        const UVec3 key =
+            Pcg3dHash({id.low, id.high, kBoulderPieces + static_cast<std::uint32_t>(k)});
+        piece.id = (static_cast<std::uint64_t>(key.x) << 32) | key.y;
+        piece.parent = parent.id;
+        piece.piece = static_cast<std::uint32_t>(k);
+        piece.diameter = parent.diameter * fragment.scale;
+        piece.height = parent.height * fragment.shape.shortAxis * fragment.scale / shape->shortAxis;
+        piece.yaw = parent.yaw + scatter * std::numbers::pi * (2.0 * twist - 1.0);
+        piece.lean = parent.lean * (1.0 - scatter);
+        const double sunk = std::clamp(-low / (high - low), 0.0, 0.95);
+        piece.burial = std::fmax(sunk, sunk + scatter * (options_.pose.maxBurial - sunk));
+        const Vec2d at = surface_.Locate({parent.x, parent.y}, {centre.x + gap * std::cos(angle),
+                                                                centre.y + gap * std::sin(angle)});
+        piece.x = at.x;
+        piece.y = at.y;
+        if (piece.diameter < smallest) {
+            continue;
+        }
+        piece.model = options_.rendering.models.IsModel(piece.diameter, spacing);
+        piece.ground.reset();
+        if (ground != nullptr) {
+            const double height =
+                ground->HeightAt(piece.x, piece.y, options_.bedrock.exposureSpacing);
+            if (!std::isnan(height)) {
+                piece.ground = height;
+            }
+        }
+        pieces.push_back(piece);
+    }
+    return pieces;
 }
 
 float AddBoulder(float height, double x, double y, const Boulder& boulder, double weight,
@@ -269,11 +417,17 @@ std::vector<BoulderLayer::Relief> BoulderLayer::PrepareRelief(const std::vector<
 
 void BoulderLayer::DrawRelief(SampleBlock& samples, const std::vector<Relief>& reliefs,
                               unsigned threads) const {
-    const auto draw = [&](float height, const Vec2d& p, const Relief& relief) {
+    const auto draw = [&](float height, float base, const Vec2d& p, const Relief& relief) {
         const TriangleMesh* shape = relief.placed ? &*relief.placed : nullptr;
-        return AddRelief(height, p.x, p.y, *relief.boulder, shape, relief.weight, relief.rock);
+        return AddRelief(height, base, p.x, p.y, *relief.boulder, shape, relief.weight,
+                         relief.rock);
     };
+    const bool united = Unites();
     if (Raster<float>* heights = samples.Grid()) {
+        const std::span<const float> values = std::as_const(*heights).Values();
+        const std::vector<float> ground =
+            united ? std::vector<float>(values.begin(), values.end()) : std::vector<float>{};
+        const std::size_t width = heights->Width();
         std::vector<std::vector<PixelWindow>> windows;
         for (const Relief& relief : reliefs) {
             windows.push_back(WindowsAround(*heights, relief.box, surface_));
@@ -282,7 +436,8 @@ void BoulderLayer::DrawRelief(SampleBlock& samples, const std::vector<Relief>& r
             *heights, threads, reliefs.size(),
             [&](std::size_t n) -> const std::vector<PixelWindow>& { return windows[n]; },
             [&](float& cell, const FeatureCell& at) {
-                cell = draw(cell, at.centre, reliefs[at.feature]);
+                const float base = united ? ground[at.row * width + at.col] : cell;
+                cell = draw(cell, base, at.centre, reliefs[at.feature]);
             });
         return;
     }
@@ -291,9 +446,10 @@ void BoulderLayer::DrawRelief(SampleBlock& samples, const std::vector<Relief>& r
             continue;
         }
         const Vec2d p = samples.Position(i);
+        const float base = samples.Height(i);
         for (const Relief& relief : reliefs) {
             if (surface_.Contains(relief.box, p)) {
-                samples.Height(i) = draw(samples.Height(i), p, relief);
+                samples.Height(i) = draw(samples.Height(i), base, p, relief);
             }
         }
     }
@@ -316,9 +472,11 @@ std::vector<BoulderModel> BoulderLayer::Models(const std::vector<Boulder>& bould
     for (const Boulder& boulder : boulders) {
         if (boulder.model && boulder.ground) {
             const auto shape = Shape(boulder);
-            models.push_back(
-                {boulder, BoulderShapeSeed(boulder.id, options_.rendering.shapePrototypes), shape,
-                 PlaceBoulderModel(InLocalFrame(boulder), *shape, *boulder.ground)});
+            models.push_back({boulder,
+                              BoulderShapeSeed(boulder.parent != 0 ? boulder.parent : boulder.id,
+                                               options_.rendering.shapePrototypes),
+                              shape,
+                              PlaceBoulderModel(InLocalFrame(boulder), *shape, *boulder.ground)});
         }
     }
     return models;

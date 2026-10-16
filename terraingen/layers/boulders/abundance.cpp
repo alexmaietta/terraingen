@@ -2,6 +2,7 @@
 
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/fade.h"
+#include "terraingen/noise/worley.h"
 
 #include <algorithm>
 #include <cmath>
@@ -12,6 +13,7 @@ namespace terraingen {
 namespace {
 
 constexpr std::uint32_t kBoulderPatches = 0x50415443u;
+constexpr std::uint32_t kBoulderClusters = 0x434C5553u;
 
 /// Golombek-Rapp boulders per m^2 per metre of diameter at `diameter` for coverage `k`.
 double GolombekRappDensity(double diameter, double k, double qa, double qb) {
@@ -63,6 +65,20 @@ CraterList BoulderLayer::EjectaCraters(const Bounds2d& region) const {
     });
 }
 
+double BoulderLayer::NearestClusterDistance(double x, double y) const {
+    const double spacing = options_.clusters.spacing;
+    const std::uint32_t seed = options_.seed ^ kBoulderClusters;
+    if (surface_.IsBody()) {
+        const Vec3d p = surface_.Position({x, y});
+        const double s = 1.0 / spacing;
+        return spacing * static_cast<double>(
+                             Worley3(SplitLatticePrecise3(s * p.x, s * p.y, s * p.z), seed).f1);
+    }
+    return spacing *
+           static_cast<double>(
+               Worley2(static_cast<float>(x / spacing), static_cast<float>(y / spacing), seed).f1);
+}
+
 double BoulderLayer::BackgroundAbundance(double x, double y, const Ground* ground) const {
     double background = 1.0;
     const BoulderPatches& patches = options_.patches;
@@ -70,6 +86,12 @@ double BoulderLayer::BackgroundAbundance(double x, double y, const Ground* groun
         const double noise =
             PatchNoise(surface_, x, y, patches.size, options_.seed ^ kBoulderPatches);
         background = std::pow(patches.spread, noise);
+    }
+    const BoulderClusters& clusters = options_.clusters;
+    if (clusters.share > 0.0) {
+        const double nearest = NearestClusterDistance(x, y);
+        background *=
+            1.0 - clusters.share + clusters.share * ClusterBump(nearest, clusters) / clusterMean_;
     }
     if (exposure_) {
         RequireGround(ground, "Boulders that read the exposure field");

@@ -15,6 +15,7 @@ terraingen_add_library(
     boulders/boulder_layer.cpp
     boulders/boulder_models.cpp
     boulders/boulder_options.cpp
+    boulders/boulder_fragments.cpp
     boulders/boulder_shape.cpp
     craters/crater.cpp
     craters/crater_layer.cpp

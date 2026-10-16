@@ -2,6 +2,7 @@
 
 #include "terraingen/distribution/golombek_rapp.h"
 #include "terraingen/distribution/summed.h"
+#include "terraingen/noise/worley.h"
 #include "terraingen/util/checks.h"
 
 #include <cmath>
@@ -144,6 +145,59 @@ void ValidateBoulderFillet(const BoulderFillet& fillet) {
     }
 }
 
+void ValidateBoulderClusters(const BoulderClusters& clusters) {
+    if (!(clusters.share >= 0.0 && clusters.share <= 1.0)) {
+        throw std::invalid_argument("Boulder cluster share must be in [0, 1]");
+    }
+    if (!(clusters.radius > 0.0 && clusters.radius < clusters.spacing &&
+          std::isfinite(clusters.spacing))) {
+        throw std::invalid_argument("Boulder clusters must satisfy 0 < radius < spacing");
+    }
+}
+
+double ClusterBump(double distance, const BoulderClusters& clusters) {
+    const double r = distance / clusters.radius;
+    return std::exp(-0.5 * r * r);
+}
+
+double MeanClusterBump(const BoulderClusters& clusters) {
+    constexpr int kSamples = 256;
+    constexpr double kCells = 16.0;
+    double sum = 0.0;
+    for (int j = 0; j < kSamples; ++j) {
+        for (int i = 0; i < kSamples; ++i) {
+            const double u = (i + 0.5) * kCells / kSamples;
+            const double v = (j + 0.5) * kCells / kSamples;
+            const WorleyDistances d =
+                Worley2(static_cast<float>(u), static_cast<float>(v), 0x434C5553u);
+            sum += ClusterBump(static_cast<double>(d.f1) * clusters.spacing, clusters);
+        }
+    }
+    return sum / (kSamples * kSamples);
+}
+
+double MaxClusterAbundance(const BoulderClusters& clusters) {
+    if (clusters.share <= 0.0) {
+        return 1.0;
+    }
+    return 1.0 - clusters.share + clusters.share / MeanClusterBump(clusters);
+}
+
+void ValidateBoulderFragmentation(const BoulderFragmentation& fragmentation) {
+    RequirePositive(fragmentation.minDiameter, "Boulder fragmentation minDiameter");
+    if (!(fragmentation.splitWear >= 0.0 && fragmentation.rubbleWear >= fragmentation.splitWear &&
+          fragmentation.rubbleWear <= 1.0)) {
+        throw std::invalid_argument(
+            "Boulder fragmentation must satisfy 0 <= splitWear <= rubbleWear <= 1");
+    }
+    if (!(fragmentation.minPieces >= 2 && fragmentation.maxPieces >= fragmentation.minPieces &&
+          fragmentation.maxPieces <= 12)) {
+        throw std::invalid_argument("Boulder fragments must satisfy 2 <= min <= max <= 12 pieces");
+    }
+    RequireNonNegative(fragmentation.gapRatio, "Boulder fragmentation gapRatio");
+    RequireNonNegative(fragmentation.spreadRatio, "Boulder fragmentation spreadRatio");
+}
+
 double FilletReach(const Boulder& boulder, const BoulderFillet& fillet) {
     return (0.5 + fillet.widthRatio) * boulder.diameter;
 }
@@ -170,6 +224,8 @@ void ValidateBoulderRendering(const BoulderRendering& rendering) {
 void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
     ValidateBoulderSizes(options.sizes);
     ValidateBoulderPatches(options.patches);
+    ValidateBoulderClusters(options.clusters);
+    ValidateBoulderFragmentation(options.fragmentation);
     ValidateBoulderBedrock(options.bedrock);
     if (!options.sizes.distribution &&
         options.sizes.coverage * MaxBackgroundAbundance(options) >= 1.0) {
@@ -185,7 +241,8 @@ void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
 
 double MaxBackgroundAbundance(const BoulderLayerOptions& options) {
     return options.patches.spread *
-           (options.bedrock.exposure ? std::fmax(1.0, options.bedrock.abundance) : 1.0);
+           (options.bedrock.exposure ? std::fmax(1.0, options.bedrock.abundance) : 1.0) *
+           MaxClusterAbundance(options.clusters);
 }
 
 std::shared_ptr<const SizeFrequencyDistribution> EjectaSizes(const BoulderLayerOptions& options) {

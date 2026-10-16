@@ -77,3 +77,17 @@ TEST(BoulderLayerStatistics, CountsFollowAnyDistribution) {
         EXPECT_NEAR(CountBoulders(layer, region), expected, 4.0 * std::sqrt(expected));
     }
 }
+
+TEST(BoulderLayerStatistics, ClustersKeepTheCountOfADistribution) {
+    const auto distribution =
+        terraingen::Sp8023IntercraterBlocks(terraingen::SpecificationCurve::Nominal);
+    BoulderLayerOptions options;
+    options.sizes.distribution = distribution;
+    options.sizes.minDiameter = 0.2;
+    options.clusters = {.share = 0.7, .spacing = 30.0, .radius = 4.0};
+    const BoulderLayer layer(options);
+    const terraingen::Bounds2d region{-150.0, -150.0, 150.0, 150.0};
+    const double expected = distribution->ExpectedCount(300.0 * 300.0, 0.2, 4.0);
+    EXPECT_NEAR(CountBoulders(layer, region), expected,
+                4.0 * std::sqrt(expected) + 0.03 * expected);
+}

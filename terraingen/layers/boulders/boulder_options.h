@@ -61,6 +61,38 @@ struct BoulderPatches {
     bool operator==(const BoulderPatches&) const = default;
 };
 
+/// Boulders between craters gathered in clusters: `share` of them crowd within about `radius` of
+/// cluster centres about `spacing` apart and the rest stay scattered. The mean abundance is kept:
+/// the mean count with a size distribution, the mean coverage with Golombek-Rapp boulders.
+struct BoulderClusters {
+    double share = 0.0;     ///< Share of the boulders in clusters, in [0, 1]; 0 for none.
+    double spacing = 50.0;  ///< Typical distance between cluster centres (m).
+    double radius = 5.0;    ///< Gaussian radius of a cluster (m), below `spacing`.
+
+    bool operator==(const BoulderClusters&) const = default;
+};
+
+/// Boulders broken by wear into pieces that replace them. From `splitWear` a boulder at least
+/// `minDiameter` across is split by near-vertical cracks into pieces that still fit, their gaps
+/// opening to `gapRatio` of its diameter; from `rubbleWear` the pieces scatter up to `spreadRatio`
+/// diameters further, turn and sink. A split wear of 1 breaks nothing.
+struct BoulderFragmentation {
+    double minDiameter = 1.0;  ///< Smallest boulder that breaks (m).
+    double splitWear = 1.0;    ///< Wear from which boulders are split, in [0, 1].
+    double rubbleWear = 1.0;   ///< Wear from which the pieces scatter, at least `splitWear`.
+    int minPieces = 2;         ///< Fewest pieces, at least 2.
+    int maxPieces = 5;         ///< Most pieces, at most 12.
+    double gapRatio = 0.04;    ///< Widest crack between split pieces, over the diameter.
+    double spreadRatio = 0.6;  ///< How far rubble scatters beyond that, over the diameter.
+
+    /// Whether any boulder breaks.
+    bool Enabled() const {
+        return splitWear < 1.0;
+    }
+
+    bool operator==(const BoulderFragmentation&) const = default;
+};
+
 /// How the share of a crater's blocks falls off with distance from its centre, in radii.
 enum class EjectaProfile {
     /// Every block inside the rim, falling along a smoothstep to none at `reach`.
@@ -183,15 +215,17 @@ struct BoulderRendering {
 
 /// How a `BoulderLayer` sizes, places, poses and draws its boulders.
 struct BoulderLayerOptions {
-    BoulderSizes sizes{};          ///< Sizes of the boulders between craters.
-    std::uint32_t seed = 1;        ///< Varies the boulders.
-    BoulderPatches patches{};      ///< Richer and poorer patches.
-    BoulderEjecta ejecta{};        ///< Blocks around fresh craters.
-    BoulderBedrock bedrock{};      ///< Extra boulders on bedrock.
-    BoulderPose pose{};            ///< Heights, burial, lean.
-    BoulderFillet fillet{};        ///< Regolith piled against each boulder; none by default.
-    BoulderRendering rendering{};  ///< Relief or models, and shapes.
-    ResolutionFade fade{};         ///< Fade of boulders too small for the spacing.
+    BoulderSizes sizes{};        ///< Sizes of the boulders between craters.
+    std::uint32_t seed = 1;      ///< Varies the boulders.
+    BoulderPatches patches{};    ///< Richer and poorer patches.
+    BoulderClusters clusters{};  ///< Clusters between craters; none by default.
+    BoulderEjecta ejecta{};      ///< Blocks around fresh craters.
+    BoulderBedrock bedrock{};    ///< Extra boulders on bedrock.
+    BoulderPose pose{};          ///< Heights, burial, lean.
+    BoulderFillet fillet{};      ///< Regolith piled against each boulder; none by default.
+    BoulderFragmentation fragmentation{};  ///< Boulders broken by wear; none by default.
+    BoulderRendering rendering{};          ///< Relief or models, and shapes.
+    ResolutionFade fade{};                 ///< Fade of boulders too small for the spacing.
     /// Most boulder candidates to keep generated cells of; 0 regenerates cells every time.
     std::size_t cacheBoulders = 4000000;
 
@@ -225,6 +259,28 @@ void ValidateBoulderBedrock(const BoulderBedrock& bedrock);
 /// @throws std::invalid_argument unless 0 < min <= max height ratio, 0 <= min <= max burial < 1,
 /// the lean is finite and not negative, and the burial by wear is in [0, 1].
 void ValidateBoulderPose(const BoulderPose& pose);
+
+/// Checks boulder clusters.
+/// @throws std::invalid_argument unless the share is in [0, 1] and 0 < `radius` < `spacing` are
+/// finite.
+void ValidateBoulderClusters(const BoulderClusters& clusters);
+
+/// A cluster's weight `distance` metres from its centre: a Gaussian of the cluster's radius.
+double ClusterBump(double distance, const BoulderClusters& clusters);
+
+/// The mean of `ClusterBump` of the nearest cluster centre over the plane, which the cluster field
+/// is divided by to keep the mean density.
+double MeanClusterBump(const BoulderClusters& clusters);
+
+/// The largest a cluster field multiplies the scattered boulder density by, at a cluster centre;
+/// 1 without clusters.
+double MaxClusterAbundance(const BoulderClusters& clusters);
+
+/// Checks boulder fragmentation.
+/// @throws std::invalid_argument unless the minimum diameter is positive, 0 <= `splitWear` <=
+/// `rubbleWear` <= 1, 2 <= `minPieces` <= `maxPieces` <= 12, and the ratios are finite and not
+/// negative.
+void ValidateBoulderFragmentation(const BoulderFragmentation& fragmentation);
 
 /// Checks boulder fillets.
 /// @throws std::invalid_argument unless the height share is in [0, 1] and the width ratio is
