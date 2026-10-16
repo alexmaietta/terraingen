@@ -15,6 +15,12 @@
 #include <string>
 #include <vector>
 
+using terraingen::MeshMaterial;
+using terraingen::RigidTransform;
+using terraingen::SceneMesh;
+using terraingen::SceneNode;
+using terraingen::TriangleMesh;
+using terraingen::Vec3d;
 using terraingen::testing::TempPath;
 
 namespace {
@@ -30,119 +36,140 @@ std::uint32_t Word(const std::string& bytes, std::size_t offset) {
     return value;
 }
 
+/// Expects `read` to hold `expected`'s vertices, to float precision, and its triangle count.
+void ExpectSameMesh(const TriangleMesh& read, const std::vector<Vec3d>& expected,
+                    std::size_t triangles) {
+    ASSERT_EQ(read.positions.size(), expected.size());
+    EXPECT_EQ(read.triangles.size(), triangles);
+    for (std::size_t v = 0; v < expected.size(); ++v) {
+        EXPECT_NEAR(read.positions[v].x, expected[v].x, 1e-5) << v;
+        EXPECT_NEAR(read.positions[v].y, expected[v].y, 1e-5) << v;
+        EXPECT_NEAR(read.positions[v].z, expected[v].z, 1e-5) << v;
+    }
+}
+
+/// `mesh`'s vertices placed by `node`, as `WriteScene` places them.
+std::vector<Vec3d> PlacedVertices(const TriangleMesh& mesh, const SceneNode& node) {
+    std::vector<Vec3d> placed;
+    for (const Vec3d& p : mesh.positions) {
+        placed.push_back(
+            node.pose.Apply({p.x * node.scale.x, p.y * node.scale.y, p.z * node.scale.z}));
+    }
+    return placed;
+}
+
 }  // namespace
 
-TEST(WritePly, WritesABinaryPlyWithOptionalNormals) {
+TEST(IsMeshPath, KnowsEveryMeshFormat) {
+    for (const char* path : {"out/b.glb", "b.gltf", "b.OBJ", "b.ply"}) {
+        EXPECT_TRUE(terraingen::IsMeshPath(path)) << path;
+    }
+    EXPECT_FALSE(terraingen::IsMeshPath("b.stl"));
+    EXPECT_FALSE(terraingen::IsMeshPath(""));
+}
+
+TEST(WriteMesh, WritesABinaryPlyWithOptionalNormals) {
     const auto cube = terraingen::BaseSolidMesh(terraingen::BaseSolid::Cube);
     const auto path = TempPath("cube.ply");
-    terraingen::WritePly(path, cube);
-    std::string bytes = Read(path);
-    const std::string header = "ply\nformat binary_little_endian 1.0\ncomment TerrainGen\n"
-                               "element vertex 8\nproperty float x\nproperty float y\n"
-                               "property float z\nelement face 12\n"
-                               "property list uchar uint vertex_indices\nend_header\n";
-    ASSERT_EQ(bytes.substr(0, header.size()), header);
-    EXPECT_EQ(bytes.size(), header.size() + 8 * 12 + 12 * 13);
-    float first = 0.0f;
-    std::memcpy(&first, bytes.data() + header.size(), 4);
-    EXPECT_EQ(first, -1.0f);
-
-    terraingen::WritePly(path, cube, terraingen::VertexNormals(cube));
-    bytes = Read(path);
-    EXPECT_NE(bytes.find("property float nz\n"), std::string::npos);
-    EXPECT_THROW(terraingen::WritePly(path, cube, {{0, 0, 1}}), std::invalid_argument);
-    auto broken = cube;
-    broken.triangles[0][0] = 99;
-    EXPECT_THROW(terraingen::WritePly(path, broken), std::invalid_argument);
-    EXPECT_THROW(terraingen::WritePly(TempPath("missing/dir/x.ply"), cube), std::runtime_error);
+    terraingen::WriteMesh(path, {cube, {}, {}});
+    const std::string plain = Read(path);
+    EXPECT_EQ(plain.substr(0, 4), "ply\n");
+    EXPECT_NE(plain.find("element vertex 8\n"), std::string::npos);
+    EXPECT_NE(plain.find("element face 12\n"), std::string::npos);
+    EXPECT_EQ(plain.find("property float nx"), std::string::npos);
+    const std::size_t body = plain.find("end_header\n") + 11;
+    EXPECT_EQ(plain.size() - body, 8u * 12u + 12u * 13u);
+    terraingen::WriteMesh(path, {cube, terraingen::VertexNormals(cube), {}});
+    EXPECT_NE(Read(path).find("property float nx"), std::string::npos);
 }
 
-TEST(WriteGlb, WritesAValidBinaryGltfContainer) {
-    const auto sphere = terraingen::Icosphere(2);
-    const auto shaded = terraingen::WithCreases(sphere, 0.3);
-    const auto path = TempPath("sphere.glb");
-    for (const bool normals : {false, true}) {
-        if (normals) {
-            terraingen::WriteGlb(path, shaded.mesh, shaded.normals);
-        } else {
-            terraingen::WriteGlb(path, sphere);
-        }
-        const std::string bytes = Read(path);
-        ASSERT_GE(bytes.size(), 28u);
-        EXPECT_EQ(bytes.substr(0, 4), "glTF");
-        EXPECT_EQ(Word(bytes, 4), 2u);
-        EXPECT_EQ(Word(bytes, 8), bytes.size());
-        const std::uint32_t jsonLength = Word(bytes, 12);
-        EXPECT_EQ(bytes.substr(16, 4), "JSON");
-        EXPECT_EQ(jsonLength % 4, 0u);
-        const std::string json = bytes.substr(20, jsonLength);
-        EXPECT_NE(json.find(R"("version":"2.0")"), std::string::npos);
-        EXPECT_EQ(json.find(R"("NORMAL")") != std::string::npos, normals);
-        const std::size_t binary = 20 + jsonLength;
-        EXPECT_EQ(bytes.substr(binary + 4, 3), std::string("BIN"));
-        const auto& mesh = normals ? shaded.mesh : sphere;
-        const std::size_t expected =
-            mesh.positions.size() * 12 * (normals ? 2 : 1) + mesh.triangles.size() * 12;
-        EXPECT_EQ(Word(bytes, binary), expected);
-        EXPECT_NE(json.find(R"("byteLength":)" + std::to_string(expected)), std::string::npos);
-    }
-    float y = 0.0f;
-    terraingen::TriangleMesh tilted;
-    tilted.positions = {{0, 0, 2}, {1, 0, 2}, {0, 1, 2}};
+TEST(WriteMesh, RoundTripsThroughObjAndGltfInZUp) {
+    TriangleMesh tilted;
+    tilted.positions = {{0, 0, 2}, {1, 0, 2}, {0, 1, 2.5}};
     tilted.triangles = {{0, 1, 2}};
-    terraingen::WriteGlb(path, tilted);
-    const std::string bytes = Read(path);
-    std::memcpy(&y, bytes.data() + 20 + Word(bytes, 12) + 8 + 4, 4);
-    EXPECT_EQ(y, 2.0f) << "z up becomes y up";
-    EXPECT_THROW(terraingen::WriteGlb(path, terraingen::TriangleMesh{}), std::invalid_argument);
+    const MeshMaterial basalt{"basalt", {0.2, 0.25, 0.3}};
+    for (const char* name : {"tilted.obj", "tilted.gltf", "tilted.glb"}) {
+        const auto path = TempPath(name);
+        terraingen::WriteMesh(path, {tilted, terraingen::VertexNormals(tilted), basalt});
+        const SceneMesh read = terraingen::ReadMesh(path);
+        ExpectSameMesh(read.mesh, tilted.positions, 1);
+        EXPECT_EQ(read.material.name, "basalt") << name;
+        for (std::size_t c = 0; c < 3; ++c) {
+            EXPECT_NEAR(read.material.colour[c], basalt.colour[c], 1e-6) << name;
+        }
+    }
+    EXPECT_TRUE(std::filesystem::exists(TempPath("tilted.mtl")));
+    EXPECT_TRUE(std::filesystem::exists(TempPath("tilted.bin")));
 }
 
-TEST(WriteGlbScene, DrawsSharedMeshesOncePerNodeInTheYUpFrame) {
+TEST(WriteMesh, WritesAValidBinaryGltfContainer) {
+    const auto sphere = terraingen::Icosphere(2);
+    const auto path = TempPath("sphere.glb");
+    terraingen::WriteMesh(path, {sphere, {}, {}});
+    const std::string bytes = Read(path);
+    ASSERT_GE(bytes.size(), 28u);
+    EXPECT_EQ(bytes.substr(0, 4), "glTF");
+    EXPECT_EQ(Word(bytes, 4), 2u);
+    EXPECT_EQ(Word(bytes, 8), bytes.size());
+    EXPECT_EQ(bytes.substr(16, 4), "JSON");
+    const std::string json = bytes.substr(20, Word(bytes, 12));
+    EXPECT_NE(json.find("\"TerrainGen\""), std::string::npos);
+    EXPECT_EQ(json.find("\"NORMAL\""), std::string::npos);
+    EXPECT_THROW(terraingen::WriteMesh(path, {TriangleMesh{}, {}, {}}), std::invalid_argument);
+    EXPECT_THROW(terraingen::WriteMesh(TempPath("sphere.stl"), {sphere, {}, {}}),
+                 std::invalid_argument);
+    EXPECT_THROW(terraingen::WriteMesh(path, {sphere, {{0, 0, 1}}, {}}), std::invalid_argument);
+    EXPECT_THROW(terraingen::WriteMesh(TempPath("missing/dir/x.glb"), {sphere, {}, {}}),
+                 std::runtime_error);
+}
+
+TEST(WriteScene, PlacesEveryNodeAlikeInEveryFormat) {
     const auto cube = terraingen::BaseSolidMesh(terraingen::BaseSolid::Cube);
     const auto pyramid = terraingen::BaseSolidMesh(terraingen::BaseSolid::Pyramid);
-    std::vector<terraingen::SceneNode> nodes{
-        {0, {2.0, 3.0, 4.0}, terraingen::RigidTransform::Translation({1.0, 2.0, 3.0})},
-        {1, {1.0, 1.0, 1.0}, terraingen::RigidTransform::RotationZ(std::acos(-1.0) / 2.0)},
-        {0, {1.0, 1.0, 1.0}, {}}};
-    const auto path = TempPath("scene.glb");
-    terraingen::WriteGlbScene(path, {{cube, {}}, {pyramid, terraingen::VertexNormals(pyramid)}},
-                              nodes);
-    const std::string bytes = Read(path);
-    const std::string json = bytes.substr(20, Word(bytes, 12));
-    EXPECT_NE(json.find(R"("scenes":[{"nodes":[0,1,2]}])"), std::string::npos) << json;
-    EXPECT_NE(
-        json.find(R"({"mesh":0,"translation":[1,3,-2],"rotation":[0,0,0,1],"scale":[2,4,3]})"),
-        std::string::npos)
-        << "z up becomes y up for translations and scales";
-    EXPECT_NE(json.find(R"("rotation":[0,0.707106781,0,0.707106781])"), std::string::npos)
-        << "a turn about z is a turn about glTF's y";
-    EXPECT_EQ(Word(bytes, 8), bytes.size());
-
-    EXPECT_THROW(terraingen::WriteGlbScene(path, {}, nodes), std::invalid_argument);
-    EXPECT_THROW(terraingen::WriteGlbScene(path, {{cube, {}}}, {{3}}), std::invalid_argument);
-    EXPECT_THROW(terraingen::WriteGlbScene(path, {{cube, {}}}, {{0, {0.0, 1.0, 1.0}, {}}}),
+    const double pi = std::acos(-1.0);
+    const std::vector<SceneNode> nodes{
+        {0, {2.0, 3.0, 4.0}, RigidTransform::Translation({1.0, 2.0, 3.0})},
+        {1, {1.0, 1.0, 1.0}, RigidTransform::RotationZ(pi / 2.0)},
+        {0, {1.0, 1.0, 1.0}, RigidTransform::RotationX(pi).After(RigidTransform::RotationY(pi))}};
+    std::vector<Vec3d> expected;
+    std::size_t triangles = 0;
+    const std::vector<TriangleMesh> meshes{cube, pyramid};
+    for (const SceneNode& node : nodes) {
+        const auto placed = PlacedVertices(meshes[node.mesh], node);
+        expected.insert(expected.end(), placed.begin(), placed.end());
+        triangles += meshes[node.mesh].triangles.size();
+    }
+    const std::vector<SceneMesh> scene{{cube, {}, {}},
+                                       {pyramid, terraingen::VertexNormals(pyramid), {}}};
+    for (const char* name : {"scene.obj", "scene.gltf", "scene.glb"}) {
+        const auto path = TempPath(name);
+        terraingen::WriteScene(path, scene, nodes);
+        ExpectSameMesh(terraingen::ReadMesh(path).mesh, expected, triangles);
+    }
+    const auto path = TempPath("bad.glb");
+    EXPECT_THROW(terraingen::WriteScene(path, {}, nodes), std::invalid_argument);
+    EXPECT_THROW(terraingen::WriteScene(path, {{cube, {}, {}}}, {{3}}), std::invalid_argument);
+    EXPECT_THROW(terraingen::WriteScene(path, {{cube, {}, {}}}, {{0, {0.0, 1.0, 1.0}, {}}}),
                  std::invalid_argument);
-    terraingen::RigidTransform mirror;
+    RigidTransform mirror;
     mirror.rotation[0] = -1.0;
-    EXPECT_THROW(terraingen::WriteGlbScene(path, {{cube, {}}}, {{0, {1.0, 1.0, 1.0}, mirror}}),
-                 std::invalid_argument);
-    terraingen::RigidTransform skew;
-    skew.rotation[1] = 0.5;
-    EXPECT_THROW(terraingen::WriteGlbScene(path, {{cube, {}}}, {{0, {1.0, 1.0, 1.0}, skew}}),
+    EXPECT_THROW(terraingen::WriteScene(path, {{cube, {}, {}}}, {{0, {1.0, 1.0, 1.0}, mirror}}),
                  std::invalid_argument);
 }
 
-TEST(WriteGlbScene, WritesHalfTurnsAboutEveryAxis) {
-    const auto cube = terraingen::BaseSolidMesh(terraingen::BaseSolid::Cube);
-    const double pi = std::acos(-1.0);
-    const auto path = TempPath("turns.glb");
-    terraingen::WriteGlbScene(path, {{cube, {}}},
-                              {{0, {1, 1, 1}, terraingen::RigidTransform::RotationX(pi)},
-                               {0, {1, 1, 1}, terraingen::RigidTransform::RotationZ(pi)},
-                               {0, {1, 1, 1}, terraingen::RigidTransform::RotationY(pi)}});
-    const std::string bytes = Read(path);
-    const std::string json = bytes.substr(20, Word(bytes, 12));
-    EXPECT_NE(json.find(R"("rotation":[1,)"), std::string::npos) << "about x";
-    EXPECT_NE(json.find(R"("rotation":[0,1,)"), std::string::npos) << "about glTF's y";
-    EXPECT_NE(json.find(R"("rotation":[0,0,1,)"), std::string::npos) << "about glTF's z";
+TEST(ReadMesh, RejectsOtherFormatsAndMissingFiles) {
+    EXPECT_THROW(terraingen::ReadMesh(TempPath("rock.ply")), std::invalid_argument);
+    EXPECT_THROW(terraingen::ReadMesh(TempPath("missing.obj")), std::runtime_error);
+    EXPECT_THROW(terraingen::ReadMesh(TempPath("missing.glb")), std::runtime_error);
+    const auto empty = TempPath("empty.obj");
+    std::ofstream(empty) << "# nothing\n";
+    EXPECT_THROW(terraingen::ReadMesh(empty), std::runtime_error);
+}
+
+TEST(ReadMesh, TriangulatesObjPolygons) {
+    const auto path = TempPath("quad.obj");
+    std::ofstream(path) << "v 0 0 0\nv 1 0 0\nv 1 0 -1\nv 0 0 -1\nf 1 2 3 4\n";
+    const SceneMesh read = terraingen::ReadMesh(path);
+    ExpectSameMesh(read.mesh, {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}}, 2);
+    EXPECT_EQ(read.material, MeshMaterial{}) << "no .mtl keeps the default material";
 }

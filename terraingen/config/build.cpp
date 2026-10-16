@@ -24,6 +24,7 @@
 #include "terraingen/layers/craters/shaping/morphometry.h"
 #include "terraingen/layers/noise_relief.h"
 #include "terraingen/layers/transforms.h"
+#include "terraingen/mesh/mesh_io.h"
 #include "terraingen/sources/flat_source.h"
 #include "terraingen/sources/geotiff_source.h"
 #include "terraingen/sources/source_chain.h"
@@ -261,6 +262,7 @@ std::shared_ptr<const Source> BuildSource(const SourceSpec& spec,
 /// ejecta and secondaries) and the surface.
 struct LayerInputs {
     const Source& source;
+    const std::filesystem::path& directory;
     const std::shared_ptr<const CraterLayer>& craters;
     const Surface& surface;
 };
@@ -302,7 +304,8 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
                               return BuildCraterLayer(s, path, surface);
                           },
                           [&](const BoulderLayerSpec& s) -> LayerPtr {
-                              BoulderLayerOptions options = BuildBoulderOptions(s, path);
+                              BoulderLayerOptions options =
+                                  BuildBoulderOptions(s, path, context.directory);
                               const bool throws = options.ejecta.MinCraterDiameter() > 0.0;
                               return std::make_shared<BoulderLayer>(
                                   std::move(options), throws ? context.craters : nullptr, surface);
@@ -380,12 +383,8 @@ std::filesystem::path Resolve(const std::string& path, const std::filesystem::pa
     return resolved.is_relative() && !directory.empty() ? directory / resolved : resolved;
 }
 
-bool IsMeshFile(const std::filesystem::path& path) {
-    const std::filesystem::path extension = path.extension();
-    return extension == ".glb" || extension == ".ply";
-}
-
-BoulderLayerOptions BuildBoulderOptions(const BoulderLayerSpec& spec, const std::string& path) {
+BoulderLayerOptions BuildBoulderOptions(const BoulderLayerSpec& spec, const std::string& path,
+                                        const std::filesystem::path& directory) {
     BoulderLayerOptions options = spec.boulders;
     const auto sizes = [&](const BoulderSizesSpec& named, const std::string& key) {
         auto built = At(Child(path, key), [&] { return BuildBoulderSizes(named); });
@@ -396,6 +395,15 @@ BoulderLayerOptions BuildBoulderOptions(const BoulderLayerSpec& spec, const std:
     };
     options.sizes.distribution = sizes(spec.sizes, "sizes");
     options.ejecta.distribution = sizes(spec.ejectaSizes, "ejecta_sizes");
+    for (std::size_t i = 0; i < spec.shapeFiles.size(); ++i) {
+        const std::string file = Element(Child(path, "shape_files"), i);
+        try {
+            options.rendering.shapes.library.push_back(std::make_shared<const SceneMesh>(
+                ReadMesh(Resolve(spec.shapeFiles[i], directory))));
+        } catch (const std::exception& error) {
+            throw ConfigError(file, error.what());
+        }
+    }
     return options;
 }
 
@@ -444,7 +452,7 @@ Terrain BuildValidTerrain(const TerrainConfig& config, const std::filesystem::pa
     terrain.source = BuildSource(config.source, directory, terrain.surface);
     std::shared_ptr<const CraterLayer> craters;
     for (std::size_t i = 0; i < config.layers.size(); ++i) {
-        const LayerInputs context{*terrain.source, craters, terrain.surface};
+        const LayerInputs context{*terrain.source, directory, craters, terrain.surface};
         terrain.layers.push_back(BuildLayer(config.layers[i], Element("layers", i), context));
         if (std::holds_alternative<CraterLayerSpec>(config.layers[i])) {
             craters = std::static_pointer_cast<const CraterLayer>(terrain.layers.back());

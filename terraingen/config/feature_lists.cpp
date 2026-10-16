@@ -117,23 +117,6 @@ BoulderPlacement PlacementOf(const BoulderModel& boulder, const Surface& surface
                            surface);
 }
 
-/// Every boulder placed in the world as one mesh.
-TriangleMesh MergedBoulders(const std::vector<BoulderModel>& boulders, const Surface& surface,
-                            const Vec2d& site) {
-    TriangleMesh merged;
-    for (const BoulderModel& boulder : boulders) {
-        const auto first = static_cast<std::uint32_t>(merged.positions.size());
-        const BoulderPlacement placement = PlacementOf(boulder, surface, site);
-        for (const Vec3d& p : boulder.shape->mesh.positions) {
-            merged.positions.push_back(placement.Apply(p));
-        }
-        for (const auto& t : boulder.shape->mesh.triangles) {
-            merged.triangles.push_back({first + t[0], first + t[1], first + t[2]});
-        }
-    }
-    return merged;
-}
-
 /// Writes each shared shape once, with crease normals, and a node per boulder.
 void WriteBoulderScene(const std::vector<BoulderModel>& boulders, const std::filesystem::path& path,
                        double creaseAngle, const Surface& surface, const Vec2d& site) {
@@ -145,12 +128,13 @@ void WriteBoulderScene(const std::vector<BoulderModel>& boulders, const std::fil
         auto [found, added] = indices.emplace(boulder.shape.get(), meshes.size());
         if (added) {
             ShadedMesh shaded = WithCreases(boulder.shape->mesh, radians);
-            meshes.push_back({std::move(shaded.mesh), std::move(shaded.normals)});
+            meshes.push_back(
+                {std::move(shaded.mesh), std::move(shaded.normals), boulder.shape->material});
         }
         const BoulderPlacement placement = PlacementOf(boulder, surface, site);
         nodes.push_back({found->second, placement.scale, placement.pose});
     }
-    WriteGlbScene(path, meshes, nodes);
+    WriteScene(path, meshes, nodes);
 }
 
 }  // namespace
@@ -189,20 +173,13 @@ void WriteBoulderList(const std::vector<Boulder>& boulders, const std::filesyste
 void WriteBoulderModels(const std::vector<BoulderModel>& boulders,
                         const std::filesystem::path& path, double creaseAngle,
                         const Surface& surface, const Vec2d& site) {
-    if (!config::IsMeshFile(path)) {
-        throw std::invalid_argument("Boulder models are written as .glb or .ply");
-    }
     if (!(creaseAngle >= 0.0 && creaseAngle <= 180.0)) {
         throw std::invalid_argument("Crease angle must be between 0 and 180 degrees");
     }
     if (boulders.empty()) {
         throw std::invalid_argument("There are no boulder models to write");
     }
-    if (path.extension() == ".ply") {
-        WritePly(path, MergedBoulders(boulders, surface, site));
-    } else {
-        WriteBoulderScene(boulders, path, creaseAngle, surface, site);
-    }
+    WriteBoulderScene(boulders, path, creaseAngle, surface, site);
 }
 
 }  // namespace terraingen

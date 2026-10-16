@@ -161,9 +161,17 @@ def test_body_mesh_lies_near_the_body_radius(lunar_site, moon):
 
 def test_body_mesh_writes_ply_and_glb(tmp_path, lunar_site):
     mesh = terraingen.body_mesh(lunar_site, 8)
-    mesh.write_ply(tmp_path / "moon.ply")
-    mesh.write_glb(tmp_path / "moon.glb")
+    for name in ("moon.ply", "moon.obj", "moon.glb"):
+        mesh.write(tmp_path / name)
     assert (tmp_path / "moon.glb").read_bytes()[:4] == b"glTF"
+    assert terraingen.read_mesh(tmp_path / "moon.obj").mesh.triangle_count == mesh.triangle_count
+
+
+def test_height_mesh_has_a_vertex_per_cell(paraboloid):
+    heights = terraingen.evaluate(terraingen.Terrain(paraboloid))
+    mesh = terraingen.height_mesh(heights)
+    assert mesh.vertex_count == heights.width * heights.height
+    assert mesh.triangle_count == 2 * (heights.width - 1) * (heights.height - 1)
 
 
 def test_body_mesh_needs_a_sphere():

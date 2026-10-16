@@ -1,0 +1,50 @@
+{
+    "schema_version": 1,
+    "source": {
+        "type": "flat",
+        "width": 201,
+        "height": 201,
+        "pixel_size": 0.1
+    },
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 1,
+                    "wavelength": 30,
+                    "amplitude": 0.4,
+                    "octaves": 6
+                }
+            ]
+        },
+        {
+            "type": "boulders",
+            "seed": 1,
+            "coverage": 0.05,
+            "min_diameter": 0.2,
+            "max_diameter": 3,
+            "models": {
+                "min_diameter": 0.6
+            }
+        }
+    ],
+    "outputs": [
+        {
+            "type": "terrain_mesh",
+            "path": "example_boulders_scene_terrain.obj"
+        },
+        {
+            "type": "boulder_models",
+            "path": "example_boulders_scene_boulders.obj"
+        },
+        {
+            "type": "terrain_mesh",
+            "path": "example_boulders_scene_terrain.glb"
+        },
+        {
+            "type": "boulder_models",
+            "path": "example_boulders_scene_boulders.glb"
+        }
+    ]
+}

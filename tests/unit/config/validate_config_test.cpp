@@ -100,7 +100,7 @@ const PathCase kPathCases[] = {
     {"BoulderListWithoutPath",
      [](TerrainConfig& c) { c.outputs = {terraingen::BoulderListOutput{}}; }, "outputs[0].path"},
     {"BoulderModelsAsObj",
-     [](TerrainConfig& c) { c.outputs = {terraingen::BoulderModelsOutput{"boulders.obj"}}; },
+     [](TerrainConfig& c) { c.outputs = {terraingen::BoulderModelsOutput{"boulders.stl"}}; },
      "outputs[0].path"},
     {"BoulderModelsCreaseTooWide",
      [](TerrainConfig& c) { c.outputs = {terraingen::BoulderModelsOutput{"boulders.glb", 200.0}}; },

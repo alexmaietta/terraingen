@@ -313,6 +313,9 @@ struct BoulderLayerSpec {
     BoulderSizesSpec sizes{};        ///< Gives `boulders.sizes.distribution`.
     BoulderSizesSpec ejectaSizes{};  ///< Gives `boulders.ejecta.distribution`.
     bool extrapolate = false;        ///< Let tables be evaluated beyond their published diameters.
+    /// Rock meshes (.obj, .gltf or .glb) that replace the procedural shapes, as
+    /// `BoulderShapeOptions::library`; relative to the configuration's folder.
+    std::vector<std::string> shapeFiles{};
 
     bool operator==(const BoulderLayerSpec&) const = default;
 };
@@ -468,8 +471,7 @@ struct HeightmapOutput : GeoTiffOutput {};
 struct BoulderListOutput : ListOutput {};
 
 /// Output "boulder_models": writes the boulders placed as 3D models
-/// (`BoulderModelThreshold`) on the ground beneath them, as a glTF scene (.glb) drawing each
-/// shared shape once per boulder, or as one merged PLY mesh (.ply).
+/// (`BoulderModelThreshold`) on the ground beneath them, as `WriteBoulderModels` does.
 struct BoulderModelsOutput {
     std::string path;
     double creaseAngle = 35.0;  ///< Degrees between faces above which vertices are split.
@@ -480,8 +482,8 @@ struct BoulderModelsOutput {
 /// (red, green, blue).
 struct AlbedoOutput : GeoTiffOutput {};
 
-/// Output "body_mesh": a mesh of the whole body on a sphere (`BodyMesh`), as a glTF binary
-/// (.glb, with smooth normals) or PLY (.ply).
+/// Output "body_mesh": a mesh of the whole body on a sphere (`BodyMesh`), with smooth normals, in
+/// any format `WriteMesh` writes.
 struct BodyMeshOutput {
     std::string path;
     std::size_t cellsPerFace = 128;   ///< Quads along each edge of the six cube faces.
@@ -489,9 +491,17 @@ struct BodyMeshOutput {
     bool operator==(const BodyMeshOutput&) const = default;
 };
 
+/// Output "terrain_mesh": the generated heights as a mesh (`HeightMesh`), with smooth normals, in
+/// any format `WriteMesh` writes and in the frame boulder models are written in.
+struct TerrainMeshOutput {
+    std::string path;
+    bool operator==(const TerrainMeshOutput&) const = default;
+};
+
 /// An output, named in JSON by its "type".
-using OutputSpec = std::variant<HeightmapOutput, CraterListOutput, BoulderListOutput,
-                                BoulderModelsOutput, AlbedoOutput, BodyMeshOutput>;
+using OutputSpec =
+    std::variant<HeightmapOutput, CraterListOutput, BoulderListOutput, BoulderModelsOutput,
+                 AlbedoOutput, BodyMeshOutput, TerrainMeshOutput>;
 
 /// Albedo source "synthetic": `SyntheticAlbedo`, a base colour with a noise stack per
 /// channel (each 0 to `kMaxNoiseLayers` layers), measured from the terrain source's reference

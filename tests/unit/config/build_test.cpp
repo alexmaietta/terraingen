@@ -284,13 +284,6 @@ TEST(Resolve, ResolvesRelativePathsAgainstAFolder) {
     EXPECT_EQ(terraingen::config::Resolve("a.tif", {}), std::filesystem::path("a.tif"));
 }
 
-TEST(IsMeshFile, AcceptsGlbAndPly) {
-    EXPECT_TRUE(terraingen::config::IsMeshFile("out/b.glb"));
-    EXPECT_TRUE(terraingen::config::IsMeshFile("b.ply"));
-    EXPECT_FALSE(terraingen::config::IsMeshFile("b.obj"));
-    EXPECT_FALSE(terraingen::config::IsMeshFile(""));
-}
-
 TEST(BuildTerrain, BuildsEveryLayerKindInOrder) {
     TerrainConfig config = Small();
     terraingen::BoulderLayerSpec boulders;

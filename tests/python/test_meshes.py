@@ -75,13 +75,38 @@ def test_subdivision_quadruples_the_triangles(cube):
 
 
 def test_meshes_write_ply_and_glb_scenes(tmp_path, cube):
-    cube.write_ply(tmp_path / "cube.ply", normals=cube.vertex_normals())
-    terraingen.write_glb_scene(
+    cube.write(tmp_path / "cube.ply", normals=cube.vertex_normals())
+    assert (tmp_path / "cube.ply").read_bytes()[:3] == b"ply"
+    terraingen.write_scene(
         tmp_path / "scene.glb",
-        [cube, terraingen.icosphere(3)],
+        [terraingen.SceneMesh(cube), terraingen.SceneMesh(terraingen.icosphere(3))],
         [terraingen.SceneNode(0), terraingen.SceneNode(1, scale=(2.0, 2.0, 2.0), pose=shifted_turn())],
     )
     assert (tmp_path / "scene.glb").read_bytes()[:4] == b"glTF"
+
+
+@pytest.mark.parametrize("name", ["rock.obj", "rock.gltf", "rock.glb"])
+def test_meshes_round_trip_with_their_material(tmp_path, cube, name):
+    basalt = terraingen.MeshMaterial("basalt", (0.2, 0.25, 0.3))
+    cube.write(tmp_path / name, material=basalt)
+    read = terraingen.read_mesh(tmp_path / name)
+    np.testing.assert_allclose(read.mesh.arrays[0], cube.arrays[0], atol=1e-6)
+    assert read.material.name == "basalt"
+    assert read.material.colour == pytest.approx((0.2, 0.25, 0.3))
+    assert terraingen.is_mesh_path(tmp_path / name) and not terraingen.is_mesh_path("rock.stl")
+
+
+def test_boulder_shapes_draw_from_a_library_of_rocks(cube):
+    rock = terraingen.SceneMesh(cube.scaled((3.0, 1.0, 2.0)), terraingen.MeshMaterial("granite"))
+    options = terraingen.BoulderShapeOptions(subdivisions=1)
+    options.library = [rock]
+    shape = terraingen.generate_boulder_shape(5, options)
+    assert shape.material.name == "granite"
+    assert shape.intermediate == pytest.approx(1.0 / 3.0)
+    assert shape.short_axis == pytest.approx(2.0 / 3.0)
+    assert len(options.library) == 1
+    normalized = terraingen.normalized_boulder_shape(rock)
+    assert np.ptp(normalized.mesh.arrays[0][:, 0]) == pytest.approx(1.0)
 
 
 def test_default_boulder_styles():
@@ -109,7 +134,7 @@ def test_custom_boulder_style_sets_the_intermediate_axis(tmp_path):
         1, terraingen.BoulderShapeOptions(styles=[egg_style()], subdivisions=3)
     )
     assert smooth.style == 0 and smooth.intermediate == pytest.approx(0.8)
-    smooth.mesh.write_glb(tmp_path / "egg.glb")
+    smooth.mesh.write(tmp_path / "egg.glb")
 
 
 def test_boulder_shape_seed_wraps_to_the_prototype_count():

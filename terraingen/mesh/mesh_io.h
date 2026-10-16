@@ -1,38 +1,30 @@
 /// @file
-/// @brief Writers for triangle meshes and instanced scenes as PLY and binary glTF.
+/// @brief Reading and writing triangle meshes and instanced scenes as PLY, OBJ with MTL, and glTF.
 #pragma once
 
 #include "terraingen/mesh/mesh.h"
 
+#include <array>
 #include <cstddef>
 #include <filesystem>
+#include <string>
 #include <vector>
 
 namespace terraingen {
 
-/// Writes a mesh as a binary little-endian PLY file, float32 positions and normals and
-/// uint32 indices.
-/// @param normals Empty, or one unit normal per vertex.
-/// @throws std::invalid_argument for normals that are neither empty nor one per vertex, or a
-/// triangle indexing past the vertices.
-/// @throws std::runtime_error if the file cannot be written.
-void WritePly(const std::filesystem::path& path, const TriangleMesh& mesh,
-              const std::vector<Vec3d>& normals = {});
+/// A mesh's material: a name and a diffuse colour.
+struct MeshMaterial {
+    std::string name = "default";                 ///< Name in OBJ/MTL and glTF.
+    std::array<double, 3> colour{0.5, 0.5, 0.5};  ///< Linear RGB, each in [0, 1].
 
-/// Writes a mesh as a binary glTF 2.0 file (.glb) with one node and one triangle primitive,
-/// converted from z-up to glTF's y-up frame.
-/// @param mesh The mesh, in metres.
-/// @param normals Empty, or one unit normal per vertex.
-/// @throws std::invalid_argument for an empty mesh, normals that are neither empty nor one per
-/// vertex, or a triangle indexing past the vertices.
-/// @throws std::runtime_error if the file cannot be written.
-void WriteGlb(const std::filesystem::path& path, const TriangleMesh& mesh,
-              const std::vector<Vec3d>& normals = {});
+    bool operator==(const MeshMaterial&) const = default;
+};
 
-/// A mesh of a glTF scene.
+/// A mesh with optional normals and its material.
 struct SceneMesh {
     TriangleMesh mesh;           ///< The mesh, in metres.
     std::vector<Vec3d> normals;  ///< Empty, or one unit normal per vertex.
+    MeshMaterial material{};     ///< Written as an MTL material or a glTF base colour.
 };
 
 /// An instance of a scene mesh: its vertices scaled per axis by `scale`, then moved by
@@ -43,13 +35,29 @@ struct SceneNode {
     RigidTransform pose{};       ///< Rotation and translation applied after the scale.
 };
 
-/// Writes a binary glTF 2.0 file (.glb) of meshes drawn once per node, so each shared
-/// shape is stored once; converted to y-up as `WriteGlb` is.
-/// @throws std::invalid_argument for no meshes or nodes, an empty mesh, mismatched normals, a
-/// triangle indexing past its vertices, a node naming no mesh, a scale that is zero or not finite,
-/// or a pose whose rotation is not a rotation.
-/// @throws std::runtime_error if the file cannot be written.
-void WriteGlbScene(const std::filesystem::path& path, const std::vector<SceneMesh>& meshes,
-                   const std::vector<SceneNode>& nodes);
+/// Whether `path` names a mesh format by its extension: .ply, .obj, .gltf or .glb.
+bool IsMeshPath(const std::filesystem::path& path);
+
+/// Writes meshes drawn once per node, in the format the extension names. glTF (.glb, or .gltf
+/// with a .bin beside it) stores each mesh once and instances it; OBJ (with an .mtl beside it)
+/// writes one object per node, and PLY one merged mesh. OBJ and glTF are y-up: TerrainGen's z-up
+/// (x, y, z) is written as (x, z, -y).
+/// @throws std::invalid_argument for another extension, no meshes or nodes, an empty or invalid
+/// mesh, mismatched normals, a node naming no mesh, a scale that is zero or not finite, or a pose
+/// whose rotation is not a rotation.
+/// @throws std::runtime_error if a file cannot be written.
+void WriteScene(const std::filesystem::path& path, const std::vector<SceneMesh>& meshes,
+                const std::vector<SceneNode>& nodes);
+
+/// Writes one mesh, as `WriteScene` with a single node.
+/// @throws std::invalid_argument and std::runtime_error as `WriteScene`.
+void WriteMesh(const std::filesystem::path& path, const SceneMesh& mesh);
+
+/// Reads every triangle of an .obj (polygons triangulated) or a .gltf or .glb (every triangle
+/// primitive of the default scene, with its nodes' transforms), converted to z-up, with the first
+/// material's diffuse colour. Normals are not read.
+/// @throws std::invalid_argument for another extension.
+/// @throws std::runtime_error if the file cannot be read or holds no triangles.
+SceneMesh ReadMesh(const std::filesystem::path& path);
 
 }  // namespace terraingen

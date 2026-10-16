@@ -55,14 +55,16 @@ template <typename IO> void Fields(IO& io, BoulderListOutput& output) {
 template <> struct SpecName<BoulderModelsOutput> {
     static constexpr std::string_view kName = "boulder_models";
     static constexpr std::string_view kDescription =
-        "Writes the boulders placed as 3D models on the ground, as a glTF scene (.glb) or one "
-        "merged PLY mesh (.ply).";
+        "Writes the boulders placed as 3D models on the ground: as a glTF scene (.glb, or .gltf "
+        "with "
+        "a .bin) drawing each shape once per boulder, as OBJ (.obj with an .mtl) with one object "
+        "per boulder, or as one merged PLY mesh (.ply).";
 };
 template <typename IO> void Fields(IO& io, BoulderModelsOutput& output) {
-    io("path", output.path, OutputPathHelp("File to write, ending in .glb or .ply"));
+    io("path", output.path, OutputPathHelp("File to write, ending in .glb, .gltf, .obj or .ply"));
     io("crease_angle", output.creaseAngle,
-       "Angle in degrees, from 0 to 180: in .glb files, vertices are split where faces meet at "
-       "more than it, giving sharp edges; .ply files ignore it.",
+       "Angle in degrees, from 0 to 180: vertices are split where faces meet at more than it, "
+       "giving sharp edges.",
        "deg");
 }
 
@@ -78,11 +80,11 @@ template <typename IO> void Fields(IO& io, AlbedoOutput& output) {
 template <> struct SpecName<BodyMeshOutput> {
     static constexpr std::string_view kName = "body_mesh";
     static constexpr std::string_view kDescription =
-        "Writes a mesh of the whole body on a sphere, from six cube faces, as glTF (.glb) or PLY "
-        "(.ply).";
+        "Writes a mesh of the whole body on a sphere, from six cube faces, as glTF (.glb or "
+        ".gltf), OBJ (.obj) or PLY (.ply).";
 };
 template <typename IO> void Fields(IO& io, BodyMeshOutput& output) {
-    io("path", output.path, OutputPathHelp("File to write, ending in .glb or .ply"));
+    io("path", output.path, OutputPathHelp("File to write, ending in .glb, .gltf, .obj or .ply"));
     io("cells_per_face", output.cellsPerFace,
        "Quads along each edge of the six cube faces, 1 to 4096; more give a finer mesh, with two "
        "triangles per quad.");
@@ -90,6 +92,16 @@ template <typename IO> void Fields(IO& io, BodyMeshOutput& output) {
        "Sample spacing in metres the heights are evaluated at, which sets the finest features "
        "kept; unset uses a quad's side at a face's centre.",
        "m");
+}
+
+template <> struct SpecName<TerrainMeshOutput> {
+    static constexpr std::string_view kName = "terrain_mesh";
+    static constexpr std::string_view kDescription =
+        "Writes the generated heights as a triangle mesh, a vertex per cell with data, as glTF "
+        "(.glb or .gltf), OBJ (.obj) or PLY (.ply), in the frame boulder models are written in.";
+};
+template <typename IO> void Fields(IO& io, TerrainMeshOutput& output) {
+    io("path", output.path, OutputPathHelp("File to write, ending in .glb, .gltf, .obj or .ply"));
 }
 
 }  // namespace terraingen::config

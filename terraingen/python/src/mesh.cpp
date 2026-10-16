@@ -7,10 +7,13 @@
 #include "terraingen/mesh/polyhedra.h"
 
 #include <nanobind/ndarray.h>
+#include <nanobind/operators.h>
 #include <nanobind/stl/array.h>
 
 #include <array>
 #include <stdexcept>
+#include <string>
+#include <utility>
 #include <vector>
 
 namespace terraingen::python {
@@ -89,19 +92,13 @@ void BindRigidTransform(nb::module_& m) {
 
 void BindMeshFiles(nb::class_<TriangleMesh>& mesh) {
     mesh.def(
-            "write_ply",
-            [](const TriangleMesh& self, const std::filesystem::path& path,
-               const std::optional<Points>& normals) {
-                WritePly(path, self, OptionalNormals(normals));
-            },
-            "path"_a, "normals"_a = nb::none())
-        .def(
-            "write_glb",
-            [](const TriangleMesh& self, const std::filesystem::path& path,
-               const std::optional<Points>& normals) {
-                WriteGlb(path, self, OptionalNormals(normals));
-            },
-            "path"_a, "normals"_a = nb::none());
+        "write",
+        [](const TriangleMesh& self, const std::filesystem::path& path,
+           const std::optional<Points>& normals, const MeshMaterial& material) {
+            WriteMesh(path, {self, OptionalNormals(normals), material});
+        },
+        "path"_a, "normals"_a = nb::none(), "material"_a = MeshMaterial{},
+        "Writes the mesh as .ply, .obj (with an .mtl), .gltf (with a .bin) or .glb, by extension.");
 }
 
 void BindTriangleMesh(nb::module_& m) {
@@ -158,6 +155,31 @@ void BindTriangleMesh(nb::module_& m) {
 }
 
 void BindScene(nb::module_& m) {
+    nb::class_<MeshMaterial>(m, "MeshMaterial", "A mesh's material: a name and a diffuse colour.")
+        .def(
+            "__init__",
+            [](MeshMaterial* self, std::string name, std::array<double, 3> colour) {
+                new (self) MeshMaterial{std::move(name), colour};
+            },
+            "name"_a = "default", "colour"_a = std::array<double, 3>{0.5, 0.5, 0.5},
+            "`colour` is linear RGB, each in [0, 1].")
+        .def_rw("name", &MeshMaterial::name)
+        .def_rw("colour", &MeshMaterial::colour)
+        .def(nb::self == nb::self);
+    nb::class_<SceneMesh>(m, "SceneMesh", "A mesh and its material.")
+        .def(
+            "__init__",
+            [](SceneMesh* self, TriangleMesh mesh, MeshMaterial material) {
+                new (self) SceneMesh{std::move(mesh), {}, std::move(material)};
+            },
+            "mesh"_a, "material"_a = MeshMaterial{})
+        .def_rw("mesh", &SceneMesh::mesh)
+        .def_rw("material", &SceneMesh::material);
+    m.def("read_mesh", &ReadMesh, "path"_a,
+          "Every triangle of an .obj, .gltf or .glb file in z-up metres, with its first material.");
+    m.def(
+        "is_mesh_path", [](const std::filesystem::path& path) { return IsMeshPath(path); },
+        "path"_a, "Whether the extension names a mesh format: .ply, .obj, .gltf or .glb.");
     nb::class_<SceneNode>(m, "SceneNode",
                           "An instance of a scene mesh: scaled per axis, then moved by `pose`.")
         .def(
@@ -168,26 +190,17 @@ void BindScene(nb::module_& m) {
             "mesh"_a, "scale"_a = Vec3d{1.0, 1.0, 1.0}, "pose"_a = RigidTransform{})
         .def_rw("mesh", &SceneNode::mesh)
         .def_rw("pose", &SceneNode::pose);
-    m.def(
-        "write_glb_scene",
-        [](const std::filesystem::path& path, const std::vector<TriangleMesh>& meshes,
-           const std::vector<SceneNode>& nodes) {
-            std::vector<SceneMesh> scene;
-            for (const TriangleMesh& mesh : meshes) {
-                scene.push_back({mesh, {}});
-            }
-            WriteGlbScene(path, scene, nodes);
-        },
-        "path"_a, "meshes"_a, "nodes"_a,
-        "A glTF scene of `meshes` drawn once per node, each mesh stored once.");
+    m.def("write_scene", &WriteScene, "path"_a, "meshes"_a, "nodes"_a,
+          "Writes `meshes` (SceneMesh) drawn once per node: a glTF scene storing each mesh once, "
+          "an OBJ with one object per node, or one merged PLY mesh.");
 }
 
 }  // namespace
 
 void BindMesh(nb::module_& m) {
     BindRigidTransform(m);
-    BindTriangleMesh(m);
     BindScene(m);
+    BindTriangleMesh(m);
 }
 
 }  // namespace terraingen::python

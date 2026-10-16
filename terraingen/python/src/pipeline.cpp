@@ -9,6 +9,7 @@
 #include "terraingen/config/validate.h"
 #include "terraingen/pipeline/body_mesh.h"
 #include "terraingen/pipeline/features.h"
+#include "terraingen/pipeline/height_mesh.h"
 #include "terraingen/pipeline/terrain.h"
 #include "terraingen/pipeline/tiles.h"
 
@@ -176,6 +177,10 @@ void BindEvaluation(nb::module_& m) {
         },
         "terrain"_a, "spacing"_a,
         "How far (m) the terrain's filters read around a grid evaluated at `spacing`.");
+    m.def("height_mesh", &HeightMesh, "heights"_a, "surface"_a = Surface{},
+          "site"_a = Vec2d{0.0, 0.0},
+          "The heights as a mesh, a vertex per cell with data, in the frame boulder models are "
+          "written in: world coordinates on a plane, east-north-up metres of `site` on a sphere.");
     m.def(
         "body_mesh",
         [](const PyTerrain& terrain, std::size_t cellsPerFace, double spacing, unsigned threads) {

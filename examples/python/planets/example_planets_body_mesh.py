@@ -70,8 +70,8 @@ class Example(_common.Example):
         self.show("longitude-latitude heights", self.map, self.moon.unit_length)
 
     def save(self, out):
-        self.mesh.write_glb(out / "example_planets_body_mesh.glb")
-        self.mesh.write_ply(out / "example_planets_body_mesh.ply")
+        self.mesh.write(out / "example_planets_body_mesh.glb")
+        self.mesh.write(out / "example_planets_body_mesh.ply")
         print("wrote", write_png(out / "example_planets_body_mesh.png", normalize(self.map)))
 
     def test_final(self):

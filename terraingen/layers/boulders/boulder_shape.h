@@ -3,10 +3,12 @@
 #pragma once
 
 #include "terraingen/mesh/mesh.h"
+#include "terraingen/mesh/mesh_io.h"
 #include "terraingen/mesh/polyhedra.h"
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -53,6 +55,9 @@ struct BoulderShapeOptions {
     std::vector<BoulderStyle> styles = DefaultBoulderStyles();  ///< Styles to pick from by weight.
     int subdivisions = 3;    ///< Times the solid's triangles are split in four.
     std::uint32_t seed = 0;  ///< Seed shared by every shape.
+    /// Rock meshes, such as `ReadMesh` reads, that replace the styles when not empty: each seed
+    /// picks one, normalised to the unit form of `BoulderShape` with its z axis kept vertical.
+    std::vector<std::shared_ptr<const SceneMesh>> library{};
 
     bool operator==(const BoulderShapeOptions&) const = default;
 };
@@ -61,16 +66,23 @@ struct BoulderShapeOptions {
 /// @throws std::invalid_argument for no styles, a style with a negative weight, all weights zero,
 /// an empty or inverted range, axis ratios outside (0, 1], rounding or depths outside [0, 1],
 /// fracture counts not in 0 <= min <= max <= 64, a tilt outside [0, 1], noise amplitude outside
-/// [0, 1), a non-positive wavelength, octaves outside 1 to 12, or subdivisions outside 0 to 6.
+/// [0, 1), a non-positive wavelength, octaves outside 1 to 12, or subdivisions outside 0 to 6,
+/// or a library mesh that is null, invalid or flat along an axis.
 void ValidateBoulderShapeOptions(const BoulderShapeOptions& options);
 
 /// A boulder's shape in unit form, with the origin inside it.
 struct BoulderShape {
     TriangleMesh mesh;          ///< Long axis along x, extent exactly 1.
-    std::size_t style = 0;      ///< Index into the options' styles.
+    std::size_t style = 0;      ///< Index into the options' styles, or its library when it has one.
     double intermediate = 1.0;  ///< Extent along y, in long-axis lengths.
     double shortAxis = 1.0;     ///< Extent along z, in long-axis lengths.
+    MeshMaterial material{"rock", {0.5, 0.5, 0.5}};  ///< The library mesh's, or plain grey.
 };
+
+/// `mesh` in the unit form of `BoulderShape`: centred on its box, turned about z so its longer
+/// horizontal side lies along x, and scaled so that side is 1 long.
+/// @throws std::invalid_argument for a mesh that is invalid or flat along an axis.
+BoulderShape NormalizedBoulderShape(const SceneMesh& mesh);
 
 /// The shape a seed gives, a pure function of the seed and options; every subdivision level
 /// gives the same shape in finer detail.

@@ -204,3 +204,50 @@ TEST(WriteOutputs, WritesWholeBodyMeshes) {
     EXPECT_GT(std::filesystem::file_size(written[0]), 1000u);
     EXPECT_GT(std::filesystem::file_size(written[1]), 1000u);
 }
+
+TEST(WriteOutputs, DrawsBoulderModelsFromRockFilesAndWritesTheTerrainMesh) {
+    const auto directory = TempPath("terraingen_rock_outputs");
+    std::filesystem::remove_all(directory);
+    std::filesystem::create_directories(directory);
+    const auto cube = terraingen::BaseSolidMesh(terraingen::BaseSolid::Cube);
+    terraingen::WriteMesh(
+        directory / "rock.obj",
+        {terraingen::Scaled(cube, {1.0, 0.7, 0.5}), {}, {"basalt", {0.2, 0.2, 0.2}}});
+    TerrainConfig config = Small();
+    Flat(config) = {120, 100, 0.5};
+    terraingen::BoulderLayerSpec boulders;
+    boulders.boulders.sizes.coverage = 0.3;
+    boulders.boulders.sizes.minDiameter = 0.5;
+    boulders.boulders.rendering.models.minDiameter = 1.5;
+    boulders.shapeFiles = {"rock.obj"};
+    config.layers.push_back(boulders);
+    config.outputs = {terraingen::BoulderModelsOutput{"boulders.obj"},
+                      terraingen::TerrainMeshOutput{"terrain.glb"}};
+    const auto terrain = GenerateTerrain(config, directory);
+    const auto models = BouldersOf(terrain).models;
+    ASSERT_FALSE(models.empty());
+    const auto written = WriteOutputs(config, terrain, directory);
+    ASSERT_EQ(written.size(), 2u);
+    const auto rocks = terraingen::ReadMesh(written[0]);
+    EXPECT_EQ(rocks.material.name, "basalt");
+    EXPECT_EQ(rocks.mesh.triangles.size(), 12u * models.size()) << "a cube per boulder model";
+    const auto ground = terraingen::ReadMesh(written[1]);
+    EXPECT_EQ(ground.mesh.positions.size(), 120u * 100u);
+    EXPECT_EQ(ground.mesh.triangles.size(), 2u * 119u * 99u);
+
+    config.layers.back() = [&] {
+        terraingen::BoulderLayerSpec missing = boulders;
+        missing.shapeFiles = {"missing.obj"};
+        return missing;
+    }();
+    try {
+        terraingen::ValidateConfig(config, directory);
+        FAIL() << "a missing rock file is an error";
+    } catch (const terraingen::ConfigError& error) {
+        EXPECT_EQ(error.Path(),
+                  "layers[" + std::to_string(config.layers.size() - 1) + "].shape_files[0]");
+    }
+    config.layers.pop_back();
+    config.outputs = {terraingen::TerrainMeshOutput{"terrain.stl"}};
+    EXPECT_THROW(terraingen::ValidateConfig(config, directory), terraingen::ConfigError);
+}

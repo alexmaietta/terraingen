@@ -58,6 +58,17 @@ Vec3d DrawNormal(RandomStream& random, double maxTilt) {
 }
 
 /// The index of the style a uniform draw picks, each in proportion to its weight.
+/// The extents of a library rock, which must be a valid mesh with depth along every axis.
+Vec3d CheckRock(const TriangleMesh& mesh) {
+    ValidateMesh(mesh);
+    const Vec3d extents = Bounds(mesh).Extents();
+    if (!(extents.x > 0.0 && extents.y > 0.0 && extents.z > 0.0)) {
+        throw std::invalid_argument(
+            "Boulder shape library meshes must have depth along every axis");
+    }
+    return extents;
+}
+
 std::size_t PickStyle(RandomStream& random, const std::vector<BoulderStyle>& styles) {
     double total = 0.0;
     for (const BoulderStyle& style : styles) {
@@ -230,12 +241,42 @@ void ValidateBoulderShapeOptions(const BoulderShapeOptions& options) {
     if (options.subdivisions < 0 || options.subdivisions > 6) {
         throw std::invalid_argument("Boulder subdivisions must be between 0 and 6");
     }
+    for (const auto& rock : options.library) {
+        if (rock == nullptr) {
+            throw std::invalid_argument("Boulder shape library meshes must not be null");
+        }
+        CheckRock(rock->mesh);
+    }
+}
+
+BoulderShape NormalizedBoulderShape(const SceneMesh& rock) {
+    const Vec3d extents = CheckRock(rock.mesh);
+    const Box3d box = Bounds(rock.mesh);
+    const Vec3d centre = (box.min + box.max) * 0.5;
+    const bool turned = extents.y > extents.x;
+    const double length = std::fmax(extents.x, extents.y);
+    BoulderShape shape;
+    shape.mesh.triangles = rock.mesh.triangles;
+    for (const Vec3d& p : rock.mesh.positions) {
+        const Vec3d q = (p - centre) * (1.0 / length);
+        shape.mesh.positions.push_back(turned ? Vec3d{q.y, -q.x, q.z} : q);
+    }
+    shape.intermediate = std::fmin(extents.x, extents.y) / length;
+    shape.shortAxis = extents.z / length;
+    shape.material = rock.material;
+    return shape;
 }
 
 BoulderShape GenerateBoulderShape(std::uint64_t shapeSeed, const BoulderShapeOptions& options) {
     ValidateBoulderShapeOptions(options);
     RandomStream random(options.seed, kBoulderStream, static_cast<std::uint32_t>(shapeSeed),
                         static_cast<std::uint32_t>(shapeSeed >> 32));
+    if (!options.library.empty()) {
+        const std::size_t index = random.NextU32() % options.library.size();
+        BoulderShape shape = NormalizedBoulderShape(*options.library[index]);
+        shape.style = index;
+        return shape;
+    }
     const std::size_t index = PickStyle(random, options.styles);
     const BoulderStyle& style = options.styles[index];
     const double intermediate = Draw(random, style.intermediate);

@@ -175,7 +175,7 @@ TEST(ValidateConfig, ReportsBodyMeshProblemsByPath) {
     EXPECT_EQ(error([](auto&, auto&) {}), "valid");
     EXPECT_EQ(error([](auto& c, auto&) { c.surface = terraingen::PlaneSurfaceSpec{}; }),
               "outputs[0]");
-    EXPECT_EQ(error([](auto&, auto& o) { o.path = "m.obj"; }), "outputs[0].path");
+    EXPECT_EQ(error([](auto&, auto& o) { o.path = "m.stl"; }), "outputs[0].path");
     EXPECT_EQ(error([](auto&, auto& o) { o.cellsPerFace = 0; }), "outputs[0].cells_per_face");
     EXPECT_EQ(error([](auto&, auto& o) { o.spacing = -1.0; }), "outputs[0].spacing");
 }

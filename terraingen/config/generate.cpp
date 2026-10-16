@@ -3,6 +3,7 @@
 #include "terraingen/config/build.h"
 #include "terraingen/mesh/mesh_io.h"
 #include "terraingen/pipeline/body_mesh.h"
+#include "terraingen/pipeline/height_mesh.h"
 #include "terraingen/sources/geotiff_source.h"
 #include "terraingen/sources/source_chain.h"
 #include "terraingen/util/log.h"
@@ -88,14 +89,23 @@ bool Write(const BodyMeshOutput& output, const std::filesystem::path& path,
            const OutputContext& context) {
     const TriangleMesh mesh =
         BodyMesh(context.generated.terrain, output.cellsPerFace, output.spacing.value_or(0.0));
-    if (path.extension() == ".ply") {
-        WritePly(path, mesh);
-    } else {
-        ShadedMesh shaded = WithCreases(mesh, std::numbers::pi);
-        WriteGlb(path, shaded.mesh, shaded.normals);
-    }
+    ShadedMesh shaded = WithCreases(mesh, std::numbers::pi);
+    WriteMesh(path, {std::move(shaded.mesh), std::move(shaded.normals)});
     LogInfo("pipeline", "Wrote a body mesh of ", mesh.triangles.size(), " triangles to ",
             path.string());
+    return true;
+}
+
+bool Write(const TerrainMeshOutput& /*output*/, const std::filesystem::path& path,
+           const OutputContext& context) {
+    const Bounds2d bounds = context.grid.Bounds();
+    const Vec2d centre{0.5 * (bounds.minX + bounds.maxX), 0.5 * (bounds.minY + bounds.maxY)};
+    TriangleMesh mesh =
+        HeightMesh(context.generated.heights, context.generated.terrain.surface, centre);
+    const std::size_t triangles = mesh.triangles.size();
+    std::vector<Vec3d> normals = VertexNormals(mesh);
+    WriteMesh(path, {std::move(mesh), std::move(normals), {"terrain", {0.5, 0.5, 0.5}}});
+    LogInfo("pipeline", "Wrote a terrain mesh of ", triangles, " triangles to ", path.string());
     return true;
 }
 

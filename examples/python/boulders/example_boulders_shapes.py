@@ -84,7 +84,7 @@ class Example(_common.Example):
 
     def save(self, out):
         for style, shape in zip(self.styles, self.shapes, strict=True):
-            shape.mesh.write_glb(out / f"example_boulders_shapes_{style.name}.glb")
+            shape.mesh.write(out / f"example_boulders_shapes_{style.name}.glb", material=shape.material)
         views = [top_view(shape.mesh) for shape in self.shapes]
         print("wrote", write_png(out / "example_boulders_shapes.png", montage(views, columns=7)))
 

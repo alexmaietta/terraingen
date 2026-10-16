@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <functional>
+#include <memory>
 #include <set>
 #include <stdexcept>
 #include <vector>
@@ -140,4 +141,48 @@ TEST(BoulderShapeSeed, GivesUniqueOrSharedShapes) {
         shared.insert(seed);
     }
     EXPECT_EQ(shared.size(), 16u);
+}
+
+TEST(NormalizedBoulderShape, TurnsAndScalesARockToTheUnitForm) {
+    terraingen::SceneMesh rock{
+        terraingen::BaseSolidMesh(terraingen::BaseSolid::Cube), {}, {"granite", {0.6, 0.6, 0.55}}};
+    rock.mesh = terraingen::Scaled(rock.mesh, {2.0, 6.0, 3.0});
+    for (auto& p : rock.mesh.positions) {
+        p = p + terraingen::Vec3d{10.0, -4.0, 7.0};
+    }
+    const auto shape = terraingen::NormalizedBoulderShape(rock);
+    const auto box = terraingen::Bounds(shape.mesh);
+    EXPECT_NEAR(box.Extents().x, 1.0, 1e-12) << "the longer horizontal side along x";
+    EXPECT_NEAR(shape.intermediate, 2.0 / 6.0, 1e-12);
+    EXPECT_NEAR(shape.shortAxis, 3.0 / 6.0, 1e-12) << "z stays vertical";
+    EXPECT_NEAR(box.min.x + box.max.x, 0.0, 1e-12) << "centred on its box";
+    EXPECT_NEAR(box.min.z + box.max.z, 0.0, 1e-12);
+    EXPECT_GT(terraingen::Volume(shape.mesh), 0.0) << "turning keeps the faces outward";
+    EXPECT_EQ(shape.material.name, "granite");
+    terraingen::SceneMesh flat = rock;
+    for (auto& p : flat.mesh.positions) {
+        p.z = 0.0;
+    }
+    EXPECT_THROW(terraingen::NormalizedBoulderShape(flat), std::invalid_argument);
+}
+
+TEST(GenerateBoulderShape, DrawsFromTheLibraryWhenItHasRocks) {
+    BoulderShapeOptions options;
+    const auto cube = terraingen::BaseSolidMesh(terraingen::BaseSolid::Cube);
+    const auto pyramid = terraingen::BaseSolidMesh(terraingen::BaseSolid::Pyramid);
+    options.library = {std::make_shared<const terraingen::SceneMesh>(
+                           terraingen::SceneMesh{cube, {}, {"cube", {0.5, 0.5, 0.5}}}),
+                       std::make_shared<const terraingen::SceneMesh>(
+                           terraingen::SceneMesh{pyramid, {}, {"pyramid", {0.5, 0.5, 0.5}}})};
+    std::set<std::size_t> picked;
+    for (std::uint64_t seed = 0; seed < 40; ++seed) {
+        const auto shape = GenerateBoulderShape(seed, options);
+        picked.insert(shape.style);
+        EXPECT_EQ(shape.material.name, shape.style == 0 ? "cube" : "pyramid");
+        EXPECT_EQ(shape.mesh.positions.size(), options.library[shape.style]->mesh.positions.size());
+        EXPECT_EQ(GenerateBoulderShape(seed, options).mesh.positions, shape.mesh.positions);
+    }
+    EXPECT_EQ(picked.size(), 2u) << "every rock is used";
+    options.library.push_back(nullptr);
+    EXPECT_THROW(terraingen::ValidateBoulderShapeOptions(options), std::invalid_argument);
 }

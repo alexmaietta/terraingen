@@ -255,6 +255,10 @@ template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
        "threshold set means no models.");
     io("shapes", rendering.shapes,
        "The boulders' 3D boulder shapes, used by shape relief and by models.");
+    io("shape_files", spec.shapeFiles,
+       "Rock meshes (.obj with its .mtl, .gltf or .glb) the boulder shapes are drawn from instead "
+       "of the procedural styles, each boulder picking one by its shape seed; paths relative to "
+       "the configuration. Empty keeps the procedural shapes.");
     io("shape_prototypes", rendering.shapePrototypes,
        "How many shapes the boulders share, so they can be drawn as instances; 0 gives every "
        "boulder a shape of its own.");

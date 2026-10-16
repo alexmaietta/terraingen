@@ -112,7 +112,7 @@ class PlanetsMoon : public terraingen::examples::Example {
     void Save(const std::filesystem::path& dir) override {
         terraingen::WriteGeoTiff(dir / "example_planets_moon_site.tif", site_,
                                  terraingen::GeographicSphereKeys(moon_.Radius()));
-        terraingen::WriteGlb(dir / "example_planets_moon.glb", mesh_);
+        terraingen::WriteMesh(dir / "example_planets_moon.glb", {mesh_, {}, {}});
     }
 
     void Test() override {

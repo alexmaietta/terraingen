@@ -8,6 +8,7 @@
 #include "terraingen/config/generate.h"
 #include "terraingen/layers/craters/generation/spacing.h"
 #include "terraingen/layers/transforms.h"
+#include "terraingen/mesh/mesh_io.h"
 #include "terraingen/noise/noise_layers.h"
 #include "terraingen/sources/flat_source.h"
 #include "terraingen/util/overloaded.h"
@@ -29,7 +30,6 @@ using config::BuildBoulderOptions;
 using config::BuildRegionShape;
 using config::Child;
 using config::Element;
-using config::IsMeshFile;
 using config::RequireNonEmpty;
 using config::RequireNonNegative;
 using config::RequirePositive;
@@ -75,6 +75,7 @@ void ValidateNoiseStack(const std::vector<NoiseLayerConfig>& layers, const std::
 /// What a layer is checked against, and what the layers before it found.
 struct LayerChecks {
     const RasterGrid& grid;
+    const std::filesystem::path& directory;
     const Surface& surface;
     bool craters = false;  ///< Whether a crater layer came before.
     std::optional<double> expectedCraters{};
@@ -117,7 +118,7 @@ void ValidateCraters(const CraterLayerSpec& craters, const std::string& path,
 
 void ValidateBoulders(const BoulderLayerSpec& spec, const std::string& path,
                       const LayerChecks& context) {
-    const BoulderLayerOptions boulders = BuildBoulderOptions(spec, path);
+    const BoulderLayerOptions boulders = BuildBoulderOptions(spec, path, context.directory);
     At(path, [&] { ValidateBoulderLayerOptions(boulders); });
     if (boulders.ejecta.MinCraterDiameter() > 0.0 && !context.craters) {
         throw ConfigError(Child(Child(path, "ejecta"), "min_crater_diameter"),
@@ -296,8 +297,8 @@ struct OutputContext {
 };
 
 void RequireMeshFile(const std::string& file, const std::string& path) {
-    if (!IsMeshFile(file)) {
-        throw ConfigError(path, "must end in .glb or .ply");
+    if (!IsMeshPath(file)) {
+        throw ConfigError(path, "must end in .ply, .obj, .gltf or .glb");
     }
 }
 
@@ -350,6 +351,11 @@ void ValidateOutput(const BodyMeshOutput& output, const std::string& path,
     if (output.spacing) {
         RequirePositive(*output.spacing, Child(path, "spacing"));
     }
+}
+
+void ValidateOutput(const TerrainMeshOutput& output, const std::string& path,
+                    const OutputContext& /*context*/) {
+    RequireMeshFile(output.path, Child(path, "path"));
 }
 
 void CheckSyntheticAlbedo(const SyntheticAlbedoSpec& spec, const std::string& path) {
@@ -428,7 +434,7 @@ void ValidateAlbedo(const TerrainConfig& config, const std::filesystem::path& di
 ConfigSummary ValidateConfig(const TerrainConfig& config, const std::filesystem::path& directory) {
     const Surface surface = BuildSurface(config.surface);
     const RasterGrid grid = DescribeSource(config.source, directory, surface);
-    LayerChecks layers{grid, surface};
+    LayerChecks layers{grid, directory, surface};
     for (std::size_t i = 0; i < config.layers.size(); ++i) {
         ValidateLayer(config.layers[i], Element("layers", i), layers);
     }

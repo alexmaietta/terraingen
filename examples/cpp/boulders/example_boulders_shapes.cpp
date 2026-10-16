@@ -65,7 +65,7 @@ class BouldersShapes : public terraingen::examples::Example {
     void Save(const std::filesystem::path& dir) override {
         for (std::size_t index = 0; index < styles_.size(); ++index) {
             const auto path = dir / ("example_boulders_shapes_" + styles_[index].name + ".glb");
-            terraingen::WriteGlb(path, shapes_[index].mesh);
+            terraingen::WriteMesh(path, {shapes_[index].mesh, {}, shapes_[index].material});
             Out() << "Wrote " << path.string() << "\n";
         }
     }

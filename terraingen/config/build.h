@@ -44,13 +44,14 @@ namespace config {
 /// `path` resolved against `directory`; an empty `directory` leaves it relative.
 std::filesystem::path Resolve(const std::string& path, const std::filesystem::path& directory);
 
-/// Whether `path` has a mesh extension the outputs write: .glb or .ply.
-bool IsMeshFile(const std::filesystem::path& path);
-
-/// The boulder options a layer describes, unchecked, with its size distributions built.
+/// The boulder options a layer describes, unchecked, with its size distributions built and its
+/// shape files read.
 /// @param path The layer's JSON path, which errors are reported under.
-/// @throws ConfigError at `path`.sizes or .ejecta_sizes for an invalid distribution.
-BoulderLayerOptions BuildBoulderOptions(const BoulderLayerSpec& spec, const std::string& path);
+/// @param directory Folder the shape files resolve against.
+/// @throws ConfigError at `path`.sizes, .ejecta_sizes or .shape_files[i] for an invalid
+/// distribution or an unreadable mesh.
+BoulderLayerOptions BuildBoulderOptions(const BoulderLayerSpec& spec, const std::string& path,
+                                        const std::filesystem::path& directory = {});
 
 /// The region shape a spec describes, unchecked.
 RegionShape BuildRegionShape(const RegionShapeSpec& spec);

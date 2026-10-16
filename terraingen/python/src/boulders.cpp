@@ -9,7 +9,9 @@
 #include "terraingen/layers/boulders/boulder_options.h"
 #include "terraingen/layers/boulders/boulder_shape.h"
 
+#include <memory>
 #include <utility>
+#include <vector>
 
 namespace terraingen::python {
 
@@ -54,14 +56,35 @@ void BindBoulderShapes(nb::module_& m) {
     BindKwargsInit<BoulderShapeOptions>(options);
     options.def_rw("styles", &BoulderShapeOptions::styles)
         .def_rw("subdivisions", &BoulderShapeOptions::subdivisions)
-        .def_rw("seed", &BoulderShapeOptions::seed);
+        .def_rw("seed", &BoulderShapeOptions::seed)
+        .def_prop_rw(
+            "library",
+            [](const BoulderShapeOptions& o) {
+                std::vector<SceneMesh> rocks;
+                for (const auto& rock : o.library) {
+                    rocks.push_back(*rock);
+                }
+                return rocks;
+            },
+            [](BoulderShapeOptions& o, const std::vector<SceneMesh>& rocks) {
+                o.library.clear();
+                for (const SceneMesh& rock : rocks) {
+                    o.library.push_back(std::make_shared<const SceneMesh>(rock));
+                }
+            },
+            "Rock meshes (SceneMesh, such as `read_mesh` gives) that replace the styles when not "
+            "empty, each shape seed picking one.");
     nb::class_<BoulderShape>(m, "BoulderShape",
                              "A boulder shape with a long axis of 1 along x, `intermediate` along "
                              "y and `short_axis` along z.")
         .def_ro("mesh", &BoulderShape::mesh)
         .def_ro("style", &BoulderShape::style)
+        .def_ro("material", &BoulderShape::material)
         .def_ro("intermediate", &BoulderShape::intermediate)
         .def_ro("short_axis", &BoulderShape::shortAxis);
+    m.def("normalized_boulder_shape", &NormalizedBoulderShape, "mesh"_a,
+          "A rock mesh in the unit form of BoulderShape: centred, its longer horizontal side along "
+          "x and 1 long.");
     m.def("generate_boulder_shape", &GenerateBoulderShape, "shape_seed"_a,
           "options"_a = BoulderShapeOptions{},
           "The shape `shape_seed` gives: the same seed always gives the same shape.");
