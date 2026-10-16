@@ -1,16 +1,7 @@
 terraingen_add_library(
     bodies
     SOURCES
-    mars/bedforms.cpp
-    mars/craters.cpp
-    mars/production.cpp
-    moon/chronology.cpp
-    moon/craters.cpp
-    moon/equilibrium.cpp
-    moon/production.cpp
-    moon/boulders.cpp
-    moon/specifications.cpp
-    moon/steady_state.cpp
+    mars/surface.cpp
     moon/surface.cpp
     radii.cpp
     PUBLIC

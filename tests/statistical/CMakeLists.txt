@@ -2,6 +2,7 @@
 terraingen_add_test_suite(
     distribution_statistical
     SOURCES
+    distribution/crater_references_test.cpp
     distribution/size_frequency_test.cpp
     LIBRARIES
     terraingen::distribution
@@ -14,14 +15,6 @@ terraingen_add_test_suite(
     layers/craters/population_test.cpp
     layers/roughness_test.cpp
     layers/boulders/boulder_layer_test.cpp
-    LIBRARIES
-    terraingen::bodies
-    LABELS
-    statistical)
-terraingen_add_test_suite(
-    moon_statistical
-    SOURCES
-    bodies/moon/production_test.cpp
     LIBRARIES
     terraingen::bodies
     LABELS

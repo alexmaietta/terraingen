@@ -1,5 +1,5 @@
 /// @file
-/// @brief Lunar crater equilibrium densities.
+/// @brief The Trask (1966) and Hartmann (1984) lunar crater equilibrium densities.
 #pragma once
 
 #include "terraingen/distribution/power_law.h"

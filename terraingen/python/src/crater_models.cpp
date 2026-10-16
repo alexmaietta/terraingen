@@ -5,14 +5,16 @@
 #include "common.h"
 #include "trampolines.h"
 
-#include "terraingen/bodies/moon/craters.h"
 #include "terraingen/layers/craters/ages/age_model.h"
 #include "terraingen/layers/craters/ages/fresh.h"
+#include "terraingen/layers/craters/ages/steady_state.h"
 #include "terraingen/layers/craters/ages/uniform.h"
 #include "terraingen/layers/craters/crater_layer.h"
 #include "terraingen/layers/craters/degradation/diffusion.h"
+#include "terraingen/layers/craters/degradation/diffusivities.h"
 #include "terraingen/layers/craters/degradation/freshness.h"
 #include "terraingen/layers/craters/degradation/none.h"
+#include "terraingen/layers/craters/morphometry.h"
 #include "terraingen/layers/craters/profiles/complex.h"
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
 #include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
@@ -107,6 +109,16 @@ void BindAges(nb::module_& m) {
     nb::class_<UniformAges, CraterAgeModel>(
         m, "UniformAges", "Ages uniform over a lifetime of `lifetime_gyr`, whatever the size.")
         .def(nb::init<double>(), "lifetime_gyr"_a);
+    nb::class_<SteadyStateAges, CraterAgeModel>(
+        m, "SteadyStateAges",
+        "Ages of a surface `age_gyr` old in steady state: a crater lasts until the "
+        "`equilibrium` density is replaced by `production_rate`, or the surface's age, and ages "
+        "follow the formation rate of `chronology`.")
+        .def(nb::init<std::shared_ptr<SizeFrequencyDistribution>,
+                      std::shared_ptr<SizeFrequencyDistribution>, double, Chronology>(),
+             "production_rate"_a, "equilibrium"_a, "age_gyr"_a, "chronology"_a)
+        .def_prop_ro("surface_age_gyr", &SteadyStateAges::SurfaceAgeGyr)
+        .def("equilibrium_lifetime_gyr", &SteadyStateAges::EquilibriumLifetimeGyr, "diameter"_a);
 }
 
 void BindCraterState(nb::module_& m) {
@@ -299,6 +311,30 @@ void BindCraterModelSet(nb::module_& m) {
         .def_prop_ro("profile", [](const CraterModels& c) { return Mutable(c.profile); });
 }
 
+void BindFreshCraterFits(nb::module_& m) {
+    m.def("lunar_fresh_crater_morphometry", &LunarFreshCraterMorphometry, "diameter"_a,
+          "A fresh lunar crater's depth and rim height ratios.");
+    m.def("lunar_fresh_crater_depth_ratio", &LunarFreshCraterDepthRatio, "diameter"_a,
+          "A fresh lunar crater's depth over diameter.");
+    m.def("mars_fresh_crater_morphometry", &MarsFreshCraterMorphometry, "diameter"_a,
+          "A fresh Martian crater's depth and rim height ratios.");
+    m.def("lunar_complex_crater_shape", &LunarComplexCraterShape,
+          "Lunar complex craters, from 15 km.");
+    m.def("mars_complex_crater_shape", &MarsComplexCraterShape,
+          "Martian complex craters, from 7 km.");
+}
+
+void BindDiffusivities(nb::module_& m) {
+    m.def("fassett_thomson_2014_diffusion_age", &FassettThomson2014DiffusionAge, "age_gyr"_a,
+          "Fassett and Thomson's (2014) effective diffusion age for a crater `age_gyr` old.");
+    m.def("fassett_thomson_2014_diffusivity", &FassettThomson2014Diffusivity,
+          "Fassett and Thomson's (2014) constant diffusivity, 5.5 m^2/Myr.");
+    m.def("fassett_2022_hartmann_diffusivity", &Fassett2022HartmannDiffusivity,
+          "Fassett et al.'s (2022) diffusivity fit with Hartmann's equilibrium.");
+    m.def("fassett_2022_trask_diffusivity", &Fassett2022TraskDiffusivity,
+          "Fassett et al.'s (2022) diffusivity fit with Trask's equilibrium.");
+}
+
 }  // namespace
 
 void BindCraterModels(nb::module_& m) {
@@ -309,6 +345,8 @@ void BindCraterModels(nb::module_& m) {
     BindComplexShape(m);
     BindCompositeProfiles(m);
     BindDiffusion(m);
+    BindFreshCraterFits(m);
+    BindDiffusivities(m);
     BindCraterModelSet(m);
 }
 

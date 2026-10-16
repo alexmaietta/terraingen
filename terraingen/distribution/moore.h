@@ -1,5 +1,5 @@
 /// @file
-/// @brief Lunar crater size distributions from engineering specifications.
+/// @brief Moore's lunar terrain crater distributions for Lunar Roving Vehicle trafficability.
 #pragma once
 
 #include "terraingen/distribution/piecewise_power_law.h"
@@ -20,10 +20,5 @@ enum class MooreTerrain {
 /// @param terrain Which terrain.
 /// @return The `Density` distribution.
 PiecewisePowerLawSfd MooreDistribution(MooreTerrain terrain);
-
-/// @brief The VIPER environmental specification as used by synthterrain, N = 29174 D^-1.92 per
-/// km^2 up to 80 m and 156228 D^-2.389 above (D in m), discontinuous at 80 m. For comparison only.
-/// @return The `Density` distribution.
-PiecewisePowerLawSfd ViperSpecification();
 
 }  // namespace terraingen

@@ -1,14 +1,36 @@
 /// @file
-/// @brief The Neukum et al. (2001) lunar production function and its small-crater extension.
-#include "terraingen/bodies/moon/production.h"
+/// @brief The Neukum et al. (2001) lunar chronology and production function, and its small-crater
+/// extension.
+#include "terraingen/distribution/neukum.h"
 
 #include "terraingen/distribution/power_law.h"
 
 #include <cmath>
 #include <memory>
+#include <stdexcept>
 #include <utility>
 
 namespace terraingen {
+
+namespace {
+
+void CheckAge(double ageGyr) {
+    if (!(ageGyr >= 0.0 && ageGyr <= kMaxLunarAgeGyr)) {
+        throw std::domain_error("Lunar surface age must be between 0 and 4.6 Gyr");
+    }
+}
+
+}  // namespace
+
+double NeukumLunarChronology(double ageGyr) {
+    CheckAge(ageGyr);
+    return (5.44e-14 * std::expm1(6.93 * ageGyr) + 8.38e-4 * ageGyr) / 1e6;
+}
+
+double NeukumLunarChronologyRate(double ageGyr) {
+    CheckAge(ageGyr);
+    return (5.44e-14 * 6.93 * std::exp(6.93 * ageGyr) + 8.38e-4) / 1e6;
+}
 
 LogPolynomialSfd NeukumProductionFunction() {
     return LogPolynomialSfd({-3.076756, -3.557528, 0.781027, 1.021521, -0.156012, -0.444058,

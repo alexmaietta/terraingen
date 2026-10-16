@@ -1,6 +1,6 @@
 /// @file
-/// @brief Digitized SP-8023 block tables and synthterrain boulder distributions.
-#include "terraingen/bodies/moon/boulders.h"
+/// @brief Digitized NASA SP-8023 lunar block tables.
+#include "terraingen/distribution/sp8023.h"
 
 #include <array>
 #include <cmath>
@@ -123,18 +123,6 @@ std::shared_ptr<TabulatedSfd> Sp8023CraterBlocks(SpecificationCurve curve) {
         return Table(kCraterMaximum);
     }
     throw std::invalid_argument("Unknown specification curve");
-}
-
-std::shared_ptr<PowerLawSfd> SynthterrainBoulderDistribution(SynthterrainBoulders boulders) {
-    switch (boulders) {
-    case SynthterrainBoulders::InterCrater:
-        return std::make_shared<PowerLawSfd>(0.0001, 1.75457);
-    case SynthterrainBoulders::Haworth:
-        return std::make_shared<PowerLawSfd>(0.002, 2.6607);
-    case SynthterrainBoulders::ViperSpecification:
-        return std::make_shared<PowerLawSfd>(0.0003, 2.482);
-    }
-    throw std::invalid_argument("Unknown synthterrain boulder distribution");
 }
 
 }  // namespace terraingen

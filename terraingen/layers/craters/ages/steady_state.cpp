@@ -1,6 +1,6 @@
 /// @file
-/// @brief Crater ages on lunar surfaces where small craters are in equilibrium.
-#include "terraingen/bodies/moon/steady_state.h"
+/// @brief Crater ages on surfaces where small craters are in equilibrium.
+#include "terraingen/layers/craters/ages/steady_state.h"
 
 #include <cmath>
 #include <stdexcept>
@@ -10,14 +10,15 @@ namespace terraingen {
 
 namespace {
 
-/// An age in [0, `maxAgeGyr`] drawn from the Neukum formation rate, by bisection on N1(T).
-double SampleNeukumFormationAge(RandomStream& random, double maxAgeGyr) {
-    const double target = random.NextDouble() * NeukumLunarChronology(maxAgeGyr);
+/// An age in [0, `maxAgeGyr`] drawn from the formation rate of `chronology`, by bisection on
+/// N1(T).
+double SampleFormationAge(RandomStream& random, const Chronology& chronology, double maxAgeGyr) {
+    const double target = random.NextDouble() * chronology(maxAgeGyr);
     double low = 0.0;
     double high = maxAgeGyr;
     for (int i = 0; i < 100 && high - low > 1e-15 * maxAgeGyr; ++i) {
         const double middle = 0.5 * (low + high);
-        if (NeukumLunarChronology(middle) < target) {
+        if (chronology(middle) < target) {
             low = middle;
         } else {
             high = middle;
@@ -30,16 +31,19 @@ double SampleNeukumFormationAge(RandomStream& random, double maxAgeGyr) {
 
 SteadyStateAges::SteadyStateAges(std::shared_ptr<const SizeFrequencyDistribution> productionRate,
                                  std::shared_ptr<const SizeFrequencyDistribution> equilibrium,
-                                 double ageGyr)
+                                 double ageGyr, Chronology chronology)
     : productionRate_(std::move(productionRate)), equilibrium_(std::move(equilibrium)),
-      ageGyr_(ageGyr) {
+      ageGyr_(ageGyr), chronology_(std::move(chronology)) {
     if (!productionRate_ || productionRate_->Kind() != SfdKind::ProductionRate) {
         throw std::invalid_argument("Steady-state ages need a production rate distribution");
     }
     if (!equilibrium_ || equilibrium_->Kind() != SfdKind::Density) {
         throw std::invalid_argument("Steady-state ages need an equilibrium density");
     }
-    NeukumLunarChronology(ageGyr_);
+    if (!chronology_) {
+        throw std::invalid_argument("Steady-state ages need a chronology");
+    }
+    chronology_(ageGyr_);
 }
 
 double SteadyStateAges::EquilibriumLifetimeGyr(double diameter) const {
@@ -55,7 +59,7 @@ double SteadyStateAges::SampleAgeAt(RandomStream& random, double /*diameter*/,
     if (lifetimeGyr == 0.0) {
         return 0.0;
     }
-    return SampleNeukumFormationAge(random, lifetimeGyr);
+    return SampleFormationAge(random, chronology_, lifetimeGyr);
 }
 
 }  // namespace terraingen

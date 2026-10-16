@@ -5,21 +5,22 @@
 #include "terraingen/albedo/crater_albedo.h"
 #include "terraingen/albedo/raster_albedo.h"
 #include "terraingen/albedo/synthetic.h"
-#include "terraingen/bodies/mars/craters.h"
-#include "terraingen/bodies/mars/production.h"
-#include "terraingen/bodies/moon/craters.h"
-#include "terraingen/bodies/moon/equilibrium.h"
-#include "terraingen/bodies/moon/production.h"
-#include "terraingen/bodies/moon/steady_state.h"
+#include "terraingen/bodies/mars/surface.h"
 #include "terraingen/bodies/moon/surface.h"
+#include "terraingen/distribution/equilibrium.h"
+#include "terraingen/distribution/ivanov.h"
 #include "terraingen/distribution/log_polynomial.h"
+#include "terraingen/distribution/neukum.h"
 #include "terraingen/distribution/power_law.h"
 #include "terraingen/distribution/spliced.h"
 #include "terraingen/distribution/tabulated.h"
 #include "terraingen/layers/craters/ages/fresh.h"
+#include "terraingen/layers/craters/ages/steady_state.h"
 #include "terraingen/layers/craters/ages/uniform.h"
+#include "terraingen/layers/craters/degradation/diffusivities.h"
 #include "terraingen/layers/craters/degradation/freshness.h"
 #include "terraingen/layers/craters/degradation/none.h"
+#include "terraingen/layers/craters/morphometry.h"
 #include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
 #include "terraingen/layers/noise_relief.h"
 #include "terraingen/layers/transforms.h"
@@ -93,7 +94,7 @@ std::shared_ptr<const CraterAgeModel> BuildSteadyStateAges(const SteadyStateAges
     const PowerLawSfd equilibrium =
         spec.equilibrium == EquilibriumModel::Trask ? TraskEquilibrium() : HartmannEquilibrium();
     return std::make_shared<SteadyStateAges>(production, std::make_shared<PowerLawSfd>(equilibrium),
-                                             spec.ageGyr);
+                                             spec.ageGyr, NeukumLunarChronology);
 }
 
 std::shared_ptr<const CraterAgeModel> BuildAges(const AgesSpec& spec, const DensitySpec& density) {

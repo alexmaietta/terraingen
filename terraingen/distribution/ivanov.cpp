@@ -1,11 +1,8 @@
 /// @file
-/// @brief Ivanov's (2001) Martian chronology and production function, and Martian surfaces.
-#include "terraingen/bodies/mars/production.h"
-
-#include "terraingen/layers/craters/ages/uniform.h"
+/// @brief Ivanov's (2001) Martian chronology and production function.
+#include "terraingen/distribution/ivanov.h"
 
 #include <cmath>
-#include <memory>
 #include <stdexcept>
 
 namespace terraingen {
@@ -35,17 +32,6 @@ LogPolynomialSfd IvanovMarsProductionFunction() {
                              -3.630098e-1, 1.015683e-1, 6.755923e-2, -1.180639e-2, -4.753462e-3,
                              6.232845e-4, 5.805492e-5},
                             DiameterRange{15.0, 362000.0}, SfdKind::ProductionRate, 1000.0, 1e6);
-}
-
-SurfaceModel MarsSurface(double ageGyr) {
-    if (!(ageGyr > 0.0)) {
-        throw std::domain_error("A Martian surface must be older than 0 Gyr");
-    }
-    CheckAge(ageGyr);
-    auto production = std::make_shared<LogPolynomialSfd>(IvanovMarsProductionFunction());
-    return {
-        std::make_shared<ProductionSurface>(std::move(production), ageGyr, IvanovMarsChronology),
-        std::make_shared<UniformAges>(ageGyr)};
 }
 
 }  // namespace terraingen

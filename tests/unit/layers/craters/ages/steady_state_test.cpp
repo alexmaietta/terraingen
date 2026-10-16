@@ -1,4 +1,9 @@
-#include "terraingen/terraingen.h"
+#include "terraingen/layers/craters/ages/steady_state.h"
+
+#include "terraingen/distribution/equilibrium.h"
+#include "terraingen/distribution/ivanov.h"
+#include "terraingen/distribution/neukum.h"
+#include "terraingen/random/stream.h"
 
 #include <gtest/gtest.h>
 
@@ -7,26 +12,20 @@
 #include <memory>
 #include <stdexcept>
 
-using terraingen::CraterAgeModel;
-using terraingen::ExtendedNeukumProductionFunction;
-using terraingen::FreshAges;
 using terraingen::LogPolynomialSfd;
-using terraingen::LunarSurface;
 using terraingen::NeukumLunarChronology;
 using terraingen::NeukumProductionFunction;
 using terraingen::PowerLawSfd;
 using terraingen::RandomStream;
-using terraingen::SfdKind;
 using terraingen::SteadyStateAges;
-using terraingen::SurfaceModel;
 using terraingen::TraskEquilibrium;
-using terraingen::UniformAges;
 
 namespace {
 
 SteadyStateAges NeukumTrask(double ageGyr) {
     return SteadyStateAges(std::make_shared<LogPolynomialSfd>(NeukumProductionFunction()),
-                           std::make_shared<PowerLawSfd>(TraskEquilibrium()), ageGyr);
+                           std::make_shared<PowerLawSfd>(TraskEquilibrium()), ageGyr,
+                           NeukumLunarChronology);
 }
 
 }  // namespace
@@ -69,10 +68,33 @@ TEST(SteadyStateAges, DrawsAgesFromTheChronologyWithinTheLifetime) {
 TEST(SteadyStateAges, RejectsInvalidInputs) {
     const auto npf = std::make_shared<LogPolynomialSfd>(NeukumProductionFunction());
     const auto trask = std::make_shared<PowerLawSfd>(TraskEquilibrium());
-    EXPECT_THROW(SteadyStateAges(nullptr, trask, 1.0), std::invalid_argument);
-    EXPECT_THROW(SteadyStateAges(npf, nullptr, 1.0), std::invalid_argument);
-    EXPECT_THROW(SteadyStateAges(trask, trask, 1.0), std::invalid_argument);
-    EXPECT_THROW(SteadyStateAges(npf, npf, 1.0), std::invalid_argument);
-    EXPECT_THROW(SteadyStateAges(npf, trask, -0.5), std::domain_error);
-    EXPECT_THROW(SteadyStateAges(npf, trask, 4.7), std::domain_error);
+    EXPECT_THROW(SteadyStateAges(nullptr, trask, 1.0, NeukumLunarChronology),
+                 std::invalid_argument);
+    EXPECT_THROW(SteadyStateAges(npf, nullptr, 1.0, NeukumLunarChronology), std::invalid_argument);
+    EXPECT_THROW(SteadyStateAges(trask, trask, 1.0, NeukumLunarChronology), std::invalid_argument);
+    EXPECT_THROW(SteadyStateAges(npf, npf, 1.0, NeukumLunarChronology), std::invalid_argument);
+    EXPECT_THROW(SteadyStateAges(npf, trask, -0.5, NeukumLunarChronology), std::domain_error);
+    EXPECT_THROW(SteadyStateAges(npf, trask, 4.7, NeukumLunarChronology), std::domain_error);
+}
+
+TEST(SteadyStateAges, DrawsAgesFromTheChronologyItIsGiven) {
+    const SteadyStateAges ages(std::make_shared<LogPolynomialSfd>(NeukumProductionFunction()),
+                               std::make_shared<PowerLawSfd>(TraskEquilibrium()), 3.5,
+                               terraingen::IvanovMarsChronology);
+    RandomStream copy(9u, 2u);
+    RandomStream stream(9u, 2u);
+    const double lifetime = ages.LifetimeGyr(1000.0);
+    for (int i = 0; i < 20; ++i) {
+        const double u = copy.NextDouble();
+        const double age = ages.SampleAgeGyr(stream, 1000.0);
+        EXPECT_NEAR(terraingen::IvanovMarsChronology(age) /
+                        terraingen::IvanovMarsChronology(lifetime),
+                    u, 1e-9);
+    }
+}
+
+TEST(SteadyStateAges, RequiresAChronology) {
+    const auto npf = std::make_shared<LogPolynomialSfd>(NeukumProductionFunction());
+    const auto trask = std::make_shared<PowerLawSfd>(TraskEquilibrium());
+    EXPECT_THROW(SteadyStateAges(npf, trask, 1.0, terraingen::Chronology{}), std::invalid_argument);
 }

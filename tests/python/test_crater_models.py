@@ -9,7 +9,10 @@ import terraingen
 @pytest.fixture
 def steady():
     return terraingen.SteadyStateAges(
-        terraingen.extended_neukum_production_function(), terraingen.trask_equilibrium(), 3.5
+        terraingen.extended_neukum_production_function(),
+        terraingen.trask_equilibrium(),
+        3.5,
+        terraingen.neukum_lunar_chronology,
     )
 
 

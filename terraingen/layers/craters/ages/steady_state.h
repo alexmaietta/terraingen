@@ -1,8 +1,8 @@
 /// @file
-/// @brief Crater ages on lunar surfaces where small craters are in equilibrium.
+/// @brief Crater ages on surfaces where small craters are in equilibrium.
 #pragma once
 
-#include "terraingen/bodies/moon/chronology.h"
+#include "terraingen/distribution/production_surface.h"
 #include "terraingen/distribution/size_frequency.h"
 #include "terraingen/layers/craters/ages/age_model.h"
 
@@ -13,18 +13,21 @@ namespace terraingen {
 /// @brief Ages of craters on a surface `ageGyr` old where small craters are in equilibrium.
 ///
 /// A crater's lifetime is tau(D) = n_eq(D) / n_prod(D), capped at the surface age; ages follow the
-/// Neukum et al. (2001) formation rate over [0, lifetime].
+/// formation rate of `chronology` over [0, lifetime].
 class SteadyStateAges final : public CraterAgeModel {
   public:
-    /// @brief The ages from a production rate and an equilibrium density.
+    /// @brief The ages from a production rate, an equilibrium density and a chronology.
     /// @param productionRate A `ProductionRate` distribution, such as
     /// `ExtendedNeukumProductionFunction`.
     /// @param equilibrium A `Density` distribution, such as `TraskEquilibrium`.
     /// @param ageGyr Surface age in Gyr.
-    /// @throws std::invalid_argument for null or mismatched kinds.
-    /// @throws std::domain_error if `ageGyr` is outside [0, `kMaxLunarAgeGyr`].
+    /// @param chronology N(>=1 km) per m^2 by age, such as `NeukumLunarChronology`; ages are drawn
+    /// in proportion to its rate.
+    /// @throws std::invalid_argument for null or mismatched kinds, or an empty `chronology`.
+    /// @throws std::domain_error if `chronology` rejects `ageGyr`.
     SteadyStateAges(std::shared_ptr<const SizeFrequencyDistribution> productionRate,
-                    std::shared_ptr<const SizeFrequencyDistribution> equilibrium, double ageGyr);
+                    std::shared_ptr<const SizeFrequencyDistribution> equilibrium, double ageGyr,
+                    Chronology chronology);
 
     /// @brief The surface age.
     /// @return Age in Gyr.
@@ -46,6 +49,7 @@ class SteadyStateAges final : public CraterAgeModel {
     std::shared_ptr<const SizeFrequencyDistribution> productionRate_;
     std::shared_ptr<const SizeFrequencyDistribution> equilibrium_;
     double ageGyr_;
+    Chronology chronology_;
 };
 
 }  // namespace terraingen

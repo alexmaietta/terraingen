@@ -1,7 +1,7 @@
 /// @file
 /// @brief Tests of writing configurations as JSON and reading them back (pipeline/json_io.cpp).
 #include "pipeline_configs.h"
-#include "terraingen/bodies/mars/bedforms.h"
+#include "terraingen/layers/bedforms.h"
 
 #include <gtest/gtest.h>
 

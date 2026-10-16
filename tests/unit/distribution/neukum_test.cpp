@@ -1,4 +1,8 @@
-#include "terraingen/terraingen.h"
+#include "terraingen/distribution/neukum.h"
+
+#include "terraingen/distribution/power_law.h"
+#include "terraingen/distribution/production_surface.h"
+#include "terraingen/random/stream.h"
 
 #include <gtest/gtest.h>
 
@@ -99,4 +103,32 @@ TEST(ExtendedNeukumProductionFunction, ContinuesBelowTenMetresWithSlope285) {
     const ProductionSurface surface(std::make_shared<SplicedSfd>(extended), 3.5,
                                     NeukumLunarChronology);
     EXPECT_NEAR(surface.Cumulative(1000.0), NeukumLunarChronology(3.5), 1e-15);
+}
+
+namespace {
+
+constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
+
+}  // namespace
+
+TEST(NeukumLunarChronology, EvaluatesEquationFiveWithinTheLunarAge) {
+    EXPECT_EQ(NeukumLunarChronology(0.0), 0.0);
+    EXPECT_NEAR(NeukumLunarChronology(1.0) * 1e6, 8.3800006e-4, 1e-11);
+    EXPECT_NEAR(NeukumLunarChronology(3.5) * 1e6, 4.792566e-3, 1e-9);
+    EXPECT_NO_THROW(NeukumLunarChronology(terraingen::kMaxLunarAgeGyr));
+    EXPECT_THROW(NeukumLunarChronology(-0.1), std::domain_error);
+    EXPECT_THROW(NeukumLunarChronology(4.7), std::domain_error);
+    EXPECT_THROW(NeukumLunarChronology(kNaN), std::domain_error);
+}
+
+TEST(NeukumLunarChronology, RateIsTheDerivativeOfTheChronology) {
+    EXPECT_NEAR(NeukumLunarChronologyRate(0.0) * 1e6, 8.38e-4, 1e-12);
+    for (const double t : {0.5, 3.0, 4.0}) {
+        const double step = 1e-6;
+        const double numeric =
+            (NeukumLunarChronology(t + step) - NeukumLunarChronology(t - step)) / (2.0 * step);
+        EXPECT_NEAR(NeukumLunarChronologyRate(t), numeric, 1e-6 * numeric) << t;
+    }
+    EXPECT_THROW(NeukumLunarChronologyRate(-1.0), std::domain_error);
+    EXPECT_THROW(NeukumLunarChronologyRate(5.0), std::domain_error);
 }

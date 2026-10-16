@@ -4,6 +4,7 @@ terraingen_add_library(
     bedforms.cpp
     craters/ages/age_model.cpp
     craters/ages/fresh.cpp
+    craters/ages/steady_state.cpp
     craters/ages/uniform.cpp
     craters/attributes.cpp
     craters/apply.cpp
@@ -12,9 +13,11 @@ terraingen_add_library(
     craters/crater_layer.cpp
     craters/datum.cpp
     craters/degradation/diffusion.cpp
+    craters/degradation/diffusivities.cpp
     craters/degradation/freshness.cpp
     craters/degradation/none.cpp
     craters/irregularity.cpp
+    craters/morphometry.cpp
     craters/population.cpp
     craters/prepared.cpp
     craters/secondaries.cpp

@@ -43,6 +43,16 @@ struct BedformOptions {
 /// non-positive exposure spacing, or an invalid fade or exposure.
 void ValidateBedformOptions(const BedformOptions& options);
 
+/// @brief Martian large wind ripples: 2 m wavelength, 0.2 m height, a 30 degree lee slope and
+/// sinuous crests; cover and field size are placeholders to set per site.
+/// @return The bedform options.
+BedformOptions MarsLargeRipples();
+
+/// @brief Martian transverse aeolian ridges: symmetric, 25.8 m wavelength and 1.3 m height; cover
+/// and field size are placeholders to set per site.
+/// @return The bedform options.
+BedformOptions MarsTransverseAeolianRidges();
+
 /// @brief Fields of wind-blown bedforms, ripples or dunes, added to the terrain.
 ///
 /// Each lattice cell may hold a field with a ragged edge whose crests run across its wind; relief

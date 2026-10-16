@@ -258,6 +258,9 @@ void BindBedformOptions(nb::module_& m) {
         .def_rw("exposure_spacing", &BedformOptions::exposureSpacing)
         .def_rw("fade", &BedformOptions::fade);
     m.def("validate_bedform_options", &ValidateBedformOptions, "options"_a, kValidateDoc);
+    m.def("mars_large_ripples", &MarsLargeRipples, "Martian large ripples.");
+    m.def("mars_transverse_aeolian_ridges", &MarsTransverseAeolianRidges,
+          "Martian transverse aeolian ridges.");
 }
 
 void BindBedforms(nb::module_& m) {

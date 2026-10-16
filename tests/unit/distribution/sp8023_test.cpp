@@ -1,4 +1,4 @@
-#include "terraingen/bodies/moon/boulders.h"
+#include "terraingen/distribution/sp8023.h"
 
 #include <gtest/gtest.h>
 
@@ -49,21 +49,5 @@ TEST(Sp8023CraterBlocks, FollowsTheDigitizedFigure9) {
     EXPECT_NEAR(nominal->ValidRange().min, 0.849, 0.001);
     EXPECT_THROW(nominal->Cumulative(0.5), std::domain_error) << "beyond the figure";
     EXPECT_THROW(terraingen::Sp8023CraterBlocks(static_cast<SpecificationCurve>(9)),
-                 std::invalid_argument);
-}
-
-TEST(SynthterrainBoulderDistribution, MatchesSynthterrainsPowerLaws) {
-    using terraingen::SynthterrainBoulders;
-    EXPECT_DOUBLE_EQ(terraingen::SynthterrainBoulderDistribution(SynthterrainBoulders::InterCrater)
-                         ->Cumulative(2.0),
-                     0.0001 * std::pow(2.0, -1.75457));
-    EXPECT_DOUBLE_EQ(
-        terraingen::SynthterrainBoulderDistribution(SynthterrainBoulders::Haworth)->Cumulative(2.0),
-        0.002 * std::pow(2.0, -2.6607));
-    EXPECT_DOUBLE_EQ(
-        terraingen::SynthterrainBoulderDistribution(SynthterrainBoulders::ViperSpecification)
-            ->Cumulative(2.0),
-        0.0003 * std::pow(2.0, -2.482));
-    EXPECT_THROW(terraingen::SynthterrainBoulderDistribution(static_cast<SynthterrainBoulders>(9)),
                  std::invalid_argument);
 }

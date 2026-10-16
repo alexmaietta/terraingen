@@ -68,7 +68,8 @@ class AgesModels : public terraingen::examples::Example {
                 {"fresh", std::make_shared<terraingen::FreshAges>()},
                 {"uniform_3.5_gyr", std::make_shared<terraingen::UniformAges>(3.5)},
                 {"steady_state",
-                 std::make_shared<terraingen::SteadyStateAges>(production, equilibrium, 3.5)},
+                 std::make_shared<terraingen::SteadyStateAges>(production, equilibrium, 3.5,
+                                                               terraingen::NeukumLunarChronology)},
                 {"custom", std::make_shared<SizeLimitedLifetimes>()},
             };
         const auto diffused = std::make_shared<terraingen::DiffusedProfile>(

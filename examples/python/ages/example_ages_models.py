@@ -35,7 +35,10 @@ class Example(_common.Example):
     def generate(self):
         surface = terraingen.lunar_surface(3.5)
         steady = terraingen.SteadyStateAges(
-            terraingen.extended_neukum_production_function(), terraingen.trask_equilibrium(), 3.5
+            terraingen.extended_neukum_production_function(),
+            terraingen.trask_equilibrium(),
+            3.5,
+            terraingen.neukum_lunar_chronology,
         )
         age_models = {
             "fresh": terraingen.FreshAges(),

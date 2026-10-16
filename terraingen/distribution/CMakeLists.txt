@@ -2,16 +2,23 @@ terraingen_add_library(
     distribution
     SOURCES
     combined.cpp
+    equilibrium.cpp
     golombek_rapp.cpp
+    ivanov.cpp
     log_polynomial.cpp
     minimum.cpp
+    moore.cpp
+    neukum.cpp
     piecewise_power_law.cpp
     power_law.cpp
     production_surface.cpp
     size_frequency.cpp
+    sp8023.cpp
     spliced.cpp
     summed.cpp
+    synthterrain.cpp
     tabulated.cpp
+    viper.cpp
     PUBLIC
     terraingen_random
     terraingen_util)

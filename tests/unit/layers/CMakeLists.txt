@@ -4,6 +4,7 @@ terraingen_add_test_suite(
     SOURCES
     bedforms_test.cpp
     craters/ages/fresh_test.cpp
+    craters/ages/steady_state_test.cpp
     craters/ages/uniform_test.cpp
     craters/apply_test.cpp
     craters/attributes_test.cpp
@@ -14,6 +15,7 @@ terraingen_add_test_suite(
     craters/degradation/freshness_test.cpp
     craters/degradation/none_test.cpp
     craters/irregularity_test.cpp
+    craters/morphometry_test.cpp
     craters/population_test.cpp
     craters/profiles/complex_test.cpp
     craters/profiles/fassett_thomson_test.cpp

@@ -4,17 +4,23 @@
 #include "bindings.h"
 #include "common.h"
 
-#include "terraingen/bodies/moon/chronology.h"
+#include "terraingen/distribution/equilibrium.h"
 #include "terraingen/distribution/golombek_rapp.h"
+#include "terraingen/distribution/ivanov.h"
 #include "terraingen/distribution/log_polynomial.h"
 #include "terraingen/distribution/minimum.h"
+#include "terraingen/distribution/moore.h"
+#include "terraingen/distribution/neukum.h"
 #include "terraingen/distribution/piecewise_power_law.h"
 #include "terraingen/distribution/power_law.h"
 #include "terraingen/distribution/production_surface.h"
 #include "terraingen/distribution/size_frequency.h"
+#include "terraingen/distribution/sp8023.h"
 #include "terraingen/distribution/spliced.h"
 #include "terraingen/distribution/summed.h"
+#include "terraingen/distribution/synthterrain.h"
 #include "terraingen/distribution/tabulated.h"
+#include "terraingen/distribution/viper.h"
 
 #include <nanobind/trampoline.h>
 
@@ -32,6 +38,11 @@ constexpr double kInfinity = std::numeric_limits<double>::infinity();
 using Sfd = SizeFrequencyDistribution;
 using SfdPointer = std::shared_ptr<Sfd>;
 using StartAndSfd = std::pair<double, SfdPointer>;
+
+/// @brief A distribution returned by value, held as Python holds distributions.
+template <typename T> SfdPointer Shared(T value) {
+    return std::make_shared<T>(std::move(value));
+}
 
 /// @brief A size-frequency distribution written in Python: `cumulative_at(diameter)` is required;
 /// `incremental_at` and `invert_cumulative` refine the numerical defaults.
@@ -277,6 +288,75 @@ void BindProductionSurface(nb::module_& m) {
                      "The production function scaled to the surface.");
 }
 
+void BindLunarCraterDistributions(nb::module_& m) {
+    m.def(
+        "trask_equilibrium", [] { return Shared(TraskEquilibrium()); },
+        "Trask's (1966) lunar crater equilibrium, N(>= D) = 10^-1.1 D^-2 per square metre.");
+    m.def(
+        "hartmann_equilibrium", [] { return Shared(HartmannEquilibrium()); },
+        "Hartmann's lunar crater equilibrium.");
+    nb::enum_<MooreTerrain>(m, "MooreTerrain", "Moore's (1971) lunar terrain classes.")
+        .value("ROUGH_MARE", MooreTerrain::RoughMare)
+        .value("SMOOTH_MARE", MooreTerrain::SmoothMare)
+        .value("UPLANDS", MooreTerrain::Uplands)
+        .value("HEAVILY_CRATERED", MooreTerrain::HeavilyCratered);
+    m.def(
+        "moore_distribution",
+        [](MooreTerrain terrain) { return Shared(MooreDistribution(terrain)); }, "terrain"_a,
+        "Moore's (1971) crater distribution for a lunar terrain class.");
+    m.def(
+        "viper_specification", [] { return Shared(ViperSpecification()); },
+        "The VIPER mission's crater specification.");
+    m.def(
+        "neukum_production_function", [] { return Shared(NeukumProductionFunction()); },
+        "Neukum's lunar production function, per square metre per Gyr at today's rate.");
+    m.def(
+        "extended_neukum_production_function",
+        [] { return Shared(ExtendedNeukumProductionFunction()); },
+        "The Neukum production function extended to small craters, as DSNE uses it.");
+    m.def("neukum_lunar_chronology", &NeukumLunarChronology, "age_gyr"_a,
+          "Neukum's lunar chronology: craters at least 1 km across per square metre on a "
+          "surface `age_gyr` old.");
+    m.def("neukum_lunar_chronology_rate", &NeukumLunarChronologyRate, "age_gyr"_a,
+          "dN1/dT of Neukum's lunar chronology, per square metre per Gyr.");
+}
+
+void BindMartianCraterDistributions(nb::module_& m) {
+    m.def(
+        "ivanov_mars_production_function", [] { return Shared(IvanovMarsProductionFunction()); },
+        "Ivanov's (2001) Martian production function.");
+    m.def("ivanov_mars_chronology", &IvanovMarsChronology, "age_gyr"_a,
+          "Ivanov's (2001) Martian chronology, N(>= 1 km) per square metre.");
+    m.def("ivanov_mars_chronology_rate", &IvanovMarsChronologyRate, "age_gyr"_a,
+          "dN1/dT of Ivanov's Martian chronology, per square metre per Gyr.");
+}
+
+void BindBoulderDistributions(nb::module_& m) {
+    nb::enum_<SpecificationCurve>(m, "SpecificationCurve", "Which SP-8023 boulder curve.")
+        .value("MINIMUM", SpecificationCurve::Minimum)
+        .value("NOMINAL", SpecificationCurve::Nominal)
+        .value("MAXIMUM", SpecificationCurve::Maximum);
+    m.def(
+        "sp8023_intercrater_blocks",
+        [](SpecificationCurve curve) { return SfdPointer(Sp8023IntercraterBlocks(curve)); },
+        "curve"_a, "NASA SP-8023 blocks between craters.");
+    m.def(
+        "sp8023_crater_blocks",
+        [](SpecificationCurve curve) { return SfdPointer(Sp8023CraterBlocks(curve)); }, "curve"_a,
+        "NASA SP-8023 blocks near craters.");
+    nb::enum_<SynthterrainBoulders>(m, "SynthterrainBoulders",
+                                    "synthterrain's boulder distributions.")
+        .value("INTER_CRATER", SynthterrainBoulders::InterCrater)
+        .value("HAWORTH", SynthterrainBoulders::Haworth)
+        .value("VIPER_SPECIFICATION", SynthterrainBoulders::ViperSpecification);
+    m.def(
+        "synthterrain_boulder_distribution",
+        [](SynthterrainBoulders boulders) {
+            return SfdPointer(SynthterrainBoulderDistribution(boulders));
+        },
+        "boulders"_a, "One of synthterrain's power-law boulder distributions.");
+}
+
 }  // namespace
 
 void BindDistribution(nb::module_& m) {
@@ -287,6 +367,9 @@ void BindDistribution(nb::module_& m) {
     BindSpliced(m);
     BindGolombekRapp(m);
     BindProductionSurface(m);
+    BindLunarCraterDistributions(m);
+    BindMartianCraterDistributions(m);
+    BindBoulderDistributions(m);
 }
 
 }  // namespace terraingen::python

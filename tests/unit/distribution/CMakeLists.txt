@@ -2,15 +2,22 @@ terraingen_add_test_suite(
     distribution
     SOURCES
     combined_test.cpp
+    equilibrium_test.cpp
     golombek_rapp_test.cpp
+    ivanov_test.cpp
     log_polynomial_test.cpp
     minimum_test.cpp
+    moore_test.cpp
+    neukum_test.cpp
     piecewise_power_law_test.cpp
     power_law_test.cpp
     production_surface_test.cpp
     size_frequency_test.cpp
+    sp8023_test.cpp
     spliced_test.cpp
     summed_test.cpp
+    synthterrain_test.cpp
     tabulated_test.cpp
+    viper_test.cpp
     LIBRARIES
     terraingen::distribution)

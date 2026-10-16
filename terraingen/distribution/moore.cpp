@@ -1,6 +1,6 @@
 /// @file
-/// @brief Lunar crater size distributions from engineering specifications.
-#include "terraingen/bodies/moon/specifications.h"
+/// @brief Moore's lunar terrain crater distributions.
+#include "terraingen/distribution/moore.h"
 
 #include <cmath>
 
@@ -25,11 +25,6 @@ PiecewisePowerLawSfd MooreDistribution(MooreTerrain terrain) {
         return PiecewisePowerLawSfd({{0.0, 0.1, 2.0}}, SfdKind::Density,
                                     DiameterRange{0.0, 10000.0});
     }
-}
-
-PiecewisePowerLawSfd ViperSpecification() {
-    return PiecewisePowerLawSfd({{0.0, 29174.0 / 1e6, 1.92}, {80.0, 156228.0 / 1e6, 2.389}},
-                                SfdKind::Density, DiameterRange{}, true);
 }
 
 }  // namespace terraingen
