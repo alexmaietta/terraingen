@@ -17,6 +17,7 @@
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
 #include "terraingen/layers/craters/secondaries.h"
 #include "terraingen/layers/craters/shaping/apply.h"
+#include "terraingen/layers/dunes.h"
 #include "terraingen/layers/region.h"
 #include "terraingen/layers/roughness.h"
 #include "terraingen/noise/noise_layers.h"
@@ -320,6 +321,14 @@ struct BedformLayerSpec {
     bool operator==(const BedformLayerSpec&) const = default;
 };
 
+/// Layer "dunes": barchans, domes or crest-line dunes with ripples on them (`DuneLayer`); angles
+/// in radians.
+struct DuneLayerSpec {
+    DuneOptions dunes{};
+
+    bool operator==(const DuneLayerSpec&) const = default;
+};
+
 /// Layer "secondaries": secondary craters around the craters of the last crater layer
 /// before this one (`SecondaryCraterLayer`), shaped with that layer's profile at a fixed depth
 /// ratio and the fresh rim of `morphometry`. `secondaries.onsetCount` must be given.
@@ -422,9 +431,10 @@ template <typename T> class Boxed {
 struct RegionLayerSpec;
 
 /// A layer, named in JSON by its "type".
-using LayerSpec = std::variant<NoiseLayerSpec, CraterLayerSpec, BoulderLayerSpec,
-                               RoughnessLayerSpec, BedformLayerSpec, ScaleLayerSpec, ClampLayerSpec,
-                               RegionLayerSpec, SecondaryLayerSpec, DemDetailLayerSpec>;
+using LayerSpec =
+    std::variant<NoiseLayerSpec, CraterLayerSpec, BoulderLayerSpec, RoughnessLayerSpec,
+                 BedformLayerSpec, ScaleLayerSpec, ClampLayerSpec, RegionLayerSpec,
+                 SecondaryLayerSpec, DemDetailLayerSpec, DuneLayerSpec>;
 
 /// Layer "region": `layer` applied only inside `shape` (`RegionLayer`). Boulder ejecta do
 /// not see crater layers inside regions.
@@ -492,7 +502,7 @@ struct BoulderListOutput : ListOutput {};
 /// grid a list would cover.
 struct BoulderModelsOutput {
     std::string path;
-    double creaseAngle = 35.0;  ///< Degrees between faces above which vertices are split.
+    double creaseAngle = 60.0;  ///< Degrees between faces above which vertices are split.
     std::optional<GridRegionSpec> region{};
     std::optional<double> spacing{};  ///< As `ListOutput::spacing`.
     bool instanced = true;            ///< Shared shapes written once and drawn per boulder.

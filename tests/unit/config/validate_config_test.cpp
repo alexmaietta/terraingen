@@ -109,6 +109,18 @@ const PathCase kPathCases[] = {
      "outputs[0].crease_angle"},
     {"EmptyMinimumDensity",
      [](TerrainConfig& c) { Craters(c).density = terraingen::MinimumSpec{}; }, "layers[1].density"},
+    {"DunesSteeperThanASlipFace",
+     [](TerrainConfig& c) {
+         terraingen::DuneLayerSpec dunes{terraingen::MarsBarchans()};
+         dunes.dunes.stossSlope = dunes.dunes.slipFaceAngle;
+         c.layers.push_back(dunes);
+     },
+     "layers[2]"},
+    {"MarsDunesWithRipples",
+     [](TerrainConfig& c) {
+         c.layers.push_back(terraingen::DuneLayerSpec{terraingen::MarsBarchans()});
+     },
+     "valid"},
     {"MarsMorphometryOnALunarSurface",
      [](TerrainConfig& c) { Craters(c).morphometry = terraingen::CraterMorphometryFit::Mars; },
      "valid"},

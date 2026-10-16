@@ -84,6 +84,91 @@ template <typename IO> void Fields(IO& io, RoughnessLayerSpec& spec) {
        "wavelength.");
 }
 
+template <typename IO> void Fields(IO& io, DuneRipples& ripples) {
+    io("wavelength", ripples.wavelength,
+       "Crest-to-crest spacing of the ripples on flat sand, in metres; 0 gives no ripples.", "m");
+    io("height", ripples.height, "Trough-to-crest height of the ripples on flat sand, in metres.",
+       "m");
+    io("lee_fraction", ripples.leeFraction,
+       "Share of a ripple wavelength the lee face takes, in (0, 1): 0.5 is symmetric, lower "
+       "values give a steeper lee face.");
+    io("sinuosity", ripples.sinuosity,
+       "How far a ripple crest wanders along its length, in wavelengths.");
+    io("slope_coupling", ripples.slopeCoupling,
+       "How strongly the dune's slope turns and tightens the ripples: they shorten on steep lee "
+       "faces and turn on the flanks; 0 keeps them straight across the wind.");
+    io("interdune_cover", ripples.interduneCover,
+       "Share of the ripple height kept on the ground between dunes, from 0 to 1.");
+    io("forks", ripples.forks,
+       "Chance, from 0 to 1, that each patch of 8 x 8 ripple wavelengths holds a pair of forked "
+       "crests (Y-junctions).");
+    io("fade", ripples.fade,
+       "How ripples too fine for the sample spacing fade out, by samples per wavelength.");
+}
+
+template <> struct SpecName<DuneLayerSpec> {
+    static constexpr std::string_view kName = "dunes";
+    static constexpr std::string_view kDescription =
+        "Wind-blown dunes added to the terrain: isolated barchans or domes, or fields of "
+        "transverse, barchanoid or linear crests, with slip faces and optional ripples on them.";
+};
+template <typename IO> void Fields(IO& io, DuneLayerSpec& spec) {
+    DuneOptions& dunes = spec.dunes;
+    io("shape", dunes.shape, "The kind of dune.");
+    io("wind_azimuth", dunes.windAzimuth,
+       "Direction the wind blows toward, in radians counter-clockwise from +x (local east of the "
+       "anchor on a body); slip faces face it.",
+       "rad");
+    io("azimuth_spread", dunes.azimuthSpread,
+       "Largest difference of each barchan or dome's wind from the azimuth, in radians.", "rad");
+    io("slip_face_angle", dunes.slipFaceAngle,
+       "Slope of the lee slip faces, in radians: the sand's angle of repose.", "rad");
+    io("stoss_slope", dunes.stossSlope,
+       "Mean slope of the windward faces, in radians; below the slip face angle.", "rad");
+    io("stoss_exponent", dunes.stossExponent,
+       "Exponent alpha of the cos^alpha windward profile of dunes; higher is blunter.");
+    io("dome_exponent", dunes.domeExponent, "Exponent alpha of the cos^alpha profile of domes.");
+    io("spacing", dunes.spacing,
+       "Barchans and domes: side of the lattice cells, each holding at most one dune, in metres.",
+       "m");
+    io("density", dunes.density, "Barchans and domes: chance a cell holds a dune, from 0 to 1.");
+    io("width", dunes.width, "Barchans and domes: mean width, horn to horn, in metres.", "m");
+    io("width_spread", dunes.widthSpread,
+       "Barchans and domes: each width varies from (1 - spread) to (1 + spread) times the mean, "
+       "spread in [0, 1).");
+    io("min_width", dunes.minWidth,
+       "Barchans: width in metres below which a dune is a dome without a slip face, blending "
+       "into barchans up to 1.5 times it.",
+       "m");
+    io("height_ratio", dunes.heightRatio, "Barchans and domes: height over width.");
+    io("horn_length", dunes.hornLength,
+       "Barchans: how far the horns reach downwind of the crest, in dune heights.");
+    io("dome_length", dunes.domeLength, "Domes: length along the wind over width.");
+    io("wavelength", dunes.wavelength,
+       "Transverse, barchanoid and linear dunes: crest-to-crest spacing, in metres.", "m");
+    io("height", dunes.height, "Transverse, barchanoid and linear dunes: crest height, in metres.",
+       "m");
+    io("sinuosity", dunes.sinuosity,
+       "Transverse, barchanoid and linear dunes: how far a crest wanders along its length, in "
+       "wavelengths.");
+    io("defects", dunes.defects,
+       "Transverse, barchanoid and linear dunes: share of the height that varies along crests, "
+       "lowering and ending some, from 0 to 1.");
+    io("flank_slope", dunes.flankSlope, "Linear dunes: mean slope of both flanks, in radians.",
+       "rad");
+    io("seed", dunes.seed,
+       "Seed of the dunes and ripples; changing it gives a different layout of the same "
+       "statistics.");
+    io("anchor_x", dunes.anchor.x,
+       "On a body, the longitude in degrees of the point whose tangent frame the dunes are laid "
+       "out in; they are true to scale near it and absent on the far hemisphere.");
+    io("anchor_y", dunes.anchor.y, "On a body, the latitude in degrees of the anchor.");
+    io("fade", dunes.fade,
+       "How dunes too fine for the sample spacing fade out, by samples across their width or "
+       "wavelength.");
+    io("ripples", dunes.ripples, "Ripples superposed on the dunes.");
+}
+
 template <> struct SpecName<BedformLayerSpec> {
     static constexpr std::string_view kName = "bedforms";
     static constexpr std::string_view kDescription =

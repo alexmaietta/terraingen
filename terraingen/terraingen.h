@@ -64,6 +64,7 @@
 #include "terraingen/layers/craters/shaping/morphometry.h"
 #include "terraingen/layers/craters/shaping/prepared.h"
 #include "terraingen/layers/detail.h"
+#include "terraingen/layers/dunes.h"
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/layers/ground.h"

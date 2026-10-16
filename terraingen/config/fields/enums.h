@@ -280,6 +280,20 @@ template <> struct EnumNames<BoulderRelief> {
     }};
 };
 
+template <> struct EnumNames<DuneShape> {
+    static constexpr std::array<EnumEntry<DuneShape>, 5> kValues{{
+        {"barchan", DuneShape::Barchan,
+         "Isolated crescents with a slip face and horns downwind; domes below min_width."},
+        {"dome", DuneShape::Dome, "Isolated rounded heaps without a slip face."},
+        {"transverse", DuneShape::Transverse,
+         "Continuous crests across the wind, each with a slip face."},
+        {"barchanoid", DuneShape::Barchanoid,
+         "Transverse crests bent into linked crescents, as where sand supply rises."},
+        {"linear", DuneShape::Linear,
+         "Symmetric crests along the wind, as under two winds on scarce sand."},
+    }};
+};
+
 template <> struct EnumNames<ListFormat> {
     static constexpr std::array<EnumEntry<ListFormat>, 2> kValues{{
         {"csv", ListFormat::Csv, "Comma-separated values, one row per item."},

@@ -5,6 +5,7 @@
 
 #include "terraingen/layers/bedforms.h"
 #include "terraingen/layers/detail.h"
+#include "terraingen/layers/dunes.h"
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/layers/layer.h"
@@ -290,6 +291,72 @@ void BindBedforms(nb::module_& m) {
             "the ground beneath them: `terrain`'s source and its first `layers` layers.");
 }
 
+void BindDuneOptions(nb::module_& m) {
+    nb::enum_<DuneShape>(m, "DuneShape", "The kind of dune a DuneLayer builds.")
+        .value("BARCHAN", DuneShape::Barchan)
+        .value("DOME", DuneShape::Dome)
+        .value("TRANSVERSE", DuneShape::Transverse)
+        .value("BARCHANOID", DuneShape::Barchanoid)
+        .value("LINEAR", DuneShape::Linear);
+    auto ripples = nb::class_<DuneRipples>(
+        m, "DuneRipples",
+        "Ripples on dunes: `wavelength` and `height` (m) on flat sand, turned and tightened by the "
+        "dune's slope by `slope_coupling`; a wavelength of 0 gives none.");
+    BindKwargsInit<DuneRipples>(ripples);
+    ripples.def_rw("wavelength", &DuneRipples::wavelength)
+        .def_rw("height", &DuneRipples::height)
+        .def_rw("lee_fraction", &DuneRipples::leeFraction)
+        .def_rw("sinuosity", &DuneRipples::sinuosity)
+        .def_rw("slope_coupling", &DuneRipples::slopeCoupling)
+        .def_rw("interdune_cover", &DuneRipples::interduneCover)
+        .def_rw("forks", &DuneRipples::forks)
+        .def_rw("fade", &DuneRipples::fade);
+    auto options = nb::class_<DuneOptions>(
+        m, "DuneOptions",
+        "Dunes: barchans and domes of `width` (m) in cells `spacing` metres apart, or crest-line "
+        "dunes `wavelength` metres apart and `height` metres high; angles in radians, the wind "
+        "counter-clockwise from +x.");
+    BindKwargsInit<DuneOptions>(options);
+    options.def_rw("shape", &DuneOptions::shape)
+        .def_rw("wind_azimuth", &DuneOptions::windAzimuth)
+        .def_rw("azimuth_spread", &DuneOptions::azimuthSpread)
+        .def_rw("slip_face_angle", &DuneOptions::slipFaceAngle)
+        .def_rw("stoss_slope", &DuneOptions::stossSlope)
+        .def_rw("stoss_exponent", &DuneOptions::stossExponent)
+        .def_rw("dome_exponent", &DuneOptions::domeExponent)
+        .def_rw("spacing", &DuneOptions::spacing)
+        .def_rw("density", &DuneOptions::density)
+        .def_rw("width", &DuneOptions::width)
+        .def_rw("width_spread", &DuneOptions::widthSpread)
+        .def_rw("min_width", &DuneOptions::minWidth)
+        .def_rw("height_ratio", &DuneOptions::heightRatio)
+        .def_rw("horn_length", &DuneOptions::hornLength)
+        .def_rw("dome_length", &DuneOptions::domeLength)
+        .def_rw("wavelength", &DuneOptions::wavelength)
+        .def_rw("height", &DuneOptions::height)
+        .def_rw("sinuosity", &DuneOptions::sinuosity)
+        .def_rw("defects", &DuneOptions::defects)
+        .def_rw("flank_slope", &DuneOptions::flankSlope)
+        .def_rw("seed", &DuneOptions::seed)
+        .def_rw("anchor", &DuneOptions::anchor)
+        .def_rw("fade", &DuneOptions::fade)
+        .def_rw("ripples", &DuneOptions::ripples);
+    m.def("validate_dune_options", &ValidateDuneOptions, "options"_a, kValidateDoc);
+    m.def("mars_dune_ripples", &MarsDuneRipples, "Martian large wind ripples to lay on dunes.");
+    m.def("mars_barchans", &MarsBarchans, "Martian barchans with large ripples.");
+    m.def("mars_transverse_dunes", &MarsTransverseDunes,
+          "The transverse dunes of Mars's north polar erg, with large ripples.");
+}
+
+void BindDunes(nb::module_& m) {
+    BindDuneOptions(m);
+    nb::class_<DuneLayer, Layer>(m, "DuneLayer", "Wind-blown dunes, with ripples on them.")
+        .def(nb::init<DuneOptions, Surface>(), "options"_a, "surface"_a = Surface{})
+        .def("dune_height_at", &DuneLayer::DuneHeightAt, "x"_a, "y"_a,
+             "The dunes' height at (x, y) in metres, without ripples.")
+        .def_prop_ro("options", &DuneLayer::Options);
+}
+
 }  // namespace
 
 void BindLayers(nb::module_& m) {
@@ -301,6 +368,7 @@ void BindLayers(nb::module_& m) {
     BindExposureParams(m);
     BindExposureField(m);
     BindBedforms(m);
+    BindDunes(m);
 }
 
 }  // namespace terraingen::python

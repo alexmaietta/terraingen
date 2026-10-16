@@ -324,6 +324,9 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
             [&](const RoughnessLayerSpec& s) -> LayerPtr {
                 return std::make_shared<RoughnessLayer>(s.roughness, surface);
             },
+            [&](const DuneLayerSpec& s) -> LayerPtr {
+                return std::make_shared<DuneLayer>(s.dunes, surface);
+            },
             [&](const BedformLayerSpec& s) -> LayerPtr {
                 return std::make_shared<BedformLayer>(s.bedforms, surface);
             },

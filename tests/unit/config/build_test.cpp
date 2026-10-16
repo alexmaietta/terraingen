@@ -321,8 +321,9 @@ TEST(BuildTerrain, BuildsEveryLayerKindInOrder) {
     config.layers.push_back(terraingen::ScaleLayerSpec{2.0, 1.0});
     config.layers.push_back(terraingen::ClampLayerSpec{0.0, 1.0});
     config.layers.push_back(terraingen::RegionLayerSpec{terraingen::CircleRegionSpec{0, 0, 10}});
+    config.layers.push_back(terraingen::DuneLayerSpec{terraingen::MarsBarchans()});
     const terraingen::Terrain terrain = terraingen::BuildTerrain(config);
-    ASSERT_EQ(terrain.layers.size(), 9u);
+    ASSERT_EQ(terrain.layers.size(), 10u);
     EXPECT_NE(dynamic_cast<const terraingen::NoiseRelief*>(terrain.layers[0].get()), nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::CraterLayer*>(terrain.layers[1].get()), nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::BoulderLayer*>(terrain.layers[2].get()), nullptr);
@@ -333,6 +334,7 @@ TEST(BuildTerrain, BuildsEveryLayerKindInOrder) {
     EXPECT_NE(dynamic_cast<const terraingen::ScaleLayer*>(terrain.layers[6].get()), nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::ClampLayer*>(terrain.layers[7].get()), nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::RegionLayer*>(terrain.layers[8].get()), nullptr);
+    EXPECT_NE(dynamic_cast<const terraingen::DuneLayer*>(terrain.layers[9].get()), nullptr);
     TerrainConfig narrow;
     narrow.outputs = {terraingen::testing::Heightmap("n.tif", terraingen::GridRegionSpec{1})};
     EXPECT_THROW(terraingen::BuildTerrain(narrow), ConfigError);

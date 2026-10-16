@@ -61,7 +61,7 @@ Options:
 | boulders | `example_boulders_buried`, `_ejecta`, `_fragments`, `_exposure`, `_layer`, `_models`, `_patches`, `_scene`, `_shapes`, `_sp8023` | `example_boulders_ejecta`, `_layer`, `_shapes` | `example_boulders_exposure`, `_layer`, `_positioning`, `_shapes`, `_size_models` |
 | albedo | `example_albedo_crater_rays`, `_moon_site`, `_oblique_rays`, `_rgb`, `_synthetic` | `example_albedo_crater_rays` | `example_albedo_crater_rays`, `_moon_site`, `_options` |
 | layers | `example_layers_regions`, `_roughness`, `_scale_and_clamp` | `example_layers_custom`, `_regions` | `example_layers_custom`, `_regions` |
-| planets | `example_planets_asteroid_body_mesh`, `_mars_bedforms`, `_mars_craters`, `_mars_exposure`, `_mercury_site`, `_moon_body_mesh`, `_moon_site` | `example_planets_moon` | `example_planets_body_mesh`, `_mars`, `_mars_exposure`, `_mercury`, `_moon_site` |
+| planets | `example_planets_asteroid_body_mesh`, `_mars_bedforms`, `_mars_craters`, `_mars_dunes`, `_mars_exposure`, `_mercury_site`, `_moon_body_mesh`, `_moon_site` | `example_planets_moon` | `example_planets_body_mesh`, `_mars`, `_mars_dunes`, `_mars_exposure`, `_mercury`, `_moon_site` |
 | sources |  | `example_sources_raster_detail` | `example_sources_chain`, `_raster_detail` |
 | tiles |  | `example_tiles_body_pyramid`, `_quadtree`, `_rover_contacts` | `example_tiles_body_pyramid`, `_point_queries`, `_quadtree`, `_rover_contacts` |
 | config |  | `example_config_load` | `example_config_load` |

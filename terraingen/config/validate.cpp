@@ -245,6 +245,9 @@ void ValidateLayer(const LayerSpec& spec, const std::string& path, LayerChecks& 
             [&](const RoughnessLayerSpec& layer) {
                 At(path, [&] { ValidateRoughnessOptions(layer.roughness); });
             },
+            [&](const DuneLayerSpec& layer) {
+                At(path, [&] { ValidateDuneOptions(layer.dunes); });
+            },
             [&](const BedformLayerSpec& layer) {
                 At(path, [&] { ValidateBedformOptions(layer.bedforms); });
             },

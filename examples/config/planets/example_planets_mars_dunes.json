@@ -1,0 +1,58 @@
+{
+    "schema_version": 1,
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 3,
+                    "wavelength": 40,
+                    "amplitude": 0.4,
+                    "octaves": 6
+                }
+            ]
+        },
+        {
+            "type": "dunes",
+            "shape": "barchan",
+            "wind_azimuth": 0,
+            "slip_face_angle": 0.5061454830783556,
+            "stoss_slope": 0.13962634015954636,
+            "spacing": 1000,
+            "density": 1,
+            "width": 400,
+            "width_spread": 0.15,
+            "min_width": 200,
+            "dome_length": 2,
+            "ripples": {
+                "wavelength": 2.1,
+                "height": 0.2,
+                "lee_fraction": 0.165,
+                "sinuosity": 0.8,
+                "forks": 0.8
+            }
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_planets_mars_dunes.tif",
+            "region": {
+                "width": 1025,
+                "height": 1025,
+                "pixel_size": 2
+            }
+        },
+        {
+            "type": "heightmap",
+            "path": "example_planets_mars_dunes_closeup.tif",
+            "region": {
+                "width": 513,
+                "height": 513,
+                "pixel_size": 0.25,
+                "centre_x": -760,
+                "centre_y": 50
+            }
+        }
+    ]
+}

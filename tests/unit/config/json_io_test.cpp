@@ -156,6 +156,8 @@ TerrainConfig Everything() {
         synthterrain,
         table,
         terraingen::BedformLayerSpec{terraingen::MarsLargeRipples()},
+        terraingen::DuneLayerSpec{terraingen::MarsBarchans()},
+        terraingen::DuneLayerSpec{terraingen::MarsTransverseDunes()},
         roughness,
         terraingen::RoughnessLayerSpec{},
         terraingen::ScaleLayerSpec{1.5, -20.0},

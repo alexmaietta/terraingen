@@ -231,3 +231,39 @@ def test_layers_accept_a_sphere_surface(lunar_models):
     boulders = terraingen.BoulderLayer(terraingen.BoulderLayerOptions(), craters, surface=moon)
     bedforms = terraingen.BedformLayer(terraingen.mars_large_ripples(), surface=moon)
     assert all(part is not None for part in (rough, boulders, bedforms))
+
+
+def test_dune_presets_build_barchans_with_slip_faces_and_ripples():
+    barchans = terraingen.mars_barchans()
+    assert barchans.shape == terraingen.DuneShape.BARCHAN
+    assert math.degrees(barchans.slip_face_angle) == pytest.approx(29.0)
+    assert barchans.ripples.wavelength == pytest.approx(2.1)
+    assert terraingen.mars_transverse_dunes().wavelength == pytest.approx(248.0)
+    options = terraingen.DuneOptions(width=400.0, width_spread=0.0, spacing=2000.0, density=1.0)
+    layer = terraingen.DuneLayer(options)
+    terrain = terraingen.Terrain(None, [layer])
+    raster = terraingen.evaluate(terrain, grid=terraingen.FlatSource(100, 100, 20.0).grid())
+    heights = raster.values
+    assert heights.max() == pytest.approx(400.0 / 15.0, rel=0.05)
+    row, col = np.unravel_index(np.argmax(heights), heights.shape)
+    assert layer.dune_height_at(*raster.cell_center(int(col), int(row))) > 0.0
+    with pytest.raises(ValueError):
+        terraingen.validate_dune_options(terraingen.DuneOptions(stoss_slope=1.0))
+
+
+def test_dune_ripples_ride_on_crest_fields():
+    options = terraingen.DuneOptions(shape=terraingen.DuneShape.TRANSVERSE, wavelength=200.0, height=15.0)
+    options.ripples = terraingen.mars_dune_ripples()
+    layer = terraingen.DuneLayer(options)
+    context = terraingen.LayerContext(spacing=0.05)
+    rippled = [layer.apply_at(0.0, 10.0 + 0.1 * i, 3.0, context) for i in range(200)]
+    bare = [layer.dune_height_at(10.0 + 0.1 * i, 3.0) for i in range(200)]
+    assert max(r - b for r, b in zip(rippled, bare, strict=True)) > 0.05
+    config = terraingen.Config.from_dict(
+        {
+            "schema_version": 1,
+            "layers": [{"type": "dunes", "shape": "linear", "ripples": {"wavelength": 2.0, "height": 0.2}}],
+        }
+    )
+    assert config.to_dict()["layers"][0]["shape"] == "linear"
+    config.validate()
