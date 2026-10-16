@@ -30,7 +30,7 @@ double Uniform(std::uint32_t high, std::uint32_t low) {
 /// The box the relief of a boulder at (`x`, `y`) reaching `reach` metres is drawn over: on a
 /// sphere a square in degrees around the box `Surface::Expand` gives.
 Bounds2d ReliefBox(double x, double y, double reach, const Surface& surface) {
-    if (!surface.IsSphere()) {
+    if (!surface.IsBody()) {
         return {x - reach, y - reach, x + reach, y + reach};
     }
     const Bounds2d box = surface.Expand({x, y, x, y}, reach);
@@ -60,8 +60,8 @@ BoulderLayer::BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const Cr
     if (craters_ && !(craters_->Options().surface == surface_)) {
         throw std::invalid_argument("A boulder layer and its crater layer must share a surface");
     }
-    if (surface_.IsSphere()) {
-        cells_ = std::make_shared<CubeSphereCells>(surface_.Radius());
+    if (surface_.IsBody()) {
+        cells_ = std::make_shared<CubeSphereCells>(surface_);
     } else {
         cells_ = std::make_shared<PlanarCells>();
     }
@@ -92,7 +92,7 @@ std::shared_ptr<const BoulderShape> BoulderLayer::Shape(const Boulder& boulder) 
 
 Boulder BoulderLayer::InLocalFrame(const Boulder& boulder) const {
     Boulder local = boulder;
-    if (surface_.IsSphere()) {
+    if (surface_.IsBody()) {
         local.x = 0.0;
         local.y = 0.0;
     }
@@ -115,7 +115,7 @@ float BoulderLayer::AddRelief(float height, double x, double y, const Boulder& b
         return AddBoulder(height, x, y, boulder, weight, surface_);
     }
     std::optional<double> top;
-    if (surface_.IsSphere()) {
+    if (surface_.IsBody()) {
         const Vec2d offset = surface_.Offset({boulder.x, boulder.y}, {x, y});
         top = TopSurface(*placed, offset.x, offset.y);
     } else {

@@ -87,7 +87,7 @@ void ExposureField::Fill(Raster<float>& raster, const Ground& ground, double spa
 double PatchNoise(const Surface& surface, double x, double y, double size, std::uint32_t seed) {
     double coarse = 0.0;
     double fine = 0.0;
-    if (surface.IsSphere()) {
+    if (surface.IsBody()) {
         const Vec3d p = surface.Position({x, y});
         const double s = 1.0 / size;
         coarse = static_cast<double>(PerlinNoise3Precise(s * p.x, s * p.y, s * p.z, seed));

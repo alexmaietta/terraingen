@@ -18,7 +18,7 @@ class SiteFrame {
         : surface_(surface), frame_(surface.Frame(site)), origin_(surface.Position(site)) {}
 
     Vec3d Place(const Vec2d& point, double height) const {
-        if (!surface_.IsSphere()) {
+        if (!surface_.IsBody()) {
             return {point.x, point.y, height};
         }
         const LocalFrame at = surface_.Frame(point);

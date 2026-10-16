@@ -389,7 +389,7 @@ void CraterAlbedo::Apply(std::vector<Raster<float>>& bands, const AlbedoContext&
                                   count](AlbedoSample& value, double x, double y) {
             double excess = 0.0;
             for (const Prepared* p : near) {
-                if (!surface.IsSphere() && std::fabs(x - p->crater.x) > p->reach) {
+                if (!surface.IsBody() && std::fabs(x - p->crater.x) > p->reach) {
                     continue;
                 }
                 excess += p->Excess(options_, surface, x, y);

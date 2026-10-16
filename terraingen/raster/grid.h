@@ -36,7 +36,8 @@ struct RasterGrid {
     /// The area in m^2 the grid covers on a surface: `Area` on a plane.
     ///
     /// On a sphere of radius R this is R^2 (lon2 - lon1) (sin lat2 - sin lat1) over the grid's
-    /// longitude-latitude box, with latitudes clamped to [-90, 90] and at most a full turn.
+    /// longitude-latitude box, with latitudes clamped to [-90, 90] and at most a full turn; on an
+    /// ellipsoid the area element is integrated over the same box.
     double SurfaceArea(const Surface& surface) const;
 
     /// The grid's sample spacing in metres on a surface: `PixelSize` on a plane, on a sphere the

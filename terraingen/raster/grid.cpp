@@ -40,7 +40,7 @@ Raster<float> RasterGrid::MakeRaster(float fill) const {
 }
 
 double RasterGrid::Spacing(const Surface& surface) const {
-    if (!surface.IsSphere()) {
+    if (!surface.IsBody()) {
         return PixelSize();
     }
     return std::hypot(transform.rowRotation, transform.pixelHeight) * surface.UnitLength();
@@ -74,15 +74,32 @@ double ResolvedSpacing(const Raster<float>& raster, double spacing, const Surfac
 }
 
 double RasterGrid::SurfaceArea(const Surface& surface) const {
-    if (!surface.IsSphere()) {
+    if (!surface.IsBody()) {
         return Area();
     }
     const Bounds2d box = Bounds();
     const double turn = std::fmin(box.maxX - box.minX, 360.0) * kDegree;
     const double south = std::fmax(box.minY, -90.0) * kDegree;
     const double north = std::fmin(box.maxY, 90.0) * kDegree;
-    const double radius = surface.Radius();
-    return radius * radius * turn * std::fmax(0.0, std::sin(north) - std::sin(south));
+    const Vec3d radii = surface.Radii();
+    if (radii.x == radii.y && radii.y == radii.z) {
+        const double radius = surface.Radius();
+        return radius * radius * turn * std::fmax(0.0, std::sin(north) - std::sin(south));
+    }
+    if (!(north > south)) {
+        return 0.0;
+    }
+    constexpr int kSteps = 64;
+    const double west = box.minX * kDegree;
+    double area = 0.0;
+    for (int j = 0; j < kSteps; ++j) {
+        const double lat = south + (north - south) * (j + 0.5) / kSteps;
+        for (int i = 0; i < kSteps; ++i) {
+            const double lon = west + turn * (i + 0.5) / kSteps;
+            area += surface.AreaPerSteradian({lon / kDegree, lat / kDegree}) * std::cos(lat);
+        }
+    }
+    return area * turn * (north - south) / (kSteps * kSteps);
 }
 
 }  // namespace terraingen

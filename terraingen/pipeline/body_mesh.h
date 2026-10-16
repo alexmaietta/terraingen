@@ -9,12 +9,13 @@
 
 namespace terraingen {
 
-/// A mesh of the whole body a terrain on a sphere lies on.
+/// A mesh of the whole body a terrain on a sphere or ellipsoid lies on.
 ///
 /// The six faces of a cube are each split into `cellsPerFace` x `cellsPerFace` quads along
 /// equiangular coordinates (as `CubeSphereCells`), two triangles each, with every vertex at the
-/// body's radius plus the terrain's height there (`EvaluateAt`; points without data are on the
-/// datum). Positions are body-fixed metres, x towards longitude 0 on the equator and z north
+/// body's radius in that direction plus the terrain's height there (`EvaluateAt`; points without
+/// data are on the datum). Positions are body-fixed metres, x towards longitude 0 on the equator
+/// and z north
 /// (`Surface::Position`); vertices along the faces' edges are repeated per face.
 /// @param spacing Sample spacing in metres; 0 for a quad's side at a face's centre.
 /// @param threads Threads to use; 0 for every hardware thread.

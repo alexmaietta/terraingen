@@ -38,8 +38,8 @@ class Surface {
   public:
     /// The kind of surface.
     enum class Kind {
-        Plane,   ///< A plane.
-        Sphere,  ///< A body: a sphere or a triaxial ellipsoid.
+        Plane,  ///< A plane.
+        Body,   ///< A body: a sphere or a triaxial ellipsoid.
     };
 
     /// A plane, the default.
@@ -65,8 +65,8 @@ class Surface {
     }
 
     /// Whether the surface is a body, a sphere or an ellipsoid, rather than a plane.
-    bool IsSphere() const {
-        return kind_ == Kind::Sphere;
+    bool IsBody() const {
+        return kind_ == Kind::Body;
     }
 
     /// The radius in metres of a sphere, or the volumetric mean radius (abc)^(1/3) of an
@@ -160,7 +160,7 @@ class Surface {
   private:
     /// Whether the body has unequal radii, so the sphere formulas do not apply.
     bool IsEllipsoid() const {
-        return kind_ == Kind::Sphere && !(radii_.x == radii_.y && radii_.y == radii_.z);
+        return kind_ == Kind::Body && !(radii_.x == radii_.y && radii_.y == radii_.z);
     }
 
     Vec2d SphereOffset(const Vec2d& centre, const Vec2d& point) const;

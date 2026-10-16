@@ -26,6 +26,20 @@ template <typename IO> void Fields(IO& io, SphereSurfaceSpec& spec) {
     io("radius", spec.radius, "Radius of the body's datum sphere, in metres; required.", "m");
 }
 
+template <> struct SpecName<EllipsoidSurfaceSpec> {
+    static constexpr std::string_view kName = "ellipsoid";
+    static constexpr std::string_view kDescription =
+        "A whole body shaped as a triaxial ellipsoid, such as an elongated moon or asteroid: "
+        "planetocentric longitude and latitude (degrees), heights along the direction from the "
+        "centre, and features generated over the whole body.";
+};
+template <typename IO> void Fields(IO& io, EllipsoidSurfaceSpec& spec) {
+    io("radii", spec.radii,
+       "Semi-axes a, b and c of the datum ellipsoid in metres, along x (longitude 0), y "
+       "(longitude 90) and z (the north pole); exactly three, each positive.",
+       "m");
+}
+
 template <> struct SpecName<FlatSourceSpec> {
     static constexpr std::string_view kName = "flat";
     static constexpr std::string_view kDescription =

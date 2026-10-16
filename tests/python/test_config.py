@@ -36,7 +36,7 @@ def test_config_on_a_sphere_describes_its_grid():
             "source": {"type": "flat", "width": 17, "height": 17, "pixel_size": 100},
         }
     )
-    assert config.surface.is_sphere and config.grid().width == 17
+    assert config.surface.is_body and config.grid().width == 17
 
 
 def test_unknown_keys_name_their_path():
@@ -83,7 +83,7 @@ def test_schema_describes_fields_with_units_and_choices():
 def test_catalog_lists_every_type():
     catalog = terraingen.config_catalog()
     assert catalog["schema_version"] == 1
-    assert [s["type"] for s in catalog["surface"]] == ["plane", "sphere"]
+    assert [s["type"] for s in catalog["surface"]] == ["plane", "sphere", "ellipsoid"]
     assert "craters" in [layer["type"] for layer in catalog["layers"]]
     assert "density" in catalog["models"]
 

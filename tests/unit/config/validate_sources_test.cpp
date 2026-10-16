@@ -10,6 +10,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 using terraingen::ConfigError;
 using terraingen::CraterLayerSpec;
@@ -228,5 +229,37 @@ TEST(ValidateConfig, ReportsASphereWithoutARadiusAtTheRadius) {
     config.surface = terraingen::SphereSurfaceSpec{-1737400.0};
     EXPECT_EQ(ValidationErrorPath(config), "surface.radius");
     config.surface = terraingen::SphereSurfaceSpec{1737400.0};
+    EXPECT_EQ(ValidationErrorPath(config), "valid");
+}
+
+TEST(BuildSurface, BuildsEllipsoidsOfThreeRadii) {
+    EXPECT_EQ(terraingen::BuildSurface(terraingen::EllipsoidSurfaceSpec{{270.0, 147.0, 104.0}}),
+              terraingen::Surface::Ellipsoid(270.0, 147.0, 104.0));
+    EXPECT_EQ(terraingen::BuildSurface(terraingen::EllipsoidSurfaceSpec{{5.0, 5.0, 5.0}}),
+              terraingen::Surface::Sphere(5.0));
+}
+
+TEST(BuildSurface, EllipsoidRadiiOfTheWrongCountOrSignAreErrorsAtThem) {
+    const auto path = [](std::vector<double> radii) {
+        try {
+            terraingen::BuildSurface(terraingen::EllipsoidSurfaceSpec{std::move(radii)});
+        } catch (const ConfigError& error) {
+            return error.Path();
+        }
+        return std::string("valid");
+    };
+    EXPECT_EQ(path({}), "surface.radii");
+    EXPECT_EQ(path({1.0, 2.0}), "surface.radii");
+    EXPECT_EQ(path({1.0, 2.0, 3.0, 4.0}), "surface.radii");
+    EXPECT_EQ(path({1.0, -2.0, 3.0}), "surface.radii[1]");
+    EXPECT_EQ(path({1.0, 2.0, std::numeric_limits<double>::quiet_NaN()}), "surface.radii[2]");
+    EXPECT_EQ(path({1.0, 2.0, 3.0}), "valid");
+}
+
+TEST(ValidateConfig, ReportsEllipsoidRadiiByPath) {
+    TerrainConfig config;
+    config.surface = terraingen::EllipsoidSurfaceSpec{{270.0, 0.0, 104.0}};
+    EXPECT_EQ(ValidationErrorPath(config), "surface.radii[1]");
+    config.surface = terraingen::EllipsoidSurfaceSpec{{270000.0, 147000.0, 104000.0}};
     EXPECT_EQ(ValidationErrorPath(config), "valid");
 }

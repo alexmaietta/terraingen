@@ -47,7 +47,7 @@ std::vector<PixelWindow> WindowsAround(const RasterGrid& grid, const Bounds2d& b
             windows.push_back(window);
         }
     };
-    if (!surface.IsSphere()) {
+    if (!surface.IsBody()) {
         add(0.0);
         return windows;
     }

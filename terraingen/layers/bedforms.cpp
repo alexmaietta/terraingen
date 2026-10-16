@@ -91,8 +91,8 @@ BedformLayer::BedformLayer(BedformOptions options, Surface surface)
     if (options_.exposure) {
         exposure_.emplace(*options_.exposure, surface_);
     }
-    if (surface_.IsSphere()) {
-        cells_.emplace(surface_.Radius());
+    if (surface_.IsBody()) {
+        cells_.emplace(surface_);
     }
 }
 

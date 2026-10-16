@@ -17,7 +17,7 @@ const Vec3d& Axis(const LocalFrame& frame, int index) {
 
 BoulderPlacement PlacementAtSite(const BoulderPlacement& placement, const Vec2d& boulder,
                                  const Vec2d& site, const Surface& surface) {
-    if (!surface.IsSphere()) {
+    if (!surface.IsBody()) {
         return placement;
     }
     const LocalFrame from = surface.Frame(boulder);

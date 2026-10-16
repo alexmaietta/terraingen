@@ -23,7 +23,7 @@ namespace {
 /// The projection of a terrain's raster source, or geographic keys on a sphere without one.
 GeoKeys KeysOf(const Terrain& terrain) {
     GeoKeys keys = terrain.source->Keys();
-    if (terrain.surface.IsSphere() && keys.Empty()) {
+    if (terrain.surface.IsBody() && keys.Empty()) {
         keys = GeographicSphereKeys(terrain.surface.Radius());
     }
     return keys;

@@ -62,7 +62,7 @@ Raster<float> CopyWindow(const Raster<float>& heights, const PixelWindow& window
 }  // namespace
 
 double RegionShape::DistanceOutside(double x, double y, const Surface& surface) const {
-    if (surface.IsSphere()) {
+    if (surface.IsBody()) {
         if (kind == Kind::Circle) {
             return std::fmax(0.0, surface.Distance(centre, {x, y}) - radius);
         }
@@ -86,7 +86,7 @@ double RegionShape::DistanceOutside(double x, double y, const Surface& surface) 
 
 Bounds2d RegionShape::Bounds(const Surface& surface) const {
     if (kind == Kind::Circle) {
-        if (surface.IsSphere()) {
+        if (surface.IsBody()) {
             return surface.Expand({centre.x, centre.y, centre.x, centre.y}, radius);
         }
         return {centre.x - radius, centre.y - radius, centre.x + radius, centre.y + radius};

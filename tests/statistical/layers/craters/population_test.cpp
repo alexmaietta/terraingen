@@ -4,7 +4,9 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
+#include <numbers>
 #include <vector>
 
 using terraingen::Bounds2d;
@@ -65,4 +67,63 @@ TEST(CraterPopulationStatistics, PositionsAreUniformAcrossQuadratsNotAlignedWith
     EXPECT_LT(chiSquare, ChiSquareCritical(quadrats - 1.0));
     EXPECT_LT(KolmogorovSmirnov(craters.X(), [&](double x) { return (x - region.minX) / 1000.0; }),
               KolmogorovSmirnovCritical(craters.Size()));
+}
+
+namespace {
+
+/// The area in m^2 of a longitude-latitude box on `surface`, by midpoint quadrature.
+double BoxArea(const terraingen::Surface& surface, double lon1, double lon2, double lat1,
+               double lat2) {
+    constexpr int kSteps = 60;
+    constexpr double kRadian = std::numbers::pi / 180.0;
+    double area = 0.0;
+    for (int j = 0; j < kSteps; ++j) {
+        const double lat = lat1 + (lat2 - lat1) * (j + 0.5) / kSteps;
+        for (int i = 0; i < kSteps; ++i) {
+            const double lon = lon1 + (lon2 - lon1) * (i + 0.5) / kSteps;
+            area += surface.AreaPerSteradian({lon, lat}) * std::cos(lat * kRadian);
+        }
+    }
+    return area * (lon2 - lon1) * (lat2 - lat1) * kRadian * kRadian / (kSteps * kSteps);
+}
+
+}  // namespace
+
+TEST(CraterPopulationStatistics, AnEllipsoidHoldsTheDensityTimesItsArea) {
+    const terraingen::Surface body = terraingen::Surface::Ellipsoid(270.0, 147.0, 104.0);
+    const PowerLawSfd density(0.1, 2.0);
+    const CraterList craters =
+        GenerateCraters(terraingen::CubeSphereCells(body), {-180.0, -90.0, 180.0, 90.0}, density,
+                        FreshAges(), 24u, {.dMin = 1.0, .dMax = 20.0, .surface = body});
+    const double mean = density.ExpectedCount(BoxArea(body, -180.0, 180.0, -90.0, 90.0), 1.0, 20.0);
+    EXPECT_NEAR(static_cast<double>(craters.Size()), mean, 5.0 * std::sqrt(mean));
+}
+
+TEST(CraterPopulationStatistics, EllipsoidPositionsAreUniformByArea) {
+    const terraingen::Surface body = terraingen::Surface::Ellipsoid(270.0, 147.0, 104.0);
+    const PowerLawSfd density(0.1, 2.0);
+    const CraterList craters =
+        GenerateCraters(terraingen::CubeSphereCells(body), {-180.0, -90.0, 180.0, 90.0}, density,
+                        FreshAges(), 25u, {.dMin = 1.0, .dMax = 20.0, .surface = body});
+    constexpr int kLon = 8;
+    constexpr int kLat = 6;
+    std::vector<double> counts(kLon * kLat, 0.0);
+    for (std::size_t n = 0; n < craters.Size(); ++n) {
+        const int i = std::min(kLon - 1, static_cast<int>((craters.X()[n] + 180.0) / 360.0 * kLon));
+        const int j = std::min(kLat - 1, static_cast<int>((craters.Y()[n] + 90.0) / 180.0 * kLat));
+        counts[static_cast<std::size_t>(j * kLon + i)] += 1.0;
+    }
+    const double total = BoxArea(body, -180.0, 180.0, -90.0, 90.0);
+    double chiSquare = 0.0;
+    for (int j = 0; j < kLat; ++j) {
+        for (int i = 0; i < kLon; ++i) {
+            const double area =
+                BoxArea(body, -180.0 + 360.0 * i / kLon, -180.0 + 360.0 * (i + 1) / kLon,
+                        -90.0 + 180.0 * j / kLat, -90.0 + 180.0 * (j + 1) / kLat);
+            const double expected = static_cast<double>(craters.Size()) * area / total;
+            const double count = counts[static_cast<std::size_t>(j * kLon + i)];
+            chiSquare += (count - expected) * (count - expected) / expected;
+        }
+    }
+    EXPECT_LT(chiSquare, ChiSquareCritical(kLon * kLat - 1.0));
 }

@@ -11,7 +11,7 @@ namespace terraingen {
 
 TriangleMesh BodyMesh(const Terrain& terrain, std::size_t cellsPerFace, double spacing,
                       unsigned threads) {
-    if (!terrain.surface.IsSphere()) {
+    if (!terrain.surface.IsBody()) {
         throw std::invalid_argument("A body mesh needs a terrain on a sphere");
     }
     if (cellsPerFace == 0) {
@@ -37,7 +37,8 @@ TriangleMesh BodyMesh(const Terrain& terrain, std::size_t cellsPerFace, double s
     TriangleMesh mesh;
     mesh.positions.resize(directions.size());
     for (std::size_t v = 0; v < directions.size(); ++v) {
-        const double r = radius + (std::isnan(heights[v]) ? 0.0 : static_cast<double>(heights[v]));
+        const double r = terrain.surface.RadiusAt(points[v]) +
+                         (std::isnan(heights[v]) ? 0.0 : static_cast<double>(heights[v]));
         mesh.positions[v] = directions[v] * r;
     }
     for (std::size_t face = 0; face < 6; ++face) {

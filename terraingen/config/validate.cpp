@@ -196,7 +196,7 @@ RasterGrid DescribeFlat(const FlatSourceSpec& flat, const std::string& path,
         throw ConfigError(Child(path, "centre_x"), "the centre must be finite");
     }
     const double cell = flat.pixelSize / surface.UnitLength();
-    if (surface.IsSphere() &&
+    if (surface.IsBody() &&
         !(std::fabs(flat.centreY) + 0.5 * cell * static_cast<double>(flat.height) <= 90.0 &&
           cell * static_cast<double>(flat.width) <= 360.0)) {
         throw ConfigError(Child(path, "height"),
@@ -208,12 +208,12 @@ RasterGrid DescribeFlat(const FlatSourceSpec& flat, const std::string& path,
 
 /// @throws ConfigError for a raster whose coordinates do not suit the surface.
 void CheckRasterCrs(const GeoTiffInfo& info, const Surface& surface, const std::string& path) {
-    if (info.geoKeys.IsGeographic() && !surface.IsSphere()) {
+    if (info.geoKeys.IsGeographic() && !surface.IsBody()) {
         throw ConfigError(path, "the raster's CRS is geographic (degrees); craters are sized in "
                                 "metres, so reproject it first, for example with gdalwarp -t_srs, "
                                 "or set the surface to a sphere");
     }
-    if (surface.IsSphere() && !info.geoKeys.Empty() && !info.geoKeys.IsGeographic()) {
+    if (surface.IsBody() && !info.geoKeys.Empty() && !info.geoKeys.IsGeographic()) {
         throw ConfigError(
             path, "on a sphere the raster must be in longitude and latitude (a geographic CRS)");
     }
@@ -452,7 +452,7 @@ ConfigSummary ValidateConfig(const TerrainConfig& config, const std::filesystem:
     for (std::size_t i = 0; i < config.layers.size(); ++i) {
         ValidateLayer(config.layers[i], Element("layers", i), layers);
     }
-    const OutputContext outputs{surface.IsSphere(), config.albedo.has_value()};
+    const OutputContext outputs{surface.IsBody(), config.albedo.has_value()};
     for (std::size_t i = 0; i < config.outputs.size(); ++i) {
         std::visit(
             [&](const auto& output) { ValidateOutput(output, Element("outputs", i), outputs); },

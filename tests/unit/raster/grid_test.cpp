@@ -61,3 +61,18 @@ TEST(ResampledGrid, KeepsTheExtentWithSquareCells) {
     const RasterGrid rotated{2, 2, GeoTransform{0.0, 1.0, 0.1, 0.0, 0.0, -1.0}};
     EXPECT_THROW(terraingen::ResampledGrid(rotated, 1.0), std::invalid_argument);
 }
+
+TEST(RasterGrid, SurfaceAreaIntegratesAnEllipsoid) {
+    const double a = 3000.0;
+    const double c = 1000.0;
+    const terraingen::Surface spheroid = terraingen::Surface::Ellipsoid(a, a, c);
+    const RasterGrid whole{360, 180, GeoTransform::NorthUp(-180.0, 90.0, 1.0)};
+    const double e = std::sqrt(1.0 - c * c / (a * a));
+    constexpr double kPi = 3.14159265358979323846;
+    const double expected = 2.0 * kPi * a * a * (1.0 + (1.0 - e * e) / e * std::atanh(e));
+    EXPECT_NEAR(whole.SurfaceArea(spheroid) / expected, 1.0, 1e-4);
+    const RasterGrid north{360, 90, GeoTransform::NorthUp(-180.0, 90.0, 1.0)};
+    EXPECT_NEAR(north.SurfaceArea(spheroid) / expected, 0.5, 1e-4);
+    const RasterGrid empty{10, 0, GeoTransform::NorthUp(0.0, 10.0, 1.0)};
+    EXPECT_EQ(empty.SurfaceArea(spheroid), 0.0);
+}

@@ -31,7 +31,7 @@ Vec3d UnitVector(double lonDeg, double latDeg) {
 Surface Surface::Sphere(double radius) {
     RequirePositive(radius, "A sphere's radius");
     Surface surface;
-    surface.kind_ = Kind::Sphere;
+    surface.kind_ = Kind::Body;
     surface.radius_ = radius;
     surface.unitLength_ = radius * kDegree;
     surface.radii_ = {radius, radius, radius};
@@ -46,7 +46,7 @@ Surface Surface::Ellipsoid(double a, double b, double c) {
         return Sphere(a);
     }
     Surface surface;
-    surface.kind_ = Kind::Sphere;
+    surface.kind_ = Kind::Body;
     surface.radius_ = std::cbrt(a * b * c);
     surface.unitLength_ = surface.radius_ * kDegree;
     surface.radii_ = {a, b, c};

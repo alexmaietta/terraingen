@@ -145,7 +145,7 @@ void CraterReliefIndex::AddBucket(const std::vector<std::size_t>& bucket, double
 
 double CraterReliefIndex::ReliefBefore(double x, double y, std::size_t k) const {
     double relief = 0.0;
-    const long long depth = surface_.IsSphere() ? 1 : 0;
+    const long long depth = surface_.IsBody() ? 1 : 0;
     for (const int band : bands_) {
         const double size = BucketSize(band, profile_, outlineScale_);
         const BucketIndex centre = surface_.Bucket({x, y}, size);

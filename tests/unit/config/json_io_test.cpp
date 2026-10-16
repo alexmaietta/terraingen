@@ -316,6 +316,11 @@ TEST(ConfigJson, RoundTripsSurfacesAndFlatCentres) {
     const TerrainConfig parsed =
         ParseConfig(R"({"schema_version": 1, "surface": {"type": "sphere", "radius": 3389500}})");
     EXPECT_EQ(std::get<terraingen::SphereSurfaceSpec>(parsed.surface).radius, 3389500.0);
+    const TerrainConfig ellipsoid = ParseConfig(
+        R"({"schema_version": 1, "surface": {"type": "ellipsoid", "radii": [270, 147, 104]}})");
+    EXPECT_EQ(std::get<terraingen::EllipsoidSurfaceSpec>(ellipsoid.surface).radii,
+              (std::vector<double>{270.0, 147.0, 104.0}));
+    EXPECT_EQ(ParseConfig(ConfigToJson(ellipsoid)), ellipsoid);
     EXPECT_TRUE(std::holds_alternative<terraingen::PlaneSurfaceSpec>(
         ParseConfig(R"({"schema_version": 1})").surface));
     EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "surface": {"type": "torus"}})"),

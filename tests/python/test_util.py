@@ -121,7 +121,7 @@ def test_ellipsoid_of_equal_radii_is_the_sphere(moon):
 
 def test_ellipsoid_lies_on_its_radii_and_offsets_invert_locate():
     body = terraingen.Surface.ellipsoid(270.0, 147.0, 104.0)
-    assert body.is_sphere and body.radii == (270.0, 147.0, 104.0)
+    assert body.is_body and body.radii == (270.0, 147.0, 104.0)
     assert body.radius_at((0.0, 0.0)) == pytest.approx(270.0)
     assert body.radius_at((0.0, 90.0)) == pytest.approx(104.0)
     assert body.area_per_steradian((90.0, 0.0)) == pytest.approx(147.0**2)
@@ -134,7 +134,7 @@ def test_ellipsoid_lies_on_its_radii_and_offsets_invert_locate():
 
 def test_plane_surface_has_unit_length_and_euclidean_distance():
     plane = terraingen.Surface()
-    assert not plane.is_sphere and plane.unit_length == 1.0
+    assert not plane.is_body and plane.unit_length == 1.0
     assert terraingen.Surface.plane().distance((0.0, 0.0), (3.0, 4.0)) == pytest.approx(5.0)
 
 
@@ -167,3 +167,14 @@ def test_cube_sphere_direction_is_a_unit_vector():
 
 def test_exponential_integral_matches_a_reference_value():
     assert terraingen.exponential_integral(1, 1.0) == pytest.approx(0.2193839, rel=1e-5)
+
+
+def test_ellipsoid_cells_thin_by_area_and_spheres_do_not(moon):
+    body = terraingen.Surface.ellipsoid(270.0, 147.0, 104.0)
+    cells = terraingen.CubeSphereCells(body)
+    assert cells.radius == 104.0
+    area, bound = cells.cell_sampling(terraingen.CellIndex(0, 0), 50.0)
+    assert bound > 0.0 and area >= cells.cell_area(terraingen.CellIndex(0, 0), 50.0)
+    point = cells.sample_point(0.5, 0.5, terraingen.CellIndex(0, 0), 50.0)
+    assert cells.weight(point) == pytest.approx(body.area_per_steradian(point))
+    assert terraingen.CubeSphereCells(moon).cell_sampling(terraingen.CellIndex(0, 0), 50000.0)[1] == 0.0

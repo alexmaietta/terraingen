@@ -183,7 +183,7 @@ double RasterAlbedo::DetailSum(double x, double y, double spacing) const {
         const std::uint32_t seed =
             PcgHash(detail.seed + kOctaveSeedStep * static_cast<std::uint32_t>(octave));
         float noise = 0.0f;
-        if (surface_.IsSphere()) {
+        if (surface_.IsBody()) {
             const Vec3d p = surface_.Position({x, y});
             noise = PerlinNoise3Precise(p.x / wavelength, p.y / wavelength, p.z / wavelength, seed);
         } else {
@@ -210,7 +210,7 @@ AlbedoSample RasterAlbedo::ValueAt(double x, double y, const AlbedoContext& cont
     }
     const double sum = DetailSum(x, y, context.spacing);
     const double rms =
-        surface_.IsSphere() ? std::sqrt(0.5 * Perlin3StructureFunction(1e6)) : PerlinRms();
+        surface_.IsBody() ? std::sqrt(0.5 * Perlin3StructureFunction(1e6)) : PerlinRms();
     const double factor = std::exp(detail.scale * roughness_ * sum / rms);
     for (std::size_t band = 0; band < bands_.size(); ++band) {
         value[band] = static_cast<float>(static_cast<double>(value[band]) * factor);

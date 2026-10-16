@@ -77,7 +77,7 @@ class ConflictSearch {
     /// Whether a crater in the cells of `grid` around `crater` outranks it.
     bool OutrankedIn(const BandGrid& grid, std::size_t n, const Crater& crater) const {
         const CellKey centre = KeyOf(crater, grid.cellSize, surface_);
-        const long long depth = surface_.IsSphere() ? 1 : 0;
+        const long long depth = surface_.IsBody() ? 1 : 0;
         for (long long di = -1; di <= 1; ++di) {
             for (long long dj = -1; dj <= 1; ++dj) {
                 for (long long dk = -depth; dk <= depth; ++dk) {
@@ -131,7 +131,7 @@ bool CratersConflict(const Crater& a, const Crater& b, const CraterSpacing& spac
         return false;
     }
     const double limit = spacing.separation * larger;
-    if (surface.IsSphere()) {
+    if (surface.IsBody()) {
         return surface.Distance({a.x, a.y}, {b.x, b.y}) < limit;
     }
     const double dx = a.x - b.x;

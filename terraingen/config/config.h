@@ -578,8 +578,16 @@ struct SphereSurfaceSpec {
     bool operator==(const SphereSurfaceSpec&) const = default;
 };
 
+/// Surface "ellipsoid": a body shaped as a triaxial ellipsoid (`Surface::Ellipsoid`), with
+/// planetocentric longitude and latitude in degrees and heights along the direction from the
+/// centre.
+struct EllipsoidSurfaceSpec {
+    std::vector<double> radii;  ///< Semi-axes a, b, c in metres along x, y and z; exactly three.
+    bool operator==(const EllipsoidSurfaceSpec&) const = default;
+};
+
 /// What a terrain lies on, named in JSON by its "type".
-using SurfaceSpec = std::variant<PlaneSurfaceSpec, SphereSurfaceSpec>;
+using SurfaceSpec = std::variant<PlaneSurfaceSpec, SphereSurfaceSpec, EllipsoidSurfaceSpec>;
 
 /// Everything needed to generate a terrain: the surface it lies on, a source, the layers
 /// added to it in order, the outputs to write, and optionally its albedo.

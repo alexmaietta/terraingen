@@ -439,17 +439,29 @@ CraterModels BuildCraterModels(const CraterLayerSpec& craters, const std::string
 }
 
 Surface BuildSurface(const SurfaceSpec& spec) {
-    return std::visit(Overloaded{
-                          [](const PlaneSurfaceSpec&) -> Surface { return Surface::Plane(); },
-                          [](const SphereSurfaceSpec& s) -> Surface {
-                              if (!(std::isfinite(s.radius) && s.radius > 0.0)) {
-                                  throw ConfigError("surface.radius",
-                                                    "must be positive: the body's radius");
-                              }
-                              return Surface::Sphere(s.radius);
-                          },
-                      },
-                      spec);
+    return std::visit(
+        Overloaded{
+            [](const PlaneSurfaceSpec&) -> Surface { return Surface::Plane(); },
+            [](const SphereSurfaceSpec& s) -> Surface {
+                if (!(std::isfinite(s.radius) && s.radius > 0.0)) {
+                    throw ConfigError("surface.radius", "must be positive: the body's radius");
+                }
+                return Surface::Sphere(s.radius);
+            },
+            [](const EllipsoidSurfaceSpec& s) -> Surface {
+                if (s.radii.size() != 3) {
+                    throw ConfigError("surface.radii", "must hold exactly three semi-axes a, b, c");
+                }
+                for (std::size_t i = 0; i < 3; ++i) {
+                    if (!(std::isfinite(s.radii[i]) && s.radii[i] > 0.0)) {
+                        throw ConfigError(Element("surface.radii", i),
+                                          "must be positive: a semi-axis in metres");
+                    }
+                }
+                return Surface::Ellipsoid(s.radii[0], s.radii[1], s.radii[2]);
+            },
+        },
+        spec);
 }
 
 namespace {

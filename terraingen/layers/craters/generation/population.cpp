@@ -264,8 +264,8 @@ CraterList GenerateCellCraters(const SurfaceCells& cells, const CraterBand& band
     RandomStream geometry(seed, kCraterStream, i, j, k);
     RandomStream ageStream(seed, kCraterAgeStream, i, j, k);
     const double countPerArea = density.ExpectedCount(1.0, band.low, band.high);
-    const std::uint64_t count =
-        SamplePoisson(geometry, countPerArea * cells.CellArea(cell, band.cellSize));
+    const SurfaceCells::Sampling sampling = cells.CellSampling(cell, band.cellSize);
+    const std::uint64_t count = SamplePoisson(geometry, countPerArea * sampling.area);
     CraterList craters;
     craters.Reserve(static_cast<std::size_t>(count));
     for (std::uint64_t index = 0; index < count; ++index) {
@@ -273,6 +273,10 @@ CraterList GenerateCellCraters(const SurfaceCells& cells, const CraterBand& band
         const double u = geometry.NextDouble();
         const double v = geometry.NextDouble();
         const Vec2d centre = cells.SamplePoint(u, v, cell, band.cellSize);
+        if (sampling.bound > 0.0 &&
+            geometry.NextDouble() * sampling.bound >= cells.Weight(centre)) {
+            continue;
+        }
         const double ageGyr = ages.SampleAgeGyr(ageStream, diameter);
         craters.Append({centre.x, centre.y, diameter, ageGyr,
                         CraterId(seed, band, cell, static_cast<std::uint32_t>(index))});

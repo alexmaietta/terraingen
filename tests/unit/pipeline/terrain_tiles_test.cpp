@@ -290,3 +290,16 @@ TEST(BodyMesh, CoversTheBodyWithOutwardTrianglesAtTheTerrainsHeights) {
     EXPECT_THROW(terraingen::BodyMesh(terrain, 4, -1.0), std::invalid_argument);
     EXPECT_NO_THROW(terraingen::BodyMesh(terrain, 2));
 }
+
+TEST(BodyMesh, PlacesAFlatTerrainOnItsEllipsoid) {
+    const terraingen::Surface body = terraingen::Surface::Ellipsoid(270.0, 147.0, 104.0);
+    Terrain terrain;
+    terrain.surface = body;
+    terrain.source = std::make_shared<terraingen::FlatSource>(8, 8, 1.0, 0.0f);
+    const terraingen::TriangleMesh mesh = terraingen::BodyMesh(terrain, 6, 0.0, 2);
+    for (const auto& p : mesh.positions) {
+        EXPECT_NEAR(p.x * p.x / (270.0 * 270.0) + p.y * p.y / (147.0 * 147.0) +
+                        p.z * p.z / (104.0 * 104.0),
+                    1.0, 1e-9);
+    }
+}

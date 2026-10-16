@@ -25,8 +25,8 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options)
         models_.profile->ReachRadii() * MaxOutlineScale(options_.apply.irregularity);
     options_.generation.surface = options_.surface;
     options_.apply.surface = options_.surface;
-    if (options_.surface.IsSphere()) {
-        cells_ = std::make_shared<CubeSphereCells>(options_.surface.Radius());
+    if (options_.surface.IsBody()) {
+        cells_ = std::make_shared<CubeSphereCells>(options_.surface);
     } else {
         cells_ = std::make_shared<PlanarCells>();
     }

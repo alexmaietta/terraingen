@@ -3,7 +3,9 @@
 #pragma once
 
 #include "terraingen/util/geometry.h"
+#include "terraingen/util/surface.h"
 
+#include <array>
 #include <compare>
 #include <cstdint>
 #include <vector>
@@ -35,9 +37,30 @@ class SurfaceCells {
     /// @param cellSize The cell side in metres.
     virtual double CellArea(const CellIndex& cell, double cellSize) const = 0;
 
-    /// Maps uniform `u` and `v` in [0, 1) to a point uniform over a cell, in surface coordinates.
+    /// Maps uniform `u` and `v` in [0, 1) to a point uniform over a cell, in surface coordinates;
+    /// uniform over `Sampling`'s measure where that thins.
     /// @param cellSize The cell side in metres.
     virtual Vec2d SamplePoint(double u, double v, const CellIndex& cell, double cellSize) const = 0;
+
+    /// How to place features in a cell uniformly by area: draw a Poisson count over `area`
+    /// m^2, place each at `SamplePoint`, and keep it with chance `Weight(point) / bound` when
+    /// `bound` is positive. Without thinning (`bound` 0) `area` is `CellArea` and every point is
+    /// kept, as on a plane or a sphere.
+    struct Sampling {
+        double area = 0.0;   ///< Area in m^2 the Poisson count is drawn over, >= `CellArea`.
+        double bound = 0.0;  ///< Upper bound of `Weight` over the cell; 0 when nothing is thinned.
+    };
+
+    /// The sampling of a cell, as `Sampling` describes.
+    /// @param cellSize The cell side in metres.
+    virtual Sampling CellSampling(const CellIndex& cell, double cellSize) const {
+        return {CellArea(cell, cellSize), 0.0};
+    }
+
+    /// The weight of a sampled point, kept with chance `Weight(point) / Sampling::bound`.
+    virtual double Weight(const Vec2d& /*point*/) const {
+        return 1.0;
+    }
 };
 
 /// Square cells on a plane: cell (i, j) of side L covers [i L, (i + 1) L) x
@@ -57,16 +80,22 @@ class PlanarCells final : public SurfaceCells {
     Vec2d SamplePoint(double u, double v, const CellIndex& cell, double cellSize) const override;
 };
 
-/// Near-square, near-equal-area cells on a sphere, in longitude and latitude degrees: each
-/// face of a cube split into n x n cells along equiangular coordinates.
+/// Near-square cells on a body, in longitude and latitude degrees: each face of a cube split into
+/// n x n cells along equiangular coordinates of the direction from the centre.
 ///
-/// For a cell side L, n = ceil(R pi / (2 L)). Cell (i, j) is column i mod n and row j of face
-/// i / n (+x, -x, +y, -y, +z, -z).
+/// For a cell side L, n = ceil(R pi / (2 L)), with R the sphere's radius or an ellipsoid's
+/// shortest semi-axis, so no cell is narrower than L. Cell (i, j) is column i mod n and row j of
+/// face i / n (+x, -x, +y, -y, +z, -z). On a sphere cells are near-equal-area; on an ellipsoid
+/// `CellArea` is each cell's true area and `CellSampling` thins points to be uniform by area.
 class CubeSphereCells final : public SurfaceCells {
   public:
     /// Cells on a sphere of `radius` metres.
     /// @throws std::invalid_argument unless `radius` is positive and finite.
     explicit CubeSphereCells(double radius);
+
+    /// Cells on a body, a sphere or an ellipsoid.
+    /// @throws std::invalid_argument for a plane.
+    explicit CubeSphereCells(const Surface& surface);
 
     /// Every cell reaching into a region, plus some next to them, sorted by i, then j.
     /// @param region The region in longitude and latitude degrees; longitudes may run past
@@ -76,12 +105,22 @@ class CubeSphereCells final : public SurfaceCells {
     /// too small for the sphere, or `region` is not finite or inverted.
     std::vector<CellIndex> CellsCovering(const Bounds2d& region, double cellSize) const override;
 
-    /// The exact area of a cell in m^2, from its solid angle.
+    /// The area of a cell in m^2: exact from its solid angle on a sphere, by quadrature of the area
+    /// element on an ellipsoid.
     /// @throws std::invalid_argument as `CellsPerEdge`.
     double CellArea(const CellIndex& cell, double cellSize) const override;
 
-    /// Maps uniform `u` and `v` in [0, 1) to a point uniform over a cell, as longitude in
-    /// (-180, 180] and latitude, in degrees.
+    /// `CellArea` without thinning on a sphere; on an ellipsoid, the cell's solid angle times a
+    /// guaranteed bound of the area per steradian over it (from interval bounds of its directions,
+    /// capped by the bound over the whole body), thinned by `Weight`.
+    /// @throws std::invalid_argument as `CellsPerEdge`.
+    Sampling CellSampling(const CellIndex& cell, double cellSize) const override;
+
+    /// The area per steradian at a point (`Surface::AreaPerSteradian`).
+    double Weight(const Vec2d& point) const override;
+
+    /// Maps uniform `u` and `v` in [0, 1) to a point uniform in solid angle over a cell, as
+    /// longitude in (-180, 180] and latitude, in degrees.
     /// @throws std::invalid_argument as `CellsPerEdge`.
     Vec2d SamplePoint(double u, double v, const CellIndex& cell, double cellSize) const override;
 
@@ -108,13 +147,22 @@ class CubeSphereCells final : public SurfaceCells {
     /// too small for the sphere.
     std::int32_t CellsPerEdge(double cellSize) const;
 
-    /// The sphere's radius in metres.
+    /// The radius in metres the cells are sized by: the sphere's, or an ellipsoid's shortest.
     double Radius() const {
         return radius_;
     }
 
   private:
+    /// The gnomonic bounds a1, a2, b1, b2 of a cell on its face.
+    std::array<double, 4> Bounds(const CellIndex& cell, double cellSize) const;
+
+    /// An upper bound of `Weight` over the gnomonic rectangle [a1, a2] x [b1, b2] of `face`,
+    /// from interval bounds of the direction's squared components.
+    double WeightBound(std::size_t face, double a1, double a2, double b1, double b2) const;
+
     double radius_;
+    Surface surface_;
+    double weightCap_ = 0.0;  ///< Bound of `Weight` over the whole ellipsoid; 0 on a sphere.
 };
 
 }  // namespace terraingen

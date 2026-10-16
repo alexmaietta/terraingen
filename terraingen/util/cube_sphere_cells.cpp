@@ -31,6 +31,9 @@ constexpr std::array<Face, 6> kFaces{{
 
 constexpr double kQuarter = std::numbers::pi / 4.0;
 
+/// Cells per face edge over which an ellipsoid's global bound of the area per steradian is taken.
+constexpr std::int32_t kCapCells = 64;
+
 /// The point `normal + a u + b v` on the plane of `face`, for gnomonic coordinates `a` and `b`.
 Vec3d FacePoint(const Face& face, double a, double b) {
     return {face.normal.x + a * face.u.x + b * face.v.x,
@@ -55,8 +58,37 @@ void SortUnique(std::vector<CellIndex>& cells) {
 
 }  // namespace
 
-CubeSphereCells::CubeSphereCells(double radius) : radius_(radius) {
-    RequirePositive(radius, "A sphere's radius");
+CubeSphereCells::CubeSphereCells(double radius)
+    : radius_(radius), surface_(Surface::Sphere(radius)) {}
+
+CubeSphereCells::CubeSphereCells(const Surface& surface) : radius_(0.0), surface_(surface) {
+    if (!surface.IsBody()) {
+        throw std::invalid_argument("Cube-sphere cells need a body, not a plane");
+    }
+    const Vec3d radii = surface.Radii();
+    radius_ = std::min({radii.x, radii.y, radii.z});
+    if (radii.x == radii.y && radii.y == radii.z) {
+        return;
+    }
+    for (std::size_t face = 0; face < kFaces.size(); ++face) {
+        for (std::int32_t i = 0; i < kCapCells; ++i) {
+            for (std::int32_t j = 0; j < kCapCells; ++j) {
+                weightCap_ = std::max(weightCap_,
+                                      WeightBound(face, Edge(i, kCapCells), Edge(i + 1, kCapCells),
+                                                  Edge(j, kCapCells), Edge(j + 1, kCapCells)));
+            }
+        }
+    }
+}
+
+std::array<double, 4> CubeSphereCells::Bounds(const CellIndex& cell, double cellSize) const {
+    const std::int32_t n = CellsPerEdge(cellSize);
+    const std::int32_t col = cell.i % n;
+    return {Edge(col, n), Edge(col + 1, n), Edge(cell.j, n), Edge(cell.j + 1, n)};
+}
+
+double CubeSphereCells::Weight(const Vec2d& point) const {
+    return surface_.AreaPerSteradian(point);
 }
 
 std::int32_t CubeSphereCells::CellsPerEdge(double cellSize) const {
@@ -160,14 +192,73 @@ std::vector<CellIndex> CubeSphereCells::CellsCovering(const Bounds2d& region,
 }
 
 double CubeSphereCells::CellArea(const CellIndex& cell, double cellSize) const {
-    const std::int32_t n = CellsPerEdge(cellSize);
-    const std::int32_t col = cell.i % n;
-    const double a1 = Edge(col, n);
-    const double a2 = Edge(col + 1, n);
-    const double b1 = Edge(cell.j, n);
-    const double b2 = Edge(cell.j + 1, n);
+    const auto [a1, a2, b1, b2] = Bounds(cell, cellSize);
     const double solid = Corner(a2, b2) - Corner(a1, b2) - Corner(a2, b1) + Corner(a1, b1);
-    return radius_ * radius_ * solid;
+    const Vec3d radii = surface_.Radii();
+    if (radii.x == radii.y && radii.y == radii.z) {
+        return radius_ * radius_ * solid;
+    }
+    constexpr std::array<double, 5> kNodes{-0.906179845938664, -0.538469310105683, 0.0,
+                                           0.538469310105683, 0.906179845938664};
+    constexpr std::array<double, 5> kWeights{0.236926885056189, 0.478628670499366,
+                                             0.568888888888889, 0.478628670499366,
+                                             0.236926885056189};
+    const Face& face = kFaces[static_cast<std::size_t>(cell.i / CellsPerEdge(cellSize))];
+    double area = 0.0;
+    for (std::size_t i = 0; i < kNodes.size(); ++i) {
+        const double a = 0.5 * (a1 + a2) + 0.5 * (a2 - a1) * kNodes[i];
+        for (std::size_t j = 0; j < kNodes.size(); ++j) {
+            const double b = 0.5 * (b1 + b2) + 0.5 * (b2 - b1) * kNodes[j];
+            const double jacobian = std::pow(1.0 + a * a + b * b, -1.5);
+            const double weight =
+                surface_.AreaPerSteradian(surface_.PointOf(FacePoint(face, a, b)));
+            area += kWeights[i] * kWeights[j] * weight * jacobian;
+        }
+    }
+    return area * 0.25 * (a2 - a1) * (b2 - b1);
+}
+
+double CubeSphereCells::WeightBound(std::size_t face, double a1, double a2, double b1,
+                                    double b2) const {
+    const auto absolute = [](double lo, double hi) {
+        if (lo <= 0.0 && hi >= 0.0) {
+            return std::array<double, 2>{0.0, std::max(-lo, hi)};
+        }
+        return std::array<double, 2>{std::min(std::fabs(lo), std::fabs(hi)),
+                                     std::max(std::fabs(lo), std::fabs(hi))};
+    };
+    const auto [aLo, aHi] = absolute(a1, a2);
+    const auto [bLo, bHi] = absolute(b1, b2);
+    const std::array<double, 3> largest{1.0 / (1.0 + aLo * aLo + bLo * bLo),
+                                        aHi * aHi / (1.0 + aHi * aHi + bLo * bLo),
+                                        bHi * bHi / (1.0 + aLo * aLo + bHi * bHi)};
+    const std::array<double, 3> smallest{1.0 / (1.0 + aHi * aHi + bHi * bHi),
+                                         aLo * aLo / (1.0 + aLo * aLo + bHi * bHi),
+                                         bLo * bLo / (1.0 + aHi * aHi + bLo * bLo)};
+    const Face& f = kFaces[face];
+    const std::array<Vec3d, 3> axes{f.normal, f.u, f.v};
+    const Vec3d radii = surface_.Radii();
+    const std::array<double, 3> r{radii.x, radii.y, radii.z};
+    double numerator = 0.0;
+    double denominator = 0.0;
+    for (std::size_t k = 0; k < 3; ++k) {
+        const std::size_t axis = axes[k].x != 0.0 ? 0 : (axes[k].y != 0.0 ? 1 : 2);
+        const double inverse = 1.0 / (r[axis] * r[axis]);
+        numerator += inverse * inverse * largest[k];
+        denominator += inverse * smallest[k];
+    }
+    return std::sqrt(numerator) / (denominator * denominator);
+}
+
+SurfaceCells::Sampling CubeSphereCells::CellSampling(const CellIndex& cell, double cellSize) const {
+    if (weightCap_ == 0.0) {
+        return {CellArea(cell, cellSize), 0.0};
+    }
+    const auto [a1, a2, b1, b2] = Bounds(cell, cellSize);
+    const double solid = Corner(a2, b2) - Corner(a1, b2) - Corner(a2, b1) + Corner(a1, b1);
+    const auto face = static_cast<std::size_t>(cell.i / CellsPerEdge(cellSize));
+    const double bound = std::min(WeightBound(face, a1, a2, b1, b2), weightCap_);
+    return {solid * bound, bound};
 }
 
 Vec2d CubeSphereCells::SamplePoint(double u, double v, const CellIndex& cell,

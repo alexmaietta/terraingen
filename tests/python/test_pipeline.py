@@ -80,7 +80,7 @@ def test_write_outputs_writes_every_output(tmp_path, small_config):
 
 def test_build_terrain_keeps_the_surface_and_layers():
     terrain = terraingen.build_terrain(terraingen.Config.from_dict(SPHERE_CONFIG))
-    assert terrain.surface.is_sphere and len(terrain.layers) == 1
+    assert terrain.surface.is_body and len(terrain.layers) == 1
 
 
 def test_evaluating_a_built_terrain_matches_generate_terrain():
@@ -123,7 +123,7 @@ def test_a_site_on_a_sphere_has_pixels_in_degrees(moon):
 
 
 def test_terrain_on_a_sphere_has_relief(lunar_site):
-    assert lunar_site.surface.is_sphere
+    assert lunar_site.surface.is_body
     heights = terraingen.evaluate(lunar_site)
     assert heights.shape == (65, 65) and np.ptp(heights.values) > 100.0
 

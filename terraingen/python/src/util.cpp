@@ -123,7 +123,7 @@ void BindSurface(nb::module_& m) {
              "The distance in metres from the centre to the surface at (longitude, latitude).")
         .def("area_per_steradian", &Surface::AreaPerSteradian, "point"_a,
              "The surface area per steradian of direction from the centre at a point, in m^2.")
-        .def_prop_ro("is_sphere", &Surface::IsSphere)
+        .def_prop_ro("is_body", &Surface::IsBody)
         .def_prop_ro("radius", &Surface::Radius)
         .def_prop_ro("unit_length", &Surface::UnitLength,
                      "Metres per coordinate unit: 1 on a plane, metres per degree along a "
@@ -161,8 +161,20 @@ void BindCells(nb::module_& m) {
         .def(nb::init<>());
     nb::class_<CubeSphereCells, SurfaceCells>(
         m, "CubeSphereCells",
-        "Equiangular cube-sphere cells of a sphere of `radius` metres, of nearly equal area.")
+        "Equiangular cube-sphere cells of a sphere of `radius` metres, of nearly equal area, or "
+        "of a body `Surface`; on an ellipsoid they are sized by its shortest semi-axis.")
         .def(nb::init<double>(), "radius"_a)
+        .def(nb::init<const Surface&>(), "surface"_a)
+        .def(
+            "cell_sampling",
+            [](const CubeSphereCells& cells, const CellIndex& cell, double cellSize) {
+                const SurfaceCells::Sampling sampling = cells.CellSampling(cell, cellSize);
+                return nb::make_tuple(sampling.area, sampling.bound);
+            },
+            "cell"_a, "cell_size"_a,
+            "(area, bound): draw counts over `area` m^2 and keep a point with chance "
+            "weight(point) / bound; bound 0 keeps every point.")
+        .def("weight", &CubeSphereCells::Weight, "point"_a, "The area per steradian at a point.")
         .def("cell_of", &CubeSphereCells::CellOf, "longitude"_a, "latitude"_a, "cell_size"_a,
              "The cell holding a point.")
         .def("neighbours", &CubeSphereCells::Neighbours, "cell"_a, "cell_size"_a, "rings"_a = 1,

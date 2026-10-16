@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <numbers>
 #include <set>
 #include <stdexcept>
@@ -29,7 +30,7 @@ constexpr double kMoon = 1737400.0;
 
 TEST(Surface, PlaneOffsetsAreDifferencesExactly) {
     const Surface plane;
-    EXPECT_FALSE(plane.IsSphere());
+    EXPECT_FALSE(plane.IsBody());
     EXPECT_EQ(plane, Surface::Plane());
     EXPECT_EQ(plane.UnitLength(), 1.0);
     EXPECT_EQ(plane.Radius(), 0.0);
@@ -53,7 +54,7 @@ TEST(Surface, PlaneOffsetsAreDifferencesExactly) {
 
 TEST(Surface, SphereOffsetsAreAzimuthalEquidistant) {
     const Surface moon = Surface::Sphere(kMoon);
-    EXPECT_TRUE(moon.IsSphere());
+    EXPECT_TRUE(moon.IsBody());
     EXPECT_NEAR(moon.UnitLength(), kMoon * std::numbers::pi / 180.0, 1e-9);
     const double quarter = kMoon * std::numbers::pi / 2.0;
 
@@ -299,7 +300,7 @@ TEST(Surface, AnEllipsoidOfEqualRadiiIsTheSphere) {
     EXPECT_EQ(Surface().RadiusAt({30.0, 20.0}), 0.0);
     EXPECT_EQ(Surface().AreaPerSteradian({30.0, 20.0}), 1.0);
     EXPECT_NE(kEllipsoid, Surface::Ellipsoid(270.0, 104.0, 147.0));
-    EXPECT_TRUE(kEllipsoid.IsSphere());
+    EXPECT_TRUE(kEllipsoid.IsBody());
     EXPECT_NEAR(kEllipsoid.Radius(), std::cbrt(270.0 * 147.0 * 104.0), 1e-9);
     EXPECT_THROW(Surface::Ellipsoid(0.0, 1.0, 1.0), std::invalid_argument);
     EXPECT_THROW(Surface::Ellipsoid(1.0, -1.0, 1.0), std::invalid_argument);
@@ -406,4 +407,69 @@ TEST(Surface, EllipsoidAreaPerSteradianIntegratesToItsArea) {
     const double expected =
         2.0 * std::numbers::pi * a * a * (1.0 + (1.0 - e * e) / e * std::atanh(e));
     EXPECT_NEAR(area / expected, 1.0, 1e-5);
+}
+
+namespace {
+
+/// Every cell of every face at `cellSize`.
+std::vector<CellIndex> AllCells(const CubeSphereCells& cells, double cellSize) {
+    const std::int32_t n = cells.CellsPerEdge(cellSize);
+    std::vector<CellIndex> all;
+    for (std::int32_t i = 0; i < 6 * n; ++i) {
+        for (std::int32_t j = 0; j < n; ++j) {
+            all.push_back({i, j});
+        }
+    }
+    return all;
+}
+
+}  // namespace
+
+TEST(CubeSphereCells, EllipsoidCellsAreSizedByTheShortestAxisAndTileItsArea) {
+    const double a = 3000.0;
+    const double c = 1000.0;
+    const Surface spheroid = Surface::Ellipsoid(a, a, c);
+    const CubeSphereCells cells(spheroid);
+    EXPECT_EQ(cells.Radius(), c);
+    const double cellSize = 200.0;
+    double total = 0.0;
+    for (const CellIndex& cell : AllCells(cells, cellSize)) {
+        total += cells.CellArea(cell, cellSize);
+    }
+    const double e = std::sqrt(1.0 - c * c / (a * a));
+    const double expected =
+        2.0 * std::numbers::pi * a * a * (1.0 + (1.0 - e * e) / e * std::atanh(e));
+    EXPECT_NEAR(total / expected, 1.0, 1e-6);
+    EXPECT_THROW(CubeSphereCells(Surface::Plane()), std::invalid_argument);
+}
+
+TEST(CubeSphereCells, EllipsoidSamplingBoundsTheWeightOverEachCell) {
+    for (const Surface& body :
+         {Surface::Ellipsoid(270.0, 147.0, 104.0), Surface::Ellipsoid(10.0, 1.0, 1.0)}) {
+        const CubeSphereCells cells(body);
+        for (const double cellSize : {cells.Radius() * 2.0, cells.Radius() / 2.0}) {
+            for (const CellIndex& cell : AllCells(cells, cellSize)) {
+                const auto sampling = cells.CellSampling(cell, cellSize);
+                ASSERT_GT(sampling.bound, 0.0);
+                EXPECT_GE(sampling.area, cells.CellArea(cell, cellSize));
+                for (int k = 0; k < 400; ++k) {
+                    const double u = (k % 20 + 0.5) / 20.0;
+                    const double v = (k / 20 + 0.5) / 20.0;
+                    const Vec2d point = cells.SamplePoint(u, v, cell, cellSize);
+                    EXPECT_LE(cells.Weight(point), sampling.bound) << cell.i << ", " << cell.j;
+                }
+            }
+        }
+    }
+}
+
+TEST(CubeSphereCells, SpheresDoNotThin) {
+    const CubeSphereCells cells(Surface::Sphere(kMoon));
+    const CellIndex cell{3, 2};
+    const auto sampling = cells.CellSampling(cell, 50000.0);
+    EXPECT_EQ(sampling.area, cells.CellArea(cell, 50000.0));
+    EXPECT_EQ(sampling.bound, 0.0);
+    EXPECT_EQ(CubeSphereCells(kMoon).CellArea(cell, 50000.0), sampling.area);
+    EXPECT_EQ(terraingen::PlanarCells().CellSampling({1, 2}, 10.0).bound, 0.0);
+    EXPECT_EQ(terraingen::PlanarCells().Weight({1.0, 2.0}), 1.0);
 }

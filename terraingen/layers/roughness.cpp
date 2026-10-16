@@ -140,7 +140,7 @@ RoughnessLayer::Octave RoughnessLayer::MakeOctave(std::uint32_t i, double wavele
                   LatticeOffset(hash.x),
                   LatticeOffset(hash.y),
                   hash.z};
-    if (surface_.IsSphere()) {
+    if (surface_.IsBody()) {
         octave.rotation = UniformRotation(Pcg3dHash({options_.seed, i, kRotationSalt}));
         octave.offsetZ = LatticeOffset(Pcg3dHash({hash.z, i, kOffsetZSalt}).x);
     }
@@ -148,7 +148,7 @@ RoughnessLayer::Octave RoughnessLayer::MakeOctave(std::uint32_t i, double wavele
 }
 
 double RoughnessLayer::OctaveNoise(const Octave& octave, double x, double y) const {
-    if (surface_.IsSphere()) {
+    if (surface_.IsBody()) {
         const Vec3d p = surface_.Position({x, y});
         const std::array<double, 9>& m = octave.rotation;
         const double scale = 1.0 / octave.wavelength;
@@ -168,7 +168,7 @@ double RoughnessLayer::RmsSlope(double baseline) const {
         const double lag = baseline / octave.wavelength;
         structure +=
             octave.amplitude * octave.amplitude *
-            (surface_.IsSphere() ? Perlin3StructureFunction(lag) : PerlinStructureFunction(lag));
+            (surface_.IsBody() ? Perlin3StructureFunction(lag) : PerlinStructureFunction(lag));
     }
     return std::sqrt(structure) / baseline;
 }
