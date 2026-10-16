@@ -57,4 +57,38 @@ TriangleMesh BodyMesh(const Terrain& terrain, std::size_t cellsPerFace, double s
     return mesh;
 }
 
+IcqModel BodyIcq(const Terrain& terrain, std::size_t q, double spacing, unsigned threads) {
+    if (!terrain.surface.IsBody()) {
+        throw std::invalid_argument("An ICQ model needs a terrain on a body");
+    }
+    if (q == 0) {
+        throw std::invalid_argument("An ICQ model needs Q > 0");
+    }
+    RequireNonNegative(spacing, "Sample spacing");
+    const double sampled =
+        spacing > 0.0 ? spacing
+                      : terrain.surface.Radius() * std::numbers::pi / 2.0 / static_cast<double>(q);
+    IcqModel model;
+    model.q = q;
+    model.vertices.resize(6 * (q + 1) * (q + 1));
+    std::vector<Vec3d> directions(model.vertices.size());
+    std::vector<Vec2d> points(model.vertices.size());
+    for (std::size_t face = 1; face <= 6; ++face) {
+        for (std::size_t j = 0; j <= q; ++j) {
+            for (std::size_t i = 0; i <= q; ++i) {
+                const std::size_t k = model.Index(i, j, face);
+                directions[k] = IcqDirection(q, i, j, face);
+                points[k] = terrain.surface.PointOf(directions[k]);
+            }
+        }
+    }
+    const std::vector<float> heights = EvaluatePoints(terrain, points, sampled, threads);
+    for (std::size_t k = 0; k < model.vertices.size(); ++k) {
+        const double r = terrain.surface.RadiusAt(points[k]) +
+                         (std::isnan(heights[k]) ? 0.0 : static_cast<double>(heights[k]));
+        model.vertices[k] = directions[k] * r;
+    }
+    return model;
+}
+
 }  // namespace terraingen

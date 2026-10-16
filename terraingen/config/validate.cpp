@@ -9,6 +9,7 @@
 #include "terraingen/layers/craters/generation/spacing.h"
 #include "terraingen/layers/detail.h"
 #include "terraingen/layers/transforms.h"
+#include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/noise/noise_layers.h"
 #include "terraingen/sources/flat_source.h"
@@ -356,9 +357,11 @@ void ValidateOutput(const BoulderModelsOutput& output, const std::string& path,
 void ValidateOutput(const BodyMeshOutput& output, const std::string& path,
                     const OutputContext& context) {
     if (!context.sphere) {
-        throw ConfigError(path, "a body mesh needs a sphere surface");
+        throw ConfigError(path, "a body mesh needs a sphere or ellipsoid surface");
     }
-    RequireMeshFile(output.path, Child(path, "path"));
+    if (!IsIcqPath(output.path)) {
+        RequireMeshFile(output.path, Child(path, "path"));
+    }
     if (output.cellsPerFace == 0 || output.cellsPerFace > 4096) {
         throw ConfigError(Child(path, "cells_per_face"), "must be 1 to 4096");
     }

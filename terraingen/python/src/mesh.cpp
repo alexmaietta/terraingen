@@ -2,6 +2,7 @@
 #include "common.h"
 #include "tables.h"
 
+#include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/mesh/mesh.h"
 #include "terraingen/mesh/polyhedra.h"
@@ -176,7 +177,8 @@ void BindScene(nb::module_& m) {
         .def_rw("mesh", &SceneMesh::mesh)
         .def_rw("material", &SceneMesh::material);
     m.def("read_mesh", &ReadMesh, "path"_a,
-          "Every triangle of an .obj, .gltf, .glb or .stl file in z-up metres, with its first "
+          "Every triangle of an .obj, .gltf, .glb, .stl or (kilometre) .icq file in z-up metres, "
+          "with its first "
           "material.");
     m.def(
         "is_mesh_path", [](const std::filesystem::path& path) { return IsMeshPath(path); },
@@ -196,12 +198,34 @@ void BindScene(nb::module_& m) {
           "an OBJ with one object per node, or one merged STL mesh.");
 }
 
+void BindIcq(nb::module_& m) {
+    nb::class_<IcqModel>(m, "IcqModel",
+                         "A Gaskell implicitly connected quadrilateral (ICQ) shape model, in "
+                         "metres: vertices v(I, J, F) on six cube faces, I and J from 0 to Q.")
+        .def(nb::init<>())
+        .def_rw("q", &IcqModel::q)
+        .def_rw("vertices", &IcqModel::vertices,
+                "6 (Q + 1)^2 vertices (x, y, z) in file order: face, then J, then I.")
+        .def("index", &IcqModel::Index, "i"_a, "j"_a, "face"_a,
+             "The index of v(i, j, face) in `vertices`, face from 1 to 6.")
+        .def("to_mesh", &IcqToMesh,
+             "The model as 12 Q^2 outward triangles over its 6 Q^2 + 2 distinct vertices.")
+        .def("__eq__", [](const IcqModel& a, const IcqModel& b) { return a == b; });
+    m.def("read_icq", &ReadIcq, "path"_a, "metres_per_unit"_a = 1000.0,
+          "Reads an ICQ file; Gaskell's models are in kilometres.");
+    m.def("write_icq", &WriteIcq, "path"_a, "model"_a, "metres_per_unit"_a = 1000.0,
+          "Writes an ICQ file; Gaskell's models are in kilometres.");
+    m.def("icq_direction", &IcqDirection, "q"_a, "i"_a, "j"_a, "face"_a,
+          "The unit direction of ICQ label (i, j, face) with Gaskell's face orientation.");
+}
+
 }  // namespace
 
 void BindMesh(nb::module_& m) {
     BindRigidTransform(m);
     BindScene(m);
     BindTriangleMesh(m);
+    BindIcq(m);
 }
 
 }  // namespace terraingen::python

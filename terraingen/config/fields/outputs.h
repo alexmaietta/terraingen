@@ -79,11 +79,13 @@ template <typename IO> void Fields(IO& io, AlbedoOutput& output) {
 template <> struct SpecName<BodyMeshOutput> {
     static constexpr std::string_view kName = "body_mesh";
     static constexpr std::string_view kDescription =
-        "Writes a mesh of the whole body on a sphere, from six cube faces, as glTF (.glb or "
-        ".gltf), OBJ (.obj) or STL (.stl).";
+        "Writes the whole body on a sphere or ellipsoid, from six cube faces: a mesh as glTF (.glb "
+        "or .gltf), OBJ (.obj) or STL (.stl), or a Gaskell ICQ shape model in kilometres (.icq), "
+        "whose Q is cells_per_face.";
 };
 template <typename IO> void Fields(IO& io, BodyMeshOutput& output) {
-    io("path", output.path, OutputPathHelp("File to write, ending in .glb, .gltf, .obj or .stl"));
+    io("path", output.path,
+       OutputPathHelp("File to write, ending in .glb, .gltf, .obj, .stl or .icq"));
     io("cells_per_face", output.cellsPerFace,
        "Quads along each edge of the six cube faces, 1 to 4096; more give a finer mesh, with two "
        "triangles per quad.");

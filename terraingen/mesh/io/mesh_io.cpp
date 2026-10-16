@@ -1,6 +1,7 @@
 #include "terraingen/mesh/io/mesh_io.h"
 
 #include "terraingen/mesh/io/formats.h"
+#include "terraingen/mesh/io/icq.h"
 
 #include <cctype>
 #include <cmath>
@@ -112,8 +113,10 @@ SceneMesh ReadMesh(const std::filesystem::path& path) {
         read = detail::ReadGltf(path);
     } else if (extension == ".stl") {
         read = detail::ReadStl(path);
+    } else if (extension == ".icq") {
+        read.mesh = IcqToMesh(ReadIcq(path));
     } else {
-        throw std::invalid_argument("Meshes are read from .obj, .gltf, .glb or .stl: " +
+        throw std::invalid_argument("Meshes are read from .obj, .gltf, .glb, .stl or .icq: " +
                                     path.string());
     }
     if (read.mesh.triangles.empty()) {

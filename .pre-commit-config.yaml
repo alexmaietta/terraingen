@@ -37,6 +37,7 @@ repos:
           - "--suppress=passedByValue:terraingen/noise/*"
           - "--suppress=normalCheckLevelMaxBranches"
           - "--suppress=floatConversionOverflow:terraingen/python/src/noise.cpp"
+          - "--suppress=floatConversionOverflow:terraingen/python/src/mesh.cpp"
           - "--suppress=assignBoolToPointer:terraingen/python/src/*"
           - "--error-exitcode=1"
 

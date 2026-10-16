@@ -54,9 +54,9 @@ void WriteScene(const std::filesystem::path& path, const std::vector<SceneMesh>&
 void WriteMesh(const std::filesystem::path& path, const SceneMesh& mesh);
 
 /// Reads every triangle of an .obj (polygons triangulated), a .gltf or .glb (every triangle
-/// primitive of the default scene, with its nodes' transforms) or a binary or ASCII .stl, in
-/// z-up, with the first material's diffuse colour where the format has one. Normals are not
-/// read.
+/// primitive of the default scene, with its nodes' transforms), a binary or ASCII .stl, or an ICQ
+/// shape model in kilometres (.icq, as `ReadIcq` and `IcqToMesh`), in metres and z-up, with the
+/// first material's diffuse colour where the format has one. Normals are not read.
 /// @throws std::invalid_argument for another extension.
 /// @throws std::runtime_error if the file cannot be read or holds no triangles.
 SceneMesh ReadMesh(const std::filesystem::path& path);

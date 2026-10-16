@@ -1,7 +1,8 @@
 /// @file
-/// @brief `BodyMesh`, a mesh of the whole body a terrain on a sphere lies on.
+/// @brief `BodyMesh` and `BodyIcq`, the whole body a terrain on a sphere or ellipsoid lies on.
 #pragma once
 
+#include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/mesh.h"
 #include "terraingen/pipeline/terrain.h"
 
@@ -23,5 +24,14 @@ namespace terraingen {
 /// non-finite spacing; and whatever the terrain's parts throw.
 TriangleMesh BodyMesh(const Terrain& terrain, std::size_t cellsPerFace, double spacing = 0.0,
                       unsigned threads = 0);
+
+/// The whole body a terrain on a sphere or ellipsoid lies on as an ICQ shape model with `q`
+/// intervals per face edge: each label at `IcqDirection`, at the body's radius in that direction
+/// plus the terrain's height there (points without data are on the datum).
+/// @param spacing Sample spacing in metres; 0 for an interval at a face's centre.
+/// @param threads Threads to use; 0 for every hardware thread.
+/// @throws std::invalid_argument for a terrain not on a body, a `q` of 0, or a negative or
+/// non-finite spacing; and whatever the terrain's parts throw.
+IcqModel BodyIcq(const Terrain& terrain, std::size_t q, double spacing = 0.0, unsigned threads = 0);
 
 }  // namespace terraingen

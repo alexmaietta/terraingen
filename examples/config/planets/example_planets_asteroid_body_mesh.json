@@ -44,6 +44,11 @@
             "type": "body_mesh",
             "path": "example_planets_asteroid_body_mesh.glb",
             "cells_per_face": 64
+        },
+        {
+            "type": "body_mesh",
+            "path": "example_planets_asteroid_body_mesh.icq",
+            "cells_per_face": 64
         }
     ]
 }

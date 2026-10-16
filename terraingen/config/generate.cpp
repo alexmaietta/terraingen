@@ -1,6 +1,7 @@
 #include "terraingen/config/generate.h"
 
 #include "terraingen/config/build.h"
+#include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/pipeline/body_mesh.h"
 #include "terraingen/pipeline/height_mesh.h"
@@ -87,6 +88,13 @@ bool Write(const BoulderModelsOutput& output, const std::filesystem::path& path,
 
 bool Write(const BodyMeshOutput& output, const std::filesystem::path& path,
            const OutputContext& context) {
+    if (IsIcqPath(path)) {
+        WriteIcq(path, BodyIcq(context.generated.terrain, output.cellsPerFace,
+                               output.spacing.value_or(0.0)));
+        LogInfo("pipeline", "Wrote an ICQ shape model of Q = ", output.cellsPerFace, " to ",
+                path.string());
+        return true;
+    }
     const TriangleMesh mesh =
         BodyMesh(context.generated.terrain, output.cellsPerFace, output.spacing.value_or(0.0));
     ShadedMesh shaded = WithCreases(mesh, std::numbers::pi);

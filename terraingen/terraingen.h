@@ -73,6 +73,7 @@
 #include "terraingen/layers/roughness.h"
 #include "terraingen/layers/sample_block.h"
 #include "terraingen/layers/transforms.h"
+#include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/mesh/mesh.h"
 #include "terraingen/mesh/polyhedra.h"

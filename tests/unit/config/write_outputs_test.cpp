@@ -205,6 +205,23 @@ TEST(WriteOutputs, WritesWholeBodyMeshes) {
     EXPECT_GT(std::filesystem::file_size(written[1]), 1000u);
 }
 
+TEST(WriteOutputs, WritesEllipsoidBodiesAsIcqShapeModels) {
+    TerrainConfig config;
+    config.surface = terraingen::EllipsoidSurfaceSpec{{267500.0, 147000.0, 104500.0}};
+    config.source = terraingen::FlatSourceSpec{4, 4, 100.0, 0.0f};
+    config.outputs = {terraingen::BodyMeshOutput{"body.icq", 8, std::nullopt}};
+    EXPECT_EQ(terraingen::testing::ValidationErrorPath(config), "valid");
+    const auto terrain = GenerateTerrain(config);
+    const auto directory = TempPath("terraingen_body_icq");
+    std::filesystem::remove_all(directory);
+    const auto written = WriteOutputs(config, terrain, directory);
+    ASSERT_EQ(written.size(), 1u);
+    const terraingen::IcqModel model = terraingen::ReadIcq(written[0]);
+    EXPECT_EQ(model.q, 8u);
+    const terraingen::Vec3d tip = model.vertices[model.Index(4, 4, 5)];
+    EXPECT_NEAR(tip.x, 267500.0, 1e-2) << "face 5 is centred on +x, in metres once read";
+}
+
 TEST(WriteOutputs, DrawsBoulderModelsFromRockFilesAndWritesTheTerrainMesh) {
     const auto directory = TempPath("terraingen_rock_outputs");
     std::filesystem::remove_all(directory);

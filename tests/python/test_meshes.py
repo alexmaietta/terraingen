@@ -149,3 +149,33 @@ def test_boulder_shapes_need_a_style():
 
 def test_validate_boulder_shape_options_accepts_the_defaults():
     terraingen.validate_boulder_shape_options(terraingen.BoulderShapeOptions())
+
+
+def test_icq_models_round_trip_and_triangulate(tmp_path):
+    q = 4
+    model = terraingen.IcqModel()
+    model.q = q
+    model.vertices = [
+        tuple(1000.0 * c for c in terraingen.icq_direction(q, i, j, f))
+        for f in range(1, 7)
+        for j in range(q + 1)
+        for i in range(q + 1)
+    ]
+    assert model.index(q, q, 6) == len(model.vertices) - 1
+    path = tmp_path / "body.icq"
+    terraingen.write_icq(path, model)
+    back = terraingen.read_icq(path)
+    assert back.q == q and len(back.vertices) == 6 * (q + 1) ** 2
+    mesh = back.to_mesh()
+    assert mesh.vertex_count == 6 * q * q + 2 and mesh.triangle_count == 12 * q * q
+    assert mesh.volume > 0.0
+    assert terraingen.read_mesh(path).mesh.triangle_count == 12 * q * q
+
+
+def test_body_icq_follows_an_ellipsoid():
+    body = terraingen.Surface.ellipsoid(270.0, 147.0, 104.0)
+    terrain = terraingen.Terrain(terraingen.FlatSource(4, 4, 1.0, 0.0), surface=body)
+    model = terraingen.body_icq(terrain, 4)
+    assert model.q == 4
+    x = model.vertices[model.index(2, 2, 5)][0]
+    assert x == pytest.approx(270.0)

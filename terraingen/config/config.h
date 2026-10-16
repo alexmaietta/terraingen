@@ -487,8 +487,8 @@ struct BoulderModelsOutput {
 /// (red, green, blue).
 struct AlbedoOutput : GeoTiffOutput {};
 
-/// Output "body_mesh": a mesh of the whole body on a sphere (`BodyMesh`), with smooth normals, in
-/// any format `WriteMesh` writes.
+/// Output "body_mesh": the whole body on a sphere or ellipsoid, as a mesh (`BodyMesh`) with smooth
+/// normals in any format `WriteMesh` writes, or as an ICQ shape model (`BodyIcq`) for an .icq path.
 struct BodyMeshOutput {
     std::string path;
     std::size_t cellsPerFace = 128;   ///< Quads along each edge of the six cube faces.

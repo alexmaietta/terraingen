@@ -177,9 +177,18 @@ void BindEvaluation(nb::module_& m) {
         },
         "terrain"_a, "cells_per_face"_a, "spacing"_a = 0.0, "threads"_a = 0,
         nb::call_guard<nb::gil_scoped_release>(),
-        "A mesh of the whole body a terrain on a sphere lies on: six cube faces of "
+        "A mesh of the whole body a terrain on a sphere or ellipsoid lies on: six cube faces of "
         "`cells_per_face` squared quads, each vertex at the radius plus the terrain's height "
         "there.");
+    m.def(
+        "body_icq",
+        [](const PyTerrain& terrain, std::size_t q, double spacing, unsigned threads) {
+            return BodyIcq(terrain.Get(), q, spacing, threads);
+        },
+        "terrain"_a, "q"_a, "spacing"_a = 0.0, "threads"_a = 0,
+        nb::call_guard<nb::gil_scoped_release>(),
+        "The whole body a terrain on a sphere or ellipsoid lies on as an ICQ shape model with "
+        "`q` intervals per face edge, each label at the radius plus the terrain's height there.");
 }
 
 void BindTileKey(nb::module_& m) {

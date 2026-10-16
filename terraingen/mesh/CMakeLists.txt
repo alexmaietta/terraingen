@@ -4,6 +4,7 @@ terraingen_add_library(
     mesh
     SOURCES
     io/gltf.cpp
+    io/icq.cpp
     io/mesh_io.cpp
     io/obj.cpp
     io/stl.cpp

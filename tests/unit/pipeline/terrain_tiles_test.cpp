@@ -303,3 +303,34 @@ TEST(BodyMesh, PlacesAFlatTerrainOnItsEllipsoid) {
                     1.0, 1e-9);
     }
 }
+
+TEST(BodyIcq, PlacesEachLabelAtTheBodysRadiusPlusTheHeight) {
+    const terraingen::Surface body = terraingen::Surface::Ellipsoid(270.0, 147.0, 104.0);
+    Terrain terrain;
+    terrain.surface = body;
+    terrain.source = std::make_shared<terraingen::FlatSource>(8, 8, 1.0, 3.0f);
+    const terraingen::IcqModel model = terraingen::BodyIcq(terrain, 6, 0.0, 2);
+    ASSERT_EQ(model.q, 6u);
+    ASSERT_EQ(model.vertices.size(), 6u * 7u * 7u);
+    for (std::size_t f = 1; f <= 6; ++f) {
+        for (std::size_t j = 0; j <= 6; ++j) {
+            for (std::size_t i = 0; i <= 6; ++i) {
+                const terraingen::Vec3d p = model.vertices[model.Index(i, j, f)];
+                const terraingen::Vec3d d = terraingen::IcqDirection(6, i, j, f);
+                const terraingen::Vec2d point = body.PointOf(d);
+                const float height = terraingen::EvaluateAt(terrain, point.x, point.y,
+                                                            body.Radius() * M_PI / 2.0 / 6.0);
+                EXPECT_NEAR(terraingen::Length(p),
+                            body.RadiusAt(point) +
+                                (std::isnan(height) ? 0.0 : static_cast<double>(height)),
+                            1e-9);
+            }
+        }
+    }
+    EXPECT_GT(terraingen::Volume(terraingen::IcqToMesh(model)), 0.0);
+    Terrain flat = terrain;
+    flat.surface = {};
+    EXPECT_THROW(terraingen::BodyIcq(flat, 4), std::invalid_argument);
+    EXPECT_THROW(terraingen::BodyIcq(terrain, 0), std::invalid_argument);
+    EXPECT_THROW(terraingen::BodyIcq(terrain, 4, -1.0), std::invalid_argument);
+}
