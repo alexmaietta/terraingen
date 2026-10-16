@@ -69,20 +69,21 @@ class Example(_common.Example):
         print(
             f"10 km east of the site is ({self.east[0]:.4f}, {self.east[1]:.4f}); distance {self.distance:.1f} m"
         )
-        self.evaluated = terraingen.evaluate(terrain)
+        self.heights = terraingen.evaluate(terrain)
+        self.craters = terraingen.placed_craters(terrain).table
         self.site_height = terraingen.evaluate_at(terrain, *SITE, PIXEL)
-        print(f"{len(self.evaluated.craters['x'])} craters; height at the site {self.site_height:.1f} m")
-        self.show("heights", self.evaluated.heights.values, PIXEL)
+        print(f"{len(self.craters['x'])} craters; height at the site {self.site_height:.1f} m")
+        self.show("heights", self.heights.values, PIXEL)
 
     def save(self, out):
-        terraingen.write_geotiff(out / "example_planets_moon_site.tif", self.evaluated.heights)
+        terraingen.write_geotiff(out / "example_planets_moon_site.tif", self.heights)
         print(
             "wrote",
-            write_png(out / "example_planets_moon_site.png", hillshade(self.evaluated.heights.values, PIXEL)),
+            write_png(out / "example_planets_moon_site.png", hillshade(self.heights.values, PIXEL)),
         )
 
     def test_final(self):
-        heights = self.evaluated.heights.values
+        heights = self.heights.values
         assert heights.shape == (257, 257) and np.isfinite(heights).all(), "finite 257 x 257 heights"
         assert abs(self.site.transform.pixel_width * self.moon.unit_length - PIXEL) < 1.0, (
             "grid cells are 200 m in degrees"
@@ -91,7 +92,7 @@ class Example(_common.Example):
         assert 23.6 < self.east[0] < 24.0 and abs(self.east[1] - SITE[1]) < 0.01, (
             "10 km east is about a third of a degree east"
         )
-        assert len(self.evaluated.craters["x"]) > 10, "more than 10 craters at the site"
+        assert len(self.craters["x"]) > 10, "more than 10 craters at the site"
         assert np.isfinite(self.site_height) and abs(self.site_height) < 10000.0, (
             "the site's height is within 10 km of the datum"
         )

@@ -93,8 +93,7 @@ TEST(RegionLayer, GivesGridsThePointQueriesBitsAndLeavesTheRestAlone) {
                                 terraingen::BlendShape::Linear);
         const auto before = Slope();
         auto after = before;
-        terraingen::TerrainFeatures features;
-        layer.Apply(after, {0.5, 4}, features);
+        layer.Apply(after, {0.5, 4});
         std::size_t changed = 0;
         for (std::size_t row = 0; row < after.Height(); ++row) {
             for (std::size_t col = 0; col < after.Width(); ++col) {
@@ -112,42 +111,21 @@ TEST(RegionLayer, GivesGridsThePointQueriesBitsAndLeavesTheRestAlone) {
     }
 }
 
-TEST(RegionLayer, KeepsTheFeaturesCentredInTheRegionOrItsFeather) {
-    const auto craters = [](double feather) {
-        auto heights = Slope();
-        terraingen::TerrainFeatures features;
-        RegionLayer(ManualCraters(), RegionShape::Rectangle({-5.0, -5.0, 5.0, 5.0}), feather)
-            .Apply(heights, {}, features);
-        return features.craters;
-    };
-    const auto near = craters(2.0);
-    ASSERT_EQ(near.Size(), 1u);
-    {
-        auto heights = Slope();
-        terraingen::TerrainFeatures features;
-        const auto inner = ManualCraters();
-        RegionLayer(inner, RegionShape::Rectangle({-5.0, -5.0, 5.0, 5.0}), 12.0)
-            .Apply(heights, {}, features);
-        ASSERT_EQ(features.craterAttributes.size(), 2u);
-        EXPECT_EQ(features.craterAttributes[1], inner->Attributes(features.craters.At(1)));
-    }
-    EXPECT_EQ(near.At(0).x, 0.0);
-    const auto wider = craters(12.0);
-    ASSERT_EQ(wider.Size(), 2u) << "the crater 11 m off is inside a 12 m feather";
-    EXPECT_EQ(wider.At(1).x, 16.0);
-
-    terraingen::BoulderLayerOptions options;
-    options.sizes.minDiameter = 1.0;
-    options.sizes.coverage = 0.3;
-    terraingen::TerrainFeatures boulders;
-    auto heights = Slope();
-    RegionLayer(std::make_shared<terraingen::BoulderLayer>(options),
-                RegionShape::Circle({0.0, 0.0}, 20.0))
-        .Apply(heights, {}, boulders);
-    ASSERT_FALSE(boulders.boulders.empty());
-    for (const auto& boulder : boulders.boulders) {
-        EXPECT_LE(std::hypot(boulder.x, boulder.y), 20.0);
-    }
+TEST(RegionLayer, HoldsTheFeaturesCentredInTheRegionOrItsFeather) {
+    const RegionLayer layer(ManualCraters(), RegionShape::Rectangle({-5.0, -5.0, 5.0, 5.0}), 2.0);
+    EXPECT_TRUE(layer.Holds(0.0, 0.0));
+    EXPECT_TRUE(layer.Holds(6.5, 0.0)) << "inside the feather";
+    EXPECT_FALSE(layer.Holds(7.5, 0.0));
+    const terraingen::RasterGrid grid = terraingen::RasterGrid::Of(Slope());
+    const auto inner = layer.InnerGrid(grid);
+    ASSERT_TRUE(inner.has_value());
+    const auto bounds = inner->Bounds();
+    EXPECT_LE(bounds.minX, -7.0);
+    EXPECT_GE(bounds.maxX, 7.0);
+    EXPECT_LT(inner->width, grid.width) << "only the cells near the region";
+    EXPECT_EQ(inner->transform.pixelWidth, grid.transform.pixelWidth);
+    const RegionLayer away(ManualCraters(), RegionShape::Rectangle({500.0, 500.0, 510.0, 510.0}));
+    EXPECT_FALSE(away.InnerGrid(grid).has_value());
 }
 
 TEST(RegionLayer, SkipsTheInnerLayerAwayFromTheRegion) {
@@ -160,8 +138,7 @@ TEST(RegionLayer, SkipsTheInnerLayerAwayFromTheRegion) {
     const RegionLayer away(inner, RegionShape::Rectangle({500.0, 500.0, 510.0, 510.0}), 5.0);
     auto heights = Slope();
     const auto before = heights;
-    terraingen::TerrainFeatures features;
-    away.Apply(heights, {}, features);
+    away.Apply(heights, {});
     EXPECT_EQ(*calls, 0);
     EXPECT_EQ(away.ApplyAt(2.0f, 0.0, 0.0, {1.0}), 2.0f);
     EXPECT_EQ(*calls, 0);
@@ -173,7 +150,7 @@ TEST(RegionLayer, SkipsTheInnerLayerAwayFromTheRegion) {
     const auto hole = heights.Transform().WorldToPixel(1.0, 1.0);
     auto& missing = heights(static_cast<std::size_t>(hole.x), static_cast<std::size_t>(hole.y));
     missing = -9999.0f;
-    small.Apply(heights, {}, features);
+    small.Apply(heights, {});
     EXPECT_EQ(missing, -9999.0f);
     EXPECT_LE(*calls, 36) << "only the cells around the region";
     EXPECT_GE(*calls, 15) << "16 cells in the region, one without data";
@@ -186,20 +163,4 @@ TEST(RegionLayer, RejectsInvalidSettings) {
     EXPECT_THROW(RegionLayer(inner, RegionShape{}, -1.0), std::invalid_argument);
     EXPECT_THROW(RegionLayer(inner, RegionShape{}, std::nan("")), std::invalid_argument);
     EXPECT_EQ(RegionLayer(ManualCraters(), RegionShape{}).MaxFeatureDiameter(), 8.0);
-}
-
-TEST(RegionLayer, KeepsTheBoulderModelsCentredInTheRegion) {
-    terraingen::BoulderLayerOptions options;
-    options.sizes.minDiameter = 1.0;
-    options.sizes.coverage = 0.3;
-    options.rendering.models.minDiameter = 1.0;
-    terraingen::TerrainFeatures features;
-    auto heights = Slope();
-    RegionLayer(std::make_shared<terraingen::BoulderLayer>(options),
-                RegionShape::Circle({0.0, 0.0}, 20.0))
-        .Apply(heights, {}, features);
-    ASSERT_FALSE(features.boulderModels.empty());
-    for (const auto& model : features.boulderModels) {
-        EXPECT_LE(std::hypot(model.boulder.x, model.boulder.y), 20.0);
-    }
 }

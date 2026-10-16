@@ -2,7 +2,6 @@
 /// @brief The filter interface: transforms of the heights after every layer.
 #pragma once
 
-#include "terraingen/layers/features.h"
 #include "terraingen/raster/raster.h"
 
 namespace terraingen {
@@ -14,7 +13,7 @@ struct FilterContext {
 };
 
 /// @brief A transform of the heights the source and layers produced: smoothing, reshaping, or a
-/// filter of your own. Filters run after every layer, in order, and see the features placed.
+/// filter of your own. Filters run after every layer, in order.
 ///
 /// A filter must be deterministic and thread safe. Unlike a layer, it may read the heights around a
 /// cell, so it runs on grids only, and a grid evaluated tile by tile needs `Margin` cells around
@@ -24,8 +23,7 @@ class Filter {
     virtual ~Filter() = default;
 
     /// Transforms `heights` in place.
-    virtual void Apply(Raster<float>& heights, const FilterContext& context,
-                       const TerrainFeatures& features) const = 0;
+    virtual void Apply(Raster<float>& heights, const FilterContext& context) const = 0;
 
     /// How far from a cell the filter reads, in metres, for features up to `maxFeatureDiameter`
     /// metres across; 0 by default, for filters that read only the cell itself.

@@ -14,7 +14,6 @@
 using terraingen::GaussianBlurFilter;
 using terraingen::GeoTransform;
 using terraingen::Raster;
-using terraingen::TerrainFeatures;
 
 namespace {
 
@@ -38,12 +37,12 @@ TEST(GaussianBlurFilter, BlursBySigmaInMetresAtAnyCellSize) {
     const GaussianBlurFilter filter(2.0);
     Raster<float> heights = Ridge(1.0);
     const Raster<float> expected = terraingen::GaussianBlur(heights, 2.0);
-    filter.Apply(heights, {1.0, 2}, TerrainFeatures{});
+    filter.Apply(heights, {1.0, 2});
     for (std::size_t i = 0; i < expected.Size(); ++i) {
         ASSERT_EQ(heights.Values()[i], expected.Values()[i]) << i;
     }
     Raster<float> fine = Ridge(0.5);
-    filter.Apply(fine, {0.5}, TerrainFeatures{});
+    filter.Apply(fine, {0.5});
     EXPECT_NEAR(fine(63, 32), heights(31, 16), 0.02) << "the same ridge after a 2 m blur";
     EXPECT_EQ(filter.Sigma(), 2.0);
 }
@@ -53,7 +52,7 @@ TEST(GaussianBlurFilter, ReadsThreeSigmasAroundEachCellAndRejectsBadSettings) {
     EXPECT_EQ(GaussianBlurFilter(0.0).Margin(500.0, 0.5), 0.0);
     Raster<float> heights = Ridge(1.0);
     const Raster<float> original = heights;
-    GaussianBlurFilter(0.0).Apply(heights, {1.0}, TerrainFeatures{});
+    GaussianBlurFilter(0.0).Apply(heights, {1.0});
     EXPECT_TRUE(
         std::equal(heights.Values().begin(), heights.Values().end(), original.Values().begin()));
     EXPECT_THROW(GaussianBlurFilter(-1.0), std::invalid_argument);

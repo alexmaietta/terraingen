@@ -1,6 +1,5 @@
 #include "terraingen/layers/layer.h"
 
-#include "terraingen/layers/features.h"
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/checks.h"
@@ -21,30 +20,26 @@ void RequireGround(const Ground* ground, std::string_view what) {
     }
 }
 
-void Layer::Apply(Raster<float>& heights, const LayerContext& context,
-                  TerrainFeatures& features) const {
+void Layer::Apply(Raster<float>& heights, const LayerContext& context) const {
     SampleBlock samples(heights);
-    ApplySamples(samples, context, features);
+    ApplySamples(samples, context);
 }
 
-void Layer::Apply(SampleBlock& samples, const LayerContext& context,
-                  TerrainFeatures& features) const {
+void Layer::Apply(SampleBlock& samples, const LayerContext& context) const {
     if (!samples.IsGrid()) {
         ValidatePointContext(context);
     }
-    ApplySamples(samples, context, features);
+    ApplySamples(samples, context);
 }
 
 float Layer::ApplyAt(float height, double x, double y, const LayerContext& context) const {
     const Vec2d position{x, y};
     SampleBlock samples({&position, 1}, {&height, 1});
-    TerrainFeatures features;
-    Apply(samples, context, features);
+    Apply(samples, context);
     return height;
 }
 
-void FormulaLayer::ApplySamples(SampleBlock& samples, const LayerContext& context,
-                                TerrainFeatures& /*features*/) const {
+void FormulaLayer::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
     CheckContext(context);
     if (Raster<float>* grid = samples.Grid()) {
         const double spacing = std::max(context.spacing, RasterGrid::Of(*grid).Spacing(surface_));

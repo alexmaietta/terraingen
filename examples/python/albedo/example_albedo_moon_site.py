@@ -71,25 +71,26 @@ class Example(_common.Example):
             [terraingen.CraterAlbedo(craters, terraingen.CraterAlbedoOptions(seed=3))],
             surface=moon,
         )
-        self.evaluated = terraingen.evaluate(terrain)
+        self.heights = terraingen.evaluate(terrain)
+        self.craters = terraingen.placed_craters(terrain).table
         self.bands = terraingen.evaluate_albedo(albedo, site.grid())
         band = self.bands[0].values
-        print(f"{len(self.evaluated.craters['x'])} craters; albedo {band.min():.3f} to {band.max():.3f}")
-        self.show("heights and albedo", self.evaluated.heights.values, PIXEL, albedo=band)
+        print(f"{len(self.craters['x'])} craters; albedo {band.min():.3f} to {band.max():.3f}")
+        self.show("heights and albedo", self.heights.values, PIXEL, albedo=band)
 
     def save(self, out):
         terraingen.write_geotiff(out / "example_albedo_moon_site.tif", self.bands)
-        shades = [normalize(self.bands[0].values), hillshade(self.evaluated.heights.values, PIXEL)]
+        shades = [normalize(self.bands[0].values), hillshade(self.heights.values, PIXEL)]
         print("wrote", write_png(out / "example_albedo_moon_site.png", montage(shades, columns=2)))
 
     def test_final(self):
         band = self.bands[0].values
-        assert self.evaluated.heights.shape == (257, 257)
+        assert self.heights.shape == (257, 257)
         assert band.shape == (257, 257), "the albedo is on the site's grid"
         assert np.all(np.isfinite(band)), "the albedo is finite"
         assert band.min() > 0.05 and band.max() < 0.25, "the albedo stays near 0.11"
         assert band.max() > np.median(band) + 0.005, "the young crater brightens the albedo"
-        assert len(self.evaluated.craters["x"]) >= 5, "several craters at the site"
+        assert len(self.craters["x"]) >= 5, "several craters at the site"
 
 
 if __name__ == "__main__":

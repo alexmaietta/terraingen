@@ -45,7 +45,7 @@ def coarse_dem():
             terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=4, generation=generation)),
         ],
     )
-    return terraingen.evaluate(terrain).heights
+    return terraingen.evaluate(terrain)
 
 
 class Example(_common.Example):
@@ -91,21 +91,23 @@ class Example(_common.Example):
                     )
                 ]
             )
-            self.evaluated = terraingen.evaluate(terraingen.Terrain(source, [detail, small]))
-            print(f"added {len(self.evaluated.craters['x'])} craters of 6 to 100 m")
-            self.resampled = terraingen.evaluate(terraingen.Terrain(source)).heights
-        self.show("heights", self.evaluated.heights)
+            terrain = terraingen.Terrain(source, [detail, small])
+            self.heights = terraingen.evaluate(terrain)
+            self.craters = terraingen.placed_craters(terrain).table
+            print(f"added {len(self.craters['x'])} craters of 6 to 100 m")
+            self.resampled = terraingen.evaluate(terraingen.Terrain(source))
+        self.show("heights", self.heights)
         self.show("resampled DEM", self.resampled)
 
     def save(self, out):
         terraingen.write_geotiff(out / "example_sources_raster_detail_coarse.tif", self.dem)
-        terraingen.write_geotiff(out / "example_sources_raster_detail.tif", self.evaluated.heights)
-        shades = [hillshade(self.resampled.values, 2.0), hillshade(self.evaluated.heights.values, 2.0)]
+        terraingen.write_geotiff(out / "example_sources_raster_detail.tif", self.heights)
+        shades = [hillshade(self.resampled.values, 2.0), hillshade(self.heights.values, 2.0)]
         print("wrote", write_png(out / "example_sources_raster_detail.png", montage(shades, columns=2)))
 
     def test_final(self):
-        heights = self.evaluated.heights.values
-        diameters = self.evaluated.craters["diameter"]
+        heights = self.heights.values
+        diameters = self.craters["diameter"]
         assert self.dem.shape == (65, 65), "the coarse DEM is 65 x 65"
         assert 512 <= heights.shape[0] <= 528 and 512 <= heights.shape[1] <= 528, (
             "the 16 m DEM resamples to about 520 x 520 cells of 2 m"

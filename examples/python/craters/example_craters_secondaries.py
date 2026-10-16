@@ -61,22 +61,20 @@ class Example(_common.Example):
             )
 
         terrain = terraingen.Terrain(terraingen.FlatSource(1537, 1537, PIXEL), [primaries, secondaries])
-        self.evaluated = terraingen.evaluate(terrain)
-        self.show("heights", self.evaluated.heights)
+        self.heights = terraingen.evaluate(terrain)
+        self.show("heights", self.heights)
 
     def save(self, out):
-        terraingen.write_geotiff(out / "example_craters_secondaries.tif", self.evaluated.heights)
+        terraingen.write_geotiff(out / "example_craters_secondaries.tif", self.heights)
         print(
             "wrote",
-            write_png(
-                out / "example_craters_secondaries.png", hillshade(self.evaluated.heights.values, PIXEL)
-            ),
+            write_png(out / "example_craters_secondaries.png", hillshade(self.heights.values, PIXEL)),
         )
 
     def test_final(self):
         ranges = np.hypot(self.table["x"], self.table["y"])
-        assert self.evaluated.heights.shape == (1537, 1537), "the heights are 1537 x 1537"
-        assert np.all(np.isfinite(self.evaluated.heights.values)), "every height is finite"
+        assert self.heights.shape == (1537, 1537), "the heights are 1537 x 1537"
+        assert np.all(np.isfinite(self.heights.values)), "every height is finite"
         assert len(ranges) > 10, "more than 10 secondaries"
         assert self.table["diameter"].min() >= 30.0, "every secondary is 30 m or more"
         assert ranges.min() >= 0.99 * self.onset and ranges.max() <= 1.01 * self.outer, (

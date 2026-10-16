@@ -55,7 +55,7 @@ class Example(_common.Example):
                 terraingen.FlatSource(17, 17, 128.0, elevation=0.11), [terraingen.NoiseRelief([mottling])]
             ),
             grid=coarse_grid,
-        ).heights
+        )
         coarse_map = terraingen.Raster.from_array(coarse.values, coarse_grid.transform)
         self.maps = []
         for octaves in (1, 6):

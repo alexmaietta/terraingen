@@ -78,9 +78,10 @@ class PlanetsMoon : public terraingen::examples::Example {
         Out() << std::setprecision(4) << "10 km east of the site: (" << east_.x << ", " << east_.y
               << ")\n";
         site_ = terraingen::Evaluate(terrain);
+        craters_ = terraingen::PlacedCraters(terrain, terraingen::RasterGrid::Of(site_));
         siteHeight_ = terraingen::EvaluateAt(terrain, site.x, site.y, pixel);
-        Out() << std::setprecision(1) << site_.features.craters.Size()
-              << " craters; height at the site " << siteHeight_ << " m\n";
+        Out() << std::setprecision(1) << craters_.craters.Size() << " craters; height at the site "
+              << siteHeight_ << " m\n";
 
         terraingen::Terrain global = terrain;
         global.layers = {noise, std::make_shared<terraingen::CraterLayer>(
@@ -105,22 +106,21 @@ class PlanetsMoon : public terraingen::examples::Example {
         Out() << std::setprecision(2) << "whole-body mesh: " << mesh_.positions.size()
               << " vertices, radius " << lowest_ / 1000.0 << " to " << highest_ / 1000.0 << " km\n"
               << std::defaultfloat;
-        Show("site", site_.heights, nullptr, true);
+        Show("site", site_, nullptr, true);
     }
 
     void Save(const std::filesystem::path& dir) override {
-        terraingen::WriteGeoTiff(dir / "example_planets_moon_site.tif", site_.heights,
+        terraingen::WriteGeoTiff(dir / "example_planets_moon_site.tif", site_,
                                  terraingen::GeographicSphereKeys(moon_.Radius()));
         terraingen::WriteGlb(dir / "example_planets_moon.glb", mesh_);
     }
 
     void Test() override {
-        Check(site_.heights.Width() == 257 && site_.heights.Height() == 257,
-              "the site is 257 x 257");
+        Check(site_.Width() == 257 && site_.Height() == 257, "the site is 257 x 257");
         Check(std::abs(moon_.Radius() - 1737400.0) < 1000.0, "the Moon's radius is 1737 km");
         Check(east_.x > 23.6 && east_.x < 24.0 && std::abs(east_.y - 0.67) < 0.01,
               "10 km east of the site is about a third of a degree east, at the same latitude");
-        Check(site_.features.craters.Size() > 10, "more than 10 craters at the site");
+        Check(craters_.craters.Size() > 10, "more than 10 craters at the site");
         Check(std::isfinite(siteHeight_) && std::abs(siteHeight_) < 10000.0f,
               "the site's height is finite and within 10 km of the datum");
         Check(mesh_.positions.size() > 10000 && !mesh_.triangles.empty() &&
@@ -132,7 +132,8 @@ class PlanetsMoon : public terraingen::examples::Example {
   private:
     terraingen::Surface moon_ = terraingen::Surface::Sphere(kMoonRadius);
     terraingen::Vec2d east_;
-    terraingen::EvaluatedTerrain site_;
+    terraingen::Raster<float> site_;
+    terraingen::CraterFeatures craters_;
     float siteHeight_ = 0.0f;
     terraingen::TriangleMesh mesh_;
     double lowest_ = 0.0;

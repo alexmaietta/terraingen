@@ -1,6 +1,5 @@
 #include "terraingen/layers/noise_relief.h"
 
-#include "terraingen/layers/features.h"
 #include "terraingen/noise/noise_layers.h"
 
 #include <gtest/gtest.h>
@@ -14,7 +13,6 @@ using terraingen::GeoTransform;
 using terraingen::NoiseRelief;
 using terraingen::Raster;
 using terraingen::SyntheticTerrainParams;
-using terraingen::TerrainFeatures;
 
 namespace {
 
@@ -30,15 +28,13 @@ SyntheticTerrainParams Params() {
 TEST(NoiseRelief, AddsTheSyntheticTerrainAtTheOrigin) {
     Raster<float> heights(24, 16, 10.0f);
     heights.SetTransform(GeoTransform::NorthUp(-24.0, 16.0, 2.0));
-    TerrainFeatures features;
-    NoiseRelief(Params()).Apply(heights, {2.0}, features);
+    NoiseRelief(Params()).Apply(heights, {2.0});
     Raster<float> expected(24, 16);
     expected.SetTransform(heights.Transform());
     terraingen::FillSyntheticTerrain(expected, Params());
     for (std::size_t i = 0; i < expected.Size(); ++i) {
         ASSERT_EQ(heights.Values()[i], 10.0f + expected.Values()[i]) << i;
     }
-    EXPECT_TRUE(features.craters.Empty());
 }
 
 TEST(NoiseRelief, MeasuresPositionsFromItsOriginAndSkipsNoData) {
@@ -46,9 +42,8 @@ TEST(NoiseRelief, MeasuresPositionsFromItsOriginAndSkipsNoData) {
     heights.SetTransform(GeoTransform::NorthUp(500000.0, 4000000.0, 1.0));
     heights.SetNoData(std::numeric_limits<float>::quiet_NaN());
     heights(1, 2) = std::numeric_limits<float>::quiet_NaN();
-    TerrainFeatures features;
     const SyntheticTerrainParams params = Params();
-    NoiseRelief({params}, {500000.0, 4000000.0}).Apply(heights, {1.0}, features);
+    NoiseRelief({params}, {500000.0, 4000000.0}).Apply(heights, {1.0});
     EXPECT_TRUE(std::isnan(heights(1, 2)));
     const auto centre = heights.CellCenter(3, 1);
     EXPECT_EQ(heights(3, 1),
@@ -67,9 +62,8 @@ TEST(NoiseRelief, RejectsInvalidParameters) {
 TEST(NoiseRelief, PointQueriesMatchCellsAndKeepNoData) {
     Raster<float> heights(8, 8, 3.0f);
     heights.SetTransform(GeoTransform::NorthUp(-8.0, 8.0, 2.0));
-    TerrainFeatures features;
     const NoiseRelief relief(Params(), {1.0, -2.0});
-    relief.Apply(heights, {2.0}, features);
+    relief.Apply(heights, {2.0});
     const auto centre = heights.CellCenter(5, 2);
     EXPECT_EQ(relief.ApplyAt(3.0f, centre.x, centre.y, {2.0}), heights(5, 2));
     EXPECT_TRUE(

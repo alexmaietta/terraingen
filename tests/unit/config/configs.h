@@ -6,6 +6,7 @@
 #include "terraingen/config/generate.h"
 #include "terraingen/config/json.h"
 #include "terraingen/config/validate.h"
+#include "terraingen/pipeline/features.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 
 #include <cmath>
@@ -18,6 +19,16 @@
 #include <variant>
 
 namespace terraingen::testing {
+
+/// The craters a generated terrain's layers apply over its grid.
+inline CraterFeatures CratersOf(const GeneratedTerrain& terrain) {
+    return PlacedCraters(terrain.terrain, RasterGrid::Of(terrain.heights));
+}
+
+/// The boulders a generated terrain's layers place over its grid, and the models among them.
+inline BoulderFeatures BouldersOf(const GeneratedTerrain& terrain) {
+    return PlacedBoulders(terrain.terrain, RasterGrid::Of(terrain.heights));
+}
 
 /// @brief The flat source of a configuration.
 /// @param config A configuration with a flat source.

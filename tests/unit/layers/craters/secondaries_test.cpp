@@ -122,12 +122,11 @@ TEST(SecondaryCraterLayer, GridsTilesThreadsAndPointsAgree) {
         terraingen::Raster<float> whole(96, 96, 0.0f);
         whole.SetTransform(terraingen::GeoTransform::NorthUp(3300.0 / unit, 400.0 / unit, step));
         terraingen::Raster<float> threaded = whole;
-        terraingen::TerrainFeatures features;
-        layer.Apply(whole, {.spacing = 4.0, .threads = 1}, features);
-        terraingen::TerrainFeatures more;
-        layer.Apply(threaded, {.spacing = 4.0, .threads = 0}, more);
-        ASSERT_GT(features.craters.Size(), 3u);
-        EXPECT_EQ(features.craterAttributes.size(), features.craters.Size());
+        layer.Apply(whole, {.spacing = 4.0, .threads = 1});
+        layer.Apply(threaded, {.spacing = 4.0, .threads = 0});
+        const auto secondaries = layer.Secondaries(terraingen::RasterGrid::Of(whole).Bounds(), 4.0);
+        ASSERT_GT(secondaries.Size(), 3u);
+        EXPECT_LE(layer.Attributes(secondaries.At(0)).freshness, 1.0);
         int changed = 0;
         for (std::size_t i = 0; i < whole.Size(); ++i) {
             EXPECT_EQ(whole.Values()[i], threaded.Values()[i]);
@@ -137,8 +136,7 @@ TEST(SecondaryCraterLayer, GridsTilesThreadsAndPointsAgree) {
         terraingen::Raster<float> tile(32, 32, 0.0f);
         tile.SetTransform(terraingen::GeoTransform::NorthUp(3300.0 / unit + 32.0 * step,
                                                             400.0 / unit - 32.0 * step, step));
-        terraingen::TerrainFeatures ignored;
-        layer.Apply(tile, {.spacing = 4.0, .threads = 1}, ignored);
+        layer.Apply(tile, {.spacing = 4.0, .threads = 1});
         for (std::size_t row = 0; row < 32; ++row) {
             for (std::size_t col = 0; col < 32; ++col) {
                 EXPECT_NEAR(tile(col, row), whole(col + 32, row + 32), 1e-5f);

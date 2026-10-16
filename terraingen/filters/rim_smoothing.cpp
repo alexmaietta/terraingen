@@ -134,15 +134,18 @@ void SmoothCraterRims(Raster<float>& raster, const CraterList& craters,
         });
 }
 
-RimSmoothingFilter::RimSmoothingFilter(const RimSmoothing& smoothing, const Surface& surface)
-    : smoothing_(smoothing), surface_(surface) {
+RimSmoothingFilter::RimSmoothingFilter(const RimSmoothing& smoothing, CraterQuery craters,
+                                       const Surface& surface)
+    : smoothing_(smoothing), craters_(std::move(craters)), surface_(surface) {
     ValidateRimSmoothing(smoothing_);
+    if (!craters_) {
+        throw std::invalid_argument("Rim smoothing needs the craters to smooth");
+    }
 }
 
-void RimSmoothingFilter::Apply(Raster<float>& heights, const FilterContext& context,
-                               const TerrainFeatures& features) const {
-    SmoothCraterRims(heights, features.craters, smoothing_, context.spacing, context.threads,
-                     surface_);
+void RimSmoothingFilter::Apply(Raster<float>& heights, const FilterContext& context) const {
+    const CraterList craters = craters_(RasterGrid::Of(heights), context.spacing);
+    SmoothCraterRims(heights, craters, smoothing_, context.spacing, context.threads, surface_);
 }
 
 double RimSmoothingFilter::Margin(double maxFeatureDiameter, double spacing) const {

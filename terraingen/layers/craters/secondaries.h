@@ -111,6 +111,10 @@ class SecondaryCraterLayer final : public Layer {
     /// @return The range from its centre, in metres.
     double OuterRange(double diameter) const;
 
+    /// A secondary's attributes in the state the degradation model gives it.
+    /// @throws std::domain_error as `DegradationModel::State`.
+    CraterAttributes Attributes(const Crater& crater) const;
+
     /// @brief The secondary crater options.
     /// @return The options the layer was made with.
     const SecondaryCraterOptions& Options() const {
@@ -118,10 +122,9 @@ class SecondaryCraterLayer final : public Layer {
     }
 
   protected:
-    /// Applies the secondaries reaching the samples, recording those applied to a grid.
+    /// Applies the secondaries reaching the samples.
     /// @throws std::invalid_argument if more than `maxExpected` secondaries are expected.
-    void ApplySamples(SampleBlock& samples, const LayerContext& context,
-                      TerrainFeatures& features) const override;
+    void ApplySamples(SampleBlock& samples, const LayerContext& context) const override;
 
   private:
     std::shared_ptr<const CraterLayer> primaries_;

@@ -40,6 +40,12 @@ float RimCrest(const Raster<float>& raster) {
     return crest;
 }
 
+/// A crater query that lists `craters` for every grid.
+terraingen::CraterQuery Listing(const CraterList& craters) {
+    return
+        [craters](const terraingen::RasterGrid& /*grid*/, double /*spacing*/) { return craters; };
+}
+
 }  // namespace
 
 TEST(SmoothCraterRims, LowersTheRimCrestAndLeavesTheRestAlone) {
@@ -82,28 +88,26 @@ TEST(RimSmoothingFilter, SmoothsTheRimsOfThePlacedCraters) {
     CraterList craters;
     Raster<float> heights = Cratered(craters);
     Raster<float> expected = heights;
-    terraingen::TerrainFeatures features;
-    features.craters = craters;
     const RimSmoothing smoothing{.sigmaRadii = 0.08};
-    terraingen::RimSmoothingFilter(smoothing).Apply(heights, {1.0}, features);
+    terraingen::RimSmoothingFilter(smoothing, Listing(craters)).Apply(heights, {1.0});
     SmoothCraterRims(expected, craters, smoothing);
     for (std::size_t i = 0; i < expected.Size(); ++i) {
         ASSERT_EQ(heights.Values()[i], expected.Values()[i]) << i;
     }
-    EXPECT_EQ(terraingen::RimSmoothingFilter(smoothing).Smoothing(), smoothing);
+    EXPECT_EQ(terraingen::RimSmoothingFilter(smoothing, Listing(craters)).Smoothing(), smoothing);
 }
 
 TEST(RimSmoothingFilter, LeavesCratersTooSmallForTheSpacingAndRejectsBadSettings) {
     CraterList craters;
     Raster<float> heights = Cratered(craters);
     const Raster<float> original = heights;
-    terraingen::TerrainFeatures features;
-    features.craters = craters;
-    terraingen::RimSmoothingFilter({.sigmaRadii = 0.08}).Apply(heights, {20.0}, features);
+    terraingen::RimSmoothingFilter({.sigmaRadii = 0.08}, Listing(craters)).Apply(heights, {20.0});
     EXPECT_TRUE(
         std::equal(heights.Values().begin(), heights.Values().end(), original.Values().begin()))
         << "a 40 m crater is under 3 samples of 20 m";
-    EXPECT_THROW(terraingen::RimSmoothingFilter({.strength = 2.0}), std::invalid_argument);
+    EXPECT_THROW(terraingen::RimSmoothingFilter({.strength = 2.0}, Listing(craters)),
+                 std::invalid_argument);
+    EXPECT_THROW(terraingen::RimSmoothingFilter({}, nullptr), std::invalid_argument);
 }
 
 TEST(SmoothCraterRims, SmoothsFromTheUnsmoothedTerrainOnAnyNumberOfThreads) {
@@ -119,14 +123,15 @@ TEST(SmoothCraterRims, SmoothsFromTheUnsmoothedTerrainOnAnyNumberOfThreads) {
         EXPECT_TRUE(std::equal(parallel.Values().begin(), parallel.Values().end(),
                                serial.Values().begin()));
     }
-    EXPECT_EQ(terraingen::RimSmoothingFilter({.sigmaRadii = 0.0}).Margin(40.0, 1.0), 0.0);
-    EXPECT_DOUBLE_EQ(terraingen::RimSmoothingFilter({.sigmaRadii = 0.1}).Margin(40.0, 1.0),
-                     (1.2 + 0.3) * 20.0 + 2.0);
+    EXPECT_EQ(terraingen::RimSmoothingFilter({.sigmaRadii = 0.0}, Listing({})).Margin(40.0, 1.0),
+              0.0);
+    EXPECT_DOUBLE_EQ(
+        terraingen::RimSmoothingFilter({.sigmaRadii = 0.1}, Listing({})).Margin(40.0, 1.0),
+        (1.2 + 0.3) * 20.0 + 2.0);
 }
 
 TEST(SmoothCraterRims, IsRoundInMetresOnASphere) {
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
-    using terraingen::TerrainFeatures;
     using terraingen::Vec2d;
     terraingen::CraterLayerOptions options;
     options.generate = false;
@@ -141,12 +146,12 @@ TEST(SmoothCraterRims, IsRoundInMetresOnASphere) {
     Raster<float> heights(450, 150, 0.0f);
     const double step = 2.0 / moon.UnitLength();
     heights.SetTransform(GeoTransform::NorthUp(10.0 - 225.0 * step, 70.0 + 75.0 * step, step));
-    TerrainFeatures features;
-    craters.Apply(heights, {.spacing = 2.0}, features);
+    craters.Apply(heights, {.spacing = 2.0});
     const Raster<float> sharp = heights;
     terraingen::RimSmoothing smoothing;
     smoothing.sigmaRadii = 0.2;
-    terraingen::SmoothCraterRims(heights, features.craters, smoothing, 2.0, 2, moon);
+    const CraterList placed = craters.Craters(terraingen::RasterGrid::Of(heights).Bounds(), 2.0);
+    terraingen::SmoothCraterRims(heights, placed, smoothing, 2.0, 2, moon);
     float sharpCrest = -1e9f;
     float smoothCrest = -1e9f;
     double changedEast = 0.0;

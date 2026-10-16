@@ -71,9 +71,9 @@ class Example(_common.Example):
             print(
                 f"{name:16s} {len(table['x']):5d} craters, median nearest neighbour {np.median(gaps):.2f} diameters"
             )
-            evaluated = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(513, 513, 1.0), [layer]))
-            self.heights[name] = evaluated.heights.values
-            self.show(name, evaluated.heights)
+            heights = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(513, 513, 1.0), [layer]))
+            self.heights[name] = heights.values
+            self.show(name, heights)
 
     def save(self, out):
         shades = [hillshade(heights, 1.0) for heights in self.heights.values()]

@@ -26,7 +26,7 @@ class Tilt(terraingen.Layer):
 
 
 def plain_heights(source):
-    return terraingen.evaluate(terraingen.Terrain(source)).heights.values
+    return terraingen.evaluate(terraingen.Terrain(source)).values
 
 
 def test_noise_relief_matches_the_kernels():
@@ -35,7 +35,7 @@ def test_noise_relief_matches_the_kernels():
         terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=50.0, amplitude=2.0, octaves=5)),
     ]
     terrain = terraingen.Terrain(terraingen.FlatSource(65, 65, 2.0), [terraingen.NoiseRelief(layers)])
-    heights = terraingen.evaluate(terrain, threads=2).heights.values
+    heights = terraingen.evaluate(terrain, threads=2).values
     assert heights.shape == (65, 65) and np.ptp(heights) > 0
     expected = terraingen.evaluate_noise_layers(
         np.array([0.0], dtype=np.float32),
@@ -50,8 +50,8 @@ def test_noise_relief_places_no_craters_or_boulders(noise_relief):
     terrain = terraingen.Terrain(
         terraingen.FlatSource(65, 65, 2.0), [noise_relief(1, 200.0, 10.0, octaves=5)]
     )
-    evaluated = terraingen.evaluate(terrain, threads=2)
-    assert evaluated.craters["x"].size == 0 and evaluated.boulders["x"].size == 0
+    craters = terraingen.placed_craters(terrain).table
+    assert craters["x"].size == 0 and terraingen.placed_boulders(terrain).table["x"].size == 0
 
 
 def test_noise_relief_needs_a_layer():
@@ -63,9 +63,7 @@ def test_region_layer_feathers_its_inner_layer():
     region = terraingen.RegionLayer(
         terraingen.ScaleLayer(1.0, 5.0), terraingen.RegionShape.circle(0.0, 0.0, 10.0), feather=5.0
     )
-    heights = terraingen.evaluate(
-        terraingen.Terrain(terraingen.FlatSource(65, 65, 1.0), [region])
-    ).heights.values
+    heights = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(65, 65, 1.0), [region])).values
     assert heights[32, 32] == pytest.approx(5.0) and heights[0, 0] == 0.0
     assert region.weight(0.0, 0.0) == 1.0 and region.weight(30.0, 0.0) == 0.0
 
@@ -82,22 +80,20 @@ def test_rectangle_distance_outside():
 def test_clamp_layer_caps_heights():
     flat = terraingen.FlatSource(65, 65, 1.0)
     layers = [terraingen.ScaleLayer(1.0, 5.0), terraingen.ClampLayer(max=2.0)]
-    assert terraingen.evaluate(terraingen.Terrain(flat, layers)).heights.values.max() == 2.0
+    assert terraingen.evaluate(terraingen.Terrain(flat, layers)).values.max() == 2.0
 
 
 def test_function_layer_runs_a_python_callable_on_any_thread():
     shifted = terraingen.FunctionLayer(lambda x, y, spacing, height: height + x)
     terrain = terraingen.Terrain(terraingen.FlatSource(8, 8, 1.0), [shifted])
-    heights = terraingen.evaluate(terrain, threads=4).heights.values
+    heights = terraingen.evaluate(terrain, threads=4).values
     np.testing.assert_allclose(heights[0], np.arange(-3.5, 4.5))
 
 
 def test_roughness_matches_its_rms_slope():
     rough = terraingen.RoughnessLayer(terraingen.RoughnessOptions(rms_slope=0.2, seed=3))
     assert rough.rms_slope(0.25) == pytest.approx(0.2, rel=0.05)
-    heights = terraingen.evaluate(
-        terraingen.Terrain(terraingen.FlatSource(65, 65, 0.05), [rough])
-    ).heights.values
+    heights = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(65, 65, 0.05), [rough])).values
     assert np.ptp(heights) > 0
 
 
@@ -199,7 +195,7 @@ def test_layer_validators_reject_bad_options(validate, bad):
 
 def test_python_point_layer_adds_its_bump(paraboloid):
     plain = plain_heights(paraboloid)
-    bumped = terraingen.evaluate(terraingen.Terrain(paraboloid, [Bump()])).heights.values
+    bumped = terraingen.evaluate(terraingen.Terrain(paraboloid, [Bump()])).values
     assert bumped[32, 32] - plain[32, 32] == pytest.approx(1.0, abs=1e-3)
 
 
@@ -211,7 +207,7 @@ def test_python_point_layer_answers_point_queries(paraboloid):
 
 def test_python_raster_layer_edits_the_heights(paraboloid):
     plain = plain_heights(paraboloid)
-    tilted = terraingen.evaluate(terraingen.Terrain(paraboloid, [Tilt()])).heights.values
+    tilted = terraingen.evaluate(terraingen.Terrain(paraboloid, [Tilt()])).values
     np.testing.assert_allclose(tilted - plain, np.broadcast_to(np.linspace(0, 1, 65), (65, 65)), atol=1e-5)
 
 
@@ -240,6 +236,6 @@ def test_layers_and_filters_accept_a_sphere_surface(lunar_models):
     )
     rough = terraingen.RoughnessLayer(terraingen.RoughnessOptions(), surface=moon)
     boulders = terraingen.BoulderLayer(terraingen.BoulderLayerOptions(), craters, surface=moon)
-    smoothing = terraingen.RimSmoothingFilter(surface=moon)
+    smoothing = terraingen.RimSmoothingFilter(terraingen.RimSmoothing(), [craters], surface=moon)
     bedforms = terraingen.BedformLayer(terraingen.mars_large_ripples(), surface=moon)
     assert all(part is not None for part in (rough, boulders, smoothing, bedforms))

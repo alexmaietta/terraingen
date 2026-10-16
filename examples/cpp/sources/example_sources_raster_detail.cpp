@@ -54,7 +54,7 @@ class SourcesRasterDetail : public terraingen::examples::Example {
         coarse.layers = {
             std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{broad}}),
             std::make_shared<terraingen::CraterLayer>(LunarModels(), large)};
-        coarse_ = terraingen::Evaluate(coarse).heights;
+        coarse_ = terraingen::Evaluate(coarse);
 
         const std::filesystem::path temp =
             std::filesystem::temp_directory_path() /
@@ -87,19 +87,20 @@ class SourcesRasterDetail : public terraingen::examples::Example {
             std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{detail}}),
             std::make_shared<terraingen::CraterLayer>(LunarModels(), small)};
         evaluated_ = terraingen::Evaluate(terrain);
+        craters_ = terraingen::PlacedCraters(terrain, terraingen::RasterGrid::Of(evaluated_));
         std::filesystem::remove_all(temp);
-        Out() << "added " << evaluated_.features.craters.Size() << " craters of 6 to 100 m\n";
-        Show("heights", evaluated_.heights);
+        Out() << "added " << craters_.craters.Size() << " craters of 6 to 100 m\n";
+        Show("heights", evaluated_);
         Show("coarse DEM", coarse_);
     }
 
     void Save(const std::filesystem::path& dir) override {
         terraingen::WriteGeoTiff(dir / "example_sources_raster_detail_coarse.tif", coarse_);
-        terraingen::WriteGeoTiff(dir / "example_sources_raster_detail.tif", evaluated_.heights);
+        terraingen::WriteGeoTiff(dir / "example_sources_raster_detail.tif", evaluated_);
     }
 
     void Test() override {
-        const auto& heights = evaluated_.heights;
+        const auto& heights = evaluated_;
         Check(coarse_.Width() == 65 && coarse_.Height() == 65, "the coarse DEM is 65 x 65");
         Check(heights.Width() >= 512 && heights.Width() <= 528 && heights.Height() >= 512 &&
                   heights.Height() <= 528,
@@ -108,7 +109,7 @@ class SourcesRasterDetail : public terraingen::examples::Example {
         Check(std::all_of(heights.Values().begin(), heights.Values().end(),
                           [](float h) { return std::isfinite(h); }),
               "the heights are finite");
-        const auto& diameters = evaluated_.features.craters.Diameters();
+        const auto& diameters = craters_.craters.Diameters();
         Check(diameters.size() > 500 &&
                   std::all_of(diameters.begin(), diameters.end(),
                               [](double d) { return d >= 6.0 && d <= 100.0; }),
@@ -117,7 +118,8 @@ class SourcesRasterDetail : public terraingen::examples::Example {
 
   private:
     terraingen::Raster<float> coarse_;
-    terraingen::EvaluatedTerrain evaluated_;
+    terraingen::Raster<float> evaluated_;
+    terraingen::CraterFeatures craters_;
 };
 
 }  // namespace

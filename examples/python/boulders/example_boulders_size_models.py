@@ -44,38 +44,37 @@ class Example(_common.Example):
         }
         area = (SIZE * PIXEL) ** 2
         print(f"{'':24s}" + "".join(f"{f'>= {d} m':>10s}" for d in (0.2, 0.5, 1.0)) + "   per 100 m^2")
-        self.evaluated, self.ranges = {}, {}
+        self.heights, self.diameters, self.ranges = {}, {}, {}
         for name, options in models.items():
             low, high = options.distribution.valid_range if options.distribution else (0.0, float("inf"))
             options.min_diameter, options.max_diameter, options.seed = max(0.2, low), min(3.0, high), 1
             terrain = terraingen.Terrain(
                 terraingen.FlatSource(SIZE, SIZE, PIXEL), [terraingen.BoulderLayer(options)]
             )
-            evaluated = terraingen.evaluate(terrain)
-            diameters = evaluated.boulders["diameter"]
+            self.heights[name] = terraingen.evaluate(terrain)
+            diameters = terraingen.placed_boulders(terrain).table["diameter"]
             print(
                 f"{name:24s}"
                 + "".join(f"{100 * np.count_nonzero(diameters >= d) / area:10.2f}" for d in (0.2, 0.5, 1.0))
             )
-            self.evaluated[name] = evaluated
+            self.diameters[name] = diameters
             self.ranges[name] = (options.min_diameter, options.max_diameter)
-            self.show(name, evaluated.heights)
+            self.show(name, self.heights[name])
 
     def save(self, out):
-        shades = [hillshade(evaluated.heights.values, PIXEL) for evaluated in self.evaluated.values()]
+        shades = [hillshade(heights.values, PIXEL) for heights in self.heights.values()]
         print("wrote", write_png(out / "example_boulders_size_models.png", montage(shades, columns=3)))
 
     def test_final(self):
-        counts = {name: len(evaluated.boulders["diameter"]) for name, evaluated in self.evaluated.items()}
-        assert len(counts) == 6 and all(e.heights.shape == (SIZE, SIZE) for e in self.evaluated.values()), (
+        counts = {name: len(diameters) for name, diameters in self.diameters.items()}
+        assert len(counts) == 6 and all(h.shape == (SIZE, SIZE) for h in self.heights.values()), (
             "six 401 x 401 terrains"
         )
         assert all(count > 0 for count in counts.values()), "every model places boulders"
         assert counts["Golombek-Rapp 10%"] > 2 * counts["Golombek-Rapp 3%"], (
             "more coverage places more boulders"
         )
-        for name, evaluated in self.evaluated.items():
-            diameters = evaluated.boulders["diameter"]
+        for name, diameters in self.diameters.items():
             low, high = self.ranges[name]
             assert diameters.min() >= low - 1e-9 and diameters.max() <= high + 1e-9, (
                 f"{name} boulders lie in its size range"

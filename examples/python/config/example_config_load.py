@@ -33,9 +33,9 @@ class Example(_common.Example):
         self.config = terraingen.Config.load(path)
         self.config.validate(path.parent)
         self.terrain = terraingen.generate_terrain(self.config, path.parent)
-        print(
-            f"{self.terrain.heights.shape} heights, {len(self.terrain.craters['x'])} craters, {len(self.terrain.boulders['x'])} boulders"
-        )
+        self.craters = self.terrain.placed_craters().craters
+        boulders = self.terrain.placed_boulders().boulders
+        print(f"{self.terrain.summary()}: {len(self.craters)} craters, {len(boulders)} boulders")
         self.show(path.stem, self.terrain.heights)
 
     def save(self, out):
@@ -55,9 +55,7 @@ class Example(_common.Example):
             assert self.terrain.heights.shape == (513, 513), (
                 "example_craters_simple.json makes 513 x 513 heights"
             )
-            assert len(self.terrain.craters["x"]) > 100, (
-                "example_craters_simple.json makes more than 100 craters"
-            )
+            assert len(self.craters) > 100, "example_craters_simple.json makes more than 100 craters"
 
 
 if __name__ == "__main__":

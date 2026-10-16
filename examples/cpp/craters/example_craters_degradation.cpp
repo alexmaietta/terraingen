@@ -67,8 +67,11 @@ class CratersDegradation : public terraingen::examples::Example {
                 terraingen::CraterModels{density, ages, degradation,
                                          std::make_shared<terraingen::FassettThomsonProfile>()},
                 options));
-            evaluated_.emplace_back(name, terraingen::Evaluate(terrain));
-            const auto& attributes = evaluated_.back().second.features.craterAttributes;
+            terraingen::Raster<float> heights = terraingen::Evaluate(terrain);
+            terraingen::CraterFeatures craters =
+                terraingen::PlacedCraters(terrain, terraingen::RasterGrid::Of(heights));
+            evaluated_.push_back({name, std::move(heights), std::move(craters)});
+            const auto& attributes = evaluated_.back().craters.attributes;
             const double sum =
                 std::accumulate(attributes.begin(), attributes.end(), 0.0,
                                 [](double total, const terraingen::CraterAttributes& a) {
@@ -82,30 +85,30 @@ class CratersDegradation : public terraingen::examples::Example {
         }
         for (const char* name :
              {"freshness", "none", "fixed", "diffusion_ft2014", "diffusion_f2022"}) {
-            for (const auto& [shown, evaluated] : evaluated_) {
-                if (shown == name) {
-                    Show(shown, evaluated.heights);
+            for (const Degraded& degraded : evaluated_) {
+                if (degraded.name == name) {
+                    Show(degraded.name, degraded.heights);
                 }
             }
         }
     }
 
     void Save(const std::filesystem::path& dir) override {
-        for (const auto& [name, evaluated] : evaluated_) {
-            terraingen::WriteGeoTiff(dir / ("example_craters_degradation_" + name + ".tif"),
-                                     evaluated.heights);
+        for (const Degraded& degraded : evaluated_) {
+            terraingen::WriteGeoTiff(
+                dir / ("example_craters_degradation_" + degraded.name + ".tif"), degraded.heights);
         }
     }
 
     void Test() override {
         Check(evaluated_.size() == 5, "five degradation models");
-        const std::size_t count = evaluated_.front().second.features.craters.Size();
+        const std::size_t count = evaluated_.front().craters.craters.Size();
         bool sameCraters = true;
         bool finite = true;
-        for (const auto& [name, evaluated] : evaluated_) {
-            sameCraters = sameCraters && evaluated.features.craters.Size() == count;
-            finite = finite && terraingen::ComputeStats(evaluated.heights).validCount ==
-                                   evaluated.heights.Size();
+        for (const Degraded& degraded : evaluated_) {
+            sameCraters = sameCraters && degraded.craters.craters.Size() == count;
+            finite = finite && terraingen::ComputeStats(degraded.heights).validCount ==
+                                   degraded.heights.Size();
         }
         Check(count > 10, "more than 10 craters");
         Check(sameCraters, "every model has the same craters");
@@ -118,7 +121,14 @@ class CratersDegradation : public terraingen::examples::Example {
     }
 
   private:
-    std::vector<std::pair<std::string, terraingen::EvaluatedTerrain>> evaluated_;
+    /// One degradation model's terrain: its heights and the craters it placed.
+    struct Degraded {
+        std::string name;
+        terraingen::Raster<float> heights;
+        terraingen::CraterFeatures craters;
+    };
+
+    std::vector<Degraded> evaluated_;
     std::map<std::string, double> meanRatio_;
 };
 

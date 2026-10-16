@@ -100,11 +100,9 @@ class Example(_common.Example):
             craters = terraingen.CraterLayer(
                 models, terraingen.CraterLayerOptions(seed=2, generation=generation)
             )
-            evaluated = terraingen.evaluate(
-                terraingen.Terrain(terraingen.FlatSource(257, 257, 1.0), [craters])
-            )
-            self.terrains[name] = evaluated.heights.values
-            self.show(name, evaluated.heights)
+            heights = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(257, 257, 1.0), [craters]))
+            self.terrains[name] = heights.values
+            self.show(name, heights)
 
     def save(self, out):
         print("wrote", write_png(out / "example_craters_profiles_curves.png", line_plot(self.curves)))

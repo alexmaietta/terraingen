@@ -48,7 +48,7 @@ class Example(_common.Example):
         )
         terrain = terraingen.Terrain(terraingen.FlatSource(64, 64, SPACING), [noise, craters])
 
-        self.grid = terraingen.evaluate(terrain, spacing=SPACING).heights
+        self.grid = terraingen.evaluate(terrain, spacing=SPACING)
         self.centre = self.grid.values[32, 32]
         self.query = terraingen.evaluate_at(terrain, 0.25, -0.25, SPACING)
         print(f"grid cell at the centre {self.centre:.4f} m, point query {self.query:.4f} m")

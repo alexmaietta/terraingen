@@ -1,6 +1,7 @@
 terraingen_add_test_suite(
     pipeline
     SOURCES
+    features_test.cpp
     terrain_test.cpp
     terrain_tiles_test.cpp
     tile_cache_test.cpp

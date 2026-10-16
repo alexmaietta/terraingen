@@ -41,7 +41,7 @@ def test_generate_terrain_fills_finite_varied_heights(generated):
 
 
 def test_generate_terrain_returns_the_crater_table(generated):
-    craters = generated.craters
+    craters = generated.placed_craters().table
     assert set(craters) == CRATER_COLUMNS
     assert (craters["depth_ratio"] > 0).all() and (craters["freshness"] <= 1).all()
     assert len(craters["x"]) > 0
@@ -50,9 +50,9 @@ def test_generate_terrain_returns_the_crater_table(generated):
 
 
 def test_generate_terrain_returns_the_boulder_table(generated):
-    boulders = generated.boulders
-    assert len(boulders["x"]) > 0 and boulders["diameter"].min() >= 0.5
-    assert generated.boulder_model_count == 0 and generated.albedo == []
+    placed = generated.placed_boulders()
+    assert len(placed.table["x"]) > 0 and placed.table["diameter"].min() >= 0.5
+    assert len(placed.models) == 0 and generated.albedo == []
 
 
 def test_generate_terrain_is_the_same_on_one_thread(generated, small_config):
@@ -85,7 +85,7 @@ def test_build_terrain_keeps_the_surface_and_layers():
 
 def test_evaluating_a_built_terrain_matches_generate_terrain():
     config = terraingen.Config.from_dict(SPHERE_CONFIG)
-    heights = terraingen.evaluate(terraingen.build_terrain(config)).heights.values
+    heights = terraingen.evaluate(terraingen.build_terrain(config)).values
     np.testing.assert_array_equal(heights, terraingen.generate_terrain(config).heights.values)
 
 
@@ -129,12 +129,12 @@ def test_a_site_on_a_sphere_has_pixels_in_degrees(moon):
 
 def test_terrain_on_a_sphere_has_relief(lunar_site):
     assert lunar_site.surface.is_sphere
-    evaluated = terraingen.evaluate(lunar_site)
-    assert evaluated.heights.shape == (65, 65) and np.ptp(evaluated.heights.values) > 100.0
+    heights = terraingen.evaluate(lunar_site)
+    assert heights.shape == (65, 65) and np.ptp(heights.values) > 100.0
 
 
 def test_point_query_on_a_sphere_matches_the_grid(lunar_site):
-    centre = terraingen.evaluate(lunar_site).heights.values[32, 32]
+    centre = terraingen.evaluate(lunar_site).values[32, 32]
     assert terraingen.evaluate_at(lunar_site, 23.47, 0.67, 4000.0) == pytest.approx(centre, abs=1e-3)
 
 

@@ -26,15 +26,13 @@ def undegraded_craters(crater_layer, lunar_craters):
 
 def smoothed_heights(craters, smoothing):
     source = terraingen.FlatSource(129, 129, 1.0)
-    filters = [terraingen.RimSmoothingFilter(smoothing)]
-    return terraingen.evaluate(terraingen.Terrain(source, [craters], filters)).heights.values
+    filters = [terraingen.RimSmoothingFilter(smoothing, [craters])]
+    return terraingen.evaluate(terraingen.Terrain(source, [craters], filters)).values
 
 
 def test_rim_smoothing_lowers_the_highest_rim(crater_layer, lunar_craters):
     craters = undegraded_craters(crater_layer, lunar_craters)
-    plain = terraingen.evaluate(
-        terraingen.Terrain(terraingen.FlatSource(129, 129, 1.0), [craters])
-    ).heights.values
+    plain = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(129, 129, 1.0), [craters])).values
     soft = terraingen.RimSmoothing(
         sigma_radii=0.15, inner_radii=0.7, outer_radii=1.3, shape=terraingen.BlendShape.SMOOTHSTEP
     )
@@ -43,9 +41,7 @@ def test_rim_smoothing_lowers_the_highest_rim(crater_layer, lunar_craters):
 
 def test_rim_smoothing_at_zero_strength_changes_nothing(crater_layer, lunar_craters):
     craters = undegraded_craters(crater_layer, lunar_craters)
-    plain = terraingen.evaluate(
-        terraingen.Terrain(terraingen.FlatSource(129, 129, 1.0), [craters])
-    ).heights.values
+    plain = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(129, 129, 1.0), [craters])).values
     np.testing.assert_array_equal(smoothed_heights(craters, terraingen.RimSmoothing(strength=0.0)), plain)
 
 
@@ -64,15 +60,13 @@ def test_validate_rim_smoothing_rejects_strength_above_one():
 def lunar_crater_terrains(lunar_models, crater_layer):
     craters = crater_layer(lunar_models(), 3.0, 20.0)
     source = terraingen.FlatSource(301, 301, 0.1)
-    smoothing = terraingen.RimSmoothingFilter(terraingen.RimSmoothing(sigma_radii=0.1))
+    smoothing = terraingen.RimSmoothingFilter(terraingen.RimSmoothing(sigma_radii=0.1), [craters])
     return terraingen.Terrain(source, [craters], [smoothing]), terraingen.Terrain(source, [craters])
 
 
 def test_rim_smoothing_filter_changes_the_heights(lunar_models, crater_layer):
     smoothed, plain = lunar_crater_terrains(lunar_models, crater_layer)
-    assert not np.array_equal(
-        terraingen.evaluate(smoothed).heights.values, terraingen.evaluate(plain).heights.values
-    )
+    assert not np.array_equal(terraingen.evaluate(smoothed).values, terraingen.evaluate(plain).values)
 
 
 def test_point_queries_reject_terrains_with_filters(lunar_models, crater_layer):
@@ -89,8 +83,8 @@ def test_removing_filters_restores_point_queries(lunar_models, crater_layer):
 
 
 def test_python_filter_edits_the_heights(paraboloid):
-    plain = terraingen.evaluate(terraingen.Terrain(paraboloid)).heights.values
-    negated = terraingen.evaluate(terraingen.Terrain(paraboloid, [], [Negate()])).heights.values
+    plain = terraingen.evaluate(terraingen.Terrain(paraboloid)).values
+    negated = terraingen.evaluate(terraingen.Terrain(paraboloid, [], [Negate()])).values
     np.testing.assert_array_equal(negated, -plain)
 
 
@@ -99,9 +93,9 @@ def test_python_filter_needs_no_margin_by_default():
 
 
 def test_gaussian_blur_filter_smooths_a_terrain_on_a_plane(paraboloid):
-    plain = terraingen.evaluate(terraingen.Terrain(paraboloid)).heights.values
+    plain = terraingen.evaluate(terraingen.Terrain(paraboloid)).values
     blur = terraingen.GaussianBlurFilter(3.0)
-    blurred = terraingen.evaluate(terraingen.Terrain(paraboloid, [], [blur])).heights.values
+    blurred = terraingen.evaluate(terraingen.Terrain(paraboloid, [], [blur])).values
     assert blur.sigma == 3.0
     assert blur.margin(10.0, 1.0) > 9.0
     assert plain[32, 32] == 0.0

@@ -29,11 +29,11 @@ using terraingen::testing::Smoothed;
 TEST(Evaluate, RunsTheSourceThenLayersOverTheSourcesGrid) {
     const Terrain terrain = Rolling();
     const auto whole = Evaluate(terrain);
-    EXPECT_EQ(RasterGrid::Of(whole.heights), terrain.source->Grid());
-    EXPECT_GT(whole.features.craters.Size(), 0u);
+    EXPECT_EQ(RasterGrid::Of(whole), terrain.source->Grid());
+    EXPECT_GT(terraingen::PlacedCraters(terrain, RasterGrid::Of(whole)).craters.Size(), 0u);
     const auto again = Evaluate(terrain, terrain.source->Grid(), 1.0);
-    for (std::size_t i = 0; i < whole.heights.Size(); ++i) {
-        ASSERT_EQ(again.heights.Values()[i], whole.heights.Values()[i])
+    for (std::size_t i = 0; i < whole.Size(); ++i) {
+        ASSERT_EQ(again.Values()[i], whole.Values()[i])
             << "a spacing finer than the cells is raised to them";
     }
 }
@@ -51,23 +51,23 @@ TEST(Evaluate, TilesEqualTheWholeTerrain) {
         const auto part = Evaluate(terrain, tile);
         for (std::size_t row = 0; row < height; ++row) {
             for (std::size_t col = 0; col < width; ++col) {
-                ASSERT_EQ(part.heights(col, row), whole.heights(col0 + col, row0 + row))
+                ASSERT_EQ(part(col, row), whole(col0 + col, row0 + row))
                     << "tile at " << col0 << "," << row0 << " cell " << col << "," << row;
             }
         }
     }
 }
 
-TEST(Evaluate, RunsFiltersAfterEveryLayerWithTheirFeatures) {
+TEST(Evaluate, RunsFiltersAfterEveryLayer) {
     Terrain terrain = Rolling();
-    terrain.filters.push_back(
-        std::make_shared<terraingen::RimSmoothingFilter>(terraingen::RimSmoothing{}));
+    terrain.filters.push_back(terraingen::testing::RimFilter(terrain));
     const auto smoothed = Evaluate(terrain);
     terrain.filters.clear();
     auto expected = Evaluate(terrain);
-    terraingen::SmoothCraterRims(expected.heights, expected.features.craters, {});
-    for (std::size_t i = 0; i < expected.heights.Size(); ++i) {
-        ASSERT_EQ(smoothed.heights.Values()[i], expected.heights.Values()[i]) << i;
+    terraingen::SmoothCraterRims(
+        expected, terraingen::PlacedCraters(terrain, RasterGrid::Of(expected)).craters, {});
+    for (std::size_t i = 0; i < expected.Size(); ++i) {
+        ASSERT_EQ(smoothed.Values()[i], expected.Values()[i]) << i;
     }
 }
 
@@ -91,11 +91,11 @@ TEST(EvaluateAt, EqualsTheGridCellCentredThereToTheBit) {
     const Terrain terrain = Rolling();
     for (const double spacing : {2.0, 5.0}) {
         const auto grid = Evaluate(terrain, terrain.source->Grid(), spacing);
-        for (std::size_t row = 0; row < grid.heights.Height(); row += 3) {
-            for (std::size_t col = 0; col < grid.heights.Width(); col += 3) {
-                const auto centre = grid.heights.CellCenter(col, row);
+        for (std::size_t row = 0; row < grid.Height(); row += 3) {
+            for (std::size_t col = 0; col < grid.Width(); col += 3) {
+                const auto centre = grid.CellCenter(col, row);
                 ASSERT_EQ(terraingen::EvaluateAt(terrain, centre.x, centre.y, spacing),
-                          grid.heights(col, row))
+                          grid(col, row))
                     << "spacing " << spacing << " cell " << col << "," << row;
             }
         }
@@ -106,17 +106,17 @@ TEST(EvaluatePoints, EqualsEveryGridCellCentredThereInAnyBatchAndThreadCount) {
     const Terrain terrain = Rolling();
     const auto grid = Evaluate(terrain, terrain.source->Grid(), 2.0);
     std::vector<terraingen::Vec2d> centres;
-    for (std::size_t row = 0; row < grid.heights.Height(); ++row) {
-        for (std::size_t col = 0; col < grid.heights.Width(); ++col) {
-            centres.push_back(grid.heights.CellCenter(col, row));
+    for (std::size_t row = 0; row < grid.Height(); ++row) {
+        for (std::size_t col = 0; col < grid.Width(); ++col) {
+            centres.push_back(grid.CellCenter(col, row));
         }
     }
     for (const unsigned threads : {1u, 3u}) {
         const std::vector<float> heights =
             terraingen::EvaluatePoints(terrain, centres, 2.0, threads);
-        ASSERT_EQ(heights.size(), grid.heights.Size());
+        ASSERT_EQ(heights.size(), grid.Size());
         for (std::size_t i = 0; i < heights.size(); ++i) {
-            ASSERT_EQ(heights[i], grid.heights.Values()[i]) << "point " << i;
+            ASSERT_EQ(heights[i], grid.Values()[i]) << "point " << i;
         }
     }
     EXPECT_TRUE(terraingen::EvaluatePoints(terrain, {}, 2.0).empty());
@@ -179,10 +179,11 @@ TEST(Evaluate, TilesEqualTheWholeTerrainAtACoarserSpacing) {
     const auto part = Evaluate(terrain, tile, 7.0);
     for (std::size_t row = 0; row < tile.height; ++row) {
         for (std::size_t col = 0; col < tile.width; ++col) {
-            ASSERT_EQ(part.heights(col, row), whole.heights(30 + col, 20 + row));
+            ASSERT_EQ(part(col, row), whole(30 + col, 20 + row));
         }
     }
-    EXPECT_LT(whole.features.craters.Size(), Evaluate(terrain).features.craters.Size())
+    EXPECT_LT(terraingen::PlacedCraters(terrain, grid, 7.0).craters.Size(),
+              terraingen::PlacedCraters(terrain, grid).craters.Size())
         << "bands too small for 7 m are not generated";
 }
 
@@ -190,8 +191,7 @@ TEST(EvaluateAt, RejectsFiltersBadSpacingsAndIncompleteTerrains) {
     Terrain terrain = Rolling();
     EXPECT_THROW(terraingen::EvaluateAt(terrain, 0.0, 0.0, 0.0), std::invalid_argument);
     EXPECT_THROW(terraingen::EvaluateAt(terrain, 0.0, 0.0, -1.0), std::invalid_argument);
-    terrain.filters.push_back(
-        std::make_shared<terraingen::RimSmoothingFilter>(terraingen::RimSmoothing{}));
+    terrain.filters.push_back(terraingen::testing::RimFilter(terrain));
     EXPECT_THROW(terraingen::EvaluateAt(terrain, 0.0, 0.0, 2.0), std::invalid_argument);
     terrain.filters.clear();
     terrain.layers.push_back(nullptr);
@@ -205,8 +205,8 @@ namespace {
 /// A layer written against samples only: a function of position and spacing.
 class Bump final : public terraingen::Layer {
   protected:
-    void ApplySamples(terraingen::SampleBlock& samples, const terraingen::LayerContext& context,
-                      terraingen::TerrainFeatures& /*features*/) const override {
+    void ApplySamples(terraingen::SampleBlock& samples,
+                      const terraingen::LayerContext& context) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             const auto p = samples.Position(i);
             samples.Height(i) += static_cast<float>(p.x * 0.5 + p.y + context.spacing);
@@ -228,8 +228,7 @@ TEST(Evaluate, GivesTheSameBitsOnAnyNumberOfThreads) {
     const auto serial = Evaluate(terrain, grid, terraingen::EvaluationOptions{0.0, 1});
     for (const unsigned threads : {2u, 8u, 0u}) {
         const auto parallel = Evaluate(terrain, grid, terraingen::EvaluationOptions{0.0, threads});
-        ExpectSameRaster(parallel.heights, serial.heights);
-        EXPECT_EQ(parallel.features.craters.Ids(), serial.features.craters.Ids());
+        ExpectSameRaster(parallel, serial);
     }
     EXPECT_THROW(Evaluate(terrain, grid, terraingen::EvaluationOptions{-1.0, 1}),
                  std::invalid_argument);
@@ -241,7 +240,7 @@ TEST(Layer, DefaultsRunApplyAndPlaceNoFeatures) {
     terrain.layers.push_back(std::make_shared<Bump>());
     const auto parallel =
         Evaluate(terrain, terrain.source->Grid(), terraingen::EvaluationOptions{0.0, 4});
-    ExpectSameRaster(parallel.heights, Evaluate(terrain).heights);
+    ExpectSameRaster(parallel, Evaluate(terrain));
     EXPECT_EQ(Bump().MaxFeatureDiameter(), 0.0);
 }
 
@@ -250,11 +249,10 @@ TEST(EvaluateAt, EqualsGridsForCratersCutToADatum) {
          {terraingen::CraterDatum::Plane, terraingen::CraterDatum::CentreHeight}) {
         const Terrain terrain = Datum(datum);
         const auto grid = Evaluate(terrain);
-        for (std::size_t row = 1; row < grid.heights.Height(); row += 5) {
-            for (std::size_t col = 2; col < grid.heights.Width(); col += 5) {
-                const auto centre = grid.heights.CellCenter(col, row);
-                ASSERT_EQ(terraingen::EvaluateAt(terrain, centre.x, centre.y, 2.0),
-                          grid.heights(col, row))
+        for (std::size_t row = 1; row < grid.Height(); row += 5) {
+            for (std::size_t col = 2; col < grid.Width(); col += 5) {
+                const auto centre = grid.CellCenter(col, row);
+                ASSERT_EQ(terraingen::EvaluateAt(terrain, centre.x, centre.y, 2.0), grid(col, row))
                     << col << "," << row;
             }
         }

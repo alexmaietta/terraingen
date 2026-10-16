@@ -59,26 +59,27 @@ class Example(_common.Example):
             craters(1.0, 10), terraingen.RegionShape.rectangle(0.0, -HALF, HALF, HALF), feather=200.0
         )
         terrain = terraingen.Terrain(terraingen.FlatSource(513, 513, PIXEL), [relief, self.mare, west, east])
-        self.evaluated = terraingen.evaluate(terrain)
+        self.heights = terraingen.evaluate(terrain)
+        self.craters = terraingen.placed_craters(terrain).table
 
-        x = self.evaluated.craters["x"]
+        x = self.craters["x"]
         print(f"{np.count_nonzero(x < 0)} craters in the west, {np.count_nonzero(x >= 0)} in the east")
         print(
             f"mare weight at the centre {self.mare.weight(0.0, 0.0):.2f}, 700 m out {self.mare.weight(700.0, 0.0):.2f}"
         )
-        self.show("heights", self.evaluated.heights)
+        self.show("heights", self.heights)
 
     def save(self, out):
-        terraingen.write_geotiff(out / "example_layers_regions.tif", self.evaluated.heights)
+        terraingen.write_geotiff(out / "example_layers_regions.tif", self.heights)
         print(
             "wrote",
-            write_png(out / "example_layers_regions.png", hillshade(self.evaluated.heights.values, PIXEL)),
+            write_png(out / "example_layers_regions.png", hillshade(self.heights.values, PIXEL)),
         )
 
     def test_final(self):
-        heights = self.evaluated.heights.values
-        x = self.evaluated.craters["x"]
-        age = self.evaluated.craters["age_gyr"]
+        heights = self.heights.values
+        x = self.craters["x"]
+        age = self.craters["age_gyr"]
         assert heights.shape == (513, 513) and np.isfinite(heights).all(), "finite 513 x 513 heights"
         assert len(x) > 1000, "more than 1000 craters"
         assert (

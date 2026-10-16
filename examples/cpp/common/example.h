@@ -21,7 +21,7 @@
 ///     class CratersSimple : public terraingen::examples::Example {
 ///       public:
 ///         using Example::Example;
-///         void Generate() override { ...; Show("heights", evaluated.heights); }
+///         void Generate() override { ...; Show("heights", evaluated); }
 ///         void Save(const std::filesystem::path& dir) override { ... }
 ///         void Test() override { Check(craters.Size() > 0, "some craters"); }
 ///     };

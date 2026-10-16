@@ -119,12 +119,13 @@ class CratersProfiles : public terraingen::examples::Example {
                                      std::make_shared<ParabolicBowl>()},
             options));
         evaluated_ = terraingen::Evaluate(terrain);
-        Show("parabolic bowl craters", evaluated_.heights);
+        craters_ = terraingen::PlacedCraters(terrain, terraingen::RasterGrid::Of(evaluated_));
+        Show("parabolic bowl craters", evaluated_);
     }
 
     void Save(const std::filesystem::path& dir) override {
         const auto path = dir / "example_craters_profiles.tif";
-        terraingen::WriteGeoTiff(path, evaluated_.heights);
+        terraingen::WriteGeoTiff(path, evaluated_);
         Out() << "Wrote " << path.string() << "\n";
     }
 
@@ -142,14 +143,14 @@ class CratersProfiles : public terraingen::examples::Example {
         Check(old.front() > fresh.front() && *std::max_element(old.begin(), old.end()) <
                                                  *std::max_element(fresh.begin(), fresh.end()),
               "diffusion raises the floor and lowers the rim");
-        Check(evaluated_.heights.Width() == 257 && evaluated_.heights.Height() == 257,
-              "the terrain is 257 x 257");
-        Check(evaluated_.features.craters.Size() > 10, "more than 10 craters shaped as bowls");
+        Check(evaluated_.Width() == 257 && evaluated_.Height() == 257, "the terrain is 257 x 257");
+        Check(craters_.craters.Size() > 10, "more than 10 craters shaped as bowls");
     }
 
   private:
     std::map<std::string, std::vector<double>> table_;
-    terraingen::EvaluatedTerrain evaluated_;
+    terraingen::Raster<float> evaluated_;
+    terraingen::CraterFeatures craters_;
 };
 
 }  // namespace

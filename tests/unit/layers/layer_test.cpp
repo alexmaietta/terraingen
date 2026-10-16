@@ -1,4 +1,3 @@
-#include "terraingen/layers/features.h"
 #include "terraingen/layers/layer.h"
 
 #include <gtest/gtest.h>
@@ -9,15 +8,14 @@
 
 namespace {
 
-/// Adds 1 to every sample and records one crater.
+/// Adds 1 to every sample.
 class Plus final : public terraingen::Layer {
   protected:
-    void ApplySamples(terraingen::SampleBlock& samples, const terraingen::LayerContext& /*context*/,
-                      terraingen::TerrainFeatures& features) const override {
+    void ApplySamples(terraingen::SampleBlock& samples,
+                      const terraingen::LayerContext& /*context*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             samples.Height(i) += 1.0f;
         }
-        features.craters.Append({0.0, 0.0, 1.0, 0.0, 1u});
     }
 };
 
@@ -56,17 +54,4 @@ TEST(Layer, AppliesToOneCellForPointQueriesByDefault) {
     EXPECT_EQ(plus.ApplyAt(1.5f, 10.0, 20.0, {.spacing = 2.0}), 2.5f);
     EXPECT_EQ(plus.MaxFeatureDiameter(), 0.0);
     EXPECT_THROW(plus.ApplyAt(1.5f, 10.0, 20.0, {}), std::invalid_argument);
-}
-
-TEST(TerrainFeatures, AddsCratersWithTheirAttributesInStep) {
-    terraingen::CraterList craters;
-    craters.Append({0.0, 0.0, 10.0, 0.0, 1u});
-    craters.Append({5.0, 0.0, 20.0, 0.0, 2u});
-    terraingen::TerrainFeatures features;
-    features.AddCraters(craters, [](const terraingen::Crater& crater) {
-        return terraingen::CraterAttributes{.floorDepth = crater.diameter};
-    });
-    ASSERT_EQ(features.craters.Size(), 2u);
-    ASSERT_EQ(features.craterAttributes.size(), 2u);
-    EXPECT_EQ(features.craterAttributes[1].floorDepth, 20.0);
 }

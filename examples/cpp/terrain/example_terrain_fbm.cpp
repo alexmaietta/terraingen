@@ -34,7 +34,7 @@ class TerrainFbm : public terraingen::examples::Example {
             std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{fbm}}));
 
         evaluated_ = terraingen::Evaluate(terrain);
-        stats_ = terraingen::ComputeStats(evaluated_.heights);
+        stats_ = terraingen::ComputeStats(evaluated_);
         Out() << "Heights from " << stats_.min << " to " << stats_.max << " m\n";
 
         points_.clear();
@@ -42,19 +42,18 @@ class TerrainFbm : public terraingen::examples::Example {
             points_.push_back(terraingen::EvaluateAt(terrain, x, y, 2.0));
             Out() << "Height at (" << x << ", " << y << "): " << points_.back() << " m\n";
         }
-        Show("heights", evaluated_.heights);
+        Show("heights", evaluated_);
     }
 
     void Save(const std::filesystem::path& dir) override {
         const auto path = dir / "example_terrain_fbm.tif";
-        terraingen::WriteGeoTiff(path, evaluated_.heights);
+        terraingen::WriteGeoTiff(path, evaluated_);
         Out() << "Wrote " << path.string() << "\n";
     }
 
     void Test() override {
-        Check(evaluated_.heights.Width() == 513 && evaluated_.heights.Height() == 513,
-              "the heights are 513 x 513");
-        Check(stats_.validCount == evaluated_.heights.Size(), "every height is finite");
+        Check(evaluated_.Width() == 513 && evaluated_.Height() == 513, "the heights are 513 x 513");
+        Check(stats_.validCount == evaluated_.Size(), "every height is finite");
         Check(stats_.max - stats_.min > 10.0 && stats_.max - stats_.min < 400.0,
               "the relief is tens of metres, as a 40 m amplitude gives");
         bool pointsInRange = points_.size() == 2;
@@ -66,7 +65,7 @@ class TerrainFbm : public terraingen::examples::Example {
     }
 
   private:
-    terraingen::EvaluatedTerrain evaluated_;
+    terraingen::Raster<float> evaluated_;
     terraingen::RasterStats stats_;
     std::vector<double> points_;
 };

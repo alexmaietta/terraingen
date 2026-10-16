@@ -45,24 +45,25 @@ class Example(_common.Example):
             terraingen.FlatSource(513, 513, 2.0), [terraingen.NoiseRelief([fbm]), craters]
         )
 
-        self.evaluated = terraingen.evaluate(terrain)
-        diameters = self.evaluated.craters["diameter"]
+        self.heights = terraingen.evaluate(terrain)
+        self.craters = terraingen.placed_craters(terrain)
+        diameters = self.craters.table["diameter"]
         print(f"{len(diameters)} craters from {diameters.min():.1f} to {diameters.max():.1f} m")
         for d in (8, 16, 32, 64, 128):
             print(f"  N(>= {d:3d} m) = {np.count_nonzero(diameters >= d)}")
-        self.show("heights", self.evaluated.heights)
+        self.show("heights", self.heights)
 
     def save(self, out):
-        terraingen.write_geotiff(out / "example_craters_simple.tif", self.evaluated.heights)
-        self.evaluated.write_crater_list(out / "example_craters_simple.csv")
+        terraingen.write_geotiff(out / "example_craters_simple.tif", self.heights)
+        self.craters.write(out / "example_craters_simple.csv")
         print(
             "wrote",
-            write_png(out / "example_craters_simple.png", hillshade(self.evaluated.heights.values, 2.0)),
+            write_png(out / "example_craters_simple.png", hillshade(self.heights.values, 2.0)),
         )
 
     def test_final(self):
-        diameters = self.evaluated.craters["diameter"]
-        assert self.evaluated.heights.shape == (513, 513)
+        diameters = self.craters.table["diameter"]
+        assert self.heights.shape == (513, 513)
         assert len(diameters) > 100, "more than 100 craters"
         assert diameters.min() >= 8.0 and diameters.max() <= 300.0, "every crater is 8 to 300 m across"
         assert 2 * np.count_nonzero(diameters < 16.0) > len(diameters), "most craters are under 16 m"

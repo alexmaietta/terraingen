@@ -94,45 +94,47 @@ class AgesModels : public terraingen::examples::Example {
                 terraingen::CraterModels{density, ages, diffusion,
                                          std::make_shared<terraingen::FassettThomsonProfile>()},
                 options));
-            terrains_.emplace_back(name, terraingen::Evaluate(terrain));
-            const terraingen::EvaluatedTerrain& evaluated = terrains_.back().second;
-            const auto& craterAges = evaluated.features.craters.AgesGyr();
+            terraingen::Raster<float> heights = terraingen::Evaluate(terrain);
+            terraingen::CraterList craters =
+                terraingen::PlacedCraters(terrain, terraingen::RasterGrid::Of(heights)).craters;
+            terrains_.push_back({name, std::move(heights), std::move(craters)});
+            const Aged& aged = terrains_.back();
+            const auto& craterAges = aged.craters.AgesGyr();
             Out() << Format("%-16s %8.3f %8.3f %8.3f %8.2f m\n", name.c_str(),
                             Percentile(craterAges, 0.1), Percentile(craterAges, 0.5),
-                            Percentile(craterAges, 0.9), Relief(evaluated.heights));
-            Show(name, evaluated.heights);
+                            Percentile(craterAges, 0.9), Relief(aged.heights));
+            Show(name, aged.heights);
         }
     }
 
     void Save(const std::filesystem::path& dir) override {
-        for (const auto& [name, evaluated] : terrains_) {
-            const auto path = dir / ("example_ages_models_" + name + ".tif");
-            terraingen::WriteGeoTiff(path, evaluated.heights);
+        for (const Aged& aged : terrains_) {
+            const auto path = dir / ("example_ages_models_" + aged.name + ".tif");
+            terraingen::WriteGeoTiff(path, aged.heights);
             Out() << "Wrote " << path.string() << "\n";
         }
     }
 
     void Test() override {
         Check(terrains_.size() == 4, "four age models");
-        const auto& fresh = terrains_[0].second;
-        const auto& uniform = terrains_[1].second;
-        const auto& steady = terrains_[2].second;
-        const auto& custom = terrains_[3].second;
+        const auto& fresh = terrains_[0];
+        const auto& uniform = terrains_[1];
+        const auto& steady = terrains_[2];
+        const auto& custom = terrains_[3];
         Check(fresh.heights.Width() == 257 && fresh.heights.Height() == 257,
               "the heights are 257 x 257");
-        Check(fresh.features.craters.Size() > 50, "more than 50 craters");
-        const auto& freshAges = fresh.features.craters.AgesGyr();
+        Check(fresh.craters.Size() > 50, "more than 50 craters");
+        const auto& freshAges = fresh.craters.AgesGyr();
         Check(std::all_of(freshAges.begin(), freshAges.end(), [](double a) { return a == 0.0; }),
               "fresh ages are all zero");
-        const auto& uniformAges = uniform.features.craters.AgesGyr();
+        const auto& uniformAges = uniform.craters.AgesGyr();
         Check(std::all_of(uniformAges.begin(), uniformAges.end(),
                           [](double a) { return a >= 0.0 && a <= 3.5; }),
               "uniform ages lie within 3.5 Gyr");
-        Check(Percentile(steady.features.craters.AgesGyr(), 0.5) <
-                  0.5 * Percentile(uniformAges, 0.5),
+        Check(Percentile(steady.craters.AgesGyr(), 0.5) < 0.5 * Percentile(uniformAges, 0.5),
               "steady-state craters are mostly younger than uniformly aged ones");
-        const auto& diameters = custom.features.craters.Diameters();
-        const auto& customAges = custom.features.craters.AgesGyr();
+        const auto& diameters = custom.craters.Diameters();
+        const auto& customAges = custom.craters.AgesGyr();
         bool withinLifetime = true;
         for (std::size_t i = 0; i < diameters.size(); ++i) {
             withinLifetime = withinLifetime && customAges[i] <= diameters[i] / 50.0 + 1e-9;
@@ -146,7 +148,14 @@ class AgesModels : public terraingen::examples::Example {
     }
 
   private:
-    std::vector<std::pair<std::string, terraingen::EvaluatedTerrain>> terrains_;
+    /// One age model's terrain: its heights and the craters it placed.
+    struct Aged {
+        std::string name;
+        terraingen::Raster<float> heights;
+        terraingen::CraterList craters;
+    };
+
+    std::vector<Aged> terrains_;
 };
 
 }  // namespace

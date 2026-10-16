@@ -15,24 +15,24 @@ def model_options(max_diameter=3.0):
     )
 
 
-def evaluated_boulders(lunar_models, crater_layer, size=201):
+def boulder_terrain(lunar_models, crater_layer, size=201):
     """Craters 3 to 20 m and boulders with models above 0.6 m on a `size` square grid at 0.1 m."""
     craters = crater_layer(lunar_models(), 3.0, 20.0)
     boulders = terraingen.BoulderLayer(model_options(), craters)
-    return terraingen.evaluate(
-        terraingen.Terrain(terraingen.FlatSource(size, size, 0.1), [craters, boulders])
-    )
+    return terraingen.Terrain(terraingen.FlatSource(size, size, 0.1), [craters, boulders])
 
 
 @pytest.fixture
 def first_model(lunar_models, crater_layer):
-    return evaluated_boulders(lunar_models, crater_layer).boulder_models[0]
+    return terraingen.placed_boulders(boulder_terrain(lunar_models, crater_layer)).models[0]
 
 
 def test_boulder_and_crater_tables_match_their_lists(lunar_models, crater_layer):
-    evaluated = evaluated_boulders(lunar_models, crater_layer)
-    assert len(evaluated.boulder_list) == len(evaluated.boulders["x"])
-    assert len(evaluated.crater_list) == len(evaluated.craters["x"])
+    terrain = boulder_terrain(lunar_models, crater_layer)
+    boulders = terraingen.placed_boulders(terrain)
+    craters = terraingen.placed_craters(terrain)
+    assert len(boulders.boulders) == len(boulders.table["x"])
+    assert len(craters.craters) == len(craters.table["x"])
 
 
 def test_modelled_boulders_are_partly_buried(first_model):
@@ -88,18 +88,20 @@ def test_boulder_layer_density_is_positive(lunar_models, crater_layer):
 
 
 def test_boulder_layer_places_boulders_with_models(lunar_models, crater_layer):
-    evaluated = evaluated_boulders(lunar_models, crater_layer, 301)
-    assert len(evaluated.boulders["x"]) > 50 and evaluated.boulder_model_count > 0
-    assert evaluated.boulders["model"].sum() >= evaluated.boulder_model_count
+    placed = terraingen.placed_boulders(boulder_terrain(lunar_models, crater_layer, 301))
+    assert len(placed.table["x"]) > 50 and len(placed.models) > 0
+    assert placed.table["model"].sum() >= len(placed.models)
 
 
-def test_evaluated_lists_and_models_are_written(tmp_path, lunar_models, crater_layer):
-    evaluated = evaluated_boulders(lunar_models, crater_layer, 301)
-    evaluated.write_crater_list(tmp_path / "craters.csv")
-    evaluated.write_crater_list(tmp_path / "craters.json")
-    evaluated.write_boulder_list(tmp_path / "boulders.csv")
-    evaluated.write_boulder_list(tmp_path / "boulders.json")
-    evaluated.write_boulder_models(tmp_path / "boulders.glb")
+def test_placed_lists_and_models_are_written(tmp_path, lunar_models, crater_layer):
+    terrain = boulder_terrain(lunar_models, crater_layer, 301)
+    craters = terraingen.placed_craters(terrain)
+    boulders = terraingen.placed_boulders(terrain)
+    craters.write(tmp_path / "craters.csv")
+    craters.write(tmp_path / "craters.json")
+    boulders.write_list(tmp_path / "boulders.csv")
+    boulders.write_list(tmp_path / "boulders.json")
+    boulders.write_models(tmp_path / "boulders.glb")
     assert (tmp_path / "craters.csv").read_text().startswith("x,y,diameter")
     assert (tmp_path / "boulders.json").read_text().startswith("{")
     assert (tmp_path / "boulders.glb").read_bytes()[:4] == b"glTF"

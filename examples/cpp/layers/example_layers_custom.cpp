@@ -63,8 +63,8 @@ class Terraces final : public terraingen::Filter {
   public:
     explicit Terraces(double step) : step_(step) {}
 
-    void Apply(terraingen::Raster<float>& heights, const terraingen::FilterContext& /*context*/,
-               const terraingen::TerrainFeatures& /*features*/) const override {
+    void Apply(terraingen::Raster<float>& heights,
+               const terraingen::FilterContext& /*context*/) const override {
         for (float& value : heights.Values()) {
             const double height = static_cast<double>(value);
             const double rounded = std::round(height / step_) * step_;
@@ -127,9 +127,9 @@ class LayersCustom : public terraingen::examples::Example {
         Out() << "height at the origin: " << std::fixed << std::setprecision(2) << originHeight_
               << " m\n"
               << std::defaultfloat;
-        plain_ = terraingen::Evaluate(terrain).heights;
+        plain_ = terraingen::Evaluate(terrain);
         terrain.filters.push_back(std::make_shared<Terraces>(4.0));
-        terraced_ = terraingen::Evaluate(terrain).heights;
+        terraced_ = terraingen::Evaluate(terrain);
         Show("heights", plain_);
         Show("terraced", terraced_);
     }

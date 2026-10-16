@@ -26,7 +26,7 @@ AGES = (0.01, 0.05, 0.3, 3.9)
 class Example(_common.Example):
     def generate(self):
         fbm = terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=400.0, amplitude=10.0))
-        self.evaluated = []
+        self.heights, self.diameters = [], []
         for age in AGES:
             production = terraingen.extended_neukum_production_function()
             equilibrium = terraingen.trask_equilibrium()
@@ -55,31 +55,30 @@ class Example(_common.Example):
             terrain = terraingen.Terrain(
                 terraingen.FlatSource(257, 257, PIXEL), [terraingen.NoiseRelief([fbm]), craters]
             )
-            evaluated = terraingen.evaluate(terrain)
-            print(f"{age:4.2f} Gyr: {len(evaluated.craters['x']):3d} craters of 20 m or more")
-            self.evaluated.append(evaluated)
-            self.show(f"{age:g} Gyr", evaluated.heights)
+            heights = terraingen.evaluate(terrain)
+            diameters = terraingen.placed_craters(terrain).table["diameter"]
+            print(f"{age:4.2f} Gyr: {len(diameters):3d} craters of 20 m or more")
+            self.heights.append(heights)
+            self.diameters.append(diameters)
+            self.show(f"{age:g} Gyr", heights)
 
     def save(self, out):
-        shades = [hillshade(evaluated.heights.values, PIXEL) for evaluated in self.evaluated]
+        shades = [hillshade(heights.values, PIXEL) for heights in self.heights]
         print("wrote", write_png(out / "example_craters_age_sweep.png", montage(shades, columns=4)))
 
     def test_final(self):
-        counts = [len(evaluated.craters["x"]) for evaluated in self.evaluated]
+        counts = [len(diameters) for diameters in self.diameters]
         assert len(counts) == len(AGES), "one terrain per age"
         assert all(
-            evaluated.heights.shape == (257, 257) and np.all(np.isfinite(evaluated.heights.values))
-            for evaluated in self.evaluated
+            heights.shape == (257, 257) and np.all(np.isfinite(heights.values)) for heights in self.heights
         ), "every terrain is 257 x 257 and finite"
         assert all(a <= b for a, b in zip(counts, counts[1:], strict=False)), (
             "older surfaces have at least as many craters"
         )
         assert counts[-1] > 2 * max(counts[0], 1), "the oldest surface has far more craters than the youngest"
-        assert all(
-            evaluated.craters["diameter"].min() >= 20.0
-            for evaluated in self.evaluated
-            if len(evaluated.craters["diameter"])
-        ), "every crater is 20 m or more"
+        assert all(diameters.min() >= 20.0 for diameters in self.diameters if len(diameters)), (
+            "every crater is 20 m or more"
+        )
 
 
 if __name__ == "__main__":

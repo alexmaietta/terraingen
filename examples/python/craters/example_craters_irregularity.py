@@ -68,12 +68,10 @@ class Example(_common.Example):
             layer = terraingen.CraterLayer(
                 models, terraingen.CraterLayerOptions(seed=4, generation=generation, apply=apply)
             )
-            evaluated = terraingen.evaluate(
-                terraingen.Terrain(terraingen.FlatSource(257, 257, PIXEL), [layer])
-            )
+            heights = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(257, 257, PIXEL), [layer]))
             print(f"{name:12s} done")
-            self.heights[name] = evaluated.heights.values
-            self.show(name, evaluated.heights)
+            self.heights[name] = heights.values
+            self.show(name, heights)
 
     def save(self, out):
         shades = [hillshade(heights, PIXEL) for heights in self.heights.values()]

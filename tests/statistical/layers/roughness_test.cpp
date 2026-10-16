@@ -1,6 +1,5 @@
 #include "terraingen/layers/roughness.h"
 
-#include "terraingen/layers/features.h"
 #include "terraingen/raster/grid.h"
 
 #include <gtest/gtest.h>
@@ -40,8 +39,7 @@ TEST(RoughnessLayer, MeasuresTheRmsSlopeItPredictsOverEveryBaseline) {
                                                 .minWavelength = 0.08,
                                                 .seed = 3});
         auto heights = grid.MakeRaster();
-        terraingen::TerrainFeatures features;
-        layer.Apply(heights, {kSpacing, 0}, features);
+        layer.Apply(heights, {kSpacing, 0});
         for (const std::size_t lag : {2u, 5u, 12u, 25u, 50u}) {
             const double baseline = static_cast<double>(lag) * kSpacing;
             EXPECT_NEAR(MeasuredRmsSlope(heights, lag, kSpacing), layer.RmsSlope(baseline),

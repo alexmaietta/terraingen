@@ -62,47 +62,46 @@ class BouldersLayer : public terraingen::examples::Example {
             std::make_shared<terraingen::BoulderLayer>(boulderOptions, craters));
 
         evaluated_ = terraingen::Evaluate(terrain);
-        const terraingen::TerrainFeatures& features = evaluated_.features;
-        Out() << features.craters.Size() << " craters, " << features.boulders.size()
-              << " boulders, " << features.boulderModels.size() << " of them boulder models\n";
-        Show("heights", evaluated_.heights);
+        craters_ = terraingen::PlacedCraters(terrain, terraingen::RasterGrid::Of(evaluated_));
+        boulders_ = terraingen::PlacedBoulders(terrain, terraingen::RasterGrid::Of(evaluated_));
+        Out() << craters_.craters.Size() << " craters, " << boulders_.boulders.size()
+              << " boulders, " << boulders_.models.size() << " of them boulder models\n";
+        Show("heights", evaluated_);
     }
 
     void Save(const std::filesystem::path& dir) override {
-        const terraingen::TerrainFeatures& features = evaluated_.features;
         const auto heights = dir / "example_boulders_layer.tif";
         const auto list = dir / "example_boulders_layer.csv";
         const auto models = dir / "example_boulders_layer.glb";
-        terraingen::WriteGeoTiff(heights, evaluated_.heights);
-        terraingen::WriteBoulderList(features.boulders, list, terraingen::ListFormat::Csv);
-        terraingen::WriteBoulderModels(features.boulderModels, models);
+        terraingen::WriteGeoTiff(heights, evaluated_);
+        terraingen::WriteBoulderList(boulders_.boulders, list, terraingen::ListFormat::Csv);
+        terraingen::WriteBoulderModels(boulders_.models, models);
         Out() << "Wrote " << heights.string() << ", " << list.string() << " and " << models.string()
               << "\n";
     }
 
     void Test() override {
-        const terraingen::TerrainFeatures& features = evaluated_.features;
-        Check(evaluated_.heights.Width() == 401 && evaluated_.heights.Height() == 401,
-              "the heights are 401 x 401");
-        Check(features.craters.Size() > 5, "more than 5 craters");
-        Check(features.boulders.size() > 150 && features.boulders.size() < 1500,
+        Check(evaluated_.Width() == 401 && evaluated_.Height() == 401, "the heights are 401 x 401");
+        Check(craters_.craters.Size() > 5, "more than 5 craters");
+        Check(boulders_.boulders.size() > 150 && boulders_.boulders.size() < 1500,
               "a few hundred boulders for 5% cover");
-        Check(std::all_of(features.boulders.begin(), features.boulders.end(),
+        Check(std::all_of(boulders_.boulders.begin(), boulders_.boulders.end(),
                           [](const terraingen::Boulder& r) {
                               return r.diameter >= 0.2 && r.diameter <= 3.0;
                           }),
               "every boulder is 0.2 to 3 m across");
-        Check(!features.boulderModels.empty() &&
-                  features.boulderModels.size() < features.boulders.size() / 10,
+        Check(!boulders_.models.empty() && boulders_.models.size() < boulders_.boulders.size() / 10,
               "a few of the boulders are boulder models");
         Check(std::all_of(
-                  features.boulderModels.begin(), features.boulderModels.end(),
+                  boulders_.models.begin(), boulders_.models.end(),
                   [](const terraingen::BoulderModel& b) { return b.boulder.diameter >= 0.6; }),
               "every boulder model is at least 0.6 m across");
     }
 
   private:
-    terraingen::EvaluatedTerrain evaluated_;
+    terraingen::Raster<float> evaluated_;
+    terraingen::CraterFeatures craters_;
+    terraingen::BoulderFeatures boulders_;
 };
 
 }  // namespace

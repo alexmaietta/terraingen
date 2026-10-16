@@ -31,6 +31,11 @@ class SourceChain final : public Source {
         return sources_.front()->ReferencePoint();
     }
 
+    /// The first source's projection.
+    GeoKeys Keys() const override {
+        return sources_.front()->Keys();
+    }
+
     /// @brief Fills from the first source, then each cell still without data from the next source
     /// that has data there, keeping the first source's no-data value.
     /// @param heights Raster to fill.

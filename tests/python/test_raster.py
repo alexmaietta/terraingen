@@ -199,7 +199,7 @@ def test_reading_a_missing_geotiff_raises_a_geotiff_error(tmp_path):
 
 def test_geotiff_heights_round_trip(tmp_path, lunar_models, crater_layer):
     craters = crater_layer(lunar_models(3.2), 60.0, 300.0)
-    heights = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(129, 129, 8.0), [craters])).heights
+    heights = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(129, 129, 8.0), [craters]))
     terraingen.write_geotiff(tmp_path / "heights.tif", heights)
     np.testing.assert_array_equal(terraingen.read_geotiff(tmp_path / "heights.tif").values, heights.values)
 

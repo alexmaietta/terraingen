@@ -62,12 +62,12 @@ class TilesQuadtree : public terraingen::examples::Example {
         const terraingen::TileScheme scheme = terraingen::TileScheme::Covering(grid, 128);
         finest_ = scheme.LevelFor(1.0);
         tileSize_ = scheme.TileSize(finest_);
-        whole_ = terraingen::Evaluate(terrain).heights;
+        whole_ = terraingen::Evaluate(terrain);
         keys_ = scheme.TilesCovering(grid.Bounds(), finest_);
         tiles_ = terraingen::EvaluateTiles(terrain, scheme, keys_);
         same_ = true;
         for (std::size_t n = 0; n < keys_.size(); ++n) {
-            const terraingen::Raster<float>& tile = tiles_[n].heights;
+            const terraingen::Raster<float>& tile = tiles_[n];
             for (std::size_t row = 0; row < tile.Height(); ++row) {
                 for (std::size_t col = 0; col < tile.Width(); ++col) {
                     const terraingen::Vec2d centre = tile.CellCenter(col, row);
@@ -99,18 +99,18 @@ class TilesQuadtree : public terraingen::examples::Example {
 
         Show("whole grid", whole_);
         const terraingen::TileKey coarse = scheme.TileAt(-1.0, 1.0, 0);
-        coarse_ = terraingen::EvaluateTile(terrain, scheme, coarse).heights;
+        coarse_ = terraingen::EvaluateTile(terrain, scheme, coarse);
         Show("level 0 tile", coarse_);
         Show("level " + std::to_string(finest_) + " tile (" + std::to_string(keys_.front().x) +
                  ", " + std::to_string(keys_.front().y) + ")",
-             tiles_.front().heights);
+             tiles_.front());
     }
 
     void Save(const std::filesystem::path& dir) override {
         for (std::size_t n = 0; n < keys_.size(); ++n) {
             const auto path = dir / ("example_tiles_quadtree_" + std::to_string(keys_[n].x) + "_" +
                                      std::to_string(keys_[n].y) + ".tif");
-            terraingen::WriteGeoTiff(path, tiles_[n].heights);
+            terraingen::WriteGeoTiff(path, tiles_[n]);
             Out() << "Wrote " << path.string() << "\n";
         }
     }
@@ -118,8 +118,8 @@ class TilesQuadtree : public terraingen::examples::Example {
     void Test() override {
         Check(finest_ == 2 && keys_.size() == 16, "level 2 has 16 tiles over the 512 m grid");
         Check(std::all_of(tiles_.begin(), tiles_.end(),
-                          [](const terraingen::EvaluatedTerrain& tile) {
-                              return tile.heights.Width() == 128 && tile.heights.Height() == 128;
+                          [](const terraingen::Raster<float>& tile) {
+                              return tile.Width() == 128 && tile.Height() == 128;
                           }),
               "every tile is 128 x 128");
         Check(same_, "every tile equals the same cells of the whole grid, to the bit");
@@ -147,7 +147,7 @@ class TilesQuadtree : public terraingen::examples::Example {
     terraingen::Raster<float> whole_;
     terraingen::Raster<float> coarse_;
     std::vector<terraingen::TileKey> keys_;
-    std::vector<terraingen::EvaluatedTerrain> tiles_;
+    std::vector<terraingen::Raster<float>> tiles_;
 };
 
 }  // namespace

@@ -108,7 +108,7 @@ TEST(WriteBoulderModels, RejectsOtherFilesAnglesAndNoBoulders) {
     boulders.boulders.rendering.models.minDiameter = 1.5;
     boulders.boulders.rendering.shapes.subdivisions = 0;
     config.layers.push_back(boulders);
-    const auto models = terraingen::GenerateTerrain(config).features.boulderModels;
+    const auto models = terraingen::testing::BouldersOf(terraingen::GenerateTerrain(config)).models;
     ASSERT_FALSE(models.empty());
     const auto directory = TempPath("terraingen_boulder_models");
     std::filesystem::create_directories(directory);

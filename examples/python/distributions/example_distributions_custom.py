@@ -50,28 +50,27 @@ class Example(_common.Example):
         terrain = terraingen.Terrain(
             terraingen.FlatSource(513, 513, 2.0), [terraingen.NoiseRelief([fbm]), craters]
         )
-        self.evaluated = terraingen.evaluate(terrain)
+        self.heights = terraingen.evaluate(terrain)
+        self.craters = terraingen.placed_craters(terrain).table
 
         self.area = (513 * 2.0) ** 2
-        diameters = self.evaluated.craters["diameter"]
+        diameters = self.craters["diameter"]
         print(f"{'D (m)':>6s} {'expected':>9s} {'generated':>9s}")
         for d in (6, 12, 20, 40, 80):
             expected = self.density.expected_count(self.area, d, 300.0)
             print(f"{d:6d} {expected:9.1f} {np.count_nonzero(diameters >= d):9d}")
-        self.show("heights", self.evaluated.heights)
+        self.show("heights", self.heights)
 
     def save(self, out):
-        terraingen.write_geotiff(out / "example_distributions_custom.tif", self.evaluated.heights)
+        terraingen.write_geotiff(out / "example_distributions_custom.tif", self.heights)
         print(
             "wrote",
-            write_png(
-                out / "example_distributions_custom.png", hillshade(self.evaluated.heights.values, 2.0)
-            ),
+            write_png(out / "example_distributions_custom.png", hillshade(self.heights.values, 2.0)),
         )
 
     def test_final(self):
-        diameters = self.evaluated.craters["diameter"]
-        assert self.evaluated.heights.shape == (513, 513)
+        diameters = self.craters["diameter"]
+        assert self.heights.shape == (513, 513)
         assert diameters.min() >= 6.0 and diameters.max() <= 300.0, "every crater is 6 to 300 m across"
         expected = self.density.expected_count(self.area, 6.0, 300.0)
         assert 0.7 * expected < len(diameters) < 1.3 * expected, (
@@ -79,7 +78,7 @@ class Example(_common.Example):
         )
         counts = [np.count_nonzero(diameters >= d) for d in (6, 12, 40)]
         assert counts[0] > counts[1] > counts[2], "fewer craters at larger sizes"
-        assert np.all(np.isfinite(self.evaluated.heights.values)), "the heights are finite"
+        assert np.all(np.isfinite(self.heights.values)), "the heights are finite"
 
 
 if __name__ == "__main__":

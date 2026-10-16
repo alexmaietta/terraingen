@@ -35,11 +35,25 @@ inline Terrain Rolling() {
     return terrain;
 }
 
+/// @brief Rim smoothing of the craters a terrain's layers apply, as configurations build it.
+/// @param terrain The terrain, with its layers.
+/// @return The filter.
+inline std::shared_ptr<RimSmoothingFilter> RimFilter(const Terrain& terrain) {
+    const auto layers = terrain.layers;
+    const Surface surface = terrain.surface;
+    return std::make_shared<RimSmoothingFilter>(
+        RimSmoothing{},
+        [layers, surface](const RasterGrid& grid, double spacing) {
+            return PlacedCraters(layers, grid, spacing, surface).craters;
+        },
+        surface);
+}
+
 /// @brief `Rolling` with rim smoothing after the layers.
 /// @return The terrain.
 inline Terrain Smoothed() {
     Terrain terrain = Rolling();
-    terrain.filters.push_back(std::make_shared<RimSmoothingFilter>(RimSmoothing{}));
+    terrain.filters.push_back(RimFilter(terrain));
     return terrain;
 }
 

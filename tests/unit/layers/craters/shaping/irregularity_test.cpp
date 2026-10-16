@@ -241,14 +241,13 @@ TEST(ApplyCraters, StretchesElongatedCratersAndKeepsPointQueriesOnTheGrid) {
         options);
     terraingen::Raster<float> heights(120, 120, 0.0f);
     heights.SetTransform(terraingen::GeoTransform::NorthUp(-60.0, 60.0, 1.0));
-    terraingen::TerrainFeatures features;
     const class Flat final : public terraingen::Ground {
       public:
         float HeightAt(double, double, double) const override {
             return 0.0f;
         }
     } flat;
-    layer.Apply(heights, {1.0, 2, &flat}, features);
+    layer.Apply(heights, {1.0, 2, &flat});
     for (std::size_t row = 0; row < heights.Height(); row += 3) {
         for (std::size_t col = 0; col < heights.Width(); col += 3) {
             const auto centre = heights.CellCenter(col, row);

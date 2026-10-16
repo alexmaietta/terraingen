@@ -62,32 +62,29 @@ class Example(_common.Example):
             .fill(terraingen.Terrain(source, [relief]), 1, grid, PIXEL)
             .values
         )
-        self.evaluated = terraingen.evaluate(terrain)
+        self.heights = terraingen.evaluate(terrain)
+        self.boulders = terraingen.placed_boulders(terrain).table
 
         self.covered = self.exposure_map < 0.5
         xs = (np.arange(SIZE) - SIZE / 2 + 0.5) * PIXEL
         ground = terraingen.Terrain(source, [relief])
         self.sandy = np.array([[sand.cover_at(x, -y, ground, 1) > 0 for x in xs[::8]] for y in xs[::8]])
-        rows = np.clip(
-            ((grid.transform.origin_y - self.evaluated.boulders["y"]) / PIXEL).astype(int), 0, SIZE - 1
-        )
-        cols = np.clip(
-            ((self.evaluated.boulders["x"] - grid.transform.origin_x) / PIXEL).astype(int), 0, SIZE - 1
-        )
+        rows = np.clip(((grid.transform.origin_y - self.boulders["y"]) / PIXEL).astype(int), 0, SIZE - 1)
+        cols = np.clip(((self.boulders["x"] - grid.transform.origin_x) / PIXEL).astype(int), 0, SIZE - 1)
         self.boulders_exposed = np.mean(~self.covered[rows, cols])
         print(f"{self.covered.mean():.0%} of the ground is mostly covered")
         print(f"bedform fields cover {self.sandy.mean():.0%} of the area")
         print(f"{len(cols)} boulders, {self.boulders_exposed:.0%} of them on exposed ground")
-        self.show("heights", self.evaluated.heights)
-        self.show("exposure", self.evaluated.heights, albedo=self.exposure_map)
+        self.show("heights", self.heights)
+        self.show("exposure", self.heights, albedo=self.exposure_map)
 
     def save(self, out):
-        terraingen.write_geotiff(out / "example_planets_mars_exposure.tif", self.evaluated.heights)
-        images = [self.exposure_map, hillshade(self.evaluated.heights.values, PIXEL)]
+        terraingen.write_geotiff(out / "example_planets_mars_exposure.tif", self.heights)
+        images = [self.exposure_map, hillshade(self.heights.values, PIXEL)]
         print("wrote", write_png(out / "example_planets_mars_exposure.png", montage(images, columns=2)))
 
     def test_final(self):
-        heights = self.evaluated.heights.values
+        heights = self.heights.values
         assert heights.shape == (SIZE, SIZE) and np.isfinite(heights).all(), "finite 513 x 513 heights"
         assert (
             self.exposure_map.shape == (SIZE, SIZE)
@@ -96,7 +93,7 @@ class Example(_common.Example):
         ), "exposure lies in [0, 1]"
         assert 0.3 < self.covered.mean() < 0.95, "most, but not all, of the ground is covered"
         assert 0.2 < self.sandy.mean() < 0.95, "bedform fields cover part of the area"
-        assert len(self.evaluated.boulders["x"]) > 20, "more than 20 boulders"
+        assert len(self.boulders["x"]) > 20, "more than 20 boulders"
         assert self.boulders_exposed > 1.0 - self.covered.mean(), (
             "boulders gather on exposed ground, more than its share of the area"
         )

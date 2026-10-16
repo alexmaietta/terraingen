@@ -48,8 +48,8 @@ class Example(_common.Example):
             )
         )
         terrain = terraingen.Terrain(ground.source, [relief, boulders])
-        self.evaluated = terraingen.evaluate(terrain)
-        table = self.evaluated.boulders
+        self.heights = terraingen.evaluate(terrain)
+        table = terraingen.placed_boulders(terrain).table
         cols = np.clip(((table["x"] - grid.transform.origin_x) / PIXEL).astype(int), 0, SIZE - 1)
         rows = np.clip(((grid.transform.origin_y - table["y"]) / PIXEL).astype(int), 0, SIZE - 1)
         self.exposed_here = self.exposure_map[rows, cols] > 0.5
@@ -57,14 +57,14 @@ class Example(_common.Example):
         print(
             f"{self.share:.0%} of the ground is more than half exposed; it holds {self.exposed_here.mean():.0%} of the {len(cols)} boulders"
         )
-        self.show("heights", self.evaluated.heights)
+        self.show("heights", self.heights)
 
     def save(self, out):
-        images = [self.exposure_map, hillshade(self.evaluated.heights.values, PIXEL)]
+        images = [self.exposure_map, hillshade(self.heights.values, PIXEL)]
         print("wrote", write_png(out / "example_boulders_exposure.png", montage(images, columns=2)))
 
     def test_final(self):
-        assert self.evaluated.heights.shape == (SIZE, SIZE)
+        assert self.heights.shape == (SIZE, SIZE)
         assert self.exposure_map.shape == (SIZE, SIZE), "the exposure map is on the heights' grid"
         assert np.all((self.exposure_map >= 0.0) & (self.exposure_map <= 1.0)), "exposure lies in [0, 1]"
         assert 0.05 < self.share < 0.95, "some, not all, of the ground is exposed"

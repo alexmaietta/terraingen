@@ -155,14 +155,14 @@ def test_python_age_model_sets_generated_ages(custom_craters, oldest_ages):
 
 def test_python_profile_carves_bowls_without_rims(custom_craters):
     terrain = terraingen.Terrain(terraingen.FlatSource(65, 65, 2.0), [custom_craters()])
-    heights = terraingen.evaluate(terrain, threads=4).heights.values
+    heights = terraingen.evaluate(terrain, threads=4).values
     assert heights.min() < -1.0 and heights.max() == 0.0
 
 
 def test_python_models_evaluate_the_same_on_any_thread_count(custom_craters):
     terrain = terraingen.Terrain(terraingen.FlatSource(65, 65, 2.0), [custom_craters()])
-    heights = terraingen.evaluate(terrain, threads=4).heights.values
-    np.testing.assert_array_equal(terraingen.evaluate(terrain, threads=1).heights.values, heights)
+    heights = terraingen.evaluate(terrain, threads=4).values
+    np.testing.assert_array_equal(terraingen.evaluate(terrain, threads=1).values, heights)
 
 
 def test_lunar_fresh_craters_are_simple_bowls_with_rims():

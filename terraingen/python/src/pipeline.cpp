@@ -11,6 +11,7 @@
 #include "terraingen/config/json.h"
 #include "terraingen/config/validate.h"
 #include "terraingen/pipeline/body_mesh.h"
+#include "terraingen/pipeline/features.h"
 #include "terraingen/pipeline/terrain.h"
 #include "terraingen/pipeline/tiles.h"
 
@@ -63,24 +64,6 @@ ListFormat FormatOf(const std::filesystem::path& path) {
     return path.extension() == ".json" ? ListFormat::Json : ListFormat::Csv;
 }
 
-/// @brief The crater and boulder tables both evaluated and generated terrains have.
-template <typename T> void BindFeatureTables(nb::class_<T>& cls) {
-    cls.def_prop_ro(
-           "craters",
-           [](const T& t) { return CraterTable(t.features.craters, t.features.craterAttributes); },
-           "The craters applied, as NumPy columns 'x', 'y', 'diameter', 'age_gyr', 'id' and "
-           "'manual' (1 for manual craters), in the surface's coordinates, and their attributes "
-           "'floor_depth' and 'rim_height' (m), 'depth_ratio', 'freshness' and 'complex'.")
-        .def_prop_ro(
-            "boulders", [](const T& t) { return BoulderTable(t.features.boulders); },
-            "The boulders placed, as NumPy columns 'x', 'y', 'ground' (NaN when unknown), "
-            "'diameter', 'height', 'burial', 'yaw', 'lean', 'id' and 'model' (1 for boulders "
-            "placed as 3D models).")
-        .def_prop_ro(
-            "boulder_model_count", [](const T& t) { return t.features.boulderModels.size(); },
-            "How many boulders were placed as 3D boulder models.");
-}
-
 void BindTerrainClass(nb::module_& m) {
     nb::class_<PyTerrain>(m, "Terrain",
                           "A terrain: heights from `source`, plus each of `layers` in order, then "
@@ -102,47 +85,61 @@ void BindTerrainClass(nb::module_& m) {
         .def_rw("filters", &PyTerrain::filters);
 }
 
-void BindFeatureWriters(nb::class_<EvaluatedTerrain>& terrain) {
-    terrain
+void BindFeatures(nb::module_& m) {
+    nb::class_<CraterFeatures>(m, "CraterFeatures", "Craters and their attributes, in step.")
+        .def_ro("craters", &CraterFeatures::craters, "The craters, as a CraterList.")
+        .def_prop_ro(
+            "table", [](const CraterFeatures& f) { return CraterTable(f.craters, f.attributes); },
+            "The craters as NumPy columns 'x', 'y', 'diameter', 'age_gyr', 'id' and 'manual' (1 "
+            "for manual craters), in the surface's coordinates, and their attributes "
+            "'floor_depth' and 'rim_height' (m), 'depth_ratio', 'freshness' and 'complex'.")
         .def(
-            "write_crater_list",
-            [](const EvaluatedTerrain& t, const std::filesystem::path& path) {
-                WriteCraterList(t.features.craters, path, FormatOf(path),
-                                t.features.craterAttributes);
+            "write",
+            [](const CraterFeatures& f, const std::filesystem::path& path) {
+                WriteCraterList(f.craters, path, FormatOf(path), f.attributes);
             },
-            "path"_a, "Writes the craters as CSV, or JSON for a .json path.")
+            "path"_a, "Writes the craters as CSV, or JSON for a .json path.");
+    nb::class_<BoulderFeatures>(m, "BoulderFeatures",
+                                "Boulders, and those of them placed as their own 3D models.")
+        .def_ro("boulders", &BoulderFeatures::boulders, "The boulders, as Boulder objects.")
+        .def_ro("models", &BoulderFeatures::models,
+                "The boulder models, with their shapes and placements.")
+        .def_prop_ro(
+            "table", [](const BoulderFeatures& f) { return BoulderTable(f.boulders); },
+            "The boulders as NumPy columns 'x', 'y', 'ground' (NaN when unknown), 'diameter', "
+            "'height', 'burial', 'yaw', 'lean', 'id' and 'model' (1 for boulder models).")
         .def(
-            "write_boulder_list",
-            [](const EvaluatedTerrain& t, const std::filesystem::path& path) {
-                WriteBoulderList(t.features.boulders, path, FormatOf(path));
+            "write_list",
+            [](const BoulderFeatures& f, const std::filesystem::path& path) {
+                WriteBoulderList(f.boulders, path, FormatOf(path));
             },
             "path"_a, "Writes the boulders as CSV, or JSON for a .json path.")
         .def(
-            "write_boulder_models",
-            [](const EvaluatedTerrain& t, const std::filesystem::path& path) {
-                WriteBoulderModels(t.features.boulderModels, path);
+            "write_models",
+            [](const BoulderFeatures& f, const std::filesystem::path& path) {
+                WriteBoulderModels(f.models, path);
             },
             "path"_a, "Writes the boulder models as a glTF scene (.glb) or one PLY mesh (.ply).");
-}
-
-void BindEvaluatedTerrain(nb::module_& m) {
-    nb::class_<EvaluatedTerrain> terrain(
-        m, "EvaluatedTerrain", "Heights over a grid and the craters and boulders placed there.");
-    terrain.def_prop_ro(
-        "heights", [](EvaluatedTerrain& t) -> Raster<float>& { return t.heights; },
-        nb::rv_policy::reference_internal);
-    BindFeatureTables(terrain);
-    terrain
-        .def_prop_ro(
-            "boulder_models", [](const EvaluatedTerrain& t) { return t.features.boulderModels; },
-            "The boulders placed as 3D models, with their shapes and placements.")
-        .def_prop_ro(
-            "boulder_list", [](const EvaluatedTerrain& t) { return t.features.boulders; },
-            "The boulders placed, as Boulder objects.")
-        .def_prop_ro(
-            "crater_list", [](const EvaluatedTerrain& t) { return t.features.craters; },
-            "The craters applied, as a CraterList.");
-    BindFeatureWriters(terrain);
+    m.def(
+        "placed_craters",
+        [](const PyTerrain& terrain, std::optional<RasterGrid> grid, double spacing) {
+            const Terrain built = terrain.Get();
+            return PlacedCraters(built, grid.value_or(built.source->Grid()), spacing);
+        },
+        "terrain"_a, "grid"_a = nb::none(), "spacing"_a = 0.0,
+        nb::call_guard<nb::gil_scoped_release>(),
+        "The craters the terrain's crater and secondary crater layers apply over `grid` (by "
+        "default its source's) at `spacing` metres (0 for the grid's), in layer order.");
+    m.def(
+        "placed_boulders",
+        [](const PyTerrain& terrain, std::optional<RasterGrid> grid, double spacing) {
+            const Terrain built = terrain.Get();
+            return PlacedBoulders(built, grid.value_or(built.source->Grid()), spacing);
+        },
+        "terrain"_a, "grid"_a = nb::none(), "spacing"_a = 0.0,
+        nb::call_guard<nb::gil_scoped_release>(),
+        "The boulders the terrain's boulder layers place over `grid` (by default its source's) at "
+        "`spacing` metres (0 for the grid's), and the boulder models among them.");
 }
 
 void BindEvaluation(nb::module_& m) {
@@ -280,7 +277,7 @@ void BindTiles(nb::module_& m) {
             "terrain"_a, "scheme"_a, "max_bytes"_a = std::size_t{1} << 30)
         .def(
             "get",
-            [](TileCache& cache, const TileKey& key) { return EvaluatedTerrain(*cache.Get(key)); },
+            [](TileCache& cache, const TileKey& key) { return Raster<float>(*cache.Get(key)); },
             "key"_a, nb::call_guard<nb::gil_scoped_release>(),
             "The tile at `key`, evaluated if it is not held.")
         .def_prop_ro("size", &TileCache::Size, "Bytes held.")
@@ -383,8 +380,8 @@ void BindConfig(nb::module_& m) {
 
 void BindGeneratedTerrain(nb::module_& m) {
     nb::class_<GeneratedTerrain> terrain(m, "GeneratedTerrain",
-                                         "A generated terrain: heights, albedo bands and the "
-                                         "craters and boulders its layers placed.");
+                                         "A generated terrain: heights and albedo bands, and the "
+                                         "craters and boulders it places on request.");
     terrain
         .def_prop_ro(
             "heights", [](GeneratedTerrain& t) -> Raster<float>& { return t.heights; },
@@ -399,12 +396,22 @@ void BindGeneratedTerrain(nb::module_& m) {
                 return bands;
             },
             "Albedo bands, empty without an albedo in the configuration.");
-    BindFeatureTables(terrain);
     terrain
+        .def(
+            "placed_craters",
+            [](const GeneratedTerrain& t) {
+                return PlacedCraters(t.terrain, RasterGrid::Of(t.heights));
+            },
+            "The craters the terrain's layers apply over its grid.")
+        .def(
+            "placed_boulders",
+            [](const GeneratedTerrain& t) {
+                return PlacedBoulders(t.terrain, RasterGrid::Of(t.heights));
+            },
+            "The boulders the terrain's layers place over its grid, and the models among them.")
         .def_ro("seconds", &GeneratedTerrain::seconds,
                 "Wall-clock time the heights and albedo took to evaluate, in seconds.")
-        .def("summary", &Summary,
-             "One line describing the terrain: its size, crater and boulder counts and time.");
+        .def("summary", &Summary, "One line describing the terrain: its size and time.");
 }
 
 void BindRun(nb::module_& m) {
@@ -453,7 +460,7 @@ void BindRun(nb::module_& m) {
 
 void BindPipeline(nb::module_& m) {
     BindTerrainClass(m);
-    BindEvaluatedTerrain(m);
+    BindFeatures(m);
     BindEvaluation(m);
     BindTiles(m);
     BindConfig(m);

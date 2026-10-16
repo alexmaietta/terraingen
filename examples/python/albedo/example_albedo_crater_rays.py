@@ -60,32 +60,29 @@ class Example(_common.Example):
             [terraingen.CraterAlbedo(craters)],
         )
 
-        self.evaluated = terraingen.evaluate(terrain)
+        self.heights = terraingen.evaluate(terrain)
+        self.craters = terraingen.placed_craters(terrain).table
         self.bands = terraingen.evaluate_albedo(albedo, terrain.source.grid())
         values = self.bands[0].values
-        print(
-            f"albedo from {values.min():.3f} to {values.max():.3f} over {len(self.evaluated.craters['x'])} craters"
-        )
-        self.show("heights and albedo", self.evaluated.heights, albedo=self.bands[0])
+        print(f"albedo from {values.min():.3f} to {values.max():.3f} over {len(self.craters['x'])} craters")
+        self.show("heights and albedo", self.heights, albedo=self.bands[0])
 
     def save(self, out):
         terraingen.write_geotiff(out / "example_albedo_crater_rays.tif", self.bands)
         print("wrote", write_png(out / "example_albedo_crater_rays.png", normalize(self.bands[0].values)))
         print(
             "wrote",
-            write_png(
-                out / "example_albedo_crater_rays_shade.png", hillshade(self.evaluated.heights.values, PIXEL)
-            ),
+            write_png(out / "example_albedo_crater_rays_shade.png", hillshade(self.heights.values, PIXEL)),
         )
 
     def test_final(self):
         values = self.bands[0].values
-        assert self.evaluated.heights.shape == (513, 513)
+        assert self.heights.shape == (513, 513)
         assert len(self.bands) == 1 and values.shape == (513, 513), "one albedo band on the heights' grid"
         assert np.all(np.isfinite(values)), "the albedo is finite"
         assert values.min() > 0.08 and values.max() < 0.2, "the albedo stays near 0.11"
         assert values.max() > values.mean() + 0.005, "fresh craters brighten the albedo"
-        assert len(self.evaluated.craters["x"]) > 500, "more than 500 craters"
+        assert len(self.craters["x"]) > 500, "more than 500 craters"
 
 
 if __name__ == "__main__":

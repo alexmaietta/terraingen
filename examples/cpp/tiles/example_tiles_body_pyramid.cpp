@@ -92,7 +92,7 @@ class TilesBodyPyramid : public terraingen::examples::Example {
             for (const Tile& tile : levels_[static_cast<std::size_t>(level)]) {
                 terraingen::WriteGeoTiff(folder / (std::to_string(tile.key.x) + "_" +
                                                    std::to_string(tile.key.y) + ".tif"),
-                                         tile.terrain->heights, keys);
+                                         *tile.heights, keys);
             }
         }
         Out() << "Wrote " << (dir / "example_tiles_body_pyramid").string() << "\n";
@@ -108,7 +108,7 @@ class TilesBodyPyramid : public terraingen::examples::Example {
         bool finite = true;
         for (const auto& tiles : levels_) {
             for (const Tile& tile : tiles) {
-                const auto& heights = tile.terrain->heights;
+                const auto& heights = *tile.heights;
                 sized = sized && heights.Width() == kCells && heights.Height() == kCells;
                 for (std::size_t row = 0; row < heights.Height(); ++row) {
                     for (std::size_t col = 0; col < heights.Width(); ++col) {
@@ -152,7 +152,7 @@ class TilesBodyPyramid : public terraingen::examples::Example {
   private:
     struct Tile {
         terraingen::TileKey key;
-        std::shared_ptr<const terraingen::EvaluatedTerrain> terrain;
+        std::shared_ptr<const terraingen::Raster<float>> heights;
     };
 
     /// The tiles of `level` side by side in an equirectangular projection, in metres at the
@@ -163,7 +163,7 @@ class TilesBodyPyramid : public terraingen::examples::Example {
         const std::size_t rows = std::size_t{1} << level;
         terraingen::Raster<float> mosaic(columns * kCells, rows * kCells);
         for (const Tile& tile : tiles) {
-            const auto& heights = tile.terrain->heights;
+            const auto& heights = *tile.heights;
             for (std::size_t row = 0; row < kCells; ++row) {
                 for (std::size_t col = 0; col < kCells; ++col) {
                     mosaic(static_cast<std::size_t>(tile.key.x) * kCells + col,

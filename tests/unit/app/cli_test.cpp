@@ -167,7 +167,7 @@ TEST(Cli, GeneratesAConfigsOutputsIntoTheChosenFolder) {
     const auto config = Write(directory / "terrain.json", kConfig);
     const Result beside = Cli({config.string(), "--log-level", "off", "--threads", "2"});
     ASSERT_EQ(beside.code, kExitSuccess) << beside.err;
-    EXPECT_NE(beside.out.find("Generated a 65x49 terrain with "), std::string::npos);
+    EXPECT_NE(beside.out.find("Generated a 65x49 terrain in "), std::string::npos);
     EXPECT_NE(beside.out.find("Wrote "), std::string::npos);
     const auto heights = terraingen::ReadGeoTiff(directory / "heights.tif").raster;
     EXPECT_EQ(heights.Width(), 65u);

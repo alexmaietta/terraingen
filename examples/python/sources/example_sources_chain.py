@@ -32,7 +32,7 @@ def holed_dem():
             )
         ],
     )
-    heights = terraingen.evaluate(terrain).heights
+    heights = terraingen.evaluate(terrain)
     values = heights.values
     values[:, 100:130] = np.nan
     values[200:, 200:] = np.nan
@@ -52,7 +52,7 @@ class Example(_common.Example):
             noise = terraingen.NoiseRelief(
                 [terraingen.NoiseLayer(terraingen.FractalParams(seed=7, wavelength=300.0, amplitude=20.0))]
             )
-            self.filled = terraingen.evaluate(terraingen.Terrain(chain, [noise])).heights
+            self.filled = terraingen.evaluate(terraingen.Terrain(chain, [noise]))
         print(
             f"{self.holes} cells without data in the DEM; {np.isnan(self.filled.values).sum()} after the chain"
         )

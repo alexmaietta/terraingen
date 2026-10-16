@@ -106,7 +106,7 @@ class Example(_common.Example):
         terraced = terraingen.Terrain(plain.source, plain.layers, [Terraces()])
         self.heights = {}
         for name, terrain in (("custom source and layers", plain), ("plus a custom filter", terraced)):
-            self.heights[name] = terraingen.evaluate(terrain).heights
+            self.heights[name] = terraingen.evaluate(terrain)
             values = self.heights[name].values
             print(f"{name:26s} heights {values.min():7.2f} to {values.max():6.2f} m")
         self.origin_height = terraingen.evaluate_at(plain, 0.0, 0.0, PIXEL)

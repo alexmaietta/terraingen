@@ -152,9 +152,8 @@ struct GuiApp::State {
                         t.albedo.empty() ? nullptr : &t.albedo.front());
             std::ostringstream text;
             text.precision(3);
-            text << "Generated " << t.heights.Width() << " x " << t.heights.Height() << " with "
-                 << t.features.craters.Size() << " craters and " << t.features.boulders.size()
-                 << " boulders in " << done.seconds << " s";
+            text << "Generated " << t.heights.Width() << " x " << t.heights.Height() << " in "
+                 << done.seconds << " s";
             Report(ernie::app::LogLevel::Info, text.str());
             Shown();
         } catch (const std::exception& error) {

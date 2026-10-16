@@ -18,7 +18,9 @@ using terraingen::CraterLayerSpec;
 using terraingen::CraterList;
 using terraingen::GenerateTerrain;
 using terraingen::TerrainConfig;
+using terraingen::testing::BouldersOf;
 using terraingen::testing::Craters;
+using terraingen::testing::CratersOf;
 using terraingen::testing::ExpectSameRaster;
 using terraingen::testing::Flat;
 using terraingen::testing::Keys;
@@ -55,7 +57,7 @@ TEST(GenerateTerrain, MatchesComposingTheLibraryCalls) {
     terraingen::ApplyCraters(expected, generate(bounds.Expanded(margin)), models.Shape(),
                              Craters(config).apply, {2.0, 1, ground});
     terraingen::SmoothCraterRims(expected, craters, {.sigmaRadii = 0.05});
-    EXPECT_EQ(terrain.features.craters.Ids(), craters.Ids());
+    EXPECT_EQ(CratersOf(terrain).craters.Ids(), craters.Ids());
     ASSERT_EQ(terrain.heights.Size(), expected.Size());
     for (std::size_t i = 0; i < expected.Size(); ++i) {
         ASSERT_EQ(terrain.heights.Values()[i], expected.Values()[i]) << i;
@@ -68,7 +70,7 @@ TEST(GenerateTerrain, GivesTheSameTerrainOnAnyNumberOfThreads) {
     const auto serial = GenerateTerrain(config, {}, 1);
     const auto parallel = GenerateTerrain(config, {}, 4);
     ExpectSameRaster(parallel.heights, serial.heights);
-    EXPECT_EQ(parallel.features.craters.Ids(), serial.features.craters.Ids());
+    EXPECT_EQ(CratersOf(parallel).craters.Ids(), CratersOf(serial).craters.Ids());
 }
 
 TEST(GenerateTerrain, AppliesTheHurstExponentToTheGain) {
@@ -95,7 +97,7 @@ TEST(GenerateTerrain, SupportsNoLayersNoCratersAndManualCratersOnly) {
     config = Small();
     config.layers.pop_back();
     const auto plain = GenerateTerrain(config);
-    EXPECT_TRUE(plain.features.craters.Empty());
+    EXPECT_TRUE(CratersOf(plain).craters.Empty());
     const auto noise = terraingen::GenerateSyntheticTerrain(65, 49, 2.0, Noise(config).Params());
     EXPECT_TRUE(std::equal(plain.heights.Values().begin(), plain.heights.Values().end(),
                            noise.Values().begin()));
@@ -105,9 +107,9 @@ TEST(GenerateTerrain, SupportsNoLayersNoCratersAndManualCratersOnly) {
     manualOnly.manual = {{0.0, 0.0, 30.0, 0.0, 0u}, {9000.0, 0.0, 30.0, 0.0, 0u}};
     config.layers.push_back(manualOnly);
     const auto manual = GenerateTerrain(config);
-    ASSERT_EQ(manual.features.craters.Size(), 1u);
-    EXPECT_TRUE(manual.features.craters.At(0).manual) << "building marks manual craters";
-    EXPECT_EQ(manual.features.craters.At(0).id, terraingen::ManualCraterId(0.0, 0.0, 30.0));
+    ASSERT_EQ(CratersOf(manual).craters.Size(), 1u);
+    EXPECT_TRUE(CratersOf(manual).craters.At(0).manual) << "building marks manual craters";
+    EXPECT_EQ(CratersOf(manual).craters.At(0).id, terraingen::ManualCraterId(0.0, 0.0, 30.0));
     TerrainConfig tiny;
     tiny.source = terraingen::FlatSourceSpec{1, 1, 1.0};
     EXPECT_THROW(GenerateTerrain(tiny), ConfigError);
@@ -124,12 +126,12 @@ TEST(GenerateTerrain, RunsLayersInOrderAndCollectsEveryLayersCraters) {
     config.layers.pop_back();
     config.layers.push_back(second);
     const auto other = GenerateTerrain(config);
-    ASSERT_GT(first.features.craters.Size(), 0u);
-    ASSERT_GT(other.features.craters.Size(), 0u);
-    auto ids = first.features.craters.Ids();
-    const auto more = other.features.craters.Ids();
+    ASSERT_GT(CratersOf(first).craters.Size(), 0u);
+    ASSERT_GT(CratersOf(other).craters.Size(), 0u);
+    auto ids = CratersOf(first).craters.Ids();
+    const auto more = CratersOf(other).craters.Ids();
     ids.insert(ids.end(), more.begin(), more.end());
-    EXPECT_EQ(both.features.craters.Ids(), ids);
+    EXPECT_EQ(CratersOf(both).craters.Ids(), ids);
 }
 
 TEST(GenerateTerrain, AddsRoughnessAsTheLibraryDoes) {
@@ -164,7 +166,7 @@ TEST(GenerateTerrain, AppliesTransformsAndRegionsAsTheLibraryDoes) {
     terrain.layers[3] = std::make_shared<terraingen::RegionLayer>(
         std::make_shared<terraingen::ClampLayer>(std::nullopt, 0.0),
         terraingen::RegionShape::Circle({10.0, -5.0}, 20.0), 6.0, terraingen::BlendShape::Linear);
-    ExpectSameRaster(generated.heights, terraingen::Evaluate(terrain).heights);
+    ExpectSameRaster(generated.heights, terraingen::Evaluate(terrain));
     const auto& heights = generated.heights;
     const auto centre = heights.Transform().WorldToPixel(10.0, -5.0);
     EXPECT_LE(heights(static_cast<std::size_t>(centre.x), static_cast<std::size_t>(centre.y)),
@@ -184,7 +186,7 @@ TEST(GenerateTerrain, DrawsBouldersFromEachKindOfSizeDistribution) {
     boulders.extrapolate = true;
     config.layers.push_back(boulders);
     const auto generated = GenerateTerrain(config);
-    EXPECT_FALSE(generated.features.boulders.empty());
+    EXPECT_FALSE(BouldersOf(generated).boulders.empty());
     for (const terraingen::BoulderSizesSpec& sizes :
          {terraingen::BoulderSizesSpec{terraingen::SynthterrainBouldersSpec{}},
           terraingen::BoulderSizesSpec{terraingen::PowerLawSpec{0.001, 2.5}},
@@ -207,7 +209,7 @@ TEST(GenerateTerrain, AddsBedformsAsTheLibraryDoes) {
     const auto generated = GenerateTerrain(config);
     terraingen::Terrain terrain = terraingen::BuildTerrain(config);
     terrain.layers.back() = std::make_shared<terraingen::BedformLayer>(ridges);
-    ExpectSameRaster(generated.heights, terraingen::Evaluate(terrain).heights);
+    ExpectSameRaster(generated.heights, terraingen::Evaluate(terrain));
 }
 
 TEST(GenerateTerrain, AddsBouldersWithEjectaFromTheLastCraterLayerBeforeThem) {
@@ -223,7 +225,7 @@ TEST(GenerateTerrain, AddsBouldersWithEjectaFromTheLastCraterLayerBeforeThem) {
     boulders.boulders.bedrock.exposure = terraingen::ExposureParams{};
     config.layers.push_back(boulders);
     const auto generated = GenerateTerrain(config, {}, 4);
-    ASSERT_FALSE(generated.features.boulders.empty());
+    ASSERT_FALSE(BouldersOf(generated).boulders.empty());
 
     terraingen::Terrain terrain = terraingen::BuildTerrain(config);
     ASSERT_EQ(terrain.layers.size(), 3u);
@@ -231,16 +233,18 @@ TEST(GenerateTerrain, AddsBouldersWithEjectaFromTheLastCraterLayerBeforeThem) {
     terrain.layers[2] = std::make_shared<terraingen::BoulderLayer>(
         options, std::dynamic_pointer_cast<const terraingen::CraterLayer>(terrain.layers[1]));
     const auto composed = terraingen::Evaluate(terrain, terrain.source->Grid());
-    ExpectSameRaster(generated.heights, composed.heights);
-    ASSERT_EQ(generated.features.boulders.size(), composed.features.boulders.size());
-    for (std::size_t n = 0; n < composed.features.boulders.size(); ++n) {
-        EXPECT_EQ(generated.features.boulders[n].id, composed.features.boulders[n].id);
+    ExpectSameRaster(generated.heights, composed);
+    const auto expected = terraingen::PlacedBoulders(terrain, terrain.source->Grid()).boulders;
+    const auto placed = BouldersOf(generated).boulders;
+    ASSERT_EQ(placed.size(), expected.size());
+    for (std::size_t n = 0; n < expected.size(); ++n) {
+        EXPECT_EQ(placed[n].id, expected[n].id);
     }
 
     boulders.boulders.ejecta.minCraterDiameter = 0.0;
     config.layers.back() = boulders;
     const auto without = GenerateTerrain(config);
-    EXPECT_LT(without.features.boulders.size(), generated.features.boulders.size());
+    EXPECT_LT(BouldersOf(without).boulders.size(), BouldersOf(generated).boulders.size());
 }
 
 TEST(GenerateTerrain, ShapesMarsCraters) {
@@ -250,7 +254,7 @@ TEST(GenerateTerrain, ShapesMarsCraters) {
         terraingen::ProductionFunction::Ivanov, terraingen::ChronologyModel::Ivanov, 3.0};
     Craters(surface).ages = terraingen::UniformAgesSpec{3.0};
     Craters(surface).minDiameter = 20.0;
-    EXPECT_FALSE(GenerateTerrain(surface).features.craters.Empty());
+    EXPECT_FALSE(CratersOf(GenerateTerrain(surface)).craters.Empty());
 }
 
 TEST(GenerateTerrain, LoadsResamplesAndDetailsARasterSource) {
@@ -309,10 +313,11 @@ TEST(GenerateTerrain, PlacesCratersInTheRastersCoordinates) {
     craters.manual = {{1100.0, 1925.0, 50.0, 0.0, 0u, true}};
     config.layers = {craters};
     const auto terrain = GenerateTerrain(config, folder);
-    ASSERT_GT(terrain.features.craters.Size(), 2u);
+    const CraterList placed = CratersOf(terrain).craters;
+    ASSERT_GT(placed.Size(), 2u);
     const terraingen::Bounds2d bounds{1000.0, 1850.0, 1200.0, 2000.0};
-    for (std::size_t n = 0; n < terrain.features.craters.Size(); ++n) {
-        const auto crater = terrain.features.craters.At(n);
+    for (std::size_t n = 0; n < placed.Size(); ++n) {
+        const auto crater = placed.At(n);
         EXPECT_TRUE(bounds.Expanded(0.75 * crater.diameter).Contains(crater.x, crater.y)) << n;
     }
     EXPECT_LT(terrain.heights(20, 15), WriteDem(folder, "again.tif")(20, 15) - 2.0f);
@@ -383,10 +388,11 @@ TEST(GenerateTerrain, BuildsSphereTerrainsWithGeographicKeys) {
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
     EXPECT_NEAR(grid.Spacing(moon), 4.0, 1e-9);
     EXPECT_NEAR(grid.Bounds().minX + grid.Bounds().maxX, 60.0, 1e-9);
-    ASSERT_GT(generated.features.craters.Size(), 0u);
-    for (std::size_t n = 0; n < generated.features.craters.Size(); ++n) {
-        EXPECT_NEAR(generated.features.craters.X()[n], 30.0, 0.1);
-        EXPECT_NEAR(generated.features.craters.Y()[n], -45.0, 0.1);
+    const CraterList placed = CratersOf(generated).craters;
+    ASSERT_GT(placed.Size(), 0u);
+    for (std::size_t n = 0; n < placed.Size(); ++n) {
+        EXPECT_NEAR(placed.X()[n], 30.0, 0.1);
+        EXPECT_NEAR(placed.Y()[n], -45.0, 0.1);
     }
     EXPECT_EQ(generated.geoKeys, terraingen::GeographicSphereKeys(1737400.0));
     EXPECT_EQ(generated.albedo.size(), 1u);
@@ -396,9 +402,8 @@ TEST(GenerateTerrain, BuildsSphereTerrainsWithGeographicKeys) {
     terraingen::Terrain layersOnly = terrain;
     layersOnly.filters.clear();
     const auto unfiltered = terraingen::Evaluate(layersOnly, grid);
-    const auto centre = unfiltered.heights.CellCenter(20, 30);
-    EXPECT_EQ(terraingen::EvaluateAt(layersOnly, centre.x, centre.y, 4.0),
-              unfiltered.heights(20, 30));
+    const auto centre = unfiltered.CellCenter(20, 30);
+    EXPECT_EQ(terraingen::EvaluateAt(layersOnly, centre.x, centre.y, 4.0), unfiltered(20, 30));
 }
 
 TEST(GenerateTerrain, WearsCratersByDiffusionAsTheLibraryDoes) {
@@ -408,8 +413,8 @@ TEST(GenerateTerrain, WearsCratersByDiffusionAsTheLibraryDoes) {
         terraingen::FassettThomsonSpec{terraingen::FassettThomsonRim::Plateau};
     const auto generated = GenerateTerrain(config, {}, 2);
     const terraingen::CraterModels models = BuildCraterModels(Craters(config));
-    ASSERT_GT(generated.features.craters.Size(), 0u);
-    const terraingen::Crater crater = generated.features.craters.At(0);
+    ASSERT_GT(CratersOf(generated).craters.Size(), 0u);
+    const terraingen::Crater crater = CratersOf(generated).craters.At(0);
     EXPECT_DOUBLE_EQ(models.degradation->State(crater).diffusion,
                      terraingen::Fassett2022HartmannDiffusivity()(crater.diameter, crater.ageGyr) /
                          (crater.diameter * crater.diameter));
@@ -426,9 +431,9 @@ TEST(GenerateTerrain, AddsSecondariesAroundTheCratersBeforeThem) {
     secondaries.secondaries.minDiameter = 16.0;
     config.layers.push_back(secondaries);
     const auto generated = GenerateTerrain(config, {}, 2);
-    ASSERT_GT(generated.features.craters.Size(), 2u);
-    EXPECT_EQ(generated.features.craters.At(0).id, 3u);
-    EXPECT_EQ(generated.features.craterAttributes.size(), generated.features.craters.Size());
+    ASSERT_GT(CratersOf(generated).craters.Size(), 2u);
+    EXPECT_EQ(CratersOf(generated).craters.At(0).id, 3u);
+    EXPECT_EQ(CratersOf(generated).attributes.size(), CratersOf(generated).craters.Size());
 }
 
 TEST(GenerateTerrain, ShapesSecondariesWithTheirMorphometry) {
@@ -445,8 +450,8 @@ TEST(GenerateTerrain, ShapesSecondariesWithTheirMorphometry) {
     secondaries.morphometry = terraingen::CraterMorphometryFit::Mars;
     config.layers.back() = secondaries;
     const auto mars = GenerateTerrain(config, {}, 2);
-    ASSERT_EQ(lunar.features.craters.Size(), mars.features.craters.Size());
-    ASSERT_GT(mars.features.craters.Size(), 2u);
+    ASSERT_EQ(CratersOf(lunar).craters.Size(), CratersOf(mars).craters.Size());
+    ASSERT_GT(CratersOf(mars).craters.Size(), 2u);
     EXPECT_FALSE(std::ranges::equal(lunar.heights.Values(), mars.heights.Values()));
 }
 
@@ -454,9 +459,5 @@ TEST(Summary, DescribesTheTerrainAndItsTime) {
     terraingen::GeneratedTerrain terrain = GenerateTerrain(Small());
     EXPECT_GE(terrain.seconds, 0.0);
     terrain.seconds = 1.5;
-    terrain.features.boulders.resize(2);
-    const std::string summary = terraingen::Summary(terrain);
-    EXPECT_EQ(summary, "Generated a 65x49 terrain with " +
-                           std::to_string(terrain.features.craters.Size()) +
-                           " craters and 2 boulders in 1.5 s");
+    EXPECT_EQ(terraingen::Summary(terrain), "Generated a 65x49 terrain in 1.5 s");
 }

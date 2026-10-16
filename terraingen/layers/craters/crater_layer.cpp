@@ -3,7 +3,6 @@
 #include "terraingen/layers/craters/crater_layer.h"
 
 #include "terraingen/layers/craters/generation/spacing.h"
-#include "terraingen/layers/features.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/cells.h"
 
@@ -60,8 +59,7 @@ CraterList CraterLayer::Craters(const Bounds2d& region, double spacing) const {
     return craters;
 }
 
-void CraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context,
-                               TerrainFeatures& features) const {
+void CraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
     const Raster<float>* grid = samples.Grid();
     if (grid == nullptr && options_.apply.datum != CraterDatum::None) {
         RequireGround(context.ground, "Point queries of craters with a datum");
@@ -80,10 +78,6 @@ void CraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context
         context.ground ? context.ground->Sampler(spacing) : HeightSampler{};
     ApplyCraters(samples, craters, models_.Shape(), options_.apply,
                  {spacing, context.threads, ground});
-    if (grid != nullptr) {
-        const CraterList recorded = margin > 0.0 ? Craters(bounds, spacing) : craters;
-        features.AddCraters(recorded, [&](const Crater& crater) { return Attributes(crater); });
-    }
 }
 
 CraterAttributes CraterLayer::Attributes(const Crater& crater) const {

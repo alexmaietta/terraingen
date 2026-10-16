@@ -54,22 +54,22 @@ class Example(_common.Example):
             models, terraingen.CraterLayerOptions(seed=4, generation=generation, surface=self.mercury)
         )
         site = terraingen.FlatSource(257, 257, PIXEL, centre=(-30.0, 10.0), surface=self.mercury)
-        self.evaluated = terraingen.evaluate(terraingen.Terrain(site, [noise, craters], surface=self.mercury))
-        print(
-            f"{len(self.evaluated.craters['x'])} craters of 1 to 30 km over a {257 * PIXEL / 1000:.0f} km site"
-        )
-        self.show("heights", self.evaluated.heights.values, PIXEL)
+        terrain = terraingen.Terrain(site, [noise, craters], surface=self.mercury)
+        self.heights = terraingen.evaluate(terrain)
+        self.craters = terraingen.placed_craters(terrain).table
+        print(f"{len(self.craters['x'])} craters of 1 to 30 km over a {257 * PIXEL / 1000:.0f} km site")
+        self.show("heights", self.heights.values, PIXEL)
 
     def save(self, out):
-        terraingen.write_geotiff(out / "example_planets_mercury.tif", self.evaluated.heights)
+        terraingen.write_geotiff(out / "example_planets_mercury.tif", self.heights)
         print(
             "wrote",
-            write_png(out / "example_planets_mercury.png", hillshade(self.evaluated.heights.values, PIXEL)),
+            write_png(out / "example_planets_mercury.png", hillshade(self.heights.values, PIXEL)),
         )
 
     def test_final(self):
-        heights = self.evaluated.heights.values
-        diameters = self.evaluated.craters["diameter"]
+        heights = self.heights.values
+        diameters = self.craters["diameter"]
         assert abs(self.mercury.radius - 2439700.0) < 1000.0, "Mercury's radius is 2440 km"
         assert heights.shape == (257, 257) and np.isfinite(heights).all(), "finite 257 x 257 heights"
         assert len(diameters) > 50, "more than 50 craters"

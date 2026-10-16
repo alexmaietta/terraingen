@@ -15,8 +15,7 @@ GaussianBlurFilter::GaussianBlurFilter(double sigma, Surface surface) : sigma_(s
     }
 }
 
-void GaussianBlurFilter::Apply(Raster<float>& heights, const FilterContext& /*context*/,
-                               const TerrainFeatures& /*features*/) const {
+void GaussianBlurFilter::Apply(Raster<float>& heights, const FilterContext& /*context*/) const {
     if (sigma_ == 0.0 || heights.Empty()) {
         return;
     }

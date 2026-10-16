@@ -74,28 +74,27 @@ class BouldersEjecta : public terraingen::examples::Example {
         terrain.source = std::make_shared<terraingen::FlatSource>(401, 401, 0.1);
         terrain.layers = {craters, boulders};
         evaluated_ = terraingen::Evaluate(terrain);
-        Out() << Format("%zu boulders, %zu boulder models\n", evaluated_.features.boulders.size(),
-                        evaluated_.features.boulderModels.size());
-        Show("heights", evaluated_.heights);
+        boulders_ = terraingen::PlacedBoulders(terrain, terraingen::RasterGrid::Of(evaluated_));
+        Out() << Format("%zu boulders, %zu boulder models\n", boulders_.boulders.size(),
+                        boulders_.models.size());
+        Show("heights", evaluated_);
     }
 
     void Save(const std::filesystem::path& dir) override {
         const auto heights = dir / "example_boulders_ejecta.tif";
         const auto list = dir / "example_boulders_ejecta.csv";
         const auto models = dir / "example_boulders_ejecta.glb";
-        terraingen::WriteGeoTiff(heights, evaluated_.heights);
-        terraingen::WriteBoulderList(evaluated_.features.boulders, list,
-                                     terraingen::ListFormat::Csv);
-        terraingen::WriteBoulderModels(evaluated_.features.boulderModels, models);
+        terraingen::WriteGeoTiff(heights, evaluated_);
+        terraingen::WriteBoulderList(boulders_.boulders, list, terraingen::ListFormat::Csv);
+        terraingen::WriteBoulderModels(boulders_.models, models);
         Out() << "Wrote " << heights.string() << ", " << list.string() << " and " << models.string()
               << "\n";
     }
 
     void Test() override {
-        const auto& boulders = evaluated_.features.boulders;
-        const auto& models = evaluated_.features.boulderModels;
-        Check(evaluated_.heights.Width() == 401 && evaluated_.heights.Height() == 401,
-              "the heights are 401 x 401");
+        const auto& boulders = boulders_.boulders;
+        const auto& models = boulders_.models;
+        Check(evaluated_.Width() == 401 && evaluated_.Height() == 401, "the heights are 401 x 401");
         Check(abundance_.size() == 5 && abundance_[4].second.ejecta < 0.1 &&
                   abundance_[3].second.ejecta > abundance_[4].second.ejecta,
               "ejecta are richer at the rim than 30 m out, where they have faded");
@@ -116,7 +115,8 @@ class BouldersEjecta : public terraingen::examples::Example {
 
   private:
     std::vector<std::pair<double, terraingen::BoulderAbundance>> abundance_;
-    terraingen::EvaluatedTerrain evaluated_;
+    terraingen::Raster<float> evaluated_;
+    terraingen::BoulderFeatures boulders_;
 };
 
 }  // namespace

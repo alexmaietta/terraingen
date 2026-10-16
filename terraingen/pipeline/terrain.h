@@ -62,30 +62,24 @@ class TerrainGround final : public Ground {
     std::size_t layers_;
 };
 
-/// @brief Heights over a grid and the features the layers placed there.
-struct EvaluatedTerrain {
-    Raster<float> heights;     ///< The heights.
-    TerrainFeatures features;  ///< Craters, boulders and boulder models placed.
-};
-
 /// @brief Evaluates a terrain over a grid on one thread.
 /// @param terrain The terrain.
 /// @param grid The grid.
 /// @param spacing Sample spacing in metres; 0 means the grid's spacing, and a smaller value is
 /// raised to it.
-/// @return The heights and features.
+/// @return The heights.
 /// @throws std::invalid_argument if `terrain` has no source or holds a null layer or filter, or
 /// `spacing` is negative or not finite; and whatever the parts throw.
-EvaluatedTerrain Evaluate(const Terrain& terrain, const RasterGrid& grid, double spacing = 0.0);
+Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid, double spacing = 0.0);
 
 /// @brief Evaluates a terrain over a grid on several threads, to the same bits as one thread.
 /// @param terrain The terrain.
 /// @param grid The grid.
 /// @param options The sample spacing and threads.
-/// @return The heights and features.
+/// @return The heights.
 /// @throws std::invalid_argument as the single-threaded `Evaluate`.
-EvaluatedTerrain Evaluate(const Terrain& terrain, const RasterGrid& grid,
-                          const EvaluationOptions& options);
+Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid,
+                       const EvaluationOptions& options);
 
 /// @brief The margin a terrain's filters need around a grid for its cells to equal those of any
 /// larger grid: the largest `Filter::Margin` for the layers' largest feature.
@@ -97,9 +91,9 @@ double FilterMargin(const Terrain& terrain, double spacing);
 
 /// @brief Evaluates a terrain over its source's grid.
 /// @param terrain The terrain.
-/// @return The heights and features.
+/// @return The heights.
 /// @throws std::invalid_argument as `Evaluate` over a grid.
-EvaluatedTerrain Evaluate(const Terrain& terrain);
+Raster<float> Evaluate(const Terrain& terrain);
 
 /// The heights of a terrain at scattered points, such as wheel contacts or mesh vertices: the
 /// source's heights there, then each layer applied to all of them at once. Each equals the cell

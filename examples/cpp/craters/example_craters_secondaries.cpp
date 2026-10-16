@@ -74,7 +74,7 @@ class CratersSecondaries : public terraingen::examples::Example {
         terraingen::Terrain terrain;
         terrain.source = std::make_shared<terraingen::FlatSource>(1537, 1537, 12.0);
         terrain.layers = {primaries, secondaries};
-        heights_ = terraingen::Evaluate(terrain).heights;
+        heights_ = terraingen::Evaluate(terrain);
         Show("heights", heights_);
     }
 

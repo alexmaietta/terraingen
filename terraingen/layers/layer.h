@@ -11,8 +11,6 @@
 
 namespace terraingen {
 
-struct TerrainFeatures;
-
 /// @brief How a layer is evaluated.
 struct LayerContext {
     /// Sample spacing in world units; features unresolvable at it are left out. At least the cell
@@ -37,20 +35,19 @@ void RequireGround(const Ground* ground, std::string_view what);
 ///
 /// A layer implements one method, `ApplySamples`, over a `SampleBlock`: a grid's cells or
 /// scattered points. Grids, tiles and point queries all go through it, so a point gets the same
-/// height as a grid cell centred there. Implementations must be deterministic and thread-safe, and
-/// place the same features in a tile as in any larger grid containing it. A layer needing another
-/// layer's features holds a reference to it and queries it (e.g. `CraterLayer::Craters`).
+/// height as a grid cell centred there. Implementations must be deterministic and thread-safe. A
+/// layer that places features (craters, boulders) lists them on request, such as
+/// `CraterLayer::Craters`, and a layer or filter needing them holds a reference to it.
 class Layer {
   public:
     virtual ~Layer() = default;
 
     /// Adds the layer's relief to the cells of `heights` that hold data.
-    void Apply(Raster<float>& heights, const LayerContext& context,
-               TerrainFeatures& features) const;
+    void Apply(Raster<float>& heights, const LayerContext& context) const;
 
     /// Adds the layer's relief to every sample of `samples` that holds data.
     /// @throws std::invalid_argument for points without a positive `context.spacing`.
-    void Apply(SampleBlock& samples, const LayerContext& context, TerrainFeatures& features) const;
+    void Apply(SampleBlock& samples, const LayerContext& context) const;
 
     /// The height at one point after this layer, from `height` before it.
     /// @throws std::invalid_argument without a positive `context.spacing`.
@@ -62,10 +59,9 @@ class Layer {
     }
 
   protected:
-    /// Adds the layer's relief to `samples`, recording what it places in `features`. A grid's
-    /// spacing is `context.spacing` raised to the grid's own; points come with a positive one.
-    virtual void ApplySamples(SampleBlock& samples, const LayerContext& context,
-                              TerrainFeatures& features) const = 0;
+    /// Adds the layer's relief to `samples`. A grid's spacing is `context.spacing` raised to the
+    /// grid's own; points come with a positive one.
+    virtual void ApplySamples(SampleBlock& samples, const LayerContext& context) const = 0;
 };
 
 /// A layer whose height at a point depends only on the height there and the point: noise,
@@ -86,8 +82,7 @@ class FormulaLayer : public Layer {
     /// Checks the context before any sample is evaluated; accepts any by default.
     virtual void CheckContext(const LayerContext& /*context*/) const {}
 
-    void ApplySamples(SampleBlock& samples, const LayerContext& context,
-                      TerrainFeatures& features) const final;
+    void ApplySamples(SampleBlock& samples, const LayerContext& context) const final;
 
     Surface surface_;  ///< What the layer's coordinates lie on.
 };

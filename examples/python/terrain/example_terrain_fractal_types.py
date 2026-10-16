@@ -35,11 +35,11 @@ class Example(_common.Example):
             terrain = terraingen.Terrain(
                 terraingen.FlatSource(257, 257, PIXEL), [terraingen.NoiseRelief([layer])]
             )
-            evaluated = terraingen.evaluate(terrain)
-            values = evaluated.heights.values
+            raster = terraingen.evaluate(terrain)
+            values = raster.values
             print(f"{fractal.name:20s} mean {values.mean():6.2f} m, std {values.std():5.2f} m")
             self.heights[fractal.name] = values
-            self.show(fractal.name.lower(), evaluated.heights)
+            self.show(fractal.name.lower(), raster)
 
     def save(self, out):
         shades = [hillshade(values, PIXEL, exaggeration=2.0) for values in self.heights.values()]

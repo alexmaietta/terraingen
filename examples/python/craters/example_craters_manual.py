@@ -44,27 +44,28 @@ class Example(_common.Example):
             terraingen.FlatSource(513, 513, 2.0), [terraingen.NoiseRelief([fbm]), craters]
         )
 
-        self.evaluated = terraingen.evaluate(terrain)
-        table = self.evaluated.craters
+        self.heights = terraingen.evaluate(terrain)
+        self.craters = terraingen.placed_craters(terrain).table
+        table = self.craters
         for diameter, age, ratio, freshness in zip(
             table["diameter"], table["age_gyr"], table["depth_ratio"], table["freshness"], strict=True
         ):
             print(
                 f"{diameter:4.0f} m crater, {age:3.1f} Gyr old: depth/diameter {ratio:.3f}, freshness {freshness:.2f}"
             )
-        self.show("heights", self.evaluated.heights)
+        self.show("heights", self.heights)
 
     def save(self, out):
-        terraingen.write_geotiff(out / "example_craters_manual.tif", self.evaluated.heights)
+        terraingen.write_geotiff(out / "example_craters_manual.tif", self.heights)
         print(
             "wrote",
-            write_png(out / "example_craters_manual.png", hillshade(self.evaluated.heights.values, 2.0)),
+            write_png(out / "example_craters_manual.png", hillshade(self.heights.values, 2.0)),
         )
 
     def test_final(self):
-        table = self.evaluated.craters
-        assert self.evaluated.heights.shape == (513, 513), "the heights are 513 x 513"
-        assert np.all(np.isfinite(self.evaluated.heights.values)), "every height is finite"
+        table = self.craters
+        assert self.heights.shape == (513, 513), "the heights are 513 x 513"
+        assert np.all(np.isfinite(self.heights.values)), "every height is finite"
         assert sorted(table["diameter"]) == [40.0, 90.0, 120.0, 200.0], "exactly the four hand-placed craters"
         order = np.argsort(table["age_gyr"])
         assert np.all(np.diff(table["freshness"][order]) <= 0.0), "older craters are less fresh"

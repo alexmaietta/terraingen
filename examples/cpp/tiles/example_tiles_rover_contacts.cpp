@@ -124,7 +124,7 @@ class TilesRoverContacts : public terraingen::examples::Example {
 
         terraingen::RasterGrid strip{1600, 48,
                                      terraingen::GeoTransform::NorthUp(-200.0, 6.0, 0.25)};
-        ground_ = terraingen::Evaluate(terrain, strip).heights;
+        ground_ = terraingen::Evaluate(terrain, strip);
         Show("ground along the path", ground_);
     }
 

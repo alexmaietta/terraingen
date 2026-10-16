@@ -41,7 +41,7 @@ TEST(EvaluateTile, EqualsTheSameCellsOfALargerGridWithFilters) {
         const auto row0 = static_cast<std::size_t>(offset.y);
         for (std::size_t row = 0; row < grid.height; ++row) {
             for (std::size_t col = 0; col < grid.width; ++col) {
-                ASSERT_EQ(tile.heights(col, row), whole.heights(col0 + col, row0 + row))
+                ASSERT_EQ(tile(col, row), whole(col0 + col, row0 + row))
                     << "tile " << key.x << "," << key.y << " cell " << col << "," << row;
             }
         }
@@ -55,7 +55,7 @@ TEST(EvaluateTile, MatchesGridsEvaluatedAtEachLevelsSpacing) {
         const terraingen::TileKey key{level, 0, 0};
         const auto tile = terraingen::EvaluateTile(terrain, scheme, key);
         const auto grid = Evaluate(terrain, scheme.Grid(key));
-        ExpectSameRaster(tile.heights, grid.heights);
+        ExpectSameRaster(tile, grid);
     }
     EXPECT_EQ(terraingen::FilterMargin(terrain, 2.0), 0.0);
 }
@@ -67,8 +67,7 @@ TEST(EvaluateTiles, EvaluatesEveryTileInOrder) {
     const auto tiles = terraingen::EvaluateTiles(terrain, scheme, keys, 4);
     ASSERT_EQ(tiles.size(), keys.size());
     for (std::size_t n = 0; n < keys.size(); ++n) {
-        ExpectSameRaster(tiles[n].heights,
-                         terraingen::EvaluateTile(terrain, scheme, keys[n]).heights);
+        ExpectSameRaster(tiles[n], terraingen::EvaluateTile(terrain, scheme, keys[n]));
     }
     EXPECT_THROW(
         terraingen::EvaluateTile(terrain, terraingen::TileScheme{{0.0, 0.0}, -1.0, 16}, {0, 0, 0}),
@@ -80,8 +79,7 @@ TEST(EvaluateTile, CratersCutToADatumEqualALargerGrid) {
     const terraingen::TileScheme scheme{{-96.0, 64.0}, 128.0, 16};
     const RasterGrid large{120, 100, GeoTransform::NorthUp(-120.0, 100.0, 2.0)};
     const auto whole = Evaluate(terrain, large, terraingen::EvaluationOptions{0.0, 4});
-    ExpectSameRaster(whole.heights,
-                     Evaluate(terrain, large, terraingen::EvaluationOptions{0.0, 1}).heights);
+    ExpectSameRaster(whole, Evaluate(terrain, large, terraingen::EvaluationOptions{0.0, 1}));
     for (const terraingen::TileKey key :
          {terraingen::TileKey{2, 1, 1}, terraingen::TileKey{2, 0, 0}}) {
         const auto tile = terraingen::EvaluateTile(terrain, scheme, key);
@@ -90,9 +88,8 @@ TEST(EvaluateTile, CratersCutToADatumEqualALargerGrid) {
             large.transform.WorldToPixel(grid.transform.originX, grid.transform.originY);
         for (std::size_t row = 0; row < grid.height; ++row) {
             for (std::size_t col = 0; col < grid.width; ++col) {
-                ASSERT_EQ(tile.heights(col, row),
-                          whole.heights(static_cast<std::size_t>(offset.x) + col,
-                                        static_cast<std::size_t>(offset.y) + row));
+                ASSERT_EQ(tile(col, row), whole(static_cast<std::size_t>(offset.x) + col,
+                                                static_cast<std::size_t>(offset.y) + row));
             }
         }
     }
@@ -116,12 +113,11 @@ TEST(Evaluate, BouldersFromCraterEjectaAndBedrockAgreeOnGridsTilesAndPoints) {
 
     const RasterGrid large{240, 200, GeoTransform::NorthUp(-120.0, 100.0, 1.0)};
     const auto whole = Evaluate(terrain, large, terraingen::EvaluationOptions{0.0, 4});
-    EXPECT_FALSE(whole.features.boulders.empty());
+    EXPECT_FALSE(terraingen::PlacedBoulders(terrain, large).boulders.empty());
     for (std::size_t row = 3; row < large.height; row += 7) {
         for (std::size_t col = 1; col < large.width; col += 7) {
-            const auto centre = whole.heights.CellCenter(col, row);
-            ASSERT_EQ(terraingen::EvaluateAt(terrain, centre.x, centre.y, 1.0),
-                      whole.heights(col, row));
+            const auto centre = whole.CellCenter(col, row);
+            ASSERT_EQ(terraingen::EvaluateAt(terrain, centre.x, centre.y, 1.0), whole(col, row));
         }
     }
     const terraingen::TileScheme scheme{{-96.0, 64.0}, 128.0, 16};
@@ -132,9 +128,8 @@ TEST(Evaluate, BouldersFromCraterEjectaAndBedrockAgreeOnGridsTilesAndPoints) {
         large.transform.WorldToPixel(grid.transform.originX, grid.transform.originY);
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
-            ASSERT_EQ(tile.heights(col, row),
-                      whole.heights(static_cast<std::size_t>(offset.x) + col,
-                                    static_cast<std::size_t>(offset.y) + row));
+            ASSERT_EQ(tile(col, row), whole(static_cast<std::size_t>(offset.x) + col,
+                                            static_cast<std::size_t>(offset.y) + row));
         }
     }
 }
@@ -163,15 +158,13 @@ TEST(Evaluate, SphereTilesAndPointsEqualTheWholeTerrain) {
             std::make_shared<terraingen::FassettThomsonProfile>()},
         options));
     const auto whole = Evaluate(terrain, terrain.source->Grid());
-    EXPECT_GT(whole.features.craters.Size(), 3u);
+    EXPECT_GT(terraingen::PlacedCraters(terrain, terrain.source->Grid()).craters.Size(), 3u);
     for (const auto& [col, row] : {std::pair<std::size_t, std::size_t>{10, 10},
                                    std::pair<std::size_t, std::size_t>{50, 33}}) {
-        const auto centre = whole.heights.CellCenter(col, row);
-        EXPECT_EQ(terraingen::EvaluateAt(terrain, centre.x, centre.y, 4.0),
-                  whole.heights(col, row));
+        const auto centre = whole.CellCenter(col, row);
+        EXPECT_EQ(terraingen::EvaluateAt(terrain, centre.x, centre.y, 4.0), whole(col, row));
     }
-    terrain.filters.push_back(
-        std::make_shared<terraingen::RimSmoothingFilter>(terraingen::RimSmoothing{}, moon));
+    terrain.filters.push_back(terraingen::testing::RimFilter(terrain));
     const RasterGrid large{200, 160, GeoTransform::NorthUp(-100.0 * step, 80.0 * step, step)};
     const auto smoothed = Evaluate(terrain, large);
     const terraingen::TileScheme scheme{{-48.0 * step, 32.0 * step}, 64.0 * step, 16};
@@ -185,7 +178,7 @@ TEST(Evaluate, SphereTilesAndPointsEqualTheWholeTerrain) {
         const auto row0 = static_cast<std::size_t>(std::lround(offset.y));
         for (std::size_t row = 0; row < grid.height; ++row) {
             for (std::size_t col = 0; col < grid.width; ++col) {
-                ASSERT_NEAR(tile.heights(col, row), smoothed.heights(col0 + col, row0 + row), 1e-3)
+                ASSERT_NEAR(tile(col, row), smoothed(col0 + col, row0 + row), 1e-3)
                     << col << " " << row;
             }
         }
@@ -216,8 +209,7 @@ TEST(EvaluateTile, WholeBodyTilesAgreeAcrossTheAntimeridianAndAtThePole) {
             std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry),
             std::make_shared<terraingen::FassettThomsonProfile>()},
         options));
-    terrain.filters.push_back(
-        std::make_shared<terraingen::RimSmoothingFilter>(terraingen::RimSmoothing{}, moon));
+    terrain.filters.push_back(terraingen::testing::RimFilter(terrain));
     const int level = 9;
     const std::int64_t columns = std::int64_t{2} << level;
     const double size = scheme.TileSize(level);
@@ -233,7 +225,7 @@ TEST(EvaluateTile, WholeBodyTilesAgreeAcrossTheAntimeridianAndAtThePole) {
         const auto larger = Evaluate(terrain, around);
         for (std::size_t row = 0; row < 16; ++row) {
             for (std::size_t col = 0; col < 16; ++col) {
-                ASSERT_NEAR(tile.heights(col, row), larger.heights(col + 16, row + 16), 1e-3)
+                ASSERT_NEAR(tile(col, row), larger(col + 16, row + 16), 1e-3)
                     << key.x << " " << key.y << " " << col << " " << row;
             }
         }
@@ -246,9 +238,9 @@ TEST(EvaluateTile, WholeBodyTilesAgreeAcrossTheAntimeridianAndAtThePole) {
     double relief = 0.0;
     for (std::size_t row = 0; row < 16; ++row) {
         for (std::size_t col = 0; col < 16; ++col) {
-            EXPECT_NEAR(across.heights(col, row), east.heights(col, row), 1e-3);
-            EXPECT_NEAR(across.heights(col + 16, row), west.heights(col, row), 1e-3);
-            relief = std::fmax(relief, std::fabs(east.heights(col, row)));
+            EXPECT_NEAR(across(col, row), east(col, row), 1e-3);
+            EXPECT_NEAR(across(col + 16, row), west(col, row), 1e-3);
+            relief = std::fmax(relief, std::fabs(east(col, row)));
         }
     }
     EXPECT_GT(relief, 1.0);
@@ -302,7 +294,6 @@ TEST(BodyMesh, CoversTheBodyWithOutwardTrianglesAtTheTerrainsHeights) {
     EXPECT_THROW(terraingen::BodyMesh(flat, 4), std::invalid_argument);
     EXPECT_THROW(terraingen::BodyMesh(terrain, 0), std::invalid_argument);
     EXPECT_THROW(terraingen::BodyMesh(terrain, 4, -1.0), std::invalid_argument);
-    terrain.filters.push_back(
-        std::make_shared<terraingen::RimSmoothingFilter>(terraingen::RimSmoothing{}, moon));
+    terrain.filters.push_back(terraingen::testing::RimFilter(terrain));
     EXPECT_NO_THROW(terraingen::BodyMesh(terrain, 2));
 }

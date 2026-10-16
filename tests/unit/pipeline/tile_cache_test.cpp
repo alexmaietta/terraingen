@@ -30,8 +30,8 @@ TEST(TileCache, EvaluatesEachTileOnceAndStaysWithinItsBudget) {
     const auto tile = cache.Get({2, 1, 3});
     EXPECT_EQ(cache.Get({2, 1, 3}), tile);
     const auto expected = terraingen::EvaluateTile(Noise(), scheme, {2, 1, 3});
-    EXPECT_TRUE(std::equal(tile->heights.Values().begin(), tile->heights.Values().end(),
-                           expected.heights.Values().begin()));
+    EXPECT_TRUE(
+        std::equal(tile->Values().begin(), tile->Values().end(), expected.Values().begin()));
     for (std::int64_t x = 0; x < 40; ++x) {
         cache.Get({3, x, 0});
     }

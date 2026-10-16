@@ -45,9 +45,8 @@ TEST(BedformLayer, GivesPointsTheSameBitsAsGridsOnAnyThreads) {
     Raster<float> one(120, 100, 1.0f);
     one.SetTransform(GeoTransform::NorthUp(-30.0, 25.0, 0.5));
     Raster<float> many = one;
-    terraingen::TerrainFeatures features;
-    layer.Apply(one, {0.5, 1}, features);
-    layer.Apply(many, {0.5, 4}, features);
+    layer.Apply(one, {0.5, 1});
+    layer.Apply(many, {0.5, 4});
     double highest = 0.0;
     for (std::size_t row = 0; row < one.Height(); ++row) {
         for (std::size_t col = 0; col < one.Width(); ++col) {
@@ -126,8 +125,7 @@ TEST(BedformLayer, KeepsSandOffBedrock) {
     EXPECT_EQ(boulder, 0.0) << "steep ground is all bedrock";
     EXPECT_THROW(layer.CoverAt(0.0, 0.0), std::invalid_argument);
     Raster<float> heights(4, 4, 0.0f);
-    terraingen::TerrainFeatures features;
-    EXPECT_THROW(layer.Apply(heights, {}, features), std::invalid_argument);
+    EXPECT_THROW(layer.Apply(heights, {}), std::invalid_argument);
 }
 
 TEST(BedformLayer, RejectsInvalidOptions) {

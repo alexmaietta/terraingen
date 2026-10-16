@@ -52,14 +52,14 @@ class Example:
 
         class Example(_common.Example):
             def generate(self):
-                self.evaluated = terraingen.evaluate(terrain)
-                self.show("heights", self.evaluated.heights)
+                self.heights = terraingen.evaluate(terrain)
+                self.show("heights", self.heights)
 
             def save(self, out):
-                terraingen.write_geotiff(out / "example_x.tif", self.evaluated.heights)
+                terraingen.write_geotiff(out / "example_x.tif", self.heights)
 
             def test_final(self):
-                assert self.evaluated.heights.shape == (513, 513)
+                assert self.heights.shape == (513, 513)
 
         if __name__ == "__main__":
             _common.main(Example)

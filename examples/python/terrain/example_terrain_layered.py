@@ -44,27 +44,25 @@ class Example(_common.Example):
         source = terraingen.FlatSource(513, 513, 2.0)
         terrain = terraingen.Terrain(source, [terraingen.NoiseRelief([rolling, crests, mask])])
 
-        self.evaluated = terraingen.evaluate(terrain)
-        self.rolling = terraingen.evaluate(
-            terraingen.Terrain(source, [terraingen.NoiseRelief([rolling])])
-        ).heights
-        heights = self.evaluated.heights.values
+        self.heights = terraingen.evaluate(terrain)
+        self.rolling = terraingen.evaluate(terraingen.Terrain(source, [terraingen.NoiseRelief([rolling])]))
+        heights = self.heights.values
         print(f"heights from {heights.min():.2f} to {heights.max():.2f} m")
-        self.show("layered", self.evaluated.heights)
+        self.show("layered", self.heights)
         self.show("rolling fBm only", self.rolling)
 
     def save(self, out):
-        terraingen.write_geotiff(out / "example_terrain_layered.tif", self.evaluated.heights)
+        terraingen.write_geotiff(out / "example_terrain_layered.tif", self.heights)
         print(
             "wrote",
             write_png(
                 out / "example_terrain_layered.png",
-                hillshade(self.evaluated.heights.values, 2.0, exaggeration=3.0),
+                hillshade(self.heights.values, 2.0, exaggeration=3.0),
             ),
         )
 
     def test_final(self):
-        heights = self.evaluated.heights.values
+        heights = self.heights.values
         assert heights.shape == (513, 513), "the heights are 513 x 513"
         assert np.all(np.isfinite(heights)), "every height is finite"
         assert 10.0 < heights.max() - heights.min() < 500.0, "the relief is tens of metres"

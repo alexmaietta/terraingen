@@ -1,6 +1,5 @@
 #include "terraingen/layers/transforms.h"
 
-#include "terraingen/layers/features.h"
 #include "terraingen/raster/grid.h"
 
 #include <gtest/gtest.h>
@@ -31,8 +30,7 @@ terraingen::Raster<float> Ramp() {
 void ExpectGridMatchesPoints(const terraingen::Layer& layer) {
     const auto before = Ramp();
     auto after = before;
-    terraingen::TerrainFeatures features;
-    layer.Apply(after, {0.0, 3}, features);
+    layer.Apply(after, {0.0, 3});
     for (std::size_t row = 0; row < after.Height(); ++row) {
         for (std::size_t col = 0; col < after.Width(); ++col) {
             if (before.IsNoData(before(col, row))) {

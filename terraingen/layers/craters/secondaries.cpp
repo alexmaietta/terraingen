@@ -2,7 +2,6 @@
 /// @brief Secondary crater size and range laws, and `SecondaryCraterLayer` drawn in polar cells.
 #include "terraingen/layers/craters/secondaries.h"
 
-#include "terraingen/layers/features.h"
 #include "terraingen/random/philox.h"
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"
@@ -346,6 +345,10 @@ double SecondaryCraterLayer::OuterRange(double diameter) const {
     return kLongestRayOverMedian * ElliottMedianRayLength(diameter);
 }
 
+CraterAttributes SecondaryCraterLayer::Attributes(const Crater& crater) const {
+    return ComputeCraterAttributes(crater, models_.degradation->State(crater), *models_.profile);
+}
+
 double SecondaryCraterLayer::MaxFeatureDiameter() const {
     const double largest = primaries_->MaxFeatureDiameter();
     if (!(largest > 0.0)) {
@@ -370,20 +373,13 @@ CraterList SecondaryCraterLayer::Secondaries(const Bounds2d& region, double spac
     return scatter.Take();
 }
 
-void SecondaryCraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context,
-                                        TerrainFeatures& features) const {
+void SecondaryCraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
     const Raster<float>* grid = samples.Grid();
     const double spacing =
         grid != nullptr ? std::max(context.spacing, RasterGrid::Of(*grid).Spacing(apply_.surface))
                         : context.spacing;
     const CraterList secondaries = Secondaries(samples.Bounds(), spacing);
     ApplyCraters(samples, secondaries, models_, apply_, {spacing, context.threads});
-    if (grid != nullptr) {
-        features.AddCraters(secondaries, [&](const Crater& crater) {
-            return ComputeCraterAttributes(crater, models_.degradation->State(crater),
-                                           *models_.profile);
-        });
-    }
 }
 
 }  // namespace terraingen

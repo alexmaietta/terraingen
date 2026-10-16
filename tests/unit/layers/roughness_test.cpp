@@ -1,6 +1,5 @@
 #include "terraingen/layers/roughness.h"
 
-#include "terraingen/layers/features.h"
 #include "terraingen/noise/perlin.h"
 #include "terraingen/raster/grid.h"
 
@@ -100,9 +99,8 @@ TEST(RoughnessLayer, GivesPointsTheSameBitsAsGridsOnAnyThreads) {
         64, 48, terraingen::GeoTransform::NorthUp(350000.25, 4100000.5, 0.02)};
     auto one = grid.MakeRaster();
     auto many = grid.MakeRaster();
-    terraingen::TerrainFeatures features;
-    layer.Apply(one, {0.0, 1}, features);
-    layer.Apply(many, {0.0, 4}, features);
+    layer.Apply(one, {0.0, 1});
+    layer.Apply(many, {0.0, 4});
     double sumSquares = 0.0;
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
@@ -144,8 +142,7 @@ TEST(RoughnessLayer, LeavesMissingCellsAndRejectsBadSpacings) {
     auto heights = grid.MakeRaster();
     heights.SetNoData(-9999.0f);
     heights(1, 2) = -9999.0f;
-    terraingen::TerrainFeatures features;
-    layer.Apply(heights, {}, features);
+    layer.Apply(heights, {});
     EXPECT_EQ(heights(1, 2), -9999.0f);
     EXPECT_NE(heights(0, 0), 0.0f);
 }

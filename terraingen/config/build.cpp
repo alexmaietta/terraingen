@@ -26,6 +26,7 @@
 #include "terraingen/layers/craters/shaping/morphometry.h"
 #include "terraingen/layers/noise_relief.h"
 #include "terraingen/layers/transforms.h"
+#include "terraingen/pipeline/features.h"
 #include "terraingen/sources/flat_source.h"
 #include "terraingen/sources/geotiff_source.h"
 #include "terraingen/sources/source_chain.h"
@@ -448,32 +449,46 @@ Terrain BuildValidTerrain(const TerrainConfig& config, const std::filesystem::pa
     for (std::size_t i = 0; i < config.layers.size(); ++i) {
         const LayerInputs context{*terrain.source, craters, terrain.surface};
         terrain.layers.push_back(BuildLayer(config.layers[i], Element("layers", i), context));
-        if (auto built = std::dynamic_pointer_cast<const CraterLayer>(terrain.layers.back())) {
-            craters = std::move(built);
+        if (std::holds_alternative<CraterLayerSpec>(config.layers[i])) {
+            craters = std::static_pointer_cast<const CraterLayer>(terrain.layers.back());
         }
     }
     for (const FilterSpec& filter : config.filters) {
         std::visit(
             [&](const RimSmoothing& smoothing) {
+                const auto layers = terrain.layers;
+                const Surface surface = terrain.surface;
+                CraterQuery placed = [layers, surface](const RasterGrid& grid, double spacing) {
+                    return PlacedCraters(layers, grid, spacing, surface).craters;
+                };
                 terrain.filters.push_back(
-                    std::make_shared<RimSmoothingFilter>(smoothing, terrain.surface));
+                    std::make_shared<RimSmoothingFilter>(smoothing, std::move(placed), surface));
             },
             filter);
     }
     return terrain;
 }
 
-Albedo BuildValidAlbedo(const AlbedoSpec& spec, const Terrain& terrain,
+/// The top-level crater layers of a terrain built from `config`, in order.
+std::vector<std::shared_ptr<const CraterLayer>> CraterLayersOf(const TerrainConfig& config,
+                                                               const Terrain& terrain) {
+    std::vector<std::shared_ptr<const CraterLayer>> craterLayers;
+    for (std::size_t i = 0; i < config.layers.size(); ++i) {
+        if (std::holds_alternative<CraterLayerSpec>(config.layers[i])) {
+            craterLayers.push_back(std::static_pointer_cast<const CraterLayer>(terrain.layers[i]));
+        }
+    }
+    return craterLayers;
+}
+
+Albedo BuildValidAlbedo(const TerrainConfig& config, const Terrain& terrain,
                         const std::filesystem::path& directory) {
+    const AlbedoSpec& spec = *config.albedo;
     Albedo albedo;
     albedo.surface = terrain.surface;
     albedo.source = BuildAlbedoSource(spec.source, terrain, directory);
-    std::vector<std::shared_ptr<const CraterLayer>> craterLayers;
-    for (const auto& layer : terrain.layers) {
-        if (auto craters = std::dynamic_pointer_cast<const CraterLayer>(layer)) {
-            craterLayers.push_back(std::move(craters));
-        }
-    }
+    const std::vector<std::shared_ptr<const CraterLayer>> craterLayers =
+        CraterLayersOf(config, terrain);
     for (const AlbedoLayerSpec& layer : spec.layers) {
         std::visit(
             [&](const CraterAlbedoSpec& craters) {
@@ -501,7 +516,7 @@ Albedo BuildAlbedo(const TerrainConfig& config, const Terrain& terrain,
         throw ConfigError("albedo", "the configuration has no albedo");
     }
     ValidateAlbedo(config, directory, terrain.surface);
-    return BuildValidAlbedo(*config.albedo, terrain, directory);
+    return BuildValidAlbedo(config, terrain, directory);
 }
 
 }  // namespace terraingen

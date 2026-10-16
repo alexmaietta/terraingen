@@ -52,7 +52,7 @@ class Example(_common.Example):
         )
         fbm = terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=800.0, amplitude=40.0))
         generation = terraingen.CraterGenerationOptions(min_diameter=8.0, max_diameter=300.0)
-        self.evaluated = {}
+        self.heights, self.craters = {}, {}
         print(f"{'ages':16s} {'10%':>7s} {'50%':>7s} {'90%':>7s}  (Gyr)")
         for name, ages in age_models.items():
             models = terraingen.CraterModels(density, ages, diffusion, terraingen.FassettThomsonProfile())
@@ -62,30 +62,29 @@ class Example(_common.Example):
             terrain = terraingen.Terrain(
                 terraingen.FlatSource(257, 257, PIXEL), [terraingen.NoiseRelief([fbm]), craters]
             )
-            evaluated = terraingen.evaluate(terrain)
-            p10, p50, p90 = np.percentile(evaluated.craters["age_gyr"], [10, 50, 90])
+            heights = terraingen.evaluate(terrain)
+            craters = terraingen.placed_craters(terrain).table
+            p10, p50, p90 = np.percentile(craters["age_gyr"], [10, 50, 90])
             print(f"{name:16s} {p10:7.3f} {p50:7.3f} {p90:7.3f}")
-            self.evaluated[name] = evaluated
-            self.show(name, evaluated.heights)
+            self.heights[name], self.craters[name] = heights, craters
+            self.show(name, heights)
 
     def save(self, out):
-        shades = [hillshade(evaluated.heights.values, PIXEL) for evaluated in self.evaluated.values()]
+        shades = [hillshade(heights.values, PIXEL) for heights in self.heights.values()]
         print("wrote", write_png(out / "example_ages_models.png", montage(shades, columns=4)))
 
     def test_final(self):
-        assert len(self.evaluated) == 4, "four age models"
-        assert all(e.heights.shape == (257, 257) for e in self.evaluated.values()), (
-            "the heights are 257 x 257"
-        )
-        assert len(self.evaluated["fresh"].craters["diameter"]) > 50, "more than 50 craters"
-        assert np.all(self.evaluated["fresh"].craters["age_gyr"] == 0.0), "fresh craters have age zero"
-        uniform = self.evaluated["uniform 3.5 Gyr"].craters["age_gyr"]
+        assert len(self.heights) == 4, "four age models"
+        assert all(h.shape == (257, 257) for h in self.heights.values()), "the heights are 257 x 257"
+        assert len(self.craters["fresh"]["diameter"]) > 50, "more than 50 craters"
+        assert np.all(self.craters["fresh"]["age_gyr"] == 0.0), "fresh craters have age zero"
+        uniform = self.craters["uniform 3.5 Gyr"]["age_gyr"]
         assert uniform.min() >= 0.0 and uniform.max() <= 3.5, "uniform ages lie within 3.5 Gyr"
-        steady = self.evaluated["steady state"].craters["age_gyr"]
+        steady = self.craters["steady state"]["age_gyr"]
         assert np.median(steady) < 0.5 * np.median(uniform), (
             "steady-state craters are mostly younger than uniformly aged ones"
         )
-        custom = self.evaluated["custom"].craters
+        custom = self.craters["custom"]
         assert np.all(custom["age_gyr"] <= custom["diameter"] / 50.0 + 1e-9), (
             "custom ages lie within each crater's D / 50 Gyr lifetime"
         )

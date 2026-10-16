@@ -130,7 +130,7 @@ void BindCraterList(nb::module_& m) {
             "craters"_a)
         .def_static("from_table", &FromTable, "table"_a,
                     "From a dict of columns 'x', 'y', 'diameter' and optionally 'age_gyr', 'id' "
-                    "and 'manual', such as `EvaluatedTerrain.craters`.")
+                    "and 'manual', such as `CraterFeatures.table`.")
         .def("__len__", &CraterList::Size)
         .def(
             "__getitem__",

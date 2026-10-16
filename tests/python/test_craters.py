@@ -275,7 +275,7 @@ def test_crater_apply_options_give_finite_heights(lunar_models, crater_layer, no
     layer = crater_layer(lunar_models(), 10.0, 100.0, apply=full_apply_options())
     noise = noise_relief(1, 200.0, 5.0)
     terrain = terraingen.Terrain(terraingen.FlatSource(129, 129, 2.0), [noise, layer])
-    assert np.isfinite(terraingen.evaluate(terrain).heights.values).all()
+    assert np.isfinite(terraingen.evaluate(terrain).values).all()
 
 
 def test_crater_apply_options_reject_unknown_fields():
@@ -307,15 +307,15 @@ def lunar_crater_terrain(lunar_models, crater_layer, noise_relief):
 
 def test_crater_layer_generates_craters_in_its_diameter_range(lunar_models, crater_layer, noise_relief):
     _, terrain = lunar_crater_terrain(lunar_models, crater_layer, noise_relief)
-    table = terraingen.evaluate(terrain).craters
+    table = terraingen.placed_craters(terrain).table
     assert len(table["x"]) > 10
     assert table["diameter"].min() >= 6.0 and table["diameter"].max() < 60.0
 
 
 def test_crater_layer_evaluates_the_same_on_one_thread(lunar_models, crater_layer, noise_relief):
     _, terrain = lunar_crater_terrain(lunar_models, crater_layer, noise_relief)
-    evaluated = terraingen.evaluate(terrain)
-    assert np.array_equal(terraingen.evaluate(terrain, threads=1).heights.values, evaluated.heights.values)
+    heights = terraingen.evaluate(terrain).values
+    assert np.array_equal(terraingen.evaluate(terrain, threads=1).values, heights)
 
 
 def test_terrain_keeps_its_crater_layer(lunar_models, crater_layer, noise_relief):
@@ -339,10 +339,11 @@ def test_a_manual_crater_is_carved_alone():
             ),
         ),
     )
-    single = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(65, 65, 2.0), [manual]))
-    assert list(single.craters["diameter"]) == [60.0]
-    assert single.craters["manual"][0] == 1 and single.craters["depth_ratio"][0] > 0.1
-    assert single.heights.values[32, 32] < 0
+    terrain = terraingen.Terrain(terraingen.FlatSource(65, 65, 2.0), [manual])
+    table = terraingen.placed_craters(terrain).table
+    assert list(table["diameter"]) == [60.0]
+    assert table["manual"][0] == 1 and table["depth_ratio"][0] > 0.1
+    assert terraingen.evaluate(terrain).values[32, 32] < 0
 
 
 def test_crater_layer_accepts_fresh_ages_and_a_plateau_profile(crater_layer):

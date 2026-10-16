@@ -168,16 +168,16 @@ TEST(DiffusionDegradation, CraterLayersAgreeOnGridsAndPoints) {
                                         options);
     terraingen::Raster<float> heights(64, 64, 0.0f);
     heights.SetTransform(terraingen::GeoTransform::NorthUp(-64.0, 64.0, 2.0));
-    terraingen::TerrainFeatures features;
-    layer.Apply(heights, {.spacing = 2.0, .threads = 0}, features);
-    ASSERT_GT(features.craters.Size(), 3u);
+    layer.Apply(heights, {.spacing = 2.0, .threads = 0});
+    const auto craters = layer.Craters(terraingen::RasterGrid::Of(heights).Bounds(), 2.0);
+    ASSERT_GT(craters.Size(), 3u);
     for (const auto& [col, row] :
          {std::pair<std::size_t, std::size_t>{10, 10}, std::pair<std::size_t, std::size_t>{40, 22},
           std::pair<std::size_t, std::size_t>{63, 63}}) {
         const auto centre = heights.CellCenter(col, row);
         EXPECT_EQ(layer.ApplyAt(0.0f, centre.x, centre.y, {2.0}), heights(col, row));
     }
-    for (const auto& attributes : features.craterAttributes) {
-        EXPECT_LE(attributes.freshness, 1.0);
+    for (std::size_t n = 0; n < craters.Size(); ++n) {
+        EXPECT_LE(layer.Attributes(craters.At(n)).freshness, 1.0);
     }
 }

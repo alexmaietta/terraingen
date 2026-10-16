@@ -14,7 +14,6 @@ using terraingen::LayerContext;
 using terraingen::RandomStream;
 using terraingen::Raster;
 using terraingen::Surface;
-using terraingen::TerrainFeatures;
 using terraingen::Vec2d;
 
 namespace {
@@ -37,10 +36,8 @@ Raster<float> CheckGridAndPoints(const Layer& layer, Raster<float> raster, doubl
                                  const terraingen::Ground* ground = nullptr) {
     Raster<float> threaded = raster;
     const Raster<float> before = raster;
-    TerrainFeatures features;
-    layer.Apply(raster, {.spacing = spacing, .threads = 1, .ground = ground}, features);
-    TerrainFeatures more;
-    layer.Apply(threaded, {.spacing = spacing, .threads = 0, .ground = ground}, more);
+    layer.Apply(raster, {.spacing = spacing, .threads = 1, .ground = ground});
+    layer.Apply(threaded, {.spacing = spacing, .threads = 0, .ground = ground});
     for (std::size_t i = 0; i < raster.Size(); ++i) {
         EXPECT_EQ(raster.Values()[i], threaded.Values()[i]);
     }
@@ -183,9 +180,8 @@ TEST(SphereLayers, BouldersHaveThePlaneDensityAndPlaceModelsLocally) {
         highest = std::max(highest, value);
     }
     EXPECT_GT(highest, 0.05f);
-    TerrainFeatures features;
-    sphere.Apply(heights, {.spacing = 0.1, .threads = 1, .ground = &flat}, features);
-    for (const auto& boulder : features.boulderModels) {
+    const auto boulders = sphere.Boulders(terraingen::RasterGrid::Of(heights).Bounds(), 0.1, &flat);
+    for (const auto& boulder : sphere.Models(boulders)) {
         EXPECT_LT(std::fabs(boulder.placement.pose.translation.x), 1e-9);
         EXPECT_LT(std::fabs(boulder.placement.pose.translation.y), 1e-9);
     }

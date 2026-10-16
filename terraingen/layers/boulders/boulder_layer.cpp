@@ -3,12 +3,10 @@
 #include "terraingen/layers/boulders/boulder_layer.h"
 
 #include "terraingen/layers/craters/ages/age_model.h"
-#include "terraingen/layers/features.h"
 #include "terraingen/random/philox.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/grid.h"
-#include "terraingen/raster/resample.h"
 #include "terraingen/util/cells.h"
 
 #include <algorithm>
@@ -268,45 +266,29 @@ void BoulderLayer::DrawRelief(SampleBlock& samples, const std::vector<Relief>& r
     }
 }
 
-void BoulderLayer::ApplySamples(SampleBlock& samples, const LayerContext& context,
-                                TerrainFeatures& features) const {
-    const Raster<float>* grid = samples.Grid();
-    if (grid == nullptr && options_.rendering.relief == BoulderRelief::None) {
+void BoulderLayer::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
+    if (options_.rendering.relief == BoulderRelief::None) {
         return;
     }
+    const Raster<float>* grid = samples.Grid();
     const double spacing = grid != nullptr
                                ? std::max(context.spacing, RasterGrid::Of(*grid).Spacing(surface_))
                                : context.spacing;
-    std::vector<Boulder> boulders = Boulders(samples.Bounds(), spacing, context.ground);
-    if (grid != nullptr) {
-        for (Boulder& boulder : boulders) {
-            if (boulder.model && !boulder.ground) {
-                const float below =
-                    SampleRaster(*grid, boulder.x, boulder.y, ResampleMethod::Bilinear);
-                if (!std::isnan(below)) {
-                    boulder.ground = static_cast<double>(below);
-                }
-            }
-        }
-    }
-    if (options_.rendering.relief != BoulderRelief::None) {
-        DrawRelief(samples, PrepareRelief(boulders, spacing), context.threads);
-    }
-    if (grid != nullptr) {
-        RecordFeatures(std::move(boulders), features);
-    }
+    const std::vector<Boulder> boulders = Boulders(samples.Bounds(), spacing, context.ground);
+    DrawRelief(samples, PrepareRelief(boulders, spacing), context.threads);
 }
 
-void BoulderLayer::RecordFeatures(std::vector<Boulder> boulders, TerrainFeatures& features) const {
+std::vector<BoulderModel> BoulderLayer::Models(const std::vector<Boulder>& boulders) const {
+    std::vector<BoulderModel> models;
     for (const Boulder& boulder : boulders) {
         if (boulder.model && boulder.ground) {
             const auto shape = Shape(boulder);
-            features.boulderModels.push_back(
+            models.push_back(
                 {boulder, BoulderShapeSeed(boulder.id, options_.rendering.shapePrototypes), shape,
                  PlaceBoulderModel(InLocalFrame(boulder), *shape, *boulder.ground)});
         }
     }
-    features.boulders.insert(features.boulders.end(), boulders.begin(), boulders.end());
+    return models;
 }
 
 }  // namespace terraingen

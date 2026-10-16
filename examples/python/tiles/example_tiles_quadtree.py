@@ -49,13 +49,13 @@ class Example(_common.Example):
         scheme = terraingen.TileScheme.covering(grid, cells=128)
 
         self.finest = scheme.level_for(1.0)
-        self.whole = terraingen.evaluate(terrain, grid=grid).heights
+        self.whole = terraingen.evaluate(terrain, grid=grid)
         whole = self.whole.values
         self.keys = scheme.tiles_covering(grid.bounds, self.finest)
         self.tiles = terraingen.evaluate_tiles(terrain, scheme, self.keys)
         self.same = all(
             np.array_equal(
-                tile.heights.values,
+                tile.values,
                 whole[int(round(grid.transform.origin_y - scheme.grid(key).transform.origin_y)) :][
                     :128, int(round(scheme.grid(key).transform.origin_x - grid.transform.origin_x)) :
                 ][:, :128],
@@ -72,19 +72,19 @@ class Example(_common.Example):
         for level in (self.finest - 2, self.finest - 1, self.finest):
             key = scheme.tile_at(-1.0, 1.0, level)
             tile = terraingen.evaluate_tile(terrain, scheme, key)
-            self.crater_counts.append(len(tile.craters["x"]))
+            self.crater_counts.append(len(terraingen.placed_craters(terrain, grid=scheme.grid(key)).craters))
             print(
                 f"level {level}: tile {key}, {scheme.spacing(level):.0f} m spacing, {self.crater_counts[-1]} craters"
             )
-            self.shades.append(hillshade(tile.heights.values, scheme.spacing(level)))
-            self.show(f"level {level} tile ({key.x}, {key.y})", tile.heights)
+            self.shades.append(hillshade(tile.values, scheme.spacing(level)))
+            self.show(f"level {level} tile ({key.x}, {key.y})", tile)
 
     def save(self, out):
         print("wrote", write_png(out / "example_tiles_quadtree.png", montage(self.shades, columns=3)))
 
     def test_final(self):
         assert self.finest == 2 and len(self.keys) == 16, "level 2 has 16 tiles over the 512 m grid"
-        assert all(tile.heights.shape == (128, 128) for tile in self.tiles), "every tile is 128 x 128"
+        assert all(tile.shape == (128, 128) for tile in self.tiles), "every tile is 128 x 128"
         assert self.same, "every tile equals the same cells of the whole grid, to the bit"
         assert np.isfinite(self.whole.values).all(), "every height is finite"
         assert len(self.shades) == 3 and all(shade.shape == (128, 128) for shade in self.shades), (

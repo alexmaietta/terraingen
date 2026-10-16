@@ -14,7 +14,6 @@ using terraingen::CraterList;
 using terraingen::CraterModels;
 using terraingen::GeoTransform;
 using terraingen::Raster;
-using terraingen::TerrainFeatures;
 
 namespace {
 
@@ -44,8 +43,7 @@ Raster<float> Grid(double originX = -64.0, double originY = 64.0) {
 TEST(CraterLayer, GeneratesAndAppliesCratersOverTheGrid) {
     const CraterLayer layer(Models(), Options());
     Raster<float> heights = Grid();
-    TerrainFeatures features;
-    layer.Apply(heights, {2.0}, features);
+    layer.Apply(heights, {2.0});
 
     const CraterModels models = Models();
     const CraterList craters = terraingen::GenerateCraters(
@@ -54,29 +52,16 @@ TEST(CraterLayer, GeneratesAndAppliesCratersOverTheGrid) {
     Raster<float> expected = Grid();
     terraingen::ApplyCraters(expected, craters, models.Shape());
     ASSERT_GT(craters.Size(), 0u);
-    EXPECT_EQ(features.craters.Ids(), craters.Ids());
-    ASSERT_EQ(features.craterAttributes.size(), craters.Size());
     for (std::size_t n = 0; n < craters.Size(); ++n) {
         const auto crater = craters.At(n);
-        EXPECT_EQ(features.craterAttributes[n],
+        EXPECT_EQ(layer.Attributes(crater),
                   terraingen::ComputeCraterAttributes(crater, models.degradation->State(crater),
                                                       *models.profile));
-        EXPECT_EQ(features.craterAttributes[n], layer.Attributes(crater));
     }
     EXPECT_EQ(layer.Craters({-64.0, -64.0, 64.0, 64.0}).Ids(), craters.Ids());
     for (std::size_t i = 0; i < expected.Size(); ++i) {
         ASSERT_EQ(heights.Values()[i], expected.Values()[i]) << i;
     }
-}
-
-TEST(CraterLayer, AppendsToTheFeaturesOfEarlierLayers) {
-    const CraterLayer layer(Models(), Options());
-    TerrainFeatures features;
-    features.craters.Append({1000.0, 1000.0, 10.0, 0.0, 99u});
-    Raster<float> heights = Grid();
-    layer.Apply(heights, {2.0}, features);
-    EXPECT_EQ(features.craters.At(0).id, 99u);
-    EXPECT_GT(features.craters.Size(), 1u);
 }
 
 TEST(CraterLayer, AppliesOnlyManualCratersWithoutGenerating) {
@@ -90,8 +75,7 @@ TEST(CraterLayer, AppliesOnlyManualCratersWithoutGenerating) {
     EXPECT_TRUE(craters.At(0).manual);
     EXPECT_EQ(craters.At(0).id, terraingen::ManualCraterId(0.0, 0.0, 30.0));
     Raster<float> heights = Grid();
-    TerrainFeatures features;
-    layer.Apply(heights, {2.0}, features);
+    layer.Apply(heights, {2.0});
     EXPECT_LT(heights(32, 32), -1.0f);
 }
 
@@ -113,10 +97,9 @@ TEST(CraterLayer, FadesCratersOutAsTheSpacingCoarsens) {
     options.generate = false;
     options.generation.manual.Append({0.0, 0.0, 10.0, 0.0, 0u});
     const CraterLayer layer(Models(), options);
-    TerrainFeatures features;
     const auto floor = [&](double spacing) {
         Raster<float> heights = Grid();
-        layer.Apply(heights, {spacing}, features);
+        layer.Apply(heights, {spacing});
         return heights(32, 32);
     };
     const float whole = floor(2.0);

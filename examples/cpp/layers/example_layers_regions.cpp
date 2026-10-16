@@ -69,29 +69,30 @@ class LayersRegions : public terraingen::examples::Example {
                 Craters(1.0, 10), terraingen::RegionShape::Rectangle({0.0, -kHalf, kHalf, kHalf}),
                 200.0)};
         evaluated_ = terraingen::Evaluate(terrain);
-        Out() << evaluated_.features.craters.Size() << " craters; mare weight at the centre "
-              << std::fixed << std::setprecision(2) << mare_->Weight(0.0, 0.0) << ", 700 m out "
+        craters_ = terraingen::PlacedCraters(terrain, terraingen::RasterGrid::Of(evaluated_));
+        Out() << craters_.craters.Size() << " craters; mare weight at the centre " << std::fixed
+              << std::setprecision(2) << mare_->Weight(0.0, 0.0) << ", 700 m out "
               << mare_->Weight(700.0, 0.0) << "\n"
               << std::defaultfloat;
-        Show("heights", evaluated_.heights);
+        Show("heights", evaluated_);
     }
 
     void Save(const std::filesystem::path& dir) override {
-        terraingen::WriteGeoTiff(dir / "example_layers_regions.tif", evaluated_.heights);
+        terraingen::WriteGeoTiff(dir / "example_layers_regions.tif", evaluated_);
     }
 
     void Test() override {
-        const auto& heights = evaluated_.heights;
+        const auto& heights = evaluated_;
         Check(heights.Width() == 513 && heights.Height() == 513, "the heights are 513 x 513");
         Check(std::all_of(heights.Values().begin(), heights.Values().end(),
                           [](float h) { return std::isfinite(h); }),
               "the heights are finite");
-        Check(evaluated_.features.craters.Size() > 1000, "more than 1000 craters");
+        Check(craters_.craters.Size() > 1000, "more than 1000 craters");
         Check(mare_->Weight(0.0, 0.0) > 0.99 && mare_->Weight(700.0, 0.0) > 0.0 &&
                   mare_->Weight(700.0, 0.0) < 0.5 && mare_->Weight(800.0, 0.0) < 1e-6,
               "the mare weighs 1 inside its circle and fades out over the 150 m feather");
-        const auto& xs = evaluated_.features.craters.X();
-        const auto& ages = evaluated_.features.craters.AgesGyr();
+        const auto& xs = craters_.craters.X();
+        const auto& ages = craters_.craters.AgesGyr();
         double oldestWest = 0.0;
         double oldestEast = 0.0;
         for (std::size_t i = 0; i < xs.size(); ++i) {
@@ -108,7 +109,8 @@ class LayersRegions : public terraingen::examples::Example {
 
   private:
     std::shared_ptr<terraingen::RegionLayer> mare_;
-    terraingen::EvaluatedTerrain evaluated_;
+    terraingen::Raster<float> evaluated_;
+    terraingen::CraterFeatures craters_;
 };
 
 }  // namespace

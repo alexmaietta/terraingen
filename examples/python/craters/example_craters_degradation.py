@@ -52,7 +52,7 @@ class Example(_common.Example):
             ),
         }
         generation = terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=150.0)
-        self.evaluated = {}
+        self.heights, self.ratios = {}, {}
         for name, degradation in models.items():
             crater_models = terraingen.CraterModels(
                 density, ages, degradation, terraingen.FassettThomsonProfile()
@@ -60,30 +60,27 @@ class Example(_common.Example):
             craters = terraingen.CraterLayer(
                 crater_models, terraingen.CraterLayerOptions(seed=31, generation=generation)
             )
-            evaluated = terraingen.evaluate(
-                terraingen.Terrain(terraingen.FlatSource(257, 257, PIXEL), [craters])
-            )
-            print(f"{name:18s} mean depth/diameter {evaluated.craters['depth_ratio'].mean():.3f}")
-            self.evaluated[name] = evaluated
+            terrain = terraingen.Terrain(terraingen.FlatSource(257, 257, PIXEL), [craters])
+            self.heights[name] = terraingen.evaluate(terrain)
+            self.ratios[name] = terraingen.placed_craters(terrain).table["depth_ratio"]
+            print(f"{name:18s} mean depth/diameter {self.ratios[name].mean():.3f}")
         for name in ("freshness", "none", "fixed d/D 0.1", "diffusion FT2014", "diffusion F2022"):
-            self.show(name, self.evaluated[name].heights)
+            self.show(name, self.heights[name])
 
     def save(self, out):
-        shades = [hillshade(evaluated.heights.values, PIXEL) for evaluated in self.evaluated.values()]
+        shades = [hillshade(heights.values, PIXEL) for heights in self.heights.values()]
         print("wrote", write_png(out / "example_craters_degradation.png", montage(shades, columns=5)))
 
     def test_final(self):
-        ratios = {name: evaluated.craters["depth_ratio"] for name, evaluated in self.evaluated.items()}
-        assert len({len(evaluated.craters["x"]) for evaluated in self.evaluated.values()}) == 1, (
-            "every model has the same craters"
-        )
+        ratios = self.ratios
+        assert len({len(ratio) for ratio in ratios.values()}) == 1, "every model has the same craters"
         assert len(ratios["none"]) > 10, "more than 10 craters"
         assert np.allclose(ratios["fixed d/D 0.1"], 0.1), "the fixed model keeps d/D at 0.1"
         assert all(
             ratios[name].mean() < ratios["none"].mean()
             for name in ("freshness", "diffusion FT2014", "diffusion F2022")
         ), "every degradation model makes craters shallower than fresh"
-        assert all(np.all(np.isfinite(evaluated.heights.values)) for evaluated in self.evaluated.values()), (
+        assert all(np.all(np.isfinite(heights.values)) for heights in self.heights.values()), (
             "every height is finite"
         )
 

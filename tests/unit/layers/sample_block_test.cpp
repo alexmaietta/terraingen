@@ -6,7 +6,6 @@
 #include "terraingen/layers/craters/degradation/degradation_model.h"
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
 #include "terraingen/layers/craters/shaping/morphometry.h"
-#include "terraingen/layers/features.h"
 #include "terraingen/layers/transforms.h"
 #include "terraingen/raster/geo_transform.h"
 
@@ -73,12 +72,11 @@ TEST(SampleBlock, AppliesALayerToManyPointsAsToEachAlone) {
     const std::vector<Vec2d> positions{{0.0, 0.0}, {37.5, -12.0}, {-80.0, 64.0}, {150.0, 3.0}};
     std::vector<float> heights(positions.size(), 0.0f);
     SampleBlock samples(positions, heights);
-    terraingen::TerrainFeatures features;
-    layer->Apply(samples, {2.0}, features);
+    layer->Apply(samples, {2.0});
     for (std::size_t i = 0; i < positions.size(); ++i) {
         EXPECT_EQ(heights[i], layer->ApplyAt(0.0f, positions[i].x, positions[i].y, {2.0}));
     }
-    EXPECT_THROW(layer->Apply(samples, {}, features), std::invalid_argument)
+    EXPECT_THROW(layer->Apply(samples, {}), std::invalid_argument)
         << "points need a sample spacing";
 }
 
@@ -93,7 +91,6 @@ TEST(FunctionLayer, PassesTheSpacingInMetresOnASphere) {
         moon);
     Raster<float> heights(1, 1, 0.0f);
     heights.SetTransform(terraingen::GeoTransform::NorthUp(0.0, 0.001, 0.001));
-    terraingen::TerrainFeatures features;
-    layer.Apply(heights, {}, features);
+    layer.Apply(heights, {});
     EXPECT_NEAR(seen, 0.001 * moon.UnitLength(), 1e-9);
 }

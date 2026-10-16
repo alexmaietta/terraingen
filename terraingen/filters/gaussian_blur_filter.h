@@ -17,8 +17,7 @@ class GaussianBlurFilter final : public Filter {
     /// @throws std::invalid_argument for a negative or non-finite `sigma`, or a sphere.
     explicit GaussianBlurFilter(double sigma, Surface surface = {});
 
-    void Apply(Raster<float>& heights, const FilterContext& context,
-               const TerrainFeatures& features) const override;
+    void Apply(Raster<float>& heights, const FilterContext& context) const override;
 
     /// Three standard deviations, where the kernel ends, and two samples.
     double Margin(double maxFeatureDiameter, double spacing) const override;

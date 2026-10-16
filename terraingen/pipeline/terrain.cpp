@@ -32,36 +32,34 @@ void EvaluateStack(const Terrain& terrain, std::size_t layers, std::span<const V
     for (std::size_t i = 0; i < points.size(); ++i) {
         heights[i] = terrain.source->HeightAt(points[i].x, points[i].y);
     }
-    TerrainFeatures features;
     for (std::size_t n = 0; n < layers; ++n) {
         const TerrainGround ground(terrain, n);
         SampleBlock samples(points, heights);
-        terrain.layers[n]->Apply(samples, LayerContext{spacing, 1, &ground}, features);
+        terrain.layers[n]->Apply(samples, LayerContext{spacing, 1, &ground});
     }
 }
 
 }  // namespace
 
-EvaluatedTerrain Evaluate(const Terrain& terrain, const RasterGrid& grid, double spacing) {
+Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid, double spacing) {
     return Evaluate(terrain, grid, EvaluationOptions{spacing, 1});
 }
 
-EvaluatedTerrain Evaluate(const Terrain& terrain, const RasterGrid& grid,
-                          const EvaluationOptions& options) {
+Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid,
+                       const EvaluationOptions& options) {
     CheckTerrain(terrain);
     RequireNonNegative(options.spacing, "Sample spacing");
     const double resolved = std::max(options.spacing, grid.Spacing(terrain.surface));
-    EvaluatedTerrain result{grid.MakeRaster(), {}};
-    terrain.source->Fill(result.heights);
+    Raster<float> heights = grid.MakeRaster();
+    terrain.source->Fill(heights);
     for (std::size_t n = 0; n < terrain.layers.size(); ++n) {
         const TerrainGround ground(terrain, n);
-        terrain.layers[n]->Apply(result.heights, LayerContext{resolved, options.threads, &ground},
-                                 result.features);
+        terrain.layers[n]->Apply(heights, LayerContext{resolved, options.threads, &ground});
     }
     for (const auto& filter : terrain.filters) {
-        filter->Apply(result.heights, {resolved, options.threads}, result.features);
+        filter->Apply(heights, {resolved, options.threads});
     }
-    return result;
+    return heights;
 }
 
 double FilterMargin(const Terrain& terrain, double spacing) {
@@ -118,7 +116,7 @@ float TerrainGround::HeightAt(double x, double y, double spacing) const {
     return height;
 }
 
-EvaluatedTerrain Evaluate(const Terrain& terrain) {
+Raster<float> Evaluate(const Terrain& terrain) {
     CheckTerrain(terrain);
     return Evaluate(terrain, terrain.source->Grid());
 }

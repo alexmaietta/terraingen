@@ -4,7 +4,8 @@
 
 #include "terraingen/albedo/albedo.h"
 #include "terraingen/config/config.h"
-#include "terraingen/layers/features.h"
+#include "terraingen/pipeline/features.h"
+#include "terraingen/pipeline/terrain.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/util/geometry.h"
@@ -18,10 +19,10 @@ namespace terraingen {
 
 /// @brief A terrain generated from a configuration.
 struct GeneratedTerrain {
-    Raster<float> heights;     ///< The heights over the source's grid.
-    TerrainFeatures features;  ///< The features the layers placed.
+    Terrain terrain;  ///< The terrain built from the configuration, to list its features from.
+    Raster<float> heights{};  ///< The heights over the source's grid.
     /// The projection of a raster source, or geographic keys on a sphere without one.
-    GeoKeys geoKeys;
+    GeoKeys geoKeys{};
     /// The albedo bands; empty without an albedo.
     std::vector<Raster<float>> albedo{};
     double seconds = 0.0;  ///< Wall-clock time the heights and albedo took to evaluate.
@@ -40,7 +41,7 @@ GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
 
 /// @brief One line describing a generated terrain.
 /// @param terrain The generated terrain.
-/// @return "Generated a WxH terrain with N craters and M boulders in S s".
+/// @return "Generated a WxH terrain in S s".
 std::string Summary(const GeneratedTerrain& terrain);
 
 /// @brief Writes craters as CSV (columns x, y, diameter, age_gyr, id, manual) or as JSON

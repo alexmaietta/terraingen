@@ -4,9 +4,12 @@
 
 #include "terraingen/layers/fade.h"
 #include "terraingen/layers/layer.h"
+#include "terraingen/raster/cell_loops.h"
+#include "terraingen/raster/grid.h"
 #include "terraingen/util/geometry.h"
 
 #include <memory>
+#include <optional>
 
 namespace terraingen {
 
@@ -62,7 +65,7 @@ void ValidateRegionShape(const RegionShape& shape);
 /// `feather` metres outside it.
 ///
 /// The inner layer sees the same context and, on grids, is applied only to the cells near the
-/// region. Of its features, those centred within the region or its feather are kept.
+/// region. Of its features, those centred within the region or its feather (`Holds`) belong to it.
 class RegionLayer final : public Layer {
   public:
     /// @brief Makes the layer.
@@ -94,19 +97,21 @@ class RegionLayer final : public Layer {
         return *inner_;
     }
 
+    /// Whether a feature centred at (x, y) belongs to the region: within it or its feather.
+    bool Holds(double x, double y) const;
+
+    /// The part of `grid` the inner layer is applied to, the cells near the region; nothing when no
+    /// cell is.
+    std::optional<RasterGrid> InnerGrid(const RasterGrid& grid) const;
+
   protected:
-    /// Applies the inner layer to the samples near the region and blends it in by `Weight`,
-    /// keeping its features centred within the region or its feather.
-    void ApplySamples(SampleBlock& samples, const LayerContext& context,
-                      TerrainFeatures& features) const override;
+    /// Applies the inner layer to the samples near the region and blends it in by `Weight`.
+    void ApplySamples(SampleBlock& samples, const LayerContext& context) const override;
 
   private:
-    void ApplyToGrid(Raster<float>& heights, const LayerContext& context,
-                     TerrainFeatures& placed) const;
-    void ApplyToPoints(SampleBlock& samples, const LayerContext& context,
-                       TerrainFeatures& placed) const;
-    /// Adds the features of `placed` centred within the region or its feather to `features`.
-    void KeepFeaturesInside(const TerrainFeatures& placed, TerrainFeatures& features) const;
+    void ApplyToGrid(Raster<float>& heights, const LayerContext& context) const;
+    void ApplyToPoints(SampleBlock& samples, const LayerContext& context) const;
+    PixelWindow InnerWindow(const RasterGrid& grid) const;
 
     std::shared_ptr<const Layer> inner_;
     RegionShape shape_;

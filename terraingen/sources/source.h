@@ -2,6 +2,7 @@
 /// @brief The source interface: where a terrain's heights come from.
 #pragma once
 
+#include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/util/geometry.h"
@@ -26,6 +27,11 @@ class Source {
     /// single-precision noise accurate where coordinates are large.
     /// @return The reference point in world units; the origin by default.
     virtual Vec2d ReferencePoint() const {
+        return {};
+    }
+
+    /// The projection outputs over the source's grid are written with; none by default.
+    virtual GeoKeys Keys() const {
         return {};
     }
 

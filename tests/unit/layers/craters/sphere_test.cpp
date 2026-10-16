@@ -19,7 +19,6 @@ using terraingen::CubeSphereCells;
 using terraingen::GeoTransform;
 using terraingen::Raster;
 using terraingen::Surface;
-using terraingen::TerrainFeatures;
 
 namespace {
 
@@ -155,18 +154,16 @@ TEST(SphereCraterLayer, GridsEqualPointsAndThreadsAcrossTheAntimeridian) {
     const CraterLayer layer(Models(), options);
     Raster<float> one = Geographic(179.95, 45.05, 0.001, 100);
     Raster<float> many = one;
-    TerrainFeatures features;
-    layer.Apply(one, {.spacing = 0.0, .threads = 1}, features);
-    TerrainFeatures more;
-    layer.Apply(many, {.spacing = 0.0, .threads = 0}, more);
+    layer.Apply(one, {.spacing = 0.0, .threads = 1});
+    layer.Apply(many, {.spacing = 0.0, .threads = 0});
     int changed = 0;
     for (std::size_t i = 0; i < one.Size(); ++i) {
         EXPECT_EQ(one.Values()[i], many.Values()[i]);
         changed += one.Values()[i] != 0.0f ? 1 : 0;
     }
     EXPECT_GT(changed, 1000);
-    EXPECT_GT(features.craters.Size(), 1u);
     const double spacing = terraingen::RasterGrid::Of(one).Spacing(options.surface);
+    EXPECT_GT(layer.Craters(terraingen::RasterGrid::Of(one).Bounds(), spacing).Size(), 1u);
     EXPECT_NEAR(spacing, 0.001 * options.surface.UnitLength(), 1e-9);
     for (const auto& [col, row] :
          {std::pair<std::size_t, std::size_t>{10, 10}, std::pair<std::size_t, std::size_t>{50, 50},
@@ -178,8 +175,7 @@ TEST(SphereCraterLayer, GridsEqualPointsAndThreadsAcrossTheAntimeridian) {
             << col << " " << row;
     }
     Raster<float> wrapped = Geographic(-180.05, 45.05, 0.001, 100);
-    TerrainFeatures again;
-    layer.Apply(wrapped, {.spacing = 0.0, .threads = 2}, again);
+    layer.Apply(wrapped, {.spacing = 0.0, .threads = 2});
     for (std::size_t i = 0; i < one.Size(); ++i) {
         EXPECT_NEAR(wrapped.Values()[i], one.Values()[i], 1e-2f);
     }
@@ -207,9 +203,8 @@ TEST(SphereCraterLayer, FitsDatumsOnTheSphere) {
         }
     }
     const Raster<float> before = heights;
-    TerrainFeatures features;
     const double spacing = terraingen::RasterGrid::Of(heights).Spacing(options.surface);
-    layer.Apply(heights, {.spacing = spacing, .threads = 1, .ground = &ground}, features);
+    layer.Apply(heights, {.spacing = spacing, .threads = 1, .ground = &ground});
     const auto centre = heights.CellCenter(25, 25);
     EXPECT_EQ(heights(25, 25), layer.ApplyAt(before(25, 25), centre.x, centre.y,
                                              {.spacing = spacing, .ground = &ground}));

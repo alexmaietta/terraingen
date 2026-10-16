@@ -34,14 +34,14 @@ class Example(_common.Example):
                 terraingen.FlatSource(257, 257, PIXEL),
                 [terraingen.NoiseRelief([terraingen.NoiseLayer(params)])],
             )
-            evaluated = terraingen.evaluate(terrain)
-            heights = evaluated.heights.values.astype(np.float64)
+            raster = terraingen.evaluate(terrain)
+            heights = raster.values.astype(np.float64)
             dz_dy, dz_dx = np.gradient(heights, PIXEL)
             rms = np.degrees(np.arctan(np.sqrt(np.mean(dz_dx**2 + dz_dy**2))))
             print(f"H = {hurst:.1f}: RMS slope {rms:5.2f} degrees over {PIXEL} m")
             self.heights.append(heights)
             self.rms.append(rms)
-            self.show(f"H = {hurst:.1f}", evaluated.heights)
+            self.show(f"H = {hurst:.1f}", raster)
 
     def save(self, out):
         shades = [hillshade(heights, PIXEL) for heights in self.heights]

@@ -2,6 +2,7 @@ terraingen_add_library(
     pipeline
     SOURCES
     body_mesh.cpp
+    features.cpp
     terrain.cpp
     tiles.cpp
     PUBLIC

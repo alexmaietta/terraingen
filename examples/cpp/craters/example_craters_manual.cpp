@@ -50,28 +50,27 @@ class CratersManual : public terraingen::examples::Example {
         terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(models, options));
 
         evaluated_ = terraingen::Evaluate(terrain);
-        for (std::size_t i = 0; i < evaluated_.features.craters.Size(); ++i) {
-            const terraingen::Crater crater = evaluated_.features.craters.At(i);
-            const terraingen::CraterAttributes& attributes =
-                evaluated_.features.craterAttributes[i];
+        craters_ = terraingen::PlacedCraters(terrain, terraingen::RasterGrid::Of(evaluated_));
+        for (std::size_t i = 0; i < craters_.craters.Size(); ++i) {
+            const terraingen::Crater crater = craters_.craters.At(i);
+            const terraingen::CraterAttributes& attributes = craters_.attributes[i];
             Out() << crater.diameter << " m crater, " << crater.ageGyr
                   << " Gyr old: depth/diameter " << attributes.depthRatio << "\n";
         }
-        Show("heights", evaluated_.heights);
+        Show("heights", evaluated_);
     }
 
     void Save(const std::filesystem::path& dir) override {
         const auto path = dir / "example_craters_manual.tif";
-        terraingen::WriteGeoTiff(path, evaluated_.heights);
+        terraingen::WriteGeoTiff(path, evaluated_);
         Out() << "Wrote " << path.string() << "\n";
     }
 
     void Test() override {
-        const terraingen::CraterList& craters = evaluated_.features.craters;
-        const auto& attributes = evaluated_.features.craterAttributes;
-        Check(evaluated_.heights.Width() == 513 && evaluated_.heights.Height() == 513,
-              "the heights are 513 x 513");
-        Check(terraingen::ComputeStats(evaluated_.heights).validCount == evaluated_.heights.Size(),
+        const terraingen::CraterList& craters = craters_.craters;
+        const auto& attributes = craters_.attributes;
+        Check(evaluated_.Width() == 513 && evaluated_.Height() == 513, "the heights are 513 x 513");
+        Check(terraingen::ComputeStats(evaluated_).validCount == evaluated_.Size(),
               "every height is finite");
         std::vector<double> diameters(craters.Diameters().begin(), craters.Diameters().end());
         std::sort(diameters.begin(), diameters.end());
@@ -98,7 +97,8 @@ class CratersManual : public terraingen::examples::Example {
     }
 
   private:
-    terraingen::EvaluatedTerrain evaluated_;
+    terraingen::Raster<float> evaluated_;
+    terraingen::CraterFeatures craters_;
 };
 
 }  // namespace

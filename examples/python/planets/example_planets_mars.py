@@ -52,20 +52,21 @@ class Example(_common.Example):
         terrain = terraingen.Terrain(
             terraingen.FlatSource(513, 513, PIXEL), [noise, craters, terraingen.BedformLayer(self.ripples)]
         )
-        self.evaluated = terraingen.evaluate(terrain)
-        print(f"{len(self.evaluated.craters['x'])} craters")
-        self.show("heights", self.evaluated.heights)
+        self.heights = terraingen.evaluate(terrain)
+        self.craters = terraingen.placed_craters(terrain).table
+        print(f"{len(self.craters['x'])} craters")
+        self.show("heights", self.heights)
 
     def save(self, out):
-        terraingen.write_geotiff(out / "example_planets_mars.tif", self.evaluated.heights)
+        terraingen.write_geotiff(out / "example_planets_mars.tif", self.heights)
         print(
             "wrote",
-            write_png(out / "example_planets_mars.png", hillshade(self.evaluated.heights.values, PIXEL)),
+            write_png(out / "example_planets_mars.png", hillshade(self.heights.values, PIXEL)),
         )
 
     def test_final(self):
-        heights = self.evaluated.heights.values
-        diameters = self.evaluated.craters["diameter"]
+        heights = self.heights.values
+        diameters = self.craters["diameter"]
         assert heights.shape == (513, 513) and np.isfinite(heights).all(), "finite 513 x 513 heights"
         assert 0.1 < self.depth_ratio < 0.3, (
             "a fresh Martian crater is 0.1 to 0.3 times as deep as it is wide"

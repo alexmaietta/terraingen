@@ -36,8 +36,7 @@ class PyLayer : public Layer {
     }
 
   protected:
-    void ApplySamples(SampleBlock& samples, const LayerContext& context,
-                      TerrainFeatures& /*features*/) const override {
+    void ApplySamples(SampleBlock& samples, const LayerContext& context) const override {
         Raster<float>* grid = samples.Grid();
         if (grid != nullptr &&
             CallOverrideIgnoringResult(nb_trampoline, "apply", ByReference<Raster<float>>{*grid},
@@ -92,8 +91,7 @@ void BindLayerBase(nb::module_& m) {
         .def(
             "apply",
             [](const Layer& layer, Raster<float>& heights, const LayerContext& context) {
-                TerrainFeatures features;
-                layer.Apply(heights, context, features);
+                layer.Apply(heights, context);
             },
             "heights"_a, "context"_a)
         .def("apply_at", &Layer::ApplyAt, "height"_a, "x"_a, "y"_a, "context"_a)

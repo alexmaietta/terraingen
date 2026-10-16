@@ -62,9 +62,7 @@ class Example(_common.Example):
         self.levels = []
         for level in range(LEVELS):
             start = time.perf_counter()
-            self.levels.append(
-                [(key, cache.get(key).heights) for key in terraingen.TileScheme.body_tiles(level)]
-            )
+            self.levels.append([(key, cache.get(key)) for key in terraingen.TileScheme.body_tiles(level)])
             spacing_km = scheme.spacing(level) * moon.unit_length / 1000
             print(
                 f"level {level}: {len(self.levels[level])} tiles at {spacing_km:.0f} km spacing in {time.perf_counter() - start:.2f} s"
@@ -72,8 +70,7 @@ class Example(_common.Example):
 
         start = time.perf_counter()
         rows = [
-            np.hstack([cache.get(terraingen.TileKey(2, x, y)).heights.values for x in range(8)])
-            for y in range(4)
+            np.hstack([cache.get(terraingen.TileKey(2, x, y)).values for x in range(8)]) for y in range(4)
         ]
         print(
             f"level 2 again from the cache in {(time.perf_counter() - start) * 1000:.0f} ms; {cache.size >> 10} kB held"

@@ -26,7 +26,7 @@ def synthetic_params():
 def coarse_dem(tmp_path, noise_relief):
     """A 33 x 33 noise DEM at 8 m written to dem.tif; returns its heights."""
     terrain = terraingen.Terrain(terraingen.FlatSource(33, 33, 8.0), [noise_relief(3, 200.0, 20.0)])
-    coarse = terraingen.evaluate(terrain).heights
+    coarse = terraingen.evaluate(terrain)
     terraingen.write_geotiff(tmp_path / "dem.tif", coarse)
     return coarse
 
@@ -54,7 +54,7 @@ def test_geotiff_source_resamples_to_its_pixel_size(tmp_path, coarse_dem):
 
 
 def test_geotiff_source_scales_heights(tmp_path, coarse_dem):
-    heights = terraingen.evaluate(terraingen.Terrain(resampled_source(tmp_path))).heights.values
+    heights = terraingen.evaluate(terraingen.Terrain(resampled_source(tmp_path))).values
     assert np.nanmax(heights) == pytest.approx(2 * coarse_dem.values.max(), rel=0.05)
 
 
@@ -69,7 +69,7 @@ def test_python_source_describes_its_grid(paraboloid):
 
 
 def test_python_source_fills_the_heights(paraboloid):
-    plain = terraingen.evaluate(terraingen.Terrain(paraboloid)).heights.values
+    plain = terraingen.evaluate(terraingen.Terrain(paraboloid)).values
     assert plain[32, 32] == pytest.approx(0.0, abs=1e-6) and plain[0, 0] > 4.0
 
 

@@ -64,9 +64,8 @@ class GeoTiffSource final : public Source {
     /// @throws GeoTiffError if the file cannot be read.
     float HeightAt(double x, double y) const override;
 
-    /// @brief The file's projection, to write outputs with.
-    /// @return The GeoKeys.
-    const GeoKeys& Keys() const {
+    /// The file's projection.
+    GeoKeys Keys() const override {
         return info_.geoKeys;
     }
 

@@ -74,7 +74,7 @@ def test_show_centres_arrays_on_the_origin():
 
 def test_show_keeps_the_grid_of_rasters():
     example = Ramp(None, None)
-    raster = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(5, 5, 2.0), [])).heights
+    raster = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(5, 5, 2.0), []))
     example.show("flat", raster, albedo=raster.values)
     _, heights, pixel_size, corner, albedo = example.views[0]
     assert (heights.dtype, pixel_size, corner, albedo.shape) == (np.float32, 2.0, (-5.0, 5.0), (5, 5))

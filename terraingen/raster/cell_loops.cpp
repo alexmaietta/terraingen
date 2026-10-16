@@ -15,8 +15,8 @@ std::size_t ClampTo(double value, std::size_t limit) {
 
 }  // namespace
 
-PixelWindow WindowOf(const Raster<float>& raster, const Bounds2d& box) {
-    const GeoTransform& transform = raster.Transform();
+PixelWindow WindowOf(const RasterGrid& grid, const Bounds2d& box) {
+    const GeoTransform& transform = grid.transform;
     constexpr double kInf = std::numeric_limits<double>::infinity();
     double colMin = kInf;
     double colMax = -kInf;
@@ -31,17 +31,20 @@ PixelWindow WindowOf(const Raster<float>& raster, const Bounds2d& box) {
             rowMax = std::fmax(rowMax, pixel.y);
         }
     }
-    return {ClampTo(std::floor(colMin), raster.Width()), ClampTo(std::ceil(colMax), raster.Width()),
-            ClampTo(std::floor(rowMin), raster.Height()),
-            ClampTo(std::ceil(rowMax), raster.Height())};
+    return {ClampTo(std::floor(colMin), grid.width), ClampTo(std::ceil(colMax), grid.width),
+            ClampTo(std::floor(rowMin), grid.height), ClampTo(std::ceil(rowMax), grid.height)};
 }
 
-std::vector<PixelWindow> WindowsAround(const Raster<float>& raster, const Bounds2d& box,
+PixelWindow WindowOf(const Raster<float>& raster, const Bounds2d& box) {
+    return WindowOf(RasterGrid::Of(raster), box);
+}
+
+std::vector<PixelWindow> WindowsAround(const RasterGrid& grid, const Bounds2d& box,
                                        const Surface& surface) {
     std::vector<PixelWindow> windows;
     const auto add = [&](double shift) {
         const PixelWindow window =
-            WindowOf(raster, {box.minX + shift, box.minY, box.maxX + shift, box.maxY});
+            WindowOf(grid, {box.minX + shift, box.minY, box.maxX + shift, box.maxY});
         if (!window.Empty()) {
             windows.push_back(window);
         }
@@ -54,6 +57,11 @@ std::vector<PixelWindow> WindowsAround(const Raster<float>& raster, const Bounds
         add(shift);
     }
     return windows;
+}
+
+std::vector<PixelWindow> WindowsAround(const Raster<float>& raster, const Bounds2d& box,
+                                       const Surface& surface) {
+    return WindowsAround(RasterGrid::Of(raster), box, surface);
 }
 
 }  // namespace terraingen

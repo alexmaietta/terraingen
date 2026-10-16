@@ -225,9 +225,8 @@ TEST(BoulderLayer, AddsDomesThatPointQueriesMatchToTheBit) {
     const BoulderLayer layer(options);
     Raster<float> heights(80, 60, 1.0f);
     heights.SetTransform(GeoTransform::NorthUp(-20.0, 15.0, 0.5));
-    terraingen::TerrainFeatures features;
-    layer.Apply(heights, {0.5, 4}, features);
-    ASSERT_FALSE(features.boulders.empty());
+    layer.Apply(heights, {0.5, 4});
+    ASSERT_FALSE(layer.Boulders(terraingen::RasterGrid::Of(heights).Bounds(), 0.5).empty());
     bool raised = false;
     for (std::size_t row = 0; row < heights.Height(); ++row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
@@ -239,11 +238,9 @@ TEST(BoulderLayer, AddsDomesThatPointQueriesMatchToTheBit) {
     EXPECT_TRUE(raised);
     Raster<float> serial(80, 60, 1.0f);
     serial.SetTransform(heights.Transform());
-    terraingen::TerrainFeatures again;
-    layer.Apply(serial, {0.5, 1}, again);
+    layer.Apply(serial, {0.5, 1});
     EXPECT_TRUE(
         std::equal(serial.Values().begin(), serial.Values().end(), heights.Values().begin()));
-    EXPECT_EQ(again.boulders, features.boulders);
 }
 
 TEST(AddBoulder, IsADomeOfTheExposedHeight) {
@@ -261,9 +258,8 @@ TEST(BoulderLayer, LeavesHeightsAloneWithoutReliefAndRejectsBadOptions) {
     const BoulderLayer layer(options);
     Raster<float> heights(120, 120, 2.0f);
     heights.SetTransform(GeoTransform::NorthUp(0.0, 60.0, 0.5));
-    terraingen::TerrainFeatures features;
-    layer.Apply(heights, {0.5}, features);
-    EXPECT_FALSE(features.boulders.empty());
+    layer.Apply(heights, {0.5});
+    EXPECT_FALSE(layer.Boulders(terraingen::RasterGrid::Of(heights).Bounds(), 0.5).empty());
     for (const float value : heights.Values()) {
         EXPECT_EQ(value, 2.0f);
     }
@@ -340,21 +336,21 @@ TEST(BoulderLayer, PlacesLargeBouldersAsModelsOnTheGroundAndLeavesThemOutOfTheHe
     const BoulderLayer layer(options);
     Raster<float> heights(160, 160, 2.0f);
     heights.SetTransform(GeoTransform::NorthUp(-40.0, 40.0, 0.5));
-    terraingen::TerrainFeatures features;
-    layer.Apply(heights, {0.5, 2}, features);
+    const Analytic level([](double, double) { return 2.0f; });
+    const auto boulders = layer.Boulders(terraingen::RasterGrid::Of(heights).Bounds(), 0.5, &level);
     std::size_t models = 0;
-    for (const Boulder& boulder : features.boulders) {
+    for (const Boulder& boulder : boulders) {
         EXPECT_EQ(boulder.model, boulder.diameter >= 1.0);
         models += boulder.model ? 1 : 0;
-        if (boulder.model && heights.Transform().WorldToPixel(boulder.x, boulder.y).x > 1.0) {
-            ASSERT_TRUE(boulder.ground.has_value());
-            EXPECT_FLOAT_EQ(static_cast<float>(*boulder.ground), 2.0f) << "the heights as given";
-        }
+        ASSERT_TRUE(boulder.ground.has_value());
+        EXPECT_FLOAT_EQ(static_cast<float>(*boulder.ground), 2.0f);
     }
     ASSERT_GT(models, 0u);
-    EXPECT_LE(features.boulderModels.size(), models);
-    EXPECT_GT(features.boulderModels.size(), 0u);
-    for (const auto& boulder : features.boulderModels) {
+    const auto modelled = layer.Models(boulders);
+    EXPECT_EQ(modelled.size(), models);
+    EXPECT_TRUE(layer.Models(layer.Boulders({-40.0, -40.0, 40.0, 40.0}, 0.5)).empty())
+        << "no models without the ground";
+    for (const auto& boulder : modelled) {
         EXPECT_TRUE(boulder.boulder.model);
         terraingen::TriangleMesh placed = boulder.shape->mesh;
         for (auto& p : placed.positions) {
@@ -368,8 +364,7 @@ TEST(BoulderLayer, PlacesLargeBouldersAsModelsOnTheGroundAndLeavesThemOutOfTheHe
     options.rendering.models.minDiameter = options.sizes.minDiameter;
     Raster<float> flat(160, 160, 2.0f);
     flat.SetTransform(heights.Transform());
-    terraingen::TerrainFeatures all;
-    BoulderLayer(options).Apply(flat, {0.5}, all);
+    BoulderLayer(options).Apply(flat, {0.5});
     for (const float value : flat.Values()) {
         ASSERT_EQ(value, 2.0f) << "models add nothing to the heights";
     }
@@ -401,12 +396,12 @@ TEST(BoulderLayer, DrawsTheTopsOfBoulderShapesThatPointQueriesMatch) {
     const BoulderLayer layer(options);
     Raster<float> heights(60, 50, 1.0f);
     heights.SetTransform(GeoTransform::NorthUp(-15.0, 12.5, 0.5));
-    terraingen::TerrainFeatures features;
-    layer.Apply(heights, {0.5, 3}, features);
-    ASSERT_FALSE(features.boulders.empty());
+    layer.Apply(heights, {0.5, 3});
+    const auto boulders = layer.Boulders(terraingen::RasterGrid::Of(heights).Bounds(), 0.5);
+    ASSERT_FALSE(boulders.empty());
     double highest = 0.0;
     double tallest = 0.0;
-    for (const Boulder& boulder : features.boulders) {
+    for (const Boulder& boulder : boulders) {
         tallest = std::fmax(tallest, boulder.ExposedHeight());
     }
     for (std::size_t row = 0; row < heights.Height(); ++row) {
@@ -424,16 +419,13 @@ TEST(BoulderLayer, DrawsTheTopsOfBoulderShapesThatPointQueriesMatch) {
     }
     std::vector<float> batch(centres.size(), 1.0f);
     terraingen::SampleBlock points(centres, batch);
-    terraingen::TerrainFeatures unrecorded;
-    layer.Apply(points, {0.5}, unrecorded);
+    layer.Apply(points, {0.5});
     EXPECT_TRUE(std::equal(batch.begin(), batch.end(), heights.Values().begin()))
         << "one batch of points matches the grid";
-    EXPECT_TRUE(unrecorded.boulders.empty()) << "points record no boulders";
     options.rendering.relief = terraingen::BoulderRelief::Dome;
     Raster<float> domes(60, 50, 1.0f);
     domes.SetTransform(heights.Transform());
-    terraingen::TerrainFeatures again;
-    BoulderLayer(options).Apply(domes, {0.5}, again);
+    BoulderLayer(options).Apply(domes, {0.5});
     EXPECT_FALSE(std::equal(domes.Values().begin(), domes.Values().end(), heights.Values().begin()))
         << "shapes are not domes";
 }

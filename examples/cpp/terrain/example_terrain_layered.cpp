@@ -57,35 +57,34 @@ class TerrainLayered : public terraingen::examples::Example {
             terraingen::SyntheticTerrainParams{{rolling}}));
 
         evaluated_ = terraingen::Evaluate(terrain);
-        rolling_ = terraingen::Evaluate(rollingOnly).heights;
-        stats_ = terraingen::ComputeStats(evaluated_.heights);
+        rolling_ = terraingen::Evaluate(rollingOnly);
+        stats_ = terraingen::ComputeStats(evaluated_);
         Out() << "Heights from " << stats_.min << " to " << stats_.max << " m\n";
-        Show("layered", evaluated_.heights);
+        Show("layered", evaluated_);
         Show("rolling fBm only", rolling_);
     }
 
     void Save(const std::filesystem::path& dir) override {
         const auto path = dir / "example_terrain_layered.tif";
-        terraingen::WriteGeoTiff(path, evaluated_.heights);
+        terraingen::WriteGeoTiff(path, evaluated_);
         Out() << "Wrote " << path.string() << "\n";
     }
 
     void Test() override {
-        Check(evaluated_.heights.Width() == 513 && evaluated_.heights.Height() == 513,
-              "the heights are 513 x 513");
-        Check(stats_.validCount == evaluated_.heights.Size(), "every height is finite");
+        Check(evaluated_.Width() == 513 && evaluated_.Height() == 513, "the heights are 513 x 513");
+        Check(stats_.validCount == evaluated_.Size(), "every height is finite");
         Check(stats_.max - stats_.min > 10.0 && stats_.max - stats_.min < 500.0,
               "the relief is tens of metres");
         double differs = 0.0;
         for (std::size_t i = 0; i < rolling_.Size(); ++i) {
-            const float change = evaluated_.heights.Values()[i] - rolling_.Values()[i];
+            const float change = evaluated_.Values()[i] - rolling_.Values()[i];
             differs = std::max(differs, static_cast<double>(std::abs(change)));
         }
         Check(differs > 0.5, "the crests and mask change the rolling fBm");
     }
 
   private:
-    terraingen::EvaluatedTerrain evaluated_;
+    terraingen::Raster<float> evaluated_;
     terraingen::Raster<float> rolling_;
     terraingen::RasterStats stats_;
 };

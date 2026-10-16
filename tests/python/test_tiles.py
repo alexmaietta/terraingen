@@ -31,21 +31,21 @@ def test_tiles_covering_the_grid_start_at_its_corner(scheme):
 
 
 def test_tiles_match_the_whole_grid(scheme, tiled_terrain):
-    whole = terraingen.evaluate(tiled_terrain, grid=GRID).heights.values
+    whole = terraingen.evaluate(tiled_terrain, grid=GRID).values
     keys = scheme.tiles_covering(GRID.bounds, scheme.level_for(2.0))
     tiles = terraingen.evaluate_tiles(tiled_terrain, scheme, keys)
     for key, tile in zip(keys, tiles, strict=True):
         tile_grid = scheme.grid(key)
         col = int(round((tile_grid.transform.origin_x - GRID.transform.origin_x) / 2.0))
         row = int(round((GRID.transform.origin_y - tile_grid.transform.origin_y) / 2.0))
-        np.testing.assert_array_equal(tile.heights.values, whole[row : row + 64, col : col + 64])
+        np.testing.assert_array_equal(tile.values, whole[row : row + 64, col : col + 64])
 
 
 def test_evaluate_tile_matches_evaluate_tiles(scheme, tiled_terrain):
     keys = scheme.tiles_covering(GRID.bounds, scheme.level_for(2.0))
     tiles = terraingen.evaluate_tiles(tiled_terrain, scheme, keys)
     single = terraingen.evaluate_tile(tiled_terrain, scheme, keys[0])
-    np.testing.assert_array_equal(single.heights.values, tiles[0].heights.values)
+    np.testing.assert_array_equal(single.values, tiles[0].values)
 
 
 def test_tile_keys_know_their_parent_and_level(scheme):
@@ -92,14 +92,14 @@ def test_tile_cache_evicts_beyond_its_budget(noise_relief):
 def test_tile_cache_regenerates_evicted_tiles_identically(noise_relief):
     terrain, scheme, keys = cached_terrain(noise_relief)
     cache = terraingen.TileCache(terrain, scheme, max_bytes=16 * 16 * 4 * 16)
-    first = cache.get(keys[0]).heights.values.copy()
+    first = cache.get(keys[0]).values.copy()
     for key in keys:
         cache.get(key)
-    np.testing.assert_array_equal(cache.get(keys[0]).heights.values, first)
+    np.testing.assert_array_equal(cache.get(keys[0]).values, first)
 
 
 def test_tile_cache_matches_evaluate_tile(noise_relief):
     terrain, scheme, keys = cached_terrain(noise_relief)
     cache = terraingen.TileCache(terrain, scheme, max_bytes=16 * 16 * 4 * 16)
-    first = cache.get(keys[0]).heights.values.copy()
-    np.testing.assert_array_equal(first, terraingen.evaluate_tile(terrain, scheme, keys[0]).heights.values)
+    first = cache.get(keys[0]).values.copy()
+    np.testing.assert_array_equal(first, terraingen.evaluate_tile(terrain, scheme, keys[0]).values)

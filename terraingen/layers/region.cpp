@@ -2,7 +2,6 @@
 /// @brief Region shapes and `RegionLayer`: confining a layer to an area with a feathered edge.
 #include "terraingen/layers/region.h"
 
-#include "terraingen/layers/features.h"
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/parallel.h"
@@ -132,19 +131,37 @@ double RegionLayer::Weight(double x, double y) const {
     return Falloff(distance, 0.0, feather_, blend_);
 }
 
-void RegionLayer::ApplySamples(SampleBlock& samples, const LayerContext& context,
-                               TerrainFeatures& features) const {
-    TerrainFeatures placed;
-    if (Raster<float>* grid = samples.Grid()) {
-        ApplyToGrid(*grid, context, placed);
-    } else {
-        ApplyToPoints(samples, context, placed);
-    }
-    KeepFeaturesInside(placed, features);
+bool RegionLayer::Holds(double x, double y) const {
+    return shape_.DistanceOutside(x, y, surface_) <= feather_;
 }
 
-void RegionLayer::ApplyToPoints(SampleBlock& samples, const LayerContext& context,
-                                TerrainFeatures& placed) const {
+PixelWindow RegionLayer::InnerWindow(const RasterGrid& grid) const {
+    const Bounds2d reach = surface_.Expand(shape_.Bounds(surface_), feather_);
+    return UnionOf(WindowsAround(grid, reach, surface_));
+}
+
+std::optional<RasterGrid> RegionLayer::InnerGrid(const RasterGrid& grid) const {
+    const PixelWindow window = InnerWindow(grid);
+    if (window.Empty()) {
+        return std::nullopt;
+    }
+    GeoTransform transform = grid.transform;
+    const Vec2d origin = transform.PixelToWorld(static_cast<double>(window.colBegin),
+                                                static_cast<double>(window.rowBegin));
+    transform.originX = origin.x;
+    transform.originY = origin.y;
+    return RasterGrid{window.colEnd - window.colBegin, window.rowEnd - window.rowBegin, transform};
+}
+
+void RegionLayer::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
+    if (Raster<float>* grid = samples.Grid()) {
+        ApplyToGrid(*grid, context);
+    } else {
+        ApplyToPoints(samples, context);
+    }
+}
+
+void RegionLayer::ApplyToPoints(SampleBlock& samples, const LayerContext& context) const {
     std::vector<std::size_t> indices;
     std::vector<Vec2d> positions;
     std::vector<float> heights;
@@ -160,22 +177,20 @@ void RegionLayer::ApplyToPoints(SampleBlock& samples, const LayerContext& contex
         }
     }
     SampleBlock inside(positions, heights);
-    inner_->Apply(inside, context, placed);
+    inner_->Apply(inside, context);
     for (std::size_t k = 0; k < indices.size(); ++k) {
         float& height = samples.Height(indices[k]);
         height = Blend(height, heights[k], weights[k]);
     }
 }
 
-void RegionLayer::ApplyToGrid(Raster<float>& heights, const LayerContext& context,
-                              TerrainFeatures& placed) const {
-    const Bounds2d reach = surface_.Expand(shape_.Bounds(surface_), feather_);
-    const PixelWindow window = UnionOf(WindowsAround(heights, reach, surface_));
+void RegionLayer::ApplyToGrid(Raster<float>& heights, const LayerContext& context) const {
+    const PixelWindow window = InnerWindow(RasterGrid::Of(heights));
     if (window.Empty()) {
         return;
     }
     Raster<float> inner = CopyWindow(heights, window);
-    inner_->Apply(inner, context, placed);
+    inner_->Apply(inner, context);
     ParallelFor(window.rowEnd - window.rowBegin, context.threads, [&](std::size_t r) {
         const std::size_t row = window.rowBegin + r;
         for (std::size_t col = window.colBegin; col < window.colEnd; ++col) {
@@ -190,29 +205,6 @@ void RegionLayer::ApplyToGrid(Raster<float>& heights, const LayerContext& contex
             }
         }
     });
-}
-
-void RegionLayer::KeepFeaturesInside(const TerrainFeatures& placed,
-                                     TerrainFeatures& features) const {
-    for (std::size_t n = 0; n < placed.craters.Size(); ++n) {
-        const Crater crater = placed.craters.At(n);
-        if (shape_.DistanceOutside(crater.x, crater.y, surface_) <= feather_) {
-            features.craters.Append(crater);
-            if (n < placed.craterAttributes.size()) {
-                features.craterAttributes.push_back(placed.craterAttributes[n]);
-            }
-        }
-    }
-    for (const Boulder& boulder : placed.boulders) {
-        if (shape_.DistanceOutside(boulder.x, boulder.y, surface_) <= feather_) {
-            features.boulders.push_back(boulder);
-        }
-    }
-    for (const BoulderModel& model : placed.boulderModels) {
-        if (shape_.DistanceOutside(model.boulder.x, model.boulder.y, surface_) <= feather_) {
-            features.boulderModels.push_back(model);
-        }
-    }
 }
 
 }  // namespace terraingen

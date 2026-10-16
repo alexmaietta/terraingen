@@ -96,14 +96,13 @@ class CraterLayer final : public Layer {
     }
 
   protected:
-    /// Generates and applies the craters reaching the samples, recording those centred in a grid.
+    /// Generates and applies the craters reaching the samples.
     /// Datums are fitted to `context.ground` where given, otherwise to a grid's heights as passed
     /// in.
     /// @throws std::invalid_argument for points when the layer has a datum and no
     /// `context.ground`, or has `maxCraters` (which ranks craters over a whole grid).
     /// @throws std::domain_error as `DegradationModel::State`.
-    void ApplySamples(SampleBlock& samples, const LayerContext& context,
-                      TerrainFeatures& features) const override;
+    void ApplySamples(SampleBlock& samples, const LayerContext& context) const override;
 
   private:
     CraterModels models_;

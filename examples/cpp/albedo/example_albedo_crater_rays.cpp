@@ -69,36 +69,37 @@ class AlbedoCraterRays : public terraingen::examples::Example {
         albedo.layers.push_back(std::make_shared<terraingen::CraterAlbedo>(craters));
 
         evaluated_ = terraingen::Evaluate(terrain);
-        const terraingen::RasterGrid grid = terraingen::RasterGrid::Of(evaluated_.heights);
+        craters_ = terraingen::PlacedCraters(terrain, terraingen::RasterGrid::Of(evaluated_));
+        const terraingen::RasterGrid grid = terraingen::RasterGrid::Of(evaluated_);
         bands_ = terraingen::EvaluateAlbedo(albedo, grid, {.spacing = 8.0, .threads = 0});
         stats_ = terraingen::ComputeStats(bands_.front());
         Out() << "Albedo from " << stats_.min << " to " << stats_.max << " over "
-              << evaluated_.features.craters.Size() << " craters\n";
-        Show("heights and albedo", evaluated_.heights, &bands_.front());
+              << craters_.craters.Size() << " craters\n";
+        Show("heights and albedo", evaluated_, &bands_.front());
     }
 
     void Save(const std::filesystem::path& dir) override {
         const auto heights = dir / "example_albedo_crater_rays_heights.tif";
         const auto path = dir / "example_albedo_crater_rays.tif";
-        terraingen::WriteGeoTiff(heights, evaluated_.heights);
+        terraingen::WriteGeoTiff(heights, evaluated_);
         terraingen::WriteGeoTiff(path, bands_);
         Out() << "Wrote " << heights.string() << " and " << path.string() << "\n";
     }
 
     void Test() override {
         const terraingen::Raster<float>& band = bands_.front();
-        Check(evaluated_.heights.Width() == 513 && evaluated_.heights.Height() == 513,
-              "the heights are 513 x 513");
+        Check(evaluated_.Width() == 513 && evaluated_.Height() == 513, "the heights are 513 x 513");
         Check(bands_.size() == 1 && band.Width() == 513 && band.Height() == 513,
               "one albedo band on the heights' grid");
         Check(stats_.validCount == band.Width() * band.Height(), "every albedo value is finite");
         Check(stats_.min > 0.08 && stats_.max < 0.2, "the albedo stays near 0.11");
         Check(stats_.max > stats_.mean + 0.005, "fresh craters brighten the albedo");
-        Check(evaluated_.features.craters.Size() > 500, "more than 500 craters");
+        Check(craters_.craters.Size() > 500, "more than 500 craters");
     }
 
   private:
-    terraingen::EvaluatedTerrain evaluated_;
+    terraingen::Raster<float> evaluated_;
+    terraingen::CraterFeatures craters_;
     std::vector<terraingen::Raster<float>> bands_;
     terraingen::RasterStats stats_;
 };

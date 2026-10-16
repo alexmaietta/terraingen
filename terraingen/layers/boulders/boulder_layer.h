@@ -93,17 +93,16 @@ class BoulderLayer final : public Layer {
     /// @return Its shape.
     std::shared_ptr<const BoulderShape> Shape(const Boulder& boulder) const;
 
+    /// The boulders of `boulders` to place as their own 3D models: those marked `model` whose
+    /// ground is known, placed on it.
+    std::vector<BoulderModel> Models(const std::vector<Boulder>& boulders) const;
+
   protected:
-    /// Draws the exposed parts of non-model boulders into the samples. On a grid it records the
-    /// boulders centred in or within a radius of it, and places models on the ground read at their
-    /// centres: from `context.ground`, otherwise the heights as given.
+    /// Draws the exposed parts of non-model boulders into the samples.
     /// @throws std::invalid_argument if the exposure field is enabled and `context.ground` is null.
-    void ApplySamples(SampleBlock& samples, const LayerContext& context,
-                      TerrainFeatures& features) const override;
+    void ApplySamples(SampleBlock& samples, const LayerContext& context) const override;
 
   private:
-    /// Records `boulders` and, for the models among them with a known ground, their placements.
-    void RecordFeatures(std::vector<Boulder> boulders, TerrainFeatures& features) const;
     /// The candidates of `region`, before thinning.
     CraterList ScatterBoulderCandidates(const Bounds2d& region, double spacing) const;
     /// `candidate` as a boulder, or nothing when thinning drops it.

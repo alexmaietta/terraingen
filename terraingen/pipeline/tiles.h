@@ -139,17 +139,16 @@ struct TileScheme {
 ///
 /// The tile is evaluated with the filters' margin around it and cropped, so it equals the same
 /// cells of any larger grid on the same lattice (to the bit where cell centres coincide exactly,
-/// such as with power-of-two spacings). The features are those placed while evaluating, margin
-/// included.
+/// such as with power-of-two spacings).
 /// @param terrain The terrain.
 /// @param scheme The tile scheme.
 /// @param key The tile.
 /// @param threads Threads to use; 0 for every hardware thread.
-/// @return The tile's heights and features.
+/// @return The tile's heights.
 /// @throws std::invalid_argument for an invalid scheme, level or terrain; and whatever the parts
 /// throw.
-EvaluatedTerrain EvaluateTile(const Terrain& terrain, const TileScheme& scheme, const TileKey& key,
-                              unsigned threads = 1);
+Raster<float> EvaluateTile(const Terrain& terrain, const TileScheme& scheme, const TileKey& key,
+                           unsigned threads = 1);
 
 /// @brief `EvaluateTile` for several tiles, split over threads.
 /// @param terrain The terrain.
@@ -158,8 +157,8 @@ EvaluatedTerrain EvaluateTile(const Terrain& terrain, const TileScheme& scheme, 
 /// @param threads Threads to use; 0 for every hardware thread.
 /// @return The tiles, in the order of `keys`.
 /// @throws std::invalid_argument as `EvaluateTile`.
-std::vector<EvaluatedTerrain> EvaluateTiles(const Terrain& terrain, const TileScheme& scheme,
-                                            const std::vector<TileKey>& keys, unsigned threads = 0);
+std::vector<Raster<float>> EvaluateTiles(const Terrain& terrain, const TileScheme& scheme,
+                                         const std::vector<TileKey>& keys, unsigned threads = 0);
 
 /// @brief Tiles of one terrain and scheme, evaluated on demand with `EvaluateTile` and kept up to
 /// a byte budget, least recently used first out. Safe to use from several threads at once; tiles
@@ -178,9 +177,9 @@ class TileCache {
     /// @return The evaluated tile.
     /// @throws std::invalid_argument for a level outside the scheme's; and whatever the terrain's
     /// parts throw.
-    std::shared_ptr<const EvaluatedTerrain> Get(const TileKey& key);
+    std::shared_ptr<const Raster<float>> Get(const TileKey& key);
 
-    /// @brief Bytes held: four per height plus the features' storage.
+    /// @brief Bytes held: four per height.
     /// @return The bytes held.
     std::size_t Size() const {
         return cache_.Size();
@@ -207,7 +206,7 @@ class TileCache {
   private:
     Terrain terrain_;
     TileScheme scheme_;
-    LruCache<TileKey, EvaluatedTerrain, TileKeyHash> cache_;
+    LruCache<TileKey, Raster<float>, TileKeyHash> cache_;
 };
 
 }  // namespace terraingen

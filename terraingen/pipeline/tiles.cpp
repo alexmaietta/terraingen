@@ -32,11 +32,8 @@ void CheckLevel(int level) {
     }
 }
 
-std::size_t TileBytes(const EvaluatedTerrain& tile) {
-    return tile.heights.Size() * sizeof(float) + tile.features.craters.Size() * sizeof(Crater) +
-           tile.features.craterAttributes.size() * sizeof(CraterAttributes) +
-           tile.features.boulders.size() * sizeof(Boulder) +
-           tile.features.boulderModels.size() * sizeof(BoulderModel);
+std::size_t TileBytes(const Raster<float>& tile) {
+    return tile.Size() * sizeof(float);
 }
 
 /// Cells of margin around a tile: the filters' margin in rows, and in columns, which on a sphere
@@ -213,8 +210,8 @@ TileKey TileScheme::WrapBodyTile(const TileKey& key) {
     return {key.level, ((key.x % columns) + columns) % columns, key.y};
 }
 
-EvaluatedTerrain EvaluateTile(const Terrain& terrain, const TileScheme& scheme, const TileKey& key,
-                              unsigned threads) {
+Raster<float> EvaluateTile(const Terrain& terrain, const TileScheme& scheme, const TileKey& key,
+                           unsigned threads) {
     scheme.Validate();
     const RasterGrid tile = scheme.Grid(key);
     const double spacing = tile.Spacing(terrain.surface);
@@ -222,14 +219,14 @@ EvaluatedTerrain EvaluateTile(const Terrain& terrain, const TileScheme& scheme, 
     if (margin.rows == 0) {
         return Evaluate(terrain, tile, EvaluationOptions{spacing, threads});
     }
-    EvaluatedTerrain padded =
+    const Raster<float> padded =
         Evaluate(terrain, Padded(tile, margin), EvaluationOptions{spacing, threads});
-    return {Cropped(padded.heights, tile, margin), std::move(padded.features)};
+    return Cropped(padded, tile, margin);
 }
 
-std::vector<EvaluatedTerrain> EvaluateTiles(const Terrain& terrain, const TileScheme& scheme,
-                                            const std::vector<TileKey>& keys, unsigned threads) {
-    std::vector<EvaluatedTerrain> tiles(keys.size());
+std::vector<Raster<float>> EvaluateTiles(const Terrain& terrain, const TileScheme& scheme,
+                                         const std::vector<TileKey>& keys, unsigned threads) {
+    std::vector<Raster<float>> tiles(keys.size());
     ParallelFor(keys.size(), threads,
                 [&](std::size_t n) { tiles[n] = EvaluateTile(terrain, scheme, keys[n], 1); });
     return tiles;
@@ -241,7 +238,7 @@ TileCache::TileCache(Terrain terrain, TileScheme scheme, std::size_t maxBytes)
     FilterMargin(terrain_, scheme_.Spacing(0));
 }
 
-std::shared_ptr<const EvaluatedTerrain> TileCache::Get(const TileKey& key) {
+std::shared_ptr<const Raster<float>> TileCache::Get(const TileKey& key) {
     return cache_.Get(key, [&] { return EvaluateTile(terrain_, scheme_, key, 1); });
 }
 

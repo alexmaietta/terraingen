@@ -2,6 +2,7 @@
 /// @brief Parallel loops over a raster's cells: every cell, or the windows around features.
 #pragma once
 
+#include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/util/geometry.h"
 #include "terraingen/util/parallel.h"
@@ -30,20 +31,27 @@ struct PixelWindow {
     bool operator==(const PixelWindow&) const = default;
 };
 
-/// @brief The cells of a raster covering a box, clamped to the raster.
-/// @param raster The raster; its transform maps pixels to the box's coordinates.
+/// @brief The cells of a grid covering a box, clamped to the grid.
+/// @param grid The grid; its transform maps pixels to the box's coordinates.
 /// @param box The box, in world coordinates.
 /// @return The window of pixels whose extent meets the box's pixel bounds; possibly empty.
-/// @throws std::domain_error if the raster's transform is not invertible.
+/// @throws std::domain_error if the grid's transform is not invertible.
+PixelWindow WindowOf(const RasterGrid& grid, const Bounds2d& box);
+
+/// `WindowOf` the raster's grid.
 PixelWindow WindowOf(const Raster<float>& raster, const Bounds2d& box);
 
-/// @brief The non-empty windows of a raster covering a box on a surface.
-/// @param raster The raster, in `surface`'s coordinates.
+/// @brief The non-empty windows of a grid covering a box on a surface.
+/// @param grid The grid, in `surface`'s coordinates.
 /// @param box The box: on a sphere a longitude-latitude box, which is also taken a turn either way
-/// so a raster running past the antimeridian is covered on both sides.
-/// @param surface What the raster lies on.
-/// @return One window on a plane, up to three on a sphere; none off the raster.
-/// @throws std::domain_error if the raster's transform is not invertible.
+/// so a grid running past the antimeridian is covered on both sides.
+/// @param surface What the grid lies on.
+/// @return One window on a plane, up to three on a sphere; none off the grid.
+/// @throws std::domain_error if the grid's transform is not invertible.
+std::vector<PixelWindow> WindowsAround(const RasterGrid& grid, const Bounds2d& box,
+                                       const Surface& surface);
+
+/// `WindowsAround` the raster's grid.
 std::vector<PixelWindow> WindowsAround(const Raster<float>& raster, const Bounds2d& box,
                                        const Surface& surface);
 

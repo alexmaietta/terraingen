@@ -53,8 +53,9 @@ class CratersSimple : public terraingen::examples::Example {
         terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(models, options));
 
         evaluated_ = terraingen::Evaluate(terrain);
-        const auto& diameters = evaluated_.features.craters.Diameters();
-        Out() << evaluated_.features.craters.Size() << " craters, the largest "
+        craters_ = terraingen::PlacedCraters(terrain, terraingen::RasterGrid::Of(evaluated_));
+        const auto& diameters = craters_.craters.Diameters();
+        Out() << craters_.craters.Size() << " craters, the largest "
               << *std::max_element(diameters.begin(), diameters.end()) << " m across\n";
         for (const double d : {8.0, 16.0, 32.0, 64.0, 128.0}) {
             Out() << "  N(>= " << d << " m) = "
@@ -62,21 +63,20 @@ class CratersSimple : public terraingen::examples::Example {
                                    [d](double diameter) { return diameter >= d; })
                   << "\n";
         }
-        Show("heights", evaluated_.heights);
+        Show("heights", evaluated_);
     }
 
     void Save(const std::filesystem::path& dir) override {
         const auto heights = dir / "example_craters_simple.tif";
         const auto list = dir / "example_craters_simple.csv";
-        terraingen::WriteGeoTiff(heights, evaluated_.heights);
-        terraingen::WriteCraterList(evaluated_.features.craters, list, terraingen::ListFormat::Csv);
+        terraingen::WriteGeoTiff(heights, evaluated_);
+        terraingen::WriteCraterList(craters_.craters, list, terraingen::ListFormat::Csv);
         Out() << "Wrote " << heights.string() << " and " << list.string() << "\n";
     }
 
     void Test() override {
-        const auto& diameters = evaluated_.features.craters.Diameters();
-        Check(evaluated_.heights.Width() == 513 && evaluated_.heights.Height() == 513,
-              "the heights are 513 x 513");
+        const auto& diameters = craters_.craters.Diameters();
+        Check(evaluated_.Width() == 513 && evaluated_.Height() == 513, "the heights are 513 x 513");
         Check(diameters.size() > 100, "more than 100 craters");
         Check(std::all_of(diameters.begin(), diameters.end(),
                           [](double d) { return d >= 8.0 && d <= 300.0; }),
@@ -88,7 +88,8 @@ class CratersSimple : public terraingen::examples::Example {
     }
 
   private:
-    terraingen::EvaluatedTerrain evaluated_;
+    terraingen::Raster<float> evaluated_;
+    terraingen::CraterFeatures craters_;
 };
 
 }  // namespace

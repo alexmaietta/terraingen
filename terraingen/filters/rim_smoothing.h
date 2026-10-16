@@ -3,9 +3,12 @@
 #pragma once
 
 #include "terraingen/filters/filter.h"
-#include "terraingen/layers/craters/generation/population.h"
+#include "terraingen/layers/craters/crater.h"
 #include "terraingen/layers/fade.h"
+#include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
+
+#include <functional>
 
 namespace terraingen {
 
@@ -55,33 +58,36 @@ void SmoothCraterRims(Raster<float>& raster, const CraterList& craters,
                       const RimSmoothing& smoothing = {}, double spacing = 0.0,
                       unsigned threads = 1, const Surface& surface = {});
 
-/// @brief `SmoothCraterRims` over the craters the layers placed, at the evaluation's sample
-/// spacing.
+/// @brief The craters whose rims a `RimSmoothingFilter` smooths over a grid at a sample spacing in
+/// metres, in the order they are blended.
+using CraterQuery = std::function<CraterList(const RasterGrid& grid, double spacing)>;
+
+/// @brief `SmoothCraterRims` over the craters `craters` lists for the grid being filtered, at the
+/// evaluation's sample spacing.
 class RimSmoothingFilter final : public Filter {
   public:
-    /// @brief Builds the filter.
     /// @param smoothing How rims are smoothed.
+    /// @param craters The craters to smooth, such as `PlacedCraters` of a terrain's layers.
     /// @param surface What the craters lie on.
-    /// @throws std::invalid_argument as `ValidateRimSmoothing`.
-    explicit RimSmoothingFilter(const RimSmoothing& smoothing, const Surface& surface = {});
+    /// @throws std::invalid_argument as `ValidateRimSmoothing`, or for an empty `craters`.
+    RimSmoothingFilter(const RimSmoothing& smoothing, CraterQuery craters,
+                       const Surface& surface = {});
 
-    /// Smooths the rims of `features`' craters.
     /// @throws std::invalid_argument as `SmoothCraterRims`.
     /// @throws std::domain_error if the raster's transform is not invertible.
-    void Apply(Raster<float>& heights, const FilterContext& context,
-               const TerrainFeatures& features) const override;
+    void Apply(Raster<float>& heights, const FilterContext& context) const override;
 
     /// The band's outer edge plus three sigmas for the largest crater, and two samples.
     double Margin(double maxFeatureDiameter, double spacing) const override;
 
-    /// @brief The settings.
-    /// @return How rims are smoothed.
+    /// How rims are smoothed.
     const RimSmoothing& Smoothing() const {
         return smoothing_;
     }
 
   private:
     RimSmoothing smoothing_;
+    CraterQuery craters_;
     Surface surface_;
 };
 

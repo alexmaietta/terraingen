@@ -19,6 +19,8 @@ using terraingen::GenerateTerrain;
 using terraingen::ListFormat;
 using terraingen::TerrainConfig;
 using terraingen::WriteOutputs;
+using terraingen::testing::BouldersOf;
+using terraingen::testing::CratersOf;
 using terraingen::testing::ExpectSameRaster;
 using terraingen::testing::Flat;
 using terraingen::testing::Keys;
@@ -43,7 +45,7 @@ TEST(WriteOutputs, ResolvesRelativePathsAndCreatesFolders) {
     EXPECT_TRUE(std::filesystem::exists(written[0]));
     const std::string csv = ReadText(absolute);
     EXPECT_EQ(std::count(csv.begin(), csv.end(), '\n'),
-              static_cast<long>(terrain.features.craters.Size() + 1));
+              static_cast<long>(CratersOf(terrain).craters.Size() + 1));
 }
 
 TEST(WriteOutputs, WritesBoulderListsAndBoulderModels) {
@@ -61,8 +63,8 @@ TEST(WriteOutputs, WritesBoulderListsAndBoulderModels) {
                       terraingen::BoulderModelsOutput{"boulders.glb"},
                       terraingen::BoulderModelsOutput{"boulders.ply"}};
     const auto terrain = GenerateTerrain(config);
-    ASSERT_FALSE(terrain.features.boulderModels.empty());
-    for (const auto& boulder : terrain.features.boulderModels) {
+    ASSERT_FALSE(BouldersOf(terrain).models.empty());
+    for (const auto& boulder : BouldersOf(terrain).models) {
         ASSERT_TRUE(boulder.boulder.ground.has_value());
         EXPECT_GE(boulder.boulder.diameter, 1.5);
     }
@@ -73,7 +75,7 @@ TEST(WriteOutputs, WritesBoulderListsAndBoulderModels) {
     const std::string csv = ReadText(written[0]);
     EXPECT_EQ(csv.rfind("x,y,ground,diameter,height,burial,yaw,lean,id,model\n", 0), 0u);
     EXPECT_EQ(std::count(csv.begin(), csv.end(), '\n'),
-              static_cast<long>(terrain.features.boulders.size() + 1));
+              static_cast<long>(BouldersOf(terrain).boulders.size() + 1));
     EXPECT_NE(ReadText(written[1]).find("\"model\": true"), std::string::npos);
     EXPECT_EQ(ReadText(written[2]).substr(0, 4), "glTF");
     EXPECT_EQ(ReadText(written[3]).substr(0, 3), "ply");
@@ -174,13 +176,13 @@ TEST(WriteOutputs, WritesBoulderModelsOnASphereAboutTheGridCentre) {
     config.layers = {boulders};
     config.outputs = {terraingen::BoulderModelsOutput{"boulders.ply"}};
     const auto terrain = GenerateTerrain(config);
-    ASSERT_FALSE(terrain.features.boulderModels.empty());
+    ASSERT_FALSE(BouldersOf(terrain).models.empty());
     const auto directory = TempPath("terraingen_sphere_boulders");
     std::filesystem::remove_all(directory);
     const auto written = WriteOutputs(config, terrain, directory);
     ASSERT_EQ(written.size(), 1u);
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
-    for (const auto& boulder : terrain.features.boulderModels) {
+    for (const auto& boulder : BouldersOf(terrain).models) {
         const auto placed = terraingen::PlacementAtSite(
             boulder.placement, {boulder.boulder.x, boulder.boulder.y}, {-30.0, 60.0}, moon);
         EXPECT_LT(std::fabs(placed.pose.translation.x), 25.0);
