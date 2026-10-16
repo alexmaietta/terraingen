@@ -222,3 +222,14 @@ def test_boulder_ejecta_defaults_to_freshness_aging():
 def test_validate_boulder_layer_options_rejects_negative_coverage():
     with pytest.raises(ValueError):
         terraingen.validate_boulder_layer_options(terraingen.BoulderLayerOptions(coverage=-1.0))
+
+
+def test_boulders_rest_on_sides_and_ends_and_tilt():
+    options = terraingen.BoulderLayerOptions(coverage=0.08, side_share=0.3, end_share=0.1, max_tilt=0.8)
+    table = terraingen.BoulderLayer(options).boulders((-30.0, -30.0, 30.0, 30.0))
+    rests = np.asarray(table["rest"])
+    assert set(np.unique(rests)) <= {0, 1, 2} and (rests == 1).any() and (rests == 2).any()
+    assert np.asarray(table["tilt"]).max() <= 0.8 + 1e-12
+    boulder = terraingen.Boulder(0.0, 0.0, 1.0, 0.5)
+    boulder.rest = terraingen.BoulderRest.END
+    assert boulder.rest == terraingen.BoulderRest.END

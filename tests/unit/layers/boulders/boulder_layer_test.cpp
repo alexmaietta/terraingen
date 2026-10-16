@@ -612,3 +612,84 @@ TEST(BoulderLayer, DrawsOverlappingBouldersAsTheirUnion) {
     const float highest = *std::max_element(heights.Values().begin(), heights.Values().end());
     EXPECT_LE(highest, tallest + 1e-5) << "no boulder stacks on another";
 }
+
+TEST(TiltRotation, TipsTheVerticalTowardItsAzimuth) {
+    const auto turn = terraingen::TiltRotation(0.5, 0.25 * std::numbers::pi);
+    const terraingen::Vec3d up = turn.Apply({0.0, 0.0, 1.0});
+    EXPECT_NEAR(up.z, std::cos(0.5), 1e-12);
+    EXPECT_NEAR(up.x, std::sin(0.5) * std::sqrt(0.5), 1e-12);
+    EXPECT_NEAR(up.y, std::sin(0.5) * std::sqrt(0.5), 1e-12);
+    const terraingen::Vec3d axis = turn.Apply({-std::sqrt(0.5), std::sqrt(0.5), 0.0});
+    EXPECT_NEAR(axis.x, -std::sqrt(0.5), 1e-12) << "the axis stays put";
+}
+
+TEST(BoulderLayer, RestsBouldersOnSidesAndEndsAndTiltsThem) {
+    BoulderLayerOptions options;
+    options.sizes.coverage = 0.08;
+    options.pose.sideShare = 0.3;
+    options.pose.endShare = 0.1;
+    options.pose.maxTilt = 0.8;
+    const BoulderLayer layer(options);
+    const auto boulders = layer.Boulders({-40.0, -40.0, 40.0, 40.0});
+    ASSERT_GT(boulders.size(), 500u);
+    std::size_t sides = 0;
+    std::size_t ends = 0;
+    double steepest = 0.0;
+    for (const Boulder& boulder : boulders) {
+        sides += boulder.rest == terraingen::BoulderRest::Side ? 1u : 0u;
+        ends += boulder.rest == terraingen::BoulderRest::End ? 1u : 0u;
+        ASSERT_LE(boulder.tilt, 0.8 + 1e-12);
+        steepest = std::fmax(steepest, boulder.tilt);
+    }
+    const double n = static_cast<double>(boulders.size());
+    EXPECT_NEAR(static_cast<double>(sides) / n, 0.3, 0.05);
+    EXPECT_NEAR(static_cast<double>(ends) / n, 0.1, 0.04);
+    EXPECT_GT(steepest, 0.7);
+
+    const auto shape = layer.Shape(boulders[0]);
+    Boulder upright = boulders[0];
+    upright.rest = terraingen::BoulderRest::End;
+    upright.tilt = 0.0;
+    upright.lean = 0.0;
+    terraingen::TriangleMesh placed = shape->mesh;
+    const auto placement = terraingen::PlaceBoulderModel(upright, *shape, 0.0);
+    for (auto& p : placed.positions) {
+        p = placement.Apply(p);
+    }
+    EXPECT_NEAR(terraingen::Bounds(placed).Extents().z, upright.diameter, 1e-9)
+        << "standing on its end, its long axis is vertical";
+    options.pose.sideShare = 0.95;
+    EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
+}
+
+TEST(BoulderLayer, SettlesBouldersOnTheSlopeBeneathThem) {
+    BoulderLayerOptions options;
+    options.sizes.coverage = 0.08;
+    options.pose.followSlope = true;
+    const BoulderLayer layer(options);
+    const Analytic ramp([](double x, double) { return static_cast<float>(0.5 * x); });
+    for (const Boulder& boulder : layer.Boulders({-10.0, -10.0, 10.0, 10.0}, 0.0, &ramp)) {
+        ASSERT_NEAR(boulder.tilt, std::atan(0.5), 1e-4);
+        ASSERT_NEAR(std::fabs(boulder.tiltAzimuth), std::numbers::pi, 1e-4) << "tipped downhill";
+    }
+}
+
+TEST(BoulderLayer, DrawsTiltedShapesThatPointQueriesMatch) {
+    BoulderLayerOptions options;
+    options.sizes.coverage = 0.1;
+    options.sizes.minDiameter = 0.5;
+    options.pose.sideShare = 0.4;
+    options.pose.maxTilt = 0.6;
+    options.rendering.relief = terraingen::BoulderRelief::Shape;
+    options.rendering.shapes.subdivisions = 1;
+    const BoulderLayer layer(options);
+    Raster<float> heights(60, 60, 1.0f);
+    heights.SetTransform(GeoTransform::NorthUp(-7.5, 7.5, 0.25));
+    layer.Apply(heights, {0.25, 4});
+    for (std::size_t row = 0; row < heights.Height(); ++row) {
+        for (std::size_t col = 0; col < heights.Width(); ++col) {
+            const auto centre = heights.CellCenter(col, row);
+            ASSERT_EQ(layer.ApplyAt(1.0f, centre.x, centre.y, {0.25}), heights(col, row));
+        }
+    }
+}

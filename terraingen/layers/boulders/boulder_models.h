@@ -47,11 +47,16 @@ std::optional<double> TopSurface(const TriangleMesh& placed, double x, double y)
 BoulderPlacement PlacementAtSite(const BoulderPlacement& placement, const Vec2d& boulder,
                                  const Vec2d& site, const Surface& surface);
 
+/// The rotation tipping the vertical by `tilt` radians toward `azimuth` (radians counter-clockwise
+/// from east), about the horizontal axis square to that direction.
+RigidTransform TiltRotation(double tilt, double azimuth);
+
 /// The placement of a shape as a boulder standing on the ground.
 ///
 /// The long axis is scaled to the diameter (the intermediate in proportion) and the short axis to
-/// the height; then leaned by `lean` about the long axis, turned by `yaw`, and set at the
-/// boulder's position with `burial` of its vertical extent below `groundHeight`.
+/// the height; then stood on the axis `rest` names, leaned by `lean` about the long axis, turned by
+/// `yaw`, tipped by `tilt` toward `tiltAzimuth`, and set at the boulder's position with `burial`
+/// of its vertical extent below `groundHeight`.
 /// @param groundHeight Height of the ground under its centre, in metres.
 BoulderPlacement PlaceBoulderModel(const Boulder& boulder, const BoulderShape& shape,
                                    double groundHeight);

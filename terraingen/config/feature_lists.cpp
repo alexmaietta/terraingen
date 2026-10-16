@@ -84,14 +84,17 @@ Json CraterJson(const CraterList& craters, const std::vector<CraterAttributes>& 
 }
 
 void WriteBoulderCsv(std::ostream& file, const std::vector<Boulder>& boulders) {
-    file << "x,y,ground,diameter,height,burial,yaw,lean,id,model,wear,parent,piece\n";
+    file << "x,y,ground,diameter,height,burial,yaw,lean,id,model,wear,parent,piece,rest,tilt,tilt_"
+            "azimuth\n";
     for (const Boulder& boulder : boulders) {
         file << Number(boulder.x) << ',' << Number(boulder.y) << ','
              << (boulder.ground ? Number(*boulder.ground) : std::string()) << ','
              << Number(boulder.diameter) << ',' << Number(boulder.height) << ','
              << Number(boulder.burial) << ',' << Number(boulder.yaw) << ',' << Number(boulder.lean)
              << ',' << boulder.id << ',' << (boulder.model ? 1 : 0) << ',' << Number(boulder.wear)
-             << ',' << boulder.parent << ',' << boulder.piece << '\n';
+             << ',' << boulder.parent << ',' << boulder.piece << ','
+             << static_cast<int>(boulder.rest) << ',' << Number(boulder.tilt) << ','
+             << Number(boulder.tiltAzimuth) << '\n';
     }
 }
 
@@ -110,7 +113,10 @@ Json BoulderJson(const std::vector<Boulder>& boulders) {
                         {"model", boulder.model},
                         {"wear", boulder.wear},
                         {"parent", boulder.parent},
-                        {"piece", boulder.piece}});
+                        {"piece", boulder.piece},
+                        {"rest", static_cast<int>(boulder.rest)},
+                        {"tilt", boulder.tilt},
+                        {"tilt_azimuth", boulder.tiltAzimuth}});
     }
     return Json{{"boulders", std::move(list)}};
 }

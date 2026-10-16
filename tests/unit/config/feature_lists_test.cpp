@@ -84,7 +84,8 @@ TEST(WriteBoulderList, WritesCsvAndJsonWithUnknownGroundsLeftOut) {
     const auto csv = TempPath("terraingen_boulders.csv");
     terraingen::WriteBoulderList(boulders, csv, ListFormat::Csv);
     const std::string text = ReadText(csv);
-    EXPECT_EQ(text.rfind("x,y,ground,diameter,height,burial,yaw,lean,id,model,wear,parent,piece\n"
+    EXPECT_EQ(text.rfind("x,y,ground,diameter,height,burial,yaw,lean,id,model,wear,parent,piece,"
+                         "rest,tilt,tilt_azimuth\n"
                          "1.5,-2,3.25,0.5,",
                          0),
               0u)

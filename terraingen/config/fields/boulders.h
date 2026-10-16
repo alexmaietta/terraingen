@@ -307,6 +307,17 @@ template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
        "Largest buried share of a boulder's height, below 1; more burial leaves less of the "
        "boulder exposed.");
     io("max_lean", pose.maxLean, "Largest tilt of a boulder from the vertical, in radians.", "rad");
+    io("side_share", pose.sideShare,
+       "Share of boulders resting on a side, their intermediate axis up, rather than on their "
+       "broadest face.");
+    io("end_share", pose.endShare,
+       "Share of boulders standing on an end, their long axis up; with side_share, at most 1.");
+    io("max_tilt", pose.maxTilt,
+       "Largest tilt of a boulder's up axis from the vertical in a random direction, after its "
+       "lean, in radians; tilts are spread evenly over that cap of directions.",
+       "rad");
+    io("follow_slope", pose.followSlope,
+       "Settles each boulder on the slope of the ground beneath it before its tilt.");
     io("burial_by_wear", pose.burialByWear,
        "How far wear sets burial, from 0 to 1: blocks of fresh craters sit near the smallest "
        "burial and those of worn ones sink toward the largest, while boulders between craters "

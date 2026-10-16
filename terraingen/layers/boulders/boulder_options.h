@@ -185,6 +185,16 @@ struct BoulderPose {
     /// blocks wear with it (0 fresh to 1 gone); boulders between craters span every stage, their
     /// wear uniform. 0 draws burial uniformly.
     double burialByWear = 0.0;
+    /// Share of boulders resting on a side, their intermediate axis up, rather than their face.
+    double sideShare = 0.0;
+    /// Share of boulders standing on an end, their long axis up; with `sideShare`, at most 1.
+    double endShare = 0.0;
+    /// Largest tilt of a boulder's up axis from the vertical in a random direction, after its lean
+    /// (radians); drawn uniformly in the cosine, so steep tilts are as likely as on a sphere cap.
+    double maxTilt = 0.0;
+    /// Settles each boulder on the slope of the ground beneath it, its up axis along the ground's
+    /// normal before the tilt; needs the ground.
+    bool followSlope = false;
 
     bool operator==(const BoulderPose&) const = default;
 };
@@ -281,7 +291,8 @@ void ValidateBoulderBedrock(const BoulderBedrock& bedrock);
 
 /// Checks boulder poses.
 /// @throws std::invalid_argument unless 0 < min <= max height ratio, 0 <= min <= max burial < 1,
-/// the lean is finite and not negative, and the burial by wear is in [0, 1].
+/// the lean is finite and not negative, the burial by wear is in [0, 1], the side and end shares
+/// are not negative and sum to at most 1, and the tilt is in [0, pi].
 void ValidateBoulderPose(const BoulderPose& pose);
 
 /// Checks boulder clusters.

@@ -253,7 +253,44 @@ std::optional<Boulder> BoulderLayer::DrawBoulder(const Crater& candidate, double
             boulder.ground = height;
         }
     }
+    if (pose.sideShare > 0.0 || pose.endShare > 0.0 || pose.maxTilt > 0.0 || pose.followSlope) {
+        Settle(boulder, ground);
+    }
     return boulder;
+}
+
+void BoulderLayer::Settle(Boulder& boulder, const Ground* ground) const {
+    const BoulderPose& pose = options_.pose;
+    const IdWords id = SplitId(boulder.id);
+    const U32x4 draw =
+        Philox4x32({id.low, id.high, kBoulderAttributes, 3u}, {options_.seed, kBoulderSeed});
+    const double pick = Uniform(draw.x, draw.y);
+    boulder.rest = pick < pose.endShare                    ? BoulderRest::End
+                   : pick < pose.endShare + pose.sideShare ? BoulderRest::Side
+                                                           : BoulderRest::Face;
+    Vec3d up{0.0, 0.0, 1.0};
+    if (pose.maxTilt > 0.0) {
+        const double cosine = 1.0 - Uniform(draw.z, draw.w) * (1.0 - std::cos(pose.maxTilt));
+        const double sine = std::sqrt(std::fmax(0.0, 1.0 - cosine * cosine));
+        const double azimuth = 2.0 * std::numbers::pi * Uniform(draw.w, draw.x);
+        up = {sine * std::cos(azimuth), sine * std::sin(azimuth), cosine};
+    }
+    if (pose.followSlope && ground != nullptr) {
+        const double step = 0.5 * boulder.diameter;
+        const auto at = [&](double east, double north) {
+            const Vec2d p = surface_.Locate({boulder.x, boulder.y}, {east, north});
+            return static_cast<double>(
+                ground->HeightAt(p.x, p.y, options_.bedrock.exposureSpacing));
+        };
+        const double gx = (at(step, 0.0) - at(-step, 0.0)) / (2.0 * step);
+        const double gy = (at(0.0, step) - at(0.0, -step)) / (2.0 * step);
+        if (std::isfinite(gx) && std::isfinite(gy)) {
+            const double slope = std::atan(std::hypot(gx, gy));
+            up = TiltRotation(slope, std::atan2(-gy, -gx)).Apply(up);
+        }
+    }
+    boulder.tilt = std::acos(std::clamp(up.z, -1.0, 1.0));
+    boulder.tiltAzimuth = std::atan2(up.y, up.x);
 }
 
 std::vector<Boulder> BoulderLayer::Boulders(const Bounds2d& region, double spacing,
@@ -347,6 +384,7 @@ std::vector<Boulder> BoulderLayer::Break(const Boulder& parent, double spacing,
         piece.height = parent.height * fragment.shape.shortAxis * fragment.scale / shape->shortAxis;
         piece.yaw = parent.yaw + scatter * std::numbers::pi * (2.0 * twist - 1.0);
         piece.lean = parent.lean * (1.0 - scatter);
+        piece.tilt = parent.tilt * (1.0 - scatter);
         const double sunk = std::clamp(-low / (high - low), 0.0, 0.95);
         piece.burial = std::fmax(sunk, sunk + scatter * (options_.pose.maxBurial - sunk));
         const Vec2d at = surface_.Locate({parent.x, parent.y}, {centre.x + gap * std::cos(angle),

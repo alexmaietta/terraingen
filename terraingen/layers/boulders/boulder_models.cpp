@@ -3,6 +3,7 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <numbers>
 
 namespace terraingen {
 
@@ -13,7 +14,32 @@ const Vec3d& Axis(const LocalFrame& frame, int index) {
     return index == 0 ? frame.east : (index == 1 ? frame.north : frame.up);
 }
 
+/// The rotation turning the shape's axis that `rest` names to the vertical.
+RigidTransform RestRotation(BoulderRest rest) {
+    switch (rest) {
+    case BoulderRest::Side:
+        return RigidTransform::RotationX(0.5 * std::numbers::pi);
+    case BoulderRest::End:
+        return RigidTransform::RotationY(-0.5 * std::numbers::pi);
+    case BoulderRest::Face:
+        break;
+    }
+    return {};
+}
+
 }  // namespace
+
+RigidTransform TiltRotation(double tilt, double azimuth) {
+    const double ax = -std::sin(azimuth);
+    const double ay = std::cos(azimuth);
+    const double c = std::cos(tilt);
+    const double s = std::sin(tilt);
+    const double t = 1.0 - c;
+    RigidTransform turn;
+    turn.rotation = {c + t * ax * ax, t * ax * ay, s * ay, t * ax * ay, c + t * ay * ay, -s * ax,
+                     -s * ay,         s * ax,      c};
+    return turn;
+}
 
 BoulderPlacement PlacementAtSite(const BoulderPlacement& placement, const Vec2d& boulder,
                                  const Vec2d& site, const Surface& surface) {
@@ -43,8 +69,12 @@ BoulderPlacement PlaceBoulderModel(const Boulder& boulder, const BoulderShape& s
                                    double groundHeight) {
     BoulderPlacement placement;
     placement.scale = {boulder.diameter, boulder.diameter, boulder.height / shape.shortAxis};
-    placement.pose =
-        RigidTransform::RotationZ(boulder.yaw).After(RigidTransform::RotationX(boulder.lean));
+    placement.pose = RigidTransform::RotationZ(boulder.yaw)
+                         .After(RigidTransform::RotationX(boulder.lean))
+                         .After(RestRotation(boulder.rest));
+    if (boulder.tilt != 0.0) {
+        placement.pose = TiltRotation(boulder.tilt, boulder.tiltAzimuth).After(placement.pose);
+    }
     double low = std::numeric_limits<double>::infinity();
     double high = -low;
     for (const Vec3d& p : shape.mesh.positions) {

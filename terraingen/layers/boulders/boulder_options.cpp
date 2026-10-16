@@ -6,6 +6,7 @@
 #include "terraingen/util/checks.h"
 
 #include <cmath>
+#include <numbers>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -135,6 +136,13 @@ void ValidateBoulderPose(const BoulderPose& pose) {
     }
     if (!(pose.burialByWear >= 0.0 && pose.burialByWear <= 1.0)) {
         throw std::invalid_argument("Boulder burialByWear must be in [0, 1]");
+    }
+    if (!(pose.sideShare >= 0.0 && pose.endShare >= 0.0 && pose.sideShare + pose.endShare <= 1.0)) {
+        throw std::invalid_argument(
+            "Boulder sideShare and endShare must not be negative and must sum to at most 1");
+    }
+    if (!(pose.maxTilt >= 0.0 && pose.maxTilt <= std::numbers::pi)) {
+        throw std::invalid_argument("Boulder maxTilt must be in [0, pi]");
     }
 }
 

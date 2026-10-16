@@ -7,17 +7,28 @@
 
 namespace terraingen {
 
+/// Which of its axes a boulder stands on end along, the one turned to the vertical.
+enum class BoulderRest : std::uint8_t {
+    Face,  ///< On its broadest face: its short axis up.
+    Side,  ///< On a side: its intermediate axis up.
+    End,   ///< On an end: its long axis up.
+};
+
 /// One boulder: where it stands, how large it is and how it lies, in surface coordinates
 /// and metres.
 struct Boulder {
     double x = 0.0;         ///< Surface x of its centre.
     double y = 0.0;         ///< Surface y of its centre.
-    double diameter = 0.0;  ///< Largest horizontal extent.
-    double height = 0.0;    ///< Full height of the boulder, buried part included.
-    double burial = 0.0;    ///< Share of `height` below the surface, in [0, 1).
-    double yaw = 0.0;       ///< Rotation about the vertical, radians counter-clockwise from east.
-    double lean = 0.0;      ///< Tilt of the boulder's vertical axis from the vertical, radians.
-    std::uint64_t id = 0;   ///< Stable ID, keyed like crater IDs.
+    double diameter = 0.0;  ///< Length of its long axis: its largest horizontal extent on its face.
+    /// Length of its short axis, buried part included: its full height resting on its face.
+    double height = 0.0;
+    double burial = 0.0;   ///< Share of its vertical extent below the surface, in [0, 1).
+    double yaw = 0.0;      ///< Rotation about the vertical, radians counter-clockwise from east.
+    double lean = 0.0;     ///< Tilt of the boulder's vertical axis from the vertical, radians.
+    std::uint64_t id = 0;  ///< Stable ID, keyed like crater IDs.
+    BoulderRest rest = BoulderRest::Face;  ///< Which axis it stands along.
+    double tilt = 0.0;         ///< Angle of its up axis from the vertical, after lean, radians.
+    double tiltAzimuth = 0.0;  ///< Direction its up axis tips toward, radians from east.
     /// Height of the ground beneath its centre before any boulders, when the layer knows it.
     std::optional<double> ground{};
     /// Placed as a 3D model of its own rather than drawn into the heights

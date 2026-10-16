@@ -55,9 +55,10 @@ inline nb::dict CraterTable(const CraterList& craters,
 
 /// The boulders as NumPy columns.
 inline nb::dict BoulderTable(const std::vector<Boulder>& boulders) {
-    std::vector<double> x, y, ground, diameter, height, burial, yaw, lean;
-    std::vector<std::uint64_t> id;
-    std::vector<std::uint8_t> model;
+    std::vector<double> x, y, ground, diameter, height, burial, yaw, lean, wear, tilt, azimuth;
+    std::vector<std::uint64_t> id, parent;
+    std::vector<std::uint32_t> piece;
+    std::vector<std::uint8_t> model, rest;
     for (const Boulder& boulder : boulders) {
         x.push_back(boulder.x);
         y.push_back(boulder.y);
@@ -69,6 +70,12 @@ inline nb::dict BoulderTable(const std::vector<Boulder>& boulders) {
         lean.push_back(boulder.lean);
         id.push_back(boulder.id);
         model.push_back(boulder.model ? 1 : 0);
+        wear.push_back(boulder.wear);
+        parent.push_back(boulder.parent);
+        piece.push_back(boulder.piece);
+        rest.push_back(static_cast<std::uint8_t>(boulder.rest));
+        tilt.push_back(boulder.tilt);
+        azimuth.push_back(boulder.tiltAzimuth);
     }
     nb::dict table;
     table["x"] = Column(std::move(x));
@@ -81,6 +88,12 @@ inline nb::dict BoulderTable(const std::vector<Boulder>& boulders) {
     table["lean"] = Column(std::move(lean));
     table["id"] = Column(std::move(id));
     table["model"] = Column(std::move(model));
+    table["wear"] = Column(std::move(wear));
+    table["parent"] = Column(std::move(parent));
+    table["piece"] = Column(std::move(piece));
+    table["rest"] = Column(std::move(rest));
+    table["tilt"] = Column(std::move(tilt));
+    table["tilt_azimuth"] = Column(std::move(azimuth));
     return table;
 }
 

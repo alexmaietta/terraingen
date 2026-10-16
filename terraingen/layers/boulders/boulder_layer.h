@@ -107,6 +107,9 @@ class BoulderLayer final : public Layer, public BoulderPlacer {
     double OwnMarginRadii() const;
     /// Margin in radii its pieces may scatter beyond that when boulders break.
     double BreakMarginRadii() const;
+    /// Sets `boulder`'s resting axis and tilt from the pose options, on the slope of `ground` when
+    /// they follow it.
+    void Settle(Boulder& boulder, const Ground* ground) const;
     /// The pieces `parent` breaks into at its wear, those resolved at `spacing`; `parent` alone
     /// when it is too small or too fresh to break.
     std::vector<Boulder> Break(const Boulder& parent, double spacing, const Ground* ground) const;

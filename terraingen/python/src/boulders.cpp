@@ -95,6 +95,10 @@ void BindBoulderShapes(nb::module_& m) {
 }
 
 void BindBoulder(nb::module_& m) {
+    nb::enum_<BoulderRest>(m, "BoulderRest", "Which of its axes a boulder stands along.")
+        .value("FACE", BoulderRest::Face)
+        .value("SIDE", BoulderRest::Side)
+        .value("END", BoulderRest::End);
     nb::class_<Boulder>(m, "Boulder", "One boulder: centre, size, burial, orientation and ID.")
         .def(
             "__init__",
@@ -115,6 +119,9 @@ void BindBoulder(nb::module_& m) {
         .def_rw("ground", &Boulder::ground)
         .def_rw("model", &Boulder::model)
         .def_rw("wear", &Boulder::wear)
+        .def_rw("rest", &Boulder::rest)
+        .def_rw("tilt", &Boulder::tilt)
+        .def_rw("tilt_azimuth", &Boulder::tiltAzimuth)
         .def_rw("parent", &Boulder::parent)
         .def_rw("piece", &Boulder::piece)
         .def_prop_ro("exposed_height", &Boulder::ExposedHeight);
@@ -249,6 +256,10 @@ void BindGroupedOptions(nb::class_<BoulderLayerOptions>& options) {
     BindGrouped(options, "max_burial", &O::pose, &BoulderPose::maxBurial);
     BindGrouped(options, "max_lean", &O::pose, &BoulderPose::maxLean);
     BindGrouped(options, "burial_by_wear", &O::pose, &BoulderPose::burialByWear);
+    BindGrouped(options, "side_share", &O::pose, &BoulderPose::sideShare);
+    BindGrouped(options, "end_share", &O::pose, &BoulderPose::endShare);
+    BindGrouped(options, "max_tilt", &O::pose, &BoulderPose::maxTilt);
+    BindGrouped(options, "follow_slope", &O::pose, &BoulderPose::followSlope);
     options.def_rw("fillet", &O::fillet);
     options.def_rw("clusters", &O::clusters).def_rw("fragmentation", &O::fragmentation);
     BindGrouped(options, "relief", &O::rendering, &BoulderRendering::relief);
