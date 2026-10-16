@@ -97,6 +97,9 @@ template <typename IO> void Fields(IO& io, BoulderModelsOutput& output) {
        "Angle in degrees, from 0 to 180: vertices are split where faces meet at more than it, "
        "giving sharp edges.",
        "deg");
+    io("instanced", output.instanced,
+       "Writes each shared shape once and draws it per boulder (glTF instances, OBJ objects); "
+       "false writes every boulder as its own placed mesh, for tools without instancing.");
     FeatureExtentFields(io, output);
 }
 

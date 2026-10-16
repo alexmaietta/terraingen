@@ -122,11 +122,14 @@ void BindFeatures(nb::module_& m) {
             "path"_a, "Writes the boulders as CSV, or JSON for a .json path.")
         .def(
             "write_models",
-            [](const BoulderFeatures& f, const std::filesystem::path& path) {
-                WriteBoulderModels(f.models, path);
+            [](const BoulderFeatures& f, const std::filesystem::path& path, double creaseAngle,
+               bool instanced) {
+                WriteBoulderModels(f.models, path, creaseAngle, {}, {}, instanced);
             },
-            "path"_a,
-            "Writes the boulder models as a glTF scene (.glb or .gltf), OBJ (.obj) or STL (.stl).");
+            "path"_a, "crease_angle"_a = 35.0, "instanced"_a = true,
+            "Writes the boulder models as a glTF scene (.glb or .gltf), OBJ (.obj) or STL (.stl): "
+            "each shared shape once, drawn per boulder, or with `instanced` false every boulder as "
+            "its own placed mesh.");
     m.def(
         "placed_craters",
         [](const PyTerrain& terrain, std::optional<RasterGrid> grid, double spacing) {

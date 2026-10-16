@@ -103,9 +103,6 @@ class BoulderLayer final : public Layer, public BoulderPlacer {
     /// `candidate` as a boulder, or nothing when thinning drops it.
     std::optional<Boulder> DrawBoulder(const Crater& candidate, double spacing,
                                        const Ground* ground, const CraterList& ejecta) const;
-    /// Whether boulders are drawn as the union of their solids and fillets over the ground before
-    /// any of them (with fillets or fragmentation) rather than added on one another.
-    bool Unites() const;
     /// Margin in radii a boulder's own relief and fillet reach beyond its centre.
     double OwnMarginRadii() const;
     /// Margin in radii its pieces may scatter beyond that when boulders break.
@@ -121,12 +118,12 @@ class BoulderLayer final : public Layer, public BoulderPlacer {
     /// its block came from, drawn by each source's share of `density`, or uniform between craters.
     double Wear(double diameter, const BoulderAbundance& abundance, double density,
                 std::uint64_t id) const;
-    /// `height` at (`x`, `y`) with the boulder's exposed part added and then raised to at least
-    /// `base` (the height before any boulder) plus its fillet, so fillets never stack on rock or on
-    /// each other; `placed` is its shape placed on level ground at 0 for `BoulderRelief::Shape`,
-    /// and without `rock` only the fillet is drawn.
+    /// `height` at (`x`, `y`) raised to at least `base` (the height before any boulder) plus the
+    /// boulder's exposed part and its fillet, so boulders and fillets form a union instead of
+    /// stacking; `placed` is its shape placed on level ground at 0 for `BoulderRelief::Shape`, a
+    /// dome is averaged over `width` metres, and without `rock` only the fillet is drawn.
     float AddRelief(float height, float base, double x, double y, const Boulder& boulder,
-                    const TriangleMesh* placed, double weight, bool rock) const;
+                    const TriangleMesh* placed, double weight, bool rock, double width) const;
     /// `boulder` in its local frame: centred at the origin on a sphere, unchanged on a plane.
     Boulder InLocalFrame(const Boulder& boulder) const;
     /// `boulder`'s shape placed on level ground at 0.
@@ -138,6 +135,7 @@ class BoulderLayer final : public Layer, public BoulderPlacer {
         const Boulder* boulder;
         double weight;
         bool rock;
+        double width;  ///< Width a dome is averaged over: the spacing, or 0 for shapes.
         std::optional<TriangleMesh> placed;
         Bounds2d box;
     };
@@ -175,10 +173,16 @@ class BoulderLayer final : public Layer, public BoulderPlacer {
     std::shared_ptr<const SurfaceCells> cells_;
 };
 
-/// The height at surface (x, y) after a boulder's exposed part: a dome of its exposed height over
-/// its diameter, as `BoulderRelief::Dome` draws it.
+/// The height (m) of a boulder's dome of its exposed height over its diameter `distance` metres
+/// from its centre, averaged over a band `width` metres wide across that distance so its rim
+/// slopes over a sample instead of standing as a wall; 0 `width` samples it at the point.
+double DomeHeight(const Boulder& boulder, double distance, double width = 0.0);
+
+/// The height at surface (x, y) after a boulder's exposed part: `height` plus its dome
+/// (`DomeHeight`), as `BoulderRelief::Dome` draws it.
 /// @param weight Weight of the dome, in [0, 1].
+/// @param width Width (m) the dome is averaged over, such as the sample spacing; 0 for none.
 float AddBoulder(float height, double x, double y, const Boulder& boulder, double weight,
-                 const Surface& surface = {});
+                 const Surface& surface = {}, double width = 0.0);
 
 }  // namespace terraingen

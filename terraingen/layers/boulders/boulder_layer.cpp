@@ -161,16 +161,12 @@ double BoulderLayer::Wear(double diameter, const BoulderAbundance& abundance, do
 }
 
 float BoulderLayer::AddRelief(float height, float base, double x, double y, const Boulder& boulder,
-                              const TriangleMesh* placed, double weight, bool rock) const {
-    if (rock && placed == nullptr && !Unites()) {
-        return AddBoulder(height, x, y, boulder, weight, surface_);
-    }
+                              const TriangleMesh* placed, double weight, bool rock,
+                              double width) const {
     const Vec2d offset = surface_.Offset({boulder.x, boulder.y}, {x, y});
     double relief = 0.0;
     if (rock && placed == nullptr) {
-        const double radius = 0.5 * boulder.diameter;
-        const double r2 = (offset.x * offset.x + offset.y * offset.y) / (radius * radius);
-        relief = r2 < 1.0 ? boulder.ExposedHeight() * std::sqrt(1.0 - r2) : 0.0;
+        relief = DomeHeight(boulder, std::hypot(offset.x, offset.y), width);
     } else if (rock) {
         const std::optional<double> top =
             surface_.IsBody() ? TopSurface(*placed, offset.x, offset.y) : TopSurface(*placed, x, y);
@@ -178,8 +174,7 @@ float BoulderLayer::AddRelief(float height, float base, double x, double y, cons
     }
     double result = static_cast<double>(height);
     if (relief > 0.0) {
-        result = Unites() ? std::fmax(result, static_cast<double>(base) + weight * relief)
-                          : result + weight * relief;
+        result = std::fmax(result, static_cast<double>(base) + weight * relief);
     }
     if (options_.fillet.heightShare > 0.0) {
         const double fillet =
@@ -189,10 +184,6 @@ float BoulderLayer::AddRelief(float height, float base, double x, double y, cons
         }
     }
     return static_cast<float>(result);
-}
-
-bool BoulderLayer::Unites() const {
-    return options_.fillet.heightShare > 0.0 || options_.fragmentation.Enabled();
 }
 
 double BoulderLayer::OwnMarginRadii() const {
@@ -379,18 +370,37 @@ std::vector<Boulder> BoulderLayer::Break(const Boulder& parent, double spacing,
     return pieces;
 }
 
-float AddBoulder(float height, double x, double y, const Boulder& boulder, double weight,
-                 const Surface& surface) {
-    const Vec2d offset = surface.Offset({boulder.x, boulder.y}, {x, y});
-    const double dx = offset.x;
-    const double dy = offset.y;
+double DomeHeight(const Boulder& boulder, double distance, double width) {
     const double radius = 0.5 * boulder.diameter;
-    const double r2 = (dx * dx + dy * dy) / (radius * radius);
-    if (r2 >= 1.0) {
-        return height;
+    if (!(width > 0.0)) {
+        const double r2 = (distance * distance) / (radius * radius);
+        return r2 < 1.0 ? boulder.ExposedHeight() * std::sqrt(1.0 - r2) : 0.0;
     }
-    return static_cast<float>(static_cast<double>(height) +
-                              weight * boulder.ExposedHeight() * std::sqrt(1.0 - r2));
+    const auto area = [](double u) { return 0.5 * (u * std::sqrt(1.0 - u * u) + std::asin(u)); };
+    const double low = std::clamp((distance - 0.5 * width) / radius, -1.0, 1.0);
+    const double high = std::clamp((distance + 0.5 * width) / radius, -1.0, 1.0);
+    if (!(high > low)) {
+        return 0.0;
+    }
+    return boulder.ExposedHeight() * (area(high) - area(low)) * radius / width;
+}
+
+float AddBoulder(float height, double x, double y, const Boulder& boulder, double weight,
+                 const Surface& surface, double width) {
+    const Vec2d offset = surface.Offset({boulder.x, boulder.y}, {x, y});
+    if (!(width > 0.0)) {
+        const double dx = offset.x;
+        const double dy = offset.y;
+        const double radius = 0.5 * boulder.diameter;
+        const double r2 = (dx * dx + dy * dy) / (radius * radius);
+        if (r2 >= 1.0) {
+            return height;
+        }
+        return static_cast<float>(static_cast<double>(height) +
+                                  weight * boulder.ExposedHeight() * std::sqrt(1.0 - r2));
+    }
+    const double dome = DomeHeight(boulder, std::hypot(offset.x, offset.y), width);
+    return dome > 0.0 ? static_cast<float>(static_cast<double>(height) + weight * dome) : height;
 }
 
 std::vector<BoulderLayer::Relief> BoulderLayer::PrepareRelief(const std::vector<Boulder>& boulders,
@@ -400,12 +410,15 @@ std::vector<BoulderLayer::Relief> BoulderLayer::PrepareRelief(const std::vector<
     std::vector<Relief> reliefs;
     for (const Boulder& boulder : boulders) {
         const double weight = ResolutionWeight(boulder.diameter, spacing, options_.fade);
-        const bool rock = !boulder.model && look != BoulderRelief::None;
-        if (!(rock || filleted) || weight <= 0.0) {
+        const bool drawn = options_.rendering.reliefRange.Holds(boulder.diameter, boulder.model);
+        const bool rock = drawn && look != BoulderRelief::None;
+        const bool apron = filleted && (drawn || boulder.model);
+        if (!(rock || apron) || weight <= 0.0) {
             continue;
         }
-        Relief relief{&boulder, weight, rock, std::nullopt, {}};
-        double reach = 0.5 * boulder.diameter;
+        const double width = look == BoulderRelief::Dome ? spacing : 0.0;
+        Relief relief{&boulder, weight, rock, width, std::nullopt, {}};
+        double reach = 0.5 * (boulder.diameter + width);
         if (rock && look == BoulderRelief::Shape) {
             relief.placed = PlacedOnLevel(boulder);
             const Boulder local = InLocalFrame(boulder);
@@ -424,14 +437,12 @@ void BoulderLayer::DrawRelief(SampleBlock& samples, const std::vector<Relief>& r
                               unsigned threads) const {
     const auto draw = [&](float height, float base, const Vec2d& p, const Relief& relief) {
         const TriangleMesh* shape = relief.placed ? &*relief.placed : nullptr;
-        return AddRelief(height, base, p.x, p.y, *relief.boulder, shape, relief.weight,
-                         relief.rock);
+        return AddRelief(height, base, p.x, p.y, *relief.boulder, shape, relief.weight, relief.rock,
+                         relief.width);
     };
-    const bool united = Unites();
     if (Raster<float>* heights = samples.Grid()) {
         const std::span<const float> values = std::as_const(*heights).Values();
-        const std::vector<float> ground =
-            united ? std::vector<float>(values.begin(), values.end()) : std::vector<float>{};
+        const std::vector<float> ground(values.begin(), values.end());
         const std::size_t width = heights->Width();
         std::vector<std::vector<PixelWindow>> windows;
         for (const Relief& relief : reliefs) {
@@ -441,7 +452,7 @@ void BoulderLayer::DrawRelief(SampleBlock& samples, const std::vector<Relief>& r
             *heights, threads, reliefs.size(),
             [&](std::size_t n) -> const std::vector<PixelWindow>& { return windows[n]; },
             [&](float& cell, const FeatureCell& at) {
-                const float base = united ? ground[at.row * width + at.col] : cell;
+                const float base = ground[at.row * width + at.col];
                 cell = draw(cell, base, at.centre, reliefs[at.feature]);
             });
         return;
@@ -468,7 +479,9 @@ void BoulderLayer::ApplySamples(SampleBlock& samples, const LayerContext& contex
     const double spacing = grid != nullptr
                                ? std::max(context.spacing, RasterGrid::Of(*grid).Spacing(surface_))
                                : context.spacing;
-    const std::vector<Boulder> boulders = Boulders(samples.Bounds(), spacing, context.ground);
+    const double rim = options_.rendering.relief == BoulderRelief::Dome ? 0.5 * spacing : 0.0;
+    const std::vector<Boulder> boulders =
+        Boulders(surface_.Expand(samples.Bounds(), rim), spacing, context.ground);
     DrawRelief(samples, PrepareRelief(boulders, spacing), context.threads);
 }
 

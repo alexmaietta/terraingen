@@ -84,8 +84,10 @@ TEST(WriteBoulderList, WritesCsvAndJsonWithUnknownGroundsLeftOut) {
     const auto csv = TempPath("terraingen_boulders.csv");
     terraingen::WriteBoulderList(boulders, csv, ListFormat::Csv);
     const std::string text = ReadText(csv);
-    EXPECT_EQ(
-        text.rfind("x,y,ground,diameter,height,burial,yaw,lean,id,model\n1.5,-2,3.25,0.5,", 0), 0u)
+    EXPECT_EQ(text.rfind("x,y,ground,diameter,height,burial,yaw,lean,id,model,wear,parent,piece\n"
+                         "1.5,-2,3.25,0.5,",
+                         0),
+              0u)
         << text;
     EXPECT_NE(text.find("\n0,0,,"), std::string::npos) << text;
     const auto json = TempPath("terraingen_boulders.json");
@@ -118,4 +120,16 @@ TEST(WriteBoulderModels, RejectsOtherFilesAnglesAndNoBoulders) {
                  std::invalid_argument);
     terraingen::WriteBoulderModels(models, directory / "x.glb", 0.0);
     EXPECT_EQ(ReadText(directory / "x.glb").substr(0, 4), "glTF");
+
+    terraingen::WriteBoulderModels(models, directory / "baked.glb", 0.0, {}, {}, false);
+    const auto instanced = terraingen::ReadMesh(directory / "x.glb").mesh;
+    const auto baked = terraingen::ReadMesh(directory / "baked.glb").mesh;
+    EXPECT_EQ(baked.triangles.size(), instanced.triangles.size()) << "the same boulders";
+    const auto a = terraingen::Bounds(instanced);
+    const auto b = terraingen::Bounds(baked);
+    EXPECT_NEAR(a.min.x, b.min.x, 1e-4);
+    EXPECT_NEAR(a.max.z, b.max.z, 1e-4);
+    EXPECT_GT(std::filesystem::file_size(directory / "baked.glb"),
+              std::filesystem::file_size(directory / "x.glb"))
+        << "each boulder written whole rather than its shape once";
 }

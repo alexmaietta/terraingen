@@ -84,13 +84,14 @@ Json CraterJson(const CraterList& craters, const std::vector<CraterAttributes>& 
 }
 
 void WriteBoulderCsv(std::ostream& file, const std::vector<Boulder>& boulders) {
-    file << "x,y,ground,diameter,height,burial,yaw,lean,id,model\n";
+    file << "x,y,ground,diameter,height,burial,yaw,lean,id,model,wear,parent,piece\n";
     for (const Boulder& boulder : boulders) {
         file << Number(boulder.x) << ',' << Number(boulder.y) << ','
              << (boulder.ground ? Number(*boulder.ground) : std::string()) << ','
              << Number(boulder.diameter) << ',' << Number(boulder.height) << ','
              << Number(boulder.burial) << ',' << Number(boulder.yaw) << ',' << Number(boulder.lean)
-             << ',' << boulder.id << ',' << (boulder.model ? 1 : 0) << '\n';
+             << ',' << boulder.id << ',' << (boulder.model ? 1 : 0) << ',' << Number(boulder.wear)
+             << ',' << boulder.parent << ',' << boulder.piece << '\n';
     }
 }
 
@@ -106,7 +107,10 @@ Json BoulderJson(const std::vector<Boulder>& boulders) {
                         {"yaw", boulder.yaw},
                         {"lean", boulder.lean},
                         {"id", boulder.id},
-                        {"model", boulder.model}});
+                        {"model", boulder.model},
+                        {"wear", boulder.wear},
+                        {"parent", boulder.parent},
+                        {"piece", boulder.piece}});
     }
     return Json{{"boulders", std::move(list)}};
 }
@@ -117,14 +121,28 @@ BoulderPlacement PlacementOf(const BoulderModel& boulder, const Surface& surface
                            surface);
 }
 
-/// Writes each shared shape once, with crease normals, and a node per boulder.
+/// Writes each shared shape once, with crease normals, and a node per boulder; or, not
+/// `instanced`, each boulder's placed shape as its own mesh.
 void WriteBoulderScene(const std::vector<BoulderModel>& boulders, const std::filesystem::path& path,
-                       double creaseAngle, const Surface& surface, const Vec2d& site) {
+                       double creaseAngle, const Surface& surface, const Vec2d& site,
+                       bool instanced) {
     const double radians = creaseAngle * std::numbers::pi / 180.0;
     std::vector<SceneMesh> meshes;
     std::map<const BoulderShape*, std::size_t> indices;
     std::vector<SceneNode> nodes;
     for (const BoulderModel& boulder : boulders) {
+        if (!instanced) {
+            const BoulderPlacement placement = PlacementOf(boulder, surface, site);
+            TriangleMesh placed = boulder.shape->mesh;
+            for (Vec3d& p : placed.positions) {
+                p = placement.Apply(p);
+            }
+            ShadedMesh shaded = WithCreases(placed, radians);
+            nodes.push_back({meshes.size(), {1.0, 1.0, 1.0}, {}});
+            meshes.push_back(
+                {std::move(shaded.mesh), std::move(shaded.normals), boulder.shape->material});
+            continue;
+        }
         auto [found, added] = indices.emplace(boulder.shape.get(), meshes.size());
         if (added) {
             ShadedMesh shaded = WithCreases(boulder.shape->mesh, radians);
@@ -172,14 +190,14 @@ void WriteBoulderList(const std::vector<Boulder>& boulders, const std::filesyste
 
 void WriteBoulderModels(const std::vector<BoulderModel>& boulders,
                         const std::filesystem::path& path, double creaseAngle,
-                        const Surface& surface, const Vec2d& site) {
+                        const Surface& surface, const Vec2d& site, bool instanced) {
     if (!(creaseAngle >= 0.0 && creaseAngle <= 180.0)) {
         throw std::invalid_argument("Crease angle must be between 0 and 180 degrees");
     }
     if (boulders.empty()) {
         throw std::invalid_argument("There are no boulder models to write");
     }
-    WriteBoulderScene(boulders, path, creaseAngle, surface, site);
+    WriteBoulderScene(boulders, path, creaseAngle, surface, site, instanced);
 }
 
 }  // namespace terraingen

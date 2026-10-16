@@ -495,6 +495,7 @@ struct BoulderModelsOutput {
     double creaseAngle = 35.0;  ///< Degrees between faces above which vertices are split.
     std::optional<GridRegionSpec> region{};
     std::optional<double> spacing{};  ///< As `ListOutput::spacing`.
+    bool instanced = true;            ///< Shared shapes written once and drawn per boulder.
     bool operator==(const BoulderModelsOutput&) const = default;
 };
 

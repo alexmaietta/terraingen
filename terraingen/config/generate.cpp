@@ -117,7 +117,7 @@ bool Write(const BoulderModelsOutput& output, const std::filesystem::path& path,
         return false;
     }
     WriteBoulderModels(models, path, output.creaseAngle, context.generated.terrain.surface,
-                       context.Centre());
+                       context.Centre(), output.instanced);
     LogInfo("pipeline", "Wrote ", models.size(), " boulder models to ", path.string());
     return true;
 }

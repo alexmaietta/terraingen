@@ -61,8 +61,10 @@ void CheckThrownBlocks(const BoulderEjecta& ejecta, const BoulderSizes& sizes) {
 }  // namespace
 
 bool BoulderModelThreshold::IsModel(double diameter, double spacing) const {
-    return (minDiameter && diameter >= *minDiameter) ||
-           (minSamples && spacing > 0.0 && diameter >= *minSamples * spacing);
+    const bool large = (minDiameter && diameter >= *minDiameter) ||
+                       (minSamples && spacing > 0.0 && diameter >= *minSamples * spacing);
+    return large && !(maxDiameter && diameter >= *maxDiameter) &&
+           !(maxSamples && spacing > 0.0 && diameter >= *maxSamples * spacing);
 }
 
 double BoulderEjecta::MinCraterDiameter() const {
@@ -216,10 +218,17 @@ double FilletHeight(const Boulder& boulder, double distance, const BoulderFillet
 }
 
 void ValidateBoulderRendering(const BoulderRendering& rendering) {
-    for (const auto& threshold : {rendering.models.minDiameter, rendering.models.minSamples}) {
+    const BoulderModelThreshold& models = rendering.models;
+    for (const auto& threshold :
+         {models.minDiameter, models.minSamples, models.maxDiameter, models.maxSamples}) {
         if (threshold) {
             RequirePositive(*threshold, "Boulder model thresholds");
         }
+    }
+    const BoulderReliefRange& range = rendering.reliefRange;
+    RequireNonNegative(range.minDiameter, "Boulder relief minDiameter");
+    if (range.maxDiameter && !(*range.maxDiameter > range.minDiameter)) {
+        throw std::invalid_argument("Boulder relief maxDiameter must exceed its minDiameter");
     }
     ValidateBoulderShapeOptions(rendering.shapes);
 }

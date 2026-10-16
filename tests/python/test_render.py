@@ -105,3 +105,42 @@ def test_renders_a_generated_terrain_headlessly():
     lit = image[..., :3].sum(axis=-1) > 0
     assert lit[16, 16], "the terrain is centred"
     assert not lit[0, 0] and not lit[-1, -1], "the whole terrain fits the frame"
+
+
+def boulder_models():
+    options = tg.BoulderLayerOptions(coverage=0.1, min_diameter=0.5, max_diameter=2.0, shape_prototypes=4)
+    options.models = tg.BoulderModelThreshold(min_diameter=0.5)
+    terrain = tg.Terrain(None, [tg.BoulderLayer(options)])
+    grid = tg.RasterGrid.centred(80, 80, 0.25)
+    return tg.placed_boulders(terrain, grid, 0.25).models
+
+
+def test_quaternions_match_rotation_matrices():
+    for angle in (0.0, 0.7, math.pi):
+        turn = tg.RigidTransform.rotation_z(angle).after(tg.RigidTransform.rotation_x(0.3))
+        x, y, z, w = render._quaternion(turn.rotation)
+        m = np.asarray(turn.rotation).reshape(3, 3)
+        rebuilt = np.array(
+            [
+                [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+                [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+                [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
+            ]
+        )
+        assert rebuilt == pytest.approx(m, abs=1e-9)
+
+
+def test_add_boulders_instances_shared_shapes_or_bakes_each():
+    models = boulder_models()
+    assert len(models) > 3
+    scene = ernie.Scene()
+    instancer = render.add_boulders(scene, models)
+    assert len(instancer.positions) == len(models)
+    assert len(instancer.prototypes) <= 4
+    baked = ernie.Scene()
+    render.add_boulders(baked, models, instanced=False)
+    first = ernie.Path(render.BOULDERS_PATH).child("Boulder0")
+    points = np.asarray(ernie.Mesh.at(baked, first).points)
+    split, _ = models[0].shape.mesh.with_creases(math.radians(35.0))
+    expected = models[0].placement.apply(tuple(split.arrays[0][0]))
+    assert points[0] == pytest.approx(expected, abs=1e-4)

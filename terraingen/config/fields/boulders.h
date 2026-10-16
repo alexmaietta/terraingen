@@ -138,6 +138,52 @@ template <typename IO> void Fields(IO& io, BoulderModelThreshold& models) {
     io("min_samples", models.minSamples,
        "Boulders spanning at least this many samples at the spacing evaluated become 3D models, so "
        "finer levels of detail make more of them; unset applies no such threshold.");
+    io("max_diameter", models.maxDiameter,
+       "Boulders this many metres across or wider are not models, keeping a band of sizes as "
+       "models; unset applies no upper limit.",
+       "m");
+    io("max_samples", models.maxSamples,
+       "Boulders spanning this many samples or more are not models; unset applies no such limit.");
+}
+
+template <typename IO> void Fields(IO& io, BoulderReliefRange& range) {
+    io("min_diameter", range.minDiameter,
+       "Smallest boulder drawn into the heights, in metres; smaller ones stay in the lists only, "
+       "for the renderer's surface detail.",
+       "m");
+    io("max_diameter", range.maxDiameter,
+       "Boulders this many metres across or wider are not drawn into the heights; unset applies no "
+       "upper limit.",
+       "m");
+    io("models", range.models,
+       "Draws the 3D model boulders into the heights as well, as a stand-in for far views.");
+}
+
+template <typename IO> void Fields(IO& io, BoulderClusters& clusters) {
+    io("share", clusters.share,
+       "Share of the boulders between craters gathered in clusters, from 0 to 1; 0 leaves them "
+       "scattered.");
+    io("spacing", clusters.spacing, "Typical distance between cluster centres, in metres.", "m");
+    io("radius", clusters.radius, "Gaussian radius of a cluster, in metres; below the spacing.",
+       "m");
+}
+
+template <typename IO> void Fields(IO& io, BoulderFragmentation& fragmentation) {
+    io("min_diameter", fragmentation.minDiameter, "Smallest boulder that breaks, in metres.", "m");
+    io("split_wear", fragmentation.splitWear,
+       "Wear from 0 (fresh) to 1 from which boulders split into pieces that still fit; 1 breaks "
+       "nothing.");
+    io("rubble_wear", fragmentation.rubbleWear,
+       "Wear from which the pieces scatter as rubble, turn and sink; at least split_wear.");
+    io("min_pieces", fragmentation.minPieces, "Fewest pieces a boulder breaks into, at least 2.");
+    io("max_pieces", fragmentation.maxPieces, "Most pieces a boulder breaks into, at most 12.");
+    io("gap_ratio", fragmentation.gapRatio,
+       "Widest crack between split pieces, as a share of the boulder's diameter.");
+    io("spread_ratio", fragmentation.spreadRatio,
+       "How far rubble scatters beyond the cracks, as a share of the boulder's diameter.");
+    io("slab_share", fragmentation.slabShare,
+       "Share of broken boulders split by roughly parallel cracks right through them; the rest "
+       "crack out from the middle.");
 }
 
 template <typename IO> void Fields(IO& io, ValueRange& range) {
@@ -227,6 +273,9 @@ template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
        "boulder field of the same statistics.");
     io("patches", boulders.patches,
        "Patches of richer and poorer boulder cover across the ground.");
+    io("clusters", boulders.clusters,
+       "Clusters of the boulders between craters around scattered centres; off unless share is "
+       "set.");
     io("ejecta", boulders.ejecta,
        "Blocks thrown out by craters of the nearest crater layer before this one that dug into "
        "boulder, densest at the rim and thinning outward.");
@@ -265,10 +314,16 @@ template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
     io("fillet", boulders.fillet,
        "Regolith piled against each boulder's base, around relief and models alike; off unless "
        "height_share is set.");
+    io("fragmentation", boulders.fragmentation,
+       "Boulders broken by wear into pieces that replace them, split and then scattered as "
+       "rubble; off unless split_wear is below 1.");
     io("relief", rendering.relief, "How the boulders drawn into the heights look there.");
     io("models", rendering.models,
        "Which boulders become 3D models of their own rather than relief in the heights; neither "
        "threshold set means no models.");
+    io("relief_range", rendering.reliefRange,
+       "Which boulders are drawn into the heights by diameter: none below min_diameter or from "
+       "max_diameter, and models only when asked.");
     io("shapes", rendering.shapes,
        "The boulders' 3D boulder shapes, used by shape relief and by models.");
     io("shape_files", spec.shapeFiles,

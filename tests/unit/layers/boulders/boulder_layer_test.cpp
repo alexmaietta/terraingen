@@ -523,3 +523,92 @@ TEST(BoulderLayer, SetsBurialByWearWhenAsked) {
     options.pose.burialByWear = 1.5;
     EXPECT_THROW(BoulderLayer(options, craters), std::invalid_argument);
 }
+
+TEST(BoulderModelThreshold, KeepsABandOfSizesAsModels) {
+    terraingen::BoulderModelThreshold band{.minDiameter = 1.0, .maxDiameter = 3.0};
+    EXPECT_FALSE(band.IsModel(0.5, 0.0));
+    EXPECT_TRUE(band.IsModel(1.0, 0.0));
+    EXPECT_FALSE(band.IsModel(3.0, 0.0));
+    band = {.minSamples = 4.0, .maxSamples = 10.0};
+    EXPECT_TRUE(band.IsModel(1.0, 0.2));
+    EXPECT_FALSE(band.IsModel(2.0, 0.2));
+    EXPECT_FALSE(band.IsModel(2.0, 0.0)) << "no samples without a spacing";
+    BoulderLayerOptions options;
+    options.rendering.models.maxDiameter = -1.0;
+    EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
+}
+
+TEST(BoulderLayer, DrawsOnlyBouldersInItsReliefRange) {
+    BoulderLayerOptions options;
+    options.sizes.coverage = 0.1;
+    options.sizes.minDiameter = 0.2;
+    options.rendering.reliefRange = {.minDiameter = 0.6, .maxDiameter = 1.5};
+    const BoulderLayer layer(options);
+    Raster<float> heights(120, 120, 0.0f);
+    heights.SetTransform(GeoTransform::NorthUp(-15.0, 15.0, 0.25));
+    layer.Apply(heights, {0.25});
+    const auto boulders = layer.Boulders(terraingen::RasterGrid::Of(heights).Bounds(), 0.25);
+    std::size_t drawn = 0;
+    for (const Boulder& boulder : boulders) {
+        const auto pixel = heights.Transform().WorldToPixel(boulder.x, boulder.y);
+        if (pixel.x < 0.0 || pixel.y < 0.0 || pixel.x >= 120.0 || pixel.y >= 120.0) {
+            continue;
+        }
+        const float at =
+            heights(static_cast<std::size_t>(pixel.x), static_cast<std::size_t>(pixel.y));
+        const bool inRange = boulder.diameter >= 0.6 && boulder.diameter < 1.5;
+        if (!inRange) {
+            bool covered = false;
+            for (const Boulder& other : boulders) {
+                covered = covered || (other.diameter >= 0.6 && other.diameter < 1.5 &&
+                                      std::hypot(other.x - boulder.x, other.y - boulder.y) <
+                                          0.5 * other.diameter + 0.25);
+            }
+            if (!covered) {
+                EXPECT_EQ(at, 0.0f) << "a " << boulder.diameter << " m boulder is not drawn";
+            }
+        } else {
+            drawn += at > 0.0f ? 1u : 0u;
+        }
+    }
+    EXPECT_GT(drawn, 0u);
+    EXPECT_FALSE(options.rendering.reliefRange.Holds(1.0, true)) << "not models by default";
+    options.rendering.reliefRange = {.minDiameter = 1.0, .maxDiameter = 0.5};
+    EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
+}
+
+TEST(DomeHeight, AveragesTheDomeOverASampleSoItsRimSlopes) {
+    const Boulder boulder{0.0, 0.0, 2.0, 1.0, 0.25, 0.0, 0.0, 1u};
+    EXPECT_DOUBLE_EQ(terraingen::DomeHeight(boulder, 0.6), 0.75 * 0.8) << "a point sample";
+    EXPECT_NEAR(terraingen::DomeHeight(boulder, 0.0, 0.1), 0.75, 1e-3);
+    EXPECT_GT(terraingen::DomeHeight(boulder, 1.02, 0.1), 0.0) << "the rim spreads half a sample";
+    EXPECT_EQ(terraingen::DomeHeight(boulder, 1.06, 0.1), 0.0);
+    double previous = terraingen::DomeHeight(boulder, 0.8, 0.1);
+    double steepest = 0.0;
+    for (double r = 0.81; r <= 1.05; r += 0.01) {
+        const double h = terraingen::DomeHeight(boulder, r, 0.1);
+        ASSERT_LE(h, previous + 1e-12);
+        steepest = std::fmax(steepest, (previous - h) / 0.01);
+        previous = h;
+    }
+    EXPECT_LT(steepest, 15.0) << "no wall at the rim";
+    EXPECT_FLOAT_EQ(terraingen::AddBoulder(5.0f, 0.6, 0.0, boulder, 1.0),
+                    5.0f + static_cast<float>(0.75 * 0.8));
+}
+
+TEST(BoulderLayer, DrawsOverlappingBouldersAsTheirUnion) {
+    BoulderLayerOptions options;
+    options.sizes.coverage = 0.3;
+    options.sizes.minDiameter = 0.5;
+    const BoulderLayer layer(options);
+    Raster<float> heights(160, 160, 0.0f);
+    heights.SetTransform(GeoTransform::NorthUp(-20.0, 20.0, 0.25));
+    layer.Apply(heights, {0.25});
+    double tallest = 0.0;
+    for (const Boulder& boulder :
+         layer.Boulders(terraingen::RasterGrid::Of(heights).Bounds(), 0.25)) {
+        tallest = std::fmax(tallest, boulder.ExposedHeight());
+    }
+    const float highest = *std::max_element(heights.Values().begin(), heights.Values().end());
+    EXPECT_LE(highest, tallest + 1e-5) << "no boulder stacks on another";
+}

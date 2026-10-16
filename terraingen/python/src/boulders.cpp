@@ -210,10 +210,24 @@ void BindRendering(nb::module_& m) {
     auto threshold = nb::class_<BoulderModelThreshold>(
         m, "BoulderModelThreshold",
         "Which boulders are placed as 3D boulder models: at least `min_diameter` metres across, or "
-        "`min_samples` samples across.");
+        "`min_samples` samples across, and below `max_diameter` and `max_samples` when set.");
     BindKwargsInit<BoulderModelThreshold>(threshold);
     threshold.def_rw("min_diameter", &BoulderModelThreshold::minDiameter)
-        .def_rw("min_samples", &BoulderModelThreshold::minSamples);
+        .def_rw("min_samples", &BoulderModelThreshold::minSamples)
+        .def_rw("max_diameter", &BoulderModelThreshold::maxDiameter)
+        .def_rw("max_samples", &BoulderModelThreshold::maxSamples)
+        .def("is_model", &BoulderModelThreshold::IsModel, "diameter"_a, "spacing"_a = 0.0,
+             "Whether a boulder of `diameter` metres is a model at `spacing`.");
+    auto range = nb::class_<BoulderReliefRange>(
+        m, "BoulderReliefRange",
+        "Which boulders are drawn into the heights: from `min_diameter` up to `max_diameter` "
+        "metres, models only with `models`.");
+    BindKwargsInit<BoulderReliefRange>(range);
+    range.def_rw("min_diameter", &BoulderReliefRange::minDiameter)
+        .def_rw("max_diameter", &BoulderReliefRange::maxDiameter)
+        .def_rw("models", &BoulderReliefRange::models)
+        .def("holds", &BoulderReliefRange::Holds, "diameter"_a, "model"_a,
+             "Whether a boulder of `diameter` metres is drawn into the heights.");
 }
 
 /// @brief The grouped options under their flat config names.
@@ -239,6 +253,7 @@ void BindGroupedOptions(nb::class_<BoulderLayerOptions>& options) {
     options.def_rw("clusters", &O::clusters).def_rw("fragmentation", &O::fragmentation);
     BindGrouped(options, "relief", &O::rendering, &BoulderRendering::relief);
     BindGrouped(options, "models", &O::rendering, &BoulderRendering::models);
+    BindGrouped(options, "relief_range", &O::rendering, &BoulderRendering::reliefRange);
     BindGrouped(options, "shapes", &O::rendering, &BoulderRendering::shapes);
     BindGrouped(options, "shape_prototypes", &O::rendering, &BoulderRendering::shapePrototypes);
     options.def_rw("fade", &O::fade);
@@ -302,7 +317,11 @@ void BindLayer(nb::module_& m) {
             "Boulders at least `diameter` across per square metre at (x, y).")
         .def_prop_ro("options", &BoulderLayer::Options);
     m.def("add_boulder", &AddBoulder, "height"_a, "x"_a, "y"_a, "boulder"_a, "weight"_a = 1.0,
-          "surface"_a = Surface{}, "`height` at (x, y) with `boulder` drawn into it at `weight`.");
+          "surface"_a = Surface{}, "width"_a = 0.0,
+          "`height` at (x, y) with `boulder` drawn into it at `weight`, its dome averaged over "
+          "`width` metres.");
+    m.def("dome_height", &DomeHeight, "boulder"_a, "distance"_a, "width"_a = 0.0,
+          "A boulder's dome `distance` metres from its centre, averaged over `width` metres.");
 }
 
 void BindPlacement(nb::module_& m) {

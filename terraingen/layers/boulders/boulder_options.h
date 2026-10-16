@@ -23,13 +23,16 @@ enum class BoulderRelief {
     None,
 };
 
-/// Which boulders become 3D models of their own rather than relief in the heights; neither
-/// threshold set means no models.
+/// Which boulders become 3D models of their own: those at or above either lower threshold and
+/// below every upper one set; no lower threshold means no models.
 struct BoulderModelThreshold {
     std::optional<double> minDiameter{};  ///< Boulders at least this wide (m) are models.
     std::optional<double> minSamples{};   ///< Boulders spanning at least this many samples are.
+    std::optional<double> maxDiameter{};  ///< Boulders this wide (m) or wider are not.
+    std::optional<double> maxSamples{};   ///< Boulders spanning this many samples or more are not.
 
-    /// Whether a boulder of `diameter` metres is a model: above either threshold.
+    /// Whether a boulder of `diameter` metres is a model: at or above a lower threshold and below
+    /// the upper ones.
     /// @param spacing Sample spacing in metres; 0 for none, when only `minDiameter` counts.
     bool IsModel(double diameter, double spacing) const;
 
@@ -203,10 +206,28 @@ double FilletHeight(const Boulder& boulder, double distance, const BoulderFillet
 /// How far (m) from its centre `boulder`'s fillet reaches: its radius plus the fillet's width.
 double FilletReach(const Boulder& boulder, const BoulderFillet& fillet);
 
+/// Which boulders are drawn into the heights: those from `minDiameter` up to `maxDiameter` that are
+/// not models, and models too with `models`. Boulders drawn neither way stay in the lists only,
+/// such as those too small to matter at the grid's scale.
+struct BoulderReliefRange {
+    double minDiameter = 0.0;             ///< Smallest boulder drawn (m).
+    std::optional<double> maxDiameter{};  ///< Boulders this wide (m) or wider are not drawn.
+    bool models = false;  ///< Draw models into the heights as well, as a stand-in for far views.
+
+    /// Whether a boulder of `diameter` metres, a model or not, is drawn into the heights.
+    bool Holds(double diameter, bool model) const {
+        return diameter >= minDiameter && (!maxDiameter || diameter < *maxDiameter) &&
+               (!model || models);
+    }
+
+    bool operator==(const BoulderReliefRange&) const = default;
+};
+
 /// How boulders are drawn: as relief in the heights or as 3D models, and with which shapes.
 struct BoulderRendering {
     BoulderRelief relief = BoulderRelief::Dome;  ///< Look of boulders drawn into the heights.
-    BoulderModelThreshold models{};              ///< Which boulders are models instead.
+    BoulderModelThreshold models{};              ///< Which boulders are 3D models.
+    BoulderReliefRange reliefRange{};            ///< Which boulders are drawn into the heights.
     /// The 3D shapes of the boulders, for `BoulderRelief::Shape` and for models.
     BoulderShapeOptions shapes{};
     /// How many shapes the boulders share, for instancing; 0 gives every boulder its own

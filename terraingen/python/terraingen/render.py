@@ -25,6 +25,7 @@ import numpy as np
 TERRAIN_PATH = "/World/Terrain"
 SUN_PATH = "/World/Sun"
 CAMERA_PATH = "/World/Camera"
+BOULDERS_PATH = "/World/Boulders"
 
 
 def _ernie():
@@ -96,6 +97,102 @@ def add_terrain(scene, raster, path=TERRAIN_PATH, *, exaggeration=None, material
     if material is not None:
         prim.set(tokens.MATERIAL_BINDING, ernie.Path(str(material)))
     return prim
+
+
+def _quaternion(rotation):
+    """The unit quaternion (x, y, z, w) of a row-major 3 x 3 rotation matrix."""
+    m = np.asarray(rotation, dtype=np.float64).reshape(3, 3)
+    trace = m[0, 0] + m[1, 1] + m[2, 2]
+    if trace > 0.0:
+        s = 2.0 * math.sqrt(trace + 1.0)
+        q = ((m[2, 1] - m[1, 2]) / s, (m[0, 2] - m[2, 0]) / s, (m[1, 0] - m[0, 1]) / s, 0.25 * s)
+    elif m[0, 0] > m[1, 1] and m[0, 0] > m[2, 2]:
+        s = 2.0 * math.sqrt(1.0 + m[0, 0] - m[1, 1] - m[2, 2])
+        q = (0.25 * s, (m[0, 1] + m[1, 0]) / s, (m[0, 2] + m[2, 0]) / s, (m[2, 1] - m[1, 2]) / s)
+    elif m[1, 1] > m[2, 2]:
+        s = 2.0 * math.sqrt(1.0 + m[1, 1] - m[0, 0] - m[2, 2])
+        q = ((m[0, 1] + m[1, 0]) / s, 0.25 * s, (m[1, 2] + m[2, 1]) / s, (m[0, 2] - m[2, 0]) / s)
+    else:
+        s = 2.0 * math.sqrt(1.0 + m[2, 2] - m[0, 0] - m[1, 1])
+        q = ((m[0, 2] + m[2, 0]) / s, (m[1, 2] + m[2, 1]) / s, 0.25 * s, (m[1, 0] - m[0, 1]) / s)
+    return np.asarray(q) / np.linalg.norm(q)
+
+
+def _define_mesh(scene, path, positions, triangles, normals, material):
+    ernie = _ernie()
+    tokens = ernie.tokens
+    prim = scene.define(
+        path,
+        ernie.Mesh,
+        points=np.ascontiguousarray(positions, dtype=np.float32),
+        normals=np.ascontiguousarray(normals, dtype=np.float32),
+        face_vertex_counts=np.full(len(triangles), 3, dtype=np.int32),
+        face_vertex_indices=np.ascontiguousarray(np.asarray(triangles).reshape(-1), dtype=np.int32),
+    )
+    if material is not None:
+        prim.set(tokens.MATERIAL_BINDING, ernie.Path(str(material)))
+    return prim
+
+
+def _shaded(shape, crease_angle_deg):
+    """(positions, triangles, normals) of a boulder shape split along its creases."""
+    mesh, normals = shape.mesh.with_creases(math.radians(crease_angle_deg))
+    positions, triangles = mesh.arrays
+    return positions, triangles, normals
+
+
+def add_boulders(scene, models, path=BOULDERS_PATH, *, instanced=True, crease_angle_deg=35.0, material=None):
+    """Defines the boulder models (``BoulderModel``, as ``placed_boulders`` gives) as 3D meshes.
+
+    Instanced, each shape the boulders share becomes one prototype Mesh under a PointInstancer
+    that draws it once per boulder, scaled, turned and placed; otherwise every boulder becomes its
+    own Mesh with its placed vertices. Normals are split where faces meet at more than
+    ``crease_angle_deg`` and smooth elsewhere. Planar terrains only: on a body, placements are in
+    each boulder's local frame. ``material`` is the path of a Material prim to bind. Returns the
+    prim.
+    """
+    ernie = _ernie()
+    tokens = ernie.tokens
+    base = ernie.Path(str(path))
+    if not instanced:
+        scene.define(base, tokens.XFORM)
+        for n, model in enumerate(models):
+            positions, triangles, normals = _shaded(model.shape, crease_angle_deg)
+            rotation = np.asarray(model.placement.pose.rotation).reshape(3, 3)
+            scale = np.asarray(model.placement.scale)
+            placed = (positions * scale) @ rotation.T + np.asarray(model.placement.pose.translation)
+            turned = (normals / scale) @ rotation.T
+            turned /= np.linalg.norm(turned, axis=1, keepdims=True)
+            _define_mesh(scene, base.child(f"Boulder{n}"), placed, triangles, turned, material)
+        return scene.get_prim(base)
+    shapes = {}
+    indices = []
+    for model in models:
+        key = (model.shape_seed, model.boulder.parent, model.boulder.piece)
+        indices.append(shapes.setdefault(key, (len(shapes), model.shape))[0])
+    prototypes = []
+    for index, shape in shapes.values():
+        prototype = base.child(f"Shape{index}")
+        _define_mesh(scene, prototype, *_shaded(shape, crease_angle_deg), material)
+        prototypes.append(prototype)
+    count = len(indices)
+    positions = np.zeros((count, 3), np.float32)
+    orientations = np.zeros((count, 4), np.float32)
+    scales = np.zeros((count, 3), np.float32)
+    for n, model in enumerate(models):
+        pose = model.placement.pose
+        positions[n] = pose.translation
+        orientations[n] = _quaternion(pose.rotation)
+        scales[n] = model.placement.scale
+    return scene.define(
+        base,
+        ernie.PointInstancer,
+        positions=positions,
+        orientations=orientations,
+        scales=scales,
+        proto_indices=np.asarray(indices, np.int32),
+        prototypes=prototypes,
+    )
 
 
 def add_sun(scene, path=SUN_PATH, *, azimuth_deg=315.0, elevation_deg=35.0, intensity=1.0):

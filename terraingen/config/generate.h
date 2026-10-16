@@ -72,11 +72,13 @@ void WriteBoulderList(const std::vector<Boulder>& boulders, const std::filesyste
 /// (STL). On a sphere the world is the east-north-up frame of `site` on the datum sphere
 /// (`PlacementAtSite`), so coordinates stay small; `WriteOutputs` uses the grid's centre.
 /// @param creaseAngle Angle in degrees, from 0 to 180, above which normals are split.
+/// @param instanced Whether shared shapes are written once and drawn per boulder; otherwise each
+/// boulder is written as its own mesh, already placed, for tools without instancing.
 /// @throws std::invalid_argument for no boulders, an angle outside [0, 180] or as `WriteScene`.
 /// @throws std::runtime_error if the file cannot be written.
 void WriteBoulderModels(const std::vector<BoulderModel>& boulders,
                         const std::filesystem::path& path, double creaseAngle = 35.0,
-                        const Surface& surface = {}, const Vec2d& site = {});
+                        const Surface& surface = {}, const Vec2d& site = {}, bool instanced = true);
 
 /// Writes a configuration's outputs and returns the paths written: heightmaps and albedos
 /// with `terrain.geoKeys`, terrain meshes, crater and boulder lists, boulder models and meshes,
