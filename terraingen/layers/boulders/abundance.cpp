@@ -79,10 +79,12 @@ double BoulderLayer::BackgroundAbundance(double x, double y, const Ground* groun
     return std::min(background, maxBackground_);
 }
 
-double BoulderLayer::EjectaAbundance(double x, double y, const CraterList& ejecta) const {
+void BoulderLayer::EjectaAbundance(double x, double y, const CraterList& ejecta,
+                                   BoulderAbundance& abundance) const {
     const BoulderEjecta& eject = options_.ejecta;
     const DegradationModel& degradation = *craters_->Models().degradation;
     double share = 0.0;
+    double wear = 0.0;
     for (std::size_t n = 0; n < ejecta.Size(); ++n) {
         const Crater crater = ejecta.At(n);
         const double reach = EjectaReach(eject, crater.diameter);
@@ -95,9 +97,14 @@ double BoulderLayer::EjectaAbundance(double x, double y, const CraterList& eject
         if (radial <= share) {
             continue;
         }
-        share = std::fmax(share, Retention(eject, crater, degradation) * radial);
+        const double retention = Retention(eject, crater, degradation);
+        if (retention * radial > share) {
+            share = retention * radial;
+            wear = 1.0 - retention;
+        }
     }
-    return share;
+    abundance.ejecta = share;
+    abundance.ejectaWear = wear;
 }
 
 BoulderAbundance BoulderLayer::Abundance(double x, double y, const Ground* ground,
@@ -105,7 +112,7 @@ BoulderAbundance BoulderLayer::Abundance(double x, double y, const Ground* groun
     BoulderAbundance abundance;
     abundance.background = BackgroundAbundance(x, y, ground);
     if (!ejecta.Empty()) {
-        abundance.ejecta = EjectaAbundance(x, y, ejecta);
+        EjectaAbundance(x, y, ejecta, abundance);
     }
     return abundance;
 }

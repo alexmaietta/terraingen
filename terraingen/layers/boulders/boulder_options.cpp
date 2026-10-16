@@ -130,6 +130,32 @@ void ValidateBoulderPose(const BoulderPose& pose) {
     if (!IsNonNegative(pose.maxLean)) {
         throw std::invalid_argument("Boulder maxLean must not be negative");
     }
+    if (!(pose.burialByWear >= 0.0 && pose.burialByWear <= 1.0)) {
+        throw std::invalid_argument("Boulder burialByWear must be in [0, 1]");
+    }
+}
+
+void ValidateBoulderFillet(const BoulderFillet& fillet) {
+    if (!(fillet.heightShare >= 0.0 && fillet.heightShare <= 1.0)) {
+        throw std::invalid_argument("Boulder fillet heightShare must be in [0, 1]");
+    }
+    if (!IsPositive(fillet.widthRatio)) {
+        throw std::invalid_argument("Boulder fillet widthRatio must be positive");
+    }
+}
+
+double FilletReach(const Boulder& boulder, const BoulderFillet& fillet) {
+    return (0.5 + fillet.widthRatio) * boulder.diameter;
+}
+
+double FilletHeight(const Boulder& boulder, double distance, const BoulderFillet& fillet) {
+    const double radius = 0.5 * boulder.diameter;
+    const double top = fillet.heightShare * boulder.ExposedHeight();
+    if (distance <= radius) {
+        return top;
+    }
+    const double t = (distance - radius) / (fillet.widthRatio * boulder.diameter);
+    return t >= 1.0 ? 0.0 : top * (1.0 - t) * (1.0 - t);
 }
 
 void ValidateBoulderRendering(const BoulderRendering& rendering) {
@@ -152,6 +178,7 @@ void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
     }
     ValidateBoulderEjecta(options.ejecta, options.sizes);
     ValidateBoulderPose(options.pose);
+    ValidateBoulderFillet(options.fillet);
     ValidateResolutionFade(options.fade);
     ValidateBoulderRendering(options.rendering);
 }

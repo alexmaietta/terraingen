@@ -1,0 +1,56 @@
+{
+    "schema_version": 1,
+    "source": {
+        "type": "flat",
+        "width": 401,
+        "height": 401,
+        "pixel_size": 0.05
+    },
+    "layers": [
+        {
+            "type": "roughness"
+        },
+        {
+            "type": "craters",
+            "generate": false,
+            "manual": [
+                {
+                    "x": 0,
+                    "y": 0,
+                    "diameter": 10,
+                    "age_gyr": 0.01
+                }
+            ]
+        },
+        {
+            "type": "boulders",
+            "seed": 3,
+            "coverage": 0.03,
+            "min_diameter": 0.15,
+            "max_diameter": 1.5,
+            "ejecta": {
+                "min_crater_diameter": 5.0,
+                "coverage": 0.2,
+                "reach": 3.0
+            },
+            "min_burial": 0.05,
+            "max_burial": 0.6,
+            "burial_by_wear": 0.8,
+            "fillet": {
+                "height_share": 0.3,
+                "width_ratio": 0.3
+            },
+            "relief": "shape"
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_boulders_buried.tif"
+        },
+        {
+            "type": "boulder_list",
+            "path": "example_boulders_buried_boulders.csv"
+        }
+    ]
+}

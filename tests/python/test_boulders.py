@@ -117,6 +117,17 @@ def test_boulder_layer_options_keep_their_fields():
     )
 
 
+def test_boulder_fillets_and_burial_by_wear_are_options():
+    fillet = terraingen.BoulderFillet(height_share=0.4, width_ratio=0.25)
+    boulders = terraingen.BoulderLayerOptions(burial_by_wear=0.5, fillet=fillet)
+    assert (boulders.burial_by_wear, boulders.fillet.height_share) == (0.5, 0.4)
+    boulder = terraingen.Boulder(0.0, 0.0, 2.0, 1.0, burial=0.25)
+    assert terraingen.boulder_fillet_height(boulder, 1.25, fillet) == pytest.approx(0.075)
+    assert terraingen.boulder_fillet_height(boulder, 2.0, fillet) == 0.0
+    with pytest.raises(ValueError):
+        terraingen.validate_boulder_fillet(terraingen.BoulderFillet(height_share=2.0))
+
+
 def test_boulder_layer_options_take_custom_shape_styles():
     egg = terraingen.BoulderStyle(
         name="egg",

@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <memory>
@@ -441,4 +442,84 @@ TEST(BoulderLayer, SharesShapesBetweenBouldersOfOnePrototype) {
               unique.Shape(Boulder{.id = 99})->mesh.positions);
     options.rendering.models.minSamples = -1.0;
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
+}
+
+TEST(FilletHeight, IsLevelToTheRadiusThenFallsToNothingAtItsReach) {
+    const Boulder boulder{0.0, 0.0, 2.0, 1.0, 0.25, 0.0, 0.0, 1u};
+    const terraingen::BoulderFillet fillet{0.4, 0.25};
+    EXPECT_DOUBLE_EQ(terraingen::FilletHeight(boulder, 0.0, fillet), 0.3);
+    EXPECT_DOUBLE_EQ(terraingen::FilletHeight(boulder, 1.0, fillet), 0.3);
+    EXPECT_DOUBLE_EQ(terraingen::FilletHeight(boulder, 1.25, fillet), 0.075);
+    EXPECT_EQ(terraingen::FilletHeight(boulder, 1.5, fillet), 0.0);
+    EXPECT_DOUBLE_EQ(terraingen::FilletReach(boulder, fillet), 1.5);
+    EXPECT_THROW(terraingen::ValidateBoulderFillet({1.5, 0.25}), std::invalid_argument);
+    EXPECT_THROW(terraingen::ValidateBoulderFillet({0.4, 0.0}), std::invalid_argument);
+}
+
+TEST(BoulderLayer, PilesFilletsAroundBouldersThatPointQueriesMatch) {
+    BoulderLayerOptions options;
+    options.sizes.coverage = 0.05;
+    options.sizes.minDiameter = 0.5;
+    const BoulderLayer bare(options);
+    options.fillet = {0.3, 0.3};
+    const BoulderLayer filleted(options);
+    Raster<float> plain(80, 60, 1.0f);
+    plain.SetTransform(GeoTransform::NorthUp(-20.0, 15.0, 0.25));
+    Raster<float> piled = plain;
+    bare.Apply(plain, {0.25, 4});
+    filleted.Apply(piled, {0.25, 4});
+    const auto boulders = filleted.Boulders(terraingen::RasterGrid::Of(piled).Bounds(), 0.25);
+    ASSERT_FALSE(boulders.empty());
+    std::size_t aprons = 0;
+    for (std::size_t row = 0; row < piled.Height(); ++row) {
+        for (std::size_t col = 0; col < piled.Width(); ++col) {
+            const auto centre = piled.CellCenter(col, row);
+            ASSERT_EQ(filleted.ApplyAt(1.0f, centre.x, centre.y, {0.25}), piled(col, row));
+            ASSERT_GE(piled(col, row), plain(col, row));
+            aprons += plain(col, row) == 1.0f && piled(col, row) > 1.0f ? 1u : 0u;
+            bool near = false;
+            for (const Boulder& boulder : boulders) {
+                near = near || std::hypot(centre.x - boulder.x, centre.y - boulder.y) <
+                                   terraingen::FilletReach(boulder, options.fillet);
+            }
+            if (!near) {
+                ASSERT_EQ(piled(col, row), 1.0f) << "beyond every fillet";
+            }
+        }
+    }
+    EXPECT_GT(aprons, 0u) << "fillets reach past the domes";
+
+    options.rendering.relief = terraingen::BoulderRelief::None;
+    options.rendering.models.minDiameter = options.sizes.minDiameter;
+    Raster<float> modelled(80, 60, 1.0f);
+    modelled.SetTransform(plain.Transform());
+    BoulderLayer(options).Apply(modelled, {0.25});
+    EXPECT_GT(*std::max_element(modelled.Values().begin(), modelled.Values().end()), 1.0f)
+        << "models stand in fillets too";
+}
+
+TEST(BoulderLayer, SetsBurialByWearWhenAsked) {
+    BoulderLayerOptions options;
+    options.ejecta.minCraterDiameter = 50.0;
+    options.ejecta.coverage = 0.15;
+    options.pose.burialByWear = 1.0;
+    const auto craters = Craters({{0.0, 0.0, 100.0, 0.0, 0u}});
+    const BoulderLayer layer(options, craters);
+    EXPECT_EQ(layer.AbundanceAt(50.0, 0.0).ejectaWear, 0.0) << "a fresh crater";
+    std::size_t fresh = 0;
+    const auto nearRim = layer.Boulders({40.0, -10.0, 60.0, 10.0});
+    for (const Boulder& boulder : nearRim) {
+        fresh += boulder.burial == 0.1 ? 1u : 0u;
+    }
+    EXPECT_GT(fresh, nearRim.size() / 2) << "most blocks at the rim are the fresh crater's";
+    double least = 1.0;
+    double most = 0.0;
+    for (const Boulder& boulder : layer.Boulders({300.0, -10.0, 320.0, 10.0})) {
+        least = std::fmin(least, boulder.burial);
+        most = std::fmax(most, boulder.burial);
+    }
+    EXPECT_LT(least, 0.15) << "boulders between craters span every stage of wear";
+    EXPECT_GT(most, 0.35);
+    options.pose.burialByWear = 1.5;
+    EXPECT_THROW(BoulderLayer(options, craters), std::invalid_argument);
 }

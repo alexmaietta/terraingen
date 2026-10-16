@@ -19,7 +19,8 @@ namespace terraingen {
 enum class BoulderRelief {
     Dome,   ///< Each boulder's exposed part as a dome: cheap, and enough for small boulders.
     Shape,  ///< The top surface of each boulder's 3D boulder shape (`GenerateBoulderShape`).
-    None,   ///< Nothing: for programs that place every boulder as a model of its own.
+    /// No rock, only fillets: for programs that place every boulder as a model of its own.
+    None,
 };
 
 /// Which boulders become 3D models of their own rather than relief in the heights; neither
@@ -141,9 +142,31 @@ struct BoulderPose {
     double minBurial = 0.1;       ///< Least buried share of the height.
     double maxBurial = 0.4;       ///< Greatest buried share of the height.
     double maxLean = 0.26;        ///< Largest tilt from the vertical (radians, about 15 degrees).
+    /// How far wear sets burial, from 0 to 1: the buried share is drawn at (1 - b) u + b w of the
+    /// way from `minBurial` to `maxBurial`, with u uniform and w the boulder's wear. A crater's
+    /// blocks wear with it (0 fresh to 1 gone); boulders between craters span every stage, their
+    /// wear uniform. 0 draws burial uniformly.
+    double burialByWear = 0.0;
 
     bool operator==(const BoulderPose&) const = default;
 };
+
+/// Regolith piled against each boulder's base, drawn into the heights around boulders drawn
+/// there and around boulder models alike: `heightShare` of the exposed height out to the boulder's
+/// radius, then falling as (1 - t)^2 to nothing `widthRatio` diameters further out. Where the
+/// boulder stands above it, the boulder shows.
+struct BoulderFillet {
+    double heightShare = 0.0;  ///< Height over the boulder's exposed height, in [0, 1]; 0 for none.
+    double widthRatio = 0.3;   ///< Reach beyond the boulder's radius, over its diameter.
+
+    bool operator==(const BoulderFillet&) const = default;
+};
+
+/// The height (m) of `boulder`'s fillet `distance` metres from its centre.
+double FilletHeight(const Boulder& boulder, double distance, const BoulderFillet& fillet);
+
+/// How far (m) from its centre `boulder`'s fillet reaches: its radius plus the fillet's width.
+double FilletReach(const Boulder& boulder, const BoulderFillet& fillet);
 
 /// How boulders are drawn: as relief in the heights or as 3D models, and with which shapes.
 struct BoulderRendering {
@@ -166,6 +189,7 @@ struct BoulderLayerOptions {
     BoulderEjecta ejecta{};        ///< Blocks around fresh craters.
     BoulderBedrock bedrock{};      ///< Extra boulders on bedrock.
     BoulderPose pose{};            ///< Heights, burial, lean.
+    BoulderFillet fillet{};        ///< Regolith piled against each boulder; none by default.
     BoulderRendering rendering{};  ///< Relief or models, and shapes.
     ResolutionFade fade{};         ///< Fade of boulders too small for the spacing.
     /// Most boulder candidates to keep generated cells of; 0 regenerates cells every time.
@@ -199,8 +223,13 @@ void ValidateBoulderBedrock(const BoulderBedrock& bedrock);
 
 /// Checks boulder poses.
 /// @throws std::invalid_argument unless 0 < min <= max height ratio, 0 <= min <= max burial < 1,
-/// and the lean is finite and not negative.
+/// the lean is finite and not negative, and the burial by wear is in [0, 1].
 void ValidateBoulderPose(const BoulderPose& pose);
+
+/// Checks boulder fillets.
+/// @throws std::invalid_argument unless the height share is in [0, 1] and the width ratio is
+/// positive and finite.
+void ValidateBoulderFillet(const BoulderFillet& fillet);
 
 /// Checks how boulders are drawn.
 /// @throws std::invalid_argument for a non-positive model threshold or invalid shapes.

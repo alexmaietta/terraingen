@@ -270,8 +270,8 @@ template <> struct EnumNames<BoulderRelief> {
         {"shape", BoulderRelief::Shape,
          "The top surface of each boulder's 3D boulder shape drawn into the heights."},
         {"none", BoulderRelief::None,
-         "No boulder relief in the heights, for programs that place every boulder as a model of "
-         "its own."},
+         "No rock relief in the heights, only fillets when set, for programs that place every "
+         "boulder as a model of its own."},
     }};
 };
 

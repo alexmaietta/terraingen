@@ -152,6 +152,20 @@ void BindPatchesAndEjecta(nb::module_& m) {
         .def_rw("aging_exponent", &BoulderEjecta::agingExponent);
 }
 
+void BindFillet(nb::module_& m) {
+    auto fillet = nb::class_<BoulderFillet>(
+        m, "BoulderFillet",
+        "Regolith piled against each boulder's base: `height_share` of its exposed height out to "
+        "its radius, falling to nothing `width_ratio` diameters further out; 0 `height_share` "
+        "draws none.");
+    BindKwargsInit<BoulderFillet>(fillet);
+    fillet.def_rw("height_share", &BoulderFillet::heightShare)
+        .def_rw("width_ratio", &BoulderFillet::widthRatio);
+    m.def("boulder_fillet_height", &FilletHeight, "boulder"_a, "distance"_a, "fillet"_a,
+          "The height (m) of `boulder`'s fillet `distance` metres from its centre.");
+    m.def("validate_boulder_fillet", &ValidateBoulderFillet, "fillet"_a, kValidateDoc);
+}
+
 void BindRendering(nb::module_& m) {
     nb::enum_<BoulderRelief>(m, "BoulderRelief", "How boulders are drawn into the heights.")
         .value("DOME", BoulderRelief::Dome)
@@ -184,6 +198,8 @@ void BindGroupedOptions(nb::class_<BoulderLayerOptions>& options) {
     BindGrouped(options, "min_burial", &O::pose, &BoulderPose::minBurial);
     BindGrouped(options, "max_burial", &O::pose, &BoulderPose::maxBurial);
     BindGrouped(options, "max_lean", &O::pose, &BoulderPose::maxLean);
+    BindGrouped(options, "burial_by_wear", &O::pose, &BoulderPose::burialByWear);
+    options.def_rw("fillet", &O::fillet);
     BindGrouped(options, "relief", &O::rendering, &BoulderRendering::relief);
     BindGrouped(options, "models", &O::rendering, &BoulderRendering::models);
     BindGrouped(options, "shapes", &O::rendering, &BoulderRendering::shapes);
@@ -293,6 +309,7 @@ void BindBoulders(nb::module_& m) {
     BindBoulderShapes(m);
     BindBoulder(m);
     BindPatchesAndEjecta(m);
+    BindFillet(m);
     BindRendering(m);
     BindLayerOptions(m);
     BindLayer(m);

@@ -58,6 +58,15 @@ template <typename IO> void Fields(IO& io, BoulderPatches& patches) {
        "Typical width of a patch of richer or poorer boulder cover, in metres.", "m");
 }
 
+template <typename IO> void Fields(IO& io, BoulderFillet& fillet) {
+    io("height_share", fillet.heightShare,
+       "Height of the regolith piled against a boulder, as a share of its exposed height, from 0 "
+       "to 1; 0 draws no fillets.");
+    io("width_ratio", fillet.widthRatio,
+       "How far the fillet reaches beyond the boulder's edge, over its diameter; it falls to "
+       "nothing there.");
+}
+
 template <typename IO> void Fields(IO& io, BoulderEjecta& ejecta) {
     io("min_crater_diameter", ejecta.minCraterDiameter,
        "Smallest crater, in metres, that throws blocks out; 0 with no regolith thickness disables "
@@ -249,6 +258,13 @@ template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
        "Largest buried share of a boulder's height, below 1; more burial leaves less of the "
        "boulder exposed.");
     io("max_lean", pose.maxLean, "Largest tilt of a boulder from the vertical, in radians.", "rad");
+    io("burial_by_wear", pose.burialByWear,
+       "How far wear sets burial, from 0 to 1: blocks of fresh craters sit near the smallest "
+       "burial and those of worn ones sink toward the largest, while boulders between craters "
+       "span every stage; 0 draws burial uniformly.");
+    io("fillet", boulders.fillet,
+       "Regolith piled against each boulder's base, around relief and models alike; off unless "
+       "height_share is set.");
     io("relief", rendering.relief, "How the boulders drawn into the heights look there.");
     io("models", rendering.models,
        "Which boulders become 3D models of their own rather than relief in the heights; neither "

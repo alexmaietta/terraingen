@@ -109,29 +109,54 @@ TriangleMesh BoulderLayer::PlacedOnLevel(const Boulder& boulder) const {
     return mesh;
 }
 
+double BoulderLayer::Wear(double diameter, const BoulderAbundance& abundance, double density,
+                          std::uint64_t id) const {
+    const IdWords words = SplitId(id);
+    const U32x4 draw =
+        Philox4x32({words.low, words.high, kBoulderAttributes, 2u}, {options_.seed, kBoulderSeed});
+    if (abundance.ejecta > 0.0 && density > 0.0) {
+        const double fromCrater = abundance.ejecta * ejectaSizes_->Incremental(diameter) / density;
+        if (Uniform(draw.x, draw.y) < fromCrater) {
+            return abundance.ejectaWear;
+        }
+    }
+    return Uniform(draw.z, draw.w);
+}
+
 float BoulderLayer::AddRelief(float height, double x, double y, const Boulder& boulder,
-                              const TriangleMesh* placed, double weight) const {
-    if (placed == nullptr) {
+                              const TriangleMesh* placed, double weight, bool rock) const {
+    if (rock && placed == nullptr && options_.fillet.heightShare <= 0.0) {
         return AddBoulder(height, x, y, boulder, weight, surface_);
     }
-    std::optional<double> top;
-    if (surface_.IsBody()) {
-        const Vec2d offset = surface_.Offset({boulder.x, boulder.y}, {x, y});
-        top = TopSurface(*placed, offset.x, offset.y);
-    } else {
-        top = TopSurface(*placed, x, y);
+    const Vec2d offset = surface_.Offset({boulder.x, boulder.y}, {x, y});
+    double relief = 0.0;
+    if (rock && placed == nullptr) {
+        const double radius = 0.5 * boulder.diameter;
+        const double r2 = (offset.x * offset.x + offset.y * offset.y) / (radius * radius);
+        relief = r2 < 1.0 ? boulder.ExposedHeight() * std::sqrt(1.0 - r2) : 0.0;
+    } else if (rock) {
+        const std::optional<double> top =
+            surface_.IsBody() ? TopSurface(*placed, offset.x, offset.y) : TopSurface(*placed, x, y);
+        relief = top ? std::fmax(*top, 0.0) : 0.0;
     }
-    if (!top || !(*top > 0.0)) {
+    if (options_.fillet.heightShare > 0.0) {
+        const double distance = std::hypot(offset.x, offset.y);
+        relief = std::fmax(relief, FilletHeight(boulder, distance, options_.fillet));
+    }
+    if (!(relief > 0.0)) {
         return height;
     }
-    return static_cast<float>(static_cast<double>(height) + weight * *top);
+    return static_cast<float>(static_cast<double>(height) + weight * relief);
 }
 
 CraterList BoulderLayer::ScatterBoulderCandidates(const Bounds2d& region, double spacing) const {
     const std::uint32_t seed = options_.seed ^ kBoulderSeed;
     const FreshAges ages;
-    CraterGenerationOptions generation{
-        .dMin = options_.sizes.minDiameter, .dMax = options_.sizes.maxDiameter, .marginRadii = 1.0};
+    const double margin =
+        options_.fillet.heightShare > 0.0 ? 1.0 + 2.0 * options_.fillet.widthRatio : 1.0;
+    CraterGenerationOptions generation{.dMin = options_.sizes.minDiameter,
+                                       .dMax = options_.sizes.maxDiameter,
+                                       .marginRadii = margin};
     generation.surface = surface_;
     if (spacing > 0.0) {
         generation.minResolvedDiameter = options_.fade.startSamples * spacing;
@@ -149,8 +174,8 @@ std::optional<Boulder> BoulderLayer::DrawBoulder(const Crater& candidate, double
     const U32x4 draw =
         Philox4x32({id.low, id.high, kBoulderAttributes, 0u}, {options_.seed, kBoulderSeed});
     const BoulderAbundance abundance = Abundance(candidate.x, candidate.y, ground, ejecta);
-    const double keep =
-        Density(candidate.diameter, abundance) / candidates_->Incremental(candidate.diameter);
+    const double density = Density(candidate.diameter, abundance);
+    const double keep = density / candidates_->Incremental(candidate.diameter);
     if (Uniform(draw.x, draw.y) >= keep) {
         return std::nullopt;
     }
@@ -159,7 +184,12 @@ std::optional<Boulder> BoulderLayer::DrawBoulder(const Crater& candidate, double
     const BoulderPose& pose = options_.pose;
     const double ratio =
         Between(pose.minHeightRatio, pose.maxHeightRatio, Uniform(shape.x, shape.y));
-    const double burial = Between(pose.minBurial, pose.maxBurial, Uniform(draw.z, draw.w));
+    double share = Uniform(draw.z, draw.w);
+    if (pose.burialByWear > 0.0) {
+        const double wear = Wear(candidate.diameter, abundance, density, candidate.id);
+        share = (1.0 - pose.burialByWear) * share + pose.burialByWear * wear;
+    }
+    const double burial = Between(pose.minBurial, pose.maxBurial, share);
     Boulder boulder{candidate.x,
                     candidate.y,
                     candidate.diameter,
@@ -212,19 +242,24 @@ float AddBoulder(float height, double x, double y, const Boulder& boulder, doubl
 
 std::vector<BoulderLayer::Relief> BoulderLayer::PrepareRelief(const std::vector<Boulder>& boulders,
                                                               double spacing) const {
-    const bool shaped = options_.rendering.relief == BoulderRelief::Shape;
+    const BoulderRelief look = options_.rendering.relief;
+    const bool filleted = options_.fillet.heightShare > 0.0;
     std::vector<Relief> reliefs;
     for (const Boulder& boulder : boulders) {
         const double weight = ResolutionWeight(boulder.diameter, spacing, options_.fade);
-        if (boulder.model || weight <= 0.0) {
+        const bool rock = !boulder.model && look != BoulderRelief::None;
+        if (!(rock || filleted) || weight <= 0.0) {
             continue;
         }
-        Relief relief{&boulder, weight, std::nullopt, {}};
+        Relief relief{&boulder, weight, rock, std::nullopt, {}};
         double reach = 0.5 * boulder.diameter;
-        if (shaped) {
+        if (rock && look == BoulderRelief::Shape) {
             relief.placed = PlacedOnLevel(boulder);
             const Boulder local = InLocalFrame(boulder);
             reach = ShapeReach(*relief.placed, local.x, local.y);
+        }
+        if (filleted) {
+            reach = std::fmax(reach, FilletReach(boulder, options_.fillet));
         }
         relief.box = ReliefBox(boulder.x, boulder.y, reach, surface_);
         reliefs.push_back(std::move(relief));
@@ -236,7 +271,7 @@ void BoulderLayer::DrawRelief(SampleBlock& samples, const std::vector<Relief>& r
                               unsigned threads) const {
     const auto draw = [&](float height, const Vec2d& p, const Relief& relief) {
         const TriangleMesh* shape = relief.placed ? &*relief.placed : nullptr;
-        return AddRelief(height, p.x, p.y, *relief.boulder, shape, relief.weight);
+        return AddRelief(height, p.x, p.y, *relief.boulder, shape, relief.weight, relief.rock);
     };
     if (Raster<float>* heights = samples.Grid()) {
         std::vector<std::vector<PixelWindow>> windows;
@@ -265,7 +300,7 @@ void BoulderLayer::DrawRelief(SampleBlock& samples, const std::vector<Relief>& r
 }
 
 void BoulderLayer::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
-    if (options_.rendering.relief == BoulderRelief::None) {
+    if (options_.rendering.relief == BoulderRelief::None && options_.fillet.heightShare <= 0.0) {
         return;
     }
     const Raster<float>* grid = samples.Grid();

@@ -26,6 +26,8 @@ struct BoulderAbundance {
     double background = 1.0;
     /// Share of fresh crater blocks, from the profile and age of the craters around.
     double ejecta = 0.0;
+    /// Wear of the crater the ejecta share comes from, from 0 (fresh) to 1 (its blocks gone).
+    double ejectaWear = 0.0;
 
     bool operator==(const BoulderAbundance&) const = default;
 };
@@ -47,8 +49,8 @@ class BoulderLayer final : public Layer, public BoulderPlacer {
     BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const CraterLayer> craters = nullptr,
                  Surface surface = {});
 
-    /// The boulders centred in `region` (surface coordinates) or within their radius of it, in a
-    /// fixed order.
+    /// The boulders centred in `region` (surface coordinates) or reaching it with their radius or
+    /// fillet, in a fixed order.
     /// @param spacing Sample spacing in metres; boulders too small to resolve at it are left out
     /// and models are marked at it; 0 keeps every boulder.
     /// @param ground Read under each boulder; needed with the exposure field.
@@ -99,23 +101,30 @@ class BoulderLayer final : public Layer, public BoulderPlacer {
     /// `candidate` as a boulder, or nothing when thinning drops it.
     std::optional<Boulder> DrawBoulder(const Crater& candidate, double spacing,
                                        const Ground* ground, const CraterList& ejecta) const;
-    /// The boulder's exposed part added to `height` at (`x`, `y`), with `placed` its shape placed
-    /// on level ground at 0 for `BoulderRelief::Shape`.
+    /// The wear (0 fresh to 1 worn) of a boulder of `diameter` keyed by `id`: that of the crater
+    /// its block came from, drawn by each source's share of `density`, or uniform between craters.
+    double Wear(double diameter, const BoulderAbundance& abundance, double density,
+                std::uint64_t id) const;
+    /// The higher of the boulder's exposed part and its fillet added to `height` at (`x`, `y`),
+    /// with `placed` its shape placed on level ground at 0 for `BoulderRelief::Shape`; without
+    /// `rock`, the fillet alone.
     float AddRelief(float height, double x, double y, const Boulder& boulder,
-                    const TriangleMesh* placed, double weight) const;
+                    const TriangleMesh* placed, double weight, bool rock) const;
     /// `boulder` in its local frame: centred at the origin on a sphere, unchanged on a plane.
     Boulder InLocalFrame(const Boulder& boulder) const;
     /// `boulder`'s shape placed on level ground at 0.
     TriangleMesh PlacedOnLevel(const Boulder& boulder) const;
-    /// A boulder drawn into the heights: its weight at the spacing, its shape placed on level
-    /// ground (for `BoulderRelief::Shape`) and the box its relief covers.
+    /// A boulder drawn into the heights: its weight at the spacing, whether its rock is drawn or
+    /// only its fillet, its shape placed on level ground (for `BoulderRelief::Shape`) and the box
+    /// its relief covers.
     struct Relief {
         const Boulder* boulder;
         double weight;
+        bool rock;
         std::optional<TriangleMesh> placed;
         Bounds2d box;
     };
-    /// The non-model boulders of `boulders` resolved at `spacing`, in order.
+    /// The boulders of `boulders` resolved at `spacing` with relief or a fillet to draw, in order.
     std::vector<Relief> PrepareRelief(const std::vector<Boulder>& boulders, double spacing) const;
     /// Draws `reliefs` into every sample their boxes hold.
     void DrawRelief(SampleBlock& samples, const std::vector<Relief>& reliefs,
@@ -127,7 +136,9 @@ class BoulderLayer final : public Layer, public BoulderPlacer {
     BoulderAbundance Abundance(double x, double y, const Ground* ground,
                                const CraterList& ejecta) const;
     double BackgroundAbundance(double x, double y, const Ground* ground) const;
-    double EjectaAbundance(double x, double y, const CraterList& ejecta) const;
+    /// Sets `abundance`'s ejecta share and wear at (`x`, `y`) from the craters `ejecta`.
+    void EjectaAbundance(double x, double y, const CraterList& ejecta,
+                         BoulderAbundance& abundance) const;
     double Density(double diameter, const BoulderAbundance& abundance) const;
 
     BoulderLayerOptions options_;
