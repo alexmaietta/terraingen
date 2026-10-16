@@ -13,6 +13,7 @@
 #include <cmath>
 #include <limits>
 #include <optional>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -84,6 +85,37 @@ void FitDatums(std::vector<PreparedCrater>& prepared, const std::vector<std::siz
     });
 }
 
+/// A prepared crater with the box its profile can reach.
+struct ReachingCrater {
+    PreparedCrater* prepared;
+    Bounds2d footprint;
+    double reach;
+
+    bool Reaches(const Vec2d& p, const Surface& surface) const {
+        return surface.Contains(footprint, p) &&
+               CraterProfileDistance(prepared->crater, prepared->outline, p.x, p.y, surface) <
+                   reach;
+    }
+};
+
+/// The craters of `prepared` whose profile reaches any of `samples`, in order.
+std::vector<ReachingCrater> CratersReaching(const SampleBlock& samples,
+                                            std::vector<PreparedCrater>& prepared,
+                                            const CraterProfile& profile, const Surface& surface) {
+    std::vector<ReachingCrater> reaching;
+    for (PreparedCrater& crater : prepared) {
+        const ReachingCrater candidate{&crater, Footprint(crater, profile, surface),
+                                       profile.ReachRadii() * 0.5 * crater.crater.diameter};
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            if (candidate.Reaches(samples.Position(i), surface)) {
+                reaching.push_back(candidate);
+                break;
+            }
+        }
+    }
+    return reaching;
+}
+
 }  // namespace
 
 float ApplyCraterTo(float height, double x, double y, const PreparedCrater& crater,
@@ -143,6 +175,45 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
             craters.Size() - prepared.size(), " unresolved at ", resolved, " m, ",
             prepared.size() - onRaster.size(), " off the raster) in ",
             FormatDuration(stopwatch.Milliseconds()));
+}
+
+void ApplyCraters(SampleBlock& samples, const CraterList& craters, const CraterShapeModels& models,
+                  const CraterApplyOptions& options, const CraterSampling& sampling) {
+    if (Raster<float>* grid = samples.Grid()) {
+        ApplyCraters(*grid, craters, models, options, sampling);
+        return;
+    }
+    ValidateCraterApplyOptions(options);
+    RequirePositive(sampling.spacing, "Sample spacing");
+    if (options.datum != CraterDatum::None && !sampling.ground) {
+        throw std::invalid_argument("Craters with a datum at points need the ground");
+    }
+    if (samples.Size() == 0 || craters.Empty()) {
+        return;
+    }
+    const CraterProfile& profile = *models.profile;
+    std::vector<PreparedCrater> prepared =
+        PrepareCraters(craters, options, sampling.spacing, *models.degradation);
+    const std::vector<ReachingCrater> reaching =
+        CratersReaching(samples, prepared, profile, options.surface);
+    if (options.datum != CraterDatum::None && !reaching.empty()) {
+        const CraterReliefIndex index(prepared, profile, MaxOutlineScale(options.irregularity),
+                                      options.surface);
+        for (const ReachingCrater& crater : reaching) {
+            const auto k = static_cast<std::size_t>(crater.prepared - prepared.data());
+            crater.prepared->datum = FitCraterDatum(crater.prepared->crater, options,
+                                                    DatumGround(sampling.ground, index, k));
+        }
+    }
+    for (std::size_t i = 0; i < samples.Size(); ++i) {
+        const Vec2d p = samples.Position(i);
+        for (const ReachingCrater& crater : reaching) {
+            if (!samples.IsNoData(i) && crater.Reaches(p, options.surface)) {
+                samples.Height(i) =
+                    ApplyCraterTo(samples.Height(i), p.x, p.y, *crater.prepared, profile, options);
+            }
+        }
+    }
 }
 
 }  // namespace terraingen

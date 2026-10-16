@@ -213,71 +213,90 @@ float AddBoulder(float height, double x, double y, const Boulder& boulder, doubl
                               weight * boulder.ExposedHeight() * std::sqrt(1.0 - r2));
 }
 
-void BoulderLayer::DrawRelief(Raster<float>& heights, const std::vector<Boulder>& boulders,
-                              double spacing, unsigned threads) const {
+std::vector<BoulderLayer::Relief> BoulderLayer::PrepareRelief(const std::vector<Boulder>& boulders,
+                                                              double spacing) const {
     const bool shaped = options_.rendering.relief == BoulderRelief::Shape;
-    std::vector<std::vector<PixelWindow>> windows(boulders.size());
-    std::vector<double> weights(boulders.size(), 0.0);
-    std::vector<TriangleMesh> placed(shaped ? boulders.size() : 0);
-    for (std::size_t n = 0; n < boulders.size(); ++n) {
-        const Boulder& boulder = boulders[n];
-        if (boulder.model) {
+    std::vector<Relief> reliefs;
+    for (const Boulder& boulder : boulders) {
+        const double weight = ResolutionWeight(boulder.diameter, spacing, options_.fade);
+        if (boulder.model || weight <= 0.0) {
             continue;
         }
-        weights[n] = ResolutionWeight(boulder.diameter, spacing, options_.fade);
-        if (weights[n] == 0.0) {
-            continue;
-        }
+        Relief relief{&boulder, weight, std::nullopt, {}};
         double reach = 0.5 * boulder.diameter;
         if (shaped) {
-            placed[n] = PlacedOnLevel(boulder);
+            relief.placed = PlacedOnLevel(boulder);
             const Boulder local = InLocalFrame(boulder);
-            reach = ShapeReach(placed[n], local.x, local.y);
+            reach = ShapeReach(*relief.placed, local.x, local.y);
         }
-        windows[n] =
-            WindowsAround(heights, ReliefBox(boulder.x, boulder.y, reach, surface_), surface_);
+        relief.box = ReliefBox(boulder.x, boulder.y, reach, surface_);
+        reliefs.push_back(std::move(relief));
     }
-    ForEachFeatureCell(
-        heights, threads, boulders.size(),
-        [&](std::size_t n) -> const std::vector<PixelWindow>& { return windows[n]; },
-        [&](float& cell, const FeatureCell& at) {
-            const TriangleMesh* shape = shaped ? &placed[at.feature] : nullptr;
-            cell = AddRelief(cell, at.centre.x, at.centre.y, boulders[at.feature], shape,
-                             weights[at.feature]);
-        });
+    return reliefs;
+}
+
+void BoulderLayer::DrawRelief(SampleBlock& samples, const std::vector<Relief>& reliefs,
+                              unsigned threads) const {
+    const auto draw = [&](float height, const Vec2d& p, const Relief& relief) {
+        const TriangleMesh* shape = relief.placed ? &*relief.placed : nullptr;
+        return AddRelief(height, p.x, p.y, *relief.boulder, shape, relief.weight);
+    };
+    if (Raster<float>* heights = samples.Grid()) {
+        std::vector<std::vector<PixelWindow>> windows;
+        for (const Relief& relief : reliefs) {
+            windows.push_back(WindowsAround(*heights, relief.box, surface_));
+        }
+        ForEachFeatureCell(
+            *heights, threads, reliefs.size(),
+            [&](std::size_t n) -> const std::vector<PixelWindow>& { return windows[n]; },
+            [&](float& cell, const FeatureCell& at) {
+                cell = draw(cell, at.centre, reliefs[at.feature]);
+            });
+        return;
+    }
+    for (std::size_t i = 0; i < samples.Size(); ++i) {
+        if (samples.IsNoData(i)) {
+            continue;
+        }
+        const Vec2d p = samples.Position(i);
+        for (const Relief& relief : reliefs) {
+            if (surface_.Contains(relief.box, p)) {
+                samples.Height(i) = draw(samples.Height(i), p, relief);
+            }
+        }
+    }
 }
 
 void BoulderLayer::ApplySamples(SampleBlock& samples, const LayerContext& context,
                                 TerrainFeatures& features) const {
-    if (Raster<float>* grid = samples.Grid()) {
-        ApplyToGrid(*grid, context, features);
+    const Raster<float>* grid = samples.Grid();
+    if (grid == nullptr && options_.rendering.relief == BoulderRelief::None) {
         return;
     }
-    for (std::size_t i = 0; i < samples.Size(); ++i) {
-        if (!samples.IsNoData(i)) {
-            const Vec2d p = samples.Position(i);
-            samples.Height(i) = HeightAtPoint(samples.Height(i), p.x, p.y, context);
-        }
-    }
-}
-
-void BoulderLayer::ApplyToGrid(Raster<float>& heights, const LayerContext& context,
-                               TerrainFeatures& features) const {
-    const RasterGrid grid = RasterGrid::Of(heights);
-    const double resolved = std::max(context.spacing, grid.Spacing(surface_));
-    std::vector<Boulder> boulders = Boulders(grid.Bounds(), resolved, context.ground);
-    for (Boulder& boulder : boulders) {
-        if (boulder.model && !boulder.ground) {
-            const float below =
-                SampleRaster(heights, boulder.x, boulder.y, ResampleMethod::Bilinear);
-            if (!std::isnan(below)) {
-                boulder.ground = static_cast<double>(below);
+    const double spacing = grid != nullptr
+                               ? std::max(context.spacing, RasterGrid::Of(*grid).Spacing(surface_))
+                               : context.spacing;
+    std::vector<Boulder> boulders = Boulders(samples.Bounds(), spacing, context.ground);
+    if (grid != nullptr) {
+        for (Boulder& boulder : boulders) {
+            if (boulder.model && !boulder.ground) {
+                const float below =
+                    SampleRaster(*grid, boulder.x, boulder.y, ResampleMethod::Bilinear);
+                if (!std::isnan(below)) {
+                    boulder.ground = static_cast<double>(below);
+                }
             }
         }
     }
     if (options_.rendering.relief != BoulderRelief::None) {
-        DrawRelief(heights, boulders, resolved, context.threads);
+        DrawRelief(samples, PrepareRelief(boulders, spacing), context.threads);
     }
+    if (grid != nullptr) {
+        RecordFeatures(std::move(boulders), features);
+    }
+}
+
+void BoulderLayer::RecordFeatures(std::vector<Boulder> boulders, TerrainFeatures& features) const {
     for (const Boulder& boulder : boulders) {
         if (boulder.model && boulder.ground) {
             const auto shape = Shape(boulder);
@@ -287,26 +306,6 @@ void BoulderLayer::ApplyToGrid(Raster<float>& heights, const LayerContext& conte
         }
     }
     features.boulders.insert(features.boulders.end(), boulders.begin(), boulders.end());
-}
-
-float BoulderLayer::HeightAtPoint(float height, double x, double y,
-                                  const LayerContext& context) const {
-    if (options_.rendering.relief == BoulderRelief::None) {
-        return height;
-    }
-    for (const Boulder& boulder : Boulders(PointBounds(x, y), context.spacing, context.ground)) {
-        const double weight = ResolutionWeight(boulder.diameter, context.spacing, options_.fade);
-        if (boulder.model || weight <= 0.0) {
-            continue;
-        }
-        if (options_.rendering.relief == BoulderRelief::Shape) {
-            const TriangleMesh placed = PlacedOnLevel(boulder);
-            height = AddRelief(height, x, y, boulder, &placed, weight);
-        } else {
-            height = AddRelief(height, x, y, boulder, nullptr, weight);
-        }
-    }
-    return height;
 }
 
 }  // namespace terraingen

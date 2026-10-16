@@ -418,6 +418,17 @@ TEST(BoulderLayer, DrawsTheTopsOfBoulderShapesThatPointQueriesMatch) {
     }
     EXPECT_GT(highest, 0.0);
     EXPECT_LE(highest, 2.0 * tallest) << "overlapping boulders add up";
+    std::vector<terraingen::Vec2d> centres;
+    for (std::size_t i = 0; i < heights.Values().size(); ++i) {
+        centres.push_back(heights.CellCenter(i % heights.Width(), i / heights.Width()));
+    }
+    std::vector<float> batch(centres.size(), 1.0f);
+    terraingen::SampleBlock points(centres, batch);
+    terraingen::TerrainFeatures unrecorded;
+    layer.Apply(points, {0.5}, unrecorded);
+    EXPECT_TRUE(std::equal(batch.begin(), batch.end(), heights.Values().begin()))
+        << "one batch of points matches the grid";
+    EXPECT_TRUE(unrecorded.boulders.empty()) << "points record no boulders";
     options.rendering.relief = terraingen::BoulderRelief::Dome;
     Raster<float> domes(60, 50, 1.0f);
     domes.SetTransform(heights.Transform());

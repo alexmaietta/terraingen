@@ -102,9 +102,8 @@ class BoulderLayer final : public Layer {
                       TerrainFeatures& features) const override;
 
   private:
-    void ApplyToGrid(Raster<float>& heights, const LayerContext& context,
-                     TerrainFeatures& features) const;
-    float HeightAtPoint(float height, double x, double y, const LayerContext& context) const;
+    /// Records `boulders` and, for the models among them with a known ground, their placements.
+    void RecordFeatures(std::vector<Boulder> boulders, TerrainFeatures& features) const;
     /// The candidates of `region`, before thinning.
     CraterList ScatterBoulderCandidates(const Bounds2d& region, double spacing) const;
     /// `candidate` as a boulder, or nothing when thinning drops it.
@@ -118,8 +117,18 @@ class BoulderLayer final : public Layer {
     Boulder InLocalFrame(const Boulder& boulder) const;
     /// `boulder`'s shape placed on level ground at 0.
     TriangleMesh PlacedOnLevel(const Boulder& boulder) const;
-    /// Draws the relief of `boulders` into `heights`.
-    void DrawRelief(Raster<float>& heights, const std::vector<Boulder>& boulders, double spacing,
+    /// A boulder drawn into the heights: its weight at the spacing, its shape placed on level
+    /// ground (for `BoulderRelief::Shape`) and the box its relief covers.
+    struct Relief {
+        const Boulder* boulder;
+        double weight;
+        std::optional<TriangleMesh> placed;
+        Bounds2d box;
+    };
+    /// The non-model boulders of `boulders` resolved at `spacing`, in order.
+    std::vector<Relief> PrepareRelief(const std::vector<Boulder>& boulders, double spacing) const;
+    /// Draws `reliefs` into every sample their boxes hold.
+    void DrawRelief(SampleBlock& samples, const std::vector<Relief>& reliefs,
                     unsigned threads) const;
 
     /// The ejecta craters that can add blocks in `region`.

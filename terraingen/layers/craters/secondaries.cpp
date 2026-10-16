@@ -371,37 +371,18 @@ CraterList SecondaryCraterLayer::Secondaries(const Bounds2d& region, double spac
 
 void SecondaryCraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context,
                                         TerrainFeatures& features) const {
-    if (Raster<float>* grid = samples.Grid()) {
-        ApplyToGrid(*grid, context, features);
-        return;
+    const Raster<float>* grid = samples.Grid();
+    const double spacing =
+        grid != nullptr ? std::max(context.spacing, RasterGrid::Of(*grid).Spacing(apply_.surface))
+                        : context.spacing;
+    const CraterList secondaries = Secondaries(samples.Bounds(), spacing);
+    ApplyCraters(samples, secondaries, models_, apply_, {spacing, context.threads});
+    if (grid != nullptr) {
+        features.AddCraters(secondaries, [&](const Crater& crater) {
+            return ComputeCraterAttributes(crater, models_.degradation->State(crater),
+                                           *models_.profile);
+        });
     }
-    for (std::size_t i = 0; i < samples.Size(); ++i) {
-        if (!samples.IsNoData(i)) {
-            const Vec2d p = samples.Position(i);
-            samples.Height(i) = HeightAtPoint(samples.Height(i), p.x, p.y, context.spacing);
-        }
-    }
-}
-
-void SecondaryCraterLayer::ApplyToGrid(Raster<float>& heights, const LayerContext& context,
-                                       TerrainFeatures& features) const {
-    const RasterGrid grid = RasterGrid::Of(heights);
-    const double resolved = std::max(context.spacing, grid.Spacing(apply_.surface));
-    const CraterList secondaries = Secondaries(grid.Bounds(), resolved);
-    ApplyCraters(heights, secondaries, models_, apply_, {resolved, context.threads});
-    features.AddCraters(secondaries, [&](const Crater& crater) {
-        return ComputeCraterAttributes(crater, models_.degradation->State(crater),
-                                       *models_.profile);
-    });
-}
-
-float SecondaryCraterLayer::HeightAtPoint(float height, double x, double y, double spacing) const {
-    const CraterList secondaries = Secondaries(PointBounds(x, y), spacing);
-    for (const PreparedCrater& crater :
-         PrepareCraters(secondaries, apply_, spacing, *models_.degradation)) {
-        height = ApplyCraterTo(height, x, y, crater, *models_.profile, apply_);
-    }
-    return height;
 }
 
 }  // namespace terraingen

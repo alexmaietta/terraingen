@@ -105,10 +105,6 @@ class CraterLayer final : public Layer {
                       TerrainFeatures& features) const override;
 
   private:
-    void ApplyToGrid(Raster<float>& heights, const LayerContext& context,
-                     TerrainFeatures& features) const;
-    float HeightAtPoint(float height, double x, double y, const LayerContext& context) const;
-
     CraterModels models_;
     CraterLayerOptions options_;
     std::shared_ptr<const SurfaceCells> cells_;

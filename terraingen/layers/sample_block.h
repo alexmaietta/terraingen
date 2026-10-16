@@ -48,7 +48,8 @@ class SampleBlock {
     /// Whether sample `i` holds no data: NaN, or a grid's no-data value.
     bool IsNoData(std::size_t i) const;
 
-    /// The smallest box holding every sample: a grid's extent, or the points' bounds.
+    /// The smallest box holding every sample: a grid's extent, or the points' bounds, which like
+    /// `PointBounds` contain their largest coordinates.
     Bounds2d Bounds() const;
 
   private:

@@ -35,12 +35,13 @@ Bounds2d SampleBlock::Bounds() const {
     if (positions_.empty()) {
         return {};
     }
-    Bounds2d box{positions_[0].x, positions_[0].y, positions_[0].x, positions_[0].y};
+    Bounds2d box = PointBounds(positions_[0].x, positions_[0].y);
     for (const Vec2d& p : positions_) {
-        box.minX = std::min(box.minX, p.x);
-        box.minY = std::min(box.minY, p.y);
-        box.maxX = std::max(box.maxX, p.x);
-        box.maxY = std::max(box.maxY, p.y);
+        const Bounds2d point = PointBounds(p.x, p.y);
+        box.minX = std::min(box.minX, point.minX);
+        box.minY = std::min(box.minY, point.minY);
+        box.maxX = std::max(box.maxX, point.maxX);
+        box.maxY = std::max(box.maxY, point.maxY);
     }
     return box;
 }

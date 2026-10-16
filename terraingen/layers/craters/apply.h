@@ -9,6 +9,7 @@
 #include "terraingen/layers/craters/prepared.h"
 #include "terraingen/layers/craters/profiles/profile.h"
 #include "terraingen/layers/ground.h"
+#include "terraingen/layers/sample_block.h"
 #include "terraingen/raster/raster.h"
 
 #include <memory>
@@ -61,6 +62,13 @@ float ApplyCraterTo(float height, double x, double y, const PreparedCrater& crat
 /// @throws std::invalid_argument for invalid `options` or a negative or non-finite spacing.
 /// @throws std::domain_error if the raster's transform is not invertible.
 void ApplyCraters(Raster<float>& raster, const CraterList& craters, const CraterShapeModels& models,
+                  const CraterApplyOptions& options = {}, const CraterSampling& sampling = {});
+
+/// `ApplyCraters` on a sample block: a grid as above, or scattered points, each of which ends at
+/// the same height as a grid cell centred there.
+/// @throws std::invalid_argument as above; for points also without a positive spacing, or with a
+/// datum and no `sampling.ground`.
+void ApplyCraters(SampleBlock& samples, const CraterList& craters, const CraterShapeModels& models,
                   const CraterApplyOptions& options = {}, const CraterSampling& sampling = {});
 
 }  // namespace terraingen

@@ -49,8 +49,10 @@ TEST(SampleBlock, HoldsScatteredPointsAndTheirBounds) {
     const auto bounds = samples.Bounds();
     EXPECT_EQ(bounds.minX, -2.0);
     EXPECT_EQ(bounds.minY, -1.0);
-    EXPECT_EQ(bounds.maxX, 4.0);
-    EXPECT_EQ(bounds.maxY, 5.0);
+    EXPECT_GT(bounds.maxX, 4.0);
+    EXPECT_GT(bounds.maxY, 5.0);
+    EXPECT_TRUE(bounds.Contains(4.0, 5.0)) << "the box holds its largest coordinates";
+    EXPECT_FALSE(bounds.Contains(4.0001, 5.0));
     std::vector<float> short_heights(2);
     EXPECT_THROW(SampleBlock(positions, short_heights), std::invalid_argument);
 }

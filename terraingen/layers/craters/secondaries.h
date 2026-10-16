@@ -124,10 +124,6 @@ class SecondaryCraterLayer final : public Layer {
                       TerrainFeatures& features) const override;
 
   private:
-    void ApplyToGrid(Raster<float>& heights, const LayerContext& context,
-                     TerrainFeatures& features) const;
-    float HeightAtPoint(float height, double x, double y, double spacing) const;
-
     std::shared_ptr<const CraterLayer> primaries_;
     CraterShapeModels models_;
     SecondaryCraterOptions options_;
