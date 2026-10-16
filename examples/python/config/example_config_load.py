@@ -20,7 +20,12 @@ class Example(_common.Example):
     @classmethod
     def create_parser(cls):
         parser = super().create_parser()
-        parser.add_argument("config", nargs="?", default=str(_common.config_path("example_craters_simple")), help="the JSON config to generate")
+        parser.add_argument(
+            "config",
+            nargs="?",
+            default=str(_common.config_path("example_craters_simple")),
+            help="the JSON config to generate",
+        )
         return parser
 
     def generate(self):
@@ -28,20 +33,31 @@ class Example(_common.Example):
         self.config = terraingen.Config.load(path)
         self.config.validate(path.parent)
         self.terrain = terraingen.generate_terrain(self.config, path.parent)
-        print(f"{self.terrain.heights.shape} heights, {len(self.terrain.craters['x'])} craters, {len(self.terrain.boulders['x'])} boulders")
+        print(
+            f"{self.terrain.heights.shape} heights, {len(self.terrain.craters['x'])} craters, {len(self.terrain.boulders['x'])} boulders"
+        )
         self.show(path.stem, self.terrain.heights)
 
     def save(self, out):
         for written in terraingen.write_outputs(self.config, self.terrain, out):
             print("wrote", written)
         pixel = self.terrain.heights.transform.pixel_width
-        print("wrote", write_png(out / "example_config_load.png", hillshade(self.terrain.heights.values, pixel)))
+        print(
+            "wrote", write_png(out / "example_config_load.png", hillshade(self.terrain.heights.values, pixel))
+        )
 
     def test_final(self):
         assert self.terrain.heights.values.size > 0, "the config generates heights"
-        if pathlib.Path(self.args.config).resolve() == _common.config_path("example_craters_simple").resolve():
-            assert self.terrain.heights.shape == (513, 513), "example_craters_simple.json makes 513 x 513 heights"
-            assert len(self.terrain.craters["x"]) > 100, "example_craters_simple.json makes more than 100 craters"
+        if (
+            pathlib.Path(self.args.config).resolve()
+            == _common.config_path("example_craters_simple").resolve()
+        ):
+            assert self.terrain.heights.shape == (513, 513), (
+                "example_craters_simple.json makes 513 x 513 heights"
+            )
+            assert len(self.terrain.craters["x"]) > 100, (
+                "example_craters_simple.json makes more than 100 craters"
+            )
 
 
 if __name__ == "__main__":

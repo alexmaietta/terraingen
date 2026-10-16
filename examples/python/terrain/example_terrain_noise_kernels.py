@@ -48,7 +48,7 @@ class Example(_common.Example):
             terraingen.FractalType.HYBRID_MULTIFRACTAL,
         ):
             params = terraingen.FractalParams(seed=2, wavelength=4.0, amplitude=1.0, octaves=6, type=fractal)
-            values = sample(lambda x, y: terraingen.fractal2(x, y, params))
+            values = sample(lambda x, y, params=params: terraingen.fractal2(x, y, params))
             print(f"{fractal.name:20s} range {values.min():+.3f} to {values.max():+.3f}")
             self.values[fractal.name] = values
         spacing = 8.0 / (SIZE - 1)
@@ -61,9 +61,15 @@ class Example(_common.Example):
 
     def test_final(self):
         assert len(self.values) == 8, "four bases and four fractals"
-        assert all(values.shape == (SIZE, SIZE) and np.all(np.isfinite(values)) for values in self.values.values()), "every sample is finite"
-        assert all(values.max() > values.min() for values in self.values.values()), "every kernel varies over the window"
-        assert all(np.abs(self.values[name]).max() <= 1.5 for name in ("perlin", "simplex", "value")), "the single-octave bases stay near [-1, 1]"
+        assert all(
+            values.shape == (SIZE, SIZE) and np.all(np.isfinite(values)) for values in self.values.values()
+        ), "every sample is finite"
+        assert all(values.max() > values.min() for values in self.values.values()), (
+            "every kernel varies over the window"
+        )
+        assert all(np.abs(self.values[name]).max() <= 1.5 for name in ("perlin", "simplex", "value")), (
+            "the single-octave bases stay near [-1, 1]"
+        )
         assert self.values["worley F1"].min() >= 0.0, "Worley F1 distances are not negative"
 
 

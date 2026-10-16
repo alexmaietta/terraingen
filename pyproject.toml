@@ -47,6 +47,16 @@ provider = "scikit_build_core.metadata.regex"
 input = "CMakeLists.txt"
 regex = 'set\(TERRAINGEN_FULL_VERSION "(?P<value>\d+\.\d+\.\d+(\.dev\d+)?)"\)'
 
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+extend-exclude = ["terraingen/python/terraingen/", "third_party/"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# ruff format keeps code within the line length; long strings and comments are left alone.
+ignore = ["E501"]
+
 [tool.scikit-build.cmake.define]
 TERRAINGEN_BUILD_PYTHON = "ON"
 TERRAINGEN_BUILD_TESTS = "OFF"

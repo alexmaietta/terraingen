@@ -25,23 +25,44 @@ SIZE = 401
 
 class Example(_common.Example):
     def generate(self):
-        fbm = terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=40.0, amplitude=0.5, octaves=6))
+        fbm = terraingen.NoiseLayer(
+            terraingen.FractalParams(seed=1, wavelength=40.0, amplitude=0.5, octaves=6)
+        )
         surface = terraingen.lunar_surface(3.5)
-        models = terraingen.CraterModels(surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages), terraingen.FassettThomsonProfile())
+        models = terraingen.CraterModels(
+            surface.density,
+            surface.ages,
+            terraingen.FreshnessDegradation(surface.ages),
+            terraingen.FassettThomsonProfile(),
+        )
         craters = terraingen.CraterLayer(
-            models, terraingen.CraterLayerOptions(generation=terraingen.CraterGenerationOptions(min_diameter=3.0, max_diameter=20.0))
+            models,
+            terraingen.CraterLayerOptions(
+                generation=terraingen.CraterGenerationOptions(min_diameter=3.0, max_diameter=20.0)
+            ),
         )
         area = (SIZE * PIXEL) ** 2
 
         self.evaluated = {}
         for coverage in (0.02, 0.05, 0.10):
-            options = terraingen.BoulderLayerOptions(coverage=coverage, min_diameter=0.2, max_diameter=3.0, models=terraingen.BoulderModelThreshold(min_diameter=0.6))
+            options = terraingen.BoulderLayerOptions(
+                coverage=coverage,
+                min_diameter=0.2,
+                max_diameter=3.0,
+                models=terraingen.BoulderModelThreshold(min_diameter=0.6),
+            )
             boulders = terraingen.BoulderLayer(options, craters)
-            terrain = terraingen.Terrain(terraingen.FlatSource(SIZE, SIZE, PIXEL), [terraingen.NoiseRelief([fbm]), craters, boulders])
+            terrain = terraingen.Terrain(
+                terraingen.FlatSource(SIZE, SIZE, PIXEL), [terraingen.NoiseRelief([fbm]), craters, boulders]
+            )
             evaluated = terraingen.evaluate(terrain)
             diameters = evaluated.boulders["diameter"]
-            counts = ", ".join(f"N(>= {d}) = {np.count_nonzero(diameters >= d) / area:.3f}" for d in (0.2, 0.5, 1.0))
-            print(f"coverage {coverage:.2f}: {len(diameters)} boulders, {evaluated.boulder_model_count} boulders; per m^2 {counts}")
+            counts = ", ".join(
+                f"N(>= {d}) = {np.count_nonzero(diameters >= d) / area:.3f}" for d in (0.2, 0.5, 1.0)
+            )
+            print(
+                f"coverage {coverage:.2f}: {len(diameters)} boulders, {evaluated.boulder_model_count} boulders; per m^2 {counts}"
+            )
             self.evaluated[coverage] = evaluated
         for coverage in (0.05, 0.02, 0.10):
             self.show(f"coverage {coverage:.2f}", self.evaluated[coverage].heights)
@@ -51,14 +72,20 @@ class Example(_common.Example):
         terraingen.write_geotiff(out / "example_boulders_layer.tif", evaluated.heights)
         evaluated.write_boulder_list(out / "example_boulders_layer.csv")
         evaluated.write_boulder_models(out / "example_boulders_layer.glb")
-        print("wrote", write_png(out / "example_boulders_layer.png", hillshade(evaluated.heights.values, PIXEL)))
+        print(
+            "wrote", write_png(out / "example_boulders_layer.png", hillshade(evaluated.heights.values, PIXEL))
+        )
 
     def test_final(self):
         counts = [len(self.evaluated[c].boulders["diameter"]) for c in (0.02, 0.05, 0.10)]
         boulders = [self.evaluated[c].boulder_model_count for c in (0.02, 0.05, 0.10)]
-        assert all(e.heights.shape == (SIZE, SIZE) for e in self.evaluated.values()), "the heights are 401 x 401"
+        assert all(e.heights.shape == (SIZE, SIZE) for e in self.evaluated.values()), (
+            "the heights are 401 x 401"
+        )
         assert 0 < counts[0] < counts[1] < counts[2], "more coverage places more boulders"
-        assert boulders[0] <= boulders[1] <= boulders[2] and boulders[2] > 0, "more coverage places more boulder models"
+        assert boulders[0] <= boulders[1] <= boulders[2] and boulders[2] > 0, (
+            "more coverage places more boulder models"
+        )
         for evaluated in self.evaluated.values():
             diameters = evaluated.boulders["diameter"]
             assert diameters.min() >= 0.2 and diameters.max() <= 3.0, "every boulder is 0.2 to 3 m across"

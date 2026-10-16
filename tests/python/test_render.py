@@ -1,6 +1,5 @@
 import gc
 import math
-import sys
 
 import numpy as np
 import pytest
@@ -100,9 +99,7 @@ def test_renders_a_generated_terrain_headlessly():
     render.add_terrain(scene, raster)
     render.add_sun(scene)
     render.frame_terrain(scene, raster)
-    scene.define("/Render/Settings", ernie.tokens.RENDER_SETTINGS).set(
-        ernie.tokens.RESOLUTION, (32, 32)
-    )
+    scene.define("/Render/Settings", ernie.tokens.RENDER_SETTINGS).set(ernie.tokens.RESOLUTION, (32, 32))
     image = np.asarray(renderer.render(scene))
     assert image.shape == (32, 32, 4)
     lit = image[..., :3].sum(axis=-1) > 0

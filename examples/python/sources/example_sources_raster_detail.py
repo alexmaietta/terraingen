@@ -25,13 +25,18 @@ def coarse_dem():
     """A 16 m DEM standing in for orbital data: broad relief and large craters."""
     surface = terraingen.lunar_surface(3.5)
     models = terraingen.CraterModels(
-        surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages), terraingen.FassettThomsonProfile()
+        surface.density,
+        surface.ages,
+        terraingen.FreshnessDegradation(surface.ages),
+        terraingen.FassettThomsonProfile(),
     )
     generation = terraingen.CraterGenerationOptions(min_diameter=100.0, max_diameter=600.0)
     terrain = terraingen.Terrain(
         terraingen.FlatSource(65, 65, 16.0),
         [
-            terraingen.NoiseRelief([terraingen.NoiseLayer(terraingen.FractalParams(seed=4, wavelength=800.0, amplitude=40.0))]),
+            terraingen.NoiseRelief(
+                [terraingen.NoiseLayer(terraingen.FractalParams(seed=4, wavelength=800.0, amplitude=40.0))]
+            ),
             terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=4, generation=generation)),
         ],
     )
@@ -44,16 +49,33 @@ class Example(_common.Example):
         with tempfile.TemporaryDirectory() as temp:
             path = pathlib.Path(temp) / "example_sources_raster_detail_coarse.tif"
             terraingen.write_geotiff(path, self.dem)
-            source = terraingen.GeoTiffSource(path, pixel_size=2.0, resampling=terraingen.ResampleMethod.CUBIC)
-            print(f"coarse DEM {self.dem.width} x {self.dem.height} at 16 m; source resampled to {source.width} x {source.height} at 2 m")
+            source = terraingen.GeoTiffSource(
+                path, pixel_size=2.0, resampling=terraingen.ResampleMethod.CUBIC
+            )
+            print(
+                f"coarse DEM {self.dem.width} x {self.dem.height} at 16 m; source resampled to {source.width} x {source.height} at 2 m"
+            )
             surface = terraingen.lunar_surface(3.5)
             models = terraingen.CraterModels(
-                surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages), terraingen.FassettThomsonProfile()
+                surface.density,
+                surface.ages,
+                terraingen.FreshnessDegradation(surface.ages),
+                terraingen.FassettThomsonProfile(),
             )
             small = terraingen.CraterLayer(
-                models, terraingen.CraterLayerOptions(seed=5, generation=terraingen.CraterGenerationOptions(min_diameter=6.0, max_diameter=100.0))
+                models,
+                terraingen.CraterLayerOptions(
+                    seed=5,
+                    generation=terraingen.CraterGenerationOptions(min_diameter=6.0, max_diameter=100.0),
+                ),
             )
-            detail = terraingen.NoiseRelief([terraingen.NoiseLayer(terraingen.FractalParams(seed=6, wavelength=60.0, amplitude=1.5, octaves=5))])
+            detail = terraingen.NoiseRelief(
+                [
+                    terraingen.NoiseLayer(
+                        terraingen.FractalParams(seed=6, wavelength=60.0, amplitude=1.5, octaves=5)
+                    )
+                ]
+            )
             self.evaluated = terraingen.evaluate(terraingen.Terrain(source, [detail, small]))
             print(f"added {len(self.evaluated.craters['x'])} craters of 6 to 100 m")
             self.resampled = terraingen.evaluate(terraingen.Terrain(source)).heights
@@ -70,10 +92,18 @@ class Example(_common.Example):
         heights = self.evaluated.heights.values
         diameters = self.evaluated.craters["diameter"]
         assert self.dem.shape == (65, 65), "the coarse DEM is 65 x 65"
-        assert 512 <= heights.shape[0] <= 528 and 512 <= heights.shape[1] <= 528, "the 16 m DEM resamples to about 520 x 520 cells of 2 m"
-        assert self.resampled.values.shape == heights.shape and np.isfinite(heights).all(), "finite heights on the resampled grid"
-        assert len(diameters) > 500 and diameters.min() >= 6.0 and diameters.max() <= 100.0, "more than 500 detail craters of 6 to 100 m"
-        assert np.std(np.diff(heights, axis=1)) > np.std(np.diff(self.resampled.values, axis=1)), "the detail roughens the resampled DEM"
+        assert 512 <= heights.shape[0] <= 528 and 512 <= heights.shape[1] <= 528, (
+            "the 16 m DEM resamples to about 520 x 520 cells of 2 m"
+        )
+        assert self.resampled.values.shape == heights.shape and np.isfinite(heights).all(), (
+            "finite heights on the resampled grid"
+        )
+        assert len(diameters) > 500 and diameters.min() >= 6.0 and diameters.max() <= 100.0, (
+            "more than 500 detail craters of 6 to 100 m"
+        )
+        assert np.std(np.diff(heights, axis=1)) > np.std(np.diff(self.resampled.values, axis=1)), (
+            "the detail roughens the resampled DEM"
+        )
 
 
 if __name__ == "__main__":

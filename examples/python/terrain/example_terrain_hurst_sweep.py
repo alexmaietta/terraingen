@@ -27,9 +27,12 @@ class Example(_common.Example):
         self.heights = []
         self.rms = []
         for hurst in HURSTS:
-            params = terraingen.FractalParams(seed=4, wavelength=400.0, amplitude=20.0, gain=terraingen.gain_from_hurst(hurst))
+            params = terraingen.FractalParams(
+                seed=4, wavelength=400.0, amplitude=20.0, gain=terraingen.gain_from_hurst(hurst)
+            )
             terrain = terraingen.Terrain(
-                terraingen.FlatSource(257, 257, PIXEL), [terraingen.NoiseRelief([terraingen.NoiseLayer(params)])]
+                terraingen.FlatSource(257, 257, PIXEL),
+                [terraingen.NoiseRelief([terraingen.NoiseLayer(params)])],
             )
             evaluated = terraingen.evaluate(terrain)
             heights = evaluated.heights.values.astype(np.float64)
@@ -46,8 +49,12 @@ class Example(_common.Example):
 
     def test_final(self):
         assert len(self.heights) == len(HURSTS), "one terrain per Hurst exponent"
-        assert all(heights.shape == (257, 257) and np.all(np.isfinite(heights)) for heights in self.heights), "every terrain is 257 x 257 and finite"
-        assert all(a > b for a, b in zip(self.rms, self.rms[1:])), "the RMS slope falls as H rises"
+        assert all(
+            heights.shape == (257, 257) and np.all(np.isfinite(heights)) for heights in self.heights
+        ), "every terrain is 257 x 257 and finite"
+        assert all(a > b for a, b in zip(self.rms, self.rms[1:], strict=False)), (
+            "the RMS slope falls as H rises"
+        )
         assert self.rms[0] > 1.2 * self.rms[-1], "H = 0.3 is clearly rougher than H = 0.9"
 
 

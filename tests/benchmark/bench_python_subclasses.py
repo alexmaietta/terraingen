@@ -35,7 +35,9 @@ class PyArrayLayer(terraingen.Layer):
         y0 = grid.transform.origin_y
         xs = x0 + step * (np.arange(heights.width) + 0.5)
         ys = y0 - step * (np.arange(heights.height) + 0.5)
-        heights.values[:] += (2.0 * np.sin(xs[None, :] / 40.0) * np.cos(ys[:, None] / 40.0)).astype(np.float32)
+        heights.values[:] += (2.0 * np.sin(xs[None, :] / 40.0) * np.cos(ys[:, None] / 40.0)).astype(
+            np.float32
+        )
 
 
 class PyBowl(terraingen.CraterProfile):
@@ -72,20 +74,40 @@ class PyPowerLaw(terraingen.SizeFrequencyDistribution):
 def crater_layer(density, profile, degradation):
     ages = terraingen.FreshAges()
     models = terraingen.CraterModels(density, ages, degradation, profile)
-    options = terraingen.CraterLayerOptions(seed=1, generation=terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=60.0))
+    options = terraingen.CraterLayerOptions(
+        seed=1, generation=terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=60.0)
+    )
     return terraingen.CraterLayer(models, options)
 
 
 def cases():
-    noise = terraingen.NoiseRelief([terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=80.0, amplitude=2.0, octaves=4))])
-    profile, degradation, density = terraingen.FassettThomsonProfile(), terraingen.NoDegradation(depth_ratio=0.12), terraingen.PowerLawSfd(0.05, 2.0)
+    noise = terraingen.NoiseRelief(
+        [terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=80.0, amplitude=2.0, octaves=4))]
+    )
+    profile, degradation, density = (
+        terraingen.FassettThomsonProfile(),
+        terraingen.NoDegradation(depth_ratio=0.12),
+        terraingen.PowerLawSfd(0.05, 2.0),
+    )
     return {
         "layer, point-wise": (noise, PyNoiseLayer()),
         "layer, NumPy apply": (noise, PyArrayLayer()),
-        "FunctionLayer": (noise, terraingen.FunctionLayer(lambda x, y, s, h: h + 2.0 * np.sin(x / 40.0) * np.cos(y / 40.0))),
-        "crater profile": (crater_layer(density, profile, degradation), crater_layer(density, PyBowl(), degradation)),
-        "degradation model": (crater_layer(density, profile, degradation), crater_layer(density, profile, PyFixedDegradation())),
-        "size distribution": (crater_layer(density, profile, degradation), crater_layer(PyPowerLaw(), profile, degradation)),
+        "FunctionLayer": (
+            noise,
+            terraingen.FunctionLayer(lambda x, y, s, h: h + 2.0 * np.sin(x / 40.0) * np.cos(y / 40.0)),
+        ),
+        "crater profile": (
+            crater_layer(density, profile, degradation),
+            crater_layer(density, PyBowl(), degradation),
+        ),
+        "degradation model": (
+            crater_layer(density, profile, degradation),
+            crater_layer(density, profile, PyFixedDegradation()),
+        ),
+        "size distribution": (
+            crater_layer(density, profile, degradation),
+            crater_layer(PyPowerLaw(), profile, degradation),
+        ),
     }
 
 
@@ -105,7 +127,9 @@ def main():
     parser.add_argument("--size", type=int, default=256)
     parser.add_argument("--repeats", type=int, default=3)
     args = parser.parse_args()
-    print(f"{args.size} x {args.size} cells, best of {args.repeats}; milliseconds (slowdown against C++ on one thread)")
+    print(
+        f"{args.size} x {args.size} cells, best of {args.repeats}; milliseconds (slowdown against C++ on one thread)"
+    )
     header = f"{'':22s} {'':6s}" + "".join(f"{f'{t} thread' + ('s' if t > 1 else ''):>18s}" for t in THREADS)
     print(header)
     for name, (cpp, python) in cases().items():

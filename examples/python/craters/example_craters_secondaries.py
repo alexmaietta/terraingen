@@ -27,10 +27,16 @@ class Example(_common.Example):
         primary = terraingen.Crater(0.0, 0.0, 2000.0, age_gyr=0.05)
         ages = terraingen.FreshAges()
         models = terraingen.CraterModels(
-            terraingen.PowerLawSfd(1e-6, 2.0), ages, terraingen.NoDegradation(), terraingen.FassettThomsonProfile()
+            terraingen.PowerLawSfd(1e-6, 2.0),
+            ages,
+            terraingen.NoDegradation(),
+            terraingen.FassettThomsonProfile(),
         )
         primaries = terraingen.CraterLayer(
-            models, terraingen.CraterLayerOptions(generate=False, generation=terraingen.CraterGenerationOptions(manual=[primary]))
+            models,
+            terraingen.CraterLayerOptions(
+                generate=False, generation=terraingen.CraterGenerationOptions(manual=[primary])
+            ),
         )
         options = terraingen.SecondaryCraterOptions(seed=4, onset_count=20.0, min_diameter=30.0)
         secondaries = terraingen.SecondaryCraterLayer(
@@ -47,7 +53,9 @@ class Example(_common.Example):
             largest = self.table["diameter"][inside].max() if inside.any() else 0.0
             limit = terraingen.singer_max_secondary_diameter(primary.diameter, start)
             self.bands.append((inside.sum(), largest, limit))
-            print(f"  {start / 1000:5.1f} km: {inside.sum():3d} secondaries, largest {largest:5.1f} m (Singer limit {limit:5.1f} m)")
+            print(
+                f"  {start / 1000:5.1f} km: {inside.sum():3d} secondaries, largest {largest:5.1f} m (Singer limit {limit:5.1f} m)"
+            )
 
         terrain = terraingen.Terrain(terraingen.FlatSource(1537, 1537, PIXEL), [primaries, secondaries])
         self.evaluated = terraingen.evaluate(terrain)
@@ -55,7 +63,12 @@ class Example(_common.Example):
 
     def save(self, out):
         terraingen.write_geotiff(out / "example_craters_secondaries.tif", self.evaluated.heights)
-        print("wrote", write_png(out / "example_craters_secondaries.png", hillshade(self.evaluated.heights.values, PIXEL)))
+        print(
+            "wrote",
+            write_png(
+                out / "example_craters_secondaries.png", hillshade(self.evaluated.heights.values, PIXEL)
+            ),
+        )
 
     def test_final(self):
         ranges = np.hypot(self.table["x"], self.table["y"])
@@ -63,8 +76,12 @@ class Example(_common.Example):
         assert np.all(np.isfinite(self.evaluated.heights.values)), "every height is finite"
         assert len(ranges) > 10, "more than 10 secondaries"
         assert self.table["diameter"].min() >= 30.0, "every secondary is 30 m or more"
-        assert ranges.min() >= 0.99 * self.onset and ranges.max() <= 1.01 * self.outer, "the secondaries lie between the onset and outer ranges"
-        assert all(largest <= 1.01 * limit for _, largest, limit in self.bands), "no secondary exceeds Singer's largest size for its range"
+        assert ranges.min() >= 0.99 * self.onset and ranges.max() <= 1.01 * self.outer, (
+            "the secondaries lie between the onset and outer ranges"
+        )
+        assert all(largest <= 1.01 * limit for _, largest, limit in self.bands), (
+            "no secondary exceeds Singer's largest size for its range"
+        )
 
 
 if __name__ == "__main__":

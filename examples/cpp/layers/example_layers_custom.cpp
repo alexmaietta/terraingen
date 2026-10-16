@@ -95,7 +95,7 @@ double BlockMean(const terraingen::Raster<float>& heights, std::size_t col0, std
     double sum = 0.0;
     for (std::size_t row = row0; row < row0 + rows; ++row) {
         for (std::size_t col = col0; col < col0 + cols; ++col) {
-            sum += heights(col, row);
+            sum += static_cast<double>(heights(col, row));
         }
     }
     return sum / static_cast<double>(cols * rows);

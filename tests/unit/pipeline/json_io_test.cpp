@@ -1,12 +1,13 @@
 /// @file
-/// @brief Tests of reading and writing configurations as JSON (pipeline/json_io.cpp).
+/// @brief Tests of writing configurations as JSON and reading them back (pipeline/json_io.cpp).
+#include "pipeline_configs.h"
 #include "terraingen/bodies/mars/bedforms.h"
-#include "terraingen/pipeline/config_json.h"
 
 #include <gtest/gtest.h>
 
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -17,33 +18,13 @@ using terraingen::ConfigToJson;
 using terraingen::CraterLayerSpec;
 using terraingen::CraterListOutput;
 using terraingen::DensitySpec;
-using terraingen::LayerSpec;
 using terraingen::ListFormat;
 using terraingen::LoadConfig;
 using terraingen::ParseConfig;
 using terraingen::TerrainConfig;
+using terraingen::testing::ParseErrorPath;
 
 namespace {
-
-/// The JSON path of the `ConfigError` that parsing `json` throws, or "no error".
-std::string ErrorPath(const std::string& json) {
-    try {
-        ParseConfig(json);
-    } catch (const ConfigError& error) {
-        return error.Path();
-    }
-    return "no error";
-}
-
-/// The message of the `ConfigError` that parsing `json` throws, or "no error".
-std::string ErrorMessage(const std::string& json) {
-    try {
-        ParseConfig(json);
-    } catch (const ConfigError& error) {
-        return error.what();
-    }
-    return "no error";
-}
 
 /// A configuration using a non-default alternative or value for everything.
 TerrainConfig Everything() {
@@ -198,115 +179,7 @@ TerrainConfig Everything() {
     return config;
 }
 
-/// A configuration JSON and the path of the error parsing it reports.
-struct ParseCase {
-    const char* name;
-    const char* json;
-    const char* path;
-};
-
-const ParseCase kParseCases[] = {
-    {"Truncated", "{", ""},
-    {"NotAnObject", "[]", ""},
-    {"NoSchemaVersion", "{}", "schema_version"},
-    {"NewerSchemaVersion", R"({"schema_version": 2})", "schema_version"},
-    {"NewerVersionWithNewKeys", R"({"schema_version": 2, "terrain": {}})", "schema_version"},
-    {"SchemaVersionAsString", R"({"schema_version": "1"})", "schema_version"},
-    {"HugeSchemaVersion", R"({"schema_version": 3000000000})", "schema_version"},
-    {"NegativeSchemaVersion", R"({"schema_version": -3000000000})", "schema_version"},
-    {"UnknownRootKey", R"({"schema_version": 1, "colour": 3})", "colour"},
-    {"UnknownRootObject", R"({"schema_version": 1, "grid": {}})", "grid"},
-    {"RetiredCratersKey", R"({"schema_version": 1, "craters": {}})", "craters"},
-    {"NegativeWidth", R"({"schema_version": 1, "source": {"type": "flat", "width": -1}})",
-     "source.width"},
-    {"FractionalWidth", R"({"schema_version": 1, "source": {"type": "flat", "width": 2.5}})",
-     "source.width"},
-    {"HeightAsString", R"({"schema_version": 1, "source": {"type": "flat", "height": "tall"}})",
-     "source.height"},
-    {"PixelSizeAsString", R"({"schema_version": 1, "source": {"type": "flat", "pixel_size": "1"}})",
-     "source.pixel_size"},
-    {"PixelSizeOverflow",
-     R"({"schema_version": 1, "source": {"type": "flat", "pixel_size": 1e400}})", ""},
-    {"SourceAsArray", R"({"schema_version": 1, "source": []})", "source"},
-    {"UnknownSourceType", R"({"schema_version": 1, "source": {"type": "dem"}})", "source.type"},
-    {"SourceWithoutType", R"({"schema_version": 1, "source": {"width": 3}})", "source.type"},
-    {"UnknownResampling",
-     R"({"schema_version": 1, "source": {"type": "raster", "resampling": "lanczos"}})",
-     "source.resampling"},
-    {"UnknownRasterKey", R"({"schema_version": 1, "source": {"type": "raster", "layers": []}})",
-     "source.layers"},
-    {"StackAsObject", R"({"schema_version": 1, "layers": [{"type": "noise", "stack": {}}]})",
-     "layers[0].stack"},
-    {"RetiredLayerType", R"({"schema_version": 1, "layers": [{"type": "rocks"}]})",
-     "layers[0].type"},
-    {"UnknownFilterKey",
-     R"({"schema_version": 1, "filters": [{"type": "rim_smoothing", "sigma": 1}]})",
-     "filters[0].sigma"},
-    {"UnknownCompression",
-     R"({"schema_version": 1, "outputs": [{"type": "heightmap", "compression": "zstd"}]})",
-     "outputs[0].compression"},
-    {"UnknownNoiseKey",
-     R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{}, {"octave": 3}]}]})",
-     "layers[0].stack[1].octave"},
-    {"UnknownBasis",
-     R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"basis": "curl"}]}]})",
-     "layers[0].stack[0].basis"},
-    {"FloatOverflow",
-     R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"amplitude": 1e300}]}]})",
-     "layers[0].stack[0].amplitude"},
-    {"IntegerOverflow",
-     R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"octaves": 1e12}]}]})",
-     "layers[0].stack[0].octaves"},
-    {"SeedOverflow",
-     R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"seed": 5000000000}]}]})",
-     "layers[0].stack[0].seed"},
-    {"EnabledAsNumber",
-     R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"enabled": 1}]}]})",
-     "layers[0].stack[0].enabled"},
-    {"DensityWithoutType",
-     R"({"schema_version": 1, "layers": [{"type": "craters", "density": {"age_gyr": 3}}]})",
-     "layers[0].density.type"},
-    {"MisspelledDensity",
-     R"({"schema_version": 1, "layers": [{"type": "craters", "density": {"type": "hartman"}}]})",
-     "layers[0].density.type"},
-    {"DensityAsString",
-     R"({"schema_version": 1, "layers": [{"type": "craters", "density": "trask"}]})",
-     "layers[0].density"},
-    {"KeyOfAnotherDensity",
-     R"({"schema_version": 1, "layers": [{"type": "craters", "density": {"type": "trask", "age_gyr": 3}}]})",
-     "layers[0].density.age_gyr"},
-    {"UnknownManualKey",
-     R"({"schema_version": 1, "layers": [{"type": "craters", "manual": [{"x": 1, "pinned": true}]}]})",
-     "layers[0].manual[0].pinned"},
-    {"AgesTypeAsNumber",
-     R"({"schema_version": 1, "layers": [{"type": "craters", "ages": {"type": 3}}]})",
-     "layers[0].ages.type"},
-    {"UnknownOutputType", R"({"schema_version": 1, "outputs": [{"type": "mesh"}]})",
-     "outputs[0].type"},
-    {"FormatAsNumber",
-     R"({"schema_version": 1, "outputs": [{"type": "crater_list", "format": 1}]})",
-     "outputs[0].format"},
-    {"OutputsAsObject", R"({"schema_version": 1, "outputs": {}})", "outputs"},
-    {"NullHurst",
-     R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"hurst": null}]}]})",
-     "no error"},
-    {"NullDepthRatio",
-     R"({"schema_version": 1, "layers": [{"type": "craters", "degradation": {"type": "none", "depth_ratio": null}}]})",
-     "no error"},
-};
-
-class ParseConfigPaths : public ::testing::TestWithParam<ParseCase> {};
-
 }  // namespace
-
-TEST_P(ParseConfigPaths, ReportsTheProblemByItsJsonPath) {
-    EXPECT_EQ(ErrorPath(GetParam().json), GetParam().path) << GetParam().json;
-}
-
-INSTANTIATE_TEST_SUITE_P(Json, ParseConfigPaths, ::testing::ValuesIn(kParseCases),
-                         [](const ::testing::TestParamInfo<ParseCase>& param) {
-                             return std::string(param.param.name);
-                         });
 
 TEST(ConfigJson, RoundTripsTheDefaultsAndEveryNonDefaultValue) {
     for (const TerrainConfig& config : {TerrainConfig{}, Everything()}) {
@@ -412,30 +285,11 @@ TEST(ConfigJson, RoundTripsAlbedos) {
     EXPECT_EQ(layer.options.backgroundMaturity, 0.202);
     EXPECT_FALSE(layer.craterLayer);
     EXPECT_FALSE(ParseConfig(R"({"schema_version": 1})").albedo);
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "albedo": {"source": {"type": "map"}}})"),
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "albedo": {"source": {"type": "map"}}})"),
               "albedo.source.type");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "albedo": {"layers": [{"type": "craters",
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "albedo": {"layers": [{"type": "craters",
               "rays": {"glow": 1}}]}})"),
               "albedo.layers[0].rays.glow");
-}
-
-TEST(ConfigJson, ReadsInfiniteBoundsAsUnset) {
-    TerrainConfig config;
-    terraingen::SecondaryLayerSpec secondaries;
-    secondaries.secondaries.maxDiameter = 80.0;
-    config.layers = {CraterLayerSpec{}, secondaries};
-    const std::string json = ConfigToJson(config);
-    EXPECT_NE(json.find("\"max_diameter\": 80.0"), std::string::npos) << json;
-    EXPECT_NE(json.find("\"max_age_gyr\": null"), std::string::npos) << json;
-    EXPECT_NE(json.find("\"min\": null"), std::string::npos) << "an unbounded distribution";
-    const TerrainConfig parsed = ParseConfig(
-        R"({"schema_version": 1, "layers": [{"type": "craters", "apply": {"irregularity":
-            {"max_diameter": 30, "roughness": {"min": -1, "max": null}}}}]})");
-    const auto& irregularity = std::get<CraterLayerSpec>(parsed.layers[0]).apply.irregularity;
-    EXPECT_EQ(irregularity.selection.maxDiameter, 30.0);
-    EXPECT_EQ(irregularity.roughness.min, -1.0);
-    EXPECT_EQ(irregularity.roughness.max, std::numeric_limits<double>::infinity());
-    EXPECT_EQ(irregularity.selection.maxAgeGyr, std::numeric_limits<double>::infinity());
 }
 
 TEST(ConfigJson, RoundTripsSurfacesAndFlatCentres) {
@@ -452,7 +306,8 @@ TEST(ConfigJson, RoundTripsSurfacesAndFlatCentres) {
     EXPECT_EQ(std::get<terraingen::SphereSurfaceSpec>(parsed.surface).radius, 3389500.0);
     EXPECT_TRUE(std::holds_alternative<terraingen::PlaneSurfaceSpec>(
         ParseConfig(R"({"schema_version": 1})").surface));
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "surface": {"type": "torus"}})"), "surface.type");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "surface": {"type": "torus"}})"),
+              "surface.type");
     const TerrainConfig mars =
         ParseConfig(R"({"schema_version": 1, "surface": {"type": "sphere", "body": "mars"}})");
     EXPECT_EQ(std::get<terraingen::SphereSurfaceSpec>(mars.surface).body, terraingen::Body::Mars);
@@ -460,8 +315,9 @@ TEST(ConfigJson, RoundTripsSurfacesAndFlatCentres) {
     TerrainConfig meshed = mars;
     meshed.outputs = {terraingen::BodyMeshOutput{"m.glb", 64, 300.0}};
     EXPECT_EQ(ParseConfig(ConfigToJson(meshed)), meshed);
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "surface": {"type": "sphere", "body": "pluto"}})"),
-              "surface.body");
+    EXPECT_EQ(
+        ParseErrorPath(R"({"schema_version": 1, "surface": {"type": "sphere", "body": "pluto"}})"),
+        "surface.body");
 }
 
 TEST(ConfigJson, RoundTripsDiffusionDegradation) {
@@ -481,7 +337,7 @@ TEST(ConfigJson, RoundTripsDiffusionDegradation) {
         const std::string json = ConfigToJson(config);
         EXPECT_EQ(ParseConfig(json), config) << json;
     }
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "layers": [{"type": "craters",
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [{"type": "craters",
               "degradation": {"type": "diffusion", "diffusivity": "fast"}}]})"),
               "layers[0].degradation.diffusivity");
 }
@@ -499,136 +355,9 @@ TEST(ConfigJson, RoundTripsSecondaryLayers) {
     config.layers = {CraterLayerSpec{}, secondaries};
     const std::string json = ConfigToJson(config);
     EXPECT_EQ(ParseConfig(json), config) << json;
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "layers": [{"type": "secondaries",
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [{"type": "secondaries",
               "onset_count": "many"}]})"),
               "layers[0].onset_count");
-}
-
-TEST(ConfigJson, OmittedKeysTakeDefaultsAndOmittedListsAreEmpty) {
-    const TerrainConfig minimal = ParseConfig(R"({"schema_version": 1})");
-    EXPECT_EQ(minimal.source, terraingen::SourceSpec{});
-    EXPECT_TRUE(minimal.layers.empty());
-    EXPECT_TRUE(minimal.filters.empty());
-    EXPECT_TRUE(minimal.outputs.empty());
-    const TerrainConfig partial = ParseConfig(R"({
-        "schema_version": 1,
-        "source": {"type": "flat", "width": 64},
-        "layers": [{"type": "noise", "stack": [{"octaves": 3, "hurst": 0.7}]},
-                   {"type": "craters", "density": {"type": "trask"}}],
-        "filters": [{"type": "rim_smoothing"}]
-    })");
-    const auto& flat = std::get<terraingen::FlatSourceSpec>(partial.source);
-    EXPECT_EQ(flat.width, 64u);
-    EXPECT_EQ(flat.height, 513u);
-    ASSERT_EQ(partial.layers.size(), 2u);
-    const auto& noise = std::get<terraingen::NoiseLayerSpec>(partial.layers[0]);
-    EXPECT_EQ(noise.stack.at(0).layer.fractal.octaves, 3);
-    EXPECT_EQ(noise.stack.at(0).hurst, 0.7f);
-    const auto& craters = std::get<CraterLayerSpec>(partial.layers[1]);
-    EXPECT_TRUE(std::holds_alternative<terraingen::TraskSpec>(craters.density));
-    EXPECT_EQ(craters.minDiameter, 4.0);
-    ASSERT_EQ(partial.filters.size(), 1u);
-    EXPECT_EQ(std::get<terraingen::RimSmoothing>(partial.filters[0]), terraingen::RimSmoothing{});
-}
-
-TEST(ConfigJson, ReadsBoulderLayersWithOptionalExposure) {
-    const TerrainConfig config = ParseConfig(R"({"schema_version": 1, "layers": [
-        {"type": "boulders", "coverage": 0.04, "relief": "none", "ejecta": {"min_crater_diameter": 20},
-         "exposure": {"reach": 6}},
-        {"type": "boulders", "exposure": null}]})");
-    ASSERT_EQ(config.layers.size(), 2u);
-    const auto& boulders = std::get<terraingen::BoulderLayerSpec>(config.layers[0]).boulders;
-    EXPECT_EQ(boulders.sizes.coverage, 0.04);
-    EXPECT_EQ(boulders.rendering.relief, terraingen::BoulderRelief::None);
-    EXPECT_EQ(boulders.ejecta.minCraterDiameter, 20.0);
-    EXPECT_EQ(boulders.ejecta.coverage, terraingen::BoulderEjecta{}.coverage);
-    ASSERT_TRUE(boulders.bedrock.exposure.has_value());
-    EXPECT_EQ(boulders.bedrock.exposure->reach, 6.0);
-    EXPECT_EQ(boulders.bedrock.exposure->riseBoulder, terraingen::ExposureParams{}.riseBoulder);
-    EXPECT_FALSE(
-        std::get<terraingen::BoulderLayerSpec>(config.layers[1]).boulders.bedrock.exposure);
-    EXPECT_EQ(
-        ErrorPath(R"({"schema_version": 1, "layers": [{"type": "boulders", "relief": "mesh"}]})"),
-        "layers[0].relief");
-    EXPECT_EQ(
-        ErrorPath(
-            R"({"schema_version": 1, "layers": [{"type": "boulders", "cache_boulders": 1}]})"),
-        "layers[0].cache_boulders");
-    EXPECT_EQ(
-        ErrorPath(
-            R"({"schema_version": 1, "layers": [{"type": "boulders", "exposure": {"x": 1}}]})"),
-        "layers[0].exposure.x");
-}
-
-TEST(Boxed, CopiesAndComparesByValue) {
-    terraingen::Boxed<LayerSpec> a = terraingen::ScaleLayerSpec{2.0, 0.0};
-    terraingen::Boxed<LayerSpec> b;
-    EXPECT_TRUE(std::holds_alternative<terraingen::NoiseLayerSpec>(*b));
-    b = a;
-    EXPECT_EQ(a, b);
-    std::get<terraingen::ScaleLayerSpec>(*b).scale = 3.0;
-    EXPECT_EQ(std::get<terraingen::ScaleLayerSpec>(*a).scale, 2.0) << "deep copies";
-    EXPECT_FALSE(a == b);
-    const terraingen::Boxed<LayerSpec> c = std::move(b);
-    EXPECT_EQ(std::get<terraingen::ScaleLayerSpec>(*c).scale, 3.0);
-    EXPECT_EQ(c->index(), a->index());
-}
-
-TEST(ConfigJson, ReadsTransformsAndNestedRegions) {
-    const TerrainConfig config = ParseConfig(R"({"schema_version": 1, "layers": [
-        {"type": "scale", "scale": 2},
-        {"type": "clamp", "min": -1},
-        {"type": "region", "shape": {"type": "circle", "radius": 30}, "feather": 5,
-         "layer": {"type": "region", "shape": {"type": "rectangle", "max_x": 1, "max_y": 2},
-                   "layer": {"type": "clamp", "max": 0}}}]})");
-    ASSERT_EQ(config.layers.size(), 3u);
-    EXPECT_EQ(std::get<terraingen::ScaleLayerSpec>(config.layers[0]),
-              (terraingen::ScaleLayerSpec{2.0, 0.0}));
-    EXPECT_EQ(std::get<terraingen::ClampLayerSpec>(config.layers[1]),
-              (terraingen::ClampLayerSpec{-1.0, std::nullopt}));
-    const auto& outer = std::get<terraingen::RegionLayerSpec>(config.layers[2]);
-    EXPECT_EQ(outer.shape,
-              (terraingen::RegionShapeSpec{terraingen::CircleRegionSpec{0.0, 0.0, 30.0}}));
-    EXPECT_EQ(outer.feather, 5.0);
-    EXPECT_EQ(outer.blend, terraingen::BlendShape::Smoothstep);
-    const auto& inner = std::get<terraingen::RegionLayerSpec>(*outer.layer);
-    EXPECT_EQ(std::get<terraingen::RectangleRegionSpec>(inner.shape).maxY, 2.0);
-    EXPECT_EQ(std::get<terraingen::ClampLayerSpec>(*inner.layer).max, 0.0);
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "layers": [
-        {"type": "region", "layer": {"type": "clamp", "mid": 0}}]})"),
-              "layers[0].layer.mid");
-    EXPECT_EQ(ErrorPath(R"({"schema_version": 1, "layers": [
-        {"type": "region", "shape": {"type": "polygon"}}]})"),
-              "layers[0].shape.type");
-}
-
-TEST(ConfigJson, InfersTheListFormatFromTheExtension) {
-    const TerrainConfig config = ParseConfig(R"({"schema_version": 1, "outputs": [
-        {"type": "crater_list", "path": "a.json"},
-        {"type": "crater_list", "path": "b.csv"},
-        {"type": "crater_list", "path": "c.json", "format": "csv"},
-        {"type": "boulder_list", "path": "d.json"},
-        {"type": "boulder_list", "path": "e.txt"}]})");
-    ASSERT_EQ(config.outputs.size(), 5u);
-    EXPECT_EQ(std::get<CraterListOutput>(config.outputs[0]).format, ListFormat::Json);
-    EXPECT_EQ(std::get<CraterListOutput>(config.outputs[1]).format, ListFormat::Csv);
-    EXPECT_EQ(std::get<CraterListOutput>(config.outputs[2]).format, ListFormat::Csv);
-    EXPECT_EQ(std::get<terraingen::BoulderListOutput>(config.outputs[3]).format, ListFormat::Json);
-    EXPECT_EQ(std::get<terraingen::BoulderListOutput>(config.outputs[4]).format, ListFormat::Csv);
-}
-
-TEST(ConfigJson, ErrorMessagesNameThePathAndTheAlternatives) {
-    const std::string message = ErrorMessage(
-        R"({"schema_version": 1, "layers": [{"type": "craters", "profile": {"type": "bowl"}}]})");
-    EXPECT_EQ(message.rfind("layers[0].profile.type: unknown type \"bowl\"", 0), 0u) << message;
-    EXPECT_NE(message.find("fassett_thomson, martin_parkes_dunstan"), std::string::npos);
-    EXPECT_EQ(ErrorMessage(R"({"schema_version": 2})"),
-              "schema_version: version 2 is not supported; this library reads version 1");
-    EXPECT_EQ(ErrorMessage("{}"), "schema_version: required; this library reads version 1");
-    EXPECT_EQ(ErrorMessage(R"({"schema_version": 1, "colour": 3})")
-                  .rfind("colour: unknown key; expected one of: ", 0),
-              0u);
-    EXPECT_EQ(ErrorMessage("[]"), "expected an object, not array");
 }
 
 TEST(LoadConfig, ReadsFilesAndReportsUnreadableOnes) {

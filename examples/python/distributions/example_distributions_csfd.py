@@ -52,20 +52,29 @@ class Example(_common.Example):
 
     def save(self, out):
         rows = ["diameter_m," + ",".join(self.columns)]
-        rows += [f"{d:.4g}," + ",".join(f"{self.columns[n][i]:.6g}" for n in self.columns) for i, d in enumerate(self.diameters)]
+        rows += [
+            f"{d:.4g}," + ",".join(f"{self.columns[n][i]:.6g}" for n in self.columns)
+            for i, d in enumerate(self.diameters)
+        ]
         (out / "example_distributions_csfd.csv").write_text("\n".join(rows) + "\n")
         image = line_plot([(self.diameters, self.columns[n]) for n in self.columns], log_x=True, log_y=True)
         print("wrote", write_png(out / "example_distributions_csfd.png", image))
 
     def test_final(self):
-        assert len(self.columns) == 8 and all(len(c) == 60 for c in self.columns.values()), "eight curves of 60 points"
+        assert len(self.columns) == 8 and all(len(c) == 60 for c in self.columns.values()), (
+            "eight curves of 60 points"
+        )
         young, middle, old = (self.table[f"production {age} Gyr"] for age in ("0.1", "1", "3.8"))
-        assert np.all(young < middle) and np.all(middle < old), "older surfaces have more craters at every size"
+        assert np.all(young < middle) and np.all(middle < old), (
+            "older surfaces have more craters at every size"
+        )
         for name, values in self.columns.items():
             finite = values[np.isfinite(values)]
             assert len(finite) > 10 and np.all(finite > 0), f"{name} is positive over its range"
             assert np.all(np.diff(finite) <= 0), f"{name} falls with diameter"
-        assert self.table["lunar surface 3.8 Gyr"][1] <= self.table["production 3.8 Gyr"][1], "equilibrium caps the lunar surface"
+        assert self.table["lunar surface 3.8 Gyr"][1] <= self.table["production 3.8 Gyr"][1], (
+            "equilibrium caps the lunar surface"
+        )
 
 
 if __name__ == "__main__":

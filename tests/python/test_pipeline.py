@@ -1,107 +1,161 @@
-import json
+"""pipeline: building and evaluating terrains from configs and objects, outputs and body meshes."""
 
 import numpy as np
 import pytest
 
-import terraingen as tg
+import terraingen
 
-CONFIG = {
+SPHERE_CONFIG = {
     "schema_version": 1,
-    "source": {"type": "flat", "width": 81, "height": 65, "pixel_size": 0.5},
-    "layers": [
-        {"type": "noise", "stack": [{"wavelength": 20, "amplitude": 0.5, "octaves": 3}]},
-        {
-            "type": "craters",
-            "min_diameter": 3,
-            "max_diameter": 15,
-            "density": {"type": "lunar_surface", "age_gyr": 3.5},
-        },
-        {"type": "boulders", "coverage": 0.1, "min_diameter": 0.5, "max_diameter": 2},
-    ],
-    "outputs": [
-        {"type": "heightmap", "path": "heights.tif"},
-        {"type": "crater_list", "path": "craters.csv"},
-    ],
+    "surface": {"type": "sphere", "body": "moon"},
+    "source": {"type": "flat", "width": 17, "height": 17, "pixel_size": 100},
+    "layers": [{"type": "noise", "stack": [{"wavelength": 2000, "amplitude": 10}]}],
+    "albedo": {"source": {"type": "synthetic", "value": 0.12}},
+}
+
+CRATER_COLUMNS = {
+    "x",
+    "y",
+    "diameter",
+    "age_gyr",
+    "id",
+    "manual",
+    "floor_depth",
+    "rim_height",
+    "depth_ratio",
+    "freshness",
+    "complex",
 }
 
 
-def test_config_round_trips_through_json_dicts_and_files(tmp_path):
-    config = tg.Config.from_dict(CONFIG)
-    assert repr(config) == "Config(3 layers, 0 filters, 2 outputs)"
-    assert tg.Config.from_json(config.to_json()) == config
-    assert tg.Config.from_dict(config.to_dict()) == config
-    assert json.loads(config.to_json(indent=4)) == config.to_dict()
-    path = tmp_path / "terrain.json"
-    path.write_text(json.dumps(CONFIG))
-    assert tg.Config.load(path) == config
-    assert tg.Config() == tg.Config.from_dict({"schema_version": 1})
+@pytest.fixture
+def generated(small_config):
+    """The small config's terrain, generated on two threads."""
+    return terraingen.generate_terrain(terraingen.Config.from_dict(small_config), threads=2)
 
 
-def test_config_errors_name_the_offending_value():
-    with pytest.raises(tg.ConfigError) as unknown:
-        tg.Config.from_dict({"schema_version": 1, "bogus": 1})
-    assert unknown.value.path == "bogus"
-    assert isinstance(unknown.value, ValueError)
-    with pytest.raises(tg.ConfigError) as empty:
-        tg.Config.from_dict({"schema_version": 1, "layers": [{"type": "noise", "stack": []}]}).validate()
-    assert empty.value.path == "layers[0].stack"
-    with pytest.raises(tg.ConfigError) as missing:
-        tg.Config.from_dict({"schema_version": 1, "source": {"type": "raster", "path": "none.tif"}}).validate(
-            "/nonexistent"
-        )
-    assert missing.value.path.startswith("source")
-    with pytest.raises(tg.ConfigError):
-        tg.Config.load("/nonexistent/terrain.json")
-
-
-def test_schema_describes_fields_with_units_and_choices():
-    schema = tg.config_schema()
-    assert schema["schema_version"] == 1
-    root = {f["name"]: f for f in schema["root"]["fields"]}
-    assert list(root)[:3] == ["schema_version", "surface", "source"]
-    assert root["layers"]["description"].endswith(".")
-    source = schema["definitions"][root["source"]["schema"]["ref"]]
-    flat = next(a for a in source["alternatives"] if a["type"] == "flat")
-    pixel_size = next(f for f in flat["fields"] if f["name"] == "pixel_size")
-    assert pixel_size["unit"] == "m" and pixel_size["default"] == 2.0
-
-
-def test_catalog_lists_every_type_and_each_layer_parses():
-    catalog = tg.config_catalog()
-    assert catalog["schema_version"] == 1
-    assert [s["type"] for s in catalog["surface"]] == ["plane", "sphere"]
-    assert "craters" in [layer["type"] for layer in catalog["layers"]]
-    assert "density" in catalog["models"]
-    for layer in catalog["layers"]:
-        tg.Config.from_dict({"schema_version": 1, "layers": [layer]})
-
-
-def test_generate_terrain_returns_heights_craters_and_boulders():
-    config = tg.Config.from_dict(CONFIG)
-    terrain = tg.generate_terrain(config, threads=2)
-    assert terrain.heights.shape == (65, 81)
-    heights = terrain.heights.values
+def test_generate_terrain_fills_finite_varied_heights(generated):
+    assert generated.heights.shape == (65, 81)
+    heights = generated.heights.values
     assert np.isfinite(heights).all() and np.ptp(heights) > 0
-    craters = terrain.craters
-    assert set(craters) == {"x", "y", "diameter", "age_gyr", "id", "manual", "floor_depth", "rim_height", "depth_ratio", "freshness", "complex"}
+
+
+def test_generate_terrain_returns_the_crater_table(generated):
+    craters = generated.craters
+    assert set(craters) == CRATER_COLUMNS
     assert (craters["depth_ratio"] > 0).all() and (craters["freshness"] <= 1).all()
     assert len(craters["x"]) > 0
     assert craters["diameter"].min() >= 3 and craters["diameter"].max() < 15
     assert craters["id"].dtype == np.uint64 and (craters["manual"] == 0).all()
-    boulders = terrain.boulders
+
+
+def test_generate_terrain_returns_the_boulder_table(generated):
+    boulders = generated.boulders
     assert len(boulders["x"]) > 0 and boulders["diameter"].min() >= 0.5
-    assert terrain.boulder_model_count == 0 and terrain.albedo == []
-    again = tg.generate_terrain(config, threads=1)
-    np.testing.assert_array_equal(again.heights.values, heights)
+    assert generated.boulder_model_count == 0 and generated.albedo == []
 
 
-def test_generate_terrain_with_an_albedo_and_write_outputs(tmp_path):
-    data = dict(CONFIG)
-    data["albedo"] = tg.config_catalog()["albedo"]
-    data["outputs"] = CONFIG["outputs"] + [{"type": "albedo", "path": "albedo.tif"}]
-    config = tg.Config.from_dict(data)
-    terrain = tg.generate_terrain(config, tmp_path)
+def test_generate_terrain_is_the_same_on_one_thread(generated, small_config):
+    again = terraingen.generate_terrain(terraingen.Config.from_dict(small_config), threads=1)
+    np.testing.assert_array_equal(again.heights.values, generated.heights.values)
+
+
+def albedo_config(small_config):
+    small_config["albedo"] = terraingen.config_catalog()["albedo"]
+    small_config["outputs"] = small_config["outputs"] + [{"type": "albedo", "path": "albedo.tif"}]
+    return terraingen.Config.from_dict(small_config)
+
+
+def test_generate_terrain_evaluates_the_albedo(tmp_path, small_config):
+    terrain = terraingen.generate_terrain(albedo_config(small_config), tmp_path)
     assert len(terrain.albedo) >= 1 and terrain.albedo[0].shape == (65, 81)
-    written = tg.write_outputs(config, terrain, tmp_path)
+
+
+def test_write_outputs_writes_every_output(tmp_path, small_config):
+    config = albedo_config(small_config)
+    written = terraingen.write_outputs(config, terraingen.generate_terrain(config, tmp_path), tmp_path)
     assert sorted(p.split("/")[-1] for p in written) == ["albedo.tif", "craters.csv", "heights.tif"]
     assert (tmp_path / "craters.csv").read_text().startswith("x,y,diameter")
+
+
+def test_build_terrain_keeps_the_surface_and_layers():
+    terrain = terraingen.build_terrain(terraingen.Config.from_dict(SPHERE_CONFIG))
+    assert terrain.surface.is_sphere and len(terrain.layers) == 1
+
+
+def test_evaluating_a_built_terrain_matches_generate_terrain():
+    config = terraingen.Config.from_dict(SPHERE_CONFIG)
+    heights = terraingen.evaluate(terraingen.build_terrain(config)).heights.values
+    np.testing.assert_array_equal(heights, terraingen.generate_terrain(config).heights.values)
+
+
+def test_build_albedo_evaluates_the_configured_albedo():
+    config = terraingen.Config.from_dict(SPHERE_CONFIG)
+    built_albedo = terraingen.build_albedo(config, terraingen.build_terrain(config))
+    assert terraingen.evaluate_albedo(built_albedo, config.grid())[0].values.mean() == pytest.approx(0.12)
+
+
+def test_filter_margin_without_filters_is_zero():
+    terrain = terraingen.build_terrain(terraingen.Config.from_dict(SPHERE_CONFIG))
+    assert terraingen.filter_margin(terrain, 100.0) == 0.0
+
+
+def test_terrain_needs_a_source():
+    with pytest.raises(TypeError):
+        terraingen.Terrain(None)
+
+
+@pytest.fixture
+def moon():
+    return terraingen.body_sphere(terraingen.Body.MOON)
+
+
+@pytest.fixture
+def lunar_site(moon, lunar_models, noise_relief):
+    """Noise and 20 to 300 km craters on a 65 x 65 site at 4 km near Mons Mouton's longitude."""
+    noise = noise_relief(1, 400000.0, 3000.0, surface=moon)
+    generation = terraingen.CraterGenerationOptions(min_diameter=20000.0, max_diameter=300000.0)
+    craters = terraingen.CraterLayer(
+        lunar_models(3.8), terraingen.CraterLayerOptions(surface=moon, generation=generation)
+    )
+    site = terraingen.FlatSource(65, 65, 4000.0, centre=(23.47, 0.67), surface=moon)
+    return terraingen.Terrain(site, [noise, craters], surface=moon)
+
+
+def test_a_site_on_a_sphere_has_pixels_in_degrees(moon):
+    site = terraingen.FlatSource(65, 65, 4000.0, centre=(23.47, 0.67), surface=moon)
+    assert site.transform.pixel_width == pytest.approx(4000.0 / moon.unit_length)
+
+
+def test_terrain_on_a_sphere_has_relief(lunar_site):
+    assert lunar_site.surface.is_sphere
+    evaluated = terraingen.evaluate(lunar_site)
+    assert evaluated.heights.shape == (65, 65) and np.ptp(evaluated.heights.values) > 100.0
+
+
+def test_point_query_on_a_sphere_matches_the_grid(lunar_site):
+    centre = terraingen.evaluate(lunar_site).heights.values[32, 32]
+    assert terraingen.evaluate_at(lunar_site, 23.47, 0.67, 4000.0) == pytest.approx(centre, abs=1e-3)
+
+
+def test_body_mesh_arrays_match_its_counts(lunar_site):
+    mesh = terraingen.body_mesh(lunar_site, 8)
+    positions, triangles = mesh.arrays
+    assert positions.shape == (mesh.vertex_count, 3) and triangles.shape == (mesh.triangle_count, 3)
+
+
+def test_body_mesh_lies_near_the_body_radius(lunar_site, moon):
+    radii = np.linalg.norm(terraingen.body_mesh(lunar_site, 8).arrays[0], axis=1)
+    assert radii.min() > moon.radius - 10000.0 and radii.max() < moon.radius + 10000.0
+
+
+def test_body_mesh_writes_ply_and_glb(tmp_path, lunar_site):
+    mesh = terraingen.body_mesh(lunar_site, 8)
+    mesh.write_ply(tmp_path / "moon.ply")
+    mesh.write_glb(tmp_path / "moon.glb")
+    assert (tmp_path / "moon.glb").read_bytes()[:4] == b"glTF"
+
+
+def test_body_mesh_needs_a_sphere():
+    with pytest.raises(ValueError):
+        terraingen.body_mesh(terraingen.Terrain(terraingen.FlatSource(8, 8, 1.0)), 4)

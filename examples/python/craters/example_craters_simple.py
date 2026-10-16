@@ -31,9 +31,14 @@ class Example(_common.Example):
             profile=terraingen.FassettThomsonProfile(),
         )
         craters = terraingen.CraterLayer(
-            models, terraingen.CraterLayerOptions(seed=1, generation=terraingen.CraterGenerationOptions(min_diameter=8.0, max_diameter=300.0))
+            models,
+            terraingen.CraterLayerOptions(
+                seed=1, generation=terraingen.CraterGenerationOptions(min_diameter=8.0, max_diameter=300.0)
+            ),
         )
-        terrain = terraingen.Terrain(terraingen.FlatSource(513, 513, 2.0), [terraingen.NoiseRelief([fbm]), craters])
+        terrain = terraingen.Terrain(
+            terraingen.FlatSource(513, 513, 2.0), [terraingen.NoiseRelief([fbm]), craters]
+        )
 
         self.evaluated = terraingen.evaluate(terrain)
         diameters = self.evaluated.craters["diameter"]
@@ -45,7 +50,10 @@ class Example(_common.Example):
     def save(self, out):
         terraingen.write_geotiff(out / "example_craters_simple.tif", self.evaluated.heights)
         self.evaluated.write_crater_list(out / "example_craters_simple.csv")
-        print("wrote", write_png(out / "example_craters_simple.png", hillshade(self.evaluated.heights.values, 2.0)))
+        print(
+            "wrote",
+            write_png(out / "example_craters_simple.png", hillshade(self.evaluated.heights.values, 2.0)),
+        )
 
     def test_final(self):
         diameters = self.evaluated.craters["diameter"]

@@ -108,7 +108,7 @@ class PlanetsMoon : public terraingen::examples::Example {
         Check(east_.x > 23.6 && east_.x < 24.0 && std::abs(east_.y - 0.67) < 0.01,
               "10 km east of the site is about a third of a degree east, at the same latitude");
         Check(site_.features.craters.Size() > 10, "more than 10 craters at the site");
-        Check(std::isfinite(siteHeight_) && std::abs(siteHeight_) < 10000.0,
+        Check(std::isfinite(siteHeight_) && std::abs(siteHeight_) < 10000.0f,
               "the site's height is finite and within 10 km of the datum");
         Check(mesh_.positions.size() > 10000 && !mesh_.triangles.empty() &&
                   lowest_ > moon_.Radius() - 20000.0 && highest_ < moon_.Radius() + 20000.0 &&

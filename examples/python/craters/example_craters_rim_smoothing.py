@@ -25,7 +25,9 @@ PIXEL = 1.0
 class Example(_common.Example):
     def generate(self):
         surface = terraingen.lunar_surface(3.5)
-        models = terraingen.CraterModels(surface.density, surface.ages, terraingen.NoDegradation(), terraingen.FassettThomsonProfile())
+        models = terraingen.CraterModels(
+            surface.density, surface.ages, terraingen.NoDegradation(), terraingen.FassettThomsonProfile()
+        )
         generation = terraingen.CraterGenerationOptions(min_diameter=10.0, max_diameter=120.0)
         craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=3, generation=generation))
         source = terraingen.FlatSource(257, 257, PIXEL)
@@ -51,10 +53,16 @@ class Example(_common.Example):
 
     def test_final(self):
         highest = {name: heights.max() for name, heights in self.heights.items()}
-        assert all(heights.shape == (257, 257) and np.all(np.isfinite(heights)) for heights in self.heights.values()), "every terrain is 257 x 257 and finite"
+        assert all(
+            heights.shape == (257, 257) and np.all(np.isfinite(heights)) for heights in self.heights.values()
+        ), "every terrain is 257 x 257 and finite"
         assert highest["none"] > 0.0, "the unsmoothed rims stand above the datum"
-        assert all(highest[name] <= highest["none"] + 1e-3 for name in ("default", "wide", "half strength")), "smoothing never raises the highest rim"
-        assert np.abs(self.heights["default"] - self.heights["none"]).max() > 0.01, "the default smoothing changes the rims"
+        assert all(
+            highest[name] <= highest["none"] + 1e-3 for name in ("default", "wide", "half strength")
+        ), "smoothing never raises the highest rim"
+        assert np.abs(self.heights["default"] - self.heights["none"]).max() > 0.01, (
+            "the default smoothing changes the rims"
+        )
 
 
 if __name__ == "__main__":

@@ -30,20 +30,35 @@ class Example(_common.Example):
         moon = terraingen.body_sphere(terraingen.Body.MOON)
         noise = terraingen.NoiseRelief(
             [
-                terraingen.NoiseLayer(terraingen.FractalParams(seed=8, wavelength=400000.0, amplitude=3000.0, octaves=6)),
-                terraingen.NoiseLayer(terraingen.FractalParams(seed=9, wavelength=20000.0, amplitude=300.0, octaves=6)),
+                terraingen.NoiseLayer(
+                    terraingen.FractalParams(seed=8, wavelength=400000.0, amplitude=3000.0, octaves=6)
+                ),
+                terraingen.NoiseLayer(
+                    terraingen.FractalParams(seed=9, wavelength=20000.0, amplitude=300.0, octaves=6)
+                ),
             ],
             surface=moon,
         )
         surface = terraingen.lunar_surface(3.6)
-        models = terraingen.CraterModels(surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages), terraingen.FassettThomsonProfile())
+        models = terraingen.CraterModels(
+            surface.density,
+            surface.ages,
+            terraingen.FreshnessDegradation(surface.ages),
+            terraingen.FassettThomsonProfile(),
+        )
         young = terraingen.Crater(23.5, 0.7, 4000.0, age_gyr=0.002)
-        generation = terraingen.CraterGenerationOptions(min_diameter=1000.0, max_diameter=30000.0, manual=[young])
-        craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=3, generation=generation, surface=moon))
+        generation = terraingen.CraterGenerationOptions(
+            min_diameter=1000.0, max_diameter=30000.0, manual=[young]
+        )
+        craters = terraingen.CraterLayer(
+            models, terraingen.CraterLayerOptions(seed=3, generation=generation, surface=moon)
+        )
         site = terraingen.FlatSource(257, 257, PIXEL, centre=SITE, surface=moon)
         terrain = terraingen.Terrain(site, [noise, craters], surface=moon)
 
-        mottling = terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=30000.0, amplitude=0.05, octaves=5))
+        mottling = terraingen.NoiseLayer(
+            terraingen.FractalParams(seed=2, wavelength=30000.0, amplitude=0.05, octaves=5)
+        )
         albedo = terraingen.Albedo(
             terraingen.SyntheticAlbedo(value=0.11, value_noise=[mottling], surface=moon),
             [terraingen.CraterAlbedo(craters, terraingen.CraterAlbedoOptions(seed=3))],

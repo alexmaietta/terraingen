@@ -30,12 +30,21 @@ class Example(_common.Example):
         for age in AGES:
             surface = terraingen.lunar_surface(age)
             models = terraingen.CraterModels(
-                surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages), terraingen.FassettThomsonProfile()
+                surface.density,
+                surface.ages,
+                terraingen.FreshnessDegradation(surface.ages),
+                terraingen.FassettThomsonProfile(),
             )
             craters = terraingen.CraterLayer(
-                models, terraingen.CraterLayerOptions(seed=21, generation=terraingen.CraterGenerationOptions(min_diameter=20.0, max_diameter=200.0))
+                models,
+                terraingen.CraterLayerOptions(
+                    seed=21,
+                    generation=terraingen.CraterGenerationOptions(min_diameter=20.0, max_diameter=200.0),
+                ),
             )
-            terrain = terraingen.Terrain(terraingen.FlatSource(257, 257, PIXEL), [terraingen.NoiseRelief([fbm]), craters])
+            terrain = terraingen.Terrain(
+                terraingen.FlatSource(257, 257, PIXEL), [terraingen.NoiseRelief([fbm]), craters]
+            )
             evaluated = terraingen.evaluate(terrain)
             print(f"{age:4.2f} Gyr: {len(evaluated.craters['x']):3d} craters of 20 m or more")
             self.evaluated.append(evaluated)
@@ -48,10 +57,19 @@ class Example(_common.Example):
     def test_final(self):
         counts = [len(evaluated.craters["x"]) for evaluated in self.evaluated]
         assert len(counts) == len(AGES), "one terrain per age"
-        assert all(evaluated.heights.shape == (257, 257) and np.all(np.isfinite(evaluated.heights.values)) for evaluated in self.evaluated), "every terrain is 257 x 257 and finite"
-        assert all(a <= b for a, b in zip(counts, counts[1:])), "older surfaces have at least as many craters"
+        assert all(
+            evaluated.heights.shape == (257, 257) and np.all(np.isfinite(evaluated.heights.values))
+            for evaluated in self.evaluated
+        ), "every terrain is 257 x 257 and finite"
+        assert all(a <= b for a, b in zip(counts, counts[1:], strict=False)), (
+            "older surfaces have at least as many craters"
+        )
         assert counts[-1] > 2 * max(counts[0], 1), "the oldest surface has far more craters than the youngest"
-        assert all(evaluated.craters["diameter"].min() >= 20.0 for evaluated in self.evaluated if len(evaluated.craters["diameter"])), "every crater is 20 m or more"
+        assert all(
+            evaluated.craters["diameter"].min() >= 20.0
+            for evaluated in self.evaluated
+            if len(evaluated.craters["diameter"])
+        ), "every crater is 20 m or more"
 
 
 if __name__ == "__main__":

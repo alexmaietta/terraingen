@@ -29,8 +29,12 @@ class Example(_common.Example):
             terraingen.FractalType.BILLOW,
             terraingen.FractalType.HYBRID_MULTIFRACTAL,
         ):
-            layer = terraingen.NoiseLayer(terraingen.FractalParams(seed=1, type=fractal, wavelength=400.0, amplitude=30.0))
-            terrain = terraingen.Terrain(terraingen.FlatSource(257, 257, PIXEL), [terraingen.NoiseRelief([layer])])
+            layer = terraingen.NoiseLayer(
+                terraingen.FractalParams(seed=1, type=fractal, wavelength=400.0, amplitude=30.0)
+            )
+            terrain = terraingen.Terrain(
+                terraingen.FlatSource(257, 257, PIXEL), [terraingen.NoiseRelief([layer])]
+            )
             evaluated = terraingen.evaluate(terrain)
             values = evaluated.heights.values
             print(f"{fractal.name:20s} mean {values.mean():6.2f} m, std {values.std():5.2f} m")
@@ -43,10 +47,14 @@ class Example(_common.Example):
 
     def test_final(self):
         assert len(self.heights) == 4, "one terrain per fractal type"
-        assert all(values.shape == (257, 257) and np.all(np.isfinite(values)) for values in self.heights.values()), "every terrain is 257 x 257 and finite"
+        assert all(
+            values.shape == (257, 257) and np.all(np.isfinite(values)) for values in self.heights.values()
+        ), "every terrain is 257 x 257 and finite"
         assert all(values.std() > 0.5 for values in self.heights.values()), "every fractal type has relief"
         fbm = self.heights["FBM"]
-        assert all(not np.allclose(fbm, values) for name, values in self.heights.items() if name != "FBM"), "the types differ from fBm"
+        assert all(not np.allclose(fbm, values) for name, values in self.heights.items() if name != "FBM"), (
+            "the types differ from fBm"
+        )
 
 
 if __name__ == "__main__":

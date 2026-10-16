@@ -26,13 +26,19 @@ class Example(_common.Example):
     def generate(self):
         surface = terraingen.lunar_surface(3.5)
         models = terraingen.CraterModels(
-            surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages), terraingen.FassettThomsonProfile()
+            surface.density,
+            surface.ages,
+            terraingen.FreshnessDegradation(surface.ages),
+            terraingen.FassettThomsonProfile(),
         )
         uniform = terraingen.ValueDistributionKind.UNIFORM
         variants = {
             "round": terraingen.CraterIrregularity(),
             "rough rims": terraingen.CraterIrregularity(
-                enabled=True, seed=3, elongated_share=0.0, roughness=terraingen.ValueDistribution(uniform, 0.03, 0.06)
+                enabled=True,
+                seed=3,
+                elongated_share=0.0,
+                roughness=terraingen.ValueDistribution(uniform, 0.03, 0.06),
             ),
             "elongated": terraingen.CraterIrregularity(
                 enabled=True,
@@ -44,15 +50,22 @@ class Example(_common.Example):
                 heading_spread=0.2,
             ),
             "both": terraingen.CraterIrregularity(
-                enabled=True, seed=3, roughness=terraingen.ValueDistribution(uniform, 0.02, 0.05), elongated_share=0.3
+                enabled=True,
+                seed=3,
+                roughness=terraingen.ValueDistribution(uniform, 0.02, 0.05),
+                elongated_share=0.3,
             ),
         }
         generation = terraingen.CraterGenerationOptions(min_diameter=15.0, max_diameter=150.0)
         self.heights = {}
         for name, irregularity in variants.items():
             apply = terraingen.CraterApplyOptions(irregularity=irregularity)
-            layer = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=4, generation=generation, apply=apply))
-            evaluated = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(257, 257, PIXEL), [layer]))
+            layer = terraingen.CraterLayer(
+                models, terraingen.CraterLayerOptions(seed=4, generation=generation, apply=apply)
+            )
+            evaluated = terraingen.evaluate(
+                terraingen.Terrain(terraingen.FlatSource(257, 257, PIXEL), [layer])
+            )
             print(f"{name:12s} done")
             self.heights[name] = evaluated.heights.values
             self.show(name, evaluated.heights)
@@ -63,10 +76,16 @@ class Example(_common.Example):
 
     def test_final(self):
         assert len(self.heights) == 4, "four outline variants"
-        assert all(heights.shape == (257, 257) and np.all(np.isfinite(heights)) for heights in self.heights.values()), "every terrain is 257 x 257 and finite"
+        assert all(
+            heights.shape == (257, 257) and np.all(np.isfinite(heights)) for heights in self.heights.values()
+        ), "every terrain is 257 x 257 and finite"
         round_heights = self.heights["round"]
         assert round_heights.max() - round_heights.min() > 1.0, "the round craters have relief"
-        assert all(np.abs(heights - round_heights).max() > 0.1 for name, heights in self.heights.items() if name != "round"), "every irregular variant changes the round craters"
+        assert all(
+            np.abs(heights - round_heights).max() > 0.1
+            for name, heights in self.heights.items()
+            if name != "round"
+        ), "every irregular variant changes the round craters"
 
 
 if __name__ == "__main__":

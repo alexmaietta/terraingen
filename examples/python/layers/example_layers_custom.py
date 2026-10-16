@@ -89,7 +89,10 @@ class Example(_common.Example):
         fbm = terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=200.0, amplitude=4.0))
         surface = terraingen.lunar_surface(3.5)
         models = terraingen.CraterModels(
-            surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages), terraingen.FassettThomsonProfile()
+            surface.density,
+            surface.ages,
+            terraingen.FreshnessDegradation(surface.ages),
+            terraingen.FassettThomsonProfile(),
         )
         generation = terraingen.CraterGenerationOptions(min_diameter=8.0, max_diameter=80.0)
         craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(generation=generation))
@@ -112,7 +115,9 @@ class Example(_common.Example):
         self.show("terraced", self.heights["plus a custom filter"], albedo=self.albedo)
 
     def save(self, out):
-        shades = [hillshade(heights.values, PIXEL) for heights in self.heights.values()] + [normalize(self.albedo.values)]
+        shades = [hillshade(heights.values, PIXEL) for heights in self.heights.values()] + [
+            normalize(self.albedo.values)
+        ]
         print("wrote", write_png(out / "example_layers_custom.png", montage(shades, columns=3)))
 
     def test_final(self):
@@ -120,11 +125,17 @@ class Example(_common.Example):
         terraced = self.heights["plus a custom filter"].values
         assert plain.shape == (SIZE, SIZE) and terraced.shape == (SIZE, SIZE), "both terrains are 257 x 257"
         assert np.isfinite(plain).all() and np.isfinite(self.origin_height), "the heights are finite"
-        assert plain[:64, -64:].mean() > plain[-64:, :64].mean() + 5.0, "the plane rises from the south-west to the north-east"
+        assert plain[:64, -64:].mean() > plain[-64:, :64].mean() + 5.0, (
+            "the plane rises from the south-west to the north-east"
+        )
         shift = np.abs(terraced - plain)
-        assert shift.max() <= 1.0 + 1e-3 and shift.max() > 0.0, "the terraces move heights by up to a quarter of their 4 m step"
+        assert shift.max() <= 1.0 + 1e-3 and shift.max() > 0.0, (
+            "the terraces move heights by up to a quarter of their 4 m step"
+        )
         band = self.albedo.values
-        assert band.shape == (SIZE, SIZE) and band.min() >= 0.11 - 1e-4 and band.max() > 0.12, "slopes brighten the 0.11 albedo"
+        assert band.shape == (SIZE, SIZE) and band.min() >= 0.11 - 1e-4 and band.max() > 0.12, (
+            "slopes brighten the 0.11 albedo"
+        )
 
 
 if __name__ == "__main__":

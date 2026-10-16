@@ -27,14 +27,28 @@ SIZE = 401
 class Example(_common.Example):
     def generate(self):
         ages = terraingen.FreshAges()
-        models = terraingen.CraterModels(terraingen.PowerLawSfd(1e-6, 2.0), ages, terraingen.FreshnessDegradation(ages), terraingen.FassettThomsonProfile())
+        models = terraingen.CraterModels(
+            terraingen.PowerLawSfd(1e-6, 2.0),
+            ages,
+            terraingen.FreshnessDegradation(ages),
+            terraingen.FassettThomsonProfile(),
+        )
         young = terraingen.Crater(0.0, 0.0, 20.0, age_gyr=0.01)
-        craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(generate=False, generation=terraingen.CraterGenerationOptions(manual=[young])))
+        craters = terraingen.CraterLayer(
+            models,
+            terraingen.CraterLayerOptions(
+                generate=False, generation=terraingen.CraterGenerationOptions(manual=[young])
+            ),
+        )
         base = dict(coverage=0.03, min_diameter=0.2, max_diameter=3.0, seed=1)
         variants = {
             "uniform": terraingen.BoulderLayerOptions(**base),
-            "patches": terraingen.BoulderLayerOptions(**base, patches=terraingen.BoulderPatches(spread=4.0, size=12.0)),
-            "crater ejecta": terraingen.BoulderLayerOptions(**base, ejecta=terraingen.BoulderEjecta(min_crater_diameter=5.0, coverage=0.25, reach=3.0)),
+            "patches": terraingen.BoulderLayerOptions(
+                **base, patches=terraingen.BoulderPatches(spread=4.0, size=12.0)
+            ),
+            "crater ejecta": terraingen.BoulderLayerOptions(
+                **base, ejecta=terraingen.BoulderEjecta(min_crater_diameter=5.0, coverage=0.25, reach=3.0)
+            ),
             "tall, unburied, leaning boulders": terraingen.BoulderLayerOptions(
                 **base,
                 ejecta=terraingen.BoulderEjecta(min_crater_diameter=5.0, coverage=0.25, reach=3.0),
@@ -53,7 +67,9 @@ class Example(_common.Example):
             boulders = terraingen.BoulderLayer(options, craters)
             terrain = terraingen.Terrain(terraingen.FlatSource(SIZE, SIZE, PIXEL), [craters, boulders])
             evaluated = terraingen.evaluate(terrain)
-            print(f"{name:34s} {len(evaluated.boulders['x']):5d} boulders, {evaluated.boulder_model_count} boulder models")
+            print(
+                f"{name:34s} {len(evaluated.boulders['x']):5d} boulders, {evaluated.boulder_model_count} boulder models"
+            )
             self.evaluated[name] = evaluated
             grid = np.array([[sum(boulders.abundance_at(x, -y)) for x in xs[::8]] for y in xs[::8]])
             self.abundance.append(np.kron(normalize(grid), np.ones((8, 8)))[:SIZE, :SIZE])
@@ -65,15 +81,22 @@ class Example(_common.Example):
         self.last.write_boulder_models(out / "example_boulders_positioning.glb")
         shades = [hillshade(evaluated.heights.values, PIXEL) for evaluated in self.evaluated.values()]
         print("wrote", write_png(out / "example_boulders_positioning.png", montage(shades, columns=4)))
-        print("wrote", write_png(out / "example_boulders_positioning_abundance.png", montage(self.abundance, columns=4)))
+        print(
+            "wrote",
+            write_png(out / "example_boulders_positioning_abundance.png", montage(self.abundance, columns=4)),
+        )
 
     def test_final(self):
         counts = {name: len(evaluated.boulders["x"]) for name, evaluated in self.evaluated.items()}
-        assert all(e.heights.shape == (SIZE, SIZE) for e in self.evaluated.values()), "the heights are 401 x 401"
+        assert all(e.heights.shape == (SIZE, SIZE) for e in self.evaluated.values()), (
+            "the heights are 401 x 401"
+        )
         assert counts["uniform"] > 50, "more than 50 boulders without patches or ejecta"
         assert counts["crater ejecta"] > 3 * counts["uniform"], "crater ejecta add many boulders"
         assert self.evaluated["crater ejecta"].boulder_model_count == 0, "no boulder models unless asked for"
-        assert 0 < self.last.boulder_model_count < counts["tall, unburied, leaning boulders"], "some boulders become boulder models"
+        assert 0 < self.last.boulder_model_count < counts["tall, unburied, leaning boulders"], (
+            "some boulders become boulder models"
+        )
         assert all(a.shape == (SIZE, SIZE) for a in self.abundance), "abundance maps on the heights' grid"
 
 

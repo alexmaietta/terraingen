@@ -36,14 +36,18 @@ class Example(_common.Example):
             warp_wavelength=400.0,
         )
         mask = terraingen.NoiseLayer(
-            terraingen.FractalParams(seed=3, basis=terraingen.NoiseBasis.VALUE, wavelength=1200.0, amplitude=1.0, octaves=2),
+            terraingen.FractalParams(
+                seed=3, basis=terraingen.NoiseBasis.VALUE, wavelength=1200.0, amplitude=1.0, octaves=2
+            ),
             blend=terraingen.LayerBlend.MASK,
         )
         source = terraingen.FlatSource(513, 513, 2.0)
         terrain = terraingen.Terrain(source, [terraingen.NoiseRelief([rolling, crests, mask])])
 
         self.evaluated = terraingen.evaluate(terrain)
-        self.rolling = terraingen.evaluate(terraingen.Terrain(source, [terraingen.NoiseRelief([rolling])])).heights
+        self.rolling = terraingen.evaluate(
+            terraingen.Terrain(source, [terraingen.NoiseRelief([rolling])])
+        ).heights
         heights = self.evaluated.heights.values
         print(f"heights from {heights.min():.2f} to {heights.max():.2f} m")
         self.show("layered", self.evaluated.heights)
@@ -51,7 +55,13 @@ class Example(_common.Example):
 
     def save(self, out):
         terraingen.write_geotiff(out / "example_terrain_layered.tif", self.evaluated.heights)
-        print("wrote", write_png(out / "example_terrain_layered.png", hillshade(self.evaluated.heights.values, 2.0, exaggeration=3.0)))
+        print(
+            "wrote",
+            write_png(
+                out / "example_terrain_layered.png",
+                hillshade(self.evaluated.heights.values, 2.0, exaggeration=3.0),
+            ),
+        )
 
     def test_final(self):
         heights = self.evaluated.heights.values

@@ -1,4 +1,4 @@
-"""The harness the Python examples run on (examples/python/_common.py) and their runner
+"""The harness the Python examples run on (examples/python/_harness.py) and their runner
 (examples/python/__main__.py), without a viewer."""
 
 import os
@@ -42,22 +42,41 @@ def args_for(example_class, *argv):
     return example_class.create_parser().parse_args(["--viewer", "null", *argv])
 
 
-def test_example_names_and_describes_itself():
+def test_example_names_and_describes_itself_from_its_module():
     assert Ramp.name() == "test_examples_harness"
-    assert Ramp.description() == "The harness the Python examples run on (examples/python/_common.py) and their runner"
+    assert (
+        Ramp.description()
+        == "The harness the Python examples run on (examples/python/_harness.py) and their runner"
+    )
+
+
+def test_loaded_example_names_and_describes_itself():
     example_class = _common.load_example(EXAMPLES / "craters" / "example_craters_simple.py")
     assert example_class.name() == "craters_simple"
     assert example_class.description() == "Lunar craters on a synthetic terrain."
 
 
-def test_show_keeps_the_grid_of_rasters_and_centres_arrays():
+def test_common_re_exports_the_split_modules():
+    import _browser
+    import _harness
+    import _images
+
+    assert _common.Example is _harness.Example and _common.run is _harness.run
+    assert _common.write_png is _images.write_png and _common.ExampleBrowser is _browser.ExampleBrowser
+
+
+def test_show_centres_arrays_on_the_origin():
     example = Ramp(None, None)
     example.generate()
     name, heights, pixel_size, corner, albedo = example.views[0]
     assert (name, heights.shape, pixel_size, corner, albedo) == ("ramp", (3, 4), 2.0, (-4.0, 3.0), None)
+
+
+def test_show_keeps_the_grid_of_rasters():
+    example = Ramp(None, None)
     raster = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(5, 5, 2.0), [])).heights
     example.show("flat", raster, albedo=raster.values)
-    _, heights, pixel_size, corner, albedo = example.views[1]
+    _, heights, pixel_size, corner, albedo = example.views[0]
     assert (heights.dtype, pixel_size, corner, albedo.shape) == (np.float32, 2.0, (-5.0, 5.0), (5, 5))
 
 
@@ -68,15 +87,21 @@ def test_run_without_a_viewer_saves_and_checks(tmp_path, capsys):
     assert example.views[0][0] == "ramp"
     assert "example_test_examples_harness: checks passed" in capsys.readouterr().out
 
+
+def test_run_with_no_save_writes_nothing(tmp_path):
     args = args_for(Ramp, "--no-save", "--output-dir", str(tmp_path / "unsaved"))
     _common.run(Ramp(None, args), args)
     assert not (tmp_path / "unsaved").exists()
 
 
-def test_run_needs_test_final_to_test(tmp_path):
+def test_run_needs_test_final_to_test():
     args = args_for(Untested, "--test", "--no-save")
     with pytest.raises(NotImplementedError):
         _common.run(Untested(None, args), args)
+
+
+def test_base_example_has_nothing_to_generate():
+    args = args_for(Untested, "--no-save")
     with pytest.raises(NotImplementedError):
         _common.Example(None, args).generate()
 
@@ -98,12 +123,25 @@ def test_discovers_examples_in_teaching_order():
 
 def test_runner_lists_and_runs_examples(tmp_path):
     env = {**os.environ, "PYTHONPATH": str(pathlib.Path(terraingen.__file__).resolve().parents[1])}
-    listed = subprocess.run([sys.executable, str(EXAMPLES)], capture_output=True, text=True, env=env, check=True)
+    listed = subprocess.run(
+        [sys.executable, str(EXAMPLES)], capture_output=True, text=True, env=env, check=True
+    )
     assert "craters:\n" in listed.stdout and "  craters_simple\n" in listed.stdout
-    unknown = subprocess.run([sys.executable, str(EXAMPLES), "nothing_here"], capture_output=True, text=True, env=env)
+    unknown = subprocess.run(
+        [sys.executable, str(EXAMPLES), "nothing_here"], capture_output=True, text=True, env=env
+    )
     assert unknown.returncode == 2
     ran = subprocess.run(
-        [sys.executable, str(EXAMPLES), "example_terrain_fbm", "--viewer", "null", "--test", "--output-dir", str(tmp_path)],
+        [
+            sys.executable,
+            str(EXAMPLES),
+            "example_terrain_fbm",
+            "--viewer",
+            "null",
+            "--test",
+            "--output-dir",
+            str(tmp_path),
+        ],
         capture_output=True,
         text=True,
         env=env,

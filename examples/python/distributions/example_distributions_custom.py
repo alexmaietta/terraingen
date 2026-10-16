@@ -38,11 +38,15 @@ class Example(_common.Example):
     def generate(self):
         self.density = RolledOverPowerLaw()
         ages = terraingen.UniformAges(3.0)
-        models = terraingen.CraterModels(self.density, ages, terraingen.FreshnessDegradation(ages), terraingen.FassettThomsonProfile())
+        models = terraingen.CraterModels(
+            self.density, ages, terraingen.FreshnessDegradation(ages), terraingen.FassettThomsonProfile()
+        )
         generation = terraingen.CraterGenerationOptions(min_diameter=6.0, max_diameter=300.0)
         craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=5, generation=generation))
         fbm = terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=800.0, amplitude=40.0))
-        terrain = terraingen.Terrain(terraingen.FlatSource(513, 513, 2.0), [terraingen.NoiseRelief([fbm]), craters])
+        terrain = terraingen.Terrain(
+            terraingen.FlatSource(513, 513, 2.0), [terraingen.NoiseRelief([fbm]), craters]
+        )
         self.evaluated = terraingen.evaluate(terrain)
 
         self.area = (513 * 2.0) ** 2
@@ -55,14 +59,21 @@ class Example(_common.Example):
 
     def save(self, out):
         terraingen.write_geotiff(out / "example_distributions_custom.tif", self.evaluated.heights)
-        print("wrote", write_png(out / "example_distributions_custom.png", hillshade(self.evaluated.heights.values, 2.0)))
+        print(
+            "wrote",
+            write_png(
+                out / "example_distributions_custom.png", hillshade(self.evaluated.heights.values, 2.0)
+            ),
+        )
 
     def test_final(self):
         diameters = self.evaluated.craters["diameter"]
         assert self.evaluated.heights.shape == (513, 513)
         assert diameters.min() >= 6.0 and diameters.max() <= 300.0, "every crater is 6 to 300 m across"
         expected = self.density.expected_count(self.area, 6.0, 300.0)
-        assert 0.7 * expected < len(diameters) < 1.3 * expected, "the craters drawn number within 30% of those expected"
+        assert 0.7 * expected < len(diameters) < 1.3 * expected, (
+            "the craters drawn number within 30% of those expected"
+        )
         counts = [np.count_nonzero(diameters >= d) for d in (6, 12, 40)]
         assert counts[0] > counts[1] > counts[2], "fewer craters at larger sizes"
         assert np.all(np.isfinite(self.evaluated.heights.values)), "the heights are finite"

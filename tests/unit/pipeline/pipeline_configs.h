@@ -103,6 +103,30 @@ template <typename Mutate> std::string ErrorPath(Mutate mutate) {
     return ValidationErrorPath(config);
 }
 
+/// @brief The JSON path of the `ConfigError` that parsing a configuration throws.
+/// @param json The configuration JSON.
+/// @return The path, or "no error".
+inline std::string ParseErrorPath(const std::string& json) {
+    try {
+        ParseConfig(json);
+    } catch (const ConfigError& error) {
+        return error.Path();
+    }
+    return "no error";
+}
+
+/// @brief The message of the `ConfigError` that parsing a configuration throws.
+/// @param json The configuration JSON.
+/// @return The message, or "no error".
+inline std::string ParseErrorMessage(const std::string& json) {
+    try {
+        ParseConfig(json);
+    } catch (const ConfigError& error) {
+        return error.what();
+    }
+    return "no error";
+}
+
 /// @brief The text of a file.
 /// @param path The file.
 /// @return Its contents.

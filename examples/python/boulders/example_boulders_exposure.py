@@ -25,14 +25,27 @@ SIZE = 401
 
 class Example(_common.Example):
     def generate(self):
-        relief = terraingen.NoiseRelief([terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=60.0, amplitude=6.0, octaves=7))])
+        relief = terraingen.NoiseRelief(
+            [
+                terraingen.NoiseLayer(
+                    terraingen.FractalParams(seed=1, wavelength=60.0, amplitude=6.0, octaves=7)
+                )
+            ]
+        )
         exposure = terraingen.ExposureParams(reach=6.0)
         grid = terraingen.RasterGrid.centred(SIZE, SIZE, PIXEL)
         ground = terraingen.Terrain(terraingen.FlatSource(SIZE, SIZE, PIXEL), [relief])
         self.exposure_map = terraingen.ExposureField(exposure).fill(ground, 1, grid, PIXEL).values
 
         boulders = terraingen.BoulderLayer(
-            terraingen.BoulderLayerOptions(seed=1, coverage=0.02, min_diameter=0.3, max_diameter=4.0, exposure=exposure, bedrock_abundance=4.0)
+            terraingen.BoulderLayerOptions(
+                seed=1,
+                coverage=0.02,
+                min_diameter=0.3,
+                max_diameter=4.0,
+                exposure=exposure,
+                bedrock_abundance=4.0,
+            )
         )
         terrain = terraingen.Terrain(ground.source, [relief, boulders])
         self.evaluated = terraingen.evaluate(terrain)
@@ -41,7 +54,9 @@ class Example(_common.Example):
         rows = np.clip(((grid.transform.origin_y - table["y"]) / PIXEL).astype(int), 0, SIZE - 1)
         self.exposed_here = self.exposure_map[rows, cols] > 0.5
         self.share = np.mean(self.exposure_map > 0.5)
-        print(f"{self.share:.0%} of the ground is more than half exposed; it holds {self.exposed_here.mean():.0%} of the {len(cols)} boulders")
+        print(
+            f"{self.share:.0%} of the ground is more than half exposed; it holds {self.exposed_here.mean():.0%} of the {len(cols)} boulders"
+        )
         self.show("heights", self.evaluated.heights)
 
     def save(self, out):
@@ -54,7 +69,9 @@ class Example(_common.Example):
         assert np.all((self.exposure_map >= 0.0) & (self.exposure_map <= 1.0)), "exposure lies in [0, 1]"
         assert 0.05 < self.share < 0.95, "some, not all, of the ground is exposed"
         assert len(self.exposed_here) > 20, "more than 20 boulders"
-        assert self.exposed_here.mean() > self.share + 0.1, "exposed ground holds more than its share of boulders"
+        assert self.exposed_here.mean() > self.share + 0.1, (
+            "exposed ground holds more than its share of boulders"
+        )
 
 
 if __name__ == "__main__":

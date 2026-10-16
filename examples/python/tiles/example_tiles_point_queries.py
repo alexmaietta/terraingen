@@ -27,12 +27,20 @@ class Example(_common.Example):
     def generate(self):
         surface = terraingen.lunar_surface(3.5)
         models = terraingen.CraterModels(
-            surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages), terraingen.FassettThomsonProfile()
+            surface.density,
+            surface.ages,
+            terraingen.FreshnessDegradation(surface.ages),
+            terraingen.FassettThomsonProfile(),
         )
         craters = terraingen.CraterLayer(
-            models, terraingen.CraterLayerOptions(generation=terraingen.CraterGenerationOptions(min_diameter=3.0, max_diameter=60.0))
+            models,
+            terraingen.CraterLayerOptions(
+                generation=terraingen.CraterGenerationOptions(min_diameter=3.0, max_diameter=60.0)
+            ),
         )
-        noise = terraingen.NoiseRelief([terraingen.NoiseLayer(terraingen.FractalParams(seed=3, wavelength=100.0, amplitude=2.0))])
+        noise = terraingen.NoiseRelief(
+            [terraingen.NoiseLayer(terraingen.FractalParams(seed=3, wavelength=100.0, amplitude=2.0))]
+        )
         terrain = terraingen.Terrain(terraingen.FlatSource(64, 64, SPACING), [noise, craters])
 
         self.grid = terraingen.evaluate(terrain, spacing=SPACING).heights
@@ -44,19 +52,32 @@ class Example(_common.Example):
         start = time.perf_counter()
         self.heights = np.array([terraingen.evaluate_at(terrain, x, 0.3 * x, SPACING) for x in self.path])
         elapsed = time.perf_counter() - start
-        print(f"{len(self.path)} queries along a 210 m path in {elapsed * 1000:.0f} ms ({len(self.path) / elapsed:.0f} per second)")
-        self.slopes = np.degrees(np.arctan(np.abs(np.diff(self.heights)) / (np.hypot(1.0, 0.3) * np.diff(self.path))))
-        print(f"heights {self.heights.min():.2f} to {self.heights.max():.2f} m, steepest slope along the path {self.slopes.max():.1f} degrees")
+        print(
+            f"{len(self.path)} queries along a 210 m path in {elapsed * 1000:.0f} ms ({len(self.path) / elapsed:.0f} per second)"
+        )
+        self.slopes = np.degrees(
+            np.arctan(np.abs(np.diff(self.heights)) / (np.hypot(1.0, 0.3) * np.diff(self.path)))
+        )
+        print(
+            f"heights {self.heights.min():.2f} to {self.heights.max():.2f} m, steepest slope along the path {self.slopes.max():.1f} degrees"
+        )
         self.show("grid", self.grid)
 
     def save(self, out):
-        print("wrote", write_png(out / "example_tiles_point_queries.png", line_plot([(self.path, self.heights)])))
+        print(
+            "wrote",
+            write_png(out / "example_tiles_point_queries.png", line_plot([(self.path, self.heights)])),
+        )
 
     def test_final(self):
         assert self.grid.shape == (64, 64), "the grid is 64 x 64"
         assert abs(self.query - self.centre) < 1e-4, "the point query equals the grid cell centred there"
-        assert self.heights.shape == (801,) and np.isfinite(self.heights).all(), "801 finite heights along the path"
-        assert -20.0 < self.heights.min() < self.heights.max() < 20.0, "path heights vary within 20 m of the datum"
+        assert self.heights.shape == (801,) and np.isfinite(self.heights).all(), (
+            "801 finite heights along the path"
+        )
+        assert -20.0 < self.heights.min() < self.heights.max() < 20.0, (
+            "path heights vary within 20 m of the datum"
+        )
         assert self.slopes.max() < 80.0, "no slope along the path is near vertical"
 
 

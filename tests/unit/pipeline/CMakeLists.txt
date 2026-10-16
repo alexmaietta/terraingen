@@ -8,10 +8,14 @@ terraingen_add_test_suite(
     feature_io_test.cpp
     generate_terrain_test.cpp
     json_io_test.cpp
+    json_parse_errors_test.cpp
+    json_read_test.cpp
     terrain_test.cpp
+    terrain_tiles_test.cpp
     tile_cache_test.cpp
     tiling_test.cpp
     validate_config_test.cpp
+    validate_sources_test.cpp
     write_outputs_test.cpp
     LIBRARIES
     terraingen::pipeline

@@ -27,26 +27,51 @@ class Example(_common.Example):
     def generate(self):
         fbm = terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=3000.0, amplitude=60.0))
         surface = terraingen.lunar_surface(3.2)
-        models = terraingen.CraterModels(surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages), terraingen.FassettThomsonProfile())
+        models = terraingen.CraterModels(
+            surface.density,
+            surface.ages,
+            terraingen.FreshnessDegradation(surface.ages),
+            terraingen.FassettThomsonProfile(),
+        )
         young = terraingen.Crater(0.0, 0.0, 250.0, age_gyr=0.002)
         craters = terraingen.CraterLayer(
-            models, terraingen.CraterLayerOptions(seed=1, generation=terraingen.CraterGenerationOptions(min_diameter=30.0, max_diameter=400.0, manual=[young]))
+            models,
+            terraingen.CraterLayerOptions(
+                seed=1,
+                generation=terraingen.CraterGenerationOptions(
+                    min_diameter=30.0, max_diameter=400.0, manual=[young]
+                ),
+            ),
         )
-        terrain = terraingen.Terrain(terraingen.FlatSource(513, 513, PIXEL), [terraingen.NoiseRelief([fbm]), craters])
+        terrain = terraingen.Terrain(
+            terraingen.FlatSource(513, 513, PIXEL), [terraingen.NoiseRelief([fbm]), craters]
+        )
 
-        variation = terraingen.NoiseLayer(terraingen.FractalParams(seed=4, wavelength=1500.0, amplitude=0.02, octaves=4))
-        albedo = terraingen.Albedo(terraingen.SyntheticAlbedo(value=0.11, value_noise=[variation]), [terraingen.CraterAlbedo(craters)])
+        variation = terraingen.NoiseLayer(
+            terraingen.FractalParams(seed=4, wavelength=1500.0, amplitude=0.02, octaves=4)
+        )
+        albedo = terraingen.Albedo(
+            terraingen.SyntheticAlbedo(value=0.11, value_noise=[variation]),
+            [terraingen.CraterAlbedo(craters)],
+        )
 
         self.evaluated = terraingen.evaluate(terrain)
         self.bands = terraingen.evaluate_albedo(albedo, terrain.source.grid())
         values = self.bands[0].values
-        print(f"albedo from {values.min():.3f} to {values.max():.3f} over {len(self.evaluated.craters['x'])} craters")
+        print(
+            f"albedo from {values.min():.3f} to {values.max():.3f} over {len(self.evaluated.craters['x'])} craters"
+        )
         self.show("heights and albedo", self.evaluated.heights, albedo=self.bands[0])
 
     def save(self, out):
         terraingen.write_geotiff(out / "example_albedo_crater_rays.tif", self.bands)
         print("wrote", write_png(out / "example_albedo_crater_rays.png", normalize(self.bands[0].values)))
-        print("wrote", write_png(out / "example_albedo_crater_rays_shade.png", hillshade(self.evaluated.heights.values, PIXEL)))
+        print(
+            "wrote",
+            write_png(
+                out / "example_albedo_crater_rays_shade.png", hillshade(self.evaluated.heights.values, PIXEL)
+            ),
+        )
 
     def test_final(self):
         values = self.bands[0].values

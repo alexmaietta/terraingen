@@ -4,7 +4,25 @@
 
 #include <gtest/gtest.h>
 
+#include <utility>
+#include <variant>
+
+using terraingen::LayerSpec;
 using terraingen::NoiseLayerConfig;
+
+TEST(Boxed, CopiesAndComparesByValue) {
+    terraingen::Boxed<LayerSpec> a = terraingen::ScaleLayerSpec{2.0, 0.0};
+    terraingen::Boxed<LayerSpec> b;
+    EXPECT_TRUE(std::holds_alternative<terraingen::NoiseLayerSpec>(*b));
+    b = a;
+    EXPECT_EQ(a, b);
+    std::get<terraingen::ScaleLayerSpec>(*b).scale = 3.0;
+    EXPECT_EQ(std::get<terraingen::ScaleLayerSpec>(*a).scale, 2.0) << "deep copies";
+    EXPECT_FALSE(a == b);
+    const terraingen::Boxed<LayerSpec> c = std::move(b);
+    EXPECT_EQ(std::get<terraingen::ScaleLayerSpec>(*c).scale, 3.0);
+    EXPECT_EQ(c->index(), a->index());
+}
 
 TEST(NoiseLayerConfig, DerivesTheGainFromTheHurstExponent) {
     NoiseLayerConfig config;

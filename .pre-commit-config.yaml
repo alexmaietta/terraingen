@@ -36,9 +36,16 @@ repos:
           - "--suppress=missingInclude"
           - "--suppress=passedByValue:terraingen/noise/kernels/*"
           - "--suppress=normalCheckLevelMaxBranches"
-          - "--suppress=floatConversionOverflow:terraingen/python/src/kernels.cpp"
+          - "--suppress=floatConversionOverflow:terraingen/python/src/noise.cpp"
           - "--suppress=assignBoolToPointer:terraingen/python/src/*"
           - "--error-exitcode=1"
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.1
+    hooks:
+      - id: ruff-check
+        args: ["--fix"]
+      - id: ruff-format
 
   - repo: https://github.com/cheshirekow/cmake-format-precommit
     rev: v0.6.13

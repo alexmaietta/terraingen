@@ -26,28 +26,44 @@ PIXEL = 200.0
 class Example(_common.Example):
     def generate(self):
         self.mercury = terraingen.body_sphere(terraingen.Body.MERCURY)
-        print(f"Mercury radius {self.mercury.radius / 1000:.1f} km, {self.mercury.unit_length:.0f} m per degree")
+        print(
+            f"Mercury radius {self.mercury.radius / 1000:.1f} km, {self.mercury.unit_length:.0f} m per degree"
+        )
         noise = terraingen.NoiseRelief(
             [
-                terraingen.NoiseLayer(terraingen.FractalParams(seed=4, wavelength=300000.0, amplitude=2500.0, octaves=6)),
-                terraingen.NoiseLayer(terraingen.FractalParams(seed=5, wavelength=15000.0, amplitude=250.0, octaves=6)),
+                terraingen.NoiseLayer(
+                    terraingen.FractalParams(seed=4, wavelength=300000.0, amplitude=2500.0, octaves=6)
+                ),
+                terraingen.NoiseLayer(
+                    terraingen.FractalParams(seed=5, wavelength=15000.0, amplitude=250.0, octaves=6)
+                ),
             ],
             surface=self.mercury,
         )
         ages = terraingen.UniformAges(4.0)
         models = terraingen.CraterModels(
-            terraingen.trask_equilibrium(), ages, terraingen.FreshnessDegradation(ages), terraingen.FassettThomsonProfile()
+            terraingen.trask_equilibrium(),
+            ages,
+            terraingen.FreshnessDegradation(ages),
+            terraingen.FassettThomsonProfile(),
         )
         generation = terraingen.CraterGenerationOptions(min_diameter=1000.0, max_diameter=30000.0)
-        craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=4, generation=generation, surface=self.mercury))
+        craters = terraingen.CraterLayer(
+            models, terraingen.CraterLayerOptions(seed=4, generation=generation, surface=self.mercury)
+        )
         site = terraingen.FlatSource(257, 257, PIXEL, centre=(-30.0, 10.0), surface=self.mercury)
         self.evaluated = terraingen.evaluate(terraingen.Terrain(site, [noise, craters], surface=self.mercury))
-        print(f"{len(self.evaluated.craters['x'])} craters of 1 to 30 km over a {257 * PIXEL / 1000:.0f} km site")
+        print(
+            f"{len(self.evaluated.craters['x'])} craters of 1 to 30 km over a {257 * PIXEL / 1000:.0f} km site"
+        )
         self.show("heights", self.evaluated.heights.values, PIXEL)
 
     def save(self, out):
         terraingen.write_geotiff(out / "example_planets_mercury.tif", self.evaluated.heights)
-        print("wrote", write_png(out / "example_planets_mercury.png", hillshade(self.evaluated.heights.values, PIXEL)))
+        print(
+            "wrote",
+            write_png(out / "example_planets_mercury.png", hillshade(self.evaluated.heights.values, PIXEL)),
+        )
 
     def test_final(self):
         heights = self.evaluated.heights.values
@@ -56,7 +72,9 @@ class Example(_common.Example):
         assert heights.shape == (257, 257) and np.isfinite(heights).all(), "finite 257 x 257 heights"
         assert len(diameters) > 50, "more than 50 craters"
         assert diameters.min() >= 1000.0 and diameters.max() <= 30000.0, "every crater is 1 to 30 km across"
-        assert np.ptp(heights) > 100.0 and np.abs(heights).max() < 20000.0, "hundreds of metres to kilometres of relief"
+        assert np.ptp(heights) > 100.0 and np.abs(heights).max() < 20000.0, (
+            "hundreds of metres to kilometres of relief"
+        )
 
 
 if __name__ == "__main__":

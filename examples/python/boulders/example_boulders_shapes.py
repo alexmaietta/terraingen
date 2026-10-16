@@ -47,8 +47,12 @@ def top_view(mesh, light=(-0.5, 0.5, 0.7)):
         w1 = ((gx - xs[0]) * (ys[2] - ys[0]) - (xs[2] - xs[0]) * (gy - ys[0])) / area
         w2 = ((xs[1] - xs[0]) * (gy - ys[0]) - (gx - xs[0]) * (ys[1] - ys[0])) / area
         inside = (w1 >= 0) & (w2 >= 0) & (w1 + w2 <= 1) & (gx >= 0) & (gx < SIZE) & (gy >= 0) & (gy < SIZE)
-        z = positions[a, 2] + w1 * (positions[b, 2] - positions[a, 2]) + w2 * (positions[c, 2] - positions[a, 2])
-        for row, col, height in zip(gy[inside], gx[inside], z[inside]):
+        z = (
+            positions[a, 2]
+            + w1 * (positions[b, 2] - positions[a, 2])
+            + w2 * (positions[c, 2] - positions[a, 2])
+        )
+        for row, col, height in zip(gy[inside], gx[inside], z[inside], strict=True):
             if height > depth[row, col]:
                 depth[row, col] = height
                 image[row, col] = shade
@@ -79,7 +83,7 @@ class Example(_common.Example):
         print("ten boulders sharing 4 prototype shapes use seeds", self.seeds)
 
     def save(self, out):
-        for style, shape in zip(self.styles, self.shapes):
+        for style, shape in zip(self.styles, self.shapes, strict=True):
             shape.mesh.write_glb(out / f"example_boulders_shapes_{style.name}.glb")
         views = [top_view(shape.mesh) for shape in self.shapes]
         print("wrote", write_png(out / "example_boulders_shapes.png", montage(views, columns=7)))
@@ -87,9 +91,13 @@ class Example(_common.Example):
     def test_final(self):
         assert len(self.shapes) == len(self.styles) >= 2, "one shape for each style"
         assert all(shape.mesh.triangle_count > 0 for shape in self.shapes), "every shape has triangles"
-        assert all(0.0 < s.short_axis <= s.intermediate <= 1.0 for s in self.shapes), "axes run long >= intermediate >= short > 0"
+        assert all(0.0 < s.short_axis <= s.intermediate <= 1.0 for s in self.shapes), (
+            "axes run long >= intermediate >= short > 0"
+        )
         egg = self.shapes[-1]
-        assert 0.7 < egg.intermediate < 0.85 and 0.55 < egg.short_axis < 0.7, "the egg keeps near its axis ratios"
+        assert 0.7 < egg.intermediate < 0.85 and 0.55 < egg.short_axis < 0.7, (
+            "the egg keeps near its axis ratios"
+        )
         assert len(self.seeds) == 4, "ten boulders sharing 4 prototypes use 4 shapes"
 
 

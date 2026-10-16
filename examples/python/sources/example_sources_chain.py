@@ -26,7 +26,11 @@ def holed_dem():
     """A 2 m DEM with a missing strip and a corner of no-data."""
     terrain = terraingen.Terrain(
         terraingen.FlatSource(257, 257, PIXEL),
-        [terraingen.NoiseRelief([terraingen.NoiseLayer(terraingen.FractalParams(seed=7, wavelength=300.0, amplitude=20.0))])],
+        [
+            terraingen.NoiseRelief(
+                [terraingen.NoiseLayer(terraingen.FractalParams(seed=7, wavelength=300.0, amplitude=20.0))]
+            )
+        ],
     )
     heights = terraingen.evaluate(terrain).heights
     values = heights.values
@@ -45,9 +49,13 @@ class Example(_common.Example):
             dem = terraingen.GeoTiffSource(path)
             filler = terraingen.FlatSource(400, 400, PIXEL)
             chain = terraingen.SourceChain([dem, filler])
-            noise = terraingen.NoiseRelief([terraingen.NoiseLayer(terraingen.FractalParams(seed=7, wavelength=300.0, amplitude=20.0))])
+            noise = terraingen.NoiseRelief(
+                [terraingen.NoiseLayer(terraingen.FractalParams(seed=7, wavelength=300.0, amplitude=20.0))]
+            )
             self.filled = terraingen.evaluate(terraingen.Terrain(chain, [noise])).heights
-        print(f"{self.holes} cells without data in the DEM; {np.isnan(self.filled.values).sum()} after the chain")
+        print(
+            f"{self.holes} cells without data in the DEM; {np.isnan(self.filled.values).sum()} after the chain"
+        )
         self.show("filled", self.filled)
 
     def save(self, out):
@@ -57,11 +65,15 @@ class Example(_common.Example):
     def test_final(self):
         holed = self.holed.values
         filled = self.filled.values
-        assert holed.shape == (257, 257) and filled.shape == (257, 257), "the chain keeps the DEM's 257 x 257 grid"
+        assert holed.shape == (257, 257) and filled.shape == (257, 257), (
+            "the chain keeps the DEM's 257 x 257 grid"
+        )
         assert self.holes == 257 * 30 + 57 * 57, "the strip and the corner have no data"
         assert np.isfinite(filled).all(), "the chain leaves no cell without data"
         known = np.isfinite(holed)
-        assert np.ptp(filled[known]) > 5.0 and np.ptp(filled[~known]) > 5.0, "relief inside and outside the holes"
+        assert np.ptp(filled[known]) > 5.0 and np.ptp(filled[~known]) > 5.0, (
+            "relief inside and outside the holes"
+        )
 
 
 if __name__ == "__main__":

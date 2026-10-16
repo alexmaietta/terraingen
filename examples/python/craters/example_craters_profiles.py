@@ -43,15 +43,28 @@ class Example(_common.Example):
         fresh = terraingen.lunar_fresh_crater_morphometry(DIAMETER)
         state = terraingen.CraterState(fresh, fresh, 0.0)
         diffused = terraingen.DiffusionDegradation(
-            terraingen.fassett_thomson_2014_diffusivity(), terraingen.DiffusedProfile(terraingen.FassettThomsonProfile())
+            terraingen.fassett_thomson_2014_diffusivity(),
+            terraingen.DiffusedProfile(terraingen.FassettThomsonProfile()),
         )
         old_state = diffused.state(terraingen.Crater(0.0, 0.0, DIAMETER, age_gyr=0.1))
         profiles = {
-            "Fassett-Thomson, original rim": (terraingen.FassettThomsonProfile(terraingen.FassettThomsonRim.ORIGINAL), state),
-            "Fassett-Thomson, rim at one radius": (terraingen.FassettThomsonProfile(terraingen.FassettThomsonRim.AT_ONE_RADIUS), state),
-            "Fassett-Thomson, plateau rim": (terraingen.FassettThomsonProfile(terraingen.FassettThomsonRim.PLATEAU), state),
+            "Fassett-Thomson, original rim": (
+                terraingen.FassettThomsonProfile(terraingen.FassettThomsonRim.ORIGINAL),
+                state,
+            ),
+            "Fassett-Thomson, rim at one radius": (
+                terraingen.FassettThomsonProfile(terraingen.FassettThomsonRim.AT_ONE_RADIUS),
+                state,
+            ),
+            "Fassett-Thomson, plateau rim": (
+                terraingen.FassettThomsonProfile(terraingen.FassettThomsonRim.PLATEAU),
+                state,
+            ),
             "Martin-Parkes-Dunstan": (terraingen.MartinParkesDunstanProfile(), state),
-            "diffused for 0.1 Gyr": (terraingen.DiffusedProfile(terraingen.FassettThomsonProfile()), old_state),
+            "diffused for 0.1 Gyr": (
+                terraingen.DiffusedProfile(terraingen.FassettThomsonProfile()),
+                old_state,
+            ),
             "custom parabolic bowl": (ParabolicBowl(), state),
         }
         distances = np.linspace(0.0, 1.6 * DIAMETER, 400)
@@ -61,7 +74,9 @@ class Example(_common.Example):
             heights = np.array([profile.height(d, DIAMETER, crater_state) for d in distances])
             print(f"{name:36s} floor {heights[0]:7.2f} m, highest {heights.max():5.2f} m")
             self.profile_heights[name] = heights
-            self.curves.append((np.concatenate([-distances[::-1], distances]), np.concatenate([heights[::-1], heights])))
+            self.curves.append(
+                (np.concatenate([-distances[::-1], distances]), np.concatenate([heights[::-1], heights]))
+            )
         print("legend:", ", ".join(f"{colour_name(i)} {n}" for i, n in enumerate(profiles)))
 
         surface = terraingen.lunar_surface(3.5)
@@ -70,9 +85,15 @@ class Example(_common.Example):
         for name, (profile, _) in profiles.items():
             if isinstance(profile, terraingen.DiffusedProfile):
                 continue
-            models = terraingen.CraterModels(surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages), profile)
-            craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=2, generation=generation))
-            evaluated = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(257, 257, 1.0), [craters]))
+            models = terraingen.CraterModels(
+                surface.density, surface.ages, terraingen.FreshnessDegradation(surface.ages), profile
+            )
+            craters = terraingen.CraterLayer(
+                models, terraingen.CraterLayerOptions(seed=2, generation=generation)
+            )
+            evaluated = terraingen.evaluate(
+                terraingen.Terrain(terraingen.FlatSource(257, 257, 1.0), [craters])
+            )
             self.terrains[name] = evaluated.heights.values
             self.show(name, evaluated.heights)
 
@@ -85,12 +106,20 @@ class Example(_common.Example):
         profiles = self.profile_heights
         assert len(profiles) == 6 and len(self.terrains) == 5, "six profiles plotted, five generated"
         assert all(np.all(np.isfinite(heights)) for heights in profiles.values()), "every profile is finite"
-        assert all(heights[0] < 0.0 for heights in profiles.values()), "every crater has a floor below the datum"
-        assert all(heights.max() > 1.0 for name, heights in profiles.items() if name != "diffused for 0.1 Gyr"), "every fresh crater has a rim above the datum"
+        assert all(heights[0] < 0.0 for heights in profiles.values()), (
+            "every crater has a floor below the datum"
+        )
+        assert all(
+            heights.max() > 1.0 for name, heights in profiles.items() if name != "diffused for 0.1 Gyr"
+        ), "every fresh crater has a rim above the datum"
         fresh = profiles["Fassett-Thomson, original rim"]
         diffused = profiles["diffused for 0.1 Gyr"]
-        assert diffused[0] > fresh[0] and diffused.max() < fresh.max(), "diffusion raises the floor and lowers the rim"
-        assert all(heights.shape == (257, 257) and np.all(np.isfinite(heights)) for heights in self.terrains.values()), "every generated terrain is 257 x 257 and finite"
+        assert diffused[0] > fresh[0] and diffused.max() < fresh.max(), (
+            "diffusion raises the floor and lowers the rim"
+        )
+        assert all(
+            heights.shape == (257, 257) and np.all(np.isfinite(heights)) for heights in self.terrains.values()
+        ), "every generated terrain is 257 x 257 and finite"
 
 
 if __name__ == "__main__":

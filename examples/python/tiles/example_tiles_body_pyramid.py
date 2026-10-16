@@ -29,16 +29,29 @@ class Example(_common.Example):
     def generate(self):
         moon = terraingen.body_sphere(terraingen.Body.MOON)
         noise = terraingen.NoiseRelief(
-            [terraingen.NoiseLayer(terraingen.FractalParams(seed=8, wavelength=400000.0, amplitude=3000.0, octaves=6))], surface=moon
+            [
+                terraingen.NoiseLayer(
+                    terraingen.FractalParams(seed=8, wavelength=400000.0, amplitude=3000.0, octaves=6)
+                )
+            ],
+            surface=moon,
         )
         ages = terraingen.UniformAges(4.0)
         models = terraingen.CraterModels(
-            terraingen.PowerLawSfd(1e-15, 2.0), ages, terraingen.FreshnessDegradation(ages), terraingen.FassettThomsonProfile()
+            terraingen.PowerLawSfd(1e-15, 2.0),
+            ages,
+            terraingen.FreshnessDegradation(ages),
+            terraingen.FassettThomsonProfile(),
         )
-        basins = [terraingen.Crater(0.0, 0.0, 300000.0, age_gyr=3.9), terraingen.Crater(-60.0, 30.0, 200000.0, age_gyr=3.5)]
+        basins = [
+            terraingen.Crater(0.0, 0.0, 300000.0, age_gyr=3.9),
+            terraingen.Crater(-60.0, 30.0, 200000.0, age_gyr=3.5),
+        ]
         craters = terraingen.CraterLayer(
             models,
-            terraingen.CraterLayerOptions(generate=False, surface=moon, generation=terraingen.CraterGenerationOptions(manual=basins)),
+            terraingen.CraterLayerOptions(
+                generate=False, surface=moon, generation=terraingen.CraterGenerationOptions(manual=basins)
+            ),
         )
         terrain = terraingen.Terrain(terraingen.FlatSource(8, 8, 1.0), [noise, craters], surface=moon)
         scheme = terraingen.TileScheme.whole_body(CELLS)
@@ -47,13 +60,22 @@ class Example(_common.Example):
         self.levels = []
         for level in range(LEVELS):
             start = time.perf_counter()
-            self.levels.append([(key, cache.get(key).heights) for key in terraingen.TileScheme.body_tiles(level)])
+            self.levels.append(
+                [(key, cache.get(key).heights) for key in terraingen.TileScheme.body_tiles(level)]
+            )
             spacing_km = scheme.spacing(level) * moon.unit_length / 1000
-            print(f"level {level}: {len(self.levels[level])} tiles at {spacing_km:.0f} km spacing in {time.perf_counter() - start:.2f} s")
+            print(
+                f"level {level}: {len(self.levels[level])} tiles at {spacing_km:.0f} km spacing in {time.perf_counter() - start:.2f} s"
+            )
 
         start = time.perf_counter()
-        rows = [np.hstack([cache.get(terraingen.TileKey(2, x, y)).heights.values for x in range(8)]) for y in range(4)]
-        print(f"level 2 again from the cache in {(time.perf_counter() - start) * 1000:.0f} ms; {cache.size >> 10} kB held")
+        rows = [
+            np.hstack([cache.get(terraingen.TileKey(2, x, y)).heights.values for x in range(8)])
+            for y in range(4)
+        ]
+        print(
+            f"level 2 again from the cache in {(time.perf_counter() - start) * 1000:.0f} ms; {cache.size >> 10} kB held"
+        )
         self.mosaic = np.vstack(rows)
         self.show("level 2 mosaic (equirectangular)", self.mosaic, scheme.spacing(2) * moon.unit_length)
 
@@ -72,11 +94,15 @@ class Example(_common.Example):
             assert all(heights.shape == (CELLS, CELLS) for _, heights in tiles), "every tile is 64 x 64"
         assert self.mosaic.shape == (4 * CELLS, 8 * CELLS), "the level 2 mosaic is 8 x 4 tiles"
         assert np.isfinite(self.mosaic).all(), "every height is finite"
-        assert -20000.0 < self.mosaic.min() and self.mosaic.max() < 20000.0, "heights within 20 km of the datum"
+        assert -20000.0 < self.mosaic.min() and self.mosaic.max() < 20000.0, (
+            "heights within 20 km of the datum"
+        )
         assert np.ptp(self.mosaic) > 1000.0, "heights span kilometres"
         steps = np.abs(np.roll(self.mosaic, -1, axis=1) - self.mosaic)
         seams = (np.arange(steps.shape[1]) + 1) % CELLS == 0
-        assert steps[:, seams].max() <= 1.5 * steps[:, ~seams].max() + 1.0, "tile seams, the antimeridian included, are no steeper than inside the tiles"
+        assert steps[:, seams].max() <= 1.5 * steps[:, ~seams].max() + 1.0, (
+            "tile seams, the antimeridian included, are no steeper than inside the tiles"
+        )
 
 
 if __name__ == "__main__":
