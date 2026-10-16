@@ -5,5 +5,6 @@ terraingen_add_test_suite(
     io/mesh_io_test.cpp
     mesh_test.cpp
     polyhedra_test.cpp
+    shape_model_test.cpp
     LIBRARIES
     terraingen::mesh)

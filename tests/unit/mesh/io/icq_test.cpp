@@ -17,6 +17,7 @@
 
 using terraingen::IcqDirection;
 using terraingen::IcqModel;
+using terraingen::RadialShape;
 using terraingen::Vec3d;
 
 namespace {
@@ -189,4 +190,42 @@ TEST(IcqToMesh, SplitsAlongTheDiagonalOfSmallerCrossProductAsGaskellDoes) {
     EXPECT_EQ(mesh.positions[first[0]], model.vertices[model.Index(0, 0, 1)]);
     EXPECT_EQ(mesh.positions[first[1]], model.vertices[model.Index(1, 1, 1)]);
     EXPECT_EQ(mesh.positions[first[2]], model.vertices[model.Index(1, 0, 1)]);
+}
+
+TEST(IcqModel, ConvertsToAndFromARadialShape) {
+    const RadialShape shape = RadialShape::Sample(
+        8, [](const Vec3d& u) { return 300.0 + 40.0 * u.x - 25.0 * u.y * u.z; });
+    const IcqModel model = terraingen::ToIcq(shape);
+    EXPECT_EQ(model.q, 8u);
+    for (std::size_t f = 1; f <= 6; ++f) {
+        const Vec3d v = model.vertices[model.Index(3, 5, f)];
+        const Vec3d d = IcqDirection(8, 3, 5, f);
+        EXPECT_NEAR(terraingen::Length(v), shape.At(d), 1e-9);
+        EXPECT_NEAR(terraingen::Dot(v, d), terraingen::Length(v), 1e-9);
+    }
+    const RadialShape back = terraingen::ToRadialShape(model);
+    ASSERT_EQ(back.Q(), shape.Q());
+    for (std::size_t k = 0; k < shape.Radii().size(); ++k) {
+        EXPECT_NEAR(back.Radii()[k], shape.Radii()[k], 1e-12 * shape.Radii()[k]);
+    }
+
+    const auto path = terraingen::testing::TempPath("icq_radial_shape.icq");
+    terraingen::WriteIcq(path, model);
+    const RadialShape read = terraingen::ToRadialShape(terraingen::ReadIcq(path));
+    for (std::size_t k = 0; k < shape.Radii().size(); ++k) {
+        EXPECT_NEAR(read.Radii()[k], shape.Radii()[k], 1e-5) << "written to the micrometre";
+    }
+}
+
+TEST(IcqModel, ResamplesVerticesRelaxedOffTheirDirections) {
+    IcqModel model = Sphere(8, 1000.0);
+    for (Vec3d& v : model.vertices) {
+        v = {v.x * 1.5, v.y, v.z};
+    }
+    const RadialShape shape = terraingen::ToRadialShape(model);
+    EXPECT_EQ(shape.Q(), 8u);
+    EXPECT_NEAR(shape.At({1.0, 0.0, 0.0}), 1500.0, 1e-6);
+    EXPECT_NEAR(shape.At({0.0, 0.0, 1.0}), 1000.0, 1e-6);
+    const Vec3d d = terraingen::Normalized(Vec3d{1.0, 1.0, 0.0});
+    EXPECT_NEAR(shape.At(d) / (1000.0 / std::sqrt(d.x * d.x / 2.25 + d.y * d.y)), 1.0, 0.02);
 }

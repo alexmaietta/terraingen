@@ -4,6 +4,9 @@
 #pragma once
 
 #include "terraingen/util/geometry.h"
+#include "terraingen/util/radial_shape.h"
+
+#include <memory>
 
 namespace terraingen {
 
@@ -24,22 +27,22 @@ struct BucketIndex {
     bool operator==(const BucketIndex&) const = default;
 };
 
-/// The shape a terrain lies on, a plane or a body (a sphere, or a triaxial ellipsoid of which the
-/// sphere is the special case of equal radii), measuring distances and directions between surface
-/// coordinates.
+/// The shape a terrain lies on, a plane or a body (a sphere, a triaxial ellipsoid of which the
+/// sphere is the special case of equal radii, or a star-shaped shape model), measuring distances
+/// and directions between surface coordinates.
 ///
 /// On a plane, surface coordinates are metres in a projected frame. On a body they are
 /// planetocentric longitude and latitude in degrees (east and north positive): the direction from
 /// the centre, with heights along it. On a sphere of radius R the local frame of a point is its
-/// azimuthal equidistant projection in metres; on an ellipsoid it is the tangent plane at the
-/// point, onto which offsets are projected along the normal, exact for features small next to the
-/// local curvature radius.
+/// azimuthal equidistant projection in metres; on an ellipsoid or shape model it is the tangent
+/// plane at the point, onto which offsets are projected along the normal, exact for features small
+/// next to the local curvature radius.
 class Surface {
   public:
     /// The kind of surface.
     enum class Kind {
         Plane,  ///< A plane.
-        Body,   ///< A body: a sphere or a triaxial ellipsoid.
+        Body,   ///< A body: a sphere, a triaxial ellipsoid or a shape model.
     };
 
     /// A plane, the default.
@@ -59,23 +62,45 @@ class Surface {
     /// @throws std::invalid_argument unless every radius is positive and finite.
     static Surface Ellipsoid(double a, double b, double c);
 
+    /// A star-shaped body whose radius by direction is `shape`, such as an asteroid from a shape
+    /// model; up is the normal of the interpolated surface, from finite differences.
+    /// @throws std::invalid_argument for a null `shape`.
+    static Surface ShapeModel(std::shared_ptr<const RadialShape> shape);
+
     /// The kind of surface.
     Kind GetKind() const {
         return kind_;
     }
 
-    /// Whether the surface is a body, a sphere or an ellipsoid, rather than a plane.
+    /// Whether the surface is a body (a sphere, an ellipsoid or a shape model) rather than a plane.
     bool IsBody() const {
         return kind_ == Kind::Body;
     }
 
-    /// The radius in metres of a sphere, or the volumetric mean radius (abc)^(1/3) of an
-    /// ellipsoid; 0 for a plane.
+    /// Whether the surface is exactly a sphere, of one radius.
+    bool IsSphere() const {
+        return kind_ == Kind::Body && !shape_ && radii_.x == radii_.y && radii_.y == radii_.z;
+    }
+
+    /// The body's shape model; null for a plane, a sphere or an ellipsoid.
+    const RadialShape* Shape() const {
+        return shape_.get();
+    }
+
+    /// The smallest distance in metres from the centre to the surface; 0 on a plane.
+    double MinRadius() const;
+
+    /// The largest distance in metres from the centre to the surface; 0 on a plane.
+    double MaxRadius() const;
+
+    /// The radius in metres of a sphere, or the volumetric mean radius of an ellipsoid
+    /// ((abc)^(1/3)) or shape model; 0 for a plane.
     double Radius() const {
         return radius_;
     }
 
-    /// The semi-axes in metres along x, y and z; all equal on a sphere, 0 on a plane.
+    /// The semi-axes in metres along x, y and z; all equal on a sphere, 0 on a plane or a shape
+    /// model.
     Vec3d Radii() const {
         return radii_;
     }
@@ -100,7 +125,7 @@ class Surface {
         if (kind_ == Kind::Plane) {
             return {point.x - centre.x, point.y - centre.y};
         }
-        return IsEllipsoid() ? EllipsoidOffset(centre, point) : SphereOffset(centre, point);
+        return IsNonSphere() ? TangentOffset(centre, point) : SphereOffset(centre, point);
     }
 
     /// The point, in surface coordinates, at east and north `offset` metres from `centre`: the
@@ -109,7 +134,10 @@ class Surface {
         if (kind_ == Kind::Plane) {
             return {centre.x + offset.x, centre.y + offset.y};
         }
-        return IsEllipsoid() ? EllipsoidLocate(centre, offset) : SphereLocate(centre, offset);
+        if (shape_) {
+            return ShapeLocate(centre, offset);
+        }
+        return IsNonSphere() ? EllipsoidLocate(centre, offset) : SphereLocate(centre, offset);
     }
 
     /// The distance in metres between two points: straight on a plane, along a great circle on
@@ -154,26 +182,30 @@ class Surface {
     /// @param size The bucket side in metres.
     BucketIndex Bucket(const Vec2d& point, double size) const;
 
-    /// Whether two surfaces are the same kind and radii.
+    /// Whether two surfaces are the same kind and radii, and share one shape model or have none.
     bool operator==(const Surface&) const = default;
 
   private:
-    /// Whether the body has unequal radii, so the sphere formulas do not apply.
-    bool IsEllipsoid() const {
-        return kind_ == Kind::Body && !(radii_.x == radii_.y && radii_.y == radii_.z);
+    /// Whether the surface is a body the sphere formulas do not apply to: an ellipsoid of unequal
+    /// radii or a shape model.
+    bool IsNonSphere() const {
+        return kind_ == Kind::Body && !IsSphere();
     }
 
     Vec2d SphereOffset(const Vec2d& centre, const Vec2d& point) const;
     Vec2d SphereLocate(const Vec2d& centre, const Vec2d& offset) const;
-    Vec2d EllipsoidOffset(const Vec2d& centre, const Vec2d& point) const;
+    Vec2d TangentOffset(const Vec2d& centre, const Vec2d& point) const;
     Vec2d EllipsoidLocate(const Vec2d& centre, const Vec2d& offset) const;
-    /// The outward unit normal of the ellipsoid at its surface point `p`.
-    Vec3d EllipsoidNormal(const Vec3d& p) const;
+    Vec2d ShapeLocate(const Vec2d& centre, const Vec2d& offset) const;
+    /// The outward unit normal at surface coordinates `point`, whose position is `p`, on an
+    /// ellipsoid or shape model.
+    Vec3d Normal(const Vec2d& point, const Vec3d& p) const;
 
     Kind kind_ = Kind::Plane;
     double radius_ = 0.0;
     double unitLength_ = 1.0;
     Vec3d radii_{};
+    std::shared_ptr<const RadialShape> shape_;
 };
 
 /// The unit vector of a longitude and latitude: x towards longitude 0 on the equator, y

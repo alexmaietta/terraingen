@@ -179,3 +179,18 @@ def test_body_icq_follows_an_ellipsoid():
     assert model.q == 4
     x = model.vertices[model.index(2, 2, 5)][0]
     assert x == pytest.approx(270.0)
+
+
+def test_shape_models_come_from_meshes_and_icq_models(tmp_path):
+    mesh = terraingen.icosphere(4).scaled((300.0, 200.0, 100.0))
+    shape = terraingen.shape_model_from_mesh(mesh, 8)
+    assert shape.q == 8
+    assert shape.at((1.0, 0.0, 0.0)) == pytest.approx(300.0, rel=1e-3)
+    assert shape.at((0.0, 0.0, 1.0)) == pytest.approx(100.0, rel=1e-3)
+    model = terraingen.to_icq(shape)
+    assert model.q == 8 and model.to_radial_shape().radii == pytest.approx(shape.radii)
+    path = tmp_path / "shape.icq"
+    terraingen.write_icq(path, model)
+    assert terraingen.read_icq(path).to_radial_shape().radii == pytest.approx(shape.radii, abs=1e-5)
+    with pytest.raises(ValueError):
+        terraingen.shape_model_from_mesh(mesh, 0)

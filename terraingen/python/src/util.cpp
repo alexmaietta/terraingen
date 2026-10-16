@@ -4,6 +4,7 @@
 #include "terraingen/util/build_info.h"
 #include "terraingen/util/cells.h"
 #include "terraingen/util/log.h"
+#include "terraingen/util/radial_shape.h"
 #include "terraingen/util/special_functions.h"
 #include "terraingen/util/surface.h"
 #include "terraingen/util/version.h"
@@ -107,6 +108,26 @@ void BindSurfacePoints(nb::class_<Surface>& surface) {
              "sphere.");
 }
 
+void BindRadialShape(nb::module_& m) {
+    nb::class_<RadialShape>(m, "RadialShape",
+                            "A star-shaped body's radius along each direction from its centre, on "
+                            "a radial ICQ grid of labels (i, j, face) interpolated bilinearly.")
+        .def(nb::init<std::size_t, std::vector<double>>(), "q"_a, "radii"_a,
+             "From 6 (q + 1)^2 label radii in metres, in ICQ file order (face, then j, then i).")
+        .def_static("sample", &RadialShape::Sample, "q"_a, "radius"_a,
+                    "From `radius(direction)` in metres, evaluated at every label.")
+        .def_static("label_direction", &RadialShape::LabelDirection, "q"_a, "i"_a, "j"_a, "face"_a,
+                    "The unit direction of label (i, j, face), face from 1 to 6.")
+        .def("label_index", &RadialShape::LabelIndex, "i"_a, "j"_a, "face"_a)
+        .def("at", &RadialShape::At, "direction"_a, "The radius in metres along `direction`.")
+        .def_prop_ro("q", &RadialShape::Q)
+        .def_prop_ro("radii", &RadialShape::Radii)
+        .def_prop_ro("min_radius", &RadialShape::MinRadius)
+        .def_prop_ro("max_radius", &RadialShape::MaxRadius)
+        .def_prop_ro("max_area_per_steradian", &RadialShape::MaxAreaPerSteradian)
+        .def("__eq__", [](const RadialShape& a, const RadialShape& b) { return a == b; });
+}
+
 void BindSurface(nb::module_& m) {
     nb::class_<Surface> surface(m, "Surface",
                                 "What a terrain lies on: a plane, with coordinates in metres, or "
@@ -118,6 +139,21 @@ void BindSurface(nb::module_& m) {
         .def_static("ellipsoid", &Surface::Ellipsoid, "a"_a, "b"_a, "c"_a,
                     "A triaxial ellipsoid with semi-axes `a`, `b` and `c` metres along x, y and z; "
                     "equal radii give a sphere.")
+        .def_static(
+            "shape_model",
+            [](const RadialShape& shape) {
+                return Surface::ShapeModel(std::make_shared<const RadialShape>(shape));
+            },
+            "shape"_a, "A star-shaped body whose radius by direction is `shape`.")
+        .def_prop_ro(
+            "shape",
+            [](const Surface& s) -> std::optional<RadialShape> {
+                return s.Shape() ? std::optional<RadialShape>(*s.Shape()) : std::nullopt;
+            },
+            "A copy of the body's shape model; None for a plane, sphere or ellipsoid.")
+        .def_prop_ro("is_sphere", &Surface::IsSphere)
+        .def_prop_ro("min_radius", &Surface::MinRadius)
+        .def_prop_ro("max_radius", &Surface::MaxRadius)
         .def_prop_ro("radii", &Surface::Radii, "The semi-axes (a, b, c) in metres.")
         .def("radius_at", &Surface::RadiusAt, "point"_a,
              "The distance in metres from the centre to the surface at (longitude, latitude).")
@@ -191,6 +227,7 @@ void BindCells(nb::module_& m) {
 void BindUtil(nb::module_& m) {
     BindVersion(m);
     BindLog(m);
+    BindRadialShape(m);
     BindSurface(m);
     BindCells(m);
     m.def("exponential_integral", &ExponentialIntegral, "n"_a, "x"_a,

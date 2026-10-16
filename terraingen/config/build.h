@@ -14,9 +14,12 @@
 
 namespace terraingen {
 
-/// The `Surface` a spec describes: a plane, or a sphere of the given radius.
-/// @throws ConfigError at "surface.radius" for a sphere without a positive, finite radius.
-Surface BuildSurface(const SurfaceSpec& spec);
+/// The `Surface` a spec describes: a plane, a sphere, an ellipsoid or a shape model, whose file is
+/// found relative to `directory` and loaded once per file, modification time, Q and unit.
+/// @throws ConfigError at "surface.radius" or "surface.radii" for radii that are not positive and
+/// finite, and at "surface.path", "surface.q" or "surface.metres_per_unit" for a shape model that
+/// cannot be loaded or a Q or unit out of range.
+Surface BuildSurface(const SurfaceSpec& spec, const std::filesystem::path& directory = {});
 
 /// The density, ages, profile and degradation models a crater layer selects.
 /// @param path The layer's JSON path, which errors are reported under.

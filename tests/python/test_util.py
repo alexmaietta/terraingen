@@ -178,3 +178,27 @@ def test_ellipsoid_cells_thin_by_area_and_spheres_do_not(moon):
     point = cells.sample_point(0.5, 0.5, terraingen.CellIndex(0, 0), 50.0)
     assert cells.weight(point) == pytest.approx(body.area_per_steradian(point))
     assert terraingen.CubeSphereCells(moon).cell_sampling(terraingen.CellIndex(0, 0), 50000.0)[1] == 0.0
+
+
+def test_radial_shapes_interpolate_their_labels_and_make_shape_model_surfaces():
+    shape = terraingen.RadialShape.sample(8, lambda u: 300.0 + 40.0 * u[0])
+    assert shape.q == 8 and len(shape.radii) == 6 * 9 * 9
+    assert shape.at((1.0, 0.0, 0.0)) == pytest.approx(340.0)
+    assert shape.min_radius == pytest.approx(260.0) and shape.max_radius == pytest.approx(340.0)
+    direction = terraingen.RadialShape.label_direction(8, 2, 3, 4)
+    assert shape.radii[shape.label_index(2, 3, 4)] == pytest.approx(shape.at(direction))
+    assert terraingen.RadialShape(8, shape.radii) == shape
+    with pytest.raises(ValueError):
+        terraingen.RadialShape(2, [1.0] * 10)
+
+    body = terraingen.Surface.shape_model(shape)
+    assert body.is_body and not body.is_sphere and body.shape == shape
+    assert body.min_radius == pytest.approx(260.0) and body.max_radius == pytest.approx(340.0)
+    assert body.radius_at((0.0, 0.0)) == pytest.approx(340.0)
+    assert body.area_per_steradian((0.0, 0.0)) <= shape.max_area_per_steradian
+    point = body.locate((30.0, 10.0), (4.0, -3.0))
+    assert body.offset((30.0, 10.0), point) == pytest.approx((4.0, -3.0))
+    assert terraingen.Surface.sphere(10.0).is_sphere and terraingen.Surface.sphere(10.0).shape is None
+    cells = terraingen.CubeSphereCells(body)
+    assert cells.radius == body.min_radius
+    assert cells.cell_sampling(terraingen.CellIndex(0, 0), 50.0)[1] == shape.max_area_per_steradian

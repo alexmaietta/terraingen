@@ -4,7 +4,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <numbers>
+#include <stdexcept>
+#include <utility>
 
 namespace terraingen {
 
@@ -53,14 +56,55 @@ Surface Surface::Ellipsoid(double a, double b, double c) {
     return surface;
 }
 
+Surface Surface::ShapeModel(std::shared_ptr<const RadialShape> shape) {
+    if (!shape) {
+        throw std::invalid_argument("A shape model surface needs a radial shape");
+    }
+    constexpr int kSteps = 180;
+    double cubed = 0.0;
+    double weight = 0.0;
+    for (int j = 0; j < kSteps; ++j) {
+        const double lat = -90.0 + (j + 0.5) * 180.0 / kSteps;
+        const double cosLat = std::cos(lat * kDegree);
+        for (int i = 0; i < 2 * kSteps; ++i) {
+            const double r = shape->At(UnitVector(-180.0 + (i + 0.5) * 180.0 / kSteps, lat));
+            cubed += r * r * r * cosLat;
+            weight += cosLat;
+        }
+    }
+    Surface surface;
+    surface.kind_ = Kind::Body;
+    surface.radius_ = std::cbrt(cubed / weight);
+    surface.unitLength_ = surface.radius_ * kDegree;
+    surface.shape_ = std::move(shape);
+    return surface;
+}
+
+double Surface::MinRadius() const {
+    if (shape_) {
+        return shape_->MinRadius();
+    }
+    return std::min({radii_.x, radii_.y, radii_.z});
+}
+
+double Surface::MaxRadius() const {
+    if (shape_) {
+        return shape_->MaxRadius();
+    }
+    return std::max({radii_.x, radii_.y, radii_.z});
+}
+
 double Surface::RadiusAt(const Vec2d& point) const {
     if (kind_ == Kind::Plane) {
         return 0.0;
     }
-    if (!IsEllipsoid()) {
+    if (IsSphere()) {
         return radius_;
     }
     const Vec3d u = UnitVector(point.x, point.y);
+    if (shape_) {
+        return shape_->At(u);
+    }
     const double ex = u.x / radii_.x;
     const double ey = u.y / radii_.y;
     const double ez = u.z / radii_.z;
@@ -71,28 +115,80 @@ double Surface::AreaPerSteradian(const Vec2d& point) const {
     if (kind_ == Kind::Plane) {
         return 1.0;
     }
-    if (!IsEllipsoid()) {
+    if (IsSphere()) {
         return radius_ * radius_;
     }
     const Vec3d p = Position(point);
     const double r = Length(p);
-    const double cosine = Dot(p, EllipsoidNormal(p)) / r;
+    const double cosine = Dot(p, Normal(point, p)) / r;
     return r * r / cosine;
 }
 
-Vec3d Surface::EllipsoidNormal(const Vec3d& p) const {
-    const Vec3d g{p.x / (radii_.x * radii_.x), p.y / (radii_.y * radii_.y),
-                  p.z / (radii_.z * radii_.z)};
-    const double length = Length(g);
-    return {g.x / length, g.y / length, g.z / length};
+Vec3d Surface::Normal(const Vec2d& point, const Vec3d& p) const {
+    Vec3d n;
+    if (shape_) {
+        constexpr double kStep = 1e-6;
+        const Vec3d u = UnitVector(point.x, point.y);
+        Vec3d east;
+        Vec3d north;
+        LocalAxes(point.x * kDegree, point.y * kDegree, east, north);
+        const auto at = [&](const Vec3d& axis, double sign) {
+            const Vec3d d{u.x + sign * kStep * axis.x, u.y + sign * kStep * axis.y,
+                          u.z + sign * kStep * axis.z};
+            const double length = Length(d);
+            const Vec3d unit{d.x / length, d.y / length, d.z / length};
+            return unit * shape_->At(unit);
+        };
+        n = Cross(at(east, 1.0) - at(east, -1.0), at(north, 1.0) - at(north, -1.0));
+    } else {
+        n = {p.x / (radii_.x * radii_.x), p.y / (radii_.y * radii_.y), p.z / (radii_.z * radii_.z)};
+    }
+    const double length = Length(n);
+    return {n.x / length, n.y / length, n.z / length};
 }
 
-Vec2d Surface::EllipsoidOffset(const Vec2d& centre, const Vec2d& point) const {
+Vec2d Surface::TangentOffset(const Vec2d& centre, const Vec2d& point) const {
     const Vec3d c = Position(centre);
     const Vec3d p = Position(point);
     const LocalFrame frame = Frame(centre);
     const Vec3d d{p.x - c.x, p.y - c.y, p.z - c.z};
     return {Dot(d, frame.east), Dot(d, frame.north)};
+}
+
+Vec2d Surface::ShapeLocate(const Vec2d& centre, const Vec2d& offset) const {
+    if (offset.x == 0.0 && offset.y == 0.0) {
+        return centre;
+    }
+    const Vec3d c = Position(centre);
+    const LocalFrame frame = Frame(centre);
+    const Vec3d q = c + frame.east * offset.x + frame.north * offset.y;
+    const auto along = [&](double s) { return q - frame.up * s; };
+    const auto excess = [&](double s) {
+        const Vec3d x = along(s);
+        const double r = Length(x);
+        return r - shape_->At({x.x / r, x.y / r, x.z / r});
+    };
+    const double step = shape_->MaxRadius() / 64.0;
+    double inside = 0.0;
+    double outside = 0.0;
+    if (excess(0.0) >= 0.0) {
+        inside = step;
+        while (excess(inside) >= 0.0 && inside < 4.0 * shape_->MaxRadius()) {
+            outside = inside;
+            inside += step;
+        }
+    } else {
+        outside = -step;
+        while (excess(outside) < 0.0 && outside > -4.0 * shape_->MaxRadius()) {
+            inside = outside;
+            outside -= step;
+        }
+    }
+    for (int iteration = 0; iteration < 100; ++iteration) {
+        const double middle = 0.5 * (inside + outside);
+        (excess(middle) >= 0.0 ? outside : inside) = middle;
+    }
+    return PointOf(along(0.5 * (inside + outside)));
 }
 
 Vec2d Surface::EllipsoidLocate(const Vec2d& centre, const Vec2d& offset) const {
@@ -154,7 +250,7 @@ double Surface::Distance(const Vec2d& a, const Vec2d& b) const {
     if (kind_ == Kind::Plane) {
         return std::hypot(b.x - a.x, b.y - a.y);
     }
-    if (IsEllipsoid()) {
+    if (IsNonSphere()) {
         const Vec3d p = Position(a);
         const Vec3d q = Position(b);
         return Length(Vec3d{q.x - p.x, q.y - p.y, q.z - p.z});
@@ -169,7 +265,7 @@ Vec3d Surface::Position(const Vec2d& point) const {
         return {point.x, point.y, 0.0};
     }
     const Vec3d unit = UnitVector(point.x, point.y);
-    const double r = IsEllipsoid() ? RadiusAt(point) : radius_;
+    const double r = IsNonSphere() ? RadiusAt(point) : radius_;
     return {r * unit.x, r * unit.y, r * unit.z};
 }
 
@@ -180,8 +276,8 @@ LocalFrame Surface::Frame(const Vec2d& point) const {
     LocalFrame frame;
     LocalAxes(point.x * kDegree, point.y * kDegree, frame.east, frame.north);
     frame.up = UnitVector(point.x, point.y);
-    if (IsEllipsoid()) {
-        const Vec3d n = EllipsoidNormal(Position(point));
+    if (IsNonSphere()) {
+        const Vec3d n = Normal(point, Position(point));
         const double along = Dot(frame.east, n);
         const Vec3d east{frame.east.x - along * n.x, frame.east.y - along * n.y,
                          frame.east.z - along * n.z};
@@ -215,8 +311,8 @@ Bounds2d Surface::Expand(const Bounds2d& region, double metres) const {
     }
     double dLat = metres / unitLength_;
     double angle = metres / radius_;
-    if (IsEllipsoid()) {
-        const double shortest = std::min({radii_.x, radii_.y, radii_.z});
+    if (IsNonSphere()) {
+        const double shortest = MinRadius();
         angle = metres < shortest ? std::asin(metres / shortest) : std::numbers::pi;
         dLat = angle / kDegree;
     }

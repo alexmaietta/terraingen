@@ -357,7 +357,8 @@ void ValidateOutput(const BoulderModelsOutput& output, const std::string& path,
 void ValidateOutput(const BodyMeshOutput& output, const std::string& path,
                     const OutputContext& context) {
     if (!context.sphere) {
-        throw ConfigError(path, "a body mesh needs a sphere or ellipsoid surface");
+        throw ConfigError(path,
+                          "a body mesh needs a body surface: a sphere, ellipsoid or shape model");
     }
     if (!IsIcqPath(output.path)) {
         RequireMeshFile(output.path, Child(path, "path"));
@@ -449,7 +450,7 @@ void ValidateAlbedo(const TerrainConfig& config, const std::filesystem::path& di
 }
 
 ConfigSummary ValidateConfig(const TerrainConfig& config, const std::filesystem::path& directory) {
-    const Surface surface = BuildSurface(config.surface);
+    const Surface surface = BuildSurface(config.surface, directory);
     const RasterGrid grid = DescribeSource(config.source, directory, surface);
     LayerChecks layers{grid, directory, surface};
     for (std::size_t i = 0; i < config.layers.size(); ++i) {

@@ -81,8 +81,7 @@ double RasterGrid::SurfaceArea(const Surface& surface) const {
     const double turn = std::fmin(box.maxX - box.minX, 360.0) * kDegree;
     const double south = std::fmax(box.minY, -90.0) * kDegree;
     const double north = std::fmin(box.maxY, 90.0) * kDegree;
-    const Vec3d radii = surface.Radii();
-    if (radii.x == radii.y && radii.y == radii.z) {
+    if (surface.IsSphere()) {
         const double radius = surface.Radius();
         return radius * radius * turn * std::fmax(0.0, std::sin(north) - std::sin(south));
     }

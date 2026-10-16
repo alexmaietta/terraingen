@@ -1,5 +1,7 @@
 #include "terraingen/mesh/io/icq.h"
 
+#include "terraingen/mesh/shape_model.h"
+
 #include <array>
 #include <cctype>
 #include <cmath>
@@ -14,39 +16,6 @@
 namespace terraingen {
 
 namespace {
-
-/// A face's centre direction and the axes I and J run along.
-struct IcqFace {
-    Vec3d normal;
-    Vec3d i;
-    Vec3d j;
-};
-
-constexpr std::array<IcqFace, 6> kIcqFaces{{
-    {{0.0, 0.0, 1.0}, {1.0, 0.0, 0.0}, {0.0, -1.0, 0.0}},
-    {{0.0, -1.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 0.0, -1.0}},
-    {{-1.0, 0.0, 0.0}, {0.0, -1.0, 0.0}, {0.0, 0.0, -1.0}},
-    {{0.0, 1.0, 0.0}, {-1.0, 0.0, 0.0}, {0.0, 0.0, -1.0}},
-    {{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, -1.0}},
-    {{0.0, 0.0, -1.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}},
-}};
-
-/// The gnomonic coordinate of label `k` of `q`, exactly -1, 0 or 1 where the angle is a multiple
-/// of 45 degrees, so labels shared between faces agree.
-double Gnomonic(std::size_t k, std::size_t q) {
-    if (k == 0) {
-        return -1.0;
-    }
-    if (k == q) {
-        return 1.0;
-    }
-    if (2 * k == q) {
-        return 0.0;
-    }
-    const double angle =
-        std::numbers::pi / 4.0 * (2.0 * static_cast<double>(k) / static_cast<double>(q) - 1.0);
-    return std::tan(angle);
-}
 
 void CheckModel(const IcqModel& model) {
     if (model.q == 0) {
@@ -79,16 +48,7 @@ bool IsIcqPath(const std::filesystem::path& path) {
 }
 
 Vec3d IcqDirection(std::size_t q, std::size_t i, std::size_t j, std::size_t face) {
-    if (q == 0 || i > q || j > q || face < 1 || face > 6) {
-        throw std::invalid_argument("An ICQ label needs Q > 0, I and J <= Q and F from 1 to 6");
-    }
-    const IcqFace& f = kIcqFaces[face - 1];
-    const double a = Gnomonic(i, q);
-    const double b = Gnomonic(j, q);
-    const Vec3d p{f.normal.x + a * f.i.x + b * f.j.x, f.normal.y + a * f.i.y + b * f.j.y,
-                  f.normal.z + a * f.i.z + b * f.j.z};
-    const double length = Length(p);
-    return {p.x / length, p.y / length, p.z / length};
+    return RadialShape::LabelDirection(q, i, j, face);
 }
 
 IcqModel ReadIcq(const std::filesystem::path& path, double metresPerUnit) {
@@ -135,7 +95,7 @@ void WriteIcq(const std::filesystem::path& path, const IcqModel& model, double m
     std::snprintf(buffer.data(), buffer.size(), "%12zu\n", model.q);
     file << buffer.data();
     for (const Vec3d& v : model.vertices) {
-        std::snprintf(buffer.data(), buffer.size(), "%15.6f%15.6f%15.6f\n", v.x / metresPerUnit,
+        std::snprintf(buffer.data(), buffer.size(), "%18.9f%18.9f%18.9f\n", v.x / metresPerUnit,
                       v.y / metresPerUnit, v.z / metresPerUnit);
         file << buffer.data();
     }
@@ -221,6 +181,42 @@ TriangleMesh IcqToMesh(const IcqModel& model) {
         }
     }
     return mesh;
+}
+
+RadialShape ToRadialShape(const IcqModel& model) {
+    CheckModel(model);
+    constexpr double kRadial = 1e-6;
+    std::vector<double> radii(model.vertices.size());
+    for (std::size_t face = 1; face <= 6; ++face) {
+        for (std::size_t j = 0; j <= model.q; ++j) {
+            for (std::size_t i = 0; i <= model.q; ++i) {
+                const std::size_t k = model.Index(i, j, face);
+                const Vec3d& v = model.vertices[k];
+                const double r = Length(v);
+                const Vec3d d = IcqDirection(model.q, i, j, face);
+                if (!(r > 0.0) || Length(Cross(v, d)) > kRadial * r || Dot(v, d) < 0.0) {
+                    return ShapeModelFromMesh(IcqToMesh(model), model.q);
+                }
+                radii[k] = r;
+            }
+        }
+    }
+    return RadialShape(model.q, std::move(radii));
+}
+
+IcqModel ToIcq(const RadialShape& shape) {
+    IcqModel model;
+    model.q = shape.Q();
+    model.vertices.resize(shape.Radii().size());
+    for (std::size_t face = 1; face <= 6; ++face) {
+        for (std::size_t j = 0; j <= model.q; ++j) {
+            for (std::size_t i = 0; i <= model.q; ++i) {
+                const std::size_t k = model.Index(i, j, face);
+                model.vertices[k] = IcqDirection(model.q, i, j, face) * shape.Radii()[k];
+            }
+        }
+    }
+    return model;
 }
 
 }  // namespace terraingen

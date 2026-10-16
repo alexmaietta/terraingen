@@ -9,6 +9,7 @@ terraingen_add_test_suite(
     lru_cache_test.cpp
     overloaded_test.cpp
     parallel_test.cpp
+    radial_shape_test.cpp
     special_functions_test.cpp
     surface_test.cpp
     version_test.cpp

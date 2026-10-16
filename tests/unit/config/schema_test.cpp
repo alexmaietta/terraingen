@@ -308,7 +308,7 @@ TEST(ConfigCatalog, ListsEveryTypeAndEachEntryParsesWhereItBelongs) {
         return names;
     };
     EXPECT_EQ(types(catalog["surface"]),
-              (std::vector<std::string>{"plane", "sphere", "ellipsoid"}));
+              (std::vector<std::string>{"plane", "sphere", "ellipsoid", "shape_model"}));
     EXPECT_EQ(catalog["layers"].size(), std::variant_size_v<LayerSpec>);
     EXPECT_EQ(catalog["outputs"].size(), std::variant_size_v<terraingen::OutputSpec>);
     EXPECT_EQ(catalog["models"]["density"].size(), std::variant_size_v<DensitySpec>);

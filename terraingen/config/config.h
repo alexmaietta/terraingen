@@ -590,8 +590,21 @@ struct EllipsoidSurfaceSpec {
     bool operator==(const EllipsoidSurfaceSpec&) const = default;
 };
 
+/// Surface "shape_model": a star-shaped body from a shape model file (`Surface::ShapeModel`), an
+/// ICQ model or a closed mesh around its origin in body-fixed coordinates, as a `RadialShape`.
+struct ShapeModelSurfaceSpec {
+    std::string path;
+    /// Intervals per face edge of the radial grid; unset keeps an ICQ model's own Q, and uses 256
+    /// for a mesh.
+    std::optional<std::size_t> q{};
+    /// Metres per file unit; unset is 1000 for an ICQ model (kilometres) and 1 for a mesh.
+    std::optional<double> metresPerUnit{};
+    bool operator==(const ShapeModelSurfaceSpec&) const = default;
+};
+
 /// What a terrain lies on, named in JSON by its "type".
-using SurfaceSpec = std::variant<PlaneSurfaceSpec, SphereSurfaceSpec, EllipsoidSurfaceSpec>;
+using SurfaceSpec =
+    std::variant<PlaneSurfaceSpec, SphereSurfaceSpec, EllipsoidSurfaceSpec, ShapeModelSurfaceSpec>;
 
 /// Everything needed to generate a terrain: the surface it lies on, a source, the layers
 /// added to it in order, the outputs to write, and optionally its albedo.

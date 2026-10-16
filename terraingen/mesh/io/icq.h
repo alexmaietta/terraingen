@@ -4,6 +4,7 @@
 #pragma once
 
 #include "terraingen/mesh/mesh.h"
+#include "terraingen/util/radial_shape.h"
 
 #include <cstddef>
 #include <filesystem>
@@ -59,5 +60,16 @@ void WriteIcq(const std::filesystem::path& path, const IcqModel& model,
 /// shorter diagonal, triangles wound outward.
 /// @throws std::invalid_argument as `WriteIcq`.
 TriangleMesh IcqToMesh(const IcqModel& model);
+
+/// The model as a radial shape of the same Q: each vertex's distance from the origin when every
+/// vertex lies along its label's `IcqDirection`, as in the ICQ files TerrainGen writes; otherwise,
+/// as in Gaskell's models, whose vertices are relaxed off those directions, the model resampled
+/// along rays from the origin (`ShapeModelFromMesh` of `IcqToMesh`).
+/// @throws std::invalid_argument as `WriteIcq`.
+/// @throws std::runtime_error as `ShapeModelFromMesh`.
+RadialShape ToRadialShape(const IcqModel& model);
+
+/// The shape as an ICQ model: each label at its direction times its radius.
+IcqModel ToIcq(const RadialShape& shape);
 
 }  // namespace terraingen

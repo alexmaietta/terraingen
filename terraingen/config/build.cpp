@@ -25,16 +25,22 @@
 #include "terraingen/layers/detail.h"
 #include "terraingen/layers/noise_relief.h"
 #include "terraingen/layers/transforms.h"
+#include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
+#include "terraingen/mesh/shape_model.h"
 #include "terraingen/sources/flat_source.h"
 #include "terraingen/sources/geotiff_source.h"
 #include "terraingen/sources/source_chain.h"
 #include "terraingen/util/overloaded.h"
 
 #include <cmath>
+#include <filesystem>
+#include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -444,7 +450,55 @@ CraterModels BuildCraterModels(const CraterLayerSpec& craters, const std::string
     return models;
 }
 
-Surface BuildSurface(const SurfaceSpec& spec) {
+namespace {
+
+/// The radial shape a shape model spec describes, loaded once per file, modification time, Q and
+/// unit, as validating and building a terrain both need it.
+/// @throws ConfigError at "surface.path", "surface.q" or "surface.metres_per_unit".
+std::shared_ptr<const RadialShape> LoadShapeModel(const ShapeModelSurfaceSpec& spec,
+                                                  const std::filesystem::path& directory) {
+    config::RequireNonEmpty(spec.path, "surface.path");
+    if (spec.q && (*spec.q == 0 || *spec.q > 4096)) {
+        throw ConfigError("surface.q", "must be 1 to 4096");
+    }
+    if (spec.metresPerUnit && !(std::isfinite(*spec.metresPerUnit) && *spec.metresPerUnit > 0.0)) {
+        throw ConfigError("surface.metres_per_unit", "must be positive");
+    }
+    const std::filesystem::path file = Resolve(spec.path, directory);
+    std::error_code error;
+    const auto modified = std::filesystem::last_write_time(file, error);
+    if (error) {
+        throw ConfigError("surface.path", "cannot read " + file.string());
+    }
+    using Key = std::tuple<std::string, std::filesystem::file_time_type, std::size_t, double>;
+    static std::mutex mutex;
+    static std::map<Key, std::shared_ptr<const RadialShape>> loaded;
+    const Key key{std::filesystem::absolute(file).string(), modified, spec.q.value_or(0),
+                  spec.metresPerUnit.value_or(0.0)};
+    const std::lock_guard<std::mutex> lock(mutex);
+    if (const auto found = loaded.find(key); found != loaded.end()) {
+        return found->second;
+    }
+    const auto shape = At("surface.path", [&] {
+        try {
+            if (IsIcqPath(file)) {
+                const IcqModel model = ReadIcq(file, spec.metresPerUnit.value_or(1000.0));
+                return spec.q && *spec.q != model.q ? ShapeModelFromMesh(IcqToMesh(model), *spec.q)
+                                                    : ToRadialShape(model);
+            }
+            const double scale = spec.metresPerUnit.value_or(1.0);
+            const TriangleMesh mesh = Scaled(ReadMesh(file).mesh, {scale, scale, scale});
+            return ShapeModelFromMesh(mesh, spec.q.value_or(256));
+        } catch (const std::runtime_error& failure) {
+            throw std::invalid_argument(failure.what());
+        }
+    });
+    return loaded.emplace(key, std::make_shared<const RadialShape>(shape)).first->second;
+}
+
+}  // namespace
+
+Surface BuildSurface(const SurfaceSpec& spec, const std::filesystem::path& directory) {
     return std::visit(
         Overloaded{
             [](const PlaneSurfaceSpec&) -> Surface { return Surface::Plane(); },
@@ -466,6 +520,9 @@ Surface BuildSurface(const SurfaceSpec& spec) {
                 }
                 return Surface::Ellipsoid(s.radii[0], s.radii[1], s.radii[2]);
             },
+            [&](const ShapeModelSurfaceSpec& s) -> Surface {
+                return Surface::ShapeModel(LoadShapeModel(s, directory));
+            },
         },
         spec);
 }
@@ -474,7 +531,7 @@ namespace {
 
 Terrain BuildValidTerrain(const TerrainConfig& config, const std::filesystem::path& directory) {
     Terrain terrain;
-    terrain.surface = BuildSurface(config.surface);
+    terrain.surface = BuildSurface(config.surface, directory);
     terrain.source = BuildSource(config.source, directory, terrain.surface);
     std::shared_ptr<const CraterLayer> craters;
     for (std::size_t i = 0; i < config.layers.size(); ++i) {

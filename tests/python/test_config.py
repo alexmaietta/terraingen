@@ -83,7 +83,7 @@ def test_schema_describes_fields_with_units_and_choices():
 def test_catalog_lists_every_type():
     catalog = terraingen.config_catalog()
     assert catalog["schema_version"] == 1
-    assert [s["type"] for s in catalog["surface"]] == ["plane", "sphere", "ellipsoid"]
+    assert [s["type"] for s in catalog["surface"]] == ["plane", "sphere", "ellipsoid", "shape_model"]
     assert "craters" in [layer["type"] for layer in catalog["layers"]]
     assert "density" in catalog["models"]
 

@@ -1,6 +1,7 @@
 #include "terraingen/util/cells.h"
 
 #include "terraingen/util/checks.h"
+#include "terraingen/util/cube_faces.h"
 #include "terraingen/util/surface.h"
 
 #include <algorithm>
@@ -14,32 +15,10 @@ namespace terraingen {
 
 namespace {
 
-struct Face {
-    Vec3d normal;
-    Vec3d u;
-    Vec3d v;
-};
-
-constexpr std::array<Face, 6> kFaces{{
-    {{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}},
-    {{-1.0, 0.0, 0.0}, {0.0, -1.0, 0.0}, {0.0, 0.0, 1.0}},
-    {{0.0, 1.0, 0.0}, {-1.0, 0.0, 0.0}, {0.0, 0.0, 1.0}},
-    {{0.0, -1.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 0.0, 1.0}},
-    {{0.0, 0.0, 1.0}, {0.0, 1.0, 0.0}, {-1.0, 0.0, 0.0}},
-    {{0.0, 0.0, -1.0}, {0.0, 1.0, 0.0}, {1.0, 0.0, 0.0}},
-}};
-
 constexpr double kQuarter = std::numbers::pi / 4.0;
 
 /// Cells per face edge over which an ellipsoid's global bound of the area per steradian is taken.
 constexpr std::int32_t kCapCells = 64;
-
-/// The point `normal + a u + b v` on the plane of `face`, for gnomonic coordinates `a` and `b`.
-Vec3d FacePoint(const Face& face, double a, double b) {
-    return {face.normal.x + a * face.u.x + b * face.v.x,
-            face.normal.y + a * face.u.y + b * face.v.y,
-            face.normal.z + a * face.u.z + b * face.v.z};
-}
 
 /// The solid angle of the gnomonic rectangle [0, `a`] x [0, `b`] on a face, signed.
 double Corner(double a, double b) {
@@ -65,12 +44,15 @@ CubeSphereCells::CubeSphereCells(const Surface& surface) : radius_(0.0), surface
     if (!surface.IsBody()) {
         throw std::invalid_argument("Cube-sphere cells need a body, not a plane");
     }
-    const Vec3d radii = surface.Radii();
-    radius_ = std::min({radii.x, radii.y, radii.z});
-    if (radii.x == radii.y && radii.y == radii.z) {
+    radius_ = surface.MinRadius();
+    if (surface.IsSphere()) {
         return;
     }
-    for (std::size_t face = 0; face < kFaces.size(); ++face) {
+    if (surface.Shape() != nullptr) {
+        weightCap_ = surface.Shape()->MaxAreaPerSteradian();
+        return;
+    }
+    for (std::size_t face = 0; face < detail::kCubeFaces.size(); ++face) {
         for (std::int32_t i = 0; i < kCapCells; ++i) {
             for (std::int32_t j = 0; j < kCapCells; ++j) {
                 weightCap_ = std::max(weightCap_,
@@ -103,29 +85,23 @@ std::int32_t CubeSphereCells::CellsPerEdge(double cellSize) const {
 CellIndex CubeSphereCells::CellOf(double lonDeg, double latDeg, double cellSize) const {
     const std::int32_t n = CellsPerEdge(cellSize);
     const Vec3d p = UnitVector(lonDeg, latDeg);
-    std::size_t face = 0;
-    double best = -2.0;
-    for (std::size_t f = 0; f < kFaces.size(); ++f) {
-        const double along = Dot(p, kFaces[f].normal);
-        if (along > best) {
-            best = along;
-            face = f;
-        }
-    }
+    const std::size_t face = detail::CubeFaceOf(detail::kCubeFaces, p);
+    const double best = Dot(p, detail::kCubeFaces[face].normal);
     const auto index = [&](const Vec3d& axis) {
         const double angle = std::atan(Dot(p, axis) / best);
         const auto k = static_cast<std::int32_t>(
             std::floor((angle + kQuarter) / (2.0 * kQuarter) * static_cast<double>(n)));
         return std::clamp<std::int32_t>(k, 0, n - 1);
     };
-    return {static_cast<std::int32_t>(face) * n + index(kFaces[face].u), index(kFaces[face].v)};
+    return {static_cast<std::int32_t>(face) * n + index(detail::kCubeFaces[face].u),
+            index(detail::kCubeFaces[face].v)};
 }
 
 std::vector<CellIndex> CubeSphereCells::Neighbours(const CellIndex& cell, double cellSize,
                                                    int rings) const {
     const std::int32_t n = CellsPerEdge(cellSize);
     const std::int32_t face = cell.i / n;
-    const Face& f = kFaces[static_cast<std::size_t>(face)];
+    const detail::CubeFace& f = detail::kCubeFaces[static_cast<std::size_t>(face)];
     const std::int32_t col = cell.i % n;
     const double step = 2.0 * kQuarter / static_cast<double>(n);
     std::vector<CellIndex> cells;
@@ -145,7 +121,7 @@ std::vector<CellIndex> CubeSphereCells::Neighbours(const CellIndex& cell, double
                           std::fabs(beta) < 2.0 * kQuarter - step)) {
                         continue;
                     }
-                    const Vec3d p = FacePoint(f, std::tan(alpha), std::tan(beta));
+                    const Vec3d p = detail::CubeFacePoint(f, std::tan(alpha), std::tan(beta));
                     const Vec2d point = Surface::Sphere(radius_).PointOf(p);
                     cells.push_back(CellOf(point.x, point.y, cellSize));
                 }
@@ -194,8 +170,7 @@ std::vector<CellIndex> CubeSphereCells::CellsCovering(const Bounds2d& region,
 double CubeSphereCells::CellArea(const CellIndex& cell, double cellSize) const {
     const auto [a1, a2, b1, b2] = Bounds(cell, cellSize);
     const double solid = Corner(a2, b2) - Corner(a1, b2) - Corner(a2, b1) + Corner(a1, b1);
-    const Vec3d radii = surface_.Radii();
-    if (radii.x == radii.y && radii.y == radii.z) {
+    if (surface_.IsSphere()) {
         return radius_ * radius_ * solid;
     }
     constexpr std::array<double, 5> kNodes{-0.906179845938664, -0.538469310105683, 0.0,
@@ -203,7 +178,8 @@ double CubeSphereCells::CellArea(const CellIndex& cell, double cellSize) const {
     constexpr std::array<double, 5> kWeights{0.236926885056189, 0.478628670499366,
                                              0.568888888888889, 0.478628670499366,
                                              0.236926885056189};
-    const Face& face = kFaces[static_cast<std::size_t>(cell.i / CellsPerEdge(cellSize))];
+    const detail::CubeFace& face =
+        detail::kCubeFaces[static_cast<std::size_t>(cell.i / CellsPerEdge(cellSize))];
     double area = 0.0;
     for (std::size_t i = 0; i < kNodes.size(); ++i) {
         const double a = 0.5 * (a1 + a2) + 0.5 * (a2 - a1) * kNodes[i];
@@ -211,7 +187,7 @@ double CubeSphereCells::CellArea(const CellIndex& cell, double cellSize) const {
             const double b = 0.5 * (b1 + b2) + 0.5 * (b2 - b1) * kNodes[j];
             const double jacobian = std::pow(1.0 + a * a + b * b, -1.5);
             const double weight =
-                surface_.AreaPerSteradian(surface_.PointOf(FacePoint(face, a, b)));
+                surface_.AreaPerSteradian(surface_.PointOf(detail::CubeFacePoint(face, a, b)));
             area += kWeights[i] * kWeights[j] * weight * jacobian;
         }
     }
@@ -235,7 +211,7 @@ double CubeSphereCells::WeightBound(std::size_t face, double a1, double a2, doub
     const std::array<double, 3> smallest{1.0 / (1.0 + aHi * aHi + bHi * bHi),
                                          aLo * aLo / (1.0 + aLo * aLo + bHi * bHi),
                                          bLo * bLo / (1.0 + aHi * aHi + bLo * bLo)};
-    const Face& f = kFaces[face];
+    const detail::CubeFace& f = detail::kCubeFaces[face];
     const std::array<Vec3d, 3> axes{f.normal, f.u, f.v};
     const Vec3d radii = surface_.Radii();
     const std::array<double, 3> r{radii.x, radii.y, radii.z};
@@ -257,14 +233,16 @@ SurfaceCells::Sampling CubeSphereCells::CellSampling(const CellIndex& cell, doub
     const auto [a1, a2, b1, b2] = Bounds(cell, cellSize);
     const double solid = Corner(a2, b2) - Corner(a1, b2) - Corner(a2, b1) + Corner(a1, b1);
     const auto face = static_cast<std::size_t>(cell.i / CellsPerEdge(cellSize));
-    const double bound = std::min(WeightBound(face, a1, a2, b1, b2), weightCap_);
+    const double bound = surface_.Shape() != nullptr
+                             ? weightCap_
+                             : std::min(WeightBound(face, a1, a2, b1, b2), weightCap_);
     return {solid * bound, bound};
 }
 
 Vec2d CubeSphereCells::SamplePoint(double u, double v, const CellIndex& cell,
                                    double cellSize) const {
     const std::int32_t n = CellsPerEdge(cellSize);
-    const Face& face = kFaces[static_cast<std::size_t>(cell.i / n)];
+    const detail::CubeFace& face = detail::kCubeFaces[static_cast<std::size_t>(cell.i / n)];
     const std::int32_t col = cell.i % n;
     const double a1 = Edge(col, n);
     const double a2 = Edge(col + 1, n);
@@ -284,12 +262,13 @@ Vec2d CubeSphereCells::SamplePoint(double u, double v, const CellIndex& cell,
     const auto ratio = [&](double b) { return b / std::sqrt(1.0 + a * a + b * b); };
     const double k = ratio(b1) + v * (ratio(b2) - ratio(b1));
     const double b = k * std::sqrt(1.0 + a * a) / std::sqrt(1.0 - k * k);
-    return Surface::Sphere(radius_).PointOf(FacePoint(face, a, b));
+    return Surface::Sphere(radius_).PointOf(detail::CubeFacePoint(face, a, b));
 }
 
 Vec3d CubeSphereCells::Direction(int face, double alpha, double beta) {
-    const Face& f = kFaces[static_cast<std::size_t>(std::clamp(face, 0, 5))];
-    const Vec3d p = FacePoint(f, std::tan(alpha), std::tan(beta));
+    const detail::CubeFace& f =
+        detail::kCubeFaces[static_cast<std::size_t>(std::clamp(face, 0, 5))];
+    const Vec3d p = detail::CubeFacePoint(f, std::tan(alpha), std::tan(beta));
     const double length = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
     return {p.x / length, p.y / length, p.z / length};
 }

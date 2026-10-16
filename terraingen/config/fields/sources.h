@@ -40,6 +40,27 @@ template <typename IO> void Fields(IO& io, EllipsoidSurfaceSpec& spec) {
        "m");
 }
 
+template <> struct SpecName<ShapeModelSurfaceSpec> {
+    static constexpr std::string_view kName = "shape_model";
+    static constexpr std::string_view kDescription =
+        "A whole star-shaped body such as an asteroid, from a shape model: planetocentric "
+        "longitude and latitude (degrees), heights along the direction from the centre, and "
+        "features generated over the whole body. The model is resampled along rays from its "
+        "origin, keeping the outermost surface where a ray crosses it more than once.";
+};
+template <typename IO> void Fields(IO& io, ShapeModelSurfaceSpec& spec) {
+    io("path", spec.path,
+       InputPathHelp("Shape model in body-fixed coordinates around its origin: a Gaskell ICQ "
+                     "model (.icq) or a closed mesh (.obj, .gltf, .glb or .stl)"));
+    io("q", spec.q,
+       "Intervals per cube face edge of the radial grid the model is resampled on, 1 to 4096; "
+       "unset keeps an ICQ model's own Q and uses 256 for a mesh.");
+    io("metres_per_unit", spec.metresPerUnit,
+       "Metres per unit of the file's coordinates; unset is 1000 for an ICQ model, whose "
+       "coordinates are kilometres, and 1 for a mesh.",
+       "m");
+}
+
 template <> struct SpecName<FlatSourceSpec> {
     static constexpr std::string_view kName = "flat";
     static constexpr std::string_view kDescription =

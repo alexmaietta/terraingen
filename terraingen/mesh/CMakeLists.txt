@@ -10,6 +10,7 @@ terraingen_add_library(
     io/stl.cpp
     mesh.cpp
     polyhedra.cpp
+    shape_model.cpp
     PUBLIC
     terraingen_util
     PRIVATE

@@ -9,6 +9,7 @@ terraingen_add_library(
     log.cpp
     parallel.cpp
     planar_cells.cpp
+    radial_shape.cpp
     special_functions.cpp
     version.cpp
     PUBLIC

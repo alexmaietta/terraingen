@@ -6,6 +6,7 @@
 #include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/mesh/mesh.h"
 #include "terraingen/mesh/polyhedra.h"
+#include "terraingen/mesh/shape_model.h"
 
 #include <nanobind/ndarray.h>
 #include <nanobind/operators.h>
@@ -208,6 +209,9 @@ void BindIcq(nb::module_& m) {
                 "6 (Q + 1)^2 vertices (x, y, z) in file order: face, then J, then I.")
         .def("index", &IcqModel::Index, "i"_a, "j"_a, "face"_a,
              "The index of v(i, j, face) in `vertices`, face from 1 to 6.")
+        .def("to_radial_shape", &ToRadialShape,
+             "The model as a RadialShape of the same Q: exact when every vertex lies along its "
+             "label's direction, resampled along rays from the origin otherwise.")
         .def("to_mesh", &IcqToMesh,
              "The model as 12 Q^2 outward triangles over its 6 Q^2 + 2 distinct vertices.")
         .def("__eq__", [](const IcqModel& a, const IcqModel& b) { return a == b; });
@@ -215,8 +219,13 @@ void BindIcq(nb::module_& m) {
           "Reads an ICQ file; Gaskell's models are in kilometres.");
     m.def("write_icq", &WriteIcq, "path"_a, "model"_a, "metres_per_unit"_a = 1000.0,
           "Writes an ICQ file; Gaskell's models are in kilometres.");
+    m.def("to_icq", &ToIcq, "shape"_a, "The RadialShape as an ICQ model.");
     m.def("icq_direction", &IcqDirection, "q"_a, "i"_a, "j"_a, "face"_a,
           "The unit direction of ICQ label (i, j, face) with Gaskell's face orientation.");
+    m.def("shape_model_from_mesh", &ShapeModelFromMesh, "mesh"_a, "q"_a,
+          "The RadialShape of `q` intervals per face edge of a closed mesh around its origin: the "
+          "outermost crossing of a ray from the origin through each label.",
+          nb::call_guard<nb::gil_scoped_release>());
 }
 
 }  // namespace

@@ -1,4 +1,5 @@
 #include "terraingen/util/cells.h"
+#include "terraingen/util/radial_shape.h"
 #include "terraingen/util/surface.h"
 
 #include "terraingen/random/stream.h"
@@ -8,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <memory>
 #include <numbers>
 #include <set>
 #include <stdexcept>
@@ -472,4 +474,159 @@ TEST(CubeSphereCells, SpheresDoNotThin) {
     EXPECT_EQ(CubeSphereCells(kMoon).CellArea(cell, 50000.0), sampling.area);
     EXPECT_EQ(terraingen::PlanarCells().CellSampling({1, 2}, 10.0).bound, 0.0);
     EXPECT_EQ(terraingen::PlanarCells().Weight({1.0, 2.0}), 1.0);
+}
+
+namespace {
+
+/// A lumpy elongated body: an ellipsoid of semi-axes 270, 147 and 104 m with smooth bumps.
+double Lumpy(const Vec3d& u) {
+    const double x = u.x / 270.0;
+    const double y = u.y / 147.0;
+    const double z = u.z / 104.0;
+    return (1.0 + 0.08 * std::sin(3.0 * u.x) * std::cos(2.0 * u.y + u.z)) /
+           std::sqrt(x * x + y * y + z * z);
+}
+
+const Surface kShape = Surface::ShapeModel(
+    std::make_shared<const terraingen::RadialShape>(terraingen::RadialShape::Sample(48, Lumpy)));
+
+}  // namespace
+
+TEST(Surface, ShapeModelsAreBodiesWithTheirShapesRadii) {
+    EXPECT_TRUE(kShape.IsBody());
+    EXPECT_FALSE(kShape.IsSphere());
+    ASSERT_NE(kShape.Shape(), nullptr);
+    EXPECT_EQ(kShape.MinRadius(), kShape.Shape()->MinRadius());
+    EXPECT_EQ(kShape.MaxRadius(), kShape.Shape()->MaxRadius());
+    EXPECT_GT(kShape.Radius(), kShape.MinRadius());
+    EXPECT_LT(kShape.Radius(), kShape.MaxRadius());
+    EXPECT_EQ(kShape, kShape);
+    EXPECT_NE(kShape, kEllipsoid);
+    EXPECT_TRUE(Surface::Sphere(kMoon).IsSphere());
+    EXPECT_FALSE(kEllipsoid.IsSphere());
+    EXPECT_FALSE(Surface::Plane().IsSphere());
+    EXPECT_EQ(kEllipsoid.MinRadius(), 104.0);
+    EXPECT_EQ(kEllipsoid.MaxRadius(), 270.0);
+    EXPECT_EQ(Surface::Sphere(kMoon).MinRadius(), kMoon);
+    EXPECT_THROW(Surface::ShapeModel(nullptr), std::invalid_argument);
+
+    const Surface ball = Surface::ShapeModel(std::make_shared<const terraingen::RadialShape>(
+        terraingen::RadialShape::Sample(8, [](const Vec3d&) { return 500.0; })));
+    EXPECT_NEAR(ball.Radius(), 500.0, 1e-9) << "the volumetric mean radius";
+    EXPECT_NEAR(ball.RadiusAt({33.0, -21.0}), 500.0, 1e-9);
+}
+
+TEST(Surface, ShapeModelPositionsLieOnTheShapeInTheirDirection) {
+    for (int i = 0; i < 200; ++i) {
+        const Vec2d point{static_cast<double>(i * 37 % 360) - 180.0,
+                          static_cast<double>(i * 13 % 179) - 89.0};
+        const Vec3d p = kShape.Position(point);
+        const Vec3d u = terraingen::UnitVector(point.x, point.y);
+        EXPECT_NEAR(terraingen::Length(p), kShape.Shape()->At(u), 1e-9);
+        EXPECT_NEAR(terraingen::Length(p), kShape.RadiusAt(point), 1e-9);
+        const Vec2d back = kShape.PointOf(p);
+        EXPECT_NEAR(back.y, point.y, 1e-9);
+    }
+}
+
+TEST(Surface, ShapeModelFramesAreRightHandedWithUpAlongTheNormal) {
+    for (const Vec2d point : {Vec2d{40.0, -30.0}, Vec2d{-170.0, 60.0}, Vec2d{10.0, 89.0}}) {
+        const terraingen::LocalFrame frame = kShape.Frame(point);
+        EXPECT_NEAR(Dot3(frame.east, frame.east), 1.0, 1e-12);
+        EXPECT_NEAR(Dot3(frame.north, frame.north), 1.0, 1e-12);
+        EXPECT_NEAR(Dot3(frame.east, frame.north), 0.0, 1e-12);
+        EXPECT_NEAR(Dot3(frame.east, frame.up), 0.0, 1e-12);
+        EXPECT_NEAR(Dot3(terraingen::Cross(frame.east, frame.north), frame.up), 1.0, 1e-12);
+        const Vec3d p = kShape.Position(point);
+        for (const Vec2d step : {Vec2d{0.01, 0.0}, Vec2d{0.0, 0.01}}) {
+            const Vec3d q = kShape.Position({point.x + step.x, point.y + step.y});
+            const Vec3d chord{q.x - p.x, q.y - p.y, q.z - p.z};
+            EXPECT_LT(std::fabs(Dot3(chord, frame.up)), 2e-2 * terraingen::Length(chord))
+                << "up is normal to the surface";
+        }
+        EXPECT_GT(Dot3(frame.up, p), 0.0) << "up points outward";
+    }
+}
+
+TEST(Surface, ShapeModelOffsetsAndLocateInvertEachOther) {
+    for (int i = 0; i < 400; ++i) {
+        const Vec2d centre{static_cast<double>(i * 53 % 360) - 180.0,
+                           static_cast<double>(i * 17 % 160) - 80.0};
+        const Vec2d offset{static_cast<double>(i % 21 - 10) * 3.0,
+                           static_cast<double>(i % 17 - 8) * 3.0};
+        const Vec2d point = kShape.Locate(centre, offset);
+        const Vec2d back = kShape.Offset(centre, point);
+        EXPECT_NEAR(back.x, offset.x, 1e-7) << centre.x << ", " << centre.y;
+        EXPECT_NEAR(back.y, offset.y, 1e-7) << centre.x << ", " << centre.y;
+    }
+    EXPECT_EQ(kShape.Locate({12.0, 34.0}, {0.0, 0.0}), (Vec2d{12.0, 34.0}));
+}
+
+TEST(Surface, ShapeModelExpandCoversEveryPointWithinTheDistance) {
+    const Bounds2d region{20.0, -10.0, 30.0, 5.0};
+    for (const double metres : {5.0, 40.0}) {
+        const Bounds2d expanded = kShape.Expand(region, metres);
+        for (int i = 0; i < 20000; ++i) {
+            const Vec2d point{static_cast<double>(i % 200) * 1.8 - 180.0,
+                              static_cast<double>(i / 200) * 1.8 - 90.0};
+            const Vec2d nearest{std::clamp(point.x, region.minX, region.maxX),
+                                std::clamp(point.y, region.minY, region.maxY)};
+            if (kShape.Distance(nearest, point) <= metres) {
+                EXPECT_TRUE(kShape.Contains(expanded, point))
+                    << metres << ": " << point.x << ", " << point.y;
+            }
+        }
+    }
+}
+
+TEST(Surface, ShapeModelAreaPerSteradianIntegratesToTheEllipsoidsArea) {
+    const double a = 3000.0;
+    const double c = 1000.0;
+    const Surface spheroid = Surface::ShapeModel(std::make_shared<const terraingen::RadialShape>(
+        terraingen::RadialShape::Sample(96, [&](const Vec3d& u) {
+            return 1.0 / std::sqrt((u.x * u.x + u.y * u.y) / (a * a) + u.z * u.z / (c * c));
+        })));
+    const int steps = 360;
+    const double step = std::numbers::pi / steps;
+    double area = 0.0;
+    for (int j = 0; j < steps; ++j) {
+        const double lat = -90.0 + (j + 0.5) * 180.0 / steps;
+        for (int i = 0; i < 2 * steps; ++i) {
+            const double lon = -180.0 + (i + 0.5) * 180.0 / steps;
+            area += spheroid.AreaPerSteradian({lon, lat}) *
+                    std::cos(lat * std::numbers::pi / 180.0) * step * step;
+        }
+    }
+    const double e = std::sqrt(1.0 - c * c / (a * a));
+    const double expected =
+        2.0 * std::numbers::pi * a * a * (1.0 + (1.0 - e * e) / e * std::atanh(e));
+    EXPECT_NEAR(area / expected, 1.0, 2e-3);
+}
+
+TEST(CubeSphereCells, ShapeModelCellsTileItsAreaAndBoundTheirWeight) {
+    const CubeSphereCells cells(kShape);
+    EXPECT_EQ(cells.Radius(), kShape.MinRadius());
+    const double cellSize = cells.Radius() / 2.0;
+    double total = 0.0;
+    for (const CellIndex& cell : AllCells(cells, cellSize)) {
+        total += cells.CellArea(cell, cellSize);
+        const auto sampling = cells.CellSampling(cell, cellSize);
+        EXPECT_EQ(sampling.bound, kShape.Shape()->MaxAreaPerSteradian());
+        for (int k = 0; k < 100; ++k) {
+            const Vec2d point =
+                cells.SamplePoint((k % 10 + 0.5) / 10.0, (k / 10 + 0.5) / 10.0, cell, cellSize);
+            EXPECT_LE(cells.Weight(point), sampling.bound);
+        }
+    }
+    double expected = 0.0;
+    const int steps = 360;
+    const double step = std::numbers::pi / steps;
+    for (int j = 0; j < steps; ++j) {
+        const double lat = -90.0 + (j + 0.5) * 180.0 / steps;
+        for (int i = 0; i < 2 * steps; ++i) {
+            expected += kShape.AreaPerSteradian({-180.0 + (i + 0.5) * 180.0 / steps, lat}) *
+                        std::cos(lat * std::numbers::pi / 180.0) * step * step;
+        }
+    }
+    EXPECT_NEAR(total / expected, 1.0, 1e-3);
 }
