@@ -131,15 +131,49 @@ double RegionLayer::Weight(double x, double y) const {
     return Falloff(distance, 0.0, feather_, blend_);
 }
 
-void RegionLayer::Apply(Raster<float>& heights, const LayerContext& context,
-                        TerrainFeatures& features) const {
+void RegionLayer::ApplySamples(SampleBlock& samples, const LayerContext& context,
+                               TerrainFeatures& features) const {
+    TerrainFeatures placed;
+    if (Raster<float>* grid = samples.Grid()) {
+        ApplyToGrid(*grid, context, placed);
+    } else {
+        ApplyToPoints(samples, context, placed);
+    }
+    KeepFeaturesInside(placed, features);
+}
+
+void RegionLayer::ApplyToPoints(SampleBlock& samples, const LayerContext& context,
+                                TerrainFeatures& placed) const {
+    std::vector<std::size_t> indices;
+    std::vector<Vec2d> positions;
+    std::vector<float> heights;
+    std::vector<double> weights;
+    for (std::size_t i = 0; i < samples.Size(); ++i) {
+        const Vec2d p = samples.Position(i);
+        const double weight = samples.IsNoData(i) ? 0.0 : Weight(p.x, p.y);
+        if (weight > 0.0) {
+            indices.push_back(i);
+            positions.push_back(p);
+            heights.push_back(samples.Height(i));
+            weights.push_back(weight);
+        }
+    }
+    SampleBlock inside(positions, heights);
+    inner_->Apply(inside, context, placed);
+    for (std::size_t k = 0; k < indices.size(); ++k) {
+        float& height = samples.Height(indices[k]);
+        height = Blend(height, heights[k], weights[k]);
+    }
+}
+
+void RegionLayer::ApplyToGrid(Raster<float>& heights, const LayerContext& context,
+                              TerrainFeatures& placed) const {
     const Bounds2d reach = surface_.Expand(shape_.Bounds(surface_), feather_);
     const PixelWindow window = UnionOf(WindowsAround(heights, reach, surface_));
     if (window.Empty()) {
         return;
     }
     Raster<float> inner = CopyWindow(heights, window);
-    TerrainFeatures placed;
     inner_->Apply(inner, context, placed);
     ParallelFor(window.rowEnd - window.rowBegin, context.threads, [&](std::size_t r) {
         const std::size_t row = window.rowBegin + r;
@@ -155,7 +189,6 @@ void RegionLayer::Apply(Raster<float>& heights, const LayerContext& context,
             }
         }
     });
-    KeepFeaturesInside(placed, features);
 }
 
 void RegionLayer::KeepFeaturesInside(const TerrainFeatures& placed,
@@ -179,14 +212,6 @@ void RegionLayer::KeepFeaturesInside(const TerrainFeatures& placed,
             features.boulderModels.push_back(model);
         }
     }
-}
-
-float RegionLayer::ApplyAt(float height, double x, double y, const LayerContext& context) const {
-    const double weight = Weight(x, y);
-    if (weight <= 0.0 || std::isnan(height)) {
-        return height;
-    }
-    return Blend(height, inner_->ApplyAt(height, x, y, context), weight);
 }
 
 }  // namespace terraingen

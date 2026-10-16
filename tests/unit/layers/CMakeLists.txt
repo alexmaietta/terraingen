@@ -28,6 +28,7 @@ terraingen_add_test_suite(
     layer_test.cpp
     noise_relief_test.cpp
     region_test.cpp
+    sample_block_test.cpp
     roughness_test.cpp
     sphere_layers_test.cpp
     surface_noise_test.cpp

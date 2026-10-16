@@ -31,6 +31,26 @@ std::filesystem::path Directory(const OptionalPath& directory) {
     return directory.value_or(std::filesystem::path{});
 }
 
+using PointArray = nb::ndarray<const double, nb::ndim<2>, nb::device::cpu, nb::c_contig>;
+
+/// `EvaluatePoints` over the rows of an (n, 2) array, as a float32 array.
+nb::object EvaluatePointArray(const PyTerrain& terrain, const PointArray& points, double spacing,
+                              unsigned threads) {
+    if (points.shape(1) != 2) {
+        throw std::invalid_argument("Points must be an array of shape (n, 2)");
+    }
+    std::vector<Vec2d> positions(points.shape(0));
+    for (std::size_t i = 0; i < positions.size(); ++i) {
+        positions[i] = {points.data()[2 * i], points.data()[2 * i + 1]};
+    }
+    std::vector<float> heights;
+    {
+        nb::gil_scoped_release release;
+        heights = EvaluatePoints(terrain.Get(), positions, spacing, threads);
+    }
+    return Column(std::move(heights));
+}
+
 /// @brief `text` parsed by Python's json module.
 nb::object FromJson(const std::string& text) {
     return nb::module_::import_("json").attr("loads")(text);
@@ -148,6 +168,11 @@ void BindEvaluation(nb::module_& m) {
         "terrain"_a, "x"_a, "y"_a, "spacing"_a, nb::call_guard<nb::gil_scoped_release>(),
         "The terrain's height at (x, y) sampled every `spacing` metres; equal to the cell centred "
         "there of `evaluate`. Terrains with filters cannot be queried at points.");
+    m.def("evaluate_points", &EvaluatePointArray, "terrain"_a, "points"_a, "spacing"_a,
+          "threads"_a = 0,
+          "The terrain's heights at `points`, an array of shape (n, 2) in surface coordinates, "
+          "sampled every `spacing` metres, as a float32 array; each equals `evaluate_at` there. "
+          "Batches of points are much faster than one call per point.");
     m.def(
         "filter_margin",
         [](const PyTerrain& terrain, double spacing) {

@@ -138,6 +138,16 @@ def test_point_query_on_a_sphere_matches_the_grid(lunar_site):
     assert terraingen.evaluate_at(lunar_site, 23.47, 0.67, 4000.0) == pytest.approx(centre, abs=1e-3)
 
 
+def test_point_batches_match_single_point_queries(lunar_site):
+    points = np.array([[23.47, 0.67], [23.5, 0.6], [23.4, 0.7]])
+    heights = terraingen.evaluate_points(lunar_site, points, 4000.0, threads=2)
+    assert heights.dtype == np.float32 and heights.shape == (3,)
+    for (x, y), height in zip(points, heights, strict=True):
+        assert height == terraingen.evaluate_at(lunar_site, x, y, 4000.0)
+    with pytest.raises(ValueError):
+        terraingen.evaluate_points(lunar_site, np.zeros((2, 3)), 4000.0)
+
+
 def test_body_mesh_arrays_match_its_counts(lunar_site):
     mesh = terraingen.body_mesh(lunar_site, 8)
     positions, triangles = mesh.arrays

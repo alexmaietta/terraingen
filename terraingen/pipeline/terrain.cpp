@@ -27,6 +27,21 @@ void CheckTerrain(const Terrain& terrain) {
     }
 }
 
+/// Sets `heights` to the terrain's source at `points`, then applies its first `layers` layers to
+/// them all at once, each on the ground beneath it.
+void EvaluateStack(const Terrain& terrain, std::size_t layers, std::span<const Vec2d> points,
+                   std::span<float> heights, double spacing) {
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        heights[i] = terrain.source->HeightAt(points[i].x, points[i].y);
+    }
+    TerrainFeatures features;
+    for (std::size_t n = 0; n < layers; ++n) {
+        const TerrainGround ground(terrain, n);
+        SampleBlock samples(points, heights);
+        terrain.layers[n]->Apply(samples, LayerContext{spacing, 1, &ground}, features);
+    }
+}
+
 }  // namespace
 
 EvaluatedTerrain Evaluate(const Terrain& terrain, const RasterGrid& grid, double spacing) {
@@ -110,20 +125,28 @@ std::vector<EvaluatedTerrain> EvaluateTiles(const Terrain& terrain, const TileSc
     return tiles;
 }
 
-float EvaluateAt(const Terrain& terrain, double x, double y, double spacing) {
-    if (!terrain.source) {
-        throw std::invalid_argument("A terrain needs a source");
-    }
+std::vector<float> EvaluatePoints(const Terrain& terrain, std::span<const Vec2d> points,
+                                  double spacing, unsigned threads) {
+    CheckTerrain(terrain);
     if (!terrain.filters.empty()) {
         throw std::invalid_argument(
             "Point queries cannot run filters, which read neighbouring cells; evaluate a grid");
     }
     RequirePositive(spacing, "Sample spacing");
-    if (std::any_of(terrain.layers.begin(), terrain.layers.end(),
-                    [](const auto& l) { return !l; })) {
-        throw std::invalid_argument("A terrain's layers must not be null");
-    }
-    return TerrainGround(terrain, terrain.layers.size()).HeightAt(x, y, spacing);
+    constexpr std::size_t kBatch = 256;
+    std::vector<float> heights(points.size());
+    ParallelFor((points.size() + kBatch - 1) / kBatch, threads, [&](std::size_t batch) {
+        const std::size_t begin = batch * kBatch;
+        const std::size_t count = std::min(kBatch, points.size() - begin);
+        EvaluateStack(terrain, terrain.layers.size(), points.subspan(begin, count),
+                      std::span<float>(heights).subspan(begin, count), spacing);
+    });
+    return heights;
+}
+
+float EvaluateAt(const Terrain& terrain, double x, double y, double spacing) {
+    const Vec2d point{x, y};
+    return EvaluatePoints(terrain, {&point, 1}, spacing, 1)[0];
 }
 
 TerrainGround::TerrainGround(const Terrain& terrain, std::size_t layers)
@@ -137,11 +160,9 @@ TerrainGround::TerrainGround(const Terrain& terrain, std::size_t layers)
 }
 
 float TerrainGround::HeightAt(double x, double y, double spacing) const {
-    float height = terrain_.source->HeightAt(x, y);
-    for (std::size_t n = 0; n < layers_; ++n) {
-        const TerrainGround ground(terrain_, n);
-        height = terrain_.layers[n]->ApplyAt(height, x, y, LayerContext{spacing, 1, &ground});
-    }
+    const Vec2d point{x, y};
+    float height = 0.0f;
+    EvaluateStack(terrain_, layers_, {&point, 1}, {&height, 1}, spacing);
     return height;
 }
 
@@ -166,21 +187,23 @@ TriangleMesh BodyMesh(const Terrain& terrain, std::size_t cellsPerFace, double s
     Terrain unfiltered = terrain;
     unfiltered.filters.clear();
     const std::size_t side = cellsPerFace + 1;
+    std::vector<Vec3d> directions(6 * side * side);
+    std::vector<Vec2d> points(directions.size());
+    for (std::size_t v = 0; v < directions.size(); ++v) {
+        const auto face = static_cast<int>(v / (side * side));
+        const std::size_t i = v % side;
+        const std::size_t j = (v / side) % side;
+        directions[v] = CubeSphereCells::Direction(face, -quarter + static_cast<double>(i) * step,
+                                                   -quarter + static_cast<double>(j) * step);
+        points[v] = terrain.surface.PointOf(directions[v]);
+    }
+    const std::vector<float> heights = EvaluatePoints(unfiltered, points, sampled, threads);
     TriangleMesh mesh;
-    mesh.positions.resize(6 * side * side);
-    ParallelFor(6 * side, threads, [&](std::size_t line) {
-        const auto face = static_cast<int>(line / side);
-        const std::size_t j = line % side;
-        for (std::size_t i = 0; i < side; ++i) {
-            const Vec3d direction =
-                CubeSphereCells::Direction(face, -quarter + static_cast<double>(i) * step,
-                                           -quarter + static_cast<double>(j) * step);
-            const Vec2d point = terrain.surface.PointOf(direction);
-            const float height = EvaluateAt(unfiltered, point.x, point.y, sampled);
-            const double r = radius + (std::isnan(height) ? 0.0 : static_cast<double>(height));
-            mesh.positions[line * side + i] = {r * direction.x, r * direction.y, r * direction.z};
-        }
-    });
+    mesh.positions.resize(directions.size());
+    for (std::size_t v = 0; v < directions.size(); ++v) {
+        const double r = radius + (std::isnan(heights[v]) ? 0.0 : static_cast<double>(heights[v]));
+        mesh.positions[v] = directions[v] * r;
+    }
     for (std::size_t face = 0; face < 6; ++face) {
         const auto base = static_cast<std::uint32_t>(face * side * side);
         for (std::size_t j = 0; j < cellsPerFace; ++j) {

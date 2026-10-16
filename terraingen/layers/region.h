@@ -76,22 +76,6 @@ class RegionLayer final : public Layer {
     RegionLayer(std::shared_ptr<const Layer> inner, RegionShape shape, double feather = 0.0,
                 BlendShape blend = BlendShape::Smoothstep, Surface surface = {});
 
-    /// @brief Applies the inner layer near the region and blends it in by `Weight`.
-    /// @param heights The heights to change in place.
-    /// @param context How the layer is evaluated.
-    /// @param features Receives the inner layer's features centred within the region or feather.
-    void Apply(Raster<float>& heights, const LayerContext& context,
-               TerrainFeatures& features) const override;
-
-    /// @brief The inner layer's height blended with `height` by `Weight`, bit-identical to a cell
-    /// centred there; the inner layer is not evaluated where the weight is 0.
-    /// @param height The height before the layer; NaN stays NaN.
-    /// @param x World x of the point.
-    /// @param y World y of the point.
-    /// @param context How the layer is evaluated.
-    /// @return The height after the layer.
-    float ApplyAt(float height, double x, double y, const LayerContext& context) const override;
-
     /// @brief The inner layer's largest feature.
     /// @return Its diameter in world units.
     double MaxFeatureDiameter() const override {
@@ -110,7 +94,17 @@ class RegionLayer final : public Layer {
         return *inner_;
     }
 
+  protected:
+    /// Applies the inner layer to the samples near the region and blends it in by `Weight`,
+    /// keeping its features centred within the region or its feather.
+    void ApplySamples(SampleBlock& samples, const LayerContext& context,
+                      TerrainFeatures& features) const override;
+
   private:
+    void ApplyToGrid(Raster<float>& heights, const LayerContext& context,
+                     TerrainFeatures& placed) const;
+    void ApplyToPoints(SampleBlock& samples, const LayerContext& context,
+                       TerrainFeatures& placed) const;
     /// Adds the features of `placed` centred within the region or its feather to `features`.
     void KeepFeaturesInside(const TerrainFeatures& placed, TerrainFeatures& features) const;
 

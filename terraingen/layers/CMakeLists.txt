@@ -32,6 +32,7 @@ terraingen_add_library(
     noise_relief.cpp
     region.cpp
     roughness.cpp
+    sample_block.cpp
     surface_noise.cpp
     transforms.cpp
     boulders/abundance.cpp

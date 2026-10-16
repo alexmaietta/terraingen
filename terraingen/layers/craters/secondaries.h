@@ -94,25 +94,6 @@ class SecondaryCraterLayer final : public Layer {
     SecondaryCraterLayer(std::shared_ptr<const CraterLayer> primaries, CraterShapeModels models,
                          SecondaryCraterOptions options, CraterApplyOptions apply = {});
 
-    /// @brief Applies the secondaries reaching the grid.
-    /// @param heights The heights to change in place.
-    /// @param context How the layer is evaluated.
-    /// @param features Receives the secondaries applied, with their attributes.
-    /// @throws std::invalid_argument if more than `maxExpected` secondaries are expected.
-    void Apply(Raster<float>& heights, const LayerContext& context,
-               TerrainFeatures& features) const override;
-
-    /// @brief The secondaries reaching a point applied to `height`, bit-identical to a cell
-    /// centred there.
-    /// @param height The height before the layer; NaN stays NaN.
-    /// @param x Surface x of the point.
-    /// @param y Surface y of the point.
-    /// @param context How the layer is evaluated.
-    /// @return The height after the layer.
-    /// @throws std::invalid_argument as `ValidatePointContext`, or if more than `maxExpected`
-    /// secondaries are expected.
-    float ApplyAt(float height, double x, double y, const LayerContext& context) const override;
-
     /// @brief The largest secondary the layer places.
     /// @return Its diameter, in metres.
     double MaxFeatureDiameter() const override;
@@ -136,7 +117,17 @@ class SecondaryCraterLayer final : public Layer {
         return options_;
     }
 
+  protected:
+    /// Applies the secondaries reaching the samples, recording those applied to a grid.
+    /// @throws std::invalid_argument if more than `maxExpected` secondaries are expected.
+    void ApplySamples(SampleBlock& samples, const LayerContext& context,
+                      TerrainFeatures& features) const override;
+
   private:
+    void ApplyToGrid(Raster<float>& heights, const LayerContext& context,
+                     TerrainFeatures& features) const;
+    float HeightAtPoint(float height, double x, double y, double spacing) const;
+
     std::shared_ptr<const CraterLayer> primaries_;
     CraterShapeModels models_;
     SecondaryCraterOptions options_;

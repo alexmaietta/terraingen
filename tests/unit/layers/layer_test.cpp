@@ -8,13 +8,13 @@
 
 namespace {
 
-/// Adds 1 to every cell and records one crater.
+/// Adds 1 to every sample and records one crater.
 class Plus final : public terraingen::Layer {
-  public:
-    void Apply(terraingen::Raster<float>& heights, const terraingen::LayerContext& /*context*/,
-               terraingen::TerrainFeatures& features) const override {
-        for (float& value : heights.Values()) {
-            value += 1.0f;
+  protected:
+    void ApplySamples(terraingen::SampleBlock& samples, const terraingen::LayerContext& /*context*/,
+                      terraingen::TerrainFeatures& features) const override {
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            samples.Height(i) += 1.0f;
         }
         features.craters.Append({0.0, 0.0, 1.0, 0.0, 1u});
     }

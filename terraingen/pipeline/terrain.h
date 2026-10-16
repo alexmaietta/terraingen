@@ -13,6 +13,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <span>
 #include <vector>
 
 namespace terraingen {
@@ -42,7 +43,7 @@ struct EvaluationOptions {
 };
 
 /// @brief The ground beneath one layer of a terrain: its source and the layers before it,
-/// evaluated at single points with `ApplyAt`. `Evaluate` and `EvaluateAt` give each layer the
+/// evaluated at points as `EvaluatePoints`. `Evaluate` and `EvaluatePoints` give each layer the
 /// ground beneath it.
 class TerrainGround final : public Ground {
   public:
@@ -147,16 +148,20 @@ EvaluatedTerrain Evaluate(const Terrain& terrain);
 TriangleMesh BodyMesh(const Terrain& terrain, std::size_t cellsPerFace, double spacing = 0.0,
                       unsigned threads = 0);
 
-/// @brief The height of a terrain at one point: the source's height there, then each layer's
-/// `ApplyAt`. It equals the cell centred there of `Evaluate` over a grid of `spacing` cells, to the
-/// same bits, and is safe to call from several threads at once.
-/// @param terrain The terrain, without filters.
-/// @param x The point's x, in surface coordinates.
-/// @param y The point's y, in surface coordinates.
+/// The heights of a terrain at scattered points, such as wheel contacts or mesh vertices: the
+/// source's heights there, then each layer applied to all of them at once. Each equals the cell
+/// centred at its point of `Evaluate` over a grid of `spacing` metres, to the same bits, whatever
+/// the batch and thread count.
+/// @param points Positions in surface coordinates.
 /// @param spacing The sample spacing, in metres.
-/// @return The height.
+/// @param threads Threads to split the points over; 0 for every hardware thread.
 /// @throws std::invalid_argument if `terrain` has no source, a null layer or any filter (filters
-/// read neighbouring cells), or `spacing` is not positive and finite; and whatever the parts throw.
+/// read neighbouring cells), or `spacing` is not positive and finite.
+std::vector<float> EvaluatePoints(const Terrain& terrain, std::span<const Vec2d> points,
+                                  double spacing, unsigned threads = 0);
+
+/// The height of a terrain at one point, as `EvaluatePoints`.
+/// @throws std::invalid_argument as `EvaluatePoints`.
 float EvaluateAt(const Terrain& terrain, double x, double y, double spacing);
 
 }  // namespace terraingen

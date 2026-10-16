@@ -369,8 +369,22 @@ CraterList SecondaryCraterLayer::Secondaries(const Bounds2d& region, double spac
     return scatter.Take();
 }
 
-void SecondaryCraterLayer::Apply(Raster<float>& heights, const LayerContext& context,
-                                 TerrainFeatures& features) const {
+void SecondaryCraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context,
+                                        TerrainFeatures& features) const {
+    if (Raster<float>* grid = samples.Grid()) {
+        ApplyToGrid(*grid, context, features);
+        return;
+    }
+    for (std::size_t i = 0; i < samples.Size(); ++i) {
+        if (!samples.IsNoData(i)) {
+            const Vec2d p = samples.Position(i);
+            samples.Height(i) = HeightAtPoint(samples.Height(i), p.x, p.y, context.spacing);
+        }
+    }
+}
+
+void SecondaryCraterLayer::ApplyToGrid(Raster<float>& heights, const LayerContext& context,
+                                       TerrainFeatures& features) const {
     const RasterGrid grid = RasterGrid::Of(heights);
     const double resolved = std::max(context.spacing, grid.Spacing(apply_.surface));
     const CraterList secondaries = Secondaries(grid.Bounds(), resolved);
@@ -381,15 +395,10 @@ void SecondaryCraterLayer::Apply(Raster<float>& heights, const LayerContext& con
     });
 }
 
-float SecondaryCraterLayer::ApplyAt(float height, double x, double y,
-                                    const LayerContext& context) const {
-    ValidatePointContext(context);
-    if (std::isnan(height)) {
-        return height;
-    }
-    const CraterList secondaries = Secondaries(PointBounds(x, y), context.spacing);
+float SecondaryCraterLayer::HeightAtPoint(float height, double x, double y, double spacing) const {
+    const CraterList secondaries = Secondaries(PointBounds(x, y), spacing);
     for (const PreparedCrater& crater :
-         PrepareCraters(secondaries, apply_, context.spacing, *models_.degradation)) {
+         PrepareCraters(secondaries, apply_, spacing, *models_.degradation)) {
         height = ApplyCraterTo(height, x, y, crater, *models_.profile, apply_);
     }
     return height;

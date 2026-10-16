@@ -59,8 +59,29 @@ CraterList CraterLayer::Craters(const Bounds2d& region, double spacing) const {
     return craters;
 }
 
-void CraterLayer::Apply(Raster<float>& heights, const LayerContext& context,
-                        TerrainFeatures& features) const {
+void CraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context,
+                               TerrainFeatures& features) const {
+    if (Raster<float>* grid = samples.Grid()) {
+        ApplyToGrid(*grid, context, features);
+        return;
+    }
+    if (options_.apply.datum != CraterDatum::None) {
+        RequireGround(context.ground, "Point queries of craters with a datum");
+    }
+    if (options_.generation.maxCraters > 0) {
+        throw std::invalid_argument(
+            "Point queries cannot use maxCraters, which ranks craters over a whole grid");
+    }
+    for (std::size_t i = 0; i < samples.Size(); ++i) {
+        if (!samples.IsNoData(i)) {
+            const Vec2d p = samples.Position(i);
+            samples.Height(i) = HeightAtPoint(samples.Height(i), p.x, p.y, context);
+        }
+    }
+}
+
+void CraterLayer::ApplyToGrid(Raster<float>& heights, const LayerContext& context,
+                              TerrainFeatures& features) const {
     const RasterGrid grid = RasterGrid::Of(heights);
     const double resolved = std::max(context.spacing, grid.Spacing(options_.surface));
     const Bounds2d bounds = grid.Bounds();
@@ -87,19 +108,9 @@ double CraterLayer::MaxFeatureDiameter() const {
     return largest;
 }
 
-float CraterLayer::ApplyAt(float height, double x, double y, const LayerContext& context) const {
-    ValidatePointContext(context);
+float CraterLayer::HeightAtPoint(float height, double x, double y,
+                                 const LayerContext& context) const {
     const bool datum = options_.apply.datum != CraterDatum::None;
-    if (datum) {
-        RequireGround(context.ground, "Point queries of craters with a datum");
-    }
-    if (options_.generation.maxCraters > 0) {
-        throw std::invalid_argument(
-            "Point queries cannot use maxCraters, which ranks craters over a whole grid");
-    }
-    if (std::isnan(height)) {
-        return height;
-    }
     const double spacing = context.spacing;
     const CraterProfile& profile = *models_.profile;
     const double margin = DatumMargin(options_.apply, profile, MaxFeatureDiameter());

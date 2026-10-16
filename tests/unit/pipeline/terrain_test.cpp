@@ -102,6 +102,27 @@ TEST(EvaluateAt, EqualsTheGridCellCentredThereToTheBit) {
     }
 }
 
+TEST(EvaluatePoints, EqualsEveryGridCellCentredThereInAnyBatchAndThreadCount) {
+    const Terrain terrain = Rolling();
+    const auto grid = Evaluate(terrain, terrain.source->Grid(), 2.0);
+    std::vector<terraingen::Vec2d> centres;
+    for (std::size_t row = 0; row < grid.heights.Height(); ++row) {
+        for (std::size_t col = 0; col < grid.heights.Width(); ++col) {
+            centres.push_back(grid.heights.CellCenter(col, row));
+        }
+    }
+    for (const unsigned threads : {1u, 3u}) {
+        const std::vector<float> heights =
+            terraingen::EvaluatePoints(terrain, centres, 2.0, threads);
+        ASSERT_EQ(heights.size(), grid.heights.Size());
+        for (std::size_t i = 0; i < heights.size(); ++i) {
+            ASSERT_EQ(heights[i], grid.heights.Values()[i]) << "point " << i;
+        }
+    }
+    EXPECT_TRUE(terraingen::EvaluatePoints(terrain, {}, 2.0).empty());
+    EXPECT_THROW(terraingen::EvaluatePoints(terrain, centres, 0.0), std::invalid_argument);
+}
+
 TEST(EvaluateAt, ChangesContinuouslyWithTheSpacing) {
     Terrain terrain;
     terrain.source = std::make_shared<terraingen::FlatSource>(64, 64, 1.0);
@@ -181,24 +202,21 @@ TEST(EvaluateAt, RejectsFiltersBadSpacingsAndIncompleteTerrains) {
 
 namespace {
 
-/// A layer with only `Apply`, so `ApplyAt` is the default one-cell evaluation.
+/// A layer written against samples only: a function of position and spacing.
 class Bump final : public terraingen::Layer {
-  public:
-    void Apply(terraingen::Raster<float>& heights, const terraingen::LayerContext& context,
-               terraingen::TerrainFeatures& /*features*/) const override {
-        const double spacing = context.spacing;
-        for (std::size_t row = 0; row < heights.Height(); ++row) {
-            for (std::size_t col = 0; col < heights.Width(); ++col) {
-                const auto centre = heights.CellCenter(col, row);
-                heights(col, row) += static_cast<float>(centre.x * 0.5 + centre.y + spacing);
-            }
+  protected:
+    void ApplySamples(terraingen::SampleBlock& samples, const terraingen::LayerContext& context,
+                      terraingen::TerrainFeatures& /*features*/) const override {
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            const auto p = samples.Position(i);
+            samples.Height(i) += static_cast<float>(p.x * 0.5 + p.y + context.spacing);
         }
     }
 };
 
 }  // namespace
 
-TEST(Layer, DefaultApplyAtEvaluatesOneCellCentredOnThePoint) {
+TEST(Layer, ApplyAtEvaluatesTheLayerAtThePoint) {
     const Bump bump;
     EXPECT_EQ(bump.ApplyAt(1.0f, 4.0, -2.0, {3.0}), 1.0f + 2.0f - 2.0f + 3.0f);
     EXPECT_THROW(bump.ApplyAt(0.0f, 0.0, 0.0, {0.0}), std::invalid_argument);

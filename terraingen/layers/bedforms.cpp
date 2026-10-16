@@ -83,7 +83,7 @@ BedformOptions MarsTransverseAeolianRidges() {
 }
 
 BedformLayer::BedformLayer(BedformOptions options, Surface surface)
-    : options_(options), surface_(surface) {
+    : FormulaLayer(surface), options_(options) {
     ValidateBedformOptions(options_);
     cell_ = options_.fieldSize / (kRadiusMin + kRadiusMax);
     const double meanArea = std::numbers::pi *
@@ -184,8 +184,8 @@ double BedformLayer::CoverAt(double x, double y, const Ground* ground) const {
     return std::min(1.0, Evaluate(x, y, ground).cover);
 }
 
-float BedformLayer::Add(float height, double x, double y, double spacing,
-                        const Ground* ground) const {
+float BedformLayer::HeightAt(float height, double x, double y, double spacing,
+                             const Ground* ground) const {
     const double weight = ResolutionWeight(options_.wavelength, spacing, options_.fade);
     if (weight <= 0.0) {
         return height;
@@ -198,23 +198,10 @@ float BedformLayer::Add(float height, double x, double y, double spacing,
                               weight * point.relief / std::max(1.0, point.cover));
 }
 
-void BedformLayer::Apply(Raster<float>& heights, const LayerContext& context,
-                         TerrainFeatures& /*features*/) const {
+void BedformLayer::CheckContext(const LayerContext& context) const {
     if (exposure_) {
         RequireGround(context.ground, kExposureReader);
     }
-    const double spacing = std::max(context.spacing, RasterGrid::Of(heights).Spacing(surface_));
-    MapCells(heights, context.threads, [&](float height, const Vec2d& centre) {
-        return Add(height, centre.x, centre.y, spacing, context.ground);
-    });
-}
-
-float BedformLayer::ApplyAt(float height, double x, double y, const LayerContext& context) const {
-    ValidatePointContext(context);
-    if (std::isnan(height)) {
-        return height;
-    }
-    return Add(height, x, y, context.spacing, context.ground);
 }
 
 }  // namespace terraingen

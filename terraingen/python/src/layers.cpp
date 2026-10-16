@@ -31,33 +31,44 @@ class PyLayer : public Layer {
   public:
     NB_TRAMPOLINE(Layer);
 
-    void Apply(Raster<float>& heights, const LayerContext& context,
-               TerrainFeatures& /*features*/) const override {
-        if (CallOverrideIgnoringResult(nb_trampoline, "apply", ByReference<Raster<float>>{heights},
+    double MaxFeatureDiameter() const override {
+        NB_OVERRIDE_NAME("max_feature_diameter", MaxFeatureDiameter);
+    }
+
+  protected:
+    void ApplySamples(SampleBlock& samples, const LayerContext& context,
+                      TerrainFeatures& /*features*/) const override {
+        Raster<float>* grid = samples.Grid();
+        if (grid != nullptr &&
+            CallOverrideIgnoringResult(nb_trampoline, "apply", ByReference<Raster<float>>{*grid},
                                        context)) {
             return;
         }
-        for (std::size_t row = 0; row < heights.Height(); ++row) {
-            for (std::size_t col = 0; col < heights.Width(); ++col) {
-                const Vec2d centre = heights.CellCenter(col, row);
-                heights(col, row) = ApplyAt(heights(col, row), centre.x, centre.y, context);
-            }
-        }
-    }
-
-    float ApplyAt(float height, double x, double y, const LayerContext& context) const override {
-        if (const auto value =
-                CallOverride<float>(nb_trampoline, "apply_at", height, x, y, context)) {
-            return *value;
-        }
-        if (!Overrides(nb_trampoline, "apply")) {
+        const bool pointwise = Overrides(nb_trampoline, "apply_at");
+        if (!pointwise && !Overrides(nb_trampoline, "apply")) {
             throw std::logic_error("A Python Layer must define apply_at or apply");
         }
-        return Layer::ApplyAt(height, x, y, context);
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            if (samples.IsNoData(i)) {
+                continue;
+            }
+            const Vec2d p = samples.Position(i);
+            float& height = samples.Height(i);
+            height = pointwise ? *CallOverride<float>(nb_trampoline, "apply_at", height, p.x, p.y,
+                                                      context)
+                               : ApplyToOneCell(height, p, context);
+        }
     }
 
-    double MaxFeatureDiameter() const override {
-        NB_OVERRIDE_NAME("max_feature_diameter", MaxFeatureDiameter);
+  private:
+    /// `apply` on a raster of one cell of side `context.spacing` centred at `p`.
+    float ApplyToOneCell(float height, const Vec2d& p, const LayerContext& context) const {
+        Raster<float> cell(1, 1, height);
+        cell.SetTransform(GeoTransform::NorthUp(p.x - 0.5 * context.spacing,
+                                                p.y + 0.5 * context.spacing, context.spacing));
+        CallOverrideIgnoringResult(nb_trampoline, "apply", ByReference<Raster<float>>{cell},
+                                   context);
+        return cell(0, 0);
     }
 };
 
@@ -135,7 +146,7 @@ void BindTransforms(nb::module_& m) {
         "than subclassing Layer for point-wise changes. The function is called for every sample "
         "from every evaluation thread, and Python calls take turns on the GIL, so evaluate "
         "terrains with it on one thread (`threads=1`).")
-        .def(nb::init<HeightFunction>(), "function"_a);
+        .def(nb::init<HeightFunction, Surface>(), "function"_a, "surface"_a = Surface{});
 }
 
 void BindRegions(nb::module_& m) {

@@ -48,8 +48,10 @@ void ExpectGridMatchesPoints(const terraingen::Layer& layer) {
 
 TEST(ScaleLayer, ScalesAndShiftsHeights) {
     const ScaleLayer layer(2.0, -1.0);
-    EXPECT_EQ(layer.ApplyAt(3.0f, 0.0, 0.0, {}), 5.0f);
-    EXPECT_TRUE(std::isnan(layer.ApplyAt(std::nanf(""), 0.0, 0.0, {})));
+    EXPECT_EQ(layer.ApplyAt(3.0f, 0.0, 0.0, {1.0}), 5.0f);
+    EXPECT_TRUE(std::isnan(layer.ApplyAt(std::nanf(""), 0.0, 0.0, {1.0})));
+    EXPECT_THROW(layer.ApplyAt(3.0f, 0.0, 0.0, {}), std::invalid_argument)
+        << "every point query needs a sample spacing";
     EXPECT_EQ(layer.Scale(), 2.0);
     EXPECT_EQ(layer.Offset(), -1.0);
     ExpectGridMatchesPoints(layer);
@@ -59,13 +61,13 @@ TEST(ScaleLayer, ScalesAndShiftsHeights) {
 
 TEST(ClampLayer, ClampsToEitherOrBothBounds) {
     const ClampLayer both(-1.0, 2.0);
-    EXPECT_EQ(both.ApplyAt(-3.0f, 0.0, 0.0, {}), -1.0f);
-    EXPECT_EQ(both.ApplyAt(0.5f, 0.0, 0.0, {}), 0.5f);
-    EXPECT_EQ(both.ApplyAt(7.0f, 0.0, 0.0, {}), 2.0f);
-    EXPECT_EQ(ClampLayer(std::nullopt, 2.0).ApplyAt(-30.0f, 0.0, 0.0, {}), -30.0f);
-    EXPECT_EQ(ClampLayer(1.0, std::nullopt).ApplyAt(30.0f, 0.0, 0.0, {}), 30.0f);
-    EXPECT_EQ(ClampLayer(1.0, std::nullopt).ApplyAt(-30.0f, 0.0, 0.0, {}), 1.0f);
-    EXPECT_TRUE(std::isnan(both.ApplyAt(std::nanf(""), 0.0, 0.0, {})));
+    EXPECT_EQ(both.ApplyAt(-3.0f, 0.0, 0.0, {1.0}), -1.0f);
+    EXPECT_EQ(both.ApplyAt(0.5f, 0.0, 0.0, {1.0}), 0.5f);
+    EXPECT_EQ(both.ApplyAt(7.0f, 0.0, 0.0, {1.0}), 2.0f);
+    EXPECT_EQ(ClampLayer(std::nullopt, 2.0).ApplyAt(-30.0f, 0.0, 0.0, {1.0}), -30.0f);
+    EXPECT_EQ(ClampLayer(1.0, std::nullopt).ApplyAt(30.0f, 0.0, 0.0, {1.0}), 30.0f);
+    EXPECT_EQ(ClampLayer(1.0, std::nullopt).ApplyAt(-30.0f, 0.0, 0.0, {1.0}), 1.0f);
+    EXPECT_TRUE(std::isnan(both.ApplyAt(std::nanf(""), 0.0, 0.0, {1.0})));
     EXPECT_EQ(both.Min(), -1.0);
     EXPECT_EQ(both.Max(), 2.0);
     ExpectGridMatchesPoints(both);

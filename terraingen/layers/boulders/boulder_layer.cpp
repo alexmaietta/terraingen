@@ -247,8 +247,22 @@ void BoulderLayer::DrawRelief(Raster<float>& heights, const std::vector<Boulder>
         });
 }
 
-void BoulderLayer::Apply(Raster<float>& heights, const LayerContext& context,
-                         TerrainFeatures& features) const {
+void BoulderLayer::ApplySamples(SampleBlock& samples, const LayerContext& context,
+                                TerrainFeatures& features) const {
+    if (Raster<float>* grid = samples.Grid()) {
+        ApplyToGrid(*grid, context, features);
+        return;
+    }
+    for (std::size_t i = 0; i < samples.Size(); ++i) {
+        if (!samples.IsNoData(i)) {
+            const Vec2d p = samples.Position(i);
+            samples.Height(i) = HeightAtPoint(samples.Height(i), p.x, p.y, context);
+        }
+    }
+}
+
+void BoulderLayer::ApplyToGrid(Raster<float>& heights, const LayerContext& context,
+                               TerrainFeatures& features) const {
     const RasterGrid grid = RasterGrid::Of(heights);
     const double resolved = std::max(context.spacing, grid.Spacing(surface_));
     std::vector<Boulder> boulders = Boulders(grid.Bounds(), resolved, context.ground);
@@ -275,9 +289,9 @@ void BoulderLayer::Apply(Raster<float>& heights, const LayerContext& context,
     features.boulders.insert(features.boulders.end(), boulders.begin(), boulders.end());
 }
 
-float BoulderLayer::ApplyAt(float height, double x, double y, const LayerContext& context) const {
-    ValidatePointContext(context);
-    if (std::isnan(height) || options_.rendering.relief == BoulderRelief::None) {
+float BoulderLayer::HeightAtPoint(float height, double x, double y,
+                                  const LayerContext& context) const {
+    if (options_.rendering.relief == BoulderRelief::None) {
         return height;
     }
     for (const Boulder& boulder : Boulders(PointBounds(x, y), context.spacing, context.ground)) {

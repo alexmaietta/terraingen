@@ -58,31 +58,9 @@ class CraterLayer final : public Layer {
     /// @throws std::invalid_argument for a missing model or invalid options.
     CraterLayer(CraterModels models, CraterLayerOptions options);
 
-    /// @brief Generates and applies the craters reaching the grid; datums are fitted to
-    /// `context.ground` where given, otherwise to `heights` as passed in.
-    /// @param heights The heights to change in place.
-    /// @param context How the layer is evaluated.
-    /// @param features Receives the craters centred in the grid, with their attributes.
-    /// @throws std::domain_error as `DegradationModel::State`.
-    void Apply(Raster<float>& heights, const LayerContext& context,
-               TerrainFeatures& features) const override;
-
-    /// @brief The largest crater the layer places.
-    /// @return `dMax` (the density's largest valid diameter when unbounded) or the largest manual
-    /// crater, in metres.
+    /// `dMax` (the density's largest valid diameter when unbounded) or the largest manual crater,
+    /// in metres.
     double MaxFeatureDiameter() const override;
-
-    /// @brief The craters reaching a point applied to `height`, bit-identical to a cell centred
-    /// there; datums are fitted to `context.ground`.
-    /// @param height The height before the layer; NaN stays NaN.
-    /// @param x Surface x of the point.
-    /// @param y Surface y of the point.
-    /// @param context How the layer is evaluated.
-    /// @return The height after the layer.
-    /// @throws std::invalid_argument as `ValidatePointContext`, if the layer has a datum and
-    /// `context.ground` is null, or if the layer has `maxCraters` (which depends on the whole
-    /// grid).
-    float ApplyAt(float height, double x, double y, const LayerContext& context) const override;
 
     /// @brief The craters this layer applies to a grid covering a region: those generated, and the
     /// manual ones, centred in it or within the profile's reach of it.
@@ -116,7 +94,21 @@ class CraterLayer final : public Layer {
         return options_;
     }
 
+  protected:
+    /// Generates and applies the craters reaching the samples, recording those centred in a grid.
+    /// Datums are fitted to `context.ground` where given, otherwise to a grid's heights as passed
+    /// in.
+    /// @throws std::invalid_argument for points when the layer has a datum and no
+    /// `context.ground`, or has `maxCraters` (which ranks craters over a whole grid).
+    /// @throws std::domain_error as `DegradationModel::State`.
+    void ApplySamples(SampleBlock& samples, const LayerContext& context,
+                      TerrainFeatures& features) const override;
+
   private:
+    void ApplyToGrid(Raster<float>& heights, const LayerContext& context,
+                     TerrainFeatures& features) const;
+    float HeightAtPoint(float height, double x, double y, const LayerContext& context) const;
+
     CraterModels models_;
     CraterLayerOptions options_;
     std::shared_ptr<const SurfaceCells> cells_;

@@ -51,30 +51,12 @@ double Perlin3StructureFunction(double r);
 /// Amplitudes are scaled so the RMS slope over `baseline` is `rmsSlope` with every octave
 /// resolved. Octaves are rotated and offset so their lattices do not line up, and fade out at
 /// spacings too coarse to resolve them.
-class RoughnessLayer final : public Layer {
+class RoughnessLayer final : public FormulaLayer {
   public:
-    /// @brief Makes the layer; on a sphere each octave is 3D Perlin noise at the 3D point, its
-    /// lattice turned by a uniform random rotation.
-    /// @param options The roughness.
-    /// @param surface What the terrain lies on.
+    /// On a sphere each octave is 3D Perlin noise at the 3D point, its lattice turned by a uniform
+    /// random rotation.
     /// @throws std::invalid_argument as `ValidateRoughnessOptions`.
     explicit RoughnessLayer(RoughnessOptions options, Surface surface = {});
-
-    /// @brief Adds the roughness resolved at the grid's spacing to every cell of `heights`.
-    /// @param heights The heights to change in place.
-    /// @param context How the layer is evaluated.
-    /// @param features Unused; roughness places no features.
-    void Apply(Raster<float>& heights, const LayerContext& context,
-               TerrainFeatures& features) const override;
-
-    /// @brief The roughness at a point added to `height`, bit-identical to a cell centred there.
-    /// @param height The height before the layer; NaN stays NaN.
-    /// @param x World x of the point.
-    /// @param y World y of the point.
-    /// @param context How the layer is evaluated.
-    /// @return The height after the layer.
-    /// @throws std::invalid_argument as `ValidatePointContext`.
-    float ApplyAt(float height, double x, double y, const LayerContext& context) const override;
 
     /// @brief The RMS slope of the roughness with every octave resolved.
     /// @param baseline The baseline, in metres.
@@ -90,6 +72,10 @@ class RoughnessLayer final : public Layer {
     const RoughnessOptions& Options() const {
         return options_;
     }
+
+  protected:
+    float HeightAt(float height, double x, double y, double spacing,
+                   const Ground* ground) const override;
 
   private:
     struct Octave {
@@ -108,11 +94,8 @@ class RoughnessLayer final : public Layer {
     Octave MakeOctave(std::uint32_t i, double wavelength) const;
     /// The noise of one octave at (`x`, `y`), in [-1, 1].
     double OctaveNoise(const Octave& octave, double x, double y) const;
-    /// The sum of the octaves at (`x`, `y`) resolved at `spacing`.
-    float Roughness(double x, double y, double spacing) const;
 
     RoughnessOptions options_;
-    Surface surface_;
     std::vector<Octave> octaves_;
 };
 

@@ -49,29 +49,6 @@ class BoulderLayer final : public Layer {
     BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const CraterLayer> craters = nullptr,
                  Surface surface = {});
 
-    /// @brief Draws the exposed parts of non-model boulders into the heights and records the
-    /// boulders centred in or within a radius of the grid.
-    ///
-    /// Models are placed on the ground read at their centres: from `context.ground`, otherwise the
-    /// heights as given.
-    /// @param heights The heights to change in place.
-    /// @param context How the layer is evaluated.
-    /// @param features Receives the boulders and the boulder models.
-    /// @throws std::invalid_argument if the exposure field is enabled and `context.ground` is null.
-    void Apply(Raster<float>& heights, const LayerContext& context,
-               TerrainFeatures& features) const override;
-
-    /// @brief The non-model boulders reaching a point added to `height`, bit-identical to a cell
-    /// centred there.
-    /// @param height The height before the layer; NaN stays NaN.
-    /// @param x Surface x of the point.
-    /// @param y Surface y of the point.
-    /// @param context How the layer is evaluated.
-    /// @return The height after the layer.
-    /// @throws std::invalid_argument as `ValidatePointContext`, or if the exposure field is
-    /// enabled and `context.ground` is null.
-    float ApplyAt(float height, double x, double y, const LayerContext& context) const override;
-
     /// @brief The boulders of a region.
     /// @param region The region, in surface coordinates.
     /// @param spacing The sample spacing; boulders too small to resolve at it are left out, and
@@ -116,7 +93,18 @@ class BoulderLayer final : public Layer {
     /// @return Its shape.
     std::shared_ptr<const BoulderShape> Shape(const Boulder& boulder) const;
 
+  protected:
+    /// Draws the exposed parts of non-model boulders into the samples. On a grid it records the
+    /// boulders centred in or within a radius of it, and places models on the ground read at their
+    /// centres: from `context.ground`, otherwise the heights as given.
+    /// @throws std::invalid_argument if the exposure field is enabled and `context.ground` is null.
+    void ApplySamples(SampleBlock& samples, const LayerContext& context,
+                      TerrainFeatures& features) const override;
+
   private:
+    void ApplyToGrid(Raster<float>& heights, const LayerContext& context,
+                     TerrainFeatures& features) const;
+    float HeightAtPoint(float height, double x, double y, const LayerContext& context) const;
     /// The candidates of `region`, before thinning.
     CraterList ScatterBoulderCandidates(const Bounds2d& region, double spacing) const;
     /// `candidate` as a boulder, or nothing when thinning drops it.

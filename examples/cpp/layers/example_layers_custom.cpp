@@ -43,27 +43,18 @@ class InclinedPlane final : public terraingen::Source {
 };
 
 /// A sinuous channel 12 m deep and 40 m wide, meandering north to south.
-class Rille final : public terraingen::Layer {
+class Rille final : public terraingen::FormulaLayer {
   public:
-    void Apply(terraingen::Raster<float>& heights, const terraingen::LayerContext& context,
-               terraingen::TerrainFeatures& /*features*/) const override {
-        for (std::size_t row = 0; row < heights.Height(); ++row) {
-            for (std::size_t col = 0; col < heights.Width(); ++col) {
-                const terraingen::Vec2d centre = heights.CellCenter(col, row);
-                heights(col, row) = ApplyAt(heights(col, row), centre.x, centre.y, context);
-            }
-        }
+    double MaxFeatureDiameter() const override {
+        return 40.0;
     }
 
-    float ApplyAt(float height, double x, double y,
-                  const terraingen::LayerContext& /*context*/) const override {
+  protected:
+    float HeightAt(float height, double x, double y, double /*spacing*/,
+                   const terraingen::Ground* /*ground*/) const override {
         const double centre = 60.0 * std::sin(y / 70.0);
         const double offset = (x - centre) / 20.0;
         return height - static_cast<float>(12.0 * std::exp(-offset * offset));
-    }
-
-    double MaxFeatureDiameter() const override {
-        return 40.0;
     }
 };
 

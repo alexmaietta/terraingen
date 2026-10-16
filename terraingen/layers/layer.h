@@ -7,8 +7,9 @@
 #include "terraingen/layers/craters/attributes.h"
 #include "terraingen/layers/craters/population.h"
 #include "terraingen/layers/ground.h"
-#include "terraingen/raster/geo_transform.h"
+#include "terraingen/layers/sample_block.h"
 #include "terraingen/raster/raster.h"
+#include "terraingen/util/surface.h"
 
 #include <string_view>
 #include <vector>
@@ -54,37 +55,63 @@ void ValidatePointContext(const LayerContext& context);
 /// @throws std::invalid_argument if `ground` is null.
 void RequireGround(const Ground* ground, std::string_view what);
 
-/// @brief Relief added on top of a source: noise, craters, or a layer of your own.
+/// Relief added on top of a source: noise, craters, or a layer of your own.
 ///
-/// Implementations must be deterministic and thread-safe, and place the same features in a tile as
-/// in any larger grid containing it. A layer needing another layer's features holds a reference to
-/// it and queries it (e.g. `CraterLayer::Craters`).
+/// A layer implements one method, `ApplySamples`, over a `SampleBlock`: a grid's cells or
+/// scattered points. Grids, tiles and point queries all go through it, so a point gets the same
+/// height as a grid cell centred there. Implementations must be deterministic and thread-safe, and
+/// place the same features in a tile as in any larger grid containing it. A layer needing another
+/// layer's features holds a reference to it and queries it (e.g. `CraterLayer::Craters`).
 class Layer {
   public:
     virtual ~Layer() = default;
 
-    /// @brief Adds the layer's relief to the cells of `heights` that hold data.
-    /// @param heights The heights to change in place.
-    /// @param context How the layer is evaluated.
-    /// @param features Where the features the layer placed are recorded.
-    virtual void Apply(Raster<float>& heights, const LayerContext& context,
-                       TerrainFeatures& features) const = 0;
+    /// Adds the layer's relief to the cells of `heights` that hold data.
+    void Apply(Raster<float>& heights, const LayerContext& context,
+               TerrainFeatures& features) const;
 
-    /// @brief The height at a point after this layer, bit-identical to `Apply` on a cell centred
-    /// there. The default applies the layer to one cell of side `context.spacing`.
-    /// @param height The height there before the layer.
-    /// @param x World x of the point.
-    /// @param y World y of the point.
-    /// @param context How the layer is evaluated.
-    /// @return The height after the layer.
-    /// @throws std::invalid_argument as `ValidatePointContext`.
-    virtual float ApplyAt(float height, double x, double y, const LayerContext& context) const;
+    /// Adds the layer's relief to every sample of `samples` that holds data.
+    /// @throws std::invalid_argument for points without a positive `context.spacing`.
+    void Apply(SampleBlock& samples, const LayerContext& context, TerrainFeatures& features) const;
 
-    /// @brief The largest feature the layer places, for filters' margins.
-    /// @return Its diameter in world units; 0 for none.
+    /// The height at one point after this layer, from `height` before it.
+    /// @throws std::invalid_argument without a positive `context.spacing`.
+    float ApplyAt(float height, double x, double y, const LayerContext& context) const;
+
+    /// The largest feature the layer places, in metres, for tiles' and filters' margins.
     virtual double MaxFeatureDiameter() const {
         return 0.0;
     }
+
+  protected:
+    /// Adds the layer's relief to `samples`, recording what it places in `features`. A grid's
+    /// spacing is `context.spacing` raised to the grid's own; points come with a positive one.
+    virtual void ApplySamples(SampleBlock& samples, const LayerContext& context,
+                              TerrainFeatures& features) const = 0;
+};
+
+/// A layer whose height at a point depends only on the height there and the point: noise,
+/// roughness, transforms. Subclasses write `HeightAt`; the base applies it to every sample that
+/// holds data, in parallel over a grid's rows.
+class FormulaLayer : public Layer {
+  protected:
+    /// @param surface What the layer's coordinates lie on, which converts a grid's cell size to
+    /// metres for the sample spacing.
+    explicit FormulaLayer(Surface surface = {}) : surface_(surface) {}
+
+    /// The height at (x, y) after the layer, from `height` before it.
+    /// @param spacing The sample spacing in metres.
+    /// @param ground The terrain beneath the layer, null when the context gives none.
+    virtual float HeightAt(float height, double x, double y, double spacing,
+                           const Ground* ground) const = 0;
+
+    /// Checks the context before any sample is evaluated; accepts any by default.
+    virtual void CheckContext(const LayerContext& /*context*/) const {}
+
+    void ApplySamples(SampleBlock& samples, const LayerContext& context,
+                      TerrainFeatures& features) const final;
+
+    Surface surface_;  ///< What the layer's coordinates lie on.
 };
 
 }  // namespace terraingen

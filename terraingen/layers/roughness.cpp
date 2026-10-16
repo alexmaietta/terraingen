@@ -119,7 +119,7 @@ double Perlin3StructureFunction(double r) {
 }
 
 RoughnessLayer::RoughnessLayer(RoughnessOptions options, Surface surface)
-    : options_(options), surface_(surface) {
+    : FormulaLayer(surface), options_(options) {
     ValidateRoughnessOptions(options_);
     const double shortest = options_.minWavelength * (1.0 - 1e-12);
     double wavelength = options_.maxWavelength;
@@ -183,7 +183,8 @@ std::vector<double> RoughnessLayer::Wavelengths() const {
     return wavelengths;
 }
 
-float RoughnessLayer::Roughness(double x, double y, double spacing) const {
+float RoughnessLayer::HeightAt(float height, double x, double y, double spacing,
+                               const Ground* /*ground*/) const {
     double sum = 0.0;
     for (const Octave& octave : octaves_) {
         const double weight = ResolutionWeight(octave.wavelength, spacing, options_.fade);
@@ -192,26 +193,7 @@ float RoughnessLayer::Roughness(double x, double y, double spacing) const {
         }
         sum += weight * octave.amplitude * OctaveNoise(octave, x, y);
     }
-    return static_cast<float>(sum);
-}
-
-void RoughnessLayer::Apply(Raster<float>& heights, const LayerContext& context,
-                           TerrainFeatures& /*features*/) const {
-    const Stopwatch stopwatch;
-    const double spacing = std::max(context.spacing, RasterGrid::Of(heights).Spacing(surface_));
-    MapCells(heights, context.threads, [&](float height, const Vec2d& centre) {
-        return height + Roughness(centre.x, centre.y, spacing);
-    });
-    LogInfo("layers", "Added roughness to ", heights.Width(), "x", heights.Height(), " cells in ",
-            FormatDuration(stopwatch.Milliseconds()));
-}
-
-float RoughnessLayer::ApplyAt(float height, double x, double y, const LayerContext& context) const {
-    ValidatePointContext(context);
-    if (std::isnan(height)) {
-        return height;
-    }
-    return height + Roughness(x, y, context.spacing);
+    return height + static_cast<float>(sum);
 }
 
 }  // namespace terraingen

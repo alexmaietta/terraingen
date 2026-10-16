@@ -58,32 +58,13 @@ BedformOptions MarsTransverseAeolianRidges();
 /// Each lattice cell may hold a field with a ragged edge whose crests run across its wind; relief
 /// is C1 and zero in the troughs, and overlapping fields average by cover. A function of position
 /// only, so grids, tiles and points agree.
-class BedformLayer final : public Layer {
+class BedformLayer final : public FormulaLayer {
   public:
-    /// @brief Makes the layer; on a sphere, fields are drawn in `CubeSphereCells`, shaped in their
-    /// centres' local frames, with the azimuth counter-clockwise from local east.
-    /// @param options The bedform fields.
-    /// @param surface What the terrain lies on.
+    /// On a sphere, fields are drawn in `CubeSphereCells`, shaped in their centres' local frames,
+    /// with the azimuth counter-clockwise from local east. Applying the layer with the exposure
+    /// field enabled needs `context.ground`.
     /// @throws std::invalid_argument as `ValidateBedformOptions`.
     explicit BedformLayer(BedformOptions options, Surface surface = {});
-
-    /// @brief Adds the bedforms to every cell of `heights`.
-    /// @param heights The heights to change in place.
-    /// @param context How the layer is evaluated.
-    /// @param features Unused.
-    /// @throws std::invalid_argument if the exposure field is enabled and `context.ground` is null.
-    void Apply(Raster<float>& heights, const LayerContext& context,
-               TerrainFeatures& features) const override;
-
-    /// @brief The bedforms at a point added to `height`, bit-identical to a cell centred there.
-    /// @param height The height before the layer; NaN stays NaN.
-    /// @param x World x of the point.
-    /// @param y World y of the point.
-    /// @param context How the layer is evaluated.
-    /// @return The height after the layer.
-    /// @throws std::invalid_argument as `ValidatePointContext`, or if the exposure field is
-    /// enabled and `context.ground` is null.
-    float ApplyAt(float height, double x, double y, const LayerContext& context) const override;
 
     /// @brief How fully a point lies in a field; independent of the spacing.
     /// @param x World x of the point.
@@ -99,6 +80,11 @@ class BedformLayer final : public Layer {
         return options_;
     }
 
+  protected:
+    float HeightAt(float height, double x, double y, double spacing,
+                   const Ground* ground) const override;
+    void CheckContext(const LayerContext& context) const override;
+
   private:
     struct Point {
         double cover = 0.0;
@@ -107,13 +93,11 @@ class BedformLayer final : public Layer {
     Point Evaluate(double x, double y, const Ground* ground) const;
     void AddField(Point& point, RandomStream& random, const Vec2d& centre, const Vec2d& offset,
                   const Ground* ground) const;
-    float Add(float height, double x, double y, double spacing, const Ground* ground) const;
 
     BedformOptions options_;
     double cell_ = 1.0;
     double density_ = 0.0;
     std::optional<ExposureField> exposure_;
-    Surface surface_;
     std::optional<CubeSphereCells> cells_;
 };
 
