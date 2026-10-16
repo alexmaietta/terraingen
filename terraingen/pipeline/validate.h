@@ -1,5 +1,5 @@
 /// @file
-/// @brief Internal: checks of a configuration's albedo, shared by `ValidateConfig` and
+/// @brief Checks of a configuration's albedo, shared by `ValidateConfig` and
 /// `BuildAlbedo`.
 #pragma once
 

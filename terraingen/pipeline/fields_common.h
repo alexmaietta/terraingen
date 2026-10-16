@@ -1,5 +1,5 @@
 /// @file
-/// @brief Internal: what every configuration field list shares.
+/// @brief What every configuration field list shares.
 ///
 /// Each configuration struct has a `Fields(IO& io, Struct& value)` that calls
 /// `io(key, member, description, unit)` for each JSON key in order; the same list is read, written

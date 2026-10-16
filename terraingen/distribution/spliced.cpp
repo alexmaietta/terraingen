@@ -1,38 +1,39 @@
 #include "terraingen/distribution/spliced.h"
 
+#include "terraingen/distribution/combined.h"
+
 #include <cmath>
 #include <stdexcept>
-#include <string>
 #include <utility>
 
 namespace terraingen {
 
 namespace {
 
+/// The kind of `pieces`, after checking there is one and that they share it.
+SfdKind CheckedKind(const std::vector<SfdPiece>& pieces) {
+    std::vector<const SizeFrequencyDistribution*> distributions;
+    for (const SfdPiece& piece : pieces) {
+        distributions.push_back(piece.distribution.get());
+    }
+    return detail::CommonKind(distributions, "A spliced distribution");
+}
+
+/// Whether `distribution` may be evaluated from `low` to `high` metres.
 bool Covers(const SizeFrequencyDistribution& distribution, double low, double high) {
-    return distribution.AllowsExtrapolation() ||
-           (distribution.ValidRange().min <= low && distribution.ValidRange().max >= high);
+    const DiameterRange usable = detail::UsableRange(distribution);
+    return usable.min <= low && usable.max >= high;
 }
 
 }  // namespace
 
 SplicedSfd::SplicedSfd(std::vector<SfdPiece> pieces, DiameterRange range, double tolerance)
-    : SizeFrequencyDistribution(pieces.empty() || !pieces.front().distribution
-                                    ? SfdKind::Density
-                                    : pieces.front().distribution->Kind(),
-                                range),
-      pieces_(std::move(pieces)) {
-    if (pieces_.empty()) {
-        throw std::invalid_argument("A spliced distribution needs at least one piece");
-    }
+    : SizeFrequencyDistribution(CheckedKind(pieces), range), pieces_(std::move(pieces)) {
     if (pieces_.front().start != range.min) {
         throw std::invalid_argument("The first piece must start at the range minimum");
     }
     for (std::size_t i = 0; i < pieces_.size(); ++i) {
         const SfdPiece& piece = pieces_[i];
-        if (!piece.distribution || piece.distribution->Kind() != Kind()) {
-            throw std::invalid_argument("Spliced pieces must be distributions of one kind");
-        }
         const double end = i + 1 < pieces_.size() ? pieces_[i + 1].start : range.max;
         if (i > 0 && !(std::isfinite(piece.start) && piece.start > pieces_[i - 1].start &&
                        piece.start < range.max)) {
@@ -41,27 +42,16 @@ SplicedSfd::SplicedSfd(std::vector<SfdPiece> pieces, DiameterRange range, double
         if (!Covers(*piece.distribution, piece.start, end)) {
             throw std::invalid_argument("Each piece must be valid over its diameter interval");
         }
-        if (i == 0) {
-            continue;
-        }
-        const double below = CumulativeOf(*pieces_[i - 1].distribution, piece.start);
-        const double above = CumulativeOf(*piece.distribution, piece.start);
-        if (above > below * (1.0 + tolerance)) {
-            throw std::invalid_argument("A cumulative distribution cannot rise at a splice");
-        }
-        if (above < below * (1.0 - tolerance)) {
-            throw std::invalid_argument("Pieces are discontinuous at " +
-                                        std::to_string(piece.start) + " m");
+        if (i > 0) {
+            detail::CheckJoin(CumulativeOf(*pieces_[i - 1].distribution, piece.start),
+                              CumulativeOf(*piece.distribution, piece.start), piece.start,
+                              tolerance, false);
         }
     }
 }
 
 std::size_t SplicedSfd::PieceAt(double diameter) const {
-    std::size_t index = 0;
-    while (index + 1 < pieces_.size() && pieces_[index + 1].start < diameter) {
-        ++index;
-    }
-    return index;
+    return detail::IndexOfStart(pieces_, diameter);
 }
 
 double SplicedSfd::CumulativeAt(double diameter) const {

@@ -76,15 +76,18 @@ TEST(PlacementAtSite, MovesLocalPlacementsIntoTheSitesFrame) {
     const terraingen::Vec3d q{0.4, -0.2, 0.5};
     const terraingen::Vec3d atSite = moved.Apply(q);
     const terraingen::Vec3d inBoulder = local.Apply(q);
-    terraingen::Vec3d e;
-    terraingen::Vec3d n;
-    terraingen::Vec3d u;
-    moon.Frame(boulder, e, n, u);
+    terraingen::LocalFrame frame = moon.Frame(boulder);
+    terraingen::Vec3d e = frame.east;
+    terraingen::Vec3d n = frame.north;
+    terraingen::Vec3d u = frame.up;
     const terraingen::Vec3d pr = moon.Position(boulder);
     const terraingen::Vec3d body{pr.x + e.x * inBoulder.x + n.x * inBoulder.y + u.x * inBoulder.z,
                                  pr.y + e.y * inBoulder.x + n.y * inBoulder.y + u.y * inBoulder.z,
                                  pr.z + e.z * inBoulder.x + n.z * inBoulder.y + u.z * inBoulder.z};
-    moon.Frame(site, e, n, u);
+    frame = moon.Frame(site);
+    e = frame.east;
+    n = frame.north;
+    u = frame.up;
     const terraingen::Vec3d ps = moon.Position(site);
     const terraingen::Vec3d back{ps.x + e.x * atSite.x + n.x * atSite.y + u.x * atSite.z,
                                  ps.y + e.y * atSite.x + n.y * atSite.y + u.y * atSite.z,

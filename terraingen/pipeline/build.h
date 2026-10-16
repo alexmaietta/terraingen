@@ -1,5 +1,5 @@
 /// @file
-/// @brief Internal: the pipeline's steps from configuration specs to library objects.
+/// @brief The pipeline's steps from configuration specs to library objects.
 #pragma once
 
 #include "terraingen/albedo/albedo.h"

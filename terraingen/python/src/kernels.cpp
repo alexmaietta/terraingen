@@ -315,19 +315,18 @@ void BindNoise3(nb::module_& m) {
     m.def(
         "value_noise3",
         [](double x, double y, double z, std::uint32_t seed) {
-            const double cx = std::floor(x);
-            const double cy = std::floor(y);
-            const double cz = std::floor(z);
-            return ValueNoise3(static_cast<std::int32_t>(cx), static_cast<std::int32_t>(cy),
-                               static_cast<std::int32_t>(cz), static_cast<float>(x - cx),
-                               static_cast<float>(y - cy), static_cast<float>(z - cz), seed);
+            return ValueNoise3(SplitLatticePrecise3(x, y, z), seed);
         },
         "x"_a, "y"_a, "z"_a, "seed"_a, "3D value noise in [-1, 1], in lattice units.");
     m.def("has_basis_noise3", &HasBasisNoise3, "basis"_a,
           "Whether `basis` has a 3D form (Perlin and value noise).");
     m.def(
-        "basis_noise3", &BasisNoise3, "basis"_a, "ix"_a, "iy"_a, "iz"_a, "fx"_a, "fy"_a, "fz"_a,
-        "seed"_a,
+        "basis_noise3",
+        [](NoiseBasis basis, std::int32_t ix, std::int32_t iy, std::int32_t iz, float fx, float fy,
+           float fz, std::uint32_t seed) {
+            return BasisNoise3(basis, LatticePoint3{ix, iy, iz, fx, fy, fz}, seed);
+        },
+        "basis"_a, "ix"_a, "iy"_a, "iz"_a, "fx"_a, "fy"_a, "fz"_a, "seed"_a,
         "One octave of 3D `basis` noise at lattice cell (ix, iy, iz) plus fraction (fx, fy, fz).");
     m.def(
         "fractal3",

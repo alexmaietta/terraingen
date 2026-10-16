@@ -228,12 +228,9 @@ void BindSurface(nb::module_& m) {
         .def(
             "frame",
             [](const Surface& surface, std::pair<double, double> point) {
-                Vec3d east;
-                Vec3d north;
-                Vec3d up;
-                surface.Frame({point.first, point.second}, east, north, up);
+                const LocalFrame frame = surface.Frame({point.first, point.second});
                 const auto v = [](const Vec3d& d) { return std::tuple{d.x, d.y, d.z}; };
-                return std::tuple{v(east), v(north), v(up)};
+                return std::tuple{v(frame.east), v(frame.north), v(frame.up)};
             },
             "point"_a, "The (east, north, up) unit vectors at a point.")
         .def(

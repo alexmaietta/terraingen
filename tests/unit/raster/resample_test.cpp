@@ -142,3 +142,24 @@ TEST(ResampleTo, SamplesEachCellCentreAndMarksCellsBeyondTheRaster) {
     EXPECT_THROW(terraingen::SampleRaster(raster, 1.0, 1.0, ResampleMethod::Cubic),
                  std::invalid_argument);
 }
+
+TEST(FilledNoData, KeepsTheSourceValueOrMarksMissingCellsNan) {
+    EXPECT_EQ(terraingen::FilledNoData(-5.0f, true), -5.0f);
+    EXPECT_FALSE(terraingen::FilledNoData(std::nullopt, false).has_value());
+    EXPECT_TRUE(std::isnan(*terraingen::FilledNoData(std::nullopt, true)));
+}
+
+TEST(SampleAtCentres, CallsTheSamplerAtEachCellCentre) {
+    Raster<float> target(3, 2);
+    target.SetTransform(GeoTransform::NorthUp(0.0, 2.0, 1.0));
+    terraingen::SampleAtCentres(target, std::nullopt, [](double x, double y) {
+        return x > 2.0 ? std::numeric_limits<float>::quiet_NaN() : static_cast<float>(x + 10 * y);
+    });
+    EXPECT_FLOAT_EQ(target(0, 0), 15.5f);
+    EXPECT_FLOAT_EQ(target(1, 1), 6.5f);
+    EXPECT_TRUE(std::isnan(target(2, 0)));
+    EXPECT_TRUE(target.NoData().has_value());
+    terraingen::SampleAtCentres(target, -1.0f, [](double, double) { return 1.0f; });
+    EXPECT_EQ(target(2, 0), 1.0f);
+    EXPECT_EQ(target.NoData(), -1.0f);
+}

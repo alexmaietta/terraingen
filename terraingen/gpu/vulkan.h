@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <span>
 #include <string>
 #include <vector>
@@ -44,8 +45,8 @@ class VulkanCompute {
 
   private:
     struct State;
-    explicit VulkanCompute(State* state);
-    State* state_;
+    explicit VulkanCompute(std::unique_ptr<State> state);
+    std::unique_ptr<State> state_;
 };
 
 }  // namespace terraingen

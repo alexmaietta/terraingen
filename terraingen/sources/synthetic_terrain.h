@@ -2,6 +2,7 @@
 
 #include "terraingen/noise/kernels/fractal.h"
 #include "terraingen/noise/kernels/layers.h"
+#include "terraingen/noise/validate.h"
 #include "terraingen/raster/raster.h"
 
 #include <cstddef>
@@ -17,15 +18,7 @@ struct SyntheticTerrainParams {
     bool operator==(const SyntheticTerrainParams&) const = default;
 };
 
-/// Checks that `params` describe a usable fractal.
-/// @throws std::invalid_argument naming the first invalid field.
-void ValidateFractalParams(const FractalParams& params);
-
-/// Checks a layer's fractal, blend mode and domain warp.
-/// @throws std::invalid_argument naming the first invalid field.
-void ValidateNoiseLayer(const NoiseLayer& layer);
-
-/// Checks the layer count and every layer.
+/// Checks the layer count and every layer (`ValidateNoiseLayer`).
 /// @throws std::invalid_argument naming the first problem.
 void ValidateSyntheticTerrain(const SyntheticTerrainParams& params);
 

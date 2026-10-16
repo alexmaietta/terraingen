@@ -11,10 +11,14 @@ using terraingen::Fractal3;
 using terraingen::FractalParams;
 using terraingen::FractalType;
 using terraingen::HasBasisNoise3;
+using terraingen::LatticePoint2;
+using terraingen::LatticePoint3;
 using terraingen::LayerBlend;
 using terraingen::NoiseBasis;
 using terraingen::NoiseLayer;
 using terraingen::PerlinNoise3;
+using terraingen::SplitLattice2;
+using terraingen::SplitLattice3;
 using terraingen::ValueNoise3;
 
 TEST(ValueNoise3, InterpolatesLatticeValuesWithinRangeAndContinuously) {
@@ -24,19 +28,19 @@ TEST(ValueNoise3, InterpolatesLatticeValuesWithinRangeAndContinuously) {
         const float fx = static_cast<float>(i % 13) / 13.0f;
         const float fy = static_cast<float>(i % 7) / 7.0f;
         const float fz = static_cast<float>(i % 11) / 11.0f;
-        const float v = ValueNoise3(i % 17 - 8, i / 17 - 100, i % 5, fx, fy, fz, 3u);
+        const float v = ValueNoise3({i % 17 - 8, i / 17 - 100, i % 5, fx, fy, fz}, 3u);
         EXPECT_GE(v, -1.0f);
         EXPECT_LE(v, 1.0f);
         sum += static_cast<double>(v);
         ++count;
     }
     EXPECT_NEAR(sum / count, 0.0, 0.1);
-    EXPECT_NEAR(ValueNoise3(2, 3, 4, 0.999999f, 0.5f, 0.25f, 9u),
-                ValueNoise3(3, 3, 4, 0.0f, 0.5f, 0.25f, 9u), 1e-4f);
-    EXPECT_NEAR(ValueNoise3(2, 3, 4, 0.5f, 0.5f, 0.999999f, 9u),
-                ValueNoise3(2, 3, 5, 0.5f, 0.5f, 0.0f, 9u), 1e-4f);
-    EXPECT_NE(ValueNoise3(2, 3, 4, 0.0f, 0.0f, 0.0f, 9u),
-              ValueNoise3(2, 3, 4, 0.0f, 0.0f, 0.0f, 10u));
+    EXPECT_NEAR(ValueNoise3({2, 3, 4, 0.999999f, 0.5f, 0.25f}, 9u),
+                ValueNoise3({3, 3, 4, 0.0f, 0.5f, 0.25f}, 9u), 1e-4f);
+    EXPECT_NEAR(ValueNoise3({2, 3, 4, 0.5f, 0.5f, 0.999999f}, 9u),
+                ValueNoise3({2, 3, 5, 0.5f, 0.5f, 0.0f}, 9u), 1e-4f);
+    EXPECT_NE(ValueNoise3({2, 3, 4, 0.0f, 0.0f, 0.0f}, 9u),
+              ValueNoise3({2, 3, 4, 0.0f, 0.0f, 0.0f}, 10u));
 }
 
 TEST(BasisNoise3, OffersPerlinAndValueNoise) {
@@ -44,12 +48,65 @@ TEST(BasisNoise3, OffersPerlinAndValueNoise) {
     EXPECT_TRUE(HasBasisNoise3(NoiseBasis::Value));
     EXPECT_FALSE(HasBasisNoise3(NoiseBasis::Simplex));
     EXPECT_FALSE(HasBasisNoise3(NoiseBasis::WorleyF1));
-    EXPECT_EQ(BasisNoise3(NoiseBasis::Perlin, 1, 2, 3, 0.3f, 0.6f, 0.2f, 5u),
-              PerlinNoise3(1, 2, 3, 0.3f, 0.6f, 0.2f, 5u));
-    EXPECT_EQ(BasisNoise3(NoiseBasis::Value, 1, 2, 3, 0.3f, 0.6f, 0.2f, 5u),
-              ValueNoise3(1, 2, 3, 0.3f, 0.6f, 0.2f, 5u));
-    EXPECT_EQ(BasisNoise3(NoiseBasis::Simplex, 1, 2, 3, 0.3f, 0.6f, 0.2f, 5u),
-              PerlinNoise3(1, 2, 3, 0.3f, 0.6f, 0.2f, 5u));
+    const LatticePoint3 point = {1, 2, 3, 0.3f, 0.6f, 0.2f};
+    EXPECT_EQ(BasisNoise3(NoiseBasis::Perlin, point, 5u), PerlinNoise3(point, 5u));
+    EXPECT_EQ(BasisNoise3(NoiseBasis::Value, point, 5u), ValueNoise3(point, 5u));
+    EXPECT_EQ(BasisNoise3(NoiseBasis::Simplex, point, 5u), PerlinNoise3(point, 5u));
+    EXPECT_EQ(PerlinNoise3(1.3f, 2.6f, 3.2f, 5u),
+              PerlinNoise3(SplitLattice3(1.3f, 2.6f, 3.2f), 5u));
+}
+
+TEST(LatticePoint, SplitsAtTheFloorOfEachCoordinate) {
+    const LatticePoint2 a = SplitLattice2(-1.25f, 2.5f);
+    EXPECT_EQ(a.ix, -2);
+    EXPECT_EQ(a.iy, 2);
+    EXPECT_EQ(a.fx, 0.75f);
+    EXPECT_EQ(a.fy, 0.5f);
+    const LatticePoint3 b = SplitLattice3(0.25f, -0.5f, 7.0f);
+    EXPECT_EQ(b.iy, -1);
+    EXPECT_EQ(b.fy, 0.5f);
+    EXPECT_EQ(b.iz, 7);
+    EXPECT_EQ(b.fz, 0.0f);
+    const LatticePoint2 c = terraingen::SplitLatticePrecise2(3.0e9 + 0.25, -0.75);
+    EXPECT_EQ(c.ix, static_cast<std::int32_t>(static_cast<std::int64_t>(3.0e9)));
+    EXPECT_EQ(c.fx, 0.25f);
+    EXPECT_EQ(c.iy, -1);
+    const LatticePoint3 d = terraingen::SplitLatticePrecise3(1737400.125, -0.5, 2.0);
+    EXPECT_EQ(d.ix, 1737400);
+    EXPECT_EQ(d.fx, 0.125f);
+    EXPECT_EQ(d.iy, -1);
+    EXPECT_EQ(d.iz, 2);
+}
+
+TEST(LatticeKeys, KeepTheirFrozenLayouts) {
+    using namespace terraingen::detail;  // NOLINT(google-build-using-namespace): the keys
+    EXPECT_EQ(SeededLatticeKey2(1u, 2u, 3u), (terraingen::UVec3{1u, 2u, 3u}));
+    EXPECT_EQ(PerlinLatticeKey3(1u, 2u, 3u, 4u),
+              (terraingen::UVec3{1u, 2u, 3u + terraingen::PcgHash(4u)}));
+    EXPECT_EQ(ValueLatticeKey3(1u, 2u, 3u, 0xf0u), (terraingen::UVec3{1u, 2u, 3u ^ 0xf0u}));
+    EXPECT_EQ(OctaveKey(7u, 2u, 1u), (terraingen::UVec3{7u, 2u, 1u}));
+}
+
+TEST(DomainWarp3, UsesThreeSuccessiveWarpFields) {
+    NoiseLayer layer;
+    layer.fractal.seed = 3u;
+    layer.warpAmplitude = 25.0f;
+    layer.warpWavelength = 300.0f;
+    FractalParams warp = terraingen::WarpParams(layer);
+    EXPECT_EQ(warp.octaves, 4);
+    EXPECT_EQ(warp.amplitude, 25.0f);
+    EXPECT_EQ(warp.wavelength, 300.0f);
+    EXPECT_EQ(warp.seed, terraingen::PcgHash(3u ^ 0x5bd1e995u));
+    const auto offset = terraingen::DomainWarp3(10.0, 20.0, 30.0, layer);
+    EXPECT_EQ(offset.dx, static_cast<double>(Fractal3(10.0, 20.0, 30.0, warp)));
+    warp.seed = terraingen::PcgHash(warp.seed);
+    EXPECT_EQ(offset.dy, static_cast<double>(Fractal3(10.0, 20.0, 30.0, warp)));
+    warp.seed = terraingen::PcgHash(warp.seed);
+    EXPECT_EQ(offset.dz, static_cast<double>(Fractal3(10.0, 20.0, 30.0, warp)));
+    FractalParams unit = layer.fractal;
+    unit.amplitude = 1.0f;
+    EXPECT_EQ(terraingen::EvaluateNoiseLayer3(10.0, 20.0, 30.0, layer),
+              Fractal3(10.0 + offset.dx, 20.0 + offset.dy, 30.0 + offset.dz, unit));
 }
 
 TEST(Fractal3, StaysWithinItsAmplitudeForEveryTypeAndIsPreciseFarFromTheOrigin) {

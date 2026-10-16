@@ -70,80 +70,52 @@ class BitWriter {
     throw GeoTiffError(std::string("Corrupt LZW data: ") + what);
 }
 
-}  // namespace
+/// The LZW string table for decoding: each code's string as its prefix code and last byte.
+class LzwDecodeTable {
+  public:
+    LzwDecodeTable() {
+        for (int code = 0; code < 256; ++code) {
+            suffix_[static_cast<std::size_t>(code)] = static_cast<std::uint8_t>(code);
+            length_[static_cast<std::size_t>(code)] = 1;
+        }
+    }
 
-std::vector<std::uint8_t> DecodeLzw(std::span<const std::uint8_t> data, std::size_t size) {
-    if (data.size() >= 2 && data[0] == 0 && (data[1] & 1u) != 0) {
-        throw GeoTiffError("Old-style LZW compression is not supported");
+    /// The code the next added string gets.
+    int Next() const {
+        return next_;
     }
-    std::array<std::uint16_t, kMaxCode> prefix{};
-    std::array<std::uint8_t, kMaxCode> suffix{};
-    std::array<std::uint16_t, kMaxCode> length{};
-    for (int code = 0; code < 256; ++code) {
-        suffix[static_cast<std::size_t>(code)] = static_cast<std::uint8_t>(code);
-        length[static_cast<std::size_t>(code)] = 1;
+
+    /// Forgets every added string, as after Clear.
+    void Reset() {
+        next_ = kFirstCode;
     }
-    std::vector<std::uint8_t> out;
-    out.reserve(size);
-    BitReader reader(data);
-    int width = 9;
-    int next = kFirstCode;
-    int previous = -1;
-    const auto emit = [&](int code) {
+
+    /// Adds the string of `previous` followed by `last`.
+    void Add(int previous, std::uint8_t last) {
+        const auto entry = static_cast<std::size_t>(next_++);
+        prefix_[entry] = static_cast<std::uint16_t>(previous);
+        suffix_[entry] = last;
+        length_[entry] =
+            static_cast<std::uint16_t>(length_[static_cast<std::size_t>(previous)] + 1);
+    }
+
+    /// Appends the string of `code` to `out` and returns its first byte.
+    std::uint8_t Emit(int code, std::vector<std::uint8_t>& out) const {
         const std::size_t start = out.size();
-        out.resize(start + length[static_cast<std::size_t>(code)]);
+        out.resize(start + length_[static_cast<std::size_t>(code)]);
         for (std::size_t i = out.size(); i > start; --i) {
-            out[i - 1] = suffix[static_cast<std::size_t>(code)];
-            code = prefix[static_cast<std::size_t>(code)];
+            out[i - 1] = suffix_[static_cast<std::size_t>(code)];
+            code = prefix_[static_cast<std::size_t>(code)];
         }
         return out[start];
-    };
-    while (out.size() < size) {
-        const int code = reader.Next(width);
-        if (code == kEndOfInfo) {
-            break;
-        }
-        if (code == kClear) {
-            width = 9;
-            next = kFirstCode;
-            previous = -1;
-            continue;
-        }
-        if (previous < 0) {
-            if (code > 255) {
-                Corrupt("first code after Clear is not a byte");
-            }
-            emit(code);
-            previous = code;
-            continue;
-        }
-        if (code > next || next >= kMaxCode) {
-            Corrupt("code out of range");
-        }
-        std::uint8_t first = 0;
-        if (code < next) {
-            first = emit(code);
-        } else {
-            first = emit(previous);
-            out.push_back(first);
-        }
-        const auto entry = static_cast<std::size_t>(next);
-        prefix[entry] = static_cast<std::uint16_t>(previous);
-        suffix[entry] = first;
-        length[entry] = static_cast<std::uint16_t>(length[static_cast<std::size_t>(previous)] + 1);
-        ++next;
-        if (next + 1 >= (1 << width) && width < 12) {
-            ++width;
-        }
-        previous = code;
     }
-    if (out.size() < size) {
-        throw GeoTiffError("Corrupt LZW data: decoded " + std::to_string(out.size()) + " of " +
-                           std::to_string(size) + " bytes");
-    }
-    out.resize(size);
-    return out;
-}
+
+  private:
+    std::array<std::uint16_t, kMaxCode> prefix_{};
+    std::array<std::uint8_t, kMaxCode> suffix_{};
+    std::array<std::uint16_t, kMaxCode> length_{};
+    int next_ = kFirstCode;
+};
 
 /// The LZW string table for encoding: (prefix code, next byte) -> code, open-addressed with a
 /// generation stamp so that clearing it is constant time.
@@ -190,12 +162,103 @@ class LzwTable {
     std::uint32_t generation_ = 1;
 };
 
-std::vector<std::uint8_t> EncodeLzw(std::span<const std::uint8_t> data) {
-    BitWriter writer;
+/// Writes LZW codes, widening them one code early as the table grows.
+class LzwCodeWriter {
+  public:
+    LzwCodeWriter() {
+        writer_.Put(kClear, width_);
+    }
+
+    /// The code the next string gets.
+    int Next() const {
+        return next_;
+    }
+
+    /// Writes `code`; the encoder adds a string for every code it writes.
+    void PutCode(int code) {
+        writer_.Put(code, width_);
+        ++next_;
+        width_ = LzwNextWidth(next_, width_);
+    }
+
+    /// Writes Clear and starts again from 9-bit codes.
+    void Clear() {
+        writer_.Put(kClear, width_);
+        width_ = 9;
+        next_ = kFirstCode;
+    }
+
+    std::vector<std::uint8_t> Finish() {
+        writer_.Put(kEndOfInfo, width_);
+        return writer_.Finish();
+    }
+
+  private:
+    BitWriter writer_;
+    int width_ = 9;
+    int next_ = kFirstCode;
+};
+
+}  // namespace
+
+int LzwNextWidth(int codes, int width) {
+    return codes >= (1 << width) && width < 12 ? width + 1 : width;
+}
+
+std::vector<std::uint8_t> DecodeLzw(std::span<const std::uint8_t> data, std::size_t size) {
+    if (data.size() >= 2 && data[0] == 0 && (data[1] & 1u) != 0) {
+        throw GeoTiffError("Old-style LZW compression is not supported");
+    }
+    LzwDecodeTable table;
+    std::vector<std::uint8_t> out;
+    out.reserve(size);
+    BitReader reader(data);
     int width = 9;
-    writer.Put(kClear, width);
+    int previous = -1;
+    while (out.size() < size) {
+        const int code = reader.Next(width);
+        if (code == kEndOfInfo) {
+            break;
+        }
+        if (code == kClear) {
+            width = 9;
+            table.Reset();
+            previous = -1;
+            continue;
+        }
+        if (previous < 0) {
+            if (code > 255) {
+                Corrupt("first code after Clear is not a byte");
+            }
+            table.Emit(code, out);
+            previous = code;
+            continue;
+        }
+        if (code > table.Next() || table.Next() >= kMaxCode) {
+            Corrupt("code out of range");
+        }
+        std::uint8_t first = 0;
+        if (code < table.Next()) {
+            first = table.Emit(code, out);
+        } else {
+            first = table.Emit(previous, out);
+            out.push_back(first);
+        }
+        table.Add(previous, first);
+        width = LzwNextWidth(table.Next() + 1, width);
+        previous = code;
+    }
+    if (out.size() < size) {
+        throw GeoTiffError("Corrupt LZW data: decoded " + std::to_string(out.size()) + " of " +
+                           std::to_string(size) + " bytes");
+    }
+    out.resize(size);
+    return out;
+}
+
+std::vector<std::uint8_t> EncodeLzw(std::span<const std::uint8_t> data) {
+    LzwCodeWriter writer;
     LzwTable table;
-    int next = kFirstCode;
     int current = -1;
     for (const std::uint8_t byte : data) {
         if (current < 0) {
@@ -207,28 +270,17 @@ std::vector<std::uint8_t> EncodeLzw(std::span<const std::uint8_t> data) {
             current = found;
             continue;
         }
-        writer.Put(current, width);
-        table.Insert(key, next);
-        ++next;
-        if (next > (1 << width) - 1 && width < 12) {
-            ++width;
-        }
-        if (next >= kMaxCode - 2) {
-            writer.Put(kClear, width);
+        table.Insert(key, writer.Next());
+        writer.PutCode(current);
+        if (writer.Next() >= kMaxCode - 2) {
+            writer.Clear();
             table.Clear();
-            width = 9;
-            next = kFirstCode;
         }
         current = byte;
     }
     if (current >= 0) {
-        writer.Put(current, width);
-        ++next;
-        if (next > (1 << width) - 1 && width < 12) {
-            ++width;
-        }
+        writer.PutCode(current);
     }
-    writer.Put(kEndOfInfo, width);
     return writer.Finish();
 }
 

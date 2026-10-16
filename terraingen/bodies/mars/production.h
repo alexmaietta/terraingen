@@ -1,8 +1,8 @@
 #pragma once
 
-#include "terraingen/bodies/moon/production.h"
-#include "terraingen/bodies/moon/surface.h"
+#include "terraingen/bodies/surface_model.h"
 #include "terraingen/distribution/log_polynomial.h"
+#include "terraingen/distribution/production_surface.h"
 
 namespace terraingen {
 

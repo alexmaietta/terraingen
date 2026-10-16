@@ -89,15 +89,14 @@ Vec3d Surface::Position(const Vec2d& point) const {
     return {radius_ * unit.x, radius_ * unit.y, radius_ * unit.z};
 }
 
-void Surface::Frame(const Vec2d& point, Vec3d& east, Vec3d& north, Vec3d& up) const {
+LocalFrame Surface::Frame(const Vec2d& point) const {
     if (kind_ == Kind::Plane) {
-        east = {1.0, 0.0, 0.0};
-        north = {0.0, 1.0, 0.0};
-        up = {0.0, 0.0, 1.0};
-        return;
+        return {{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
     }
-    LocalAxes(point.x * kDegree, point.y * kDegree, east, north);
-    up = UnitVector(point.x, point.y);
+    LocalFrame frame;
+    LocalAxes(point.x * kDegree, point.y * kDegree, frame.east, frame.north);
+    frame.up = UnitVector(point.x, point.y);
+    return frame;
 }
 
 Vec2d Surface::PointOf(const Vec3d& direction) const {
@@ -109,12 +108,11 @@ Vec2d Surface::PointOf(const Vec3d& direction) const {
     return {lon == -180.0 ? 180.0 : lon, lat};
 }
 
-void Surface::Bucket(const Vec2d& point, double size, long long& i, long long& j,
-                     long long& k) const {
+BucketIndex Surface::Bucket(const Vec2d& point, double size) const {
     const Vec3d p = Position(point);
-    i = static_cast<long long>(std::floor(p.x / size));
-    j = static_cast<long long>(std::floor(p.y / size));
-    k = static_cast<long long>(std::floor(p.z / size));
+    return {static_cast<long long>(std::floor(p.x / size)),
+            static_cast<long long>(std::floor(p.y / size)),
+            static_cast<long long>(std::floor(p.z / size))};
 }
 
 Bounds2d Surface::Expand(const Bounds2d& region, double metres) const {

@@ -1,6 +1,6 @@
 /// @file
 /// @brief `ParseConfig`, `LoadConfig` and `ConfigToJson`, and the JSON reading they share.
-#include "terraingen/pipeline/detail/json_io.h"
+#include "terraingen/pipeline/json_io.h"
 
 #include <cmath>
 #include <fstream>

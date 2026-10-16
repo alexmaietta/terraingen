@@ -69,6 +69,20 @@ struct RigidTransform {
     static RigidTransform Translation(const Vec3d& offset);
 };
 
+/// @brief Checks that `rotation` (row-major 3 x 3) is a proper rotation: orthonormal to within
+/// 1e-9, without a reflection.
+/// @param rotation The matrix to check.
+/// @throws std::invalid_argument otherwise.
+void RequireRotation(const std::array<double, 9>& rotation);
+
+/// @brief The unit quaternion of a rotation.
+///
+/// Reference: S. W. Shepperd, "Quaternion from rotation matrix", Journal of Guidance and Control
+/// 1(3):223-224, 1978. https://doi.org/10.2514/3.55767b
+/// @param rotation A proper rotation, row-major 3 x 3.
+/// @return The quaternion as (x, y, z, w).
+std::array<double, 4> RotationQuaternion(const std::array<double, 9>& rotation);
+
 /// `mesh` with every vertex moved by `transform`.
 TriangleMesh Transformed(const TriangleMesh& mesh, const RigidTransform& transform);
 

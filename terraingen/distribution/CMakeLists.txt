@@ -1,11 +1,13 @@
 terraingen_add_library(
     distribution
     SOURCES
+    combined.cpp
     golombek_rapp.cpp
     log_polynomial.cpp
     minimum.cpp
     piecewise_power_law.cpp
     power_law.cpp
+    production_surface.cpp
     size_frequency.cpp
     spliced.cpp
     summed.cpp

@@ -1,9 +1,9 @@
 /// @file
-/// @brief Internal: the JSON fields of crater and secondary crater layers and rim smoothing.
+/// @brief The JSON fields of crater and secondary crater layers and rim smoothing.
 #pragma once
 
 #include "terraingen/pipeline/config.h"
-#include "terraingen/pipeline/detail/fields_common.h"
+#include "terraingen/pipeline/fields_common.h"
 
 #include <limits>
 #include <string_view>

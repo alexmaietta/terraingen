@@ -132,7 +132,6 @@ void BindRaster(nb::module_& m) {
         .def_prop_ro("values", &MakeView<NumpyView>,
                      "Writeable NumPy view of shape (height, width) that keeps the raster alive.")
         .def_prop_rw("transform", &RasterF::Transform, &RasterF::SetTransform)
-        .def_prop_rw("crs", &RasterF::Crs, &RasterF::SetCrs, "Coordinate reference system as WKT.")
         .def_prop_rw("nodata", &RasterF::NoData, &RasterF::SetNoData)
         .def(
             "cell_center",

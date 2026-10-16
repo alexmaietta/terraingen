@@ -1,7 +1,7 @@
 # TerrainGen's modules, one library each, every module depending only on the ones before it:
 #   util          logging, version, build info header, geometry and surface cells
 #   raster        rasters, geotransforms, filters, resampling and GeoTIFF reading and writing
-#   noise         noise kernels: header-only and portable to GPU shading languages
+#   noise         noise kernels, header-only and portable to GPU shading languages, and their checks
 #   gpu           backend selection and the Vulkan compute device, opened at run time
 #   random        counter-based random streams and samplers
 #   meshes        triangle meshes, base solids, icospheres and synthetic boulder shapes
@@ -24,38 +24,28 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/util/version.h.in"
 function(terraingen_add_library module)
     cmake_parse_arguments(PARSE_ARGV 1 ARG "" "" "SOURCES;PUBLIC;PRIVATE")
     set(target terraingen_${module})
-    if(NOT ARG_SOURCES)
+    if(ARG_SOURCES)
+        add_library(${target} STATIC ${ARG_SOURCES})
+        set(scope PUBLIC)
+        target_link_libraries(
+            ${target} PRIVATE ${ARG_PRIVATE} $<BUILD_INTERFACE:terraingen_warnings>
+                              $<BUILD_INTERFACE:terraingen_coverage>)
+        if(TERRAINGEN_BUILD_PYTHON)
+            set_target_properties(${target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+        endif()
+        set_property(GLOBAL APPEND PROPERTY TERRAINGEN_STATIC_MODULES ${target})
+    else()
         add_library(${target} INTERFACE)
-        add_library(terraingen::${module} ALIAS ${target})
-        set_target_properties(${target} PROPERTIES EXPORT_NAME ${module})
-        target_include_directories(
-            ${target}
-            INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
-                      $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
-                      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
-        target_compile_features(${target} INTERFACE cxx_std_20)
-        target_link_libraries(${target} INTERFACE ${ARG_PUBLIC})
-        set_property(GLOBAL APPEND PROPERTY TERRAINGEN_MODULES ${target})
-        return()
+        set(scope INTERFACE)
     endif()
-    add_library(${target} STATIC ${ARG_SOURCES})
     add_library(terraingen::${module} ALIAS ${target})
     set_target_properties(${target} PROPERTIES EXPORT_NAME ${module})
-    if(TERRAINGEN_BUILD_PYTHON)
-        set_target_properties(${target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-    endif()
     target_include_directories(
-        ${target}
-        PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
-               $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
-               $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
-    target_compile_features(${target} PUBLIC cxx_std_20)
-    target_link_libraries(
-        ${target}
-        PUBLIC ${ARG_PUBLIC}
-        PRIVATE ${ARG_PRIVATE} $<BUILD_INTERFACE:terraingen_warnings>
-                $<BUILD_INTERFACE:terraingen_coverage>)
-    set_property(GLOBAL APPEND PROPERTY TERRAINGEN_STATIC_MODULES ${target})
+        ${target} ${scope} $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+        $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+    target_compile_features(${target} ${scope} cxx_std_20)
+    target_link_libraries(${target} ${scope} ${ARG_PUBLIC})
     set_property(GLOBAL APPEND PROPERTY TERRAINGEN_MODULES ${target})
 endfunction()
 
@@ -132,7 +122,6 @@ if(TERRAINGEN_INSTALL)
         COMPONENT development
         FILES_MATCHING
         PATTERN "*.h"
-        PATTERN "detail" EXCLUDE
         PATTERN "python" EXCLUDE
         PATTERN "app" EXCLUDE)
     install(

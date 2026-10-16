@@ -1,22 +1,14 @@
 #pragma once
 
+#include "terraingen/distribution/power_law.h"
 #include "terraingen/distribution/size_frequency.h"
 
 #include <vector>
 
 namespace terraingen {
 
-/// One segment of a `PiecewisePowerLawSfd`: N(>=D) = `coefficient` * D^(-`exponent`) from `start`
-/// metres up to the next segment's start.
-struct PowerLawSegment {
-    double start = 0.0;
-    double coefficient = 1.0;
-    double exponent = 2.0;
-
-    bool operator==(const PowerLawSegment&) const = default;
-};
-
-/// A cumulative distribution made of power-law segments in increasing diameter order.
+/// A cumulative distribution made of power-law segments in increasing diameter order, each applying
+/// from its `start` up to the next segment's start.
 ///
 /// Segments must meet at their joins within a relative tolerance unless `allowDiscontinuities` is
 /// set, which exists for legacy specifications. A downward jump at a join means a finite fraction

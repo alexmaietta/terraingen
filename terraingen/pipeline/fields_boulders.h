@@ -1,9 +1,9 @@
 /// @file
-/// @brief Internal: the JSON fields of boulder layers, boulder sizes and boulder shapes.
+/// @brief The JSON fields of boulder layers, boulder sizes and boulder shapes.
 #pragma once
 
 #include "terraingen/pipeline/config.h"
-#include "terraingen/pipeline/detail/fields_common.h"
+#include "terraingen/pipeline/fields_common.h"
 
 #include <string_view>
 

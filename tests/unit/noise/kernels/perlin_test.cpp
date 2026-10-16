@@ -146,7 +146,23 @@ TEST(PerlinNoise3, IsContinuousAcrossCellFacesAndDependsOnTheSeed) {
     }
     EXPECT_NE(PerlinNoise3(0.5f, 0.25f, 0.75f, 1u), PerlinNoise3(0.5f, 0.25f, 0.75f, 2u));
     EXPECT_EQ(PerlinNoise3(-1.5f, 2.25f, -0.75f, kSeed),
-              PerlinNoise3(-2, 2, -1, 0.5f, 0.25f, 0.25f, kSeed));
+              PerlinNoise3({-2, 2, -1, 0.5f, 0.25f, 0.25f}, kSeed));
+}
+
+TEST(PerlinCorner3, ReadsTheCornerFromItsBits) {
+    using terraingen::detail::PerlinCorner3;
+    using terraingen::detail::PerlinCornerHash3;
+    using terraingen::detail::PerlinGradient3;
+    const terraingen::LatticePoint3 point = {4, -3, 2, 0.25f, 0.5f, 0.75f};
+    EXPECT_EQ(PerlinCorner3(point, 0u, kSeed),
+              PerlinGradient3(PerlinCornerHash3(4u, static_cast<std::uint32_t>(-3), 2u, kSeed),
+                              0.25f, 0.5f, 0.75f));
+    EXPECT_EQ(PerlinCorner3(point, 5u, kSeed),
+              PerlinGradient3(PerlinCornerHash3(5u, static_cast<std::uint32_t>(-3), 3u, kSeed),
+                              -0.75f, 0.5f, -0.25f));
+    EXPECT_EQ(PerlinCorner3(point, 6u, kSeed),
+              PerlinGradient3(PerlinCornerHash3(4u, static_cast<std::uint32_t>(-2), 3u, kSeed),
+                              0.25f, -0.5f, -0.25f));
 }
 
 TEST(PerlinGradient3, UsesTheTwelveCubeEdgeVectors) {

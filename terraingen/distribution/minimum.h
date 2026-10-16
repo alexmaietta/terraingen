@@ -11,7 +11,8 @@ namespace terraingen {
 /// crater density: the lesser of the production surface and the equilibrium density at every
 /// diameter.
 ///
-/// The valid range is the intersection of the inputs' ranges.
+/// The valid range is the intersection of the inputs' valid ranges, even for inputs that allow
+/// extrapolation, which `SummedSfd` and `SplicedSfd` treat as valid everywhere.
 class MinimumSfd final : public SizeFrequencyDistribution {
   public:
     /// @throws std::invalid_argument if `distributions` is empty, holds a null pointer, mixes

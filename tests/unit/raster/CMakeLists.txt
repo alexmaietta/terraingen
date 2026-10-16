@@ -9,5 +9,6 @@ terraingen_add_test_suite(
     raster_test.cpp
     raster_stats_test.cpp
     resample_test.cpp
+    tiff_format_test.cpp
     LIBRARIES
     terraingen::raster)

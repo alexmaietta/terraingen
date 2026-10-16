@@ -43,7 +43,7 @@ double TruncatedCdf(const SizeFrequencyDistribution& sfd, double dMin, double dM
 
 TEST(LunarCrateringStatistics, NeukumSurfaceSamplesMatchTheirCdfOverTheFullRange) {
     const ProductionSurface surface(std::make_shared<LogPolynomialSfd>(NeukumProductionFunction()),
-                                    3.5);
+                                    3.5, terraingen::NeukumLunarChronology);
     const auto samples = Sample(surface, 5u, 10.0, 300000.0);
     EXPECT_LT(KolmogorovSmirnov(samples,
                                 [&](double d) { return TruncatedCdf(surface, 10.0, 300000.0, d); }),
@@ -52,7 +52,8 @@ TEST(LunarCrateringStatistics, NeukumSurfaceSamplesMatchTheirCdfOverTheFullRange
 
 TEST(LunarCrateringStatistics, ExtendedNeukumSurfaceSamplesMatchTheirCdfAcrossTheSplice) {
     const ProductionSurface surface(
-        std::make_shared<SplicedSfd>(ExtendedNeukumProductionFunction()), 3.5);
+        std::make_shared<SplicedSfd>(ExtendedNeukumProductionFunction()), 3.5,
+        terraingen::NeukumLunarChronology);
     const auto samples = Sample(surface, 6u, 2.5, 1000.0);
     EXPECT_LT(
         KolmogorovSmirnov(samples, [&](double d) { return TruncatedCdf(surface, 2.5, 1000.0, d); }),

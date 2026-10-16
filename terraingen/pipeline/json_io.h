@@ -1,13 +1,13 @@
 /// @file
-/// @brief Internal: reading configuration values from JSON and writing them back, through the
-/// field lists of detail/config_fields.h.
+/// @brief Reading configuration values from JSON and writing them back, through the field lists
+/// of config_fields.h.
 #pragma once
 
 #include "terraingen/pipeline/config.h"
 #include "terraingen/pipeline/config_checks.h"
+#include "terraingen/pipeline/config_enums.h"
+#include "terraingen/pipeline/config_fields.h"
 #include "terraingen/pipeline/config_json.h"
-#include "terraingen/pipeline/detail/config_enums.h"
-#include "terraingen/pipeline/detail/config_fields.h"
 
 #include <nlohmann/json.hpp>
 

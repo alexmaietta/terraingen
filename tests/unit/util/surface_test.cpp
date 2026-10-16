@@ -253,10 +253,10 @@ TEST(CubeSphereCells, TwoRingsOfNeighboursHoldEveryPointWithinACellAcrossFacesAn
 
 TEST(Surface, FramesAreOrthonormalWithUpAwayFromTheCentre) {
     const Surface moon = Surface::Sphere(kMoon);
-    Vec3d e;
-    Vec3d n;
-    Vec3d u;
-    moon.Frame({40.0, -30.0}, e, n, u);
+    const terraingen::LocalFrame frame = moon.Frame({40.0, -30.0});
+    const Vec3d& e = frame.east;
+    const Vec3d& n = frame.north;
+    const Vec3d& u = frame.up;
     const auto dot = [](const Vec3d& a, const Vec3d& b) {
         return a.x * b.x + a.y * b.y + a.z * b.z;
     };
@@ -266,7 +266,16 @@ TEST(Surface, FramesAreOrthonormalWithUpAwayFromTheCentre) {
     EXPECT_NEAR(dot(e, u), 0.0, 1e-12);
     const Vec3d p = moon.Position({40.0, -30.0});
     EXPECT_NEAR(dot(u, p), kMoon, 1e-6);
-    Surface().Frame({3.0, 4.0}, e, n, u);
-    EXPECT_EQ(e, (Vec3d{1.0, 0.0, 0.0}));
-    EXPECT_EQ(u, (Vec3d{0.0, 0.0, 1.0}));
+    const terraingen::LocalFrame plane = Surface().Frame({3.0, 4.0});
+    EXPECT_EQ(plane.east, (Vec3d{1.0, 0.0, 0.0}));
+    EXPECT_EQ(plane.north, (Vec3d{0.0, 1.0, 0.0}));
+    EXPECT_EQ(plane.up, (Vec3d{0.0, 0.0, 1.0}));
+}
+
+TEST(Surface, BucketsAreCubesOfThePositionAndFlatOnAPlane) {
+    EXPECT_EQ(Surface().Bucket({25.0, -5.0}, 10.0), (terraingen::BucketIndex{2, -1, 0}));
+    const Surface moon = Surface::Sphere(kMoon);
+    const terraingen::BucketIndex bucket = moon.Bucket({0.0, 90.0}, 1000.0);
+    EXPECT_EQ(bucket.i, 0);
+    EXPECT_EQ(bucket.k, static_cast<long long>(std::floor(kMoon / 1000.0)));
 }

@@ -23,7 +23,7 @@ WORKDIR /src
 COPY . .
 
 RUN cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-        -DPython_EXECUTABLE=/opt/venv/bin/python -DTERRAINGEN_BUILD_VALIDATION=OFF \
+        -DPython_EXECUTABLE=/opt/venv/bin/python \
     && cmake --build build \
     && ctest --test-dir build --output-on-failure \
     && cmake --install build --prefix /opt/terraingen \

@@ -1,9 +1,9 @@
 /// @file
-/// @brief Internal: the JSON fields of surfaces and sources.
+/// @brief The JSON fields of surfaces and sources.
 #pragma once
 
 #include "terraingen/pipeline/config.h"
-#include "terraingen/pipeline/detail/fields_common.h"
+#include "terraingen/pipeline/fields_common.h"
 
 #include <string_view>
 

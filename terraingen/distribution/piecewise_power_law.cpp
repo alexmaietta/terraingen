@@ -1,10 +1,10 @@
 #include "terraingen/distribution/piecewise_power_law.h"
 
+#include "terraingen/distribution/combined.h"
 #include "terraingen/util/checks.h"
 
 #include <cmath>
 #include <stdexcept>
-#include <string>
 #include <utility>
 
 namespace terraingen {
@@ -31,35 +31,22 @@ PiecewisePowerLawSfd::PiecewisePowerLawSfd(std::vector<PowerLawSegment> segments
               segment.start < range.max)) {
             throw std::invalid_argument("Segment starts must increase within the range");
         }
-        const PowerLawSegment& previous = segments_[i - 1];
-        const double below = previous.coefficient * std::pow(segment.start, -previous.exponent);
-        const double above = segment.coefficient * std::pow(segment.start, -segment.exponent);
-        if (above > below * (1.0 + tolerance)) {
-            throw std::invalid_argument("A cumulative distribution cannot rise at a segment join");
-        }
-        if (!allowDiscontinuities && above < below * (1.0 - tolerance)) {
-            throw std::invalid_argument("Segments are discontinuous at " +
-                                        std::to_string(segment.start) + " m");
-        }
+        detail::CheckJoin(segments_[i - 1].Cumulative(segment.start),
+                          segment.Cumulative(segment.start), segment.start, tolerance,
+                          allowDiscontinuities);
     }
 }
 
 const PowerLawSegment& PiecewisePowerLawSfd::SegmentAt(double diameter) const {
-    std::size_t index = 0;
-    while (index + 1 < segments_.size() && segments_[index + 1].start < diameter) {
-        ++index;
-    }
-    return segments_[index];
+    return segments_[detail::IndexOfStart(segments_, diameter)];
 }
 
 double PiecewisePowerLawSfd::CumulativeAt(double diameter) const {
-    const PowerLawSegment& segment = SegmentAt(diameter);
-    return segment.coefficient * std::pow(diameter, -segment.exponent);
+    return SegmentAt(diameter).Cumulative(diameter);
 }
 
 double PiecewisePowerLawSfd::IncrementalAt(double diameter) const {
-    const PowerLawSegment& segment = SegmentAt(diameter);
-    return segment.coefficient * segment.exponent * std::pow(diameter, -segment.exponent - 1.0);
+    return SegmentAt(diameter).Incremental(diameter);
 }
 
 double PiecewisePowerLawSfd::InvertCumulative(double target, double dMin, double dMax) const {
@@ -67,18 +54,17 @@ double PiecewisePowerLawSfd::InvertCumulative(double target, double dMin, double
     while (index + 1 < segments_.size()) {
         const PowerLawSegment& segment = segments_[index];
         const double high = std::fmin(dMax, segments_[index + 1].start);
-        if (std::fmax(dMin, segment.start) < high &&
-            target >= segment.coefficient * std::pow(high, -segment.exponent)) {
+        if (std::fmax(dMin, segment.start) < high && target >= segment.Cumulative(high)) {
             break;
         }
         ++index;
     }
     const PowerLawSegment& segment = segments_[index];
     const double low = std::fmax(dMin, segment.start);
-    if (target > segment.coefficient * std::pow(low, -segment.exponent)) {
+    if (target > segment.Cumulative(low)) {
         return low;
     }
-    return std::pow(target / segment.coefficient, -1.0 / segment.exponent);
+    return segment.Invert(target);
 }
 
 }  // namespace terraingen

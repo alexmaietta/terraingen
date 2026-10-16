@@ -8,9 +8,7 @@
 #include <optional>
 #include <span>
 #include <stdexcept>
-#include <string>
 #include <type_traits>
-#include <utility>
 #include <vector>
 
 namespace terraingen {
@@ -97,16 +95,6 @@ template <typename T> class Raster {
         transform_ = transform;
     }
 
-    /// Coordinate reference system as WKT, or empty if unknown.
-    const std::string& Crs() const {
-        return crs_;
-    }
-
-    void SetCrs(std::string wkt) {
-        crs_ = std::move(wkt);
-    }
-
-    /// Value marking cells without data, if any.
     /// Whether `value` is the no-data value; a NaN no-data value matches every NaN.
     bool IsNoData(const T& value) const {
         if (!noData_) {
@@ -120,6 +108,7 @@ template <typename T> class Raster {
         return value == *noData_;
     }
 
+    /// Value marking cells without data, if any.
     const std::optional<T>& NoData() const {
         return noData_;
     }
@@ -145,7 +134,6 @@ template <typename T> class Raster {
     std::size_t height_ = 0;
     std::vector<T> values_;
     GeoTransform transform_;
-    std::string crs_;
     std::optional<T> noData_;
 };
 

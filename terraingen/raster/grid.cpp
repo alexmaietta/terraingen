@@ -1,5 +1,7 @@
 #include "terraingen/raster/grid.h"
 
+#include "terraingen/util/checks.h"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -42,6 +44,25 @@ double RasterGrid::Spacing(const Surface& surface) const {
         return PixelSize();
     }
     return std::hypot(transform.rowRotation, transform.pixelHeight) * surface.UnitLength();
+}
+
+RasterGrid ResampledGrid(const RasterGrid& grid, double pixelSize) {
+    RequirePositive(pixelSize, "Pixel size");
+    const GeoTransform& source = grid.transform;
+    if (source.rowRotation != 0.0 || source.colRotation != 0.0) {
+        throw std::invalid_argument("Cannot resample a rotated raster");
+    }
+    const double scaleX = std::fabs(source.pixelWidth) / pixelSize;
+    const double scaleY = std::fabs(source.pixelHeight) / pixelSize;
+    const double width = std::max(1.0, std::round(static_cast<double>(grid.width) * scaleX));
+    const double height = std::max(1.0, std::round(static_cast<double>(grid.height) * scaleY));
+    if (width > 2147483647.0 || height > 2147483647.0) {
+        throw std::invalid_argument("Resampled raster would be too large");
+    }
+    RasterGrid resampled{static_cast<std::size_t>(width), static_cast<std::size_t>(height), source};
+    resampled.transform.pixelWidth = std::copysign(pixelSize, source.pixelWidth);
+    resampled.transform.pixelHeight = std::copysign(pixelSize, source.pixelHeight);
+    return resampled;
 }
 
 double ResolvedSpacing(const Raster<float>& raster, double spacing, const Surface& surface) {

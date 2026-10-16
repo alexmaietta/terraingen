@@ -75,10 +75,9 @@ def test_from_array_rejects_wrong_dimensions():
 def test_georeference_and_nodata_round_trip():
     raster = tg.Raster(10, 10)
     raster.transform = tg.GeoTransform.north_up(100.0, 200.0, 2.0)
-    raster.crs = 'LOCAL_CS["test"]'
     raster.nodata = -9999.0
     assert raster.cell_center(1, 2) == (103.0, 195.0)
-    assert raster.crs == 'LOCAL_CS["test"]'
+    assert not hasattr(raster, "crs")
     assert raster.nodata == -9999.0
     raster.nodata = None
     assert raster.nodata is None

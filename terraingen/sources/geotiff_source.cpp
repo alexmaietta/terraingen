@@ -44,19 +44,7 @@ GeoTiffSource::GeoTiffSource(std::filesystem::path path, std::size_t band,
     }
     grid_ = {info_.width, info_.height, info_.transform};
     if (pixelSize_) {
-        RequirePositive(*pixelSize_, "Pixel size");
-        GeoTransform& t = grid_.transform;
-        if (t.rowRotation != 0.0 || t.colRotation != 0.0) {
-            throw std::invalid_argument("Rotated rasters cannot be resampled");
-        }
-        grid_.width = static_cast<std::size_t>(std::max(
-            1.0,
-            std::round(static_cast<double>(info_.width) * std::fabs(t.pixelWidth) / *pixelSize_)));
-        grid_.height = static_cast<std::size_t>(
-            std::max(1.0, std::round(static_cast<double>(info_.height) * std::fabs(t.pixelHeight) /
-                                     *pixelSize_)));
-        t.pixelWidth = std::copysign(*pixelSize_, t.pixelWidth);
-        t.pixelHeight = std::copysign(*pixelSize_, t.pixelHeight);
+        grid_ = ResampledGrid(grid_, *pixelSize_);
     }
 }
 
@@ -97,42 +85,30 @@ const Raster<float>& GeoTiffSource::Native() const {
     return *native_;
 }
 
-void GeoTiffSource::Fill(Raster<float>& heights) const {
+std::optional<GeoTiffSource::LatticeOffset>
+GeoTiffSource::OffsetOnLattice(const GeoTransform& target) const {
     const GeoTransform& source = grid_.transform;
-    const GeoTransform& target = heights.Transform();
-    const std::optional<long long> colOffset =
-        Whole((target.originX - source.originX) / source.pixelWidth);
-    const std::optional<long long> rowOffset =
-        Whole((target.originY - source.originY) / source.pixelHeight);
     const auto same = [](double a, double b) { return std::fabs(a - b) <= 1e-12 * std::fabs(b); };
-    const bool onLattice = same(target.pixelWidth, source.pixelWidth) &&
-                           same(target.pixelHeight, source.pixelHeight) &&
-                           target.rowRotation == source.rowRotation &&
-                           target.colRotation == source.colRotation && colOffset && rowOffset;
-    const Raster<float>& data = Heights();
-    std::optional<float> noData = data.NoData();
-    const float fill = noData.value_or(std::numeric_limits<float>::quiet_NaN());
-    bool outside = false;
-    if (!onLattice) {
-        if (target.rowRotation != 0.0 || target.colRotation != 0.0) {
-            throw std::invalid_argument("A rotated grid off the lattice of " + path_.string() +
-                                        " cannot be filled");
-        }
-        for (std::size_t row = 0; row < heights.Height(); ++row) {
-            for (std::size_t col = 0; col < heights.Width(); ++col) {
-                const Vec2d centre = heights.CellCenter(col, row);
-                const float value = HeightAt(centre.x, centre.y);
-                outside = outside || std::isnan(value);
-                heights(col, row) = std::isnan(value) ? fill : value;
-            }
-        }
-        heights.SetNoData(noData ? noData : (outside ? std::optional<float>(fill) : std::nullopt));
-        return;
+    const std::optional<long long> col =
+        Whole((target.originX - source.originX) / source.pixelWidth);
+    const std::optional<long long> row =
+        Whole((target.originY - source.originY) / source.pixelHeight);
+    if (!same(target.pixelWidth, source.pixelWidth) ||
+        !same(target.pixelHeight, source.pixelHeight) || target.rowRotation != source.rowRotation ||
+        target.colRotation != source.colRotation || !col || !row) {
+        return std::nullopt;
     }
+    return LatticeOffset{*col, *row};
+}
+
+void GeoTiffSource::CopyFromLattice(Raster<float>& heights, LatticeOffset offset) const {
+    const Raster<float>& data = Heights();
+    const float fill = data.NoData().value_or(std::numeric_limits<float>::quiet_NaN());
+    bool outside = false;
     for (std::size_t row = 0; row < heights.Height(); ++row) {
-        const long long sourceRow = *rowOffset + static_cast<long long>(row);
+        const long long sourceRow = offset.row + static_cast<long long>(row);
         for (std::size_t col = 0; col < heights.Width(); ++col) {
-            const long long sourceCol = *colOffset + static_cast<long long>(col);
+            const long long sourceCol = offset.col + static_cast<long long>(col);
             if (sourceRow < 0 || sourceCol < 0 ||
                 sourceRow >= static_cast<long long>(data.Height()) ||
                 sourceCol >= static_cast<long long>(data.Width())) {
@@ -144,7 +120,25 @@ void GeoTiffSource::Fill(Raster<float>& heights) const {
                 data(static_cast<std::size_t>(sourceCol), static_cast<std::size_t>(sourceRow));
         }
     }
-    heights.SetNoData(noData ? noData : (outside ? std::optional<float>(fill) : std::nullopt));
+    heights.SetNoData(FilledNoData(data.NoData(), outside));
+}
+
+void GeoTiffSource::FillBySampling(Raster<float>& heights) const {
+    const GeoTransform& target = heights.Transform();
+    if (target.rowRotation != 0.0 || target.colRotation != 0.0) {
+        throw std::invalid_argument("A rotated grid off the lattice of " + path_.string() +
+                                    " cannot be filled");
+    }
+    SampleAtCentres(heights, Heights().NoData(),
+                    [this](double x, double y) { return HeightAt(x, y); });
+}
+
+void GeoTiffSource::Fill(Raster<float>& heights) const {
+    if (const auto offset = OffsetOnLattice(heights.Transform())) {
+        CopyFromLattice(heights, *offset);
+    } else {
+        FillBySampling(heights);
+    }
 }
 
 float GeoTiffSource::HeightAt(double x, double y) const {

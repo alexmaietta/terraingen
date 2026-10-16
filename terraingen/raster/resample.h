@@ -3,6 +3,11 @@
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
 
+#include <cmath>
+#include <cstddef>
+#include <limits>
+#include <optional>
+
 namespace terraingen {
 
 /// How `Resample` interpolates between source cells.
@@ -18,7 +23,7 @@ enum class ResampleMethod {
 ///
 /// Each output cell centre is mapped into the source and interpolated, with samples beyond the
 /// edge taken from the nearest edge cell. Where any contributing cell holds the no-data value, the
-/// output cell is no-data. The CRS and no-data value are kept.
+/// output cell is no-data. The no-data value is kept.
 ///
 /// Reference: R. Keys, "Cubic convolution interpolation for digital image processing", IEEE
 /// Transactions on Acoustics, Speech, and Signal Processing 29(6):1153-1160, 1981.
@@ -35,9 +40,35 @@ float SampleRaster(const Raster<float>& raster, double x, double y, ResampleMeth
 
 /// `raster` resampled onto `grid`: each cell is `SampleRaster` at its centre, and cells that give
 /// NaN hold `raster`'s no-data value (NaN if it has none, which then becomes the no-data value).
-/// The CRS is kept.
 /// @throws std::invalid_argument for an empty or rotated raster, or an empty grid.
 Raster<float> ResampleTo(const Raster<float>& raster, const RasterGrid& grid,
                          ResampleMethod method);
+
+/// @brief The no-data value of a raster filled from a source with no-data value `noData`, whose
+/// missing cells hold `noData` or, without one, NaN.
+/// @param noData The source's no-data value, if any.
+/// @param missing Whether any cell was missing.
+/// @return `noData` if set; otherwise NaN if a cell was missing, else none.
+std::optional<float> FilledNoData(std::optional<float> noData, bool missing);
+
+/// @brief Sets each cell of `target` to `sample` at the cell's centre; cells where it gives NaN
+/// hold `noData`, or NaN without one, and `target` gets `FilledNoData`.
+/// @param target The raster to fill, on its own grid.
+/// @param noData The no-data value of what is sampled, if any.
+/// @param sample Called with the world x and y of each cell centre; returns NaN where missing.
+template <typename Sample>
+void SampleAtCentres(Raster<float>& target, std::optional<float> noData, Sample&& sample) {
+    const float fill = noData.value_or(std::numeric_limits<float>::quiet_NaN());
+    bool missing = false;
+    for (std::size_t row = 0; row < target.Height(); ++row) {
+        for (std::size_t col = 0; col < target.Width(); ++col) {
+            const Vec2d centre = target.CellCenter(col, row);
+            const float value = sample(centre.x, centre.y);
+            missing = missing || std::isnan(value);
+            target(col, row) = std::isnan(value) ? fill : value;
+        }
+    }
+    target.SetNoData(FilledNoData(noData, missing));
+}
 
 }  // namespace terraingen

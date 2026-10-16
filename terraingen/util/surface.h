@@ -4,6 +4,22 @@
 
 namespace terraingen {
 
+/// The east, north and up unit vectors at a surface point.
+struct LocalFrame {
+    Vec3d east;
+    Vec3d north;
+    Vec3d up;
+};
+
+/// The integer coordinates of a cube of a 3D grid.
+struct BucketIndex {
+    long long i = 0;
+    long long j = 0;
+    long long k = 0;
+
+    bool operator==(const BucketIndex&) const = default;
+};
+
 /// The shape a terrain lies on: a plane, or a sphere such as a planet or moon. It says what surface
 /// coordinates mean and measures distances and directions between them, so features defined in a
 /// local frame around their centre (crater profiles, boulders, rays) work on either.
@@ -75,9 +91,11 @@ class Surface {
     /// towards longitude 0 on the equator, y towards longitude 90 and z towards the north pole.
     Vec3d Position(const Vec2d& point) const;
 
-    /// The east, north and up unit vectors at `point` in the frame of `Position`: on a plane the x,
-    /// y and z axes; on a sphere the local frame of `Offset`, up away from the centre.
-    void Frame(const Vec2d& point, Vec3d& east, Vec3d& north, Vec3d& up) const;
+    /// @brief The east, north and up unit vectors at `point` in the frame of `Position`: on a plane
+    /// the x, y and z axes; on a sphere the local frame of `Offset`, up away from the centre.
+    /// @param point The surface point.
+    /// @return The three axes.
+    LocalFrame Frame(const Vec2d& point) const;
 
     /// The surface point of a direction from the sphere's centre (any length but 0); on a plane,
     /// (x, y).
@@ -103,9 +121,11 @@ class Surface {
                region.Contains(pole.x + 360.0, pole.y);
     }
 
-    /// The 3D bucket of side `size` metres holding `point`, for hashing nearby features: on a
-    /// plane the z index is always 0.
-    void Bucket(const Vec2d& point, double size, long long& i, long long& j, long long& k) const;
+    /// @brief The 3D bucket holding `point`, for hashing nearby features.
+    /// @param point The surface point.
+    /// @param size The bucket side in metres.
+    /// @return The bucket of `Position(point)`; on a plane k is always 0.
+    BucketIndex Bucket(const Vec2d& point, double size) const;
 
     bool operator==(const Surface&) const = default;
 

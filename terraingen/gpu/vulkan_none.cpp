@@ -1,10 +1,13 @@
 #include "terraingen/gpu/vulkan.h"
 
 #include <stdexcept>
+#include <utility>
 
 namespace terraingen {
 
-VulkanCompute::VulkanCompute(State* state) : state_(state) {}
+struct VulkanCompute::State {};
+
+VulkanCompute::VulkanCompute(std::unique_ptr<State> state) : state_(std::move(state)) {}
 
 VulkanCompute::~VulkanCompute() = default;
 

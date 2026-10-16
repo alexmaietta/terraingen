@@ -1,6 +1,6 @@
 /// @file
 /// @brief Library objects built from configuration specs: models, layers, sources and albedo.
-#include "terraingen/pipeline/detail/build.h"
+#include "terraingen/pipeline/build.h"
 
 #include "terraingen/albedo/crater_albedo.h"
 #include "terraingen/albedo/raster_albedo.h"
@@ -24,8 +24,8 @@
 #include "terraingen/layers/noise_relief.h"
 #include "terraingen/layers/transforms.h"
 #include "terraingen/pipeline/config_checks.h"
-#include "terraingen/pipeline/detail/validate.h"
 #include "terraingen/pipeline/run.h"
+#include "terraingen/pipeline/validate.h"
 #include "terraingen/sources/flat_source.h"
 #include "terraingen/sources/geotiff_source.h"
 #include "terraingen/sources/source_chain.h"

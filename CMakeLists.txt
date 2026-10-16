@@ -11,10 +11,6 @@ project(
     LANGUAGES C CXX)
 
 option(TERRAINGEN_BUILD_TESTS "Build the test suite" ${PROJECT_IS_TOP_LEVEL})
-# Reserved: the validation checks against external references are kept out of the repository for
-# now, so this option builds nothing yet.
-option(TERRAINGEN_BUILD_VALIDATION
-       "Build the validation tests against external references (none yet)" OFF)
 option(TERRAINGEN_BUILD_BENCHMARKS "Build the benchmarks (Google Benchmark)"
        ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_BUILD_DEMOS "Build the demos" OFF)

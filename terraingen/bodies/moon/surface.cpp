@@ -13,7 +13,7 @@ namespace terraingen {
 SurfaceModel LunarSurface(double ageGyr) {
     auto production = std::make_shared<SplicedSfd>(ExtendedNeukumProductionFunction());
     auto equilibrium = std::make_shared<PowerLawSfd>(TraskEquilibrium());
-    auto surface = std::make_shared<ProductionSurface>(production, ageGyr);
+    auto surface = std::make_shared<ProductionSurface>(production, ageGyr, NeukumLunarChronology);
     return SurfaceModel{
         std::make_shared<MinimumSfd>(
             std::vector<std::shared_ptr<const SizeFrequencyDistribution>>{surface, equilibrium}),

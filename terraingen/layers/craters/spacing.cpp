@@ -33,9 +33,8 @@ struct BandGrid {
 };
 
 CellKey KeyOf(const Crater& crater, double size, const Surface& surface) {
-    CellKey key{};
-    surface.Bucket({crater.x, crater.y}, size, key[0], key[1], key[2]);
-    return key;
+    const BucketIndex bucket = surface.Bucket({crater.x, crater.y}, size);
+    return {bucket.i, bucket.j, bucket.k};
 }
 
 /// The craters of `craters` bucketed by band.

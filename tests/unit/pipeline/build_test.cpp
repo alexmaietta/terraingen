@@ -1,7 +1,7 @@
 /// @file
 /// @brief Tests of building library objects from configuration specs (pipeline/build.cpp).
 #include "pipeline_configs.h"
-#include "terraingen/pipeline/detail/build.h"
+#include "terraingen/pipeline/build.h"
 #include "terraingen/pipeline/run.h"
 #include "terraingen/terraingen.h"
 

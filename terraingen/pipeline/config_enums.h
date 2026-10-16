@@ -1,5 +1,5 @@
 /// @file
-/// @brief Internal: the JSON name and description of every enum value a configuration holds.
+/// @brief The JSON name and description of every enum value a configuration holds.
 #pragma once
 
 #include "terraingen/pipeline/config.h"

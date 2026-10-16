@@ -18,6 +18,13 @@ namespace terraingen::detail {
 /// @throws GeoTiffError for corrupt data, old-style (LSB-first) LZW, or output shorter than `size`.
 std::vector<std::uint8_t> DecodeLzw(std::span<const std::uint8_t> data, std::size_t size);
 
+/// @brief The LZW code width after the table reaches `codes` codes, with TIFF's early change: the
+/// width grows one code before the table needs it, up to 12 bits.
+/// @param codes The encoder's next code; the decoder, one code behind, passes its next code + 1.
+/// @param width The current code width in bits.
+/// @return The width for the next code.
+int LzwNextWidth(int codes, int width);
+
 /// Encodes `data` as TIFF LZW, beginning with Clear and ending with EndOfInfo.
 std::vector<std::uint8_t> EncodeLzw(std::span<const std::uint8_t> data);
 

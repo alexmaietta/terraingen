@@ -153,6 +153,43 @@ RigidTransform RigidTransform::Translation(const Vec3d& offset) {
     return transform;
 }
 
+void RequireRotation(const std::array<double, 9>& r) {
+    for (std::size_t i = 0; i < 3; ++i) {
+        for (std::size_t j = 0; j < 3; ++j) {
+            double dot = 0.0;
+            for (std::size_t k = 0; k < 3; ++k) {
+                dot += r[3 * i + k] * r[3 * j + k];
+            }
+            if (std::fabs(dot - (i == j ? 1.0 : 0.0)) > 1e-9) {
+                throw std::invalid_argument("A pose must be a rotation");
+            }
+        }
+    }
+    const double det = r[0] * (r[4] * r[8] - r[5] * r[7]) - r[1] * (r[3] * r[8] - r[5] * r[6]) +
+                       r[2] * (r[3] * r[7] - r[4] * r[6]);
+    if (det < 0.0) {
+        throw std::invalid_argument("A pose must be a rotation, not a reflection");
+    }
+}
+
+std::array<double, 4> RotationQuaternion(const std::array<double, 9>& r) {
+    const double trace = r[0] + r[4] + r[8];
+    if (trace > 0.0) {
+        const double s = 2.0 * std::sqrt(1.0 + trace);
+        return {(r[7] - r[5]) / s, (r[2] - r[6]) / s, (r[3] - r[1]) / s, 0.25 * s};
+    }
+    if (r[0] > r[4] && r[0] > r[8]) {
+        const double s = 2.0 * std::sqrt(1.0 + r[0] - r[4] - r[8]);
+        return {0.25 * s, (r[1] + r[3]) / s, (r[2] + r[6]) / s, (r[7] - r[5]) / s};
+    }
+    if (r[4] > r[8]) {
+        const double s = 2.0 * std::sqrt(1.0 + r[4] - r[0] - r[8]);
+        return {(r[1] + r[3]) / s, 0.25 * s, (r[5] + r[7]) / s, (r[2] - r[6]) / s};
+    }
+    const double s = 2.0 * std::sqrt(1.0 + r[8] - r[0] - r[4]);
+    return {(r[2] + r[6]) / s, (r[5] + r[7]) / s, 0.25 * s, (r[3] - r[1]) / s};
+}
+
 TriangleMesh Transformed(const TriangleMesh& mesh, const RigidTransform& transform) {
     TriangleMesh moved = mesh;
     for (Vec3d& p : moved.positions) {

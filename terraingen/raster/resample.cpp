@@ -1,7 +1,5 @@
 #include "terraingen/raster/resample.h"
 
-#include "terraingen/util/checks.h"
-
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -94,48 +92,27 @@ Raster<float> ResampleTo(const Raster<float>& raster, const RasterGrid& grid,
         throw std::invalid_argument("Cannot resample onto an empty grid");
     }
     Raster<float> result = grid.MakeRaster();
-    result.SetCrs(raster.Crs());
-    const float fill = raster.NoData().value_or(std::numeric_limits<float>::quiet_NaN());
-    bool missing = false;
-    for (std::size_t row = 0; row < result.Height(); ++row) {
-        for (std::size_t col = 0; col < result.Width(); ++col) {
-            const Vec2d centre = result.CellCenter(col, row);
-            const float value = SampleRaster(raster, centre.x, centre.y, method);
-            missing = missing || std::isnan(value);
-            result(col, row) = std::isnan(value) ? fill : value;
-        }
-    }
-    result.SetNoData(raster.NoData() ? raster.NoData()
-                                     : (missing ? std::optional<float>(fill) : std::nullopt));
+    SampleAtCentres(result, raster.NoData(),
+                    [&](double x, double y) { return SampleRaster(raster, x, y, method); });
     return result;
+}
+
+std::optional<float> FilledNoData(std::optional<float> noData, bool missing) {
+    if (noData || !missing) {
+        return noData;
+    }
+    return std::numeric_limits<float>::quiet_NaN();
 }
 
 Raster<float> Resample(const Raster<float>& raster, double pixelSize, ResampleMethod method) {
     if (raster.Empty()) {
         throw std::invalid_argument("Cannot resample an empty raster");
     }
-    RequirePositive(pixelSize, "Pixel size");
-    const GeoTransform& source = raster.Transform();
-    if (source.rowRotation != 0.0 || source.colRotation != 0.0) {
-        throw std::invalid_argument("Cannot resample a rotated raster");
-    }
-    const double scaleX = std::fabs(source.pixelWidth) / pixelSize;
-    const double scaleY = std::fabs(source.pixelHeight) / pixelSize;
-    const double width = std::max(1.0, std::round(static_cast<double>(raster.Width()) * scaleX));
-    const double height = std::max(1.0, std::round(static_cast<double>(raster.Height()) * scaleY));
-    if (width > 2147483647.0 || height > 2147483647.0) {
-        throw std::invalid_argument("Resampled raster would be too large");
-    }
-    Raster<float> result(static_cast<std::size_t>(width), static_cast<std::size_t>(height));
-    GeoTransform transform = source;
-    transform.pixelWidth = std::copysign(pixelSize, source.pixelWidth);
-    transform.pixelHeight = std::copysign(pixelSize, source.pixelHeight);
-    result.SetTransform(transform);
-    result.SetCrs(raster.Crs());
+    Raster<float> result = ResampledGrid(RasterGrid::Of(raster), pixelSize).MakeRaster();
     result.SetNoData(raster.NoData());
-    const std::optional<float> noData = raster.NoData();
-    const float fill = noData.value_or(std::nanf(""));
-
+    const double scaleX = std::fabs(raster.Transform().pixelWidth) / pixelSize;
+    const double scaleY = std::fabs(raster.Transform().pixelHeight) / pixelSize;
+    const float fill = raster.NoData().value_or(std::nanf(""));
     for (std::size_t row = 0; row < result.Height(); ++row) {
         const double v = (static_cast<double>(row) + 0.5) / scaleY - 0.5;
         for (std::size_t col = 0; col < result.Width(); ++col) {

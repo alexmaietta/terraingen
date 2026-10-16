@@ -63,6 +63,18 @@ class GeoTiffSource final : public Source {
     }
 
   private:
+    /// Where a grid on the source's lattice starts, in source cells.
+    struct LatticeOffset {
+        long long col = 0;
+        long long row = 0;
+    };
+
+    /// The offset of a grid with transform `target` when it lies on the source's lattice.
+    std::optional<LatticeOffset> OffsetOnLattice(const GeoTransform& target) const;
+    /// Copies the source cells under `heights`, which starts at `offset`.
+    void CopyFromLattice(Raster<float>& heights, LatticeOffset offset) const;
+    /// Sets each cell of `heights` to `HeightAt` its centre.
+    void FillBySampling(Raster<float>& heights) const;
     /// Reads the file, and resamples it to `pixelSize` when set, once.
     void Load() const;
     const Raster<float>& Heights() const;

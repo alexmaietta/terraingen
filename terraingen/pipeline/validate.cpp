@@ -1,7 +1,7 @@
 /// @file
 /// @brief `ValidateConfig` and `DescribeSource`: the checks of a configuration that parsing
 /// cannot make.
-#include "terraingen/pipeline/detail/validate.h"
+#include "terraingen/pipeline/validate.h"
 
 #include "terraingen/albedo/crater_albedo.h"
 #include "terraingen/albedo/raster_albedo.h"
@@ -9,8 +9,8 @@
 #include "terraingen/layers/craters/spacing.h"
 #include "terraingen/layers/transforms.h"
 #include "terraingen/noise/kernels/layers.h"
+#include "terraingen/pipeline/build.h"
 #include "terraingen/pipeline/config_checks.h"
-#include "terraingen/pipeline/detail/build.h"
 #include "terraingen/pipeline/run.h"
 #include "terraingen/sources/flat_source.h"
 #include "terraingen/util/overloaded.h"
@@ -211,25 +211,6 @@ void CheckBand(std::size_t band, const GeoTiffInfo& info, const std::string& pat
     }
 }
 
-/// `grid` resampled to cells of `cell` over the same extent, or nothing when a side would exceed
-/// `kMaxConfigGridSize`.
-std::optional<RasterGrid> ResampledGrid(RasterGrid grid, double cell) {
-    const auto side = [&](std::size_t cells, double size) {
-        return std::max(1.0, std::round(static_cast<double>(cells) * (std::fabs(size) / cell)));
-    };
-    const double width = side(grid.width, grid.transform.pixelWidth);
-    const double height = side(grid.height, grid.transform.pixelHeight);
-    const auto limit = static_cast<double>(kMaxConfigGridSize);
-    if (width > limit || height > limit) {
-        return std::nullopt;
-    }
-    grid.width = static_cast<std::size_t>(width);
-    grid.height = static_cast<std::size_t>(height);
-    grid.transform.pixelWidth = std::copysign(cell, grid.transform.pixelWidth);
-    grid.transform.pixelHeight = std::copysign(cell, grid.transform.pixelHeight);
-    return grid;
-}
-
 RasterGrid DescribeSourceAt(const SourceSpec& source, const std::filesystem::path& directory,
                             const std::string& path, const Surface& surface);
 
@@ -298,14 +279,15 @@ RasterGrid DescribeRaster(const RasterSourceSpec& raster, const std::filesystem:
     if (grid.transform.rowRotation != 0.0 || grid.transform.colRotation != 0.0) {
         throw ConfigError(pixelSize, "rotated rasters cannot be resampled");
     }
-    const std::optional<RasterGrid> resampled =
-        ResampledGrid(grid, *raster.pixelSize / surface.UnitLength());
-    if (!resampled) {
+    RasterGrid resampled;
+    try {
+        resampled = ResampledGrid(grid, *raster.pixelSize / surface.UnitLength());
+    } catch (const std::invalid_argument&) {
         throw ConfigError(pixelSize, "resampling would exceed " +
                                          std::to_string(kMaxConfigGridSize) + " cells per side");
     }
-    CheckGridSize(resampled->width, resampled->height, pixelSize);
-    return *resampled;
+    CheckGridSize(resampled.width, resampled.height, pixelSize);
+    return resampled;
 }
 
 RasterGrid DescribeSourceAt(const SourceSpec& source, const std::filesystem::path& directory,

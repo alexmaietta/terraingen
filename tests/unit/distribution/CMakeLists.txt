@@ -1,11 +1,13 @@
 terraingen_add_test_suite(
     distribution
     SOURCES
+    combined_test.cpp
     golombek_rapp_test.cpp
     log_polynomial_test.cpp
     minimum_test.cpp
     piecewise_power_law_test.cpp
     power_law_test.cpp
+    production_surface_test.cpp
     size_frequency_test.cpp
     spliced_test.cpp
     summed_test.cpp

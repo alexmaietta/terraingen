@@ -36,11 +36,8 @@ void main(uint3 id : SV_DispatchThreadID) {
     values[base + 3u] = worley.f1;
     values[base + 4u] = worley.f2;
     values[base + 5u] = terraingen::PerlinNoise3(x, y, z, seed);
-    const float cx = floor(x);
-    const float cy = floor(y);
-    const float cz = floor(z);
-    values[base + 6u] = terraingen::BasisNoise3(terraingen::NoiseBasis::Value, int(cx), int(cy),
-                                                int(cz), x - cx, y - cy, z - cz, seed);
+    values[base + 6u] = terraingen::BasisNoise3(terraingen::NoiseBasis::Value,
+                                                terraingen::SplitLattice3(x, y, z), seed);
     const terraingen::NoiseLayers block = layers[0];
     for (uint j = 0u; j < terraingen::kMaxNoiseLayers; ++j) {
         values[base + 7u + j] = terraingen::EvaluateNoiseLayer(100.0f * x, 100.0f * y,

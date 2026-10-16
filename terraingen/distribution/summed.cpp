@@ -1,9 +1,9 @@
 #include "terraingen/distribution/summed.h"
 
+#include "terraingen/distribution/combined.h"
 #include "terraingen/util/checks.h"
 
 #include <cmath>
-#include <limits>
 #include <stdexcept>
 #include <utility>
 
@@ -11,30 +11,27 @@ namespace terraingen {
 
 namespace {
 
-const std::vector<WeightedSfd>& Checked(const std::vector<WeightedSfd>& terms) {
-    if (terms.empty()) {
-        throw std::invalid_argument("A summed distribution needs at least one term");
-    }
+/// The kind of `terms`, after checking them.
+SfdKind CheckedKind(const std::vector<WeightedSfd>& terms) {
+    std::vector<const SizeFrequencyDistribution*> distributions;
     for (const WeightedSfd& term : terms) {
-        if (!term.distribution) {
-            throw std::invalid_argument("A summed distribution cannot hold a null term");
-        }
-        RequirePositive(term.weight, "Summed distribution weights");
-        if (term.distribution->Kind() != terms.front().distribution->Kind()) {
-            throw std::invalid_argument("Summed terms must be distributions of one kind");
-        }
+        distributions.push_back(term.distribution.get());
     }
-    return terms;
+    const SfdKind kind = detail::CommonKind(distributions, "A summed distribution");
+    for (const WeightedSfd& term : terms) {
+        RequirePositive(term.weight, "Summed distribution weights");
+    }
+    return kind;
 }
 
+/// Where every term may be evaluated, after checking the terms.
 DiameterRange Overlap(const std::vector<WeightedSfd>& terms) {
-    DiameterRange range{0.0, std::numeric_limits<double>::infinity()};
-    for (const WeightedSfd& term : Checked(terms)) {
-        if (term.distribution->AllowsExtrapolation()) {
-            continue;
-        }
-        range.min = std::fmax(range.min, term.distribution->ValidRange().min);
-        range.max = std::fmin(range.max, term.distribution->ValidRange().max);
+    CheckedKind(terms);
+    DiameterRange range;
+    for (const WeightedSfd& term : terms) {
+        const DiameterRange usable = detail::UsableRange(*term.distribution);
+        range.min = std::fmax(range.min, usable.min);
+        range.max = std::fmin(range.max, usable.max);
     }
     if (!(range.min < range.max)) {
         throw std::invalid_argument("Summed terms must have overlapping valid ranges");
@@ -45,8 +42,7 @@ DiameterRange Overlap(const std::vector<WeightedSfd>& terms) {
 }  // namespace
 
 SummedSfd::SummedSfd(std::vector<WeightedSfd> terms)
-    : SizeFrequencyDistribution(Checked(terms).front().distribution->Kind(), Overlap(terms)),
-      terms_(std::move(terms)) {}
+    : SizeFrequencyDistribution(CheckedKind(terms), Overlap(terms)), terms_(std::move(terms)) {}
 
 double SummedSfd::CumulativeAt(double diameter) const {
     double sum = 0.0;

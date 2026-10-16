@@ -3,7 +3,7 @@
 #include "terraingen/pipeline/run.h"
 
 #include "terraingen/meshes/mesh_io.h"
-#include "terraingen/pipeline/detail/build.h"
+#include "terraingen/pipeline/build.h"
 #include "terraingen/sources/geotiff_source.h"
 #include "terraingen/sources/source_chain.h"
 #include "terraingen/util/log.h"

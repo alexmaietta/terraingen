@@ -1,6 +1,7 @@
 #pragma once
 
 #include "terraingen/noise/kernels/hash.h"
+#include "terraingen/noise/kernels/lattice.h"
 
 namespace terraingen {
 
@@ -25,8 +26,8 @@ inline WorleyDistances Worley2(int32_t ix, int32_t iy, float fx, float fy, uint3
     float d2 = 1e30f;
     for (int32_t dy = -2; dy <= 2; ++dy) {
         for (int32_t dx = -2; dx <= 2; ++dx) {
-            const UVec3 cell = {uint32_t(ix + dx), uint32_t(iy + dy), seed};
-            const UVec3 h = Pcg3dHash(cell);
+            const UVec3 h =
+                Pcg3dHash(detail::SeededLatticeKey2(uint32_t(ix + dx), uint32_t(iy + dy), seed));
             const float px = float(dx) + HashToUnitFloat(h.y) - fx;
             const float py = float(dy) + HashToUnitFloat(h.z) - fy;
             const float d = px * px + py * py;
@@ -44,9 +45,8 @@ inline WorleyDistances Worley2(int32_t ix, int32_t iy, float fx, float fy, uint3
 
 /// Worley cellular distances at (`x`, `y`) in lattice units; see the cell-and-offset overload.
 inline WorleyDistances Worley2(float x, float y, uint32_t seed) {
-    const float cellX = floor(x);
-    const float cellY = floor(y);
-    return Worley2(int32_t(cellX), int32_t(cellY), x - cellX, y - cellY, seed);
+    const LatticePoint2 point = SplitLattice2(x, y);
+    return Worley2(point.ix, point.iy, point.fx, point.fy, seed);
 }
 
 }  // namespace terraingen

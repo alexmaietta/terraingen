@@ -1,7 +1,7 @@
 /// @file
 /// @brief Writing crater lists, boulder lists and boulder models.
 #include "terraingen/meshes/mesh_io.h"
-#include "terraingen/pipeline/detail/build.h"
+#include "terraingen/pipeline/build.h"
 #include "terraingen/pipeline/run.h"
 
 #include <nlohmann/json.hpp>

@@ -1,30 +1,30 @@
 #include "terraingen/layers/boulders/boulder_meshes.h"
 
 #include <array>
-
 #include <cmath>
 #include <limits>
 
 namespace terraingen {
+
+namespace {
+
+const Vec3d& Axis(const LocalFrame& frame, int index) {
+    return index == 0 ? frame.east : (index == 1 ? frame.north : frame.up);
+}
+
+}  // namespace
 
 BoulderPlacement PlacementAtSite(const BoulderPlacement& placement, const Vec2d& boulder,
                                  const Vec2d& site, const Surface& surface) {
     if (!surface.IsSphere()) {
         return placement;
     }
-    Vec3d e[2];
-    Vec3d n[2];
-    Vec3d u[2];
-    surface.Frame(boulder, e[0], n[0], u[0]);
-    surface.Frame(site, e[1], n[1], u[1]);
+    const LocalFrame from = surface.Frame(boulder);
+    const LocalFrame to = surface.Frame(site);
     std::array<double, 9> local{};
     for (int r = 0; r < 3; ++r) {
-        const Vec3d& siteAxis = r == 0 ? e[1] : (r == 1 ? n[1] : u[1]);
         for (int c = 0; c < 3; ++c) {
-            const Vec3d& boulderAxis = c == 0 ? e[0] : (c == 1 ? n[0] : u[0]);
-            local[static_cast<std::size_t>(3 * r + c)] = siteAxis.x * boulderAxis.x +
-                                                         siteAxis.y * boulderAxis.y +
-                                                         siteAxis.z * boulderAxis.z;
+            local[static_cast<std::size_t>(3 * r + c)] = Dot(Axis(to, r), Axis(from, c));
         }
     }
     const Vec3d pr = surface.Position(boulder);
@@ -32,9 +32,7 @@ BoulderPlacement PlacementAtSite(const BoulderPlacement& placement, const Vec2d&
     const Vec3d d{pr.x - ps.x, pr.y - ps.y, pr.z - ps.z};
     RigidTransform toSite;
     toSite.rotation = local;
-    toSite.translation = {e[1].x * d.x + e[1].y * d.y + e[1].z * d.z,
-                          n[1].x * d.x + n[1].y * d.y + n[1].z * d.z,
-                          u[1].x * d.x + u[1].y * d.y + u[1].z * d.z};
+    toSite.translation = {Dot(to.east, d), Dot(to.north, d), Dot(to.up, d)};
     BoulderPlacement moved = placement;
     moved.pose = toSite.After(placement.pose);
     return moved;

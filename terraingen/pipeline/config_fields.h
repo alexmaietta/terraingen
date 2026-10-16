@@ -1,16 +1,16 @@
 /// @file
-/// @brief Internal: every configuration field list, and the root configuration's.
+/// @brief Every configuration field list, and the root configuration's.
 #pragma once
 
 #include "terraingen/pipeline/config.h"
-#include "terraingen/pipeline/detail/fields_albedo.h"
-#include "terraingen/pipeline/detail/fields_boulders.h"
-#include "terraingen/pipeline/detail/fields_common.h"
-#include "terraingen/pipeline/detail/fields_crater_models.h"
-#include "terraingen/pipeline/detail/fields_craters.h"
-#include "terraingen/pipeline/detail/fields_layers.h"
-#include "terraingen/pipeline/detail/fields_outputs.h"
-#include "terraingen/pipeline/detail/fields_sources.h"
+#include "terraingen/pipeline/fields_albedo.h"
+#include "terraingen/pipeline/fields_boulders.h"
+#include "terraingen/pipeline/fields_common.h"
+#include "terraingen/pipeline/fields_crater_models.h"
+#include "terraingen/pipeline/fields_craters.h"
+#include "terraingen/pipeline/fields_layers.h"
+#include "terraingen/pipeline/fields_outputs.h"
+#include "terraingen/pipeline/fields_sources.h"
 
 namespace terraingen::config {
 

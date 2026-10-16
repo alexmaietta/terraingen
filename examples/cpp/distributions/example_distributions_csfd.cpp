@@ -70,10 +70,10 @@ class DistributionsCsfd : public terraingen::examples::Example {
         const auto production = std::make_shared<terraingen::SplicedSfd>(
             terraingen::ExtendedNeukumProductionFunction());
         distributions_ = {
-            {"production 0.1 Gyr",
-             std::make_shared<terraingen::ProductionSurface>(production, 0.1)},
-            {"production 3.8 Gyr",
-             std::make_shared<terraingen::ProductionSurface>(production, 3.8)},
+            {"production 0.1 Gyr", std::make_shared<terraingen::ProductionSurface>(
+                                       production, 0.1, terraingen::NeukumLunarChronology)},
+            {"production 3.8 Gyr", std::make_shared<terraingen::ProductionSurface>(
+                                       production, 3.8, terraingen::NeukumLunarChronology)},
             {"Trask equilibrium",
              std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium())},
             {"Hartmann equilibrium",

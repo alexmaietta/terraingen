@@ -103,14 +103,17 @@ inline bool HasBasisNoise3(NoiseBasis basis) {
     return basis == NoiseBasis::Perlin || basis == NoiseBasis::Value;
 }
 
-/// One octave of `basis` noise at lattice cell (`ix`, `iy`, `iz`) plus fraction (`fx`, `fy`, `fz`),
-/// in [-1, 1]: value noise for `NoiseBasis::Value`, Perlin noise otherwise.
-inline float BasisNoise3(NoiseBasis basis, int32_t ix, int32_t iy, int32_t iz, float fx, float fy,
-                         float fz, uint32_t seed) {
+/// @brief One octave of 3D `basis` noise: value noise for `NoiseBasis::Value`, Perlin noise
+/// otherwise.
+/// @param basis The basis.
+/// @param point The lattice cell and the fraction within it.
+/// @param seed The noise seed.
+/// @return Noise in [-1, 1].
+inline float BasisNoise3(NoiseBasis basis, LatticePoint3 point, uint32_t seed) {
     if (basis == NoiseBasis::Value) {
-        return ValueNoise3(ix, iy, iz, fx, fy, fz, seed);
+        return ValueNoise3(point, seed);
     }
-    return PerlinNoise3(ix, iy, iz, fx, fy, fz, seed);
+    return PerlinNoise3(point, seed);
 }
 
 namespace detail {
@@ -195,15 +198,15 @@ inline float FinishFractal(FractalSums sums, FractalParams params) {
 /// - `HybridMultifractal`: Musgrave's hybrid multifractal with (n_i + offset) signals and
 ///   the running weight clamped to [0, 1], divided by (1 + offset) * sum(w_i).
 ///
-/// Parameters are assumed valid; see `ValidateFractalParams`.
+/// Parameters are assumed valid; `ValidateFractalParams` in terraingen/noise/validate.h checks
+/// them on the host.
 inline float Fractal2(float x, float y, FractalParams params) {
     float frequency = 1.0f / params.wavelength;
     float turnCos = 1.0f;
     float turnSin = 0.0f;
     detail::FractalSums sums = {};
     for (int octave = 0; octave < params.octaves; ++octave) {
-        const UVec3 key = {params.seed, uint32_t(octave), 0u};
-        const UVec3 h = Pcg3dHash(key);
+        const UVec3 h = Pcg3dHash(detail::OctaveKey(params.seed, uint32_t(octave), 0u));
         const float offsetX = HashToUnitFloat(h.y);
         const float offsetY = HashToUnitFloat(h.z);
         const float rx = x * turnCos - y * turnSin;
@@ -234,21 +237,15 @@ inline float Fractal3(double x, double y, double z, FractalParams params) {
     double turn[3][3] = {{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
     detail::FractalSums sums = {};
     for (int octave = 0; octave < params.octaves; ++octave) {
-        const UVec3 h = Pcg3dHash({params.seed, uint32_t(octave), 0u});
-        const UVec3 g = Pcg3dHash({params.seed, uint32_t(octave), 1u});
+        const UVec3 h = Pcg3dHash(detail::OctaveKey(params.seed, uint32_t(octave), 0u));
+        const UVec3 g = Pcg3dHash(detail::OctaveKey(params.seed, uint32_t(octave), 1u));
         const double rx = turn[0][0] * x + turn[0][1] * y + turn[0][2] * z;
         const double ry = turn[1][0] * x + turn[1][1] * y + turn[1][2] * z;
         const double rz = turn[2][0] * x + turn[2][1] * y + turn[2][2] * z;
         const double px = rx * frequency + static_cast<double>(HashToUnitFloat(h.y));
         const double py = ry * frequency + static_cast<double>(HashToUnitFloat(h.z));
         const double pz = rz * frequency + static_cast<double>(HashToUnitFloat(g.x));
-        const double cx = floor(px);
-        const double cy = floor(py);
-        const double cz = floor(pz);
-        const float n = BasisNoise3(params.basis, int32_t(static_cast<std::int64_t>(cx)),
-                                    int32_t(static_cast<std::int64_t>(cy)),
-                                    int32_t(static_cast<std::int64_t>(cz)), float(px - cx),
-                                    float(py - cy), float(pz - cz), h.x);
+        const float n = BasisNoise3(params.basis, SplitLatticePrecise3(px, py, pz), h.x);
         sums = detail::AddFractalOctave(sums, params, octave, n);
         frequency *= static_cast<double>(params.lacunarity);
         double next[3][3] = {};

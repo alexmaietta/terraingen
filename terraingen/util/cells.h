@@ -2,6 +2,7 @@
 
 #include "terraingen/util/geometry.h"
 
+#include <compare>
 #include <cstdint>
 #include <vector>
 
@@ -12,7 +13,8 @@ struct CellIndex {
     std::int32_t i = 0;
     std::int32_t j = 0;
 
-    bool operator==(const CellIndex&) const = default;
+    /// Orders cells by `i`, then `j`.
+    auto operator<=>(const CellIndex&) const = default;
 };
 
 /// Partitions a surface into cells so features can be generated per cell, each from its own random

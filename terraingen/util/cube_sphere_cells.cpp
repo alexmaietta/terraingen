@@ -1,3 +1,5 @@
+/// @file
+/// @brief Near-equal-area cells on the six faces of a cube sphere.
 #include "terraingen/util/cells.h"
 
 #include "terraingen/util/checks.h"
@@ -9,51 +11,6 @@
 #include <limits>
 #include <numbers>
 #include <stdexcept>
-
-namespace terraingen {
-
-namespace {
-
-std::int32_t CellCoordinate(double value) {
-    constexpr double kLimit = std::numeric_limits<std::int32_t>::max();
-    if (!(std::fabs(value) < kLimit)) {
-        throw std::invalid_argument("Region is too far from the origin for its cell size");
-    }
-    return static_cast<std::int32_t>(value);
-}
-
-}  // namespace
-
-std::vector<CellIndex> PlanarCells::CellsCovering(const Bounds2d& region, double cellSize) const {
-    RequirePositive(cellSize, "Cell size");
-    if (!(std::isfinite(region.minX) && std::isfinite(region.minY) && std::isfinite(region.maxX) &&
-          std::isfinite(region.maxY) && region.maxX > region.minX && region.maxY > region.minY)) {
-        throw std::invalid_argument("Region must be finite and not empty");
-    }
-    const std::int32_t iMin = CellCoordinate(std::floor(region.minX / cellSize));
-    const std::int32_t jMin = CellCoordinate(std::floor(region.minY / cellSize));
-    const std::int32_t iMax = CellCoordinate(std::ceil(region.maxX / cellSize) - 1.0);
-    const std::int32_t jMax = CellCoordinate(std::ceil(region.maxY / cellSize) - 1.0);
-    std::vector<CellIndex> cells;
-    cells.reserve(static_cast<std::size_t>(iMax - iMin + 1) *
-                  static_cast<std::size_t>(jMax - jMin + 1));
-    for (std::int32_t j = jMin; j <= jMax; ++j) {
-        for (std::int32_t i = iMin; i <= iMax; ++i) {
-            cells.push_back({i, j});
-        }
-    }
-    return cells;
-}
-
-double PlanarCells::CellArea(const CellIndex& /*cell*/, double cellSize) const {
-    return cellSize * cellSize;
-}
-
-Vec2d PlanarCells::SamplePoint(double u, double v, const CellIndex& cell, double cellSize) const {
-    return {(cell.i + u) * cellSize, (cell.j + v) * cellSize};
-}
-
-}  // namespace terraingen
 
 namespace terraingen {
 
@@ -76,6 +33,13 @@ constexpr std::array<Face, 6> kFaces{{
 
 constexpr double kQuarter = std::numbers::pi / 4.0;
 
+/// The point `normal + a u + b v` on the plane of `face`, for gnomonic coordinates `a` and `b`.
+Vec3d FacePoint(const Face& face, double a, double b) {
+    return {face.normal.x + a * face.u.x + b * face.v.x,
+            face.normal.y + a * face.u.y + b * face.v.y,
+            face.normal.z + a * face.u.z + b * face.v.z};
+}
+
 /// The solid angle of the gnomonic rectangle [0, `a`] x [0, `b`] on a face, signed.
 double Corner(double a, double b) {
     return std::atan(a * b / std::sqrt(1.0 + a * a + b * b));
@@ -84,6 +48,11 @@ double Corner(double a, double b) {
 /// The gnomonic coordinate of the edge `k` of `n` cells along a face.
 double Edge(std::int32_t k, std::int32_t n) {
     return std::tan(-kQuarter + 2.0 * kQuarter * static_cast<double>(k) / static_cast<double>(n));
+}
+
+void SortUnique(std::vector<CellIndex>& cells) {
+    std::sort(cells.begin(), cells.end());
+    cells.erase(std::unique(cells.begin(), cells.end()), cells.end());
 }
 
 }  // namespace
@@ -146,21 +115,14 @@ std::vector<CellIndex> CubeSphereCells::Neighbours(const CellIndex& cell, double
                           std::fabs(beta) < 2.0 * kQuarter - step)) {
                         continue;
                     }
-                    const double a = std::tan(alpha);
-                    const double b = std::tan(beta);
-                    const Vec3d p{f.normal.x + a * f.u.x + b * f.v.x,
-                                  f.normal.y + a * f.u.y + b * f.v.y,
-                                  f.normal.z + a * f.u.z + b * f.v.z};
+                    const Vec3d p = FacePoint(f, std::tan(alpha), std::tan(beta));
                     const Vec2d point = Surface::Sphere(radius_).PointOf(p);
                     cells.push_back(CellOf(point.x, point.y, cellSize));
                 }
             }
         }
     }
-    std::sort(cells.begin(), cells.end(), [](const CellIndex& x, const CellIndex& y) {
-        return x.i != y.i ? x.i < y.i : x.j < y.j;
-    });
-    cells.erase(std::unique(cells.begin(), cells.end()), cells.end());
+    SortUnique(cells);
     return cells;
 }
 
@@ -189,18 +151,13 @@ std::vector<CellIndex> CubeSphereCells::CellsCovering(const Bounds2d& region,
             seeds.push_back(CellOf(lon, lat, cellSize));
         }
     }
-    const auto order = [](const CellIndex& a, const CellIndex& b) {
-        return a.i != b.i ? a.i < b.i : a.j < b.j;
-    };
-    std::sort(seeds.begin(), seeds.end(), order);
-    seeds.erase(std::unique(seeds.begin(), seeds.end()), seeds.end());
+    SortUnique(seeds);
     std::vector<CellIndex> cells;
     for (const CellIndex& seed : seeds) {
         const std::vector<CellIndex> around = Neighbours(seed, cellSize, 1);
         cells.insert(cells.end(), around.begin(), around.end());
     }
-    std::sort(cells.begin(), cells.end(), order);
-    cells.erase(std::unique(cells.begin(), cells.end()), cells.end());
+    SortUnique(cells);
     return cells;
 }
 
@@ -238,18 +195,12 @@ Vec2d CubeSphereCells::SamplePoint(double u, double v, const CellIndex& cell,
     const auto ratio = [&](double b) { return b / std::sqrt(1.0 + a * a + b * b); };
     const double k = ratio(b1) + v * (ratio(b2) - ratio(b1));
     const double b = k * std::sqrt(1.0 + a * a) / std::sqrt(1.0 - k * k);
-    const Vec3d p{face.normal.x + a * face.u.x + b * face.v.x,
-                  face.normal.y + a * face.u.y + b * face.v.y,
-                  face.normal.z + a * face.u.z + b * face.v.z};
-    return Surface::Sphere(radius_).PointOf(p);
+    return Surface::Sphere(radius_).PointOf(FacePoint(face, a, b));
 }
 
 Vec3d CubeSphereCells::Direction(int face, double alpha, double beta) {
     const Face& f = kFaces[static_cast<std::size_t>(std::clamp(face, 0, 5))];
-    const double a = std::tan(alpha);
-    const double b = std::tan(beta);
-    const Vec3d p{f.normal.x + a * f.u.x + b * f.v.x, f.normal.y + a * f.u.y + b * f.v.y,
-                  f.normal.z + a * f.u.z + b * f.v.z};
+    const Vec3d p = FacePoint(f, std::tan(alpha), std::tan(beta));
     const double length = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
     return {p.x / length, p.y / length, p.z / length};
 }

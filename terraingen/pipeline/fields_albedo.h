@@ -1,9 +1,9 @@
 /// @file
-/// @brief Internal: the JSON fields of the albedo, its sources and its crater layers.
+/// @brief The JSON fields of the albedo, its sources and its crater layers.
 #pragma once
 
 #include "terraingen/pipeline/config.h"
-#include "terraingen/pipeline/detail/fields_common.h"
+#include "terraingen/pipeline/fields_common.h"
 
 #include <string_view>
 

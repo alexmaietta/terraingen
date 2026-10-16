@@ -1,9 +1,9 @@
 /// @file
-/// @brief Internal: the JSON fields of the noise, roughness, bedform, transform and region layers.
+/// @brief The JSON fields of the noise, roughness, bedform, transform and region layers.
 #pragma once
 
 #include "terraingen/pipeline/config.h"
-#include "terraingen/pipeline/detail/fields_common.h"
+#include "terraingen/pipeline/fields_common.h"
 
 #include <string_view>
 

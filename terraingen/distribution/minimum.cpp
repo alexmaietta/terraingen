@@ -1,6 +1,7 @@
 #include "terraingen/distribution/minimum.h"
 
-#include <algorithm>
+#include "terraingen/distribution/combined.h"
+
 #include <cmath>
 #include <stdexcept>
 #include <utility>
@@ -11,19 +12,14 @@ namespace {
 
 SfdKind
 CommonKind(const std::vector<std::shared_ptr<const SizeFrequencyDistribution>>& distributions) {
-    if (distributions.empty() ||
-        std::any_of(distributions.begin(), distributions.end(),
-                    [](const auto& distribution) { return !distribution; })) {
-        throw std::invalid_argument("A minimum needs at least one distribution and no nulls");
+    std::vector<const SizeFrequencyDistribution*> pointers;
+    for (const auto& distribution : distributions) {
+        pointers.push_back(distribution.get());
     }
-    const SfdKind kind = distributions.front()->Kind();
-    if (std::any_of(distributions.begin(), distributions.end(),
-                    [kind](const auto& distribution) { return distribution->Kind() != kind; })) {
-        throw std::invalid_argument("A minimum needs distributions of one kind");
-    }
-    return kind;
+    return detail::CommonKind(pointers, "A minimum");
 }
 
+/// The intersection of the inputs' valid ranges, whether or not they allow extrapolation.
 DiameterRange IntersectRanges(
     const std::vector<std::shared_ptr<const SizeFrequencyDistribution>>& distributions) {
     CommonKind(distributions);

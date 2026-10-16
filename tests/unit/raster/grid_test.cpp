@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <stdexcept>
 
 using terraingen::GeoTransform;
 using terraingen::Raster;
@@ -46,4 +47,17 @@ TEST(RasterGrid, MeasuresSpacingAndAreaOnASphere) {
     const RasterGrid plane{4, 2, GeoTransform::NorthUp(0.0, 0.0, 3.0)};
     EXPECT_EQ(plane.SurfaceArea({}), plane.Area());
     EXPECT_EQ(plane.Spacing({}), plane.PixelSize());
+}
+
+TEST(ResampledGrid, KeepsTheExtentWithSquareCells) {
+    const RasterGrid grid{10, 4, GeoTransform{100.0, 3.0, 0.0, 50.0, 0.0, -2.0}};
+    const RasterGrid resampled = terraingen::ResampledGrid(grid, 1.0);
+    EXPECT_EQ(resampled.width, 30u);
+    EXPECT_EQ(resampled.height, 8u);
+    EXPECT_EQ(resampled.transform, (GeoTransform{100.0, 1.0, 0.0, 50.0, 0.0, -1.0}));
+    EXPECT_EQ(terraingen::ResampledGrid(grid, 1000.0).width, 1u);
+    EXPECT_THROW(terraingen::ResampledGrid(grid, 0.0), std::invalid_argument);
+    EXPECT_THROW(terraingen::ResampledGrid(grid, 1e-12), std::invalid_argument);
+    const RasterGrid rotated{2, 2, GeoTransform{0.0, 1.0, 0.1, 0.0, 0.0, -1.0}};
+    EXPECT_THROW(terraingen::ResampledGrid(rotated, 1.0), std::invalid_argument);
 }

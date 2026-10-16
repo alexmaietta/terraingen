@@ -42,16 +42,33 @@ struct WarpOffset2 {
     float dy = 0.0f;
 };
 
-/// Domain warp offset at (`x`, `y`): two independent 4-octave Perlin fBm fields of
-/// `layer.warpWavelength`, each bounded by `layer.warpAmplitude` metres.
-///
-/// Reference: I. Quilez, "Domain Warping", 2002. https://iquilezles.org/articles/warp/
-inline WarpOffset2 DomainWarp2(float x, float y, NoiseLayer layer) {
+namespace detail {
+
+/// Mixed into a layer's seed to seed its warp fields apart from its own noise. Frozen for
+/// reproducibility.
+static const uint32_t kWarpSeedSalt = 0x5bd1e995u;
+
+}  // namespace detail
+
+/// @brief The fractal of the first warp field of `layer`: 4-octave Perlin fBm of the layer's warp
+/// wavelength and amplitude. Each further field is seeded with `PcgHash` of the one before.
+/// @param layer The layer.
+/// @return The warp field's parameters.
+inline FractalParams WarpParams(NoiseLayer layer) {
     FractalParams warp = {};
     warp.wavelength = layer.warpWavelength;
     warp.amplitude = layer.warpAmplitude;
     warp.octaves = 4;
-    warp.seed = PcgHash(layer.fractal.seed ^ 0x5bd1e995u);
+    warp.seed = PcgHash(layer.fractal.seed ^ detail::kWarpSeedSalt);
+    return warp;
+}
+
+/// Domain warp offset at (`x`, `y`): two independent warp fields (`WarpParams`), each bounded by
+/// `layer.warpAmplitude` metres.
+///
+/// Reference: I. Quilez, "Domain Warping", 2002. https://iquilezles.org/articles/warp/
+inline WarpOffset2 DomainWarp2(float x, float y, NoiseLayer layer) {
+    FractalParams warp = WarpParams(layer);
     WarpOffset2 offset = {};
     offset.dx = Fractal2(x, y, warp);
     warp.seed = PcgHash(warp.seed);
@@ -126,7 +143,8 @@ inline float EvaluateNoiseLayers(float x, float y, NoiseLayers layers) {
 }
 
 #ifndef __SLANG__
-/// `EvaluateNoiseLayers` of the `count` layers at `layers`.
+/// `EvaluateNoiseLayers` of the `count` layers at `layers`, which may be more than a GPU block
+/// holds.
 inline float EvaluateNoiseLayers(float x, float y, const NoiseLayer* layers, std::size_t count) {
     detail::NoiseStack stack;
     for (std::size_t i = 0; i < count; ++i) {
@@ -135,35 +153,65 @@ inline float EvaluateNoiseLayers(float x, float y, const NoiseLayer* layers, std
     return stack.height;
 }
 
-/// `EvaluateNoiseLayers` in 3D at world position (`x`, `y`, `z`), with `Fractal3` and a 3D domain
-/// warp (three fields like `DomainWarp2`'s), for noise on a sphere.
+/// A 3D domain warp offset in metres.
+struct WarpOffset3 {
+    double dx = 0.0;
+    double dy = 0.0;
+    double dz = 0.0;
+};
+
+/// @brief `DomainWarp2` in 3D: three warp fields (`WarpParams`) evaluated with `Fractal3`.
+/// @param x World x in metres.
+/// @param y World y in metres.
+/// @param z World z in metres.
+/// @param layer The layer whose warp is evaluated.
+/// @return The offset, each component bounded by `layer.warpAmplitude` metres.
+inline WarpOffset3 DomainWarp3(double x, double y, double z, NoiseLayer layer) {
+    FractalParams warp = WarpParams(layer);
+    WarpOffset3 offset;
+    offset.dx = static_cast<double>(Fractal3(x, y, z, warp));
+    warp.seed = PcgHash(warp.seed);
+    offset.dy = static_cast<double>(Fractal3(x, y, z, warp));
+    warp.seed = PcgHash(warp.seed);
+    offset.dz = static_cast<double>(Fractal3(x, y, z, warp));
+    return offset;
+}
+
+/// @brief `EvaluateNoiseLayer` in 3D, with `Fractal3` and `DomainWarp3`.
+/// @param x World x in metres.
+/// @param y World y in metres.
+/// @param z World z in metres.
+/// @param layer The layer.
+/// @return The layer's normalized value in [-1, 1].
+inline float EvaluateNoiseLayer3(double x, double y, double z, NoiseLayer layer) {
+    FractalParams unit = layer.fractal;
+    unit.amplitude = 1.0f;
+    if (layer.warpAmplitude > 0.0f) {
+        const WarpOffset3 offset = DomainWarp3(x, y, z, layer);
+        return Fractal3(x + offset.dx, y + offset.dy, z + offset.dz, unit);
+    }
+    return Fractal3(x, y, z, unit);
+}
+
+namespace detail {
+
+/// `stack` with `layer` at (`x`, `y`, `z`) added, if it is enabled.
+inline NoiseStack AddNoiseLayer3(NoiseStack stack, double x, double y, double z, NoiseLayer layer) {
+    if (!layer.enabled) {
+        return stack;
+    }
+    return BlendNoiseLayer(stack, layer, EvaluateNoiseLayer3(x, y, z, layer));
+}
+
+}  // namespace detail
+
+/// `EvaluateNoiseLayers` in 3D at world position (`x`, `y`, `z`), with `EvaluateNoiseLayer3`, for
+/// noise on a sphere.
 inline float EvaluateNoiseLayers3(double x, double y, double z, const NoiseLayer* layers,
                                   std::size_t count) {
     detail::NoiseStack stack;
     for (std::size_t i = 0; i < count; ++i) {
-        const NoiseLayer& layer = layers[i];
-        if (!layer.enabled) {
-            continue;
-        }
-        FractalParams unit = layer.fractal;
-        unit.amplitude = 1.0f;
-        float value = 0.0f;
-        if (layer.warpAmplitude > 0.0f) {
-            FractalParams warp;
-            warp.wavelength = layer.warpWavelength;
-            warp.amplitude = layer.warpAmplitude;
-            warp.octaves = 4;
-            warp.seed = PcgHash(layer.fractal.seed ^ 0x5bd1e995u);
-            const double dx = static_cast<double>(Fractal3(x, y, z, warp));
-            warp.seed = PcgHash(warp.seed);
-            const double dy = static_cast<double>(Fractal3(x, y, z, warp));
-            warp.seed = PcgHash(warp.seed);
-            const double dz = static_cast<double>(Fractal3(x, y, z, warp));
-            value = Fractal3(x + dx, y + dy, z + dz, unit);
-        } else {
-            value = Fractal3(x, y, z, unit);
-        }
-        stack = detail::BlendNoiseLayer(stack, layer, value);
+        stack = detail::AddNoiseLayer3(stack, x, y, z, layers[i]);
     }
     return stack.height;
 }

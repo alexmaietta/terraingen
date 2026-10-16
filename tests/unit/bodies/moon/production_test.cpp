@@ -37,7 +37,7 @@ TEST(NeukumProductionFunction, IsAProductionRateFromTenMetresTo300Kilometres) {
 
 TEST(ProductionSurface, ScalesTheProductionFunctionToTheChronologyAtOneKilometre) {
     const auto npf = std::make_shared<LogPolynomialSfd>(NeukumProductionFunction());
-    const ProductionSurface surface(npf, 3.5);
+    const ProductionSurface surface(npf, 3.5, NeukumLunarChronology);
     EXPECT_EQ(surface.Kind(), SfdKind::Density);
     EXPECT_EQ(surface.AgeGyr(), 3.5);
     EXPECT_EQ(&surface.Production(), npf.get());
@@ -60,12 +60,12 @@ TEST(ProductionSurface, ScalesTheProductionFunctionToTheChronologyAtOneKilometre
 
 TEST(ProductionSurface, YoungSurfacesAccumulateCratersAtThePresentDayRate) {
     const auto npf = std::make_shared<LogPolynomialSfd>(NeukumProductionFunction());
-    const ProductionSurface young(npf, 0.01);
-    const ProductionSurface twice(npf, 0.02);
+    const ProductionSurface young(npf, 0.01, NeukumLunarChronology);
+    const ProductionSurface twice(npf, 0.02, NeukumLunarChronology);
     EXPECT_NEAR(twice.Cumulative(50.0) / young.Cumulative(50.0), 2.0, 1e-8);
     EXPECT_NEAR(young.Cumulative(50.0), 0.01 * npf->Cumulative(50.0),
                 1e-6 * young.Cumulative(50.0));
-    const ProductionSurface fresh(npf, 0.0);
+    const ProductionSurface fresh(npf, 0.0, NeukumLunarChronology);
     EXPECT_EQ(fresh.Cumulative(50.0), 0.0);
     RandomStream stream(1u, 2u);
     EXPECT_THROW(fresh.SampleDiameter(stream, 10.0, 100.0), std::invalid_argument);
@@ -74,14 +74,16 @@ TEST(ProductionSurface, YoungSurfacesAccumulateCratersAtThePresentDayRate) {
 TEST(ProductionSurface, InheritsExtrapolationAndRejectsInvalidProduction) {
     auto npf = std::make_shared<LogPolynomialSfd>(NeukumProductionFunction());
     npf->SetAllowExtrapolation(true);
-    EXPECT_NO_THROW(ProductionSurface(npf, 1.0).Cumulative(5.0));
-    EXPECT_THROW(ProductionSurface(nullptr, 1.0), std::invalid_argument);
-    EXPECT_THROW(ProductionSurface(std::make_shared<PowerLawSfd>(1.0, 2.0), 1.0),
-                 std::invalid_argument);
+    EXPECT_NO_THROW(ProductionSurface(npf, 1.0, NeukumLunarChronology).Cumulative(5.0));
+    EXPECT_THROW(ProductionSurface(nullptr, 1.0, NeukumLunarChronology), std::invalid_argument);
+    EXPECT_THROW(
+        ProductionSurface(std::make_shared<PowerLawSfd>(1.0, 2.0), 1.0, NeukumLunarChronology),
+        std::invalid_argument);
+    EXPECT_THROW(ProductionSurface(npf, 1.0, terraingen::Chronology{}), std::invalid_argument);
     const auto small =
         std::make_shared<PowerLawSfd>(1.0, 2.0, SfdKind::ProductionRate, DiameterRange{0.0, 100.0});
-    EXPECT_THROW(ProductionSurface(small, 1.0), std::domain_error);
-    EXPECT_THROW(ProductionSurface(npf, 5.0), std::domain_error);
+    EXPECT_THROW(ProductionSurface(small, 1.0, NeukumLunarChronology), std::domain_error);
+    EXPECT_THROW(ProductionSurface(npf, 5.0, NeukumLunarChronology), std::domain_error);
 }
 
 TEST(ExtendedNeukumProductionFunction, ContinuesBelowTenMetresWithSlope285) {
@@ -94,6 +96,7 @@ TEST(ExtendedNeukumProductionFunction, ContinuesBelowTenMetresWithSlope285) {
     EXPECT_NEAR(extended.Cumulative(5.0) / extended.Cumulative(10.0), std::pow(2.0, 2.85), 1e-12);
     EXPECT_DOUBLE_EQ(extended.Cumulative(500.0), npf.Cumulative(500.0));
     EXPECT_THROW(extended.Cumulative(2.0), std::domain_error);
-    const ProductionSurface surface(std::make_shared<SplicedSfd>(extended), 3.5);
+    const ProductionSurface surface(std::make_shared<SplicedSfd>(extended), 3.5,
+                                    NeukumLunarChronology);
     EXPECT_NEAR(surface.Cumulative(1000.0), NeukumLunarChronology(3.5), 1e-15);
 }

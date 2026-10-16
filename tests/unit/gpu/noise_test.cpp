@@ -116,9 +116,6 @@ TEST(GpuNoise, MatchesTheCpuWithinTolerancesAndPhiloxExactly) {
         const float y = points[3u * i + 1u];
         const float z = points[3u * i + 2u];
         const terraingen::WorleyDistances worley = terraingen::Worley2(x, y, seed);
-        const float cx = std::floor(x);
-        const float cy = std::floor(y);
-        const float cz = std::floor(z);
         float expected[kValues] = {
             terraingen::PerlinNoise2(x, y, seed),
             terraingen::SimplexNoise2(x, y, seed),
@@ -126,9 +123,7 @@ TEST(GpuNoise, MatchesTheCpuWithinTolerancesAndPhiloxExactly) {
             worley.f1,
             worley.f2,
             terraingen::PerlinNoise3(x, y, z, seed),
-            terraingen::BasisNoise3(NoiseBasis::Value, static_cast<std::int32_t>(cx),
-                                    static_cast<std::int32_t>(cy), static_cast<std::int32_t>(cz),
-                                    x - cx, y - cy, z - cz, seed)};
+            terraingen::BasisNoise3(NoiseBasis::Value, terraingen::SplitLattice3(x, y, z), seed)};
         for (std::uint32_t j = 0; j < terraingen::kMaxNoiseLayers; ++j) {
             expected[7u + j] = terraingen::EvaluateNoiseLayer(100.0f * x, 100.0f * y, layers[j]);
         }

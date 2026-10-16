@@ -118,11 +118,8 @@ CraterReliefIndex::CraterReliefIndex(const std::vector<PreparedCrater>& craters,
         const Crater& crater = craters[n].crater;
         const int band = std::ilogb(crater.diameter);
         const double size = BucketSize(band, profile_, outlineScale_);
-        long long i = 0;
-        long long j = 0;
-        long long k = 0;
-        surface_.Bucket({crater.x, crater.y}, size, i, j, k);
-        buckets_[{band, i, j, k}].push_back(n);
+        const BucketIndex bucket = surface_.Bucket({crater.x, crater.y}, size);
+        buckets_[{band, bucket.i, bucket.j, bucket.k}].push_back(n);
         if (std::find(bands_.begin(), bands_.end(), band) == bands_.end()) {
             bands_.push_back(band);
         }
@@ -151,13 +148,10 @@ double CraterReliefIndex::ReliefBefore(double x, double y, std::size_t k) const 
     const long long depth = surface_.IsSphere() ? 1 : 0;
     for (const int band : bands_) {
         const double size = BucketSize(band, profile_, outlineScale_);
-        long long i0 = 0;
-        long long j0 = 0;
-        long long k0 = 0;
-        surface_.Bucket({x, y}, size, i0, j0, k0);
-        for (std::int64_t j = j0 - 1; j <= j0 + 1; ++j) {
-            for (std::int64_t i = i0 - 1; i <= i0 + 1; ++i) {
-                for (std::int64_t z = k0 - depth; z <= k0 + depth; ++z) {
+        const BucketIndex centre = surface_.Bucket({x, y}, size);
+        for (std::int64_t j = centre.j - 1; j <= centre.j + 1; ++j) {
+            for (std::int64_t i = centre.i - 1; i <= centre.i + 1; ++i) {
+                for (std::int64_t z = centre.k - depth; z <= centre.k + depth; ++z) {
                     const auto found = buckets_.find({band, i, j, z});
                     if (found != buckets_.end()) {
                         AddBucket(found->second, x, y, k, relief);

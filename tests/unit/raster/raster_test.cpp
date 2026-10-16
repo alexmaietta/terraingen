@@ -13,7 +13,6 @@ TEST(Raster, DefaultIsEmpty) {
     EXPECT_EQ(raster.Width(), 0u);
     EXPECT_EQ(raster.Height(), 0u);
     EXPECT_FALSE(raster.NoData().has_value());
-    EXPECT_TRUE(raster.Crs().empty());
 }
 
 TEST(Raster, ConstructsFilled) {
@@ -52,11 +51,20 @@ TEST(Raster, CellCenterUsesTransform) {
     EXPECT_DOUBLE_EQ(centre.y, 195.0);
 }
 
-TEST(Raster, KeepsGeoreferenceAndNoData) {
+TEST(Raster, IsNoDataMatchesTheValueAndAnyNanForANanNoData) {
+    Raster<float> raster(1, 1);
+    EXPECT_FALSE(raster.IsNoData(0.0f));
+    raster.SetNoData(-1.0f);
+    EXPECT_TRUE(raster.IsNoData(-1.0f));
+    EXPECT_FALSE(raster.IsNoData(std::nanf("")));
+    raster.SetNoData(std::nanf(""));
+    EXPECT_TRUE(raster.IsNoData(std::nanf("")));
+    EXPECT_FALSE(raster.IsNoData(-1.0f));
+}
+
+TEST(Raster, KeepsNoData) {
     Raster<float> raster(2, 2);
-    raster.SetCrs("LOCAL_CS[\"test\"]");
     raster.SetNoData(-9999.0f);
-    EXPECT_EQ(raster.Crs(), "LOCAL_CS[\"test\"]");
     ASSERT_TRUE(raster.NoData().has_value());
     EXPECT_EQ(*raster.NoData(), -9999.0f);
     raster.SetNoData(std::nullopt);

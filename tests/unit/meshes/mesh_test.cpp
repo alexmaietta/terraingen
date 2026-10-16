@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cmath>
 #include <numbers>
 #include <stdexcept>
@@ -89,4 +90,32 @@ TEST(Scaled, ScalesPerAxisAndKeepsTheMeshOutward) {
     EXPECT_NEAR(terraingen::Volume(mirrored), 8.0, 1e-12);
     EXPECT_TRUE(terraingen::testing::IsClosedAndOriented(mirrored));
     EXPECT_THROW(terraingen::Scaled(cube, {0, 1, 1}), std::invalid_argument);
+}
+
+TEST(RequireRotation, AcceptsRotationsAndRejectsReflectionsAndSkews) {
+    EXPECT_NO_THROW(terraingen::RequireRotation(RigidTransform::RotationY(0.3).rotation));
+    std::array<double, 9> mirror = RigidTransform{}.rotation;
+    mirror[0] = -1.0;
+    EXPECT_THROW(terraingen::RequireRotation(mirror), std::invalid_argument);
+    std::array<double, 9> skew = RigidTransform{}.rotation;
+    skew[1] = 0.5;
+    EXPECT_THROW(terraingen::RequireRotation(skew), std::invalid_argument);
+}
+
+TEST(RotationQuaternion, CoversEveryBranchOfShepperdsMethod) {
+    const auto expect = [](const std::array<double, 4>& q, const std::array<double, 4>& want) {
+        for (std::size_t i = 0; i < 4; ++i) {
+            EXPECT_NEAR(std::fabs(q[i]), std::fabs(want[i]), 1e-12) << i;
+        }
+    };
+    const double h = std::sqrt(0.5);
+    expect(terraingen::RotationQuaternion(RigidTransform{}.rotation), {0, 0, 0, 1});
+    expect(terraingen::RotationQuaternion(RigidTransform::RotationX(std::numbers::pi).rotation),
+           {1, 0, 0, 0});
+    expect(terraingen::RotationQuaternion(RigidTransform::RotationY(std::numbers::pi).rotation),
+           {0, 1, 0, 0});
+    expect(terraingen::RotationQuaternion(RigidTransform::RotationZ(std::numbers::pi).rotation),
+           {0, 0, 1, 0});
+    expect(terraingen::RotationQuaternion(RigidTransform::RotationZ(std::numbers::pi / 2).rotation),
+           {0, 0, h, h});
 }

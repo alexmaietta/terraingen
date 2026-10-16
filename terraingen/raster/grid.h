@@ -45,6 +45,16 @@ struct RasterGrid {
     bool operator==(const RasterGrid&) const = default;
 };
 
+/// @brief `grid` with square cells of `pixelSize` over the same extent, the same origin and the
+/// same axis directions.
+/// @param grid An unrotated grid.
+/// @param pixelSize The new cell side in world units; positive and finite.
+/// @return A grid of round(width * |pixelWidth| / `pixelSize`) x round(height * |pixelHeight| /
+/// `pixelSize`) cells, at least one each.
+/// @throws std::invalid_argument for a rotated grid, a `pixelSize` that is not positive and finite,
+/// or a result wider or taller than 2^31 cells.
+RasterGrid ResampledGrid(const RasterGrid& grid, double pixelSize);
+
 /// @brief The spacing a raster is sampled at: a requested spacing raised to the raster's own.
 /// @param raster The raster.
 /// @param spacing The requested spacing in metres; 0 for the raster's own.
