@@ -1,6 +1,3 @@
-/// @file
-/// @brief The Neukum et al. (2001) lunar chronology and production function, and its small-crater
-/// extension.
 #include "terraingen/distribution/neukum.h"
 
 #include "terraingen/distribution/power_law.h"

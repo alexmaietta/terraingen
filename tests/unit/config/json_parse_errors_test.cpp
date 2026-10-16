@@ -1,5 +1,3 @@
-/// @file
-/// @brief Tests of the errors reading a configuration from JSON reports (pipeline/json_io.cpp).
 #include "configs.h"
 
 #include <gtest/gtest.h>

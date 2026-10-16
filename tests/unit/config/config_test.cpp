@@ -1,5 +1,3 @@
-/// @file
-/// @brief Tests of the configuration spec methods (pipeline/config.cpp).
 #include "terraingen/config/config.h"
 
 #include <gtest/gtest.h>

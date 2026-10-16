@@ -1,5 +1,3 @@
-/// @file
-/// @brief The Trask (1966) and Hartmann (1984) lunar crater equilibrium densities.
 #include "terraingen/distribution/equilibrium.h"
 
 #include <cmath>

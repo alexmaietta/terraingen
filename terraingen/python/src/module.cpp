@@ -1,6 +1,3 @@
-/// @file
-/// @brief The `_terraingen` extension module: each library module's bindings, in dependency
-/// order so every type is registered before a default argument needs it.
 #include "bindings.h"
 
 NB_MODULE(_terraingen, m) {

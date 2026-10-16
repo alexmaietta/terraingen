@@ -8,13 +8,11 @@ namespace terraingen {
 
 namespace detail {
 
-/// @brief The contribution (0.5 - r^2)^4 dot(g, d) of one simplex corner.
+/// The contribution (0.5 - r^2)^4 dot(g, d) of one simplex corner; 0 for r^2 >= 0.5.
 /// @param ci Corner x on the skewed lattice, wrapped to 32 bits.
 /// @param cj Corner y on the skewed lattice, wrapped to 32 bits.
 /// @param dx Offset x from the corner, unskewed.
 /// @param dy Offset y from the corner, unskewed.
-/// @param seed The noise seed.
-/// @return The contribution; 0 for r^2 >= 0.5.
 inline float SimplexCorner(uint32_t ci, uint32_t cj, float dx, float dy, uint32_t seed) {
     const float t = 0.5f - dx * dx - dy * dy;
     if (t <= 0.0f) {
@@ -26,11 +24,8 @@ inline float SimplexCorner(uint32_t ci, uint32_t cj, float dx, float dy, uint32_
 
 }  // namespace detail
 
-/// @brief 2D simplex noise at a point in lattice units, with the gradients and corner hash of
+/// 2D simplex noise at a point in lattice units, with the gradients and corner hash of
 /// `PerlinNoise2`.
-/// @param x Lattice x.
-/// @param y Lattice y.
-/// @param seed The noise seed.
 /// @return Noise in [-1, 1].
 inline float SimplexNoise2(float x, float y, uint32_t seed) {
     constexpr float kSkew = 0.366025403784438647f;    // (sqrt(3) - 1) / 2

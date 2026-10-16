@@ -1,5 +1,3 @@
-/// @file
-/// @brief PLY and binary glTF writers for meshes and instanced scenes.
 #include "terraingen/mesh/mesh_io.h"
 
 #include <array>

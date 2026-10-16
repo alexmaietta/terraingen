@@ -1,5 +1,3 @@
-/// @file
-/// @brief The iterative radix-2 fast Fourier transform.
 #include "terraingen/util/fft.h"
 
 #include <cmath>

@@ -1,5 +1,3 @@
-/// @file
-/// @brief `FreshnessDegradation`: one erosion factor from the share of lifetime left.
 #include "terraingen/layers/craters/degradation/freshness.h"
 
 #include <stdexcept>

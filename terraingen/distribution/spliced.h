@@ -10,21 +10,21 @@
 
 namespace terraingen {
 
-/// @brief One piece of a `SplicedSfd`: `distribution` applies from `start` metres up to the next
+/// One piece of a `SplicedSfd`: `distribution` applies from `start` metres up to the next
 /// piece's start.
 struct SfdPiece {
     double start = 0.0;                                             ///< First diameter, metres.
     std::shared_ptr<const SizeFrequencyDistribution> distribution;  ///< Applies from `start`.
 };
 
-/// @brief A cumulative distribution made of other distributions over consecutive diameter
+/// A cumulative distribution made of other distributions over consecutive diameter
 /// intervals, such as a production function extended below its fitted range by a power law.
 ///
 /// As in `PiecewisePowerLawSfd`, the lower piece applies at a join, and pieces must meet there
 /// within a relative tolerance.
 class SplicedSfd final : public SizeFrequencyDistribution {
   public:
-    /// @brief The distribution spliced from `pieces`.
+    /// The distribution spliced from `pieces`.
     /// @param pieces At least one piece, with strictly increasing `start`, the first `start` equal
     /// to `range.min`, and each distribution valid (or extrapolating) over its interval.
     /// @param range The valid range, in metres.
@@ -33,8 +33,7 @@ class SplicedSfd final : public SizeFrequencyDistribution {
     /// interval, or a join that rises or is discontinuous by more than `tolerance`.
     SplicedSfd(std::vector<SfdPiece> pieces, DiameterRange range, double tolerance = 1e-3);
 
-    /// @brief The pieces.
-    /// @return The pieces in increasing `start` order.
+    /// The pieces in increasing `start` order.
     const std::vector<SfdPiece>& Pieces() const {
         return pieces_;
     }

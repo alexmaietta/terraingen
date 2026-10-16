@@ -13,7 +13,7 @@
 
 namespace terraingen {
 
-/// @brief How rough crater rims are drawn.
+/// How rough crater rims are drawn.
 enum class RimRoughnessModel {
     /// Harmonics `minHarmonic` to `maxHarmonic` with amplitudes falling as k^-`spectralSlope`, of
     /// RMS `roughness`: a simple, configurable spectrum.
@@ -24,7 +24,7 @@ enum class RimRoughnessModel {
     Du2024,
 };
 
-/// @brief Which craters have irregular outlines and the distributions their shapes are drawn from,
+/// Which craters have irregular outlines and the distributions their shapes are drawn from,
 /// per crater from its ID.
 ///
 /// The rim lies at R s(theta) and the whole profile is stretched by s; s is an area-preserving
@@ -57,15 +57,14 @@ struct CraterIrregularity {
     bool operator==(const CraterIrregularity&) const = default;
 };
 
-/// @brief Checks irregularity settings.
-/// @param irregularity The settings to check.
+/// Checks irregularity settings.
 /// @throws std::invalid_argument for invalid distributions or selection, shares outside [0, 1],
 /// harmonics outside 1 <= min <= max <= 64, a roughness that could fold the rim (its highest value
 /// times sqrt(2 n), n harmonics, at least 0.5), an ellipticity below 1, a non-finite heading or a
 /// negative or non-finite spread, or a `maxDeviation` outside (0, 0.5].
 void ValidateCraterIrregularity(const CraterIrregularity& irregularity);
 
-/// @brief One crater's outline: the factor its rim radius and profile are stretched by in each
+/// One crater's outline: the factor its rim radius and profile are stretched by in each
 /// direction.
 struct CraterOutline {
     double ellipticity = 1.0;        ///< Long over short axis; 1 for none.
@@ -77,42 +76,28 @@ struct CraterOutline {
     /// of `amplitudes` when not empty.
     std::vector<double> table;
 
-    /// @brief The stretch in one direction.
-    /// @param dx East offset from the crater's centre, in metres.
-    /// @param dy North offset from the crater's centre, in metres.
-    /// @return The factor the rim radius is stretched by there; 1 for a round crater.
+    /// The factor the rim radius is stretched by toward (`dx`, `dy`) metres east and north of the
+    /// centre; 1 for a round crater.
     double Scale(double dx, double dy) const;
 
-    /// @brief The largest stretch in any direction.
-    /// @return An upper bound of `Scale`.
+    /// An upper bound of `Scale` in any direction.
     double MaxScale() const;
 
-    /// @brief Whether the outline is a circle.
-    /// @return True without ellipticity, harmonics or table.
+    /// Whether the outline is a circle: no ellipticity, harmonics or table.
     bool Round() const {
         return ellipticity == 1.0 && amplitudes.empty() && table.empty();
     }
 };
 
-/// @brief The outline irregularity settings give a crater.
-/// @param crater The crater; its ID seeds the outline.
-/// @param irregularity The settings.
-/// @return Round unless irregularity is enabled and the crater selected.
+/// The outline `irregularity` gives a crater, seeded by its ID; round unless irregularity is
+/// enabled and the crater selected.
 CraterOutline OutlineOf(const Crater& crater, const CraterIrregularity& irregularity);
 
-/// @brief The largest stretch any crater's outline can have, to widen footprints by.
-/// @param irregularity The settings.
-/// @return 1 when disabled.
+/// The largest stretch any crater's outline can have, to widen footprints by; 1 when disabled.
 double MaxOutlineScale(const CraterIrregularity& irregularity);
 
-/// @brief The distance at which a crater's round profile is read at a point: the true distance
-/// over the stretch of its outline in that direction.
-/// @param crater The crater.
-/// @param outline Its outline (`OutlineOf`).
-/// @param x Surface x of the point.
-/// @param y Surface y of the point.
-/// @param surface What the crater lies on.
-/// @return The profile distance, in metres.
+/// The distance in metres at which a crater's round profile is read at surface (x, y): the true
+/// distance over the stretch of its `outline` (`OutlineOf`) in that direction.
 double CraterProfileDistance(const Crater& crater, const CraterOutline& outline, double x, double y,
                              const Surface& surface = {});
 

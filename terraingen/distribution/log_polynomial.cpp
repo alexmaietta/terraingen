@@ -1,5 +1,3 @@
-/// @file
-/// @brief Log-polynomial size-frequency distributions.
 #include "terraingen/distribution/log_polynomial.h"
 
 #include "terraingen/util/checks.h"

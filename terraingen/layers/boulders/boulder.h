@@ -7,7 +7,7 @@
 
 namespace terraingen {
 
-/// @brief One boulder: where it stands, how large it is and how it lies, in surface coordinates
+/// One boulder: where it stands, how large it is and how it lies, in surface coordinates
 /// and metres.
 struct Boulder {
     double x = 0.0;         ///< Surface x of its centre.
@@ -24,8 +24,7 @@ struct Boulder {
     /// (`BoulderModelThreshold`).
     bool model = false;
 
-    /// @brief Height of the boulder's top above the surface it stands on.
-    /// @return `height` times one minus `burial`, in metres.
+    /// Height of the top above the surface it stands on, `height` (1 - `burial`), in metres.
     double ExposedHeight() const {
         return height * (1.0 - burial);
     }

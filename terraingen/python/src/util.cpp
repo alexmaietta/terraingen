@@ -1,6 +1,3 @@
-/// @file
-/// @brief Bindings of the util module: version and build information, logging, surfaces and the
-/// cells that tile them.
 #include "bindings.h"
 #include "common.h"
 

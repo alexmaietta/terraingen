@@ -1,5 +1,3 @@
-/// @file
-/// @brief Range checks, sampling and default numerics of the size-frequency distribution base.
 #include "terraingen/distribution/size_frequency.h"
 
 #include "terraingen/util/checks.h"

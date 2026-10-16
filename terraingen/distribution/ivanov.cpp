@@ -1,5 +1,3 @@
-/// @file
-/// @brief Ivanov's (2001) Martian chronology and production function.
 #include "terraingen/distribution/ivanov.h"
 
 #include <cmath>

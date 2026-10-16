@@ -1,6 +1,5 @@
 /// @file
-/// @brief The binding function of each library module, called in dependency order by the
-/// extension module.
+/// @brief The binding function of each library module, called in dependency order.
 #pragma once
 
 #include <nanobind/nanobind.h>

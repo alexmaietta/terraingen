@@ -1,5 +1,3 @@
-/// @file
-/// @brief `ExposureField`: bedrock share from rise and slope, and its parameter checks.
 #include "terraingen/layers/exposure.h"
 
 #include "terraingen/layers/fade.h"

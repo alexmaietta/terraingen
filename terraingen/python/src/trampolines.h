@@ -1,6 +1,5 @@
 /// @file
-/// @brief Calling the methods a Python subclass overrides, for the trampolines of the base
-/// classes Python can extend.
+/// @brief Calling the methods a Python subclass overrides, for the trampolines.
 #pragma once
 
 #include "common.h"
@@ -12,7 +11,7 @@
 
 namespace terraingen::python {
 
-/// @brief An argument passed to Python by reference rather than copied, such as a raster the
+/// An argument passed to Python by reference rather than copied, such as a raster the
 /// override changes in place.
 template <typename T> struct ByReference {
     T& value;
@@ -26,10 +25,8 @@ template <typename T> nb::object PythonArgument(ByReference<T> argument) {
     return nb::cast(&argument.value, nb::rv_policy::reference);
 }
 
-/// @brief Calls the Python override `name` if the subclass defines one. The ticket holds the GIL
+/// Calls the Python override `name` if the subclass defines one. The ticket holds the GIL
 /// while the arguments are wrapped and the result converted.
-/// @param trampoline The trampoline of the C++ object.
-/// @param name The Python method name.
 /// @param args The arguments; wrap ones to pass by reference in `ByReference`.
 /// @return What the override returned as `Result`, or nothing without an override.
 template <typename Result, typename... Args>
@@ -43,8 +40,8 @@ std::optional<Result> CallOverride(const nb::detail::trampoline& trampoline, con
         trampoline.base().attr(ticket.key)(PythonArgument(std::forward<Args>(args))...));
 }
 
-/// @brief Calls the Python override `name`, ignoring its result, if the subclass defines one.
-/// @return Whether it did.
+/// Calls the Python override `name`, ignoring its result, if the subclass defines one, and
+/// returns whether it did.
 template <typename... Args>
 bool CallOverrideIgnoringResult(const nb::detail::trampoline& trampoline, const char* name,
                                 Args&&... args) {
@@ -56,7 +53,7 @@ bool CallOverrideIgnoringResult(const nb::detail::trampoline& trampoline, const 
     return true;
 }
 
-/// @brief Calls the Python method `name` the subclass must define and converts its result with
+/// Calls the Python method `name` the subclass must define and converts its result with
 /// `convert`, while the GIL is held.
 /// @throws nb::type_error (raised in Python) when the subclass does not define it.
 template <typename Convert, typename... Args>
@@ -66,7 +63,7 @@ auto CallRequired(const nb::detail::trampoline& trampoline, const char* name, Co
     return convert(trampoline.base().attr(ticket.key)(PythonArgument(std::forward<Args>(args))...));
 }
 
-/// @brief Whether the Python subclass behind `trampoline` overrides `name`.
+/// Whether the Python subclass behind `trampoline` overrides `name`.
 inline bool Overrides(const nb::detail::trampoline& trampoline, const char* name) {
     const nb::detail::ticket ticket(trampoline, name, nb::detail::str_hash(name), false);
     return ticket.key.is_valid();

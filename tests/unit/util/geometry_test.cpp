@@ -1,5 +1,3 @@
-/// @file
-/// @brief Tests of the points, vectors and boxes in util/geometry.h.
 #include "terraingen/util/geometry.h"
 
 #include <gtest/gtest.h>

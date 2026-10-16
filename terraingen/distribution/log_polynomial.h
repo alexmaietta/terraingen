@@ -8,15 +8,14 @@
 
 namespace terraingen {
 
-/// @brief N(>=D) = 10^P(x) / `areaUnit` with P(x) = sum_i a_i x^i and x = log10(D /
+/// N(>=D) = 10^P(x) / `areaUnit` with P(x) = sum_i a_i x^i and x = log10(D /
 /// `diameterUnit`), the form of the Neukum et al. (2001) production function.
 class LogPolynomialSfd final : public SizeFrequencyDistribution {
   public:
-    /// @brief The distribution with the given coefficients and units.
+    /// The distribution with the given coefficients and units.
     /// @param coefficients a_0, a_1, ... in increasing degree; at least one, all finite.
     /// @param range Diameters in metres with 0 < `min` and finite `max`; polynomials diverge
     /// outside the interval they were fitted on.
-    /// @param kind What the values measure.
     /// @param diameterUnit Metres per unit of D in the fit; 1000 for coefficients in km.
     /// @param areaUnit m^2 per unit of area in the fit; 1e6 for counts per km^2.
     /// @throws std::invalid_argument for no or non-finite coefficients, a unit that is not positive
@@ -26,8 +25,7 @@ class LogPolynomialSfd final : public SizeFrequencyDistribution {
                      SfdKind kind = SfdKind::Density, double diameterUnit = 1.0,
                      double areaUnit = 1.0);
 
-    /// @brief The polynomial's coefficients.
-    /// @return a_0, a_1, ... in increasing degree.
+    /// The coefficients a_0, a_1, ... in increasing degree.
     const std::vector<double>& Coefficients() const {
         return coefficients_;
     }

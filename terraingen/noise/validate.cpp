@@ -1,5 +1,3 @@
-/// @file
-/// @brief Host-side checks of fractal and noise layer parameters.
 #include "terraingen/noise/validate.h"
 
 #include "terraingen/util/checks.h"

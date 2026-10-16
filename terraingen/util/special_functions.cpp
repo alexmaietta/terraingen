@@ -1,5 +1,3 @@
-/// @file
-/// @brief The exponential integral by power series and continued fraction.
 #include "terraingen/util/special_functions.h"
 
 #include <cmath>

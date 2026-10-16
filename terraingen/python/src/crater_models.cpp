@@ -1,6 +1,3 @@
-/// @file
-/// @brief Bindings of the crater models: ages, degradation and profiles, and the base classes
-/// Python can extend.
 #include "bindings.h"
 #include "common.h"
 #include "trampolines.h"

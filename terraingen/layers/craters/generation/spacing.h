@@ -8,55 +8,36 @@
 
 namespace terraingen {
 
-/// @brief Checks crater spacing settings.
-/// @param spacing The settings to check.
+/// Checks crater spacing settings.
 /// @throws std::invalid_argument unless `diameterRatio` >= 1 and `separation` >= 0 are finite.
 void ValidateCraterSpacing(const CraterSpacing& spacing);
 
-/// @brief Whether two craters are similar in size and closer than spacing allows.
-/// @param a One crater.
-/// @param b The other.
-/// @param spacing The spacing settings.
-/// @param surface What the craters lie on; distances are measured on it.
-/// @return True when they conflict.
+/// Whether two craters are similar in size and closer than `spacing` allows, measured on
+/// `surface`.
 bool CratersConflict(const Crater& a, const Crater& b, const CraterSpacing& spacing,
                      const Surface& surface = {});
 
-/// @brief Whether one crater takes precedence over another when they conflict: a manual crater
-/// over a generated one, then the younger crater, which would have overprinted the older, then the
-/// larger, then the one with the smaller ID.
-/// @param a One crater.
-/// @param b The other.
-/// @return True when `a` wins.
+/// Whether `a` takes precedence over `b` when they conflict: a manual crater over a generated one,
+/// then the younger crater (which would have overprinted the older), then the larger, then the
+/// smaller ID.
 bool CraterTakesPrecedence(const Crater& a, const Crater& b);
 
-/// @brief For each crater, whether it conflicts with a crater that takes precedence over it
+/// One flag per crater, true where it conflicts with a crater that takes precedence over it
 /// (Matern type II thinning); manual craters are never marked.
-/// @param craters The craters.
-/// @param spacing The spacing settings.
-/// @param surface What the craters lie on.
-/// @return One flag per crater, true for those to remove.
 /// @throws std::invalid_argument for invalid `spacing`.
 std::vector<bool> SpacingConflicts(const CraterList& craters, const CraterSpacing& spacing,
                                    const Surface& surface = {});
 
-/// @brief Craters without those `SpacingConflicts` marks, in their original order.
+/// The craters `SpacingConflicts` does not mark, in their original order.
 ///
 /// For results that join across tiles, thin a list extending `SpacingReach` beyond the region and
 /// crop afterwards, as `GenerateCraters` does.
-/// @param craters The craters.
-/// @param spacing The spacing settings.
-/// @param surface What the craters lie on.
-/// @return The craters kept.
 /// @throws std::invalid_argument for invalid `spacing`.
 CraterList ThinBySpacing(const CraterList& craters, const CraterSpacing& spacing,
                          const Surface& surface = {});
 
-/// @brief How far a crater can conflict with another.
-/// @param diameter The crater's largest diameter, in metres.
-/// @param maxDiameter The largest diameter of any other crater, in metres.
-/// @param spacing The spacing settings.
-/// @return The farthest distance of a conflict, in metres.
+/// The farthest distance (m) at which a crater of `diameter` can conflict with another, given
+/// the largest diameter `maxDiameter` of any other (m).
 double SpacingReach(double diameter, double maxDiameter, const CraterSpacing& spacing);
 
 }  // namespace terraingen

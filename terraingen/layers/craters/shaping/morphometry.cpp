@@ -1,5 +1,3 @@
-/// @file
-/// @brief Fresh crater morphometry and complex crater shapes fitted to the Moon and Mars.
 #include "terraingen/layers/craters/shaping/morphometry.h"
 
 #include "terraingen/util/checks.h"

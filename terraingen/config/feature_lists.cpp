@@ -1,5 +1,3 @@
-/// @file
-/// @brief Writing crater lists, boulder lists and boulder models.
 #include "terraingen/config/build.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/mesh/mesh_io.h"

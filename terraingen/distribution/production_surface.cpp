@@ -1,5 +1,3 @@
-/// @file
-/// @brief Crater densities of surfaces of a given age.
 #include "terraingen/distribution/production_surface.h"
 
 #include <stdexcept>

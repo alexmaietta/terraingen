@@ -1,5 +1,3 @@
-/// @file
-/// @brief Backend names, statuses, the process-wide default and resolution.
 #include "terraingen/gpu/backend.h"
 
 #include "terraingen/gpu/vulkan.h"

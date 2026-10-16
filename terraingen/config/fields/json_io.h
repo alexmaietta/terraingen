@@ -1,6 +1,5 @@
 /// @file
-/// @brief Reading configuration values from JSON and writing them back, through the field lists
-/// of config_fields.h.
+/// @brief Reading configuration values from JSON and writing them back through the field lists.
 #pragma once
 
 #include "terraingen/config/config.h"
@@ -26,42 +25,34 @@
 
 namespace terraingen::config {
 
-/// @brief The JSON type configurations are read from and written to, keeping keys in order.
+/// The JSON type configurations are read from and written to, keeping keys in order.
 using Json = nlohmann::ordered_json;
 
-/// @brief Reports a problem with the configuration.
-/// @param path The JSON path of the offending value.
-/// @param message What is wrong with it.
+/// Reports a problem with the configuration.
 /// @throws ConfigError at `path` with `message`, always.
 [[noreturn]] void Fail(const std::string& path, const std::string& message);
 
-/// @brief Reads the keys of one JSON object into fields, remembering which keys were asked for so
+/// Reads the keys of one JSON object into fields, remembering which keys were asked for so
 /// that any other key can be reported.
 class Reader {
   public:
-    /// @brief A reader of one object.
+    /// A reader of one object at `path`.
     /// @param json The object; it must outlive the reader.
-    /// @param path The object's JSON path.
     /// @throws ConfigError at `path` if `json` is not an object.
     Reader(const Json& json, std::string path);
 
-    /// @brief Reads a key into a field when present.
-    /// @param key The JSON key.
-    /// @param value The field.
-    /// @param description For `ConfigSchema` only.
-    /// @param unit For `ConfigSchema` only.
+    /// Reads a key into a field when present; `description` and `unit` are for `ConfigSchema`.
     /// @throws ConfigError at the key's path for a value that does not fit.
     template <typename T>
     void operator()(std::string_view key, T& value, std::string_view description = {},
                     std::string_view unit = {});
 
-    /// @brief Marks a key as known without reading it.
-    /// @param key The JSON key.
+    /// Marks a key as known without reading it.
     void Accept(std::string_view key) {
         known_.emplace(key);
     }
 
-    /// @brief Checks that the object has no key that no field asked for.
+    /// Checks that the object has no key that no field asked for.
     /// @throws ConfigError at the first unknown key.
     void Finish() const;
 
@@ -71,18 +62,14 @@ class Reader {
     std::set<std::string, std::less<>> known_;
 };
 
-/// @brief Writes fields as the keys of a JSON object, in order.
+/// Writes fields as the keys of a JSON object, in order.
 class Writer {
   public:
-    /// @brief A writer into one object.
+    /// A writer into one object.
     /// @param json The object to write; it must outlive the writer.
     explicit Writer(Json& json) : json_(json) {}
 
-    /// @brief Writes a field as a key.
-    /// @param key The JSON key.
-    /// @param value The field.
-    /// @param description For `ConfigSchema` only.
-    /// @param unit For `ConfigSchema` only.
+    /// Writes a field as a key; `description` and `unit` are for `ConfigSchema`.
     template <typename T>
     void operator()(std::string_view key, T& value, std::string_view description = {},
                     std::string_view unit = {});
@@ -91,15 +78,12 @@ class Writer {
     Json& json_;
 };
 
-/// @brief A struct read and written as a JSON object through its `Fields`.
+/// A struct read and written as a JSON object through its `Fields`.
 template <typename T>
 concept HasFields = requires(Reader& reader, T& value) { Fields(reader, value); };
 
 /// @name Read
-/// @brief Stores a JSON value in a configuration value of the overload's type.
-/// @param json The JSON value.
-/// @param path Its JSON path.
-/// @param value The value to set.
+/// Stores a JSON value at `path` in a configuration value of the overload's type.
 /// @throws ConfigError at `path`, or below it, for a value that does not fit.
 /// @{
 void Read(const Json& json, const std::string& path, double& value);
@@ -120,20 +104,15 @@ void Read(const Json& json, const std::string& path, std::variant<Ts...>& value)
 /// @}
 
 /// @name AfterRead
-/// @brief Finishes a value after its object is read: nothing, but list outputs take their format
+/// Finishes a value after its object is read: nothing, but list outputs take their format
 /// from the path's extension when the JSON gives none.
-/// @param json The object read.
-/// @param value The value read from it.
 /// @{
 template <typename T> void AfterRead(const Json& /*json*/, T& /*value*/) {}
 void AfterRead(const Json& json, CraterListOutput& output);
 void AfterRead(const Json& json, BoulderListOutput& output);
 /// @}
 
-/// @brief Reads an object into a value through its `Fields`.
-/// @param json The object.
-/// @param path Its JSON path.
-/// @param value The value to set.
+/// Reads an object at `path` into a value through its `Fields`.
 /// @param typed Whether the value is a variant alternative, so a "type" key is expected too.
 /// @throws ConfigError at `path`, or below it, for an object that does not fit.
 template <typename T>
@@ -207,12 +186,8 @@ template <typename T> void Read(const Json& json, const std::string& path, std::
     value = std::move(items);
 }
 
-/// @brief Reads an object into a variant as the alternative `T` if a name is `T`'s "type".
-/// @param json The object.
-/// @param path Its JSON path.
-/// @param name The object's "type".
-/// @param value The variant to set.
-/// @return Whether `name` named `T`.
+/// Reads an object into a variant as the alternative `T` if its "type" `name` is `T`'s, and
+/// returns whether it was.
 /// @throws ConfigError at `path`, or below it, for an object that does not fit `T`.
 template <typename T, typename Variant>
 bool ReadAlternative(const Json& json, const std::string& path, const std::string& name,
@@ -254,9 +229,7 @@ void Reader::operator()(std::string_view key, T& value, std::string_view /*descr
 }
 
 /// @name ToJson
-/// @brief A configuration value as JSON, as `Read` reads it.
-/// @param value The value.
-/// @return Its JSON.
+/// A configuration value as JSON, as `Read` reads it.
 /// @{
 inline Json ToJson(double value) {
     return value;

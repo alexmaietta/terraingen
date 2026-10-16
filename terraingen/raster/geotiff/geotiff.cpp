@@ -1,5 +1,3 @@
-/// @file
-/// @brief GeoKey lookup, GDAL band scaling and sphere GeoKeys.
 #include "terraingen/raster/geotiff/geotiff.h"
 
 #include "terraingen/raster/geotiff/tiff_format.h"

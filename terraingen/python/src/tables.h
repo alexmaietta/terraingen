@@ -17,14 +17,14 @@
 
 namespace terraingen::python {
 
-/// @brief A NumPy array owning a copy of `values`.
+/// A NumPy array owning a copy of `values`.
 template <typename T> inline nb::object Column(std::vector<T> values) {
     auto* owned = new std::vector<T>(std::move(values));
     nb::capsule owner(owned, [](void* p) noexcept { delete static_cast<std::vector<T>*>(p); });
     return nb::cast(nb::ndarray<nb::numpy, T, nb::ndim<1>>(owned->data(), {owned->size()}, owner));
 }
 
-/// @brief The craters as NumPy columns, with their attributes when there is one per crater.
+/// The craters as NumPy columns, with their attributes when there is one per crater.
 inline nb::dict CraterTable(const CraterList& craters,
                             const std::vector<CraterAttributes>& attributes = {}) {
     nb::dict table;
@@ -53,7 +53,7 @@ inline nb::dict CraterTable(const CraterList& craters,
     return table;
 }
 
-/// @brief The boulders as NumPy columns.
+/// The boulders as NumPy columns.
 inline nb::dict BoulderTable(const std::vector<Boulder>& boulders) {
     std::vector<double> x, y, ground, diameter, height, burial, yaw, lean;
     std::vector<std::uint64_t> id;

@@ -1,5 +1,3 @@
-/// @file
-/// @brief Building, generating and writing the terrain a configuration describes.
 #include "terraingen/config/generate.h"
 
 #include "terraingen/config/build.h"

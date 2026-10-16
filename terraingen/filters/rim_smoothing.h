@@ -10,7 +10,7 @@
 
 namespace terraingen {
 
-/// @brief How `SmoothCraterRims` rounds crater rims.
+/// How `SmoothCraterRims` rounds crater rims.
 struct RimSmoothing {
     /// Gaussian standard deviation as a fraction of each crater's radius; 0 disables smoothing.
     double sigmaRadii = 0.05;
@@ -27,28 +27,23 @@ struct RimSmoothing {
     bool operator==(const RimSmoothing&) const = default;
 };
 
-/// @brief Checks rim smoothing settings.
-/// @param smoothing The settings to check.
+/// Checks rim smoothing settings.
 /// @throws std::invalid_argument for a negative or non-finite `sigmaRadii`, an invalid `fade`, a
 /// `strength` outside [0, 1], or a band that does not satisfy 0 <= `innerRadii` < 1 < `outerRadii`.
 void ValidateRimSmoothing(const RimSmoothing& smoothing);
 
-/// @brief Rounds crater rims after `ApplyCraters`: around each crater, blends the terrain toward
-/// a Gaussian-smoothed copy (`GaussianBlur`, sigma `sigmaRadii` times the radius) with weight
+/// Rounds the rims of `craters` in `raster` after `ApplyCraters`: around each crater, blends the
+/// terrain toward a Gaussian-smoothed copy (sigma `sigmaRadii` times the radius) with weight
 /// `strength` at the rim falling to 0 at `innerRadii` and `outerRadii` along `shape`.
 ///
-/// Every smoothed copy is taken from the unsmoothed terrain and the blends applied in list order,
-/// so tiles with a margin (`RimSmoothingFilter::Margin`) equal the whole. Each crater's smoothing
-/// is weighted by its `ResolutionWeight`; no-data cells are left unchanged. On a sphere the raster
-/// is in longitude and latitude, distances are great-circle, and blurs are round in metres.
-/// @param raster The heights to smooth in place.
-/// @param craters The craters whose rims are smoothed.
-/// @param smoothing How they are smoothed.
+/// Smoothed copies come from the unsmoothed terrain, so tiles with a margin
+/// (`RimSmoothingFilter::Margin`) equal the whole. Each crater is weighted by its
+/// `ResolutionWeight`; no-data cells are left unchanged. On a sphere the raster is in longitude
+/// and latitude, distances are great-circle, and blurs are round in metres.
 /// @param spacing Sample spacing in metres; 0 means the raster's cell size, and a finer spacing is
 /// raised to it.
 /// @param threads Threads to split the work over; 0 for every hardware thread. The result does not
 /// depend on it.
-/// @param surface What the craters lie on.
 /// @throws std::invalid_argument as `ValidateRimSmoothing`, or for a negative or non-finite
 /// `spacing`.
 /// @throws std::domain_error if the raster's transform is not invertible.
@@ -60,8 +55,7 @@ void SmoothCraterRims(Raster<float>& raster, const CraterList& craters,
 /// `FilterContext::layers`), at the evaluation's sample spacing.
 class RimSmoothingFilter final : public Filter {
   public:
-    /// @param smoothing How rims are smoothed.
-    /// @param surface What the craters lie on.
+    /// The filter smoothing rims as `smoothing` says, for craters on `surface`.
     /// @throws std::invalid_argument as `ValidateRimSmoothing`.
     explicit RimSmoothingFilter(const RimSmoothing& smoothing, const Surface& surface = {});
 

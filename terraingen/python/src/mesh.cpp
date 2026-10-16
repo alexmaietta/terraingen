@@ -1,6 +1,3 @@
-/// @file
-/// @brief Bindings of the mesh module: rigid transforms, triangle meshes and their files, and base
-/// solids.
 #include "bindings.h"
 #include "common.h"
 #include "tables.h"

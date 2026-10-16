@@ -1,5 +1,3 @@
-/// @file
-/// @brief Tabulated size-frequency distributions.
 #include "terraingen/distribution/tabulated.h"
 
 #include "terraingen/util/checks.h"

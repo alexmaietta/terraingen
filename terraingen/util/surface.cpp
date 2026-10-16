@@ -1,5 +1,3 @@
-/// @file
-/// @brief Plane and sphere surfaces: offsets, distances, frames and bounds.
 #include "terraingen/util/surface.h"
 
 #include "terraingen/util/checks.h"

@@ -1,5 +1,3 @@
-/// @file
-/// @brief `VulkanCompute` on volk: device selection, cached pipelines and blocking dispatch.
 #include "terraingen/gpu/vulkan.h"
 
 #include "terraingen/util/log.h"

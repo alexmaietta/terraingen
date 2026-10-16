@@ -1,6 +1,5 @@
 /// @file
-/// @brief `NoiseRelief`, a stack of noise layers added to the terrain, and `NoiseLayersAt`, such a
-/// stack read on a plane or a sphere.
+/// @brief `NoiseRelief`, a stack of noise layers added to the terrain, and `NoiseLayersAt`.
 #pragma once
 
 #include "terraingen/layers/layer.h"
@@ -13,22 +12,15 @@
 
 namespace terraingen {
 
-/// @brief A stack of noise layers at a point: `EvaluateNoiseLayers` relative to `origin` on a
-/// plane (keeping single precision accurate), `EvaluateNoiseLayers3` at the 3D point on a sphere.
-/// @param layers The noise layers; on a sphere each needs a basis with a 3D form.
+/// The summed noise of `layers` at surface (x, y): 2D relative to `origin` on a plane (keeping
+/// single precision accurate), 3D at the point's 3D position on a sphere.
+/// @param layers On a sphere each needs a basis with a 3D form.
 /// @param origin Where plane coordinates are measured from; unused on a sphere.
-/// @param surface What the point lies on.
-/// @param x Surface x of the point.
-/// @param y Surface y of the point.
-/// @return The summed noise.
 float NoiseLayersAt(const std::vector<NoiseLayer>& layers, const Vec2d& origin,
                     const Surface& surface, double x, double y);
 
-/// @brief A stack of noise layers added to the terrain: rolling relief on a flat source, or detail
-/// on a DEM.
-///
-/// Each cell gets `NoiseLayersAt` at its centre: 2D noise relative to `origin` on a plane, 3D
-/// noise at the cell's 3D point on a sphere (seamless across the antimeridian and poles).
+/// A stack of noise layers added to the terrain: rolling relief on a flat source, or detail on a
+/// DEM. Each sample gets `NoiseLayersAt`, seamless on a sphere.
 class NoiseRelief final : public FormulaLayer {
   public:
     /// @param origin Where plane coordinates are measured from; unused on a sphere.

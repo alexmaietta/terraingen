@@ -1,6 +1,3 @@
-/// @file
-/// @brief Tests of `ValidateConfig` on grids, layers, filters, albedo and outputs
-/// (pipeline/validate.cpp); sources and surfaces are in validate_sources_test.cpp.
 #include "configs.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/terraingen.h"

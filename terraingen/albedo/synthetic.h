@@ -10,7 +10,7 @@
 
 namespace terraingen {
 
-/// @brief The colour of a `SyntheticAlbedo`: a base colour in hue, saturation and value, each
+/// The colour of a `SyntheticAlbedo`: a base colour in hue, saturation and value, each
 /// varied by a stack of noise layers (`EvaluateNoiseLayers`, with amplitudes in the channel's
 /// units).
 struct SyntheticAlbedoParams {
@@ -28,49 +28,39 @@ struct SyntheticAlbedoParams {
     bool operator==(const SyntheticAlbedoParams&) const = default;
 };
 
-/// @brief Checks synthetic albedo settings.
-/// @param params The settings to check.
+/// Checks synthetic albedo settings.
 /// @throws std::invalid_argument for a hue, saturation or value that is not finite, a saturation
 /// or value outside [0, 1], more than `kMaxNoiseLayers` layers in a stack, or an invalid layer.
 void ValidateSyntheticAlbedo(const SyntheticAlbedoParams& params);
 
-/// @brief Converts a colour from hue, saturation and value to red, green and blue by the hexcone
-/// model (Smith 1978).
+/// Converts a colour from hue, saturation and value to red, green and blue in [0, 1] by the
+/// hexcone model (Smith 1978).
 /// @param hue Hue in degrees; any value, wrapped.
 /// @param saturation Saturation in [0, 1].
 /// @param value Value in [0, 1].
-/// @return Red, green and blue in [0, 1].
 AlbedoSample HsvToRgb(double hue, double saturation, double value);
 
-/// @brief An albedo for terrain without data: a base colour with noise in each channel, the
+/// An albedo for terrain without data: a base colour with noise in each channel, the
 /// saturation and value clamped to [0, 1] after it. Noise is measured from `origin`; on a sphere it
 /// is 3D noise at each point's 3D position (`EvaluateNoiseLayers3`).
 class SyntheticAlbedo final : public AlbedoSource {
   public:
-    /// @brief The synthetic albedo with the given colour.
-    /// @param params The colour and its noise.
+    /// The synthetic albedo with the colour and noise of `params`.
     /// @param origin Point noise is measured from, keeping single-precision noise accurate where
     /// coordinates are large.
-    /// @param surface What the albedo lies on.
     /// @throws std::invalid_argument as `ValidateSyntheticAlbedo`, or on a sphere for a noise
     /// basis without a 3D form.
     explicit SyntheticAlbedo(SyntheticAlbedoParams params, Vec2d origin = {}, Surface surface = {});
 
-    /// @brief The number of bands.
-    /// @return 3 when `rgb` is set, otherwise 1.
+    /// 3 bands when `rgb` is set, otherwise 1.
     std::size_t Bands() const override {
         return params_.rgb ? kMaxAlbedoBands : 1;
     }
 
-    /// @brief The colour with noise at a point.
-    /// @param x World x.
-    /// @param y World y.
-    /// @param context How the albedo is evaluated.
-    /// @return The albedo sample.
+    /// The colour with noise at world point (`x`, `y`).
     AlbedoSample ValueAt(double x, double y, const AlbedoContext& context) const override;
 
-    /// @brief The settings.
-    /// @return The colour and its noise.
+    /// The colour and its noise.
     const SyntheticAlbedoParams& Params() const {
         return params_;
     }

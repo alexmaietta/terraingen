@@ -1,5 +1,3 @@
-/// @file
-/// @brief The boulder size distributions synthterrain offers.
 #include "terraingen/distribution/synthterrain.h"
 
 #include <stdexcept>

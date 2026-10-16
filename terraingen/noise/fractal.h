@@ -10,7 +10,7 @@
 
 namespace terraingen {
 
-/// @brief Single-octave noise function a fractal is built from.
+/// Single-octave noise function a fractal is built from.
 enum class NoiseBasis : uint32_t {
     Perlin = 0,           ///< Improved gradient noise (`PerlinNoise2`).
     Simplex = 1,          ///< Simplex noise (`SimplexNoise2`).
@@ -20,10 +20,10 @@ enum class NoiseBasis : uint32_t {
     WorleyF2MinusF1 = 5,  ///< F2 - F1; ridges along cell borders, like cracked ground.
 };
 
-/// @brief Number of `NoiseBasis` values.
+/// Number of `NoiseBasis` values.
 static const uint32_t kNoiseBasisCount = 6;
 
-/// @brief How octaves of the basis noise are combined.
+/// How octaves of the basis noise are combined.
 enum class FractalType : uint32_t {
     Fbm = 0,                 ///< Weighted sum of octaves (fractional Brownian motion).
     Ridged = 1,              ///< Ridged multifractal: sharp crests from inverted |noise|.
@@ -31,10 +31,10 @@ enum class FractalType : uint32_t {
     HybridMultifractal = 3,  ///< Smooth lowlands and rough highlands.
 };
 
-/// @brief Number of `FractalType` values.
+/// Number of `FractalType` values.
 static const uint32_t kFractalTypeCount = 4;
 
-/// @brief Parameters of a fractal built from octaves of a basis noise.
+/// Parameters of a fractal built from octaves of a basis noise.
 ///
 /// Octave i has wavelength `wavelength / lacunarity^i` and weight `gain^i`;
 /// `gain = lacunarity^(-H)` gives Hurst exponent H (`GainFromHurst`). Checked on the host by
@@ -55,20 +55,17 @@ struct FractalParams {
 #endif
 };
 
-/// @brief Octave gain for a Hurst exponent; evaluated on the host, kernels only get the gain.
+/// Octave gain `lacunarity^(-hurst)` for a Hurst exponent; evaluated on the host, kernels only
+/// get the gain.
 /// @param hurst Hurst exponent H, usually in (0, 1].
 /// @param lacunarity Frequency ratio between octaves, > 1.
-/// @return `lacunarity^(-hurst)`.
 inline float GainFromHurst(float hurst, float lacunarity) {
     return pow(lacunarity, -hurst);
 }
 
-/// @brief One octave of 2D `basis` noise; Worley distances are mapped linearly from [0, bound] to
+/// One octave of 2D `basis` noise; Worley distances are mapped linearly from [0, bound] to
 /// [-1, 1].
 /// @param basis The basis; unknown values fall back to Perlin.
-/// @param x Lattice x.
-/// @param y Lattice y.
-/// @param seed The noise seed.
 /// @return Noise in [-1, 1].
 inline float BasisNoise2(NoiseBasis basis, float x, float y, uint32_t seed) {
     constexpr float kInvSqrt2 = 0.707106781186547524f;
@@ -91,18 +88,13 @@ inline float BasisNoise2(NoiseBasis basis, float x, float y, uint32_t seed) {
     }
 }
 
-/// @brief Whether a basis has a 3D form for `Fractal3`.
-/// @param basis The basis.
-/// @return True for Perlin and value noise.
+/// Whether a basis has a 3D form for `Fractal3`: true for Perlin and value noise.
 inline bool HasBasisNoise3(NoiseBasis basis) {
     return basis == NoiseBasis::Perlin || basis == NoiseBasis::Value;
 }
 
-/// @brief One octave of 3D `basis` noise: value noise for `NoiseBasis::Value`, Perlin noise
+/// One octave of 3D `basis` noise: value noise for `NoiseBasis::Value`, Perlin noise
 /// otherwise.
-/// @param basis The basis.
-/// @param point The lattice cell and the fraction within it.
-/// @param seed The noise seed.
 /// @return Noise in [-1, 1].
 inline float BasisNoise3(NoiseBasis basis, LatticePoint3 point, uint32_t seed) {
     if (basis == NoiseBasis::Value) {
@@ -113,13 +105,13 @@ inline float BasisNoise3(NoiseBasis basis, LatticePoint3 point, uint32_t seed) {
 
 namespace detail {
 
-/// @brief Cosine of the golden-angle turn between successive 2D octave lattices, accumulated by
+/// Cosine of the golden-angle turn between successive 2D octave lattices, accumulated by
 /// multiplication for bit-identical results.
 static const float kOctaveTurnCos = -0.7373688780783197f;
-/// @brief Sine of the golden-angle turn; see `kOctaveTurnCos`.
+/// Sine of the golden-angle turn; see `kOctaveTurnCos`.
 static const float kOctaveTurnSin = 0.6754902942615238f;
 
-/// @brief The running sums of a fractal over its octaves.
+/// The running sums of a fractal over its octaves.
 struct FractalSums {
     float weight = 1.0f;       ///< Weight of the next octave, `gain^i`.
     float sum = 0.0f;          ///< Weighted sum of octave signals so far.
@@ -127,12 +119,9 @@ struct FractalSums {
     float feedback = 1.0f;     ///< Previous signal weighting the next (ridged and hybrid).
 };
 
-/// @brief Adds one octave to a fractal's running sums.
-/// @param sums The sums before the octave.
-/// @param params The fractal.
+/// Adds one octave to a fractal's running sums.
 /// @param octave The octave, from 0.
 /// @param n The octave's basis noise, in [-1, 1].
-/// @return The sums after the octave.
 inline FractalSums AddFractalOctave(FractalSums sums, FractalParams params, int octave, float n) {
     switch (params.type) {
     case FractalType::Billow:
@@ -166,10 +155,8 @@ inline FractalSums AddFractalOctave(FractalSums sums, FractalParams params, int 
     return sums;
 }
 
-/// @brief The fractal height from its sums over every octave, normalized by its largest value.
-/// @param sums The sums after the last octave.
-/// @param params The fractal.
-/// @return Height in [-amplitude, amplitude] world units.
+/// The fractal height in [-amplitude, amplitude] world units from its sums over every octave,
+/// normalized by its largest value.
 inline float FinishFractal(FractalSums sums, FractalParams params) {
     switch (params.type) {
     case FractalType::Ridged: {
@@ -186,9 +173,8 @@ inline float FinishFractal(FractalSums sums, FractalParams params) {
 
 }  // namespace detail
 
-/// @brief 2D fractal height; each octave has its own seed, lattice offset and golden-angle turn.
-/// @param x World x in metres.
-/// @param y World y in metres.
+/// 2D fractal height; each octave has its own seed, lattice offset and golden-angle turn.
+/// @param x, y World coordinates in metres.
 /// @param params The fractal, assumed valid (`ValidateFractalParams` checks it on the host).
 /// @return Height in [-amplitude, amplitude] world units, for any parameters.
 inline float Fractal2(float x, float y, FractalParams params) {
@@ -214,11 +200,9 @@ inline float Fractal2(float x, float y, FractalParams params) {
 }
 
 #ifndef __SLANG__
-/// @brief `Fractal2` in 3D, for noise on a sphere; lattice coordinates are split in double
+/// `Fractal2` in 3D, for noise on a sphere; lattice coordinates are split in double
 /// precision so noise stays exact at a planet's radius.
-/// @param x World x in metres.
-/// @param y World y in metres.
-/// @param z World z in metres.
+/// @param x, y, z World coordinates in metres.
 /// @param params The fractal, assumed valid; bases without `HasBasisNoise3` fall back to Perlin.
 /// @return Height in [-amplitude, amplitude] world units.
 inline float Fractal3(double x, double y, double z, FractalParams params) {

@@ -1,6 +1,3 @@
-/// @file
-/// @brief Tests of reading configurations from JSON: defaults, optional values and inferred
-/// settings (pipeline/json_io.cpp).
 #include "configs.h"
 
 #include <gtest/gtest.h>

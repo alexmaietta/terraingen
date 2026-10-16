@@ -1,5 +1,3 @@
-/// @file
-/// @brief Albedo maps upscaled with fractal detail that continues their roughness.
 #include "terraingen/albedo/raster_albedo.h"
 
 #include "terraingen/layers/roughness.h"

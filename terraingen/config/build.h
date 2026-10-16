@@ -1,6 +1,5 @@
 /// @file
-/// @brief Building library objects from configuration specs: the surface, crater models, terrain
-/// and albedo.
+/// @brief Building library objects from configuration specs.
 #pragma once
 
 #include "terraingen/albedo/albedo.h"
@@ -15,36 +14,25 @@
 
 namespace terraingen {
 
-/// @brief The `Surface` a spec describes.
-/// @param spec The surface spec.
-/// @return A plane, or a sphere of the given or the body's radius.
-/// @throws ConfigError for a sphere without a positive, finite radius, or with both a radius and
-/// a body.
+/// The `Surface` a spec describes: a plane, or a sphere of the given radius.
+/// @throws ConfigError at "surface.radius" for a sphere without a positive, finite radius.
 Surface BuildSurface(const SurfaceSpec& spec);
 
-/// @brief Builds the models a crater layer selects.
-/// @param craters The crater layer.
+/// The density, ages, profile and degradation models a crater layer selects.
 /// @param path The layer's JSON path, which errors are reported under.
-/// @return Its density, ages, profile and degradation.
 /// @throws ConfigError at `path`.density, .ages, .profile or .degradation for an invalid model.
 CraterModels BuildCraterModels(const CraterLayerSpec& craters, const std::string& path = {});
 
-/// @brief The terrain a configuration describes, as library objects: its source, layers and
-/// filters, ready to `Evaluate` over the source's grid or any grid on its lattice. Noise layers
-/// measure positions from the source's reference point.
-/// @param config The configuration, checked with `ValidateConfig` first.
+/// The terrain a configuration describes, ready to `Evaluate` over the source's grid or any grid
+/// on its lattice. Checks the configuration with `ValidateConfig` first.
 /// @param directory Folder relative input paths resolve against.
-/// @return The terrain.
 /// @throws ConfigError if the configuration is invalid.
 Terrain BuildTerrain(const TerrainConfig& config, const std::filesystem::path& directory = {});
 
-/// @brief The albedo `config.albedo` describes for a terrain: crater albedo layers read the
-/// terrain's top-level crater layers, and synthetic noise is measured from the source's
-/// reference point.
-/// @param config The configuration.
+/// The albedo `config.albedo` describes for `terrain`, whose top-level crater layers crater
+/// albedo layers read. Checks the albedo with `ValidateAlbedo` first.
 /// @param terrain The terrain `BuildTerrain` built from `config`.
 /// @param directory Folder relative input paths resolve against.
-/// @return The albedo.
 /// @throws ConfigError if the albedo is invalid or the configuration has none.
 /// @throws GeoTiffError if an albedo map cannot be read.
 Albedo BuildAlbedo(const TerrainConfig& config, const Terrain& terrain,
@@ -53,27 +41,18 @@ Albedo BuildAlbedo(const TerrainConfig& config, const Terrain& terrain,
 /// Steps shared by validation, building and output writing.
 namespace config {
 
-/// @brief A configuration path resolved against a folder.
-/// @param path The path as the configuration gives it.
-/// @param directory Folder a relative path resolves against; empty leaves it relative.
-/// @return The resolved path.
+/// `path` resolved against `directory`; an empty `directory` leaves it relative.
 std::filesystem::path Resolve(const std::string& path, const std::filesystem::path& directory);
 
-/// @brief Whether a path names a mesh file format the pipeline writes.
-/// @param path The path.
-/// @return True for a .glb or .ply extension.
+/// Whether `path` has a mesh extension the outputs write: .glb or .ply.
 bool IsMeshFile(const std::filesystem::path& path);
 
-/// @brief The boulder options a layer describes, with its size distributions built.
-/// @param spec The boulder layer.
-/// @param path The layer's JSON path.
-/// @return The options, unchecked.
+/// The boulder options a layer describes, unchecked, with its size distributions built.
+/// @param path The layer's JSON path, which errors are reported under.
 /// @throws ConfigError at `path`.sizes or .ejecta_sizes for an invalid distribution.
 BoulderLayerOptions BuildBoulderOptions(const BoulderLayerSpec& spec, const std::string& path);
 
-/// @brief The region shape a spec describes.
-/// @param spec The shape spec.
-/// @return The shape, unchecked.
+/// The region shape a spec describes, unchecked.
 RegionShape BuildRegionShape(const RegionShapeSpec& spec);
 
 }  // namespace config

@@ -12,17 +12,15 @@
 
 namespace terraingen {
 
-/// @brief An interval to draw a value uniformly from.
+/// An interval to draw a value uniformly from.
 struct ValueRange {
     double min = 0.0;  ///< Lower end.
     double max = 0.0;  ///< Upper end, >= `min`.
 
-    /// @brief Memberwise equality.
-    /// @return True when both ends are equal.
     bool operator==(const ValueRange&) const = default;
 };
 
-/// @brief One kind of boulder: the solid it starts from and the ranges its shape is drawn from.
+/// One kind of boulder: the solid it starts from and the ranges its shape is drawn from.
 ///
 /// The solid is subdivided, stretched, rounded, roughened and cut by fracture planes, every vertex
 /// moving only along its ray from the origin, so the mesh never folds over itself. Ratios and
@@ -43,36 +41,30 @@ struct BoulderStyle {
     double noiseWavelength = 0.6;        ///< Wavelength of the first noise octave.
     int noiseOctaves = 3;                ///< Noise octaves, each half the wavelength.
 
-    /// @brief Memberwise equality.
-    /// @return True when every member is equal.
     bool operator==(const BoulderStyle&) const = default;
 };
 
-/// @brief The default mix of boulder styles: blocks and slabs most of all, then rounded boulders,
+/// The default mix of boulder styles: blocks and slabs most of all, then rounded boulders,
 /// wedges, pyramids and shards.
-/// @return The styles.
 std::vector<BoulderStyle> DefaultBoulderStyles();
 
-/// @brief Settings for `GenerateBoulderShape`.
+/// Settings for `GenerateBoulderShape`.
 struct BoulderShapeOptions {
     std::vector<BoulderStyle> styles = DefaultBoulderStyles();  ///< Styles to pick from by weight.
     int subdivisions = 3;    ///< Times the solid's triangles are split in four.
     std::uint32_t seed = 0;  ///< Seed shared by every shape.
 
-    /// @brief Memberwise equality.
-    /// @return True when every member is equal.
     bool operator==(const BoulderShapeOptions&) const = default;
 };
 
-/// @brief Checks boulder shape options.
-/// @param options The options to check.
+/// Checks boulder shape options.
 /// @throws std::invalid_argument for no styles, a style with a negative weight, all weights zero,
 /// an empty or inverted range, axis ratios outside (0, 1], rounding or depths outside [0, 1],
 /// fracture counts not in 0 <= min <= max <= 64, a tilt outside [0, 1], noise amplitude outside
 /// [0, 1), a non-positive wavelength, octaves outside 1 to 12, or subdivisions outside 0 to 6.
 void ValidateBoulderShapeOptions(const BoulderShapeOptions& options);
 
-/// @brief A boulder's shape in unit form, with the origin inside it.
+/// A boulder's shape in unit form, with the origin inside it.
 struct BoulderShape {
     TriangleMesh mesh;          ///< Long axis along x, extent exactly 1.
     std::size_t style = 0;      ///< Index into the options' styles.
@@ -80,19 +72,14 @@ struct BoulderShape {
     double shortAxis = 1.0;     ///< Extent along z, in long-axis lengths.
 };
 
-/// @brief The shape a seed gives, a pure function of the seed and options; every subdivision level
+/// The shape a seed gives, a pure function of the seed and options; every subdivision level
 /// gives the same shape in finer detail.
-/// @param shapeSeed The shape's seed, e.g. from `BoulderShapeSeed`.
-/// @param options The styles, subdivision and seed.
-/// @return The shape.
-/// @throws std::invalid_argument for invalid options.
+/// @param shapeSeed E.g. from `BoulderShapeSeed`.
+/// @throws std::invalid_argument as `ValidateBoulderShapeOptions`.
 BoulderShape GenerateBoulderShape(std::uint64_t shapeSeed, const BoulderShapeOptions& options);
 
-/// @brief The shape seed of a boulder.
-/// @param id The boulder's ID.
-/// @param prototypes The number of shared shapes, or 0 for a shape per boulder.
-/// @return `id` itself for 0 `prototypes`, otherwise `id` hashed into [0, `prototypes`), so a
-/// field can be drawn with a small library of instanced meshes.
+/// The shape seed of the boulder with ID `id`: `id` itself for 0 `prototypes`, otherwise `id`
+/// hashed into [0, `prototypes`), so a field can be drawn with a small library of instanced meshes.
 std::uint64_t BoulderShapeSeed(std::uint64_t id, std::uint32_t prototypes = 0);
 
 }  // namespace terraingen

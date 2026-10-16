@@ -1,5 +1,3 @@
-/// @file
-/// @brief Meshing a whole body from a terrain's heights at the vertices of a cube sphere.
 #include "terraingen/pipeline/body_mesh.h"
 
 #include "terraingen/util/cells.h"

@@ -1,6 +1,3 @@
-/// @file
-/// @brief Bindings of boulder layers: boulders, their size and placement options, the boulder
-/// layer, boulder shapes and boulders placed as 3D models.
 #include "bindings.h"
 #include "common.h"
 #include "objects.h"

@@ -1,5 +1,3 @@
-/// @file
-/// @brief Log levels, sinks and the shared logging state.
 #include "terraingen/util/log.h"
 
 #include <algorithm>

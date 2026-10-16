@@ -1,6 +1,3 @@
-/// @file
-/// @brief Bindings of the noise module: hashes, basis noise, fractals and noise layers, over
-/// NumPy arrays or single points.
 #include "bindings.h"
 #include "common.h"
 

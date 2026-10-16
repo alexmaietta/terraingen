@@ -9,9 +9,7 @@
 
 namespace terraingen::config {
 
-/// @brief The fields of heightmap and albedo outputs.
-/// @param io The field reader, writer or describer.
-/// @param output The output.
+/// The fields of heightmap and albedo outputs.
 template <typename IO> void GeoTiffOutputFields(IO& io, GeoTiffOutput& output) {
     io("path", output.path, OutputPathHelp("GeoTIFF file to write"));
     io("compression", output.compression,
@@ -20,9 +18,7 @@ template <typename IO> void GeoTiffOutputFields(IO& io, GeoTiffOutput& output) {
        "Width and height of the file's tiles in pixels; a positive multiple of 16.", "px");
 }
 
-/// @brief The fields of crater and boulder list outputs.
-/// @param io The field reader, writer or describer.
-/// @param output The output.
+/// The fields of crater and boulder list outputs.
 template <typename IO> void ListOutputFields(IO& io, ListOutput& output) {
     io("path", output.path, OutputPathHelp("File to write"));
     io("format", output.format,

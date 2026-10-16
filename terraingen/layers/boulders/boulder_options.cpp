@@ -1,5 +1,3 @@
-/// @file
-/// @brief Boulder option checks, throw distance and the candidate size distributions.
 #include "terraingen/layers/boulders/boulder_options.h"
 
 #include "terraingen/distribution/golombek_rapp.h"

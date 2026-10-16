@@ -1,6 +1,5 @@
 /// @file
-/// @brief `ExposureField`, how far the ground at a point is bare bedrock rather than soil, and the
-/// patch noise that breaks it up.
+/// @brief `ExposureField`, how far the ground is bare bedrock rather than soil, and `PatchNoise`.
 #pragma once
 
 #include "terraingen/layers/ground.h"
@@ -11,19 +10,15 @@
 
 namespace terraingen {
 
-/// @brief Two-octave patch noise: clamp(2.5 (0.7 n(p / size) + 0.3 n(4 p / size)), -1, 1).
+/// Two-octave patch noise in [-1, 1]: clamp(2.5 (0.7 n(p / size) + 0.3 n(4 p / size)), -1, 1).
 ///
-/// n is 2D Perlin noise on a plane and 3D Perlin noise at the 3D point on a sphere; the finer
-/// octave is seeded `seed` + 1. About half the ground lies near either end.
-/// @param surface What the point lies on.
-/// @param x Surface x of the point.
-/// @param y Surface y of the point.
+/// n is 2D Perlin noise on a plane and 3D at the 3D point on a sphere; the finer octave is seeded
+/// `seed` + 1. About half the ground lies near either end.
 /// @param size Typical width of a patch, in metres; positive.
 /// @param seed Seed of the coarser octave.
-/// @return The patch value, in [-1, 1].
 double PatchNoise(const Surface& surface, double x, double y, double size, std::uint32_t seed);
 
-/// @brief The thresholds an `ExposureField` tells soil from bedrock by; a rule of thumb, not a
+/// The thresholds an `ExposureField` tells soil from bedrock by; a rule of thumb, not a
 /// measurement.
 struct ExposureParams {
     double reach = 12.0;  ///< How far around a point its surroundings are read (m).
@@ -40,50 +35,39 @@ struct ExposureParams {
     bool operator==(const ExposureParams&) const = default;
 };
 
-/// @brief Checks exposure thresholds.
-/// @param params The thresholds to check.
+/// Checks exposure thresholds.
 /// @throws std::invalid_argument unless `reach` and `floorPatch` are positive, each boulder
 /// threshold is over its soil one, and `floorCover` is in [0, 1).
 void ValidateExposureParams(const ExposureParams& params);
 
-/// @brief How far the ground at a point is bedrock rather than soil, from its shape alone.
+/// How far the ground at a point is bedrock rather than soil, from its shape alone.
 ///
 /// Rises above the mean of eight points a reach around, and steep slopes, grade from soil to
 /// bedrock by smoothsteps between their thresholds (the larger wins); `floorCover` of level ground
-/// is bedrock in noise patches. Changes no height; reads the ground at points, so it is the same
-/// on every grid, tile and point.
+/// is bedrock in noise patches. Reads the ground at points, so it agrees on every grid and tile.
 class ExposureField {
   public:
-    /// @brief Makes a field; on a sphere, surroundings are read in each point's local frame.
-    /// @param params The thresholds.
-    /// @param surface What the ground lies on.
+    /// Makes a field; on a sphere, surroundings are read in each point's local frame.
     /// @throws std::invalid_argument as `ValidateExposureParams`.
     explicit ExposureField(const ExposureParams& params = {}, const Surface& surface = {});
 
-    /// @brief The share of bedrock at a point; neighbours without data count as level with it.
-    /// @param ground The ground to read.
-    /// @param x World x of the point.
-    /// @param y World y of the point.
+    /// The share of bedrock at world (x, y), in [0, 1] (0 soil, 1 bedrock; 0 without data).
+    /// Neighbours without data count as level with the point.
     /// @param spacing Sample spacing in world units.
-    /// @return In [0, 1]: 0 soil, 1 bedrock; 0 where the ground has no data.
     double Exposure(const Ground& ground, double x, double y, double spacing) const;
 
-    /// @brief `Exposure` at the centre of every cell of a raster.
-    /// @param raster The raster to fill.
-    /// @param ground The ground to read.
+    /// Fills `raster` with `Exposure` at each cell centre.
     /// @param spacing Sample spacing in world units.
     /// @param threads Worker threads; 0 for every hardware thread.
     void Fill(Raster<float>& raster, const Ground& ground, double spacing,
               unsigned threads = 1) const;
 
-    /// @brief The thresholds.
-    /// @return The parameters the field was made with.
+    /// The thresholds the field was made with.
     const ExposureParams& Params() const {
         return params_;
     }
 
-    /// @brief What the ground lies on.
-    /// @return The surface the field was made with.
+    /// What the ground lies on.
     const Surface& GetSurface() const {
         return surface_;
     }

@@ -1,5 +1,3 @@
-/// @file
-/// @brief Albedo evaluation and the cell loops shared by albedo sources and layers.
 #include "terraingen/albedo/albedo.h"
 
 #include "terraingen/util/checks.h"

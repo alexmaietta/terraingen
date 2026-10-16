@@ -1,6 +1,3 @@
-/// @file
-/// @brief `ValidateConfig` and `DescribeSource`: the checks of a configuration that parsing
-/// cannot make.
 #include "terraingen/config/validate.h"
 
 #include "terraingen/albedo/crater_albedo.h"

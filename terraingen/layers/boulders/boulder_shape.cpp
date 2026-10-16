@@ -1,5 +1,3 @@
-/// @file
-/// @brief Default boulder styles, option validation and seeded boulder shape generation.
 #include "terraingen/layers/boulders/boulder_shape.h"
 
 #include "terraingen/noise/hash.h"

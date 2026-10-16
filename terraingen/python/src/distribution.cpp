@@ -1,6 +1,3 @@
-/// @file
-/// @brief Bindings of the distribution module: size-frequency distributions, the base class
-/// Python can extend, and their combinations.
 #include "bindings.h"
 #include "common.h"
 

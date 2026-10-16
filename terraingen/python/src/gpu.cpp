@@ -1,5 +1,3 @@
-/// @file
-/// @brief Bindings of the gpu module: choosing where evaluation runs.
 #include "bindings.h"
 #include "common.h"
 

@@ -13,25 +13,17 @@
 
 namespace terraingen::config {
 
-/// @brief The JSON path of a member of an object.
-/// @param path The object's path; empty for the document root.
-/// @param key The member's name.
-/// @return `path.key`, or just `key` at the root.
+/// The JSON path `path.key` of an object's member, or just `key` when `path` is empty.
 inline std::string Child(const std::string& path, std::string_view key) {
     return path.empty() ? std::string(key) : path + "." + std::string(key);
 }
 
-/// @brief The JSON path of an element of an array.
-/// @param path The array's path.
-/// @param index The element's index.
-/// @return `path[index]`.
+/// The JSON path `path[index]` of an array's element.
 inline std::string Element(const std::string& path, std::size_t index) {
     return path + "[" + std::to_string(index) + "]";
 }
 
-/// @brief Checks that a configuration value is positive and finite.
-/// @param value The value to check.
-/// @param path The value's JSON path.
+/// Checks that a configuration value is positive and finite.
 /// @throws ConfigError "must be positive" at `path` otherwise.
 inline void RequirePositive(double value, const std::string& path) {
     if (!IsPositive(value)) {
@@ -39,9 +31,7 @@ inline void RequirePositive(double value, const std::string& path) {
     }
 }
 
-/// @brief Checks that a configuration value is finite and not negative.
-/// @param value The value to check.
-/// @param path The value's JSON path.
+/// Checks that a configuration value is finite and not negative.
 /// @throws ConfigError "must not be negative" at `path` otherwise.
 inline void RequireNonNegative(double value, const std::string& path) {
     if (!IsNonNegative(value)) {
@@ -49,9 +39,7 @@ inline void RequireNonNegative(double value, const std::string& path) {
     }
 }
 
-/// @brief Checks that a configuration value is finite.
-/// @param value The value to check.
-/// @param path The value's JSON path.
+/// Checks that a configuration value is finite.
 /// @throws ConfigError "must be finite" at `path` for an infinite or NaN `value`.
 inline void RequireFinite(double value, const std::string& path) {
     if (!std::isfinite(value)) {
@@ -59,9 +47,7 @@ inline void RequireFinite(double value, const std::string& path) {
     }
 }
 
-/// @brief Checks that a configuration string, such as a file path, is not empty.
-/// @param value The string to check.
-/// @param path The value's JSON path.
+/// Checks that a configuration string, such as a file path, is not empty.
 /// @throws ConfigError "must not be empty" at `path` otherwise.
 inline void RequireNonEmpty(const std::string& value, const std::string& path) {
     if (value.empty()) {
@@ -69,10 +55,8 @@ inline void RequireNonEmpty(const std::string& value, const std::string& path) {
     }
 }
 
-/// @brief Runs a library check or build step, reporting its errors at a configuration path.
-/// @param path The JSON path of what `check` checks.
-/// @param check A callable taking no arguments.
-/// @return What `check` returns.
+/// Runs a library check or build step `check()` and returns its result, reporting its errors at
+/// the configuration path `path`.
 /// @throws ConfigError at `path` with the message of a std::invalid_argument or std::domain_error
 /// that `check` throws.
 template <typename Check> auto At(const std::string& path, Check check) {

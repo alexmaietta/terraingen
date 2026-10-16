@@ -12,13 +12,13 @@
 
 namespace terraingen {
 
-/// @brief The order in which overlapping craters are applied; later craters overprint earlier ones.
+/// The order in which overlapping craters are applied; later craters overprint earlier ones.
 enum class CraterOrder {
     OldestFirst,   ///< Decreasing age, then decreasing diameter: the physical order.
     LargestFirst,  ///< Decreasing diameter, then decreasing age.
 };
 
-/// @brief The reference surface a crater's interior is cut relative to.
+/// The reference surface a crater's interior is cut relative to.
 enum class CraterDatum {
     None,          ///< No datum: the profile is added onto the terrain everywhere.
     Plane,         ///< Least-squares plane over the fit footprint; keeps regional slopes.
@@ -26,15 +26,14 @@ enum class CraterDatum {
     CentreHeight,  ///< Flat datum at the terrain height under the crater centre.
 };
 
-/// @brief Where a crater's replaced interior blends into the surrounding terrain, in crater radii.
+/// Where a crater's replaced interior blends into the surrounding terrain, in crater radii.
 struct CraterBlend {
     double startRadii = 0.8;                      ///< Interior weight is 1 up to here.
     double endRadii = 1.2;                        ///< And 0 from here; above `startRadii`.
     BlendShape shape = BlendShape::Smootherstep;  ///< The curve in between.
 
-    /// @brief The interior weight at a distance from the centre.
-    /// @param radii The distance, in crater radii.
-    /// @return 1 up to `startRadii`, 0 from `endRadii`, and `shape` in between.
+    /// The interior weight at `radii` crater radii from the centre: 1 up to `startRadii`, 0 from
+    /// `endRadii`, and `shape` in between.
     double Weight(double radii) const {
         return Falloff(radii, startRadii, endRadii, shape);
     }
@@ -42,7 +41,7 @@ struct CraterBlend {
     bool operator==(const CraterBlend&) const = default;
 };
 
-/// @brief How `ApplyCraters` shapes craters into the terrain.
+/// How `ApplyCraters` shapes craters into the terrain.
 struct CraterApplyOptions {
     CraterOrder order = CraterOrder::OldestFirst;  ///< Which craters overprint which.
     /// How craters too small to resolve at the sample spacing fade out.
@@ -65,17 +64,14 @@ struct CraterApplyOptions {
     bool operator==(const CraterApplyOptions&) const = default;
 };
 
-/// @brief Checks crater apply options.
-/// @param options The options to check.
+/// Checks crater apply options.
 /// @throws std::invalid_argument for an invalid `fade` or `irregularity`, a non-positive
 /// `datumFitRadii`, an `interiorReplacement` outside [0, 1], or a blend that does not satisfy
 /// 0 <= `startRadii` < `endRadii`.
 void ValidateCraterApplyOptions(const CraterApplyOptions& options);
 
-/// @brief The order craters are applied in.
-/// @param craters The craters.
-/// @param order Which craters go first; ties fall to age, then diameter, then the smaller ID.
-/// @return Indices into `craters`, in the order applied.
+/// Indices into `craters` in the order they are applied; ties fall to age, then diameter, then
+/// the smaller ID.
 std::vector<std::size_t> CraterApplyOrder(const CraterList& craters, CraterOrder order);
 
 }  // namespace terraingen

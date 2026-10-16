@@ -1,5 +1,3 @@
-/// @file
-/// @brief `terraingen --gui` in a build without the GUI.
 #include "terraingen/app/cli.h"
 #include "terraingen/app/gui/run.h"
 

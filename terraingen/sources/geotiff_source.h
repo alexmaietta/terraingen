@@ -14,7 +14,7 @@
 
 namespace terraingen {
 
-/// @brief Heights from one band of a GeoTIFF in a projected CRS, optionally resampled to square
+/// Heights from one band of a GeoTIFF in a projected CRS, optionally resampled to square
 /// cells of `pixelSize` over the file's extent.
 ///
 /// The file is read on first use and kept. On the source's own lattice `Fill` copies cells exactly;
@@ -23,8 +23,7 @@ namespace terraingen {
 /// and `offset` replace; when that changes the samples, cells without data become NaN.
 class GeoTiffSource final : public Source {
   public:
-    /// @brief Reads the file's header.
-    /// @param path The GeoTIFF.
+    /// Reads the file's header.
     /// @param band Zero-based band index.
     /// @param pixelSize Cell size to resample to, in CRS units; unset keeps the file's cells.
     /// @param resampling Interpolation for resampling and for cells off the lattice.
@@ -40,27 +39,22 @@ class GeoTiffSource final : public Source {
                            std::optional<double> scale = std::nullopt,
                            std::optional<double> offset = std::nullopt);
 
-    /// @brief The file's grid, resampled to `pixelSize` when set.
-    /// @return The grid.
+    /// The file's grid, resampled to `pixelSize` when set.
     RasterGrid Grid() const override {
         return grid_;
     }
 
-    /// @brief The top-left corner of the grid.
-    /// @return The corner in CRS units.
+    /// The top-left corner of the grid, in CRS units.
     Vec2d ReferencePoint() const override;
 
-    /// @brief Copies cells on the source's lattice, otherwise samples the file at cell centres.
-    /// @param heights Raster to fill.
+    /// Copies cells on the source's lattice, otherwise samples the file at cell centres.
     /// @throws std::invalid_argument for a rotated grid off the source's lattice.
     /// @throws GeoTiffError if the file cannot be read.
     void Fill(Raster<float>& heights) const override;
 
-    /// @brief The source cell centred at (`x`, `y`) when there is one, otherwise the file
-    /// interpolated there with `resampling` (`SampleRaster`).
-    /// @param x CRS x.
-    /// @param y CRS y.
-    /// @return Height in metres; NaN beyond the file and where it has no data.
+    /// The height in metres of the source cell centred at CRS (`x`, `y`) when there is one,
+    /// otherwise of the file interpolated there with `resampling` (`SampleRaster`); NaN beyond
+    /// the file and where it has no data.
     /// @throws GeoTiffError if the file cannot be read.
     float HeightAt(double x, double y) const override;
 
@@ -69,8 +63,7 @@ class GeoTiffSource final : public Source {
         return info_.geoKeys;
     }
 
-    /// @brief The scale and offset the samples are read with.
-    /// @return The band scaling.
+    /// The scale and offset the samples are read with.
     const BandScaling& Scaling() const {
         return scaling_;
     }

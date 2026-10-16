@@ -1,5 +1,3 @@
-/// @file
-/// @brief Crater lists, manual crater IDs and crater selections.
 #include "terraingen/layers/craters/crater.h"
 
 #include "terraingen/random/philox.h"

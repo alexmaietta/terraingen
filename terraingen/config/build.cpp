@@ -1,5 +1,3 @@
-/// @file
-/// @brief Library objects built from configuration specs: models, layers, sources and albedo.
 #include "terraingen/config/build.h"
 
 #include "terraingen/albedo/crater_albedo.h"

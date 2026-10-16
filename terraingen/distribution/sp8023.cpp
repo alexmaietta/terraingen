@@ -1,5 +1,3 @@
-/// @file
-/// @brief Digitized NASA SP-8023 lunar block tables.
 #include "terraingen/distribution/sp8023.h"
 
 #include <array>

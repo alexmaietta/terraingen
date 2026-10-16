@@ -9,7 +9,7 @@
 
 namespace terraingen {
 
-/// @brief Affine mapping from pixel to world coordinates, as GDAL's six-coefficient geotransform.
+/// Affine mapping from pixel to world coordinates, as GDAL's six-coefficient geotransform.
 ///
 /// Pixel (0, 0) is the outer corner of the first pixel, so centres sit at half-integer
 /// coordinates. World coordinates are in the CRS's units (metres when projected). North-up rasters
@@ -23,41 +23,31 @@ struct GeoTransform {
     double colRotation = 0.0;  ///< World y change per column.
     double pixelHeight = 1.0;  ///< World y change per row; negative for north-up.
 
-    /// @brief A north-up transform with square pixels.
+    /// A north-up transform with square pixels.
     /// @param originX World x of the raster's west edge.
     /// @param originY World y of the raster's north edge.
     /// @param pixelSize Pixel edge length in world units; positive.
-    /// @return The transform.
     static GeoTransform NorthUp(double originX, double originY, double pixelSize) {
         return GeoTransform{originX, pixelSize, 0.0, originY, 0.0, -pixelSize};
     }
 
-    /// @brief A transform from GDAL's coefficient order.
-    /// @param c The coefficients as `GDALDataset::GetGeoTransform` gives them.
-    /// @return The transform.
+    /// A transform from coefficients in the order `GDALDataset::GetGeoTransform` gives them.
     static GeoTransform FromGdal(const std::array<double, 6>& c) {
         return GeoTransform{c[0], c[1], c[2], c[3], c[4], c[5]};
     }
 
-    /// @brief The coefficients in GDAL's order.
-    /// @return The coefficients as passed to `GDALDataset::SetGeoTransform`.
+    /// The coefficients in GDAL's order, as passed to `GDALDataset::SetGeoTransform`.
     std::array<double, 6> ToGdal() const {
         return {originX, pixelWidth, rowRotation, originY, colRotation, pixelHeight};
     }
 
-    /// @brief Maps pixel coordinates to world coordinates.
-    /// @param col Column coordinate, 0 at the first pixel's outer edge.
-    /// @param row Row coordinate, 0 at the first pixel's outer edge.
-    /// @return The world position.
+    /// Maps pixel coordinates, 0 at the first pixel's outer edge, to world coordinates.
     Vec2d PixelToWorld(double col, double row) const {
         return {originX + col * pixelWidth + row * rowRotation,
                 originY + col * colRotation + row * pixelHeight};
     }
 
-    /// @brief Maps world coordinates to pixel coordinates.
-    /// @param x World x.
-    /// @param y World y.
-    /// @return The pixel position as (column, row).
+    /// Maps world coordinates to pixel coordinates (column, row).
     /// @throws std::domain_error if the transform is not invertible.
     Vec2d WorldToPixel(double x, double y) const {
         const double det = pixelWidth * pixelHeight - rowRotation * colRotation;

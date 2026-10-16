@@ -1,6 +1,3 @@
-/// @file
-/// @brief `ConfigSchema` and `ConfigCatalog`: the configuration format described from its field
-/// lists.
 #include "terraingen/config/fields/json_io.h"
 
 #include <map>

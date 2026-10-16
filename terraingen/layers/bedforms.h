@@ -13,7 +13,7 @@
 
 namespace terraingen {
 
-/// @brief The bedform fields a `BedformLayer` scatters: their ripples, cover and wind.
+/// The bedform fields a `BedformLayer` scatters: their ripples, cover and wind.
 struct BedformOptions {
     double wavelength = 1.0;  ///< Crest to crest (m); each field's varies from 0.8 to 1.2 times it.
     double height = 0.1;      ///< Trough to crest (m), scaled with each field's wavelength.
@@ -36,24 +36,21 @@ struct BedformOptions {
     bool operator==(const BedformOptions&) const = default;
 };
 
-/// @brief Checks bedform options.
-/// @param options The options to check.
+/// Checks bedform options.
 /// @throws std::invalid_argument for a non-positive wavelength or field size, a negative height,
 /// a lee fraction outside (0, 1), a cover outside [0, 0.9], a negative sinuosity or spread, a
 /// non-positive exposure spacing, or an invalid fade or exposure.
 void ValidateBedformOptions(const BedformOptions& options);
 
-/// @brief Martian large wind ripples: 2 m wavelength, 0.2 m height, a 30 degree lee slope and
-/// sinuous crests; cover and field size are placeholders to set per site.
-/// @return The bedform options.
+/// Martian large wind ripples: 2 m wavelength, 0.2 m height, a 30 degree lee slope and sinuous
+/// crests; cover and field size are placeholders to set per site.
 BedformOptions MarsLargeRipples();
 
-/// @brief Martian transverse aeolian ridges: symmetric, 25.8 m wavelength and 1.3 m height; cover
-/// and field size are placeholders to set per site.
-/// @return The bedform options.
+/// Martian transverse aeolian ridges: symmetric, 25.8 m wavelength and 1.3 m height; cover and
+/// field size are placeholders to set per site.
 BedformOptions MarsTransverseAeolianRidges();
 
-/// @brief Fields of wind-blown bedforms, ripples or dunes, added to the terrain.
+/// Fields of wind-blown bedforms, ripples or dunes, added to the terrain.
 ///
 /// Each lattice cell may hold a field with a ragged edge whose crests run across its wind; relief
 /// is C1 and zero in the troughs, and overlapping fields average by cover. A function of position
@@ -66,16 +63,12 @@ class BedformLayer final : public FormulaLayer {
     /// @throws std::invalid_argument as `ValidateBedformOptions`.
     explicit BedformLayer(BedformOptions options, Surface surface = {});
 
-    /// @brief How fully a point lies in a field; independent of the spacing.
-    /// @param x World x of the point.
-    /// @param y World y of the point.
-    /// @param ground The ground, read by the exposure field; may be null without one.
-    /// @return The cover, in [0, 1].
+    /// How fully world (x, y) lies in a field, in [0, 1]; independent of the spacing.
+    /// @param ground Read by the exposure field; may be null without one.
     /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
     double CoverAt(double x, double y, const Ground* ground = nullptr) const;
 
-    /// @brief The bedform options.
-    /// @return The options the layer was made with.
+    /// The options the layer was made with.
     const BedformOptions& Options() const {
         return options_;
     }

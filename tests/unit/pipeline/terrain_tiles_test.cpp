@@ -1,6 +1,3 @@
-/// @file
-/// @brief Tests of evaluating terrains as tiles, on spheres and as body meshes, against whole grids
-/// and point queries (pipeline/terrain.cpp).
 #include "terrains.h"
 
 #include "support/raster_equality.h"

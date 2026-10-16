@@ -1,5 +1,3 @@
-/// @file
-/// @brief Evaluating a terrain over grids and at points.
 #include "terraingen/pipeline/terrain.h"
 
 #include "terraingen/util/checks.h"

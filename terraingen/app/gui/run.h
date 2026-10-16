@@ -8,16 +8,13 @@
 
 namespace terraingen::cli {
 
-/// @brief Whether this build has the GUI (`TERRAINGEN_BUILD_GUI`).
-/// @return True when the GUI is built in.
+/// Whether this build has the GUI (`TERRAINGEN_BUILD_GUI`).
 bool GuiAvailable();
 
-/// @brief Runs `terraingen [PATH] --gui [--threads N]`: opens the GUI on a configuration (.json),
+/// Runs `terraingen [PATH] --gui [--threads N]`: opens the GUI on a configuration (.json),
 /// heights (.tif, .tiff) or nothing, and returns once its window closes. Without the GUI in the
 /// build it explains how to add it.
 /// @param args The arguments, without the program name and `--gui`.
-/// @param out Stream for results.
-/// @param err Stream for errors.
 /// @return `kExitSuccess`, `kExitInvalidConfig` if the GUI cannot start or stops on an error, or
 /// `kExitUsage` for a build without the GUI.
 /// @throws std::invalid_argument for bad arguments, which `Run` reports as usage errors.

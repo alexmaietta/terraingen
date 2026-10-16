@@ -1,5 +1,3 @@
-/// @file
-/// @brief Square cells on a plane.
 #include "terraingen/util/cells.h"
 
 #include "terraingen/util/checks.h"

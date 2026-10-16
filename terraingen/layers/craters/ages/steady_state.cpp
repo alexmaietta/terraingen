@@ -1,5 +1,3 @@
-/// @file
-/// @brief Crater ages on surfaces where small craters are in equilibrium.
 #include "terraingen/layers/craters/ages/steady_state.h"
 
 #include <cmath>

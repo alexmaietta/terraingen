@@ -1,6 +1,3 @@
-/// @file
-/// @brief Bindings of the raster module: geotransforms, rasters shared with NumPy, grids,
-/// resampling, filters and GeoTIFF reading and writing.
 #include "bindings.h"
 #include "common.h"
 

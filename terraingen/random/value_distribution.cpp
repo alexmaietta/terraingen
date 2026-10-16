@@ -1,5 +1,3 @@
-/// @file
-/// @brief Sampling, bounds and validation of `ValueDistribution`.
 #include "terraingen/random/value_distribution.h"
 
 #include <algorithm>

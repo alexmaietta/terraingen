@@ -6,26 +6,21 @@
 
 namespace terraingen {
 
-/// @brief The topography of a crater: height relative to the pre-impact surface by distance from
+/// The topography of a crater: height relative to the pre-impact surface by distance from
 /// the centre, for a degradation state.
 class CraterProfile {
   public:
     virtual ~CraterProfile() = default;
 
-    /// @brief The height of a crater at a distance from its centre.
-    /// @param distance Distance from the centre, in metres.
-    /// @param diameter Rim-to-rim diameter, in metres.
-    /// @param state Degradation state.
-    /// @return Height relative to the surface the crater formed on, in metres.
+    /// The height (m) relative to the surface the crater formed on, at `distance` metres from the
+    /// centre of a crater `diameter` metres rim to rim.
     virtual double Height(double distance, double diameter, const CraterState& state) const = 0;
 
-    /// @brief Distance beyond which `Height` is zero.
-    /// @return The reach, in crater radii.
+    /// The distance in crater radii beyond which `Height` is zero.
     virtual double ReachRadii() const = 0;
 
-    /// @brief Whether a crater has the complex form: flat floor, terraced walls, central peak.
-    /// @param diameter The crater's diameter, in metres.
-    /// @return True for a complex crater; false by default.
+    /// Whether a crater of `diameter` metres has the complex form (flat floor, terraced walls,
+    /// central peak); false by default.
     virtual bool IsComplex(double /*diameter*/) const {
         return false;
     }

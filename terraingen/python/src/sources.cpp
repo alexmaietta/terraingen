@@ -1,6 +1,3 @@
-/// @file
-/// @brief Bindings of the sources module: where heights come from, the base class Python can
-/// extend, and synthetic terrain from layered noise.
 #include "bindings.h"
 #include "common.h"
 #include "trampolines.h"

@@ -1,5 +1,3 @@
-/// @file
-/// @brief Near-equal-area cells on the six faces of a cube sphere.
 #include "terraingen/util/cells.h"
 
 #include "terraingen/util/checks.h"

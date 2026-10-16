@@ -1,6 +1,5 @@
 /// @file
-/// @brief The crater density of a surface of a given age: a production function scaled by a
-/// chronology.
+/// @brief The crater density of a surface of a given age: a production function times a chronology.
 #pragma once
 
 #include "terraingen/distribution/size_frequency.h"
@@ -10,19 +9,18 @@
 
 namespace terraingen {
 
-/// @brief N(>=1 km) per m^2 on a surface `ageGyr` old, such as `NeukumLunarChronology`.
+/// N(>=1 km) per m^2 on a surface `ageGyr` old, such as `NeukumLunarChronology`.
 using Chronology = std::function<double(double ageGyr)>;
 
-/// @brief The cumulative crater density on a surface of a given age: a production function scaled
+/// The cumulative crater density on a surface of a given age: a production function scaled
 /// so that N(>=1 km) follows a chronology, N(D, T) = Phi(D) * N1(T) / Phi(1 km).
 ///
 /// This is the population with no erosion; small craters exceed equilibrium on old surfaces.
 class ProductionSurface final : public SizeFrequencyDistribution {
   public:
-    /// @brief The surface `ageGyr` old.
+    /// The surface `ageGyr` Gyr old.
     /// @param production A `ProductionRate` distribution defined at 1 km. The surface takes its
     /// valid range and extrapolation setting.
-    /// @param ageGyr Surface age in Gyr.
     /// @param chronology N(>=1 km) per m^2 for the age, which may reject ages out of its range.
     /// @throws std::invalid_argument if `production` is null or not a production rate, or
     /// `chronology` is empty.
@@ -30,14 +28,12 @@ class ProductionSurface final : public SizeFrequencyDistribution {
     ProductionSurface(std::shared_ptr<const SizeFrequencyDistribution> production, double ageGyr,
                       const Chronology& chronology);
 
-    /// @brief The production function.
-    /// @return The `ProductionRate` distribution the surface scales.
+    /// The `ProductionRate` distribution the surface scales.
     const SizeFrequencyDistribution& Production() const {
         return *production_;
     }
 
-    /// @brief The surface age.
-    /// @return Age in Gyr.
+    /// The surface age in Gyr.
     double AgeGyr() const {
         return ageGyr_;
     }

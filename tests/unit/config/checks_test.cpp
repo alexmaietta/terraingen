@@ -1,5 +1,3 @@
-/// @file
-/// @brief Tests of the JSON paths and value checks in pipeline/config_checks.h.
 #include "terraingen/config/fields/checks.h"
 
 #include <gtest/gtest.h>

@@ -6,7 +6,7 @@
 
 namespace terraingen {
 
-/// @brief Moore's terrain-specific cumulative crater distributions for Lunar Roving Vehicle
+/// Moore's terrain-specific cumulative crater distributions for Lunar Roving Vehicle
 /// trafficability, N per m^2 with D in metres.
 enum class MooreTerrain {
     RoughMare,        ///< 10^-1 D^-2 below 100 m, 10 D^-3 above.
@@ -15,10 +15,8 @@ enum class MooreTerrain {
     HeavilyCratered,  ///< 10^-1 D^-2 up to 10 km.
 };
 
-/// @brief Moore's distribution for `terrain`, accepting the rounded coefficients' joins within
+/// Moore's `Density` distribution for `terrain`, accepting the rounded coefficients' joins within
 /// 0.5%.
-/// @param terrain Which terrain.
-/// @return The `Density` distribution.
 PiecewisePowerLawSfd MooreDistribution(MooreTerrain terrain);
 
 }  // namespace terraingen

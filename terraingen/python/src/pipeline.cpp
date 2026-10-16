@@ -1,6 +1,3 @@
-/// @file
-/// @brief Bindings of the pipeline module: terrains and their evaluation, tiles and tile caches,
-/// and configurations with the generation pipeline.
 #include "bindings.h"
 #include "common.h"
 #include "objects.h"

@@ -18,21 +18,20 @@
 
 namespace terraingen {
 
-/// @brief The models a crater layer generates and shapes craters with.
+/// The models a crater layer generates and shapes craters with.
 struct CraterModels {
     std::shared_ptr<const SizeFrequencyDistribution> density;  ///< Craters per m^2 by diameter.
     std::shared_ptr<const CraterAgeModel> ages;                ///< Each crater's age.
     std::shared_ptr<const DegradationModel> degradation;       ///< Each crater's state.
     std::shared_ptr<const CraterProfile> profile;              ///< Height by distance.
 
-    /// @brief The models that shape the craters.
-    /// @return The profile and degradation.
+    /// The profile and degradation, the models that shape the craters.
     CraterShapeModels Shape() const {
         return {profile, degradation};
     }
 };
 
-/// @brief How a `CraterLayer` generates and applies its craters.
+/// How a `CraterLayer` generates and applies its craters.
 struct CraterLayerOptions {
     /// Generate craters from the density; otherwise only the manual craters in `generation` apply.
     bool generate = true;
@@ -47,16 +46,14 @@ struct CraterLayerOptions {
     Surface surface{};
 };
 
-/// @brief Craters generated over the grid being evaluated (`GenerateCraters`) and applied to it
+/// Craters generated over the grid being evaluated (`GenerateCraters`) and applied to it
 /// (`ApplyCraters`) at the evaluation's spacing.
 ///
 /// Generated craters are the same in a tile as in any larger grid, unless `maxCraters` caps them
 /// over the whole grid; bands too small to resolve are not generated.
 class CraterLayer final : public Layer, public CraterPlacer {
   public:
-    /// @brief Builds a crater layer.
-    /// @param models The density, ages, degradation and profile; none may be null.
-    /// @param options How craters are generated and applied.
+    /// @param models None may be null.
     /// @throws std::invalid_argument for a missing model or invalid options.
     CraterLayer(CraterModels models, CraterLayerOptions options);
 
@@ -64,44 +61,36 @@ class CraterLayer final : public Layer, public CraterPlacer {
     /// in metres.
     double MaxFeatureDiameter() const override;
 
-    /// @brief The craters this layer applies to a grid covering a region: those generated, and the
-    /// manual ones, centred in it or within the profile's reach of it.
-    /// @param region The region, in surface coordinates.
-    /// @param spacing The sample spacing; bands too small to resolve at it are skipped
-    /// (`CraterGenerationOptions::minResolvedDiameter`). 0 generates every band.
-    /// @return The craters.
+    /// The craters this layer applies to a grid covering `region` (surface coordinates): generated
+    /// and manual ones centred in it or within the profile's reach of it.
+    /// @param spacing Sample spacing in metres; bands too small to resolve at it are skipped
+    /// (`CraterGenerationOptions::minResolvedDiameter`), 0 keeps every band.
     CraterList Craters(const Bounds2d& region, double spacing = 0.0) const;
 
-    /// @brief A crater's attributes in the state the degradation model gives it.
-    /// @param crater The crater.
-    /// @return Its depth, rim height and freshness.
+    /// A crater's depth, rim height and freshness in the state the degradation model gives it.
     /// @throws std::domain_error as `DegradationModel::State`.
     CraterAttributes Attributes(const Crater& crater) const;
 
     CraterFeatures CratersOver(const RasterGrid& grid, double spacing) const override;
 
-    /// @brief The cell cache.
-    /// @return The cache, or null when `cacheCraters` is 0.
+    /// The cell cache, or null when `cacheCraters` is 0.
     const CraterCellCache* Cache() const {
         return cache_.get();
     }
 
-    /// @brief The models.
-    /// @return The models the layer was made with.
+    /// The models the layer was made with.
     const CraterModels& Models() const {
         return models_;
     }
 
-    /// @brief The layer options.
-    /// @return The options, with surfaces and `marginRadii` filled in.
+    /// The options, with surfaces and `marginRadii` filled in.
     const CraterLayerOptions& Options() const {
         return options_;
     }
 
   protected:
-    /// Generates and applies the craters reaching the samples.
-    /// Datums are fitted to `context.ground` where given, otherwise to a grid's heights as passed
-    /// in.
+    /// Generates and applies the craters reaching the samples. Datums are fitted to
+    /// `context.ground` where given, otherwise to a grid's heights as passed in.
     /// @throws std::invalid_argument for points when the layer has a datum and no
     /// `context.ground`, or has `maxCraters` (which ranks craters over a whole grid).
     /// @throws std::domain_error as `DegradationModel::State`.

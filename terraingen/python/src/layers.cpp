@@ -1,6 +1,3 @@
-/// @file
-/// @brief Bindings of the layers module: the layer base class Python can extend, fades, noise
-/// relief, transforms, regions, roughness, exposure and bedforms.
 #include "bindings.h"
 #include "common.h"
 #include "objects.h"

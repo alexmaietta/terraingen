@@ -1,5 +1,3 @@
-/// @file
-/// @brief Tests of `ConfigSchema` and `ConfigCatalog` (pipeline/config_schema.cpp).
 #include "terraingen/config/json.h"
 
 #include <gtest/gtest.h>

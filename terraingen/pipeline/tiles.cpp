@@ -1,6 +1,3 @@
-/// @file
-/// @brief Tile schemes, tiles of a terrain evaluated with their filters' margin, and the tile
-/// cache.
 #include "terraingen/pipeline/tiles.h"
 
 #include "terraingen/noise/hash.h"

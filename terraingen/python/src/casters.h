@@ -1,6 +1,5 @@
 /// @file
-/// @brief Python tuples for the library's small value types: `Vec2d` as (x, y), `Vec3d` as
-/// (x, y, z) and `Bounds2d` as (min_x, min_y, max_x, max_y).
+/// @brief `Vec2d`, `Vec3d` and `Bounds2d` as Python tuples of floats.
 #pragma once
 
 #include "terraingen/util/geometry.h"
@@ -13,7 +12,7 @@
 
 namespace terraingen::python {
 
-/// @brief The components of a value, in the order Python sees them.
+/// The components of a value, in the order Python sees them.
 inline std::array<double, 2> Doubles(const Vec2d& v) {
     return {v.x, v.y};
 }
@@ -26,7 +25,7 @@ inline std::array<double, 4> Doubles(const Bounds2d& b) {
     return {b.minX, b.minY, b.maxX, b.maxY};
 }
 
-/// @brief The value whose `Doubles` are `a`.
+/// The value whose `Doubles` are `a`.
 template <typename T, std::size_t N> T FromDoubles(const std::array<double, N>& a) {
     if constexpr (N == 2) {
         return T{a[0], a[1]};
@@ -41,7 +40,7 @@ template <typename T, std::size_t N> T FromDoubles(const std::array<double, N>& 
 
 namespace nanobind::detail {
 
-/// @brief Converts `T` from any sequence of numbers and to a tuple of floats.
+/// Converts `T` from any sequence of numbers and to a tuple of floats.
 template <typename T> struct doubles_caster {
     NB_TYPE_CASTER(T, const_name("tuple"))
 

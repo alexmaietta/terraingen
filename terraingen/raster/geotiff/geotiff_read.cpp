@@ -1,5 +1,3 @@
-/// @file
-/// @brief The GeoTIFF reader: IFD parsing, chunk decoding, predictors and byte swapping.
 #include "terraingen/raster/geotiff/geotiff.h"
 
 #include "terraingen/raster/geotiff/tiff_codecs.h"

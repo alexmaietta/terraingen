@@ -15,7 +15,7 @@
 
 namespace terraingen {
 
-/// @brief A terrain as a composition: heights from `source`, plus each of `layers` in order, then
+/// A terrain as a composition: heights from `source`, plus each of `layers` in order, then
 /// each of `filters` in order.
 ///
 /// Every part is a pure function of where it is evaluated, so a terrain can be evaluated over any
@@ -29,7 +29,7 @@ struct Terrain {
     Surface surface{};                                   ///< What the terrain lies on.
 };
 
-/// @brief How to evaluate a terrain over a grid.
+/// How to evaluate a terrain over a grid.
 struct EvaluationOptions {
     /// Sample spacing in metres; 0 means the grid's spacing on the terrain's surface, and a smaller
     /// value is raised to it.
@@ -39,22 +39,18 @@ struct EvaluationOptions {
     unsigned threads = 0;
 };
 
-/// @brief The ground beneath one layer of a terrain: its source and the layers before it,
+/// The ground beneath one layer of a terrain: its source and the layers before it,
 /// evaluated at points as `EvaluatePoints`. `Evaluate` and `EvaluatePoints` give each layer the
 /// ground beneath it.
 class TerrainGround final : public Ground {
   public:
-    /// @brief The ground beneath layer `layers` of a terrain.
-    /// @param terrain The terrain; it must outlive the ground.
+    /// The ground beneath layer `layers` of `terrain`, which must outlive it.
     /// @param layers The number of layers the ground includes.
     /// @throws std::invalid_argument if `terrain` has no source or fewer than `layers` layers.
     TerrainGround(const Terrain& terrain, std::size_t layers);
 
-    /// @brief The ground's height at a point.
-    /// @param x The point's x, in surface coordinates.
-    /// @param y The point's y, in surface coordinates.
-    /// @param spacing The sample spacing, in metres.
-    /// @return The source's height there after each included layer's `ApplyAt`.
+    /// The source's height at surface point (`x`, `y`) after each included layer's `ApplyAt`, at
+    /// a sample spacing of `spacing` metres.
     float HeightAt(double x, double y, double spacing) const override;
 
   private:
@@ -62,36 +58,26 @@ class TerrainGround final : public Ground {
     std::size_t layers_;
 };
 
-/// @brief Evaluates a terrain over a grid on one thread.
-/// @param terrain The terrain.
-/// @param grid The grid.
+/// The heights of `terrain` over `grid`, evaluated on one thread.
 /// @param spacing Sample spacing in metres; 0 means the grid's spacing, and a smaller value is
 /// raised to it.
-/// @return The heights.
 /// @throws std::invalid_argument if `terrain` has no source or holds a null layer or filter, or
 /// `spacing` is negative or not finite; and whatever the parts throw.
 Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid, double spacing = 0.0);
 
-/// @brief Evaluates a terrain over a grid on several threads, to the same bits as one thread.
-/// @param terrain The terrain.
-/// @param grid The grid.
-/// @param options The sample spacing and threads.
-/// @return The heights.
+/// The heights of `terrain` over `grid`, evaluated on several threads to the same bits as one.
 /// @throws std::invalid_argument as the single-threaded `Evaluate`.
 Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid,
                        const EvaluationOptions& options);
 
-/// @brief The margin a terrain's filters need around a grid for its cells to equal those of any
-/// larger grid: the largest `Filter::Margin` for the layers' largest feature.
-/// @param terrain The terrain.
+/// The margin in metres a terrain's filters need around a grid for its cells to equal those of
+/// any larger grid: the largest `Filter::Margin` for the layers' largest feature; 0 without
+/// filters.
 /// @param spacing The sample spacing, in metres.
-/// @return The margin in metres; 0 without filters.
 /// @throws std::invalid_argument if `terrain` has no source or holds a null layer or filter.
 double FilterMargin(const Terrain& terrain, double spacing);
 
-/// @brief Evaluates a terrain over its source's grid.
-/// @param terrain The terrain.
-/// @return The heights.
+/// The heights of `terrain` over its source's grid.
 /// @throws std::invalid_argument as `Evaluate` over a grid.
 Raster<float> Evaluate(const Terrain& terrain);
 

@@ -9,17 +9,16 @@
 
 namespace terraingen {
 
-/// @brief A cumulative distribution given as a table of (D, N(>=D)) points, interpolated linearly
+/// A cumulative distribution given as a table of (D, N(>=D)) points, interpolated linearly
 /// in log D and log N, so each interval is a power law. Extrapolation continues the end intervals'
 /// slopes.
 class TabulatedSfd final : public SizeFrequencyDistribution {
   public:
-    /// @brief The distribution through the table's points.
+    /// The distribution through the table's points.
     /// @param diameters At least two strictly increasing positive diameters, in `diameterUnit`
     /// metres.
     /// @param cumulative N(>=D) at each diameter, positive, finite and not increasing, per
     /// `areaUnit` m^2.
-    /// @param kind What the values measure.
     /// @param diameterUnit Metres per table diameter unit.
     /// @param areaUnit m^2 per table area unit.
     /// @throws std::invalid_argument for fewer than two points, mismatched lengths, units or values
@@ -28,14 +27,12 @@ class TabulatedSfd final : public SizeFrequencyDistribution {
     TabulatedSfd(std::vector<double> diameters, std::vector<double> cumulative,
                  SfdKind kind = SfdKind::Density, double diameterUnit = 1.0, double areaUnit = 1.0);
 
-    /// @brief The table's diameters.
-    /// @return Diameters in metres.
+    /// The table's diameters in metres.
     const std::vector<double>& Diameters() const {
         return diameters_;
     }
 
-    /// @brief The table's values.
-    /// @return N(>=D) per m^2 (or per m^2 per Gyr).
+    /// The table's N(>=D) values per m^2 (or per m^2 per Gyr).
     const std::vector<double>& CumulativeValues() const {
         return cumulative_;
     }
@@ -43,12 +40,8 @@ class TabulatedSfd final : public SizeFrequencyDistribution {
   protected:
     double CumulativeAt(double diameter) const override;
     double IncrementalAt(double diameter) const override;
-    /// @brief The power-law inverse within the interval holding `target`; a flat interval, where
-    /// N(>=D) never reaches `target`, gives its start diameter.
-    /// @param target Cumulative count to invert.
-    /// @param dMin Unused.
-    /// @param dMax Unused.
-    /// @return The diameter in metres.
+    /// The power-law inverse within the interval holding `target`, ignoring `dMin` and `dMax`; a
+    /// flat interval, where N(>=D) never reaches `target`, gives its start diameter.
     double InvertCumulative(double target, double dMin, double dMax) const override;
 
   private:

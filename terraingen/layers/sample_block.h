@@ -1,5 +1,5 @@
 /// @file
-/// Positions a layer evaluates and their heights: a raster's cells or scattered points.
+/// @brief Positions a layer evaluates and their heights: a raster's cells or scattered points.
 #pragma once
 
 #include "terraingen/raster/raster.h"

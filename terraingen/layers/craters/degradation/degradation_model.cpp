@@ -1,5 +1,3 @@
-/// @file
-/// @brief `NoDegradation`: craters kept at their fresh morphometry.
 #include "terraingen/layers/craters/degradation/degradation_model.h"
 
 #include "terraingen/util/checks.h"

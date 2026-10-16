@@ -11,7 +11,7 @@
 
 namespace terraingen {
 
-/// @brief How a layer is evaluated.
+/// How a layer is evaluated.
 struct LayerContext {
     /// Sample spacing in world units; features unresolvable at it are left out. At least the cell
     /// size in `Layer::Apply`; positive in `Layer::ApplyAt`.
@@ -20,24 +20,21 @@ struct LayerContext {
     const Ground* ground = nullptr;  ///< The terrain beneath the layer; null where none is needed.
 };
 
-/// @brief Checks the context of a point query (`Layer::ApplyAt`).
-/// @param context The context to check.
+/// Checks the context of a point query (`Layer::ApplyAt`).
 /// @throws std::invalid_argument if `context.spacing` is not positive and finite.
 void ValidatePointContext(const LayerContext& context);
 
-/// @brief Checks that a layer that reads the ground beneath it was given one.
-/// @param ground The ground, or null.
+/// Checks that a layer that reads the ground beneath it was given one.
 /// @param what What reads it, which starts the error message ("<what> need the ground").
 /// @throws std::invalid_argument if `ground` is null.
 void RequireGround(const Ground* ground, std::string_view what);
 
 /// Relief added on top of a source: noise, craters, or a layer of your own.
 ///
-/// A layer implements one method, `ApplySamples`, over a `SampleBlock`: a grid's cells or
-/// scattered points. Grids, tiles and point queries all go through it, so a point gets the same
-/// height as a grid cell centred there. Implementations must be deterministic and thread-safe. A
-/// layer that places features (craters, boulders) lists them on request, such as
-/// `CraterLayer::Craters`, and a layer or filter needing them holds a reference to it.
+/// A layer implements `ApplySamples` over a `SampleBlock` (a grid's cells or scattered points), so
+/// a point gets the same height as a grid cell centred there. Implementations must be
+/// deterministic and thread-safe. Layers that place features list them on request
+/// (`CraterPlacer`, `BoulderPlacer`).
 class Layer {
   public:
     virtual ~Layer() = default;
@@ -64,9 +61,8 @@ class Layer {
     virtual void ApplySamples(SampleBlock& samples, const LayerContext& context) const = 0;
 };
 
-/// A layer whose height at a point depends only on the height there and the point: noise,
-/// roughness, transforms. Subclasses write `HeightAt`; the base applies it to every sample that
-/// holds data, in parallel over a grid's rows.
+/// A layer whose height at a point depends only on the height there and the point (noise,
+/// roughness, transforms); the base applies `HeightAt` to every sample in parallel.
 class FormulaLayer : public Layer {
   protected:
     /// @param surface What the layer's coordinates lie on, which converts a grid's cell size to
@@ -74,7 +70,7 @@ class FormulaLayer : public Layer {
     explicit FormulaLayer(Surface surface = {}) : surface_(surface) {}
 
     /// The height at (x, y) after the layer, from `height` before it.
-    /// @param spacing The sample spacing in metres.
+    /// @param spacing Sample spacing in metres.
     /// @param ground The terrain beneath the layer, null when the context gives none.
     virtual float HeightAt(float height, double x, double y, double spacing,
                            const Ground* ground) const = 0;

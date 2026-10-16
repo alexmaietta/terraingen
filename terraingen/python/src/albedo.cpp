@@ -1,6 +1,3 @@
-/// @file
-/// @brief Bindings of the albedo module: albedo sources and layers (base classes Python can
-/// extend), synthetic and mapped albedo, bright crater material and rays, and evaluation.
 #include "bindings.h"
 #include "common.h"
 #include "objects.h"

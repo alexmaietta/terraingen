@@ -1,5 +1,3 @@
-/// @file
-/// @brief Tests of building library objects from configuration specs (pipeline/build.cpp).
 #include "configs.h"
 #include "terraingen/config/build.h"
 #include "terraingen/config/generate.h"

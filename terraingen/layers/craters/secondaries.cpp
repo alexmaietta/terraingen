@@ -1,5 +1,3 @@
-/// @file
-/// @brief Secondary crater size and range laws, and `SecondaryCraterLayer` drawn in polar cells.
 #include "terraingen/layers/craters/secondaries.h"
 
 #include "terraingen/random/philox.h"

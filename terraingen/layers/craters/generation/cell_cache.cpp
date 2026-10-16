@@ -1,5 +1,3 @@
-/// @file
-/// @brief The crater cell cache and its cached cell crater source.
 #include "terraingen/layers/craters/generation/cell_cache.h"
 
 #include "terraingen/noise/hash.h"

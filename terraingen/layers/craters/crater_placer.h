@@ -1,6 +1,5 @@
 /// @file
-/// @brief `CraterPlacer`, a layer that lists the craters it applies, and `PlacedCraters` over a
-/// stack of layers.
+/// @brief `CraterPlacer`, a layer that lists the craters it applies, and `PlacedCraters`.
 #pragma once
 
 #include "terraingen/layers/craters/crater.h"

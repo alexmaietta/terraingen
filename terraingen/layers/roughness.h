@@ -12,7 +12,7 @@
 
 namespace terraingen {
 
-/// @brief The roughness a `RoughnessLayer` adds: RMS slope over a baseline and Hurst exponent, as
+/// The roughness a `RoughnessLayer` adds: RMS slope over a baseline and Hurst exponent, as
 /// Shepard et al. (2001) give it.
 struct RoughnessOptions {
     double rmsSlope = 0.15;       ///< RMS slope (rise over run) over `baseline`.
@@ -27,25 +27,21 @@ struct RoughnessOptions {
     bool operator==(const RoughnessOptions&) const = default;
 };
 
-/// @brief Checks roughness options.
-/// @param options The options to check.
+/// Checks roughness options.
 /// @throws std::invalid_argument for a non-positive `rmsSlope` or `baseline`, a `hurst` outside
 /// (0, 1], wavelengths that do not satisfy 0 < `minWavelength` <= `maxWavelength` or that span more
 /// than 40 octaves, or an invalid `fade`.
 void ValidateRoughnessOptions(const RoughnessOptions& options);
 
-/// @brief The structure function of `PerlinNoise2`: mean squared difference of values a lag apart,
-/// over positions, directions and seeds.
-/// @param r The lag, in lattice units.
-/// @return The structure function; 0 for `r` <= 0.
+/// The structure function of `PerlinNoise2`: mean squared difference of values a lag `r` apart
+/// (lattice units), over positions, directions and seeds; 0 for `r` <= 0.
 double PerlinStructureFunction(double r);
 
-/// @brief The structure function of `PerlinNoise3` at a lag in a random 3D direction.
-/// @param r The lag, in lattice units.
-/// @return The structure function; 0 for `r` <= 0.
+/// The structure function of `PerlinNoise3` at a lag `r` (lattice units) in a random 3D
+/// direction; 0 for `r` <= 0.
 double Perlin3StructureFunction(double r);
 
-/// @brief Fine roughness: octaves of Perlin noise halving in wavelength from `maxWavelength` to
+/// Fine roughness: octaves of Perlin noise halving in wavelength from `maxWavelength` to
 /// `minWavelength`, amplitudes growing as wavelength^H.
 ///
 /// Amplitudes are scaled so the RMS slope over `baseline` is `rmsSlope` with every octave
@@ -58,17 +54,13 @@ class RoughnessLayer final : public FormulaLayer {
     /// @throws std::invalid_argument as `ValidateRoughnessOptions`.
     explicit RoughnessLayer(RoughnessOptions options, Surface surface = {});
 
-    /// @brief The RMS slope of the roughness with every octave resolved.
-    /// @param baseline The baseline, in metres.
-    /// @return The RMS slope (rise over run) over `baseline`.
+    /// The RMS slope (rise over run) over `baseline` metres with every octave resolved.
     double RmsSlope(double baseline) const;
 
-    /// @brief The octaves' wavelengths.
-    /// @return The wavelengths in metres, longest first.
+    /// The octaves' wavelengths in metres, longest first.
     std::vector<double> Wavelengths() const;
 
-    /// @brief The roughness options.
-    /// @return The options the layer was made with.
+    /// The options the layer was made with.
     const RoughnessOptions& Options() const {
         return options_;
     }

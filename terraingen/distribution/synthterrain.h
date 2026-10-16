@@ -8,7 +8,7 @@
 
 namespace terraingen {
 
-/// @brief The boulder distributions synthterrain offers, N per m^2 with D in metres, for
+/// The boulder distributions synthterrain offers, N per m^2 with D in metres, for
 /// comparison with it.
 enum class SynthterrainBoulders {
     InterCrater,         ///< 0.0001 D^-1.75457, "low blockiness".
@@ -16,9 +16,8 @@ enum class SynthterrainBoulders {
     ViperSpecification,  ///< 0.0003 D^-2.482, the VIPER Environmental Specification.
 };
 
-/// @brief The synthterrain boulder distribution `boulders`, valid at every diameter.
-/// @param boulders Which distribution.
-/// @return The power-law `Density` distribution.
+/// The synthterrain boulder distribution `boulders` as a power-law `Density`, valid at every
+/// diameter.
 /// @throws std::invalid_argument for an unknown distribution.
 std::shared_ptr<PowerLawSfd> SynthterrainBoulderDistribution(SynthterrainBoulders boulders);
 

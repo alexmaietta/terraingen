@@ -1,5 +1,3 @@
-/// @file
-/// @brief The Fassett and Thomson (2014) crater profile.
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
 
 #include <cmath>

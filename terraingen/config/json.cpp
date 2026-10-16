@@ -1,5 +1,3 @@
-/// @file
-/// @brief `ParseConfig`, `LoadConfig` and `ConfigToJson`, and the JSON reading they share.
 #include "terraingen/config/fields/json_io.h"
 
 #include <cmath>

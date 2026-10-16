@@ -1,6 +1,3 @@
-/// @file
-/// @brief Bindings of the random module: Philox, random streams, samplers and value
-/// distributions.
 #include "bindings.h"
 #include "common.h"
 

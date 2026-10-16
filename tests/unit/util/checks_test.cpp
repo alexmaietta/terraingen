@@ -1,5 +1,3 @@
-/// @file
-/// @brief Tests of the numeric predicates and argument checks in util/checks.h.
 #include "terraingen/util/checks.h"
 
 #include <gtest/gtest.h>

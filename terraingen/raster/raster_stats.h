@@ -10,7 +10,7 @@
 
 namespace terraingen {
 
-/// @brief Summary statistics of a raster's valid cells.
+/// Summary statistics of a raster's valid cells.
 struct RasterStats {
     double min = std::numeric_limits<double>::quiet_NaN();   ///< NaN if no cell is valid.
     double max = std::numeric_limits<double>::quiet_NaN();   ///< NaN if no cell is valid.
@@ -18,10 +18,9 @@ struct RasterStats {
     std::size_t validCount = 0;  ///< Cells that are finite and not the nodata value.
 };
 
-/// @brief Statistics over the cells that are finite and not the raster's no-data value.
+/// Statistics over the cells that are finite and not the raster's no-data value; NaN with a
+/// count of 0 when no cell is valid.
 /// @tparam T Cell type, convertible to `double`.
-/// @param raster The raster.
-/// @return The statistics; NaN with a count of 0 when no cell is valid.
 template <typename T> RasterStats ComputeStats(const Raster<T>& raster) {
     RasterStats stats;
     double sum = 0.0;

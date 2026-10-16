@@ -1,5 +1,3 @@
-/// @file
-/// @brief Samplers for Poisson, power-law, exponential, normal and tabulated distributions.
 #include "terraingen/random/samplers.h"
 
 #include "terraingen/util/checks.h"

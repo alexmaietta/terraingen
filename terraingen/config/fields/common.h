@@ -15,15 +15,10 @@
 
 namespace terraingen::config {
 
-/// @brief The JSON "type" of the variant alternative `Spec` (`kName`) and what it is
-/// (`kDescription`).
+/// The JSON "type" of the variant alternative `Spec` (`kName`) and what it is (`kDescription`).
 template <typename Spec> struct SpecName;
 
-/// @brief Reads or writes a bound that is unset when infinite, as an optional field.
-/// @param io The field reader, writer or describer.
-/// @param key The JSON key.
-/// @param bound The bound.
-/// @param description What the field holds.
+/// Reads or writes a bound that is unset when infinite, as an optional field.
 /// @param unit The bound's unit symbol, or empty.
 /// @param unset The bound when the field is unset: +infinity or -infinity.
 template <typename IO>
@@ -38,17 +33,15 @@ void OptionalBound(IO& io, std::string_view key, double& bound, std::string_view
     bound = value.value_or(unset);
 }
 
-/// @brief The description of an output file's path.
-/// @param file What the file is, such as "GeoTIFF file to write".
-/// @return `file` and where relative paths resolve.
+/// The description of an output file's path: `file`, such as "GeoTIFF file to write", and where
+/// relative paths resolve.
 inline std::string OutputPathHelp(std::string_view file) {
     return std::string(file) + "; relative paths resolve against the output folder (the CLI's "
                                "--output-dir), else the configuration's folder.";
 }
 
-/// @brief The description of an input file's path.
-/// @param file What the file is, such as "GeoTIFF to read the heights from".
-/// @return `file` and where relative paths resolve.
+/// The description of an input file's path: `file`, such as "GeoTIFF to read the heights from",
+/// and where relative paths resolve.
 inline std::string InputPathHelp(std::string_view file) {
     return std::string(file) + "; relative paths resolve against the configuration's folder.";
 }

@@ -1,5 +1,3 @@
-/// @file
-/// @brief Radial diffusion solver and tables for `DiffusedProfile`, and `DiffusionDegradation`.
 #include "terraingen/layers/craters/degradation/diffusion.h"
 
 #include "terraingen/util/checks.h"

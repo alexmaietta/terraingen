@@ -6,7 +6,7 @@
 
 namespace terraingen {
 
-/// @brief A 2D point as its integer lattice cell and its fraction within the cell.
+/// A 2D point as its integer lattice cell and its fraction within the cell.
 struct LatticePoint2 {
     int32_t ix = 0;   ///< Cell x.
     int32_t iy = 0;   ///< Cell y.
@@ -14,7 +14,7 @@ struct LatticePoint2 {
     float fy = 0.0f;  ///< Fraction in y, in [0, 1).
 };
 
-/// @brief A 3D point as its integer lattice cell and its fraction within the cell.
+/// A 3D point as its integer lattice cell and its fraction within the cell.
 struct LatticePoint3 {
     int32_t ix = 0;   ///< Cell x.
     int32_t iy = 0;   ///< Cell y.
@@ -24,10 +24,7 @@ struct LatticePoint3 {
     float fz = 0.0f;  ///< Fraction in z, in [0, 1).
 };
 
-/// @brief The lattice cell and fraction of (`x`, `y`) in lattice units.
-/// @param x Lattice x.
-/// @param y Lattice y.
-/// @return The point split at floor(x) and floor(y).
+/// The lattice cell and fraction of (`x`, `y`) in lattice units, split at floor(x) and floor(y).
 inline LatticePoint2 SplitLattice2(float x, float y) {
     const float cellX = floor(x);
     const float cellY = floor(y);
@@ -35,11 +32,7 @@ inline LatticePoint2 SplitLattice2(float x, float y) {
     return point;
 }
 
-/// @brief The lattice cell and fraction of (`x`, `y`, `z`) in lattice units.
-/// @param x Lattice x.
-/// @param y Lattice y.
-/// @param z Lattice z.
-/// @return The point split at the floor of each coordinate.
+/// The lattice cell and fraction of (`x`, `y`, `z`) in lattice units.
 inline LatticePoint3 SplitLattice3(float x, float y, float z) {
     const float cellX = floor(x);
     const float cellY = floor(y);
@@ -50,11 +43,8 @@ inline LatticePoint3 SplitLattice3(float x, float y, float z) {
 }
 
 #ifndef __SLANG__
-/// @brief `SplitLattice2` in double precision: the fraction is found before narrowing, so it
+/// `SplitLattice2` in double precision: the fraction is found before narrowing, so it
 /// stays exact far from the origin.
-/// @param x Lattice x.
-/// @param y Lattice y.
-/// @return The point split at floor(x) and floor(y).
 inline LatticePoint2 SplitLatticePrecise2(double x, double y) {
     const double cellX = floor(x);
     const double cellY = floor(y);
@@ -62,11 +52,7 @@ inline LatticePoint2 SplitLatticePrecise2(double x, double y) {
             float(x - cellX), float(y - cellY)};
 }
 
-/// @brief `SplitLattice3` in double precision, as `SplitLatticePrecise2`.
-/// @param x Lattice x.
-/// @param y Lattice y.
-/// @param z Lattice z.
-/// @return The point split at the floor of each coordinate.
+/// `SplitLattice3` in double precision, as `SplitLatticePrecise2`.
 inline LatticePoint3 SplitLatticePrecise3(double x, double y, double z) {
     const double cellX = floor(x);
     const double cellY = floor(y);
@@ -82,47 +68,41 @@ inline LatticePoint3 SplitLatticePrecise3(double x, double y, double z) {
 
 namespace detail {
 
-/// @brief The `pcg3d` key of 2D lattice point (`x`, `y`): the seed is the third word. Frozen for
+/// The `pcg3d` key of 2D lattice point (`x`, `y`): the seed is the third word. Frozen for
 /// reproducibility: Perlin, value and Worley noise in 2D and simplex noise hash this key.
 /// @param x Lattice x, wrapped to 32 bits.
 /// @param y Lattice y, wrapped to 32 bits.
-/// @param seed The noise seed.
-/// @return The key.
 constexpr UVec3 SeededLatticeKey2(uint32_t x, uint32_t y, uint32_t seed) {
     const UVec3 key = {x, y, seed};
     return key;
 }
 
-/// @brief The `pcg3d` key of a corner of 3D Perlin noise: the hashed seed is added to z. Frozen
+/// The `pcg3d` key of a corner of 3D Perlin noise: the hashed seed is added to z. Frozen
 /// for reproducibility.
 /// @param x Lattice x, wrapped to 32 bits.
 /// @param y Lattice y, wrapped to 32 bits.
 /// @param z Lattice z, wrapped to 32 bits.
-/// @param seed The noise seed.
-/// @return The key.
 constexpr UVec3 PerlinLatticeKey3(uint32_t x, uint32_t y, uint32_t z, uint32_t seed) {
     const UVec3 key = {x, y, z + PcgHash(seed)};
     return key;
 }
 
-/// @brief The `pcg3d` key of a corner of 3D value noise: `seedKey`, the hashed seed
+/// The `pcg3d` key of a corner of 3D value noise: `seedKey`, the hashed seed
 /// (`PcgHash(seed)`), is XORed into z. Frozen for reproducibility.
 /// @param x Lattice x, wrapped to 32 bits.
 /// @param y Lattice y, wrapped to 32 bits.
 /// @param z Lattice z, wrapped to 32 bits.
 /// @param seedKey `PcgHash` of the noise seed.
-/// @return The key.
 constexpr UVec3 ValueLatticeKey3(uint32_t x, uint32_t y, uint32_t z, uint32_t seedKey) {
     const UVec3 key = {x, y, z ^ seedKey};
     return key;
 }
 
-/// @brief The `pcg3d` key of a fractal octave's seed and lattice offset: (seed, octave, `word`).
+/// The `pcg3d` key of a fractal octave's seed and lattice offset: (seed, octave, `word`).
 /// Frozen for reproducibility.
 /// @param seed The fractal seed.
 /// @param octave The octave, from 0.
 /// @param word 0 for the seed and x and y offsets, 1 for the z offset of 3D fractals.
-/// @return The key.
 constexpr UVec3 OctaveKey(uint32_t seed, uint32_t octave, uint32_t word) {
     const UVec3 key = {seed, octave, word};
     return key;

@@ -1,6 +1,3 @@
-/// @file
-/// @brief Tests of writing crater lists, boulder lists and boulder models
-/// (pipeline/feature_io.cpp).
 #include "configs.h"
 #include "support/temp_path.h"
 #include "terraingen/config/generate.h"

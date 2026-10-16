@@ -9,7 +9,7 @@
 
 namespace terraingen::config {
 
-/// @brief Description of the curve of an SP-8023 boulder size model.
+/// Description of the curve of an SP-8023 boulder size model.
 inline constexpr std::string_view kCurveHelp =
     "Which of the model's minimum, nominal and maximum curves to use, from fewest to most "
     "boulders.";

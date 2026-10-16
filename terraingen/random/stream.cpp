@@ -1,5 +1,3 @@
-/// @file
-/// @brief `RandomStream`, a counter-based random number stream on Philox4x32.
 #include "terraingen/random/stream.h"
 
 namespace terraingen {

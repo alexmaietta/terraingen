@@ -1,5 +1,3 @@
-/// @file
-/// @brief The VIPER environmental specification's crater distribution.
 #include "terraingen/distribution/viper.h"
 
 namespace terraingen {

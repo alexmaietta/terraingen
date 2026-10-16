@@ -1,5 +1,3 @@
-/// @file
-/// @brief `BedformLayer`: ragged fields of asymmetric, wandering crests drawn per lattice cell.
 #include "terraingen/layers/bedforms.h"
 
 #include "terraingen/noise/perlin.h"

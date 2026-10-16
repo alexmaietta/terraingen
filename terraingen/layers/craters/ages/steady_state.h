@@ -10,13 +10,12 @@
 
 namespace terraingen {
 
-/// @brief Ages of craters on a surface `ageGyr` old where small craters are in equilibrium.
+/// Ages of craters on a surface `ageGyr` old where small craters are in equilibrium.
 ///
 /// A crater's lifetime is tau(D) = n_eq(D) / n_prod(D), capped at the surface age; ages follow the
 /// formation rate of `chronology` over [0, lifetime].
 class SteadyStateAges final : public CraterAgeModel {
   public:
-    /// @brief The ages from a production rate, an equilibrium density and a chronology.
     /// @param productionRate A `ProductionRate` distribution, such as
     /// `ExtendedNeukumProductionFunction`.
     /// @param equilibrium A `Density` distribution, such as `TraskEquilibrium`.
@@ -29,15 +28,13 @@ class SteadyStateAges final : public CraterAgeModel {
                     std::shared_ptr<const SizeFrequencyDistribution> equilibrium, double ageGyr,
                     Chronology chronology);
 
-    /// @brief The surface age.
-    /// @return Age in Gyr.
+    /// The surface age in Gyr.
     double SurfaceAgeGyr() const {
         return ageGyr_;
     }
 
-    /// @brief tau(D) before capping at the surface age.
-    /// @param diameter Crater diameter in metres.
-    /// @return The equilibrium lifetime in Gyr.
+    /// The equilibrium lifetime tau(D) in Gyr of craters of `diameter` metres, before capping at
+    /// the surface age.
     /// @throws std::domain_error outside either distribution's valid range.
     double EquilibriumLifetimeGyr(double diameter) const;
 

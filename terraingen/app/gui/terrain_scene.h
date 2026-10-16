@@ -9,24 +9,22 @@
 
 namespace terraingen::gui {
 
-/// @brief The terrain prim `ShowTerrain` writes.
+/// The terrain prim `ShowTerrain` writes.
 inline const ernie::Path kTerrainPrim{"/World/Terrain"};
-/// @brief The terrain's material prim.
+/// The terrain's material prim.
 inline const ernie::Path kMaterialPrim{"/Looks/Terrain"};
-/// @brief The sun prim `SetUpScene` defines.
+/// The sun prim `SetUpScene` defines.
 inline const ernie::Path kSunPrim{"/World/Sun"};
-/// @brief The render settings prim `SetUpScene` defines.
+/// The render settings prim `SetUpScene` defines.
 inline const ernie::Path kSettingsPrim{"/Render/Settings"};
 
-/// @brief Defines what a TerrainGen scene needs besides its terrain, keeping prims already there:
+/// Defines what a TerrainGen scene needs besides its terrain, keeping prims already there:
 /// a sun 30 degrees up in the north-east, the terrain's grey material, and render settings that
 /// shade it with an elevation colormap.
-/// @param scene The scene to set up.
 void SetUpScene(ernie::Scene& scene);
 
-/// @brief Writes heights as the scene's terrain prim (`kTerrainPrim`), bound to `kMaterialPrim`,
+/// Writes heights as the scene's terrain prim (`kTerrainPrim`), bound to `kMaterialPrim`,
 /// and an albedo as that material's albedo map, or clears the map. Rasters are copied.
-/// @param scene The scene to write to.
 /// @param heights The heights, north-up with square cells.
 /// @param geographic Whether the heights are in longitude and latitude, which cannot be shown yet.
 /// @param albedo The albedo on the heights' grid; null or empty clears the map.

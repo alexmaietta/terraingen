@@ -12,13 +12,13 @@
 
 namespace terraingen {
 
-/// @brief A compute kernel compiled to SPIR-V at build time, with entry point "main".
+/// A compute kernel compiled to SPIR-V at build time, with entry point "main".
 struct ComputeKernel {
     const unsigned char* spirv = nullptr;  ///< The SPIR-V words; also the pipeline cache key.
     std::size_t size = 0;                  ///< Size of `spirv` in bytes.
 };
 
-/// @brief The Vulkan compute device TerrainGen uses, opened on first use.
+/// The Vulkan compute device TerrainGen uses, opened on first use.
 ///
 /// volk opens the Vulkan loader at run time. The device is the one `TERRAINGEN_DEVICE` (an index
 /// into the physical devices) names, otherwise the first discrete GPU, then integrated GPU, then
@@ -26,23 +26,18 @@ struct ComputeKernel {
 /// serialized.
 class VulkanCompute {
   public:
-    /// @brief The shared device, opened on the first call.
-    /// @return The device, or null when Vulkan is unavailable (see `Reason`).
+    /// The shared device, opened on the first call; null when Vulkan is unavailable (see `Reason`).
     static VulkanCompute* Get();
 
-    /// @brief Why Vulkan is unavailable.
-    /// @return The reason, empty when Vulkan is available.
+    /// Why Vulkan is unavailable; empty when it is available.
     static std::string Reason();
 
-    /// @brief The device's name.
-    /// @return The name the driver reports.
+    /// The device name the driver reports.
     /// @throws std::logic_error in a build without Vulkan, which has no device.
     const std::string& DeviceName() const;
 
-    /// @brief Runs a kernel and copies every buffer back in place.
-    /// @param kernel The kernel to run.
-    /// @param buffers Host buffers bound as storage buffers 0, 1, ... of set 0; each is uploaded,
-    ///        used and read back in place.
+    /// Runs a kernel and copies every buffer back in place.
+    /// @param buffers Host buffers bound as storage buffers 0, 1, ... of set 0.
     /// @param pushConstants The kernel's push constants, at most the device's limit in bytes.
     /// @param groups Workgroup counts in x, y and z.
     /// @throws std::runtime_error for a Vulkan failure or push constants past the device's limit.

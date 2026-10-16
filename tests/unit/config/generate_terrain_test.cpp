@@ -1,5 +1,3 @@
-/// @file
-/// @brief Tests of `GenerateTerrain` and `Summary` (pipeline/run.cpp).
 #include "configs.h"
 #include "support/raster_equality.h"
 #include "support/temp_path.h"

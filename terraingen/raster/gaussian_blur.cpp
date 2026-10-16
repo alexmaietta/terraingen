@@ -1,5 +1,3 @@
-/// @file
-/// @brief Separable normalized Gaussian convolution of rasters.
 #include "terraingen/raster/gaussian_blur.h"
 
 #include "terraingen/util/checks.h"

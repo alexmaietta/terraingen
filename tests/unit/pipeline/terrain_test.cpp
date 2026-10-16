@@ -1,6 +1,3 @@
-/// @file
-/// @brief Tests of evaluating terrains on grids and at points, and of the layer defaults
-/// (pipeline/terrain.cpp); tiles, spheres and body meshes are in terrain_tiles_test.cpp.
 #include "terraingen/pipeline/terrain.h"
 
 #include "support/raster_equality.h"

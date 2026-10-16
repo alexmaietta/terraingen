@@ -1,5 +1,3 @@
-/// @file
-/// @brief Lunar topographic diffusivities of Fassett and Thomson (2014) and Fassett et al. (2022).
 #include "terraingen/layers/craters/degradation/diffusivities.h"
 
 #include <cmath>

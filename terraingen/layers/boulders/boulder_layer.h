@@ -20,7 +20,7 @@
 
 namespace terraingen {
 
-/// @brief How rich the boulders are at a point.
+/// How rich the boulders are at a point.
 struct BoulderAbundance {
     /// Density of the boulders between craters over its mean, from patches and bedrock.
     double background = 1.0;
@@ -30,68 +30,55 @@ struct BoulderAbundance {
     bool operator==(const BoulderAbundance&) const = default;
 };
 
-/// @brief Boulders scattered over the ground: between craters, in patches and richer on bedrock,
+/// Boulders scattered over the ground: between craters, in patches and richer on bedrock,
 /// plus blocks around fresh craters (which need `craters`).
 ///
 /// Candidates are drawn per cell in size bands and thinned by a uniform keyed by each ID, so
 /// boulders depend only on position and agree on every grid, tile and point.
 class BoulderLayer final : public Layer, public BoulderPlacer {
   public:
-    /// @brief Builds a boulder layer.
-    ///
     /// On a sphere, candidates are drawn in `CubeSphereCells`, distances are great-circle, and
     /// relief and model placements are in each boulder's local east, north and up frame, its
     /// origin on the datum below the boulder.
-    /// @param options How boulders are sized, placed, posed and drawn.
     /// @param craters The crater layer whose craters throw blocks; may be null without ejecta.
-    /// @param surface What the boulders lie on; the crater layer's surface.
+    /// @param surface The crater layer's surface.
     /// @throws std::invalid_argument for invalid options, ejecta without `craters`, or a crater
     /// layer on another surface.
     BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const CraterLayer> craters = nullptr,
                  Surface surface = {});
 
-    /// @brief The boulders of a region.
-    /// @param region The region, in surface coordinates.
-    /// @param spacing The sample spacing; boulders too small to resolve at it are left out, and
-    /// models are marked at it. 0 for every boulder.
-    /// @param ground The ground, read under each boulder; needed with the exposure field.
-    /// @return The boulders centred in `region` or within their radius of it, in a fixed order.
+    /// The boulders centred in `region` (surface coordinates) or within their radius of it, in a
+    /// fixed order.
+    /// @param spacing Sample spacing in metres; boulders too small to resolve at it are left out
+    /// and models are marked at it; 0 keeps every boulder.
+    /// @param ground Read under each boulder; needed with the exposure field.
     /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
     std::vector<Boulder> Boulders(const Bounds2d& region, double spacing = 0.0,
                                   const Ground* ground = nullptr) const;
 
-    /// @brief How rich the boulders are at a point.
-    /// @param x Surface x of the point.
-    /// @param y Surface y of the point.
-    /// @param ground The ground; needed with the exposure field.
-    /// @return The background and ejecta abundance.
+    /// The background and ejecta abundance at surface (x, y).
+    /// @param ground Needed with the exposure field.
     /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
     BoulderAbundance AbundanceAt(double x, double y, const Ground* ground = nullptr) const;
 
-    /// @brief The density of the boulders of a size at a point.
-    /// @param diameter The boulders' diameter, within the layer's sizes, in metres.
-    /// @param x Surface x of the point.
-    /// @param y Surface y of the point.
-    /// @param ground The ground; needed with the exposure field.
-    /// @return -dN/dD, per m^2 per metre of diameter.
+    /// The density -dN/dD of boulders of `diameter` at surface (x, y), per m^2 per metre of
+    /// diameter.
+    /// @param diameter In metres, within the layer's sizes.
+    /// @param ground Needed with the exposure field.
     /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
     double DensityAt(double diameter, double x, double y, const Ground* ground = nullptr) const;
 
-    /// @brief The largest boulder.
-    /// @return `sizes.maxDiameter`, in metres.
+    /// `sizes.maxDiameter`.
     double MaxFeatureDiameter() const override {
         return options_.sizes.maxDiameter;
     }
 
-    /// @brief The layer options.
-    /// @return The options the layer was made with.
+    /// The options the layer was made with.
     const BoulderLayerOptions& Options() const {
         return options_;
     }
 
-    /// @brief The 3D shape of a boulder, shared between boulders with the same shape seed.
-    /// @param boulder The boulder.
-    /// @return Its shape.
+    /// The 3D shape of a boulder, shared between boulders with the same shape seed.
     std::shared_ptr<const BoulderShape> Shape(const Boulder& boulder) const;
 
     /// The boulders of `boulders` to place as their own 3D models: those marked `model` whose
@@ -156,15 +143,9 @@ class BoulderLayer final : public Layer, public BoulderPlacer {
     std::shared_ptr<const SurfaceCells> cells_;
 };
 
-/// @brief The height at a point after a boulder's exposed part: a dome of its exposed height over
+/// The height at surface (x, y) after a boulder's exposed part: a dome of its exposed height over
 /// its diameter, as `BoulderRelief::Dome` draws it.
-/// @param height The height before the boulder.
-/// @param x Surface x of the point.
-/// @param y Surface y of the point.
-/// @param boulder The boulder.
 /// @param weight Weight of the dome, in [0, 1].
-/// @param surface What the boulder lies on.
-/// @return The height after the boulder.
 float AddBoulder(float height, double x, double y, const Boulder& boulder, double weight,
                  const Surface& surface = {});
 

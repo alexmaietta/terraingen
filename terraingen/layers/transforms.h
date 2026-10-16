@@ -1,5 +1,5 @@
 /// @file
-/// Height transforms as layers: scale and offset, clamp, and a function of your own.
+/// @brief Height transforms as layers: scale and offset, clamp, and a function of your own.
 #pragma once
 
 #include "terraingen/layers/layer.h"

@@ -1,5 +1,3 @@
-/// @file
-/// @brief The `terraingen` commands: generate, validate, schema, GUI, version and help.
 #include "terraingen/app/cli.h"
 
 #include "terraingen/app/gui/run.h"

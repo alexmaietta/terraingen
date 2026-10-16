@@ -1,5 +1,3 @@
-/// @file
-/// @brief Setting up the GUI's scene and writing terrain rasters into it.
 #include "terraingen/app/gui/terrain_scene.h"
 
 #include <ernie/scene/schema.h>

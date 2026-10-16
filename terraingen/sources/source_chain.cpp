@@ -1,5 +1,3 @@
-/// @file
-/// @brief Sources tried in order, each filling the gaps of those before it.
 #include "terraingen/sources/source_chain.h"
 
 #include <cmath>

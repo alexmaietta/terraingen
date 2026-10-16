@@ -15,7 +15,7 @@
 
 namespace terraingen {
 
-/// @brief A thread-safe cache of recomputable values, holding about `capacity` units of cost and
+/// A thread-safe cache of recomputable values, holding about `capacity` units of cost and
 /// evicting the least recently used.
 ///
 /// Keys are spread over 16 shards with even shares of the capacity; a shard always keeps its
@@ -23,14 +23,13 @@ namespace terraingen {
 /// once, both get the first value stored.
 template <typename Key, typename Value, typename Hash = std::hash<Key>> class LruCache {
   public:
-    /// @brief Measures a value's cost (a count or bytes).
+    /// Measures a value's cost (a count or bytes).
     using Cost = std::function<std::size_t(const Value&)>;
-    /// @brief Told how many values one store evicted.
+    /// Told how many values one store evicted.
     using OnEvict = std::function<void(std::size_t evicted)>;
 
-    /// @brief An empty cache.
+    /// An empty cache.
     /// @param capacity The total cost held, in `cost` units.
-    /// @param cost Measures each value's cost.
     /// @param onEvict If given, told how many values a store evicted, outside any lock.
     /// @throws std::invalid_argument if `capacity` is zero.
     LruCache(std::size_t capacity, Cost cost, OnEvict onEvict = {})
@@ -40,10 +39,7 @@ template <typename Key, typename Value, typename Hash = std::hash<Key>> class Lr
         }
     }
 
-    /// @brief The value for a key, computed outside the lock when it is not held.
-    /// @param key The key.
-    /// @param compute Computes the value when it is not held.
-    /// @return The held or newly stored value.
+    /// The value for a key, computed by `compute` outside the lock when it is not held.
     /// @throws Whatever `compute` throws; nothing is stored then.
     std::shared_ptr<const Value> Get(const Key& key, const std::function<Value()>& compute) {
         Shard& shard = shards_[Hash{}(key) % kShards];
@@ -81,20 +77,17 @@ template <typename Key, typename Value, typename Hash = std::hash<Key>> class Lr
         return value;
     }
 
-    /// @brief The cost of every value held.
-    /// @return The total cost, in `Cost` units.
+    /// The total cost of every value held, in `Cost` units.
     std::size_t Size() const {
         return Sum([](const Shard& shard) { return shard.cost; });
     }
 
-    /// @brief The number of values evicted since construction.
-    /// @return The eviction count.
+    /// The number of values evicted since construction.
     std::size_t Evictions() const {
         return Sum([](const Shard& shard) { return shard.evictions; });
     }
 
-    /// @brief The capacity given at construction.
-    /// @return The capacity, in `Cost` units.
+    /// The capacity given at construction, in `Cost` units.
     std::size_t Capacity() const {
         return capacity_;
     }

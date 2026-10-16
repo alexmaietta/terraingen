@@ -1,6 +1,3 @@
-/// @file
-/// @brief Tests of validating raster sources, chains, raster albedo, spheres and body meshes, and
-/// of `DescribeSource` and `BuildSurface` (pipeline/validate.cpp).
 #include "configs.h"
 #include "support/temp_path.h"
 #include "terraingen/config/generate.h"

@@ -1,5 +1,3 @@
-/// @file
-/// @brief Bright, immature ejecta, interiors and rays around fresh craters.
 #include "terraingen/albedo/crater_albedo.h"
 
 #include "terraingen/layers/craters/secondaries.h"

@@ -1,5 +1,3 @@
-/// @file
-/// @brief Boulder placements, site frames, top surfaces and boulder meshes.
 #include "terraingen/layers/boulders/boulder_models.h"
 
 #include <array>

@@ -1,5 +1,3 @@
-/// @file
-/// @brief Crater attributes measured from a sampled profile.
 #include "terraingen/layers/craters/shaping/attributes.h"
 
 #include <cmath>

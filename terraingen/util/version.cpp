@@ -1,5 +1,3 @@
-/// @file
-/// @brief The library version and API version.
 #include "terraingen/util/version.h"
 
 namespace terraingen {

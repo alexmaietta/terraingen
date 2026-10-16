@@ -1,6 +1,3 @@
-/// @file
-/// @brief Bindings of crater layers: craters and crater lists, their generation, how they are
-/// applied, irregular outlines, the crater layer and secondary craters.
 #include "bindings.h"
 #include "common.h"
 #include "tables.h"

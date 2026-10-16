@@ -1,5 +1,3 @@
-/// @file
-/// @brief Moore's lunar terrain crater distributions.
 #include "terraingen/distribution/moore.h"
 
 #include <cmath>

@@ -8,7 +8,7 @@
 
 namespace terraingen {
 
-/// @brief What a crater looks like in its current state, for listing, labelling or placing.
+/// What a crater looks like in its current state, for listing, labelling or placing.
 struct CraterAttributes {
     double floorDepth = 0.0;  ///< Depth of the floor below the surrounding surface (m).
     double rimHeight = 0.0;   ///< Height of the rim crest above the surrounding surface (m).
@@ -20,14 +20,10 @@ struct CraterAttributes {
     bool operator==(const CraterAttributes&) const = default;
 };
 
-/// @brief The attributes of a crater shaped by a profile.
+/// The attributes of a crater in `state` (which gives the ratios) shaped by `profile` (the form).
 ///
 /// The floor is the profile's lowest point inside the rim and the rim crest its highest from 0.7
 /// to 1.3 radii, both sampled every 0.01 radii.
-/// @param crater The crater.
-/// @param state Its degradation state, which gives the ratios.
-/// @param profile The profile shaping it, which gives the form.
-/// @return The attributes.
 CraterAttributes ComputeCraterAttributes(const Crater& crater, const CraterState& state,
                                          const CraterProfile& profile);
 

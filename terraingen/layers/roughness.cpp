@@ -1,5 +1,3 @@
-/// @file
-/// @brief `RoughnessLayer` and the tabulated structure functions of Perlin noise.
 #include "terraingen/layers/roughness.h"
 
 #include "terraingen/noise/hash.h"

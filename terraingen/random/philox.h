@@ -6,7 +6,7 @@
 
 namespace terraingen {
 
-/// @brief Four 32-bit words: a Philox counter or output block.
+/// Four 32-bit words: a Philox counter or output block.
 struct U32x4 {
     uint32_t x = 0;  ///< First word.
     uint32_t y = 0;  ///< Second word.
@@ -18,7 +18,7 @@ struct U32x4 {
 #endif
 };
 
-/// @brief Two 32-bit words: a Philox key.
+/// Two 32-bit words: a Philox key.
 struct U32x2 {
     uint32_t x = 0;  ///< First word.
     uint32_t y = 0;  ///< Second word.
@@ -30,11 +30,8 @@ struct U32x2 {
 
 namespace detail {
 
-/// @brief The 64-bit product of two words, built from 16-bit halves on GPUs without 64-bit
-/// integers, with the same result.
-/// @param a First factor.
-/// @param b Second factor.
-/// @return The high (`x`) and low (`y`) words of `a * b`.
+/// The high (`x`) and low (`y`) words of the 64-bit product `a * b`, built from 16-bit halves on
+/// GPUs without 64-bit integers, with the same result.
 constexpr U32x2 MulHiLo32(uint32_t a, uint32_t b) {
     U32x2 result = {};
 #ifdef __SLANG__
@@ -55,10 +52,7 @@ constexpr U32x2 MulHiLo32(uint32_t a, uint32_t b) {
     return result;
 }
 
-/// @brief One Philox4x32 round.
-/// @param counter The block before the round.
-/// @param key The round key.
-/// @return The block after the round.
+/// One Philox4x32 round of a block under a round key.
 constexpr U32x4 PhiloxRound(U32x4 counter, U32x2 key) {
     const U32x2 first = MulHiLo32(0xD2511F53u, counter.x);
     const U32x2 second = MulHiLo32(0xCD9E8D57u, counter.z);
@@ -69,11 +63,8 @@ constexpr U32x4 PhiloxRound(U32x4 counter, U32x2 key) {
 
 }  // namespace detail
 
-/// @brief Philox4x32-10: 128 pseudo-random bits, a bijection of the counter under the key, so any
+/// Philox4x32-10: 128 pseudo-random bits, a bijection of the counter under the key, so any
 /// element of any stream can be computed directly. Bit-identical on every platform and GPU.
-/// @param counter The 128-bit counter.
-/// @param key The 64-bit key.
-/// @return The 128 output bits.
 constexpr U32x4 Philox4x32(U32x4 counter, U32x2 key) {
     for (int round = 0; round < 10; ++round) {
         if (round > 0) {

@@ -1,5 +1,3 @@
-/// @file
-/// @brief Crater spacing: conflicts, precedence and Matern type II thinning by size band.
 #include "terraingen/layers/craters/generation/spacing.h"
 
 #include "terraingen/util/checks.h"

@@ -12,59 +12,50 @@
 
 namespace terraingen {
 
-/// @brief How `Resample` interpolates between source cells.
+/// How `Resample` interpolates between source cells.
 enum class ResampleMethod {
     Nearest,   ///< The value of the nearest cell centre.
     Bilinear,  ///< Linear in each axis over the four surrounding cells.
     Cubic,     ///< Keys cubic convolution (a = -0.5) over the sixteen surrounding cells.
 };
 
-/// @brief A raster resampled to square cells over the same extent, origin and axis directions.
+/// A raster resampled to square cells over the same extent, origin and axis directions, on the
+/// `ResampledGrid`, keeping `raster`'s no-data value (NaN cells without one).
 ///
 /// Each output cell centre is interpolated in the source, with samples beyond the edge taken from
 /// the nearest edge cell. An output cell is no-data where any contributing cell is.
 /// @param raster The source raster; not empty and not rotated.
 /// @param pixelSize The new cell side in world units; positive and finite.
-/// @param method The interpolation.
-/// @return The `ResampledGrid` raster, keeping `raster`'s no-data value (NaN cells without one).
 /// @throws std::invalid_argument for an empty or rotated raster, a non-positive or non-finite
 /// `pixelSize`, or a result wider or taller than 2^31 cells.
 Raster<float> Resample(const Raster<float>& raster, double pixelSize, ResampleMethod method);
 
-/// @brief A raster interpolated at one world position, as `Resample` interpolates.
+/// A raster interpolated at world position (`x`, `y`), as `Resample` interpolates; NaN outside
+/// the raster's extent or where a contributing cell is no-data.
 /// @param raster The raster; not empty and not rotated.
-/// @param x World x.
-/// @param y World y.
-/// @param method The interpolation.
-/// @return The value; NaN outside the raster's extent or where a contributing cell is no-data.
 /// @throws std::invalid_argument for an empty or rotated raster.
 /// @throws std::domain_error if the raster's transform is not invertible.
 float SampleRaster(const Raster<float>& raster, double x, double y, ResampleMethod method);
 
-/// @brief A raster resampled onto a grid, each cell `SampleRaster` at its centre.
+/// A raster resampled onto a non-empty grid, each cell `SampleRaster` at its centre.
+///
+/// Cells giving NaN hold `raster`'s no-data value, or NaN, which then becomes the no-data value
+/// (`FilledNoData`).
 /// @param raster The source raster; not empty and not rotated.
-/// @param grid The target grid; not empty.
-/// @param method The interpolation.
-/// @return The raster on `grid`; cells giving NaN hold `raster`'s no-data value, or NaN, which
-/// then becomes the no-data value (`FilledNoData`).
 /// @throws std::invalid_argument for an empty or rotated raster, or an empty grid.
 /// @throws std::domain_error if the raster's transform is not invertible.
 Raster<float> ResampleTo(const Raster<float>& raster, const RasterGrid& grid,
                          ResampleMethod method);
 
-/// @brief The no-data value of a raster filled from a source with no-data value `noData`, whose
-/// missing cells hold `noData` or, without one, NaN.
-/// @param noData The source's no-data value, if any.
-/// @param missing Whether any cell was missing.
-/// @return `noData` if set; otherwise NaN if a cell was missing, else none.
+/// The no-data value of a raster filled from a source with no-data value `noData`, whose
+/// missing cells hold `noData` or, without one, NaN: `noData` if set; otherwise NaN if a cell
+/// was `missing`, else none.
 std::optional<float> FilledNoData(std::optional<float> noData, bool missing);
 
-/// @brief Sets each cell of `target` to `sample` at the cell's centre; cells where it gives NaN
+/// Sets each cell of `target` to `sample` at the cell's centre; cells where it gives NaN
 /// hold `noData`, or NaN without one, and `target` gets `FilledNoData`.
-/// @param target The raster to fill, on its own grid.
-/// @param noData The no-data value of what is sampled, if any.
-/// @tparam Sample Callable as `float(double x, double y)`.
-/// @param sample Called with the world x and y of each cell centre; returns NaN where missing.
+/// @tparam Sample Callable as `float(double x, double y)` with world coordinates; returns NaN
+/// where missing.
 template <typename Sample>
 void SampleAtCentres(Raster<float>& target, std::optional<float> noData, Sample&& sample) {
     const float fill = noData.value_or(std::numeric_limits<float>::quiet_NaN());

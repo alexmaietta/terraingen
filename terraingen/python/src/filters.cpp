@@ -1,6 +1,3 @@
-/// @file
-/// @brief Bindings of the filters module: the filter base class Python can extend, Gaussian blur
-/// and crater rim smoothing.
 #include "bindings.h"
 #include "common.h"
 #include "trampolines.h"

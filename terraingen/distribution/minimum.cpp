@@ -1,5 +1,3 @@
-/// @file
-/// @brief The pointwise minimum of size-frequency distributions.
 #include "terraingen/distribution/minimum.h"
 
 #include "terraingen/distribution/combined.h"

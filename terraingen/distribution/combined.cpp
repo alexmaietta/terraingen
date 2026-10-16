@@ -1,5 +1,3 @@
-/// @file
-/// @brief Checks shared by the distributions built from others or from pieces.
 #include "terraingen/distribution/combined.h"
 
 #include <stdexcept>

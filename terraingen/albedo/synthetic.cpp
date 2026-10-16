@@ -1,5 +1,3 @@
-/// @file
-/// @brief Synthetic albedos: a base colour with noise in hue, saturation and value.
 #include "terraingen/albedo/synthetic.h"
 
 #include "terraingen/layers/noise_relief.h"

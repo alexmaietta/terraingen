@@ -1,5 +1,3 @@
-/// @file
-/// @brief Crater outlines: ellipses, power-law and Du et al. (2024) rim harmonics.
 #include "terraingen/layers/craters/shaping/irregularity.h"
 
 #include "terraingen/random/stream.h"

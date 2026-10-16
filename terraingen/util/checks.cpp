@@ -1,5 +1,3 @@
-/// @file
-/// @brief Argument checks that throw `std::invalid_argument`.
 #include "terraingen/util/checks.h"
 
 #include <stdexcept>

@@ -1,5 +1,3 @@
-/// @file
-/// @brief The GeoTIFF writer: tiled float32 bands, IFD building and georeferencing tags.
 #include "terraingen/raster/geotiff/geotiff.h"
 
 #include "terraingen/raster/geotiff/tiff_codecs.h"

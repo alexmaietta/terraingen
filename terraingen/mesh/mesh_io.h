@@ -10,10 +10,8 @@
 
 namespace terraingen {
 
-/// @brief Writes a mesh as a binary little-endian PLY file, float32 positions and normals and
+/// Writes a mesh as a binary little-endian PLY file, float32 positions and normals and
 /// uint32 indices.
-/// @param path The file to write.
-/// @param mesh The mesh.
 /// @param normals Empty, or one unit normal per vertex.
 /// @throws std::invalid_argument for normals that are neither empty nor one per vertex, or a
 /// triangle indexing past the vertices.
@@ -21,9 +19,8 @@ namespace terraingen {
 void WritePly(const std::filesystem::path& path, const TriangleMesh& mesh,
               const std::vector<Vec3d>& normals = {});
 
-/// @brief Writes a mesh as a binary glTF 2.0 file (.glb) with one node and one triangle primitive,
+/// Writes a mesh as a binary glTF 2.0 file (.glb) with one node and one triangle primitive,
 /// converted from z-up to glTF's y-up frame.
-/// @param path The file to write.
 /// @param mesh The mesh, in metres.
 /// @param normals Empty, or one unit normal per vertex.
 /// @throws std::invalid_argument for an empty mesh, normals that are neither empty nor one per
@@ -32,13 +29,13 @@ void WritePly(const std::filesystem::path& path, const TriangleMesh& mesh,
 void WriteGlb(const std::filesystem::path& path, const TriangleMesh& mesh,
               const std::vector<Vec3d>& normals = {});
 
-/// @brief A mesh of a glTF scene.
+/// A mesh of a glTF scene.
 struct SceneMesh {
     TriangleMesh mesh;           ///< The mesh, in metres.
     std::vector<Vec3d> normals;  ///< Empty, or one unit normal per vertex.
 };
 
-/// @brief An instance of a scene mesh: its vertices scaled per axis by `scale`, then moved by
+/// An instance of a scene mesh: its vertices scaled per axis by `scale`, then moved by
 /// `pose`, as glTF composes a node's scale, rotation and translation.
 struct SceneNode {
     std::size_t mesh = 0;        ///< Index into the scene's meshes.
@@ -46,11 +43,8 @@ struct SceneNode {
     RigidTransform pose{};       ///< Rotation and translation applied after the scale.
 };
 
-/// @brief Writes a binary glTF 2.0 file (.glb) of meshes drawn once per node, so each shared
+/// Writes a binary glTF 2.0 file (.glb) of meshes drawn once per node, so each shared
 /// shape is stored once; converted to y-up as `WriteGlb` is.
-/// @param path The file to write.
-/// @param meshes The meshes.
-/// @param nodes The instances.
 /// @throws std::invalid_argument for no meshes or nodes, an empty mesh, mismatched normals, a
 /// triangle indexing past its vertices, a node naming no mesh, a scale that is zero or not finite,
 /// or a pose whose rotation is not a rotation.

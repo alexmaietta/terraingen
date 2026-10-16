@@ -1,5 +1,3 @@
-/// @file
-/// @brief The methods of the configuration specs in config.h.
 #include "terraingen/config/config.h"
 
 namespace terraingen {

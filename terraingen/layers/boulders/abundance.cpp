@@ -1,5 +1,3 @@
-/// @file
-/// @brief `BoulderLayer` abundance and density: patches, bedrock and crater ejecta.
 #include "terraingen/layers/boulders/boulder_layer.h"
 
 #include "terraingen/layers/exposure.h"
