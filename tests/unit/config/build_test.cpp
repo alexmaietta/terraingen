@@ -224,6 +224,23 @@ TEST(BuildCraterModels, WearsTheProfileByDiffusion) {
     }
 }
 
+TEST(BuildCraterModels, MatchesTheDiffusivityToTheSteadyStateEquilibrium) {
+    CraterLayerSpec craters;
+    craters.degradation = terraingen::DiffusionDegradationSpec{};
+    const terraingen::Crater crater{0.0, 0.0, 500.0, 1.0, 1u};
+    const auto tau = [&](const terraingen::PowerLawDiffusivity& law) {
+        return law(500.0, 1.0) / (500.0 * 500.0);
+    };
+    terraingen::SteadyStateAgesSpec steady;
+    craters.ages = steady;
+    EXPECT_DOUBLE_EQ(BuildCraterModels(craters).degradation->State(crater).diffusion,
+                     tau(terraingen::Fassett2022TraskDiffusivity()));
+    steady.equilibrium = terraingen::EquilibriumModel::Hartmann;
+    craters.ages = steady;
+    EXPECT_DOUBLE_EQ(BuildCraterModels(craters).degradation->State(crater).diffusion,
+                     tau(terraingen::Fassett2022HartmannDiffusivity()));
+}
+
 TEST(BuildCraterModels, ReportsEachModelsProblemsAtItsKey) {
     CraterLayerSpec craters;
     EXPECT_EQ(ModelErrorPath(craters), "built");

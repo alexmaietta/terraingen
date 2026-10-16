@@ -367,7 +367,7 @@ double SecondaryCraterLayer::MaxFeatureDiameter() const {
 
 CraterList SecondaryCraterLayer::Secondaries(const Bounds2d& region, double spacing) const {
     const Surface& surface = apply_.surface;
-    const double reachRadii = models_.profile->ReachRadii();
+    const double reachRadii = CraterReachRadii(*models_.profile, apply_);
     const double largest = primaries_->MaxFeatureDiameter();
     const Bounds2d wanted = surface.Expand(region, 0.5 * reachRadii * MaxFeatureDiameter());
     const CraterList primaries =

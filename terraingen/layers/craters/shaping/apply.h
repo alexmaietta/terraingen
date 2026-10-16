@@ -32,11 +32,16 @@ struct CraterSampling {
     HeightSampler ground{};
 };
 
+/// How far, in crater radii, a crater changes the terrain: the profile's reach, or the ejecta's
+/// when `options.texture` draws beyond the rim and they reach further.
+double CraterReachRadii(const CraterProfile& profile, const CraterApplyOptions& options);
+
 /// The height at surface (x, y) after one crater, bit-identical to what `ApplyCraters` does to a
-/// cell centred there; `height` beyond the profile's reach.
+/// cell centred there; `height` beyond its reach (`CraterReachRadii`).
 ///
-/// Adds the profile weighted by the crater's resolution; with a datum, also moves the terrain
-/// toward the datum by `interiorReplacement` times the blend weight.
+/// Adds the profile, noise and texture weighted by the crater's resolution; with a datum, also
+/// moves the terrain toward the datum by `interiorReplacement` times the blend weight, or by the
+/// texture's mantling outside the rim where that is more.
 /// @param crater With its datum when the options have one.
 float ApplyCraterTo(float height, double x, double y, const PreparedCrater& crater,
                     const CraterProfile& profile, const CraterApplyOptions& options);

@@ -153,6 +153,28 @@ template <typename IO> void Fields(IO& io, CraterNoise& noise) {
     io("seed", noise.seed, "Varies the noise of every crater.");
 }
 
+template <typename IO> void Fields(IO& io, CraterTexture& texture) {
+    io("wall_streaks", texture.wallStreaks,
+       "Amplitude of the radial gullies down a fresh crater's inner wall, as a share of its "
+       "diameter; 0 adds none.");
+    io("wall_streak_width_radii", texture.wallStreakWidthRadii,
+       "Width of the gullies across the wall, in crater radii.");
+    io("ejecta", texture.ejecta,
+       "Amplitude of the hummocky, radially lineated ejecta around a fresh crater, as a share of "
+       "the ejecta's thickness (McGetchin et al. 1973); 0 adds none.");
+    io("ejecta_lineation_radii", texture.ejectaLineationRadii,
+       "Width of the ejecta's lineations across, in crater radii at the rim.");
+    io("mantling", texture.mantling,
+       "Share of older relief buried under the ejecta at the rim, falling with their thickness, "
+       "from 0 to 1; needs a datum.");
+    io("ejecta_reach_radii", texture.ejectaReachRadii,
+       "How far ejecta texture and burial reach, in crater radii; above 1.");
+    io("min_freshness", texture.minFreshness,
+       "Freshness (depth over fresh depth) at or below which gullies and ejecta texture are worn "
+       "away, from 0 to below 1.");
+    io("seed", texture.seed, "Varies the texture of every crater.");
+}
+
 template <typename IO> void Fields(IO& io, CraterApplyOptions& apply) {
     io("order", apply.order,
        "Order in which overlapping craters are applied; later craters overprint earlier ones.");
@@ -176,6 +198,9 @@ template <typename IO> void Fields(IO& io, CraterApplyOptions& apply) {
     io("noise", apply.noise,
        "Fractal noise over each crater's footprint and around its rim, keyed to the crater; off "
        "unless an amplitude is set.");
+    io("texture", apply.texture,
+       "Gullies down fresh walls, textured ejecta and older relief buried under the ejecta; off "
+       "unless an amplitude or mantling is set.");
 }
 
 template <> struct SpecName<CraterLayerSpec> {

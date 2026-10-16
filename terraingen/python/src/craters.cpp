@@ -324,14 +324,34 @@ void BindApplyOptions(nb::module_& m) {
         .def_rw("rim_outer_radii", &CraterNoise::rimOuterRadii)
         .def_rw("seed", &CraterNoise::seed);
     m.def("validate_crater_noise", &ValidateCraterNoise, "noise"_a, kValidateDoc);
+    auto texture = nb::class_<CraterTexture>(
+        m, "CraterTexture",
+        "Texture keyed to each crater's ID: `wall_streaks` (gullies down the inner wall, as a "
+        "share of the diameter, `wall_streak_width_radii` wide), `ejecta` (hummocky lineated "
+        "ejecta as a share of McGetchin's thickness, lineations `ejecta_lineation_radii` wide) "
+        "and `mantling` (older relief buried under the ejecta, with a datum), out to "
+        "`ejecta_reach_radii`; gullies and ejecta fade out by `min_freshness`.");
+    BindKwargsInit<CraterTexture>(texture);
+    texture.def_rw("wall_streaks", &CraterTexture::wallStreaks)
+        .def_rw("wall_streak_width_radii", &CraterTexture::wallStreakWidthRadii)
+        .def_rw("ejecta", &CraterTexture::ejecta)
+        .def_rw("ejecta_lineation_radii", &CraterTexture::ejectaLineationRadii)
+        .def_rw("mantling", &CraterTexture::mantling)
+        .def_rw("ejecta_reach_radii", &CraterTexture::ejectaReachRadii)
+        .def_rw("min_freshness", &CraterTexture::minFreshness)
+        .def_rw("seed", &CraterTexture::seed);
+    m.def("validate_crater_texture", &ValidateCraterTexture, "texture"_a, kValidateDoc);
+    m.def("ejecta_thickness_share", &EjectaThicknessShare, "radii"_a, "reach_radii"_a,
+          "McGetchin's ejecta thickness at `radii` radii over that at the rim, tapered to "
+          "nothing at `reach_radii`.");
     auto apply = nb::class_<CraterApplyOptions>(
         m, "CraterApplyOptions",
         "How craters are applied: the `datum` interiors are cut relative to (fit over "
         "`datum_fit_radii` radii; with none, craters are added to the terrain and the settings "
         "after it are unused), how much of the interior replaces the older relief "
         "(`interior_replacement`, 0 to 1), the `blend` into the exterior, the `order` overlapping "
-        "craters are applied in, the resolution `fade`, rim `irregularity`, `rim_smoothing` and "
-        "`noise`.");
+        "craters are applied in, the resolution `fade`, rim `irregularity`, `rim_smoothing`, "
+        "`noise` and `texture`.");
     BindKwargsInit<CraterApplyOptions>(apply);
     apply.def_rw("order", &CraterApplyOptions::order)
         .def_rw("fade", &CraterApplyOptions::fade)
@@ -341,7 +361,8 @@ void BindApplyOptions(nb::module_& m) {
         .def_rw("blend", &CraterApplyOptions::blend)
         .def_rw("irregularity", &CraterApplyOptions::irregularity)
         .def_rw("rim_smoothing", &CraterApplyOptions::rimSmoothing)
-        .def_rw("noise", &CraterApplyOptions::noise);
+        .def_rw("noise", &CraterApplyOptions::noise)
+        .def_rw("texture", &CraterApplyOptions::texture);
     m.def("validate_crater_apply_options", &ValidateCraterApplyOptions, "options"_a, kValidateDoc);
     m.def("crater_apply_order", &CraterApplyOrder, "craters"_a, "order"_a,
           "The indices of `craters` in the order they are applied.");

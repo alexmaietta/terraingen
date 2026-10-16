@@ -45,8 +45,36 @@ void ValidateCraterNoise(const CraterNoise& noise) {
     }
 }
 
+void ValidateCraterTexture(const CraterTexture& texture) {
+    RequireNonNegative(texture.wallStreaks, "Crater wall streak amplitude");
+    RequireNonNegative(texture.ejecta, "Crater ejecta texture amplitude");
+    RequirePositive(texture.wallStreakWidthRadii, "Crater wall streak width");
+    RequirePositive(texture.ejectaLineationRadii, "Crater ejecta lineation width");
+    if (!(texture.mantling >= 0.0 && texture.mantling <= 1.0)) {
+        throw std::invalid_argument("Crater ejecta mantling must be in [0, 1]");
+    }
+    if (!(texture.ejectaReachRadii > 1.0 && std::isfinite(texture.ejectaReachRadii))) {
+        throw std::invalid_argument("Crater ejecta must reach beyond 1 radius");
+    }
+    if (!(texture.minFreshness >= 0.0 && texture.minFreshness < 1.0)) {
+        throw std::invalid_argument("Crater texture minFreshness must be in [0, 1)");
+    }
+}
+
+double EjectaThicknessShare(double radii, double reachRadii) {
+    if (radii <= 1.0) {
+        return 1.0;
+    }
+    if (radii >= reachRadii) {
+        return 0.0;
+    }
+    const double atReach = 1.0 / (reachRadii * reachRadii * reachRadii);
+    return (1.0 / (radii * radii * radii) - atReach) / (1.0 - atReach);
+}
+
 void ValidateCraterApplyOptions(const CraterApplyOptions& options) {
     ValidateCraterNoise(options.noise);
+    ValidateCraterTexture(options.texture);
     ValidateResolutionFade(options.fade);
     ValidateCraterIrregularity(options.irregularity);
     ValidateRimSmoothing(options.rimSmoothing);

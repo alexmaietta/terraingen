@@ -90,6 +90,56 @@ double NoiseHeight(const Crater& crater, const Vec2d& offset, double radii, doub
     return crater.diameter * height;
 }
 
+/// Fractal noise of `octaves` octaves streaked radially about a crater: `across` radii wide around
+/// it at the rim and `along` radii long outward, at `radii` radii and `angle` radians from its
+/// centre.
+double RadialStreaks(double radii, double angle, double across, double along, int octaves,
+                     std::uint32_t seed) {
+    FractalParams params;
+    params.seed = seed;
+    params.wavelength = 1.0f;
+    params.amplitude = 1.0f;
+    params.octaves = octaves;
+    const double ring = 1.0 / across;
+    return static_cast<double>(
+        Fractal3(ring * std::cos(angle), ring * std::sin(angle), radii / along, params));
+}
+
+/// The texture `texture` adds to `crater` in `state` at `offset` metres from its centre and
+/// `radii` crater radii out: gullies down the wall and ejecta texture, faded with wear.
+double TextureHeight(const Crater& crater, const CraterState& state, const Vec2d& offset,
+                     double radii, const CraterTexture& texture) {
+    if (texture.wallStreaks == 0.0 && texture.ejecta == 0.0) {
+        return 0.0;
+    }
+    const double wear = (state.Freshness() - texture.minFreshness) / (1.0 - texture.minFreshness);
+    const double fade = Smoothstep(std::clamp(wear, 0.0, 1.0));
+    if (!(fade > 0.0)) {
+        return 0.0;
+    }
+    const std::uint32_t key =
+        PcgHash(static_cast<std::uint32_t>(crater.id) ^
+                PcgHash(static_cast<std::uint32_t>(crater.id >> 32) ^ texture.seed ^ 0x54455854u));
+    const double angle = std::atan2(offset.y, offset.x);
+    double height = 0.0;
+    if (texture.wallStreaks > 0.0 && radii > 0.25 && radii < 1.0) {
+        const double band = Smoothstep(std::clamp((radii - 0.25) / 0.35, 0.0, 1.0)) *
+                            Smoothstep(std::clamp((1.0 - radii) / 0.1, 0.0, 1.0));
+        height += texture.wallStreaks * crater.diameter * band *
+                  RadialStreaks(radii, angle, texture.wallStreakWidthRadii, 0.5, 2, key);
+    }
+    if (texture.ejecta > 0.0 && radii > 1.0 && radii < texture.ejectaReachRadii) {
+        const double radius = 0.5 * crater.diameter;
+        const double thickness =
+            0.14 * std::pow(radius, 0.74) * EjectaThicknessShare(radii, texture.ejectaReachRadii);
+        const double rise = Smoothstep(std::clamp((radii - 1.0) / 0.1, 0.0, 1.0));
+        height += texture.ejecta * thickness * rise *
+                  RadialStreaks(radii, angle, texture.ejectaLineationRadii,
+                                2.0 * texture.ejectaLineationRadii, 3, key + 1u);
+    }
+    return fade * height;
+}
+
 /// Height of the raster at world point (x, y) by bilinear interpolation of the cell centres, or
 /// nothing if a contributing cell is outside the raster or holds no data.
 std::optional<double> Sample(const Raster<float>& raster, double x, double y) {
@@ -122,12 +172,10 @@ std::optional<double> Sample(const Raster<float>& raster, double x, double y) {
            fv * ((1.0 - fu) * values[2] + fu * values[3]);
 }
 
-/// The box a crater's profile can reach, in surface coordinates.
-Bounds2d Footprint(const PreparedCrater& prepared, const CraterProfile& profile,
-                   const Surface& surface) {
+/// The box a crater reaching `reachRadii` radii can change, in surface coordinates.
+Bounds2d Footprint(const PreparedCrater& prepared, double reachRadii, const Surface& surface) {
     const Crater& crater = prepared.crater;
-    const double reach =
-        prepared.outline.MaxScale() * profile.ReachRadii() * (0.5 * crater.diameter);
+    const double reach = prepared.outline.MaxScale() * reachRadii * (0.5 * crater.diameter);
     return surface.Expand({crater.x, crater.y, crater.x, crater.y}, reach);
 }
 
@@ -167,14 +215,14 @@ struct ReachingCrater {
     }
 };
 
-/// The craters of `prepared` whose profile reaches any of `samples`, in order.
+/// The craters of `prepared` reaching `reachRadii` radii that reach any of `samples`, in order.
 std::vector<ReachingCrater> CratersReaching(const SampleBlock& samples,
                                             std::vector<PreparedCrater>& prepared,
-                                            const CraterProfile& profile, const Surface& surface) {
+                                            double reachRadii, const Surface& surface) {
     std::vector<ReachingCrater> reaching;
     for (PreparedCrater& crater : prepared) {
-        const ReachingCrater candidate{&crater, Footprint(crater, profile, surface),
-                                       profile.ReachRadii() * 0.5 * crater.crater.diameter};
+        const ReachingCrater candidate{&crater, Footprint(crater, reachRadii, surface),
+                                       reachRadii * 0.5 * crater.crater.diameter};
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             if (candidate.Reaches(samples.Position(i), surface)) {
                 reaching.push_back(candidate);
@@ -187,6 +235,12 @@ std::vector<ReachingCrater> CratersReaching(const SampleBlock& samples,
 
 }  // namespace
 
+double CraterReachRadii(const CraterProfile& profile, const CraterApplyOptions& options) {
+    const double reach = profile.ReachRadii();
+    return options.texture.ReachesBeyondRim() ? std::fmax(reach, options.texture.ejectaReachRadii)
+                                              : reach;
+}
+
 float ApplyCraterTo(float height, double x, double y, const PreparedCrater& crater,
                     const CraterProfile& profile, const CraterApplyOptions& options) {
     const double diameter = crater.crater.diameter;
@@ -194,18 +248,25 @@ float ApplyCraterTo(float height, double x, double y, const PreparedCrater& crat
     const Vec2d offset = options.surface.Offset({crater.crater.x, crater.crater.y}, {x, y});
     const double distance =
         CraterProfileDistance(crater.crater, crater.outline, x, y, options.surface);
-    if (distance >= profile.ReachRadii() * radius) {
+    if (distance >= CraterReachRadii(profile, options) * radius) {
         return height;
     }
+    const double radii = distance / radius;
     const double current = height;
     double replaced = 0.0;
     if (crater.datum) {
-        const double weight = options.interiorReplacement * options.blend.Weight(distance / radius);
+        double weight = options.interiorReplacement * options.blend.Weight(radii);
+        if (options.texture.mantling > 0.0 && radii > 1.0) {
+            weight = std::fmax(weight,
+                               options.texture.mantling *
+                                   EjectaThicknessShare(radii, options.texture.ejectaReachRadii));
+        }
         replaced = weight * (crater.datum->At(offset.x, offset.y) - current);
     }
     const double shaped =
         ProfileHeight(profile, distance, diameter, crater.state, options.rimSmoothing) +
-        NoiseHeight(crater.crater, offset, distance / radius, profile.ReachRadii(), options.noise);
+        NoiseHeight(crater.crater, offset, radii, profile.ReachRadii(), options.noise) +
+        TextureHeight(crater.crater, crater.state, offset, radii, options.texture);
     return static_cast<float>(current + crater.resolution * shaped + crater.resolution * replaced);
 }
 
@@ -225,7 +286,8 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
     std::vector<std::vector<PixelWindow>> windows;
     for (std::size_t k = 0; k < prepared.size(); ++k) {
         std::vector<PixelWindow> around = WindowsAround(
-            raster, Footprint(prepared[k], profile, options.surface), options.surface);
+            raster, Footprint(prepared[k], CraterReachRadii(profile, options), options.surface),
+            options.surface);
         if (!around.empty()) {
             onRaster.push_back(k);
             windows.push_back(std::move(around));
@@ -265,7 +327,7 @@ void ApplyCraters(SampleBlock& samples, const CraterList& craters, const CraterS
     std::vector<PreparedCrater> prepared =
         PrepareCraters(craters, options, sampling.spacing, *models.degradation);
     const std::vector<ReachingCrater> reaching =
-        CratersReaching(samples, prepared, profile, options.surface);
+        CratersReaching(samples, prepared, CraterReachRadii(profile, options), options.surface);
     if (options.datum != CraterDatum::None && !reaching.empty()) {
         const CraterReliefIndex index(prepared, profile, MaxOutlineScale(options.irregularity),
                                       options.surface);

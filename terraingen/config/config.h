@@ -207,6 +207,10 @@ struct FreshnessDegradationSpec {
 };
 /// Where "diffusion" degradation takes its diffusion ages from.
 enum class DiffusivityModel {
+    /// "matched": the Fassett et al. (2022) diffusivity fitted to the steady-state ages'
+    /// equilibrium, which keeps craters as deep as that equilibrium needs; Hartmann's for other
+    /// ages.
+    Matched,
     Fassett2022Hartmann,  ///< "fassett_2022_hartmann": `Fassett2022HartmannDiffusivity`.
     Fassett2022Trask,     ///< "fassett_2022_trask": `Fassett2022TraskDiffusivity`.
     FassettThomson2014,   ///< "fassett_thomson_2014": `FassettThomson2014Diffusivity`.
@@ -218,7 +222,7 @@ enum class DiffusivityModel {
 /// Degradation "diffusion": `DiffusionDegradation`, the layer's profile worn by topographic
 /// diffusion (`DiffusedProfile`).
 struct DiffusionDegradationSpec {
-    DiffusivityModel diffusivity = DiffusivityModel::Fassett2022Hartmann;
+    DiffusivityModel diffusivity = DiffusivityModel::Matched;
     PowerLawDiffusivity powerLaw{};  ///< Used when `diffusivity` is `PowerLaw`.
     double reachRadii = 3.0;         ///< How far the diffused profile reaches, in crater radii.
     bool operator==(const DiffusionDegradationSpec&) const = default;

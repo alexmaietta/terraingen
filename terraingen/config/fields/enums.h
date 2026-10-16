@@ -234,7 +234,11 @@ template <> struct EnumNames<RimRoughnessModel> {
 };
 
 template <> struct EnumNames<DiffusivityModel> {
-    static constexpr std::array<EnumEntry<DiffusivityModel>, 5> kValues{{
+    static constexpr std::array<EnumEntry<DiffusivityModel>, 6> kValues{{
+        {"matched", DiffusivityModel::Matched,
+         "The Fassett et al. (2022) diffusivity fitted to the steady-state ages' equilibrium "
+         "(Trask or Hartmann), so craters wear as that equilibrium expects; Hartmann's for other "
+         "ages."},
         {"fassett_2022_hartmann", DiffusivityModel::Fassett2022Hartmann,
          "Lunar size-dependent diffusivity of Fassett et al. (2022) for the Hartmann equilibrium, "
          "3.6 D^0.87 m^2/Myr with D in km."},
@@ -242,7 +246,8 @@ template <> struct EnumNames<DiffusivityModel> {
          "Lunar size-dependent diffusivity of Fassett et al. (2022) for the Trask equilibrium, "
          "3.1 D^1.05 m^2/Myr with D in km."},
         {"fassett_thomson_2014", DiffusivityModel::FassettThomson2014,
-         "Lunar diffusivity of Fassett and Thomson (2014), 5.5 m^2/Myr for every crater size."},
+         "Lunar diffusivity of Fassett and Thomson (2014), 5.5 m^2/Myr for every crater size; it "
+         "erases craters below a few hundred metres within a small share of their lifetimes."},
         {"fassett_thomson_2014_calibration", DiffusivityModel::FassettThomson2014Calibration,
          "Fassett and Thomson's (2014) lunar diffusion age against crater age, independent of "
          "size; suits kilometre-scale craters."},

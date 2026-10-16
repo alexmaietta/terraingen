@@ -407,7 +407,7 @@ TEST(GenerateTerrain, WearsCratersByDiffusionAsTheLibraryDoes) {
     ASSERT_GT(CratersOf(generated).craters.Size(), 0u);
     const terraingen::Crater crater = CratersOf(generated).craters.At(0);
     EXPECT_DOUBLE_EQ(models.degradation->State(crater).diffusion,
-                     terraingen::Fassett2022HartmannDiffusivity()(crater.diameter, crater.ageGyr) /
+                     terraingen::Fassett2022TraskDiffusivity()(crater.diameter, crater.ageGyr) /
                          (crater.diameter * crater.diameter));
 }
 

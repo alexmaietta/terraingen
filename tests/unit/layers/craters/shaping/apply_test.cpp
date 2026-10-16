@@ -480,3 +480,94 @@ TEST(ApplyCraterTo, AddsRimNoiseOnlyInItsBand) {
     noisy.noise = {.amplitude = -1.0};
     EXPECT_THROW(terraingen::ValidateCraterNoise(noisy.noise), std::invalid_argument);
 }
+
+TEST(EjectaThicknessShare, FallsAsTheInverseCubeAndTapersToTheReach) {
+    EXPECT_EQ(terraingen::EjectaThicknessShare(0.5, 3.0), 1.0);
+    EXPECT_EQ(terraingen::EjectaThicknessShare(1.0, 3.0), 1.0);
+    EXPECT_DOUBLE_EQ(terraingen::EjectaThicknessShare(2.0, 3.0),
+                     (1.0 / 8.0 - 1.0 / 27.0) / (1.0 - 1.0 / 27.0));
+    EXPECT_EQ(terraingen::EjectaThicknessShare(3.0, 3.0), 0.0);
+    const FassettThomsonProfile profile;
+    CraterApplyOptions options;
+    EXPECT_EQ(terraingen::CraterReachRadii(profile, options), 1.5);
+    options.texture.wallStreaks = 0.01;
+    EXPECT_EQ(terraingen::CraterReachRadii(profile, options), 1.5) << "gullies stay inside";
+    options.texture.ejecta = 0.3;
+    EXPECT_EQ(terraingen::CraterReachRadii(profile, options), 3.0);
+    options.texture = {.mantling = 2.0};
+    EXPECT_THROW(terraingen::ValidateCraterApplyOptions(options), std::invalid_argument);
+    options.texture = {.ejectaReachRadii = 1.0};
+    EXPECT_THROW(terraingen::ValidateCraterTexture(options.texture), std::invalid_argument);
+    options.texture = {.minFreshness = 1.0};
+    EXPECT_THROW(terraingen::ValidateCraterTexture(options.texture), std::invalid_argument);
+    options.texture = {.wallStreakWidthRadii = 0.0};
+    EXPECT_THROW(terraingen::ValidateCraterTexture(options.texture), std::invalid_argument);
+}
+
+TEST(ApplyCraterTo, StreaksFreshWallsOnlyAndLetsThemWearAway) {
+    const FassettThomsonProfile profile;
+    const Crater crater{0.0, 0.0, 40.0, 0.0, 3u};
+    terraingen::PreparedCrater prepared{crater, 1.0, kFresh.State(crater)};
+    CraterApplyOptions streaked;
+    streaked.texture.wallStreaks = 0.01;
+    const auto shift = [&](double radii, double angle) {
+        const double x = 20.0 * radii * std::cos(angle);
+        const double y = 20.0 * radii * std::sin(angle);
+        return terraingen::ApplyCraterTo(0.0f, x, y, prepared, profile, streaked) -
+               terraingen::ApplyCraterTo(0.0f, x, y, prepared, profile, {});
+    };
+    double largest = 0.0;
+    for (int k = 0; k < 72; ++k) {
+        const double angle = 0.0872664626 * k;
+        largest = std::fmax(largest, std::fabs(static_cast<double>(shift(0.7, angle))));
+        ASSERT_EQ(shift(0.1, angle), 0.0f) << "the floor is left alone";
+        ASSERT_EQ(shift(1.2, angle), 0.0f) << "outside the rim";
+    }
+    EXPECT_GT(largest, 0.01);
+    EXPECT_LE(largest, 0.01 * 40.0 * 1.0001);
+    prepared.state.current.depthRatio = 0.4 * prepared.state.fresh.depthRatio;
+    EXPECT_EQ(shift(0.7, 1.0), 0.0f) << "worn below the least freshness";
+}
+
+TEST(ApplyCraters, TexturesEjectaOutToTheirReachLikePointQueries) {
+    const FassettThomsonProfile profile;
+    CraterApplyOptions options;
+    options.texture.ejecta = 0.5;
+    Raster<float> plain = Flat(100);
+    ApplyCraters(plain, One(0.5, 0.5, 30.0), profile);
+    Raster<float> textured = Flat(100);
+    ApplyCraters(textured, One(0.5, 0.5, 30.0), profile, options);
+    const terraingen::Crater crater{0.5, 0.5, 30.0, 0.0, 1u};
+    const terraingen::PreparedCrater prepared{crater, 1.0, kFresh.State(crater)};
+    bool beyondProfile = false;
+    for (std::size_t row = 0; row < textured.Height(); ++row) {
+        for (std::size_t col = 0; col < textured.Width(); ++col) {
+            const auto centre = textured.CellCenter(col, row);
+            const double radii = std::hypot(centre.x - 0.5, centre.y - 0.5) / 15.0;
+            ASSERT_EQ(
+                terraingen::ApplyCraterTo(0.0f, centre.x, centre.y, prepared, profile, options),
+                textured(col, row));
+            if (radii <= 1.0 || radii >= 3.0) {
+                ASSERT_EQ(textured(col, row), plain(col, row)) << "only the ejecta at " << radii;
+            }
+            beyondProfile = beyondProfile || (radii > 1.6 && textured(col, row) != 0.0f);
+        }
+    }
+    EXPECT_TRUE(beyondProfile) << "texture reaches past the profile";
+}
+
+TEST(ApplyCraterTo, BuriesOlderReliefUnderTheEjectaByTheDatum) {
+    const FassettThomsonProfile profile;
+    const Crater crater{0.0, 0.0, 20.0, 0.0, 1u};
+    terraingen::PreparedCrater prepared{crater, 1.0, kFresh.State(crater)};
+    prepared.datum = terraingen::Plane{1.0, 0.0, 0.0};
+    CraterApplyOptions options;
+    options.texture.mantling = 1.0;
+    const double share = terraingen::EjectaThicknessShare(2.0, 3.0);
+    EXPECT_FLOAT_EQ(terraingen::ApplyCraterTo(2.0f, 20.0, 0.0, prepared, profile, options),
+                    static_cast<float>(2.0 + share * (1.0 - 2.0)));
+    EXPECT_EQ(terraingen::ApplyCraterTo(2.0f, 20.0, 0.0, prepared, profile, {}), 2.0f)
+        << "nothing buried without mantling";
+    EXPECT_EQ(terraingen::ApplyCraterTo(2.0f, 31.0, 0.0, prepared, profile, options), 2.0f)
+        << "beyond the reach";
+}

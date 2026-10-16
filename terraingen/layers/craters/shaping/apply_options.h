@@ -87,6 +87,41 @@ struct CraterNoise {
 /// 0 <= `rimInnerRadii` < 1 < `rimOuterRadii`.
 void ValidateCraterNoise(const CraterNoise& noise);
 
+/// The texture of a crater's walls and ejecta, keyed to its ID: radial gullies down the inner
+/// wall, hummocky ejecta lineated away from the rim, and older relief buried under the ejecta.
+/// Ejecta follow McGetchin et al.'s (1973) thickness 0.14 R^0.74 (r / R)^-3 m, tapered to nothing
+/// at `ejectaReachRadii`. Gullies and ejecta texture fade as the crater wears; burial stays.
+struct CraterTexture {
+    double wallStreaks = 0.0;            ///< Gully amplitude over the diameter; 0 adds none.
+    double wallStreakWidthRadii = 0.15;  ///< Width of the gullies across the wall, in radii.
+    double ejecta = 0.0;  ///< Ejecta texture amplitude over the ejecta thickness; 0 adds none.
+    double ejectaLineationRadii = 0.15;  ///< Width of the lineations across, in radii at the rim.
+    /// Share of older relief the ejecta replace by the crater's datum at the rim, falling with
+    /// their thickness; 0 buries nothing, and without a datum nothing is buried.
+    double mantling = 0.0;
+    double ejectaReachRadii = 3.0;  ///< How far ejecta texture and burial reach, in radii.
+    /// Freshness (`CraterState::Freshness`) at or below which gullies and ejecta texture are gone,
+    /// in [0, 1); they fade in along a smoothstep above it.
+    double minFreshness = 0.5;
+    std::uint32_t seed = 0;  ///< Varies the texture of every crater.
+
+    /// Whether anything is drawn beyond the profile: ejecta texture or burial.
+    bool ReachesBeyondRim() const {
+        return ejecta > 0.0 || mantling > 0.0;
+    }
+
+    bool operator==(const CraterTexture&) const = default;
+};
+
+/// Checks crater texture settings.
+/// @throws std::invalid_argument for a negative or non-finite amplitude, a non-positive width, a
+/// mantling outside [0, 1], a reach of 1 radius or less, or a freshness outside [0, 1).
+void ValidateCraterTexture(const CraterTexture& texture);
+
+/// McGetchin et al.'s (1973) ejecta thickness at `radii` crater radii over that at the rim,
+/// (r / R)^-3, tapered linearly in it to nothing at `reachRadii`; 1 within the rim.
+double EjectaThicknessShare(double radii, double reachRadii);
+
 /// How `ApplyCraters` shapes craters into the terrain.
 struct CraterApplyOptions {
     CraterOrder order = CraterOrder::OldestFirst;  ///< Which craters overprint which.
@@ -105,6 +140,7 @@ struct CraterApplyOptions {
     CraterIrregularity irregularity{};
     RimSmoothing rimSmoothing{};  ///< Rounded rims; off by default.
     CraterNoise noise{};          ///< Fractal noise over each crater; off by default.
+    CraterTexture texture{};      ///< Wall gullies, ejecta texture and burial; off by default.
     /// What craters are shaped on; on a sphere, centres and rasters are longitude and latitude and
     /// each crater is shaped in its local frame, spacings in metres.
     Surface surface{};

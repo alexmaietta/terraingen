@@ -46,7 +46,7 @@
             "max_diameter": 300,
             "degradation": {
                 "type": "diffusion",
-                "diffusivity": "fassett_2022_hartmann"
+                "diffusivity": "matched"
             },
             "profile": {
                 "type": "martin_parkes_dunstan"

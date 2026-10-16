@@ -142,8 +142,14 @@ ComplexCraterShape ComplexShapeOf(CraterMorphometryFit fit) {
     return fit == CraterMorphometryFit::Mars ? MarsComplexCraterShape() : LunarComplexCraterShape();
 }
 
-DiffusionAgeModel BuildDiffusionAges(const DiffusionDegradationSpec& spec) {
+DiffusionAgeModel BuildDiffusionAges(const DiffusionDegradationSpec& spec, const AgesSpec& ages) {
     switch (spec.diffusivity) {
+    case DiffusivityModel::Matched: {
+        const auto* steady = std::get_if<SteadyStateAgesSpec>(&ages);
+        return steady && steady->equilibrium == EquilibriumModel::Trask
+                   ? Fassett2022TraskDiffusivity()
+                   : Fassett2022HartmannDiffusivity();
+    }
     case DiffusivityModel::Fassett2022Hartmann:
         return Fassett2022HartmannDiffusivity();
     case DiffusivityModel::Fassett2022Trask:
@@ -197,7 +203,7 @@ void AddDegradation(const CraterLayerSpec& craters, CraterModels& models) {
                 models.degradation = std::make_shared<NoDegradation>(fresh, s.depthRatio);
             },
             [&](const DiffusionDegradationSpec& s) {
-                const DiffusionAgeModel ages = BuildDiffusionAges(s);
+                const DiffusionAgeModel ages = BuildDiffusionAges(s, craters.ages);
                 auto profile = std::make_shared<DiffusedProfile>(models.profile, s.reachRadii);
                 models.degradation = std::make_shared<DiffusionDegradation>(fresh, ages, profile);
                 models.profile = std::move(profile);

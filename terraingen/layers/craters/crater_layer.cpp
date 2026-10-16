@@ -21,8 +21,8 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options)
     }
     ValidateCraterSpacing(options_.generation.spacing);
     ValidateCraterApplyOptions(options_.apply);
-    options_.generation.marginRadii =
-        models_.profile->ReachRadii() * MaxOutlineScale(options_.apply.irregularity);
+    options_.generation.marginRadii = CraterReachRadii(*models_.profile, options_.apply) *
+                                      MaxOutlineScale(options_.apply.irregularity);
     options_.generation.surface = options_.surface;
     options_.apply.surface = options_.surface;
     if (options_.surface.IsBody()) {
