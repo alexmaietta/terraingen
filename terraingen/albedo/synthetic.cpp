@@ -2,7 +2,7 @@
 /// @brief Synthetic albedos: a base colour with noise in hue, saturation and value.
 #include "terraingen/albedo/synthetic.h"
 
-#include "terraingen/layers/surface_noise.h"
+#include "terraingen/layers/noise_relief.h"
 #include "terraingen/sources/synthetic_terrain.h"
 #include "terraingen/util/checks.h"
 

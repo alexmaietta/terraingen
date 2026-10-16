@@ -1,11 +1,12 @@
 /// @file
-/// @brief Bindings of the filters module: the filter base class Python can extend and crater rim
-/// smoothing.
+/// @brief Bindings of the filters module: the filter base class Python can extend, Gaussian blur
+/// and crater rim smoothing.
 #include "bindings.h"
 #include "common.h"
 #include "trampolines.h"
 
 #include "terraingen/filters/filter.h"
+#include "terraingen/filters/gaussian_blur_filter.h"
 #include "terraingen/filters/rim_smoothing.h"
 
 #include <stdexcept>
@@ -21,10 +22,10 @@ class PyFilter : public Filter {
   public:
     NB_TRAMPOLINE(Filter);
 
-    void Apply(Raster<float>& heights, double spacing,
+    void Apply(Raster<float>& heights, const FilterContext& context,
                const TerrainFeatures& /*features*/) const override {
         if (!CallOverrideIgnoringResult(nb_trampoline, "apply", ByReference<Raster<float>>{heights},
-                                        spacing)) {
+                                        context.spacing)) {
             throw std::logic_error("A Python Filter must define apply");
         }
     }
@@ -45,7 +46,7 @@ void BindFilterBase(nb::module_& m) {
         .def(
             "apply",
             [](const Filter& filter, Raster<float>& heights, double spacing) {
-                filter.Apply(heights, spacing, TerrainFeatures{});
+                filter.Apply(heights, {spacing}, TerrainFeatures{});
             },
             "heights"_a, "spacing"_a)
         .def("margin", &Filter::Margin, "max_feature_diameter"_a, "spacing"_a);
@@ -81,6 +82,11 @@ void BindRimSmoothing(nb::module_& m) {
 
 void BindFilters(nb::module_& m) {
     BindFilterBase(m);
+    nb::class_<GaussianBlurFilter, Filter>(
+        m, "GaussianBlurFilter",
+        "Smooths the whole terrain by a Gaussian of `sigma` metres, on a plane.")
+        .def(nb::init<double, Surface>(), "sigma"_a, "surface"_a = Surface{})
+        .def_prop_ro("sigma", &GaussianBlurFilter::Sigma);
     BindRimSmoothing(m);
 }
 

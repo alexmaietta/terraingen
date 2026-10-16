@@ -2,6 +2,7 @@
 /// @brief Region shapes and `RegionLayer`: confining a layer to an area with a feathered edge.
 #include "terraingen/layers/region.h"
 
+#include "terraingen/layers/features.h"
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/parallel.h"

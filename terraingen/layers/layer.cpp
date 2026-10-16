@@ -1,5 +1,6 @@
 #include "terraingen/layers/layer.h"
 
+#include "terraingen/layers/features.h"
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/checks.h"

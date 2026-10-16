@@ -61,7 +61,7 @@ EvaluatedTerrain Evaluate(const Terrain& terrain, const RasterGrid& grid,
                                  result.features);
     }
     for (const auto& filter : terrain.filters) {
-        filter->ApplyParallel(result.heights, resolved, result.features, options.threads);
+        filter->Apply(result.heights, {resolved, options.threads}, result.features);
     }
     return result;
 }

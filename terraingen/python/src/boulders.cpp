@@ -8,7 +8,7 @@
 
 #include "terraingen/layers/boulders/boulder.h"
 #include "terraingen/layers/boulders/boulder_layer.h"
-#include "terraingen/layers/boulders/boulder_meshes.h"
+#include "terraingen/layers/boulders/boulder_models.h"
 #include "terraingen/layers/boulders/boulder_options.h"
 #include "terraingen/layers/boulders/boulder_shape.h"
 

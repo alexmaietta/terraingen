@@ -1,5 +1,6 @@
 /// @file
-/// @brief `CraterAgeModel`'s checked lifetimes, ages and remaining lifetimes.
+/// @brief `CraterAgeModel`'s checked lifetimes, ages and remaining lifetimes; fresh and uniform
+/// ages.
 #include "terraingen/layers/craters/ages/age_model.h"
 
 #include "terraingen/util/checks.h"
@@ -36,6 +37,28 @@ double CraterAgeModel::RemainingLifetime(double diameter, double ageGyr) const {
         return 1.0;
     }
     return std::clamp(1.0 - ageGyr / lifetime, 0.0, 1.0);
+}
+
+double FreshAges::LifetimeAt(double /*diameter*/) const {
+    return 0.0;
+}
+
+double FreshAges::SampleAgeAt(RandomStream& /*random*/, double /*diameter*/,
+                              double /*lifetimeGyr*/) const {
+    return 0.0;
+}
+
+UniformAges::UniformAges(double lifetimeGyr) : lifetimeGyr_(lifetimeGyr) {
+    RequirePositive(lifetimeGyr_, "Lifetime");
+}
+
+double UniformAges::LifetimeAt(double /*diameter*/) const {
+    return lifetimeGyr_;
+}
+
+double UniformAges::SampleAgeAt(RandomStream& random, double /*diameter*/,
+                                double lifetimeGyr) const {
+    return random.NextDouble() * lifetimeGyr;
 }
 
 }  // namespace terraingen

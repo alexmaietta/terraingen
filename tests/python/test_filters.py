@@ -96,3 +96,17 @@ def test_python_filter_edits_the_heights(paraboloid):
 
 def test_python_filter_needs_no_margin_by_default():
     assert Negate().margin(10.0, 1.0) == 0.0
+
+
+def test_gaussian_blur_filter_smooths_a_terrain_on_a_plane(paraboloid):
+    plain = terraingen.evaluate(terraingen.Terrain(paraboloid)).heights.values
+    blur = terraingen.GaussianBlurFilter(3.0)
+    blurred = terraingen.evaluate(terraingen.Terrain(paraboloid, [], [blur])).heights.values
+    assert blur.sigma == 3.0
+    assert blur.margin(10.0, 1.0) > 9.0
+    assert plain[32, 32] == 0.0
+    assert blurred[32, 32] == pytest.approx(0.001 * 2 * 3.0**2, abs=0.002), (
+        "a bowl blurred rises by 2 a sigma^2"
+    )
+    with pytest.raises(ValueError):
+        terraingen.GaussianBlurFilter(1.0, terraingen.Surface.sphere(1000.0))

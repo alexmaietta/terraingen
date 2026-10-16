@@ -2,6 +2,7 @@
 /// @brief Secondary crater size and range laws, and `SecondaryCraterLayer` drawn in polar cells.
 #include "terraingen/layers/craters/secondaries.h"
 
+#include "terraingen/layers/features.h"
 #include "terraingen/random/philox.h"
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"

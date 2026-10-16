@@ -1,5 +1,6 @@
 #include "terraingen/layers/roughness.h"
 
+#include "terraingen/layers/features.h"
 #include "terraingen/noise/perlin.h"
 #include "terraingen/raster/grid.h"
 

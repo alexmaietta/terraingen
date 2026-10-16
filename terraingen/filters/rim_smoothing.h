@@ -3,7 +3,7 @@
 #pragma once
 
 #include "terraingen/filters/filter.h"
-#include "terraingen/layers/craters/population.h"
+#include "terraingen/layers/craters/generation/population.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/raster/raster.h"
 
@@ -65,29 +65,13 @@ class RimSmoothingFilter final : public Filter {
     /// @throws std::invalid_argument as `ValidateRimSmoothing`.
     explicit RimSmoothingFilter(const RimSmoothing& smoothing, const Surface& surface = {});
 
-    /// @brief Smooths the rims of `features`' craters on one thread.
-    /// @param heights The heights to smooth in place.
-    /// @param spacing Sample spacing in metres, as for `SmoothCraterRims`.
-    /// @param features The features the layers placed.
+    /// Smooths the rims of `features`' craters.
     /// @throws std::invalid_argument as `SmoothCraterRims`.
     /// @throws std::domain_error if the raster's transform is not invertible.
-    void Apply(Raster<float>& heights, double spacing,
+    void Apply(Raster<float>& heights, const FilterContext& context,
                const TerrainFeatures& features) const override;
 
-    /// @brief `Apply` on up to `threads` threads, to the same bits.
-    /// @param heights The heights to smooth in place.
-    /// @param spacing Sample spacing in metres.
-    /// @param features The features the layers placed.
-    /// @param threads Thread count; 0 for every hardware thread.
-    /// @throws std::invalid_argument as `SmoothCraterRims`.
-    /// @throws std::domain_error if the raster's transform is not invertible.
-    void ApplyParallel(Raster<float>& heights, double spacing, const TerrainFeatures& features,
-                       unsigned threads) const override;
-
-    /// @brief How far the filter reads around a cell.
-    /// @param maxFeatureDiameter The largest crater, in metres.
-    /// @param spacing The sample spacing, in metres.
-    /// @return The band's outer edge plus three sigmas for the largest crater, and two samples.
+    /// The band's outer edge plus three sigmas for the largest crater, and two samples.
     double Margin(double maxFeatureDiameter, double spacing) const override;
 
     /// @brief The settings.

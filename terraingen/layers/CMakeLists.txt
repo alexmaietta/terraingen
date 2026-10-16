@@ -2,30 +2,6 @@ terraingen_add_library(
     layers
     SOURCES
     bedforms.cpp
-    craters/ages/age_model.cpp
-    craters/ages/fresh.cpp
-    craters/ages/steady_state.cpp
-    craters/ages/uniform.cpp
-    craters/attributes.cpp
-    craters/apply.cpp
-    craters/apply_options.cpp
-    craters/cell_cache.cpp
-    craters/crater_layer.cpp
-    craters/datum.cpp
-    craters/degradation/diffusion.cpp
-    craters/degradation/diffusivities.cpp
-    craters/degradation/freshness.cpp
-    craters/degradation/none.cpp
-    craters/irregularity.cpp
-    craters/morphometry.cpp
-    craters/population.cpp
-    craters/prepared.cpp
-    craters/secondaries.cpp
-    craters/selection.cpp
-    craters/spacing.cpp
-    craters/profiles/complex.cpp
-    craters/profiles/fassett_thomson.cpp
-    craters/profiles/martin_parkes_dunstan.cpp
     exposure.cpp
     fade.cpp
     layer.cpp
@@ -33,13 +9,34 @@ terraingen_add_library(
     region.cpp
     roughness.cpp
     sample_block.cpp
-    surface_noise.cpp
     transforms.cpp
     boulders/abundance.cpp
-    boulders/boulder_meshes.cpp
     boulders/boulder_layer.cpp
+    boulders/boulder_models.cpp
     boulders/boulder_options.cpp
     boulders/boulder_shape.cpp
+    craters/crater.cpp
+    craters/crater_layer.cpp
+    craters/secondaries.cpp
+    craters/ages/age_model.cpp
+    craters/ages/steady_state.cpp
+    craters/degradation/degradation_model.cpp
+    craters/degradation/diffusion.cpp
+    craters/degradation/diffusivities.cpp
+    craters/degradation/freshness.cpp
+    craters/generation/cell_cache.cpp
+    craters/generation/population.cpp
+    craters/generation/spacing.cpp
+    craters/profiles/complex.cpp
+    craters/profiles/fassett_thomson.cpp
+    craters/profiles/martin_parkes_dunstan.cpp
+    craters/shaping/apply.cpp
+    craters/shaping/apply_options.cpp
+    craters/shaping/attributes.cpp
+    craters/shaping/datum.cpp
+    craters/shaping/irregularity.cpp
+    craters/shaping/morphometry.cpp
+    craters/shaping/prepared.cpp
     PUBLIC
     terraingen_distribution
     terraingen_mesh

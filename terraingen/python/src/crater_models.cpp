@@ -6,18 +6,16 @@
 #include "trampolines.h"
 
 #include "terraingen/layers/craters/ages/age_model.h"
-#include "terraingen/layers/craters/ages/fresh.h"
 #include "terraingen/layers/craters/ages/steady_state.h"
-#include "terraingen/layers/craters/ages/uniform.h"
 #include "terraingen/layers/craters/crater_layer.h"
+#include "terraingen/layers/craters/degradation/degradation_model.h"
 #include "terraingen/layers/craters/degradation/diffusion.h"
 #include "terraingen/layers/craters/degradation/diffusivities.h"
 #include "terraingen/layers/craters/degradation/freshness.h"
-#include "terraingen/layers/craters/degradation/none.h"
-#include "terraingen/layers/craters/morphometry.h"
 #include "terraingen/layers/craters/profiles/complex.h"
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
 #include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
+#include "terraingen/layers/craters/shaping/morphometry.h"
 #include "terraingen/random/stream.h"
 
 #include <optional>

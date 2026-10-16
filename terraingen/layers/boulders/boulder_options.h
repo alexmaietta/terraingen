@@ -3,7 +3,7 @@
 #pragma once
 
 #include "terraingen/distribution/size_frequency.h"
-#include "terraingen/layers/boulders/boulder_meshes.h"
+#include "terraingen/layers/boulders/boulder_models.h"
 #include "terraingen/layers/boulders/boulder_shape.h"
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/fade.h"

@@ -85,7 +85,7 @@ TEST(RimSmoothingFilter, SmoothsTheRimsOfThePlacedCraters) {
     terraingen::TerrainFeatures features;
     features.craters = craters;
     const RimSmoothing smoothing{.sigmaRadii = 0.08};
-    terraingen::RimSmoothingFilter(smoothing).Apply(heights, 1.0, features);
+    terraingen::RimSmoothingFilter(smoothing).Apply(heights, {1.0}, features);
     SmoothCraterRims(expected, craters, smoothing);
     for (std::size_t i = 0; i < expected.Size(); ++i) {
         ASSERT_EQ(heights.Values()[i], expected.Values()[i]) << i;
@@ -99,7 +99,7 @@ TEST(RimSmoothingFilter, LeavesCratersTooSmallForTheSpacingAndRejectsBadSettings
     const Raster<float> original = heights;
     terraingen::TerrainFeatures features;
     features.craters = craters;
-    terraingen::RimSmoothingFilter({.sigmaRadii = 0.08}).Apply(heights, 20.0, features);
+    terraingen::RimSmoothingFilter({.sigmaRadii = 0.08}).Apply(heights, {20.0}, features);
     EXPECT_TRUE(
         std::equal(heights.Values().begin(), heights.Values().end(), original.Values().begin()))
         << "a 40 m crater is under 3 samples of 20 m";

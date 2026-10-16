@@ -1,3 +1,4 @@
+#include "terraingen/layers/features.h"
 #include "terraingen/layers/layer.h"
 
 #include <gtest/gtest.h>

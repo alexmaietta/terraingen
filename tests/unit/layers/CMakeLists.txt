@@ -1,41 +1,39 @@
 terraingen_add_test_suite(
-    craters
+    layers
     SOURCES
     bedforms_test.cpp
-    craters/ages/fresh_test.cpp
-    craters/ages/steady_state_test.cpp
-    craters/ages/uniform_test.cpp
-    craters/apply_test.cpp
-    craters/attributes_test.cpp
-    craters/cell_cache_test.cpp
-    craters/crater_layer_test.cpp
-    craters/datum_test.cpp
-    craters/degradation/diffusion_test.cpp
-    craters/degradation/freshness_test.cpp
-    craters/degradation/none_test.cpp
-    craters/irregularity_test.cpp
-    craters/morphometry_test.cpp
-    craters/population_test.cpp
-    craters/profiles/complex_test.cpp
-    craters/profiles/fassett_thomson_test.cpp
-    craters/profiles/martin_parkes_dunstan_test.cpp
-    craters/secondaries_test.cpp
-    craters/selection_test.cpp
-    craters/spacing_test.cpp
-    craters/sphere_test.cpp
     exposure_test.cpp
     fade_test.cpp
     layer_test.cpp
     noise_relief_test.cpp
     region_test.cpp
-    sample_block_test.cpp
     roughness_test.cpp
+    sample_block_test.cpp
     sphere_layers_test.cpp
-    surface_noise_test.cpp
     transforms_test.cpp
-    boulders/boulder_meshes_test.cpp
     boulders/boulder_layer_test.cpp
+    boulders/boulder_models_test.cpp
     boulders/boulder_options_test.cpp
     boulders/boulder_shape_test.cpp
+    craters/crater_layer_test.cpp
+    craters/crater_test.cpp
+    craters/secondaries_test.cpp
+    craters/sphere_test.cpp
+    craters/ages/age_model_test.cpp
+    craters/ages/steady_state_test.cpp
+    craters/degradation/degradation_model_test.cpp
+    craters/degradation/diffusion_test.cpp
+    craters/degradation/freshness_test.cpp
+    craters/generation/cell_cache_test.cpp
+    craters/generation/population_test.cpp
+    craters/generation/spacing_test.cpp
+    craters/profiles/complex_test.cpp
+    craters/profiles/fassett_thomson_test.cpp
+    craters/profiles/martin_parkes_dunstan_test.cpp
+    craters/shaping/apply_test.cpp
+    craters/shaping/attributes_test.cpp
+    craters/shaping/datum_test.cpp
+    craters/shaping/irregularity_test.cpp
+    craters/shaping/morphometry_test.cpp
     LIBRARIES
     terraingen::layers)

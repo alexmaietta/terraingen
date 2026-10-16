@@ -5,15 +5,15 @@
 #include "common.h"
 #include "tables.h"
 
-#include "terraingen/layers/craters/apply.h"
-#include "terraingen/layers/craters/attributes.h"
+#include "terraingen/layers/craters/crater.h"
 #include "terraingen/layers/craters/crater_layer.h"
-#include "terraingen/layers/craters/datum.h"
-#include "terraingen/layers/craters/irregularity.h"
-#include "terraingen/layers/craters/population.h"
+#include "terraingen/layers/craters/generation/population.h"
+#include "terraingen/layers/craters/generation/spacing.h"
 #include "terraingen/layers/craters/secondaries.h"
-#include "terraingen/layers/craters/selection.h"
-#include "terraingen/layers/craters/spacing.h"
+#include "terraingen/layers/craters/shaping/apply.h"
+#include "terraingen/layers/craters/shaping/attributes.h"
+#include "terraingen/layers/craters/shaping/datum.h"
+#include "terraingen/layers/craters/shaping/irregularity.h"
 
 #include <nanobind/ndarray.h>
 

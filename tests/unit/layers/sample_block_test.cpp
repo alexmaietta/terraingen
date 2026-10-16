@@ -1,11 +1,12 @@
 #include "terraingen/layers/sample_block.h"
 
 #include "terraingen/distribution/power_law.h"
-#include "terraingen/layers/craters/ages/uniform.h"
+#include "terraingen/layers/craters/ages/age_model.h"
 #include "terraingen/layers/craters/crater_layer.h"
-#include "terraingen/layers/craters/degradation/none.h"
-#include "terraingen/layers/craters/morphometry.h"
+#include "terraingen/layers/craters/degradation/degradation_model.h"
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
+#include "terraingen/layers/craters/shaping/morphometry.h"
+#include "terraingen/layers/features.h"
 #include "terraingen/layers/transforms.h"
 #include "terraingen/raster/geo_transform.h"
 

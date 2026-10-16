@@ -3,9 +3,9 @@
 /// they follow.
 #pragma once
 
-#include "terraingen/layers/craters/apply.h"
+#include "terraingen/layers/craters/crater.h"
 #include "terraingen/layers/craters/crater_layer.h"
-#include "terraingen/layers/craters/selection.h"
+#include "terraingen/layers/craters/shaping/apply.h"
 #include "terraingen/layers/layer.h"
 
 #include <cstdint>

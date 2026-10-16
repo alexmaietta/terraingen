@@ -4,9 +4,9 @@
 
 #include "terraingen/albedo/albedo.h"
 #include "terraingen/albedo/maturity.h"
+#include "terraingen/layers/craters/crater.h"
 #include "terraingen/layers/craters/crater_layer.h"
-#include "terraingen/layers/craters/irregularity.h"
-#include "terraingen/layers/craters/selection.h"
+#include "terraingen/layers/craters/shaping/irregularity.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/random/value_distribution.h"
 

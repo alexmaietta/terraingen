@@ -4,11 +4,12 @@
 
 #include "terraingen/distribution/size_frequency.h"
 #include "terraingen/layers/craters/ages/age_model.h"
-#include "terraingen/layers/craters/apply.h"
-#include "terraingen/layers/craters/cell_cache.h"
 #include "terraingen/layers/craters/degradation/degradation_model.h"
-#include "terraingen/layers/craters/population.h"
+#include "terraingen/layers/craters/generation/cell_cache.h"
+#include "terraingen/layers/craters/generation/population.h"
 #include "terraingen/layers/craters/profiles/profile.h"
+#include "terraingen/layers/craters/shaping/apply.h"
+#include "terraingen/layers/craters/shaping/attributes.h"
 #include "terraingen/layers/layer.h"
 
 #include <cstdint>

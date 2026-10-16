@@ -5,8 +5,8 @@
 #include "common.h"
 
 #include "terraingen/layers/boulders/boulder.h"
-#include "terraingen/layers/craters/attributes.h"
-#include "terraingen/layers/craters/population.h"
+#include "terraingen/layers/craters/generation/population.h"
+#include "terraingen/layers/craters/shaping/attributes.h"
 
 #include <nanobind/ndarray.h>
 

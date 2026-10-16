@@ -2,8 +2,8 @@
 /// @brief `BoulderLayer` abundance and density: patches, bedrock and crater ejecta.
 #include "terraingen/layers/boulders/boulder_layer.h"
 
+#include "terraingen/layers/exposure.h"
 #include "terraingen/layers/fade.h"
-#include "terraingen/layers/surface_noise.h"
 
 #include <algorithm>
 #include <cmath>

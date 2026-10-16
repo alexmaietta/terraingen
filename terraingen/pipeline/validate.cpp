@@ -6,7 +6,7 @@
 #include "terraingen/albedo/crater_albedo.h"
 #include "terraingen/albedo/raster_albedo.h"
 #include "terraingen/albedo/synthetic.h"
-#include "terraingen/layers/craters/spacing.h"
+#include "terraingen/layers/craters/generation/spacing.h"
 #include "terraingen/layers/transforms.h"
 #include "terraingen/noise/noise_layers.h"
 #include "terraingen/pipeline/build.h"

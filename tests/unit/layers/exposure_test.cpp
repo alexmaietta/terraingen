@@ -1,7 +1,10 @@
 #include "terraingen/layers/exposure.h"
 
+#include "terraingen/noise/perlin.h"
+
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <stdexcept>
@@ -95,4 +98,37 @@ TEST(ExposureField, RejectsInvalidParameters) {
     EXPECT_THROW(ExposureField({.floorCover = 1.0}), std::invalid_argument);
     EXPECT_THROW(ExposureField({.floorPatch = -1.0}), std::invalid_argument);
     EXPECT_EQ(ExposureField().Params(), ExposureParams{});
+}
+
+TEST(PatchNoise, StaysInRangeAndFollowsTwoOctavesOfPerlinNoise) {
+    const terraingen::Surface plane;
+    double lowest = 1.0;
+    double highest = -1.0;
+    for (int i = 0; i < 400; ++i) {
+        const double x = 7.3 * i;
+        const double y = -3.1 * i;
+        const double value = terraingen::PatchNoise(plane, x, y, 50.0, 9u);
+        lowest = std::min(lowest, value);
+        highest = std::max(highest, value);
+        const auto px = static_cast<float>(x / 50.0);
+        const auto py = static_cast<float>(y / 50.0);
+        const auto coarse = static_cast<double>(terraingen::PerlinNoise2(px, py, 9u));
+        const auto fine = static_cast<double>(terraingen::PerlinNoise2(4.0f * px, 4.0f * py, 10u));
+        const double expected = 2.5 * (0.7 * coarse + 0.3 * fine);
+        EXPECT_EQ(value, std::clamp(expected, -1.0, 1.0));
+    }
+    EXPECT_GE(lowest, -1.0);
+    EXPECT_LE(highest, 1.0);
+    EXPECT_LT(lowest, -0.5) << "patches reach both ends";
+    EXPECT_GT(highest, 0.5);
+}
+
+TEST(PatchNoise, IsSmoothNoiseOnASphere) {
+    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
+    const double here = terraingen::PatchNoise(moon, 10.0, 20.0, 1000.0, 3u);
+    const double near = terraingen::PatchNoise(moon, 10.0 + 1e-6, 20.0, 1000.0, 3u);
+    EXPECT_GE(here, -1.0);
+    EXPECT_LE(here, 1.0);
+    EXPECT_NEAR(here, near, 1e-3);
+    EXPECT_NE(terraingen::PatchNoise(moon, 10.0, 20.0, 1000.0, 4u), here);
 }

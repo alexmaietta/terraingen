@@ -1,5 +1,6 @@
 #include "terraingen/layers/noise_relief.h"
 
+#include "terraingen/layers/features.h"
 #include "terraingen/noise/noise_layers.h"
 
 #include <gtest/gtest.h>
@@ -7,6 +8,7 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include <vector>
 
 using terraingen::GeoTransform;
 using terraingen::NoiseRelief;
@@ -72,4 +74,17 @@ TEST(NoiseRelief, PointQueriesMatchCellsAndKeepNoData) {
     EXPECT_EQ(relief.ApplyAt(3.0f, centre.x, centre.y, {2.0}), heights(5, 2));
     EXPECT_TRUE(
         std::isnan(relief.ApplyAt(std::numeric_limits<float>::quiet_NaN(), 0.0, 0.0, {2.0})));
+}
+
+TEST(NoiseLayersAt, EvaluatesThePlaneFromItsOriginAndTheSphereIn3D) {
+    terraingen::NoiseLayer layer;
+    layer.fractal.wavelength = 30.0f;
+    layer.fractal.amplitude = 2.0f;
+    const std::vector<terraingen::NoiseLayer> layers{layer};
+    EXPECT_EQ(terraingen::NoiseLayersAt(layers, {100.0, 50.0}, terraingen::Surface(), 112.0, 47.0),
+              terraingen::EvaluateNoiseLayers(12.0f, -3.0f, layers.data(), layers.size()));
+    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
+    const terraingen::Vec3d p = moon.Position({10.0, 20.0});
+    EXPECT_EQ(terraingen::NoiseLayersAt(layers, {}, moon, 10.0, 20.0),
+              terraingen::EvaluateNoiseLayers3(p.x, p.y, p.z, layers.data(), layers.size()));
 }

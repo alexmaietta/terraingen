@@ -2,7 +2,8 @@
 /// @brief `CraterLayer`: generating craters around grids and points and applying them.
 #include "terraingen/layers/craters/crater_layer.h"
 
-#include "terraingen/layers/craters/spacing.h"
+#include "terraingen/layers/craters/generation/spacing.h"
+#include "terraingen/layers/features.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/cells.h"
 

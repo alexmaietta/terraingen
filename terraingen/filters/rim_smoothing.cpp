@@ -139,14 +139,10 @@ RimSmoothingFilter::RimSmoothingFilter(const RimSmoothing& smoothing, const Surf
     ValidateRimSmoothing(smoothing_);
 }
 
-void RimSmoothingFilter::Apply(Raster<float>& heights, double spacing,
+void RimSmoothingFilter::Apply(Raster<float>& heights, const FilterContext& context,
                                const TerrainFeatures& features) const {
-    SmoothCraterRims(heights, features.craters, smoothing_, spacing, 1, surface_);
-}
-
-void RimSmoothingFilter::ApplyParallel(Raster<float>& heights, double spacing,
-                                       const TerrainFeatures& features, unsigned threads) const {
-    SmoothCraterRims(heights, features.craters, smoothing_, spacing, threads, surface_);
+    SmoothCraterRims(heights, features.craters, smoothing_, context.spacing, context.threads,
+                     surface_);
 }
 
 double RimSmoothingFilter::Margin(double maxFeatureDiameter, double spacing) const {

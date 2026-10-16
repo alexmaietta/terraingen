@@ -1,5 +1,6 @@
 /// @file
-/// @brief `CraterAgeModel`, which assigns ages to craters by diameter.
+/// @brief `CraterAgeModel`, which assigns ages to craters by diameter, and the simplest models:
+/// `FreshAges` and `UniformAges`.
 #pragma once
 
 #include "terraingen/random/stream.h"
@@ -45,6 +46,29 @@ class CraterAgeModel {
     /// @param lifetimeGyr Its lifetime, in Gyr.
     /// @return The age, in Gyr.
     virtual double SampleAgeAt(RandomStream& random, double diameter, double lifetimeGyr) const = 0;
+};
+
+/// @brief Every crater is fresh: age and lifetime zero.
+class FreshAges final : public CraterAgeModel {
+  protected:
+    double LifetimeAt(double diameter) const override;
+    double SampleAgeAt(RandomStream& random, double diameter, double lifetimeGyr) const override;
+};
+
+/// @brief Ages uniform over one lifetime for every diameter, so freshness is uniform in [0, 1].
+class UniformAges final : public CraterAgeModel {
+  public:
+    /// @brief Makes the model.
+    /// @param lifetimeGyr The lifetime of every crater, in Gyr.
+    /// @throws std::invalid_argument unless `lifetimeGyr` is positive and finite.
+    explicit UniformAges(double lifetimeGyr);
+
+  protected:
+    double LifetimeAt(double diameter) const override;
+    double SampleAgeAt(RandomStream& random, double diameter, double lifetimeGyr) const override;
+
+  private:
+    double lifetimeGyr_;
 };
 
 }  // namespace terraingen

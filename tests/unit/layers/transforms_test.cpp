@@ -1,5 +1,6 @@
 #include "terraingen/layers/transforms.h"
 
+#include "terraingen/layers/features.h"
 #include "terraingen/raster/grid.h"
 
 #include <gtest/gtest.h>

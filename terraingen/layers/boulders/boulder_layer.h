@@ -4,10 +4,10 @@
 
 #include "terraingen/distribution/size_frequency.h"
 #include "terraingen/layers/boulders/boulder.h"
-#include "terraingen/layers/boulders/boulder_meshes.h"
+#include "terraingen/layers/boulders/boulder_models.h"
 #include "terraingen/layers/boulders/boulder_options.h"
-#include "terraingen/layers/craters/cell_cache.h"
 #include "terraingen/layers/craters/crater_layer.h"
+#include "terraingen/layers/craters/generation/cell_cache.h"
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/util/lru_cache.h"

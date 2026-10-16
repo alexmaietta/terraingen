@@ -1,39 +1,17 @@
 /// @file
-/// @brief `Layer`, relief added on top of a source, and what layers place besides heights.
+/// @brief `Layer`, relief added on top of a source, and `FormulaLayer` for point-wise layers.
 #pragma once
 
-#include "terraingen/layers/boulders/boulder.h"
-#include "terraingen/layers/boulders/boulder_meshes.h"
-#include "terraingen/layers/craters/attributes.h"
-#include "terraingen/layers/craters/population.h"
 #include "terraingen/layers/ground.h"
 #include "terraingen/layers/sample_block.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/util/surface.h"
 
 #include <string_view>
-#include <vector>
 
 namespace terraingen {
 
-/// @brief What layers place besides heights, for the filters and outputs that follow them.
-struct TerrainFeatures {
-    CraterList craters;  ///< Every crater the layers applied, in the order they applied them.
-    std::vector<CraterAttributes> craterAttributes;  ///< Attributes of `craters`, in step with it.
-    std::vector<Boulder> boulders;  ///< Every boulder the layers placed, in the order placed.
-    std::vector<BoulderModel> boulderModels;  ///< Boulders placed as their own 3D models.
-
-    /// @brief Records craters with their attributes, keeping the two lists in step.
-    /// @param added The craters, in the order applied.
-    /// @param attributesOf `attributesOf(crater)` gives a crater's `CraterAttributes`.
-    template <typename AttributesOf>
-    void AddCraters(const CraterList& added, const AttributesOf& attributesOf) {
-        for (std::size_t n = 0; n < added.Size(); ++n) {
-            craterAttributes.push_back(attributesOf(added.At(n)));
-        }
-        craters.Append(added);
-    }
-};
+struct TerrainFeatures;
 
 /// @brief How a layer is evaluated.
 struct LayerContext {

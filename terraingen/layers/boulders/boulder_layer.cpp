@@ -2,7 +2,8 @@
 /// @brief `BoulderLayer`: candidates, thinning, poses, relief and models.
 #include "terraingen/layers/boulders/boulder_layer.h"
 
-#include "terraingen/layers/craters/ages/fresh.h"
+#include "terraingen/layers/craters/ages/age_model.h"
+#include "terraingen/layers/features.h"
 #include "terraingen/random/philox.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/cell_loops.h"
