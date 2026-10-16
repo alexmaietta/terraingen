@@ -4,8 +4,10 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
+#include <map>
 #include <memory>
 #include <set>
 #include <stdexcept>
@@ -14,6 +16,33 @@
 using terraingen::BoulderShapeOptions;
 using terraingen::BoulderStyle;
 using terraingen::GenerateBoulderShape;
+
+namespace {
+
+/// The largest angle (radians) between the normals of two triangles sharing an edge of `mesh`.
+double SharpestEdge(const terraingen::TriangleMesh& mesh) {
+    std::map<std::pair<std::size_t, std::size_t>, std::vector<terraingen::Vec3d>> edges;
+    for (const auto& t : mesh.triangles) {
+        const auto& p = mesh.positions;
+        const terraingen::Vec3d normal =
+            terraingen::Normalized(terraingen::Cross(p[t[1]] - p[t[0]], p[t[2]] - p[t[0]]));
+        for (std::size_t k = 0; k < 3; ++k) {
+            const std::size_t u = t[k];
+            const std::size_t v = t[(k + 1) % 3];
+            edges[{std::min(u, v), std::max(u, v)}].push_back(normal);
+        }
+    }
+    double sharpest = 0.0;
+    for (const auto& [edge, normals] : edges) {
+        if (normals.size() == 2) {
+            const double dot = std::clamp(terraingen::Dot(normals[0], normals[1]), -1.0, 1.0);
+            sharpest = std::fmax(sharpest, std::acos(dot));
+        }
+    }
+    return sharpest;
+}
+
+}  // namespace
 
 TEST(GenerateBoulderShape, MakesClosedUnfoldedShapesOfTheirExactExtents) {
     const BoulderShapeOptions options;
@@ -120,7 +149,10 @@ TEST(ValidateBoulderShapeOptions, RejectsInvalidStyles) {
         [](BoulderShapeOptions& o) { o.styles[0].intermediate = {0.9, 0.5}; },
         [](BoulderShapeOptions& o) { o.styles[0].shortAxis = {0.0, 0.5}; },
         [](BoulderShapeOptions& o) { o.styles[0].rounding = {0.0, 2.0}; },
-        [](BoulderShapeOptions& o) { o.styles[0].minFractures = 9; },
+        [](BoulderShapeOptions& o) { o.styles[0].minFractures = 13; },
+        [](BoulderShapeOptions& o) { o.styles[0].edgeSoftness = {0.0, 0.6}; },
+        [](BoulderShapeOptions& o) { o.styles[0].faceRoughness = 0.6; },
+        [](BoulderShapeOptions& o) { o.weathering = -1.0; },
         [](BoulderShapeOptions& o) { o.styles[0].maxFractureTilt = 2.0; },
         [](BoulderShapeOptions& o) { o.styles[0].noiseWavelength = 0.0; },
         [](BoulderShapeOptions& o) { o.styles[0].noiseOctaves = 0; },
@@ -185,4 +217,29 @@ TEST(GenerateBoulderShape, DrawsFromTheLibraryWhenItHasRocks) {
     EXPECT_EQ(picked.size(), 2u) << "every rock is used";
     options.library.push_back(nullptr);
     EXPECT_THROW(terraingen::ValidateBoulderShapeOptions(options), std::invalid_argument);
+}
+
+TEST(GenerateBoulderShape, WeatheringWearsEdgesAwayAndZeroKeepsThemSharp) {
+    BoulderShapeOptions sharp;
+    sharp.weathering = 0.0;
+    BoulderShapeOptions worn;
+    worn.weathering = 2.0;
+    for (const std::uint64_t seed : {0u, 1u, 9u}) {
+        const auto a = terraingen::GenerateBoulderShape(seed, sharp);
+        const auto b = terraingen::GenerateBoulderShape(seed, worn);
+        ASSERT_EQ(a.style, b.style);
+        EXPECT_LT(SharpestEdge(b.mesh), 0.8 * SharpestEdge(a.mesh)) << "worn edges are rounder";
+    }
+    BoulderShapeOptions plain;
+    plain.styles = {terraingen::BoulderStyle{.name = "flat",
+                                             .solid = terraingen::BaseSolid::Cube,
+                                             .minFractures = 2,
+                                             .maxFractures = 2}};
+    plain.styles[0].noiseAmplitude = 0.0;
+    const auto box = terraingen::GenerateBoulderShape(3, plain);
+    std::size_t onTop = 0;
+    for (const auto& p : box.mesh.positions) {
+        onTop += std::fabs(p.z - terraingen::Bounds(box.mesh).max.z) < 1e-9 ? 1u : 0u;
+    }
+    EXPECT_GT(onTop, 3u) << "without softness or roughness, faces stay flat";
 }

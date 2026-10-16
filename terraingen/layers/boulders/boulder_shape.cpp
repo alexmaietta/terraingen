@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <numbers>
 #include <stdexcept>
 
@@ -100,11 +101,102 @@ Vec3d ShapeVertex(const Vec3d& p, const Vec3d& axes, double rounding, const Boul
 
 /// Cuts `mesh` with the style's fracture planes, each at a drawn share of the reach of the solid's
 /// original corners. `Subdivide` keeps those corners as the first `corners` vertices.
+/// The smooth minimum of `a` and `b` over `k`: their minimum, eased by up to `k` / 4 where they
+/// are within `k` of each other.
+double SmoothMin(double a, double b, double k) {
+    const double h = std::fmax(k - std::fabs(a - b), 0.0) / k;
+    return std::fmin(a, b) - 0.25 * k * h * h;
+}
+
+/// A fracture plane: points beyond `offset` along `normal` are cut away.
+struct Fracture {
+    Vec3d normal;
+    double offset;
+};
+
+/// The planes of `solid`'s faces once stretched to `axes`, one per face.
+std::vector<Fracture> SolidFaces(const TriangleMesh& solid, const Vec3d& axes) {
+    std::vector<Fracture> faces;
+    for (const auto& t : solid.triangles) {
+        const Vec3d& a = solid.positions[t[0]];
+        const Vec3d normal =
+            Normalized(Cross(solid.positions[t[1]] - a, solid.positions[t[2]] - a));
+        const Vec3d stretched{normal.x / axes.x, normal.y / axes.y, normal.z / axes.z};
+        const double length = Length(stretched);
+        const Fracture face{stretched * (1.0 / length), Dot(normal, a) / length};
+        const bool seen = std::any_of(faces.begin(), faces.end(), [&](const Fracture& f) {
+            return Dot(f.normal, face.normal) > 1.0 - 1e-9 &&
+                   std::fabs(f.offset - face.offset) < 1e-9;
+        });
+        if (!seen) {
+            faces.push_back(face);
+        }
+    }
+    return faces;
+}
+
+/// Cuts `mesh` with `fractures`, each vertex moving along its ray from the origin to the nearest
+/// plane: rippled by the style's face roughness and met through a smooth minimum over `softness`,
+/// so faces undulate and edges are worn round. With `polyhedral`, the planes include the solid's
+/// own faces, which then bound every ray, roughened by the style's noise of `noiseSeed`.
+void CutSoftly(TriangleMesh& mesh, const std::vector<Fracture>& fractures,
+               const BoulderStyle& style, double softness, std::uint32_t seed, bool polyhedral,
+               std::uint32_t noiseSeed) {
+    const double frequency = 1.5;
+    for (Vec3d& p : mesh.positions) {
+        const double radius = Length(p);
+        if (!(radius > 0.0)) {
+            continue;
+        }
+        const Vec3d ray = p * (1.0 / radius);
+        double reach = polyhedral ? std::numeric_limits<double>::infinity() : radius;
+        for (std::size_t i = 0; i < fractures.size(); ++i) {
+            const double along = Dot(fractures[i].normal, ray);
+            if (!(along > 0.0)) {
+                continue;
+            }
+            double offset = fractures[i].offset;
+            if (style.faceRoughness > 0.0) {
+                const double shift = 7.13 * static_cast<double>(i);
+                const Vec3d at{ray.x * frequency + shift, ray.y * frequency - shift,
+                               ray.z * frequency + 0.5 * shift};
+                offset *=
+                    1.0 + style.faceRoughness *
+                              SurfaceRoughness(at, style, seed + static_cast<std::uint32_t>(i));
+            }
+            const double cut = offset / along;
+            reach = softness > 0.0 && std::isfinite(reach) ? SmoothMin(reach, cut, 4.0 * softness)
+                                                           : std::fmin(reach, cut);
+        }
+        if (polyhedral) {
+            reach *= 1.0 + style.noiseAmplitude * SurfaceRoughness(ray, style, noiseSeed);
+        }
+        p = ray * reach;
+    }
+}
+
 void ApplyFractures(TriangleMesh& mesh, std::size_t corners, const BoulderStyle& style,
-                    RandomStream& random) {
+                    RandomStream& random, double softness, std::uint32_t seed,
+                    const std::vector<Fracture>& faces, std::uint32_t noiseSeed) {
     const int span = style.maxFractures - style.minFractures + 1;
     const int fractures =
         style.minFractures + std::min(span - 1, static_cast<int>(random.NextDouble() * span));
+    if (softness > 0.0 || style.faceRoughness > 0.0) {
+        std::vector<Fracture> planes = faces;
+        for (int n = 0; n < fractures; ++n) {
+            const Vec3d normal = DrawNormal(random, style.maxFractureTilt);
+            const double depth = Draw(random, style.fractureDepth);
+            double reach = 0.0;
+            for (std::size_t v = 0; v < corners; ++v) {
+                reach = std::fmax(reach, Dot(normal, mesh.positions[v]));
+            }
+            if (depth * reach > 0.0) {
+                planes.push_back({normal, depth * reach});
+            }
+        }
+        CutSoftly(mesh, planes, style, softness, seed, !faces.empty(), noiseSeed);
+        return;
+    }
     for (int n = 0; n < fractures; ++n) {
         const Vec3d normal = DrawNormal(random, style.maxFractureTilt);
         const double depth = Draw(random, style.fractureDepth);
@@ -129,84 +221,136 @@ void ApplyFractures(TriangleMesh& mesh, std::size_t corners, const BoulderStyle&
 
 std::vector<BoulderStyle> DefaultBoulderStyles() {
     return {
-        {.name = "block",
-         .weight = 0.32,
-         .solid = BaseSolid::Cube,
-         .intermediate = {0.6, 0.85},
-         .shortAxis = {0.4, 0.6},
-         .rounding = {0.0, 0.25},
-         .minFractures = 3,
-         .maxFractures = 7,
-         .fractureDepth = {0.65, 0.92},
-         .maxFractureTilt = 1.0,
-         .noiseAmplitude = 0.03,
-         .noiseWavelength = 0.5,
-         .noiseOctaves = 3},
-        {.name = "slab",
+        {.name = "angular",
          .weight = 0.2,
-         .solid = BaseSolid::Cube,
+         .solid = BaseSolid::Icosahedron,
          .intermediate = {0.6, 0.9},
-         .shortAxis = {0.15, 0.3},
-         .rounding = {0.0, 0.2},
-         .minFractures = 2,
-         .maxFractures = 5,
-         .fractureDepth = {0.6, 0.9},
-         .maxFractureTilt = 0.3,
-         .noiseAmplitude = 0.02,
-         .noiseWavelength = 0.5,
-         .noiseOctaves = 3},
-        {.name = "rounded",
-         .weight = 0.2,
+         .shortAxis = {0.45, 0.7},
+         .minFractures = 7,
+         .maxFractures = 12,
+         .fractureDepth = {0.55, 0.85},
+         .maxFractureTilt = 1.0,
+         .noiseAmplitude = 0.06,
+         .noiseWavelength = 0.9,
+         .noiseOctaves = 4,
+         .edgeSoftness = {0.02, 0.06},
+         .faceRoughness = 0.03},
+        {.name = "platy",
+         .weight = 0.12,
+         .solid = BaseSolid::Icosahedron,
+         .intermediate = {0.6, 0.9},
+         .shortAxis = {0.22, 0.38},
+         .minFractures = 5,
+         .maxFractures = 9,
+         .fractureDepth = {0.6, 0.88},
+         .maxFractureTilt = 0.7,
+         .noiseAmplitude = 0.05,
+         .noiseWavelength = 0.9,
+         .noiseOctaves = 4,
+         .edgeSoftness = {0.02, 0.05},
+         .faceRoughness = 0.03},
+        {.name = "subrounded",
+         .weight = 0.15,
          .solid = BaseSolid::Icosahedron,
          .intermediate = {0.65, 0.9},
          .shortAxis = {0.45, 0.7},
-         .rounding = {0.6, 1.0},
+         .minFractures = 4,
+         .maxFractures = 7,
+         .fractureDepth = {0.65, 0.9},
+         .maxFractureTilt = 1.0,
+         .noiseAmplitude = 0.07,
+         .noiseWavelength = 0.8,
+         .noiseOctaves = 4,
+         .edgeSoftness = {0.06, 0.12},
+         .faceRoughness = 0.02},
+        {.name = "rounded",
+         .weight = 0.1,
+         .solid = BaseSolid::Icosahedron,
+         .intermediate = {0.7, 0.95},
+         .shortAxis = {0.5, 0.75},
          .minFractures = 0,
          .maxFractures = 3,
-         .fractureDepth = {0.7, 0.95},
+         .fractureDepth = {0.75, 0.95},
          .maxFractureTilt = 1.0,
          .noiseAmplitude = 0.1,
-         .noiseWavelength = 0.6,
-         .noiseOctaves = 3},
-        {.name = "wedge",
+         .noiseWavelength = 0.7,
+         .noiseOctaves = 4,
+         .edgeSoftness = {0.1, 0.18},
+         .faceRoughness = 0.02},
+        {.name = "block",
          .weight = 0.13,
+         .solid = BaseSolid::Cube,
+         .intermediate = {0.6, 0.85},
+         .shortAxis = {0.4, 0.6},
+         .rounding = {0.0, 0.15},
+         .minFractures = 3,
+         .maxFractures = 7,
+         .fractureDepth = {0.6, 0.85},
+         .maxFractureTilt = 1.0,
+         .noiseAmplitude = 0.07,
+         .noiseWavelength = 0.8,
+         .noiseOctaves = 4,
+         .edgeSoftness = {0.06, 0.12},
+         .faceRoughness = 0.06},
+        {.name = "wedge",
+         .weight = 0.1,
          .solid = BaseSolid::Prism,
          .intermediate = {0.55, 0.85},
          .shortAxis = {0.4, 0.6},
-         .rounding = {0.0, 0.3},
-         .minFractures = 1,
-         .maxFractures = 4,
-         .fractureDepth = {0.65, 0.92},
+         .rounding = {0.0, 0.2},
+         .minFractures = 2,
+         .maxFractures = 5,
+         .fractureDepth = {0.65, 0.9},
          .maxFractureTilt = 1.0,
-         .noiseAmplitude = 0.04,
-         .noiseWavelength = 0.5,
-         .noiseOctaves = 3},
+         .noiseAmplitude = 0.07,
+         .noiseWavelength = 0.8,
+         .noiseOctaves = 4,
+         .edgeSoftness = {0.06, 0.12},
+         .faceRoughness = 0.06},
         {.name = "pyramid",
          .weight = 0.1,
          .solid = BaseSolid::Pyramid,
          .intermediate = {0.7, 0.95},
          .shortAxis = {0.45, 0.7},
-         .rounding = {0.0, 0.3},
-         .minFractures = 1,
-         .maxFractures = 3,
+         .rounding = {0.0, 0.2},
+         .minFractures = 2,
+         .maxFractures = 4,
          .fractureDepth = {0.7, 0.92},
          .maxFractureTilt = 1.0,
-         .noiseAmplitude = 0.04,
-         .noiseWavelength = 0.5,
-         .noiseOctaves = 3},
+         .noiseAmplitude = 0.07,
+         .noiseWavelength = 0.8,
+         .noiseOctaves = 4,
+         .edgeSoftness = {0.06, 0.12},
+         .faceRoughness = 0.06},
         {.name = "shard",
          .weight = 0.05,
          .solid = BaseSolid::Tetrahedron,
          .intermediate = {0.6, 0.9},
          .shortAxis = {0.4, 0.6},
          .rounding = {0.0, 0.2},
-         .minFractures = 1,
-         .maxFractures = 3,
+         .minFractures = 2,
+         .maxFractures = 4,
          .fractureDepth = {0.7, 0.92},
          .maxFractureTilt = 1.0,
-         .noiseAmplitude = 0.03,
-         .noiseWavelength = 0.5,
-         .noiseOctaves = 3},
+         .noiseAmplitude = 0.04,
+         .noiseWavelength = 0.8,
+         .noiseOctaves = 4,
+         .edgeSoftness = {0.02, 0.05},
+         .faceRoughness = 0.03},
+        {.name = "sphere",
+         .weight = 0.05,
+         .solid = BaseSolid::Icosahedron,
+         .intermediate = {0.85, 1.0},
+         .shortAxis = {0.7, 0.9},
+         .minFractures = 0,
+         .maxFractures = 1,
+         .fractureDepth = {0.8, 0.95},
+         .maxFractureTilt = 1.0,
+         .noiseAmplitude = 0.08,
+         .noiseWavelength = 0.7,
+         .noiseOctaves = 4,
+         .edgeSoftness = {0.12, 0.2},
+         .faceRoughness = 0.02},
     };
 }
 
@@ -228,6 +372,10 @@ void ValidateBoulderShapeOptions(const BoulderShapeOptions& options) {
                 "Boulder style fractures must satisfy 0 <= min <= max <= 64");
         }
         RequireUnitInterval(style.maxFractureTilt, "Boulder style maxFractureTilt");
+        CheckRange(style.edgeSoftness, 0.0, 0.5, "edgeSoftness");
+        if (!(style.faceRoughness >= 0.0 && style.faceRoughness <= 0.5)) {
+            throw std::invalid_argument("Boulder style faceRoughness must be in [0, 0.5]");
+        }
         if (!(style.noiseAmplitude >= 0.0 && style.noiseAmplitude < 1.0 &&
               IsPositive(style.noiseWavelength) && style.noiseOctaves > 0 &&
               style.noiseOctaves <= 12)) {
@@ -238,6 +386,7 @@ void ValidateBoulderShapeOptions(const BoulderShapeOptions& options) {
     if (!(total > 0.0)) {
         throw std::invalid_argument("Boulder style weights must not all be zero");
     }
+    RequireNonNegative(options.weathering, "Boulder weathering");
     if (options.subdivisions < 0 || options.subdivisions > 6) {
         throw std::invalid_argument("Boulder subdivisions must be between 0 and 6");
     }
@@ -283,6 +432,8 @@ BoulderShape GenerateBoulderShape(std::uint64_t shapeSeed, const BoulderShapeOpt
     const double shortAxis = std::fmin(Draw(random, style.shortAxis), intermediate);
     const double rounding = Draw(random, style.rounding);
     const std::uint32_t noiseSeed = random.NextU32();
+    const double softness =
+        style.edgeSoftness.max > 0.0 ? Draw(random, style.edgeSoftness) * options.weathering : 0.0;
     const Vec3d axes{1.0, intermediate, shortAxis};
 
     const TriangleMesh solid = BaseSolidMesh(style.solid);
@@ -291,7 +442,12 @@ BoulderShape GenerateBoulderShape(std::uint64_t shapeSeed, const BoulderShapeOpt
     for (Vec3d& p : mesh.positions) {
         p = ShapeVertex(p, axes, rounding, style, noiseSeed);
     }
-    ApplyFractures(mesh, solid.positions.size(), style, random);
+    const bool soft = softness > 0.0 || style.faceRoughness > 0.0;
+    const std::vector<Fracture> faces = soft && style.solid != BaseSolid::Icosahedron
+                                            ? SolidFaces(solid, axes)
+                                            : std::vector<Fracture>{};
+    ApplyFractures(mesh, solid.positions.size(), style, random, softness, noiseSeed ^ 0x43555453u,
+                   faces, noiseSeed);
 
     const Vec3d extents = Bounds(mesh).Extents();
     mesh = Scaled(mesh, {1.0 / extents.x, intermediate / extents.y, shortAxis / extents.z});

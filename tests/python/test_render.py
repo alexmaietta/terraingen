@@ -141,6 +141,6 @@ def test_add_boulders_instances_shared_shapes_or_bakes_each():
     render.add_boulders(baked, models, instanced=False)
     first = ernie.Path(render.BOULDERS_PATH).child("Boulder0")
     points = np.asarray(ernie.Mesh.at(baked, first).points)
-    split, _ = models[0].shape.mesh.with_creases(math.radians(35.0))
+    split, _ = models[0].shape.mesh.with_creases(math.radians(60.0))
     expected = models[0].placement.apply(tuple(split.arrays[0][0]))
     assert points[0] == pytest.approx(expected, abs=1e-4)

@@ -42,12 +42,18 @@ struct BoulderStyle {
     double noiseAmplitude = 0.05;        ///< Largest relative change of the radius by noise.
     double noiseWavelength = 0.6;        ///< Wavelength of the first noise octave.
     int noiseOctaves = 3;                ///< Noise octaves, each half the wavelength.
+    /// How far edges and corners are worn back where faces meet, as weathering rounds them, in
+    /// long-axis lengths; 0 keeps them sharp.
+    ValueRange edgeSoftness{0.0, 0.0};
+    /// How far fracture faces undulate, as a share of each plane's offset; 0 keeps them flat.
+    double faceRoughness = 0.0;
 
     bool operator==(const BoulderStyle&) const = default;
 };
 
-/// The default mix of boulder styles: blocks and slabs most of all, then rounded boulders,
-/// wedges, pyramids and shards.
+/// The default mix of boulder styles, every one cut irregularly, weathered at its edges and rough
+/// on its faces: polyhedra from a sphere (angular, platy, subrounded) most of all, then blocks from
+/// a cube, wedges, pyramids, rounded boulders, shards from a tetrahedron and near-spheres.
 std::vector<BoulderStyle> DefaultBoulderStyles();
 
 /// Settings for `GenerateBoulderShape`.
@@ -55,6 +61,9 @@ struct BoulderShapeOptions {
     std::vector<BoulderStyle> styles = DefaultBoulderStyles();  ///< Styles to pick from by weight.
     int subdivisions = 3;    ///< Times the solid's triangles are split in four.
     std::uint32_t seed = 0;  ///< Seed shared by every shape.
+    /// Scales every style's edge softness: 0 gives sharp edges, 1 the styles' own, more is more
+    /// worn.
+    double weathering = 1.0;
     /// Rock meshes, such as `ReadMesh` reads, that replace the styles when not empty: each seed
     /// picks one, normalised to the unit form of `BoulderShape` with its z axis kept vertical.
     std::vector<std::shared_ptr<const SceneMesh>> library{};
@@ -66,7 +75,8 @@ struct BoulderShapeOptions {
 /// @throws std::invalid_argument for no styles, a style with a negative weight, all weights zero,
 /// an empty or inverted range, axis ratios outside (0, 1], rounding or depths outside [0, 1],
 /// fracture counts not in 0 <= min <= max <= 64, a tilt outside [0, 1], noise amplitude outside
-/// [0, 1), a non-positive wavelength, octaves outside 1 to 12, or subdivisions outside 0 to 6,
+/// [0, 1), a non-positive wavelength, octaves outside 1 to 12, an edge softness outside [0, 0.5],
+/// a face roughness outside [0, 0.5], a negative weathering, or subdivisions outside 0 to 6,
 /// or a library mesh that is null, invalid or flat along an axis.
 void ValidateBoulderShapeOptions(const BoulderShapeOptions& options);
 

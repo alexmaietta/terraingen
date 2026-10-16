@@ -77,7 +77,7 @@ void WriteBoulderList(const std::vector<Boulder>& boulders, const std::filesyste
 /// @throws std::invalid_argument for no boulders, an angle outside [0, 180] or as `WriteScene`.
 /// @throws std::runtime_error if the file cannot be written.
 void WriteBoulderModels(const std::vector<BoulderModel>& boulders,
-                        const std::filesystem::path& path, double creaseAngle = 35.0,
+                        const std::filesystem::path& path, double creaseAngle = 60.0,
                         const Surface& surface = {}, const Vec2d& site = {}, bool instanced = true);
 
 /// Writes a configuration's outputs and returns the paths written: heightmaps and albedos

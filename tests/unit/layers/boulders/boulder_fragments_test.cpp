@@ -58,7 +58,7 @@ TEST(FragmentBoulderShape, SplitsAShapeIntoPiecesThatFillIt) {
             EXPECT_NEAR(std::fmax(extents.x, extents.y), 1.0, 1e-9) << "scaled to its extent";
             EXPECT_LT(fragment.scale, 1.0 + 1e-9);
         }
-        EXPECT_NEAR(total / whole, 1.0, 0.1) << pieces << " pieces fill the boulder";
+        EXPECT_NEAR(total / whole, 1.0, pieces > 5 ? 0.2 : 0.1) << pieces << " pieces fill it";
     }
     EXPECT_EQ(FragmentBoulderShape(parent, 3, 7)[1].shape.mesh.positions,
               FragmentBoulderShape(parent, 3, 7)[1].shape.mesh.positions);

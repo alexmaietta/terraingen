@@ -141,7 +141,7 @@ def _shaded(shape, crease_angle_deg):
     return positions, triangles, normals
 
 
-def add_boulders(scene, models, path=BOULDERS_PATH, *, instanced=True, crease_angle_deg=35.0, material=None):
+def add_boulders(scene, models, path=BOULDERS_PATH, *, instanced=True, crease_angle_deg=60.0, material=None):
     """Defines the boulder models (``BoulderModel``, as ``placed_boulders`` gives) as 3D meshes.
 
     Instanced, each shape the boulders share becomes one prototype Mesh under a PointInstancer

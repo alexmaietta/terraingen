@@ -126,7 +126,7 @@ void BindFeatures(nb::module_& m) {
                bool instanced) {
                 WriteBoulderModels(f.models, path, creaseAngle, {}, {}, instanced);
             },
-            "path"_a, "crease_angle"_a = 35.0, "instanced"_a = true,
+            "path"_a, "crease_angle"_a = 60.0, "instanced"_a = true,
             "Writes the boulder models as a glTF scene (.glb or .gltf), OBJ (.obj) or STL (.stl): "
             "each shared shape once, drawn per boulder, or with `instanced` false every boulder as "
             "its own placed mesh.");

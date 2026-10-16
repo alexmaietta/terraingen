@@ -227,6 +227,12 @@ template <typename IO> void Fields(IO& io, BoulderStyle& style) {
     io("noise_octaves", style.noiseOctaves,
        "Octaves of the roughening noise, 1 to 12, each halving in wavelength; more add finer "
        "detail.");
+    io("edge_softness", style.edgeSoftness,
+       "Range of how far edges and corners are worn back where faces meet, as weathering rounds "
+       "them, in long-axis lengths from 0 to 0.5; 0 keeps them sharp.");
+    io("face_roughness", style.faceRoughness,
+       "How far fracture faces undulate, as a share of each plane's offset from 0 to 0.5; 0 keeps "
+       "them flat.");
 }
 
 template <typename IO> void Fields(IO& io, BoulderShapeOptions& shapes) {
@@ -235,6 +241,9 @@ template <typename IO> void Fields(IO& io, BoulderShapeOptions& shapes) {
     io("subdivisions", shapes.subdivisions,
        "Times the solid's triangles are split in four, 0 to 6; more give finer, smoother shapes "
        "with more triangles.");
+    io("weathering", shapes.weathering,
+       "Scales every style's edge softness: 0 gives sharp edges, 1 the styles' own, more is more "
+       "worn.");
     io("seed", shapes.seed,
        "Seed the shapes are drawn with, along with each shape's own seed; changing it reshapes "
        "every boulder.");

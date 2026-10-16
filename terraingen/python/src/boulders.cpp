@@ -43,7 +43,9 @@ void BindBoulderStyle(nb::module_& m) {
         .def_rw("max_fracture_tilt", &BoulderStyle::maxFractureTilt)
         .def_rw("noise_amplitude", &BoulderStyle::noiseAmplitude)
         .def_rw("noise_wavelength", &BoulderStyle::noiseWavelength)
-        .def_rw("noise_octaves", &BoulderStyle::noiseOctaves);
+        .def_rw("noise_octaves", &BoulderStyle::noiseOctaves)
+        .def_rw("edge_softness", &BoulderStyle::edgeSoftness)
+        .def_rw("face_roughness", &BoulderStyle::faceRoughness);
     m.def("default_boulder_styles", &DefaultBoulderStyles,
           "The default mix: blocks and slabs, rounded boulders, wedges, pyramids and shards.");
 }
@@ -56,6 +58,7 @@ void BindBoulderShapes(nb::module_& m) {
     BindKwargsInit<BoulderShapeOptions>(options);
     options.def_rw("styles", &BoulderShapeOptions::styles)
         .def_rw("subdivisions", &BoulderShapeOptions::subdivisions)
+        .def_rw("weathering", &BoulderShapeOptions::weathering)
         .def_rw("seed", &BoulderShapeOptions::seed)
         .def_prop_rw(
             "library",

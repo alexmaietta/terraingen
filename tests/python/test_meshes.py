@@ -111,8 +111,19 @@ def test_boulder_shapes_draw_from_a_library_of_rocks(cube):
 
 def test_default_boulder_styles():
     styles = terraingen.default_boulder_styles()
-    assert [s.name for s in styles] == ["block", "slab", "rounded", "wedge", "pyramid", "shard"]
-    assert styles[0].solid == terraingen.BaseSolid.CUBE
+    assert [s.name for s in styles] == [
+        "angular",
+        "platy",
+        "subrounded",
+        "rounded",
+        "block",
+        "wedge",
+        "pyramid",
+        "shard",
+        "sphere",
+    ]
+    assert {s.solid for s in styles} == set(terraingen.BaseSolid.__members__.values())
+    assert all(s.edge_softness.max > 0.0 and s.face_roughness > 0.0 for s in styles)
 
 
 def test_boulder_shapes_are_deterministic():
