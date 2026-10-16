@@ -1,4 +1,8 @@
+/// @file
+/// @brief Bindings of the noise module: hashes, basis noise, fractals and noise layers, over
+/// NumPy arrays or single points.
 #include "bindings.h"
+#include "common.h"
 
 #include "terraingen/noise/kernels/fractal.h"
 #include "terraingen/noise/kernels/hash.h"
@@ -7,59 +11,80 @@
 #include "terraingen/noise/kernels/simplex.h"
 #include "terraingen/noise/kernels/value.h"
 #include "terraingen/noise/kernels/worley.h"
+#include "terraingen/noise/validate.h"
 #include "terraingen/sources/synthetic_terrain.h"
 
 #include <nanobind/ndarray.h>
 #include <nanobind/operators.h>
-#include <nanobind/stl/optional.h>
-#include <nanobind/stl/vector.h>
 
-#include <cmath>
-#include <cstddef>
 #include <cstdint>
-#include <memory>
-#include <optional>
 #include <stdexcept>
+#include <string>
 #include <vector>
-
-namespace nb = nanobind;
-using namespace nb::literals;
 
 namespace terraingen::python {
 
 namespace {
 
 using InputArray = nb::ndarray<const float, nb::device::cpu, nb::c_contig>;
+using InputArray64 = nb::ndarray<const double, nb::device::cpu, nb::c_contig>;
 using OutputArray = nb::ndarray<nb::numpy, float>;
 
-std::vector<std::size_t> SameShape(const InputArray& x, const InputArray& y) {
-    if (x.ndim() != y.ndim()) {
-        throw std::invalid_argument("x and y must have the same shape");
+/// @brief The shape shared by every array, or an error naming them.
+template <typename Array, typename... More>
+std::vector<std::size_t> SameShape(const char* names, const Array& first, const More&... more) {
+    std::vector<std::size_t> shape(first.ndim());
+    for (std::size_t i = 0; i < first.ndim(); ++i) {
+        shape[i] = first.shape(i);
     }
-    std::vector<std::size_t> shape(x.ndim());
-    for (std::size_t i = 0; i < x.ndim(); ++i) {
-        if (x.shape(i) != y.shape(i)) {
-            throw std::invalid_argument("x and y must have the same shape");
+    const auto matches = [&](const Array& other) {
+        if (other.ndim() != first.ndim()) {
+            return false;
         }
-        shape[i] = x.shape(i);
+        for (std::size_t i = 0; i < first.ndim(); ++i) {
+            if (other.shape(i) != first.shape(i)) {
+                return false;
+            }
+        }
+        return true;
+    };
+    if (!(matches(more) && ...)) {
+        throw std::invalid_argument(std::string(names) + " must have the same shape");
     }
     return shape;
 }
 
+/// @brief A new float32 array of `shape`, owning `data`.
 OutputArray NewArray(const std::vector<std::size_t>& shape, std::size_t count, float*& data) {
     data = new float[count];
     nb::capsule owner(data, [](void* p) noexcept { delete[] static_cast<float*>(p); });
     return OutputArray(data, shape.size(), shape.data(), owner);
 }
 
+/// @brief `fn(x, y)` at each point of two float32 arrays of one shape, without the GIL.
 template <typename Fn> OutputArray Evaluate(const InputArray& x, const InputArray& y, Fn fn) {
-    const std::vector<std::size_t> shape = SameShape(x, y);
+    const std::vector<std::size_t> shape = SameShape("x and y", x, y);
     float* out = nullptr;
     OutputArray result = NewArray(shape, x.size(), out);
     {
         nb::gil_scoped_release release;
         for (std::size_t i = 0; i < x.size(); ++i) {
             out[i] = fn(x.data()[i], y.data()[i]);
+        }
+    }
+    return result;
+}
+
+/// @brief `fn(x, y, z)` at each point of three float64 arrays of one shape, as float32.
+template <typename Fn>
+OutputArray Evaluate3(const InputArray64& x, const InputArray64& y, const InputArray64& z, Fn fn) {
+    const std::vector<std::size_t> shape = SameShape("x, y and z", x, y, z);
+    float* out = nullptr;
+    OutputArray result = NewArray(shape, x.size(), out);
+    {
+        nb::gil_scoped_release release;
+        for (std::size_t i = 0; i < x.size(); ++i) {
+            out[i] = fn(x.data()[i], y.data()[i], z.data()[i]);
         }
     }
     return result;
@@ -78,6 +103,7 @@ void BindHashes(nb::module_& m) {
           "Map a hash to a float in [0, 1) using its top 24 bits.");
 }
 
+/// @brief Binds `name` for arrays and for one point.
 template <float (*Noise)(float, float, std::uint32_t)>
 void BindScalarNoise(nb::module_& m, const char* name, const char* doc) {
     m.def(
@@ -103,34 +129,32 @@ float ValueAt(float x, float y, std::uint32_t seed) {
     return ValueNoise2(x, y, seed);
 }
 
+nb::tuple WorleyArrays(const InputArray& x, const InputArray& y, std::uint32_t seed) {
+    const std::vector<std::size_t> shape = SameShape("x and y", x, y);
+    float* f1 = nullptr;
+    float* f2 = nullptr;
+    OutputArray first = NewArray(shape, x.size(), f1);
+    OutputArray second = NewArray(shape, x.size(), f2);
+    {
+        nb::gil_scoped_release release;
+        for (std::size_t i = 0; i < x.size(); ++i) {
+            const WorleyDistances d = Worley2(x.data()[i], y.data()[i], seed);
+            f1[i] = d.f1;
+            f2[i] = d.f2;
+        }
+    }
+    return nb::make_tuple(first, second);
+}
+
 void BindBasisNoise(nb::module_& m) {
     BindScalarNoise<&PerlinAt>(m, "perlin_noise2",
                                "Improved Perlin noise (Perlin 2002) in [-1, 1], in lattice units.");
     BindScalarNoise<&SimplexAt>(m, "simplex_noise2",
                                 "Simplex noise (Perlin 2001, Gustavson 2005) in [-1, 1].");
     BindScalarNoise<&ValueAt>(m, "value_noise2", "Value noise in [-1, 1], in lattice units.");
-
-    m.def(
-        "worley2",
-        [](const InputArray& x, const InputArray& y, std::uint32_t seed) {
-            const std::vector<std::size_t> shape = SameShape(x, y);
-            float* f1 = nullptr;
-            float* f2 = nullptr;
-            OutputArray first = NewArray(shape, x.size(), f1);
-            OutputArray second = NewArray(shape, x.size(), f2);
-            {
-                nb::gil_scoped_release release;
-                for (std::size_t i = 0; i < x.size(); ++i) {
-                    const WorleyDistances d = Worley2(x.data()[i], y.data()[i], seed);
-                    f1[i] = d.f1;
-                    f2[i] = d.f2;
-                }
-            }
-            return nb::make_tuple(first, second);
-        },
-        "x"_a, "y"_a, "seed"_a,
-        "Worley cellular distances (F1, F2) to the nearest and second-nearest feature points "
-        "(Worley 1996), in lattice units.");
+    m.def("worley2", &WorleyArrays, "x"_a, "y"_a, "seed"_a,
+          "Worley cellular distances (F1, F2) to the nearest and second-nearest feature points "
+          "(Worley 1996), in lattice units.");
     m.def(
         "worley2",
         [](float x, float y, std::uint32_t seed) {
@@ -161,7 +185,7 @@ void BindEnums(nb::module_& m) {
         .value("MASK", LayerBlend::Mask);
 }
 
-void BindFractal(nb::module_& m) {
+void BindFractalParams(nb::module_& m) {
     nb::class_<FractalParams>(m, "FractalParams",
                               "Fractal of a basis noise. Octave i has wavelength "
                               "wavelength / lacunarity**i and weight gain**i.")
@@ -185,7 +209,10 @@ void BindFractal(nb::module_& m) {
         .def_rw("type", &FractalParams::type)
         .def_rw("offset", &FractalParams::offset, "Ridge offset for ridged and hybrid fractals.")
         .def(nb::self == nb::self);
+}
 
+void BindFractal(nb::module_& m) {
+    BindFractalParams(m);
     m.def("gain_from_hurst", &GainFromHurst, "hurst"_a, "lacunarity"_a = 2.0f,
           "Octave gain lacunarity**(-hurst) that gives Hurst exponent `hurst`.");
     m.def("basis_noise2", &BasisNoise2, "basis"_a, "x"_a, "y"_a, "seed"_a,
@@ -209,7 +236,7 @@ void BindFractal(nb::module_& m) {
         "x"_a, "y"_a, "params"_a);
 }
 
-void BindLayers(nb::module_& m) {
+void BindNoiseLayer(nb::module_& m) {
     nb::class_<NoiseLayer>(m, "NoiseLayer",
                            "One layer of a synthetic terrain: a fractal, an optional domain warp "
                            "and a blend mode.")
@@ -228,27 +255,12 @@ void BindLayers(nb::module_& m) {
         .def_rw("warp_amplitude", &NoiseLayer::warpAmplitude, "Domain warp in metres; 0 is off.")
         .def_rw("warp_wavelength", &NoiseLayer::warpWavelength, "Warp field wavelength in metres.")
         .def(nb::self == nb::self);
-
-    nb::class_<SyntheticTerrainParams>(m, "SyntheticTerrainParams",
-                                       "A stack of 1 to 8 noise layers. `layers` is copied on "
-                                       "access; assign a new list to change it.")
-        .def(
-            "__init__",
-            [](SyntheticTerrainParams* params, std::optional<std::vector<NoiseLayer>> layers) {
-                new (params) SyntheticTerrainParams{};
-                if (layers) {
-                    params->layers = *layers;
-                }
-            },
-            "layers"_a = nb::none())
-        .def_rw("layers", &SyntheticTerrainParams::layers)
-        .def(nb::self == nb::self);
-
     m.attr("MAX_NOISE_LAYERS") = kMaxNoiseLayers;
     m.def("validate_noise_layer", &ValidateNoiseLayer, "layer"_a,
           "Raise ValueError if the layer is unusable.");
-    m.def("validate_synthetic_terrain", &ValidateSyntheticTerrain, "params"_a,
-          "Raise ValueError if the terrain parameters are unusable.");
+}
+
+void BindLayerEvaluation(nb::module_& m) {
     m.def(
         "evaluate_noise_layers",
         [](const InputArray& x, const InputArray& y, const SyntheticTerrainParams& params) {
@@ -258,43 +270,26 @@ void BindLayers(nb::module_& m) {
             });
         },
         "x"_a, "y"_a, "params"_a, "Height in metres of the layer stack at each world position.");
-    m.def("fill_synthetic_terrain", &FillSyntheticTerrain, "raster"_a, "params"_a,
-          nb::call_guard<nb::gil_scoped_release>(),
-          "Set every cell of `raster` to the synthetic terrain height at its centre.");
-    m.def("generate_synthetic_terrain", &GenerateSyntheticTerrain, "width"_a, "height"_a,
-          "pixel_size"_a, "params"_a, nb::call_guard<nb::gil_scoped_release>(),
-          "Generate a north-up synthetic terrain centred on the world origin, with square pixels "
-          "of `pixel_size` metres.");
+    m.def(
+        "evaluate_noise_layer",
+        [](float x, float y, const NoiseLayer& layer) {
+            ValidateNoiseLayer(layer);
+            return EvaluateNoiseLayer(x, y, layer);
+        },
+        "x"_a, "y"_a, "layer"_a,
+        "The normalized value in [-1, 1] of one layer at world position (x, y), before amplitude "
+        "and blending.");
+    m.def(
+        "domain_warp2",
+        [](float x, float y, const NoiseLayer& layer) {
+            const WarpOffset2 offset = DomainWarp2(x, y, layer);
+            return nb::make_tuple(offset.dx, offset.dy);
+        },
+        "x"_a, "y"_a, "layer"_a,
+        "The domain warp offset (dx, dy) in metres a layer applies at world position (x, y).");
 }
 
-using InputArray64 = nb::ndarray<const double, nb::device::cpu, nb::c_contig>;
-
-/// `fn(x, y, z)` at each point of three float64 arrays of one shape, as float32.
-template <typename Fn>
-OutputArray Evaluate3(const InputArray64& x, const InputArray64& y, const InputArray64& z, Fn fn) {
-    if (x.ndim() != y.ndim() || x.ndim() != z.ndim() || x.size() != y.size() ||
-        x.size() != z.size()) {
-        throw std::invalid_argument("x, y and z must have the same shape");
-    }
-    std::vector<std::size_t> shape(x.ndim());
-    for (std::size_t i = 0; i < x.ndim(); ++i) {
-        if (x.shape(i) != y.shape(i) || x.shape(i) != z.shape(i)) {
-            throw std::invalid_argument("x, y and z must have the same shape");
-        }
-        shape[i] = x.shape(i);
-    }
-    float* out = nullptr;
-    OutputArray result = NewArray(shape, x.size(), out);
-    {
-        nb::gil_scoped_release release;
-        for (std::size_t i = 0; i < x.size(); ++i) {
-            out[i] = fn(x.data()[i], y.data()[i], z.data()[i]);
-        }
-    }
-    return result;
-}
-
-void BindNoise3(nb::module_& m) {
+void BindBasisNoise3(nb::module_& m) {
     m.def(
         "perlin_noise3",
         [](const InputArray64& x, const InputArray64& y, const InputArray64& z,
@@ -306,12 +301,7 @@ void BindNoise3(nb::module_& m) {
         "x"_a, "y"_a, "z"_a, "seed"_a,
         "3D improved Perlin noise in [-1, 1] at each point, in lattice units; the cell is found in "
         "double precision, so it stays exact far from the origin.");
-    m.def(
-        "perlin_noise3",
-        [](double x, double y, double z, std::uint32_t seed) {
-            return PerlinNoise3Precise(x, y, z, seed);
-        },
-        "x"_a, "y"_a, "z"_a, "seed"_a);
+    m.def("perlin_noise3", &PerlinNoise3Precise, "x"_a, "y"_a, "z"_a, "seed"_a);
     m.def(
         "value_noise3",
         [](double x, double y, double z, std::uint32_t seed) {
@@ -328,6 +318,9 @@ void BindNoise3(nb::module_& m) {
         },
         "basis"_a, "ix"_a, "iy"_a, "iz"_a, "fx"_a, "fy"_a, "fz"_a, "seed"_a,
         "One octave of 3D `basis` noise at lattice cell (ix, iy, iz) plus fraction (fx, fy, fz).");
+}
+
+void BindFractal3(nb::module_& m) {
     m.def(
         "fractal3",
         [](const InputArray64& x, const InputArray64& y, const InputArray64& z,
@@ -357,34 +350,19 @@ void BindNoise3(nb::module_& m) {
         },
         "x"_a, "y"_a, "z"_a, "params"_a,
         "Height in metres of the layer stack at each 3D world position (m).");
-    m.def(
-        "evaluate_noise_layer",
-        [](float x, float y, const NoiseLayer& layer) {
-            ValidateNoiseLayer(layer);
-            return EvaluateNoiseLayer(x, y, layer);
-        },
-        "x"_a, "y"_a, "layer"_a,
-        "The normalized value in [-1, 1] of one layer at world position (x, y), before amplitude "
-        "and blending.");
-    m.def(
-        "domain_warp2",
-        [](float x, float y, const NoiseLayer& layer) {
-            const WarpOffset2 offset = DomainWarp2(x, y, layer);
-            return nb::make_tuple(offset.dx, offset.dy);
-        },
-        "x"_a, "y"_a, "layer"_a,
-        "The domain warp offset (dx, dy) in metres a layer applies at world position (x, y).");
 }
 
 }  // namespace
 
-void BindKernels(nb::module_& m) {
+void BindNoise(nb::module_& m) {
     BindHashes(m);
     BindBasisNoise(m);
     BindEnums(m);
     BindFractal(m);
-    BindLayers(m);
-    BindNoise3(m);
+    BindNoiseLayer(m);
+    BindLayerEvaluation(m);
+    BindBasisNoise3(m);
+    BindFractal3(m);
 }
 
 }  // namespace terraingen::python

@@ -1,10 +1,13 @@
+/// @file
+/// @brief Craters, boulders and other values as NumPy columns.
 #pragma once
+
+#include "common.h"
 
 #include "terraingen/layers/boulders/boulder.h"
 #include "terraingen/layers/craters/attributes.h"
 #include "terraingen/layers/craters/population.h"
 
-#include <nanobind/nanobind.h>
 #include <nanobind/ndarray.h>
 
 #include <cstdint>
@@ -14,16 +17,14 @@
 
 namespace terraingen::python {
 
-namespace nb = nanobind;
-
-/// A NumPy array owning a copy of `values`.
+/// @brief A NumPy array owning a copy of `values`.
 template <typename T> inline nb::object Column(std::vector<T> values) {
     auto* owned = new std::vector<T>(std::move(values));
     nb::capsule owner(owned, [](void* p) noexcept { delete static_cast<std::vector<T>*>(p); });
     return nb::cast(nb::ndarray<nb::numpy, T, nb::ndim<1>>(owned->data(), {owned->size()}, owner));
 }
 
-/// The craters as NumPy columns, with their attributes when there is one per crater.
+/// @brief The craters as NumPy columns, with their attributes when there is one per crater.
 inline nb::dict CraterTable(const CraterList& craters,
                             const std::vector<CraterAttributes>& attributes = {}) {
     nb::dict table;
@@ -52,6 +53,7 @@ inline nb::dict CraterTable(const CraterList& craters,
     return table;
 }
 
+/// @brief The boulders as NumPy columns.
 inline nb::dict BoulderTable(const std::vector<Boulder>& boulders) {
     std::vector<double> x, y, ground, diameter, height, burial, yaw, lean;
     std::vector<std::uint64_t> id;

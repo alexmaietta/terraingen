@@ -1,48 +1,47 @@
+/// @file
+/// @brief Bindings of the random module: Philox, random streams, samplers and value
+/// distributions.
 #include "bindings.h"
+#include "common.h"
 
 #include "terraingen/noise/kernels/philox.h"
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"
+#include "terraingen/random/value_distribution.h"
 
 #include <nanobind/ndarray.h>
-#include <nanobind/stl/optional.h>
-#include <nanobind/stl/vector.h>
 
-#include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <vector>
-
-namespace nb = nanobind;
-using namespace nb::literals;
 
 namespace terraingen::python {
 
 namespace {
 
-template <typename T> nb::ndarray<nb::numpy, T> NewArray(std::size_t count, T*& data) {
-    data = new T[count];
+/// @brief `count` values of `draw()` as a NumPy array.
+template <typename T, typename Draw>
+nb::ndarray<nb::numpy, T> DrawArray(std::size_t count, Draw draw) {
+    T* data = new T[count];
     nb::capsule owner(data, [](void* p) noexcept { delete[] static_cast<T*>(p); });
+    for (std::size_t i = 0; i < count; ++i) {
+        data[i] = static_cast<T>(draw());
+    }
     const std::size_t shape[1] = {count};
     return nb::ndarray<nb::numpy, T>(data, 1, shape, owner);
 }
 
+/// @brief One value of `draw()`, or an array of `count` of them.
 template <typename T, typename Draw>
 nb::object Sample(std::optional<std::size_t> count, Draw draw) {
     if (!count) {
         return nb::cast(draw());
     }
-    T* data = nullptr;
-    auto array = NewArray<T>(*count, data);
-    for (std::size_t i = 0; i < *count; ++i) {
-        data[i] = static_cast<T>(draw());
-    }
-    return nb::cast(array);
+    return nb::cast(DrawArray<T>(*count, draw));
 }
 
-}  // namespace
-
-void BindRandom(nb::module_& m) {
+void BindStream(nb::module_& m) {
     m.def(
         "philox4x32",
         [](std::uint32_t c0, std::uint32_t c1, std::uint32_t c2, std::uint32_t c3, std::uint32_t k0,
@@ -52,7 +51,6 @@ void BindRandom(nb::module_& m) {
         },
         "c0"_a, "c1"_a, "c2"_a, "c3"_a, "k0"_a, "k1"_a,
         "Philox4x32-10 (Salmon et al. 2011) of a 128-bit counter and 64-bit key, as four words.");
-
     nb::class_<RandomStream>(m, "RandomStream",
                              "Counter-based random stream on Philox4x32-10. The key is (seed, "
                              "stream); a, b and c address an independent substream, such as a "
@@ -66,27 +64,19 @@ void BindRandom(nb::module_& m) {
              "Uniform float64 in (0, 1].")
         .def(
             "u32s",
-            [](RandomStream& stream, std::size_t count) {
-                std::uint32_t* data = nullptr;
-                auto array = NewArray<std::uint32_t>(count, data);
-                for (std::size_t i = 0; i < count; ++i) {
-                    data[i] = stream.NextU32();
-                }
-                return array;
+            [](RandomStream& s, std::size_t count) {
+                return DrawArray<std::uint32_t>(count, [&] { return s.NextU32(); });
             },
             "count"_a, "The next `count` 32-bit words as a NumPy array.")
         .def(
             "doubles",
-            [](RandomStream& stream, std::size_t count) {
-                double* data = nullptr;
-                auto array = NewArray<double>(count, data);
-                for (std::size_t i = 0; i < count; ++i) {
-                    data[i] = stream.NextDouble();
-                }
-                return array;
+            [](RandomStream& s, std::size_t count) {
+                return DrawArray<double>(count, [&] { return s.NextDouble(); });
             },
             "count"_a, "The next `count` uniform float64 values in [0, 1) as a NumPy array.");
+}
 
+void BindSamplers(nb::module_& m) {
     m.def(
         "sample_poisson",
         [](RandomStream& stream, double mean, std::optional<std::size_t> count) {
@@ -117,7 +107,6 @@ void BindRandom(nb::module_& m) {
         },
         "stream"_a, "mean"_a, "sigma"_a, "count"_a = nb::none(),
         "Normal sample via the Box-Muller transform.");
-
     nb::class_<TabulatedDistribution>(m, "TabulatedDistribution",
                                       "Distribution given as a piecewise-linear CDF, sampled by "
                                       "inversion.")
@@ -130,6 +119,42 @@ void BindRandom(nb::module_& m) {
                 return Sample<double>(count, [&] { return table.Sample(stream); });
             },
             "stream"_a, "count"_a = nb::none());
+}
+
+void BindValueDistribution(nb::module_& m) {
+    nb::enum_<ValueDistribution::Kind>(m, "ValueDistributionKind")
+        .value("CONSTANT", ValueDistribution::Kind::Constant)
+        .value("UNIFORM", ValueDistribution::Kind::Uniform)
+        .value("NORMAL", ValueDistribution::Kind::Normal)
+        .value("LOG_NORMAL", ValueDistribution::Kind::LogNormal);
+    nb::class_<ValueDistribution>(
+        m, "ValueDistribution",
+        "A random value: constant `a`, uniform from `a` to `b`, normal or log-normal with mean "
+        "`a` and deviation `b`, clipped to [min, max].")
+        .def(
+            "__init__",
+            [](ValueDistribution* self, ValueDistribution::Kind kind, double a, double b,
+               std::optional<double> min, std::optional<double> max) {
+                new (self) ValueDistribution{
+                    kind, a, b, min.value_or(-std::numeric_limits<double>::infinity()), Bound(max)};
+            },
+            "kind"_a = ValueDistribution::Kind::Constant, "a"_a = 0.0, "b"_a = 0.0,
+            "min"_a = nb::none(), "max"_a = nb::none())
+        .def_rw("kind", &ValueDistribution::kind)
+        .def_rw("a", &ValueDistribution::a)
+        .def_rw("b", &ValueDistribution::b)
+        .def_rw("min", &ValueDistribution::min)
+        .def_rw("max", &ValueDistribution::max);
+    m.def("validate_value_distribution", &ValidateValueDistribution, "distribution"_a,
+          kValidateDoc);
+}
+
+}  // namespace
+
+void BindRandom(nb::module_& m) {
+    BindStream(m);
+    BindSamplers(m);
+    BindValueDistribution(m);
 }
 
 }  // namespace terraingen::python

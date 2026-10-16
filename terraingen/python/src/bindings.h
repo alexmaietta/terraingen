@@ -1,20 +1,27 @@
+/// @file
+/// @brief The binding function of each library module, called in dependency order by the
+/// extension module.
 #pragma once
 
 #include <nanobind/nanobind.h>
 
 namespace terraingen::python {
 
-void BindCore(nanobind::module_& m);
-void BindKernels(nanobind::module_& m);
-void BindLog(nanobind::module_& m);
-void BindPipeline(nanobind::module_& m);
+void BindUtil(nanobind::module_& m);
+void BindRaster(nanobind::module_& m);
+void BindNoise(nanobind::module_& m);
 void BindRandom(nanobind::module_& m);
-void BindGeometry(nanobind::module_& m);
-void BindModels(nanobind::module_& m);
-void BindTerrain(nanobind::module_& m);
-void BindAlbedo(nanobind::module_& m);
-void BindRasterIo(nanobind::module_& m);
-void BindFeatures(nanobind::module_& m);
 void BindGpu(nanobind::module_& m);
+void BindMeshes(nanobind::module_& m);
+void BindDistribution(nanobind::module_& m);
+void BindCraterModels(nanobind::module_& m);
+void BindSources(nanobind::module_& m);
+void BindLayers(nanobind::module_& m);
+void BindCraters(nanobind::module_& m);
+void BindBoulders(nanobind::module_& m);
+void BindFilters(nanobind::module_& m);
+void BindAlbedo(nanobind::module_& m);
+void BindBodies(nanobind::module_& m);
+void BindPipeline(nanobind::module_& m);
 
 }  // namespace terraingen::python

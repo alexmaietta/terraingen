@@ -4,19 +4,23 @@ nanobind_add_module(
     _terraingen
     STABLE_ABI
     NB_STATIC
-    src/log.cpp
     src/module.cpp
-    src/core.cpp
-    src/kernels.cpp
-    src/pipeline.cpp
-    src/terrain.cpp
-    src/models.cpp
-    src/albedo.cpp
+    src/util.cpp
     src/raster.cpp
-    src/geometry.cpp
-    src/features.cpp
+    src/noise.cpp
+    src/random.cpp
     src/gpu.cpp
-    src/random.cpp)
+    src/meshes.cpp
+    src/distribution.cpp
+    src/crater_models.cpp
+    src/sources.cpp
+    src/layers.cpp
+    src/craters.cpp
+    src/boulders.cpp
+    src/filters.cpp
+    src/albedo.cpp
+    src/bodies.cpp
+    src/pipeline.cpp)
 target_link_libraries(_terraingen PRIVATE terraingen::terraingen terraingen_warnings
                                           terraingen_coverage)
 target_include_directories(_terraingen SYSTEM PRIVATE "${NB_DIR}/include" ${Python_INCLUDE_DIRS})

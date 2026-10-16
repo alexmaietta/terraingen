@@ -1,0 +1,315 @@
+/// @file
+/// @brief Bindings of the crater models: ages, degradation and profiles, and the base classes
+/// Python can extend.
+#include "bindings.h"
+#include "common.h"
+#include "trampolines.h"
+
+#include "terraingen/bodies/moon/craters.h"
+#include "terraingen/layers/craters/ages/age_model.h"
+#include "terraingen/layers/craters/ages/fresh.h"
+#include "terraingen/layers/craters/ages/uniform.h"
+#include "terraingen/layers/craters/crater_layer.h"
+#include "terraingen/layers/craters/degradation/diffusion.h"
+#include "terraingen/layers/craters/degradation/freshness.h"
+#include "terraingen/layers/craters/degradation/none.h"
+#include "terraingen/layers/craters/profiles/complex.h"
+#include "terraingen/layers/craters/profiles/fassett_thomson.h"
+#include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
+#include "terraingen/random/stream.h"
+
+#include <optional>
+#include <utility>
+
+namespace terraingen::python {
+
+namespace {
+
+/// @brief An age uniform over a crater's lifetime, as Python age models default to.
+double UniformAgeGyr(RandomStream& random, double lifetimeGyr) {
+    return lifetimeGyr * random.NextDouble();
+}
+
+/// @brief A crater age model written in Python: `lifetime_at(diameter)` is required; without
+/// `sample_age_at(random, diameter, lifetime_gyr)`, ages are uniform over the lifetime.
+class PyCraterAgeModel : public CraterAgeModel {
+  public:
+    NB_TRAMPOLINE(CraterAgeModel);
+
+  protected:
+    double LifetimeAt(double diameter) const override {
+        NB_OVERRIDE_PURE_NAME("lifetime_at", LifetimeAt, diameter);
+    }
+
+    double SampleAgeAt(RandomStream& random, double diameter, double lifetimeGyr) const override {
+        return CallOverride<double>(nb_trampoline, "sample_age_at",
+                                    ByReference<RandomStream>{random}, diameter, lifetimeGyr)
+            .value_or(UniformAgeGyr(random, lifetimeGyr));
+    }
+};
+
+/// @brief A degradation model written in Python: `state(crater)` returns a `CraterState`.
+class PyDegradationModel : public DegradationModel {
+  public:
+    NB_TRAMPOLINE(DegradationModel);
+
+    CraterState State(const Crater& crater) const override {
+        NB_OVERRIDE_PURE_NAME("state", State, crater);
+    }
+};
+
+/// @brief A crater profile written in Python: `height(distance, diameter, state)` and
+/// `reach_radii()` are required; `is_complex(diameter)` is False unless overridden.
+class PyCraterProfile : public CraterProfile {
+  public:
+    NB_TRAMPOLINE(CraterProfile);
+
+    double Height(double distance, double diameter, const CraterState& state) const override {
+        NB_OVERRIDE_PURE_NAME("height", Height, distance, diameter, state);
+    }
+
+    double ReachRadii() const override {
+        NB_OVERRIDE_PURE_NAME("reach_radii", ReachRadii);
+    }
+
+    bool IsComplex(double diameter) const override {
+        NB_OVERRIDE_NAME("is_complex", IsComplex, diameter);
+    }
+};
+
+/// @brief `fresh`, or the lunar fresh crater shape without one.
+FreshMorphometry FreshOf(std::optional<FreshMorphometry> fresh) {
+    return fresh ? *fresh : FreshMorphometry(LunarFreshCraterMorphometry);
+}
+
+void BindAges(nb::module_& m) {
+    nb::class_<CraterAgeModel, PyCraterAgeModel>(
+        m, "CraterAgeModel",
+        "How old craters are: each has a lifetime by size and an age drawn within it. Subclass "
+        "it and implement `lifetime_at(diameter)`, and optionally `sample_age_at(random, "
+        "diameter, lifetime_gyr)` (uniform over the lifetime otherwise).")
+        .def(nb::init<>())
+        .def("lifetime_at", &CraterAgeModel::LifetimeGyr, "diameter"_a,
+             "The lifetime (Gyr) of a crater `diameter` across; override it.")
+        .def(
+            "sample_age_at",
+            [](const CraterAgeModel& /*model*/, RandomStream& random, double /*diameter*/,
+               double lifetimeGyr) { return UniformAgeGyr(random, lifetimeGyr); },
+            "random"_a, "diameter"_a, "lifetime_gyr"_a,
+            "An age (Gyr) within the lifetime; uniform unless overridden.")
+        .def("lifetime_gyr", &CraterAgeModel::LifetimeGyr, "diameter"_a)
+        .def("sample_age_gyr", &CraterAgeModel::SampleAgeGyr, "random"_a, "diameter"_a)
+        .def("remaining_lifetime", &CraterAgeModel::RemainingLifetime, "diameter"_a, "age_gyr"_a,
+             "The share of a crater's lifetime left: 1 for a new crater, falling to 0 at the end "
+             "of its lifetime.");
+    nb::class_<FreshAges, CraterAgeModel>(m, "FreshAges", "Every crater is new (age 0).")
+        .def(nb::init<>());
+    nb::class_<UniformAges, CraterAgeModel>(
+        m, "UniformAges", "Ages uniform over a lifetime of `lifetime_gyr`, whatever the size.")
+        .def(nb::init<double>(), "lifetime_gyr"_a);
+}
+
+void BindCraterState(nb::module_& m) {
+    nb::class_<CraterMorphometry>(m, "CraterMorphometry",
+                                  "A crater's depth and rim height, each over its diameter.")
+        .def(
+            "__init__",
+            [](CraterMorphometry* self, double depthRatio, double rimHeightRatio) {
+                new (self) CraterMorphometry{depthRatio, rimHeightRatio};
+            },
+            "depth_ratio"_a = 0.0, "rim_height_ratio"_a = 0.0)
+        .def_rw("depth_ratio", &CraterMorphometry::depthRatio)
+        .def_rw("rim_height_ratio", &CraterMorphometry::rimHeightRatio);
+    nb::class_<CraterState>(m, "CraterState",
+                            "A crater's shape when fresh and now, and how far diffusion has "
+                            "smoothed it.")
+        .def(
+            "__init__",
+            [](CraterState* self, CraterMorphometry fresh, CraterMorphometry current,
+               double diffusion) { new (self) CraterState{fresh, current, diffusion}; },
+            "fresh"_a = CraterMorphometry{}, "current"_a = CraterMorphometry{}, "diffusion"_a = 0.0)
+        .def_rw("fresh", &CraterState::fresh)
+        .def_rw("current", &CraterState::current)
+        .def_rw("diffusion", &CraterState::diffusion)
+        .def_prop_ro("freshness", &CraterState::Freshness,
+                     "The depth now over the depth when fresh; 1 for a fresh crater.");
+}
+
+void BindDegradationModels(nb::module_& m) {
+    nb::class_<DegradationModel, PyDegradationModel>(
+        m, "DegradationModel",
+        "How a crater's shape changes with age. Subclass it and implement `state(crater)`, "
+        "returning a CraterState, for a model of your own.")
+        .def(nb::init<>())
+        .def("state", &DegradationModel::State, "crater"_a);
+    nb::class_<NoDegradation, DegradationModel>(
+        m, "NoDegradation",
+        "Craters keep their fresh shape (`fresh`, a function of diameter giving a "
+        "CraterMorphometry, lunar by default), or a fixed `depth_ratio`.")
+        .def(
+            "__init__",
+            [](NoDegradation* self, std::optional<double> depthRatio,
+               std::optional<FreshMorphometry> fresh) {
+                new (self) NoDegradation(FreshOf(std::move(fresh)), depthRatio);
+            },
+            "depth_ratio"_a = nb::none(), "fresh"_a = nb::none());
+    nb::class_<FreshnessDegradation, DegradationModel>(
+        m, "FreshnessDegradation",
+        "Craters shallow from their fresh shape with their freshness under `ages`, down to "
+        "`cutoff_depth_ratio`.")
+        .def(
+            "__init__",
+            [](FreshnessDegradation* self, std::shared_ptr<CraterAgeModel> ages,
+               double cutoffDepthRatio, std::optional<FreshMorphometry> fresh) {
+                new (self) FreshnessDegradation(std::move(ages), FreshOf(std::move(fresh)),
+                                                cutoffDepthRatio);
+            },
+            "ages"_a, "cutoff_depth_ratio"_a = 0.04, "fresh"_a = nb::none());
+}
+
+void BindDiffusion(nb::module_& m) {
+    auto lawClass = nb::class_<PowerLawDiffusivity>(
+        m, "PowerLawDiffusivity",
+        "Topographic diffusivity coefficient * D^exponent (m^2 per Myr, D in km), no less than "
+        "at `min_diameter` metres; called with (diameter, age_gyr) it gives the diffusion "
+        "length squared, in m^2.");
+    BindKwargsInit<PowerLawDiffusivity>(lawClass);
+    lawClass.def_rw("coefficient", &PowerLawDiffusivity::coefficient)
+        .def_rw("exponent", &PowerLawDiffusivity::exponent)
+        .def_rw("min_diameter", &PowerLawDiffusivity::minDiameter)
+        .def("diffusivity", &PowerLawDiffusivity::Diffusivity, "diameter"_a)
+        .def("__call__", &PowerLawDiffusivity::operator(), "diameter"_a, "age_gyr"_a);
+    m.def("validate_power_law_diffusivity", &ValidatePowerLawDiffusivity, "law"_a, kValidateDoc);
+    nb::class_<DiffusionDegradation, DegradationModel>(
+        m, "DiffusionDegradation",
+        "Craters smoothed by topographic diffusion over their age (Fassett and Thomson 2014): "
+        "`diffusivity` gives each crater's diffusion length squared (m^2) from its diameter and "
+        "age, as PowerLawDiffusivity does, and `profile` the diffused shape.")
+        .def(
+            "__init__",
+            [](DiffusionDegradation* self, DiffusionAgeModel diffusivity,
+               std::shared_ptr<DiffusedProfile> profile, std::optional<FreshMorphometry> fresh) {
+                new (self) DiffusionDegradation(FreshOf(std::move(fresh)), std::move(diffusivity),
+                                                std::move(profile));
+            },
+            "diffusivity"_a, "profile"_a, "fresh"_a = nb::none())
+        .def(
+            "__init__",
+            [](DiffusionDegradation* self, const PowerLawDiffusivity& diffusivity,
+               std::shared_ptr<DiffusedProfile> profile, std::optional<FreshMorphometry> fresh) {
+                new (self) DiffusionDegradation(FreshOf(std::move(fresh)), diffusivity,
+                                                std::move(profile));
+            },
+            "diffusivity"_a, "profile"_a, "fresh"_a = nb::none());
+}
+
+void BindSimpleProfiles(nb::module_& m) {
+    nb::class_<CraterProfile, PyCraterProfile>(
+        m, "CraterProfile",
+        "A crater's height relative to the surrounding surface at `distance` metres from its "
+        "centre. Subclass it and implement `height(distance, diameter, state)` and "
+        "`reach_radii()` (how far, in radii, it changes the terrain), and optionally "
+        "`is_complex(diameter)`. A Python profile is called for every sample near every crater, "
+        "from every evaluation thread, and Python calls take turns on the GIL, so evaluate "
+        "terrains with one on one thread (`threads=1`).")
+        .def(nb::init<>())
+        .def("height", &CraterProfile::Height, "distance"_a, "diameter"_a, "state"_a)
+        .def("reach_radii", &CraterProfile::ReachRadii)
+        .def("is_complex", &CraterProfile::IsComplex, "diameter"_a);
+    nb::enum_<FassettThomsonRim>(m, "FassettThomsonRim", "How the Fassett and Thomson rim is fit.")
+        .value("ORIGINAL", FassettThomsonRim::Original)
+        .value("AT_ONE_RADIUS", FassettThomsonRim::AtOneRadius)
+        .value("PLATEAU", FassettThomsonRim::Plateau);
+    nb::class_<FassettThomsonProfile, CraterProfile>(
+        m, "FassettThomsonProfile",
+        "The fresh simple-crater profile of Fassett and Thomson (2014).")
+        .def(nb::init<FassettThomsonRim>(), "rim"_a = FassettThomsonRim::Original);
+    nb::class_<MartinParkesDunstanProfile, CraterProfile>(
+        m, "MartinParkesDunstanProfile",
+        "Martin, Parkes and Dunstan's profile, whose rounded rim lowers as the crater degrades.")
+        .def(nb::init<>());
+}
+
+void BindComplexShape(nb::module_& m) {
+    nb::class_<KilometrePowerLaw>(m, "KilometrePowerLaw",
+                                  "coefficient * D^exponent with D in kilometres.")
+        .def(
+            "__init__",
+            [](KilometrePowerLaw* self, double coefficient, double exponent) {
+                new (self) KilometrePowerLaw{coefficient, exponent};
+            },
+            "coefficient"_a = 0.0, "exponent"_a = 0.0)
+        .def_rw("coefficient", &KilometrePowerLaw::coefficient)
+        .def_rw("exponent", &KilometrePowerLaw::exponent);
+    auto shape = nb::class_<ComplexCraterShape>(
+        m, "ComplexCraterShape",
+        "Where craters turn complex and how their floors and central peaks scale.");
+    BindKwargsInit<ComplexCraterShape>(shape);
+    shape.def_rw("transition_diameter", &ComplexCraterShape::transitionDiameter)
+        .def_rw("floor_diameter", &ComplexCraterShape::floorDiameter)
+        .def_rw("peak_height", &ComplexCraterShape::peakHeight)
+        .def_rw("peak_volume", &ComplexCraterShape::peakVolume)
+        .def_rw("peak_diameter", &ComplexCraterShape::peakDiameter)
+        .def_rw("peak_fit_max_diameter", &ComplexCraterShape::peakFitMaxDiameter)
+        .def_rw("ejecta_exponent", &ComplexCraterShape::ejectaExponent)
+        .def_rw("reach_radii", &ComplexCraterShape::reachRadii);
+    m.def("validate_complex_crater_shape", &ValidateComplexCraterShape, "shape"_a, kValidateDoc);
+}
+
+void BindCompositeProfiles(nb::module_& m) {
+    nb::class_<ComplexCraterProfile, CraterProfile>(
+        m, "ComplexCraterProfile",
+        "`simple` below `shape.transition_diameter`; above it a flat floor and a central peak.")
+        .def(
+            "__init__",
+            [](ComplexCraterProfile* self, std::shared_ptr<CraterProfile> simple,
+               ComplexCraterShape shape) {
+                new (self) ComplexCraterProfile(std::move(simple), std::move(shape));
+            },
+            "simple"_a, "shape"_a)
+        .def_prop_ro("shape", &ComplexCraterProfile::Shape);
+    nb::class_<DiffusedProfile, CraterProfile>(
+        m, "DiffusedProfile",
+        "`fresh` smoothed by topographic diffusion, tabulated by the diffusion time over the "
+        "diameter squared; used with DiffusionDegradation.")
+        .def(
+            "__init__",
+            [](DiffusedProfile* self, std::shared_ptr<CraterProfile> fresh, double reachRadii,
+               std::size_t cells) {
+                new (self) DiffusedProfile(std::move(fresh), reachRadii, cells);
+            },
+            "fresh"_a, "reach_radii"_a = 3.0, "cells"_a = 600);
+}
+
+void BindCraterModelSet(nb::module_& m) {
+    nb::class_<CraterModels>(m, "CraterModels",
+                             "The models a crater layer draws and shapes craters with.")
+        .def(
+            "__init__",
+            [](CraterModels* self, std::shared_ptr<SizeFrequencyDistribution> density,
+               std::shared_ptr<CraterAgeModel> ages, std::shared_ptr<DegradationModel> degradation,
+               std::shared_ptr<CraterProfile> profile) {
+                new (self) CraterModels{std::move(density), std::move(ages), std::move(degradation),
+                                        std::move(profile)};
+            },
+            "density"_a, "ages"_a, "degradation"_a, "profile"_a)
+        .def_prop_ro("density", [](const CraterModels& c) { return Mutable(c.density); })
+        .def_prop_ro("ages", [](const CraterModels& c) { return Mutable(c.ages); })
+        .def_prop_ro("degradation", [](const CraterModels& c) { return Mutable(c.degradation); })
+        .def_prop_ro("profile", [](const CraterModels& c) { return Mutable(c.profile); });
+}
+
+}  // namespace
+
+void BindCraterModels(nb::module_& m) {
+    BindAges(m);
+    BindCraterState(m);
+    BindDegradationModels(m);
+    BindSimpleProfiles(m);
+    BindComplexShape(m);
+    BindCompositeProfiles(m);
+    BindDiffusion(m);
+    BindCraterModelSet(m);
+}
+
+}  // namespace terraingen::python

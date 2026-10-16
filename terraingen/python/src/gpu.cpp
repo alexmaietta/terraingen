@@ -1,14 +1,11 @@
+/// @file
+/// @brief Bindings of the gpu module: choosing where evaluation runs.
 #include "bindings.h"
+#include "common.h"
 
 #include "terraingen/gpu/backend.h"
 
-#include <nanobind/stl/optional.h>
-#include <nanobind/stl/string.h>
-#include <nanobind/stl/string_view.h>
-#include <nanobind/stl/vector.h>
-
-namespace nb = nanobind;
-using namespace nb::literals;
+#include <string>
 
 namespace terraingen::python {
 
