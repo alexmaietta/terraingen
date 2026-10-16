@@ -10,7 +10,7 @@
 
 namespace {
 
-using Json = nlohmann::json;
+using Json = terraingen::gui::ConfigEditor::Json;
 using terraingen::gui::ConfigEditor;
 
 /// An ImGui context without a window or renderer, for drawing widgets in tests.

@@ -21,7 +21,7 @@ namespace terraingen::gui {
 
 namespace {
 
-using Json = nlohmann::json;
+using Json = ConfigEditor::Json;
 
 /// Lucide glyphs (private-use codepoints of the icon font Ernie's viewer loads), as UTF-8.
 constexpr const char* kGlyphPlus = "\xee\x84\xbd";

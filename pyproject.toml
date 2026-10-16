@@ -5,11 +5,11 @@ build-backend = "scikit_build_core.build"
 [project]
 name = "terraingen"
 dynamic = ["version"]
-description = "Scientific terrain generation for the lunar surface"
+description = "Scientific terrain generation for planetary surfaces"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [{ name = "Alex Maietta" }]
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = ["numpy>=1.22"]
 keywords = ["terrain", "moon", "mars", "craters", "planetary science", "simulation"]
 classifiers = [
@@ -50,7 +50,10 @@ regex = 'set\(TERRAINGEN_FULL_VERSION "(?P<value>\d+\.\d+\.\d+(\.dev\d+)?)"\)'
 [tool.ruff]
 line-length = 110
 target-version = "py312"
-extend-exclude = ["terraingen/python/terraingen/", "third_party/"]
+extend-exclude = ["third_party/"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/python"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
@@ -61,7 +64,6 @@ ignore = ["E501"]
 TERRAINGEN_BUILD_PYTHON = "ON"
 TERRAINGEN_BUILD_TESTS = "OFF"
 TERRAINGEN_BUILD_BENCHMARKS = "OFF"
-TERRAINGEN_BUILD_DEMOS = "OFF"
 TERRAINGEN_BUILD_APP = "ON"
 TERRAINGEN_BUILD_GUI = "OFF"
 TERRAINGEN_INSTALL = "OFF"

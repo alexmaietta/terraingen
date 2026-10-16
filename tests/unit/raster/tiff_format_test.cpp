@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <cstring>
 #include <vector>
 
 using terraingen::GeoTransform;
@@ -73,4 +74,20 @@ TEST(TiffCodecs, LzwWidthGrowsOneCodeEarlyUpToTwelveBits) {
     EXPECT_EQ(LzwNextWidth(512, 9), 10);
     EXPECT_EQ(LzwNextWidth(1024, 10), 11);
     EXPECT_EQ(LzwNextWidth(4096, 12), 12);
+}
+
+TEST(TiffCodecs, FloatPredictorRoundTripsAndGroupsBytePlanes) {
+    const std::vector<float> samples{1.5f, -2.25f, 1e6f, 0.0f, 3.0f, 3.0f};
+    for (const std::size_t stride : {1u, 2u}) {
+        std::vector<std::uint8_t> row(samples.size() * 4);
+        std::memcpy(row.data(), samples.data(), row.size());
+        const std::vector<std::uint8_t> original = row;
+        terraingen::detail::EncodeFloatPredictorRow(row.data(), 4, samples.size(), stride);
+        EXPECT_NE(row, original);
+        if (stride == 1) {
+            EXPECT_EQ(row[0], original[3]) << "the first plane holds the most significant bytes";
+        }
+        terraingen::detail::DecodeFloatPredictorRow(row.data(), 4, samples.size(), stride);
+        EXPECT_EQ(row, original);
+    }
 }

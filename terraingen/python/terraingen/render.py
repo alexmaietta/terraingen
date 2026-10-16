@@ -31,9 +31,7 @@ def _ernie():
     try:
         import ernie
     except ImportError as error:
-        raise ImportError(
-            "terraingen.render needs the ernie module, built from an Ernie checkout"
-        ) from error
+        raise ImportError("terraingen.render needs the ernie module, built from an Ernie checkout") from error
     return ernie
 
 
@@ -132,12 +130,12 @@ def frame_terrain(
     ernie = _ernie()
     tokens = ernie.tokens
     low, high = terrain_bounds(raster, exaggeration)
-    centre = tuple(0.5 * (a + b) for a, b in zip(low, high))
+    centre = tuple(0.5 * (a + b) for a, b in zip(low, high, strict=True))
     radius = 0.5 * math.dist(low, high)
     half_fov = math.radians(vertical_fov_deg) / 2.0
     distance = max(radius * margin / math.sin(half_fov), 1e-3)
     back = direction(azimuth_deg, elevation_deg)
-    eye = tuple(c + distance * d for c, d in zip(centre, back))
+    eye = tuple(c + distance * d for c, d in zip(centre, back, strict=True))
     up = (0.0, 0.0, 1.0) if abs(back[2]) < 0.999 else (0.0, 1.0, 0.0)
     focal = 50.0
     return (

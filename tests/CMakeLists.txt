@@ -25,8 +25,7 @@ if(TERRAINGEN_COVERAGE)
     add_custom_target(
         coverage
         COMMAND ${CMAKE_COMMAND} -E make_directory "${report_dir}"
-        COMMAND ${CMAKE_CTEST_COMMAND} --test-dir "${PROJECT_BINARY_DIR}" --output-on-failure -LE
-                validation
+        COMMAND ${CMAKE_CTEST_COMMAND} --test-dir "${PROJECT_BINARY_DIR}" --output-on-failure
         COMMAND
             "${GCOVR_EXECUTABLE}" --root "${PROJECT_SOURCE_DIR}" --gcov-executable "${gcov_command}"
             --filter "${PROJECT_SOURCE_DIR}/terraingen/" --gcov-exclude ".*build_info.*"

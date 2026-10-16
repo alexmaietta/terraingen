@@ -25,7 +25,7 @@ namespace terraingen::gui {
 /// opened.
 class ConfigEditor {
   public:
-    using Json = nlohmann::json;
+    using Json = nlohmann::ordered_json;  ///< Keeps the keys in the order the file has them.
 
     /// @brief Loads the configuration's schema.
     ConfigEditor();

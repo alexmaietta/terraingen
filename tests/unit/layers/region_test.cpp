@@ -187,3 +187,19 @@ TEST(RegionLayer, RejectsInvalidSettings) {
     EXPECT_THROW(RegionLayer(inner, RegionShape{}, std::nan("")), std::invalid_argument);
     EXPECT_EQ(RegionLayer(ManualCraters(), RegionShape{}).MaxFeatureDiameter(), 8.0);
 }
+
+TEST(RegionLayer, KeepsTheBoulderModelsCentredInTheRegion) {
+    terraingen::BoulderLayerOptions options;
+    options.sizes.minDiameter = 1.0;
+    options.sizes.coverage = 0.3;
+    options.rendering.models.minDiameter = 1.0;
+    terraingen::TerrainFeatures features;
+    auto heights = Slope();
+    RegionLayer(std::make_shared<terraingen::BoulderLayer>(options),
+                RegionShape::Circle({0.0, 0.0}, 20.0))
+        .Apply(heights, {}, features);
+    ASSERT_FALSE(features.boulderModels.empty());
+    for (const auto& model : features.boulderModels) {
+        EXPECT_LE(std::hypot(model.boulder.x, model.boulder.y), 20.0);
+    }
+}

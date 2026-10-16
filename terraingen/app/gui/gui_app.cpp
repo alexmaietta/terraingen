@@ -109,7 +109,7 @@ struct GuiApp::State {
     std::optional<ernie::app::Viewer> viewer;
     unsigned threads = 0;
     std::string config = kStarterConfig;  ///< The configuration as text, as the JSON tab shows.
-    nlohmann::json document;              ///< `config` parsed, as the Editor tab edits it.
+    nlohmann::ordered_json document;      ///< `config` parsed, keys in file order.
     std::string parseError;               ///< Why `config` does not parse; empty when it does.
     ConfigEditor editor;
     std::filesystem::path configFile;  ///< The file the editor's configuration came from.
@@ -128,7 +128,7 @@ struct GuiApp::State {
     /// Parses `config` into `document`, keeping the last good document when it does not parse.
     void ParseText() {
         try {
-            document = nlohmann::json::parse(config);
+            document = nlohmann::ordered_json::parse(config);
             parseError.clear();
         } catch (const nlohmann::json::exception& error) {
             parseError = error.what();
@@ -328,7 +328,7 @@ void GuiApp::SetConfigText(std::string json) {
     state_->ParseText();
 }
 
-const nlohmann::json& GuiApp::ConfigDocument() const {
+const nlohmann::ordered_json& GuiApp::ConfigDocument() const {
     return state_->document;
 }
 
@@ -348,7 +348,7 @@ void GuiApp::SetLive(bool live) {
     state_->live = live;
 }
 
-void GuiApp::EditConfig(const std::function<void(nlohmann::json&)>& edit) {
+void GuiApp::EditConfig(const std::function<void(nlohmann::ordered_json&)>& edit) {
     State& s = *state_;
     edit(s.document);
     s.config = s.document.dump(4) + "\n";

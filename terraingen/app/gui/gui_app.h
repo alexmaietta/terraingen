@@ -100,7 +100,7 @@ class GuiApp {
 
     /// @brief The configuration as the outliner and inspector edit it: the last text that parsed.
     /// @return The parsed document.
-    const nlohmann::json& ConfigDocument() const;
+    const nlohmann::ordered_json& ConfigDocument() const;
 
     /// @brief Why `ConfigText()` does not parse as JSON.
     /// @return The parse error; empty when the text parses.
@@ -109,7 +109,7 @@ class GuiApp {
     /// @brief Edits the configuration as the outliner and inspector do: the text follows the
     /// document, and with `Live` a generation starts shortly after.
     /// @param edit Changes the document.
-    void EditConfig(const std::function<void(nlohmann::json&)>& edit);
+    void EditConfig(const std::function<void(nlohmann::ordered_json&)>& edit);
 
     /// @brief The outliner's and inspector's editor.
     /// @return The editor.

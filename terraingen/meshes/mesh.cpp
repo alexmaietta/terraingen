@@ -29,22 +29,33 @@ namespace {
 
 /// Twice the area-weighted normal of triangle `t`.
 Vec3d AreaNormal(const TriangleMesh& mesh, const std::array<std::uint32_t, 3>& t) {
-    const Vec3d& a = mesh.positions.at(t[0]);
-    return Cross(mesh.positions.at(t[1]) - a, mesh.positions.at(t[2]) - a);
+    const Vec3d& a = mesh.positions[t[0]];
+    return Cross(mesh.positions[t[1]] - a, mesh.positions[t[2]] - a);
 }
 
 }  // namespace
 
+void ValidateMesh(const TriangleMesh& mesh) {
+    for (const auto& t : mesh.triangles) {
+        for (const std::uint32_t v : t) {
+            if (v >= mesh.positions.size()) {
+                throw std::invalid_argument("A triangle indexes past the mesh's vertices");
+            }
+        }
+    }
+}
+
 double Volume(const TriangleMesh& mesh) {
+    ValidateMesh(mesh);
     double sum = 0.0;
     for (const auto& t : mesh.triangles) {
-        sum +=
-            Dot(mesh.positions.at(t[0]), Cross(mesh.positions.at(t[1]), mesh.positions.at(t[2])));
+        sum += Dot(mesh.positions[t[0]], Cross(mesh.positions[t[1]], mesh.positions[t[2]]));
     }
     return sum / 6.0;
 }
 
 double SurfaceArea(const TriangleMesh& mesh) {
+    ValidateMesh(mesh);
     double sum = 0.0;
     for (const auto& t : mesh.triangles) {
         sum += Length(AreaNormal(mesh, t));
@@ -53,6 +64,7 @@ double SurfaceArea(const TriangleMesh& mesh) {
 }
 
 std::vector<Vec3d> VertexNormals(const TriangleMesh& mesh) {
+    ValidateMesh(mesh);
     std::vector<Vec3d> normals(mesh.positions.size());
     for (const auto& t : mesh.triangles) {
         const Vec3d n = AreaNormal(mesh, t);
@@ -68,6 +80,7 @@ std::vector<Vec3d> VertexNormals(const TriangleMesh& mesh) {
 
 ShadedMesh WithCreases(const TriangleMesh& mesh, double creaseAngle) {
     RequireNonNegative(creaseAngle, "Crease angle");
+    ValidateMesh(mesh);
     const double cosine = std::cos(creaseAngle);
     std::vector<Vec3d> areaNormals;
     std::vector<Vec3d> unitNormals;

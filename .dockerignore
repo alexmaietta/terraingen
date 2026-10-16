@@ -12,7 +12,12 @@ site/
 .claude/
 paper/
 research/
+validation/
+/*.tif
+/*.TIF
+/*.aux.xml
 TODO.md
 ARCHITECTURE.md
+SCIENCE.md
 DESIGN.md
 CMakeUserPresets.json

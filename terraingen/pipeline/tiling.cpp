@@ -13,6 +13,8 @@ namespace terraingen {
 namespace {
 
 constexpr int kMaxLevel = 60;
+/// The deepest whole-body level whose 2^(2L+1) tiles can be counted in 64 bits.
+constexpr int kMaxBodyTileLevel = 30;
 
 std::int64_t FloorDivide(std::int64_t value, std::int64_t divisor) {
     const std::int64_t quotient = value / divisor;
@@ -134,8 +136,10 @@ TileScheme TileScheme::WholeBody(std::size_t cells) {
 }
 
 std::vector<TileKey> TileScheme::BodyTiles(int level) {
-    if (level < 0) {
-        throw std::invalid_argument("Tile levels are not negative");
+    CheckLevel(level);
+    if (level > kMaxBodyTileLevel) {
+        throw std::invalid_argument("Whole-body tile levels must be at most " +
+                                    std::to_string(kMaxBodyTileLevel));
     }
     const std::int64_t rows = std::int64_t{1} << level;
     std::vector<TileKey> keys;
@@ -149,6 +153,7 @@ std::vector<TileKey> TileScheme::BodyTiles(int level) {
 }
 
 TileKey TileScheme::WrapBodyTile(const TileKey& key) {
+    CheckLevel(key.level);
     const std::int64_t columns = std::int64_t{2} << key.level;
     return {key.level, ((key.x % columns) + columns) % columns, key.y};
 }

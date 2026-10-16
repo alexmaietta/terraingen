@@ -7,6 +7,7 @@
 #include <miniz.h>
 
 #include <array>
+#include <cstring>
 
 namespace terraingen::detail {
 
@@ -344,6 +345,36 @@ std::vector<std::uint8_t> DecodePackBits(std::span<const std::uint8_t> data, std
     }
     out.resize(size);
     return out;
+}
+
+void EncodeFloatPredictorRow(std::uint8_t* row, std::size_t sampleBytes, std::size_t rowSamples,
+                             std::size_t stride) {
+    const std::size_t rowBytes = rowSamples * sampleBytes;
+    std::vector<std::uint8_t> native(row, row + rowBytes);
+    for (std::size_t sample = 0; sample < rowSamples; ++sample) {
+        for (std::size_t byte = 0; byte < sampleBytes; ++byte) {
+            row[(sampleBytes - byte - 1) * rowSamples + sample] =
+                native[sample * sampleBytes + byte];
+        }
+    }
+    for (std::size_t i = rowBytes - 1; i >= stride; --i) {
+        row[i] = static_cast<std::uint8_t>(row[i] - row[i - stride]);
+    }
+}
+
+void DecodeFloatPredictorRow(std::uint8_t* row, std::size_t sampleBytes, std::size_t rowSamples,
+                             std::size_t stride) {
+    const std::size_t rowBytes = rowSamples * sampleBytes;
+    for (std::size_t i = stride; i < rowBytes; ++i) {
+        row[i] = static_cast<std::uint8_t>(row[i] + row[i - stride]);
+    }
+    const std::vector<std::uint8_t> planes(row, row + rowBytes);
+    for (std::size_t sample = 0; sample < rowSamples; ++sample) {
+        for (std::size_t byte = 0; byte < sampleBytes; ++byte) {
+            row[sample * sampleBytes + byte] =
+                planes[(sampleBytes - byte - 1) * rowSamples + sample];
+        }
+    }
 }
 
 }  // namespace terraingen::detail

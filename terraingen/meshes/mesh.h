@@ -35,22 +35,21 @@ struct Box3d {
 /// @throws std::invalid_argument for a mesh without vertices.
 Box3d Bounds(const TriangleMesh& mesh);
 
-/// @brief The volume a closed mesh encloses, as a sum of signed tetrahedra from the origin.
-/// @param mesh The mesh.
-/// @return The volume; negative when the triangles face inward.
-/// @throws std::out_of_range for a triangle indexing past the vertices.
+/// Checks that every triangle indexes one of the mesh's vertices.
+/// @throws std::invalid_argument for a triangle indexing past the vertices.
+void ValidateMesh(const TriangleMesh& mesh);
+
+/// The volume a closed mesh encloses, as a sum of signed tetrahedra from the origin; negative
+/// when the triangles face inward.
+/// @throws std::invalid_argument as `ValidateMesh`.
 double Volume(const TriangleMesh& mesh);
 
-/// @brief The total area of a mesh's triangles.
-/// @param mesh The mesh.
-/// @return The area.
-/// @throws std::out_of_range for a triangle indexing past the vertices.
+/// The total area of a mesh's triangles.
+/// @throws std::invalid_argument as `ValidateMesh`.
 double SurfaceArea(const TriangleMesh& mesh);
 
-/// @brief The unit normal of each vertex: the area-weighted mean of its triangles' normals.
-/// @param mesh The mesh.
-/// @return One normal per vertex.
-/// @throws std::out_of_range for a triangle indexing past the vertices.
+/// The unit normal of each vertex: the area-weighted mean of its triangles' normals.
+/// @throws std::invalid_argument as `ValidateMesh`.
 std::vector<Vec3d> VertexNormals(const TriangleMesh& mesh);
 
 /// @brief A mesh with per-vertex normals, its vertices split along creases so fracture faces keep
@@ -65,8 +64,8 @@ struct ShadedMesh {
 /// @param mesh The mesh.
 /// @param creaseAngle The largest angle between triangle normals that is smoothed, in radians.
 /// @return The shaded mesh.
-/// @throws std::invalid_argument for a negative or non-finite `creaseAngle`.
-/// @throws std::out_of_range for a triangle indexing past the vertices.
+/// @throws std::invalid_argument for a negative or non-finite `creaseAngle`, or as
+/// `ValidateMesh`.
 ShadedMesh WithCreases(const TriangleMesh& mesh, double creaseAngle);
 
 /// @brief A rotation followed by a translation.

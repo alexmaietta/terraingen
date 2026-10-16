@@ -115,8 +115,10 @@ TEST(GuiApp, LiveEditsRegenerateAndBadJsonKeepsTheLastDocument) {
 
     app.SetLive(true);
     EXPECT_TRUE(app.Live());
-    app.EditConfig([](nlohmann::json& config) { config["source"]["width"] = 33; });
+    app.EditConfig([](nlohmann::ordered_json& config) { config["source"]["width"] = 33; });
     EXPECT_NE(app.ConfigText().find("\"width\": 33"), std::string::npos) << "the text follows";
+    EXPECT_LT(app.ConfigText().find("\"source\""), app.ConfigText().find("\"layers\""))
+        << "an edit keeps the file's key order";
     const auto give_up = std::chrono::steady_clock::now() + std::chrono::minutes(1);
     while (HeightsShape(app) != std::vector<std::int64_t>{33, 33} &&
            std::chrono::steady_clock::now() < give_up) {

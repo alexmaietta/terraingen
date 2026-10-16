@@ -27,13 +27,7 @@ void CheckMesh(const TriangleMesh& mesh, const std::vector<Vec3d>& normals) {
     if (!normals.empty() && normals.size() != mesh.positions.size()) {
         throw std::invalid_argument("Normals must be empty or one per vertex");
     }
-    for (const auto& t : mesh.triangles) {
-        for (const std::uint32_t v : t) {
-            if (v >= mesh.positions.size()) {
-                throw std::invalid_argument("A triangle indexes past the mesh's vertices");
-            }
-        }
-    }
+    ValidateMesh(mesh);
 }
 
 /// Appends `value`'s bytes, little-endian on the hosts supported.

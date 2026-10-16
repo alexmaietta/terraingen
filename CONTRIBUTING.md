@@ -12,14 +12,15 @@ cmake --build build -j 8
 ctest --test-dir build -j 8 --output-on-failure
 ```
 
-The Vulkan compute tests skip on machines without a Vulkan device. The Python bindings build with `pip install .`; run their tests with `pytest tests/python`.
+The Vulkan compute tests skip on machines without a Vulkan device. The Python bindings build with `pip install .` (or into `build/python` with the CMake build); run their tests with `pytest tests/python`.
 
-Coverage needs GCC or Clang:
+Tests are grouped by kind: `tests/unit` mirrors `terraingen/` one folder per module, `tests/statistical` checks sampled distributions against their models, `tests/golden` pins generated values, `tests/integration` runs every example and configuration, and `tests/python` has one file per module. Shared helpers live in `tests/support`.
+
+Coverage needs GCC or Clang; the `coverage` target runs the tests and writes a report to `build-coverage/coverage/`:
 
 ```sh
 cmake -S . -B build-coverage -DTERRAINGEN_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug
-cmake --build build-coverage -j 8
-ctest --test-dir build-coverage -j 8
+cmake --build build-coverage -j 8 --target coverage
 ```
 
 The 3D GUI (`terraingen CONFIG --gui`) builds with Ernie, the renderer, from a local checkout: `-DTERRAINGEN_ERNIE_DIR=../ernie`. Without one, configuring warns and builds everything else, and `--gui` says how to add it; `-DTERRAINGEN_BUILD_GUI=OFF` leaves the GUI out without the warning.
@@ -27,15 +28,15 @@ The 3D GUI (`terraingen CONFIG --gui`) builds with Ernie, the renderer, from a l
 ## Pull requests
 
 - Every change comes with tests, and new code should be covered by them.
-- Run [pre-commit](https://pre-commit.com) before committing (`pre-commit install` once): it formats C++ with clang-format and CMake with cmake-format, and runs cppcheck.
+- Run [pre-commit](https://pre-commit.com) before committing (`pre-commit install` once): it formats C++ with clang-format, CMake with cmake-format, Python with ruff and the example JSON configurations, and runs cppcheck and ruff's linter.
 - Keep commits focused, with a one-line message saying what changed.
 - CI must pass on Linux, macOS and Windows.
 
 ## Conventions
 
-- **Cite what you model.** Constants, fits and models come from published sources: name the paper in the doc comment with its DOI or URL. If a value has no source, say so rather than guess.
+- **Cite what you model.** Constants, fits and models come from published sources: name the paper, with its DOI or URL, in the doc comment, and keep the rest of the comment to what the code does. If a value has no source, say so rather than guess.
 - **Plain ASCII** in code, comments, docs and commit messages: write "metres", "degrees", "D^-2" and "sigma" rather than Unicode symbols.
-- **Document public headers** with `///` comments that say what a function does, its units and what it throws; prefer clear names and doc comments to inline comments.
+- **Document public headers** with short `///` comments: a `@file` line saying what the header holds, then one sentence per type and function. Add `@param` only for units, ranges or special values, `@return` only when the sentence does not say it, and `@throws` for each exception a function raises on purpose. Leave overrides undocumented, and prefer clear names to inline comments.
 - **Dependencies:** TerrainGen stays light. Please discuss a new third-party library in an issue before adding it; vendored code in `third_party/` stays byte-identical to upstream.
 - **Configuration fields** carry a description and, for numbers, a unit (see the field lists in `terraingen/pipeline/fields_*.h`); a test checks every field has them.
 

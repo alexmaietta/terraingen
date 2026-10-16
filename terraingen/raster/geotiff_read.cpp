@@ -494,21 +494,6 @@ void UndoHorizontalPredictor(std::uint8_t* p, std::size_t sampleBytes, std::size
     }
 }
 
-/// Undoes the floating-point predictor of one row: byte differences, then byte planes.
-void UndoFloatPredictor(std::uint8_t* p, std::size_t sampleBytes, std::size_t rowSamples,
-                        std::size_t stride, std::vector<std::uint8_t>& planes) {
-    const std::size_t rowBytes = rowSamples * sampleBytes;
-    for (std::size_t i = stride; i < rowBytes; ++i) {
-        p[i] = static_cast<std::uint8_t>(p[i] + p[i - stride]);
-    }
-    std::memcpy(planes.data(), p, rowBytes);
-    for (std::size_t sample = 0; sample < rowSamples; ++sample) {
-        for (std::size_t byte = 0; byte < sampleBytes; ++byte) {
-            p[sample * sampleBytes + byte] = planes[(sampleBytes - byte - 1) * rowSamples + sample];
-        }
-    }
-}
-
 /// Reverses a chunk's predictor in place; `bytes` holds `rows` rows of `rowSamples` samples.
 void UndoPredictor(std::vector<std::uint8_t>& bytes, const GeoTiffInfo& info, std::size_t rows,
                    std::size_t rowSamples, std::size_t stride) {
@@ -517,13 +502,12 @@ void UndoPredictor(std::vector<std::uint8_t>& bytes, const GeoTiffInfo& info, st
     }
     const std::size_t sampleBytes = static_cast<std::size_t>(info.bitsPerSample) / 8;
     const std::size_t rowBytes = rowSamples * sampleBytes;
-    std::vector<std::uint8_t> planes(info.predictor == 3 ? rowBytes : 0);
     for (std::size_t row = 0; row < rows; ++row) {
         std::uint8_t* p = bytes.data() + row * rowBytes;
         if (info.predictor == 2) {
             UndoHorizontalPredictor(p, sampleBytes, rowSamples, stride);
         } else {
-            UndoFloatPredictor(p, sampleBytes, rowSamples, stride, planes);
+            DecodeFloatPredictorRow(p, sampleBytes, rowSamples, stride);
         }
     }
 }

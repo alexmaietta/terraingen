@@ -31,9 +31,9 @@ double Draw(RandomStream& random, const ValueRange& range) {
     return range.min + (range.max - range.min) * random.NextDouble();
 }
 
-/// Fractal 3D Perlin noise at `p`, `octaves` octaves halving in wavelength from `wavelength`, each
-/// of half the amplitude, normalized to about [-1, 1].
-double Fractal(const Vec3d& p, const BoulderStyle& style, std::uint32_t seed) {
+/// The surface roughness of a style at direction `p`: `noiseOctaves` octaves of 3D Perlin noise
+/// halving in wavelength from `noiseWavelength`, each of half the amplitude, in about [-1, 1].
+double SurfaceRoughness(const Vec3d& p, const BoulderStyle& style, std::uint32_t seed) {
     double sum = 0.0;
     double norm = 0.0;
     double amplitude = 1.0;
@@ -59,41 +59,146 @@ Vec3d DrawNormal(RandomStream& random, double maxTilt) {
     return {ring * std::cos(angle), ring * std::sin(angle), z};
 }
 
+/// The index of the style a uniform draw picks, each in proportion to its weight.
+std::size_t PickStyle(RandomStream& random, const std::vector<BoulderStyle>& styles) {
+    double total = 0.0;
+    for (const BoulderStyle& style : styles) {
+        total += style.weight;
+    }
+    double pick = total * random.NextDouble();
+    std::size_t index = 0;
+    while (index + 1 < styles.size() &&
+           (styles[index].weight == 0.0 || pick >= styles[index].weight)) {
+        pick -= styles[index].weight;
+        ++index;
+    }
+    return index;
+}
+
+/// The solid's vertex `p` stretched to `axes`, pulled `rounding` of the way to the ellipsoid of
+/// those axes and roughened by the style's noise.
+Vec3d ShapeVertex(const Vec3d& p, const Vec3d& axes, double rounding, const BoulderStyle& style,
+                  std::uint32_t noiseSeed) {
+    const Vec3d stretched{p.x * axes.x, p.y * axes.y, p.z * axes.z};
+    const Vec3d ray = Normalized(stretched);
+    const double ellipsoid =
+        1.0 / std::sqrt(std::pow(ray.x / axes.x, 2.0) + std::pow(ray.y / axes.y, 2.0) +
+                        std::pow(ray.z / axes.z, 2.0));
+    const double radius = (1.0 - rounding) * Length(stretched) + rounding * ellipsoid;
+    const double rough = 1.0 + style.noiseAmplitude * SurfaceRoughness(ray, style, noiseSeed);
+    return ray * (radius * rough);
+}
+
+/// Cuts `mesh` with the style's fracture planes, each at a drawn share of the reach of the solid's
+/// original corners. `Subdivide` keeps those corners as the first `corners` vertices.
+void ApplyFractures(TriangleMesh& mesh, std::size_t corners, const BoulderStyle& style,
+                    RandomStream& random) {
+    const int span = style.maxFractures - style.minFractures + 1;
+    const int fractures =
+        style.minFractures + std::min(span - 1, static_cast<int>(random.NextDouble() * span));
+    for (int n = 0; n < fractures; ++n) {
+        const Vec3d normal = DrawNormal(random, style.maxFractureTilt);
+        const double depth = Draw(random, style.fractureDepth);
+        double reach = 0.0;
+        for (std::size_t v = 0; v < corners; ++v) {
+            reach = std::fmax(reach, Dot(normal, mesh.positions[v]));
+        }
+        const double plane = depth * reach;
+        if (!(plane > 0.0)) {
+            continue;
+        }
+        for (Vec3d& p : mesh.positions) {
+            const double along = Dot(normal, p);
+            if (along > plane) {
+                p = p * (plane / along);
+            }
+        }
+    }
+}
+
 }  // namespace
 
 std::vector<BoulderStyle> DefaultBoulderStyles() {
-    std::vector<BoulderStyle> styles(6);
-    styles[0] = {"block", 0.32, BaseSolid::Cube, {0.6, 0.85}, {0.4, 0.6}, {0.0, 0.25},
-                 3,       7,    {0.65, 0.92},    1.0,         0.03,       0.5,
-                 3};
-    styles[1] = {"slab", 0.2, BaseSolid::Cube, {0.6, 0.9}, {0.15, 0.3}, {0.0, 0.2},
-                 2,      5,   {0.6, 0.9},      0.3,        0.02,        0.5,
-                 3};
-    styles[2] = {"rounded",
-                 0.2,
-                 BaseSolid::Icosahedron,
-                 {0.65, 0.9},
-                 {0.45, 0.7},
-                 {0.6, 1.0},
-                 0,
-                 3,
-                 {0.7, 0.95},
-                 1.0,
-                 0.1,
-                 0.6,
-                 3};
-    styles[3] = {"wedge", 0.13, BaseSolid::Prism, {0.55, 0.85}, {0.4, 0.6}, {0.0, 0.3},
-                 1,       4,    {0.65, 0.92},     1.0,          0.04,       0.5,
-                 3};
-    styles[4] = {"pyramid", 0.1, BaseSolid::Pyramid, {0.7, 0.95}, {0.45, 0.7}, {0.0, 0.3},
-                 1,         3,   {0.7, 0.92},        1.0,         0.04,        0.5,
-                 3};
-    styles[5] = {"shard",    0.05,       BaseSolid::Tetrahedron,
-                 {0.6, 0.9}, {0.4, 0.6}, {0.0, 0.2},
-                 1,          3,          {0.7, 0.92},
-                 1.0,        0.03,       0.5,
-                 3};
-    return styles;
+    return {
+        {.name = "block",
+         .weight = 0.32,
+         .solid = BaseSolid::Cube,
+         .intermediate = {0.6, 0.85},
+         .shortAxis = {0.4, 0.6},
+         .rounding = {0.0, 0.25},
+         .minFractures = 3,
+         .maxFractures = 7,
+         .fractureDepth = {0.65, 0.92},
+         .maxFractureTilt = 1.0,
+         .noiseAmplitude = 0.03,
+         .noiseWavelength = 0.5,
+         .noiseOctaves = 3},
+        {.name = "slab",
+         .weight = 0.2,
+         .solid = BaseSolid::Cube,
+         .intermediate = {0.6, 0.9},
+         .shortAxis = {0.15, 0.3},
+         .rounding = {0.0, 0.2},
+         .minFractures = 2,
+         .maxFractures = 5,
+         .fractureDepth = {0.6, 0.9},
+         .maxFractureTilt = 0.3,
+         .noiseAmplitude = 0.02,
+         .noiseWavelength = 0.5,
+         .noiseOctaves = 3},
+        {.name = "rounded",
+         .weight = 0.2,
+         .solid = BaseSolid::Icosahedron,
+         .intermediate = {0.65, 0.9},
+         .shortAxis = {0.45, 0.7},
+         .rounding = {0.6, 1.0},
+         .minFractures = 0,
+         .maxFractures = 3,
+         .fractureDepth = {0.7, 0.95},
+         .maxFractureTilt = 1.0,
+         .noiseAmplitude = 0.1,
+         .noiseWavelength = 0.6,
+         .noiseOctaves = 3},
+        {.name = "wedge",
+         .weight = 0.13,
+         .solid = BaseSolid::Prism,
+         .intermediate = {0.55, 0.85},
+         .shortAxis = {0.4, 0.6},
+         .rounding = {0.0, 0.3},
+         .minFractures = 1,
+         .maxFractures = 4,
+         .fractureDepth = {0.65, 0.92},
+         .maxFractureTilt = 1.0,
+         .noiseAmplitude = 0.04,
+         .noiseWavelength = 0.5,
+         .noiseOctaves = 3},
+        {.name = "pyramid",
+         .weight = 0.1,
+         .solid = BaseSolid::Pyramid,
+         .intermediate = {0.7, 0.95},
+         .shortAxis = {0.45, 0.7},
+         .rounding = {0.0, 0.3},
+         .minFractures = 1,
+         .maxFractures = 3,
+         .fractureDepth = {0.7, 0.92},
+         .maxFractureTilt = 1.0,
+         .noiseAmplitude = 0.04,
+         .noiseWavelength = 0.5,
+         .noiseOctaves = 3},
+        {.name = "shard",
+         .weight = 0.05,
+         .solid = BaseSolid::Tetrahedron,
+         .intermediate = {0.6, 0.9},
+         .shortAxis = {0.4, 0.6},
+         .rounding = {0.0, 0.2},
+         .minFractures = 1,
+         .maxFractures = 3,
+         .fractureDepth = {0.7, 0.92},
+         .maxFractureTilt = 1.0,
+         .noiseAmplitude = 0.03,
+         .noiseWavelength = 0.5,
+         .noiseOctaves = 3},
+    };
 }
 
 void ValidateBoulderShapeOptions(const BoulderShapeOptions& options) {
@@ -133,17 +238,7 @@ BoulderShape GenerateBoulderShape(std::uint64_t shapeSeed, const BoulderShapeOpt
     ValidateBoulderShapeOptions(options);
     RandomStream random(options.seed, kBoulderStream, static_cast<std::uint32_t>(shapeSeed),
                         static_cast<std::uint32_t>(shapeSeed >> 32));
-    double total = 0.0;
-    for (const BoulderStyle& style : options.styles) {
-        total += style.weight;
-    }
-    double pick = total * random.NextDouble();
-    std::size_t index = 0;
-    while (index + 1 < options.styles.size() &&
-           (options.styles[index].weight == 0.0 || pick >= options.styles[index].weight)) {
-        pick -= options.styles[index].weight;
-        ++index;
-    }
+    const std::size_t index = PickStyle(random, options.styles);
     const BoulderStyle& style = options.styles[index];
     const double intermediate = Draw(random, style.intermediate);
     const double shortAxis = std::fmin(Draw(random, style.shortAxis), intermediate);
@@ -152,40 +247,12 @@ BoulderShape GenerateBoulderShape(std::uint64_t shapeSeed, const BoulderShapeOpt
     const Vec3d axes{1.0, intermediate, shortAxis};
 
     const TriangleMesh solid = BaseSolidMesh(style.solid);
-    const bool sphere = style.solid == BaseSolid::Icosahedron;
-    TriangleMesh mesh = Subdivide(solid, options.subdivisions, sphere);
+    TriangleMesh mesh =
+        Subdivide(solid, options.subdivisions, style.solid == BaseSolid::Icosahedron);
     for (Vec3d& p : mesh.positions) {
-        const Vec3d stretched{p.x * axes.x, p.y * axes.y, p.z * axes.z};
-        const Vec3d ray = Normalized(stretched);
-        const double ellipsoid =
-            1.0 / std::sqrt(std::pow(ray.x / axes.x, 2.0) + std::pow(ray.y / axes.y, 2.0) +
-                            std::pow(ray.z / axes.z, 2.0));
-        const double radius = (1.0 - rounding) * Length(stretched) + rounding * ellipsoid;
-        const double rough = 1.0 + style.noiseAmplitude * Fractal(ray, style, noiseSeed);
-        p = ray * (radius * rough);
+        p = ShapeVertex(p, axes, rounding, style, noiseSeed);
     }
-
-    const int span = style.maxFractures - style.minFractures + 1;
-    const int fractures =
-        style.minFractures + std::min(span - 1, static_cast<int>(random.NextDouble() * span));
-    for (int n = 0; n < fractures; ++n) {
-        const Vec3d normal = DrawNormal(random, style.maxFractureTilt);
-        const double depth = Draw(random, style.fractureDepth);
-        double reach = 0.0;
-        for (std::size_t v = 0; v < solid.positions.size(); ++v) {
-            reach = std::fmax(reach, Dot(normal, mesh.positions[v]));
-        }
-        const double plane = depth * reach;
-        if (!(plane > 0.0)) {
-            continue;
-        }
-        for (Vec3d& p : mesh.positions) {
-            const double along = Dot(normal, p);
-            if (along > plane) {
-                p = p * (plane / along);
-            }
-        }
-    }
+    ApplyFractures(mesh, solid.positions.size(), style, random);
 
     const Vec3d extents = Bounds(mesh).Extents();
     mesh = Scaled(mesh, {1.0 / extents.x, intermediate / extents.y, shortAxis / extents.z});

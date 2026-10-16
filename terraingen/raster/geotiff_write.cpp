@@ -106,24 +106,6 @@ bool NeedsBigTiff(std::size_t tiles, std::size_t tile) {
     return estimate >= (std::uint64_t{1} << 32);
 }
 
-/// Applies the floating-point predictor to `rows` rows of `rowSamples` float32 samples.
-void EncodePredictor3(std::vector<std::uint8_t>& bytes, std::size_t rows, std::size_t rowSamples) {
-    const std::size_t rowBytes = rowSamples * 4;
-    std::vector<std::uint8_t> native(rowBytes);
-    for (std::size_t row = 0; row < rows; ++row) {
-        std::uint8_t* p = bytes.data() + row * rowBytes;
-        std::memcpy(native.data(), p, rowBytes);
-        for (std::size_t sample = 0; sample < rowSamples; ++sample) {
-            for (std::size_t byte = 0; byte < 4; ++byte) {
-                p[(4 - byte - 1) * rowSamples + sample] = native[sample * 4 + byte];
-            }
-        }
-        for (std::size_t i = rowBytes - 1; i > 0; --i) {
-            p[i] = static_cast<std::uint8_t>(p[i] - p[i - 1]);
-        }
-    }
-}
-
 /// The bytes stored for the tile at column `tx` and row `ty` of tiles of `band`, padded with
 /// `fill`.
 std::vector<std::uint8_t> EncodeTile(const Raster<float>& band, std::size_t tx, std::size_t ty,
@@ -142,7 +124,9 @@ std::vector<std::uint8_t> EncodeTile(const Raster<float>& band, std::size_t tx, 
     if (compression == TiffCompression::None) {
         return bytes;
     }
-    EncodePredictor3(bytes, tile, tile);
+    for (std::size_t row = 0; row < tile; ++row) {
+        EncodeFloatPredictorRow(bytes.data() + row * tile * 4, 4, tile, 1);
+    }
     return compression == TiffCompression::Lzw ? EncodeLzw(bytes) : EncodeDeflate(bytes);
 }
 

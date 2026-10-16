@@ -64,12 +64,13 @@ struct TileScheme {
     /// @brief Every tile of a level of a `WholeBody` scheme.
     /// @param level The level.
     /// @return The tiles, row by row from the north-west.
-    /// @throws std::invalid_argument for a negative level.
+    /// @throws std::invalid_argument for a level outside [0, 30].
     static std::vector<TileKey> BodyTiles(int level);
 
     /// @brief The tile of a `WholeBody` scheme that a neighbour across the antimeridian is.
     /// @param key A tile, its column possibly out of range.
     /// @return `key` with its column wrapped into [0, 2^(level+1)).
+    /// @throws std::invalid_argument for a level outside [0, 60].
     static TileKey WrapBodyTile(const TileKey& key);
 
     /// @brief Checks the scheme.

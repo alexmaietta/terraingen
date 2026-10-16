@@ -174,6 +174,11 @@ void RegionLayer::KeepFeaturesInside(const TerrainFeatures& placed,
             features.boulders.push_back(boulder);
         }
     }
+    for (const BoulderModel& model : placed.boulderModels) {
+        if (shape_.DistanceOutside(model.boulder.x, model.boulder.y, surface_) <= feather_) {
+            features.boulderModels.push_back(model);
+        }
+    }
 }
 
 float RegionLayer::ApplyAt(float height, double x, double y, const LayerContext& context) const {

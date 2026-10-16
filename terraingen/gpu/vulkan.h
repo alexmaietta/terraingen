@@ -53,7 +53,8 @@ class VulkanCompute {
     VulkanCompute(const VulkanCompute&) = delete;
     VulkanCompute& operator=(const VulkanCompute&) = delete;
 
-    /// @brief Releases the device and its cached pipelines.
+    /// Releases the device and its cached pipelines. The instance `Get` returns lives for the
+    /// whole process and is never destroyed, so the driver is not torn down during exit.
     ~VulkanCompute();
 
   private:

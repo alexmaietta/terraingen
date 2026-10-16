@@ -35,6 +35,80 @@ struct Pipeline {
     VkPipeline pipeline = VK_NULL_HANDLE;
 };
 
+/// Destroys what `p` holds; Vulkan ignores null handles, so a partly made pipeline is fine.
+void DestroyPipeline(VkDevice device, const Pipeline& p) {
+    vkDestroyPipeline(device, p.pipeline, nullptr);
+    vkDestroyPipelineLayout(device, p.layout, nullptr);
+    vkDestroyDescriptorSetLayout(device, p.setLayout, nullptr);
+    vkDestroyShaderModule(device, p.module, nullptr);
+}
+
+VkShaderModule CreateShaderModule(VkDevice device, const ComputeKernel& kernel) {
+    VkShaderModuleCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    info.codeSize = kernel.size;
+    info.pCode = reinterpret_cast<const std::uint32_t*>(kernel.spirv);
+    VkShaderModule module = VK_NULL_HANDLE;
+    Check(vkCreateShaderModule(device, &info, nullptr, &module), "shader module");
+    return module;
+}
+
+/// A layout of `bindings` storage buffers, bound in order.
+VkDescriptorSetLayout CreateSetLayout(VkDevice device, std::size_t bindings) {
+    std::vector<VkDescriptorSetLayoutBinding> layoutBindings(bindings);
+    for (std::size_t i = 0; i < bindings; ++i) {
+        layoutBindings[i] = {static_cast<std::uint32_t>(i), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+                             VK_SHADER_STAGE_COMPUTE_BIT, nullptr};
+    }
+    VkDescriptorSetLayoutCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    info.bindingCount = static_cast<std::uint32_t>(bindings);
+    info.pBindings = layoutBindings.data();
+    VkDescriptorSetLayout layout = VK_NULL_HANDLE;
+    Check(vkCreateDescriptorSetLayout(device, &info, nullptr, &layout), "descriptor set layout");
+    return layout;
+}
+
+VkPipelineLayout CreatePipelineLayout(VkDevice device, VkDescriptorSetLayout setLayout,
+                                      std::size_t pushSize) {
+    const VkPushConstantRange range{VK_SHADER_STAGE_COMPUTE_BIT, 0,
+                                    static_cast<std::uint32_t>(std::max<std::size_t>(pushSize, 4))};
+    VkPipelineLayoutCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    info.setLayoutCount = 1;
+    info.pSetLayouts = &setLayout;
+    info.pushConstantRangeCount = pushSize > 0 ? 1u : 0u;
+    info.pPushConstantRanges = &range;
+    VkPipelineLayout layout = VK_NULL_HANDLE;
+    Check(vkCreatePipelineLayout(device, &info, nullptr, &layout), "pipeline layout");
+    return layout;
+}
+
+/// The pipeline running `kernel` with `bindings` storage buffers and `pushSize` bytes of push
+/// constants; nothing is left behind when a step fails.
+Pipeline CreatePipeline(VkDevice device, const ComputeKernel& kernel, std::size_t bindings,
+                        std::size_t pushSize) {
+    Pipeline p;
+    try {
+        p.module = CreateShaderModule(device, kernel);
+        p.setLayout = CreateSetLayout(device, bindings);
+        p.layout = CreatePipelineLayout(device, p.setLayout, pushSize);
+        VkComputePipelineCreateInfo info{};
+        info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+        info.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+        info.stage.module = p.module;
+        info.stage.pName = "main";
+        info.layout = p.layout;
+        Check(vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &info, nullptr, &p.pipeline),
+              "compute pipeline");
+    } catch (...) {
+        DestroyPipeline(device, p);
+        throw;
+    }
+    return p;
+}
+
 /// A host-visible storage buffer.
 struct Buffer {
     VkBuffer buffer = VK_NULL_HANDLE;
@@ -351,11 +425,8 @@ struct VulkanCompute::State {
     ~State() {
         if (device != VK_NULL_HANDLE) {
             vkDeviceWaitIdle(device);
-            for (auto& [key, p] : pipelines) {
-                vkDestroyPipeline(device, p.pipeline, nullptr);
-                vkDestroyPipelineLayout(device, p.layout, nullptr);
-                vkDestroyDescriptorSetLayout(device, p.setLayout, nullptr);
-                vkDestroyShaderModule(device, p.module, nullptr);
+            for (const auto& [key, p] : pipelines) {
+                DestroyPipeline(device, p);
             }
             if (pool != VK_NULL_HANDLE) {
                 vkDestroyCommandPool(device, pool, nullptr);
@@ -389,44 +460,8 @@ struct VulkanCompute::State {
         if (found != pipelines.end()) {
             return found->second;
         }
-        Pipeline p;
-        VkShaderModuleCreateInfo moduleInfo{};
-        moduleInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        moduleInfo.codeSize = kernel.size;
-        moduleInfo.pCode = reinterpret_cast<const std::uint32_t*>(kernel.spirv);
-        Check(vkCreateShaderModule(device, &moduleInfo, nullptr, &p.module), "shader module");
-        std::vector<VkDescriptorSetLayoutBinding> layoutBindings(bindings);
-        for (std::size_t i = 0; i < bindings; ++i) {
-            layoutBindings[i] = {static_cast<std::uint32_t>(i), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                                 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr};
-        }
-        VkDescriptorSetLayoutCreateInfo setInfo{};
-        setInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        setInfo.bindingCount = static_cast<std::uint32_t>(bindings);
-        setInfo.pBindings = layoutBindings.data();
-        Check(vkCreateDescriptorSetLayout(device, &setInfo, nullptr, &p.setLayout),
-              "descriptor set layout");
-        VkPushConstantRange range{VK_SHADER_STAGE_COMPUTE_BIT, 0,
-                                  static_cast<std::uint32_t>(std::max<std::size_t>(pushSize, 4))};
-        VkPipelineLayoutCreateInfo layoutInfo{};
-        layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        layoutInfo.setLayoutCount = 1;
-        layoutInfo.pSetLayouts = &p.setLayout;
-        layoutInfo.pushConstantRangeCount = pushSize > 0 ? 1u : 0u;
-        layoutInfo.pPushConstantRanges = &range;
-        Check(vkCreatePipelineLayout(device, &layoutInfo, nullptr, &p.layout), "pipeline layout");
-        VkComputePipelineCreateInfo pipelineInfo{};
-        pipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-        pipelineInfo.stage = {};
-        pipelineInfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        pipelineInfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-        pipelineInfo.stage.module = p.module;
-        pipelineInfo.stage.pName = "main";
-        pipelineInfo.layout = p.layout;
-        Check(vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr,
-                                       &p.pipeline),
-              "compute pipeline");
-        return pipelines.emplace(key, p).first->second;
+        return pipelines.emplace(key, CreatePipeline(device, kernel, bindings, pushSize))
+            .first->second;
     }
 };
 

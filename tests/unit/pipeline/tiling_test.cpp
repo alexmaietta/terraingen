@@ -74,3 +74,12 @@ TEST(TileScheme, ValidatesItsParameters) {
     EXPECT_THROW((TileScheme{{std::numeric_limits<double>::infinity(), 0.0}, 10.0, 8}.Validate()),
                  std::invalid_argument);
 }
+
+TEST(TileScheme, RejectsWholeBodyLevelsOutOfRange) {
+    EXPECT_EQ(TileScheme::BodyTiles(1).size(), 8u);
+    EXPECT_THROW(TileScheme::BodyTiles(-1), std::invalid_argument);
+    EXPECT_THROW(TileScheme::BodyTiles(31), std::invalid_argument);
+    EXPECT_EQ(TileScheme::WrapBodyTile({1, -1, 0}).x, 3);
+    EXPECT_THROW(TileScheme::WrapBodyTile({-1, 0, 0}), std::invalid_argument);
+    EXPECT_THROW(TileScheme::WrapBodyTile({63, 0, 0}), std::invalid_argument);
+}

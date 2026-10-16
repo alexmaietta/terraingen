@@ -119,3 +119,16 @@ TEST(RotationQuaternion, CoversEveryBranchOfShepperdsMethod) {
     expect(terraingen::RotationQuaternion(RigidTransform::RotationZ(std::numbers::pi / 2).rotation),
            {0, 0, h, h});
 }
+
+TEST(TriangleMesh, RejectsTrianglesIndexingPastTheVertices) {
+    TriangleMesh mesh;
+    mesh.positions = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}};
+    mesh.triangles = {{0, 1, 2}};
+    EXPECT_NO_THROW(terraingen::ValidateMesh(mesh));
+    mesh.triangles.push_back({0, 1, 3});
+    EXPECT_THROW(terraingen::ValidateMesh(mesh), std::invalid_argument);
+    EXPECT_THROW(terraingen::Volume(mesh), std::invalid_argument);
+    EXPECT_THROW(terraingen::SurfaceArea(mesh), std::invalid_argument);
+    EXPECT_THROW(terraingen::VertexNormals(mesh), std::invalid_argument);
+    EXPECT_THROW(terraingen::WithCreases(mesh, 0.5), std::invalid_argument);
+}
