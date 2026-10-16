@@ -72,7 +72,7 @@ a coarse DEM of their own first, and tile a terrain from code.
 
 Custom models: every model and layer type is an interface you can implement, in C++ by deriving
 from it and in Python by subclassing it (`SizeFrequencyDistribution`, `CraterAgeModel`,
-`DegradationModel`, `CraterProfile`, `Source`, `Layer`, `Filter`, `AlbedoSource`, `AlbedoLayer`).
+`DegradationModel`, `CraterProfile`, `Source`, `Layer`, `AlbedoSource`, `AlbedoLayer`).
 `example_distributions_custom`, `example_ages_models`, `example_craters_profiles` and
 `example_layers_custom` show how.
 

@@ -15,8 +15,7 @@ namespace terraingen {
 /// equiangular coordinates (as `CubeSphereCells`), two triangles each, with every vertex at the
 /// body's radius plus the terrain's height there (`EvaluateAt`; points without data are on the
 /// datum). Positions are body-fixed metres, x towards longitude 0 on the equator and z north
-/// (`Surface::Position`); vertices along the faces' edges are repeated per face. Filters read
-/// neighbouring cells, so they are left out.
+/// (`Surface::Position`); vertices along the faces' edges are repeated per face.
 /// @param spacing Sample spacing in metres; 0 for a quad's side at a face's centre.
 /// @param threads Threads to use; 0 for every hardware thread.
 /// @throws std::invalid_argument for a terrain not on a sphere, zero cells, or a negative or

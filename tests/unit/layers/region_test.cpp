@@ -162,5 +162,4 @@ TEST(RegionLayer, RejectsInvalidSettings) {
     EXPECT_THROW(RegionLayer(inner, RegionShape::Circle({0.0, 0.0}, -2.0)), std::invalid_argument);
     EXPECT_THROW(RegionLayer(inner, RegionShape{}, -1.0), std::invalid_argument);
     EXPECT_THROW(RegionLayer(inner, RegionShape{}, std::nan("")), std::invalid_argument);
-    EXPECT_EQ(RegionLayer(ManualCraters(), RegionShape{}).MaxFeatureDiameter(), 8.0);
 }

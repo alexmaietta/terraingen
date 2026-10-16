@@ -8,7 +8,7 @@ import terraingen
 
 
 def test_config_repr_counts_its_parts(small_config):
-    assert repr(terraingen.Config.from_dict(small_config)) == "Config(3 layers, 0 filters, 2 outputs)"
+    assert repr(terraingen.Config.from_dict(small_config)) == "Config(3 layers, 2 outputs)"
 
 
 def test_config_round_trips_through_json_and_dicts(small_config):

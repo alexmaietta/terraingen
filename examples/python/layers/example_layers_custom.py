@@ -1,11 +1,11 @@
-"""Sources, layers, filters and albedo of your own, written in Python.
+"""Sources, layers and albedo of your own, written in Python.
 
 Every part of a terrain can be replaced by subclassing its base class:
 
 - `Source`: `grid()` and `height_at(x, y)`; here an inclined plane.
 - `Layer`: `apply_at(height, x, y, context)` for one point, or `apply(heights, context)` for a whole
-  raster with NumPy; here a sinuous rille (point-wise) and a regional tilt (raster).
-- `Filter`: `apply(heights, spacing)` after every layer; here a terrace quantization.
+  raster with NumPy; here a sinuous rille (point-wise), a regional tilt (raster) and a terrace
+  quantization (raster).
 - `AlbedoSource` and `AlbedoLayer`: `value_at` and `apply_at`; here brighter albedo on slopes.
 
 They mix freely with the built-in parts. Python parts run under the GIL, so they are slower than
@@ -62,14 +62,14 @@ class Tilt(terraingen.Layer):
         heights.values[:] += np.linspace(-5.0, 5.0, heights.width, dtype=np.float32)[None, :]
 
 
-class Terraces(terraingen.Filter):
+class Terraces(terraingen.Layer):
     """Rounds heights to steps of `step` metres, softened by half."""
 
     def __init__(self, step=4.0):
         super().__init__()
         self.step = step
 
-    def apply(self, heights, spacing):
+    def apply(self, heights, context):
         values = heights.values
         values[:] = 0.5 * values + 0.5 * np.round(values / self.step) * self.step
 
@@ -103,9 +103,9 @@ class Example(_common.Example):
         craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(generation=generation))
 
         plain = terraingen.Terrain(InclinedPlane(), [terraingen.NoiseRelief([fbm]), Rille(), Tilt(), craters])
-        terraced = terraingen.Terrain(plain.source, plain.layers, [Terraces()])
+        terraced = terraingen.Terrain(plain.source, [*plain.layers, Terraces()])
         self.heights = {}
-        for name, terrain in (("custom source and layers", plain), ("plus a custom filter", terraced)):
+        for name, terrain in (("custom source and layers", plain), ("plus terraces", terraced)):
             self.heights[name] = terraingen.evaluate(terrain)
             values = self.heights[name].values
             print(f"{name:26s} heights {values.min():7.2f} to {values.max():6.2f} m")
@@ -117,7 +117,7 @@ class Example(_common.Example):
         band = self.albedo.values
         print(f"albedo from {band.min():.3f} to {band.max():.3f}")
         self.show("heights", self.heights["custom source and layers"], albedo=self.albedo)
-        self.show("terraced", self.heights["plus a custom filter"], albedo=self.albedo)
+        self.show("terraced", self.heights["plus terraces"], albedo=self.albedo)
 
     def save(self, out):
         shades = [hillshade(heights.values, PIXEL) for heights in self.heights.values()] + [
@@ -127,7 +127,7 @@ class Example(_common.Example):
 
     def test_final(self):
         plain = self.heights["custom source and layers"].values
-        terraced = self.heights["plus a custom filter"].values
+        terraced = self.heights["plus terraces"].values
         assert plain.shape == (SIZE, SIZE) and terraced.shape == (SIZE, SIZE), "both terrains are 257 x 257"
         assert np.isfinite(plain).all() and np.isfinite(self.origin_height), "the heights are finite"
         assert plain[:64, -64:].mean() > plain[-64:, :64].mean() + 5.0, (

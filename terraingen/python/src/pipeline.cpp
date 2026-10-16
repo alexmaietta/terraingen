@@ -64,23 +64,18 @@ ListFormat FormatOf(const std::filesystem::path& path) {
 
 void BindTerrainClass(nb::module_& m) {
     nb::class_<PyTerrain>(m, "Terrain",
-                          "A terrain: heights from `source`, plus each of `layers` in order, then "
-                          "each of `filters`.")
+                          "A terrain: heights from `source`, plus each of `layers` in order.")
         .def(
             "__init__",
             [](PyTerrain* self, std::shared_ptr<Source> source,
-               std::vector<std::shared_ptr<Layer>> layers,
-               std::vector<std::shared_ptr<Filter>> filters, const Surface& surface) {
-                new (self)
-                    PyTerrain{std::move(source), std::move(layers), std::move(filters), surface};
+               std::vector<std::shared_ptr<Layer>> layers, const Surface& surface) {
+                new (self) PyTerrain{std::move(source), std::move(layers), surface};
             },
-            "source"_a, "layers"_a = std::vector<std::shared_ptr<Layer>>{},
-            "filters"_a = std::vector<std::shared_ptr<Filter>>{}, "surface"_a = Surface{},
+            "source"_a, "layers"_a = std::vector<std::shared_ptr<Layer>>{}, "surface"_a = Surface{},
             "`surface` must be the one the layers were built for.")
         .def_rw("surface", &PyTerrain::surface)
         .def_rw("source", &PyTerrain::source)
-        .def_rw("layers", &PyTerrain::layers)
-        .def_rw("filters", &PyTerrain::filters);
+        .def_rw("layers", &PyTerrain::layers);
 }
 
 void BindFeatures(nb::module_& m) {
@@ -165,19 +160,12 @@ void BindEvaluation(nb::module_& m) {
         },
         "terrain"_a, "x"_a, "y"_a, "spacing"_a, nb::call_guard<nb::gil_scoped_release>(),
         "The terrain's height at (x, y) sampled every `spacing` metres; equal to the cell centred "
-        "there of `evaluate`. Terrains with filters cannot be queried at points.");
+        "there of `evaluate`.");
     m.def("evaluate_points", &EvaluatePointArray, "terrain"_a, "points"_a, "spacing"_a,
           "threads"_a = 0,
           "The terrain's heights at `points`, an array of shape (n, 2) in surface coordinates, "
           "sampled every `spacing` metres, as a float32 array; each equals `evaluate_at` there. "
           "Batches of points are much faster than one call per point.");
-    m.def(
-        "filter_margin",
-        [](const PyTerrain& terrain, double spacing) {
-            return FilterMargin(terrain.Get(), spacing);
-        },
-        "terrain"_a, "spacing"_a,
-        "How far (m) the terrain's filters read around a grid evaluated at `spacing`.");
     m.def("height_mesh", &HeightMesh, "heights"_a, "surface"_a = Surface{},
           "site"_a = Vec2d{0.0, 0.0},
           "The heights as a mesh, a vertex per cell with data, in the frame boulder models are "
@@ -191,7 +179,7 @@ void BindEvaluation(nb::module_& m) {
         nb::call_guard<nb::gil_scoped_release>(),
         "A mesh of the whole body a terrain on a sphere lies on: six cube faces of "
         "`cells_per_face` squared quads, each vertex at the radius plus the terrain's height "
-        "there. Filters are left out.");
+        "there.");
 }
 
 void BindTileKey(nb::module_& m) {
@@ -354,7 +342,6 @@ void BindConfigQueries(nb::class_<TerrainConfig>& config) {
             "The grid the configuration's source covers, reading only a raster source's header.")
         .def("__repr__", [](const TerrainConfig& c) {
             return "Config(" + std::to_string(c.layers.size()) + " layers, " +
-                   std::to_string(c.filters.size()) + " filters, " +
                    std::to_string(c.outputs.size()) + " outputs)";
         });
 }
@@ -363,14 +350,14 @@ void BindConfig(nb::module_& m) {
     BindConfigError(m);
     nb::class_<TerrainConfig> config(m, "Config",
                                      "A terrain configuration: a surface, a source, layers, "
-                                     "filters, outputs and optionally an albedo, as the JSON "
-                                     "configs of the terraingen command describe.");
+                                     "outputs and optionally an albedo, as the JSON configs of the "
+                                     "terraingen command describe.");
     BindConfigIo(config);
     BindConfigQueries(config);
     m.def(
         "config_catalog", [] { return FromJson(ConfigCatalog(-1)); },
         "Every configuration type with its defaults, as a dict: the lists 'surface', 'source', "
-        "'layers', 'filters' and 'outputs', the 'albedo', and the 'models' (densities, ages, "
+        "'layers' and 'outputs', the 'albedo', and the 'models' (densities, ages, "
         "degradation, profiles, boulder sizes, region shapes and albedo sources and layers).");
     m.def(
         "config_schema", [] { return FromJson(ConfigSchema(-1)); },

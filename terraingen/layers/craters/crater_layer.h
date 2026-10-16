@@ -59,7 +59,7 @@ class CraterLayer final : public Layer, public CraterPlacer {
 
     /// `dMax` (the density's largest valid diameter when unbounded) or the largest manual crater,
     /// in metres.
-    double MaxFeatureDiameter() const override;
+    double MaxFeatureDiameter() const;
 
     /// The craters this layer applies to a grid covering `region` (surface coordinates): generated
     /// and manual ones centred in it or within the profile's reach of it.

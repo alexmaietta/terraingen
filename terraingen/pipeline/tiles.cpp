@@ -33,50 +33,6 @@ std::size_t TileBytes(const Raster<float>& tile) {
     return tile.Size() * sizeof(float);
 }
 
-/// Cells of margin around a tile: the filters' margin in rows, and in columns, which on a sphere
-/// widen toward the poles (at most a full turn).
-struct TileMargin {
-    std::size_t columns = 0;
-    std::size_t rows = 0;
-};
-
-TileMargin MarginOf(const Terrain& terrain, const RasterGrid& tile, double spacing) {
-    const double metres = FilterMargin(terrain, spacing);
-    const auto rows = static_cast<std::size_t>(std::ceil(metres / spacing));
-    if (!terrain.surface.IsSphere() || metres == 0.0) {
-        return {rows, rows};
-    }
-    const Bounds2d bounds = tile.Bounds();
-    const Bounds2d grown = terrain.surface.Expand(bounds, metres);
-    const double cell = tile.transform.pixelWidth;
-    const auto columns = static_cast<std::size_t>(
-        std::ceil(std::fmax(bounds.minX - grown.minX, grown.maxX - bounds.maxX) / cell));
-    return {std::min(columns, static_cast<std::size_t>(std::ceil(360.0 / cell))), rows};
-}
-
-/// `tile` grown by `margin` cells on every side.
-RasterGrid Padded(const RasterGrid& tile, const TileMargin& margin) {
-    const Vec2d corner = tile.transform.PixelToWorld(-static_cast<double>(margin.columns),
-                                                     -static_cast<double>(margin.rows));
-    GeoTransform transform = tile.transform;
-    transform.originX = corner.x;
-    transform.originY = corner.y;
-    return {tile.width + 2 * margin.columns, tile.height + 2 * margin.rows, transform};
-}
-
-/// The cells of `padded` inside its `margin`, on `tile`'s grid.
-Raster<float> Cropped(const Raster<float>& padded, const RasterGrid& tile,
-                      const TileMargin& margin) {
-    Raster<float> heights = tile.MakeRaster();
-    heights.SetNoData(padded.NoData());
-    for (std::size_t row = 0; row < tile.height; ++row) {
-        for (std::size_t col = 0; col < tile.width; ++col) {
-            heights(col, row) = padded(col + margin.columns, row + margin.rows);
-        }
-    }
-    return heights;
-}
-
 }  // namespace
 
 std::size_t TileKeyHash::operator()(const TileKey& key) const {
@@ -211,14 +167,7 @@ Raster<float> EvaluateTile(const Terrain& terrain, const TileScheme& scheme, con
                            unsigned threads) {
     scheme.Validate();
     const RasterGrid tile = scheme.Grid(key);
-    const double spacing = tile.Spacing(terrain.surface);
-    const TileMargin margin = MarginOf(terrain, tile, spacing);
-    if (margin.rows == 0) {
-        return Evaluate(terrain, tile, EvaluationOptions{spacing, threads});
-    }
-    const Raster<float> padded =
-        Evaluate(terrain, Padded(tile, margin), EvaluationOptions{spacing, threads});
-    return Cropped(padded, tile, margin);
+    return Evaluate(terrain, tile, EvaluationOptions{tile.Spacing(terrain.surface), threads});
 }
 
 std::vector<Raster<float>> EvaluateTiles(const Terrain& terrain, const TileScheme& scheme,
@@ -232,7 +181,7 @@ std::vector<Raster<float>> EvaluateTiles(const Terrain& terrain, const TileSchem
 TileCache::TileCache(Terrain terrain, TileScheme scheme, std::size_t maxBytes)
     : terrain_(std::move(terrain)), scheme_(scheme), cache_(maxBytes, TileBytes) {
     scheme_.Validate();
-    FilterMargin(terrain_, scheme_.Spacing(0));
+    ValidateTerrain(terrain_);
 }
 
 std::shared_ptr<const Raster<float>> TileCache::Get(const TileKey& key) {

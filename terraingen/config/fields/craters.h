@@ -118,6 +118,21 @@ template <typename IO> void Fields(IO& io, CraterIrregularity& irregularity) {
        "Largest random turn of a long axis either way from the heading, in radians.", "rad");
 }
 
+template <typename IO> void Fields(IO& io, RimSmoothing& smoothing) {
+    io("sigma_radii", smoothing.sigmaRadii,
+       "Deviation of the Gaussian the profile is smoothed with across distance, in crater radii; "
+       "larger values round rims more, and 0 leaves them sharp.");
+    io("inner_radii", smoothing.innerRadii,
+       "Inner edge of the smoothed band around the rim, in crater radii; below 1.");
+    io("outer_radii", smoothing.outerRadii,
+       "Outer edge of the smoothed band around the rim, in crater radii; above 1.");
+    io("shape", smoothing.shape,
+       "How the smoothing fades from full at the rim to none at the band's edges.");
+    io("strength", smoothing.strength,
+       "Share of the smoothed height used at the rim, from 0 to 1; lower values keep more of the "
+       "sharp crest.");
+}
+
 template <typename IO> void Fields(IO& io, CraterApplyOptions& apply) {
     io("order", apply.order,
        "Order in which overlapping craters are applied; later craters overprint earlier ones.");
@@ -135,6 +150,9 @@ template <typename IO> void Fields(IO& io, CraterApplyOptions& apply) {
     io("irregularity", apply.irregularity,
        "Irregular, non-circular crater outlines: which craters have them and how their shapes "
        "are drawn.");
+    io("rim_smoothing", apply.rimSmoothing,
+       "Rounded rims: each crater's profile smoothed across distance near its rim; off unless "
+       "sigma_radii is set.");
 }
 
 template <> struct SpecName<CraterLayerSpec> {
@@ -227,29 +245,6 @@ template <typename IO> void Fields(IO& io, SecondaryLayerSpec& spec) {
        "shallower secondaries.");
     io("morphometry", spec.morphometry,
        "Published fits whose fresh crater rim the secondaries are shaped with.");
-}
-
-template <> struct SpecName<RimSmoothing> {
-    static constexpr std::string_view kName = "rim_smoothing";
-    static constexpr std::string_view kDescription =
-        "Rounds the sharp rims of placed craters by blending towards a Gaussian-smoothed copy "
-        "around each rim.";
-};
-template <typename IO> void Fields(IO& io, RimSmoothing& smoothing) {
-    io("sigma_radii", smoothing.sigmaRadii,
-       "Gaussian standard deviation as a fraction of each crater's radius; larger values round "
-       "rims more, and 0 disables smoothing.");
-    io("inner_radii", smoothing.innerRadii,
-       "Inner edge of the smoothed band around the rim, in crater radii; below 1.");
-    io("outer_radii", smoothing.outerRadii,
-       "Outer edge of the smoothed band around the rim, in crater radii; above 1.");
-    io("shape", smoothing.shape,
-       "How the smoothing fades from full at the rim to none at the band's edges.");
-    io("strength", smoothing.strength,
-       "Fraction of the smoothed height used at the rim, from 0 to 1; lower values keep more of "
-       "the sharp crest.");
-    io("fade", smoothing.fade,
-       "How rims of craters too small to resolve at the sample spacing fade out.");
 }
 
 }  // namespace terraingen::config

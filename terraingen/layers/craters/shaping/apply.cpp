@@ -10,6 +10,7 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <numbers>
 #include <optional>
 #include <stdexcept>
 #include <utility>
@@ -18,6 +19,37 @@
 namespace terraingen {
 
 namespace {
+
+/// Nodes and weights of 9-point Gauss-Hermite quadrature (the node at 0 and the positive half):
+/// the mean of f over a normal distribution of mean m and deviation s is
+/// sum(w f(m + sqrt(2) s x)) / sqrt(pi).
+constexpr std::array<double, 5> kHermiteNodes{0.0, 0.723551018752838, 1.46855328921667,
+                                              2.26658058453184, 3.19099320178153};
+constexpr std::array<double, 5> kHermiteWeights{0.720235215606051, 0.432651559002556,
+                                                0.0884745273943766, 0.00494362427553695,
+                                                0.0000396069772632645};
+
+/// The profile's height at `distance`, its rim rounded by `rim`: blended by `rim.Weight` toward
+/// the profile averaged over a normal spread of distances of deviation `sigmaRadii` radii.
+double ProfileHeight(const CraterProfile& profile, double distance, double diameter,
+                     const CraterState& state, const RimSmoothing& rim) {
+    const double height = profile.Height(distance, diameter, state);
+    const double radius = 0.5 * diameter;
+    const double weight = rim.Weight(distance / radius);
+    if (weight == 0.0) {
+        return height;
+    }
+    const double step = std::numbers::sqrt2 * rim.sigmaRadii * radius;
+    double smoothed = kHermiteWeights[0] * height;
+    for (std::size_t i = 1; i < kHermiteNodes.size(); ++i) {
+        for (const double sign : {-1.0, 1.0}) {
+            const double at = std::fabs(distance + sign * step * kHermiteNodes[i]);
+            smoothed += kHermiteWeights[i] * profile.Height(at, diameter, state);
+        }
+    }
+    smoothed /= std::sqrt(std::numbers::pi);
+    return height + weight * (smoothed - height);
+}
 
 /// Height of the raster at world point (x, y) by bilinear interpolation of the cell centres, or
 /// nothing if a contributing cell is outside the raster or holds no data.
@@ -132,9 +164,9 @@ float ApplyCraterTo(float height, double x, double y, const PreparedCrater& crat
         const double weight = options.interiorReplacement * options.blend.Weight(distance / radius);
         replaced = weight * (crater.datum->At(offset.x, offset.y) - current);
     }
-    return static_cast<float>(current +
-                              crater.resolution * profile.Height(distance, diameter, crater.state) +
-                              crater.resolution * replaced);
+    const double shaped =
+        ProfileHeight(profile, distance, diameter, crater.state, options.rimSmoothing);
+    return static_cast<float>(current + crater.resolution * shaped + crater.resolution * replaced);
 }
 
 void ApplyCraters(Raster<float>& raster, const CraterList& craters, const CraterShapeModels& models,

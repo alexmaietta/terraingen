@@ -52,6 +52,5 @@ TEST(RequireGround, NamesWhatNeedsIt) {
 TEST(Layer, AppliesToOneCellForPointQueriesByDefault) {
     const Plus plus;
     EXPECT_EQ(plus.ApplyAt(1.5f, 10.0, 20.0, {.spacing = 2.0}), 2.5f);
-    EXPECT_EQ(plus.MaxFeatureDiameter(), 0.0);
     EXPECT_THROW(plus.ApplyAt(1.5f, 10.0, 20.0, {}), std::invalid_argument);
 }

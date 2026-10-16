@@ -51,6 +51,7 @@ TerrainConfig Everything() {
                                                    terraingen::ChronologyModel::Ivanov};
     craters.minDiameter = 2.0;
     craters.maxDiameter = 90.0;
+    craters.apply.rimSmoothing = {.sigmaRadii = 0.1, .strength = 0.5};
     craters.spacing = {2.0, 0.75};
     craters.maxCraters = 1234;
     craters.manual = {{1.5, -2.25, 30.0, 0.1, 7u}};
@@ -167,8 +168,6 @@ TerrainConfig Everything() {
             terraingen::RectangleRegionSpec{-1.0, -2.0, 3.0, 4.0}, 0.0,
             terraingen::BlendShape::Linear,
             terraingen::RegionLayerSpec{{}, 1.0, {}, terraingen::ClampLayerSpec{0.0, 1.0}}}};
-    config.filters = {terraingen::RimSmoothing{
-        .sigmaRadii = 0.1, .strength = 0.5, .fade = {0.5, 6.0, terraingen::BlendShape::Gaussian}}};
     config.outputs = {
         CraterListOutput{"out/craters.json", ListFormat::Json},
         CraterListOutput{"craters.txt", ListFormat::Csv},
@@ -192,7 +191,7 @@ TEST(ConfigJson, WritesTheRootKeysInOrderAndNoAlbedoWhenUnset) {
     const std::string json = ConfigToJson(TerrainConfig{});
     EXPECT_EQ(json.rfind("{\n  \"schema_version\": 1,\n  \"surface\": {", 0), 0u) << json;
     EXPECT_EQ(json.find("\"albedo\""), std::string::npos) << json;
-    EXPECT_LT(json.find("\"filters\""), json.find("\"outputs\""));
+    EXPECT_LT(json.find("\"layers\""), json.find("\"outputs\""));
     TerrainConfig config;
     config.albedo = terraingen::AlbedoSpec{};
     EXPECT_NE(ConfigToJson(config).find("\"albedo\""), std::string::npos);

@@ -9,9 +9,31 @@
 
 namespace terraingen {
 
+double RimSmoothing::Weight(double radii) const {
+    if (sigmaRadii == 0.0) {
+        return 0.0;
+    }
+    if (radii <= 1.0) {
+        return strength * Falloff(2.0 - radii, 1.0, 2.0 - innerRadii, shape);
+    }
+    return strength * Falloff(radii, 1.0, outerRadii, shape);
+}
+
+void ValidateRimSmoothing(const RimSmoothing& smoothing) {
+    RequireNonNegative(smoothing.sigmaRadii, "Rim smoothing sigma");
+    if (!(smoothing.strength >= 0.0 && smoothing.strength <= 1.0)) {
+        throw std::invalid_argument("Rim smoothing strength must be between 0 and 1");
+    }
+    if (!(smoothing.innerRadii >= 0.0 && smoothing.innerRadii < 1.0 && smoothing.outerRadii > 1.0 &&
+          std::isfinite(smoothing.outerRadii))) {
+        throw std::invalid_argument("Rim smoothing band must satisfy 0 <= inner < 1 < outer");
+    }
+}
+
 void ValidateCraterApplyOptions(const CraterApplyOptions& options) {
     ValidateResolutionFade(options.fade);
     ValidateCraterIrregularity(options.irregularity);
+    ValidateRimSmoothing(options.rimSmoothing);
     RequirePositive(options.datumFitRadii, "datumFitRadii");
     if (!(options.interiorReplacement >= 0.0 && options.interiorReplacement <= 1.0)) {
         throw std::invalid_argument("interiorReplacement must be between 0 and 1");

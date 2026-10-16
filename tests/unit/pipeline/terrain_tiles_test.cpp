@@ -20,11 +20,9 @@ using terraingen::testing::ExpectSameRaster;
 using terraingen::testing::Rolling;
 using terraingen::testing::Smoothed;
 
-TEST(EvaluateTile, EqualsTheSameCellsOfALargerGridWithFilters) {
+TEST(EvaluateTile, EqualsTheSameCellsOfALargerGridWithRoundedRims) {
     const Terrain terrain = Smoothed();
     const terraingen::TileScheme scheme{{-96.0, 64.0}, 128.0, 16};
-    const double margin = terraingen::FilterMargin(terrain, 2.0);
-    EXPECT_DOUBLE_EQ(margin, (1.2 + 3.0 * 0.05) * 25.0 + 4.0);
     const RasterGrid large{200, 160, GeoTransform::NorthUp(-200.0, 160.0, 2.0)};
     const auto whole = Evaluate(terrain, large);
     for (const terraingen::TileKey key :
@@ -54,7 +52,6 @@ TEST(EvaluateTile, MatchesGridsEvaluatedAtEachLevelsSpacing) {
         const auto grid = Evaluate(terrain, scheme.Grid(key));
         ExpectSameRaster(tile, grid);
     }
-    EXPECT_EQ(terraingen::FilterMargin(terrain, 2.0), 0.0);
 }
 
 TEST(EvaluateTiles, EvaluatesEveryTileInOrder) {
@@ -147,6 +144,7 @@ TEST(Evaluate, SphereTilesAndPointsEqualTheWholeTerrain) {
     options.surface = moon;
     options.generation.dMin = 12.0;
     options.generation.dMax = 80.0;
+    options.apply.rimSmoothing.sigmaRadii = 0.05;
     terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(
         terraingen::CraterModels{
             std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
@@ -161,7 +159,6 @@ TEST(Evaluate, SphereTilesAndPointsEqualTheWholeTerrain) {
         const auto centre = whole.CellCenter(col, row);
         EXPECT_EQ(terraingen::EvaluateAt(terrain, centre.x, centre.y, 4.0), whole(col, row));
     }
-    terrain.filters.push_back(terraingen::testing::RimFilter(terrain));
     const RasterGrid large{200, 160, GeoTransform::NorthUp(-100.0 * step, 80.0 * step, step)};
     const auto smoothed = Evaluate(terrain, large);
     const terraingen::TileScheme scheme{{-48.0 * step, 32.0 * step}, 64.0 * step, 16};
@@ -199,6 +196,7 @@ TEST(EvaluateTile, WholeBodyTilesAgreeAcrossTheAntimeridianAndAtThePole) {
     options.surface = moon;
     options.generation.dMin = 300.0;
     options.generation.dMax = 1500.0;
+    options.apply.rimSmoothing.sigmaRadii = 0.05;
     terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(
         terraingen::CraterModels{
             std::make_shared<terraingen::PowerLawSfd>(0.5, 2.0),
@@ -206,7 +204,6 @@ TEST(EvaluateTile, WholeBodyTilesAgreeAcrossTheAntimeridianAndAtThePole) {
             std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry),
             std::make_shared<terraingen::FassettThomsonProfile>()},
         options));
-    terrain.filters.push_back(terraingen::testing::RimFilter(terrain));
     const int level = 9;
     const std::int64_t columns = std::int64_t{2} << level;
     const double size = scheme.TileSize(level);
@@ -291,6 +288,5 @@ TEST(BodyMesh, CoversTheBodyWithOutwardTrianglesAtTheTerrainsHeights) {
     EXPECT_THROW(terraingen::BodyMesh(flat, 4), std::invalid_argument);
     EXPECT_THROW(terraingen::BodyMesh(terrain, 0), std::invalid_argument);
     EXPECT_THROW(terraingen::BodyMesh(terrain, 4, -1.0), std::invalid_argument);
-    terrain.filters.push_back(terraingen::testing::RimFilter(terrain));
     EXPECT_NO_THROW(terraingen::BodyMesh(terrain, 2));
 }

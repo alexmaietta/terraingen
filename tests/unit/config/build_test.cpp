@@ -298,7 +298,6 @@ TEST(BuildTerrain, BuildsEveryLayerKindInOrder) {
     config.layers.push_back(terraingen::ScaleLayerSpec{2.0, 1.0});
     config.layers.push_back(terraingen::ClampLayerSpec{0.0, 1.0});
     config.layers.push_back(terraingen::RegionLayerSpec{terraingen::CircleRegionSpec{0, 0, 10}});
-    config.filters = {terraingen::RimSmoothing{}};
     const terraingen::Terrain terrain = terraingen::BuildTerrain(config);
     ASSERT_EQ(terrain.layers.size(), 9u);
     EXPECT_NE(dynamic_cast<const terraingen::NoiseRelief*>(terrain.layers[0].get()), nullptr);
@@ -311,7 +310,6 @@ TEST(BuildTerrain, BuildsEveryLayerKindInOrder) {
     EXPECT_NE(dynamic_cast<const terraingen::ScaleLayer*>(terrain.layers[6].get()), nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::ClampLayer*>(terrain.layers[7].get()), nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::RegionLayer*>(terrain.layers[8].get()), nullptr);
-    ASSERT_EQ(terrain.filters.size(), 1u);
     TerrainConfig narrow;
     narrow.source = terraingen::FlatSourceSpec{1};
     EXPECT_THROW(terraingen::BuildTerrain(narrow), ConfigError);

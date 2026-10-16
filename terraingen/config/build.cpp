@@ -458,14 +458,6 @@ Terrain BuildValidTerrain(const TerrainConfig& config, const std::filesystem::pa
             craters = std::static_pointer_cast<const CraterLayer>(terrain.layers.back());
         }
     }
-    for (const FilterSpec& filter : config.filters) {
-        std::visit(
-            [&](const RimSmoothing& smoothing) {
-                terrain.filters.push_back(
-                    std::make_shared<RimSmoothingFilter>(smoothing, terrain.surface));
-            },
-            filter);
-    }
     return terrain;
 }
 

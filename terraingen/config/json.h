@@ -34,12 +34,12 @@ class ConfigError : public std::runtime_error {
 ///      "source": {"type": "flat", "width": 513, "height": 513, "pixel_size": 2},
 ///      "layers": [{"type": "noise", "stack": [{"wavelength": 500, "amplitude": 50}]},
 ///                 {"type": "craters",
-///                  "density": {"type": "production_surface", "age_gyr": 3.5}}],
-///      "filters": [{"type": "rim_smoothing", "sigma_radii": 0.05}],
+///                  "density": {"type": "production_surface", "age_gyr": 3.5},
+///                  "rim_smoothing": {"sigma_radii": 0.05}}],
 ///      "outputs": [{"type": "heightmap", "path": "terrain.tif"}]}
 ///
-/// Keys are snake_case versions of the C++ fields; sources, layers, filters, outputs and models are
-/// objects with a "type". Omitted keys take their defaults and omitted lists are empty.
+/// Keys are snake_case versions of the C++ fields; sources, layers, outputs and models are objects
+/// with a "type". Omitted keys take their defaults and omitted lists are empty.
 /// @throws ConfigError for malformed JSON, a missing or unsupported "schema_version", an unknown
 /// key, or a value of the wrong type.
 TerrainConfig ParseConfig(std::string_view json);
@@ -54,7 +54,7 @@ std::string ConfigToJson(const TerrainConfig& config, int indent = 2);
 
 /// A reference of every configuration type with its defaults, as JSON.
 ///
-/// The lists "surface", "source", "layers", "filters" and "outputs" hold each type of their kind,
+/// The lists "surface", "source", "layers" and "outputs" hold each type of their kind,
 /// "albedo" the albedo, and "models" one noise layer and every density, ages, degradation,
 /// profile, boulder size, region shape, albedo source and albedo layer type. Each entry parses
 /// where its kind belongs in a configuration.

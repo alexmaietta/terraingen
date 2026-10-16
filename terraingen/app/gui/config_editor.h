@@ -14,7 +14,7 @@ namespace terraingen::gui {
 /// An editor for a terrain configuration held as JSON, its widgets chosen from the
 /// configuration's schema (`ConfigSchema`).
 ///
-/// - The outliner (`DrawOutliner`) lists the surface, source, layers, filters, outputs and albedo;
+/// - The outliner (`DrawOutliner`) lists the surface, source, layers, outputs and albedo;
 ///   lists add items of a chosen type, reorder by dragging and remove them, and selecting an item
 ///   opens it in the inspector.
 /// - The inspector (`DrawInspector`) edits the selected item: its type and each setting, with a
@@ -65,7 +65,7 @@ class ConfigEditor {
 
     /// Appends an item of `type` to a root list and selects it; false if `type` is not one of the
     /// list's.
-    /// @param list The root list: "layers", "filters" or "outputs".
+    /// @param list The root list: "layers" or "outputs".
     bool AddItem(Json& config, std::string_view list, const std::string& type);
 
     /// Removes an item of a root list, keeping the selection on what it showed, or none if

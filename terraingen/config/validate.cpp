@@ -438,12 +438,6 @@ ConfigSummary ValidateConfig(const TerrainConfig& config, const std::filesystem:
     for (std::size_t i = 0; i < config.layers.size(); ++i) {
         ValidateLayer(config.layers[i], Element("layers", i), layers);
     }
-    for (std::size_t i = 0; i < config.filters.size(); ++i) {
-        At(Element("filters", i), [&] {
-            std::visit([](const RimSmoothing& smoothing) { ValidateRimSmoothing(smoothing); },
-                       config.filters[i]);
-        });
-    }
     const OutputContext outputs{surface.IsSphere(), config.albedo.has_value()};
     for (std::size_t i = 0; i < config.outputs.size(); ++i) {
         std::visit(

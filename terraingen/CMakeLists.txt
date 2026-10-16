@@ -8,7 +8,6 @@
 #   distribution  size-frequency distributions
 #   sources       where heights come from: synthetic terrain from layered noise
 #   layers        relief added on top of a source: craters (populations, profiles, degradation)
-#   filters       transforms of the heights so far: crater rim smoothing
 #   albedo        surface albedo: orbital maps upscaled, synthetic colour and bright crater rays
 #   pipeline      terrains evaluated over grids, tiles, points and whole-body meshes
 #   config        JSON terrain configs: parsing, validation, building and writing outputs
@@ -58,7 +57,6 @@ add_subdirectory(mesh)
 add_subdirectory(distribution)
 add_subdirectory(sources)
 add_subdirectory(layers)
-add_subdirectory(filters)
 add_subdirectory(albedo)
 add_subdirectory(pipeline)
 add_subdirectory(config)

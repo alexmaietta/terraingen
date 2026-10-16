@@ -22,12 +22,11 @@ template <typename IO> void Fields(IO& io, TerrainConfig& config) {
        "What the terrain lies on: a plane in metres, or a sphere (a planet or moon) in longitude "
        "and latitude degrees.");
     io("source", config.source,
-       "The starting heights and the grid every layer, filter and output uses: flat, read from a "
+       "The starting heights and the grid every layer and output uses: flat, read from a "
        "GeoTIFF, or a chain of sources.");
     io("layers", config.layers,
        "Relief and features added to the source's heights, applied in order: noise, craters, "
        "boulders and more.");
-    io("filters", config.filters, "Processing applied to the heights after every layer.");
     io("outputs", config.outputs,
        "Files written after generation: heightmaps, crater and boulder lists, boulder models, "
        "albedo and body meshes.");

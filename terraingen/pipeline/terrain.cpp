@@ -11,18 +11,6 @@ namespace terraingen {
 
 namespace {
 
-void CheckTerrain(const Terrain& terrain) {
-    if (!terrain.source) {
-        throw std::invalid_argument("A terrain needs a source");
-    }
-    if (std::any_of(terrain.layers.begin(), terrain.layers.end(),
-                    [](const auto& l) { return !l; }) ||
-        std::any_of(terrain.filters.begin(), terrain.filters.end(),
-                    [](const auto& f) { return !f; })) {
-        throw std::invalid_argument("A terrain's layers and filters must not be null");
-    }
-}
-
 /// Sets `heights` to the terrain's source at `points`, then applies its first `layers` layers to
 /// them all at once, each on the ground beneath it.
 void EvaluateStack(const Terrain& terrain, std::size_t layers, std::span<const Vec2d> points,
@@ -45,7 +33,7 @@ Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid, double sp
 
 Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid,
                        const EvaluationOptions& options) {
-    CheckTerrain(terrain);
+    ValidateTerrain(terrain);
     RequireNonNegative(options.spacing, "Sample spacing");
     const double resolved = std::max(options.spacing, grid.Spacing(terrain.surface));
     Raster<float> heights = grid.MakeRaster();
@@ -54,32 +42,22 @@ Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid,
         const TerrainGround ground(terrain, n);
         terrain.layers[n]->Apply(heights, LayerContext{resolved, options.threads, &ground});
     }
-    for (const auto& filter : terrain.filters) {
-        filter->Apply(heights, {resolved, options.threads, terrain.layers});
-    }
     return heights;
 }
 
-double FilterMargin(const Terrain& terrain, double spacing) {
-    CheckTerrain(terrain);
-    double largest = 0.0;
-    for (const auto& layer : terrain.layers) {
-        largest = std::fmax(largest, layer->MaxFeatureDiameter());
+void ValidateTerrain(const Terrain& terrain) {
+    if (!terrain.source) {
+        throw std::invalid_argument("A terrain needs a source");
     }
-    double margin = 0.0;
-    for (const auto& filter : terrain.filters) {
-        margin = std::fmax(margin, filter->Margin(largest, spacing));
+    if (std::any_of(terrain.layers.begin(), terrain.layers.end(),
+                    [](const auto& l) { return !l; })) {
+        throw std::invalid_argument("A terrain's layers must not be null");
     }
-    return margin;
 }
 
 std::vector<float> EvaluatePoints(const Terrain& terrain, std::span<const Vec2d> points,
                                   double spacing, unsigned threads) {
-    CheckTerrain(terrain);
-    if (!terrain.filters.empty()) {
-        throw std::invalid_argument(
-            "Point queries cannot run filters, which read neighbouring cells; evaluate a grid");
-    }
+    ValidateTerrain(terrain);
     RequirePositive(spacing, "Sample spacing");
     constexpr std::size_t kBatch = 256;
     std::vector<float> heights(points.size());
@@ -115,7 +93,7 @@ float TerrainGround::HeightAt(double x, double y, double spacing) const {
 }
 
 Raster<float> Evaluate(const Terrain& terrain) {
-    CheckTerrain(terrain);
+    ValidateTerrain(terrain);
     return Evaluate(terrain, terrain.source->Grid());
 }
 

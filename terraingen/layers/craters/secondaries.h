@@ -83,7 +83,7 @@ class SecondaryCraterLayer final : public Layer, public CraterPlacer {
                          SecondaryCraterOptions options, CraterApplyOptions apply = {});
 
     /// The largest secondary the layer places, in metres.
-    double MaxFeatureDiameter() const override;
+    double MaxFeatureDiameter() const;
 
     /// The secondaries a grid covering `region` (surface coordinates) gets: those centred in it or
     /// within the profile's reach of it.

@@ -38,14 +38,13 @@ TEST(ConfigJson, OmittedKeysTakeDefaultsAndOmittedListsAreEmpty) {
     const TerrainConfig minimal = ParseConfig(R"({"schema_version": 1})");
     EXPECT_EQ(minimal.source, terraingen::SourceSpec{});
     EXPECT_TRUE(minimal.layers.empty());
-    EXPECT_TRUE(minimal.filters.empty());
     EXPECT_TRUE(minimal.outputs.empty());
     const TerrainConfig partial = ParseConfig(R"({
         "schema_version": 1,
         "source": {"type": "flat", "width": 64},
         "layers": [{"type": "noise", "stack": [{"octaves": 3, "hurst": 0.7}]},
                    {"type": "craters", "density": {"type": "trask"}}],
-        "filters": [{"type": "rim_smoothing"}]
+        "outputs": []
     })");
     const auto& flat = std::get<terraingen::FlatSourceSpec>(partial.source);
     EXPECT_EQ(flat.width, 64u);
@@ -57,8 +56,7 @@ TEST(ConfigJson, OmittedKeysTakeDefaultsAndOmittedListsAreEmpty) {
     const auto& craters = std::get<CraterLayerSpec>(partial.layers[1]);
     EXPECT_TRUE(std::holds_alternative<terraingen::TraskSpec>(craters.density));
     EXPECT_EQ(craters.minDiameter, 4.0);
-    ASSERT_EQ(partial.filters.size(), 1u);
-    EXPECT_EQ(std::get<terraingen::RimSmoothing>(partial.filters[0]), terraingen::RimSmoothing{});
+    EXPECT_EQ(craters.apply.rimSmoothing, terraingen::RimSmoothing{});
 }
 
 TEST(ConfigJson, ReadsBoulderLayersWithOptionalExposure) {

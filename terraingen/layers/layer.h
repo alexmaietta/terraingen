@@ -50,11 +50,6 @@ class Layer {
     /// @throws std::invalid_argument without a positive `context.spacing`.
     float ApplyAt(float height, double x, double y, const LayerContext& context) const;
 
-    /// The largest feature the layer places, in metres, for tiles' and filters' margins.
-    virtual double MaxFeatureDiameter() const {
-        return 0.0;
-    }
-
   protected:
     /// Adds the layer's relief to `samples`. A grid's spacing is `context.spacing` raised to the
     /// grid's own; points come with a positive one.

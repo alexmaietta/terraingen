@@ -95,11 +95,6 @@ def test_build_albedo_evaluates_the_configured_albedo():
     assert terraingen.evaluate_albedo(built_albedo, config.grid())[0].values.mean() == pytest.approx(0.12)
 
 
-def test_filter_margin_without_filters_is_zero():
-    terrain = terraingen.build_terrain(terraingen.Config.from_dict(SPHERE_CONFIG))
-    assert terraingen.filter_margin(terrain, 100.0) == 0.0
-
-
 def test_terrain_needs_a_source():
     with pytest.raises(TypeError):
         terraingen.Terrain(None)

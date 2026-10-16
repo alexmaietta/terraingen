@@ -69,7 +69,7 @@ class BoulderLayer final : public Layer, public BoulderPlacer {
     double DensityAt(double diameter, double x, double y, const Ground* ground = nullptr) const;
 
     /// `sizes.maxDiameter`.
-    double MaxFeatureDiameter() const override {
+    double MaxFeatureDiameter() const {
         return options_.sizes.maxDiameter;
     }
 

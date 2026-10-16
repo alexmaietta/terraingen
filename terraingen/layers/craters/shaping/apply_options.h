@@ -1,5 +1,5 @@
 /// @file
-/// @brief How craters are applied to the terrain: their order, datum, blend and outlines.
+/// @brief How craters are applied to the terrain: their order, datum, blend, outlines and rims.
 #pragma once
 
 #include "terraingen/layers/craters/generation/population.h"
@@ -41,6 +41,28 @@ struct CraterBlend {
     bool operator==(const CraterBlend&) const = default;
 };
 
+/// How crater rims are rounded: near the rim, the profile is blended toward itself smoothed across
+/// distance by a Gaussian, with full weight at the rim fading to none at the band's edges.
+struct RimSmoothing {
+    /// Gaussian standard deviation in crater radii; 0 leaves rims sharp.
+    double sigmaRadii = 0.0;
+    double innerRadii = 0.8;  ///< Inner edge of the smoothed band, in crater radii; in [0, 1).
+    double outerRadii = 1.2;  ///< Outer edge of the smoothed band, in crater radii; above 1.
+    BlendShape shape = BlendShape::Smootherstep;  ///< How the weight falls toward the edges.
+    double strength = 1.0;  ///< Share of the smoothed height used at the rim, in [0, 1].
+
+    /// The smoothing weight at `radii` crater radii from the centre: `strength` at the rim, 0 from
+    /// the band's edges and when `sigmaRadii` is 0.
+    double Weight(double radii) const;
+
+    bool operator==(const RimSmoothing&) const = default;
+};
+
+/// Checks rim smoothing settings.
+/// @throws std::invalid_argument for a negative or non-finite `sigmaRadii`, a `strength` outside
+/// [0, 1], or a band that does not satisfy 0 <= `innerRadii` < 1 < `outerRadii`.
+void ValidateRimSmoothing(const RimSmoothing& smoothing);
+
 /// How `ApplyCraters` shapes craters into the terrain.
 struct CraterApplyOptions {
     CraterOrder order = CraterOrder::OldestFirst;  ///< Which craters overprint which.
@@ -57,6 +79,7 @@ struct CraterApplyOptions {
     CraterBlend blend{};  ///< Where the replaced interior blends out.
     /// Irregular, non-circular outlines; off by default.
     CraterIrregularity irregularity{};
+    RimSmoothing rimSmoothing{};  ///< Rounded rims; off by default.
     /// What craters are shaped on; on a sphere, centres and rasters are longitude and latitude and
     /// each crater is shaped in its local frame, spacings in metres.
     Surface surface{};
@@ -65,9 +88,9 @@ struct CraterApplyOptions {
 };
 
 /// Checks crater apply options.
-/// @throws std::invalid_argument for an invalid `fade` or `irregularity`, a non-positive
-/// `datumFitRadii`, an `interiorReplacement` outside [0, 1], or a blend that does not satisfy
-/// 0 <= `startRadii` < `endRadii`.
+/// @throws std::invalid_argument for an invalid `fade`, `irregularity` or `rimSmoothing`, a
+/// non-positive `datumFitRadii`, an `interiorReplacement` outside [0, 1], or a blend that does not
+/// satisfy 0 <= `startRadii` < `endRadii`.
 void ValidateCraterApplyOptions(const CraterApplyOptions& options);
 
 /// Indices into `craters` in the order they are applied; ties fall to age, then diameter, then

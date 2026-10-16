@@ -1,6 +1,6 @@
-/// Sources, layers and filters of your own: every part of a terrain is an interface to derive
-/// from. Here an inclined plane (`Source`), a sinuous rille (`Layer`) and a terrace quantization
-/// (`Filter`) mix with built-in noise and craters. Writes the terrain with and without the filter.
+/// Sources and layers of your own: every part of a terrain is an interface to derive from. Here
+/// an inclined plane (`Source`), a sinuous rille and a terrace quantization (`FormulaLayer`s) mix
+/// with built-in noise and craters. Writes the terrain with and without the terraces.
 ///
 ///     example_layers_custom [--output-dir DIR] [--test]
 ///     terraingen-examples layers_custom
@@ -44,11 +44,6 @@ class InclinedPlane final : public terraingen::Source {
 
 /// A sinuous channel 12 m deep and 40 m wide, meandering north to south.
 class Rille final : public terraingen::FormulaLayer {
-  public:
-    double MaxFeatureDiameter() const override {
-        return 40.0;
-    }
-
   protected:
     float HeightAt(float height, double x, double y, double /*spacing*/,
                    const terraingen::Ground* /*ground*/) const override {
@@ -59,17 +54,16 @@ class Rille final : public terraingen::FormulaLayer {
 };
 
 /// Rounds heights halfway to steps of `step` metres.
-class Terraces final : public terraingen::Filter {
+class Terraces final : public terraingen::FormulaLayer {
   public:
     explicit Terraces(double step) : step_(step) {}
 
-    void Apply(terraingen::Raster<float>& heights,
-               const terraingen::FilterContext& /*context*/) const override {
-        for (float& value : heights.Values()) {
-            const double height = static_cast<double>(value);
-            const double rounded = std::round(height / step_) * step_;
-            value = static_cast<float>(0.5 * height + 0.5 * rounded);
-        }
+  protected:
+    float HeightAt(float height, double /*x*/, double /*y*/, double /*spacing*/,
+                   const terraingen::Ground* /*ground*/) const override {
+        const auto value = static_cast<double>(height);
+        const double rounded = std::round(value / step_) * step_;
+        return static_cast<float>(0.5 * value + 0.5 * rounded);
     }
 
   private:
@@ -128,7 +122,7 @@ class LayersCustom : public terraingen::examples::Example {
               << " m\n"
               << std::defaultfloat;
         plain_ = terraingen::Evaluate(terrain);
-        terrain.filters.push_back(std::make_shared<Terraces>(4.0));
+        terrain.layers.push_back(std::make_shared<Terraces>(4.0));
         terraced_ = terraingen::Evaluate(terrain);
         Show("heights", plain_);
         Show("terraced", terraced_);

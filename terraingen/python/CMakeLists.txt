@@ -17,7 +17,6 @@ nanobind_add_module(
     src/layers.cpp
     src/craters.cpp
     src/boulders.cpp
-    src/filters.cpp
     src/albedo.cpp
     src/pipeline.cpp)
 target_link_libraries(_terraingen PRIVATE terraingen::terraingen terraingen_warnings

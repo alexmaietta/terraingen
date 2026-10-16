@@ -7,7 +7,6 @@ terraingen_add_library(
     terrain.cpp
     tiles.cpp
     PUBLIC
-    terraingen_filters
     terraingen_layers
     terraingen_mesh
     terraingen_raster

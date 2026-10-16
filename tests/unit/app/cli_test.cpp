@@ -140,14 +140,13 @@ TEST(Cli, ValidatesAConfigAndReportsItsGridAndCraters) {
     const Result valid = Cli({"validate", config.string()});
     EXPECT_EQ(valid.code, kExitSuccess) << valid.err;
     EXPECT_NE(valid.out.find("is valid: a 65x49 grid, about "), std::string::npos) << valid.out;
-    EXPECT_NE(valid.out.find("2 layers, 0 filters and 2 outputs"), std::string::npos);
+    EXPECT_NE(valid.out.find("2 layers and 2 outputs"), std::string::npos);
     EXPECT_FALSE(std::filesystem::exists(directory / "heights.tif"));
 
     const auto flat = Write(directory / "flat.json", R"({"schema_version": 1})");
     const Result plain = Cli({"validate", flat.string()});
     EXPECT_EQ(plain.code, kExitSuccess) << plain.err;
-    EXPECT_EQ(plain.out,
-              flat.string() + " is valid: a 513x513 grid, 0 layers, 0 filters and 0 outputs\n");
+    EXPECT_EQ(plain.out, flat.string() + " is valid: a 513x513 grid, 0 layers and 0 outputs\n");
 
     const auto bad = Write(directory / "bad.json",
                            R"({"schema_version": 1, "layers": [{"type": "noise", "stack": []}]})");

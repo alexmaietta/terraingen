@@ -293,13 +293,27 @@ void BindOutlines(nb::module_& m) {
 }
 
 void BindApplyOptions(nb::module_& m) {
+    auto smoothing = nb::class_<RimSmoothing>(
+        m, "RimSmoothing",
+        "Rounded crater rims: near the rim the profile is blended toward itself smoothed across "
+        "distance by a Gaussian of `sigma_radii` radii, over the band from `inner_radii` to "
+        "`outer_radii`, fading along `shape`, at `strength`; 0 `sigma_radii` leaves rims sharp.");
+    BindKwargsInit<RimSmoothing>(smoothing);
+    smoothing.def_rw("sigma_radii", &RimSmoothing::sigmaRadii)
+        .def_rw("inner_radii", &RimSmoothing::innerRadii)
+        .def_rw("outer_radii", &RimSmoothing::outerRadii)
+        .def_rw("shape", &RimSmoothing::shape)
+        .def_rw("strength", &RimSmoothing::strength)
+        .def("weight", &RimSmoothing::Weight, "radii"_a,
+             "The smoothing weight at `radii` crater radii from the centre.");
+    m.def("validate_rim_smoothing", &ValidateRimSmoothing, "smoothing"_a, kValidateDoc);
     auto apply = nb::class_<CraterApplyOptions>(
         m, "CraterApplyOptions",
         "How craters are applied: the `datum` interiors are cut relative to (fit over "
         "`datum_fit_radii` radii; with none, craters are added to the terrain and the settings "
         "after it are unused), how much of the interior replaces the older relief "
         "(`interior_replacement`, 0 to 1), the `blend` into the exterior, the `order` overlapping "
-        "craters are applied in, the resolution `fade` and rim `irregularity`.");
+        "craters are applied in, the resolution `fade`, rim `irregularity` and `rim_smoothing`.");
     BindKwargsInit<CraterApplyOptions>(apply);
     apply.def_rw("order", &CraterApplyOptions::order)
         .def_rw("fade", &CraterApplyOptions::fade)
@@ -307,7 +321,8 @@ void BindApplyOptions(nb::module_& m) {
         .def_rw("datum_fit_radii", &CraterApplyOptions::datumFitRadii)
         .def_rw("interior_replacement", &CraterApplyOptions::interiorReplacement)
         .def_rw("blend", &CraterApplyOptions::blend)
-        .def_rw("irregularity", &CraterApplyOptions::irregularity);
+        .def_rw("irregularity", &CraterApplyOptions::irregularity)
+        .def_rw("rim_smoothing", &CraterApplyOptions::rimSmoothing);
     m.def("validate_crater_apply_options", &ValidateCraterApplyOptions, "options"_a, kValidateDoc);
     m.def("crater_apply_order", &CraterApplyOrder, "craters"_a, "order"_a,
           "The indices of `craters` in the order they are applied.");

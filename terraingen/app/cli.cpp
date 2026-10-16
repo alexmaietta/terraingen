@@ -129,8 +129,8 @@ int Validate(const std::vector<std::string>& args, std::ostream& out, std::ostre
             out << ", about " << static_cast<long long>(*summary.expectedCraters)
                 << " craters expected";
         }
-        out << ", " << config.layers.size() << " layers, " << config.filters.size()
-            << " filters and " << config.outputs.size() << " outputs\n";
+        out << ", " << config.layers.size() << " layers and " << config.outputs.size()
+            << " outputs\n";
     });
 }
 

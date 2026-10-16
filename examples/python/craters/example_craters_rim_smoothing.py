@@ -1,9 +1,10 @@
 """Rim smoothing: soften the sharp crests a crater profile leaves.
 
-`RimSmoothingFilter` blurs each crater's rim with a Gaussian of `sigma_radii` crater radii, over a
-band from `inner_radii` to `outer_radii` that fades along `shape`, at `strength` from 0 to 1. It is a
-filter, so it runs after every layer and smooths the craters those layers apply. Prints the highest rim in
-each case and writes a montage of hillshades.
+A crater layer's `rim_smoothing` (in its `CraterApplyOptions`) smooths each crater's profile
+across distance with a Gaussian of `sigma_radii` crater radii, over a band from `inner_radii` to
+`outer_radii` that fades along `shape`, at `strength` from 0 to 1. Like the rest of the crater
+shape, it is evaluated per point. Prints the highest rim in each case and writes a montage of
+hillshades.
 
     python example_craters_rim_smoothing.py [--viewer window|null] [--output-dir DIR] [--test]
 """
@@ -37,18 +38,19 @@ class Example(_common.Example):
             terraingen.FassettThomsonProfile(),
         )
         generation = terraingen.CraterGenerationOptions(min_diameter=10.0, max_diameter=120.0)
-        craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=3, generation=generation))
         source = terraingen.FlatSource(257, 257, PIXEL)
         variants = {
-            "none": None,
-            "default": terraingen.RimSmoothing(),
+            "none": terraingen.RimSmoothing(),
+            "default": terraingen.RimSmoothing(sigma_radii=0.05),
             "wide": terraingen.RimSmoothing(sigma_radii=0.15, inner_radii=0.6, outer_radii=1.4),
             "half strength": terraingen.RimSmoothing(sigma_radii=0.15, strength=0.5),
         }
         self.heights = {}
-        for name, options in variants.items():
-            filters = [terraingen.RimSmoothingFilter(options)] if options else []
-            heights = terraingen.evaluate(terraingen.Terrain(source, [craters], filters)).values
+        for name, smoothing in variants.items():
+            apply = terraingen.CraterApplyOptions(rim_smoothing=smoothing)
+            options = terraingen.CraterLayerOptions(seed=3, generation=generation, apply=apply)
+            craters = terraingen.CraterLayer(models, options)
+            heights = terraingen.evaluate(terraingen.Terrain(source, [craters])).values
             print(f"{name:14s} highest rim {heights.max():.2f} m")
             self.heights[name] = heights
         for name in ("default", "none", "wide", "half strength"):

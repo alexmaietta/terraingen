@@ -22,8 +22,6 @@ TriangleMesh BodyMesh(const Terrain& terrain, std::size_t cellsPerFace, double s
     const double quarter = std::numbers::pi / 4.0;
     const double step = 2.0 * quarter / static_cast<double>(cellsPerFace);
     const double sampled = spacing > 0.0 ? spacing : radius * step;
-    Terrain unfiltered = terrain;
-    unfiltered.filters.clear();
     const std::size_t side = cellsPerFace + 1;
     std::vector<Vec3d> directions(6 * side * side);
     std::vector<Vec2d> points(directions.size());
@@ -35,7 +33,7 @@ TriangleMesh BodyMesh(const Terrain& terrain, std::size_t cellsPerFace, double s
                                                    -quarter + static_cast<double>(j) * step);
         points[v] = terrain.surface.PointOf(directions[v]);
     }
-    const std::vector<float> heights = EvaluatePoints(unfiltered, points, sampled, threads);
+    const std::vector<float> heights = EvaluatePoints(terrain, points, sampled, threads);
     TriangleMesh mesh;
     mesh.positions.resize(directions.size());
     for (std::size_t v = 0; v < directions.size(); ++v) {

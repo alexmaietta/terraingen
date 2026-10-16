@@ -33,7 +33,7 @@ TEST(GenerateTerrain, MatchesComposingTheLibraryCalls) {
     TerrainConfig config = Small();
     Craters(config).manual = {{4.0, -3.0, 40.0, 0.0, 0u}};
     Craters(config).apply.datum = terraingen::CraterDatum::Plane;
-    config.filters = {terraingen::RimSmoothing{.sigmaRadii = 0.05}};
+    Craters(config).apply.rimSmoothing.sigmaRadii = 0.05;
     const auto terrain = GenerateTerrain(config);
 
     auto expected = terraingen::GenerateSyntheticTerrain(65, 49, 2.0, Noise(config).Params());
@@ -54,7 +54,6 @@ TEST(GenerateTerrain, MatchesComposingTheLibraryCalls) {
     };
     terraingen::ApplyCraters(expected, generate(bounds.Expanded(margin)), models.Shape(),
                              Craters(config).apply, {2.0, 1, ground});
-    terraingen::SmoothCraterRims(expected, craters, {.sigmaRadii = 0.05});
     EXPECT_EQ(CratersOf(terrain).craters.Ids(), craters.Ids());
     ASSERT_EQ(terrain.heights.Size(), expected.Size());
     for (std::size_t i = 0; i < expected.Size(); ++i) {
@@ -64,7 +63,7 @@ TEST(GenerateTerrain, MatchesComposingTheLibraryCalls) {
 
 TEST(GenerateTerrain, GivesTheSameTerrainOnAnyNumberOfThreads) {
     TerrainConfig config = Small();
-    config.filters = {terraingen::RimSmoothing{}};
+    Craters(config).apply.rimSmoothing.sigmaRadii = 0.05;
     const auto serial = GenerateTerrain(config, {}, 1);
     const auto parallel = GenerateTerrain(config, {}, 4);
     ExpectSameRaster(parallel.heights, serial.heights);
@@ -380,7 +379,6 @@ TEST(GenerateTerrain, BuildsSphereTerrainsWithGeographicKeys) {
     TerrainConfig config = terraingen::testing::OnASphere();
     terraingen::SyntheticAlbedoSpec synthetic;
     config.albedo = terraingen::AlbedoSpec{synthetic, {terraingen::CraterAlbedoSpec{}}};
-    config.filters = {terraingen::RimSmoothing{}};
     const auto generated = GenerateTerrain(config, {}, 2);
     const auto grid = terraingen::RasterGrid::Of(generated.heights);
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
@@ -397,11 +395,9 @@ TEST(GenerateTerrain, BuildsSphereTerrainsWithGeographicKeys) {
 
     const terraingen::Terrain terrain = terraingen::BuildTerrain(config);
     EXPECT_EQ(terrain.surface, moon);
-    terraingen::Terrain layersOnly = terrain;
-    layersOnly.filters.clear();
-    const auto unfiltered = terraingen::Evaluate(layersOnly, grid);
-    const auto centre = unfiltered.CellCenter(20, 30);
-    EXPECT_EQ(terraingen::EvaluateAt(layersOnly, centre.x, centre.y, 4.0), unfiltered(20, 30));
+    const auto heights = terraingen::Evaluate(terrain, grid);
+    const auto centre = heights.CellCenter(20, 30);
+    EXPECT_EQ(terraingen::EvaluateAt(terrain, centre.x, centre.y, 4.0), heights(20, 30));
 }
 
 TEST(GenerateTerrain, WearsCratersByDiffusionAsTheLibraryDoes) {

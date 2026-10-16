@@ -43,13 +43,12 @@
                 "chronology": "neukum"
             },
             "min_diameter": 8,
-            "max_diameter": 300
-        }
-    ],
-    "filters": [
-        {
-            "type": "rim_smoothing",
-            "sigma_radii": 0.08
+            "max_diameter": 300,
+            "apply": {
+                "rim_smoothing": {
+                    "sigma_radii": 0.08
+                }
+            }
         }
     ],
     "outputs": [

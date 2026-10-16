@@ -1,4 +1,4 @@
-"""raster: rasters and their array views, geotransforms, grids, statistics, GeoTIFF I/O and filters."""
+"""raster: rasters and their array views, geotransforms, grids, statistics, GeoTIFF I/O and Gaussian blur."""
 
 import gc
 import math

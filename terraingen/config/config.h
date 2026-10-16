@@ -10,7 +10,6 @@
 #include "terraingen/distribution/sp8023.h"
 #include "terraingen/distribution/synthterrain.h"
 #include "terraingen/distribution/viper.h"
-#include "terraingen/filters/rim_smoothing.h"
 #include "terraingen/layers/bedforms.h"
 #include "terraingen/layers/boulders/boulder_layer.h"
 #include "terraingen/layers/craters/degradation/diffusion.h"
@@ -440,9 +439,6 @@ struct RegionLayerSpec {
     bool operator==(const RegionLayerSpec&) const = default;
 };
 
-/// A filter, named in JSON by its "type": "rim_smoothing" is `RimSmoothingFilter`.
-using FilterSpec = std::variant<RimSmoothing>;
-
 /// Formats for crater and boulder lists.
 enum class ListFormat { Csv, Json };
 
@@ -577,14 +573,12 @@ struct SphereSurfaceSpec {
 using SurfaceSpec = std::variant<PlaneSurfaceSpec, SphereSurfaceSpec>;
 
 /// Everything needed to generate a terrain: the surface it lies on, a source, the layers
-/// added to it in order, the filters applied after them in order, the outputs to write, and
-/// optionally its albedo.
+/// added to it in order, the outputs to write, and optionally its albedo.
 struct TerrainConfig {
     int schemaVersion = kConfigSchemaVersion;
     SurfaceSpec surface{};
     SourceSpec source{};
     std::vector<LayerSpec> layers;
-    std::vector<FilterSpec> filters;
     std::vector<OutputSpec> outputs;
     std::optional<AlbedoSpec> albedo;  ///< None by default.
 

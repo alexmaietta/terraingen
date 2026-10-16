@@ -18,7 +18,6 @@ void BindSources(nanobind::module_& m);
 void BindLayers(nanobind::module_& m);
 void BindCraters(nanobind::module_& m);
 void BindBoulders(nanobind::module_& m);
-void BindFilters(nanobind::module_& m);
 void BindAlbedo(nanobind::module_& m);
 void BindPipeline(nanobind::module_& m);
 

@@ -21,9 +21,6 @@ class Tilt(terraingen.Layer):
     def apply(self, heights, context):
         heights.values[:] += np.linspace(0, 1, heights.width, dtype=np.float32)
 
-    def max_feature_diameter(self):
-        return 5.0
-
 
 def plain_heights(source):
     return terraingen.evaluate(terraingen.Terrain(source)).values
@@ -211,10 +208,6 @@ def test_python_raster_layer_edits_the_heights(paraboloid):
     np.testing.assert_allclose(tilted - plain, np.broadcast_to(np.linspace(0, 1, 65), (65, 65)), atol=1e-5)
 
 
-def test_python_layers_report_their_feature_size():
-    assert Tilt().max_feature_diameter() == 5.0 and Bump().max_feature_diameter() == 0.0
-
-
 def test_base_layer_without_overrides_raises(paraboloid):
     with pytest.raises(RuntimeError):
         terraingen.evaluate(terraingen.Terrain(paraboloid, [terraingen.Layer()]))
@@ -228,7 +221,7 @@ def test_region_weight_on_a_sphere_uses_degrees():
     assert region.weight(23.47, 0.67) == 1.0
 
 
-def test_layers_and_filters_accept_a_sphere_surface(lunar_models):
+def test_layers_accept_a_sphere_surface(lunar_models):
     moon = terraingen.Surface.sphere(1737400.0)
     generation = terraingen.CraterGenerationOptions(min_diameter=20000.0, max_diameter=300000.0)
     craters = terraingen.CraterLayer(
@@ -236,6 +229,5 @@ def test_layers_and_filters_accept_a_sphere_surface(lunar_models):
     )
     rough = terraingen.RoughnessLayer(terraingen.RoughnessOptions(), surface=moon)
     boulders = terraingen.BoulderLayer(terraingen.BoulderLayerOptions(), craters, surface=moon)
-    smoothing = terraingen.RimSmoothingFilter(surface=moon)
     bedforms = terraingen.BedformLayer(terraingen.mars_large_ripples(), surface=moon)
-    assert all(part is not None for part in (rough, boulders, smoothing, bedforms))
+    assert all(part is not None for part in (rough, boulders, bedforms))

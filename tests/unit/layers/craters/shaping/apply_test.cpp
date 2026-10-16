@@ -392,3 +392,35 @@ TEST(ApplyCraterTo, AddsTheProfileAndMovesTowardTheDatumInside) {
     EXPECT_FLOAT_EQ(terraingen::ApplyCraterTo(2.0f, 3.0, 0.0, prepared, profile, {}),
                     static_cast<float>(2.0 + 0.5 * height + 0.5 * (1.0 - 2.0)));
 }
+
+TEST(ApplyCraters, RoundsRimsByTheSmoothedProfileOnlyNearTheRim) {
+    const FassettThomsonProfile profile;
+    CraterApplyOptions options;
+    options.rimSmoothing.sigmaRadii = 0.1;
+    Raster<float> sharp = Flat(100);
+    ApplyCraters(sharp, One(0.5, 0.5, 40.0), profile);
+    Raster<float> rounded = Flat(100);
+    ApplyCraters(rounded, One(0.5, 0.5, 40.0), profile, options);
+    float sharpCrest = -1e9f;
+    float roundedCrest = -1e9f;
+    for (std::size_t row = 0; row < rounded.Height(); ++row) {
+        for (std::size_t col = 0; col < rounded.Width(); ++col) {
+            const auto centre = rounded.CellCenter(col, row);
+            const double radii = std::hypot(centre.x - 0.5, centre.y - 0.5) / 20.0;
+            sharpCrest = std::max(sharpCrest, sharp(col, row));
+            roundedCrest = std::max(roundedCrest, rounded(col, row));
+            if (radii < 0.8 || radii > 1.2) {
+                ASSERT_EQ(rounded(col, row), sharp(col, row)) << "outside the band";
+            }
+        }
+    }
+    EXPECT_LT(roundedCrest, sharpCrest - 0.05f) << "the crest is lowered";
+    EXPECT_EQ(options.rimSmoothing.Weight(1.0), 1.0);
+    EXPECT_EQ(options.rimSmoothing.Weight(0.8), 0.0);
+    EXPECT_EQ(options.rimSmoothing.Weight(1.2), 0.0);
+    EXPECT_EQ(terraingen::RimSmoothing{}.Weight(1.0), 0.0) << "off by default";
+    options.rimSmoothing.strength = 2.0;
+    EXPECT_THROW(terraingen::ValidateCraterApplyOptions(options), std::invalid_argument);
+    options.rimSmoothing = {.sigmaRadii = 0.1, .outerRadii = 0.9};
+    EXPECT_THROW(terraingen::ValidateRimSmoothing(options.rimSmoothing), std::invalid_argument);
+}

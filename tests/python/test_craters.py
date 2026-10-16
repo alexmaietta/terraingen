@@ -19,14 +19,15 @@ def generate_lunar_craters(lunar_craters, region=REGION):
     )
 
 
-def carved_raster(craters):
-    """A 200 x 200 raster at 2 m with `craters` applied."""
+def carved_raster(craters, options=None):
+    """A 200 x 200 raster at 2 m with `craters` applied with `options`."""
     raster = terraingen.RasterGrid.centred(200, 200, 2.0).make_raster()
     terraingen.apply_craters(
         raster,
         craters,
         terraingen.FassettThomsonProfile(),
         terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry),
+        options=options or terraingen.CraterApplyOptions(),
         spacing=2.0,
     )
     return raster
@@ -108,12 +109,12 @@ def test_crater_apply_order_puts_the_largest_first(lunar_craters):
     assert craters[order[0]].diameter == max(craters[i].diameter for i in range(len(craters)))
 
 
-def test_smooth_crater_rims_lowers_the_highest_rim(lunar_craters):
+def test_rim_smoothing_lowers_the_highest_rim(lunar_craters):
     craters = generate_lunar_craters(lunar_craters)
-    raster = carved_raster(craters)
-    smoothed = terraingen.Raster.from_array(raster.values.copy(), raster.transform)
-    terraingen.smooth_crater_rims(smoothed, craters, terraingen.RimSmoothing(sigma_radii=0.1), 2.0)
-    assert smoothed.values.max() < raster.values.max()
+    rounded = terraingen.CraterApplyOptions(rim_smoothing=terraingen.RimSmoothing(sigma_radii=0.1))
+    assert carved_raster(craters, rounded).values.max() < carved_raster(craters).values.max()
+    assert terraingen.RimSmoothing().weight(1.0) == 0.0
+    assert rounded.rim_smoothing.weight(1.0) == 1.0
 
 
 def test_crater_blend_weight_is_one_inside_the_blend():

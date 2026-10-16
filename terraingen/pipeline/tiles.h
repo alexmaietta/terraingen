@@ -109,9 +109,8 @@ struct TileScheme {
 
 /// The heights of one tile of a scheme at its level's spacing, as a piece of the unbounded terrain.
 ///
-/// The tile is evaluated with the filters' margin around it and cropped, so it equals the same
-/// cells of any larger grid on the same lattice (to the bit where cell centres coincide exactly,
-/// such as with power-of-two spacings).
+/// The tile equals the same cells of any larger grid on the same lattice (to the bit where cell
+/// centres coincide exactly, such as with power-of-two spacings).
 /// @param threads Threads to use; 0 for every hardware thread.
 /// @throws std::invalid_argument for an invalid scheme, level or terrain; and whatever the parts
 /// throw.

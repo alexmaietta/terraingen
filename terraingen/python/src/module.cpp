@@ -19,7 +19,6 @@ NB_MODULE(_terraingen, m) {
     BindLayers(m);
     BindCraters(m);
     BindBoulders(m);
-    BindFilters(m);
     BindAlbedo(m);
     BindPipeline(m);
 }

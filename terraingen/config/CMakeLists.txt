@@ -14,7 +14,6 @@ terraingen_add_library(
     PUBLIC
     terraingen_albedo
     terraingen_distribution
-    terraingen_filters
     terraingen_layers
     terraingen_noise
     terraingen_pipeline

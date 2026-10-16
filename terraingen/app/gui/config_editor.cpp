@@ -29,16 +29,12 @@ constexpr const char* kGlyphDown = "\xee\x81\xad";
 constexpr const char* kGlyphReset = "\xee\x85\x88";
 constexpr const char* kGlyphBox = "\xee\x81\xa1";
 constexpr const char* kGlyphFileOutput = "\xee\x83\x88";
-constexpr const char* kGlyphFilter = "\xee\x83\x9c";
 constexpr const char* kGlyphPalette = "\xee\x87\x9d";
 
 /// The glyph for an item of `type` in root list or field `root`.
 const char* TypeGlyph(std::string_view root, std::string_view type) {
     if (root == "outputs") {
         return kGlyphFileOutput;
-    }
-    if (root == "filters") {
-        return kGlyphFilter;
     }
     if (root == "albedo") {
         return kGlyphPalette;

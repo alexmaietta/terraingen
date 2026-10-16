@@ -17,7 +17,6 @@ namespace terraingen::python {
 struct PyTerrain {
     std::shared_ptr<Source> source;
     std::vector<std::shared_ptr<Layer>> layers;
-    std::vector<std::shared_ptr<Filter>> filters;
     Surface surface{};
 
     /// The terrain as the library evaluates it.
@@ -25,7 +24,6 @@ struct PyTerrain {
         Terrain terrain;
         terrain.source = source;
         terrain.layers.assign(layers.begin(), layers.end());
-        terrain.filters.assign(filters.begin(), filters.end());
         terrain.surface = surface;
         return terrain;
     }
@@ -60,8 +58,7 @@ std::vector<std::shared_ptr<T>> MutableAll(const std::vector<std::shared_ptr<con
 
 /// `terrain` as Python holds it.
 inline PyTerrain FromTerrain(const Terrain& terrain) {
-    return {Mutable(terrain.source), MutableAll(terrain.layers), MutableAll(terrain.filters),
-            terrain.surface};
+    return {Mutable(terrain.source), MutableAll(terrain.layers), terrain.surface};
 }
 
 /// `albedo` as Python holds it.

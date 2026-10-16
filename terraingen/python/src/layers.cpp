@@ -22,15 +22,9 @@ namespace {
 
 /// @brief A layer written in Python: `apply_at(height, x, y, context)` changes one height,
 /// `apply(heights, context)` a whole raster at once (faster with NumPy); either is enough.
-/// `max_feature_diameter()` says how far, in metres, the layer's features reach, so tiles get
-/// their neighbours' features.
 class PyLayer : public Layer {
   public:
     NB_TRAMPOLINE(Layer);
-
-    double MaxFeatureDiameter() const override {
-        NB_OVERRIDE_NAME("max_feature_diameter", MaxFeatureDiameter);
-    }
 
   protected:
     void ApplySamples(SampleBlock& samples, const LayerContext& context) const override {
@@ -82,8 +76,7 @@ void BindLayerBase(nb::module_& m) {
     nb::class_<Layer, PyLayer>(
         m, "Layer",
         "Relief added to a terrain. Subclass it and implement `apply_at(height, x, y, context)` "
-        "or `apply(heights, context)` (a Raster changed in place), and optionally "
-        "`max_feature_diameter()`, for a layer of your own.")
+        "or `apply(heights, context)` (a Raster changed in place), for a layer of your own.")
         .def(nb::init<>())
         .def(
             "apply",
@@ -91,8 +84,7 @@ void BindLayerBase(nb::module_& m) {
                 layer.Apply(heights, context);
             },
             "heights"_a, "context"_a)
-        .def("apply_at", &Layer::ApplyAt, "height"_a, "x"_a, "y"_a, "context"_a)
-        .def("max_feature_diameter", &Layer::MaxFeatureDiameter);
+        .def("apply_at", &Layer::ApplyAt, "height"_a, "x"_a, "y"_a, "context"_a);
 }
 
 void BindFades(nb::module_& m) {

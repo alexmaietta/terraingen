@@ -57,7 +57,6 @@ Json Everything() {
     config["surface"] = catalog["surface"].back();
     config["source"] = Json{{"type", "chain"}, {"sources", catalog["source"]}};
     config["layers"] = catalog["layers"];
-    config["filters"] = catalog["filters"];
     config["outputs"] = catalog["outputs"];
     config["albedo"] = catalog["albedo"];
     return config;
@@ -157,7 +156,7 @@ TEST_F(HeadlessImGui, DrawsEverySelectionWithoutChangingTheConfiguration) {
     Json config = Everything();
     const Json before = config;
     std::vector<std::string> selections = {"", "/surface", "/source", "/albedo"};
-    for (const char* list : {"layers", "filters", "outputs"}) {
+    for (const char* list : {"layers", "outputs"}) {
         for (std::size_t i = 0; i < config[list].size(); ++i) {
             selections.push_back("/" + std::string(list) + "/" + std::to_string(i));
         }

@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+
 #include <array>
 #include <cmath>
 #include <limits>
@@ -55,16 +57,18 @@ TEST(Evaluate, TilesEqualTheWholeTerrain) {
     }
 }
 
-TEST(Evaluate, RunsFiltersAfterEveryLayer) {
-    Terrain terrain = Rolling();
-    terrain.filters.push_back(terraingen::testing::RimFilter(terrain));
-    const auto smoothed = Evaluate(terrain);
-    terrain.filters.clear();
-    auto expected = Evaluate(terrain);
-    terraingen::SmoothCraterRims(
-        expected, terraingen::PlacedCraters(terrain, RasterGrid::Of(expected)).craters, {});
-    for (std::size_t i = 0; i < expected.Size(); ++i) {
-        ASSERT_EQ(smoothed.Values()[i], expected.Values()[i]) << i;
+TEST(Evaluate, RoundsCraterRimsAndStillAnswersPointQueries) {
+    const Terrain smoothed = terraingen::testing::Smoothed();
+    const auto rounded = Evaluate(smoothed);
+    const auto sharp = Evaluate(Rolling());
+    EXPECT_FALSE(
+        std::equal(rounded.Values().begin(), rounded.Values().end(), sharp.Values().begin()));
+    for (std::size_t row = 1; row < rounded.Height(); row += 7) {
+        for (std::size_t col = 2; col < rounded.Width(); col += 7) {
+            const auto centre = rounded.CellCenter(col, row);
+            ASSERT_EQ(terraingen::EvaluateAt(smoothed, centre.x, centre.y, 2.0), rounded(col, row))
+                << col << ", " << row;
+        }
     }
 }
 
@@ -75,9 +79,6 @@ TEST(Evaluate, RejectsIncompleteTerrainsAndBadSpacings) {
     EXPECT_THROW(Evaluate(terrain, grid, std::numeric_limits<double>::quiet_NaN()),
                  std::invalid_argument);
     terrain.layers.push_back(nullptr);
-    EXPECT_THROW(Evaluate(terrain), std::invalid_argument);
-    terrain = Rolling();
-    terrain.filters.push_back(nullptr);
     EXPECT_THROW(Evaluate(terrain), std::invalid_argument);
     terrain.source.reset();
     EXPECT_THROW(Evaluate(terrain), std::invalid_argument);
@@ -184,13 +185,10 @@ TEST(Evaluate, TilesEqualTheWholeTerrainAtACoarserSpacing) {
         << "bands too small for 7 m are not generated";
 }
 
-TEST(EvaluateAt, RejectsFiltersBadSpacingsAndIncompleteTerrains) {
+TEST(EvaluateAt, RejectsBadSpacingsAndIncompleteTerrains) {
     Terrain terrain = Rolling();
     EXPECT_THROW(terraingen::EvaluateAt(terrain, 0.0, 0.0, 0.0), std::invalid_argument);
     EXPECT_THROW(terraingen::EvaluateAt(terrain, 0.0, 0.0, -1.0), std::invalid_argument);
-    terrain.filters.push_back(terraingen::testing::RimFilter(terrain));
-    EXPECT_THROW(terraingen::EvaluateAt(terrain, 0.0, 0.0, 2.0), std::invalid_argument);
-    terrain.filters.clear();
     terrain.layers.push_back(nullptr);
     EXPECT_THROW(terraingen::EvaluateAt(terrain, 0.0, 0.0, 2.0), std::invalid_argument);
     terrain.source.reset();
@@ -238,7 +236,6 @@ TEST(Layer, DefaultsRunApplyAndPlaceNoFeatures) {
     const auto parallel =
         Evaluate(terrain, terrain.source->Grid(), terraingen::EvaluationOptions{0.0, 4});
     ExpectSameRaster(parallel, Evaluate(terrain));
-    EXPECT_EQ(Bump().MaxFeatureDiameter(), 0.0);
 }
 
 TEST(EvaluateAt, EqualsGridsForCratersCutToADatum) {

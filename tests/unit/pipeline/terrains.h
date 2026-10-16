@@ -19,9 +19,9 @@ inline CraterModels PowerLawCraterModels() {
                         std::make_shared<FassettThomsonProfile>()};
 }
 
-/// @brief A 96 x 64 flat source of 2 m cells at 5 m, rolling noise, then 6 to 50 m craters.
-/// @return The terrain.
-inline Terrain Rolling() {
+/// A 96 x 64 flat source of 2 m cells at 5 m, rolling noise, then 6 to 50 m craters shaped with
+/// `apply`.
+inline Terrain Rolling(const CraterApplyOptions& apply = {}) {
     Terrain terrain;
     terrain.source = std::make_shared<FlatSource>(96, 64, 2.0, 5.0f);
     SyntheticTerrainParams noise;
@@ -31,23 +31,16 @@ inline Terrain Rolling() {
     CraterLayerOptions options;
     options.generation.dMin = 6.0;
     options.generation.dMax = 50.0;
+    options.apply = apply;
     terrain.layers.push_back(std::make_shared<CraterLayer>(PowerLawCraterModels(), options));
     return terrain;
 }
 
-/// @brief Rim smoothing of the craters a terrain's layers apply, as configurations build it.
-/// @param terrain The terrain.
-/// @return The filter.
-inline std::shared_ptr<RimSmoothingFilter> RimFilter(const Terrain& terrain) {
-    return std::make_shared<RimSmoothingFilter>(RimSmoothing{}, terrain.surface);
-}
-
-/// @brief `Rolling` with rim smoothing after the layers.
-/// @return The terrain.
+/// `Rolling` with rounded crater rims.
 inline Terrain Smoothed() {
-    Terrain terrain = Rolling();
-    terrain.filters.push_back(RimFilter(terrain));
-    return terrain;
+    CraterApplyOptions apply;
+    apply.rimSmoothing.sigmaRadii = 0.05;
+    return Rolling(apply);
 }
 
 /// @brief `Rolling` with its craters cut to a datum fitted to the ground.

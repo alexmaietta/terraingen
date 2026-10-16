@@ -65,11 +65,6 @@ class RegionLayer final : public Layer, public CraterPlacer, public BoulderPlace
     RegionLayer(std::shared_ptr<const Layer> inner, RegionShape shape, double feather = 0.0,
                 BlendShape blend = BlendShape::Smoothstep, Surface surface = {});
 
-    /// The inner layer's largest feature.
-    double MaxFeatureDiameter() const override {
-        return inner_->MaxFeatureDiameter();
-    }
-
     /// The inner layer's weight at surface (x, y): 1 inside the shape, 0 from `feather` outside
     /// it, the blend between.
     double Weight(double x, double y) const;
