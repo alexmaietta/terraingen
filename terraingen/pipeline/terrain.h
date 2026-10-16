@@ -5,7 +5,7 @@
 
 #include "terraingen/filters/filter.h"
 #include "terraingen/layers/layer.h"
-#include "terraingen/meshes/mesh.h"
+#include "terraingen/mesh/mesh.h"
 #include "terraingen/pipeline/tiling.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"

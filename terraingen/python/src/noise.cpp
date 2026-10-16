@@ -4,14 +4,14 @@
 #include "bindings.h"
 #include "common.h"
 
-#include "terraingen/noise/kernels/fractal.h"
-#include "terraingen/noise/kernels/hash.h"
-#include "terraingen/noise/kernels/layers.h"
-#include "terraingen/noise/kernels/perlin.h"
-#include "terraingen/noise/kernels/simplex.h"
-#include "terraingen/noise/kernels/value.h"
-#include "terraingen/noise/kernels/worley.h"
+#include "terraingen/noise/fractal.h"
+#include "terraingen/noise/hash.h"
+#include "terraingen/noise/noise_layers.h"
+#include "terraingen/noise/perlin.h"
+#include "terraingen/noise/simplex.h"
 #include "terraingen/noise/validate.h"
+#include "terraingen/noise/value.h"
+#include "terraingen/noise/worley.h"
 #include "terraingen/sources/synthetic_terrain.h"
 
 #include <nanobind/ndarray.h>

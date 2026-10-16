@@ -1,6 +1,6 @@
 #include "terraingen/app/cli.h"
 #include "terraingen/app/gui/run.h"
-#include "terraingen/raster/geotiff.h"
+#include "terraingen/raster/geotiff/geotiff.h"
 
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>

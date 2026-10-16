@@ -5,5 +5,4 @@ terraingen_add_library(
     stream.cpp
     value_distribution.cpp
     PUBLIC
-    terraingen_noise
     terraingen_util)

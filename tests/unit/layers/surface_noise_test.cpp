@@ -1,5 +1,5 @@
 #include "terraingen/layers/surface_noise.h"
-#include "terraingen/noise/kernels/perlin.h"
+#include "terraingen/noise/perlin.h"
 
 #include <gtest/gtest.h>
 

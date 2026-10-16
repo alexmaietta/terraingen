@@ -39,9 +39,10 @@ terraingen_add_library(
     boulders/boulder_meshes.cpp
     boulders/boulder_layer.cpp
     boulders/boulder_options.cpp
+    boulders/boulder_shape.cpp
     PUBLIC
     terraingen_distribution
-    terraingen_meshes
+    terraingen_mesh
     terraingen_noise
     terraingen_random
     terraingen_raster

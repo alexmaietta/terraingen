@@ -1,7 +1,7 @@
 #include "terraingen/sources/geotiff_source.h"
 
 #include "support/temp_path.h"
-#include "terraingen/raster/geotiff.h"
+#include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/resample.h"
 #include "tests/unit/raster/gdal_fixtures.h"
 

@@ -7,7 +7,7 @@
 #include "terraingen/layers/layer.h"
 #include "terraingen/pipeline/config.h"
 #include "terraingen/pipeline/terrain.h"
-#include "terraingen/raster/geotiff.h"
+#include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
 

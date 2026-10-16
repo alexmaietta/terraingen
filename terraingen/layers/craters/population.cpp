@@ -3,7 +3,7 @@
 #include "terraingen/layers/craters/population.h"
 
 #include "terraingen/layers/craters/spacing.h"
-#include "terraingen/noise/kernels/philox.h"
+#include "terraingen/random/philox.h"
 #include "terraingen/random/samplers.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/log.h"

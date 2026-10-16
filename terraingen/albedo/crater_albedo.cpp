@@ -3,7 +3,7 @@
 #include "terraingen/albedo/crater_albedo.h"
 
 #include "terraingen/layers/craters/secondaries.h"
-#include "terraingen/noise/kernels/value.h"
+#include "terraingen/noise/value.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/checks.h"

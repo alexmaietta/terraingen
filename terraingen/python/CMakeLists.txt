@@ -10,7 +10,7 @@ nanobind_add_module(
     src/noise.cpp
     src/random.cpp
     src/gpu.cpp
-    src/meshes.cpp
+    src/mesh.cpp
     src/distribution.cpp
     src/crater_models.cpp
     src/sources.cpp

@@ -1,5 +1,5 @@
 #include "terraingen/gpu/vulkan.h"
-#include "terraingen/noise/kernels/hash.h"
+#include "terraingen/noise/hash.h"
 
 #include <gtest/gtest.h>
 
@@ -8,20 +8,16 @@
 #include <stdexcept>
 #include <vector>
 
-#ifdef TERRAINGEN_TEST_KERNELS
 extern "C" {
 extern const unsigned char terraingen_test_hash_conformance[];
 extern const std::size_t terraingen_test_hash_conformance_size;
 }
-#endif
 
 TEST(VulkanCompute, ExplainsWhyItIsUnavailable) {
     EXPECT_EQ(terraingen::VulkanCompute::Get(), terraingen::VulkanCompute::Get());
     EXPECT_EQ(terraingen::VulkanCompute::Reason().empty(),
               terraingen::VulkanCompute::Get() != nullptr);
 }
-
-#ifdef TERRAINGEN_TEST_KERNELS
 
 TEST(VulkanCompute, RunsTheSharedHashKernelsBitForBitAsTheCpu) {
     if (terraingen::VulkanCompute::Get() == nullptr) {
@@ -81,5 +77,3 @@ TEST(VulkanCompute, RejectsPushConstantsPastTheDeviceLimit) {
                      {std::as_writable_bytes(std::span(outputs))}, tooMany, {1u, 1u, 1u}),
                  std::runtime_error);
 }
-
-#endif

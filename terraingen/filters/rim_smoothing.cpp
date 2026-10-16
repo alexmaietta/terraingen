@@ -3,7 +3,7 @@
 #include "terraingen/filters/rim_smoothing.h"
 
 #include "terraingen/raster/cell_loops.h"
-#include "terraingen/raster/filters.h"
+#include "terraingen/raster/gaussian_blur.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/parallel.h"

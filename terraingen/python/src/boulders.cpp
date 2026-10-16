@@ -1,6 +1,6 @@
 /// @file
 /// @brief Bindings of boulder layers: boulders, their size and placement options, the boulder
-/// layer and boulders placed as 3D models.
+/// layer, boulder shapes and boulders placed as 3D models.
 #include "bindings.h"
 #include "common.h"
 #include "objects.h"
@@ -10,12 +10,69 @@
 #include "terraingen/layers/boulders/boulder_layer.h"
 #include "terraingen/layers/boulders/boulder_meshes.h"
 #include "terraingen/layers/boulders/boulder_options.h"
+#include "terraingen/layers/boulders/boulder_shape.h"
 
 #include <utility>
 
 namespace terraingen::python {
 
 namespace {
+
+void BindBoulderStyle(nb::module_& m) {
+    nb::class_<ValueRange>(m, "ValueRange", "An interval values are drawn uniformly from.")
+        .def(
+            "__init__",
+            [](ValueRange* self, double min, double max) { new (self) ValueRange{min, max}; },
+            "min"_a = 0.0, "max"_a = 0.0)
+        .def_rw("min", &ValueRange::min)
+        .def_rw("max", &ValueRange::max);
+    auto style = nb::class_<BoulderStyle>(
+        m, "BoulderStyle",
+        "One kind of boulder: its `solid`, stretched to axes 1 : `intermediate` : `short_axis`, "
+        "rounded toward an ellipsoid by `rounding`, roughened by noise and cut by fracture planes; "
+        "`weight` is its share of boulders.");
+    BindKwargsInit<BoulderStyle>(style);
+    style.def_rw("name", &BoulderStyle::name)
+        .def_rw("weight", &BoulderStyle::weight)
+        .def_rw("solid", &BoulderStyle::solid)
+        .def_rw("intermediate", &BoulderStyle::intermediate)
+        .def_rw("short_axis", &BoulderStyle::shortAxis)
+        .def_rw("rounding", &BoulderStyle::rounding)
+        .def_rw("min_fractures", &BoulderStyle::minFractures)
+        .def_rw("max_fractures", &BoulderStyle::maxFractures)
+        .def_rw("fracture_depth", &BoulderStyle::fractureDepth)
+        .def_rw("max_fracture_tilt", &BoulderStyle::maxFractureTilt)
+        .def_rw("noise_amplitude", &BoulderStyle::noiseAmplitude)
+        .def_rw("noise_wavelength", &BoulderStyle::noiseWavelength)
+        .def_rw("noise_octaves", &BoulderStyle::noiseOctaves);
+    m.def("default_boulder_styles", &DefaultBoulderStyles,
+          "The default mix: blocks and slabs, rounded boulders, wedges, pyramids and shards.");
+}
+
+void BindBoulderShapes(nb::module_& m) {
+    BindBoulderStyle(m);
+    auto options = nb::class_<BoulderShapeOptions>(
+        m, "BoulderShapeOptions",
+        "Boulder shapes: the `styles` to draw from, `subdivisions` of each solid and a `seed`.");
+    BindKwargsInit<BoulderShapeOptions>(options);
+    options.def_rw("styles", &BoulderShapeOptions::styles)
+        .def_rw("subdivisions", &BoulderShapeOptions::subdivisions)
+        .def_rw("seed", &BoulderShapeOptions::seed);
+    nb::class_<BoulderShape>(m, "BoulderShape",
+                             "A boulder shape with a long axis of 1 along x, `intermediate` along "
+                             "y and `short_axis` along z.")
+        .def_ro("mesh", &BoulderShape::mesh)
+        .def_ro("style", &BoulderShape::style)
+        .def_ro("intermediate", &BoulderShape::intermediate)
+        .def_ro("short_axis", &BoulderShape::shortAxis);
+    m.def("generate_boulder_shape", &GenerateBoulderShape, "shape_seed"_a,
+          "options"_a = BoulderShapeOptions{},
+          "The shape `shape_seed` gives: the same seed always gives the same shape.");
+    m.def("boulder_shape_seed", &BoulderShapeSeed, "id"_a, "prototypes"_a = 0,
+          "The shape seed of boulder `id`, or of one of `prototypes` shared shapes.");
+    m.def("validate_boulder_shape_options", &ValidateBoulderShapeOptions, "options"_a,
+          kValidateDoc);
+}
 
 void BindBoulder(nb::module_& m) {
     nb::class_<Boulder>(m, "Boulder", "One boulder: centre, size, burial, orientation and ID.")
@@ -213,6 +270,7 @@ void BindModels(nb::module_& m) {
 }  // namespace
 
 void BindBoulders(nb::module_& m) {
+    BindBoulderShapes(m);
     BindBoulder(m);
     BindPatchesAndEjecta(m);
     BindRendering(m);

@@ -1,8 +1,8 @@
-#include "terraingen/raster/geotiff.h"
+#include "terraingen/raster/geotiff/geotiff.h"
 
 #include "support/raster_equality.h"
 #include "support/temp_path.h"
-#include "terraingen/raster/tiff_codecs.h"
+#include "terraingen/raster/geotiff/tiff_codecs.h"
 #include "tests/unit/raster/gdal_fixtures.h"
 
 #include <gtest/gtest.h>

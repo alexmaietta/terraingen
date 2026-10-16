@@ -2,7 +2,7 @@
 /// @brief Noise read at points of a `Surface`: 2D noise on a plane, 3D noise on a sphere.
 #pragma once
 
-#include "terraingen/noise/kernels/layers.h"
+#include "terraingen/noise/noise_layers.h"
 #include "terraingen/util/geometry.h"
 #include "terraingen/util/surface.h"
 

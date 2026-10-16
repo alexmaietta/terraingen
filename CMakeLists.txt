@@ -22,8 +22,6 @@ option(TERRAINGEN_BUILD_GUI
        ON)
 option(TERRAINGEN_INSTALL "Generate install rules and the CMake package" ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_COVERAGE "Instrument TerrainGen for code coverage and add a coverage target" OFF)
-option(TERRAINGEN_WITH_VULKAN
-       "Build the Vulkan compute backend (the Vulkan loader is opened at run time, if present)" ON)
 
 include(GNUInstallDirs)
 
@@ -72,12 +70,10 @@ if(TERRAINGEN_BUILD_PYTHON)
     include("${PROJECT_SOURCE_DIR}/cmake/third_party/nanobind.cmake")
 endif()
 
-if(TERRAINGEN_WITH_VULKAN)
-    include("${PROJECT_SOURCE_DIR}/cmake/third_party/vulkan_headers.cmake")
-    include("${PROJECT_SOURCE_DIR}/cmake/third_party/volk.cmake")
-    include("${PROJECT_SOURCE_DIR}/cmake/third_party/slang.cmake")
-    include("${PROJECT_SOURCE_DIR}/cmake/TerrainGenSlang.cmake")
-endif()
+include("${PROJECT_SOURCE_DIR}/cmake/third_party/vulkan_headers.cmake")
+include("${PROJECT_SOURCE_DIR}/cmake/third_party/volk.cmake")
+include("${PROJECT_SOURCE_DIR}/cmake/third_party/slang.cmake")
+include("${PROJECT_SOURCE_DIR}/cmake/TerrainGenSlang.cmake")
 
 # TERRAINGEN_GUI says whether the GUI is built: asked for, with the app, and Ernie found.
 set(TERRAINGEN_GUI OFF)

@@ -2,8 +2,8 @@
 /// @brief Host-side checks of fractal and noise layer parameters before kernels use them.
 #pragma once
 
-#include "terraingen/noise/kernels/fractal.h"
-#include "terraingen/noise/kernels/layers.h"
+#include "terraingen/noise/fractal.h"
+#include "terraingen/noise/noise_layers.h"
 
 namespace terraingen {
 

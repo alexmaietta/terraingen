@@ -1,5 +1,5 @@
 // Evaluates the shared hash kernels on the GPU for comparison with the C++ build of the same header.
-#include "terraingen/noise/kernels/hash.h"
+#include "terraingen/noise/hash.h"
 
 [[vk::binding(0, 0)]] RWStructuredBuffer<uint> outputs;
 

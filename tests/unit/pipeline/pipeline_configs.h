@@ -4,7 +4,7 @@
 
 #include "terraingen/pipeline/config_json.h"
 #include "terraingen/pipeline/run.h"
-#include "terraingen/raster/geotiff.h"
+#include "terraingen/raster/geotiff/geotiff.h"
 
 #include <cmath>
 #include <cstdint>

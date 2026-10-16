@@ -3,7 +3,7 @@
 #include "terraingen/layers/boulders/boulder_layer.h"
 
 #include "terraingen/layers/craters/ages/fresh.h"
-#include "terraingen/noise/kernels/philox.h"
+#include "terraingen/random/philox.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/grid.h"

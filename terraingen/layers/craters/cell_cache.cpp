@@ -2,7 +2,7 @@
 /// @brief The crater cell cache and its cached cell crater source.
 #include "terraingen/layers/craters/cell_cache.h"
 
-#include "terraingen/noise/kernels/hash.h"
+#include "terraingen/noise/hash.h"
 #include "terraingen/util/log.h"
 
 namespace terraingen {

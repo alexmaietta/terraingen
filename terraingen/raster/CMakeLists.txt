@@ -4,14 +4,14 @@ terraingen_add_library(
     raster
     SOURCES
     cell_loops.cpp
-    filters.cpp
+    gaussian_blur.cpp
     grid.cpp
-    geotiff.cpp
-    geotiff_read.cpp
-    geotiff_write.cpp
     resample.cpp
-    tiff_codecs.cpp
-    tiff_format.cpp
+    geotiff/geotiff.cpp
+    geotiff/geotiff_read.cpp
+    geotiff/geotiff_write.cpp
+    geotiff/tiff_codecs.cpp
+    geotiff/tiff_format.cpp
     $<TARGET_OBJECTS:terraingen_miniz>
     PUBLIC
     terraingen_util

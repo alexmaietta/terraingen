@@ -3,7 +3,7 @@
 #pragma once
 
 #include "terraingen/albedo/albedo.h"
-#include "terraingen/noise/kernels/layers.h"
+#include "terraingen/noise/noise_layers.h"
 #include "terraingen/util/geometry.h"
 
 #include <vector>

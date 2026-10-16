@@ -15,7 +15,7 @@ NB_MODULE(_terraingen, m) {
     BindNoise(m);
     BindRandom(m);
     BindGpu(m);
-    BindMeshes(m);
+    BindMesh(m);
     BindDistribution(m);
     BindCraterModels(m);
     BindSources(m);

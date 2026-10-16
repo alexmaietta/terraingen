@@ -2,7 +2,7 @@
 /// @brief Tile scheme geometry: tile sizes, keys, grids, parents and children.
 #include "terraingen/pipeline/tiling.h"
 
-#include "terraingen/noise/kernels/hash.h"
+#include "terraingen/noise/hash.h"
 #include "terraingen/util/checks.h"
 
 #include <cmath>

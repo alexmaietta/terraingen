@@ -2,7 +2,7 @@
 /// @brief `RandomStream`, a counter-based random number stream, and 64-bit ID splitting.
 #pragma once
 
-#include "terraingen/noise/kernels/philox.h"
+#include "terraingen/random/philox.h"
 
 #include <cstdint>
 

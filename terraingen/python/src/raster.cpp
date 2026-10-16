@@ -4,9 +4,9 @@
 #include "bindings.h"
 #include "common.h"
 
-#include "terraingen/raster/filters.h"
+#include "terraingen/raster/gaussian_blur.h"
 #include "terraingen/raster/geo_transform.h"
-#include "terraingen/raster/geotiff.h"
+#include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/raster/raster_stats.h"

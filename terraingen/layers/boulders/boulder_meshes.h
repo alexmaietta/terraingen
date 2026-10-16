@@ -3,8 +3,8 @@
 #pragma once
 
 #include "terraingen/layers/boulders/boulder.h"
-#include "terraingen/meshes/boulder.h"
-#include "terraingen/meshes/mesh.h"
+#include "terraingen/layers/boulders/boulder_shape.h"
+#include "terraingen/mesh/mesh.h"
 #include "terraingen/util/surface.h"
 
 #include <cstdint>

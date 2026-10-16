@@ -1,6 +1,6 @@
 #include "terraingen/gpu/vulkan.h"
-#include "terraingen/noise/kernels/layers.h"
-#include "terraingen/noise/kernels/philox.h"
+#include "terraingen/noise/noise_layers.h"
+#include "terraingen/random/philox.h"
 
 #include <gtest/gtest.h>
 
@@ -11,7 +11,6 @@
 #include <cstring>
 #include <vector>
 
-#ifdef TERRAINGEN_TEST_KERNELS
 extern "C" {
 extern const unsigned char terraingen_test_noise_conformance[];
 extern const std::size_t terraingen_test_noise_conformance_size;
@@ -149,5 +148,3 @@ TEST(GpuNoise, MatchesTheCpuWithinTolerancesAndPhiloxExactly) {
     }
     EXPECT_EQ(worst[16], 0.0);
 }
-
-#endif

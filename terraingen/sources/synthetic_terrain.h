@@ -2,8 +2,8 @@
 /// @brief Fully synthetic terrains made from stacks of noise layers.
 #pragma once
 
-#include "terraingen/noise/kernels/fractal.h"
-#include "terraingen/noise/kernels/layers.h"
+#include "terraingen/noise/fractal.h"
+#include "terraingen/noise/noise_layers.h"
 #include "terraingen/noise/validate.h"
 #include "terraingen/raster/raster.h"
 

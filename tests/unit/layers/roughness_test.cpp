@@ -1,6 +1,6 @@
 #include "terraingen/layers/roughness.h"
 
-#include "terraingen/noise/kernels/perlin.h"
+#include "terraingen/noise/perlin.h"
 #include "terraingen/raster/grid.h"
 
 #include <gtest/gtest.h>

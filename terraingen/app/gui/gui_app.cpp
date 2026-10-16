@@ -6,7 +6,7 @@
 #include "terraingen/app/gui/terrain_scene.h"
 #include "terraingen/pipeline/config_json.h"
 #include "terraingen/pipeline/run.h"
-#include "terraingen/raster/geotiff.h"
+#include "terraingen/raster/geotiff/geotiff.h"
 
 #include <ernie/app/icons.h>
 #include <imgui.h>

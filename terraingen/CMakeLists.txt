@@ -1,10 +1,10 @@
 # TerrainGen's modules, one library each, every module depending only on the ones before it:
 #   util          logging, version, build info header, geometry and surface cells
-#   raster        rasters, geotransforms, filters, resampling and GeoTIFF reading and writing
+#   raster        rasters, geotransforms, Gaussian blur, resampling, and GeoTIFF files in geotiff/
 #   noise         noise kernels, header-only and portable to GPU shading languages, and their checks
 #   gpu           backend selection and the Vulkan compute device, opened at run time
-#   random        counter-based random streams and samplers
-#   meshes        triangle meshes, base solids, icospheres and synthetic boulder shapes
+#   random        the Philox generator (portable to GPUs), random streams and samplers
+#   mesh          triangle meshes, base solids, icospheres and mesh files
 #   distribution  size-frequency distributions
 #   sources       where heights come from: synthetic terrain from layered noise
 #   layers        relief added on top of a source: craters (populations, profiles, degradation)
@@ -53,7 +53,7 @@ add_subdirectory(raster)
 add_subdirectory(noise)
 add_subdirectory(gpu)
 add_subdirectory(random)
-add_subdirectory(meshes)
+add_subdirectory(mesh)
 add_subdirectory(distribution)
 add_subdirectory(sources)
 add_subdirectory(layers)
@@ -105,12 +105,9 @@ if(TERRAINGEN_BUILD_APP)
 endif()
 
 if(TERRAINGEN_INSTALL)
-    set(vulkan_targets)
-    if(TERRAINGEN_WITH_VULKAN)
-        set(vulkan_targets terraingen_volk terraingen_vulkan_headers)
-    endif()
     install(
-        TARGETS ${modules} terraingen_build_info terraingen ${vulkan_targets}
+        TARGETS ${modules} terraingen_build_info terraingen terraingen_volk
+                terraingen_vulkan_headers
         EXPORT terraingenTargets
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT development
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT development)

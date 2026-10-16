@@ -1,15 +1,14 @@
 terraingen_add_test_suite(
     noise
     SOURCES
-    kernels/fractal_test.cpp
-    kernels/hash_test.cpp
-    kernels/layers_test.cpp
-    kernels/noise3_test.cpp
-    kernels/perlin_test.cpp
-    kernels/philox_test.cpp
-    kernels/simplex_test.cpp
-    kernels/value_test.cpp
-    kernels/worley_test.cpp
+    fractal_test.cpp
+    hash_test.cpp
+    noise3_test.cpp
+    noise_layers_test.cpp
+    perlin_test.cpp
+    simplex_test.cpp
     validate_test.cpp
+    value_test.cpp
+    worley_test.cpp
     LIBRARIES
     terraingen::noise)

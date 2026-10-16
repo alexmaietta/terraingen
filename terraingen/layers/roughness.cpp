@@ -2,8 +2,8 @@
 /// @brief `RoughnessLayer` and the tabulated structure functions of Perlin noise.
 #include "terraingen/layers/roughness.h"
 
-#include "terraingen/noise/kernels/hash.h"
-#include "terraingen/noise/kernels/perlin.h"
+#include "terraingen/noise/hash.h"
+#include "terraingen/noise/perlin.h"
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/checks.h"

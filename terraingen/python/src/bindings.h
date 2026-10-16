@@ -12,7 +12,7 @@ void BindRaster(nanobind::module_& m);
 void BindNoise(nanobind::module_& m);
 void BindRandom(nanobind::module_& m);
 void BindGpu(nanobind::module_& m);
-void BindMeshes(nanobind::module_& m);
+void BindMesh(nanobind::module_& m);
 void BindDistribution(nanobind::module_& m);
 void BindCraterModels(nanobind::module_& m);
 void BindSources(nanobind::module_& m);

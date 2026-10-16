@@ -2,7 +2,7 @@
 /// @brief Building, generating and writing the terrain a configuration describes.
 #include "terraingen/pipeline/run.h"
 
-#include "terraingen/meshes/mesh_io.h"
+#include "terraingen/mesh/mesh_io.h"
 #include "terraingen/pipeline/build.h"
 #include "terraingen/sources/geotiff_source.h"
 #include "terraingen/sources/source_chain.h"

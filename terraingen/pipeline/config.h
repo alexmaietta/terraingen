@@ -21,8 +21,8 @@
 #include "terraingen/layers/craters/secondaries.h"
 #include "terraingen/layers/region.h"
 #include "terraingen/layers/roughness.h"
-#include "terraingen/noise/kernels/layers.h"
-#include "terraingen/raster/geotiff.h"
+#include "terraingen/noise/noise_layers.h"
+#include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/resample.h"
 #include "terraingen/sources/synthetic_terrain.h"
 

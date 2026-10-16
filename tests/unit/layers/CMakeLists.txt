@@ -36,5 +36,6 @@ terraingen_add_test_suite(
     boulders/boulder_meshes_test.cpp
     boulders/boulder_layer_test.cpp
     boulders/boulder_options_test.cpp
+    boulders/boulder_shape_test.cpp
     LIBRARIES
     terraingen::layers)

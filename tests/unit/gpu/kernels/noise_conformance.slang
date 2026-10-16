@@ -1,8 +1,8 @@
 // Evaluates the shared noise kernels on the GPU for comparison with the C++ build of the same
 // headers: per sample, every 2D basis, both 3D bases, each layer of a block and the whole stack,
 // and one Philox block.
-#include "terraingen/noise/kernels/layers.h"
-#include "terraingen/noise/kernels/philox.h"
+#include "terraingen/noise/noise_layers.h"
+#include "terraingen/random/philox.h"
 
 [[vk::binding(0, 0)]] StructuredBuffer<float> points;
 [[vk::binding(1, 0)]] StructuredBuffer<terraingen::NoiseLayers> layers;

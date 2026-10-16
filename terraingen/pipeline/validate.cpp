@@ -8,7 +8,7 @@
 #include "terraingen/albedo/synthetic.h"
 #include "terraingen/layers/craters/spacing.h"
 #include "terraingen/layers/transforms.h"
-#include "terraingen/noise/kernels/layers.h"
+#include "terraingen/noise/noise_layers.h"
 #include "terraingen/pipeline/build.h"
 #include "terraingen/pipeline/config_checks.h"
 #include "terraingen/pipeline/run.h"

@@ -1,6 +1,6 @@
-#include "terraingen/raster/tiff_format.h"
+#include "terraingen/raster/geotiff/tiff_format.h"
 
-#include "terraingen/raster/tiff_codecs.h"
+#include "terraingen/raster/geotiff/tiff_codecs.h"
 
 #include <gtest/gtest.h>
 

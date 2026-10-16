@@ -3,8 +3,8 @@
 #include "terraingen/albedo/raster_albedo.h"
 
 #include "terraingen/layers/roughness.h"
-#include "terraingen/noise/kernels/hash.h"
-#include "terraingen/noise/kernels/perlin.h"
+#include "terraingen/noise/hash.h"
+#include "terraingen/noise/perlin.h"
 #include "terraingen/util/checks.h"
 
 #include <algorithm>

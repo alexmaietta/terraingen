@@ -2,7 +2,7 @@
 /// @brief Heights read from a band of a GeoTIFF DEM.
 #pragma once
 
-#include "terraingen/raster/geotiff.h"
+#include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/resample.h"
 #include "terraingen/sources/source.h"
 
