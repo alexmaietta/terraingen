@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <numbers>
 #include <set>
 #include <stdexcept>
 #include <vector>
@@ -182,4 +183,34 @@ TEST(BoulderLayer, GathersBouldersInClustersKeepingTheirMeanDensity) {
     options.fragmentation = {.minPieces = 1};
     EXPECT_THROW(terraingen::ValidateBoulderFragmentation(options.fragmentation),
                  std::invalid_argument);
+}
+
+namespace {
+
+class Level final : public terraingen::Ground {
+  public:
+    float HeightAt(double /*x*/, double /*y*/, double /*spacing*/) const override {
+        return 3.0f;
+    }
+};
+
+}  // namespace
+
+TEST(BoulderLayer, ClustersAndBreaksBouldersOnABodyStandingOnTheGround) {
+    BoulderLayerOptions options = Breaking(0.5);
+    options.clusters = {.share = 0.5, .spacing = 30.0, .radius = 4.0};
+    const BoulderLayer layer(options, nullptr, terraingen::Surface::Sphere(1737400.0));
+    const double degree = 1737400.0 * std::numbers::pi / 180.0;
+    const double span = 20.0 / degree;
+    const Level level;
+    const auto boulders = layer.Boulders({-span, -span, span, span}, 0.0, &level);
+    ASSERT_FALSE(boulders.empty());
+    std::size_t pieces = 0;
+    for (const Boulder& boulder : boulders) {
+        ASSERT_TRUE(boulder.ground.has_value());
+        EXPECT_FLOAT_EQ(static_cast<float>(*boulder.ground), 3.0f);
+        pieces += boulder.parent != 0 ? 1u : 0u;
+    }
+    EXPECT_GT(pieces, 0u);
+    EXPECT_GT(layer.AbundanceAt(0.0, 0.0).background, 0.0);
 }
