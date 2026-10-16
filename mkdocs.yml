@@ -109,7 +109,7 @@ plugins:
           src-dirs: >-
             terraingen/util terraingen/raster terraingen/noise terraingen/gpu terraingen/random
             terraingen/mesh terraingen/distribution terraingen/sources terraingen/layers
-            terraingen/filters terraingen/albedo terraingen/pipeline
+            terraingen/filters terraingen/albedo terraingen/pipeline terraingen/config
           full-doc: true
           doxy-cfg:
             FILE_PATTERNS: "*.h"

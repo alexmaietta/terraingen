@@ -3,8 +3,10 @@
 #include "terraingen/app/cli.h"
 
 #include "terraingen/app/gui/run.h"
-#include "terraingen/pipeline/config_json.h"
-#include "terraingen/pipeline/run.h"
+#include "terraingen/config/build.h"
+#include "terraingen/config/generate.h"
+#include "terraingen/config/json.h"
+#include "terraingen/config/validate.h"
 #include "terraingen/util/build_info.h"
 #include "terraingen/util/log.h"
 #include "terraingen/util/version.h"

@@ -2,7 +2,7 @@
 /// @brief The configuration editor's outliner and inspector, drawn with ImGui.
 #include "terraingen/app/gui/config_editor.h"
 
-#include "terraingen/pipeline/config_json.h"
+#include "terraingen/config/json.h"
 
 #include <imgui.h>
 

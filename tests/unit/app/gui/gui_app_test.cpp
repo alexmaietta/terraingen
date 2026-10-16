@@ -1,6 +1,6 @@
 #include "terraingen/app/gui/gui_app.h"
 #include "terraingen/app/gui/terrain_scene.h"
-#include "terraingen/pipeline/config_json.h"
+#include "terraingen/config/json.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 
 #include <ernie/scene/tokens.h>

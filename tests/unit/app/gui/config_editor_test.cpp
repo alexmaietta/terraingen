@@ -1,5 +1,5 @@
 #include "terraingen/app/gui/config_editor.h"
-#include "terraingen/pipeline/config_json.h"
+#include "terraingen/config/json.h"
 
 #include <gtest/gtest.h>
 #include <imgui.h>

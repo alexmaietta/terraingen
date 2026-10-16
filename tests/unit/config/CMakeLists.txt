@@ -1,0 +1,18 @@
+terraingen_add_test_suite(
+    config
+    SOURCES
+    build_test.cpp
+    checks_test.cpp
+    config_test.cpp
+    feature_lists_test.cpp
+    generate_terrain_test.cpp
+    json_io_test.cpp
+    json_parse_errors_test.cpp
+    json_read_test.cpp
+    schema_test.cpp
+    validate_config_test.cpp
+    validate_sources_test.cpp
+    write_outputs_test.cpp
+    LIBRARIES
+    terraingen::config
+    nlohmann_json)

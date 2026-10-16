@@ -6,11 +6,13 @@
 #include "objects.h"
 #include "tables.h"
 
-#include "terraingen/pipeline/config_json.h"
-#include "terraingen/pipeline/run.h"
+#include "terraingen/config/build.h"
+#include "terraingen/config/generate.h"
+#include "terraingen/config/json.h"
+#include "terraingen/config/validate.h"
+#include "terraingen/pipeline/body_mesh.h"
 #include "terraingen/pipeline/terrain.h"
-#include "terraingen/pipeline/tile_cache.h"
-#include "terraingen/pipeline/tiling.h"
+#include "terraingen/pipeline/tiles.h"
 
 #include <nanobind/operators.h>
 

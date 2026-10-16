@@ -1,4 +1,4 @@
-#include "terraingen/pipeline/tiling.h"
+#include "terraingen/pipeline/tiles.h"
 
 #include <gtest/gtest.h>
 

@@ -1,4 +1,4 @@
-#include "terraingen/pipeline/tile_cache.h"
+#include "terraingen/pipeline/tiles.h"
 
 #include "terraingen/terraingen.h"
 

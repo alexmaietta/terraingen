@@ -1,12 +1,9 @@
 /// @file
-/// @brief A terrain as a source, layers and filters, evaluated over grids, tiles, points or a
-/// whole body.
+/// @brief A terrain as a source, layers and filters, evaluated over grids or at points.
 #pragma once
 
 #include "terraingen/filters/filter.h"
 #include "terraingen/layers/layer.h"
-#include "terraingen/mesh/mesh.h"
-#include "terraingen/pipeline/tiling.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/sources/source.h"
@@ -98,55 +95,11 @@ EvaluatedTerrain Evaluate(const Terrain& terrain, const RasterGrid& grid,
 /// @throws std::invalid_argument if `terrain` has no source or holds a null layer or filter.
 double FilterMargin(const Terrain& terrain, double spacing);
 
-/// @brief One tile of a scheme at its level's spacing, as a piece of the unbounded terrain.
-///
-/// The tile is evaluated with the filters' margin around it and cropped, so it equals the same
-/// cells of any larger grid on the same lattice (to the bit where cell centres coincide exactly,
-/// such as with power-of-two spacings). The features are those placed while evaluating, margin
-/// included.
-/// @param terrain The terrain.
-/// @param scheme The tile scheme.
-/// @param key The tile.
-/// @param threads Threads to use; 0 for every hardware thread.
-/// @return The tile's heights and features.
-/// @throws std::invalid_argument for an invalid scheme, level or terrain; and whatever the parts
-/// throw.
-EvaluatedTerrain EvaluateTile(const Terrain& terrain, const TileScheme& scheme, const TileKey& key,
-                              unsigned threads = 1);
-
-/// @brief `EvaluateTile` for several tiles, split over threads.
-/// @param terrain The terrain.
-/// @param scheme The tile scheme.
-/// @param keys The tiles.
-/// @param threads Threads to use; 0 for every hardware thread.
-/// @return The tiles, in the order of `keys`.
-/// @throws std::invalid_argument as `EvaluateTile`.
-std::vector<EvaluatedTerrain> EvaluateTiles(const Terrain& terrain, const TileScheme& scheme,
-                                            const std::vector<TileKey>& keys, unsigned threads = 0);
-
 /// @brief Evaluates a terrain over its source's grid.
 /// @param terrain The terrain.
 /// @return The heights and features.
 /// @throws std::invalid_argument as `Evaluate` over a grid.
 EvaluatedTerrain Evaluate(const Terrain& terrain);
-
-/// @brief A mesh of the whole body a terrain on a sphere lies on.
-///
-/// The six faces of a cube are each split into `cellsPerFace` x `cellsPerFace` quads along
-/// equiangular coordinates (as `CubeSphereCells`), two triangles each, with every vertex at the
-/// body's radius plus the terrain's height there (`EvaluateAt`; points without data are on the
-/// datum). Positions are body-fixed metres, x towards longitude 0 on the equator and z north
-/// (`Surface::Position`); vertices along the faces' edges are repeated per face. Filters read
-/// neighbouring cells, so they are left out.
-/// @param terrain The terrain, on a sphere.
-/// @param cellsPerFace Quads along each edge of a face.
-/// @param spacing Sample spacing in metres; 0 for a quad's side at a face's centre.
-/// @param threads Threads to use; 0 for every hardware thread.
-/// @return The mesh.
-/// @throws std::invalid_argument for a terrain not on a sphere, zero cells, or a negative or
-/// non-finite spacing; and whatever the terrain's parts throw.
-TriangleMesh BodyMesh(const Terrain& terrain, std::size_t cellsPerFace, double spacing = 0.0,
-                      unsigned threads = 0);
 
 /// The heights of a terrain at scattered points, such as wheel contacts or mesh vertices: the
 /// source's heights there, then each layer applied to all of them at once. Each equals the cell
