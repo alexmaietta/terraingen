@@ -109,7 +109,12 @@ BoulderLayer::FragmentsOf(std::uint64_t shapeSeed) const {
             fragmentation.minPieces +
             static_cast<int>(PcgHash(static_cast<std::uint32_t>(shapeSeed) ^ kBoulderPieces) %
                              span);
-        return FragmentBoulderShape(*ShapeOf(shapeSeed), pieces, shapeSeed);
+        const std::uint32_t pick = PcgHash(static_cast<std::uint32_t>(shapeSeed >> 32) ^
+                                           kBoulderPieces ^ static_cast<std::uint32_t>(shapeSeed));
+        const BoulderCracks cracks = (pick >> 8) * 0x1.0p-24 < fragmentation.slabShare
+                                         ? BoulderCracks::Slabs
+                                         : BoulderCracks::Radial;
+        return FragmentBoulderShape(*ShapeOf(shapeSeed), pieces, shapeSeed, cracks);
     });
 }
 

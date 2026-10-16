@@ -196,6 +196,9 @@ void ValidateBoulderFragmentation(const BoulderFragmentation& fragmentation) {
     }
     RequireNonNegative(fragmentation.gapRatio, "Boulder fragmentation gapRatio");
     RequireNonNegative(fragmentation.spreadRatio, "Boulder fragmentation spreadRatio");
+    if (!(fragmentation.slabShare >= 0.0 && fragmentation.slabShare <= 1.0)) {
+        throw std::invalid_argument("Boulder fragmentation slabShare must be in [0, 1]");
+    }
 }
 
 double FilletReach(const Boulder& boulder, const BoulderFillet& fillet) {

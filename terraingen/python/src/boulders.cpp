@@ -182,6 +182,7 @@ void BindClustersAndFragments(nb::module_& m) {
         .def_rw("max_pieces", &BoulderFragmentation::maxPieces)
         .def_rw("gap_ratio", &BoulderFragmentation::gapRatio)
         .def_rw("spread_ratio", &BoulderFragmentation::spreadRatio)
+        .def_rw("slab_share", &BoulderFragmentation::slabShare)
         .def_prop_ro("enabled", &BoulderFragmentation::Enabled);
     m.def("validate_boulder_fragmentation", &ValidateBoulderFragmentation, "fragmentation"_a,
           kValidateDoc);

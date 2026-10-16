@@ -214,3 +214,40 @@ TEST(BoulderLayer, ClustersAndBreaksBouldersOnABodyStandingOnTheGround) {
     EXPECT_GT(pieces, 0u);
     EXPECT_GT(layer.AbundanceAt(0.0, 0.0).background, 0.0);
 }
+
+TEST(FragmentBoulderShape, SplitsSlabsByRoughlyParallelCracks) {
+    const auto parent = terraingen::GenerateBoulderShape(11, {});
+    const double whole = terraingen::Volume(parent.mesh);
+    const auto slabs = FragmentBoulderShape(parent, 4, 11, terraingen::BoulderCracks::Slabs);
+    ASSERT_EQ(slabs.size(), 4u);
+    double total = 0.0;
+    for (const auto& fragment : slabs) {
+        total += terraingen::Volume(fragment.shape.mesh) * std::pow(fragment.scale, 3.0);
+    }
+    EXPECT_NEAR(total / whole, 1.0, 0.1);
+    double mx = 0.0;
+    double my = 0.0;
+    for (const auto& fragment : slabs) {
+        mx += 0.25 * fragment.centre.x;
+        my += 0.25 * fragment.centre.y;
+    }
+    double sxx = 0.0;
+    double syy = 0.0;
+    double sxy = 0.0;
+    for (const auto& fragment : slabs) {
+        const double dx = fragment.centre.x - mx;
+        const double dy = fragment.centre.y - my;
+        sxx += dx * dx;
+        syy += dy * dy;
+        sxy += dx * dy;
+    }
+    const double mean = 0.5 * (sxx + syy);
+    const double spread = std::sqrt(0.25 * (sxx - syy) * (sxx - syy) + sxy * sxy);
+    EXPECT_LT((mean - spread) / (mean + spread), 0.1) << "slab centres lie along a line";
+    EXPECT_NE(FragmentBoulderShape(parent, 4, 11, terraingen::BoulderCracks::Radial)[0].centre.x,
+              slabs[0].centre.x);
+    BoulderLayerOptions options;
+    options.fragmentation.slabShare = 1.5;
+    EXPECT_THROW(terraingen::ValidateBoulderFragmentation(options.fragmentation),
+                 std::invalid_argument);
+}

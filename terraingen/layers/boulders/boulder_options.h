@@ -84,6 +84,9 @@ struct BoulderFragmentation {
     int maxPieces = 5;         ///< Most pieces, at most 12.
     double gapRatio = 0.04;    ///< Widest crack between split pieces, over the diameter.
     double spreadRatio = 0.6;  ///< How far rubble scatters beyond that, over the diameter.
+    /// Share of broken boulders split into slabs by roughly parallel cracks right through them; the
+    /// rest crack out from the middle like a pie.
+    double slabShare = 0.7;
 
     /// Whether any boulder breaks.
     bool Enabled() const {
