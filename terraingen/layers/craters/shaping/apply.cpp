@@ -1,5 +1,7 @@
 #include "terraingen/layers/craters/shaping/apply.h"
 
+#include "terraingen/noise/fractal.h"
+#include "terraingen/noise/hash.h"
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/checks.h"
@@ -49,6 +51,43 @@ double ProfileHeight(const CraterProfile& profile, double distance, double diame
     }
     smoothed /= std::sqrt(std::numbers::pi);
     return height + weight * (smoothed - height);
+}
+
+/// The noise `noise` adds to `crater` at `offset` metres from its centre and `radii` crater radii
+/// out: footprint noise fading to nothing from the rim to `reachRadii`, and rim noise in its band.
+double NoiseHeight(const Crater& crater, const Vec2d& offset, double radii, double reachRadii,
+                   const CraterNoise& noise) {
+    if (noise.amplitude == 0.0 && noise.rimAmplitude == 0.0) {
+        return 0.0;
+    }
+    const double radius = 0.5 * crater.diameter;
+    const std::uint32_t key =
+        PcgHash(static_cast<std::uint32_t>(crater.id) ^
+                PcgHash(static_cast<std::uint32_t>(crater.id >> 32) ^ noise.seed));
+    const auto fractal = [&](double wavelengthRadii, std::uint32_t seed) {
+        FractalParams params;
+        params.seed = seed;
+        params.wavelength = static_cast<float>(wavelengthRadii * radius);
+        params.amplitude = 1.0f;
+        params.octaves = noise.octaves;
+        params.gain = static_cast<float>(noise.gain);
+        return static_cast<double>(
+            Fractal2(static_cast<float>(offset.x), static_cast<float>(offset.y), params));
+    };
+    const double footprint =
+        radii <= 1.0 ? 1.0 : Falloff(radii, 1.0, reachRadii, BlendShape::Smootherstep);
+    const double rim =
+        radii <= 1.0
+            ? Falloff(2.0 - radii, 1.0, 2.0 - noise.rimInnerRadii, BlendShape::Smootherstep)
+            : Falloff(radii, 1.0, noise.rimOuterRadii, BlendShape::Smootherstep);
+    double height = 0.0;
+    if (noise.amplitude > 0.0 && footprint > 0.0) {
+        height += noise.amplitude * footprint * fractal(noise.wavelengthRadii, key);
+    }
+    if (noise.rimAmplitude > 0.0 && rim > 0.0) {
+        height += noise.rimAmplitude * rim * fractal(noise.rimWavelengthRadii, key + 1u);
+    }
+    return crater.diameter * height;
 }
 
 /// Height of the raster at world point (x, y) by bilinear interpolation of the cell centres, or
@@ -165,7 +204,8 @@ float ApplyCraterTo(float height, double x, double y, const PreparedCrater& crat
         replaced = weight * (crater.datum->At(offset.x, offset.y) - current);
     }
     const double shaped =
-        ProfileHeight(profile, distance, diameter, crater.state, options.rimSmoothing);
+        ProfileHeight(profile, distance, diameter, crater.state, options.rimSmoothing) +
+        NoiseHeight(crater.crater, offset, distance / radius, profile.ReachRadii(), options.noise);
     return static_cast<float>(current + crater.resolution * shaped + crater.resolution * replaced);
 }
 

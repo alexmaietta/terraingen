@@ -133,6 +133,26 @@ template <typename IO> void Fields(IO& io, RimSmoothing& smoothing) {
        "sharp crest.");
 }
 
+template <typename IO> void Fields(IO& io, CraterNoise& noise) {
+    io("amplitude", noise.amplitude,
+       "Amplitude of the noise over the whole footprint, as a share of the crater diameter; it "
+       "fades out beyond the rim to the profile's reach, and 0 adds none.");
+    io("wavelength_radii", noise.wavelengthRadii,
+       "Wavelength of the footprint noise's first octave, in crater radii.");
+    io("octaves", noise.octaves, "Octaves of both noises, from 1 to 12.");
+    io("gain", noise.gain, "Weight ratio between successive octaves; positive.");
+    io("rim_amplitude", noise.rimAmplitude,
+       "Amplitude of the extra noise in the band around the rim, as a share of the crater "
+       "diameter; 0 adds none.");
+    io("rim_wavelength_radii", noise.rimWavelengthRadii,
+       "Wavelength of the rim noise's first octave, in crater radii.");
+    io("rim_inner_radii", noise.rimInnerRadii,
+       "Inner edge of the rim noise band, in crater radii; below 1.");
+    io("rim_outer_radii", noise.rimOuterRadii,
+       "Outer edge of the rim noise band, in crater radii; above 1.");
+    io("seed", noise.seed, "Varies the noise of every crater.");
+}
+
 template <typename IO> void Fields(IO& io, CraterApplyOptions& apply) {
     io("order", apply.order,
        "Order in which overlapping craters are applied; later craters overprint earlier ones.");
@@ -153,6 +173,9 @@ template <typename IO> void Fields(IO& io, CraterApplyOptions& apply) {
     io("rim_smoothing", apply.rimSmoothing,
        "Rounded rims: each crater's profile smoothed across distance near its rim; off unless "
        "sigma_radii is set.");
+    io("noise", apply.noise,
+       "Fractal noise over each crater's footprint and around its rim, keyed to the crater; off "
+       "unless an amplitude is set.");
 }
 
 template <> struct SpecName<CraterLayerSpec> {

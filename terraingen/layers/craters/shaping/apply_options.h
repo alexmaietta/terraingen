@@ -8,6 +8,7 @@
 #include "terraingen/util/surface.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 namespace terraingen {
@@ -63,6 +64,29 @@ struct RimSmoothing {
 /// [0, 1], or a band that does not satisfy 0 <= `innerRadii` < 1 < `outerRadii`.
 void ValidateRimSmoothing(const RimSmoothing& smoothing);
 
+/// Fractal noise added to each crater, keyed to its ID so tiles and point queries agree: over the
+/// whole footprint, fading out to nothing at the profile's reach, and in a band around the rim.
+/// Amplitudes are shares of the crater's diameter, so the noise scales with the crater.
+struct CraterNoise {
+    double amplitude = 0.0;           ///< Footprint noise amplitude over the diameter; 0 adds none.
+    double wavelengthRadii = 0.5;     ///< Wavelength of its first octave, in crater radii.
+    int octaves = 4;                  ///< Octaves of both noises, 1 to 12.
+    double gain = 0.5;                ///< Weight ratio between successive octaves; positive.
+    double rimAmplitude = 0.0;        ///< Rim noise amplitude over the diameter; 0 adds none.
+    double rimWavelengthRadii = 0.1;  ///< Wavelength of its first octave, in crater radii.
+    double rimInnerRadii = 0.8;       ///< Inner edge of the rim band, in crater radii; in [0, 1).
+    double rimOuterRadii = 1.2;       ///< Outer edge of the rim band, in crater radii; above 1.
+    std::uint32_t seed = 0;           ///< Varies the noise of every crater.
+
+    bool operator==(const CraterNoise&) const = default;
+};
+
+/// Checks crater noise settings.
+/// @throws std::invalid_argument for a negative or non-finite amplitude, a non-positive
+/// wavelength or gain, octaves outside 1 to 12, or a rim band that does not satisfy
+/// 0 <= `rimInnerRadii` < 1 < `rimOuterRadii`.
+void ValidateCraterNoise(const CraterNoise& noise);
+
 /// How `ApplyCraters` shapes craters into the terrain.
 struct CraterApplyOptions {
     CraterOrder order = CraterOrder::OldestFirst;  ///< Which craters overprint which.
@@ -80,6 +104,7 @@ struct CraterApplyOptions {
     /// Irregular, non-circular outlines; off by default.
     CraterIrregularity irregularity{};
     RimSmoothing rimSmoothing{};  ///< Rounded rims; off by default.
+    CraterNoise noise{};          ///< Fractal noise over each crater; off by default.
     /// What craters are shaped on; on a sphere, centres and rasters are longitude and latitude and
     /// each crater is shaped in its local frame, spacings in metres.
     Surface surface{};

@@ -30,7 +30,23 @@ void ValidateRimSmoothing(const RimSmoothing& smoothing) {
     }
 }
 
+void ValidateCraterNoise(const CraterNoise& noise) {
+    RequireNonNegative(noise.amplitude, "Crater noise amplitude");
+    RequireNonNegative(noise.rimAmplitude, "Crater rim noise amplitude");
+    RequirePositive(noise.wavelengthRadii, "Crater noise wavelength");
+    RequirePositive(noise.rimWavelengthRadii, "Crater rim noise wavelength");
+    RequirePositive(noise.gain, "Crater noise gain");
+    if (noise.octaves < 1 || noise.octaves > 12) {
+        throw std::invalid_argument("Crater noise needs 1 to 12 octaves");
+    }
+    if (!(noise.rimInnerRadii >= 0.0 && noise.rimInnerRadii < 1.0 && noise.rimOuterRadii > 1.0 &&
+          std::isfinite(noise.rimOuterRadii))) {
+        throw std::invalid_argument("Crater rim noise band must satisfy 0 <= inner < 1 < outer");
+    }
+}
+
 void ValidateCraterApplyOptions(const CraterApplyOptions& options) {
+    ValidateCraterNoise(options.noise);
     ValidateResolutionFade(options.fade);
     ValidateCraterIrregularity(options.irregularity);
     ValidateRimSmoothing(options.rimSmoothing);

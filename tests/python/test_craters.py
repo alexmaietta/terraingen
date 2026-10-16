@@ -117,6 +117,20 @@ def test_rim_smoothing_lowers_the_highest_rim(lunar_craters):
     assert rounded.rim_smoothing.weight(1.0) == 1.0
 
 
+def test_crater_noise_changes_the_craters_only_when_set(lunar_craters):
+    craters = generate_lunar_craters(lunar_craters)
+    plain = carved_raster(craters).values
+    off = terraingen.CraterApplyOptions(noise=terraingen.CraterNoise(seed=3))
+    assert (carved_raster(craters, off).values == plain).all()
+    noisy = terraingen.CraterApplyOptions(
+        noise=terraingen.CraterNoise(amplitude=0.02, rim_amplitude=0.02, octaves=3)
+    )
+    assert noisy.noise.octaves == 3
+    assert (carved_raster(craters, noisy).values != plain).any()
+    with pytest.raises(ValueError):
+        terraingen.validate_crater_noise(terraingen.CraterNoise(octaves=0))
+
+
 def test_crater_blend_weight_is_one_inside_the_blend():
     assert terraingen.crater_blend_weight(0.5, terraingen.CraterBlend()) == 1.0
 

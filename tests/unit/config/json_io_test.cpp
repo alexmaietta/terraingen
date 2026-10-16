@@ -51,7 +51,6 @@ TerrainConfig Everything() {
                                                    terraingen::ChronologyModel::Ivanov};
     craters.minDiameter = 2.0;
     craters.maxDiameter = 90.0;
-    craters.apply.rimSmoothing = {.sigmaRadii = 0.1, .strength = 0.5};
     craters.spacing = {2.0, 0.75};
     craters.maxCraters = 1234;
     craters.manual = {{1.5, -2.25, 30.0, 0.1, 7u}};
@@ -81,6 +80,8 @@ TerrainConfig Everything() {
             .ellipticity = {terraingen::ValueDistribution::Kind::LogNormal, 1.2, 0.1, 1.0, 2.23},
             .heading = 0.3,
             .headingSpread = 0.2}};
+    craters.apply.rimSmoothing = {.sigmaRadii = 0.1, .strength = 0.5};
+    craters.apply.noise = {.amplitude = 0.01, .octaves = 3, .rimAmplitude = 0.02, .seed = 5};
     terraingen::BoulderLayerSpec boulders;
     boulders.boulders = {
         .sizes = {.coverage = 0.05,

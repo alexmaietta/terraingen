@@ -307,13 +307,31 @@ void BindApplyOptions(nb::module_& m) {
         .def("weight", &RimSmoothing::Weight, "radii"_a,
              "The smoothing weight at `radii` crater radii from the centre.");
     m.def("validate_rim_smoothing", &ValidateRimSmoothing, "smoothing"_a, kValidateDoc);
+    auto noise = nb::class_<CraterNoise>(
+        m, "CraterNoise",
+        "Fractal noise added to each crater, keyed to its ID: `amplitude` over the whole "
+        "footprint (fading out beyond the rim) at `wavelength_radii`, and `rim_amplitude` in the "
+        "band from `rim_inner_radii` to `rim_outer_radii` at `rim_wavelength_radii`; amplitudes "
+        "are shares of the diameter and 0 adds none.");
+    BindKwargsInit<CraterNoise>(noise);
+    noise.def_rw("amplitude", &CraterNoise::amplitude)
+        .def_rw("wavelength_radii", &CraterNoise::wavelengthRadii)
+        .def_rw("octaves", &CraterNoise::octaves)
+        .def_rw("gain", &CraterNoise::gain)
+        .def_rw("rim_amplitude", &CraterNoise::rimAmplitude)
+        .def_rw("rim_wavelength_radii", &CraterNoise::rimWavelengthRadii)
+        .def_rw("rim_inner_radii", &CraterNoise::rimInnerRadii)
+        .def_rw("rim_outer_radii", &CraterNoise::rimOuterRadii)
+        .def_rw("seed", &CraterNoise::seed);
+    m.def("validate_crater_noise", &ValidateCraterNoise, "noise"_a, kValidateDoc);
     auto apply = nb::class_<CraterApplyOptions>(
         m, "CraterApplyOptions",
         "How craters are applied: the `datum` interiors are cut relative to (fit over "
         "`datum_fit_radii` radii; with none, craters are added to the terrain and the settings "
         "after it are unused), how much of the interior replaces the older relief "
         "(`interior_replacement`, 0 to 1), the `blend` into the exterior, the `order` overlapping "
-        "craters are applied in, the resolution `fade`, rim `irregularity` and `rim_smoothing`.");
+        "craters are applied in, the resolution `fade`, rim `irregularity`, `rim_smoothing` and "
+        "`noise`.");
     BindKwargsInit<CraterApplyOptions>(apply);
     apply.def_rw("order", &CraterApplyOptions::order)
         .def_rw("fade", &CraterApplyOptions::fade)
@@ -322,7 +340,8 @@ void BindApplyOptions(nb::module_& m) {
         .def_rw("interior_replacement", &CraterApplyOptions::interiorReplacement)
         .def_rw("blend", &CraterApplyOptions::blend)
         .def_rw("irregularity", &CraterApplyOptions::irregularity)
-        .def_rw("rim_smoothing", &CraterApplyOptions::rimSmoothing);
+        .def_rw("rim_smoothing", &CraterApplyOptions::rimSmoothing)
+        .def_rw("noise", &CraterApplyOptions::noise);
     m.def("validate_crater_apply_options", &ValidateCraterApplyOptions, "options"_a, kValidateDoc);
     m.def("crater_apply_order", &CraterApplyOrder, "craters"_a, "order"_a,
           "The indices of `craters` in the order they are applied.");

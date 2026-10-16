@@ -424,3 +424,59 @@ TEST(ApplyCraters, RoundsRimsByTheSmoothedProfileOnlyNearTheRim) {
     options.rimSmoothing = {.sigmaRadii = 0.1, .outerRadii = 0.9};
     EXPECT_THROW(terraingen::ValidateRimSmoothing(options.rimSmoothing), std::invalid_argument);
 }
+
+TEST(ApplyCraterTo, AddsFootprintNoiseFadingOutBeyondTheRim) {
+    const FassettThomsonProfile profile;
+    const Crater crater{0.0, 0.0, 20.0, 0.0, 1u};
+    const terraingen::PreparedCrater prepared{crater, 1.0, kFresh.State(crater)};
+    CraterApplyOptions noisy;
+    noisy.noise.amplitude = 0.05;
+    double largest = 0.0;
+    for (int i = 0; i < 40; ++i) {
+        const double x = 0.4 * i - 8.0;
+        const float shift = terraingen::ApplyCraterTo(0.0f, x, 3.0, prepared, profile, noisy) -
+                            terraingen::ApplyCraterTo(0.0f, x, 3.0, prepared, profile, {});
+        largest = std::max(largest, static_cast<double>(std::fabs(shift)));
+        ASSERT_LE(std::fabs(shift), 0.05 * 20.0 + 1e-4) << "within the amplitude";
+    }
+    EXPECT_GT(largest, 0.01) << "inside the rim";
+    const double reach = profile.ReachRadii() * 10.0;
+    EXPECT_EQ(terraingen::ApplyCraterTo(0.0f, reach - 1e-6, 0.0, prepared, profile, noisy),
+              terraingen::ApplyCraterTo(0.0f, reach - 1e-6, 0.0, prepared, profile, {}))
+        << "faded out at the reach";
+    const Crater other{0.0, 0.0, 20.0, 0.0, 2u};
+    const terraingen::PreparedCrater second{other, 1.0, kFresh.State(other)};
+    EXPECT_NE(terraingen::ApplyCraterTo(0.0f, 3.0, 2.0, prepared, profile, noisy),
+              terraingen::ApplyCraterTo(0.0f, 3.0, 2.0, second, profile, noisy))
+        << "keyed to the crater ID";
+}
+
+TEST(ApplyCraterTo, AddsRimNoiseOnlyInItsBand) {
+    const FassettThomsonProfile profile;
+    const Crater crater{0.0, 0.0, 20.0, 0.0, 1u};
+    const terraingen::PreparedCrater prepared{crater, 1.0, kFresh.State(crater)};
+    CraterApplyOptions noisy;
+    noisy.noise.rimAmplitude = 0.05;
+    bool changed = false;
+    for (int i = 0; i <= 60; ++i) {
+        const double radii = 0.025 * i;
+        const float plain =
+            terraingen::ApplyCraterTo(0.0f, 10.0 * radii, 1.0, prepared, profile, {});
+        const float rough =
+            terraingen::ApplyCraterTo(0.0f, 10.0 * radii, 1.0, prepared, profile, noisy);
+        const double at = std::hypot(10.0 * radii, 1.0) / 10.0;
+        if (at <= 0.8 || at >= 1.2) {
+            ASSERT_EQ(rough, plain) << "outside the band at " << at;
+        }
+        changed = changed || rough != plain;
+    }
+    EXPECT_TRUE(changed);
+    noisy.noise.rimInnerRadii = 1.0;
+    EXPECT_THROW(terraingen::ValidateCraterNoise(noisy.noise), std::invalid_argument);
+    noisy.noise = {.octaves = 13};
+    EXPECT_THROW(terraingen::ValidateCraterApplyOptions(noisy), std::invalid_argument);
+    noisy.noise = {.wavelengthRadii = 0.0};
+    EXPECT_THROW(terraingen::ValidateCraterNoise(noisy.noise), std::invalid_argument);
+    noisy.noise = {.amplitude = -1.0};
+    EXPECT_THROW(terraingen::ValidateCraterNoise(noisy.noise), std::invalid_argument);
+}

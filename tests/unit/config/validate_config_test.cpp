@@ -64,6 +64,8 @@ const PathCase kPathCases[] = {
      "layers[1].apply"},
     {"NegativeRimStrength", [](TerrainConfig& c) { Craters(c).apply.rimSmoothing.strength = -1.0; },
      "layers[1].apply"},
+    {"ZeroNoiseOctaves", [](TerrainConfig& c) { Craters(c).apply.noise.octaves = 0; },
+     "layers[1].apply"},
     {"ZeroMinDiameter", [](TerrainConfig& c) { Craters(c).minDiameter = 0.0; },
      "layers[1].min_diameter"},
     {"MaxBelowMin", [](TerrainConfig& c) { Craters(c).maxDiameter = 5.0; },
