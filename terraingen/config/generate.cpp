@@ -9,6 +9,7 @@
 #include "terraingen/sources/source_chain.h"
 #include "terraingen/util/log.h"
 
+#include <iomanip>
 #include <numbers>
 #include <optional>
 #include <sstream>
@@ -121,8 +122,8 @@ GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
 
 std::string Summary(const GeneratedTerrain& terrain) {
     std::ostringstream text;
-    text << "Generated a " << terrain.heights.Width() << "x" << terrain.heights.Height()
-         << " terrain in " << terrain.seconds << " s";
+    text << std::setprecision(3) << "Generated a " << terrain.heights.Width() << "x"
+         << terrain.heights.Height() << " terrain in " << terrain.seconds << " s";
     return text.str();
 }
 

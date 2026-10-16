@@ -57,9 +57,8 @@ TEST(PlacedCraters, ListsEachCraterLayerInOrderWithItsAttributes) {
     EXPECT_EQ(placed.craters.At(1).x, 10.0);
     EXPECT_EQ(placed.craters.At(2).x, -20.0);
     EXPECT_EQ(placed.attributes[2], second->Attributes(placed.craters.At(2)));
-    EXPECT_EQ(
-        placed.craters.Ids(),
-        terraingen::PlacedCraters(terrain.layers, grid, 0.0, terraingen::Surface{}).craters.Ids());
+    EXPECT_EQ(placed.craters.Ids(),
+              terraingen::PlacedCraters(terrain.layers, grid, 1.0).craters.Ids());
 }
 
 TEST(PlacedCraters, KeepsOnlyTheCratersARegionHolds) {

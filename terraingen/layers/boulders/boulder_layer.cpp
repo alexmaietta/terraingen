@@ -291,4 +291,12 @@ std::vector<BoulderModel> BoulderLayer::Models(const std::vector<Boulder>& bould
     return models;
 }
 
+BoulderFeatures BoulderLayer::BouldersOver(const RasterGrid& grid, double spacing,
+                                           const Ground* ground) const {
+    BoulderFeatures placed{
+        Boulders(grid.Bounds(), std::max(spacing, grid.Spacing(surface_)), ground), {}};
+    placed.models = Models(placed.boulders);
+    return placed;
+}
+
 }  // namespace terraingen

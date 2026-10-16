@@ -349,6 +349,15 @@ CraterAttributes SecondaryCraterLayer::Attributes(const Crater& crater) const {
     return ComputeCraterAttributes(crater, models_.degradation->State(crater), *models_.profile);
 }
 
+CraterFeatures SecondaryCraterLayer::CratersOver(const RasterGrid& grid, double spacing) const {
+    CraterFeatures placed{
+        Secondaries(grid.Bounds(), std::max(spacing, grid.Spacing(apply_.surface))), {}};
+    for (std::size_t n = 0; n < placed.craters.Size(); ++n) {
+        placed.attributes.push_back(Attributes(placed.craters.At(n)));
+    }
+    return placed;
+}
+
 double SecondaryCraterLayer::MaxFeatureDiameter() const {
     const double largest = primaries_->MaxFeatureDiameter();
     if (!(largest > 0.0)) {

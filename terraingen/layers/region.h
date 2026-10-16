@@ -2,6 +2,8 @@
 /// @brief `RegionLayer`, another layer applied only inside a rectangle or circle.
 #pragma once
 
+#include "terraingen/layers/boulders/boulder_placer.h"
+#include "terraingen/layers/craters/crater_placer.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/raster/cell_loops.h"
@@ -66,7 +68,7 @@ void ValidateRegionShape(const RegionShape& shape);
 ///
 /// The inner layer sees the same context and, on grids, is applied only to the cells near the
 /// region. Of its features, those centred within the region or its feather (`Holds`) belong to it.
-class RegionLayer final : public Layer {
+class RegionLayer final : public Layer, public CraterPlacer, public BoulderPlacer {
   public:
     /// @brief Makes the layer.
     /// @param inner The layer to confine.
@@ -103,6 +105,15 @@ class RegionLayer final : public Layer {
     /// The part of `grid` the inner layer is applied to, the cells near the region; nothing when no
     /// cell is.
     std::optional<RasterGrid> InnerGrid(const RasterGrid& grid) const;
+
+    /// The inner layer's craters over its part of `grid` that the region `Holds`; none when the
+    /// inner layer places no craters.
+    CraterFeatures CratersOver(const RasterGrid& grid, double spacing) const override;
+
+    /// The inner layer's boulders over its part of `grid` that the region `Holds`; none when the
+    /// inner layer places no boulders.
+    BoulderFeatures BouldersOver(const RasterGrid& grid, double spacing,
+                                 const Ground* ground) const override;
 
   protected:
     /// Applies the inner layer to the samples near the region and blends it in by `Weight`.

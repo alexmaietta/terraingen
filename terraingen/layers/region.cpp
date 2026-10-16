@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 #include <limits>
 #include <numbers>
 #include <stdexcept>
@@ -151,6 +152,40 @@ std::optional<RasterGrid> RegionLayer::InnerGrid(const RasterGrid& grid) const {
     transform.originX = origin.x;
     transform.originY = origin.y;
     return RasterGrid{window.colEnd - window.colBegin, window.rowEnd - window.rowBegin, transform};
+}
+
+CraterFeatures RegionLayer::CratersOver(const RasterGrid& grid, double spacing) const {
+    const auto* placer = dynamic_cast<const CraterPlacer*>(inner_.get());
+    const std::optional<RasterGrid> inner = InnerGrid(grid);
+    CraterFeatures held;
+    if (placer == nullptr || !inner) {
+        return held;
+    }
+    const CraterFeatures all = placer->CratersOver(*inner, spacing);
+    for (std::size_t n = 0; n < all.craters.Size(); ++n) {
+        const Crater crater = all.craters.At(n);
+        if (Holds(crater.x, crater.y)) {
+            held.craters.Append(crater);
+            held.attributes.push_back(all.attributes[n]);
+        }
+    }
+    return held;
+}
+
+BoulderFeatures RegionLayer::BouldersOver(const RasterGrid& grid, double spacing,
+                                          const Ground* ground) const {
+    const auto* placer = dynamic_cast<const BoulderPlacer*>(inner_.get());
+    const std::optional<RasterGrid> inner = InnerGrid(grid);
+    BoulderFeatures held;
+    if (placer == nullptr || !inner) {
+        return held;
+    }
+    const BoulderFeatures all = placer->BouldersOver(*inner, spacing, ground);
+    std::copy_if(all.boulders.begin(), all.boulders.end(), std::back_inserter(held.boulders),
+                 [&](const Boulder& b) { return Holds(b.x, b.y); });
+    std::copy_if(all.models.begin(), all.models.end(), std::back_inserter(held.models),
+                 [&](const BoulderModel& m) { return Holds(m.boulder.x, m.boulder.y); });
+    return held;
 }
 
 void RegionLayer::ApplySamples(SampleBlock& samples, const LayerContext& context) const {

@@ -26,7 +26,7 @@ def undegraded_craters(crater_layer, lunar_craters):
 
 def smoothed_heights(craters, smoothing):
     source = terraingen.FlatSource(129, 129, 1.0)
-    filters = [terraingen.RimSmoothingFilter(smoothing, [craters])]
+    filters = [terraingen.RimSmoothingFilter(smoothing)]
     return terraingen.evaluate(terraingen.Terrain(source, [craters], filters)).values
 
 
@@ -60,7 +60,7 @@ def test_validate_rim_smoothing_rejects_strength_above_one():
 def lunar_crater_terrains(lunar_models, crater_layer):
     craters = crater_layer(lunar_models(), 3.0, 20.0)
     source = terraingen.FlatSource(301, 301, 0.1)
-    smoothing = terraingen.RimSmoothingFilter(terraingen.RimSmoothing(sigma_radii=0.1), [craters])
+    smoothing = terraingen.RimSmoothingFilter(terraingen.RimSmoothing(sigma_radii=0.1))
     return terraingen.Terrain(source, [craters], [smoothing]), terraingen.Terrain(source, [craters])
 
 

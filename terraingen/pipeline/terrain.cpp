@@ -57,7 +57,7 @@ Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid,
         terrain.layers[n]->Apply(heights, LayerContext{resolved, options.threads, &ground});
     }
     for (const auto& filter : terrain.filters) {
-        filter->Apply(heights, {resolved, options.threads});
+        filter->Apply(heights, {resolved, options.threads, terrain.layers});
     }
     return heights;
 }

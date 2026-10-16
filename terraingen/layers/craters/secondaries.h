@@ -5,6 +5,7 @@
 
 #include "terraingen/layers/craters/crater.h"
 #include "terraingen/layers/craters/crater_layer.h"
+#include "terraingen/layers/craters/crater_placer.h"
 #include "terraingen/layers/craters/shaping/apply.h"
 #include "terraingen/layers/layer.h"
 
@@ -82,7 +83,7 @@ void ValidateSecondaryCraterOptions(const SecondaryCraterOptions& options);
 ///
 /// Drawn per primary in polar cells keyed to its ID, size band, ring and sector, so a tile holds
 /// the same secondaries as any larger grid; bands too small for the spacing are skipped.
-class SecondaryCraterLayer final : public Layer {
+class SecondaryCraterLayer final : public Layer, public CraterPlacer {
   public:
     /// @brief Builds a secondary crater layer.
     /// @param primaries The layer whose craters throw secondaries.
@@ -114,6 +115,8 @@ class SecondaryCraterLayer final : public Layer {
     /// A secondary's attributes in the state the degradation model gives it.
     /// @throws std::domain_error as `DegradationModel::State`.
     CraterAttributes Attributes(const Crater& crater) const;
+
+    CraterFeatures CratersOver(const RasterGrid& grid, double spacing) const override;
 
     /// @brief The secondary crater options.
     /// @return The options the layer was made with.

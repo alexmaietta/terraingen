@@ -84,6 +84,15 @@ CraterAttributes CraterLayer::Attributes(const Crater& crater) const {
     return ComputeCraterAttributes(crater, models_.degradation->State(crater), *models_.profile);
 }
 
+CraterFeatures CraterLayer::CratersOver(const RasterGrid& grid, double spacing) const {
+    CraterFeatures placed{Craters(grid.Bounds(), std::max(spacing, grid.Spacing(options_.surface))),
+                          {}};
+    for (std::size_t n = 0; n < placed.craters.Size(); ++n) {
+        placed.attributes.push_back(Attributes(placed.craters.At(n)));
+    }
+    return placed;
+}
+
 double CraterLayer::MaxFeatureDiameter() const {
     const CraterGenerationOptions& generation = options_.generation;
     double largest = options_.generate ? ResolveDMax(generation.dMax, *models_.density) : 0.0;

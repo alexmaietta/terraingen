@@ -8,11 +8,8 @@
 #include "terraingen/filters/filter.h"
 #include "terraingen/filters/gaussian_blur_filter.h"
 #include "terraingen/filters/rim_smoothing.h"
-#include "terraingen/pipeline/features.h"
 
-#include <memory>
 #include <stdexcept>
-#include <vector>
 
 namespace terraingen::python {
 
@@ -67,23 +64,10 @@ void BindRimSmoothing(nb::module_& m) {
         .def_rw("strength", &RimSmoothing::strength)
         .def_rw("fade", &RimSmoothing::fade);
     m.def("validate_rim_smoothing", &ValidateRimSmoothing, "smoothing"_a, kValidateDoc);
-    nb::class_<RimSmoothingFilter, Filter>(m, "RimSmoothingFilter",
-                                           "Smooths the rims of the craters `layers` apply.")
-        .def(
-            "__init__",
-            [](RimSmoothingFilter* self, const RimSmoothing& options,
-               const std::vector<std::shared_ptr<Layer>>& layers, const Surface& surface) {
-                const std::vector<std::shared_ptr<const Layer>> held(layers.begin(), layers.end());
-                new (self) RimSmoothingFilter(
-                    options,
-                    [held, surface](const RasterGrid& grid, double spacing) {
-                        return PlacedCraters(held, grid, spacing, surface).craters;
-                    },
-                    surface);
-            },
-            "options"_a, "layers"_a, "surface"_a = Surface{},
-            "Smooths the rims of the craters the crater and secondary crater layers among "
-            "`layers` apply, as `placed_craters` lists them.");
+    nb::class_<RimSmoothingFilter, Filter>(
+        m, "RimSmoothingFilter", "Smooths the rims of the craters the layers before it apply.")
+        .def(nb::init<RimSmoothing, Surface>(), "options"_a = RimSmoothing{},
+             "surface"_a = Surface{});
     m.def(
         "smooth_crater_rims",
         [](Raster<float>& raster, const CraterList& craters, const RimSmoothing& smoothing,

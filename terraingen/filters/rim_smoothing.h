@@ -8,8 +8,6 @@
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
 
-#include <functional>
-
 namespace terraingen {
 
 /// @brief How `SmoothCraterRims` rounds crater rims.
@@ -58,20 +56,14 @@ void SmoothCraterRims(Raster<float>& raster, const CraterList& craters,
                       const RimSmoothing& smoothing = {}, double spacing = 0.0,
                       unsigned threads = 1, const Surface& surface = {});
 
-/// @brief The craters whose rims a `RimSmoothingFilter` smooths over a grid at a sample spacing in
-/// metres, in the order they are blended.
-using CraterQuery = std::function<CraterList(const RasterGrid& grid, double spacing)>;
-
-/// @brief `SmoothCraterRims` over the craters `craters` lists for the grid being filtered, at the
-/// evaluation's sample spacing.
+/// `SmoothCraterRims` over the craters the layers before it apply (`PlacedCraters` of
+/// `FilterContext::layers`), at the evaluation's sample spacing.
 class RimSmoothingFilter final : public Filter {
   public:
     /// @param smoothing How rims are smoothed.
-    /// @param craters The craters to smooth, such as `PlacedCraters` of a terrain's layers.
     /// @param surface What the craters lie on.
-    /// @throws std::invalid_argument as `ValidateRimSmoothing`, or for an empty `craters`.
-    RimSmoothingFilter(const RimSmoothing& smoothing, CraterQuery craters,
-                       const Surface& surface = {});
+    /// @throws std::invalid_argument as `ValidateRimSmoothing`.
+    explicit RimSmoothingFilter(const RimSmoothing& smoothing, const Surface& surface = {});
 
     /// @throws std::invalid_argument as `SmoothCraterRims`.
     /// @throws std::domain_error if the raster's transform is not invertible.
@@ -87,7 +79,6 @@ class RimSmoothingFilter final : public Filter {
 
   private:
     RimSmoothing smoothing_;
-    CraterQuery craters_;
     Surface surface_;
 };
 

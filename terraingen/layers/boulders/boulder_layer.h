@@ -6,6 +6,7 @@
 #include "terraingen/layers/boulders/boulder.h"
 #include "terraingen/layers/boulders/boulder_models.h"
 #include "terraingen/layers/boulders/boulder_options.h"
+#include "terraingen/layers/boulders/boulder_placer.h"
 #include "terraingen/layers/craters/crater_layer.h"
 #include "terraingen/layers/craters/generation/cell_cache.h"
 #include "terraingen/layers/exposure.h"
@@ -34,7 +35,7 @@ struct BoulderAbundance {
 ///
 /// Candidates are drawn per cell in size bands and thinned by a uniform keyed by each ID, so
 /// boulders depend only on position and agree on every grid, tile and point.
-class BoulderLayer final : public Layer {
+class BoulderLayer final : public Layer, public BoulderPlacer {
   public:
     /// @brief Builds a boulder layer.
     ///
@@ -96,6 +97,9 @@ class BoulderLayer final : public Layer {
     /// The boulders of `boulders` to place as their own 3D models: those marked `model` whose
     /// ground is known, placed on it.
     std::vector<BoulderModel> Models(const std::vector<Boulder>& boulders) const;
+
+    BoulderFeatures BouldersOver(const RasterGrid& grid, double spacing,
+                                 const Ground* ground) const override;
 
   protected:
     /// Draws the exposed parts of non-model boulders into the samples.

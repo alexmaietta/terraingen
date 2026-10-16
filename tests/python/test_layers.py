@@ -236,6 +236,6 @@ def test_layers_and_filters_accept_a_sphere_surface(lunar_models):
     )
     rough = terraingen.RoughnessLayer(terraingen.RoughnessOptions(), surface=moon)
     boulders = terraingen.BoulderLayer(terraingen.BoulderLayerOptions(), craters, surface=moon)
-    smoothing = terraingen.RimSmoothingFilter(terraingen.RimSmoothing(), [craters], surface=moon)
+    smoothing = terraingen.RimSmoothingFilter(surface=moon)
     bedforms = terraingen.BedformLayer(terraingen.mars_large_ripples(), surface=moon)
     assert all(part is not None for part in (rough, boulders, smoothing, bedforms))

@@ -26,7 +26,6 @@
 #include "terraingen/layers/craters/shaping/morphometry.h"
 #include "terraingen/layers/noise_relief.h"
 #include "terraingen/layers/transforms.h"
-#include "terraingen/pipeline/features.h"
 #include "terraingen/sources/flat_source.h"
 #include "terraingen/sources/geotiff_source.h"
 #include "terraingen/sources/source_chain.h"
@@ -456,13 +455,8 @@ Terrain BuildValidTerrain(const TerrainConfig& config, const std::filesystem::pa
     for (const FilterSpec& filter : config.filters) {
         std::visit(
             [&](const RimSmoothing& smoothing) {
-                const auto layers = terrain.layers;
-                const Surface surface = terrain.surface;
-                CraterQuery placed = [layers, surface](const RasterGrid& grid, double spacing) {
-                    return PlacedCraters(layers, grid, spacing, surface).craters;
-                };
                 terrain.filters.push_back(
-                    std::make_shared<RimSmoothingFilter>(smoothing, std::move(placed), surface));
+                    std::make_shared<RimSmoothingFilter>(smoothing, terrain.surface));
             },
             filter);
     }

@@ -17,6 +17,7 @@ terraingen_add_library(
     boulders/boulder_shape.cpp
     craters/crater.cpp
     craters/crater_layer.cpp
+    craters/crater_placer.cpp
     craters/secondaries.cpp
     craters/ages/age_model.cpp
     craters/ages/steady_state.cpp

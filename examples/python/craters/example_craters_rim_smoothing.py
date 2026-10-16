@@ -2,7 +2,7 @@
 
 `RimSmoothingFilter` blurs each crater's rim with a Gaussian of `sigma_radii` crater radii, over a
 band from `inner_radii` to `outer_radii` that fades along `shape`, at `strength` from 0 to 1. It is a
-filter, so it runs after every layer, smoothing the craters of the layers it is given. Prints the highest rim in
+filter, so it runs after every layer and smooths the craters those layers apply. Prints the highest rim in
 each case and writes a montage of hillshades.
 
     python example_craters_rim_smoothing.py [--viewer window|null] [--output-dir DIR] [--test]
@@ -47,7 +47,7 @@ class Example(_common.Example):
         }
         self.heights = {}
         for name, options in variants.items():
-            filters = [terraingen.RimSmoothingFilter(options, [craters])] if options else []
+            filters = [terraingen.RimSmoothingFilter(options)] if options else []
             heights = terraingen.evaluate(terraingen.Terrain(source, [craters], filters)).values
             print(f"{name:14s} highest rim {heights.max():.2f} m")
             self.heights[name] = heights

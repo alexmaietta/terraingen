@@ -40,10 +40,27 @@ float RimCrest(const Raster<float>& raster) {
     return crest;
 }
 
-/// A crater query that lists `craters` for every grid.
-terraingen::CraterQuery Listing(const CraterList& craters) {
-    return
-        [craters](const terraingen::RasterGrid& /*grid*/, double /*spacing*/) { return craters; };
+/// A layer that changes no heights and places `craters` over every grid.
+class Listing final : public terraingen::Layer, public terraingen::CraterPlacer {
+  public:
+    explicit Listing(CraterList craters) : craters_(std::move(craters)) {}
+
+    terraingen::CraterFeatures CratersOver(const terraingen::RasterGrid& /*grid*/,
+                                           double /*spacing*/) const override {
+        return {craters_, {}};
+    }
+
+  protected:
+    void ApplySamples(terraingen::SampleBlock& /*samples*/,
+                      const terraingen::LayerContext& /*context*/) const override {}
+
+  private:
+    CraterList craters_;
+};
+
+/// The layers a filter of `craters` reads: one `Listing`.
+std::vector<std::shared_ptr<const terraingen::Layer>> Placing(const CraterList& craters) {
+    return {std::make_shared<Listing>(craters)};
 }
 
 }  // namespace
@@ -89,25 +106,24 @@ TEST(RimSmoothingFilter, SmoothsTheRimsOfThePlacedCraters) {
     Raster<float> heights = Cratered(craters);
     Raster<float> expected = heights;
     const RimSmoothing smoothing{.sigmaRadii = 0.08};
-    terraingen::RimSmoothingFilter(smoothing, Listing(craters)).Apply(heights, {1.0});
+    terraingen::RimSmoothingFilter(smoothing).Apply(heights, {1.0, 1, Placing(craters)});
     SmoothCraterRims(expected, craters, smoothing);
     for (std::size_t i = 0; i < expected.Size(); ++i) {
         ASSERT_EQ(heights.Values()[i], expected.Values()[i]) << i;
     }
-    EXPECT_EQ(terraingen::RimSmoothingFilter(smoothing, Listing(craters)).Smoothing(), smoothing);
+    EXPECT_EQ(terraingen::RimSmoothingFilter(smoothing).Smoothing(), smoothing);
 }
 
 TEST(RimSmoothingFilter, LeavesCratersTooSmallForTheSpacingAndRejectsBadSettings) {
     CraterList craters;
     Raster<float> heights = Cratered(craters);
     const Raster<float> original = heights;
-    terraingen::RimSmoothingFilter({.sigmaRadii = 0.08}, Listing(craters)).Apply(heights, {20.0});
+    terraingen::RimSmoothingFilter({.sigmaRadii = 0.08})
+        .Apply(heights, {20.0, 1, Placing(craters)});
     EXPECT_TRUE(
         std::equal(heights.Values().begin(), heights.Values().end(), original.Values().begin()))
         << "a 40 m crater is under 3 samples of 20 m";
-    EXPECT_THROW(terraingen::RimSmoothingFilter({.strength = 2.0}, Listing(craters)),
-                 std::invalid_argument);
-    EXPECT_THROW(terraingen::RimSmoothingFilter({}, nullptr), std::invalid_argument);
+    EXPECT_THROW(terraingen::RimSmoothingFilter({.strength = 2.0}), std::invalid_argument);
 }
 
 TEST(SmoothCraterRims, SmoothsFromTheUnsmoothedTerrainOnAnyNumberOfThreads) {
@@ -123,11 +139,9 @@ TEST(SmoothCraterRims, SmoothsFromTheUnsmoothedTerrainOnAnyNumberOfThreads) {
         EXPECT_TRUE(std::equal(parallel.Values().begin(), parallel.Values().end(),
                                serial.Values().begin()));
     }
-    EXPECT_EQ(terraingen::RimSmoothingFilter({.sigmaRadii = 0.0}, Listing({})).Margin(40.0, 1.0),
-              0.0);
-    EXPECT_DOUBLE_EQ(
-        terraingen::RimSmoothingFilter({.sigmaRadii = 0.1}, Listing({})).Margin(40.0, 1.0),
-        (1.2 + 0.3) * 20.0 + 2.0);
+    EXPECT_EQ(terraingen::RimSmoothingFilter({.sigmaRadii = 0.0}).Margin(40.0, 1.0), 0.0);
+    EXPECT_DOUBLE_EQ(terraingen::RimSmoothingFilter({.sigmaRadii = 0.1}).Margin(40.0, 1.0),
+                     (1.2 + 0.3) * 20.0 + 2.0);
 }
 
 TEST(SmoothCraterRims, IsRoundInMetresOnASphere) {

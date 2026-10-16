@@ -4,6 +4,7 @@
 
 #include "terraingen/distribution/size_frequency.h"
 #include "terraingen/layers/craters/ages/age_model.h"
+#include "terraingen/layers/craters/crater_placer.h"
 #include "terraingen/layers/craters/degradation/degradation_model.h"
 #include "terraingen/layers/craters/generation/cell_cache.h"
 #include "terraingen/layers/craters/generation/population.h"
@@ -51,7 +52,7 @@ struct CraterLayerOptions {
 ///
 /// Generated craters are the same in a tile as in any larger grid, unless `maxCraters` caps them
 /// over the whole grid; bands too small to resolve are not generated.
-class CraterLayer final : public Layer {
+class CraterLayer final : public Layer, public CraterPlacer {
   public:
     /// @brief Builds a crater layer.
     /// @param models The density, ages, degradation and profile; none may be null.
@@ -76,6 +77,8 @@ class CraterLayer final : public Layer {
     /// @return Its depth, rim height and freshness.
     /// @throws std::domain_error as `DegradationModel::State`.
     CraterAttributes Attributes(const Crater& crater) const;
+
+    CraterFeatures CratersOver(const RasterGrid& grid, double spacing) const override;
 
     /// @brief The cell cache.
     /// @return The cache, or null when `cacheCraters` is 0.
