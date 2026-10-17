@@ -25,6 +25,16 @@ if(NOT TERRAINGEN_CUDA_KERNELS STREQUAL "OFF")
                 "LD_LIBRARY_PATH=${CUDAToolkit_LIBRARY_DIR}:$ENV{LD_LIBRARY_PATH}")
         endif()
         message(STATUS "CUDA kernels: compiled to PTX with NVRTC ${CUDAToolkit_VERSION}")
+        # PTX loads only on drivers at least as new as the NVRTC that made it, so builds meant for
+        # others use the oldest supported toolkit.
+        if(CUDAToolkit_VERSION_MAJOR GREATER 12)
+            message(
+                WARNING
+                    "NVRTC ${CUDAToolkit_VERSION} makes PTX that only NVIDIA drivers for CUDA "
+                    "${CUDAToolkit_VERSION_MAJOR} or later load. For builds others run, point "
+                    "CUDAToolkit_ROOT at a CUDA 12.x toolkit (with -U 'CUDAToolkit_*' -U 'CUDA_*' "
+                    "to drop the cached one).")
+        endif()
     elseif(TERRAINGEN_CUDA_KERNELS STREQUAL "ON")
         message(
             FATAL_ERROR "TERRAINGEN_CUDA_KERNELS is ON but NVRTC (the CUDA toolkit) is not found")
