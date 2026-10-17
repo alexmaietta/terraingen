@@ -31,7 +31,6 @@ FetchContent_Declare(
     terraingen_slang
     URL "https://github.com/shader-slang/slang/releases/download/v${TERRAINGEN_DEP_VERSION_slang}/slang-${TERRAINGEN_DEP_VERSION_slang}-${slang_platform}.zip"
     URL_HASH SHA256=${slang_sha256}
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     SOURCE_SUBDIR no-build)
 FetchContent_MakeAvailable(terraingen_slang)
 

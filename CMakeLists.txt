@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.22)
 
+# Archives fetched with FetchContent get extraction-time timestamps, so their files rebuild what
+# depends on them; CMake before 3.24 has no such policy and behaves this way already.
+if(POLICY CMP0135)
+    cmake_policy(SET CMP0135 NEW)
+endif()
+
 # The release being worked towards, such as 0.1.0, or for a development build a PEP 440 pre-release of
 # it, such as 0.1.0.dev42, which only the Python package carries.
 set(TERRAINGEN_FULL_VERSION "0.1.0")

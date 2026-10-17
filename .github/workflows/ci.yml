@@ -35,6 +35,8 @@ jobs:
             os: ubuntu-22.04
             cc: gcc-11
             cxx: g++-11
+            # The oldest Python the package supports.
+            python: "3.10"
           - name: Ubuntu 22.04 ARM64, GCC 11
             os: ubuntu-22.04-arm
             cc: gcc-11
@@ -59,7 +61,7 @@ jobs:
 
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python || '3.12' }}
 
       - name: Install Python test requirements and Ninja
         run: python -m pip install numpy pytest ninja

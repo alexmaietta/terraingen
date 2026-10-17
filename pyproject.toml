@@ -9,7 +9,7 @@ description = "Scientific terrain generation for planetary surfaces"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [{ name = "Alex Maietta" }]
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dependencies = ["numpy>=1.22"]
 keywords = ["terrain", "moon", "mars", "craters", "planetary science", "simulation"]
 classifiers = [
@@ -40,6 +40,7 @@ minimum-version = "build-system.requires"
 cmake.version = ">=3.22"
 build-dir = "build/{wheel_tag}"
 wheel.packages = ["terraingen/python/terraingen"]
+# A stable-ABI wheel on Python 3.12 and newer, where nanobind supports it; a wheel per version before.
 wheel.py-api = "cp312"
 
 [tool.scikit-build.metadata.version]
@@ -49,7 +50,7 @@ regex = 'set\(TERRAINGEN_FULL_VERSION "(?P<value>\d+\.\d+\.\d+(\.dev\d+)?)"\)'
 
 [tool.ruff]
 line-length = 110
-target-version = "py312"
+target-version = "py310"
 extend-exclude = ["third_party/"]
 
 [tool.pytest.ini_options]

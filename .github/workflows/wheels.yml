@@ -41,8 +41,8 @@ jobs:
 
       - uses: pypa/cibuildwheel@v4.3.0
         env:
-          # One stable-ABI wheel per platform serves Python 3.12 and newer.
-          CIBW_BUILD: "cp312-*"
+          # A wheel each for Python 3.10 and 3.11, and one stable-ABI wheel for 3.12 and newer.
+          CIBW_BUILD: "cp310-* cp311-* cp312-*"
           CIBW_SKIP: "*-musllinux_*"
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
           CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28

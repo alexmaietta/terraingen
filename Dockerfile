@@ -8,6 +8,7 @@ RUN apt-get update \
         build-essential \
         ca-certificates \
         cmake \
+        file \
         git \
         ninja-build \
         python3-dev \

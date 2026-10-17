@@ -28,7 +28,6 @@ if(nvrtc_platform)
         terraingen_nvrtc
         URL "https://developer.download.nvidia.com/compute/cuda/redist/cuda_nvrtc/${nvrtc_platform}/cuda_nvrtc-${nvrtc_platform}-${TERRAINGEN_DEP_VERSION_nvrtc}-archive.${nvrtc_archive}"
         URL_HASH SHA256=${nvrtc_sha256}
-        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
         SOURCE_SUBDIR no-build)
     FetchContent_MakeAvailable(terraingen_nvrtc)
     # The folder slangc loads NVRTC from: its DLLs on Windows, its shared libraries elsewhere.
