@@ -96,7 +96,8 @@ class AgesModels : public terraingen::examples::Example {
                 options));
             terraingen::Raster<float> heights = terraingen::Evaluate(terrain);
             terraingen::CraterList craters =
-                terraingen::PlacedCraters(terrain, terraingen::RasterGrid::Of(heights)).craters;
+                terraingen::PlacedCraters(terrain, terraingen::RasterGrid::FromRaster(heights))
+                    .craters;
             terrains_.push_back({name, std::move(heights), std::move(craters)});
             const Aged& aged = terrains_.back();
             const auto& craterAges = aged.craters.AgesGyr();

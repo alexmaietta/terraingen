@@ -53,7 +53,8 @@ class CratersSimple : public terraingen::examples::Example {
         terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(models, options));
 
         evaluated_ = terraingen::Evaluate(terrain);
-        craters_ = terraingen::PlacedCraters(terrain, terraingen::RasterGrid::Of(evaluated_));
+        craters_ =
+            terraingen::PlacedCraters(terrain, terraingen::RasterGrid::FromRaster(evaluated_));
         const auto& diameters = craters_.craters.Diameters();
         Out() << craters_.craters.Size() << " craters, the largest "
               << *std::max_element(diameters.begin(), diameters.end()) << " m across\n";

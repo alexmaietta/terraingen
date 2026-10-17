@@ -197,7 +197,7 @@ bool WritesGrid(const OutputSpec& output) {
 
 const GeneratedGrid* GeneratedTerrain::Find(const RasterGrid& grid) const {
     for (const GeneratedGrid& generated : grids) {
-        if (RasterGrid::Of(generated.heights) == grid) {
+        if (RasterGrid::FromRaster(generated.heights) == grid) {
             return &generated;
         }
     }
@@ -214,7 +214,7 @@ GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
     const std::optional<RasterGrid> base = BaseGrid(terrain);
     const auto generatedOver = [&](const RasterGrid& grid) -> GeneratedGrid& {
         for (GeneratedGrid& existing : generated.grids) {
-            if (RasterGrid::Of(existing.heights) == grid) {
+            if (RasterGrid::FromRaster(existing.heights) == grid) {
                 return existing;
             }
         }

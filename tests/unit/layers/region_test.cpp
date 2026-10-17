@@ -116,7 +116,7 @@ TEST(RegionLayer, HoldsTheFeaturesCentredInTheRegionOrItsFeather) {
     EXPECT_TRUE(layer.Holds(0.0, 0.0));
     EXPECT_TRUE(layer.Holds(6.5, 0.0)) << "inside the feather";
     EXPECT_FALSE(layer.Holds(7.5, 0.0));
-    const terraingen::RasterGrid grid = terraingen::RasterGrid::Of(Slope());
+    const terraingen::RasterGrid grid = terraingen::RasterGrid::FromRaster(Slope());
     const auto inner = layer.InnerGrid(grid);
     ASSERT_TRUE(inner.has_value());
     const auto bounds = inner->Bounds();

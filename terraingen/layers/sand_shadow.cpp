@@ -104,7 +104,7 @@ Raster<double> SandShadowLayer::MaterialCoverOver(const RasterGrid& grid, double
     const std::vector<Shadow> shadows = ShadowsOver(grid.Bounds(), spacing, ground);
     std::vector<std::vector<PixelWindow>> windows;
     for (const Shadow& shadow : shadows) {
-        windows.push_back(WindowsAround(grid, shadow.box, surface_));
+        windows.push_back(PixelWindowsIn(grid, shadow.box, surface_));
     }
     ForEachFeatureCell(
         cover, threads, shadows.size(),
@@ -123,8 +123,9 @@ Raster<double> SandShadowLayer::MaterialCoverOver(const RasterGrid& grid, double
 void SandShadowLayer::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
     Raster<float>* heights = samples.Grid();
     const double spacing =
-        heights != nullptr ? std::max(context.spacing, RasterGrid::Of(*heights).Spacing(surface_))
-                           : context.spacing;
+        heights != nullptr
+            ? std::max(context.spacing, RasterGrid::FromRaster(*heights).Spacing(surface_))
+            : context.spacing;
     const std::vector<Shadow> shadows = ShadowsOver(samples.Bounds(), spacing, context.ground);
     if (heights != nullptr) {
         const std::span<const float> values = std::as_const(*heights).Values();
@@ -132,7 +133,7 @@ void SandShadowLayer::ApplySamples(SampleBlock& samples, const LayerContext& con
         const std::size_t width = heights->Width();
         std::vector<std::vector<PixelWindow>> windows;
         for (const Shadow& shadow : shadows) {
-            windows.push_back(WindowsAround(*heights, shadow.box, surface_));
+            windows.push_back(PixelWindowsIn(*heights, shadow.box, surface_));
         }
         ForEachFeatureCell(
             *heights, context.threads, shadows.size(),

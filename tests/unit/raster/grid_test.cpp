@@ -12,7 +12,7 @@ using terraingen::RasterGrid;
 TEST(RasterGrid, DescribesARastersCellsAndExtent) {
     Raster<float> raster(4, 3);
     raster.SetTransform(GeoTransform::NorthUp(100.0, 50.0, 2.5));
-    const RasterGrid grid = RasterGrid::Of(raster);
+    const RasterGrid grid = RasterGrid::FromRaster(raster);
     EXPECT_EQ(grid.width, 4u);
     EXPECT_EQ(grid.height, 3u);
     EXPECT_EQ(grid.transform, raster.Transform());
@@ -28,7 +28,7 @@ TEST(RasterGrid, DescribesARastersCellsAndExtent) {
 TEST(RasterGrid, MakesRastersOnTheGrid) {
     const RasterGrid grid{3, 2, GeoTransform::NorthUp(-1.0, 1.0, 1.0)};
     const Raster<float> raster = grid.MakeRaster(7.0f);
-    EXPECT_EQ(RasterGrid::Of(raster), grid);
+    EXPECT_EQ(RasterGrid::FromRaster(raster), grid);
     for (const float value : raster.Values()) {
         EXPECT_EQ(value, 7.0f);
     }

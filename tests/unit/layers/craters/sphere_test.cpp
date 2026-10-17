@@ -162,8 +162,8 @@ TEST(SphereCraterLayer, GridsEqualPointsAndThreadsAcrossTheAntimeridian) {
         changed += one.Values()[i] != 0.0f ? 1 : 0;
     }
     EXPECT_GT(changed, 1000);
-    const double spacing = terraingen::RasterGrid::Of(one).Spacing(options.surface);
-    EXPECT_GT(layer.Craters(terraingen::RasterGrid::Of(one).Bounds(), spacing).Size(), 1u);
+    const double spacing = terraingen::RasterGrid::FromRaster(one).Spacing(options.surface);
+    EXPECT_GT(layer.Craters(terraingen::RasterGrid::FromRaster(one).Bounds(), spacing).Size(), 1u);
     EXPECT_NEAR(spacing, 0.001 * options.surface.UnitLength(), 1e-9);
     for (const auto& [col, row] :
          {std::pair<std::size_t, std::size_t>{10, 10}, std::pair<std::size_t, std::size_t>{50, 50},
@@ -203,7 +203,7 @@ TEST(SphereCraterLayer, FitsDatumsOnTheSphere) {
         }
     }
     const Raster<float> before = heights;
-    const double spacing = terraingen::RasterGrid::Of(heights).Spacing(options.surface);
+    const double spacing = terraingen::RasterGrid::FromRaster(heights).Spacing(options.surface);
     layer.Apply(heights, {.spacing = spacing, .threads = 1, .ground = &ground});
     const auto centre = heights.CellCenter(25, 25);
     EXPECT_EQ(heights(25, 25), layer.ApplyAt(before(25, 25), centre.x, centre.y,

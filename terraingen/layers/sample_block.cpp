@@ -30,7 +30,7 @@ bool SampleBlock::IsNoData(std::size_t i) const {
 
 Bounds2d SampleBlock::Bounds() const {
     if (grid_ != nullptr) {
-        return RasterGrid::Of(*grid_).Bounds();
+        return RasterGrid::FromRaster(*grid_).Bounds();
     }
     if (positions_.empty()) {
         return {};

@@ -551,8 +551,9 @@ CraterList SecondaryCraterLayer::Secondaries(
 void SecondaryCraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
     const Raster<float>* grid = samples.Grid();
     const double spacing =
-        grid != nullptr ? std::max(context.spacing, RasterGrid::Of(*grid).Spacing(apply_.surface))
-                        : context.spacing;
+        grid != nullptr
+            ? std::max(context.spacing, RasterGrid::FromRaster(*grid).Spacing(apply_.surface))
+            : context.spacing;
     std::unordered_map<std::uint64_t, SecondaryOutline> outlines;
     const CraterList secondaries = Secondaries(samples.Bounds(), spacing, outlines);
     CraterSampling sampling{spacing, context.threads};

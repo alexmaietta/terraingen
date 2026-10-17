@@ -46,7 +46,7 @@ TEST(GeoTiffSource, FillsItsGridWithTheFile) {
     const auto path = TempPath("geotiff_source_full.tif");
     const Raster<float> dem = WriteDem(path);
     const GeoTiffSource source(path);
-    EXPECT_EQ(source.Grid(), RasterGrid::Of(dem));
+    EXPECT_EQ(source.Grid(), RasterGrid::FromRaster(dem));
     EXPECT_EQ(source.ReferencePoint().x, 1000.0);
     EXPECT_EQ(source.ReferencePoint().y, 2000.0);
     EXPECT_EQ(source.Keys(), Keys());

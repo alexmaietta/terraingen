@@ -168,7 +168,7 @@ TEST(GenerateTerrain, AppliesTransformsAndRegionsAsTheLibraryDoes) {
         terraingen::RegionShape::Circle({10.0, -5.0}, 20.0), 6.0, terraingen::BlendShape::Linear);
     ExpectSameRaster(
         HeightsOf(generated),
-        terraingen::Evaluate(terrain, terraingen::RasterGrid::Of(HeightsOf(generated))));
+        terraingen::Evaluate(terrain, terraingen::RasterGrid::FromRaster(HeightsOf(generated))));
     const auto& heights = HeightsOf(generated);
     const auto centre = heights.Transform().WorldToPixel(10.0, -5.0);
     EXPECT_LE(heights(static_cast<std::size_t>(centre.x), static_cast<std::size_t>(centre.y)),
@@ -213,7 +213,7 @@ TEST(GenerateTerrain, AddsBedformsAsTheLibraryDoes) {
     terrain.layers.back() = std::make_shared<terraingen::BedformLayer>(ridges);
     ExpectSameRaster(
         HeightsOf(generated),
-        terraingen::Evaluate(terrain, terraingen::RasterGrid::Of(HeightsOf(generated))));
+        terraingen::Evaluate(terrain, terraingen::RasterGrid::FromRaster(HeightsOf(generated))));
 }
 
 TEST(GenerateTerrain, AddsBouldersWithEjectaFromTheLastCraterLayerBeforeThem) {
@@ -237,11 +237,11 @@ TEST(GenerateTerrain, AddsBouldersWithEjectaFromTheLastCraterLayerBeforeThem) {
     terrain.layers[2] = std::make_shared<terraingen::BoulderLayer>(
         options, std::dynamic_pointer_cast<const terraingen::CraterLayer>(terrain.layers[1]));
     const auto composed =
-        terraingen::Evaluate(terrain, terraingen::RasterGrid::Of(HeightsOf(generated)));
+        terraingen::Evaluate(terrain, terraingen::RasterGrid::FromRaster(HeightsOf(generated)));
     ExpectSameRaster(HeightsOf(generated), composed);
-    const auto expected =
-        terraingen::PlacedBoulders(terrain, terraingen::RasterGrid::Of(HeightsOf(generated)))
-            .boulders;
+    const auto expected = terraingen::PlacedBoulders(
+                              terrain, terraingen::RasterGrid::FromRaster(HeightsOf(generated)))
+                              .boulders;
     const auto placed = BouldersOf(generated).boulders;
     ASSERT_EQ(placed.size(), expected.size());
     for (std::size_t n = 0; n < expected.size(); ++n) {
@@ -363,7 +363,7 @@ TEST(GenerateTerrain, EvaluatesTheAlbedoAsTheLibraryDoes) {
     const terraingen::Albedo albedo{
         std::make_shared<terraingen::SyntheticAlbedo>(synthetic.Params(), terraingen::Vec2d{}),
         {std::make_shared<terraingen::CraterAlbedo>(craters)}};
-    const auto grid = terraingen::RasterGrid::Of(HeightsOf(generated));
+    const auto grid = terraingen::RasterGrid::FromRaster(HeightsOf(generated));
     const auto expected = terraingen::EvaluateAlbedo(albedo, grid, {.spacing = grid.PixelSize()});
     for (std::size_t band = 0; band < 3; ++band) {
         ExpectSameRaster(AlbedoOf(generated)[band], expected[band]);
@@ -386,7 +386,7 @@ TEST(GenerateTerrain, BuildsSphereTerrainsWithGeographicKeys) {
     albedo.region = Region(config);
     config.outputs.push_back(albedo);
     const auto generated = GenerateTerrain(config, {}, 2);
-    const auto grid = terraingen::RasterGrid::Of(HeightsOf(generated));
+    const auto grid = terraingen::RasterGrid::FromRaster(HeightsOf(generated));
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
     EXPECT_NEAR(grid.Spacing(moon), 4.0, 1e-9);
     EXPECT_NEAR(grid.Bounds().minX + grid.Bounds().maxX, 60.0, 1e-9);

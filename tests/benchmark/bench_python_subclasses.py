@@ -30,7 +30,7 @@ class PyArrayLayer(terraingen.Layer):
     """The same relief over the whole raster with NumPy."""
 
     def apply(self, heights, context):
-        grid = terraingen.RasterGrid.of(heights)
+        grid = terraingen.RasterGrid.from_raster(heights)
         x0, step = grid.transform.origin_x, grid.transform.pixel_width
         y0 = grid.transform.origin_y
         xs = x0 + step * (np.arange(heights.width) + 0.5)

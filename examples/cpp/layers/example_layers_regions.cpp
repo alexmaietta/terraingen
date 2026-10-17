@@ -69,7 +69,8 @@ class LayersRegions : public terraingen::examples::Example {
                 Craters(1.0, 10), terraingen::RegionShape::Rectangle({0.0, -kHalf, kHalf, kHalf}),
                 200.0)};
         evaluated_ = terraingen::Evaluate(terrain);
-        craters_ = terraingen::PlacedCraters(terrain, terraingen::RasterGrid::Of(evaluated_));
+        craters_ =
+            terraingen::PlacedCraters(terrain, terraingen::RasterGrid::FromRaster(evaluated_));
         Out() << craters_.craters.Size() << " craters; mare weight at the centre " << std::fixed
               << std::setprecision(2) << mare_->Weight(0.0, 0.0) << ", 700 m out "
               << mare_->Weight(700.0, 0.0) << "\n"

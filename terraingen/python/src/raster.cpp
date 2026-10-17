@@ -166,7 +166,8 @@ void BindGrid(nb::module_& m) {
             "width"_a, "height"_a, "transform"_a)
         .def_static("centred", &CentredGrid, "width"_a, "height"_a, "pixel_size"_a,
                     "centre"_a = Vec2d{}, "A north-up grid of square cells centred on `centre`.")
-        .def_static("of", &RasterGrid::Of, "raster"_a, "The grid of `raster`.")
+        .def_static("from_raster", &RasterGrid::FromRaster, "raster"_a,
+                    "The grid `raster` covers: its size and transform.")
         .def_rw("width", &RasterGrid::width)
         .def_rw("height", &RasterGrid::height)
         .def_rw("transform", &RasterGrid::transform)

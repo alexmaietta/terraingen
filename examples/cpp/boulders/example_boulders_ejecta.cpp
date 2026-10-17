@@ -74,7 +74,8 @@ class BouldersEjecta : public terraingen::examples::Example {
         terrain.source = std::make_shared<terraingen::FlatSource>(401, 401, 0.1);
         terrain.layers = {craters, boulders};
         evaluated_ = terraingen::Evaluate(terrain);
-        boulders_ = terraingen::PlacedBoulders(terrain, terraingen::RasterGrid::Of(evaluated_));
+        boulders_ =
+            terraingen::PlacedBoulders(terrain, terraingen::RasterGrid::FromRaster(evaluated_));
         Out() << Format("%zu boulders, %zu boulder models\n", boulders_.boulders.size(),
                         boulders_.models.size());
         Show("heights", evaluated_);

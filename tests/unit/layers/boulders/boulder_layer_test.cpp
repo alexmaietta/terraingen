@@ -229,7 +229,7 @@ TEST(BoulderLayer, AddsDomesThatPointQueriesMatchToTheBit) {
     Raster<float> heights(80, 60, 1.0f);
     heights.SetTransform(GeoTransform::NorthUp(-20.0, 15.0, 0.5));
     layer.Apply(heights, {0.5, 4});
-    ASSERT_FALSE(layer.Boulders(terraingen::RasterGrid::Of(heights).Bounds(), 0.5).empty());
+    ASSERT_FALSE(layer.Boulders(terraingen::RasterGrid::FromRaster(heights).Bounds(), 0.5).empty());
     bool raised = false;
     for (std::size_t row = 0; row < heights.Height(); ++row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
@@ -262,7 +262,7 @@ TEST(BoulderLayer, LeavesHeightsAloneWithoutReliefAndRejectsBadOptions) {
     Raster<float> heights(120, 120, 2.0f);
     heights.SetTransform(GeoTransform::NorthUp(0.0, 60.0, 0.5));
     layer.Apply(heights, {0.5});
-    EXPECT_FALSE(layer.Boulders(terraingen::RasterGrid::Of(heights).Bounds(), 0.5).empty());
+    EXPECT_FALSE(layer.Boulders(terraingen::RasterGrid::FromRaster(heights).Bounds(), 0.5).empty());
     for (const float value : heights.Values()) {
         EXPECT_EQ(value, 2.0f);
     }
@@ -340,7 +340,8 @@ TEST(BoulderLayer, PlacesLargeBouldersAsModelsOnTheGroundAndLeavesThemOutOfTheHe
     Raster<float> heights(160, 160, 2.0f);
     heights.SetTransform(GeoTransform::NorthUp(-40.0, 40.0, 0.5));
     const Analytic level([](double, double) { return 2.0f; });
-    const auto boulders = layer.Boulders(terraingen::RasterGrid::Of(heights).Bounds(), 0.5, &level);
+    const auto boulders =
+        layer.Boulders(terraingen::RasterGrid::FromRaster(heights).Bounds(), 0.5, &level);
     std::size_t models = 0;
     for (const Boulder& boulder : boulders) {
         EXPECT_EQ(boulder.model, boulder.diameter >= 1.0);
@@ -400,7 +401,7 @@ TEST(BoulderLayer, DrawsTheTopsOfBoulderShapesThatPointQueriesMatch) {
     Raster<float> heights(60, 50, 1.0f);
     heights.SetTransform(GeoTransform::NorthUp(-15.0, 12.5, 0.5));
     layer.Apply(heights, {0.5, 3});
-    const auto boulders = layer.Boulders(terraingen::RasterGrid::Of(heights).Bounds(), 0.5);
+    const auto boulders = layer.Boulders(terraingen::RasterGrid::FromRaster(heights).Bounds(), 0.5);
     ASSERT_FALSE(boulders.empty());
     double highest = 0.0;
     double tallest = 0.0;
@@ -470,7 +471,8 @@ TEST(BoulderLayer, PilesFilletsAroundBouldersThatPointQueriesMatch) {
     Raster<float> piled = plain;
     bare.Apply(plain, {0.25, 4});
     filleted.Apply(piled, {0.25, 4});
-    const auto boulders = filleted.Boulders(terraingen::RasterGrid::Of(piled).Bounds(), 0.25);
+    const auto boulders =
+        filleted.Boulders(terraingen::RasterGrid::FromRaster(piled).Bounds(), 0.25);
     ASSERT_FALSE(boulders.empty());
     std::size_t aprons = 0;
     for (std::size_t row = 0; row < piled.Height(); ++row) {
@@ -549,7 +551,8 @@ TEST(BoulderLayer, DrawsOnlyBouldersInItsReliefRange) {
     Raster<float> heights(120, 120, 0.0f);
     heights.SetTransform(GeoTransform::NorthUp(-15.0, 15.0, 0.25));
     layer.Apply(heights, {0.25});
-    const auto boulders = layer.Boulders(terraingen::RasterGrid::Of(heights).Bounds(), 0.25);
+    const auto boulders =
+        layer.Boulders(terraingen::RasterGrid::FromRaster(heights).Bounds(), 0.25);
     std::size_t drawn = 0;
     for (const Boulder& boulder : boulders) {
         const auto pixel = heights.Transform().WorldToPixel(boulder.x, boulder.y);
@@ -608,7 +611,7 @@ TEST(BoulderLayer, DrawsOverlappingBouldersAsTheirUnion) {
     layer.Apply(heights, {0.25});
     double tallest = 0.0;
     for (const Boulder& boulder :
-         layer.Boulders(terraingen::RasterGrid::Of(heights).Bounds(), 0.25)) {
+         layer.Boulders(terraingen::RasterGrid::FromRaster(heights).Bounds(), 0.25)) {
         tallest = std::fmax(tallest, boulder.ExposedHeight());
     }
     const float highest = *std::max_element(heights.Values().begin(), heights.Values().end());

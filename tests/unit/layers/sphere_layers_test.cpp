@@ -184,7 +184,8 @@ TEST(SphereLayers, BouldersHaveThePlaneDensityAndPlaceModelsLocally) {
         highest = std::max(highest, value);
     }
     EXPECT_GT(highest, 0.05f);
-    const auto boulders = sphere.Boulders(terraingen::RasterGrid::Of(heights).Bounds(), 0.1, &flat);
+    const auto boulders =
+        sphere.Boulders(terraingen::RasterGrid::FromRaster(heights).Bounds(), 0.1, &flat);
     for (const auto& boulder : sphere.Models(boulders)) {
         EXPECT_LT(std::fabs(boulder.placement.pose.translation.x), 1e-9);
         EXPECT_LT(std::fabs(boulder.placement.pose.translation.y), 1e-9);

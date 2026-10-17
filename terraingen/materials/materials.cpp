@@ -176,9 +176,9 @@ std::vector<Raster<float>> EvaluatePhotometry(const std::vector<Raster<float>>& 
         throw std::invalid_argument("Photometry needs one material raster per class");
     }
     ValidateMaterialPhotometry(photometry);
-    const RasterGrid grid = RasterGrid::Of(materials[0]);
+    const RasterGrid grid = RasterGrid::FromRaster(materials[0]);
     for (const Raster<float>& band : materials) {
-        if (!(RasterGrid::Of(band) == grid)) {
+        if (!(RasterGrid::FromRaster(band) == grid)) {
             throw std::invalid_argument("Material rasters must share one grid");
         }
     }

@@ -119,7 +119,8 @@ class CratersProfiles : public terraingen::examples::Example {
                                      std::make_shared<ParabolicBowl>()},
             options));
         evaluated_ = terraingen::Evaluate(terrain);
-        craters_ = terraingen::PlacedCraters(terrain, terraingen::RasterGrid::Of(evaluated_));
+        craters_ =
+            terraingen::PlacedCraters(terrain, terraingen::RasterGrid::FromRaster(evaluated_));
         Show("parabolic bowl craters", evaluated_);
     }
 

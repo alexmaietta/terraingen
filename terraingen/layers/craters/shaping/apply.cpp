@@ -285,7 +285,7 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
     std::vector<std::size_t> onRaster;
     std::vector<std::vector<PixelWindow>> windows;
     for (std::size_t k = 0; k < prepared.size(); ++k) {
-        std::vector<PixelWindow> around = WindowsAround(
+        std::vector<PixelWindow> around = PixelWindowsIn(
             raster, Footprint(prepared[k], CraterReachRadii(profile, options), options.surface),
             options.surface);
         if (!around.empty()) {

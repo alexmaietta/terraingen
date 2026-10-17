@@ -268,7 +268,7 @@ void SplotchAlbedo::Apply(std::vector<Raster<float>>& bands, const AlbedoContext
     if (bands.empty()) {
         return;
     }
-    const RasterGrid grid = RasterGrid::Of(bands.front());
+    const RasterGrid grid = RasterGrid::FromRaster(bands.front());
     const Bounds2d bounds = grid.Bounds();
     const std::vector<Splotch> splotches = Splotches(bounds, context.spacing, context.ground);
     const double width = bounds.maxX - bounds.minX;

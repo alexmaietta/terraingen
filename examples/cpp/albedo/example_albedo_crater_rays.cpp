@@ -69,8 +69,9 @@ class AlbedoCraterRays : public terraingen::examples::Example {
         albedo.layers.push_back(std::make_shared<terraingen::CraterAlbedo>(craters));
 
         evaluated_ = terraingen::Evaluate(terrain);
-        craters_ = terraingen::PlacedCraters(terrain, terraingen::RasterGrid::Of(evaluated_));
-        const terraingen::RasterGrid grid = terraingen::RasterGrid::Of(evaluated_);
+        craters_ =
+            terraingen::PlacedCraters(terrain, terraingen::RasterGrid::FromRaster(evaluated_));
+        const terraingen::RasterGrid grid = terraingen::RasterGrid::FromRaster(evaluated_);
         bands_ = terraingen::EvaluateAlbedo(albedo, grid, {.spacing = 8.0, .threads = 0});
         stats_ = terraingen::ComputeStats(bands_.front());
         Out() << "Albedo from " << stats_.min << " to " << stats_.max << " over "

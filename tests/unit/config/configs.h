@@ -33,12 +33,12 @@ inline const std::vector<Raster<float>>& AlbedoOf(const GeneratedTerrain& terrai
 
 /// The craters a generated terrain's layers apply over its first grid.
 inline CraterFeatures CratersOf(const GeneratedTerrain& terrain) {
-    return PlacedCraters(terrain.terrain, RasterGrid::Of(HeightsOf(terrain)));
+    return PlacedCraters(terrain.terrain, RasterGrid::FromRaster(HeightsOf(terrain)));
 }
 
 /// The boulders a generated terrain's layers place over its first grid, and the models among them.
 inline BoulderFeatures BouldersOf(const GeneratedTerrain& terrain) {
-    return PlacedBoulders(terrain.terrain, RasterGrid::Of(HeightsOf(terrain)));
+    return PlacedBoulders(terrain.terrain, RasterGrid::FromRaster(HeightsOf(terrain)));
 }
 
 /// The craters a generated terrain's layers apply over `region`.

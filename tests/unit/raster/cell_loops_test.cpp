@@ -30,20 +30,21 @@ Raster<float> Globe() {
 
 }  // namespace
 
-TEST(WindowOf, CoversTheBoxAndClampsToTheRaster) {
+TEST(PixelWindowIn, CoversTheBoxAndClampsToTheRaster) {
     const Raster<float> raster = Grid(10, 8);
-    EXPECT_EQ(terraingen::WindowOf(raster, {2.5, 3.5, 4.5, 5.5}), (PixelWindow{2, 5, 2, 5}));
-    EXPECT_EQ(terraingen::WindowOf(raster, {-5.0, -5.0, 50.0, 50.0}), (PixelWindow{0, 10, 0, 8}));
-    EXPECT_TRUE(terraingen::WindowOf(raster, {20.0, 20.0, 30.0, 30.0}).Empty());
+    EXPECT_EQ(terraingen::PixelWindowIn(raster, {2.5, 3.5, 4.5, 5.5}), (PixelWindow{2, 5, 2, 5}));
+    EXPECT_EQ(terraingen::PixelWindowIn(raster, {-5.0, -5.0, 50.0, 50.0}),
+              (PixelWindow{0, 10, 0, 8}));
+    EXPECT_TRUE(terraingen::PixelWindowIn(raster, {20.0, 20.0, 30.0, 30.0}).Empty());
 }
 
-TEST(WindowsAround, GivesOneWindowOnAPlaneAndWrapsLongitudeOnASphere) {
+TEST(PixelWindowsIn, GivesOneWindowOnAPlaneAndWrapsLongitudeOnASphere) {
     const Raster<float> plane = Grid(10, 8);
-    EXPECT_EQ(terraingen::WindowsAround(plane, {1.0, 1.0, 2.0, 2.0}, Surface()).size(), 1u);
-    EXPECT_TRUE(terraingen::WindowsAround(plane, {20.0, 20.0, 30.0, 30.0}, Surface()).empty());
+    EXPECT_EQ(terraingen::PixelWindowsIn(plane, {1.0, 1.0, 2.0, 2.0}, Surface()).size(), 1u);
+    EXPECT_TRUE(terraingen::PixelWindowsIn(plane, {20.0, 20.0, 30.0, 30.0}, Surface()).empty());
     const Raster<float> globe = Globe();
     const Surface moon = Surface::Sphere(1737400.0);
-    const auto across = terraingen::WindowsAround(globe, {170.0, -5.0, 190.0, 5.0}, moon);
+    const auto across = terraingen::PixelWindowsIn(globe, {170.0, -5.0, 190.0, 5.0}, moon);
     ASSERT_EQ(across.size(), 2u) << "the box runs past the antimeridian";
     EXPECT_EQ(across[0].colBegin, 0u);
     EXPECT_EQ(across[1].colEnd, 36u);

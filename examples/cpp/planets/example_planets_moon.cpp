@@ -78,7 +78,7 @@ class PlanetsMoon : public terraingen::examples::Example {
         Out() << std::setprecision(4) << "10 km east of the site: (" << east_.x << ", " << east_.y
               << ")\n";
         site_ = terraingen::Evaluate(terrain);
-        craters_ = terraingen::PlacedCraters(terrain, terraingen::RasterGrid::Of(site_));
+        craters_ = terraingen::PlacedCraters(terrain, terraingen::RasterGrid::FromRaster(site_));
         siteHeight_ = terraingen::EvaluateAt(terrain, site.x, site.y, pixel);
         Out() << std::setprecision(1) << craters_.craters.Size() << " craters; height at the site "
               << siteHeight_ << " m\n";

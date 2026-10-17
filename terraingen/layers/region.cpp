@@ -136,7 +136,7 @@ bool RegionLayer::Holds(double x, double y) const {
 
 PixelWindow RegionLayer::InnerWindow(const RasterGrid& grid) const {
     const Bounds2d reach = surface_.Expand(shape_.Bounds(surface_), feather_);
-    return UnionOf(WindowsAround(grid, reach, surface_));
+    return UnionOf(PixelWindowsIn(grid, reach, surface_));
 }
 
 std::optional<RasterGrid> RegionLayer::InnerGrid(const RasterGrid& grid) const {
@@ -218,7 +218,7 @@ void RegionLayer::ApplyToPoints(SampleBlock& samples, const LayerContext& contex
 }
 
 void RegionLayer::ApplyToGrid(Raster<float>& heights, const LayerContext& context) const {
-    const PixelWindow window = InnerWindow(RasterGrid::Of(heights));
+    const PixelWindow window = InnerWindow(RasterGrid::FromRaster(heights));
     if (window.Empty()) {
         return;
     }

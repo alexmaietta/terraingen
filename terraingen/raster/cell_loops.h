@@ -33,22 +33,22 @@ struct PixelWindow {
 /// The possibly empty window of a grid's pixels whose extent meets a world-coordinate box,
 /// clamped to the grid.
 /// @throws std::domain_error if the grid's transform is not invertible.
-PixelWindow WindowOf(const RasterGrid& grid, const Bounds2d& box);
+PixelWindow PixelWindowIn(const RasterGrid& grid, const Bounds2d& box);
 
-/// `WindowOf` the raster's grid.
-PixelWindow WindowOf(const Raster<float>& raster, const Bounds2d& box);
+/// `PixelWindowIn` the raster's grid.
+PixelWindow PixelWindowIn(const Raster<float>& raster, const Bounds2d& box);
 
 /// The non-empty windows of a grid (in `surface`'s coordinates) covering a box: one on a plane,
 /// up to three on a sphere, none off the grid.
 /// @param box The box: on a sphere a longitude-latitude box, which is also taken a turn either way
 /// so a grid running past the antimeridian is covered on both sides.
 /// @throws std::domain_error if the grid's transform is not invertible.
-std::vector<PixelWindow> WindowsAround(const RasterGrid& grid, const Bounds2d& box,
-                                       const Surface& surface);
+std::vector<PixelWindow> PixelWindowsIn(const RasterGrid& grid, const Bounds2d& box,
+                                        const Surface& surface);
 
-/// `WindowsAround` the raster's grid.
-std::vector<PixelWindow> WindowsAround(const Raster<float>& raster, const Bounds2d& box,
-                                       const Surface& surface);
+/// `PixelWindowsIn` the raster's grid.
+std::vector<PixelWindow> PixelWindowsIn(const Raster<float>& raster, const Bounds2d& box,
+                                        const Surface& surface);
 
 /// Rows per band of `ForEachFeatureCell`, the unit of work handed to a thread.
 inline constexpr std::size_t kBandRows = 32;
@@ -68,7 +68,7 @@ struct FeatureCell {
 /// them in the same order whatever `threads` is. No-data cells are skipped.
 /// @param threads Threads to split the bands over; 0 for every hardware thread.
 /// @param windowsOf `windowsOf(n)` gives the windows of feature n, as a `std::vector<PixelWindow>`
-/// (`WindowsAround`); windows of one feature must not overlap.
+/// (`PixelWindowsIn`); windows of one feature must not overlap.
 /// @param visit `visit(cell, at)` with `cell` the value to read and update and `at` its
 /// `FeatureCell`.
 template <typename T, typename WindowsOf, typename Visit>

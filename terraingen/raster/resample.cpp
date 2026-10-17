@@ -108,7 +108,7 @@ Raster<float> Resample(const Raster<float>& raster, double pixelSize, ResampleMe
     if (raster.Empty()) {
         throw std::invalid_argument("Cannot resample an empty raster");
     }
-    Raster<float> result = ResampledGrid(RasterGrid::Of(raster), pixelSize).MakeRaster();
+    Raster<float> result = ResampledGrid(RasterGrid::FromRaster(raster), pixelSize).MakeRaster();
     result.SetNoData(raster.NoData());
     const double scaleX = std::fabs(raster.Transform().pixelWidth) / pixelSize;
     const double scaleY = std::fabs(raster.Transform().pixelHeight) / pixelSize;

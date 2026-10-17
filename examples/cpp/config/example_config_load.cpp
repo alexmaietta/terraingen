@@ -29,8 +29,8 @@ class ConfigLoad : public terraingen::examples::Example {
             return;
         }
         const terraingen::GeneratedGrid& first = terrain_.grids.front();
-        craters_ =
-            terraingen::PlacedCraters(terrain_.terrain, terraingen::RasterGrid::Of(first.heights));
+        craters_ = terraingen::PlacedCraters(terrain_.terrain,
+                                             terraingen::RasterGrid::FromRaster(first.heights));
         Out() << craters_.craters.Size() << " craters over the first grid\n";
         Show(path_.stem().string(), first.heights,
              first.albedo.empty() ? nullptr : &first.albedo.front(),

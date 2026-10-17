@@ -28,8 +28,8 @@ using terraingen::testing::Smoothed;
 TEST(Evaluate, RunsTheSourceThenLayersOverTheSourcesGrid) {
     const Terrain terrain = Rolling();
     const auto whole = Evaluate(terrain);
-    EXPECT_EQ(RasterGrid::Of(whole), terrain.source->Grid());
-    EXPECT_GT(terraingen::PlacedCraters(terrain, RasterGrid::Of(whole)).craters.Size(), 0u);
+    EXPECT_EQ(RasterGrid::FromRaster(whole), terrain.source->Grid());
+    EXPECT_GT(terraingen::PlacedCraters(terrain, RasterGrid::FromRaster(whole)).craters.Size(), 0u);
     const auto again = Evaluate(terrain, terrain.source->Grid(), 1.0);
     for (std::size_t i = 0; i < whole.Size(); ++i) {
         ASSERT_EQ(again.Values()[i], whole.Values()[i])

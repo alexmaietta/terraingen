@@ -87,7 +87,8 @@ class SourcesRasterDetail : public terraingen::examples::Example {
             std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{detail}}),
             std::make_shared<terraingen::CraterLayer>(LunarModels(), small)};
         evaluated_ = terraingen::Evaluate(terrain);
-        craters_ = terraingen::PlacedCraters(terrain, terraingen::RasterGrid::Of(evaluated_));
+        craters_ =
+            terraingen::PlacedCraters(terrain, terraingen::RasterGrid::FromRaster(evaluated_));
         std::filesystem::remove_all(temp);
         Out() << "added " << craters_.craters.Size() << " craters of 6 to 100 m\n";
         Show("heights", evaluated_);

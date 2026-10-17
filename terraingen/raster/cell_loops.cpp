@@ -13,7 +13,7 @@ std::size_t ClampTo(double value, std::size_t limit) {
 
 }  // namespace
 
-PixelWindow WindowOf(const RasterGrid& grid, const Bounds2d& box) {
+PixelWindow PixelWindowIn(const RasterGrid& grid, const Bounds2d& box) {
     const GeoTransform& transform = grid.transform;
     constexpr double kInf = std::numeric_limits<double>::infinity();
     double colMin = kInf;
@@ -33,16 +33,16 @@ PixelWindow WindowOf(const RasterGrid& grid, const Bounds2d& box) {
             ClampTo(std::floor(rowMin), grid.height), ClampTo(std::ceil(rowMax), grid.height)};
 }
 
-PixelWindow WindowOf(const Raster<float>& raster, const Bounds2d& box) {
-    return WindowOf(RasterGrid::Of(raster), box);
+PixelWindow PixelWindowIn(const Raster<float>& raster, const Bounds2d& box) {
+    return PixelWindowIn(RasterGrid::FromRaster(raster), box);
 }
 
-std::vector<PixelWindow> WindowsAround(const RasterGrid& grid, const Bounds2d& box,
-                                       const Surface& surface) {
+std::vector<PixelWindow> PixelWindowsIn(const RasterGrid& grid, const Bounds2d& box,
+                                        const Surface& surface) {
     std::vector<PixelWindow> windows;
     const auto add = [&](double shift) {
         const PixelWindow window =
-            WindowOf(grid, {box.minX + shift, box.minY, box.maxX + shift, box.maxY});
+            PixelWindowIn(grid, {box.minX + shift, box.minY, box.maxX + shift, box.maxY});
         if (!window.Empty()) {
             windows.push_back(window);
         }
@@ -57,9 +57,9 @@ std::vector<PixelWindow> WindowsAround(const RasterGrid& grid, const Bounds2d& b
     return windows;
 }
 
-std::vector<PixelWindow> WindowsAround(const Raster<float>& raster, const Bounds2d& box,
-                                       const Surface& surface) {
-    return WindowsAround(RasterGrid::Of(raster), box, surface);
+std::vector<PixelWindow> PixelWindowsIn(const Raster<float>& raster, const Bounds2d& box,
+                                        const Surface& surface) {
+    return PixelWindowsIn(RasterGrid::FromRaster(raster), box, surface);
 }
 
 }  // namespace terraingen

@@ -66,7 +66,7 @@ RasterGrid ResampledGrid(const RasterGrid& grid, double pixelSize) {
 }
 
 double ResolvedSpacing(const Raster<float>& raster, double spacing, const Surface& surface) {
-    const RasterGrid grid = RasterGrid::Of(raster);
+    const RasterGrid grid = RasterGrid::FromRaster(raster);
     if (!(grid.PixelSize() > 0.0)) {
         throw std::domain_error("The raster's transform is not invertible");
     }

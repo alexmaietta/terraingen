@@ -70,8 +70,9 @@ void CraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context
             "Point queries cannot use maxCraters, which ranks craters over a whole grid");
     }
     const double spacing =
-        grid != nullptr ? std::max(context.spacing, RasterGrid::Of(*grid).Spacing(options_.surface))
-                        : context.spacing;
+        grid != nullptr
+            ? std::max(context.spacing, RasterGrid::FromRaster(*grid).Spacing(options_.surface))
+            : context.spacing;
     const Bounds2d bounds = samples.Bounds();
     const double margin = DatumMargin(options_.apply, *models_.profile, MaxFeatureDiameter());
     const CraterList craters = Craters(options_.surface.Expand(bounds, margin), spacing);

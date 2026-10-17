@@ -143,7 +143,7 @@ RasterAlbedo::RasterAlbedo(std::vector<Raster<float>> bands, RasterAlbedoOptions
         }
     }
     ValidateAlbedoDetail(options_.detail);
-    cell_ = RasterGrid::Of(first).Spacing(surface_);
+    cell_ = RasterGrid::FromRaster(first).Spacing(surface_);
     MeasureRoughness();
     if (options_.detail.hurst) {
         hurst_ = *options_.detail.hurst;

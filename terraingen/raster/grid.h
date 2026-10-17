@@ -20,7 +20,7 @@ struct RasterGrid {
     GeoTransform transform{};  ///< Pixel-to-world transform.
 
     /// The size and transform of a raster.
-    static RasterGrid Of(const Raster<float>& raster) {
+    static RasterGrid FromRaster(const Raster<float>& raster) {
         return {raster.Width(), raster.Height(), raster.Transform()};
     }
 

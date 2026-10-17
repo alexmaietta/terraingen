@@ -130,7 +130,7 @@ TEST(ResampleTo, SamplesEachCellCentreAndMarksCellsBeyondTheRaster) {
     raster.SetTransform(GeoTransform::NorthUp(0.0, 8.0, 2.0));
     const terraingen::RasterGrid grid{6, 6, GeoTransform::NorthUp(-2.0, 10.0, 2.0)};
     const Raster<float> resampled = terraingen::ResampleTo(raster, grid, ResampleMethod::Cubic);
-    EXPECT_EQ(terraingen::RasterGrid::Of(resampled), grid);
+    EXPECT_EQ(terraingen::RasterGrid::FromRaster(resampled), grid);
     EXPECT_FLOAT_EQ(resampled(2, 2), 5.0f);
     EXPECT_TRUE(resampled.IsNoData(resampled(0, 0)));
     EXPECT_TRUE(std::isnan(resampled(5, 3)));

@@ -418,7 +418,7 @@ RasterGrid GeneratedGridOr(const GeneratedTerrain& terrain, const std::optional<
     if (terrain.grids.empty()) {
         throw std::invalid_argument("The terrain generated no grid; give one");
     }
-    return RasterGrid::Of(terrain.grids.front().heights);
+    return RasterGrid::FromRaster(terrain.grids.front().heights);
 }
 
 void BindGeneratedTerrain(nb::module_& m) {
@@ -449,7 +449,7 @@ void BindGeneratedTerrain(nb::module_& m) {
             "The share of each MaterialClass, one raster per class; empty unless a materials or "
             "photometry output covers the grid.")
         .def_prop_ro(
-            "grid", [](const GeneratedGrid& g) { return RasterGrid::Of(g.heights); },
+            "grid", [](const GeneratedGrid& g) { return RasterGrid::FromRaster(g.heights); },
             "The grid the heights cover.");
     nb::class_<GeneratedTerrain> terrain(m, "GeneratedTerrain",
                                          "A generated terrain: the heights and albedo over each "

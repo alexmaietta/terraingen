@@ -62,8 +62,10 @@ class BouldersLayer : public terraingen::examples::Example {
             std::make_shared<terraingen::BoulderLayer>(boulderOptions, craters));
 
         evaluated_ = terraingen::Evaluate(terrain);
-        craters_ = terraingen::PlacedCraters(terrain, terraingen::RasterGrid::Of(evaluated_));
-        boulders_ = terraingen::PlacedBoulders(terrain, terraingen::RasterGrid::Of(evaluated_));
+        craters_ =
+            terraingen::PlacedCraters(terrain, terraingen::RasterGrid::FromRaster(evaluated_));
+        boulders_ =
+            terraingen::PlacedBoulders(terrain, terraingen::RasterGrid::FromRaster(evaluated_));
         Out() << craters_.craters.Size() << " craters, " << boulders_.boulders.size()
               << " boulders, " << boulders_.models.size() << " of them boulder models\n";
         Show("heights", evaluated_);

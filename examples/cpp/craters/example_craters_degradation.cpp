@@ -69,7 +69,7 @@ class CratersDegradation : public terraingen::examples::Example {
                 options));
             terraingen::Raster<float> heights = terraingen::Evaluate(terrain);
             terraingen::CraterFeatures craters =
-                terraingen::PlacedCraters(terrain, terraingen::RasterGrid::Of(heights));
+                terraingen::PlacedCraters(terrain, terraingen::RasterGrid::FromRaster(heights));
             evaluated_.push_back({name, std::move(heights), std::move(craters)});
             const auto& attributes = evaluated_.back().craters.attributes;
             const double sum =

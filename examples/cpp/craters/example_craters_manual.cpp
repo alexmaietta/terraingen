@@ -50,7 +50,8 @@ class CratersManual : public terraingen::examples::Example {
         terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(models, options));
 
         evaluated_ = terraingen::Evaluate(terrain);
-        craters_ = terraingen::PlacedCraters(terrain, terraingen::RasterGrid::Of(evaluated_));
+        craters_ =
+            terraingen::PlacedCraters(terrain, terraingen::RasterGrid::FromRaster(evaluated_));
         for (std::size_t i = 0; i < craters_.craters.Size(); ++i) {
             const terraingen::Crater crater = craters_.craters.At(i);
             const terraingen::CraterAttributes& attributes = craters_.attributes[i];

@@ -125,7 +125,8 @@ TEST(SecondaryCraterLayer, GridsTilesThreadsAndPointsAgree) {
         terraingen::Raster<float> threaded = whole;
         layer.Apply(whole, {.spacing = 4.0, .threads = 1});
         layer.Apply(threaded, {.spacing = 4.0, .threads = 0});
-        const auto secondaries = layer.Secondaries(terraingen::RasterGrid::Of(whole).Bounds(), 4.0);
+        const auto secondaries =
+            layer.Secondaries(terraingen::RasterGrid::FromRaster(whole).Bounds(), 4.0);
         ASSERT_GT(secondaries.Size(), 3u);
         EXPECT_LE(layer.Attributes(secondaries.At(0)).freshness, 1.0);
         int changed = 0;

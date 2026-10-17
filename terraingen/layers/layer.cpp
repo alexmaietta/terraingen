@@ -42,7 +42,8 @@ float Layer::ApplyAt(float height, double x, double y, const LayerContext& conte
 void FormulaLayer::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
     CheckContext(context);
     if (Raster<float>* grid = samples.Grid()) {
-        const double spacing = std::max(context.spacing, RasterGrid::Of(*grid).Spacing(surface_));
+        const double spacing =
+            std::max(context.spacing, RasterGrid::FromRaster(*grid).Spacing(surface_));
         MapCells(*grid, context.threads, [&](float height, const Vec2d& centre) {
             return HeightAt(height, centre.x, centre.y, spacing, context.ground);
         });

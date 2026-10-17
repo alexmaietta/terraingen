@@ -281,7 +281,7 @@ Raster<double> BoulderLayer::MaterialCoverOver(const RasterGrid& grid, double sp
     std::erase_if(reliefs, [](const Relief& relief) { return !relief.rock; });
     std::vector<std::vector<PixelWindow>> windows;
     for (const Relief& relief : reliefs) {
-        windows.push_back(WindowsAround(grid, relief.box, surface_));
+        windows.push_back(PixelWindowsIn(grid, relief.box, surface_));
     }
     ForEachFeatureCell(
         cover, threads, reliefs.size(),
@@ -298,7 +298,7 @@ Raster<double> BoulderLayer::MaterialCoverOver(const RasterGrid& grid, double sp
     for (const Boulder& boulder : boulders) {
         if (boulder.model) {
             models.push_back(&boulder);
-            windows.push_back(WindowsAround(
+            windows.push_back(PixelWindowsIn(
                 grid, ReliefBox(boulder.x, boulder.y, 0.5 * boulder.diameter, surface_), surface_));
         }
     }
@@ -670,7 +670,7 @@ void BoulderLayer::DrawRelief(SampleBlock& samples, const std::vector<Relief>& r
         const std::size_t width = heights->Width();
         std::vector<std::vector<PixelWindow>> windows;
         for (const Relief& relief : reliefs) {
-            windows.push_back(WindowsAround(*heights, relief.box, surface_));
+            windows.push_back(PixelWindowsIn(*heights, relief.box, surface_));
         }
         ForEachFeatureCell(
             *heights, threads, reliefs.size(),
@@ -700,9 +700,9 @@ void BoulderLayer::ApplySamples(SampleBlock& samples, const LayerContext& contex
         return;
     }
     const Raster<float>* grid = samples.Grid();
-    const double spacing = grid != nullptr
-                               ? std::max(context.spacing, RasterGrid::Of(*grid).Spacing(surface_))
-                               : context.spacing;
+    const double spacing =
+        grid != nullptr ? std::max(context.spacing, RasterGrid::FromRaster(*grid).Spacing(surface_))
+                        : context.spacing;
     const double rim = options_.rendering.relief == BoulderRelief::Dome ? 0.5 * spacing : 0.0;
     const std::vector<Boulder> boulders =
         Boulders(surface_.Expand(samples.Bounds(), rim), spacing, context.ground);

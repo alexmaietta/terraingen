@@ -744,7 +744,7 @@ void CraterAlbedo::Apply(std::vector<Raster<float>>& bands, const AlbedoContext&
     const Surface& surface = craters_->Options().surface;
     const Raster<float>& first = bands.front();
     const std::vector<Prepared> prepared =
-        Gather(RasterGrid::Of(first).Bounds(), context.spacing, context.ground);
+        Gather(RasterGrid::FromRaster(first).Bounds(), context.spacing, context.ground);
     const std::size_t count = bands.size();
     ForEachAlbedoBlock(bands, context.threads, kBlockRows, [&](std::size_t row0, std::size_t row1) {
         const double ya = first.CellCenter(0, row0).y;
