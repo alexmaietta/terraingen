@@ -39,6 +39,7 @@ repos:
           - "--suppress=floatConversionOverflow:terraingen/python/src/noise.cpp"
           - "--suppress=floatConversionOverflow:terraingen/python/src/mesh.cpp"
           - "--suppress=assignBoolToPointer:terraingen/python/src/*"
+          - "--suppress=syntaxError:terraingen/gpu/metal.cpp"
           - "--error-exitcode=1"
 
   - repo: https://github.com/astral-sh/ruff-pre-commit

@@ -455,11 +455,17 @@ TEST(GenerateTerrain, ShapesSecondariesWithTheirMorphometry) {
     EXPECT_FALSE(std::ranges::equal(HeightsOf(lunar).Values(), HeightsOf(mars).Values()));
 }
 
-TEST(Summary, DescribesTheTerrainAndItsTime) {
-    terraingen::GeneratedTerrain terrain = GenerateTerrain(Small());
+TEST(Summary, DescribesTheTerrainItsTimeAndBackend) {
+    terraingen::GeneratedTerrain terrain =
+        terraingen::GenerateTerrain(Small(), {}, 0, terraingen::Backend::Cpu);
     EXPECT_GE(terrain.seconds, 0.0);
+    EXPECT_EQ(terrain.backend, terraingen::Backend::Cpu);
     terrain.seconds = 1.5;
-    EXPECT_EQ(terraingen::Summary(terrain), "Generated a 65x49 terrain in 1.5 s");
+    EXPECT_EQ(terraingen::Summary(terrain), "Generated a 65x49 terrain in 1.5 s on cpu");
+    terrain.backend = terraingen::Backend::Vulkan;
+    EXPECT_EQ(terraingen::Summary(terrain),
+              "Generated a 65x49 terrain in 1.5 s on " +
+                  terraingen::DescribeBackend(terraingen::Backend::Vulkan));
 }
 
 TEST(GenerateTerrain, SplitsADemIntoItsLowPassAndTheDetailAddedBack) {

@@ -120,6 +120,23 @@ int Generate(const std::vector<std::string>& args, std::ostream& out, std::ostre
     });
 }
 
+/// Prints each backend with its device or why it is unavailable, then the default backend.
+int ListBackends(std::ostream& out, std::ostream& err) {
+    for (const BackendStatus& status : Backends()) {
+        out << BackendName(status.backend) << ": "
+            << (status.available ? "available on " + status.device
+                                 : "unavailable: " + status.reason)
+            << "\n";
+    }
+    try {
+        out << "default: " << BackendName(DefaultBackend()) << "\n";
+    } catch (const std::invalid_argument& error) {
+        err << "terraingen: " << error.what() << "\n";
+        return kExitFailure;
+    }
+    return kExitSuccess;
+}
+
 int Validate(const std::vector<std::string>& args, std::ostream& out, std::ostream& err) {
     if (args.size() != 2) {
         throw std::invalid_argument("validate needs exactly one configuration file");
@@ -167,19 +184,47 @@ Backend ParseBackend(const std::string& text) {
     if (const std::optional<Backend> backend = BackendNamed(text)) {
         return *backend;
     }
-    throw std::invalid_argument("--backend needs auto, cpu or vulkan, not '" + text + "'");
+    throw std::invalid_argument("--backend needs auto, cpu, gpu, vulkan, cuda or metal, not '" +
+                                text + "'");
+}
+
+GuiArgs ParseGuiArgs(const std::vector<std::string>& args) {
+    GuiArgs parsed;
+    for (std::size_t i = 0; i < args.size(); ++i) {
+        const std::string& arg = args[i];
+        const auto value = [&]() -> const std::string& {
+            if (i + 1 >= args.size()) {
+                throw std::invalid_argument(arg + " needs a value");
+            }
+            return args[++i];
+        };
+        if (arg == "--threads") {
+            parsed.threads = ParseThreads(value());
+        } else if (arg == "--backend") {
+            parsed.backend = ParseBackend(value());
+        } else if (arg.rfind("--", 0) == 0) {
+            throw std::invalid_argument("Unknown option " + arg + " with --gui");
+        } else if (!parsed.open.empty()) {
+            throw std::invalid_argument("Unexpected argument " + arg);
+        } else {
+            parsed.open = arg;
+        }
+    }
+    return parsed;
 }
 
 std::string Usage() {
     return "Usage:\n"
            "  terraingen CONFIG [--output-dir DIR] [--log-level LEVEL] [--threads N]\n"
-           "                    [--backend auto|cpu|vulkan]\n"
+           "                    [--backend auto|cpu|gpu|vulkan|cuda|metal]\n"
            "                         Generate the terrain the JSON file CONFIG describes\n"
            "  terraingen validate CONFIG\n"
            "                         Check CONFIG without generating\n"
            "  terraingen schema      Print every configuration type with its defaults\n"
-           "  terraingen [PATH] --gui [--threads N]\n"
-           "                         Open the GUI on a configuration or GeoTIFF heights\n"
+           "  terraingen backends    Show where terrains can be evaluated here, and the default\n"
+           "  terraingen [PATH] --gui [--threads N] [--backend auto|cpu|gpu|vulkan|cuda|metal]\n"
+           "                         Open the GUI on a configuration, GeoTIFF heights or the\n"
+           "                         starter terrain\n"
            "  terraingen -V, --version\n"
            "                         Show version and build information\n"
            "  terraingen -h, --help  Show this message\n";
@@ -216,12 +261,18 @@ int Run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
             out << ConfigCatalog();
             return kExitSuccess;
         }
+        if (first == "backends") {
+            if (args.size() != 1) {
+                throw std::invalid_argument("backends takes no arguments");
+            }
+            return ListBackends(out, err);
+        }
         if (first == "validate") {
             return Validate(args, out, err);
         }
         return Generate(args, out, err);
     } catch (const std::invalid_argument& error) {
-        err << "terraingen: " << error.what() << "\n\n" << Usage();
+        err << "terraingen: " << error.what() << "\nRun 'terraingen --help' to see the usage.\n";
         return kExitUsage;
     }
 }

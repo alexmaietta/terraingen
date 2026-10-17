@@ -1,15 +1,10 @@
 #include "terraingen/layers/noise_relief.h"
 
-#include "terraingen/layers/cell_kernels.h"
+#include "terraingen/layers/kernel.h"
 #include "terraingen/raster/cell_loops.h"
 
 #include <cstddef>
 #include <utility>
-
-extern "C" {
-extern const unsigned char terraingen_kernel_noise_relief[];
-extern const std::size_t terraingen_kernel_noise_relief_size;
-}
 
 namespace terraingen {
 
@@ -21,8 +16,7 @@ NoiseRelief::NoiseRelief(SyntheticTerrainParams params, Vec2d origin, Surface su
 
 void NoiseRelief::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
     if (!surface_.IsBody()) {
-        ApplyCellKernel(samples, context, kernel_, origin_,
-                        {terraingen_kernel_noise_relief, terraingen_kernel_noise_relief_size});
+        ApplyKernel(samples, context, kernel_, origin_);
         return;
     }
     const auto at = [&](float height, const Vec2d& p) {

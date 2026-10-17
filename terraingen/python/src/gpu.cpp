@@ -11,8 +11,12 @@ void BindGpu(nb::module_& m) {
     nb::enum_<Backend>(m, "Backend", "Where evaluation runs.")
         .value("AUTO", Backend::Auto, "A GPU when one is available, otherwise the CPU.")
         .value("CPU", Backend::Cpu, "The reference C++ implementation.")
-        .value("VULKAN", Backend::Vulkan,
-               "Vulkan compute on the device TERRAINGEN_DEVICE selects.");
+        .value("VULKAN", Backend::Vulkan, "Vulkan compute on the device TERRAINGEN_DEVICE selects.")
+        .value("GPU", Backend::Gpu,
+               "The best GPU backend available, whichever it is; an error when there is none.")
+        .value("CUDA", Backend::Cuda,
+               "CUDA on the first NVIDIA device, through the driver opened at run time.")
+        .value("METAL", Backend::Metal, "Metal on the system's default device; Apple only.");
     nb::class_<BackendStatus>(m, "BackendStatus",
                               "Whether a backend can run here, on which device, or why not.")
         .def_ro("backend", &BackendStatus::backend)
@@ -24,18 +28,19 @@ void BindGpu(nb::module_& m) {
                    (s.available ? "available on " + s.device : "unavailable: " + s.reason) + ")";
         });
     m.def("backends", &Backends,
-          "The status of the CPU and Vulkan backends; the Vulkan loader is opened on first use, "
-          "never at import.");
+          "The status of the CPU, Vulkan, CUDA and Metal backends, in that order; each GPU library "
+          "is opened on first use, never at import.");
     m.def("backend_named", &BackendNamed, "name"_a,
-          "The backend named 'auto', 'cpu' or 'vulkan', or None.");
+          "The backend named 'auto', 'cpu', 'gpu', 'vulkan', 'cuda' or 'metal', or None.");
     m.def("default_backend", &DefaultBackend,
           "The default backend evaluation uses unless told otherwise: what set_default_backend "
           "set, otherwise TERRAINGEN_BACKEND, otherwise CPU.");
     m.def("set_default_backend", &SetDefaultBackend, "backend"_a,
           "Sets the default backend, overriding TERRAINGEN_BACKEND.");
     m.def("resolve_backend", &ResolveBackend, "backend"_a,
-          "The backend `backend` resolves to: AUTO becomes VULKAN when it is available, CPU "
-          "otherwise. Raises RuntimeError for VULKAN when it is unavailable.");
+          "The backend `backend` resolves to: GPU becomes the best GPU backend available (METAL, "
+          "then CUDA, then VULKAN), AUTO the same or CPU when there is none. Raises RuntimeError "
+          "for a GPU backend that is unavailable.");
 }
 
 }  // namespace terraingen::python

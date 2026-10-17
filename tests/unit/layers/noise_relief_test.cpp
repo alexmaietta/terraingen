@@ -1,5 +1,6 @@
 #include "terraingen/layers/noise_relief.h"
 
+#include "terraingen/gpu/kernel.h"
 #include "terraingen/noise/noise_layers.h"
 
 #include <gtest/gtest.h>
@@ -7,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -106,14 +108,19 @@ SyntheticTerrainParams GpuParams() {
     return params;
 }
 
-/// Why Vulkan cannot run here, or empty when it can.
-std::string VulkanUnavailable() {
-    const terraingen::BackendStatus vulkan = terraingen::Backends()[1];
-    return vulkan.available ? std::string() : vulkan.reason;
+/// The GPU backends that run here.
+std::vector<terraingen::Backend> GpuBackends() {
+    std::vector<terraingen::Backend> gpus;
+    for (const terraingen::BackendStatus& status : terraingen::Backends()) {
+        if (status.available && status.backend != terraingen::Backend::Cpu) {
+            gpus.push_back(status.backend);
+        }
+    }
+    return gpus;
 }
 
-terraingen::LayerContext OnGpu(double spacing) {
-    return {spacing, 1, nullptr, terraingen::Backend::Vulkan};
+terraingen::LayerContext On(terraingen::Backend backend, double spacing) {
+    return {spacing, 1, nullptr, backend};
 }
 
 /// Expects `gpu` to equal `cpu` to within float rounding, with the same no-data cells.
@@ -131,83 +138,101 @@ void ExpectNear(const Raster<float>& gpu, const Raster<float>& cpu) {
 
 }  // namespace
 
-TEST(NoiseRelief, MatchesTheCpuOnTheGpuAndSkipsNoData) {
-    if (const std::string reason = VulkanUnavailable(); !reason.empty()) {
-        GTEST_SKIP() << reason;
+TEST(NoiseRelief, MatchesTheCpuOnEachGpuBackendAndSkipsNoData) {
+    const std::vector<terraingen::Backend> gpus = GpuBackends();
+    if (gpus.empty()) {
+        GTEST_SKIP() << "No GPU backend runs here";
     }
     const NoiseRelief relief(GpuParams(), {500000.0, 4000000.0});
-    for (const float noData : {std::numeric_limits<float>::quiet_NaN(), -9999.0f}) {
-        Raster<float> cpu(203, 77, 12.5f);
-        cpu.SetTransform(GeoTransform::NorthUp(498000.0, 4001000.0, 5.0));
-        cpu.SetNoData(noData);
-        cpu(3, 4) = noData;
-        cpu(202, 76) = noData;
-        Raster<float> gpu = cpu;
-        relief.Apply(cpu, {5.0});
-        relief.Apply(gpu, OnGpu(5.0));
-        ExpectNear(gpu, cpu);
-        EXPECT_TRUE(gpu.IsNoData(gpu(3, 4)) && gpu.IsNoData(gpu(202, 76)));
-    }
-}
-
-TEST(NoiseRelief, GpuGridsAreTheSameWhateverTheTiling) {
-    if (const std::string reason = VulkanUnavailable(); !reason.empty()) {
-        GTEST_SKIP() << reason;
-    }
-    const NoiseRelief relief(GpuParams());
-    Raster<float> whole(96, 64, 0.0f);
-    whole.SetTransform(GeoTransform::NorthUp(-96.0, 64.0, 2.0));
-    relief.Apply(whole, OnGpu(2.0));
-    Raster<float> part(23, 29, 0.0f);
-    part.SetTransform(GeoTransform::NorthUp(-96.0 + 2.0 * 17, 64.0 - 2.0 * 11, 2.0));
-    relief.Apply(part, OnGpu(2.0));
-    for (std::size_t row = 0; row < part.Height(); ++row) {
-        for (std::size_t col = 0; col < part.Width(); ++col) {
-            ASSERT_EQ(part(col, row), whole(17 + col, 11 + row)) << col << "," << row;
+    for (const terraingen::Backend backend : gpus) {
+        SCOPED_TRACE(std::string(terraingen::BackendName(backend)));
+        for (const float noData : {std::numeric_limits<float>::quiet_NaN(), -9999.0f}) {
+            Raster<float> cpu(203, 77, 12.5f);
+            cpu.SetTransform(GeoTransform::NorthUp(498000.0, 4001000.0, 5.0));
+            cpu.SetNoData(noData);
+            cpu(3, 4) = noData;
+            cpu(202, 76) = noData;
+            Raster<float> gpu = cpu;
+            relief.Apply(cpu, {5.0});
+            relief.Apply(gpu, On(backend, 5.0));
+            ExpectNear(gpu, cpu);
+            EXPECT_TRUE(gpu.IsNoData(gpu(3, 4)) && gpu.IsNoData(gpu(202, 76)));
         }
     }
 }
 
-TEST(NoiseRelief, SplitsLargeGridsIntoStripsOnTheGpu) {
-    if (const std::string reason = VulkanUnavailable(); !reason.empty()) {
-        GTEST_SKIP() << reason;
+TEST(NoiseRelief, GpuGridsAreTheSameWhateverTheTiling) {
+    const std::vector<terraingen::Backend> gpus = GpuBackends();
+    if (gpus.empty()) {
+        GTEST_SKIP() << "No GPU backend runs here";
+    }
+    const NoiseRelief relief(GpuParams());
+    for (const terraingen::Backend backend : gpus) {
+        SCOPED_TRACE(std::string(terraingen::BackendName(backend)));
+        Raster<float> whole(96, 64, 0.0f);
+        whole.SetTransform(GeoTransform::NorthUp(-96.0, 64.0, 2.0));
+        relief.Apply(whole, On(backend, 2.0));
+        Raster<float> part(23, 29, 0.0f);
+        part.SetTransform(GeoTransform::NorthUp(-96.0 + 2.0 * 17, 64.0 - 2.0 * 11, 2.0));
+        relief.Apply(part, On(backend, 2.0));
+        for (std::size_t row = 0; row < part.Height(); ++row) {
+            for (std::size_t col = 0; col < part.Width(); ++col) {
+                ASSERT_EQ(part(col, row), whole(17 + col, 11 + row)) << col << "," << row;
+            }
+        }
+    }
+}
+
+TEST(NoiseRelief, SplitsLargeGridsIntoStripsOnEachGpuBackend) {
+    const std::vector<terraingen::Backend> gpus = GpuBackends();
+    if (gpus.empty()) {
+        GTEST_SKIP() << "No GPU backend runs here";
     }
     SyntheticTerrainParams params = Params();
     params.layers[0].fractal.octaves = 2;
     const NoiseRelief relief(params);
-    Raster<float> heights(4096, 4097, 1.0f);
-    heights.SetTransform(GeoTransform::NorthUp(0.0, 0.0, 1.0));
-    relief.Apply(heights, OnGpu(1.0));
-    for (const std::size_t row : {std::size_t{0}, std::size_t{4095}, std::size_t{4096}}) {
-        for (const std::size_t col : {std::size_t{0}, std::size_t{1234}, std::size_t{4095}}) {
-            const auto centre = heights.CellCenter(col, row);
-            const float expected = relief.ApplyAt(1.0f, centre.x, centre.y, {1.0});
-            ASSERT_NEAR(heights(col, row), expected, 1e-4f * std::max(1.0f, std::fabs(expected)))
-                << col << "," << row;
+    for (const terraingen::Backend backend : gpus) {
+        SCOPED_TRACE(std::string(terraingen::BackendName(backend)));
+        Raster<float> heights(4096, 4097, 1.0f);
+        heights.SetTransform(GeoTransform::NorthUp(0.0, 0.0, 1.0));
+        relief.Apply(heights, On(backend, 1.0));
+        for (const std::size_t row : {std::size_t{0}, std::size_t{4095}, std::size_t{4096}}) {
+            for (const std::size_t col : {std::size_t{0}, std::size_t{1234}, std::size_t{4095}}) {
+                const auto centre = heights.CellCenter(col, row);
+                const float expected = relief.ApplyAt(1.0f, centre.x, centre.y, {1.0});
+                ASSERT_NEAR(heights(col, row), expected,
+                            1e-4f * std::max(1.0f, std::fabs(expected)))
+                    << col << "," << row;
+            }
         }
     }
 }
 
 TEST(NoiseRelief, FallsBackToTheCpuOnSpheresAndRotatedOrVeryWideGrids) {
-    if (const std::string reason = VulkanUnavailable(); !reason.empty()) {
-        GTEST_SKIP() << reason;
+    const std::vector<terraingen::Backend> gpus = GpuBackends();
+    if (gpus.empty()) {
+        GTEST_SKIP() << "No GPU backend runs here";
     }
-    const auto expectSame = [](const NoiseRelief& relief, Raster<float> cpu, double spacing) {
-        Raster<float> gpu = cpu;
-        relief.Apply(cpu, {spacing});
-        relief.Apply(gpu, OnGpu(spacing));
-        for (std::size_t i = 0; i < cpu.Size(); ++i) {
-            ASSERT_EQ(gpu.Values()[i], cpu.Values()[i]) << i;
-        }
-    };
-    Raster<float> lonLat(16, 8, 0.0f);
-    lonLat.SetTransform(GeoTransform::NorthUp(10.0, 20.0, 0.01));
-    expectSame(NoiseRelief(GpuParams(), {}, terraingen::Surface::Sphere(1737400.0)), lonLat, 300.0);
-    Raster<float> rotated(16, 8, 0.0f);
-    rotated.SetTransform(GeoTransform{0.0, 2.0, 0.5, 0.0, 0.5, -2.0});
-    expectSame(NoiseRelief(GpuParams()), rotated, 2.0);
-    Raster<float> wide(16 * 65535 + 1, 1, 0.0f);
-    expectSame(NoiseRelief(Params()), wide, 1.0);
+    for (const terraingen::Backend backend : gpus) {
+        SCOPED_TRACE(std::string(terraingen::BackendName(backend)));
+        const auto expectSame = [&](const NoiseRelief& relief, Raster<float> cpu, double spacing) {
+            Raster<float> gpu = cpu;
+            relief.Apply(cpu, {spacing});
+            relief.Apply(gpu, On(backend, spacing));
+            for (std::size_t i = 0; i < cpu.Size(); ++i) {
+                ASSERT_EQ(gpu.Values()[i], cpu.Values()[i]) << i;
+            }
+        };
+        Raster<float> lonLat(16, 8, 0.0f);
+        lonLat.SetTransform(GeoTransform::NorthUp(10.0, 20.0, 0.01));
+        expectSame(NoiseRelief(GpuParams(), {}, terraingen::Surface::Sphere(1737400.0)), lonLat,
+                   300.0);
+        Raster<float> rotated(16, 8, 0.0f);
+        rotated.SetTransform(GeoTransform{0.0, 2.0, 0.5, 0.0, 0.5, -2.0});
+        expectSame(NoiseRelief(GpuParams()), rotated, 2.0);
+        Raster<float> wide(16 * 65535 + 1, 1, 0.0f);
+        expectSame(NoiseRelief(Params()), wide, 1.0);
+    }
 }
 
 TEST(NoiseRelief, SkipsDisabledLayersAsTheFullStackDoes) {
@@ -238,6 +263,29 @@ TEST(NoiseRelief, PointsStayOnTheCpuWhateverTheBackend) {
     terraingen::SampleBlock onCpu(points, cpu);
     terraingen::SampleBlock onVulkan(points, vulkan);
     relief.Apply(onCpu, {2.0});
-    relief.Apply(onVulkan, OnGpu(2.0));
+    relief.Apply(onVulkan, On(terraingen::Backend::Vulkan, 2.0));
     EXPECT_EQ(vulkan, cpu);
+}
+
+TEST(NoiseRelief, RunsOnEachGpuBackendItselfAndNotWithoutItsCompiledForm) {
+    const terraingen::NoiseReliefKernel kernel = terraingen::MakeNoiseReliefKernel(Params().layers);
+    const auto bytes = std::as_bytes(std::span(&kernel, 1));
+    const terraingen::KernelProgram program =
+        terraingen::CompiledKernel<terraingen::NoiseReliefKernel>();
+    Raster<float> heights(33, 17, 0.0f);
+    heights.SetTransform(GeoTransform::NorthUp(0.0, 0.0, 2.0));
+    EXPECT_FALSE(terraingen::RunKernel(terraingen::Backend::Cpu, program, bytes, heights, {}));
+    EXPECT_FALSE(terraingen::RunKernel(terraingen::Backend::Vulkan, {}, bytes, heights, {}));
+    EXPECT_FALSE(terraingen::RunKernel(terraingen::Backend::Cuda, {}, bytes, heights, {}));
+    EXPECT_FALSE(terraingen::RunKernel(terraingen::Backend::Metal, {}, bytes, heights, {}));
+    EXPECT_TRUE(std::all_of(heights.Values().begin(), heights.Values().end(),
+                            [](float h) { return h == 0.0f; }));
+    EXPECT_FALSE(program.spirv.empty());
+    for (const terraingen::Backend backend : GpuBackends()) {
+        SCOPED_TRACE(std::string(terraingen::BackendName(backend)));
+        Raster<float> gpu(33, 17, 0.0f);
+        gpu.SetTransform(heights.Transform());
+        ASSERT_TRUE(terraingen::RunKernel(backend, program, bytes, gpu, {}));
+        EXPECT_NE(gpu(5, 5), 0.0f);
+    }
 }

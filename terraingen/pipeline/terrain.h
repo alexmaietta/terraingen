@@ -35,9 +35,9 @@ struct EvaluationOptions {
     /// Threads to split each layer over; 0 for every hardware thread. The result does
     /// not depend on it.
     unsigned threads = 0;
-    /// Where the grid is evaluated; empty for `DefaultBackend()`, and `Auto` picks Vulkan when a
-    /// device is available. Results on Vulkan match the CPU to within float rounding, not to the
-    /// bit, and point queries always run on the CPU.
+    /// Where the grid is evaluated; empty for `DefaultBackend()`. `Gpu` picks the best GPU backend
+    /// available and `Auto` the same or the CPU. Results on a GPU match the CPU to within float
+    /// rounding, not to the bit, and point queries always run on the CPU.
     std::optional<Backend> backend = std::nullopt;
 };
 

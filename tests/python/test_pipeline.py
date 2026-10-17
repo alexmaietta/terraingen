@@ -65,6 +65,8 @@ def test_generate_terrain_is_the_same_on_one_thread(generated, small_config):
 def test_generate_terrain_on_auto_matches_the_cpu_to_float_rounding(generated, small_config):
     config = terraingen.Config.from_dict(small_config)
     auto = terraingen.generate_terrain(config, threads=2, backend=terraingen.Backend.AUTO)
+    assert generated.backend == terraingen.Backend.CPU and generated.summary().endswith(" on cpu")
+    assert auto.backend == terraingen.resolve_backend(terraingen.Backend.AUTO)
     np.testing.assert_allclose(
         auto.grids[0].heights.values, generated.grids[0].heights.values, rtol=1e-4, atol=1e-4
     )

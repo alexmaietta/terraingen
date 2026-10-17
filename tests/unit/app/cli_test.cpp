@@ -100,14 +100,18 @@ TEST(Cli, RejectsBadArguments) {
                                                {"a.json", "--threads", "5000"},
                                                {"a.json", "--threads", ""},
                                                {"--threads", "2"},
-                                               {"a.json", "--backend", "cuda"},
+                                               {"a.json", "--backend", "opencl"},
                                                {"a.json", "--backend"},
                                                {"validate"},
                                                {"validate", "a.json", "b.json"}}) {
         const Result result = Cli(args);
         EXPECT_EQ(result.code, kExitUsage) << ::testing::PrintToString(args);
-        EXPECT_NE(result.err.find("Usage:"), std::string::npos);
+        EXPECT_NE(result.err.find("\nRun 'terraingen --help' to see the usage.\n"),
+                  std::string::npos);
+        EXPECT_EQ(result.err.find("Usage:"), std::string::npos) << "the usage only on --help";
     }
+    EXPECT_EQ(Cli({}).err, "terraingen: Missing a command or configuration file\n"
+                           "Run 'terraingen --help' to see the usage.\n");
 }
 
 TEST(Cli, ParsesThreadCounts) {
@@ -122,8 +126,25 @@ TEST(Cli, ParsesBackendNames) {
     EXPECT_EQ(terraingen::cli::ParseBackend("cpu"), terraingen::Backend::Cpu);
     EXPECT_EQ(terraingen::cli::ParseBackend("Vulkan"), terraingen::Backend::Vulkan);
     EXPECT_EQ(terraingen::cli::ParseBackend("auto"), terraingen::Backend::Auto);
-    EXPECT_THROW(terraingen::cli::ParseBackend("gpu"), std::invalid_argument);
-    EXPECT_NE(Cli({"--help"}).out.find("--backend auto|cpu|vulkan"), std::string::npos);
+    EXPECT_EQ(terraingen::cli::ParseBackend("GPU"), terraingen::Backend::Gpu);
+    EXPECT_EQ(terraingen::cli::ParseBackend("cuda"), terraingen::Backend::Cuda);
+    EXPECT_EQ(terraingen::cli::ParseBackend("metal"), terraingen::Backend::Metal);
+    EXPECT_THROW(terraingen::cli::ParseBackend("opencl"), std::invalid_argument);
+    EXPECT_NE(Cli({"--help"}).out.find("--backend auto|cpu|gpu|vulkan|cuda|metal"),
+              std::string::npos);
+}
+
+TEST(Cli, ListsTheBackendsAndTheDefault) {
+    const Result result = Cli({"backends"});
+    ASSERT_EQ(result.code, kExitSuccess) << result.err;
+    EXPECT_EQ(result.out.rfind("cpu: available on host\nvulkan: ", 0), 0u) << result.out;
+    EXPECT_NE(result.out.find("\ndefault: "), std::string::npos);
+    const terraingen::BackendStatus vulkan = terraingen::Backends()[1];
+    EXPECT_NE(result.out.find(vulkan.available ? "available on " + vulkan.device
+                                               : "unavailable: " + vulkan.reason),
+              std::string::npos);
+    EXPECT_NE(Cli({"--help"}).out.find("terraingen backends"), std::string::npos);
+    EXPECT_EQ(Cli({"backends", "extra"}).code, kExitUsage);
 }
 
 TEST(Cli, GeneratesOnTheChosenBackend) {
@@ -131,6 +152,7 @@ TEST(Cli, GeneratesOnTheChosenBackend) {
     const auto config = Write(directory / "terrain.json", kConfig);
     const Result cpu = Cli({config.string(), "--log-level", "off", "--backend", "cpu"});
     ASSERT_EQ(cpu.code, kExitSuccess) << cpu.err;
+    EXPECT_NE(cpu.out.find(" s on cpu\n"), std::string::npos) << cpu.out;
     const auto onCpu = terraingen::ReadGeoTiff(directory / "heights.tif").raster;
     const Result automatic = Cli({config.string(), "--log-level", "off", "--backend", "auto"});
     ASSERT_EQ(automatic.code, kExitSuccess) << automatic.err;
@@ -141,6 +163,23 @@ TEST(Cli, GeneratesOnTheChosenBackend) {
     }
 }
 
+TEST(Cli, ParsesTheGuiArguments) {
+    const terraingen::cli::GuiArgs none = terraingen::cli::ParseGuiArgs({});
+    EXPECT_TRUE(none.open.empty());
+    EXPECT_EQ(none.threads, 0u);
+    EXPECT_FALSE(none.backend.has_value());
+    const terraingen::cli::GuiArgs all =
+        terraingen::cli::ParseGuiArgs({"--backend", "vulkan", "site.json", "--threads", "3"});
+    EXPECT_EQ(all.open, "site.json");
+    EXPECT_EQ(all.threads, 3u);
+    EXPECT_EQ(all.backend, terraingen::Backend::Vulkan);
+    EXPECT_THROW(terraingen::cli::ParseGuiArgs({"a.json", "b.json"}), std::invalid_argument);
+    EXPECT_THROW(terraingen::cli::ParseGuiArgs({"--threads"}), std::invalid_argument);
+    EXPECT_NE(
+        Cli({"--help"}).out.find("--gui [--threads N] [--backend auto|cpu|gpu|vulkan|cuda|metal]"),
+        std::string::npos);
+}
+
 TEST(Cli, GuiRejectsBadArgumentsOrExplainsHowToAddTheGui) {
     EXPECT_NE(Cli({"--help"}).out.find("terraingen [PATH] --gui"), std::string::npos);
     for (const std::vector<std::string>& args :
@@ -148,7 +187,9 @@ TEST(Cli, GuiRejectsBadArgumentsOrExplainsHowToAddTheGui) {
                                                {"a.json", "b.json", "--gui"},
                                                {"--gui", "--threads"},
                                                {"a.json", "--gui", "--output-dir", "out"},
-                                               {"a.json", "--threads", "lots", "--gui"}}) {
+                                               {"a.json", "--threads", "lots", "--gui"},
+                                               {"a.json", "--gui", "--backend", "opencl"},
+                                               {"--gui", "--backend"}}) {
         EXPECT_EQ(Cli(args).code, kExitUsage) << ::testing::PrintToString(args);
     }
     if (!terraingen::cli::GuiAvailable()) {

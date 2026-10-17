@@ -45,16 +45,16 @@ BENCHMARK(BM_EvaluateGridSphere)
     ->UseRealTime();
 
 /// A synthetic terrain of three 8-octave noise layers, one warped, over a flat source (side cells
-/// given by the first argument, 1 m cells) on every hardware thread (second argument 0) or on the
-/// GPU (1).
+/// given by the first argument, 1 m cells) on the backend given by the second: every hardware
+/// thread (0), Vulkan (1), CUDA (2) or Metal (3), the order `Backends()` lists them in.
 void BM_EvaluateNoiseGrid(benchmark::State& state) {
     const auto cells = static_cast<std::size_t>(state.range(0));
-    const Backend backend = state.range(1) == 0 ? Backend::Cpu : Backend::Vulkan;
-    if (const BackendStatus vulkan = Backends()[1];
-        backend == Backend::Vulkan && !vulkan.available) {
-        state.SkipWithError(vulkan.reason.c_str());
+    const BackendStatus status = Backends()[static_cast<std::size_t>(state.range(1))];
+    if (!status.available) {
+        state.SkipWithError(status.reason.c_str());
         return;
     }
+    const Backend backend = status.backend;
     SyntheticTerrainParams noise;
     noise.layers.assign(3, NoiseLayer{});
     noise.layers[0].fractal.wavelength = 2000.0f;
@@ -77,8 +77,8 @@ void BM_EvaluateNoiseGrid(benchmark::State& state) {
     state.SetItemsProcessed(state.iterations() * static_cast<std::int64_t>(cells * cells));
 }
 BENCHMARK(BM_EvaluateNoiseGrid)
-    ->ArgsProduct({{1024, 4096}, {0, 1}})
-    ->ArgNames({"cells", "gpu"})
+    ->ArgsProduct({{1024, 4096}, {0, 1, 2, 3}})
+    ->ArgNames({"cells", "backend"})
     ->Unit(benchmark::kMillisecond)
     ->UseRealTime();
 

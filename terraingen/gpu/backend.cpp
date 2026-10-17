@@ -1,5 +1,7 @@
 #include "terraingen/gpu/backend.h"
 
+#include "terraingen/gpu/cuda.h"
+#include "terraingen/gpu/metal.h"
 #include "terraingen/gpu/vulkan.h"
 
 #include <atomic>
@@ -15,6 +17,60 @@ namespace {
 /// The backend `SetDefaultBackend` set, or -1 for none.
 std::atomic<int> gDefault{-1};
 
+/// The GPU backends, best first: what `Gpu` and `Auto` choose from.
+constexpr Backend kGpuBackends[] = {Backend::Metal, Backend::Cuda, Backend::Vulkan};
+
+/// Whether a backend runs here, on which device, or why not. CUDA and Metal also need their
+/// kernels in the build (`TERRAINGEN_CUDA_KERNELS`, `TERRAINGEN_METAL_KERNELS`).
+BackendStatus ProbeBackend(Backend backend) {
+    BackendStatus status{backend, false, {}, {}};
+    const auto from = [&](const auto* compute, const std::string& reason) {
+        status.available = compute != nullptr;
+        if (compute != nullptr) {
+            status.device = compute->DeviceName();
+        } else {
+            status.reason = reason;
+        }
+    };
+    switch (backend) {
+    case Backend::Cpu:
+        status.available = true;
+        status.device = "host";
+        break;
+    case Backend::Vulkan:
+        from(VulkanCompute::Get(), VulkanCompute::Reason());
+        break;
+    case Backend::Cuda:
+        if (TERRAINGEN_CUDA_KERNELS) {
+            from(CudaCompute::Get(), CudaCompute::Reason());
+        } else {
+            status.reason = "this build has no CUDA kernels (it was built without NVRTC)";
+        }
+        break;
+    case Backend::Metal:
+        if (TERRAINGEN_METAL_KERNELS) {
+            from(MetalCompute::Get(), MetalCompute::Reason());
+        } else {
+            status.reason = MetalCompute::Reason();
+        }
+        break;
+    default:
+        status.reason = std::string(BackendName(backend)) + " is not a device backend";
+        break;
+    }
+    return status;
+}
+
+/// The best GPU backend available; `std::nullopt` when there is none.
+std::optional<Backend> BestGpu() {
+    for (const Backend backend : kGpuBackends) {
+        if (ProbeBackend(backend).available) {
+            return backend;
+        }
+    }
+    return std::nullopt;
+}
+
 }  // namespace
 
 std::optional<Backend> BackendNamed(std::string_view name) {
@@ -22,14 +78,11 @@ std::optional<Backend> BackendNamed(std::string_view name) {
     for (char& c : lower) {
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     }
-    if (lower == "auto") {
-        return Backend::Auto;
-    }
-    if (lower == "cpu") {
-        return Backend::Cpu;
-    }
-    if (lower == "vulkan") {
-        return Backend::Vulkan;
+    for (const Backend backend : {Backend::Auto, Backend::Cpu, Backend::Gpu, Backend::Vulkan,
+                                  Backend::Cuda, Backend::Metal}) {
+        if (lower == BackendName(backend)) {
+            return backend;
+        }
     }
     return std::nullopt;
 }
@@ -42,22 +95,28 @@ std::string_view BackendName(Backend backend) {
         return "cpu";
     case Backend::Vulkan:
         return "vulkan";
+    case Backend::Gpu:
+        return "gpu";
+    case Backend::Cuda:
+        return "cuda";
+    case Backend::Metal:
+        return "metal";
     }
     return "unknown";
 }
 
-std::vector<BackendStatus> Backends() {
-    std::vector<BackendStatus> statuses;
-    statuses.push_back({Backend::Cpu, true, "host", {}});
-    BackendStatus vulkan{Backend::Vulkan, false, {}, {}};
-    if (const VulkanCompute* compute = VulkanCompute::Get()) {
-        vulkan.available = true;
-        vulkan.device = compute->DeviceName();
-    } else {
-        vulkan.reason = VulkanCompute::Reason();
+std::string DescribeBackend(Backend backend) {
+    if (backend == Backend::Vulkan || backend == Backend::Cuda || backend == Backend::Metal) {
+        if (const BackendStatus status = ProbeBackend(backend); status.available) {
+            return std::string(BackendName(backend)) + " (" + status.device + ")";
+        }
     }
-    statuses.push_back(vulkan);
-    return statuses;
+    return std::string(BackendName(backend));
+}
+
+std::vector<BackendStatus> Backends() {
+    return {ProbeBackend(Backend::Cpu), ProbeBackend(Backend::Vulkan), ProbeBackend(Backend::Cuda),
+            ProbeBackend(Backend::Metal)};
 }
 
 Backend DefaultBackend() {
@@ -72,7 +131,7 @@ Backend DefaultBackend() {
         return *backend;
     }
     throw std::invalid_argument("TERRAINGEN_BACKEND is \"" + std::string(name) +
-                                "\"; expected auto, cpu or vulkan");
+                                "\"; expected auto, cpu, gpu, vulkan, cuda or metal");
 }
 
 void SetDefaultBackend(Backend backend) {
@@ -84,15 +143,29 @@ Backend ResolveBackend(Backend requested) {
     case Backend::Cpu:
         return Backend::Cpu;
     case Backend::Vulkan:
-        if (VulkanCompute::Get() == nullptr) {
-            throw std::runtime_error("The Vulkan backend is unavailable: " +
-                                     VulkanCompute::Reason());
+    case Backend::Cuda:
+    case Backend::Metal:
+        if (const BackendStatus status = ProbeBackend(requested); !status.available) {
+            throw std::runtime_error("The " + std::string(BackendName(requested)) +
+                                     " backend is unavailable: " + status.reason);
         }
-        return Backend::Vulkan;
+        return requested;
+    case Backend::Gpu:
+        if (const std::optional<Backend> gpu = BestGpu()) {
+            return *gpu;
+        }
+        {
+            std::string reasons;
+            for (const Backend backend : kGpuBackends) {
+                reasons +=
+                    "; " + std::string(BackendName(backend)) + ": " + ProbeBackend(backend).reason;
+            }
+            throw std::runtime_error("No GPU backend is available" + reasons);
+        }
     case Backend::Auto:
         break;
     }
-    return VulkanCompute::Get() != nullptr ? Backend::Vulkan : Backend::Cpu;
+    return BestGpu().value_or(Backend::Cpu);
 }
 
 }  // namespace terraingen

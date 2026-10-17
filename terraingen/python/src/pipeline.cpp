@@ -485,6 +485,8 @@ void BindGeneratedTerrain(nb::module_& m) {
             "grid) at `spacing` metres (0 for the grid's), and the models among them.")
         .def_ro("seconds", &GeneratedTerrain::seconds,
                 "Wall-clock time the heights and albedo took to evaluate, in seconds.")
+        .def_ro("backend", &GeneratedTerrain::backend,
+                "Where the heights were evaluated: CPU or a GPU backend.")
         .def("summary", &Summary, "One line describing the terrain: its size and time.");
 }
 

@@ -36,7 +36,8 @@ struct GeneratedTerrain {
     std::vector<GeneratedGrid> grids{};
     /// The projection of a raster base, or geographic keys on a body without one.
     GeoKeys geoKeys{};
-    double seconds = 0.0;  ///< Wall-clock time the heights and albedo took to evaluate.
+    double seconds = 0.0;            ///< Wall-clock time the heights and albedo took to evaluate.
+    Backend backend = Backend::Cpu;  ///< Where the heights were evaluated: `Cpu` or a GPU backend.
 
     /// The generated grid whose heights cover `grid`, or null.
     const GeneratedGrid* Find(const RasterGrid& grid) const;

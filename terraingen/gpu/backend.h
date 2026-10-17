@@ -14,14 +14,21 @@ enum class Backend {
     Auto,    ///< A GPU when one is available, otherwise the CPU.
     Cpu,     ///< The reference C++ implementation.
     Vulkan,  ///< Vulkan compute on the device `TERRAINGEN_DEVICE` selects.
+    Gpu,     ///< The best GPU backend available, whichever it is; an error when there is none.
+    Cuda,    ///< CUDA on the first NVIDIA device, through the driver opened at run time.
+    Metal,   ///< Metal on the system's default device; Apple platforms only.
 };
 
-/// Looks up a backend by name ("auto", "cpu" or "vulkan"), ignoring case; `std::nullopt` for an
-/// unknown name.
+/// Looks up a backend by name ("auto", "cpu", "gpu", "vulkan", "cuda" or "metal"), ignoring case;
+/// `std::nullopt` for an unknown name.
 std::optional<Backend> BackendNamed(std::string_view name);
 
 /// The name of a backend, as `BackendNamed` reads it; "unknown" for an out-of-range value.
 std::string_view BackendName(Backend backend);
+
+/// A backend as messages show it: its name, and for an available GPU backend its device too, as in
+/// "cuda (NVIDIA GeForce RTX 4090)".
+std::string DescribeBackend(Backend backend);
 
 /// Whether a backend can run here, on which device, or why not.
 struct BackendStatus {
@@ -31,24 +38,26 @@ struct BackendStatus {
     std::string reason;              ///< Why it is not available, otherwise.
 };
 
-/// The status of the CPU and Vulkan backends: one for `Cpu`, then one for `Vulkan`.
+/// The status of every backend that runs on a device: `Cpu`, `Vulkan`, `Cuda` and `Metal`, in that
+/// order.
 ///
-/// The Vulkan loader is opened (and a device chosen) the first time this or a Vulkan evaluation is
-/// asked for, never at load time, so a build with Vulkan support runs anywhere.
+/// Each GPU library (the Vulkan loader, the NVIDIA driver, Metal) is opened the first time this or
+/// an evaluation on it is asked for, never at load time, so one build runs anywhere.
 std::vector<BackendStatus> Backends();
 
 /// The process-wide default backend, which evaluation uses unless told otherwise: what
-/// `SetDefaultBackend` last set, otherwise the environment variable `TERRAINGEN_BACKEND` ("auto",
-/// "cpu" or "vulkan"), otherwise `Cpu`, so results never change with the machine by default.
+/// `SetDefaultBackend` last set, otherwise the environment variable `TERRAINGEN_BACKEND` (a name
+/// `BackendNamed` reads), otherwise `Cpu`, so results never change with the machine by default.
 /// @throws std::invalid_argument for an unknown name in `TERRAINGEN_BACKEND`.
 Backend DefaultBackend();
 
 /// Sets the process-wide default backend, overriding `TERRAINGEN_BACKEND`.
 void SetDefaultBackend(Backend backend);
 
-/// Resolves a requested backend to the one that runs: `requested`, except that `Auto` becomes
-/// `Vulkan` when it is available and `Cpu` otherwise.
-/// @throws std::runtime_error when `Vulkan` is requested but unavailable, with the reason.
+/// Resolves a requested backend to the one that runs, `Cpu` or a GPU backend: `Gpu` becomes the
+/// best GPU backend available (`Metal`, then `Cuda`, then `Vulkan`), `Auto` the same or `Cpu` when
+/// there is none, and the others themselves.
+/// @throws std::runtime_error when a GPU backend is requested but unavailable, with the reason.
 Backend ResolveBackend(Backend requested);
 
 }  // namespace terraingen

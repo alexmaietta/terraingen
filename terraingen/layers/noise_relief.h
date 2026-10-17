@@ -22,7 +22,7 @@ float NoiseLayersAt(const std::vector<NoiseLayer>& layers, const Vec2d& origin,
 /// A stack of noise layers added to the terrain: rolling relief on a flat source, or detail on a
 /// DEM. Each sample gets `NoiseLayersAt`, seamless on a sphere.
 ///
-/// On a plane the relief is a cell kernel, so grids follow the context's backend; on a sphere it
+/// On a plane the relief is a kernel, so grids follow the context's backend; on a sphere it
 /// is evaluated in 3D on the CPU.
 class NoiseRelief final : public Layer {
   public:

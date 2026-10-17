@@ -208,6 +208,7 @@ GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
                                  const std::filesystem::path& directory, unsigned threads,
                                  std::optional<Backend> backend) {
     GeneratedTerrain generated{BuildTerrain(config, directory)};
+    generated.backend = ResolveBackend(backend.value_or(DefaultBackend()));
     const Terrain& terrain = generated.terrain;
     const Stopwatch stopwatch;
     const std::optional<RasterGrid> base = BaseGrid(terrain);
@@ -218,7 +219,7 @@ GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
             }
         }
         generated.grids.push_back(
-            {Evaluate(terrain, grid, EvaluationOptions{0.0, threads, backend}), {}});
+            {Evaluate(terrain, grid, EvaluationOptions{0.0, threads, generated.backend}), {}});
         return generated.grids.back();
     };
     std::optional<Albedo> albedo;
@@ -264,7 +265,7 @@ std::string Summary(const GeneratedTerrain& terrain) {
         }
         text << ")";
     }
-    text << " in " << terrain.seconds << " s";
+    text << " in " << terrain.seconds << " s on " << DescribeBackend(terrain.backend);
     return text.str();
 }
 

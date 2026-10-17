@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -17,6 +18,26 @@ struct ComputeKernel {
     const unsigned char* spirv = nullptr;  ///< The SPIR-V words; also the pipeline cache key.
     std::size_t size = 0;                  ///< Size of `spirv` in bytes.
 };
+
+/// The kind of a Vulkan device, as the driver reports it.
+enum class DeviceKind {
+    Discrete,    ///< A discrete GPU.
+    Integrated,  ///< A GPU sharing memory with the CPU.
+    Virtual,     ///< A GPU in a virtual machine.
+    Cpu,         ///< Software Vulkan on the CPU, such as Mesa's lavapipe.
+    Other,       ///< Anything else.
+};
+
+/// The device chosen automatically among devices of `kinds`: the first discrete GPU, then
+/// integrated, virtual and other devices. Software devices are never chosen, since they are slower
+/// than the CPU backend; `TERRAINGEN_DEVICE` can still name one.
+/// @return Its index, or `std::nullopt` when every device is a software one or there is none.
+std::optional<std::size_t> PickDevice(std::span<const DeviceKind> kinds);
+
+/// What to install so Vulkan runs on this platform, completing a message that says why it does
+/// not: the loader and a driver on Linux (and the NVIDIA capability in Docker), MoltenVK on macOS,
+/// the GPU driver on Windows.
+std::string VulkanInstallHint();
 
 /// The Vulkan compute device TerrainGen uses, opened on first use.
 ///
@@ -33,7 +54,6 @@ class VulkanCompute {
     static std::string Reason();
 
     /// The device name the driver reports.
-    /// @throws std::logic_error in a build without Vulkan, which has no device.
     const std::string& DeviceName() const;
 
     /// Runs a kernel and copies every buffer back in place.
@@ -41,7 +61,6 @@ class VulkanCompute {
     /// @param pushConstants The kernel's push constants, at most the device's limit in bytes.
     /// @param groups Workgroup counts in x, y and z.
     /// @throws std::runtime_error for a Vulkan failure or push constants past the device's limit.
-    /// @throws std::logic_error in a build without Vulkan.
     void Run(const ComputeKernel& kernel, const std::vector<std::span<std::byte>>& buffers,
              std::span<const std::byte> pushConstants, std::array<std::uint32_t, 3> groups);
 

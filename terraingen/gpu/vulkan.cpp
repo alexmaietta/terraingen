@@ -174,24 +174,26 @@ void MakeBuffer(VkDevice device, const VkPhysicalDeviceMemoryProperties& memory,
           "memory mapping");
 }
 
-/// Automatic device preference, lowest first: discrete, integrated, virtual, other.
-int DeviceRank(VkPhysicalDeviceType type) {
+/// The kind of a device the driver reports as `type`.
+DeviceKind ToDeviceKind(VkPhysicalDeviceType type) {
     switch (type) {
     case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
-        return 0;
+        return DeviceKind::Discrete;
     case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
-        return 1;
+        return DeviceKind::Integrated;
     case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
-        return 2;
+        return DeviceKind::Virtual;
+    case VK_PHYSICAL_DEVICE_TYPE_CPU:
+        return DeviceKind::Cpu;
     default:
-        return 3;
+        return DeviceKind::Other;
     }
 }
 
 /// Opens the Vulkan loader and creates an instance with its functions loaded.
 VkInstance CreateInstance() {
     if (volkInitialize() != VK_SUCCESS) {
-        throw std::runtime_error("no Vulkan loader found");
+        throw std::runtime_error("no Vulkan loader found; " + VulkanInstallHint());
     }
     VkApplicationInfo app{};
     app.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -207,19 +209,23 @@ VkInstance CreateInstance() {
     instanceInfo.ppEnabledExtensionNames = &portability;
 #endif
     VkInstance instance = VK_NULL_HANDLE;
-    Check(vkCreateInstance(&instanceInfo, nullptr, &instance), "instance creation");
+    const VkResult created = vkCreateInstance(&instanceInfo, nullptr, &instance);
+    if (created == VK_ERROR_INCOMPATIBLE_DRIVER) {
+        throw std::runtime_error("no Vulkan driver found; " + VulkanInstallHint());
+    }
+    Check(created, "instance creation");
     volkLoadInstance(instance);
     return instance;
 }
 
-/// The device `TERRAINGEN_DEVICE` names, otherwise the best ranked by `DeviceRank`.
+/// The device `TERRAINGEN_DEVICE` names, otherwise the one `PickDevice` picks.
 VkPhysicalDevice ChooseDevice(VkInstance instance) {
     std::uint32_t count = 0;
     vkEnumeratePhysicalDevices(instance, &count, nullptr);
     std::vector<VkPhysicalDevice> devices(count);
     vkEnumeratePhysicalDevices(instance, &count, devices.data());
     if (devices.empty()) {
-        throw std::runtime_error("no Vulkan devices");
+        throw std::runtime_error("no Vulkan devices; " + VulkanInstallHint());
     }
     if (const char* wanted = std::getenv("TERRAINGEN_DEVICE"); wanted && *wanted) {
         const auto chosen = static_cast<std::size_t>(std::strtoul(wanted, nullptr, 10));
@@ -229,17 +235,21 @@ VkPhysicalDevice ChooseDevice(VkInstance instance) {
         }
         return devices[chosen];
     }
-    std::size_t chosen = 0;
-    int best = 99;
+    std::vector<DeviceKind> kinds(devices.size());
+    std::string names;
     for (std::size_t i = 0; i < devices.size(); ++i) {
         VkPhysicalDeviceProperties properties;
         vkGetPhysicalDeviceProperties(devices[i], &properties);
-        if (DeviceRank(properties.deviceType) < best) {
-            best = DeviceRank(properties.deviceType);
-            chosen = i;
-        }
+        kinds[i] = ToDeviceKind(properties.deviceType);
+        names += (i == 0 ? "" : ", ") + std::string(properties.deviceName);
     }
-    return devices[chosen];
+    if (const std::optional<std::size_t> chosen = PickDevice(kinds)) {
+        return devices[*chosen];
+    }
+    throw std::runtime_error("only software Vulkan (" + names +
+                             "), which is slower than the CPU backend; set TERRAINGEN_DEVICE to "
+                             "its index to use it anyway, or " +
+                             VulkanInstallHint());
 }
 
 /// The first queue family of `physical` that supports compute.
@@ -481,6 +491,29 @@ VulkanCompute* gCompute = nullptr;
 std::string gReason;
 
 }  // namespace
+
+std::optional<std::size_t> PickDevice(std::span<const DeviceKind> kinds) {
+    for (const DeviceKind kind :
+         {DeviceKind::Discrete, DeviceKind::Integrated, DeviceKind::Virtual, DeviceKind::Other}) {
+        const auto found = std::find(kinds.begin(), kinds.end(), kind);
+        if (found != kinds.end()) {
+            return static_cast<std::size_t>(found - kinds.begin());
+        }
+    }
+    return std::nullopt;
+}
+
+std::string VulkanInstallHint() {
+#if defined(__APPLE__)
+    return "install MoltenVK (brew install molten-vk) or the Vulkan SDK from vulkan.lunarg.com";
+#elif defined(_WIN32)
+    return "install or update the GPU driver, which provides the Vulkan loader (vulkan-1.dll)";
+#else
+    return "install the Vulkan loader and a GPU driver (on Debian and Ubuntu: sudo apt install "
+           "libvulkan1, with the NVIDIA driver or mesa-vulkan-drivers); in Docker on an NVIDIA "
+           "GPU, include graphics in NVIDIA_DRIVER_CAPABILITIES";
+#endif
+}
 
 VulkanCompute::VulkanCompute(std::unique_ptr<State> state) : state_(std::move(state)) {}
 

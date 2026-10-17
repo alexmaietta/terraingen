@@ -3,6 +3,7 @@
 #pragma once
 
 #include "terraingen/app/gui/config_editor.h"
+#include "terraingen/gpu/backend.h"
 #include "terraingen/raster/raster.h"
 
 #include <ernie/app/viewer.h>
@@ -12,6 +13,7 @@
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 
 namespace terraingen::gui {
@@ -20,7 +22,9 @@ namespace terraingen::gui {
 struct GuiAppOptions {
     std::filesystem::path open;  ///< Configuration (.json) or heights (.tif, .tiff); may be empty.
     unsigned threads = 0;        ///< Generation threads; 0 for every hardware thread.
-    bool hidden = false;         ///< Render without showing the window, for tests.
+    /// Where generation evaluates heights; empty for `DefaultBackend()`.
+    std::optional<Backend> backend = std::nullopt;
+    bool hidden = false;               ///< Render without showing the window, for tests.
     std::string title = "TerrainGen";  ///< The window title.
 };
 

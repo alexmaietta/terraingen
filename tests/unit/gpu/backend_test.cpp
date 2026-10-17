@@ -1,9 +1,13 @@
 #include "terraingen/gpu/backend.h"
+#include "terraingen/gpu/cuda.h"
+#include "terraingen/gpu/metal.h"
 #include "terraingen/gpu/vulkan.h"
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdlib>
+#include <optional>
 #include <stdexcept>
 
 using terraingen::Backend;
@@ -25,9 +29,13 @@ TEST(BackendNamed, ReadsEachNameInAnyCase) {
     EXPECT_EQ(terraingen::BackendNamed("auto"), Backend::Auto);
     EXPECT_EQ(terraingen::BackendNamed("CPU"), Backend::Cpu);
     EXPECT_EQ(terraingen::BackendNamed("Vulkan"), Backend::Vulkan);
-    EXPECT_FALSE(terraingen::BackendNamed("cuda").has_value());
+    EXPECT_EQ(terraingen::BackendNamed("gpu"), Backend::Gpu);
+    EXPECT_EQ(terraingen::BackendNamed("CUDA"), Backend::Cuda);
+    EXPECT_EQ(terraingen::BackendNamed("metal"), Backend::Metal);
+    EXPECT_FALSE(terraingen::BackendNamed("opencl").has_value());
     EXPECT_FALSE(terraingen::BackendNamed("").has_value());
-    for (const Backend backend : {Backend::Auto, Backend::Cpu, Backend::Vulkan}) {
+    for (const Backend backend : {Backend::Auto, Backend::Cpu, Backend::Vulkan, Backend::Gpu,
+                                  Backend::Cuda, Backend::Metal}) {
         EXPECT_EQ(terraingen::BackendNamed(terraingen::BackendName(backend)), backend);
     }
     EXPECT_EQ(terraingen::BackendName(static_cast<Backend>(7)), "unknown");
@@ -44,36 +52,87 @@ TEST_F(BackendTest, DefaultsFollowTheEnvironmentUntilSetInCode) {
     EXPECT_EQ(terraingen::DefaultBackend(), Backend::Cpu);
     setenv("TERRAINGEN_BACKEND", "VULKAN", 1);
     EXPECT_EQ(terraingen::DefaultBackend(), Backend::Vulkan);
-    setenv("TERRAINGEN_BACKEND", "metal", 1);
+    setenv("TERRAINGEN_BACKEND", "gpu", 1);
+    EXPECT_EQ(terraingen::DefaultBackend(), Backend::Gpu);
+    setenv("TERRAINGEN_BACKEND", "opencl", 1);
     EXPECT_THROW(terraingen::DefaultBackend(), std::invalid_argument);
     terraingen::SetDefaultBackend(Backend::Cpu);
     EXPECT_EQ(terraingen::DefaultBackend(), Backend::Cpu);
 }
 
-TEST(Backends, ReportTheCpuAndWhetherVulkanRuns) {
+TEST(Backends, ReportTheCpuThenEachGpuBackendWithItsDeviceOrWhyNot) {
     const auto statuses = terraingen::Backends();
-    ASSERT_EQ(statuses.size(), 2u);
+    ASSERT_EQ(statuses.size(), 4u);
     EXPECT_EQ(statuses[0].backend, Backend::Cpu);
     EXPECT_TRUE(statuses[0].available);
     EXPECT_EQ(statuses[1].backend, Backend::Vulkan);
-    const terraingen::VulkanCompute* compute = terraingen::VulkanCompute::Get();
-    EXPECT_EQ(statuses[1].available, compute != nullptr);
-    if (compute != nullptr) {
-        EXPECT_EQ(statuses[1].device, compute->DeviceName());
-        EXPECT_FALSE(statuses[1].device.empty());
-        EXPECT_TRUE(statuses[1].reason.empty());
-    } else {
-        EXPECT_FALSE(statuses[1].reason.empty());
+    EXPECT_EQ(statuses[2].backend, Backend::Cuda);
+    EXPECT_EQ(statuses[3].backend, Backend::Metal);
+    const terraingen::VulkanCompute* vulkan = terraingen::VulkanCompute::Get();
+    EXPECT_EQ(statuses[1].available, vulkan != nullptr);
+    if (vulkan != nullptr) {
+        EXPECT_EQ(statuses[1].device, vulkan->DeviceName());
+    }
+    if (const terraingen::CudaCompute* cuda = terraingen::CudaCompute::Get();
+        statuses[2].available) {
+        ASSERT_NE(cuda, nullptr);
+        EXPECT_EQ(statuses[2].device, cuda->DeviceName());
+    }
+#if !defined(__APPLE__)
+    EXPECT_FALSE(statuses[3].available);
+    EXPECT_EQ(statuses[3].reason, "Metal runs only on Apple platforms");
+#endif
+    for (const terraingen::BackendStatus& status : statuses) {
+        EXPECT_EQ(status.device.empty(), !status.available)
+            << terraingen::BackendName(status.backend);
+        EXPECT_EQ(status.reason.empty(), status.available)
+            << terraingen::BackendName(status.backend);
     }
 }
 
-TEST(ResolveBackend, PicksVulkanWhenItRunsAndOtherwiseTheCpu) {
+TEST(ResolveBackend, PicksTheBestGpuBackendAndOtherwiseTheCpu) {
     EXPECT_EQ(terraingen::ResolveBackend(Backend::Cpu), Backend::Cpu);
-    if (terraingen::VulkanCompute::Get() != nullptr) {
-        EXPECT_EQ(terraingen::ResolveBackend(Backend::Auto), Backend::Vulkan);
-        EXPECT_EQ(terraingen::ResolveBackend(Backend::Vulkan), Backend::Vulkan);
-    } else {
-        EXPECT_EQ(terraingen::ResolveBackend(Backend::Auto), Backend::Cpu);
-        EXPECT_THROW(terraingen::ResolveBackend(Backend::Vulkan), std::runtime_error);
+    std::optional<Backend> best;
+    for (const Backend backend : {Backend::Metal, Backend::Cuda, Backend::Vulkan}) {
+        const auto statuses = terraingen::Backends();
+        const auto status = std::find_if(statuses.begin(), statuses.end(),
+                                         [&](const auto& s) { return s.backend == backend; });
+        if (status->available) {
+            EXPECT_EQ(terraingen::ResolveBackend(backend), backend);
+            best = best.value_or(backend);
+        } else {
+            EXPECT_THROW(terraingen::ResolveBackend(backend), std::runtime_error);
+        }
     }
+    if (best) {
+        EXPECT_EQ(terraingen::ResolveBackend(Backend::Gpu), *best);
+        EXPECT_EQ(terraingen::ResolveBackend(Backend::Auto), *best);
+    } else {
+        EXPECT_THROW(terraingen::ResolveBackend(Backend::Gpu), std::runtime_error);
+        EXPECT_EQ(terraingen::ResolveBackend(Backend::Auto), Backend::Cpu);
+    }
+}
+
+TEST(DescribeBackend, NamesTheVulkanDeviceWhenThereIsOne) {
+    EXPECT_EQ(terraingen::DescribeBackend(Backend::Cpu), "cpu");
+    EXPECT_EQ(terraingen::DescribeBackend(Backend::Auto), "auto");
+    EXPECT_EQ(terraingen::DescribeBackend(Backend::Gpu), "gpu");
+    const terraingen::VulkanCompute* compute = terraingen::VulkanCompute::Get();
+    EXPECT_EQ(terraingen::DescribeBackend(Backend::Vulkan),
+              compute != nullptr ? "vulkan (" + compute->DeviceName() + ")" : "vulkan");
+}
+
+TEST(CudaCompute, OpensOnceAndExplainsWhyItIsUnavailable) {
+    EXPECT_EQ(terraingen::CudaCompute::Get(), terraingen::CudaCompute::Get());
+    EXPECT_EQ(terraingen::CudaCompute::Reason().empty(), terraingen::CudaCompute::Get() != nullptr);
+}
+
+TEST(MetalCompute, OpensOnlyOnApplePlatforms) {
+#if defined(__APPLE__)
+    EXPECT_EQ(terraingen::MetalCompute::Reason().empty(),
+              terraingen::MetalCompute::Get() != nullptr);
+#else
+    EXPECT_EQ(terraingen::MetalCompute::Get(), nullptr);
+    EXPECT_EQ(terraingen::MetalCompute::Reason(), "Metal runs only on Apple platforms");
+#endif
 }

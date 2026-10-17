@@ -111,6 +111,7 @@ struct GuiApp::State {
     ernie::Scene scene;
     std::optional<ernie::app::Viewer> viewer;
     unsigned threads = 0;
+    std::optional<Backend> backend;
     std::string config = kStarterConfig;  ///< The configuration as text, as the JSON tab shows.
     nlohmann::ordered_json document;      ///< `config` parsed, keys in file order.
     std::string parseError;               ///< Why `config` does not parse; empty when it does.
@@ -162,7 +163,7 @@ struct GuiApp::State {
             std::ostringstream text;
             text.precision(3);
             text << "Generated " << shown.heights.Width() << " x " << shown.heights.Height()
-                 << " in " << done.seconds << " s";
+                 << " in " << done.seconds << " s on " << DescribeBackend(t.backend);
             Report(ernie::app::LogLevel::Info, text.str());
             Shown();
         } catch (const std::exception& error) {
@@ -181,6 +182,7 @@ struct GuiApp::State {
 GuiApp::GuiApp(const GuiAppOptions& options) : state_(std::make_unique<State>()) {
     State& s = *state_;
     s.threads = options.threads;
+    s.backend = options.backend;
     SetUpScene(s.scene);
     ernie::app::ViewerOptions viewerOptions;
     viewerOptions.title = options.title;
@@ -308,9 +310,10 @@ void GuiApp::Generate() {
         const TerrainConfig config = ParseConfig(s.config);
         const std::filesystem::path directory = s.configFile.parent_path();
         const unsigned threads = s.threads;
-        s.generation = std::async(std::launch::async, [config, directory, threads] {
+        const std::optional<Backend> backend = s.backend;
+        s.generation = std::async(std::launch::async, [config, directory, threads, backend] {
             const auto start = std::chrono::steady_clock::now();
-            Generated done{GenerateTerrain(config, directory, threads), 0.0};
+            Generated done{GenerateTerrain(config, directory, threads, backend), 0.0};
             done.seconds =
                 std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
             return done;

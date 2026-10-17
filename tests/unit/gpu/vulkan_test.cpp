@@ -6,6 +6,7 @@
 #include <bit>
 #include <cstdint>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 extern "C" {
@@ -76,4 +77,33 @@ TEST(VulkanCompute, RejectsPushConstantsPastTheDeviceLimit) {
                      {terraingen_test_hash_conformance, terraingen_test_hash_conformance_size},
                      {std::as_writable_bytes(std::span(outputs))}, tooMany, {1u, 1u, 1u}),
                  std::runtime_error);
+}
+
+TEST(PickDevice, PrefersRealGpusAndNeverPicksSoftwareVulkan) {
+    using terraingen::DeviceKind;
+    using terraingen::PickDevice;
+    const std::vector<DeviceKind> mixed{DeviceKind::Cpu, DeviceKind::Integrated,
+                                        DeviceKind::Discrete};
+    EXPECT_EQ(PickDevice(mixed), 2u);
+    const std::vector<DeviceKind> laptop{DeviceKind::Cpu, DeviceKind::Integrated};
+    EXPECT_EQ(PickDevice(laptop), 1u);
+    const std::vector<DeviceKind> cloud{DeviceKind::Other, DeviceKind::Virtual};
+    EXPECT_EQ(PickDevice(cloud), 1u);
+    const std::vector<DeviceKind> odd{DeviceKind::Cpu, DeviceKind::Other};
+    EXPECT_EQ(PickDevice(odd), 1u);
+    const std::vector<DeviceKind> software{DeviceKind::Cpu, DeviceKind::Cpu};
+    EXPECT_FALSE(PickDevice(software).has_value());
+    EXPECT_FALSE(PickDevice({}).has_value());
+}
+
+TEST(VulkanInstallHint, SaysWhatToInstallOnThisPlatform) {
+    const std::string hint = terraingen::VulkanInstallHint();
+#if defined(__APPLE__)
+    EXPECT_NE(hint.find("MoltenVK"), std::string::npos);
+#elif defined(_WIN32)
+    EXPECT_NE(hint.find("driver"), std::string::npos);
+#else
+    EXPECT_NE(hint.find("libvulkan1"), std::string::npos);
+    EXPECT_NE(hint.find("NVIDIA_DRIVER_CAPABILITIES"), std::string::npos);
+#endif
 }
