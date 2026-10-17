@@ -86,7 +86,8 @@ struct LayerChecks {
     const std::vector<Extent>& extents;
     const std::filesystem::path& directory;
     const Surface& surface;
-    bool craters = false;  ///< Whether a crater layer came before.
+    bool craters = false;   ///< Whether a crater layer came before.
+    bool boulders = false;  ///< Whether a boulder layer came before.
     /// Craters the crater layers so far are expected to generate over each extent; empty when
     /// none generate.
     std::vector<double> expectedCraters{};
@@ -240,7 +241,16 @@ void ValidateLayer(const LayerSpec& spec, const std::string& path, LayerChecks& 
                 ValidateNoiseStack(noise.stack, Child(path, "stack"), false);
             },
             [&](const CraterLayerSpec& layer) { ValidateCraters(layer, path, context); },
-            [&](const BoulderLayerSpec& layer) { ValidateBoulders(layer, path, context); },
+            [&](const BoulderLayerSpec& layer) {
+                ValidateBoulders(layer, path, context);
+                context.boulders = true;
+            },
+            [&](const SandShadowLayerSpec& layer) {
+                if (!context.boulders) {
+                    throw ConfigError(path, "sand shadows need a boulder layer before this one");
+                }
+                At(path, [&] { ValidateSandShadowOptions(layer.shadows); });
+            },
             [&](const SecondaryLayerSpec& layer) { ValidateSecondaries(layer, path, context); },
             [&](const RoughnessLayerSpec& layer) {
                 At(path, [&] { ValidateRoughnessOptions(layer.roughness); });
@@ -429,7 +439,8 @@ void ValidateOutput(const PhotometryOutput& output, const std::string& path,
 bool LaysSand(const LayerSpec& layer) {
     return std::holds_alternative<DuneLayerSpec>(layer) ||
            std::holds_alternative<BedformLayerSpec>(layer) ||
-           std::holds_alternative<SandFillLayerSpec>(layer);
+           std::holds_alternative<SandFillLayerSpec>(layer) ||
+           std::holds_alternative<SandShadowLayerSpec>(layer);
 }
 
 /// @throws ConfigError under "materials" for invalid options or photometry, or a photometry output
@@ -459,6 +470,11 @@ void ValidateMaterials(const TerrainConfig& config) {
     }
     if (std::any_of(config.layers.begin(), config.layers.end(), LaysSand)) {
         needed.emplace_back(MaterialClass::Sand, "sand");
+    }
+    if (std::any_of(config.layers.begin(), config.layers.end(), [](const LayerSpec& layer) {
+            return std::holds_alternative<BoulderLayerSpec>(layer);
+        })) {
+        needed.emplace_back(MaterialClass::Rock, "rock");
     }
     for (const auto& [material, name] : needed) {
         if (!photometry[static_cast<std::size_t>(material)]) {

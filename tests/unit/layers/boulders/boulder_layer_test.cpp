@@ -8,6 +8,7 @@
 #include <cmath>
 #include <functional>
 #include <memory>
+#include <numbers>
 #include <set>
 #include <stdexcept>
 
@@ -692,4 +693,72 @@ TEST(BoulderLayer, DrawsTiltedShapesThatPointQueriesMatch) {
             ASSERT_EQ(layer.ApplyAt(1.0f, centre.x, centre.y, {0.25}), heights(col, row));
         }
     }
+}
+
+TEST(BoulderLayer, ReportsRockWhereBoulderTopsStandAndNotOnFillets) {
+    BoulderLayerOptions options;
+    options.sizes.coverage = 0.05;
+    options.sizes.minDiameter = 1.0;
+    options.sizes.maxDiameter = 2.0;
+    options.fillet.heightShare = 0.5;
+    options.fillet.widthRatio = 0.3;
+    const BoulderLayer layer(options);
+    EXPECT_EQ(layer.Material(), terraingen::MaterialClass::Rock);
+    const auto boulders = layer.Boulders({-50.0, -50.0, 50.0, 50.0});
+    ASSERT_FALSE(boulders.empty());
+    const Boulder& b = boulders.front();
+    EXPECT_EQ(layer.MaterialCoverAt(b.x, b.y, 0.05, nullptr), 1.0);
+    const double onFillet = 0.5 * b.diameter + 0.15 * b.diameter;
+    double fillet = 1.0;
+    for (int k = 0; k < 8; ++k) {
+        const double turn = 0.25 * std::numbers::pi * k;
+        fillet =
+            std::min(fillet, layer.MaterialCoverAt(b.x + onFillet * std::cos(turn),
+                                                   b.y + onFillet * std::sin(turn), 0.05, nullptr));
+    }
+    EXPECT_EQ(fillet, 0.0);
+    EXPECT_EQ(layer.MaterialCoverAt(b.x, b.y, 10.0, nullptr), 0.0) << "unresolved";
+    EXPECT_EQ(layer.MaterialCoverAt(1e5, 1e5, 0.05, nullptr), 0.0);
+}
+
+TEST(BoulderLayer, ReportsRockOverShapesAndModelFootprints) {
+    BoulderLayerOptions options;
+    options.sizes.coverage = 0.05;
+    options.sizes.minDiameter = 1.0;
+    options.sizes.maxDiameter = 2.0;
+    options.rendering.relief = terraingen::BoulderRelief::Shape;
+    const BoulderLayer shapes(options);
+    const Boulder b = shapes.Boulders({-50.0, -50.0, 50.0, 50.0}).front();
+    EXPECT_EQ(shapes.MaterialCoverAt(b.x, b.y, 0.05, nullptr), 1.0);
+    options.rendering.models.minDiameter = 1.0;
+    const BoulderLayer models(options);
+    const Boulder m = models.Boulders({-50.0, -50.0, 50.0, 50.0}).front();
+    ASSERT_TRUE(m.model);
+    EXPECT_EQ(models.MaterialCoverAt(m.x, m.y, 0.05, nullptr), 1.0);
+    EXPECT_EQ(models.MaterialCoverAt(m.x + 0.51 * m.diameter / std::sqrt(0.5),
+                                     m.y + 0.51 * m.diameter / std::sqrt(0.5), 0.05, nullptr),
+              0.0);
+}
+
+TEST(BoulderLayer, GivesTheSameRockCoverOverAGridAsAtItsPoints) {
+    BoulderLayerOptions options;
+    options.sizes.coverage = 0.1;
+    options.sizes.minDiameter = 0.2;
+    options.sizes.maxDiameter = 2.0;
+    options.rendering.models.minDiameter = 0.8;
+    const BoulderLayer layer(options);
+    const terraingen::RasterGrid grid{160, 120, GeoTransform::NorthUp(-16.0, 12.0, 0.2)};
+    const auto boulders = layer.Boulders(grid.Bounds(), 0.2);
+    ASSERT_TRUE(
+        std::any_of(boulders.begin(), boulders.end(), [](const Boulder& b) { return b.model; }));
+    const Raster<double> cover = layer.MaterialCoverOver(grid, 0.2, nullptr, 3);
+    double rock = 0.0;
+    for (std::size_t row = 0; row < grid.height; ++row) {
+        for (std::size_t col = 0; col < grid.width; ++col) {
+            const auto centre = cover.CellCenter(col, row);
+            ASSERT_EQ(cover(col, row), layer.MaterialCoverAt(centre.x, centre.y, 0.2, nullptr));
+            rock += cover(col, row);
+        }
+    }
+    EXPECT_GT(rock, 100.0);
 }

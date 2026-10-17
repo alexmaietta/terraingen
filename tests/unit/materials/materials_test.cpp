@@ -1,7 +1,9 @@
 #include "terraingen/materials/materials.h"
 
+#include "terraingen/layers/boulders/boulder_layer.h"
 #include "terraingen/layers/dunes.h"
 #include "terraingen/layers/sand_fill.h"
+#include "terraingen/layers/sand_shadow.h"
 
 #include <gtest/gtest.h>
 
@@ -111,6 +113,39 @@ TEST(EvaluateMaterials, GivesEachCellItsSharesSummingToOne) {
         }
     }
     EXPECT_GT(sand, 0.0);
+}
+
+TEST(EvaluateMaterials, FindsBouldersOnceAndAgreesWithPoints) {
+    Terrain terrain = Ground(0.05, 0.0, 0.0);
+    terraingen::BoulderLayerOptions rocks;
+    rocks.sizes.coverage = 0.1;
+    rocks.sizes.minDiameter = 0.1;
+    rocks.sizes.maxDiameter = 1.0;
+    rocks.fillet.heightShare = 0.4;
+    rocks.rendering.relief = terraingen::BoulderRelief::Shape;
+    rocks.rendering.models.minDiameter = 0.6;
+    const auto boulders = std::make_shared<terraingen::BoulderLayer>(rocks);
+    terrain.layers.push_back(boulders);
+    terraingen::SandShadowOptions tails;
+    tails.lengthRatio = 2.0;
+    terrain.layers.push_back(std::make_shared<terraingen::SandShadowLayer>(boulders, tails));
+    const terraingen::RasterGrid grid{64, 48, terraingen::GeoTransform::NorthUp(-1.6, 1.2, 0.05)};
+    const auto bands = terraingen::EvaluateMaterials(terrain, MaterialOptions{}, grid, {0.0, 3});
+    double rock = 0.0;
+    double sand = 0.0;
+    for (std::size_t row = 0; row < grid.height; ++row) {
+        for (std::size_t col = 0; col < grid.width; ++col) {
+            const auto centre = bands[0].CellCenter(col, row);
+            const auto shares = MaterialsAt(terrain, MaterialOptions{}, centre.x, centre.y, 0.05);
+            for (std::size_t k = 0; k < terraingen::kMaterialClasses; ++k) {
+                ASSERT_EQ(bands[k](col, row), static_cast<float>(shares[k]));
+            }
+            rock += shares[Index(MaterialClass::Rock)];
+            sand += shares[Index(MaterialClass::Sand)];
+        }
+    }
+    EXPECT_GT(rock, 50.0);
+    EXPECT_GT(sand, 20.0);
 }
 
 TEST(Photometry, MixesPancamParametersByShare) {

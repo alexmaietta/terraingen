@@ -77,4 +77,20 @@ template <typename Fn> auto WithGround(const PyTerrain* terrain, std::size_t lay
     return fn(static_cast<const Ground*>(&ground));
 }
 
+/// Adds `material` and `material_cover_at` to a class binding of a `MaterialSource` layer.
+template <typename Layer, typename Class> void BindMaterialCover(Class& cls) {
+    cls.def_prop_ro("material", [](const Layer& source) { return source.Material(); });
+    cls.def(
+        "material_cover_at",
+        [](const Layer& source, double x, double y, double spacing, const PyTerrain* terrain,
+           std::size_t layers) {
+            return WithGround(terrain, layers, [&](const Ground* ground) {
+                return source.MaterialCoverAt(x, y, spacing, ground);
+            });
+        },
+        "x"_a, "y"_a, "spacing"_a = 1.0, "terrain"_a = nb::none(), "layers"_a = 0,
+        "How fully the layer covers (x, y) with its material, in [0, 1]; layers that read the "
+        "ground need `terrain`'s source and its first `layers` layers.");
+}
+
 }  // namespace terraingen::python

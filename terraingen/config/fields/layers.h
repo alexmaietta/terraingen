@@ -239,6 +239,34 @@ template <typename IO> void Fields(IO& io, StrataLayerSpec& spec) {
     io("anchor_y", strata.anchor.y, "On a body, the latitude in degrees of the anchor.");
 }
 
+template <> struct SpecName<SandShadowLayerSpec> {
+    static constexpr std::string_view kName = "sand_shadow";
+    static constexpr std::string_view kDescription =
+        "Sand shadows: a tapering sand tail in the lee of each boulder of the nearest boulder "
+        "layer before this one; lays sand over the material map.";
+};
+template <typename IO> void Fields(IO& io, SandShadowLayerSpec& spec) {
+    SandShadowOptions& shadows = spec.shadows;
+    io("wind_azimuth", shadows.windAzimuth,
+       "Where the wind blows toward, in radians counter-clockwise from +x (local east on a "
+       "body).",
+       "rad");
+    io("length_ratio", shadows.lengthRatio,
+       "Length of a tail beyond its boulder over the boulder's width; 1.1 is the reattachment "
+       "length behind a dome, and modelled shadow dunes run 1.3 to 5.6, longer in lighter "
+       "winds.");
+    io("flank_angle", shadows.flankAngle,
+       "Slope of a tail's flanks, in radians, at most the angle of repose (about 32 deg for dry "
+       "sand); sets the tail's height with the boulder's width.",
+       "rad");
+    io("min_diameter", shadows.minDiameter, "Smallest boulder with a tail, in metres.", "m");
+    io("cover_thickness", shadows.coverThickness,
+       "Sand depth that fully covers the ground in the material map, in metres.", "m");
+    io("fade", shadows.fade,
+       "How tails behind boulders too small for the sample spacing fade out, by samples across "
+       "the boulder.");
+}
+
 template <> struct SpecName<SandFillLayerSpec> {
     static constexpr std::string_view kName = "sand_fill";
     static constexpr std::string_view kDescription =

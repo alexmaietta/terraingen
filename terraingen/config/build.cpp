@@ -270,12 +270,13 @@ Vec2d ReferencePoint(const Terrain& terrain) {
     return terrain.source ? terrain.source->ReferencePoint() : Vec2d{};
 }
 
-/// What a layer is built on: the base's reference point, the last top-level crater layer so far
-/// (for boulder ejecta and secondaries) and the surface.
+/// What a layer is built on: the base's reference point, the last top-level crater and boulder
+/// layers so far (for boulder ejecta, secondaries and sand shadows) and the surface.
 struct LayerInputs {
     Vec2d referencePoint;
     const std::filesystem::path& directory;
     const std::shared_ptr<const CraterLayer>& craters;
+    const std::shared_ptr<const BoulderLayer>& boulders;
     const Surface& surface;
 };
 
@@ -332,6 +333,9 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
             },
             [&](const StrataLayerSpec& s) -> LayerPtr {
                 return std::make_shared<StrataLayer>(s.strata, surface);
+            },
+            [&](const SandShadowLayerSpec& s) -> LayerPtr {
+                return std::make_shared<SandShadowLayer>(context.boulders, s.shadows, surface);
             },
             [&](const SandFillLayerSpec& s) -> LayerPtr {
                 return std::make_shared<SandFillLayer>(s.sandFill, surface);
@@ -596,11 +600,16 @@ Terrain BuildValidTerrain(const TerrainConfig& config, const std::filesystem::pa
         terrain.source = BuildSource(*config.base, directory, terrain.surface);
     }
     std::shared_ptr<const CraterLayer> craters;
+    std::shared_ptr<const BoulderLayer> boulders;
     for (std::size_t i = 0; i < config.layers.size(); ++i) {
-        const LayerInputs context{ReferencePoint(terrain), directory, craters, terrain.surface};
+        const LayerInputs context{ReferencePoint(terrain), directory, craters, boulders,
+                                  terrain.surface};
         terrain.layers.push_back(BuildLayer(config.layers[i], Element("layers", i), context));
         if (std::holds_alternative<CraterLayerSpec>(config.layers[i])) {
             craters = std::static_pointer_cast<const CraterLayer>(terrain.layers.back());
+        }
+        if (std::holds_alternative<BoulderLayerSpec>(config.layers[i])) {
+            boulders = std::static_pointer_cast<const BoulderLayer>(terrain.layers.back());
         }
     }
     return terrain;

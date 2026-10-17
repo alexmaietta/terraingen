@@ -7,8 +7,10 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <optional>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 namespace terraingen {
 
@@ -33,6 +35,22 @@ std::size_t BareLayers(const Terrain& terrain) {
     return n;
 }
 
+/// The shares before any material layer: soil, bedrock where `bare` is exposed and dust patches.
+MaterialShares GroundShares(const Terrain& terrain, const MaterialOptions& options,
+                            const ExposureField* field, const Ground& bare, double x, double y,
+                            double spacing) {
+    MaterialShares shares = SoilShares();
+    if (field != nullptr) {
+        CoverWith(shares, MaterialClass::Bedrock, field->Exposure(bare, x, y, spacing));
+    }
+    if (options.dustCover > 0.0) {
+        const double noise = PatchNoise(terrain.surface, x, y, options.dustPatch, options.seed);
+        const double threshold = 1.0 - 2.0 * options.dustCover;
+        CoverWith(shares, MaterialClass::Dust, Smoothstep((noise - threshold) / kDustEdge));
+    }
+    return shares;
+}
+
 }  // namespace
 
 void ValidateMaterialOptions(const MaterialOptions& options) {
@@ -50,17 +68,13 @@ MaterialShares MaterialsAt(const Terrain& terrain, const MaterialOptions& option
     ValidateMaterialOptions(options);
     ValidateTerrain(terrain);
     RequirePositive(spacing, "Material spacing");
-    MaterialShares shares = SoilShares();
+    std::optional<ExposureField> field;
     if (options.exposure) {
-        const ExposureField field(*options.exposure, terrain.surface);
-        const TerrainGround bare(terrain, BareLayers(terrain));
-        CoverWith(shares, MaterialClass::Bedrock, field.Exposure(bare, x, y, spacing));
+        field.emplace(*options.exposure, terrain.surface);
     }
-    if (options.dustCover > 0.0) {
-        const double noise = PatchNoise(terrain.surface, x, y, options.dustPatch, options.seed);
-        const double threshold = 1.0 - 2.0 * options.dustCover;
-        CoverWith(shares, MaterialClass::Dust, Smoothstep((noise - threshold) / kDustEdge));
-    }
+    const TerrainGround bare(terrain, BareLayers(terrain));
+    MaterialShares shares =
+        GroundShares(terrain, options, field ? &*field : nullptr, bare, x, y, spacing);
     for (std::size_t n = 0; n < terrain.layers.size(); ++n) {
         const auto* source = dynamic_cast<const MaterialSource*>(terrain.layers[n].get());
         if (source == nullptr) {
@@ -79,12 +93,30 @@ std::vector<Raster<float>> EvaluateMaterials(const Terrain& terrain, const Mater
     ValidateTerrain(terrain);
     RequireNonNegative(evaluation.spacing, "Material spacing");
     const double spacing = std::max(evaluation.spacing, grid.Spacing(terrain.surface));
+    std::vector<std::pair<MaterialClass, Raster<double>>> covers;
+    for (std::size_t n = 0; n < terrain.layers.size(); ++n) {
+        const auto* source = dynamic_cast<const MaterialSource*>(terrain.layers[n].get());
+        if (source != nullptr) {
+            const TerrainGround beneath(terrain, n);
+            covers.emplace_back(
+                source->Material(),
+                source->MaterialCoverOver(grid, spacing, &beneath, evaluation.threads));
+        }
+    }
+    std::optional<ExposureField> field;
+    if (options.exposure) {
+        field.emplace(*options.exposure, terrain.surface);
+    }
+    const TerrainGround bare(terrain, BareLayers(terrain));
     std::vector<Raster<float>> bands(kMaterialClasses, grid.MakeRaster());
     ParallelFor(grid.height, evaluation.threads, [&](std::size_t row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
             const Vec2d centre = bands[0].CellCenter(col, row);
-            const MaterialShares shares =
-                MaterialsAt(terrain, options, centre.x, centre.y, spacing);
+            MaterialShares shares = GroundShares(terrain, options, field ? &*field : nullptr, bare,
+                                                 centre.x, centre.y, spacing);
+            for (const auto& [material, cover] : covers) {
+                CoverWith(shares, material, cover(col, row));
+            }
             for (std::size_t k = 0; k < kMaterialClasses; ++k) {
                 bands[k](col, row) = static_cast<float>(shares[k]);
             }

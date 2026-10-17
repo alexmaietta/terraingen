@@ -143,6 +143,26 @@ const PathCase kPathCases[] = {
              {"p.tif", terraingen::TiffCompression::Lzw, 256, terraingen::testing::SmallRegion()}});
      },
      "materials.photometry.bedrock"},
+    {"SandShadowWithoutBoulders",
+     [](TerrainConfig& c) { c.layers.push_back(terraingen::SandShadowLayerSpec{}); }, "layers[2]"},
+    {"SandShadowWithoutLength",
+     [](TerrainConfig& c) {
+         c.layers.push_back(terraingen::BoulderLayerSpec{});
+         terraingen::SandShadowLayerSpec shadows;
+         shadows.shadows.lengthRatio = 0.0;
+         c.layers.push_back(shadows);
+     },
+     "layers[3]"},
+    {"PhotometryNeedsRockUnderBoulders",
+     [](TerrainConfig& c) {
+         c.materials = terraingen::MaterialsSpec{};
+         c.materials->options.exposure.reset();
+         c.materials->photometry.classes[0] = terraingen::HapkeParameters{0.7, 0.3, 0.5, 10.0};
+         c.layers.push_back(terraingen::BoulderLayerSpec{});
+         c.outputs.push_back(terraingen::PhotometryOutput{
+             {"p.tif", terraingen::TiffCompression::Lzw, 256, terraingen::testing::SmallRegion()}});
+     },
+     "materials.photometry.rock"},
     {"SandFillWithoutReach",
      [](TerrainConfig& c) { c.layers.push_back(terraingen::SandFillLayerSpec{{0.0}}); },
      "layers[2]"},

@@ -8,6 +8,7 @@
 #include "terraingen/layers/boulders/boulder_models.h"
 #include "terraingen/layers/boulders/boulder_options.h"
 #include "terraingen/layers/boulders/boulder_shape.h"
+#include "terraingen/layers/sand_shadow.h"
 
 #include <memory>
 #include <utility>
@@ -294,42 +295,49 @@ void BindLayerOptions(nb::module_& m) {
 }
 
 void BindLayer(nb::module_& m) {
-    nb::class_<BoulderLayer, Layer>(m, "BoulderLayer",
-                                    "Boulders drawn into the heights, the largest optionally "
-                                    "placed as 3D boulder models; `craters` supplies the craters "
-                                    "that throw ejecta boulders.")
-        .def(nb::init<BoulderLayerOptions, std::shared_ptr<CraterLayer>, Surface>(),
-             "options"_a = BoulderLayerOptions{}, "craters"_a = nb::none(), "surface"_a = Surface{})
-        .def(
-            "boulders",
-            [](const BoulderLayer& layer, const Bounds2d& region, double spacing) {
-                return BoulderTable(layer.Boulders(region, spacing));
-            },
-            "region"_a, "spacing"_a = 0.0,
-            "The boulders over `region` (min_x, min_y, max_x, max_y) as NumPy columns, without "
-            "evaluating any heights or ground.")
-        .def(
-            "abundance_at",
-            [](const BoulderLayer& layer, double x, double y, const PyTerrain* terrain,
-               std::size_t layers) {
-                const BoulderAbundance abundance = WithGround(
-                    terrain, layers, [&](const Ground* g) { return layer.AbundanceAt(x, y, g); });
-                return std::pair{abundance.background, abundance.ejecta};
-            },
-            "x"_a, "y"_a, "terrain"_a = nb::none(), "layers"_a = 0,
-            "The boulder abundance at (x, y): (background, ejecta). With the exposure field, give "
-            "the ground beneath the boulders: `terrain`'s source and its first `layers` layers.")
-        .def(
-            "density_at",
-            [](const BoulderLayer& layer, double diameter, double x, double y,
-               const PyTerrain* terrain, std::size_t layers) {
-                return WithGround(terrain, layers, [&](const Ground* g) {
-                    return layer.DensityAt(diameter, x, y, g);
-                });
-            },
-            "diameter"_a, "x"_a, "y"_a, "terrain"_a = nb::none(), "layers"_a = 0,
-            "Boulders at least `diameter` across per square metre at (x, y).")
-        .def_prop_ro("options", &BoulderLayer::Options);
+    auto boulderLayer =
+        nb::class_<BoulderLayer, Layer>(
+            m, "BoulderLayer",
+            "Boulders drawn into the heights, the largest optionally "
+            "placed as 3D boulder models; `craters` supplies the craters "
+            "that throw ejecta boulders.")
+            .def(nb::init<BoulderLayerOptions, std::shared_ptr<CraterLayer>, Surface>(),
+                 "options"_a = BoulderLayerOptions{}, "craters"_a = nb::none(),
+                 "surface"_a = Surface{})
+            .def(
+                "boulders",
+                [](const BoulderLayer& layer, const Bounds2d& region, double spacing) {
+                    return BoulderTable(layer.Boulders(region, spacing));
+                },
+                "region"_a, "spacing"_a = 0.0,
+                "The boulders over `region` (min_x, min_y, max_x, max_y) as NumPy columns, without "
+                "evaluating any heights or ground.")
+            .def(
+                "abundance_at",
+                [](const BoulderLayer& layer, double x, double y, const PyTerrain* terrain,
+                   std::size_t layers) {
+                    const BoulderAbundance abundance =
+                        WithGround(terrain, layers,
+                                   [&](const Ground* g) { return layer.AbundanceAt(x, y, g); });
+                    return std::pair{abundance.background, abundance.ejecta};
+                },
+                "x"_a, "y"_a, "terrain"_a = nb::none(), "layers"_a = 0,
+                "The boulder abundance at (x, y): (background, ejecta). With the exposure field, "
+                "give "
+                "the ground beneath the boulders: `terrain`'s source and its first `layers` "
+                "layers.")
+            .def(
+                "density_at",
+                [](const BoulderLayer& layer, double diameter, double x, double y,
+                   const PyTerrain* terrain, std::size_t layers) {
+                    return WithGround(terrain, layers, [&](const Ground* g) {
+                        return layer.DensityAt(diameter, x, y, g);
+                    });
+                },
+                "diameter"_a, "x"_a, "y"_a, "terrain"_a = nb::none(), "layers"_a = 0,
+                "Boulders at least `diameter` across per square metre at (x, y).")
+            .def_prop_ro("options", &BoulderLayer::Options);
+    BindMaterialCover<BoulderLayer>(boulderLayer);
     m.def("add_boulder", &AddBoulder, "height"_a, "x"_a, "y"_a, "boulder"_a, "weight"_a = 1.0,
           "surface"_a = Surface{}, "width"_a = 0.0,
           "`height` at (x, y) with `boulder` drawn into it at `weight`, its dome averaged over "
@@ -373,6 +381,45 @@ void BindModels(nb::module_& m) {
           "The height of a placed mesh's top above (x, y), or None outside it.");
 }
 
+void BindSandShadows(nb::module_& m) {
+    auto options = nb::class_<SandShadowOptions>(
+        m, "SandShadowOptions",
+        "Sand tails behind boulders: blown toward `wind_azimuth`, `length_ratio` boulder widths "
+        "long, flanks at `flank_angle`; angles in radians.");
+    BindKwargsInit<SandShadowOptions>(options);
+    options.def_rw("wind_azimuth", &SandShadowOptions::windAzimuth)
+        .def_rw("length_ratio", &SandShadowOptions::lengthRatio)
+        .def_rw("flank_angle", &SandShadowOptions::flankAngle)
+        .def_rw("min_diameter", &SandShadowOptions::minDiameter)
+        .def_rw("cover_thickness", &SandShadowOptions::coverThickness)
+        .def_rw("fade", &SandShadowOptions::fade);
+    m.def("validate_sand_shadow_options", &ValidateSandShadowOptions, "options"_a,
+          "Raises ValueError for invalid options.");
+    auto layer = nb::class_<SandShadowLayer, Layer>(m, "SandShadowLayer",
+                                                    "Sand tails in the lee of boulders.");
+    layer
+        .def(
+            "__init__",
+            [](SandShadowLayer* self, std::shared_ptr<BoulderLayer> boulders,
+               const SandShadowOptions& shadowOptions, const Surface& surface) {
+                new (self) SandShadowLayer(std::move(boulders), shadowOptions, surface);
+            },
+            "boulders"_a, "options"_a = SandShadowOptions{}, "surface"_a = Surface{})
+        .def(
+            "thickness_at",
+            [](const SandShadowLayer& shadows, double x, double y, double spacing,
+               const PyTerrain* terrain, std::size_t layers) {
+                return WithGround(terrain, layers, [&](const Ground* ground) {
+                    return shadows.ThicknessAt(x, y, spacing, ground);
+                });
+            },
+            "x"_a, "y"_a, "spacing"_a = 0.0, "terrain"_a = nb::none(), "layers"_a = 0,
+            "The sand depth at (x, y) in metres; with the boulders' exposure field, give the "
+            "ground: `terrain`'s source and its first `layers` layers.")
+        .def_prop_ro("options", &SandShadowLayer::Options);
+    BindMaterialCover<SandShadowLayer>(layer);
+}
+
 }  // namespace
 
 void BindBoulders(nb::module_& m) {
@@ -384,6 +431,7 @@ void BindBoulders(nb::module_& m) {
     BindRendering(m);
     BindLayerOptions(m);
     BindLayer(m);
+    BindSandShadows(m);
     BindPlacement(m);
     BindModels(m);
 }

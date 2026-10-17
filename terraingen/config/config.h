@@ -23,6 +23,7 @@
 #include "terraingen/layers/region.h"
 #include "terraingen/layers/roughness.h"
 #include "terraingen/layers/sand_fill.h"
+#include "terraingen/layers/sand_shadow.h"
 #include "terraingen/layers/strata.h"
 #include "terraingen/materials/materials.h"
 #include "terraingen/noise/noise_layers.h"
@@ -350,6 +351,14 @@ struct StrataLayerSpec {
     bool operator==(const StrataLayerSpec&) const = default;
 };
 
+/// Layer "sand_shadow": sand tails in the lee of the boulders of the nearest boulder layer before
+/// it (`SandShadowLayer`); angles in radians.
+struct SandShadowLayerSpec {
+    SandShadowOptions shadows{};
+
+    bool operator==(const SandShadowLayerSpec&) const = default;
+};
+
 /// Layer "sand_fill": sand pooled in the lows of the ground beneath it (`SandFillLayer`).
 struct SandFillLayerSpec {
     SandFillOptions sandFill{};
@@ -463,7 +472,7 @@ using LayerSpec =
     std::variant<NoiseLayerSpec, CraterLayerSpec, BoulderLayerSpec, RoughnessLayerSpec,
                  BedformLayerSpec, ScaleLayerSpec, ClampLayerSpec, RegionLayerSpec,
                  SecondaryLayerSpec, DemDetailLayerSpec, DuneLayerSpec, SandFillLayerSpec,
-                 PavementLayerSpec, StrataLayerSpec>;
+                 PavementLayerSpec, StrataLayerSpec, SandShadowLayerSpec>;
 
 /// Layer "region": `layer` applied only inside `shape` (`RegionLayer`). Boulder ejecta do
 /// not see crater layers inside regions.

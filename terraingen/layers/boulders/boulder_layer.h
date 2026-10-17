@@ -12,6 +12,7 @@
 #include "terraingen/layers/craters/generation/cell_cache.h"
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/layer.h"
+#include "terraingen/layers/material.h"
 #include "terraingen/util/lru_cache.h"
 
 #include <cstdint>
@@ -38,7 +39,7 @@ struct BoulderAbundance {
 ///
 /// Candidates are drawn per cell in size bands and thinned by a uniform keyed by each ID, so
 /// boulders depend only on position and agree on every grid, tile and point.
-class BoulderLayer final : public Layer, public BoulderPlacer {
+class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSource {
   public:
     /// On a sphere, candidates are drawn in `CubeSphereCells`, distances are great-circle, and
     /// relief and model placements are in each boulder's local east, north and up frame, its
@@ -92,6 +93,18 @@ class BoulderLayer final : public Layer, public BoulderPlacer {
     BoulderFeatures BouldersOver(const RasterGrid& grid, double spacing,
                                  const Ground* ground) const override;
 
+    MaterialClass Material() const override {
+        return MaterialClass::Rock;
+    }
+    /// The weight at `spacing` of the boulder whose rock stands at surface (x, y), a model's over
+    /// its footprint; 0 between boulders and on fillets.
+    /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
+    double MaterialCoverAt(double x, double y, double spacing, const Ground* ground) const override;
+    /// `MaterialCoverAt` over `grid`, the boulders found once for the whole grid.
+    /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
+    Raster<double> MaterialCoverOver(const RasterGrid& grid, double spacing, const Ground* ground,
+                                     unsigned threads) const override;
+
   protected:
     /// Draws the exposed parts of non-model boulders into the samples.
     /// @throws std::invalid_argument if the exposure field is enabled and `context.ground` is null.
@@ -127,6 +140,10 @@ class BoulderLayer final : public Layer, public BoulderPlacer {
     /// dome is averaged over `width` metres, and without `rock` only the fillet is drawn.
     float AddRelief(float height, float base, double x, double y, const Boulder& boulder,
                     const TriangleMesh* placed, double weight, bool rock, double width) const;
+    /// The height of `boulder`'s exposed rock above the ground at (`x`, `y`), 0 off it; `placed`
+    /// and `width` as in `AddRelief`.
+    double RockRelief(double x, double y, const Boulder& boulder, const TriangleMesh* placed,
+                      double width) const;
     /// `boulder` in its local frame: centred at the origin on a sphere, unchanged on a plane.
     Boulder InLocalFrame(const Boulder& boulder) const;
     /// `boulder`'s shape placed on level ground at 0.

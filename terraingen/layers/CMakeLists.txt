@@ -13,6 +13,7 @@ terraingen_add_library(
     region.cpp
     roughness.cpp
     sand_fill.cpp
+    sand_shadow.cpp
     strata.cpp
     sample_block.cpp
     transforms.cpp

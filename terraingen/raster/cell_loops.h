@@ -71,8 +71,8 @@ struct FeatureCell {
 /// (`WindowsAround`); windows of one feature must not overlap.
 /// @param visit `visit(cell, at)` with `cell` the value to read and update and `at` its
 /// `FeatureCell`.
-template <typename WindowsOf, typename Visit>
-void ForEachFeatureCell(Raster<float>& raster, unsigned threads, std::size_t featureCount,
+template <typename T, typename WindowsOf, typename Visit>
+void ForEachFeatureCell(Raster<T>& raster, unsigned threads, std::size_t featureCount,
                         const WindowsOf& windowsOf, const Visit& visit) {
     const std::size_t bands = (raster.Height() + kBandRows - 1) / kBandRows;
     ParallelFor(bands, threads, [&](std::size_t band) {
@@ -85,7 +85,7 @@ void ForEachFeatureCell(Raster<float>& raster, unsigned threads, std::size_t fea
                 const std::size_t rowEnd = std::min(bandEnd, window.rowEnd);
                 for (std::size_t row = std::max(bandBegin, window.rowBegin); row < rowEnd; ++row) {
                     for (std::size_t col = window.colBegin; col < window.colEnd; ++col) {
-                        float& cell = raster(col, row);
+                        T& cell = raster(col, row);
                         if (!raster.IsNoData(cell)) {
                             visit(cell, FeatureCell{n, w, col, row, raster.CellCenter(col, row)});
                         }

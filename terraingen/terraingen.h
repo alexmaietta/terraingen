@@ -77,6 +77,7 @@
 #include "terraingen/layers/roughness.h"
 #include "terraingen/layers/sample_block.h"
 #include "terraingen/layers/sand_fill.h"
+#include "terraingen/layers/sand_shadow.h"
 #include "terraingen/layers/strata.h"
 #include "terraingen/layers/transforms.h"
 #include "terraingen/materials/materials.h"

@@ -1,0 +1,62 @@
+{
+    "schema_version": 1,
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 5,
+                    "wavelength": 30,
+                    "amplitude": 0.4,
+                    "octaves": 5
+                }
+            ]
+        },
+        {
+            "type": "boulders",
+            "seed": 3,
+            "coverage": 0.08,
+            "min_diameter": 0.2,
+            "max_diameter": 2
+        },
+        {
+            "type": "sand_shadow",
+            "wind_azimuth": 0.5,
+            "length_ratio": 2.0
+        }
+    ],
+    "materials": {
+        "photometry": {
+            "reference": "mars_pancam"
+        }
+    },
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_planets_mars_sand_shadows.tif",
+            "region": {
+                "width": 257,
+                "height": 257,
+                "pixel_size": 0.04
+            }
+        },
+        {
+            "type": "materials",
+            "path": "example_planets_mars_sand_shadows_materials.tif",
+            "region": {
+                "width": 257,
+                "height": 257,
+                "pixel_size": 0.04
+            }
+        },
+        {
+            "type": "photometry",
+            "path": "example_planets_mars_sand_shadows_photometry.tif",
+            "region": {
+                "width": 257,
+                "height": 257,
+                "pixel_size": 0.04
+            }
+        }
+    ]
+}

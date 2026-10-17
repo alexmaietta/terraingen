@@ -358,3 +358,26 @@ def test_strata_terrace_hills_into_benches_and_cliffs():
     )
     assert config.to_dict()["layers"][0]["bed_thickness"] == 3.0
     config.validate()
+
+
+def test_sand_shadows_trail_boulders_and_boulders_are_rock():
+    boulders = terraingen.BoulderLayer(
+        terraingen.BoulderLayerOptions(coverage=0.05, min_diameter=1.0, max_diameter=2.0)
+    )
+    table = boulders.boulders((-50.0, -50.0, 50.0, 50.0))
+    x, y, d = table["x"][0], table["y"][0], table["diameter"][0]
+    assert boulders.material == terraingen.MaterialClass.ROCK
+    assert boulders.material_cover_at(x, y, 0.05) == 1.0
+    shadows = terraingen.SandShadowLayer(boulders, terraingen.SandShadowOptions(length_ratio=2.0))
+    assert shadows.material == terraingen.MaterialClass.SAND
+    assert shadows.thickness_at(x + 0.5 * d + 0.01, y) > 0.0
+    with pytest.raises(ValueError):
+        terraingen.SandShadowLayer(boulders, terraingen.SandShadowOptions(length_ratio=0.0))
+    config = terraingen.Config.from_dict(
+        {
+            "schema_version": 1,
+            "layers": [{"type": "boulders"}, {"type": "sand_shadow", "length_ratio": 2.0}],
+        }
+    )
+    assert config.to_dict()["layers"][1]["length_ratio"] == 2.0
+    config.validate()

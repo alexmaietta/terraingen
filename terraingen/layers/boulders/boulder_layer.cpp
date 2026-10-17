@@ -164,14 +164,7 @@ float BoulderLayer::AddRelief(float height, float base, double x, double y, cons
                               const TriangleMesh* placed, double weight, bool rock,
                               double width) const {
     const Vec2d offset = surface_.Offset({boulder.x, boulder.y}, {x, y});
-    double relief = 0.0;
-    if (rock && placed == nullptr) {
-        relief = DomeHeight(boulder, std::hypot(offset.x, offset.y), width);
-    } else if (rock) {
-        const std::optional<double> top =
-            surface_.IsBody() ? TopSurface(*placed, offset.x, offset.y) : TopSurface(*placed, x, y);
-        relief = top ? std::fmax(*top, 0.0) : 0.0;
-    }
+    const double relief = rock ? RockRelief(x, y, boulder, placed, width) : 0.0;
     double result = static_cast<double>(height);
     if (relief > 0.0) {
         result = std::fmax(result, static_cast<double>(base) + weight * relief);
@@ -184,6 +177,83 @@ float BoulderLayer::AddRelief(float height, float base, double x, double y, cons
         }
     }
     return static_cast<float>(result);
+}
+
+double BoulderLayer::RockRelief(double x, double y, const Boulder& boulder,
+                                const TriangleMesh* placed, double width) const {
+    const Vec2d offset = surface_.Offset({boulder.x, boulder.y}, {x, y});
+    if (placed == nullptr) {
+        return DomeHeight(boulder, std::hypot(offset.x, offset.y), width);
+    }
+    const std::optional<double> top =
+        surface_.IsBody() ? TopSurface(*placed, offset.x, offset.y) : TopSurface(*placed, x, y);
+    return top ? std::fmax(*top, 0.0) : 0.0;
+}
+
+double BoulderLayer::MaterialCoverAt(double x, double y, double spacing,
+                                     const Ground* ground) const {
+    const double rim = options_.rendering.relief == BoulderRelief::Dome ? 0.5 * spacing : 0.0;
+    const std::vector<Boulder> boulders =
+        Boulders(surface_.Expand({x, y, x, y}, rim), spacing, ground);
+    double cover = 0.0;
+    for (const Relief& relief : PrepareRelief(boulders, spacing)) {
+        const TriangleMesh* shape = relief.placed ? &*relief.placed : nullptr;
+        if (relief.rock && RockRelief(x, y, *relief.boulder, shape, relief.width) > 0.0) {
+            cover = std::fmax(cover, relief.weight);
+        }
+    }
+    for (const Boulder& boulder : boulders) {
+        const Vec2d offset = surface_.Offset({boulder.x, boulder.y}, {x, y});
+        if (boulder.model && std::hypot(offset.x, offset.y) < 0.5 * boulder.diameter) {
+            cover = std::fmax(cover, ResolutionWeight(boulder.diameter, spacing, options_.fade));
+        }
+    }
+    return cover;
+}
+
+Raster<double> BoulderLayer::MaterialCoverOver(const RasterGrid& grid, double spacing,
+                                               const Ground* ground, unsigned threads) const {
+    Raster<double> cover(grid.width, grid.height);
+    cover.SetTransform(grid.transform);
+    const double rim = options_.rendering.relief == BoulderRelief::Dome ? 0.5 * spacing : 0.0;
+    const std::vector<Boulder> boulders =
+        Boulders(surface_.Expand(grid.Bounds(), rim), spacing, ground);
+    std::vector<Relief> reliefs = PrepareRelief(boulders, spacing);
+    std::erase_if(reliefs, [](const Relief& relief) { return !relief.rock; });
+    std::vector<std::vector<PixelWindow>> windows;
+    for (const Relief& relief : reliefs) {
+        windows.push_back(WindowsAround(grid, relief.box, surface_));
+    }
+    ForEachFeatureCell(
+        cover, threads, reliefs.size(),
+        [&](std::size_t n) -> const std::vector<PixelWindow>& { return windows[n]; },
+        [&](double& cell, const FeatureCell& at) {
+            const Relief& relief = reliefs[at.feature];
+            const TriangleMesh* shape = relief.placed ? &*relief.placed : nullptr;
+            if (RockRelief(at.centre.x, at.centre.y, *relief.boulder, shape, relief.width) > 0.0) {
+                cell = std::fmax(cell, relief.weight);
+            }
+        });
+    std::vector<const Boulder*> models;
+    windows.clear();
+    for (const Boulder& boulder : boulders) {
+        if (boulder.model) {
+            models.push_back(&boulder);
+            windows.push_back(WindowsAround(
+                grid, ReliefBox(boulder.x, boulder.y, 0.5 * boulder.diameter, surface_), surface_));
+        }
+    }
+    ForEachFeatureCell(
+        cover, threads, models.size(),
+        [&](std::size_t n) -> const std::vector<PixelWindow>& { return windows[n]; },
+        [&](double& cell, const FeatureCell& at) {
+            const Boulder& boulder = *models[at.feature];
+            const Vec2d offset = surface_.Offset({boulder.x, boulder.y}, at.centre);
+            if (std::hypot(offset.x, offset.y) < 0.5 * boulder.diameter) {
+                cell = std::fmax(cell, ResolutionWeight(boulder.diameter, spacing, options_.fade));
+            }
+        });
+    return cover;
 }
 
 double BoulderLayer::OwnMarginRadii() const {

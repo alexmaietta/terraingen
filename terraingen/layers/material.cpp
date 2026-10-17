@@ -1,5 +1,7 @@
 #include "terraingen/layers/material.h"
 
+#include "terraingen/util/parallel.h"
+
 #include <algorithm>
 #include <cstddef>
 
@@ -17,6 +19,19 @@ void CoverWith(MaterialShares& shares, MaterialClass material, double cover) {
         share *= 1.0 - weight;
     }
     shares[static_cast<std::size_t>(material)] += weight;
+}
+
+Raster<double> MaterialSource::MaterialCoverOver(const RasterGrid& grid, double spacing,
+                                                 const Ground* ground, unsigned threads) const {
+    Raster<double> cover(grid.width, grid.height);
+    cover.SetTransform(grid.transform);
+    ParallelFor(grid.height, threads, [&](std::size_t row) {
+        for (std::size_t col = 0; col < grid.width; ++col) {
+            const Vec2d centre = cover.CellCenter(col, row);
+            cover(col, row) = MaterialCoverAt(centre.x, centre.y, spacing, ground);
+        }
+    });
+    return cover;
 }
 
 }  // namespace terraingen

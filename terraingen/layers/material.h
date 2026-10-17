@@ -3,6 +3,8 @@
 #pragma once
 
 #include "terraingen/layers/ground.h"
+#include "terraingen/raster/grid.h"
+#include "terraingen/raster/raster.h"
 
 #include <array>
 #include <cstddef>
@@ -48,6 +50,13 @@ class MaterialSource {
     /// @param ground The terrain beneath the layer; layers that read it need it.
     virtual double MaterialCoverAt(double x, double y, double spacing,
                                    const Ground* ground) const = 0;
+
+    /// `MaterialCoverAt` at every cell centre of `grid`. By default cell by cell; layers that
+    /// place features override it to find them once for the whole grid.
+    /// @param spacing Sample spacing in metres, at least the grid's cell size.
+    /// @param threads Worker threads, 0 for all.
+    virtual Raster<double> MaterialCoverOver(const RasterGrid& grid, double spacing,
+                                             const Ground* ground, unsigned threads) const;
 };
 
 }  // namespace terraingen

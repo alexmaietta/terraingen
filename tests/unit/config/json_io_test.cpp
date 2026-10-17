@@ -170,6 +170,9 @@ TerrainConfig Everything() {
         terraingen::PavementLayerSpec{plates},
         terraingen::StrataLayerSpec{{3.5, 0.2, 0.05, 1.2, 6.0, 0.8, 0.25, 9u, {137.4, -4.6}}},
         terraingen::StrataLayerSpec{},
+        terraingen::SandShadowLayerSpec{
+            {1.2, 2.5, 0.5, 0.3, 0.01, {1.0, 3.0, terraingen::BlendShape::Linear}}},
+        terraingen::SandShadowLayerSpec{},
         roughness,
         terraingen::RoughnessLayerSpec{},
         terraingen::ScaleLayerSpec{1.5, -20.0},
