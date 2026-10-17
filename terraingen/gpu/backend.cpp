@@ -21,7 +21,7 @@ std::atomic<int> gDefault{-1};
 constexpr Backend kGpuBackends[] = {Backend::Metal, Backend::Cuda, Backend::Vulkan};
 
 /// Whether a backend runs here, on which device, or why not. CUDA and Metal also need their
-/// kernels in the build (`TERRAINGEN_CUDA_KERNELS`, `TERRAINGEN_METAL_KERNELS`).
+/// kernels in the build (`TERRAINGEN_HAS_CUDA_KERNELS`, `TERRAINGEN_HAS_METAL_KERNELS`).
 BackendStatus ProbeBackend(Backend backend) {
     BackendStatus status{backend, false, {}, {}};
     const auto from = [&](const auto* compute, const std::string& reason) {
@@ -41,14 +41,15 @@ BackendStatus ProbeBackend(Backend backend) {
         from(VulkanCompute::Get(), VulkanCompute::Reason());
         break;
     case Backend::Cuda:
-        if (TERRAINGEN_CUDA_KERNELS) {
+        if (TERRAINGEN_HAS_CUDA_KERNELS) {
             from(CudaCompute::Get(), CudaCompute::Reason());
         } else {
-            status.reason = "this build has no CUDA kernels (it was built without NVRTC)";
+            status.reason =
+                "this build has no CUDA kernels (NVRTC does not run where it was built)";
         }
         break;
     case Backend::Metal:
-        if (TERRAINGEN_METAL_KERNELS) {
+        if (TERRAINGEN_HAS_METAL_KERNELS) {
             from(MetalCompute::Get(), MetalCompute::Reason());
         } else {
             status.reason = MetalCompute::Reason();

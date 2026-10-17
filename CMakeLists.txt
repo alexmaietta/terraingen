@@ -73,6 +73,7 @@ endif()
 include("${PROJECT_SOURCE_DIR}/cmake/third_party/vulkan_headers.cmake")
 include("${PROJECT_SOURCE_DIR}/cmake/third_party/volk.cmake")
 include("${PROJECT_SOURCE_DIR}/cmake/third_party/slang.cmake")
+include("${PROJECT_SOURCE_DIR}/cmake/third_party/nvrtc.cmake")
 include("${PROJECT_SOURCE_DIR}/cmake/TerrainGenSlang.cmake")
 
 # TERRAINGEN_GUI says whether the GUI is built: asked for, with the app, and Ernie found.

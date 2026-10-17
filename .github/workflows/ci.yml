@@ -35,12 +35,10 @@ jobs:
             os: ubuntu-22.04
             cc: gcc-11
             cxx: g++-11
-            cuda: "ON"
           - name: Ubuntu 22.04 ARM64, GCC 11
             os: ubuntu-22.04-arm
             cc: gcc-11
             cxx: g++-11
-            cuda: "ON"
           - name: Ubuntu 24.04, Clang 18
             os: ubuntu-24.04
             cc: clang-18
@@ -49,7 +47,6 @@ jobs:
             os: macos-14
           - name: Windows 2022, MSVC
             os: windows-2022
-            cuda: "ON"
     env:
       CC: ${{ matrix.cc }}
       CXX: ${{ matrix.cxx }}
@@ -66,11 +63,6 @@ jobs:
 
       - name: Install Python test requirements and Ninja
         run: python -m pip install numpy pytest ninja
-
-      # NVRTC compiles the kernels to PTX for the CUDA backend; jobs without it build without CUDA.
-      - name: Install NVRTC
-        if: matrix.cuda == 'ON'
-        uses: ./.github/actions/install-nvrtc
 
       - name: Install software Vulkan
         if: runner.os == 'Linux'
@@ -93,7 +85,6 @@ jobs:
           cmake -S . -B build -G Ninja
           -DCMAKE_BUILD_TYPE=Release
           -DTERRAINGEN_BUILD_BENCHMARKS=OFF
-          -DTERRAINGEN_CUDA_KERNELS=${{ matrix.cuda || 'AUTO' }}
           -DPython_EXECUTABLE="$(python -c 'import sys; print(sys.executable)')"
           ${{ runner.os != 'Windows' && '-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache' || '' }}
 

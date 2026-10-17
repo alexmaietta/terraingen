@@ -17,8 +17,8 @@ terraingen_add_library(
     terraingen_volk
     ${CMAKE_DL_LIBS})
 target_compile_definitions(
-    terraingen_gpu PRIVATE TERRAINGEN_CUDA_KERNELS=$<BOOL:${TERRAINGEN_HAVE_CUDA_KERNELS}>
-                           TERRAINGEN_METAL_KERNELS=$<BOOL:${TERRAINGEN_HAVE_METAL_KERNELS}>)
+    terraingen_gpu PRIVATE TERRAINGEN_HAS_CUDA_KERNELS=$<BOOL:${TERRAINGEN_HAVE_CUDA_KERNELS}>
+                           TERRAINGEN_HAS_METAL_KERNELS=$<BOOL:${TERRAINGEN_HAVE_METAL_KERNELS}>)
 if(APPLE)
     enable_language(OBJCXX)
     set_source_files_properties(metal.cpp PROPERTIES LANGUAGE OBJCXX COMPILE_OPTIONS -fobjc-arc)
