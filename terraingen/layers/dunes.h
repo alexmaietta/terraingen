@@ -33,8 +33,9 @@ struct DuneRipples {
     /// on flanks; they never grow above `height`.
     double slopeCoupling = 1.0;
     double interduneCover = 0.0;  ///< Share of the ripples' height kept off the dunes, in [0, 1].
-    /// Chance, in [0, 1], that each patch of 8 x 8 wavelengths holds a pair of forked crests.
-    double forks = 0.5;
+    /// Defect density: pairs of crest ends (forked crests, Y-junctions) per metre of crest, as
+    /// Ewing et al. (2010) measure it; 0 for none.
+    double defectDensity = 0.0;
     /// How far crests straighten off the stoss, in [0, 1]: 0 keeps `sinuosity` everywhere, 1
     /// keeps it on flat sand and stoss slopes and takes it away on flanks and lee slopes as steep
     /// as the stoss.
@@ -90,8 +91,13 @@ struct DuneOptions {
     double wavelength = 550.0;
     double height = 20.0;    ///< Crest height (m).
     double sinuosity = 0.3;  ///< How far a crest wanders along its length, in wavelengths.
-    double defects =
-        0.3;  ///< Share of the height that varies along crests, ending some, in [0, 1].
+    /// Share of the height that varies along crests, ending some, in [0, 1].
+    double defects = 0.3;
+    /// Crest-line dunes: pairs of crest ends per metre of crest, as Ewing et al. (2010) measure it;
+    /// crests break into segments that stand above half their height for 1 / `defectDensity`
+    /// metres on average, falling to nothing over a wavelength either side of each break. 0 for
+    /// none.
+    double defectDensity = 0.0;
     double flankSlope = 0.3490658503988659;  ///< Mean flank slope of linear dunes; 20 deg.
 
     std::uint32_t seed = 1;  ///< Varies the dunes and ripples.
@@ -114,6 +120,7 @@ struct DuneOptions {
 void ValidateDuneOptions(const DuneOptions& options);
 
 /// Martian large wind ripples to lay on dunes: 2.1 m wavelength, 0.2 m height and a 30 deg lee;
+/// 0.099 pairs of crest ends per metre, as Olympia Undae's 2.1 m wind ripples (Ewing et al. 2010);
 /// sinuous on stoss slopes and straighter on flanks and lee slopes (Lapotre et al. 2016; Ewing et
 /// al. 2017).
 DuneRipples MarsDuneRipples();
@@ -130,7 +137,8 @@ DuneGrainflows MarsDuneGrainflows();
 DuneOptions MarsBarchans();
 
 /// The transverse dunes of Mars's north polar erg with large ripples: 248 m apart and 28 m high,
-/// with 29 deg slip faces and 8 deg stoss slopes.
+/// with 29 deg slip faces and 8 deg stoss slopes, and the defect density of Olympia Undae's primary
+/// crests, 0.0027 pairs of ends per metre (Ewing et al. 2010).
 DuneOptions MarsTransverseDunes();
 
 /// Wind-blown dunes added to the terrain.
@@ -175,9 +183,12 @@ class DuneLayer final : public FormulaLayer, public MaterialSource {
     double Ripples(const Vec2d& q, double dune) const;
     /// How fully a dune `dune` metres high covers the ground with sand, in [0, 1].
     double SandOf(double dune) const;
-    /// The phase the forked crests near planar point `q` add to the ripples, in wavelengths; `core`
-    /// becomes the weight in [0, 1] that fades the ripples out at the forks' ends.
-    double RippleForks(const Vec2d& q, double& core) const;
+    /// How much of crest `crest` stands at `along` metres along it, in [0, 1]: 0 at its breaks.
+    double CrestBreaks(std::int64_t crest, double along) const;
+    /// The phase that forked crests `wavelength` metres apart, `density` pairs of ends per metre of
+    /// crest, add near planar point `q`, in wavelengths; `core` becomes the weight in [0, 1] that
+    /// fades the crests out at the forks' ends.
+    double Forks(const Vec2d& q, double wavelength, double density, double& core) const;
     /// The dunes' gradient at planar point `q`, by central differences `step` metres apart.
     Vec2d Gradient(const Vec2d& q, double step) const;
     /// How far the ground with gradient `g` is a slip face, in [0, 1]: facing downwind near the

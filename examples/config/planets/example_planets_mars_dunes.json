@@ -29,7 +29,7 @@
                 "height": 0.2,
                 "lee_fraction": 0.165,
                 "sinuosity": 0.8,
-                "forks": 0.8,
+                "defect_density": 0.099,
                 "flank_straightening": 1
             },
             "grainflows": {

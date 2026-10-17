@@ -191,7 +191,7 @@ TEST(DuneLayer, LinearCrestsRunAlongTheWind) {
 TEST(DuneLayer, RipplesLieOnDuneSandAndForkWithoutSeams) {
     DuneOptions options = OneBarchan();
     options.ripples = terraingen::MarsDuneRipples();
-    options.ripples.forks = 1.0;
+    options.ripples.defectDensity = 0.2;
     const auto layer = std::make_shared<DuneLayer>(options);
     const Vec2d peak = Peak(*layer, options.spacing, 50.0);
     const Vec2d stoss{peak.x - 60.0, peak.y};
@@ -277,7 +277,8 @@ TEST(DuneLayer, RejectsBadOptions) {
     rejects([](DuneOptions& o) { o.sinuosity = -1.0; });
     rejects([](DuneOptions& o) { o.anchor.x = NAN; });
     rejects([](DuneOptions& o) { o.ripples.leeFraction = 1.0; });
-    rejects([](DuneOptions& o) { o.ripples.forks = 2.0; });
+    rejects([](DuneOptions& o) { o.ripples.defectDensity = -0.1; });
+    rejects([](DuneOptions& o) { o.defectDensity = NAN; });
     rejects([](DuneOptions& o) { o.ripples.interduneCover = -0.5; });
     rejects([](DuneOptions& o) { o.fade.endSamples = 0.0; });
     EXPECT_NO_THROW(DuneLayer{DuneOptions{}});
@@ -379,6 +380,7 @@ TEST(DuneLayer, RippleCrestsStraightenOffTheStossOnly) {
     DuneOptions sinuous = StraightCrests();
     sinuous.ripples = terraingen::MarsDuneRipples();
     sinuous.ripples.flankStraightening = 0.0;
+    sinuous.ripples.defectDensity = 0.0;
     DuneOptions straightened = sinuous;
     straightened.ripples.flankStraightening = 1.0;
     const DuneLayer a(sinuous);
@@ -419,4 +421,44 @@ TEST(DuneLayer, GrainflowPresetAndBadGrainflows) {
     rejects([](DuneOptions& o) { o.grainflows.thickness = -0.01; });
     rejects([](DuneOptions& o) { o.grainflows.fade.endSamples = 0.0; });
     rejects([](DuneOptions& o) { o.ripples.flankStraightening = 1.5; });
+}
+
+TEST(DuneLayer, CrestLineDunesBreakAtTheirDefectDensity) {
+    DuneOptions options = StraightCrests();
+    options.defectDensity = 0.002;
+    const DuneLayer broken(options);
+    const DuneLayer whole(StraightCrests());
+    const Vec2d peak = Peak(whole, options.wavelength, 1.0);
+    std::vector<double> segments;
+    double start = -1.0;
+    for (double y = 0.0; y < 60000.0; y += 5.0) {
+        const bool standing = broken.DuneHeightAt(peak.x, y) > 0.5 * options.height;
+        if (standing && start < 0.0) {
+            start = y;
+        } else if (!standing && start >= 0.0) {
+            segments.push_back(y - start);
+            start = -1.0;
+        }
+        EXPECT_NEAR(whole.DuneHeightAt(peak.x, y), options.height, 1e-6);
+    }
+    ASSERT_GT(segments.size(), 50u);
+    double mean = 0.0;
+    for (const double s : segments) {
+        mean += s / static_cast<double>(segments.size());
+    }
+    EXPECT_NEAR(mean, 1.0 / options.defectDensity, 0.2 / options.defectDensity)
+        << "crest segments as long as one over the defect density";
+    std::vector<double> slopes;
+    for (double y = 0.0; y < 1500.0; y += 3.0) {
+        for (double x = 0.0; x < 750.0; x += 1.0) {
+            const double gx = broken.DuneHeightAt(x + 0.05, y) - broken.DuneHeightAt(x - 0.05, y);
+            const double gy = broken.DuneHeightAt(x, y + 0.05) - broken.DuneHeightAt(x, y - 0.05);
+            slopes.push_back(std::atan(std::hypot(gx, gy) / 0.1));
+        }
+    }
+    EXPECT_LT(*std::max_element(slopes.begin(), slopes.end()),
+              options.slipFaceAngle + 0.5 * kDegree)
+        << "breaks keep every slip face at its angle";
+    EXPECT_EQ(terraingen::MarsTransverseDunes().defectDensity, 0.0027);
+    EXPECT_EQ(terraingen::MarsDuneRipples().defectDensity, 0.099);
 }

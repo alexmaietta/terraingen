@@ -99,9 +99,10 @@ template <typename IO> void Fields(IO& io, DuneRipples& ripples) {
        "faces and turn on the flanks; 0 keeps them straight across the wind.");
     io("interdune_cover", ripples.interduneCover,
        "Share of the ripple height kept on the ground between dunes, from 0 to 1.");
-    io("forks", ripples.forks,
-       "Chance, from 0 to 1, that each patch of 8 x 8 ripple wavelengths holds a pair of forked "
-       "crests (Y-junctions).");
+    io("defect_density", ripples.defectDensity,
+       "Forked crests (Y-junctions): pairs of crest ends per metre of crest, as measured on dune "
+       "fields (Ewing et al. 2010); 0 for none. Mars large ripples: 0.099.",
+       "1/m");
     io("flank_straightening", ripples.flankStraightening,
        "How far crests straighten off the stoss, from 0 to 1: 1 keeps the sinuosity on flat sand "
        "and stoss slopes and takes it away on flanks and lee slopes, as Martian large ripples "
@@ -175,6 +176,11 @@ template <typename IO> void Fields(IO& io, DuneLayerSpec& spec) {
     io("defects", dunes.defects,
        "Transverse, barchanoid and linear dunes: share of the height that varies along crests, "
        "lowering and ending some, from 0 to 1.");
+    io("defect_density", dunes.defectDensity,
+       "Transverse, barchanoid and linear dunes: pairs of crest ends per metre of crest, so crests "
+       "break into segments about 1 / defect_density long; 0 for none. Olympia Undae: 0.0027 "
+       "(Ewing et al. 2010).",
+       "1/m");
     io("flank_slope", dunes.flankSlope, "Linear dunes: mean slope of both flanks, in radians.",
        "rad");
     io("seed", dunes.seed,

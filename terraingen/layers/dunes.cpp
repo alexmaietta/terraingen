@@ -37,17 +37,21 @@ constexpr double kRippleKinks = 0.25;
 /// Share of the ripple height that fades along crests, and its scale in wavelengths.
 constexpr double kRippleFading = 0.6;
 constexpr double kRippleFadeScale = 4.0;
-/// Ripple forks: the side in wavelengths of the cells each holding at most one, the separation
-/// of the fork pair in wavelengths, and the window in cells within which its phase is whole and
-/// beyond which it is gone.
+/// Forked crests: the smallest side in wavelengths of the cells their pairs are drawn in (cells
+/// otherwise hold one pair on average), the separation of a pair in wavelengths, and the radius in
+/// wavelengths within which its phase is whole and beyond which it is gone.
 constexpr std::uint32_t kForkStream = 0x464f524bu;
-constexpr double kForkCellWavelengths = 8.0;
+constexpr double kForkMinCell = 0.5;
 constexpr double kForkMin = 1.5;
 constexpr double kForkMax = 3.0;
-constexpr double kForkInner = 0.4;
-constexpr double kForkOuter = 0.5;
+constexpr double kForkInner = 3.2;
+constexpr double kForkOuter = 4.0;
 /// Distance in wavelengths over which the ripples fade in from a fork's end.
 constexpr double kForkCore = 0.5;
+/// Crest breaks: the stream they are drawn from, and the distance in wavelengths over which a
+/// crest falls to nothing at a break.
+constexpr std::uint32_t kCrestBreakStream = 0x42524b53u;
+constexpr double kBreakTaper = 1.0;
 /// Grainflows: the share of a scarp's length its theatre head takes to reach full depth, the share
 /// of a lobe's length it takes to rise, and the share after which its toe rounds off.
 constexpr std::uint32_t kGrainflowStream = 0x47464c57u;
@@ -157,12 +161,13 @@ void ValidateDuneOptions(const DuneOptions& options) {
     if (!(IsNonNegative(ripples.wavelength) && IsNonNegative(ripples.height) &&
           ripples.leeFraction > 0.0 && ripples.leeFraction < 1.0 &&
           IsNonNegative(ripples.sinuosity) && IsNonNegative(ripples.slopeCoupling) &&
-          ripples.interduneCover >= 0.0 && ripples.interduneCover <= 1.0 && ripples.forks >= 0.0 &&
-          ripples.forks <= 1.0 && ripples.flankStraightening >= 0.0 &&
-          ripples.flankStraightening <= 1.0)) {
+          ripples.interduneCover >= 0.0 && ripples.interduneCover <= 1.0 &&
+          IsNonNegative(ripples.defectDensity) && IsNonNegative(options.defectDensity) &&
+          ripples.flankStraightening >= 0.0 && ripples.flankStraightening <= 1.0)) {
         throw std::invalid_argument(
             "Dune ripples need sizes and coupling not negative, a lee fraction in (0, 1) and an "
-            "interdune cover, forks and flank straightening in [0, 1]");
+            "interdune cover and flank straightening in [0, 1], and defect densities not "
+            "negative");
     }
     ValidateResolutionFade(options.fade);
     ValidateResolutionFade(ripples.fade);
@@ -189,7 +194,7 @@ DuneRipples MarsDuneRipples() {
     const double leeSlope = std::tan(30.0 * kDegree);
     ripples.leeFraction = ripples.height / (ripples.wavelength * leeSlope);
     ripples.sinuosity = 0.8;
-    ripples.forks = 0.8;
+    ripples.defectDensity = 0.099;
     ripples.flankStraightening = 1.0;
     return ripples;
 }
@@ -230,6 +235,7 @@ DuneOptions MarsTransverseDunes() {
     dunes.stossSlope = 8.0 * kDegree;
     dunes.wavelength = 248.0;
     dunes.height = 28.0;
+    dunes.defectDensity = 0.0027;
     dunes.ripples = MarsDuneRipples();
     return dunes;
 }
@@ -333,6 +339,11 @@ double DuneLayer::Crests(const Vec2d& q) const {
     if (options_.shape == DuneShape::Barchanoid) {
         amplitude *= 0.6 + 0.4 * segment(q);
     }
+    if (options_.defectDensity > 0.0) {
+        const Vec2d along = linear ? wind_ : across;
+        amplitude *=
+            CrestBreaks(static_cast<std::int64_t>(std::floor(psi)), q.x * along.x + q.y * along.y);
+    }
     const double height = amplitude * options_.height;
     if (height <= 0.0) {
         return 0.0;
@@ -344,15 +355,16 @@ double DuneLayer::Crests(const Vec2d& q) const {
         const double offset = std::fabs(u - 0.5);
         return offset >= flank ? 0.0 : height * Bump(offset / flank, 2.0);
     }
-    const double lee =
-        std::min(1.0, height * stretch / (std::tan(options_.slipFaceAngle) * lambda));
-    const double stoss =
-        std::min(1.0 - lee, height * stretch / (std::tan(options_.stossSlope) * lambda));
-    if (u <= stoss) {
-        return stoss <= 0.0 ? 0.0 : height * Bump((stoss - u) / stoss, options_.stossExponent);
+    const double leeSlope = std::tan(options_.slipFaceAngle);
+    const double stossSlope = std::tan(options_.stossSlope);
+    const double tallest = options_.height * stretch / lambda;
+    const double brink = std::min(1.0 - std::min(1.0, tallest / leeSlope), tallest / stossSlope);
+    const double stoss = std::min(brink, height * stretch / (stossSlope * lambda));
+    if (u <= brink) {
+        return stoss <= 0.0 ? 0.0 : height * Bump((brink - u) / stoss, options_.stossExponent);
     }
-    const double down = (u - stoss) * lambda / stretch;
-    return std::max(0.0, height - std::tan(options_.slipFaceAngle) * down);
+    const double down = (u - brink) * lambda / stretch;
+    return std::max(0.0, height - leeSlope * down);
 }
 
 double DuneLayer::Height(const Vec2d& q) const {
@@ -366,6 +378,21 @@ double DuneLayer::Height(const Vec2d& q) const {
         return Crests(q);
     }
     return 0.0;
+}
+
+double DuneLayer::CrestBreaks(std::int64_t crest, double along) const {
+    const double taper = kBreakTaper * options_.wavelength;
+    const double length = 1.0 / options_.defectDensity + taper;
+    const auto cell = static_cast<std::int64_t>(std::floor(along / length));
+    double weight = 1.0;
+    for (std::int64_t c = cell - 1; c <= cell + 1; ++c) {
+        RandomStream random(options_.seed, kCrestBreakStream, static_cast<std::uint32_t>(crest),
+                            static_cast<std::uint32_t>(c),
+                            static_cast<std::uint32_t>((crest >> 32) ^ ((c >> 32) << 16)));
+        const double at = (static_cast<double>(c) + random.NextDouble()) * length;
+        weight = std::min(weight, Smoothstep(std::fabs(along - at) / taper));
+    }
+    return weight;
 }
 
 Vec2d DuneLayer::Gradient(const Vec2d& q, double step) const {
@@ -464,7 +491,7 @@ double DuneLayer::Ripples(const Vec2d& q, double dune) const {
                      kRippleKinks * static_cast<double>(PerlinNoise2Precise(
                                         q.x / (kRippleKinkScale * lambda),
                                         q.y / (kRippleKinkScale * lambda), options_.seed + 3u))) +
-        RippleForks(q, core);
+        Forks(q, lambda, ripples.defectDensity, core);
     const double fading =
         1.0 -
         kRippleFading * (0.5 + 0.5 * static_cast<double>(PerlinNoise2Precise(
@@ -479,44 +506,48 @@ double DuneLayer::Ripples(const Vec2d& q, double dune) const {
            RippleProfile(Fract(psi), ripples.leeFraction);
 }
 
-double DuneLayer::RippleForks(const Vec2d& q, double& core) const {
-    const DuneRipples& ripples = options_.ripples;
-    if (ripples.forks <= 0.0) {
+double DuneLayer::Forks(const Vec2d& q, double wavelength, double density, double& core) const {
+    if (density <= 0.0) {
         return 0.0;
     }
-    const double cell = kForkCellWavelengths * ripples.wavelength;
+    const double cell = std::max(std::sqrt(wavelength / density), kForkMinCell * wavelength);
+    const double none = std::exp(-density * cell * cell / wavelength);
+    const auto rings = static_cast<std::int64_t>(std::ceil(kForkOuter * wavelength / cell));
+    const double inner = kForkInner * wavelength;
+    const double outer = kForkOuter * wavelength;
     const auto ix = static_cast<std::int64_t>(std::floor(q.x / cell));
     const auto iy = static_cast<std::int64_t>(std::floor(q.y / cell));
     double phase = 0.0;
-    for (std::int64_t gy = iy - 1; gy <= iy + 1; ++gy) {
-        for (std::int64_t gx = ix - 1; gx <= ix + 1; ++gx) {
+    for (std::int64_t gy = iy - rings; gy <= iy + rings; ++gy) {
+        for (std::int64_t gx = ix - rings; gx <= ix + rings; ++gx) {
             RandomStream random(options_.seed, kForkStream, static_cast<std::uint32_t>(gx),
                                 static_cast<std::uint32_t>(gy),
                                 static_cast<std::uint32_t>((gx >> 32) ^ ((gy >> 32) << 16)));
-            if (random.NextDouble() >= ripples.forks) {
-                continue;
+            double draw = random.NextDouble();
+            while (draw > none) {
+                draw *= random.NextDouble();
+                const Vec2d centre{(static_cast<double>(gx) + random.NextDouble()) * cell,
+                                   (static_cast<double>(gy) + random.NextDouble()) * cell};
+                const double turn = 2.0 * std::numbers::pi * random.NextDouble();
+                const double half =
+                    0.5 * wavelength * (kForkMin + (kForkMax - kForkMin) * random.NextDouble());
+                const double sign = random.NextDouble() < 0.5 ? -1.0 : 1.0;
+                const double r = std::hypot(q.x - centre.x, q.y - centre.y);
+                const double window = 1.0 - Smoothstep((r - inner) / (outer - inner));
+                if (window <= 0.0) {
+                    continue;
+                }
+                const Vec2d a{centre.x - half * std::cos(turn), centre.y - half * std::sin(turn)};
+                const Vec2d b{centre.x + half * std::cos(turn), centre.y + half * std::sin(turn)};
+                double subtended =
+                    std::atan2(q.y - a.y, q.x - a.x) - std::atan2(q.y - b.y, q.x - b.x);
+                subtended -= 2.0 * std::numbers::pi *
+                             std::floor((subtended + std::numbers::pi) / (2.0 * std::numbers::pi));
+                phase += sign * window * subtended / (2.0 * std::numbers::pi);
+                const double nearest =
+                    std::min(std::hypot(q.x - a.x, q.y - a.y), std::hypot(q.x - b.x, q.y - b.y));
+                core = std::min(core, Smoothstep(nearest / (kForkCore * wavelength)));
             }
-            const Vec2d centre{(static_cast<double>(gx) + random.NextDouble()) * cell,
-                               (static_cast<double>(gy) + random.NextDouble()) * cell};
-            const double turn = 2.0 * std::numbers::pi * random.NextDouble();
-            const double half =
-                0.5 * ripples.wavelength * (kForkMin + (kForkMax - kForkMin) * random.NextDouble());
-            const double sign = random.NextDouble() < 0.5 ? -1.0 : 1.0;
-            const double r = std::hypot(q.x - centre.x, q.y - centre.y);
-            const double window =
-                1.0 - Smoothstep((r - kForkInner * cell) / ((kForkOuter - kForkInner) * cell));
-            if (window <= 0.0) {
-                continue;
-            }
-            const Vec2d a{centre.x - half * std::cos(turn), centre.y - half * std::sin(turn)};
-            const Vec2d b{centre.x + half * std::cos(turn), centre.y + half * std::sin(turn)};
-            double subtended = std::atan2(q.y - a.y, q.x - a.x) - std::atan2(q.y - b.y, q.x - b.x);
-            subtended -= 2.0 * std::numbers::pi *
-                         std::floor((subtended + std::numbers::pi) / (2.0 * std::numbers::pi));
-            phase += sign * window * subtended / (2.0 * std::numbers::pi);
-            const double nearest =
-                std::min(std::hypot(q.x - a.x, q.y - a.y), std::hypot(q.x - b.x, q.y - b.y));
-            core = std::min(core, Smoothstep(nearest / (kForkCore * ripples.wavelength)));
         }
     }
     return phase;

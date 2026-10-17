@@ -419,7 +419,7 @@ void BindDuneOptions(nb::module_& m) {
         .def_rw("sinuosity", &DuneRipples::sinuosity)
         .def_rw("slope_coupling", &DuneRipples::slopeCoupling)
         .def_rw("interdune_cover", &DuneRipples::interduneCover)
-        .def_rw("forks", &DuneRipples::forks)
+        .def_rw("defect_density", &DuneRipples::defectDensity)
         .def_rw("flank_straightening", &DuneRipples::flankStraightening)
         .def_rw("fade", &DuneRipples::fade);
     auto flows = nb::class_<DuneGrainflows>(
@@ -465,6 +465,7 @@ void BindDuneOptions(nb::module_& m) {
         .def_rw("height", &DuneOptions::height)
         .def_rw("sinuosity", &DuneOptions::sinuosity)
         .def_rw("defects", &DuneOptions::defects)
+        .def_rw("defect_density", &DuneOptions::defectDensity)
         .def_rw("flank_slope", &DuneOptions::flankSlope)
         .def_rw("seed", &DuneOptions::seed)
         .def_rw("anchor", &DuneOptions::anchor)

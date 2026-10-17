@@ -135,14 +135,16 @@ TEST(ConfigJson, ReadsDuneLayersByShapeAndRipples) {
     const TerrainConfig config = ParseConfig(R"({"schema_version": 1, "layers": [
         {"type": "dunes", "shape": "barchanoid", "wavelength": 300, "height": 18,
          "anchor_x": 137.4, "anchor_y": -4.6,
-         "ripples": {"wavelength": 2.1, "height": 0.2, "forks": 0.25}}]})");
+         "defect_density": 0.003,
+         "ripples": {"wavelength": 2.1, "height": 0.2, "defect_density": 0.25}}]})");
     const auto& dunes = std::get<terraingen::DuneLayerSpec>(config.layers.at(0)).dunes;
     EXPECT_EQ(dunes.shape, terraingen::DuneShape::Barchanoid);
     EXPECT_EQ(dunes.wavelength, 300.0);
     EXPECT_EQ(dunes.anchor.x, 137.4);
     EXPECT_EQ(dunes.anchor.y, -4.6);
     EXPECT_EQ(dunes.ripples.wavelength, 2.1);
-    EXPECT_EQ(dunes.ripples.forks, 0.25);
+    EXPECT_EQ(dunes.ripples.defectDensity, 0.25);
+    EXPECT_EQ(dunes.defectDensity, 0.003);
     EXPECT_EQ(dunes.slipFaceAngle, terraingen::DuneOptions{}.slipFaceAngle) << "defaults kept";
     EXPECT_THROW(
         ParseConfig(R"({"schema_version": 1, "layers": [{"type": "dunes", "shape": "star"}]})"),
