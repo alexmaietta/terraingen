@@ -69,6 +69,11 @@ class ComplexCraterProfile final : public CraterProfile {
         return shape_;
     }
 
+    /// The profile of simple craters.
+    const CraterProfile& Simple() const {
+        return *simple_;
+    }
+
   private:
     std::shared_ptr<const CraterProfile> simple_;
     ComplexCraterShape shape_;

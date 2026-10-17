@@ -34,6 +34,11 @@ class FassettThomsonProfile final : public CraterProfile {
         return 1.5;
     }
 
+    /// How the fits are joined at the rim.
+    FassettThomsonRim Rim() const {
+        return rim_;
+    }
+
   private:
     FassettThomsonRim rim_;
 };

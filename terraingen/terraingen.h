@@ -60,6 +60,7 @@
 #include "terraingen/layers/craters/shaping/apply.h"
 #include "terraingen/layers/craters/shaping/apply_options.h"
 #include "terraingen/layers/craters/shaping/attributes.h"
+#include "terraingen/layers/craters/shaping/crater_kernel.h"
 #include "terraingen/layers/craters/shaping/datum.h"
 #include "terraingen/layers/craters/shaping/irregularity.h"
 #include "terraingen/layers/craters/shaping/morphometry.h"

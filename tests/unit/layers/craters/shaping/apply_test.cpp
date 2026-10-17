@@ -441,9 +441,9 @@ TEST(ApplyCraterTo, AddsFootprintNoiseFadingOutBeyondTheRim) {
     }
     EXPECT_GT(largest, 0.01) << "inside the rim";
     const double reach = profile.ReachRadii() * 10.0;
-    EXPECT_EQ(terraingen::ApplyCraterTo(0.0f, reach - 1e-6, 0.0, prepared, profile, noisy),
-              terraingen::ApplyCraterTo(0.0f, reach - 1e-6, 0.0, prepared, profile, {}))
-        << "faded out at the reach";
+    EXPECT_NEAR(terraingen::ApplyCraterTo(0.0f, reach - 1e-6, 0.0, prepared, profile, noisy),
+                terraingen::ApplyCraterTo(0.0f, reach - 1e-6, 0.0, prepared, profile, {}), 1e-6)
+        << "faded out at the reach, to within float rounding";
     const Crater other{0.0, 0.0, 20.0, 0.0, 2u};
     const terraingen::PreparedCrater second{other, 1.0, kFresh.State(other)};
     EXPECT_NE(terraingen::ApplyCraterTo(0.0f, 3.0, 2.0, prepared, profile, noisy),

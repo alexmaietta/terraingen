@@ -209,6 +209,12 @@ DiffusedProfile::TableFor(const CraterMorphometry& fresh, double diameter) const
     return last.table;
 }
 
+std::shared_ptr<const std::vector<float>>
+DiffusedProfile::HeightTable(const CraterMorphometry& fresh, double diameter) const {
+    const std::shared_ptr<const Table> table = TableFor(fresh, diameter);
+    return {table, &table->heights};
+}
+
 double DiffusedProfile::Height(double distance, double diameter, const CraterState& state) const {
     if (!(state.diffusion > 0.0)) {
         return fresh_->Height(distance, diameter, {state.fresh, state.fresh, 0.0});

@@ -76,6 +76,22 @@ class DiffusedProfile final : public CraterProfile {
     /// The diffusion ages tau tabulated, from 0, increasing.
     const std::vector<double>& Ages() const;
 
+    /// The fresh profile.
+    const CraterProfile& Fresh() const {
+        return *fresh_;
+    }
+
+    /// Radial cells of the solver; each row of a table holds one more height.
+    std::size_t Cells() const {
+        return cells_;
+    }
+
+    /// The heights over the diameter a crater of `fresh` morphometry and `diameter` metres is read
+    /// from: a row per age of `Ages`, `Cells` + 1 heights per row out to half the reach in
+    /// diameters.
+    std::shared_ptr<const std::vector<float>> HeightTable(const CraterMorphometry& fresh,
+                                                          double diameter) const;
+
   private:
     struct Key {
         double depthRatio;

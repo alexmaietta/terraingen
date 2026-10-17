@@ -39,6 +39,7 @@ terraingen_add_test_suite(
     craters/profiles/fassett_thomson_test.cpp
     craters/profiles/martin_parkes_dunstan_test.cpp
     craters/shaping/apply_test.cpp
+    craters/shaping/crater_kernel_test.cpp
     craters/shaping/attributes_test.cpp
     craters/shaping/datum_test.cpp
     craters/shaping/irregularity_test.cpp

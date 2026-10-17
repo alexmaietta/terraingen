@@ -42,6 +42,7 @@ terraingen_add_library(
     craters/profiles/martin_parkes_dunstan.cpp
     craters/shaping/apply.cpp
     craters/shaping/apply_options.cpp
+    craters/shaping/crater_kernel.cpp
     craters/shaping/attributes.cpp
     craters/shaping/datum.cpp
     craters/shaping/irregularity.cpp
