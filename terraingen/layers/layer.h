@@ -12,6 +12,8 @@
 
 namespace terraingen {
 
+class EvaluationCache;
+
 /// How a layer is evaluated.
 struct LayerContext {
     /// Sample spacing in world units; features unresolvable at it are left out. At least the cell
@@ -22,6 +24,8 @@ struct LayerContext {
     /// Where grids are evaluated, already resolved to `Cpu` or `Vulkan`. Layers whose relief is a
     /// kernel follow it; other layers, and every point query, run on the CPU.
     Backend backend = Backend::Cpu;
+    /// Values the batches of one evaluation of points share, such as crater datums; null for none.
+    EvaluationCache* cache = nullptr;
 };
 
 /// Checks the context of a point query (`Layer::ApplyAt`).

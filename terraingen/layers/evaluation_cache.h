@@ -1,0 +1,59 @@
+/// @file
+/// @brief `EvaluationCache`, values one evaluation's batches of points share.
+#pragma once
+
+#include "terraingen/util/lru_cache.h"
+
+#include <bit>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+
+namespace terraingen {
+
+/// Values that depend only on the terrain beneath a layer, such as crater datums, computed once
+/// per evaluation of points and shared by its batches; thread-safe.
+///
+/// An evaluation makes one and drops it at its end, so a value never outlives the terrain it was
+/// computed for. Keys name the layer that owns the value (`owner`), a feature ID and the sample
+/// spacing.
+class EvaluationCache {
+  public:
+    /// An empty cache holding at most `capacity` values.
+    explicit EvaluationCache(std::size_t capacity = 1 << 20)
+        : values_(capacity, [](const Holder&) { return std::size_t{1}; }) {}
+
+    /// The value of `owner` for feature `id` at `spacing`, computed by `compute` when not held.
+    template <typename T>
+    std::shared_ptr<const T> Get(const void* owner, std::uint64_t id, double spacing,
+                                 const std::function<T()>& compute) {
+        const Key key{reinterpret_cast<std::uintptr_t>(owner), id,
+                      std::bit_cast<std::uint64_t>(spacing)};
+        const std::shared_ptr<const Holder> held =
+            values_.Get(key, [&] { return Holder{std::make_shared<const T>(compute())}; });
+        return std::static_pointer_cast<const T>(held->value);
+    }
+
+  private:
+    struct Key {
+        std::uintptr_t owner = 0;
+        std::uint64_t id = 0;
+        std::uint64_t spacing = 0;
+
+        bool operator==(const Key&) const = default;
+    };
+    struct KeyHash {
+        std::size_t operator()(const Key& key) const {
+            return std::hash<std::uint64_t>{}(key.id * 0x9E3779B97F4A7C15ull ^ key.owner ^
+                                              (key.spacing << 1));
+        }
+    };
+    struct Holder {
+        std::shared_ptr<const void> value;
+    };
+
+    LruCache<Key, Holder, KeyHash> values_;
+};
+
+}  // namespace terraingen

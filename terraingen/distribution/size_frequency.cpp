@@ -64,6 +64,51 @@ double SizeFrequencyDistribution::InvertCumulative(double target, double dMin, d
     while (std::isinf(dMax) && CumulativeAt(std::exp(high)) > target) {
         high += 1.0;
     }
+    if (target > 0.0) {
+        const double logTarget = std::log(target);
+        const auto excess = [&](double u) {
+            return std::log(CumulativeAt(std::exp(u))) - logTarget;
+        };
+        double gLow = excess(low);
+        double gHigh = excess(high);
+        if (!(gLow > 0.0)) {
+            return std::exp(low);
+        }
+        if (!(gHigh < 0.0)) {
+            return std::exp(high);
+        }
+        int side = 0;
+        double u = low;
+        for (int i = 0; i < 100; ++i) {
+            const double previous = u;
+            u = (low * gHigh - high * gLow) / (gHigh - gLow);
+            if (!(u > low && u < high)) {
+                u = 0.5 * (low + high);
+            }
+            const double g = excess(u);
+            if (std::isnan(g)) {
+                break;
+            }
+            if (g == 0.0 || std::fabs(u - previous) <= 1e-14 * std::fmax(1.0, std::fabs(u))) {
+                return std::exp(u);
+            }
+            if (g > 0.0) {
+                low = u;
+                gLow = g;
+                if (side == 1) {
+                    gHigh *= 0.5;
+                }
+                side = 1;
+            } else {
+                high = u;
+                gHigh = g;
+                if (side == -1) {
+                    gLow *= 0.5;
+                }
+                side = -1;
+            }
+        }
+    }
     for (int i = 0; i < 200 && high - low > 1e-15 * std::fmax(1.0, std::fabs(high)); ++i) {
         const double middle = 0.5 * (low + high);
         if (CumulativeAt(std::exp(middle)) > target) {

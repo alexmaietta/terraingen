@@ -1,10 +1,12 @@
 #include "terraingen/pipeline/terrain.h"
 
+#include "terraingen/layers/evaluation_cache.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/parallel.h"
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 #include <stdexcept>
 
 namespace terraingen {
@@ -14,14 +16,14 @@ namespace {
 /// Sets `heights` to the terrain's source at `points`, then applies its first `layers` layers to
 /// them all at once, each on the ground beneath it.
 void EvaluateStack(const Terrain& terrain, std::size_t layers, std::span<const Vec2d> points,
-                   std::span<float> heights, double spacing) {
+                   std::span<float> heights, double spacing, EvaluationCache* cache = nullptr) {
     for (std::size_t i = 0; i < points.size(); ++i) {
         heights[i] = terrain.source ? terrain.source->HeightAt(points[i].x, points[i].y) : 0.0f;
     }
     for (std::size_t n = 0; n < layers; ++n) {
         const TerrainGround ground(terrain, n);
         SampleBlock samples(points, heights);
-        terrain.layers[n]->Apply(samples, LayerContext{spacing, 1, &ground});
+        terrain.layers[n]->Apply(samples, LayerContext{spacing, 1, &ground, Backend::Cpu, cache});
     }
 }
 
@@ -62,11 +64,17 @@ std::vector<float> EvaluatePoints(const Terrain& terrain, std::span<const Vec2d>
     RequirePositive(spacing, "Sample spacing");
     constexpr std::size_t kBatch = 256;
     std::vector<float> heights(points.size());
-    ParallelFor((points.size() + kBatch - 1) / kBatch, threads, [&](std::size_t batch) {
+    const std::size_t batches = (points.size() + kBatch - 1) / kBatch;
+    std::optional<EvaluationCache> cache;
+    if (batches > 1) {
+        cache.emplace();
+    }
+    ParallelFor(batches, threads, [&](std::size_t batch) {
         const std::size_t begin = batch * kBatch;
         const std::size_t count = std::min(kBatch, points.size() - begin);
         EvaluateStack(terrain, terrain.layers.size(), points.subspan(begin, count),
-                      std::span<float>(heights).subspan(begin, count), spacing);
+                      std::span<float>(heights).subspan(begin, count), spacing,
+                      cache ? &*cache : nullptr);
     });
     return heights;
 }
@@ -93,11 +101,16 @@ float TerrainGround::HeightAt(double x, double y, double spacing) const {
 void TerrainGround::HeightsAt(std::span<const Vec2d> points, std::span<float> heights,
                               double spacing) const {
     constexpr std::size_t kBatch = 256;
-    ParallelFor((points.size() + kBatch - 1) / kBatch, 0, [&](std::size_t batch) {
+    const std::size_t batches = (points.size() + kBatch - 1) / kBatch;
+    std::optional<EvaluationCache> cache;
+    if (batches > 1) {
+        cache.emplace();
+    }
+    ParallelFor(batches, 0, [&](std::size_t batch) {
         const std::size_t begin = batch * kBatch;
         const std::size_t count = std::min(kBatch, points.size() - begin);
         EvaluateStack(terrain_, layers_, points.subspan(begin, count),
-                      heights.subspan(begin, count), spacing);
+                      heights.subspan(begin, count), spacing, cache ? &*cache : nullptr);
     });
 }
 

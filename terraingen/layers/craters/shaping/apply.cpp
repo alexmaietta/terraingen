@@ -329,12 +329,24 @@ void ApplyCraters(SampleBlock& samples, const CraterList& craters, const CraterS
     const std::vector<ReachingCrater> reaching =
         CratersReaching(samples, prepared, CraterReachRadii(profile, options), options.surface);
     if (options.datum != CraterDatum::None && !reaching.empty()) {
-        const CraterReliefIndex index(prepared, profile, MaxOutlineScale(options.irregularity),
-                                      options.surface);
-        for (const ReachingCrater& crater : reaching) {
+        std::optional<CraterReliefIndex> index;
+        const auto fit = [&](const ReachingCrater& crater) {
+            if (!index) {
+                index.emplace(prepared, profile, MaxOutlineScale(options.irregularity),
+                              options.surface);
+            }
             const auto k = static_cast<std::size_t>(crater.prepared - prepared.data());
-            crater.prepared->datum = FitCraterDatum(crater.prepared->crater, options,
-                                                    DatumGround(sampling.ground, index, k));
+            return FitCraterDatum(crater.prepared->crater, options,
+                                  DatumGround(sampling.ground, *index, k));
+        };
+        for (const ReachingCrater& crater : reaching) {
+            if (sampling.cache != nullptr) {
+                crater.prepared->datum = *sampling.cache->Get<std::optional<Plane>>(
+                    sampling.owner, crater.prepared->crater.id, sampling.spacing,
+                    [&] { return fit(crater); });
+            } else {
+                crater.prepared->datum = fit(crater);
+            }
         }
     }
     for (std::size_t i = 0; i < samples.Size(); ++i) {

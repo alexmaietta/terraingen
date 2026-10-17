@@ -11,6 +11,7 @@ terraingen_add_test_suite(
     pavement_test.cpp
     region_test.cpp
     roughness_test.cpp
+    evaluation_cache_test.cpp
     sand_fill_test.cpp
     sand_shadow_test.cpp
     strata_test.cpp

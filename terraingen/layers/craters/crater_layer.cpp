@@ -78,8 +78,10 @@ void CraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context
     const CraterList craters = Craters(options_.surface.Expand(bounds, margin), spacing);
     const HeightSampler ground =
         context.ground ? context.ground->Sampler(spacing) : HeightSampler{};
-    ApplyCraters(samples, craters, models_.Shape(), options_.apply,
-                 {spacing, context.threads, ground});
+    CraterSampling sampling{spacing, context.threads, ground};
+    sampling.cache = context.cache;
+    sampling.owner = this;
+    ApplyCraters(samples, craters, models_.Shape(), options_.apply, sampling);
 }
 
 CraterAttributes CraterLayer::Attributes(const Crater& crater) const {

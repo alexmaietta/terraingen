@@ -8,6 +8,7 @@
 #include "terraingen/layers/craters/shaping/apply_options.h"
 #include "terraingen/layers/craters/shaping/datum.h"
 #include "terraingen/layers/craters/shaping/prepared.h"
+#include "terraingen/layers/evaluation_cache.h"
 #include "terraingen/layers/ground.h"
 #include "terraingen/layers/sample_block.h"
 #include "terraingen/raster/raster.h"
@@ -34,6 +35,9 @@ struct CraterSampling {
     /// Changes each crater's outline after its irregularity, such as secondaries stretched toward
     /// their primary; empty leaves outlines as they are. Must be deterministic and thread-safe.
     std::function<void(const Crater&, CraterOutline&)> reshape{};
+    /// Where point queries keep the datums they fit, shared across batches; null to fit each time.
+    EvaluationCache* cache = nullptr;
+    const void* owner = nullptr;  ///< The layer the cached datums belong to.
 };
 
 /// How far, in crater radii, a crater changes the terrain: the profile's reach, or the ejecta's
