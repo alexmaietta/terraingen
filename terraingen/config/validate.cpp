@@ -568,11 +568,16 @@ void ValidateAlbedo(const TerrainConfig& config, const std::filesystem::path& di
             return std::holds_alternative<CraterLayerSpec>(layer);
         }));
     for (std::size_t i = 0; i < albedo.layers.size(); ++i) {
-        std::visit(
-            [&](const CraterAlbedoSpec& craters) {
-                CheckCraterAlbedo(craters, craterLayers, Element("albedo.layers", i));
-            },
-            albedo.layers[i]);
+        const std::string path = Element("albedo.layers", i);
+        std::visit(Overloaded{
+                       [&](const CraterAlbedoSpec& craters) {
+                           CheckCraterAlbedo(craters, craterLayers, path);
+                       },
+                       [&](const SplotchAlbedoSpec& splotches) {
+                           At(path, [&] { ValidateSplotches(splotches.options); });
+                       },
+                   },
+                   albedo.layers[i]);
     }
 }
 

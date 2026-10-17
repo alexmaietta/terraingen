@@ -301,6 +301,46 @@ template <typename IO> void Fields(IO& io, CraterAlbedoSpec& spec) {
     Fields(io, spec.options);
 }
 
+template <> struct SpecName<SplotchAlbedoSpec> {
+    static constexpr std::string_view kName = "splotches";
+    static constexpr std::string_view kDescription =
+        "Dark and bright splotches that secondary impacts of loose regolith leave over the whole "
+        "surface, after Speyerer et al. (2016).";
+};
+template <typename IO> void Fields(IO& io, SplotchAlbedoSpec& spec) {
+    SplotchOptions& options = spec.options;
+    io("seed", options.seed, "Seed of where splotches fall and what they are.");
+    io("rate_coefficient", options.rateCoefficient,
+       "Coefficient a of the cumulative formation rate a d^-b per km^2 per year, d the diameter "
+       "in km; positive, higher values give more splotches.");
+    io("rate_exponent", options.rateExponent,
+       "Slope b of the cumulative formation rate; positive, higher values give relatively more "
+       "small splotches.");
+    io("lifetime_myr", options.lifetimeMyr,
+       "How long a splotch lasts in Myr, fading linearly; positive, the default is the time "
+       "splotches take to churn the top centimetres.",
+       "Myr");
+    io("min_diameter", options.minDiameter,
+       "Smallest splotch diameter in metres; the published fit is extrapolated below 10 m.", "m");
+    io("max_diameter", options.maxDiameter,
+       "Largest splotch diameter in metres, above the smallest.", "m");
+    io("dark_share", options.darkShare, "Share of splotches, from 0 to 1, darker than the ground.");
+    io("bright_share", options.brightShare,
+       "Share of splotches, from 0 to 1, brighter than the ground; the rest are mixed, dark on "
+       "one side and bright on the other.");
+    io("dark_change", options.darkChange,
+       "Reflectance change of a dark splotch relative to the ground before it, drawn per "
+       "splotch; above -1.");
+    io("bright_change", options.brightChange,
+       "Reflectance change of a bright splotch, drawn per splotch; above -1.");
+    io("softness", options.softness,
+       "Share of a splotch's radius, from 0 to 1 excluding 0, over which its edge fades.");
+    io("raggedness", options.raggedness,
+       "Share of a splotch's radius, from 0 up to 1, that lobes of its edge pull in by; 0 keeps "
+       "it round.");
+    io("fade", options.fade, "How splotches too small to resolve at the sample spacing fade out.");
+}
+
 template <typename IO> void Fields(IO& io, AlbedoSpec& spec) {
     io("source", spec.source,
        "Base albedo of the terrain, before its layers: a synthetic colour or a raster map.");

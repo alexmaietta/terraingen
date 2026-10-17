@@ -215,3 +215,17 @@ def test_crater_albedo_reflectance_zones(lunar_models):
         terraingen.validate_reflectance_zone(terraingen.ReflectanceZone(feather=0.0))
     with pytest.raises(ValueError):
         terraingen.validate_crater_reflectance_zones(terraingen.CraterReflectanceZones(max_diameter=0.0))
+
+
+def test_splotches_darken_most_of_their_ground():
+    options = terraingen.SplotchOptions(min_diameter=2.0, seed=3)
+    assert options.coefficient() == pytest.approx(3.25, rel=0.02)
+    layer = terraingen.SplotchAlbedo(options)
+    assert layer.count((0.0, 0.0, 100.0, 100.0), 0.5) > 50 and layer.options.dark_share == pytest.approx(
+        0.907
+    )
+    albedo = terraingen.Albedo(terraingen.SyntheticAlbedo(value=0.11), [layer])
+    band = terraingen.evaluate_albedo(albedo, terraingen.RasterGrid.centred(64, 64, 1.0))[0].values
+    assert (band < 0.1099).sum() > (band > 0.1101).sum() > 0
+    with pytest.raises(ValueError):
+        terraingen.validate_splotches(terraingen.SplotchOptions(softness=0.0))

@@ -5,6 +5,7 @@ terraingen_add_library(
     crater_albedo.cpp
     maturity.cpp
     raster_albedo.cpp
+    splotches.cpp
     synthetic.cpp
     PUBLIC
     terraingen_layers

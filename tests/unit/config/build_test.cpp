@@ -347,6 +347,11 @@ TEST(BuildAlbedo, BrightensEveryOrOneCraterLayer) {
     EXPECT_EQ(terraingen::BuildAlbedo(both, terraingen::BuildTerrain(both)).layers.size(), 2u);
     std::get<terraingen::CraterAlbedoSpec>(both.albedo->layers[0]).craterLayer = 1;
     EXPECT_EQ(terraingen::BuildAlbedo(both, terraingen::BuildTerrain(both)).layers.size(), 1u);
+    both.albedo->layers.push_back(terraingen::SplotchAlbedoSpec{});
+    const terraingen::Albedo spotted =
+        terraingen::BuildAlbedo(both, terraingen::BuildTerrain(both));
+    ASSERT_EQ(spotted.layers.size(), 2u);
+    EXPECT_NE(dynamic_cast<const terraingen::SplotchAlbedo*>(spotted.layers[1].get()), nullptr);
     TerrainConfig none = Small();
     EXPECT_THROW(terraingen::BuildAlbedo(none, terraingen::BuildTerrain(none)), ConfigError);
     TerrainConfig invalid = terraingen::testing::WithAlbedo();

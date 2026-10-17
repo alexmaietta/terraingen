@@ -3,6 +3,7 @@ terraingen_add_test_suite(
     SOURCES
     albedo_test.cpp
     crater_albedo_test.cpp
+    splotches_test.cpp
     LIBRARIES
     terraingen::albedo
     terraingen::layers)

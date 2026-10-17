@@ -7,6 +7,7 @@
 #include "terraingen/albedo/crater_albedo.h"
 #include "terraingen/albedo/maturity.h"
 #include "terraingen/albedo/raster_albedo.h"
+#include "terraingen/albedo/splotches.h"
 #include "terraingen/albedo/synthetic.h"
 
 #include <stdexcept>
@@ -323,6 +324,42 @@ void BindCraterAlbedo(nb::module_& m) {
         .def_ro("speed_ratio", &CraterImpact::speedRatio);
 }
 
+void BindSplotches(nb::module_& m) {
+    auto options = nb::class_<SplotchOptions>(
+        m, "SplotchOptions",
+        "Splotches from secondary impacts (Speyerer et al. 2016): formed at `rate_coefficient` * "
+        "d^-`rate_exponent` per km^2 per year (d in km), lasting `lifetime_myr`, `min_diameter` to "
+        "`max_diameter` m across; `dark_share` dark, `bright_share` bright, the rest mixed.");
+    BindKwargsInit<SplotchOptions>(options);
+    options.def_rw("seed", &SplotchOptions::seed)
+        .def_rw("rate_coefficient", &SplotchOptions::rateCoefficient)
+        .def_rw("rate_exponent", &SplotchOptions::rateExponent)
+        .def_rw("lifetime_myr", &SplotchOptions::lifetimeMyr)
+        .def_rw("min_diameter", &SplotchOptions::minDiameter)
+        .def_rw("max_diameter", &SplotchOptions::maxDiameter)
+        .def_rw("dark_share", &SplotchOptions::darkShare)
+        .def_rw("bright_share", &SplotchOptions::brightShare)
+        .def_rw("dark_change", &SplotchOptions::darkChange)
+        .def_rw("bright_change", &SplotchOptions::brightChange)
+        .def_rw("softness", &SplotchOptions::softness)
+        .def_rw("raggedness", &SplotchOptions::raggedness)
+        .def_rw("fade", &SplotchOptions::fade)
+        .def("coefficient", &SplotchOptions::Coefficient,
+             "Splotches of at least 1 m per m^2 at any time.");
+    m.def("validate_splotches", &ValidateSplotches, "options"_a, kValidateDoc);
+    nb::class_<SplotchAlbedo, AlbedoLayer>(
+        m, "SplotchAlbedo", "Dark and bright splotches over the surface, the youngest on top.")
+        .def(nb::init<SplotchOptions, Surface>(), "options"_a = SplotchOptions{},
+             "surface"_a = Surface{})
+        .def(
+            "count",
+            [](const SplotchAlbedo& layer, const Bounds2d& region, double spacing) {
+                return layer.Splotches(region, spacing).size();
+            },
+            "region"_a, "spacing"_a, "How many splotches resolved at `spacing` m reach `region`.")
+        .def_prop_ro("options", &SplotchAlbedo::Options);
+}
+
 void BindMaturity(nb::module_& m) {
     auto origin = nb::class_<OpticalMaturityOrigin>(
         m, "OpticalMaturityOrigin",
@@ -381,6 +418,7 @@ void BindAlbedo(nb::module_& m) {
     BindSynthetic(m);
     BindRasterAlbedo(m);
     BindCraterAlbedo(m);
+    BindSplotches(m);
     BindMaturity(m);
     BindEvaluation(m);
 }

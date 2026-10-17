@@ -4,6 +4,7 @@
 
 #include "terraingen/albedo/crater_albedo.h"
 #include "terraingen/albedo/raster_albedo.h"
+#include "terraingen/albedo/splotches.h"
 #include "terraingen/albedo/synthetic.h"
 #include "terraingen/distribution/moore.h"
 #include "terraingen/distribution/piecewise_power_law.h"
@@ -617,8 +618,15 @@ struct CraterAlbedoSpec {
     bool operator==(const CraterAlbedoSpec&) const = default;
 };
 
+/// Albedo layer "splotches": `SplotchAlbedo`, the marks of secondary impacts over the terrain.
+struct SplotchAlbedoSpec {
+    SplotchOptions options{};
+
+    bool operator==(const SplotchAlbedoSpec&) const = default;
+};
+
 /// An albedo layer, named in JSON by its "type".
-using AlbedoLayerSpec = std::variant<CraterAlbedoSpec>;
+using AlbedoLayerSpec = std::variant<CraterAlbedoSpec, SplotchAlbedoSpec>;
 
 /// The albedo of the terrain: a source and the layers that change it, evaluated over the
 /// terrain's grid.

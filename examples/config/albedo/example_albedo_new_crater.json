@@ -107,6 +107,10 @@
                     "enabled": true,
                     "seed": 111
                 }
+            },
+            {
+                "type": "splotches",
+                "seed": 1
             }
         ]
     }

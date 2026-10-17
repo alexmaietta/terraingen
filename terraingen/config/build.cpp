@@ -627,16 +627,21 @@ Albedo BuildValidAlbedo(const TerrainConfig& config, const Terrain& terrain,
     const std::vector<std::shared_ptr<const CraterLayer>> craterLayers =
         CraterLayersOf(config, terrain);
     for (const AlbedoLayerSpec& layer : spec.layers) {
-        std::visit(
-            [&](const CraterAlbedoSpec& craters) {
-                for (std::size_t i = 0; i < craterLayers.size(); ++i) {
-                    if (!craters.craterLayer || *craters.craterLayer == i) {
-                        albedo.layers.push_back(
-                            std::make_shared<CraterAlbedo>(craterLayers[i], craters.options));
-                    }
-                }
-            },
-            layer);
+        std::visit(Overloaded{
+                       [&](const CraterAlbedoSpec& craters) {
+                           for (std::size_t i = 0; i < craterLayers.size(); ++i) {
+                               if (!craters.craterLayer || *craters.craterLayer == i) {
+                                   albedo.layers.push_back(std::make_shared<CraterAlbedo>(
+                                       craterLayers[i], craters.options));
+                               }
+                           }
+                       },
+                       [&](const SplotchAlbedoSpec& splotches) {
+                           albedo.layers.push_back(
+                               std::make_shared<SplotchAlbedo>(splotches.options, terrain.surface));
+                       },
+                   },
+                   layer);
     }
     return albedo;
 }

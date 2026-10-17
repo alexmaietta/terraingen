@@ -1,0 +1,204 @@
+#include "terraingen/albedo/splotches.h"
+
+#include "terraingen/albedo/synthetic.h"
+
+#include <gtest/gtest.h>
+
+#include <cmath>
+#include <memory>
+#include <stdexcept>
+#include <vector>
+
+using terraingen::Albedo;
+using terraingen::AlbedoSample;
+using terraingen::Bounds2d;
+using terraingen::EvaluateAlbedo;
+using terraingen::EvaluateAlbedoAt;
+using terraingen::GeoTransform;
+using terraingen::RasterGrid;
+using terraingen::Splotch;
+using terraingen::SplotchAlbedo;
+using terraingen::SplotchOptions;
+using terraingen::Surface;
+using terraingen::SyntheticAlbedo;
+using terraingen::SyntheticAlbedoParams;
+using terraingen::ValueDistribution;
+
+namespace {
+
+Albedo Grey(SplotchOptions options, Surface surface = {}) {
+    SyntheticAlbedoParams params;
+    params.value = 0.11;
+    return {std::make_shared<SyntheticAlbedo>(params, terraingen::Vec2d{}, surface),
+            {std::make_shared<SplotchAlbedo>(options, surface)},
+            surface};
+}
+
+Splotch Dark(double diameter, double ageGyr) {
+    Splotch splotch;
+    splotch.mark = {0.0, 0.0, diameter, ageGyr, 3u, false};
+    splotch.change = -0.04;
+    splotch.otherChange = -0.04;
+    return splotch;
+}
+
+}  // namespace
+
+TEST(SplotchOptions, FollowSpeyerersFormationRate) {
+    const SplotchOptions options;
+    const double perKm2 = options.Coefficient() * std::pow(10.0, -options.rateExponent) * 1e6;
+    EXPECT_NEAR(perKm2, 0.0029 * 81000.0, 0.02 * 0.0029 * 81000.0)
+        << "0.0029 splotches over 10 m per km^2 per year, each lasting 8.1e4 years";
+    EXPECT_NEAR(options.Coefficient() * 1e6 / options.lifetimeMyr / 1e6, 40.2, 0.5)
+        << "40.2 over 1 m per km^2 per year";
+}
+
+TEST(SplotchAlbedo, GeneratesTheExpectedNumbersKindsAndAges) {
+    SplotchOptions options;
+    options.minDiameter = 10.0;
+    const SplotchAlbedo layer(options);
+    const auto large = layer.Splotches({0.0, 0.0, 1000.0, 1000.0}, 1.0);
+    EXPECT_GT(large.size(), 180u);
+    EXPECT_LT(large.size(), 300u);
+
+    options.minDiameter = 2.0;
+    const auto all = SplotchAlbedo(options).Splotches({0.0, 0.0, 300.0, 300.0}, 0.5);
+    ASSERT_GT(all.size(), 3000u);
+    int dark = 0;
+    int bright = 0;
+    for (std::size_t n = 0; n < all.size(); ++n) {
+        const Splotch& s = all[n];
+        ASSERT_GE(s.mark.ageGyr, 0.0);
+        ASSERT_LE(s.mark.ageGyr, 1e-3 * options.lifetimeMyr);
+        ASSERT_GE(s.mark.diameter, 2.0);
+        ASSERT_LT(s.mark.diameter, 40.0);
+        if (n > 0) {
+            ASSERT_LE(all[n - 1].mark.ageGyr, s.mark.ageGyr) << "youngest first";
+        }
+        if (s.change == s.otherChange) {
+            (s.change < 0.0 ? dark : bright) += 1;
+        } else {
+            ASSERT_DOUBLE_EQ(s.change, -0.04);
+            ASSERT_DOUBLE_EQ(s.otherChange, 0.10);
+        }
+    }
+    const double count = static_cast<double>(all.size());
+    EXPECT_NEAR(dark / count, 0.907, 0.02);
+    EXPECT_NEAR(bright / count, 0.074, 0.015);
+    options.minDiameter = 1.0;
+    for (const Splotch& s : SplotchAlbedo(options).Splotches({0.0, 0.0, 50.0, 50.0}, 0.9)) {
+        ASSERT_GT(s.mark.diameter, 1.8) << "unresolved at 0.9 m";
+    }
+}
+
+TEST(SplotchAlbedo, ChangesFadeWithAgeAndEndAtTheEdge) {
+    const SplotchAlbedo layer;
+    EXPECT_DOUBLE_EQ(layer.Change(Dark(10.0, 0.0), 0.0, 0.0, 0.1), -0.04);
+    EXPECT_NEAR(layer.Change(Dark(10.0, 0.5 * 0.081e-3), 1.0, 0.0, 0.1), -0.02, 1e-12);
+    EXPECT_EQ(layer.Change(Dark(10.0, 0.0), 5.0, 0.0, 0.1), 0.0);
+    EXPECT_EQ(layer.Change(Dark(10.0, 0.081e-3), 0.0, 0.0, 0.1), 0.0);
+    EXPECT_EQ(layer.Change(Dark(10.0, 0.0), 0.0, 0.0, 10.0), 0.0) << "too small to resolve";
+
+    Splotch mixed = Dark(10.0, 0.0);
+    mixed.otherChange = 0.10;
+    mixed.split = 0.0;
+    EXPECT_NEAR(layer.Change(mixed, -2.5, 0.0, 0.1), -0.04, 1e-12);
+    EXPECT_NEAR(layer.Change(mixed, 2.5, 0.0, 0.1), 0.10, 1e-12);
+    EXPECT_NEAR(layer.Change(mixed, 0.0, 0.0, 0.1), 0.03, 1e-12);
+}
+
+TEST(SplotchAlbedo, YoungerSplotchesCoverOlderOnes) {
+    SplotchOptions options;
+    options.minDiameter = 2.0;
+    options.darkShare = 0.0;
+    options.brightShare = 1.0;
+    const Albedo albedo = Grey(options);
+    const RasterGrid grid{100, 100, GeoTransform::NorthUp(0.0, 100.0, 1.0)};
+    const auto values = EvaluateAlbedo(albedo, grid, {.spacing = 0.5});
+    int changed = 0;
+    for (std::size_t row = 0; row < 100; ++row) {
+        for (std::size_t col = 0; col < 100; ++col) {
+            const float v = values[0](col, row);
+            ASSERT_GE(v, 0.11f);
+            ASSERT_LE(v, static_cast<float>(0.11 * 1.10) + 1e-6f) << "never stacked";
+            changed += v > 0.1101f ? 1 : 0;
+        }
+    }
+    EXPECT_GT(changed, 500);
+}
+
+TEST(SplotchAlbedo, GridsTilesAndPointsAgree) {
+    SplotchOptions options;
+    options.minDiameter = 2.0;
+    const Albedo albedo = Grey(options);
+    const RasterGrid whole{96, 96, GeoTransform::NorthUp(-48.0, 48.0, 1.0)};
+    const RasterGrid tile{32, 32, GeoTransform::NorthUp(-16.0, 16.0, 1.0)};
+    const auto grid = EvaluateAlbedo(albedo, whole, {.spacing = 1.0, .threads = 1});
+    const auto threaded = EvaluateAlbedo(albedo, whole, {.spacing = 1.0, .threads = 0});
+    const auto part = EvaluateAlbedo(albedo, tile, {.spacing = 1.0});
+    int changed = 0;
+    for (std::size_t row = 0; row < 96; ++row) {
+        for (std::size_t col = 0; col < 96; ++col) {
+            ASSERT_EQ(grid[0](col, row), threaded[0](col, row));
+            changed += grid[0](col, row) != 0.11f ? 1 : 0;
+        }
+    }
+    EXPECT_GT(changed, 100);
+    for (std::size_t row = 0; row < 32; ++row) {
+        for (std::size_t col = 0; col < 32; ++col) {
+            ASSERT_EQ(part[0](col, row), grid[0](col + 32, row + 32));
+            if ((row * 32 + col) % 7 == 0) {
+                const auto centre = part[0].CellCenter(col, row);
+                ASSERT_EQ(EvaluateAlbedoAt(albedo, centre.x, centre.y, {.spacing = 1.0})[0],
+                          part[0](col, row));
+            }
+        }
+    }
+}
+
+TEST(SplotchAlbedo, WorksOnASphereAndLeavesNoData) {
+    SplotchOptions options;
+    options.minDiameter = 2.0;
+    const Surface moon = Surface::Sphere(1737400.0);
+    const Albedo albedo = Grey(options, moon);
+    const double metre = 1.0 / moon.UnitLength();
+    const RasterGrid grid{64, 64, GeoTransform::NorthUp(30.0, -10.0 + 64.0 * metre, metre)};
+    const auto values = EvaluateAlbedo(albedo, grid, {.spacing = 1.0});
+    int changed = 0;
+    for (std::size_t row = 0; row < 64; ++row) {
+        for (std::size_t col = 0; col < 64; ++col) {
+            changed += values[0](col, row) != 0.11f ? 1 : 0;
+        }
+    }
+    EXPECT_GT(changed, 50);
+    const SplotchAlbedo layer(options);
+    AlbedoSample value{NAN, 0.2f, 0.0f};
+    layer.ApplyAt(value, 1, 0.0, 0.0, {.spacing = 1.0});
+    EXPECT_TRUE(std::isnan(value[0]));
+    std::vector<terraingen::Raster<float>> none;
+    layer.Apply(none, {.spacing = 1.0});
+    EXPECT_TRUE(none.empty());
+}
+
+TEST(SplotchOptions, RejectsInvalidSettings) {
+    EXPECT_NO_THROW(terraingen::ValidateSplotches({}));
+    const auto rejects = [](auto change) {
+        SplotchOptions options;
+        change(options);
+        EXPECT_THROW(terraingen::ValidateSplotches(options), std::invalid_argument);
+        EXPECT_THROW(SplotchAlbedo{options}, std::invalid_argument);
+    };
+    rejects([](SplotchOptions& o) { o.rateCoefficient = 0.0; });
+    rejects([](SplotchOptions& o) { o.rateExponent = -1.0; });
+    rejects([](SplotchOptions& o) { o.lifetimeMyr = 0.0; });
+    rejects([](SplotchOptions& o) { o.minDiameter = 0.0; });
+    rejects([](SplotchOptions& o) { o.maxDiameter = 1.0; });
+    rejects([](SplotchOptions& o) { o.darkShare = 1.1; });
+    rejects([](SplotchOptions& o) { o.brightShare = 0.2; });
+    rejects([](SplotchOptions& o) { o.darkChange = {ValueDistribution::Kind::Constant, -1.0}; });
+    rejects(
+        [](SplotchOptions& o) { o.brightChange = {ValueDistribution::Kind::Normal, 0.1, 0.1}; });
+    rejects([](SplotchOptions& o) { o.softness = 0.0; });
+    rejects([](SplotchOptions& o) { o.raggedness = 1.0; });
+    rejects([](SplotchOptions& o) { o.fade.endSamples = 1.0; });
+}

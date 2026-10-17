@@ -299,7 +299,11 @@ TEST(ConfigJson, RoundTripsAlbedos) {
     craters.options.rays.oblique.zoneHalfWidthDegrees = 30.0;
     craters.options.rays.oblique.downrangeSpeedRatio = {
         terraingen::ValueDistribution::Kind::Constant, 1.3};
-    config.albedo = terraingen::AlbedoSpec{synthetic, {craters, terraingen::CraterAlbedoSpec{}}};
+    terraingen::SplotchAlbedoSpec splotches;
+    splotches.options.minDiameter = 3.0;
+    splotches.options.darkChange = {terraingen::ValueDistribution::Kind::Uniform, -0.06, -0.02};
+    config.albedo =
+        terraingen::AlbedoSpec{synthetic, {craters, terraingen::CraterAlbedoSpec{}, splotches}};
     config.outputs = {
         terraingen::AlbedoOutput{"albedo.tif", terraingen::TiffCompression::Deflate, 32}};
     const std::string json = ConfigToJson(config);

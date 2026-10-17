@@ -457,6 +457,12 @@ TEST(ValidateConfig, ReportsAlbedoProblemsByPath) {
     EXPECT_EQ(error([&](TerrainConfig& c) { craters(c).craterLayer = 1; }),
               "albedo.layers[0].crater_layer");
     EXPECT_EQ(error([&](TerrainConfig& c) { craters(c).options.share = 2.0; }), "albedo.layers[0]");
+    EXPECT_EQ(error([](TerrainConfig& c) {
+                  terraingen::SplotchAlbedoSpec splotches;
+                  splotches.options.softness = 0.0;
+                  c.albedo->layers.push_back(splotches);
+              }),
+              "albedo.layers[1]");
     EXPECT_EQ(error([](TerrainConfig& c) { c.layers.pop_back(); }), "albedo.layers[0]");
     EXPECT_EQ(error([](TerrainConfig& c) { c.albedo->source = terraingen::RasterAlbedoSpec{}; }),
               "albedo.source.path");

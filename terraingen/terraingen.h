@@ -6,6 +6,7 @@
 #include "terraingen/albedo/crater_albedo.h"
 #include "terraingen/albedo/maturity.h"
 #include "terraingen/albedo/raster_albedo.h"
+#include "terraingen/albedo/splotches.h"
 #include "terraingen/albedo/synthetic.h"
 #include "terraingen/config/build.h"
 #include "terraingen/config/config.h"
