@@ -481,6 +481,44 @@ TEST(GenerateCraters, SkippingUnresolvedBandsKeepsEveryResolvedCrater) {
         std::invalid_argument);
 }
 
+TEST(GenerateCraters, SkippingLargeBandsKeepsEverySmallerCraterUnlessTheyInteract) {
+    const terraingen::PowerLawSfd density(0.05, 2.0);
+    const terraingen::UniformAges ages(1.0);
+    const terraingen::Bounds2d region{-150.0, -150.0, 150.0, 150.0};
+    const auto upTo = [](const CraterList& craters, double diameter) {
+        std::vector<std::uint64_t> ids;
+        for (std::size_t n = 0; n < craters.Size(); ++n) {
+            if (craters.At(n).diameter <= diameter) {
+                ids.push_back(craters.At(n).id);
+            }
+        }
+        return ids;
+    };
+    for (const terraingen::CraterSpacing spacing :
+         {terraingen::CraterSpacing{}, terraingen::CraterSpacing{1.5, 2.0}}) {
+        terraingen::CraterGenerationOptions options{.dMin = 2.0, .dMax = 100.0, .marginRadii = 1.5};
+        options.spacing = spacing;
+        const auto all = terraingen::GenerateCraters(terraingen::PlanarCells(), region, density,
+                                                     ages, 9u, options);
+        options.maxBandDiameter = 7.0;
+        const auto small = terraingen::GenerateCraters(terraingen::PlanarCells(), region, density,
+                                                       ages, 9u, options);
+        ASSERT_FALSE(upTo(all, 7.0).empty());
+        EXPECT_EQ(upTo(small, 7.0), upTo(all, 7.0));
+        if (spacing.Enabled()) {
+            EXPECT_EQ(small.Size(), all.Size()) << "larger craters still remove smaller ones";
+        } else {
+            EXPECT_LT(small.Size(), all.Size());
+            EXPECT_EQ(upTo(small, 100.0), upTo(small, 8.0)) << "only the band holding 7 m";
+        }
+    }
+    terraingen::CraterGenerationOptions bad{.dMin = 2.0, .dMax = 100.0};
+    bad.maxBandDiameter = 0.0;
+    EXPECT_THROW(
+        terraingen::GenerateCraters(terraingen::PlanarCells(), region, density, ages, 9u, bad),
+        std::invalid_argument);
+}
+
 TEST(ResolveDMax, FallsBackToTheTopOfTheDensitysRange) {
     const terraingen::PowerLawSfd unbounded(0.05, 2.0);
     EXPECT_EQ(terraingen::ResolveDMax(50.0, unbounded), 50.0);

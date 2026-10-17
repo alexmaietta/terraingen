@@ -89,6 +89,10 @@ struct CraterGenerationOptions {
     /// Skip bands whose craters are all smaller than this (m) and, with spacing, too small to
     /// remove a crater this large; craters at or above it are unchanged. 0 generates every band.
     double minResolvedDiameter = 0.0;
+    /// Skip bands whose craters are all larger than this (m), unless spacing or `maxCraters` is on,
+    /// where larger craters change which smaller ones are kept; craters at or below it are
+    /// unchanged. Infinity generates every band.
+    double maxBandDiameter = std::numeric_limits<double>::infinity();
     /// Where each cell's craters come from; empty draws them with `GenerateCellCraters`.
     CellCraterSource cellCraters{};
     /// What the region and margins are measured on: on a sphere, regions are longitude and

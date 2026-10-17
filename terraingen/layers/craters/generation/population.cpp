@@ -42,6 +42,9 @@ void CheckOptions(const CraterGenerationOptions& options) {
         throw std::invalid_argument("maxExpectedCraters must not be negative");
     }
     RequireNonNegative(options.minResolvedDiameter, "minResolvedDiameter");
+    if (!(options.maxBandDiameter > 0.0)) {
+        throw std::invalid_argument("maxBandDiameter must be positive");
+    }
 }
 
 /// One band of a generation: the cells drawn and the craters they are expected to hold.
@@ -137,7 +140,9 @@ class Generation {
             options_.minResolvedDiameter / (spacing.Enabled() ? spacing.diameterRatio : 1.0);
         std::vector<BandPlan> plan;
         for (const CraterBand& band : CraterBands(options_.dMin, dMax_, options_.cellSizeFactor)) {
-            if (band.high <= skipBelow) {
+            const bool tooLarge = !spacing.Enabled() && options_.maxCraters == 0 &&
+                                  band.low > options_.maxBandDiameter;
+            if (band.high <= skipBelow || tooLarge) {
                 continue;
             }
             const double margin = CandidateMargin(band.high);

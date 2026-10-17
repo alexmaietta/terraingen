@@ -200,3 +200,18 @@ def test_crater_albedo_texture_options():
     assert (options.texture.streaks, options.texture.lobe_count) == (0.8, 8)
     with pytest.raises(ValueError):
         terraingen.validate_crater_albedo_texture(terraingen.CraterAlbedoTexture(lobes=0.95))
+
+
+def test_crater_albedo_reflectance_zones(lunar_models):
+    zones = terraingen.CraterReflectanceZones(enabled=True, max_diameter=300.0)
+    assert zones.distal_low.share == pytest.approx(0.84) and zones.max_reach(20.0) > 2000.0
+    layer = terraingen.CraterAlbedo(
+        manual_crater_layer(lunar_models), terraingen.CraterAlbedoOptions(zones=zones)
+    )
+    assert layer.reflectance_change(young_crater(), 0.0, 0.0, 1.0) > 0.0
+    plain = terraingen.CraterAlbedo(manual_crater_layer(lunar_models))
+    assert plain.reflectance_change(young_crater(), 0.0, 0.0, 1.0) == 0.0
+    with pytest.raises(ValueError):
+        terraingen.validate_reflectance_zone(terraingen.ReflectanceZone(feather=0.0))
+    with pytest.raises(ValueError):
+        terraingen.validate_crater_reflectance_zones(terraingen.CraterReflectanceZones(max_diameter=0.0))

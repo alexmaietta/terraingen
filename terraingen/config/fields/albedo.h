@@ -183,6 +183,55 @@ template <typename IO> void Fields(IO& io, CraterAlbedoTexture& texture) {
     io("seed", texture.seed, "Varies every crater's texture.");
 }
 
+template <typename IO> void Fields(IO& io, ReflectanceZone& zone) {
+    io("share", zone.share, "Share of craters, from 0 to 1, with the zone.");
+    io("change", zone.change,
+       "Reflectance change relative to the pre-impact surface, drawn per crater; above -1, "
+       "negative values darken.");
+    io("coefficient", zone.coefficient,
+       "Coefficient of the zone's reach from the crater's centre, coefficient D^exponent metres "
+       "for diameter D in metres; positive.",
+       "m");
+    io("exponent", zone.exponent, "Exponent of the diameter in the zone's reach; positive.");
+    io("scale", zone.scale,
+       "Factor on the reach, drawn per crater; positive and bounded, a wider distribution gives "
+       "more varied zones.");
+    io("raggedness", zone.raggedness,
+       "Share of the reach, from 0 up to 1, that fingers of the edge pull in by; 0 keeps the "
+       "zone round, higher values make it ray-like.");
+    io("finger_width_degrees", zone.fingerWidthDegrees,
+       "Typical width of the edge's fingers around the crater, in degrees.", "deg");
+    io("feather", zone.feather,
+       "Share of the reach, from 0 to 1 excluding 0, over which the zone fades out at its edge.");
+    io("retention_myr", zone.retentionMyr,
+       "How long the zone lasts, in Myr, fading like the bright material; unset lasts as long as "
+       "the bright material.",
+       "Myr");
+}
+
+template <typename IO> void Fields(IO& io, CraterReflectanceZones& zones) {
+    io("enabled", zones.enabled,
+       "Gives new small craters the reflectance zones of LROC temporal pairs; off by default.");
+    io("max_diameter", zones.maxDiameter,
+       "Largest crater diameter, in metres, with zones; the published fits stop near 43 m.", "m");
+    io("mature_depth", zones.matureDepth,
+       "Depth in metres of mature regolith; only craters excavating deeper get the proximal "
+       "high reflectance zone.",
+       "m");
+    io("excavation_ratio", zones.excavationRatio,
+       "Excavation depth over crater diameter; positive.");
+    io("proximal_high", zones.proximalHigh,
+       "Proximal high reflectance zone: immature ejecta, +12% to a median 1.5 D.");
+    io("proximal_low", zones.proximalLow,
+       "Proximal low reflectance zone: -9% to a median 2.9 D, around nearly every crater.");
+    io("distal_high", zones.distalHigh,
+       "Distal high reflectance zone: +1% to +4% to 0.52 D^2.5 m, around 24% of craters.");
+    io("distal_low", zones.distalLow,
+       "Distal low reflectance zone: -2% to -6%, ray-like, to 5.03 D^2 m, around 84% of "
+       "craters.");
+    io("seed", zones.seed, "Varies every crater's zones.");
+}
+
 template <typename IO> void Fields(IO& io, CraterAlbedoOptions& options) {
     io("seed", options.seed,
        "Seed of which craters get bright material, their rays and their impacts; changing it "
@@ -214,6 +263,9 @@ template <typename IO> void Fields(IO& io, CraterAlbedoOptions& options) {
     io("texture", options.texture,
        "Filaments, lobed ejecta edges and walls brighter than floors; off unless streaks, lobes "
        "or a floor share below 1 are set.");
+    io("zones", options.zones,
+       "Bright and dark reflectance zones around new small craters, after Robinson et al. "
+       "(2015) and Speyerer et al. (2016); off by default.");
     io("ejecta_excess", options.ejectaExcess,
        "Optical maturity above the background on a fresh crater's continuous ejecta at the rim, "
        "not negative, falling with distance.");

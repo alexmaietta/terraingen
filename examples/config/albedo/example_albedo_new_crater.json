@@ -1,0 +1,113 @@
+{
+    "schema_version": 1,
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 1,
+                    "wavelength": 800,
+                    "amplitude": 4,
+                    "octaves": 8
+                }
+            ]
+        },
+        {
+            "type": "craters",
+            "seed": 1,
+            "density": {
+                "type": "minimum",
+                "distributions": [
+                    {
+                        "type": "production_surface",
+                        "production": "extended_neukum",
+                        "chronology": "neukum",
+                        "age_gyr": 3.2
+                    },
+                    {
+                        "type": "trask"
+                    }
+                ]
+            },
+            "ages": {
+                "type": "steady_state",
+                "age_gyr": 3.2,
+                "production": "extended_neukum",
+                "equilibrium": "trask",
+                "chronology": "neukum"
+            },
+            "min_diameter": 12,
+            "max_diameter": 300,
+            "degradation": {
+                "type": "diffusion",
+                "diffusivity": "matched"
+            },
+            "apply": {
+                "datum": "plane"
+            },
+            "manual": [
+                {
+                    "x": 0,
+                    "y": 0,
+                    "diameter": 18.8,
+                    "age_gyr": 0
+                }
+            ]
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_albedo_new_crater_heights.tif",
+            "region": {
+                "width": 1025,
+                "height": 1025,
+                "pixel_size": 4
+            }
+        },
+        {
+            "type": "albedo",
+            "path": "example_albedo_new_crater_albedo.tif",
+            "region": {
+                "width": 1025,
+                "height": 1025,
+                "pixel_size": 4
+            }
+        }
+    ],
+    "albedo": {
+        "source": {
+            "type": "synthetic",
+            "value": 0.11,
+            "value_noise": [
+                {
+                    "seed": 4,
+                    "wavelength": 400,
+                    "amplitude": 0.01,
+                    "octaves": 5
+                }
+            ]
+        },
+        "layers": [
+            {
+                "type": "craters",
+                "seed": 1,
+                "max_diameter": 50,
+                "interior_excess": 0,
+                "ejecta_excess": 0,
+                "rays": {
+                    "enabled": false
+                },
+                "texture": {
+                    "streaks": 0.7,
+                    "streak_width_degrees": 4,
+                    "streak_length_radii": 0.8
+                },
+                "zones": {
+                    "enabled": true,
+                    "seed": 111
+                }
+            }
+        ]
+    }
+}

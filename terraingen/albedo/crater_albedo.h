@@ -104,8 +104,8 @@ struct CraterRays {
 void ValidateCraterRays(const CraterRays& rays);
 
 /// The texture of fresh craters' bright material, keyed to each crater and off by default: radial
-/// streaks breaking ejecta, rays and interiors into filaments, a lobed ejecta edge, and walls
-/// brighter than floors.
+/// streaks breaking ejecta, rays, interiors and the bright proximal reflectance zone into
+/// filaments, a lobed ejecta edge, and walls brighter than floors.
 struct CraterAlbedoTexture {
     /// Share of the excess the radial streaks take away between filaments, in [0, 1]; 0 for none.
     double streaks = 0.0;
@@ -130,6 +130,100 @@ struct CraterAlbedoTexture {
 /// negative continuous reach.
 void ValidateCraterAlbedoTexture(const CraterAlbedoTexture& texture);
 
+/// One reflectance zone around new small craters: a share of craters has it, it changes the
+/// reflectance relative to the pre-impact surface by `change`, and it reaches
+/// `coefficient` D^`exponent` metres from the centre times `scale`, both drawn per crater, with
+/// a ragged edge of fingers pulled in by up to `raggedness` of the reach, lasting `retentionMyr`.
+struct ReflectanceZone {
+    double share = 1.0;                ///< Share of craters with the zone, in [0, 1].
+    ValueDistribution change{};        ///< Relative reflectance change, above -1.
+    double coefficient = 1.0;          ///< Reach law coefficient, m; positive.
+    double exponent = 1.0;             ///< Reach law exponent; positive.
+    ValueDistribution scale{};         ///< Reach multiplier; positive and bounded.
+    double raggedness = 0.0;           ///< Reach fingers pull in, in [0, 1).
+    double fingerWidthDegrees = 10.0;  ///< Typical finger width; positive.
+    double feather = 0.3;              ///< Share of the reach fading out, in (0, 1].
+    /// How long the zone lasts (Myr), fading like the bright material; unset lasts as long as the
+    /// bright material, and a zone outlasting it ends with it.
+    std::optional<double> retentionMyr;
+
+    bool operator==(const ReflectanceZone&) const = default;
+};
+
+/// Checks a reflectance zone.
+/// @throws std::invalid_argument for a share outside [0, 1], an invalid change that can reach -1,
+/// a non-positive coefficient or exponent, a scale that can be non-positive or unbounded, a
+/// raggedness outside [0, 1), a non-positive finger width, a feather outside (0, 1] or a
+/// non-positive retention time.
+void ValidateReflectanceZone(const ReflectanceZone& zone);
+
+/// The four reflectance zones around new small craters seen in LROC temporal pairs, after
+/// Robinson et al. (2015) and Speyerer et al. (2016), off by default. Proximal high (PHRZ) only
+/// where the crater excavates below the mature regolith, inside proximal low (PLRZ), inside
+/// distal high (DHRZ) and distal low (DLRZ) in order of reach; inner zones cover outer ones.
+/// The changes multiply the albedo after the maturity excess. The distal zones and the thin low
+/// reflectance ejecta live in the top centimetres, which secondaries churn in 8.1e4 years
+/// (Speyerer et al. 2016), and last that long; the bright, immature PHRZ fades with the bright
+/// material.
+struct CraterReflectanceZones {
+    bool enabled = false;          ///< Whether craters get the zones.
+    double maxDiameter = 50.0;     ///< Largest crater with zones (m); the fits stop near 43 m.
+    double matureDepth = 1.0;      ///< Depth of mature regolith (m); not negative.
+    double excavationRatio = 0.1;  ///< Excavation depth over diameter; positive.
+    /// PHRZ: +12% +/- 9% to a median 1.5 D (mean 2.1 D) from the centre.
+    ReflectanceZone proximalHigh{1.0,
+                                 {ValueDistribution::Kind::Normal, 0.12, 0.09, 0.01, 0.5},
+                                 1.5,
+                                 1.0,
+                                 {ValueDistribution::Kind::LogNormal, 1.0, 0.82, 0.4, 5.0},
+                                 0.3,
+                                 25.0,
+                                 0.3,
+                                 {}};
+    /// PLRZ: -9% +/- 4%, in nearly all craters, to a median 2.9 D (mean 3.2 D); lasting as long as
+    /// the top centimetres is an inference from Robinson et al.'s (2015) discussion.
+    ReflectanceZone proximalLow{1.0,
+                                {ValueDistribution::Kind::Normal, -0.09, 0.04, -0.2, -0.01},
+                                2.9,
+                                1.0,
+                                {ValueDistribution::Kind::LogNormal, 1.0, 0.44, 0.5, 3.0},
+                                0.3,
+                                20.0,
+                                0.3,
+                                0.081};
+    /// DHRZ: +1% to +4% in 24% of craters, to 0.52 D^2.5 m.
+    ReflectanceZone distalHigh{0.24,
+                               {ValueDistribution::Kind::Uniform, 0.01, 0.04},
+                               0.52,
+                               2.5,
+                               {ValueDistribution::Kind::Constant, 1.0},
+                               0.5,
+                               8.0,
+                               0.4,
+                               0.081};
+    /// DLRZ: -2% to -6% in 84% of craters, ray-like, to 5.03 D^2 m.
+    ReflectanceZone distalLow{0.84,
+                              {ValueDistribution::Kind::Uniform, -0.06, -0.02},
+                              5.03,
+                              2.0,
+                              {ValueDistribution::Kind::Constant, 1.0},
+                              0.6,
+                              8.0,
+                              0.6,
+                              0.081};
+    std::uint32_t seed = 0;  ///< Varies every crater's zones.
+
+    /// The farthest any zone reaches from the centre of a crater `diameter` metres across.
+    double MaxReach(double diameter) const;
+
+    bool operator==(const CraterReflectanceZones&) const = default;
+};
+
+/// Checks crater reflectance zones.
+/// @throws std::invalid_argument for an invalid zone, a non-positive largest diameter or
+/// excavation ratio, or a negative mature depth.
+void ValidateCraterReflectanceZones(const CraterReflectanceZones& zones);
+
 /// The bright material of fresh craters, in optical maturity (OMAT) over the background's:
 /// an interior excess, ejecta falling as a power of distance, and rays. Excesses fade with age
 /// over the retention time, add over overlapping craters and are capped; the albedo then moves
@@ -148,6 +242,7 @@ struct CraterAlbedoOptions {
     double ejectaReachRadii = 3.0;      ///< Where the ejecta excess reaches 0, in radii; > 1.
     CraterRays rays{};                  ///< The rays.
     CraterAlbedoTexture texture{};      ///< Filaments, lobes and wall brightness; off by default.
+    CraterReflectanceZones zones{};     ///< Zones around new small craters; off by default.
     RayRetention retention{};           ///< Retention time T by diameter.
     double fadeExponent = 1.0;          ///< Excesses fade as max(0, 1 - t / T)^this.
     /// Reflectance of the optical maturity origin (`ReflectanceAtMaturity`).
@@ -184,6 +279,10 @@ class CraterAlbedo final : public AlbedoLayer {
     /// spacing of `spacing` metres.
     double Excess(const Crater& crater, double x, double y, double spacing) const;
 
+    /// The relative reflectance change the zones of `crater` give surface point (`x`, `y`) at a
+    /// sample spacing of `spacing` metres; 0 without zones.
+    double ReflectanceChange(const Crater& crater, double x, double y, double spacing) const;
+
     /// The impact `crater` came from, drawn from its ID; vertical without oblique impacts.
     CraterImpact Impact(const Crater& crater) const;
 
@@ -207,6 +306,9 @@ class CraterAlbedo final : public AlbedoLayer {
     Ray DrawRay(RandomStream& random, double median, const CraterImpact& impact) const;
     /// Draws the rays of `prepared`, widening its reach to the longest.
     void AddRays(Prepared& prepared, RandomStream& random) const;
+    /// Draws the reflectance zones of `prepared`, widening its reach to the farthest, for a crater
+    /// with `left` of its bright material's life and a resolution weight of `resolution`.
+    void AddZones(Prepared& prepared, double left, double resolution) const;
     std::vector<Prepared> Gather(const Bounds2d& region, double spacing) const;
 
     std::shared_ptr<const CraterLayer> craters_;

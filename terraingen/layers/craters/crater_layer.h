@@ -65,7 +65,11 @@ class CraterLayer final : public Layer, public CraterPlacer {
     /// and manual ones centred in it or within the profile's reach of it.
     /// @param spacing Sample spacing in metres; bands too small to resolve at it are skipped
     /// (`CraterGenerationOptions::minResolvedDiameter`), 0 keeps every band.
-    CraterList Craters(const Bounds2d& region, double spacing = 0.0) const;
+    /// @param minDiameter,maxDiameter Diameters (m) of the craters wanted: generated bands wholly
+    /// outside them may be skipped (`maxBandDiameter`), so craters outside them can still come
+    /// back.
+    CraterList Craters(const Bounds2d& region, double spacing = 0.0, double minDiameter = 0.0,
+                       double maxDiameter = std::numeric_limits<double>::infinity()) const;
 
     /// A crater's depth, rim height and freshness in the state the degradation model gives it.
     /// @throws std::domain_error as `DegradationModel::State`.

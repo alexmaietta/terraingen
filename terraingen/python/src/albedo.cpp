@@ -239,6 +239,40 @@ void BindCraterAlbedoOptions(nb::module_& m) {
         .def_rw("seed", &CraterAlbedoTexture::seed);
     m.def("validate_crater_albedo_texture", &ValidateCraterAlbedoTexture, "texture"_a,
           kValidateDoc);
+    auto zone = nb::class_<ReflectanceZone>(
+        m, "ReflectanceZone",
+        "A reflectance zone around new small craters: `share` of craters have it, it changes "
+        "reflectance by `change` and reaches `coefficient` * D^`exponent` m times `scale`, with "
+        "fingers pulling in by `raggedness` and an edge fading over `feather`.");
+    BindKwargsInit<ReflectanceZone>(zone);
+    zone.def_rw("share", &ReflectanceZone::share)
+        .def_rw("change", &ReflectanceZone::change)
+        .def_rw("coefficient", &ReflectanceZone::coefficient)
+        .def_rw("exponent", &ReflectanceZone::exponent)
+        .def_rw("scale", &ReflectanceZone::scale)
+        .def_rw("raggedness", &ReflectanceZone::raggedness)
+        .def_rw("finger_width_degrees", &ReflectanceZone::fingerWidthDegrees)
+        .def_rw("feather", &ReflectanceZone::feather)
+        .def_rw("retention_myr", &ReflectanceZone::retentionMyr);
+    m.def("validate_reflectance_zone", &ValidateReflectanceZone, "zone"_a, kValidateDoc);
+    auto zones = nb::class_<CraterReflectanceZones>(
+        m, "CraterReflectanceZones",
+        "The proximal and distal, high and low reflectance zones around new craters up to "
+        "`max_diameter` (Robinson et al. 2015, Speyerer et al. 2016); the proximal high zone only "
+        "where `excavation_ratio` * D exceeds `mature_depth`.");
+    BindKwargsInit<CraterReflectanceZones>(zones);
+    zones.def_rw("enabled", &CraterReflectanceZones::enabled)
+        .def_rw("max_diameter", &CraterReflectanceZones::maxDiameter)
+        .def_rw("mature_depth", &CraterReflectanceZones::matureDepth)
+        .def_rw("excavation_ratio", &CraterReflectanceZones::excavationRatio)
+        .def_rw("proximal_high", &CraterReflectanceZones::proximalHigh)
+        .def_rw("proximal_low", &CraterReflectanceZones::proximalLow)
+        .def_rw("distal_high", &CraterReflectanceZones::distalHigh)
+        .def_rw("distal_low", &CraterReflectanceZones::distalLow)
+        .def_rw("seed", &CraterReflectanceZones::seed)
+        .def("max_reach", &CraterReflectanceZones::MaxReach, "diameter"_a);
+    m.def("validate_crater_reflectance_zones", &ValidateCraterReflectanceZones, "zones"_a,
+          kValidateDoc);
     auto options = nb::class_<CraterAlbedoOptions>(
         m, "CraterAlbedoOptions",
         "Which craters get bright material (diameters, ages, `share`), how much brighter their "
@@ -256,6 +290,7 @@ void BindCraterAlbedoOptions(nb::module_& m) {
         .def_rw("ejecta_reach_radii", &CraterAlbedoOptions::ejectaReachRadii)
         .def_rw("rays", &CraterAlbedoOptions::rays)
         .def_rw("texture", &CraterAlbedoOptions::texture)
+        .def_rw("zones", &CraterAlbedoOptions::zones)
         .def_rw("retention", &CraterAlbedoOptions::retention)
         .def_rw("fade_exponent", &CraterAlbedoOptions::fadeExponent)
         .def_rw("origin_reflectance", &CraterAlbedoOptions::originReflectance)
@@ -274,6 +309,8 @@ void BindCraterAlbedo(nb::module_& m) {
              "options"_a = CraterAlbedoOptions{})
         .def("excess", &CraterAlbedo::Excess, "crater"_a, "x"_a, "y"_a, "spacing"_a,
              "The excess optical maturity `crater` gives (x, y).")
+        .def("reflectance_change", &CraterAlbedo::ReflectanceChange, "crater"_a, "x"_a, "y"_a,
+             "spacing"_a, "The relative reflectance change the zones of `crater` give (x, y).")
         .def("impact", &CraterAlbedo::Impact, "crater"_a,
              "The impact `crater` came from, drawn from its ID.")
         .def("reach", &CraterAlbedo::Reach, "crater"_a,

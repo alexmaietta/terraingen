@@ -492,3 +492,220 @@ TEST(CraterAlbedo, TexturesFreshMaterialIntoFilamentsLobesAndBrightWalls) {
     textured.texture = {.continuousRadii = -1.0};
     EXPECT_THROW(terraingen::ValidateCraterAlbedoTexture(textured.texture), std::invalid_argument);
 }
+
+namespace {
+
+/// Zones on every crater with fixed changes and reaches, round and sharp-edged.
+CraterAlbedoOptions FixedZones() {
+    CraterAlbedoOptions options = NoRays();
+    options.interiorExcess = 0.0;
+    options.ejectaExcess = 0.0;
+    options.zones.enabled = true;
+    terraingen::CraterReflectanceZones& z = options.zones;
+    for (terraingen::ReflectanceZone* zone :
+         {&z.proximalHigh, &z.proximalLow, &z.distalHigh, &z.distalLow}) {
+        zone->share = 1.0;
+        zone->scale = {ValueDistribution::Kind::Constant, 1.0};
+        zone->raggedness = 0.0;
+        zone->feather = 0.1;
+    }
+    z.proximalHigh.change = {ValueDistribution::Kind::Constant, 0.12};
+    z.proximalLow.change = {ValueDistribution::Kind::Constant, -0.09};
+    z.distalHigh.change = {ValueDistribution::Kind::Constant, 0.03};
+    z.distalLow.change = {ValueDistribution::Kind::Constant, -0.04};
+    return options;
+}
+
+}  // namespace
+
+TEST(CraterAlbedo, ReflectanceZonesAreOffByDefault) {
+    const Crater crater{0.0, 0.0, 20.0, 0.0, 7u, true};
+    const CraterAlbedo layer(Craters({crater}), NoRays());
+    EXPECT_FALSE(CraterAlbedoOptions{}.zones.enabled);
+    EXPECT_EQ(layer.ReflectanceChange(crater, 40.0, 0.0, 0.1), 0.0);
+}
+
+TEST(CraterAlbedo, ReflectanceZonesNestFromTheCraterOut) {
+    const Crater crater{0.0, 0.0, 20.0, 0.0, 7u, true};
+    const CraterAlbedo layer(Craters({crater}), FixedZones());
+    EXPECT_DOUBLE_EQ(layer.ReflectanceChange(crater, 0.0, 0.0, 0.1), 0.12) << "PHRZ to 1.5 D";
+    EXPECT_DOUBLE_EQ(layer.ReflectanceChange(crater, 0.0, 40.0, 0.1), -0.09) << "PLRZ to 2.9 D";
+    EXPECT_DOUBLE_EQ(layer.ReflectanceChange(crater, 300.0, 0.0, 0.1), 0.03)
+        << "DHRZ to 0.52 D^2.5 = 930 m";
+    EXPECT_DOUBLE_EQ(layer.ReflectanceChange(crater, -1500.0, 0.0, 0.1), -0.04)
+        << "DLRZ to 5.03 D^2 = 2012 m";
+    EXPECT_EQ(layer.ReflectanceChange(crater, 2100.0, 0.0, 0.1), 0.0);
+    EXPECT_NEAR(layer.Reach(crater), 5.03 * 400.0, 1e-9);
+    EXPECT_NEAR(FixedZones().zones.MaxReach(20.0), 5.03 * 400.0, 1e-9);
+}
+
+TEST(CraterAlbedo, OnlyCratersReachingImmatureRegolithGetABrightProximalZone) {
+    const Crater shallow{0.0, 0.0, 5.0, 0.0, 7u, true};
+    const CraterAlbedo layer(Craters({shallow}), FixedZones());
+    EXPECT_DOUBLE_EQ(layer.ReflectanceChange(shallow, 0.0, 0.0, 0.1), -0.09)
+        << "dark ejecta from mature regolith";
+    CraterAlbedoOptions thin = FixedZones();
+    thin.zones.matureDepth = 0.2;
+    EXPECT_DOUBLE_EQ(
+        CraterAlbedo(Craters({shallow}), thin).ReflectanceChange(shallow, 0.0, 0.0, 0.1), 0.12);
+    const Crater large{0.0, 0.0, 80.0, 0.0, 8u, true};
+    EXPECT_EQ(CraterAlbedo(Craters({large}), FixedZones()).ReflectanceChange(large, 0.0, 0.0, 0.1),
+              0.0)
+        << "beyond the largest diameter";
+    const Crater old{0.0, 0.0, 20.0, 1.0, 9u, true};
+    EXPECT_EQ(CraterAlbedo(Craters({old}), FixedZones()).ReflectanceChange(old, 0.0, 0.0, 0.1), 0.0)
+        << "faded with the bright material";
+}
+
+TEST(CraterAlbedo, ReflectanceZonesFollowTheirSharesAndRaggedEdges) {
+    CraterAlbedoOptions options = FixedZones();
+    options.zones.distalHigh.share = 0.0;
+    options.zones.distalLow.share = 0.0;
+    std::vector<Crater> craters;
+    for (std::uint64_t id = 1; id <= 40; ++id) {
+        craters.push_back({0.0, 0.0, 20.0, 0.0, id, true});
+    }
+    const CraterAlbedo none(Craters(craters), options);
+    for (const Crater& crater : craters) {
+        ASSERT_EQ(none.ReflectanceChange(crater, 300.0, 0.0, 0.1), 0.0);
+    }
+    options.zones.distalLow.share = 0.5;
+    const CraterAlbedo half(Craters(craters), options);
+    int dark = 0;
+    for (const Crater& crater : craters) {
+        dark += half.ReflectanceChange(crater, 1000.0, 0.0, 0.1) < 0.0 ? 1 : 0;
+    }
+    EXPECT_GT(dark, 8);
+    EXPECT_LT(dark, 32);
+
+    options.zones.distalLow.share = 1.0;
+    options.zones.distalLow.raggedness = 0.6;
+    const CraterAlbedo ragged(Craters({craters[0]}), options);
+    int covered = 0;
+    for (int k = 0; k < 360; ++k) {
+        const double angle = 2.0 * std::numbers::pi * k / 360.0;
+        covered += ragged.ReflectanceChange(craters[0], 1500.0 * std::cos(angle),
+                                            1500.0 * std::sin(angle), 0.1) < 0.0
+                       ? 1
+                       : 0;
+    }
+    EXPECT_GT(covered, 20) << "fingers reaching out";
+    EXPECT_LT(covered, 340) << "gaps between them";
+}
+
+TEST(CraterAlbedo, ReflectanceZonesDarkenAndBrightenTheAlbedoAlike) {
+    const Crater crater{0.0, 0.0, 20.0, 0.0, 7u, true};
+    const auto layer = std::make_shared<CraterAlbedo>(Craters({crater}), FixedZones());
+    const Albedo albedo = Grey(layer);
+    EXPECT_FLOAT_EQ(At(albedo, 0.0, 0.0, 0.1), static_cast<float>(0.11 * 1.12));
+    EXPECT_FLOAT_EQ(At(albedo, 0.0, 40.0, 0.1), static_cast<float>(0.11 * 0.91));
+    const RasterGrid whole{48, 48, GeoTransform::NorthUp(-120.0, 120.0, 5.0)};
+    const RasterGrid tile{16, 16, GeoTransform::NorthUp(-40.0, 40.0, 5.0)};
+    const auto grid = EvaluateAlbedo(albedo, whole, {.spacing = 0.1});
+    const auto part = EvaluateAlbedo(albedo, tile, {.spacing = 0.1});
+    for (std::size_t row = 0; row < 16; ++row) {
+        for (std::size_t col = 0; col < 16; ++col) {
+            ASSERT_EQ(part[0](col, row), grid[0](col + 16, row + 16));
+            const auto centre = part[0].CellCenter(col, row);
+            ASSERT_EQ(At(albedo, centre.x, centre.y, 0.1), part[0](col, row));
+        }
+    }
+}
+
+TEST(CraterReflectanceZones, RejectsInvalidSettings) {
+    EXPECT_NO_THROW(terraingen::ValidateCraterReflectanceZones({}));
+    const auto rejects = [](auto change) {
+        terraingen::CraterReflectanceZones zones;
+        change(zones);
+        EXPECT_THROW(terraingen::ValidateCraterReflectanceZones(zones), std::invalid_argument);
+        CraterAlbedoOptions options;
+        options.zones = zones;
+        EXPECT_THROW(terraingen::ValidateCraterAlbedo(options), std::invalid_argument);
+    };
+    using Zones = terraingen::CraterReflectanceZones;
+    rejects([](Zones& z) { z.maxDiameter = 0.0; });
+    rejects([](Zones& z) { z.excavationRatio = 0.0; });
+    rejects([](Zones& z) { z.matureDepth = -1.0; });
+    rejects([](Zones& z) { z.distalLow.share = 1.5; });
+    rejects([](Zones& z) { z.distalLow.change = {ValueDistribution::Kind::Constant, -1.0}; });
+    rejects([](Zones& z) { z.distalLow.change = {ValueDistribution::Kind::Normal, 0.0, 0.1}; });
+    rejects([](Zones& z) { z.proximalLow.coefficient = 0.0; });
+    rejects([](Zones& z) { z.proximalLow.exponent = 0.0; });
+    rejects(
+        [](Zones& z) { z.proximalHigh.scale = {ValueDistribution::Kind::LogNormal, 1.0, 0.5}; });
+    rejects([](Zones& z) { z.proximalHigh.scale = {ValueDistribution::Kind::Constant, 0.0}; });
+    rejects([](Zones& z) { z.distalHigh.raggedness = 1.0; });
+    rejects([](Zones& z) { z.distalHigh.feather = 0.0; });
+    rejects([](Zones& z) { z.distalHigh.fingerWidthDegrees = 0.0; });
+}
+
+TEST(CraterAlbedo, ThinZonesLastAsLongAsTheTopCentimetresTakeToChurn) {
+    const Crater recent{0.0, 0.0, 20.0, 0.00004, 7u, true};
+    const CraterAlbedo layer(Craters({recent}), FixedZones());
+    EXPECT_NEAR(layer.ReflectanceChange(recent, -1500.0, 0.0, 0.1), -0.04 * (1.0 - 40.0 / 81.0),
+                1e-12);
+    const Crater older{0.0, 0.0, 20.0, 0.0001, 7u, true};
+    const CraterAlbedo faded(Craters({older}), FixedZones());
+    EXPECT_EQ(faded.ReflectanceChange(older, 300.0, 0.0, 0.1), 0.0);
+    EXPECT_EQ(faded.ReflectanceChange(older, -1500.0, 0.0, 0.1), 0.0);
+    EXPECT_EQ(faded.ReflectanceChange(older, 0.0, 40.0, 0.1), 0.0) << "the thin dark ejecta too";
+    EXPECT_NEAR(faded.ReflectanceChange(older, 0.0, 0.0, 0.1), 0.12 * (1.0 - 0.1 / 5.0), 1e-12)
+        << "the immature ejecta fade with the bright material";
+    EXPECT_LT(faded.Reach(older), 100.0);
+    CraterAlbedoOptions lasting = FixedZones();
+    lasting.zones.distalLow.retentionMyr.reset();
+    EXPECT_LT(CraterAlbedo(Craters({older}), lasting).ReflectanceChange(older, -1500.0, 0.0, 0.1),
+              0.0);
+    lasting.zones.distalLow.retentionMyr = 0.0;
+    EXPECT_THROW(terraingen::ValidateCraterAlbedo(lasting), std::invalid_argument);
+}
+
+TEST(CraterAlbedo, TextureStreaksBreakTheBrightProximalZoneIntoFilaments) {
+    const Crater crater{0.0, 0.0, 20.0, 0.0, 7u, true};
+    CraterAlbedoOptions options = FixedZones();
+    options.texture.streaks = 0.9;
+    const CraterAlbedo layer(Craters({crater}), options);
+    double least = 1.0;
+    double most = 0.0;
+    for (int k = 0; k < 720; ++k) {
+        const double angle = 2.0 * std::numbers::pi * k / 720.0;
+        const double change =
+            layer.ReflectanceChange(crater, 12.0 * std::cos(angle), 12.0 * std::sin(angle), 0.1);
+        least = std::fmin(least, change);
+        most = std::fmax(most, change);
+    }
+    EXPECT_LT(least, 0.06);
+    EXPECT_GT(most, 0.11);
+    EXPECT_DOUBLE_EQ(layer.ReflectanceChange(crater, 0.0, 40.0, 0.1), -0.09) << "PLRZ even";
+}
+
+TEST(CraterAlbedo, ReflectanceZonesGatherSmallCratersFromAsFarAsTheyReach) {
+    terraingen::CraterLayerOptions layerOptions;
+    layerOptions.generation.dMin = 4.0;
+    layerOptions.generation.dMax = 64.0;
+    const auto craters = std::make_shared<terraingen::CraterLayer>(
+        terraingen::CraterModels{std::make_shared<terraingen::PowerLawSfd>(0.001, 2.0),
+                                 std::make_shared<terraingen::FreshAges>(),
+                                 std::make_shared<terraingen::FreshnessDegradation>(
+                                     std::make_shared<terraingen::UniformAges>(1.0),
+                                     terraingen::LunarFreshCraterMorphometry),
+                                 std::make_shared<terraingen::FassettThomsonProfile>()},
+        layerOptions);
+    CraterAlbedoOptions options = NoRays();
+    options.interiorExcess = 0.0;
+    options.ejectaExcess = 0.0;
+    options.zones.enabled = true;
+    options.zones.maxDiameter = 20.0;
+    const auto layer = std::make_shared<CraterAlbedo>(craters, options);
+    const terraingen::CraterList all = craters->Craters({-2500.0, -2500.0, 2500.0, 2500.0}, 0.5);
+    for (const auto& [x, y] : {std::pair{0.0, 0.0}, std::pair{310.0, -120.0}}) {
+        double change = 0.0;
+        for (std::size_t n = 0; n < all.Size(); ++n) {
+            change += layer->ReflectanceChange(all.At(n), x, y, 0.5);
+        }
+        ASSERT_NE(change, 0.0);
+        AlbedoSample value{0.11f, 0.0f, 0.0f};
+        layer->ApplyAt(value, 1, x, y, {.spacing = 0.5});
+        EXPECT_FLOAT_EQ(value[0], static_cast<float>(0.11 * (1.0 + change)));
+    }
+}

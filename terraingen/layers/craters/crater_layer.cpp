@@ -35,12 +35,15 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options)
     }
 }
 
-CraterList CraterLayer::Craters(const Bounds2d& region, double spacing) const {
+CraterList CraterLayer::Craters(const Bounds2d& region, double spacing, double minDiameter,
+                                double maxDiameter) const {
     CraterGenerationOptions generation = options_.generation;
     if (options_.generate) {
         if (spacing > 0.0) {
             generation.minResolvedDiameter = options_.apply.fade.startSamples * spacing;
         }
+        generation.minResolvedDiameter = std::fmax(generation.minResolvedDiameter, minDiameter);
+        generation.maxBandDiameter = std::fmin(generation.maxBandDiameter, maxDiameter);
         if (cache_) {
             generation.cellCraters =
                 CachedCellCraters(*cache_, *cells_, *models_.density, *models_.ages, options_.seed);
