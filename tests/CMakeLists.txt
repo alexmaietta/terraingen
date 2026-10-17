@@ -30,8 +30,12 @@ if(TERRAINGEN_COVERAGE)
             "${GCOVR_EXECUTABLE}" --root "${PROJECT_SOURCE_DIR}" --gcov-executable "${gcov_command}"
             --filter "${PROJECT_SOURCE_DIR}/terraingen/" --gcov-exclude ".*build_info.*"
             --exclude-throw-branches --exclude-noncode-lines --delete --txt --html-details
-            "${report_dir}/index.html" --cobertura "${report_dir}/coverage.xml" --markdown-summary
-            "${report_dir}/summary.md" --print-summary "${PROJECT_BINARY_DIR}"
+            "${report_dir}/index.html" --html-title "TerrainGen coverage" --cobertura
+            "${report_dir}/coverage.xml" --markdown-summary "${report_dir}/summary.md"
+            --json-summary "${report_dir}/summary.json" --print-summary "${PROJECT_BINARY_DIR}"
+        COMMAND
+            ${CMAKE_COMMAND} -DSUMMARY=${report_dir}/summary.json -DOUTPUT=${report_dir}/badge.json
+            -P "${PROJECT_SOURCE_DIR}/cmake/CoverageBadge.cmake"
         WORKING_DIRECTORY "${PROJECT_BINARY_DIR}"
         COMMENT "Running tests and writing coverage reports to ${report_dir}"
         USES_TERMINAL VERBATIM)

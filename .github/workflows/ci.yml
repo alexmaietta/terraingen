@@ -138,3 +138,54 @@ jobs:
           name: coverage-report
           path: build/coverage/
           if-no-files-found: ignore
+
+  # The documentation site with the coverage report under coverage/ (and coverage/badge.json for the
+  # README badge), deployed from main only. Pull requests still run the coverage job above.
+  pages:
+    name: Docs and coverage to GitHub Pages
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: coverage
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: docs/requirements.txt
+
+      - name: Install Doxygen
+        run: sudo apt-get update && sudo apt-get install -y doxygen
+
+      - name: Install TerrainGen and docs requirements
+        run: |
+          pip install .
+          pip install -r docs/requirements.txt
+
+      - name: Build docs
+        run: make -C docs build
+
+      - name: Add the coverage report
+        uses: actions/download-artifact@v7
+        continue-on-error: true
+        with:
+          name: coverage-report
+          path: site/coverage
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@v5

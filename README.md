@@ -1,6 +1,7 @@
 > 🚧 **This project is in active beta development.** This means the API is unstable, features may be added or removed, and breaking changes are likely to occur frequently and without notice as the design is refined.
 
 [![pipeline](https://github.com/alexmaietta/terraingen/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/alexmaietta/terraingen/actions/workflows/ci.yml)
+[![coverage](https://img.shields.io/endpoint?url=https://alexmaietta.github.io/terraingen/coverage/badge.json)](https://alexmaietta.github.io/terraingen/coverage/)
 [![release](https://img.shields.io/github/v/release/alexmaietta/terraingen)](https://github.com/alexmaietta/terraingen/releases)
 [![pypi](https://img.shields.io/pypi/v/terraingen)](https://pypi.org/project/terraingen/)
 [![docs](https://github.com/alexmaietta/terraingen/actions/workflows/docs.yml/badge.svg?branch=main)](https://alexmaietta.github.io/terraingen/)

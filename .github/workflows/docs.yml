@@ -1,5 +1,8 @@
 name: Docs
 
+# Builds the documentation to check it. The CI workflow deploys it, with the coverage report, to
+# GitHub Pages from main.
+
 on:
   push:
     branches: [main]
@@ -41,21 +44,3 @@ jobs:
 
       - name: Build docs
         run: make -C docs build
-
-      - uses: actions/upload-pages-artifact@v5
-        with:
-          path: site
-
-  deploy:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v5
