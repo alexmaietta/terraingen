@@ -592,6 +592,12 @@ void ValidateAlbedo(const TerrainConfig& config, const std::filesystem::path& di
                        [&](const SplotchAlbedoSpec& splotches) {
                            At(path, [&] { ValidateSplotches(splotches.options); });
                        },
+                       [&](const BlastZoneAlbedoSpec& zones) {
+                           for (std::size_t z = 0; z < zones.zones.size(); ++z) {
+                               At(Element(Child(path, "zones"), z),
+                                  [&] { ValidateBlastZone(zones.zones[z]); });
+                           }
+                       },
                    },
                    albedo.layers[i]);
     }

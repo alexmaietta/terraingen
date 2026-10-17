@@ -248,3 +248,22 @@ def test_albedo_layers_read_the_terrain_heights(lunar_models):
     assert terraingen.evaluate_albedo_at(albedo, 1.0, 1.0, 2.0, terrain=flat) == pytest.approx(
         terraingen.evaluate_albedo_at(albedo, 1.0, 1.0, 2.0)
     )
+
+
+def test_blast_zones_brighten_around_a_lander():
+    zone = terraingen.BlastZone(area=2530.0, elongation=75.0 / 43.0, core_radius=4.0)
+    terraingen.validate_blast_zone(zone)
+    layer = terraingen.BlastZoneAlbedo([zone])
+    assert layer.change(zone, 0.0, 15.0) > 0.0 > layer.change(zone, 0.0, 1.0)
+    assert terraingen.BlastZoneAlbedo.reach(zone) > 30.0 and layer.zones[0].area == 2530.0
+    with pytest.raises(ValueError):
+        terraingen.validate_blast_zone(terraingen.BlastZone(area=0.0))
+
+
+def test_splotch_swarms_follow_robinsons_crater():
+    swarms = terraingen.SplotchSwarms(enabled=True, craters=[terraingen.Crater(0.0, 0.0, 18.8)])
+    assert swarms.count(18.8) == pytest.approx(248.0)
+    layer = terraingen.SplotchAlbedo(terraingen.SplotchOptions(swarms=swarms))
+    assert 150 < layer.swarm_size(terraingen.Crater(0.0, 0.0, 18.8)) < 350
+    with pytest.raises(ValueError):
+        terraingen.validate_splotches(terraingen.SplotchOptions(swarms=terraingen.SplotchSwarms(mu=1.5)))

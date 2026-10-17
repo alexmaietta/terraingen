@@ -59,7 +59,7 @@ Options:
 | distributions | `example_distributions_moore_rough_mare`, `_piecewise_power_law`, `_power_law`, `_tabulated`, `_trask_equilibrium`, `_viper` | `example_distributions_csfd` | `example_distributions_csfd`, `_custom` |
 | ages | `example_ages_fresh`, `_steady_state`, `_uniform` | `example_ages_models` | `example_ages_models` |
 | boulders | `example_boulders_buried`, `_ejecta`, `_fragments`, `_exposure`, `_layer`, `_models`, `_patches`, `_scene`, `_shapes`, `_sp8023` | `example_boulders_ejecta`, `_layer`, `_shapes` | `example_boulders_exposure`, `_layer`, `_positioning`, `_shapes`, `_size_models` |
-| albedo | `example_albedo_crater_rays`, `_fresh_crater`, `_moon_site`, `_new_crater`, `_oblique_rays`, `_rgb`, `_synthetic` | `example_albedo_crater_rays` | `example_albedo_crater_rays`, `_moon_site`, `_options` |
+| albedo | `example_albedo_blast_zone`, `_crater_rays`, `_fresh_crater`, `_moon_site`, `_new_crater`, `_oblique_rays`, `_rgb`, `_synthetic` | `example_albedo_crater_rays` | `example_albedo_crater_rays`, `_moon_site`, `_options` |
 | layers | `example_layers_regions`, `_roughness`, `_scale_and_clamp` | `example_layers_custom`, `_regions` | `example_layers_custom`, `_regions` |
 | planets | `example_planets_asteroid_body_mesh`, `_mars_bedforms`, `_mars_craters`, `_mars_dunes`, `_mars_exposure`, `_mars_pavement`, `_mars_sand_fill`, `_mars_sand_shadows`, `_mars_strata`, `_mars_ventifacts`, `_mercury_site`, `_moon_body_mesh`, `_moon_site` | `example_planets_moon` | `example_planets_body_mesh`, `_mars`, `_mars_dunes`, `_mars_exposure`, `_mercury`, `_moon_site` |
 | sources |  | `example_sources_raster_detail` | `example_sources_chain`, `_raster_detail` |

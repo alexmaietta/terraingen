@@ -3,6 +3,7 @@
 #pragma once
 
 #include "terraingen/albedo/albedo.h"
+#include "terraingen/albedo/blast_zones.h"
 #include "terraingen/albedo/crater_albedo.h"
 #include "terraingen/albedo/maturity.h"
 #include "terraingen/albedo/raster_albedo.h"

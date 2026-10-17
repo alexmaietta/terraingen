@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <numbers>
@@ -267,4 +268,105 @@ TEST(SplotchAlbedo, SteepSlopesCanFavourBrightSplotches) {
             }
         }
     }
+}
+
+TEST(SplotchSwarms, ScaleRobinsonsCraterByHousenAndHolsappsEjecta) {
+    const terraingen::SplotchSwarms swarms;
+    EXPECT_DOUBLE_EQ(swarms.Count(18.8), 248.0);
+    EXPECT_NEAR(swarms.Count(37.6), 248.0 * std::pow(2.0, 3.615), 1e-9);
+    EXPECT_NEAR(swarms.Coefficient(0.081) * std::pow(10.0, -3.06) * 1e6, 4.84e-6 * 81000.0, 1e-9)
+        << "new craters of at least 10 m per km^2 within the lifetime";
+}
+
+TEST(SplotchAlbedo, SwarmsLandWhereRobinsonFoundThem) {
+    SplotchOptions options;
+    options.swarms.enabled = true;
+    const SplotchAlbedo layer(options);
+    std::vector<double> ranges;
+    int dark = 0;
+    int wedges = 0;
+    for (std::uint64_t id = 1; id <= 20; ++id) {
+        const terraingen::Crater crater{0.0, 0.0, 18.8, 0.0, id, false};
+        for (const Splotch& s : layer.Swarm(crater, 0.0)) {
+            const double range = std::hypot(s.mark.x, s.mark.y);
+            ASSERT_GE(range, 4300.0 - 1e-6);
+            ASSERT_LE(range, 30000.0 + 1e-6);
+            ASSERT_GE(s.mark.diameter, 2.0);
+            ASSERT_LE(s.mark.diameter, 22.0);
+            ranges.push_back(range);
+            dark += s.change < 0.0 && s.otherChange < 0.0 ? 1 : 0;
+            if (s.wedge) {
+                ++wedges;
+                EXPECT_NEAR(std::cos(s.heading - std::atan2(-s.mark.y, -s.mark.x)), 1.0, 1e-9)
+                    << "pointing back to the crater";
+            }
+        }
+    }
+    const double n = static_cast<double>(ranges.size());
+    EXPECT_NEAR(n, 20.0 * 248.0, 4.0 * std::sqrt(20.0 * 248.0));
+    std::sort(ranges.begin(), ranges.end());
+    EXPECT_NEAR(ranges[ranges.size() / 2], 8700.0, 500.0) << "Robinson's median distance";
+    double mean = 0.0;
+    for (const double r : ranges) {
+        mean += r / n;
+    }
+    EXPECT_NEAR(mean, 10300.0, 1200.0) << "Robinson's mean distance";
+    EXPECT_NEAR(dark / n, 239.0 / 248.0, 0.015);
+    EXPECT_NEAR(wedges / n, 0.2, 0.02);
+}
+
+TEST(SplotchAlbedo, WedgesNarrowTowardTheirCrater) {
+    const SplotchAlbedo layer;
+    Splotch wedge;
+    wedge.mark = {0.0, 0.0, 10.0, 0.0, 3u, false};
+    wedge.change = -0.04;
+    wedge.otherChange = -0.04;
+    wedge.wedge = true;
+    wedge.elongation = 2.0;
+    wedge.heading = 0.0;
+    EXPECT_LT(layer.Change(wedge, -4.0, 0.0, 0.1), 0.0) << "the long axis reaches 7 m";
+    EXPECT_LT(layer.Change(wedge, -3.0, 1.8, 0.1), 0.0) << "broad at the base";
+    EXPECT_EQ(layer.Change(wedge, 3.0, 1.8, 0.1), 0.0) << "narrow toward the crater";
+}
+
+TEST(SplotchAlbedo, SwarmsKeepGridsAndPointsInStep) {
+    SplotchOptions options;
+    options.minDiameter = 4.0;
+    options.swarms.enabled = true;
+    options.swarms.craterRate = 1.5e-3;
+    options.swarms.minRange = 30.0;
+    options.swarms.maxRange = 300.0;
+    options.swarms.referenceCount = 20.0;
+    const Albedo albedo = Grey(options);
+    const RasterGrid grid{48, 48, GeoTransform::NorthUp(0.0, 192.0, 4.0)};
+    const auto values = EvaluateAlbedo(albedo, grid, {.spacing = 4.0});
+    const auto swarmed = SplotchAlbedo(options).Splotches({0.0, 0.0, 192.0, 192.0}, 4.0).size();
+    SplotchOptions plain = options;
+    plain.swarms.enabled = false;
+    EXPECT_GT(swarmed, SplotchAlbedo(plain).Splotches({0.0, 0.0, 192.0, 192.0}, 4.0).size());
+    for (std::size_t row = 0; row < 48; row += 3) {
+        for (std::size_t col = 0; col < 48; col += 3) {
+            const auto centre = values[0].CellCenter(col, row);
+            ASSERT_EQ(EvaluateAlbedoAt(albedo, centre.x, centre.y, {.spacing = 4.0})[0],
+                      values[0](col, row));
+        }
+    }
+}
+
+TEST(SplotchSwarms, RejectsInvalidSettings) {
+    const auto rejects = [](auto change) {
+        SplotchOptions options;
+        change(options.swarms);
+        EXPECT_THROW(terraingen::ValidateSplotches(options), std::invalid_argument);
+    };
+    using Swarms = terraingen::SplotchSwarms;
+    rejects([](Swarms& s) { s.craterRate = 0.0; });
+    rejects([](Swarms& s) { s.maxCraterDiameter = 5.0; });
+    rejects([](Swarms& s) { s.maxRange = 1000.0; });
+    rejects([](Swarms& s) { s.mu = 1.0; });
+    rejects([](Swarms& s) { s.splotchDiameter = {ValueDistribution::Kind::LogNormal, 6.0, 0.6}; });
+    rejects([](Swarms& s) { s.darkChange = {ValueDistribution::Kind::Constant, -1.5}; });
+    rejects([](Swarms& s) { s.brightShare = 0.5; });
+    rejects([](Swarms& s) { s.wedgeShare = 2.0; });
+    rejects([](Swarms& s) { s.wedgeElongation = 0.5; });
 }

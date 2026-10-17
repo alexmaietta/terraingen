@@ -4,6 +4,7 @@
 #include "trampolines.h"
 
 #include "terraingen/albedo/albedo.h"
+#include "terraingen/albedo/blast_zones.h"
 #include "terraingen/albedo/crater_albedo.h"
 #include "terraingen/albedo/maturity.h"
 #include "terraingen/albedo/raster_albedo.h"
@@ -352,6 +353,31 @@ void BindCraterAlbedo(nb::module_& m) {
 }
 
 void BindSplotches(nb::module_& m) {
+    auto swarms = nb::class_<SplotchSwarms>(
+        m, "SplotchSwarms",
+        "Swarms of splotches around new craters (Robinson et al. 2015), scaled by ejecta mass "
+        "(Housen and Holsapple 2011); off unless `enabled`.");
+    BindKwargsInit<SplotchSwarms>(swarms);
+    swarms.def_rw("enabled", &SplotchSwarms::enabled)
+        .def_rw("crater_rate", &SplotchSwarms::craterRate)
+        .def_rw("crater_slope", &SplotchSwarms::craterSlope)
+        .def_rw("min_crater_diameter", &SplotchSwarms::minCraterDiameter)
+        .def_rw("max_crater_diameter", &SplotchSwarms::maxCraterDiameter)
+        .def_rw("reference_diameter", &SplotchSwarms::referenceDiameter)
+        .def_rw("reference_count", &SplotchSwarms::referenceCount)
+        .def_rw("mu", &SplotchSwarms::mu)
+        .def_rw("min_range", &SplotchSwarms::minRange)
+        .def_rw("max_range", &SplotchSwarms::maxRange)
+        .def_rw("splotch_diameter", &SplotchSwarms::splotchDiameter)
+        .def_rw("dark_share", &SplotchSwarms::darkShare)
+        .def_rw("bright_share", &SplotchSwarms::brightShare)
+        .def_rw("dark_change", &SplotchSwarms::darkChange)
+        .def_rw("bright_change", &SplotchSwarms::brightChange)
+        .def_rw("wedge_share", &SplotchSwarms::wedgeShare)
+        .def_rw("wedge_elongation", &SplotchSwarms::wedgeElongation)
+        .def_rw("craters", &SplotchSwarms::craters)
+        .def("count", &SplotchSwarms::Count, "diameter"_a,
+             "Splotches a crater `diameter` m across throws, on average.");
     auto options = nb::class_<SplotchOptions>(
         m, "SplotchOptions",
         "Splotches from secondary impacts (Speyerer et al. 2016): formed at `rate_coefficient` * "
@@ -373,6 +399,7 @@ void BindSplotches(nb::module_& m) {
         .def_rw("softness", &SplotchOptions::softness)
         .def_rw("raggedness", &SplotchOptions::raggedness)
         .def_rw("fade", &SplotchOptions::fade)
+        .def_rw("swarms", &SplotchOptions::swarms)
         .def("coefficient", &SplotchOptions::Coefficient,
              "Splotches of at least 1 m per m^2 at any time.");
     m.def("validate_splotches", &ValidateSplotches, "options"_a, kValidateDoc);
@@ -386,7 +413,43 @@ void BindSplotches(nb::module_& m) {
                 return layer.Splotches(region, spacing).size();
             },
             "region"_a, "spacing"_a, "How many splotches resolved at `spacing` m reach `region`.")
+        .def(
+            "swarm_size",
+            [](const SplotchAlbedo& layer, const Crater& crater, double spacing) {
+                return layer.Swarm(crater, spacing).size();
+            },
+            "crater"_a, "spacing"_a = 0.0, "How many splotches `crater`'s swarm holds.")
         .def_prop_ro("options", &SplotchAlbedo::Options);
+}
+
+void BindBlastZones(nb::module_& m) {
+    auto zone = nb::class_<BlastZone>(
+        m, "BlastZone",
+        "The zone around a lander its engine scoured (Clegg et al. 2014): `area` m^2 brighter by "
+        "`change` on average, elongated along `heading_degrees`, in a halo reaching `halo_reach` "
+        "times as far, around a dark core of `core_radius` m.");
+    BindKwargsInit<BlastZone>(zone);
+    zone.def_rw("x", &BlastZone::x)
+        .def_rw("y", &BlastZone::y)
+        .def_rw("area", &BlastZone::area)
+        .def_rw("elongation", &BlastZone::elongation)
+        .def_rw("heading_degrees", &BlastZone::headingDegrees)
+        .def_rw("change", &BlastZone::change)
+        .def_rw("halo_change", &BlastZone::haloChange)
+        .def_rw("halo_reach", &BlastZone::haloReach)
+        .def_rw("core_radius", &BlastZone::coreRadius)
+        .def_rw("core_change", &BlastZone::coreChange)
+        .def_rw("raggedness", &BlastZone::raggedness)
+        .def_rw("seed", &BlastZone::seed);
+    m.def("validate_blast_zone", &ValidateBlastZone, "zone"_a, kValidateDoc);
+    nb::class_<BlastZoneAlbedo, AlbedoLayer>(m, "BlastZoneAlbedo",
+                                             "Blast zones around landers, brightening the albedo.")
+        .def(nb::init<std::vector<BlastZone>, Surface>(), "zones"_a, "surface"_a = Surface{})
+        .def("change", &BlastZoneAlbedo::Change, "zone"_a, "x"_a, "y"_a,
+             "The relative reflectance change `zone` gives (x, y).")
+        .def_static("reach", &BlastZoneAlbedo::Reach, "zone"_a,
+                    "How far (m) from its lander a zone changes the ground.")
+        .def_prop_ro("zones", &BlastZoneAlbedo::Zones);
 }
 
 void BindMaturity(nb::module_& m) {
@@ -448,7 +511,7 @@ void BindEvaluation(nb::module_& m) {
         },
         "albedo"_a, "grid"_a, "spacing"_a = 0.0, "threads"_a = 0, "terrain"_a = nb::none(),
         nb::call_guard<nb::gil_scoped_release>(),
-        "The albedo's bands over `grid` (such as `RasterGrid.of(heights)` or a source's "
+        "The albedo's bands over `grid` (such as `RasterGrid.from_raster(heights)` or a source's "
         "`grid()`), sampled every `spacing` metres (0 for the grid's), one Raster per band; layers "
         "shaped by the ground read `terrain`'s heights when given.");
 }
@@ -461,6 +524,7 @@ void BindAlbedo(nb::module_& m) {
     BindRasterAlbedo(m);
     BindCraterAlbedo(m);
     BindSplotches(m);
+    BindBlastZones(m);
     BindMaturity(m);
     BindEvaluation(m);
 }

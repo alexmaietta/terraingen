@@ -2,6 +2,7 @@
 /// @brief The configuration specs: what a terrain configuration holds, as plain structs.
 #pragma once
 
+#include "terraingen/albedo/blast_zones.h"
 #include "terraingen/albedo/crater_albedo.h"
 #include "terraingen/albedo/raster_albedo.h"
 #include "terraingen/albedo/splotches.h"
@@ -634,8 +635,15 @@ struct SplotchAlbedoSpec {
     bool operator==(const SplotchAlbedoSpec&) const = default;
 };
 
+/// Albedo layer "blast_zones": `BlastZoneAlbedo`, the zones landers' engines scoured.
+struct BlastZoneAlbedoSpec {
+    std::vector<BlastZone> zones;
+
+    bool operator==(const BlastZoneAlbedoSpec&) const = default;
+};
+
 /// An albedo layer, named in JSON by its "type".
-using AlbedoLayerSpec = std::variant<CraterAlbedoSpec, SplotchAlbedoSpec>;
+using AlbedoLayerSpec = std::variant<CraterAlbedoSpec, SplotchAlbedoSpec, BlastZoneAlbedoSpec>;
 
 /// The albedo of the terrain: a source and the layers that change it, evaluated over the
 /// terrain's grid.

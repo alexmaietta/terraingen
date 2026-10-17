@@ -1,0 +1,101 @@
+{
+    "schema_version": 1,
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 1,
+                    "wavelength": 300,
+                    "amplitude": 1.5,
+                    "octaves": 7
+                }
+            ]
+        },
+        {
+            "type": "craters",
+            "seed": 3,
+            "density": {
+                "type": "minimum",
+                "distributions": [
+                    {
+                        "type": "production_surface",
+                        "production": "extended_neukum",
+                        "chronology": "neukum",
+                        "age_gyr": 3.6
+                    },
+                    {
+                        "type": "trask"
+                    }
+                ]
+            },
+            "ages": {
+                "type": "steady_state",
+                "age_gyr": 3.6,
+                "production": "extended_neukum",
+                "equilibrium": "trask",
+                "chronology": "neukum"
+            },
+            "min_diameter": 3,
+            "max_diameter": 120,
+            "degradation": {
+                "type": "diffusion",
+                "diffusivity": "matched"
+            },
+            "apply": {
+                "datum": "plane"
+            }
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_albedo_blast_zone_heights.tif",
+            "region": {
+                "width": 1201,
+                "height": 1201,
+                "pixel_size": 0.5
+            }
+        },
+        {
+            "type": "albedo",
+            "path": "example_albedo_blast_zone_albedo.tif",
+            "region": {
+                "width": 1201,
+                "height": 1201,
+                "pixel_size": 0.5
+            }
+        }
+    ],
+    "albedo": {
+        "source": {
+            "type": "synthetic",
+            "value": 0.09,
+            "value_noise": [
+                {
+                    "seed": 4,
+                    "wavelength": 120,
+                    "amplitude": 0.006,
+                    "octaves": 5
+                }
+            ]
+        },
+        "layers": [
+            {
+                "type": "blast_zones",
+                "zones": [
+                    {
+                        "x": 0,
+                        "y": 0,
+                        "area": 25403,
+                        "elongation": 1.14,
+                        "heading_degrees": 100,
+                        "change": 0.151,
+                        "core_radius": 6,
+                        "seed": 11
+                    }
+                ]
+            }
+        ]
+    }
+}

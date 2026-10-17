@@ -492,6 +492,12 @@ TEST(ValidateConfig, ReportsAlbedoProblemsByPath) {
                   c.albedo->layers.push_back(splotches);
               }),
               "albedo.layers[1]");
+    EXPECT_EQ(error([](TerrainConfig& c) {
+                  terraingen::BlastZoneAlbedoSpec blast;
+                  blast.zones = {terraingen::BlastZone{}, terraingen::BlastZone{.area = 0.0}};
+                  c.albedo->layers.push_back(blast);
+              }),
+              "albedo.layers[1].zones[1]");
     EXPECT_EQ(error([](TerrainConfig& c) { c.layers.pop_back(); }), "albedo.layers[0]");
     EXPECT_EQ(error([](TerrainConfig& c) { c.albedo->source = terraingen::RasterAlbedoSpec{}; }),
               "albedo.source.path");

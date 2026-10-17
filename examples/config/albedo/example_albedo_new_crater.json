@@ -115,7 +115,18 @@
             },
             {
                 "type": "splotches",
-                "seed": 1
+                "seed": 1,
+                "swarms": {
+                    "enabled": true,
+                    "craters": [
+                        {
+                            "x": 0,
+                            "y": 0,
+                            "diameter": 18.8,
+                            "age_gyr": 0
+                        }
+                    ]
+                }
             }
         ]
     }

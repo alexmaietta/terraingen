@@ -323,6 +323,43 @@ template <typename IO> void Fields(IO& io, CraterAlbedoSpec& spec) {
     Fields(io, spec.options);
 }
 
+template <typename IO> void Fields(IO& io, SplotchSwarms& swarms) {
+    io("enabled", swarms.enabled,
+       "Gives new craters swarms of splotches, their ejecta's secondaries (Robinson et al. "
+       "2015); off by default.");
+    io("crater_rate", swarms.craterRate,
+       "New craters at least 10 m across per km^2 per year; 4.84e-6 from Speyerer et al. (2016).");
+    io("crater_slope", swarms.craterSlope,
+       "Cumulative size slope of the new craters; the Neukum production function has 2.97 to "
+       "3.15.");
+    io("min_crater_diameter", swarms.minCraterDiameter,
+       "Smallest crater with a swarm, in metres; smaller craters throw few splotches.", "m");
+    io("max_crater_diameter", swarms.maxCraterDiameter, "Largest crater with a swarm, in metres.",
+       "m");
+    io("reference_diameter", swarms.referenceDiameter,
+       "Diameter in metres of the crater whose swarm was counted: 18.8 m, Robinson et al.", "m");
+    io("reference_count", swarms.referenceCount,
+       "Splotches of the reference crater: 248 within 30 km, Robinson et al.");
+    io("mu", swarms.mu,
+       "Velocity exponent of the target, between 0 and 1; 0.41 for sand (Housen and Holsapple "
+       "2011). Counts grow as D^(3 + 1.5 mu) and landing distances fall as r^(-1.5 mu).");
+    io("min_range", swarms.minRange,
+       "Nearest landing distance in metres, setting Robinson et al.'s median of 8.7 km.", "m");
+    io("max_range", swarms.maxRange, "Farthest landing distance in metres.", "m");
+    io("splotch_diameter", swarms.splotchDiameter,
+       "Diameter of a swarm splotch in metres, drawn per splotch: 2 to 22 m, median 6 m.");
+    io("dark_share", swarms.darkShare, "Share of swarm splotches darker than the ground.");
+    io("bright_share", swarms.brightShare, "Share brighter than the ground; the rest are mixed.");
+    io("dark_change", swarms.darkChange, "Reflectance change of a dark swarm splotch.");
+    io("bright_change", swarms.brightChange, "Reflectance change of a bright swarm splotch.");
+    io("wedge_share", swarms.wedgeShare,
+       "Share of swarm splotches shaped as wedges pointing back to their crater. Illustrative.");
+    io("wedge_elongation", swarms.wedgeElongation,
+       "Long over short axis of a wedge, at least 1. Illustrative.");
+    io("craters", swarms.craters,
+       "New craters given by hand, such as an observed impact, each throwing a swarm.");
+}
+
 template <> struct SpecName<SplotchAlbedoSpec> {
     static constexpr std::string_view kName = "splotches";
     static constexpr std::string_view kDescription =
@@ -367,6 +404,48 @@ template <typename IO> void Fields(IO& io, SplotchAlbedoSpec& spec) {
        "Share of a splotch's radius, from 0 up to 1, that lobes of its edge pull in by; 0 keeps "
        "it round.");
     io("fade", options.fade, "How splotches too small to resolve at the sample spacing fade out.");
+    io("swarms", options.swarms, "Swarms of splotches around new craters; off by default.");
+}
+
+template <typename IO> void Fields(IO& io, BlastZone& zone) {
+    io("x", zone.x, "Surface x of the lander.");
+    io("y", zone.y, "Surface y of the lander.");
+    io("area", zone.area,
+       "Area of the blast zone in m^2; measured: Apollo 18,725 to 53,872 (mean 28,785), Luna 987 "
+       "to 3355 (mean 2100), Surveyor 131 to 279 (mean 215), Chang'e-3 2530.",
+       "m^2");
+    io("elongation", zone.elongation,
+       "Long over short axis of the zone, at least 1; Apollo about 1.14, Chang'e-3 about 1.74.");
+    io("heading_degrees", zone.headingDegrees,
+       "Direction of the long axis, degrees counter-clockwise from east, such as along the "
+       "final approach.",
+       "deg");
+    io("change", zone.change,
+       "Mean reflectance change over the zone relative to undisturbed ground at 30 degrees phase, "
+       "above -1; measured +3.4% to +13.2%, Apollo mean +10.9%.");
+    io("halo_change", zone.haloChange,
+       "Reflectance change of the fainter halo beyond the zone, above -1; +4% at Chang'e-3.");
+    io("halo_reach", zone.haloReach,
+       "How far the halo reaches over the zone's own reach, at least 1; 1 for no halo.");
+    io("core_radius", zone.coreRadius,
+       "Radius in metres of the darker core beneath the engine and around the crew's tracks; 0 "
+       "for none, a few metres at the Apollo sites.",
+       "m");
+    io("core_change", zone.coreChange,
+       "Reflectance change of the dark core, above -1; -15% to -30% at the Apollo sites.");
+    io("raggedness", zone.raggedness,
+       "Share of the zone's radius, from 0 up to 1, that lobes of its edge pull in by.");
+    io("seed", zone.seed, "Varies the edge's lobes.");
+}
+
+template <> struct SpecName<BlastZoneAlbedoSpec> {
+    static constexpr std::string_view kName = "blast_zones";
+    static constexpr std::string_view kDescription =
+        "Brighter zones of regolith around landers scoured by their descent engines, after Clegg "
+        "et al. (2014) and Clegg-Watkins et al. (2016).";
+};
+template <typename IO> void Fields(IO& io, BlastZoneAlbedoSpec& spec) {
+    io("zones", spec.zones, "One blast zone per lander.");
 }
 
 template <typename IO> void Fields(IO& io, AlbedoSpec& spec) {

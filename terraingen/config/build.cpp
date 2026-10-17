@@ -649,6 +649,10 @@ Albedo BuildValidAlbedo(const TerrainConfig& config, const Terrain& terrain,
                            albedo.layers.push_back(
                                std::make_shared<SplotchAlbedo>(splotches.options, terrain.surface));
                        },
+                       [&](const BlastZoneAlbedoSpec& zones) {
+                           albedo.layers.push_back(
+                               std::make_shared<BlastZoneAlbedo>(zones.zones, terrain.surface));
+                       },
                    },
                    layer);
     }

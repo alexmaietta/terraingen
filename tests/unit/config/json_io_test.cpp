@@ -314,8 +314,12 @@ TEST(ConfigJson, RoundTripsAlbedos) {
     terraingen::SplotchAlbedoSpec splotches;
     splotches.options.minDiameter = 3.0;
     splotches.options.darkChange = {terraingen::ValueDistribution::Kind::Uniform, -0.06, -0.02};
-    config.albedo =
-        terraingen::AlbedoSpec{synthetic, {craters, terraingen::CraterAlbedoSpec{}, splotches}};
+    splotches.options.swarms.enabled = true;
+    splotches.options.swarms.craters = {{10.0, -20.0, 18.8, 0.0, 0u, false}};
+    terraingen::BlastZoneAlbedoSpec blast;
+    blast.zones = {terraingen::BlastZone{.x = 5.0, .area = 2530.0, .coreRadius = 3.0}};
+    config.albedo = terraingen::AlbedoSpec{
+        synthetic, {craters, terraingen::CraterAlbedoSpec{}, splotches, blast}};
     config.outputs = {
         terraingen::AlbedoOutput{"albedo.tif", terraingen::TiffCompression::Deflate, 32}};
     const std::string json = ConfigToJson(config);
