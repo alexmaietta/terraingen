@@ -49,6 +49,9 @@ jobs:
           CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_34
           # 64-bit only: Slang and NVRTC have no 32-bit Windows builds.
           CIBW_ARCHS_WINDOWS: AMD64
+          # AlmaLinux 9, under manylinux_2_34, builds for x86-64-v2 (SSE4.2, POPCNT: every x86 CPU since
+          # 2009), which auditwheel otherwise rejects for that tag.
+          CIBW_REPAIR_WHEEL_COMMAND_LINUX: auditwheel repair --disable-isa-ext-check -w {dest_dir} {wheel}
           CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=11.0
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: terraingen --version && pytest {project}/tests/python

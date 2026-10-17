@@ -25,7 +25,9 @@ def test_version_matches_cmake(repo_root):
     cmake = (repo_root / "CMakeLists.txt").read_text()
     expected = re.search(r'set\(TERRAINGEN_FULL_VERSION "([^"]+)"\)', cmake).group(1)
     assert terraingen.__version__ == expected
-    assert ".".join(str(part) for part in terraingen.version()) == expected
+    assert (
+        ".".join(str(part) for part in terraingen.version()) == re.match(r"\d+\.\d+\.\d+", expected).group()
+    )
 
 
 def test_api_version_is_positive():

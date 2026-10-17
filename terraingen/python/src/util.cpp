@@ -19,7 +19,7 @@ namespace terraingen::python {
 namespace {
 
 void BindVersion(nb::module_& m) {
-    m.attr("__version__") = TERRAINGEN_VERSION_STRING;
+    m.attr("__version__") = TERRAINGEN_FULL_VERSION_STRING;
     m.def(
         "version",
         [] {

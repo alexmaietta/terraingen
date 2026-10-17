@@ -23,3 +23,9 @@ terraingen_add_library(
     terraingen_util
     PRIVATE
     $<BUILD_INTERFACE:nlohmann_json>)
+
+# MSVC's optimizer crashes (C1001) on the deep template instantiations of the JSON reading and
+# schema, which are not hot, so they build without optimization there.
+if(MSVC)
+    set_source_files_properties(json.cpp schema.cpp PROPERTIES COMPILE_OPTIONS /Od)
+endif()

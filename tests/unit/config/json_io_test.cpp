@@ -424,11 +424,10 @@ TEST(ConfigJson, DefaultsCraterLayersToAPowerLawWithUniformAges) {
     EXPECT_EQ(craters.density, DensitySpec{terraingen::PowerLawSpec{}});
     EXPECT_EQ(craters.ages, AgesSpec{terraingen::UniformAgesSpec{1.0}});
     EXPECT_EQ(craters.morphometry, terraingen::CraterMorphometryFit::Lunar);
+    const TerrainConfig surface = ParseConfig(R"({"schema_version": 1, "layers": [{"type":
+        "craters", "density": {"type": "production_surface"}}]})");
     const auto& production = std::get<terraingen::ProductionSurfaceSpec>(
-        std::get<CraterLayerSpec>(ParseConfig(R"({"schema_version": 1, "layers": [{"type":
-            "craters", "density": {"type": "production_surface"}}]})")
-                                      .layers.at(0))
-            .density);
+        std::get<CraterLayerSpec>(surface.layers.at(0)).density);
     EXPECT_EQ(production, terraingen::ProductionSurfaceSpec{});
 }
 
