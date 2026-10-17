@@ -31,7 +31,6 @@
 #include "terraingen/distribution/tabulated.h"
 #include "terraingen/distribution/viper.h"
 #include "terraingen/gpu/backend.h"
-#include "terraingen/gpu/vulkan.h"
 #include "terraingen/layers/bedforms.h"
 #include "terraingen/layers/boulders/boulder.h"
 #include "terraingen/layers/boulders/boulder_layer.h"

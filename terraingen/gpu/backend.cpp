@@ -66,7 +66,7 @@ Backend DefaultBackend() {
     }
     const char* name = std::getenv("TERRAINGEN_BACKEND");
     if (name == nullptr || *name == '\0') {
-        return Backend::Auto;
+        return Backend::Cpu;
     }
     if (const auto backend = BackendNamed(name)) {
         return *backend;

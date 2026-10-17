@@ -15,7 +15,7 @@ class BackendTest : public ::testing::Test {
   protected:
     void TearDown() override {
         unsetenv("TERRAINGEN_BACKEND");
-        terraingen::SetDefaultBackend(Backend::Auto);
+        terraingen::SetDefaultBackend(Backend::Cpu);
     }
 };
 
@@ -35,8 +35,10 @@ TEST(BackendNamed, ReadsEachNameInAnyCase) {
 
 TEST_F(BackendTest, DefaultsFollowTheEnvironmentUntilSetInCode) {
     unsetenv("TERRAINGEN_BACKEND");
-    EXPECT_EQ(terraingen::DefaultBackend(), Backend::Auto);
+    EXPECT_EQ(terraingen::DefaultBackend(), Backend::Cpu);
     setenv("TERRAINGEN_BACKEND", "", 1);
+    EXPECT_EQ(terraingen::DefaultBackend(), Backend::Cpu);
+    setenv("TERRAINGEN_BACKEND", "auto", 1);
     EXPECT_EQ(terraingen::DefaultBackend(), Backend::Auto);
     setenv("TERRAINGEN_BACKEND", "cpu", 1);
     EXPECT_EQ(terraingen::DefaultBackend(), Backend::Cpu);

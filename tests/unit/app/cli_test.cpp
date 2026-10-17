@@ -100,6 +100,8 @@ TEST(Cli, RejectsBadArguments) {
                                                {"a.json", "--threads", "5000"},
                                                {"a.json", "--threads", ""},
                                                {"--threads", "2"},
+                                               {"a.json", "--backend", "cuda"},
+                                               {"a.json", "--backend"},
                                                {"validate"},
                                                {"validate", "a.json", "b.json"}}) {
         const Result result = Cli(args);
@@ -113,6 +115,29 @@ TEST(Cli, ParsesThreadCounts) {
     EXPECT_EQ(terraingen::cli::ParseThreads("4096"), 4096u);
     for (const char* bad : {"", "-1", "4097", "two", "3x"}) {
         EXPECT_THROW(terraingen::cli::ParseThreads(bad), std::invalid_argument) << bad;
+    }
+}
+
+TEST(Cli, ParsesBackendNames) {
+    EXPECT_EQ(terraingen::cli::ParseBackend("cpu"), terraingen::Backend::Cpu);
+    EXPECT_EQ(terraingen::cli::ParseBackend("Vulkan"), terraingen::Backend::Vulkan);
+    EXPECT_EQ(terraingen::cli::ParseBackend("auto"), terraingen::Backend::Auto);
+    EXPECT_THROW(terraingen::cli::ParseBackend("gpu"), std::invalid_argument);
+    EXPECT_NE(Cli({"--help"}).out.find("--backend auto|cpu|vulkan"), std::string::npos);
+}
+
+TEST(Cli, GeneratesOnTheChosenBackend) {
+    const auto directory = Directory("generate_backend");
+    const auto config = Write(directory / "terrain.json", kConfig);
+    const Result cpu = Cli({config.string(), "--log-level", "off", "--backend", "cpu"});
+    ASSERT_EQ(cpu.code, kExitSuccess) << cpu.err;
+    const auto onCpu = terraingen::ReadGeoTiff(directory / "heights.tif").raster;
+    const Result automatic = Cli({config.string(), "--log-level", "off", "--backend", "auto"});
+    ASSERT_EQ(automatic.code, kExitSuccess) << automatic.err;
+    const auto chosen = terraingen::ReadGeoTiff(directory / "heights.tif").raster;
+    ASSERT_EQ(chosen.Size(), onCpu.Size());
+    for (std::size_t i = 0; i < chosen.Size(); ++i) {
+        ASSERT_NEAR(chosen.Values()[i], onCpu.Values()[i], 1e-3) << i;
     }
 }
 

@@ -9,6 +9,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -34,6 +35,10 @@ struct EvaluationOptions {
     /// Threads to split each layer over; 0 for every hardware thread. The result does
     /// not depend on it.
     unsigned threads = 0;
+    /// Where the grid is evaluated; empty for `DefaultBackend()`, and `Auto` picks Vulkan when a
+    /// device is available. Results on Vulkan match the CPU to within float rounding, not to the
+    /// bit, and point queries always run on the CPU.
+    std::optional<Backend> backend = std::nullopt;
 };
 
 /// The ground beneath one layer of a terrain: its starting heights and the layers before it,
@@ -68,6 +73,7 @@ Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid, double sp
 
 /// The heights of `terrain` over `grid`, evaluated on several threads to the same bits as one.
 /// @throws std::invalid_argument as the single-threaded `Evaluate`.
+/// @throws std::runtime_error when the backend is `Vulkan` and Vulkan is unavailable.
 Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid,
                        const EvaluationOptions& options);
 

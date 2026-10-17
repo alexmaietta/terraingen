@@ -205,7 +205,8 @@ const GeneratedGrid* GeneratedTerrain::Find(const RasterGrid& grid) const {
 }
 
 GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
-                                 const std::filesystem::path& directory, unsigned threads) {
+                                 const std::filesystem::path& directory, unsigned threads,
+                                 std::optional<Backend> backend) {
     GeneratedTerrain generated{BuildTerrain(config, directory)};
     const Terrain& terrain = generated.terrain;
     const Stopwatch stopwatch;
@@ -216,7 +217,8 @@ GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
                 return existing;
             }
         }
-        generated.grids.push_back({Evaluate(terrain, grid, EvaluationOptions{0.0, threads}), {}});
+        generated.grids.push_back(
+            {Evaluate(terrain, grid, EvaluationOptions{0.0, threads, backend}), {}});
         return generated.grids.back();
     };
     std::optional<Albedo> albedo;

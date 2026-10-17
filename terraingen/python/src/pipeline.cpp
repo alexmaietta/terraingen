@@ -156,15 +156,17 @@ void BindEvaluation(nb::module_& m) {
     m.def(
         "evaluate",
         [](const PyTerrain& terrain, double spacing, unsigned threads,
-           std::optional<RasterGrid> grid) {
+           std::optional<RasterGrid> grid, std::optional<Backend> backend) {
             const Terrain built = terrain.Get();
-            return Evaluate(built, GridOr(built, grid), EvaluationOptions{spacing, threads});
+            return Evaluate(built, GridOr(built, grid),
+                            EvaluationOptions{spacing, threads, backend});
         },
         "terrain"_a, "spacing"_a = 0.0, "threads"_a = 0, "grid"_a = nb::none(),
-        nb::call_guard<nb::gil_scoped_release>(),
+        "backend"_a = nb::none(), nb::call_guard<nb::gil_scoped_release>(),
         "Evaluates `terrain` over `grid` (by default its source's) at a sample spacing of "
         "`spacing` metres (0 for the grid's), on up to `threads` threads (0 for every hardware "
-        "thread; the result does not depend on it).");
+        "thread; the result does not depend on it), on `backend` (None for default_backend()). "
+        "On Vulkan the heights match the CPU to within float rounding.");
     m.def(
         "evaluate_at",
         [](const PyTerrain& terrain, double x, double y, double spacing) {
@@ -489,13 +491,15 @@ void BindGeneratedTerrain(nb::module_& m) {
 void BindRun(nb::module_& m) {
     m.def(
         "generate_terrain",
-        [](const TerrainConfig& config, const OptionalPath& directory, unsigned threads) {
-            return GenerateTerrain(config, Directory(directory), threads);
+        [](const TerrainConfig& config, const OptionalPath& directory, unsigned threads,
+           std::optional<Backend> backend) {
+            return GenerateTerrain(config, Directory(directory), threads, backend);
         },
-        "config"_a, "directory"_a = nb::none(), "threads"_a = 0,
+        "config"_a, "directory"_a = nb::none(), "threads"_a = 0, "backend"_a = nb::none(),
         nb::call_guard<nb::gil_scoped_release>(),
         "Generates the terrain `config` describes over each grid its outputs cover, on up to "
-        "`threads` threads (0 for every hardware thread; the result does not depend on it). "
+        "`threads` threads (0 for every hardware thread; the result does not depend on it), "
+        "evaluating the heights on `backend` (None for default_backend()). "
         "Relative input "
         "paths resolve against `directory`. Raises ConfigError for an invalid configuration.");
     m.def(

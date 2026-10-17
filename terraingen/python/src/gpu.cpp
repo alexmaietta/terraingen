@@ -29,8 +29,8 @@ void BindGpu(nb::module_& m) {
     m.def("backend_named", &BackendNamed, "name"_a,
           "The backend named 'auto', 'cpu' or 'vulkan', or None.");
     m.def("default_backend", &DefaultBackend,
-          "The default backend: what set_default_backend set, otherwise TERRAINGEN_BACKEND, "
-          "otherwise AUTO.");
+          "The default backend evaluation uses unless told otherwise: what set_default_backend "
+          "set, otherwise TERRAINGEN_BACKEND, otherwise CPU.");
     m.def("set_default_backend", &SetDefaultBackend, "backend"_a,
           "Sets the default backend, overriding TERRAINGEN_BACKEND.");
     m.def("resolve_backend", &ResolveBackend, "backend"_a,

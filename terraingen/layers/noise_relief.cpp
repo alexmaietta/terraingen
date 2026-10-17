@@ -1,18 +1,42 @@
 #include "terraingen/layers/noise_relief.h"
 
-#include <stdexcept>
+#include "terraingen/layers/cell_kernels.h"
+#include "terraingen/raster/cell_loops.h"
+
+#include <cstddef>
 #include <utility>
+
+extern "C" {
+extern const unsigned char terraingen_kernel_noise_relief[];
+extern const std::size_t terraingen_kernel_noise_relief_size;
+}
 
 namespace terraingen {
 
 NoiseRelief::NoiseRelief(SyntheticTerrainParams params, Vec2d origin, Surface surface)
-    : FormulaLayer(surface), params_(std::move(params)), origin_(origin) {
+    : params_(std::move(params)), origin_(origin), surface_(surface) {
     ValidateSyntheticTerrain(params_);
+    kernel_ = MakeNoiseReliefKernel(params_.layers);
 }
 
-float NoiseRelief::HeightAt(float height, double x, double y, double /*spacing*/,
-                            const Ground* /*ground*/) const {
-    return height + NoiseLayersAt(params_.layers, origin_, surface_, x, y);
+void NoiseRelief::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
+    if (!surface_.IsBody()) {
+        ApplyCellKernel(samples, context, kernel_, origin_,
+                        {terraingen_kernel_noise_relief, terraingen_kernel_noise_relief_size});
+        return;
+    }
+    const auto at = [&](float height, const Vec2d& p) {
+        return height + NoiseLayersAt(params_.layers, origin_, surface_, p.x, p.y);
+    };
+    if (Raster<float>* grid = samples.Grid()) {
+        MapCells(*grid, context.threads, at);
+        return;
+    }
+    for (std::size_t i = 0; i < samples.Size(); ++i) {
+        if (!samples.IsNoData(i)) {
+            samples.Height(i) = at(samples.Height(i), samples.Position(i));
+        }
+    }
 }
 
 float NoiseLayersAt(const std::vector<NoiseLayer>& layers, const Vec2d& origin,

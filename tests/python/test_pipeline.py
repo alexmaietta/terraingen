@@ -62,6 +62,25 @@ def test_generate_terrain_is_the_same_on_one_thread(generated, small_config):
     np.testing.assert_array_equal(again.grids[0].heights.values, generated.grids[0].heights.values)
 
 
+def test_generate_terrain_on_auto_matches_the_cpu_to_float_rounding(generated, small_config):
+    config = terraingen.Config.from_dict(small_config)
+    auto = terraingen.generate_terrain(config, threads=2, backend=terraingen.Backend.AUTO)
+    np.testing.assert_allclose(
+        auto.grids[0].heights.values, generated.grids[0].heights.values, rtol=1e-4, atol=1e-4
+    )
+
+
+def test_evaluate_takes_a_backend_and_cpu_is_exact(small_config):
+    terrain = terraingen.build_terrain(terraingen.Config.from_dict(small_config))
+    grid = terraingen.Config.from_dict(small_config).output_grids()[0]
+    cpu = terraingen.evaluate(terrain, grid=grid).values
+    np.testing.assert_array_equal(
+        terraingen.evaluate(terrain, grid=grid, backend=terraingen.Backend.CPU).values, cpu
+    )
+    auto = terraingen.evaluate(terrain, grid=grid, backend=terraingen.Backend.AUTO).values
+    np.testing.assert_allclose(auto, cpu, rtol=1e-4, atol=1e-4)
+
+
 def albedo_config(small_config):
     small_config["albedo"] = terraingen.config_catalog()["albedo"]
     region = small_config["outputs"][0]["region"]

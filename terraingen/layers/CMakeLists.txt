@@ -48,9 +48,12 @@ terraingen_add_library(
     craters/shaping/prepared.cpp
     PUBLIC
     terraingen_distribution
+    terraingen_gpu
     terraingen_mesh
     terraingen_noise
     terraingen_random
     terraingen_raster
     terraingen_sources
     terraingen_util)
+terraingen_add_cell_kernel(terraingen_layers terraingen_kernel_noise_relief NoiseReliefKernel
+                           terraingen/layers/kernels/noise_relief.h)

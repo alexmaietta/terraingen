@@ -36,13 +36,15 @@ Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid,
     ValidateTerrain(terrain);
     RequireNonNegative(options.spacing, "Sample spacing");
     const double resolved = std::max(options.spacing, grid.Spacing(terrain.surface));
+    const Backend backend = ResolveBackend(options.backend.value_or(DefaultBackend()));
     Raster<float> heights = grid.MakeRaster();
     if (terrain.source) {
         terrain.source->Fill(heights);
     }
     for (std::size_t n = 0; n < terrain.layers.size(); ++n) {
         const TerrainGround ground(terrain, n);
-        terrain.layers[n]->Apply(heights, LayerContext{resolved, options.threads, &ground});
+        terrain.layers[n]->Apply(heights,
+                                 LayerContext{resolved, options.threads, &ground, backend});
     }
     return heights;
 }

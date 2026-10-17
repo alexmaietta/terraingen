@@ -2,6 +2,8 @@
 /// @brief The `terraingen` command line: exit codes, usage and argument handling.
 #pragma once
 
+#include "terraingen/gpu/backend.h"
+
 #include <ostream>
 #include <string>
 #include <vector>
@@ -25,12 +27,17 @@ std::string Usage();
 /// @throws std::invalid_argument for anything that is not such a count.
 unsigned ParseThreads(const std::string& text);
 
+/// Parses a `--backend` value: auto, cpu or vulkan, ignoring case.
+/// @throws std::invalid_argument for any other name.
+Backend ParseBackend(const std::string& text);
+
 /// Runs `terraingen`.
 ///
 /// Commands:
-/// - `CONFIG [--output-dir DIR] [--log-level LEVEL] [--threads N]` generates the terrain the JSON
-///   file CONFIG describes and writes its outputs; relative input paths resolve against the
-///   config's folder, relative output paths against DIR or the config's folder;
+/// - `CONFIG [--output-dir DIR] [--log-level LEVEL] [--threads N] [--backend NAME]` generates the
+///   terrain the JSON file CONFIG describes and writes its outputs; relative input paths resolve
+///   against the config's folder, relative output paths against DIR or the config's folder, and
+///   NAME (auto, cpu or vulkan; by default `DefaultBackend()`) is where the heights are evaluated;
 /// - `validate CONFIG` checks CONFIG without generating and reports its grid and expected craters;
 /// - `schema` prints every configuration type with its defaults (`ConfigCatalog`);
 /// - `[PATH] --gui [--threads N]`, `--gui` anywhere, opens the GUI (`RunGui`);

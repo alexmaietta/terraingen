@@ -125,6 +125,19 @@ std::uint32_t MemoryType(const VkPhysicalDeviceMemoryProperties& memory, std::ui
     throw std::runtime_error("No host-visible, coherent Vulkan memory type");
 }
 
+/// The memory type for buffers the host writes and reads back: host-cached where the device has
+/// one, since reading results back from uncached memory is many times slower, otherwise any
+/// host-visible, coherent type.
+std::uint32_t HostMemoryType(const VkPhysicalDeviceMemoryProperties& memory, std::uint32_t bits) {
+    constexpr VkMemoryPropertyFlags kHost =
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    try {
+        return MemoryType(memory, bits, kHost | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+    } catch (const std::runtime_error&) {
+        return MemoryType(memory, bits, kHost);
+    }
+}
+
 /// Frees `buffer` and resets it, which may be partly created.
 void FreeBuffer(VkDevice device, Buffer& buffer) {
     if (buffer.mapped != nullptr) {
@@ -154,9 +167,7 @@ void MakeBuffer(VkDevice device, const VkPhysicalDeviceMemoryProperties& memory,
     VkMemoryAllocateInfo allocate{};
     allocate.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocate.allocationSize = requirements.size;
-    allocate.memoryTypeIndex =
-        MemoryType(memory, requirements.memoryTypeBits,
-                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    allocate.memoryTypeIndex = HostMemoryType(memory, requirements.memoryTypeBits);
     Check(vkAllocateMemory(device, &allocate, nullptr, &buffer.memory), "memory allocation");
     Check(vkBindBufferMemory(device, buffer.buffer, buffer.memory, 0), "memory binding");
     Check(vkMapMemory(device, buffer.memory, 0, VK_WHOLE_SIZE, 0, &buffer.mapped),

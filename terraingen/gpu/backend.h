@@ -37,8 +37,9 @@ struct BackendStatus {
 /// asked for, never at load time, so a build with Vulkan support runs anywhere.
 std::vector<BackendStatus> Backends();
 
-/// The process-wide default backend: what `SetDefaultBackend` last set, otherwise the
-/// environment variable `TERRAINGEN_BACKEND` ("auto", "cpu" or "vulkan"), otherwise `Auto`.
+/// The process-wide default backend, which evaluation uses unless told otherwise: what
+/// `SetDefaultBackend` last set, otherwise the environment variable `TERRAINGEN_BACKEND` ("auto",
+/// "cpu" or "vulkan"), otherwise `Cpu`, so results never change with the machine by default.
 /// @throws std::invalid_argument for an unknown name in `TERRAINGEN_BACKEND`.
 Backend DefaultBackend();
 

@@ -28,6 +28,7 @@ struct GenerateArgs {
     std::optional<std::filesystem::path> outputDir;
     LogLevel logLevel = LogLevel::Info;
     unsigned threads = 0;
+    std::optional<Backend> backend = std::nullopt;
 };
 
 GenerateArgs ParseGenerate(const std::vector<std::string>& args) {
@@ -54,6 +55,8 @@ GenerateArgs ParseGenerate(const std::vector<std::string>& args) {
             parsed.logLevel = *level;
         } else if (arg == "--threads") {
             parsed.threads = ParseThreads(value());
+        } else if (arg == "--backend") {
+            parsed.backend = ParseBackend(value());
         } else if (arg.rfind("--", 0) == 0) {
             throw std::invalid_argument("Unknown option " + arg);
         } else if (haveConfig) {
@@ -107,7 +110,8 @@ int Generate(const std::vector<std::string>& args, std::ostream& out, std::ostre
     return RunReporting(parsed.config, err, [&] {
         const TerrainConfig config = LoadConfig(parsed.config);
         const std::filesystem::path inputs = parsed.config.parent_path();
-        const GeneratedTerrain terrain = GenerateTerrain(config, inputs, parsed.threads);
+        const GeneratedTerrain terrain =
+            GenerateTerrain(config, inputs, parsed.threads, parsed.backend);
         const auto written = WriteOutputs(config, terrain, parsed.outputDir.value_or(inputs));
         out << Summary(terrain) << "\n";
         for (const auto& path : written) {
@@ -159,9 +163,17 @@ unsigned ParseThreads(const std::string& text) {
     return static_cast<unsigned>(value);
 }
 
+Backend ParseBackend(const std::string& text) {
+    if (const std::optional<Backend> backend = BackendNamed(text)) {
+        return *backend;
+    }
+    throw std::invalid_argument("--backend needs auto, cpu or vulkan, not '" + text + "'");
+}
+
 std::string Usage() {
     return "Usage:\n"
            "  terraingen CONFIG [--output-dir DIR] [--log-level LEVEL] [--threads N]\n"
+           "                    [--backend auto|cpu|vulkan]\n"
            "                         Generate the terrain the JSON file CONFIG describes\n"
            "  terraingen validate CONFIG\n"
            "                         Check CONFIG without generating\n"

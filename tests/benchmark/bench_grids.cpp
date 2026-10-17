@@ -44,6 +44,44 @@ BENCHMARK(BM_EvaluateGridSphere)
     ->Unit(benchmark::kMillisecond)
     ->UseRealTime();
 
+/// A synthetic terrain of three 8-octave noise layers, one warped, over a flat source (side cells
+/// given by the first argument, 1 m cells) on every hardware thread (second argument 0) or on the
+/// GPU (1).
+void BM_EvaluateNoiseGrid(benchmark::State& state) {
+    const auto cells = static_cast<std::size_t>(state.range(0));
+    const Backend backend = state.range(1) == 0 ? Backend::Cpu : Backend::Vulkan;
+    if (const BackendStatus vulkan = Backends()[1];
+        backend == Backend::Vulkan && !vulkan.available) {
+        state.SkipWithError(vulkan.reason.c_str());
+        return;
+    }
+    SyntheticTerrainParams noise;
+    noise.layers.assign(3, NoiseLayer{});
+    noise.layers[0].fractal.wavelength = 2000.0f;
+    noise.layers[0].fractal.amplitude = 80.0f;
+    noise.layers[0].warpAmplitude = 150.0f;
+    noise.layers[1].fractal.type = FractalType::Ridged;
+    noise.layers[1].fractal.wavelength = 400.0f;
+    noise.layers[1].fractal.amplitude = 20.0f;
+    noise.layers[2].fractal.basis = NoiseBasis::Simplex;
+    noise.layers[2].fractal.wavelength = 60.0f;
+    noise.layers[2].fractal.amplitude = 2.0f;
+    Terrain terrain;
+    terrain.source = std::make_shared<FlatSource>(cells, cells, 1.0);
+    terrain.layers.push_back(std::make_shared<NoiseRelief>(noise));
+    const RasterGrid grid = terrain.source->Grid();
+    const EvaluationOptions options{0.0, 0, backend};
+    for (auto _ : state) {
+        benchmark::DoNotOptimize(Evaluate(terrain, grid, options));
+    }
+    state.SetItemsProcessed(state.iterations() * static_cast<std::int64_t>(cells * cells));
+}
+BENCHMARK(BM_EvaluateNoiseGrid)
+    ->ArgsProduct({{1024, 4096}, {0, 1}})
+    ->ArgNames({"cells", "gpu"})
+    ->Unit(benchmark::kMillisecond)
+    ->UseRealTime();
+
 /// Tiles of 256 x 256 cells at the level given by the argument (0 is 8 m spacing, 5 is 0.25 m),
 /// with a warm crater cache, evaluated in parallel across every hardware thread.
 void BM_EvaluateTiles(benchmark::State& state) {

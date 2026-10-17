@@ -1,5 +1,6 @@
 """gpu: compute backends and the default backend."""
 
+import numpy as np
 import pytest
 
 import terraingen
@@ -8,7 +9,7 @@ import terraingen
 @pytest.fixture
 def restore_backend():
     yield
-    terraingen.set_default_backend(terraingen.Backend.AUTO)
+    terraingen.set_default_backend(terraingen.Backend.CPU)
 
 
 def test_backends_list_cpu_then_vulkan_and_cpu_is_available():
@@ -32,3 +33,17 @@ def test_default_backend_round_trips():
 
 def test_resolving_cpu_gives_cpu():
     assert terraingen.resolve_backend(terraingen.Backend.CPU) == terraingen.Backend.CPU
+
+
+@pytest.mark.usefixtures("restore_backend")
+def test_evaluation_without_a_backend_follows_the_default(small_config):
+    config = terraingen.Config.from_dict(small_config)
+    terrain = terraingen.build_terrain(config)
+    grid = config.output_grids()[0]
+    terraingen.set_default_backend(terraingen.Backend.AUTO)
+    by_default = terraingen.evaluate(terrain, grid=grid).values
+    chosen = terraingen.evaluate(terrain, grid=grid, backend=terraingen.Backend.AUTO).values
+    np.testing.assert_array_equal(by_default, chosen)
+    terraingen.set_default_backend(terraingen.Backend.CPU)
+    cpu = terraingen.evaluate(terrain, grid=grid, backend=terraingen.Backend.CPU).values
+    np.testing.assert_array_equal(terraingen.evaluate(terrain, grid=grid).values, cpu)

@@ -13,6 +13,7 @@
 #include "terraingen/util/surface.h"
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -46,10 +47,13 @@ struct GeneratedTerrain {
 /// `EvaluateAlbedo` for albedo outputs.
 /// @param directory Folder relative input paths resolve against.
 /// @param threads Threads to use, 0 for every hardware thread; the result does not depend on it.
+/// @param backend Where the heights are evaluated; empty for `DefaultBackend()`.
 /// @throws ConfigError if the configuration is invalid.
 /// @throws GeoTiffError if a raster cannot be read.
+/// @throws std::runtime_error when `backend` is `Vulkan` and Vulkan is unavailable.
 GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
-                                 const std::filesystem::path& directory = {}, unsigned threads = 0);
+                                 const std::filesystem::path& directory = {}, unsigned threads = 0,
+                                 std::optional<Backend> backend = std::nullopt);
 
 /// One line describing a generated terrain, such as "Generated a WxH terrain in S s".
 std::string Summary(const GeneratedTerrain& terrain);

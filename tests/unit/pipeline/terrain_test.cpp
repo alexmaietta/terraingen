@@ -284,3 +284,40 @@ TEST(Evaluate, StartsATerrainWithoutASourceAtTheDatum) {
     EXPECT_EQ(terraingen::EvaluateAt(terrain, 101.0, 49.0, 2.0), 7.5f);
     EXPECT_THROW(Evaluate(terrain), std::invalid_argument) << "no source grid to default to";
 }
+
+TEST(Evaluate, RunsOnTheChosenBackendToWithinFloatRounding) {
+    const Terrain terrain = Rolling();
+    const RasterGrid grid = terrain.source->Grid();
+    const auto cpu = Evaluate(terrain, grid, terraingen::EvaluationOptions{0.0, 2});
+    ExpectSameRaster(
+        Evaluate(terrain, grid, terraingen::EvaluationOptions{0.0, 2, terraingen::Backend::Cpu}),
+        cpu);
+    const auto automatic =
+        Evaluate(terrain, grid, terraingen::EvaluationOptions{0.0, 2, terraingen::Backend::Auto});
+    if (terraingen::ResolveBackend(terraingen::Backend::Auto) == terraingen::Backend::Cpu) {
+        ExpectSameRaster(automatic, cpu);
+        EXPECT_THROW(Evaluate(terrain, grid,
+                              terraingen::EvaluationOptions{0.0, 2, terraingen::Backend::Vulkan}),
+                     std::runtime_error);
+        return;
+    }
+    for (std::size_t i = 0; i < cpu.Size(); ++i) {
+        ASSERT_NEAR(automatic.Values()[i], cpu.Values()[i],
+                    1e-4f * std::max(1.0f, std::fabs(cpu.Values()[i])))
+            << i;
+    }
+}
+
+TEST(Evaluate, WithoutABackendFollowsTheProcessDefault) {
+    const Terrain terrain = Rolling();
+    const RasterGrid grid = terrain.source->Grid();
+    const auto cpu =
+        Evaluate(terrain, grid, terraingen::EvaluationOptions{0.0, 2, terraingen::Backend::Cpu});
+    terraingen::SetDefaultBackend(terraingen::Backend::Auto);
+    const auto byDefault = Evaluate(terrain, grid, terraingen::EvaluationOptions{0.0, 2});
+    const auto chosen =
+        Evaluate(terrain, grid, terraingen::EvaluationOptions{0.0, 2, terraingen::Backend::Auto});
+    terraingen::SetDefaultBackend(terraingen::Backend::Cpu);
+    ExpectSameRaster(byDefault, chosen);
+    ExpectSameRaster(Evaluate(terrain, grid, terraingen::EvaluationOptions{0.0, 2}), cpu);
+}

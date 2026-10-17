@@ -25,3 +25,16 @@ function(terraingen_add_slang_kernel target symbol source)
         VERBATIM)
     target_sources(${target} PRIVATE "${embedded}")
 endfunction()
+
+# terraingen_add_cell_kernel(<target> <symbol> <type> <header>): compiles the cell kernel
+# terraingen::<type> for the GPU as terraingen_add_slang_kernel does, under `<symbol>`. <header>,
+# relative to the repository root, is a kernel header (see util/portable.h) declaring the plain
+# struct <type> and `float ApplyCell(<type> kernel, float height, CellPosition position)`; the
+# generated entry point (cmake/CellKernel.slang.in) applies it to grid cells for RunCellKernel.
+function(terraingen_add_cell_kernel target symbol type header)
+    set(CELL_KERNEL_TYPE "${type}")
+    set(CELL_KERNEL_HEADER "${header}")
+    set(source "${CMAKE_CURRENT_BINARY_DIR}/kernels/${symbol}.slang")
+    configure_file("${PROJECT_SOURCE_DIR}/cmake/CellKernel.slang.in" "${source}" @ONLY)
+    terraingen_add_slang_kernel(${target} ${symbol} "${source}")
+endfunction()

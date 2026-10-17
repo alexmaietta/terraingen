@@ -2,6 +2,7 @@
 /// @brief `Layer`, relief added on top of a source, and `FormulaLayer` for point-wise layers.
 #pragma once
 
+#include "terraingen/gpu/backend.h"
 #include "terraingen/layers/ground.h"
 #include "terraingen/layers/sample_block.h"
 #include "terraingen/raster/raster.h"
@@ -18,6 +19,9 @@ struct LayerContext {
     double spacing = 0.0;
     unsigned threads = 1;  ///< Worker threads, 0 for all; the result does not depend on it.
     const Ground* ground = nullptr;  ///< The terrain beneath the layer; null where none is needed.
+    /// Where grids are evaluated, already resolved to `Cpu` or `Vulkan`. Layers whose relief is a
+    /// cell kernel follow it; other layers, and every point query, run on the CPU.
+    Backend backend = Backend::Cpu;
 };
 
 /// Checks the context of a point query (`Layer::ApplyAt`).

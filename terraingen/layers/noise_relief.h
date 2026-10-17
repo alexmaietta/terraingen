@@ -2,6 +2,7 @@
 /// @brief `NoiseRelief`, a stack of noise layers added to the terrain, and `NoiseLayersAt`.
 #pragma once
 
+#include "terraingen/layers/kernels/noise_relief.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/noise/noise_layers.h"
 #include "terraingen/sources/synthetic_terrain.h"
@@ -20,7 +21,10 @@ float NoiseLayersAt(const std::vector<NoiseLayer>& layers, const Vec2d& origin,
 
 /// A stack of noise layers added to the terrain: rolling relief on a flat source, or detail on a
 /// DEM. Each sample gets `NoiseLayersAt`, seamless on a sphere.
-class NoiseRelief final : public FormulaLayer {
+///
+/// On a plane the relief is a cell kernel, so grids follow the context's backend; on a sphere it
+/// is evaluated in 3D on the CPU.
+class NoiseRelief final : public Layer {
   public:
     /// @param origin Where plane coordinates are measured from; unused on a sphere.
     /// @throws std::invalid_argument if `params` are invalid.
@@ -32,12 +36,13 @@ class NoiseRelief final : public FormulaLayer {
     }
 
   protected:
-    float HeightAt(float height, double x, double y, double spacing,
-                   const Ground* ground) const override;
+    void ApplySamples(SampleBlock& samples, const LayerContext& context) const override;
 
   private:
     SyntheticTerrainParams params_;
     Vec2d origin_;
+    Surface surface_;
+    NoiseReliefKernel kernel_;
 };
 
 }  // namespace terraingen
