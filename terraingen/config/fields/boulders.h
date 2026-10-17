@@ -67,6 +67,29 @@ template <typename IO> void Fields(IO& io, BoulderFillet& fillet) {
        "nothing there.");
 }
 
+template <typename IO> void Fields(IO& io, BoulderVentifacts& ventifacts) {
+    io("share", ventifacts.share,
+       "Share of boulders with a windward facet planed by sand-laden wind, from 0 to 1; 0 for "
+       "none. Gale crater: 0.39 (Bridges et al. 2014).");
+    io("wind_azimuth", ventifacts.windAzimuth,
+       "Where the abrading wind blows toward, in radians counter-clockwise from east; facets face "
+       "the other way.",
+       "rad");
+    io("min_angle", ventifacts.minAngle,
+       "Gentlest facet slope from horizontal, in radians; 50 to 60 deg on basalt (Laity and "
+       "Bridges 2009).",
+       "rad");
+    io("max_angle", ventifacts.maxAngle, "Steepest facet slope from horizontal, in radians.",
+       "rad");
+    io("second_wind_azimuth", ventifacts.secondWindAzimuth,
+       "A second abrading wind, where it blows toward, in radians; some faceted boulders get a "
+       "second facet facing it and a keel between. Unset for none.",
+       "rad");
+    io("keel_share", ventifacts.keelShare,
+       "Share of faceted boulders with the second facet, from 0 to 1. Gale crater: 12 of 39 "
+       "(Bridges et al. 2014).");
+}
+
 template <typename IO> void Fields(IO& io, BoulderEjecta& ejecta) {
     io("min_crater_diameter", ejecta.minCraterDiameter,
        "Smallest crater, in metres, that throws blocks out; 0 with no regolith thickness disables "
@@ -334,6 +357,9 @@ template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
     io("fillet", boulders.fillet,
        "Regolith piled against each boulder's base, around relief and models alike; off unless "
        "height_share is set.");
+    io("ventifacts", boulders.ventifacts,
+       "Windward facets planed on boulders by sand-laden wind, from wear; off unless share is "
+       "set.");
     io("fragmentation", boulders.fragmentation,
        "Boulders broken by wear into pieces that replace them, split and then scattered as "
        "rubble; off unless split_wear is below 1.");

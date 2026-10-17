@@ -211,6 +211,29 @@ void ValidateBoulderFragmentation(const BoulderFragmentation& fragmentation) {
     }
 }
 
+void ValidateBoulderVentifacts(const BoulderVentifacts& ventifacts) {
+    const auto unit = [](double v) { return v >= 0.0 && v <= 1.0; };
+    if (!(unit(ventifacts.share) && unit(ventifacts.keelShare))) {
+        throw std::invalid_argument("Boulder ventifact share and keelShare must be in [0, 1]");
+    }
+    if (!(ventifacts.minAngle > 0.0 && ventifacts.minAngle <= ventifacts.maxAngle &&
+          ventifacts.maxAngle < 0.5 * std::numbers::pi)) {
+        throw std::invalid_argument(
+            "Boulder ventifact facet angles must satisfy 0 < minAngle <= maxAngle < 90 deg");
+    }
+    if (!(std::isfinite(ventifacts.windAzimuth) &&
+          (!ventifacts.secondWindAzimuth || std::isfinite(*ventifacts.secondWindAzimuth)))) {
+        throw std::invalid_argument("Boulder ventifact wind azimuths must be finite");
+    }
+}
+
+BoulderVentifacts GaleVentifacts() {
+    BoulderVentifacts ventifacts;
+    ventifacts.share = 0.5 * 0.78;
+    ventifacts.keelShare = 12.0 / 39.0;
+    return ventifacts;
+}
+
 double FilletReach(const Boulder& boulder, const BoulderFillet& fillet) {
     return (0.5 + fillet.widthRatio) * boulder.diameter;
 }
@@ -255,6 +278,7 @@ void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
     ValidateBoulderEjecta(options.ejecta, options.sizes);
     ValidateBoulderPose(options.pose);
     ValidateBoulderFillet(options.fillet);
+    ValidateBoulderVentifacts(options.ventifacts);
     ValidateResolutionFade(options.fade);
     ValidateBoulderRendering(options.rendering);
 }

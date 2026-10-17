@@ -116,6 +116,12 @@ TerrainConfig Everything() {
                  .minBurial = 0.0,
                  .maxBurial = 0.5,
                  .maxLean = 0.1},
+        .ventifacts = {.share = 0.39,
+                       .windAzimuth = 0.8,
+                       .minAngle = 0.9,
+                       .maxAngle = 1.0,
+                       .secondWindAzimuth = 4.0,
+                       .keelShare = 0.3},
         .rendering = {.relief = terraingen::BoulderRelief::Shape,
                       .models = {.minDiameter = 2.0, .minSamples = 6.0},
                       .shapes = {.styles = {terraingen::BoulderStyle{

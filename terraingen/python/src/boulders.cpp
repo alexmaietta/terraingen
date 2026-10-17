@@ -10,6 +10,7 @@
 #include "terraingen/layers/boulders/boulder_shape.h"
 #include "terraingen/layers/sand_shadow.h"
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -103,6 +104,25 @@ void BindBoulder(nb::module_& m) {
         .value("FACE", BoulderRest::Face)
         .value("SIDE", BoulderRest::Side)
         .value("END", BoulderRest::End);
+    nb::class_<BoulderFacet>(m, "BoulderFacet",
+                             "A ventifact facet: facing `azimuth` (radians from east), sloping "
+                             "`angle` radians, meeting the ground `reach` metres from the centre.")
+        .def(
+            "__init__",
+            [](BoulderFacet* self, double azimuth, double angle, double reach) {
+                new (self) BoulderFacet{azimuth, angle, reach};
+            },
+            "azimuth"_a, "angle"_a, "reach"_a)
+        .def_rw("azimuth", &BoulderFacet::azimuth)
+        .def_rw("angle", &BoulderFacet::angle)
+        .def_rw("reach", &BoulderFacet::reach)
+        .def(
+            "height_at",
+            [](const BoulderFacet& f, double east, double north) {
+                return f.HeightAt({east, north});
+            },
+            "east"_a, "north"_a,
+            "The facet's height (m) above the ground east and north metres from the centre.");
     nb::class_<Boulder>(m, "Boulder", "One boulder: centre, size, burial, orientation and ID.")
         .def(
             "__init__",
@@ -128,6 +148,19 @@ void BindBoulder(nb::module_& m) {
         .def_rw("tilt_azimuth", &Boulder::tiltAzimuth)
         .def_rw("parent", &Boulder::parent)
         .def_rw("piece", &Boulder::piece)
+        .def_prop_rw(
+            "facets",
+            [](const Boulder& b) {
+                return std::vector<BoulderFacet>(b.facets.begin(), b.facets.begin() + b.facetCount);
+            },
+            [](Boulder& b, const std::vector<BoulderFacet>& facets) {
+                if (facets.size() > b.facets.size()) {
+                    throw nb::value_error("A boulder has at most 2 facets");
+                }
+                std::copy(facets.begin(), facets.end(), b.facets.begin());
+                b.facetCount = static_cast<std::uint8_t>(facets.size());
+            },
+            "Its ventifact facets, up to 2.")
         .def_prop_ro("exposed_height", &Boulder::ExposedHeight);
 }
 
@@ -211,6 +244,22 @@ void BindFillet(nb::module_& m) {
     m.def("boulder_fillet_height", &FilletHeight, "boulder"_a, "distance"_a, "fillet"_a,
           "The height (m) of `boulder`'s fillet `distance` metres from its centre.");
     m.def("validate_boulder_fillet", &ValidateBoulderFillet, "fillet"_a, kValidateDoc);
+    auto ventifacts = nb::class_<BoulderVentifacts>(
+        m, "BoulderVentifacts",
+        "Windward facets planed on `share` of the boulders by wind blowing toward "
+        "`wind_azimuth`, sloping `min_angle` to `max_angle`, with keels on `keel_share` of them "
+        "toward `second_wind_azimuth`; angles in radians.");
+    BindKwargsInit<BoulderVentifacts>(ventifacts);
+    ventifacts.def_rw("share", &BoulderVentifacts::share)
+        .def_rw("wind_azimuth", &BoulderVentifacts::windAzimuth)
+        .def_rw("min_angle", &BoulderVentifacts::minAngle)
+        .def_rw("max_angle", &BoulderVentifacts::maxAngle)
+        .def_rw("second_wind_azimuth", &BoulderVentifacts::secondWindAzimuth)
+        .def_rw("keel_share", &BoulderVentifacts::keelShare);
+    m.def("validate_boulder_ventifacts", &ValidateBoulderVentifacts, "ventifacts"_a, kValidateDoc);
+    m.def("gale_ventifacts", &GaleVentifacts,
+          "The ventifacts of Gale crater's first 100 sols (Bridges et al. 2014; facet slopes "
+          "from Laity and Bridges 2009); the winds are left to the site.");
 }
 
 void BindRendering(nb::module_& m) {
@@ -265,6 +314,7 @@ void BindGroupedOptions(nb::class_<BoulderLayerOptions>& options) {
     BindGrouped(options, "max_tilt", &O::pose, &BoulderPose::maxTilt);
     BindGrouped(options, "follow_slope", &O::pose, &BoulderPose::followSlope);
     options.def_rw("fillet", &O::fillet);
+    options.def_rw("ventifacts", &O::ventifacts);
     options.def_rw("clusters", &O::clusters).def_rw("fragmentation", &O::fragmentation);
     BindGrouped(options, "relief", &O::rendering, &BoulderRendering::relief);
     BindGrouped(options, "models", &O::rendering, &BoulderRendering::models);

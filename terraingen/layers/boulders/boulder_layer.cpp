@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <map>
 #include <numbers>
 #include <span>
 #include <stdexcept>
@@ -29,6 +30,62 @@ constexpr std::uint32_t kBoulderPieces = 0x50494543u;
 double Uniform(std::uint32_t high, std::uint32_t low) {
     const std::uint64_t bits = (static_cast<std::uint64_t>(high) << 32) | low;
     return static_cast<double>(bits >> 11) * 0x1.0p-53;
+}
+
+/// Cuts `mesh` flat at a plane: triangles crossing it are split along it, sharing the new points
+/// between neighbours so the mesh stays closed, and points above it (`distance(p)` > 0, the
+/// distance along the unit `normal`) are moved down onto it.
+template <typename Distance>
+void CutByPlane(TriangleMesh& mesh, const Vec3d& normal, const Distance& distance) {
+    std::vector<double> s(mesh.positions.size());
+    for (std::size_t i = 0; i < s.size(); ++i) {
+        s[i] = distance(mesh.positions[i]);
+    }
+    std::map<std::pair<std::uint32_t, std::uint32_t>, std::uint32_t> crossings;
+    const auto crossing = [&](std::uint32_t a, std::uint32_t b) {
+        const auto key = std::minmax(a, b);
+        const auto found = crossings.find(key);
+        if (found != crossings.end()) {
+            return found->second;
+        }
+        const double t = s[a] / (s[a] - s[b]);
+        const Vec3d& pa = mesh.positions[a];
+        mesh.positions.push_back(pa + (mesh.positions[b] - pa) * t);
+        s.push_back(0.0);
+        const auto index = static_cast<std::uint32_t>(mesh.positions.size() - 1);
+        crossings.emplace(key, index);
+        return index;
+    };
+    std::vector<std::array<std::uint32_t, 3>> triangles;
+    triangles.reserve(mesh.triangles.size());
+    for (const auto& triangle : mesh.triangles) {
+        const auto above = [&](std::uint32_t v) { return s[v] > 0.0; };
+        const int count = static_cast<int>(above(triangle[0])) +
+                          static_cast<int>(above(triangle[1])) +
+                          static_cast<int>(above(triangle[2]));
+        if (count == 0 || count == 3) {
+            triangles.push_back(triangle);
+            continue;
+        }
+        std::size_t lone = 0;
+        while (above(triangle[lone]) == (count == 2)) {
+            ++lone;
+        }
+        const std::uint32_t a = triangle[lone];
+        const std::uint32_t b = triangle[(lone + 1) % 3];
+        const std::uint32_t c = triangle[(lone + 2) % 3];
+        const std::uint32_t ab = crossing(a, b);
+        const std::uint32_t ac = crossing(a, c);
+        triangles.push_back({a, ab, ac});
+        triangles.push_back({ab, b, c});
+        triangles.push_back({ab, c, ac});
+    }
+    mesh.triangles = std::move(triangles);
+    for (std::size_t i = 0; i < s.size(); ++i) {
+        if (s[i] > 0.0) {
+            mesh.positions[i] = mesh.positions[i] - normal * s[i];
+        }
+    }
 }
 
 /// The box the relief of a boulder at (`x`, `y`) reaching `reach` metres is drawn over: on a
@@ -143,6 +200,7 @@ TriangleMesh BoulderLayer::PlacedOnLevel(const Boulder& boulder) const {
     for (Vec3d& p : mesh.positions) {
         p = placement.Apply(p);
     }
+    CutFacets(mesh, InLocalFrame(boulder), 0.0);
     return mesh;
 }
 
@@ -183,7 +241,8 @@ double BoulderLayer::RockRelief(double x, double y, const Boulder& boulder,
                                 const TriangleMesh* placed, double width) const {
     const Vec2d offset = surface_.Offset({boulder.x, boulder.y}, {x, y});
     if (placed == nullptr) {
-        return DomeHeight(boulder, std::hypot(offset.x, offset.y), width);
+        return boulder.CutByFacets(offset,
+                                   DomeHeight(boulder, std::hypot(offset.x, offset.y), width));
     }
     const std::optional<double> top =
         surface_.IsBody() ? TopSurface(*placed, offset.x, offset.y) : TopSurface(*placed, x, y);
@@ -326,7 +385,61 @@ std::optional<Boulder> BoulderLayer::DrawBoulder(const Crater& candidate, double
     if (pose.sideShare > 0.0 || pose.endShare > 0.0 || pose.maxTilt > 0.0 || pose.followSlope) {
         Settle(boulder, ground);
     }
+    if (options_.ventifacts.share > 0.0) {
+        Abrade(boulder);
+    }
     return boulder;
+}
+
+void BoulderLayer::Abrade(Boulder& boulder) const {
+    const BoulderVentifacts& ventifacts = options_.ventifacts;
+    const IdWords id = SplitId(boulder.id);
+    const U32x4 draw =
+        Philox4x32({id.low, id.high, kBoulderAttributes, 4u}, {options_.seed, kBoulderSeed});
+    if (Uniform(draw.x, draw.y) >= ventifacts.share) {
+        return;
+    }
+    const U32x4 angles =
+        Philox4x32({id.low, id.high, kBoulderAttributes, 5u}, {options_.seed, kBoulderSeed});
+    const double reach = 0.5 * boulder.diameter * (1.0 - boulder.wear);
+    const auto facet = [&](double wind, double pick) {
+        return BoulderFacet{wind + std::numbers::pi,
+                            Between(ventifacts.minAngle, ventifacts.maxAngle, pick), reach};
+    };
+    boulder.facets[0] = facet(ventifacts.windAzimuth, Uniform(angles.x, angles.y));
+    boulder.facetCount = 1;
+    if (ventifacts.secondWindAzimuth && Uniform(draw.z, draw.w) < ventifacts.keelShare) {
+        boulder.facets[1] = facet(*ventifacts.secondWindAzimuth, Uniform(angles.z, angles.w));
+        boulder.facetCount = 2;
+    }
+}
+
+void BoulderLayer::CutFacets(TriangleMesh& placed, const Boulder& local, double base) const {
+    for (std::uint8_t k = 0; k < local.facetCount; ++k) {
+        const BoulderFacet& facet = local.facets[k];
+        const Vec3d normal{std::cos(facet.azimuth) * std::sin(facet.angle),
+                           std::sin(facet.azimuth) * std::sin(facet.angle), std::cos(facet.angle)};
+        CutByPlane(placed, normal, [&](const Vec3d& p) {
+            return (p.z - base - facet.HeightAt({p.x - local.x, p.y - local.y})) * normal.z;
+        });
+    }
+}
+
+BoulderShape BoulderLayer::Abraded(const BoulderShape& shape, const BoulderPlacement& placement,
+                                   const Boulder& local, double base) const {
+    BoulderShape cut = shape;
+    for (Vec3d& p : cut.mesh.positions) {
+        p = placement.Apply(p);
+    }
+    CutFacets(cut.mesh, local, base);
+    const std::array<double, 9>& r = placement.pose.rotation;
+    for (Vec3d& p : cut.mesh.positions) {
+        const Vec3d d = p - placement.pose.translation;
+        p = {(r[0] * d.x + r[3] * d.y + r[6] * d.z) / placement.scale.x,
+             (r[1] * d.x + r[4] * d.y + r[7] * d.z) / placement.scale.y,
+             (r[2] * d.x + r[5] * d.y + r[8] * d.z) / placement.scale.z};
+    }
+    return cut;
 }
 
 void BoulderLayer::Settle(Boulder& boulder, const Ground* ground) const {
@@ -445,6 +558,7 @@ std::vector<Boulder> BoulderLayer::Break(const Boulder& parent, double spacing,
                             scatter * fragmentation.spreadRatio * (0.5 + 0.5 * push)) *
                            parent.diameter;
         Boulder piece = parent;
+        piece.facetCount = 0;
         const UVec3 key =
             Pcg3dHash({id.low, id.high, kBoulderPieces + static_cast<std::uint32_t>(k)});
         piece.id = (static_cast<std::uint64_t>(key.x) << 32) | key.y;
@@ -504,10 +618,12 @@ float AddBoulder(float height, double x, double y, const Boulder& boulder, doubl
         if (r2 >= 1.0) {
             return height;
         }
-        return static_cast<float>(static_cast<double>(height) +
-                                  weight * boulder.ExposedHeight() * std::sqrt(1.0 - r2));
+        const double top =
+            boulder.CutByFacets(offset, boulder.ExposedHeight() * std::sqrt(1.0 - r2));
+        return static_cast<float>(static_cast<double>(height) + weight * top);
     }
-    const double dome = DomeHeight(boulder, std::hypot(offset.x, offset.y), width);
+    const double dome =
+        boulder.CutByFacets(offset, DomeHeight(boulder, std::hypot(offset.x, offset.y), width));
     return dome > 0.0 ? static_cast<float>(static_cast<double>(height) + weight * dome) : height;
 }
 
@@ -597,12 +713,17 @@ std::vector<BoulderModel> BoulderLayer::Models(const std::vector<Boulder>& bould
     std::vector<BoulderModel> models;
     for (const Boulder& boulder : boulders) {
         if (boulder.model && boulder.ground) {
-            const auto shape = Shape(boulder);
+            std::shared_ptr<const BoulderShape> shape = Shape(boulder);
+            const Boulder local = InLocalFrame(boulder);
+            const BoulderPlacement placement = PlaceBoulderModel(local, *shape, *boulder.ground);
+            if (boulder.facetCount > 0) {
+                shape = std::make_shared<const BoulderShape>(
+                    Abraded(*shape, placement, local, *boulder.ground));
+            }
             models.push_back({boulder,
                               BoulderShapeSeed(boulder.parent != 0 ? boulder.parent : boulder.id,
                                                options_.rendering.shapePrototypes),
-                              shape,
-                              PlaceBoulderModel(InLocalFrame(boulder), *shape, *boulder.ground)});
+                              shape, placement});
         }
     }
     return models;

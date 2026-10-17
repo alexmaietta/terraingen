@@ -381,3 +381,30 @@ def test_sand_shadows_trail_boulders_and_boulders_are_rock():
     )
     assert config.to_dict()["layers"][1]["length_ratio"] == 2.0
     config.validate()
+
+
+def test_ventifacts_plane_the_windward_side_of_boulders():
+    gale = terraingen.gale_ventifacts()
+    assert gale.share == pytest.approx(0.39)
+    ventifacts = terraingen.BoulderVentifacts(share=1.0, wind_azimuth=0.0)
+    boulders = terraingen.BoulderLayer(
+        terraingen.BoulderLayerOptions(
+            coverage=0.05, min_diameter=1.0, max_diameter=2.0, ventifacts=ventifacts
+        )
+    )
+    table = boulders.boulders((-50.0, -50.0, 50.0, 50.0))
+    x, y, d = table["x"][0], table["y"][0], table["diameter"][0]
+    boulder = terraingen.Boulder(x, y, d, 0.5 * d)
+    boulder.facets = [terraingen.BoulderFacet(3.14159, 0.9, 0.5 * d)]
+    assert len(boulder.facets) == 1
+    assert boulder.facets[0].height_at(-0.5 * d, 0.0) == pytest.approx(0.0, abs=1e-5)
+    with pytest.raises(ValueError):
+        terraingen.validate_boulder_ventifacts(terraingen.BoulderVentifacts(share=2.0))
+    config = terraingen.Config.from_dict(
+        {
+            "schema_version": 1,
+            "layers": [{"type": "boulders", "ventifacts": {"share": 0.39, "keel_share": 0.3}}],
+        }
+    )
+    assert config.to_dict()["layers"][0]["ventifacts"]["share"] == pytest.approx(0.39)
+    config.validate()

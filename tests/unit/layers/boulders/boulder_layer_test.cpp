@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <map>
 #include <memory>
 #include <numbers>
 #include <set>
@@ -761,4 +762,145 @@ TEST(BoulderLayer, GivesTheSameRockCoverOverAGridAsAtItsPoints) {
         }
     }
     EXPECT_GT(rock, 100.0);
+}
+
+TEST(BoulderLayer, FacetsTheirShareOfBouldersUpwindAndKeelsSome) {
+    BoulderLayerOptions options;
+    options.sizes.coverage = 0.1;
+    options.ventifacts.share = 0.4;
+    options.ventifacts.windAzimuth = 0.3;
+    options.ventifacts.secondWindAzimuth = 2.5;
+    options.ventifacts.keelShare = 0.5;
+    const BoulderLayer layer(options);
+    const auto boulders = layer.Boulders({-20.0, -20.0, 20.0, 20.0});
+    ASSERT_GT(boulders.size(), 500u);
+    std::size_t faceted = 0;
+    std::size_t keeled = 0;
+    for (const Boulder& b : boulders) {
+        if (b.facetCount == 0) {
+            continue;
+        }
+        ++faceted;
+        keeled += b.facetCount == 2 ? 1 : 0;
+        EXPECT_NEAR(b.facets[0].azimuth, 0.3 + std::numbers::pi, 1e-12) << "facing upwind";
+        EXPECT_GE(b.facets[0].angle, options.ventifacts.minAngle);
+        EXPECT_LE(b.facets[0].angle, options.ventifacts.maxAngle);
+        EXPECT_NEAR(b.facets[0].reach, 0.5 * b.diameter * (1.0 - b.wear), 1e-12);
+        if (b.facetCount == 2) {
+            EXPECT_NEAR(b.facets[1].azimuth, 2.5 + std::numbers::pi, 1e-12);
+        }
+    }
+    const double share = static_cast<double>(faceted) / static_cast<double>(boulders.size());
+    EXPECT_NEAR(share, 0.4, 0.05);
+    EXPECT_NEAR(static_cast<double>(keeled) / static_cast<double>(faceted), 0.5, 0.08);
+    options.ventifacts.share = 0.0;
+    const auto plain = BoulderLayer(options).Boulders({-20.0, -20.0, 20.0, 20.0});
+    ASSERT_EQ(plain.size(), boulders.size());
+    for (std::size_t k = 0; k < plain.size(); ++k) {
+        EXPECT_EQ(plain[k].facetCount, 0);
+        Boulder same = boulders[k];
+        same.facetCount = 0;
+        same.facets = {};
+        EXPECT_EQ(plain[k], same) << "facets change nothing else";
+    }
+}
+
+TEST(BoulderLayer, FacetsCutTheWindwardSideOfDomesShapesAndModels) {
+    BoulderLayerOptions options;
+    options.sizes.coverage = 0.05;
+    options.sizes.minDiameter = 1.0;
+    options.sizes.maxDiameter = 2.0;
+    options.ventifacts.share = 1.0;
+    options.ventifacts.windAzimuth = 0.0;
+    BoulderLayerOptions plainOptions = options;
+    plainOptions.ventifacts.share = 0.0;
+    for (const auto relief : {terraingen::BoulderRelief::Dome, terraingen::BoulderRelief::Shape}) {
+        options.rendering.relief = relief;
+        plainOptions.rendering.relief = relief;
+        const BoulderLayer cut(options);
+        const BoulderLayer plain(plainOptions);
+        const Boulder b = cut.Boulders({-50.0, -50.0, 50.0, 50.0}).front();
+        ASSERT_EQ(b.facetCount, 1);
+        double lowered = 0.0;
+        for (double t = -0.45; t <= 0.45; t += 0.05) {
+            const double x = b.x + t * b.diameter;
+            const double h = cut.ApplyAt(0.0f, x, b.y, {0.01});
+            const double before = plain.ApplyAt(0.0f, x, b.y, {0.01});
+            EXPECT_LE(h, before + 1e-6);
+            EXPECT_LE(h, std::fmax(b.facets[0].HeightAt({x - b.x, 0.0}), 0.0) + 1e-6);
+            lowered = std::fmax(lowered, before - h);
+            if (t > 0.2) {
+                EXPECT_NEAR(h, before, 1e-6) << "the lee side keeps its rock";
+            }
+        }
+        EXPECT_GT(lowered, 0.01) << "the windward side is planed";
+    }
+    options.rendering.models.minDiameter = 1.0;
+    const BoulderLayer models(options);
+    const Analytic flat([](double, double) { return 2.0f; });
+    const auto placed = models.BouldersOver(
+        terraingen::RasterGrid{400, 400, GeoTransform::NorthUp(-20.0, 20.0, 0.1)}, 0.1, &flat);
+    ASSERT_FALSE(placed.models.empty());
+    for (const auto& model : placed.models) {
+        const Boulder& b = model.boulder;
+        ASSERT_EQ(b.facetCount, 1);
+        for (const auto& q : model.shape->mesh.positions) {
+            const auto p = model.placement.Apply(q);
+            EXPECT_LE(p.z - 2.0, b.facets[0].HeightAt({p.x - b.x, p.y - b.y}) + 1e-9);
+        }
+        std::map<std::pair<std::uint32_t, std::uint32_t>, int> edges;
+        for (const auto& t : model.shape->mesh.triangles) {
+            for (int k = 0; k < 3; ++k) {
+                ++edges[std::minmax(t[k], t[(k + 1) % 3])];
+            }
+        }
+        for (const auto& [edge, uses] : edges) {
+            ASSERT_EQ(uses, 2) << "the cut mesh stays closed";
+        }
+    }
+}
+
+TEST(BoulderLayer, BrokenPiecesLoseTheirParentsFacets) {
+    BoulderLayerOptions options;
+    options.sizes.coverage = 0.05;
+    options.sizes.minDiameter = 1.0;
+    options.sizes.maxDiameter = 3.0;
+    options.fragmentation.splitWear = 0.0;
+    options.ventifacts.share = 1.0;
+    const BoulderLayer layer(options);
+    const auto boulders = layer.Boulders({-30.0, -30.0, 30.0, 30.0});
+    ASSERT_TRUE(std::any_of(boulders.begin(), boulders.end(),
+                            [](const Boulder& b) { return b.parent != 0; }));
+    for (const Boulder& b : boulders) {
+        EXPECT_EQ(b.facetCount, b.parent != 0 ? 0 : 1);
+    }
+}
+
+TEST(BoulderVentifacts, GaleSharesAndRejectsBadOptions) {
+    const terraingen::BoulderVentifacts gale = terraingen::GaleVentifacts();
+    EXPECT_DOUBLE_EQ(gale.share, 0.39);
+    EXPECT_DOUBLE_EQ(gale.keelShare, 12.0 / 39.0);
+    EXPECT_NO_THROW(terraingen::ValidateBoulderVentifacts(gale));
+    const auto rejects = [](auto change) {
+        terraingen::BoulderVentifacts ventifacts;
+        change(ventifacts);
+        EXPECT_THROW(terraingen::ValidateBoulderVentifacts(ventifacts), std::invalid_argument);
+    };
+    rejects([](auto& v) { v.share = 1.5; });
+    rejects([](auto& v) { v.keelShare = -0.1; });
+    rejects([](auto& v) { v.minAngle = 0.0; });
+    rejects([](auto& v) { v.maxAngle = 0.5 * std::numbers::pi; });
+    rejects([](auto& v) {
+        v.minAngle = 1.0;
+        v.maxAngle = 0.9;
+    });
+    rejects([](auto& v) { v.windAzimuth = NAN; });
+    rejects([](auto& v) { v.secondWindAzimuth = INFINITY; });
+    Boulder b;
+    b.facets[0] = {0.0, std::numbers::pi / 4.0, 0.5};
+    b.facetCount = 1;
+    EXPECT_NEAR(b.facets[0].HeightAt({0.2, 7.0}), 0.3, 1e-12);
+    EXPECT_NEAR(b.CutByFacets({0.2, 0.0}, 1.0), 0.3, 1e-12);
+    EXPECT_EQ(b.CutByFacets({0.9, 0.0}, 1.0), 0.0);
+    EXPECT_EQ(b.CutByFacets({-0.9, 0.0}, 1.0), 1.0);
 }

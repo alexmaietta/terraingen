@@ -163,6 +163,15 @@ const PathCase kPathCases[] = {
              {"p.tif", terraingen::TiffCompression::Lzw, 256, terraingen::testing::SmallRegion()}});
      },
      "materials.photometry.rock"},
+    {"VentifactAnglesOutOfOrder",
+     [](TerrainConfig& c) {
+         terraingen::BoulderLayerSpec boulders;
+         boulders.boulders.ventifacts.share = 0.5;
+         boulders.boulders.ventifacts.minAngle = 1.2;
+         boulders.boulders.ventifacts.maxAngle = 1.0;
+         c.layers.push_back(boulders);
+     },
+     "layers[2]"},
     {"SandFillWithoutReach",
      [](TerrainConfig& c) { c.layers.push_back(terraingen::SandFillLayerSpec{{0.0}}); },
      "layers[2]"},

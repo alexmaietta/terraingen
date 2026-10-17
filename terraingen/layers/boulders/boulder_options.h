@@ -210,6 +210,34 @@ struct BoulderFillet {
     bool operator==(const BoulderFillet&) const = default;
 };
 
+/// Ventifacts: windward facets planed on boulders by sand-laden wind, set once the boulder has
+/// settled. A facet faces upwind at `minAngle` to `maxAngle` from horizontal and meets the ground
+/// at the boulder's upwind edge when fresh, moving in to its centre as it wears; boulders with a
+/// keel carry a second facet facing the second wind. Angles are in radians.
+struct BoulderVentifacts {
+    double share = 0.0;  ///< Share of boulders with a facet, in [0, 1]; 0 for none.
+    /// Where the wind blows toward, radians counter-clockwise from east.
+    double windAzimuth = 0.0;
+    double minAngle = 0.8726646259971648;  ///< Gentlest facet slope; 50 deg.
+    double maxAngle = 1.0471975511965976;  ///< Steepest facet slope; 60 deg.
+    /// A second formative wind, where it blows toward; unset gives no keels.
+    std::optional<double> secondWindAzimuth{};
+    /// Share of faceted boulders with a second facet and a keel between, in [0, 1].
+    double keelShare = 0.0;
+
+    bool operator==(const BoulderVentifacts&) const = default;
+};
+
+/// @throws std::invalid_argument for a share or keel share outside [0, 1], facet angles outside
+/// (0, 90) deg or out of order, or non-finite wind azimuths.
+void ValidateBoulderVentifacts(const BoulderVentifacts& ventifacts);
+
+/// The ventifacts of Gale crater's Bradbury Landing to Rocknest traverse: half the rocks are
+/// ventifacts and 78% of those faceted, 39% faceted in all, 12 of the 39 faceted with keels
+/// (Bridges et al. 2014), and facets of 50 to 60 deg as on basalt (Laity and Bridges 2009). The
+/// winds are left to the site: Gale's came from the southwest and north-northeast.
+BoulderVentifacts GaleVentifacts();
+
 /// The height (m) of `boulder`'s fillet `distance` metres from its centre.
 double FilletHeight(const Boulder& boulder, double distance, const BoulderFillet& fillet);
 
@@ -249,14 +277,15 @@ struct BoulderRendering {
 
 /// How a `BoulderLayer` sizes, places, poses and draws its boulders.
 struct BoulderLayerOptions {
-    BoulderSizes sizes{};        ///< Sizes of the boulders between craters.
-    std::uint32_t seed = 1;      ///< Varies the boulders.
-    BoulderPatches patches{};    ///< Richer and poorer patches.
-    BoulderClusters clusters{};  ///< Clusters between craters; none by default.
-    BoulderEjecta ejecta{};      ///< Blocks around fresh craters.
-    BoulderBedrock bedrock{};    ///< Extra boulders on bedrock.
-    BoulderPose pose{};          ///< Heights, burial, lean.
-    BoulderFillet fillet{};      ///< Regolith piled against each boulder; none by default.
+    BoulderSizes sizes{};            ///< Sizes of the boulders between craters.
+    std::uint32_t seed = 1;          ///< Varies the boulders.
+    BoulderPatches patches{};        ///< Richer and poorer patches.
+    BoulderClusters clusters{};      ///< Clusters between craters; none by default.
+    BoulderEjecta ejecta{};          ///< Blocks around fresh craters.
+    BoulderBedrock bedrock{};        ///< Extra boulders on bedrock.
+    BoulderPose pose{};              ///< Heights, burial, lean.
+    BoulderFillet fillet{};          ///< Regolith piled against each boulder; none by default.
+    BoulderVentifacts ventifacts{};  ///< Facets planed by the wind; none by default.
     BoulderFragmentation fragmentation{};  ///< Boulders broken by wear; none by default.
     BoulderRendering rendering{};          ///< Relief or models, and shapes.
     ResolutionFade fade{};                 ///< Fade of boulders too small for the spacing.

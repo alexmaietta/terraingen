@@ -146,8 +146,16 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
                       double width) const;
     /// `boulder` in its local frame: centred at the origin on a sphere, unchanged on a plane.
     Boulder InLocalFrame(const Boulder& boulder) const;
-    /// `boulder`'s shape placed on level ground at 0.
+    /// `boulder`'s shape placed on level ground at 0, cut by its facets.
     TriangleMesh PlacedOnLevel(const Boulder& boulder) const;
+    /// Gives `boulder` its ventifact facets, drawn by its ID.
+    void Abrade(Boulder& boulder) const;
+    /// Moves the points of `placed` (a mesh in `local`'s frame, on ground at height `base`) above
+    /// `local`'s facets onto them.
+    void CutFacets(TriangleMesh& placed, const Boulder& local, double base) const;
+    /// `shape` cut by `local`'s facets where `placement` puts it, still in the shape's own frame.
+    BoulderShape Abraded(const BoulderShape& shape, const BoulderPlacement& placement,
+                         const Boulder& local, double base) const;
     /// A boulder drawn into the heights: its weight at the spacing, whether its rock is drawn or
     /// only its fillet, its shape placed on level ground (for `BoulderRelief::Shape`) and the box
     /// its relief covers.

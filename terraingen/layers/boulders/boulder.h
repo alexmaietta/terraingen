@@ -2,6 +2,10 @@
 /// @brief `Boulder`, the record of one placed boulder.
 #pragma once
 
+#include "terraingen/util/geometry.h"
+
+#include <array>
+#include <cmath>
 #include <cstdint>
 #include <optional>
 
@@ -12,6 +16,26 @@ enum class BoulderRest : std::uint8_t {
     Face,  ///< On its broadest face: its short axis up.
     Side,  ///< On a side: its intermediate axis up.
     End,   ///< On an end: its long axis up.
+};
+
+/// A plane that sand-laden wind has cut across a boulder's windward side: a ventifact facet.
+/// Rock above the plane is gone.
+struct BoulderFacet {
+    /// Direction the facet faces (upwind), radians counter-clockwise from east.
+    double azimuth = 0.0;
+    double angle = 0.0;  ///< Slope of the facet from horizontal, radians, in (0, 90) deg.
+    /// Distance (m) toward `azimuth` from the boulder's centre at which the facet meets the surface
+    /// the boulder stands on.
+    double reach = 0.0;
+
+    /// The facet's height (m) above that surface at east and north `offset` metres from the
+    /// boulder's centre, negative beyond `reach`.
+    double HeightAt(const Vec2d& offset) const {
+        const double along = offset.x * std::cos(azimuth) + offset.y * std::sin(azimuth);
+        return (reach - along) * std::tan(angle);
+    }
+
+    bool operator==(const BoulderFacet&) const = default;
 };
 
 /// One boulder: where it stands, how large it is and how it lies, in surface coordinates
@@ -40,10 +64,22 @@ struct Boulder {
     /// For a fragment, the ID of the boulder it broke from; 0 for a whole boulder.
     std::uint64_t parent = 0;
     std::uint32_t piece = 0;  ///< For a fragment, which piece of its parent it is.
+    /// Its ventifact facets, the first `facetCount` of them (`BoulderVentifacts`).
+    std::array<BoulderFacet, 2> facets{};
+    std::uint8_t facetCount = 0;  ///< How many facets it has, 0 to 2.
 
     /// Height of the top above the surface it stands on, `height` (1 - `burial`), in metres.
     double ExposedHeight() const {
         return height * (1.0 - burial);
+    }
+
+    /// `top`, a height (m) of the boulder above the surface at east and north `offset` metres from
+    /// its centre, lowered to its facets and not below 0.
+    double CutByFacets(const Vec2d& offset, double top) const {
+        for (std::uint8_t k = 0; k < facetCount; ++k) {
+            top = std::fmin(top, facets[k].HeightAt(offset));
+        }
+        return std::fmax(top, 0.0);
     }
 
     bool operator==(const Boulder&) const = default;
