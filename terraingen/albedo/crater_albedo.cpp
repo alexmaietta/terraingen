@@ -1,6 +1,8 @@
 #include "terraingen/albedo/crater_albedo.h"
 
 #include "terraingen/layers/craters/secondaries.h"
+#include "terraingen/noise/fractal.h"
+#include "terraingen/noise/hash.h"
 #include "terraingen/noise/value.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/grid.h"
@@ -103,7 +105,22 @@ void ValidateCraterRays(const CraterRays& rays) {
     ValidateObliqueImpacts(rays.oblique);
 }
 
+void ValidateCraterAlbedoTexture(const CraterAlbedoTexture& texture) {
+    if (!(IsInUnitInterval(texture.streaks) && IsInUnitInterval(texture.floorShare))) {
+        throw std::invalid_argument("Crater albedo streaks and floor share must be in [0, 1]");
+    }
+    if (!(texture.lobes >= 0.0 && texture.lobes <= 0.9 && texture.lobeCount >= 1 &&
+          texture.lobeCount <= 64)) {
+        throw std::invalid_argument(
+            "Crater albedo lobes must be in [0, 0.9] with a lobe count of 1 to 64");
+    }
+    RequirePositive(texture.streakWidthDegrees, "Crater albedo streak width");
+    RequirePositive(texture.streakLengthRadii, "Crater albedo streak length");
+    RequireNonNegative(texture.continuousRadii, "Crater albedo continuous ejecta reach");
+}
+
 void ValidateCraterAlbedo(const CraterAlbedoOptions& options) {
+    ValidateCraterAlbedoTexture(options.texture);
     ValidateCraterRays(options.rays);
     ValidateRayRetention(options.retention);
     ValidateResolutionFade(options.fade);
@@ -123,6 +140,47 @@ void ValidateCraterAlbedo(const CraterAlbedoOptions& options) {
         throw std::invalid_argument("Crater albedo needs a positive ejecta exponent and fade "
                                     "exponent and a reach over 1 radius");
     }
+}
+
+/// The key of `crater`'s texture.
+std::uint32_t TextureKey(const Crater& crater, const CraterAlbedoTexture& texture) {
+    return PcgHash(static_cast<std::uint32_t>(crater.id) ^
+                   PcgHash(static_cast<std::uint32_t>(crater.id >> 32) ^ texture.seed));
+}
+
+/// How far `crater`'s ejecta edge reaches at `angle` radians around it, over its mean reach.
+double LobeScale(double angle, std::uint32_t key, const CraterAlbedoTexture& texture) {
+    if (texture.lobes == 0.0) {
+        return 1.0;
+    }
+    FractalParams params;
+    params.seed = key ^ 0x4C4F4245u;
+    params.wavelength = 1.0f;
+    params.amplitude = 1.0f;
+    params.octaves = 2;
+    const double ring = static_cast<double>(texture.lobeCount) / (2.0 * std::numbers::pi);
+    const double n =
+        static_cast<double>(Fractal3(ring * std::cos(angle), ring * std::sin(angle), 0.0, params));
+    return 1.0 + texture.lobes * std::clamp(n, -1.0, 1.0);
+}
+
+/// The share of the excess the filaments leave at `radii` radii and `angle` radians around a
+/// crater: 1 along a filament, down to 1 - `streaks` between them.
+double StreakShare(double radii, double angle, std::uint32_t key,
+                   const CraterAlbedoTexture& texture) {
+    if (texture.streaks == 0.0) {
+        return 1.0;
+    }
+    FractalParams params;
+    params.seed = key;
+    params.wavelength = 1.0f;
+    params.amplitude = 1.0f;
+    params.octaves = 3;
+    const double ring = 180.0 / (std::numbers::pi * texture.streakWidthDegrees);
+    const double n = static_cast<double>(Fractal3(ring * std::cos(angle), ring * std::sin(angle),
+                                                  radii / texture.streakLengthRadii, params));
+    const double filament = Smoothstep(std::clamp(0.5 + 1.5 * n, 0.0, 1.0));
+    return 1.0 - texture.streaks * (1.0 - filament);
 }
 
 /// One ray, in the frame of its crater.
@@ -172,21 +230,38 @@ struct CraterAlbedo::Prepared {
         }
         const double radius = 0.5 * crater.diameter;
         const double radii = CraterProfileDistance(crater, outline, x, y, surface) / radius;
+        const CraterAlbedoTexture& texture = o.texture;
+        const bool textured = texture.streaks > 0.0 || texture.lobes > 0.0;
+        const Vec2d offset = surface.Offset({crater.x, crater.y}, {x, y});
+        const double angle = textured ? std::atan2(offset.y, offset.x) : 0.0;
+        const std::uint32_t key = textured ? TextureKey(crater, texture) : 0u;
+        const double streak = StreakShare(radii, angle, key, texture);
         if (radii < 1.0) {
-            return weight * o.interiorExcess;
+            double interior = o.interiorExcess;
+            const double wall = Smoothstep(std::clamp((radii - 0.3) / 0.6, 0.0, 1.0));
+            if (texture.floorShare < 1.0) {
+                interior *= texture.floorShare + (1.0 - texture.floorShare) * wall;
+            }
+            return weight * interior * (1.0 - (1.0 - streak) * wall);
         }
         double excess = 0.0;
-        if (radii < o.ejectaReachRadii) {
+        const double lobed = radii / LobeScale(angle, key, texture);
+        if (lobed < o.ejectaReachRadii) {
             const double edge = std::pow(o.ejectaReachRadii, -o.ejectaExponent);
-            excess = o.ejectaExcess * (std::pow(radii, -o.ejectaExponent) - edge) / (1.0 - edge);
+            excess = o.ejectaExcess * (std::pow(std::fmax(lobed, 1.0), -o.ejectaExponent) - edge) /
+                     (1.0 - edge);
         }
-        const Vec2d offset = surface.Offset({crater.x, crater.y}, {x, y});
         for (const Ray& ray : rays) {
             const double along = offset.x * ray.cos + offset.y * ray.sin;
             const double lateral = std::fabs(offset.y * ray.cos - offset.x * ray.sin);
             excess += ray.ExcessAt(along, lateral, radius, o.rays);
         }
-        return weight * excess;
+        if (texture.continuousRadii > 0.0) {
+            const double ramp =
+                Smoothstep(std::clamp((radii - 1.0) / texture.continuousRadii, 0.0, 1.0));
+            return weight * excess * (1.0 - (1.0 - streak) * ramp);
+        }
+        return weight * excess * streak;
     }
 };
 
@@ -265,7 +340,8 @@ CraterAlbedo::Prepared CraterAlbedo::Prepare(const Crater& crater, double spacin
     }
     prepared.weight = std::pow(left, o.fadeExponent) * resolution;
     prepared.outline = OutlineOf(crater, craters_->Options().apply.irregularity);
-    prepared.reach = o.ejectaReachRadii * (0.5 * crater.diameter) * prepared.outline.MaxScale();
+    prepared.reach = o.ejectaReachRadii * (0.5 * crater.diameter) * prepared.outline.MaxScale() *
+                     (1.0 + o.texture.lobes);
     if (o.rays.enabled) {
         AddRays(prepared, random);
     }
@@ -309,7 +385,8 @@ std::vector<CraterAlbedo::Prepared> CraterAlbedo::Gather(const Bounds2d& region,
                                 : 0.0;
     const double reach =
         std::fmax(rayReach, 0.5 * largest * options_.ejectaReachRadii *
-                                MaxOutlineScale(craters_->Options().apply.irregularity));
+                                MaxOutlineScale(craters_->Options().apply.irregularity) *
+                                (1.0 + options_.texture.lobes));
     const Surface& surface = craters_->Options().surface;
     const CraterList list = craters_->Craters(surface.Expand(region, reach), spacing);
     std::vector<Prepared> prepared;

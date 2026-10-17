@@ -162,6 +162,27 @@ template <typename IO> void Fields(IO& io, RayRetention& retention) {
        "bright for longer.");
 }
 
+template <typename IO> void Fields(IO& io, CraterAlbedoTexture& texture) {
+    io("streaks", texture.streaks,
+       "Share of the excess radial streaks take away between filaments, from 0 to 1, breaking "
+       "ejecta, rays and interiors into fine streaks; 0 leaves them smooth.");
+    io("streak_width_degrees", texture.streakWidthDegrees,
+       "Typical width of a filament around the crater, in degrees.", "deg");
+    io("streak_length_radii", texture.streakLengthRadii,
+       "Typical length of a filament outward from the crater, in crater radii.");
+    io("continuous_radii", texture.continuousRadii,
+       "How far beyond the rim the ejecta stay continuous before breaking into filaments, in "
+       "crater radii; 0 streaks them from the rim.");
+    io("lobes", texture.lobes,
+       "How far the ejecta's edge wanders in and out, as a share of its reach from 0 to 0.9; 0 "
+       "keeps it circular.");
+    io("lobe_count", texture.lobeCount, "Typical number of lobes around a crater, 1 to 64.");
+    io("floor_share", texture.floorShare,
+       "Interior excess on the floor over that at the rim, from 0 to 1; 1 keeps the interior "
+       "even, lower values brighten the walls over the floor.");
+    io("seed", texture.seed, "Varies every crater's texture.");
+}
+
 template <typename IO> void Fields(IO& io, CraterAlbedoOptions& options) {
     io("seed", options.seed,
        "Seed of which craters get bright material, their rays and their impacts; changing it "
@@ -190,6 +211,9 @@ template <typename IO> void Fields(IO& io, CraterAlbedoOptions& options) {
     io("interior_excess", options.interiorExcess,
        "Optical maturity above the background inside a fresh crater's rim, not negative; higher "
        "values give brighter interiors.");
+    io("texture", options.texture,
+       "Filaments, lobed ejecta edges and walls brighter than floors; off unless streaks, lobes "
+       "or a floor share below 1 are set.");
     io("ejecta_excess", options.ejectaExcess,
        "Optical maturity above the background on a fresh crater's continuous ejecta at the rim, "
        "not negative, falling with distance.");

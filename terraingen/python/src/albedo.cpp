@@ -223,6 +223,22 @@ void BindRays(nb::module_& m) {
 }
 
 void BindCraterAlbedoOptions(nb::module_& m) {
+    auto texture = nb::class_<CraterAlbedoTexture>(
+        m, "CraterAlbedoTexture",
+        "Texture of fresh craters' bright material: `streaks` breaking it into filaments "
+        "`streak_width_degrees` wide and `streak_length_radii` long, `lobes` (`lobe_count` of "
+        "them) wandering the ejecta edge, and `floor_share` dimming floors under walls.");
+    BindKwargsInit<CraterAlbedoTexture>(texture);
+    texture.def_rw("streaks", &CraterAlbedoTexture::streaks)
+        .def_rw("streak_width_degrees", &CraterAlbedoTexture::streakWidthDegrees)
+        .def_rw("streak_length_radii", &CraterAlbedoTexture::streakLengthRadii)
+        .def_rw("continuous_radii", &CraterAlbedoTexture::continuousRadii)
+        .def_rw("lobes", &CraterAlbedoTexture::lobes)
+        .def_rw("lobe_count", &CraterAlbedoTexture::lobeCount)
+        .def_rw("floor_share", &CraterAlbedoTexture::floorShare)
+        .def_rw("seed", &CraterAlbedoTexture::seed);
+    m.def("validate_crater_albedo_texture", &ValidateCraterAlbedoTexture, "texture"_a,
+          kValidateDoc);
     auto options = nb::class_<CraterAlbedoOptions>(
         m, "CraterAlbedoOptions",
         "Which craters get bright material (diameters, ages, `share`), how much brighter their "
@@ -239,6 +255,7 @@ void BindCraterAlbedoOptions(nb::module_& m) {
         .def_rw("ejecta_exponent", &CraterAlbedoOptions::ejectaExponent)
         .def_rw("ejecta_reach_radii", &CraterAlbedoOptions::ejectaReachRadii)
         .def_rw("rays", &CraterAlbedoOptions::rays)
+        .def_rw("texture", &CraterAlbedoOptions::texture)
         .def_rw("retention", &CraterAlbedoOptions::retention)
         .def_rw("fade_exponent", &CraterAlbedoOptions::fadeExponent)
         .def_rw("origin_reflectance", &CraterAlbedoOptions::originReflectance)

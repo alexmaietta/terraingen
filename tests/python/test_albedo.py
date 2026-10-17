@@ -192,3 +192,11 @@ def test_python_albedo_layer_answers_point_queries():
 def test_crater_albedo_leaves_values_far_from_craters(custom_craters):
     crater_albedo = terraingen.CraterAlbedo(custom_craters())
     assert crater_albedo.apply_at([0.1], 1, 500.0, 500.0, terraingen.AlbedoContext()) == pytest.approx([0.1])
+
+
+def test_crater_albedo_texture_options():
+    texture = terraingen.CraterAlbedoTexture(streaks=0.8, continuous_radii=0.7, lobes=0.3, floor_share=0.5)
+    options = terraingen.CraterAlbedoOptions(texture=texture)
+    assert (options.texture.streaks, options.texture.lobe_count) == (0.8, 8)
+    with pytest.raises(ValueError):
+        terraingen.validate_crater_albedo_texture(terraingen.CraterAlbedoTexture(lobes=0.95))

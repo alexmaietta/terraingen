@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <memory>
+#include <numbers>
 #include <stdexcept>
 #include <vector>
 
@@ -440,4 +441,54 @@ TEST(ObliqueImpacts, RejectsInvalidSettings) {
     EXPECT_NEAR(terraingen::ObliqueImpacts{}.MaxStretch(),
                 (1.0 + 0.4 / 2.4) * (1.0 + 0.4 / 2.4) / (1.0 + 0.5 * (0.4 / 2.4) * (0.4 / 2.4)),
                 1e-12);
+}
+
+TEST(CraterAlbedo, TexturesFreshMaterialIntoFilamentsLobesAndBrightWalls) {
+    const Crater crater{0.0, 0.0, 400.0, 0.0, 7u, true};
+    CraterAlbedoOptions plain = NoRays();
+    CraterAlbedoOptions textured = NoRays();
+    textured.texture = {.streaks = 0.9, .continuousRadii = 0.5, .lobes = 0.4, .floorShare = 0.3};
+    const CraterAlbedo smooth(Craters({crater}), plain);
+    const CraterAlbedo filaments(Craters({crater}), textured);
+    double least = 1e9;
+    double most = 0.0;
+    for (int k = 0; k < 720; ++k) {
+        const double angle = 2.0 * std::numbers::pi * k / 720.0;
+        const double share =
+            filaments.Excess(crater, 360.0 * std::cos(angle), 360.0 * std::sin(angle), 1.0) /
+            smooth.Excess(crater, 360.0 * std::cos(angle), 360.0 * std::sin(angle), 1.0);
+        least = std::fmin(least, share);
+        most = std::fmax(most, share);
+    }
+    EXPECT_LT(least, 0.6) << "dark gaps between filaments, or a lobe drawn in";
+    EXPECT_GT(most, 1.0) << "a lobe pushed out";
+    CraterAlbedoOptions collar = textured;
+    collar.texture.lobes = 0.0;
+    const CraterAlbedo continuous(Craters({crater}), collar);
+    for (int k = 0; k < 36; ++k) {
+        const double angle = 2.0 * std::numbers::pi * k / 36.0;
+        const double x = 201.0 * std::cos(angle);
+        const double y = 201.0 * std::sin(angle);
+        ASSERT_GT(continuous.Excess(crater, x, y, 1.0), 0.95 * smooth.Excess(crater, x, y, 1.0))
+            << "continuous at the rim";
+    }
+    EXPECT_LT(filaments.Excess(crater, 0.0, 0.0, 1.0), smooth.Excess(crater, 0.0, 0.0, 1.0))
+        << "a dimmer floor";
+    EXPECT_GT(filaments.Reach(crater), smooth.Reach(crater)) << "lobes reach further";
+
+    const auto layer = std::make_shared<CraterAlbedo>(Craters({crater}), textured);
+    const Albedo albedo = Grey(layer);
+    const RasterGrid whole{48, 48, GeoTransform::NorthUp(-480.0, 480.0, 20.0)};
+    const RasterGrid tile{16, 16, GeoTransform::NorthUp(-160.0, 160.0, 20.0)};
+    const auto grid = EvaluateAlbedo(albedo, whole, {.spacing = 20.0});
+    const auto part = EvaluateAlbedo(albedo, tile, {.spacing = 20.0});
+    for (std::size_t row = 0; row < 16; ++row) {
+        for (std::size_t col = 0; col < 16; ++col) {
+            ASSERT_EQ(part[0](col, row), grid[0](col + 16, row + 16));
+        }
+    }
+    textured.texture.lobes = 0.95;
+    EXPECT_THROW(terraingen::ValidateCraterAlbedo(textured), std::invalid_argument);
+    textured.texture = {.continuousRadii = -1.0};
+    EXPECT_THROW(terraingen::ValidateCraterAlbedoTexture(textured.texture), std::invalid_argument);
 }

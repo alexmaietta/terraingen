@@ -103,6 +103,33 @@ struct CraterRays {
 /// a patchiness outside [0, 1] or a non-positive patch wavelength.
 void ValidateCraterRays(const CraterRays& rays);
 
+/// The texture of fresh craters' bright material, keyed to each crater and off by default: radial
+/// streaks breaking ejecta, rays and interiors into filaments, a lobed ejecta edge, and walls
+/// brighter than floors.
+struct CraterAlbedoTexture {
+    /// Share of the excess the radial streaks take away between filaments, in [0, 1]; 0 for none.
+    double streaks = 0.0;
+    double streakWidthDegrees = 3.0;  ///< Typical width of a filament around the crater; positive.
+    double streakLengthRadii = 1.5;   ///< Typical length of a filament outward, in radii; positive.
+    /// How far beyond the rim the ejecta stay continuous before breaking into filaments, in radii;
+    /// the streaks ramp in over that distance, and 0 streaks them from the rim.
+    double continuousRadii = 0.0;
+    /// How far the ejecta's edge wanders in and out, as a share of its reach, in [0, 0.9]; 0 keeps
+    /// it circular.
+    double lobes = 0.0;
+    int lobeCount = 8;        ///< Typical number of lobes around a crater, 1 to 64.
+    double floorShare = 1.0;  ///< Interior excess on the floor over that at the rim, in [0, 1].
+    std::uint32_t seed = 0;   ///< Varies every crater's texture.
+
+    bool operator==(const CraterAlbedoTexture&) const = default;
+};
+
+/// Checks crater albedo texture settings.
+/// @throws std::invalid_argument for streaks or a floor share outside [0, 1], lobes outside
+/// [0, 0.9], a lobe count outside 1 to 64, a non-positive streak width or length, or a
+/// negative continuous reach.
+void ValidateCraterAlbedoTexture(const CraterAlbedoTexture& texture);
+
 /// The bright material of fresh craters, in optical maturity (OMAT) over the background's:
 /// an interior excess, ejecta falling as a power of distance, and rays. Excesses fade with age
 /// over the retention time, add over overlapping craters and are capped; the albedo then moves
@@ -120,6 +147,7 @@ struct CraterAlbedoOptions {
     double ejectaExponent = 3.0;        ///< The ejecta excess falls as (r / R)^-this.
     double ejectaReachRadii = 3.0;      ///< Where the ejecta excess reaches 0, in radii; > 1.
     CraterRays rays{};                  ///< The rays.
+    CraterAlbedoTexture texture{};      ///< Filaments, lobes and wall brightness; off by default.
     RayRetention retention{};           ///< Retention time T by diameter.
     double fadeExponent = 1.0;          ///< Excesses fade as max(0, 1 - t / T)^this.
     /// Reflectance of the optical maturity origin (`ReflectanceAtMaturity`).
