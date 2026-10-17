@@ -1,0 +1,65 @@
+{
+    "schema_version": 1,
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 11,
+                    "wavelength": 120,
+                    "amplitude": 25,
+                    "octaves": 5
+                }
+            ]
+        },
+        {
+            "type": "strata",
+            "bed_thickness": 4,
+            "thickness_variation": 0.5,
+            "dip": 0.03,
+            "dip_azimuth": 0.8,
+            "sharpness": 5,
+            "cliff_share": 0.3
+        },
+        {
+            "type": "sand_fill",
+            "reach": 8,
+            "fill": 0.6,
+            "max_thickness": 0.5
+        }
+    ],
+    "materials": {
+        "photometry": {
+            "reference": "mars_pancam"
+        }
+    },
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_planets_mars_strata.tif",
+            "region": {
+                "width": 257,
+                "height": 257,
+                "pixel_size": 1
+            }
+        },
+        {
+            "type": "materials",
+            "path": "example_planets_mars_strata_materials.tif",
+            "region": {
+                "width": 257,
+                "height": 257,
+                "pixel_size": 1
+            }
+        },
+        {
+            "type": "photometry",
+            "path": "example_planets_mars_strata_photometry.tif",
+            "region": {
+                "width": 257,
+                "height": 257,
+                "pixel_size": 1
+            }
+        }
+    ]
+}

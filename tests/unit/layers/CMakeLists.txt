@@ -12,6 +12,7 @@ terraingen_add_test_suite(
     region_test.cpp
     roughness_test.cpp
     sand_fill_test.cpp
+    strata_test.cpp
     sample_block_test.cpp
     sphere_layers_test.cpp
     transforms_test.cpp

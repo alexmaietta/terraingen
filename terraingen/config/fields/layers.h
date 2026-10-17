@@ -210,6 +210,35 @@ template <typename IO> void Fields(IO& io, PavementLayerSpec& spec) {
        "How plates and cracks too fine for the sample spacing fade out, by samples across them.");
 }
 
+template <> struct SpecName<StrataLayerSpec> {
+    static constexpr std::string_view kName = "strata";
+    static constexpr std::string_view kDescription =
+        "Layered rock: the ground beneath terraced into dipping beds, each a flat bench below a "
+        "cliff, so hills become stepped buttes and mesas; lays bedrock over the cliffs.";
+};
+template <typename IO> void Fields(IO& io, StrataLayerSpec& spec) {
+    StrataOptions& strata = spec.strata;
+    io("bed_thickness", strata.bedThickness, "Mean thickness of a bed, in metres.", "m");
+    io("thickness_variation", strata.thicknessVariation,
+       "How far each bed boundary strays from even spacing, in bed thicknesses, in [0, 1).");
+    io("dip", strata.dip, "Dip of the beds from horizontal, in radians, below 90 deg.", "rad");
+    io("dip_azimuth", strata.dipAzimuth,
+       "Direction the beds dip toward, in radians counter-clockwise from +x (local east on a "
+       "body).",
+       "rad");
+    io("sharpness", strata.sharpness,
+       "How sharply each bed is cut into a flat bench and a cliff, at least 1; 1 leaves the "
+       "ground as it is.");
+    io("strength", strata.strength, "Share of the terracing applied, in [0, 1].");
+    io("cliff_share", strata.cliffShare,
+       "Share of each bed's height, at its top, laid as bedrock in the material map, in (0, 1].");
+    io("seed", strata.seed, "Seed of the bed boundaries.");
+    io("anchor_x", strata.anchor.x,
+       "On a body, the longitude in degrees of the point whose tangent frame the dip is measured "
+       "in.");
+    io("anchor_y", strata.anchor.y, "On a body, the latitude in degrees of the anchor.");
+}
+
 template <> struct SpecName<SandFillLayerSpec> {
     static constexpr std::string_view kName = "sand_fill";
     static constexpr std::string_view kDescription =

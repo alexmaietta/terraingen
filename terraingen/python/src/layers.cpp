@@ -15,6 +15,7 @@
 #include "terraingen/layers/region.h"
 #include "terraingen/layers/roughness.h"
 #include "terraingen/layers/sand_fill.h"
+#include "terraingen/layers/strata.h"
 #include "terraingen/layers/transforms.h"
 
 #include <stdexcept>
@@ -389,6 +390,33 @@ void BindPavement(nb::module_& m) {
     BindMaterialCover<PavementLayer>(layer);
 }
 
+void BindStrata(nb::module_& m) {
+    auto options = nb::class_<StrataOptions>(
+        m, "StrataOptions",
+        "Layered rock: beds `bed_thickness` metres thick, dipping `dip` toward `dip_azimuth`, each "
+        "cut into a flat bench and a cliff by `sharpness`; angles in radians.");
+    BindKwargsInit<StrataOptions>(options);
+    options.def_rw("bed_thickness", &StrataOptions::bedThickness)
+        .def_rw("thickness_variation", &StrataOptions::thicknessVariation)
+        .def_rw("dip", &StrataOptions::dip)
+        .def_rw("dip_azimuth", &StrataOptions::dipAzimuth)
+        .def_rw("sharpness", &StrataOptions::sharpness)
+        .def_rw("strength", &StrataOptions::strength)
+        .def_rw("cliff_share", &StrataOptions::cliffShare)
+        .def_rw("seed", &StrataOptions::seed)
+        .def_rw("anchor", &StrataOptions::anchor);
+    m.def("validate_strata_options", &ValidateStrataOptions, "options"_a, kValidateDoc);
+    auto layer = nb::class_<StrataLayer, Layer>(m, "StrataLayer",
+                                                "Layered rock terraced into benches and cliffs.");
+    layer.def(nb::init<StrataOptions, Surface>(), "options"_a, "surface"_a = Surface{})
+        .def("terraced_at", &StrataLayer::TerracedAt, "height"_a, "x"_a, "y"_a,
+             "The terraced height of ground `height` metres high at (x, y).")
+        .def("bed_position_at", &StrataLayer::BedPositionAt, "height"_a, "x"_a, "y"_a,
+             "How far through its bed ground `height` metres high at (x, y) lies, in [0, 1].")
+        .def_prop_ro("options", &StrataLayer::Options);
+    BindMaterialCover<StrataLayer>(layer);
+}
+
 void BindDuneOptions(nb::module_& m) {
     nb::enum_<DuneShape>(m, "DuneShape", "The kind of dune a DuneLayer builds.")
         .value("BARCHAN", DuneShape::Barchan)
@@ -472,6 +500,7 @@ void BindLayers(nb::module_& m) {
     BindMaterialClasses(m);
     BindSandFill(m);
     BindPavement(m);
+    BindStrata(m);
 }
 
 }  // namespace terraingen::python

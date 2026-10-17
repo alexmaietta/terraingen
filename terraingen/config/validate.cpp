@@ -251,6 +251,9 @@ void ValidateLayer(const LayerSpec& spec, const std::string& path, LayerChecks& 
             [&](const PavementLayerSpec& layer) {
                 At(path, [&] { ValidatePavementOptions(layer.pavement); });
             },
+            [&](const StrataLayerSpec& layer) {
+                At(path, [&] { ValidateStrataOptions(layer.strata); });
+            },
             [&](const SandFillLayerSpec& layer) {
                 At(path, [&] { ValidateSandFillOptions(layer.sandFill); });
             },
@@ -446,7 +449,8 @@ void ValidateMaterials(const TerrainConfig& config) {
     std::vector<std::pair<MaterialClass, const char*>> needed{{MaterialClass::Soil, "soil"}};
     if (materials.options.exposure ||
         std::any_of(config.layers.begin(), config.layers.end(), [](const LayerSpec& layer) {
-            return std::holds_alternative<PavementLayerSpec>(layer);
+            return std::holds_alternative<PavementLayerSpec>(layer) ||
+                   std::holds_alternative<StrataLayerSpec>(layer);
         })) {
         needed.emplace_back(MaterialClass::Bedrock, "bedrock");
     }

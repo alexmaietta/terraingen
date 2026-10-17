@@ -339,3 +339,22 @@ def test_pavement_plates_crack_in_octaves_and_lay_bedrock():
     )
     assert config.to_dict()["layers"][0]["octaves"] == 3
     config.validate()
+
+
+def test_strata_terrace_hills_into_benches_and_cliffs():
+    options = terraingen.StrataOptions(bed_thickness=2.0, thickness_variation=0.0, sharpness=4.0)
+    layer = terraingen.StrataLayer(options)
+    assert layer.material == terraingen.MaterialClass.BEDROCK
+    assert layer.terraced_at(5.0, 0.0, 0.0) == pytest.approx(4.0 + 2.0 * 0.5**4)
+    assert layer.bed_position_at(5.0, 0.0, 0.0) == pytest.approx(0.5)
+    assert layer.terraced_at(6.0, 0.0, 0.0) == pytest.approx(6.0)
+    with pytest.raises(ValueError):
+        terraingen.StrataLayer(terraingen.StrataOptions(sharpness=0.5))
+    config = terraingen.Config.from_dict(
+        {
+            "schema_version": 1,
+            "layers": [{"type": "strata", "bed_thickness": 3.0, "dip": 0.05}],
+        }
+    )
+    assert config.to_dict()["layers"][0]["bed_thickness"] == 3.0
+    config.validate()

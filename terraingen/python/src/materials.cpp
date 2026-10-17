@@ -48,9 +48,9 @@ void BindMaterials(nb::module_& m) {
           "Raises ValueError for invalid options.");
     m.def(
         "materials_at",
-        [](const PyTerrain& terrain, const MaterialOptions& options, double x, double y,
+        [](const PyTerrain& terrain, const MaterialOptions& material, double x, double y,
            double spacing) {
-            const MaterialShares shares = MaterialsAt(terrain.Get(), options, x, y, spacing);
+            const MaterialShares shares = MaterialsAt(terrain.Get(), material, x, y, spacing);
             return std::vector<double>(shares.begin(), shares.end());
         },
         "terrain"_a, "options"_a, "x"_a, "y"_a, "spacing"_a,
@@ -60,9 +60,9 @@ void BindMaterials(nb::module_& m) {
         "cover in order.");
     m.def(
         "evaluate_materials",
-        [](const PyTerrain& terrain, const MaterialOptions& options, const RasterGrid& grid,
+        [](const PyTerrain& terrain, const MaterialOptions& material, const RasterGrid& grid,
            double spacing, unsigned threads) {
-            return EvaluateMaterials(terrain.Get(), options, grid,
+            return EvaluateMaterials(terrain.Get(), material, grid,
                                      EvaluationOptions{spacing, threads});
         },
         "terrain"_a, "options"_a, "grid"_a, "spacing"_a = 0.0, "threads"_a = 0,

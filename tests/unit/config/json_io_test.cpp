@@ -29,6 +29,13 @@ TerrainConfig Everything() {
     TerrainConfig config;
     config.body = terraingen::SphereSurfaceSpec{3389500.0};
     config.base = terraingen::RasterSourceSpec{"dem.tif"};
+    terraingen::PavementOptions plates;
+    plates.plateSize = 0.8;
+    plates.crackWidth = 0.03;
+    plates.maxTilt = 0.05;
+    plates.octaves = 3;
+    plates.lacunarity = 2.5;
+    plates.gain = 0.6;
     terraingen::NoiseLayerSpec noise;
     terraingen::NoiseLayerConfig second;
     second.layer.blend = terraingen::LayerBlend::Mask;
@@ -160,8 +167,9 @@ TerrainConfig Everything() {
         terraingen::DuneLayerSpec{terraingen::MarsTransverseDunes()},
         terraingen::SandFillLayerSpec{{6.0, 0.4, 0.3, 0.05}},
         terraingen::PavementLayerSpec{terraingen::MarsDesiccationRidges()},
-        terraingen::PavementLayerSpec{
-            {0.8, 0.5, 0.2, 0.03, 0.04, false, 0.01, 0.05, 0.02, 3, 2.5, 0.6}},
+        terraingen::PavementLayerSpec{plates},
+        terraingen::StrataLayerSpec{{3.5, 0.2, 0.05, 1.2, 6.0, 0.8, 0.25, 9u, {137.4, -4.6}}},
+        terraingen::StrataLayerSpec{},
         roughness,
         terraingen::RoughnessLayerSpec{},
         terraingen::ScaleLayerSpec{1.5, -20.0},
