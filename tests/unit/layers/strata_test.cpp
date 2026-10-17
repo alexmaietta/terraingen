@@ -202,4 +202,40 @@ TEST(StrataLayer, RejectsBadOptions) {
     rejects([](StrataOptions& o) { o.cliffShare = 0.0; });
     rejects([](StrataOptions& o) { o.dipAzimuth = NAN; });
     rejects([](StrataOptions& o) { o.anchor = {NAN, 0.0}; });
+    rejects([](StrataOptions& o) { o.hardShare = 1.5; });
+    rejects([](StrataOptions& o) { o.softSharpness = 0.5; });
+}
+
+TEST(StrataLayer, SoftBedsSlopeWithoutCliffsOrBedrock) {
+    StrataOptions options;
+    options.thicknessVariation = 0.0;
+    options.hardShare = 0.5;
+    options.softSharpness = 1.0;
+    const StrataLayer layer(options);
+    int hard = 0;
+    int soft = 0;
+    for (int k = 0; k < 400; ++k) {
+        const double mid = (static_cast<double>(k) + 0.6) * options.bedThickness;
+        const double terraced = layer.TerracedAt(mid, 0.0, 0.0);
+        const Level ground(mid + 0.3 * options.bedThickness);
+        const double cover = layer.MaterialCoverAt(0.0, 0.0, 0.1, &ground);
+        if (std::fabs(terraced - mid) < 1e-12) {
+            ++soft;
+            EXPECT_EQ(cover, 0.0) << "no bedrock on a soft bed";
+        } else {
+            ++hard;
+            EXPECT_EQ(cover, 1.0) << "bedrock on a hard bed's cliff";
+        }
+    }
+    EXPECT_NEAR(static_cast<double>(soft) / 400.0, 0.5, 0.08);
+    EXPECT_GT(hard, 0);
+    options.hardShare = 1.0;
+    const StrataLayer allHard(options);
+    EXPECT_NE(allHard.TerracedAt(0.6 * options.bedThickness, 0.0, 0.0), 0.6 * options.bedThickness);
+    options.hardShare = 0.0;
+    options.softSharpness = 2.0;
+    const StrataLayer allSoft(options);
+    EXPECT_NEAR(allSoft.TerracedAt(0.5 * options.bedThickness, 0.0, 0.0),
+                0.25 * options.bedThickness, 1e-12)
+        << "soft beds cut at their own sharpness";
 }

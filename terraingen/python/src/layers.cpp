@@ -388,7 +388,9 @@ void BindStrata(nb::module_& m) {
         .def_rw("strength", &StrataOptions::strength)
         .def_rw("cliff_share", &StrataOptions::cliffShare)
         .def_rw("seed", &StrataOptions::seed)
-        .def_rw("anchor", &StrataOptions::anchor);
+        .def_rw("anchor", &StrataOptions::anchor)
+        .def_rw("hard_share", &StrataOptions::hardShare)
+        .def_rw("soft_sharpness", &StrataOptions::softSharpness);
     m.def("validate_strata_options", &ValidateStrataOptions, "options"_a, kValidateDoc);
     auto layer = nb::class_<StrataLayer, Layer>(m, "StrataLayer",
                                                 "Layered rock terraced into benches and cliffs.");

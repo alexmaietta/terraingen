@@ -177,7 +177,8 @@ TerrainConfig Everything() {
         terraingen::SandFillLayerSpec{{6.0, 0.4, 0.3, 0.05}},
         terraingen::PavementLayerSpec{terraingen::MarsDesiccationRidges()},
         terraingen::PavementLayerSpec{plates},
-        terraingen::StrataLayerSpec{{3.5, 0.2, 0.05, 1.2, 6.0, 0.8, 0.25, 9u, {137.4, -4.6}}},
+        terraingen::StrataLayerSpec{
+            {3.5, 0.2, 0.05, 1.2, 6.0, 0.8, 0.25, 9u, {137.4, -4.6}, 0.6, 2.0}},
         terraingen::StrataLayerSpec{},
         terraingen::SandShadowLayerSpec{
             {1.2, 2.5, 0.5, 0.3, 0.01, {1.0, 3.0, terraingen::BlendShape::Linear}}},

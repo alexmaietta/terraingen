@@ -343,6 +343,7 @@ def test_pavement_plates_crack_in_octaves_and_lay_bedrock():
 
 def test_strata_terrace_hills_into_benches_and_cliffs():
     options = terraingen.StrataOptions(bed_thickness=2.0, thickness_variation=0.0, sharpness=4.0)
+    assert options.hard_share == 1.0 and options.soft_sharpness == 1.0
     layer = terraingen.StrataLayer(options)
     assert layer.material == terraingen.MaterialClass.BEDROCK
     assert layer.terraced_at(5.0, 0.0, 0.0) == pytest.approx(4.0 + 2.0 * 0.5**4)

@@ -28,14 +28,20 @@ struct StrataOptions {
     std::uint32_t seed = 1;  ///< Varies the bed boundaries.
     /// On a body, the surface point whose tangent frame the dip is measured in.
     Vec2d anchor{};
+    /// Share of the beds that are hard, resistant rock, in [0, 1]: a hard bed is cut at
+    /// `sharpness` into a bench and a cliff and lays bedrock there, a soft one at `softSharpness`
+    /// into a slope without bedrock. Each bed is drawn hard or soft by the seed.
+    double hardShare = 1.0;
+    double softSharpness = 1.0;  ///< How sharply soft beds are cut, at least 1.
 
     bool operator==(const StrataOptions&) const = default;
 };
 
 /// Checks strata options.
 /// @throws std::invalid_argument for a bed thickness that is not positive and finite, a thickness
-/// variation outside [0, 1), a dip outside [0, 90) deg, a sharpness below 1, a strength outside
-/// [0, 1], a cliff share outside (0, 1], or a non-finite azimuth or anchor.
+/// variation outside [0, 1), a dip outside [0, 90) deg, a sharpness or soft sharpness below 1, a
+/// strength or hard share outside [0, 1], a cliff share outside (0, 1], or a non-finite azimuth or
+/// anchor.
 void ValidateStrataOptions(const StrataOptions& options);
 
 /// Layered rock: the ground beneath terraced into beds, each a flat bench below a cliff at its
@@ -65,7 +71,8 @@ class StrataLayer final : public FormulaLayer, public MaterialSource {
     MaterialClass Material() const override {
         return MaterialClass::Bedrock;
     }
-    /// 1 on the cliffs, the top `cliffShare` of each bed, fading to 0 on the benches.
+    /// 1 on the cliffs of hard beds, the top `cliffShare` of each, fading to 0 on the benches; 0 on
+    /// soft beds.
     /// @throws std::invalid_argument without `ground`.
     double MaterialCoverAt(double x, double y, double spacing, const Ground* ground) const override;
 
@@ -78,6 +85,7 @@ class StrataLayer final : public FormulaLayer, public MaterialSource {
     struct Bed {
         double bottom = 0.0;
         double top = 0.0;
+        bool hard = true;
     };
     Bed BedOf(double level) const;
     double BoundaryOf(std::int64_t k) const;

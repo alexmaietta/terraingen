@@ -267,6 +267,12 @@ template <typename IO> void Fields(IO& io, StrataLayerSpec& spec) {
        "On a body, the longitude in degrees of the point whose tangent frame the dip is measured "
        "in.");
     io("anchor_y", strata.anchor.y, "On a body, the latitude in degrees of the anchor.");
+    io("hard_share", strata.hardShare,
+       "Share of the beds that are hard rock, from 0 to 1: hard beds form benches and cliffs of "
+       "bedrock, soft beds slopes cut at soft_sharpness without bedrock.");
+    io("soft_sharpness", strata.softSharpness,
+       "How sharply soft beds are cut into benches and slopes, at least 1; 1 leaves them as they "
+       "are.");
 }
 
 template <> struct SpecName<SandShadowLayerSpec> {

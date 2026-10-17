@@ -15,6 +15,7 @@ namespace terraingen {
 namespace {
 
 constexpr std::uint32_t kStrataStream = 0x53545241u;
+constexpr std::uint32_t kHardnessStream = 0x48415244u;
 constexpr const char* kGroundReader = "A strata material cover";
 /// Width of the fade from bench to cliff in the material map, in bed heights.
 constexpr double kCliffFade = 0.05;
@@ -29,11 +30,14 @@ void ValidateStrataOptions(const StrataOptions& options) {
     if (!(options.dip >= 0.0 && options.dip < 0.5 * std::numbers::pi)) {
         throw std::invalid_argument("Strata dip must be in [0, 90) deg");
     }
-    if (!(options.sharpness >= 1.0 && std::isfinite(options.sharpness))) {
-        throw std::invalid_argument("Strata sharpness must be finite and at least 1");
+    if (!(options.sharpness >= 1.0 && std::isfinite(options.sharpness) &&
+          options.softSharpness >= 1.0 && std::isfinite(options.softSharpness))) {
+        throw std::invalid_argument(
+            "Strata sharpness and softSharpness must be finite and at least 1");
     }
-    if (!(options.strength >= 0.0 && options.strength <= 1.0)) {
-        throw std::invalid_argument("Strata strength must be in [0, 1]");
+    if (!(options.strength >= 0.0 && options.strength <= 1.0 && options.hardShare >= 0.0 &&
+          options.hardShare <= 1.0)) {
+        throw std::invalid_argument("Strata strength and hardShare must be in [0, 1]");
     }
     if (!(options.cliffShare > 0.0 && options.cliffShare <= 1.0)) {
         throw std::invalid_argument("Strata cliffShare must be in (0, 1]");
@@ -75,7 +79,14 @@ StrataLayer::Bed StrataLayer::BedOf(double level) const {
         bottom = top;
         top = BoundaryOf(k + 1);
     }
-    return {bottom, top};
+    bool hard = options_.hardShare >= 1.0;
+    if (!hard) {
+        const auto bits = static_cast<std::uint64_t>(k);
+        RandomStream random(options_.seed, kHardnessStream, static_cast<std::uint32_t>(bits),
+                            static_cast<std::uint32_t>(bits >> 32));
+        hard = random.NextDouble() < options_.hardShare;
+    }
+    return {bottom, top, hard};
 }
 
 bool StrataLayer::LevelOf(double height, double x, double y, double& level) const {
@@ -107,7 +118,8 @@ double StrataLayer::TerracedAt(double height, double x, double y) const {
     const Bed bed = BedOf(level);
     const double rise = bed.top - bed.bottom;
     const double u = std::clamp((level - bed.bottom) / rise, 0.0, 1.0);
-    const double terraced = height + rise * (std::pow(u, options_.sharpness) - u);
+    const double sharpness = bed.hard ? options_.sharpness : options_.softSharpness;
+    const double terraced = height + rise * (std::pow(u, sharpness) - u);
     return height + options_.strength * (terraced - height);
 }
 
@@ -118,7 +130,15 @@ double StrataLayer::MaterialCoverAt(double x, double y, double spacing,
     if (!std::isfinite(height) || options_.strength <= 0.0) {
         return 0.0;
     }
-    const double u = BedPositionAt(height, x, y);
+    double level = 0.0;
+    if (!LevelOf(height, x, y, level)) {
+        return 0.0;
+    }
+    const Bed bed = BedOf(level);
+    if (!bed.hard) {
+        return 0.0;
+    }
+    const double u = std::clamp((level - bed.bottom) / (bed.top - bed.bottom), 0.0, 1.0);
     return Smoothstep((u - (1.0 - options_.cliffShare)) / kCliffFade + 0.5);
 }
 
