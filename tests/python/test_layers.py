@@ -408,3 +408,23 @@ def test_ventifacts_plane_the_windward_side_of_boulders():
     )
     assert config.to_dict()["layers"][0]["ventifacts"]["share"] == pytest.approx(0.39)
     config.validate()
+
+
+def test_dune_grainflows_and_straightened_ripples():
+    flows = terraingen.mars_dune_grainflows()
+    assert flows.min_lobe_length == pytest.approx(2.9) and flows.thickness == pytest.approx(0.015)
+    assert terraingen.mars_dune_ripples().flank_straightening == 1.0
+    options = terraingen.mars_transverse_dunes()
+    options.grainflows = flows
+    layer = terraingen.DuneLayer(options)
+    assert layer.options.grainflows.cover == 1.0
+    with pytest.raises(ValueError):
+        terraingen.DuneLayer(terraingen.DuneOptions(grainflows=terraingen.DuneGrainflows(cover=2.0)))
+    config = terraingen.Config.from_dict(
+        {
+            "schema_version": 1,
+            "layers": [{"type": "dunes", "shape": "transverse", "grainflows": {"cover": 0.5}}],
+        }
+    )
+    assert config.to_dict()["layers"][0]["grainflows"]["cover"] == 0.5
+    config.validate()

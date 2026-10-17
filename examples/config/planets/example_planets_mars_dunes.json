@@ -29,7 +29,20 @@
                 "height": 0.2,
                 "lee_fraction": 0.165,
                 "sinuosity": 0.8,
-                "forks": 0.8
+                "forks": 0.8,
+                "flank_straightening": 1
+            },
+            "grainflows": {
+                "cover": 1,
+                "min_scarp_width": 0.54,
+                "max_scarp_width": 0.67,
+                "min_scarp_length": 1.0,
+                "max_scarp_length": 1.6,
+                "min_lobe_width": 0.57,
+                "max_lobe_width": 0.66,
+                "min_lobe_length": 2.9,
+                "max_lobe_length": 6.0,
+                "thickness": 0.015
             }
         }
     ],

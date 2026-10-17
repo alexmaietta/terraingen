@@ -102,8 +102,29 @@ template <typename IO> void Fields(IO& io, DuneRipples& ripples) {
     io("forks", ripples.forks,
        "Chance, from 0 to 1, that each patch of 8 x 8 ripple wavelengths holds a pair of forked "
        "crests (Y-junctions).");
+    io("flank_straightening", ripples.flankStraightening,
+       "How far crests straighten off the stoss, from 0 to 1: 1 keeps the sinuosity on flat sand "
+       "and stoss slopes and takes it away on flanks and lee slopes, as Martian large ripples "
+       "do.");
     io("fade", ripples.fade,
        "How ripples too fine for the sample spacing fade out, by samples per wavelength.");
+}
+
+template <typename IO> void Fields(IO& io, DuneGrainflows& flows) {
+    io("cover", flows.cover,
+       "Chance, from 0 to 1, that each lattice cell of the slip faces holds a grainflow; 0 for "
+       "none.");
+    io("min_scarp_width", flows.minScarpWidth, "Narrowest scarp, in metres.", "m");
+    io("max_scarp_width", flows.maxScarpWidth, "Widest scarp, in metres.", "m");
+    io("min_scarp_length", flows.minScarpLength, "Shortest scarp downslope, in metres.", "m");
+    io("max_scarp_length", flows.maxScarpLength, "Longest scarp downslope, in metres.", "m");
+    io("min_lobe_width", flows.minLobeWidth, "Narrowest lobe, in metres.", "m");
+    io("max_lobe_width", flows.maxLobeWidth, "Widest lobe, in metres.", "m");
+    io("min_lobe_length", flows.minLobeLength, "Shortest lobe downslope, in metres.", "m");
+    io("max_lobe_length", flows.maxLobeLength, "Longest lobe downslope, in metres.", "m");
+    io("thickness", flows.thickness, "Depth of a scarp and height of a lobe, in metres.", "m");
+    io("fade", flows.fade,
+       "How grainflows too narrow for the sample spacing fade out, by samples across a lobe.");
 }
 
 template <> struct SpecName<DuneLayerSpec> {
@@ -167,6 +188,9 @@ template <typename IO> void Fields(IO& io, DuneLayerSpec& spec) {
        "How dunes too fine for the sample spacing fade out, by samples across their width or "
        "wavelength.");
     io("ripples", dunes.ripples, "Ripples superposed on the dunes.");
+    io("grainflows", dunes.grainflows,
+       "Grainflows on the slip faces: scarps below the brink and lobes below them; off unless "
+       "cover is set.");
 }
 
 template <> struct SpecName<PavementLayerSpec> {

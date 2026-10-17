@@ -850,7 +850,7 @@ TEST(BoulderLayer, FacetsCutTheWindwardSideOfDomesShapesAndModels) {
         }
         std::map<std::pair<std::uint32_t, std::uint32_t>, int> edges;
         for (const auto& t : model.shape->mesh.triangles) {
-            for (int k = 0; k < 3; ++k) {
+            for (std::size_t k = 0; k < 3; ++k) {
                 ++edges[std::minmax(t[k], t[(k + 1) % 3])];
             }
         }

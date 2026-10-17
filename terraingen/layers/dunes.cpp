@@ -48,6 +48,12 @@ constexpr double kForkInner = 0.4;
 constexpr double kForkOuter = 0.5;
 /// Distance in wavelengths over which the ripples fade in from a fork's end.
 constexpr double kForkCore = 0.5;
+/// Grainflows: the share of a scarp's length its theatre head takes to reach full depth, the share
+/// of a lobe's length it takes to rise, and the share after which its toe rounds off.
+constexpr std::uint32_t kGrainflowStream = 0x47464c57u;
+constexpr double kGrainflowHead = 0.15;
+constexpr double kGrainflowRise = 0.25;
+constexpr double kGrainflowToe = 0.6;
 
 /// A cos^alpha bump falling from 1 at s = 0 to 0 at s = 1.
 double Bump(double s, double alpha) {
@@ -152,13 +158,28 @@ void ValidateDuneOptions(const DuneOptions& options) {
           ripples.leeFraction > 0.0 && ripples.leeFraction < 1.0 &&
           IsNonNegative(ripples.sinuosity) && IsNonNegative(ripples.slopeCoupling) &&
           ripples.interduneCover >= 0.0 && ripples.interduneCover <= 1.0 && ripples.forks >= 0.0 &&
-          ripples.forks <= 1.0)) {
+          ripples.forks <= 1.0 && ripples.flankStraightening >= 0.0 &&
+          ripples.flankStraightening <= 1.0)) {
         throw std::invalid_argument(
             "Dune ripples need sizes and coupling not negative, a lee fraction in (0, 1) and an "
-            "interdune cover and forks in [0, 1]");
+            "interdune cover, forks and flank straightening in [0, 1]");
     }
     ValidateResolutionFade(options.fade);
     ValidateResolutionFade(ripples.fade);
+    const DuneGrainflows& flows = options.grainflows;
+    const auto range = [](double low, double high) {
+        return IsPositive(low) && high >= low && std::isfinite(high);
+    };
+    if (!(flows.cover >= 0.0 && flows.cover <= 1.0 &&
+          range(flows.minScarpWidth, flows.maxScarpWidth) &&
+          range(flows.minScarpLength, flows.maxScarpLength) &&
+          range(flows.minLobeWidth, flows.maxLobeWidth) &&
+          range(flows.minLobeLength, flows.maxLobeLength) && IsNonNegative(flows.thickness))) {
+        throw std::invalid_argument(
+            "Dune grainflows need a cover in [0, 1], positive sizes with each minimum at most its "
+            "maximum, and a thickness not negative");
+    }
+    ValidateResolutionFade(flows.fade);
 }
 
 DuneRipples MarsDuneRipples() {
@@ -169,7 +190,23 @@ DuneRipples MarsDuneRipples() {
     ripples.leeFraction = ripples.height / (ripples.wavelength * leeSlope);
     ripples.sinuosity = 0.8;
     ripples.forks = 0.8;
+    ripples.flankStraightening = 1.0;
     return ripples;
+}
+
+DuneGrainflows MarsDuneGrainflows() {
+    DuneGrainflows flows;
+    flows.cover = 1.0;
+    flows.minScarpWidth = 0.54;
+    flows.maxScarpWidth = 0.67;
+    flows.minScarpLength = 1.0;
+    flows.maxScarpLength = 1.6;
+    flows.minLobeWidth = 0.57;
+    flows.maxLobeWidth = 0.66;
+    flows.minLobeLength = 2.9;
+    flows.maxLobeLength = 6.0;
+    flows.thickness = 0.015;
+    return flows;
 }
 
 DuneOptions MarsBarchans() {
@@ -331,25 +368,102 @@ double DuneLayer::Height(const Vec2d& q) const {
     return 0.0;
 }
 
+Vec2d DuneLayer::Gradient(const Vec2d& q, double step) const {
+    return {(Height({q.x + step, q.y}) - Height({q.x - step, q.y})) / (2.0 * step),
+            (Height({q.x, q.y + step}) - Height({q.x, q.y - step})) / (2.0 * step)};
+}
+
+double DuneLayer::SlipFaceWeight(const Vec2d& g) const {
+    const double grade = std::hypot(g.x, g.y);
+    if (grade <= 0.0) {
+        return 0.0;
+    }
+    const double facing = -(g.x * wind_.x + g.y * wind_.y) / grade;
+    return Smoothstep(2.0 * facing) *
+           Smoothstep(2.0 * grade / std::tan(options_.slipFaceAngle) - 1.0);
+}
+
+double DuneLayer::Grainflows(const Vec2d& q, double face) const {
+    const DuneGrainflows& flows = options_.grainflows;
+    if (face <= 0.0) {
+        return 0.0;
+    }
+    const Vec2d across{-wind_.y, wind_.x};
+    const double u = q.x * wind_.x + q.y * wind_.y;
+    const double v = q.x * across.x + q.y * across.y;
+    const double cellAlong = flows.maxScarpLength + flows.maxLobeLength;
+    const double cellAcross = std::max(flows.maxScarpWidth, flows.maxLobeWidth);
+    const auto iu = static_cast<std::int64_t>(std::floor(u / cellAlong));
+    const auto iv = static_cast<std::int64_t>(std::floor(v / cellAcross));
+    const auto between = [](double low, double high, double t) { return low + (high - low) * t; };
+    double relief = 0.0;
+    for (std::int64_t cu = iu - 1; cu <= iu + 1; ++cu) {
+        for (std::int64_t cv = iv - 1; cv <= iv + 1; ++cv) {
+            RandomStream random(options_.seed, kGrainflowStream, static_cast<std::uint32_t>(cu),
+                                static_cast<std::uint32_t>(cv),
+                                static_cast<std::uint32_t>((cu >> 32) ^ ((cv >> 32) << 16)));
+            if (random.NextDouble() >= flows.cover) {
+                continue;
+            }
+            const double head = (static_cast<double>(cu) + random.NextDouble()) * cellAlong;
+            const double middle = (static_cast<double>(cv) + random.NextDouble()) * cellAcross;
+            const double scarpWidth =
+                between(flows.minScarpWidth, flows.maxScarpWidth, random.NextDouble());
+            const double scarpLength =
+                between(flows.minScarpLength, flows.maxScarpLength, random.NextDouble());
+            const double lobeWidth =
+                between(flows.minLobeWidth, flows.maxLobeWidth, random.NextDouble());
+            const double lobeLength =
+                between(flows.minLobeLength, flows.maxLobeLength, random.NextDouble());
+            const double s = u - head;
+            const double n = std::fabs(v - middle);
+            if (s >= 0.0 && s < scarpLength) {
+                const double half = 0.5 * scarpWidth;
+                const double profile =
+                    Smoothstep(s / (kGrainflowHead * scarpLength)) * (1.0 - s / scarpLength);
+                relief -= profile * std::max(0.0, 1.0 - (n / half) * (n / half));
+            }
+            const double t = s - scarpLength;
+            if (t >= 0.0 && t < lobeLength) {
+                const double toe = std::max(0.0, (t - kGrainflowToe * lobeLength) /
+                                                     ((1.0 - kGrainflowToe) * lobeLength));
+                const double half = 0.5 * lobeWidth * std::sqrt(std::max(0.0, 1.0 - toe * toe));
+                if (n < half) {
+                    const double profile = Smoothstep(t / (kGrainflowRise * lobeLength));
+                    relief += profile * (1.0 - (n / half) * (n / half));
+                }
+            }
+        }
+    }
+    return face * flows.thickness * relief;
+}
+
 double DuneLayer::Ripples(const Vec2d& q, double dune) const {
     const DuneRipples& ripples = options_.ripples;
     const double lambda = ripples.wavelength;
-    const double step = 0.25 * lambda;
-    const double gx = (Height({q.x + step, q.y}) - Height({q.x - step, q.y})) / (2.0 * step);
-    const double gy = (Height({q.x, q.y + step}) - Height({q.x, q.y - step})) / (2.0 * step);
+    const Vec2d g = Gradient(q, 0.25 * lambda);
+    const double gx = g.x;
+    const double gy = g.y;
     const double kx = wind_.x - ripples.slopeCoupling * gx;
     const double ky = wind_.y - ripples.slopeCoupling * gy;
     const double tighten = std::max(1e-6, std::hypot(kx, ky));
+    double sinuosity = ripples.sinuosity;
+    if (ripples.flankStraightening > 0.0) {
+        const double grade = std::hypot(gx, gy);
+        const double stoss =
+            grade > 0.0 ? std::max(0.0, (gx * wind_.x + gy * wind_.y) / grade) : 1.0;
+        sinuosity *= 1.0 - ripples.flankStraightening *
+                               Smoothstep(grade / std::tan(options_.stossSlope)) * (1.0 - stoss);
+    }
     double core = 1.0;
     const double psi =
         (q.x * wind_.x + q.y * wind_.y - ripples.slopeCoupling * dune) / lambda +
-        ripples.sinuosity *
-            (static_cast<double>(PerlinNoise2Precise(q.x / (kRippleWander * lambda),
-                                                     q.y / (kRippleWander * lambda),
-                                                     options_.seed + 2u)) +
-             kRippleKinks * static_cast<double>(PerlinNoise2Precise(
-                                q.x / (kRippleKinkScale * lambda),
-                                q.y / (kRippleKinkScale * lambda), options_.seed + 3u))) +
+        sinuosity * (static_cast<double>(PerlinNoise2Precise(q.x / (kRippleWander * lambda),
+                                                             q.y / (kRippleWander * lambda),
+                                                             options_.seed + 2u)) +
+                     kRippleKinks * static_cast<double>(PerlinNoise2Precise(
+                                        q.x / (kRippleKinkScale * lambda),
+                                        q.y / (kRippleKinkScale * lambda), options_.seed + 3u))) +
         RippleForks(q, core);
     const double fading =
         1.0 -
@@ -448,13 +562,21 @@ float DuneLayer::HeightAt(float height, double x, double y, double spacing,
     const double rippleWeight = ripples.wavelength > 0.0 && ripples.height > 0.0
                                     ? ResolutionWeight(ripples.wavelength, spacing, ripples.fade)
                                     : 0.0;
-    if (duneWeight <= 0.0 && rippleWeight <= 0.0) {
+    const DuneGrainflows& flows = options_.grainflows;
+    const double flowWeight = flows.cover > 0.0 && flows.thickness > 0.0
+                                  ? ResolutionWeight(flows.minLobeWidth, spacing, flows.fade)
+                                  : 0.0;
+    if (duneWeight <= 0.0 && rippleWeight <= 0.0 && flowWeight <= 0.0) {
         return height;
     }
     const double dune = Height(q);
     double relief = duneWeight * dune;
     if (rippleWeight > 0.0) {
         relief += rippleWeight * Ripples(q, dune);
+    }
+    if (flowWeight > 0.0) {
+        const Vec2d g = Gradient(q, 0.25 * flows.minScarpLength);
+        relief += flowWeight * Grainflows(q, SlipFaceWeight(g));
     }
     return static_cast<float>(static_cast<double>(height) + relief);
 }

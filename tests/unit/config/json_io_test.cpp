@@ -36,6 +36,8 @@ TerrainConfig Everything() {
     plates.octaves = 3;
     plates.lacunarity = 2.5;
     plates.gain = 0.6;
+    terraingen::DuneOptions flowing = terraingen::MarsTransverseDunes();
+    flowing.grainflows = terraingen::MarsDuneGrainflows();
     terraingen::NoiseLayerSpec noise;
     terraingen::NoiseLayerConfig second;
     second.layer.blend = terraingen::LayerBlend::Mask;
@@ -171,6 +173,7 @@ TerrainConfig Everything() {
         terraingen::BedformLayerSpec{terraingen::MarsLargeRipples()},
         terraingen::DuneLayerSpec{terraingen::MarsBarchans()},
         terraingen::DuneLayerSpec{terraingen::MarsTransverseDunes()},
+        terraingen::DuneLayerSpec{flowing},
         terraingen::SandFillLayerSpec{{6.0, 0.4, 0.3, 0.05}},
         terraingen::PavementLayerSpec{terraingen::MarsDesiccationRidges()},
         terraingen::PavementLayerSpec{plates},
@@ -479,8 +482,15 @@ TEST(ConfigJson, RoundTripsSecondaryLayers) {
     secondaries.secondaries.selection.maxAgeGyr = 0.5;
     secondaries.secondaries.selection.maxDiameter = 900.0;
     secondaries.depthRatio = 0.12;
+    secondaries.secondaries.rays.enabled = true;
+    secondaries.secondaries.rays.layout.seed = 4;
+    secondaries.secondaries.rays.clustering = 0.5;
+    secondaries.secondaries.shapes.elongatedShare = 0.3;
     secondaries.morphometry = terraingen::CraterMorphometryFit::Mars;
     config.layers = {CraterLayerSpec{}, secondaries};
+    terraingen::CraterAlbedoSpec bright;
+    bright.options.rays.layout = terraingen::RayLayout{.seed = 4};
+    config.albedo = terraingen::AlbedoSpec{terraingen::SyntheticAlbedoSpec{}, {bright}};
     const std::string json = ConfigToJson(config);
     EXPECT_EQ(ParseConfig(json), config) << json;
     EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [{"type": "secondaries",

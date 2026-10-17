@@ -35,9 +35,33 @@ struct DuneRipples {
     double interduneCover = 0.0;  ///< Share of the ripples' height kept off the dunes, in [0, 1].
     /// Chance, in [0, 1], that each patch of 8 x 8 wavelengths holds a pair of forked crests.
     double forks = 0.5;
+    /// How far crests straighten off the stoss, in [0, 1]: 0 keeps `sinuosity` everywhere, 1
+    /// keeps it on flat sand and stoss slopes and takes it away on flanks and lee slopes as steep
+    /// as the stoss.
+    double flankStraightening = 0.0;
     ResolutionFade fade{};  ///< How ripples too fine for the spacing fade out.
 
     bool operator==(const DuneRipples&) const = default;
+};
+
+/// Grainflows on slip faces: avalanches that leave a theatre-headed scarp below the brink and a
+/// tongue-shaped lobe of sand below it. Each is drawn on a lattice aligned with the wind, its sizes
+/// uniform between the bounds, and shown only where the ground faces downwind near the slip face
+/// angle. Lengths are in metres, along the slope; widths across it.
+struct DuneGrainflows {
+    double cover = 0.0;  ///< Chance, in [0, 1], that each lattice cell holds one; 0 for none.
+    double minScarpWidth = 0.5;
+    double maxScarpWidth = 0.5;
+    double minScarpLength = 1.0;
+    double maxScarpLength = 1.0;
+    double minLobeWidth = 0.5;
+    double maxLobeWidth = 0.5;
+    double minLobeLength = 3.0;
+    double maxLobeLength = 3.0;
+    double thickness = 0.015;  ///< Depth of a scarp and height of a lobe (m).
+    ResolutionFade fade{};     ///< How grainflows too narrow for the spacing fade out.
+
+    bool operator==(const DuneGrainflows&) const = default;
 };
 
 /// The dunes a `DuneLayer` builds, their sizes and slopes. Lengths are in metres, angles in
@@ -77,6 +101,7 @@ struct DuneOptions {
     ResolutionFade
         fade{};  ///< How dunes too fine for the spacing fade out, by samples across them.
     DuneRipples ripples{};
+    DuneGrainflows grainflows{};  ///< Avalanches on the slip faces; none by default.
 
     bool operator==(const DuneOptions&) const = default;
 };
@@ -88,8 +113,16 @@ struct DuneOptions {
 /// fade.
 void ValidateDuneOptions(const DuneOptions& options);
 
-/// Martian large wind ripples to lay on dunes: 2.1 m wavelength, 0.2 m height and a 30 deg lee.
+/// Martian large wind ripples to lay on dunes: 2.1 m wavelength, 0.2 m height and a 30 deg lee;
+/// sinuous on stoss slopes and straighter on flanks and lee slopes (Lapotre et al. 2016; Ewing et
+/// al. 2017).
 DuneRipples MarsDuneRipples();
+
+/// The grainflows of Namib Dune's lee slope (Ewing et al. 2017, Table 1): scarps 0.54 to 0.67 m
+/// wide and 1.0 to 1.6 m long, lobes 0.57 to 0.66 m wide and 2.9 to 6 m long. Their thickness is
+/// not measured on Mars; 0.015 m is that of a Namibian barchan's grainflows (Nield et al. 2017, in
+/// Ewing et al. 2017). Every cell holds one, as palimpsest grainflows are abundant on that slope.
+DuneGrainflows MarsDuneGrainflows();
 
 /// Martian barchans with large ripples: 29 deg slip faces, 8 deg stoss slopes, 370 m wide, domes
 /// below 200 m wide and twice as long as wide; spacing and density are placeholders to set per
@@ -145,6 +178,13 @@ class DuneLayer final : public FormulaLayer, public MaterialSource {
     /// The phase the forked crests near planar point `q` add to the ripples, in wavelengths; `core`
     /// becomes the weight in [0, 1] that fades the ripples out at the forks' ends.
     double RippleForks(const Vec2d& q, double& core) const;
+    /// The dunes' gradient at planar point `q`, by central differences `step` metres apart.
+    Vec2d Gradient(const Vec2d& q, double step) const;
+    /// How far the ground with gradient `g` is a slip face, in [0, 1]: facing downwind near the
+    /// slip face angle.
+    double SlipFaceWeight(const Vec2d& g) const;
+    /// The grainflows' relief at planar point `q` (m), on the slip face share `face`.
+    double Grainflows(const Vec2d& q, double face) const;
 
     DuneOptions options_;
     Vec2d wind_{1.0, 0.0};

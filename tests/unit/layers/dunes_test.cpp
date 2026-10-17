@@ -303,3 +303,120 @@ TEST(DuneLayer, MarsPresetsCarryTheirPublishedValues) {
     EXPECT_NO_THROW(DuneLayer{barchans});
     EXPECT_NO_THROW(DuneLayer{transverse});
 }
+
+namespace {
+
+/// Straight transverse crests 250 m apart and 20 m high, crests across +x.
+DuneOptions StraightCrests() {
+    DuneOptions options;
+    options.shape = DuneShape::Transverse;
+    options.sinuosity = 0.0;
+    options.defects = 0.0;
+    options.wavelength = 250.0;
+    options.height = 20.0;
+    return options;
+}
+
+}  // namespace
+
+TEST(DuneLayer, GrainflowsCutScarpsAndLayLobesOnlyOnSlipFaces) {
+    DuneOptions plain = StraightCrests();
+    DuneOptions flowing = plain;
+    flowing.grainflows = terraingen::MarsDuneGrainflows();
+    const DuneLayer without(plain);
+    const DuneLayer with(flowing);
+    const double slip = std::tan(plain.slipFaceAngle);
+    double deepest = 0.0;
+    double highest = 0.0;
+    int onStoss = 0;
+    for (double y = 0.0; y < 12.0; y += 0.05) {
+        for (double x = 0.0; x < 250.0; x += 0.1) {
+            const double change = At(with, x, y) - At(without, x, y);
+            const double gx =
+                (without.DuneHeightAt(x + 0.05, y) - without.DuneHeightAt(x - 0.05, y)) / 0.1;
+            if (gx > 0.0 || -gx < 0.5 * slip) {
+                onStoss += change != 0.0 ? 1 : 0;
+                continue;
+            }
+            deepest = std::min(deepest, change);
+            highest = std::max(highest, change);
+        }
+    }
+    EXPECT_EQ(onStoss, 0) << "nothing off the slip faces";
+    EXPECT_LT(deepest, -0.5 * flowing.grainflows.thickness) << "scarps";
+    EXPECT_GT(highest, 0.5 * flowing.grainflows.thickness) << "lobes";
+    EXPECT_GT(deepest, -4.0 * flowing.grainflows.thickness);
+    EXPECT_LT(highest, 4.0 * flowing.grainflows.thickness);
+    DuneOptions sparse = flowing;
+    sparse.grainflows.cover = 0.3;
+    const DuneLayer few(sparse);
+    int full = 0;
+    int partial = 0;
+    for (double y = 0.0; y < 12.0; y += 0.25) {
+        for (double x = 0.0; x < 250.0; x += 0.25) {
+            full += At(with, x, y) != At(without, x, y) ? 1 : 0;
+            partial += At(few, x, y) != At(without, x, y) ? 1 : 0;
+        }
+    }
+    EXPECT_GT(partial, 0);
+    EXPECT_LT(partial, full) << "fewer grainflows at a lower cover";
+    for (double x = 180.0; x < 200.0; x += 0.37) {
+        EXPECT_EQ(with.ApplyAt(0.0f, x, 3.3, {2.0}), without.ApplyAt(0.0f, x, 3.3, {2.0}))
+            << "too narrow for a 2 m spacing";
+    }
+    const terraingen::RasterGrid grid{60, 40, terraingen::GeoTransform::NorthUp(180.0, 8.0, 0.1)};
+    terraingen::Raster<float> heights = grid.MakeRaster();
+    with.Apply(heights, {0.1, 2});
+    for (std::size_t row = 0; row < grid.height; ++row) {
+        for (std::size_t col = 0; col < grid.width; ++col) {
+            const auto centre = heights.CellCenter(col, row);
+            ASSERT_EQ(with.ApplyAt(0.0f, centre.x, centre.y, {0.1}), heights(col, row));
+        }
+    }
+}
+
+TEST(DuneLayer, RippleCrestsStraightenOffTheStossOnly) {
+    DuneOptions sinuous = StraightCrests();
+    sinuous.ripples = terraingen::MarsDuneRipples();
+    sinuous.ripples.flankStraightening = 0.0;
+    DuneOptions straightened = sinuous;
+    straightened.ripples.flankStraightening = 1.0;
+    const DuneLayer a(sinuous);
+    const DuneLayer b(straightened);
+    const double slip = std::tan(sinuous.slipFaceAngle);
+    int leeDiffers = 0;
+    for (double x = 0.0; x < 250.0; x += 0.21) {
+        const double step = 0.25 * sinuous.ripples.wavelength;
+        const double gx =
+            (a.DuneHeightAt(x + step, 7.0) - a.DuneHeightAt(x - step, 7.0)) / (2.0 * step);
+        if (gx >= 0.0) {
+            EXPECT_EQ(At(a, x, 7.0), At(b, x, 7.0))
+                << "stoss slopes and flat sand keep it, as the layer reads the slope";
+        } else if (-gx > 0.5 * slip) {
+            leeDiffers += At(a, x, 7.0) != At(b, x, 7.0) ? 1 : 0;
+        }
+    }
+    EXPECT_GT(leeDiffers, 10);
+}
+
+TEST(DuneLayer, GrainflowPresetAndBadGrainflows) {
+    const terraingen::DuneGrainflows flows = terraingen::MarsDuneGrainflows();
+    EXPECT_EQ(flows.minScarpWidth, 0.54);
+    EXPECT_EQ(flows.maxScarpWidth, 0.67);
+    EXPECT_EQ(flows.minLobeLength, 2.9);
+    EXPECT_EQ(flows.maxLobeLength, 6.0);
+    EXPECT_EQ(flows.thickness, 0.015);
+    EXPECT_EQ(terraingen::MarsDuneRipples().flankStraightening, 1.0);
+    const auto rejects = [](auto change) {
+        DuneOptions options;
+        options.grainflows = terraingen::MarsDuneGrainflows();
+        change(options);
+        EXPECT_THROW(DuneLayer{options}, std::invalid_argument);
+    };
+    rejects([](DuneOptions& o) { o.grainflows.cover = 1.5; });
+    rejects([](DuneOptions& o) { o.grainflows.minScarpWidth = 0.0; });
+    rejects([](DuneOptions& o) { o.grainflows.maxLobeLength = 1.0; });
+    rejects([](DuneOptions& o) { o.grainflows.thickness = -0.01; });
+    rejects([](DuneOptions& o) { o.grainflows.fade.endSamples = 0.0; });
+    rejects([](DuneOptions& o) { o.ripples.flankStraightening = 1.5; });
+}

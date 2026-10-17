@@ -420,7 +420,26 @@ void BindDuneOptions(nb::module_& m) {
         .def_rw("slope_coupling", &DuneRipples::slopeCoupling)
         .def_rw("interdune_cover", &DuneRipples::interduneCover)
         .def_rw("forks", &DuneRipples::forks)
+        .def_rw("flank_straightening", &DuneRipples::flankStraightening)
         .def_rw("fade", &DuneRipples::fade);
+    auto flows = nb::class_<DuneGrainflows>(
+        m, "DuneGrainflows",
+        "Grainflows on slip faces: scarps and lobes with sizes (m) uniform between their bounds, "
+        "`thickness` metres deep and high, in `cover` of the lattice cells; 0 cover gives none.");
+    BindKwargsInit<DuneGrainflows>(flows);
+    flows.def_rw("cover", &DuneGrainflows::cover)
+        .def_rw("min_scarp_width", &DuneGrainflows::minScarpWidth)
+        .def_rw("max_scarp_width", &DuneGrainflows::maxScarpWidth)
+        .def_rw("min_scarp_length", &DuneGrainflows::minScarpLength)
+        .def_rw("max_scarp_length", &DuneGrainflows::maxScarpLength)
+        .def_rw("min_lobe_width", &DuneGrainflows::minLobeWidth)
+        .def_rw("max_lobe_width", &DuneGrainflows::maxLobeWidth)
+        .def_rw("min_lobe_length", &DuneGrainflows::minLobeLength)
+        .def_rw("max_lobe_length", &DuneGrainflows::maxLobeLength)
+        .def_rw("thickness", &DuneGrainflows::thickness)
+        .def_rw("fade", &DuneGrainflows::fade);
+    m.def("mars_dune_grainflows", &MarsDuneGrainflows,
+          "The grainflows of Namib Dune's lee slope (Ewing et al. 2017).");
     auto options = nb::class_<DuneOptions>(
         m, "DuneOptions",
         "Dunes: barchans and domes of `width` (m) in cells `spacing` metres apart, or crest-line "
@@ -450,7 +469,8 @@ void BindDuneOptions(nb::module_& m) {
         .def_rw("seed", &DuneOptions::seed)
         .def_rw("anchor", &DuneOptions::anchor)
         .def_rw("fade", &DuneOptions::fade)
-        .def_rw("ripples", &DuneOptions::ripples);
+        .def_rw("ripples", &DuneOptions::ripples)
+        .def_rw("grainflows", &DuneOptions::grainflows);
     m.def("validate_dune_options", &ValidateDuneOptions, "options"_a, kValidateDoc);
     m.def("mars_dune_ripples", &MarsDuneRipples, "Martian large wind ripples to lay on dunes.");
     m.def("mars_barchans", &MarsBarchans, "Martian barchans with large ripples.");
