@@ -17,41 +17,50 @@ TerrainGen can:
 
 - Generate synthetic terrain from scratch, or add fine detail to existing elevation models.
 - Populate craters and boulders from cumulative size-frequency distributions.
-- Model each crater's profile, age, degradation, irregular outline and secondary craters.
-- Bake small boulders into the heightmap, and generate procedural 3D boulder models for the large ones, exported as glTF or PLY meshes.
+- Model each crater's profile, age, degradation, irregularity.
+- Bake small boulders into the heightmap, and generate procedural 3D boulder models for the large ones.
 - Produce synthetic albedo maps with crater ejecta and rays that fade with crater age.
-- Be extended through base classes in C++ or Python with your own size-frequency distributions, crater ages, profiles and degradation, albedo, sources, layers and filters.
-- Run on the GPU, and give the same terrain for the same seed on any grid, tile or thread count.
+- Model complex geologic features such as complex and secondary craters, boulder ejecta fields, dunes and wind ripples, layered strata terraced into benches and cliffs, fractured bedrock pavement, wind-carved ventifacts, and sand pooled in lows or trailing behind boulders.
+- Be extended through base classes in C++ or Python with custom size-frequency distributions, crater ages, profiles and degradation, albedo, sources, and layers.
+- GPU-accelerated operations for generating noise, craters, boulders, albedo, and more.
+- Generate deterministic results for the same seed on any grid, tile or thread count.
 - Integrate into simulations and other external workflows.
 
-We provide:
+We also provide:
 
 - A modular C++ library with Python bindings and minimal dependencies.
+- Smart and tested defaults for various surface features.
 - A command-line interface that generates terrain from JSON configuration files.
 - A GUI for editing configurations and viewing the results in 3D.
 - Examples in C++, Python and JSON.
 - A standalone demo that streams TerrainGen detail into a planetary-scale renderer on the GPU while navigating around the Moon.
-
-We also provide examples or full integrations into existing third-party simulation tools such as Project Chrono, Newton, IsaacLab, and NASA Trick.
+- Example integrations with third-party tools such as Project Chrono, IsaacLab, and Newton.
 
 For more information on the concepts behind TerrainGen and the API, see our latest [documentation](https://alexmaietta.github.io/terraingen/).
 
 ## Getting Started
 
-To quickly get started with TerrainGen, it is recommended to install the Python package and run the GUI.
+We recommended getting started by installing `terraingen` from PyPi and running the GUI.
 
 ```sh
 pip install terraingen
 terraingen --gui
 ```
 
-For more information, such as building from source or integrating TerrainGen into your own projects, see our [installation guide]().
+### Python
 
-## Validation
+### C++
 
-A large focus of TerrainGen is accuracy, so we put a lot of effort into validating TerrainGen against real planetary imagery and terrains. There are three core methods that we use to do this.
+### Examples
 
-For more information, see our detailed [validation]() documentation.
+## Installation
+
+
+## Contributing
+
+### Documentation
+
+### Code Coverage
 
 ## Citation
 
