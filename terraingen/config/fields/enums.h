@@ -299,7 +299,7 @@ template <> struct EnumNames<PhotometryReference> {
         {"none", PhotometryReference::None, "No parameters: each class present must be given."},
         {"mars_pancam", PhotometryReference::MarsPancam,
          "Pancam fits at 753 nm (Johnson et al. 2006a, b, tabulated by Fernando et al. 2013): "
-         "soil, sand, dust and rock; bedrock must be given."},
+         "soil, sand, dust, bedrock (Eagle crater outcrop, Johnson et al. 2006b) and rock."},
     }};
 };
 

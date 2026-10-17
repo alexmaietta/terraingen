@@ -8,6 +8,7 @@ terraingen_add_test_suite(
     fade_test.cpp
     layer_test.cpp
     noise_relief_test.cpp
+    pavement_test.cpp
     region_test.cpp
     roughness_test.cpp
     sand_fill_test.cpp

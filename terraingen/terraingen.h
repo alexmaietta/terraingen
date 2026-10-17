@@ -71,6 +71,7 @@
 #include "terraingen/layers/layer.h"
 #include "terraingen/layers/material.h"
 #include "terraingen/layers/noise_relief.h"
+#include "terraingen/layers/pavement.h"
 #include "terraingen/layers/region.h"
 #include "terraingen/layers/roughness.h"
 #include "terraingen/layers/sample_block.h"

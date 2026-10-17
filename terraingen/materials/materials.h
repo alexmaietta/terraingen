@@ -18,7 +18,8 @@ namespace terraingen {
 
 /// How a terrain's material map is made from its shape and layers.
 struct MaterialOptions {
-    /// Bedrock where the finished ground is bare (`ExposureField`); none for no bedrock.
+    /// Bedrock where the bare ground, beneath the first layer that lays a material, is bare
+    /// (`ExposureField`); none for no bedrock.
     std::optional<ExposureParams> exposure{ExposureParams{}};
     double dustCover = 0.0;   ///< About the share of the surface under dust patches, in [0, 1).
     double dustPatch = 50.0;  ///< Typical width of a dust patch (m).
@@ -32,9 +33,9 @@ struct MaterialOptions {
 /// positive and finite, or invalid exposure thresholds.
 void ValidateMaterialOptions(const MaterialOptions& options);
 
-/// The material shares of `terrain` at world (x, y): soil, then bedrock where the finished ground
-/// is bare, then dust in patches, then each `MaterialSource` layer's cover in layer order, each
-/// read on the ground beneath it.
+/// The material shares of `terrain` at world (x, y): soil, then bedrock where the ground beneath
+/// the first `MaterialSource` layer is bare, then dust in patches, then each `MaterialSource`
+/// layer's cover in layer order, each read on the ground beneath it.
 /// @param spacing Sample spacing in metres; positive.
 /// @throws std::invalid_argument as `ValidateMaterialOptions` or `ValidateTerrain`.
 MaterialShares MaterialsAt(const Terrain& terrain, const MaterialOptions& options, double x,
@@ -61,9 +62,10 @@ struct HapkeParameters {
 using MaterialPhotometry = std::array<std::optional<HapkeParameters>, kMaterialClasses>;
 
 /// Hapke parameters of Martian surfaces at 753 nm from Pancam (Johnson et al. 2006a, b, as
-/// tabulated by Fernando et al. 2013): soil from Spirit's landing site soil, sand from
-/// Opportunity's Purgatory ripples, dust from its dusty soil and rock from Spirit's dust-free gray
-/// rocks. Bedrock has none yet.
+/// tabulated by Fernando et al. 2013, and Johnson et al. 2006b Table 2a): soil from Spirit's
+/// landing site soil, sand from Opportunity's Purgatory ripples, dust from its dusty soil, bedrock
+/// from its Eagle crater outcrop (w 0.90; 0.84 +- 0.06 averaged over sites, Table 11) and rock from
+/// Spirit's dust-free gray rocks.
 MaterialPhotometry MarsPancamPhotometry();
 
 /// Checks photometry parameters.

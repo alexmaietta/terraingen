@@ -298,16 +298,44 @@ def test_sand_fill_pools_sand_and_lays_it_on_the_material_map():
 
 def test_pancam_photometry_mixes_and_needs_every_present_class():
     pancam = terraingen.mars_pancam_photometry()
-    assert pancam[terraingen.MaterialClass.BEDROCK.value] is None
+    assert pancam[terraingen.MaterialClass.BEDROCK.value].albedo == pytest.approx(0.90)
     assert pancam[terraingen.MaterialClass.SAND.value].albedo == pytest.approx(0.52)
     mixed = terraingen.mix_photometry([0.5, 0.5, 0.0, 0.0, 0.0], pancam)
     assert mixed.albedo == pytest.approx(0.64) and mixed.roughness == pytest.approx(12.0)
+    partial = list(pancam)
+    partial[terraingen.MaterialClass.BEDROCK.value] = None
     with pytest.raises(ValueError):
-        terraingen.mix_photometry([0.0, 0.0, 0.0, 1.0, 0.0], pancam)
-    pancam[terraingen.MaterialClass.BEDROCK.value] = terraingen.HapkeParameters(
-        albedo=0.7, b=0.4, c=0.3, roughness=15.0
-    )
+        terraingen.mix_photometry([0.0, 0.0, 0.0, 1.0, 0.0], partial)
     grid = terraingen.FlatSource(8, 8, 1.0).grid()
     bands = terraingen.evaluate_materials(terraingen.Terrain(), terraingen.MaterialOptions(), grid)
     photometry = terraingen.evaluate_photometry(bands, pancam)
     assert len(photometry) == 4 and photometry[0].values.mean() == pytest.approx(0.76)
+
+
+def test_pavement_plates_crack_in_octaves_and_lay_bedrock():
+    options = terraingen.PavementOptions(
+        plate_size=1.0, crack_width=0.04, crack_depth=0.1, max_step=0.0, max_tilt=0.0
+    )
+    single = terraingen.PavementLayer(options)
+    options.octaves = 3
+    layered = terraingen.PavementLayer(options)
+    assert layered.material == terraingen.MaterialClass.BEDROCK
+    assert layered.material_cover_at(0.2, 0.3) == 1.0
+    xs = [0.01 * i for i in range(600)]
+    assert min(single.relief_at(x, 1.7) for x in xs) < -0.05
+    assert sum(layered.relief_at(x, 1.7) < -0.01 for x in xs) > sum(
+        single.relief_at(x, 1.7) < -0.01 for x in xs
+    )
+    assert single.edge_distance_at(0.5, 0.5) >= 0.0
+    ridges = terraingen.mars_desiccation_ridges()
+    assert ridges.raised and ridges.plate_size == pytest.approx(0.02)
+    with pytest.raises(ValueError):
+        terraingen.PavementLayer(terraingen.PavementOptions(octaves=0))
+    config = terraingen.Config.from_dict(
+        {
+            "schema_version": 1,
+            "layers": [{"type": "pavement", "plate_size": 0.5, "octaves": 3, "raised": True}],
+        }
+    )
+    assert config.to_dict()["layers"][0]["octaves"] == 3
+    config.validate()

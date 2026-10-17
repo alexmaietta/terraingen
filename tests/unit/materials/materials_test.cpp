@@ -119,7 +119,10 @@ TEST(Photometry, MixesPancamParametersByShare) {
     EXPECT_EQ(pancam[Index(MaterialClass::Sand)]->albedo, 0.52);
     EXPECT_EQ(pancam[Index(MaterialClass::Soil)]->roughness, 15.0);
     EXPECT_EQ(pancam[Index(MaterialClass::Rock)]->b, 0.931);
-    EXPECT_FALSE(pancam[Index(MaterialClass::Bedrock)]) << "not tabulated";
+    ASSERT_TRUE(pancam[Index(MaterialClass::Bedrock)]);
+    EXPECT_EQ(*pancam[Index(MaterialClass::Bedrock)],
+              (terraingen::HapkeParameters{0.90, 0.372, 0.202, 17.0}))
+        << "Johnson et al. 2006b, Eagle crater outcrop at 753 nm";
     EXPECT_NO_THROW(terraingen::ValidateMaterialPhotometry(pancam));
 
     terraingen::MaterialShares shares{};
@@ -129,7 +132,9 @@ TEST(Photometry, MixesPancamParametersByShare) {
     EXPECT_DOUBLE_EQ(mixed.albedo, 0.25 * 0.52 + 0.75 * 0.66);
     EXPECT_DOUBLE_EQ(mixed.roughness, 0.25 * 9.0 + 0.75 * 16.0);
     shares[Index(MaterialClass::Bedrock)] = 0.1;
-    EXPECT_THROW(terraingen::MixPhotometry(shares, pancam), std::invalid_argument);
+    auto partial = pancam;
+    partial[Index(MaterialClass::Bedrock)].reset();
+    EXPECT_THROW(terraingen::MixPhotometry(shares, partial), std::invalid_argument);
 
     auto bad = pancam;
     bad[Index(MaterialClass::Dust)]->albedo = 1.5;

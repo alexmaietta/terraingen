@@ -9,6 +9,7 @@ terraingen_add_library(
     layer.cpp
     material.cpp
     noise_relief.cpp
+    pavement.cpp
     region.cpp
     roughness.cpp
     sand_fill.cpp

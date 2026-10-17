@@ -36,7 +36,8 @@ MaterialPhotometry FromList(const std::vector<std::optional<HapkeParameters>>& c
 void BindMaterials(nb::module_& m) {
     auto options = nb::class_<MaterialOptions>(
         m, "MaterialOptions",
-        "How a material map is made: bedrock where the finished ground is bare (`exposure`, None "
+        "How a material map is made: bedrock where the ground beneath the material layers is bare "
+        "(`exposure`, None "
         "for none), and dust in patches covering about `dust_cover` of the surface.");
     BindKwargsInit<MaterialOptions>(options);
     options.def_rw("exposure", &MaterialOptions::exposure)
@@ -54,7 +55,9 @@ void BindMaterials(nb::module_& m) {
         },
         "terrain"_a, "options"_a, "x"_a, "y"_a, "spacing"_a,
         "The share of each MaterialClass at (x, y), in class order: soil, then bedrock where the "
-        "finished ground is bare, dust in patches, and each sand layer's cover in order.");
+        "ground beneath the first material layer is bare, dust in patches, and each material "
+        "layer's "
+        "cover in order.");
     m.def(
         "evaluate_materials",
         [](const PyTerrain& terrain, const MaterialOptions& options, const RasterGrid& grid,
@@ -78,9 +81,11 @@ void BindMaterials(nb::module_& m) {
         .def("__eq__", [](const HapkeParameters& a, const HapkeParameters& b) { return a == b; });
     m.def(
         "mars_pancam_photometry", [] { return ToList(MarsPancamPhotometry()); },
-        "Hapke parameters of Martian soil, sand, dust and rock at 753 nm from Pancam (Johnson et "
-        "al. 2006a, b, as tabulated by Fernando et al. 2013), one per MaterialClass; None for "
-        "bedrock.");
+        "Hapke parameters of Martian soil, sand, dust, bedrock and rock at 753 nm from Pancam "
+        "(Johnson et "
+        "al. 2006a, b, as tabulated by Fernando et al. 2013, and Opportunity's Eagle crater "
+        "outcrop "
+        "for bedrock), one per MaterialClass.");
     m.def(
         "mix_photometry",
         [](const std::vector<double>& shares,

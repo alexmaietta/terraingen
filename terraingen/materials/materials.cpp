@@ -23,6 +23,16 @@ std::size_t Index(MaterialClass material) {
 
 const char* const kClassNames[kMaterialClasses] = {"soil", "sand", "dust", "bedrock", "rock"};
 
+/// The layers before the first that lays a material: the bare ground's.
+std::size_t BareLayers(const Terrain& terrain) {
+    std::size_t n = 0;
+    while (n < terrain.layers.size() &&
+           dynamic_cast<const MaterialSource*>(terrain.layers[n].get()) == nullptr) {
+        ++n;
+    }
+    return n;
+}
+
 }  // namespace
 
 void ValidateMaterialOptions(const MaterialOptions& options) {
@@ -43,8 +53,8 @@ MaterialShares MaterialsAt(const Terrain& terrain, const MaterialOptions& option
     MaterialShares shares = SoilShares();
     if (options.exposure) {
         const ExposureField field(*options.exposure, terrain.surface);
-        const TerrainGround finished(terrain, terrain.layers.size());
-        CoverWith(shares, MaterialClass::Bedrock, field.Exposure(finished, x, y, spacing));
+        const TerrainGround bare(terrain, BareLayers(terrain));
+        CoverWith(shares, MaterialClass::Bedrock, field.Exposure(bare, x, y, spacing));
     }
     if (options.dustCover > 0.0) {
         const double noise = PatchNoise(terrain.surface, x, y, options.dustPatch, options.seed);
@@ -89,6 +99,7 @@ MaterialPhotometry MarsPancamPhotometry() {
     photometry[Index(MaterialClass::Sand)] = HapkeParameters{0.52, 0.255, 0.434, 9.0};
     photometry[Index(MaterialClass::Dust)] = HapkeParameters{0.66, 0.449, 0.364, 16.0};
     photometry[Index(MaterialClass::Rock)] = HapkeParameters{0.83, 0.931, 0.065, 7.0};
+    photometry[Index(MaterialClass::Bedrock)] = HapkeParameters{0.90, 0.372, 0.202, 17.0};
     return photometry;
 }
 

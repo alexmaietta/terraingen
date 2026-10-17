@@ -18,6 +18,7 @@
 #include "terraingen/layers/craters/secondaries.h"
 #include "terraingen/layers/craters/shaping/apply.h"
 #include "terraingen/layers/dunes.h"
+#include "terraingen/layers/pavement.h"
 #include "terraingen/layers/region.h"
 #include "terraingen/layers/roughness.h"
 #include "terraingen/layers/sand_fill.h"
@@ -331,6 +332,14 @@ struct DuneLayerSpec {
     bool operator==(const DuneLayerSpec&) const = default;
 };
 
+/// Layer "pavement": fractured bedrock plates parted by cracks or ridges (`PavementLayer`);
+/// angles in radians.
+struct PavementLayerSpec {
+    PavementOptions pavement{};
+
+    bool operator==(const PavementLayerSpec&) const = default;
+};
+
 /// Layer "sand_fill": sand pooled in the lows of the ground beneath it (`SandFillLayer`).
 struct SandFillLayerSpec {
     SandFillOptions sandFill{};
@@ -440,10 +449,10 @@ template <typename T> class Boxed {
 struct RegionLayerSpec;
 
 /// A layer, named in JSON by its "type".
-using LayerSpec =
-    std::variant<NoiseLayerSpec, CraterLayerSpec, BoulderLayerSpec, RoughnessLayerSpec,
-                 BedformLayerSpec, ScaleLayerSpec, ClampLayerSpec, RegionLayerSpec,
-                 SecondaryLayerSpec, DemDetailLayerSpec, DuneLayerSpec, SandFillLayerSpec>;
+using LayerSpec = std::variant<NoiseLayerSpec, CraterLayerSpec, BoulderLayerSpec,
+                               RoughnessLayerSpec, BedformLayerSpec, ScaleLayerSpec, ClampLayerSpec,
+                               RegionLayerSpec, SecondaryLayerSpec, DemDetailLayerSpec,
+                               DuneLayerSpec, SandFillLayerSpec, PavementLayerSpec>;
 
 /// Layer "region": `layer` applied only inside `shape` (`RegionLayer`). Boulder ejecta do
 /// not see crater layers inside regions.

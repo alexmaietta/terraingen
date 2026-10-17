@@ -159,6 +159,9 @@ TerrainConfig Everything() {
         terraingen::DuneLayerSpec{terraingen::MarsBarchans()},
         terraingen::DuneLayerSpec{terraingen::MarsTransverseDunes()},
         terraingen::SandFillLayerSpec{{6.0, 0.4, 0.3, 0.05}},
+        terraingen::PavementLayerSpec{terraingen::MarsDesiccationRidges()},
+        terraingen::PavementLayerSpec{
+            {0.8, 0.5, 0.2, 0.03, 0.04, false, 0.01, 0.05, 0.02, 3, 2.5, 0.6}},
         roughness,
         terraingen::RoughnessLayerSpec{},
         terraingen::ScaleLayerSpec{1.5, -20.0},

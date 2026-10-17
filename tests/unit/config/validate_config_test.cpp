@@ -109,6 +109,23 @@ const PathCase kPathCases[] = {
      "outputs[0].crease_angle"},
     {"EmptyMinimumDensity",
      [](TerrainConfig& c) { Craters(c).density = terraingen::MinimumSpec{}; }, "layers[1].density"},
+    {"PavementWithoutOctaves",
+     [](TerrainConfig& c) {
+         terraingen::PavementLayerSpec pavement;
+         pavement.pavement.octaves = 0;
+         c.layers.push_back(pavement);
+     },
+     "layers[2]"},
+    {"PhotometryNeedsBedrockUnderPavement",
+     [](TerrainConfig& c) {
+         c.materials = terraingen::MaterialsSpec{};
+         c.materials->options.exposure.reset();
+         c.materials->photometry.classes[0] = terraingen::HapkeParameters{0.7, 0.3, 0.5, 10.0};
+         c.layers.push_back(terraingen::PavementLayerSpec{});
+         c.outputs.push_back(terraingen::PhotometryOutput{
+             {"p.tif", terraingen::TiffCompression::Lzw, 256, terraingen::testing::SmallRegion()}});
+     },
+     "materials.photometry.bedrock"},
     {"SandFillWithoutReach",
      [](TerrainConfig& c) { c.layers.push_back(terraingen::SandFillLayerSpec{{0.0}}); },
      "layers[2]"},
@@ -130,14 +147,22 @@ const PathCase kPathCases[] = {
          c.materials->options.dustCover = 1.0;
      },
      "materials"},
-    {"PhotometryNeedsBedrockFromMarsPancam",
+    {"PhotometryNeedsBedrockWithExposure",
+     [](TerrainConfig& c) {
+         c.materials = terraingen::MaterialsSpec{};
+         c.materials->photometry.classes[0] = terraingen::HapkeParameters{0.7, 0.3, 0.5, 10.0};
+         c.outputs.push_back(terraingen::PhotometryOutput{
+             {"p.tif", terraingen::TiffCompression::Lzw, 256, terraingen::testing::SmallRegion()}});
+     },
+     "materials.photometry.bedrock"},
+    {"MarsPancamCoversBedrock",
      [](TerrainConfig& c) {
          c.materials = terraingen::MaterialsSpec{};
          c.materials->photometry.reference = terraingen::PhotometryReference::MarsPancam;
          c.outputs.push_back(terraingen::PhotometryOutput{
              {"p.tif", terraingen::TiffCompression::Lzw, 256, terraingen::testing::SmallRegion()}});
      },
-     "materials.photometry.bedrock"},
+     "valid"},
     {"PhotometryNeedsSoilWithoutAReference",
      [](TerrainConfig& c) {
          c.materials = terraingen::MaterialsSpec{};

@@ -169,6 +169,47 @@ template <typename IO> void Fields(IO& io, DuneLayerSpec& spec) {
     io("ripples", dunes.ripples, "Ripples superposed on the dunes.");
 }
 
+template <> struct SpecName<PavementLayerSpec> {
+    static constexpr std::string_view kName = "pavement";
+    static constexpr std::string_view kDescription =
+        "Fractured bedrock: polygonal plates, each tilted and stepped, parted by cracks or raised "
+        "ridges, split again by finer octaves of cracks; lays bedrock over the material map.";
+};
+template <typename IO> void Fields(IO& io, PavementLayerSpec& spec) {
+    PavementOptions& pavement = spec.pavement;
+    io("plate_size", pavement.plateSize, "Mean plate width, in metres.", "m");
+    io("jitter", pavement.jitter,
+       "How far plate centres stray from a square lattice, from 0 (square plates) to 1.");
+    io("warp", pavement.warp, "Bend and roughness of the plate edges, in plate sizes.");
+    io("crack_width", pavement.crackWidth, "Width of the cracks between plates, in metres.", "m");
+    io("crack_depth", pavement.crackDepth,
+       "Depth of the cracks, or height of the ridges when raised, in metres.", "m");
+    io("raised", pavement.raised, "Whether plates are parted by raised ridges instead of cracks.");
+    io("edge_rounding", pavement.edgeRounding,
+       "Width of the rounded shoulder beside each crack, in metres.", "m");
+    io("max_tilt", pavement.maxTilt, "Largest tilt of a plate, in radians.", "rad");
+    io("max_step", pavement.maxStep, "Largest height offset of a plate, up or down, in metres.",
+       "m");
+    io("octaves", pavement.octaves,
+       "Crack octaves, 1 to 8: each finer octave splits every plate again, its cracks ending at "
+       "the plate's edges.");
+    io("lacunarity", pavement.lacunarity, "Plate size ratio between octaves, above 1.");
+    io("gain", pavement.gain,
+       "Ratio of crack width, depth, rounding, tilt and step between octaves, in (0, 1].");
+    io("seed", pavement.seed, "Seed of the plates.");
+    io("exposure", pavement.exposure,
+       "Shows plates only where the ground beneath is bare bedrock, fading out over soil; unset "
+       "shows them everywhere.");
+    io("exposure_spacing", pavement.exposureSpacing,
+       "Spacing in metres the ground is read at for the exposure field.", "m");
+    io("anchor_x", pavement.anchor.x,
+       "On a body, the longitude in degrees of the point whose tangent frame the plates are laid "
+       "out in.");
+    io("anchor_y", pavement.anchor.y, "On a body, the latitude in degrees of the anchor.");
+    io("fade", pavement.fade,
+       "How plates and cracks too fine for the sample spacing fade out, by samples across them.");
+}
+
 template <> struct SpecName<SandFillLayerSpec> {
     static constexpr std::string_view kName = "sand_fill";
     static constexpr std::string_view kDescription =

@@ -11,6 +11,7 @@
 #include "terraingen/layers/layer.h"
 #include "terraingen/layers/material.h"
 #include "terraingen/layers/noise_relief.h"
+#include "terraingen/layers/pavement.h"
 #include "terraingen/layers/region.h"
 #include "terraingen/layers/roughness.h"
 #include "terraingen/layers/sand_fill.h"
@@ -351,6 +352,43 @@ void BindSandFill(nb::module_& m) {
     BindMaterialCover<SandFillLayer>(layer);
 }
 
+void BindPavement(nb::module_& m) {
+    auto options = nb::class_<PavementOptions>(
+        m, "PavementOptions",
+        "Fractured bedrock: Voronoi plates `plate_size` metres across, each tilted and stepped, "
+        "parted by cracks (or raised ridges) `crack_width` metres wide and `crack_depth` deep; "
+        "angles in radians.");
+    BindKwargsInit<PavementOptions>(options);
+    options.def_rw("plate_size", &PavementOptions::plateSize)
+        .def_rw("jitter", &PavementOptions::jitter)
+        .def_rw("warp", &PavementOptions::warp)
+        .def_rw("crack_width", &PavementOptions::crackWidth)
+        .def_rw("crack_depth", &PavementOptions::crackDepth)
+        .def_rw("raised", &PavementOptions::raised)
+        .def_rw("edge_rounding", &PavementOptions::edgeRounding)
+        .def_rw("max_tilt", &PavementOptions::maxTilt)
+        .def_rw("max_step", &PavementOptions::maxStep)
+        .def_rw("octaves", &PavementOptions::octaves)
+        .def_rw("lacunarity", &PavementOptions::lacunarity)
+        .def_rw("gain", &PavementOptions::gain)
+        .def_rw("seed", &PavementOptions::seed)
+        .def_rw("exposure", &PavementOptions::exposure)
+        .def_rw("exposure_spacing", &PavementOptions::exposureSpacing)
+        .def_rw("anchor", &PavementOptions::anchor)
+        .def_rw("fade", &PavementOptions::fade);
+    m.def("validate_pavement_options", &ValidatePavementOptions, "options"_a, kValidateDoc);
+    m.def("mars_desiccation_ridges", &MarsDesiccationRidges,
+          "The desiccation ridges of Gale crater's Old Soaker slab (Stein et al. 2018).");
+    auto layer = nb::class_<PavementLayer, Layer>(m, "PavementLayer", "Fractured bedrock plates.");
+    layer.def(nb::init<PavementOptions, Surface>(), "options"_a, "surface"_a = Surface{})
+        .def("relief_at", &PavementLayer::ReliefAt, "x"_a, "y"_a,
+             "The pavement's relief at (x, y) in metres, before exposure and fading.")
+        .def("edge_distance_at", &PavementLayer::EdgeDistanceAt, "x"_a, "y"_a,
+             "The distance from (x, y) to the nearest plate edge, in metres.")
+        .def_prop_ro("options", &PavementLayer::Options);
+    BindMaterialCover<PavementLayer>(layer);
+}
+
 void BindDuneOptions(nb::module_& m) {
     nb::enum_<DuneShape>(m, "DuneShape", "The kind of dune a DuneLayer builds.")
         .value("BARCHAN", DuneShape::Barchan)
@@ -433,6 +471,7 @@ void BindLayers(nb::module_& m) {
     BindDunes(m);
     BindMaterialClasses(m);
     BindSandFill(m);
+    BindPavement(m);
 }
 
 }  // namespace terraingen::python

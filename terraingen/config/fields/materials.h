@@ -36,8 +36,8 @@ template <typename IO> void Fields(IO& io, PhotometrySpec& photometry) {
 template <typename IO> void Fields(IO& io, MaterialsSpec& materials) {
     MaterialOptions& options = materials.options;
     io("exposure", options.exposure,
-       "Thresholds marking bare ground as bedrock, read on the finished ground; unset for no "
-       "bedrock.");
+       "Thresholds marking bare ground as bedrock, read on the ground beneath the first layer that "
+       "lays a material; unset for no bedrock.");
     io("dust_cover", options.dustCover,
        "About the share of the surface under bright dust patches, from 0 up to 1.");
     io("dust_patch", options.dustPatch, "Typical width of a dust patch, in metres.", "m");
