@@ -39,6 +39,12 @@ jobs:
         shell: bash
         run: sed -i -E 's/^set\(TERRAINGEN_FULL_VERSION "([0-9.]+)"\)$/set(TERRAINGEN_FULL_VERSION "\1.dev${{ github.run_number }}")/' CMakeLists.txt
 
+      # NVRTC compiles the kernels to PTX for the CUDA backend; nothing of it ships in the wheels. Linux
+      # builds run in manylinux containers, which install it themselves (CIBW_BEFORE_ALL_LINUX).
+      - name: Install NVRTC
+        if: runner.os == 'Windows'
+        uses: ./.github/actions/install-nvrtc
+
       - uses: pypa/cibuildwheel@v4.3.0
         env:
           # One stable-ABI wheel per platform serves Python 3.12 and newer.
@@ -46,6 +52,14 @@ jobs:
           CIBW_SKIP: "*-musllinux_*"
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
           CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
+          # NVRTC from an early CUDA 12 release, as .github/actions/install-nvrtc installs elsewhere.
+          CIBW_BEFORE_ALL_LINUX: >-
+            dnf install -y dnf-plugins-core &&
+            dnf config-manager --add-repo
+            "https://developer.download.nvidia.com/compute/cuda/repos/rhel8/$(uname -m | sed s/aarch64/sbsa/)/cuda-rhel8.repo" &&
+            dnf install -y cuda-nvrtc-devel-12-4
+          CIBW_ENVIRONMENT_LINUX: CUDAToolkit_ROOT=/usr/local/cuda-12.4 CMAKE_ARGS=-DTERRAINGEN_CUDA_KERNELS=ON
+          CIBW_ENVIRONMENT_WINDOWS: CMAKE_ARGS=-DTERRAINGEN_CUDA_KERNELS=ON
           CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=11.0
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: terraingen --version && pytest {project}/tests/python
