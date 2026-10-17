@@ -420,6 +420,9 @@ struct CraterAlbedo::Prepared {
         double open = 1.0;
         for (const DrawnZone& zone : zones) {
             const double cover = zone.Cover(distance, angle) * (zone.distal ? 1.0 - shade : 1.0);
+            if (cover == 0.0) {
+                continue;
+            }
             const double streak = zone.streaked
                                       ? StreakShare(2.0 * distance / crater.diameter, angle,
                                                     TextureKey(crater, texture), texture)
@@ -442,13 +445,13 @@ struct CraterAlbedo::Prepared {
         const Vec2d offset = surface.Offset({crater.x, crater.y}, {x, y});
         const double angle = textured ? std::atan2(offset.y, offset.x) : 0.0;
         const std::uint32_t key = textured ? TextureKey(crater, texture) : 0u;
-        const double streak = StreakShare(radii, angle, key, texture);
         if (radii < 1.0) {
             double interior = o.interiorExcess;
             const double wall = Smoothstep(std::clamp((radii - 0.3) / 0.6, 0.0, 1.0));
             if (texture.floorShare < 1.0) {
                 interior *= texture.floorShare + (1.0 - texture.floorShare) * wall;
             }
+            const double streak = StreakShare(radii, angle, key, texture);
             return weight * interior * (1.0 - (1.0 - streak) * wall);
         }
         double excess = 0.0;
@@ -463,6 +466,10 @@ struct CraterAlbedo::Prepared {
             const double lateral = std::fabs(offset.y * ray.cos - offset.x * ray.sin);
             excess += ray.ExcessAt(along, lateral, radius, o.rays);
         }
+        if (excess == 0.0) {
+            return 0.0;
+        }
+        const double streak = StreakShare(radii, angle, key, texture);
         if (texture.continuousRadii > 0.0) {
             const double ramp =
                 Smoothstep(std::clamp((radii - 1.0) / texture.continuousRadii, 0.0, 1.0));

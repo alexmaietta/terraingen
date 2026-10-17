@@ -98,6 +98,7 @@ class DiffusedProfile final : public CraterProfile {
     double reachRadii_;
     std::size_t cells_;
     std::shared_ptr<LruCache<Key, Table, KeyHash>> tables_;
+    std::uint64_t instance_;  ///< Unique to this profile, keying each thread's last table.
 };
 
 /// Craters worn by topographic diffusion; pair it with the crater layer's `DiffusedProfile`.

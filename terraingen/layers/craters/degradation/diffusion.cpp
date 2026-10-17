@@ -3,6 +3,7 @@
 #include "terraingen/util/checks.h"
 
 #include <algorithm>
+#include <atomic>
 #include <bit>
 #include <cmath>
 #include <cstdint>
@@ -12,6 +13,12 @@
 namespace terraingen {
 
 namespace {
+
+/// A number no other diffused profile has, so a thread's last table is never another's.
+std::uint64_t NextInstance() {
+    static std::atomic<std::uint64_t> next{1};
+    return next.fetch_add(1);
+}
 
 constexpr double kFirstAge = 1e-5;
 constexpr double kLastAge = 0.5;
@@ -106,7 +113,7 @@ std::size_t DiffusedProfile::KeyHash::operator()(const Key& key) const {
 
 DiffusedProfile::DiffusedProfile(std::shared_ptr<const CraterProfile> fresh, double reachRadii,
                                  std::size_t cells, std::size_t cacheTables)
-    : fresh_(std::move(fresh)), reachRadii_(reachRadii), cells_(cells) {
+    : fresh_(std::move(fresh)), reachRadii_(reachRadii), cells_(cells), instance_(NextInstance()) {
     if (!fresh_) {
         throw std::invalid_argument("A diffused profile needs a fresh profile");
     }
@@ -186,8 +193,20 @@ DiffusedProfile::Table DiffusedProfile::Solve(const CraterMorphometry& fresh,
 std::shared_ptr<const DiffusedProfile::Table>
 DiffusedProfile::TableFor(const CraterMorphometry& fresh, double diameter) const {
     const double reference = fresh_->IsComplex(diameter) ? diameter : kReferenceDiameter;
-    return tables_->Get({fresh.depthRatio, fresh.rimHeightRatio, reference},
-                        [&] { return Solve(fresh, reference); });
+    const Key key{fresh.depthRatio, fresh.rimHeightRatio, reference};
+    struct Last {
+        std::uint64_t instance = 0;
+        Key key{};
+        std::shared_ptr<const Table> table;
+    };
+    thread_local Last last;
+    if (last.instance == instance_ && last.key == key) {
+        return last.table;
+    }
+    last.table = tables_->Get(key, [&] { return Solve(fresh, reference); });
+    last.instance = instance_;
+    last.key = key;
+    return last.table;
 }
 
 double DiffusedProfile::Height(double distance, double diameter, const CraterState& state) const {
