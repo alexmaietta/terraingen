@@ -442,7 +442,7 @@ TEST(CubeSphereCells, EllipsoidCellsAreSizedByTheShortestAxisAndTileItsArea) {
     const double expected =
         2.0 * std::numbers::pi * a * a * (1.0 + (1.0 - e * e) / e * std::atanh(e));
     EXPECT_NEAR(total / expected, 1.0, 1e-6);
-    EXPECT_THROW(CubeSphereCells(Surface::Plane()), std::invalid_argument);
+    EXPECT_THROW(CubeSphereCells{Surface::Plane()}, std::invalid_argument);
 }
 
 TEST(CubeSphereCells, EllipsoidSamplingBoundsTheWeightOverEachCell) {

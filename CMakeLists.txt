@@ -15,6 +15,19 @@ project(
     TerrainGen
     VERSION ${TERRAINGEN_VERSION}
     LANGUAGES C CXX)
+# The Metal backend (terraingen/gpu/metal.cpp) is Objective-C++ on Apple platforms. It is enabled
+# here, above every target that links the gpu module.
+if(APPLE)
+    enable_language(OBJCXX)
+endif()
+
+# No fused multiply-adds unless the source asks: GCC and Clang contract a * b + c into one rounding on
+# CPUs that have the instruction (ARM, Apple Silicon), so the same seed would give different bits
+# there than on x86.
+add_compile_options(
+    "$<$<COMPILE_LANG_AND_ID:C,GNU,Clang,AppleClang>:-ffp-contract=off>"
+    "$<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-ffp-contract=off>"
+    "$<$<COMPILE_LANG_AND_ID:OBJCXX,AppleClang,Clang>:-ffp-contract=off>")
 
 option(TERRAINGEN_BUILD_TESTS "Build the test suite" ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_BUILD_BENCHMARKS "Build the benchmarks (Google Benchmark)"

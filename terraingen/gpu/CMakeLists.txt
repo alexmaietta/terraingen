@@ -20,7 +20,6 @@ target_compile_definitions(
     terraingen_gpu PRIVATE TERRAINGEN_HAS_CUDA_KERNELS=$<BOOL:${TERRAINGEN_HAVE_CUDA_KERNELS}>
                            TERRAINGEN_HAS_METAL_KERNELS=$<BOOL:${TERRAINGEN_HAVE_METAL_KERNELS}>)
 if(APPLE)
-    enable_language(OBJCXX)
     set_source_files_properties(metal.cpp PROPERTIES LANGUAGE OBJCXX COMPILE_OPTIONS -fobjc-arc)
     target_link_libraries(terraingen_gpu PRIVATE "-framework Metal" "-framework Foundation")
 endif()

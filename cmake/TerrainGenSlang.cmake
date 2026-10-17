@@ -4,14 +4,16 @@
 
 # The GPU forms of kernels the build makes: SPIR-V (Vulkan) always, PTX (CUDA) wherever NVIDIA's
 # NVRTC is fetched (cmake/third_party/nvrtc.cmake: Linux and Windows), and Metal source on Apple
-# platforms. slangc writes SPIR-V and Metal itself and has NVRTC compile its CUDA source to PTX,
-# loading the library by name from TERRAINGEN_NVRTC_DIR.
+# platforms. slangc writes SPIR-V and Metal itself and has NVRTC compile its CUDA source to PTX: on
+# Linux it loads the library by name from TERRAINGEN_NVRTC_DIR, on Windows it looks for
+# nvrtc64_*.dll in the bin folder of CUDA_PATH.
 set(TERRAINGEN_HAVE_CUDA_KERNELS OFF)
 set(TERRAINGEN_SLANG_PTX_ENV)
 if(TERRAINGEN_NVRTC_DIR)
     set(TERRAINGEN_HAVE_CUDA_KERNELS ON)
     if(CMAKE_HOST_WIN32)
-        set(TERRAINGEN_SLANG_PTX_ENV "PATH=${TERRAINGEN_NVRTC_DIR}")
+        set(TERRAINGEN_SLANG_PTX_ENV "PATH=${TERRAINGEN_NVRTC_DIR}"
+                                     "CUDA_PATH=${TERRAINGEN_NVRTC_ROOT}")
     else()
         set(TERRAINGEN_SLANG_PTX_ENV "LD_LIBRARY_PATH=${TERRAINGEN_NVRTC_DIR}")
     endif()
@@ -109,7 +111,7 @@ function(terraingen_add_kernel target symbol type header)
             -warnings-disable
             40100
             ENV
-            "${TERRAINGEN_SLANG_PTX_ENV}")
+            ${TERRAINGEN_SLANG_PTX_ENV})
     else()
         terraingen_embed_kernel(${target} ${symbol}_ptx "${empty}")
     endif()

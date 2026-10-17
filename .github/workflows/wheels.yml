@@ -44,8 +44,11 @@ jobs:
           # A wheel each for Python 3.10 and 3.11, and one stable-ABI wheel for 3.12 and newer.
           CIBW_BUILD: "cp310-* cp311-* cp312-*"
           CIBW_SKIP: "*-musllinux_*"
-          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
-          CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
+          # glibc 2.34 (Ubuntu 22.04 and newer): the prebuilt slangc needs its newer C++ runtime.
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_34
+          CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_34
+          # 64-bit only: Slang and NVRTC have no 32-bit Windows builds.
+          CIBW_ARCHS_WINDOWS: AMD64
           CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=11.0
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: terraingen --version && pytest {project}/tests/python
@@ -80,7 +83,7 @@ jobs:
     runs-on: ubuntu-24.04
     environment:
       name: pypi
-      url: https://pypi.org/p/terraingen
+      url: https://pypi.org/p/terraingenpy
     permissions:
       id-token: write
     steps:

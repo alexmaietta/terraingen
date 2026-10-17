@@ -22,6 +22,7 @@ elseif(CMAKE_HOST_WIN32 AND CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "AMD64|x86_64")
 endif()
 
 set(TERRAINGEN_NVRTC_DIR "")
+set(TERRAINGEN_NVRTC_ROOT "")
 if(nvrtc_platform)
     include(FetchContent)
     FetchContent_Declare(
@@ -30,6 +31,7 @@ if(nvrtc_platform)
         URL_HASH SHA256=${nvrtc_sha256}
         SOURCE_SUBDIR no-build)
     FetchContent_MakeAvailable(terraingen_nvrtc)
+    set(TERRAINGEN_NVRTC_ROOT "${terraingen_nvrtc_SOURCE_DIR}")
     # The folder slangc loads NVRTC from: its DLLs on Windows, its shared libraries elsewhere.
     if(CMAKE_HOST_WIN32)
         set(TERRAINGEN_NVRTC_DIR "${terraingen_nvrtc_SOURCE_DIR}/bin")

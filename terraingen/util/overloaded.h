@@ -10,4 +10,7 @@ template <typename... Fs> struct Overloaded : Fs... {
     using Fs::operator()...;
 };
 
+/// Deduces `Overloaded` from its lambdas, for compilers without C++20 aggregate deduction.
+template <typename... Fs> Overloaded(Fs...) -> Overloaded<Fs...>;
+
 }  // namespace terraingen

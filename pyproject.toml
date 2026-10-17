@@ -3,7 +3,8 @@ requires = ["scikit-build-core>=0.10", "nanobind>=2.0"]
 build-backend = "scikit_build_core.build"
 
 [project]
-name = "terraingen"
+# The PyPI name; the package still imports as terraingen and installs the terraingen command.
+name = "terraingenpy"
 dynamic = ["version"]
 description = "Scientific terrain generation for planetary surfaces"
 readme = "README.md"

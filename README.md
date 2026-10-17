@@ -1,11 +1,11 @@
 > 🚧 **This project is in active beta development.** This means the API is unstable, features may be added or removed, and breaking changes are likely to occur frequently and without notice as the design is refined.
 
-[![pipeline](https://github.com/alexmaietta/terraingen/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/alexmaietta/terraingen/actions/workflows/ci.yml)
+[![pipeline](https://img.shields.io/github/actions/workflow/status/alexmaietta/terraingen/ci.yml?branch=main&label=pipeline)](https://github.com/alexmaietta/terraingen/actions/workflows/ci.yml)
 [![coverage](https://img.shields.io/endpoint?url=https://alexmaietta.github.io/terraingen/coverage/badge.json)](https://alexmaietta.github.io/terraingen/coverage/)
 [![release](https://img.shields.io/github/v/release/alexmaietta/terraingen)](https://github.com/alexmaietta/terraingen/releases)
-[![pypi](https://img.shields.io/pypi/v/terraingen)](https://pypi.org/project/terraingen/)
-[![docs](https://github.com/alexmaietta/terraingen/actions/workflows/docs.yml/badge.svg?branch=main)](https://alexmaietta.github.io/terraingen/)
-[![license](https://img.shields.io/badge/License-BSD_3--Clause-blue)](LICENSE)
+[![pypi](https://img.shields.io/pypi/v/terraingenpy)](https://pypi.org/project/terraingenpy/)
+[![docs](https://img.shields.io/github/actions/workflow/status/alexmaietta/terraingen/docs.yml?branch=main&label=docs)](https://alexmaietta.github.io/terraingen/)
+[![license](https://img.shields.io/badge/license-BSD_3--Clause-blue)](LICENSE)
 
 # TerrainGen
 
@@ -40,10 +40,10 @@ For more information on the concepts behind TerrainGen and the API, see our late
 
 ## Getting Started
 
-We recommended getting started by installing `terraingen` from PyPi and running the GUI.
+We recommended getting started by installing `terraingenpy` from PyPi and running the GUI.
 
 ```sh
-pip install terraingen
+pip install terraingenpy
 terraingen --gui
 ```
 

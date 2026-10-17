@@ -54,7 +54,7 @@ TEST(ScaleLayer, ScalesAndShiftsHeights) {
     EXPECT_EQ(layer.Scale(), 2.0);
     EXPECT_EQ(layer.Offset(), -1.0);
     ExpectGridMatchesPoints(layer);
-    EXPECT_THROW(ScaleLayer(std::numeric_limits<double>::infinity()), std::invalid_argument);
+    EXPECT_THROW(ScaleLayer{std::numeric_limits<double>::infinity()}, std::invalid_argument);
     EXPECT_THROW(ScaleLayer(1.0, std::nan("")), std::invalid_argument);
 }
 

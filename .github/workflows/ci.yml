@@ -133,8 +133,13 @@ jobs:
           -DPython_EXECUTABLE="$(python -c 'import sys; print(sys.executable)')"
           -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
-      - name: Build, test and report
-        run: cmake --build build --target coverage --parallel 4
+      # Everything first: the coverage target builds only the test programs, not the command and
+      # examples that the integration tests run.
+      - name: Build
+        run: cmake --build build --parallel 4
+
+      - name: Test and report
+        run: cmake --build build --target coverage
 
       - name: Summary
         if: always()

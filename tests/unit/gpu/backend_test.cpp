@@ -14,11 +14,24 @@ using terraingen::Backend;
 
 namespace {
 
+/// Sets the environment variable `name` to `value`, or clears it for null.
+void SetEnvironment(const char* name, const char* value) {
+#if defined(_WIN32)
+    _putenv_s(name, value != nullptr ? value : "");
+#else
+    if (value != nullptr) {
+        setenv(name, value, 1);
+    } else {
+        unsetenv(name);
+    }
+#endif
+}
+
 /// Restores the default backend and `TERRAINGEN_BACKEND` after each test.
 class BackendTest : public ::testing::Test {
   protected:
     void TearDown() override {
-        unsetenv("TERRAINGEN_BACKEND");
+        SetEnvironment("TERRAINGEN_BACKEND", nullptr);
         terraingen::SetDefaultBackend(Backend::Cpu);
     }
 };
@@ -42,19 +55,19 @@ TEST(BackendNamed, ReadsEachNameInAnyCase) {
 }
 
 TEST_F(BackendTest, DefaultsFollowTheEnvironmentUntilSetInCode) {
-    unsetenv("TERRAINGEN_BACKEND");
+    SetEnvironment("TERRAINGEN_BACKEND", nullptr);
     EXPECT_EQ(terraingen::DefaultBackend(), Backend::Cpu);
-    setenv("TERRAINGEN_BACKEND", "", 1);
+    SetEnvironment("TERRAINGEN_BACKEND", "");
     EXPECT_EQ(terraingen::DefaultBackend(), Backend::Cpu);
-    setenv("TERRAINGEN_BACKEND", "auto", 1);
+    SetEnvironment("TERRAINGEN_BACKEND", "auto");
     EXPECT_EQ(terraingen::DefaultBackend(), Backend::Auto);
-    setenv("TERRAINGEN_BACKEND", "cpu", 1);
+    SetEnvironment("TERRAINGEN_BACKEND", "cpu");
     EXPECT_EQ(terraingen::DefaultBackend(), Backend::Cpu);
-    setenv("TERRAINGEN_BACKEND", "VULKAN", 1);
+    SetEnvironment("TERRAINGEN_BACKEND", "VULKAN");
     EXPECT_EQ(terraingen::DefaultBackend(), Backend::Vulkan);
-    setenv("TERRAINGEN_BACKEND", "gpu", 1);
+    SetEnvironment("TERRAINGEN_BACKEND", "gpu");
     EXPECT_EQ(terraingen::DefaultBackend(), Backend::Gpu);
-    setenv("TERRAINGEN_BACKEND", "opencl", 1);
+    SetEnvironment("TERRAINGEN_BACKEND", "opencl");
     EXPECT_THROW(terraingen::DefaultBackend(), std::invalid_argument);
     terraingen::SetDefaultBackend(Backend::Cpu);
     EXPECT_EQ(terraingen::DefaultBackend(), Backend::Cpu);
