@@ -43,7 +43,8 @@ MinimumSfd::MinimumSfd(std::vector<std::shared_ptr<const SizeFrequencyDistributi
 const SizeFrequencyDistribution& MinimumSfd::LowestAt(double diameter) const {
     const SizeFrequencyDistribution* lowest = distributions_.front().get();
     double value = CumulativeOf(*lowest, diameter);
-    for (const auto& distribution : distributions_) {
+    for (std::size_t n = 1; n < distributions_.size(); ++n) {
+        const auto& distribution = distributions_[n];
         const double candidate = CumulativeOf(*distribution, diameter);
         if (candidate < value) {
             value = candidate;
@@ -54,7 +55,14 @@ const SizeFrequencyDistribution& MinimumSfd::LowestAt(double diameter) const {
 }
 
 double MinimumSfd::CumulativeAt(double diameter) const {
-    return CumulativeOf(LowestAt(diameter), diameter);
+    double value = CumulativeOf(*distributions_.front(), diameter);
+    for (std::size_t n = 1; n < distributions_.size(); ++n) {
+        const double candidate = CumulativeOf(*distributions_[n], diameter);
+        if (candidate < value) {
+            value = candidate;
+        }
+    }
+    return value;
 }
 
 double MinimumSfd::IncrementalAt(double diameter) const {

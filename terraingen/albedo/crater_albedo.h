@@ -334,8 +334,8 @@ class CraterAlbedo final : public AlbedoLayer {
     /// Draws the reflectance zones of `prepared`, widening its reach to the farthest, for a crater
     /// with `left` of its bright material's life and a resolution weight of `resolution`.
     void AddZones(Prepared& prepared, double left, double resolution) const;
-    /// Samples the ground around `prepared` for the shadows of its distal zones.
-    void AddShadows(Prepared& prepared, const Ground& ground) const;
+    /// Samples the ground around `prepared` for the shadows of its distal zones over `region`.
+    void AddShadows(Prepared& prepared, const Ground& ground, const Bounds2d& region) const;
     std::vector<Prepared> Gather(const Bounds2d& region, double spacing,
                                  const Ground* ground) const;
 

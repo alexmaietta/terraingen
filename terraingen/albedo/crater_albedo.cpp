@@ -238,10 +238,15 @@ double StreakShare(double radii, double angle, std::uint32_t key,
     return 1.0 - texture.streaks * (1.0 - filament);
 }
 
-/// How far a jet from a crater's rim runs above the ground, on rays around the crater.
+/// How far a jet from a crater's rim runs above the ground, on `azimuths` rays of `samples`
+/// samples around the crater, of which `rays` rays from `first` and their first `used` samples
+/// are held: those reaching the region evaluated.
 struct ShadowProfile {
     std::size_t azimuths = 0;
     std::size_t samples = 0;
+    std::size_t first = 0;
+    std::size_t rays = 0;
+    std::size_t used = 0;
     double start = 0.0;
     double step = 0.0;
     double depth = 1.0;
@@ -264,13 +269,63 @@ struct ShadowProfile {
         const double fa = a - static_cast<double>(a0);
         const double fr = r - static_cast<double>(r0);
         const auto at = [&](std::size_t i, std::size_t j) {
-            return static_cast<double>(gap[i * samples + j]);
+            const std::size_t k = (i + azimuths - first) % azimuths;
+            return k < rays ? static_cast<double>(gap[k * used + std::min(j, used - 1)]) : 0.0;
         };
         const double g = (1.0 - fa) * ((1.0 - fr) * at(a0, r0) + fr * at(a0, r1)) +
                          fa * ((1.0 - fr) * at(a1, r0) + fr * at(a1, r1));
         return Smoothstep(std::clamp(g / depth, 0.0, 1.0));
     }
 };
+
+/// The rays, of `azimuths` around `centre`, that reach `region`, with one more on each side, and
+/// the farthest distance in metres of the region from `centre`.
+struct RayWindow {
+    std::size_t first = 0;
+    std::size_t rays = 0;
+    double far = 0.0;
+};
+
+RayWindow RaysOver(const Vec2d& centre, const Bounds2d& region, const Surface& surface,
+                   std::size_t azimuths) {
+    RayWindow window;
+    window.rays = azimuths;
+    double minX = INFINITY;
+    double maxX = -INFINITY;
+    double minY = INFINITY;
+    double maxY = -INFINITY;
+    std::vector<Vec2d> corners;
+    for (const double x : {region.minX, region.maxX}) {
+        for (const double y : {region.minY, region.maxY}) {
+            const Vec2d c = surface.Offset(centre, {x, y});
+            corners.push_back(c);
+            minX = std::fmin(minX, c.x);
+            maxX = std::fmax(maxX, c.x);
+            minY = std::fmin(minY, c.y);
+            maxY = std::fmax(maxY, c.y);
+            window.far = std::fmax(window.far, std::hypot(c.x, c.y));
+        }
+    }
+    if (minX <= 0.0 && maxX >= 0.0 && minY <= 0.0 && maxY >= 0.0) {
+        return window;
+    }
+    const double mid = std::atan2(0.5 * (minY + maxY), 0.5 * (minX + maxX));
+    double half = 0.0;
+    for (const Vec2d& c : corners) {
+        half = std::fmax(
+            half, std::fabs(std::remainder(std::atan2(c.y, c.x) - mid, 2.0 * std::numbers::pi)));
+    }
+    const double ray = 2.0 * std::numbers::pi / static_cast<double>(azimuths);
+    const double from = std::floor((mid - half) / ray) - 1.0;
+    const double to = std::ceil((mid + half) / ray) + 1.0;
+    if (to - from + 1.0 >= static_cast<double>(azimuths)) {
+        return window;
+    }
+    const auto n = static_cast<std::int64_t>(azimuths);
+    window.first = static_cast<std::size_t>(((static_cast<std::int64_t>(from) % n) + n) % n);
+    window.rays = static_cast<std::size_t>(to - from) + 1;
+    return window;
+}
 
 /// One reflectance zone of a crater, drawn.
 struct DrawnZone {
@@ -564,12 +619,13 @@ double CraterAlbedo::ReflectanceChange(const Crater& crater, double x, double y,
                                        const Ground* ground) const {
     Prepared prepared = Prepare(crater, spacing);
     if (ground != nullptr && options_.zones.shadows.enabled) {
-        AddShadows(prepared, *ground);
+        AddShadows(prepared, *ground, PointBounds(x, y));
     }
     return prepared.Change(options_.texture, craters_->Options().surface, x, y);
 }
 
-void CraterAlbedo::AddShadows(Prepared& prepared, const Ground& ground) const {
+void CraterAlbedo::AddShadows(Prepared& prepared, const Ground& ground,
+                              const Bounds2d& region) const {
     const ZoneShadows& s = options_.zones.shadows;
     double reach = 0.0;
     for (const DrawnZone& zone : prepared.zones) {
@@ -589,13 +645,19 @@ void CraterAlbedo::AddShadows(Prepared& prepared, const Ground& ground) const {
     profile->step = (reach - radius) / static_cast<double>(samples - 1);
     profile->depth = s.depth;
     const Surface& surface = craters_->Options().surface;
-    const std::size_t count = azimuths * samples;
+    const RayWindow window = RaysOver({crater.x, crater.y}, region, surface, azimuths);
+    const double used = std::ceil((window.far - radius) / profile->step) + 2.0;
+    profile->first = window.first;
+    profile->rays = window.rays;
+    profile->used = static_cast<std::size_t>(std::clamp(used, 2.0, static_cast<double>(samples)));
+    const std::size_t count = profile->rays * profile->used;
     std::vector<Vec2d> points;
     points.reserve(count);
-    for (std::size_t i = 0; i < azimuths; ++i) {
+    for (std::size_t k = 0; k < profile->rays; ++k) {
+        const std::size_t i = (window.first + k) % azimuths;
         const double angle =
             2.0 * std::numbers::pi * static_cast<double>(i) / static_cast<double>(azimuths);
-        for (std::size_t j = 0; j < samples; ++j) {
+        for (std::size_t j = 0; j < profile->used; ++j) {
             const double distance = radius + static_cast<double>(j) * profile->step;
             points.push_back(surface.Locate(
                 {crater.x, crater.y}, {distance * std::cos(angle), distance * std::sin(angle)}));
@@ -605,10 +667,10 @@ void CraterAlbedo::AddShadows(Prepared& prepared, const Ground& ground) const {
     ground.HeightsAt(points, heights, profile->step);
     const double drop = std::tan(s.jetAngleDegrees * std::numbers::pi / 180.0) * profile->step;
     profile->gap.assign(count, 0.0f);
-    for (std::size_t i = 0; i < azimuths; ++i) {
-        const std::size_t row = i * samples;
+    for (std::size_t k = 0; k < profile->rays; ++k) {
+        const std::size_t row = k * profile->used;
         double jet = static_cast<double>(heights[row]);
-        for (std::size_t j = 1; j < samples; ++j) {
+        for (std::size_t j = 1; j < profile->used; ++j) {
             const double h = static_cast<double>(heights[row + j]);
             if (std::isnan(h) || std::isnan(jet)) {
                 jet = h;
@@ -689,7 +751,7 @@ std::vector<CraterAlbedo::Prepared> CraterAlbedo::Gather(const Bounds2d& region,
     if (ground != nullptr && options_.zones.enabled && options_.zones.shadows.enabled) {
         std::size_t shadowed = 0;
         for (Prepared& p : prepared) {
-            AddShadows(p, *ground);
+            AddShadows(p, *ground, region);
             shadowed += p.shadow ? 1u : 0u;
         }
         LogDebug("albedo", "Sampled the ground for the zone shadows of ", shadowed, " craters");
