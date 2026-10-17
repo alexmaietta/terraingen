@@ -2,6 +2,7 @@
 /// @brief The albedo source and layer interfaces, albedo compositions and their evaluation.
 #pragma once
 
+#include "terraingen/layers/ground.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/util/surface.h"
@@ -28,6 +29,9 @@ struct AlbedoContext {
     /// Threads a grid may be split over; 0 for every hardware thread. The result does not depend
     /// on it.
     unsigned threads = 1;
+    /// The terrain's heights, for layers shaped by the ground; null leaves it flat. It must outlive
+    /// the evaluation.
+    const Ground* ground = nullptr;
 };
 
 /// Checks an evaluation context.

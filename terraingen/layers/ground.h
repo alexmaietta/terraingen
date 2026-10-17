@@ -2,7 +2,11 @@
 /// @brief The terrain beneath a layer, readable at any point.
 #pragma once
 
+#include "terraingen/util/geometry.h"
+
+#include <cstddef>
 #include <functional>
+#include <span>
 
 namespace terraingen {
 
@@ -21,6 +25,15 @@ class Ground {
     /// The ground's height at world (x, y), or NaN where there is no data.
     /// @param spacing Sample spacing in world units.
     virtual float HeightAt(double x, double y, double spacing) const = 0;
+
+    /// `HeightAt` at each of `points`, into `heights` of the same size; implementations may read
+    /// them all in one pass, to the same values.
+    virtual void HeightsAt(std::span<const Vec2d> points, std::span<float> heights,
+                           double spacing) const {
+        for (std::size_t i = 0; i < points.size(); ++i) {
+            heights[i] = HeightAt(points[i].x, points[i].y, spacing);
+        }
+    }
 
     /// A sampler reading `HeightAt` at a fixed spacing; `*this` must outlive it.
     HeightSampler Sampler(double spacing) const {

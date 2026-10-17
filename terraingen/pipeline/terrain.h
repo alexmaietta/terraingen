@@ -50,6 +50,10 @@ class TerrainGround final : public Ground {
     /// a sample spacing of `spacing` metres.
     float HeightAt(double x, double y, double spacing) const override;
 
+    /// The heights at `points` in batches over every hardware thread, as `EvaluatePoints` does.
+    void HeightsAt(std::span<const Vec2d> points, std::span<float> heights,
+                   double spacing) const override;
+
   private:
     const Terrain& terrain_;
     std::size_t layers_;

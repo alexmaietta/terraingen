@@ -262,6 +262,13 @@ TEST(TerrainGround, IsTheSourceAndTheLayersBeneath) {
     EXPECT_EQ(noise.HeightAt(3.0, 4.0, 2.0), terrain.layers[0]->ApplyAt(5.0f, 3.0, 4.0, {2.0}));
     EXPECT_EQ(all.HeightAt(3.0, 4.0, 2.0), terraingen::EvaluateAt(terrain, 3.0, 4.0, 2.0));
     EXPECT_EQ(noise.Sampler(2.0)(3.0, 4.0), noise.HeightAt(3.0, 4.0, 2.0));
+    const std::vector<terraingen::Vec2d> points{{3.0, 4.0}, {-7.5, 2.25}, {11.0, -6.0}};
+    std::vector<float> heights(points.size());
+    all.HeightsAt(points, heights, 2.0);
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        EXPECT_EQ(heights[i], all.HeightAt(points[i].x, points[i].y, 2.0))
+            << "one pass, same heights";
+    }
     EXPECT_THROW(terraingen::TerrainGround(terrain, 3), std::invalid_argument);
     EXPECT_EQ(terraingen::TerrainGround(Terrain{}, 0).HeightAt(3.0, 4.0, 2.0), 0.0f)
         << "the datum without a source";

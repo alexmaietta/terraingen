@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <memory>
+#include <numbers>
 #include <stdexcept>
 #include <vector>
 
@@ -201,4 +202,69 @@ TEST(SplotchOptions, RejectsInvalidSettings) {
     rejects([](SplotchOptions& o) { o.softness = 0.0; });
     rejects([](SplotchOptions& o) { o.raggedness = 1.0; });
     rejects([](SplotchOptions& o) { o.fade.endSamples = 1.0; });
+}
+
+namespace {
+
+/// A plane tilted `degrees` toward +x.
+struct Tilted final : terraingen::Ground {
+    double grade = 0.0;
+    explicit Tilted(double degrees) : grade(std::tan(degrees * std::numbers::pi / 180.0)) {}
+    float HeightAt(double x, double, double) const override {
+        return static_cast<float>(grade * x);
+    }
+};
+
+}  // namespace
+
+TEST(SplotchAlbedo, SteepSlopesCanFavourBrightSplotches) {
+    SplotchOptions options;
+    options.minDiameter = 2.0;
+    const Bounds2d region{0.0, 0.0, 150.0, 150.0};
+    const Tilted steep(30.0);
+    const Tilted gentle(5.0);
+    EXPECT_NEAR(SplotchAlbedo(options).SlopeDegrees(steep, 10.0, 20.0, 4.0, 0.5), 30.0, 1e-3);
+    const auto plain = SplotchAlbedo(options).Splotches(region, 0.5, &steep);
+    options.steepBrightShare = 1.0;
+    const SplotchAlbedo layer(options);
+    const auto onSteep = layer.Splotches(region, 0.5, &steep);
+    const auto onGentle = layer.Splotches(region, 0.5, &gentle);
+    const auto flat = layer.Splotches(region, 0.5);
+    ASSERT_EQ(onSteep.size(), plain.size());
+    ASSERT_GT(onSteep.size(), 100u);
+    int dark = 0;
+    for (std::size_t n = 0; n < onSteep.size(); ++n) {
+        ASSERT_DOUBLE_EQ(onSteep[n].change, 0.10);
+        ASSERT_DOUBLE_EQ(onSteep[n].otherChange, 0.10);
+        ASSERT_EQ(onGentle[n].change, plain[n].change) << "gentle slopes keep the shares";
+        ASSERT_EQ(flat[n].change, plain[n].change) << "no ground, no slopes";
+        dark += plain[n].change < 0.0 ? 1 : 0;
+    }
+    EXPECT_GT(dark, 0);
+    options.steepBrightShare = 1.5;
+    EXPECT_THROW(terraingen::ValidateSplotches(options), std::invalid_argument);
+    options.steepBrightShare.reset();
+    options.steepSlopeDegrees = 90.0;
+    EXPECT_THROW(terraingen::ValidateSplotches(options), std::invalid_argument);
+
+    options = {};
+    options.minDiameter = 2.0;
+    options.steepBrightShare = 1.0;
+    SyntheticAlbedoParams params;
+    params.value = 0.11;
+    const Albedo albedo{std::make_shared<SyntheticAlbedo>(params),
+                        {std::make_shared<SplotchAlbedo>(options)}};
+    const RasterGrid grid{64, 64, GeoTransform::NorthUp(0.0, 64.0, 1.0)};
+    const auto values = EvaluateAlbedo(albedo, grid, {.spacing = 1.0, .ground = &steep});
+    for (std::size_t row = 0; row < 64; ++row) {
+        for (std::size_t col = 0; col < 64; ++col) {
+            ASSERT_GE(values[0](col, row), 0.11f) << "only bright splotches on the steep plane";
+            if ((row * 64 + col) % 11 == 0) {
+                const auto centre = values[0].CellCenter(col, row);
+                ASSERT_EQ(EvaluateAlbedoAt(albedo, centre.x, centre.y,
+                                           {.spacing = 1.0, .ground = &steep})[0],
+                          values[0](col, row));
+            }
+        }
+    }
 }

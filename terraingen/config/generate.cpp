@@ -230,7 +230,9 @@ GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
             if (!albedo) {
                 albedo = BuildAlbedo(config, terrain, directory);
             }
-            target.albedo = EvaluateAlbedo(*albedo, grid, {.spacing = 0.0, .threads = threads});
+            const TerrainGround ground(terrain, terrain.layers.size());
+            target.albedo = EvaluateAlbedo(*albedo, grid,
+                                           {.spacing = 0.0, .threads = threads, .ground = &ground});
         }
         if (MapsMaterials(output) && target.materials.empty()) {
             target.materials = EvaluateMaterials(terrain, config.materials->options, grid,

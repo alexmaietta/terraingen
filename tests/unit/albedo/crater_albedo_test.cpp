@@ -709,3 +709,94 @@ TEST(CraterAlbedo, ReflectanceZonesGatherSmallCratersFromAsFarAsTheyReach) {
         EXPECT_FLOAT_EQ(value[0], static_cast<float>(0.11 * (1.0 + change)));
     }
 }
+
+namespace {
+
+/// Flat ground with a ridge 5 m high from x = 100 to 110 m.
+struct Ridge final : terraingen::Ground {
+    float HeightAt(double x, double, double) const override {
+        return x >= 100.0 && x < 110.0 ? 5.0f : 0.0f;
+    }
+};
+
+}  // namespace
+
+TEST(CraterAlbedo, RisesShadowTheDistalZonesBehindThem) {
+    const Crater crater{0.0, 0.0, 20.0, 0.0, 7u, true};
+    CraterAlbedoOptions options = FixedZones();
+    options.zones.shadows.enabled = true;
+    const CraterAlbedo layer(Craters({crater}), options);
+    const Ridge ridge;
+    EXPECT_DOUBLE_EQ(layer.ReflectanceChange(crater, 150.0, 0.0, 0.1), 0.03) << "no ground";
+    EXPECT_NEAR(layer.ReflectanceChange(crater, 150.0, 0.0, 0.1, &ridge), 0.0, 1e-12)
+        << "45 m behind a 5 m ridge, under a jet dropping 3 degrees";
+    EXPECT_NEAR(layer.ReflectanceChange(crater, 350.0, 0.0, 0.1, &ridge), 0.03, 1e-12)
+        << "past the shadow, 5 m / tan 3 deg = 95 m long";
+    EXPECT_NEAR(layer.ReflectanceChange(crater, 0.0, 150.0, 0.1, &ridge), 0.03, 1e-12)
+        << "beside the ridge";
+    EXPECT_NEAR(layer.ReflectanceChange(crater, 80.0, 0.0, 0.1, &ridge), 0.03, 1e-12)
+        << "in front of it";
+    EXPECT_DOUBLE_EQ(layer.ReflectanceChange(crater, 150.0, 0.0, 0.1, &ridge),
+                     layer.ReflectanceChange(crater, 150.0, 0.0, 0.1, &ridge));
+    CraterAlbedoOptions steeper = options;
+    steeper.zones.shadows.jetAngleDegrees = 30.0;
+    EXPECT_NEAR(
+        CraterAlbedo(Craters({crater}), steeper).ReflectanceChange(crater, 150.0, 0.0, 0.1, &ridge),
+        0.03, 1e-12)
+        << "a steep jet drops back to the ground within 10 m";
+
+    const auto shared = std::make_shared<CraterAlbedo>(Craters({crater}), options);
+    const Albedo albedo = Grey(shared);
+    const RasterGrid whole{40, 40, GeoTransform::NorthUp(80.0, 100.0, 5.0)};
+    const RasterGrid tile{8, 8, GeoTransform::NorthUp(120.0, 60.0, 5.0)};
+    const auto grid = EvaluateAlbedo(albedo, whole, {.spacing = 1.0, .ground = &ridge});
+    const auto part = EvaluateAlbedo(albedo, tile, {.spacing = 1.0, .ground = &ridge});
+    for (std::size_t row = 0; row < 8; ++row) {
+        for (std::size_t col = 0; col < 8; ++col) {
+            ASSERT_EQ(part[0](col, row), grid[0](col + 8, row + 8));
+            const auto centre = part[0].CellCenter(col, row);
+            ASSERT_EQ(
+                EvaluateAlbedoAt(albedo, centre.x, centre.y, {.spacing = 1.0, .ground = &ridge})[0],
+                part[0](col, row));
+        }
+    }
+    EXPECT_EQ(grid[0](10, 20), 0.11f) << "(132.5, 0) in shadow";
+    EXPECT_GT(grid[0](39, 20), 0.11f) << "(277.5, 0) in the open";
+
+    using Shadows = terraingen::ZoneShadows;
+    for (const auto& bad :
+         {Shadows{.jetAngleDegrees = 0.0}, Shadows{.jetAngleDegrees = 90.0}, Shadows{.depth = 0.0},
+          Shadows{.azimuths = 4}, Shadows{.radialSamples = 9000}}) {
+        CraterAlbedoOptions invalid;
+        invalid.zones.shadows = bad;
+        EXPECT_THROW(terraingen::ValidateCraterAlbedo(invalid), std::invalid_argument);
+    }
+}
+
+namespace {
+
+/// Flat ground with no data from x = 100 to 110 m.
+struct Gap final : terraingen::Ground {
+    float HeightAt(double x, double, double) const override {
+        return x >= 100.0 && x < 110.0 ? NAN : 0.0f;
+    }
+};
+
+}  // namespace
+
+TEST(CraterAlbedo, ShadowsSkipTheRimNoDataAndCratersWithoutDistalZones) {
+    const Crater crater{0.0, 0.0, 20.0, 0.0, 7u, true};
+    CraterAlbedoOptions options = FixedZones();
+    options.zones.shadows.enabled = true;
+    const CraterAlbedo layer(Craters({crater}), options);
+    const Ridge ridge;
+    const Gap gap;
+    EXPECT_DOUBLE_EQ(layer.ReflectanceChange(crater, 0.0, 0.0, 0.1, &ridge), 0.12) << "inside";
+    EXPECT_NEAR(layer.ReflectanceChange(crater, 150.0, 0.0, 0.1, &gap), 0.03, 1e-12)
+        << "no data casts no shadow";
+    options.zones.distalHigh.share = 0.0;
+    options.zones.distalLow.share = 0.0;
+    EXPECT_DOUBLE_EQ(
+        CraterAlbedo(Craters({crater}), options).ReflectanceChange(crater, 40.0, 0.0, 0.1, &ridge),
+        -0.09);
+}

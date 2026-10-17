@@ -9,8 +9,10 @@
 #include "terraingen/util/checks.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <numbers>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -70,6 +72,27 @@ double SideChange(const Splotch& splotch, const Vec2d& offset) {
     return splotch.change + w * (splotch.otherChange - splotch.change);
 }
 
+/// The four points half a splotch `diameter` metres across east, west, north and south of
+/// (`x`, `y`).
+std::array<Vec2d, 4> SlopePoints(const Surface& surface, double x, double y, double diameter) {
+    const double h = 0.5 * diameter;
+    return {surface.Locate({x, y}, {h, 0.0}), surface.Locate({x, y}, {-h, 0.0}),
+            surface.Locate({x, y}, {0.0, h}), surface.Locate({x, y}, {0.0, -h})};
+}
+
+/// The spacing slopes under splotches are read at: `spacing`, or half the smallest splotch when 0.
+double SlopeSpacing(double spacing, const SplotchOptions& options) {
+    return spacing > 0.0 ? spacing : 0.5 * options.minDiameter;
+}
+
+/// The slope in degrees from the heights at `SlopePoints`; 0 where any is NaN.
+double SlopeOf(std::span<const float> heights, double diameter) {
+    const double dx = static_cast<double>(heights[0] - heights[1]) / diameter;
+    const double dy = static_cast<double>(heights[2] - heights[3]) / diameter;
+    const double slope = std::atan(std::hypot(dx, dy)) * 180.0 / std::numbers::pi;
+    return std::isnan(slope) ? 0.0 : slope;
+}
+
 /// Changes every band of `value` by the relative reflectance `change`, never below 0.
 void ChangeBands(AlbedoSample& value, std::size_t bands, double change) {
     if (change == 0.0) {
@@ -110,6 +133,12 @@ void ValidateSplotches(const SplotchOptions& options) {
           options.raggedness < 1.0)) {
         throw std::invalid_argument("Splotch softness must be in (0, 1] and raggedness in [0, 1)");
     }
+    if (options.steepBrightShare && !IsInUnitInterval(*options.steepBrightShare)) {
+        throw std::invalid_argument("The steep bright splotch share must be in [0, 1]");
+    }
+    if (!(options.steepSlopeDegrees > 0.0 && options.steepSlopeDegrees < 90.0)) {
+        throw std::invalid_argument("The steep splotch slope must be in (0, 90) degrees");
+    }
     ValidateResolutionFade(options.fade);
 }
 
@@ -123,7 +152,16 @@ SplotchAlbedo::SplotchAlbedo(SplotchOptions options, Surface surface)
     }
 }
 
-std::vector<Splotch> SplotchAlbedo::Splotches(const Bounds2d& region, double spacing) const {
+double SplotchAlbedo::SlopeDegrees(const Ground& ground, double x, double y, double diameter,
+                                   double spacing) const {
+    const std::array<Vec2d, 4> points = SlopePoints(surface_, x, y, diameter);
+    std::array<float, 4> heights{};
+    ground.HeightsAt(points, heights, SlopeSpacing(spacing, options_));
+    return SlopeOf(heights, diameter);
+}
+
+std::vector<Splotch> SplotchAlbedo::Splotches(const Bounds2d& region, double spacing,
+                                              const Ground* ground) const {
     const SplotchOptions& o = options_;
     CraterGenerationOptions generation;
     generation.dMin = o.minDiameter;
@@ -139,10 +177,33 @@ std::vector<Splotch> SplotchAlbedo::Splotches(const Bounds2d& region, double spa
     std::vector<Splotch> splotches;
     splotches.reserve(marks.Size());
     for (std::size_t n = 0; n < marks.Size(); ++n) {
-        Splotch splotch;
-        splotch.mark = marks.At(n);
-        if (ResolutionWeight(splotch.mark.diameter, spacing, o.fade) == 0.0) {
-            continue;
+        if (ResolutionWeight(marks.At(n).diameter, spacing, o.fade) > 0.0) {
+            splotches.push_back({marks.At(n)});
+        }
+    }
+    std::vector<double> slopes(splotches.size(), 0.0);
+    if (ground != nullptr && o.steepBrightShare) {
+        std::vector<Vec2d> points;
+        points.reserve(4 * splotches.size());
+        for (const Splotch& splotch : splotches) {
+            const auto four =
+                SlopePoints(surface_, splotch.mark.x, splotch.mark.y, splotch.mark.diameter);
+            points.insert(points.end(), four.begin(), four.end());
+        }
+        std::vector<float> heights(points.size());
+        ground->HeightsAt(points, heights, SlopeSpacing(spacing, o));
+        for (std::size_t n = 0; n < splotches.size(); ++n) {
+            slopes[n] = SlopeOf(std::span(heights).subspan(4 * n, 4), splotches[n].mark.diameter);
+        }
+    }
+    for (std::size_t n = 0; n < splotches.size(); ++n) {
+        Splotch& splotch = splotches[n];
+        double darkShare = o.darkShare;
+        double brightShare = o.brightShare;
+        if (o.steepBrightShare && slopes[n] > o.steepSlopeDegrees) {
+            const double mixed = 1.0 - darkShare - brightShare;
+            brightShare = *o.steepBrightShare;
+            darkShare = std::fmax(0.0, 1.0 - mixed - brightShare);
         }
         const IdWords id = SplitId(splotch.mark.id);
         RandomStream random(o.seed, kSplotchStream, id.low, id.high);
@@ -155,9 +216,8 @@ std::vector<Splotch> SplotchAlbedo::Splotches(const Bounds2d& region, double spa
         splotch.key = random.NextU32();
         const double dark = o.darkChange.Sample(d1, d2);
         const double bright = o.brightChange.Sample(b1, b2);
-        splotch.change = kind < o.darkShare + o.brightShare && kind >= o.darkShare ? bright : dark;
-        splotch.otherChange = kind < o.darkShare + o.brightShare ? splotch.change : bright;
-        splotches.push_back(splotch);
+        splotch.change = kind < darkShare + brightShare && kind >= darkShare ? bright : dark;
+        splotch.otherChange = kind < darkShare + brightShare ? splotch.change : bright;
     }
     std::sort(splotches.begin(), splotches.end(), [](const Splotch& a, const Splotch& b) {
         return a.mark.ageGyr != b.mark.ageGyr ? a.mark.ageGyr < b.mark.ageGyr
@@ -193,7 +253,8 @@ double SplotchAlbedo::ChangeAt(const std::vector<const Splotch*>& splotches, dou
 void SplotchAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
                             const AlbedoContext& context) const {
     ValidateAlbedoContext(context);
-    const std::vector<Splotch> splotches = Splotches(PointBounds(x, y), context.spacing);
+    const std::vector<Splotch> splotches =
+        Splotches(PointBounds(x, y), context.spacing, context.ground);
     std::vector<const Splotch*> pointers;
     pointers.reserve(splotches.size());
     for (const Splotch& splotch : splotches) {
@@ -209,7 +270,7 @@ void SplotchAlbedo::Apply(std::vector<Raster<float>>& bands, const AlbedoContext
     }
     const RasterGrid grid = RasterGrid::Of(bands.front());
     const Bounds2d bounds = grid.Bounds();
-    const std::vector<Splotch> splotches = Splotches(bounds, context.spacing);
+    const std::vector<Splotch> splotches = Splotches(bounds, context.spacing, context.ground);
     const double width = bounds.maxX - bounds.minX;
     const double height = bounds.maxY - bounds.minY;
     const double bin = kBinCells * std::fmax(width / static_cast<double>(grid.width),

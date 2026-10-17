@@ -157,6 +157,22 @@ struct ReflectanceZone {
 /// non-positive retention time.
 void ValidateReflectanceZone(const ReflectanceZone& zone);
 
+/// Topographic shadows in the distal reflectance zones, which form along the surface: rises such
+/// as crater rims leave the ground behind them untouched (Speyerer et al. 2016). A jet runs out
+/// along the ground from the rim and cannot drop faster than `jetAngleDegrees`; where the ground
+/// lies below it the distal zones fade, gone `depth` metres below. The ground is sampled per
+/// crater on `azimuths` rays of `radialSamples` samples. The angle and depth are illustrative,
+/// as the sources do not measure them.
+struct ZoneShadows {
+    bool enabled = false;          ///< Whether the distal zones have shadows; needs the ground.
+    double jetAngleDegrees = 3.0;  ///< Steepest descent of the jet, in (0, 90) degrees.
+    double depth = 0.5;            ///< Depth below the jet of full shadow (m); positive.
+    int azimuths = 720;            ///< Rays around a crater, 8 to 8192.
+    int radialSamples = 400;       ///< Samples along a ray, 8 to 8192.
+
+    bool operator==(const ZoneShadows&) const = default;
+};
+
 /// The four reflectance zones around new small craters seen in LROC temporal pairs, after
 /// Robinson et al. (2015) and Speyerer et al. (2016), off by default. Proximal high (PHRZ) only
 /// where the crater excavates below the mature regolith, inside proximal low (PLRZ), inside
@@ -211,6 +227,7 @@ struct CraterReflectanceZones {
                               8.0,
                               0.6,
                               0.081};
+    ZoneShadows shadows{};   ///< Shadows of rises in the distal zones; off by default.
     std::uint32_t seed = 0;  ///< Varies every crater's zones.
 
     /// The farthest any zone reaches from the centre of a crater `diameter` metres across.
@@ -221,7 +238,8 @@ struct CraterReflectanceZones {
 
 /// Checks crater reflectance zones.
 /// @throws std::invalid_argument for an invalid zone, a non-positive largest diameter or
-/// excavation ratio, or a negative mature depth.
+/// excavation ratio, a negative mature depth, or shadows with a jet angle outside (0, 90), a
+/// non-positive depth, or sample counts outside 8 to 8192.
 void ValidateCraterReflectanceZones(const CraterReflectanceZones& zones);
 
 /// The bright material of fresh craters, in optical maturity (OMAT) over the background's:
@@ -280,8 +298,9 @@ class CraterAlbedo final : public AlbedoLayer {
     double Excess(const Crater& crater, double x, double y, double spacing) const;
 
     /// The relative reflectance change the zones of `crater` give surface point (`x`, `y`) at a
-    /// sample spacing of `spacing` metres; 0 without zones.
-    double ReflectanceChange(const Crater& crater, double x, double y, double spacing) const;
+    /// sample spacing of `spacing` metres; 0 without zones. Shadows need `ground`.
+    double ReflectanceChange(const Crater& crater, double x, double y, double spacing,
+                             const Ground* ground = nullptr) const;
 
     /// The impact `crater` came from, drawn from its ID; vertical without oblique impacts.
     CraterImpact Impact(const Crater& crater) const;
@@ -309,7 +328,10 @@ class CraterAlbedo final : public AlbedoLayer {
     /// Draws the reflectance zones of `prepared`, widening its reach to the farthest, for a crater
     /// with `left` of its bright material's life and a resolution weight of `resolution`.
     void AddZones(Prepared& prepared, double left, double resolution) const;
-    std::vector<Prepared> Gather(const Bounds2d& region, double spacing) const;
+    /// Samples the ground around `prepared` for the shadows of its distal zones.
+    void AddShadows(Prepared& prepared, const Ground& ground) const;
+    std::vector<Prepared> Gather(const Bounds2d& region, double spacing,
+                                 const Ground* ground) const;
 
     std::shared_ptr<const CraterLayer> craters_;
     CraterAlbedoOptions options_;

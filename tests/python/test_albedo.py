@@ -229,3 +229,22 @@ def test_splotches_darken_most_of_their_ground():
     assert (band < 0.1099).sum() > (band > 0.1101).sum() > 0
     with pytest.raises(ValueError):
         terraingen.validate_splotches(terraingen.SplotchOptions(softness=0.0))
+
+
+def test_albedo_layers_read_the_terrain_heights(lunar_models):
+    shadows = terraingen.ZoneShadows(enabled=True, jet_angle_degrees=5.0)
+    zones = terraingen.CraterReflectanceZones(enabled=True, max_diameter=300.0, shadows=shadows)
+    layer = terraingen.CraterAlbedo(
+        manual_crater_layer(lunar_models), terraingen.CraterAlbedoOptions(zones=zones)
+    )
+    flat = terraingen.Terrain(terraingen.FlatSource(5, 5, 2.0), [])
+    alone = layer.reflectance_change(young_crater(), 0.0, 0.0, 1.0)
+    assert layer.reflectance_change(young_crater(), 0.0, 0.0, 1.0, terrain=flat) == pytest.approx(alone)
+    splotches = terraingen.SplotchAlbedo(terraingen.SplotchOptions(min_diameter=2.0, steep_bright_share=1.0))
+    albedo = terraingen.Albedo(terraingen.SyntheticAlbedo(value=0.11), [layer, splotches])
+    grid = terraingen.RasterGrid.centred(16, 16, 2.0)
+    with_terrain = terraingen.evaluate_albedo(albedo, grid, terrain=flat)[0].values
+    assert np.array_equal(with_terrain, terraingen.evaluate_albedo(albedo, grid)[0].values)
+    assert terraingen.evaluate_albedo_at(albedo, 1.0, 1.0, 2.0, terrain=flat) == pytest.approx(
+        terraingen.evaluate_albedo_at(albedo, 1.0, 1.0, 2.0)
+    )

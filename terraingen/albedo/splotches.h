@@ -11,6 +11,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace terraingen {
@@ -32,9 +33,14 @@ struct SplotchOptions {
     ValueDistribution darkChange{ValueDistribution::Kind::Constant, -0.04};
     /// Reflectance change of a bright splotch; above -1.
     ValueDistribution brightChange{ValueDistribution::Kind::Constant, 0.10};
-    double softness = 0.3;     ///< Share of the radius over which the edge fades, in (0, 1].
-    double raggedness = 0.15;  ///< Share of the radius the edge's lobes pull in, in [0, 1).
-    ResolutionFade fade{};     ///< How splotches too small to resolve fade out.
+    /// Share of splotches on slopes steeper than `steepSlopeDegrees` that are bright, in [0, 1];
+    /// unset keeps `brightShare`. Bright splotches are found mostly on such slopes, where mature
+    /// regolith is thin (Speyerer et al. 2016), but the sources give no share; needs the ground.
+    std::optional<double> steepBrightShare;
+    double steepSlopeDegrees = 15.0;  ///< Slope from which ground is steep, in (0, 90) degrees.
+    double softness = 0.3;            ///< Share of the radius over which the edge fades, in (0, 1].
+    double raggedness = 0.15;         ///< Share of the radius the edge's lobes pull in, in [0, 1).
+    ResolutionFade fade{};            ///< How splotches too small to resolve fade out.
 
     /// The cumulative number of splotches of diameter at least 1 m per m^2 at any time.
     double Coefficient() const;
@@ -45,7 +51,8 @@ struct SplotchOptions {
 /// Checks splotch options.
 /// @throws std::invalid_argument for a non-positive rate, slope or lifetime, diameters that are
 /// not positive and increasing, shares outside [0, 1] or summing above 1, changes that can reach
-/// -1 or are unbounded, a softness outside (0, 1], a raggedness outside [0, 1) or an invalid fade.
+/// -1 or are unbounded, a softness outside (0, 1], a raggedness outside [0, 1), a steep bright
+/// share outside [0, 1], a steep slope outside (0, 90) degrees or an invalid fade.
 void ValidateSplotches(const SplotchOptions& options);
 
 /// One splotch.
@@ -71,11 +78,18 @@ class SplotchAlbedo final : public AlbedoLayer {
     /// `ApplyAt` at every cell centre, generating the splotches once.
     void Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const override;
 
-    /// The splotches resolved at `spacing` metres reaching `region`, youngest first.
-    std::vector<Splotch> Splotches(const Bounds2d& region, double spacing) const;
+    /// The splotches resolved at `spacing` metres reaching `region`, youngest first; with
+    /// `ground`, those on steep slopes follow `steepBrightShare`.
+    std::vector<Splotch> Splotches(const Bounds2d& region, double spacing,
+                                   const Ground* ground = nullptr) const;
 
     /// The relative reflectance change `splotch` alone gives (`x`, `y`) at `spacing` metres.
     double Change(const Splotch& splotch, double x, double y, double spacing) const;
+
+    /// The slope in degrees of `ground` at the centre of a splotch `diameter` metres across at
+    /// (`x`, `y`), over its width, read at `spacing` metres (half the smallest splotch for 0).
+    double SlopeDegrees(const Ground& ground, double x, double y, double diameter,
+                        double spacing) const;
 
     /// What the splotches are.
     const SplotchOptions& Options() const {

@@ -9,7 +9,9 @@
 #include "terraingen/albedo/raster_albedo.h"
 #include "terraingen/albedo/splotches.h"
 #include "terraingen/albedo/synthetic.h"
+#include "terraingen/pipeline/terrain.h"
 
+#include <optional>
 #include <stdexcept>
 #include <tuple>
 #include <utility>
@@ -272,6 +274,18 @@ void BindCraterAlbedoOptions(nb::module_& m) {
         .def_rw("distal_low", &CraterReflectanceZones::distalLow)
         .def_rw("seed", &CraterReflectanceZones::seed)
         .def("max_reach", &CraterReflectanceZones::MaxReach, "diameter"_a);
+    auto shadows = nb::class_<ZoneShadows>(
+        m, "ZoneShadows",
+        "Shadows of rises in the distal zones: a jet from the rim that drops at most "
+        "`jet_angle_degrees`, full shadow `depth` m below it, sampled on `azimuths` rays of "
+        "`radial_samples`.");
+    BindKwargsInit<ZoneShadows>(shadows);
+    shadows.def_rw("enabled", &ZoneShadows::enabled)
+        .def_rw("jet_angle_degrees", &ZoneShadows::jetAngleDegrees)
+        .def_rw("depth", &ZoneShadows::depth)
+        .def_rw("azimuths", &ZoneShadows::azimuths)
+        .def_rw("radial_samples", &ZoneShadows::radialSamples);
+    zones.def_rw("shadows", &CraterReflectanceZones::shadows);
     m.def("validate_crater_reflectance_zones", &ValidateCraterReflectanceZones, "zones"_a,
           kValidateDoc);
     auto options = nb::class_<CraterAlbedoOptions>(
@@ -310,8 +324,20 @@ void BindCraterAlbedo(nb::module_& m) {
              "options"_a = CraterAlbedoOptions{})
         .def("excess", &CraterAlbedo::Excess, "crater"_a, "x"_a, "y"_a, "spacing"_a,
              "The excess optical maturity `crater` gives (x, y).")
-        .def("reflectance_change", &CraterAlbedo::ReflectanceChange, "crater"_a, "x"_a, "y"_a,
-             "spacing"_a, "The relative reflectance change the zones of `crater` give (x, y).")
+        .def(
+            "reflectance_change",
+            [](const CraterAlbedo& layer, const Crater& crater, double x, double y, double spacing,
+               const PyTerrain* terrain) {
+                if (terrain == nullptr) {
+                    return layer.ReflectanceChange(crater, x, y, spacing);
+                }
+                const Terrain built = terrain->Get();
+                const TerrainGround ground(built, built.layers.size());
+                return layer.ReflectanceChange(crater, x, y, spacing, &ground);
+            },
+            "crater"_a, "x"_a, "y"_a, "spacing"_a, "terrain"_a = nb::none(),
+            "The relative reflectance change the zones of `crater` give (x, y), shadowed by "
+            "`terrain`'s heights when given.")
         .def("impact", &CraterAlbedo::Impact, "crater"_a,
              "The impact `crater` came from, drawn from its ID.")
         .def("reach", &CraterAlbedo::Reach, "crater"_a,
@@ -341,6 +367,8 @@ void BindSplotches(nb::module_& m) {
         .def_rw("bright_share", &SplotchOptions::brightShare)
         .def_rw("dark_change", &SplotchOptions::darkChange)
         .def_rw("bright_change", &SplotchOptions::brightChange)
+        .def_rw("steep_bright_share", &SplotchOptions::steepBrightShare)
+        .def_rw("steep_slope_degrees", &SplotchOptions::steepSlopeDegrees)
         .def_rw("softness", &SplotchOptions::softness)
         .def_rw("raggedness", &SplotchOptions::raggedness)
         .def_rw("fade", &SplotchOptions::fade)
@@ -392,23 +420,36 @@ void BindEvaluation(nb::module_& m) {
         .def_rw("layers", &PyAlbedo::layers);
     m.def(
         "evaluate_albedo_at",
-        [](const PyAlbedo& albedo, double x, double y, double spacing) {
-            const AlbedoSample sample =
-                EvaluateAlbedoAt(albedo.Get(), x, y, AlbedoContext{spacing, 1});
+        [](const PyAlbedo& albedo, double x, double y, double spacing, const PyTerrain* terrain) {
+            const std::optional<Terrain> built =
+                terrain ? std::optional<Terrain>(terrain->Get()) : std::nullopt;
+            const std::optional<TerrainGround> ground =
+                built ? std::optional<TerrainGround>(std::in_place, *built, built->layers.size())
+                      : std::nullopt;
+            const AlbedoSample sample = EvaluateAlbedoAt(
+                albedo.Get(), x, y, AlbedoContext{spacing, 1, ground ? &*ground : nullptr});
             return Bands(sample, albedo.source ? albedo.source->Bands() : 1);
         },
-        "albedo"_a, "x"_a, "y"_a, "spacing"_a,
+        "albedo"_a, "x"_a, "y"_a, "spacing"_a, "terrain"_a = nb::none(),
         "The albedo's bands at (x, y) sampled every `spacing` metres, equal to the grid cell "
-        "centred there.");
+        "centred there; layers shaped by the ground read `terrain`'s heights when given.");
     m.def(
         "evaluate_albedo",
-        [](const PyAlbedo& albedo, const RasterGrid& grid, double spacing, unsigned threads) {
-            return EvaluateAlbedo(albedo.Get(), grid, AlbedoContext{spacing, threads});
+        [](const PyAlbedo& albedo, const RasterGrid& grid, double spacing, unsigned threads,
+           const PyTerrain* terrain) {
+            const std::optional<Terrain> built =
+                terrain ? std::optional<Terrain>(terrain->Get()) : std::nullopt;
+            const std::optional<TerrainGround> ground =
+                built ? std::optional<TerrainGround>(std::in_place, *built, built->layers.size())
+                      : std::nullopt;
+            return EvaluateAlbedo(albedo.Get(), grid,
+                                  AlbedoContext{spacing, threads, ground ? &*ground : nullptr});
         },
-        "albedo"_a, "grid"_a, "spacing"_a = 0.0, "threads"_a = 0,
+        "albedo"_a, "grid"_a, "spacing"_a = 0.0, "threads"_a = 0, "terrain"_a = nb::none(),
         nb::call_guard<nb::gil_scoped_release>(),
         "The albedo's bands over `grid` (such as `RasterGrid.of(heights)` or a source's "
-        "`grid()`), sampled every `spacing` metres (0 for the grid's), one Raster per band.");
+        "`grid()`), sampled every `spacing` metres (0 for the grid's), one Raster per band; layers "
+        "shaped by the ground read `terrain`'s heights when given.");
 }
 
 }  // namespace

@@ -88,6 +88,17 @@ float TerrainGround::HeightAt(double x, double y, double spacing) const {
     return height;
 }
 
+void TerrainGround::HeightsAt(std::span<const Vec2d> points, std::span<float> heights,
+                              double spacing) const {
+    constexpr std::size_t kBatch = 256;
+    ParallelFor((points.size() + kBatch - 1) / kBatch, 0, [&](std::size_t batch) {
+        const std::size_t begin = batch * kBatch;
+        const std::size_t count = std::min(kBatch, points.size() - begin);
+        EvaluateStack(terrain_, layers_, points.subspan(begin, count),
+                      heights.subspan(begin, count), spacing);
+    });
+}
+
 Raster<float> Evaluate(const Terrain& terrain) {
     ValidateTerrain(terrain);
     if (!terrain.source) {

@@ -209,6 +209,23 @@ template <typename IO> void Fields(IO& io, ReflectanceZone& zone) {
        "Myr");
 }
 
+template <typename IO> void Fields(IO& io, ZoneShadows& shadows) {
+    io("enabled", shadows.enabled,
+       "Gives the distal zones shadows behind rises such as crater rims, read from the terrain's "
+       "heights; off by default.");
+    io("jet_angle_degrees", shadows.jetAngleDegrees,
+       "Steepest angle in degrees, between 0 and 90 excluded, at which the jet forming the distal "
+       "zones can drop behind a rise; lower values give longer shadows. Illustrative.",
+       "deg");
+    io("depth", shadows.depth,
+       "Depth in metres of the ground below the jet at which the shadow is full; positive. "
+       "Illustrative.",
+       "m");
+    io("azimuths", shadows.azimuths, "Rays around a crater the ground is sampled on, 8 to 8192.");
+    io("radial_samples", shadows.radialSamples,
+       "Samples along each ray out to the distal zones' reach, 8 to 8192.");
+}
+
 template <typename IO> void Fields(IO& io, CraterReflectanceZones& zones) {
     io("enabled", zones.enabled,
        "Gives new small craters the reflectance zones of LROC temporal pairs; off by default.");
@@ -229,6 +246,7 @@ template <typename IO> void Fields(IO& io, CraterReflectanceZones& zones) {
     io("distal_low", zones.distalLow,
        "Distal low reflectance zone: -2% to -6%, ray-like, to 5.03 D^2 m, around 84% of "
        "craters.");
+    io("shadows", zones.shadows, "Shadows of rises in the distal zones; off by default.");
     io("seed", zones.seed, "Varies every crater's zones.");
 }
 
@@ -333,6 +351,12 @@ template <typename IO> void Fields(IO& io, SplotchAlbedoSpec& spec) {
        "splotch; above -1.");
     io("bright_change", options.brightChange,
        "Reflectance change of a bright splotch, drawn per splotch; above -1.");
+    io("steep_bright_share", options.steepBrightShare,
+       "Share of splotches on slopes steeper than the steep slope that are bright, from 0 to 1, "
+       "read from the terrain's heights; unset keeps the bright share. Bright splotches are "
+       "found mostly on such slopes, but the source gives no share.");
+    io("steep_slope_degrees", options.steepSlopeDegrees,
+       "Slope in degrees, between 0 and 90 excluded, from which ground is steep.", "deg");
     io("softness", options.softness,
        "Share of a splotch's radius, from 0 to 1 excluding 0, over which its edge fades.");
     io("raggedness", options.raggedness,

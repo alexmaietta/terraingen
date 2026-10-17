@@ -105,7 +105,12 @@
                 },
                 "zones": {
                     "enabled": true,
-                    "seed": 111
+                    "seed": 111,
+                    "shadows": {
+                        "enabled": true,
+                        "azimuths": 480,
+                        "radial_samples": 300
+                    }
                 }
             },
             {
