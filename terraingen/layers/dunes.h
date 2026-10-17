@@ -4,6 +4,7 @@
 
 #include "terraingen/layers/fade.h"
 #include "terraingen/layers/layer.h"
+#include "terraingen/layers/material.h"
 #include "terraingen/util/geometry.h"
 
 #include <cstdint>
@@ -107,7 +108,7 @@ DuneOptions MarsTransverseDunes();
 /// follow a warped crest phase whose lee width keeps the slope at the slip face angle, to within a
 /// few degrees where crests bend. A function
 /// of position only, so grids, tiles and points agree.
-class DuneLayer final : public FormulaLayer {
+class DuneLayer final : public FormulaLayer, public MaterialSource {
   public:
     /// On a body, dunes are laid out in the tangent frame of `options.anchor`, with the azimuth
     /// counter-clockwise from local east.
@@ -122,6 +123,12 @@ class DuneLayer final : public FormulaLayer {
         return options_;
     }
 
+    MaterialClass Material() const override {
+        return MaterialClass::Sand;
+    }
+    /// How fully dune sand covers (x, y): the dunes, and with ripples their `interduneCover`.
+    double MaterialCoverAt(double x, double y, double spacing, const Ground* ground) const override;
+
   protected:
     float HeightAt(float height, double x, double y, double spacing,
                    const Ground* ground) const override;
@@ -133,6 +140,8 @@ class DuneLayer final : public FormulaLayer {
     double Barchans(const Vec2d& q) const;
     double Crests(const Vec2d& q) const;
     double Ripples(const Vec2d& q, double dune) const;
+    /// How fully a dune `dune` metres high covers the ground with sand, in [0, 1].
+    double SandOf(double dune) const;
     /// The phase the forked crests near planar point `q` add to the ripples, in wavelengths; `core`
     /// becomes the weight in [0, 1] that fades the ripples out at the forks' ends.
     double RippleForks(const Vec2d& q, double& core) const;

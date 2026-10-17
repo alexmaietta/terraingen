@@ -327,6 +327,9 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
             [&](const DuneLayerSpec& s) -> LayerPtr {
                 return std::make_shared<DuneLayer>(s.dunes, surface);
             },
+            [&](const SandFillLayerSpec& s) -> LayerPtr {
+                return std::make_shared<SandFillLayer>(s.sandFill, surface);
+            },
             [&](const BedformLayerSpec& s) -> LayerPtr {
                 return std::make_shared<BedformLayer>(s.bedforms, surface);
             },
@@ -464,6 +467,18 @@ std::optional<RasterGrid> OutputGrid(const OutputSpec& output,
             [](const MeshOutput&) -> std::optional<RasterGrid> { return std::nullopt; },
         },
         output);
+}
+
+MaterialPhotometry BuildPhotometry(const PhotometrySpec& spec) {
+    MaterialPhotometry photometry = spec.reference == PhotometryReference::MarsPancam
+                                        ? MarsPancamPhotometry()
+                                        : MaterialPhotometry{};
+    for (std::size_t k = 0; k < kMaterialClasses; ++k) {
+        if (spec.classes[k]) {
+            photometry[k] = spec.classes[k];
+        }
+    }
+    return photometry;
 }
 
 RegionShape BuildRegionShape(const RegionShapeSpec& spec) {

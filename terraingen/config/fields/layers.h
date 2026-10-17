@@ -169,6 +169,25 @@ template <typename IO> void Fields(IO& io, DuneLayerSpec& spec) {
     io("ripples", dunes.ripples, "Ripples superposed on the dunes.");
 }
 
+template <> struct SpecName<SandFillLayerSpec> {
+    static constexpr std::string_view kName = "sand_fill";
+    static constexpr std::string_view kDescription =
+        "Sand pooled in the lows of the ground beneath: cracks, troughs and hollows between "
+        "rises, laying sand over the material map.";
+};
+template <typename IO> void Fields(IO& io, SandFillLayerSpec& spec) {
+    SandFillOptions& fill = spec.sandFill;
+    io("reach", fill.reach,
+       "Radius in metres of the surroundings a low is measured against: two rings, at half the "
+       "reach and at the reach.",
+       "m");
+    io("fill", fill.fill, "Share of a low's depth below its surroundings that sand fills, 0 to 1.");
+    io("max_thickness", fill.maxThickness,
+       "The thickest the sand gets, in metres, approached smoothly.", "m");
+    io("cover_thickness", fill.coverThickness,
+       "Sand thickness in metres from which it fully covers the ground in the material map.", "m");
+}
+
 template <> struct SpecName<BedformLayerSpec> {
     static constexpr std::string_view kName = "bedforms";
     static constexpr std::string_view kDescription =

@@ -9,6 +9,7 @@
 #include "terraingen/config/fields/crater_models.h"
 #include "terraingen/config/fields/craters.h"
 #include "terraingen/config/fields/layers.h"
+#include "terraingen/config/fields/materials.h"
 #include "terraingen/config/fields/outputs.h"
 #include "terraingen/config/fields/sources.h"
 
@@ -33,6 +34,9 @@ template <typename IO> void Fields(IO& io, TerrainConfig& config) {
     io("albedo", config.albedo,
        "The terrain's albedo: a source and the layers that change it, written by albedo outputs; "
        "none when unset.");
+    io("materials", config.materials,
+       "The material map: soil, sand, dust, bedrock and rock shares, and their Hapke parameters, "
+       "written by materials and photometry outputs; none when unset.");
 }
 
 }  // namespace terraingen::config

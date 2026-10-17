@@ -1,0 +1,171 @@
+#include "terraingen/materials/materials.h"
+
+#include "terraingen/layers/dunes.h"
+#include "terraingen/layers/sand_fill.h"
+
+#include <gtest/gtest.h>
+
+#include <cmath>
+#include <cstddef>
+#include <memory>
+#include <numeric>
+#include <stdexcept>
+#include <vector>
+
+using terraingen::MaterialClass;
+using terraingen::MaterialOptions;
+using terraingen::MaterialsAt;
+using terraingen::Terrain;
+
+namespace {
+
+std::size_t Index(MaterialClass material) {
+    return static_cast<std::size_t>(material);
+}
+
+/// Ground tilted along x by `slope`, with a Gaussian pit of `depth` at (`pitX`, 0).
+class Tilt final : public terraingen::FormulaLayer {
+  public:
+    Tilt(double slope, double depth, double pitX) : slope_(slope), depth_(depth), pitX_(pitX) {}
+
+  protected:
+    float HeightAt(float height, double x, double y, double,
+                   const terraingen::Ground*) const override {
+        const double pit = depth_ * std::exp(-((x - pitX_) * (x - pitX_) + y * y) / 9.0);
+        return static_cast<float>(static_cast<double>(height) + slope_ * x - pit);
+    }
+
+  private:
+    double slope_;
+    double depth_;
+    double pitX_;
+};
+
+Terrain Ground(double slope, double depth = 0.0, double pitX = 0.0) {
+    return Terrain{nullptr, {std::make_shared<Tilt>(slope, depth, pitX)}, {}};
+}
+
+}  // namespace
+
+TEST(MaterialsAt, StartAsSoilWithBedrockOnSteepGround) {
+    const MaterialOptions options;
+    const auto level = MaterialsAt(Ground(0.0), options, 3.0, 4.0, 1.0);
+    EXPECT_EQ(level[Index(MaterialClass::Soil)], 1.0);
+    const auto steep = MaterialsAt(Ground(0.6), options, 3.0, 4.0, 1.0);
+    EXPECT_EQ(steep[Index(MaterialClass::Bedrock)], 1.0);
+    MaterialOptions noBedrock;
+    noBedrock.exposure.reset();
+    EXPECT_EQ(MaterialsAt(Ground(0.6), noBedrock, 3.0, 4.0, 1.0)[Index(MaterialClass::Soil)], 1.0);
+    EXPECT_THROW(MaterialsAt(Ground(0.0), options, 0.0, 0.0, 0.0), std::invalid_argument);
+}
+
+TEST(MaterialsAt, LaysDustInPatchesAndSandFromLayersInOrder) {
+    MaterialOptions options;
+    options.dustCover = 0.4;
+    options.dustPatch = 20.0;
+    double dust = 0.0;
+    int count = 0;
+    for (double y = 0.0; y < 400.0; y += 4.0) {
+        for (double x = 0.0; x < 400.0; x += 4.0) {
+            dust += MaterialsAt(Ground(0.0), options, x, y, 1.0)[Index(MaterialClass::Dust)];
+            ++count;
+        }
+    }
+    EXPECT_NEAR(dust / count, 0.4, 0.15) << "about the dust cover";
+
+    Terrain sandy = Ground(0.6, 3.0, 0.0);
+    sandy.layers.push_back(std::make_shared<terraingen::SandFillLayer>(
+        terraingen::SandFillOptions{8.0, 0.8, 1.0, 0.02}));
+    const auto pit = MaterialsAt(sandy, {}, 0.0, 0.0, 0.5);
+    EXPECT_EQ(pit[Index(MaterialClass::Sand)], 1.0) << "sand over the steep bedrock";
+    const auto beside = MaterialsAt(sandy, {}, 40.0, 0.0, 0.5);
+    EXPECT_EQ(beside[Index(MaterialClass::Sand)], 0.0);
+    EXPECT_EQ(beside[Index(MaterialClass::Bedrock)], 1.0);
+}
+
+TEST(EvaluateMaterials, GivesEachCellItsSharesSummingToOne) {
+    Terrain terrain = Ground(0.15, 2.0, 5.0);
+    terraingen::DuneOptions dunes;
+    dunes.shape = terraingen::DuneShape::Transverse;
+    dunes.wavelength = 40.0;
+    dunes.height = 3.0;
+    terrain.layers.push_back(std::make_shared<terraingen::DuneLayer>(dunes));
+    MaterialOptions options;
+    options.dustCover = 0.3;
+    options.dustPatch = 15.0;
+    const terraingen::RasterGrid grid{24, 18, terraingen::GeoTransform::NorthUp(-30.0, 20.0, 2.0)};
+    const auto bands = terraingen::EvaluateMaterials(terrain, options, grid, {0.0, 3});
+    ASSERT_EQ(bands.size(), terraingen::kMaterialClasses);
+    double sand = 0.0;
+    for (std::size_t row = 0; row < grid.height; ++row) {
+        for (std::size_t col = 0; col < grid.width; ++col) {
+            const auto centre = bands[0].CellCenter(col, row);
+            const auto shares = MaterialsAt(terrain, options, centre.x, centre.y, 2.0);
+            double sum = 0.0;
+            for (std::size_t k = 0; k < terraingen::kMaterialClasses; ++k) {
+                ASSERT_EQ(bands[k](col, row), static_cast<float>(shares[k]));
+                sum += shares[k];
+            }
+            EXPECT_NEAR(sum, 1.0, 1e-12);
+            sand += shares[Index(MaterialClass::Sand)];
+        }
+    }
+    EXPECT_GT(sand, 0.0);
+}
+
+TEST(Photometry, MixesPancamParametersByShare) {
+    const auto pancam = terraingen::MarsPancamPhotometry();
+    ASSERT_TRUE(pancam[Index(MaterialClass::Sand)]);
+    EXPECT_EQ(pancam[Index(MaterialClass::Sand)]->albedo, 0.52);
+    EXPECT_EQ(pancam[Index(MaterialClass::Soil)]->roughness, 15.0);
+    EXPECT_EQ(pancam[Index(MaterialClass::Rock)]->b, 0.931);
+    EXPECT_FALSE(pancam[Index(MaterialClass::Bedrock)]) << "not tabulated";
+    EXPECT_NO_THROW(terraingen::ValidateMaterialPhotometry(pancam));
+
+    terraingen::MaterialShares shares{};
+    shares[Index(MaterialClass::Sand)] = 0.25;
+    shares[Index(MaterialClass::Dust)] = 0.75;
+    const auto mixed = terraingen::MixPhotometry(shares, pancam);
+    EXPECT_DOUBLE_EQ(mixed.albedo, 0.25 * 0.52 + 0.75 * 0.66);
+    EXPECT_DOUBLE_EQ(mixed.roughness, 0.25 * 9.0 + 0.75 * 16.0);
+    shares[Index(MaterialClass::Bedrock)] = 0.1;
+    EXPECT_THROW(terraingen::MixPhotometry(shares, pancam), std::invalid_argument);
+
+    auto bad = pancam;
+    bad[Index(MaterialClass::Dust)]->albedo = 1.5;
+    EXPECT_THROW(terraingen::ValidateMaterialPhotometry(bad), std::invalid_argument);
+    bad[Index(MaterialClass::Dust)] = terraingen::HapkeParameters{0.5, 0.5, 0.5, 95.0};
+    EXPECT_THROW(terraingen::ValidateMaterialPhotometry(bad), std::invalid_argument);
+}
+
+TEST(Photometry, EvaluatesFourBandsFromMaterialRasters) {
+    const terraingen::RasterGrid grid{4, 3, terraingen::GeoTransform::NorthUp(0.0, 3.0, 1.0)};
+    std::vector<terraingen::Raster<float>> materials(terraingen::kMaterialClasses,
+                                                     grid.MakeRaster());
+    for (std::size_t i = 0; i < materials[0].Size(); ++i) {
+        materials[Index(MaterialClass::Soil)].Values()[i] = 0.5f;
+        materials[Index(MaterialClass::Sand)].Values()[i] = 0.5f;
+    }
+    const auto bands =
+        terraingen::EvaluatePhotometry(materials, terraingen::MarsPancamPhotometry());
+    ASSERT_EQ(bands.size(), 4u);
+    EXPECT_FLOAT_EQ(bands[0](1, 1), static_cast<float>(0.5 * 0.76 + 0.5 * 0.52));
+    EXPECT_FLOAT_EQ(bands[3](2, 0), 12.0f);
+    EXPECT_THROW(terraingen::EvaluatePhotometry({}, terraingen::MarsPancamPhotometry()),
+                 std::invalid_argument);
+    materials[2] = terraingen::RasterGrid{2, 2, {}}.MakeRaster();
+    EXPECT_THROW(terraingen::EvaluatePhotometry(materials, terraingen::MarsPancamPhotometry()),
+                 std::invalid_argument);
+}
+
+TEST(MaterialOptions, RejectsBadDustAndExposure) {
+    MaterialOptions options;
+    options.dustCover = 1.0;
+    EXPECT_THROW(terraingen::ValidateMaterialOptions(options), std::invalid_argument);
+    options.dustCover = 0.2;
+    options.dustPatch = 0.0;
+    EXPECT_THROW(terraingen::ValidateMaterialOptions(options), std::invalid_argument);
+    options.dustPatch = 10.0;
+    options.exposure->reach = -1.0;
+    EXPECT_THROW(terraingen::ValidateMaterialOptions(options), std::invalid_argument);
+}

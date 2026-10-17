@@ -248,6 +248,9 @@ void ValidateLayer(const LayerSpec& spec, const std::string& path, LayerChecks& 
             [&](const DuneLayerSpec& layer) {
                 At(path, [&] { ValidateDuneOptions(layer.dunes); });
             },
+            [&](const SandFillLayerSpec& layer) {
+                At(path, [&] { ValidateSandFillOptions(layer.sandFill); });
+            },
             [&](const BedformLayerSpec& layer) {
                 At(path, [&] { ValidateBedformOptions(layer.bedforms); });
             },
@@ -365,8 +368,9 @@ std::optional<RasterGrid> CheckOutputGrid(const OutputSpec& output, const std::s
 
 /// What outputs are checked against.
 struct OutputContext {
-    bool body = false;    ///< Whether the surface is a body.
-    bool albedo = false;  ///< Whether the configuration has an albedo.
+    bool body = false;       ///< Whether the surface is a body.
+    bool albedo = false;     ///< Whether the configuration has an albedo.
+    bool materials = false;  ///< Whether the configuration has a material map.
 };
 
 void RequireMeshFile(const std::string& file, const std::string& path) {
@@ -397,6 +401,61 @@ void ValidateOutput(const AlbedoOutput& output, const std::string& path,
         throw ConfigError(path, "the configuration has no albedo");
     }
     ValidateGeoTiffOutput(output, path);
+}
+
+void ValidateOutput(const MaterialsOutput& output, const std::string& path,
+                    const OutputContext& context) {
+    if (!context.materials) {
+        throw ConfigError(path, "the configuration has no materials");
+    }
+    ValidateGeoTiffOutput(output, path);
+}
+
+void ValidateOutput(const PhotometryOutput& output, const std::string& path,
+                    const OutputContext& context) {
+    if (!context.materials) {
+        throw ConfigError(path, "the configuration has no materials");
+    }
+    ValidateGeoTiffOutput(output, path);
+}
+
+/// Whether a layer lays sand over the material map.
+bool LaysSand(const LayerSpec& layer) {
+    return std::holds_alternative<DuneLayerSpec>(layer) ||
+           std::holds_alternative<BedformLayerSpec>(layer) ||
+           std::holds_alternative<SandFillLayerSpec>(layer);
+}
+
+/// @throws ConfigError under "materials" for invalid options or photometry, or a photometry output
+/// without parameters for a class the surface can have.
+void ValidateMaterials(const TerrainConfig& config) {
+    const MaterialsSpec& materials = *config.materials;
+    At("materials", [&] { ValidateMaterialOptions(materials.options); });
+    const MaterialPhotometry photometry = config::BuildPhotometry(materials.photometry);
+    At("materials.photometry", [&] { ValidateMaterialPhotometry(photometry); });
+    const bool photometryOutput =
+        std::any_of(config.outputs.begin(), config.outputs.end(), [](const OutputSpec& output) {
+            return std::holds_alternative<PhotometryOutput>(output);
+        });
+    if (!photometryOutput) {
+        return;
+    }
+    std::vector<std::pair<MaterialClass, const char*>> needed{{MaterialClass::Soil, "soil"}};
+    if (materials.options.exposure) {
+        needed.emplace_back(MaterialClass::Bedrock, "bedrock");
+    }
+    if (materials.options.dustCover > 0.0) {
+        needed.emplace_back(MaterialClass::Dust, "dust");
+    }
+    if (std::any_of(config.layers.begin(), config.layers.end(), LaysSand)) {
+        needed.emplace_back(MaterialClass::Sand, "sand");
+    }
+    for (const auto& [material, name] : needed) {
+        if (!photometry[static_cast<std::size_t>(material)]) {
+            throw ConfigError(Child("materials.photometry", name),
+                              "required by the photometry output: the surface has some");
+        }
+    }
 }
 
 void ValidateOutput(const ListOutput& output, const std::string& path,
@@ -513,7 +572,8 @@ ConfigSummary ValidateConfig(const TerrainConfig& config, const std::filesystem:
     if (config.base) {
         summary.base = DescribeSource(*config.base, directory, surface);
     }
-    const OutputContext outputs{surface.IsBody(), config.albedo.has_value()};
+    const OutputContext outputs{surface.IsBody(), config.albedo.has_value(),
+                                config.materials.has_value()};
     std::vector<Extent> extents;
     for (std::size_t i = 0; i < config.outputs.size(); ++i) {
         const OutputSpec& output = config.outputs[i];
@@ -545,6 +605,9 @@ ConfigSummary ValidateConfig(const TerrainConfig& config, const std::filesystem:
     }
     if (config.albedo) {
         ValidateAlbedo(config, directory);
+    }
+    if (config.materials) {
+        ValidateMaterials(config);
     }
     return summary;
 }

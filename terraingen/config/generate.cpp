@@ -51,8 +51,9 @@ double SpacingOf(const OutputSpec& output) {
 /// What `WriteOutputs` writes one output from.
 struct OutputContext {
     const GeneratedTerrain& generated;
-    std::optional<RasterGrid> grid;  ///< The grid the output covers; none for a mesh.
-    double spacing = 0.0;            ///< The output's sample spacing; 0 for its grid's.
+    std::optional<RasterGrid> grid;         ///< The grid the output covers; none for a mesh.
+    double spacing = 0.0;                   ///< The output's sample spacing; 0 for its grid's.
+    const TerrainConfig* config = nullptr;  ///< The configuration the outputs come from.
 
     /// The heights and albedo generated over the output's grid.
     /// @throws std::runtime_error if they were not generated.
@@ -86,6 +87,34 @@ bool Write(const AlbedoOutput& output, const std::filesystem::path& path,
         throw std::runtime_error("No albedo to write to " + path.string());
     }
     WriteGeoTiff(path, albedo, context.generated.geoKeys,
+                 {.compression = output.compression, .tileSize = output.tileSize});
+    return true;
+}
+
+/// The material rasters generated over the output's grid.
+/// @throws std::runtime_error if they were not generated.
+const std::vector<Raster<float>>& MaterialsOf(const OutputContext& context,
+                                              const std::filesystem::path& path) {
+    const std::vector<Raster<float>>& materials = context.Generated(path).materials;
+    if (materials.empty()) {
+        throw std::runtime_error("No materials to write to " + path.string());
+    }
+    return materials;
+}
+
+bool Write(const MaterialsOutput& output, const std::filesystem::path& path,
+           const OutputContext& context) {
+    WriteGeoTiff(path, MaterialsOf(context, path), context.generated.geoKeys,
+                 {.compression = output.compression, .tileSize = output.tileSize});
+    return true;
+}
+
+bool Write(const PhotometryOutput& output, const std::filesystem::path& path,
+           const OutputContext& context) {
+    const std::vector<Raster<float>>& materials = MaterialsOf(context, path);
+    const MaterialPhotometry photometry =
+        config::BuildPhotometry(context.config->materials->photometry);
+    WriteGeoTiff(path, EvaluatePhotometry(materials, photometry), context.generated.geoKeys,
                  {.compression = output.compression, .tileSize = output.tileSize});
     return true;
 }
@@ -151,11 +180,17 @@ bool Write(const TerrainMeshOutput& /*output*/, const std::filesystem::path& pat
     return true;
 }
 
-/// Whether an output writes the heights or albedo over its grid.
+/// Whether an output writes the material map or its photometry.
+bool MapsMaterials(const OutputSpec& output) {
+    return std::holds_alternative<MaterialsOutput>(output) ||
+           std::holds_alternative<PhotometryOutput>(output);
+}
+
+/// Whether an output writes the heights, albedo or materials over its grid.
 bool WritesGrid(const OutputSpec& output) {
     return std::holds_alternative<HeightmapOutput>(output) ||
            std::holds_alternative<AlbedoOutput>(output) ||
-           std::holds_alternative<TerrainMeshOutput>(output);
+           std::holds_alternative<TerrainMeshOutput>(output) || MapsMaterials(output);
 }
 
 }  // namespace
@@ -197,6 +232,10 @@ GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
             }
             target.albedo = EvaluateAlbedo(*albedo, grid, {.spacing = 0.0, .threads = threads});
         }
+        if (MapsMaterials(output) && target.materials.empty()) {
+            target.materials = EvaluateMaterials(terrain, config.materials->options, grid,
+                                                 EvaluationOptions{0.0, threads});
+        }
     }
     generated.geoKeys = KeysOf(terrain);
     generated.seconds = stopwatch.Milliseconds() / 1000.0;
@@ -237,8 +276,9 @@ std::vector<std::filesystem::path> WriteOutputs(const TerrainConfig& config,
         if (path.has_parent_path()) {
             std::filesystem::create_directories(path.parent_path());
         }
-        const OutputContext context{
-            terrain, config::OutputGrid(spec, base, terrain.terrain.surface), SpacingOf(spec)};
+        const OutputContext context{terrain,
+                                    config::OutputGrid(spec, base, terrain.terrain.surface),
+                                    SpacingOf(spec), &config};
         if (std::holds_alternative<MeshOutput>(spec) == context.grid.has_value()) {
             throw std::runtime_error("No grid to write " + path.string() + " over");
         }

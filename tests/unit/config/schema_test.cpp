@@ -114,7 +114,7 @@ TEST(ConfigSchema, DescribesEveryFieldAndEveryDefaultFitsIt) {
         names.push_back(field["name"]);
     }
     EXPECT_EQ(names, (std::vector<std::string>{"schema_version", "body", "base", "layers",
-                                               "outputs", "albedo"}));
+                                               "outputs", "albedo", "materials"}));
 
     // Every alternative's default, and every field's, fits its schema.
     std::map<std::string, int> kinds;
@@ -301,7 +301,7 @@ TEST(ConfigCatalog, ListsEveryTypeAndEachEntryParsesWhereItBelongs) {
         keys.push_back(key);
     }
     EXPECT_EQ(keys, (std::vector<std::string>{"schema_version", "body", "base", "layers", "outputs",
-                                              "albedo", "models"}));
+                                              "albedo", "materials", "models"}));
     const auto types = [](const Json& list) {
         std::vector<std::string> names;
         for (const Json& entry : list) {
@@ -333,6 +333,7 @@ TEST(ConfigCatalog, ListsEveryTypeAndEachEntryParsesWhereItBelongs) {
         }
     }
     parses({{"albedo", catalog["albedo"]}}, "albedo");
+    parses({{"materials", catalog["materials"]}}, "materials");
 
     const auto layerOf = [&](const std::string& type) {
         for (const Json& layer : catalog["layers"]) {

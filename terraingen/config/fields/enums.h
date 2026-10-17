@@ -294,6 +294,15 @@ template <> struct EnumNames<DuneShape> {
     }};
 };
 
+template <> struct EnumNames<PhotometryReference> {
+    static constexpr std::array<EnumEntry<PhotometryReference>, 2> kValues{{
+        {"none", PhotometryReference::None, "No parameters: each class present must be given."},
+        {"mars_pancam", PhotometryReference::MarsPancam,
+         "Pancam fits at 753 nm (Johnson et al. 2006a, b, tabulated by Fernando et al. 2013): "
+         "soil, sand, dust and rock; bedrock must be given."},
+    }};
+};
+
 template <> struct EnumNames<ListFormat> {
     static constexpr std::array<EnumEntry<ListFormat>, 2> kValues{{
         {"csv", ListFormat::Csv, "Comma-separated values, one row per item."},

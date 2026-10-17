@@ -23,6 +23,9 @@ struct GeneratedGrid {
     Raster<float> heights{};  ///< The heights over the grid.
     /// The albedo bands; empty unless an albedo output covers the grid.
     std::vector<Raster<float>> albedo{};
+    /// The share of each material class, one raster per `MaterialClass`; empty unless a materials
+    /// or photometry output covers the grid.
+    std::vector<Raster<float>> materials{};
 };
 
 /// A terrain generated from a configuration.

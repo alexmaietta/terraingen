@@ -5,6 +5,7 @@
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/layers/layer.h"
+#include "terraingen/layers/material.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/util/cells.h"
 
@@ -55,7 +56,7 @@ BedformOptions MarsTransverseAeolianRidges();
 /// Each lattice cell may hold a field with a ragged edge whose crests run across its wind; relief
 /// is C1 and zero in the troughs, and overlapping fields average by cover. A function of position
 /// only, so grids, tiles and points agree.
-class BedformLayer final : public FormulaLayer {
+class BedformLayer final : public FormulaLayer, public MaterialSource {
   public:
     /// On a sphere, fields are drawn in `CubeSphereCells`, shaped in their centres' local frames,
     /// with the azimuth counter-clockwise from local east. Applying the layer with the exposure
@@ -71,6 +72,15 @@ class BedformLayer final : public FormulaLayer {
     /// The options the layer was made with.
     const BedformOptions& Options() const {
         return options_;
+    }
+
+    MaterialClass Material() const override {
+        return MaterialClass::Sand;
+    }
+    /// `CoverAt`: the bedform fields are sand.
+    double MaterialCoverAt(double x, double y, double /*spacing*/,
+                           const Ground* ground) const override {
+        return CoverAt(x, y, ground);
     }
 
   protected:

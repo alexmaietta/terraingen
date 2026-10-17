@@ -267,3 +267,47 @@ def test_dune_ripples_ride_on_crest_fields():
     )
     assert config.to_dict()["layers"][0]["shape"] == "linear"
     config.validate()
+
+
+def test_sand_fill_pools_sand_and_lays_it_on_the_material_map():
+    pit = terraingen.NoiseRelief(
+        [terraingen.NoiseLayer(terraingen.FractalParams(seed=4, wavelength=20.0, amplitude=1.0, octaves=3))]
+    )
+    fill = terraingen.SandFillLayer(terraingen.SandFillOptions(reach=6.0, fill=0.7, max_thickness=0.4))
+    assert fill.material == terraingen.MaterialClass.SAND
+    terrain = terraingen.Terrain(None, [pit, fill])
+    grid = terraingen.FlatSource(80, 80, 0.5).grid()
+    filled = terraingen.evaluate(terrain, grid=grid).values
+    bare = terraingen.evaluate(terraingen.Terrain(None, [pit]), grid=grid).values
+    thickness = filled - bare
+    assert thickness.min() >= 0.0 and 0.05 < thickness.max() <= 0.4
+    row, col = np.unravel_index(np.argmax(thickness), thickness.shape)
+    x, y = terraingen.evaluate(terrain, grid=grid).cell_center(int(col), int(row))
+    assert fill.thickness_at(x, y, 0.5, terrain, 1) == pytest.approx(thickness[row, col], abs=1e-5)
+    assert fill.material_cover_at(x, y, 0.5, terrain, 1) == pytest.approx(1.0)
+    with pytest.raises(ValueError):
+        terraingen.SandFillLayer(terraingen.SandFillOptions(reach=0.0))
+
+    shares = terraingen.materials_at(terrain, terraingen.MaterialOptions(), x, y, 0.5)
+    assert len(shares) == terraingen.MATERIAL_CLASSES and sum(shares) == pytest.approx(1.0)
+    assert shares[terraingen.MaterialClass.SAND.value] == pytest.approx(1.0)
+    bands = terraingen.evaluate_materials(terrain, terraingen.MaterialOptions(dust_cover=0.2), grid)
+    assert len(bands) == 5
+    np.testing.assert_allclose(sum(b.values for b in bands), 1.0, atol=1e-6)
+
+
+def test_pancam_photometry_mixes_and_needs_every_present_class():
+    pancam = terraingen.mars_pancam_photometry()
+    assert pancam[terraingen.MaterialClass.BEDROCK.value] is None
+    assert pancam[terraingen.MaterialClass.SAND.value].albedo == pytest.approx(0.52)
+    mixed = terraingen.mix_photometry([0.5, 0.5, 0.0, 0.0, 0.0], pancam)
+    assert mixed.albedo == pytest.approx(0.64) and mixed.roughness == pytest.approx(12.0)
+    with pytest.raises(ValueError):
+        terraingen.mix_photometry([0.0, 0.0, 0.0, 1.0, 0.0], pancam)
+    pancam[terraingen.MaterialClass.BEDROCK.value] = terraingen.HapkeParameters(
+        albedo=0.7, b=0.4, c=0.3, roughness=15.0
+    )
+    grid = terraingen.FlatSource(8, 8, 1.0).grid()
+    bands = terraingen.evaluate_materials(terraingen.Terrain(), terraingen.MaterialOptions(), grid)
+    photometry = terraingen.evaluate_photometry(bands, pancam)
+    assert len(photometry) == 4 and photometry[0].values.mean() == pytest.approx(0.76)

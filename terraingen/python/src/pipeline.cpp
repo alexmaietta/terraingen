@@ -436,6 +436,17 @@ void BindGeneratedTerrain(nb::module_& m) {
             },
             "Albedo bands, empty unless an albedo output covers the grid.")
         .def_prop_ro(
+            "materials",
+            [](nb::handle self) {
+                nb::list bands;
+                for (Raster<float>& band : nb::cast<GeneratedGrid&>(self).materials) {
+                    bands.append(nb::cast(&band, nb::rv_policy::reference_internal, self));
+                }
+                return bands;
+            },
+            "The share of each MaterialClass, one raster per class; empty unless a materials or "
+            "photometry output covers the grid.")
+        .def_prop_ro(
             "grid", [](const GeneratedGrid& g) { return RasterGrid::Of(g.heights); },
             "The grid the heights cover.");
     nb::class_<GeneratedTerrain> terrain(m, "GeneratedTerrain",

@@ -109,6 +109,69 @@ const PathCase kPathCases[] = {
      "outputs[0].crease_angle"},
     {"EmptyMinimumDensity",
      [](TerrainConfig& c) { Craters(c).density = terraingen::MinimumSpec{}; }, "layers[1].density"},
+    {"SandFillWithoutReach",
+     [](TerrainConfig& c) { c.layers.push_back(terraingen::SandFillLayerSpec{{0.0}}); },
+     "layers[2]"},
+    {"MaterialsOutputWithoutMaterials",
+     [](TerrainConfig& c) {
+         c.outputs.push_back(terraingen::MaterialsOutput{
+             {"m.tif", terraingen::TiffCompression::Lzw, 256, terraingen::testing::SmallRegion()}});
+     },
+     "outputs[1]"},
+    {"PhotometryOutputWithoutMaterials",
+     [](TerrainConfig& c) {
+         c.outputs.push_back(terraingen::PhotometryOutput{
+             {"p.tif", terraingen::TiffCompression::Lzw, 256, terraingen::testing::SmallRegion()}});
+     },
+     "outputs[1]"},
+    {"TooMuchDust",
+     [](TerrainConfig& c) {
+         c.materials = terraingen::MaterialsSpec{};
+         c.materials->options.dustCover = 1.0;
+     },
+     "materials"},
+    {"PhotometryNeedsBedrockFromMarsPancam",
+     [](TerrainConfig& c) {
+         c.materials = terraingen::MaterialsSpec{};
+         c.materials->photometry.reference = terraingen::PhotometryReference::MarsPancam;
+         c.outputs.push_back(terraingen::PhotometryOutput{
+             {"p.tif", terraingen::TiffCompression::Lzw, 256, terraingen::testing::SmallRegion()}});
+     },
+     "materials.photometry.bedrock"},
+    {"PhotometryNeedsSoilWithoutAReference",
+     [](TerrainConfig& c) {
+         c.materials = terraingen::MaterialsSpec{};
+         c.materials->options.exposure.reset();
+         c.outputs.push_back(terraingen::PhotometryOutput{
+             {"p.tif", terraingen::TiffCompression::Lzw, 256, terraingen::testing::SmallRegion()}});
+     },
+     "materials.photometry.soil"},
+    {"PhotometryNeedsSandUnderDunes",
+     [](TerrainConfig& c) {
+         c.materials = terraingen::MaterialsSpec{};
+         c.materials->options.exposure.reset();
+         c.materials->photometry.classes[0] = terraingen::HapkeParameters{0.7, 0.3, 0.5, 10.0};
+         c.layers.push_back(terraingen::DuneLayerSpec{});
+         c.outputs.push_back(terraingen::PhotometryOutput{
+             {"p.tif", terraingen::TiffCompression::Lzw, 256, terraingen::testing::SmallRegion()}});
+     },
+     "materials.photometry.sand"},
+    {"PhotometryWithBedrockGiven",
+     [](TerrainConfig& c) {
+         c.materials = terraingen::MaterialsSpec{};
+         c.materials->photometry.reference = terraingen::PhotometryReference::MarsPancam;
+         c.materials->photometry.classes[3] = terraingen::HapkeParameters{0.7, 0.4, 0.3, 15.0};
+         c.materials->options.dustCover = 0.2;
+         c.outputs.push_back(terraingen::PhotometryOutput{
+             {"p.tif", terraingen::TiffCompression::Lzw, 256, terraingen::testing::SmallRegion()}});
+     },
+     "valid"},
+    {"OutOfRangeHapke",
+     [](TerrainConfig& c) {
+         c.materials = terraingen::MaterialsSpec{};
+         c.materials->photometry.classes[2] = terraingen::HapkeParameters{1.5, 0.3, 0.5, 10.0};
+     },
+     "materials.photometry"},
     {"DunesSteeperThanASlipFace",
      [](TerrainConfig& c) {
          terraingen::DuneLayerSpec dunes{terraingen::MarsBarchans()};

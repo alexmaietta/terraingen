@@ -7,9 +7,11 @@ terraingen_add_library(
     exposure.cpp
     fade.cpp
     layer.cpp
+    material.cpp
     noise_relief.cpp
     region.cpp
     roughness.cpp
+    sand_fill.cpp
     sample_block.cpp
     transforms.cpp
     boulders/abundance.cpp

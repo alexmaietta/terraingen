@@ -153,6 +153,9 @@ std::string ConfigToJson(const TerrainConfig& terrainConfig, int indent) {
     if (!terrainConfig.base) {
         json.erase("base");
     }
+    if (!terrainConfig.materials) {
+        json.erase("materials");
+    }
     if (!terrainConfig.albedo) {
         json.erase("albedo");
     }

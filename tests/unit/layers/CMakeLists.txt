@@ -10,6 +10,7 @@ terraingen_add_test_suite(
     noise_relief_test.cpp
     region_test.cpp
     roughness_test.cpp
+    sand_fill_test.cpp
     sample_block_test.cpp
     sphere_layers_test.cpp
     transforms_test.cpp

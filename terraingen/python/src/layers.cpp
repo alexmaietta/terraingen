@@ -9,9 +9,11 @@
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/layers/layer.h"
+#include "terraingen/layers/material.h"
 #include "terraingen/layers/noise_relief.h"
 #include "terraingen/layers/region.h"
 #include "terraingen/layers/roughness.h"
+#include "terraingen/layers/sand_fill.h"
 #include "terraingen/layers/transforms.h"
 
 #include <stdexcept>
@@ -250,6 +252,22 @@ void BindExposureField(nb::module_& m) {
             "terrain"_a, "layers"_a, "x"_a, "y"_a, "spacing"_a);
 }
 
+/// Adds `material` and `material_cover_at` to a class binding of a `MaterialSource` layer.
+template <typename Layer, typename Class> void BindMaterialCover(Class& cls) {
+    cls.def_prop_ro("material", [](const Layer& source) { return source.Material(); });
+    cls.def(
+        "material_cover_at",
+        [](const Layer& source, double x, double y, double spacing, const PyTerrain* terrain,
+           std::size_t layers) {
+            return WithGround(terrain, layers, [&](const Ground* ground) {
+                return source.MaterialCoverAt(x, y, spacing, ground);
+            });
+        },
+        "x"_a, "y"_a, "spacing"_a = 1.0, "terrain"_a = nb::none(), "layers"_a = 0,
+        "How fully the layer covers (x, y) with its material, in [0, 1]; layers that read the "
+        "ground need `terrain`'s source and its first `layers` layers.");
+}
+
 void BindBedformOptions(nb::module_& m) {
     auto options = nb::class_<BedformOptions>(
         m, "BedformOptions",
@@ -276,8 +294,8 @@ void BindBedformOptions(nb::module_& m) {
 
 void BindBedforms(nb::module_& m) {
     BindBedformOptions(m);
-    nb::class_<BedformLayer, Layer>(m, "BedformLayer", "Aeolian bedforms.")
-        .def(nb::init<BedformOptions, Surface>(), "options"_a, "surface"_a = Surface{})
+    auto bedforms = nb::class_<BedformLayer, Layer>(m, "BedformLayer", "Aeolian bedforms.");
+    bedforms.def(nb::init<BedformOptions, Surface>(), "options"_a, "surface"_a = Surface{})
         .def(
             "cover_at",
             [](const BedformLayer& layer, double x, double y, const PyTerrain* terrain,
@@ -289,6 +307,48 @@ void BindBedforms(nb::module_& m) {
             "x"_a, "y"_a, "terrain"_a = nb::none(), "layers"_a = 0,
             "The share of (x, y) covered by bedforms; bedforms that read the exposure field need "
             "the ground beneath them: `terrain`'s source and its first `layers` layers.");
+    BindMaterialCover<BedformLayer>(bedforms);
+}
+
+void BindMaterialClasses(nb::module_& m) {
+    nb::enum_<MaterialClass>(m, "MaterialClass", "What the surface is made of at a point.")
+        .value("SOIL", MaterialClass::Soil)
+        .value("SAND", MaterialClass::Sand)
+        .value("DUST", MaterialClass::Dust)
+        .value("BEDROCK", MaterialClass::Bedrock)
+        .value("ROCK", MaterialClass::Rock);
+    m.attr("MATERIAL_CLASSES") = kMaterialClasses;
+}
+
+void BindSandFill(nb::module_& m) {
+    auto options = nb::class_<SandFillOptions>(
+        m, "SandFillOptions",
+        "Sand pooled in lows: `fill` of the depth below the surroundings `reach` metres around, up "
+        "to `max_thickness` metres.");
+    BindKwargsInit<SandFillOptions>(options);
+    options.def_rw("reach", &SandFillOptions::reach)
+        .def_rw("fill", &SandFillOptions::fill)
+        .def_rw("max_thickness", &SandFillOptions::maxThickness)
+        .def_rw("cover_thickness", &SandFillOptions::coverThickness);
+    m.def("validate_sand_fill_options", &ValidateSandFillOptions, "options"_a, kValidateDoc);
+    auto layer = nb::class_<SandFillLayer, Layer>(m, "SandFillLayer",
+                                                  "Sand pooled in the lows of the ground beneath.");
+    layer
+        .def(nb::init<SandFillOptions, Surface>(), "options"_a = SandFillOptions{},
+             "surface"_a = Surface{})
+        .def(
+            "thickness_at",
+            [](const SandFillLayer& fill, double x, double y, double spacing,
+               const PyTerrain& terrain, std::size_t layers) {
+                return WithGround(&terrain, layers, [&](const Ground* ground) {
+                    return fill.ThicknessAt(*ground, x, y, spacing);
+                });
+            },
+            "x"_a, "y"_a, "spacing"_a, "terrain"_a, "layers"_a,
+            "The sand thickness at (x, y) in metres over `terrain`'s source and its first "
+            "`layers` layers.")
+        .def_prop_ro("options", &SandFillLayer::Options);
+    BindMaterialCover<SandFillLayer>(layer);
 }
 
 void BindDuneOptions(nb::module_& m) {
@@ -350,11 +410,13 @@ void BindDuneOptions(nb::module_& m) {
 
 void BindDunes(nb::module_& m) {
     BindDuneOptions(m);
-    nb::class_<DuneLayer, Layer>(m, "DuneLayer", "Wind-blown dunes, with ripples on them.")
-        .def(nb::init<DuneOptions, Surface>(), "options"_a, "surface"_a = Surface{})
+    auto dunes =
+        nb::class_<DuneLayer, Layer>(m, "DuneLayer", "Wind-blown dunes, with ripples on them.");
+    dunes.def(nb::init<DuneOptions, Surface>(), "options"_a, "surface"_a = Surface{})
         .def("dune_height_at", &DuneLayer::DuneHeightAt, "x"_a, "y"_a,
              "The dunes' height at (x, y) in metres, without ripples.")
         .def_prop_ro("options", &DuneLayer::Options);
+    BindMaterialCover<DuneLayer>(dunes);
 }
 
 }  // namespace
@@ -369,6 +431,8 @@ void BindLayers(nb::module_& m) {
     BindExposureField(m);
     BindBedforms(m);
     BindDunes(m);
+    BindMaterialClasses(m);
+    BindSandFill(m);
 }
 
 }  // namespace terraingen::python

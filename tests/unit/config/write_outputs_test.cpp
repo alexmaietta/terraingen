@@ -296,3 +296,39 @@ TEST(WriteOutputs, WritesWholeBodyListsAndRejectsGridsItDidNotGenerate) {
     other.body = config.body;
     EXPECT_NO_THROW(WriteOutputs(other, generated, directory));
 }
+
+TEST(WriteOutputs, WritesMaterialsAndTheirPhotometry) {
+    TerrainConfig config = Small();
+    config.layers.push_back(terraingen::SandFillLayerSpec{{6.0, 0.8, 0.5, 0.02}});
+    terraingen::MaterialsSpec materials;
+    materials.photometry.reference = terraingen::PhotometryReference::MarsPancam;
+    materials.photometry.classes[3] = terraingen::HapkeParameters{0.7, 0.4, 0.3, 15.0};
+    config.materials = materials;
+    config.outputs.push_back(terraingen::MaterialsOutput{
+        {"materials.tif", terraingen::TiffCompression::Lzw, 256, SmallRegion()}});
+    config.outputs.push_back(terraingen::PhotometryOutput{
+        {"hapke.tif", terraingen::TiffCompression::Lzw, 256, SmallRegion()}});
+    const auto generated = GenerateTerrain(config);
+    ASSERT_EQ(generated.grids.size(), 1u) << "one grid for heights, materials and photometry";
+    ASSERT_EQ(generated.grids[0].materials.size(), terraingen::kMaterialClasses);
+    const auto directory = TempPath("terraingen_materials");
+    std::filesystem::remove_all(directory);
+    const auto written = WriteOutputs(config, generated, directory);
+    ASSERT_EQ(written.size(), 3u);
+    EXPECT_EQ(terraingen::ReadGeoTiffInfo(written[1]).bands, terraingen::kMaterialClasses);
+    EXPECT_EQ(terraingen::ReadGeoTiffInfo(written[2]).bands, 4u);
+    const auto albedo = terraingen::ReadGeoTiff(written[2]).raster;
+    for (const float w : albedo.Values()) {
+        ASSERT_GE(w, 0.52f - 1e-6f);
+        ASSERT_LE(w, 0.76f + 1e-6f);
+    }
+    const auto& sand =
+        generated.grids[0].materials[static_cast<std::size_t>(terraingen::MaterialClass::Sand)];
+    EXPECT_GT(*std::max_element(sand.Values().begin(), sand.Values().end()), 0.5f);
+
+    TerrainConfig without = Small();
+    without.outputs.push_back(terraingen::MaterialsOutput{
+        {"m.tif", terraingen::TiffCompression::Lzw, 256, SmallRegion()}});
+    EXPECT_THROW(WriteOutputs(without, GenerateTerrain(Small()), directory), std::runtime_error)
+        << "no materials generated";
+}

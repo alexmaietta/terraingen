@@ -158,6 +158,7 @@ TerrainConfig Everything() {
         terraingen::BedformLayerSpec{terraingen::MarsLargeRipples()},
         terraingen::DuneLayerSpec{terraingen::MarsBarchans()},
         terraingen::DuneLayerSpec{terraingen::MarsTransverseDunes()},
+        terraingen::SandFillLayerSpec{{6.0, 0.4, 0.3, 0.05}},
         roughness,
         terraingen::RoughnessLayerSpec{},
         terraingen::ScaleLayerSpec{1.5, -20.0},
@@ -176,7 +177,18 @@ TerrainConfig Everything() {
         terraingen::BoulderListOutput{"boulders.json", ListFormat::Json, region},
         terraingen::BoulderModelsOutput{"boulders.glb", 20.0, region, 2.0},
         terraingen::MeshOutput{"body.icq", 64, 300.0},
-        terraingen::TerrainMeshOutput{"site.glb", region}};
+        terraingen::TerrainMeshOutput{"site.glb", region},
+        terraingen::MaterialsOutput{
+            {"materials.tif", terraingen::TiffCompression::Deflate, 64, region}},
+        terraingen::PhotometryOutput{{"hapke.tif", terraingen::TiffCompression::Lzw, 256, region}}};
+    terraingen::MaterialsSpec materials;
+    materials.options.exposure->reach = 20.0;
+    materials.options.dustCover = 0.25;
+    materials.options.dustPatch = 30.0;
+    materials.options.seed = 9;
+    materials.photometry.reference = terraingen::PhotometryReference::MarsPancam;
+    materials.photometry.classes[3] = terraingen::HapkeParameters{0.7, 0.4, 0.3, 15.0};
+    config.materials = materials;
     return config;
 }
 

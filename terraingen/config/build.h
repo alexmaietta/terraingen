@@ -60,6 +60,10 @@ BoulderLayerOptions BuildBoulderOptions(const BoulderLayerSpec& spec, const std:
 /// The region shape a spec describes, unchecked.
 RegionShape BuildRegionShape(const RegionShapeSpec& spec);
 
+/// The Hapke parameters of each material class a spec describes, unchecked: its reference's,
+/// replaced by any it gives.
+MaterialPhotometry BuildPhotometry(const PhotometrySpec& spec);
+
 /// An output that lists features over a region at a sample spacing: a list or boulder models.
 template <typename T>
 concept FeatureOutput = requires(const T& output) {

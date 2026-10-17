@@ -1,0 +1,9 @@
+terraingen_add_library(
+    materials
+    SOURCES
+    materials.cpp
+    PUBLIC
+    terraingen_layers
+    terraingen_pipeline
+    terraingen_raster
+    terraingen_util)

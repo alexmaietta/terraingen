@@ -20,6 +20,8 @@
 #include "terraingen/layers/dunes.h"
 #include "terraingen/layers/region.h"
 #include "terraingen/layers/roughness.h"
+#include "terraingen/layers/sand_fill.h"
+#include "terraingen/materials/materials.h"
 #include "terraingen/noise/noise_layers.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/resample.h"
@@ -329,6 +331,13 @@ struct DuneLayerSpec {
     bool operator==(const DuneLayerSpec&) const = default;
 };
 
+/// Layer "sand_fill": sand pooled in the lows of the ground beneath it (`SandFillLayer`).
+struct SandFillLayerSpec {
+    SandFillOptions sandFill{};
+
+    bool operator==(const SandFillLayerSpec&) const = default;
+};
+
 /// Layer "secondaries": secondary craters around the craters of the last crater layer
 /// before this one (`SecondaryCraterLayer`), shaped with that layer's profile at a fixed depth
 /// ratio and the fresh rim of `morphometry`. `secondaries.onsetCount` must be given.
@@ -434,7 +443,7 @@ struct RegionLayerSpec;
 using LayerSpec =
     std::variant<NoiseLayerSpec, CraterLayerSpec, BoulderLayerSpec, RoughnessLayerSpec,
                  BedformLayerSpec, ScaleLayerSpec, ClampLayerSpec, RegionLayerSpec,
-                 SecondaryLayerSpec, DemDetailLayerSpec, DuneLayerSpec>;
+                 SecondaryLayerSpec, DemDetailLayerSpec, DuneLayerSpec, SandFillLayerSpec>;
 
 /// Layer "region": `layer` applied only inside `shape` (`RegionLayer`). Boulder ejecta do
 /// not see crater layers inside regions.
@@ -531,9 +540,17 @@ struct TerrainMeshOutput {
     bool operator==(const TerrainMeshOutput&) const = default;
 };
 
+/// Output "materials": the share of each material class (`TerrainConfig::materials`), one band
+/// per `MaterialClass` in its order.
+struct MaterialsOutput : GeoTiffOutput {};
+
+/// Output "photometry": the Hapke albedo, b, c and roughness the materials mix to, in four bands.
+struct PhotometryOutput : GeoTiffOutput {};
+
 /// An output, named in JSON by its "type".
-using OutputSpec = std::variant<HeightmapOutput, CraterListOutput, BoulderListOutput,
-                                BoulderModelsOutput, AlbedoOutput, MeshOutput, TerrainMeshOutput>;
+using OutputSpec =
+    std::variant<HeightmapOutput, CraterListOutput, BoulderListOutput, BoulderModelsOutput,
+                 AlbedoOutput, MeshOutput, TerrainMeshOutput, MaterialsOutput, PhotometryOutput>;
 
 /// Albedo source "synthetic": `SyntheticAlbedo`, a base colour with a noise stack per
 /// channel (each 0 to `kMaxNoiseLayers` layers), measured from the base's reference
@@ -629,15 +646,38 @@ struct ShapeModelSurfaceSpec {
 using SurfaceSpec =
     std::variant<PlaneSurfaceSpec, SphereSurfaceSpec, EllipsoidSurfaceSpec, ShapeModelSurfaceSpec>;
 
+/// A published set of Hapke parameters per material class.
+enum class PhotometryReference {
+    None,        ///< No parameters; each class present must be given.
+    MarsPancam,  ///< `MarsPancamPhotometry`: Pancam fits at 753 nm.
+};
+
+/// The Hapke parameters of each material class: `reference`'s, replaced by any given.
+struct PhotometrySpec {
+    PhotometryReference reference = PhotometryReference::None;
+    MaterialPhotometry classes{};  ///< Parameters given per class, over the reference's.
+
+    bool operator==(const PhotometrySpec&) const = default;
+};
+
+/// The material map (`MaterialsAt`), read by "materials" and "photometry" outputs.
+struct MaterialsSpec {
+    MaterialOptions options{};
+    PhotometrySpec photometry{};
+
+    bool operator==(const MaterialsSpec&) const = default;
+};
+
 /// Everything needed to generate a terrain: the body it lies on, optionally its base heights, the
-/// layers added to them in order, the outputs to write, and optionally its albedo.
+/// layers added to them in order, the outputs to write, and optionally its albedo and materials.
 struct TerrainConfig {
     int schemaVersion = kConfigSchemaVersion;
     SurfaceSpec body{};
     std::optional<SourceSpec> base{};  ///< None for the body's datum, 0 m, everywhere.
     std::vector<LayerSpec> layers;
     std::vector<OutputSpec> outputs;
-    std::optional<AlbedoSpec> albedo;  ///< None by default.
+    std::optional<AlbedoSpec> albedo;        ///< None by default.
+    std::optional<MaterialsSpec> materials;  ///< None by default.
 
     bool operator==(const TerrainConfig&) const = default;
 };

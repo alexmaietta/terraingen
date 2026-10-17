@@ -112,6 +112,26 @@ template <typename IO> void Fields(IO& io, AlbedoOutput& output) {
     GeoTiffOutputFields(io, output);
 }
 
+template <> struct SpecName<MaterialsOutput> {
+    static constexpr std::string_view kName = "materials";
+    static constexpr std::string_view kDescription =
+        "Writes the material map as a float32 GeoTIFF of five bands: the share of soil, sand, "
+        "dust, bedrock and rock at each cell.";
+};
+template <typename IO> void Fields(IO& io, MaterialsOutput& output) {
+    GeoTiffOutputFields(io, output);
+}
+
+template <> struct SpecName<PhotometryOutput> {
+    static constexpr std::string_view kName = "photometry";
+    static constexpr std::string_view kDescription =
+        "Writes the Hapke parameters the materials mix to as a float32 GeoTIFF of four bands: "
+        "single-scattering albedo, b, c and roughness in degrees.";
+};
+template <typename IO> void Fields(IO& io, PhotometryOutput& output) {
+    GeoTiffOutputFields(io, output);
+}
+
 template <> struct SpecName<MeshOutput> {
     static constexpr std::string_view kName = "mesh";
     static constexpr std::string_view kDescription =
