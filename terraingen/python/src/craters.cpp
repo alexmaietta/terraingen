@@ -441,6 +441,39 @@ void BindCraterLayer(nb::module_& m) {
 }
 
 void BindSecondaryOptions(nb::module_& m) {
+    auto layout = nb::class_<RayLayout>(m, "RayLayout",
+                                        "How many rays a crater has (`count`) and how wide "
+                                        "(`width_degrees`), drawn from its ID and "
+                                        "`seed`; layers with the same layout share the same rays.");
+    BindKwargsInit<RayLayout>(layout);
+    layout.def_rw("seed", &RayLayout::seed)
+        .def_rw("count", &RayLayout::count)
+        .def_rw("width_degrees", &RayLayout::widthDegrees);
+    m.def("validate_ray_layout", &ValidateRayLayout, "layout"_a, kValidateDoc);
+    nb::class_<RayDirection>(m, "RayDirection", "One ray: its azimuth and width.")
+        .def_ro("azimuth", &RayDirection::azimuth, "Radians counter-clockwise from east.")
+        .def_ro("sin_half_width", &RayDirection::sinHalfWidth)
+        .def_ro("key", &RayDirection::key);
+    m.def("ray_directions", &RayDirections, "crater"_a, "layout"_a,
+          "The rays of `crater` under `layout`.");
+    auto rays = nb::class_<SecondaryRays>(
+        m, "SecondaryRays",
+        "Secondaries gathered into their primary's rays (`share` of them) and clumped along each "
+        "ray (`clustering`, every `cluster_spacing` in log range); off unless `enabled`.");
+    BindKwargsInit<SecondaryRays>(rays);
+    rays.def_rw("enabled", &SecondaryRays::enabled)
+        .def_rw("layout", &SecondaryRays::layout)
+        .def_rw("share", &SecondaryRays::share)
+        .def_rw("min_half_angle_degrees", &SecondaryRays::minHalfAngleDegrees)
+        .def_rw("clustering", &SecondaryRays::clustering)
+        .def_rw("cluster_spacing", &SecondaryRays::clusterSpacing);
+    auto shapes = nb::class_<SecondaryShapes>(
+        m, "SecondaryShapes",
+        "Secondaries stretched toward their primary: `elongated_share` of them, by `ellipticity` "
+        "near it, rounder with range.");
+    BindKwargsInit<SecondaryShapes>(shapes);
+    shapes.def_rw("elongated_share", &SecondaryShapes::elongatedShare)
+        .def_rw("ellipticity", &SecondaryShapes::ellipticity);
     auto options = nb::class_<SecondaryCraterOptions>(
         m, "SecondaryCraterOptions",
         "Secondary craters around a crater layer's primaries; `onset_count` (the number at "
@@ -454,6 +487,8 @@ void BindSecondaryOptions(nb::module_& m) {
         .def_rw("min_diameter", &SecondaryCraterOptions::minDiameter)
         .def_rw("max_diameter", &SecondaryCraterOptions::maxDiameter)
         .def_rw("outer_range", &SecondaryCraterOptions::outerRange)
+        .def_rw("rays", &SecondaryCraterOptions::rays)
+        .def_rw("shapes", &SecondaryCraterOptions::shapes)
         .def_rw("selection", &SecondaryCraterOptions::selection);
     BindSelection(options, &SecondaryCraterOptions::selection, "min_primary_diameter",
                   "max_primary_diameter");

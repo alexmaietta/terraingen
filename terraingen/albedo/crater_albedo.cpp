@@ -105,6 +105,9 @@ void ValidateCraterRays(const CraterRays& rays) {
             "Ray patchiness must be in [0, 1] with a positive patch wavelength");
     }
     ValidateObliqueImpacts(rays.oblique);
+    if (rays.layout) {
+        ValidateRayLayout(*rays.layout);
+    }
 }
 
 void ValidateCraterAlbedoTexture(const CraterAlbedoTexture& texture) {
@@ -427,12 +430,14 @@ bool CraterAlbedo::Eligible(const Crater& crater, RandomStream& random) const {
 }
 
 CraterAlbedo::Ray CraterAlbedo::DrawRay(RandomStream& random, double median,
-                                        const CraterImpact& impact) const {
+                                        const CraterImpact& impact,
+                                        const RayDirection* direction) const {
     const CraterRays& rays = options_.rays;
     const ObliqueImpacts& oblique = rays.oblique;
     const double asymmetry = (impact.speedRatio - 1.0) / (impact.speedRatio + 1.0);
     const double zone = oblique.zoneHalfWidthDegrees * std::numbers::pi / 180.0;
-    const double azimuth = 2.0 * std::numbers::pi * random.NextDouble();
+    const double drawn = 2.0 * std::numbers::pi * random.NextDouble();
+    const double azimuth = direction != nullptr ? direction->azimuth : drawn;
     const double l1 = random.NextDouble();
     const double l2 = random.NextDouble();
     const double w1 = random.NextDouble();
@@ -452,7 +457,10 @@ CraterAlbedo::Ray CraterAlbedo::DrawRay(RandomStream& random, double median,
         (oblique.enabled && impact.angleDegrees < oblique.butterflyDegrees && downrange)) {
         ray.length = 0.0;
     }
-    ray.sinHalfWidth = std::sin(0.5 * rays.widthDegrees.Sample(w1, w2) * std::numbers::pi / 180.0);
+    ray.sinHalfWidth =
+        direction != nullptr
+            ? direction->sinHalfWidth
+            : std::sin(0.5 * rays.widthDegrees.Sample(w1, w2) * std::numbers::pi / 180.0);
     ray.seed = random.NextU32();
     return ray;
 }
@@ -461,11 +469,18 @@ void CraterAlbedo::AddRays(Prepared& prepared, RandomStream& random) const {
     const Crater& crater = prepared.crater;
     const double c1 = random.NextDouble();
     const double c2 = random.NextDouble();
-    const auto count = static_cast<int>(std::lround(options_.rays.count.Sample(c1, c2)));
+    const std::vector<RayDirection> directions = options_.rays.layout
+                                                     ? RayDirections(crater, *options_.rays.layout)
+                                                     : std::vector<RayDirection>{};
+    const auto count = options_.rays.layout
+                           ? static_cast<int>(directions.size())
+                           : static_cast<int>(std::lround(options_.rays.count.Sample(c1, c2)));
     const double median = options_.rays.MedianLength(crater.diameter);
     const CraterImpact impact = Impact(crater);
     for (int i = 0; i < count; ++i) {
-        const Ray ray = DrawRay(random, median, impact);
+        const Ray ray =
+            DrawRay(random, median, impact,
+                    options_.rays.layout ? &directions[static_cast<std::size_t>(i)] : nullptr);
         if (ray.length > 0.5 * crater.diameter) {
             prepared.reach = std::fmax(prepared.reach, ray.length);
             prepared.rays.push_back(ray);
@@ -675,7 +690,7 @@ std::vector<CraterAlbedo::Prepared> CraterAlbedo::Gather(const Bounds2d& region,
         std::size_t shadowed = 0;
         for (Prepared& p : prepared) {
             AddShadows(p, *ground);
-            shadowed += p.shadow ? 1 : 0;
+            shadowed += p.shadow ? 1u : 0u;
         }
         LogDebug("albedo", "Sampled the ground for the zone shadows of ", shadowed, " craters");
     }

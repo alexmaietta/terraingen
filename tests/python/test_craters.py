@@ -278,6 +278,24 @@ def test_secondaries_fall_beyond_the_onset_range(lunar_models):
     table = secondaries.secondaries((-outer, -outer, outer, outer))
     ranges = np.hypot(table["x"], table["y"])
     assert len(ranges) > 50 and ranges.min() >= terraingen.secondary_onset_range(2000.0)
+    layout = terraingen.RayLayout(seed=2)
+    rayed = terraingen.SecondaryCraterOptions(
+        seed=4,
+        onset_count=20.0,
+        min_diameter=20.0,
+        rays=terraingen.SecondaryRays(enabled=True, layout=layout),
+        shapes=terraingen.SecondaryShapes(elongated_share=1.0),
+    )
+    terraingen.validate_secondary_crater_options(rayed)
+    assert rayed.rays.layout.seed == 2 and rayed.shapes.ellipticity.b == pytest.approx(1.8)
+    directions = terraingen.ray_directions(terraingen.Crater(0.0, 0.0, 2000.0), layout)
+    assert len(directions) >= 6 and all(0.0 <= d.azimuth < 2.0 * np.pi for d in directions)
+    bright = terraingen.CraterRays(layout=layout)
+    assert bright.layout.seed == 2
+    with pytest.raises(ValueError):
+        terraingen.validate_ray_layout(
+            terraingen.RayLayout(width_degrees=terraingen.ValueDistribution(a=200.0))
+        )
 
 
 def full_apply_options():

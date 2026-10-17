@@ -12,6 +12,7 @@
 #include "terraingen/layers/sample_block.h"
 #include "terraingen/raster/raster.h"
 
+#include <functional>
 #include <memory>
 
 namespace terraingen {
@@ -30,6 +31,9 @@ struct CraterSampling {
     /// The ground datums are fitted to; empty for the raster as passed in, interpolated
     /// bilinearly.
     HeightSampler ground{};
+    /// Changes each crater's outline after its irregularity, such as secondaries stretched toward
+    /// their primary; empty leaves outlines as they are. Must be deterministic and thread-safe.
+    std::function<void(const Crater&, CraterOutline&)> reshape{};
 };
 
 /// How far, in crater radii, a crater changes the terrain: the profile's reach, or the ejecta's

@@ -281,7 +281,7 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
     const double resolved = ResolvedSpacing(raster, sampling.spacing, options.surface);
     const CraterProfile& profile = *models.profile;
     std::vector<PreparedCrater> prepared =
-        PrepareCraters(craters, options, resolved, *models.degradation);
+        PrepareCraters(craters, options, resolved, *models.degradation, sampling.reshape);
     std::vector<std::size_t> onRaster;
     std::vector<std::vector<PixelWindow>> windows;
     for (std::size_t k = 0; k < prepared.size(); ++k) {
@@ -325,7 +325,7 @@ void ApplyCraters(SampleBlock& samples, const CraterList& craters, const CraterS
     }
     const CraterProfile& profile = *models.profile;
     std::vector<PreparedCrater> prepared =
-        PrepareCraters(craters, options, sampling.spacing, *models.degradation);
+        PrepareCraters(craters, options, sampling.spacing, *models.degradation, sampling.reshape);
     const std::vector<ReachingCrater> reaching =
         CratersReaching(samples, prepared, CraterReachRadii(profile, options), options.surface);
     if (options.datum != CraterDatum::None && !reaching.empty()) {

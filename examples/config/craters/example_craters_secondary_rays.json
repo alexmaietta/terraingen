@@ -1,0 +1,71 @@
+{
+    "schema_version": 1,
+    "layers": [
+        {
+            "type": "craters",
+            "generate": false,
+            "manual": [
+                {
+                    "x": 0,
+                    "y": 0,
+                    "diameter": 5000,
+                    "age_gyr": 0.02
+                }
+            ]
+        },
+        {
+            "type": "secondaries",
+            "seed": 4,
+            "onset_count": 150,
+            "min_diameter": 32,
+            "rays": {
+                "enabled": true,
+                "layout": {
+                    "seed": 4
+                }
+            },
+            "shapes": {
+                "elongated_share": 0.8
+            }
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_craters_secondary_rays.tif",
+            "region": {
+                "width": 1537,
+                "height": 1537,
+                "pixel_size": 24,
+                "centre_x": 18000
+            }
+        },
+        {
+            "type": "albedo",
+            "path": "example_craters_secondary_rays_albedo.tif",
+            "region": {
+                "width": 1537,
+                "height": 1537,
+                "pixel_size": 24,
+                "centre_x": 18000
+            }
+        }
+    ],
+    "albedo": {
+        "source": {
+            "type": "synthetic",
+            "value": 0.11
+        },
+        "layers": [
+            {
+                "type": "craters",
+                "manual": true,
+                "rays": {
+                    "layout": {
+                        "seed": 4
+                    }
+                }
+            }
+        ]
+    }
+}

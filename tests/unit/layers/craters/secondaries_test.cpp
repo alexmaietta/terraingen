@@ -7,6 +7,7 @@
 #include <numbers>
 #include <set>
 #include <stdexcept>
+#include <unordered_map>
 
 using terraingen::Crater;
 using terraingen::CraterLayer;
@@ -242,4 +243,157 @@ TEST(ElliottMedianRayLength, FollowsTheirPowerLawInRadiusInKilometres) {
     const SecondaryCraterLayer layer(Primaries({0.0, 0.0, 2000.0, 0.0, 9u, true}), Models(),
                                      Options());
     EXPECT_DOUBLE_EQ(layer.OuterRange(2000.0), 1.6 * 6590.0);
+}
+
+TEST(RayDirections, AreDrawnFromTheCraterAndTheLayout) {
+    const Crater crater{0.0, 0.0, 2000.0, 0.0, 9u, true};
+    const terraingen::RayLayout layout;
+    const auto rays = terraingen::RayDirections(crater, layout);
+    ASSERT_GE(rays.size(), 6u);
+    ASSERT_LE(rays.size(), 20u);
+    for (const auto& ray : rays) {
+        EXPECT_GE(ray.azimuth, 0.0);
+        EXPECT_LT(ray.azimuth, 2.0 * std::numbers::pi);
+        EXPECT_GT(ray.sinHalfWidth, std::sin(0.5 * 5.4 * std::numbers::pi / 180.0) - 1e-12);
+        EXPECT_LT(ray.sinHalfWidth, std::sin(0.5 * 38.6 * std::numbers::pi / 180.0) + 1e-12);
+    }
+    const auto again = terraingen::RayDirections(crater, layout);
+    ASSERT_EQ(again.size(), rays.size());
+    EXPECT_EQ(again[0].azimuth, rays[0].azimuth);
+    terraingen::RayLayout other = layout;
+    other.seed = 1;
+    EXPECT_NE(terraingen::RayDirections(crater, other)[0].azimuth, rays[0].azimuth);
+    other.count = {terraingen::ValueDistribution::Kind::Constant, 65.0};
+    EXPECT_THROW(terraingen::ValidateRayLayout(other), std::invalid_argument);
+    other = layout;
+    other.widthDegrees = {terraingen::ValueDistribution::Kind::Constant, 180.0};
+    EXPECT_THROW(terraingen::ValidateRayLayout(other), std::invalid_argument);
+}
+
+TEST(SecondaryCraterLayer, RaysGatherSecondariesWithoutAddingAny) {
+    const Crater primary{0.0, 0.0, 2000.0, 0.0, 9u, true};
+    SecondaryCraterOptions even = Options(60.0, 20.0);
+    SecondaryCraterOptions rayed = even;
+    rayed.rays.enabled = true;
+    rayed.rays.share = 1.0;
+    const SecondaryCraterLayer evenLayer(Primaries(primary), Models(), even);
+    const SecondaryCraterLayer rayLayer(Primaries(primary), Models(), rayed);
+    const double outer = evenLayer.OuterRange(2000.0);
+    const terraingen::Bounds2d all{-outer, -outer, outer, outer};
+    const CraterList spread = evenLayer.Secondaries(all);
+    const CraterList gathered = rayLayer.Secondaries(all);
+    ASSERT_GT(spread.Size(), 400u);
+    const double n = static_cast<double>(spread.Size());
+    EXPECT_NEAR(static_cast<double>(gathered.Size()), n, 0.15 * n) << "moved, not added";
+
+    const auto rays = terraingen::RayDirections(primary, rayed.rays.layout);
+    const auto nearRay = [&](const CraterList& craters) {
+        int near = 0;
+        for (std::size_t i = 0; i < craters.Size(); ++i) {
+            const Crater c = craters.At(i);
+            const double range = std::hypot(c.x, c.y);
+            const double azimuth = std::atan2(c.y, c.x);
+            for (const auto& ray : rays) {
+                const double delta = std::remainder(azimuth - ray.azimuth, 2.0 * std::numbers::pi);
+                const double width = std::fmax(2000.0 * ray.sinHalfWidth,
+                                               range * std::sin(2.0 * std::numbers::pi / 180.0));
+                if (std::cos(delta) > 0.0 && range * std::sin(std::fabs(delta)) < width) {
+                    ++near;
+                    break;
+                }
+            }
+        }
+        return static_cast<double>(near) / static_cast<double>(craters.Size());
+    };
+    EXPECT_GT(nearRay(gathered), 0.7);
+    EXPECT_LT(nearRay(spread), 0.5 * nearRay(gathered));
+}
+
+TEST(SecondaryCraterLayer, ElongatesSecondariesTowardTheirPrimary) {
+    const Crater primary{0.0, 0.0, 2000.0, 0.0, 9u, true};
+    SecondaryCraterOptions options = Options(60.0, 20.0);
+    options.shapes.elongatedShare = 1.0;
+    options.shapes.ellipticity = {terraingen::ValueDistribution::Kind::Constant, 1.6};
+    const SecondaryCraterLayer layer(Primaries(primary), Models(), options);
+    const double outer = layer.OuterRange(2000.0);
+    const double onset = terraingen::SecondaryOnsetRange(2000.0);
+    std::unordered_map<std::uint64_t, terraingen::SecondaryOutline> outlines;
+    const CraterList all = layer.Secondaries({-outer, -outer, outer, outer}, 0.0, outlines);
+    ASSERT_GT(all.Size(), 100u);
+    ASSERT_EQ(outlines.size(), all.Size());
+    for (std::size_t i = 0; i < all.Size(); ++i) {
+        const Crater c = all.At(i);
+        const auto& outline = outlines.at(c.id);
+        const double range = std::hypot(c.x, c.y);
+        EXPECT_NEAR(outline.ellipticity, 1.0 + 0.6 * (outer - range) / (outer - onset), 1e-9);
+        EXPECT_NEAR(std::sin(outline.heading - std::atan2(c.y, c.x)), 0.0, 1e-9)
+            << "the long axis points back to the primary";
+    }
+    EXPECT_DOUBLE_EQ(terraingen::SecondaryStretch(options.shapes), std::sqrt(1.6));
+    EXPECT_DOUBLE_EQ(terraingen::SecondaryStretch({}), 1.0);
+}
+
+TEST(SecondaryCraterLayer, RaysAndShapesKeepGridsTilesAndPointsInStep) {
+    const Crater primary{0.0, 0.0, 1500.0, 0.1, 4u, true};
+    SecondaryCraterOptions options = Options(60.0, 6.0);
+    options.rays.enabled = true;
+    options.shapes.elongatedShare = 0.8;
+    const SecondaryCraterLayer layer(Primaries(primary), Models(), options);
+    terraingen::Raster<float> whole(96, 96, 0.0f);
+    whole.SetTransform(terraingen::GeoTransform::NorthUp(3300.0, 400.0, 4.0));
+    layer.Apply(whole, {.spacing = 4.0, .threads = 0});
+    int changed = 0;
+    for (const float v : whole.Values()) {
+        changed += v != 0.0f ? 1 : 0;
+    }
+    EXPECT_GT(changed, 20);
+    terraingen::Raster<float> tile(32, 32, 0.0f);
+    tile.SetTransform(terraingen::GeoTransform::NorthUp(3300.0 + 128.0, 400.0 - 128.0, 4.0));
+    layer.Apply(tile, {.spacing = 4.0, .threads = 1});
+    for (std::size_t row = 0; row < 32; ++row) {
+        for (std::size_t col = 0; col < 32; ++col) {
+            ASSERT_NEAR(tile(col, row), whole(col + 32, row + 32), 1e-5f);
+            const auto centre = tile.CellCenter(col, row);
+            ASSERT_EQ(layer.ApplyAt(0.0f, centre.x, centre.y, {4.0}), tile(col, row));
+        }
+    }
+}
+
+TEST(SecondaryCraterLayer, RejectsInvalidRaysAndShapes) {
+    const auto rejects = [](auto change) {
+        SecondaryCraterOptions options = Options();
+        change(options);
+        EXPECT_THROW(terraingen::ValidateSecondaryCraterOptions(options), std::invalid_argument);
+    };
+    rejects([](SecondaryCraterOptions& o) { o.rays.share = 1.5; });
+    rejects([](SecondaryCraterOptions& o) { o.rays.clustering = -0.1; });
+    rejects([](SecondaryCraterOptions& o) { o.rays.minHalfAngleDegrees = 0.0; });
+    rejects([](SecondaryCraterOptions& o) { o.rays.clusterSpacing = 0.0; });
+    rejects([](SecondaryCraterOptions& o) {
+        o.rays.layout.count = {terraingen::ValueDistribution::Kind::Constant, -1.0};
+    });
+    rejects([](SecondaryCraterOptions& o) { o.shapes.elongatedShare = 2.0; });
+    rejects([](SecondaryCraterOptions& o) {
+        o.shapes.ellipticity = {terraingen::ValueDistribution::Kind::Constant, 0.9};
+    });
+    rejects([](SecondaryCraterOptions& o) {
+        o.shapes.ellipticity = {terraingen::ValueDistribution::Kind::LogNormal, 1.2, 0.3};
+    });
+}
+
+TEST(SecondaryCraterLayer, PrimariesWithoutRaysSpreadTheirSecondaries) {
+    const Crater primary{0.0, 0.0, 2000.0, 0.0, 9u, true};
+    SecondaryCraterOptions options = Options(30.0, 20.0);
+    const SecondaryCraterLayer even(Primaries(primary), Models(), options);
+    options.rays.enabled = true;
+    options.rays.layout.count = {terraingen::ValueDistribution::Kind::Constant, 0.0};
+    const SecondaryCraterLayer none(Primaries(primary), Models(), options);
+    const double outer = even.OuterRange(2000.0);
+    const terraingen::Bounds2d all{-outer, -outer, outer, outer};
+    const CraterList a = even.Secondaries(all);
+    const CraterList b = none.Secondaries(all);
+    ASSERT_EQ(a.Size(), b.Size());
+    for (std::size_t i = 0; i < a.Size(); ++i) {
+        EXPECT_EQ(a.At(i), b.At(i));
+    }
 }

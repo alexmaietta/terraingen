@@ -244,6 +244,44 @@ template <typename IO> void Fields(IO& io, CraterLayerSpec& craters) {
        "outlines.");
 }
 
+template <typename IO> void Fields(IO& io, RayLayout& layout) {
+    io("seed", layout.seed,
+       "Seed of the rays' directions; layers with the same layout share the same rays.");
+    io("count", layout.count, "Number of rays of a crater, drawn per crater and rounded; 0 to 64.");
+    io("width_degrees", layout.widthDegrees,
+       "Angle in degrees a ray spans 2 radii from the centre, drawn per ray, within (0, 180).");
+}
+
+template <typename IO> void Fields(IO& io, SecondaryRays& rays) {
+    io("enabled", rays.enabled,
+       "Gathers secondaries into their primary's rays and clumps them along each ray, as radial "
+       "chains and clusters; off spreads them evenly.");
+    io("layout", rays.layout,
+       "The rays; give a crater albedo layer's rays the same layout for bright rays over the "
+       "secondaries.");
+    io("share", rays.share,
+       "Share of secondaries in rays, from 0 to 1; the rest stay spread evenly. Illustrative.");
+    io("min_half_angle_degrees", rays.minHalfAngleDegrees,
+       "Narrowest half width of a ray, in degrees from 0 to 90 excluded, so rays widen with range "
+       "beyond their width near the primary. Illustrative.",
+       "deg");
+    io("clustering", rays.clustering,
+       "How strongly secondaries clump along a ray, from 0 for evenly along it to 1 for only in "
+       "clumps. Illustrative.");
+    io("cluster_spacing", rays.clusterSpacing,
+       "Typical spacing of clumps along a ray, in natural log of range; positive, smaller values "
+       "give shorter, more frequent clumps. Illustrative.");
+}
+
+template <typename IO> void Fields(IO& io, SecondaryShapes& shapes) {
+    io("elongated_share", shapes.elongatedShare,
+       "Share of secondaries, from 0 to 1, stretched along the line back to their primary; 0 keeps "
+       "them round.");
+    io("ellipticity", shapes.ellipticity,
+       "Long over short axis of an elongated secondary near the primary, drawn per secondary; at "
+       "least 1, falling to 1 at the outer range.");
+}
+
 template <> struct SpecName<SecondaryLayerSpec> {
     static constexpr std::string_view kName = "secondaries";
     static constexpr std::string_view kDescription =
@@ -288,6 +326,8 @@ template <typename IO> void Fields(IO& io, SecondaryLayerSpec& spec) {
     io("cell_size_factor", o.cellSizeFactor,
        "Side of the polar cells secondaries are drawn in, as a multiple of each size band's "
        "largest diameter.");
+    io("rays", o.rays, "Secondaries gathered into rays and clumped along them; off by default.");
+    io("shapes", o.shapes, "Secondaries stretched toward their primary; round by default.");
     io("depth_ratio", spec.depthRatio,
        "Depth over diameter every secondary is given, with no wear by age; lower values give "
        "shallower secondaries.");

@@ -800,3 +800,31 @@ TEST(CraterAlbedo, ShadowsSkipTheRimNoDataAndCratersWithoutDistalZones) {
         CraterAlbedo(Craters({crater}), options).ReflectanceChange(crater, 40.0, 0.0, 0.1, &ridge),
         -0.09);
 }
+
+TEST(CraterAlbedo, RaysCanFollowASharedLayout) {
+    const Crater crater{0.0, 0.0, 400.0, 0.0, 7u, true};
+    CraterAlbedoOptions options;
+    options.interiorExcess = 0.0;
+    options.ejectaExcess = 0.0;
+    options.rays.patchiness = 0.0;
+    options.rays.oblique.enabled = false;
+    options.rays.lengthSpread = {ValueDistribution::Kind::Constant, 0.0};
+    options.rays.layout = terraingen::RayLayout{.seed = 3};
+    const CraterAlbedo layer(Craters({crater}), options);
+    const auto directions = terraingen::RayDirections(crater, *options.rays.layout);
+    ASSERT_FALSE(directions.empty());
+    for (const auto& ray : directions) {
+        const double r = 600.0;
+        EXPECT_GT(layer.Excess(crater, r * std::cos(ray.azimuth), r * std::sin(ray.azimuth), 1.0),
+                  0.0)
+            << "a ray along each shared direction";
+    }
+    int lit = 0;
+    for (int k = 0; k < 720; ++k) {
+        const double a = 2.0 * std::numbers::pi * k / 720.0;
+        lit += layer.Excess(crater, 600.0 * std::cos(a), 600.0 * std::sin(a), 1.0) > 0.0 ? 1 : 0;
+    }
+    EXPECT_LT(lit, 700) << "and dark between them";
+    options.rays.layout->widthDegrees = {ValueDistribution::Kind::Constant, 200.0};
+    EXPECT_THROW(terraingen::ValidateCraterAlbedo(options), std::invalid_argument);
+}

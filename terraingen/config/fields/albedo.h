@@ -137,6 +137,10 @@ template <typename IO> void Fields(IO& io, CraterRays& rays) {
        "shorter patches.");
     io("oblique", rays.oblique,
        "How oblique impacts lengthen rays downrange and clear them uprange.");
+    io("layout", rays.layout,
+       "Takes the rays' number, directions and widths from this layout in place of count and "
+       "width_degrees, so they lie over a secondaries layer with the same layout; unset draws them "
+       "per crater.");
 }
 
 template <typename IO> void Fields(IO& io, RayRetention& retention) {

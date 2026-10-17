@@ -6,6 +6,7 @@
 #include "terraingen/albedo/maturity.h"
 #include "terraingen/layers/craters/crater.h"
 #include "terraingen/layers/craters/crater_layer.h"
+#include "terraingen/layers/craters/rays.h"
 #include "terraingen/layers/craters/shaping/irregularity.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/random/value_distribution.h"
@@ -90,6 +91,10 @@ struct CraterRays {
     double patchiness = 0.5;   ///< Most of the excess the noise takes away, in [0, 1].
     double patchRadii = 0.5;   ///< Noise wavelength, in crater radii; positive.
     ObliqueImpacts oblique{};  ///< How oblique impacts shape the rays.
+    /// Takes the rays' number, directions and widths from this layout (`RayDirections`) in place
+    /// of `count` and `widthDegrees`, so they lie over secondaries with the same layout; unset
+    /// draws them per crater as before.
+    std::optional<RayLayout> layout;
 
     /// The median ray length from the centre, in metres, of a crater `diameter` metres across.
     double MedianLength(double diameter) const;
@@ -100,7 +105,7 @@ struct CraterRays {
 /// Checks ray settings.
 /// @throws std::invalid_argument for invalid distributions, a count that can be below 0 or above
 /// 64, widths outside (0, 180) degrees, a non-positive coefficient or exponent, a negative excess,
-/// a patchiness outside [0, 1] or a non-positive patch wavelength.
+/// a patchiness outside [0, 1], a non-positive patch wavelength or an invalid layout.
 void ValidateCraterRays(const CraterRays& rays);
 
 /// The texture of fresh craters' bright material, keyed to each crater and off by default: radial
@@ -322,7 +327,8 @@ class CraterAlbedo final : public AlbedoLayer {
     /// `random`.
     bool Eligible(const Crater& crater, RandomStream& random) const;
     /// The next ray of `random`, for a crater of median ray length `median` formed by `impact`.
-    Ray DrawRay(RandomStream& random, double median, const CraterImpact& impact) const;
+    Ray DrawRay(RandomStream& random, double median, const CraterImpact& impact,
+                const RayDirection* direction) const;
     /// Draws the rays of `prepared`, widening its reach to the longest.
     void AddRays(Prepared& prepared, RandomStream& random) const;
     /// Draws the reflectance zones of `prepared`, widening its reach to the farthest, for a crater

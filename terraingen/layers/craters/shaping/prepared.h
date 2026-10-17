@@ -7,6 +7,7 @@
 #include "terraingen/layers/craters/shaping/apply_options.h"
 #include "terraingen/layers/craters/shaping/irregularity.h"
 
+#include <functional>
 #include <optional>
 #include <vector>
 
@@ -37,11 +38,12 @@ struct PreparedCrater {
 };
 
 /// The craters with a non-zero resolution weight at `spacing`, prepared in `CraterApplyOrder`
-/// without datums.
+/// without datums; `reshape`, when set, changes each outline after `OutlineOf`.
 /// @param spacing Sample spacing in metres; positive.
 /// @throws std::domain_error as `DegradationModel::State`.
-std::vector<PreparedCrater> PrepareCraters(const CraterList& craters,
-                                           const CraterApplyOptions& options, double spacing,
-                                           const DegradationModel& degradation);
+std::vector<PreparedCrater>
+PrepareCraters(const CraterList& craters, const CraterApplyOptions& options, double spacing,
+               const DegradationModel& degradation,
+               const std::function<void(const Crater&, CraterOutline&)>& reshape = {});
 
 }  // namespace terraingen

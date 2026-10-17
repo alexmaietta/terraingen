@@ -221,6 +221,7 @@ void BindRays(nb::module_& m) {
         .def_rw("patchiness", &CraterRays::patchiness)
         .def_rw("patch_radii", &CraterRays::patchRadii)
         .def_rw("oblique", &CraterRays::oblique)
+        .def_rw("layout", &CraterRays::layout)
         .def("median_length", &CraterRays::MedianLength, "diameter"_a);
     m.def("validate_crater_rays", &ValidateCraterRays, "rays"_a, kValidateDoc);
 }
