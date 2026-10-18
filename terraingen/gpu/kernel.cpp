@@ -24,7 +24,7 @@ constexpr std::size_t kGroupSide = 16;
 /// Most workgroups Vulkan guarantees in one dimension of a dispatch; CUDA and Metal allow more.
 constexpr std::size_t kMaxGroups = 65535;
 
-/// The push constants of kernels (`cmake/Kernel.slang.in`).
+/// The push constants of kernels (`terraingen/gpu/kernel.slang`).
 struct KernelParams {
     std::uint32_t width = 0;
     std::uint32_t rows = 0;
