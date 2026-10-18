@@ -451,6 +451,34 @@ jobs:
           path: dist
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
 
+  # The "latest" pre-release: main's packages and their checksums, replaced on every push to main.
+  # Marked as a pre-release and never as the latest release, so versioned releases stay the default.
+  latest:
+    needs: [lint, test, packages, package-test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: "packages-*"
+          merge-multiple: true
+          path: assets
+      - name: Flatten
+        run: find assets -mindepth 2 -type f -exec mv -t assets {} + && find assets -mindepth 1 -type d -empty -delete
+      - name: Checksums
+        run: cd assets && sha256sum -- * > SHA256SUMS
+      - name: Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete latest --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
+          gh release create latest assets/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --prerelease --latest=false --title "Latest (main)" \
+            --notes "Built from main at $GITHUB_SHA. For versioned binaries, use a tagged release."
+
   # A GitHub release for each v* tag, with every wheel, the sdist, the packages and their checksums.
   release:
     needs: [lint, test, wheel, sdist, package-test, docker]

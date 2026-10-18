@@ -38,7 +38,7 @@ We also provide:
 
 For more information on the concepts behind TerrainGen and the API, see our latest [documentation](https://alexmaietta.github.io/terraingen/).
 
-## Getting Started
+## Quick Start
 
 We recommended getting started by installing `terraingenpy` from PyPi and running the GUI.
 
@@ -47,20 +47,103 @@ pip install terraingenpy
 terraingen --gui
 ```
 
-### Python
+## Requirements
 
-### C++
-
-### Examples
+- Linux (Ubuntu 22.04 or newer), macOS 14 or newer, or Windows 10 or newer, on x86_64 or arm64.
+- Python 3.10 or newer for the Python package.
+- Optional: a Vulkan, CUDA or Metal driver for GPU acceleration. Run `terraingen backends` to see what is available.
 
 ## Installation
 
+### Releases
+
+Every [release](https://github.com/alexmaietta/terraingen/releases) has the CLI, library, headers and CMake package for each platform, and `.deb` packages for Ubuntu and Debian. The [latest](https://github.com/alexmaietta/terraingen/releases/tag/latest) pre-release is built from `main` on every push.
+
+### Building from Source
+
+You need CMake 3.22 or newer and a C++20 compiler (GCC 11, Clang 14, Apple Clang 15 or MSVC 2022). CMake fetches everything else.
+
+```sh
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j 8
+cmake --install build --prefix /usr/local
+```
+
+To build the Python package from source, run `pip install .` instead.
+
+### Docker
+
+```sh
+docker run --rm ghcr.io/alexmaietta/terraingen:latest terraingen --help
+```
+
+The `dev` tag follows `main`.
+
+## Getting Started
+
+### Python
+
+```python
+import terraingen
+
+fbm = terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=800.0, amplitude=40.0))
+terrain = terraingen.Terrain(terraingen.FlatSource(513, 513, 2.0), [terraingen.NoiseRelief([fbm])])
+heights = terraingen.evaluate(terrain)
+terraingen.write_geotiff("terrain.tif", heights)
+```
+
+### C++
+
+```cmake
+find_package(terraingen REQUIRED)
+target_link_libraries(app PRIVATE terraingen::terraingen)
+```
+
+```cpp
+#include <terraingen/terraingen.h>
+
+int main() {
+    terraingen::NoiseLayer fbm;
+    fbm.fractal.seed = 1;
+    fbm.fractal.wavelength = 800.0f;
+    fbm.fractal.amplitude = 40.0f;
+
+    terraingen::Terrain terrain;
+    terrain.source = std::make_shared<terraingen::FlatSource>(513, 513, 2.0);
+    terrain.layers.push_back(
+        std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{fbm}}));
+    terraingen::WriteGeoTiff("terrain.tif", terraingen::Evaluate(terrain));
+}
+```
+
+### Examples
+
+[examples/](examples/) has the same terrains as JSON configurations, C++ programs and Python scripts, covering basic terrains, craters, boulders, albedo, planets, DEM detail and tiles:
+
+```sh
+terraingen examples/config/craters/example_craters_simple.json
+```
+
+### Demos
+
+[demos/](demos/) has larger showcases, such as terrain over a whole asteroid built from the Itokawa shape model.
 
 ## Contributing
 
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to build, test and submit changes.
+
 ### Documentation
 
+The [documentation](https://alexmaietta.github.io/terraingen/) is built with MkDocs and Doxygen from [docs/](docs/). Run `make -C docs build` to build it locally.
+
 ### Code Coverage
+
+The [coverage report](https://alexmaietta.github.io/terraingen/coverage/) is updated on every push to `main`. To generate it locally:
+
+```sh
+cmake -S . -B build-coverage -DTERRAINGEN_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug
+cmake --build build-coverage -j 8 --target coverage
+```
 
 ## Citation
 
