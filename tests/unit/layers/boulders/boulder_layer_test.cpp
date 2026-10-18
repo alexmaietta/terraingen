@@ -5,12 +5,14 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <functional>
 #include <map>
 #include <memory>
 #include <numbers>
 #include <set>
+#include <span>
 #include <stdexcept>
 
 using terraingen::Boulder;
@@ -1189,4 +1191,56 @@ TEST(BoulderLayer, RollsBouldersDownSteepGroundToRestAtItsFoot) {
         << "those that would roll farther are left out";
     options.pose.maxSlope.reset();
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument) << "rolling needs a max slope";
+}
+
+namespace {
+
+/// A sloping ground that counts how it is read, optionally refusing batches.
+class Counted final : public terraingen::Ground {
+  public:
+    explicit Counted(bool batches) : batches_(batches) {}
+    float HeightAt(double x, double y, double /*spacing*/) const override {
+        ++single_;
+        return static_cast<float>(0.1 * x + 0.05 * y * y);
+    }
+    void HeightsAt(std::span<const terraingen::Vec2d> points, std::span<float> heights,
+                   double spacing) const override {
+        if (!batches_) {
+            Ground::HeightsAt(points, heights, spacing);
+            return;
+        }
+        ++batched_;
+        for (std::size_t n = 0; n < points.size(); ++n) {
+            heights[n] = static_cast<float>(0.1 * points[n].x + 0.05 * points[n].y * points[n].y);
+        }
+    }
+    mutable std::atomic<int> single_{0};
+    mutable std::atomic<int> batched_{0};
+
+  private:
+    bool batches_;
+};
+
+}  // namespace
+
+TEST(BoulderLayer, ReadsTheGroundBeneathItsBouldersInOnePass) {
+    BoulderLayerOptions options;
+    options.sizes.coverage = 0.05;
+    options.pose.followSlope = true;
+    options.pose.maxSlope = 1.2;
+    const BoulderLayer layer(options);
+    const Bounds2d region{-10.0, -10.0, 10.0, 10.0};
+    const Counted batched(true);
+    const Counted single(false);
+    const auto fast = layer.Boulders(region, 0.0, &batched);
+    const auto slow = layer.Boulders(region, 0.0, &single);
+    ASSERT_GT(fast.size(), 20u);
+    EXPECT_EQ(batched.batched_.load(), 1);
+    EXPECT_EQ(batched.single_.load(), 0) << "every point the boulders read was fetched";
+    ASSERT_EQ(fast.size(), slow.size());
+    for (std::size_t n = 0; n < fast.size(); ++n) {
+        EXPECT_EQ(fast[n].id, slow[n].id);
+        EXPECT_EQ(fast[n].ground, slow[n].ground);
+        EXPECT_EQ(fast[n].tilt, slow[n].tilt);
+    }
 }

@@ -60,16 +60,20 @@ double Retention(const BoulderEjecta& ejecta, const Crater& crater,
 
 }  // namespace
 
-CraterList BoulderLayer::EjectaCraters(const Bounds2d& region) const {
+EjectaIndex BoulderLayer::EjectaCraters(const Bounds2d& region) const {
     if (minCraterDiameter_ <= 0.0) {
         return {};
     }
     const double margin = options_.ejecta.reach * 0.5 * craters_->MaxFeatureDiameter();
     const double spacing = minCraterDiameter_ / craters_->Options().apply.fade.startSamples;
     const CraterList all = craters_->Craters(surface_.Expand(region, margin), spacing);
-    return FilterCraters(all, [&](std::size_t, const Crater& crater) {
+    CraterList ejecta = FilterCraters(all, [&](std::size_t, const Crater& crater) {
         return crater.diameter >= minCraterDiameter_;
     });
+    const auto reach = [&](const Crater& crater) {
+        return EjectaReach(options_.ejecta, crater.diameter) * 0.5 * crater.diameter;
+    };
+    return {std::move(ejecta), surface_, reach};
 }
 
 double BoulderLayer::NearestClusterDistance(double x, double y) const {
@@ -207,14 +211,14 @@ double BoulderLayer::BedrockMean(double x, double y, const Ground& ground) const
            (1.0 - tu) * tv * cellMean(i, j + 1) + tu * tv * cellMean(i + 1, j + 1);
 }
 
-void BoulderLayer::EjectaAbundance(double x, double y, const CraterList& ejecta,
+void BoulderLayer::EjectaAbundance(double x, double y, const EjectaIndex& ejecta,
                                    BoulderAbundance& abundance) const {
     const BoulderEjecta& eject = options_.ejecta;
     const DegradationModel& degradation = *craters_->Models().degradation;
     double share = 0.0;
     double wear = 0.0;
-    for (std::size_t n = 0; n < ejecta.Size(); ++n) {
-        const Crater crater = ejecta.At(n);
+    for (const std::uint32_t n : ejecta.Near(x, y)) {
+        const Crater crater = ejecta.Craters().At(n);
         const double reach = EjectaReach(eject, crater.diameter);
         const double rho =
             surface_.Distance({crater.x, crater.y}, {x, y}) / (0.5 * crater.diameter);
@@ -236,7 +240,7 @@ void BoulderLayer::EjectaAbundance(double x, double y, const CraterList& ejecta,
 }
 
 BoulderAbundance BoulderLayer::Abundance(double x, double y, const Ground* ground,
-                                         const CraterList& ejecta) const {
+                                         const EjectaIndex& ejecta) const {
     BoulderAbundance abundance;
     if (!ejecta.Empty()) {
         EjectaAbundance(x, y, ejecta, abundance);

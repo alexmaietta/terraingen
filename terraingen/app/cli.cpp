@@ -112,11 +112,13 @@ int Generate(const std::vector<std::string>& args, std::ostream& out, std::ostre
         const std::filesystem::path inputs = parsed.config.parent_path();
         const GeneratedTerrain terrain =
             GenerateTerrain(config, inputs, parsed.threads, parsed.backend);
-        const auto written = WriteOutputs(config, terrain, parsed.outputDir.value_or(inputs));
+        const std::filesystem::path outputs = parsed.outputDir.value_or(inputs);
+        const Stopwatch stopwatch;
+        const auto written = WriteOutputs(config, terrain, outputs);
         out << Summary(terrain) << "\n";
-        for (const auto& path : written) {
-            out << "Wrote " << path.string() << "\n";
-        }
+        out << "Wrote " << written.size() << (written.size() == 1 ? " file" : " files") << " to "
+            << (outputs.empty() ? std::filesystem::path(".") : outputs).string() << " in "
+            << FormatDuration(stopwatch.Milliseconds()) << "\n";
     });
 }
 

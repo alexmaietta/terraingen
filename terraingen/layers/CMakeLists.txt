@@ -19,6 +19,7 @@ terraingen_add_library(
     sample_block.cpp
     transforms.cpp
     boulders/abundance.cpp
+    boulders/ejecta_index.cpp
     boulders/boulder_layer.cpp
     boulders/boulder_models.cpp
     boulders/boulder_options.cpp

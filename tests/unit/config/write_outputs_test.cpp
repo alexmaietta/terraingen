@@ -1,4 +1,5 @@
 #include "configs.h"
+#include "support/log_capture.h"
 #include "support/raster_equality.h"
 #include "support/temp_path.h"
 #include "terraingen/config/generate.h"
@@ -82,6 +83,17 @@ TEST(WriteOutputs, WritesBoulderListsAndBoulderModels) {
     EXPECT_NE(ReadText(written[1]).find("\"model\": true"), std::string::npos);
     EXPECT_EQ(ReadText(written[2]).substr(0, 4), "glTF");
     EXPECT_EQ(ReadText(written[3]).substr(0, 10), "TerrainGen") << "a binary STL";
+
+    const auto generations = [&](const TerrainConfig& outputs) {
+        const terraingen::testing::LogCapture capture(terraingen::LogLevel::Debug);
+        WriteOutputs(outputs, terrain, directory);
+        return capture.Matching("boulders", terraingen::LogLevel::Debug).size();
+    };
+    TerrainConfig one = config;
+    one.outputs.resize(1);
+    EXPECT_GT(generations(one), 0u);
+    EXPECT_EQ(generations(config), generations(one))
+        << "the outputs over one region share the boulders placed for the first";
 
     terraingen::BoulderLayerSpec none;
     none.boulders.sizes.minDiameter = 0.5;

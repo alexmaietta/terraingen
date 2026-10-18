@@ -136,16 +136,19 @@ std::array<double, 9> SettleRotation(std::vector<Vec3d> points, Vec3d centre) {
         const Vec3d a{-d.y, d.x, 0.0};
         const Vec3d up{0.0, 0.0, 1.0};
         const Vec3d o{pivot.x, pivot.y, low};
-        double angle = std::numeric_limits<double>::infinity();
+        double rise = 0.0;
+        double run = 0.0;
         for (const Vec3d& p : points) {
             const double u = Dot(p - o, d);
-            if (u > tolerance) {
-                angle = std::fmin(angle, std::atan2(p.z - low, u));
+            if (u > tolerance && (run == 0.0 || (p.z - low) * run < rise * u)) {
+                rise = p.z - low;
+                run = u;
             }
         }
-        if (!std::isfinite(angle)) {
+        if (run == 0.0) {
             break;
         }
+        const double angle = std::atan2(rise, run);
         const double cs = std::cos(angle);
         const double sn = std::sin(angle);
         const auto turn = [&](const Vec3d& p) {

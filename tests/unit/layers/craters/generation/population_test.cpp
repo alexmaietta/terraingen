@@ -206,13 +206,14 @@ TEST(GenerateCraters, LogsASummaryAndEachBand) {
     const CraterList craters =
         GenerateCraters(kCells, {0.0, 0.0, 200.0, 200.0}, PowerLawSfd(0.1, 2.0), FreshAges(), 3u,
                         {.dMin = 3.0, .dMax = 20.0});
-    const auto summary = capture.Matching("craters", terraingen::LogLevel::Info);
-    ASSERT_EQ(summary.size(), 1u);
-    EXPECT_EQ(summary[0].message.rfind(
+    EXPECT_TRUE(capture.Matching("craters", terraingen::LogLevel::Info).empty())
+        << "generation runs per tile and per query, so its summary is detail";
+    const auto records = capture.Matching("craters", terraingen::LogLevel::Debug);
+    ASSERT_EQ(records.size(), 5u) << "each band, then the summary";
+    EXPECT_EQ(records.back().message.rfind(
                   "Generated " + std::to_string(craters.Size()) + " craters (3-20 m, 4 bands", 0),
               0u)
-        << summary[0].message;
-    EXPECT_EQ(capture.Matching("craters", terraingen::LogLevel::Debug).size(), 4u);
+        << records.back().message;
 }
 
 TEST(GenerateCraters, LogsUnderTheNameItIsGiven) {
@@ -221,14 +222,13 @@ TEST(GenerateCraters, LogsUnderTheNameItIsGiven) {
     options.logName = "boulders";
     const CraterList boulders = GenerateCraters(kCells, {0.0, 0.0, 200.0, 200.0},
                                                 PowerLawSfd(0.1, 2.0), FreshAges(), 3u, options);
-    EXPECT_TRUE(capture.Matching("craters", terraingen::LogLevel::Info).empty());
-    const auto summary = capture.Matching("boulders", terraingen::LogLevel::Info);
-    ASSERT_EQ(summary.size(), 1u);
-    EXPECT_EQ(
-        summary[0].message.rfind("Generated " + std::to_string(boulders.Size()) + " boulders (", 0),
-        0u)
-        << summary[0].message;
-    EXPECT_EQ(capture.Matching("boulders", terraingen::LogLevel::Debug).size(), 4u);
+    EXPECT_TRUE(capture.Matching("craters", terraingen::LogLevel::Debug).empty());
+    const auto records = capture.Matching("boulders", terraingen::LogLevel::Debug);
+    ASSERT_EQ(records.size(), 5u);
+    EXPECT_EQ(records.back().message.rfind(
+                  "Generated " + std::to_string(boulders.Size()) + " boulders (", 0),
+              0u)
+        << records.back().message;
 }
 
 namespace {
@@ -250,17 +250,17 @@ TEST(GenerateCraters, SpacingLeavesNoSimilarCratersTooClose) {
     const Bounds2d region{0.0, 0.0, 300.0, 300.0};
     const CraterList dense = GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0),
                                              UniformAges(1.0), 4u, {.dMin = 4.0, .dMax = 64.0});
-    const terraingen::testing::LogCapture capture;
+    const terraingen::testing::LogCapture capture(terraingen::LogLevel::Debug);
     const CraterList spaced =
         GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), UniformAges(1.0), 4u,
                         {.dMin = 4.0, .dMax = 64.0, .spacing = spacing});
     EXPECT_GT(ConflictingPairs(dense, spacing), 0u);
     EXPECT_EQ(ConflictingPairs(spaced, spacing), 0u);
     EXPECT_LT(spaced.Size(), dense.Size());
-    const auto records = capture.Matching("craters", terraingen::LogLevel::Info);
-    ASSERT_EQ(records.size(), 1u);
-    EXPECT_NE(records[0].message.find(" removed by spacing"), std::string::npos)
-        << records[0].message;
+    const auto records = capture.Matching("craters", terraingen::LogLevel::Debug);
+    ASSERT_FALSE(records.empty());
+    EXPECT_NE(records.back().message.find(" removed by spacing"), std::string::npos)
+        << records.back().message;
 }
 
 TEST(GenerateCraters, SpacedTilesJoinToTheWholeRegion) {
@@ -393,7 +393,7 @@ TEST(GenerateCraters, MaxCratersKeepsTheLargestGeneratedCraters) {
     manual.Append({10.0, 10.0, 3.0, 0.0, 0u});
     const CraterList all = GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), FreshAges(), 5u,
                                            {.dMin = 2.0, .dMax = 64.0});
-    const terraingen::testing::LogCapture capture;
+    const terraingen::testing::LogCapture capture(terraingen::LogLevel::Debug);
     const CraterList capped =
         GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), FreshAges(), 5u,
                         {.dMin = 2.0, .dMax = 64.0, .manual = manual, .maxCraters = 50});
@@ -412,9 +412,9 @@ TEST(GenerateCraters, MaxCratersKeepsTheLargestGeneratedCraters) {
     }
     EXPECT_EQ(manualKept, 1u);
     EXPECT_EQ(smallestKept, diameters[49]);
-    const auto records = capture.Matching("craters", terraingen::LogLevel::Info);
-    ASSERT_EQ(records.size(), 1u);
-    EXPECT_NE(records[0].message.find(" over maxCraters dropped"), std::string::npos);
+    const auto records = capture.Matching("craters", terraingen::LogLevel::Debug);
+    ASSERT_FALSE(records.empty());
+    EXPECT_NE(records.back().message.find(" over maxCraters dropped"), std::string::npos);
     const CraterList generous =
         GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), FreshAges(), 5u,
                         {.dMin = 2.0, .dMax = 64.0, .maxCraters = 1000000});

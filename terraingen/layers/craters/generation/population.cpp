@@ -107,15 +107,15 @@ class Generation {
     void Log(std::size_t kept, const GenerationCounts& counts, const Stopwatch& stopwatch) const {
         const bool spaced = options_.spacing.Enabled();
         const std::size_t manual = options_.manual.Size();
-        LogInfo(options_.logName, "Generated ", kept, " ", options_.logName, " (", options_.dMin,
-                "-", dMax_, " m, ", counts.bands, " bands, ",
-                static_cast<long long>(std::llround(counts.expected)), " expected",
-                spaced ? ", " + std::to_string(counts.removed) + " removed by spacing" : "",
-                manual > 0 ? ", " + std::to_string(manual) + " manual supplied" : "",
-                counts.capped > 0
-                    ? ", " + std::to_string(counts.capped) + " over maxCraters dropped"
-                    : "",
-                ") in ", FormatDuration(stopwatch.Milliseconds()));
+        LogDebug(options_.logName, "Generated ", kept, " ", options_.logName, " (", options_.dMin,
+                 "-", dMax_, " m, ", counts.bands, " bands, ",
+                 static_cast<long long>(std::llround(counts.expected)), " expected",
+                 spaced ? ", " + std::to_string(counts.removed) + " removed by spacing" : "",
+                 manual > 0 ? ", " + std::to_string(manual) + " manual supplied" : "",
+                 counts.capped > 0
+                     ? ", " + std::to_string(counts.capped) + " over maxCraters dropped"
+                     : "",
+                 ") in ", FormatDuration(stopwatch.Milliseconds()));
     }
 
   private:

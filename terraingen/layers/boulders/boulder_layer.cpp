@@ -7,20 +7,64 @@
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/cells.h"
+#include "terraingen/util/parallel.h"
 
 #include <algorithm>
+#include <bit>
 #include <cmath>
 #include <limits>
 #include <map>
 #include <numbers>
 #include <span>
 #include <stdexcept>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
 namespace terraingen {
 
 namespace {
+
+/// A ground whose heights at some points, at one spacing, are read up front in one pass; any
+/// other point or spacing is read from the ground beneath. Gives the same heights either way.
+class PrefetchedGround final : public Ground {
+  public:
+    PrefetchedGround(const Ground& ground, std::span<const Vec2d> points, double spacing)
+        : ground_(ground), spacing_(spacing) {
+        std::vector<float> heights(points.size());
+        ground.HeightsAt(points, heights, spacing);
+        heights_.reserve(points.size());
+        for (std::size_t n = 0; n < points.size(); ++n) {
+            heights_.emplace(KeyOf(points[n].x, points[n].y), heights[n]);
+        }
+    }
+
+    float HeightAt(double x, double y, double spacing) const override {
+        if (spacing == spacing_) {
+            const auto found = heights_.find(KeyOf(x, y));
+            if (found != heights_.end()) {
+                return found->second;
+            }
+        }
+        return ground_.HeightAt(x, y, spacing);
+    }
+
+  private:
+    using Key = std::pair<std::uint64_t, std::uint64_t>;
+    struct KeyHash {
+        std::size_t operator()(const Key& key) const {
+            return std::hash<std::uint64_t>{}(key.first * 0x9E3779B97F4A7C15ull ^ key.second);
+        }
+    };
+
+    static Key KeyOf(double x, double y) {
+        return {std::bit_cast<std::uint64_t>(x), std::bit_cast<std::uint64_t>(y)};
+    }
+
+    const Ground& ground_;
+    double spacing_;
+    std::unordered_map<Key, float, KeyHash> heights_;
+};
 
 constexpr std::uint32_t kBoulderSeed = 0x524F434Bu;
 constexpr std::uint32_t kBoulderAttributes = 0x41545452u;
@@ -371,20 +415,66 @@ CraterList BoulderLayer::ScatterBoulderCandidates(const Bounds2d& region, double
     return GenerateCraters(*cells_, region, *candidates_, ages, seed, generation);
 }
 
-std::optional<Boulder> BoulderLayer::DrawBoulder(const Crater& candidate, double spacing,
-                                                 const Ground* ground,
-                                                 const CraterList& ejecta) const {
+std::vector<Boulder> BoulderLayer::DrawBoulders(const CraterList& candidates, double spacing,
+                                                const Ground* ground,
+                                                const EjectaIndex& ejecta) const {
+    std::vector<Kept> kept;
+    for (std::size_t n = 0; n < candidates.Size(); ++n) {
+        if (std::optional<Kept> k = Keep(candidates.At(n), ground, ejecta)) {
+            kept.push_back(*k);
+        }
+    }
+    std::optional<PrefetchedGround> fetched;
+    if (ground != nullptr) {
+        const BoulderPose& pose = options_.pose;
+        const bool gradient = pose.followSlope || pose.maxSlope.has_value();
+        std::vector<Vec2d> points;
+        points.reserve(kept.size() * (gradient ? 5 : 1));
+        for (const Kept& k : kept) {
+            const Crater& c = k.candidate;
+            points.push_back({c.x, c.y});
+            if (gradient) {
+                for (const Vec2d& p : GradientPoints(c.x, c.y, c.diameter)) {
+                    points.push_back(p);
+                }
+            }
+        }
+        fetched.emplace(*ground, points, options_.bedrock.exposureSpacing);
+    }
+    std::vector<Boulder> boulders;
+    boulders.reserve(kept.size());
+    for (const Kept& k : kept) {
+        if (std::optional<Boulder> boulder = Place(k, spacing, fetched ? &*fetched : nullptr)) {
+            boulders.push_back(*boulder);
+        }
+    }
+    return boulders;
+}
+
+std::optional<BoulderLayer::Kept> BoulderLayer::Keep(const Crater& candidate, const Ground* ground,
+                                                     const EjectaIndex& ejecta) const {
     const IdWords id = SplitId(candidate.id);
     const U32x4 draw =
         Philox4x32({id.low, id.high, kBoulderAttributes, 0u}, {options_.seed, kBoulderSeed});
-    const BoulderAbundance abundance = Abundance(candidate.x, candidate.y, ground, ejecta);
-    double density = 0.0;
+    Kept kept{candidate, Abundance(candidate.x, candidate.y, ground, ejecta)};
     if (!candidate.manual) {
-        density = Density(candidate.diameter, abundance);
-        if (Uniform(draw.x, draw.y) >= density / candidates_->Incremental(candidate.diameter)) {
+        kept.density = Density(candidate.diameter, kept.abundance);
+        if (Uniform(draw.x, draw.y) >=
+            kept.density / candidates_->Incremental(candidate.diameter)) {
             return std::nullopt;
         }
     }
+    return kept;
+}
+
+std::optional<Boulder> BoulderLayer::Place(const Kept& kept, double spacing,
+                                           const Ground* ground) const {
+    const Crater& candidate = kept.candidate;
+    const BoulderAbundance& abundance = kept.abundance;
+    const double density = kept.density;
+    const IdWords id = SplitId(candidate.id);
+    const U32x4 draw =
+        Philox4x32({id.low, id.high, kBoulderAttributes, 0u}, {options_.seed, kBoulderSeed});
     const U32x4 shape =
         Philox4x32({id.low, id.high, kBoulderAttributes, 1u}, {options_.seed, kBoulderSeed});
     const BoulderPose& pose = options_.pose;
@@ -500,15 +590,22 @@ bool BoulderLayer::Roll(Boulder& boulder, const Ground& ground) const {
     }
 }
 
+std::array<Vec2d, 4> BoulderLayer::GradientPoints(double x, double y, double diameter) const {
+    const double step = 0.5 * diameter;
+    return {surface_.Locate({x, y}, {step, 0.0}), surface_.Locate({x, y}, {-step, 0.0}),
+            surface_.Locate({x, y}, {0.0, step}), surface_.Locate({x, y}, {0.0, -step})};
+}
+
 std::optional<Vec2d> BoulderLayer::GroundGradient(const Boulder& boulder,
                                                   const Ground& ground) const {
     const double step = 0.5 * boulder.diameter;
-    const auto at = [&](double east, double north) {
-        const Vec2d p = surface_.Locate({boulder.x, boulder.y}, {east, north});
-        return static_cast<double>(ground.HeightAt(p.x, p.y, options_.bedrock.exposureSpacing));
+    const std::array<Vec2d, 4> points = GradientPoints(boulder.x, boulder.y, boulder.diameter);
+    const auto at = [&](std::size_t n) {
+        return static_cast<double>(
+            ground.HeightAt(points[n].x, points[n].y, options_.bedrock.exposureSpacing));
     };
-    const double gx = (at(step, 0.0) - at(-step, 0.0)) / (2.0 * step);
-    const double gy = (at(0.0, step) - at(0.0, -step)) / (2.0 * step);
+    const double gx = (at(0) - at(1)) / (2.0 * step);
+    const double gy = (at(2) - at(3)) / (2.0 * step);
     if (!std::isfinite(gx) || !std::isfinite(gy)) {
         return std::nullopt;
     }
@@ -555,27 +652,16 @@ std::vector<Boulder> BoulderLayer::Boulders(const Bounds2d& region, double spaci
     };
     const CraterList candidates = ScatterBoulderCandidates(from, spacing);
     if (!options_.fragmentation.Enabled()) {
-        const CraterList ejecta = EjectaCraters(from);
-        std::vector<Boulder> boulders;
-        for (std::size_t n = 0; n < candidates.Size(); ++n) {
-            const std::optional<Boulder> boulder =
-                DrawBoulder(candidates.At(n), spacing, ground, ejecta);
-            if (boulder && rests(*boulder)) {
-                boulders.push_back(*boulder);
-            }
-        }
+        std::vector<Boulder> boulders =
+            DrawBoulders(candidates, spacing, ground, EjectaCraters(from));
+        std::erase_if(boulders, [&](const Boulder& boulder) { return !rests(boulder); });
         return boulders;
     }
     const double reach = 0.5 * options_.sizes.maxDiameter * (OwnMarginRadii() + BreakMarginRadii());
-    const CraterList ejecta = EjectaCraters(surface_.Expand(from, reach));
+    const EjectaIndex ejecta = EjectaCraters(surface_.Expand(from, reach));
     std::vector<Boulder> boulders;
-    for (std::size_t n = 0; n < candidates.Size(); ++n) {
-        const std::optional<Boulder> parent =
-            DrawBoulder(candidates.At(n), spacing, ground, ejecta);
-        if (!parent) {
-            continue;
-        }
-        for (const Boulder& boulder : Break(*parent, spacing, ground)) {
+    for (const Boulder& parent : DrawBoulders(candidates, spacing, ground, ejecta)) {
+        for (const Boulder& boulder : Break(parent, spacing, ground)) {
             const double own = 0.5 * boulder.diameter * OwnMarginRadii();
             if (surface_.Contains(surface_.Expand(region, own), {boulder.x, boulder.y})) {
                 boulders.push_back(boulder);
@@ -783,23 +869,28 @@ void BoulderLayer::ApplySamples(SampleBlock& samples, const LayerContext& contex
 }
 
 std::vector<BoulderModel> BoulderLayer::Models(const std::vector<Boulder>& boulders) const {
-    std::vector<BoulderModel> models;
+    std::vector<const Boulder*> placed;
     for (const Boulder& boulder : boulders) {
         if (boulder.model && boulder.ground) {
-            std::shared_ptr<const BoulderShape> shape = Shape(boulder);
-            const Boulder local = InLocalFrame(boulder);
-            const BoulderPlacement placement =
-                PlaceBoulderModel(local, *shape, *boulder.ground, options_.pose.settle);
-            if (boulder.facetCount > 0) {
-                shape = std::make_shared<const BoulderShape>(
-                    Abraded(*shape, placement, local, *boulder.ground));
-            }
-            models.push_back({boulder,
-                              BoulderShapeSeed(boulder.parent != 0 ? boulder.parent : boulder.id,
-                                               options_.rendering.shapePrototypes),
-                              shape, placement});
+            placed.push_back(&boulder);
         }
     }
+    std::vector<BoulderModel> models(placed.size());
+    ParallelFor(placed.size(), 0, [&](std::size_t n) {
+        const Boulder& boulder = *placed[n];
+        std::shared_ptr<const BoulderShape> shape = Shape(boulder);
+        const Boulder local = InLocalFrame(boulder);
+        const BoulderPlacement placement =
+            PlaceBoulderModel(local, *shape, *boulder.ground, options_.pose.settle);
+        if (boulder.facetCount > 0) {
+            shape = std::make_shared<const BoulderShape>(
+                Abraded(*shape, placement, local, *boulder.ground));
+        }
+        models[n] = {boulder,
+                     BoulderShapeSeed(boulder.parent != 0 ? boulder.parent : boulder.id,
+                                      options_.rendering.shapePrototypes),
+                     shape, placement};
+    });
     return models;
 }
 

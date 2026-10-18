@@ -8,6 +8,7 @@
 #include "terraingen/layers/boulders/boulder_models.h"
 #include "terraingen/layers/boulders/boulder_options.h"
 #include "terraingen/layers/boulders/boulder_placer.h"
+#include "terraingen/layers/boulders/ejecta_index.h"
 #include "terraingen/layers/craters/crater_layer.h"
 #include "terraingen/layers/craters/generation/cell_cache.h"
 #include "terraingen/layers/exposure.h"
@@ -15,6 +16,7 @@
 #include "terraingen/layers/material.h"
 #include "terraingen/util/lru_cache.h"
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -115,9 +117,24 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
   private:
     /// The candidates of `region`, before thinning.
     CraterList ScatterBoulderCandidates(const Bounds2d& region, double spacing) const;
-    /// `candidate` as a boulder, or nothing when thinning drops it.
-    std::optional<Boulder> DrawBoulder(const Crater& candidate, double spacing,
-                                       const Ground* ground, const CraterList& ejecta) const;
+    /// A candidate thinning keeps, with what it was kept by.
+    struct Kept {
+        Crater candidate;
+        BoulderAbundance abundance;
+        double density = 0.0;
+    };
+    /// `candidate` with its abundance and density, or nothing when thinning drops it.
+    std::optional<Kept> Keep(const Crater& candidate, const Ground* ground,
+                             const EjectaIndex& ejecta) const;
+    /// A kept candidate as a boulder, or nothing when it is left out on steep ground.
+    std::optional<Boulder> Place(const Kept& kept, double spacing, const Ground* ground) const;
+    /// The boulders `candidates` give, in their order: those thinning keeps, their ground read in
+    /// one pass (`Ground::HeightsAt`) and then placed.
+    std::vector<Boulder> DrawBoulders(const CraterList& candidates, double spacing,
+                                      const Ground* ground, const EjectaIndex& ejecta) const;
+    /// The points `GroundGradient` reads around (`x`, `y`) for a boulder `diameter` metres across:
+    /// east, west, north and south.
+    std::array<Vec2d, 4> GradientPoints(double x, double y, double diameter) const;
     /// Margin in radii a boulder's own relief and fillet reach beyond its centre.
     double OwnMarginRadii() const;
     /// Margin in radii its pieces may scatter beyond that when boulders break.
@@ -181,11 +198,11 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     void DrawRelief(SampleBlock& samples, const std::vector<Relief>& reliefs,
                     unsigned threads) const;
 
-    /// The ejecta craters that can add blocks in `region`.
-    CraterList EjectaCraters(const Bounds2d& region) const;
+    /// The ejecta craters that can add blocks in `region`, indexed by how far their blocks reach.
+    EjectaIndex EjectaCraters(const Bounds2d& region) const;
     /// The abundance at (`x`, `y`) with the ejecta craters `ejecta` around.
     BoulderAbundance Abundance(double x, double y, const Ground* ground,
-                               const CraterList& ejecta) const;
+                               const EjectaIndex& ejecta) const;
     /// The distance (m) from surface (x, y) to the nearest cluster centre.
     double NearestClusterDistance(double x, double y) const;
     /// The sum at surface (x, y) of the Gaussians of the `Thomas` cluster centres around it.
@@ -194,7 +211,7 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// theirs.
     double BackgroundAbundance(double x, double y, const Ground* ground, double ejecta) const;
     /// Sets `abundance`'s ejecta share and wear at (`x`, `y`) from the craters `ejecta`.
-    void EjectaAbundance(double x, double y, const CraterList& ejecta,
+    void EjectaAbundance(double x, double y, const EjectaIndex& ejecta,
                          BoulderAbundance& abundance) const;
     double Density(double diameter, const BoulderAbundance& abundance) const;
     /// The mean bedrock factor around (`x`, `y`) on `ground` over the cells of the density map,

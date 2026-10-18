@@ -232,7 +232,7 @@ TEST(Cli, GeneratesAConfigsOutputsIntoTheChosenFolder) {
     const Result beside = Cli({config.string(), "--log-level", "off", "--threads", "2"});
     ASSERT_EQ(beside.code, kExitSuccess) << beside.err;
     EXPECT_NE(beside.out.find("Generated a 65x49 terrain in "), std::string::npos);
-    EXPECT_NE(beside.out.find("Wrote "), std::string::npos);
+    EXPECT_NE(beside.out.find("Wrote 2 files to "), std::string::npos) << beside.out;
     const auto heights = terraingen::ReadGeoTiff(directory / "heights.tif").raster;
     EXPECT_EQ(heights.Width(), 65u);
     EXPECT_TRUE(std::filesystem::exists(directory / "craters.csv"));

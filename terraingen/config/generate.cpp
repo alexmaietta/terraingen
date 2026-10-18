@@ -48,12 +48,31 @@ double SpacingOf(const OutputSpec& output) {
         output);
 }
 
+/// The boulders placed over one grid at one spacing, shared by the outputs that list them.
+struct PlacedBoulderSet {
+    RasterGrid grid;
+    double spacing = 0.0;
+    BoulderFeatures features;
+};
+
 /// What `WriteOutputs` writes one output from.
 struct OutputContext {
     const GeneratedTerrain& generated;
     std::optional<RasterGrid> grid;         ///< The grid the output covers; none for a mesh.
     double spacing = 0.0;                   ///< The output's sample spacing; 0 for its grid's.
     const TerrainConfig* config = nullptr;  ///< The configuration the outputs come from.
+    std::vector<PlacedBoulderSet>* placed = nullptr;  ///< Boulders placed for earlier outputs.
+
+    /// The boulders placed over the output's grid, placed once for every output that lists them.
+    const BoulderFeatures& Boulders() const {
+        for (const PlacedBoulderSet& set : *placed) {
+            if (set.grid == *grid && set.spacing == spacing) {
+                return set.features;
+            }
+        }
+        placed->push_back({*grid, spacing, PlacedBoulders(generated.terrain, *grid, spacing)});
+        return placed->back().features;
+    }
 
     /// The heights and albedo generated over the output's grid.
     /// @throws std::runtime_error if they were not generated.
@@ -121,43 +140,48 @@ bool Write(const PhotometryOutput& output, const std::filesystem::path& path,
 
 bool Write(const CraterListOutput& output, const std::filesystem::path& path,
            const OutputContext& context) {
+    const Stopwatch stopwatch;
     const CraterFeatures placed =
         PlacedCraters(context.generated.terrain, *context.grid, context.spacing);
     WriteCraterList(placed.craters, path, output.format, placed.attributes);
-    LogInfo("pipeline", "Wrote ", placed.craters.Size(), " craters to ", path.string());
+    LogInfo("pipeline", "Wrote ", placed.craters.Size(), " craters to ", path.string(), " in ",
+            FormatDuration(stopwatch.Milliseconds()));
     return true;
 }
 
 bool Write(const BoulderListOutput& output, const std::filesystem::path& path,
            const OutputContext& context) {
-    const std::vector<Boulder> boulders =
-        PlacedBoulders(context.generated.terrain, *context.grid, context.spacing).boulders;
+    const Stopwatch stopwatch;
+    const std::vector<Boulder>& boulders = context.Boulders().boulders;
     WriteBoulderList(boulders, path, output.format);
-    LogInfo("pipeline", "Wrote ", boulders.size(), " boulders to ", path.string());
+    LogInfo("pipeline", "Wrote ", boulders.size(), " boulders to ", path.string(), " in ",
+            FormatDuration(stopwatch.Milliseconds()));
     return true;
 }
 
 bool Write(const BoulderModelsOutput& output, const std::filesystem::path& path,
            const OutputContext& context) {
-    const std::vector<BoulderModel> models =
-        PlacedBoulders(context.generated.terrain, *context.grid, context.spacing).models;
+    const Stopwatch stopwatch;
+    const std::vector<BoulderModel>& models = context.Boulders().models;
     if (models.empty()) {
         LogWarning("pipeline", "No boulder models to write to ", path.string());
         return false;
     }
     WriteBoulderModels(models, path, output.creaseAngle, context.generated.terrain.surface,
                        context.Centre(), output.instanced);
-    LogInfo("pipeline", "Wrote ", models.size(), " boulder models to ", path.string());
+    LogInfo("pipeline", "Wrote ", models.size(), " boulder models to ", path.string(), " in ",
+            FormatDuration(stopwatch.Milliseconds()));
     return true;
 }
 
 bool Write(const MeshOutput& output, const std::filesystem::path& path,
            const OutputContext& context) {
+    const Stopwatch stopwatch;
     if (IsIcqPath(path)) {
         WriteIcq(path, BodyIcq(context.generated.terrain, output.cellsPerFace,
                                output.spacing.value_or(0.0)));
         LogInfo("pipeline", "Wrote an ICQ shape model of Q = ", output.cellsPerFace, " to ",
-                path.string());
+                path.string(), " in ", FormatDuration(stopwatch.Milliseconds()));
         return true;
     }
     const TriangleMesh mesh =
@@ -165,18 +189,20 @@ bool Write(const MeshOutput& output, const std::filesystem::path& path,
     ShadedMesh shaded = WithCreases(mesh, std::numbers::pi);
     WriteMesh(path, {std::move(shaded.mesh), std::move(shaded.normals)});
     LogInfo("pipeline", "Wrote a body mesh of ", mesh.triangles.size(), " triangles to ",
-            path.string());
+            path.string(), " in ", FormatDuration(stopwatch.Milliseconds()));
     return true;
 }
 
 bool Write(const TerrainMeshOutput& /*output*/, const std::filesystem::path& path,
            const OutputContext& context) {
+    const Stopwatch stopwatch;
     TriangleMesh mesh = HeightMesh(context.Generated(path).heights,
                                    context.generated.terrain.surface, context.Centre());
     const std::size_t triangles = mesh.triangles.size();
     std::vector<Vec3d> normals = VertexNormals(mesh);
     WriteMesh(path, {std::move(mesh), std::move(normals), {"terrain", {0.5, 0.5, 0.5}}});
-    LogInfo("pipeline", "Wrote a terrain mesh of ", triangles, " triangles to ", path.string());
+    LogInfo("pipeline", "Wrote a terrain mesh of ", triangles, " triangles to ", path.string(),
+            " in ", FormatDuration(stopwatch.Milliseconds()));
     return true;
 }
 
@@ -274,6 +300,7 @@ std::vector<std::filesystem::path> WriteOutputs(const TerrainConfig& config,
                                                 const std::filesystem::path& directory) {
     const std::optional<RasterGrid> base = BaseGrid(terrain.terrain);
     std::vector<std::filesystem::path> written;
+    std::vector<PlacedBoulderSet> placed;
     for (const OutputSpec& spec : config.outputs) {
         const std::string& relative =
             std::visit([](const auto& output) -> const std::string& { return output.path; }, spec);
@@ -283,7 +310,7 @@ std::vector<std::filesystem::path> WriteOutputs(const TerrainConfig& config,
         }
         const OutputContext context{terrain,
                                     config::OutputGrid(spec, base, terrain.terrain.surface),
-                                    SpacingOf(spec), &config};
+                                    SpacingOf(spec), &config, &placed};
         if (std::holds_alternative<MeshOutput>(spec) == context.grid.has_value()) {
             throw std::runtime_error("No grid to write " + path.string() + " over");
         }
