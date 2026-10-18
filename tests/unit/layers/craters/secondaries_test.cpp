@@ -398,3 +398,103 @@ TEST(SecondaryCraterLayer, PrimariesWithoutRaysSpreadTheirSecondaries) {
         EXPECT_EQ(a.At(i), b.At(i));
     }
 }
+
+TEST(SecondaryDensity, MatchesTheSecondariesDrawn) {
+    const Crater primary{0.0, 0.0, 2000.0, 0.0, 9u, true};
+    for (const bool rayed : {false, true}) {
+        SecondaryCraterOptions options = Options(60.0, 10.0);
+        options.rays.enabled = rayed;
+        const SecondaryCraterLayer layer(Primaries(primary), Models(), options);
+        const terraingen::SecondaryDensity density(primary, options);
+        const double onset = terraingen::SecondaryOnsetRange(2000.0);
+        EXPECT_DOUBLE_EQ(density.Reach(), layer.OuterRange(2000.0));
+        const terraingen::Bounds2d box{onset, -1500.0, onset + 3000.0, 1500.0};
+        const CraterList drawn = layer.Secondaries(box);
+        double counted = 0.0;
+        for (std::size_t n = 0; n < drawn.Size(); ++n) {
+            const Crater crater = drawn.At(n);
+            counted += box.Contains(crater.x, crater.y) && crater.diameter < 15.0 ? 1.0 : 0.0;
+        }
+        double expected = 0.0;
+        for (double x = box.minX + 5.0; x < box.maxX; x += 10.0) {
+            for (double y = box.minY + 5.0; y < box.maxY; y += 10.0) {
+                expected += 100.0 * density.At({x, y}, 10.0, 15.0);
+            }
+        }
+        ASSERT_GT(expected, 100.0);
+        EXPECT_NEAR(counted, expected, 4.0 * std::sqrt(expected)) << "rays " << rayed;
+    }
+    SecondaryCraterOptions larger = Options();
+    larger.selection.minDiameter = 5000.0;
+    EXPECT_EQ(terraingen::SecondaryDensity(primary, larger).Reach(), 0.0)
+        << "a primary its selection leaves out throws none";
+}
+
+TEST(SecondaryDensity, CoversAsItsCountsAddUp) {
+    const Crater primary{0.0, 0.0, 3000.0, 0.0, 9u, true};
+    for (const double slope : {2.0, 3.5}) {
+        SecondaryCraterOptions options = Options(25.0, 5.0);
+        options.sizeSlope = slope;
+        const terraingen::SecondaryDensity density(primary, options);
+        const terraingen::Vec2d at{8000.0, 1000.0};
+        double cover = 0.0;
+        for (double d = 10.0; d < 30.0; d += 0.01) {
+            cover +=
+                0.25 * std::numbers::pi * (d + 0.005) * (d + 0.005) * density.At(at, d, d + 0.01);
+        }
+        EXPECT_NEAR(density.CoverAt(at, 10.0, 30.0), cover, 1e-6 * cover) << slope;
+        EXPECT_GT(density.Largest(), 30.0);
+        EXPECT_EQ(density.At({100.0, 0.0}, 10.0, 30.0), 0.0) << "inside the onset";
+    }
+}
+
+TEST(CraterLayer, TakesTheSecondariesItThrowsOutOfATotalMap) {
+    const Crater primary{0.0, 0.0, 2000.0, 0.0, 9u, true};
+    const SecondaryCraterOptions secondaries = Options(100.0, 10.0);
+    const double total = 2.0 * 0.05 * (1.0 / 100.0 - 1.0 / 1600.0);
+    CraterLayerOptions options;
+    options.seed = 4;
+    options.generation.dMin = 10.0;
+    options.generation.dMax = 40.0;
+    options.generation.manual.Append(primary);
+    options.densityMap = terraingen::DensityMap{std::make_shared<terraingen::ConstantField>(total),
+                                                terraingen::DensityMeasure::Count, 10.0, 40.0};
+    options.secondaries = {secondaries};
+    const auto primaries = std::make_shared<CraterLayer>(
+        terraingen::CraterModels{
+            std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
+            std::make_shared<terraingen::FreshAges>(),
+            std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry),
+            std::make_shared<terraingen::FassettThomsonProfile>()},
+        options);
+    const SecondaryCraterLayer layer(primaries, Models(), secondaries);
+    const terraingen::SecondaryDensity density(primary, secondaries);
+    const double onset = terraingen::SecondaryOnsetRange(2000.0);
+    const auto count = [](const CraterList& craters, const terraingen::Bounds2d& box) {
+        double n = 0.0;
+        for (std::size_t i = 0; i < craters.Size(); ++i) {
+            const Crater crater = craters.At(i);
+            n += !crater.manual && box.Contains(crater.x, crater.y) && crater.diameter < 40.0 ? 1.0
+                                                                                              : 0.0;
+        }
+        return n;
+    };
+    const terraingen::Bounds2d near{onset, -1000.0, onset + 2000.0, 1000.0};
+    double thrown = 0.0;
+    for (double x = near.minX + 5.0; x < near.maxX; x += 10.0) {
+        for (double y = near.minY + 5.0; y < near.maxY; y += 10.0) {
+            thrown += 100.0 * density.At({x, y}, 10.0, 40.0);
+        }
+    }
+    const double area = 2000.0 * 2000.0;
+    ASSERT_GT(thrown, 0.2 * total * area) << "the secondaries are a good share of the map";
+    const double generated = count(primaries->Craters(near), near);
+    const double sum = generated + count(layer.Secondaries(near), near);
+    EXPECT_NEAR(generated, total * area - thrown, 4.0 * std::sqrt(total * area));
+    EXPECT_NEAR(sum, total * area, 4.0 * std::sqrt(total * area)) << "the map, not more";
+    const terraingen::Bounds2d far{-30000.0, -1000.0, -28000.0, 1000.0};
+    EXPECT_NEAR(count(primaries->Craters(far), far), total * area, 4.0 * std::sqrt(total * area))
+        << "beyond the secondaries";
+    options.generation.maxCraters = 10;
+    EXPECT_THROW(CraterLayer(primaries->Models(), options), std::invalid_argument);
+}

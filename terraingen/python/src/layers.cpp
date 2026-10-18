@@ -505,8 +505,8 @@ void BindDensityMaps(nb::module_& m) {
         "A map of a crater or boulder population that sets a layer's density point by point: "
         "its `field` measures (`measure`) a scale, a count per `area_unit` square metres or an "
         "areal fraction of features from `min_diameter` to `max_diameter` metres. With `total` it "
-        "counts every feature of its kind, and the boulders a layer throws out around craters are "
-        "taken out of it first.");
+        "counts every feature of its kind, and the secondaries thrown from a crater layer and the "
+        "boulders a layer throws out around craters are taken out of it first.");
     BindKwargsInit<DensityMap>(map);
     map.def_rw("field", &DensityMap::field)
         .def_rw("measure", &DensityMap::measure)
@@ -522,6 +522,8 @@ void BindDensityMaps(nb::module_& m) {
                              "The local scale a density map gives a size distribution.")
         .def(nb::init<DensityMap, const SizeFrequencyDistribution&>(), "map"_a, "distribution"_a)
         .def("at", &DensityScale::At, "x"_a, "y"_a)
+        .def("scale", &DensityScale::Scale, "value"_a)
+        .def_prop_ro("measure", &DensityScale::Measure)
         .def_prop_ro("max", &DensityScale::Max);
 }
 

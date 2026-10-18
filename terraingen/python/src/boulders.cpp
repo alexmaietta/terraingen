@@ -215,6 +215,8 @@ void BindClustersAndFragments(nb::module_& m) {
         .def_rw("radius", &BoulderClusters::radius)
         .def_rw("model", &BoulderClusters::model);
     m.def("validate_boulder_clusters", &ValidateBoulderClusters, "clusters"_a, kValidateDoc);
+    m.def("mean_patch_abundance", &MeanPatchAbundance, "patches"_a,
+          "The mean of the patches' abundance, which a density map divides them by.");
     m.def("max_cluster_abundance", &MaxClusterAbundance, "clusters"_a,
           "The most a cluster field multiplies the scattered boulder density by.");
     auto fragmentation = nb::class_<BoulderFragmentation>(
@@ -308,6 +310,7 @@ void BindGroupedOptions(nb::class_<BoulderLayerOptions>& options) {
     BindGrouped(options, "exposure", &O::bedrock, &BoulderBedrock::exposure);
     BindGrouped(options, "bedrock_abundance", &O::bedrock, &BoulderBedrock::abundance);
     BindGrouped(options, "exposure_spacing", &O::bedrock, &BoulderBedrock::exposureSpacing);
+    BindGrouped(options, "bedrock_mean_size", &O::bedrock, &BoulderBedrock::meanSize);
     BindGrouped(options, "min_height_ratio", &O::pose, &BoulderPose::minHeightRatio);
     BindGrouped(options, "max_height_ratio", &O::pose, &BoulderPose::maxHeightRatio);
     BindGrouped(options, "min_burial", &O::pose, &BoulderPose::minBurial);

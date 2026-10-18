@@ -36,9 +36,9 @@ template <typename IO> void Fields(IO& io, DensityMapSpec& map) {
     io("area_unit", map.areaUnit,
        "Square metres per area unit of a count: 1 for per m^2, 1e6 for per km^2.", "m^2");
     io("total", map.total,
-       "The map counts every feature of its kind, including boulders a layer throws out around "
-       "craters, which are taken out of it first; off when it counts only what the layer "
-       "generates.");
+       "The map counts every feature of its kind, including the secondaries thrown from a crater "
+       "layer's craters and the boulders a layer throws out around craters, which are taken out "
+       "of it first; off when it counts only what the layer generates.");
 }
 
 }  // namespace terraingen::config

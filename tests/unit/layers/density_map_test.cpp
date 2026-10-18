@@ -12,7 +12,6 @@
 #include <stdexcept>
 
 using terraingen::ConstantField;
-using terraingen::DensityKeepShare;
 using terraingen::DensityMap;
 using terraingen::DensityMeasure;
 using terraingen::DensityScale;
@@ -83,10 +82,10 @@ TEST(DensityScale, ScalesTheDistributionToTheMap) {
     const DensityScale negative(Map(std::make_shared<Halves>(-1.0, 2.0), DensityMeasure::Scale),
                                 law);
     EXPECT_DOUBLE_EQ(negative.At(-1.0, 0.0), 0.0);
-    const DensityKeepShare share(std::make_shared<DensityScale>(denser));
-    EXPECT_DOUBLE_EQ(share.ValueAt(-1.0, 0.0), 0.5 / 3.0);
-    EXPECT_DOUBLE_EQ(share.ValueAt(1.0, 0.0), 1.0);
-    EXPECT_DOUBLE_EQ(share.Max(), 1.0);
+    EXPECT_DOUBLE_EQ(denser.Scale(2.0), 2.0);
+    EXPECT_DOUBLE_EQ(denser.Scale(9.0), 3.0) << "clamped to the largest";
+    EXPECT_DOUBLE_EQ(denser.Scale(std::nan("")), 1.0);
+    EXPECT_DOUBLE_EQ(denser.Measure(), 1.0);
 }
 
 TEST(ValidateDensityMap, RejectsUnusableMaps) {
@@ -103,5 +102,4 @@ TEST(ValidateDensityMap, RejectsUnusableMaps) {
                               terraingen::PiecewiseUniformSfd({{1.0, 2.0, 1.0}})),
                  std::invalid_argument)
         << "measures none of the distribution";
-    EXPECT_THROW(DensityKeepShare(nullptr), std::invalid_argument);
 }

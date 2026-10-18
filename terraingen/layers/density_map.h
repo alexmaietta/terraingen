@@ -23,9 +23,11 @@ enum class DensityMeasure {
 /// what the map does, so a map of the larger, detectable features also sets the smaller ones
 /// below its detection limit. Features the layer places by other means are not counted twice:
 /// manual catalog features stand in for generated ones above the catalog's completeness limit
-/// (`CraterGenerationOptions::completeness`), and with `total` a boulder layer takes the blocks
-/// it throws out around craters out of the map's measure first. Where the map has no value the
-/// layer's density applies as given.
+/// (`CraterGenerationOptions::completeness`). With `total`, a crater layer takes the secondaries
+/// thrown from its craters (`CraterLayerOptions::secondaries`) out of the map for craters too
+/// small to throw them, and a boulder layer takes out the blocks it throws around craters. Under a
+/// map, boulder patches, clusters and bedrock only move boulders within it, keeping its mean.
+/// Where the map has no value the layer's density applies as given.
 struct DensityMap {
     std::shared_ptr<const SurfaceField> field;       ///< The map; not null.
     DensityMeasure measure = DensityMeasure::Scale;  ///< What its values measure.
@@ -67,6 +69,14 @@ class DensityScale {
     /// The scale at surface (x, y), not negative.
     double At(double x, double y) const;
 
+    /// The scale where the map reads `value` (`MapValueAt`), clamped to [0, `Max`]; 1 for NaN.
+    double Scale(double value) const;
+
+    /// What the map measures of the distribution at a scale of 1.
+    double Measure() const {
+        return measure_;
+    }
+
     /// The largest scale anywhere, at least 1.
     double Max() const {
         return max_;
@@ -81,21 +91,6 @@ class DensityScale {
     DensityMap map_;
     double measure_ = 1.0;
     double max_ = 1.0;
-};
-
-/// The share of features drawn at a `DensityScale`'s largest scale that its local scale keeps,
-/// in [0, 1], for `CraterGenerationOptions::keepShare`.
-class DensityKeepShare final : public SurfaceField {
-  public:
-    explicit DensityKeepShare(std::shared_ptr<const DensityScale> scale);
-
-    double ValueAt(double x, double y) const override;
-    double Max() const override {
-        return 1.0;
-    }
-
-  private:
-    std::shared_ptr<const DensityScale> scale_;
 };
 
 }  // namespace terraingen

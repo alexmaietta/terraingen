@@ -122,6 +122,7 @@ void ValidateBoulderBedrock(const BoulderBedrock& bedrock) {
     if (!IsPositive(bedrock.exposureSpacing)) {
         throw std::invalid_argument("Boulder exposureSpacing must be positive");
     }
+    RequirePositive(bedrock.meanSize, "Boulder bedrock meanSize");
 }
 
 void ValidateBoulderPose(const BoulderPose& pose) {
@@ -410,11 +411,34 @@ double BoulderMapAbundance::At(double value, double ejecta) const {
     return coverages_.empty() ? target / measure_ : Coverage(target) / coverage_;
 }
 
+double MeanPatchAbundance(const BoulderPatches& patches) {
+    if (!(patches.spread > 1.0)) {
+        return 1.0;
+    }
+    constexpr int kSamples = 256;
+    constexpr double kPatches = 32.0;
+    double sum = 0.0;
+    for (int j = 0; j < kSamples; ++j) {
+        for (int i = 0; i < kSamples; ++i) {
+            const double x = (i + 0.5) * kPatches / kSamples;
+            const double y = (j + 0.5) * kPatches / kSamples;
+            sum += std::pow(patches.spread, PatchNoise({}, x, y, 1.0, 0x50415443u));
+        }
+    }
+    return sum / (kSamples * kSamples);
+}
+
 double MaxBackgroundAbundance(const BoulderLayerOptions& options) {
-    return options.patches.spread *
-           (options.bedrock.exposure ? std::fmax(1.0, options.bedrock.abundance) : 1.0) *
-           MaxClusterAbundance(options.clusters) *
-           (options.densityMap ? BoulderMapAbundance(options).Max() : 1.0);
+    const double a = options.bedrock.abundance;
+    double patches = options.patches.spread;
+    double bedrock = options.bedrock.exposure ? std::fmax(1.0, a) : 1.0;
+    double map = 1.0;
+    if (options.densityMap) {
+        patches /= MeanPatchAbundance(options.patches);
+        bedrock = options.bedrock.exposure ? std::fmax(1.0, a) / std::fmin(1.0, a) : 1.0;
+        map = BoulderMapAbundance(options).Max();
+    }
+    return patches * bedrock * MaxClusterAbundance(options.clusters) * map;
 }
 
 std::shared_ptr<const SizeFrequencyDistribution> EjectaSizes(const BoulderLayerOptions& options) {

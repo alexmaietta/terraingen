@@ -186,7 +186,8 @@ void BindGenerationOptions(nb::module_& m) {
             },
             "Hand-placed craters, kept whatever the density.")
         .def_rw("keep_share", &CraterGenerationOptions::keepShare,
-                "Share of generated craters kept at each point, by a uniform keyed to each ID.")
+                "Callable giving the share of generated craters like a Crater kept, by a uniform "
+                "keyed to each ID; it is called from worker threads.")
         .def_rw("completeness", &CraterGenerationOptions::completeness,
                 "Diameter (m) from which `manual` is a complete catalog at each point.");
 }
@@ -440,7 +441,9 @@ void BindLayerOptions(nb::module_& m) {
         .def_rw("seed", &CraterLayerOptions::seed)
         .def_rw("generation", &CraterLayerOptions::generation)
         .def_rw("apply", &CraterLayerOptions::apply)
-        .def_rw("density_map", &CraterLayerOptions::densityMap);
+        .def_rw("density_map", &CraterLayerOptions::densityMap)
+        .def_rw("secondaries", &CraterLayerOptions::secondaries,
+                "The secondaries layers throw from these craters, taken out of a total map.");
 }
 
 nb::dict CraterLayerTable(const CraterLayer& layer, const Bounds2d& region, double spacing) {

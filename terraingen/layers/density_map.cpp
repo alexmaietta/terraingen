@@ -81,22 +81,14 @@ DensityScale::DensityScale(DensityMap map, const SizeFrequencyDistribution& dist
 }
 
 double DensityScale::At(double x, double y) const {
-    const double value = MapValueAt(map_, x, y);
+    return Scale(MapValueAt(map_, x, y));
+}
+
+double DensityScale::Scale(double value) const {
     if (std::isnan(value)) {
         return 1.0;
     }
     return std::clamp(value / measure_, 0.0, max_);
-}
-
-DensityKeepShare::DensityKeepShare(std::shared_ptr<const DensityScale> scale)
-    : scale_(std::move(scale)) {
-    if (!scale_) {
-        throw std::invalid_argument("A keep share needs a density scale");
-    }
-}
-
-double DensityKeepShare::ValueAt(double x, double y) const {
-    return scale_->At(x, y) / scale_->Max();
 }
 
 }  // namespace terraingen

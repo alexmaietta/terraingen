@@ -9,14 +9,17 @@
 #include "terraingen/layers/craters/generation/cell_cache.h"
 #include "terraingen/layers/craters/generation/population.h"
 #include "terraingen/layers/craters/profiles/profile.h"
+#include "terraingen/layers/craters/secondary_model.h"
 #include "terraingen/layers/craters/shaping/apply.h"
 #include "terraingen/layers/craters/shaping/attributes.h"
 #include "terraingen/layers/density_map.h"
 #include "terraingen/layers/layer.h"
 
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <optional>
+#include <vector>
 
 namespace terraingen {
 
@@ -50,6 +53,11 @@ struct CraterLayerOptions {
     /// same everywhere. Manual craters are not thinned by it; with a catalog among them, set
     /// `generation.completeness` so generated craters do not repeat it.
     std::optional<DensityMap> densityMap{};
+    /// The secondaries `SecondaryCraterLayer`s throw from these craters. A `total` count or areal
+    /// fraction map counts them too, so craters too small to throw secondaries the map measures
+    /// are drawn at the map less those secondaries' density there; larger craters, which throw
+    /// them, follow the map alone. Not with `generation.maxCraters`.
+    std::vector<SecondaryCraterOptions> secondaries{};
 };
 
 /// Craters generated over the grid being evaluated (`GenerateCraters`) and applied to it
@@ -107,12 +115,19 @@ class CraterLayer final : public Layer, public CraterPlacer {
     void ApplySamples(SampleBlock& samples, const LayerContext& context) const override;
 
   private:
+    /// The keep share for craters over `region`: the map's, less the secondaries thrown there
+    /// by the craters around it that are large enough, when they are taken out of the map.
+    CraterKeepShare KeepShare(const Bounds2d& region) const;
+
     CraterModels models_;
     CraterLayerOptions options_;
     std::shared_ptr<const SurfaceCells> cells_;
     std::shared_ptr<CraterCellCache> cache_;
     /// The density craters are drawn at: `models_.density`, times the map's largest scale.
     std::shared_ptr<const SizeFrequencyDistribution> candidates_;
+    std::shared_ptr<const DensityScale> scale_;
+    /// Craters at least this large (m) throw secondaries the map measures and follow it alone.
+    double throwFrom_ = std::numeric_limits<double>::infinity();
 };
 
 }  // namespace terraingen

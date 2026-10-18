@@ -283,11 +283,15 @@ struct LayerInputs {
     const std::shared_ptr<const CraterLayer>& craters;
     const std::shared_ptr<const BoulderLayer>& boulders;
     const Surface& surface;
+    /// The secondaries later layers throw from a crater layer built with these inputs.
+    std::vector<SecondaryCraterOptions> thrown{};
 };
 
 LayerPtr BuildCraterLayer(const CraterLayerSpec& craters, const std::string& path,
-                          const Surface& surface, const std::filesystem::path& directory) {
+                          const Surface& surface, const std::filesystem::path& directory,
+                          std::vector<SecondaryCraterOptions> thrown) {
     CraterLayerOptions options;
+    options.secondaries = std::move(thrown);
     options.generate = craters.generate;
     options.seed = craters.seed;
     options.generation.dMin = craters.minDiameter;
@@ -329,7 +333,7 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
                 return std::make_shared<NoiseRelief>(s.Params(), context.referencePoint, surface);
             },
             [&](const CraterLayerSpec& s) -> LayerPtr {
-                return BuildCraterLayer(s, path, surface, context.directory);
+                return BuildCraterLayer(s, path, surface, context.directory, context.thrown);
             },
             [&](const BoulderLayerSpec& s) -> LayerPtr {
                 BoulderLayerOptions options = BuildBoulderOptions(s, path, context.directory);
@@ -659,8 +663,15 @@ Terrain BuildValidTerrain(const TerrainConfig& config, const std::filesystem::pa
     std::shared_ptr<const CraterLayer> craters;
     std::shared_ptr<const BoulderLayer> boulders;
     for (std::size_t i = 0; i < config.layers.size(); ++i) {
-        const LayerInputs context{ReferencePoint(terrain), directory, craters, boulders,
-                                  terrain.surface};
+        LayerInputs context{ReferencePoint(terrain), directory, craters, boulders, terrain.surface};
+        for (std::size_t j = i + 1;
+             std::holds_alternative<CraterLayerSpec>(config.layers[i]) &&
+             j < config.layers.size() && !std::holds_alternative<CraterLayerSpec>(config.layers[j]);
+             ++j) {
+            if (const auto* secondaries = std::get_if<SecondaryLayerSpec>(&config.layers[j])) {
+                context.thrown.push_back(secondaries->secondaries);
+            }
+        }
         terrain.layers.push_back(BuildLayer(config.layers[i], Element("layers", i), context));
         if (std::holds_alternative<CraterLayerSpec>(config.layers[i])) {
             craters = std::static_pointer_cast<const CraterLayer>(terrain.layers.back());

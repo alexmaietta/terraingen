@@ -58,6 +58,7 @@
 #include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
 #include "terraingen/layers/craters/profiles/profile.h"
 #include "terraingen/layers/craters/secondaries.h"
+#include "terraingen/layers/craters/secondary_model.h"
 #include "terraingen/layers/craters/shaping/apply.h"
 #include "terraingen/layers/craters/shaping/apply_options.h"
 #include "terraingen/layers/craters/shaping/attributes.h"

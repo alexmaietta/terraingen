@@ -130,7 +130,8 @@ def test_fields_can_be_written_in_python():
             return 1.0
 
     options = terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=32.0)
-    options.keep_share = East()
+    east = East()
+    options.keep_share = lambda crater: east.value_at(crater.x, crater.y)
     craters = terraingen.generate_craters(
         terraingen.PlanarCells(),
         (-200.0, -100.0, 200.0, 100.0),

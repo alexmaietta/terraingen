@@ -334,6 +334,10 @@ template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
        "Spacing in metres the ground is read at for the exposure field, fixed so that which "
        "boulders exist does not depend on the level of detail.",
        "m");
+    io("bedrock_mean_size", bedrock.meanSize,
+       "With a density map, the side in metres of the squares bedrock is held to the map's mean "
+       "over, so it gathers boulders without adding any; a GeoTIFF map uses its own cells.",
+       "m");
     io("min_height_ratio", pose.minHeightRatio,
        "Smallest boulder height over diameter; each boulder's is drawn uniformly between the two "
        "ratios.");

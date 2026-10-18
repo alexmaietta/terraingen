@@ -14,6 +14,14 @@
 
 namespace terraingen {
 
+namespace {
+
+/// The largest primary (m) searched for the smallest one throwing secondaries a map measures,
+/// about where Singer et al.'s largest secondary stops growing with the primary.
+constexpr double kLargestThrower = 5e5;
+
+}  // namespace
+
 CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options)
     : models_(std::move(models)), options_(std::move(options)) {
     if (!models_.density || !models_.ages || !models_.degradation || !models_.profile) {
@@ -34,16 +42,105 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options)
     if (options_.cacheCraters > 0) {
         cache_ = std::make_shared<CraterCellCache>(options_.cacheCraters);
     }
-    candidates_ = models_.density;
-    if (options_.densityMap) {
-        const auto scale =
-            std::make_shared<const DensityScale>(*options_.densityMap, *models_.density);
-        if (scale->Max() > 1.0) {
-            candidates_ = std::make_shared<SummedSfd>(
-                std::vector<WeightedSfd>{{scale->Max(), models_.density}});
-        }
-        options_.generation.keepShare = std::make_shared<DensityKeepShare>(scale);
+    for (const SecondaryCraterOptions& secondaries : options_.secondaries) {
+        ValidateSecondaryCraterOptions(secondaries);
     }
+    candidates_ = models_.density;
+    if (!options_.densityMap) {
+        return;
+    }
+    scale_ = std::make_shared<const DensityScale>(*options_.densityMap, *models_.density);
+    if (scale_->Max() > 1.0) {
+        candidates_ =
+            std::make_shared<SummedSfd>(std::vector<WeightedSfd>{{scale_->Max(), models_.density}});
+    }
+    options_.generation.keepShare = [scale = scale_](const Crater& crater) {
+        return scale->At(crater.x, crater.y) / scale->Max();
+    };
+    const DensityMap& map = *options_.densityMap;
+    if (!map.total || map.measure == DensityMeasure::Scale) {
+        return;
+    }
+    for (const SecondaryCraterOptions& secondaries : options_.secondaries) {
+        const double smallest = std::fmax(map.minDiameter, secondaries.minDiameter);
+        const auto throws = [&](double diameter) {
+            return LargestSecondary(diameter, secondaries) > smallest;
+        };
+        double low = std::log(1e-3);
+        double high = std::log(kLargestThrower);
+        if (!throws(kLargestThrower)) {
+            continue;
+        }
+        for (int i = 0; i < 100; ++i) {
+            const double middle = 0.5 * (low + high);
+            (throws(std::exp(middle)) ? high : low) = middle;
+        }
+        throwFrom_ =
+            std::fmin(throwFrom_, std::fmax(std::exp(high), secondaries.selection.minDiameter));
+    }
+    if (std::isfinite(throwFrom_) && options_.generation.maxCraters > 0) {
+        throw std::invalid_argument("Taking secondaries out of a density map needs every crater, "
+                                    "not the maxCraters largest");
+    }
+}
+
+CraterKeepShare CraterLayer::KeepShare(const Bounds2d& region) const {
+    CraterGenerationOptions large = options_.generation;
+    large.dMin = std::fmax(large.dMin, throwFrom_);
+    large.minResolvedDiameter = 0.0;
+    double reach = 0.0;
+    for (const SecondaryCraterOptions& secondaries : options_.secondaries) {
+        reach = std::fmax(reach, SecondaryOuterRange(MaxFeatureDiameter(), secondaries));
+    }
+    const Bounds2d around = options_.surface.Expand(region, reach);
+    CraterList throwers;
+    if (large.dMin < ResolveDMax(large.dMax, *candidates_)) {
+        if (cache_) {
+            large.cellCraters =
+                CachedCellCraters(*cache_, *cells_, *candidates_, *models_.ages, options_.seed);
+        }
+        throwers =
+            GenerateCraters(*cells_, around, *candidates_, *models_.ages, options_.seed, large);
+    } else {
+        AppendManualCraters(large.manual, throwers, [&](const Crater& crater) {
+            return options_.surface.Contains(around, {crater.x, crater.y});
+        });
+    }
+    struct Thrower {
+        Vec2d centre;
+        SecondaryDensity density;
+    };
+    auto thrown = std::make_shared<std::vector<Thrower>>();
+    for (std::size_t n = 0; n < throwers.Size(); ++n) {
+        const Crater crater = throwers.At(n);
+        for (const SecondaryCraterOptions& secondaries : options_.secondaries) {
+            SecondaryDensity density(crater, secondaries);
+            if (density.Reach() > 0.0) {
+                thrown->push_back({{crater.x, crater.y}, std::move(density)});
+            }
+        }
+    }
+    const DensityMap& map = *options_.densityMap;
+    const bool cover = map.measure == DensityMeasure::ArealFraction;
+    return [scale = scale_, map, cover, thrown, from = throwFrom_,
+            surface = options_.surface](const Crater& crater) {
+        const double share = scale->At(crater.x, crater.y) / scale->Max();
+        if (crater.diameter >= from) {
+            return share;
+        }
+        double value = MapValueAt(map, crater.x, crater.y);
+        if (std::isnan(value)) {
+            return share;
+        }
+        for (const Thrower& thrower : *thrown) {
+            const Vec2d offset = surface.Offset(thrower.centre, {crater.x, crater.y});
+            if (std::hypot(offset.x, offset.y) < thrower.density.Reach()) {
+                value -= cover ? thrower.density.CoverAt(offset, map.minDiameter, map.maxDiameter)
+                               : thrower.density.At(offset, map.minDiameter, map.maxDiameter);
+            }
+        }
+        return scale->Scale(value) / scale->Max();
+    };
 }
 
 CraterList CraterLayer::Craters(const Bounds2d& region, double spacing, double minDiameter,
@@ -58,6 +155,9 @@ CraterList CraterLayer::Craters(const Bounds2d& region, double spacing, double m
         if (cache_) {
             generation.cellCraters =
                 CachedCellCraters(*cache_, *cells_, *candidates_, *models_.ages, options_.seed);
+        }
+        if (std::isfinite(throwFrom_)) {
+            generation.keepShare = KeepShare(region);
         }
         return GenerateCraters(*cells_, region, *candidates_, *models_.ages, options_.seed,
                                generation);

@@ -508,3 +508,20 @@ TEST(BuildTerrain, GivesLayersTheirMapsCatalogsAndCompleteness) {
     EXPECT_EQ(options.completeness->ValueAt(0.0, 0.0), 2.0);
     EXPECT_EQ(options, options);
 }
+
+TEST(BuildTerrain, GivesCraterLayersTheSecondariesThrownFromThem) {
+    TerrainConfig config = Small();
+    terraingen::SecondaryLayerSpec secondaries;
+    secondaries.secondaries.onsetCount = 5.0;
+    config.layers.push_back(secondaries);
+    config.layers.push_back(secondaries);
+    config.layers.push_back(std::get<CraterLayerSpec>(config.layers.at(1)));
+    const terraingen::Terrain terrain = terraingen::BuildTerrain(config);
+    const auto* first = dynamic_cast<const terraingen::CraterLayer*>(terrain.layers[1].get());
+    const auto* last = dynamic_cast<const terraingen::CraterLayer*>(terrain.layers[4].get());
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(last, nullptr);
+    EXPECT_EQ(first->Options().secondaries.size(), 2u);
+    EXPECT_EQ(first->Options().secondaries[0].onsetCount, 5.0);
+    EXPECT_TRUE(last->Options().secondaries.empty());
+}

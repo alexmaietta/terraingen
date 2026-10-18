@@ -1029,3 +1029,49 @@ TEST(BoulderLayer, PlacesCatalogBouldersAndDropsGeneratedOnesItCovers) {
     EXPECT_EQ(manual, 2u);
     EXPECT_GT(small, 0u);
 }
+
+TEST(BoulderLayer, KeepsAMapsMeanUnderPatchesAndBedrock) {
+    const auto mean = [](const BoulderLayer& layer, const terraingen::Ground* ground, double size) {
+        double sum = 0.0;
+        int count = 0;
+        for (double y = 1.0; y < size; y += 2.0) {
+            for (double x = 1.0; x < size; x += 2.0) {
+                sum += layer.AbundanceAt(x, y, ground).background;
+                ++count;
+            }
+        }
+        return sum / count;
+    };
+    BoulderLayerOptions patched;
+    patched.sizes.coverage = 0.01;
+    patched.patches = {.spread = 4.0, .size = 20.0};
+    const double raised = terraingen::MeanPatchAbundance(patched.patches);
+    EXPECT_GT(raised, 1.2) << "patches alone raise the mean";
+    EXPECT_EQ(terraingen::MeanPatchAbundance({}), 1.0);
+    EXPECT_NEAR(mean(BoulderLayer(patched), nullptr, 2000.0), raised, 0.05 * raised);
+    patched.densityMap = terraingen::DensityMap{std::make_shared<terraingen::ConstantField>(1.0)};
+    EXPECT_NEAR(mean(BoulderLayer(patched), nullptr, 2000.0), 1.0, 0.05);
+
+    BoulderLayerOptions bedrock;
+    bedrock.sizes.coverage = 0.01;
+    bedrock.bedrock.exposure = terraingen::ExposureParams{};
+    bedrock.bedrock.meanSize = 100.0;
+    const Analytic steps([](double x, double) {
+        const double within = x - 100.0 * std::floor(x / 100.0);
+        return static_cast<float>(0.8 * std::fmax(0.0, within - 50.0) +
+                                  40.0 * std::floor(x / 100.0));
+    });
+    const double unheld = mean(BoulderLayer(bedrock), &steps, 400.0);
+    EXPECT_GT(unheld, 1.5) << "bedrock alone raises the mean";
+    bedrock.densityMap = terraingen::DensityMap{std::make_shared<terraingen::ConstantField>(1.0)};
+    const BoulderLayer held(bedrock);
+    EXPECT_NEAR(mean(held, &steps, 400.0), 1.0, 0.05);
+    EXPECT_GT(held.AbundanceAt(80.0, 50.0, &steps).background,
+              2.0 * held.AbundanceAt(20.0, 50.0, &steps).background)
+        << "still gathered on the bedrock";
+    Raster<float> cells(4, 1, 1.0f);
+    cells.SetTransform(GeoTransform::NorthUp(0.0, 100.0, 100.0));
+    bedrock.bedrock.meanSize = 1e6;
+    bedrock.densityMap->field = std::make_shared<terraingen::RasterField>(cells);
+    EXPECT_NEAR(mean(BoulderLayer(bedrock), &steps, 400.0), 1.0, 0.05) << "over the map's cells";
+}

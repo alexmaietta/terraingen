@@ -3,6 +3,7 @@
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/noise/worley.h"
+#include "terraingen/random/philox.h"
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"
 
@@ -19,6 +20,7 @@ constexpr std::uint32_t kBoulderPatches = 0x50415443u;
 constexpr std::uint32_t kBoulderClusters = 0x434C5553u;
 constexpr std::uint32_t kThomasCentres2 = 0x54484D32u;
 constexpr std::uint32_t kThomasCentres3 = 0x54484D33u;
+constexpr std::uint32_t kBedrockMeans = 0x4245444Du;
 
 /// Golombek-Rapp boulders per m^2 per metre of diameter at `diameter` for coverage `k`.
 double GolombekRappDensity(double diameter, double k, double qa, double qb) {
@@ -145,7 +147,7 @@ double BoulderLayer::BackgroundAbundance(double x, double y, const Ground* groun
     if (patches.spread > 1.0) {
         const double noise =
             PatchNoise(surface_, x, y, patches.size, options_.seed ^ kBoulderPatches);
-        background *= std::pow(patches.spread, noise);
+        background *= std::pow(patches.spread, noise) / patchMean_;
     }
     const BoulderClusters& clusters = options_.clusters;
     if (clusters.share > 0.0) {
@@ -158,8 +160,51 @@ double BoulderLayer::BackgroundAbundance(double x, double y, const Ground* groun
         RequireGround(ground, "Boulders that read the exposure field");
         const double bedrock = exposure_->Exposure(*ground, x, y, options_.bedrock.exposureSpacing);
         background *= 1.0 + bedrock * (options_.bedrock.abundance - 1.0);
+        if (bedrockMeans_) {
+            background /= BedrockMean(x, y, *ground);
+        }
     }
     return std::min(background, maxBackground_);
+}
+
+std::size_t BoulderLayer::MeanCellHash::operator()(const MeanCell& cell) const {
+    const auto words = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(cell.ground));
+    const U32x4 hash =
+        Philox4x32({static_cast<std::uint32_t>(cell.i), static_cast<std::uint32_t>(cell.j),
+                    static_cast<std::uint32_t>(words), static_cast<std::uint32_t>(words >> 32)},
+                   {kBedrockMeans, 0u});
+    return (static_cast<std::size_t>(hash.x) << 32) ^ hash.y;
+}
+
+double BoulderLayer::BedrockMean(double x, double y, const Ground& ground) const {
+    constexpr int kSide = 8;
+    const double gain = options_.bedrock.abundance - 1.0;
+    const auto cellMean = [&](std::int64_t i, std::int64_t j) {
+        return *bedrockMeans_->Get({&ground, i, j}, [&] {
+            double sum = 0.0;
+            for (int b = 0; b < kSide; ++b) {
+                for (int a = 0; a < kSide; ++a) {
+                    const double px =
+                        meanOrigin_.x + (static_cast<double>(i) + (a + 0.5) / kSide) * meanCell_.x;
+                    const double py =
+                        meanOrigin_.y + (static_cast<double>(j) + (b + 0.5) / kSide) * meanCell_.y;
+                    sum += 1.0 + gain * exposure_->Exposure(ground, px, py,
+                                                            options_.bedrock.exposureSpacing);
+                }
+            }
+            return sum / (kSide * kSide);
+        });
+    };
+    const double u = (x - meanOrigin_.x) / meanCell_.x - 0.5;
+    const double v = (y - meanOrigin_.y) / meanCell_.y - 0.5;
+    const double fu = std::floor(u);
+    const double fv = std::floor(v);
+    const auto i = static_cast<std::int64_t>(fu);
+    const auto j = static_cast<std::int64_t>(fv);
+    const double tu = u - fu;
+    const double tv = v - fv;
+    return (1.0 - tu) * (1.0 - tv) * cellMean(i, j) + tu * (1.0 - tv) * cellMean(i + 1, j) +
+           (1.0 - tu) * tv * cellMean(i, j + 1) + tu * tv * cellMean(i + 1, j + 1);
 }
 
 void BoulderLayer::EjectaAbundance(double x, double y, const CraterList& ejecta,

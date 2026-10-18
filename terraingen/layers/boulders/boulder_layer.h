@@ -192,6 +192,20 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     void EjectaAbundance(double x, double y, const CraterList& ejecta,
                          BoulderAbundance& abundance) const;
     double Density(double diameter, const BoulderAbundance& abundance) const;
+    /// The mean bedrock factor around (`x`, `y`) on `ground` over the cells of the density map,
+    /// or squares of `BoulderBedrock::meanSize`, blended between the four nearest cell centres.
+    double BedrockMean(double x, double y, const Ground& ground) const;
+
+    /// A cell of the lattice bedrock means are taken over, on one ground.
+    struct MeanCell {
+        const Ground* ground = nullptr;
+        std::int64_t i = 0;
+        std::int64_t j = 0;
+        bool operator==(const MeanCell&) const = default;
+    };
+    struct MeanCellHash {
+        std::size_t operator()(const MeanCell& cell) const;
+    };
 
     BoulderLayerOptions options_;
     std::shared_ptr<const CraterLayer> craters_;
@@ -199,6 +213,10 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     double maxBackground_ = 1.0;
     double clusterMean_ = 1.0;
     std::optional<BoulderMapAbundance> mapAbundance_;
+    double patchMean_ = 1.0;  ///< Under a map, what the patches are divided by.
+    Vec2d meanOrigin_{};      ///< Corner of the bedrock mean lattice, in surface units.
+    Vec2d meanCell_{};        ///< Its cell sides, in surface units; signed as the map's.
+    std::shared_ptr<LruCache<MeanCell, double, MeanCellHash>> bedrockMeans_;
     std::shared_ptr<const SizeFrequencyDistribution> candidates_;
     std::shared_ptr<const SizeFrequencyDistribution> ejectaSizes_;
     std::shared_ptr<CraterCellCache> cache_;

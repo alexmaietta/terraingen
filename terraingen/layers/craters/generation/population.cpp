@@ -217,7 +217,7 @@ class Generation {
         }
         const IdWords id = SplitId(crater.id);
         RandomStream random(seed_, kCraterKeepStream, id.low, id.high);
-        return random.NextDouble() < options_.keepShare->ValueAt(crater.x, crater.y);
+        return random.NextDouble() < options_.keepShare(crater);
     }
 
     std::shared_ptr<const CraterList> DrawCell(const CraterBand& band,

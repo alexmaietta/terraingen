@@ -186,6 +186,9 @@ struct BoulderBedrock {
     /// Spacing the ground is read at for the exposure field (m), fixed so that which boulders exist
     /// does not depend on the level of detail.
     double exposureSpacing = 1.0;
+    /// With a density map, the side (m) of the squares bedrock is held to the map's mean over, so
+    /// it gathers boulders without adding any; a raster map's own cells are used instead.
+    double meanSize = 1000.0;
 
     bool operator==(const BoulderBedrock&) const = default;
 };
@@ -416,6 +419,11 @@ double MeanThomasField(const BoulderClusters& clusters, bool body = false);
 /// For `Thomas` it is where as many centres crowd within 3 radii as a one in a million chance
 /// allows, and the rare points above it are capped to it.
 double MaxClusterAbundance(const BoulderClusters& clusters);
+
+/// The mean over the plane of the patches' abundance, `spread` to the power of `PatchNoise`,
+/// which is above 1 for a spread above 1; under a density map the patches are divided by it so
+/// they keep the map's mean. 1 without patches.
+double MeanPatchAbundance(const BoulderPatches& patches);
 
 /// Checks boulder fragmentation.
 /// @throws std::invalid_argument unless the minimum diameter is positive, 0 <= `splitWear` <=

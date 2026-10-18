@@ -63,6 +63,9 @@ CraterList GenerateCellCraters(const SurfaceCells& cells, const CraterBand& band
 using CellCraterSource =
     std::function<std::shared_ptr<const CraterList>(const CraterBand& band, const CellIndex& cell)>;
 
+/// The share of generated craters like `crater` that `GenerateCraters` keeps, in [0, 1].
+using CraterKeepShare = std::function<double(const Crater& crater)>;
+
 /// Which craters `GenerateCraters` draws, and how.
 struct CraterGenerationOptions {
     /// Smallest diameter generated, in metres; must be set to a positive value.
@@ -96,10 +99,11 @@ struct CraterGenerationOptions {
     double maxBandDiameter = std::numeric_limits<double>::infinity();
     /// Where each cell's craters come from; empty draws them with `GenerateCellCraters`.
     CellCraterSource cellCraters{};
-    /// The share of generated craters kept at each point, in [0, 1]: drawing at the density's
-    /// highest local level and keeping each crater with the share at its centre, by a uniform keyed
-    /// to its ID, makes the density vary over the surface. Unset keeps every crater.
-    std::shared_ptr<const SurfaceField> keepShare{};
+    /// The share of generated craters like each one kept, in [0, 1], from its position and size:
+    /// drawing at the density's highest local level and keeping each crater with its share, by a
+    /// uniform keyed to its ID, makes the density vary over the surface. Must be thread-safe and
+    /// depend only on the crater; unset keeps every crater.
+    CraterKeepShare keepShare{};
     /// The diameter (m) from which `manual` craters are a complete catalog at each point: generated
     /// craters at least this large centred there are dropped, so the catalog stands in for them
     /// rather than adding to them. Infinite or NaN where there is no catalog; unset keeps every

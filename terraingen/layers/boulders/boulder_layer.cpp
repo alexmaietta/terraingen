@@ -135,6 +135,7 @@ BoulderLayer::BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const Cr
     maxBackground_ = MaxBackgroundAbundance(options_);
     if (options_.densityMap) {
         mapAbundance_.emplace(options_);
+        patchMean_ = MeanPatchAbundance(options_.patches);
     }
     if (options_.clusters.share > 0.0) {
         clusterMean_ = options_.clusters.model == BoulderClusterModel::Thomas
@@ -147,6 +148,19 @@ BoulderLayer::BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const Cr
     }
     if (options_.bedrock.exposure) {
         exposure_.emplace(*options_.bedrock.exposure, surface_);
+    }
+    if (exposure_ && options_.densityMap) {
+        constexpr std::size_t kMeanCells = 1u << 16;
+        const double side = options_.bedrock.meanSize / surface_.UnitLength();
+        meanCell_ = {side, side};
+        if (const auto* raster =
+                dynamic_cast<const RasterField*>(options_.densityMap->field.get())) {
+            const GeoTransform& transform = raster->Values().Transform();
+            meanOrigin_ = {transform.originX, transform.originY};
+            meanCell_ = {transform.pixelWidth, transform.pixelHeight};
+        }
+        bedrockMeans_ = std::make_shared<LruCache<MeanCell, double, MeanCellHash>>(
+            kMeanCells, [](const double&) { return std::size_t{1}; });
     }
     const std::uint32_t prototypes = options_.rendering.shapePrototypes;
     shapes_ = std::make_shared<LruCache<std::uint64_t, BoulderShape>>(

@@ -262,3 +262,8 @@ def test_boulder_layers_take_maps_and_catalogs():
     layer = terraingen.BoulderLayer(options)
     assert layer.abundance_at(0.5, 0.5)[0] == pytest.approx(2.0)
     assert options.manual[0].diameter == 5.0 and options.completeness.value_at(0.0, 0.0) == 4.0
+
+
+def test_patches_raise_the_mean_a_map_divides_out():
+    assert terraingen.mean_patch_abundance(terraingen.BoulderPatches(spread=4.0, size=20.0)) > 1.2
+    assert terraingen.BoulderLayerOptions(bedrock_mean_size=250.0).bedrock_mean_size == 250.0

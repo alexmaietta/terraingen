@@ -584,7 +584,7 @@ TEST(GenerateCraters, KeepsTheShareOfCratersAskedForWherever) {
     const Bounds2d region{-400.0, -200.0, 400.0, 200.0};
     const CraterGenerationOptions all{.dMin = 2.0, .dMax = 64.0};
     CraterGenerationOptions thinned = all;
-    thinned.keepShare = std::make_shared<Halves>(0.25, 1.0);
+    thinned.keepShare = [](const Crater& crater) { return crater.x < 0.0 ? 0.25 : 1.0; };
     const CraterList every = GenerateCraters(kCells, region, density, FreshAges(), 5u, all);
     const CraterList kept = GenerateCraters(kCells, region, density, FreshAges(), 5u, thinned);
     const auto west = [](const CraterList& craters) {
