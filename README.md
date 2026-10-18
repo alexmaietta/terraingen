@@ -86,8 +86,15 @@ The `dev` tag follows `main`.
 ```python
 import terraingen
 
-fbm = terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=800.0, amplitude=40.0))
-terrain = terraingen.Terrain(terraingen.FlatSource(513, 513, 2.0), [terraingen.NoiseRelief([fbm])])
+# A flat 513 x 513 grid with 2 m pixels
+ground = terraingen.FlatSource(513, 513, 2.0)
+
+# Fractal noise 40 m high with an 800 m wavelength
+fractal = terraingen.FractalParams(seed=1, wavelength=800.0, amplitude=40.0)
+noise = terraingen.NoiseLayer(fractal)
+relief = terraingen.NoiseRelief([noise])
+
+terrain = terraingen.Terrain(ground, [relief])
 heights = terraingen.evaluate(terrain)
 terraingen.write_geotiff("terrain.tif", heights)
 ```
@@ -103,16 +110,22 @@ target_link_libraries(app PRIVATE terraingen::terraingen)
 #include <terraingen/terraingen.h>
 
 int main() {
-    terraingen::NoiseLayer fbm;
-    fbm.fractal.seed = 1;
-    fbm.fractal.wavelength = 800.0f;
-    fbm.fractal.amplitude = 40.0f;
+    // Fractal noise 40 m high with an 800 m wavelength
+    terraingen::NoiseLayer noise;
+    noise.fractal.seed = 1;
+    noise.fractal.wavelength = 800.0f;
+    noise.fractal.amplitude = 40.0f;
 
+    terraingen::SyntheticTerrainParams relief;
+    relief.layers = {noise};
+
+    // A flat 513 x 513 grid with 2 m pixels, plus the noise
     terraingen::Terrain terrain;
     terrain.source = std::make_shared<terraingen::FlatSource>(513, 513, 2.0);
-    terrain.layers.push_back(
-        std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{fbm}}));
-    terraingen::WriteGeoTiff("terrain.tif", terraingen::Evaluate(terrain));
+    terrain.layers.push_back(std::make_shared<terraingen::NoiseRelief>(relief));
+
+    terraingen::Raster<float> heights = terraingen::Evaluate(terrain);
+    terraingen::WriteGeoTiff("terrain.tif", heights);
 }
 ```
 
