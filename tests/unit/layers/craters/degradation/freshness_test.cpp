@@ -30,6 +30,9 @@ TEST(FreshnessDegradation, ScalesDepthAndRimByOneErosionFactor) {
     EXPECT_DOUBLE_EQ(half.current.depthRatio, 0.5 * (0.15 + 0.04));
     EXPECT_DOUBLE_EQ(half.current.depthRatio / half.fresh.depthRatio,
                      half.current.rimHeightRatio / half.fresh.rimHeightRatio);
+    const CraterState basin = degradation.State(Crater{0.0, 0.0, 300000.0, 3.9, 2u});
+    ASSERT_LT(basin.fresh.depthRatio, 0.04) << "fresh shallower than the cutoff";
+    EXPECT_EQ(basin.current, basin.fresh) << "never deeper or higher-rimmed than when fresh";
     EXPECT_THROW(FreshnessDegradation(nullptr, LunarFreshCraterMorphometry), std::invalid_argument);
     EXPECT_THROW(FreshnessDegradation(std::make_shared<UniformAges>(1.0), nullptr),
                  std::invalid_argument);

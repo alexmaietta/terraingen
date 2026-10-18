@@ -10,7 +10,8 @@
 namespace terraingen {
 
 /// Scales fresh depth and rim height by e = c + (1 - c) * `RemainingLifetime`, with c
-/// making a crater at the end of its lifetime exactly `cutoffDepthRatio` deep.
+/// making a crater at the end of its lifetime exactly `cutoffDepthRatio` deep; a crater already
+/// shallower than that when fresh, such as a large basin, keeps its fresh shape.
 class FreshnessDegradation final : public DegradationModel {
   public:
     /// @param cutoffDepthRatio Depth over diameter at the end of a crater's lifetime.

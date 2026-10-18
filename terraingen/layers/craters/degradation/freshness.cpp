@@ -1,5 +1,6 @@
 #include "terraingen/layers/craters/degradation/freshness.h"
 
+#include <cmath>
 #include <stdexcept>
 #include <utility>
 
@@ -21,7 +22,7 @@ FreshnessDegradation::FreshnessDegradation(std::shared_ptr<const CraterAgeModel>
 
 CraterState FreshnessDegradation::State(const Crater& crater) const {
     const CraterMorphometry fresh = fresh_(crater.diameter);
-    const double floor = cutoffDepthRatio_ / fresh.depthRatio;
+    const double floor = std::fmin(cutoffDepthRatio_ / fresh.depthRatio, 1.0);
     const double erosion =
         floor + (1.0 - floor) * ages_->RemainingLifetime(crater.diameter, crater.ageGyr);
     return {fresh, {erosion * fresh.depthRatio, erosion * fresh.rimHeightRatio}};
