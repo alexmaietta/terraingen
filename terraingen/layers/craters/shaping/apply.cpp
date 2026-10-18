@@ -13,7 +13,9 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <limits>
+#include <map>
 #include <numbers>
 #include <optional>
 #include <stdexcept>
@@ -181,11 +183,206 @@ Bounds2d Footprint(const PreparedCrater& prepared, double reachRadii, const Surf
     return surface.Expand({crater.x, crater.y, crater.x, crater.y}, reach);
 }
 
+/// Craters binned by size band for the crater datum kernel (kernels/crater_datums.slang): per
+/// band its grid's corner and cell size, its cells across and down and its first cell, then
+/// each cell's first entry and entry count, and the entries, crater indices in ascending order.
+struct ReliefBands {
+    std::vector<float> floats;
+    std::vector<std::uint32_t> grids;
+    std::vector<std::uint32_t> cells;
+    std::vector<std::uint32_t> entries;
+};
+
+/// Most cells `BandRelief` lays out before datums are left to the CPU.
+constexpr std::size_t kMaxReliefCells = std::size_t{1} << 24;
+
+/// Bins `records`, the craters `kept` of `prepared`, by size band, each band in cells a little
+/// over its largest reach, so the 3 x 3 cells around a point hold every crater reaching it;
+/// nothing beyond `kMaxReliefCells` cells.
+std::optional<ReliefBands> BandRelief(const std::vector<PreparedCrater>& prepared,
+                                      const std::vector<std::size_t>& kept,
+                                      const std::vector<CraterRecord>& records, double reachRadii,
+                                      double outlineScale) {
+    std::map<int, std::vector<std::uint32_t>> bands;
+    for (std::size_t n = 0; n < kept.size(); ++n) {
+        bands[std::ilogb(prepared[kept[n]].crater.diameter)].push_back(
+            static_cast<std::uint32_t>(n));
+    }
+    ReliefBands relief;
+    std::vector<std::uint32_t> cellOf;
+    std::vector<std::uint32_t> filled;
+    for (const auto& [band, members] : bands) {
+        const auto size =
+            static_cast<float>(1.001 * outlineScale * reachRadii * std::ldexp(1.0, band));
+        float minX = std::numeric_limits<float>::infinity();
+        float minY = minX;
+        float maxX = -minX;
+        float maxY = -minX;
+        for (const std::uint32_t n : members) {
+            minX = std::fmin(minX, records[n].x);
+            minY = std::fmin(minY, records[n].y);
+            maxX = std::fmax(maxX, records[n].x);
+            maxY = std::fmax(maxY, records[n].y);
+        }
+        const auto across = static_cast<std::size_t>(std::floor((maxX - minX) / size)) + 1;
+        const auto down = static_cast<std::size_t>(std::floor((maxY - minY) / size)) + 1;
+        const std::size_t first = relief.cells.size() / 2;
+        if (first + across * down > kMaxReliefCells) {
+            return std::nullopt;
+        }
+        relief.floats.insert(relief.floats.end(), {minX, minY, size});
+        relief.grids.insert(relief.grids.end(),
+                            {static_cast<std::uint32_t>(across), static_cast<std::uint32_t>(down),
+                             static_cast<std::uint32_t>(first)});
+        relief.cells.resize(2 * (first + across * down), 0);
+        cellOf.resize(members.size());
+        for (std::size_t m = 0; m < members.size(); ++m) {
+            const CraterRecord& r = records[members[m]];
+            const auto i =
+                std::min(across - 1, static_cast<std::size_t>(std::floor((r.x - minX) / size)));
+            const auto j =
+                std::min(down - 1, static_cast<std::size_t>(std::floor((r.y - minY) / size)));
+            cellOf[m] = static_cast<std::uint32_t>(first + j * across + i);
+            ++relief.cells[2 * cellOf[m] + 1];
+        }
+        auto start = static_cast<std::uint32_t>(relief.entries.size());
+        for (std::size_t cell = first; cell < first + across * down; ++cell) {
+            relief.cells[2 * cell] = start;
+            start += relief.cells[2 * cell + 1];
+        }
+        relief.entries.resize(start);
+        filled.assign(across * down, 0);
+        for (std::size_t m = 0; m < members.size(); ++m) {
+            const std::uint32_t cell = cellOf[m];
+            relief.entries[relief.cells[2 * cell] + filled[cell - first]++] = members[m];
+        }
+    }
+    return relief;
+}
+
+/// Fits the datums of craters `fitted` of `prepared` on GPU `sampling.backend`: the ground under
+/// each lattice point is read on the CPU, the relief of the craters before each crater summed on
+/// the GPU, and the fit solved on the CPU. False, leaving the datums unset, for the CPU, a
+/// centre-height datum, or a backend or crater set the GPU cannot take.
+bool FitDatumsOnGpu(std::vector<PreparedCrater>& prepared, const std::vector<std::size_t>& fitted,
+                    const HeightSampler& ground, const CraterProfile& profile,
+                    const CraterShapeKernel& shape, const CraterApplyOptions& options,
+                    const CraterSampling& sampling) {
+    if (sampling.backend == Backend::Cpu || options.datum == CraterDatum::CentreHeight) {
+        return false;
+    }
+    constexpr double kInfinity = std::numeric_limits<double>::infinity();
+    Bounds2d region{kInfinity, kInfinity, -kInfinity, -kInfinity};
+    std::vector<bool> isFitted(prepared.size(), false);
+    for (const std::size_t k : fitted) {
+        const Crater& c = prepared[k].crater;
+        const double fitRadius = options.datumFitRadii * 0.5 * c.diameter;
+        region = {std::fmin(region.minX, c.x - fitRadius), std::fmin(region.minY, c.y - fitRadius),
+                  std::fmax(region.maxX, c.x + fitRadius), std::fmax(region.maxY, c.y + fitRadius)};
+        isFitted[k] = true;
+    }
+    const std::size_t last = *std::max_element(fitted.begin(), fitted.end());
+    double outlineScale = MaxOutlineScale(options.irregularity);
+    for (std::size_t n = 0; n < last; ++n) {
+        outlineScale = std::fmax(outlineScale, prepared[n].outline.MaxScale());
+    }
+    std::vector<std::size_t> kept;
+    std::vector<std::uint32_t> slot(prepared.size(), 0);
+    for (std::size_t n = 0; n <= last; ++n) {
+        const Crater& c = prepared[n].crater;
+        const double reach = outlineScale * profile.ReachRadii() * 0.5 * c.diameter;
+        if (isFitted[n] || (c.x + reach > region.minX && c.x - reach < region.maxX &&
+                            c.y + reach > region.minY && c.y - reach < region.maxY)) {
+            slot[n] = static_cast<std::uint32_t>(kept.size());
+            kept.push_back(n);
+        }
+    }
+    const Vec2d origin{0.5 * (region.minX + region.maxX), 0.5 * (region.minY + region.maxY)};
+    CraterKernelBatch batch = MakeCraterKernelBatch(shape, profile, prepared, kept, options);
+    for (std::size_t n = 0; n < kept.size(); ++n) {
+        batch.records[n].x = static_cast<float>(prepared[kept[n]].crater.x - origin.x);
+        batch.records[n].y = static_cast<float>(prepared[kept[n]].crater.y - origin.y);
+    }
+    std::optional<ReliefBands> bands =
+        BandRelief(prepared, kept, batch.records, profile.ReachRadii(), outlineScale);
+    if (!bands) {
+        return false;
+    }
+    if (batch.data.empty()) {
+        batch.data.push_back(0.0f);
+    }
+    constexpr auto kPoints = static_cast<std::size_t>(kDatumLatticeSide * kDatumLatticeSide);
+    Raster<float> lattice(kPoints, fitted.size(), 0.0f);
+    std::vector<std::uint8_t> valid(lattice.Size(), 0);
+    const auto forEachPoint = [&](std::size_t n, const auto& visit) {
+        const double fitRadius = options.datumFitRadii * 0.5 * prepared[fitted[n]].crater.diameter;
+        for (int j = 0; j < kDatumLatticeSide; ++j) {
+            const double dy = DatumLatticeOffset(j, fitRadius);
+            for (int i = 0; i < kDatumLatticeSide; ++i) {
+                const double dx = DatumLatticeOffset(i, fitRadius);
+                if (dx * dx + dy * dy < fitRadius * fitRadius) {
+                    visit(n * kPoints + static_cast<std::size_t>(j * kDatumLatticeSide + i), dx,
+                          dy);
+                }
+            }
+        }
+    };
+    ParallelFor(fitted.size(), sampling.threads, [&](std::size_t n) {
+        const Crater& c = prepared[fitted[n]].crater;
+        forEachPoint(n, [&](std::size_t at, double dx, double dy) {
+            const float height = ground(c.x + dx, c.y + dy);
+            if (!std::isnan(height)) {
+                lattice.Values()[at] = height;
+                valid[at] = 1;
+            }
+        });
+    });
+    CraterDatumKernel kernel;
+    kernel.shape = shape;
+    kernel.fitRadii = static_cast<float>(options.datumFitRadii);
+    kernel.latticeSide = static_cast<std::uint32_t>(kDatumLatticeSide);
+    kernel.bandCount = static_cast<std::uint32_t>(bands->grids.size() / 3);
+    std::vector<std::uint32_t> targets(fitted.size());
+    for (std::size_t n = 0; n < fitted.size(); ++n) {
+        targets[n] = slot[fitted[n]];
+    }
+    const std::array<KernelBuffer, 7> extra{
+        KernelBuffer{std::as_bytes(std::span(batch.records)), batch.records.size()},
+        KernelBuffer{std::as_bytes(std::span(batch.data)), batch.data.size()},
+        KernelBuffer{std::as_bytes(std::span(bands->floats)), bands->floats.size()},
+        KernelBuffer{std::as_bytes(std::span(bands->grids)), bands->grids.size()},
+        KernelBuffer{std::as_bytes(std::span(bands->cells)), bands->cells.size()},
+        KernelBuffer{std::as_bytes(std::span(bands->entries)), bands->entries.size()},
+        KernelBuffer{std::as_bytes(std::span(targets)), targets.size()}};
+    if (!RunKernel(sampling.backend, CompiledKernel<CraterDatumKernel>(),
+                   std::as_bytes(std::span(&kernel, 1)), lattice, {0.0, 0.0}, extra)) {
+        return false;
+    }
+    ParallelFor(fitted.size(), sampling.threads, [&](std::size_t n) {
+        PlaneFit fit;
+        forEachPoint(n, [&](std::size_t at, double dx, double dy) {
+            if (valid[at] != 0) {
+                fit.Add(dx, dy, lattice.Values()[at]);
+            }
+        });
+        std::optional<Plane>& datum = prepared[fitted[n]].datum;
+        if (fit.Empty()) {
+            datum.reset();
+        } else {
+            datum = options.datum == CraterDatum::Plane ? fit.Solve() : Plane{fit.Mean(), 0.0, 0.0};
+        }
+    });
+    LogDebug("craters", "Fitted ", fitted.size(), " crater datums on ",
+             BackendName(sampling.backend));
+    return true;
+}
+
 /// Fits the datums of craters `fitted` of `prepared` to `ground`, or to the raster as given when
-/// it is empty.
+/// it is empty; on a GPU backend when `shape` is set and the GPU can take them.
 void FitDatums(std::vector<PreparedCrater>& prepared, const std::vector<std::size_t>& fitted,
                const Raster<float>& raster, const CraterProfile& profile,
-               const CraterApplyOptions& options, const CraterSampling& sampling) {
+               const std::optional<CraterShapeKernel>& shape, const CraterApplyOptions& options,
+               const CraterSampling& sampling) {
     std::optional<Raster<float>> input;
     HeightSampler ground = sampling.ground;
     if (!ground) {
@@ -194,6 +391,9 @@ void FitDatums(std::vector<PreparedCrater>& prepared, const std::vector<std::siz
             return static_cast<float>(
                 Sample(*input, x, y).value_or(std::numeric_limits<double>::quiet_NaN()));
         };
+    }
+    if (shape && FitDatumsOnGpu(prepared, fitted, ground, profile, *shape, options, sampling)) {
+        return;
     }
     const CraterReliefIndex index(prepared, profile, MaxOutlineScale(options.irregularity),
                                   options.surface);
@@ -419,10 +619,11 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
             windows.push_back(std::move(around));
         }
     }
+    const std::optional<CraterShapeKernel> kernel = MakeCraterShapeKernel(profile, options);
     if (options.datum != CraterDatum::None && !onRaster.empty()) {
-        FitDatums(prepared, onRaster, raster, profile, options, sampling);
+        FitDatums(prepared, onRaster, raster, profile, kernel, options, sampling);
     }
-    if (const std::optional<CraterShapeKernel> kernel = MakeCraterShapeKernel(profile, options)) {
+    if (kernel) {
         CraterKernelBatch batch =
             MakeCraterKernelBatch(*kernel, profile, prepared, onRaster, options);
         if (!ShapeTilesOnGpu(raster, sampling.backend, *kernel, batch, prepared, onRaster,

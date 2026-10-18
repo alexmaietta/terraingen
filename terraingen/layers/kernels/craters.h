@@ -533,6 +533,36 @@ inline float ApplyCraterKernel(KERNEL_IN(CraterShapeKernel) k, CraterData data,
     return height + c.resolution * shaped + c.resolution * replaced;
 }
 
+/// What fitting crater datums on a GPU needs: the craters' shapes, the fit footprint and the
+/// lattice the ground is sampled on (`FitCraterDatum`), and how many size bands index the craters.
+struct CraterDatumKernel {
+    CraterShapeKernel shape;
+    float fitRadii = 1.0f;      ///< The fit footprint, in crater radii.
+    uint32_t latticeSide = 7u;  ///< Lattice points per side.
+    uint32_t bandCount = 0u;    ///< Size bands of the crater index.
+    uint32_t unused = 0u;
+};
+
+/// The relief (m) crater `c` adds at `dx` east and `dy` north of its centre without its datum,
+/// as `CraterReliefIndex` sums it: its resolution times the bare profile, within the profile's
+/// reach.
+inline float CraterRelief(KERNEL_IN(CraterShapeKernel) k, CraterData data,
+                          KERNEL_IN(CraterRecord) c, float dx, float dy) {
+    float distance = sqrt(dx * dx + dy * dy);
+    if (c.ellipticity != 1.0f || c.harmonicCount > 0u || c.tableCount > 0u) {
+        distance /= KernelOutlineScale(data, c, dx, dy);
+    }
+    if (!(distance < k.profileReachRadii * 0.5f * c.diameter)) {
+        return 0.0f;
+    }
+    return c.resolution * KernelProfileHeight(k, data, distance, c.diameter, c);
+}
+
+/// The offset (m) of lattice point `index` of `side` across a footprint of `fitRadius`.
+inline float KernelDatumOffset(uint32_t index, uint32_t side, float fitRadius) {
+    return fitRadius * ((2.0f * float(index) + 1.0f) / float(side) - 1.0f);
+}
+
 #ifndef __SLANG__
 static_assert(sizeof(CraterProfileKernel) == 76,
               "CraterProfileKernel must match its std430 layout");
@@ -541,6 +571,10 @@ static_assert(sizeof(CraterRecord) == 92, "CraterRecord must match its std430 la
 
 /// The compiled forms of the crater kernel.
 template <> KernelProgram CompiledKernel<CraterShapeKernel>();
+static_assert(sizeof(CraterDatumKernel) == 196, "CraterDatumKernel must match its std430 layout");
+
+/// The compiled forms of the crater datum kernel.
+template <> KernelProgram CompiledKernel<CraterDatumKernel>();
 #endif
 
 }  // namespace terraingen

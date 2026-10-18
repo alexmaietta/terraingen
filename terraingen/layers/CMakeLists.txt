@@ -61,3 +61,5 @@ terraingen_add_kernel(terraingen_layers terraingen_kernel_noise_relief NoiseReli
                       terraingen/layers/kernels/noise_relief.h kernels/noise_relief.slang)
 terraingen_add_kernel(terraingen_layers terraingen_kernel_craters CraterShapeKernel
                       terraingen/layers/kernels/craters.h kernels/craters.slang)
+terraingen_add_kernel(terraingen_layers terraingen_kernel_crater_datums CraterDatumKernel
+                      terraingen/layers/kernels/craters.h kernels/crater_datums.slang)

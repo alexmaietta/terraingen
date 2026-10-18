@@ -12,9 +12,6 @@ namespace {
 
 using Matrix3 = std::array<std::array<double, 3>, 3>;
 
-/// Points per side of the lattice a crater's datum is fitted over.
-constexpr int kDatumSamples = 7;
-
 double Determinant(const Matrix3& m) {
     return m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
            m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
@@ -31,10 +28,10 @@ PlaneFit FitFootprint(const Crater& crater, double fitRadii, const Surface& surf
                       const HeightSampler& ground) {
     const double fitRadius = fitRadii * 0.5 * crater.diameter;
     PlaneFit fit;
-    for (int j = 0; j < kDatumSamples; ++j) {
-        const double dy = fitRadius * ((2.0 * j + 1.0) / kDatumSamples - 1.0);
-        for (int i = 0; i < kDatumSamples; ++i) {
-            const double dx = fitRadius * ((2.0 * i + 1.0) / kDatumSamples - 1.0);
+    for (int j = 0; j < kDatumLatticeSide; ++j) {
+        const double dy = DatumLatticeOffset(j, fitRadius);
+        for (int i = 0; i < kDatumLatticeSide; ++i) {
+            const double dx = DatumLatticeOffset(i, fitRadius);
             if (dx * dx + dy * dy >= fitRadius * fitRadius) {
                 continue;
             }

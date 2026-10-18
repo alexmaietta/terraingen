@@ -47,6 +47,15 @@ class PlaneFit {
     double syh_ = 0.0;
 };
 
+/// Points per side of the lattice crater datums are fitted over.
+constexpr int kDatumLatticeSide = 7;
+
+/// The offset (m) from a crater's centre of lattice point `index` (0 to `kDatumLatticeSide` - 1)
+/// along one axis of a fit footprint of `fitRadius` (m).
+inline double DatumLatticeOffset(int index, double fitRadius) {
+    return fitRadius * ((2.0 * index + 1.0) / kDatumLatticeSide - 1.0);
+}
+
 /// The datum a crater is cut to, fitted to the ground beneath it; nothing for
 /// `CraterDatum::None` or where the ground has no data.
 ///
