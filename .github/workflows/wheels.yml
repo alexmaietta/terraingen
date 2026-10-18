@@ -25,12 +25,15 @@ concurrency:
 
 jobs:
   wheels:
-    name: Wheels (${{ matrix.os }})
+    name: Wheels (${{ matrix.os }}, ${{ matrix.python }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04, ubuntu-24.04-arm, macos-15-intel, macos-14, windows-2022]
+        # One job per Python, so the wheels of a platform build side by side: a wheel each for 3.10
+        # and 3.11, and one stable-ABI wheel for 3.12 and newer.
+        python: [cp310, cp311, cp312]
     steps:
       - uses: actions/checkout@v7
 
@@ -41,8 +44,7 @@ jobs:
 
       - uses: pypa/cibuildwheel@v4.3.0
         env:
-          # A wheel each for Python 3.10 and 3.11, and one stable-ABI wheel for 3.12 and newer.
-          CIBW_BUILD: "cp310-* cp311-* cp312-*"
+          CIBW_BUILD: "${{ matrix.python }}-*"
           CIBW_SKIP: "*-musllinux_*"
           # glibc 2.34 (Ubuntu 22.04 and newer): the prebuilt slangc needs its newer C++ runtime.
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_34
@@ -58,7 +60,7 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: wheels-${{ matrix.os }}
+          name: wheels-${{ matrix.os }}-${{ matrix.python }}
           path: wheelhouse/*.whl
 
   sdist:
