@@ -361,6 +361,9 @@ template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
        "rad");
     io("follow_slope", pose.followSlope,
        "Settles each boulder on the slope of the ground beneath it before its tilt.");
+    io("settle", pose.settle,
+       "Tips each boulder model over until it rests stably on a face, its centre of mass over "
+       "what it stands on, rather than balanced on an edge or corner.");
     io("max_slope", pose.maxSlope,
        "Steepest ground, across a boulder's diameter, that boulders stay on, in radians; steeper "
        "ground has none, models and drawn boulders alike. Unset keeps boulders on any slope.",

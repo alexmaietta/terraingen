@@ -56,10 +56,12 @@ RigidTransform TiltRotation(double tilt, double azimuth);
 /// The long axis is scaled to the diameter (the intermediate in proportion) and the short axis to
 /// the height; then stood on the axis `rest` names, leaned by `lean` about the long axis, turned by
 /// `yaw`, tipped by `tilt` toward `tiltAzimuth`, and set at the boulder's position with `burial`
-/// of its vertical extent below `groundHeight`.
+/// of its vertical extent below `groundHeight`. With `settle`, before the tilt it is tipped over
+/// on level ground, from that pose, until it rests stably with its centre of mass above the face
+/// or edges it stands on, so no shape is left balanced on a corner.
 /// @param groundHeight Height of the ground under its centre, in metres.
 BoulderPlacement PlaceBoulderModel(const Boulder& boulder, const BoulderShape& shape,
-                                   double groundHeight);
+                                   double groundHeight, bool settle = false);
 
 /// A boulder as a mesh in world coordinates, its own shape placed by `PlaceBoulderModel`.
 /// @param groundHeight Height of the ground under its centre, in metres.

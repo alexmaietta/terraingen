@@ -50,7 +50,9 @@ def test_top_surface_is_found_above_the_boulder_only(first_model):
 
 
 def test_place_boulder_model_reproduces_the_placement(first_model):
-    again = terraingen.place_boulder_model(first_model.boulder, first_model.shape, first_model.boulder.ground)
+    again = terraingen.place_boulder_model(
+        first_model.boulder, first_model.shape, first_model.boulder.ground, settle=True
+    )
     assert again.apply((0.0, 0.0, 0.0)) == pytest.approx(first_model.placement.apply((0.0, 0.0, 0.0)))
 
 

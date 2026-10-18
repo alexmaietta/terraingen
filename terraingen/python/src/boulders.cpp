@@ -321,6 +321,7 @@ void BindGroupedOptions(nb::class_<BoulderLayerOptions>& options) {
     BindGrouped(options, "end_share", &O::pose, &BoulderPose::endShare);
     BindGrouped(options, "max_tilt", &O::pose, &BoulderPose::maxTilt);
     BindGrouped(options, "follow_slope", &O::pose, &BoulderPose::followSlope);
+    BindGrouped(options, "settle", &O::pose, &BoulderPose::settle);
     BindGrouped(options, "max_slope", &O::pose, &BoulderPose::maxSlope);
     options.def_rw("fillet", &O::fillet);
     options.def_rw("density_map", &O::densityMap)
@@ -416,7 +417,9 @@ void BindPlacement(nb::module_& m) {
         .def_ro("pose", &BoulderPlacement::pose)
         .def("apply", &BoulderPlacement::Apply, "point"_a);
     m.def("place_boulder_model", &PlaceBoulderModel, "boulder"_a, "shape"_a, "ground_height"_a,
-          "The placement of `shape` as `boulder` on ground at `ground_height`.");
+          "settle"_a = false,
+          "The placement of `shape` as `boulder` on ground at `ground_height`; with `settle`, "
+          "tipped over until it rests stably.");
     m.def("placement_at_site", &PlacementAtSite, "placement"_a, "boulder"_a, "site"_a, "surface"_a,
           "A boulder's placement moved into the local east-north-up frame of `site`.");
 }

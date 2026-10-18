@@ -215,6 +215,10 @@ struct BoulderPose {
     /// Settles each boulder on the slope of the ground beneath it, its up axis along the ground's
     /// normal before the tilt; needs the ground.
     bool followSlope = false;
+    /// Tips each boulder model over, from its drawn pose, until it rests stably on level ground
+    /// (`PlaceBoulderModel`), before the tilt and the slope; off leaves shapes as drawn, some
+    /// balanced on an edge or corner.
+    bool settle = true;
     /// Steepest ground, measured across a boulder's diameter, that boulders stay on (radians);
     /// boulders on steeper ground are left out, models and boulders drawn into the heights alike,
     /// so which boulders exist does not depend on the spacing. Unset keeps boulders on any slope;

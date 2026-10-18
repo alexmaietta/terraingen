@@ -1,9 +1,12 @@
 #include "terraingen/layers/boulders/boulder_models.h"
+#include "terraingen/layers/boulders/boulder_options.h"
 
 #include <gtest/gtest.h>
 
 #include <cmath>
 #include <numbers>
+#include <utility>
+#include <vector>
 
 using terraingen::Boulder;
 
@@ -45,6 +48,79 @@ TEST(PlaceBoulderModel, BuriesItsShareOfTheLeanedHeightAndSharesPrototypes) {
     const auto a = terraingen::BoulderMesh(boulder, options, 0.0, 1);
     const auto b = terraingen::BoulderMesh(other, options, 0.0, 1);
     EXPECT_EQ(a.positions, b.positions) << "one prototype for every boulder";
+}
+
+namespace {
+
+/// The centre of mass and placed points of `shape` placed as `boulder` on ground at 0.
+std::pair<terraingen::Vec3d, std::vector<terraingen::Vec3d>>
+Placed(const Boulder& boulder, const terraingen::BoulderShape& shape, bool settle) {
+    const auto placement = terraingen::PlaceBoulderModel(boulder, shape, 0.0, settle);
+    std::vector<terraingen::Vec3d> points;
+    for (const auto& p : shape.mesh.positions) {
+        points.push_back(placement.Apply(p));
+    }
+    terraingen::Vec3d sum{};
+    double volume = 0.0;
+    for (const auto& t : shape.mesh.triangles) {
+        const double v =
+            terraingen::Dot(points[t[0]], terraingen::Cross(points[t[1]], points[t[2]]));
+        sum = sum + (points[t[0]] + points[t[1]] + points[t[2]]) * v;
+        volume += v;
+    }
+    return {sum * (1.0 / (4.0 * volume)), points};
+}
+
+/// Whether the centre of mass stands over the points touching the ground: for every horizontal
+/// direction some contact point reaches at least as far as the centre.
+bool RestsStably(const terraingen::Vec3d& centre, const std::vector<terraingen::Vec3d>& points) {
+    double low = 1e300;
+    for (const auto& p : points) {
+        low = std::fmin(low, p.z);
+    }
+    for (int k = 0; k < 720; ++k) {
+        const double a = 2.0 * std::numbers::pi * k / 720.0;
+        const double ux = std::cos(a);
+        const double uy = std::sin(a);
+        double reach = -1e300;
+        for (const auto& p : points) {
+            if (p.z <= low + 1e-6) {
+                reach = std::fmax(reach, p.x * ux + p.y * uy);
+            }
+        }
+        if (reach < centre.x * ux + centre.y * uy - 1e-6) {
+            return false;
+        }
+    }
+    return true;
+}
+
+}  // namespace
+
+TEST(PlaceBoulderModel, SettlingLeavesEveryShapeRestingStablyAndNoHigher) {
+    EXPECT_TRUE(terraingen::BoulderPose{}.settle) << "layers settle their models by default";
+    const terraingen::BoulderShapeOptions options;
+    int unsettledUnstable = 0;
+    for (std::uint64_t id = 1; id <= 60; ++id) {
+        Boulder boulder{0.0, 0.0, 1.5, 0.8, 0.0, 0.3 * static_cast<double>(id), 0.0, id};
+        boulder.lean = 0.5 * std::sin(1.7 * static_cast<double>(id));
+        boulder.rest = static_cast<terraingen::BoulderRest>(id % 3);
+        const auto shape = terraingen::GenerateBoulderShape(id, options);
+        const auto [before, drawn] = Placed(boulder, shape, false);
+        const auto [after, settled] = Placed(boulder, shape, true);
+        unsettledUnstable += RestsStably(before, drawn) ? 0 : 1;
+        EXPECT_TRUE(RestsStably(after, settled)) << "shape " << id;
+        double low = 1e300;
+        double drawnLow = 1e300;
+        for (std::size_t i = 0; i < settled.size(); ++i) {
+            low = std::fmin(low, settled[i].z);
+            drawnLow = std::fmin(drawnLow, drawn[i].z);
+        }
+        EXPECT_NEAR(low, 0.0, 1e-9) << "it stands on the ground, unburied";
+        EXPECT_LE(after.z - low, before.z - drawnLow + 1e-9)
+            << "tipping only lowers it, shape " << id;
+    }
+    EXPECT_GT(unsettledUnstable, 10) << "drawn poses often balance on an edge or corner";
 }
 
 TEST(TopSurface, IsTheHighestUpwardFaceAboveAPoint) {

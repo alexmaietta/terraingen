@@ -214,7 +214,8 @@ Boulder BoulderLayer::InLocalFrame(const Boulder& boulder) const {
 
 TriangleMesh BoulderLayer::PlacedOnLevel(const Boulder& boulder) const {
     const auto shape = Shape(boulder);
-    const BoulderPlacement placement = PlaceBoulderModel(InLocalFrame(boulder), *shape, 0.0);
+    const BoulderPlacement placement =
+        PlaceBoulderModel(InLocalFrame(boulder), *shape, 0.0, options_.pose.settle);
     TriangleMesh mesh = shape->mesh;
     for (Vec3d& p : mesh.positions) {
         p = placement.Apply(p);
@@ -573,7 +574,7 @@ std::vector<Boulder> BoulderLayer::Break(const Boulder& parent, double spacing,
     Boulder origin = parent;
     origin.x = 0.0;
     origin.y = 0.0;
-    const BoulderPlacement placement = PlaceBoulderModel(origin, *shape, 0.0);
+    const BoulderPlacement placement = PlaceBoulderModel(origin, *shape, 0.0, options_.pose.settle);
     const IdWords id = SplitId(parent.id);
     RandomStream random(options_.seed ^ kBoulderPieces, kBoulderSeed, id.low, id.high);
     const double smallest = spacing > 0.0 ? options_.fade.startSamples * spacing : 0.0;
@@ -754,7 +755,8 @@ std::vector<BoulderModel> BoulderLayer::Models(const std::vector<Boulder>& bould
         if (boulder.model && boulder.ground) {
             std::shared_ptr<const BoulderShape> shape = Shape(boulder);
             const Boulder local = InLocalFrame(boulder);
-            const BoulderPlacement placement = PlaceBoulderModel(local, *shape, *boulder.ground);
+            const BoulderPlacement placement =
+                PlaceBoulderModel(local, *shape, *boulder.ground, options_.pose.settle);
             if (boulder.facetCount > 0) {
                 shape = std::make_shared<const BoulderShape>(
                     Abraded(*shape, placement, local, *boulder.ground));
