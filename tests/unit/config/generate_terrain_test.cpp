@@ -46,7 +46,10 @@ TEST(GenerateTerrain, MatchesComposingTheLibraryCalls) {
     const auto generate = [&](const terraingen::Bounds2d& region) {
         return terraingen::GenerateCraters(
             terraingen::PlanarCells(), region, *models.density, *models.ages, 1u,
-            {.dMin = 8.0, .dMax = 60.0, .marginRadii = 1.5, .manual = manual});
+            {.dMin = 8.0,
+             .dMax = 60.0,
+             .marginRadii = terraingen::CraterReachRadii(*models.profile, Craters(config).apply),
+             .manual = manual});
     };
     const CraterList craters = generate(bounds);
     const double margin = terraingen::DatumMargin(Craters(config).apply, *models.profile, 60.0);
@@ -323,9 +326,12 @@ TEST(GenerateTerrain, PlacesCratersInTheRastersCoordinates) {
     const CraterList placed = CratersOf(terrain).craters;
     ASSERT_GT(placed.Size(), 2u);
     const terraingen::Bounds2d bounds{1000.0, 1850.0, 1200.0, 2000.0};
+    const double reach =
+        terraingen::CraterReachRadii(*BuildCraterModels(craters).profile, craters.apply);
     for (std::size_t n = 0; n < placed.Size(); ++n) {
         const auto crater = placed.At(n);
-        EXPECT_TRUE(bounds.Expanded(0.75 * crater.diameter).Contains(crater.x, crater.y)) << n;
+        EXPECT_TRUE(bounds.Expanded(0.5 * reach * crater.diameter).Contains(crater.x, crater.y))
+            << n;
     }
     EXPECT_LT(HeightsOf(terrain)(20, 15), WriteDem(folder, "again.tif")(20, 15) - 2.0f);
 }

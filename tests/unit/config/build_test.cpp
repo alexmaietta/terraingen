@@ -165,17 +165,17 @@ TEST(BuildCraterModels, BuildsEachSelectedModel) {
     EXPECT_NE(dynamic_cast<const terraingen::UniformAges*>(models.ages.get()), nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::FreshnessDegradation*>(models.degradation.get()),
               nullptr);
-    EXPECT_NE(dynamic_cast<const terraingen::FassettThomsonProfile*>(models.profile.get()),
+    EXPECT_NE(dynamic_cast<const terraingen::MartinParkesDunstanProfile*>(models.profile.get()),
               nullptr);
 
     craters.density = terraingen::PowerLawSpec{0.2, 2.5};
     craters.degradation = terraingen::NoDegradationSpec{};
-    craters.profile = terraingen::MartinParkesDunstanSpec{};
+    craters.profile = terraingen::FassettThomsonSpec{};
     models = BuildCraterModels(craters);
     EXPECT_DOUBLE_EQ(models.density->Cumulative(2.0), 0.2 * std::pow(2.0, -2.5));
     EXPECT_NE(dynamic_cast<const terraingen::UniformAges*>(models.ages.get()), nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::NoDegradation*>(models.degradation.get()), nullptr);
-    EXPECT_NE(dynamic_cast<const terraingen::MartinParkesDunstanProfile*>(models.profile.get()),
+    EXPECT_NE(dynamic_cast<const terraingen::FassettThomsonProfile*>(models.profile.get()),
               nullptr);
 
     const auto density = [&](terraingen::DensitySpec spec) {

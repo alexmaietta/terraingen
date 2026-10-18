@@ -273,7 +273,7 @@ using SimpleProfileSpec = std::variant<FassettThomsonSpec, MartinParkesDunstanSp
 /// morphometry, and complex craters, with flat floors and central peaks, from it
 /// (`ComplexCraterProfile` with `LunarComplexCraterShape` or `MarsComplexCraterShape`).
 struct ComplexProfileSpec {
-    SimpleProfileSpec simple{};
+    SimpleProfileSpec simple{MartinParkesDunstanSpec{}};
     bool operator==(const ComplexProfileSpec&) const = default;
 };
 /// A crater profile, named in JSON by its "type".
@@ -299,7 +299,7 @@ struct CraterLayerSpec {
     std::size_t maxCraters = 0;  ///< Keep at most this many generated craters; 0 keeps all.
     /// Manual craters, in the surface's coordinates; parsing sets their `manual` flag.
     std::vector<Crater> manual{};
-    ProfileSpec profile{};
+    ProfileSpec profile{MartinParkesDunstanSpec{}};
     DegradationSpec degradation{};
     CraterApplyOptions apply{};
     std::optional<DensityMapSpec> densityMap{};  ///< Gives `CraterLayerOptions::densityMap`.
