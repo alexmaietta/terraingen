@@ -111,7 +111,17 @@ typedef StructuredBuffer<float> CraterData;
 inline float CraterValue(CraterData data, uint32_t index) {
     return data[index];
 }
+
+/// Crater records, floats and unsigned integers a dispatch binds, indexed as arrays.
+typedef StructuredBuffer<CraterRecord> CraterRecords;
+typedef StructuredBuffer<float> KernelFloats;
+typedef StructuredBuffer<uint> KernelUints;
 #else
+/// Crater records, floats and unsigned integers, indexed as arrays.
+using CraterRecords = const CraterRecord*;
+using KernelFloats = const float*;
+using KernelUints = const uint32_t*;
+
 /// Where the variable-length values of craters are read from.
 struct CraterData {
     const float* values = nullptr;
@@ -533,8 +543,8 @@ inline float ApplyCraterKernel(KERNEL_IN(CraterShapeKernel) k, CraterData data,
     return height + c.resolution * shaped + c.resolution * replaced;
 }
 
-/// What fitting crater datums on a GPU needs: the craters' shapes, the fit footprint and the
-/// lattice the ground is sampled on (`FitCraterDatum`), and how many size bands index the craters.
+/// What fitting crater datums takes: the craters' shapes, the fit footprint and the lattice the
+/// ground is sampled on (`FitCraterDatum`), and the size bands that index the craters.
 struct CraterDatumKernel {
     CraterShapeKernel shape;
     float fitRadii = 1.0f;      ///< The fit footprint, in crater radii.
@@ -545,10 +555,14 @@ struct CraterDatumKernel {
 
 /// The relief (m) crater `c` adds at `dx` east and `dy` north of its centre without its datum,
 /// as `CraterReliefIndex` sums it: its resolution times the bare profile, within the profile's
-/// reach.
+/// reach. `bound` (m) is at least that reach stretched by the crater's outline.
 inline float CraterRelief(KERNEL_IN(CraterShapeKernel) k, CraterData data,
-                          KERNEL_IN(CraterRecord) c, float dx, float dy) {
-    float distance = sqrt(dx * dx + dy * dy);
+                          KERNEL_IN(CraterRecord) c, float bound, float dx, float dy) {
+    const float squared = dx * dx + dy * dy;
+    if (!(squared < bound * bound)) {
+        return 0.0f;
+    }
+    float distance = sqrt(squared);
     if (c.ellipticity != 1.0f || c.harmonicCount > 0u || c.tableCount > 0u) {
         distance /= KernelOutlineScale(data, c, dx, dy);
     }
@@ -561,6 +575,70 @@ inline float CraterRelief(KERNEL_IN(CraterShapeKernel) k, CraterData data,
 /// The offset (m) of lattice point `index` of `side` across a footprint of `fitRadius`.
 inline float KernelDatumOffset(uint32_t index, uint32_t side, float fitRadius) {
     return fitRadius * ((2.0f * float(index) + 1.0f) / float(side) - 1.0f);
+}
+
+/// Relative float error allowed for, in cell lookups, at a position's magnitude.
+static const float kDatumCellSlack = 4.8e-7f;
+
+/// The relief (m) of the craters before crater `k` of `records` at lattice point `point` of `k`'s
+/// datum footprint, numbered row by row; 0 outside the footprint.
+///
+/// Records hold positions as the floats nearest them and `lows` (x, y pairs) what those drop.
+/// Craters are found through size bands: per band, `bandFloats` holds its cell size, which is at
+/// least the reach of its craters, and its first cell's column and row, counted from the
+/// surface's origin; `bandCells` its cells across and down and its first cell; per cell, `cells`
+/// holds its first entry in `entries` and its entry count, entries being record indices in
+/// ascending order. Cells and order are absolute, so the sum depends only on the craters reaching
+/// the point.
+inline float KernelDatumRelief(KERNEL_IN(CraterDatumKernel) kernel, CraterData data,
+                               CraterRecords records, KernelFloats lows, KernelFloats bandFloats,
+                               KernelUints bandCells, KernelUints cells, KernelUints entries,
+                               uint32_t k, uint32_t point) {
+    const uint32_t side = kernel.latticeSide;
+    const float fitRadius = kernel.fitRadii * 0.5f * records[k].diameter;
+    const float dx = KernelDatumOffset(point % side, side, fitRadius);
+    const float dy = KernelDatumOffset(point / side, side, fitRadius);
+    if (dx * dx + dy * dy >= fitRadius * fitRadius) {
+        return 0.0f;
+    }
+    const float lowX = lows[2u * k] + dx;
+    const float lowY = lows[2u * k + 1u] + dy;
+    const float px = records[k].x + lowX;
+    const float py = records[k].y + lowY;
+    const float slackX = kDatumCellSlack * abs(px);
+    const float slackY = kDatumCellSlack * abs(py);
+    float relief = 0.0f;
+    for (uint32_t b = 0u; b < kernel.bandCount; ++b) {
+        const float size = bandFloats[3u * b];
+        const int32_t across = int32_t(bandCells[3u * b]);
+        const int32_t down = int32_t(bandCells[3u * b + 1u]);
+        const int32_t i0 =
+            max(int32_t(floor((px - size - slackX) / size) - bandFloats[3u * b + 1u]), 0);
+        const int32_t i1 =
+            min(int32_t(floor((px + size + slackX) / size) - bandFloats[3u * b + 1u]), across - 1);
+        const int32_t j0 =
+            max(int32_t(floor((py - size - slackY) / size) - bandFloats[3u * b + 2u]), 0);
+        const int32_t j1 =
+            min(int32_t(floor((py + size + slackY) / size) - bandFloats[3u * b + 2u]), down - 1);
+        for (int32_t j = j0; j <= j1; ++j) {
+            for (int32_t i = i0; i <= i1; ++i) {
+                const uint32_t cell = bandCells[3u * b + 2u] + uint32_t(j * across + i);
+                const uint32_t first = cells[2u * cell];
+                const uint32_t end = first + cells[2u * cell + 1u];
+                for (uint32_t e = first; e < end; ++e) {
+                    const uint32_t n = entries[e];
+                    if (n >= k) {
+                        break;
+                    }
+                    relief +=
+                        CraterRelief(kernel.shape, data, records[n], size,
+                                     (records[k].x - records[n].x) + (lowX - lows[2u * n]),
+                                     (records[k].y - records[n].y) + (lowY - lows[2u * n + 1u]));
+                }
+            }
+        }
+    }
+    return relief;
 }
 
 #ifndef __SLANG__
