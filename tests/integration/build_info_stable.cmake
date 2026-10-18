@@ -22,7 +22,8 @@ function(stamp path variable)
 endfunction()
 
 build()
-file(GLOB_RECURSE library "${BUILD_DIR}/lib/libterraingen_build_info.*")
+file(GLOB_RECURSE library "${BUILD_DIR}/lib/libterraingen_build_info.*"
+     "${BUILD_DIR}/lib/terraingen_build_info.lib")
 stamp("${build_info}" info_before)
 file(TIMESTAMP "${library}" library_before "%Y-%m-%dT%H:%M:%S")
 stamp("${module_dir}/git_state.txt" state_before)
@@ -41,7 +42,8 @@ if(NOT state_before STREQUAL state_after)
     message(FATAL_ERROR "A build without changes rewrote the git state")
 endif()
 
-file(GLOB objects "${module_dir}/raster/CMakeFiles/terraingen_raster.dir/*.o")
+file(GLOB objects "${module_dir}/raster/CMakeFiles/terraingen_raster.dir/*.o"
+     "${module_dir}/raster/CMakeFiles/terraingen_raster.dir/*.obj")
 list(GET objects 0 object)
 file(TOUCH "${object}")
 build()
