@@ -1,5 +1,7 @@
 """pipeline: building and evaluating terrains from configs and objects, outputs and body meshes."""
 
+import pathlib
+
 import numpy as np
 import pytest
 
@@ -101,7 +103,7 @@ def test_generate_terrain_evaluates_the_albedo(tmp_path, small_config):
 def test_write_outputs_writes_every_output(tmp_path, small_config):
     config = albedo_config(small_config)
     written = terraingen.write_outputs(config, terraingen.generate_terrain(config, tmp_path), tmp_path)
-    assert sorted(p.split("/")[-1] for p in written) == ["albedo.tif", "craters.csv", "heights.tif"]
+    assert sorted(pathlib.Path(p).name for p in written) == ["albedo.tif", "craters.csv", "heights.tif"]
     assert (tmp_path / "craters.csv").read_text().startswith("x,y,diameter")
 
 
