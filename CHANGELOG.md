@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Piecewise uniform size-frequency distributions: counts per diameter band, given absolutely or as shares of a total.
+- Radial wall marks on craters, ridges and grooves down the wall that are strongest where it is steepest.
+- Thomas cluster process for boulder clusters, with Poisson-scattered centres whose clusters add where they overlap.
+- Craters on slopes: floors offset downslope and rims and ejecta lowered upslope (Plescia et al. 2019), and faster wear toward a critical gradient (Roering et al. 1999).
+- Boulders limited to a maximum slope, optionally rolling down steeper ground to gather at its foot.
+- Density maps from GeoTIFFs or constants: a scale, a count in a diameter range, or an areal fraction such as rock abundance, which set crater and boulder densities point by point.
+- Size slope maps that bend boulder sizes into a local power law, from an exponent or a mean diameter map.
+- Crater and boulder catalogs with a completeness limit, above which they stand in for generated features.
+- Configuration reference in the documentation, generated from the schema at build time, and machine-readable value ranges in the schema.
+
+### Changed
+
+- Density maps that count every feature take out the secondaries thrown from a layer's craters and the blocks thrown out around craters, and boulder patches and bedrock keep a map's mean, so nothing is counted twice.
+- Boulder models settle onto a stable face by default instead of balancing on an edge or corner.
+- Boulder generation logs under boulders rather than craters.
+- Martin, Parkes and Dunstan is the default crater profile.
+
+### Fixed
+
+- Freshness degradation never makes a crater deeper than fresh: basins shallower than the cutoff keep their fresh shape.
+- Small craters inside larger ones on sloping ground no longer stand as raised mounds: datums are fitted to the slope-shaped relief that is applied.
+
 ## [0.1.0] - 2026-10-18
 
 Initial release.
