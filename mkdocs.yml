@@ -13,6 +13,10 @@ exclude_docs: |
   README.md
   requirements.txt
   overrides/
+  scripts/
+# Writes the configuration reference from the built library's schema (docs/scripts).
+hooks:
+  - docs/scripts/generate_schema.py
 
 theme:
   name: material

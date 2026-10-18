@@ -16,7 +16,8 @@ template <typename IO> void Fields(IO& io, FieldSpec& field) {
     io("method", field.method,
        "How the GeoTIFF is interpolated: nearest or bilinear, which stay within the cells read.");
     io("scale", field.scale,
-       "Multiplies every cell, such as 0.001 for a map stored in thousandths; positive.");
+       "Multiplies every cell, such as 0.001 for a map stored in thousandths; positive.", "",
+       Above(0.0));
     io("fallback", field.fallback,
        "Value outside the GeoTIFF and where its cells are no-data or NaN; unset leaves none, and "
        "the layer then keeps its own setting there.");
@@ -34,7 +35,8 @@ template <typename IO> void Fields(IO& io, DensityMapSpec& map) {
     io("max_diameter", map.maxDiameter,
        "Largest diameter the map measures, in metres, exclusive; unset for no limit.", "m");
     io("area_unit", map.areaUnit,
-       "Square metres per area unit of a count: 1 for per m^2, 1e6 for per km^2.", "m^2");
+       "Square metres per area unit of a count: 1 for per m^2, 1e6 for per km^2.", "m^2",
+       Above(0.0));
     io("total", map.total,
        "The map counts every feature of its kind, including the secondaries thrown from a crater "
        "layer's craters and the boulders a layer throws out around craters, which are taken out "

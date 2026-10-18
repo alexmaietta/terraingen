@@ -70,7 +70,9 @@ std::string ConfigCatalog(int indent = 2);
 ///   "string";
 /// - "enum" with its "choices" and their "descriptions";
 /// - "optional" and "array" with the schema "of" what they hold and that thing's "default";
-/// - "object" with its "fields", each {"name", "description", "unit", "schema", "default"};
+/// - "object" with its "fields", each {"name", "description", "unit", "schema", "default"}, and for
+///   a bounded number (or each number of a list) "minimum" and "exclusive_minimum", "maximum"
+///   and "exclusive_maximum";
 /// - "choice" with its "alternatives", each {"type", "description", "fields", "default"}.
 std::string ConfigSchema(int indent = 2);
 

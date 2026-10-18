@@ -45,7 +45,7 @@ class CatalogWriter {
 
     template <typename T>
     void operator()(std::string_view key, T& value, std::string_view /*description*/ = {},
-                    std::string_view /*unit*/ = {}) {
+                    std::string_view /*unit*/ = {}, const FieldRange& /*range*/ = {}) {
         json_[std::string(key)] = CatalogEntry(value);
     }
 
@@ -82,12 +82,21 @@ class SchemaWriter {
 
     template <typename T>
     void operator()(std::string_view key, T& value, std::string_view description = {},
-                    std::string_view unit = {}) {
-        fields_.push_back(Json{{"name", std::string(key)},
-                               {"description", std::string(description)},
-                               {"unit", std::string(unit)},
-                               {"schema", Describer<T>::Describe(builder_)},
-                               {"default", ToJson(value)}});
+                    std::string_view unit = {}, const FieldRange& range = {}) {
+        Json field{{"name", std::string(key)},
+                   {"description", std::string(description)},
+                   {"unit", std::string(unit)},
+                   {"schema", Describer<T>::Describe(builder_)},
+                   {"default", ToJson(value)}};
+        if (range.minimum) {
+            field["minimum"] = *range.minimum;
+            field["exclusive_minimum"] = range.exclusiveMinimum;
+        }
+        if (range.maximum) {
+            field["maximum"] = *range.maximum;
+            field["exclusive_maximum"] = range.exclusiveMaximum;
+        }
+        fields_.push_back(std::move(field));
     }
 
   private:

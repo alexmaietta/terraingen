@@ -23,7 +23,8 @@ template <> struct SpecName<SphereSurfaceSpec> {
         "features generated over the whole body.";
 };
 template <typename IO> void Fields(IO& io, SphereSurfaceSpec& spec) {
-    io("radius", spec.radius, "Radius of the body's datum sphere, in metres; required.", "m");
+    io("radius", spec.radius, "Radius of the body's datum sphere, in metres; required.", "m",
+       Above(0.0));
 }
 
 template <> struct SpecName<EllipsoidSurfaceSpec> {
@@ -37,7 +38,7 @@ template <typename IO> void Fields(IO& io, EllipsoidSurfaceSpec& spec) {
     io("radii", spec.radii,
        "Semi-axes a, b and c of the datum ellipsoid in metres, along x (longitude 0), y "
        "(longitude 90) and z (the north pole); exactly three, each positive.",
-       "m");
+       "m", Above(0.0));
 }
 
 template <> struct SpecName<ShapeModelSurfaceSpec> {
@@ -54,11 +55,12 @@ template <typename IO> void Fields(IO& io, ShapeModelSurfaceSpec& spec) {
                      "model (.icq) or a closed mesh (.obj, .gltf, .glb or .stl)"));
     io("q", spec.q,
        "Intervals per cube face edge of the radial grid the model is resampled on, 1 to 4096; "
-       "unset keeps an ICQ model's own Q and uses 256 for a mesh.");
+       "unset keeps an ICQ model's own Q and uses 256 for a mesh.",
+       "", Between(1.0, 4096.0));
     io("metres_per_unit", spec.metresPerUnit,
        "Metres per unit of the file's coordinates; unset is 1000 for an ICQ model, whose "
        "coordinates are kilometres, and 1 for a mesh.",
-       "m");
+       "m", Above(0.0));
 }
 
 template <> struct SpecName<RasterSourceSpec> {
@@ -74,7 +76,7 @@ template <typename IO> void Fields(IO& io, RasterSourceSpec& source) {
     io("pixel_size", read.pixelSize,
        "Cell size in metres to resample the raster to over the same extent, as when upscaling a "
        "DEM. Unset keeps the file's.",
-       "m");
+       "m", Above(0.0));
     io("resampling", read.resampling, "Interpolation used when resampling to the cell size.");
     io("scale", read.scale,
        "Factor each sample is multiplied by, replacing the band's scale from the file's GDAL "
@@ -87,7 +89,7 @@ template <typename IO> void Fields(IO& io, RasterSourceSpec& source) {
        "Standard deviation in metres of a Gaussian low-pass applied to the file's heights before "
        "any resampling, keeping a DEM's low frequencies for synthetic detail to be added to; a "
        "dem_detail layer can add the removed detail back. 0 keeps every frequency.",
-       "m");
+       "m", AtLeast(0.0));
 }
 
 template <> struct SpecName<ChainSourceSpec> {

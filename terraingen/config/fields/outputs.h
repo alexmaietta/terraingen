@@ -11,12 +11,12 @@
 namespace terraingen::config {
 
 template <typename IO> void Fields(IO& io, GridRegionSpec& region) {
-    io("width", region.width, "Columns of the grid.");
-    io("height", region.height, "Rows of the grid.");
+    io("width", region.width, "Columns of the grid.", "", Between(2.0, 65536.0));
+    io("height", region.height, "Rows of the grid.", "", Between(2.0, 65536.0));
     io("pixel_size", region.pixelSize,
        "Cell size in metres; on a body, metres along a meridian, the same in degrees of "
        "longitude.",
-       "m");
+       "m", Above(0.0));
     io("centre_x", region.centreX,
        "Centre of the grid along x in surface coordinates; the longitude in degrees on a body.");
     io("centre_y", region.centreY,
@@ -35,7 +35,8 @@ template <typename IO> void GeoTiffOutputFields(IO& io, GeoTiffOutput& output) {
     io("compression", output.compression,
        "Compression of the file; compressed files use the floating-point predictor.");
     io("tile_size", output.tileSize,
-       "Width and height of the file's tiles in pixels; a positive multiple of 16.", "px");
+       "Width and height of the file's tiles in pixels; a positive multiple of 16.", "px",
+       AtLeast(16.0));
 }
 
 /// The fields of where features are listed: a region and a sample spacing.
@@ -46,7 +47,7 @@ template <typename IO, typename Output> void FeatureExtentFields(IO& io, Output&
     io("spacing", output.spacing,
        "Sample spacing in metres the features are listed at, as a heightmap of that pixel size "
        "applies them; unset for the region's pixel size. A whole-body list needs it.",
-       "m");
+       "m", Above(0.0));
 }
 
 /// The fields of crater and boulder list outputs.
@@ -96,7 +97,7 @@ template <typename IO> void Fields(IO& io, BoulderModelsOutput& output) {
     io("crease_angle", output.creaseAngle,
        "Angle in degrees, from 0 to 180: vertices are split where faces meet at more than it, "
        "giving sharp edges.",
-       "deg");
+       "deg", Between(0.0, 180.0));
     io("instanced", output.instanced,
        "Writes each shared shape once and draws it per boulder (glTF instances, OBJ objects); "
        "false writes every boulder as its own placed mesh, for tools without instancing.");
@@ -144,11 +145,12 @@ template <typename IO> void Fields(IO& io, MeshOutput& output) {
        OutputPathHelp("File to write, ending in .glb, .gltf, .obj, .stl or .icq"));
     io("cells_per_face", output.cellsPerFace,
        "Quads along each edge of the six cube faces, 1 to 4096; more give a finer mesh, with two "
-       "triangles per quad.");
+       "triangles per quad.",
+       "", Between(1.0, 4096.0));
     io("spacing", output.spacing,
        "Sample spacing in metres the heights are evaluated at, which sets the finest features "
        "kept; unset uses a quad's side at a face's centre.",
-       "m");
+       "m", Above(0.0));
 }
 
 template <> struct SpecName<TerrainMeshOutput> {

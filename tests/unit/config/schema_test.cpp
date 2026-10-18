@@ -238,6 +238,63 @@ TEST(ConfigSchema, GivesUnitsOnlyToNumbersAndFromAFixedSet) {
     EXPECT_GT(withUnits, 50) << "lengths, angles and ages carry units";
 }
 
+TEST(ConfigSchema, BoundsOnlyNumbersAndTheirDefaultsFitTheBounds) {
+    const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
+    const std::set<std::string> placeholders = {"radius", "diameter"};
+    int bounded = 0;
+    const auto check = [&](const SchemaJson& fields, const std::string& where) {
+        for (const SchemaJson& field : fields) {
+            const bool low = field.contains("minimum");
+            const bool high = field.contains("maximum");
+            if (!low && !high) {
+                continue;
+            }
+            ++bounded;
+            const std::string name = field["name"];
+            const std::string at = where + "." + name;
+            const SchemaJson* inner = &field["schema"];
+            while ((*inner)["kind"] == "optional" || (*inner)["kind"] == "array") {
+                inner = &(*inner)["of"];
+            }
+            EXPECT_TRUE((*inner)["kind"] == "number" || (*inner)["kind"] == "integer") << at;
+            EXPECT_EQ(low, field.contains("exclusive_minimum")) << at;
+            EXPECT_EQ(high, field.contains("exclusive_maximum")) << at;
+            if (low && high) {
+                EXPECT_LT(field["minimum"].get<double>(), field["maximum"].get<double>()) << at;
+            }
+            const SchemaJson& value = field["default"];
+            const SchemaJson values = value.is_array() ? value : SchemaJson::array({value});
+            for (const SchemaJson& v : values) {
+                if (!v.is_number() || placeholders.contains(name)) {
+                    continue;
+                }
+                const double x = v.get<double>();
+                if (low) {
+                    const double min = field["minimum"];
+                    EXPECT_TRUE(field["exclusive_minimum"] ? x > min : x >= min)
+                        << at << " = " << x;
+                }
+                if (high) {
+                    const double max = field["maximum"];
+                    EXPECT_TRUE(field["exclusive_maximum"] ? x < max : x <= max)
+                        << at << " = " << x;
+                }
+            }
+        }
+    };
+    check(schema["root"]["fields"], "root");
+    for (const auto& [id, definition] : schema["definitions"].items()) {
+        if (definition["kind"] == "choice") {
+            for (const SchemaJson& alternative : definition["alternatives"]) {
+                check(alternative["fields"], alternative["type"].get<std::string>());
+            }
+        } else {
+            check(definition["fields"], id);
+        }
+    }
+    EXPECT_GT(bounded, 300) << "shares, counts and sizes carry their ranges";
+}
+
 TEST(ConfigSchema, ListsTheParsersChoicesAndRefersToRecursiveTypes) {
     const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
     const SchemaJson base = FieldOf(schema["root"], "base")["schema"];

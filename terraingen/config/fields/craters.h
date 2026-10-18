@@ -16,11 +16,11 @@ template <typename IO> void Fields(IO& io, Crater& crater) {
        "Centre along x in the surface's coordinates; the longitude in degrees on a sphere.");
     io("y", crater.y,
        "Centre along y in the surface's coordinates; the latitude in degrees on a sphere.");
-    io("diameter", crater.diameter, "Rim-to-rim diameter, in metres.", "m");
+    io("diameter", crater.diameter, "Rim-to-rim diameter, in metres.", "m", Above(0.0));
     io("age_gyr", crater.ageGyr,
        "Age in Gyr; older craters are more degraded under a degradation model and are applied "
        "earlier in oldest-first order.",
-       "Gyr");
+       "Gyr", AtLeast(0.0));
     io("id", crater.id,
        "Stable ID that seeds the crater's outline; 0 derives one from its position and diameter.");
 }
@@ -28,27 +28,33 @@ template <typename IO> void Fields(IO& io, Crater& crater) {
 template <typename IO> void Fields(IO& io, CraterSpacing& spacing) {
     io("diameter_ratio", spacing.diameterRatio,
        "Largest ratio of two craters' diameters, at least 1, for them to count as similar in size "
-       "and be kept apart.");
+       "and be kept apart.",
+       "", AtLeast(1.0));
     io("separation", spacing.separation,
        "Least distance between the centres of similar-size craters, in larger diameters; 0 "
-       "disables spacing.");
+       "disables spacing.",
+       "", AtLeast(0.0));
 }
 
 template <typename IO> void Fields(IO& io, ResolutionFade& fade) {
     io("start_samples", fade.startSamples,
-       "Samples across a feature's diameter up to which it is left out entirely.");
+       "Samples across a feature's diameter up to which it is left out entirely.", "",
+       AtLeast(0.0));
     io("end_samples", fade.endSamples,
        "Samples across a feature's diameter from which it is applied in full; it fades in between "
-       "the two counts.");
+       "the two counts.",
+       "", Above(0.0));
     io("shape", fade.shape, "Curve of the fade between the start and end sample counts.");
 }
 
 template <typename IO> void Fields(IO& io, CraterBlend& blend) {
     io("start_radii", blend.startRadii,
-       "Distance from the centre, in crater radii, up to which the interior is fully replaced.");
+       "Distance from the centre, in crater radii, up to which the interior is fully replaced.", "",
+       AtLeast(0.0));
     io("end_radii", blend.endRadii,
        "Distance from the centre, in crater radii, from which the surrounding terrain is draped "
-       "unchanged.");
+       "unchanged.",
+       "", Above(0.0));
     io("shape", blend.shape, "Curve of the transition from the replaced interior to the exterior.");
 }
 
@@ -76,26 +82,27 @@ template <typename IO> void Fields(IO& io, CraterIrregularity& irregularity) {
        "irregular crater.");
     CraterSelection& selection = irregularity.selection;
     io("min_diameter", selection.minDiameter,
-       "Smallest diameter, in metres, of craters made irregular.", "m");
+       "Smallest diameter, in metres, of craters made irregular.", "m", AtLeast(0.0));
     OptionalBound(io, "max_diameter", selection.maxDiameter,
                   "Largest diameter, in metres, of craters made irregular; unset has no upper "
                   "limit.",
-                  "m");
+                  "m", std::numeric_limits<double>::infinity(), AtLeast(0.0));
     io("min_age_gyr", selection.minAgeGyr, "Youngest age, in Gyr, of craters made irregular.",
-       "Gyr");
+       "Gyr", AtLeast(0.0));
     OptionalBound(io, "max_age_gyr", selection.maxAgeGyr,
-                  "Oldest age, in Gyr, of craters made irregular; unset has no upper limit.",
-                  "Gyr");
+                  "Oldest age, in Gyr, of craters made irregular; unset has no upper limit.", "Gyr",
+                  std::numeric_limits<double>::infinity(), AtLeast(0.0));
     io("manual", selection.manual,
        "Makes manual craters irregular too; otherwise only generated craters are.");
     io("rough_share", irregularity.roughShare,
-       "Share of eligible craters, from 0 to 1, given rough, wavy rims.");
+       "Share of eligible craters, from 0 to 1, given rough, wavy rims.", "", UnitInterval());
     io("model", irregularity.model, "How rough rims are drawn.");
     io("scatter", irregularity.scatter,
        "With du_2024, scatters each crater's spectrum by the fits' measured misfits and noise.");
     io("max_deviation", irregularity.maxDeviation,
        "With du_2024, the largest deviation of a rim from a circle, in radii; outlines beyond it "
-       "are scaled down to it.");
+       "are scaled down to it.",
+       "", AboveUpTo(0.0, 0.5));
     io("roughness", irregularity.roughness,
        "With power_law, the RMS deviation of a rough rim from a circle, in crater radii, drawn per "
        "crater.");
@@ -103,12 +110,15 @@ template <typename IO> void Fields(IO& io, CraterIrregularity& irregularity) {
        "With power_law, the exponent s of the rim harmonics' amplitudes, falling as k^-s, drawn "
        "per crater; higher values leave less fine waviness.");
     io("min_harmonic", irregularity.minHarmonic,
-       "With power_law, the lowest harmonic of the rim's waviness, from 1 to 64.");
+       "With power_law, the lowest harmonic of the rim's waviness, from 1 to 64.", "",
+       Between(1.0, 64.0));
     io("max_harmonic", irregularity.maxHarmonic,
        "With power_law, the highest harmonic of the rim's waviness, at most 64; higher harmonics "
-       "add finer wiggles.");
+       "add finer wiggles.",
+       "", Between(1.0, 64.0));
     io("elongated_share", irregularity.elongatedShare,
-       "Share of eligible craters, from 0 to 1, made elliptical, keeping their area.");
+       "Share of eligible craters, from 0 to 1, made elliptical, keeping their area.", "",
+       UnitInterval());
     io("ellipticity", irregularity.ellipticity,
        "Long over short rim-to-rim diameter of elliptical craters, drawn per crater; at least 1.");
     io("heading", irregularity.heading,
@@ -116,79 +126,93 @@ template <typename IO> void Fields(IO& io, CraterIrregularity& irregularity) {
        "gives random headings.",
        "rad");
     io("heading_spread", irregularity.headingSpread,
-       "Largest random turn of a long axis either way from the heading, in radians.", "rad");
+       "Largest random turn of a long axis either way from the heading, in radians.", "rad",
+       AtLeast(0.0));
     io("marks_share", irregularity.marksShare,
        "Share of eligible craters, from 0 to 1, given radial marks: ridges and grooves down the "
-       "wall, strongest where it is steepest.");
+       "wall, strongest where it is steepest.",
+       "", UnitInterval());
     io("marks_amplitude", irregularity.marksAmplitude,
        "Largest radial shift of the wall by the marks, in crater radii, drawn per crater; below "
        "marks_fade_radii / 3.75.");
     io("marks_knots", irregularity.marksKnots,
        "Random shifts around the crater the marks pass through, from 3 to 1024; more knots give "
-       "narrower marks.");
+       "narrower marks.",
+       "", Between(3.0, 1024.0));
     io("marks_inner_radii", irregularity.marksInnerRadii,
-       "Distance from the centre, in crater radii, where the marks reach full strength.");
+       "Distance from the centre, in crater radii, where the marks reach full strength.", "",
+       Inside(0.0, 1.0));
     io("marks_outer_radii", irregularity.marksOuterRadii,
        "Distance from the centre, in crater radii, where the marks start to fade; at most 1 minus "
-       "marks_fade_radii.");
+       "marks_fade_radii.",
+       "", Inside(0.0, 1.0));
     io("marks_fade_radii", irregularity.marksFadeRadii,
-       "Width, in crater radii, over which the marks fade in and out.");
+       "Width, in crater radii, over which the marks fade in and out.", "", AboveUpTo(0.0, 0.5));
 }
 
 template <typename IO> void Fields(IO& io, RimSmoothing& smoothing) {
     io("sigma_radii", smoothing.sigmaRadii,
        "Deviation of the Gaussian the profile is smoothed with across distance, in crater radii; "
-       "larger values round rims more, and 0 leaves them sharp.");
+       "larger values round rims more, and 0 leaves them sharp.",
+       "", AtLeast(0.0));
     io("inner_radii", smoothing.innerRadii,
-       "Inner edge of the smoothed band around the rim, in crater radii; below 1.");
+       "Inner edge of the smoothed band around the rim, in crater radii; below 1.", "",
+       FromBelow(0.0, 1.0));
     io("outer_radii", smoothing.outerRadii,
-       "Outer edge of the smoothed band around the rim, in crater radii; above 1.");
+       "Outer edge of the smoothed band around the rim, in crater radii; above 1.", "", Above(1.0));
     io("shape", smoothing.shape,
        "How the smoothing fades from full at the rim to none at the band's edges.");
     io("strength", smoothing.strength,
        "Share of the smoothed height used at the rim, from 0 to 1; lower values keep more of the "
-       "sharp crest.");
+       "sharp crest.",
+       "", UnitInterval());
 }
 
 template <typename IO> void Fields(IO& io, CraterNoise& noise) {
     io("amplitude", noise.amplitude,
        "Amplitude of the noise over the whole footprint, as a share of the crater diameter; it "
-       "fades out beyond the rim to the profile's reach, and 0 adds none.");
+       "fades out beyond the rim to the profile's reach, and 0 adds none.",
+       "", AtLeast(0.0));
     io("wavelength_radii", noise.wavelengthRadii,
-       "Wavelength of the footprint noise's first octave, in crater radii.");
-    io("octaves", noise.octaves, "Octaves of both noises, from 1 to 12.");
-    io("gain", noise.gain, "Weight ratio between successive octaves; positive.");
+       "Wavelength of the footprint noise's first octave, in crater radii.", "", Above(0.0));
+    io("octaves", noise.octaves, "Octaves of both noises, from 1 to 12.", "", Between(1.0, 12.0));
+    io("gain", noise.gain, "Weight ratio between successive octaves; positive.", "", Above(0.0));
     io("rim_amplitude", noise.rimAmplitude,
        "Amplitude of the extra noise in the band around the rim, as a share of the crater "
-       "diameter; 0 adds none.");
+       "diameter; 0 adds none.",
+       "", AtLeast(0.0));
     io("rim_wavelength_radii", noise.rimWavelengthRadii,
-       "Wavelength of the rim noise's first octave, in crater radii.");
+       "Wavelength of the rim noise's first octave, in crater radii.", "", Above(0.0));
     io("rim_inner_radii", noise.rimInnerRadii,
-       "Inner edge of the rim noise band, in crater radii; below 1.");
+       "Inner edge of the rim noise band, in crater radii; below 1.", "", FromBelow(0.0, 1.0));
     io("rim_outer_radii", noise.rimOuterRadii,
-       "Outer edge of the rim noise band, in crater radii; above 1.");
+       "Outer edge of the rim noise band, in crater radii; above 1.", "", Above(1.0));
     io("seed", noise.seed, "Varies the noise of every crater.");
 }
 
 template <typename IO> void Fields(IO& io, CraterTexture& texture) {
     io("wall_streaks", texture.wallStreaks,
        "Amplitude of the radial gullies down a fresh crater's inner wall, as a share of its "
-       "diameter; 0 adds none.");
+       "diameter; 0 adds none.",
+       "", AtLeast(0.0));
     io("wall_streak_width_radii", texture.wallStreakWidthRadii,
-       "Width of the gullies across the wall, in crater radii.");
+       "Width of the gullies across the wall, in crater radii.", "", Above(0.0));
     io("ejecta", texture.ejecta,
        "Amplitude of the hummocky, radially lineated ejecta around a fresh crater, as a share of "
-       "the ejecta's thickness (McGetchin et al. 1973); 0 adds none.");
+       "the ejecta's thickness (McGetchin et al. 1973); 0 adds none.",
+       "", AtLeast(0.0));
     io("ejecta_lineation_radii", texture.ejectaLineationRadii,
-       "Width of the ejecta's lineations across, in crater radii at the rim.");
+       "Width of the ejecta's lineations across, in crater radii at the rim.", "", Above(0.0));
     io("mantling", texture.mantling,
        "Share of older relief buried under the ejecta at the rim, falling with their thickness, "
-       "from 0 to 1; needs a datum.");
+       "from 0 to 1; needs a datum.",
+       "", UnitInterval());
     io("ejecta_reach_radii", texture.ejectaReachRadii,
-       "How far ejecta texture and burial reach, in crater radii; above 1.");
+       "How far ejecta texture and burial reach, in crater radii; above 1.", "", Above(1.0));
     io("min_freshness", texture.minFreshness,
        "Freshness (depth over fresh depth) at or below which gullies and ejecta texture are worn "
-       "away, from 0 to below 1.");
+       "away, from 0 to below 1.",
+       "", FromBelow(0.0, 1.0));
     io("seed", texture.seed, "Varies the texture of every crater.");
 }
 
@@ -202,11 +226,12 @@ template <typename IO> void Fields(IO& io, CraterSlopeResponse& slope) {
        "below 0.23.");
     io("upslope_rim", slope.upslopeRim,
        "Share of the raised rim and ejecta kept straight upslope, from 0 to 1; the rest returns "
-       "toward the sides.");
+       "toward the sides.",
+       "", UnitInterval());
     io("full_slope", slope.fullSlope,
        "Slope at which the asymmetry is complete, in radians; it rises from none on level "
        "ground.",
-       "rad");
+       "rad", Above(0.0));
 }
 
 template <typename IO> void Fields(IO& io, CraterApplyOptions& apply) {
@@ -217,10 +242,11 @@ template <typename IO> void Fields(IO& io, CraterApplyOptions& apply) {
        "Reference surface each crater's interior is cut relative to, fitted to the ground beneath "
        "it; none adds craters onto the terrain everywhere.");
     io("datum_fit_radii", apply.datumFitRadii,
-       "Radius of the footprint the datum is fitted over, in crater radii.");
+       "Radius of the footprint the datum is fitted over, in crater radii.", "", Above(0.0));
     io("interior_replacement", apply.interiorReplacement,
        "Share of the interior replaced by datum plus profile, from 0 to 1: 1 erases older relief "
-       "inside the crater, 0 keeps it.");
+       "inside the crater, 0 keeps it.",
+       "", UnitInterval());
     io("blend", apply.blend,
        "Where and how a crater's replaced interior blends into the surrounding terrain.");
     io("irregularity", apply.irregularity,
@@ -261,9 +287,10 @@ template <typename IO> void Fields(IO& io, CraterLayerSpec& craters) {
     io("ages", craters.ages,
        "How generated craters are given ages, which the degradation model wears them down by.");
     io("min_diameter", craters.minDiameter,
-       "Smallest crater generated, in metres; lower values add many more small craters.", "m");
+       "Smallest crater generated, in metres; lower values add many more small craters.", "m",
+       Above(0.0));
     io("max_diameter", craters.maxDiameter,
-       "Largest crater generated, in metres; above the smallest.", "m");
+       "Largest crater generated, in metres; above the smallest.", "m", Above(0.0));
     io("spacing", craters.spacing,
        "Keeps craters of similar size apart by removing conflicting ones, which lowers the density "
        "below the model's.");
@@ -304,23 +331,27 @@ template <typename IO> void Fields(IO& io, SecondaryRays& rays) {
        "The rays; give a crater albedo layer's rays the same layout for bright rays over the "
        "secondaries.");
     io("share", rays.share,
-       "Share of secondaries in rays, from 0 to 1; the rest stay spread evenly. Illustrative.");
+       "Share of secondaries in rays, from 0 to 1; the rest stay spread evenly. Illustrative.", "",
+       UnitInterval());
     io("min_half_angle_degrees", rays.minHalfAngleDegrees,
        "Narrowest half width of a ray, in degrees from 0 to 90 excluded, so rays widen with range "
        "beyond their width near the primary. Illustrative.",
-       "deg");
+       "deg", Inside(0.0, 90.0));
     io("clustering", rays.clustering,
        "How strongly secondaries clump along a ray, from 0 for evenly along it to 1 for only in "
-       "clumps. Illustrative.");
+       "clumps. Illustrative.",
+       "", UnitInterval());
     io("cluster_spacing", rays.clusterSpacing,
        "Typical spacing of clumps along a ray, in natural log of range; positive, smaller values "
-       "give shorter, more frequent clumps. Illustrative.");
+       "give shorter, more frequent clumps. Illustrative.",
+       "", Above(0.0));
 }
 
 template <typename IO> void Fields(IO& io, SecondaryShapes& shapes) {
     io("elongated_share", shapes.elongatedShare,
        "Share of secondaries, from 0 to 1, stretched along the line back to their primary; 0 keeps "
-       "them round.");
+       "them round.",
+       "", UnitInterval());
     io("ellipticity", shapes.ellipticity,
        "Long over short axis of an elongated secondary near the primary, drawn per secondary; at "
        "least 1, falling to 1 at the outer range.");
@@ -339,42 +370,48 @@ template <typename IO> void Fields(IO& io, SecondaryLayerSpec& spec) {
        "statistics.");
     io("onset_count", o.onsetCount,
        "Secondaries at least count_fraction primary diameters across, in an area the size of the "
-       "primary at the onset range. Required: the sources give sizes, not numbers.");
+       "primary at the onset range. Required: the sources give sizes, not numbers.",
+       "", Above(0.0));
     io("count_fraction", o.countFraction,
        "Size, as a fraction of the primary's diameter, from which the onset count counts "
-       "secondaries.");
+       "secondaries.",
+       "", Above(0.0));
     io("size_slope", o.sizeSlope,
        "Cumulative size slope of the secondaries, their number falling as d^-slope; higher values "
-       "give relatively more small secondaries.");
-    io("min_diameter", o.minDiameter, "Smallest secondary generated, in metres.", "m");
+       "give relatively more small secondaries.",
+       "", Above(0.0));
+    io("min_diameter", o.minDiameter, "Smallest secondary generated, in metres.", "m", Above(0.0));
     OptionalBound(io, "max_diameter", o.maxDiameter,
                   "Largest secondary generated, in metres; unset has no limit beyond Singer et "
                   "al.'s largest secondary at each range.",
-                  "m");
+                  "m", std::numeric_limits<double>::infinity(), Above(0.0));
     io("outer_range", o.outerRange,
        "How far secondaries reach, in primary diameters from its centre; unset uses the longest "
-       "typical ray of Elliott et al. (2018).");
+       "typical ray of Elliott et al. (2018).",
+       "", Above(0.0));
     io("min_primary_diameter", o.selection.minDiameter,
-       "Smallest primary crater, in metres, that throws secondaries.", "m");
+       "Smallest primary crater, in metres, that throws secondaries.", "m", AtLeast(0.0));
     OptionalBound(io, "max_primary_diameter", o.selection.maxDiameter,
                   "Largest primary crater, in metres, that throws secondaries; unset has no upper "
                   "limit.",
-                  "m");
+                  "m", std::numeric_limits<double>::infinity(), AtLeast(0.0));
     io("min_age_gyr", o.selection.minAgeGyr, "Youngest primary, in Gyr, that throws secondaries.",
-       "Gyr");
+       "Gyr", AtLeast(0.0));
     OptionalBound(io, "max_age_gyr", o.selection.maxAgeGyr,
                   "Oldest primary, in Gyr, that throws secondaries; unset has no upper limit.",
-                  "Gyr");
+                  "Gyr", std::numeric_limits<double>::infinity(), AtLeast(0.0));
     io("manual", o.selection.manual,
        "Lets manual primary craters throw secondaries too; otherwise only generated ones do.");
     io("cell_size_factor", o.cellSizeFactor,
        "Side of the polar cells secondaries are drawn in, as a multiple of each size band's "
-       "largest diameter.");
+       "largest diameter.",
+       "", Above(0.0));
     io("rays", o.rays, "Secondaries gathered into rays and clumped along them; off by default.");
     io("shapes", o.shapes, "Secondaries stretched toward their primary; round by default.");
     io("depth_ratio", spec.depthRatio,
        "Depth over diameter every secondary is given, with no wear by age; lower values give "
-       "shallower secondaries.");
+       "shallower secondaries.",
+       "", Above(0.0));
     io("morphometry", spec.morphometry,
        "Published fits whose fresh crater rim the secondaries are shaped with.");
 }

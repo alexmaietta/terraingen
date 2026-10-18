@@ -45,7 +45,7 @@ class Reader {
     /// @throws ConfigError at the key's path for a value that does not fit.
     template <typename T>
     void operator()(std::string_view key, T& value, std::string_view description = {},
-                    std::string_view unit = {});
+                    std::string_view unit = {}, const FieldRange& range = {});
 
     /// Marks a key as known without reading it.
     void Accept(std::string_view key) {
@@ -72,7 +72,7 @@ class Writer {
     /// Writes a field as a key; `description` and `unit` are for `ConfigSchema`.
     template <typename T>
     void operator()(std::string_view key, T& value, std::string_view description = {},
-                    std::string_view unit = {});
+                    std::string_view unit = {}, const FieldRange& range = {});
 
   private:
     Json& json_;
@@ -220,7 +220,7 @@ void Read(const Json& json, const std::string& path, std::variant<Ts...>& value)
 
 template <typename T>
 void Reader::operator()(std::string_view key, T& value, std::string_view /*description*/,
-                        std::string_view /*unit*/) {
+                        std::string_view /*unit*/, const FieldRange& /*range*/) {
     known_.emplace(key);
     const auto found = json_.find(key);
     if (found != json_.end()) {
@@ -309,7 +309,7 @@ template <typename... Ts> Json ToJson(const std::variant<Ts...>& value) {
 
 template <typename T>
 void Writer::operator()(std::string_view key, T& value, std::string_view /*description*/,
-                        std::string_view /*unit*/) {
+                        std::string_view /*unit*/, const FieldRange& /*range*/) {
     json_[std::string(key)] = ToJson(value);
 }
 
