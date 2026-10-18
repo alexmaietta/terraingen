@@ -164,7 +164,43 @@ std::vector<CellIndex> CubeSphereCells::CellsCovering(const Bounds2d& region,
         cells.insert(cells.end(), around.begin(), around.end());
     }
     SortUnique(cells);
-    return cells;
+    // A ring cell reaches the region only if its centre lies within its farthest corner's angle of
+    // it, since cell edges are great circles; one expansion by the largest such angle tests them.
+    const std::int32_t n = CellsPerEdge(cellSize);
+    std::vector<CellIndex> ring;
+    std::vector<Vec2d> centres;
+    double widest = 0.0;
+    for (const CellIndex& cell : cells) {
+        if (std::binary_search(seeds.begin(), seeds.end(), cell)) {
+            continue;
+        }
+        const auto [a1, a2, b1, b2] = Bounds(cell, cellSize);
+        const detail::CubeFace& face = detail::kCubeFaces[static_cast<std::size_t>(cell.i / n)];
+        const Vec3d centre =
+            Normalized(detail::CubeFacePoint(face, 0.5 * (a1 + a2), 0.5 * (b1 + b2)));
+        double nearest = 1.0;
+        for (const double a : {a1, a2}) {
+            for (const double b : {b1, b2}) {
+                nearest =
+                    std::min(nearest, Dot(centre, Normalized(detail::CubeFacePoint(face, a, b))));
+            }
+        }
+        widest = std::max(widest, std::acos(std::clamp(nearest, -1.0, 1.0)));
+        ring.push_back(cell);
+        centres.push_back(sphere.PointOf(centre));
+    }
+    if (ring.empty()) {
+        return cells;
+    }
+    const Bounds2d reach = sphere.Expand(box, radius_ * (widest * (1.0 + 1e-9) + 1e-12));
+    std::vector<CellIndex> kept = seeds;
+    for (std::size_t k = 0; k < ring.size(); ++k) {
+        if (sphere.Contains(reach, centres[k])) {
+            kept.push_back(ring[k]);
+        }
+    }
+    SortUnique(kept);
+    return kept;
 }
 
 double CubeSphereCells::CellArea(const CellIndex& cell, double cellSize) const {

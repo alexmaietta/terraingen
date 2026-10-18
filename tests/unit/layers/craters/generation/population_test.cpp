@@ -445,6 +445,26 @@ TEST(GenerateCraters, CellCraterSourcesGiveTheSameCraters) {
     }
 }
 
+TEST(GenerateCraters, CellCraterSourcesOutsideTheirBandKeepCratersWithinTheirOwnMargin) {
+    const terraingen::PowerLawSfd density(0.05, 2.0);
+    const terraingen::UniformAges ages(1.0);
+    const terraingen::Bounds2d region{-50.0, -50.0, 50.0, 50.0};
+    terraingen::CraterGenerationOptions options{.dMin = 3.0, .dMax = 60.0, .marginRadii = 1.5};
+    int calls = 0;
+    options.cellCraters = [&](const terraingen::CraterBand&, const terraingen::CellIndex&) {
+        ++calls;
+        terraingen::CraterList craters;
+        craters.Append({region.maxX + 140.0, 0.0, 200.0, 0.5, 1u});
+        craters.Append({region.maxX + 160.0, 0.0, 200.0, 0.5, 2u});
+        return std::make_shared<const terraingen::CraterList>(craters);
+    };
+    const auto craters =
+        terraingen::GenerateCraters(terraingen::PlanarCells(), region, density, ages, 5u, options);
+    EXPECT_GT(calls, 0);
+    EXPECT_EQ(std::count(craters.Ids().begin(), craters.Ids().end(), 1u), calls);
+    EXPECT_EQ(std::count(craters.Ids().begin(), craters.Ids().end(), 2u), 0);
+}
+
 TEST(GenerateCraters, SkippingUnresolvedBandsKeepsEveryResolvedCrater) {
     const terraingen::PowerLawSfd density(0.05, 2.0);
     const terraingen::UniformAges ages(1.0);

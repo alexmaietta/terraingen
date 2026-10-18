@@ -225,6 +225,42 @@ TEST(CubeSphereCells, CoveringFindsEveryCellReachingTheRegion) {
     EXPECT_THROW(cells.CellsCovering({0.0, 0.0, NAN, 1.0}, size), std::invalid_argument);
 }
 
+TEST(CubeSphereCells, CoveringKeepsCellsAtTheRegionEdgesAndDropsFarRingCells) {
+    const CubeSphereCells cells(kMoon);
+    const double size = 40000.0;
+    const double corner = std::atan(1.0 / std::sqrt(2.0)) * 180.0 / std::numbers::pi;
+    for (const Bounds2d& region :
+         {Bounds2d{44.6, 34.9, 45.4, 35.3}, Bounds2d{44.9, -0.3, 45.1, 0.3},
+          Bounds2d{44.8, corner - 0.2, 45.2, corner + 0.2}, Bounds2d{-0.4, 89.5, 0.4, 90.0},
+          Bounds2d{179.8, 10.0, 180.4, 10.5}, Bounds2d{-30.0, -20.0, -29.0, -19.0}}) {
+        const std::vector<CellIndex> covering = cells.CellsCovering(region, size);
+        RandomStream random(11, 12);
+        for (int k = 0; k < 4000; ++k) {
+            const double t = random.NextDouble();
+            const double lon = region.minX + (region.maxX - region.minX) * t;
+            const double lat = region.minY + (region.maxY - region.minY) * t;
+            for (const auto& [x, y] : {std::pair{lon, region.minY}, std::pair{lon, region.maxY},
+                                       std::pair{region.minX, lat}, std::pair{region.maxX, lat}}) {
+                const CellIndex c = cells.CellOf(x, y, size);
+                EXPECT_TRUE(std::binary_search(covering.begin(), covering.end(), c))
+                    << x << " " << y;
+            }
+        }
+    }
+
+    const CellIndex centre = cells.CellOf(10.0, 10.0, size);
+    const std::int32_t n = cells.CellsPerEdge(size);
+    const double step = std::numbers::pi / 2.0 / n;
+    const Vec3d direction = CubeSphereCells::Direction(
+        centre.i / n, -std::numbers::pi / 4.0 + (centre.i % n + 0.5) * step,
+        -std::numbers::pi / 4.0 + (centre.j + 0.5) * step);
+    const Vec2d point = Surface::Sphere(kMoon).PointOf(direction);
+    const std::vector<CellIndex> one =
+        cells.CellsCovering(terraingen::PointBounds(point.x, point.y), size);
+    ASSERT_EQ(one.size(), 1u);
+    EXPECT_EQ(one[0], centre);
+}
+
 TEST(CubeSphereCells, TwoRingsOfNeighboursHoldEveryPointWithinACellAcrossFacesAndCorners) {
     const CubeSphereCells cells(kMoon);
     const Surface moon = Surface::Sphere(kMoon);

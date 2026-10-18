@@ -163,17 +163,45 @@ class Generation {
         CraterList craters;
         craters.Reserve(static_cast<std::size_t>(expected));
         for (const BandPlan& entry : plan) {
+            const BandRegion region = BandRegionOf(entry.band);
             for (const CellIndex& cell : entry.cells) {
                 const std::shared_ptr<const CraterList> drawn = DrawCell(entry.band, cell);
                 for (std::size_t n = 0; n < drawn->Size(); ++n) {
                     const Crater crater = drawn->At(n);
-                    if (InRegion(crater, CandidateMargin(crater.diameter))) {
+                    if (InBandRegion(region, crater)) {
                         craters.Append(crater);
                     }
                 }
             }
         }
         return craters;
+    }
+
+    /// The region expanded by the candidate margins of a band's smallest and largest craters,
+    /// which bound every margin in between since `Expand` and `CandidateMargin` only grow.
+    struct BandRegion {
+        CraterBand band;
+        Bounds2d inner;
+        Bounds2d outer;
+    };
+
+    BandRegion BandRegionOf(const CraterBand& band) const {
+        return {band, surface_.Expand(region_, CandidateMargin(band.low)),
+                surface_.Expand(region_, CandidateMargin(band.high))};
+    }
+
+    /// `InRegion` with the crater's candidate margin, expanding the region only for craters of the
+    /// band between its inner and outer regions.
+    bool InBandRegion(const BandRegion& region, const Crater& crater) const {
+        if (!(crater.diameter >= region.band.low && crater.diameter <= region.band.high)) {
+            return InRegion(crater, CandidateMargin(crater.diameter));
+        }
+        const Vec2d centre{crater.x, crater.y};
+        if (!surface_.Contains(region.outer, centre)) {
+            return false;
+        }
+        return surface_.Contains(region.inner, centre) ||
+               InRegion(crater, CandidateMargin(crater.diameter));
     }
 
     std::shared_ptr<const CraterList> DrawCell(const CraterBand& band,
