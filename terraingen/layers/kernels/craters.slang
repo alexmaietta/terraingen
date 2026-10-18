@@ -11,15 +11,18 @@
 [[vk::binding(6, 0)]] StructuredBuffer<uint> tiles;
 [[vk::binding(7, 0)]] StructuredBuffer<uint> entries;
 
+// After every buffer (terraingen/gpu/kernel.slang).
+[[vk::push_constant]] ConstantBuffer<Params> params;
+
 [shader("compute")]
 [numthreads(16, 16, 1)]
 void main(uint3 id : SV_DispatchThreadID) {
-    if (!terraingen::InStrip(id)) {
+    if (!terraingen::InStrip(params, id)) {
         return;
     }
     const uint i = id.y * params.width + id.x;
     float height = heights[i];
-    if (terraingen::IsNoData(height)) {
+    if (terraingen::IsNoData(params, height)) {
         return;
     }
     const uint side = tiles[1];

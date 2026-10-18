@@ -17,10 +17,13 @@
 // The crater of each row.
 [[vk::binding(10, 0)]] StructuredBuffer<uint> targets;
 
+// After every buffer (terraingen/gpu/kernel.slang).
+[[vk::push_constant]] ConstantBuffer<Params> params;
+
 [shader("compute")]
 [numthreads(16, 16, 1)]
 void main(uint3 id : SV_DispatchThreadID) {
-    if (!terraingen::InStrip(id)) {
+    if (!terraingen::InStrip(params, id)) {
         return;
     }
     const terraingen::CraterDatumKernel kernel = kernels[0];
