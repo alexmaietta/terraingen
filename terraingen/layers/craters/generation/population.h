@@ -14,6 +14,7 @@
 #include <functional>
 #include <limits>
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace terraingen {
@@ -112,6 +113,8 @@ struct CraterGenerationOptions {
     /// What the region and margins are measured on: on a sphere, regions are longitude and
     /// latitude boxes and margins are metres, and `cells` must be `CubeSphereCells` of its radius.
     Surface surface{};
+    /// What the drawn features are called in the log: its category and the noun of its counts.
+    std::string logName = "craters";
 };
 
 /// The largest diameter generated in metres: `dMax`, or for an infinite `dMax` the top of the

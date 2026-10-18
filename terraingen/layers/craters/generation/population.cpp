@@ -107,9 +107,9 @@ class Generation {
     void Log(std::size_t kept, const GenerationCounts& counts, const Stopwatch& stopwatch) const {
         const bool spaced = options_.spacing.Enabled();
         const std::size_t manual = options_.manual.Size();
-        LogInfo("craters", "Generated ", kept, " craters (", options_.dMin, "-", dMax_, " m, ",
-                counts.bands, " bands, ", static_cast<long long>(std::llround(counts.expected)),
-                " expected",
+        LogInfo(options_.logName, "Generated ", kept, " ", options_.logName, " (", options_.dMin,
+                "-", dMax_, " m, ", counts.bands, " bands, ",
+                static_cast<long long>(std::llround(counts.expected)), " expected",
                 spaced ? ", " + std::to_string(counts.removed) + " removed by spacing" : "",
                 manual > 0 ? ", " + std::to_string(manual) + " manual supplied" : "",
                 counts.capped > 0
@@ -153,8 +153,9 @@ class Generation {
             for (const CellIndex& cell : entry.cells) {
                 entry.expected += countPerArea * cells_.CellArea(cell, band.cellSize);
             }
-            LogDebug("craters", "Band [", band.low, ", ", band.high, ") m: ", entry.cells.size(),
-                     " cells of ", band.cellSize, " m, ", entry.expected, " craters expected");
+            LogDebug(options_.logName, "Band [", band.low, ", ", band.high,
+                     ") m: ", entry.cells.size(), " cells of ", band.cellSize, " m, ",
+                     entry.expected, " ", options_.logName, " expected");
             plan.push_back(std::move(entry));
         }
         return plan;

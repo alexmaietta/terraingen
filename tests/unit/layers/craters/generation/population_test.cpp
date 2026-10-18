@@ -215,6 +215,22 @@ TEST(GenerateCraters, LogsASummaryAndEachBand) {
     EXPECT_EQ(capture.Matching("craters", terraingen::LogLevel::Debug).size(), 4u);
 }
 
+TEST(GenerateCraters, LogsUnderTheNameItIsGiven) {
+    const terraingen::testing::LogCapture capture(terraingen::LogLevel::Debug);
+    terraingen::CraterGenerationOptions options{.dMin = 3.0, .dMax = 20.0};
+    options.logName = "boulders";
+    const CraterList boulders = GenerateCraters(kCells, {0.0, 0.0, 200.0, 200.0},
+                                                PowerLawSfd(0.1, 2.0), FreshAges(), 3u, options);
+    EXPECT_TRUE(capture.Matching("craters", terraingen::LogLevel::Info).empty());
+    const auto summary = capture.Matching("boulders", terraingen::LogLevel::Info);
+    ASSERT_EQ(summary.size(), 1u);
+    EXPECT_EQ(
+        summary[0].message.rfind("Generated " + std::to_string(boulders.Size()) + " boulders (", 0),
+        0u)
+        << summary[0].message;
+    EXPECT_EQ(capture.Matching("boulders", terraingen::LogLevel::Debug).size(), 4u);
+}
+
 namespace {
 
 std::size_t ConflictingPairs(const CraterList& craters, const terraingen::CraterSpacing& spacing) {

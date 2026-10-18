@@ -352,6 +352,7 @@ CraterList BoulderLayer::ScatterBoulderCandidates(const Bounds2d& region, double
                                        .dMax = options_.sizes.maxDiameter,
                                        .marginRadii = margin};
     generation.surface = surface_;
+    generation.logName = "boulders";
     if (spacing > 0.0) {
         generation.minResolvedDiameter = options_.fade.startSamples * spacing;
     }
