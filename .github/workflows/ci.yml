@@ -238,9 +238,11 @@ jobs:
           name: sdist
           path: dist/*.tar.gz
 
-  # The documentation, built against the Linux wheel, for every push and pull request.
+  # The documentation, built against the Linux wheel, for every push and pull request; another
+  # platform's wheel failing does not skip it.
   docs:
     needs: wheel
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
