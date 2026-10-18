@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <stdexcept>
 #include <vector>
 
@@ -24,7 +25,7 @@ TEST(RoughnessLayer, RejectsInvalidOptions) {
         [](RoughnessOptions& o) { o.hurst = 1.5; },
         [](RoughnessOptions& o) { o.minWavelength = 0.0; },
         [](RoughnessOptions& o) { o.minWavelength = 8.0; },
-        [](RoughnessOptions& o) { o.maxWavelength = 1.0 / 0.0; },
+        [](RoughnessOptions& o) { o.maxWavelength = std::numeric_limits<double>::infinity(); },
         [](RoughnessOptions& o) { o.minWavelength = 1e-12; },
         [](RoughnessOptions& o) { o.fade = {2.0, 1.0}; }};
     for (const auto& bad : changes) {

@@ -164,7 +164,7 @@ TEST(CraterAlbedo, RaysReachBeyondTheEjecta) {
     int bright = 0;
     int total = 0;
     for (int step = 0; step < 720; ++step) {
-        const double azimuth = 2.0 * M_PI * step / 720.0;
+        const double azimuth = 2.0 * std::numbers::pi * step / 720.0;
         const double excess =
             layer->Excess(crater, 3500.0 * std::cos(azimuth), 3500.0 * std::sin(azimuth), 1.0);
         EXPECT_GE(excess, 0.0);
@@ -182,7 +182,7 @@ TEST(CraterAlbedo, RaysReachBeyondTheEjecta) {
     double plain = 0.0;
     double patched = 0.0;
     for (int step = 0; step < 720; ++step) {
-        const double azimuth = 2.0 * M_PI * step / 720.0;
+        const double azimuth = 2.0 * std::numbers::pi * step / 720.0;
         plain += layer->Excess(crater, 3500.0 * std::cos(azimuth), 3500.0 * std::sin(azimuth), 1.0);
         patched +=
             broken->Excess(crater, 3500.0 * std::cos(azimuth), 3500.0 * std::sin(azimuth), 1.0);
@@ -369,7 +369,7 @@ TEST(CraterAlbedo, DrawsImpactAnglesAsShoemakerFound) {
     }
     const auto share = [&](int count) { return static_cast<double>(count) / craters; };
     const auto expected = [](double degrees) {
-        const double s = std::sin(degrees * M_PI / 180.0);
+        const double s = std::sin(degrees * std::numbers::pi / 180.0);
         return s * s;
     };
     EXPECT_NEAR(share(asymmetric), expected(45.0), 0.015);
@@ -407,7 +407,7 @@ TEST(CraterAlbedo, ObliqueImpactsLengthenRaysDownrangeAndClearThemUprange) {
         double west = 0.0;
         for (const double offset : {-0.3, -0.15, 0.0, 0.15, 0.3}) {
             east = std::fmax(east, reachAlong(offset));
-            west = std::fmax(west, reachAlong(M_PI + offset));
+            west = std::fmax(west, reachAlong(std::numbers::pi + offset));
         }
         if (impact.angleDegrees < 25.0) {
             ++forbiddenCraters;

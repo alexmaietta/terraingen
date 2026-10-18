@@ -28,7 +28,9 @@ foreach(nanobind_library nanobind-static nanobind-static-abi3)
         set_target_properties(${nanobind_library} PROPERTIES COMPILE_WARNING_AS_ERROR OFF)
     endif()
 endforeach()
-set_target_properties(_terraingen PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${package_dir}")
+# The generator expression keeps multi-config generators (Visual Studio) from adding a Release/
+# folder, so the stub generation and the package find the module beside __init__.py.
+set_target_properties(_terraingen PROPERTIES LIBRARY_OUTPUT_DIRECTORY "$<1:${package_dir}>")
 
 configure_file(terraingen/__init__.py "${package_dir}/__init__.py" COPYONLY)
 configure_file(terraingen/render.py "${package_dir}/render.py" COPYONLY)

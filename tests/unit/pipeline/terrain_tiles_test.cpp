@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <numbers>
 #include <stdexcept>
 #include <utility>
 
@@ -254,7 +255,7 @@ TEST(BodyMesh, CoversTheBodyWithOutwardTrianglesAtTheTerrainsHeights) {
     const terraingen::TriangleMesh mesh = terraingen::BodyMesh(terrain, n, 0.0, 2);
     ASSERT_EQ(mesh.positions.size(), 6 * (n + 1) * (n + 1));
     ASSERT_EQ(mesh.triangles.size(), 6 * n * n * 2);
-    const double step = 1737400.0 * (M_PI / 2.0) / static_cast<double>(n);
+    const double step = 1737400.0 * (std::numbers::pi / 2.0) / static_cast<double>(n);
     for (std::size_t k = 0; k < mesh.positions.size(); k += 7) {
         const auto& p = mesh.positions[k];
         const double r = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
@@ -318,8 +319,8 @@ TEST(BodyIcq, PlacesEachLabelAtTheBodysRadiusPlusTheHeight) {
                 const terraingen::Vec3d p = model.vertices[model.Index(i, j, f)];
                 const terraingen::Vec3d d = terraingen::IcqDirection(6, i, j, f);
                 const terraingen::Vec2d point = body.PointOf(d);
-                const float height = terraingen::EvaluateAt(terrain, point.x, point.y,
-                                                            body.Radius() * M_PI / 2.0 / 6.0);
+                const float height = terraingen::EvaluateAt(
+                    terrain, point.x, point.y, body.Radius() * std::numbers::pi / 2.0 / 6.0);
                 EXPECT_NEAR(terraingen::Length(p),
                             body.RadiusAt(point) +
                                 (std::isnan(height) ? 0.0 : static_cast<double>(height)),

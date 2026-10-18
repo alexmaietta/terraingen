@@ -58,6 +58,9 @@ TEST(WriteCraterList, AddsAttributesWhenGivenOnePerCrater) {
 }
 
 TEST(WriteCraterList, ReportsAFullDevice) {
+#if defined(_WIN32)
+    GTEST_SKIP() << "no full device on Windows";
+#endif
     if (!std::filesystem::exists("/dev/full")) {
         GTEST_SKIP() << "no /dev/full";
     }
