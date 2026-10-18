@@ -10,6 +10,9 @@
 
 namespace terraingen {
 
+/// The default value of a synthetic albedo: the reflectance of mature mare soil at 750 nm.
+inline constexpr double kDefaultSyntheticAlbedoValue = 0.110;
+
 /// The colour of a `SyntheticAlbedo`: a base colour in hue, saturation and value, each
 /// varied by a stack of noise layers (`EvaluateNoiseLayers`, with amplitudes in the channel's
 /// units).
@@ -18,8 +21,8 @@ struct SyntheticAlbedoParams {
     bool rgb = false;
     double hue = 0.0;         ///< Degrees; noise added to it wraps around.
     double saturation = 0.0;  ///< In [0, 1]; 0 is grey.
-    /// In [0, 1]: the brightest band's reflectance; the default is mature mare soil at 750 nm.
-    double value = 0.110;
+    /// In [0, 1]: the brightest band's reflectance (`kDefaultSyntheticAlbedoValue` by default).
+    double value = kDefaultSyntheticAlbedoValue;
     std::vector<NoiseLayer> hueNoise;         ///< Added to the hue, in degrees.
     std::vector<NoiseLayer> saturationNoise;  ///< Added to the saturation.
     /// Relative: the value is multiplied by 1 + the noise, so its contrast scales with it.

@@ -130,7 +130,7 @@ void BindSynthetic(nb::module_& m) {
                 params.saturationNoise = std::move(saturationNoise);
                 new (self) SyntheticAlbedo(std::move(params), origin, surface);
             },
-            "value"_a = SyntheticAlbedoParams{}.value, "value_noise"_a = std::vector<NoiseLayer>{},
+            "value"_a = kDefaultSyntheticAlbedoValue, "value_noise"_a = std::vector<NoiseLayer>{},
             "rgb"_a = false, "hue"_a = 0.0, "saturation"_a = 0.0,
             "hue_noise"_a = std::vector<NoiseLayer>{},
             "saturation_noise"_a = std::vector<NoiseLayer>{}, "origin"_a = Vec2d{},

@@ -589,7 +589,7 @@ struct SyntheticAlbedoSpec {
     bool rgb = false;
     double hue = 0.0;
     double saturation = 0.0;
-    double value = SyntheticAlbedoParams{}.value;
+    double value = kDefaultSyntheticAlbedoValue;
     std::vector<NoiseLayerConfig> hueNoise;
     std::vector<NoiseLayerConfig> saturationNoise;
     std::vector<NoiseLayerConfig> valueNoise;
