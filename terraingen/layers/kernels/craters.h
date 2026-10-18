@@ -9,6 +9,10 @@
 #include "terraingen/noise/fractal.h"
 #include "terraingen/util/portable.h"
 
+#ifndef __SLANG__
+#include "terraingen/gpu/program.h"
+#endif
+
 namespace terraingen {
 
 /// The fresh profile of simple craters.
@@ -75,6 +79,8 @@ struct CraterShapeKernel {
 
 /// One crater ready to shape.
 struct CraterRecord {
+    float x = 0.0f;  ///< Centre east of the dispatch's origin (m); read on the GPU only.
+    float y = 0.0f;  ///< Centre north of the dispatch's origin (m); read on the GPU only.
     float diameter = 0.0f;
     float resolution = 1.0f;
     float freshDepth = 0.0f;
@@ -99,15 +105,11 @@ struct CraterRecord {
 };
 
 #ifdef __SLANG__
-StructuredBuffer<float> gCraterData;
-
-/// Where the variable-length values of craters are read from; a global buffer on the GPU.
-struct CraterData {
-    uint32_t unused;
-};
+/// Where the variable-length values of craters are read from: a buffer the dispatch binds.
+typedef StructuredBuffer<float> CraterData;
 
 inline float CraterValue(CraterData data, uint32_t index) {
-    return gCraterData[index];
+    return data[index];
 }
 #else
 /// Where the variable-length values of craters are read from.
@@ -385,6 +387,22 @@ inline float KernelRoundedHeight(KERNEL_IN(CraterShapeKernel) k, CraterData data
     return height + weight * (smoothed - height);
 }
 
+/// Fractal parameters with every field set, as kernels need: Slang does not apply a struct's
+/// default values to a local.
+inline FractalParams KernelFractalParams(uint32_t seed, float wavelength, int octaves, float gain) {
+    FractalParams params;
+    params.seed = seed;
+    params.wavelength = wavelength;
+    params.amplitude = 1.0f;
+    params.octaves = octaves;
+    params.lacunarity = 2.0f;
+    params.gain = gain;
+    params.basis = NoiseBasis::Perlin;
+    params.type = FractalType::Fbm;
+    params.offset = 1.0f;
+    return params;
+}
+
 /// The crater noise (`CraterNoise`) at `dx`, `dy` metres from the centre and `radii` radii out.
 inline float KernelNoiseHeight(KERNEL_IN(CraterShapeKernel) k, KERNEL_IN(CraterRecord) c, float dx,
                                float dy, float radii) {
@@ -397,35 +415,25 @@ inline float KernelNoiseHeight(KERNEL_IN(CraterShapeKernel) k, KERNEL_IN(CraterR
     const float rim = radii <= 1.0f ? KernelFalloff(2.0f - radii, 1.0f, 2.0f - k.noiseRimInner, 2u)
                                     : KernelFalloff(radii, 1.0f, k.noiseRimOuter, 2u);
     float height = 0.0f;
-    FractalParams params;
-    params.amplitude = 1.0f;
-    params.octaves = k.noiseOctaves;
-    params.gain = k.noiseGain;
     if (k.noiseAmplitude > 0.0f && footprint > 0.0f) {
-        params.seed = c.noiseKey;
-        params.wavelength = k.noiseWavelength * radius;
+        const FractalParams params = KernelFractalParams(c.noiseKey, k.noiseWavelength * radius,
+                                                         k.noiseOctaves, k.noiseGain);
         height += k.noiseAmplitude * footprint * Fractal2(dx, dy, params);
     }
     if (k.noiseRimAmplitude > 0.0f && rim > 0.0f) {
-        params.seed = c.noiseKey + 1u;
-        params.wavelength = k.noiseRimWavelength * radius;
+        const FractalParams params = KernelFractalParams(
+            c.noiseKey + 1u, k.noiseRimWavelength * radius, k.noiseOctaves, k.noiseGain);
         height += k.noiseRimAmplitude * rim * Fractal2(dx, dy, params);
     }
     return c.diameter * height;
 }
 
-#ifndef __SLANG__
-/// Fractal noise streaked radially (`RadialStreaks`); on the CPU only until the GPU has
-/// three-dimensional fractals.
+/// Fractal noise streaked radially (`RadialStreaks`).
 inline float KernelRadialStreaks(float radii, float angle, float across, float along, int octaves,
                                  uint32_t seed) {
-    FractalParams params;
-    params.seed = seed;
-    params.wavelength = 1.0f;
-    params.amplitude = 1.0f;
-    params.octaves = octaves;
+    const FractalParams params = KernelFractalParams(seed, 1.0f, octaves, 0.5f);
     const float ring = 1.0f / across;
-    return Fractal3(ring * cos(angle), ring * sin(angle), radii / along, params);
+    return Fractal3Float(ring * cos(angle), ring * sin(angle), radii / along, params);
 }
 
 /// The wall gullies and ejecta texture (`CraterTexture`).
@@ -458,7 +466,6 @@ inline float KernelTextureHeight(KERNEL_IN(CraterShapeKernel) k, KERNEL_IN(Crate
     }
     return fade * height;
 }
-#endif
 
 /// How far the outline reaches toward (`dx`, `dy`), over the round radius (`CraterOutline::Scale`).
 inline float KernelOutlineScale(CraterData data, KERNEL_IN(CraterRecord) c, float dx, float dy) {
@@ -511,12 +518,20 @@ inline float ApplyCraterKernel(KERNEL_IN(CraterShapeKernel) k, CraterData data,
         }
         replaced = weight * (c.datumA + c.datumB * dx + c.datumC * dy - height);
     }
-    float shaped = KernelRoundedHeight(k, data, distance, diameter, c) +
-                   KernelNoiseHeight(k, c, dx, dy, radii);
-#ifndef __SLANG__
-    shaped += KernelTextureHeight(k, c, dx, dy, radii);
-#endif
+    const float shaped = KernelRoundedHeight(k, data, distance, diameter, c) +
+                         KernelNoiseHeight(k, c, dx, dy, radii) +
+                         KernelTextureHeight(k, c, dx, dy, radii);
     return height + c.resolution * shaped + c.resolution * replaced;
 }
+
+#ifndef __SLANG__
+static_assert(sizeof(CraterProfileKernel) == 76,
+              "CraterProfileKernel must match its std430 layout");
+static_assert(sizeof(CraterShapeKernel) == 180, "CraterShapeKernel must match its std430 layout");
+static_assert(sizeof(CraterRecord) == 92, "CraterRecord must match its std430 layout");
+
+/// The compiled forms of the crater kernel.
+template <> KernelProgram CompiledKernel<CraterShapeKernel>();
+#endif
 
 }  // namespace terraingen

@@ -59,3 +59,7 @@ terraingen_add_library(
     terraingen_util)
 terraingen_add_kernel(terraingen_layers terraingen_kernel_noise_relief NoiseReliefKernel
                       terraingen/layers/kernels/noise_relief.h)
+terraingen_add_kernel(
+    terraingen_layers terraingen_kernel_craters CraterShapeKernel
+    terraingen/layers/kernels/craters.h TEMPLATE
+    "${PROJECT_SOURCE_DIR}/cmake/CraterKernel.slang.in")

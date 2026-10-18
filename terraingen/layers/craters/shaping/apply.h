@@ -2,6 +2,7 @@
 /// @brief Applying craters to heights: one crater at a point, or a list over a raster.
 #pragma once
 
+#include "terraingen/gpu/backend.h"
 #include "terraingen/layers/craters/degradation/degradation_model.h"
 #include "terraingen/layers/craters/generation/population.h"
 #include "terraingen/layers/craters/profiles/profile.h"
@@ -38,6 +39,9 @@ struct CraterSampling {
     /// Where point queries keep the datums they fit, shared across batches; null to fit each time.
     EvaluationCache* cache = nullptr;
     const void* owner = nullptr;  ///< The layer the cached datums belong to.
+    /// Where grids are shaped: the CPU, or a GPU backend when it can take them, to within float
+    /// rounding of the CPU; points always run on the CPU.
+    Backend backend = Backend::Cpu;
 };
 
 /// How far, in crater radii, a crater changes the terrain: the profile's reach, or the ejecta's

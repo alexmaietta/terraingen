@@ -1,5 +1,6 @@
 #include "terraingen/layers/craters/shaping/apply.h"
 
+#include "terraingen/gpu/kernel.h"
 #include "terraingen/layers/craters/shaping/crater_kernel.h"
 #include "terraingen/noise/fractal.h"
 #include "terraingen/noise/hash.h"
@@ -287,6 +288,70 @@ void ShapeTiles(Raster<float>& raster, unsigned threads, const CraterShapeKernel
     });
 }
 
+/// Side of the tiles craters are binned into on a GPU, in cells.
+constexpr std::size_t kGpuTileCells = 16;
+
+/// Shapes the craters `onRaster` of `prepared` into `raster` on GPU `backend`, each cell running
+/// the craters of its tile in order; false, leaving `raster` unchanged, when the backend is the
+/// CPU or cannot take the grid (`RunKernel`).
+bool ShapeTilesOnGpu(Raster<float>& raster, Backend backend, const CraterShapeKernel& kernel,
+                     CraterKernelBatch& batch, const std::vector<PreparedCrater>& prepared,
+                     const std::vector<std::size_t>& onRaster,
+                     const std::vector<std::vector<PixelWindow>>& windows) {
+    if (backend == Backend::Cpu || batch.records.empty()) {
+        return false;
+    }
+    const std::size_t tilesX = (raster.Width() + kGpuTileCells - 1) / kGpuTileCells;
+    const std::size_t tilesY = (raster.Height() + kGpuTileCells - 1) / kGpuTileCells;
+    std::vector<std::vector<std::uint32_t>> lists(tilesX * tilesY);
+    for (std::size_t n = 0; n < onRaster.size(); ++n) {
+        for (const PixelWindow& window : windows[n]) {
+            for (std::size_t ty = window.rowBegin / kGpuTileCells;
+                 ty <= (window.rowEnd - 1) / kGpuTileCells; ++ty) {
+                for (std::size_t tx = window.colBegin / kGpuTileCells;
+                     tx <= (window.colEnd - 1) / kGpuTileCells; ++tx) {
+                    std::vector<std::uint32_t>& list = lists[ty * tilesX + tx];
+                    if (list.empty() || list.back() != n) {
+                        list.push_back(static_cast<std::uint32_t>(n));
+                    }
+                }
+            }
+        }
+    }
+    std::vector<std::uint32_t> tiles{static_cast<std::uint32_t>(tilesX),
+                                     static_cast<std::uint32_t>(kGpuTileCells)};
+    std::vector<std::uint32_t> entries;
+    for (const std::vector<std::uint32_t>& list : lists) {
+        tiles.push_back(static_cast<std::uint32_t>(entries.size()));
+        tiles.push_back(static_cast<std::uint32_t>(list.size()));
+        entries.insert(entries.end(), list.begin(), list.end());
+    }
+    if (entries.empty()) {
+        entries.push_back(0);
+    }
+    const Bounds2d bounds = RasterGrid::FromRaster(raster).Bounds();
+    const Vec2d origin{0.5 * (bounds.minX + bounds.maxX), 0.5 * (bounds.minY + bounds.maxY)};
+    for (std::size_t n = 0; n < onRaster.size(); ++n) {
+        const Crater& c = prepared[onRaster[n]].crater;
+        batch.records[n].x = static_cast<float>(c.x - origin.x);
+        batch.records[n].y = static_cast<float>(c.y - origin.y);
+    }
+    if (batch.data.empty()) {
+        batch.data.push_back(0.0f);
+    }
+    const std::array<KernelBuffer, 4> extra{
+        KernelBuffer{std::as_bytes(std::span(batch.records)), batch.records.size()},
+        KernelBuffer{std::as_bytes(std::span(batch.data)), batch.data.size()},
+        KernelBuffer{std::as_bytes(std::span(tiles)), tiles.size()},
+        KernelBuffer{std::as_bytes(std::span(entries)), entries.size()}};
+    if (!RunKernel(backend, CompiledKernel<CraterShapeKernel>(),
+                   std::as_bytes(std::span(&kernel, 1)), raster, origin, extra)) {
+        return false;
+    }
+    LogDebug("craters", "Shaped ", onRaster.size(), " craters on ", BackendName(backend));
+    return true;
+}
+
 }  // namespace
 
 double CraterReachRadii(const CraterProfile& profile, const CraterApplyOptions& options) {
@@ -358,9 +423,12 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
         FitDatums(prepared, onRaster, raster, profile, options, sampling);
     }
     if (const std::optional<CraterShapeKernel> kernel = MakeCraterShapeKernel(profile, options)) {
-        ShapeTiles(raster, sampling.threads, *kernel,
-                   MakeCraterKernelBatch(*kernel, profile, prepared, onRaster, options), prepared,
-                   onRaster, windows);
+        CraterKernelBatch batch =
+            MakeCraterKernelBatch(*kernel, profile, prepared, onRaster, options);
+        if (!ShapeTilesOnGpu(raster, sampling.backend, *kernel, batch, prepared, onRaster,
+                             windows)) {
+            ShapeTiles(raster, sampling.threads, *kernel, batch, prepared, onRaster, windows);
+        }
         LogInfo("craters", "Applied ", onRaster.size(), " of ", craters.Size(), " craters (",
                 craters.Size() - prepared.size(), " unresolved at ", resolved, " m, ",
                 prepared.size() - onRaster.size(), " off the raster) in ",

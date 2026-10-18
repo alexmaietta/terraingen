@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <string>
@@ -156,4 +157,58 @@ TEST(CraterKernel, RejectsStatesTheProfileRejects) {
     const Crater crater{0.0, 0.0, 20.0, 0.0, 1u};
     const PreparedCrater prepared{crater, 1.0, {{0.2, 0.04}, {0.2, 0.05}, 0.0}};
     EXPECT_THROW(ApplyCraterTo(0.0f, 1.0, 1.0, prepared, profile, {}), std::invalid_argument);
+}
+
+TEST(CraterKernel, ShapesGridsOnEveryAvailableGpuToWithinFloatRounding) {
+    const auto ft = std::make_shared<terraingen::FassettThomsonProfile>();
+    const auto diffused = std::make_shared<terraingen::DiffusedProfile>(
+        std::make_shared<terraingen::ComplexCraterProfile>(ft,
+                                                           terraingen::LunarComplexCraterShape()));
+    terraingen::CraterList craters;
+    for (int i = 0; i < 300; ++i) {
+        craters.Append({std::fmod(37.0 * i, 900.0) - 450.0, std::fmod(53.0 * i, 900.0) - 450.0,
+                        8.0 + std::fmod(29.0 * i, 180.0), 0.001 * (i % 40),
+                        static_cast<std::uint64_t>(i + 1)});
+    }
+    craters.Append({0.0, 0.0, 30000.0, 0.0, 999u});
+    CraterApplyOptions options;
+    options.datum = terraingen::CraterDatum::Plane;
+    options.noise.amplitude = 0.01;
+    options.rimSmoothing.sigmaRadii = 0.05;
+    options.texture.wallStreaks = 0.01;
+    options.texture.ejecta = 0.5;
+    options.irregularity.enabled = true;
+    options.irregularity.selection.manual = true;
+    const terraingen::CraterShapeModels models{
+        diffused, std::make_shared<terraingen::DiffusionDegradation>(
+                      terraingen::LunarFreshCraterMorphometry,
+                      terraingen::Fassett2022HartmannDiffusivity(), diffused)};
+    terraingen::Raster<float> base(300, 300, 0.0f);
+    base.SetTransform(terraingen::GeoTransform::NorthUp(-600.0, 600.0, 4.0));
+    for (std::size_t i = 0; i < base.Size(); ++i) {
+        base.Values()[i] = 0.01f * static_cast<float>(i % 300);
+    }
+    terraingen::Raster<float> cpu = base;
+    terraingen::ApplyCraters(cpu, craters, models, options, {});
+    int ran = 0;
+    for (const terraingen::BackendStatus& status : terraingen::Backends()) {
+        if (status.backend == terraingen::Backend::Cpu || !status.available) {
+            continue;
+        }
+        terraingen::Raster<float> gpu = base;
+        terraingen::CraterSampling sampling;
+        sampling.backend = status.backend;
+        terraingen::ApplyCraters(gpu, craters, models, options, sampling);
+        double largest = 0.0;
+        for (std::size_t i = 0; i < gpu.Size(); ++i) {
+            ASSERT_FALSE(std::isnan(gpu.Values()[i])) << "every cell set";
+            largest = std::max(largest, std::fabs(static_cast<double>(gpu.Values()[i]) -
+                                                  static_cast<double>(cpu.Values()[i])));
+        }
+        EXPECT_LT(largest, 2e-3) << terraingen::BackendName(status.backend);
+        ++ran;
+    }
+    if (ran == 0) {
+        GTEST_SKIP() << "no GPU backend here";
+    }
 }

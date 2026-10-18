@@ -12,6 +12,13 @@
 
 namespace terraingen {
 
+/// A read-only storage buffer a kernel binds after its parameter block: host bytes and the element
+/// count its structured buffer reports.
+struct KernelBuffer {
+    std::span<const std::byte> bytes;  ///< The host data.
+    std::size_t count = 0;             ///< Number of elements.
+};
+
 /// Runs a kernel compiled by `terraingen_add_kernel` over every cell of `grid` holding data, in
 /// strips of rows, on `backend` (`Vulkan`, `Cuda` or `Metal`).
 ///
@@ -19,10 +26,12 @@ namespace terraingen {
 /// works out per column and per row in double, so cells see the same positions as on the CPU.
 /// @param program The compiled kernel.
 /// @param kernel The kernel's parameter block, laid out as in the kernel header.
+/// @param extra Further buffers, bound in order after the parameter block, the same in every
+/// strip.
 /// @return false, leaving `grid` unchanged, when the backend is not a GPU one, its device is
 /// unavailable, the build has no form of the kernel for it, or the grid cannot run there
 /// (rotated, or wider than one dispatch reaches).
 bool RunKernel(Backend backend, const KernelProgram& program, std::span<const std::byte> kernel,
-               Raster<float>& grid, const Vec2d& origin);
+               Raster<float>& grid, const Vec2d& origin, std::span<const KernelBuffer> extra = {});
 
 }  // namespace terraingen

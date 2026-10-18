@@ -213,6 +213,61 @@ inline float Fractal2(float x, float y, FractalParams params) {
     return detail::FinishFractal(sums, params);
 }
 
+/// `Fractal3` in single precision, for kernels: the same octaves, turns and offsets, to within
+/// float rounding for coordinates of moderate size, such as a crater's local frame.
+/// @return Height in [-amplitude, amplitude] world units.
+inline float Fractal3Float(float x, float y, float z, FractalParams params) {
+    const float k00 = -0.6132711010727254f;
+    const float k01 = -0.293401570821183f;
+    const float k02 = 0.7333580809050306f;
+    const float k10 = 0.7897926788435601f;
+    const float k11 = -0.24097777005594262f;
+    const float k12 = 0.5640542870894418f;
+    const float k20 = 0.011228581128535142f;
+    const float k21 = 0.9251190369776896f;
+    const float k22 = 0.37951111497202883f;
+    float t00 = 1.0f;
+    float t01 = 0.0f;
+    float t02 = 0.0f;
+    float t10 = 0.0f;
+    float t11 = 1.0f;
+    float t12 = 0.0f;
+    float t20 = 0.0f;
+    float t21 = 0.0f;
+    float t22 = 1.0f;
+    float frequency = 1.0f / params.wavelength;
+    detail::FractalSums sums = {};
+    for (int octave = 0; octave < params.octaves; ++octave) {
+        const UVec3 h = Pcg3dHash(detail::OctaveKey(params.seed, uint32_t(octave), 0u));
+        const UVec3 g = Pcg3dHash(detail::OctaveKey(params.seed, uint32_t(octave), 1u));
+        const float px = (t00 * x + t01 * y + t02 * z) * frequency + HashToUnitFloat(h.y);
+        const float py = (t10 * x + t11 * y + t12 * z) * frequency + HashToUnitFloat(h.z);
+        const float pz = (t20 * x + t21 * y + t22 * z) * frequency + HashToUnitFloat(g.x);
+        const float n = BasisNoise3(params.basis, SplitLattice3(px, py, pz), h.x);
+        sums = detail::AddFractalOctave(sums, params, octave, n);
+        frequency *= params.lacunarity;
+        const float n00 = k00 * t00 + k01 * t10 + k02 * t20;
+        const float n01 = k00 * t01 + k01 * t11 + k02 * t21;
+        const float n02 = k00 * t02 + k01 * t12 + k02 * t22;
+        const float n10 = k10 * t00 + k11 * t10 + k12 * t20;
+        const float n11 = k10 * t01 + k11 * t11 + k12 * t21;
+        const float n12 = k10 * t02 + k11 * t12 + k12 * t22;
+        const float n20 = k20 * t00 + k21 * t10 + k22 * t20;
+        const float n21 = k20 * t01 + k21 * t11 + k22 * t21;
+        const float n22 = k20 * t02 + k21 * t12 + k22 * t22;
+        t00 = n00;
+        t01 = n01;
+        t02 = n02;
+        t10 = n10;
+        t11 = n11;
+        t12 = n12;
+        t20 = n20;
+        t21 = n21;
+        t22 = n22;
+    }
+    return detail::FinishFractal(sums, params);
+}
+
 #ifndef __SLANG__
 /// `Fractal2` in 3D, for noise on a sphere; lattice coordinates are split in double
 /// precision so noise stays exact at a planet's radius.

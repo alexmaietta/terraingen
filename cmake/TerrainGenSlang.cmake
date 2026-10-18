@@ -78,14 +78,19 @@ endfunction()
 # relative to the repository root, is a kernel header (see util/portable.h) declaring the plain
 # struct <type>, `float ApplyCell(<type> kernel, float height, CellPosition position)` and the
 # `CompiledKernel` specialization; the generated entry point (cmake/Kernel.slang.in) applies it to grid
-# cells for RunKernel. A form the build cannot make is embedded empty.
+# cells for RunKernel. A form the build cannot make is embedded empty. TEMPLATE names another
+# entry point, for kernels that bind more buffers (cmake/CraterKernel.slang.in).
 function(terraingen_add_kernel target symbol type header)
+    cmake_parse_arguments(PARSE_ARGV 4 ARG "" "TEMPLATE" "")
+    if(NOT ARG_TEMPLATE)
+        set(ARG_TEMPLATE "${PROJECT_SOURCE_DIR}/cmake/Kernel.slang.in")
+    endif()
     set(KERNEL_TYPE "${type}")
     set(KERNEL_HEADER "${header}")
     set(KERNEL_SYMBOL "${symbol}")
     set(directory "${CMAKE_CURRENT_BINARY_DIR}/kernels")
     set(source "${directory}/${symbol}.slang")
-    configure_file("${PROJECT_SOURCE_DIR}/cmake/Kernel.slang.in" "${source}" @ONLY)
+    configure_file("${ARG_TEMPLATE}" "${source}" @ONLY)
     configure_file("${PROJECT_SOURCE_DIR}/cmake/Kernel.cpp.in" "${directory}/${symbol}_program.cpp"
                    @ONLY)
     target_sources(${target} PRIVATE "${directory}/${symbol}_program.cpp")

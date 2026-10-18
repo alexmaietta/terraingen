@@ -17,6 +17,7 @@ struct Params {
     uint rows;
     uint noData;
     float noDataValue;
+    uint firstRow;
 };
 [[vk::push_constant]] ConstantBuffer<Params> params;
 

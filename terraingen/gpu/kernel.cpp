@@ -30,12 +30,13 @@ struct KernelParams {
     std::uint32_t rows = 0;
     std::uint32_t noData = 0;  ///< 0 for none, 1 for NaN, 2 for `noDataValue`.
     float noDataValue = 0.0f;
+    std::uint32_t firstRow = 0;  ///< The strip's first row in the grid.
 };
 
 }  // namespace
 
 bool RunKernel(Backend backend, const KernelProgram& program, std::span<const std::byte> kernel,
-               Raster<float>& grid, const Vec2d& origin) {
+               Raster<float>& grid, const Vec2d& origin, std::span<const KernelBuffer> extra) {
     const GeoTransform& transform = grid.Transform();
     const std::size_t width = grid.Width();
     if (transform.rowRotation != 0.0 || transform.colRotation != 0.0 || width == 0 ||
@@ -70,6 +71,10 @@ bool RunKernel(Backend backend, const KernelProgram& program, std::span<const st
         ys[row] = static_cast<float>(grid.CellCenter(0, row).y - origin.y);
     }
     std::vector<std::byte> block(kernel.begin(), kernel.end());
+    std::vector<std::vector<std::byte>> extraCopies;
+    for (const KernelBuffer& buffer : extra) {
+        extraCopies.emplace_back(buffer.bytes.begin(), buffer.bytes.end());
+    }
     KernelParams push;
     push.width = static_cast<std::uint32_t>(width);
     if (const auto& noData = grid.NoData()) {
@@ -83,10 +88,14 @@ bool RunKernel(Backend backend, const KernelProgram& program, std::span<const st
     for (std::size_t row0 = 0; row0 < ys.size(); row0 += stripRows) {
         const std::size_t rows = std::min(stripRows, ys.size() - row0);
         push.rows = static_cast<std::uint32_t>(rows);
-        const std::vector<std::span<std::byte>> buffers{
+        push.firstRow = static_cast<std::uint32_t>(row0);
+        std::vector<std::span<std::byte>> buffers{
             std::as_writable_bytes(values.subspan(row0 * width, rows * width)),
             std::as_writable_bytes(std::span(xs)),
             std::as_writable_bytes(std::span(ys).subspan(row0, rows)), std::span(block)};
+        for (std::vector<std::byte>& copy : extraCopies) {
+            buffers.push_back(std::span(copy));
+        }
         const std::span<const std::byte> pushBytes = std::as_bytes(std::span(&push, 1));
         const std::array<std::uint32_t, 3> groups{
             static_cast<std::uint32_t>((width + kGroupSide - 1) / kGroupSide),
@@ -94,12 +103,14 @@ bool RunKernel(Backend backend, const KernelProgram& program, std::span<const st
         if (vulkan != nullptr) {
             vulkan->Run({program.spirv.data(), program.spirv.size()}, buffers, pushBytes, groups);
         } else if (cuda != nullptr) {
-            cuda->Run(program.ptx,
-                      {{buffers[0], rows * width},
-                       {buffers[1], width},
-                       {buffers[2], rows},
-                       {buffers[3], 1}},
-                      pushBytes, groups, groupSize);
+            std::vector<CudaBuffer> cudaBuffers{{buffers[0], rows * width},
+                                                {buffers[1], width},
+                                                {buffers[2], rows},
+                                                {buffers[3], 1}};
+            for (std::size_t n = 0; n < extra.size(); ++n) {
+                cudaBuffers.push_back({buffers[4 + n], extra[n].count});
+            }
+            cuda->Run(program.ptx, cudaBuffers, pushBytes, groups, groupSize);
         } else {
             metal->Run(program.metal, buffers, pushBytes, groups, groupSize);
         }
