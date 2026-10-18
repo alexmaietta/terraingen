@@ -4,7 +4,7 @@
 [![coverage](https://img.shields.io/endpoint?url=https://alexmaietta.github.io/terraingen/coverage/badge.json)](https://alexmaietta.github.io/terraingen/coverage/)
 [![release](https://img.shields.io/github/v/release/alexmaietta/terraingen)](https://github.com/alexmaietta/terraingen/releases)
 [![pypi](https://img.shields.io/pypi/v/terraingenpy)](https://pypi.org/project/terraingenpy/)
-[![docs](https://img.shields.io/github/actions/workflow/status/alexmaietta/terraingen/docs.yml?branch=main&label=docs)](https://alexmaietta.github.io/terraingen/)
+[![docs](https://img.shields.io/website?url=https%3A%2F%2Falexmaietta.github.io%2Fterraingen%2F&label=docs&up_message=online&down_message=offline)](https://alexmaietta.github.io/terraingen/)
 [![license](https://img.shields.io/badge/license-BSD_3--Clause-blue)](LICENSE)
 
 # TerrainGen

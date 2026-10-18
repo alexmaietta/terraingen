@@ -69,3 +69,26 @@ TERRAINGEN_BUILD_BENCHMARKS = "OFF"
 TERRAINGEN_BUILD_APP = "ON"
 TERRAINGEN_BUILD_GUI = "OFF"
 TERRAINGEN_INSTALL = "OFF"
+
+# The wheels CI builds, one job per platform and Python (the job sets CIBW_BUILD to one of these): a
+# wheel each for Python 3.10 and 3.11, and one stable-ABI wheel for 3.12 and newer.
+[tool.cibuildwheel]
+build = ["cp310-*", "cp311-*", "cp312-*"]
+skip = "*-musllinux_*"
+# glibc 2.34 (Ubuntu 22.04 and newer): the prebuilt slangc needs its newer C++ runtime.
+manylinux-x86_64-image = "manylinux_2_34"
+manylinux-aarch64-image = "manylinux_2_34"
+test-requires = ["pytest"]
+test-command = "terraingen --version && pytest {project}/tests/python"
+
+[tool.cibuildwheel.linux]
+# AlmaLinux 9, under manylinux_2_34, builds for x86-64-v2 (SSE4.2, POPCNT: every x86 CPU since 2009),
+# which auditwheel otherwise rejects for that tag.
+repair-wheel-command = "auditwheel repair --disable-isa-ext-check -w {dest_dir} {wheel}"
+
+[tool.cibuildwheel.macos]
+environment = { MACOSX_DEPLOYMENT_TARGET = "11.0" }
+
+[tool.cibuildwheel.windows]
+# 64-bit only: Slang and NVRTC have no 32-bit Windows builds.
+archs = ["AMD64"]
