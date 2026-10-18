@@ -29,10 +29,12 @@ if(TERRAINGEN_COVERAGE)
         COMMAND
             "${GCOVR_EXECUTABLE}" --root "${PROJECT_SOURCE_DIR}" --gcov-executable "${gcov_command}"
             --filter "${PROJECT_SOURCE_DIR}/terraingen/" --gcov-exclude ".*build_info.*"
-            --exclude-throw-branches --exclude-noncode-lines --delete --txt --html-details
-            "${report_dir}/index.html" --html-title "TerrainGen coverage" --cobertura
-            "${report_dir}/coverage.xml" --markdown-summary "${report_dir}/summary.md"
-            --json-summary "${report_dir}/summary.json" --print-summary "${PROJECT_BINARY_DIR}"
+            --gcov-exclude-directories ".*terraingen_build_info\\.dir.*"
+            --merge-mode-functions=separate --exclude-throw-branches --exclude-noncode-lines
+            --delete --txt --html-details "${report_dir}/index.html" --html-title
+            "TerrainGen coverage" --cobertura "${report_dir}/coverage.xml" --markdown-summary
+            "${report_dir}/summary.md" --json-summary "${report_dir}/summary.json" --print-summary
+            "${PROJECT_BINARY_DIR}"
         COMMAND
             ${CMAKE_COMMAND} -DSUMMARY=${report_dir}/summary.json -DOUTPUT=${report_dir}/badge.json
             -P "${PROJECT_SOURCE_DIR}/cmake/CoverageBadge.cmake"

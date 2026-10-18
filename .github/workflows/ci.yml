@@ -171,7 +171,11 @@ jobs:
       # examples that the integration tests run.
       - name: Build
         run: cmake --build build --parallel 4
+      # The tests four at a time (ctest reads CTEST_PARALLEL_LEVEL); some examples take minutes
+      # without optimization.
       - name: Test and report
+        env:
+          CTEST_PARALLEL_LEVEL: "4"
         run: cmake --build build --target coverage
       - name: Summary
         if: always()
