@@ -414,6 +414,11 @@ template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
        "Steepest ground, across a boulder's diameter, that boulders stay on, in radians; steeper "
        "ground has none, models and drawn boulders alike. Unset keeps boulders on any slope.",
        "rad", Inside(0.0, 0.5 * std::numbers::pi));
+    io("roll_distance", pose.rollDistance,
+       "With max_slope, boulders on steeper ground roll down it and rest where it is gentle "
+       "enough, gathering at the foot of slopes; those that would roll farther than this many "
+       "metres are left out. Unset leaves out every boulder on steeper ground.",
+       "m", Above(0.0));
     io("burial_by_wear", pose.burialByWear,
        "How far wear sets burial, from 0 to 1: blocks of fresh craters sit near the smallest "
        "burial and those of worn ones sink toward the largest, while boulders between craters "
@@ -444,6 +449,10 @@ template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
     io("density_map", spec.densityMap,
        "Map that sets the abundance of boulders between craters point by point, scaling the "
        "sizes to what it measures; unset keeps the abundance the sizes set everywhere.");
+    io("slope_map", spec.slopeMap,
+       "Map of how steeply boulder counts fall with size, such as a mean diameter map, bending the "
+       "sizes into a local power law through their count at its reference diameter; needs a size "
+       "distribution. Unset keeps the sizes' shape everywhere.");
     io("manual", spec.manual,
        "Catalog boulders placed as given and never thinned or left out; x, y and diameter are "
        "read.");

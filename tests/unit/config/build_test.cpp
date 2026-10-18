@@ -492,6 +492,8 @@ TEST(BuildTerrain, GivesLayersTheirMapsCatalogsAndCompleteness) {
     boulders.densityMap = terraingen::DensityMapSpec{.field = {.value = 1.5}};
     boulders.manual = {{1.0, 2.0, 3.0, 0.0, 0u}};
     boulders.completeness = terraingen::FieldSpec{.value = 2.0};
+    boulders.sizes = terraingen::PowerLawSpec{0.01, 3.0};
+    boulders.slopeMap = terraingen::SizeSlopeMapSpec{.field = {.value = 2.5}};
     config.layers.push_back(boulders);
     const terraingen::Terrain terrain = terraingen::BuildTerrain(config);
     const auto* crater = dynamic_cast<const terraingen::CraterLayer*>(terrain.layers[1].get());
@@ -506,7 +508,16 @@ TEST(BuildTerrain, GivesLayersTheirMapsCatalogsAndCompleteness) {
     ASSERT_EQ(options.manual.size(), 1u);
     EXPECT_TRUE(options.manual[0].manual);
     EXPECT_EQ(options.completeness->ValueAt(0.0, 0.0), 2.0);
+    ASSERT_TRUE(options.slopeMap);
+    EXPECT_EQ(options.slopeMap->field->ValueAt(0.0, 0.0), 2.5);
     EXPECT_EQ(options, options);
+    boulders.slopeMap->minExponent = 0.0;
+    try {
+        terraingen::config::BuildBoulderOptions(boulders, "layers[2]");
+        FAIL() << "expected a ConfigError";
+    } catch (const ConfigError& error) {
+        EXPECT_EQ(error.Path(), "layers[2].slope_map");
+    }
 }
 
 TEST(BuildTerrain, GivesCraterLayersTheSecondariesThrownFromThem) {

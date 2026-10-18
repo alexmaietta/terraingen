@@ -1075,3 +1075,118 @@ TEST(BoulderLayer, KeepsAMapsMeanUnderPatchesAndBedrock) {
     bedrock.densityMap->field = std::make_shared<terraingen::RasterField>(cells);
     EXPECT_NEAR(mean(BoulderLayer(bedrock), &steps, 400.0), 1.0, 0.05) << "over the map's cells";
 }
+
+namespace {
+
+/// A field that is `west` for negative x and `east` otherwise.
+class WestEast final : public terraingen::SurfaceField {
+  public:
+    WestEast(double west, double east) : west_(west), east_(east) {}
+    double ValueAt(double x, double /*y*/) const override {
+        return x < 0.0 ? west_ : east_;
+    }
+    double Max() const override {
+        return std::fmax(west_, east_);
+    }
+
+  private:
+    double west_;
+    double east_;
+};
+
+}  // namespace
+
+TEST(BoulderLayer, BendsTheSizesIntoTheSlopeAMapGives) {
+    BoulderLayerOptions options;
+    options.sizes.distribution = std::make_shared<terraingen::PowerLawSfd>(0.05, 3.0);
+    options.sizes.minDiameter = 0.5;
+    options.sizes.maxDiameter = 8.0;
+    options.slopeMap = terraingen::SizeSlopeMap{std::make_shared<WestEast>(2.0, 4.0)};
+    options.slopeMap->referenceDiameter = 1.0;
+    options.slopeMap->minExponent = 1.5;
+    options.slopeMap->maxExponent = 5.0;
+    const BoulderLayer layer(options);
+    EXPECT_EQ(*layer.AbundanceAt(-5.0, 0.0).exponent, 2.0);
+    for (const double d : {0.5, 1.0, 3.0, 7.0}) {
+        EXPECT_NEAR(layer.DensityAt(d, -5.0, 0.0), 0.05 * 2.0 * std::pow(d, -3.0),
+                    1e-12 * std::pow(d, -3.0));
+        EXPECT_NEAR(layer.DensityAt(d, 5.0, 0.0), 0.05 * 4.0 * std::pow(d, -5.0),
+                    1e-12 * std::pow(d, -5.0));
+        const auto candidates = terraingen::BoulderCandidates(options);
+        for (const double alpha : {1.5, 2.7, 5.0}) {
+            const double local = 0.05 * alpha * std::pow(d, -alpha - 1.0);
+            EXPECT_LE(local, candidates->Incremental(d) * (1.0 + 1e-12)) << d << " " << alpha;
+        }
+    }
+    const Bounds2d region{-120.0, -60.0, 120.0, 60.0};
+    double westSmall = 0.0;
+    double westLarge = 0.0;
+    double eastSmall = 0.0;
+    double eastLarge = 0.0;
+    for (const Boulder& boulder : layer.Boulders(region, 0.0)) {
+        const bool west = boulder.x < 0.0;
+        (west ? westSmall : eastSmall) += boulder.diameter >= 1.0 ? 1.0 : 0.0;
+        (west ? westLarge : eastLarge) += boulder.diameter >= 2.0 ? 1.0 : 0.0;
+    }
+    const double expected = 0.05 * 120.0 * 120.0;
+    EXPECT_NEAR(westSmall, expected, 4.0 * std::sqrt(expected)) << "the count at D0 is kept";
+    EXPECT_NEAR(eastSmall, expected, 4.0 * std::sqrt(expected));
+    EXPECT_NEAR(westLarge / westSmall, 0.25, 0.03);
+    EXPECT_NEAR(eastLarge / eastSmall, 1.0 / 16.0, 0.025);
+    options.sizes.distribution = nullptr;
+    EXPECT_THROW(BoulderLayer{options}, std::invalid_argument) << "not with Golombek-Rapp sizes";
+}
+
+TEST(BoulderLayer, RollsBouldersDownSteepGroundToRestAtItsFoot) {
+    BoulderLayerOptions options;
+    options.sizes.coverage = 0.08;
+    options.pose.maxSlope = std::atan(0.5);
+    options.pose.rollDistance = 40.0;
+    const Analytic ramp(
+        [](double x, double) { return static_cast<float>(0.8 * std::clamp(x, 0.0, 20.0)); });
+    const Bounds2d region{-30.0, -10.0, 30.0, 10.0};
+    BoulderLayerOptions still = options;
+    still.pose.maxSlope.reset();
+    still.pose.rollDistance.reset();
+    const auto unrolled = BoulderLayer(still).Boulders(region, 0.0, &ramp);
+    const BoulderLayer layer(options);
+    const auto rolled = layer.Boulders(region, 0.0, &ramp);
+    std::size_t onRamp = 0;
+    std::size_t atFoot = 0;
+    std::size_t atFootBefore = 0;
+    for (const Boulder& boulder : rolled) {
+        onRamp += boulder.x > 1.0 && boulder.x < 19.0 ? 1u : 0u;
+        atFoot += boulder.x > -3.0 && boulder.x < 1.0 ? 1u : 0u;
+    }
+    for (const Boulder& boulder : unrolled) {
+        atFootBefore += boulder.x > -3.0 && boulder.x < 1.0 ? 1u : 0u;
+    }
+    EXPECT_EQ(onRamp, 0u) << "none rest on the steep ramp";
+    EXPECT_GT(atFoot, 2 * atFootBefore) << "they gather at its foot";
+    EXPECT_EQ(rolled.size(), unrolled.size()) << "within reach, none are lost";
+    std::set<std::uint64_t> whole;
+    for (const Boulder& boulder : rolled) {
+        whole.insert(boulder.id);
+    }
+    std::set<std::uint64_t> tiles;
+    for (const Bounds2d& tile :
+         {Bounds2d{-30.0, -10.0, 0.5, 10.0}, Bounds2d{0.5, -10.0, 30.0, 10.0}}) {
+        for (const Boulder& boulder : layer.Boulders(tile, 0.0, &ramp)) {
+            if (tile.Contains(boulder.x, boulder.y)) {
+                tiles.insert(boulder.id);
+            }
+        }
+    }
+    std::set<std::uint64_t> inside;
+    for (const Boulder& boulder : rolled) {
+        if (region.Contains(boulder.x, boulder.y)) {
+            inside.insert(boulder.id);
+        }
+    }
+    EXPECT_EQ(tiles, inside) << "boulders rolling across a tile edge land in the right tile";
+    options.pose.rollDistance = 3.0;
+    EXPECT_LT(BoulderLayer(options).Boulders(region, 0.0, &ramp).size(), rolled.size())
+        << "those that would roll farther are left out";
+    options.pose.maxSlope.reset();
+    EXPECT_THROW(BoulderLayer{options}, std::invalid_argument) << "rolling needs a max slope";
+}

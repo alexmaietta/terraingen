@@ -144,3 +144,116 @@ TEST(ApplyCraters, OffsetsFloorsDownslopeAndLowersRimsUpslopeOnSlopingGround) {
     EXPECT_NEAR(downslopeRim, *std::max_element(level.begin() + 100, level.end()),
                 0.05 * downslopeRim);
 }
+
+TEST(SlopeWearRate, FollowsRoeringsNonlinearTransportUpToItsCap) {
+    CraterSlopeResponse response;
+    EXPECT_EQ(terraingen::SlopeWearRate(response, 0.5, 0.0), 1.0) << "no critical gradient";
+    response.criticalGradient = 1.0;
+    EXPECT_DOUBLE_EQ(terraingen::SlopeWearRate(response, 0.0, 0.0), 1.0);
+    EXPECT_DOUBLE_EQ(terraingen::SlopeWearRate(response, 0.3, 0.4), 1.0 / 0.75);
+    EXPECT_DOUBLE_EQ(terraingen::SlopeWearRate(response, 0.99, 0.0), 10.0) << "capped";
+    EXPECT_DOUBLE_EQ(terraingen::SlopeWearRate(response, 2.0, 0.0), 10.0);
+    response.criticalGradient = 0.0;
+    EXPECT_THROW(terraingen::ValidateCraterSlopeResponse(response), std::invalid_argument);
+    response.criticalGradient = 1.0;
+    response.maxWearRate = 0.5;
+    EXPECT_THROW(terraingen::ValidateCraterSlopeResponse(response), std::invalid_argument);
+    terraingen::CraterApplyOptions options;
+    options.slope.criticalGradient = 1.0;
+    EXPECT_THROW(terraingen::ValidateCraterApplyOptions(options), std::invalid_argument)
+        << "needs the plane datum";
+}
+
+TEST(DegradationModel, WearsFasterAsIfOlderOrWithMoreDiffusion) {
+    const terraingen::Crater crater{0.0, 0.0, 200.0, 0.5, 3u};
+    const terraingen::FreshnessDegradation freshness(std::make_shared<terraingen::UniformAges>(2.0),
+                                                     terraingen::LunarFreshCraterMorphometry);
+    EXPECT_EQ(freshness.WornState(crater, 3.0), freshness.State({0.0, 0.0, 200.0, 1.5, 3u}))
+        << "by default, as a crater 3 times older";
+    const auto diffused = std::make_shared<terraingen::DiffusedProfile>(
+        std::make_shared<terraingen::FassettThomsonProfile>());
+    const terraingen::DiffusionDegradation diffusion(terraingen::LunarFreshCraterMorphometry,
+                                                     terraingen::Fassett2022HartmannDiffusivity(),
+                                                     diffused);
+    const terraingen::CraterState level = diffusion.State(crater);
+    const terraingen::CraterState steep = diffusion.WornState(crater, 3.0);
+    EXPECT_NEAR(steep.diffusion, 3.0 * level.diffusion, 1e-12 * steep.diffusion);
+    EXPECT_LT(steep.current.depthRatio, level.current.depthRatio);
+}
+
+TEST(ApplyCraters, WearsCratersOnSteepGroundFaster) {
+    const auto diffused = std::make_shared<terraingen::DiffusedProfile>(
+        std::make_shared<terraingen::FassettThomsonProfile>());
+    const terraingen::CraterShapeModels models{
+        diffused, std::make_shared<terraingen::DiffusionDegradation>(
+                      terraingen::LunarFreshCraterMorphometry,
+                      terraingen::Fassett2022HartmannDiffusivity(), diffused)};
+    terraingen::Raster<float> base(161, 161, 0.0f);
+    base.SetTransform(terraingen::GeoTransform::NorthUp(-80.5, 80.5, 1.0));
+    for (std::size_t row = 0; row < base.Height(); ++row) {
+        for (std::size_t col = 0; col < base.Width(); ++col) {
+            base(col, row) = static_cast<float>(0.4 * base.CellCenter(col, row).y);
+        }
+    }
+    terraingen::CraterList craters;
+    craters.Append({0.0, 0.0, 100.0, 0.8, 1u});
+    terraingen::CraterApplyOptions options;
+    options.datum = terraingen::CraterDatum::Plane;
+    const auto depth = [&](const terraingen::CraterApplyOptions& o) {
+        terraingen::Raster<float> heights = base;
+        terraingen::ApplyCraters(heights, craters, models, o, {});
+        double deepest = 0.0;
+        for (std::size_t i = 0; i < heights.Size(); ++i) {
+            deepest = std::fmin(deepest, static_cast<double>(heights.Values()[i]) -
+                                             static_cast<double>(base.Values()[i]));
+        }
+        return -deepest;
+    };
+    const double level = depth(options);
+    options.slope.criticalGradient = 0.7;
+    const double steep = depth(options);
+    EXPECT_LT(steep, 0.9 * level) << "a gradient of 0.4 wears it about 1.5 times as fast";
+}
+
+TEST(ApplyCraters, FitsDatumsToTheSlopeShapedReliefSoNoCraterStandsAsAMesa) {
+    const auto profile = std::make_shared<terraingen::FassettThomsonProfile>();
+    const terraingen::CraterShapeModels models{
+        profile,
+        std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry)};
+    const double rise = std::tan(15.0 * std::numbers::pi / 180.0);
+    terraingen::Raster<float> base(241, 241, 0.0f);
+    base.SetTransform(terraingen::GeoTransform::NorthUp(-120.5, 120.5, 1.0));
+    for (std::size_t row = 0; row < base.Height(); ++row) {
+        for (std::size_t col = 0; col < base.Width(); ++col) {
+            base(col, row) = static_cast<float>(rise * base.CellCenter(col, row).y);
+        }
+    }
+    terraingen::CraterList craters;
+    craters.Append({0.0, 0.0, 200.0, 2.0, 1u});
+    craters.Append({0.0, -45.0, 16.0, 0.1, 2u});
+    terraingen::CraterApplyOptions options;
+    options.datum = terraingen::CraterDatum::Plane;
+    options.slope = Enabled(0.15);
+    terraingen::Raster<float> both = base;
+    terraingen::ApplyCraters(both, craters, models, options, {});
+    terraingen::CraterList large;
+    large.Append(craters.At(0));
+    terraingen::Raster<float> alone = base;
+    terraingen::ApplyCraters(alone, large, models, options, {});
+    double inside = -1e9;
+    double around = -1e9;
+    for (std::size_t row = 0; row < both.Height(); ++row) {
+        for (std::size_t col = 0; col < both.Width(); ++col) {
+            const Vec2d p = both.CellCenter(col, row);
+            const double radii = std::hypot(p.x, p.y + 45.0) / 8.0;
+            const double change = both(col, row) - alone(col, row);
+            if (radii < 0.7) {
+                inside = std::fmax(inside, change);
+            } else if (radii > 1.6 && radii < 2.0) {
+                around = std::fmax(around, std::fabs(change));
+            }
+        }
+    }
+    EXPECT_LT(inside, 0.0) << "the small crater is a hollow in the shifted floor, not a mesa";
+    EXPECT_LT(around, 0.4) << "and leaves its surroundings much as they are";
+}

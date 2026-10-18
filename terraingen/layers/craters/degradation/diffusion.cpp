@@ -267,13 +267,17 @@ DiffusionDegradation::DiffusionDegradation(FreshMorphometry fresh, DiffusionAgeM
 }
 
 CraterState DiffusionDegradation::State(const Crater& crater) const {
+    return WornState(crater, 1.0);
+}
+
+CraterState DiffusionDegradation::WornState(const Crater& crater, double rate) const {
     if (!IsPositive(crater.diameter)) {
         throw std::domain_error("Crater diameter must be positive and finite");
     }
     if (!IsNonNegative(crater.ageGyr)) {
         throw std::domain_error("Crater age must be finite and not negative");
     }
-    const double kappaT = ages_(crater.diameter, crater.ageGyr);
+    const double kappaT = rate * ages_(crater.diameter, crater.ageGyr);
     if (!IsNonNegative(kappaT)) {
         throw std::domain_error("A crater's diffusion age must be finite and not negative");
     }

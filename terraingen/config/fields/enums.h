@@ -344,6 +344,16 @@ template <> struct EnumNames<DensityMeasure> {
     }};
 };
 
+template <> struct EnumNames<SizeSlopeMeasure> {
+    static constexpr std::array<EnumEntry<SizeSlopeMeasure>, 2> kValues{{
+        {"exponent", SizeSlopeMeasure::Exponent,
+         "The cumulative exponent alpha, counts falling as D^-alpha."},
+        {"mean_diameter", SizeSlopeMeasure::MeanDiameter,
+         "The mean diameter in metres of the features from the reference diameter up, from which "
+         "alpha = mean / (mean - D0)."},
+    }};
+};
+
 template <> struct EnumNames<TiffCompression> {
     static constexpr std::array<EnumEntry<TiffCompression>, 4> kValues{{
         {"none", TiffCompression::None, "Uncompressed: the largest files."},

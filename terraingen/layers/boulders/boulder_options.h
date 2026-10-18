@@ -224,6 +224,11 @@ struct BoulderPose {
     /// so which boulders exist does not depend on the spacing. Unset keeps boulders on any slope;
     /// needs the ground.
     std::optional<double> maxSlope{};
+    /// With `maxSlope`, boulders on steeper ground roll down it instead, in steps along the
+    /// steepest descent, and come to rest where it is no steeper than `maxSlope`, gathering at the
+    /// foot of slopes; those that would roll farther than this many metres are left out. Unset
+    /// leaves out every boulder on steeper ground.
+    std::optional<double> rollDistance{};
 
     bool operator==(const BoulderPose&) const = default;
 };
@@ -325,6 +330,11 @@ struct BoulderLayerOptions {
     /// it measures first. Patches, clusters and bedrock still spread boulders within it. Unset
     /// keeps the abundance `sizes` sets everywhere.
     std::optional<DensityMap> densityMap{};
+    /// A map of how steeply boulder counts fall with size (`SizeSlopeMap`), such as a mean
+    /// diameter map, bending the sizes between craters into a local power law through their count
+    /// at its reference diameter; needs a size distribution rather than Golombek-Rapp sizes. Unset
+    /// keeps the sizes' own shape everywhere.
+    std::optional<SizeSlopeMap> slopeMap{};
     /// Boulders from a catalog, placed as given and never thinned or left out; `x`, `y` and
     /// `diameter` are read, and IDs come from position and size (`AppendManualCraters`).
     std::vector<Crater> manual{};
@@ -458,7 +468,8 @@ double MaxBackgroundAbundance(const BoulderLayerOptions& options);
 std::shared_ptr<const SizeFrequencyDistribution> EjectaSizes(const BoulderLayerOptions& options);
 
 /// The distribution per m^2 candidate boulders are drawn from before thinning: the boulders
-/// between craters at their richest plus fresh crater blocks when enabled.
+/// between craters at their richest, with a size slope map the power laws at its bounding
+/// exponents too, plus fresh crater blocks when enabled.
 /// @throws std::invalid_argument as `ValidateBoulderLayerOptions`.
 std::shared_ptr<const SizeFrequencyDistribution>
 BoulderCandidates(const BoulderLayerOptions& options);

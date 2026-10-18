@@ -30,6 +30,8 @@ struct BoulderAbundance {
     double ejecta = 0.0;
     /// Wear of the crater the ejecta share comes from, from 0 (fresh) to 1 (its blocks gone).
     double ejectaWear = 0.0;
+    /// The size exponent a size slope map gives here (`SizeSlopeAt`); none keeps the sizes' shape.
+    std::optional<double> exponent;
 
     bool operator==(const BoulderAbundance&) const = default;
 };
@@ -126,6 +128,9 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// The rise east and north (m/m) of `ground` across `boulder`'s diameter; none where the
     /// ground is missing.
     std::optional<Vec2d> GroundGradient(const Boulder& boulder, const Ground& ground) const;
+    /// Rolls `boulder` down ground steeper than `maxSlope` until it rests, as `rollDistance`
+    /// allows; false when it would roll farther, or with no roll distance on steep ground.
+    bool Roll(Boulder& boulder, const Ground& ground) const;
     /// The pieces `parent` breaks into at its wear, those resolved at `spacing`; `parent` alone
     /// when it is too small or too fresh to break.
     std::vector<Boulder> Break(const Boulder& parent, double spacing, const Ground* ground) const;
@@ -212,6 +217,7 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     double minCraterDiameter_ = 0.0;
     double maxBackground_ = 1.0;
     double clusterMean_ = 1.0;
+    double referenceCount_ = 0.0;  ///< N(>=D0) of the sizes at a size slope map's D0, per m^2.
     std::optional<BoulderMapAbundance> mapAbundance_;
     double patchMean_ = 1.0;  ///< Under a map, what the patches are divided by.
     Vec2d meanOrigin_{};      ///< Corner of the bedrock mean lattice, in surface units.

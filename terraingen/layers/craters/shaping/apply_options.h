@@ -142,7 +142,8 @@ struct CraterApplyOptions {
     RimSmoothing rimSmoothing{};  ///< Rounded rims; off by default.
     CraterNoise noise{};          ///< Fractal noise over each crater; off by default.
     CraterTexture texture{};      ///< Wall gullies, ejecta texture and burial; off by default.
-    /// Floors offset downslope and rims lowered upslope on sloping ground; needs the `Plane` datum.
+    /// Floors offset downslope, rims lowered upslope and faster wear on the slope of the ground
+    /// beneath the layer; needs the `Plane` datum.
     CraterSlopeResponse slope{};
     /// What craters are shaped on; on a sphere, centres and rasters are longitude and latitude and
     /// each crater is shaped in its local frame, spacings in metres.

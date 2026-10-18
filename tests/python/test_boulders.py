@@ -269,3 +269,16 @@ def test_boulder_layers_take_maps_and_catalogs():
 def test_patches_raise_the_mean_a_map_divides_out():
     assert terraingen.mean_patch_abundance(terraingen.BoulderPatches(spread=4.0, size=20.0)) > 1.2
     assert terraingen.BoulderLayerOptions(bedrock_mean_size=250.0).bedrock_mean_size == 250.0
+
+
+def test_boulders_follow_a_size_slope_map_and_roll_down_steep_ground():
+    options = terraingen.BoulderLayerOptions(
+        distribution=terraingen.PowerLawSfd(0.05, 3.0),
+        slope_map=terraingen.SizeSlopeMap(field=terraingen.ConstantField(2.0), reference_diameter=1.0),
+        max_slope=0.4,
+        roll_distance=20.0,
+    )
+    layer = terraingen.BoulderLayer(options)
+    assert layer.density_at(2.0, 0.0, 0.0) == pytest.approx(0.05 * 2.0 * 2.0**-3.0)
+    assert terraingen.size_slope_at(options.slope_map, 0.0, 0.0) == 2.0
+    assert options.roll_distance == 20.0

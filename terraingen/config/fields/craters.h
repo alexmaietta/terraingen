@@ -218,7 +218,7 @@ template <typename IO> void Fields(IO& io, CraterTexture& texture) {
 
 template <typename IO> void Fields(IO& io, CraterSlopeResponse& slope) {
     io("enabled", slope.enabled,
-       "Shapes craters on sloping ground asymmetrically, as their datum plane slopes; off keeps "
+       "Shapes craters asymmetrically along the slope of the ground beneath the layer; off keeps "
        "them the same on any slope.");
     io("seed", slope.seed, "Varies how far each crater's floor is offset.");
     io("floor_offset", slope.floorOffset,
@@ -232,6 +232,14 @@ template <typename IO> void Fields(IO& io, CraterSlopeResponse& slope) {
        "Slope at which the asymmetry is complete, in radians; it rises from none on level "
        "ground.",
        "rad", Above(0.0));
+    io("critical_gradient", slope.criticalGradient,
+       "Critical gradient Sc, rise over run, toward which downslope transport grows without bound: "
+       "a crater on a regional gradient S wears 1 / (1 - (S / Sc)^2) times as fast (Roering et al. "
+       "1999). Unset wears craters alike on any slope; no lunar value is published.",
+       "", Above(0.0));
+    io("max_wear_rate", slope.maxWearRate,
+       "Fastest a slope makes craters wear, over level ground: a numerical cap as S nears Sc.", "",
+       AtLeast(1.0));
 }
 
 template <typename IO> void Fields(IO& io, CraterApplyOptions& apply) {

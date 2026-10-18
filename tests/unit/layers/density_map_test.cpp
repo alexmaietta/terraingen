@@ -6,10 +6,12 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <functional>
 #include <limits>
 #include <memory>
 #include <numbers>
 #include <stdexcept>
+#include <vector>
 
 using terraingen::ConstantField;
 using terraingen::DensityMap;
@@ -102,4 +104,32 @@ TEST(ValidateDensityMap, RejectsUnusableMaps) {
                               terraingen::PiecewiseUniformSfd({{1.0, 2.0, 1.0}})),
                  std::invalid_argument)
         << "measures none of the distribution";
+}
+
+TEST(SizeSlopeAt, ReadsExponentsAndMeanDiametersWithinTheirBounds) {
+    terraingen::SizeSlopeMap map{std::make_shared<Halves>(2.5, 9.0)};
+    map.minExponent = 1.5;
+    map.maxExponent = 5.0;
+    EXPECT_DOUBLE_EQ(*terraingen::SizeSlopeAt(map, -1.0, 0.0), 2.5);
+    EXPECT_DOUBLE_EQ(*terraingen::SizeSlopeAt(map, 1.0, 0.0), 5.0) << "clamped to the largest";
+    map.measure = terraingen::SizeSlopeMeasure::MeanDiameter;
+    map.referenceDiameter = 4.5;
+    map.field = std::make_shared<Halves>(7.5, 4.0);
+    EXPECT_DOUBLE_EQ(*terraingen::SizeSlopeAt(map, -1.0, 0.0), 7.5 / 3.0)
+        << "a power law above 4.5 m averages 7.5 m at alpha 2.5";
+    EXPECT_DOUBLE_EQ(*terraingen::SizeSlopeAt(map, 1.0, 0.0), 5.0)
+        << "a mean below the reference is as steep as allowed";
+    map.field = std::make_shared<ConstantField>(kNaN);
+    EXPECT_FALSE(terraingen::SizeSlopeAt(map, 0.0, 0.0).has_value());
+    EXPECT_NO_THROW(terraingen::ValidateSizeSlopeMap(map));
+    using Change = std::function<void(terraingen::SizeSlopeMap&)>;
+    const std::vector<Change> changes{
+        [](auto& m) { m.field = nullptr; }, [](auto& m) { m.referenceDiameter = 0.0; },
+        [](auto& m) { m.minExponent = 0.0; }, [](auto& m) { m.maxExponent = 1.0; },
+        [](auto& m) { m.maxExponent = std::numeric_limits<double>::infinity(); }};
+    for (const Change& change : changes) {
+        terraingen::SizeSlopeMap bad = map;
+        change(bad);
+        EXPECT_THROW(terraingen::ValidateSizeSlopeMap(bad), std::invalid_argument);
+    }
 }

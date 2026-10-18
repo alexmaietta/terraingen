@@ -43,4 +43,20 @@ template <typename IO> void Fields(IO& io, DensityMapSpec& map) {
        "of it first; off when it counts only what the layer generates.");
 }
 
+template <typename IO> void Fields(IO& io, SizeSlopeMapSpec& map) {
+    io("field", map.field, "The map.");
+    io("measure", map.measure, "What the map's values measure.");
+    io("reference_diameter", map.referenceDiameter,
+       "Diameter D0 in metres where the local power law meets the layer's own count, as N(>=D) = "
+       "N(>=D0) (D / D0)^-alpha; for a mean diameter map, the smallest diameter averaged.",
+       "m", Above(0.0));
+    io("min_exponent", map.minExponent,
+       "Smallest exponent alpha the map's values are clamped to; with the largest it bounds the "
+       "boulders drawn, so generous bounds draw more to thin.",
+       "", Above(0.0));
+    io("max_exponent", map.maxExponent,
+       "Largest exponent alpha the map's values are clamped to; above the smallest.", "",
+       Above(0.0));
+}
+
 }  // namespace terraingen::config

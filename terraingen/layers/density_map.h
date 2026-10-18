@@ -7,6 +7,7 @@
 
 #include <limits>
 #include <memory>
+#include <optional>
 
 namespace terraingen {
 
@@ -42,6 +43,40 @@ struct DensityMap {
 
     bool operator==(const DensityMap&) const = default;
 };
+
+/// What a size slope map's values measure.
+enum class SizeSlopeMeasure {
+    Exponent,  ///< The cumulative exponent alpha of N(>=D), which falls as D^-alpha.
+    /// The mean diameter (m) of the features at least `referenceDiameter` across, from which
+    /// alpha = mean / (mean - D0) as for a power law above D0.
+    MeanDiameter,
+};
+
+/// A map of how steeply feature counts fall with size, such as a mean boulder diameter map.
+///
+/// At each point it bends the layer's size distribution into a power law through the count the
+/// layer has there at `referenceDiameter`: N(>=D) = N(>=D0) (D / D0)^-alpha. A density map that
+/// counts from D0 is kept exactly; where the map has no value the sizes keep their own shape.
+struct SizeSlopeMap {
+    std::shared_ptr<const SurfaceField> field;              ///< The map; not null.
+    SizeSlopeMeasure measure = SizeSlopeMeasure::Exponent;  ///< What its values measure.
+    double referenceDiameter = 1.0;  ///< D0 (m), where the power law meets the layer's count.
+    /// The exponents alpha is clamped to, which bound the features drawn; positive and below
+    /// `maxExponent`. Generous bounds draw more candidates to thin.
+    double minExponent = 1.0;
+    double maxExponent = 6.0;  ///< The largest exponent; finite.
+
+    bool operator==(const SizeSlopeMap&) const = default;
+};
+
+/// Checks a size slope map.
+/// @throws std::invalid_argument for no field, a reference diameter that is not positive and
+/// finite, or exponents that are not 0 < min < max finite.
+void ValidateSizeSlopeMap(const SizeSlopeMap& map);
+
+/// The exponent alpha `map` gives at surface (x, y), clamped to its bounds; none where it has no
+/// value.
+std::optional<double> SizeSlopeAt(const SizeSlopeMap& map, double x, double y);
 
 /// Checks a density map.
 /// @throws std::invalid_argument for no field, a diameter range that is not 0 < min < max for a

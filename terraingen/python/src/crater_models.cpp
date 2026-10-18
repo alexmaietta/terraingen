@@ -143,7 +143,9 @@ void BindDegradationModels(nb::module_& m) {
         "How a crater's shape changes with age. Subclass it and implement `state(crater)`, "
         "returning a CraterState, for a model of your own.")
         .def(nb::init<>())
-        .def("state", &DegradationModel::State, "crater"_a);
+        .def("state", &DegradationModel::State, "crater"_a)
+        .def("worn_state", &DegradationModel::WornState, "crater"_a, "rate"_a,
+             "The state had the crater worn `rate` times as fast as on level ground.");
     nb::class_<NoDegradation, DegradationModel>(
         m, "NoDegradation",
         "Craters keep their fresh shape (`fresh`, a function of diameter giving a "

@@ -132,10 +132,18 @@ void CraterReliefIndex::AddBucket(const std::vector<std::size_t>& bucket, double
         }
         const PreparedCrater& prepared = (*craters_)[n];
         const Crater& crater = prepared.crater;
-        const double distance = CraterProfileDistance(crater, prepared.outline, x, y, surface_);
-        if (distance < profile_.ReachRadii() * 0.5 * crater.diameter) {
-            relief +=
-                prepared.resolution * profile_.Height(distance, crater.diameter, prepared.state);
+        const double radius = 0.5 * crater.diameter;
+        const Vec2d offset = surface_.Offset({crater.x, crater.y}, {x, y});
+        const CraterSlopeShape& slope = prepared.slope;
+        const double distance = CraterProfileDistance(
+            crater, prepared.outline,
+            slope.Level() ? offset : SlopeShiftedOffset(slope, offset, radius));
+        if (distance < profile_.ReachRadii() * radius) {
+            double height = profile_.Height(distance, crater.diameter, prepared.state);
+            if (height > 0.0 && !slope.Level()) {
+                height *= SlopeRaisedShare(slope, offset);
+            }
+            relief += prepared.resolution * height;
         }
     }
 }

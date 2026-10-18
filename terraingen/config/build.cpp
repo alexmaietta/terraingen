@@ -462,6 +462,14 @@ BoulderLayerOptions BuildBoulderOptions(const BoulderLayerSpec& spec, const std:
         options.densityMap =
             BuildDensityMap(*spec.densityMap, Child(path, "density_map"), directory);
     }
+    if (spec.slopeMap) {
+        const SizeSlopeMapSpec& s = *spec.slopeMap;
+        const std::string at = Child(path, "slope_map");
+        options.slopeMap =
+            SizeSlopeMap{BuildField(s.field, Child(at, "field"), directory), s.measure,
+                         s.referenceDiameter, s.minExponent, s.maxExponent};
+        At(at, [&] { ValidateSizeSlopeMap(*options.slopeMap); });
+    }
     for (Crater boulder : spec.manual) {
         boulder.manual = true;
         options.manual.push_back(boulder);

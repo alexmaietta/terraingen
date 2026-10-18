@@ -101,7 +101,7 @@ class ConflictSearch {
             }
             const Crater neighbour = craters_.At(other);
             if (CratersConflict(crater, neighbour, spacing_, surface_) &&
-                CraterTakesPrecedence(neighbour, crater)) {
+                CraterTakesPrecedence(neighbour, crater, spacing_.outrankFrom)) {
                 return true;
             }
         }
@@ -139,9 +139,12 @@ bool CratersConflict(const Crater& a, const Crater& b, const CraterSpacing& spac
     return dx * dx + dy * dy < limit * limit;
 }
 
-bool CraterTakesPrecedence(const Crater& a, const Crater& b) {
+bool CraterTakesPrecedence(const Crater& a, const Crater& b, double outrankFrom) {
     if (a.manual != b.manual) {
         return a.manual;
+    }
+    if ((a.diameter >= outrankFrom) != (b.diameter >= outrankFrom)) {
+        return a.diameter >= outrankFrom;
     }
     if (a.ageGyr != b.ageGyr) {
         return a.ageGyr < b.ageGyr;

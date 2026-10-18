@@ -29,6 +29,21 @@ void ValidateCraterSlopeResponse(const CraterSlopeResponse& response) {
     }
     RequireUnitInterval(response.upslopeRim, "Crater upslopeRim");
     RequirePositive(response.fullSlope, "Crater fullSlope");
+    if (response.criticalGradient) {
+        RequirePositive(*response.criticalGradient, "Crater criticalGradient");
+    }
+    if (!(std::isfinite(response.maxWearRate) && response.maxWearRate >= 1.0)) {
+        throw std::invalid_argument("Crater maxWearRate must be finite and at least 1");
+    }
+}
+
+double SlopeWearRate(const CraterSlopeResponse& response, double east, double north) {
+    if (!response.criticalGradient) {
+        return 1.0;
+    }
+    const double share = std::hypot(east, north) / *response.criticalGradient;
+    const double room = 1.0 - share * share;
+    return room > 1.0 / response.maxWearRate ? 1.0 / room : response.maxWearRate;
 }
 
 CraterSlopeShape SlopeShape(const Crater& crater, double east, double north,

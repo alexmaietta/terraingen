@@ -78,7 +78,8 @@ class CraterReliefIndex {
                       double outlineScale = 1.0, const Surface& surface = {});
 
     /// The relief in metres at surface (x, y) of the craters before crater `k`: `resolution` times
-    /// the profile height of each, summed in an order independent of the other craters.
+    /// the profile height of each, shaped by its slope as it is applied, summed in an order
+    /// independent of the other craters.
     double ReliefBefore(double x, double y, std::size_t k) const;
 
     /// The indexed craters, in the order applied.

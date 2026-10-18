@@ -56,7 +56,8 @@ struct CraterLayerOptions {
     /// The secondaries `SecondaryCraterLayer`s throw from these craters. A `total` count or areal
     /// fraction map counts them too, so craters too small to throw secondaries the map measures
     /// are drawn at the map less those secondaries' density there; larger craters, which throw
-    /// them, follow the map alone. Not with `generation.maxCraters`.
+    /// them, follow the map alone; with spacing they also take precedence over smaller craters, so
+    /// the throwers never depend on what they throw at. Not with `generation.maxCraters`.
     std::vector<SecondaryCraterOptions> secondaries{};
 };
 

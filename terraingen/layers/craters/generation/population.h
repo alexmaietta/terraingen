@@ -29,6 +29,10 @@ struct CraterSpacing {
 
     double diameterRatio = 1.5;  ///< At least 1.
     double separation = 0.0;     ///< In larger diameters; 0 disables spacing.
+    /// Craters at least this large (m) take precedence over smaller ones whatever their ages, as a
+    /// crater layer sets for the craters that throw secondaries a total map measures; infinite
+    /// ranks by age first. Not part of a configuration.
+    double outrankFrom = std::numeric_limits<double>::infinity();
 
     /// Whether spacing applies: a positive `separation`.
     bool Enabled() const {

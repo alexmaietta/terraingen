@@ -12,6 +12,7 @@
 #include "terraingen/layers/craters/shaping/datum.h"
 #include "terraingen/layers/craters/shaping/irregularity.h"
 
+#include <limits>
 #include <nanobind/ndarray.h>
 
 #include <cstdint>
@@ -155,11 +156,13 @@ void BindSpacing(nb::module_& m) {
         "larger diameter. A separation of 0 disables it.");
     BindKwargsInit<CraterSpacing>(spacing);
     spacing.def_rw("diameter_ratio", &CraterSpacing::diameterRatio)
-        .def_rw("separation", &CraterSpacing::separation);
+        .def_rw("separation", &CraterSpacing::separation)
+        .def_rw("outrank_from", &CraterSpacing::outrankFrom);
     m.def("validate_crater_spacing", &ValidateCraterSpacing, "spacing"_a, kValidateDoc);
     m.def("craters_conflict", &CratersConflict, "a"_a, "b"_a, "spacing"_a, "surface"_a = Surface{},
           "Whether two craters are too close under `spacing`.");
     m.def("crater_takes_precedence", &CraterTakesPrecedence, "a"_a, "b"_a,
+          "outrank_from"_a = std::numeric_limits<double>::infinity(),
           "Whether `a` wins over `b` when they conflict.");
     m.def("thin_by_spacing", &ThinBySpacing, "craters"_a, "spacing"_a, "surface"_a = Surface{},
           "The craters without those that conflict with one that takes precedence (Matern II).");
@@ -360,7 +363,7 @@ void BindApplyOptions(nb::module_& m) {
           "nothing at `reach_radii`.");
     auto slope = nb::class_<CraterSlopeResponse>(
         m, "CraterSlopeResponse",
-        "Craters on sloping ground made asymmetric along it, from their plane datum: the deepest "
+        "Craters made asymmetric along the slope of the ground beneath their layer: the deepest "
         "point `floor_offset` diameters downslope (drawn per crater), `upslope_rim` of the raised "
         "rim and ejecta kept upslope, complete from `full_slope` radians.");
     BindKwargsInit<CraterSlopeResponse>(slope);
@@ -368,9 +371,13 @@ void BindApplyOptions(nb::module_& m) {
         .def_rw("seed", &CraterSlopeResponse::seed)
         .def_rw("floor_offset", &CraterSlopeResponse::floorOffset)
         .def_rw("upslope_rim", &CraterSlopeResponse::upslopeRim)
-        .def_rw("full_slope", &CraterSlopeResponse::fullSlope);
+        .def_rw("full_slope", &CraterSlopeResponse::fullSlope)
+        .def_rw("critical_gradient", &CraterSlopeResponse::criticalGradient)
+        .def_rw("max_wear_rate", &CraterSlopeResponse::maxWearRate);
     m.def("validate_crater_slope_response", &ValidateCraterSlopeResponse, "response"_a,
           kValidateDoc);
+    m.def("slope_wear_rate", &SlopeWearRate, "response"_a, "east"_a, "north"_a,
+          "How many times as fast a crater wears on ground rising `east` and `north` m/m.");
     auto apply = nb::class_<CraterApplyOptions>(
         m, "CraterApplyOptions",
         "How craters are applied: the `datum` interiors are cut relative to (fit over "

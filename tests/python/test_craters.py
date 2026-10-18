@@ -440,3 +440,14 @@ def test_crater_density_maps_scale_the_count():
     assert options.density_map.measure == terraingen.DensityMeasure.SCALE
     with pytest.raises(ValueError):
         terraingen.validate_density_map(terraingen.DensityMap(measure=terraingen.DensityMeasure.COUNT))
+
+
+def test_slopes_wear_craters_faster_and_large_craters_can_outrank_smaller_ones():
+    slope = terraingen.CraterSlopeResponse(critical_gradient=1.0)
+    assert terraingen.slope_wear_rate(slope, 0.6, 0.0) == pytest.approx(1.0 / 0.64)
+    young = terraingen.Crater(0.0, 0.0, 9.0, 0.1, 9)
+    old = terraingen.Crater(0.0, 0.0, 11.0, 2.0, 1)
+    assert terraingen.crater_takes_precedence(young, old)
+    assert terraingen.crater_takes_precedence(old, young, outrank_from=10.0)
+    fresh = terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry)
+    assert fresh.worn_state(young, 3.0).current.depth_ratio == fresh.state(young).current.depth_ratio

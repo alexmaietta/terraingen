@@ -398,6 +398,36 @@ void FitDatumsWithKernel(std::vector<PreparedCrater>& prepared,
     LogDebug("craters", "Fitted ", fitted.size(), " crater datums on ", BackendName(ran));
 }
 
+/// Gives every crater of `prepared` its shape (`SlopeShape`) and wear (`SlopeWearRate`) on the
+/// gradient of `ground`, the ground beneath the layer, across its datum footprint. Done before any
+/// datum is fitted, so the relief datums are fitted to is the relief applied, and each crater's
+/// slope depends on no other crater of its layer.
+void ShapeOnSlopes(std::vector<PreparedCrater>& prepared, const HeightSampler& ground,
+                   const DegradationModel& degradation, const CraterApplyOptions& options) {
+    const CraterSlopeResponse& response = options.slope;
+    if (!response.enabled && !response.criticalGradient) {
+        return;
+    }
+    for (PreparedCrater& crater : prepared) {
+        const Crater& c = crater.crater;
+        const double half = options.datumFitRadii * 0.5 * c.diameter;
+        const auto at = [&](double east, double north) {
+            const Vec2d p = options.surface.Locate({c.x, c.y}, {east, north});
+            return static_cast<double>(ground(p.x, p.y));
+        };
+        const double east = (at(half, 0.0) - at(-half, 0.0)) / (2.0 * half);
+        const double north = (at(0.0, half) - at(0.0, -half)) / (2.0 * half);
+        if (!std::isfinite(east) || !std::isfinite(north)) {
+            continue;
+        }
+        crater.slope = SlopeShape(c, east, north, response);
+        const double rate = SlopeWearRate(response, east, north);
+        if (rate > 1.0) {
+            crater.state = degradation.WornState(c, rate);
+        }
+    }
+}
+
 /// Fits the datums of craters `fitted` of `prepared` to `ground`, or to the raster as given when
 /// it is empty; with the crater datum kernel when `shape` is set and it can take them.
 void FitDatums(std::vector<PreparedCrater>& prepared, const std::vector<std::size_t>& fitted,
@@ -598,9 +628,7 @@ float ApplyCraterTo(float height, double x, double y, const PreparedCrater& crat
     const double diameter = crater.crater.diameter;
     const double radius = 0.5 * diameter;
     const Vec2d offset = options.surface.Offset({crater.crater.x, crater.crater.y}, {x, y});
-    const CraterSlopeShape slope =
-        crater.datum ? SlopeShape(crater.crater, crater.datum->b, crater.datum->c, options.slope)
-                     : CraterSlopeShape{};
+    const CraterSlopeShape& slope = crater.slope;
     const double distance =
         CraterProfileDistance(crater.crater, crater.outline,
                               slope.Level() ? offset : SlopeShiftedOffset(slope, offset, radius));
@@ -654,6 +682,12 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
     }
     const std::optional<CraterShapeKernel> kernel = MakeCraterShapeKernel(profile, options);
     if (options.datum != CraterDatum::None && !onRaster.empty()) {
+        const HeightSampler beneath =
+            sampling.ground ? sampling.ground : HeightSampler([&raster](double x, double y) {
+                return static_cast<float>(
+                    Sample(raster, x, y).value_or(std::numeric_limits<double>::quiet_NaN()));
+            });
+        ShapeOnSlopes(prepared, beneath, *models.degradation, options);
         FitDatums(prepared, onRaster, raster, profile, kernel, options, sampling);
     }
     if (kernel) {
@@ -707,6 +741,7 @@ void ApplyCraters(SampleBlock& samples, const CraterList& craters, const CraterS
         indices.push_back(static_cast<std::size_t>(crater.prepared - prepared.data()));
     }
     if (options.datum != CraterDatum::None && !reaching.empty()) {
+        ShapeOnSlopes(prepared, sampling.ground, *models.degradation, options);
         std::optional<DatumKernelIndex> kernelIndex;
         bool indexed = false;
         std::optional<CraterReliefIndex> index;

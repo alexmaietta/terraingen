@@ -242,6 +242,9 @@ BoulderAbundance BoulderLayer::Abundance(double x, double y, const Ground* groun
         EjectaAbundance(x, y, ejecta, abundance);
     }
     abundance.background = BackgroundAbundance(x, y, ground, abundance.ejecta);
+    if (options_.slopeMap) {
+        abundance.exponent = SizeSlopeAt(*options_.slopeMap, x, y);
+    }
     return abundance;
 }
 
@@ -251,10 +254,18 @@ BoulderAbundance BoulderLayer::AbundanceAt(double x, double y, const Ground* gro
 
 double BoulderLayer::Density(double diameter, const BoulderAbundance& abundance) const {
     const BoulderSizes& sizes = options_.sizes;
-    double density = sizes.distribution
-                         ? abundance.background * sizes.distribution->Incremental(diameter)
-                         : GolombekRappDensity(diameter, sizes.coverage * abundance.background,
-                                               sizes.qConstant, sizes.qCoverageCoefficient);
+    double density = 0.0;
+    if (abundance.exponent) {
+        const double alpha = *abundance.exponent;
+        const double d0 = options_.slopeMap->referenceDiameter;
+        density = abundance.background * referenceCount_ * alpha * std::pow(d0, alpha) *
+                  std::pow(diameter, -alpha - 1.0);
+    } else {
+        density = sizes.distribution
+                      ? abundance.background * sizes.distribution->Incremental(diameter)
+                      : GolombekRappDensity(diameter, sizes.coverage * abundance.background,
+                                            sizes.qConstant, sizes.qCoverageCoefficient);
+    }
     if (abundance.ejecta > 0.0) {
         density += abundance.ejecta * ejectaSizes_->Incremental(diameter);
     }

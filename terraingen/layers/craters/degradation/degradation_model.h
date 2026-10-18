@@ -18,6 +18,13 @@ class DegradationModel {
     /// @throws std::domain_error if the crater's diameter is not positive and finite, or the model
     /// is not defined for it.
     virtual CraterState State(const Crater& crater) const = 0;
+
+    /// The crater's state had it worn `rate` times as fast as on level ground, as on a steep
+    /// regional slope. By default it is `State` of the crater `rate` times older, which suits
+    /// models whose wear follows age alone.
+    /// @param rate At least 1.
+    /// @throws std::domain_error as `State`.
+    virtual CraterState WornState(const Crater& crater, double rate) const;
 };
 
 /// Every crater stays as `fresh` makes it, optionally with one depth/diameter ratio for all.

@@ -79,7 +79,8 @@ void ValidateCraterApplyOptions(const CraterApplyOptions& options) {
     ValidateCraterIrregularity(options.irregularity);
     ValidateRimSmoothing(options.rimSmoothing);
     ValidateCraterSlopeResponse(options.slope);
-    if (options.slope.enabled && options.datum != CraterDatum::Plane) {
+    if ((options.slope.enabled || options.slope.criticalGradient) &&
+        options.datum != CraterDatum::Plane) {
         throw std::invalid_argument("A crater slope response needs the plane datum");
     }
     RequirePositive(options.datumFitRadii, "datumFitRadii");

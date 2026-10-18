@@ -99,6 +99,7 @@ TEST(CraterKernel, ShapesAsTheDoublePathToWithinFloatRounding) {
                     prepared.datum = terraingen::Plane{5.0, 0.01, -0.02};
                     for (std::size_t o = 0; o < Options().size(); ++o) {
                         const CraterApplyOptions options = Options()[o];
+                        prepared.slope = terraingen::SlopeShape(crater, 0.3, -0.2, options.slope);
                         for (int k = 0; k < 400; ++k) {
                             const double r = radius * 3.2 * (k + 0.37) / 400.0;
                             const double a = 0.7 * k;
@@ -189,6 +190,7 @@ TEST(CraterKernel, ShapesGridsOnEveryAvailableGpuToWithinFloatRounding) {
     options.irregularity.marksAmplitude = {terraingen::ValueDistribution::Kind::Constant, 0.02};
     options.slope.enabled = true;
     options.slope.fullSlope = 0.002;
+    options.slope.criticalGradient = 0.05;
     const terraingen::CraterShapeModels models{
         diffused, std::make_shared<terraingen::DiffusionDegradation>(
                       terraingen::LunarFreshCraterMorphometry,

@@ -99,7 +99,9 @@ TerrainConfig Everything() {
                            .seed = 6,
                            .floorOffset = {terraingen::ValueDistribution::Kind::Constant, 0.1},
                            .upslopeRim = 0.2,
-                           .fullSlope = 0.1};
+                           .fullSlope = 0.1,
+                           .criticalGradient = 0.7,
+                           .maxWearRate = 5.0};
     craters.densityMap =
         terraingen::DensityMapSpec{.field = {.path = "map.tif",
                                              .band = 1,
@@ -143,7 +145,8 @@ TerrainConfig Everything() {
                  .minBurial = 0.0,
                  .maxBurial = 0.5,
                  .maxLean = 0.1,
-                 .maxSlope = 0.6},
+                 .maxSlope = 0.6,
+                 .rollDistance = 25.0},
         .ventifacts = {.share = 0.39,
                        .windAzimuth = 0.8,
                        .minAngle = 0.9,
@@ -189,6 +192,12 @@ TerrainConfig Everything() {
                                    .minDiameter = 1.0};
     synthterrain.manual = {{3.0, -4.0, 2.5, 0.0, 0u}};
     synthterrain.completeness = terraingen::FieldSpec{.path = "complete.tif"};
+    synthterrain.slopeMap =
+        terraingen::SizeSlopeMapSpec{.field = {.path = "mean.tif"},
+                                     .measure = terraingen::SizeSlopeMeasure::MeanDiameter,
+                                     .referenceDiameter = 4.5,
+                                     .minExponent = 1.5,
+                                     .maxExponent = 5.0};
     const terraingen::RoughnessLayerSpec roughness{{.rmsSlope = 0.3,
                                                     .baseline = 0.05,
                                                     .hurst = 0.6,

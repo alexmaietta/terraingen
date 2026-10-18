@@ -323,8 +323,10 @@ void BindGroupedOptions(nb::class_<BoulderLayerOptions>& options) {
     BindGrouped(options, "follow_slope", &O::pose, &BoulderPose::followSlope);
     BindGrouped(options, "settle", &O::pose, &BoulderPose::settle);
     BindGrouped(options, "max_slope", &O::pose, &BoulderPose::maxSlope);
+    BindGrouped(options, "roll_distance", &O::pose, &BoulderPose::rollDistance);
     options.def_rw("fillet", &O::fillet);
     options.def_rw("density_map", &O::densityMap)
+        .def_rw("slope_map", &O::slopeMap)
         .def_rw("manual", &O::manual, "Catalog boulders placed as given, as craters.")
         .def_rw("completeness", &O::completeness,
                 "Diameter (m) from which `manual` is a complete catalog at each point.");

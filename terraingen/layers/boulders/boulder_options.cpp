@@ -1,6 +1,7 @@
 #include "terraingen/layers/boulders/boulder_options.h"
 
 #include "terraingen/distribution/golombek_rapp.h"
+#include "terraingen/distribution/power_law.h"
 #include "terraingen/distribution/summed.h"
 #include "terraingen/noise/worley.h"
 #include "terraingen/util/checks.h"
@@ -148,6 +149,11 @@ void ValidateBoulderPose(const BoulderPose& pose) {
     }
     if (pose.maxSlope && !(*pose.maxSlope > 0.0 && *pose.maxSlope < 0.5 * std::numbers::pi)) {
         throw std::invalid_argument("Boulder maxSlope must be in (0, pi / 2)");
+    }
+    if (pose.rollDistance &&
+        !(pose.maxSlope && *pose.rollDistance > 0.0 && std::isfinite(*pose.rollDistance))) {
+        throw std::invalid_argument("Boulder rollDistance must be positive and finite, with a "
+                                    "maxSlope");
     }
 }
 
@@ -312,6 +318,13 @@ void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
     if (options.densityMap) {
         ValidateDensityMap(*options.densityMap);
     }
+    if (options.slopeMap) {
+        ValidateSizeSlopeMap(*options.slopeMap);
+        if (!options.sizes.distribution) {
+            throw std::invalid_argument(
+                "A boulder size slope map needs a size distribution, not Golombek-Rapp sizes");
+        }
+    }
     ValidateBoulderPatches(options.patches);
     ValidateBoulderClusters(options.clusters);
     ValidateBoulderFragmentation(options.fragmentation);
@@ -458,6 +471,16 @@ BoulderCandidates(const BoulderLayerOptions& options) {
     std::vector<WeightedSfd> terms;
     if (sizes.distribution) {
         terms.push_back({richest, sizes.distribution});
+        if (options.slopeMap) {
+            const SizeSlopeMap& map = *options.slopeMap;
+            const double d0 = map.referenceDiameter;
+            const double count = richest * sizes.distribution->Cumulative(d0);
+            const double low = map.minExponent;
+            const double high = map.maxExponent;
+            terms.push_back(
+                {1.0, std::make_shared<PowerLawSfd>(count * std::pow(d0, low) * high / low, low)});
+            terms.push_back({1.0, std::make_shared<PowerLawSfd>(count * std::pow(d0, high), high)});
+        }
     } else {
         terms.push_back(
             {1.0, std::make_shared<GolombekRappSfd>(sizes.coverage * richest, sizes.qConstant,

@@ -137,6 +137,10 @@ BoulderLayer::BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const Cr
         mapAbundance_.emplace(options_);
         patchMean_ = MeanPatchAbundance(options_.patches);
     }
+    if (options_.slopeMap) {
+        referenceCount_ =
+            options_.sizes.distribution->Cumulative(options_.slopeMap->referenceDiameter);
+    }
     if (options_.clusters.share > 0.0) {
         clusterMean_ = options_.clusters.model == BoulderClusterModel::Thomas
                            ? MeanThomasField(options_.clusters, surface_.IsBody())
@@ -402,11 +406,8 @@ std::optional<Boulder> BoulderLayer::DrawBoulder(const Crater& candidate, double
                     candidate.id};
     boulder.wear = wear;
     boulder.model = options_.rendering.models.IsModel(boulder.diameter, spacing);
-    if (pose.maxSlope && ground != nullptr && !candidate.manual) {
-        const std::optional<Vec2d> g = GroundGradient(boulder, *ground);
-        if (g && std::hypot(g->x, g->y) > std::tan(*pose.maxSlope)) {
-            return std::nullopt;
-        }
+    if (pose.maxSlope && ground != nullptr && !candidate.manual && !Roll(boulder, *ground)) {
+        return std::nullopt;
     }
     if (ground != nullptr) {
         const double height =
@@ -475,6 +476,30 @@ BoulderShape BoulderLayer::Abraded(const BoulderShape& shape, const BoulderPlace
     return cut;
 }
 
+bool BoulderLayer::Roll(Boulder& boulder, const Ground& ground) const {
+    constexpr double kMaxSteps = 128.0;
+    const BoulderPose& pose = options_.pose;
+    const double limit = std::tan(*pose.maxSlope);
+    const double reach = pose.rollDistance.value_or(0.0);
+    const double step = std::fmax(boulder.diameter, reach / kMaxSteps);
+    double rolled = 0.0;
+    for (;;) {
+        const std::optional<Vec2d> g = GroundGradient(boulder, ground);
+        const double gradient = g ? std::hypot(g->x, g->y) : 0.0;
+        if (!(gradient > limit)) {
+            return true;
+        }
+        if (rolled + step > reach) {
+            return false;
+        }
+        const Vec2d to = surface_.Locate({boulder.x, boulder.y},
+                                         {-g->x / gradient * step, -g->y / gradient * step});
+        boulder.x = to.x;
+        boulder.y = to.y;
+        rolled += step;
+    }
+}
+
 std::optional<Vec2d> BoulderLayer::GroundGradient(const Boulder& boulder,
                                                   const Ground& ground) const {
     const double step = 0.5 * boulder.diameter;
@@ -521,20 +546,28 @@ std::vector<Boulder> BoulderLayer::Boulders(const Bounds2d& region, double spaci
     if (exposure_) {
         RequireGround(ground, "Boulders that read the exposure field");
     }
-    const CraterList candidates = ScatterBoulderCandidates(region, spacing);
+    const double roll = ground != nullptr ? options_.pose.rollDistance.value_or(0.0) : 0.0;
+    const Bounds2d from = roll > 0.0 ? surface_.Expand(region, roll) : region;
+    const auto rests = [&](const Boulder& boulder) {
+        const double own = 0.5 * boulder.diameter * OwnMarginRadii();
+        return roll == 0.0 ||
+               surface_.Contains(surface_.Expand(region, own), {boulder.x, boulder.y});
+    };
+    const CraterList candidates = ScatterBoulderCandidates(from, spacing);
     if (!options_.fragmentation.Enabled()) {
-        const CraterList ejecta = EjectaCraters(region);
+        const CraterList ejecta = EjectaCraters(from);
         std::vector<Boulder> boulders;
         for (std::size_t n = 0; n < candidates.Size(); ++n) {
-            if (const std::optional<Boulder> boulder =
-                    DrawBoulder(candidates.At(n), spacing, ground, ejecta)) {
+            const std::optional<Boulder> boulder =
+                DrawBoulder(candidates.At(n), spacing, ground, ejecta);
+            if (boulder && rests(*boulder)) {
                 boulders.push_back(*boulder);
             }
         }
         return boulders;
     }
     const double reach = 0.5 * options_.sizes.maxDiameter * (OwnMarginRadii() + BreakMarginRadii());
-    const CraterList ejecta = EjectaCraters(surface_.Expand(region, reach));
+    const CraterList ejecta = EjectaCraters(surface_.Expand(from, reach));
     std::vector<Boulder> boulders;
     for (std::size_t n = 0; n < candidates.Size(); ++n) {
         const std::optional<Boulder> parent =

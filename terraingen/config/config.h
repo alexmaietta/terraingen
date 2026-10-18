@@ -102,6 +102,17 @@ struct DensityMapSpec {
     bool operator==(const DensityMapSpec&) const = default;
 };
 
+/// A size slope map (`SizeSlopeMap`) of a boulder population.
+struct SizeSlopeMapSpec {
+    FieldSpec field{};
+    SizeSlopeMeasure measure = SizeSlopeMeasure::Exponent;
+    double referenceDiameter = 1.0;  ///< Metres.
+    double minExponent = 1.0;
+    double maxExponent = 6.0;
+
+    bool operator==(const SizeSlopeMapSpec&) const = default;
+};
+
 struct ChainSourceSpec;
 
 /// The starting heights of a terrain, its base, named in JSON by its "type".
@@ -348,6 +359,7 @@ struct BoulderLayerSpec {
     /// `BoulderShapeOptions::library`; relative to the configuration's folder.
     std::vector<std::string> shapeFiles{};
     std::optional<DensityMapSpec> densityMap{};  ///< Gives `boulders.densityMap`.
+    std::optional<SizeSlopeMapSpec> slopeMap{};  ///< Gives `boulders.slopeMap`.
     /// Catalog boulders in the surface's coordinates, as `boulders.manual`.
     std::vector<Crater> manual{};
     std::optional<FieldSpec> completeness{};  ///< Gives `boulders.completeness`.

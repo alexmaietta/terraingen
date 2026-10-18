@@ -527,8 +527,31 @@ void BindDensityMaps(nb::module_& m) {
         .def_prop_ro("max", &DensityScale::Max);
 }
 
+void BindSizeSlopeMaps(nb::module_& m) {
+    nb::enum_<SizeSlopeMeasure>(m, "SizeSlopeMeasure", "What a size slope map's values measure.")
+        .value("EXPONENT", SizeSlopeMeasure::Exponent)
+        .value("MEAN_DIAMETER", SizeSlopeMeasure::MeanDiameter);
+    auto map = nb::class_<SizeSlopeMap>(
+        m, "SizeSlopeMap",
+        "A map of how steeply feature counts fall with size: its `field` gives the cumulative "
+        "exponent alpha, or the mean diameter from `reference_diameter` up, and the sizes become "
+        "a local power law through their count at `reference_diameter`, alpha clamped to "
+        "[`min_exponent`, `max_exponent`].");
+    BindKwargsInit<SizeSlopeMap>(map);
+    map.def_rw("field", &SizeSlopeMap::field)
+        .def_rw("measure", &SizeSlopeMap::measure)
+        .def_rw("reference_diameter", &SizeSlopeMap::referenceDiameter)
+        .def_rw("min_exponent", &SizeSlopeMap::minExponent)
+        .def_rw("max_exponent", &SizeSlopeMap::maxExponent);
+    m.def("validate_size_slope_map", &ValidateSizeSlopeMap, "map"_a,
+          "Raise ValueError if the map is unusable.");
+    m.def("size_slope_at", &SizeSlopeAt, "map"_a, "x"_a, "y"_a,
+          "The exponent the map gives at (x, y), clamped; None where it has no value.");
+}
+
 void BindLayers(nb::module_& m) {
     BindDensityMaps(m);
+    BindSizeSlopeMaps(m);
     BindLayerBase(m);
     BindFades(m);
     BindTransforms(m);

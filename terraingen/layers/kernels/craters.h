@@ -633,11 +633,18 @@ inline float CraterRelief(KERNEL_IN(CraterShapeKernel) k, CraterData data,
     if (!(squared < bound * bound)) {
         return 0.0f;
     }
-    const float distance = KernelProfileDistance(data, c, dx, dy);
+    const float shift =
+        c.shiftX != 0.0f || c.shiftY != 0.0f ? KernelSlopeShiftWeight(c, dx, dy) : 0.0f;
+    const float distance =
+        KernelProfileDistance(data, c, dx - shift * c.shiftX, dy - shift * c.shiftY);
     if (!(distance < k.profileReachRadii * 0.5f * c.diameter)) {
         return 0.0f;
     }
-    return c.resolution * KernelProfileHeight(k, data, distance, c.diameter, c);
+    float height = KernelProfileHeight(k, data, distance, c.diameter, c);
+    if (height > 0.0f && (c.upslopeX != 0.0f || c.upslopeY != 0.0f)) {
+        height *= KernelSlopeRaisedShare(c, dx, dy);
+    }
+    return c.resolution * height;
 }
 
 /// The offset (m) of lattice point `index` of `side` across a footprint of `fitRadius`.

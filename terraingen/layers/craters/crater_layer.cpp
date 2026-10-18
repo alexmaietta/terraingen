@@ -82,6 +82,7 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options)
         throw std::invalid_argument("Taking secondaries out of a density map needs every crater, "
                                     "not the maxCraters largest");
     }
+    options_.generation.spacing.outrankFrom = throwFrom_;
 }
 
 CraterKeepShare CraterLayer::KeepShare(const Bounds2d& region) const {

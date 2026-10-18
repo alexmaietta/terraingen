@@ -61,6 +61,30 @@ double MapMeasure(const DensityMap& map, const SizeFrequencyDistribution& distri
     return 1.0;
 }
 
+void ValidateSizeSlopeMap(const SizeSlopeMap& map) {
+    if (!map.field) {
+        throw std::invalid_argument("A size slope map needs a field");
+    }
+    RequirePositive(map.referenceDiameter, "Size slope map referenceDiameter");
+    if (!(map.minExponent > 0.0 && map.maxExponent > map.minExponent &&
+          std::isfinite(map.maxExponent))) {
+        throw std::invalid_argument("A size slope map's exponents must satisfy 0 < min < max");
+    }
+}
+
+std::optional<double> SizeSlopeAt(const SizeSlopeMap& map, double x, double y) {
+    const double value = map.field->ValueAt(x, y);
+    if (std::isnan(value)) {
+        return std::nullopt;
+    }
+    double exponent = value;
+    if (map.measure == SizeSlopeMeasure::MeanDiameter) {
+        const double above = value - map.referenceDiameter;
+        exponent = above > 0.0 ? value / above : map.maxExponent;
+    }
+    return std::clamp(exponent, map.minExponent, map.maxExponent);
+}
+
 double MapValueAt(const DensityMap& map, double x, double y) {
     const double value = map.field->ValueAt(x, y);
     return map.measure == DensityMeasure::Count ? value / map.areaUnit : value;

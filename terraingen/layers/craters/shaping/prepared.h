@@ -35,6 +35,8 @@ struct PreparedCrater {
     CraterState state;             ///< Its degradation state.
     CraterOutline outline{};       ///< Its outline.
     std::optional<Plane> datum{};  ///< From `FitCraterDatum`; none without a datum.
+    /// Its asymmetry on the ground beneath (`ShapeOnSlopes`); level without a slope response.
+    CraterSlopeShape slope{};
 };
 
 /// The craters with a non-zero resolution weight at `spacing`, prepared in `CraterApplyOrder`

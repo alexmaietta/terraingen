@@ -118,3 +118,47 @@ TEST(SpacingConflicts, NeverRemovesManualCraters) {
                                      {6.0, 0.0, 10.0, 0.0, 3u}});
     EXPECT_EQ(SpacingConflicts(craters, spacing), (std::vector<bool>{false, false, true}));
 }
+
+TEST(CraterTakesPrecedence, LetsCratersFromAThresholdOutrankSmallerOnesWhateverTheirAges) {
+    const terraingen::Crater young{0, 0, 9, 0.1, 9u};
+    const terraingen::Crater old{0, 0, 11, 2.0, 1u};
+    EXPECT_TRUE(CraterTakesPrecedence(young, old)) << "age first by default";
+    EXPECT_TRUE(CraterTakesPrecedence(old, young, 10.0));
+    EXPECT_FALSE(CraterTakesPrecedence(young, old, 10.0));
+    EXPECT_TRUE(CraterTakesPrecedence({0, 0, 5, 0.0, 2u, true}, old, 10.0)) << "manual first";
+    EXPECT_TRUE(CraterTakesPrecedence({0, 0, 12, 0.1, 3u}, old, 10.0)) << "then age above it";
+}
+
+TEST(GenerateCraters, KeepsCratersAboveTheOutrankingSizeWhateverSmallerOnesAreDrawn) {
+    const terraingen::PlanarCells cells;
+    const terraingen::PowerLawSfd density(0.2, 2.0);
+    terraingen::CraterGenerationOptions all{.dMin = 4.0, .dMax = 64.0};
+    all.spacing = {2.0, 1.0};
+    all.spacing.outrankFrom = 16.0;
+    terraingen::CraterGenerationOptions large = all;
+    large.dMin = 16.0;
+    const terraingen::Bounds2d region{0.0, 0.0, 600.0, 600.0};
+    const auto withAll =
+        terraingen::GenerateCraters(cells, region, density, terraingen::UniformAges(1.0), 3u, all);
+    const auto alone = terraingen::GenerateCraters(cells, region, density,
+                                                   terraingen::UniformAges(1.0), 3u, large);
+    std::vector<std::uint64_t> fromAll;
+    for (std::size_t n = 0; n < withAll.Size(); ++n) {
+        if (withAll.At(n).diameter >= 16.0) {
+            fromAll.push_back(withAll.At(n).id);
+        }
+    }
+    std::vector<std::uint64_t> fromAlone(alone.Ids().begin(), alone.Ids().end());
+    std::sort(fromAll.begin(), fromAll.end());
+    std::sort(fromAlone.begin(), fromAlone.end());
+    ASSERT_GT(fromAll.size(), 10u);
+    EXPECT_EQ(fromAll, fromAlone);
+    all.spacing.outrankFrom = std::numeric_limits<double>::infinity();
+    std::size_t largeByAge = 0;
+    const auto byAge =
+        terraingen::GenerateCraters(cells, region, density, terraingen::UniformAges(1.0), 3u, all);
+    for (std::size_t n = 0; n < byAge.Size(); ++n) {
+        largeByAge += byAge.At(n).diameter >= 16.0 ? 1u : 0u;
+    }
+    EXPECT_LT(largeByAge, fromAlone.size()) << "by age, younger small craters remove some";
+}

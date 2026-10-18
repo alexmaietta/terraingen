@@ -1,0 +1,45 @@
+{
+    "schema_version": 1,
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 1,
+                    "wavelength": 30,
+                    "amplitude": 6,
+                    "octaves": 4
+                }
+            ]
+        },
+        {
+            "type": "boulders",
+            "seed": 1,
+            "coverage": 0.06,
+            "min_diameter": 0.2,
+            "max_diameter": 3,
+            "max_slope": 0.35,
+            "roll_distance": 15
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_boulders_rolling.tif",
+            "region": {
+                "width": 401,
+                "height": 401,
+                "pixel_size": 0.1
+            }
+        },
+        {
+            "type": "boulder_list",
+            "path": "example_boulders_rolling_boulders.csv",
+            "region": {
+                "width": 401,
+                "height": 401,
+                "pixel_size": 0.1
+            }
+        }
+    ]
+}

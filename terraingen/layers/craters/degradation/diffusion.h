@@ -131,6 +131,10 @@ class DiffusionDegradation final : public DegradationModel {
     /// non-finite age, or a diffusion age that is negative or not finite.
     CraterState State(const Crater& crater) const override;
 
+    /// The state with the diffusion age kappa t `rate` times larger, as diffusion `rate` times as
+    /// fast would give.
+    CraterState WornState(const Crater& crater, double rate) const override;
+
   private:
     FreshMorphometry fresh_;
     DiffusionAgeModel ages_;
