@@ -149,12 +149,14 @@ TerrainConfig Everything() {
     boulders.ejectaSizes =
         terraingen::Sp8023CraterBouldersSpec{terraingen::SpecificationCurve::Minimum};
     boulders.extrapolate = true;
+    boulders.boulders.clusters = {0.4, 12.0, 6.0, terraingen::BoulderClusterModel::Thomas};
     terraingen::BoulderLayerSpec synthterrain;
     synthterrain.sizes =
         terraingen::SynthterrainBouldersSpec{terraingen::SynthterrainBoulders::ViperSpecification};
     terraingen::BoulderLayerSpec table;
     table.sizes = terraingen::TabulatedSpec{{0.1, 1.0}, {1.0, 0.001}};
     table.ejectaSizes = terraingen::PowerLawSpec{0.001, 3.0};
+    synthterrain.ejectaSizes = terraingen::PiecewiseUniformSpec{{{0.5, 2.0, 0.001}}};
     const terraingen::RoughnessLayerSpec roughness{{.rmsSlope = 0.3,
                                                     .baseline = 0.05,
                                                     .hurst = 0.6,
@@ -250,6 +252,7 @@ TEST(ConfigJson, RoundTripsEveryModelType) {
                                  terraingen::MinimumSpec{{terraingen::PowerLawSpec{0.2, 2.1}}}}},
         terraingen::PowerLawSpec{0.3, 1.8},
         terraingen::TabulatedSpec{{1.0, 10.0}, {1.0, 0.01}, 1000.0, 1e6},
+        terraingen::PiecewiseUniformSpec{{{0.5, 1.0, 0.5}, {1.5, 3.0, 0.05}}, 0.2},
         terraingen::TraskSpec{},
         terraingen::HartmannSpec{},
         terraingen::MooreSpec{terraingen::MooreTerrain::Uplands},

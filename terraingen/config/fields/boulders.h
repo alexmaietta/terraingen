@@ -186,9 +186,15 @@ template <typename IO> void Fields(IO& io, BoulderClusters& clusters) {
     io("share", clusters.share,
        "Share of the boulders between craters gathered in clusters, from 0 to 1; 0 leaves them "
        "scattered.");
-    io("spacing", clusters.spacing, "Typical distance between cluster centres, in metres.", "m");
-    io("radius", clusters.radius, "Gaussian radius of a cluster, in metres; below the spacing.",
+    io("spacing", clusters.spacing,
+       "Typical distance between cluster centres, in metres; with thomas, one centre per spacing "
+       "squared on average.",
        "m");
+    io("radius", clusters.radius,
+       "Gaussian radius of a cluster, in metres; below the spacing with nearest, at most twice it "
+       "with thomas.",
+       "m");
+    io("model", clusters.model, "How cluster centres are laid out and their clusters combine.");
 }
 
 template <typename IO> void Fields(IO& io, BoulderFragmentation& fragmentation) {

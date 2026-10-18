@@ -62,6 +62,31 @@ template <typename IO> void Fields(IO& io, TabulatedSpec& spec) {
        "m^2");
 }
 
+template <typename IO> void Fields(IO& io, UniformBand& band) {
+    io("min", band.min, "Smallest diameter of the band in metres.", "m");
+    io("max", band.max, "Largest diameter of the band in metres, above min.", "m");
+    io("density", band.density,
+       "Count per m^2 with diameters in the band, spread uniformly across it; a relative weight "
+       "when total is set.",
+       "1/m^2");
+}
+
+template <> struct SpecName<PiecewiseUniformSpec> {
+    static constexpr std::string_view kName = "piecewise_uniform";
+    static constexpr std::string_view kDescription =
+        "Counts per m^2 in diameter bands, each with diameters spread uniformly across it; none "
+        "outside the bands.";
+};
+template <typename IO> void Fields(IO& io, PiecewiseUniformSpec& spec) {
+    io("bands", spec.bands,
+       "Diameter bands with their counts; overlapping bands add, and gaps between them hold "
+       "none.");
+    io("total", spec.total,
+       "Count per m^2 of all bands together, shared in proportion to each band's density; 0 uses "
+       "the densities as given.",
+       "1/m^2");
+}
+
 template <> struct SpecName<ProductionSurfaceSpec> {
     static constexpr std::string_view kName = "production_surface";
     static constexpr std::string_view kDescription =

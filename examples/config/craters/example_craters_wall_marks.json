@@ -1,0 +1,59 @@
+{
+    "schema_version": 1,
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 1,
+                    "wavelength": 800,
+                    "amplitude": 40,
+                    "octaves": 8
+                }
+            ]
+        },
+        {
+            "type": "craters",
+            "seed": 1,
+            "density": {
+                "type": "minimum",
+                "distributions": [
+                    {
+                        "type": "production_surface",
+                        "production": "extended_neukum",
+                        "chronology": "neukum",
+                        "age_gyr": 3.5
+                    },
+                    {
+                        "type": "trask"
+                    }
+                ]
+            },
+            "min_diameter": 20,
+            "max_diameter": 300,
+            "apply": {
+                "irregularity": {
+                    "enabled": true,
+                    "seed": 3,
+                    "marks_share": 1,
+                    "marks_amplitude": {
+                        "kind": "uniform",
+                        "a": 0.005,
+                        "b": 0.02
+                    }
+                }
+            }
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_craters_wall_marks.tif",
+            "region": {
+                "width": 513,
+                "height": 513,
+                "pixel_size": 1
+            }
+        }
+    ]
+}

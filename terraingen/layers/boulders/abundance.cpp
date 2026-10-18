@@ -3,9 +3,12 @@
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/noise/worley.h"
+#include "terraingen/random/samplers.h"
+#include "terraingen/random/stream.h"
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <numbers>
 
 namespace terraingen {
@@ -14,6 +17,8 @@ namespace {
 
 constexpr std::uint32_t kBoulderPatches = 0x50415443u;
 constexpr std::uint32_t kBoulderClusters = 0x434C5553u;
+constexpr std::uint32_t kThomasCentres2 = 0x54484D32u;
+constexpr std::uint32_t kThomasCentres3 = 0x54484D33u;
 
 /// Golombek-Rapp boulders per m^2 per metre of diameter at `diameter` for coverage `k`.
 double GolombekRappDensity(double diameter, double k, double qa, double qb) {
@@ -79,6 +84,59 @@ double BoulderLayer::NearestClusterDistance(double x, double y) const {
                Worley2(static_cast<float>(x / spacing), static_cast<float>(y / spacing), seed).f1);
 }
 
+double BoulderLayer::ThomasClusterField(double x, double y) const {
+    const BoulderClusters& clusters = options_.clusters;
+    const double sigma = clusters.radius;
+    const double side = kThomasReachRadii * sigma;
+    const double perArea = 1.0 / (clusters.spacing * clusters.spacing);
+    const std::uint32_t seed = options_.seed ^ kBoulderClusters;
+    const auto word = [](double cell) {
+        return static_cast<std::uint32_t>(static_cast<std::int64_t>(cell));
+    };
+    const auto bump = [&](double squared) {
+        return squared < side * side ? std::exp(-0.5 * squared / (sigma * sigma)) : 0.0;
+    };
+    double sum = 0.0;
+    if (surface_.IsBody()) {
+        const Vec3d p = surface_.Position({x, y});
+        const double perCell =
+            perArea / (std::sqrt(2.0 * std::numbers::pi) * sigma) * side * side * side;
+        const double cx = std::floor(p.x / side);
+        const double cy = std::floor(p.y / side);
+        const double cz = std::floor(p.z / side);
+        for (double k = cz - 1.0; k <= cz + 1.0; k += 1.0) {
+            for (double j = cy - 1.0; j <= cy + 1.0; j += 1.0) {
+                for (double i = cx - 1.0; i <= cx + 1.0; i += 1.0) {
+                    RandomStream random(seed, kThomasCentres3, word(i), word(j), word(k));
+                    const std::uint64_t count = SamplePoisson(random, perCell);
+                    for (std::uint64_t n = 0; n < count; ++n) {
+                        const double dx = (i + random.NextDouble()) * side - p.x;
+                        const double dy = (j + random.NextDouble()) * side - p.y;
+                        const double dz = (k + random.NextDouble()) * side - p.z;
+                        sum += bump(dx * dx + dy * dy + dz * dz);
+                    }
+                }
+            }
+        }
+        return sum;
+    }
+    const double perCell = perArea * side * side;
+    const double cx = std::floor(x / side);
+    const double cy = std::floor(y / side);
+    for (double j = cy - 1.0; j <= cy + 1.0; j += 1.0) {
+        for (double i = cx - 1.0; i <= cx + 1.0; i += 1.0) {
+            RandomStream random(seed, kThomasCentres2, word(i), word(j));
+            const std::uint64_t count = SamplePoisson(random, perCell);
+            for (std::uint64_t n = 0; n < count; ++n) {
+                const double dx = (i + random.NextDouble()) * side - x;
+                const double dy = (j + random.NextDouble()) * side - y;
+                sum += bump(dx * dx + dy * dy);
+            }
+        }
+    }
+    return sum;
+}
+
 double BoulderLayer::BackgroundAbundance(double x, double y, const Ground* ground) const {
     double background = 1.0;
     const BoulderPatches& patches = options_.patches;
@@ -89,9 +147,10 @@ double BoulderLayer::BackgroundAbundance(double x, double y, const Ground* groun
     }
     const BoulderClusters& clusters = options_.clusters;
     if (clusters.share > 0.0) {
-        const double nearest = NearestClusterDistance(x, y);
-        background *=
-            1.0 - clusters.share + clusters.share * ClusterBump(nearest, clusters) / clusterMean_;
+        const double field = clusters.model == BoulderClusterModel::Thomas
+                                 ? ThomasClusterField(x, y)
+                                 : ClusterBump(NearestClusterDistance(x, y), clusters);
+        background *= 1.0 - clusters.share + clusters.share * field / clusterMean_;
     }
     if (exposure_) {
         RequireGround(ground, "Boulders that read the exposure field");

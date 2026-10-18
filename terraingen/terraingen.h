@@ -22,6 +22,7 @@
 #include "terraingen/distribution/moore.h"
 #include "terraingen/distribution/neukum.h"
 #include "terraingen/distribution/piecewise_power_law.h"
+#include "terraingen/distribution/piecewise_uniform.h"
 #include "terraingen/distribution/power_law.h"
 #include "terraingen/distribution/production_surface.h"
 #include "terraingen/distribution/size_frequency.h"

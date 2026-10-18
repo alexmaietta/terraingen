@@ -1,5 +1,6 @@
 #include "terraingen/layers/craters/shaping/irregularity.h"
 
+#include "terraingen/layers/fade.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/fft.h"
@@ -7,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
+#include <cstddef>
 #include <numbers>
 #include <stdexcept>
 
@@ -15,6 +17,17 @@ namespace terraingen {
 namespace {
 
 constexpr std::uint32_t kIrregularityStream = 0x49525247u;
+
+constexpr std::uint32_t kMarksStream = 0x4D41524Bu;
+
+constexpr int kMaxMarkKnots = 1024;
+
+/// How far a periodic Catmull-Rom spline can overshoot its knots, as a share of their largest
+/// magnitude.
+constexpr double kSplineOvershoot = 1.25;
+
+/// The steepest slope of `Smoothstep`.
+constexpr double kSmoothstepSlope = 1.5;
 
 constexpr std::size_t kTableSize = 1024;
 
@@ -182,6 +195,24 @@ void ValidateCraterIrregularity(const CraterIrregularity& irregularity) {
         !IsNonNegative(irregularity.headingSpread)) {
         throw std::invalid_argument("Crater heading and spread must be finite, the spread >= 0");
     }
+    ValidateValueDistribution(irregularity.marksAmplitude);
+    RequireUnitInterval(irregularity.marksShare, "Crater marks share");
+    if (!(irregularity.marksKnots >= 3 && irregularity.marksKnots <= kMaxMarkKnots)) {
+        throw std::invalid_argument("Crater mark knots must be from 3 to 1024");
+    }
+    const double fade = irregularity.marksFadeRadii;
+    if (!(IsPositive(fade) && irregularity.marksInnerRadii - fade >= 0.0 &&
+          irregularity.marksInnerRadii <= irregularity.marksOuterRadii &&
+          irregularity.marksOuterRadii + fade <= 1.0)) {
+        throw std::invalid_argument("Crater marks need a positive fade with 0 <= inner - fade, "
+                                    "inner <= outer and outer + fade <= 1 radii");
+    }
+    if (!(irregularity.marksAmplitude.Lowest() >= 0.0 &&
+          2.0 * kSplineOvershoot * kSmoothstepSlope * irregularity.marksAmplitude.Highest() <
+              fade)) {
+        throw std::invalid_argument("Crater mark amplitude must not be negative, and below fade / "
+                                    "3.75 radii so walls cannot fold");
+    }
 }
 
 double CraterOutline::Scale(double dx, double dy) const {
@@ -210,6 +241,29 @@ double CraterOutline::Scale(double dx, double dy) const {
         wobble += amplitudes[n] * std::cos(k * theta + phases[n]);
     }
     return scale * wobble;
+}
+
+double CraterOutline::MarkShift(double dx, double dy, double radii) const {
+    if (marks.empty() || !(radii > marksInnerRadii - marksFadeRadii) ||
+        !(radii < marksOuterRadii + marksFadeRadii)) {
+        return 0.0;
+    }
+    const double window = Smoothstep((radii - marksInnerRadii + marksFadeRadii) / marksFadeRadii) *
+                          Smoothstep((marksOuterRadii + marksFadeRadii - radii) / marksFadeRadii);
+    const double turns =
+        (dx == 0.0 && dy == 0.0) ? 0.0 : std::atan2(dy, dx) / (2.0 * std::numbers::pi);
+    const std::size_t size = marks.size();
+    const double position = (turns - std::floor(turns)) * static_cast<double>(size);
+    const auto index = std::min(static_cast<std::size_t>(position), size - 1);
+    const double t = position - static_cast<double>(index);
+    const double p0 = marks[(index + size - 1) % size];
+    const double p1 = marks[index];
+    const double p2 = marks[(index + 1) % size];
+    const double p3 = marks[(index + 2) % size];
+    const double shift =
+        0.5 * (2.0 * p1 + (p2 - p0) * t + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t * t +
+               (3.0 * (p1 - p2) + p3 - p0) * t * t * t);
+    return window * shift;
 }
 
 double CraterOutline::MaxScale() const {
@@ -244,6 +298,22 @@ CraterOutline OutlineOf(const Crater& crater, const CraterIrregularity& irregula
     } else if (draws.rough < irregularity.roughShare) {
         AddHarmonics(outline, irregularity, draws, random);
     }
+    if (irregularity.marksShare > 0.0) {
+        RandomStream marks(irregularity.seed, kMarksStream, id.low, id.high);
+        const double share = marks.NextDouble();
+        const double u1 = marks.NextDouble();
+        const double u2 = marks.NextDouble();
+        const double amplitude = irregularity.marksAmplitude.Sample(u1, u2);
+        if (share < irregularity.marksShare && amplitude > 0.0) {
+            outline.marks.resize(static_cast<std::size_t>(irregularity.marksKnots));
+            for (double& knot : outline.marks) {
+                knot = amplitude * (2.0 * marks.NextDouble() - 1.0);
+            }
+            outline.marksInnerRadii = irregularity.marksInnerRadii;
+            outline.marksOuterRadii = irregularity.marksOuterRadii;
+            outline.marksFadeRadii = irregularity.marksFadeRadii;
+        }
+    }
     return outline;
 }
 
@@ -267,7 +337,12 @@ double CraterProfileDistance(const Crater& crater, const CraterOutline& outline,
                              const Surface& surface) {
     const Vec2d offset = surface.Offset({crater.x, crater.y}, {x, y});
     const double distance = std::sqrt(offset.x * offset.x + offset.y * offset.y);
-    return outline.Round() ? distance : distance / outline.Scale(offset.x, offset.y);
+    if (outline.Round()) {
+        return distance;
+    }
+    const double scaled = distance / outline.Scale(offset.x, offset.y);
+    const double radius = 0.5 * crater.diameter;
+    return scaled + radius * outline.MarkShift(offset.x, offset.y, scaled / radius);
 }
 
 }  // namespace terraingen

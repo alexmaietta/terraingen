@@ -9,6 +9,7 @@
 #include "terraingen/albedo/synthetic.h"
 #include "terraingen/distribution/moore.h"
 #include "terraingen/distribution/piecewise_power_law.h"
+#include "terraingen/distribution/piecewise_uniform.h"
 #include "terraingen/distribution/sp8023.h"
 #include "terraingen/distribution/synthterrain.h"
 #include "terraingen/distribution/viper.h"
@@ -117,6 +118,12 @@ struct TabulatedSpec {
     double areaUnit = 1.0;      ///< Square metres per table area unit; 1e6 for km^2.
     bool operator==(const TabulatedSpec&) const = default;
 };
+/// Density "piecewise_uniform": `PiecewiseUniformSfd`, bands with diameters spread uniformly.
+struct PiecewiseUniformSpec {
+    std::vector<UniformBand> bands{UniformBand{}};
+    double total = 0.0;  ///< Per m^2 across all bands, shared by `density`; 0 for as given.
+    bool operator==(const PiecewiseUniformSpec&) const = default;
+};
 /// Crater density "trask": `TraskEquilibrium`.
 struct TraskSpec {
     bool operator==(const TraskSpec&) const = default;
@@ -157,7 +164,7 @@ struct MinimumSpec;
 /// A crater density, named in JSON by its "type".
 using DensitySpec =
     std::variant<PowerLawSpec, PiecewisePowerLawSpec, TabulatedSpec, ProductionSurfaceSpec,
-                 MinimumSpec, TraskSpec, HartmannSpec, MooreSpec, ViperSpec>;
+                 MinimumSpec, TraskSpec, HartmannSpec, MooreSpec, ViperSpec, PiecewiseUniformSpec>;
 /// Crater density "minimum": `MinimumSfd`, the least of `distributions` at each diameter,
 /// such as a production surface capped by an equilibrium.
 struct MinimumSpec {
@@ -292,10 +299,11 @@ struct SynthterrainBouldersSpec {
     bool operator==(const SynthterrainBouldersSpec&) const = default;
 };
 /// A boulder size distribution, named in JSON by its "type"; "power_law",
-/// "piecewise_power_law" and "tabulated" are as for crater densities.
+/// "piecewise_power_law", "tabulated" and "piecewise_uniform" are as for crater densities.
 using BoulderSizesSpec =
     std::variant<GolombekRappBouldersSpec, Sp8023IntercraterBouldersSpec, Sp8023CraterBouldersSpec,
-                 SynthterrainBouldersSpec, PowerLawSpec, PiecewisePowerLawSpec, TabulatedSpec>;
+                 SynthterrainBouldersSpec, PowerLawSpec, PiecewisePowerLawSpec, TabulatedSpec,
+                 PiecewiseUniformSpec>;
 
 /// Layer "boulders": boulders scattered over the terrain (`BoulderLayer`).
 ///

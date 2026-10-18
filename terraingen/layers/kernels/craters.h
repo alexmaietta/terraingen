@@ -102,6 +102,9 @@ struct CraterRecord {
     float datumC = 0.0f;
     uint32_t noiseKey = 0;
     uint32_t textureKey = 0;
+    uint32_t markCount = 0;
+    uint32_t markOffset =
+        0;  ///< The marks' inner, outer and fade radii, then knots, in `CraterData`.
 };
 
 #ifdef __SLANG__
@@ -514,16 +517,55 @@ inline float KernelOutlineScale(CraterData data, KERNEL_IN(CraterRecord) c, floa
     return scale * wobble;
 }
 
+/// The shift in radii crater `c`'s wall marks add at `radii` toward (`dx`, `dy`)
+/// (`CraterOutline::MarkShift`).
+inline float KernelMarkShift(CraterData data, KERNEL_IN(CraterRecord) c, float dx, float dy,
+                             float radii) {
+    const float inner = CraterValue(data, c.markOffset);
+    const float outer = CraterValue(data, c.markOffset + 1u);
+    const float fade = CraterValue(data, c.markOffset + 2u);
+    if (!(radii > inner - fade) || !(radii < outer + fade)) {
+        return 0.0f;
+    }
+    const float window = KernelSmoothstep((radii - inner + fade) / fade) *
+                         KernelSmoothstep((outer + fade - radii) / fade);
+    const float turns = KernelAngle(dy, dx) / 6.28318530717959f;
+    const uint32_t size = c.markCount;
+    const float position = (turns - floor(turns)) * float(size);
+    const uint32_t index = min(uint32_t(position), size - 1u);
+    const float t = position - float(index);
+    const uint32_t knots = c.markOffset + 3u;
+    const float p0 = CraterValue(data, knots + (index + size - 1u) % size);
+    const float p1 = CraterValue(data, knots + index);
+    const float p2 = CraterValue(data, knots + (index + 1u) % size);
+    const float p3 = CraterValue(data, knots + (index + 2u) % size);
+    const float shift =
+        0.5f * (2.0f * p1 + (p2 - p0) * t + (2.0f * p0 - 5.0f * p1 + 4.0f * p2 - p3) * t * t +
+                (3.0f * (p1 - p2) + p3 - p0) * t * t * t);
+    return window * shift;
+}
+
+/// The distance (m) crater `c`'s round profile is read at, `dx` east and `dy` north of its centre
+/// (`CraterProfileDistance`).
+inline float KernelProfileDistance(CraterData data, KERNEL_IN(CraterRecord) c, float dx, float dy) {
+    float distance = sqrt(dx * dx + dy * dy);
+    if (c.ellipticity != 1.0f || c.harmonicCount > 0u || c.tableCount > 0u || c.markCount > 0u) {
+        distance /= KernelOutlineScale(data, c, dx, dy);
+    }
+    if (c.markCount > 0u) {
+        const float radius = 0.5f * c.diameter;
+        distance += radius * KernelMarkShift(data, c, dx, dy, distance / radius);
+    }
+    return distance;
+}
+
 /// `height` after crater `c`, at `dx` east and `dy` north of its centre in metres
 /// (`ApplyCraterTo`); unchanged beyond its reach.
 inline float ApplyCraterKernel(KERNEL_IN(CraterShapeKernel) k, CraterData data,
                                KERNEL_IN(CraterRecord) c, float height, float dx, float dy) {
     const float diameter = c.diameter;
     const float radius = 0.5f * diameter;
-    float distance = sqrt(dx * dx + dy * dy);
-    if (c.ellipticity != 1.0f || c.harmonicCount > 0u || c.tableCount > 0u) {
-        distance /= KernelOutlineScale(data, c, dx, dy);
-    }
+    const float distance = KernelProfileDistance(data, c, dx, dy);
     if (distance >= k.reachRadii * radius) {
         return height;
     }
@@ -562,10 +604,7 @@ inline float CraterRelief(KERNEL_IN(CraterShapeKernel) k, CraterData data,
     if (!(squared < bound * bound)) {
         return 0.0f;
     }
-    float distance = sqrt(squared);
-    if (c.ellipticity != 1.0f || c.harmonicCount > 0u || c.tableCount > 0u) {
-        distance /= KernelOutlineScale(data, c, dx, dy);
-    }
+    const float distance = KernelProfileDistance(data, c, dx, dy);
     if (!(distance < k.profileReachRadii * 0.5f * c.diameter)) {
         return 0.0f;
     }
@@ -645,7 +684,7 @@ inline float KernelDatumRelief(KERNEL_IN(CraterDatumKernel) kernel, CraterData d
 static_assert(sizeof(CraterProfileKernel) == 76,
               "CraterProfileKernel must match its std430 layout");
 static_assert(sizeof(CraterShapeKernel) == 180, "CraterShapeKernel must match its std430 layout");
-static_assert(sizeof(CraterRecord) == 92, "CraterRecord must match its std430 layout");
+static_assert(sizeof(CraterRecord) == 100, "CraterRecord must match its std430 layout");
 
 /// The compiled forms of the crater kernel.
 template <> KernelProgram CompiledKernel<CraterShapeKernel>();

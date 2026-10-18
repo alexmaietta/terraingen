@@ -10,6 +10,7 @@ terraingen_add_test_suite(
     moore_test.cpp
     neukum_test.cpp
     piecewise_power_law_test.cpp
+    piecewise_uniform_test.cpp
     power_law_test.cpp
     production_surface_test.cpp
     size_frequency_test.cpp

@@ -10,6 +10,7 @@ terraingen_add_library(
     moore.cpp
     neukum.cpp
     piecewise_power_law.cpp
+    piecewise_uniform.cpp
     power_law.cpp
     production_surface.cpp
     size_frequency.cpp

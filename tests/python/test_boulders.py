@@ -153,6 +153,19 @@ def test_boulder_clusters_raise_the_abundance_near_their_centres():
         terraingen.validate_boulder_clusters(terraingen.BoulderClusters(radius=60.0))
 
 
+def test_thomas_boulder_clusters_may_overlap():
+    clusters = terraingen.BoulderClusters(
+        share=1.0, spacing=10.0, radius=3.0, model=terraingen.BoulderClusterModel.THOMAS
+    )
+    layer = terraingen.BoulderLayer(terraingen.BoulderLayerOptions(clusters=clusters))
+    abundances = [layer.abundance_at(x + 0.5, y + 0.5)[0] for x in range(0, 200, 2) for y in range(0, 200, 2)]
+    assert max(abundances) > 3.0 > 0.4 > min(abundances)
+    assert max(abundances) <= terraingen.max_cluster_abundance(clusters) + 1e-9
+    terraingen.validate_boulder_clusters(
+        terraingen.BoulderClusters(spacing=10.0, radius=15.0, model=terraingen.BoulderClusterModel.THOMAS)
+    )
+
+
 def test_boulder_layer_options_take_custom_shape_styles():
     egg = terraingen.BoulderStyle(
         name="egg",

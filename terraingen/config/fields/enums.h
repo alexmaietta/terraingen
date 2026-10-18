@@ -169,6 +169,17 @@ template <> struct EnumNames<EjectaProfile> {
     }};
 };
 
+template <> struct EnumNames<BoulderClusterModel> {
+    static constexpr std::array<EnumEntry<BoulderClusterModel>, 2> kValues{{
+        {"nearest", BoulderClusterModel::Nearest,
+         "One centre per cell of a jittered lattice, each point weighted by its nearest centre "
+         "only."},
+        {"thomas", BoulderClusterModel::Thomas,
+         "A Thomas cluster process: Poisson-scattered centres whose Gaussian clusters add where "
+         "they overlap."},
+    }};
+};
+
 template <> struct EnumNames<EjectaAging> {
     static constexpr std::array<EnumEntry<EjectaAging>, 2> kValues{{
         {"freshness", EjectaAging::Freshness,

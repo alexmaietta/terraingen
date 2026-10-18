@@ -126,6 +126,8 @@ TEST(CraterKernel, FollowsIrregularOutlines) {
         options.irregularity.selection.manual = true;
         options.irregularity.elongatedShare = 1.0;
         options.irregularity.model = model;
+        options.irregularity.marksShare = 1.0;
+        options.irregularity.marksAmplitude = {terraingen::ValueDistribution::Kind::Constant, 0.02};
         const Crater crater{0.0, 0.0, 200.0, 0.0, 11u, true};
         PreparedCrater prepared{crater, 1.0, {{0.2, 0.04}, {0.2, 0.04}, 0.0}};
         prepared.outline = terraingen::OutlineOf(crater, options.irregularity);
@@ -179,6 +181,8 @@ TEST(CraterKernel, ShapesGridsOnEveryAvailableGpuToWithinFloatRounding) {
     options.texture.ejecta = 0.5;
     options.irregularity.enabled = true;
     options.irregularity.selection.manual = true;
+    options.irregularity.marksShare = 0.5;
+    options.irregularity.marksAmplitude = {terraingen::ValueDistribution::Kind::Constant, 0.02};
     const terraingen::CraterShapeModels models{
         diffused, std::make_shared<terraingen::DiffusionDegradation>(
                       terraingen::LunarFreshCraterMorphometry,

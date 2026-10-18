@@ -155,6 +155,17 @@ CraterKernelBatch MakeCraterKernelBatch(const CraterShapeKernel& kernel,
         for (const double deviation : outline.table) {
             batch.data.push_back(static_cast<float>(deviation));
         }
+        r.markCount = static_cast<std::uint32_t>(outline.marks.size());
+        r.markOffset = static_cast<std::uint32_t>(batch.data.size());
+        if (!outline.marks.empty()) {
+            for (const double radii :
+                 {outline.marksInnerRadii, outline.marksOuterRadii, outline.marksFadeRadii}) {
+                batch.data.push_back(static_cast<float>(radii));
+            }
+            for (const double knot : outline.marks) {
+                batch.data.push_back(static_cast<float>(knot));
+            }
+        }
         if (kernel.profile.diffused == 1u && diffused != nullptr && state.diffusion > 0.0) {
             const std::shared_ptr<const std::vector<float>> table =
                 diffused->HeightTable(state.fresh, diameter);

@@ -64,13 +64,27 @@ struct BoulderPatches {
     bool operator==(const BoulderPatches&) const = default;
 };
 
+/// How boulder cluster centres are laid out and how their clusters combine.
+enum class BoulderClusterModel {
+    /// One centre per cell of a jittered lattice `spacing` apart; each point takes the Gaussian of
+    /// its nearest centre only.
+    Nearest,
+    /// A Thomas cluster process: centres scattered as a Poisson process, one per `spacing`^2 on
+    /// average, each spreading its boulders in a Gaussian of `radius`, overlapping clusters adding
+    /// (Thomas 1949, https://doi.org/10.1093/biomet/36.1-2.18).
+    Thomas,
+};
+
 /// Boulders between craters gathered in clusters: `share` of them crowd within about `radius` of
 /// cluster centres about `spacing` apart and the rest stay scattered. The mean abundance is kept:
 /// the mean count with a size distribution, the mean coverage with Golombek-Rapp boulders.
 struct BoulderClusters {
     double share = 0.0;     ///< Share of the boulders in clusters, in [0, 1]; 0 for none.
     double spacing = 50.0;  ///< Typical distance between cluster centres (m).
-    double radius = 5.0;    ///< Gaussian radius of a cluster (m), below `spacing`.
+    /// Gaussian radius of a cluster (m): below `spacing` for `Nearest`, at most twice it for
+    /// `Thomas`.
+    double radius = 5.0;
+    BoulderClusterModel model = BoulderClusterModel::Nearest;  ///< How the clusters are laid out.
 
     bool operator==(const BoulderClusters&) const = default;
 };
@@ -325,19 +339,29 @@ void ValidateBoulderBedrock(const BoulderBedrock& bedrock);
 void ValidateBoulderPose(const BoulderPose& pose);
 
 /// Checks boulder clusters.
-/// @throws std::invalid_argument unless the share is in [0, 1] and 0 < `radius` < `spacing` are
-/// finite.
+/// @throws std::invalid_argument unless the share is in [0, 1], the spacing is finite and the
+/// radius positive, below the spacing for `Nearest` and at most twice it for `Thomas`.
 void ValidateBoulderClusters(const BoulderClusters& clusters);
 
 /// A cluster's weight `distance` metres from its centre: a Gaussian of the cluster's radius.
 double ClusterBump(double distance, const BoulderClusters& clusters);
 
+/// The distance in radii beyond which a `Thomas` cluster adds nothing.
+inline constexpr double kThomasReachRadii = 4.0;
+
 /// The mean of `ClusterBump` of the nearest cluster centre over the plane, which the cluster field
 /// is divided by to keep the mean density.
 double MeanClusterBump(const BoulderClusters& clusters);
 
-/// The largest a cluster field multiplies the scattered boulder density by, at a cluster centre;
-/// 1 without clusters.
+/// The mean over the surface of the `Thomas` field, the sum of `ClusterBump` within
+/// `kThomasReachRadii` of every centre, which it is divided by to keep the mean density.
+/// @param body Whether centres are scattered through space around a body, `spacing`^2 per square
+/// metre of a plane through them, rather than over a plane.
+double MeanThomasField(const BoulderClusters& clusters, bool body = false);
+
+/// The largest a cluster field multiplies the scattered boulder density by; 1 without clusters.
+/// For `Thomas` it is where as many centres crowd within 3 radii as a one in a million chance
+/// allows, and the rare points above it are capped to it.
 double MaxClusterAbundance(const BoulderClusters& clusters);
 
 /// Checks boulder fragmentation.

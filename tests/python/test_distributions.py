@@ -53,6 +53,19 @@ def test_tabulated_sfd_exposes_its_table():
     assert table.diameters == [1.0, 10.0] and table.cumulative_values == pytest.approx([1e-1, 1e-3])
 
 
+def test_piecewise_uniform_sfd_falls_linearly_across_its_bands():
+    bands = terraingen.PiecewiseUniformSfd([(1.0, 2.0, 0.1), (3.0, 5.0, 0.01)])
+    assert bands.cumulative(1.5) == pytest.approx(0.06)
+    assert bands.cumulative(2.5) == pytest.approx(0.01)
+    assert bands.cumulative(5.0) == 0.0
+
+
+def test_piecewise_uniform_sfd_shares_a_total_by_weight():
+    bands = terraingen.PiecewiseUniformSfd([(1.0, 2.0, 1.0), (2.0, 3.0, 3.0)], total=0.4)
+    assert [b.density for b in bands.bands] == pytest.approx([0.1, 0.3])
+    assert (bands.bands[0].min, bands.bands[0].max) == (1.0, 2.0)
+
+
 def test_summed_sfd_weights_its_terms(power):
     summed = terraingen.SummedSfd([(1.0, power), (2.0, power)])
     assert summed.cumulative(10.0) == pytest.approx(3 * power.cumulative(10.0))

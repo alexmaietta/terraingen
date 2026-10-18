@@ -273,7 +273,13 @@ void BindIrregularity(nb::module_& m) {
         .def_rw("elongated_share", &CraterIrregularity::elongatedShare)
         .def_rw("ellipticity", &CraterIrregularity::ellipticity)
         .def_rw("heading", &CraterIrregularity::heading)
-        .def_rw("heading_spread", &CraterIrregularity::headingSpread);
+        .def_rw("heading_spread", &CraterIrregularity::headingSpread)
+        .def_rw("marks_share", &CraterIrregularity::marksShare)
+        .def_rw("marks_amplitude", &CraterIrregularity::marksAmplitude)
+        .def_rw("marks_knots", &CraterIrregularity::marksKnots)
+        .def_rw("marks_inner_radii", &CraterIrregularity::marksInnerRadii)
+        .def_rw("marks_outer_radii", &CraterIrregularity::marksOuterRadii)
+        .def_rw("marks_fade_radii", &CraterIrregularity::marksFadeRadii);
     m.def("validate_crater_irregularity", &ValidateCraterIrregularity, "irregularity"_a,
           kValidateDoc);
 }
@@ -284,6 +290,9 @@ void BindOutlines(nb::module_& m) {
         .def_ro("heading", &CraterOutline::heading)
         .def("scale", &CraterOutline::Scale, "dx"_a, "dy"_a,
              "The outline's radius, relative to the round one, in direction (dx, dy).")
+        .def_ro("marks", &CraterOutline::marks)
+        .def("mark_shift", &CraterOutline::MarkShift, "dx"_a, "dy"_a, "radii"_a,
+             "The shift in radii the wall marks add at `radii` from the centre toward (dx, dy).")
         .def_prop_ro("max_scale", &CraterOutline::MaxScale)
         .def_prop_ro("round", &CraterOutline::Round);
     m.def("outline_of", &OutlineOf, "crater"_a, "irregularity"_a,

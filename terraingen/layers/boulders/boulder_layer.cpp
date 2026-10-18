@@ -134,7 +134,9 @@ BoulderLayer::BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const Cr
     }
     maxBackground_ = MaxBackgroundAbundance(options_);
     if (options_.clusters.share > 0.0) {
-        clusterMean_ = MeanClusterBump(options_.clusters);
+        clusterMean_ = options_.clusters.model == BoulderClusterModel::Thomas
+                           ? MeanThomasField(options_.clusters, surface_.IsBody())
+                           : MeanClusterBump(options_.clusters);
     }
     ejectaSizes_ = minCraterDiameter_ > 0.0 ? EjectaSizes(options_) : nullptr;
     if (options_.cacheBoulders > 0) {

@@ -194,6 +194,9 @@ TEST(BuildCraterModels, BuildsEachSelectedModel) {
     EXPECT_DOUBLE_EQ(density(terraingen::PiecewisePowerLawSpec{{{1.0, 0.1, 2.0}}}), 0.1 / 2500.0);
     EXPECT_NEAR(density(terraingen::TabulatedSpec{{0.01, 0.1}, {100.0, 1.0}, 1000.0, 1e6}),
                 1e-6 * 100.0 * std::pow(5.0, -2.0), 1e-15);
+    EXPECT_DOUBLE_EQ(
+        density(terraingen::PiecewiseUniformSpec{{{10.0, 100.0, 1.0}, {20.0, 40.0, 3.0}}, 0.01}),
+        0.0025 * 50.0 / 90.0);
 
     craters.ages = terraingen::FreshAgesSpec{};
     EXPECT_NE(dynamic_cast<const terraingen::FreshAges*>(BuildCraterModels(craters).ages.get()),
@@ -280,6 +283,10 @@ TEST(BuildBoulderOptions, BuildsTheSizesAndReportsThemAtTheirKeys) {
     ASSERT_NE(options.sizes.distribution, nullptr);
     EXPECT_DOUBLE_EQ(options.sizes.distribution->Cumulative(2.0), 0.001 * std::pow(2.0, -2.5));
     EXPECT_NE(options.ejecta.distribution, nullptr);
+    spec.sizes = terraingen::PiecewiseUniformSpec{{{0.5, 1.5, 0.02}}};
+    EXPECT_DOUBLE_EQ(terraingen::config::BuildBoulderOptions(spec, "layers[3]")
+                         .sizes.distribution->Cumulative(1.0),
+                     0.01);
     spec.ejectaSizes = terraingen::TabulatedSpec{{1.0}, {0.01}};
     try {
         terraingen::config::BuildBoulderOptions(spec, "layers[3]");

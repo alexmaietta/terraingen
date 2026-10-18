@@ -194,6 +194,90 @@ TEST(OutlineOf, FollowsDuEtAlsFittedRimSpectra) {
               OutlineOf(At(2, 60000.0), irregularity).table);
 }
 
+TEST(OutlineOf, MarksTheShareAskedForWithoutChangingTheRestOfTheOutline) {
+    CraterIrregularity irregularity;
+    irregularity.enabled = true;
+    irregularity.elongatedShare = 0.5;
+    CraterIrregularity marked = irregularity;
+    marked.marksShare = 0.3;
+    int count = 0;
+    constexpr std::uint64_t kCraters = 4000;
+    for (std::uint64_t i = 1; i <= kCraters; ++i) {
+        const terraingen::CraterOutline plain = OutlineOf(At(i), irregularity);
+        const terraingen::CraterOutline outline = OutlineOf(At(i), marked);
+        ASSERT_TRUE(plain.marks.empty());
+        ASSERT_EQ(outline.amplitudes, plain.amplitudes);
+        ASSERT_EQ(outline.phases, plain.phases);
+        ASSERT_EQ(outline.ellipticity, plain.ellipticity);
+        if (!outline.marks.empty()) {
+            ++count;
+            ASSERT_EQ(outline.marks.size(), 45u);
+            for (const double knot : outline.marks) {
+                ASSERT_LE(std::fabs(knot), 0.005);
+            }
+        }
+    }
+    EXPECT_NEAR(static_cast<double>(count) / kCraters, 0.3, 0.02);
+    EXPECT_EQ(OutlineOf(At(7), marked).marks, OutlineOf(At(7), marked).marks);
+    marked.marksAmplitude = {ValueDistribution::Kind::Constant, 0.0};
+    marked.marksShare = 1.0;
+    EXPECT_TRUE(OutlineOf(At(7), marked).marks.empty()) << "no marks without amplitude";
+}
+
+TEST(CraterOutline, ShiftsOnlyTheWallSmoothlyAroundTheCrater) {
+    terraingen::CraterOutline outline;
+    outline.marks = {0.01, -0.01, 0.005, 0.0, -0.002, 0.008};
+    EXPECT_FALSE(outline.Round());
+    EXPECT_DOUBLE_EQ(outline.Scale(1.0, 2.0), 1.0);
+    EXPECT_EQ(outline.MarkShift(1.0, 0.0, 0.15), 0.0);
+    EXPECT_EQ(outline.MarkShift(1.0, 0.0, 1.0), 0.0);
+    EXPECT_DOUBLE_EQ(outline.MarkShift(0.0, 0.0, 0.5), 0.01) << "the centre reads angle 0";
+    EXPECT_DOUBLE_EQ(outline.MarkShift(1.0, 0.0, 0.5), 0.01) << "passes through its knots";
+    EXPECT_NEAR(outline.MarkShift(-1.0, std::sqrt(3.0), 0.5), 0.005, 1e-12);
+    EXPECT_NEAR(outline.MarkShift(1.0, 0.0, 0.25), 0.005, 1e-12) << "half way up the fade";
+    double largest = 0.0;
+    double previous = outline.MarkShift(1.0, -1e-6, 0.6);
+    for (int n = 0; n <= 3600; ++n) {
+        const double theta = 2.0 * std::numbers::pi * n / 3600.0;
+        const double shift = outline.MarkShift(std::cos(theta), std::sin(theta), 0.6);
+        ASSERT_LT(std::fabs(shift - previous), 1e-4) << "continuous at " << theta;
+        largest = std::fmax(largest, std::fabs(shift));
+        previous = shift;
+    }
+    EXPECT_LE(largest, 1.25 * 0.01);
+}
+
+TEST(CraterProfileDistance, ShiftsTheWallByTheMarksAndKeepsItInOrder) {
+    CraterIrregularity irregularity;
+    irregularity.enabled = true;
+    irregularity.roughShare = 0.0;
+    irregularity.elongatedShare = 0.0;
+    irregularity.marksShare = 1.0;
+    irregularity.marksAmplitude = {ValueDistribution::Kind::Constant, 0.02};
+    irregularity.marksFadeRadii = 0.1;
+    terraingen::ValidateCraterIrregularity(irregularity);
+    const Crater crater = At(3, 100.0);
+    const terraingen::CraterOutline outline = OutlineOf(crater, irregularity);
+    ASSERT_FALSE(outline.marks.empty());
+    for (int a = 0; a < 64; ++a) {
+        const double theta = 2.0 * std::numbers::pi * a / 64.0;
+        double previous = -1.0;
+        for (int k = 0; k <= 600; ++k) {
+            const double r = 60.0 * k / 600.0;
+            const double x = r * std::cos(theta);
+            const double y = r * std::sin(theta);
+            const double distance = terraingen::CraterProfileDistance(crater, outline, x, y);
+            ASSERT_GT(distance, previous) << "the wall cannot fold, at " << r << " m";
+            previous = distance;
+            if (r < 10.0 || r > 50.0) {
+                ASSERT_DOUBLE_EQ(distance, r) << "floor and rim stay put";
+            } else {
+                ASSERT_NEAR(distance, r + 50.0 * outline.MarkShift(x, y, r / 50.0), 1e-12);
+            }
+        }
+    }
+}
+
 TEST(ValidateCraterIrregularity, RejectsInvalidSettings) {
     EXPECT_NO_THROW(terraingen::ValidateCraterIrregularity({}));
     const std::vector<std::function<void(CraterIrregularity&)>> changes{
@@ -215,6 +299,20 @@ TEST(ValidateCraterIrregularity, RejectsInvalidSettings) {
         [](CraterIrregularity& c) { c.maxDeviation = 0.6; },
         [](CraterIrregularity& c) {
             c.spectralSlope = {ValueDistribution::Kind::Uniform, 2.0, 1.0};
+        },
+        [](CraterIrregularity& c) { c.marksShare = 1.5; },
+        [](CraterIrregularity& c) { c.marksKnots = 2; },
+        [](CraterIrregularity& c) { c.marksKnots = 1025; },
+        [](CraterIrregularity& c) { c.marksFadeRadii = 0.0; },
+        [](CraterIrregularity& c) { c.marksInnerRadii = 0.05; },
+        [](CraterIrregularity& c) { c.marksOuterRadii = 0.2; },
+        [](CraterIrregularity& c) { c.marksOuterRadii = 0.95; },
+        [](CraterIrregularity& c) {
+            c.marksAmplitude = {ValueDistribution::Kind::Constant, -0.01};
+        },
+        [](CraterIrregularity& c) { c.marksAmplitude = {ValueDistribution::Kind::Constant, 0.03}; },
+        [](CraterIrregularity& c) {
+            c.marksAmplitude = {ValueDistribution::Kind::Uniform, 0.02, 0.01};
         }};
     for (const auto& change : changes) {
         CraterIrregularity irregularity;

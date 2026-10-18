@@ -180,6 +180,8 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
                                const CraterList& ejecta) const;
     /// The distance (m) from surface (x, y) to the nearest cluster centre.
     double NearestClusterDistance(double x, double y) const;
+    /// The sum at surface (x, y) of the Gaussians of the `Thomas` cluster centres around it.
+    double ThomasClusterField(double x, double y) const;
     double BackgroundAbundance(double x, double y, const Ground* ground) const;
     /// Sets `abundance`'s ejecta share and wear at (`x`, `y`) from the craters `ejecta`.
     void EjectaAbundance(double x, double y, const CraterList& ejecta,

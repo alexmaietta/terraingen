@@ -54,6 +54,18 @@ struct CraterIrregularity {
     std::optional<double> heading;
     double headingSpread = 0.0;  ///< Spread of `heading` either way, in radians.
 
+    /// Share of selected craters with radial marks: the wall's profile is read nearer to or
+    /// farther from the centre by a shift that varies smoothly around the crater, leaving ridges
+    /// and grooves down the wall that are strongest where it is steepest. No published
+    /// measurements of such marks are known, so the defaults are set by eye.
+    double marksShare = 0.0;
+    /// Largest shift of the marks, in radii, drawn per crater; each knot is uniform within it.
+    ValueDistribution marksAmplitude{ValueDistribution::Kind::Uniform, 0.0, 0.005};
+    int marksKnots = 45;  ///< Random shifts around the crater the marks pass through smoothly.
+    double marksInnerRadii = 0.3;  ///< Where the marks reach full strength going out, in radii.
+    double marksOuterRadii = 0.9;  ///< Where the marks start to fade going out, in radii.
+    double marksFadeRadii = 0.1;   ///< Width of the fades either side, in radii.
+
     bool operator==(const CraterIrregularity&) const = default;
 };
 
@@ -61,7 +73,10 @@ struct CraterIrregularity {
 /// @throws std::invalid_argument for invalid distributions or selection, shares outside [0, 1],
 /// harmonics outside 1 <= min <= max <= 64, a roughness that could fold the rim (its highest value
 /// times sqrt(2 n), n harmonics, at least 0.5), an ellipticity below 1, a non-finite heading or a
-/// negative or non-finite spread, or a `maxDeviation` outside (0, 0.5].
+/// negative or non-finite spread, a `maxDeviation` outside (0, 0.5], fewer than 3 or more than
+/// 1024 mark knots, a mark window that is not 0 <= inner - fade, inner <= outer and outer + fade
+/// <= 1 with a positive fade, or a mark amplitude that is negative or large enough to fold the
+/// wall (at least fade / 3.75).
 void ValidateCraterIrregularity(const CraterIrregularity& irregularity);
 
 /// One crater's outline: the factor its rim radius and profile are stretched by in each
@@ -75,17 +90,27 @@ struct CraterOutline {
     /// The rim's deviation from a circle at angles 2 pi n / size, interpolated linearly, in place
     /// of `amplitudes` when not empty.
     std::vector<double> table;
+    /// Radial shifts of the wall, in radii, at angles 2 pi n / size, passed through by a periodic
+    /// Catmull-Rom spline; empty for no marks.
+    std::vector<double> marks;
+    double marksInnerRadii = 0.3;  ///< Where the marks reach full strength, in radii.
+    double marksOuterRadii = 0.9;  ///< Where the marks start to fade, in radii.
+    double marksFadeRadii = 0.1;   ///< Width of the fades, in radii.
 
     /// The factor the rim radius is stretched by toward (`dx`, `dy`) metres east and north of the
     /// centre; 1 for a round crater.
     double Scale(double dx, double dy) const;
 
+    /// The shift in radii the marks add at `radii` from the centre toward (`dx`, `dy`); 0 outside
+    /// the marks' window, which ends inside the rim.
+    double MarkShift(double dx, double dy, double radii) const;
+
     /// An upper bound of `Scale` in any direction.
     double MaxScale() const;
 
-    /// Whether the outline is a circle: no ellipticity, harmonics or table.
+    /// Whether the outline is a circle: no ellipticity, harmonics, table or marks.
     bool Round() const {
-        return ellipticity == 1.0 && amplitudes.empty() && table.empty();
+        return ellipticity == 1.0 && amplitudes.empty() && table.empty() && marks.empty();
     }
 };
 
@@ -97,7 +122,8 @@ CraterOutline OutlineOf(const Crater& crater, const CraterIrregularity& irregula
 double MaxOutlineScale(const CraterIrregularity& irregularity);
 
 /// The distance in metres at which a crater's round profile is read at surface (x, y): the true
-/// distance over the stretch of its `outline` (`OutlineOf`) in that direction.
+/// distance over the stretch of its `outline` (`OutlineOf`) in that direction, shifted by its
+/// marks.
 double CraterProfileDistance(const Crater& crater, const CraterOutline& outline, double x, double y,
                              const Surface& surface = {});
 

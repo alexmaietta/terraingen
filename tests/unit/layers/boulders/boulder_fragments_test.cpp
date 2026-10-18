@@ -215,6 +215,63 @@ TEST(BoulderLayer, ClustersAndBreaksBouldersOnABodyStandingOnTheGround) {
     EXPECT_GT(layer.AbundanceAt(0.0, 0.0).background, 0.0);
 }
 
+TEST(BoulderLayer, GathersBouldersInThomasClustersKeepingTheirMeanDensity) {
+    BoulderLayerOptions options;
+    options.clusters = {.share = 0.8,
+                        .spacing = 10.0,
+                        .radius = 3.0,
+                        .model = terraingen::BoulderClusterModel::Thomas};
+    const BoulderLayer layer(options);
+    const double cap = terraingen::MaxClusterAbundance(options.clusters);
+    double sum = 0.0;
+    double most = 0.0;
+    double least = 1e9;
+    int samples = 0;
+    for (double y = 0.5; y < 1000.0; y += 2.0) {
+        for (double x = 0.5; x < 1000.0; x += 2.0) {
+            const double background = layer.AbundanceAt(x, y).background;
+            sum += background;
+            most = std::fmax(most, background);
+            least = std::fmin(least, background);
+            ++samples;
+        }
+    }
+    EXPECT_NEAR(sum / samples, 1.0, 0.03) << "the mean density is kept";
+    EXPECT_GT(most, 3.0);
+    EXPECT_LT(least, 0.4);
+    EXPECT_LE(most, cap + 1e-9);
+    EXPECT_EQ(layer.AbundanceAt(123.4, 56.7).background, layer.AbundanceAt(123.4, 56.7).background);
+    options.clusters.radius = 15.0;
+    EXPECT_NO_THROW(BoulderLayer{options}) << "Thomas clusters may overlap";
+    options.clusters.radius = 25.0;
+    EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
+    options.clusters.radius = 0.0;
+    EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
+}
+
+TEST(BoulderLayer, KeepsTheMeanDensityOfThomasClustersOnABody) {
+    BoulderLayerOptions options;
+    options.clusters = {.share = 1.0,
+                        .spacing = 8.0,
+                        .radius = 3.0,
+                        .model = terraingen::BoulderClusterModel::Thomas};
+    const BoulderLayer layer(options, nullptr, terraingen::Surface::Sphere(1737400.0));
+    const double degree = 1737400.0 * std::numbers::pi / 180.0;
+    double sum = 0.0;
+    int samples = 0;
+    for (double y = 0.5; y < 600.0; y += 2.0) {
+        for (double x = 0.5; x < 600.0; x += 2.0) {
+            sum += layer.AbundanceAt(x / degree, y / degree).background;
+            ++samples;
+        }
+    }
+    EXPECT_NEAR(sum / samples, 1.0, 0.06);
+    EXPECT_GT(terraingen::MeanThomasField(options.clusters, true), 0.0);
+    EXPECT_NEAR(terraingen::MeanThomasField(options.clusters, true),
+                terraingen::MeanThomasField(options.clusters), 1e-3)
+        << "the same mean as centres on a plane";
+}
+
 TEST(FragmentBoulderShape, SplitsSlabsByRoughlyParallelCracks) {
     const auto parent = terraingen::GenerateBoulderShape(11, {});
     const double whole = terraingen::Volume(parent.mesh);

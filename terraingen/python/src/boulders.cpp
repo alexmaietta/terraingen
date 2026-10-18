@@ -171,6 +171,10 @@ void BindPatchesAndEjecta(nb::module_& m) {
         "varies from 1 / `spread` to `spread` times its mean (1 for the same everywhere).");
     BindKwargsInit<BoulderPatches>(patches);
     patches.def_rw("spread", &BoulderPatches::spread).def_rw("size", &BoulderPatches::size);
+    nb::enum_<BoulderClusterModel>(m, "BoulderClusterModel",
+                                   "How boulder cluster centres are laid out and combine.")
+        .value("NEAREST", BoulderClusterModel::Nearest)
+        .value("THOMAS", BoulderClusterModel::Thomas);
     nb::enum_<EjectaProfile>(m, "EjectaProfile",
                              "How ejecta boulders fall off from a crater's rim.")
         .value("SMOOTHSTEP", EjectaProfile::Smoothstep)
@@ -208,7 +212,8 @@ void BindClustersAndFragments(nb::module_& m) {
     BindKwargsInit<BoulderClusters>(clusters);
     clusters.def_rw("share", &BoulderClusters::share)
         .def_rw("spacing", &BoulderClusters::spacing)
-        .def_rw("radius", &BoulderClusters::radius);
+        .def_rw("radius", &BoulderClusters::radius)
+        .def_rw("model", &BoulderClusters::model);
     m.def("validate_boulder_clusters", &ValidateBoulderClusters, "clusters"_a, kValidateDoc);
     m.def("max_cluster_abundance", &MaxClusterAbundance, "clusters"_a,
           "The most a cluster field multiplies the scattered boulder density by.");

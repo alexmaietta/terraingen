@@ -1,0 +1,61 @@
+{
+    "schema_version": 1,
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 1,
+                    "wavelength": 20,
+                    "amplitude": 0.5,
+                    "octaves": 6
+                }
+            ]
+        },
+        {
+            "type": "craters",
+            "seed": 1,
+            "density": {
+                "type": "piecewise_uniform",
+                "bands": [
+                    {
+                        "min": 0.5,
+                        "max": 1,
+                        "density": 0.5
+                    },
+                    {
+                        "min": 1.5,
+                        "max": 3,
+                        "density": 0.05
+                    },
+                    {
+                        "min": 3,
+                        "max": 5,
+                        "density": 0.025
+                    }
+                ]
+            },
+            "min_diameter": 0.5
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_distributions_piecewise_uniform.tif",
+            "region": {
+                "width": 513,
+                "height": 513,
+                "pixel_size": 0.1
+            }
+        },
+        {
+            "type": "crater_list",
+            "path": "example_distributions_piecewise_uniform.csv",
+            "region": {
+                "width": 513,
+                "height": 513,
+                "pixel_size": 0.1
+            }
+        }
+    ]
+}

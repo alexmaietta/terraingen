@@ -106,6 +106,9 @@ SfdPtr BuildDensity(const DensitySpec& spec) {
                 return std::make_shared<TabulatedSfd>(s.diameters, s.cumulative, SfdKind::Density,
                                                       s.diameterUnit, s.areaUnit);
             },
+            [](const PiecewiseUniformSpec& s) -> SfdPtr {
+                return std::make_shared<PiecewiseUniformSfd>(s.bands, SfdKind::Density, s.total);
+            },
             [](const TraskSpec&) -> SfdPtr {
                 return std::make_shared<PowerLawSfd>(TraskEquilibrium());
             },
@@ -237,6 +240,7 @@ std::shared_ptr<SizeFrequencyDistribution> BuildBoulderSizes(const BoulderSizesS
             [&](const PowerLawSpec& s) -> Result { return density(s); },
             [&](const PiecewisePowerLawSpec& s) -> Result { return density(s); },
             [&](const TabulatedSpec& s) -> Result { return density(s); },
+            [&](const PiecewiseUniformSpec& s) -> Result { return density(s); },
         },
         spec);
 }

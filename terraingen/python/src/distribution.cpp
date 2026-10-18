@@ -9,6 +9,7 @@
 #include "terraingen/distribution/moore.h"
 #include "terraingen/distribution/neukum.h"
 #include "terraingen/distribution/piecewise_power_law.h"
+#include "terraingen/distribution/piecewise_uniform.h"
 #include "terraingen/distribution/power_law.h"
 #include "terraingen/distribution/production_surface.h"
 #include "terraingen/distribution/size_frequency.h"
@@ -179,6 +180,30 @@ void BindTables(nb::module_& m) {
         .def_prop_ro("diameters", &TabulatedSfd::Diameters, "Diameters in metres.")
         .def_prop_ro("cumulative_values", &TabulatedSfd::CumulativeValues,
                      "N(>= D) per square metre at each diameter.");
+    nb::class_<UniformBand>(m, "UniformBand",
+                            "A band of `density` features per square metre with diameters spread "
+                            "uniformly from `min` to `max` metres.")
+        .def_ro("min", &UniformBand::min)
+        .def_ro("max", &UniformBand::max)
+        .def_ro("density", &UniformBand::density);
+    nb::class_<PiecewiseUniformSfd, Sfd>(
+        m, "PiecewiseUniformSfd",
+        "Counts in diameter bands, each with diameters spread uniformly: `bands` are (min, max, "
+        "density) with diameters in metres and densities per square metre. A positive `total` "
+        "takes the densities as relative weights and shares `total` per square metre among them.")
+        .def(
+            "__init__",
+            [](PiecewiseUniformSfd* self,
+               const std::vector<std::tuple<double, double, double>>& bands, SfdKind kind,
+               double total) {
+                std::vector<UniformBand> pieces;
+                for (const auto& [min, max, density] : bands) {
+                    pieces.push_back({min, max, density});
+                }
+                new (self) PiecewiseUniformSfd(std::move(pieces), kind, total);
+            },
+            "bands"_a, "kind"_a = SfdKind::Density, "total"_a = 0.0)
+        .def_prop_ro("bands", &PiecewiseUniformSfd::Bands);
     nb::class_<LogPolynomialSfd, Sfd>(
         m, "LogPolynomialSfd",
         "log10 N(>= D) as a polynomial in log10 D, with `coefficients` from the constant term "

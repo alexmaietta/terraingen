@@ -116,6 +116,22 @@ template <typename IO> void Fields(IO& io, CraterIrregularity& irregularity) {
        "rad");
     io("heading_spread", irregularity.headingSpread,
        "Largest random turn of a long axis either way from the heading, in radians.", "rad");
+    io("marks_share", irregularity.marksShare,
+       "Share of eligible craters, from 0 to 1, given radial marks: ridges and grooves down the "
+       "wall, strongest where it is steepest.");
+    io("marks_amplitude", irregularity.marksAmplitude,
+       "Largest radial shift of the wall by the marks, in crater radii, drawn per crater; below "
+       "marks_fade_radii / 3.75.");
+    io("marks_knots", irregularity.marksKnots,
+       "Random shifts around the crater the marks pass through, from 3 to 1024; more knots give "
+       "narrower marks.");
+    io("marks_inner_radii", irregularity.marksInnerRadii,
+       "Distance from the centre, in crater radii, where the marks reach full strength.");
+    io("marks_outer_radii", irregularity.marksOuterRadii,
+       "Distance from the centre, in crater radii, where the marks start to fade; at most 1 minus "
+       "marks_fade_radii.");
+    io("marks_fade_radii", irregularity.marksFadeRadii,
+       "Width, in crater radii, over which the marks fade in and out.");
 }
 
 template <typename IO> void Fields(IO& io, RimSmoothing& smoothing) {

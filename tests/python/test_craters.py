@@ -198,6 +198,17 @@ def test_irregular_outlines_are_elongated():
     assert outline.ellipticity > 1.0 and not outline.round and outline.max_scale >= 1.0
 
 
+def test_marked_outlines_shift_only_the_wall():
+    marked = terraingen.CraterIrregularity(
+        enabled=True, manual=True, rough_share=0.0, elongated_share=0.0, marks_share=1.0, marks_knots=12
+    )
+    assert (marked.marks_inner_radii, marked.marks_outer_radii, marked.marks_fade_radii) == (0.3, 0.9, 0.1)
+    outline = terraingen.outline_of(terraingen.Crater(0.0, 0.0, 50.0, 0.0, 5), marked)
+    assert len(outline.marks) == 12 and not outline.round
+    assert outline.mark_shift(1.0, 0.0, 0.1) == 0.0 and outline.mark_shift(1.0, 0.0, 1.0) == 0.0
+    assert abs(outline.mark_shift(1.0, 0.0, 0.6)) <= 1.25 * marked.marks_amplitude.b
+
+
 def test_max_outline_scale_bounds_every_outline():
     irregular = terraingen.CraterIrregularity(enabled=True, elongated_share=1.0, manual=True)
     outline = terraingen.outline_of(terraingen.Crater(0.0, 0.0, 50.0), irregular)
