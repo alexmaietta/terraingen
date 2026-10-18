@@ -5,6 +5,8 @@
 #include "terraingen/distribution/size_frequency.h"
 #include "terraingen/layers/boulders/boulder_models.h"
 #include "terraingen/layers/boulders/boulder_shape.h"
+#include "terraingen/layers/craters/crater.h"
+#include "terraingen/layers/density_map.h"
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/fade.h"
 
@@ -12,6 +14,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <vector>
 
 namespace terraingen {
 
@@ -310,8 +313,52 @@ struct BoulderLayerOptions {
     ResolutionFade fade{};                 ///< Fade of boulders too small for the spacing.
     /// Most boulder candidates to keep generated cells of; 0 regenerates cells every time.
     std::size_t cacheBoulders = 4000000;
+    /// A map that sets the abundance of boulders between craters point by point, measuring the
+    /// boulder sizes (`DensityMap`); with `total` the blocks around craters are taken out of what
+    /// it measures first. Patches, clusters and bedrock still spread boulders within it. Unset
+    /// keeps the abundance `sizes` sets everywhere.
+    std::optional<DensityMap> densityMap{};
+    /// Boulders from a catalog, placed as given and never thinned or left out; `x`, `y` and
+    /// `diameter` are read, and IDs come from position and size (`AppendManualCraters`).
+    std::vector<Crater> manual{};
+    /// The diameter (m) from which `manual` is a complete catalog at each point: generated boulders
+    /// at least this large centred there are dropped, so the catalog stands in for them. Infinite
+    /// or NaN where there is no catalog; unset keeps every generated boulder.
+    std::shared_ptr<const SurfaceField> completeness{};
 
     bool operator==(const BoulderLayerOptions&) const = default;
+};
+
+/// How a density map sets a boulder layer's abundance between craters: the abundance at which the
+/// boulder sizes measure what the map does, once the crater blocks there are taken out of it for a
+/// `total` map. With Golombek-Rapp sizes it solves for the coverage, as rock abundance maps give.
+class BoulderMapAbundance {
+  public:
+    /// @throws std::invalid_argument for no map, an invalid one, or one measuring none of the
+    /// sizes.
+    /// @throws std::domain_error as `MapMeasure`.
+    explicit BoulderMapAbundance(const BoulderLayerOptions& options);
+
+    /// The abundance where the map reads `value` (`MapValueAt`) and the crater blocks hold `ejecta`
+    /// of their full abundance: 1 where `value` is NaN, 0 where the blocks make up the whole map.
+    double At(double value, double ejecta) const;
+
+    /// The largest abundance the map gives anywhere, at least 1.
+    double Max() const {
+        return max_;
+    }
+
+  private:
+    /// The coverage at which Golombek-Rapp boulders measure `target`.
+    double Coverage(double target) const;
+
+    DensityMap map_;
+    double coverage_ = 0.0;
+    double measure_ = 0.0;
+    double ejectaMeasure_ = 0.0;
+    std::vector<double> coverages_;
+    std::vector<double> measures_;
+    double max_ = 1.0;
 };
 
 /// Checks boulder sizes.

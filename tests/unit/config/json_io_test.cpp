@@ -100,6 +100,19 @@ TerrainConfig Everything() {
                            .floorOffset = {terraingen::ValueDistribution::Kind::Constant, 0.1},
                            .upslopeRim = 0.2,
                            .fullSlope = 0.1};
+    craters.densityMap =
+        terraingen::DensityMapSpec{.field = {.path = "map.tif",
+                                             .band = 1,
+                                             .method = terraingen::ResampleMethod::Nearest,
+                                             .scale = 0.001,
+                                             .fallback = 2.0,
+                                             .periodicLongitude = true},
+                                   .measure = terraingen::DensityMeasure::Count,
+                                   .minDiameter = 4.5,
+                                   .maxDiameter = 1000.0,
+                                   .areaUnit = 1e6,
+                                   .total = false};
+    craters.completeness = terraingen::FieldSpec{.value = 1500.0};
     terraingen::BoulderLayerSpec boulders;
     boulders.boulders = {
         .sizes = {.coverage = 0.05,
@@ -170,6 +183,12 @@ TerrainConfig Everything() {
     table.sizes = terraingen::TabulatedSpec{{0.1, 1.0}, {1.0, 0.001}};
     table.ejectaSizes = terraingen::PowerLawSpec{0.001, 3.0};
     synthterrain.ejectaSizes = terraingen::PiecewiseUniformSpec{{{0.5, 2.0, 0.001}}};
+    synthterrain.densityMap =
+        terraingen::DensityMapSpec{.field = {.value = 0.01},
+                                   .measure = terraingen::DensityMeasure::ArealFraction,
+                                   .minDiameter = 1.0};
+    synthterrain.manual = {{3.0, -4.0, 2.5, 0.0, 0u}};
+    synthterrain.completeness = terraingen::FieldSpec{.path = "complete.tif"};
     const terraingen::RoughnessLayerSpec roughness{{.rmsSlope = 0.3,
                                                     .baseline = 0.05,
                                                     .hurst = 0.6,

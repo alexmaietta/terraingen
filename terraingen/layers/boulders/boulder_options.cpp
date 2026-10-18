@@ -5,6 +5,7 @@
 #include "terraingen/noise/worley.h"
 #include "terraingen/util/checks.h"
 
+#include <algorithm>
 #include <cmath>
 #include <numbers>
 #include <stdexcept>
@@ -307,6 +308,9 @@ void ValidateBoulderRendering(const BoulderRendering& rendering) {
 
 void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
     ValidateBoulderSizes(options.sizes);
+    if (options.densityMap) {
+        ValidateDensityMap(*options.densityMap);
+    }
     ValidateBoulderPatches(options.patches);
     ValidateBoulderClusters(options.clusters);
     ValidateBoulderFragmentation(options.fragmentation);
@@ -324,10 +328,93 @@ void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
     ValidateBoulderRendering(options.rendering);
 }
 
+namespace {
+
+/// Coverages the Golombek-Rapp measures are tabulated at, log-spaced.
+constexpr int kCoverageSteps = 512;
+constexpr double kLeastCoverage = 1e-6;
+constexpr double kMostCoverage = 0.999;
+
+/// What `map` measures of `distribution`, with the areal fraction of Golombek-Rapp boulders in
+/// closed form so that it needs no largest diameter.
+double BoulderMeasure(const DensityMap& map, const SizeFrequencyDistribution& distribution) {
+    const auto* rapp = dynamic_cast<const GolombekRappSfd*>(&distribution);
+    if (rapp != nullptr && map.measure == DensityMeasure::ArealFraction) {
+        const double beyond =
+            std::isinf(map.maxDiameter) ? 0.0 : rapp->FractionalArea(map.maxDiameter);
+        return rapp->FractionalArea(map.minDiameter) - beyond;
+    }
+    return MapMeasure(map, distribution);
+}
+
+}  // namespace
+
+BoulderMapAbundance::BoulderMapAbundance(const BoulderLayerOptions& options) {
+    if (!options.densityMap) {
+        throw std::invalid_argument("Boulder map abundance needs a density map");
+    }
+    map_ = *options.densityMap;
+    ValidateDensityMap(map_);
+    const BoulderSizes& sizes = options.sizes;
+    if (map_.total && options.ejecta.MinCraterDiameter() > 0.0) {
+        ejectaMeasure_ = BoulderMeasure(map_, *EjectaSizes(options));
+    }
+    if (sizes.distribution || map_.measure == DensityMeasure::Scale) {
+        measure_ = sizes.distribution ? BoulderMeasure(map_, *sizes.distribution) : 1.0;
+        if (!(measure_ > 0.0 && std::isfinite(measure_))) {
+            throw std::invalid_argument("A boulder density map must measure some of the sizes");
+        }
+    } else {
+        coverage_ = sizes.coverage;
+        for (int i = 0; i < kCoverageSteps; ++i) {
+            const double k =
+                kLeastCoverage * std::pow(kMostCoverage / kLeastCoverage,
+                                          static_cast<double>(i) / (kCoverageSteps - 1));
+            coverages_.push_back(k);
+            measures_.push_back(BoulderMeasure(
+                map_, GolombekRappSfd(k, sizes.qConstant, sizes.qCoverageCoefficient)));
+        }
+        if (!(measures_.back() > 0.0)) {
+            throw std::invalid_argument("A boulder density map must measure some of the sizes");
+        }
+    }
+    const double top = map_.field->Max();
+    const double largest = map_.measure == DensityMeasure::Count ? top / map_.areaUnit : top;
+    max_ = std::fmax(1.0, At(largest, 0.0));
+}
+
+double BoulderMapAbundance::Coverage(double target) const {
+    if (target <= measures_.front()) {
+        return coverages_.front() * target / measures_.front();
+    }
+    if (target >= measures_.back()) {
+        return coverages_.back();
+    }
+    const auto above = std::lower_bound(measures_.begin(), measures_.end(), target);
+    const auto i = static_cast<std::size_t>(above - measures_.begin());
+    const double t = (target - measures_[i - 1]) / (measures_[i] - measures_[i - 1]);
+    return coverages_[i - 1] + t * (coverages_[i] - coverages_[i - 1]);
+}
+
+double BoulderMapAbundance::At(double value, double ejecta) const {
+    if (std::isnan(value)) {
+        return 1.0;
+    }
+    if (map_.measure == DensityMeasure::Scale) {
+        return std::fmax(0.0, value);
+    }
+    const double target = value - ejecta * ejectaMeasure_;
+    if (!(target > 0.0)) {
+        return 0.0;
+    }
+    return coverages_.empty() ? target / measure_ : Coverage(target) / coverage_;
+}
+
 double MaxBackgroundAbundance(const BoulderLayerOptions& options) {
     return options.patches.spread *
            (options.bedrock.exposure ? std::fmax(1.0, options.bedrock.abundance) : 1.0) *
-           MaxClusterAbundance(options.clusters);
+           MaxClusterAbundance(options.clusters) *
+           (options.densityMap ? BoulderMapAbundance(options).Max() : 1.0);
 }
 
 std::shared_ptr<const SizeFrequencyDistribution> EjectaSizes(const BoulderLayerOptions& options) {

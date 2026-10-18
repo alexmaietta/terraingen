@@ -2,6 +2,7 @@ terraingen_add_test_suite(
     layers
     SOURCES
     bedforms_test.cpp
+    density_map_test.cpp
     dunes_test.cpp
     detail_test.cpp
     exposure_test.cpp

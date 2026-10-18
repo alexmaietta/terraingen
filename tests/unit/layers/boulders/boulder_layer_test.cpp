@@ -937,3 +937,95 @@ TEST(BoulderVentifacts, GaleSharesAndRejectsBadOptions) {
     EXPECT_EQ(b.CutByFacets({0.9, 0.0}, 1.0), 0.0);
     EXPECT_EQ(b.CutByFacets({-0.9, 0.0}, 1.0), 1.0);
 }
+
+TEST(BoulderMapAbundance, ScalesTheSizesToTheMapLessTheCraterBlocks) {
+    BoulderLayerOptions options;
+    options.sizes.distribution = std::make_shared<terraingen::PowerLawSfd>(0.01, 2.5);
+    options.ejecta.minCraterDiameter = 10.0;
+    options.ejecta.distribution = std::make_shared<terraingen::PowerLawSfd>(0.02, 2.5);
+    terraingen::DensityMap map{std::make_shared<terraingen::ConstantField>(3.0),
+                               terraingen::DensityMeasure::Count, 4.5};
+    map.areaUnit = 1e6;
+    options.densityMap = map;
+    const double measure = 0.01 * std::pow(4.5, -2.5);
+    const double target = 3.0 / 1e6;
+    const terraingen::BoulderMapAbundance abundance(options);
+    EXPECT_DOUBLE_EQ(abundance.At(target, 0.0), target / measure);
+    EXPECT_DOUBLE_EQ(abundance.At(target, 0.001), (target - 0.001 * 2.0 * measure) / measure)
+        << "the crater blocks are taken out of a total map";
+    EXPECT_EQ(abundance.At(target, 1.0), 0.0) << "blocks alone make up the map";
+    EXPECT_EQ(abundance.At(std::nan(""), 0.5), 1.0);
+    EXPECT_DOUBLE_EQ(abundance.Max(), std::fmax(1.0, target / measure));
+    options.densityMap->total = false;
+    EXPECT_DOUBLE_EQ(terraingen::BoulderMapAbundance(options).At(target, 0.001), target / measure);
+    options.densityMap = std::nullopt;
+    EXPECT_THROW(terraingen::BoulderMapAbundance{options}, std::invalid_argument);
+}
+
+TEST(BoulderMapAbundance, SolvesGolombekRappCoverageForRockAbundance) {
+    BoulderLayerOptions options;
+    options.sizes.coverage = 0.05;
+    options.densityMap = terraingen::DensityMap{std::make_shared<terraingen::ConstantField>(0.02),
+                                                terraingen::DensityMeasure::ArealFraction, 1.0};
+    const terraingen::BoulderMapAbundance abundance(options);
+    for (const double fraction : {1e-5, 0.001, 0.02, 0.1}) {
+        const double k = abundance.At(fraction, 0.0) * 0.05;
+        EXPECT_NEAR(terraingen::GolombekRappSfd(k).FractionalArea(1.0), fraction, 2e-3 * fraction)
+            << fraction;
+    }
+    EXPECT_GT(abundance.At(1e-9, 0.0), 0.0);
+    EXPECT_LT(abundance.At(1e-9, 0.0), abundance.At(1e-5, 0.0)) << "rising with the fraction";
+    EXPECT_DOUBLE_EQ(abundance.At(0.9, 0.0) * 0.05, 0.999) << "capped below full cover";
+    options.densityMap->minDiameter = 0.001;
+    const terraingen::BoulderMapAbundance fine(options);
+    EXPECT_NEAR(fine.At(1e-80, 0.0) / fine.At(2e-80, 0.0), 0.5, 1e-9)
+        << "proportional below the table";
+    options.densityMap->minDiameter = 1.0;
+    options.densityMap->measure = terraingen::DensityMeasure::Count;
+    options.densityMap->maxDiameter = 3.0;
+    const double count = terraingen::GolombekRappSfd(0.03).ExpectedCount(1.0, 1.0, 3.0);
+    EXPECT_NEAR(terraingen::BoulderMapAbundance(options).At(count, 0.0) * 0.05, 0.03, 1e-4);
+}
+
+TEST(BoulderLayer, FollowsADensityMapBetweenCraters) {
+    BoulderLayerOptions options;
+    options.sizes.coverage = 0.02;
+    options.densityMap = terraingen::DensityMap{std::make_shared<terraingen::ConstantField>(2.5)};
+    const BoulderLayer layer(options);
+    EXPECT_DOUBLE_EQ(layer.AbundanceAt(3.0, 4.0).background, 2.5);
+    BoulderLayerOptions plain;
+    plain.sizes.coverage = 0.02;
+    const Bounds2d region{-15.0, -15.0, 15.0, 15.0};
+    const double ratio = static_cast<double>(layer.Boulders(region, 0.0).size()) /
+                         static_cast<double>(BoulderLayer(plain).Boulders(region, 0.0).size());
+    EXPECT_GT(ratio, 1.8) << "a higher coverage gives more boulders";
+    options.sizes.coverage = 0.5;
+    EXPECT_THROW(BoulderLayer{options}, std::invalid_argument) << "coverage over 1 under the map";
+}
+
+TEST(BoulderLayer, PlacesCatalogBouldersAndDropsGeneratedOnesItCovers) {
+    BoulderLayerOptions options;
+    options.sizes.coverage = 0.08;
+    options.sizes.minDiameter = 0.3;
+    options.manual = {{2.0, 3.0, 12.0, 0.0, 0u, true}, {-4.0, 1.0, 0.8, 0.0, 0u, true}};
+    options.completeness = std::make_shared<terraingen::ConstantField>(0.6);
+    options.pose.maxSlope = 0.1;
+    const Analytic steep([](double x, double) { return static_cast<float>(0.5 * x); });
+    const Bounds2d region{-10.0, -10.0, 10.0, 10.0};
+    const auto boulders = BoulderLayer(options).Boulders(region, 0.0, &steep);
+    ASSERT_EQ(boulders.size(), 2u) << "steep ground leaves out every generated boulder";
+    EXPECT_EQ(boulders[0].diameter, 12.0) << "beyond the sizes, still placed";
+    options.pose.maxSlope.reset();
+    std::size_t manual = 0;
+    std::size_t small = 0;
+    for (const Boulder& boulder : BoulderLayer(options).Boulders(region, 0.0)) {
+        if (boulder.diameter == 12.0 || boulder.diameter == 0.8) {
+            ++manual;
+            continue;
+        }
+        ASSERT_LT(boulder.diameter, 0.6) << "the catalog stands in from 0.6 m";
+        ++small;
+    }
+    EXPECT_EQ(manual, 2u);
+    EXPECT_GT(small, 0u);
+}

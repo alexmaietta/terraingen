@@ -2,6 +2,7 @@ terraingen_add_library(
     layers
     SOURCES
     bedforms.cpp
+    density_map.cpp
     dunes.cpp
     detail.cpp
     exposure.cpp

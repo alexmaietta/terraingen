@@ -137,13 +137,15 @@ double BoulderLayer::ThomasClusterField(double x, double y) const {
     return sum;
 }
 
-double BoulderLayer::BackgroundAbundance(double x, double y, const Ground* ground) const {
-    double background = 1.0;
+double BoulderLayer::BackgroundAbundance(double x, double y, const Ground* ground,
+                                         double ejecta) const {
+    double background =
+        mapAbundance_ ? mapAbundance_->At(MapValueAt(*options_.densityMap, x, y), ejecta) : 1.0;
     const BoulderPatches& patches = options_.patches;
     if (patches.spread > 1.0) {
         const double noise =
             PatchNoise(surface_, x, y, patches.size, options_.seed ^ kBoulderPatches);
-        background = std::pow(patches.spread, noise);
+        background *= std::pow(patches.spread, noise);
     }
     const BoulderClusters& clusters = options_.clusters;
     if (clusters.share > 0.0) {
@@ -191,10 +193,10 @@ void BoulderLayer::EjectaAbundance(double x, double y, const CraterList& ejecta,
 BoulderAbundance BoulderLayer::Abundance(double x, double y, const Ground* ground,
                                          const CraterList& ejecta) const {
     BoulderAbundance abundance;
-    abundance.background = BackgroundAbundance(x, y, ground);
     if (!ejecta.Empty()) {
         EjectaAbundance(x, y, ejecta, abundance);
     }
+    abundance.background = BackgroundAbundance(x, y, ground, abundance.ejecta);
     return abundance;
 }
 

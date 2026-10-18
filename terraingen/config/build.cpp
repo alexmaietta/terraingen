@@ -35,6 +35,7 @@
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
+#include <limits>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -285,7 +286,7 @@ struct LayerInputs {
 };
 
 LayerPtr BuildCraterLayer(const CraterLayerSpec& craters, const std::string& path,
-                          const Surface& surface) {
+                          const Surface& surface, const std::filesystem::path& directory) {
     CraterLayerOptions options;
     options.generate = craters.generate;
     options.seed = craters.seed;
@@ -299,7 +300,17 @@ LayerPtr BuildCraterLayer(const CraterLayerSpec& craters, const std::string& pat
     }
     options.apply = craters.apply;
     options.surface = surface;
-    return std::make_shared<CraterLayer>(BuildCraterModels(craters, path), std::move(options));
+    if (craters.densityMap) {
+        options.densityMap =
+            config::BuildDensityMap(*craters.densityMap, Child(path, "density_map"), directory);
+    }
+    if (craters.completeness) {
+        options.generation.completeness =
+            config::BuildField(*craters.completeness, Child(path, "completeness"), directory);
+    }
+    CraterModels models = BuildCraterModels(craters, path);
+    return At(path,
+              [&] { return std::make_shared<CraterLayer>(std::move(models), std::move(options)); });
 }
 
 LayerPtr BuildSecondaryLayer(const SecondaryLayerSpec& spec,
@@ -318,7 +329,7 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
                 return std::make_shared<NoiseRelief>(s.Params(), context.referencePoint, surface);
             },
             [&](const CraterLayerSpec& s) -> LayerPtr {
-                return BuildCraterLayer(s, path, surface);
+                return BuildCraterLayer(s, path, surface, context.directory);
             },
             [&](const BoulderLayerSpec& s) -> LayerPtr {
                 BoulderLayerOptions options = BuildBoulderOptions(s, path, context.directory);
@@ -443,7 +454,49 @@ BoulderLayerOptions BuildBoulderOptions(const BoulderLayerSpec& spec, const std:
             throw ConfigError(file, error.what());
         }
     }
+    if (spec.densityMap) {
+        options.densityMap =
+            BuildDensityMap(*spec.densityMap, Child(path, "density_map"), directory);
+    }
+    for (Crater boulder : spec.manual) {
+        boulder.manual = true;
+        options.manual.push_back(boulder);
+    }
+    if (spec.completeness) {
+        options.completeness =
+            BuildField(*spec.completeness, Child(path, "completeness"), directory);
+    }
     return options;
+}
+
+std::shared_ptr<const SurfaceField> BuildField(const FieldSpec& spec, const std::string& path,
+                                               const std::filesystem::path& directory) {
+    if (spec.path.empty()) {
+        return std::make_shared<ConstantField>(spec.value);
+    }
+    RasterFieldOptions read;
+    read.method = spec.method;
+    read.scale = spec.scale;
+    read.fallback = spec.fallback.value_or(std::numeric_limits<double>::quiet_NaN());
+    read.periodicLongitude = spec.periodicLongitude;
+    try {
+        return ReadRasterField(Resolve(spec.path, directory), read, spec.band);
+    } catch (const std::exception& error) {
+        throw ConfigError(path, error.what());
+    }
+}
+
+DensityMap BuildDensityMap(const DensityMapSpec& spec, const std::string& path,
+                           const std::filesystem::path& directory) {
+    DensityMap map;
+    map.field = BuildField(spec.field, Child(path, "field"), directory);
+    map.measure = spec.measure;
+    map.minDiameter = spec.minDiameter;
+    map.maxDiameter = spec.maxDiameter.value_or(std::numeric_limits<double>::infinity());
+    map.areaUnit = spec.areaUnit;
+    map.total = spec.total;
+    At(path, [&] { ValidateDensityMap(map); });
+    return map;
 }
 
 RasterGrid RegionGrid(const GridRegionSpec& region, const Surface& surface) {

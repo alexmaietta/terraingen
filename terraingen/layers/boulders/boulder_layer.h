@@ -185,7 +185,9 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     double NearestClusterDistance(double x, double y) const;
     /// The sum at surface (x, y) of the Gaussians of the `Thomas` cluster centres around it.
     double ThomasClusterField(double x, double y) const;
-    double BackgroundAbundance(double x, double y, const Ground* ground) const;
+    /// The abundance between craters at (`x`, `y`), where the crater blocks hold `ejecta` of
+    /// theirs.
+    double BackgroundAbundance(double x, double y, const Ground* ground, double ejecta) const;
     /// Sets `abundance`'s ejecta share and wear at (`x`, `y`) from the craters `ejecta`.
     void EjectaAbundance(double x, double y, const CraterList& ejecta,
                          BoulderAbundance& abundance) const;
@@ -196,6 +198,7 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     double minCraterDiameter_ = 0.0;
     double maxBackground_ = 1.0;
     double clusterMean_ = 1.0;
+    std::optional<BoulderMapAbundance> mapAbundance_;
     std::shared_ptr<const SizeFrequencyDistribution> candidates_;
     std::shared_ptr<const SizeFrequencyDistribution> ejectaSizes_;
     std::shared_ptr<CraterCellCache> cache_;

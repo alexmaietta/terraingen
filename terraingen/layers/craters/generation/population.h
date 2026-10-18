@@ -5,6 +5,7 @@
 #include "terraingen/distribution/size_frequency.h"
 #include "terraingen/layers/craters/ages/age_model.h"
 #include "terraingen/layers/craters/crater.h"
+#include "terraingen/sources/field.h"
 #include "terraingen/util/cells.h"
 #include "terraingen/util/surface.h"
 
@@ -95,6 +96,15 @@ struct CraterGenerationOptions {
     double maxBandDiameter = std::numeric_limits<double>::infinity();
     /// Where each cell's craters come from; empty draws them with `GenerateCellCraters`.
     CellCraterSource cellCraters{};
+    /// The share of generated craters kept at each point, in [0, 1]: drawing at the density's
+    /// highest local level and keeping each crater with the share at its centre, by a uniform keyed
+    /// to its ID, makes the density vary over the surface. Unset keeps every crater.
+    std::shared_ptr<const SurfaceField> keepShare{};
+    /// The diameter (m) from which `manual` craters are a complete catalog at each point: generated
+    /// craters at least this large centred there are dropped, so the catalog stands in for them
+    /// rather than adding to them. Infinite or NaN where there is no catalog; unset keeps every
+    /// generated crater.
+    std::shared_ptr<const SurfaceField> completeness{};
     /// What the region and margins are measured on: on a sphere, regions are longitude and
     /// latitude boxes and margins are metres, and `cells` must be `CubeSphereCells` of its radius.
     Surface surface{};

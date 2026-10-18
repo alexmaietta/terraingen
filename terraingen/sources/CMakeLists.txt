@@ -1,6 +1,7 @@
 terraingen_add_library(
     sources
     SOURCES
+    field.cpp
     flat_source.cpp
     geotiff_source.cpp
     source_chain.cpp

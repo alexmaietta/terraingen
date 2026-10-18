@@ -1,5 +1,6 @@
 #include "terraingen/layers/craters/crater_layer.h"
 
+#include "terraingen/distribution/summed.h"
 #include "terraingen/layers/craters/generation/spacing.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/cells.h"
@@ -33,6 +34,16 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options)
     if (options_.cacheCraters > 0) {
         cache_ = std::make_shared<CraterCellCache>(options_.cacheCraters);
     }
+    candidates_ = models_.density;
+    if (options_.densityMap) {
+        const auto scale =
+            std::make_shared<const DensityScale>(*options_.densityMap, *models_.density);
+        if (scale->Max() > 1.0) {
+            candidates_ = std::make_shared<SummedSfd>(
+                std::vector<WeightedSfd>{{scale->Max(), models_.density}});
+        }
+        options_.generation.keepShare = std::make_shared<DensityKeepShare>(scale);
+    }
 }
 
 CraterList CraterLayer::Craters(const Bounds2d& region, double spacing, double minDiameter,
@@ -46,9 +57,9 @@ CraterList CraterLayer::Craters(const Bounds2d& region, double spacing, double m
         generation.maxBandDiameter = std::fmin(generation.maxBandDiameter, maxDiameter);
         if (cache_) {
             generation.cellCraters =
-                CachedCellCraters(*cache_, *cells_, *models_.density, *models_.ages, options_.seed);
+                CachedCellCraters(*cache_, *cells_, *candidates_, *models_.ages, options_.seed);
         }
-        return GenerateCraters(*cells_, region, *models_.density, *models_.ages, options_.seed,
+        return GenerateCraters(*cells_, region, *candidates_, *models_.ages, options_.seed,
                                generation);
     }
     CraterList craters;

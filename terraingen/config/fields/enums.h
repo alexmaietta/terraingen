@@ -333,6 +333,17 @@ template <> struct EnumNames<ResampleMethod> {
     }};
 };
 
+template <> struct EnumNames<DensityMeasure> {
+    static constexpr std::array<EnumEntry<DensityMeasure>, 3> kValues{{
+        {"scale", DensityMeasure::Scale,
+         "The local density over the layer's own; 1 keeps it as the size distribution gives it."},
+        {"count", DensityMeasure::Count,
+         "Features with diameters in the map's range per area unit, such as boulders per km^2."},
+        {"areal_fraction", DensityMeasure::ArealFraction,
+         "Share of the ground covered by features in the map's range, such as rock abundance."},
+    }};
+};
+
 template <> struct EnumNames<TiffCompression> {
     static constexpr std::array<EnumEntry<TiffCompression>, 4> kValues{{
         {"none", TiffCompression::None, "Uncompressed: the largest files."},

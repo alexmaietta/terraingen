@@ -4,6 +4,7 @@
 
 #include "terraingen/config/config.h"
 #include "terraingen/config/fields/common.h"
+#include "terraingen/config/fields/maps.h"
 
 #include <string_view>
 
@@ -386,6 +387,16 @@ template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
        "Rock meshes (.obj with its .mtl, .gltf or .glb) the boulder shapes are drawn from instead "
        "of the procedural styles, each boulder picking one by its shape seed; paths relative to "
        "the configuration. Empty keeps the procedural shapes.");
+    io("density_map", spec.densityMap,
+       "Map that sets the abundance of boulders between craters point by point, scaling the "
+       "sizes to what it measures; unset keeps the abundance the sizes set everywhere.");
+    io("manual", spec.manual,
+       "Catalog boulders placed as given and never thinned or left out; x, y and diameter are "
+       "read.");
+    io("completeness", spec.completeness,
+       "Where the manual boulders are a complete catalog: the diameter in metres from which they "
+       "stand in for generated boulders, infinite or no value where there is no catalog. Unset "
+       "keeps every generated boulder.");
     io("shape_prototypes", rendering.shapePrototypes,
        "How many shapes the boulders share, so they can be drawn as instances; 0 gives every "
        "boulder a shape of its own.");

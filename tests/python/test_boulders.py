@@ -251,3 +251,14 @@ def test_boulders_rest_on_sides_and_ends_and_tilt():
 def test_boulder_max_slope_is_optional():
     options = terraingen.BoulderLayerOptions(max_slope=0.5)
     assert options.max_slope == 0.5 and terraingen.BoulderLayerOptions().max_slope is None
+
+
+def test_boulder_layers_take_maps_and_catalogs():
+    options = terraingen.BoulderLayerOptions(
+        density_map=terraingen.DensityMap(field=terraingen.ConstantField(2.0)),
+        manual=[terraingen.Crater(1.0, 2.0, 5.0)],
+        completeness=terraingen.ConstantField(4.0),
+    )
+    layer = terraingen.BoulderLayer(options)
+    assert layer.abundance_at(0.5, 0.5)[0] == pytest.approx(2.0)
+    assert options.manual[0].diameter == 5.0 and options.completeness.value_at(0.0, 0.0) == 4.0

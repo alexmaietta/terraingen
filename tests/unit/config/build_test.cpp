@@ -272,6 +272,50 @@ TEST(BuildCraterModels, ReportsEachModelsProblemsAtItsKey) {
     EXPECT_EQ(ModelErrorPath(craters), "layers[0].ages");
 }
 
+TEST(BuildField, BuildsConstantsAndReadsGeoTiffs) {
+    EXPECT_EQ(terraingen::config::BuildField({.value = 4.0}, "f")->ValueAt(1.0, 2.0), 4.0);
+    terraingen::Raster<float> raster(2, 2, 3.0f);
+    raster.SetTransform(terraingen::GeoTransform::NorthUp(0.0, 2.0, 1.0));
+    const auto path = terraingen::testing::TempPath("build_field.tif");
+    terraingen::WriteGeoTiff(path, raster, {{1, 1, 0, 1, 1024, 0, 1, 1}, {}, {}});
+    const auto field = terraingen::config::BuildField(
+        {.path = path.filename().string(), .scale = 2.0, .fallback = -1.0}, "f",
+        path.parent_path());
+    EXPECT_DOUBLE_EQ(field->ValueAt(1.0, 1.0), 6.0);
+    EXPECT_DOUBLE_EQ(field->ValueAt(9.0, 9.0), -1.0);
+    try {
+        terraingen::config::BuildField({.path = "missing.tif"}, "layers[1].completeness");
+        FAIL() << "expected a ConfigError";
+    } catch (const ConfigError& error) {
+        EXPECT_EQ(error.Path(), "layers[1].completeness");
+    }
+    EXPECT_THROW(terraingen::config::BuildField(
+                     {.path = path.string(), .method = terraingen::ResampleMethod::Cubic}, "f"),
+                 ConfigError);
+}
+
+TEST(BuildDensityMap, BuildsTheFieldAndChecksTheMap) {
+    const terraingen::DensityMap map =
+        terraingen::config::BuildDensityMap({.field = {.value = 5.0},
+                                             .measure = terraingen::DensityMeasure::Count,
+                                             .minDiameter = 4.5,
+                                             .areaUnit = 1e6,
+                                             .total = false},
+                                            "m");
+    EXPECT_EQ(map.field->ValueAt(0.0, 0.0), 5.0);
+    EXPECT_EQ(map.minDiameter, 4.5);
+    EXPECT_TRUE(std::isinf(map.maxDiameter));
+    EXPECT_EQ(map.areaUnit, 1e6);
+    EXPECT_FALSE(map.total);
+    try {
+        terraingen::config::BuildDensityMap({.measure = terraingen::DensityMeasure::Count},
+                                            "layers[0].density_map");
+        FAIL() << "expected a ConfigError";
+    } catch (const ConfigError& error) {
+        EXPECT_EQ(error.Path(), "layers[0].density_map");
+    }
+}
+
 TEST(BuildBoulderOptions, BuildsTheSizesAndReportsThemAtTheirKeys) {
     terraingen::BoulderLayerSpec spec;
     EXPECT_EQ(terraingen::config::BuildBoulderOptions(spec, "layers[3]").sizes.distribution,
@@ -437,4 +481,30 @@ TEST(BuildSurface, ReportsShapeModelProblemsAtTheirKeys) {
     std::ofstream(corrupt) << "not an ICQ model\n";
     EXPECT_EQ(SurfaceErrorPath(terraingen::ShapeModelSurfaceSpec{"config_corrupt.icq"}),
               "body.path");
+}
+
+TEST(BuildTerrain, GivesLayersTheirMapsCatalogsAndCompleteness) {
+    TerrainConfig config = Small();
+    auto& craters = std::get<CraterLayerSpec>(config.layers.at(1));
+    craters.densityMap = terraingen::DensityMapSpec{.field = {.value = 2.0}};
+    craters.completeness = terraingen::FieldSpec{.value = 50.0};
+    terraingen::BoulderLayerSpec boulders;
+    boulders.densityMap = terraingen::DensityMapSpec{.field = {.value = 1.5}};
+    boulders.manual = {{1.0, 2.0, 3.0, 0.0, 0u}};
+    boulders.completeness = terraingen::FieldSpec{.value = 2.0};
+    config.layers.push_back(boulders);
+    const terraingen::Terrain terrain = terraingen::BuildTerrain(config);
+    const auto* crater = dynamic_cast<const terraingen::CraterLayer*>(terrain.layers[1].get());
+    ASSERT_NE(crater, nullptr);
+    ASSERT_TRUE(crater->Options().densityMap);
+    EXPECT_EQ(crater->Options().densityMap->field->ValueAt(0.0, 0.0), 2.0);
+    EXPECT_EQ(crater->Options().generation.completeness->ValueAt(0.0, 0.0), 50.0);
+    const terraingen::BoulderLayerOptions options =
+        terraingen::config::BuildBoulderOptions(boulders, "layers[2]");
+    ASSERT_TRUE(options.densityMap);
+    EXPECT_EQ(options.densityMap->field->ValueAt(0.0, 0.0), 1.5);
+    ASSERT_EQ(options.manual.size(), 1u);
+    EXPECT_TRUE(options.manual[0].manual);
+    EXPECT_EQ(options.completeness->ValueAt(0.0, 0.0), 2.0);
+    EXPECT_EQ(options, options);
 }

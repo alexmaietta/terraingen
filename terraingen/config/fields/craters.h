@@ -4,6 +4,7 @@
 
 #include "terraingen/config/config.h"
 #include "terraingen/config/fields/common.h"
+#include "terraingen/config/fields/maps.h"
 
 #include <limits>
 #include <string_view>
@@ -278,6 +279,13 @@ template <typename IO> void Fields(IO& io, CraterLayerSpec& craters) {
     io("apply", craters.apply,
        "How craters are cut into the terrain: their order, datum, blending, fading and irregular "
        "outlines.");
+    io("density_map", craters.densityMap,
+       "Map that sets the crater density point by point, scaling the density's size distribution "
+       "to what it measures; unset keeps the density the same everywhere.");
+    io("completeness", craters.completeness,
+       "Where the manual craters are a complete catalog: the diameter in metres from which they "
+       "stand in for generated craters, infinite or no value where there is no catalog. Unset "
+       "keeps every generated crater.");
 }
 
 template <typename IO> void Fields(IO& io, RayLayout& layout) {

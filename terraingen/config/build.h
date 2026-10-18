@@ -57,6 +57,18 @@ std::filesystem::path Resolve(const std::string& path, const std::filesystem::pa
 BoulderLayerOptions BuildBoulderOptions(const BoulderLayerSpec& spec, const std::string& path,
                                         const std::filesystem::path& directory = {});
 
+/// The field a spec describes: a constant, or its GeoTIFF read.
+/// @param path The spec's JSON path, which errors are reported under.
+/// @param directory Folder the GeoTIFF resolves against.
+/// @throws ConfigError at `path` for an unreadable GeoTIFF or invalid read options.
+std::shared_ptr<const SurfaceField> BuildField(const FieldSpec& spec, const std::string& path,
+                                               const std::filesystem::path& directory = {});
+
+/// The density map a spec describes, its field built (`BuildField`) and the map checked.
+/// @throws ConfigError at `path` for an invalid map or field.
+DensityMap BuildDensityMap(const DensityMapSpec& spec, const std::string& path,
+                           const std::filesystem::path& directory = {});
+
 /// The region shape a spec describes, unchecked.
 RegionShape BuildRegionShape(const RegionShapeSpec& spec);
 

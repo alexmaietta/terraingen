@@ -422,3 +422,21 @@ def test_slope_response_needs_the_plane_datum():
     terraingen.validate_crater_apply_options(
         terraingen.CraterApplyOptions(datum=terraingen.CraterDatum.PLANE, slope=slope)
     )
+
+
+def test_crater_density_maps_scale_the_count():
+    count = terraingen.DensityMap(
+        field=terraingen.ConstantField(3.0),
+        measure=terraingen.DensityMeasure.COUNT,
+        min_diameter=4.0,
+        area_unit=1e6,
+    )
+    law = terraingen.PowerLawSfd(0.05, 2.0)
+    assert terraingen.map_measure(count, law) == pytest.approx(0.05 / 16.0)
+    assert terraingen.DensityScale(count, law).at(0.0, 0.0) == pytest.approx(3e-6 / (0.05 / 16.0))
+    options = terraingen.CraterLayerOptions(
+        density_map=terraingen.DensityMap(field=terraingen.ConstantField(2.0))
+    )
+    assert options.density_map.measure == terraingen.DensityMeasure.SCALE
+    with pytest.raises(ValueError):
+        terraingen.validate_density_map(terraingen.DensityMap(measure=terraingen.DensityMeasure.COUNT))

@@ -184,7 +184,11 @@ void BindGenerationOptions(nb::module_& m) {
             [](CraterGenerationOptions& o, const std::vector<Crater>& craters) {
                 o.manual = ManualCraters(craters);
             },
-            "Hand-placed craters, kept whatever the density.");
+            "Hand-placed craters, kept whatever the density.")
+        .def_rw("keep_share", &CraterGenerationOptions::keepShare,
+                "Share of generated craters kept at each point, by a uniform keyed to each ID.")
+        .def_rw("completeness", &CraterGenerationOptions::completeness,
+                "Diameter (m) from which `manual` is a complete catalog at each point.");
 }
 
 void BindGeneration(nb::module_& m) {
@@ -435,7 +439,8 @@ void BindLayerOptions(nb::module_& m) {
                 "What the craters lie on; on a sphere they are placed by longitude and latitude.")
         .def_rw("seed", &CraterLayerOptions::seed)
         .def_rw("generation", &CraterLayerOptions::generation)
-        .def_rw("apply", &CraterLayerOptions::apply);
+        .def_rw("apply", &CraterLayerOptions::apply)
+        .def_rw("density_map", &CraterLayerOptions::densityMap);
 }
 
 nb::dict CraterLayerTable(const CraterLayer& layer, const Bounds2d& region, double spacing) {

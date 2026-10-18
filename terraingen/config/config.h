@@ -20,6 +20,7 @@
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
 #include "terraingen/layers/craters/secondaries.h"
 #include "terraingen/layers/craters/shaping/apply.h"
+#include "terraingen/layers/density_map.h"
 #include "terraingen/layers/dunes.h"
 #include "terraingen/layers/pavement.h"
 #include "terraingen/layers/region.h"
@@ -73,6 +74,32 @@ struct RasterSourceSpec {
     GeoTiffSourceOptions read{};  ///< How the band is read; `pixelSize` and `lowPass` in metres.
 
     bool operator==(const RasterSourceSpec&) const = default;
+};
+
+/// A scalar field over the surface (`SurfaceField`): a constant `value`, or a GeoTIFF band read
+/// in the surface's coordinates (`RasterField`) when `path` is set.
+struct FieldSpec {
+    std::string path{};    ///< GeoTIFF, relative to the configuration's folder; empty for `value`.
+    double value = 0.0;    ///< The field everywhere, without a `path`.
+    std::size_t band = 0;  ///< The GeoTIFF band, from 0.
+    ResampleMethod method = ResampleMethod::Bilinear;
+    double scale = 1.0;                ///< Multiplies every cell.
+    std::optional<double> fallback{};  ///< Where the GeoTIFF has no value; unset leaves none.
+    bool periodicLongitude = false;    ///< The GeoTIFF's x is longitude repeating every 360 deg.
+
+    bool operator==(const FieldSpec&) const = default;
+};
+
+/// A density map (`DensityMap`) of a crater or boulder population.
+struct DensityMapSpec {
+    FieldSpec field{};
+    DensityMeasure measure = DensityMeasure::Scale;
+    double minDiameter = 0.0;             ///< Metres.
+    std::optional<double> maxDiameter{};  ///< Metres; unset for no upper limit.
+    double areaUnit = 1.0;                ///< Square metres per map area unit.
+    bool total = true;
+
+    bool operator==(const DensityMapSpec&) const = default;
 };
 
 struct ChainSourceSpec;
@@ -271,10 +298,13 @@ struct CraterLayerSpec {
     CraterSpacing spacing{};
     std::size_t maxCraters = 0;  ///< Keep at most this many generated craters; 0 keeps all.
     /// Manual craters, in the surface's coordinates; parsing sets their `manual` flag.
-    std::vector<Crater> manual;
+    std::vector<Crater> manual{};
     ProfileSpec profile{};
     DegradationSpec degradation{};
     CraterApplyOptions apply{};
+    std::optional<DensityMapSpec> densityMap{};  ///< Gives `CraterLayerOptions::densityMap`.
+    /// Gives `generation.completeness`: where `manual` is a complete catalog, from which diameter.
+    std::optional<FieldSpec> completeness{};
 
     bool operator==(const CraterLayerSpec&) const = default;
 };
@@ -317,6 +347,10 @@ struct BoulderLayerSpec {
     /// Rock meshes (.obj, .gltf or .glb) that replace the procedural shapes, as
     /// `BoulderShapeOptions::library`; relative to the configuration's folder.
     std::vector<std::string> shapeFiles{};
+    std::optional<DensityMapSpec> densityMap{};  ///< Gives `boulders.densityMap`.
+    /// Catalog boulders in the surface's coordinates, as `boulders.manual`.
+    std::vector<Crater> manual{};
+    std::optional<FieldSpec> completeness{};  ///< Gives `boulders.completeness`.
 
     bool operator==(const BoulderLayerSpec&) const = default;
 };

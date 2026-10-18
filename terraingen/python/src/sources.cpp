@@ -2,6 +2,7 @@
 #include "common.h"
 #include "trampolines.h"
 
+#include "terraingen/sources/field.h"
 #include "terraingen/sources/flat_source.h"
 #include "terraingen/sources/geotiff_source.h"
 #include "terraingen/sources/source.h"
@@ -108,6 +109,54 @@ void BindSourceTypes(nb::module_& m) {
             "sources"_a);
 }
 
+/// A field written in Python: `value_at(x, y)` and `max()` are required.
+class PyField : public SurfaceField {
+  public:
+    NB_TRAMPOLINE(SurfaceField);
+
+    double ValueAt(double x, double y) const override {
+        NB_OVERRIDE_PURE_NAME("value_at", ValueAt, x, y);
+    }
+
+    double Max() const override {
+        NB_OVERRIDE_PURE_NAME("max", Max);
+    }
+};
+
+void BindFields(nb::module_& m) {
+    nb::class_<SurfaceField, PyField>(
+        m, "SurfaceField",
+        "A scalar quantity over a surface, read at surface coordinates (metres on a plane, "
+        "longitude and latitude in degrees on a sphere), such as a density map or a catalog's "
+        "completeness limit. Subclass it and implement `value_at(x, y)` (NaN where it has no "
+        "value) and `max()` for a field of your own.")
+        .def(nb::init<>())
+        .def("value_at", &SurfaceField::ValueAt, "x"_a, "y"_a)
+        .def("max", &SurfaceField::Max);
+    nb::class_<ConstantField, SurfaceField>(m, "ConstantField", "The same `value` everywhere.")
+        .def(nb::init<double>(), "value"_a);
+    auto options = nb::class_<RasterFieldOptions>(
+        m, "RasterFieldOptions",
+        "How a raster field is read: `method` (nearest or bilinear), `scale` multiplying every "
+        "cell, the `fallback` where the raster has no value (NaN for none), and whether x is a "
+        "`periodic_longitude`.");
+    BindKwargsInit<RasterFieldOptions>(options);
+    options.def_rw("method", &RasterFieldOptions::method)
+        .def_rw("scale", &RasterFieldOptions::scale)
+        .def_rw("fallback", &RasterFieldOptions::fallback)
+        .def_rw("periodic_longitude", &RasterFieldOptions::periodicLongitude);
+    m.def("validate_raster_field_options", &ValidateRasterFieldOptions, "options"_a,
+          "Raise ValueError if the options are unusable.");
+    nb::class_<RasterField, SurfaceField>(
+        m, "RasterField", "A field interpolated from a raster in the surface's coordinates.")
+        .def(nb::init<Raster<float>, RasterFieldOptions>(), "raster"_a,
+             "options"_a = RasterFieldOptions{})
+        .def_prop_ro("values", &RasterField::Values)
+        .def_prop_ro("options", &RasterField::Options);
+    m.def("read_raster_field", &ReadRasterField, "path"_a, "options"_a = RasterFieldOptions{},
+          "band"_a = 0, "A field read from one band of a GeoTIFF in the surface's coordinates.");
+}
+
 void BindSyntheticTerrain(nb::module_& m) {
     nb::class_<SyntheticTerrainParams>(m, "SyntheticTerrainParams",
                                        "A stack of 1 to 8 noise layers. `layers` is copied on "
@@ -139,6 +188,7 @@ void BindSyntheticTerrain(nb::module_& m) {
 void BindSources(nb::module_& m) {
     BindSourceBase(m);
     BindSourceTypes(m);
+    BindFields(m);
     BindSyntheticTerrain(m);
 }
 

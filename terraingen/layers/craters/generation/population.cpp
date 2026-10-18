@@ -20,6 +20,7 @@ namespace {
 constexpr std::uint32_t kCraterStream = 0x43524154u;
 constexpr std::uint32_t kCraterAgeStream = 0x43524147u;
 constexpr std::uint32_t kCraterIdStream = 0x43524944u;
+constexpr std::uint32_t kCraterKeepStream = 0x43524B50u;
 
 std::uint64_t CraterId(std::uint32_t seed, const CraterBand& band, const CellIndex& cell,
                        std::uint32_t index) {
@@ -168,7 +169,7 @@ class Generation {
                 const std::shared_ptr<const CraterList> drawn = DrawCell(entry.band, cell);
                 for (std::size_t n = 0; n < drawn->Size(); ++n) {
                     const Crater crater = drawn->At(n);
-                    if (InBandRegion(region, crater)) {
+                    if (InBandRegion(region, crater) && Kept(crater)) {
                         craters.Append(crater);
                     }
                 }
@@ -202,6 +203,21 @@ class Generation {
         }
         return surface_.Contains(region.inner, centre) ||
                InRegion(crater, CandidateMargin(crater.diameter));
+    }
+
+    /// Whether a generated crater stays: below the catalog's completeness limit at its centre, and
+    /// within the keep share there by a uniform keyed to its ID.
+    bool Kept(const Crater& crater) const {
+        if (options_.completeness &&
+            crater.diameter >= options_.completeness->ValueAt(crater.x, crater.y)) {
+            return false;
+        }
+        if (!options_.keepShare) {
+            return true;
+        }
+        const IdWords id = SplitId(crater.id);
+        RandomStream random(seed_, kCraterKeepStream, id.low, id.high);
+        return random.NextDouble() < options_.keepShare->ValueAt(crater.x, crater.y);
     }
 
     std::shared_ptr<const CraterList> DrawCell(const CraterBand& band,

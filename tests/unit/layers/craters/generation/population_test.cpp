@@ -558,3 +558,87 @@ TEST(FilterCraters, KeepsWhatThePredicateAcceptsInOrder) {
         });
     EXPECT_EQ(kept.Ids(), (std::vector<std::uint64_t>{2, 3, 4}));
 }
+
+namespace {
+
+/// A field that is `west` for negative x and `east` otherwise.
+class Halves final : public terraingen::SurfaceField {
+  public:
+    Halves(double west, double east) : west_(west), east_(east) {}
+    double ValueAt(double x, double /*y*/) const override {
+        return x < 0.0 ? west_ : east_;
+    }
+    double Max() const override {
+        return std::fmax(west_, east_);
+    }
+
+  private:
+    double west_;
+    double east_;
+};
+
+}  // namespace
+
+TEST(GenerateCraters, KeepsTheShareOfCratersAskedForWherever) {
+    const PowerLawSfd density(0.1, 2.0);
+    const Bounds2d region{-400.0, -200.0, 400.0, 200.0};
+    const CraterGenerationOptions all{.dMin = 2.0, .dMax = 64.0};
+    CraterGenerationOptions thinned = all;
+    thinned.keepShare = std::make_shared<Halves>(0.25, 1.0);
+    const CraterList every = GenerateCraters(kCells, region, density, FreshAges(), 5u, all);
+    const CraterList kept = GenerateCraters(kCells, region, density, FreshAges(), 5u, thinned);
+    const auto west = [](const CraterList& craters) {
+        std::size_t count = 0;
+        for (std::size_t n = 0; n < craters.Size(); ++n) {
+            count += craters.At(n).x < 0.0 ? 1u : 0u;
+        }
+        return count;
+    };
+    const double share = static_cast<double>(west(kept)) / static_cast<double>(west(every));
+    EXPECT_NEAR(share, 0.25, 0.03);
+    EXPECT_EQ(kept.Size() - west(kept), every.Size() - west(every)) << "the east keeps them all";
+    const auto everyId = ById(every);
+    for (const auto& [id, crater] : ById(kept)) {
+        ASSERT_TRUE(everyId.contains(id)) << "thinning only removes craters";
+    }
+    CraterList joined;
+    for (const Bounds2d& tile :
+         {Bounds2d{-400.0, -200.0, -13.0, 200.0}, Bounds2d{-13.0, -200.0, 400.0, 200.0}}) {
+        joined.Append(GenerateCraters(kCells, tile, density, FreshAges(), 5u, thinned));
+    }
+    ExpectSameCraters(kept, joined);
+}
+
+TEST(GenerateCraters, LetsACompleteCatalogStandInForGeneratedCraters) {
+    const PowerLawSfd density(0.1, 2.0);
+    const Bounds2d region{-400.0, -200.0, 400.0, 200.0};
+    CraterGenerationOptions options{.dMin = 2.0, .dMax = 64.0};
+    options.manual.Append({-100.0, 0.0, 40.0, 0.0, 0u, true});
+    options.manual.Append({100.0, 0.0, 3.0, 0.0, 0u, true});
+    options.completeness = std::make_shared<Halves>(10.0, std::numeric_limits<double>::infinity());
+    const CraterList craters = GenerateCraters(kCells, region, density, FreshAges(), 5u, options);
+    std::size_t largeEast = 0;
+    std::size_t smallWest = 0;
+    std::size_t manual = 0;
+    for (std::size_t n = 0; n < craters.Size(); ++n) {
+        const Crater crater = craters.At(n);
+        if (crater.manual) {
+            ++manual;
+            continue;
+        }
+        ASSERT_FALSE(crater.x < 0.0 && crater.diameter >= 10.0)
+            << "the catalog is complete there from 10 m";
+        largeEast += crater.x >= 0.0 && crater.diameter >= 10.0 ? 1u : 0u;
+        smallWest += crater.x < 0.0 && crater.diameter < 10.0 ? 1u : 0u;
+    }
+    EXPECT_EQ(manual, 2u) << "the catalog's own craters are never dropped";
+    EXPECT_GT(largeEast, 0u) << "no catalog in the east";
+    EXPECT_GT(smallWest, 0u) << "generated below the completeness limit";
+    options.completeness =
+        std::make_shared<terraingen::ConstantField>(std::numeric_limits<double>::quiet_NaN());
+    options.manual = {};
+    EXPECT_EQ(GenerateCraters(kCells, region, density, FreshAges(), 5u, options).Size(),
+              GenerateCraters(kCells, region, density, FreshAges(), 5u, {.dMin = 2.0, .dMax = 64.0})
+                  .Size())
+        << "no catalog anywhere";
+}

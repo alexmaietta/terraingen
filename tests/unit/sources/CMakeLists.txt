@@ -1,6 +1,7 @@
 terraingen_add_test_suite(
     sources
     SOURCES
+    field_test.cpp
     flat_source_test.cpp
     geotiff_source_test.cpp
     source_chain_test.cpp

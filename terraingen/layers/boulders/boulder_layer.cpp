@@ -133,6 +133,9 @@ BoulderLayer::BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const Cr
             "Boulder ejecta need the crater layer whose craters throw them");
     }
     maxBackground_ = MaxBackgroundAbundance(options_);
+    if (options_.densityMap) {
+        mapAbundance_.emplace(options_);
+    }
     if (options_.clusters.share > 0.0) {
         clusterMean_ = options_.clusters.model == BoulderClusterModel::Thomas
                            ? MeanThomasField(options_.clusters, surface_.IsBody())
@@ -338,6 +341,10 @@ CraterList BoulderLayer::ScatterBoulderCandidates(const Bounds2d& region, double
     if (spacing > 0.0) {
         generation.minResolvedDiameter = options_.fade.startSamples * spacing;
     }
+    for (const Crater& boulder : options_.manual) {
+        generation.manual.Append(boulder);
+    }
+    generation.completeness = options_.completeness;
     if (cache_) {
         generation.cellCraters = CachedCellCraters(*cache_, *cells_, *candidates_, ages, seed);
     }
@@ -351,10 +358,12 @@ std::optional<Boulder> BoulderLayer::DrawBoulder(const Crater& candidate, double
     const U32x4 draw =
         Philox4x32({id.low, id.high, kBoulderAttributes, 0u}, {options_.seed, kBoulderSeed});
     const BoulderAbundance abundance = Abundance(candidate.x, candidate.y, ground, ejecta);
-    const double density = Density(candidate.diameter, abundance);
-    const double keep = density / candidates_->Incremental(candidate.diameter);
-    if (Uniform(draw.x, draw.y) >= keep) {
-        return std::nullopt;
+    double density = 0.0;
+    if (!candidate.manual) {
+        density = Density(candidate.diameter, abundance);
+        if (Uniform(draw.x, draw.y) >= density / candidates_->Incremental(candidate.diameter)) {
+            return std::nullopt;
+        }
     }
     const U32x4 shape =
         Philox4x32({id.low, id.high, kBoulderAttributes, 1u}, {options_.seed, kBoulderSeed});
@@ -377,7 +386,7 @@ std::optional<Boulder> BoulderLayer::DrawBoulder(const Crater& candidate, double
                     candidate.id};
     boulder.wear = wear;
     boulder.model = options_.rendering.models.IsModel(boulder.diameter, spacing);
-    if (pose.maxSlope && ground != nullptr) {
+    if (pose.maxSlope && ground != nullptr && !candidate.manual) {
         const std::optional<Vec2d> g = GroundGradient(boulder, *ground);
         if (g && std::hypot(g->x, g->y) > std::tan(*pose.maxSlope)) {
             return std::nullopt;

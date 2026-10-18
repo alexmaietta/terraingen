@@ -163,3 +163,38 @@ TEST(CraterLayer, ReportsItsLargestCrater) {
     options.generation.manual.Append({0.0, 0.0, 12.0, 0.0, 0u});
     EXPECT_EQ(CraterLayer(Models(), options).MaxFeatureDiameter(), 75.0);
 }
+
+TEST(CraterLayer, ChangesNothingUnderAMapOfOne) {
+    CraterLayerOptions options = Options();
+    options.densityMap = terraingen::DensityMap{std::make_shared<terraingen::ConstantField>(1.0)};
+    const terraingen::Bounds2d region{-300.0, -300.0, 300.0, 300.0};
+    EXPECT_EQ(CraterLayer(Models(), options).Craters(region).Ids(),
+              CraterLayer(Models(), Options()).Craters(region).Ids());
+}
+
+TEST(CraterLayer, SetsTheDensityAMapCountsAndLetsACatalogStandIn) {
+    CraterLayerOptions options = Options();
+    const double perKm2 = 2.0 * 0.05 / 36.0 * 1e6;
+    terraingen::DensityMap map{std::make_shared<terraingen::ConstantField>(perKm2),
+                               terraingen::DensityMeasure::Count, 6.0};
+    map.areaUnit = 1e6;
+    options.densityMap = map;
+    options.generation.manual.Append({0.0, 0.0, 30.0, 1.0, 0u, true});
+    options.generation.completeness = std::make_shared<terraingen::ConstantField>(20.0);
+    const terraingen::Bounds2d region{-1000.0, -1000.0, 1000.0, 1000.0};
+    const CraterList craters = CraterLayer(Models(), options).Craters(region);
+    std::size_t inside = 0;
+    std::size_t manual = 0;
+    for (std::size_t n = 0; n < craters.Size(); ++n) {
+        const terraingen::Crater crater = craters.At(n);
+        manual += crater.manual ? 1u : 0u;
+        if (!crater.manual) {
+            ASSERT_LT(crater.diameter, 20.0) << "the catalog stands in from 20 m";
+            inside += region.Contains(crater.x, crater.y) ? 1u : 0u;
+        }
+    }
+    EXPECT_EQ(manual, 1u);
+    const double generatedShare = (1.0 / 36.0 - 1.0 / 400.0) / (1.0 / 36.0);
+    const double expected = perKm2 * 4.0 * generatedShare;
+    EXPECT_NEAR(static_cast<double>(inside), expected, 0.04 * expected);
+}

@@ -1,0 +1,70 @@
+{
+    "schema_version": 1,
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 1,
+                    "wavelength": 800,
+                    "amplitude": 20,
+                    "octaves": 6
+                }
+            ]
+        },
+        {
+            "type": "craters",
+            "seed": 1,
+            "density": {
+                "type": "trask"
+            },
+            "min_diameter": 8,
+            "max_diameter": 300,
+            "manual": [
+                {
+                    "x": -150,
+                    "y": 120,
+                    "diameter": 180,
+                    "age_gyr": 0.8
+                },
+                {
+                    "x": 220,
+                    "y": -160,
+                    "diameter": 110,
+                    "age_gyr": 2.0
+                }
+            ],
+            "completeness": {
+                "value": 100
+            },
+            "density_map": {
+                "field": {
+                    "value": 2000
+                },
+                "measure": "count",
+                "min_diameter": 10,
+                "area_unit": 1000000
+            }
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_craters_catalog_and_map.tif",
+            "region": {
+                "width": 513,
+                "height": 513,
+                "pixel_size": 2
+            }
+        },
+        {
+            "type": "crater_list",
+            "path": "example_craters_catalog_and_map.csv",
+            "region": {
+                "width": 513,
+                "height": 513,
+                "pixel_size": 2
+            }
+        }
+    ]
+}

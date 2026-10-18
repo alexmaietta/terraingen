@@ -11,10 +11,12 @@
 #include "terraingen/layers/craters/profiles/profile.h"
 #include "terraingen/layers/craters/shaping/apply.h"
 #include "terraingen/layers/craters/shaping/attributes.h"
+#include "terraingen/layers/density_map.h"
 #include "terraingen/layers/layer.h"
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 
 namespace terraingen {
 
@@ -44,6 +46,10 @@ struct CraterLayerOptions {
     std::size_t cacheCraters = 4000000;
     /// What the craters lie on, copied into `generation.surface` and `apply.surface`.
     Surface surface{};
+    /// A map that sets the density point by point (`DensityMap`); unset keeps the density the
+    /// same everywhere. Manual craters are not thinned by it; with a catalog among them, set
+    /// `generation.completeness` so generated craters do not repeat it.
+    std::optional<DensityMap> densityMap{};
 };
 
 /// Craters generated over the grid being evaluated (`GenerateCraters`) and applied to it
@@ -105,6 +111,8 @@ class CraterLayer final : public Layer, public CraterPlacer {
     CraterLayerOptions options_;
     std::shared_ptr<const SurfaceCells> cells_;
     std::shared_ptr<CraterCellCache> cache_;
+    /// The density craters are drawn at: `models_.density`, times the map's largest scale.
+    std::shared_ptr<const SizeFrequencyDistribution> candidates_;
 };
 
 }  // namespace terraingen

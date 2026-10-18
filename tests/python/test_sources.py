@@ -110,3 +110,33 @@ def test_a_low_passed_dem_plus_its_detail_restores_it(tmp_path, coarse_dem):
     detail = terraingen.DetailLayer(full, smooth)
     restored = terraingen.evaluate(terraingen.Terrain(smooth, [detail])).values
     np.testing.assert_allclose(restored, coarse_dem.values, atol=1e-3)
+
+
+def test_raster_fields_interpolate_and_fall_back():
+    raster = terraingen.Raster.from_array(np.array([[1.0, 3.0], [5.0, np.nan]], dtype=np.float32))
+    raster.transform = terraingen.GeoTransform.north_up(0.0, 2.0, 1.0)
+    field = terraingen.RasterField(raster, terraingen.RasterFieldOptions(fallback=-1.0))
+    assert field.value_at(1.0, 1.5) == pytest.approx(2.0)
+    assert field.value_at(9.0, 9.0) == -1.0 and field.max() == 5.0
+    assert terraingen.ConstantField(2.0).value_at(0.0, 0.0) == 2.0
+
+
+def test_fields_can_be_written_in_python():
+    class East(terraingen.SurfaceField):
+        def value_at(self, x, y):
+            return 1.0 if x >= 0.0 else 0.0
+
+        def max(self):
+            return 1.0
+
+    options = terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=32.0)
+    options.keep_share = East()
+    craters = terraingen.generate_craters(
+        terraingen.PlanarCells(),
+        (-200.0, -100.0, 200.0, 100.0),
+        terraingen.PowerLawSfd(0.05, 2.0),
+        terraingen.FreshAges(),
+        1,
+        options,
+    )
+    assert len(craters) > 0 and min(c.x for c in craters) >= 0.0
