@@ -155,6 +155,15 @@ inline float KernelSmoothstep(float t) {
     return u * u * (3.0f - 2.0f * u);
 }
 
+/// The direction of (`dx`, `dy`) in radians from east, 0 at the origin: fast maths on some GPUs
+/// leaves `atan2(0, 0)` undefined.
+inline float KernelAngle(float dy, float dx) {
+    if (dx == 0.0f && dy == 0.0f) {
+        return 0.0f;
+    }
+    return atan2(dy, dx);
+}
+
 /// `EjectaThicknessShare`.
 inline float KernelEjectaShare(float radii, float reachRadii) {
     if (radii <= 1.0f) {
@@ -447,7 +456,7 @@ inline float KernelTextureHeight(KERNEL_IN(CraterShapeKernel) k, KERNEL_IN(Crate
     if (!(fade > 0.0f)) {
         return 0.0f;
     }
-    const float angle = atan2(dy, dx);
+    const float angle = KernelAngle(dy, dx);
     float height = 0.0f;
     if (k.wallStreaks > 0.0f && radii > 0.25f && radii < 1.0f) {
         const float band =
@@ -469,7 +478,7 @@ inline float KernelTextureHeight(KERNEL_IN(CraterShapeKernel) k, KERNEL_IN(Crate
 
 /// How far the outline reaches toward (`dx`, `dy`), over the round radius (`CraterOutline::Scale`).
 inline float KernelOutlineScale(CraterData data, KERNEL_IN(CraterRecord) c, float dx, float dy) {
-    const float theta = atan2(dy, dx);
+    const float theta = KernelAngle(dy, dx);
     float scale = 1.0f;
     if (c.ellipticity != 1.0f) {
         const float along = sqrt(c.ellipticity);

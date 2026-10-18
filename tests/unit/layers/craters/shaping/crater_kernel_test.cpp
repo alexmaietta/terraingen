@@ -201,7 +201,9 @@ TEST(CraterKernel, ShapesGridsOnEveryAvailableGpuToWithinFloatRounding) {
         terraingen::ApplyCraters(gpu, craters, models, options, sampling);
         double largest = 0.0;
         for (std::size_t i = 0; i < gpu.Size(); ++i) {
-            ASSERT_FALSE(std::isnan(gpu.Values()[i])) << "every cell set";
+            ASSERT_FALSE(std::isnan(gpu.Values()[i]))
+                << "every cell set on " << terraingen::BackendName(status.backend) << ", cell "
+                << i;
             largest = std::max(largest, std::fabs(static_cast<double>(gpu.Values()[i]) -
                                                   static_cast<double>(cpu.Values()[i])));
         }
