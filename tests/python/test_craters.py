@@ -412,3 +412,13 @@ def test_crater_layer_accepts_fresh_ages_and_a_plateau_profile(crater_layer):
         terraingen.FassettThomsonProfile(terraingen.FassettThomsonRim.PLATEAU),
     )
     assert crater_layer(fresh, 4.0, 20.0) is not None
+
+
+def test_slope_response_needs_the_plane_datum():
+    slope = terraingen.CraterSlopeResponse(enabled=True, upslope_rim=0.2)
+    assert slope.floor_offset.b == pytest.approx(0.194)
+    with pytest.raises(ValueError):
+        terraingen.validate_crater_apply_options(terraingen.CraterApplyOptions(slope=slope))
+    terraingen.validate_crater_apply_options(
+        terraingen.CraterApplyOptions(datum=terraingen.CraterDatum.PLANE, slope=slope)
+    )

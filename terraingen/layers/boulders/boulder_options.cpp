@@ -144,6 +144,9 @@ void ValidateBoulderPose(const BoulderPose& pose) {
     if (!(pose.maxTilt >= 0.0 && pose.maxTilt <= std::numbers::pi)) {
         throw std::invalid_argument("Boulder maxTilt must be in [0, pi]");
     }
+    if (pose.maxSlope && !(*pose.maxSlope > 0.0 && *pose.maxSlope < 0.5 * std::numbers::pi)) {
+        throw std::invalid_argument("Boulder maxSlope must be in (0, pi / 2)");
+    }
 }
 
 void ValidateBoulderFillet(const BoulderFillet& fillet) {

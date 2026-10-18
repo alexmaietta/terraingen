@@ -78,6 +78,10 @@ void ValidateCraterApplyOptions(const CraterApplyOptions& options) {
     ValidateResolutionFade(options.fade);
     ValidateCraterIrregularity(options.irregularity);
     ValidateRimSmoothing(options.rimSmoothing);
+    ValidateCraterSlopeResponse(options.slope);
+    if (options.slope.enabled && options.datum != CraterDatum::Plane) {
+        throw std::invalid_argument("A crater slope response needs the plane datum");
+    }
     RequirePositive(options.datumFitRadii, "datumFitRadii");
     if (!(options.interiorReplacement >= 0.0 && options.interiorReplacement <= 1.0)) {
         throw std::invalid_argument("interiorReplacement must be between 0 and 1");

@@ -353,6 +353,19 @@ void BindApplyOptions(nb::module_& m) {
     m.def("ejecta_thickness_share", &EjectaThicknessShare, "radii"_a, "reach_radii"_a,
           "McGetchin's ejecta thickness at `radii` radii over that at the rim, tapered to "
           "nothing at `reach_radii`.");
+    auto slope = nb::class_<CraterSlopeResponse>(
+        m, "CraterSlopeResponse",
+        "Craters on sloping ground made asymmetric along it, from their plane datum: the deepest "
+        "point `floor_offset` diameters downslope (drawn per crater), `upslope_rim` of the raised "
+        "rim and ejecta kept upslope, complete from `full_slope` radians.");
+    BindKwargsInit<CraterSlopeResponse>(slope);
+    slope.def_rw("enabled", &CraterSlopeResponse::enabled)
+        .def_rw("seed", &CraterSlopeResponse::seed)
+        .def_rw("floor_offset", &CraterSlopeResponse::floorOffset)
+        .def_rw("upslope_rim", &CraterSlopeResponse::upslopeRim)
+        .def_rw("full_slope", &CraterSlopeResponse::fullSlope);
+    m.def("validate_crater_slope_response", &ValidateCraterSlopeResponse, "response"_a,
+          kValidateDoc);
     auto apply = nb::class_<CraterApplyOptions>(
         m, "CraterApplyOptions",
         "How craters are applied: the `datum` interiors are cut relative to (fit over "
@@ -360,7 +373,7 @@ void BindApplyOptions(nb::module_& m) {
         "after it are unused), how much of the interior replaces the older relief "
         "(`interior_replacement`, 0 to 1), the `blend` into the exterior, the `order` overlapping "
         "craters are applied in, the resolution `fade`, rim `irregularity`, `rim_smoothing`, "
-        "`noise` and `texture`.");
+        "`noise`, `texture` and `slope`.");
     BindKwargsInit<CraterApplyOptions>(apply);
     apply.def_rw("order", &CraterApplyOptions::order)
         .def_rw("fade", &CraterApplyOptions::fade)
@@ -371,7 +384,8 @@ void BindApplyOptions(nb::module_& m) {
         .def_rw("irregularity", &CraterApplyOptions::irregularity)
         .def_rw("rim_smoothing", &CraterApplyOptions::rimSmoothing)
         .def_rw("noise", &CraterApplyOptions::noise)
-        .def_rw("texture", &CraterApplyOptions::texture);
+        .def_rw("texture", &CraterApplyOptions::texture)
+        .def_rw("slope", &CraterApplyOptions::slope);
     m.def("validate_crater_apply_options", &ValidateCraterApplyOptions, "options"_a, kValidateDoc);
     m.def("crater_apply_order", &CraterApplyOrder, "craters"_a, "order"_a,
           "The indices of `craters` in the order they are applied.");

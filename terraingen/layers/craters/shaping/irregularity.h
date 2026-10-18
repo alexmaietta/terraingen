@@ -127,4 +127,9 @@ double MaxOutlineScale(const CraterIrregularity& irregularity);
 double CraterProfileDistance(const Crater& crater, const CraterOutline& outline, double x, double y,
                              const Surface& surface = {});
 
+/// `CraterProfileDistance` for a point `offset` metres east and north of the crater's centre in
+/// its local frame.
+double CraterProfileDistance(const Crater& crater, const CraterOutline& outline,
+                             const Vec2d& offset);
+
 }  // namespace terraingen

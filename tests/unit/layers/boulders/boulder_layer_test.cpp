@@ -679,6 +679,36 @@ TEST(BoulderLayer, SettlesBouldersOnTheSlopeBeneathThem) {
     }
 }
 
+TEST(BoulderLayer, LeavesOutBouldersOnGroundSteeperThanTheirMaxSlope) {
+    BoulderLayerOptions options;
+    options.sizes.coverage = 0.08;
+    const Analytic gentle([](double x, double) { return static_cast<float>(0.2 * x); });
+    const Analytic steep([](double x, double) { return static_cast<float>(0.8 * x); });
+    const Analytic hill([](double x, double) { return static_cast<float>(0.05 * x * x); });
+    const terraingen::Bounds2d region{-10.0, -10.0, 10.0, 10.0};
+    const auto all = BoulderLayer(options).Boulders(region, 0.0, &gentle);
+    ASSERT_FALSE(all.empty());
+    options.pose.maxSlope = std::atan(0.5);
+    const BoulderLayer limited(options);
+    EXPECT_EQ(limited.Boulders(region, 0.0, &gentle).size(), all.size());
+    EXPECT_TRUE(limited.Boulders(region, 0.0, &steep).empty());
+    const auto onHill = limited.Boulders(region, 0.0, &hill);
+    ASSERT_FALSE(onHill.empty());
+    EXPECT_LT(onHill.size(), all.size());
+    for (const Boulder& boulder : onHill) {
+        ASSERT_LE(std::fabs(boulder.x), 5.0 + 1e-9) << "kept only where 0.1 |x| <= 0.5";
+    }
+    BoulderLayerOptions unlimited = options;
+    unlimited.pose.maxSlope.reset();
+    EXPECT_EQ(limited.Boulders(region, 0.0, nullptr).size(),
+              BoulderLayer(unlimited).Boulders(region, 0.0, nullptr).size())
+        << "without the ground nothing is left out";
+    options.pose.maxSlope = 0.0;
+    EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
+    options.pose.maxSlope = 1.6;
+    EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
+}
+
 TEST(BoulderLayer, DrawsTiltedShapesThatPointQueriesMatch) {
     BoulderLayerOptions options;
     options.sizes.coverage = 0.1;

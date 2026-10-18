@@ -377,6 +377,12 @@ std::optional<Boulder> BoulderLayer::DrawBoulder(const Crater& candidate, double
                     candidate.id};
     boulder.wear = wear;
     boulder.model = options_.rendering.models.IsModel(boulder.diameter, spacing);
+    if (pose.maxSlope && ground != nullptr) {
+        const std::optional<Vec2d> g = GroundGradient(boulder, *ground);
+        if (g && std::hypot(g->x, g->y) > std::tan(*pose.maxSlope)) {
+            return std::nullopt;
+        }
+    }
     if (ground != nullptr) {
         const double height =
             ground->HeightAt(boulder.x, boulder.y, options_.bedrock.exposureSpacing);
@@ -444,6 +450,21 @@ BoulderShape BoulderLayer::Abraded(const BoulderShape& shape, const BoulderPlace
     return cut;
 }
 
+std::optional<Vec2d> BoulderLayer::GroundGradient(const Boulder& boulder,
+                                                  const Ground& ground) const {
+    const double step = 0.5 * boulder.diameter;
+    const auto at = [&](double east, double north) {
+        const Vec2d p = surface_.Locate({boulder.x, boulder.y}, {east, north});
+        return static_cast<double>(ground.HeightAt(p.x, p.y, options_.bedrock.exposureSpacing));
+    };
+    const double gx = (at(step, 0.0) - at(-step, 0.0)) / (2.0 * step);
+    const double gy = (at(0.0, step) - at(0.0, -step)) / (2.0 * step);
+    if (!std::isfinite(gx) || !std::isfinite(gy)) {
+        return std::nullopt;
+    }
+    return Vec2d{gx, gy};
+}
+
 void BoulderLayer::Settle(Boulder& boulder, const Ground* ground) const {
     const BoulderPose& pose = options_.pose;
     const IdWords id = SplitId(boulder.id);
@@ -461,17 +482,9 @@ void BoulderLayer::Settle(Boulder& boulder, const Ground* ground) const {
         up = {sine * std::cos(azimuth), sine * std::sin(azimuth), cosine};
     }
     if (pose.followSlope && ground != nullptr) {
-        const double step = 0.5 * boulder.diameter;
-        const auto at = [&](double east, double north) {
-            const Vec2d p = surface_.Locate({boulder.x, boulder.y}, {east, north});
-            return static_cast<double>(
-                ground->HeightAt(p.x, p.y, options_.bedrock.exposureSpacing));
-        };
-        const double gx = (at(step, 0.0) - at(-step, 0.0)) / (2.0 * step);
-        const double gy = (at(0.0, step) - at(0.0, -step)) / (2.0 * step);
-        if (std::isfinite(gx) && std::isfinite(gy)) {
-            const double slope = std::atan(std::hypot(gx, gy));
-            up = TiltRotation(slope, std::atan2(-gy, -gx)).Apply(up);
+        if (const std::optional<Vec2d> g = GroundGradient(boulder, *ground)) {
+            const double slope = std::atan(std::hypot(g->x, g->y));
+            up = TiltRotation(slope, std::atan2(-g->y, -g->x)).Apply(up);
         }
     }
     boulder.tilt = std::acos(std::clamp(up.z, -1.0, 1.0));

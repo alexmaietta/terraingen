@@ -246,3 +246,8 @@ def test_boulders_rest_on_sides_and_ends_and_tilt():
     boulder = terraingen.Boulder(0.0, 0.0, 1.0, 0.5)
     boulder.rest = terraingen.BoulderRest.END
     assert boulder.rest == terraingen.BoulderRest.END
+
+
+def test_boulder_max_slope_is_optional():
+    options = terraingen.BoulderLayerOptions(max_slope=0.5)
+    assert options.max_slope == 0.5 and terraingen.BoulderLayerOptions().max_slope is None

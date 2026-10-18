@@ -181,6 +181,12 @@ CraterKernelBatch MakeCraterKernelBatch(const CraterShapeKernel& kernel,
             r.datumA = static_cast<float>(p.datum->a);
             r.datumB = static_cast<float>(p.datum->b);
             r.datumC = static_cast<float>(p.datum->c);
+            const CraterSlopeShape slope =
+                SlopeShape(p.crater, p.datum->b, p.datum->c, options.slope);
+            r.shiftX = static_cast<float>(slope.shift.x);
+            r.shiftY = static_cast<float>(slope.shift.y);
+            r.upslopeX = static_cast<float>(slope.upslope.x);
+            r.upslopeY = static_cast<float>(slope.upslope.y);
         }
         r.noiseKey = CraterKey(p.crater, options.noise.seed);
         r.textureKey = CraterKey(p.crater, options.texture.seed ^ 0x54455854u);

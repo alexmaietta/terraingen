@@ -318,6 +318,7 @@ void BindGroupedOptions(nb::class_<BoulderLayerOptions>& options) {
     BindGrouped(options, "end_share", &O::pose, &BoulderPose::endShare);
     BindGrouped(options, "max_tilt", &O::pose, &BoulderPose::maxTilt);
     BindGrouped(options, "follow_slope", &O::pose, &BoulderPose::followSlope);
+    BindGrouped(options, "max_slope", &O::pose, &BoulderPose::maxSlope);
     options.def_rw("fillet", &O::fillet);
     options.def_rw("ventifacts", &O::ventifacts);
     options.def_rw("clusters", &O::clusters).def_rw("fragmentation", &O::fragmentation);

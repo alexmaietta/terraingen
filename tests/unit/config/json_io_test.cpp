@@ -88,6 +88,18 @@ TerrainConfig Everything() {
             .headingSpread = 0.2}};
     craters.apply.rimSmoothing = {.sigmaRadii = 0.1, .strength = 0.5};
     craters.apply.noise = {.amplitude = 0.01, .octaves = 3, .rimAmplitude = 0.02, .seed = 5};
+    craters.apply.irregularity.marksShare = 0.4;
+    craters.apply.irregularity.marksAmplitude = {terraingen::ValueDistribution::Kind::Uniform, 0.0,
+                                                 0.01};
+    craters.apply.irregularity.marksKnots = 30;
+    craters.apply.irregularity.marksInnerRadii = 0.35;
+    craters.apply.irregularity.marksOuterRadii = 0.8;
+    craters.apply.irregularity.marksFadeRadii = 0.12;
+    craters.apply.slope = {.enabled = true,
+                           .seed = 6,
+                           .floorOffset = {terraingen::ValueDistribution::Kind::Constant, 0.1},
+                           .upslopeRim = 0.2,
+                           .fullSlope = 0.1};
     terraingen::BoulderLayerSpec boulders;
     boulders.boulders = {
         .sizes = {.coverage = 0.05,
@@ -117,7 +129,8 @@ TerrainConfig Everything() {
                  .maxHeightRatio = 0.7,
                  .minBurial = 0.0,
                  .maxBurial = 0.5,
-                 .maxLean = 0.1},
+                 .maxLean = 0.1,
+                 .maxSlope = 0.6},
         .ventifacts = {.share = 0.39,
                        .windAzimuth = 0.8,
                        .minAngle = 0.9,

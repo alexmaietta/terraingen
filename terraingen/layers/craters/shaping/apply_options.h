@@ -4,6 +4,7 @@
 
 #include "terraingen/layers/craters/generation/population.h"
 #include "terraingen/layers/craters/shaping/irregularity.h"
+#include "terraingen/layers/craters/shaping/slope.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/util/surface.h"
 
@@ -141,6 +142,8 @@ struct CraterApplyOptions {
     RimSmoothing rimSmoothing{};  ///< Rounded rims; off by default.
     CraterNoise noise{};          ///< Fractal noise over each crater; off by default.
     CraterTexture texture{};      ///< Wall gullies, ejecta texture and burial; off by default.
+    /// Floors offset downslope and rims lowered upslope on sloping ground; needs the `Plane` datum.
+    CraterSlopeResponse slope{};
     /// What craters are shaped on; on a sphere, centres and rasters are longitude and latitude and
     /// each crater is shaped in its local frame, spacings in metres.
     Surface surface{};
@@ -149,7 +152,8 @@ struct CraterApplyOptions {
 };
 
 /// Checks crater apply options.
-/// @throws std::invalid_argument for an invalid `fade`, `irregularity` or `rimSmoothing`, a
+/// @throws std::invalid_argument for an invalid `fade`, `irregularity`, `rimSmoothing` or `slope`,
+/// a slope response without the `Plane` datum, a
 /// non-positive `datumFitRadii`, an `interiorReplacement` outside [0, 1], or a blend that does not
 /// satisfy 0 <= `startRadii` < `endRadii`.
 void ValidateCraterApplyOptions(const CraterApplyOptions& options);

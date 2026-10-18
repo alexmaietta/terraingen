@@ -209,6 +209,11 @@ struct BoulderPose {
     /// Settles each boulder on the slope of the ground beneath it, its up axis along the ground's
     /// normal before the tilt; needs the ground.
     bool followSlope = false;
+    /// Steepest ground, measured across a boulder's diameter, that boulders stay on (radians);
+    /// boulders on steeper ground are left out, models and boulders drawn into the heights alike,
+    /// so which boulders exist does not depend on the spacing. Unset keeps boulders on any slope;
+    /// needs the ground.
+    std::optional<double> maxSlope{};
 
     bool operator==(const BoulderPose&) const = default;
 };
@@ -335,7 +340,8 @@ void ValidateBoulderBedrock(const BoulderBedrock& bedrock);
 /// Checks boulder poses.
 /// @throws std::invalid_argument unless 0 < min <= max height ratio, 0 <= min <= max burial < 1,
 /// the lean is finite and not negative, the burial by wear is in [0, 1], the side and end shares
-/// are not negative and sum to at most 1, and the tilt is in [0, pi].
+/// are not negative and sum to at most 1, the tilt is in [0, pi], and any max slope is in
+/// (0, pi / 2).
 void ValidateBoulderPose(const BoulderPose& pose);
 
 /// Checks boulder clusters.

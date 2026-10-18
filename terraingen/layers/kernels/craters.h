@@ -103,8 +103,12 @@ struct CraterRecord {
     uint32_t noiseKey = 0;
     uint32_t textureKey = 0;
     uint32_t markCount = 0;
-    uint32_t markOffset =
-        0;  ///< The marks' inner, outer and fade radii, then knots, in `CraterData`.
+    /// The marks' inner, outer and fade radii, then their knots, in `CraterData`.
+    uint32_t markOffset = 0;
+    float shiftX = 0.0f;    ///< `CraterSlopeShape::shift` east (m).
+    float shiftY = 0.0f;    ///< `CraterSlopeShape::shift` north (m).
+    float upslopeX = 0.0f;  ///< `CraterSlopeShape::upslope` east.
+    float upslopeY = 0.0f;  ///< `CraterSlopeShape::upslope` north.
 };
 
 #ifdef __SLANG__
@@ -559,13 +563,35 @@ inline float KernelProfileDistance(CraterData data, KERNEL_IN(CraterRecord) c, f
     return distance;
 }
 
+/// How much of crater `c`'s floor shift applies at `dx` east and `dy` north of its centre
+/// (`SlopeShiftedOffset`): all within 0.3 radii, fading along a smoothstep to none at the rim.
+inline float KernelSlopeShiftWeight(KERNEL_IN(CraterRecord) c, float dx, float dy) {
+    const float radii = sqrt(dx * dx + dy * dy) / (0.5f * c.diameter);
+    return 1.0f - KernelSmoothstep((radii - 0.3f) / 0.7f);
+}
+
+/// The share of crater `c`'s raised relief kept at `dx` east and `dy` north of its centre
+/// (`SlopeRaisedShare`).
+inline float KernelSlopeRaisedShare(KERNEL_IN(CraterRecord) c, float dx, float dy) {
+    const float distance = sqrt(dx * dx + dy * dy);
+    if (!(distance > 0.0f)) {
+        return 1.0f;
+    }
+    const float removed = sqrt(c.upslopeX * c.upslopeX + c.upslopeY * c.upslopeY);
+    const float cosine = max(0.0f, (c.upslopeX * dx + c.upslopeY * dy) / (removed * distance));
+    return 1.0f - removed * cosine * cosine;
+}
+
 /// `height` after crater `c`, at `dx` east and `dy` north of its centre in metres
 /// (`ApplyCraterTo`); unchanged beyond its reach.
 inline float ApplyCraterKernel(KERNEL_IN(CraterShapeKernel) k, CraterData data,
                                KERNEL_IN(CraterRecord) c, float height, float dx, float dy) {
     const float diameter = c.diameter;
     const float radius = 0.5f * diameter;
-    const float distance = KernelProfileDistance(data, c, dx, dy);
+    const bool shifted = c.shiftX != 0.0f || c.shiftY != 0.0f;
+    const float shift = shifted ? KernelSlopeShiftWeight(c, dx, dy) : 0.0f;
+    const float distance =
+        KernelProfileDistance(data, c, dx - shift * c.shiftX, dy - shift * c.shiftY);
     if (distance >= k.reachRadii * radius) {
         return height;
     }
@@ -579,9 +605,12 @@ inline float ApplyCraterKernel(KERNEL_IN(CraterShapeKernel) k, CraterData data,
         }
         replaced = weight * (c.datumA + c.datumB * dx + c.datumC * dy - height);
     }
-    const float shaped = KernelRoundedHeight(k, data, distance, diameter, c) +
-                         KernelNoiseHeight(k, c, dx, dy, radii) +
-                         KernelTextureHeight(k, c, dx, dy, radii);
+    float bare = KernelRoundedHeight(k, data, distance, diameter, c);
+    if (bare > 0.0f && (c.upslopeX != 0.0f || c.upslopeY != 0.0f)) {
+        bare *= KernelSlopeRaisedShare(c, dx, dy);
+    }
+    const float shaped =
+        bare + KernelNoiseHeight(k, c, dx, dy, radii) + KernelTextureHeight(k, c, dx, dy, radii);
     return height + c.resolution * shaped + c.resolution * replaced;
 }
 
@@ -684,7 +713,7 @@ inline float KernelDatumRelief(KERNEL_IN(CraterDatumKernel) kernel, CraterData d
 static_assert(sizeof(CraterProfileKernel) == 76,
               "CraterProfileKernel must match its std430 layout");
 static_assert(sizeof(CraterShapeKernel) == 180, "CraterShapeKernel must match its std430 layout");
-static_assert(sizeof(CraterRecord) == 100, "CraterRecord must match its std430 layout");
+static_assert(sizeof(CraterRecord) == 116, "CraterRecord must match its std430 layout");
 
 /// The compiled forms of the crater kernel.
 template <> KernelProgram CompiledKernel<CraterShapeKernel>();

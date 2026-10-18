@@ -65,7 +65,7 @@ std::vector<Case> Profiles() {
 }
 
 std::vector<CraterApplyOptions> Options() {
-    std::vector<CraterApplyOptions> options(6);
+    std::vector<CraterApplyOptions> options(7);
     options[1].rimSmoothing.sigmaRadii = 0.05;
     options[2].noise.amplitude = 0.01;
     options[2].noise.rimAmplitude = 0.01;
@@ -77,6 +77,10 @@ std::vector<CraterApplyOptions> Options() {
     options[5].blend.shape = terraingen::BlendShape::Linear;
     options[5].rimSmoothing.sigmaRadii = 0.05;
     options[5].rimSmoothing.shape = terraingen::BlendShape::Smoothstep;
+    options[6].datum = terraingen::CraterDatum::Plane;
+    options[6].slope.enabled = true;
+    options[6].slope.upslopeRim = 0.3;
+    options[6].slope.fullSlope = 0.01;
     return options;
 }
 
@@ -183,6 +187,8 @@ TEST(CraterKernel, ShapesGridsOnEveryAvailableGpuToWithinFloatRounding) {
     options.irregularity.selection.manual = true;
     options.irregularity.marksShare = 0.5;
     options.irregularity.marksAmplitude = {terraingen::ValueDistribution::Kind::Constant, 0.02};
+    options.slope.enabled = true;
+    options.slope.fullSlope = 0.002;
     const terraingen::CraterShapeModels models{
         diffused, std::make_shared<terraingen::DiffusionDegradation>(
                       terraingen::LunarFreshCraterMorphometry,

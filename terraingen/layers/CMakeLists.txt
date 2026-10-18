@@ -48,6 +48,7 @@ terraingen_add_library(
     craters/shaping/irregularity.cpp
     craters/shaping/morphometry.cpp
     craters/shaping/prepared.cpp
+    craters/shaping/slope.cpp
     PUBLIC
     terraingen_distribution
     terraingen_gpu

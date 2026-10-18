@@ -191,6 +191,23 @@ template <typename IO> void Fields(IO& io, CraterTexture& texture) {
     io("seed", texture.seed, "Varies the texture of every crater.");
 }
 
+template <typename IO> void Fields(IO& io, CraterSlopeResponse& slope) {
+    io("enabled", slope.enabled,
+       "Shapes craters on sloping ground asymmetrically, as their datum plane slopes; off keeps "
+       "them the same on any slope.");
+    io("seed", slope.seed, "Varies how far each crater's floor is offset.");
+    io("floor_offset", slope.floorOffset,
+       "How far the deepest point lies downslope of the centre, in diameters, drawn per crater; "
+       "below 0.23.");
+    io("upslope_rim", slope.upslopeRim,
+       "Share of the raised rim and ejecta kept straight upslope, from 0 to 1; the rest returns "
+       "toward the sides.");
+    io("full_slope", slope.fullSlope,
+       "Slope at which the asymmetry is complete, in radians; it rises from none on level "
+       "ground.",
+       "rad");
+}
+
 template <typename IO> void Fields(IO& io, CraterApplyOptions& apply) {
     io("order", apply.order,
        "Order in which overlapping craters are applied; later craters overprint earlier ones.");
@@ -217,6 +234,9 @@ template <typename IO> void Fields(IO& io, CraterApplyOptions& apply) {
     io("texture", apply.texture,
        "Gullies down fresh walls, textured ejecta and older relief buried under the ejecta; off "
        "unless an amplitude or mantling is set.");
+    io("slope", apply.slope,
+       "Craters on sloping ground with floors offset downslope and rims lowered upslope; needs "
+       "the plane datum.");
 }
 
 template <> struct SpecName<CraterLayerSpec> {

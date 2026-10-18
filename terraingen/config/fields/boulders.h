@@ -356,6 +356,10 @@ template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
        "rad");
     io("follow_slope", pose.followSlope,
        "Settles each boulder on the slope of the ground beneath it before its tilt.");
+    io("max_slope", pose.maxSlope,
+       "Steepest ground, across a boulder's diameter, that boulders stay on, in radians; steeper "
+       "ground has none, models and drawn boulders alike. Unset keeps boulders on any slope.",
+       "rad");
     io("burial_by_wear", pose.burialByWear,
        "How far wear sets burial, from 0 to 1: blocks of fresh craters sit near the smallest "
        "burial and those of worn ones sink toward the largest, while boulders between craters "

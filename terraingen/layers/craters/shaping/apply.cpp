@@ -598,8 +598,12 @@ float ApplyCraterTo(float height, double x, double y, const PreparedCrater& crat
     const double diameter = crater.crater.diameter;
     const double radius = 0.5 * diameter;
     const Vec2d offset = options.surface.Offset({crater.crater.x, crater.crater.y}, {x, y});
+    const CraterSlopeShape slope =
+        crater.datum ? SlopeShape(crater.crater, crater.datum->b, crater.datum->c, options.slope)
+                     : CraterSlopeShape{};
     const double distance =
-        CraterProfileDistance(crater.crater, crater.outline, x, y, options.surface);
+        CraterProfileDistance(crater.crater, crater.outline,
+                              slope.Level() ? offset : SlopeShiftedOffset(slope, offset, radius));
     if (distance >= CraterReachRadii(profile, options) * radius) {
         return height;
     }
@@ -615,9 +619,12 @@ float ApplyCraterTo(float height, double x, double y, const PreparedCrater& crat
         }
         replaced = weight * (crater.datum->At(offset.x, offset.y) - current);
     }
+    double bare = ProfileHeight(profile, distance, diameter, crater.state, options.rimSmoothing);
+    if (bare > 0.0 && !slope.Level()) {
+        bare *= SlopeRaisedShare(slope, offset);
+    }
     const double shaped =
-        ProfileHeight(profile, distance, diameter, crater.state, options.rimSmoothing) +
-        NoiseHeight(crater.crater, offset, radii, profile.ReachRadii(), options.noise) +
+        bare + NoiseHeight(crater.crater, offset, radii, profile.ReachRadii(), options.noise) +
         TextureHeight(crater.crater, crater.state, offset, radii, options.texture);
     return static_cast<float>(current + crater.resolution * shaped + crater.resolution * replaced);
 }

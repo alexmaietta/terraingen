@@ -335,7 +335,11 @@ double MaxOutlineScale(const CraterIrregularity& irregularity) {
 
 double CraterProfileDistance(const Crater& crater, const CraterOutline& outline, double x, double y,
                              const Surface& surface) {
-    const Vec2d offset = surface.Offset({crater.x, crater.y}, {x, y});
+    return CraterProfileDistance(crater, outline, surface.Offset({crater.x, crater.y}, {x, y}));
+}
+
+double CraterProfileDistance(const Crater& crater, const CraterOutline& outline,
+                             const Vec2d& offset) {
     const double distance = std::sqrt(offset.x * offset.x + offset.y * offset.y);
     if (outline.Round()) {
         return distance;
