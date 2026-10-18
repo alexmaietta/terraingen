@@ -22,10 +22,13 @@ if(TERRAINGEN_COVERAGE)
     endif()
 
     set(report_dir "${PROJECT_BINARY_DIR}/coverage")
+    # Every test but core.build_info_stable, which rebuilds objects mid-run and so leaves their counts
+    # out of step with their notes.
     add_custom_target(
         coverage
         COMMAND ${CMAKE_COMMAND} -E make_directory "${report_dir}"
-        COMMAND ${CMAKE_CTEST_COMMAND} --test-dir "${PROJECT_BINARY_DIR}" --output-on-failure
+        COMMAND ${CMAKE_CTEST_COMMAND} --test-dir "${PROJECT_BINARY_DIR}" --output-on-failure -E
+                "^core\\.build_info_stable$"
         COMMAND
             "${GCOVR_EXECUTABLE}" --root "${PROJECT_SOURCE_DIR}" --gcov-executable "${gcov_command}"
             --filter "${PROJECT_SOURCE_DIR}/terraingen/" --gcov-exclude ".*build_info.*"
