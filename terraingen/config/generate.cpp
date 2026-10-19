@@ -19,6 +19,7 @@
 #include <stdexcept>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -27,7 +28,7 @@ namespace terraingen {
 namespace {
 
 /// The projection of a terrain's raster base, or geographic keys on a body without one.
-GeoKeys KeysOf(const Terrain& terrain) {
+GeoKeys OutputGeoKeys(const Terrain& terrain) {
     GeoKeys keys = terrain.source ? terrain.source->Keys() : GeoKeys{};
     if (terrain.surface.IsBody() && keys.Empty()) {
         keys = GeographicSphereKeys(terrain.surface.Radius());
@@ -40,16 +41,15 @@ std::optional<RasterGrid> BaseGrid(const Terrain& terrain) {
     return terrain.source ? std::optional<RasterGrid>(terrain.source->Grid()) : std::nullopt;
 }
 
-/// The sample spacing in metres an output lists features at; 0 for its grid's.
-double SpacingOf(const OutputSpec& output) {
-    return std::visit(
-        [](const auto& o) {
-            if constexpr (config::FeatureOutput<std::decay_t<decltype(o)>>) {
-                return o.spacing.value_or(0.0);
-            }
-            return 0.0;
-        },
-        output);
+/// Whether an output writes the material map or its photometry.
+bool MapsMaterials(const OutputSpec& output) {
+    return config::HoldsAny<MaterialsOutput, PhotometryOutput>(output);
+}
+
+/// Whether an output writes the heights, albedo or materials over its grid.
+bool WritesGrid(const OutputSpec& output) {
+    return config::HoldsAny<HeightmapOutput, AlbedoOutput, TerrainMeshOutput, MaterialsOutput,
+                            PhotometryOutput>(output);
 }
 
 /// The boulders placed over one grid at one spacing, shared by the outputs that list them.
@@ -97,6 +97,103 @@ void LogStepTimes(const std::vector<StepTime>& steps, std::size_t grids, double 
     }
 }
 
+/// The distinct grids the heightmap, albedo, terrain mesh and material outputs cover, in order.
+std::vector<RasterGrid> GeneratedGrids(const TerrainConfig& config, const Terrain& terrain) {
+    const std::optional<RasterGrid> base = BaseGrid(terrain);
+    std::vector<RasterGrid> grids;
+    for (const OutputSpec& output : config.outputs) {
+        if (WritesGrid(output)) {
+            const RasterGrid grid = *config::OutputGrid(output, base, terrain.surface);
+            if (std::find(grids.begin(), grids.end(), grid) == grids.end()) {
+                grids.push_back(grid);
+            }
+        }
+    }
+    return grids;
+}
+
+/// Evaluates a generated terrain's heights, albedo and materials over the grids its outputs
+/// need, timing each step.
+class GridGenerator {
+  public:
+    GridGenerator(const TerrainConfig& config, GeneratedTerrain& generated,
+                  const std::filesystem::path& directory, unsigned threads)
+        : config_(config), generated_(generated), directory_(directory), threads_(threads),
+          grids_(GeneratedGrids(config, generated.terrain)) {
+        for (std::size_t n = 0; n < config.layers.size(); ++n) {
+            steps_.push_back(
+                {"layer " + std::to_string(n + 1) + " " + LayerType(config.layers[n])});
+        }
+        steps_.push_back({"albedo"});
+        steps_.push_back({"materials"});
+    }
+
+    /// Generates what `output` writes over its grid, unless an earlier output did.
+    void Generate(const OutputSpec& output) {
+        const Terrain& terrain = generated_.terrain;
+        const RasterGrid grid = *config::OutputGrid(output, BaseGrid(terrain), terrain.surface);
+        GeneratedGrid& target = Heights(grid);
+        if (std::holds_alternative<AlbedoOutput>(output) && target.albedo.empty()) {
+            AddAlbedo(grid, target);
+        }
+        if (MapsMaterials(output) && target.materials.empty()) {
+            const Stopwatch stopwatch;
+            target.materials = EvaluateMaterials(terrain, config_.materials->options, grid,
+                                                 EvaluationOptions{0.0, threads_});
+            Timed(steps_.size() - 1, stopwatch.Milliseconds());
+        }
+    }
+
+    /// Logs the time of each step, of `total` milliseconds, when any grid was generated.
+    void LogTimes(double total) const {
+        if (!generated_.grids.empty()) {
+            LogStepTimes(steps_, generated_.grids.size(), total);
+        }
+    }
+
+  private:
+    void Timed(std::size_t step, double milliseconds) {
+        steps_[step].milliseconds += milliseconds;
+        LogInfo("pipeline", "  ", steps_[step].name, " in ", FormatDuration(milliseconds));
+    }
+
+    /// The heights over `grid`, evaluated the first time.
+    GeneratedGrid& Heights(const RasterGrid& grid) {
+        if (GeneratedGrid* existing = generated_.Find(grid)) {
+            return *existing;
+        }
+        const Terrain& terrain = generated_.terrain;
+        LogInfo("pipeline", "Grid ", generated_.grids.size() + 1, " of ", grids_.size(), ": ",
+                grid.width, "x", grid.height, " at ", FormatSpacing(grid.Spacing(terrain.surface)));
+        EvaluationOptions options{0.0, threads_, generated_.backend};
+        options.onLayer = [this](std::size_t step, double milliseconds) {
+            Timed(step, milliseconds);
+        };
+        generated_.grids.push_back({Evaluate(terrain, grid, options), {}});
+        return generated_.grids.back();
+    }
+
+    void AddAlbedo(const RasterGrid& grid, GeneratedGrid& target) {
+        const Stopwatch stopwatch;
+        const Terrain& terrain = generated_.terrain;
+        if (!albedo_) {
+            albedo_ = BuildAlbedo(config_, terrain, directory_);
+        }
+        const TerrainGround ground(terrain, terrain.layers.size());
+        target.albedo = EvaluateAlbedo(*albedo_, grid,
+                                       {.spacing = 0.0, .threads = threads_, .ground = &ground});
+        Timed(steps_.size() - 2, stopwatch.Milliseconds());
+    }
+
+    const TerrainConfig& config_;
+    GeneratedTerrain& generated_;
+    const std::filesystem::path& directory_;
+    unsigned threads_;
+    std::vector<RasterGrid> grids_;
+    std::vector<StepTime> steps_;
+    std::optional<Albedo> albedo_;
+};
+
 /// What `WriteOutputs` writes one output from.
 struct OutputContext {
     const GeneratedTerrain& generated;
@@ -133,11 +230,27 @@ struct OutputContext {
     }
 };
 
+/// How a GeoTIFF output is written.
+GeoTiffWriteOptions TiffOptions(const GeoTiffOutput& output) {
+    return {.compression = output.compression, .tileSize = output.tileSize};
+}
+
+/// The material rasters generated over the output's grid.
+/// @throws std::runtime_error if they were not generated.
+const std::vector<Raster<float>>& RequireMaterials(const OutputContext& context,
+                                                   const std::filesystem::path& path) {
+    const std::vector<Raster<float>>& materials = context.Generated(path).materials;
+    if (materials.empty()) {
+        throw std::runtime_error("No materials to write to " + path.string());
+    }
+    return materials;
+}
+
 /// Each `Write` returns whether it wrote the file.
 bool Write(const HeightmapOutput& output, const std::filesystem::path& path,
            const OutputContext& context) {
     WriteGeoTiff(path, context.Generated(path).heights, context.generated.geoKeys,
-                 {.compression = output.compression, .tileSize = output.tileSize});
+                 TiffOptions(output));
     return true;
 }
 
@@ -147,36 +260,23 @@ bool Write(const AlbedoOutput& output, const std::filesystem::path& path,
     if (albedo.empty()) {
         throw std::runtime_error("No albedo to write to " + path.string());
     }
-    WriteGeoTiff(path, albedo, context.generated.geoKeys,
-                 {.compression = output.compression, .tileSize = output.tileSize});
+    WriteGeoTiff(path, albedo, context.generated.geoKeys, TiffOptions(output));
     return true;
-}
-
-/// The material rasters generated over the output's grid.
-/// @throws std::runtime_error if they were not generated.
-const std::vector<Raster<float>>& MaterialsOf(const OutputContext& context,
-                                              const std::filesystem::path& path) {
-    const std::vector<Raster<float>>& materials = context.Generated(path).materials;
-    if (materials.empty()) {
-        throw std::runtime_error("No materials to write to " + path.string());
-    }
-    return materials;
 }
 
 bool Write(const MaterialsOutput& output, const std::filesystem::path& path,
            const OutputContext& context) {
-    WriteGeoTiff(path, MaterialsOf(context, path), context.generated.geoKeys,
-                 {.compression = output.compression, .tileSize = output.tileSize});
+    WriteGeoTiff(path, RequireMaterials(context, path), context.generated.geoKeys,
+                 TiffOptions(output));
     return true;
 }
 
 bool Write(const PhotometryOutput& output, const std::filesystem::path& path,
            const OutputContext& context) {
-    const std::vector<Raster<float>>& materials = MaterialsOf(context, path);
     const MaterialPhotometry photometry =
         config::BuildPhotometry(context.config->materials->photometry);
-    WriteGeoTiff(path, EvaluatePhotometry(materials, photometry), context.generated.geoKeys,
-                 {.compression = output.compression, .tileSize = output.tileSize});
+    WriteGeoTiff(path, EvaluatePhotometry(RequireMaterials(context, path), photometry),
+                 context.generated.geoKeys, TiffOptions(output));
     return true;
 }
 
@@ -248,19 +348,6 @@ bool Write(const TerrainMeshOutput& /*output*/, const std::filesystem::path& pat
     return true;
 }
 
-/// Whether an output writes the material map or its photometry.
-bool MapsMaterials(const OutputSpec& output) {
-    return std::holds_alternative<MaterialsOutput>(output) ||
-           std::holds_alternative<PhotometryOutput>(output);
-}
-
-/// Whether an output writes the heights, albedo or materials over its grid.
-bool WritesGrid(const OutputSpec& output) {
-    return std::holds_alternative<HeightmapOutput>(output) ||
-           std::holds_alternative<AlbedoOutput>(output) ||
-           std::holds_alternative<TerrainMeshOutput>(output) || MapsMaterials(output);
-}
-
 }  // namespace
 
 const GeneratedGrid* GeneratedTerrain::Find(const RasterGrid& grid) const {
@@ -272,76 +359,25 @@ const GeneratedGrid* GeneratedTerrain::Find(const RasterGrid& grid) const {
     return nullptr;
 }
 
+GeneratedGrid* GeneratedTerrain::Find(const RasterGrid& grid) {
+    return const_cast<GeneratedGrid*>(std::as_const(*this).Find(grid));
+}
+
 GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
                                  const std::filesystem::path& directory, unsigned threads,
                                  std::optional<Backend> backend) {
     GeneratedTerrain generated{BuildTerrain(config, directory)};
     generated.backend = ResolveBackend(backend.value_or(DefaultBackend()));
-    const Terrain& terrain = generated.terrain;
     const Stopwatch stopwatch;
-    const std::optional<RasterGrid> base = BaseGrid(terrain);
-    std::vector<RasterGrid> grids;
+    GridGenerator generator(config, generated, directory, threads);
     for (const OutputSpec& output : config.outputs) {
         if (WritesGrid(output)) {
-            const RasterGrid grid = *config::OutputGrid(output, base, terrain.surface);
-            if (std::find(grids.begin(), grids.end(), grid) == grids.end()) {
-                grids.push_back(grid);
-            }
+            generator.Generate(output);
         }
     }
-    std::vector<StepTime> steps;
-    for (std::size_t n = 0; n < config.layers.size(); ++n) {
-        steps.push_back({"layer " + std::to_string(n + 1) + " " + LayerType(config.layers[n])});
-    }
-    const std::size_t albedoStep = steps.size();
-    steps.push_back({"albedo"});
-    steps.push_back({"materials"});
-    const auto timed = [&](std::size_t step, double milliseconds) {
-        steps[step].milliseconds += milliseconds;
-        LogInfo("pipeline", "  ", steps[step].name, " in ", FormatDuration(milliseconds));
-    };
-    const auto generatedOver = [&](const RasterGrid& grid) -> GeneratedGrid& {
-        for (GeneratedGrid& existing : generated.grids) {
-            if (RasterGrid::FromRaster(existing.heights) == grid) {
-                return existing;
-            }
-        }
-        LogInfo("pipeline", "Grid ", generated.grids.size() + 1, " of ", grids.size(), ": ",
-                grid.width, "x", grid.height, " at ", FormatSpacing(grid.Spacing(terrain.surface)));
-        EvaluationOptions options{0.0, threads, generated.backend};
-        options.onLayer = timed;
-        generated.grids.push_back({Evaluate(terrain, grid, options), {}});
-        return generated.grids.back();
-    };
-    std::optional<Albedo> albedo;
-    for (const OutputSpec& output : config.outputs) {
-        if (!WritesGrid(output)) {
-            continue;
-        }
-        const RasterGrid grid = *config::OutputGrid(output, base, terrain.surface);
-        GeneratedGrid& target = generatedOver(grid);
-        if (std::holds_alternative<AlbedoOutput>(output) && target.albedo.empty()) {
-            const Stopwatch albedoTime;
-            if (!albedo) {
-                albedo = BuildAlbedo(config, terrain, directory);
-            }
-            const TerrainGround ground(terrain, terrain.layers.size());
-            target.albedo = EvaluateAlbedo(*albedo, grid,
-                                           {.spacing = 0.0, .threads = threads, .ground = &ground});
-            timed(albedoStep, albedoTime.Milliseconds());
-        }
-        if (MapsMaterials(output) && target.materials.empty()) {
-            const Stopwatch materialsTime;
-            target.materials = EvaluateMaterials(terrain, config.materials->options, grid,
-                                                 EvaluationOptions{0.0, threads});
-            timed(albedoStep + 1, materialsTime.Milliseconds());
-        }
-    }
-    generated.geoKeys = KeysOf(terrain);
+    generated.geoKeys = OutputGeoKeys(generated.terrain);
     generated.seconds = stopwatch.Milliseconds() / 1000.0;
-    if (!generated.grids.empty()) {
-        LogStepTimes(steps, generated.grids.size(), stopwatch.Milliseconds());
-    }
+    generator.LogTimes(stopwatch.Milliseconds());
     return generated;
 }
 
@@ -381,7 +417,7 @@ std::vector<std::filesystem::path> WriteOutputs(const TerrainConfig& config,
         }
         const OutputContext context{terrain,
                                     config::OutputGrid(spec, base, terrain.terrain.surface),
-                                    SpacingOf(spec), &config, &placed};
+                                    config::OutputSpacing(spec), &config, &placed};
         if (std::holds_alternative<MeshOutput>(spec) == context.grid.has_value()) {
             throw std::runtime_error("No grid to write " + path.string() + " over");
         }

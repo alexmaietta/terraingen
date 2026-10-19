@@ -1,22 +1,74 @@
 #include "terraingen/config/build.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/mesh/io/mesh_io.h"
+#include "terraingen/util/overloaded.h"
 
 #include <nlohmann/json.hpp>
 
 #include <array>
+#include <cstdint>
 #include <cstdio>
 #include <fstream>
 #include <map>
 #include <numbers>
+#include <optional>
 #include <stdexcept>
 #include <string>
+#include <variant>
 
 namespace terraingen {
 
 namespace {
 
 using Json = nlohmann::ordered_json;
+
+/// One value of a feature list: a CSV cell and a JSON value.
+using Cell = std::variant<double, std::optional<double>, std::uint64_t, int, bool>;
+
+/// A column of a feature list: its name and how a row gives its value.
+template <typename Row> struct Column {
+    const char* name;
+    Cell (*get)(const Row&);
+};
+
+/// The columns of every crater.
+const std::array<Column<Crater>, 6> kCraterColumns{{
+    {"x", [](const Crater& c) { return Cell(c.x); }},
+    {"y", [](const Crater& c) { return Cell(c.y); }},
+    {"diameter", [](const Crater& c) { return Cell(c.diameter); }},
+    {"age_gyr", [](const Crater& c) { return Cell(c.ageGyr); }},
+    {"id", [](const Crater& c) { return Cell(c.id); }},
+    {"manual", [](const Crater& c) { return Cell(c.manual); }},
+}};
+
+/// The columns added for craters with attributes.
+const std::array<Column<CraterAttributes>, 5> kAttributeColumns{{
+    {"floor_depth", [](const CraterAttributes& a) { return Cell(a.floorDepth); }},
+    {"rim_height", [](const CraterAttributes& a) { return Cell(a.rimHeight); }},
+    {"depth_ratio", [](const CraterAttributes& a) { return Cell(a.depthRatio); }},
+    {"freshness", [](const CraterAttributes& a) { return Cell(a.freshness); }},
+    {"complex", [](const CraterAttributes& a) { return Cell(a.complex); }},
+}};
+
+/// The columns of every boulder.
+const std::array<Column<Boulder>, 16> kBoulderColumns{{
+    {"x", [](const Boulder& b) { return Cell(b.x); }},
+    {"y", [](const Boulder& b) { return Cell(b.y); }},
+    {"ground", [](const Boulder& b) { return Cell(b.ground); }},
+    {"diameter", [](const Boulder& b) { return Cell(b.diameter); }},
+    {"height", [](const Boulder& b) { return Cell(b.height); }},
+    {"burial", [](const Boulder& b) { return Cell(b.burial); }},
+    {"yaw", [](const Boulder& b) { return Cell(b.yaw); }},
+    {"lean", [](const Boulder& b) { return Cell(b.lean); }},
+    {"id", [](const Boulder& b) { return Cell(b.id); }},
+    {"model", [](const Boulder& b) { return Cell(b.model); }},
+    {"wear", [](const Boulder& b) { return Cell(b.wear); }},
+    {"parent", [](const Boulder& b) { return Cell(b.parent); }},
+    {"piece", [](const Boulder& b) { return Cell(static_cast<std::uint64_t>(b.piece)); }},
+    {"rest", [](const Boulder& b) { return Cell(static_cast<int>(b.rest)); }},
+    {"tilt", [](const Boulder& b) { return Cell(b.tilt); }},
+    {"tilt_azimuth", [](const Boulder& b) { return Cell(b.tiltAzimuth); }},
+}};
 
 /// `value` with the digits to read it back exactly.
 std::string Number(double value) {
@@ -25,8 +77,60 @@ std::string Number(double value) {
     return buffer.data();
 }
 
+/// A cell as CSV writes it: doubles exactly, an unknown value empty and booleans as 1 or 0.
+std::string CsvText(const Cell& cell) {
+    return std::visit(Overloaded{
+                          [](double value) { return Number(value); },
+                          [](const std::optional<double>& value) {
+                              return value ? Number(*value) : std::string();
+                          },
+                          [](std::uint64_t value) { return std::to_string(value); },
+                          [](int value) { return std::to_string(value); },
+                          [](bool value) { return std::string(value ? "1" : "0"); },
+                      },
+                      cell);
+}
+
+/// A cell as JSON writes it, an unknown value null.
+Json JsonValue(const Cell& cell) {
+    return std::visit(
+        Overloaded{
+            [](const std::optional<double>& value) { return value ? Json(*value) : Json(nullptr); },
+            [](const auto& value) { return Json(value); },
+        },
+        cell);
+}
+
+/// Writes the names of `columns` as CSV cells, the first after `separator` and the rest after ",".
+template <typename Row, std::size_t N>
+void WriteCsvHeader(std::ostream& file, const std::array<Column<Row>, N>& columns,
+                    const char* separator) {
+    for (const Column<Row>& column : columns) {
+        file << separator << column.name;
+        separator = ",";
+    }
+}
+
+/// Writes the cells of `row` as CSV, the first after `separator` and the rest after ",".
+template <typename Row, std::size_t N>
+void WriteCsvCells(std::ostream& file, const std::array<Column<Row>, N>& columns, const Row& row,
+                   const char* separator) {
+    for (const Column<Row>& column : columns) {
+        file << separator << CsvText(column.get(row));
+        separator = ",";
+    }
+}
+
+/// Adds the cells of `row` to a JSON object, keyed by column name in order.
+template <typename Row, std::size_t N>
+void AddJsonCells(Json& entry, const std::array<Column<Row>, N>& columns, const Row& row) {
+    for (const Column<Row>& column : columns) {
+        entry[column.name] = JsonValue(column.get(row));
+    }
+}
+
 /// @throws std::runtime_error if `path` cannot be opened.
-std::ofstream OpenForWriting(const std::filesystem::path& path) {
+std::ofstream OpenOutput(const std::filesystem::path& path) {
     std::ofstream file(path, std::ios::binary);
     if (!file) {
         throw std::runtime_error("Cannot write " + path.string());
@@ -43,18 +147,15 @@ void CheckWritten(const std::ofstream& file, const std::filesystem::path& path) 
 
 void WriteCraterCsv(std::ostream& file, const CraterList& craters,
                     const std::vector<CraterAttributes>& attributes) {
-    const bool detailed = !attributes.empty();
-    file << "x,y,diameter,age_gyr,id,manual"
-         << (detailed ? ",floor_depth,rim_height,depth_ratio,freshness,complex" : "") << '\n';
+    WriteCsvHeader(file, kCraterColumns, "");
+    if (!attributes.empty()) {
+        WriteCsvHeader(file, kAttributeColumns, ",");
+    }
+    file << '\n';
     for (std::size_t n = 0; n < craters.Size(); ++n) {
-        const Crater crater = craters.At(n);
-        file << Number(crater.x) << ',' << Number(crater.y) << ',' << Number(crater.diameter) << ','
-             << Number(crater.ageGyr) << ',' << crater.id << ',' << (crater.manual ? 1 : 0);
-        if (detailed) {
-            const CraterAttributes& a = attributes[n];
-            file << ',' << Number(a.floorDepth) << ',' << Number(a.rimHeight) << ','
-                 << Number(a.depthRatio) << ',' << Number(a.freshness) << ','
-                 << (a.complex ? 1 : 0);
+        WriteCsvCells(file, kCraterColumns, craters.At(n), "");
+        if (!attributes.empty()) {
+            WriteCsvCells(file, kAttributeColumns, attributes[n], ",");
         }
         file << '\n';
     }
@@ -63,20 +164,10 @@ void WriteCraterCsv(std::ostream& file, const CraterList& craters,
 Json CraterJson(const CraterList& craters, const std::vector<CraterAttributes>& attributes) {
     Json list = Json::array();
     for (std::size_t n = 0; n < craters.Size(); ++n) {
-        const Crater crater = craters.At(n);
-        Json entry{{"x", crater.x},
-                   {"y", crater.y},
-                   {"diameter", crater.diameter},
-                   {"age_gyr", crater.ageGyr},
-                   {"id", crater.id},
-                   {"manual", crater.manual}};
+        Json entry = Json::object();
+        AddJsonCells(entry, kCraterColumns, craters.At(n));
         if (!attributes.empty()) {
-            const CraterAttributes& a = attributes[n];
-            entry["floor_depth"] = a.floorDepth;
-            entry["rim_height"] = a.rimHeight;
-            entry["depth_ratio"] = a.depthRatio;
-            entry["freshness"] = a.freshness;
-            entry["complex"] = a.complex;
+            AddJsonCells(entry, kAttributeColumns, attributes[n]);
         }
         list.push_back(std::move(entry));
     }
@@ -84,45 +175,26 @@ Json CraterJson(const CraterList& craters, const std::vector<CraterAttributes>& 
 }
 
 void WriteBoulderCsv(std::ostream& file, const std::vector<Boulder>& boulders) {
-    file << "x,y,ground,diameter,height,burial,yaw,lean,id,model,wear,parent,piece,rest,tilt,tilt_"
-            "azimuth\n";
+    WriteCsvHeader(file, kBoulderColumns, "");
+    file << '\n';
     for (const Boulder& boulder : boulders) {
-        file << Number(boulder.x) << ',' << Number(boulder.y) << ','
-             << (boulder.ground ? Number(*boulder.ground) : std::string()) << ','
-             << Number(boulder.diameter) << ',' << Number(boulder.height) << ','
-             << Number(boulder.burial) << ',' << Number(boulder.yaw) << ',' << Number(boulder.lean)
-             << ',' << boulder.id << ',' << (boulder.model ? 1 : 0) << ',' << Number(boulder.wear)
-             << ',' << boulder.parent << ',' << boulder.piece << ','
-             << static_cast<int>(boulder.rest) << ',' << Number(boulder.tilt) << ','
-             << Number(boulder.tiltAzimuth) << '\n';
+        WriteCsvCells(file, kBoulderColumns, boulder, "");
+        file << '\n';
     }
 }
 
 Json BoulderJson(const std::vector<Boulder>& boulders) {
     Json list = Json::array();
     for (const Boulder& boulder : boulders) {
-        list.push_back({{"x", boulder.x},
-                        {"y", boulder.y},
-                        {"ground", boulder.ground ? Json(*boulder.ground) : Json(nullptr)},
-                        {"diameter", boulder.diameter},
-                        {"height", boulder.height},
-                        {"burial", boulder.burial},
-                        {"yaw", boulder.yaw},
-                        {"lean", boulder.lean},
-                        {"id", boulder.id},
-                        {"model", boulder.model},
-                        {"wear", boulder.wear},
-                        {"parent", boulder.parent},
-                        {"piece", boulder.piece},
-                        {"rest", static_cast<int>(boulder.rest)},
-                        {"tilt", boulder.tilt},
-                        {"tilt_azimuth", boulder.tiltAzimuth}});
+        Json entry = Json::object();
+        AddJsonCells(entry, kBoulderColumns, boulder);
+        list.push_back(std::move(entry));
     }
     return Json{{"boulders", std::move(list)}};
 }
 
-BoulderPlacement PlacementOf(const BoulderModel& boulder, const Surface& surface,
-                             const Vec2d& site) {
+BoulderPlacement SitePlacement(const BoulderModel& boulder, const Surface& surface,
+                               const Vec2d& site) {
     return PlacementAtSite(boulder.placement, {boulder.boulder.x, boulder.boulder.y}, site,
                            surface);
 }
@@ -138,7 +210,7 @@ void WriteBoulderScene(const std::vector<BoulderModel>& boulders, const std::fil
     std::vector<SceneNode> nodes;
     for (const BoulderModel& boulder : boulders) {
         if (!instanced) {
-            const BoulderPlacement placement = PlacementOf(boulder, surface, site);
+            const BoulderPlacement placement = SitePlacement(boulder, surface, site);
             TriangleMesh placed = boulder.shape->mesh;
             for (Vec3d& p : placed.positions) {
                 p = placement.Apply(p);
@@ -155,7 +227,7 @@ void WriteBoulderScene(const std::vector<BoulderModel>& boulders, const std::fil
             meshes.push_back(
                 {std::move(shaded.mesh), std::move(shaded.normals), boulder.shape->material});
         }
-        const BoulderPlacement placement = PlacementOf(boulder, surface, site);
+        const BoulderPlacement placement = SitePlacement(boulder, surface, site);
         nodes.push_back({found->second, placement.scale, placement.pose});
     }
     WriteScene(path, meshes, nodes);
@@ -168,7 +240,7 @@ void WriteCraterList(const CraterList& craters, const std::filesystem::path& pat
     if (!attributes.empty() && attributes.size() != craters.Size()) {
         throw std::invalid_argument("Crater attributes must be empty or one per crater");
     }
-    std::ofstream file = OpenForWriting(path);
+    std::ofstream file = OpenOutput(path);
     switch (format) {
     case ListFormat::Csv:
         WriteCraterCsv(file, craters, attributes);
@@ -182,7 +254,7 @@ void WriteCraterList(const CraterList& craters, const std::filesystem::path& pat
 
 void WriteBoulderList(const std::vector<Boulder>& boulders, const std::filesystem::path& path,
                       ListFormat format) {
-    std::ofstream file = OpenForWriting(path);
+    std::ofstream file = OpenOutput(path);
     switch (format) {
     case ListFormat::Csv:
         WriteBoulderCsv(file, boulders);
@@ -197,7 +269,7 @@ void WriteBoulderList(const std::vector<Boulder>& boulders, const std::filesyste
 void WriteBoulderModels(const std::vector<BoulderModel>& boulders,
                         const std::filesystem::path& path, double creaseAngle,
                         const Surface& surface, const Vec2d& site, bool instanced) {
-    if (!(creaseAngle >= 0.0 && creaseAngle <= 180.0)) {
+    if (!(creaseAngle >= 0.0 && creaseAngle <= kMaxCreaseAngle)) {
         throw std::invalid_argument("Crease angle must be between 0 and 180 degrees");
     }
     if (boulders.empty()) {
