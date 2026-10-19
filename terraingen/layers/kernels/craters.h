@@ -137,6 +137,18 @@ struct CraterFrame {
     float sphereRadius = 0.0f;
 };
 
+/// asin(`s`) / `s` for `s` in [0, 1]: by its series below 0.25, to within float rounding, since
+/// GPUs may evaluate inverse trigonometric functions to only a few thousand ulp (Vulkan allows
+/// 4096), which would be millimetres over a crater.
+inline float KernelArcsineRatio(float s) {
+    if (s < 0.25f) {
+        const float s2 = s * s;
+        return 1.0f + s2 * (1.0f / 6.0f +
+                            s2 * (3.0f / 40.0f + s2 * (5.0f / 112.0f + s2 * (35.0f / 1152.0f))));
+    }
+    return atan2(s, sqrt(1.0f - s * s)) / s;
+}
+
 /// The offset of the point at position (`px`, `py`, `pz`) from the dispatch's origin (m) in
 /// crater frame `f`: `Surface::Offset` in single precision.
 inline KernelOffset KernelFrameOffset(KERNEL_IN(CraterFrame) f, float px, float py, float pz) {
@@ -147,8 +159,8 @@ inline KernelOffset KernelFrameOffset(KERNEL_IN(CraterFrame) f, float px, float 
     offset.dx = dx * f.eastX + dy * f.eastY + dz * f.eastZ;
     offset.dy = dx * f.northX + dy * f.northY + dz * f.northZ;
     if (f.sphereRadius > 0.0f) {
-        const float half = min(0.5f * sqrt(dx * dx + dy * dy + dz * dz) / f.sphereRadius, 1.0f);
-        const float arc = 2.0f * f.sphereRadius * atan2(half, sqrt(1.0f - half * half));
+        const float chord = sqrt(dx * dx + dy * dy + dz * dz);
+        const float arc = chord * KernelArcsineRatio(min(0.5f * chord / f.sphereRadius, 1.0f));
         const float across = sqrt(offset.dx * offset.dx + offset.dy * offset.dy);
         if (across > 0.0f) {
             offset.dx *= arc / across;

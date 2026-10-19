@@ -387,6 +387,16 @@ double LargestDifference(const terraingen::Raster<float>& a, const terraingen::R
 
 }  // namespace
 
+TEST(CraterKernel, TakesArcsineRatiosToWithinFloatRounding) {
+    EXPECT_EQ(terraingen::KernelArcsineRatio(0.0f), 1.0f);
+    for (int i = 1; i <= 1000; ++i) {
+        const double s = 0.001 * i;
+        EXPECT_NEAR(terraingen::KernelArcsineRatio(static_cast<float>(s)), std::asin(s) / s,
+                    4e-7 * std::asin(s) / s)
+            << "at " << s;
+    }
+}
+
 TEST(CraterKernel, WorksOutBodyOffsetsInEachCratersFrameAsTheSurfaceDoes) {
     for (const BodySurface& body : BodySurfaces()) {
         const Crater crater{body.centre.x, body.centre.y, body.maxDiameter, 0.0, 1u};
