@@ -89,9 +89,7 @@ class Example(_common.Example):
             "default rays": terraingen.CraterAlbedoOptions(seed=4),
             "oblique from the north-east": terraingen.CraterAlbedoOptions(
                 seed=4,
-                rays=terraingen.CraterRays(
-                    oblique=terraingen.ObliqueImpacts(heading_deg=2578.3100780887044), excess=0.06
-                ),
+                rays=terraingen.CraterRays(oblique=terraingen.ObliqueImpacts(heading_deg=45.0), excess=0.06),
             ),
             "longer-lasting rays": terraingen.CraterAlbedoOptions(
                 seed=4, retention=terraingen.RayRetention(scale=10.0)
