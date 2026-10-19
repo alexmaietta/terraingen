@@ -76,4 +76,7 @@ std::string ConfigCatalog(int indent = 2);
 /// - "choice" with its "alternatives", each {"type", "description", "fields", "default"}.
 std::string ConfigSchema(int indent = 2);
 
+/// A layer's JSON "type", with the type of the layer inside for a region: "region (boulders)".
+std::string LayerType(const LayerSpec& layer);
+
 }  // namespace terraingen

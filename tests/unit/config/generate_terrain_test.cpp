@@ -1,7 +1,9 @@
 #include "configs.h"
+#include "support/log_capture.h"
 #include "support/raster_equality.h"
 #include "support/temp_path.h"
 #include "terraingen/config/generate.h"
+#include "terraingen/config/json.h"
 #include "terraingen/raster/resample.h"
 #include "terraingen/terraingen.h"
 
@@ -9,6 +11,7 @@
 
 #include <algorithm>
 #include <string>
+#include <vector>
 
 using terraingen::BuildCraterModels;
 using terraingen::ConfigError;
@@ -510,6 +513,23 @@ TEST(GenerateTerrain, EvaluatesEachDistinctOutputGridOnce) {
     ExpectSameRaster(generated.grids[1].heights, terraingen::Evaluate(generated.terrain, wide));
     EXPECT_EQ(terraingen::Summary(generated).rfind("Generated 2 grids (65x49, 20x10) in ", 0), 0u)
         << terraingen::Summary(generated);
+
+    const terraingen::testing::LogCapture capture;
+    GenerateTerrain(config);
+    std::vector<std::string> lines;
+    for (const auto& record : capture.Matching("pipeline", terraingen::LogLevel::Info)) {
+        lines.push_back(record.message);
+    }
+    const auto count = [&](const std::string& prefix) {
+        return std::count_if(lines.begin(), lines.end(),
+                             [&](const std::string& line) { return line.rfind(prefix, 0) == 0; });
+    };
+    EXPECT_EQ(count("Grid 1 of 2: 65x49 at "), 1);
+    EXPECT_EQ(count("Grid 2 of 2: 20x10 at 8 m"), 1);
+    const std::string first = "  layer 1 " + terraingen::LayerType(config.layers[0]) + " ";
+    EXPECT_EQ(count(first + "in "), 2) << "once per grid";
+    EXPECT_EQ(count("Time per step over 2 grids, of "), 1);
+    EXPECT_EQ(count(first + " "), 1) << "and once in the totals";
 
     config.outputs = {};
     const auto none = GenerateTerrain(config);

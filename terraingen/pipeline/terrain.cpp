@@ -2,6 +2,7 @@
 
 #include "terraingen/layers/evaluation_cache.h"
 #include "terraingen/util/checks.h"
+#include "terraingen/util/log.h"
 #include "terraingen/util/parallel.h"
 
 #include <algorithm>
@@ -44,9 +45,13 @@ Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid,
         terrain.source->Fill(heights);
     }
     for (std::size_t n = 0; n < terrain.layers.size(); ++n) {
+        const Stopwatch stopwatch;
         const TerrainGround ground(terrain, n);
         terrain.layers[n]->Apply(heights,
                                  LayerContext{resolved, options.threads, &ground, backend});
+        if (options.onLayer) {
+            options.onLayer(n, stopwatch.Milliseconds());
+        }
     }
     return heights;
 }

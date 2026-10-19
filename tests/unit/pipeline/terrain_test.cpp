@@ -321,3 +321,19 @@ TEST(Evaluate, WithoutABackendFollowsTheProcessDefault) {
     ExpectSameRaster(byDefault, chosen);
     ExpectSameRaster(Evaluate(terrain, grid, terraingen::EvaluationOptions{0.0, 2}), cpu);
 }
+
+TEST(Evaluate, ReportsEachLayerAsItIsApplied) {
+    const Terrain terrain = Rolling();
+    std::vector<std::size_t> layers;
+    terraingen::EvaluationOptions options;
+    options.onLayer = [&](std::size_t layer, double milliseconds) {
+        layers.push_back(layer);
+        EXPECT_GE(milliseconds, 0.0);
+    };
+    const auto reported = Evaluate(terrain, terrain.source->Grid(), options);
+    ASSERT_EQ(layers.size(), terrain.layers.size());
+    for (std::size_t n = 0; n < layers.size(); ++n) {
+        EXPECT_EQ(layers[n], n);
+    }
+    ExpectSameRaster(reported, Evaluate(terrain));
+}

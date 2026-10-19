@@ -8,6 +8,7 @@
 #include "terraingen/sources/source.h"
 
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <span>
@@ -39,6 +40,9 @@ struct EvaluationOptions {
     /// available and `Auto` the same or the CPU. Results on a GPU match the CPU to within float
     /// rounding, not to the bit, and point queries always run on the CPU.
     std::optional<Backend> backend = std::nullopt;
+    /// Called after each layer is applied with its index and the milliseconds it took, reads of
+    /// the ground beneath it included; may be empty.
+    std::function<void(std::size_t layer, double milliseconds)> onLayer{};
 };
 
 /// The ground beneath one layer of a terrain: its starting heights and the layers before it,

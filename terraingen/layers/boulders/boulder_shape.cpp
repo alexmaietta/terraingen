@@ -139,10 +139,12 @@ std::vector<Fracture> SolidFaces(const TriangleMesh& solid, const Vec3d& axes) {
 /// plane: rippled by the style's face roughness and met through a smooth minimum over `softness`,
 /// so faces undulate and edges are worn round. With `polyhedral`, the planes include the solid's
 /// own faces, which then bound every ray, roughened by the style's noise of `noiseSeed`.
+/// Planes too far beyond the cut so far to move a vertex are passed over unroughened.
 void CutSoftly(TriangleMesh& mesh, const std::vector<Fracture>& fractures,
                const BoulderStyle& style, double softness, std::uint32_t seed, bool polyhedral,
                std::uint32_t noiseSeed) {
     const double frequency = 1.5;
+    const double blend = softness > 0.0 ? 4.0 * softness : 0.0;
     for (Vec3d& p : mesh.positions) {
         const double radius = Length(p);
         if (!(radius > 0.0)) {
@@ -156,6 +158,10 @@ void CutSoftly(TriangleMesh& mesh, const std::vector<Fracture>& fractures,
                 continue;
             }
             double offset = fractures[i].offset;
+            if (std::isfinite(reach) &&
+                offset * (1.0 - style.faceRoughness) / along >= (reach + blend) * (1.0 + 1e-9)) {
+                continue;
+            }
             if (style.faceRoughness > 0.0) {
                 const double shift = 7.13 * static_cast<double>(i);
                 const Vec3d at{ray.x * frequency + shift, ray.y * frequency - shift,
@@ -165,7 +171,7 @@ void CutSoftly(TriangleMesh& mesh, const std::vector<Fracture>& fractures,
                               SurfaceRoughness(at, style, seed + static_cast<std::uint32_t>(i));
             }
             const double cut = offset / along;
-            reach = softness > 0.0 && std::isfinite(reach) ? SmoothMin(reach, cut, 4.0 * softness)
+            reach = softness > 0.0 && std::isfinite(reach) ? SmoothMin(reach, cut, blend)
                                                            : std::fmin(reach, cut);
         }
         if (polyhedral) {

@@ -3,6 +3,9 @@
 #include <cmath>
 #include <fstream>
 #include <sstream>
+#include <string>
+#include <type_traits>
+#include <variant>
 
 namespace terraingen {
 
@@ -160,6 +163,19 @@ std::string ConfigToJson(const TerrainConfig& terrainConfig, int indent) {
         json.erase("albedo");
     }
     return json.dump(indent) + "\n";
+}
+
+std::string LayerType(const LayerSpec& layer) {
+    return std::visit(
+        [](const auto& spec) {
+            using Spec = std::decay_t<decltype(spec)>;
+            std::string type(config::SpecName<Spec>::kName);
+            if constexpr (std::is_same_v<Spec, RegionLayerSpec>) {
+                type += " (" + LayerType(*spec.layer) + ")";
+            }
+            return type;
+        },
+        layer);
 }
 
 }  // namespace terraingen

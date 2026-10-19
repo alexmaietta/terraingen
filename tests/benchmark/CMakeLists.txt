@@ -1,7 +1,8 @@
 include("${PROJECT_SOURCE_DIR}/cmake/third_party/benchmark.cmake")
 
 # Timings are only meaningful from an optimized build: configure with -DCMAKE_BUILD_TYPE=Release.
-add_executable(terraingen_benchmarks bench_craters.cpp bench_grids.cpp bench_point_queries.cpp)
+add_executable(terraingen_benchmarks bench_boulders.cpp bench_craters.cpp bench_grids.cpp
+                                     bench_point_queries.cpp)
 target_include_directories(terraingen_benchmarks PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
                                                          "${PROJECT_SOURCE_DIR}/tests")
 target_link_libraries(terraingen_benchmarks PRIVATE terraingen::terraingen benchmark::benchmark
@@ -13,7 +14,7 @@ if(TERRAINGEN_BUILD_TESTS)
         NAME benchmarks.smoke
         COMMAND
             terraingen_benchmarks --benchmark_min_time=1x --benchmark_format=json
-            "--benchmark_filter=GenerateCraters/256$|ApplyCraters/cells:1024/threads:0|EvaluateGrid/cells:512/threads:0|EvaluateTiles/level:5|EvaluateAtWarm/real_time/threads:2$|EvaluateAtUncached|EvaluateAtCold|EvaluateAtDatum"
+            "--benchmark_filter=GenerateBoulderShape/3|GenerateCraters/256$|ApplyCraters/cells:1024/threads:0|EvaluateGrid/cells:512/threads:0|EvaluateTiles/level:5|EvaluateAtWarm/real_time/threads:2$|EvaluateAtUncached|EvaluateAtCold|EvaluateAtDatum"
     )
     set_tests_properties(benchmarks.smoke PROPERTIES LABELS benchmark)
     if(TARGET _terraingen)

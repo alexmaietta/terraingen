@@ -1,6 +1,7 @@
 #include "terraingen/config/generate.h"
 
 #include "terraingen/config/build.h"
+#include "terraingen/config/json.h"
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/pipeline/body_mesh.h"
@@ -9,6 +10,8 @@
 #include "terraingen/sources/source_chain.h"
 #include "terraingen/util/log.h"
 
+#include <algorithm>
+#include <cmath>
 #include <iomanip>
 #include <numbers>
 #include <optional>
@@ -17,6 +20,7 @@
 #include <string>
 #include <type_traits>
 #include <variant>
+#include <vector>
 
 namespace terraingen {
 
@@ -54,6 +58,44 @@ struct PlacedBoulderSet {
     double spacing = 0.0;
     BoulderFeatures features;
 };
+
+/// One step of generating a terrain and the time it took over every grid.
+struct StepTime {
+    std::string name;
+    double milliseconds = 0.0;
+};
+
+/// A sample spacing in metres to three significant figures, or in kilometres from 1 km.
+std::string FormatSpacing(double metres) {
+    std::ostringstream text;
+    text << std::setprecision(3);
+    if (metres >= 1000.0) {
+        text << metres / 1000.0 << " km";
+    } else {
+        text << metres << " m";
+    }
+    return text.str();
+}
+
+/// Logs the time of each step that ran and its share of `total` milliseconds.
+void LogStepTimes(const std::vector<StepTime>& steps, std::size_t grids, double total) {
+    std::size_t width = 0;
+    for (const StepTime& step : steps) {
+        width = std::max(width, step.name.size());
+    }
+    LogInfo("pipeline", "Time per step over ", grids, grids == 1 ? " grid" : " grids", ", of ",
+            FormatDuration(total), ":");
+    for (const StepTime& step : steps) {
+        if (step.milliseconds <= 0.0) {
+            continue;
+        }
+        std::ostringstream line;
+        line << "  " << std::left << std::setw(static_cast<int>(width)) << step.name << std::right
+             << std::setw(10) << FormatDuration(step.milliseconds) << std::setw(5)
+             << std::llround(100.0 * step.milliseconds / std::fmax(total, 1e-9)) << "%";
+        LogInfo("pipeline", line.str());
+    }
+}
 
 /// What `WriteOutputs` writes one output from.
 struct OutputContext {
@@ -238,14 +280,37 @@ GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
     const Terrain& terrain = generated.terrain;
     const Stopwatch stopwatch;
     const std::optional<RasterGrid> base = BaseGrid(terrain);
+    std::vector<RasterGrid> grids;
+    for (const OutputSpec& output : config.outputs) {
+        if (WritesGrid(output)) {
+            const RasterGrid grid = *config::OutputGrid(output, base, terrain.surface);
+            if (std::find(grids.begin(), grids.end(), grid) == grids.end()) {
+                grids.push_back(grid);
+            }
+        }
+    }
+    std::vector<StepTime> steps;
+    for (std::size_t n = 0; n < config.layers.size(); ++n) {
+        steps.push_back({"layer " + std::to_string(n + 1) + " " + LayerType(config.layers[n])});
+    }
+    const std::size_t albedoStep = steps.size();
+    steps.push_back({"albedo"});
+    steps.push_back({"materials"});
+    const auto timed = [&](std::size_t step, double milliseconds) {
+        steps[step].milliseconds += milliseconds;
+        LogInfo("pipeline", "  ", steps[step].name, " in ", FormatDuration(milliseconds));
+    };
     const auto generatedOver = [&](const RasterGrid& grid) -> GeneratedGrid& {
         for (GeneratedGrid& existing : generated.grids) {
             if (RasterGrid::FromRaster(existing.heights) == grid) {
                 return existing;
             }
         }
-        generated.grids.push_back(
-            {Evaluate(terrain, grid, EvaluationOptions{0.0, threads, generated.backend}), {}});
+        LogInfo("pipeline", "Grid ", generated.grids.size() + 1, " of ", grids.size(), ": ",
+                grid.width, "x", grid.height, " at ", FormatSpacing(grid.Spacing(terrain.surface)));
+        EvaluationOptions options{0.0, threads, generated.backend};
+        options.onLayer = timed;
+        generated.grids.push_back({Evaluate(terrain, grid, options), {}});
         return generated.grids.back();
     };
     std::optional<Albedo> albedo;
@@ -256,21 +321,27 @@ GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
         const RasterGrid grid = *config::OutputGrid(output, base, terrain.surface);
         GeneratedGrid& target = generatedOver(grid);
         if (std::holds_alternative<AlbedoOutput>(output) && target.albedo.empty()) {
+            const Stopwatch albedoTime;
             if (!albedo) {
                 albedo = BuildAlbedo(config, terrain, directory);
             }
             const TerrainGround ground(terrain, terrain.layers.size());
             target.albedo = EvaluateAlbedo(*albedo, grid,
                                            {.spacing = 0.0, .threads = threads, .ground = &ground});
+            timed(albedoStep, albedoTime.Milliseconds());
         }
         if (MapsMaterials(output) && target.materials.empty()) {
+            const Stopwatch materialsTime;
             target.materials = EvaluateMaterials(terrain, config.materials->options, grid,
                                                  EvaluationOptions{0.0, threads});
+            timed(albedoStep + 1, materialsTime.Milliseconds());
         }
     }
     generated.geoKeys = KeysOf(terrain);
     generated.seconds = stopwatch.Milliseconds() / 1000.0;
-    LogDebug("pipeline", Summary(generated));
+    if (!generated.grids.empty()) {
+        LogStepTimes(steps, generated.grids.size(), stopwatch.Milliseconds());
+    }
     return generated;
 }
 

@@ -506,3 +506,14 @@ TEST(ConfigCatalog, ListsTheNewDensitiesAndAges) {
     }
     EXPECT_EQ(ages, (std::vector<std::string>{"uniform", "fresh", "steady_state"}));
 }
+
+TEST(LayerType, NamesALayerAsItsJsonTypeAndARegionByTheLayerInside) {
+    EXPECT_EQ(terraingen::LayerType(terraingen::CraterLayerSpec{}), "craters");
+    EXPECT_EQ(terraingen::LayerType(terraingen::SandFillLayerSpec{}), "sand_fill");
+    terraingen::RegionLayerSpec region;
+    region.layer = terraingen::BoulderLayerSpec{};
+    EXPECT_EQ(terraingen::LayerType(region), "region (boulders)");
+    terraingen::RegionLayerSpec nested;
+    nested.layer = region;
+    EXPECT_EQ(terraingen::LayerType(nested), "region (region (boulders))");
+}

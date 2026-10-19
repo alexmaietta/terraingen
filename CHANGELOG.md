@@ -25,7 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Boulder models settle onto a stable face by default instead of balancing on an edge or corner.
 - Boulder generation logs under boulders rather than craters.
 - Crater and boulder generation summaries log at debug level; `terraingen` ends with one line counting the files written instead of listing each, and feature outputs log how long they took.
-- Faster boulders: the ground beneath them is read in one batch, outputs over one region share the boulders placed for the first, models are placed in parallel and ejecta craters are found through a spatial index. The hero demo runs in about 10 s instead of 276 s.
+- Generation logs each grid as it is evaluated, with the time of every layer, the albedo and the materials, and ends with each step's total and share.
+- Faster boulders: the ground beneath them is read in one batch, outputs over one region share the boulders placed for the first, models are placed in parallel, ejecta craters are found through a spatial index and shapes skip the roughness of fracture planes that cannot reach a vertex. The hero demo runs in about 10 s instead of 276 s.
 - Martin, Parkes and Dunstan is the default crater profile.
 
 ### Fixed
