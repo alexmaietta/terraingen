@@ -68,7 +68,10 @@ class Writer {
     /// @param json The object to write; it must outlive the writer.
     /// @param omitUnset Whether unset optional fields of this object are left out rather than
     /// written as null; the objects inside it write theirs as null.
-    explicit Writer(Json& json, bool omitUnset = false) : json_(json), omitUnset_(omitUnset) {}
+    /// @param compact Whether the objects inside it leave out lists that are empty, as they are
+    /// by default (`FieldsJson`).
+    explicit Writer(Json& json, bool omitUnset = false, bool compact = false)
+        : json_(json), omitUnset_(omitUnset), compact_(compact) {}
 
     /// Writes a field as a key; `description` and `unit` are for `ConfigSchema`.
     template <typename T>
@@ -78,6 +81,7 @@ class Writer {
   private:
     Json& json_;
     bool omitUnset_ = false;
+    bool compact_ = false;
 };
 
 /// Whether `Fields(reader, value)` is callable with a `Reader`.
@@ -240,34 +244,39 @@ void Reader::operator()(std::string_view key, T& value, std::string_view /*descr
 
 /// @name ToJson
 /// A configuration value as JSON, as `Read` reads it.
+/// @param compact Whether objects leave out lists that are empty, as they are by default
+/// (`FieldsJson`), rather than write every field.
 /// @{
-inline Json ToJson(double value) {
+inline Json ToJson(double value, bool /*compact*/ = false) {
     return value;
 }
-inline Json ToJson(float value) {
+inline Json ToJson(float value, bool /*compact*/ = false) {
     return static_cast<double>(value);
 }
-inline Json ToJson(bool value) {
+inline Json ToJson(bool value, bool /*compact*/ = false) {
     return value;
 }
-inline Json ToJson(int value) {
+inline Json ToJson(int value, bool /*compact*/ = false) {
     return value;
 }
-inline Json ToJson(const std::string& value) {
+inline Json ToJson(const std::string& value, bool /*compact*/ = false) {
     return value;
 }
-template <typename T, std::enable_if_t<IsUnsignedInteger<T>, int> = 0> Json ToJson(T value) {
+template <typename T, std::enable_if_t<IsUnsignedInteger<T>, int> = 0>
+Json ToJson(T value, bool /*compact*/ = false) {
     return static_cast<std::uint64_t>(value);
 }
-template <typename E, std::enable_if_t<NamedEnum<E>, int> = 0> Json ToJson(E value);
-template <typename T, std::enable_if_t<HasFields<T>, int> = 0> Json ToJson(const T& value);
-template <typename T> Json ToJson(const std::optional<T>& value);
-template <typename T> Json ToJson(const Boxed<T>& value);
-template <typename T> Json ToJson(const std::vector<T>& value);
-template <typename... Ts> Json ToJson(const std::variant<Ts...>& value);
+template <typename E, std::enable_if_t<NamedEnum<E>, int> = 0>
+Json ToJson(E value, bool compact = false);
+template <typename T, std::enable_if_t<HasFields<T>, int> = 0>
+Json ToJson(const T& value, bool compact = false);
+template <typename T> Json ToJson(const std::optional<T>& value, bool compact = false);
+template <typename T> Json ToJson(const Boxed<T>& value, bool compact = false);
+template <typename T> Json ToJson(const std::vector<T>& value, bool compact = false);
+template <typename... Ts> Json ToJson(const std::variant<Ts...>& value, bool compact = false);
 /// @}
 
-template <typename E, std::enable_if_t<NamedEnum<E>, int>> Json ToJson(E value) {
+template <typename E, std::enable_if_t<NamedEnum<E>, int>> Json ToJson(E value, bool /*compact*/) {
     for (const auto& entry : EnumNames<E>::kValues) {
         if (entry.value == value) {
             return std::string(entry.name);
@@ -276,37 +285,70 @@ template <typename E, std::enable_if_t<NamedEnum<E>, int>> Json ToJson(E value) 
     return nullptr;
 }
 
-template <typename T, std::enable_if_t<HasFields<T>, int>> Json ToJson(const T& value) {
+/// The keys of `T`'s fields that hold an empty list by default.
+template <typename T> const std::set<std::string, std::less<>>& EmptyListKeys() {
+    static const std::set<std::string, std::less<>> keys = [] {
+        std::set<std::string, std::less<>> found;
+        const Json defaults = ToJson(T{});
+        for (const auto& item : defaults.items()) {
+            if (item.value().is_array() && item.value().empty()) {
+                found.insert(item.key());
+            }
+        }
+        return found;
+    }();
+    return keys;
+}
+
+/// The fields of `value` as an object.
+/// @param omitUnset Whether unset optional fields of this object are left out (`Writer`).
+/// @param compact Whether lists that are empty, as they are by default, are left out here and in
+/// the objects inside; `Read` reads them back the same.
+template <typename T>
+Json FieldsJson(const T& value, bool omitUnset = false, bool compact = false) {
     Json json = Json::object();
     T copy = value;
-    Writer writer(json);
+    Writer writer(json, omitUnset, compact);
     Fields(writer, copy);
-    return json;
-}
-
-template <typename T> Json ToJson(const std::optional<T>& value) {
-    return value ? ToJson(*value) : Json(nullptr);
-}
-
-template <typename T> Json ToJson(const Boxed<T>& value) {
-    return ToJson(*value);
-}
-
-template <typename T> Json ToJson(const std::vector<T>& value) {
-    Json json = Json::array();
-    for (const T& item : value) {
-        json.push_back(ToJson(item));
+    if (compact) {
+        for (const std::string& key : EmptyListKeys<T>()) {
+            const auto found = json.find(key);
+            if (found != json.end() && found->is_array() && found->empty()) {
+                json.erase(found);
+            }
+        }
     }
     return json;
 }
 
-template <typename... Ts> Json ToJson(const std::variant<Ts...>& value) {
+template <typename T, std::enable_if_t<HasFields<T>, int>>
+Json ToJson(const T& value, bool compact) {
+    return FieldsJson(value, false, compact);
+}
+
+template <typename T> Json ToJson(const std::optional<T>& value, bool compact) {
+    return value ? ToJson(*value, compact) : Json(nullptr);
+}
+
+template <typename T> Json ToJson(const Boxed<T>& value, bool compact) {
+    return ToJson(*value, compact);
+}
+
+template <typename T> Json ToJson(const std::vector<T>& value, bool compact) {
+    Json json = Json::array();
+    for (const T& item : value) {
+        json.push_back(ToJson(item, compact));
+    }
+    return json;
+}
+
+template <typename... Ts> Json ToJson(const std::variant<Ts...>& value, bool compact) {
     return std::visit(
-        [](const auto& spec) {
+        [compact](const auto& spec) {
             using Spec = std::decay_t<decltype(spec)>;
             Json json = Json::object();
             json["type"] = std::string(SpecName<Spec>::kName);
-            const Json fields = ToJson(spec);
+            const Json fields = ToJson(spec, compact);
             for (const auto& item : fields.items()) {
                 json[item.key()] = item.value();
             }
@@ -332,7 +374,7 @@ void Writer::operator()(std::string_view key, T& value, std::string_view /*descr
     if (omitUnset_ && IsUnset(value)) {
         return;
     }
-    json_[std::string(key)] = ToJson(value);
+    json_[std::string(key)] = ToJson(value, compact_);
 }
 
 }  // namespace terraingen::config

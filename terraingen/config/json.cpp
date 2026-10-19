@@ -135,11 +135,7 @@ TerrainConfig LoadConfig(const std::filesystem::path& path) {
 }
 
 std::string ConfigToJson(const TerrainConfig& terrainConfig, int indent) {
-    config::Json json = config::Json::object();
-    TerrainConfig copy = terrainConfig;
-    config::Writer writer(json, true);
-    config::Fields(writer, copy);
-    return json.dump(indent) + "\n";
+    return config::FieldsJson(terrainConfig, true, true).dump(indent) + "\n";
 }
 
 ListFormat InferListFormat(std::string_view path) {

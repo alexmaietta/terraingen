@@ -294,10 +294,31 @@ TEST(ConfigJson, WritesTheRootKeysInOrderAndNoAlbedoWhenUnset) {
     EXPECT_EQ(json.rfind("{\n  \"schema_version\": 1,\n  \"body\": {", 0), 0u) << json;
     EXPECT_EQ(json.find("\"base\""), std::string::npos) << json;
     EXPECT_EQ(json.find("\"albedo\""), std::string::npos) << json;
-    EXPECT_LT(json.find("\"layers\""), json.find("\"outputs\""));
+    EXPECT_EQ(json.find("\"layers\""), std::string::npos) << "empty lists are left out";
+    const std::string small = ConfigToJson(terraingen::testing::Small());
+    EXPECT_LT(small.find("\"layers\""), small.find("\"outputs\"")) << small;
     TerrainConfig config;
     config.albedo = terraingen::AlbedoSpec{};
     EXPECT_NE(ConfigToJson(config).find("\"albedo\""), std::string::npos);
+}
+
+TEST(ConfigJson, LeavesOutListsThatAreEmptyByDefault) {
+    TerrainConfig config;
+    config.layers.push_back(CraterLayerSpec{});
+    terraingen::NoiseLayerSpec flat;
+    flat.stack.clear();
+    config.layers.push_back(flat);
+    const std::string json = ConfigToJson(config);
+    EXPECT_EQ(json.find("\"edges\""), std::string::npos) << json;
+    EXPECT_EQ(json.find("\"weights\""), std::string::npos) << json;
+    EXPECT_NE(json.find("\"stack\": []"), std::string::npos)
+        << "an empty list whose default is not empty stays: " << json;
+    EXPECT_EQ(ParseConfig(json), config);
+    EXPECT_NO_THROW(ParseConfig(R"({"schema_version": 1, "layers": [{"type": "craters",
+        "ages": {"type": "freshness", "freshness": {"kind": "uniform", "a": 0, "b": 1,
+        "edges": [], "weights": []}}}]})"));
+    EXPECT_NE(terraingen::ConfigCatalog().find("\"edges\": []"), std::string::npos)
+        << "the catalog lists every field";
 }
 
 TEST(ConfigJson, RoundTripsEveryModelType) {
