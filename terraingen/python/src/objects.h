@@ -88,8 +88,8 @@ template <typename Fn> auto WithFullGround(const PyTerrain* terrain, Fn fn) {
 
 /// What the arguments of a method that reads the ground mean, for its docstring.
 inline constexpr const char* kGroundDoc =
-    "`spacing` is the sample spacing in metres (0 for every detail); what reads the ground "
-    "beneath needs it from `terrain`'s source and its first `layers` layers.";
+    "`spacing` is the sample spacing in metres; what reads the ground beneath needs a positive "
+    "one and the ground from `terrain`'s source and its first `layers` layers.";
 
 /// Binds `name(x, y, spacing=0.0, terrain=None, layers=0)` on `cls`, the class of `Self`, as
 /// `query(self, x, y, spacing, ground)` with the ground `WithGround` makes.

@@ -259,6 +259,18 @@ def test_irregularity_options_select_generated_craters_only():
     assert irregularity.selection.max_diameter == 50.0 and not irregularity.selection.manual
 
 
+def test_options_are_documented_and_listed_from_their_config_fields():
+    assert "Unit: m." in terraingen.CraterSelection.min_diameter.__doc__
+    noise = terraingen.CraterNoise(0.02, octaves=3)
+    assert noise.amplitude == 0.02 and noise.octaves == 3
+    assert repr(noise).startswith("CraterNoise(amplitude=0.02, ")
+    with pytest.raises(TypeError):
+        terraingen.CraterBlend(0.0, 1.0, terraingen.BlendShape.LINEAR, 4.0)
+    with pytest.raises(ValueError):
+        terraingen.CraterNoise(octaves=0).validate()
+    assert "physical order" in terraingen.CraterOrder.OLDEST_FIRST.__doc__
+
+
 def test_unbounded_selection_bounds_read_as_none():
     selection = terraingen.CraterSelection(max_diameter=50.0)
     assert selection.max_diameter == 50.0 and selection.max_age_gyr is None

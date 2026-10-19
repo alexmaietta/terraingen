@@ -287,6 +287,9 @@ def test_sand_fill_pools_sand_and_lays_it_on_the_material_map():
     x, y = terraingen.evaluate(terrain, grid=grid).cell_center(int(col), int(row))
     assert fill.thickness_at(x, y, 0.5, terrain, 1) == pytest.approx(thickness[row, col], abs=1e-5)
     assert fill.material_cover_at(x, y, 0.5, terrain, 1) == pytest.approx(1.0)
+    assert fill.thickness_at(x, y, spacing=0.5, terrain=terrain, layers=1) >= 0.0
+    with pytest.raises(ValueError, match="need the ground"):
+        fill.thickness_at(x, y)
     with pytest.raises(ValueError):
         terraingen.SandFillLayer(terraingen.SandFillOptions(reach=0.0))
 

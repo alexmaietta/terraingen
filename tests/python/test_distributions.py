@@ -156,6 +156,15 @@ def test_python_distribution_without_cumulative_at_raises():
         Incomplete().cumulative(10.0)
 
 
+def test_python_profile_without_height_raises_type_error():
+    class Flat(terraingen.CraterProfile):
+        def reach_radii(self):
+            return 1.0
+
+    with pytest.raises(TypeError, match="Flat must define height"):
+        Flat().height(1.0, 10.0, terraingen.CraterState())
+
+
 def test_trask_equilibrium_matches_its_power_law():
     assert terraingen.trask_equilibrium().cumulative(10.0) == pytest.approx(10**-1.1 * 10.0**-2, rel=1e-6)
 
