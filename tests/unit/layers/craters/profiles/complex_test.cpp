@@ -1,12 +1,12 @@
 #include "terraingen/layers/craters/profiles/complex.h"
 
 #include "terraingen/terraingen.h"
+#include "terraingen/util/bits.h"
 
 #include <gtest/gtest.h>
 
 #include <cmath>
 #include <memory>
-#include <numbers>
 #include <stdexcept>
 
 using terraingen::ComplexCraterProfile;
@@ -49,7 +49,7 @@ TEST(ComplexCraterProfile, HasAFlatFloorACentralPeakAndAContinuousRim) {
     const double floorRadius = 0.5 * 187.0 * std::pow(30.0, 1.249);
     const double peak = 0.589 * std::pow(30.0, 1.969);
     const double volume = 0.987e2 * std::pow(30.0, 5.078);
-    const double base = std::sqrt(3.0 * volume / (std::numbers::pi * peak));
+    const double base = std::sqrt(3.0 * volume / (terraingen::kPi * peak));
     ASSERT_LT(base, floorRadius);
     EXPECT_NEAR(profile.Height(0.5 * (base + floorRadius), d, state), rim - depth, 1e-6)
         << "flat between the peak and the wall";
@@ -57,7 +57,7 @@ TEST(ComplexCraterProfile, HasAFlatFloorACentralPeakAndAContinuousRim) {
     double sum = 0.0;
     const double step = base / 2000.0;
     for (double r = 0.5 * step; r < base; r += step) {
-        sum += 2.0 * std::numbers::pi * r * step * (profile.Height(r, d, state) - (rim - depth));
+        sum += 2.0 * terraingen::kPi * r * step * (profile.Height(r, d, state) - (rim - depth));
     }
     EXPECT_NEAR(sum, volume, 1e-3 * volume) << "the peak holds Hale and Grieve's volume";
     EXPECT_GT(profile.Height(0.95 * 15000.0, d, state), profile.Height(0.8 * 15000.0, d, state));

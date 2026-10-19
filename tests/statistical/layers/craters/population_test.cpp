@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <numbers>
 #include <vector>
 
 using terraingen::Bounds2d;
@@ -19,13 +18,25 @@ using terraingen::testing::ChiSquareCritical;
 using terraingen::testing::KolmogorovSmirnov;
 using terraingen::testing::KolmogorovSmirnovCritical;
 
+namespace {
+
+/// The default generation options with diameters from `dMin` to `dMax` (m).
+terraingen::CraterGenerationOptions Diameters(double dMin, double dMax) {
+    terraingen::CraterGenerationOptions options;
+    options.dMin = dMin;
+    options.dMax = dMax;
+    return options;
+}
+
+}  // namespace
+
 TEST(CraterPopulationStatistics, CountMatchesTheExpectedCountOverTheRegion) {
     const auto density = terraingen::testing::LunarCraterDensity(3.5);
     const auto ages = terraingen::testing::LunarCraterAges(3.5);
     const Bounds2d region{-750.0, -500.0, 750.0, 1000.0};
     const double area = 1500.0 * 1500.0;
     const CraterList craters =
-        GenerateCraters(PlanarCells(), region, *density, *ages, 21u, {.dMin = 2.5, .dMax = 1000.0});
+        GenerateCraters(PlanarCells(), region, *density, *ages, 21u, Diameters(2.5, 1000.0));
     const double mean = density->ExpectedCount(area, 2.5, 1000.0);
     EXPECT_NEAR(static_cast<double>(craters.Size()), mean, 5.0 * std::sqrt(mean));
 }
@@ -34,7 +45,7 @@ TEST(CraterPopulationStatistics, DiametersMatchTheDensityAcrossBands) {
     const auto density = terraingen::testing::LunarCraterDensity(3.5);
     const auto ages = terraingen::testing::LunarCraterAges(3.5);
     const CraterList craters = GenerateCraters(PlanarCells(), {0.0, 0.0, 1200.0, 1200.0}, *density,
-                                               *ages, 22u, {.dMin = 3.0, .dMax = 300.0});
+                                               *ages, 22u, Diameters(3.0, 300.0));
     const double top = density->Cumulative(3.0);
     const double bottom = density->Cumulative(300.0);
     ASSERT_GT(craters.Size(), 10000u);
@@ -47,8 +58,8 @@ TEST(CraterPopulationStatistics, DiametersMatchTheDensityAcrossBands) {
 TEST(CraterPopulationStatistics, PositionsAreUniformAcrossQuadratsNotAlignedWithCells) {
     const PowerLawSfd density(0.1, 2.0);
     const Bounds2d region{3.0, 7.0, 1003.0, 1007.0};
-    const CraterList craters = GenerateCraters(PlanarCells(), region, density, FreshAges(), 23u,
-                                               {.dMin = 1.0, .dMax = 64.0});
+    const CraterList craters =
+        GenerateCraters(PlanarCells(), region, density, FreshAges(), 23u, Diameters(1.0, 64.0));
     constexpr std::size_t kSide = 7;
     std::vector<double> counts(kSide * kSide, 0.0);
     for (std::size_t n = 0; n < craters.Size(); ++n) {
@@ -75,7 +86,7 @@ namespace {
 double BoxArea(const terraingen::Surface& surface, double lon1, double lon2, double lat1,
                double lat2) {
     constexpr int kSteps = 60;
-    constexpr double kRadian = std::numbers::pi / 180.0;
+    constexpr double kRadian = terraingen::kPi / 180.0;
     double area = 0.0;
     for (int j = 0; j < kSteps; ++j) {
         const double lat = lat1 + (lat2 - lat1) * (j + 0.5) / kSteps;
@@ -92,9 +103,11 @@ double BoxArea(const terraingen::Surface& surface, double lon1, double lon2, dou
 TEST(CraterPopulationStatistics, AnEllipsoidHoldsTheDensityTimesItsArea) {
     const terraingen::Surface body = terraingen::Surface::Ellipsoid(270.0, 147.0, 104.0);
     const PowerLawSfd density(0.1, 2.0);
+    terraingen::CraterGenerationOptions options = Diameters(1.0, 20.0);
+    options.surface = body;
     const CraterList craters =
         GenerateCraters(terraingen::CubeSphereCells(body), {-180.0, -90.0, 180.0, 90.0}, density,
-                        FreshAges(), 24u, {.dMin = 1.0, .dMax = 20.0, .surface = body});
+                        FreshAges(), 24u, options);
     const double mean = density.ExpectedCount(BoxArea(body, -180.0, 180.0, -90.0, 90.0), 1.0, 20.0);
     EXPECT_NEAR(static_cast<double>(craters.Size()), mean, 5.0 * std::sqrt(mean));
 }
@@ -102,9 +115,11 @@ TEST(CraterPopulationStatistics, AnEllipsoidHoldsTheDensityTimesItsArea) {
 TEST(CraterPopulationStatistics, EllipsoidPositionsAreUniformByArea) {
     const terraingen::Surface body = terraingen::Surface::Ellipsoid(270.0, 147.0, 104.0);
     const PowerLawSfd density(0.1, 2.0);
+    terraingen::CraterGenerationOptions options = Diameters(1.0, 20.0);
+    options.surface = body;
     const CraterList craters =
         GenerateCraters(terraingen::CubeSphereCells(body), {-180.0, -90.0, 180.0, 90.0}, density,
-                        FreshAges(), 25u, {.dMin = 1.0, .dMax = 20.0, .surface = body});
+                        FreshAges(), 25u, options);
     constexpr int kLon = 8;
     constexpr int kLat = 6;
     std::vector<double> counts(kLon * kLat, 0.0);

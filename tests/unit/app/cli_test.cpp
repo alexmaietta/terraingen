@@ -254,7 +254,10 @@ TEST(Cli, GeneratesAConfigsOutputsIntoTheChosenFolder) {
     ASSERT_EQ(moved.code, kExitSuccess) << moved.err;
     EXPECT_TRUE(std::filesystem::exists(elsewhere / "heights.tif"));
     const auto other = terraingen::ReadGeoTiff(elsewhere / "heights.tif").raster;
-    EXPECT_TRUE(std::ranges::equal(other.Values(), heights.Values()));
+    const auto otherValues = other.Values();
+    const auto heightValues = heights.Values();
+    EXPECT_TRUE(std::equal(otherValues.begin(), otherValues.end(), heightValues.begin(),
+                           heightValues.end()));
 }
 
 TEST(Cli, ReportsConfigAndOutputErrorsWhenGenerating) {

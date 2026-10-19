@@ -28,7 +28,15 @@ struct GeoTiffSourceOptions {
     /// (`DetailLayer` can add the removed detail back). 0 keeps every frequency.
     double lowPass = 0.0;
 
-    bool operator==(const GeoTiffSourceOptions&) const = default;
+    /// Memberwise equality.
+    bool operator==(const GeoTiffSourceOptions& other) const {
+        return band == other.band && pixelSize == other.pixelSize &&
+               resampling == other.resampling && scale == other.scale && offset == other.offset &&
+               lowPass == other.lowPass;
+    }
+    bool operator!=(const GeoTiffSourceOptions& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Heights from one band of a GeoTIFF in a projected CRS, optionally resampled to square

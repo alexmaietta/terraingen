@@ -1,11 +1,11 @@
 #include "terraingen/terraingen.h"
+#include "terraingen/util/bits.h"
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
 #include <cmath>
 #include <memory>
-#include <numbers>
 #include <set>
 #include <vector>
 
@@ -23,7 +23,7 @@ using terraingen::Surface;
 namespace {
 
 constexpr double kMoon = 1737400.0;
-constexpr double kDegree = std::numbers::pi / 180.0;
+constexpr double kDegree = terraingen::kPi / 180.0;
 
 CraterModels Models() {
     return {std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
@@ -64,7 +64,7 @@ TEST(SphereCraters, GeneratesTheDensityPerSquareMetreOfSphere) {
     const CraterModels models = Models();
     const CubeSphereCells cells(kMoon);
     for (const Bounds2d& box : {Bounds2d{10.0, 0.0, 10.6, 0.6}, Bounds2d{40.0, 70.0, 41.8, 70.6}}) {
-        terraingen::CraterGenerationOptions options{.dMin = 150.0, .dMax = 1200.0};
+        terraingen::CraterGenerationOptions options{150.0, 1200.0};
         options.surface = Surface::Sphere(kMoon);
         const CraterList craters =
             terraingen::GenerateCraters(cells, box, *models.density, *models.ages, 9u, options);
@@ -80,7 +80,7 @@ TEST(SphereCraters, GeneratesTheDensityPerSquareMetreOfSphere) {
 TEST(SphereCraters, TilesAgreeAcrossTheAntimeridianAndThePole) {
     const CraterModels models = Models();
     const CubeSphereCells cells(kMoon);
-    terraingen::CraterGenerationOptions options{.dMin = 150.0, .dMax = 1200.0, .marginRadii = 2.0};
+    terraingen::CraterGenerationOptions options{150.0, 1200.0, 2.0};
     options.surface = Surface::Sphere(kMoon);
     const auto generate = [&](const Bounds2d& box) {
         return Ids(
@@ -154,8 +154,8 @@ TEST(SphereCraterLayer, GridsEqualPointsAndThreadsAcrossTheAntimeridian) {
     const CraterLayer layer(Models(), options);
     Raster<float> one = Geographic(179.95, 45.05, 0.001, 100);
     Raster<float> many = one;
-    layer.Apply(one, {.spacing = 0.0, .threads = 1});
-    layer.Apply(many, {.spacing = 0.0, .threads = 0});
+    layer.Apply(one, {0.0, 1});
+    layer.Apply(many, {0.0, 0});
     int changed = 0;
     for (std::size_t i = 0; i < one.Size(); ++i) {
         EXPECT_EQ(one.Values()[i], many.Values()[i]);
@@ -175,7 +175,7 @@ TEST(SphereCraterLayer, GridsEqualPointsAndThreadsAcrossTheAntimeridian) {
             << col << " " << row;
     }
     Raster<float> wrapped = Geographic(-180.05, 45.05, 0.001, 100);
-    layer.Apply(wrapped, {.spacing = 0.0, .threads = 2});
+    layer.Apply(wrapped, {0.0, 2});
     for (std::size_t i = 0; i < one.Size(); ++i) {
         EXPECT_NEAR(wrapped.Values()[i], one.Values()[i], 1e-2f);
     }
@@ -204,10 +204,10 @@ TEST(SphereCraterLayer, FitsDatumsOnTheSphere) {
     }
     const Raster<float> before = heights;
     const double spacing = terraingen::RasterGrid::FromRaster(heights).Spacing(options.surface);
-    layer.Apply(heights, {.spacing = spacing, .threads = 1, .ground = &ground});
+    layer.Apply(heights, {spacing, 1, &ground});
     const auto centre = heights.CellCenter(25, 25);
-    EXPECT_EQ(heights(25, 25), layer.ApplyAt(before(25, 25), centre.x, centre.y,
-                                             {.spacing = spacing, .ground = &ground}));
+    EXPECT_EQ(heights(25, 25),
+              layer.ApplyAt(before(25, 25), centre.x, centre.y, {spacing, 1, &ground}));
     EXPECT_LT(heights(25, 25), before(25, 25) - 100.0f);
 }
 
@@ -263,15 +263,15 @@ void ExpectGridsTilesAndPointsAgree(const CraterLayer& layer, const BodyCase& bo
     Raster<float> whole = Geographic(body.crater.x - half, body.crater.y + half, body.step, 96);
     Raster<float> threaded = whole;
     const double spacing = terraingen::RasterGrid::FromRaster(whole).Spacing(body.surface);
-    layer.Apply(whole, {.spacing = spacing, .threads = 1, .ground = ground});
-    layer.Apply(threaded, {.spacing = spacing, .threads = 0, .ground = ground});
+    layer.Apply(whole, {spacing, 1, ground});
+    layer.Apply(threaded, {spacing, 0, ground});
     for (std::size_t i = 0; i < whole.Size(); ++i) {
         ASSERT_EQ(whole.Values()[i], threaded.Values()[i]) << body.name;
     }
     EXPECT_LT(whole(48, 48), -0.05f * static_cast<float>(body.crater.diameter)) << body.name;
     Raster<float> tile = Geographic(body.crater.x - half + 32.0 * body.step,
                                     body.crater.y + half - 32.0 * body.step, body.step, 32);
-    layer.Apply(tile, {.spacing = spacing, .threads = 1, .ground = ground});
+    layer.Apply(tile, {spacing, 1, ground});
     for (std::size_t row = 0; row < 32; ++row) {
         for (std::size_t col = 0; col < 32; ++col) {
             ASSERT_EQ(tile(col, row), whole(col + 32, row + 32)) << body.name;
@@ -280,8 +280,7 @@ void ExpectGridsTilesAndPointsAgree(const CraterLayer& layer, const BodyCase& bo
     for (const std::size_t at :
          {std::size_t{5}, std::size_t{40}, std::size_t{48}, std::size_t{70}}) {
         const auto centre = whole.CellCenter(at, 95 - at);
-        EXPECT_EQ(layer.ApplyAt(0.0f, centre.x, centre.y, {.spacing = spacing, .ground = ground}),
-                  whole(at, 95 - at))
+        EXPECT_EQ(layer.ApplyAt(0.0f, centre.x, centre.y, {spacing, 1, ground}), whole(at, 95 - at))
             << body.name << " at " << at;
     }
     for (const terraingen::BackendStatus& status : terraingen::Backends()) {
@@ -289,7 +288,7 @@ void ExpectGridsTilesAndPointsAgree(const CraterLayer& layer, const BodyCase& bo
             continue;
         }
         Raster<float> gpu = Geographic(body.crater.x - half, body.crater.y + half, body.step, 96);
-        layer.Apply(gpu, {.spacing = spacing, .ground = ground, .backend = status.backend});
+        layer.Apply(gpu, {spacing, 1, ground, status.backend});
         const auto tolerance = static_cast<float>(1e-5 * body.crater.diameter);
         for (std::size_t i = 0; i < whole.Size(); ++i) {
             ASSERT_NEAR(gpu.Values()[i], whole.Values()[i], tolerance)
@@ -367,9 +366,8 @@ TEST(BodyCraterLayer, ShapesProfilesOfYourOwnOnEveryBody) {
         const double depth =
             terraingen::LunarFreshCraterMorphometry(body.crater.diameter).depthRatio *
             body.crater.diameter;
-        EXPECT_NEAR(
-            layer.ApplyAt(0.0f, body.crater.x, body.crater.y, {.spacing = 5.0, .ground = &ground}),
-            -depth, 1e-3 * depth)
+        EXPECT_NEAR(layer.ApplyAt(0.0f, body.crater.x, body.crater.y, {5.0, 1, &ground}), -depth,
+                    1e-3 * depth)
             << body.name;
     }
 }

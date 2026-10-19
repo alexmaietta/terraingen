@@ -24,7 +24,14 @@ struct RoughnessOptions {
     /// How octaves too fine to resolve fade out, by samples per wavelength.
     ResolutionFade fade{};
 
-    bool operator==(const RoughnessOptions&) const = default;
+    bool operator==(const RoughnessOptions& other) const {
+        return rmsSlope == other.rmsSlope && baseline == other.baseline && hurst == other.hurst &&
+               maxWavelength == other.maxWavelength && minWavelength == other.minWavelength &&
+               seed == other.seed && fade == other.fade;
+    }
+    bool operator!=(const RoughnessOptions& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks roughness options.

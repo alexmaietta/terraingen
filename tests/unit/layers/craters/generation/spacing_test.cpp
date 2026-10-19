@@ -132,7 +132,7 @@ TEST(CraterTakesPrecedence, LetsCratersFromAThresholdOutrankSmallerOnesWhateverT
 TEST(GenerateCraters, KeepsCratersAboveTheOutrankingSizeWhateverSmallerOnesAreDrawn) {
     const terraingen::PlanarCells cells;
     const terraingen::PowerLawSfd density(0.2, 2.0);
-    terraingen::CraterGenerationOptions all{.dMin = 4.0, .dMax = 64.0};
+    terraingen::CraterGenerationOptions all{4.0, 64.0};
     all.spacing = {2.0, 1.0};
     all.spacing.outrankFrom = 16.0;
     terraingen::CraterGenerationOptions large = all;

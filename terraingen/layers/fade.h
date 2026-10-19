@@ -26,7 +26,13 @@ struct ResolutionFade {
     double endSamples = 4.0;    ///< Samples across from which it is whole; above `startSamples`.
     BlendShape shape = BlendShape::Smoothstep;  ///< The curve in between.
 
-    bool operator==(const ResolutionFade&) const = default;
+    bool operator==(const ResolutionFade& other) const {
+        return startSamples == other.startSamples && endSamples == other.endSamples &&
+               shape == other.shape;
+    }
+    bool operator!=(const ResolutionFade& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks a resolution fade.

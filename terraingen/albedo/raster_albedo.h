@@ -25,7 +25,13 @@ struct AlbedoDetail {
     std::optional<double> hurst;
     ResolutionFade fade{};  ///< How octaves too fine for the sample spacing fade out.
 
-    bool operator==(const AlbedoDetail&) const = default;
+    bool operator==(const AlbedoDetail& other) const {
+        return enabled == other.enabled && seed == other.seed && octaves == other.octaves &&
+               scale == other.scale && hurst == other.hurst && fade == other.fade;
+    }
+    bool operator!=(const AlbedoDetail& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks albedo detail settings.
@@ -38,7 +44,12 @@ struct RasterAlbedoOptions {
     ResampleMethod method = ResampleMethod::Cubic;  ///< Interpolation of the map.
     AlbedoDetail detail{};                          ///< Sub-cell detail.
 
-    bool operator==(const RasterAlbedoOptions&) const = default;
+    bool operator==(const RasterAlbedoOptions& other) const {
+        return method == other.method && detail == other.detail;
+    }
+    bool operator!=(const RasterAlbedoOptions& other) const {
+        return !(*this == other);
+    }
 };
 
 /// An albedo map, such as a normal albedo mosaic from orbit, upscaled to the grid:

@@ -1,9 +1,10 @@
 #include "terraingen/distribution/golombek_rapp.h"
 
+#include "terraingen/util/bits.h"
+
 #include <gtest/gtest.h>
 
 #include <cmath>
-#include <numbers>
 #include <stdexcept>
 
 using terraingen::GolombekRappSfd;
@@ -32,13 +33,13 @@ TEST(GolombekRappSfd, FollowsGolombekAndRapp) {
     EXPECT_DOUBLE_EQ(boulders.FractionalArea(0.5), 0.02 * std::exp(-boulders.Q() * 0.5));
     EXPECT_DOUBLE_EQ(boulders.Incremental(0.3), 0.02 * boulders.Q() *
                                                     std::exp(-boulders.Q() * 0.3) /
-                                                    (std::numbers::pi * 0.09 / 4.0));
+                                                    (terraingen::kPi * 0.09 / 4.0));
     for (const double d : {0.05, 0.2, 1.0, 3.0}) {
         const double integral =
             IntegrateLog([&](double x) { return boulders.Incremental(x); }, d, 60.0);
         EXPECT_NEAR(boulders.Cumulative(d), integral, 1e-6 * boulders.Cumulative(d)) << d;
         const double area = IntegrateLog(
-            [&](double x) { return boulders.Incremental(x) * std::numbers::pi * x * x / 4.0; }, d,
+            [&](double x) { return boulders.Incremental(x) * terraingen::kPi * x * x / 4.0; }, d,
             60.0);
         EXPECT_NEAR(area, boulders.FractionalArea(d), 1e-6 * boulders.FractionalArea(d)) << d;
     }

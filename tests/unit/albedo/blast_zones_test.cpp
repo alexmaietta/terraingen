@@ -1,12 +1,12 @@
 #include "terraingen/albedo/blast_zones.h"
 
 #include "terraingen/albedo/synthetic.h"
+#include "terraingen/util/bits.h"
 
 #include <gtest/gtest.h>
 
 #include <cmath>
 #include <memory>
-#include <numbers>
 #include <stdexcept>
 
 using terraingen::Albedo;
@@ -29,7 +29,7 @@ BlastZone Round() {
 TEST(BlastZoneAlbedo, AveragesTheMeasuredChangeOverTheZone) {
     const BlastZone zone = Round();
     const BlastZoneAlbedo layer({zone});
-    const double radius = std::sqrt(zone.area / std::numbers::pi);
+    const double radius = std::sqrt(zone.area / terraingen::kPi);
     double sum = 0.0;
     int count = 0;
     for (double x = -radius; x <= radius; x += 1.0) {
@@ -66,7 +66,7 @@ TEST(BlastZoneAlbedo, StretchesAlongItsHeadingAndDarkensItsCore) {
     const BlastZoneAlbedo ragged({zone});
     int inside = 0;
     for (int k = 0; k < 360; ++k) {
-        const double a = 2.0 * std::numbers::pi * k / 360.0;
+        const double a = 2.0 * terraingen::kPi * k / 360.0;
         inside += ragged.Change(zone, 0.75 * 21.5 * std::cos(a), 0.75 * 37.5 * std::sin(a)) > 0.0;
     }
     EXPECT_GT(inside, 30);
@@ -88,16 +88,15 @@ TEST(BlastZoneAlbedo, GridsAndPointsAgreeOnAPlaneAndASphere) {
             surface};
         const double step = 8.0 / surface.UnitLength();
         const RasterGrid grid{48, 48, GeoTransform::NorthUp(-24.0 * step, 24.0 * step, step)};
-        const auto values = terraingen::EvaluateAlbedo(albedo, grid, {.spacing = 8.0});
+        const auto values = terraingen::EvaluateAlbedo(albedo, grid, {8.0});
         EXPECT_LT(values[0](24, 24), 0.1f) << "the dark core";
         EXPECT_GT(values[0](30, 24), 0.1f) << "the bright zone";
         EXPECT_FLOAT_EQ(values[0](0, 0), 0.1f) << "undisturbed";
         for (std::size_t row = 0; row < 48; row += 5) {
             for (std::size_t col = 0; col < 48; col += 3) {
                 const auto centre = values[0].CellCenter(col, row);
-                ASSERT_EQ(
-                    terraingen::EvaluateAlbedoAt(albedo, centre.x, centre.y, {.spacing = 8.0})[0],
-                    values[0](col, row));
+                ASSERT_EQ(terraingen::EvaluateAlbedoAt(albedo, centre.x, centre.y, {8.0})[0],
+                          values[0](col, row));
             }
         }
     }

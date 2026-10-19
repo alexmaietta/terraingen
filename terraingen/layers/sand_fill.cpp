@@ -1,11 +1,11 @@
 #include "terraingen/layers/sand_fill.h"
 
 #include "terraingen/layers/fade.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 
 #include <array>
 #include <cmath>
-#include <numbers>
 #include <stdexcept>
 
 namespace terraingen {
@@ -28,9 +28,9 @@ SandFillLayer::SandFillLayer(SandFillOptions options, Surface surface)
     ValidateSandFillOptions(options_);
     for (int ring = 0; ring < 2; ++ring) {
         const double radius = options_.reach * (ring == 0 ? 0.5 : 1.0);
-        const double turn = ring == 0 ? std::numbers::pi / kRingPoints : 0.0;
+        const double turn = ring == 0 ? kPi / kRingPoints : 0.0;
         for (int k = 0; k < kRingPoints; ++k) {
-            const double angle = turn + 2.0 * std::numbers::pi * k / kRingPoints;
+            const double angle = turn + 2.0 * kPi * k / kRingPoints;
             rings_[static_cast<std::size_t>(ring * kRingPoints + k)] = {radius * std::cos(angle),
                                                                         radius * std::sin(angle)};
         }

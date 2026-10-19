@@ -1,10 +1,10 @@
 #include "terraingen/layers/craters/profiles/complex.h"
 
+#include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 
 #include <algorithm>
 #include <cmath>
-#include <numbers>
 #include <stdexcept>
 #include <utility>
 
@@ -73,10 +73,11 @@ double ComplexCraterProfile::Height(double distance, double diameter,
     const double fitted =
         shape_.peakFitMaxDiameter > 0.0 ? std::fmin(diameter, shape_.peakFitMaxDiameter) : diameter;
     const double peakHeight = shape_.peakHeight.At(fitted);
-    const double base = (shape_.peakDiameter ? 0.5 * shape_.peakDiameter->At(fitted)
-                                             : std::sqrt(3.0 * shape_.peakVolume.At(fitted, true) /
-                                                         (std::numbers::pi * peakHeight))) *
-                        (diameter / fitted);
+    const double base =
+        (shape_.peakDiameter
+             ? 0.5 * shape_.peakDiameter->At(fitted)
+             : std::sqrt(3.0 * shape_.peakVolume.At(fitted, true) / (kPi * peakHeight))) *
+        (diameter / fitted);
     if (distance < base) {
         const double fresh = state.fresh.depthRatio;
         const double kept = fresh > 0.0 ? state.current.depthRatio / fresh : 1.0;

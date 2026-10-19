@@ -7,7 +7,6 @@
 #include <array>
 #include <cmath>
 #include <map>
-#include <numbers>
 #include <stdexcept>
 #include <utility>
 

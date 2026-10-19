@@ -5,10 +5,10 @@
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/util/geometry.h"
+#include "terraingen/util/span.h"
 #include "terraingen/util/surface.h"
 
 #include <cstddef>
-#include <span>
 
 namespace terraingen {
 
@@ -22,7 +22,7 @@ class SampleBlock {
 
     /// The points `positions`, with their heights in step; both must outlive the block.
     /// @throws std::invalid_argument when the two differ in length.
-    SampleBlock(std::span<const Vec2d> positions, std::span<float> heights);
+    SampleBlock(Span<const Vec2d> positions, Span<float> heights);
 
     /// The number of samples.
     std::size_t Size() const {
@@ -59,8 +59,8 @@ class SampleBlock {
 
   private:
     Raster<float>* grid_ = nullptr;
-    std::span<const Vec2d> positions_;
-    std::span<float> heights_;
+    Span<const Vec2d> positions_;
+    Span<float> heights_;
 };
 
 /// Sets each point of `samples` holding data, in order, to `map(height, position)`.

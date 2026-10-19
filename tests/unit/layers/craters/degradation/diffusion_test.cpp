@@ -212,7 +212,7 @@ TEST(DiffusionDegradation, CraterLayersAgreeOnGridsAndPoints) {
                                         options);
     terraingen::Raster<float> heights(64, 64, 0.0f);
     heights.SetTransform(terraingen::GeoTransform::NorthUp(-64.0, 64.0, 2.0));
-    layer.Apply(heights, {.spacing = 2.0, .threads = 0});
+    layer.Apply(heights, {2.0, 0});
     const auto craters = layer.Craters(terraingen::RasterGrid::FromRaster(heights).Bounds(), 2.0);
     ASSERT_GT(craters.Size(), 3u);
     for (const auto& [col, row] :

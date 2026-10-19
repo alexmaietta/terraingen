@@ -2,6 +2,7 @@
 
 #include "terraingen/layers/fade.h"
 #include "terraingen/random/samplers.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/fft.h"
 
@@ -9,7 +10,6 @@
 #include <cmath>
 #include <complex>
 #include <cstddef>
-#include <numbers>
 #include <stdexcept>
 
 namespace terraingen {
@@ -63,8 +63,8 @@ struct DuSpectrum {
         if (k == 2) {
             return logPower3;
         }
-        const double logPi = std::log10(std::numbers::pi);
-        const double logWavelength = std::log10(2.0 * std::numbers::pi / static_cast<double>(k));
+        const double logPi = std::log10(kPi);
+        const double logWavelength = std::log10(2.0 * kPi / static_cast<double>(k));
         if (logWavelength >= logWavelength2) {
             return logPower2 + (logWavelength - logWavelength2) / (logPi - logWavelength2) *
                                    (logPower3 - logPower2);
@@ -100,9 +100,8 @@ std::vector<double> DuRimTable(double diameter, bool scatter, double maxDeviatio
     for (std::size_t k = 1; k < kTableSize / 2; ++k) {
         const double noise = scatter ? kSpectrumSigma * StandardNormal(random) : 0.0;
         const double amplitude =
-            std::sqrt(std::pow(10.0, fit.LogPower(k) + noise) * 2.0 * std::numbers::pi) /
-            kSpectrumVertices;
-        const double phase = 2.0 * std::numbers::pi * random.NextDouble();
+            std::sqrt(std::pow(10.0, fit.LogPower(k) + noise) * 2.0 * kPi) / kSpectrumVertices;
+        const double phase = 2.0 * kPi * random.NextDouble();
         spectrum[k] = std::complex<double>(0.0, -1.0) * std::polar(amplitude, phase);
     }
     Fft(spectrum, 1.0);
@@ -148,7 +147,7 @@ void AddHarmonics(CraterOutline& outline, const CraterIrregularity& irregularity
     if (roughness > 0.0) {
         for (int k = irregularity.minHarmonic; k <= irregularity.maxHarmonic; ++k) {
             outline.amplitudes.push_back(norm * std::pow(static_cast<double>(k), -slope));
-            outline.phases.push_back(2.0 * std::numbers::pi * random.NextDouble());
+            outline.phases.push_back(2.0 * kPi * random.NextDouble());
         }
     }
 }
@@ -225,7 +224,7 @@ double CraterOutline::Scale(double dx, double dy) const {
     }
     double wobble = 1.0;
     if (!table.empty()) {
-        const double turns = theta / (2.0 * std::numbers::pi);
+        const double turns = theta / (2.0 * kPi);
         const double position = (turns - std::floor(turns)) * static_cast<double>(table.size());
         const auto index = std::min(static_cast<std::size_t>(position), table.size() - 1);
         const double t = position - static_cast<double>(index);
@@ -245,8 +244,7 @@ double CraterOutline::MarkShift(double dx, double dy, double radii) const {
     }
     const double window = Smoothstep((radii - marksInnerRadii + marksFadeRadii) / marksFadeRadii) *
                           Smoothstep((marksOuterRadii + marksFadeRadii - radii) / marksFadeRadii);
-    const double turns =
-        (dx == 0.0 && dy == 0.0) ? 0.0 : std::atan2(dy, dx) / (2.0 * std::numbers::pi);
+    const double turns = (dx == 0.0 && dy == 0.0) ? 0.0 : std::atan2(dy, dx) / (2.0 * kPi);
     const std::size_t size = marks.size();
     const double position = (turns - std::floor(turns)) * static_cast<double>(size);
     const auto index = std::min(static_cast<std::size_t>(position), size - 1);
@@ -285,7 +283,7 @@ CraterOutline IrregularOutline(const Crater& crater, const CraterIrregularity& i
         outline.heading =
             irregularity.heading
                 ? *irregularity.heading + irregularity.headingSpread * (2.0 * draws.h - 1.0)
-                : std::numbers::pi * draws.h;
+                : kPi * draws.h;
     }
     if (draws.rough < irregularity.roughShare && irregularity.model == RimRoughnessModel::Du2024) {
         outline.table =

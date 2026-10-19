@@ -51,7 +51,15 @@ struct CraterSlopeResponse {
     /// S nears Sc, where the form grows without bound; a numerical limit, not a measured one.
     double maxWearRate = 10.0;
 
-    bool operator==(const CraterSlopeResponse&) const = default;
+    /// Memberwise equality.
+    bool operator==(const CraterSlopeResponse& other) const {
+        return enabled == other.enabled && seed == other.seed && floorOffset == other.floorOffset &&
+               upslopeRim == other.upslopeRim && fullSlope == other.fullSlope &&
+               criticalGradient == other.criticalGradient && maxWearRate == other.maxWearRate;
+    }
+    bool operator!=(const CraterSlopeResponse& other) const {
+        return !(*this == other);
+    }
 };
 
 /// How many times as fast a crater wears on ground rising `east` and `north` metres per metre,

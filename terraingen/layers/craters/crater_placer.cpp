@@ -18,7 +18,7 @@ CraterFeatures DescribeCraters(CraterList craters, const CraterShapeModels& mode
     return described;
 }
 
-CraterFeatures PlacedCraters(std::span<const std::shared_ptr<const Layer>> layers,
+CraterFeatures PlacedCraters(Span<const std::shared_ptr<const Layer>> layers,
                              const RasterGrid& grid, double spacing) {
     CraterFeatures placed;
     for (const auto& layer : layers) {

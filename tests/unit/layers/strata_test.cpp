@@ -1,11 +1,11 @@
 #include "terraingen/layers/strata.h"
 
 #include "terraingen/raster/grid.h"
+#include "terraingen/util/bits.h"
 
 #include <gtest/gtest.h>
 
 #include <cmath>
-#include <numbers>
 #include <stdexcept>
 #include <vector>
 
@@ -14,7 +14,7 @@ using terraingen::StrataOptions;
 
 namespace {
 
-constexpr double kDegree = std::numbers::pi / 180.0;
+constexpr double kDegree = terraingen::kPi / 180.0;
 
 /// Ground with a constant height.
 class Level final : public terraingen::Ground {
@@ -118,7 +118,7 @@ TEST(StrataLayer, BedThicknessesVaryWithinTheirBounds) {
 TEST(StrataLayer, BedsDipTowardTheirAzimuth) {
     StrataOptions options;
     options.dip = 10.0 * kDegree;
-    options.dipAzimuth = 0.5 * std::numbers::pi;
+    options.dipAzimuth = 0.5 * terraingen::kPi;
     const StrataLayer layer(options);
     const double drop = std::tan(options.dip) * 7.0;
     EXPECT_NEAR(layer.BedPositionAt(3.3, 2.0, 1.0), layer.BedPositionAt(3.3 - drop, 2.0, 8.0),
@@ -195,7 +195,7 @@ TEST(StrataLayer, RejectsBadOptions) {
     rejects([](StrataOptions& o) { o.bedThickness = 0.0; });
     rejects([](StrataOptions& o) { o.thicknessVariation = 1.0; });
     rejects([](StrataOptions& o) { o.thicknessVariation = -0.1; });
-    rejects([](StrataOptions& o) { o.dip = 0.5 * std::numbers::pi; });
+    rejects([](StrataOptions& o) { o.dip = 0.5 * terraingen::kPi; });
     rejects([](StrataOptions& o) { o.sharpness = 0.9; });
     rejects([](StrataOptions& o) { o.sharpness = INFINITY; });
     rejects([](StrataOptions& o) { o.strength = 1.1; });

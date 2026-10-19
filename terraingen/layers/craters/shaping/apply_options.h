@@ -40,7 +40,13 @@ struct CraterBlend {
         return Falloff(radii, startRadii, endRadii, shape);
     }
 
-    bool operator==(const CraterBlend&) const = default;
+    /// Memberwise equality.
+    bool operator==(const CraterBlend& other) const {
+        return startRadii == other.startRadii && endRadii == other.endRadii && shape == other.shape;
+    }
+    bool operator!=(const CraterBlend& other) const {
+        return !(*this == other);
+    }
 };
 
 /// How crater rims are rounded: near the rim, the profile is blended toward itself smoothed across
@@ -57,7 +63,14 @@ struct RimSmoothing {
     /// the band's edges and when `sigmaRadii` is 0.
     double Weight(double radii) const;
 
-    bool operator==(const RimSmoothing&) const = default;
+    /// Memberwise equality.
+    bool operator==(const RimSmoothing& other) const {
+        return sigmaRadii == other.sigmaRadii && innerRadii == other.innerRadii &&
+               outerRadii == other.outerRadii && shape == other.shape && strength == other.strength;
+    }
+    bool operator!=(const RimSmoothing& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks rim smoothing settings.
@@ -79,7 +92,18 @@ struct CraterNoise {
     double rimOuterRadii = 1.2;       ///< Outer edge of the rim band, in crater radii; above 1.
     std::uint32_t seed = 0;           ///< Varies the noise of every crater.
 
-    bool operator==(const CraterNoise&) const = default;
+    /// Memberwise equality.
+    bool operator==(const CraterNoise& other) const {
+        return amplitude == other.amplitude && wavelengthRadii == other.wavelengthRadii &&
+               octaves == other.octaves && gain == other.gain &&
+               rimAmplitude == other.rimAmplitude &&
+               rimWavelengthRadii == other.rimWavelengthRadii &&
+               rimInnerRadii == other.rimInnerRadii && rimOuterRadii == other.rimOuterRadii &&
+               seed == other.seed;
+    }
+    bool operator!=(const CraterNoise& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks crater noise settings.
@@ -111,7 +135,17 @@ struct CraterTexture {
         return ejecta > 0.0 || mantling > 0.0;
     }
 
-    bool operator==(const CraterTexture&) const = default;
+    /// Memberwise equality.
+    bool operator==(const CraterTexture& other) const {
+        return wallStreaks == other.wallStreaks &&
+               wallStreakWidthRadii == other.wallStreakWidthRadii && ejecta == other.ejecta &&
+               ejectaLineationRadii == other.ejectaLineationRadii && mantling == other.mantling &&
+               ejectaReachRadii == other.ejectaReachRadii && minFreshness == other.minFreshness &&
+               seed == other.seed;
+    }
+    bool operator!=(const CraterTexture& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks crater texture settings.
@@ -149,7 +183,18 @@ struct CraterApplyOptions {
     /// each crater is shaped in its local frame, spacings in metres.
     Surface surface{};
 
-    bool operator==(const CraterApplyOptions&) const = default;
+    /// Memberwise equality.
+    bool operator==(const CraterApplyOptions& other) const {
+        return order == other.order && fade == other.fade && datum == other.datum &&
+               datumFitRadii == other.datumFitRadii &&
+               interiorReplacement == other.interiorReplacement && blend == other.blend &&
+               irregularity == other.irregularity && rimSmoothing == other.rimSmoothing &&
+               noise == other.noise && texture == other.texture && slope == other.slope &&
+               surface == other.surface;
+    }
+    bool operator!=(const CraterApplyOptions& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks crater apply options.

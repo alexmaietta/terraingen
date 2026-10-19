@@ -1,13 +1,13 @@
 #include "terraingen/albedo/splotches.h"
 
 #include "terraingen/albedo/synthetic.h"
+#include "terraingen/util/bits.h"
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
 #include <cmath>
 #include <memory>
-#include <numbers>
 #include <stdexcept>
 #include <vector>
 
@@ -116,7 +116,7 @@ TEST(SplotchAlbedo, YoungerSplotchesCoverOlderOnes) {
     options.brightShare = 1.0;
     const Albedo albedo = Grey(options);
     const RasterGrid grid{100, 100, GeoTransform::NorthUp(0.0, 100.0, 1.0)};
-    const auto values = EvaluateAlbedo(albedo, grid, {.spacing = 0.5});
+    const auto values = EvaluateAlbedo(albedo, grid, {0.5});
     int changed = 0;
     for (std::size_t row = 0; row < 100; ++row) {
         for (std::size_t col = 0; col < 100; ++col) {
@@ -135,9 +135,9 @@ TEST(SplotchAlbedo, GridsTilesAndPointsAgree) {
     const Albedo albedo = Grey(options);
     const RasterGrid whole{96, 96, GeoTransform::NorthUp(-48.0, 48.0, 1.0)};
     const RasterGrid tile{32, 32, GeoTransform::NorthUp(-16.0, 16.0, 1.0)};
-    const auto grid = EvaluateAlbedo(albedo, whole, {.spacing = 1.0, .threads = 1});
-    const auto threaded = EvaluateAlbedo(albedo, whole, {.spacing = 1.0, .threads = 0});
-    const auto part = EvaluateAlbedo(albedo, tile, {.spacing = 1.0});
+    const auto grid = EvaluateAlbedo(albedo, whole, {1.0, 1});
+    const auto threaded = EvaluateAlbedo(albedo, whole, {1.0, 0});
+    const auto part = EvaluateAlbedo(albedo, tile, {1.0});
     int changed = 0;
     for (std::size_t row = 0; row < 96; ++row) {
         for (std::size_t col = 0; col < 96; ++col) {
@@ -151,7 +151,7 @@ TEST(SplotchAlbedo, GridsTilesAndPointsAgree) {
             ASSERT_EQ(part[0](col, row), grid[0](col + 32, row + 32));
             if ((row * 32 + col) % 7 == 0) {
                 const auto centre = part[0].CellCenter(col, row);
-                ASSERT_EQ(EvaluateAlbedoAt(albedo, centre.x, centre.y, {.spacing = 1.0})[0],
+                ASSERT_EQ(EvaluateAlbedoAt(albedo, centre.x, centre.y, {1.0})[0],
                           part[0](col, row));
             }
         }
@@ -165,7 +165,7 @@ TEST(SplotchAlbedo, WorksOnASphereAndLeavesNoData) {
     const Albedo albedo = Grey(options, moon);
     const double metre = 1.0 / moon.UnitLength();
     const RasterGrid grid{64, 64, GeoTransform::NorthUp(30.0, -10.0 + 64.0 * metre, metre)};
-    const auto values = EvaluateAlbedo(albedo, grid, {.spacing = 1.0});
+    const auto values = EvaluateAlbedo(albedo, grid, {1.0});
     int changed = 0;
     for (std::size_t row = 0; row < 64; ++row) {
         for (std::size_t col = 0; col < 64; ++col) {
@@ -175,10 +175,10 @@ TEST(SplotchAlbedo, WorksOnASphereAndLeavesNoData) {
     EXPECT_GT(changed, 50);
     const SplotchAlbedo layer(options);
     AlbedoSample value{NAN, 0.2f, 0.0f};
-    layer.ApplyAt(value, 1, 0.0, 0.0, {.spacing = 1.0});
+    layer.ApplyAt(value, 1, 0.0, 0.0, {1.0});
     EXPECT_TRUE(std::isnan(value[0]));
     std::vector<terraingen::Raster<float>> none;
-    layer.Apply(none, {.spacing = 1.0});
+    layer.Apply(none, {1.0});
     EXPECT_TRUE(none.empty());
 }
 
@@ -212,7 +212,7 @@ namespace {
 /// A plane tilted `degrees` toward +x.
 struct Tilted final : terraingen::Ground {
     double grade = 0.0;
-    explicit Tilted(double degrees) : grade(std::tan(degrees * std::numbers::pi / 180.0)) {}
+    explicit Tilted(double degrees) : grade(std::tan(degrees * terraingen::kPi / 180.0)) {}
     float HeightAt(double x, double, double) const override {
         return static_cast<float>(grade * x);
     }
@@ -257,14 +257,16 @@ TEST(SplotchAlbedo, SteepSlopesCanFavourBrightSplotches) {
     const Albedo albedo{std::make_shared<SyntheticAlbedo>(params),
                         {std::make_shared<SplotchAlbedo>(options)}};
     const RasterGrid grid{64, 64, GeoTransform::NorthUp(0.0, 64.0, 1.0)};
-    const auto values = EvaluateAlbedo(albedo, grid, {.spacing = 1.0, .ground = &steep});
+    terraingen::AlbedoContext onSteepGround;
+    onSteepGround.spacing = 1.0;
+    onSteepGround.ground = &steep;
+    const auto values = EvaluateAlbedo(albedo, grid, onSteepGround);
     for (std::size_t row = 0; row < 64; ++row) {
         for (std::size_t col = 0; col < 64; ++col) {
             ASSERT_GE(values[0](col, row), 0.11f) << "only bright splotches on the steep plane";
             if ((row * 64 + col) % 11 == 0) {
                 const auto centre = values[0].CellCenter(col, row);
-                ASSERT_EQ(EvaluateAlbedoAt(albedo, centre.x, centre.y,
-                                           {.spacing = 1.0, .ground = &steep})[0],
+                ASSERT_EQ(EvaluateAlbedoAt(albedo, centre.x, centre.y, onSteepGround)[0],
                           values[0](col, row));
             }
         }
@@ -359,7 +361,7 @@ TEST(SplotchAlbedo, SwarmsKeepGridsAndPointsInStep) {
     options.swarms.referenceCount = 20.0;
     const Albedo albedo = Grey(options);
     const RasterGrid grid{48, 48, GeoTransform::NorthUp(0.0, 192.0, 4.0)};
-    const auto values = EvaluateAlbedo(albedo, grid, {.spacing = 4.0});
+    const auto values = EvaluateAlbedo(albedo, grid, {4.0});
     const auto swarmed = SplotchAlbedo(options).Splotches({0.0, 0.0, 192.0, 192.0}, 4.0).size();
     SplotchAlbedoOptions plain = options;
     plain.swarms.enabled = false;
@@ -367,8 +369,7 @@ TEST(SplotchAlbedo, SwarmsKeepGridsAndPointsInStep) {
     for (std::size_t row = 0; row < 48; row += 3) {
         for (std::size_t col = 0; col < 48; col += 3) {
             const auto centre = values[0].CellCenter(col, row);
-            ASSERT_EQ(EvaluateAlbedoAt(albedo, centre.x, centre.y, {.spacing = 4.0})[0],
-                      values[0](col, row));
+            ASSERT_EQ(EvaluateAlbedoAt(albedo, centre.x, centre.y, {4.0})[0], values[0](col, row));
         }
     }
 }

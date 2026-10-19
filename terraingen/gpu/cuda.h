@@ -6,7 +6,6 @@
 
 #include <cstddef>
 #include <memory>
-#include <span>
 #include <string>
 
 namespace terraingen {
@@ -32,8 +31,8 @@ class CudaCompute final : public ComputeDevice {
 
     /// @throws std::runtime_error for a driver failure, a driver too old for the PTX, or a kernel
     /// whose global parameters are not laid out as above.
-    void Run(const KernelProgram& program, std::span<const DeviceBuffer> buffers,
-             std::span<const std::byte> pushConstants, const Dispatch& dispatch) override;
+    void Run(const KernelProgram& program, Span<const DeviceBuffer> buffers,
+             Span<const std::byte> pushConstants, const Dispatch& dispatch) override;
 
     CudaCompute(const CudaCompute&) = delete;
     CudaCompute& operator=(const CudaCompute&) = delete;

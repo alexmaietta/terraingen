@@ -2,12 +2,12 @@
 
 #include "terraingen/layers/fade.h"
 #include "terraingen/random/stream.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/surface.h"
 
 #include <algorithm>
 #include <cmath>
-#include <numbers>
 #include <optional>
 #include <stdexcept>
 
@@ -26,7 +26,7 @@ void ValidateStrataOptions(const StrataOptions& options) {
     if (!(options.thicknessVariation >= 0.0 && options.thicknessVariation < 1.0)) {
         throw std::invalid_argument("Strata thicknessVariation must be in [0, 1)");
     }
-    if (!(options.dip >= 0.0 && options.dip < 0.5 * std::numbers::pi)) {
+    if (!(options.dip >= 0.0 && options.dip < 0.5 * kPi)) {
         throw std::invalid_argument("Strata dip must be in [0, 90) deg");
     }
     if (!(options.sharpness >= 1.0 && std::isfinite(options.sharpness) &&

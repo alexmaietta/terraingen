@@ -16,7 +16,13 @@ namespace terraingen {
 struct SyntheticTerrainParams {
     std::vector<NoiseLayer> layers{NoiseLayer{}};  ///< 1 to `kMaxNoiseLayers`; one Perlin fBm.
 
-    bool operator==(const SyntheticTerrainParams&) const = default;
+    /// Memberwise equality.
+    bool operator==(const SyntheticTerrainParams& other) const {
+        return layers == other.layers;
+    }
+    bool operator!=(const SyntheticTerrainParams& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks the layer count and every layer (`ValidateNoiseLayer`).

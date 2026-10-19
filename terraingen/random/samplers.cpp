@@ -1,11 +1,11 @@
 #include "terraingen/random/samplers.h"
 
+#include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 
 #include <algorithm>
 #include <cmath>
 #include <iterator>
-#include <numbers>
 #include <stdexcept>
 #include <utility>
 
@@ -82,7 +82,7 @@ double SampleExponential(RandomStream& random, double rate) {
 }
 
 double StandardNormal(double u1, double u2) {
-    return std::sqrt(-2.0 * std::log1p(-u1)) * std::cos(2.0 * std::numbers::pi * u2);
+    return std::sqrt(-2.0 * std::log1p(-u1)) * std::cos(2.0 * kPi * u2);
 }
 
 double StandardNormal(RandomStream& random) {

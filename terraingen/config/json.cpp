@@ -143,7 +143,10 @@ std::string ConfigToJson(const TerrainConfig& terrainConfig, int indent) {
 }
 
 ListFormat InferListFormat(std::string_view path) {
-    return path.ends_with(".json") ? ListFormat::Json : ListFormat::Csv;
+    constexpr std::string_view suffix = ".json";
+    const bool json =
+        path.size() >= suffix.size() && path.substr(path.size() - suffix.size()) == suffix;
+    return json ? ListFormat::Json : ListFormat::Csv;
 }
 
 std::string LayerType(const LayerSpec& layer) {

@@ -35,7 +35,12 @@ struct BoulderFacet {
         return (reach - along) * std::tan(angle);
     }
 
-    bool operator==(const BoulderFacet&) const = default;
+    bool operator==(const BoulderFacet& other) const {
+        return azimuth == other.azimuth && angle == other.angle && reach == other.reach;
+    }
+    bool operator!=(const BoulderFacet& other) const {
+        return !(*this == other);
+    }
 };
 
 /// One boulder: where it stands, how large it is and how it lies, in surface coordinates
@@ -82,7 +87,17 @@ struct Boulder {
         return std::fmax(top, 0.0);
     }
 
-    bool operator==(const Boulder&) const = default;
+    bool operator==(const Boulder& other) const {
+        return x == other.x && y == other.y && diameter == other.diameter &&
+               height == other.height && burial == other.burial && yaw == other.yaw &&
+               lean == other.lean && id == other.id && rest == other.rest && tilt == other.tilt &&
+               tiltAzimuth == other.tiltAzimuth && ground == other.ground && model == other.model &&
+               wear == other.wear && parent == other.parent && piece == other.piece &&
+               facets == other.facets && facetCount == other.facetCount;
+    }
+    bool operator!=(const Boulder& other) const {
+        return !(*this == other);
+    }
 };
 
 }  // namespace terraingen

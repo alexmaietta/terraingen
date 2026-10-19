@@ -2,12 +2,12 @@
 
 #include "terraingen/albedo/maturity.h"
 #include "terraingen/layers/fade.h"
+#include "terraingen/util/bits.h"
 
 #include <gtest/gtest.h>
 
 #include <cmath>
 #include <limits>
-#include <numbers>
 #include <vector>
 
 using terraingen::AlbedoSample;
@@ -53,7 +53,7 @@ TEST(SoftEdge, FadesOverTheLastFeatherOfTheWay) {
 
 TEST(RingNoise, IsPeriodicAroundTheRing) {
     const double here = terraingen::RingNoise(2.0, 0.3, 0.5, 7u, 3);
-    EXPECT_DOUBLE_EQ(terraingen::RingNoise(2.0, 0.3 + 2.0 * std::numbers::pi, 0.5, 7u, 3), here);
+    EXPECT_DOUBLE_EQ(terraingen::RingNoise(2.0, 0.3 + 2.0 * terraingen::kPi, 0.5, 7u, 3), here);
     EXPECT_LE(std::fabs(here), 1.0);
     EXPECT_NE(terraingen::RingNoise(2.0, 0.3, 0.5, 8u, 3), here);
 }

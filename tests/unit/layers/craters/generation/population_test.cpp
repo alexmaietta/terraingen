@@ -84,7 +84,7 @@ TEST(CraterList, StoresOneColumnPerField) {
 TEST(GenerateCraters, IsDeterministicPerSeedWithUniqueIds) {
     const PowerLawSfd density(0.1, 2.0);
     const Bounds2d region{0.0, 0.0, 500.0, 500.0};
-    const CraterGenerationOptions options{.dMin = 2.0, .dMax = 64.0};
+    const CraterGenerationOptions options{2.0, 64.0};
     const CraterList first = GenerateCraters(kCells, region, density, FreshAges(), 7u, options);
     const CraterList second = GenerateCraters(kCells, region, density, FreshAges(), 7u, options);
     const CraterList other = GenerateCraters(kCells, region, density, FreshAges(), 8u, options);
@@ -105,7 +105,7 @@ TEST(GenerateCraters, IsDeterministicPerSeedWithUniqueIds) {
 
 TEST(GenerateCraters, TilesJoinToTheWholeRegion) {
     const PowerLawSfd density(0.1, 2.0);
-    const CraterGenerationOptions options{.dMin = 1.0, .dMax = 50.0};
+    const CraterGenerationOptions options{1.0, 50.0};
     const CraterList whole =
         GenerateCraters(kCells, {-300.0, -200.0, 300.0, 200.0}, density, FreshAges(), 3u, options);
     CraterList joined;
@@ -121,10 +121,8 @@ TEST(GenerateCraters, LoweringDMinKeepsLargerBandsInPlace) {
     const auto density = terraingen::testing::LunarCraterDensity(3.5);
     const auto ages = terraingen::testing::LunarCraterAges(3.5);
     const Bounds2d region{0.0, 0.0, 400.0, 400.0};
-    const CraterList coarse =
-        GenerateCraters(kCells, region, *density, *ages, 11u, {.dMin = 3.0, .dMax = 100.0});
-    const CraterList fine =
-        GenerateCraters(kCells, region, *density, *ages, 11u, {.dMin = 2.5, .dMax = 100.0});
+    const CraterList coarse = GenerateCraters(kCells, region, *density, *ages, 11u, {3.0, 100.0});
+    const CraterList fine = GenerateCraters(kCells, region, *density, *ages, 11u, {2.5, 100.0});
     ExpectSameCraters(Filter(coarse, region, 4.0), Filter(fine, region, 4.0));
     EXPECT_GT(fine.Size(), coarse.Size());
 }
@@ -132,7 +130,7 @@ TEST(GenerateCraters, LoweringDMinKeepsLargerBandsInPlace) {
 TEST(GenerateCraters, ChangingTheAgeModelNeverMovesACrater) {
     const PowerLawSfd density(0.1, 2.0);
     const Bounds2d region{0.0, 0.0, 300.0, 300.0};
-    const CraterGenerationOptions options{.dMin = 2.0, .dMax = 32.0};
+    const CraterGenerationOptions options{2.0, 32.0};
     const CraterList fresh = GenerateCraters(kCells, region, density, FreshAges(), 5u, options);
     const CraterList aged = GenerateCraters(kCells, region, density, UniformAges(2.0), 5u, options);
     EXPECT_EQ(fresh.Ids(), aged.Ids());
@@ -148,9 +146,9 @@ TEST(GenerateCraters, MarginKeepsCratersReachingIntoTheRegion) {
     const PowerLawSfd density(0.1, 2.0);
     const Bounds2d region{0.0, 0.0, 200.0, 200.0};
     const CraterList inside =
-        GenerateCraters(kCells, region, density, FreshAges(), 9u, {.dMin = 4.0, .dMax = 64.0});
-    const CraterList withMargin = GenerateCraters(kCells, region, density, FreshAges(), 9u,
-                                                  {.dMin = 4.0, .dMax = 64.0, .marginRadii = 3.0});
+        GenerateCraters(kCells, region, density, FreshAges(), 9u, {4.0, 64.0});
+    const CraterList withMargin =
+        GenerateCraters(kCells, region, density, FreshAges(), 9u, {4.0, 64.0, 3.0});
     ExpectSameCraters(inside, Filter(withMargin, region));
     std::size_t outside = 0;
     for (std::size_t n = 0; n < withMargin.Size(); ++n) {
@@ -164,7 +162,7 @@ TEST(GenerateCraters, MarginKeepsCratersReachingIntoTheRegion) {
 TEST(GenerateCraters, UsesTheDensitysRangeForAnInfiniteDMax) {
     const PowerLawSfd bounded(0.1, 2.0, SfdKind::Density, {0.0, 20.0});
     const CraterList craters =
-        GenerateCraters(kCells, {0.0, 0.0, 300.0, 300.0}, bounded, FreshAges(), 2u, {.dMin = 5.0});
+        GenerateCraters(kCells, {0.0, 0.0, 300.0, 300.0}, bounded, FreshAges(), 2u, {5.0});
     ASSERT_FALSE(craters.Empty());
     EXPECT_LE(*std::max_element(craters.Diameters().begin(), craters.Diameters().end()), 20.0);
 }
@@ -178,34 +176,35 @@ TEST(GenerateCraters, RejectsInvalidRequests) {
         return GenerateCraters(kCells, region, density, fresh, 1u, options);
     };
     EXPECT_THROW(generate({}), std::invalid_argument);
-    EXPECT_THROW(generate({.dMin = kNaN, .dMax = 10.0}), std::invalid_argument);
-    EXPECT_THROW(generate({.dMin = 10.0, .dMax = 10.0}), std::invalid_argument);
-    EXPECT_THROW(generate({.dMin = 1.0}), std::invalid_argument);
-    EXPECT_THROW(generate({.dMin = 1.0, .dMax = 10.0, .marginRadii = -1.0}), std::invalid_argument);
-    EXPECT_THROW(generate({.dMin = 1.0, .dMax = 10.0, .cellSizeFactor = 0.0}),
-                 std::invalid_argument);
-    EXPECT_THROW(generate({.dMin = 1.0, .dMax = 10.0, .maxExpectedCraters = -1.0}),
-                 std::invalid_argument);
-    EXPECT_THROW(generate({.dMin = 0.01, .dMax = 10.0, .maxExpectedCraters = 1000.0}),
-                 std::invalid_argument);
+    EXPECT_THROW(generate({kNaN, 10.0}), std::invalid_argument);
+    EXPECT_THROW(generate({10.0, 10.0}), std::invalid_argument);
+    EXPECT_THROW(generate({1.0}), std::invalid_argument);
+    EXPECT_THROW(generate({1.0, 10.0, -1.0}), std::invalid_argument);
+    CraterGenerationOptions noCells{1.0, 10.0};
+    noCells.cellSizeFactor = 0.0;
+    EXPECT_THROW(generate(noCells), std::invalid_argument);
+    CraterGenerationOptions negativeLimit{1.0, 10.0};
+    negativeLimit.maxExpectedCraters = -1.0;
+    EXPECT_THROW(generate(negativeLimit), std::invalid_argument);
+    CraterGenerationOptions overLimit{0.01, 10.0};
+    overLimit.maxExpectedCraters = 1000.0;
+    EXPECT_THROW(generate(overLimit), std::invalid_argument);
     const PowerLawSfd rate(0.1, 2.0, SfdKind::ProductionRate);
-    EXPECT_THROW(GenerateCraters(kCells, region, rate, fresh, 1u, {.dMin = 1.0, .dMax = 10.0}),
+    EXPECT_THROW(GenerateCraters(kCells, region, rate, fresh, 1u, {1.0, 10.0}),
                  std::invalid_argument);
     const PowerLawSfd bounded(0.1, 2.0, SfdKind::Density, {0.0, 20.0});
-    EXPECT_THROW(GenerateCraters(kCells, region, bounded, fresh, 1u, {.dMin = 30.0}),
+    EXPECT_THROW(GenerateCraters(kCells, region, bounded, fresh, 1u, {30.0}),
                  std::invalid_argument);
-    EXPECT_THROW(GenerateCraters(kCells, region, bounded, fresh, 1u, {.dMin = 1.0, .dMax = 40.0}),
+    EXPECT_THROW(GenerateCraters(kCells, region, bounded, fresh, 1u, {1.0, 40.0}),
                  std::domain_error);
-    EXPECT_THROW(GenerateCraters(kCells, {0.0, 0.0, 0.0, 1.0}, density, fresh, 1u,
-                                 {.dMin = 1.0, .dMax = 10.0}),
+    EXPECT_THROW(GenerateCraters(kCells, {0.0, 0.0, 0.0, 1.0}, density, fresh, 1u, {1.0, 10.0}),
                  std::invalid_argument);
 }
 
 TEST(GenerateCraters, LogsASummaryAndEachBand) {
     const terraingen::testing::LogCapture capture(terraingen::LogLevel::Debug);
-    const CraterList craters =
-        GenerateCraters(kCells, {0.0, 0.0, 200.0, 200.0}, PowerLawSfd(0.1, 2.0), FreshAges(), 3u,
-                        {.dMin = 3.0, .dMax = 20.0});
+    const CraterList craters = GenerateCraters(kCells, {0.0, 0.0, 200.0, 200.0},
+                                               PowerLawSfd(0.1, 2.0), FreshAges(), 3u, {3.0, 20.0});
     EXPECT_TRUE(capture.Matching("craters", terraingen::LogLevel::Info).empty())
         << "generation runs per tile and per query, so its summary is detail";
     const auto records = capture.Matching("craters", terraingen::LogLevel::Debug);
@@ -218,7 +217,7 @@ TEST(GenerateCraters, LogsASummaryAndEachBand) {
 
 TEST(GenerateCraters, LogsUnderTheNameItIsGiven) {
     const terraingen::testing::LogCapture capture(terraingen::LogLevel::Debug);
-    terraingen::CraterGenerationOptions options{.dMin = 3.0, .dMax = 20.0};
+    terraingen::CraterGenerationOptions options{3.0, 20.0};
     options.logName = "boulders";
     const CraterList boulders = GenerateCraters(kCells, {0.0, 0.0, 200.0, 200.0},
                                                 PowerLawSfd(0.1, 2.0), FreshAges(), 3u, options);
@@ -248,12 +247,13 @@ std::size_t ConflictingPairs(const CraterList& craters, const terraingen::Crater
 TEST(GenerateCraters, SpacingLeavesNoSimilarCratersTooClose) {
     const terraingen::CraterSpacing spacing{1.5, 1.0};
     const Bounds2d region{0.0, 0.0, 300.0, 300.0};
-    const CraterList dense = GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0),
-                                             UniformAges(1.0), 4u, {.dMin = 4.0, .dMax = 64.0});
+    const CraterList dense =
+        GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), UniformAges(1.0), 4u, {4.0, 64.0});
     const terraingen::testing::LogCapture capture(terraingen::LogLevel::Debug);
+    CraterGenerationOptions spacedOptions{4.0, 64.0};
+    spacedOptions.spacing = spacing;
     const CraterList spaced =
-        GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), UniformAges(1.0), 4u,
-                        {.dMin = 4.0, .dMax = 64.0, .spacing = spacing});
+        GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), UniformAges(1.0), 4u, spacedOptions);
     EXPECT_GT(ConflictingPairs(dense, spacing), 0u);
     EXPECT_EQ(ConflictingPairs(spaced, spacing), 0u);
     EXPECT_LT(spaced.Size(), dense.Size());
@@ -265,8 +265,8 @@ TEST(GenerateCraters, SpacingLeavesNoSimilarCratersTooClose) {
 
 TEST(GenerateCraters, SpacedTilesJoinToTheWholeRegion) {
     const terraingen::CraterSpacing spacing{2.0, 0.75};
-    const CraterGenerationOptions options{
-        .dMin = 2.0, .dMax = 40.0, .marginRadii = 1.5, .spacing = spacing};
+    CraterGenerationOptions options{2.0, 40.0, 1.5};
+    options.spacing = spacing;
     const PowerLawSfd density(0.1, 2.0);
     const UniformAges ages(1.0);
     const CraterList whole =
@@ -286,8 +286,10 @@ TEST(GenerateCraters, SpacedTilesJoinToTheWholeRegion) {
 }
 
 TEST(GenerateCraters, RejectsInvalidSpacing) {
+    CraterGenerationOptions options{1.0, 5.0};
+    options.spacing = {0.5, 1.0};
     EXPECT_THROW(GenerateCraters(kCells, {0.0, 0.0, 10.0, 10.0}, PowerLawSfd(0.1, 2.0), FreshAges(),
-                                 1u, {.dMin = 1.0, .dMax = 5.0, .spacing = {0.5, 1.0}}),
+                                 1u, options),
                  std::invalid_argument);
 }
 
@@ -317,10 +319,12 @@ TEST(GenerateCraters, MergesManualCratersInsideTheRegion) {
     manual.Append({60.0, 60.0, 20.0, 0.1, 42u, true});
     manual.Append({900.0, 900.0, 30.0, 0.0, 0u});
     const Bounds2d region{0.0, 0.0, 200.0, 200.0};
-    const CraterList plain = GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), FreshAges(), 3u,
-                                             {.dMin = 4.0, .dMax = 64.0});
-    const CraterList merged = GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), FreshAges(),
-                                              3u, {.dMin = 4.0, .dMax = 64.0, .manual = manual});
+    const CraterList plain =
+        GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), FreshAges(), 3u, {4.0, 64.0});
+    CraterGenerationOptions withManual{4.0, 64.0};
+    withManual.manual = manual;
+    const CraterList merged =
+        GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), FreshAges(), 3u, withManual);
     ASSERT_EQ(merged.Size(), plain.Size() + 2);
     for (std::size_t n = 0; n < plain.Size(); ++n) {
         EXPECT_EQ(merged.At(n), plain.At(n));
@@ -337,9 +341,11 @@ TEST(GenerateCraters, ManualCratersClearConflictingGeneratedCraters) {
     CraterList manual;
     manual.Append({100.0, 100.0, 40.0, 3.0, 0u});
     const Bounds2d region{0.0, 0.0, 200.0, 200.0};
+    CraterGenerationOptions options{8.0, 64.0};
+    options.spacing = spacing;
+    options.manual = manual;
     const CraterList craters =
-        GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), UniformAges(1.0), 8u,
-                        {.dMin = 8.0, .dMax = 64.0, .spacing = spacing, .manual = manual});
+        GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), UniformAges(1.0), 8u, options);
     std::size_t manualCount = 0;
     for (std::size_t n = 0; n < craters.Size(); ++n) {
         const Crater crater = craters.At(n);
@@ -356,8 +362,9 @@ TEST(GenerateCraters, ManualCratersKeepTilesJoined) {
     CraterList manual;
     manual.Append({12.0, 1.0, 30.0, 0.0, 0u});
     manual.Append({-150.0, 50.0, 12.0, 0.0, 0u});
-    const CraterGenerationOptions options{
-        .dMin = 4.0, .dMax = 40.0, .marginRadii = 1.5, .spacing = {1.5, 0.75}, .manual = manual};
+    CraterGenerationOptions options{4.0, 40.0, 1.5};
+    options.spacing = {1.5, 0.75};
+    options.manual = manual;
     const PowerLawSfd density(0.1, 2.0);
     const UniformAges ages(1.0);
     const CraterList whole =
@@ -379,10 +386,10 @@ TEST(GenerateCraters, ManualCratersKeepTilesJoined) {
 TEST(GenerateCraters, RejectsInvalidManualCraters) {
     for (const Crater& bad : {Crater{0.0, 0.0, 0.0, 0.0, 0u}, Crater{0.0, 0.0, 5.0, -1.0, 0u},
                               Crater{std::numeric_limits<double>::infinity(), 0.0, 5.0, 0.0, 0u}}) {
-        CraterList manual;
-        manual.Append(bad);
+        CraterGenerationOptions options{1.0, 5.0};
+        options.manual.Append(bad);
         EXPECT_THROW(GenerateCraters(kCells, {0.0, 0.0, 10.0, 10.0}, PowerLawSfd(0.1, 2.0),
-                                     FreshAges(), 1u, {.dMin = 1.0, .dMax = 5.0, .manual = manual}),
+                                     FreshAges(), 1u, options),
                      std::invalid_argument);
     }
 }
@@ -391,12 +398,14 @@ TEST(GenerateCraters, MaxCratersKeepsTheLargestGeneratedCraters) {
     const Bounds2d region{0.0, 0.0, 300.0, 300.0};
     CraterList manual;
     manual.Append({10.0, 10.0, 3.0, 0.0, 0u});
-    const CraterList all = GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), FreshAges(), 5u,
-                                           {.dMin = 2.0, .dMax = 64.0});
+    const CraterList all =
+        GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), FreshAges(), 5u, {2.0, 64.0});
     const terraingen::testing::LogCapture capture(terraingen::LogLevel::Debug);
+    CraterGenerationOptions cap{2.0, 64.0};
+    cap.manual = manual;
+    cap.maxCraters = 50;
     const CraterList capped =
-        GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), FreshAges(), 5u,
-                        {.dMin = 2.0, .dMax = 64.0, .manual = manual, .maxCraters = 50});
+        GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), FreshAges(), 5u, cap);
     ASSERT_GT(all.Size(), 50u);
     ASSERT_EQ(capped.Size(), 51u);
     std::vector<double> diameters(all.Diameters());
@@ -415,9 +424,10 @@ TEST(GenerateCraters, MaxCratersKeepsTheLargestGeneratedCraters) {
     const auto records = capture.Matching("craters", terraingen::LogLevel::Debug);
     ASSERT_FALSE(records.empty());
     EXPECT_NE(records.back().message.find(" over maxCraters dropped"), std::string::npos);
+    CraterGenerationOptions generousCap{2.0, 64.0};
+    generousCap.maxCraters = 1000000;
     const CraterList generous =
-        GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), FreshAges(), 5u,
-                        {.dMin = 2.0, .dMax = 64.0, .maxCraters = 1000000});
+        GenerateCraters(kCells, region, PowerLawSfd(0.1, 2.0), FreshAges(), 5u, generousCap);
     EXPECT_EQ(generous.Ids(), all.Ids());
 }
 
@@ -442,7 +452,7 @@ TEST(GenerateCraters, CellCraterSourcesGiveTheSameCraters) {
     const terraingen::Bounds2d region{-120.0, -80.0, 140.0, 90.0};
     for (const terraingen::CraterSpacing spacing :
          {terraingen::CraterSpacing{}, terraingen::CraterSpacing{1.5, 1.0}}) {
-        terraingen::CraterGenerationOptions options{.dMin = 3.0, .dMax = 60.0, .marginRadii = 1.5};
+        terraingen::CraterGenerationOptions options{3.0, 60.0, 1.5};
         options.spacing = spacing;
         const auto direct = terraingen::GenerateCraters(terraingen::PlanarCells(), region, density,
                                                         ages, 5u, options);
@@ -465,7 +475,7 @@ TEST(GenerateCraters, CellCraterSourcesOutsideTheirBandKeepCratersWithinTheirOwn
     const terraingen::PowerLawSfd density(0.05, 2.0);
     const terraingen::UniformAges ages(1.0);
     const terraingen::Bounds2d region{-50.0, -50.0, 50.0, 50.0};
-    terraingen::CraterGenerationOptions options{.dMin = 3.0, .dMax = 60.0, .marginRadii = 1.5};
+    terraingen::CraterGenerationOptions options{3.0, 60.0, 1.5};
     int calls = 0;
     options.cellCraters = [&](const terraingen::CraterBand&, const terraingen::CellIndex&) {
         ++calls;
@@ -487,7 +497,7 @@ TEST(GenerateCraters, SkippingUnresolvedBandsKeepsEveryResolvedCrater) {
     const terraingen::Bounds2d region{-150.0, -150.0, 150.0, 150.0};
     for (const terraingen::CraterSpacing spacing :
          {terraingen::CraterSpacing{}, terraingen::CraterSpacing{1.5, 2.0}}) {
-        terraingen::CraterGenerationOptions options{.dMin = 2.0, .dMax = 100.0, .marginRadii = 1.5};
+        terraingen::CraterGenerationOptions options{2.0, 100.0, 1.5};
         options.spacing = spacing;
         const auto all = terraingen::GenerateCraters(terraingen::PlanarCells(), region, density,
                                                      ages, 9u, options);
@@ -510,7 +520,7 @@ TEST(GenerateCraters, SkippingUnresolvedBandsKeepsEveryResolvedCrater) {
         ASSERT_FALSE(expected.empty());
         EXPECT_EQ(kept, expected) << "spacing " << spacing.separation;
     }
-    terraingen::CraterGenerationOptions bad{.dMin = 2.0, .dMax = 100.0};
+    terraingen::CraterGenerationOptions bad{2.0, 100.0};
     bad.minResolvedDiameter = -1.0;
     EXPECT_THROW(
         terraingen::GenerateCraters(terraingen::PlanarCells(), region, density, ages, 9u, bad),
@@ -532,7 +542,7 @@ TEST(GenerateCraters, SkippingLargeBandsKeepsEverySmallerCraterUnlessTheyInterac
     };
     for (const terraingen::CraterSpacing spacing :
          {terraingen::CraterSpacing{}, terraingen::CraterSpacing{1.5, 2.0}}) {
-        terraingen::CraterGenerationOptions options{.dMin = 2.0, .dMax = 100.0, .marginRadii = 1.5};
+        terraingen::CraterGenerationOptions options{2.0, 100.0, 1.5};
         options.spacing = spacing;
         const auto all = terraingen::GenerateCraters(terraingen::PlanarCells(), region, density,
                                                      ages, 9u, options);
@@ -548,7 +558,7 @@ TEST(GenerateCraters, SkippingLargeBandsKeepsEverySmallerCraterUnlessTheyInterac
             EXPECT_EQ(upTo(small, 100.0), upTo(small, 8.0)) << "only the band holding 7 m";
         }
     }
-    terraingen::CraterGenerationOptions bad{.dMin = 2.0, .dMax = 100.0};
+    terraingen::CraterGenerationOptions bad{2.0, 100.0};
     bad.maxBandDiameter = 0.0;
     EXPECT_THROW(
         terraingen::GenerateCraters(terraingen::PlanarCells(), region, density, ages, 9u, bad),
@@ -598,7 +608,7 @@ class Halves final : public terraingen::SurfaceField {
 TEST(GenerateCraters, KeepsTheShareOfCratersAskedForWherever) {
     const PowerLawSfd density(0.1, 2.0);
     const Bounds2d region{-400.0, -200.0, 400.0, 200.0};
-    const CraterGenerationOptions all{.dMin = 2.0, .dMax = 64.0};
+    const CraterGenerationOptions all{2.0, 64.0};
     CraterGenerationOptions thinned = all;
     thinned.keepShare = [](const Crater& crater) { return crater.x < 0.0 ? 0.25 : 1.0; };
     const CraterList every = GenerateCraters(kCells, region, density, FreshAges(), 5u, all);
@@ -615,7 +625,7 @@ TEST(GenerateCraters, KeepsTheShareOfCratersAskedForWherever) {
     EXPECT_EQ(kept.Size() - west(kept), every.Size() - west(every)) << "the east keeps them all";
     const auto everyId = ById(every);
     for (const auto& [id, crater] : ById(kept)) {
-        ASSERT_TRUE(everyId.contains(id)) << "thinning only removes craters";
+        ASSERT_TRUE(everyId.count(id) != 0) << "thinning only removes craters";
     }
     CraterList joined;
     for (const Bounds2d& tile :
@@ -628,7 +638,7 @@ TEST(GenerateCraters, KeepsTheShareOfCratersAskedForWherever) {
 TEST(GenerateCraters, LetsACompleteCatalogStandInForGeneratedCraters) {
     const PowerLawSfd density(0.1, 2.0);
     const Bounds2d region{-400.0, -200.0, 400.0, 200.0};
-    CraterGenerationOptions options{.dMin = 2.0, .dMax = 64.0};
+    CraterGenerationOptions options{2.0, 64.0};
     options.manual.Append({-100.0, 0.0, 40.0, 0.0, 0u, true});
     options.manual.Append({100.0, 0.0, 3.0, 0.0, 0u, true});
     options.completeness = std::make_shared<Halves>(10.0, std::numeric_limits<double>::infinity());
@@ -654,13 +664,12 @@ TEST(GenerateCraters, LetsACompleteCatalogStandInForGeneratedCraters) {
         std::make_shared<terraingen::ConstantField>(std::numeric_limits<double>::quiet_NaN());
     options.manual = {};
     EXPECT_EQ(GenerateCraters(kCells, region, density, FreshAges(), 5u, options).Size(),
-              GenerateCraters(kCells, region, density, FreshAges(), 5u, {.dMin = 2.0, .dMax = 64.0})
-                  .Size())
+              GenerateCraters(kCells, region, density, FreshAges(), 5u, {2.0, 64.0}).Size())
         << "no catalog anywhere";
 }
 
 TEST(ValidateCraterGenerationOptions, RejectsBadRangesAndAcceptsDefaults) {
-    terraingen::CraterGenerationOptions options{.dMin = 4.0, .dMax = 250.0};
+    terraingen::CraterGenerationOptions options{4.0, 250.0};
     EXPECT_NO_THROW(terraingen::ValidateCraterGenerationOptions(options));
     options.dMax = 4.0;
     EXPECT_THROW(terraingen::ValidateCraterGenerationOptions(options), std::invalid_argument);

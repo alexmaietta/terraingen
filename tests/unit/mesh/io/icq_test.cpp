@@ -11,7 +11,6 @@
 #include <cstdint>
 #include <fstream>
 #include <map>
-#include <numbers>
 #include <stdexcept>
 #include <utility>
 
@@ -90,7 +89,7 @@ TEST(IcqToMesh, TriangulatesAClosedOutwardBodyOverTheDistinctVertices) {
     for (const auto& [edge, uses] : edges) {
         ASSERT_EQ(uses, 2) << edge.first << ", " << edge.second;
     }
-    const double sphere = 4.0 / 3.0 * std::numbers::pi * radius * radius * radius;
+    const double sphere = 4.0 / 3.0 * terraingen::kPi * radius * radius * radius;
     EXPECT_NEAR(terraingen::Volume(mesh) / sphere, 1.0, 0.01);
     EXPECT_THROW(terraingen::IcqToMesh(IcqModel{}), std::invalid_argument);
 }

@@ -24,7 +24,12 @@ struct ValueRange {
         return min + (max - min) * u;
     }
 
-    bool operator==(const ValueRange&) const = default;
+    bool operator==(const ValueRange& other) const {
+        return min == other.min && max == other.max;
+    }
+    bool operator!=(const ValueRange& other) const {
+        return !(*this == other);
+    }
 };
 
 /// One kind of boulder: the solid it starts from and the ranges its shape is drawn from.
@@ -53,7 +58,18 @@ struct BoulderStyle {
     /// How far fracture faces undulate, as a share of each plane's offset; 0 keeps them flat.
     double faceRoughness = 0.0;
 
-    bool operator==(const BoulderStyle&) const = default;
+    bool operator==(const BoulderStyle& other) const {
+        return name == other.name && weight == other.weight && solid == other.solid &&
+               intermediate == other.intermediate && shortAxis == other.shortAxis &&
+               rounding == other.rounding && minFractures == other.minFractures &&
+               maxFractures == other.maxFractures && fractureDepth == other.fractureDepth &&
+               maxFractureTilt == other.maxFractureTilt && noiseAmplitude == other.noiseAmplitude &&
+               noiseWavelength == other.noiseWavelength && noiseOctaves == other.noiseOctaves &&
+               edgeSoftness == other.edgeSoftness && faceRoughness == other.faceRoughness;
+    }
+    bool operator!=(const BoulderStyle& other) const {
+        return !(*this == other);
+    }
 };
 
 /// The default mix of boulder styles, every one cut irregularly, weathered at its edges and rough
@@ -73,7 +89,13 @@ struct BoulderShapeOptions {
     /// picks one, normalised to the unit form of `BoulderShape` with its z axis kept vertical.
     std::vector<std::shared_ptr<const SceneMesh>> library{};
 
-    bool operator==(const BoulderShapeOptions&) const = default;
+    bool operator==(const BoulderShapeOptions& other) const {
+        return styles == other.styles && subdivisions == other.subdivisions && seed == other.seed &&
+               weathering == other.weathering && library == other.library;
+    }
+    bool operator!=(const BoulderShapeOptions& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks boulder shape options.

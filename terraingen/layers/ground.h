@@ -3,13 +3,13 @@
 #pragma once
 
 #include "terraingen/util/geometry.h"
+#include "terraingen/util/span.h"
 #include "terraingen/util/surface.h"
 
 #include <array>
 #include <cstddef>
 #include <functional>
 #include <optional>
-#include <span>
 
 namespace terraingen {
 
@@ -18,7 +18,7 @@ using HeightSampler = std::function<float(double x, double y)>;
 
 /// Heights of the ground at many world positions at once, into a span of the same size;
 /// thread-safe.
-using HeightsSampler = std::function<void(std::span<const Vec2d> points, std::span<float> heights)>;
+using HeightsSampler = std::function<void(Span<const Vec2d> points, Span<float> heights)>;
 
 /// The terrain beneath a layer (its source and the layers before it), readable anywhere.
 ///
@@ -35,8 +35,7 @@ class Ground {
 
     /// `HeightAt` at each of `points`, into `heights` of the same size; implementations may read
     /// them all in one pass, to the same values.
-    virtual void HeightsAt(std::span<const Vec2d> points, std::span<float> heights,
-                           double spacing) const {
+    virtual void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const {
         for (std::size_t i = 0; i < points.size(); ++i) {
             heights[i] = HeightAt(points[i].x, points[i].y, spacing);
         }
@@ -49,7 +48,7 @@ class Ground {
 
     /// A sampler reading `HeightsAt` at a fixed spacing; `*this` must outlive it.
     HeightsSampler BatchSampler(double spacing) const {
-        return [this, spacing](std::span<const Vec2d> points, std::span<float> heights) {
+        return [this, spacing](Span<const Vec2d> points, Span<float> heights) {
             HeightsAt(points, heights, spacing);
         };
     }
@@ -61,7 +60,7 @@ std::array<Vec2d, 4> GradientPoints(const Surface& surface, const Vec2d& centre,
 
 /// The gradient (east, north, rise over run) by central differences of `heights` read at
 /// `GradientPoints` `step` metres out; nothing where any difference is not finite.
-std::optional<Vec2d> GradientFromHeights(std::span<const float, 4> heights, double step);
+std::optional<Vec2d> GradientFromHeights(Span<const float> heights, double step);
 
 /// The gradient (east, north, rise over run) of `ground` at `centre` by central differences
 /// `step` metres out (`GradientPoints`); nothing where the ground has no data there.
@@ -73,7 +72,6 @@ std::optional<Vec2d> GroundGradient(const Ground& ground, const Surface& surface
 /// into `heights` of the same size, with `fallback` where the ground has no data.
 /// @param spacing Sample spacing in metres the ground is read at.
 void GroundAround(const Ground& ground, const Surface& surface, const Vec2d& centre,
-                  std::span<const Vec2d> offsets, double spacing, double fallback,
-                  std::span<double> heights);
+                  Span<const Vec2d> offsets, double spacing, double fallback, Span<double> heights);
 
 }  // namespace terraingen

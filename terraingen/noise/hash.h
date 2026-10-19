@@ -17,7 +17,13 @@ struct UVec3 {
     uint32_t z = 0;  ///< Third word.
 
 #ifndef __SLANG__
-    bool operator==(const UVec3&) const = default;
+    /// Componentwise equality.
+    bool operator==(const UVec3& other) const {
+        return x == other.x && y == other.y && z == other.z;
+    }
+    bool operator!=(const UVec3& other) const {
+        return !(*this == other);
+    }
 #endif
 };
 

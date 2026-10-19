@@ -73,7 +73,7 @@ KernelParams GridParams(const Raster<float>& grid) {
 }
 
 /// The most bytes any buffer of `grid`'s cells holds per cell: its heights or one of `extra`.
-std::size_t CellBytes(const Raster<float>& grid, std::span<const KernelBuffer> extra) {
+std::size_t CellBytes(const Raster<float>& grid, Span<const KernelBuffer> extra) {
     std::size_t bytes = sizeof(float);
     for (const KernelBuffer& buffer : extra) {
         if (buffer.perCell != 0) {
@@ -87,23 +87,21 @@ std::size_t CellBytes(const Raster<float>& grid, std::span<const KernelBuffer> e
 struct StripRun {
     ComputeDevice& device;
     const KernelProgram& program;
-    std::span<const std::byte> kernel;
-    std::span<const KernelBuffer> extra;
+    Span<const std::byte> kernel;
+    Span<const KernelBuffer> extra;
     std::vector<float> xs;
     std::vector<float> ys;
     KernelParams params;
 
     /// Runs the kernel over `rows` rows from `row0`, updating those rows of `values` in place.
-    void Run(std::span<float> values, std::size_t row0, std::size_t rows) {
+    void Run(Span<float> values, std::size_t row0, std::size_t rows) {
         const std::size_t width = xs.size();
         params.rows = static_cast<std::uint32_t>(rows);
         params.firstRow = static_cast<std::uint32_t>(row0);
         std::vector<DeviceBuffer> buffers{
-            OutputBuffer(std::as_writable_bytes(values.subspan(row0 * width, rows * width)),
-                         rows * width),
-            InputBuffer(std::as_bytes(std::span(xs)), width),
-            InputBuffer(std::as_bytes(std::span(ys).subspan(row0, rows)), rows),
-            InputBuffer(kernel, 1)};
+            OutputBuffer(AsWritableBytes(values.subspan(row0 * width, rows * width)), rows * width),
+            InputBuffer(AsBytes(Span(xs)), width),
+            InputBuffer(AsBytes(Span(ys).subspan(row0, rows)), rows), InputBuffer(kernel, 1)};
         for (const KernelBuffer& buffer : extra) {
             if (buffer.perCell == 0) {
                 buffers.push_back(InputBuffer(buffer.bytes, buffer.count));
@@ -115,14 +113,14 @@ struct StripRun {
                 InputBuffer(buffer.bytes.subspan(row0 * bytes, rows * bytes), rows * elements));
         }
         const Dispatch dispatch{{Groups(width), Groups(rows), 1u}, {kGroupSide, kGroupSide, 1u}};
-        device.Run(program, buffers, std::as_bytes(std::span(&params, 1)), dispatch);
+        device.Run(program, buffers, AsBytes(Span(&params, 1)), dispatch);
     }
 };
 
 }  // namespace
 
-bool RunKernel(Backend backend, const KernelProgram& program, std::span<const std::byte> kernel,
-               Raster<float>& grid, const Vec2d& origin, std::span<const KernelBuffer> extra) {
+bool RunKernel(Backend backend, const KernelProgram& program, Span<const std::byte> kernel,
+               Raster<float>& grid, const Vec2d& origin, Span<const KernelBuffer> extra) {
     if (!Dispatchable(grid)) {
         return false;
     }

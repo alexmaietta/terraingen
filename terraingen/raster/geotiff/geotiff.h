@@ -45,7 +45,14 @@ struct GeoKeys {
     /// The value of the SHORT GeoKey `key` stored inline in the directory, if present.
     std::optional<std::uint16_t> ShortKey(std::uint16_t key) const;
 
-    bool operator==(const GeoKeys&) const = default;
+    /// Memberwise equality.
+    bool operator==(const GeoKeys& other) const {
+        return directory == other.directory && doubleParams == other.doubleParams &&
+               asciiParams == other.asciiParams;
+    }
+    bool operator!=(const GeoKeys& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Compression schemes this library reads and writes; others are reported as unsupported.
@@ -70,7 +77,13 @@ struct BandScaling {
         return scale == 1.0 && offset == 0.0;
     }
 
-    bool operator==(const BandScaling&) const = default;
+    /// Memberwise equality.
+    bool operator==(const BandScaling& other) const {
+        return scale == other.scale && offset == other.offset;
+    }
+    bool operator!=(const BandScaling& other) const {
+        return !(*this == other);
+    }
 };
 
 /// The band scaling a GDAL_METADATA tag (42112) gives, one per band; scale 1 and offset 0 for

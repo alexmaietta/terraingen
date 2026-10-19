@@ -35,10 +35,10 @@ class CratersManual : public terraingen::examples::Example {
         terraingen::CraterLayerOptions options;
         options.generate = false;
         for (const terraingen::Crater& crater : {
-                 terraingen::Crater{.x = 0.0, .y = 0.0, .diameter = 200.0, .ageGyr = 0.5},
-                 terraingen::Crater{.x = -250.0, .y = 180.0, .diameter = 90.0, .ageGyr = 3.0},
-                 terraingen::Crater{.x = 260.0, .y = -200.0, .diameter = 120.0, .ageGyr = 1.5},
-                 terraingen::Crater{.x = 150.0, .y = 250.0, .diameter = 40.0, .ageGyr = 0.1},
+                 terraingen::Crater{0.0, 0.0, 200.0, 0.5},
+                 terraingen::Crater{-250.0, 180.0, 90.0, 3.0},
+                 terraingen::Crater{260.0, -200.0, 120.0, 1.5},
+                 terraingen::Crater{150.0, 250.0, 40.0, 0.1},
              }) {
             options.generation.manual.Append(crater);
         }

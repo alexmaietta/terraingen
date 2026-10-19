@@ -1,10 +1,10 @@
 #include "terraingen/terraingen.h"
+#include "terraingen/util/bits.h"
 
 #include <gtest/gtest.h>
 
 #include <cmath>
 #include <memory>
-#include <numbers>
 #include <stdexcept>
 #include <vector>
 
@@ -36,8 +36,8 @@ Raster<float> CheckGridAndPoints(const Layer& layer, Raster<float> raster, doubl
                                  const terraingen::Ground* ground = nullptr) {
     Raster<float> threaded = raster;
     const Raster<float> before = raster;
-    layer.Apply(raster, {.spacing = spacing, .threads = 1, .ground = ground});
-    layer.Apply(threaded, {.spacing = spacing, .threads = 0, .ground = ground});
+    layer.Apply(raster, {spacing, 1, ground});
+    layer.Apply(threaded, {spacing, 0, ground});
     for (std::size_t i = 0; i < raster.Size(); ++i) {
         EXPECT_EQ(raster.Values()[i], threaded.Values()[i]);
     }
@@ -47,8 +47,7 @@ Raster<float> CheckGridAndPoints(const Layer& layer, Raster<float> raster, doubl
           std::pair<std::size_t, std::size_t>{last / 2, last / 2},
           std::pair<std::size_t, std::size_t>{7, last}}) {
         const Vec2d centre = raster.CellCenter(col, row);
-        EXPECT_EQ(layer.ApplyAt(before(col, row), centre.x, centre.y,
-                                {.spacing = spacing, .ground = ground}),
+        EXPECT_EQ(layer.ApplyAt(before(col, row), centre.x, centre.y, {spacing, 1, ground}),
                   raster(col, row))
             << col << " " << row;
     }
@@ -163,14 +162,16 @@ TEST(SphereLayers, BedformsCoverAsMuchGroundAsOnAPlane) {
 
 TEST(SphereLayers, BouldersHaveThePlaneDensityAndPlaceModelsLocally) {
     terraingen::BoulderLayerOptions options;
-    options.sizes = {.coverage = 0.15, .minDiameter = 0.5, .maxDiameter = 4.0};
+    options.sizes.coverage = 0.15;
+    options.sizes.minDiameter = 0.5;
+    options.sizes.maxDiameter = 4.0;
     options.rendering.models.minDiameter = 2.0;
     options.rendering.relief = terraingen::BoulderRelief::Shape;
     const terraingen::BoulderLayer sphere(options, nullptr, kSphere);
     const terraingen::BoulderLayer plane(options);
     const double side = 120.0;
     const double dLat = side / kSphere.UnitLength();
-    const double dLon = dLat / std::cos(50.0 * std::numbers::pi / 180.0);
+    const double dLon = dLat / std::cos(50.0 * terraingen::kPi / 180.0);
     const auto onSphere = sphere.Boulders({20.0, 50.0, 20.0 + dLon, 50.0 + dLat}, 0.05);
     const auto onPlane = plane.Boulders({0.0, 0.0, side, side}, 0.05);
     const double expected = static_cast<double>(onPlane.size());
@@ -204,7 +205,7 @@ TEST(SphereLayers, RoughnessHasTheRmsSlopeAskedFor) {
     const int pairs = 6000;
     for (int k = 0; k < pairs; ++k) {
         const Vec2d a{360.0 * random.NextDouble() - 180.0, 140.0 * random.NextDouble() - 70.0};
-        const double azimuth = 2.0 * std::numbers::pi * random.NextDouble();
+        const double azimuth = 2.0 * terraingen::kPi * random.NextDouble();
         const Vec2d b = kSphere.Locate(a, {0.25 * std::sin(azimuth), 0.25 * std::cos(azimuth)});
         const double d = static_cast<double>(layer.ApplyAt(0.0f, b.x, b.y, {0.001}) -
                                              layer.ApplyAt(0.0f, a.x, a.y, {0.001}));

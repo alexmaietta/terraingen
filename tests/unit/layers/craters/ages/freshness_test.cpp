@@ -131,11 +131,11 @@ TEST(FreshnessAges, CraterLayersAgreeOnGridsTilesAndPoints) {
                                         options);
     terraingen::Raster<float> whole(96, 96, 0.0f);
     whole.SetTransform(terraingen::GeoTransform::NorthUp(-96.0, 96.0, 2.0));
-    layer.Apply(whole, {.spacing = 2.0, .threads = 0});
+    layer.Apply(whole, {2.0, 0});
     terraingen::Raster<float> tile(40, 40, 0.0f);
     tile.SetTransform(
         terraingen::GeoTransform::NorthUp(-96.0 + 48.0 * 2.0, 96.0 - 48.0 * 2.0, 2.0));
-    layer.Apply(tile, {.spacing = 2.0, .threads = 1});
+    layer.Apply(tile, {2.0, 1});
     for (std::size_t row = 0; row < 40; ++row) {
         for (std::size_t col = 0; col < 40; ++col) {
             EXPECT_NEAR(tile(col, row), whole(col + 48, row + 48), 1e-5f);

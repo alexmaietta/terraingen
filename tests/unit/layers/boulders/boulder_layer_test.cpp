@@ -1,6 +1,8 @@
 #include "terraingen/layers/boulders/boulder_layer.h"
 
 #include "terraingen/terraingen.h"
+#include "terraingen/util/bits.h"
+#include "terraingen/util/span.h"
 
 #include <gtest/gtest.h>
 
@@ -10,9 +12,7 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include <numbers>
 #include <set>
-#include <span>
 #include <stdexcept>
 
 using terraingen::Boulder;
@@ -70,7 +70,7 @@ TEST(BoulderLayer, GivesEachBoulderStableAttributesInTheirRanges) {
         EXPECT_GE(boulder.burial, 0.1);
         EXPECT_LE(boulder.burial, 0.4);
         EXPECT_GE(boulder.yaw, 0.0);
-        EXPECT_LT(boulder.yaw, 2.0 * std::numbers::pi);
+        EXPECT_LT(boulder.yaw, 2.0 * terraingen::kPi);
         EXPECT_LE(boulder.lean, 0.26);
         EXPECT_DOUBLE_EQ(boulder.ExposedHeight(), boulder.height * (1.0 - boulder.burial));
         ids.insert(boulder.id);
@@ -329,9 +329,7 @@ TEST(BoulderLayer, LeavesHeightsAloneWithoutReliefAndRejectsBadOptions) {
         },
         [](BoulderLayerOptions& o) { o.ejecta.minCraterDiameter = -1.0; },
         [](BoulderLayerOptions& o) { o.groundSpacing = 0.0; },
-        [](BoulderLayerOptions& o) {
-            o.bedrock.exposure = terraingen::ExposureParams{.reach = 0.0};
-        },
+        [](BoulderLayerOptions& o) { o.bedrock.exposure = terraingen::ExposureParams{0.0}; },
         [](BoulderLayerOptions& o) { o.pose.maxHeightRatio = 0.1; },
         [](BoulderLayerOptions& o) { o.pose.maxBurial = 1.0; },
         [](BoulderLayerOptions& o) { o.pose.maxLean = -1.0; },
@@ -347,10 +345,11 @@ TEST(BoulderLayer, LeavesHeightsAloneWithoutReliefAndRejectsBadOptions) {
 TEST(BoulderModelThreshold, SplitsBouldersByDiameterOrBySamplesAtTheSpacing) {
     const terraingen::BoulderModelThreshold none;
     EXPECT_FALSE(none.IsModel(100.0, 1.0));
-    const terraingen::BoulderModelThreshold big{.minDiameter = 2.0};
+    const terraingen::BoulderModelThreshold big{2.0};
     EXPECT_TRUE(big.IsModel(2.0, 0.0));
     EXPECT_FALSE(big.IsModel(1.9, 0.0));
-    const terraingen::BoulderModelThreshold resolved{.minSamples = 8.0};
+    terraingen::BoulderModelThreshold resolved;
+    resolved.minSamples = 8.0;
     EXPECT_TRUE(resolved.IsModel(1.0, 0.125)) << "eight samples across at 12.5 cm";
     EXPECT_FALSE(resolved.IsModel(1.0, 0.5)) << "relief in a coarser level of detail";
     EXPECT_FALSE(resolved.IsModel(1.0, 0.0));
@@ -463,11 +462,14 @@ TEST(BoulderLayer, SharesShapesBetweenBouldersOfOnePrototype) {
     BoulderLayerOptions options;
     options.rendering.shapePrototypes = 1;
     const BoulderLayer layer(options);
-    EXPECT_EQ(layer.Shape(Boulder{.id = 1}).get(), layer.Shape(Boulder{.id = 99}).get());
+    Boulder first;
+    first.id = 1;
+    Boulder other;
+    other.id = 99;
+    EXPECT_EQ(layer.Shape(first).get(), layer.Shape(other).get());
     options.rendering.shapePrototypes = 0;
     const BoulderLayer unique(options);
-    EXPECT_NE(unique.Shape(Boulder{.id = 1})->mesh.positions,
-              unique.Shape(Boulder{.id = 99})->mesh.positions);
+    EXPECT_NE(unique.Shape(first)->mesh.positions, unique.Shape(other)->mesh.positions);
     options.rendering.models.minSamples = -1.0;
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
 }
@@ -554,11 +556,15 @@ TEST(BoulderLayer, SetsBurialByWearWhenAsked) {
 }
 
 TEST(BoulderModelThreshold, KeepsABandOfSizesAsModels) {
-    terraingen::BoulderModelThreshold band{.minDiameter = 1.0, .maxDiameter = 3.0};
+    terraingen::BoulderModelThreshold band;
+    band.minDiameter = 1.0;
+    band.maxDiameter = 3.0;
     EXPECT_FALSE(band.IsModel(0.5, 0.0));
     EXPECT_TRUE(band.IsModel(1.0, 0.0));
     EXPECT_FALSE(band.IsModel(3.0, 0.0));
-    band = {.minSamples = 4.0, .maxSamples = 10.0};
+    band = terraingen::BoulderModelThreshold{};
+    band.minSamples = 4.0;
+    band.maxSamples = 10.0;
     EXPECT_TRUE(band.IsModel(1.0, 0.2));
     EXPECT_FALSE(band.IsModel(2.0, 0.2));
     EXPECT_FALSE(band.IsModel(2.0, 0.0)) << "no samples without a spacing";
@@ -571,7 +577,7 @@ TEST(BoulderLayer, DrawsOnlyBouldersInItsReliefRange) {
     BoulderLayerOptions options;
     options.sizes.coverage = 0.1;
     options.sizes.minDiameter = 0.2;
-    options.rendering.reliefRange = {.minDiameter = 0.6, .maxDiameter = 1.5};
+    options.rendering.reliefRange = {0.6, 1.5};
     const BoulderLayer layer(options);
     Raster<float> heights(120, 120, 0.0f);
     heights.SetTransform(GeoTransform::NorthUp(-15.0, 15.0, 0.25));
@@ -603,7 +609,7 @@ TEST(BoulderLayer, DrawsOnlyBouldersInItsReliefRange) {
     }
     EXPECT_GT(drawn, 0u);
     EXPECT_FALSE(options.rendering.reliefRange.Holds(1.0, true)) << "not models by default";
-    options.rendering.reliefRange = {.minDiameter = 1.0, .maxDiameter = 0.5};
+    options.rendering.reliefRange = {1.0, 0.5};
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
 }
 
@@ -612,7 +618,7 @@ TEST(BoulderLayer, DrawsNoBoulderNarrowerThanTheFadeStartButListsEveryOne) {
     options.sizes.coverage = 0.1;
     options.sizes.minDiameter = 0.2;
     options.sizes.maxDiameter = 3.0;
-    options.fade = {.startSamples = 3.0, .endSamples = 5.0};
+    options.fade = {3.0, 5.0};
     const BoulderLayer layer(options);
     constexpr double kSpacing = 0.25;
     const double smallest = options.fade.startSamples * kSpacing;
@@ -701,7 +707,7 @@ TEST(BoulderLayer, DrawsOverlappingBouldersAsTheirUnion) {
 }
 
 TEST(TiltRotation, TipsTheVerticalTowardItsAzimuth) {
-    const auto turn = terraingen::TiltRotation(0.5, 0.25 * std::numbers::pi);
+    const auto turn = terraingen::TiltRotation(0.5, 0.25 * terraingen::kPi);
     const terraingen::Vec3d up = turn.Apply({0.0, 0.0, 1.0});
     EXPECT_NEAR(up.z, std::cos(0.5), 1e-12);
     EXPECT_NEAR(up.x, std::sin(0.5) * std::sqrt(0.5), 1e-12);
@@ -757,7 +763,7 @@ TEST(BoulderLayer, SettlesBouldersOnTheSlopeBeneathThem) {
     const Analytic ramp([](double x, double) { return static_cast<float>(0.5 * x); });
     for (const Boulder& boulder : layer.Boulders({-10.0, -10.0, 10.0, 10.0}, 0.0, &ramp)) {
         ASSERT_NEAR(boulder.tilt, std::atan(0.5), 1e-4);
-        ASSERT_NEAR(std::fabs(boulder.tiltAzimuth), std::numbers::pi, 1e-4) << "tipped downhill";
+        ASSERT_NEAR(std::fabs(boulder.tiltAzimuth), terraingen::kPi, 1e-4) << "tipped downhill";
     }
 }
 
@@ -831,7 +837,7 @@ TEST(BoulderLayer, ReportsRockWhereBoulderTopsStandAndNotOnFillets) {
     const double onFillet = 0.5 * b.diameter + 0.15 * b.diameter;
     double fillet = 1.0;
     for (int k = 0; k < 8; ++k) {
-        const double turn = 0.25 * std::numbers::pi * k;
+        const double turn = 0.25 * terraingen::kPi * k;
         fillet =
             std::min(fillet, layer.MaterialCoverAt(b.x + onFillet * std::cos(turn),
                                                    b.y + onFillet * std::sin(turn), 0.05, nullptr));
@@ -901,12 +907,12 @@ TEST(BoulderLayer, FacetsTheirShareOfBouldersUpwindAndKeelsSome) {
         }
         ++faceted;
         keeled += b.facetCount == 2 ? 1 : 0;
-        EXPECT_NEAR(b.facets[0].azimuth, 0.3 + std::numbers::pi, 1e-12) << "facing upwind";
+        EXPECT_NEAR(b.facets[0].azimuth, 0.3 + terraingen::kPi, 1e-12) << "facing upwind";
         EXPECT_GE(b.facets[0].angle, options.ventifacts.minAngle);
         EXPECT_LE(b.facets[0].angle, options.ventifacts.maxAngle);
         EXPECT_NEAR(b.facets[0].reach, 0.5 * b.diameter * (1.0 - b.wear), 1e-12);
         if (b.facetCount == 2) {
-            EXPECT_NEAR(b.facets[1].azimuth, 2.5 + std::numbers::pi, 1e-12);
+            EXPECT_NEAR(b.facets[1].azimuth, 2.5 + terraingen::kPi, 1e-12);
         }
     }
     const double share = static_cast<double>(faceted) / static_cast<double>(boulders.size());
@@ -1008,7 +1014,7 @@ TEST(BoulderVentifacts, GaleSharesAndRejectsBadOptions) {
     rejects([](auto& v) { v.share = 1.5; });
     rejects([](auto& v) { v.keelShare = -0.1; });
     rejects([](auto& v) { v.minAngle = 0.0; });
-    rejects([](auto& v) { v.maxAngle = 0.5 * std::numbers::pi; });
+    rejects([](auto& v) { v.maxAngle = 0.5 * terraingen::kPi; });
     rejects([](auto& v) {
         v.minAngle = 1.0;
         v.maxAngle = 0.9;
@@ -1016,7 +1022,7 @@ TEST(BoulderVentifacts, GaleSharesAndRejectsBadOptions) {
     rejects([](auto& v) { v.windAzimuth = NAN; });
     rejects([](auto& v) { v.secondWindAzimuth = INFINITY; });
     Boulder b;
-    b.facets[0] = {0.0, std::numbers::pi / 4.0, 0.5};
+    b.facets[0] = {0.0, terraingen::kPi / 4.0, 0.5};
     b.facetCount = 1;
     EXPECT_NEAR(b.facets[0].HeightAt({0.2, 7.0}), 0.3, 1e-12);
     EXPECT_NEAR(b.CutByFacets({0.2, 0.0}, 1.0), 0.3, 1e-12);
@@ -1130,7 +1136,7 @@ TEST(BoulderLayer, KeepsAMapsMeanUnderPatchesAndBedrock) {
     };
     BoulderLayerOptions patched;
     patched.sizes.coverage = 0.01;
-    patched.patches = {.spread = 4.0, .size = 20.0};
+    patched.patches = {4.0, 20.0};
     const double raised = terraingen::MeanPatchAbundance(patched.patches);
     EXPECT_GT(raised, 1.2) << "patches alone raise the mean";
     EXPECT_EQ(terraingen::MeanPatchAbundance({}), 1.0);
@@ -1287,8 +1293,8 @@ class Counted final : public terraingen::Ground {
         ++single_;
         return static_cast<float>(0.1 * x + 0.05 * y * y);
     }
-    void HeightsAt(std::span<const terraingen::Vec2d> points, std::span<float> heights,
-                   double spacing) const override {
+    void HeightsAt(terraingen::Span<const terraingen::Vec2d> points,
+                   terraingen::Span<float> heights, double spacing) const override {
         if (!batches_) {
             Ground::HeightsAt(points, heights, spacing);
             return;

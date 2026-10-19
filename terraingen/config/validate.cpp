@@ -19,7 +19,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <concepts>
 #include <cstdio>
 #include <optional>
 #include <string>
@@ -447,12 +446,17 @@ RasterGrid DescribeSourceAt(const SourceSpec& source, const std::filesystem::pat
 /// Rows of a whole-body list's grid above which its spacing is too fine.
 constexpr double kMaxWholeBodyRows = 1e9;
 
+/// Whether `T` has a member `region`.
+template <typename T, typename = void> struct HasRegion : std::false_type {};
+template <typename T>
+struct HasRegion<T, std::void_t<decltype(std::declval<const T&>().region)>> : std::true_type {};
+
 /// Checks the region of an output at `path` and, for a feature output, its spacing.
 /// @throws ConfigError for an invalid region, or a spacing too fine to list the whole body.
 template <typename Output>
 void CheckOutputExtent(const Output& output, const std::string& path,
                        const std::optional<RasterGrid>& base, const Surface& surface) {
-    if constexpr (requires { output.region; }) {
+    if constexpr (HasRegion<Output>::value) {
         if (output.region) {
             DescribeRegion(*output.region, Child(path, "region"), surface);
         }
@@ -525,10 +529,10 @@ void CheckOutput(const AlbedoOutput& output, const std::string& path, const Outp
 
 /// An output that writes the material map or its photometry.
 template <typename Output>
-concept MaterialMapOutput =
-    std::same_as<Output, MaterialsOutput> || std::same_as<Output, PhotometryOutput>;
+constexpr bool MaterialMapOutput =
+    std::is_same_v<Output, MaterialsOutput> || std::is_same_v<Output, PhotometryOutput>;
 
-template <MaterialMapOutput Output>
+template <typename Output, std::enable_if_t<MaterialMapOutput<Output>, int> = 0>
 void CheckOutput(const Output& output, const std::string& path, const OutputChecks& context) {
     if (!context.materials) {
         throw ConfigError(path, "the configuration has no materials");

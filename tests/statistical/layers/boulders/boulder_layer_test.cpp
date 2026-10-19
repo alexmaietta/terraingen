@@ -85,7 +85,9 @@ TEST(BoulderLayerStatistics, ClustersKeepTheCountOfADistribution) {
     BoulderLayerOptions options;
     options.sizes.distribution = distribution;
     options.sizes.minDiameter = 0.2;
-    options.clusters = {.share = 0.7, .spacing = 30.0, .radius = 4.0};
+    options.clusters.share = 0.7;
+    options.clusters.spacing = 30.0;
+    options.clusters.radius = 4.0;
     const BoulderLayer layer(options);
     const terraingen::Bounds2d region{-150.0, -150.0, 150.0, 150.0};
     const double expected = distribution->ExpectedCount(300.0 * 300.0, 0.2, 4.0);

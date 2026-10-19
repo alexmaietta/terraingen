@@ -4,8 +4,8 @@
 
 #include "terraingen/raster/geo_transform.h"
 #include "terraingen/raster/geotiff/geotiff.h"
+#include "terraingen/util/bits.h"
 
-#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -13,8 +13,7 @@
 
 namespace terraingen::detail {
 
-static_assert(std::endian::native == std::endian::little,
-              "The GeoTIFF reader and writer assume a little-endian host");
+static_assert(kLittleEndian, "The GeoTIFF reader and writer assume a little-endian host");
 
 /// TIFF tags read or written.
 enum Tag : std::uint16_t {

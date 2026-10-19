@@ -36,7 +36,13 @@ struct BoulderAbundance {
     /// The size exponent a size slope map gives here (`SizeSlopeAt`); none keeps the sizes' shape.
     std::optional<double> exponent;
 
-    bool operator==(const BoulderAbundance&) const = default;
+    bool operator==(const BoulderAbundance& other) const {
+        return background == other.background && ejecta == other.ejecta &&
+               ejectaWear == other.ejectaWear && exponent == other.exponent;
+    }
+    bool operator!=(const BoulderAbundance& other) const {
+        return !(*this == other);
+    }
 };
 
 /// The share of a sample's area covered by boulders too small to resolve in it.
@@ -44,7 +50,12 @@ struct UnresolvedCover {
     double mean = 0.0;      ///< Expected share.
     double variance = 0.0;  ///< Variance of the share from the boulders' Poisson scatter.
 
-    bool operator==(const UnresolvedCover&) const = default;
+    bool operator==(const UnresolvedCover& other) const {
+        return mean == other.mean && variance == other.variance;
+    }
+    bool operator!=(const UnresolvedCover& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Boulders scattered over the ground: between craters, in patches and richer on bedrock,
@@ -322,7 +333,12 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
         const Ground* ground = nullptr;
         std::int64_t i = 0;
         std::int64_t j = 0;
-        bool operator==(const BedrockCell&) const = default;
+        bool operator==(const BedrockCell& other) const {
+            return ground == other.ground && i == other.i && j == other.j;
+        }
+        bool operator!=(const BedrockCell& other) const {
+            return !(*this == other);
+        }
     };
     struct BedrockCellHash {
         std::size_t operator()(const BedrockCell& cell) const;

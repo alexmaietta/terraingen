@@ -11,7 +11,6 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
-#include <numbers>
 #include <set>
 #include <stdexcept>
 #include <utility>
@@ -58,8 +57,8 @@ TEST(Surface, PlaneOffsetsAreDifferencesExactly) {
 TEST(Surface, SphereOffsetsAreAzimuthalEquidistant) {
     const Surface moon = Surface::Sphere(kMoon);
     EXPECT_TRUE(moon.IsBody());
-    EXPECT_NEAR(moon.UnitLength(), kMoon * std::numbers::pi / 180.0, 1e-9);
-    const double quarter = kMoon * std::numbers::pi / 2.0;
+    EXPECT_NEAR(moon.UnitLength(), kMoon * terraingen::kPi / 180.0, 1e-9);
+    const double quarter = kMoon * terraingen::kPi / 2.0;
 
     const Vec2d east = moon.Offset({0.0, 0.0}, {90.0, 0.0});
     EXPECT_NEAR(east.x, quarter, 1e-6);
@@ -114,7 +113,7 @@ TEST(Surface, SphereExpandCoversEveryPointWithinTheDistance) {
     for (int i = 0; i < 2000; ++i) {
         const Vec2d inside{region.minX + 2.0 * random.NextDouble(),
                            region.minY + 20.0 * random.NextDouble()};
-        const double azimuth = 2.0 * std::numbers::pi * random.NextDouble();
+        const double azimuth = 2.0 * terraingen::kPi * random.NextDouble();
         const Vec2d reached =
             moon.Locate(inside, {metres * std::sin(azimuth), metres * std::cos(azimuth)});
         EXPECT_GE(reached.x, grown.minX - 1e-9);
@@ -141,14 +140,14 @@ TEST(CubeFaces, FindTheNearestFaceAndEquiangularCoordinates) {
     EXPECT_DOUBLE_EQ(terraingen::detail::EquiangularCoordinate(-1.0, 8.0), 0.0);
     EXPECT_DOUBLE_EQ(terraingen::detail::EquiangularCoordinate(0.0, 8.0), 4.0);
     EXPECT_DOUBLE_EQ(terraingen::detail::EquiangularCoordinate(1.0, 8.0), 8.0);
-    EXPECT_DOUBLE_EQ(terraingen::detail::kQuarter, std::numbers::pi / 4.0);
+    EXPECT_DOUBLE_EQ(terraingen::detail::kQuarter, terraingen::kPi / 4.0);
 }
 
 TEST(CubeSphereCells, CellsTileTheSphereWithExactAreas) {
     const CubeSphereCells cells(kMoon);
     const double size = 300000.0;
     const std::int32_t n = cells.CellsPerEdge(size);
-    EXPECT_EQ(n, static_cast<std::int32_t>(std::ceil(kMoon * std::numbers::pi / 2.0 / size)));
+    EXPECT_EQ(n, static_cast<std::int32_t>(std::ceil(kMoon * terraingen::kPi / 2.0 / size)));
     double total = 0.0;
     double smallest = 1e300;
     double largest = 0.0;
@@ -160,7 +159,7 @@ TEST(CubeSphereCells, CellsTileTheSphereWithExactAreas) {
             largest = std::max(largest, area);
         }
     }
-    EXPECT_NEAR(total / (4.0 * std::numbers::pi * kMoon * kMoon), 1.0, 1e-12);
+    EXPECT_NEAR(total / (4.0 * terraingen::kPi * kMoon * kMoon), 1.0, 1e-12);
     EXPECT_LT(largest / smallest, 1.5);
     EXPECT_LE(largest, size * size);
     EXPECT_EQ(cells.Radius(), kMoon);
@@ -172,7 +171,7 @@ TEST(CubeSphereCells, CellsTileTheSphereWithExactAreas) {
 
 TEST(CubeSphereCells, SamplesAreUniformOverEachCell) {
     const CubeSphereCells cells(kMoon);
-    const double size = kMoon * std::numbers::pi / 6.0 * 1.000001;
+    const double size = kMoon * terraingen::kPi / 6.0 * 1.000001;
     const std::int32_t n = cells.CellsPerEdge(size);
     const CellIndex corner{4 * n + n - 1, n - 1};
     RandomStream random(7, 8);
@@ -240,7 +239,7 @@ TEST(CubeSphereCells, CoveringFindsEveryCellReachingTheRegion) {
 TEST(CubeSphereCells, CoveringKeepsCellsAtTheRegionEdgesAndDropsFarRingCells) {
     const CubeSphereCells cells(kMoon);
     const double size = 40000.0;
-    const double corner = std::atan(1.0 / std::sqrt(2.0)) * 180.0 / std::numbers::pi;
+    const double corner = std::atan(1.0 / std::sqrt(2.0)) * 180.0 / terraingen::kPi;
     for (const Bounds2d& region :
          {Bounds2d{44.6, 34.9, 45.4, 35.3}, Bounds2d{44.9, -0.3, 45.1, 0.3},
           Bounds2d{44.8, corner - 0.2, 45.2, corner + 0.2}, Bounds2d{-0.4, 89.5, 0.4, 90.0},
@@ -262,10 +261,10 @@ TEST(CubeSphereCells, CoveringKeepsCellsAtTheRegionEdgesAndDropsFarRingCells) {
 
     const CellIndex centre = cells.CellAt(10.0, 10.0, size);
     const std::int32_t n = cells.CellsPerEdge(size);
-    const double step = std::numbers::pi / 2.0 / n;
+    const double step = terraingen::kPi / 2.0 / n;
     const Vec3d direction = CubeSphereCells::Direction(
-        centre.i / n, -std::numbers::pi / 4.0 + (centre.i % n + 0.5) * step,
-        -std::numbers::pi / 4.0 + (centre.j + 0.5) * step);
+        centre.i / n, -terraingen::kPi / 4.0 + (centre.i % n + 0.5) * step,
+        -terraingen::kPi / 4.0 + (centre.j + 0.5) * step);
     const Vec2d point = Surface::Sphere(kMoon).Coordinates(direction);
     const std::vector<CellIndex> one =
         cells.CellsCovering(terraingen::PointBounds(point.x, point.y), size);
@@ -278,7 +277,7 @@ TEST(CubeSphereCells, TwoRingsOfNeighboursHoldEveryPointWithinACellAcrossFacesAn
     const Surface moon = Surface::Sphere(kMoon);
     const double size = 50000.0;
     RandomStream random(11, 12);
-    const double corner = std::atan(1.0 / std::sqrt(2.0)) * 180.0 / std::numbers::pi;
+    const double corner = std::atan(1.0 / std::sqrt(2.0)) * 180.0 / terraingen::kPi;
     std::vector<Vec2d> centres{{45.0, corner}, {-135.0, -corner}, {45.0, 0.0}, {0.0, 45.0}};
     for (int k = 0; k < 300; ++k) {
         centres.push_back(
@@ -290,7 +289,7 @@ TEST(CubeSphereCells, TwoRingsOfNeighboursHoldEveryPointWithinACellAcrossFacesAn
         EXPECT_TRUE(std::find(around.begin(), around.end(), home) != around.end());
         for (int k = 0; k < 60; ++k) {
             const double distance = 0.91 * size * std::sqrt(random.NextDouble());
-            const double azimuth = 2.0 * std::numbers::pi * random.NextDouble();
+            const double azimuth = 2.0 * terraingen::kPi * random.NextDouble();
             const Vec2d there =
                 moon.Locate(centre, {distance * std::sin(azimuth), distance * std::cos(azimuth)});
             const CellIndex cell = cells.CellAt(there.x, there.y, size);
@@ -443,19 +442,19 @@ TEST(Surface, EllipsoidAreaPerSteradianIntegratesToItsArea) {
     const double c = 1000.0;
     const Surface spheroid = Surface::Ellipsoid(a, a, c);
     const int steps = 720;
-    const double step = std::numbers::pi / steps;
+    const double step = terraingen::kPi / steps;
     double area = 0.0;
     for (int j = 0; j < steps; ++j) {
         const double lat = -90.0 + (j + 0.5) * 180.0 / steps;
         for (int i = 0; i < 2 * steps; ++i) {
             const double lon = -180.0 + (i + 0.5) * 180.0 / steps;
             area += spheroid.AreaPerSteradian({lon, lat}) *
-                    std::cos(lat * std::numbers::pi / 180.0) * step * step;
+                    std::cos(lat * terraingen::kPi / 180.0) * step * step;
         }
     }
     const double e = std::sqrt(1.0 - c * c / (a * a));
     const double expected =
-        2.0 * std::numbers::pi * a * a * (1.0 + (1.0 - e * e) / e * std::atanh(e));
+        2.0 * terraingen::kPi * a * a * (1.0 + (1.0 - e * e) / e * std::atanh(e));
     EXPECT_NEAR(area / expected, 1.0, 1e-5);
 }
 
@@ -488,7 +487,7 @@ TEST(CubeSphereCells, EllipsoidCellsAreSizedByTheShortestAxisAndTileItsArea) {
     }
     const double e = std::sqrt(1.0 - c * c / (a * a));
     const double expected =
-        2.0 * std::numbers::pi * a * a * (1.0 + (1.0 - e * e) / e * std::atanh(e));
+        2.0 * terraingen::kPi * a * a * (1.0 + (1.0 - e * e) / e * std::atanh(e));
     EXPECT_NEAR(total / expected, 1.0, 1e-6);
     EXPECT_THROW(CubeSphereCells{Surface::Plane()}, std::invalid_argument);
 }
@@ -635,19 +634,19 @@ TEST(Surface, ShapeModelAreaPerSteradianIntegratesToTheEllipsoidsArea) {
             return 1.0 / std::sqrt((u.x * u.x + u.y * u.y) / (a * a) + u.z * u.z / (c * c));
         })));
     const int steps = 360;
-    const double step = std::numbers::pi / steps;
+    const double step = terraingen::kPi / steps;
     double area = 0.0;
     for (int j = 0; j < steps; ++j) {
         const double lat = -90.0 + (j + 0.5) * 180.0 / steps;
         for (int i = 0; i < 2 * steps; ++i) {
             const double lon = -180.0 + (i + 0.5) * 180.0 / steps;
             area += spheroid.AreaPerSteradian({lon, lat}) *
-                    std::cos(lat * std::numbers::pi / 180.0) * step * step;
+                    std::cos(lat * terraingen::kPi / 180.0) * step * step;
         }
     }
     const double e = std::sqrt(1.0 - c * c / (a * a));
     const double expected =
-        2.0 * std::numbers::pi * a * a * (1.0 + (1.0 - e * e) / e * std::atanh(e));
+        2.0 * terraingen::kPi * a * a * (1.0 + (1.0 - e * e) / e * std::atanh(e));
     EXPECT_NEAR(area / expected, 1.0, 2e-3);
 }
 
@@ -668,12 +667,12 @@ TEST(CubeSphereCells, ShapeModelCellsTileItsAreaAndBoundTheirWeight) {
     }
     double expected = 0.0;
     const int steps = 360;
-    const double step = std::numbers::pi / steps;
+    const double step = terraingen::kPi / steps;
     for (int j = 0; j < steps; ++j) {
         const double lat = -90.0 + (j + 0.5) * 180.0 / steps;
         for (int i = 0; i < 2 * steps; ++i) {
             expected += kShape.AreaPerSteradian({-180.0 + (i + 0.5) * 180.0 / steps, lat}) *
-                        std::cos(lat * std::numbers::pi / 180.0) * step * step;
+                        std::cos(lat * terraingen::kPi / 180.0) * step * step;
         }
     }
     EXPECT_NEAR(total / expected, 1.0, 1e-3);

@@ -41,7 +41,14 @@ struct DensityMap {
     /// which are taken out of it; otherwise it measures only what the layer generates.
     bool total = true;
 
-    bool operator==(const DensityMap&) const = default;
+    bool operator==(const DensityMap& other) const {
+        return field == other.field && measure == other.measure &&
+               minDiameter == other.minDiameter && maxDiameter == other.maxDiameter &&
+               areaUnit == other.areaUnit && total == other.total;
+    }
+    bool operator!=(const DensityMap& other) const {
+        return !(*this == other);
+    }
 };
 
 /// What a size slope map's values measure.
@@ -66,7 +73,14 @@ struct SizeSlopeMap {
     double minExponent = 1.0;
     double maxExponent = 6.0;  ///< The largest exponent; finite.
 
-    bool operator==(const SizeSlopeMap&) const = default;
+    bool operator==(const SizeSlopeMap& other) const {
+        return field == other.field && measure == other.measure &&
+               referenceDiameter == other.referenceDiameter && minExponent == other.minExponent &&
+               maxExponent == other.maxExponent;
+    }
+    bool operator!=(const SizeSlopeMap& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks a size slope map.

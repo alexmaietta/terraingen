@@ -6,8 +6,7 @@
 #include "terraingen/layers/kernels/cell.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/raster/cell_loops.h"
-
-#include <span>
+#include "terraingen/util/span.h"
 
 namespace terraingen {
 
@@ -31,8 +30,8 @@ void ApplyKernel(SampleBlock& samples, const LayerContext& context, const Kernel
                  const Vec2d& origin) {
     Raster<float>* grid = samples.Grid();
     if (grid != nullptr && context.backend != Backend::Cpu &&
-        RunKernel(context.backend, CompiledKernel<Kernel>(), std::as_bytes(std::span(&kernel, 1)),
-                  *grid, origin)) {
+        RunKernel(context.backend, CompiledKernel<Kernel>(), AsBytes(Span(&kernel, 1)), *grid,
+                  origin)) {
         return;
     }
     MapSamples(samples, context.threads, [&](float height, const Vec2d& p) {

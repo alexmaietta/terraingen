@@ -10,7 +10,6 @@
 
 #include <nlohmann/json.hpp>
 
-#include <concepts>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -81,9 +80,19 @@ class Writer {
     bool omitUnset_ = false;
 };
 
-/// A struct read and written as a JSON object through its `Fields`.
+/// Whether `Fields(reader, value)` is callable with a `Reader`.
+template <typename T, typename = void> struct HasFieldsTrait : std::false_type {};
 template <typename T>
-concept HasFields = requires(Reader& reader, T& value) { Fields(reader, value); };
+struct HasFieldsTrait<T, std::void_t<decltype(Fields(std::declval<Reader&>(), std::declval<T&>()))>>
+    : std::true_type {};
+
+/// A struct read and written as a JSON object through its `Fields`.
+template <typename T> inline constexpr bool HasFields = HasFieldsTrait<T>::value;
+
+/// An unsigned integer type other than bool, read and written as a non-negative integer.
+template <typename T>
+inline constexpr bool IsUnsignedInteger =
+    std::is_integral_v<T> && std::is_unsigned_v<T> && !std::is_same_v<T, bool>;
 
 /// @name Read
 /// Stores a JSON value at `path` in a configuration value of the overload's type.
@@ -94,11 +103,12 @@ void Read(const Json& json, const std::string& path, float& value);
 void Read(const Json& json, const std::string& path, bool& value);
 void Read(const Json& json, const std::string& path, std::string& value);
 void Read(const Json& json, const std::string& path, int& value);
-template <std::unsigned_integral T>
-    requires(!std::same_as<T, bool>)
+template <typename T, std::enable_if_t<IsUnsignedInteger<T>, int> = 0>
 void Read(const Json& json, const std::string& path, T& value);
-template <NamedEnum E> void Read(const Json& json, const std::string& path, E& value);
-template <HasFields T> void Read(const Json& json, const std::string& path, T& value);
+template <typename E, std::enable_if_t<NamedEnum<E>, int> = 0>
+void Read(const Json& json, const std::string& path, E& value);
+template <typename T, std::enable_if_t<HasFields<T>, int> = 0>
+void Read(const Json& json, const std::string& path, T& value);
 template <typename T> void Read(const Json& json, const std::string& path, std::optional<T>& value);
 template <typename T> void Read(const Json& json, const std::string& path, Boxed<T>& value);
 template <typename T> void Read(const Json& json, const std::string& path, std::vector<T>& value);
@@ -118,15 +128,14 @@ void ReadObject(const Json& json, const std::string& path, T& value, bool typed 
     }
     Fields(reader, value);
     reader.Finish();
-    if constexpr (std::derived_from<T, ListOutput>) {
+    if constexpr (std::is_base_of_v<ListOutput, T>) {
         if (!json.contains("format")) {
             value.format = InferListFormat(value.path);
         }
     }
 }
 
-template <std::unsigned_integral T>
-    requires(!std::same_as<T, bool>)
+template <typename T, std::enable_if_t<IsUnsignedInteger<T>, int>>
 void Read(const Json& json, const std::string& path, T& value) {
     if (!json.is_number_integer()) {
         Fail(path, std::string("expected a non-negative integer, not ") + json.type_name());
@@ -141,7 +150,8 @@ void Read(const Json& json, const std::string& path, T& value) {
     value = static_cast<T>(number);
 }
 
-template <NamedEnum E> void Read(const Json& json, const std::string& path, E& value) {
+template <typename E, std::enable_if_t<NamedEnum<E>, int>>
+void Read(const Json& json, const std::string& path, E& value) {
     std::string name;
     Read(json, path, name);
     std::string expected;
@@ -155,7 +165,8 @@ template <NamedEnum E> void Read(const Json& json, const std::string& path, E& v
     Fail(path, "unknown value \"" + name + "\"; expected one of: " + expected);
 }
 
-template <HasFields T> void Read(const Json& json, const std::string& path, T& value) {
+template <typename T, std::enable_if_t<HasFields<T>, int>>
+void Read(const Json& json, const std::string& path, T& value) {
     ReadObject(json, path, value);
 }
 
@@ -245,20 +256,18 @@ inline Json ToJson(int value) {
 inline Json ToJson(const std::string& value) {
     return value;
 }
-template <std::unsigned_integral T>
-    requires(!std::same_as<T, bool>)
-Json ToJson(T value) {
+template <typename T, std::enable_if_t<IsUnsignedInteger<T>, int> = 0> Json ToJson(T value) {
     return static_cast<std::uint64_t>(value);
 }
-template <NamedEnum E> Json ToJson(E value);
-template <HasFields T> Json ToJson(const T& value);
+template <typename E, std::enable_if_t<NamedEnum<E>, int> = 0> Json ToJson(E value);
+template <typename T, std::enable_if_t<HasFields<T>, int> = 0> Json ToJson(const T& value);
 template <typename T> Json ToJson(const std::optional<T>& value);
 template <typename T> Json ToJson(const Boxed<T>& value);
 template <typename T> Json ToJson(const std::vector<T>& value);
 template <typename... Ts> Json ToJson(const std::variant<Ts...>& value);
 /// @}
 
-template <NamedEnum E> Json ToJson(E value) {
+template <typename E, std::enable_if_t<NamedEnum<E>, int>> Json ToJson(E value) {
     for (const auto& entry : EnumNames<E>::kValues) {
         if (entry.value == value) {
             return std::string(entry.name);
@@ -267,7 +276,7 @@ template <NamedEnum E> Json ToJson(E value) {
     return nullptr;
 }
 
-template <HasFields T> Json ToJson(const T& value) {
+template <typename T, std::enable_if_t<HasFields<T>, int>> Json ToJson(const T& value) {
     Json json = Json::object();
     T copy = value;
     Writer writer(json);

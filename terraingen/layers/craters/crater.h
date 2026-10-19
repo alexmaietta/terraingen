@@ -24,7 +24,14 @@ struct Crater {
     /// precedence over generated craters and is never removed by spacing.
     bool manual = false;
 
-    bool operator==(const Crater&) const = default;
+    /// Memberwise equality.
+    bool operator==(const Crater& other) const {
+        return x == other.x && y == other.y && diameter == other.diameter &&
+               ageGyr == other.ageGyr && id == other.id && manual == other.manual;
+    }
+    bool operator!=(const Crater& other) const {
+        return !(*this == other);
+    }
 };
 
 /// A stable ID for a manual crater that has none, hashed with `Philox4x32`: the same for the same
@@ -136,7 +143,15 @@ struct CraterSelection {
     /// outside its range.
     bool Includes(const Crater& crater) const;
 
-    bool operator==(const CraterSelection&) const = default;
+    /// Memberwise equality.
+    bool operator==(const CraterSelection& other) const {
+        return minDiameter == other.minDiameter && maxDiameter == other.maxDiameter &&
+               minAgeGyr == other.minAgeGyr && maxAgeGyr == other.maxAgeGyr &&
+               manual == other.manual;
+    }
+    bool operator!=(const CraterSelection& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks a crater selection.

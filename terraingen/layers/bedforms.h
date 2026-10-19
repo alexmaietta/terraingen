@@ -34,7 +34,17 @@ struct BedformOptions {
     /// How bedforms too fine for the spacing fade out, by samples per wavelength.
     ResolutionFade fade{};
 
-    bool operator==(const BedformOptions&) const = default;
+    bool operator==(const BedformOptions& other) const {
+        return wavelength == other.wavelength && height == other.height &&
+               windAzimuth == other.windAzimuth && azimuthSpread == other.azimuthSpread &&
+               leeFraction == other.leeFraction && sinuosity == other.sinuosity &&
+               cover == other.cover && fieldSize == other.fieldSize && seed == other.seed &&
+               exposure == other.exposure && exposureSpacing == other.exposureSpacing &&
+               fade == other.fade;
+    }
+    bool operator!=(const BedformOptions& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks bedform options.

@@ -3,7 +3,6 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
-#include <numbers>
 
 using terraingen::Vec2d;
 using terraingen::Vec3d;
@@ -40,8 +39,8 @@ TEST(Geometry, DoesPlanarVectorArithmetic) {
 }
 
 TEST(Geometry, ConvertsDegreesToRadians) {
-    EXPECT_DOUBLE_EQ(180.0 * terraingen::kDegree, std::numbers::pi);
-    EXPECT_DOUBLE_EQ(std::numbers::pi * terraingen::kRadian, 180.0);
+    EXPECT_DOUBLE_EQ(180.0 * terraingen::kDegree, terraingen::kPi);
+    EXPECT_DOUBLE_EQ(terraingen::kPi * terraingen::kRadian, 180.0);
     EXPECT_DOUBLE_EQ(terraingen::kDegree * terraingen::kRadian, 1.0);
 }
 

@@ -51,7 +51,15 @@ struct SecondaryRays {
     double clustering = 0.8;           ///< How strongly they clump along a ray, in [0, 1].
     double clusterSpacing = 0.15;      ///< Wavelength of the clumps in ln range; positive.
 
-    bool operator==(const SecondaryRays&) const = default;
+    /// Memberwise equality.
+    bool operator==(const SecondaryRays& other) const {
+        return enabled == other.enabled && layout == other.layout && share == other.share &&
+               minHalfAngleDegrees == other.minHalfAngleDegrees && clustering == other.clustering &&
+               clusterSpacing == other.clusterSpacing;
+    }
+    bool operator!=(const SecondaryRays& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Secondaries stretched toward their primary, elliptical along the line back to it and rounder
@@ -62,7 +70,13 @@ struct SecondaryShapes {
     /// Long over short axis near the primary; at least 1 and bounded.
     ValueDistribution ellipticity{ValueDistribution::Kind::Uniform, 1.2, 1.8};
 
-    bool operator==(const SecondaryShapes&) const = default;
+    /// Memberwise equality.
+    bool operator==(const SecondaryShapes& other) const {
+        return elongatedShare == other.elongatedShare && ellipticity == other.ellipticity;
+    }
+    bool operator!=(const SecondaryShapes& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Which primaries throw secondaries, how many, and over what sizes.
@@ -91,7 +105,18 @@ struct SecondaryCraterOptions {
     SecondaryRays rays{};      ///< Rays and clusters; off by default.
     SecondaryShapes shapes{};  ///< Elongation toward the primary; round by default.
 
-    bool operator==(const SecondaryCraterOptions&) const = default;
+    /// Memberwise equality.
+    bool operator==(const SecondaryCraterOptions& other) const {
+        return seed == other.seed && onsetCount == other.onsetCount &&
+               countFraction == other.countFraction && sizeSlope == other.sizeSlope &&
+               minDiameter == other.minDiameter && maxDiameter == other.maxDiameter &&
+               outerRange == other.outerRange && selection == other.selection &&
+               cellSizeFactor == other.cellSizeFactor && maxExpected == other.maxExpected &&
+               rays == other.rays && shapes == other.shapes;
+    }
+    bool operator!=(const SecondaryCraterOptions& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks secondary crater options.

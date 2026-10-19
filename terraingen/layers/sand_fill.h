@@ -19,7 +19,13 @@ struct SandFillOptions {
     /// Sand thickness in metres at which it fully covers the ground; thinner sand covers part.
     double coverThickness = 0.02;
 
-    bool operator==(const SandFillOptions&) const = default;
+    bool operator==(const SandFillOptions& other) const {
+        return reach == other.reach && fill == other.fill && maxThickness == other.maxThickness &&
+               coverThickness == other.coverThickness;
+    }
+    bool operator!=(const SandFillOptions& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks sand fill options.

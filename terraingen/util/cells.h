@@ -6,7 +6,6 @@
 #include "terraingen/util/surface.h"
 
 #include <array>
-#include <compare>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -22,8 +21,25 @@ struct CellIndex {
     std::int32_t i = 0;  ///< Column, or face * n + column on a cube sphere.
     std::int32_t j = 0;  ///< Row.
 
+    bool operator==(const CellIndex& other) const {
+        return i == other.i && j == other.j;
+    }
+    bool operator!=(const CellIndex& other) const {
+        return !(*this == other);
+    }
     /// Orders cells by `i`, then `j`.
-    auto operator<=>(const CellIndex&) const = default;
+    bool operator<(const CellIndex& other) const {
+        return i != other.i ? i < other.i : j < other.j;
+    }
+    bool operator>(const CellIndex& other) const {
+        return other < *this;
+    }
+    bool operator<=(const CellIndex& other) const {
+        return !(other < *this);
+    }
+    bool operator>=(const CellIndex& other) const {
+        return !(*this < other);
+    }
 };
 
 /// Partitions a surface into cells so features can be generated per cell, each from its

@@ -24,7 +24,12 @@ struct BucketIndex {
     long long k = 0;
 
     /// Componentwise equality.
-    bool operator==(const BucketIndex&) const = default;
+    bool operator==(const BucketIndex& other) const {
+        return i == other.i && j == other.j && k == other.k;
+    }
+    bool operator!=(const BucketIndex& other) const {
+        return !(*this == other);
+    }
 };
 
 /// The shape a terrain lies on, a plane or a body (a sphere, a triaxial ellipsoid of which the
@@ -182,7 +187,13 @@ class Surface {
     BucketIndex Bucket(const Vec2d& point, double size) const;
 
     /// Whether two surfaces are the same form and radii, and share one shape model or have none.
-    bool operator==(const Surface&) const = default;
+    bool operator==(const Surface& other) const {
+        return form_ == other.form_ && radius_ == other.radius_ &&
+               unitLength_ == other.unitLength_ && radii_ == other.radii_ && shape_ == other.shape_;
+    }
+    bool operator!=(const Surface& other) const {
+        return !(*this == other);
+    }
 
   private:
     /// The shape of the surface, set by the factories.

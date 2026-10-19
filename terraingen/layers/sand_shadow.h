@@ -28,7 +28,14 @@ struct SandShadowOptions {
     double coverThickness = 0.02;
     ResolutionFade fade{};  ///< Fade of shadows behind boulders too small for the spacing.
 
-    bool operator==(const SandShadowOptions&) const = default;
+    bool operator==(const SandShadowOptions& other) const {
+        return windAzimuth == other.windAzimuth && lengthRatio == other.lengthRatio &&
+               flankAngle == other.flankAngle && minDiameter == other.minDiameter &&
+               coverThickness == other.coverThickness && fade == other.fade;
+    }
+    bool operator!=(const SandShadowOptions& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks sand shadow options.

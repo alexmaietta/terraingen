@@ -48,7 +48,7 @@ TEST(CraterLayer, GeneratesAndAppliesCratersOverTheGrid) {
     const CraterModels models = Models();
     const CraterList craters = terraingen::GenerateCraters(
         terraingen::PlanarCells(), {-64.0, -64.0, 64.0, 64.0}, *models.density, *models.ages, 3u,
-        {.dMin = 6.0, .dMax = 40.0, .marginRadii = models.profile->ReachRadii()});
+        {6.0, 40.0, models.profile->ReachRadii()});
     Raster<float> expected = Grid();
     terraingen::ApplyCraters(expected, craters, models.Shape());
     ASSERT_GT(craters.Size(), 0u);

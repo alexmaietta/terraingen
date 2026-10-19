@@ -58,7 +58,21 @@ struct SplotchSwarms {
     /// The splotches a crater `diameter` metres across throws, on average.
     double Count(double diameter) const;
 
-    bool operator==(const SplotchSwarms&) const = default;
+    bool operator==(const SplotchSwarms& other) const {
+        return enabled == other.enabled && craterRate == other.craterRate &&
+               craterSlope == other.craterSlope && minCraterDiameter == other.minCraterDiameter &&
+               maxCraterDiameter == other.maxCraterDiameter &&
+               referenceDiameter == other.referenceDiameter &&
+               referenceCount == other.referenceCount && mu == other.mu &&
+               minRange == other.minRange && maxRange == other.maxRange &&
+               splotchDiameter == other.splotchDiameter && darkShare == other.darkShare &&
+               brightShare == other.brightShare && darkChange == other.darkChange &&
+               brightChange == other.brightChange && wedgeShare == other.wedgeShare &&
+               wedgeElongation == other.wedgeElongation && craters == other.craters;
+    }
+    bool operator!=(const SplotchSwarms& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Splotches after Speyerer et al. (2016): formed at a cumulative rate of `rateCoefficient`
@@ -91,7 +105,19 @@ struct SplotchAlbedoOptions {
     /// The cumulative number of splotches of diameter at least 1 m per m^2 at any time.
     double Coefficient() const;
 
-    bool operator==(const SplotchAlbedoOptions&) const = default;
+    bool operator==(const SplotchAlbedoOptions& other) const {
+        return seed == other.seed && rateCoefficient == other.rateCoefficient &&
+               rateExponent == other.rateExponent && lifetimeMyr == other.lifetimeMyr &&
+               minDiameter == other.minDiameter && maxDiameter == other.maxDiameter &&
+               darkShare == other.darkShare && brightShare == other.brightShare &&
+               darkChange == other.darkChange && brightChange == other.brightChange &&
+               steepBrightShare == other.steepBrightShare &&
+               steepSlopeDegrees == other.steepSlopeDegrees && softness == other.softness &&
+               raggedness == other.raggedness && fade == other.fade && swarms == other.swarms;
+    }
+    bool operator!=(const SplotchAlbedoOptions& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks splotch options.

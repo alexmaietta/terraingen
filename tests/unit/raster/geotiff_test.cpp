@@ -58,6 +58,13 @@ std::vector<std::uint8_t> Bytes(std::initializer_list<std::uint8_t> bytes) {
     return bytes;
 }
 
+/// The default write options with tiles of `tileSize` pixels.
+GeoTiffWriteOptions Tiled(std::uint32_t tileSize) {
+    GeoTiffWriteOptions options;
+    options.tileSize = tileSize;
+    return options;
+}
+
 /// `bytes`, a little-endian classic TIFF, with the inline value of tag `tag` in its first IFD set
 /// to `value`, or with the tag renumbered to an unused private tag when `remove` is set.
 std::vector<std::uint8_t> PatchTag(std::vector<std::uint8_t> bytes, std::uint16_t tag,
@@ -194,7 +201,7 @@ TEST(WriteGeoTiff, RoundTripsValuesTransformNoDataAndGeoKeys) {
             raster(4, 5) = -9999.0f;
             const auto path = TempPath("roundtrip.tif");
             WriteGeoTiff(path, raster, source.geoKeys,
-                         {.compression = compression, .tileSize = 16, .bigTiff = bigTiff});
+                         GeoTiffWriteOptions{compression, 16, bigTiff});
             const auto info = ReadGeoTiffInfo(path);
             EXPECT_EQ(info.compression, compression);
             EXPECT_EQ(info.bigTiff, bigTiff);
@@ -238,7 +245,7 @@ TEST(WriteGeoTiff, WritesSeveralBandsOneAfterAnother) {
         }
     }
     const auto path = TempPath("bands.tif");
-    WriteGeoTiff(path, bands, {}, {.tileSize = 16});
+    WriteGeoTiff(path, bands, {}, Tiled(16));
     EXPECT_EQ(ReadGeoTiffInfo(path).bands, 3u);
     for (std::size_t band = 0; band < bands.size(); ++band) {
         const auto read = ReadGeoTiff(path, band);
@@ -277,11 +284,10 @@ TEST(GeographicSphereKeys, DescribeLongitudeAndLatitudeOnTheBody) {
 TEST(WriteGeoTiff, RejectsInvalidRequests) {
     EXPECT_THROW(WriteGeoTiff(TempPath("empty.tif"), Raster<float>()), GeoTiffError);
     const Raster<float> raster = Sample(8, 8);
-    EXPECT_THROW(WriteGeoTiff(TempPath("tile.tif"), raster, {}, {.tileSize = 20}), GeoTiffError);
-    EXPECT_THROW(WriteGeoTiff(TempPath("tile.tif"), raster, {}, {.tileSize = 0}), GeoTiffError);
-    EXPECT_THROW(
-        WriteGeoTiff(TempPath("pack.tif"), raster, {}, {.compression = TiffCompression::PackBits}),
-        GeoTiffError);
+    EXPECT_THROW(WriteGeoTiff(TempPath("tile.tif"), raster, {}, Tiled(20)), GeoTiffError);
+    EXPECT_THROW(WriteGeoTiff(TempPath("tile.tif"), raster, {}, Tiled(0)), GeoTiffError);
+    EXPECT_THROW(WriteGeoTiff(TempPath("pack.tif"), raster, {}, {TiffCompression::PackBits}),
+                 GeoTiffError);
     EXPECT_THROW(WriteGeoTiff(TempPath("missing/dir/x.tif"), raster), GeoTiffError);
 }
 
@@ -296,9 +302,8 @@ TEST(WriteGeoTiff, NamesTheFileInEveryError) {
         return std::string("no error");
     };
     const auto tile = TempPath("tile.tif");
-    EXPECT_EQ(
-        message(tile, [&](const auto& path) { WriteGeoTiff(path, raster, {}, {.tileSize = 20}); }),
-        tile.string() + ": the tile size must be a positive multiple of 16");
+    EXPECT_EQ(message(tile, [&](const auto& path) { WriteGeoTiff(path, raster, {}, Tiled(20)); }),
+              tile.string() + ": the tile size must be a positive multiple of 16");
     const auto empty = TempPath("empty.tif");
     EXPECT_EQ(message(empty, [](const auto& path) { WriteGeoTiff(path, Raster<float>()); }),
               empty.string() + ": cannot write an empty raster");

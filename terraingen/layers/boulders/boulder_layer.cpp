@@ -8,16 +8,15 @@
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/grid.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/cells.h"
 #include "terraingen/util/parallel.h"
+#include "terraingen/util/span.h"
 
 #include <algorithm>
-#include <bit>
 #include <cmath>
 #include <limits>
 #include <map>
-#include <numbers>
-#include <span>
 #include <stdexcept>
 #include <unordered_map>
 #include <utility>
@@ -32,15 +31,15 @@ namespace {
 /// Gives the same heights either way.
 class CandidateGround final : public Ground {
   public:
-    CandidateGround(const Ground& ground, std::span<const Vec2d> points,
-                    std::span<const float> heights, double spacing)
+    CandidateGround(const Ground& ground, Span<const Vec2d> points, Span<const float> heights,
+                    double spacing)
         : ground_(ground), points_(points), heights_(heights), spacing_(spacing) {}
 
     float HeightAt(double x, double y, double spacing) const override {
         if (spacing == spacing_) {
             for (std::size_t n = 0; n < points_.size(); ++n) {
-                if (std::bit_cast<std::uint64_t>(points_[n].x) == std::bit_cast<std::uint64_t>(x) &&
-                    std::bit_cast<std::uint64_t>(points_[n].y) == std::bit_cast<std::uint64_t>(y)) {
+                if (BitCast<std::uint64_t>(points_[n].x) == BitCast<std::uint64_t>(x) &&
+                    BitCast<std::uint64_t>(points_[n].y) == BitCast<std::uint64_t>(y)) {
                     return heights_[n];
                 }
             }
@@ -50,8 +49,8 @@ class CandidateGround final : public Ground {
 
   private:
     const Ground& ground_;
-    std::span<const Vec2d> points_;
-    std::span<const float> heights_;
+    Span<const Vec2d> points_;
+    Span<const float> heights_;
     double spacing_;
 };
 
@@ -356,7 +355,9 @@ void BoulderLayer::AddRockCover(Raster<double>& cover, const RasterGrid& grid,
                                 const std::vector<Boulder>& boulders, double spacing,
                                 unsigned threads) const {
     std::vector<Relief> reliefs = PrepareRelief(boulders, spacing);
-    std::erase_if(reliefs, [](const Relief& relief) { return !relief.rock; });
+    reliefs.erase(std::remove_if(reliefs.begin(), reliefs.end(),
+                                 [](const Relief& relief) { return !relief.rock; }),
+                  reliefs.end());
     std::vector<std::vector<PixelWindow>> windows;
     for (const Relief& relief : reliefs) {
         windows.push_back(PixelWindowsIn(grid, relief.box, surface_));
@@ -414,9 +415,10 @@ CraterList BoulderLayer::ScatterBoulderCandidates(const Bounds2d& region, double
     const std::uint32_t seed = SubstreamSeed(options_.seed, kBoulderCandidateStream);
     const FreshAges ages;
     const double margin = OwnMarginRadii() + BreakMarginRadii();
-    CraterGenerationOptions generation{.dMin = options_.sizes.minDiameter,
-                                       .dMax = options_.sizes.maxDiameter,
-                                       .marginRadii = margin};
+    CraterGenerationOptions generation;
+    generation.dMin = options_.sizes.minDiameter;
+    generation.dMax = options_.sizes.maxDiameter;
+    generation.marginRadii = margin;
     generation.surface = surface_;
     generation.logName = "boulders";
     if (smallest > 0.0) {
@@ -467,9 +469,8 @@ std::vector<Boulder> BoulderLayer::DrawBoulders(const CraterList& candidates, do
     std::vector<float> heights(points.size());
     ground->HeightsAt(points, heights, options_.groundSpacing);
     for (std::size_t n = 0; n < thinned.size(); ++n) {
-        const CandidateGround under(*ground, std::span(points).subspan(n * each, each),
-                                    std::span(heights).subspan(n * each, each),
-                                    options_.groundSpacing);
+        const CandidateGround under(*ground, Span(points).subspan(n * each, each),
+                                    Span(heights).subspan(n * each, each), options_.groundSpacing);
         if (std::optional<Boulder> boulder = PlaceCandidate(thinned[n], spacing, &under)) {
             boulders.push_back(*boulder);
         }
@@ -502,7 +503,7 @@ Boulder BoulderLayer::DrawPose(const ThinnedCandidate& thinned, double spacing) 
         share = (1.0 - pose.burialByWear) * share + pose.burialByWear * wear;
     }
     const double burial = ValueRange{pose.minBurial, pose.maxBurial}.Lerp(share);
-    const double yaw = 2.0 * std::numbers::pi * random.NextDouble();
+    const double yaw = 2.0 * kPi * random.NextDouble();
     const double lean = pose.maxLean * random.NextDouble();
     Boulder boulder{
         candidate.x, candidate.y, candidate.diameter, ratio * candidate.diameter, burial,
@@ -548,7 +549,7 @@ void BoulderLayer::Abrade(Boulder& boulder) const {
     }
     const double reach = 0.5 * boulder.diameter * (1.0 - boulder.wear);
     const auto facet = [&](double wind, double pick) {
-        return BoulderFacet{wind + std::numbers::pi,
+        return BoulderFacet{wind + kPi,
                             ValueRange{ventifacts.minAngle, ventifacts.maxAngle}.Lerp(pick), reach};
     };
     boulder.facets[0] = facet(ventifacts.windAzimuth, random.NextDouble());
@@ -627,7 +628,7 @@ void BoulderLayer::Settle(Boulder& boulder, const Ground* ground) const {
     if (pose.maxTilt > 0.0) {
         const double cosine = 1.0 - random.NextDouble() * (1.0 - std::cos(pose.maxTilt));
         const double sine = std::sqrt(std::fmax(0.0, 1.0 - cosine * cosine));
-        const double azimuth = 2.0 * std::numbers::pi * random.NextDouble();
+        const double azimuth = 2.0 * kPi * random.NextDouble();
         up = {sine * std::cos(azimuth), sine * std::sin(azimuth), cosine};
     }
     if (pose.followSlope && ground != nullptr) {
@@ -662,7 +663,9 @@ std::vector<Boulder> BoulderLayer::PlaceBoulders(const Bounds2d& region, double 
     if (!options_.fragmentation.Enabled()) {
         std::vector<Boulder> boulders =
             DrawBoulders(candidates, spacing, ground, EjectaCraters(from));
-        std::erase_if(boulders, [&](const Boulder& boulder) { return !rests(boulder); });
+        boulders.erase(std::remove_if(boulders.begin(), boulders.end(),
+                                      [&](const Boulder& boulder) { return !rests(boulder); }),
+                       boulders.end());
         return boulders;
     }
     const double reach = 0.5 * options_.sizes.maxDiameter * (OwnMarginRadii() + BreakMarginRadii());
@@ -731,7 +734,7 @@ Boulder BoulderLayer::PlacePiece(const Boulder& parent, const BoulderFragment& f
     });
     const Vec3d centre = placement.Apply(fragment.centre);
     const double out = std::hypot(centre.x, centre.y);
-    const double angle = out > 0.0 ? std::atan2(centre.y, centre.x) : 2.0 * std::numbers::pi * push;
+    const double angle = out > 0.0 ? std::atan2(centre.y, centre.x) : 2.0 * kPi * push;
     const double gap = (frame.stage.opening * fragmentation.gapRatio +
                         scatter * fragmentation.spreadRatio * (0.5 + 0.5 * push)) *
                        parent.diameter;
@@ -745,7 +748,7 @@ Boulder BoulderLayer::PlacePiece(const Boulder& parent, const BoulderFragment& f
     piece.piece = static_cast<std::uint32_t>(k);
     piece.diameter = parent.diameter * fragment.scale;
     piece.height = parent.height * fragment.shape.shortAxis * fragment.scale / frame.shortAxis;
-    piece.yaw = parent.yaw + scatter * std::numbers::pi * (2.0 * twist - 1.0);
+    piece.yaw = parent.yaw + scatter * kPi * (2.0 * twist - 1.0);
     piece.lean = parent.lean * (1.0 - scatter);
     piece.tilt = parent.tilt * (1.0 - scatter);
     const double sunk = std::clamp(-low / (high - low), 0.0, 0.95);
@@ -848,7 +851,7 @@ void BoulderLayer::DrawRelief(SampleBlock& samples, const std::vector<Relief>& r
                          relief.width);
     };
     if (Raster<float>* heights = samples.Grid()) {
-        const std::span<const float> values = std::as_const(*heights).Values();
+        const Span<const float> values = std::as_const(*heights).Values();
         const std::vector<float> ground(values.begin(), values.end());
         const std::size_t width = heights->Width();
         std::vector<std::vector<PixelWindow>> windows;

@@ -400,10 +400,13 @@ template <typename IO> void Fields(IO& io, SecondaryCraterOptions& o) {
        "How far secondaries reach, in primary diameters from its centre; unset uses the longest "
        "typical ray of Elliott et al. (2018).",
        "", Above(0.0));
+    SelectionKeys primaryKeys;
+    primaryKeys.minDiameter = "min_primary_diameter";
+    primaryKeys.maxDiameter = "max_primary_diameter";
     SelectionFields(
         io, o.selection, "primary craters that throw secondaries",
         "Lets manual primary craters throw secondaries too; otherwise only generated ones do.",
-        {.minDiameter = "min_primary_diameter", .maxDiameter = "max_primary_diameter"});
+        primaryKeys);
     io("cell_size_factor", o.cellSizeFactor,
        "Side of the polar cells secondaries are drawn in, as a multiple of each size band's "
        "largest diameter.",

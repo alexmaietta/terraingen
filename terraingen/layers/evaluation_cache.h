@@ -3,9 +3,9 @@
 #pragma once
 
 #include "terraingen/noise/hash.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/lru_cache.h"
 
-#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -29,8 +29,7 @@ class EvaluationCache {
     template <typename T>
     std::shared_ptr<const T> Get(const void* owner, std::uint64_t id, double spacing,
                                  const std::function<T()>& compute) {
-        const Key key{reinterpret_cast<std::uintptr_t>(owner), id,
-                      std::bit_cast<std::uint64_t>(spacing)};
+        const Key key{reinterpret_cast<std::uintptr_t>(owner), id, BitCast<std::uint64_t>(spacing)};
         const std::shared_ptr<const Holder> held =
             values_.Get(key, [&] { return Holder{std::make_shared<const T>(compute())}; });
         return std::static_pointer_cast<const T>(held->value);
@@ -42,7 +41,12 @@ class EvaluationCache {
         std::uint64_t id = 0;
         std::uint64_t spacing = 0;
 
-        bool operator==(const Key&) const = default;
+        bool operator==(const Key& other) const {
+            return owner == other.owner && id == other.id && spacing == other.spacing;
+        }
+        bool operator!=(const Key& other) const {
+            return !(*this == other);
+        }
     };
     struct KeyHash {
         std::size_t operator()(const Key& key) const {

@@ -18,7 +18,13 @@ struct KilometrePowerLaw {
     /// y in metres (m^3 with `volume`) for a crater of `diameter` metres.
     double At(double diameter, bool volume = false) const;
 
-    bool operator==(const KilometrePowerLaw&) const = default;
+    /// Memberwise equality.
+    bool operator==(const KilometrePowerLaw& other) const {
+        return coefficient == other.coefficient && exponent == other.exponent;
+    }
+    bool operator!=(const KilometrePowerLaw& other) const {
+        return !(*this == other);
+    }
 };
 
 /// The flat floor and central peak of complex craters on a body, from the diameter they start
@@ -37,7 +43,17 @@ struct ComplexCraterShape {
     double ejectaExponent = 3.0;  ///< The exterior falls off as (r / R)^-exponent.
     double reachRadii = 3.0;      ///< Radii from the centre where the exterior reaches zero.
 
-    bool operator==(const ComplexCraterShape&) const = default;
+    /// Memberwise equality.
+    bool operator==(const ComplexCraterShape& other) const {
+        return transitionDiameter == other.transitionDiameter &&
+               floorDiameter == other.floorDiameter && peakHeight == other.peakHeight &&
+               peakVolume == other.peakVolume && peakDiameter == other.peakDiameter &&
+               peakFitMaxDiameter == other.peakFitMaxDiameter &&
+               ejectaExponent == other.ejectaExponent && reachRadii == other.reachRadii;
+    }
+    bool operator!=(const ComplexCraterShape& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks a complex crater shape.

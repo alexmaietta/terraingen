@@ -7,9 +7,9 @@
 #include "terraingen/layers/craters/shaping/attributes.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/raster/grid.h"
+#include "terraingen/util/span.h"
 
 #include <memory>
-#include <span>
 #include <vector>
 
 namespace terraingen {
@@ -42,7 +42,7 @@ class CraterPlacer {
 /// The craters `layers` apply over `grid`, layer by layer in order: those of every
 /// `CraterPlacer` among them.
 /// @param spacing The sample spacing in metres.
-CraterFeatures PlacedCraters(std::span<const std::shared_ptr<const Layer>> layers,
+CraterFeatures PlacedCraters(Span<const std::shared_ptr<const Layer>> layers,
                              const RasterGrid& grid, double spacing);
 
 }  // namespace terraingen

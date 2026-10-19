@@ -30,7 +30,14 @@ struct PowerLawSegment {
         return std::pow(target / coefficient, -1.0 / exponent);
     }
 
-    bool operator==(const PowerLawSegment&) const = default;
+    /// Memberwise equality.
+    bool operator==(const PowerLawSegment& other) const {
+        return start == other.start && coefficient == other.coefficient &&
+               exponent == other.exponent;
+    }
+    bool operator!=(const PowerLawSegment& other) const {
+        return !(*this == other);
+    }
 };
 
 /// N(>=D) = `coefficient` * D^(-`exponent`), with D in metres and N per m^2 (or per m^2 per

@@ -208,7 +208,7 @@ struct CudaCompute::State {
     }
 
     /// The module of `ptx`, loaded on first use.
-    cu::Module CachedModule(std::span<const char> ptx) {
+    cu::Module CachedModule(Span<const char> ptx) {
         const auto found = modules.find(ptx.data());
         if (found != modules.end()) {
             return found->second;
@@ -225,7 +225,7 @@ struct CudaCompute::State {
 
     /// The entry point "main_0" of `ptx` and its global parameters, which must hold `buffers`
     /// structured buffers and the push constants.
-    Entry FindEntry(std::span<const char> ptx, std::size_t buffers) {
+    Entry FindEntry(Span<const char> ptx, std::size_t buffers) {
         const cu::Module module = CachedModule(ptx);
         Entry entry;
         Check(driver.moduleGetFunction(&entry.function, module, "main_0"), "kernel lookup");
@@ -240,7 +240,7 @@ struct CudaCompute::State {
     }
 
     /// Allocates device memory for `bytes`, owned by `run`, and uploads them.
-    cu::DevicePtr Upload(std::span<const std::byte> bytes, RunAllocations& run) const {
+    cu::DevicePtr Upload(Span<const std::byte> bytes, RunAllocations& run) const {
         cu::DevicePtr pointer = 0;
         Check(driver.memAlloc(&pointer, std::max<std::size_t>(bytes.size(), 4)),
               "memory allocation");
@@ -250,8 +250,8 @@ struct CudaCompute::State {
     }
 
     /// Uploads the buffers, then the push constants, and points the global parameters at them.
-    void UploadParams(const Entry& entry, std::span<const DeviceBuffer> buffers,
-                      std::span<const std::byte> pushConstants, RunAllocations& run) const {
+    void UploadParams(const Entry& entry, Span<const DeviceBuffer> buffers,
+                      Span<const std::byte> pushConstants, RunAllocations& run) const {
         std::vector<std::byte> params(entry.globalsSize);
         for (std::size_t i = 0; i < buffers.size(); ++i) {
             const BufferParam param{Upload(buffers[i].bytes, run), buffers[i].count};
@@ -263,7 +263,7 @@ struct CudaCompute::State {
     }
 
     /// Copies the output buffers back from their allocations, the first ones of `run`.
-    void DownloadOutputs(std::span<const DeviceBuffer> buffers, const RunAllocations& run) const {
+    void DownloadOutputs(Span<const DeviceBuffer> buffers, const RunAllocations& run) const {
         for (std::size_t i = 0; i < buffers.size(); ++i) {
             if (buffers[i].output != nullptr) {
                 Check(
@@ -309,8 +309,8 @@ bool CudaCompute::CanRun(const KernelProgram& program) const {
     return !program.ptx.empty();
 }
 
-void CudaCompute::Run(const KernelProgram& program, std::span<const DeviceBuffer> buffers,
-                      std::span<const std::byte> pushConstants, const Dispatch& dispatch) {
+void CudaCompute::Run(const KernelProgram& program, Span<const DeviceBuffer> buffers,
+                      Span<const std::byte> pushConstants, const Dispatch& dispatch) {
     if (!CanRun(program)) {
         throw std::runtime_error("The kernel has no PTX for CUDA");
     }

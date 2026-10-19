@@ -8,12 +8,13 @@
 #pragma once
 
 #include <cmath>
-#include <concepts>
 #include <cstddef>
 #include <limits>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
+#include <utility>
 
 namespace terraingen::config {
 
@@ -70,19 +71,32 @@ inline std::string CountText(std::size_t lowest, std::size_t highest) {
     return std::to_string(lowest) + " to " + std::to_string(highest);
 }
 
+/// Whether `IO` has `io.Bound(key, bound, description, unit, unset, range)`.
+template <typename IO, typename = void> struct TakesBoundsTrait : std::false_type {};
+template <typename IO>
+struct TakesBoundsTrait<IO, std::void_t<decltype(std::declval<IO&>().Bound(
+                                std::string_view{}, std::declval<double&>(), std::string_view{},
+                                std::string_view{}, 0.0, FieldRange{}))>> : std::true_type {};
+
 /// An `IO` that takes an optional bound as the bound itself, through
 /// `io.Bound(key, bound, description, unit, unset, range)`, such as the Python bindings.
-template <typename IO>
-concept TakesBounds = requires(IO& io, double& bound) {
-    io.Bound(std::string_view{}, bound, std::string_view{}, std::string_view{}, 0.0, FieldRange{});
-};
+template <typename IO> inline constexpr bool TakesBounds = TakesBoundsTrait<IO>::value;
+
+/// Whether `IO` has `io.Group(name, group, description)` returning bool.
+template <typename IO, typename Group, typename = void>
+struct TakesGroupsTrait : std::false_type {};
+template <typename IO, typename Group>
+struct TakesGroupsTrait<IO, Group,
+                        std::void_t<decltype(std::declval<IO&>().Group(
+                            std::string_view{}, std::declval<Group&>(), std::string_view{}))>>
+    : std::is_same<decltype(std::declval<IO&>().Group(std::string_view{}, std::declval<Group&>(),
+                                                      std::string_view{})),
+                   bool> {};
 
 /// An `IO` that may take a group of fields written flat as one value of the group's type,
 /// through `io.Group(name, group, description)`, which returns false to have them visited flat.
 template <typename IO, typename Group>
-concept TakesGroups = requires(IO& io, Group& group) {
-    { io.Group(std::string_view{}, group, std::string_view{}) } -> std::same_as<bool>;
-};
+inline constexpr bool TakesGroups = TakesGroupsTrait<IO, Group>::value;
 
 /// Reads or writes a bound that is unset when infinite, as an optional field.
 /// @param unit The bound's unit symbol, or empty.

@@ -32,12 +32,14 @@ TEST(RoughnessLayer, MeasuresTheRmsSlopeItPredictsOverEveryBaseline) {
     const terraingen::RasterGrid grid{1500, 1500,
                                       terraingen::GeoTransform::NorthUp(0.0, 30.0, kSpacing)};
     for (const double hurst : {0.6, 0.9}) {
-        const terraingen::RoughnessLayer layer({.rmsSlope = 0.15,
-                                                .baseline = 0.25,
-                                                .hurst = hurst,
-                                                .maxWavelength = 2.0,
-                                                .minWavelength = 0.08,
-                                                .seed = 3});
+        terraingen::RoughnessOptions options;
+        options.rmsSlope = 0.15;
+        options.baseline = 0.25;
+        options.hurst = hurst;
+        options.maxWavelength = 2.0;
+        options.minWavelength = 0.08;
+        options.seed = 3;
+        const terraingen::RoughnessLayer layer(options);
         auto heights = grid.MakeRaster();
         layer.Apply(heights, {kSpacing, 0});
         for (const std::size_t lag : {2u, 5u, 12u, 25u, 50u}) {

@@ -28,7 +28,14 @@ struct PixelWindow {
         return colBegin >= colEnd || rowBegin >= rowEnd;
     }
 
-    bool operator==(const PixelWindow&) const = default;
+    /// Memberwise equality.
+    bool operator==(const PixelWindow& other) const {
+        return colBegin == other.colBegin && colEnd == other.colEnd && rowBegin == other.rowBegin &&
+               rowEnd == other.rowEnd;
+    }
+    bool operator!=(const PixelWindow& other) const {
+        return !(*this == other);
+    }
 };
 
 /// The possibly empty window of a grid's pixels whose extent meets a world-coordinate box,

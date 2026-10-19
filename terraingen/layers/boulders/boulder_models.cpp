@@ -1,10 +1,11 @@
 #include "terraingen/layers/boulders/boulder_models.h"
 
+#include "terraingen/util/bits.h"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <limits>
-#include <numbers>
 #include <utility>
 #include <vector>
 
@@ -21,9 +22,9 @@ const Vec3d& Axis(const LocalFrame& frame, int index) {
 RigidTransform RestRotation(BoulderRest rest) {
     switch (rest) {
     case BoulderRest::Side:
-        return RigidTransform::RotationX(0.5 * std::numbers::pi);
+        return RigidTransform::RotationX(0.5 * kPi);
     case BoulderRest::End:
-        return RigidTransform::RotationY(-0.5 * std::numbers::pi);
+        return RigidTransform::RotationY(-0.5 * kPi);
     case BoulderRest::Face:
         break;
     }

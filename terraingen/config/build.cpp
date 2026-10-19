@@ -45,7 +45,6 @@
 #include <memory>
 #include <mutex>
 #include <optional>
-#include <span>
 #include <string>
 #include <tuple>
 #include <type_traits>

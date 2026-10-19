@@ -40,8 +40,7 @@ class AlbedoCraterRays : public terraingen::examples::Example {
         craterOptions.seed = 1;
         craterOptions.generation.dMin = 30.0;
         craterOptions.generation.dMax = 400.0;
-        craterOptions.generation.manual.Append(
-            terraingen::Crater{.x = 0.0, .y = 0.0, .diameter = 250.0, .ageGyr = 0.002});
+        craterOptions.generation.manual.Append(terraingen::Crater{0.0, 0.0, 250.0, 0.002});
         const auto craters = std::make_shared<terraingen::CraterLayer>(
             terraingen::CraterModels{density, ages,
                                      std::make_shared<terraingen::FreshnessDegradation>(
@@ -72,7 +71,7 @@ class AlbedoCraterRays : public terraingen::examples::Example {
         craters_ =
             terraingen::PlacedCraters(terrain, terraingen::RasterGrid::FromRaster(evaluated_));
         const terraingen::RasterGrid grid = terraingen::RasterGrid::FromRaster(evaluated_);
-        bands_ = terraingen::EvaluateAlbedo(albedo, grid, {.spacing = 8.0, .threads = 0});
+        bands_ = terraingen::EvaluateAlbedo(albedo, grid, {8.0, 0});
         stats_ = terraingen::ComputeStats(bands_.front());
         Out() << "Albedo from " << stats_.min << " to " << stats_.max << " over "
               << craters_.craters.Size() << " craters\n";

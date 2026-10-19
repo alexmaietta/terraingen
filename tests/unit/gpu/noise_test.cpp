@@ -1,11 +1,12 @@
 #include "terraingen/gpu/vulkan.h"
 #include "terraingen/noise/noise_layers.h"
 #include "terraingen/random/philox.h"
+#include "terraingen/util/bits.h"
+#include "terraingen/util/span.h"
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
-#include <bit>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -16,11 +17,14 @@ extern const unsigned char terraingen_test_noise_conformance[];
 extern const std::size_t terraingen_test_noise_conformance_size;
 }
 
+using terraingen::AsBytes;
+using terraingen::AsWritableBytes;
 using terraingen::FractalType;
 using terraingen::LayerBlend;
 using terraingen::NoiseBasis;
 using terraingen::NoiseLayer;
 using terraingen::NoiseLayers;
+using terraingen::Span;
 
 namespace {
 
@@ -102,11 +106,11 @@ TEST(GpuNoise, MatchesTheCpuWithinTolerancesAndPhiloxExactly) {
     const terraingen::KernelProgram program{
         {terraingen_test_noise_conformance, terraingen_test_noise_conformance_size}, {}, {}};
     const std::vector<terraingen::DeviceBuffer> buffers{
-        terraingen::InputBuffer(std::as_bytes(std::span(points)), points.size()),
-        terraingen::InputBuffer(std::span(block), 1),
-        terraingen::OutputBuffer(std::as_writable_bytes(std::span(values)), values.size()),
-        terraingen::OutputBuffer(std::as_writable_bytes(std::span(words)), words.size())};
-    compute->Run(program, buffers, std::as_bytes(std::span(&push, 1)),
+        terraingen::InputBuffer(AsBytes(Span(points)), points.size()),
+        terraingen::InputBuffer(Span(block), 1),
+        terraingen::OutputBuffer(AsWritableBytes(Span(values)), values.size()),
+        terraingen::OutputBuffer(AsWritableBytes(Span(words)), words.size())};
+    compute->Run(program, buffers, AsBytes(Span(&push, 1)),
                  {{(count + 63u) / 64u, 1u, 1u}, {64u, 1u, 1u}});
 
     NoiseLayers cpuBlock;
@@ -133,7 +137,7 @@ TEST(GpuNoise, MatchesTheCpuWithinTolerancesAndPhiloxExactly) {
         }
         expected[15] = terraingen::EvaluateNoiseLayers(100.0f * x, 100.0f * y, cpuBlock);
         expected[16] =
-            terraingen::HashToUnitFloat(terraingen::PcgHash(std::bit_cast<std::uint32_t>(x)));
+            terraingen::HashToUnitFloat(terraingen::PcgHash(terraingen::BitCast<std::uint32_t>(x)));
         const terraingen::WorleyDistances worley3 = terraingen::Worley3(x, y, z, seed);
         expected[17] = worley.value;
         expected[18] = worley3.f1;
@@ -155,7 +159,7 @@ TEST(GpuNoise, MatchesTheCpuWithinTolerancesAndPhiloxExactly) {
                 std::fabs(static_cast<double>(values[kValues * i + k] - expected[k])) / scale);
         }
         const terraingen::U32x4 philox = terraingen::Philox4x32(
-            {i, std::bit_cast<std::uint32_t>(x), std::bit_cast<std::uint32_t>(y), seed},
+            {i, terraingen::BitCast<std::uint32_t>(x), terraingen::BitCast<std::uint32_t>(y), seed},
             {seed, ~i});
         ASSERT_EQ(words[4u * i + 0u], philox.x) << i;
         ASSERT_EQ(words[4u * i + 1u], philox.y) << i;

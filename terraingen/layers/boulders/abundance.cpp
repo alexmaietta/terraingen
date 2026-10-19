@@ -8,13 +8,13 @@
 #include "terraingen/random/philox.h"
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/parallel.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <numbers>
 
 namespace terraingen {
 
@@ -23,7 +23,7 @@ namespace {
 /// Golombek-Rapp boulders per m^2 per metre of diameter at `diameter` for coverage `k`.
 double GolombekRappDensity(double diameter, double k, double qa, double qb) {
     const double q = qa + qb / k;
-    return k * q * std::exp(-q * diameter) / (std::numbers::pi * diameter * diameter / 4.0);
+    return k * q * std::exp(-q * diameter) / (kPi * diameter * diameter / 4.0);
 }
 
 /// How far, in radii from its centre, a crater's blocks reach.
@@ -169,8 +169,7 @@ double BoulderLayer::ThomasClusterField(double x, double y) const {
     const double perArea = 1.0 / (clusters.spacing * clusters.spacing);
     const double side = lattice.side;
     if (surface_.IsBody()) {
-        lattice.perCell =
-            perArea / (std::sqrt(2.0 * std::numbers::pi) * lattice.sigma) * side * side * side;
+        lattice.perCell = perArea / (std::sqrt(2.0 * kPi) * lattice.sigma) * side * side * side;
         return lattice.Sum3(surface_.Position({x, y}));
     }
     lattice.perCell = perArea * side * side;
@@ -327,8 +326,7 @@ std::vector<BoulderLayer::UnresolvedNode> BoulderLayer::UnresolvedNodes(double s
             const double simpson = (i == 0 || i == kIntervals) ? 1.0 : (i % 2 == 1 ? 4.0 : 2.0);
             const double unresolved = 1.0 - ResolutionWeight(d, spacing, options_.fade);
             if (unresolved > 0.0) {
-                nodes.push_back(
-                    {d, 0.25 * std::numbers::pi * d * d, unresolved * d * simpson * h / 3.0});
+                nodes.push_back({d, 0.25 * kPi * d * d, unresolved * d * simpson * h / 3.0});
             }
         }
     };

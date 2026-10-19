@@ -1,13 +1,13 @@
 #include "terraingen/albedo/slope_albedo.h"
 
 #include "terraingen/albedo/synthetic.h"
+#include "terraingen/util/bits.h"
 
 #include <gtest/gtest.h>
 
 #include <cmath>
 #include <functional>
 #include <memory>
-#include <numbers>
 #include <stdexcept>
 #include <vector>
 
@@ -19,10 +19,18 @@ using terraingen::SlopeAlbedoOptions;
 
 namespace {
 
+/// An evaluation at `spacing` metres over `ground`.
+terraingen::AlbedoContext OnGround(double spacing, const terraingen::Ground* ground) {
+    terraingen::AlbedoContext context;
+    context.spacing = spacing;
+    context.ground = ground;
+    return context;
+}
+
 /// Ground tilted toward +x by `degrees`.
 class Tilted final : public terraingen::Ground {
   public:
-    explicit Tilted(double degrees) : gradient_(std::tan(degrees * std::numbers::pi / 180.0)) {}
+    explicit Tilted(double degrees) : gradient_(std::tan(degrees * terraingen::kPi / 180.0)) {}
     float HeightAt(double x, double, double) const override {
         return static_cast<float>(gradient_ * x);
     }
@@ -70,15 +78,14 @@ TEST(SlopeAlbedo, BrightensSteepGroundAsFreshMaterial) {
     const Tilted gentle(10.0);
     const Albedo albedo = Grey(0.12);
     const auto value = [&](const terraingen::Ground& ground) {
-        return terraingen::EvaluateAlbedoAt(albedo, 1.0, 2.0,
-                                            {.spacing = 1.0, .ground = &ground})[0];
+        return terraingen::EvaluateAlbedoAt(albedo, 1.0, 2.0, OnGround(1.0, &ground))[0];
     };
     EXPECT_FLOAT_EQ(value(gentle), 0.12f);
     EXPECT_FLOAT_EQ(value(steep),
                     static_cast<float>(terraingen::ReflectanceAtMaturity(0.12f, 0.10, 0.165)));
     EXPECT_NEAR(value(steep) - 0.12f, 0.026, 0.002)
         << "about the 0.02 Lucey et al. (2014) found beyond 20 degrees";
-    EXPECT_FLOAT_EQ(terraingen::EvaluateAlbedoAt(albedo, 1.0, 2.0, {.spacing = 1.0})[0], 0.12f)
+    EXPECT_FLOAT_EQ(terraingen::EvaluateAlbedoAt(albedo, 1.0, 2.0, {1.0})[0], 0.12f)
         << "no ground, no change";
 }
 
@@ -86,15 +93,15 @@ TEST(SlopeAlbedo, GridsAndPointsAgree) {
     const Bowl bowl;
     const Albedo albedo = Grey(0.12);
     const RasterGrid grid{40, 30, GeoTransform::NorthUp(-60.0, 45.0, 3.0)};
-    const auto values = terraingen::EvaluateAlbedo(albedo, grid, {.spacing = 3.0, .ground = &bowl});
+    const auto values = terraingen::EvaluateAlbedo(albedo, grid, OnGround(3.0, &bowl));
     EXPECT_FLOAT_EQ(values[0](20, 15), 0.12f) << "the gentle floor";
     EXPECT_GT(values[0](0, 0), 0.12f) << "the steep wall";
     for (std::size_t row = 0; row < grid.height; row += 3) {
         for (std::size_t col = 0; col < grid.width; col += 7) {
             const auto centre = values[0].CellCenter(col, row);
-            ASSERT_EQ(terraingen::EvaluateAlbedoAt(albedo, centre.x, centre.y,
-                                                   {.spacing = 3.0, .ground = &bowl})[0],
-                      values[0](col, row));
+            ASSERT_EQ(
+                terraingen::EvaluateAlbedoAt(albedo, centre.x, centre.y, OnGround(3.0, &bowl))[0],
+                values[0](col, row));
         }
     }
 }

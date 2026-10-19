@@ -36,7 +36,13 @@ struct ValueDistribution {
     double Highest() const;
 
     /// Memberwise equality.
-    bool operator==(const ValueDistribution&) const = default;
+    bool operator==(const ValueDistribution& other) const {
+        return kind == other.kind && a == other.a && b == other.b && min == other.min &&
+               max == other.max;
+    }
+    bool operator!=(const ValueDistribution& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks a value distribution.

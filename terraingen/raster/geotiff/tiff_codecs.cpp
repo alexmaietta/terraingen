@@ -19,7 +19,7 @@ constexpr int kMaxCode = 4096;
 /// Reads MSB-first codes of varying width.
 class BitReader {
   public:
-    explicit BitReader(std::span<const std::uint8_t> data) : data_(data) {}
+    explicit BitReader(Span<const std::uint8_t> data) : data_(data) {}
 
     /// The next `width`-bit code, or EndOfInfo when the data runs out.
     int Next(int width) {
@@ -35,7 +35,7 @@ class BitReader {
     }
 
   private:
-    std::span<const std::uint8_t> data_;
+    Span<const std::uint8_t> data_;
     std::size_t position_ = 0;
     std::uint32_t buffer_ = 0;
     int count_ = 0;
@@ -206,7 +206,7 @@ int LzwNextWidth(int codes, int width) {
     return codes >= (1 << width) && width < 12 ? width + 1 : width;
 }
 
-std::vector<std::uint8_t> DecodeLzw(std::span<const std::uint8_t> data, std::size_t size) {
+std::vector<std::uint8_t> DecodeLzw(Span<const std::uint8_t> data, std::size_t size) {
     if (data.size() >= 2 && data[0] == 0 && (data[1] & 1u) != 0) {
         throw GeoTiffError("Old-style LZW compression is not supported");
     }
@@ -257,7 +257,7 @@ std::vector<std::uint8_t> DecodeLzw(std::span<const std::uint8_t> data, std::siz
     return out;
 }
 
-std::vector<std::uint8_t> EncodeLzw(std::span<const std::uint8_t> data) {
+std::vector<std::uint8_t> EncodeLzw(Span<const std::uint8_t> data) {
     LzwCodeWriter writer;
     LzwTable table;
     int current = -1;
@@ -285,7 +285,7 @@ std::vector<std::uint8_t> EncodeLzw(std::span<const std::uint8_t> data) {
     return writer.Finish();
 }
 
-std::vector<std::uint8_t> DecodeDeflate(std::span<const std::uint8_t> data, std::size_t size) {
+std::vector<std::uint8_t> DecodeDeflate(Span<const std::uint8_t> data, std::size_t size) {
     std::vector<std::uint8_t> out(size);
     const std::size_t written = tinfl_decompress_mem_to_mem(
         out.data(), out.size(), data.data(), data.size(), TINFL_FLAG_PARSE_ZLIB_HEADER);
@@ -299,7 +299,7 @@ std::vector<std::uint8_t> DecodeDeflate(std::span<const std::uint8_t> data, std:
     return out;
 }
 
-std::vector<std::uint8_t> EncodeDeflate(std::span<const std::uint8_t> data) {
+std::vector<std::uint8_t> EncodeDeflate(Span<const std::uint8_t> data) {
     constexpr int kLevel = 6;
     constexpr int kWindowBits = 15;
     const mz_uint flags =
@@ -316,7 +316,7 @@ std::vector<std::uint8_t> EncodeDeflate(std::span<const std::uint8_t> data) {
     return out;
 }
 
-std::vector<std::uint8_t> DecodePackBits(std::span<const std::uint8_t> data, std::size_t size) {
+std::vector<std::uint8_t> DecodePackBits(Span<const std::uint8_t> data, std::size_t size) {
     std::vector<std::uint8_t> out;
     out.reserve(size);
     std::size_t i = 0;

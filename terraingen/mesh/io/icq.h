@@ -27,7 +27,13 @@ struct IcqModel {
         return ((face - 1) * (q + 1) + j) * (q + 1) + i;
     }
 
-    bool operator==(const IcqModel&) const = default;
+    /// Memberwise equality.
+    bool operator==(const IcqModel& other) const {
+        return q == other.q && vertices == other.vertices;
+    }
+    bool operator!=(const IcqModel& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Whether `path` ends in .icq, in any case.

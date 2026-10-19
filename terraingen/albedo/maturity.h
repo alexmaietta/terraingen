@@ -10,7 +10,12 @@ struct OpticalMaturityOrigin {
     double reflectance = 0.08;  ///< 750 nm reflectance x0.
     double ratio = 1.19;        ///< 950/750 nm reflectance ratio y0.
 
-    bool operator==(const OpticalMaturityOrigin&) const = default;
+    constexpr bool operator==(const OpticalMaturityOrigin& other) const {
+        return reflectance == other.reflectance && ratio == other.ratio;
+    }
+    constexpr bool operator!=(const OpticalMaturityOrigin& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Lucey et al.'s (2000) origin for laboratory spectra, used by their Table 1 of returned soils.

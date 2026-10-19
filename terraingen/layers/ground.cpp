@@ -9,7 +9,7 @@ std::array<Vec2d, 4> GradientPoints(const Surface& surface, const Vec2d& centre,
             surface.Locate(centre, {0.0, step}), surface.Locate(centre, {0.0, -step})};
 }
 
-std::optional<Vec2d> GradientFromHeights(std::span<const float, 4> heights, double step) {
+std::optional<Vec2d> GradientFromHeights(Span<const float> heights, double step) {
     const double east =
         (static_cast<double>(heights[0]) - static_cast<double>(heights[1])) / (2.0 * step);
     const double north =
@@ -29,8 +29,8 @@ std::optional<Vec2d> GroundGradient(const Ground& ground, const Surface& surface
 }
 
 void GroundAround(const Ground& ground, const Surface& surface, const Vec2d& centre,
-                  std::span<const Vec2d> offsets, double spacing, double fallback,
-                  std::span<double> heights) {
+                  Span<const Vec2d> offsets, double spacing, double fallback,
+                  Span<double> heights) {
     for (std::size_t k = 0; k < offsets.size(); ++k) {
         const Vec2d at = surface.Locate(centre, offsets[k]);
         const float there = ground.HeightAt(at.x, at.y, spacing);

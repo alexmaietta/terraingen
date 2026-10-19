@@ -45,7 +45,12 @@ class CraterCellCache {
         std::int32_t i;
         std::int32_t j;
 
-        bool operator==(const Key&) const = default;
+        bool operator==(const Key& other) const {
+            return exponent == other.exponent && i == other.i && j == other.j;
+        }
+        bool operator!=(const Key& other) const {
+            return !(*this == other);
+        }
     };
     struct KeyHash {
         std::size_t operator()(const Key& key) const;

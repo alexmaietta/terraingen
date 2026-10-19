@@ -4,7 +4,6 @@
 
 #include <cmath>
 #include <memory>
-#include <numbers>
 #include <stdexcept>
 #include <vector>
 
@@ -65,7 +64,7 @@ Albedo Grey(std::shared_ptr<const terraingen::AlbedoLayer> layer, double value =
 }
 
 float At(const Albedo& albedo, double x, double y, double spacing = 1.0) {
-    return EvaluateAlbedoAt(albedo, x, y, {.spacing = spacing})[0];
+    return EvaluateAlbedoAt(albedo, x, y, {spacing})[0];
 }
 
 float Brightened(double background, double maturity) {
@@ -164,7 +163,7 @@ TEST(CraterAlbedo, RaysReachBeyondTheEjecta) {
     int bright = 0;
     int total = 0;
     for (int step = 0; step < 720; ++step) {
-        const double azimuth = 2.0 * std::numbers::pi * step / 720.0;
+        const double azimuth = 2.0 * terraingen::kPi * step / 720.0;
         const double excess =
             layer->Excess(crater, 3500.0 * std::cos(azimuth), 3500.0 * std::sin(azimuth), 1.0);
         EXPECT_GE(excess, 0.0);
@@ -182,7 +181,7 @@ TEST(CraterAlbedo, RaysReachBeyondTheEjecta) {
     double plain = 0.0;
     double patched = 0.0;
     for (int step = 0; step < 720; ++step) {
-        const double azimuth = 2.0 * std::numbers::pi * step / 720.0;
+        const double azimuth = 2.0 * terraingen::kPi * step / 720.0;
         plain += layer->Excess(crater, 3500.0 * std::cos(azimuth), 3500.0 * std::sin(azimuth), 1.0);
         patched +=
             broken->Excess(crater, 3500.0 * std::cos(azimuth), 3500.0 * std::sin(azimuth), 1.0);
@@ -211,9 +210,9 @@ TEST(CraterAlbedo, GridsTilesAndPointsAgree) {
     const Albedo albedo{std::make_shared<SyntheticAlbedo>(params), {layer}};
     const RasterGrid whole{64, 64, GeoTransform::NorthUp(-640.0, 640.0, 20.0)};
     const RasterGrid tile{16, 16, GeoTransform::NorthUp(-320.0, 320.0, 20.0)};
-    const auto grid = EvaluateAlbedo(albedo, whole, {.spacing = 20.0, .threads = 1});
-    const auto threaded = EvaluateAlbedo(albedo, whole, {.spacing = 20.0, .threads = 0});
-    const auto part = EvaluateAlbedo(albedo, tile, {.spacing = 20.0});
+    const auto grid = EvaluateAlbedo(albedo, whole, {20.0, 1});
+    const auto threaded = EvaluateAlbedo(albedo, whole, {20.0, 0});
+    const auto part = EvaluateAlbedo(albedo, tile, {20.0});
     int brightened = 0;
     for (std::size_t row = 0; row < 64; ++row) {
         for (std::size_t col = 0; col < 64; ++col) {
@@ -233,7 +232,7 @@ TEST(CraterAlbedo, GridsTilesAndPointsAgree) {
          {std::pair<std::size_t, std::size_t>{32, 32}, std::pair<std::size_t, std::size_t>{49, 25},
           std::pair<std::size_t, std::size_t>{20, 45}}) {
         const auto centre = grid[0].CellCenter(col, row);
-        const AlbedoSample point = EvaluateAlbedoAt(albedo, centre.x, centre.y, {.spacing = 20.0});
+        const AlbedoSample point = EvaluateAlbedoAt(albedo, centre.x, centre.y, {20.0});
         for (std::size_t band = 0; band < 3; ++band) {
             EXPECT_EQ(point[band], grid[band](col, row));
         }
@@ -247,11 +246,11 @@ TEST(CraterAlbedo, SkipsNoDataAndEmptyBandsAndIneligibleCraters) {
     EXPECT_EQ(CraterAlbedo(Craters({crater}), options).Excess(crater, 0.0, 0.0, 1.0), 0.0);
     const CraterAlbedo layer(Craters({crater}), NoRays());
     AlbedoSample value{NAN, 0.2f, 0.0f};
-    layer.ApplyAt(value, 2, 0.0, 0.0, {.spacing = 1.0});
+    layer.ApplyAt(value, 2, 0.0, 0.0, {1.0});
     EXPECT_TRUE(std::isnan(value[0]));
     EXPECT_FLOAT_EQ(value[1], Brightened(0.2, 0.334));
     std::vector<terraingen::Raster<float>> none;
-    layer.Apply(none, {.spacing = 1.0});
+    layer.Apply(none, {1.0});
     terraingen::ForEachAlbedoCell(none, 1, [](AlbedoSample&, double, double) { FAIL(); });
     EXPECT_TRUE(none.empty());
 }
@@ -291,7 +290,7 @@ TEST(CraterAlbedo, RejectsInvalidOptions) {
     rejects([](CraterAlbedoOptions& o) { o.ejectaReachRadii = 1.0; });
     rejects([](CraterAlbedoOptions& o) { o.fadeExponent = 0.0; });
     EXPECT_THROW(terraingen::EvaluateAlbedoAt(Grey(std::make_shared<CraterAlbedo>(craters)), 0.0,
-                                              0.0, {.spacing = 0.0}),
+                                              0.0, {0.0}),
                  std::invalid_argument);
 }
 
@@ -329,7 +328,7 @@ TEST(CraterAlbedo, WorksOnASphereInMetres) {
     const double step = 50.0 / moon.UnitLength();
     const RasterGrid grid{120, 80,
                           GeoTransform::NorthUp(179.99 - 60.0 * step, -20.0 + 40.0 * step, step)};
-    const auto bands = EvaluateAlbedo(albedo, grid, {.spacing = 0.0, .threads = 0});
+    const auto bands = EvaluateAlbedo(albedo, grid, {0.0, 0});
     int bright = 0;
     for (std::size_t row = 0; row < 80; ++row) {
         for (std::size_t col = 0; col < 120; ++col) {
@@ -340,8 +339,7 @@ TEST(CraterAlbedo, WorksOnASphereInMetres) {
     for (const auto& [col, row] : {std::pair<std::size_t, std::size_t>{60, 40},
                                    std::pair<std::size_t, std::size_t>{100, 10}}) {
         const auto centre = bands[0].CellCenter(col, row);
-        EXPECT_EQ(EvaluateAlbedoAt(albedo, centre.x, centre.y, {.spacing = 50.0})[0],
-                  bands[0](col, row));
+        EXPECT_EQ(EvaluateAlbedoAt(albedo, centre.x, centre.y, {50.0})[0], bands[0](col, row));
     }
 }
 
@@ -368,7 +366,7 @@ TEST(CraterAlbedo, DrawsImpactAnglesAsShoemakerFound) {
     }
     const auto share = [&](int count) { return static_cast<double>(count) / craters; };
     const auto expected = [](double degrees) {
-        const double s = std::sin(degrees * std::numbers::pi / 180.0);
+        const double s = std::sin(degrees * terraingen::kPi / 180.0);
         return s * s;
     };
     EXPECT_NEAR(share(asymmetric), expected(45.0), 0.015);
@@ -406,7 +404,7 @@ TEST(CraterAlbedo, ObliqueImpactsLengthenRaysDownrangeAndClearThemUprange) {
         double west = 0.0;
         for (const double offset : {-0.3, -0.15, 0.0, 0.15, 0.3}) {
             east = std::fmax(east, reachAlong(offset));
-            west = std::fmax(west, reachAlong(std::numbers::pi + offset));
+            west = std::fmax(west, reachAlong(terraingen::kPi + offset));
         }
         if (impact.angleDegrees < 25.0) {
             ++forbiddenCraters;
@@ -446,13 +444,16 @@ TEST(CraterAlbedo, TexturesFreshMaterialIntoFilamentsLobesAndBrightWalls) {
     const Crater crater{0.0, 0.0, 400.0, 0.0, 7u, true};
     CraterAlbedoOptions plain = NoRays();
     CraterAlbedoOptions textured = NoRays();
-    textured.texture = {.streaks = 0.9, .continuousRadii = 0.5, .lobes = 0.4, .floorShare = 0.3};
+    textured.texture.streaks = 0.9;
+    textured.texture.continuousRadii = 0.5;
+    textured.texture.lobes = 0.4;
+    textured.texture.floorShare = 0.3;
     const CraterAlbedo smooth(Craters({crater}), plain);
     const CraterAlbedo filaments(Craters({crater}), textured);
     double least = 1e9;
     double most = 0.0;
     for (int k = 0; k < 720; ++k) {
-        const double angle = 2.0 * std::numbers::pi * k / 720.0;
+        const double angle = 2.0 * terraingen::kPi * k / 720.0;
         const double share =
             filaments.Excess(crater, 360.0 * std::cos(angle), 360.0 * std::sin(angle), 1.0) /
             smooth.Excess(crater, 360.0 * std::cos(angle), 360.0 * std::sin(angle), 1.0);
@@ -465,7 +466,7 @@ TEST(CraterAlbedo, TexturesFreshMaterialIntoFilamentsLobesAndBrightWalls) {
     collar.texture.lobes = 0.0;
     const CraterAlbedo continuous(Craters({crater}), collar);
     for (int k = 0; k < 36; ++k) {
-        const double angle = 2.0 * std::numbers::pi * k / 36.0;
+        const double angle = 2.0 * terraingen::kPi * k / 36.0;
         const double x = 201.0 * std::cos(angle);
         const double y = 201.0 * std::sin(angle);
         ASSERT_GT(continuous.Excess(crater, x, y, 1.0), 0.95 * smooth.Excess(crater, x, y, 1.0))
@@ -479,8 +480,8 @@ TEST(CraterAlbedo, TexturesFreshMaterialIntoFilamentsLobesAndBrightWalls) {
     const Albedo albedo = Grey(layer);
     const RasterGrid whole{48, 48, GeoTransform::NorthUp(-480.0, 480.0, 20.0)};
     const RasterGrid tile{16, 16, GeoTransform::NorthUp(-160.0, 160.0, 20.0)};
-    const auto grid = EvaluateAlbedo(albedo, whole, {.spacing = 20.0});
-    const auto part = EvaluateAlbedo(albedo, tile, {.spacing = 20.0});
+    const auto grid = EvaluateAlbedo(albedo, whole, {20.0});
+    const auto part = EvaluateAlbedo(albedo, tile, {20.0});
     for (std::size_t row = 0; row < 16; ++row) {
         for (std::size_t col = 0; col < 16; ++col) {
             ASSERT_EQ(part[0](col, row), grid[0](col + 16, row + 16));
@@ -488,7 +489,8 @@ TEST(CraterAlbedo, TexturesFreshMaterialIntoFilamentsLobesAndBrightWalls) {
     }
     textured.texture.lobes = 0.95;
     EXPECT_THROW(terraingen::ValidateCraterAlbedoOptions(textured), std::invalid_argument);
-    textured.texture = {.continuousRadii = -1.0};
+    textured.texture = {};
+    textured.texture.continuousRadii = -1.0;
     EXPECT_THROW(terraingen::ValidateCraterAlbedoTexture(textured.texture), std::invalid_argument);
 }
 
@@ -582,7 +584,7 @@ TEST(CraterAlbedo, ReflectanceZonesFollowTheirSharesAndRaggedEdges) {
     const CraterAlbedo ragged(Craters({craters[0]}), options);
     int covered = 0;
     for (int k = 0; k < 360; ++k) {
-        const double angle = 2.0 * std::numbers::pi * k / 360.0;
+        const double angle = 2.0 * terraingen::kPi * k / 360.0;
         covered += ragged.ReflectanceChange(craters[0], 1500.0 * std::cos(angle),
                                             1500.0 * std::sin(angle), 0.1) < 0.0
                        ? 1
@@ -600,8 +602,8 @@ TEST(CraterAlbedo, ReflectanceZonesDarkenAndBrightenTheAlbedoAlike) {
     EXPECT_FLOAT_EQ(At(albedo, 0.0, 40.0, 0.1), static_cast<float>(0.11 * 0.91));
     const RasterGrid whole{48, 48, GeoTransform::NorthUp(-120.0, 120.0, 5.0)};
     const RasterGrid tile{16, 16, GeoTransform::NorthUp(-40.0, 40.0, 5.0)};
-    const auto grid = EvaluateAlbedo(albedo, whole, {.spacing = 0.1});
-    const auto part = EvaluateAlbedo(albedo, tile, {.spacing = 0.1});
+    const auto grid = EvaluateAlbedo(albedo, whole, {0.1});
+    const auto part = EvaluateAlbedo(albedo, tile, {0.1});
     for (std::size_t row = 0; row < 16; ++row) {
         for (std::size_t col = 0; col < 16; ++col) {
             ASSERT_EQ(part[0](col, row), grid[0](col + 16, row + 16));
@@ -667,7 +669,7 @@ TEST(CraterAlbedo, TextureStreaksBreakTheBrightProximalZoneIntoFilaments) {
     double least = 1.0;
     double most = 0.0;
     for (int k = 0; k < 720; ++k) {
-        const double angle = 2.0 * std::numbers::pi * k / 720.0;
+        const double angle = 2.0 * terraingen::kPi * k / 720.0;
         const double change =
             layer.ReflectanceChange(crater, 12.0 * std::cos(angle), 12.0 * std::sin(angle), 0.1);
         least = std::fmin(least, change);
@@ -704,7 +706,7 @@ TEST(CraterAlbedo, ReflectanceZonesGatherSmallCratersFromAsFarAsTheyReach) {
         }
         ASSERT_NE(change, 0.0);
         AlbedoSample value{0.11f, 0.0f, 0.0f};
-        layer->ApplyAt(value, 1, x, y, {.spacing = 0.5});
+        layer->ApplyAt(value, 1, x, y, {0.5});
         EXPECT_FLOAT_EQ(value[0], static_cast<float>(0.11 * (1.0 + change)));
     }
 }
@@ -748,24 +750,29 @@ TEST(CraterAlbedo, RisesShadowTheDistalZonesBehindThem) {
     const Albedo albedo = Grey(shared);
     const RasterGrid whole{40, 40, GeoTransform::NorthUp(80.0, 100.0, 5.0)};
     const RasterGrid tile{8, 8, GeoTransform::NorthUp(120.0, 60.0, 5.0)};
-    const auto grid = EvaluateAlbedo(albedo, whole, {.spacing = 1.0, .ground = &ridge});
-    const auto part = EvaluateAlbedo(albedo, tile, {.spacing = 1.0, .ground = &ridge});
+    terraingen::AlbedoContext onRidge;
+    onRidge.spacing = 1.0;
+    onRidge.ground = &ridge;
+    const auto grid = EvaluateAlbedo(albedo, whole, onRidge);
+    const auto part = EvaluateAlbedo(albedo, tile, onRidge);
     for (std::size_t row = 0; row < 8; ++row) {
         for (std::size_t col = 0; col < 8; ++col) {
             ASSERT_EQ(part[0](col, row), grid[0](col + 8, row + 8));
             const auto centre = part[0].CellCenter(col, row);
-            ASSERT_EQ(
-                EvaluateAlbedoAt(albedo, centre.x, centre.y, {.spacing = 1.0, .ground = &ridge})[0],
-                part[0](col, row));
+            ASSERT_EQ(EvaluateAlbedoAt(albedo, centre.x, centre.y, onRidge)[0], part[0](col, row));
         }
     }
     EXPECT_EQ(grid[0](10, 20), 0.11f) << "(132.5, 0) in shadow";
     EXPECT_GT(grid[0](39, 20), 0.11f) << "(277.5, 0) in the open";
 
     using Shadows = terraingen::ZoneShadows;
-    for (const auto& bad :
-         {Shadows{.jetAngleDegrees = 0.0}, Shadows{.jetAngleDegrees = 90.0}, Shadows{.depth = 0.0},
-          Shadows{.azimuths = 4}, Shadows{.radialSamples = 9000}}) {
+    std::vector<Shadows> invalidShadows(5);
+    invalidShadows[0].jetAngleDegrees = 0.0;
+    invalidShadows[1].jetAngleDegrees = 90.0;
+    invalidShadows[2].depth = 0.0;
+    invalidShadows[3].azimuths = 4;
+    invalidShadows[4].radialSamples = 9000;
+    for (const auto& bad : invalidShadows) {
         CraterAlbedoOptions invalid;
         invalid.zones.shadows = bad;
         EXPECT_THROW(terraingen::ValidateCraterAlbedoOptions(invalid), std::invalid_argument);
@@ -808,7 +815,7 @@ TEST(CraterAlbedo, RaysCanFollowASharedLayout) {
     options.rays.patchiness = 0.0;
     options.rays.oblique.enabled = false;
     options.rays.lengthSpread = {ValueDistribution::Kind::Constant, 0.0};
-    options.rays.layout = terraingen::RayLayout{.seed = 3};
+    options.rays.layout = terraingen::RayLayout{3};
     const CraterAlbedo layer(Craters({crater}), options);
     const auto directions = terraingen::RayDirections(crater, *options.rays.layout);
     ASSERT_FALSE(directions.empty());
@@ -820,7 +827,7 @@ TEST(CraterAlbedo, RaysCanFollowASharedLayout) {
     }
     int lit = 0;
     for (int k = 0; k < 720; ++k) {
-        const double a = 2.0 * std::numbers::pi * k / 720.0;
+        const double a = 2.0 * terraingen::kPi * k / 720.0;
         lit += layer.Excess(crater, 600.0 * std::cos(a), 600.0 * std::sin(a), 1.0) > 0.0 ? 1 : 0;
     }
     EXPECT_LT(lit, 700) << "and dark between them";

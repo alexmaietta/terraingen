@@ -65,7 +65,15 @@ struct GeoTransform {
                 (dy * pixelWidth - dx * colRotation) / det};
     }
 
-    bool operator==(const GeoTransform&) const = default;
+    /// Coefficientwise equality.
+    bool operator==(const GeoTransform& other) const {
+        return originX == other.originX && pixelWidth == other.pixelWidth &&
+               rowRotation == other.rowRotation && originY == other.originY &&
+               colRotation == other.colRotation && pixelHeight == other.pixelHeight;
+    }
+    bool operator!=(const GeoTransform& other) const {
+        return !(*this == other);
+    }
 };
 
 }  // namespace terraingen

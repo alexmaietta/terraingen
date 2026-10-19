@@ -10,6 +10,7 @@ terraingen_add_test_suite(
     overloaded_test.cpp
     parallel_test.cpp
     radial_shape_test.cpp
+    span_test.cpp
     special_functions_test.cpp
     surface_test.cpp
     text_test.cpp

@@ -3,12 +3,12 @@
 #include "terraingen/layers/lattice.h"
 #include "terraingen/noise/perlin.h"
 #include "terraingen/random/stream.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/surface.h"
 
 #include <algorithm>
 #include <cmath>
-#include <numbers>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -17,7 +17,7 @@ namespace terraingen {
 
 namespace {
 
-constexpr double kHalfPi = 0.5 * std::numbers::pi;
+constexpr double kHalfPi = 0.5 * kPi;
 /// Wavelengths per lattice unit of the crest wander and of the defects along crests.
 constexpr double kWanderWavelengths = 4.0;
 constexpr double kDefectWavelengths = 3.0;
@@ -328,7 +328,7 @@ double DuneLayer::BarchanCell(RandomStream& random, std::int64_t gx, std::int64_
 
 double DuneLayer::CrestSegment(const Vec2d& p) const {
     const Vec2d across{-wind_.y, wind_.x};
-    return std::fabs(std::cos(std::numbers::pi * (p.x * across.x + p.y * across.y) /
+    return std::fabs(std::cos(kPi * (p.x * across.x + p.y * across.y) /
                               (kBarchanoidSegment * options_.wavelength)));
 }
 
@@ -553,7 +553,7 @@ void DuneLayer::AddFork(double& phase, double& core, RandomStream& random, const
                         const Vec2d& centre, double wavelength) {
     const double inner = kForkInner * wavelength;
     const double outer = kForkOuter * wavelength;
-    const double turn = 2.0 * std::numbers::pi * random.NextDouble();
+    const double turn = 2.0 * kPi * random.NextDouble();
     const double half = 0.5 * wavelength * (kForkMin + (kForkMax - kForkMin) * random.NextDouble());
     const double sign = random.NextDouble() < 0.5 ? -1.0 : 1.0;
     const double r = std::hypot(q.x - centre.x, q.y - centre.y);
@@ -564,9 +564,8 @@ void DuneLayer::AddFork(double& phase, double& core, RandomStream& random, const
     const Vec2d a{centre.x - half * std::cos(turn), centre.y - half * std::sin(turn)};
     const Vec2d b{centre.x + half * std::cos(turn), centre.y + half * std::sin(turn)};
     double subtended = std::atan2(q.y - a.y, q.x - a.x) - std::atan2(q.y - b.y, q.x - b.x);
-    subtended -= 2.0 * std::numbers::pi *
-                 std::floor((subtended + std::numbers::pi) / (2.0 * std::numbers::pi));
-    phase += sign * window * subtended / (2.0 * std::numbers::pi);
+    subtended -= 2.0 * kPi * std::floor((subtended + kPi) / (2.0 * kPi));
+    phase += sign * window * subtended / (2.0 * kPi);
     const double nearest =
         std::min(std::hypot(q.x - a.x, q.y - a.y), std::hypot(q.x - b.x, q.y - b.y));
     core = std::min(core, Smoothstep(nearest / (kForkCore * wavelength)));

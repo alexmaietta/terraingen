@@ -1,10 +1,10 @@
 #include "terraingen/layers/density_map.h"
 
+#include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 
 #include <algorithm>
 #include <cmath>
-#include <numbers>
 #include <stdexcept>
 #include <utility>
 
@@ -22,7 +22,7 @@ double ArealFraction(const SizeFrequencyDistribution& distribution, double low, 
     const double h = (std::log(high) - a) / kArealSteps;
     const auto f = [&](int i) {
         const double d = std::exp(a + h * i);
-        return 0.25 * std::numbers::pi * d * d * d * distribution.Incremental(d);
+        return 0.25 * kPi * d * d * d * distribution.Incremental(d);
     };
     double sum = f(0) + f(kArealSteps);
     for (int i = 1; i < kArealSteps; ++i) {

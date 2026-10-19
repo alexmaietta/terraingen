@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <limits>
 #include <stdexcept>
 
@@ -49,6 +50,28 @@ CraterList One(double x, double y, double diameter, double age = 0.0, std::uint6
     CraterList craters;
     craters.Append({x, y, diameter, age, id});
     return craters;
+}
+
+/// Default options with another datum.
+CraterApplyOptions Datum(CraterDatum datum) {
+    CraterApplyOptions options;
+    options.datum = datum;
+    return options;
+}
+
+/// Default options with another order and datum.
+CraterApplyOptions Ordered(CraterOrder order, CraterDatum datum = CraterDatum::None) {
+    CraterApplyOptions options;
+    options.order = order;
+    options.datum = datum;
+    return options;
+}
+
+/// Default options with another resolution fade.
+CraterApplyOptions Faded(terraingen::ResolutionFade fade) {
+    CraterApplyOptions options;
+    options.fade = fade;
+    return options;
 }
 
 /// Height at the cell whose centre is nearest (x, y).
@@ -104,7 +127,7 @@ TEST(ApplyCraters, ReplacesOlderReliefInsideTheRimAndDrapesEjectaOutside) {
         }
     }
     const FassettThomsonProfile profile;
-    ApplyCraters(raster, One(0.0, 0.0, 40.0), profile, {.datum = CraterDatum::Plane});
+    ApplyCraters(raster, One(0.0, 0.0, 40.0), profile, Datum(CraterDatum::Plane));
     const float centre = At(raster, 0.5, 0.5);
     const float neighbour = At(raster, 1.5, 0.5);
     EXPECT_NEAR(centre, neighbour, 0.05);
@@ -122,18 +145,16 @@ TEST(ApplyCraters, OrderDecidesWhichCraterOverprints) {
     const FassettThomsonProfile profile;
 
     Raster<float> big = Flat(100);
-    ApplyCraters(big, One(0.0, 0.0, 50.0), profile, {.datum = CraterDatum::Plane});
+    ApplyCraters(big, One(0.0, 0.0, 50.0), profile, Datum(CraterDatum::Plane));
 
     Raster<float> oldest = Flat(100);
-    ApplyCraters(oldest, craters, profile,
-                 {.order = CraterOrder::OldestFirst, .datum = CraterDatum::Plane});
+    ApplyCraters(oldest, craters, profile, Ordered(CraterOrder::OldestFirst, CraterDatum::Plane));
     for (const double x : {0.5, 3.5, 6.5, -8.5, 15.5}) {
         EXPECT_NEAR(At(oldest, x, 0.5), At(big, x, 0.5), 0.02) << x;
     }
 
     Raster<float> largest = Flat(100);
-    ApplyCraters(largest, craters, profile,
-                 {.order = CraterOrder::LargestFirst, .datum = CraterDatum::Plane});
+    ApplyCraters(largest, craters, profile, Ordered(CraterOrder::LargestFirst, CraterDatum::Plane));
     EXPECT_LT(At(largest, 3.5, 0.5), At(big, 3.5, 0.5) - 0.5f);
 }
 
@@ -141,7 +162,7 @@ TEST(ApplyCraters, BreaksTiesByAgeThenId) {
     const FassettThomsonProfile profile;
     const auto apply = [&](const CraterList& craters) {
         Raster<float> raster = Flat(60);
-        ApplyCraters(raster, craters, profile, {.order = CraterOrder::LargestFirst});
+        ApplyCraters(raster, craters, profile, Ordered(CraterOrder::LargestFirst));
         return raster;
     };
     CraterList byAge;
@@ -174,7 +195,7 @@ TEST(ApplyCraters, SkipsUnresolvedCratersAndCratersOffTheRaster) {
     for (const float value : raster.Values()) {
         EXPECT_EQ(value, 0.0f);
     }
-    ApplyCraters(raster, One(0.5, 0.5, 1.5), profile, {.fade = {0.5, 1.0}});
+    ApplyCraters(raster, One(0.5, 0.5, 1.5), profile, Faded({0.5, 1.0}));
     EXPECT_LT(At(raster, 0.5, 0.5), 0.0f);
 }
 
@@ -192,12 +213,12 @@ TEST(ApplyCraters, HandlesCratersOverlappingTheEdgeAndNoData) {
 TEST(ApplyCraters, RejectsInvalidOptionsAndTransforms) {
     Raster<float> raster = Flat(10);
     const FassettThomsonProfile profile;
-    EXPECT_THROW(ApplyCraters(raster, One(0.0, 0.0, 4.0), profile, {.fade = {-1.0, 2.0}}),
+    EXPECT_THROW(ApplyCraters(raster, One(0.0, 0.0, 4.0), profile, Faded({-1.0, 2.0})),
                  std::invalid_argument);
-    EXPECT_THROW(ApplyCraters(raster, One(0.0, 0.0, 4.0), profile, {.fade = {2.0, 2.0}}),
+    EXPECT_THROW(ApplyCraters(raster, One(0.0, 0.0, 4.0), profile, Faded({2.0, 2.0})),
                  std::invalid_argument);
     EXPECT_THROW(ApplyCraters(raster, One(0.0, 0.0, 4.0), profile,
-                              {.fade = {1.0, std::numeric_limits<double>::infinity()}}),
+                              Faded({1.0, std::numeric_limits<double>::infinity()})),
                  std::invalid_argument);
     EXPECT_THROW(ApplyCraters(raster, One(0.0, 0.0, 4.0), profile, {}, -1.0),
                  std::invalid_argument);
@@ -263,7 +284,7 @@ TEST(ApplyCraters, FlatDatumsLevelTheInteriorAndAPlaneKeepsTheSlope) {
     const FassettThomsonProfile profile;
     const auto interior = [&](CraterDatum datum) {
         Raster<float> raster = Slope(100);
-        ApplyCraters(raster, One(10.5, 0.5, 30.0), profile, {.datum = datum});
+        ApplyCraters(raster, One(10.5, 0.5, 30.0), profile, Datum(datum));
         return std::pair{At(raster, 4.5, 0.5), At(raster, 16.5, 0.5)};
     };
     const auto [planeLeft, planeRight] = interior(CraterDatum::Plane);
@@ -286,8 +307,9 @@ TEST(ApplyCraters, DatumFitRadiusChoosesTheFootprint) {
                 raster(col, row) = std::hypot(p.x, p.y) > 12.0 ? 4.0f : 0.0f;
             }
         }
-        ApplyCraters(raster, One(0.0, 0.0, 20.0), profile,
-                     {.datum = CraterDatum::MeanHeight, .datumFitRadii = fitRadii});
+        CraterApplyOptions options = Datum(CraterDatum::MeanHeight);
+        options.datumFitRadii = fitRadii;
+        ApplyCraters(raster, One(0.0, 0.0, 20.0), profile, options);
         return At(raster, 0.5, 0.5) -
                static_cast<float>(Fresh(profile, std::hypot(0.5, 0.5), 20.0));
     };
@@ -299,8 +321,9 @@ TEST(ApplyCraters, InteriorReplacementBlendsOldReliefWithTheDatum) {
     const FassettThomsonProfile profile;
     const auto relief = [&](double replacement) {
         Raster<float> raster = Checkerboard(80);
-        ApplyCraters(raster, One(0.0, 0.0, 40.0), profile,
-                     {.datum = CraterDatum::Plane, .interiorReplacement = replacement});
+        CraterApplyOptions options = Datum(CraterDatum::Plane);
+        options.interiorReplacement = replacement;
+        ApplyCraters(raster, One(0.0, 0.0, 40.0), profile, options);
         return std::fabs(At(raster, 0.5, 0.5) - At(raster, 1.5, 0.5));
     };
     EXPECT_LT(relief(1.0), 0.05f);
@@ -319,14 +342,21 @@ TEST(CraterBlend, WeighsTheInteriorAlongItsFalloff) {
 TEST(ApplyCraters, RejectsInvalidDatumAndBlendOptions) {
     Raster<float> raster = Flat(10);
     const FassettThomsonProfile profile;
-    const auto apply = [&](const CraterApplyOptions& options) {
+    const auto apply = [&](const std::function<void(CraterApplyOptions&)>& change) {
+        CraterApplyOptions options;
+        change(options);
         ApplyCraters(raster, One(0.0, 0.0, 4.0), profile, options);
     };
-    EXPECT_THROW(apply({.datumFitRadii = 0.0}), std::invalid_argument);
-    EXPECT_THROW(apply({.interiorReplacement = 1.5}), std::invalid_argument);
-    EXPECT_THROW(apply({.interiorReplacement = -0.1}), std::invalid_argument);
-    EXPECT_THROW(apply({.blend = {1.2, 1.2, BlendShape::Linear}}), std::invalid_argument);
-    EXPECT_THROW(apply({.blend = {-0.1, 1.2, BlendShape::Linear}}), std::invalid_argument);
+    EXPECT_THROW(apply([](CraterApplyOptions& o) { o.datumFitRadii = 0.0; }),
+                 std::invalid_argument);
+    EXPECT_THROW(apply([](CraterApplyOptions& o) { o.interiorReplacement = 1.5; }),
+                 std::invalid_argument);
+    EXPECT_THROW(apply([](CraterApplyOptions& o) { o.interiorReplacement = -0.1; }),
+                 std::invalid_argument);
+    EXPECT_THROW(apply([](CraterApplyOptions& o) { o.blend = {1.2, 1.2, BlendShape::Linear}; }),
+                 std::invalid_argument);
+    EXPECT_THROW(apply([](CraterApplyOptions& o) { o.blend = {-0.1, 1.2, BlendShape::Linear}; }),
+                 std::invalid_argument);
 }
 
 TEST(ApplyCraters, FadesCratersWithTheSpacing) {
@@ -347,17 +377,16 @@ TEST(ApplyCraters, FadesCratersWithTheSpacing) {
 TEST(ApplyCraters, GivesTheSameBitsOnAnyNumberOfThreads) {
     const terraingen::PowerLawSfd density(0.05, 2.0);
     const terraingen::UniformAges ages(1.0);
-    const CraterList craters =
-        terraingen::GenerateCraters(terraingen::PlanarCells(), {-50.0, -50.0, 50.0, 50.0}, density,
-                                    ages, 4u, {.dMin = 3.0, .dMax = 40.0, .marginRadii = 1.5});
+    const CraterList craters = terraingen::GenerateCraters(
+        terraingen::PlanarCells(), {-50.0, -50.0, 50.0, 50.0}, density, ages, 4u, {3.0, 40.0, 1.5});
     const FassettThomsonProfile profile;
     for (const terraingen::CraterDatum datum :
          {terraingen::CraterDatum::None, terraingen::CraterDatum::Plane}) {
         Raster<float> serial = Flat(100);
-        ApplyCraters(serial, craters, profile, {.datum = datum}, 0.0, 1);
+        ApplyCraters(serial, craters, profile, Datum(datum), 0.0, 1);
         for (const unsigned threads : {3u, 0u}) {
             Raster<float> parallel = Flat(100);
-            ApplyCraters(parallel, craters, profile, {.datum = datum}, 0.0, threads);
+            ApplyCraters(parallel, craters, profile, Datum(datum), 0.0, threads);
             EXPECT_TRUE(std::equal(parallel.Values().begin(), parallel.Values().end(),
                                    serial.Values().begin()));
         }
@@ -421,7 +450,9 @@ TEST(ApplyCraters, RoundsRimsByTheSmoothedProfileOnlyNearTheRim) {
     EXPECT_EQ(terraingen::RimSmoothing{}.Weight(1.0), 0.0) << "off by default";
     options.rimSmoothing.strength = 2.0;
     EXPECT_THROW(terraingen::ValidateCraterApplyOptions(options), std::invalid_argument);
-    options.rimSmoothing = {.sigmaRadii = 0.1, .outerRadii = 0.9};
+    options.rimSmoothing = terraingen::RimSmoothing{};
+    options.rimSmoothing.sigmaRadii = 0.1;
+    options.rimSmoothing.outerRadii = 0.9;
     EXPECT_THROW(terraingen::ValidateRimSmoothing(options.rimSmoothing), std::invalid_argument);
 }
 
@@ -473,11 +504,14 @@ TEST(ApplyCraterTo, AddsRimNoiseOnlyInItsBand) {
     EXPECT_TRUE(changed);
     noisy.noise.rimInnerRadii = 1.0;
     EXPECT_THROW(terraingen::ValidateCraterNoise(noisy.noise), std::invalid_argument);
-    noisy.noise = {.octaves = 13};
+    noisy.noise = terraingen::CraterNoise{};
+    noisy.noise.octaves = 13;
     EXPECT_THROW(terraingen::ValidateCraterApplyOptions(noisy), std::invalid_argument);
-    noisy.noise = {.wavelengthRadii = 0.0};
+    noisy.noise = terraingen::CraterNoise{};
+    noisy.noise.wavelengthRadii = 0.0;
     EXPECT_THROW(terraingen::ValidateCraterNoise(noisy.noise), std::invalid_argument);
-    noisy.noise = {.amplitude = -1.0};
+    noisy.noise = terraingen::CraterNoise{};
+    noisy.noise.amplitude = -1.0;
     EXPECT_THROW(terraingen::ValidateCraterNoise(noisy.noise), std::invalid_argument);
 }
 
@@ -494,13 +528,17 @@ TEST(EjectaThicknessShare, FallsAsTheInverseCubeAndTapersToTheReach) {
     EXPECT_EQ(terraingen::CraterReachRadii(profile, options), 1.5) << "gullies stay inside";
     options.texture.ejecta = 0.3;
     EXPECT_EQ(terraingen::CraterReachRadii(profile, options), 3.0);
-    options.texture = {.mantling = 2.0};
+    options.texture = terraingen::CraterTexture{};
+    options.texture.mantling = 2.0;
     EXPECT_THROW(terraingen::ValidateCraterApplyOptions(options), std::invalid_argument);
-    options.texture = {.ejectaReachRadii = 1.0};
+    options.texture = terraingen::CraterTexture{};
+    options.texture.ejectaReachRadii = 1.0;
     EXPECT_THROW(terraingen::ValidateCraterTexture(options.texture), std::invalid_argument);
-    options.texture = {.minFreshness = 1.0};
+    options.texture = terraingen::CraterTexture{};
+    options.texture.minFreshness = 1.0;
     EXPECT_THROW(terraingen::ValidateCraterTexture(options.texture), std::invalid_argument);
-    options.texture = {.wallStreakWidthRadii = 0.0};
+    options.texture = terraingen::CraterTexture{};
+    options.texture.wallStreakWidthRadii = 0.0;
     EXPECT_THROW(terraingen::ValidateCraterTexture(options.texture), std::invalid_argument);
 }
 
@@ -581,11 +619,12 @@ TEST(SamplingFrom, CarriesTheLayerContext) {
     const Flat ground;
     terraingen::EvaluationCache cache;
     const int owner = 0;
-    const terraingen::LayerContext context{.spacing = 1.0,
-                                           .threads = 3,
-                                           .ground = &ground,
-                                           .backend = terraingen::Backend::Vulkan,
-                                           .cache = &cache};
+    terraingen::LayerContext context;
+    context.spacing = 1.0;
+    context.threads = 3;
+    context.ground = &ground;
+    context.backend = terraingen::Backend::Vulkan;
+    context.cache = &cache;
     const terraingen::CraterSampling sampling = terraingen::SamplingFrom(context, 2.0, &owner);
     EXPECT_EQ(sampling.spacing, 2.0);
     EXPECT_EQ(sampling.threads, 3u);
@@ -599,7 +638,7 @@ TEST(SamplingFrom, CarriesTheLayerContext) {
     float height = 0.0f;
     sampling.groundBatch({&point, 1}, {&height, 1});
     EXPECT_EQ(height, 3.0f);
-    const terraingen::CraterSampling bare = terraingen::SamplingFrom({.spacing = 1.0}, 1.0, &owner);
+    const terraingen::CraterSampling bare = terraingen::SamplingFrom({1.0}, 1.0, &owner);
     EXPECT_FALSE(bare.ground);
     EXPECT_FALSE(bare.groundBatch);
 }

@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-#include <bit>
+#include <bitset>
 #include <cstddef>
 #include <cstdint>
 #include <set>
@@ -30,7 +30,8 @@ TEST(PcgHash, FlipsAboutHalfTheOutputBitsPerInputBit) {
     int trials = 0;
     for (std::uint32_t v = 0; v < 1000u; ++v) {
         for (std::uint32_t bit = 0; bit < 32u; ++bit) {
-            totalFlips += std::popcount(PcgHash(v) ^ PcgHash(v ^ (1u << bit)));
+            totalFlips +=
+                static_cast<double>(std::bitset<32>(PcgHash(v) ^ PcgHash(v ^ (1u << bit))).count());
             ++trials;
         }
     }

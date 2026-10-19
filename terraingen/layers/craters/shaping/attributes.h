@@ -17,7 +17,15 @@ struct CraterAttributes {
     double freshness = 1.0;
     bool complex = false;  ///< Of the complex form: a flat floor and a central peak.
 
-    bool operator==(const CraterAttributes&) const = default;
+    /// Memberwise equality.
+    bool operator==(const CraterAttributes& other) const {
+        return floorDepth == other.floorDepth && rimHeight == other.rimHeight &&
+               depthRatio == other.depthRatio && freshness == other.freshness &&
+               complex == other.complex;
+    }
+    bool operator!=(const CraterAttributes& other) const {
+        return !(*this == other);
+    }
 };
 
 /// The attributes of a crater in `state` (which gives the ratios) shaped by `profile` (the form).

@@ -1,10 +1,11 @@
 #include "terraingen/util/fft.h"
 
+#include "terraingen/util/bits.h"
+
 #include <gtest/gtest.h>
 
 #include <cmath>
 #include <complex>
-#include <numbers>
 #include <vector>
 
 namespace {
@@ -18,7 +19,7 @@ std::vector<Complex> Direct(const std::vector<Complex>& values, double sign) {
     for (std::size_t k = 0; k < n; ++k) {
         for (std::size_t j = 0; j < n; ++j) {
             const double angle =
-                sign * 2.0 * std::numbers::pi * static_cast<double>(j * k) / static_cast<double>(n);
+                sign * 2.0 * terraingen::kPi * static_cast<double>(j * k) / static_cast<double>(n);
             result[k] += values[j] * Complex(std::cos(angle), std::sin(angle));
         }
     }

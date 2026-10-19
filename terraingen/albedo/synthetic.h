@@ -28,7 +28,14 @@ struct SyntheticAlbedoOptions {
     /// Relative: the value is multiplied by 1 + the noise, so its contrast scales with it.
     std::vector<NoiseLayer> valueNoise;
 
-    bool operator==(const SyntheticAlbedoOptions&) const = default;
+    bool operator==(const SyntheticAlbedoOptions& other) const {
+        return rgb == other.rgb && hue == other.hue && saturation == other.saturation &&
+               value == other.value && hueNoise == other.hueNoise &&
+               saturationNoise == other.saturationNoise && valueNoise == other.valueNoise;
+    }
+    bool operator!=(const SyntheticAlbedoOptions& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks synthetic albedo settings.

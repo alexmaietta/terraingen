@@ -21,8 +21,8 @@ namespace {
 
 /// Sets `heights` to the terrain's source at `points`, then applies its first `layers` layers to
 /// them all at once, each on the ground beneath it, which shares `cache`.
-void EvaluateStack(const Terrain& terrain, std::size_t layers, std::span<const Vec2d> points,
-                   std::span<float> heights, double spacing, EvaluationCache* cache) {
+void EvaluateStack(const Terrain& terrain, std::size_t layers, Span<const Vec2d> points,
+                   Span<float> heights, double spacing, EvaluationCache* cache) {
     for (std::size_t i = 0; i < points.size(); ++i) {
         heights[i] = terrain.source ? terrain.source->HeightAt(points[i].x, points[i].y) : 0.0f;
     }
@@ -51,7 +51,7 @@ std::uint32_t MortonKey(const Vec2d& point, const Bounds2d& bounds) {
 }
 
 /// The indices of `points` sorted by their Morton codes over the points' bounds, ties by index.
-std::vector<std::size_t> MortonOrder(std::span<const Vec2d> points) {
+std::vector<std::size_t> MortonOrder(Span<const Vec2d> points) {
     Bounds2d bounds{points[0].x, points[0].y, points[0].x, points[0].y};
     for (const Vec2d& p : points) {
         bounds = {std::fmin(bounds.minX, p.x), std::fmin(bounds.minY, p.y),
@@ -72,8 +72,8 @@ std::vector<std::size_t> MortonOrder(std::span<const Vec2d> points) {
 /// `EvaluateStack` over `points` in batches on `threads` threads, the points taken in Morton order
 /// so each batch covers a small area and prepares only the features there; the batches share
 /// `shared`, or a cache of their own when it is null.
-void EvaluateBatched(const Terrain& terrain, std::size_t layers, std::span<const Vec2d> points,
-                     std::span<float> heights, double spacing, unsigned threads,
+void EvaluateBatched(const Terrain& terrain, std::size_t layers, Span<const Vec2d> points,
+                     Span<float> heights, double spacing, unsigned threads,
                      EvaluationCache* shared) {
     constexpr std::size_t kBatch = 256;
     if (points.size() <= kBatch) {
@@ -91,8 +91,8 @@ void EvaluateBatched(const Terrain& terrain, std::size_t layers, std::span<const
     ParallelFor(CeilDiv(points.size(), kBatch), threads, [&](std::size_t batch) {
         const std::size_t begin = batch * kBatch;
         const std::size_t count = std::min(kBatch, points.size() - begin);
-        EvaluateStack(terrain, layers, std::span<const Vec2d>(sorted).subspan(begin, count),
-                      std::span<float>(values).subspan(begin, count), spacing, cache);
+        EvaluateStack(terrain, layers, Span<const Vec2d>(sorted).subspan(begin, count),
+                      Span<float>(values).subspan(begin, count), spacing, cache);
     });
     for (std::size_t i = 0; i < points.size(); ++i) {
         heights[order[i]] = values[i];
@@ -108,8 +108,7 @@ class OwnedGround final : public Ground {
     float HeightAt(double x, double y, double spacing) const override {
         return ground_.HeightAt(x, y, spacing);
     }
-    void HeightsAt(std::span<const Vec2d> points, std::span<float> heights,
-                   double spacing) const override {
+    void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const override {
         ground_.HeightsAt(points, heights, spacing);
     }
 
@@ -154,8 +153,8 @@ void ValidateTerrain(const Terrain& terrain) {
     }
 }
 
-std::vector<float> EvaluatePoints(const Terrain& terrain, std::span<const Vec2d> points,
-                                  double spacing, unsigned threads) {
+std::vector<float> EvaluatePoints(const Terrain& terrain, Span<const Vec2d> points, double spacing,
+                                  unsigned threads) {
     ValidateTerrain(terrain);
     RequirePositive(spacing, "Sample spacing");
     std::vector<float> heights(points.size());
@@ -182,8 +181,7 @@ float TerrainGround::HeightAt(double x, double y, double spacing) const {
     return height;
 }
 
-void TerrainGround::HeightsAt(std::span<const Vec2d> points, std::span<float> heights,
-                              double spacing) const {
+void TerrainGround::HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const {
     EvaluateBatched(terrain_, layers_, points, heights, spacing, 0, cache_);
 }
 

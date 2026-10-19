@@ -130,7 +130,7 @@ TEST(SyntheticAlbedo, ColourAndNoiseVaryEachChannel) {
     params.saturationNoise = {Noise(0.1f, 40.0f, 2)};
     params.valueNoise = {Noise(0.5f, 20.0f, 3)};
     const Albedo albedo{std::make_shared<SyntheticAlbedo>(params, terraingen::Vec2d{5.0, 5.0}), {}};
-    const auto bands = EvaluateAlbedo(albedo, Grid(64, 1.0), {.spacing = 1.0, .threads = 4});
+    const auto bands = EvaluateAlbedo(albedo, Grid(64, 1.0), {1.0, 4});
     ASSERT_EQ(bands.size(), 3u);
     double sum = 0.0;
     float lowest = 1.0f;
@@ -186,16 +186,19 @@ TEST(EvaluateAlbedo, PointsEqualGridCellsAndThreadsDoNotMatter) {
     params.valueNoise = {Noise(0.3f, 7.0f, 9)};
     const Albedo albedo{std::make_shared<SyntheticAlbedo>(params), {std::make_shared<Doubling>()}};
     const RasterGrid grid = Grid(24, 0.5);
-    const auto one = EvaluateAlbedo(albedo, grid, {.spacing = 0.5, .threads = 1});
-    const auto many = EvaluateAlbedo(albedo, grid, {.spacing = 0.5, .threads = 0});
+    const auto one = EvaluateAlbedo(albedo, grid, {0.5, 1});
+    const auto many = EvaluateAlbedo(albedo, grid, {0.5, 0});
     for (std::size_t band = 0; band < 3; ++band) {
-        EXPECT_TRUE(std::ranges::equal(one[band].Values(), many[band].Values()));
+        const auto oneValues = one[band].Values();
+        const auto manyValues = many[band].Values();
+        EXPECT_TRUE(
+            std::equal(oneValues.begin(), oneValues.end(), manyValues.begin(), manyValues.end()));
     }
     for (const auto& [col, row] :
          {std::pair<std::size_t, std::size_t>{0, 0}, std::pair<std::size_t, std::size_t>{5, 17},
           std::pair<std::size_t, std::size_t>{23, 23}}) {
         const auto centre = one[0].CellCenter(col, row);
-        const AlbedoSample point = EvaluateAlbedoAt(albedo, centre.x, centre.y, {.spacing = 0.5});
+        const AlbedoSample point = EvaluateAlbedoAt(albedo, centre.x, centre.y, {0.5});
         for (std::size_t band = 0; band < 3; ++band) {
             EXPECT_EQ(point[band], one[band](col, row));
         }
@@ -214,11 +217,9 @@ TEST(EvaluateAlbedo, RejectsInvalidInputs) {
     EXPECT_THROW(EvaluateAlbedo(Albedo{std::make_shared<TwoBands>(), {}}, Grid(4, 1.0), {}),
                  std::invalid_argument);
     EXPECT_THROW(EvaluateAlbedo(Albedo{source, {}}, RasterGrid{}, {}), std::invalid_argument);
-    EXPECT_THROW(EvaluateAlbedo(Albedo{source, {}}, Grid(4, 1.0), {.spacing = -1.0}),
-                 std::invalid_argument);
-    EXPECT_NO_THROW(EvaluateAlbedo(Albedo{source, {}}, Grid(4, 1.0), {.spacing = 0.0}));
-    EXPECT_THROW(EvaluateAlbedoAt(Albedo{source, {}}, 0.0, 0.0, {.spacing = NAN}),
-                 std::invalid_argument);
+    EXPECT_THROW(EvaluateAlbedo(Albedo{source, {}}, Grid(4, 1.0), {-1.0}), std::invalid_argument);
+    EXPECT_NO_THROW(EvaluateAlbedo(Albedo{source, {}}, Grid(4, 1.0), {0.0}));
+    EXPECT_THROW(EvaluateAlbedoAt(Albedo{source, {}}, 0.0, 0.0, {NAN}), std::invalid_argument);
 }
 
 TEST(RasterAlbedo, MeasuresTheHurstExponentAndRoughness) {
@@ -252,11 +253,11 @@ TEST(RasterAlbedo, InterpolatesAndAddsDetailOnlyBelowItsResolution) {
     plain.detail.enabled = false;
     const RasterAlbedo smooth({map}, plain);
     const RasterAlbedo detailed({map});
-    const AlbedoContext coarse{.spacing = 10.0};
+    const AlbedoContext coarse{10.0};
     EXPECT_EQ(detailed.ValueAt(105.0, 205.0, coarse)[0], smooth.ValueAt(105.0, 205.0, coarse)[0]);
     EXPECT_FLOAT_EQ(smooth.ValueAt(105.0, 205.0, coarse)[0], map(10, 11));
 
-    const AlbedoContext fine{.spacing = 0.25};
+    const AlbedoContext fine{0.25};
     double sum = 0.0;
     int count = 0;
     for (double y = 60.0; y < 260.0; y += 0.37) {
@@ -287,7 +288,7 @@ TEST(RasterAlbedo, PointsEqualGridCellsAndOutsideIsNoData) {
     bands[1](3, 3) = -1.0f;
     const Albedo albedo{std::make_shared<RasterAlbedo>(bands), {}};
     const RasterGrid grid{40, 40, GeoTransform::NorthUp(-20.0, 180.0, 2.5)};
-    const auto evaluated = EvaluateAlbedo(albedo, grid, {.spacing = 2.5, .threads = 3});
+    const auto evaluated = EvaluateAlbedo(albedo, grid, {2.5, 3});
     ASSERT_EQ(evaluated.size(), 3u);
     EXPECT_TRUE(std::isnan(evaluated[0](0, 0)));
     EXPECT_TRUE(std::isnan(evaluated[2](0, 0)));
@@ -295,13 +296,13 @@ TEST(RasterAlbedo, PointsEqualGridCellsAndOutsideIsNoData) {
          {std::pair<std::size_t, std::size_t>{30, 30}, std::pair<std::size_t, std::size_t>{36, 25},
           std::pair<std::size_t, std::size_t>{39, 39}}) {
         const auto centre = evaluated[0].CellCenter(col, row);
-        const AlbedoSample point = EvaluateAlbedoAt(albedo, centre.x, centre.y, {.spacing = 2.5});
+        const AlbedoSample point = EvaluateAlbedoAt(albedo, centre.x, centre.y, {2.5});
         for (std::size_t band = 0; band < 3; ++band) {
             EXPECT_FALSE(std::isnan(point[band]));
             EXPECT_EQ(point[band], evaluated[band](col, row));
         }
     }
-    EXPECT_TRUE(std::isnan(EvaluateAlbedoAt(albedo, 35.0, 125.0, {.spacing = 2.5})[0]));
+    EXPECT_TRUE(std::isnan(EvaluateAlbedoAt(albedo, 35.0, 125.0, {2.5})[0]));
 }
 
 TEST(RasterAlbedo, RejectsInvalidMaps) {
@@ -333,7 +334,7 @@ TEST(SyntheticAlbedo, UsesSeamlessNoiseOnASphere) {
     params.valueNoise = {Noise(0.3f, 2000.0f, 3)};
     params.hueNoise = {Noise(20.0f, 5000.0f, 4)};
     const SyntheticAlbedo albedo(params, {}, moon);
-    const AlbedoContext context{.spacing = 10.0};
+    const AlbedoContext context{10.0};
     const AlbedoSample east = albedo.ValueAt(180.0, 3.0, context);
     const AlbedoSample west = albedo.ValueAt(-180.0, 3.0, context);
     for (std::size_t band = 0; band < 3; ++band) {
@@ -357,20 +358,17 @@ TEST(RasterAlbedo, AddsDetailInMetresOnASphere) {
     const RasterAlbedo detailed({map}, {}, moon);
     const double lon = 40.0 + 10.3 * step;
     const double lat = 10.0 - 12.7 * step;
-    EXPECT_EQ(detailed.ValueAt(lon, lat, {.spacing = 100.0})[0],
-              smooth.ValueAt(lon, lat, {.spacing = 100.0})[0]);
-    EXPECT_NE(detailed.ValueAt(lon, lat, {.spacing = 2.0})[0],
-              smooth.ValueAt(lon, lat, {.spacing = 2.0})[0]);
+    EXPECT_EQ(detailed.ValueAt(lon, lat, {100.0})[0], smooth.ValueAt(lon, lat, {100.0})[0]);
+    EXPECT_NE(detailed.ValueAt(lon, lat, {2.0})[0], smooth.ValueAt(lon, lat, {2.0})[0]);
     const Albedo composed{std::make_shared<RasterAlbedo>(std::vector<Raster<float>>{map},
                                                          RasterAlbedoOptions{}, moon),
                           {},
                           moon};
     const RasterGrid grid{40, 40,
                           GeoTransform::NorthUp(40.0 + 3.0 * step, 10.0 - 3.0 * step, step / 8.0)};
-    const auto bands = EvaluateAlbedo(composed, grid, {.spacing = 0.0, .threads = 2});
+    const auto bands = EvaluateAlbedo(composed, grid, {0.0, 2});
     const auto centre = bands[0].CellCenter(17, 23);
-    EXPECT_EQ(EvaluateAlbedoAt(composed, centre.x, centre.y, {.spacing = 100.0 / 8.0})[0],
-              bands[0](17, 23));
+    EXPECT_EQ(EvaluateAlbedoAt(composed, centre.x, centre.y, {100.0 / 8.0})[0], bands[0](17, 23));
 }
 
 TEST(RasterAlbedoStatistics, MeasureTheMapsLogBrightness) {

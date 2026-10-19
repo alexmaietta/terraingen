@@ -47,12 +47,13 @@ TEST(GenerateTerrain, MatchesComposingTheLibraryCalls) {
     manual.Append({4.0, -3.0, 40.0, 0.0, terraingen::ManualCraterId(4.0, -3.0, 40.0), true});
     const auto bounds = terraingen::config::RegionGrid(Region(config), {}).Bounds();
     const auto generate = [&](const terraingen::Bounds2d& region) {
-        return terraingen::GenerateCraters(
-            terraingen::PlanarCells(), region, *models.density, *models.ages, 1u,
-            {.dMin = 8.0,
-             .dMax = 60.0,
-             .marginRadii = terraingen::CraterReachRadii(*models.profile, Craters(config).apply),
-             .manual = manual});
+        terraingen::CraterGenerationOptions options;
+        options.dMin = 8.0;
+        options.dMax = 60.0;
+        options.marginRadii = terraingen::CraterReachRadii(*models.profile, Craters(config).apply);
+        options.manual = manual;
+        return terraingen::GenerateCraters(terraingen::PlanarCells(), region, *models.density,
+                                           *models.ages, 1u, options);
     };
     const CraterList craters = generate(bounds);
     const double margin = terraingen::DatumMargin(Craters(config).apply, *models.profile, 60.0);
@@ -143,10 +144,12 @@ TEST(GenerateTerrain, RunsLayersInOrderAndCollectsEveryLayersCraters) {
 TEST(GenerateTerrain, AddsRoughnessAsTheLibraryDoes) {
     TerrainConfig config = Small();
     const auto plain = GenerateTerrain(config);
-    config.layers.push_back(
-        terraingen::RoughnessLayerSpec{{.rmsSlope = 0.2, .minWavelength = 1.0}});
+    terraingen::RoughnessOptions roughness;
+    roughness.rmsSlope = 0.2;
+    roughness.minWavelength = 1.0;
+    config.layers.push_back(terraingen::RoughnessLayerSpec{roughness});
     const auto rough = GenerateTerrain(config);
-    const terraingen::RoughnessLayer layer({.rmsSlope = 0.2, .minWavelength = 1.0});
+    const terraingen::RoughnessLayer layer(roughness);
     const auto& heights = HeightsOf(plain);
     for (std::size_t row = 0; row < heights.Height(); row += 7) {
         for (std::size_t col = 0; col < heights.Width(); col += 5) {
@@ -377,12 +380,12 @@ TEST(GenerateTerrain, EvaluatesTheAlbedoAsTheLibraryDoes) {
         std::make_shared<terraingen::SyntheticAlbedo>(synthetic.Params(), terraingen::Vec2d{}),
         {std::make_shared<terraingen::CraterAlbedo>(craters)}};
     const auto grid = terraingen::RasterGrid::FromRaster(HeightsOf(generated));
-    const auto expected = terraingen::EvaluateAlbedo(albedo, grid, {.spacing = grid.PixelSize()});
+    const auto expected = terraingen::EvaluateAlbedo(albedo, grid, {grid.PixelSize()});
     for (std::size_t band = 0; band < 3; ++band) {
         ExpectSameRaster(AlbedoOf(generated)[band], expected[band]);
     }
     const terraingen::Albedo plain{albedo.source, {}};
-    const auto background = terraingen::EvaluateAlbedo(plain, grid, {.spacing = grid.PixelSize()});
+    const auto background = terraingen::EvaluateAlbedo(plain, grid, {grid.PixelSize()});
     const auto centre = AlbedoOf(generated)[0].Transform().WorldToPixel(10.0, -8.0);
     const auto col = static_cast<std::size_t>(centre.x);
     const auto row = static_cast<std::size_t>(centre.y);
@@ -468,7 +471,10 @@ TEST(GenerateTerrain, ShapesSecondariesWithTheirMorphometry) {
     const auto mars = GenerateTerrain(config, {}, 2);
     ASSERT_EQ(CratersOf(lunar).craters.Size(), CratersOf(mars).craters.Size());
     ASSERT_GT(CratersOf(mars).craters.Size(), 2u);
-    EXPECT_FALSE(std::ranges::equal(HeightsOf(lunar).Values(), HeightsOf(mars).Values()));
+    const auto lunarHeights = HeightsOf(lunar).Values();
+    const auto marsHeights = HeightsOf(mars).Values();
+    EXPECT_FALSE(std::equal(lunarHeights.begin(), lunarHeights.end(), marsHeights.begin(),
+                            marsHeights.end()));
 }
 
 TEST(Summary, DescribesTheTerrainItsTimeAndBackend) {
@@ -490,7 +496,10 @@ TEST(GenerateTerrain, SplitsADemIntoItsLowPassAndTheDetailAddedBack) {
     TerrainConfig config = RasterConfig("dem.tif");
     terraingen::testing::RasterSpec(config).read.lowPass = 15.0;
     const auto smooth = GenerateTerrain(config, folder);
-    EXPECT_FALSE(std::ranges::equal(HeightsOf(smooth).Values(), dem.Values()));
+    const auto smoothHeights = HeightsOf(smooth).Values();
+    const auto demHeights = dem.Values();
+    EXPECT_FALSE(std::equal(smoothHeights.begin(), smoothHeights.end(), demHeights.begin(),
+                            demHeights.end()));
     terraingen::DemDetailLayerSpec detail;
     detail.path = "dem.tif";
     detail.read.lowPass = 15.0;

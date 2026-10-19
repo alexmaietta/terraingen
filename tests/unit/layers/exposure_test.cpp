@@ -9,6 +9,7 @@
 #include <cmath>
 #include <functional>
 #include <stdexcept>
+#include <vector>
 
 using terraingen::ExposureField;
 using terraingen::ExposureParams;
@@ -63,7 +64,11 @@ TEST(ExposureField, ReadsMissingSurroundingsAsLevelAndMissingPointsAsSoil) {
 
 TEST(ExposureField, CoversLevelGroundInPatchesWithFloorCover) {
     const Analytic flat([](double, double) { return 0.0f; });
-    const ExposureField field({.floorCover = 0.3, .floorPatch = 20.0, .seed = 4});
+    ExposureParams params;
+    params.floorCover = 0.3;
+    params.floorPatch = 20.0;
+    params.seed = 4;
+    const ExposureField field(params);
     double bedrock = 0.0;
     int samples = 0;
     for (int j = 0; j < 100; ++j) {
@@ -93,11 +98,16 @@ TEST(ExposureField, FillsGridsWithThePointValues) {
 }
 
 TEST(ExposureField, RejectsInvalidParameters) {
-    EXPECT_THROW(ExposureField({.reach = 0.0}), std::invalid_argument);
-    EXPECT_THROW(ExposureField({.riseSoil = 0.05}), std::invalid_argument);
-    EXPECT_THROW(ExposureField({.slopeBoulder = 0.1}), std::invalid_argument);
-    EXPECT_THROW(ExposureField({.floorCover = 1.0}), std::invalid_argument);
-    EXPECT_THROW(ExposureField({.floorPatch = -1.0}), std::invalid_argument);
+    const std::vector<std::function<void(ExposureParams&)>> changes{
+        [](ExposureParams& p) { p.reach = 0.0; }, [](ExposureParams& p) { p.riseSoil = 0.05; },
+        [](ExposureParams& p) { p.slopeBoulder = 0.1; },
+        [](ExposureParams& p) { p.floorCover = 1.0; },
+        [](ExposureParams& p) { p.floorPatch = -1.0; }};
+    for (const auto& change : changes) {
+        ExposureParams params;
+        change(params);
+        EXPECT_THROW(ExposureField{params}, std::invalid_argument);
+    }
     EXPECT_EQ(ExposureField().Params(), ExposureParams{});
 }
 

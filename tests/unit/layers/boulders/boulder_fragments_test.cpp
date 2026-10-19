@@ -3,13 +3,13 @@
 #include "terraingen/layers/boulders/boulder_clusters.h"
 #include "terraingen/layers/boulders/boulder_layer.h"
 #include "terraingen/terraingen.h"
+#include "terraingen/util/bits.h"
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
 #include <cmath>
 #include <map>
-#include <numbers>
 #include <set>
 #include <stdexcept>
 #include <vector>
@@ -157,7 +157,7 @@ TEST(BoulderLayer, DrawsPiecesThatPointQueriesMatch) {
 
 TEST(BoulderLayer, GathersBouldersInClustersKeepingTheirMeanDensity) {
     BoulderLayerOptions options;
-    options.clusters = {.share = 0.8, .spacing = 40.0, .radius = 4.0};
+    options.clusters = {0.8, 40.0, 4.0};
     const BoulderLayer layer(options);
     double sum = 0.0;
     double most = 0.0;
@@ -179,9 +179,11 @@ TEST(BoulderLayer, GathersBouldersInClustersKeepingTheirMeanDensity) {
     options.clusters.radius = 50.0;
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
     options.clusters = {};
-    options.fragmentation = {.splitWear = 0.5, .rubbleWear = 0.2};
+    options.fragmentation.splitWear = 0.5;
+    options.fragmentation.rubbleWear = 0.2;
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
-    options.fragmentation = {.minPieces = 1};
+    options.fragmentation = terraingen::BoulderFragmentation{};
+    options.fragmentation.minPieces = 1;
     EXPECT_THROW(terraingen::ValidateBoulderFragmentation(options.fragmentation),
                  std::invalid_argument);
 }
@@ -199,9 +201,9 @@ class Level final : public terraingen::Ground {
 
 TEST(BoulderLayer, ClustersAndBreaksBouldersOnABodyStandingOnTheGround) {
     BoulderLayerOptions options = Breaking(0.5);
-    options.clusters = {.share = 0.5, .spacing = 30.0, .radius = 4.0};
+    options.clusters = {0.5, 30.0, 4.0};
     const BoulderLayer layer(options, nullptr, terraingen::Surface::Sphere(1737400.0));
-    const double degree = 1737400.0 * std::numbers::pi / 180.0;
+    const double degree = 1737400.0 * terraingen::kPi / 180.0;
     const double span = 20.0 / degree;
     const Level level;
     const auto boulders = layer.Boulders({-span, -span, span, span}, 0.0, &level);
@@ -218,10 +220,7 @@ TEST(BoulderLayer, ClustersAndBreaksBouldersOnABodyStandingOnTheGround) {
 
 TEST(BoulderLayer, GathersBouldersInThomasClustersKeepingTheirMeanDensity) {
     BoulderLayerOptions options;
-    options.clusters = {.share = 0.8,
-                        .spacing = 10.0,
-                        .radius = 3.0,
-                        .model = terraingen::BoulderClusterModel::Thomas};
+    options.clusters = {0.8, 10.0, 3.0, terraingen::BoulderClusterModel::Thomas};
     const BoulderLayer layer(options);
     const double cap = terraingen::MaxClusterAbundance(options.clusters);
     double sum = 0.0;
@@ -252,12 +251,9 @@ TEST(BoulderLayer, GathersBouldersInThomasClustersKeepingTheirMeanDensity) {
 
 TEST(BoulderLayer, KeepsTheMeanDensityOfThomasClustersOnABody) {
     BoulderLayerOptions options;
-    options.clusters = {.share = 1.0,
-                        .spacing = 8.0,
-                        .radius = 3.0,
-                        .model = terraingen::BoulderClusterModel::Thomas};
+    options.clusters = {1.0, 8.0, 3.0, terraingen::BoulderClusterModel::Thomas};
     const BoulderLayer layer(options, nullptr, terraingen::Surface::Sphere(1737400.0));
-    const double degree = 1737400.0 * std::numbers::pi / 180.0;
+    const double degree = 1737400.0 * terraingen::kPi / 180.0;
     double sum = 0.0;
     int samples = 0;
     for (double y = 0.5; y < 600.0; y += 2.0) {

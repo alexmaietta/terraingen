@@ -31,7 +31,7 @@ repos:
         additional_dependencies: ["cppcheck==1.5.1"]
         args:
           - "--language=c++"
-          - "--std=c++20"
+          - "--std=c++17"
           - "--enable=warning,performance,portability"
           - "--suppress=missingInclude"
           - "--include=terraingen/util/portable.h"
@@ -42,6 +42,7 @@ repos:
           - "--suppress=floatConversionOverflow:terraingen/python/src/mesh.cpp"
           - "--suppress=assignBoolToPointer:terraingen/python/src/*"
           - "--suppress=syntaxError:terraingen/gpu/metal.cpp"
+          - "--suppress=returnByReference:terraingen/raster/raster.h"
           - "--error-exitcode=1"
 
   - repo: https://github.com/astral-sh/ruff-pre-commit

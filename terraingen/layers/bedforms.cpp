@@ -10,7 +10,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <numbers>
 #include <stdexcept>
 
 namespace terraingen {
@@ -62,7 +61,7 @@ BedformOptions MarsLargeRipples() {
     ripples.wavelength = 2.0;
     ripples.height = 0.2;
     const double leeSlope = std::tan(30.0 * kDegree);
-    ripples.leeFraction = std::numbers::pi * ripples.height / (2.0 * ripples.wavelength * leeSlope);
+    ripples.leeFraction = kPi * ripples.height / (2.0 * ripples.wavelength * leeSlope);
     ripples.sinuosity = 0.6;
     ripples.cover = 0.15;
     ripples.fieldSize = 80.0;
@@ -84,8 +83,7 @@ BedformLayer::BedformLayer(BedformOptions options, Surface surface)
     : FormulaLayer(surface), options_(options) {
     ValidateBedformOptions(options_);
     cell_ = options_.fieldSize / (kRadiusMin + kRadiusMax);
-    const double meanArea = std::numbers::pi *
-                            (std::pow(kRadiusMax, 3.0) - std::pow(kRadiusMin, 3.0)) /
+    const double meanArea = kPi * (std::pow(kRadiusMax, 3.0) - std::pow(kRadiusMin, 3.0)) /
                             (3.0 * (kRadiusMax - kRadiusMin));
     density_ = std::min(1.0, -std::log1p(-options_.cover) / meanArea);
     wanderSeed_ = SubstreamSeed(options_.seed, kBedformWanderStream);
@@ -129,9 +127,9 @@ void BedformLayer::AddField(FieldSum& sum, RandomStream& random, const Vec2d& ce
                          options_.sinuosity * wander + phase;
     const double t = along - std::floor(along);
     const double upwind = 1.0 - options_.leeFraction;
-    const double profile =
-        t < upwind ? 0.5 * (1.0 - std::cos(std::numbers::pi * t / upwind))
-                   : 0.5 * (1.0 + std::cos(std::numbers::pi * (t - upwind) / options_.leeFraction));
+    const double profile = t < upwind
+                               ? 0.5 * (1.0 - std::cos(kPi * t / upwind))
+                               : 0.5 * (1.0 + std::cos(kPi * (t - upwind) / options_.leeFraction));
     sum.cover += cover;
     sum.relief += cover * options_.height * scale * profile;
 }

@@ -1,10 +1,10 @@
 #include "terraingen/layers/boulders/boulder_models.h"
 #include "terraingen/layers/boulders/boulder_options.h"
+#include "terraingen/util/bits.h"
 
 #include <gtest/gtest.h>
 
 #include <cmath>
-#include <numbers>
 #include <utility>
 #include <vector>
 
@@ -59,7 +59,7 @@ TEST(PlaceBoulderModel, StandsTheShapeAtTheBouldersSizeBurialAndHeading) {
 
 TEST(PlaceBoulderModel, BuriesItsShareOfTheLeanedHeightAndSharesPrototypes) {
     const terraingen::BoulderShapeOptions options;
-    const Boulder boulder{0.0, 0.0, 1.0, 0.5, 0.4, 0.0, std::numbers::pi / 6.0, 7u};
+    const Boulder boulder{0.0, 0.0, 1.0, 0.5, 0.4, 0.0, terraingen::kPi / 6.0, 7u};
     const auto box = terraingen::Bounds(terraingen::BoulderMesh(boulder, options, 0.0));
     const double extent = box.max.z - box.min.z;
     EXPECT_GT(extent, boulder.height) << "leaning raises the long axis";
@@ -101,7 +101,7 @@ bool RestsStably(const terraingen::Vec3d& centre, const std::vector<terraingen::
         low = std::fmin(low, p.z);
     }
     for (int k = 0; k < 720; ++k) {
-        const double a = 2.0 * std::numbers::pi * k / 720.0;
+        const double a = 2.0 * terraingen::kPi * k / 720.0;
         const double ux = std::cos(a);
         const double uy = std::sin(a);
         double reach = -1e300;

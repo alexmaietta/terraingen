@@ -4,18 +4,17 @@
 #pragma once
 
 #include "terraingen/mesh/io/mesh_io.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/files.h"
 
 #include <array>
-#include <bit>
 #include <filesystem>
 #include <string>
 #include <vector>
 
 namespace terraingen::detail {
 
-static_assert(std::endian::native == std::endian::little,
-              "The binary mesh writers assume a little-endian host");
+static_assert(kLittleEndian, "The binary mesh writers assume a little-endian host");
 
 /// Appends `value`'s bytes to `bytes`, little-endian.
 template <typename T> void Put(std::string& bytes, T value) {

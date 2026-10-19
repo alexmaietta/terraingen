@@ -29,9 +29,15 @@ void CheckRange(double value, const FieldRange& range, std::string_view unit,
 
 class RangeChecker;
 
-/// A struct whose `Fields` a `RangeChecker` walks.
+/// Whether `Fields(checker, value)` is callable with a `RangeChecker`.
+template <typename T, typename = void> struct HasRangedFieldsTrait : std::false_type {};
 template <typename T>
-concept HasRangedFields = requires(RangeChecker& checker, T& value) { Fields(checker, value); };
+struct HasRangedFieldsTrait<
+    T, std::void_t<decltype(Fields(std::declval<RangeChecker&>(), std::declval<T&>()))>>
+    : std::true_type {};
+
+/// A struct whose `Fields` a `RangeChecker` walks.
+template <typename T> inline constexpr bool HasRangedFields = HasRangedFieldsTrait<T>::value;
 
 /// @name CheckRanges
 /// Checks every number in a configuration value of the overload's type, at `path` or below it,

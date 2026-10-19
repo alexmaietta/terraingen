@@ -1,10 +1,10 @@
 #include "terraingen/distribution/golombek_rapp.h"
 
+#include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/special_functions.h"
 
 #include <cmath>
-#include <numbers>
 #include <stdexcept>
 
 namespace terraingen {
@@ -28,13 +28,11 @@ double GolombekRappSfd::FractionalArea(double diameter) const {
 }
 
 double GolombekRappSfd::CumulativeAt(double diameter) const {
-    return 4.0 * coverage_ * q_ / std::numbers::pi * ExponentialIntegral(2, q_ * diameter) /
-           diameter;
+    return 4.0 * coverage_ * q_ / kPi * ExponentialIntegral(2, q_ * diameter) / diameter;
 }
 
 double GolombekRappSfd::IncrementalAt(double diameter) const {
-    return coverage_ * q_ * std::exp(-q_ * diameter) /
-           (std::numbers::pi * diameter * diameter / 4.0);
+    return coverage_ * q_ * std::exp(-q_ * diameter) / (kPi * diameter * diameter / 4.0);
 }
 
 }  // namespace terraingen

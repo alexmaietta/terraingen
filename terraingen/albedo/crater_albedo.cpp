@@ -13,7 +13,6 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <numbers>
 #include <stdexcept>
 #include <utility>
 
@@ -202,7 +201,7 @@ double LobeScale(double angle, std::uint32_t key, const CraterAlbedoTexture& tex
     if (texture.lobes == 0.0) {
         return 1.0;
     }
-    const double ring = static_cast<double>(texture.lobeCount) / (2.0 * std::numbers::pi);
+    const double ring = static_cast<double>(texture.lobeCount) / (2.0 * kPi);
     const double n = RingNoise(ring, angle, 0.0, key ^ kEjectaLobeStream, 2);
     return 1.0 + texture.lobes * std::clamp(n, -1.0, 1.0);
 }
@@ -242,7 +241,7 @@ struct ShadowProfile {
         }
         const auto rings = static_cast<double>(azimuths);
         const double r = std::fmin((distance - start) / step, static_cast<double>(samples - 1));
-        double a = angle / (2.0 * std::numbers::pi) * rings;
+        double a = angle / (2.0 * kPi) * rings;
         a -= std::floor(a / rings) * rings;
         const std::size_t a0 = std::min(static_cast<std::size_t>(a), azimuths - 1);
         const std::size_t a1 = (a0 + 1) % azimuths;
@@ -265,8 +264,7 @@ struct ShadowProfile {
         points.reserve(rays * used);
         for (std::size_t k = 0; k < rays; ++k) {
             const std::size_t i = (first + k) % azimuths;
-            const double angle =
-                2.0 * std::numbers::pi * static_cast<double>(i) / static_cast<double>(azimuths);
+            const double angle = 2.0 * kPi * static_cast<double>(i) / static_cast<double>(azimuths);
             for (std::size_t j = 0; j < used; ++j) {
                 const double distance = start + static_cast<double>(j) * step;
                 points.push_back(surface.Locate(
@@ -331,10 +329,9 @@ RayWindow RaysOver(const Vec2d& centre, const Bounds2d& region, const Surface& s
     const double mid = std::atan2(0.5 * (minY + maxY), 0.5 * (minX + maxX));
     double half = 0.0;
     for (const Vec2d& c : corners) {
-        half = std::fmax(
-            half, std::fabs(std::remainder(std::atan2(c.y, c.x) - mid, 2.0 * std::numbers::pi)));
+        half = std::fmax(half, std::fabs(std::remainder(std::atan2(c.y, c.x) - mid, 2.0 * kPi)));
     }
-    const double ray = 2.0 * std::numbers::pi / static_cast<double>(azimuths);
+    const double ray = 2.0 * kPi / static_cast<double>(azimuths);
     const double from = std::floor((mid - half) / ray) - 1.0;
     const double to = std::ceil((mid + half) / ray) + 1.0;
     if (to - from + 1.0 >= static_cast<double>(azimuths)) {
@@ -546,7 +543,7 @@ CraterAlbedo::Ray CraterAlbedo::DrawRay(RandomStream& random, double median,
     const ObliqueImpacts& oblique = rays.oblique;
     const double asymmetry = (impact.speedRatio - 1.0) / (impact.speedRatio + 1.0);
     const double zone = oblique.zoneHalfWidthDegrees * kDegree;
-    const double drawn = 2.0 * std::numbers::pi * random.NextDouble();
+    const double drawn = 2.0 * kPi * random.NextDouble();
     const double azimuth = direction != nullptr ? direction->azimuth : drawn;
     const double l1 = random.NextDouble();
     const double l2 = random.NextDouble();
@@ -556,12 +553,12 @@ CraterAlbedo::Ray CraterAlbedo::DrawRay(RandomStream& random, double median,
     ray.cos = std::cos(azimuth);
     ray.sin = std::sin(azimuth);
     ray.length = median * std::exp(rays.lengthSpread.Sample(l1, l2));
-    const double fromDownrange = std::remainder(azimuth - impact.heading, 2.0 * std::numbers::pi);
+    const double fromDownrange = std::remainder(azimuth - impact.heading, 2.0 * kPi);
     if (asymmetry > 0.0) {
         const double speed = 1.0 + asymmetry * std::cos(fromDownrange);
         ray.length *= speed * speed / (1.0 + 0.5 * asymmetry * asymmetry);
     }
-    const bool uprange = std::fabs(fromDownrange) > std::numbers::pi - zone;
+    const bool uprange = std::fabs(fromDownrange) > kPi - zone;
     const bool downrange = std::fabs(fromDownrange) < zone;
     if ((oblique.enabled && impact.angleDegrees < oblique.forbiddenDegrees && uprange) ||
         (oblique.enabled && impact.angleDegrees < oblique.butterflyDegrees && downrange)) {
@@ -711,7 +708,7 @@ CraterImpact CraterAlbedo::Impact(const Crater& crater) const {
     RandomStream random(options_.seed, kObliqueRayStream, id.low, id.high);
     impact.angleDegrees = std::asin(std::sqrt(random.NextDouble())) * kRadian;
     const double h = random.NextDouble();
-    impact.heading = oblique.heading ? *oblique.heading : 2.0 * std::numbers::pi * h;
+    impact.heading = oblique.heading ? *oblique.heading : 2.0 * kPi * h;
     const double r1 = random.NextDouble();
     const double r2 = random.NextDouble();
     if (impact.angleDegrees < oblique.asymmetricDegrees) {

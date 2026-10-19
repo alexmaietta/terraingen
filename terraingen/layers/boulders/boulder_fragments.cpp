@@ -1,10 +1,10 @@
 #include "terraingen/layers/boulders/boulder_fragments.h"
 
 #include "terraingen/random/stream.h"
+#include "terraingen/util/bits.h"
 
 #include <algorithm>
 #include <cmath>
-#include <numbers>
 #include <stdexcept>
 
 namespace terraingen {
@@ -16,7 +16,7 @@ namespace {
 std::vector<Vec3d> SeedPoints(const Box3d& box, int pieces, RandomStream& random) {
     const Vec3d centre = (box.min + box.max) * 0.5;
     const Vec3d half = (box.max - box.min) * 0.5;
-    const double turn = 2.0 * std::numbers::pi / pieces;
+    const double turn = 2.0 * kPi / pieces;
     const double start = turn * random.NextDouble();
     std::vector<Vec3d> seeds;
     for (int k = 0; k < pieces; ++k) {
@@ -35,7 +35,7 @@ std::vector<Vec3d> SeedPoints(const Box3d& box, int pieces, RandomStream& random
 std::vector<Vec3d> SlabSeedPoints(const Box3d& box, int pieces, RandomStream& random) {
     const Vec3d centre = (box.min + box.max) * 0.5;
     const Vec3d half = (box.max - box.min) * 0.5;
-    const double angle = std::numbers::pi * random.NextDouble();
+    const double angle = kPi * random.NextDouble();
     const Vec3d along{std::cos(angle), std::sin(angle), 0.0};
     const Vec3d across{-along.y, along.x, 0.0};
     const double reach = half.x * std::fabs(along.x) + half.y * std::fabs(along.y);

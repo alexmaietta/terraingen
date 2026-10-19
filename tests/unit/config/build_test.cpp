@@ -12,7 +12,6 @@
 #include <cmath>
 #include <cstddef>
 #include <fstream>
-#include <numbers>
 #include <string>
 #include <vector>
 
@@ -33,6 +32,34 @@ std::string ModelErrorPath(const CraterLayerSpec& craters) {
         return error.Path();
     }
     return "built";
+}
+
+/// A field of `value` everywhere.
+terraingen::FieldSpec ConstantField(double value) {
+    terraingen::FieldSpec field;
+    field.value = value;
+    return field;
+}
+
+/// A field read from the GeoTIFF at `path`.
+terraingen::FieldSpec FileField(const std::string& path) {
+    terraingen::FieldSpec field;
+    field.path = path;
+    return field;
+}
+
+/// A density map of a field of `value` everywhere.
+terraingen::DensityMapSpec ConstantDensityMap(double value) {
+    terraingen::DensityMapSpec map;
+    map.field = ConstantField(value);
+    return map;
+}
+
+/// A size-slope map of a field of `value` everywhere.
+terraingen::SizeSlopeMapSpec ConstantSlopeMap(double value) {
+    terraingen::SizeSlopeMapSpec map;
+    map.field = ConstantField(value);
+    return map;
 }
 
 }  // namespace
@@ -306,45 +333,47 @@ TEST(BuildCraterModels, ReportsEachModelsProblemsAtItsKey) {
 }
 
 TEST(BuildField, BuildsConstantsAndReadsGeoTiffs) {
-    EXPECT_EQ(terraingen::config::BuildField({.value = 4.0}, "f")->ValueAt(1.0, 2.0), 4.0);
+    EXPECT_EQ(terraingen::config::BuildField(ConstantField(4.0), "f")->ValueAt(1.0, 2.0), 4.0);
     terraingen::Raster<float> raster(2, 2, 3.0f);
     raster.SetTransform(terraingen::GeoTransform::NorthUp(0.0, 2.0, 1.0));
     const auto path = terraingen::testing::TempPath("build_field.tif");
     terraingen::WriteGeoTiff(path, raster, {{1, 1, 0, 1, 1024, 0, 1, 1}, {}, {}});
-    const auto field = terraingen::config::BuildField(
-        {.path = path.filename().string(), .scale = 2.0, .fallback = -1.0}, "f",
-        path.parent_path());
+    terraingen::FieldSpec spec = FileField(path.filename().string());
+    spec.scale = 2.0;
+    spec.fallback = -1.0;
+    const auto field = terraingen::config::BuildField(spec, "f", path.parent_path());
     EXPECT_DOUBLE_EQ(field->ValueAt(1.0, 1.0), 6.0);
     EXPECT_DOUBLE_EQ(field->ValueAt(9.0, 9.0), -1.0);
     try {
-        terraingen::config::BuildField({.path = "missing.tif"}, "layers[1].completeness");
+        terraingen::config::BuildField(FileField("missing.tif"), "layers[1].completeness");
         FAIL() << "expected a ConfigError";
     } catch (const ConfigError& error) {
         EXPECT_EQ(error.Path(), "layers[1].completeness");
     }
-    EXPECT_THROW(terraingen::config::BuildField(
-                     {.path = path.string(), .method = terraingen::ResampleMethod::Cubic}, "f"),
-                 ConfigError);
+    terraingen::FieldSpec cubic = FileField(path.string());
+    cubic.method = terraingen::ResampleMethod::Cubic;
+    EXPECT_THROW(terraingen::config::BuildField(cubic, "f"), ConfigError);
 }
 
 TEST(BuildDensityMap, BuildsTheFieldAndLeavesTheMapUnchecked) {
-    const terraingen::DensityMap map =
-        terraingen::config::BuildDensityMap({.field = {.value = 5.0},
-                                             .measure = terraingen::DensityMeasure::Count,
-                                             .minDiameter = 4.5,
-                                             .areaUnit = 1e6,
-                                             .total = false},
-                                            "m");
+    terraingen::DensityMapSpec spec = ConstantDensityMap(5.0);
+    spec.measure = terraingen::DensityMeasure::Count;
+    spec.minDiameter = 4.5;
+    spec.areaUnit = 1e6;
+    spec.total = false;
+    const terraingen::DensityMap map = terraingen::config::BuildDensityMap(spec, "m");
     EXPECT_EQ(map.field->ValueAt(0.0, 0.0), 5.0);
     EXPECT_EQ(map.minDiameter, 4.5);
     EXPECT_TRUE(std::isinf(map.maxDiameter));
     EXPECT_EQ(map.areaUnit, 1e6);
     EXPECT_FALSE(map.total);
-    EXPECT_NO_THROW(terraingen::config::BuildDensityMap(
-        {.measure = terraingen::DensityMeasure::Count}, "layers[0].density_map"));
+    terraingen::DensityMapSpec counts;
+    counts.measure = terraingen::DensityMeasure::Count;
+    EXPECT_NO_THROW(terraingen::config::BuildDensityMap(counts, "layers[0].density_map"));
     try {
-        terraingen::config::BuildDensityMap({.field = {.path = "missing.tif"}},
-                                            "layers[0].density_map");
+        terraingen::DensityMapSpec missing;
+        missing.field = FileField("missing.tif");
+        terraingen::config::BuildDensityMap(missing, "layers[0].density_map");
         FAIL() << "expected a ConfigError";
     } catch (const ConfigError& error) {
         EXPECT_EQ(error.Path(), "layers[0].density_map.field");
@@ -353,13 +382,14 @@ TEST(BuildDensityMap, BuildsTheFieldAndLeavesTheMapUnchecked) {
 
 TEST(ValidateConfig, ReportsDensityAndSlopeMapProblemsAtTheMap) {
     TerrainConfig config = terraingen::testing::Small();
-    terraingen::testing::Craters(config).densityMap =
-        terraingen::DensityMapSpec{.measure = terraingen::DensityMeasure::Count};
+    terraingen::DensityMapSpec counts;
+    counts.measure = terraingen::DensityMeasure::Count;
+    terraingen::testing::Craters(config).densityMap = counts;
     EXPECT_EQ(terraingen::testing::ValidationErrorPath(config), "layers[1].density_map");
     config = terraingen::testing::Small();
     terraingen::BoulderLayerSpec boulders;
     boulders.sizes = terraingen::PowerLawSpec{0.01, 3.0};
-    boulders.slopeMap = terraingen::SizeSlopeMapSpec{.field = {.value = 2.5}};
+    boulders.slopeMap = ConstantSlopeMap(2.5);
     boulders.slopeMap->maxExponent = boulders.slopeMap->minExponent;
     config.layers.push_back(boulders);
     EXPECT_EQ(terraingen::testing::ValidationErrorPath(config), "layers[2].slope_map");
@@ -381,7 +411,7 @@ TEST(BuildBoulderOptions, BuildsTheSizesAndReportsThemAtTheirKeys) {
     for (int i = 0; i < kSteps; ++i) {
         const double d = std::exp((i + 0.5) * step);
         cover +=
-            0.25 * std::numbers::pi * d * d * nominal.sizes.distribution->Incremental(d) * d * step;
+            0.25 * terraingen::kPi * d * d * nominal.sizes.distribution->Incremental(d) * d * step;
     }
     EXPECT_GT(cover, 0.003) << "rocks of 1 m and more cover the lunar mean or more";
     EXPECT_LT(cover, 0.005) << "and no more than the maria mean";
@@ -499,7 +529,7 @@ TEST(BuildAlbedo, BrightensEveryOrOneCraterLayer) {
     EXPECT_NE(dynamic_cast<const terraingen::RockAlbedo*>(rocks.layers[0].get()), nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::SlopeAlbedo*>(rocks.layers[1].get()), nullptr);
     const terraingen::RasterGrid grid{8, 8, terraingen::GeoTransform::NorthUp(0.0, 8.0, 1.0)};
-    EXPECT_EQ(terraingen::EvaluateAlbedo(rocks, grid, {.spacing = 1.0})[0].Width(), 8u)
+    EXPECT_EQ(terraingen::EvaluateAlbedo(rocks, grid, {1.0})[0].Width(), 8u)
         << "the rock's grounds outlive the terrain they were built from";
     TerrainConfig none = Small();
     EXPECT_THROW(terraingen::BuildAlbedo(none, terraingen::BuildTerrain(none)), ConfigError);
@@ -584,14 +614,14 @@ TEST(BuildSurface, ReportsShapeModelProblemsAtTheirKeys) {
 TEST(BuildTerrain, GivesLayersTheirMapsCatalogsAndCompleteness) {
     TerrainConfig config = Small();
     auto& craters = std::get<CraterLayerSpec>(config.layers.at(1));
-    craters.densityMap = terraingen::DensityMapSpec{.field = {.value = 2.0}};
-    craters.completeness = terraingen::FieldSpec{.value = 50.0};
+    craters.densityMap = ConstantDensityMap(2.0);
+    craters.completeness = ConstantField(50.0);
     terraingen::BoulderLayerSpec boulders;
-    boulders.densityMap = terraingen::DensityMapSpec{.field = {.value = 1.5}};
+    boulders.densityMap = ConstantDensityMap(1.5);
     boulders.manual = {{1.0, 2.0, 3.0, 0.0, 0u}};
-    boulders.completeness = terraingen::FieldSpec{.value = 2.0};
+    boulders.completeness = ConstantField(2.0);
     boulders.sizes = terraingen::PowerLawSpec{0.01, 3.0};
-    boulders.slopeMap = terraingen::SizeSlopeMapSpec{.field = {.value = 2.5}};
+    boulders.slopeMap = ConstantSlopeMap(2.5);
     config.layers.push_back(boulders);
     const terraingen::Terrain terrain = terraingen::BuildTerrain(config);
     const auto* crater = dynamic_cast<const terraingen::CraterLayer*>(terrain.layers[1].get());

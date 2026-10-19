@@ -41,7 +41,7 @@ void DestroyPipeline(VkDevice device, const Pipeline& p) {
     vkDestroyShaderModule(device, p.module, nullptr);
 }
 
-VkShaderModule CreateShaderModule(VkDevice device, std::span<const unsigned char> spirv) {
+VkShaderModule CreateShaderModule(VkDevice device, Span<const unsigned char> spirv) {
     VkShaderModuleCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     info.codeSize = spirv.size();
@@ -84,7 +84,7 @@ VkPipelineLayout CreatePipelineLayout(VkDevice device, VkDescriptorSetLayout set
 
 /// The pipeline running `spirv` with `bindings` storage buffers and `pushSize` bytes of push
 /// constants; nothing is left behind when a step fails.
-Pipeline CreatePipeline(VkDevice device, std::span<const unsigned char> spirv, std::size_t bindings,
+Pipeline CreatePipeline(VkDevice device, Span<const unsigned char> spirv, std::size_t bindings,
                         std::size_t pushSize) {
     Pipeline p;
     try {
@@ -325,8 +325,8 @@ struct RunResources {
 };
 
 /// Creates a device buffer for each host buffer and copies the host data into it.
-void UploadBuffers(std::span<const DeviceBuffer> host,
-                   const VkPhysicalDeviceMemoryProperties& memory, RunResources& run) {
+void UploadBuffers(Span<const DeviceBuffer> host, const VkPhysicalDeviceMemoryProperties& memory,
+                   RunResources& run) {
     for (std::size_t i = 0; i < host.size(); ++i) {
         MakeBuffer(run.device, memory, host[i].bytes.size(), run.buffers[i]);
         std::memcpy(run.buffers[i].mapped, host[i].bytes.data(), host[i].bytes.size());
@@ -371,7 +371,7 @@ VkDescriptorSet BindBuffers(const Pipeline& pipeline, RunResources& run) {
 
 /// Records the dispatch, then a barrier making its writes visible to the host.
 void RecordDispatch(const Pipeline& pipeline, VkDescriptorSet set,
-                    std::span<const std::byte> pushConstants, std::array<std::uint32_t, 3> groups,
+                    Span<const std::byte> pushConstants, std::array<std::uint32_t, 3> groups,
                     RunResources& run) {
     VkCommandBufferAllocateInfo commandInfo{};
     commandInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -413,7 +413,7 @@ void SubmitAndWait(VkQueue queue, RunResources& run) {
 }
 
 /// Copies the output buffers back to the host.
-void DownloadOutputs(const RunResources& run, std::span<const DeviceBuffer> host) {
+void DownloadOutputs(const RunResources& run, Span<const DeviceBuffer> host) {
     for (std::size_t i = 0; i < host.size(); ++i) {
         if (host[i].output != nullptr) {
             std::memcpy(host[i].output, run.buffers[i].mapped, host[i].bytes.size());
@@ -477,7 +477,7 @@ struct VulkanCompute::State {
 
     /// The pipeline of `spirv` with `bindings` buffers and `pushSize` bytes of push constants,
     /// created on first use.
-    const Pipeline& CachedPipeline(std::span<const unsigned char> spirv, std::size_t bindings,
+    const Pipeline& CachedPipeline(Span<const unsigned char> spirv, std::size_t bindings,
                                    std::size_t pushSize) {
         const auto key = std::make_tuple(spirv.data(), bindings, pushSize);
         auto found = pipelines.find(key);
@@ -498,7 +498,7 @@ LazyDevice<VulkanCompute>& SharedDevice() {
 
 }  // namespace
 
-std::optional<std::size_t> PickDevice(std::span<const DeviceKind> kinds) {
+std::optional<std::size_t> PickDevice(Span<const DeviceKind> kinds) {
     for (const DeviceKind kind :
          {DeviceKind::Discrete, DeviceKind::Integrated, DeviceKind::Virtual, DeviceKind::Other}) {
         const auto found = std::find(kinds.begin(), kinds.end(), kind);
@@ -547,8 +547,8 @@ bool VulkanCompute::CanRun(const KernelProgram& program) const {
     return !program.spirv.empty();
 }
 
-void VulkanCompute::Run(const KernelProgram& program, std::span<const DeviceBuffer> buffers,
-                        std::span<const std::byte> pushConstants, const Dispatch& dispatch) {
+void VulkanCompute::Run(const KernelProgram& program, Span<const DeviceBuffer> buffers,
+                        Span<const std::byte> pushConstants, const Dispatch& dispatch) {
     State& s = *state_;
     if (!CanRun(program)) {
         throw std::runtime_error("The kernel has no SPIR-V for Vulkan");

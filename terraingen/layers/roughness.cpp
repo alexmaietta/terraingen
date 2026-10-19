@@ -5,13 +5,13 @@
 #include "terraingen/random/streams.h"
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/grid.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/log.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <numbers>
 #include <stdexcept>
 
 namespace terraingen {
@@ -34,8 +34,8 @@ double LatticeOffset(std::uint32_t hash) {
 /// Shoemake's (1992) unit quaternion.
 std::array<double, 9> UniformRotation(const UVec3& turn) {
     const double u1 = HashToUnitFloat(turn.x);
-    const double u2 = 2.0 * std::numbers::pi * static_cast<double>(HashToUnitFloat(turn.y));
-    const double u3 = 2.0 * std::numbers::pi * static_cast<double>(HashToUnitFloat(turn.z));
+    const double u2 = 2.0 * kPi * static_cast<double>(HashToUnitFloat(turn.y));
+    const double u3 = 2.0 * kPi * static_cast<double>(HashToUnitFloat(turn.z));
     const double a = std::sqrt(1.0 - u1);
     const double b = std::sqrt(u1);
     const double qx = a * std::sin(u2);

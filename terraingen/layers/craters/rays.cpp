@@ -5,7 +5,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <numbers>
 #include <stdexcept>
 
 namespace terraingen {
@@ -33,7 +32,7 @@ std::vector<RayDirection> RayDirections(const Crater& crater, const RayLayout& l
     rays.reserve(static_cast<std::size_t>(std::max(count, 0)));
     for (int i = 0; i < count; ++i) {
         RayDirection ray;
-        ray.azimuth = 2.0 * std::numbers::pi * random.NextDouble();
+        ray.azimuth = 2.0 * kPi * random.NextDouble();
         const double w1 = random.NextDouble();
         const double w2 = random.NextDouble();
         ray.sinHalfWidth = std::sin(0.5 * layout.widthDegrees.Sample(w1, w2) * kDegree);

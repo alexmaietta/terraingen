@@ -35,7 +35,17 @@ struct StrataOptions {
     double hardShare = 1.0;
     double softSharpness = 1.0;  ///< How sharply soft beds are cut, at least 1.
 
-    bool operator==(const StrataOptions&) const = default;
+    bool operator==(const StrataOptions& other) const {
+        return bedThickness == other.bedThickness &&
+               thicknessVariation == other.thicknessVariation && dip == other.dip &&
+               dipAzimuth == other.dipAzimuth && sharpness == other.sharpness &&
+               strength == other.strength && cliffShare == other.cliffShare && seed == other.seed &&
+               anchor == other.anchor && hardShare == other.hardShare &&
+               softSharpness == other.softSharpness;
+    }
+    bool operator!=(const StrataOptions& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks strata options.

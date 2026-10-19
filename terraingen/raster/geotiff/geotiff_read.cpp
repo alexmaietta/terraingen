@@ -178,9 +178,9 @@ class TiffReader {
         std::vector<double> values(static_cast<std::size_t>(entry.count));
         for (std::size_t i = 0; i < values.size(); ++i) {
             if (entry.type == kDouble) {
-                values[i] = std::bit_cast<double>(U64(entry.bytes.data() + i * 8));
+                values[i] = BitCast<double>(U64(entry.bytes.data() + i * 8));
             } else {
-                values[i] = std::bit_cast<float>(U32(entry.bytes.data() + i * 4));
+                values[i] = BitCast<float>(U32(entry.bytes.data() + i * 4));
             }
         }
         return values;

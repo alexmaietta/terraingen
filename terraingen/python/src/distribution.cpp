@@ -24,6 +24,7 @@
 
 #include <limits>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -75,7 +76,7 @@ class PySizeFrequencyDistribution : public Sfd {
 template <typename Part> std::vector<StartAndSfd> Pairs(const std::vector<Part>& parts) {
     std::vector<StartAndSfd> pairs;
     for (const Part& part : parts) {
-        if constexpr (requires { part.weight; }) {
+        if constexpr (std::is_same_v<Part, WeightedSfd>) {
             pairs.emplace_back(part.weight, Mutable(part.distribution));
         } else {
             pairs.emplace_back(part.start, Mutable(part.distribution));

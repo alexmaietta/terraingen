@@ -25,7 +25,13 @@ struct Plane {
         return a + b * dx + c * dy;
     }
 
-    bool operator==(const Plane&) const = default;
+    /// Memberwise equality.
+    bool operator==(const Plane& other) const {
+        return a == other.a && b == other.b && c == other.c;
+    }
+    bool operator!=(const Plane& other) const {
+        return !(*this == other);
+    }
 };
 
 /// A crater ready to shape at one sample spacing.

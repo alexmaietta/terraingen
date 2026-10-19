@@ -44,7 +44,15 @@ struct RegionShape {
     /// The smallest box holding the shape, in `surface`'s coordinates.
     Bounds2d Bounds(const Surface& surface = {}) const;
 
-    bool operator==(const RegionShape&) const = default;
+    bool operator==(const RegionShape& other) const {
+        return kind == other.kind && rectangle.minX == other.rectangle.minX &&
+               rectangle.minY == other.rectangle.minY && rectangle.maxX == other.rectangle.maxX &&
+               rectangle.maxY == other.rectangle.maxY && centre == other.centre &&
+               radius == other.radius;
+    }
+    bool operator!=(const RegionShape& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks a region shape.

@@ -6,12 +6,12 @@
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/sources/source.h"
+#include "terraingen/util/span.h"
 
 #include <cstddef>
 #include <functional>
 #include <memory>
 #include <optional>
-#include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -65,8 +65,7 @@ class TerrainGround final : public Ground {
     float HeightAt(double x, double y, double spacing) const override;
 
     /// The heights at `points` in batches over every hardware thread, as `EvaluatePoints` does.
-    void HeightsAt(std::span<const Vec2d> points, std::span<float> heights,
-                   double spacing) const override;
+    void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const override;
 
   private:
     const Terrain& terrain_;
@@ -137,8 +136,8 @@ Raster<float> Evaluate(const Terrain& terrain);
 /// @param threads Threads to split the points over; 0 for every hardware thread.
 /// @throws std::invalid_argument as `ValidateTerrain`, or for a `spacing` that is not positive
 /// and finite.
-std::vector<float> EvaluatePoints(const Terrain& terrain, std::span<const Vec2d> points,
-                                  double spacing, unsigned threads = 0);
+std::vector<float> EvaluatePoints(const Terrain& terrain, Span<const Vec2d> points, double spacing,
+                                  unsigned threads = 0);
 
 /// The height of a terrain at one point, as `EvaluatePoints`.
 /// @throws std::invalid_argument as `EvaluatePoints`.

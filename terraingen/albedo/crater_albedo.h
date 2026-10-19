@@ -34,7 +34,15 @@ struct RayRetention {
     /// The retention time in Myr of a crater `diameter` metres across.
     double Myr(double diameter) const;
 
-    bool operator==(const RayRetention&) const = default;
+    bool operator==(const RayRetention& other) const {
+        return smallDiameter == other.smallDiameter && smallMyr == other.smallMyr &&
+               midDiameter == other.midDiameter && midMyr == other.midMyr &&
+               largeDiameter == other.largeDiameter && largeMyr == other.largeMyr &&
+               scale == other.scale;
+    }
+    bool operator!=(const RayRetention& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks ray retention settings.
@@ -59,7 +67,17 @@ struct ObliqueImpacts {
     /// speed ratio's asymmetry a; 1 when disabled.
     double MaxStretch() const;
 
-    bool operator==(const ObliqueImpacts&) const = default;
+    bool operator==(const ObliqueImpacts& other) const {
+        return enabled == other.enabled && heading == other.heading &&
+               asymmetricDegrees == other.asymmetricDegrees &&
+               forbiddenDegrees == other.forbiddenDegrees &&
+               butterflyDegrees == other.butterflyDegrees &&
+               downrangeSpeedRatio == other.downrangeSpeedRatio &&
+               zoneHalfWidthDegrees == other.zoneHalfWidthDegrees;
+    }
+    bool operator!=(const ObliqueImpacts& other) const {
+        return !(*this == other);
+    }
 };
 
 /// The impact that formed a crater, as `ObliqueImpacts` draws it.
@@ -100,7 +118,17 @@ struct CraterRays {
     /// The median ray length from the centre, in metres, of a crater `diameter` metres across.
     double MedianLength(double diameter) const;
 
-    bool operator==(const CraterRays&) const = default;
+    bool operator==(const CraterRays& other) const {
+        return enabled == other.enabled && count == other.count &&
+               lengthCoefficient == other.lengthCoefficient &&
+               lengthExponent == other.lengthExponent && lengthSpread == other.lengthSpread &&
+               widthDegrees == other.widthDegrees && excess == other.excess &&
+               patchiness == other.patchiness && patchRadii == other.patchRadii &&
+               oblique == other.oblique && layout == other.layout;
+    }
+    bool operator!=(const CraterRays& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks ray settings.
@@ -127,7 +155,15 @@ struct CraterAlbedoTexture {
     double floorShare = 1.0;  ///< Interior excess on the floor over that at the rim, in [0, 1].
     std::uint32_t seed = 0;   ///< Varies every crater's texture.
 
-    bool operator==(const CraterAlbedoTexture&) const = default;
+    bool operator==(const CraterAlbedoTexture& other) const {
+        return streaks == other.streaks && streakWidthDegrees == other.streakWidthDegrees &&
+               streakLengthRadii == other.streakLengthRadii &&
+               continuousRadii == other.continuousRadii && lobes == other.lobes &&
+               lobeCount == other.lobeCount && floorShare == other.floorShare && seed == other.seed;
+    }
+    bool operator!=(const CraterAlbedoTexture& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks crater albedo texture settings.
@@ -153,7 +189,15 @@ struct ReflectanceZone {
     /// bright material, and a zone outlasting it ends with it.
     std::optional<double> retentionMyr;
 
-    bool operator==(const ReflectanceZone&) const = default;
+    bool operator==(const ReflectanceZone& other) const {
+        return share == other.share && change == other.change && coefficient == other.coefficient &&
+               exponent == other.exponent && scale == other.scale &&
+               raggedness == other.raggedness && fingerWidthDegrees == other.fingerWidthDegrees &&
+               feather == other.feather && retentionMyr == other.retentionMyr;
+    }
+    bool operator!=(const ReflectanceZone& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks a reflectance zone.
@@ -176,7 +220,14 @@ struct ZoneShadows {
     int azimuths = 720;            ///< Rays around a crater, 8 to 8192.
     int radialSamples = 400;       ///< Samples along a ray, 8 to 8192.
 
-    bool operator==(const ZoneShadows&) const = default;
+    bool operator==(const ZoneShadows& other) const {
+        return enabled == other.enabled && jetAngleDegrees == other.jetAngleDegrees &&
+               depth == other.depth && azimuths == other.azimuths &&
+               radialSamples == other.radialSamples;
+    }
+    bool operator!=(const ZoneShadows& other) const {
+        return !(*this == other);
+    }
 };
 
 /// The four reflectance zones around new small craters seen in LROC temporal pairs, after
@@ -244,7 +295,16 @@ struct CraterReflectanceZones {
         return {&proximalHigh, &proximalLow, &distalHigh, &distalLow};
     }
 
-    bool operator==(const CraterReflectanceZones&) const = default;
+    bool operator==(const CraterReflectanceZones& other) const {
+        return enabled == other.enabled && maxDiameter == other.maxDiameter &&
+               matureDepth == other.matureDepth && excavationRatio == other.excavationRatio &&
+               proximalHigh == other.proximalHigh && proximalLow == other.proximalLow &&
+               distalHigh == other.distalHigh && distalLow == other.distalLow &&
+               shadows == other.shadows && seed == other.seed;
+    }
+    bool operator!=(const CraterReflectanceZones& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks crater reflectance zones.
@@ -278,7 +338,19 @@ struct CraterAlbedoOptions {
     double originReflectance = OpticalMaturityOrigin{}.reflectance;
     ResolutionFade fade{};  ///< How craters too small to resolve fade out.
 
-    bool operator==(const CraterAlbedoOptions&) const = default;
+    bool operator==(const CraterAlbedoOptions& other) const {
+        return seed == other.seed && selection == other.selection && share == other.share &&
+               backgroundMaturity == other.backgroundMaturity && maxMaturity == other.maxMaturity &&
+               interiorExcess == other.interiorExcess && ejectaExcess == other.ejectaExcess &&
+               ejectaExponent == other.ejectaExponent &&
+               ejectaReachRadii == other.ejectaReachRadii && rays == other.rays &&
+               texture == other.texture && zones == other.zones && retention == other.retention &&
+               fadeExponent == other.fadeExponent && originReflectance == other.originReflectance &&
+               fade == other.fade;
+    }
+    bool operator!=(const CraterAlbedoOptions& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks crater albedo options.

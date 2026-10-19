@@ -8,12 +8,11 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
-#include <numbers>
 
 namespace terraingen::detail {
 
 /// pi / 4 radians, the largest equiangular angle from a face's centre to its edge.
-inline constexpr double kQuarter = std::numbers::pi / 4.0;
+inline constexpr double kQuarter = kPi / 4.0;
 
 /// A cube face: its outward normal and the axes its first and second coordinates run along.
 struct CubeFace {

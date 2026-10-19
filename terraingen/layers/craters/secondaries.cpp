@@ -6,12 +6,12 @@
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/grid.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <numbers>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -40,7 +40,7 @@ struct Footprint {
     double near = 0.0;
     double far = 0.0;
     double mid = 0.0;
-    double half = std::numbers::pi;
+    double half = kPi;
 };
 
 Footprint SecondaryFootprint(const Vec2d& centre, const Bounds2d& region, const Surface& surface) {
@@ -71,10 +71,10 @@ Footprint SecondaryFootprint(const Vec2d& centre, const Bounds2d& region, const 
     footprint.mid = std::atan2(0.5 * (minY + maxY), 0.5 * (minX + maxX));
     double half = 0.0;
     for (const Vec2d& c : corners) {
-        half = std::fmax(half, std::fabs(std::remainder(std::atan2(c.y, c.x) - footprint.mid,
-                                                        2.0 * std::numbers::pi)));
+        half = std::fmax(
+            half, std::fabs(std::remainder(std::atan2(c.y, c.x) - footprint.mid, 2.0 * kPi)));
     }
-    footprint.half = std::fmin(std::numbers::pi, half);
+    footprint.half = std::fmin(kPi, half);
     return footprint;
 }
 
@@ -82,11 +82,11 @@ Footprint SecondaryFootprint(const Vec2d& centre, const Bounds2d& region, const 
 /// that can reach a footprint, in cells of side `cell`; indices may run past a turn.
 std::pair<std::int64_t, std::int64_t> SectorRange(const Footprint& footprint, double cell,
                                                   double r0, double width, std::int64_t sectors) {
-    if (footprint.half < std::numbers::pi) {
+    if (footprint.half < kPi) {
         const double margin = cell / r0 + width;
         const double from = footprint.mid - footprint.half - margin;
         const double to = footprint.mid + footprint.half + margin;
-        if (to - from < 2.0 * std::numbers::pi) {
+        if (to - from < 2.0 * kPi) {
             return {static_cast<std::int64_t>(std::floor(from / width)),
                     static_cast<std::int64_t>(std::ceil(to / width))};
         }
@@ -203,9 +203,8 @@ class Scatter {
     void DrawRing(const Primary& primary, Ring& ring, double cell) {
         const SecondaryDensity& density = primary.density;
         const auto sectors = std::max<std::int64_t>(
-            1, static_cast<std::int64_t>(
-                   std::ceil(2.0 * std::numbers::pi * 0.5 * (ring.r0 + ring.r1) / cell)));
-        ring.width = 2.0 * std::numbers::pi / static_cast<double>(sectors);
+            1, static_cast<std::int64_t>(std::ceil(2.0 * kPi * 0.5 * (ring.r0 + ring.r1) / cell)));
+        ring.width = 2.0 * kPi / static_cast<double>(sectors);
         const auto [first, last] =
             SectorRange(primary.footprint, cell, ring.r0, ring.width, sectors);
         ring.r = density.ScaledRange(ring.r0);

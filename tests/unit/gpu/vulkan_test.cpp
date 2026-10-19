@@ -1,9 +1,11 @@
 #include "terraingen/gpu/vulkan.h"
 #include "terraingen/noise/hash.h"
+#include "terraingen/util/bits.h"
+#include "terraingen/util/span.h"
 
 #include <gtest/gtest.h>
 
-#include <bit>
+#include <cstddef>
 #include <cstdint>
 #include <stdexcept>
 #include <string>
@@ -13,6 +15,10 @@ extern "C" {
 extern const unsigned char terraingen_test_hash_conformance[];
 extern const std::size_t terraingen_test_hash_conformance_size;
 }
+
+using terraingen::AsBytes;
+using terraingen::AsWritableBytes;
+using terraingen::Span;
 
 namespace {
 
@@ -43,9 +49,8 @@ TEST(VulkanCompute, RunsTheSharedHashKernelsBitForBitAsTheCpu) {
     std::vector<std::uint32_t> outputs(5u * count, 0u);
     for (int run = 0; run < 2; ++run) {
         const terraingen::DeviceBuffer buffer =
-            terraingen::OutputBuffer(std::as_writable_bytes(std::span(outputs)), outputs.size());
-        compute.Run(HashKernel(), {&buffer, 1}, std::as_bytes(std::span(&count, 1)),
-                    Threads(count));
+            terraingen::OutputBuffer(AsWritableBytes(Span(outputs)), outputs.size());
+        compute.Run(HashKernel(), {&buffer, 1}, AsBytes(Span(&count, 1)), Threads(count));
         for (std::uint32_t i = 0; i < count; ++i) {
             const terraingen::UVec3 h = terraingen::Pcg3dHash({i, i * 2654435761u, ~i});
             ASSERT_EQ(outputs[5u * i + 0u], terraingen::PcgHash(i * 7919u)) << i;
@@ -53,7 +58,7 @@ TEST(VulkanCompute, RunsTheSharedHashKernelsBitForBitAsTheCpu) {
             ASSERT_EQ(outputs[5u * i + 2u], h.y) << i;
             ASSERT_EQ(outputs[5u * i + 3u], h.z) << i;
             ASSERT_EQ(outputs[5u * i + 4u],
-                      std::bit_cast<std::uint32_t>(terraingen::HashToUnitFloat(h.x ^ h.z)))
+                      terraingen::BitCast<std::uint32_t>(terraingen::HashToUnitFloat(h.x ^ h.z)))
                 << i;
         }
         outputs.assign(outputs.size(), 0u);
@@ -71,8 +76,8 @@ TEST(VulkanCompute, RunsOneKernelWithDifferentPushConstantSizes) {
         push[0] = count;
         std::vector<std::uint32_t> outputs(5u * count, 0u);
         const terraingen::DeviceBuffer buffer =
-            terraingen::OutputBuffer(std::as_writable_bytes(std::span(outputs)), outputs.size());
-        compute.Run(HashKernel(), {&buffer, 1}, std::as_bytes(std::span(push)), Threads(count));
+            terraingen::OutputBuffer(AsWritableBytes(Span(outputs)), outputs.size());
+        compute.Run(HashKernel(), {&buffer, 1}, AsBytes(Span(push)), Threads(count));
         for (std::uint32_t i = 0; i < count; ++i) {
             ASSERT_EQ(outputs[5u * i], terraingen::PcgHash(i * 7919u)) << padding << " " << i;
         }
@@ -85,7 +90,7 @@ TEST(VulkanCompute, RejectsPushConstantsPastTheDeviceLimit) {
     }
     std::vector<std::uint32_t> outputs(5, 0u);
     const terraingen::DeviceBuffer buffer =
-        terraingen::OutputBuffer(std::as_writable_bytes(std::span(outputs)), outputs.size());
+        terraingen::OutputBuffer(AsWritableBytes(Span(outputs)), outputs.size());
     const std::vector<std::byte> tooMany(1u << 20);
     EXPECT_THROW(
         terraingen::VulkanCompute::Get()->Run(HashKernel(), {&buffer, 1}, tooMany, Threads(1)),
@@ -99,17 +104,16 @@ TEST(VulkanCompute, CopiesBackOnlyOutputBuffers) {
     const std::uint32_t count = 64;
     std::vector<std::uint32_t> outputs(5u * count, 0u);
     std::vector<std::uint32_t> host(5u * count, 7u);
-    const std::vector<terraingen::DeviceBuffer> buffers{
-        terraingen::DeviceBuffer{std::as_bytes(std::span(outputs)), outputs.size(),
-                                 reinterpret_cast<std::byte*>(host.data())}};
-    terraingen::VulkanCompute::Get()->Run(HashKernel(), buffers,
-                                          std::as_bytes(std::span(&count, 1)), Threads(count));
+    const std::vector<terraingen::DeviceBuffer> buffers{terraingen::DeviceBuffer{
+        AsBytes(Span(outputs)), outputs.size(), reinterpret_cast<std::byte*>(host.data())}};
+    terraingen::VulkanCompute::Get()->Run(HashKernel(), buffers, AsBytes(Span(&count, 1)),
+                                          Threads(count));
     EXPECT_EQ(host[0], terraingen::PcgHash(0u));
     EXPECT_EQ(outputs[0], 0u);
     const terraingen::DeviceBuffer input =
-        terraingen::InputBuffer(std::as_bytes(std::span(outputs)), outputs.size());
-    terraingen::VulkanCompute::Get()->Run(HashKernel(), {&input, 1},
-                                          std::as_bytes(std::span(&count, 1)), Threads(count));
+        terraingen::InputBuffer(AsBytes(Span(outputs)), outputs.size());
+    terraingen::VulkanCompute::Get()->Run(HashKernel(), {&input, 1}, AsBytes(Span(&count, 1)),
+                                          Threads(count));
     EXPECT_EQ(outputs[5], 0u);
 }
 

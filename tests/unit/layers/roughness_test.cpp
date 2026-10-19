@@ -16,6 +16,25 @@ using terraingen::PerlinStructureFunction;
 using terraingen::RoughnessLayer;
 using terraingen::RoughnessOptions;
 
+namespace {
+
+/// Default options with octaves from `maxWavelength` down to `minWavelength`.
+RoughnessOptions Octaves(double maxWavelength, double minWavelength) {
+    RoughnessOptions options;
+    options.maxWavelength = maxWavelength;
+    options.minWavelength = minWavelength;
+    return options;
+}
+
+/// Default options with another Hurst exponent.
+RoughnessOptions WithHurst(double hurst) {
+    RoughnessOptions options;
+    options.hurst = hurst;
+    return options;
+}
+
+}  // namespace
+
 TEST(RoughnessLayer, RejectsInvalidOptions) {
     EXPECT_NO_THROW(terraingen::ValidateRoughnessOptions({}));
     const std::vector<std::function<void(RoughnessOptions&)>> changes{
@@ -39,21 +58,20 @@ TEST(RoughnessLayer, RejectsInvalidOptions) {
 TEST(RoughnessLayer, HalvesOctavesDownToTheShortestWavelength) {
     EXPECT_EQ(RoughnessLayer({}).Wavelengths(),
               (std::vector<double>{4.0, 2.0, 1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625}));
-    EXPECT_EQ(RoughnessLayer({.maxWavelength = 4.0, .minWavelength = 0.25}).Wavelengths(),
+    EXPECT_EQ(RoughnessLayer(Octaves(4.0, 0.25)).Wavelengths(),
               (std::vector<double>{4.0, 2.0, 1.0, 0.5, 0.25}));
-    EXPECT_EQ(RoughnessLayer({.maxWavelength = 0.3, .minWavelength = 0.3}).Wavelengths(),
-              std::vector<double>{0.3});
+    EXPECT_EQ(RoughnessLayer(Octaves(0.3, 0.3)).Wavelengths(), std::vector<double>{0.3});
 }
 
 TEST(RoughnessLayer, HasTheRmsSlopeAskedForOverItsBaseline) {
     for (const double hurst : {0.5, 0.8, 1.0}) {
-        const RoughnessLayer layer({.rmsSlope = 0.2, .baseline = 0.1, .hurst = hurst});
+        const RoughnessLayer layer(RoughnessOptions{0.2, 0.1, hurst});
         EXPECT_NEAR(layer.RmsSlope(0.1), 0.2, 1e-12);
         EXPECT_GT(layer.RmsSlope(0.05), layer.RmsSlope(0.1)) << "steeper over shorter baselines";
         EXPECT_GT(layer.RmsSlope(0.1), layer.RmsSlope(0.5));
     }
-    const RoughnessLayer rough({.hurst = 0.5});
-    const RoughnessLayer smooth({.hurst = 0.9});
+    const RoughnessLayer rough(WithHurst(0.5));
+    const RoughnessLayer smooth(WithHurst(0.9));
     EXPECT_GT(rough.RmsSlope(0.03) / rough.RmsSlope(0.25),
               smooth.RmsSlope(0.03) / smooth.RmsSlope(0.25))
         << "a smaller Hurst exponent is rougher at fine scales";
@@ -95,7 +113,9 @@ TEST(PerlinStructureFunction, MatchesSampledDifferencesOfThePerlinBasis) {
 }
 
 TEST(RoughnessLayer, GivesPointsTheSameBitsAsGridsOnAnyThreads) {
-    const RoughnessLayer layer({.seed = 7});
+    RoughnessOptions options;
+    options.seed = 7;
+    const RoughnessLayer layer(options);
     const terraingen::RasterGrid grid{
         64, 48, terraingen::GeoTransform::NorthUp(350000.25, 4100000.5, 0.02)};
     auto one = grid.MakeRaster();
@@ -127,7 +147,9 @@ TEST(RoughnessLayer, FadesOctavesTooFineForTheSpacing) {
     }
     EXPECT_GT(fine, coarse);
     EXPECT_GT(coarse, 0.0);
-    const RoughnessLayer exact({.minWavelength = 0.25});
+    RoughnessOptions options;
+    options.minWavelength = 0.25;
+    const RoughnessLayer exact(options);
     for (int n = 0; n < 50; ++n) {
         EXPECT_EQ(exact.ApplyAt(0.0f, 0.37 * n, 0.11 * n, {0.0625}),
                   exact.ApplyAt(0.0f, 0.37 * n, 0.11 * n, {0.001}))

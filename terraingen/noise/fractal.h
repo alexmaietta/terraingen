@@ -56,7 +56,16 @@ struct FractalParams {
     float offset = 1.0f;  ///< Ridge offset for `Ridged` and `HybridMultifractal`; > 0.
 
 #ifndef __SLANG__
-    bool operator==(const FractalParams&) const = default;
+    /// Memberwise equality.
+    bool operator==(const FractalParams& other) const {
+        return seed == other.seed && wavelength == other.wavelength &&
+               amplitude == other.amplitude && octaves == other.octaves &&
+               lacunarity == other.lacunarity && gain == other.gain && basis == other.basis &&
+               type == other.type && offset == other.offset;
+    }
+    bool operator!=(const FractalParams& other) const {
+        return !(*this == other);
+    }
 #endif
 };
 

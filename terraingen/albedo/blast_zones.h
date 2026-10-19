@@ -34,7 +34,17 @@ struct BlastZone {
     double raggedness = 0.15;      ///< Share of the radius the edge's lobes pull in, [0, 1).
     std::uint32_t seed = 0;        ///< Varies the edge's lobes.
 
-    bool operator==(const BlastZone&) const = default;
+    bool operator==(const BlastZone& other) const {
+        return x == other.x && y == other.y && area == other.area &&
+               elongation == other.elongation && headingDegrees == other.headingDegrees &&
+               change == other.change && haloChange == other.haloChange &&
+               haloReach == other.haloReach && coreRadius == other.coreRadius &&
+               coreChange == other.coreChange && raggedness == other.raggedness &&
+               seed == other.seed;
+    }
+    bool operator!=(const BlastZone& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks a blast zone.

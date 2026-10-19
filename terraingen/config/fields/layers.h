@@ -5,8 +5,8 @@
 #include "terraingen/config/config.h"
 #include "terraingen/config/fields/common.h"
 #include "terraingen/config/fields/sources.h"
+#include "terraingen/util/bits.h"
 
-#include <numbers>
 #include <string>
 #include <string_view>
 
@@ -169,10 +169,10 @@ template <typename IO> void DuneProfileFields(IO& io, DuneOptions& dunes) {
        AtLeast(0.0));
     io("slip_face_angle", dunes.slipFaceAngle,
        "Slope of the lee slip faces, in radians: the sand's angle of repose.", "rad",
-       Inside(0.0, 0.5 * std::numbers::pi));
+       Inside(0.0, 0.5 * kPi));
     io("stoss_slope", dunes.stossSlope,
        "Mean slope of the windward faces, in radians; below the slip face angle.", "rad",
-       Inside(0.0, 0.5 * std::numbers::pi));
+       Inside(0.0, 0.5 * kPi));
     io("stoss_exponent", dunes.stossExponent,
        "Exponent alpha of the cos^alpha windward profile of dunes; higher is blunter.", "",
        Above(0.0));
@@ -225,7 +225,7 @@ template <typename IO> void DuneCrestFields(IO& io, DuneOptions& dunes) {
        "(Ewing et al. 2010).",
        "1/m", AtLeast(0.0));
     io("flank_slope", dunes.flankSlope, "Linear dunes: mean slope of both flanks, in radians.",
-       "rad", Inside(0.0, 0.5 * std::numbers::pi));
+       "rad", Inside(0.0, 0.5 * kPi));
 }
 
 template <typename IO> void Fields(IO& io, DuneOptions& dunes) {
@@ -271,7 +271,7 @@ template <typename IO> void Fields(IO& io, PavementOptions& pavement) {
     io("edge_rounding", pavement.edgeRounding,
        "Width of the rounded shoulder beside each crack, in metres.", "m", AtLeast(0.0));
     io("max_tilt", pavement.maxTilt, "Largest tilt of a plate, in radians.", "rad",
-       FromBelow(0.0, 0.5 * std::numbers::pi));
+       FromBelow(0.0, 0.5 * kPi));
     io("max_step", pavement.maxStep, "Largest height offset of a plate, up or down, in metres.",
        "m", AtLeast(0.0));
     io("octaves", pavement.octaves,
@@ -308,7 +308,7 @@ template <typename IO> void Fields(IO& io, StrataOptions& strata) {
        "How far each bed boundary strays from even spacing, in bed thicknesses, in [0, 1).", "",
        FromBelow(0.0, 1.0));
     io("dip", strata.dip, "Dip of the beds from horizontal, in radians, below 90 deg.", "rad",
-       FromBelow(0.0, 0.5 * std::numbers::pi));
+       FromBelow(0.0, 0.5 * kPi));
     io("dip_azimuth", strata.dipAzimuth,
        "Direction the beds dip toward, in radians counter-clockwise from +x (local east on a "
        "body).",
@@ -354,7 +354,7 @@ template <typename IO> void Fields(IO& io, SandShadowOptions& shadows) {
     io("flank_angle", shadows.flankAngle,
        "Slope of a tail's flanks, in radians, at most the angle of repose (about 32 deg for dry "
        "sand); sets the tail's height with the boulder's width.",
-       "rad", Inside(0.0, 0.5 * std::numbers::pi));
+       "rad", Inside(0.0, 0.5 * kPi));
     io("min_diameter", shadows.minDiameter, "Smallest boulder with a tail, in metres.", "m",
        AtLeast(0.0));
     io("cover_thickness", shadows.coverThickness,

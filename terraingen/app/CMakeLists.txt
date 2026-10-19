@@ -12,6 +12,7 @@ target_link_libraries(
 if(TERRAINGEN_GUI)
     add_subdirectory(gui)
     target_sources(terraingen_cli PRIVATE gui/run.cpp)
+    set_target_properties(terraingen_cli PROPERTIES CXX_STANDARD 20)
     target_link_libraries(terraingen_cli PRIVATE terraingen_gui)
 else()
     target_sources(terraingen_cli PRIVATE gui/run_none.cpp)

@@ -2,13 +2,13 @@
 
 #include "terraingen/gpu/kernel.h"
 #include "terraingen/noise/noise_layers.h"
+#include "terraingen/util/span.h"
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <span>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -269,7 +269,7 @@ TEST(NoiseRelief, PointsStayOnTheCpuWhateverTheBackend) {
 
 TEST(NoiseRelief, RunsOnEachGpuBackendItselfAndNotWithoutItsCompiledForm) {
     const terraingen::NoiseReliefKernel kernel = terraingen::MakeNoiseReliefKernel(Params().layers);
-    const auto bytes = std::as_bytes(std::span(&kernel, 1));
+    const auto bytes = terraingen::AsBytes(terraingen::Span(&kernel, 1));
     const terraingen::KernelProgram program =
         terraingen::CompiledKernel<terraingen::NoiseReliefKernel>();
     Raster<float> heights(33, 17, 0.0f);

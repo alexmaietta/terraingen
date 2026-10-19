@@ -14,7 +14,13 @@ struct U32x4 {
     uint32_t w = 0;  ///< Fourth word.
 
 #ifndef __SLANG__
-    bool operator==(const U32x4&) const = default;
+    /// Componentwise equality.
+    bool operator==(const U32x4& other) const {
+        return x == other.x && y == other.y && z == other.z && w == other.w;
+    }
+    bool operator!=(const U32x4& other) const {
+        return !(*this == other);
+    }
 #endif
 };
 
@@ -24,7 +30,13 @@ struct U32x2 {
     uint32_t y = 0;  ///< Second word.
 
 #ifndef __SLANG__
-    bool operator==(const U32x2&) const = default;
+    /// Componentwise equality.
+    bool operator==(const U32x2& other) const {
+        return x == other.x && y == other.y;
+    }
+    bool operator!=(const U32x2& other) const {
+        return !(*this == other);
+    }
 #endif
 };
 

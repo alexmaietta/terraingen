@@ -43,7 +43,12 @@ struct CraterLayerOptions {
     std::uint32_t seed = 1;  ///< Varies the generated craters.
     /// Diameter range, spacing, manual craters and cap; `marginRadii` is set from the profile's
     /// reach.
-    CraterGenerationOptions generation{.dMin = 4.0, .dMax = 250.0};
+    CraterGenerationOptions generation = [] {
+        CraterGenerationOptions options;
+        options.dMin = 4.0;
+        options.dMax = 250.0;
+        return options;
+    }();
     CraterApplyOptions apply{};  ///< How the craters are shaped into the terrain.
     /// Most craters to keep generated cells of (`CraterCellCache`); 0 regenerates cells every time.
     std::size_t cacheCraters = 4000000;

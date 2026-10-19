@@ -5,8 +5,8 @@
 #include "terraingen/config/config.h"
 #include "terraingen/config/fields/common.h"
 #include "terraingen/config/fields/maps.h"
+#include "terraingen/util/bits.h"
 
-#include <numbers>
 #include <string_view>
 
 namespace terraingen::config {
@@ -82,9 +82,9 @@ template <typename IO> void Fields(IO& io, BoulderVentifacts& ventifacts) {
     io("min_angle", ventifacts.minAngle,
        "Gentlest facet slope from horizontal, in radians; 50 to 60 deg on basalt (Laity and "
        "Bridges 2009).",
-       "rad", Inside(0.0, 0.5 * std::numbers::pi));
+       "rad", Inside(0.0, 0.5 * kPi));
     io("max_angle", ventifacts.maxAngle, "Steepest facet slope from horizontal, in radians.", "rad",
-       Inside(0.0, 0.5 * std::numbers::pi));
+       Inside(0.0, 0.5 * kPi));
     io("second_wind_azimuth", ventifacts.secondWindAzimuth,
        "A second abrading wind, where it blows toward, in radians; some faceted boulders get a "
        "second facet facing it and a keel between. Unset for none.",
@@ -421,7 +421,7 @@ template <typename IO> void BoulderPoseFields(IO& io, BoulderPose& pose) {
     io("max_tilt", pose.maxTilt,
        "Largest tilt of a boulder's up axis from the vertical in a random direction, after its "
        "lean, in radians; tilts are spread evenly over that cap of directions.",
-       "rad", Between(0.0, std::numbers::pi));
+       "rad", Between(0.0, kPi));
     io("follow_slope", pose.followSlope,
        "Settles each boulder on the slope of the ground beneath it before its tilt.");
     io("settle", pose.settle,
@@ -430,7 +430,7 @@ template <typename IO> void BoulderPoseFields(IO& io, BoulderPose& pose) {
     io("max_slope", pose.maxSlope,
        "Steepest ground, across a boulder's diameter, that boulders stay on, in radians; steeper "
        "ground has none, models and drawn boulders alike. Unset keeps boulders on any slope.",
-       "rad", Inside(0.0, 0.5 * std::numbers::pi));
+       "rad", Inside(0.0, 0.5 * kPi));
     io("roll_distance", pose.rollDistance,
        "With max_slope, boulders on steeper ground roll down it and rest where it is gentle "
        "enough, gathering at the foot of slopes; those that would roll farther than this many "

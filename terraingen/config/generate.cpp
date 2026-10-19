@@ -8,12 +8,12 @@
 #include "terraingen/pipeline/height_mesh.h"
 #include "terraingen/sources/geotiff_source.h"
 #include "terraingen/sources/source_chain.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/log.h"
 
 #include <algorithm>
 #include <cmath>
 #include <iomanip>
-#include <numbers>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -180,8 +180,11 @@ class GridGenerator {
             albedo_ = BuildAlbedo(config_, terrain, directory_);
         }
         const TerrainGround ground(terrain, terrain.layers.size());
-        target.albedo = EvaluateAlbedo(*albedo_, grid,
-                                       {.spacing = 0.0, .threads = threads_, .ground = &ground});
+        AlbedoContext context;
+        context.spacing = 0.0;
+        context.threads = threads_;
+        context.ground = &ground;
+        target.albedo = EvaluateAlbedo(*albedo_, grid, context);
         Timed(steps_.size() - 2, stopwatch.Milliseconds());
     }
 
@@ -232,7 +235,10 @@ struct OutputContext {
 
 /// How a GeoTIFF output is written.
 GeoTiffWriteOptions TiffOptions(const GeoTiffOutput& output) {
-    return {.compression = output.compression, .tileSize = output.tileSize};
+    GeoTiffWriteOptions options;
+    options.compression = output.compression;
+    options.tileSize = output.tileSize;
+    return options;
 }
 
 /// The material rasters generated over the output's grid.
@@ -328,7 +334,7 @@ bool Write(const MeshOutput& output, const std::filesystem::path& path,
     }
     const TriangleMesh mesh =
         BodyMesh(context.generated.terrain, output.cellsPerFace, output.spacing.value_or(0.0));
-    ShadedMesh shaded = WithCreases(mesh, std::numbers::pi);
+    ShadedMesh shaded = WithCreases(mesh, kPi);
     WriteMesh(path, {std::move(shaded.mesh), std::move(shaded.normals)});
     LogInfo("pipeline", "Wrote a body mesh of ", mesh.triangles.size(), " triangles to ",
             path.string(), " in ", FormatDuration(stopwatch.Milliseconds()));

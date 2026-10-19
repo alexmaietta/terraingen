@@ -6,7 +6,6 @@
 #include "terraingen/util/geometry.h"
 
 #include <cmath>
-#include <numbers>
 #include <stdexcept>
 #include <utility>
 
@@ -23,7 +22,7 @@ double Profile(double rho) {
 
 /// The semi-axes (long, short) in metres of `zone`.
 std::pair<double, double> SemiAxes(const BlastZone& zone) {
-    const double minor = std::sqrt(zone.area / (std::numbers::pi * zone.elongation));
+    const double minor = std::sqrt(zone.area / (kPi * zone.elongation));
     return {zone.elongation * minor, minor};
 }
 

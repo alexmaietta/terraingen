@@ -29,7 +29,14 @@ struct NoiseLayer {
     float warpWavelength = 500.0f;  ///< Wavelength of the warp field in metres.
 
 #ifndef __SLANG__
-    bool operator==(const NoiseLayer&) const = default;
+    /// Memberwise equality.
+    bool operator==(const NoiseLayer& other) const {
+        return enabled == other.enabled && fractal == other.fractal && blend == other.blend &&
+               warpAmplitude == other.warpAmplitude && warpWavelength == other.warpWavelength;
+    }
+    bool operator!=(const NoiseLayer& other) const {
+        return !(*this == other);
+    }
 #endif
 };
 

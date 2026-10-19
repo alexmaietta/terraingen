@@ -3,12 +3,12 @@
 #pragma once
 
 #include "terraingen/raster/geo_transform.h"
+#include "terraingen/util/span.h"
 
 #include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <optional>
-#include <span>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
@@ -76,25 +76,25 @@ template <typename T> class Raster {
     }
 
     /// All cells in row-major order.
-    std::span<T> Values() {
+    Span<T> Values() {
         return values_;
     }
 
     /// All cells in row-major order, read-only.
-    std::span<const T> Values() const {
+    Span<const T> Values() const {
         return values_;
     }
 
     /// The cells of one row, west to east for north-up rasters; asserts in debug builds.
-    std::span<T> Row(std::size_t row) {
+    Span<T> Row(std::size_t row) {
         assert(row < height_);
-        return std::span<T>(values_).subspan(row * width_, width_);
+        return Span<T>(values_).subspan(row * width_, width_);
     }
 
     /// The cells of one row, read-only; asserts in debug builds.
-    std::span<const T> Row(std::size_t row) const {
+    Span<const T> Row(std::size_t row) const {
         assert(row < height_);
-        return std::span<const T>(values_).subspan(row * width_, width_);
+        return Span<const T>(values_).subspan(row * width_, width_);
     }
 
     /// The pixel-to-world transform.

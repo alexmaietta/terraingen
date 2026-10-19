@@ -106,8 +106,8 @@ inline float PerlinNoise2(int32_t ix, int32_t iy, float fx, float fy, uint32_t s
     const float u = detail::PerlinFade(fx);
     const float v = detail::PerlinFade(fy);
 
-    constexpr float kSqrt2 = 1.41421356237309505f;
-    return kSqrt2 * detail::Lerp(v, detail::Lerp(u, n00, n10), detail::Lerp(u, n01, n11));
+    constexpr float kSqrt2f = 1.41421356237309505f;
+    return kSqrt2f * detail::Lerp(v, detail::Lerp(u, n00, n10), detail::Lerp(u, n01, n11));
 }
 
 /// 2D improved Perlin gradient noise at a point in lattice units.

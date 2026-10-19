@@ -19,7 +19,13 @@ struct RayLayout {
     /// Angular width 2 radii from the centre, in (0, 180) degrees.
     ValueDistribution widthDegrees{ValueDistribution::Kind::Normal, 22.0, 8.3, 5.4, 38.6};
 
-    bool operator==(const RayLayout&) const = default;
+    /// Memberwise equality.
+    bool operator==(const RayLayout& other) const {
+        return seed == other.seed && count == other.count && widthDegrees == other.widthDegrees;
+    }
+    bool operator!=(const RayLayout& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks a ray layout.

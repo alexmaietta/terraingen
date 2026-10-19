@@ -44,7 +44,16 @@ struct DuneRipples {
     double flankStraightening = 0.0;
     ResolutionFade fade{};  ///< How ripples too fine for the spacing fade out.
 
-    bool operator==(const DuneRipples&) const = default;
+    bool operator==(const DuneRipples& other) const {
+        return wavelength == other.wavelength && height == other.height &&
+               leeFraction == other.leeFraction && sinuosity == other.sinuosity &&
+               slopeCoupling == other.slopeCoupling && interduneCover == other.interduneCover &&
+               defectDensity == other.defectDensity &&
+               flankStraightening == other.flankStraightening && fade == other.fade;
+    }
+    bool operator!=(const DuneRipples& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Grainflows on slip faces: avalanches that leave a theatre-headed scarp below the brink and a
@@ -64,7 +73,17 @@ struct DuneGrainflows {
     double thickness = 0.015;  ///< Depth of a scarp and height of a lobe (m).
     ResolutionFade fade{};     ///< How grainflows too narrow for the spacing fade out.
 
-    bool operator==(const DuneGrainflows&) const = default;
+    bool operator==(const DuneGrainflows& other) const {
+        return cover == other.cover && minScarpWidth == other.minScarpWidth &&
+               maxScarpWidth == other.maxScarpWidth && minScarpLength == other.minScarpLength &&
+               maxScarpLength == other.maxScarpLength && minLobeWidth == other.minLobeWidth &&
+               maxLobeWidth == other.maxLobeWidth && minLobeLength == other.minLobeLength &&
+               maxLobeLength == other.maxLobeLength && thickness == other.thickness &&
+               fade == other.fade;
+    }
+    bool operator!=(const DuneGrainflows& other) const {
+        return !(*this == other);
+    }
 };
 
 /// The dunes a `DuneLayer` builds, their sizes and slopes. Lengths are in metres, angles in
@@ -111,7 +130,23 @@ struct DuneOptions {
     DuneRipples ripples{};
     DuneGrainflows grainflows{};  ///< Avalanches on the slip faces; none by default.
 
-    bool operator==(const DuneOptions&) const = default;
+    bool operator==(const DuneOptions& other) const {
+        return shape == other.shape && windAzimuth == other.windAzimuth &&
+               azimuthSpread == other.azimuthSpread && slipFaceAngle == other.slipFaceAngle &&
+               stossSlope == other.stossSlope && stossExponent == other.stossExponent &&
+               domeExponent == other.domeExponent && spacing == other.spacing &&
+               density == other.density && width == other.width &&
+               widthSpread == other.widthSpread && minWidth == other.minWidth &&
+               heightRatio == other.heightRatio && hornLength == other.hornLength &&
+               domeLength == other.domeLength && wavelength == other.wavelength &&
+               height == other.height && sinuosity == other.sinuosity && defects == other.defects &&
+               defectDensity == other.defectDensity && flankSlope == other.flankSlope &&
+               seed == other.seed && anchor == other.anchor && fade == other.fade &&
+               ripples == other.ripples && grainflows == other.grainflows;
+    }
+    bool operator!=(const DuneOptions& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks dune options.

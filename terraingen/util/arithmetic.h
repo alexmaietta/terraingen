@@ -3,14 +3,16 @@
 #pragma once
 
 #include <algorithm>
-#include <concepts>
 #include <cstddef>
+#include <type_traits>
 
 namespace terraingen {
 
 /// `value` / `divisor` rounded up, for a positive `divisor`: the tiles or batches of `divisor`
 /// items that cover `value` items.
-template <std::unsigned_integral T> constexpr T CeilDiv(T value, T divisor) {
+template <typename T, typename = std::enable_if_t<std::is_integral_v<T> && std::is_unsigned_v<T> &&
+                                                  !std::is_same_v<T, bool>>>
+constexpr T CeilDiv(T value, T divisor) {
     return (value + divisor - 1) / divisor;
 }
 

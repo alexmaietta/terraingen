@@ -3,6 +3,7 @@
 #include "terraingen/layers/lattice.h"
 #include "terraingen/noise/perlin.h"
 #include "terraingen/random/stream.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/surface.h"
 
@@ -10,7 +11,6 @@
 #include <array>
 #include <cmath>
 #include <limits>
-#include <numbers>
 #include <optional>
 #include <stdexcept>
 #include <utility>
@@ -64,7 +64,7 @@ Sites PlateSites(const Vec2d& p, double size, double jitter, double maxStep, dou
                        (static_cast<double>(gy) + 0.5 + jitter * (v - 0.5)) * size};
         site.step = maxStep * (2.0 * random.NextDouble() - 1.0);
         site.slope = std::tan(maxTilt * random.NextDouble());
-        const double turn = 2.0 * std::numbers::pi * random.NextDouble();
+        const double turn = 2.0 * kPi * random.NextDouble();
         site.downhill = {std::cos(turn), std::sin(turn)};
         site.id = random.NextU32();
         const double d = std::hypot(p.x - site.centre.x, p.y - site.centre.y);
@@ -111,7 +111,7 @@ void ValidatePavementOptions(const PavementOptions& options) {
     RequireNonNegative(options.edgeRounding, "Pavement edgeRounding");
     RequireNonNegative(options.maxStep, "Pavement maxStep");
     RequireNonNegative(options.warp, "Pavement warp");
-    if (!(options.maxTilt >= 0.0 && options.maxTilt < 0.5 * std::numbers::pi)) {
+    if (!(options.maxTilt >= 0.0 && options.maxTilt < 0.5 * kPi)) {
         throw std::invalid_argument("Pavement maxTilt must be in [0, 90) deg");
     }
     RequireUnitInterval(options.jitter, "Pavement jitter");

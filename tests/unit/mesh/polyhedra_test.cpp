@@ -1,11 +1,11 @@
 #include "terraingen/mesh/polyhedra.h"
 
+#include "terraingen/util/bits.h"
 #include "tests/unit/mesh/support.h"
 
 #include <gtest/gtest.h>
 
 #include <cmath>
-#include <numbers>
 #include <stdexcept>
 
 using terraingen::BaseSolid;
@@ -67,8 +67,8 @@ TEST(Icosphere, IsAGeodesicSphereOfUnitRadius) {
         }
         EXPECT_TRUE(terraingen::testing::IsClosedAndOriented(sphere));
     }
-    EXPECT_NEAR(terraingen::Volume(terraingen::Icosphere(5)), 4.0 / 3.0 * std::numbers::pi, 0.01);
-    EXPECT_NEAR(terraingen::SurfaceArea(terraingen::Icosphere(5)), 4.0 * std::numbers::pi, 0.02);
+    EXPECT_NEAR(terraingen::Volume(terraingen::Icosphere(5)), 4.0 / 3.0 * terraingen::kPi, 0.01);
+    EXPECT_NEAR(terraingen::SurfaceArea(terraingen::Icosphere(5)), 4.0 * terraingen::kPi, 0.02);
     EXPECT_THROW(terraingen::Icosphere(-1), std::invalid_argument);
     EXPECT_THROW(terraingen::Icosphere(13), std::invalid_argument);
 }

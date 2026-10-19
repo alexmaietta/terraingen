@@ -64,7 +64,7 @@ Every [release](https://github.com/alexmaietta/terraingen/releases) has the CLI,
 
 ### Building from Source
 
-You need CMake 3.22 or newer and a C++20 compiler (GCC 11, Clang 14, Apple Clang 15 or MSVC 2022). CMake fetches everything else.
+You need CMake 3.22 or newer and a C++17 compiler (tested with GCC 11, Clang 14, Apple Clang 15 and MSVC 2022). CMake fetches everything else.
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release

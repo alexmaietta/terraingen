@@ -17,7 +17,13 @@ struct MeshMaterial {
     std::string name = "default";                 ///< Name in OBJ/MTL and glTF.
     std::array<double, 3> colour{0.5, 0.5, 0.5};  ///< Linear RGB, each in [0, 1].
 
-    bool operator==(const MeshMaterial&) const = default;
+    /// Memberwise equality.
+    bool operator==(const MeshMaterial& other) const {
+        return name == other.name && colour == other.colour;
+    }
+    bool operator!=(const MeshMaterial& other) const {
+        return !(*this == other);
+    }
 };
 
 /// A mesh with optional normals and its material.

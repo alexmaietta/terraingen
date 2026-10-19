@@ -4,7 +4,7 @@ Thank you for helping. Bug reports, questions, references and pull requests are 
 
 ## Building and testing
 
-TerrainGen needs CMake 3.22 or newer and a C++20 compiler (GCC 11, Clang 14, Apple Clang 15 or MSVC 2022). Everything else is fetched by CMake.
+TerrainGen needs CMake 3.22 or newer and a C++17 compiler (tested with GCC 11, Clang 14, Apple Clang 15 and MSVC 2022). Everything else is fetched by CMake. Keep the library, tests and examples C++17: no `std::span` (use `terraingen::Span`), `std::numbers` (use `kPi` from `util/bits.h`), defaulted comparisons, concepts or designated initialisers.
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release

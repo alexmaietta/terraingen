@@ -1,12 +1,12 @@
 #include "terraingen/layers/bedforms.h"
 
 #include "terraingen/terraingen.h"
+#include "terraingen/util/bits.h"
 
 #include <gtest/gtest.h>
 
 #include <cmath>
 #include <functional>
-#include <numbers>
 #include <stdexcept>
 #include <vector>
 
@@ -136,7 +136,7 @@ TEST(BedformLayer, RejectsInvalidOptions) {
         [](BedformOptions& o) { o.cover = 0.95; },
         [](BedformOptions& o) { o.sinuosity = -1.0; },
         [](BedformOptions& o) { o.exposureSpacing = 0.0; },
-        [](BedformOptions& o) { o.exposure = terraingen::ExposureParams{.reach = -1.0}; },
+        [](BedformOptions& o) { o.exposure = terraingen::ExposureParams{-1.0}; },
         [](BedformOptions& o) { o.fade = {2.0, 1.0}; }};
     for (const auto& change : changes) {
         BedformOptions options;
@@ -149,8 +149,8 @@ TEST(BedformLayer, RejectsInvalidOptions) {
 TEST(MarsBedforms, FollowLapotreAndHugenholtz) {
     const auto ripples = terraingen::MarsLargeRipples();
     const double leeSlope =
-        std::numbers::pi * ripples.height / (2.0 * ripples.wavelength * ripples.leeFraction);
-    EXPECT_NEAR(std::atan(leeSlope) * 180.0 / std::numbers::pi, 30.0, 1e-9);
+        terraingen::kPi * ripples.height / (2.0 * ripples.wavelength * ripples.leeFraction);
+    EXPECT_NEAR(std::atan(leeSlope) * 180.0 / terraingen::kPi, 30.0, 1e-9);
     EXPECT_NO_THROW(terraingen::ValidateBedformOptions(ripples));
     const auto ridges = terraingen::MarsTransverseAeolianRidges();
     EXPECT_EQ(ridges.wavelength, 25.8);

@@ -29,9 +29,7 @@ function(terraingen_add_library module)
         target_link_libraries(
             ${target} PRIVATE ${ARG_PRIVATE} $<BUILD_INTERFACE:terraingen_warnings>
                               $<BUILD_INTERFACE:terraingen_coverage>)
-        if(TERRAINGEN_BUILD_PYTHON)
-            set_target_properties(${target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-        endif()
+        set_target_properties(${target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
         set_property(GLOBAL APPEND PROPERTY TERRAINGEN_STATIC_MODULES ${target})
     else()
         add_library(${target} INTERFACE)
@@ -43,7 +41,7 @@ function(terraingen_add_library module)
         ${target} ${scope} $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
         $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
-    target_compile_features(${target} ${scope} cxx_std_20)
+    target_compile_features(${target} ${scope} cxx_std_17)
     target_link_libraries(${target} ${scope} ${ARG_PUBLIC})
     set_property(GLOBAL APPEND PROPERTY TERRAINGEN_MODULES ${target})
 endfunction()

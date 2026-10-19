@@ -24,7 +24,13 @@ struct RockAlbedoOptions {
     double reflectanceRatio = 2.5;  ///< Rock over regolith reflectance; positive.
     bool unresolved = true;         ///< Whether rocks too small to resolve brighten samples.
 
-    bool operator==(const RockAlbedoOptions&) const = default;
+    bool operator==(const RockAlbedoOptions& other) const {
+        return seed == other.seed && reflectanceRatio == other.reflectanceRatio &&
+               unresolved == other.unresolved;
+    }
+    bool operator!=(const RockAlbedoOptions& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks rock albedo options.

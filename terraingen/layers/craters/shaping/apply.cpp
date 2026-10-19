@@ -309,16 +309,16 @@ Backend AddDatumRelief(Raster<float>& lattice, const std::vector<std::uint8_t>& 
     }
     const CraterKernelBatch& batch = index.batch;
     const std::array<KernelBuffer, 8> extra{
-        KernelBuffer{std::as_bytes(std::span(batch.records)), batch.records.size()},
-        KernelBuffer{std::as_bytes(std::span(batch.data)), batch.data.size()},
-        KernelBuffer{std::as_bytes(std::span(index.lows)), index.lows.size()},
-        KernelBuffer{std::as_bytes(std::span(index.bandFloats)), index.bandFloats.size()},
-        KernelBuffer{std::as_bytes(std::span(index.bandCells)), index.bandCells.size()},
-        KernelBuffer{std::as_bytes(std::span(index.cells)), index.cells.size()},
-        KernelBuffer{std::as_bytes(std::span(index.entries)), index.entries.size()},
-        KernelBuffer{std::as_bytes(std::span(targets)), targets.size()}};
-    if (RunKernel(backend, CompiledKernel<CraterDatumKernel>(),
-                  std::as_bytes(std::span(&index.kernel, 1)), lattice, {0.0, 0.0}, extra)) {
+        KernelBuffer{AsBytes(Span(batch.records)), batch.records.size()},
+        KernelBuffer{AsBytes(Span(batch.data)), batch.data.size()},
+        KernelBuffer{AsBytes(Span(index.lows)), index.lows.size()},
+        KernelBuffer{AsBytes(Span(index.bandFloats)), index.bandFloats.size()},
+        KernelBuffer{AsBytes(Span(index.bandCells)), index.bandCells.size()},
+        KernelBuffer{AsBytes(Span(index.cells)), index.cells.size()},
+        KernelBuffer{AsBytes(Span(index.entries)), index.entries.size()},
+        KernelBuffer{AsBytes(Span(targets)), targets.size()}};
+    if (RunKernel(backend, CompiledKernel<CraterDatumKernel>(), AsBytes(Span(&index.kernel, 1)),
+                  lattice, {0.0, 0.0}, extra)) {
         return backend;
     }
     ParallelFor(fitted.size(), threads, [&](std::size_t n) {
@@ -483,7 +483,12 @@ class ReliefIndex {
         long long i;
         long long j;
         long long k;
-        bool operator==(const Key&) const = default;
+        bool operator==(const Key& other) const {
+            return band == other.band && i == other.i && j == other.j && k == other.k;
+        }
+        bool operator!=(const Key& other) const {
+            return !(*this == other);
+        }
     };
     struct KeyHash {
         std::size_t operator()(const Key& key) const {
@@ -693,15 +698,15 @@ bool FitBodyDatumsOnGpu(std::vector<PreparedCrater>& prepared,
     const std::vector<float>& data = batch.data.empty() ? placeholder : batch.data;
     const CraterBodyDatumKernel kernel{shape};
     const std::array<KernelBuffer, 7> extra{
-        KernelBuffer{std::as_bytes(std::span(batch.records)), batch.records.size()},
-        KernelBuffer{std::as_bytes(std::span(data)), data.size()},
-        KernelBuffer{std::as_bytes(std::span(craters.frames)), craters.frames.size()},
-        KernelBuffer{std::as_bytes(std::span(craters.bounds)), craters.bounds.size()},
-        KernelBuffer{std::as_bytes(std::span(craters.lists)), craters.lists.size()},
-        KernelBuffer{std::as_bytes(std::span(craters.entries)), craters.entries.size()},
-        KernelBuffer{std::as_bytes(std::span(points.positions)), points.positions.size(), 3}};
+        KernelBuffer{AsBytes(Span(batch.records)), batch.records.size()},
+        KernelBuffer{AsBytes(Span(data)), data.size()},
+        KernelBuffer{AsBytes(Span(craters.frames)), craters.frames.size()},
+        KernelBuffer{AsBytes(Span(craters.bounds)), craters.bounds.size()},
+        KernelBuffer{AsBytes(Span(craters.lists)), craters.lists.size()},
+        KernelBuffer{AsBytes(Span(craters.entries)), craters.entries.size()},
+        KernelBuffer{AsBytes(Span(points.positions)), points.positions.size(), 3}};
     if (!RunKernel(sampling.backend, CompiledKernel<CraterBodyDatumKernel>(),
-                   std::as_bytes(std::span(&kernel, 1)), lattice, {0.0, 0.0}, extra)) {
+                   AsBytes(Span(&kernel, 1)), lattice, {0.0, 0.0}, extra)) {
         return false;
     }
     SolveDatums(prepared, fitted, lattice, valid, options, sampling.threads);
@@ -741,7 +746,7 @@ void ShapeOnSlopes(std::vector<PreparedCrater>& prepared, const HeightSampler& g
         PreparedCrater& crater = prepared[k];
         const Crater& c = crater.crater;
         const std::optional<Vec2d> gradient = GradientFromHeights(
-            std::span<const float, 4>(heights.data() + 4 * k, 4), FitRadius(c, options));
+            Span<const float>(heights.data() + 4 * k, 4), FitRadius(c, options));
         if (!gradient) {
             continue;
         }
@@ -982,15 +987,15 @@ bool ShapeTilesOnGpu(Raster<float>& raster, Backend backend, unsigned threads,
         batch.data.push_back(0.0f);
     }
     const std::array<KernelBuffer, 6> extra{
-        KernelBuffer{std::as_bytes(std::span(batch.records)), batch.records.size()},
-        KernelBuffer{std::as_bytes(std::span(batch.data)), batch.data.size()},
-        KernelBuffer{std::as_bytes(std::span(tiles)), tiles.size()},
-        KernelBuffer{std::as_bytes(std::span(entries)), entries.size()},
-        KernelBuffer{std::as_bytes(std::span(body.frames)), body.frames.size()},
-        KernelBuffer{std::as_bytes(std::span(body.positions)), body.positions.size(),
+        KernelBuffer{AsBytes(Span(batch.records)), batch.records.size()},
+        KernelBuffer{AsBytes(Span(batch.data)), batch.data.size()},
+        KernelBuffer{AsBytes(Span(tiles)), tiles.size()},
+        KernelBuffer{AsBytes(Span(entries)), entries.size()},
+        KernelBuffer{AsBytes(Span(body.frames)), body.frames.size()},
+        KernelBuffer{AsBytes(Span(body.positions)), body.positions.size(),
                      onBody ? std::size_t{3} : std::size_t{0}}};
-    if (!RunKernel(backend, CompiledKernel<CraterShapeKernel>(),
-                   std::as_bytes(std::span(&kernel, 1)), raster, origin, extra)) {
+    if (!RunKernel(backend, CompiledKernel<CraterShapeKernel>(), AsBytes(Span(&kernel, 1)), raster,
+                   origin, extra)) {
         return false;
     }
     LogDebug("craters", "Shaped ", onRaster.size(), " craters on ", BackendName(backend));

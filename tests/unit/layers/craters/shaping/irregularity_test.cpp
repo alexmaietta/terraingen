@@ -1,6 +1,7 @@
 #include "terraingen/layers/craters/shaping/irregularity.h"
 
 #include "terraingen/terraingen.h"
+#include "terraingen/util/bits.h"
 
 #include <gtest/gtest.h>
 
@@ -8,7 +9,6 @@
 #include <complex>
 #include <functional>
 #include <memory>
-#include <numbers>
 #include <stdexcept>
 #include <vector>
 
@@ -29,7 +29,7 @@ std::pair<double, double> Stretch(const terraingen::CraterOutline& outline) {
     double squares = 0.0;
     constexpr int kSteps = 4096;
     for (int n = 0; n < kSteps; ++n) {
-        const double theta = 2.0 * std::numbers::pi * n / kSteps;
+        const double theta = 2.0 * terraingen::kPi * n / kSteps;
         const double s = outline.Scale(std::cos(theta), std::sin(theta));
         sum += s;
         squares += (s - 1.0) * (s - 1.0);
@@ -103,18 +103,18 @@ TEST(IrregularOutline, MakesTheShareOfCratersAskedForElliptical) {
 TEST(CraterOutline, StretchesEllipsesAlongTheirHeadingKeepingTheirArea) {
     terraingen::CraterOutline ellipse;
     ellipse.ellipticity = 2.0;
-    ellipse.heading = std::numbers::pi / 4.0;
+    ellipse.heading = terraingen::kPi / 4.0;
     EXPECT_NEAR(ellipse.Scale(1.0, 1.0), std::sqrt(2.0), 1e-12);
     EXPECT_NEAR(ellipse.Scale(-1.0, 1.0), 1.0 / std::sqrt(2.0), 1e-12);
     EXPECT_NEAR(ellipse.Scale(1.0, 1.0) / ellipse.Scale(-1.0, 1.0), 2.0, 1e-12);
     double area = 0.0;
     constexpr int kSteps = 4096;
     for (int n = 0; n < kSteps; ++n) {
-        const double theta = 2.0 * std::numbers::pi * n / kSteps;
+        const double theta = 2.0 * terraingen::kPi * n / kSteps;
         area += 0.5 * std::pow(ellipse.Scale(std::cos(theta), std::sin(theta)), 2.0) * 2.0 *
-                std::numbers::pi / kSteps;
+                terraingen::kPi / kSteps;
     }
-    EXPECT_NEAR(area, std::numbers::pi, 1e-9);
+    EXPECT_NEAR(area, terraingen::kPi, 1e-9);
     EXPECT_NEAR(ellipse.MaxScale(), std::sqrt(2.0), 1e-12);
     EXPECT_EQ(terraingen::CraterOutline{}.Scale(3.0, 4.0), 1.0);
 }
@@ -130,7 +130,7 @@ TEST(CraterOutline, HasTheRoughnessAskedForAndStaysWithinItsBounds) {
         EXPECT_NEAR(rms, 0.04, 1e-6) << id;
         EXPECT_NEAR(mean, 1.0, 1e-9);
         for (int n = 0; n < 360; ++n) {
-            const double theta = n * std::numbers::pi / 180.0;
+            const double theta = n * terraingen::kPi / 180.0;
             EXPECT_LE(outline.Scale(std::cos(theta), std::sin(theta)), outline.MaxScale() + 1e-12);
         }
         EXPECT_LE(outline.MaxScale(), terraingen::MaxOutlineScale(irregularity) + 1e-12);
@@ -157,29 +157,29 @@ TEST(IrregularOutline, FollowsDuEtAlsFittedRimSpectra) {
         std::complex<double> sum = 0.0;
         for (std::size_t n = 0; n < outline.table.size(); ++n) {
             sum += outline.table[n] *
-                   std::polar(1.0, -2.0 * std::numbers::pi * k * static_cast<double>(n) / 1024.0);
+                   std::polar(1.0, -2.0 * terraingen::kPi * k * static_cast<double>(n) / 1024.0);
         }
         return 2.0 * std::abs(sum) / 1024.0;
     };
     const auto expected = [](double logPower) {
-        return std::sqrt(std::pow(10.0, logPower) * 2.0 * std::numbers::pi) / 5000.0;
+        return std::sqrt(std::pow(10.0, logPower) * 2.0 * terraingen::kPi) / 5000.0;
     };
     EXPECT_NEAR(amplitude(1), expected(0.066 * 10.0 - 1.1), 1e-12) << "degree-1 power";
     EXPECT_NEAR(amplitude(2), expected(0.055 * 10.0 + 2.3), 1e-12) << "degree-2 power";
     const double logWavelength2 = 0.010 * 10.0 - 0.57;
     const double logPower2 = 0.043 * 10.0 + 0.59;
-    const double logPi = std::log10(std::numbers::pi);
-    const double at10 = std::log10(2.0 * std::numbers::pi / 10.0);
+    const double logPi = std::log10(terraingen::kPi);
+    const double at10 = std::log10(2.0 * terraingen::kPi / 10.0);
     EXPECT_NEAR(amplitude(10),
                 expected(logPower2 + (at10 - logWavelength2) / (logPi - logWavelength2) *
                                          (0.055 * 10.0 + 2.3 - logPower2)),
                 1e-12);
-    const double at200 = std::log10(2.0 * std::numbers::pi / 200.0);
+    const double at200 = std::log10(2.0 * terraingen::kPi / 200.0);
     EXPECT_NEAR(amplitude(200),
                 expected(logPower2 + (-0.022 * 10.0 + 3.3) * (at200 - logWavelength2)), 1e-12);
     EXPECT_NEAR(outline.Scale(1.0, 0.0), 1.0 + outline.table[0], 1e-12);
-    EXPECT_NEAR(outline.Scale(std::cos(2.0 * std::numbers::pi * 5.0 / 1024.0),
-                              std::sin(2.0 * std::numbers::pi * 5.0 / 1024.0)),
+    EXPECT_NEAR(outline.Scale(std::cos(2.0 * terraingen::kPi * 5.0 / 1024.0),
+                              std::sin(2.0 * terraingen::kPi * 5.0 / 1024.0)),
                 1.0 + outline.table[5], 1e-9);
     EXPECT_NEAR(terraingen::MaxOutlineScale(irregularity), 1.3, 1e-12);
 
@@ -240,7 +240,7 @@ TEST(CraterOutline, ShiftsOnlyTheWallSmoothlyAroundTheCrater) {
     double largest = 0.0;
     double previous = outline.MarkShift(1.0, -1e-6, 0.6);
     for (int n = 0; n <= 3600; ++n) {
-        const double theta = 2.0 * std::numbers::pi * n / 3600.0;
+        const double theta = 2.0 * terraingen::kPi * n / 3600.0;
         const double shift = outline.MarkShift(std::cos(theta), std::sin(theta), 0.6);
         ASSERT_LT(std::fabs(shift - previous), 1e-4) << "continuous at " << theta;
         largest = std::fmax(largest, std::fabs(shift));
@@ -262,7 +262,7 @@ TEST(CraterProfileDistance, ShiftsTheWallByTheMarksAndKeepsItInOrder) {
     const terraingen::CraterOutline outline = IrregularOutline(crater, irregularity);
     ASSERT_FALSE(outline.marks.empty());
     for (int a = 0; a < 64; ++a) {
-        const double theta = 2.0 * std::numbers::pi * a / 64.0;
+        const double theta = 2.0 * terraingen::kPi * a / 64.0;
         double previous = -1.0;
         for (int k = 0; k <= 600; ++k) {
             const double r = 60.0 * k / 600.0;

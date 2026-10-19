@@ -22,7 +22,12 @@ struct TileKey {
     std::int64_t x = 0;
     std::int64_t y = 0;
 
-    bool operator==(const TileKey&) const = default;
+    bool operator==(const TileKey& other) const {
+        return level == other.level && x == other.x && y == other.y;
+    }
+    bool operator!=(const TileKey& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Hashes a `TileKey`, for maps and caches.

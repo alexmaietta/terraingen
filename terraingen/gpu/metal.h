@@ -6,7 +6,6 @@
 
 #include <cstddef>
 #include <memory>
-#include <span>
 #include <string>
 
 namespace terraingen {
@@ -27,8 +26,8 @@ class MetalCompute final : public ComputeDevice {
     bool CanRun(const KernelProgram& program) const override;
 
     /// @throws std::runtime_error when the source does not compile or the dispatch fails.
-    void Run(const KernelProgram& program, std::span<const DeviceBuffer> buffers,
-             std::span<const std::byte> pushConstants, const Dispatch& dispatch) override;
+    void Run(const KernelProgram& program, Span<const DeviceBuffer> buffers,
+             Span<const std::byte> pushConstants, const Dispatch& dispatch) override;
 
     MetalCompute(const MetalCompute&) = delete;
     MetalCompute& operator=(const MetalCompute&) = delete;

@@ -1,11 +1,12 @@
 #include "terraingen/layers/sand_shadow.h"
 
 #include "terraingen/raster/cell_loops.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
+#include "terraingen/util/span.h"
 
 #include <algorithm>
 #include <cmath>
-#include <numbers>
 #include <stdexcept>
 #include <utility>
 
@@ -14,7 +15,7 @@ namespace terraingen {
 void ValidateSandShadowOptions(const SandShadowOptions& options) {
     RequireFinite(options.windAzimuth, "Sand shadow windAzimuth");
     RequirePositive(options.lengthRatio, "Sand shadow lengthRatio");
-    if (!(options.flankAngle > 0.0 && options.flankAngle < 0.5 * std::numbers::pi)) {
+    if (!(options.flankAngle > 0.0 && options.flankAngle < 0.5 * kPi)) {
         throw std::invalid_argument("Sand shadow flankAngle must be in (0, 90) deg");
     }
     RequireNonNegative(options.minDiameter, "Sand shadow minDiameter");
@@ -118,7 +119,7 @@ void SandShadowLayer::ApplySamples(SampleBlock& samples, const LayerContext& con
     const double spacing = samples.ResolvedSpacing(context.spacing, surface_);
     const std::vector<Shadow> shadows = ShadowsOver(samples.Bounds(), spacing, context.ground);
     if (heights != nullptr) {
-        const std::span<const float> values = std::as_const(*heights).Values();
+        const Span<const float> values = std::as_const(*heights).Values();
         const std::vector<float> beneath(values.begin(), values.end());
         const std::size_t width = heights->Width();
         std::vector<std::vector<PixelWindow>> windows;

@@ -36,6 +36,27 @@ Raster<float> Cells() {
     return raster;
 }
 
+/// The default options with `method`.
+RasterFieldOptions WithMethod(ResampleMethod method) {
+    RasterFieldOptions options;
+    options.method = method;
+    return options;
+}
+
+/// The default options with `scale`.
+RasterFieldOptions WithScale(double scale) {
+    RasterFieldOptions options;
+    options.scale = scale;
+    return options;
+}
+
+/// The default options with `fallback`.
+RasterFieldOptions WithFallback(double fallback) {
+    RasterFieldOptions options;
+    options.fallback = fallback;
+    return options;
+}
+
 }  // namespace
 
 TEST(ConstantField, IsTheSameEverywhere) {
@@ -46,7 +67,7 @@ TEST(ConstantField, IsTheSameEverywhere) {
 }
 
 TEST(RasterField, InterpolatesItsCellsAndBoundsThem) {
-    const RasterField field(Cells(), {.scale = 2.0});
+    const RasterField field(Cells(), WithScale(2.0));
     EXPECT_DOUBLE_EQ(field.ValueAt(5.0, 15.0), 0.0);
     EXPECT_DOUBLE_EQ(field.ValueAt(15.0, 15.0), 20.0);
     EXPECT_DOUBLE_EQ(field.ValueAt(10.0, 15.0), 10.0) << "bilinear between cell centres";
@@ -56,18 +77,18 @@ TEST(RasterField, InterpolatesItsCellsAndBoundsThem) {
     EXPECT_DOUBLE_EQ(field.ValueAt(30.0, 15.0), 40.0) << "a NaN cell only removes itself";
     EXPECT_DOUBLE_EQ(field.ValueAt(30.0, 10.0), 41.0) << "and a no-data cell";
     EXPECT_TRUE(std::isnan(field.ValueAt(-5.0, 15.0))) << "outside";
-    const RasterField nearest(Cells(), {.method = ResampleMethod::Nearest});
+    const RasterField nearest(Cells(), WithMethod(ResampleMethod::Nearest));
     EXPECT_DOUBLE_EQ(nearest.ValueAt(11.0, 19.0), 10.0);
     EXPECT_EQ(nearest.Values().Width(), 4u);
     EXPECT_EQ(nearest.Options().method, ResampleMethod::Nearest);
 }
 
 TEST(RasterField, FallsBackWhereItHasNoValue) {
-    const RasterField field(Cells(), {.fallback = 99.0});
+    const RasterField field(Cells(), WithFallback(99.0));
     EXPECT_EQ(field.ValueAt(-5.0, 15.0), 99.0);
     EXPECT_EQ(field.ValueAt(35.0, 5.0), 99.0);
     EXPECT_EQ(field.Max(), 99.0);
-    EXPECT_EQ(RasterField(Cells(), {.fallback = -1.0}).Max(), 21.0);
+    EXPECT_EQ(RasterField(Cells(), WithFallback(-1.0)).Max(), 21.0);
 }
 
 TEST(RasterField, WrapsLongitudes) {
@@ -75,9 +96,10 @@ TEST(RasterField, WrapsLongitudes) {
     raster.SetTransform(GeoTransform::NorthUp(0.0, 10.0, 90.0));
     raster(3, 0) = 7.0f;
     raster(3, 1) = 7.0f;
-    const RasterField plain(raster, {.method = ResampleMethod::Nearest});
-    const RasterField wrapped(raster,
-                              {.method = ResampleMethod::Nearest, .periodicLongitude = true});
+    const RasterField plain(raster, WithMethod(ResampleMethod::Nearest));
+    RasterFieldOptions periodic = WithMethod(ResampleMethod::Nearest);
+    periodic.periodicLongitude = true;
+    const RasterField wrapped(raster, periodic);
     EXPECT_TRUE(std::isnan(plain.ValueAt(-45.0, 0.0)));
     EXPECT_EQ(wrapped.ValueAt(-45.0, 0.0), 7.0) << "-45 deg reads 315 deg";
     EXPECT_EQ(wrapped.ValueAt(405.0, 0.0), 1.0) << "405 deg reads 45 deg";
@@ -85,8 +107,8 @@ TEST(RasterField, WrapsLongitudes) {
 
 TEST(RasterField, RejectsWhatItCannotRead) {
     EXPECT_THROW(RasterField(Raster<float>{}), std::invalid_argument);
-    EXPECT_THROW(RasterField(Cells(), {.method = ResampleMethod::Cubic}), std::invalid_argument);
-    EXPECT_THROW(RasterField(Cells(), {.scale = 0.0}), std::invalid_argument);
+    EXPECT_THROW(RasterField(Cells(), WithMethod(ResampleMethod::Cubic)), std::invalid_argument);
+    EXPECT_THROW(RasterField(Cells(), WithScale(0.0)), std::invalid_argument);
     Raster<float> rotated = Cells();
     GeoTransform transform = rotated.Transform();
     transform.rowRotation = 0.1;
@@ -98,7 +120,7 @@ TEST(ReadRasterField, ReadsAGeoTiffBand) {
     const auto path = terraingen::testing::TempPath("raster_field.tif");
     const terraingen::GeoKeys keys{{1, 1, 0, 1, 1024, 0, 1, 1}, {}, {}};
     terraingen::WriteGeoTiff(path, Cells(), keys);
-    const auto field = terraingen::ReadRasterField(path, {.scale = 0.5});
+    const auto field = terraingen::ReadRasterField(path, WithScale(0.5));
     EXPECT_DOUBLE_EQ(field->ValueAt(15.0, 15.0), 5.0);
     EXPECT_DOUBLE_EQ(field->Max(), 10.5);
 }

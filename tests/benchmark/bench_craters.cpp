@@ -13,10 +13,12 @@ void BM_GenerateCraters(benchmark::State& state) {
     const auto ages = testing::LunarCraterAges(3.5);
     const double half = 0.5 * static_cast<double>(state.range(0));
     const Bounds2d region{-half, -half, half, half};
+    CraterGenerationOptions options;
+    options.dMin = 2.5;
+    options.dMax = 200.0;
     std::size_t craters = 0;
     for (auto _ : state) {
-        CraterList list = GenerateCraters(PlanarCells(), region, *density, *ages, 1u,
-                                          {.dMin = 2.5, .dMax = 200.0});
+        CraterList list = GenerateCraters(PlanarCells(), region, *density, *ages, 1u, options);
         craters = list.Size();
         benchmark::DoNotOptimize(list);
     }
@@ -32,9 +34,12 @@ void BM_ApplyCraters(benchmark::State& state) {
     const auto ages = testing::LunarCraterAges(3.5);
     const auto side = static_cast<std::size_t>(state.range(0));
     const double half = 0.5 * static_cast<double>(side);
+    CraterGenerationOptions options;
+    options.dMin = 2.5;
+    options.dMax = 200.0;
+    options.marginRadii = 1.5;
     const CraterList craters =
-        GenerateCraters(PlanarCells(), {-half, -half, half, half}, *density, *ages, 1u,
-                        {.dMin = 2.5, .dMax = 200.0, .marginRadii = 1.5});
+        GenerateCraters(PlanarCells(), {-half, -half, half, half}, *density, *ages, 1u, options);
     const terraingen::CraterShapeModels models{
         std::make_shared<FassettThomsonProfile>(),
         std::make_shared<FreshnessDegradation>(ages, LunarFreshCraterMorphometry)};

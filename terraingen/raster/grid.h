@@ -47,7 +47,13 @@ struct RasterGrid {
     /// A raster with this grid's size and transform, every cell `fill`, and no no-data value.
     Raster<float> MakeRaster(float fill = 0.0f) const;
 
-    bool operator==(const RasterGrid&) const = default;
+    /// Memberwise equality.
+    bool operator==(const RasterGrid& other) const {
+        return width == other.width && height == other.height && transform == other.transform;
+    }
+    bool operator!=(const RasterGrid& other) const {
+        return !(*this == other);
+    }
 };
 
 /// A grid with square cells over the same extent, origin and axis directions as an unrotated

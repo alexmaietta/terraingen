@@ -42,7 +42,7 @@ struct MetalCompute::State {
     }
 
     /// The pipeline of `source`, compiled on first use.
-    id<MTLComputePipelineState> CachedPipeline(std::span<const char> source) {
+    id<MTLComputePipelineState> CachedPipeline(Span<const char> source) {
         const auto found = pipelines.find(source.data());
         if (found != pipelines.end()) {
             return found->second;
@@ -70,7 +70,7 @@ struct MetalCompute::State {
     }
 
     /// A shared device buffer holding a copy of each host buffer.
-    std::vector<id<MTLBuffer>> Upload(std::span<const DeviceBuffer> buffers) const {
+    std::vector<id<MTLBuffer>> Upload(Span<const DeviceBuffer> buffers) const {
         std::vector<id<MTLBuffer>> deviceBuffers;
         for (const DeviceBuffer& buffer : buffers) {
             id<MTLBuffer> deviceBuffer =
@@ -89,7 +89,7 @@ struct MetalCompute::State {
     /// and waits for it to complete.
     void DispatchAndWait(id<MTLComputePipelineState> pipeline,
                          const std::vector<id<MTLBuffer>>& deviceBuffers,
-                         std::span<const std::byte> pushConstants, const Dispatch& dispatch) const {
+                         Span<const std::byte> pushConstants, const Dispatch& dispatch) const {
         const auto& [groups, size] = dispatch;
         id<MTLCommandBuffer> command = [queue commandBuffer];
         id<MTLComputeCommandEncoder> encoder = [command computeCommandEncoder];
@@ -121,8 +121,8 @@ const std::string& MetalCompute::DeviceName() const {
     return state_->name;
 }
 
-void MetalCompute::Run(const KernelProgram& program, std::span<const DeviceBuffer> buffers,
-                       std::span<const std::byte> pushConstants, const Dispatch& dispatch) {
+void MetalCompute::Run(const KernelProgram& program, Span<const DeviceBuffer> buffers,
+                       Span<const std::byte> pushConstants, const Dispatch& dispatch) {
     if (!CanRun(program)) {
         throw std::runtime_error("The kernel has no Metal source");
     }
@@ -157,8 +157,8 @@ const std::string& MetalCompute::DeviceName() const {
     throw std::runtime_error("Metal is unavailable on this platform");
 }
 
-void MetalCompute::Run(const KernelProgram& /*program*/, std::span<const DeviceBuffer> /*buffers*/,
-                       std::span<const std::byte> /*pushConstants*/, const Dispatch& /*dispatch*/) {
+void MetalCompute::Run(const KernelProgram& /*program*/, Span<const DeviceBuffer> /*buffers*/,
+                       Span<const std::byte> /*pushConstants*/, const Dispatch& /*dispatch*/) {
     throw std::runtime_error("Metal is unavailable on this platform");
 }
 

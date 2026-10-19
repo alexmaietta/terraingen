@@ -2,17 +2,18 @@
 /// @brief Small vector types, vector math and axis-aligned boxes.
 #pragma once
 
+#include "terraingen/util/bits.h"
+
 #include <cmath>
 #include <limits>
-#include <numbers>
 
 namespace terraingen {
 
 /// One degree in radians.
-inline constexpr double kDegree = std::numbers::pi / 180.0;
+inline constexpr double kDegree = kPi / 180.0;
 
 /// One radian in degrees.
-inline constexpr double kRadian = 180.0 / std::numbers::pi;
+inline constexpr double kRadian = 180.0 / kPi;
 
 /// The slope in degrees of a surface with height gradient (`dx`, `dy`) in metres per metre; NaN
 /// where either is NaN.
@@ -26,7 +27,12 @@ struct Vec2d {
     double y = 0.0;
 
     /// Componentwise equality.
-    bool operator==(const Vec2d&) const = default;
+    bool operator==(const Vec2d& other) const {
+        return x == other.x && y == other.y;
+    }
+    bool operator!=(const Vec2d& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Componentwise sum.
@@ -61,7 +67,12 @@ struct Vec3d {
     double z = 0.0;
 
     /// Componentwise equality.
-    bool operator==(const Vec3d&) const = default;
+    bool operator==(const Vec3d& other) const {
+        return x == other.x && y == other.y && z == other.z;
+    }
+    bool operator!=(const Vec3d& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Componentwise sum.

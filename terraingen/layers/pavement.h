@@ -40,7 +40,18 @@ struct PavementOptions {
     Vec2d anchor{};
     ResolutionFade fade{};  ///< How plates and cracks too fine for the spacing fade out.
 
-    bool operator==(const PavementOptions&) const = default;
+    bool operator==(const PavementOptions& other) const {
+        return plateSize == other.plateSize && jitter == other.jitter && warp == other.warp &&
+               crackWidth == other.crackWidth && crackDepth == other.crackDepth &&
+               raised == other.raised && edgeRounding == other.edgeRounding &&
+               maxTilt == other.maxTilt && maxStep == other.maxStep && octaves == other.octaves &&
+               lacunarity == other.lacunarity && gain == other.gain && seed == other.seed &&
+               exposure == other.exposure && exposureSpacing == other.exposureSpacing &&
+               anchor == other.anchor && fade == other.fade;
+    }
+    bool operator!=(const PavementOptions& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks pavement options.

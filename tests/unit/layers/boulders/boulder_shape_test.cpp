@@ -91,17 +91,22 @@ TEST(GenerateBoulderShape, KeepsItsShapeAcrossLevelsOfDetail) {
 
 TEST(GenerateBoulderShape, FollowsTheStyleWeightsAndSettings) {
     BoulderShapeOptions options;
-    options.styles = {BoulderStyle{.name = "slab",
-                                   .weight = 3.0,
-                                   .solid = terraingen::BaseSolid::Cube,
-                                   .shortAxis = {0.2, 0.2}},
-                      BoulderStyle{.name = "ball",
-                                   .weight = 1.0,
-                                   .solid = terraingen::BaseSolid::Icosahedron,
-                                   .intermediate = {0.9, 0.9},
-                                   .shortAxis = {0.8, 0.8},
-                                   .noiseAmplitude = 0.0},
-                      BoulderStyle{.name = "never", .weight = 0.0}};
+    BoulderStyle slab;
+    slab.name = "slab";
+    slab.weight = 3.0;
+    slab.solid = terraingen::BaseSolid::Cube;
+    slab.shortAxis = {0.2, 0.2};
+    BoulderStyle round;
+    round.name = "ball";
+    round.weight = 1.0;
+    round.solid = terraingen::BaseSolid::Icosahedron;
+    round.intermediate = {0.9, 0.9};
+    round.shortAxis = {0.8, 0.8};
+    round.noiseAmplitude = 0.0;
+    BoulderStyle never;
+    never.name = "never";
+    never.weight = 0.0;
+    options.styles = {slab, round, never};
     options.subdivisions = 1;
     int slabs = 0;
     constexpr int kCount = 2000;
@@ -123,12 +128,14 @@ TEST(GenerateBoulderShape, FollowsTheStyleWeightsAndSettings) {
 
 TEST(GenerateBoulderShape, CutsFlatFractureFaces) {
     BoulderShapeOptions options;
-    options.styles = {BoulderStyle{.name = "cut",
-                                   .solid = terraingen::BaseSolid::Icosahedron,
-                                   .minFractures = 1,
-                                   .maxFractures = 1,
-                                   .fractureDepth = {0.5, 0.5},
-                                   .noiseAmplitude = 0.0}};
+    BoulderStyle cutStyle;
+    cutStyle.name = "cut";
+    cutStyle.solid = terraingen::BaseSolid::Icosahedron;
+    cutStyle.minFractures = 1;
+    cutStyle.maxFractures = 1;
+    cutStyle.fractureDepth = {0.5, 0.5};
+    cutStyle.noiseAmplitude = 0.0;
+    options.styles = {cutStyle};
     const auto cut = GenerateBoulderShape(3, options);
     options.styles[0].maxFractures = options.styles[0].minFractures = 0;
     const auto whole = GenerateBoulderShape(3, options);
@@ -231,10 +238,12 @@ TEST(GenerateBoulderShape, WeatheringWearsEdgesAwayAndZeroKeepsThemSharp) {
         EXPECT_LT(SharpestEdge(b.mesh), 0.8 * SharpestEdge(a.mesh)) << "worn edges are rounder";
     }
     BoulderShapeOptions plain;
-    plain.styles = {terraingen::BoulderStyle{.name = "flat",
-                                             .solid = terraingen::BaseSolid::Cube,
-                                             .minFractures = 2,
-                                             .maxFractures = 2}};
+    terraingen::BoulderStyle flat;
+    flat.name = "flat";
+    flat.solid = terraingen::BaseSolid::Cube;
+    flat.minFractures = 2;
+    flat.maxFractures = 2;
+    plain.styles = {flat};
     plain.styles[0].noiseAmplitude = 0.0;
     const auto box = terraingen::GenerateBoulderShape(3, plain);
     std::size_t onTop = 0;

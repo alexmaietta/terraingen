@@ -39,7 +39,14 @@ struct CraterSpacing {
         return separation > 0.0;
     }
 
-    bool operator==(const CraterSpacing&) const = default;
+    /// Memberwise equality.
+    bool operator==(const CraterSpacing& other) const {
+        return diameterRatio == other.diameterRatio && separation == other.separation &&
+               outrankFrom == other.outrankFrom;
+    }
+    bool operator!=(const CraterSpacing& other) const {
+        return !(*this == other);
+    }
 };
 
 /// A size band of crater generation: diameters [`low`, `high`) metres, from 2^`exponent` to
@@ -50,7 +57,14 @@ struct CraterBand {
     double high = 0.0;      ///< Largest diameter (m), exclusive.
     double cellSize = 0.0;  ///< Side of the cells the band is drawn in (m).
 
-    bool operator==(const CraterBand&) const = default;
+    /// Memberwise equality.
+    bool operator==(const CraterBand& other) const {
+        return exponent == other.exponent && low == other.low && high == other.high &&
+               cellSize == other.cellSize;
+    }
+    bool operator!=(const CraterBand& other) const {
+        return !(*this == other);
+    }
 };
 
 /// The bands `GenerateCraters` uses to cover [`dMin`, `dMax`) metres, smallest first.

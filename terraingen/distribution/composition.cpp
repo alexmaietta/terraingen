@@ -5,7 +5,7 @@
 
 namespace terraingen::detail {
 
-SfdKind CommonKind(std::span<const SizeFrequencyDistribution* const> distributions,
+SfdKind CommonKind(Span<const SizeFrequencyDistribution* const> distributions,
                    const std::string& what) {
     if (distributions.empty()) {
         throw std::invalid_argument(what + " needs at least one distribution");
@@ -25,7 +25,7 @@ DiameterRange UsableRange(const SizeFrequencyDistribution& distribution) {
     return distribution.AllowsExtrapolation() ? DiameterRange{} : distribution.ValidRange();
 }
 
-DiameterRange IntersectRanges(std::span<const DiameterRange> ranges, const std::string& message) {
+DiameterRange IntersectRanges(Span<const DiameterRange> ranges, const std::string& message) {
     DiameterRange range;
     for (const DiameterRange& each : ranges) {
         range.min = std::fmax(range.min, each.min);
@@ -37,8 +37,7 @@ DiameterRange IntersectRanges(std::span<const DiameterRange> ranges, const std::
     return range;
 }
 
-void CheckStarts(std::span<const double> starts, const DiameterRange& range,
-                 const std::string& noun) {
+void CheckStarts(Span<const double> starts, const DiameterRange& range, const std::string& noun) {
     if (starts.empty() || starts.front() != range.min) {
         throw std::invalid_argument("The first " + noun + " must start at the range minimum");
     }

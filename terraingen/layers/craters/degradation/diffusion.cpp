@@ -1,11 +1,11 @@
 #include "terraingen/layers/craters/degradation/diffusion.h"
 
 #include "terraingen/noise/hash.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 
 #include <algorithm>
 #include <atomic>
-#include <bit>
 #include <cmath>
 #include <cstdint>
 #include <stdexcept>
@@ -159,9 +159,9 @@ void ValidatePowerLawDiffusivity(const PowerLawDiffusivity& law) {
 }
 
 std::size_t DiffusedProfile::KeyHash::operator()(const Key& key) const {
-    return HashWords({std::bit_cast<std::uint64_t>(key.depthRatio),
-                      std::bit_cast<std::uint64_t>(key.rimHeightRatio),
-                      std::bit_cast<std::uint64_t>(key.diameter)});
+    return HashWords({BitCast<std::uint64_t>(key.depthRatio),
+                      BitCast<std::uint64_t>(key.rimHeightRatio),
+                      BitCast<std::uint64_t>(key.diameter)});
 }
 
 DiffusedProfile::DiffusedProfile(std::shared_ptr<const CraterProfile> fresh, double reachRadii,

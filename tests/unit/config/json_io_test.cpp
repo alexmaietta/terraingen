@@ -62,32 +62,40 @@ TerrainConfig Everything() {
     craters.manual = {{1.5, -2.25, 30.0, 0.1, 7u}};
     craters.profile = terraingen::ComplexProfileSpec{terraingen::MartinParkesDunstanSpec{}};
     craters.degradation = terraingen::NoDegradationSpec{0.17};
-    craters.apply = {
-        .order = terraingen::CraterOrder::LargestFirst,
-        .fade = {1.0, 3.0, terraingen::BlendShape::Linear},
-        .datum = terraingen::CraterDatum::Plane,
-        .datumFitRadii = 1.5,
-        .interiorReplacement = 0.5,
-        .blend = {0.7, 1.3, terraingen::BlendShape::Gaussian},
-        .irregularity = {
-            .enabled = true,
-            .seed = 4,
-            .selection =
-                {.minDiameter = 10.0, .maxDiameter = 500.0, .minAgeGyr = 0.1, .manual = true},
-            .roughShare = 0.5,
-            .model = terraingen::RimRoughnessModel::Du2024,
-            .scatter = false,
-            .maxDeviation = 0.2,
-            .roughness = {terraingen::ValueDistribution::Kind::Normal, 0.02, 0.005, 0.0, 0.05},
-            .spectralSlope = {terraingen::ValueDistribution::Kind::Uniform, 1.0, 2.0},
-            .minHarmonic = 3,
-            .maxHarmonic = 8,
-            .elongatedShare = 0.1,
-            .ellipticity = {terraingen::ValueDistribution::Kind::LogNormal, 1.2, 0.1, 1.0, 2.23},
-            .heading = 0.3,
-            .headingSpread = 0.2}};
-    craters.apply.rimSmoothing = {.sigmaRadii = 0.1, .strength = 0.5};
-    craters.apply.noise = {.amplitude = 0.01, .octaves = 3, .rimAmplitude = 0.02, .seed = 5};
+    craters.apply = terraingen::CraterApplyOptions{};
+    craters.apply.order = terraingen::CraterOrder::LargestFirst;
+    craters.apply.fade = {1.0, 3.0, terraingen::BlendShape::Linear};
+    craters.apply.datum = terraingen::CraterDatum::Plane;
+    craters.apply.datumFitRadii = 1.5;
+    craters.apply.interiorReplacement = 0.5;
+    craters.apply.blend = {0.7, 1.3, terraingen::BlendShape::Gaussian};
+    terraingen::CraterIrregularity& irregularity = craters.apply.irregularity;
+    irregularity.enabled = true;
+    irregularity.seed = 4;
+    irregularity.selection = terraingen::CraterSelection{};
+    irregularity.selection.minDiameter = 10.0;
+    irregularity.selection.maxDiameter = 500.0;
+    irregularity.selection.minAgeGyr = 0.1;
+    irregularity.selection.manual = true;
+    irregularity.roughShare = 0.5;
+    irregularity.model = terraingen::RimRoughnessModel::Du2024;
+    irregularity.scatter = false;
+    irregularity.maxDeviation = 0.2;
+    irregularity.roughness = {terraingen::ValueDistribution::Kind::Normal, 0.02, 0.005, 0.0, 0.05};
+    irregularity.spectralSlope = {terraingen::ValueDistribution::Kind::Uniform, 1.0, 2.0};
+    irregularity.minHarmonic = 3;
+    irregularity.maxHarmonic = 8;
+    irregularity.elongatedShare = 0.1;
+    irregularity.ellipticity = {terraingen::ValueDistribution::Kind::LogNormal, 1.2, 0.1, 1.0,
+                                2.23};
+    irregularity.heading = 0.3;
+    irregularity.headingSpread = 0.2;
+    craters.apply.rimSmoothing.sigmaRadii = 0.1;
+    craters.apply.rimSmoothing.strength = 0.5;
+    craters.apply.noise.amplitude = 0.01;
+    craters.apply.noise.octaves = 3;
+    craters.apply.noise.rimAmplitude = 0.02;
+    craters.apply.noise.seed = 5;
     craters.apply.irregularity.marksShare = 0.4;
     craters.apply.irregularity.marksAmplitude = {terraingen::ValueDistribution::Kind::Uniform, 0.0,
                                                  0.01};
@@ -95,84 +103,90 @@ TerrainConfig Everything() {
     craters.apply.irregularity.marksInnerRadii = 0.35;
     craters.apply.irregularity.marksOuterRadii = 0.8;
     craters.apply.irregularity.marksFadeRadii = 0.12;
-    craters.apply.slope = {.enabled = true,
-                           .seed = 6,
-                           .floorOffset = {terraingen::ValueDistribution::Kind::Constant, 0.1},
-                           .upslopeRim = 0.2,
-                           .fullSlope = 0.1,
-                           .criticalGradient = 0.7,
-                           .maxWearRate = 5.0};
-    craters.densityMap =
-        terraingen::DensityMapSpec{.field = {.path = "map.tif",
-                                             .band = 1,
-                                             .method = terraingen::ResampleMethod::Nearest,
-                                             .scale = 0.001,
-                                             .fallback = 2.0,
-                                             .periodicLongitude = true},
-                                   .measure = terraingen::DensityMeasure::Count,
-                                   .minDiameter = 4.5,
-                                   .maxDiameter = 1000.0,
-                                   .areaUnit = 1e6,
-                                   .total = false};
-    craters.completeness = terraingen::FieldSpec{.value = 1500.0};
+    craters.apply.slope.enabled = true;
+    craters.apply.slope.seed = 6;
+    craters.apply.slope.floorOffset = {terraingen::ValueDistribution::Kind::Constant, 0.1};
+    craters.apply.slope.upslopeRim = 0.2;
+    craters.apply.slope.fullSlope = 0.1;
+    craters.apply.slope.criticalGradient = 0.7;
+    craters.apply.slope.maxWearRate = 5.0;
+    terraingen::DensityMapSpec craterMap;
+    craterMap.field.path = "map.tif";
+    craterMap.field.band = 1;
+    craterMap.field.method = terraingen::ResampleMethod::Nearest;
+    craterMap.field.scale = 0.001;
+    craterMap.field.fallback = 2.0;
+    craterMap.field.periodicLongitude = true;
+    craterMap.measure = terraingen::DensityMeasure::Count;
+    craterMap.minDiameter = 4.5;
+    craterMap.maxDiameter = 1000.0;
+    craterMap.areaUnit = 1e6;
+    craterMap.total = false;
+    craters.densityMap = craterMap;
+    terraingen::FieldSpec craterCompleteness;
+    craterCompleteness.value = 1500.0;
+    craters.completeness = craterCompleteness;
     terraingen::BoulderLayerSpec boulders;
-    boulders.boulders = {
-        .sizes = {.coverage = 0.05,
-                  .qConstant = 1.5,
-                  .qCoverageCoefficient = 0.2,
-                  .minDiameter = 0.25,
-                  .maxDiameter = 6.0},
-        .seed = 17,
-        .patches = {2.0, 80.0},
-        .ejecta = {.minCraterDiameter = 10.0,
-                   .regolithThickness = 3.0,
-                   .excavationDepthRatio = 0.12,
-                   .coverage = 0.2,
-                   .profile = terraingen::EjectaProfile::Exponential,
-                   .reach = 2.5,
-                   .decayRadii = 0.6,
-                   .floorShare = 0.1,
-                   .aging = terraingen::EjectaAging::Age,
-                   .minFreshness = 0.5,
-                   .lifetimeGyr = 3.0,
-                   .agingExponent = 2.0,
-                   .gravity = 1.62},
-        .bedrock = {.exposure = terraingen::ExposureParams{8.0, 0.02, 0.05, 0.1, 0.5, 0.3, 40.0, 5},
-                    .abundance = 2.5},
-        .pose = {.minHeightRatio = 0.3,
-                 .maxHeightRatio = 0.7,
-                 .minBurial = 0.0,
-                 .maxBurial = 0.5,
-                 .maxLean = 0.1,
-                 .maxSlope = 0.6,
-                 .rollDistance = 25.0},
-        .ventifacts = {.share = 0.39,
-                       .windAzimuth = 0.8,
-                       .minAngle = 0.9,
-                       .maxAngle = 1.0,
-                       .secondWindAzimuth = 4.0,
-                       .keelShare = 0.3},
-        .rendering = {.relief = terraingen::BoulderRelief::Shape,
-                      .models = {.minDiameter = 2.0, .minSamples = 6.0},
-                      .shapes = {.styles = {terraingen::BoulderStyle{
-                                     .name = "slab",
-                                     .weight = 2.0,
-                                     .solid = terraingen::BaseSolid::Prism,
-                                     .intermediate = {0.5, 0.7},
-                                     .shortAxis = {0.1, 0.2},
-                                     .rounding = {0.1, 0.3},
-                                     .minFractures = 2,
-                                     .maxFractures = 4,
-                                     .fractureDepth = {0.5, 0.8},
-                                     .maxFractureTilt = 0.2,
-                                     .noiseAmplitude = 0.01,
-                                     .noiseWavelength = 0.4,
-                                     .noiseOctaves = 2}},
-                                 .subdivisions = 1,
-                                 .seed = 3},
-                      .shapePrototypes = 0},
-        .fade = {1.0, 3.0, terraingen::BlendShape::Linear},
-        .groundSpacing = 0.5};
+    boulders.boulders = terraingen::BoulderLayerOptions{};
+    terraingen::BoulderLayerOptions& options = boulders.boulders;
+    options.sizes.coverage = 0.05;
+    options.sizes.qConstant = 1.5;
+    options.sizes.qCoverageCoefficient = 0.2;
+    options.sizes.minDiameter = 0.25;
+    options.sizes.maxDiameter = 6.0;
+    options.seed = 17;
+    options.patches = {2.0, 80.0};
+    options.ejecta.minCraterDiameter = 10.0;
+    options.ejecta.regolithThickness = 3.0;
+    options.ejecta.excavationDepthRatio = 0.12;
+    options.ejecta.coverage = 0.2;
+    options.ejecta.profile = terraingen::EjectaProfile::Exponential;
+    options.ejecta.reach = 2.5;
+    options.ejecta.decayRadii = 0.6;
+    options.ejecta.floorShare = 0.1;
+    options.ejecta.aging = terraingen::EjectaAging::Age;
+    options.ejecta.minFreshness = 0.5;
+    options.ejecta.lifetimeGyr = 3.0;
+    options.ejecta.agingExponent = 2.0;
+    options.ejecta.gravity = 1.62;
+    options.bedrock.exposure = terraingen::ExposureParams{8.0, 0.02, 0.05, 0.1, 0.5, 0.3, 40.0, 5};
+    options.bedrock.abundance = 2.5;
+    options.pose.minHeightRatio = 0.3;
+    options.pose.maxHeightRatio = 0.7;
+    options.pose.minBurial = 0.0;
+    options.pose.maxBurial = 0.5;
+    options.pose.maxLean = 0.1;
+    options.pose.maxSlope = 0.6;
+    options.pose.rollDistance = 25.0;
+    options.ventifacts.share = 0.39;
+    options.ventifacts.windAzimuth = 0.8;
+    options.ventifacts.minAngle = 0.9;
+    options.ventifacts.maxAngle = 1.0;
+    options.ventifacts.secondWindAzimuth = 4.0;
+    options.ventifacts.keelShare = 0.3;
+    options.rendering.relief = terraingen::BoulderRelief::Shape;
+    options.rendering.models.minDiameter = 2.0;
+    options.rendering.models.minSamples = 6.0;
+    terraingen::BoulderStyle slab;
+    slab.name = "slab";
+    slab.weight = 2.0;
+    slab.solid = terraingen::BaseSolid::Prism;
+    slab.intermediate = {0.5, 0.7};
+    slab.shortAxis = {0.1, 0.2};
+    slab.rounding = {0.1, 0.3};
+    slab.minFractures = 2;
+    slab.maxFractures = 4;
+    slab.fractureDepth = {0.5, 0.8};
+    slab.maxFractureTilt = 0.2;
+    slab.noiseAmplitude = 0.01;
+    slab.noiseWavelength = 0.4;
+    slab.noiseOctaves = 2;
+    options.rendering.shapes.styles = {slab};
+    options.rendering.shapes.subdivisions = 1;
+    options.rendering.shapes.seed = 3;
+    options.rendering.shapePrototypes = 0;
+    options.fade = {1.0, 3.0, terraingen::BlendShape::Linear};
+    options.groundSpacing = 0.5;
     boulders.sizes =
         terraingen::Sp8023IntercraterBouldersSpec{terraingen::SpecificationCurve::Maximum};
     boulders.ejectaSizes =
@@ -186,25 +200,31 @@ TerrainConfig Everything() {
     table.sizes = terraingen::TabulatedSpec{{0.1, 1.0}, {1.0, 0.001}};
     table.ejectaSizes = terraingen::PowerLawSpec{0.001, 3.0};
     synthterrain.ejectaSizes = terraingen::PiecewiseUniformSpec{{{0.5, 2.0, 0.001}}};
-    synthterrain.densityMap =
-        terraingen::DensityMapSpec{.field = {.value = 0.01},
-                                   .measure = terraingen::DensityMeasure::ArealFraction,
-                                   .minDiameter = 1.0};
+    terraingen::DensityMapSpec boulderMap;
+    boulderMap.field.value = 0.01;
+    boulderMap.measure = terraingen::DensityMeasure::ArealFraction;
+    boulderMap.minDiameter = 1.0;
+    synthterrain.densityMap = boulderMap;
     synthterrain.manual = {{3.0, -4.0, 2.5, 0.0, 0u}};
-    synthterrain.completeness = terraingen::FieldSpec{.path = "complete.tif"};
-    synthterrain.slopeMap =
-        terraingen::SizeSlopeMapSpec{.field = {.path = "mean.tif"},
-                                     .measure = terraingen::SizeSlopeMeasure::MeanDiameter,
-                                     .referenceDiameter = 4.5,
-                                     .minExponent = 1.5,
-                                     .maxExponent = 5.0};
-    const terraingen::RoughnessLayerSpec roughness{{.rmsSlope = 0.3,
-                                                    .baseline = 0.05,
-                                                    .hurst = 0.6,
-                                                    .maxWavelength = 2.0,
-                                                    .minWavelength = 0.005,
-                                                    .seed = 9,
-                                                    .fade = {1.5, 5.0}}};
+    terraingen::FieldSpec boulderCompleteness;
+    boulderCompleteness.path = "complete.tif";
+    synthterrain.completeness = boulderCompleteness;
+    terraingen::SizeSlopeMapSpec slopeMap;
+    slopeMap.field.path = "mean.tif";
+    slopeMap.measure = terraingen::SizeSlopeMeasure::MeanDiameter;
+    slopeMap.referenceDiameter = 4.5;
+    slopeMap.minExponent = 1.5;
+    slopeMap.maxExponent = 5.0;
+    synthterrain.slopeMap = slopeMap;
+    terraingen::RoughnessOptions roughnessOptions;
+    roughnessOptions.rmsSlope = 0.3;
+    roughnessOptions.baseline = 0.05;
+    roughnessOptions.hurst = 0.6;
+    roughnessOptions.maxWavelength = 2.0;
+    roughnessOptions.minWavelength = 0.005;
+    roughnessOptions.seed = 9;
+    roughnessOptions.fade = {1.5, 5.0};
+    const terraingen::RoughnessLayerSpec roughness{roughnessOptions};
     config.layers = {
         noise,
         craters,
@@ -370,7 +390,11 @@ TEST(ConfigJson, RoundTripsAlbedos) {
     splotches.options.swarms.enabled = true;
     splotches.options.swarms.craters = {{10.0, -20.0, 18.8, 0.0, 0u, false}};
     terraingen::BlastZoneAlbedoSpec blast;
-    blast.zones = {terraingen::BlastZone{.x = 5.0, .area = 2530.0, .coreRadius = 3.0}};
+    terraingen::BlastZone zone;
+    zone.x = 5.0;
+    zone.area = 2530.0;
+    zone.coreRadius = 3.0;
+    blast.zones = {zone};
     terraingen::RockAlbedoSpec rocks;
     rocks.boulderLayer = 0;
     rocks.options.reflectanceRatio = 1.5;
@@ -580,7 +604,7 @@ TEST(ConfigJson, RoundTripsSecondaryLayers) {
     secondaries.morphometry = terraingen::CraterMorphometryFit::Mars;
     config.layers = {CraterLayerSpec{}, secondaries};
     terraingen::CraterAlbedoSpec bright;
-    bright.options.rays.layout = terraingen::RayLayout{.seed = 4};
+    bright.options.rays.layout = terraingen::RayLayout{4};
     config.albedo = terraingen::AlbedoSpec{terraingen::SyntheticAlbedoSpec{}, {bright}};
     const std::string json = ConfigToJson(config);
     EXPECT_EQ(ParseConfig(json), config) << json;

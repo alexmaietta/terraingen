@@ -1,12 +1,12 @@
 #include "support/log_capture.h"
 #include "terraingen/terraingen.h"
+#include "terraingen/util/bits.h"
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
 #include <cmath>
 #include <memory>
-#include <numbers>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -87,12 +87,12 @@ TEST(SecondaryCraterLayer, HasTheGivenCountAtTheOnsetAndSingersSizes) {
     ASSERT_GT(all.Size(), 100u);
     double expected = 0.0;
     const double ringWidth = 400.0;
-    const double density0 = 20.0 / (0.25 * std::numbers::pi * 2000.0 * 2000.0);
+    const double density0 = 20.0 / (0.25 * terraingen::kPi * 2000.0 * 2000.0);
     for (double r = onset; r < onset + ringWidth; r += 1.0) {
         const double rr = 1.0 + (r - onset) / 2000.0;
         const double largest = SingerMaxSecondaryDiameter(2000.0, r);
         const double share = 1.0 - std::pow(largest / 20.0, -4.0);
-        expected += density0 / (rr * rr) * share * 2.0 * std::numbers::pi * r;
+        expected += density0 / (rr * rr) * share * 2.0 * terraingen::kPi * r;
     }
     int inRing = 0;
     int atLeast40 = 0;
@@ -126,8 +126,8 @@ TEST(SecondaryCraterLayer, GridsTilesThreadsAndPointsAgree) {
         terraingen::Raster<float> whole(96, 96, 0.0f);
         whole.SetTransform(terraingen::GeoTransform::NorthUp(3300.0 / unit, 400.0 / unit, step));
         terraingen::Raster<float> threaded = whole;
-        layer.Apply(whole, {.spacing = 4.0, .threads = 1});
-        layer.Apply(threaded, {.spacing = 4.0, .threads = 0});
+        layer.Apply(whole, {4.0, 1});
+        layer.Apply(threaded, {4.0, 0});
         const auto secondaries =
             layer.Secondaries(terraingen::RasterGrid::FromRaster(whole).Bounds(), 4.0);
         ASSERT_GT(secondaries.Size(), 3u);
@@ -141,7 +141,7 @@ TEST(SecondaryCraterLayer, GridsTilesThreadsAndPointsAgree) {
         terraingen::Raster<float> tile(32, 32, 0.0f);
         tile.SetTransform(terraingen::GeoTransform::NorthUp(3300.0 / unit + 32.0 * step,
                                                             400.0 / unit - 32.0 * step, step));
-        layer.Apply(tile, {.spacing = 4.0, .threads = 1});
+        layer.Apply(tile, {4.0, 1});
         for (std::size_t row = 0; row < 32; ++row) {
             for (std::size_t col = 0; col < 32; ++col) {
                 EXPECT_NEAR(tile(col, row), whole(col + 32, row + 32), 1e-5f);
@@ -163,7 +163,7 @@ TEST(SecondaryCraterLayer, ShapesGridsOnTheContextsBackend) {
     terraingen::Raster<float> cpu(96, 96, 0.0f);
     cpu.SetTransform(terraingen::GeoTransform::NorthUp(3300.0, 400.0, 4.0));
     const terraingen::Raster<float> base = cpu;
-    layer.Apply(cpu, {.spacing = 4.0});
+    layer.Apply(cpu, {4.0});
     int ran = 0;
     for (const terraingen::BackendStatus& status : terraingen::Backends()) {
         if (status.backend == terraingen::Backend::Cpu || !status.available) {
@@ -171,7 +171,7 @@ TEST(SecondaryCraterLayer, ShapesGridsOnTheContextsBackend) {
         }
         terraingen::Raster<float> gpu = base;
         const terraingen::testing::LogCapture log(terraingen::LogLevel::Debug);
-        layer.Apply(gpu, {.spacing = 4.0, .backend = status.backend});
+        layer.Apply(gpu, {4.0, 1, nullptr, status.backend});
         const std::string shaped =
             std::string("craters on ") + std::string(terraingen::BackendName(status.backend));
         const auto records = log.Matching("craters", terraingen::LogLevel::Debug);
@@ -288,9 +288,9 @@ TEST(RayDirections, AreDrawnFromTheCraterAndTheLayout) {
     ASSERT_LE(rays.size(), 20u);
     for (const auto& ray : rays) {
         EXPECT_GE(ray.azimuth, 0.0);
-        EXPECT_LT(ray.azimuth, 2.0 * std::numbers::pi);
-        EXPECT_GT(ray.sinHalfWidth, std::sin(0.5 * 5.4 * std::numbers::pi / 180.0) - 1e-12);
-        EXPECT_LT(ray.sinHalfWidth, std::sin(0.5 * 38.6 * std::numbers::pi / 180.0) + 1e-12);
+        EXPECT_LT(ray.azimuth, 2.0 * terraingen::kPi);
+        EXPECT_GT(ray.sinHalfWidth, std::sin(0.5 * 5.4 * terraingen::kPi / 180.0) - 1e-12);
+        EXPECT_LT(ray.sinHalfWidth, std::sin(0.5 * 38.6 * terraingen::kPi / 180.0) + 1e-12);
     }
     const auto again = terraingen::RayDirections(crater, layout);
     ASSERT_EQ(again.size(), rays.size());
@@ -329,9 +329,9 @@ TEST(SecondaryCraterLayer, RaysGatherSecondariesWithoutAddingAny) {
             const double range = std::hypot(c.x, c.y);
             const double azimuth = std::atan2(c.y, c.x);
             for (const auto& ray : rays) {
-                const double delta = std::remainder(azimuth - ray.azimuth, 2.0 * std::numbers::pi);
+                const double delta = std::remainder(azimuth - ray.azimuth, 2.0 * terraingen::kPi);
                 const double width = std::fmax(2000.0 * ray.sinHalfWidth,
-                                               range * std::sin(2.0 * std::numbers::pi / 180.0));
+                                               range * std::sin(2.0 * terraingen::kPi / 180.0));
                 if (std::cos(delta) > 0.0 && range * std::sin(std::fabs(delta)) < width) {
                     ++near;
                     break;
@@ -376,7 +376,7 @@ TEST(SecondaryCraterLayer, RaysAndShapesKeepGridsTilesAndPointsInStep) {
     const SecondaryCraterLayer layer(Primaries(primary), Models(), options);
     terraingen::Raster<float> whole(96, 96, 0.0f);
     whole.SetTransform(terraingen::GeoTransform::NorthUp(3300.0, 400.0, 4.0));
-    layer.Apply(whole, {.spacing = 4.0, .threads = 0});
+    layer.Apply(whole, {4.0, 0});
     int changed = 0;
     for (const float v : whole.Values()) {
         changed += v != 0.0f ? 1 : 0;
@@ -384,7 +384,7 @@ TEST(SecondaryCraterLayer, RaysAndShapesKeepGridsTilesAndPointsInStep) {
     EXPECT_GT(changed, 20);
     terraingen::Raster<float> tile(32, 32, 0.0f);
     tile.SetTransform(terraingen::GeoTransform::NorthUp(3300.0 + 128.0, 400.0 - 128.0, 4.0));
-    layer.Apply(tile, {.spacing = 4.0, .threads = 1});
+    layer.Apply(tile, {4.0, 1});
     for (std::size_t row = 0; row < 32; ++row) {
         for (std::size_t col = 0; col < 32; ++col) {
             ASSERT_NEAR(tile(col, row), whole(col + 32, row + 32), 1e-5f);
@@ -474,7 +474,7 @@ TEST(SecondaryDensity, CoversAsItsCountsAddUp) {
         double cover = 0.0;
         for (double d = 10.0; d < 30.0; d += 0.01) {
             cover +=
-                0.25 * std::numbers::pi * (d + 0.005) * (d + 0.005) * density.At(at, d, d + 0.01);
+                0.25 * terraingen::kPi * (d + 0.005) * (d + 0.005) * density.At(at, d, d + 0.01);
         }
         EXPECT_NEAR(density.CoverAt(at, 10.0, 30.0), cover, 1e-6 * cover) << slope;
         EXPECT_GT(terraingen::LargestSecondary(3000.0, options), 30.0);

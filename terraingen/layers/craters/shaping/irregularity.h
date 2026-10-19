@@ -33,7 +33,11 @@ struct CraterIrregularity {
     bool enabled = false;    ///< Off: every crater is round.
     std::uint32_t seed = 0;  ///< Varies the outlines.
     /// The craters that can be irregular; manual craters are left round by default.
-    CraterSelection selection{.manual = false};
+    CraterSelection selection = [] {
+        CraterSelection generated;
+        generated.manual = false;
+        return generated;
+    }();
 
     double roughShare = 1.0;  ///< Share of selected craters with rough outlines.
     RimRoughnessModel model = RimRoughnessModel::PowerLaw;  ///< How rough rims are drawn.
@@ -66,7 +70,22 @@ struct CraterIrregularity {
     double marksOuterRadii = 0.9;  ///< Where the marks start to fade going out, in radii.
     double marksFadeRadii = 0.1;   ///< Width of the fades either side, in radii.
 
-    bool operator==(const CraterIrregularity&) const = default;
+    /// Memberwise equality.
+    bool operator==(const CraterIrregularity& other) const {
+        return enabled == other.enabled && seed == other.seed && selection == other.selection &&
+               roughShare == other.roughShare && model == other.model && scatter == other.scatter &&
+               maxDeviation == other.maxDeviation && roughness == other.roughness &&
+               spectralSlope == other.spectralSlope && minHarmonic == other.minHarmonic &&
+               maxHarmonic == other.maxHarmonic && elongatedShare == other.elongatedShare &&
+               ellipticity == other.ellipticity && heading == other.heading &&
+               headingSpread == other.headingSpread && marksShare == other.marksShare &&
+               marksAmplitude == other.marksAmplitude && marksKnots == other.marksKnots &&
+               marksInnerRadii == other.marksInnerRadii &&
+               marksOuterRadii == other.marksOuterRadii && marksFadeRadii == other.marksFadeRadii;
+    }
+    bool operator!=(const CraterIrregularity& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks irregularity settings.

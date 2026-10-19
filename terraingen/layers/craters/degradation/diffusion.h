@@ -29,7 +29,14 @@ struct PowerLawDiffusivity {
     /// The diffusion age kappa t in m^2 of a crater of `diameter` metres and `ageGyr` Gyr.
     double operator()(double diameter, double ageGyr) const;
 
-    bool operator==(const PowerLawDiffusivity&) const = default;
+    /// Memberwise equality.
+    bool operator==(const PowerLawDiffusivity& other) const {
+        return coefficient == other.coefficient && exponent == other.exponent &&
+               minDiameter == other.minDiameter;
+    }
+    bool operator!=(const PowerLawDiffusivity& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks a power-law diffusivity.
@@ -103,7 +110,13 @@ class DiffusedProfile final : public CraterProfile {
         double depthRatio;
         double rimHeightRatio;
         double diameter;
-        bool operator==(const Key&) const = default;
+        bool operator==(const Key& other) const {
+            return depthRatio == other.depthRatio && rimHeightRatio == other.rimHeightRatio &&
+                   diameter == other.diameter;
+        }
+        bool operator!=(const Key& other) const {
+            return !(*this == other);
+        }
     };
     struct KeyHash {
         std::size_t operator()(const Key& key) const;

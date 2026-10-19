@@ -3,12 +3,12 @@
 #include "terraingen/util/cells.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/cube_faces.h"
+#include "terraingen/util/geometry.h"
+#include "terraingen/util/span.h"
 
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <numbers>
-#include <span>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -34,7 +34,7 @@ void CheckBodyRequest(const Terrain& terrain, std::size_t cells, double spacing,
 
 /// The body-fixed positions along `directions`: the body's radius in each direction plus the
 /// terrain's height there, on the datum where the terrain has no data.
-std::vector<Vec3d> BodyPositions(const Terrain& terrain, std::span<const Vec3d> directions,
+std::vector<Vec3d> BodyPositions(const Terrain& terrain, Span<const Vec3d> directions,
                                  double spacing, unsigned threads) {
     std::vector<Vec2d> points(directions.size());
     for (std::size_t k = 0; k < directions.size(); ++k) {
@@ -97,8 +97,7 @@ TriangleMesh BodyMesh(const Terrain& terrain, std::size_t cellsPerFace, double s
 IcqModel BodyIcq(const Terrain& terrain, std::size_t q, double spacing, unsigned threads) {
     CheckBodyRequest(terrain, q, spacing, "An ICQ model", "Q > 0");
     const double sampled =
-        spacing > 0.0 ? spacing
-                      : terrain.surface.Radius() * std::numbers::pi / 2.0 / static_cast<double>(q);
+        spacing > 0.0 ? spacing : terrain.surface.Radius() * kPi / 2.0 / static_cast<double>(q);
     IcqModel model;
     model.q = q;
     std::vector<Vec3d> directions(6 * (q + 1) * (q + 1));

@@ -27,7 +27,14 @@ struct SlopeAlbedoOptions {
     /// Reflectance of the optical maturity origin (`ReflectanceAtMaturity`).
     double originReflectance = OpticalMaturityOrigin{}.reflectance;
 
-    bool operator==(const SlopeAlbedoOptions&) const = default;
+    bool operator==(const SlopeAlbedoOptions& other) const {
+        return onsetDegrees == other.onsetDegrees && maturityPerDegree == other.maturityPerDegree &&
+               backgroundMaturity == other.backgroundMaturity && maxMaturity == other.maxMaturity &&
+               baseline == other.baseline && originReflectance == other.originReflectance;
+    }
+    bool operator!=(const SlopeAlbedoOptions& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks slope maturity options.

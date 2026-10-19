@@ -1,4 +1,6 @@
 #include "terraingen/terraingen.h"
+#include "terraingen/util/bits.h"
+#include "terraingen/util/span.h"
 
 #include <gtest/gtest.h>
 
@@ -6,8 +8,6 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
-#include <numbers>
-#include <span>
 #include <stdexcept>
 #include <vector>
 
@@ -102,7 +102,7 @@ TEST(ApplyCraters, OffsetsFloorsDownslopeAndLowersRimsUpslopeOnSlopingGround) {
     const terraingen::CraterShapeModels models{
         profile,
         std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry)};
-    const double rise = std::tan(15.0 * std::numbers::pi / 180.0);
+    const double rise = std::tan(15.0 * terraingen::kPi / 180.0);
     terraingen::Raster<float> base(201, 201, 0.0f);
     base.SetTransform(terraingen::GeoTransform::NorthUp(-100.5, 100.5, 1.0));
     for (std::size_t row = 0; row < base.Height(); ++row) {
@@ -222,7 +222,7 @@ TEST(ApplyCraters, FitsDatumsToTheSlopeShapedReliefSoNoCraterStandsAsAMesa) {
     const terraingen::CraterShapeModels models{
         profile,
         std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry)};
-    const double rise = std::tan(15.0 * std::numbers::pi / 180.0);
+    const double rise = std::tan(15.0 * terraingen::kPi / 180.0);
     terraingen::Raster<float> base(241, 241, 0.0f);
     base.SetTransform(terraingen::GeoTransform::NorthUp(-120.5, 120.5, 1.0));
     for (std::size_t row = 0; row < base.Height(); ++row) {
@@ -285,7 +285,8 @@ TEST(ApplyCraters, ReadsTheGroundBeneathInBatchesToTheSameHeights) {
         ++singles;
         return height(x, y);
     };
-    batched.groundBatch = [&](std::span<const Vec2d> points, std::span<float> heights) {
+    batched.groundBatch = [&](terraingen::Span<const Vec2d> points,
+                              terraingen::Span<float> heights) {
         ++batches;
         for (std::size_t i = 0; i < points.size(); ++i) {
             heights[i] = height(points[i].x, points[i].y);

@@ -7,7 +7,6 @@
 #include <cstddef>
 #include <memory>
 #include <optional>
-#include <span>
 #include <string>
 
 namespace terraingen {
@@ -25,7 +24,7 @@ enum class DeviceKind {
 /// integrated, virtual and other devices. Software devices are never chosen, since they are slower
 /// than the CPU backend; `TERRAINGEN_DEVICE` can still name one.
 /// @return Its index, or `std::nullopt` when every device is a software one or there is none.
-std::optional<std::size_t> PickDevice(std::span<const DeviceKind> kinds);
+std::optional<std::size_t> PickDevice(Span<const DeviceKind> kinds);
 
 /// What to install so Vulkan runs on this platform, completing a message that says why it does
 /// not: the loader and a driver on Linux (and the NVIDIA capability in Docker), MoltenVK on macOS,
@@ -51,8 +50,8 @@ class VulkanCompute final : public ComputeDevice {
     bool CanRun(const KernelProgram& program) const override;
 
     /// @throws std::runtime_error for a Vulkan failure or push constants past the device's limit.
-    void Run(const KernelProgram& program, std::span<const DeviceBuffer> buffers,
-             std::span<const std::byte> pushConstants, const Dispatch& dispatch) override;
+    void Run(const KernelProgram& program, Span<const DeviceBuffer> buffers,
+             Span<const std::byte> pushConstants, const Dispatch& dispatch) override;
 
     VulkanCompute(const VulkanCompute&) = delete;
     VulkanCompute& operator=(const VulkanCompute&) = delete;

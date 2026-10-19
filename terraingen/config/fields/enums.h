@@ -20,9 +20,14 @@ template <typename E> struct EnumEntry {
 /// Every value of the enum `E` as an `EnumEntry` (`kValues`), specialized per enum below.
 template <typename E> struct EnumNames;
 
+/// Whether `EnumNames<E>` is defined with its `kValues`.
+template <typename E, typename = void> struct HasEnumNames : std::false_type {};
+template <typename E>
+struct HasEnumNames<E, std::void_t<decltype(EnumNames<E>::kValues)>> : std::true_type {};
+
 /// An enum with `EnumNames`, read and written by name.
 template <typename E>
-concept NamedEnum = std::is_enum_v<E> && requires { EnumNames<E>::kValues; };
+inline constexpr bool NamedEnum = std::conjunction_v<std::is_enum<E>, HasEnumNames<E>>;
 
 template <> struct EnumNames<NoiseBasis> {
     static constexpr std::array<EnumEntry<NoiseBasis>, 7> kValues{{

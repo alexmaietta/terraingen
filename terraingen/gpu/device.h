@@ -6,6 +6,7 @@
 #include "terraingen/gpu/backend.h"
 #include "terraingen/gpu/program.h"
 #include "terraingen/util/log.h"
+#include "terraingen/util/span.h"
 
 #include <array>
 #include <cstddef>
@@ -13,26 +14,25 @@
 #include <exception>
 #include <memory>
 #include <mutex>
-#include <span>
 #include <string>
 
 namespace terraingen {
 
 /// A storage buffer bound to a kernel, in binding order.
 struct DeviceBuffer {
-    std::span<const std::byte> bytes;  ///< The host data uploaded before the run.
-    std::size_t count = 0;             ///< Number of elements its structured buffer reports.
+    Span<const std::byte> bytes;  ///< The host data uploaded before the run.
+    std::size_t count = 0;        ///< Number of elements its structured buffer reports.
     std::byte* output = nullptr;  ///< Where its `bytes.size()` bytes are copied back after the run;
                                   ///< null for a buffer the kernel only reads.
 };
 
 /// A buffer the kernel only reads.
-inline DeviceBuffer InputBuffer(std::span<const std::byte> bytes, std::size_t count) {
+inline DeviceBuffer InputBuffer(Span<const std::byte> bytes, std::size_t count) {
     return {bytes, count, nullptr};
 }
 
 /// A buffer the kernel reads and writes, copied back in place after the run.
-inline DeviceBuffer OutputBuffer(std::span<std::byte> bytes, std::size_t count) {
+inline DeviceBuffer OutputBuffer(Span<std::byte> bytes, std::size_t count) {
     return {bytes, count, bytes.data()};
 }
 
@@ -57,8 +57,8 @@ class ComputeDevice {
     /// Runs `program`, binding `buffers` in order and the push constants after them, then copies
     /// the output buffers back.
     /// @throws std::runtime_error for a device failure or a program without a form for it.
-    virtual void Run(const KernelProgram& program, std::span<const DeviceBuffer> buffers,
-                     std::span<const std::byte> pushConstants, const Dispatch& dispatch) = 0;
+    virtual void Run(const KernelProgram& program, Span<const DeviceBuffer> buffers,
+                     Span<const std::byte> pushConstants, const Dispatch& dispatch) = 0;
 };
 
 /// The device of a GPU backend (`Vulkan`, `Cuda` or `Metal`), opened on first use; null when it is

@@ -3,11 +3,11 @@
 #include "terraingen/albedo/bands.h"
 #include "terraingen/noise/hash.h"
 #include "terraingen/random/samplers.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/parallel.h"
 
 #include <algorithm>
-#include <bit>
 #include <cmath>
 #include <stdexcept>
 #include <utility>
@@ -52,9 +52,8 @@ RockAlbedo::RockAlbedo(RockAlbedoOptions options, std::vector<RockSource> source
 }
 
 double RockAlbedo::UnresolvedNormal(double x, double y, std::size_t source) const {
-    RandomStream random(
-        options_.seed, kRockAlbedoStream, HashWord64(std::bit_cast<std::uint64_t>(x)),
-        HashWord64(std::bit_cast<std::uint64_t>(y)), static_cast<std::uint32_t>(source));
+    RandomStream random(options_.seed, kRockAlbedoStream, HashWord64(BitCast<std::uint64_t>(x)),
+                        HashWord64(BitCast<std::uint64_t>(y)), static_cast<std::uint32_t>(source));
     return StandardNormal(random);
 }
 

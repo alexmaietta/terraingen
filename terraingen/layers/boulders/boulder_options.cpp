@@ -1,10 +1,10 @@
 #include "terraingen/layers/boulders/boulder_options.h"
 
 #include "terraingen/layers/boulders/boulder_abundance.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 
 #include <cmath>
-#include <numbers>
 #include <stdexcept>
 #include <string>
 
@@ -129,10 +129,10 @@ void ValidateBoulderPose(const BoulderPose& pose) {
         throw std::invalid_argument(
             "Boulder sideShare and endShare must not be negative and must sum to at most 1");
     }
-    if (!(pose.maxTilt >= 0.0 && pose.maxTilt <= std::numbers::pi)) {
+    if (!(pose.maxTilt >= 0.0 && pose.maxTilt <= kPi)) {
         throw std::invalid_argument("Boulder maxTilt must be in [0, pi]");
     }
-    if (pose.maxSlope && !(*pose.maxSlope > 0.0 && *pose.maxSlope < 0.5 * std::numbers::pi)) {
+    if (pose.maxSlope && !(*pose.maxSlope > 0.0 && *pose.maxSlope < 0.5 * kPi)) {
         throw std::invalid_argument("Boulder maxSlope must be in (0, pi / 2)");
     }
     if (pose.rollDistance &&
@@ -183,7 +183,7 @@ void ValidateBoulderVentifacts(const BoulderVentifacts& ventifacts) {
     RequireUnitInterval(ventifacts.share, "Boulder ventifact share");
     RequireUnitInterval(ventifacts.keelShare, "Boulder ventifact keelShare");
     if (!(ventifacts.minAngle > 0.0 && ventifacts.minAngle <= ventifacts.maxAngle &&
-          ventifacts.maxAngle < 0.5 * std::numbers::pi)) {
+          ventifacts.maxAngle < 0.5 * kPi)) {
         throw std::invalid_argument(
             "Boulder ventifact facet angles must satisfy 0 < minAngle <= maxAngle < 90 deg");
     }

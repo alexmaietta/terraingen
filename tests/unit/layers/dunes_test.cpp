@@ -1,13 +1,13 @@
 #include "terraingen/layers/dunes.h"
 
 #include "terraingen/terraingen.h"
+#include "terraingen/util/bits.h"
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
 #include <cmath>
 #include <memory>
-#include <numbers>
 #include <stdexcept>
 #include <vector>
 
@@ -18,7 +18,7 @@ using terraingen::Vec2d;
 
 namespace {
 
-constexpr double kDegree = std::numbers::pi / 180.0;
+constexpr double kDegree = terraingen::kPi / 180.0;
 
 /// One barchan of `width` in a cell far bigger than it.
 DuneOptions OneBarchan(double width = 400.0) {

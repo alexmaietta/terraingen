@@ -18,7 +18,13 @@ struct HapkeParameters {
     double c = 0.0;          ///< Two-term Henyey-Greenstein backscatter fraction c, in [0, 1].
     double roughness = 0.0;  ///< Macroscopic roughness theta-bar (deg), in [0, 90).
 
-    bool operator==(const HapkeParameters&) const = default;
+    bool operator==(const HapkeParameters& other) const {
+        return albedo == other.albedo && b == other.b && c == other.c &&
+               roughness == other.roughness;
+    }
+    bool operator!=(const HapkeParameters& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Hapke parameters per `MaterialClass`; a class without any cannot be mixed.

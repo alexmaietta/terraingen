@@ -1,8 +1,9 @@
 #include "terraingen/util/special_functions.h"
 
+#include "terraingen/util/bits.h"
+
 #include <cmath>
 #include <limits>
-#include <numbers>
 #include <stdexcept>
 
 namespace terraingen {
@@ -37,7 +38,7 @@ double ExponentialIntegralFraction(int n, double x) {
 /// E_n(x) for 0 < x <= 1 by its power series.
 double ExponentialIntegralSeries(int n, double x) {
     const int nm1 = n - 1;
-    double sum = nm1 != 0 ? 1.0 / nm1 : -std::log(x) - std::numbers::egamma;
+    double sum = nm1 != 0 ? 1.0 / nm1 : -std::log(x) - kEulerGamma;
     double factor = 1.0;
     for (int i = 1; i <= kMaxIterations; ++i) {
         factor *= -x / i;
@@ -45,7 +46,7 @@ double ExponentialIntegralSeries(int n, double x) {
         if (i != nm1) {
             delta = -factor / (i - nm1);
         } else {
-            double psi = -std::numbers::egamma;
+            double psi = -kEulerGamma;
             for (int k = 1; k <= nm1; ++k) {
                 psi += 1.0 / k;
             }

@@ -1,12 +1,12 @@
 #include "terraingen/layers/sand_shadow.h"
 
 #include "terraingen/raster/grid.h"
+#include "terraingen/util/bits.h"
 
 #include <gtest/gtest.h>
 
 #include <cmath>
 #include <memory>
-#include <numbers>
 #include <stdexcept>
 
 using terraingen::Boulder;
@@ -17,7 +17,7 @@ using terraingen::SandShadowOptions;
 
 namespace {
 
-constexpr double kDegree = std::numbers::pi / 180.0;
+constexpr double kDegree = terraingen::kPi / 180.0;
 
 /// Sparse boulders 1 to 2 m wide.
 std::shared_ptr<const BoulderLayer> Sparse() {
@@ -83,7 +83,7 @@ TEST(SandShadowLayer, NoHigherThanTheBoulderStands) {
 TEST(SandShadowLayer, TailsPointDownwind) {
     const auto boulders = Sparse();
     SandShadowOptions options;
-    options.windAzimuth = 0.5 * std::numbers::pi;
+    options.windAzimuth = 0.5 * terraingen::kPi;
     const SandShadowLayer layer(boulders, options);
     const Boulder b = Isolated(*boulders, 12.0);
     EXPECT_GT(layer.ThicknessAt(b.x, b.y + 0.5 * b.diameter + 0.05), 0.0);
@@ -156,7 +156,7 @@ TEST(SandShadowLayer, RejectsBadOptions) {
     rejects([](SandShadowOptions& o) { o.windAzimuth = NAN; });
     rejects([](SandShadowOptions& o) { o.lengthRatio = 0.0; });
     rejects([](SandShadowOptions& o) { o.flankAngle = 0.0; });
-    rejects([](SandShadowOptions& o) { o.flankAngle = 0.5 * std::numbers::pi; });
+    rejects([](SandShadowOptions& o) { o.flankAngle = 0.5 * terraingen::kPi; });
     rejects([](SandShadowOptions& o) { o.minDiameter = -1.0; });
     rejects([](SandShadowOptions& o) { o.coverThickness = 0.0; });
     rejects([](SandShadowOptions& o) { o.fade.startSamples = -1.0; });

@@ -33,7 +33,15 @@ struct ExposureParams {
     double floorPatch = 60.0;  ///< How far across those patches are (m).
     std::uint32_t seed = 0;    ///< Varies the floor patches.
 
-    bool operator==(const ExposureParams&) const = default;
+    bool operator==(const ExposureParams& other) const {
+        return reach == other.reach && riseSoil == other.riseSoil &&
+               riseBoulder == other.riseBoulder && slopeSoil == other.slopeSoil &&
+               slopeBoulder == other.slopeBoulder && floorCover == other.floorCover &&
+               floorPatch == other.floorPatch && seed == other.seed;
+    }
+    bool operator!=(const ExposureParams& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks exposure thresholds.

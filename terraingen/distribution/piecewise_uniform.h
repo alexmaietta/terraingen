@@ -15,7 +15,13 @@ struct UniformBand {
     double max = 2.0;       ///< Largest diameter, metres; above `min`.
     double density = 0.01;  ///< Features per m^2 (or per m^2 per Gyr), or a relative weight; >= 0.
 
-    bool operator==(const UniformBand&) const = default;
+    /// Memberwise equality.
+    bool operator==(const UniformBand& other) const {
+        return min == other.min && max == other.max && density == other.density;
+    }
+    bool operator!=(const UniformBand& other) const {
+        return !(*this == other);
+    }
 };
 
 /// A distribution made of diameter bands, each holding a number of features per m^2 with

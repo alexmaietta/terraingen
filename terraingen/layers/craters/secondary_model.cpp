@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <numbers>
 #include <stdexcept>
 
 namespace terraingen {
@@ -148,7 +147,7 @@ double SecondaryRayField::Width(const RayDirection& ray, double range) const {
 }
 
 double SecondaryRayField::Profile(const RayDirection& ray, double range, double azimuth) const {
-    const double delta = std::remainder(azimuth - ray.azimuth, 2.0 * std::numbers::pi);
+    const double delta = std::remainder(azimuth - ray.azimuth, 2.0 * kPi);
     if (std::cos(delta) <= 0.0) {
         return 0.0;
     }
@@ -164,9 +163,9 @@ double SecondaryRayField::Clump(const RayDirection& ray, double range) const {
 double SecondaryRayField::MeanProfile(double range) const {
     double sum = 0.0;
     for (const RayDirection& ray : rays) {
-        sum += std::sqrt(std::numbers::pi) * Width(ray, range);
+        sum += std::sqrt(kPi) * Width(ray, range);
     }
-    return sum / (2.0 * std::numbers::pi * range);
+    return sum / (2.0 * kPi * range);
 }
 
 double SecondaryRayField::Density(double range, double azimuth) const {
@@ -204,7 +203,7 @@ SecondaryDensity::SecondaryDensity(const Crater& primary, const SecondaryCraterO
         return;
     }
     outer_ = outer;
-    density0_ = *options.onsetCount / (0.25 * std::numbers::pi * diameter_ * diameter_);
+    density0_ = *options.onsetCount / (0.25 * kPi * diameter_ * diameter_);
     reference_ = options.countFraction * diameter_;
     rays_ = SecondaryRayField::Make(primary, options.rays);
 }
@@ -224,7 +223,7 @@ double SecondaryDensity::Measure(const Vec2d& offset, double dMin, double dMax, 
     const double s = sizeSlope_;
     double sizes = SizeShare(low, high);
     if (cover) {
-        const double scale = 0.25 * std::numbers::pi * s * std::pow(reference_, s);
+        const double scale = 0.25 * kPi * s * std::pow(reference_, s);
         sizes = s == 2.0 ? scale * std::log(high / low)
                          : scale * (std::pow(high, 2.0 - s) - std::pow(low, 2.0 - s)) / (2.0 - s);
     }

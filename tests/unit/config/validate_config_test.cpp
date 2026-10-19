@@ -287,7 +287,11 @@ const PathCase kPathCases[] = {
      [](TerrainConfig& c) { Craters(c).ages = terraingen::testing::LunarAgesSpec(9.0); },
      "layers[1].ages.age_gyr"},
     {"RoughnessHurstAboveOne",
-     [](TerrainConfig& c) { c.layers.push_back(terraingen::RoughnessLayerSpec{{.hurst = 2.0}}); },
+     [](TerrainConfig& c) {
+         terraingen::RoughnessOptions roughness;
+         roughness.hurst = 2.0;
+         c.layers.push_back(terraingen::RoughnessLayerSpec{roughness});
+     },
      "layers[2].hurst"},
 };
 
@@ -619,7 +623,9 @@ TEST(ValidateConfig, ReportsAlbedoProblemsByPath) {
               "albedo.layers[1].softness");
     EXPECT_EQ(error([](TerrainConfig& c) {
                   terraingen::BlastZoneAlbedoSpec blast;
-                  blast.zones = {terraingen::BlastZone{}, terraingen::BlastZone{.area = 0.0}};
+                  terraingen::BlastZone empty;
+                  empty.area = 0.0;
+                  blast.zones = {terraingen::BlastZone{}, empty};
                   c.albedo->layers.push_back(blast);
               }),
               "albedo.layers[1].zones[1].area");

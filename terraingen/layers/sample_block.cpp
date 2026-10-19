@@ -10,7 +10,7 @@ namespace terraingen {
 
 SampleBlock::SampleBlock(Raster<float>& heights) : grid_(&heights), heights_(heights.Values()) {}
 
-SampleBlock::SampleBlock(std::span<const Vec2d> positions, std::span<float> heights)
+SampleBlock::SampleBlock(Span<const Vec2d> positions, Span<float> heights)
     : positions_(positions), heights_(heights) {
     if (positions.size() != heights.size()) {
         throw std::invalid_argument("A sample block needs one height per position");

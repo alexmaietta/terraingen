@@ -1,8 +1,9 @@
 #include "terraingen/util/fft.h"
 
+#include "terraingen/util/bits.h"
+
 #include <cmath>
 #include <cstddef>
-#include <numbers>
 #include <utility>
 
 namespace terraingen {
@@ -30,7 +31,7 @@ void Fft(std::vector<std::complex<double>>& values, double sign) {
     BitReverse(values);
     const std::size_t n = values.size();
     for (std::size_t length = 2; length <= n; length <<= 1) {
-        const double angle = sign * 2.0 * std::numbers::pi / static_cast<double>(length);
+        const double angle = sign * 2.0 * kPi / static_cast<double>(length);
         const std::complex<double> step(std::cos(angle), std::sin(angle));
         for (std::size_t start = 0; start < n; start += length) {
             std::complex<double> w(1.0, 0.0);

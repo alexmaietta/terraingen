@@ -11,12 +11,11 @@
 #include "terraingen/util/arithmetic.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/geometry.h"
+#include "terraingen/util/span.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <numbers>
-#include <span>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -133,7 +132,7 @@ double SlopeSpacing(double spacing, const SplotchAlbedoOptions& options) {
 
 /// The slope in degrees from the heights at `GradientPoints` half a splotch `diameter` out; 0
 /// where any is missing.
-double SlopeDegrees(std::span<const float, 4> heights, double diameter) {
+double SlopeDegrees(Span<const float> heights, double diameter) {
     const std::optional<Vec2d> gradient = GradientFromHeights(heights, 0.5 * diameter);
     return gradient ? GradientSlopeDegrees(gradient->x, gradient->y) : 0.0;
 }
@@ -279,8 +278,7 @@ std::vector<double> SplotchAlbedo::SteepSlopes(const std::vector<Splotch>& splot
     std::vector<float> heights(points.size());
     ground->HeightsAt(points, heights, SlopeSpacing(spacing, options_));
     for (std::size_t n = 0; n < splotches.size(); ++n) {
-        slopes[n] =
-            SlopeDegrees(std::span(heights).subspan(4 * n).first<4>(), splotches[n].mark.diameter);
+        slopes[n] = SlopeDegrees(Span(heights).subspan(4 * n).first(4), splotches[n].mark.diameter);
     }
     return slopes;
 }
@@ -301,7 +299,7 @@ void SplotchAlbedo::DrawSides(Splotch& splotch, double slopeDegrees) const {
     const double d2 = random.NextDouble();
     const double b1 = random.NextDouble();
     const double b2 = random.NextDouble();
-    splotch.split = 2.0 * std::numbers::pi * random.NextDouble();
+    splotch.split = 2.0 * kPi * random.NextDouble();
     splotch.key = random.NextU32();
     SetSides(splotch, kind, darkShare, brightShare, o.darkChange.Sample(d1, d2),
              o.brightChange.Sample(b1, b2));
@@ -372,7 +370,7 @@ std::vector<Splotch> SplotchAlbedo::Swarm(const Crater& crater, double spacing) 
     const std::uint64_t count = SamplePoisson(random, s.Count(crater.diameter));
     for (std::uint64_t i = 0; i < count; ++i) {
         const double range = std::pow(near - random.NextDouble() * (near - far), -1.0 / a);
-        const double azimuth = 2.0 * std::numbers::pi * random.NextDouble();
+        const double azimuth = 2.0 * kPi * random.NextDouble();
         const double s1 = random.NextDouble();
         const double s2 = random.NextDouble();
         const double kind = random.NextDouble();
@@ -380,7 +378,7 @@ std::vector<Splotch> SplotchAlbedo::Swarm(const Crater& crater, double spacing) 
         const double d2 = random.NextDouble();
         const double b1 = random.NextDouble();
         const double b2 = random.NextDouble();
-        const double split = 2.0 * std::numbers::pi * random.NextDouble();
+        const double split = 2.0 * kPi * random.NextDouble();
         const std::uint32_t key = random.NextU32();
         const bool wedge = random.NextDouble() < s.wedgeShare;
         const double size = s.splotchDiameter.Sample(s1, s2);

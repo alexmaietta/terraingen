@@ -2,9 +2,9 @@
 
 #include "terraingen/random/philox.h"
 #include "terraingen/random/stream.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 
-#include <bit>
 #include <cmath>
 #include <stdexcept>
 #include <string>
@@ -12,9 +12,9 @@
 namespace terraingen {
 
 std::uint64_t ManualCraterId(double x, double y, double diameter) {
-    const IdWords xBits = SplitId(std::bit_cast<std::uint64_t>(x));
-    const IdWords yBits = SplitId(std::bit_cast<std::uint64_t>(y));
-    const IdWords dBits = SplitId(std::bit_cast<std::uint64_t>(diameter));
+    const IdWords xBits = SplitId(BitCast<std::uint64_t>(x));
+    const IdWords yBits = SplitId(BitCast<std::uint64_t>(y));
+    const IdWords dBits = SplitId(BitCast<std::uint64_t>(diameter));
     const U32x4 block =
         Philox4x32({xBits.low, xBits.high, yBits.low, yBits.high}, {dBits.low, dBits.high});
     return JoinWords(block.x, block.y);

@@ -73,7 +73,7 @@ struct SchemaBuilder {
 };
 
 /// `Describe(builder)`: the schema of `T`.
-template <typename T> struct Describer;
+template <typename T, typename = void> struct Describer;
 
 /// Describes each field a `Fields` function visits: its name, schema and default.
 class SchemaWriter {
@@ -127,9 +127,7 @@ template <> struct Describer<int> {
     }
 };
 
-template <std::unsigned_integral T>
-    requires(!std::same_as<T, bool>)
-struct Describer<T> {
+template <typename T> struct Describer<T, std::enable_if_t<IsUnsignedInteger<T>>> {
     static Json Describe(SchemaBuilder& /*builder*/) {
         return Json{{"kind", "integer"}, {"minimum", 0}};
     }
@@ -147,7 +145,7 @@ template <> struct Describer<std::string> {
     }
 };
 
-template <NamedEnum E> struct Describer<E> {
+template <typename E> struct Describer<E, std::enable_if_t<NamedEnum<E>>> {
     static Json Describe(SchemaBuilder& /*builder*/) {
         Json choices = Json::array();
         Json descriptions = Json::array();
@@ -193,7 +191,7 @@ template <typename... Ts> struct Describer<std::variant<Ts...>> {
     }
 };
 
-template <HasFields T> struct Describer<T> {
+template <typename T> struct Describer<T, std::enable_if_t<HasFields<T>>> {
     static Json Describe(SchemaBuilder& builder) {
         return builder.Reference<T>(
             [&] { return Json{{"kind", "object"}, {"fields", DescribeFields<T>(builder)}}; });

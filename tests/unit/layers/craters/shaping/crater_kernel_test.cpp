@@ -466,7 +466,8 @@ TEST(CraterKernel, ShapesBodyGridsOnEveryAvailableGpuAsOnTheCpu) {
                 const std::string name(terraingen::BackendName(status.backend));
                 const auto logged = [&](const std::string& text) {
                     return std::any_of(messages.begin(), messages.end(), [&](const auto& m) {
-                        return m.find(text) != std::string::npos && m.ends_with(name);
+                        return m.find(text) != std::string::npos && m.size() >= name.size() &&
+                               m.compare(m.size() - name.size(), name.size(), name) == 0;
                     });
                 };
                 EXPECT_TRUE(logged("craters on")) << body.name << " shaped on " << name;

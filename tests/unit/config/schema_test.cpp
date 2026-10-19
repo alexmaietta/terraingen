@@ -218,7 +218,7 @@ TEST(ConfigSchema, GivesUnitsOnlyToNumbersAndFromAFixedSet) {
         for (const SchemaJson& field : fields) {
             const std::string unit = field.value("unit", "");
             const std::string at = where + "." + field["name"].get<std::string>();
-            EXPECT_TRUE(units.contains(unit)) << at << " has unit \"" << unit << "\"";
+            EXPECT_TRUE(units.count(unit) != 0) << at << " has unit \"" << unit << "\"";
             if (!unit.empty()) {
                 ++withUnits;
                 EXPECT_TRUE(numeric(field["schema"])) << at << " is not a number";
@@ -265,7 +265,7 @@ TEST(ConfigSchema, BoundsOnlyNumbersAndTheirDefaultsFitTheBounds) {
             const SchemaJson& value = field["default"];
             const SchemaJson values = value.is_array() ? value : SchemaJson::array({value});
             for (const SchemaJson& v : values) {
-                if (!v.is_number() || placeholders.contains(name)) {
+                if (!v.is_number() || placeholders.count(name) != 0) {
                     continue;
                 }
                 const double x = v.get<double>();

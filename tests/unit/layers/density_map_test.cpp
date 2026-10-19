@@ -2,6 +2,7 @@
 
 #include "terraingen/distribution/piecewise_uniform.h"
 #include "terraingen/distribution/power_law.h"
+#include "terraingen/util/bits.h"
 
 #include <gtest/gtest.h>
 
@@ -9,7 +10,6 @@
 #include <functional>
 #include <limits>
 #include <memory>
-#include <numbers>
 #include <stdexcept>
 #include <vector>
 
@@ -60,7 +60,7 @@ TEST(MapMeasure, CountsAndCoversAPowerLaw) {
                      0.01 * std::pow(4.0, -2.5));
     EXPECT_DOUBLE_EQ(MapMeasure(Map(one, DensityMeasure::Count, 4.0, 9.0), law),
                      0.01 * (std::pow(4.0, -2.5) - std::pow(9.0, -2.5)));
-    const double covered = std::numbers::pi * 0.01 * 2.5 / 4.0 * 2.0 * (0.5 - 1.0 / 3.0);
+    const double covered = terraingen::kPi * 0.01 * 2.5 / 4.0 * 2.0 * (0.5 - 1.0 / 3.0);
     EXPECT_NEAR(MapMeasure(Map(one, DensityMeasure::ArealFraction, 4.0, 9.0), law), covered,
                 1e-9 * covered)
         << "pi c e / 4 times the integral of D^-1.5 from 4 to 9 m";

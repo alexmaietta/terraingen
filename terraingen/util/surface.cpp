@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
-#include <numbers>
 #include <stdexcept>
 #include <utility>
 
@@ -309,17 +308,16 @@ Bounds2d Surface::Expand(const Bounds2d& region, double metres) const {
     double angle = metres / radius_;
     if (IsNonSphere()) {
         const double shortest = MinRadius();
-        angle = metres < shortest ? std::asin(metres / shortest) : std::numbers::pi;
+        angle = metres < shortest ? std::asin(metres / shortest) : kPi;
         dLat = angle * kRadian;
     }
     Bounds2d expanded{region.minX, std::max(-90.0, region.minY - dLat), region.maxX,
                       std::min(90.0, region.maxY + dLat)};
     const double widest = std::max(std::fabs(region.minY), std::fabs(region.maxY));
-    const double reach = std::sin(std::min(angle, std::numbers::pi / 2.0));
+    const double reach = std::sin(std::min(angle, kPi / 2.0));
     const double cosLat = std::cos(std::min(widest, 90.0) * kDegree);
-    const double dLon = angle < std::numbers::pi / 2.0 && reach < cosLat
-                            ? std::asin(reach / cosLat) * kRadian
-                            : 360.0;
+    const double dLon =
+        angle < kPi / 2.0 && reach < cosLat ? std::asin(reach / cosLat) * kRadian : 360.0;
     if (expanded.minY <= -90.0 || expanded.maxY >= 90.0 || dLon >= 180.0 ||
         region.maxX - region.minX + 2.0 * dLon >= 360.0) {
         expanded.minX = -180.0;

@@ -1,8 +1,9 @@
 #include "terraingen/distribution/sp8023.h"
 
+#include "terraingen/util/span.h"
+
 #include <array>
 #include <cmath>
-#include <span>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -84,7 +85,7 @@ constexpr std::array<LogPoint, 8> kCraterMinimum{{{-0.071, -2.606},
                                                   {0.863, -5.889}}};
 
 /// The table through the points of `first` then `second`, converted from log10.
-TabulatedSfd Table(std::span<const LogPoint> first, std::span<const LogPoint> second = {}) {
+TabulatedSfd Table(Span<const LogPoint> first, Span<const LogPoint> second = {}) {
     std::vector<double> diameters;
     std::vector<double> cumulative;
     for (const auto points : {first, second}) {

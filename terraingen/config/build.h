@@ -14,6 +14,8 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <type_traits>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -86,12 +88,15 @@ RegionShape BuildRegionShape(const RegionShapeSpec& spec);
 /// replaced by any it gives.
 MaterialPhotometry BuildPhotometry(const PhotometrySpec& spec);
 
-/// An output that lists features over a region at a sample spacing: a list or boulder models.
+/// Whether `T` has members `region` and `spacing`.
+template <typename T, typename = void> struct FeatureOutputTrait : std::false_type {};
 template <typename T>
-concept FeatureOutput = requires(const T& output) {
-    output.region;
-    output.spacing;
-};
+struct FeatureOutputTrait<T, std::void_t<decltype(std::declval<const T&>().region),
+                                         decltype(std::declval<const T&>().spacing)>>
+    : std::true_type {};
+
+/// An output that lists features over a region at a sample spacing: a list or boulder models.
+template <typename T> inline constexpr bool FeatureOutput = FeatureOutputTrait<T>::value;
 
 /// The grid a region describes on `surface`, unchecked; on a body its cells are `pixelSize` metres
 /// along a meridian.

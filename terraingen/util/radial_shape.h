@@ -75,7 +75,13 @@ class RadialShape {
     }
 
     /// Whether two shapes have the same Q and label radii.
-    bool operator==(const RadialShape&) const = default;
+    bool operator==(const RadialShape& other) const {
+        return q_ == other.q_ && radii_ == other.radii_ && min_ == other.min_ &&
+               max_ == other.max_ && maxArea_ == other.maxArea_;
+    }
+    bool operator!=(const RadialShape& other) const {
+        return !(*this == other);
+    }
 
   private:
     /// Checks that labels shared between faces have equal radii.

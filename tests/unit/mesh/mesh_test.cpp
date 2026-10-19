@@ -1,13 +1,13 @@
 #include "terraingen/mesh/mesh.h"
 
 #include "terraingen/mesh/polyhedra.h"
+#include "terraingen/util/bits.h"
 #include "tests/unit/mesh/support.h"
 
 #include <gtest/gtest.h>
 
 #include <array>
 #include <cmath>
-#include <numbers>
 #include <stdexcept>
 
 using terraingen::RigidTransform;
@@ -65,16 +65,16 @@ TEST(TriangleMesh, SplitsVerticesAtCreases) {
         }
     }
     EXPECT_NEAR(terraingen::Volume(hard.mesh), 8.0, 1e-12);
-    const auto smooth = terraingen::WithCreases(cube, std::numbers::pi);
+    const auto smooth = terraingen::WithCreases(cube, terraingen::kPi);
     EXPECT_EQ(smooth.mesh.positions.size(), 8u);
     EXPECT_THROW(terraingen::WithCreases(cube, -1.0), std::invalid_argument);
 }
 
 TEST(RigidTransform, RotatesTranslatesAndComposes) {
-    const auto quarter = RigidTransform::RotationZ(std::numbers::pi / 2.0);
+    const auto quarter = RigidTransform::RotationZ(terraingen::kPi / 2.0);
     ExpectNear(quarter.Apply({1, 0, 0}), {0, 1, 0});
-    ExpectNear(RigidTransform::RotationX(std::numbers::pi / 2.0).Apply({0, 1, 0}), {0, 0, 1});
-    ExpectNear(RigidTransform::RotationY(std::numbers::pi / 2.0).Apply({0, 0, 1}), {1, 0, 0});
+    ExpectNear(RigidTransform::RotationX(terraingen::kPi / 2.0).Apply({0, 1, 0}), {0, 0, 1});
+    ExpectNear(RigidTransform::RotationY(terraingen::kPi / 2.0).Apply({0, 0, 1}), {1, 0, 0});
     const auto moved = RigidTransform::Translation({1, 2, 3}).After(quarter);
     ExpectNear(moved.Apply({1, 0, 0}), {1, 3, 3});
     const auto both = quarter.After(RigidTransform::Translation({1, 0, 0}));
@@ -136,13 +136,13 @@ TEST(RotationQuaternion, CoversEveryBranchOfShepperdsMethod) {
     };
     const double h = std::sqrt(0.5);
     expect(terraingen::RotationQuaternion(RigidTransform{}.rotation), {0, 0, 0, 1});
-    expect(terraingen::RotationQuaternion(RigidTransform::RotationX(std::numbers::pi).rotation),
+    expect(terraingen::RotationQuaternion(RigidTransform::RotationX(terraingen::kPi).rotation),
            {1, 0, 0, 0});
-    expect(terraingen::RotationQuaternion(RigidTransform::RotationY(std::numbers::pi).rotation),
+    expect(terraingen::RotationQuaternion(RigidTransform::RotationY(terraingen::kPi).rotation),
            {0, 1, 0, 0});
-    expect(terraingen::RotationQuaternion(RigidTransform::RotationZ(std::numbers::pi).rotation),
+    expect(terraingen::RotationQuaternion(RigidTransform::RotationZ(terraingen::kPi).rotation),
            {0, 0, 1, 0});
-    expect(terraingen::RotationQuaternion(RigidTransform::RotationZ(std::numbers::pi / 2).rotation),
+    expect(terraingen::RotationQuaternion(RigidTransform::RotationZ(terraingen::kPi / 2).rotation),
            {0, 0, h, h});
 }
 

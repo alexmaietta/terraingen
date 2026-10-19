@@ -58,7 +58,14 @@ struct RasterFieldOptions {
     /// read 360 degrees east or west, so a map from 0 to 360 serves -180 to 180.
     bool periodicLongitude = false;
 
-    bool operator==(const RasterFieldOptions&) const = default;
+    /// Memberwise equality.
+    bool operator==(const RasterFieldOptions& other) const {
+        return method == other.method && scale == other.scale && fallback == other.fallback &&
+               periodicLongitude == other.periodicLongitude;
+    }
+    bool operator!=(const RasterFieldOptions& other) const {
+        return !(*this == other);
+    }
 };
 
 /// Checks raster field options.

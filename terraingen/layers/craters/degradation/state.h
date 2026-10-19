@@ -11,7 +11,13 @@ struct CraterMorphometry {
     double depthRatio = 0.0;      ///< Rim-to-floor depth / diameter.
     double rimHeightRatio = 0.0;  ///< Rim height above the pre-impact surface / diameter.
 
-    bool operator==(const CraterMorphometry&) const = default;
+    /// Memberwise equality.
+    bool operator==(const CraterMorphometry& other) const {
+        return depthRatio == other.depthRatio && rimHeightRatio == other.rimHeightRatio;
+    }
+    bool operator!=(const CraterMorphometry& other) const {
+        return !(*this == other);
+    }
 };
 
 /// A crater's degradation state: its morphometry when fresh and now.
@@ -28,7 +34,13 @@ struct CraterState {
         return fresh.depthRatio > 0.0 ? current.depthRatio / fresh.depthRatio : 1.0;
     }
 
-    bool operator==(const CraterState&) const = default;
+    /// Memberwise equality.
+    bool operator==(const CraterState& other) const {
+        return fresh == other.fresh && current == other.current && diffusion == other.diffusion;
+    }
+    bool operator!=(const CraterState& other) const {
+        return !(*this == other);
+    }
 };
 
 /// The morphometry of a fresh crater of a diameter (m) on some body, such as
