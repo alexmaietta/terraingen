@@ -3,6 +3,7 @@
 #include "terraingen/raster/geotiff/tiff_codecs.h"
 #include "terraingen/raster/geotiff/tiff_format.h"
 
+#include "terraingen/util/arithmetic.h"
 #include "terraingen/util/log.h"
 
 #include <algorithm>
@@ -374,8 +375,8 @@ void ReadChunks(const Ifd& ifd, Layout& layout) {
     if (layout.chunkWidth == 0 || layout.chunkHeight == 0) {
         ifd.reader.Fail("zero tile or strip size");
     }
-    layout.across = (info.width + layout.chunkWidth - 1) / layout.chunkWidth;
-    layout.down = (info.height + layout.chunkHeight - 1) / layout.chunkHeight;
+    layout.across = CeilDiv(info.width, layout.chunkWidth);
+    layout.down = CeilDiv(info.height, layout.chunkHeight);
     const std::size_t chunks = layout.across * layout.down * (layout.planar ? info.bands : 1);
     if (layout.offsets.size() < chunks || layout.byteCounts.size() < chunks) {
         ifd.reader.Fail("fewer tile or strip offsets than the image needs");

@@ -2,10 +2,9 @@
 
 #include "terraingen/mesh/io/formats.h"
 #include "terraingen/mesh/io/icq.h"
+#include "terraingen/util/text.h"
 
-#include <cctype>
 #include <cmath>
-#include <fstream>
 #include <stdexcept>
 #include <string>
 
@@ -15,11 +14,7 @@ namespace {
 
 /// The extension of `path`, lower case.
 std::string Extension(const std::filesystem::path& path) {
-    std::string extension = path.extension().string();
-    for (char& c : extension) {
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    }
-    return extension;
+    return Lower(path.extension().string());
 }
 
 /// Throws for no meshes or nodes, an empty or invalid mesh, mismatched normals, a node naming no
@@ -60,20 +55,10 @@ Vec3d PlacedNormal(const SceneNode& node, const Vec3d& n) {
     return rotated * (1.0 / Length(rotated));
 }
 
-void Save(const std::filesystem::path& path, const std::string& bytes) {
-    std::ofstream file(path, std::ios::binary);
-    file.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
-    if (!file) {
-        throw std::runtime_error("Cannot write " + path.string());
-    }
-}
-
 }  // namespace detail
 
 bool IsMeshPath(const std::filesystem::path& path) {
-    const std::string extension = Extension(path);
-    return extension == ".obj" || extension == ".gltf" || extension == ".glb" ||
-           extension == ".stl" || extension == ".icq";
+    return HasExtension(path, {".obj", ".gltf", ".glb", ".stl", ".icq"});
 }
 
 void WriteScene(const std::filesystem::path& path, const std::vector<SceneMesh>& meshes,

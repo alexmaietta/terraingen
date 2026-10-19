@@ -5,6 +5,7 @@
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/util/geometry.h"
+#include "terraingen/util/surface.h"
 
 #include <cstddef>
 #include <span>
@@ -52,6 +53,9 @@ class SampleBlock {
     /// The smallest box holding every sample: a grid's extent, or the points' bounds, which like
     /// `PointBounds` contain their largest coordinates.
     Bounds2d Bounds() const;
+
+    /// The feature spacing in metres: `spacing`, raised to a grid's cell spacing on `surface`.
+    double ResolvedSpacing(double spacing, const Surface& surface) const;
 
   private:
     Raster<float>* grid_ = nullptr;

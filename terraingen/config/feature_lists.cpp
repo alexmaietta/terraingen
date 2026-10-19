@@ -3,12 +3,12 @@
 #include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/util/geometry.h"
 #include "terraingen/util/overloaded.h"
+#include "terraingen/util/text.h"
 
 #include <nlohmann/json.hpp>
 
 #include <array>
 #include <cstdint>
-#include <cstdio>
 #include <fstream>
 #include <map>
 #include <optional>
@@ -70,19 +70,12 @@ const std::array<Column<Boulder>, 16> kBoulderColumns{{
     {"tilt_azimuth", [](const Boulder& b) { return Cell(b.tiltAzimuth); }},
 }};
 
-/// `value` with the digits to read it back exactly.
-std::string Number(double value) {
-    std::array<char, 32> buffer{};
-    std::snprintf(buffer.data(), buffer.size(), "%.17g", value);
-    return buffer.data();
-}
-
 /// A cell as CSV writes it: doubles exactly, an unknown value empty and booleans as 1 or 0.
 std::string CsvText(const Cell& cell) {
     return std::visit(Overloaded{
-                          [](double value) { return Number(value); },
+                          [](double value) { return FormatNumber(value, 17); },
                           [](const std::optional<double>& value) {
-                              return value ? Number(*value) : std::string();
+                              return value ? FormatNumber(*value, 17) : std::string();
                           },
                           [](std::uint64_t value) { return std::to_string(value); },
                           [](int value) { return std::to_string(value); },

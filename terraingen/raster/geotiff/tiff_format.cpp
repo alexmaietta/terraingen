@@ -67,7 +67,7 @@ GeoTransform ShiftHalfPixel(const GeoTransform& transform, double sign) {
 ModelTags EncodeTransform(const GeoTransform& transform, bool pixelIsPoint) {
     const GeoTransform stored = pixelIsPoint ? ShiftHalfPixel(transform, 1.0) : transform;
     ModelTags tags;
-    if (stored.rowRotation == 0.0 && stored.colRotation == 0.0) {
+    if (!stored.IsRotated()) {
         tags.pixelScale = {stored.pixelWidth, -stored.pixelHeight, 0.0};
         tags.tiepoint = {0.0, 0.0, 0.0, stored.originX, stored.originY, 0.0};
     } else {

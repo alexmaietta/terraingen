@@ -23,12 +23,29 @@ TEST(Text, MatchesExtensionsIgnoringCase) {
     EXPECT_FALSE(terraingen::HasExtension("dem.tif", {}));
 }
 
+TEST(Text, FormatsNumbersToTheGivenDigits) {
+    EXPECT_EQ(terraingen::FormatNumber(1.0 / 3.0, 9), "0.333333333");
+    EXPECT_EQ(terraingen::FormatNumber(1.0 / 3.0, 17), "0.33333333333333331");
+    EXPECT_EQ(terraingen::FormatNumber(0.1, 9), "0.1");
+    EXPECT_EQ(terraingen::FormatNumber(-9999.0, 9), "-9999");
+    EXPECT_EQ(terraingen::FormatNumber(1.5e-12, 9), "1.5e-12");
+}
+
 TEST(Arithmetic, CeilDivRoundsUp) {
     EXPECT_EQ(terraingen::CeilDiv<std::size_t>(0, 4), 0u);
     EXPECT_EQ(terraingen::CeilDiv<std::size_t>(1, 4), 1u);
     EXPECT_EQ(terraingen::CeilDiv<std::size_t>(8, 4), 2u);
     EXPECT_EQ(terraingen::CeilDiv<std::size_t>(9, 4), 3u);
     static_assert(terraingen::CeilDiv<std::uint32_t>(257, 256) == 2u);
+}
+
+TEST(Arithmetic, ClampIndexKeepsIndicesInRange) {
+    EXPECT_EQ(terraingen::ClampIndex(-3.0, 5), 0u);
+    EXPECT_EQ(terraingen::ClampIndex(2.0, 5), 2u);
+    EXPECT_EQ(terraingen::ClampIndex(4.0, 5), 4u);
+    EXPECT_EQ(terraingen::ClampIndex(9.0, 5), 4u);
+    EXPECT_EQ(terraingen::ClampIndex(7.0, 1), 0u);
+    static_assert(terraingen::ClampIndex(1.0, 3) == 1u);
 }
 
 TEST(Files, WritesAndReadsWholeFiles) {

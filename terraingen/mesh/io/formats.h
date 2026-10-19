@@ -4,6 +4,7 @@
 #pragma once
 
 #include "terraingen/mesh/io/mesh_io.h"
+#include "terraingen/util/files.h"
 
 #include <array>
 #include <bit>
@@ -41,10 +42,6 @@ Vec3d Placed(const SceneNode& node, const Vec3d& p);
 
 /// The normal `n` of a vertex of the node's mesh after `Placed`, unit length.
 Vec3d PlacedNormal(const SceneNode& node, const Vec3d& n);
-
-/// Writes `bytes` to `path`.
-/// @throws std::runtime_error if the file cannot be written.
-void Save(const std::filesystem::path& path, const std::string& bytes);
 
 /// `WriteScene` for .obj, with the materials in an .mtl of the same stem beside it.
 void WriteObj(const std::filesystem::path& path, const std::vector<SceneMesh>& meshes,

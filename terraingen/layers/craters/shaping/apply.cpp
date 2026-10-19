@@ -4,6 +4,7 @@
 #include "terraingen/layers/craters/shaping/crater_kernel.h"
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/grid.h"
+#include "terraingen/util/arithmetic.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/log.h"
 #include "terraingen/util/parallel.h"
@@ -615,8 +616,8 @@ void ShapeTiles(Raster<float>& raster, unsigned threads, const CraterShapeKernel
                 const CraterKernelBatch& batch, const std::vector<PreparedCrater>& prepared,
                 const std::vector<std::size_t>& onRaster,
                 const std::vector<std::vector<PixelWindow>>& windows, const Surface& surface) {
-    const std::size_t tilesX = (raster.Width() + kTileCells - 1) / kTileCells;
-    const std::size_t tilesY = (raster.Height() + kTileCells - 1) / kTileCells;
+    const std::size_t tilesX = CeilDiv(raster.Width(), kTileCells);
+    const std::size_t tilesY = CeilDiv(raster.Height(), kTileCells);
     struct Entry {
         std::uint32_t crater;
         PixelWindow cells;
@@ -656,8 +657,8 @@ constexpr std::size_t kGpuTileCells = 16;
 /// tiles across and side, then each tile's first entry and count; and the entries.
 std::pair<std::vector<std::uint32_t>, std::vector<std::uint32_t>>
 GpuTileLists(const Raster<float>& raster, const std::vector<std::vector<PixelWindow>>& windows) {
-    const std::size_t tilesX = (raster.Width() + kGpuTileCells - 1) / kGpuTileCells;
-    const std::size_t tilesY = (raster.Height() + kGpuTileCells - 1) / kGpuTileCells;
+    const std::size_t tilesX = CeilDiv(raster.Width(), kGpuTileCells);
+    const std::size_t tilesY = CeilDiv(raster.Height(), kGpuTileCells);
     std::vector<std::vector<std::uint32_t>> lists(tilesX * tilesY);
     for (std::size_t n = 0; n < windows.size(); ++n) {
         for (const PixelWindow& window : windows[n]) {

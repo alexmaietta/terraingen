@@ -1,5 +1,6 @@
 #include "terraingen/mesh/shape_model.h"
 
+#include "terraingen/util/arithmetic.h"
 #include "terraingen/util/cube_faces.h"
 #include "terraingen/util/log.h"
 
@@ -7,7 +8,6 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <numbers>
 #include <optional>
 #include <stdexcept>
 #include <vector>
@@ -15,13 +15,6 @@
 namespace terraingen {
 
 namespace {
-
-constexpr double kQuarter = std::numbers::pi / 4.0;
-
-/// The patch coordinate, in [0, n], of gnomonic coordinate `g` on a face of `n` patches per edge.
-double PatchCoordinate(double g, std::size_t n) {
-    return (std::atan(g) + kQuarter) / (2.0 * kQuarter) * static_cast<double>(n);
-}
 
 /// The triangles near each patch of a cube grid of directions, by the gnomonic projections of
 /// their corners, so each ray tests only the triangles around it.
@@ -43,8 +36,8 @@ class TriangleBins {
     void Near(std::size_t face, double s, double t, std::vector<std::uint32_t>& out) const {
         out.clear();
         const auto range = [&](double x) {
-            const auto k = static_cast<long long>(std::floor(x));
-            return std::array<std::size_t, 2>{Clamp(k - 1), Clamp(k)};
+            const double k = std::floor(x);
+            return std::array<std::size_t, 2>{ClampIndex(k - 1.0, n_), ClampIndex(k, n_)};
         };
         const auto [i0, i1] = range(s);
         const auto [j0, j1] = range(t);
@@ -59,11 +52,6 @@ class TriangleBins {
     }
 
   private:
-    std::size_t Clamp(long long k) const {
-        return static_cast<std::size_t>(
-            std::clamp<long long>(k, 0, static_cast<long long>(n_) - 1));
-    }
-
     void Insert(std::uint32_t triangle, std::size_t face, const std::array<Vec3d, 3>& corner) {
         const detail::CubeFace& f = detail::kCubeFaces[face];
         double sLo = static_cast<double>(n_);
@@ -79,8 +67,10 @@ class TriangleBins {
                 continue;
             }
             front = true;
-            const double s = PatchCoordinate(Dot(p, f.u) / along, n_);
-            const double t = PatchCoordinate(Dot(p, f.v) / along, n_);
+            const double s =
+                detail::EquiangularCoordinate(Dot(p, f.u) / along, static_cast<double>(n_));
+            const double t =
+                detail::EquiangularCoordinate(Dot(p, f.v) / along, static_cast<double>(n_));
             sLo = std::min(sLo, s);
             sHi = std::max(sHi, s);
             tLo = std::min(tLo, t);
@@ -95,10 +85,10 @@ class TriangleBins {
             sHi = static_cast<double>(n_);
             tHi = static_cast<double>(n_);
         }
-        const std::size_t i0 = Clamp(static_cast<long long>(std::floor(sLo)) - 1);
-        const std::size_t i1 = Clamp(static_cast<long long>(std::floor(sHi)) + 1);
-        const std::size_t j0 = Clamp(static_cast<long long>(std::floor(tLo)) - 1);
-        const std::size_t j1 = Clamp(static_cast<long long>(std::floor(tHi)) + 1);
+        const std::size_t i0 = ClampIndex(std::floor(sLo) - 1.0, n_);
+        const std::size_t i1 = ClampIndex(std::floor(sHi) + 1.0, n_);
+        const std::size_t j0 = ClampIndex(std::floor(tLo) - 1.0, n_);
+        const std::size_t j1 = ClampIndex(std::floor(tHi) + 1.0, n_);
         for (std::size_t j = j0; j <= j1; ++j) {
             for (std::size_t i = i0; i <= i1; ++i) {
                 bins_[(face * n_ + j) * n_ + i].push_back(triangle);
@@ -156,8 +146,11 @@ RadialShape ShapeModelFromMesh(const TriangleMesh& mesh, std::size_t q) {
         const std::size_t face = detail::NearestFace(detail::kCubeFaces, direction);
         const detail::CubeFace& f = detail::kCubeFaces[face];
         const double along = Dot(direction, f.normal);
-        bins.Near(face, PatchCoordinate(Dot(direction, f.u) / along, q),
-                  PatchCoordinate(Dot(direction, f.v) / along, q), near);
+        bins.Near(
+            face,
+            detail::EquiangularCoordinate(Dot(direction, f.u) / along, static_cast<double>(q)),
+            detail::EquiangularCoordinate(Dot(direction, f.v) / along, static_cast<double>(q)),
+            near);
         double outer = 0.0;
         double inner = INFINITY;
         for (const std::uint32_t t : near) {

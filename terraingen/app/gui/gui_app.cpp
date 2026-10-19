@@ -6,19 +6,17 @@
 #include "terraingen/config/generate.h"
 #include "terraingen/config/json.h"
 #include "terraingen/raster/geotiff/geotiff.h"
+#include "terraingen/util/files.h"
 #include "terraingen/util/log.h"
+#include "terraingen/util/text.h"
 
 #include <ernie/app/icons.h>
 #include <imgui.h>
 
-#include <algorithm>
-#include <cctype>
 #include <chrono>
 #include <cstddef>
 #include <exception>
-#include <fstream>
 #include <future>
-#include <initializer_list>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -92,13 +90,6 @@ void SimplifyViewer(ernie::app::Viewer& viewer) {
         }
     }
     viewer.FocusPanel("Log");
-}
-
-bool HasExtension(const std::filesystem::path& path, std::initializer_list<const char*> exts) {
-    std::string ext = path.extension().string();
-    std::transform(ext.begin(), ext.end(), ext.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return std::any_of(exts.begin(), exts.end(), [&](const char* e) { return ext == e; });
 }
 
 /// What a generation hands back to the GUI's thread.
@@ -256,13 +247,7 @@ void GuiApp::Open(const std::filesystem::path& path) {
             s.Shown();
             return;
         }
-        std::ifstream file(path);
-        if (!file) {
-            throw std::runtime_error("cannot read " + path.string());
-        }
-        std::ostringstream text;
-        text << file.rdbuf();
-        s.config = text.str();
+        s.config = ReadFile(path);
         s.savedConfig = s.config;
         s.ParseText();
         s.editor.Select("/layers/0");
@@ -363,11 +348,7 @@ void GuiApp::SaveConfig(const std::filesystem::path& path) {
     State& s = *state_;
     try {
         const TerrainConfig config = ParseConfig(s.config);
-        std::ofstream file(path);
-        file << ConfigToJson(config, 4) << "\n";
-        if (!file) {
-            throw std::runtime_error("cannot write " + path.string());
-        }
+        WriteFile(path, ConfigToJson(config, 4) + "\n");
         s.configFile = path;
         s.savedConfig = s.config;
         s.Report(ernie::app::LogLevel::Info, "Saved " + path.string());

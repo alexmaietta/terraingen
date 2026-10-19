@@ -1,10 +1,9 @@
 #include "terraingen/mesh/io/formats.h"
+#include "terraingen/util/text.h"
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
 
-#include <array>
-#include <cstdio>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -15,9 +14,7 @@ namespace {
 
 /// `value` with 9 significant digits, negative zero written as 0.
 std::string Number(double value) {
-    std::array<char, 32> buffer{};
-    std::snprintf(buffer.data(), buffer.size(), "%.9g", value == 0.0 ? 0.0 : value);
-    return buffer.data();
+    return FormatNumber(value == 0.0 ? 0.0 : value, 9);
 }
 
 /// An OBJ line of `tag` and a vector's components.
@@ -69,7 +66,7 @@ void WriteObj(const std::filesystem::path& path, const std::vector<SceneMesh>& m
               const std::vector<SceneNode>& nodes) {
     std::filesystem::path mtl = path;
     mtl.replace_extension(".mtl");
-    Save(mtl, Materials(meshes));
+    WriteFile(mtl, Materials(meshes));
     std::string obj = "# TerrainGen\nmtllib " + mtl.filename().string() + "\n";
     std::size_t offset = 0;
     for (std::size_t n = 0; n < nodes.size(); ++n) {
@@ -77,7 +74,7 @@ void WriteObj(const std::filesystem::path& path, const std::vector<SceneMesh>& m
         obj += NodeObject(nodes[n], n, scene, offset);
         offset += scene.mesh.positions.size();
     }
-    Save(path, obj);
+    WriteFile(path, obj);
 }
 
 SceneMesh ReadObj(const std::filesystem::path& path) {

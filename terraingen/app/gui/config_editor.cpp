@@ -2,6 +2,7 @@
 
 #include "terraingen/app/gui/widgets.h"
 #include "terraingen/config/json.h"
+#include "terraingen/util/text.h"
 
 #include <imgui.h>
 
@@ -63,13 +64,6 @@ const char* TypeGlyph(std::string_view root, std::string_view type) {
 
 /// Text for a setting the configuration leaves at its default.
 const ImVec4 kDefaultColour(0.55f, 0.57f, 0.62f, 1.0f);
-
-std::string Lower(std::string_view text) {
-    std::string lower(text);
-    std::transform(lower.begin(), lower.end(), lower.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return lower;
-}
 
 /// Shows `text` (and `extra` below it, dimmed) as the last item's tooltip, wrapped to a readable
 /// width; nothing for empty text.

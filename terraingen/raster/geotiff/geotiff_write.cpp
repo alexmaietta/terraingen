@@ -3,10 +3,10 @@
 #include "terraingen/raster/geotiff/tiff_codecs.h"
 #include "terraingen/raster/geotiff/tiff_format.h"
 
+#include "terraingen/util/arithmetic.h"
 #include "terraingen/util/log.h"
+#include "terraingen/util/text.h"
 
-#include <array>
-#include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <map>
@@ -86,7 +86,7 @@ struct TileGrid {
 };
 
 TileGrid MakeTileGrid(const Raster<float>& raster, std::size_t tile) {
-    return {tile, (raster.Width() + tile - 1) / tile, (raster.Height() + tile - 1) / tile};
+    return {tile, CeilDiv(raster.Width(), tile), CeilDiv(raster.Height(), tile)};
 }
 
 /// Throws a `GeoTiffError` naming the file written, as the reader's errors do.
@@ -220,12 +220,6 @@ void AddImageTags(IfdWriter& ifd, const Raster<float>& raster, std::size_t bandC
     ifd.Add<std::uint16_t>(kSampleFormat, kShort, std::vector<std::uint16_t>(bands, 3));
 }
 
-std::string NoDataText(float value) {
-    std::array<char, 40> buffer{};
-    std::snprintf(buffer.data(), buffer.size(), "%.9g", static_cast<double>(value));
-    return buffer.data();
-}
-
 /// Adds the georeferencing, projection keys and no-data value.
 void AddGeoTags(IfdWriter& ifd, const Raster<float>& raster, const GeoKeys& geoKeys) {
     const GeoTransform& transform = raster.Transform();
@@ -248,7 +242,7 @@ void AddGeoTags(IfdWriter& ifd, const Raster<float>& raster, const GeoKeys& geoK
         }
     }
     if (raster.NoData()) {
-        ifd.AddAscii(kGdalNoData, NoDataText(*raster.NoData()));
+        ifd.AddAscii(kGdalNoData, FormatNumber(static_cast<double>(*raster.NoData()), 9));
     }
 }
 

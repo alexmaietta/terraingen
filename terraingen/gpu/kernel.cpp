@@ -1,6 +1,7 @@
 #include "terraingen/gpu/kernel.h"
 
 #include "terraingen/gpu/device.h"
+#include "terraingen/util/arithmetic.h"
 
 #include <algorithm>
 #include <cmath>
@@ -32,14 +33,14 @@ struct KernelParams {
 
 /// The grid in workgroups of `kGroupSide` cells, rounded up.
 std::uint32_t Groups(std::size_t cells) {
-    return static_cast<std::uint32_t>((cells + kGroupSide - 1) / kGroupSide);
+    return static_cast<std::uint32_t>(CeilDiv(cells, kGroupSide));
 }
 
 /// Whether kernels can run over `grid`: not rotated, not empty, and no wider than one dispatch.
 bool Dispatchable(const Raster<float>& grid) {
     const GeoTransform& transform = grid.Transform();
-    return transform.rowRotation == 0.0 && transform.colRotation == 0.0 && grid.Width() > 0 &&
-           grid.Height() > 0 && Groups(grid.Width()) <= kMaxGroups;
+    return !transform.IsRotated() && grid.Width() > 0 && grid.Height() > 0 &&
+           Groups(grid.Width()) <= kMaxGroups;
 }
 
 /// The x of each column's cell centres, measured from `origin`.

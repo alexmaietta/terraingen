@@ -171,9 +171,6 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// one pass (`Ground::HeightsAt`) and then placed.
     std::vector<Boulder> DrawBoulders(const CraterList& candidates, double spacing,
                                       const Ground* ground, const EjectaIndex& ejecta) const;
-    /// The points `GroundGradient` reads around (`x`, `y`) for a boulder `diameter` metres across:
-    /// east, west, north and south.
-    std::array<Vec2d, 4> GradientPoints(double x, double y, double diameter) const;
     /// Margin in radii a boulder's own relief and fillet reach beyond its centre.
     double OwnMarginRadii() const;
     /// Margin in radii its pieces may scatter beyond that when boulders break.
@@ -183,7 +180,7 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     void Settle(Boulder& boulder, const Ground* ground) const;
     /// The rise east and north (m/m) of `ground` across `boulder`'s diameter; none where the
     /// ground is missing.
-    std::optional<Vec2d> GroundGradient(const Boulder& boulder, const Ground& ground) const;
+    std::optional<Vec2d> Gradient(const Boulder& boulder, const Ground& ground) const;
     /// Rolls `boulder` down ground steeper than `maxSlope` until it rests, as `rollDistance`
     /// allows; false when it would roll farther, or with no roll distance on steep ground.
     bool Roll(Boulder& boulder, const Ground& ground) const;

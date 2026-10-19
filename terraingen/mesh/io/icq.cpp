@@ -1,13 +1,13 @@
 #include "terraingen/mesh/io/icq.h"
 
 #include "terraingen/mesh/shape_model.h"
+#include "terraingen/util/files.h"
+#include "terraingen/util/text.h"
 
 #include <array>
-#include <cctype>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
-#include <fstream>
 #include <numbers>
 #include <sstream>
 #include <stdexcept>
@@ -40,18 +40,11 @@ double CrossSquared(const Vec3d& a, const Vec3d& b) {
 }  // namespace
 
 bool IsIcqPath(const std::filesystem::path& path) {
-    std::string extension = path.extension().string();
-    for (char& c : extension) {
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    }
-    return extension == ".icq";
+    return HasExtension(path, {".icq"});
 }
 
 IcqModel ReadIcq(const std::filesystem::path& path, double metresPerUnit) {
-    std::ifstream file(path);
-    if (!file) {
-        throw std::runtime_error("Cannot read ICQ file " + path.string());
-    }
+    std::istringstream file(ReadFile(path));
     std::string line;
     long long q = 0;
     if (!std::getline(file, line) || !(std::istringstream(line) >> q) || q <= 0 || q > 1000000) {
@@ -83,21 +76,16 @@ IcqModel ReadIcq(const std::filesystem::path& path, double metresPerUnit) {
 
 void WriteIcq(const std::filesystem::path& path, const IcqModel& model, double metresPerUnit) {
     CheckModel(model);
-    std::ofstream file(path);
-    if (!file) {
-        throw std::runtime_error("Cannot write ICQ file " + path.string());
-    }
+    std::string text;
     std::array<char, 64> buffer{};
     std::snprintf(buffer.data(), buffer.size(), "%12zu\n", model.q);
-    file << buffer.data();
+    text += buffer.data();
     for (const Vec3d& v : model.vertices) {
         std::snprintf(buffer.data(), buffer.size(), "%18.9f%18.9f%18.9f\n", v.x / metresPerUnit,
                       v.y / metresPerUnit, v.z / metresPerUnit);
-        file << buffer.data();
+        text += buffer.data();
     }
-    if (!file) {
-        throw std::runtime_error("Cannot write ICQ file " + path.string());
-    }
+    WriteFile(path, text);
 }
 
 namespace {

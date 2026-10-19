@@ -35,11 +35,7 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options)
                                       MaxOutlineScale(options_.apply.irregularity);
     options_.generation.surface = options_.surface;
     options_.apply.surface = options_.surface;
-    if (options_.surface.IsBody()) {
-        cells_ = std::make_shared<CubeSphereCells>(options_.surface);
-    } else {
-        cells_ = std::make_shared<PlanarCells>();
-    }
+    cells_ = MakeCells(options_.surface);
     if (options_.cacheCraters > 0) {
         cache_ = std::make_shared<CraterCellCache>(options_.cacheCraters);
     }
@@ -187,10 +183,7 @@ void CraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context
         throw std::invalid_argument(
             "Point queries cannot use maxCraters, which ranks craters over a whole grid");
     }
-    const double spacing =
-        grid != nullptr
-            ? std::max(context.spacing, RasterGrid::FromRaster(*grid).Spacing(options_.surface))
-            : context.spacing;
+    const double spacing = samples.ResolvedSpacing(context.spacing, options_.surface);
     const Bounds2d bounds = samples.Bounds();
     const double margin = DatumMargin(options_.apply, *models_.profile, MaxFeatureDiameter());
     const CraterList craters = Craters(options_.surface.Expand(bounds, margin), spacing);
@@ -203,8 +196,8 @@ CraterAttributes CraterLayer::Attributes(const Crater& crater) const {
 }
 
 CraterFeatures CraterLayer::CratersOver(const RasterGrid& grid, double spacing) const {
-    return DescribeCraters(
-        Craters(grid.Bounds(), std::max(spacing, grid.Spacing(options_.surface))), models_.Shape());
+    return DescribeCraters(Craters(grid.Bounds(), ResolvedSpacing(grid, spacing, options_.surface)),
+                           models_.Shape());
 }
 
 double CraterLayer::MaxFeatureDiameter() const {

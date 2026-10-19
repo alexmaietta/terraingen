@@ -29,8 +29,8 @@ Placement RasterPlacement(const Raster<float>& raster, const char* what) {
     if (raster.Width() < 2 || raster.Height() < 2) {
         throw std::invalid_argument(std::string(what) + " needs at least 2 x 2 cells");
     }
-    if (t.rowRotation != 0.0 || t.colRotation != 0.0 || !(t.pixelWidth > 0.0) ||
-        !(t.pixelHeight < 0.0) || std::abs(t.pixelWidth + t.pixelHeight) > 1e-9 * t.pixelWidth) {
+    if (t.IsRotated() || !(t.pixelWidth > 0.0) || !(t.pixelHeight < 0.0) ||
+        std::abs(t.pixelWidth + t.pixelHeight) > 1e-9 * t.pixelWidth) {
         throw std::invalid_argument(std::string(what) +
                                     " must be north-up with square cells to view");
     }

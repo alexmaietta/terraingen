@@ -1,5 +1,7 @@
 #include "terraingen/raster/resample.h"
 
+#include "terraingen/util/arithmetic.h"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -24,16 +26,13 @@ double CubicWeight(double x) {
     return 0.0;
 }
 
-std::size_t Clamp(double index, std::size_t size) {
-    return static_cast<std::size_t>(std::clamp(index, 0.0, static_cast<double>(size - 1)));
-}
-
 /// `raster` interpolated at pixel coordinates (`u`, `v`) measured from the centre of the first
 /// cell, or nothing where a contributing cell holds no data.
 std::optional<float> Interpolate(const Raster<float>& raster, double u, double v,
                                  ResampleMethod method) {
     if (method == ResampleMethod::Nearest) {
-        return raster(Clamp(std::round(u), raster.Width()), Clamp(std::round(v), raster.Height()));
+        return raster(ClampIndex(std::round(u), raster.Width()),
+                      ClampIndex(std::round(v), raster.Height()));
     }
     const double u0 = std::floor(u);
     const double v0 = std::floor(v);
@@ -45,11 +44,11 @@ std::optional<float> Interpolate(const Raster<float>& raster, double u, double v
     for (int j = first; j <= last; ++j) {
         const double wy =
             method == ResampleMethod::Bilinear ? (j == 0 ? 1.0 - fv : fv) : CubicWeight(fv - j);
-        const std::size_t y = Clamp(v0 + j, raster.Height());
+        const std::size_t y = ClampIndex(v0 + j, raster.Height());
         for (int i = first; i <= last; ++i) {
             const double wx =
                 method == ResampleMethod::Bilinear ? (i == 0 ? 1.0 - fu : fu) : CubicWeight(fu - i);
-            const float value = raster(Clamp(u0 + i, raster.Width()), y);
+            const float value = raster(ClampIndex(u0 + i, raster.Width()), y);
             if (wx * wy != 0.0 && raster.IsNoData(value)) {
                 return std::nullopt;
             }

@@ -115,10 +115,7 @@ Raster<double> SandShadowLayer::MaterialCoverOver(const RasterGrid& grid, double
 
 void SandShadowLayer::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
     Raster<float>* heights = samples.Grid();
-    const double spacing =
-        heights != nullptr
-            ? std::max(context.spacing, RasterGrid::FromRaster(*heights).Spacing(surface_))
-            : context.spacing;
+    const double spacing = samples.ResolvedSpacing(context.spacing, surface_);
     const std::vector<Shadow> shadows = ShadowsOver(samples.Bounds(), spacing, context.ground);
     if (heights != nullptr) {
         const std::span<const float> values = std::as_const(*heights).Values();

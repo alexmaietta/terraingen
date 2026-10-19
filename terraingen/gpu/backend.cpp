@@ -3,9 +3,9 @@
 #include "terraingen/gpu/cuda.h"
 #include "terraingen/gpu/metal.h"
 #include "terraingen/gpu/vulkan.h"
+#include "terraingen/util/text.h"
 
 #include <atomic>
-#include <cctype>
 #include <cstdlib>
 #include <stdexcept>
 #include <string>
@@ -99,10 +99,7 @@ std::string BackendNameList() {
 }
 
 std::optional<Backend> BackendNamed(std::string_view name) {
-    std::string lower(name);
-    for (char& c : lower) {
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    }
+    const std::string lower = Lower(name);
     for (std::size_t i = 0; i < kBackendNames.size(); ++i) {
         if (lower == kBackendNames[i]) {
             return kNamedBackends[i];

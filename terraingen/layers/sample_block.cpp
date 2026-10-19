@@ -46,4 +46,10 @@ Bounds2d SampleBlock::Bounds() const {
     return box;
 }
 
+double SampleBlock::ResolvedSpacing(double spacing, const Surface& surface) const {
+    return grid_ != nullptr
+               ? terraingen::ResolvedSpacing(RasterGrid::FromRaster(*grid_), spacing, surface)
+               : spacing;
+}
+
 }  // namespace terraingen

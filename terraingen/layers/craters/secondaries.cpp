@@ -343,7 +343,7 @@ CraterAttributes SecondaryCraterLayer::Attributes(const Crater& crater) const {
 
 CraterFeatures SecondaryCraterLayer::CratersOver(const RasterGrid& grid, double spacing) const {
     return DescribeCraters(
-        Secondaries(grid.Bounds(), std::max(spacing, grid.Spacing(apply_.surface))), models_);
+        Secondaries(grid.Bounds(), ResolvedSpacing(grid, spacing, apply_.surface)), models_);
 }
 
 double SecondaryCraterLayer::MaxFeatureDiameter() const {
@@ -380,11 +380,7 @@ CraterList SecondaryCraterLayer::Secondaries(
 }
 
 void SecondaryCraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
-    const Raster<float>* grid = samples.Grid();
-    const double spacing =
-        grid != nullptr
-            ? std::max(context.spacing, RasterGrid::FromRaster(*grid).Spacing(apply_.surface))
-            : context.spacing;
+    const double spacing = samples.ResolvedSpacing(context.spacing, apply_.surface);
     std::unordered_map<std::uint64_t, SecondaryOutline> outlines;
     const CraterList secondaries = Secondaries(samples.Bounds(), spacing, outlines);
     CraterSampling sampling = SamplingFrom(context, spacing, this);

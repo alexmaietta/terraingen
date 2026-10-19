@@ -57,6 +57,18 @@ TEST(SampleBlock, HoldsScatteredPointsAndTheirBounds) {
     EXPECT_THROW(SampleBlock(positions, short_heights), std::invalid_argument);
 }
 
+TEST(SampleBlock, RaisesTheSpacingToAGridsCells) {
+    Raster<float> heights(4, 4, 0.0f);
+    heights.SetTransform(terraingen::GeoTransform::NorthUp(0.0, 0.0, 2.0));
+    const SampleBlock grid(heights);
+    const terraingen::Surface plane;
+    EXPECT_EQ(grid.ResolvedSpacing(0.5, plane), 2.0);
+    EXPECT_EQ(grid.ResolvedSpacing(3.0, plane), 3.0);
+    const std::vector<Vec2d> positions{{0.0, 0.0}};
+    std::vector<float> values{0.0f};
+    EXPECT_EQ(SampleBlock(positions, values).ResolvedSpacing(0.5, plane), 0.5);
+}
+
 TEST(SampleBlock, AppliesALayerToManyPointsAsToEachAlone) {
     terraingen::CraterLayerOptions options;
     options.seed = 9;

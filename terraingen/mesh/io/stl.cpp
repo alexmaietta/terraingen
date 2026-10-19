@@ -3,8 +3,6 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
-#include <fstream>
-#include <iterator>
 #include <map>
 #include <sstream>
 #include <stdexcept>
@@ -117,15 +115,11 @@ void WriteStl(const std::filesystem::path& path, const std::vector<SceneMesh>& m
             Put(bytes, static_cast<std::uint16_t>(0));
         }
     }
-    Save(path, bytes);
+    WriteFile(path, bytes);
 }
 
 SceneMesh ReadStl(const std::filesystem::path& path) {
-    std::ifstream file(path, std::ios::binary);
-    if (!file) {
-        throw std::runtime_error("Cannot read " + path.string());
-    }
-    const std::string bytes{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+    const std::string bytes = ReadFile(path);
     SceneMesh read;
     std::uint32_t count = 0;
     if (bytes.size() >= kHeaderBytes + 4) {

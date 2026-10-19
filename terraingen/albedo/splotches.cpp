@@ -4,9 +4,11 @@
 #include "terraingen/distribution/power_law.h"
 #include "terraingen/layers/craters/ages/age_model.h"
 #include "terraingen/layers/craters/generation/population.h"
+#include "terraingen/layers/ground.h"
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/grid.h"
+#include "terraingen/util/arithmetic.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/geometry.h"
 
@@ -127,20 +129,13 @@ void SetSides(Splotch& splotch, double kind, double darkShare, double brightShar
     splotch.otherChange = mixed ? bright : splotch.change;
 }
 
-/// The four points half a splotch `diameter` metres across east, west, north and south of
-/// (`x`, `y`).
-std::array<Vec2d, 4> SlopePoints(const Surface& surface, double x, double y, double diameter) {
-    const double h = 0.5 * diameter;
-    return {surface.Locate({x, y}, {h, 0.0}), surface.Locate({x, y}, {-h, 0.0}),
-            surface.Locate({x, y}, {0.0, h}), surface.Locate({x, y}, {0.0, -h})};
-}
-
 /// The spacing slopes under splotches are read at: `spacing`, or half the smallest splotch when 0.
 double SlopeSpacing(double spacing, const SplotchAlbedoOptions& options) {
     return spacing > 0.0 ? spacing : 0.5 * options.minDiameter;
 }
 
-/// The slope in degrees from the heights at `SlopePoints`; 0 where any is NaN.
+/// The slope in degrees from the heights at `GradientPoints` half a splotch out; 0 where any is
+/// NaN.
 double SlopeDegrees(std::span<const float> heights, double diameter) {
     const double dx = static_cast<double>(heights[0] - heights[1]) / diameter;
     const double dy = static_cast<double>(heights[2] - heights[3]) / diameter;
@@ -174,8 +169,7 @@ class SplotchBins {
 
   private:
     std::size_t Index(double value, double origin, std::size_t count) const {
-        const double i = std::floor((value - origin) / bin_);
-        return static_cast<std::size_t>(std::clamp(i, 0.0, static_cast<double>(count - 1)));
+        return ClampIndex(std::floor((value - origin) / bin_), count);
     }
 
     void Add(const Splotch& splotch, const Surface& surface) {
@@ -248,11 +242,7 @@ void ValidateSplotchAlbedoOptions(const SplotchAlbedoOptions& options) {
 SplotchAlbedo::SplotchAlbedo(SplotchAlbedoOptions options, Surface surface)
     : options_(std::move(options)), surface_(std::move(surface)) {
     ValidateSplotchAlbedoOptions(options_);
-    if (surface_.IsBody()) {
-        cells_ = std::make_shared<CubeSphereCells>(surface_);
-    } else {
-        cells_ = std::make_shared<PlanarCells>();
-    }
+    cells_ = MakeCells(surface_);
 }
 
 std::vector<Splotch> SplotchAlbedo::Marks(const Bounds2d& region, double spacing) const {
@@ -288,7 +278,7 @@ std::vector<double> SplotchAlbedo::SteepSlopes(const std::vector<Splotch>& splot
     points.reserve(4 * splotches.size());
     for (const Splotch& splotch : splotches) {
         const auto four =
-            SlopePoints(surface_, splotch.mark.x, splotch.mark.y, splotch.mark.diameter);
+            GradientPoints(surface_, {splotch.mark.x, splotch.mark.y}, 0.5 * splotch.mark.diameter);
         points.insert(points.end(), four.begin(), four.end());
     }
     std::vector<float> heights(points.size());

@@ -1,5 +1,6 @@
 #include "terraingen/util/radial_shape.h"
 
+#include "terraingen/util/arithmetic.h"
 #include "terraingen/util/cube_faces.h"
 
 #include <algorithm>
@@ -142,9 +143,8 @@ double RadialShape::At(const Vec3d& direction) const {
     const auto position = [&](const Vec3d& axis) {
         const double s =
             detail::EquiangularCoordinate(Dot(direction, axis) / along, static_cast<double>(q_));
-        const double k = std::clamp(std::floor(s), 0.0, static_cast<double>(q_ - 1));
-        return std::pair<std::size_t, double>{static_cast<std::size_t>(k),
-                                              std::clamp(s - k, 0.0, 1.0)};
+        const std::size_t k = ClampIndex(std::floor(s), q_);
+        return std::pair<std::size_t, double>{k, std::clamp(s - static_cast<double>(k), 0.0, 1.0)};
     };
     const auto [i, fi] = position(f.u);
     const auto [j, fj] = position(f.v);

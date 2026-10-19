@@ -155,11 +155,7 @@ BoulderLayer::BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const Cr
         throw std::invalid_argument(
             "Boulder ejecta need the crater layer whose craters throw them");
     }
-    if (surface_.IsBody()) {
-        cells_ = std::make_shared<CubeSphereCells>(surface_);
-    } else {
-        cells_ = std::make_shared<PlanarCells>();
-    }
+    cells_ = MakeCells(surface_);
     SetUpAbundance();
     if (options_.cacheBoulders > 0) {
         cache_ = std::make_shared<CraterCellCache>(options_.cacheBoulders);
@@ -446,7 +442,7 @@ std::vector<Boulder> BoulderLayer::DrawBoulders(const CraterList& candidates, do
         const Crater& c = one.candidate;
         points.push_back({c.x, c.y});
         if (each == 5) {
-            for (const Vec2d& p : GradientPoints(c.x, c.y, c.diameter)) {
+            for (const Vec2d& p : GradientPoints(surface_, {c.x, c.y}, 0.5 * c.diameter)) {
                 points.push_back(p);
             }
         }
@@ -594,7 +590,7 @@ bool BoulderLayer::Roll(Boulder& boulder, const Ground& ground) const {
     const double step = std::fmax(boulder.diameter, reach / kMaxSteps);
     double rolled = 0.0;
     for (;;) {
-        const std::optional<Vec2d> g = GroundGradient(boulder, ground);
+        const std::optional<Vec2d> g = Gradient(boulder, ground);
         const double gradient = g ? std::hypot(g->x, g->y) : 0.0;
         if (!(gradient > limit)) {
             return true;
@@ -610,26 +606,9 @@ bool BoulderLayer::Roll(Boulder& boulder, const Ground& ground) const {
     }
 }
 
-std::array<Vec2d, 4> BoulderLayer::GradientPoints(double x, double y, double diameter) const {
-    const double step = 0.5 * diameter;
-    return {surface_.Locate({x, y}, {step, 0.0}), surface_.Locate({x, y}, {-step, 0.0}),
-            surface_.Locate({x, y}, {0.0, step}), surface_.Locate({x, y}, {0.0, -step})};
-}
-
-std::optional<Vec2d> BoulderLayer::GroundGradient(const Boulder& boulder,
-                                                  const Ground& ground) const {
-    const double step = 0.5 * boulder.diameter;
-    const std::array<Vec2d, 4> points = GradientPoints(boulder.x, boulder.y, boulder.diameter);
-    const auto at = [&](std::size_t n) {
-        return static_cast<double>(
-            ground.HeightAt(points[n].x, points[n].y, options_.groundSpacing));
-    };
-    const double gx = (at(0) - at(1)) / (2.0 * step);
-    const double gy = (at(2) - at(3)) / (2.0 * step);
-    if (!std::isfinite(gx) || !std::isfinite(gy)) {
-        return std::nullopt;
-    }
-    return Vec2d{gx, gy};
+std::optional<Vec2d> BoulderLayer::Gradient(const Boulder& boulder, const Ground& ground) const {
+    return GroundGradient(ground, surface_, {boulder.x, boulder.y}, 0.5 * boulder.diameter,
+                          options_.groundSpacing);
 }
 
 void BoulderLayer::Settle(Boulder& boulder, const Ground* ground) const {
@@ -649,7 +628,7 @@ void BoulderLayer::Settle(Boulder& boulder, const Ground* ground) const {
         up = {sine * std::cos(azimuth), sine * std::sin(azimuth), cosine};
     }
     if (pose.followSlope && ground != nullptr) {
-        if (const std::optional<Vec2d> g = GroundGradient(boulder, *ground)) {
+        if (const std::optional<Vec2d> g = Gradient(boulder, *ground)) {
             const double slope = std::atan(std::hypot(g->x, g->y));
             up = TiltRotation(slope, std::atan2(-g->y, -g->x)).Apply(up);
         }
@@ -869,10 +848,7 @@ void BoulderLayer::ApplySamples(SampleBlock& samples, const LayerContext& contex
     if (options_.rendering.relief == BoulderRelief::None && options_.fillet.heightShare <= 0.0) {
         return;
     }
-    const Raster<float>* grid = samples.Grid();
-    const double spacing =
-        grid != nullptr ? std::max(context.spacing, RasterGrid::FromRaster(*grid).Spacing(surface_))
-                        : context.spacing;
+    const double spacing = samples.ResolvedSpacing(context.spacing, surface_);
     const double rim = options_.rendering.relief == BoulderRelief::Dome ? 0.5 * spacing : 0.0;
     const std::vector<Boulder> boulders =
         Boulders(surface_.Expand(samples.Bounds(), rim), spacing, context.ground);
@@ -908,7 +884,7 @@ std::vector<BoulderModel> BoulderLayer::Models(const std::vector<Boulder>& bould
 BoulderFeatures BoulderLayer::BouldersOver(const RasterGrid& grid, double spacing,
                                            const Ground* ground) const {
     BoulderFeatures placed{
-        Boulders(grid.Bounds(), std::max(spacing, grid.Spacing(surface_)), ground), {}};
+        Boulders(grid.Bounds(), ResolvedSpacing(grid, spacing, surface_), ground), {}};
     placed.models = Models(placed.boulders);
     return placed;
 }

@@ -330,7 +330,7 @@ RasterGrid DescribeRaster(const RasterSourceSpec& raster, const std::filesystem:
         return grid;
     }
     const std::string pixelSize = Child(path, "pixel_size");
-    if (grid.transform.rowRotation != 0.0 || grid.transform.colRotation != 0.0) {
+    if (grid.transform.IsRotated()) {
         throw ConfigError(pixelSize, "rotated rasters cannot be resampled");
     }
     RasterGrid resampled;
@@ -576,7 +576,7 @@ void CheckAlbedoSource(const RasterAlbedoSpec& spec, const std::filesystem::path
                                          (info.bands == 1 ? " band" : " bands"));
         }
     }
-    if (info.transform.rowRotation != 0.0 || info.transform.colRotation != 0.0) {
+    if (info.transform.IsRotated()) {
         throw ConfigError(file, "rotated albedo maps are not supported");
     }
     if ((spec.scale && !std::isfinite(*spec.scale)) ||

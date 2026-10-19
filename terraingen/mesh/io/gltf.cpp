@@ -45,7 +45,7 @@ class GltfDocument {
         if (!binary) {
             std::filesystem::path binPath = path;
             binPath.replace_extension(".bin");
-            Save(binPath, binary_);
+            WriteFile(binPath, binary_);
             bin = binPath.filename().string();
             buffer.uri = bin.data();
         }

@@ -63,8 +63,7 @@ RasterAlbedo::RasterAlbedo(std::vector<Raster<float>> bands, RasterAlbedoOptions
         throw std::invalid_argument("An albedo map must have 1 or 3 bands");
     }
     const Raster<float>& first = bands_.front();
-    if (first.Empty() || first.Transform().rowRotation != 0.0 ||
-        first.Transform().colRotation != 0.0) {
+    if (first.Empty() || first.Transform().IsRotated()) {
         throw std::invalid_argument("An albedo map must be neither empty nor rotated");
     }
     for (const Raster<float>& band : bands_) {

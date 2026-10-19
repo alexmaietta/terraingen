@@ -1,7 +1,9 @@
 #include "terraingen/util/text.h"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
+#include <cstdio>
 
 namespace terraingen {
 
@@ -17,6 +19,12 @@ bool HasExtension(const std::filesystem::path& path,
     const std::string extension = Lower(path.extension().string());
     return std::any_of(extensions.begin(), extensions.end(),
                        [&](std::string_view candidate) { return extension == Lower(candidate); });
+}
+
+std::string FormatNumber(double value, int digits) {
+    std::array<char, 40> buffer{};
+    std::snprintf(buffer.data(), buffer.size(), "%.*g", digits, value);
+    return buffer.data();
 }
 
 }  // namespace terraingen

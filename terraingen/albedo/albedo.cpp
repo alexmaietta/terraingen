@@ -1,5 +1,6 @@
 #include "terraingen/albedo/albedo.h"
 
+#include "terraingen/util/arithmetic.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/log.h"
 #include "terraingen/util/parallel.h"
@@ -71,7 +72,7 @@ void ForEachAlbedoBlock(
         return;
     }
     const std::size_t height = bands.front().Height();
-    const std::size_t blocks = (height + blockRows - 1) / blockRows;
+    const std::size_t blocks = CeilDiv(height, blockRows);
     ParallelFor(blocks, threads, [&](std::size_t block) {
         const std::size_t rowBegin = block * blockRows;
         const std::size_t rowEnd = std::min(height, rowBegin + blockRows);
@@ -122,7 +123,7 @@ std::vector<Raster<float>> EvaluateAlbedo(const Albedo& albedo, const RasterGrid
         throw std::invalid_argument("Cannot evaluate an albedo over an empty grid");
     }
     RequireNonNegative(context.spacing, "Albedo sample spacing");
-    context.spacing = std::fmax(context.spacing, grid.Spacing(albedo.surface));
+    context.spacing = ResolvedSpacing(grid, context.spacing, albedo.surface);
     const std::size_t count = CheckAlbedo(albedo, context);
     std::vector<Raster<float>> bands;
     for (std::size_t band = 0; band < count; ++band) {
