@@ -12,6 +12,7 @@
 #include <cmath>
 #include <cstddef>
 #include <fstream>
+#include <numbers>
 #include <string>
 #include <vector>
 
@@ -357,11 +358,24 @@ TEST(ValidateConfig, ReportsDensityAndSlopeMapProblemsAtTheMap) {
 
 TEST(BuildBoulderOptions, BuildsTheSizesAndReportsThemAtTheirKeys) {
     terraingen::BoulderLayerSpec spec;
-    const auto surveyor = terraingen::config::BuildBoulderOptions(spec, "layers[3]");
-    ASSERT_NE(surveyor.sizes.distribution, nullptr);
-    EXPECT_DOUBLE_EQ(surveyor.sizes.distribution->Cumulative(1.0), 2.34e-3)
-        << "Surveyor 1 by default";
-    EXPECT_EQ(surveyor.sizes.maxDiameter, 10.0);
+    const auto nominal = terraingen::config::BuildBoulderOptions(spec, "layers[3]");
+    ASSERT_NE(nominal.sizes.distribution, nullptr);
+    const terraingen::TabulatedSfd sp8023 =
+        terraingen::Sp8023IntercraterBlocks(terraingen::SpecificationCurve::Nominal);
+    EXPECT_DOUBLE_EQ(nominal.sizes.distribution->Cumulative(1.0), sp8023.Cumulative(1.0))
+        << "the nominal SP-8023 intercrater blocks by default";
+    EXPECT_EQ(nominal.sizes.maxDiameter, sp8023.ValidRange().max);
+    EXPECT_NEAR(nominal.sizes.maxDiameter, 5.86, 0.01);
+    double cover = 0.0;
+    constexpr int kSteps = 2000;
+    const double step = std::log(nominal.sizes.maxDiameter) / kSteps;
+    for (int i = 0; i < kSteps; ++i) {
+        const double d = std::exp((i + 0.5) * step);
+        cover +=
+            0.25 * std::numbers::pi * d * d * nominal.sizes.distribution->Incremental(d) * d * step;
+    }
+    EXPECT_GT(cover, 0.003) << "rocks of 1 m and more cover the lunar mean or more";
+    EXPECT_LT(cover, 0.005) << "and no more than the maria mean";
     spec.sizes = terraingen::GolombekRappBouldersSpec{};
     EXPECT_EQ(terraingen::config::BuildBoulderOptions(spec, "layers[3]").sizes.distribution,
               nullptr)

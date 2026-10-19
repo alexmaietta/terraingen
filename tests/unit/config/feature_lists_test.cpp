@@ -106,6 +106,7 @@ TEST(WriteBoulderModels, RejectsOtherFilesAnglesAndNoBoulders) {
     terraingen::TerrainConfig config = terraingen::testing::Small();
     terraingen::testing::Region(config) = {200, 200, 0.5};
     terraingen::BoulderLayerSpec boulders;
+    boulders.sizes = terraingen::GolombekRappBouldersSpec{};
     boulders.boulders.sizes.coverage = 0.3;
     boulders.boulders.sizes.minDiameter = 0.5;
     boulders.boulders.rendering.models.minDiameter = 1.5;

@@ -22,7 +22,8 @@ CraterApplyOptions DefaultCraterApply() {
 
 BoulderLayerOptions DefaultBoulders() {
     BoulderLayerOptions boulders;
-    boulders.sizes.maxDiameter = 10.0;
+    boulders.sizes.maxDiameter =
+        Sp8023IntercraterBlocks(SpecificationCurve::Nominal).ValidRange().max;
     return boulders;
 }
 

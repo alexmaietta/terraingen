@@ -79,8 +79,9 @@ inline constexpr float kNoiseAmplitudeRatio = 0.1f;
 /// of Bottke et al. (2000, https://doi.org/10.1006/icar.1999.6323).
 CraterApplyOptions DefaultCraterApply();
 
-/// Boulders by default: up to 10 m across, within the largest rocks NAC images resolve at lunar
-/// landing sites, 3 to 19 m (Li et al. 2017, Table 2, https://doi.org/10.1016/j.pss.2017.08.008).
+/// Boulders by default: up to the largest block of the nominal NASA SP-8023 intercrater curve,
+/// about 5.9 m, within the largest rocks NAC images resolve at lunar landing sites, 3 to 19 m
+/// (Li et al. 2017, Table 2, https://doi.org/10.1016/j.pss.2017.08.008).
 BoulderLayerOptions DefaultBoulders();
 
 /// Roughness by default: octaves up to 16 m, the relief below the 17 m shortest baseline of the
@@ -417,11 +418,11 @@ using BoulderSizesSpec =
 /// when crater blocks are enabled. `boulders.cacheBoulders` is not part of the configuration.
 struct BoulderLayerSpec {
     BoulderLayerOptions boulders{DefaultBoulders()};
-    /// Gives `boulders.sizes.distribution`. By default the Surveyor 1 power law, N(>=D) = 0.234
-    /// D^-2.11 per 100 m^2, which the DSNE suggests for design when the site is unknown
-    /// (SLS-SPEC-159 Rev. I, Table 3.4.1.4-1, after Shoemaker and Morris 1970); fitted below 2 m
-    /// and extrapolated above.
-    BoulderSizesSpec sizes{PowerLawSpec{2.34e-3, 2.11}};
+    /// Gives `boulders.sizes.distribution`. By default the nominal NASA SP-8023 intercrater blocks
+    /// (Figure 7), whose rocks of 1 m and more cover 0.4% of the ground: between the lunar mean of
+    /// 0.3% and the maria mean of 0.5% from Diviner (SLS-SPEC-159 Rev. I, 3.4.1.4). The DSNE's
+    /// Surveyor 1 design case, 0.234 D^-2.11 per 100 m^2, is a 91st-percentile site (0.8%).
+    BoulderSizesSpec sizes{Sp8023IntercraterBouldersSpec{SpecificationCurve::Nominal}};
     /// Gives `boulders.ejecta.distribution`; unset follows `sizes`.
     std::optional<BoulderSizesSpec> ejectaSizes{};
     bool extrapolate = false;  ///< Let tables be evaluated beyond their published diameters.
