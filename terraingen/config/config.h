@@ -535,6 +535,11 @@ struct CraterLayerSpec {
     std::optional<DensityMapSpec> densityMap{};  ///< Gives `CraterLayerOptions::densityMap`.
     /// Gives `generation.completeness`: where `manual` is a complete catalog, from which diameter.
     std::optional<FieldSpec> completeness{};
+    /// Cells of the base across from which its measured data resolves a crater, positive: gives
+    /// `generation.completeness` as `UnresolvedCraterLimit` of the base, the minimum with
+    /// `completeness` when both are set. Without a base, or where the base has no measured data,
+    /// the limit is infinite and keeps every generated crater.
+    std::optional<double> unresolvedPixelsAcross{};
 
     bool operator==(const CraterLayerSpec& other) const {
         return morphometry == other.morphometry && generate == other.generate &&
@@ -543,7 +548,8 @@ struct CraterLayerSpec {
                spacing == other.spacing && maxCraters == other.maxCraters &&
                manual == other.manual && profile == other.profile &&
                degradation == other.degradation && apply == other.apply &&
-               densityMap == other.densityMap && completeness == other.completeness;
+               densityMap == other.densityMap && completeness == other.completeness &&
+               unresolvedPixelsAcross == other.unresolvedPixelsAcross;
     }
     bool operator!=(const CraterLayerSpec& other) const {
         return !(*this == other);

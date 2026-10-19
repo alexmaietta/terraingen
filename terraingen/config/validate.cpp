@@ -16,6 +16,7 @@
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/noise/noise_layers.h"
+#include "terraingen/raster/cell_loops.h"
 #include "terraingen/util/overloaded.h"
 
 #include <algorithm>
@@ -388,9 +389,38 @@ GeoTiffInfo CheckGeoTiffRead(const std::string& file, std::size_t band, const st
     return info;
 }
 
+/// The cells of `lattice`, the grid a GeoTIFF read at `path` gives over the whole file, that the
+/// read's `region` meets; the whole lattice without a region.
+/// @throws ConfigError under the read's "region" for a region that is not finite, is empty or
+/// misses the file.
+RasterGrid CheckGeoTiffRegion(const std::optional<Bounds2d>& region, const RasterGrid& lattice,
+                              const std::string& path) {
+    if (!region) {
+        return lattice;
+    }
+    const std::string at = Child(path, "region");
+    CheckFinite(region->minX, Child(at, "min_x"));
+    CheckFinite(region->minY, Child(at, "min_y"));
+    CheckFinite(region->maxX, Child(at, "max_x"));
+    CheckFinite(region->maxY, Child(at, "max_y"));
+    if (!(region->maxX > region->minX)) {
+        throw ConfigError(Child(at, "max_x"), "must exceed min_x");
+    }
+    if (!(region->maxY > region->minY)) {
+        throw ConfigError(Child(at, "max_y"), "must exceed min_y");
+    }
+    const PixelWindow cells = PixelWindowIn(lattice, *region);
+    if (cells.Empty()) {
+        throw ConfigError(at, "misses the file");
+    }
+    return Subgrid(lattice, cells);
+}
+
 void CheckLayerSpec(const DemDetailLayerSpec& layer, const std::string& path,
                     LayerChecks& context) {
-    CheckGeoTiffRead(layer.path, layer.read.band, path, context.directory, context.surface);
+    const GeoTiffInfo info =
+        CheckGeoTiffRead(layer.path, layer.read.band, path, context.directory, context.surface);
+    CheckGeoTiffRegion(layer.read.region, {info.width, info.height, info.transform}, path);
     CheckFinite(layer.weight, Child(path, "weight"));
 }
 
@@ -466,23 +496,25 @@ RasterGrid DescribeRaster(const RasterSourceSpec& raster, const std::filesystem:
     const GeoTiffInfo info =
         CheckGeoTiffRead(raster.path, raster.read.band, path, directory, surface);
     RasterGrid grid{info.width, info.height, info.transform};
-    if (!raster.read.pixelSize) {
-        CheckGridSize(grid.width, grid.height, Child(path, "path"));
-        return grid;
+    std::string sizePath = Child(path, "path");
+    if (raster.read.pixelSize) {
+        sizePath = Child(path, "pixel_size");
+        if (grid.transform.IsRotated()) {
+            throw ConfigError(sizePath, "rotated rasters cannot be resampled");
+        }
+        try {
+            grid = ResampledGrid(grid, *raster.read.pixelSize / surface.UnitLength());
+        } catch (const std::invalid_argument&) {
+            throw ConfigError(sizePath, "resampling would exceed " +
+                                            std::to_string(kMaxConfigGridSize) + " cells per side");
+        }
     }
-    const std::string pixelSize = Child(path, "pixel_size");
-    if (grid.transform.IsRotated()) {
-        throw ConfigError(pixelSize, "rotated rasters cannot be resampled");
+    if (raster.read.region) {
+        grid = CheckGeoTiffRegion(raster.read.region, grid, path);
+        sizePath = Child(path, "region");
     }
-    RasterGrid resampled;
-    try {
-        resampled = ResampledGrid(grid, *raster.read.pixelSize / surface.UnitLength());
-    } catch (const std::invalid_argument&) {
-        throw ConfigError(pixelSize, "resampling would exceed " +
-                                         std::to_string(kMaxConfigGridSize) + " cells per side");
-    }
-    CheckGridSize(resampled.width, resampled.height, pixelSize);
-    return resampled;
+    CheckGridSize(grid.width, grid.height, sizePath);
+    return grid;
 }
 
 RasterGrid DescribeSourceAt(const SourceSpec& source, const std::filesystem::path& directory,

@@ -25,6 +25,7 @@
 #include "terraingen/layers/craters/degradation/degradation_model.h"
 #include "terraingen/layers/craters/degradation/diffusivities.h"
 #include "terraingen/layers/craters/degradation/freshness.h"
+#include "terraingen/layers/craters/generation/resolved_limit.h"
 #include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
 #include "terraingen/layers/craters/shaping/morphometry.h"
 #include "terraingen/layers/detail.h"
@@ -33,6 +34,7 @@
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/mesh/shape_model.h"
+#include "terraingen/sources/field.h"
 #include "terraingen/sources/geotiff_source.h"
 #include "terraingen/sources/source_chain.h"
 #include "terraingen/util/overloaded.h"
@@ -329,8 +331,31 @@ struct LayerInputs {
     std::vector<SecondaryCraterOptions> thrown{};
 };
 
+/// The completeness of a crater layer's generation: its catalog's limit, the base's unresolved
+/// limit, the minimum of the two when both are set, or null for neither. Without a base the
+/// unresolved limit is infinite everywhere and so left out.
+/// @param source The base; null without one.
+std::shared_ptr<const SurfaceField> BuildCompleteness(const CraterLayerSpec& craters,
+                                                      const std::string& path,
+                                                      const std::filesystem::path& directory,
+                                                      const std::shared_ptr<const Source>& source,
+                                                      const Surface& surface) {
+    std::shared_ptr<const SurfaceField> catalog;
+    if (craters.completeness) {
+        catalog = config::BuildField(*craters.completeness, Child(path, "completeness"), directory);
+    }
+    if (!craters.unresolvedPixelsAcross || !source) {
+        return catalog;
+    }
+    const auto unresolved = At(Child(path, "unresolved_pixels_across"), [&] {
+        return UnresolvedCraterLimit(source, *craters.unresolvedPixelsAcross, surface);
+    });
+    return catalog ? std::make_shared<const MinimumField>(catalog, unresolved) : unresolved;
+}
+
 LayerPtr BuildCraterLayer(const CraterLayerSpec& craters, const std::string& path,
                           const Surface& surface, const std::filesystem::path& directory,
+                          const std::shared_ptr<const Source>& source,
                           std::vector<SecondaryCraterOptions> thrown) {
     CraterLayerOptions options;
     options.secondaries = std::move(thrown);
@@ -350,10 +375,7 @@ LayerPtr BuildCraterLayer(const CraterLayerSpec& craters, const std::string& pat
         options.densityMap =
             config::BuildDensityMap(*craters.densityMap, Child(path, "density_map"), directory);
     }
-    if (craters.completeness) {
-        options.generation.completeness =
-            config::BuildField(*craters.completeness, Child(path, "completeness"), directory);
-    }
+    options.generation.completeness = BuildCompleteness(craters, path, directory, source, surface);
     CraterModels models = BuildCraterModels(craters, path);
     return At(path,
               [&] { return std::make_shared<CraterLayer>(std::move(models), std::move(options)); });
@@ -420,7 +442,8 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
                 return std::make_shared<NoiseRelief>(s.Params(), context.referencePoint, surface);
             },
             [&](const CraterLayerSpec& s) -> LayerPtr {
-                return BuildCraterLayer(s, path, surface, context.directory, context.thrown);
+                return BuildCraterLayer(s, path, surface, context.directory, context.source,
+                                        context.thrown);
             },
             [&](const BoulderLayerSpec& s) -> LayerPtr {
                 BoulderLayerOptions options = BuildBoulderOptions(s, path, context.directory);
@@ -473,9 +496,11 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
                 const auto file = Resolve(s.path, context.directory);
                 GeoTiffSourceOptions full = s.read;
                 full.lowPass = 0.0;
-                return std::make_shared<DetailLayer>(std::make_shared<GeoTiffSource>(file, full),
-                                                     std::make_shared<GeoTiffSource>(file, s.read),
-                                                     s.weight, surface);
+                return At(path, [&] {
+                    return std::make_shared<DetailLayer>(
+                        std::make_shared<GeoTiffSource>(file, full),
+                        std::make_shared<GeoTiffSource>(file, s.read), s.weight, surface);
+                });
             },
         },
         spec);
@@ -502,7 +527,8 @@ Terrain BuildValidTerrain(const TerrainConfig& config, const std::filesystem::pa
     Terrain terrain;
     terrain.surface = BuildSurface(config.body, directory);
     if (config.base) {
-        terrain.source = BuildSource(*config.base, directory, terrain.surface);
+        terrain.source =
+            At("base", [&] { return BuildSource(*config.base, directory, terrain.surface); });
     }
     std::vector<std::shared_ptr<const CraterLayer>> craters;
     std::shared_ptr<const BoulderLayer> boulders;

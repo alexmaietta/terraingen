@@ -1,4 +1,5 @@
 #include "configs.h"
+#include "support/temp_path.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/terraingen.h"
 
@@ -324,6 +325,15 @@ const PathCase kPathCases[] = {
          c.layers.push_back(terraingen::RoughnessLayerSpec{roughness});
      },
      "layers[2].hurst"},
+    {"UnresolvedLimitWithoutABase",
+     [](TerrainConfig& c) { Craters(c).unresolvedPixelsAcross = 4.0; }, "valid"},
+    {"ZeroUnresolvedLimit", [](TerrainConfig& c) { Craters(c).unresolvedPixelsAcross = 0.0; },
+     "layers[1].unresolved_pixels_across"},
+    {"NegativeUnresolvedLimit", [](TerrainConfig& c) { Craters(c).unresolvedPixelsAcross = -3.0; },
+     "layers[1].unresolved_pixels_across"},
+    {"InfiniteUnresolvedLimit",
+     [](TerrainConfig& c) { Craters(c).unresolvedPixelsAcross = kInfinity; },
+     "layers[1].unresolved_pixels_across"},
 };
 
 class ValidateConfigPaths : public ::testing::TestWithParam<PathCase> {};
@@ -766,4 +776,56 @@ TEST(ValidateConfig, ReportsAlbedoProblemsByPath) {
                       terraingen::AlbedoOutput{"a.tif", terraingen::TiffCompression::Lzw, 10}};
               }),
               "outputs[0].tile_size");
+}
+
+TEST(ValidateConfig, ReportsGeoTiffRegionProblemsByPath) {
+    using terraingen::Bounds2d;
+    using terraingen::testing::RasterConfig;
+    using terraingen::testing::RasterSpec;
+    const auto folder = terraingen::testing::TempPath("terraingen_region_errors");
+    terraingen::testing::WriteDem(folder, "dem.tif");
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const auto base = [&](const Bounds2d& region) {
+        TerrainConfig config = RasterConfig("dem.tif");
+        RasterSpec(config).read.region = region;
+        return ValidationErrorPath(config, folder);
+    };
+    const auto detail = [&](const Bounds2d& region) {
+        TerrainConfig config = RasterConfig("dem.tif");
+        terraingen::DemDetailLayerSpec layer;
+        layer.path = "dem.tif";
+        layer.read.region = region;
+        config.layers = {layer};
+        return ValidationErrorPath(config, folder);
+    };
+    EXPECT_EQ(base(Bounds2d{1050.0, 1900.0, 1100.0, 1950.0}), "valid");
+    EXPECT_EQ(base(Bounds2d{nan, 1900.0, 1100.0, 1950.0}), "base.region.min_x");
+    EXPECT_EQ(base(Bounds2d{1050.0, 1900.0, 1100.0, kInfinity}), "base.region.max_y");
+    EXPECT_EQ(base(Bounds2d{1100.0, 1900.0, 1050.0, 1950.0}), "base.region.max_x");
+    EXPECT_EQ(base(Bounds2d{1050.0, 1950.0, 1100.0, 1950.0}), "base.region.max_y");
+    EXPECT_EQ(base(Bounds2d{5000.0, 5000.0, 6000.0, 6000.0}), "base.region");
+    EXPECT_EQ(detail(Bounds2d{1050.0, 1900.0, 1100.0, 1950.0}), "valid");
+    EXPECT_EQ(detail(Bounds2d{1050.0, nan, 1100.0, 1950.0}), "layers[0].region.min_y");
+    EXPECT_EQ(detail(Bounds2d{1100.0, 1900.0, 1050.0, 1950.0}), "layers[0].region.max_x");
+    EXPECT_EQ(detail(Bounds2d{0.0, 0.0, 10.0, 10.0}), "layers[0].region");
+}
+
+TEST(ValidateConfig, MeasuresARasterBasesGridOverItsRegion) {
+    using terraingen::testing::RasterConfig;
+    using terraingen::testing::RasterSpec;
+    const auto folder = terraingen::testing::TempPath("terraingen_region_size");
+    terraingen::testing::WriteDem(folder, "dem.tif");
+    TerrainConfig config = RasterConfig("dem.tif");
+    RasterSpec(config).read.pixelSize = 0.002;
+    EXPECT_EQ(ValidationErrorPath(config, folder), "base.pixel_size") << "100000 cells across";
+    const terraingen::Bounds2d window{1050.0, 1900.0, 1050.1, 1900.1};
+    RasterSpec(config).read.region = window;
+    EXPECT_EQ(ValidationErrorPath(config, folder), "valid") << "a window of 50 cells";
+    const terraingen::RasterGrid grid = terraingen::DescribeSource(*config.base, folder);
+    terraingen::GeoTiffSourceOptions read = RasterSpec(config).read;
+    EXPECT_EQ(grid, terraingen::GeoTiffSource(folder / "dem.tif", read).Grid());
+    EXPECT_LT(grid.width, 60u);
+    RasterSpec(config).read.pixelSize.reset();
+    RasterSpec(config).read.region = terraingen::Bounds2d{1051.0, 1901.0, 1052.0, 1902.0};
+    EXPECT_EQ(ValidationErrorPath(config, folder), "base.region") << "a single cell";
 }

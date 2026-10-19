@@ -11,7 +11,10 @@
 
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
+#include <filesystem>
 #include <fstream>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -702,4 +705,182 @@ TEST(InferListFormat, FollowsTheJsonExtension) {
     EXPECT_EQ(terraingen::InferListFormat("craters.csv"), terraingen::ListFormat::Csv);
     EXPECT_EQ(terraingen::InferListFormat("craters"), terraingen::ListFormat::Csv);
     EXPECT_EQ(terraingen::InferListFormat("json"), terraingen::ListFormat::Csv);
+}
+
+namespace {
+
+/// The craters of the crater layer `index` of `terrain` centred in `region`.
+terraingen::CraterList CratersIn(const terraingen::Terrain& terrain, std::size_t index,
+                                 const terraingen::Bounds2d& region) {
+    return dynamic_cast<const terraingen::CraterLayer&>(*terrain.layers.at(index)).Craters(region);
+}
+
+/// Writes a flat 64 x 64 DEM of 5 m cells over (0, 0) to (320, 320) as `name` in `folder`, and
+/// returns a configuration with it as the base and one crater layer of 6 to 60 m craters.
+TerrainConfig FlatDemCraters(const std::filesystem::path& folder, const std::string& name) {
+    terraingen::Raster<float> dem(64, 64, 1.0f);
+    dem.SetTransform(terraingen::GeoTransform::NorthUp(0.0, 320.0, 5.0));
+    std::filesystem::create_directories(folder);
+    terraingen::WriteGeoTiff(folder / name, dem, terraingen::testing::Keys());
+    TerrainConfig config = terraingen::testing::RasterConfig(name);
+    CraterLayerSpec craters = std::get<CraterLayerSpec>(Small().layers.at(1));
+    craters.minDiameter = 6.0;
+    config.layers = {craters};
+    return config;
+}
+
+/// The path of the `ConfigError` that building `config` from `folder` throws.
+std::string BuildErrorPath(const TerrainConfig& config, const std::filesystem::path& folder) {
+    try {
+        terraingen::BuildTerrain(config, folder);
+    } catch (const ConfigError& error) {
+        return error.Path();
+    }
+    return "built";
+}
+
+}  // namespace
+
+TEST(BuildTerrain, ReadsOnlyTheRegionOfARasterBase) {
+    const auto folder = terraingen::testing::TempPath("terraingen_config_region");
+    terraingen::testing::WriteDem(folder, "dem.tif");
+    TerrainConfig config = terraingen::testing::RasterConfig("dem.tif");
+    const terraingen::Bounds2d region{1050.0, 1900.0, 1100.0, 1950.0};
+    terraingen::testing::RasterSpec(config).read.region = region;
+    const terraingen::Terrain terrain = terraingen::BuildTerrain(config, folder);
+    const terraingen::RasterGrid grid = terrain.source->Grid();
+    terraingen::GeoTiffSourceOptions read;
+    read.region = region;
+    EXPECT_EQ(grid, terraingen::GeoTiffSource(folder / "dem.tif", read).Grid());
+    EXPECT_LT(grid.width, 40u);
+    EXPECT_LT(grid.height, 30u);
+    const terraingen::Bounds2d bounds = grid.Bounds();
+    EXPECT_LE(bounds.minX, region.minX);
+    EXPECT_GE(bounds.minX, region.minX - 5.0);
+    EXPECT_GE(bounds.maxX, region.maxX);
+    EXPECT_LE(bounds.maxX, region.maxX + 5.0);
+    EXPECT_TRUE(std::isnan(terrain.source->HeightAt(1010.0, 1990.0))) << "outside the region";
+}
+
+TEST(BuildTerrain, AddsDemDetailOnlyInsideItsRegion) {
+    const auto folder = terraingen::testing::TempPath("terraingen_config_detail_region");
+    const terraingen::Raster<float> dem = terraingen::testing::WriteDem(folder, "dem.tif");
+    TerrainConfig config = terraingen::testing::RasterConfig("dem.tif");
+    terraingen::testing::RasterSpec(config).read.lowPass = 15.0;
+    const terraingen::RasterGrid grid = terraingen::RasterGrid::FromRaster(dem);
+    const terraingen::Raster<float> smooth =
+        terraingen::Evaluate(terraingen::BuildTerrain(config, folder), grid);
+    terraingen::DemDetailLayerSpec detail;
+    detail.path = "dem.tif";
+    detail.read.lowPass = 15.0;
+    detail.read.region = terraingen::Bounds2d{1050.0, 1900.0, 1100.0, 1950.0};
+    config.layers = {detail};
+    const terraingen::Raster<float> restored =
+        terraingen::Evaluate(terraingen::BuildTerrain(config, folder), grid);
+    EXPECT_NEAR(restored(15, 15), dem(15, 15), 1e-3) << "inside the region";
+    EXPECT_NE(smooth(2, 2), dem(2, 2));
+    EXPECT_EQ(restored(2, 2), smooth(2, 2)) << "outside the region";
+}
+
+TEST(BuildTerrain, ReportsARegionThatIsInvertedNotFiniteOrOffTheFile) {
+    const auto folder = terraingen::testing::TempPath("terraingen_config_bad_region");
+    terraingen::testing::WriteDem(folder, "dem.tif");
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    for (const terraingen::Bounds2d& region :
+         {terraingen::Bounds2d{1100.0, 1900.0, 1050.0, 1950.0},
+          terraingen::Bounds2d{1050.0, nan, 1100.0, 1950.0},
+          terraingen::Bounds2d{5000.0, 5000.0, 6000.0, 6000.0}}) {
+        TerrainConfig base = terraingen::testing::RasterConfig("dem.tif");
+        terraingen::testing::RasterSpec(base).read.region = region;
+        EXPECT_EQ(BuildErrorPath(base, folder).rfind("base", 0), 0u) << region.minX;
+        TerrainConfig layer = terraingen::testing::RasterConfig("dem.tif");
+        terraingen::DemDetailLayerSpec detail;
+        detail.path = "dem.tif";
+        detail.read.region = region;
+        layer.layers = {detail};
+        EXPECT_EQ(BuildErrorPath(layer, folder).rfind("layers[0]", 0), 0u) << region.minX;
+    }
+}
+
+TEST(BuildTerrain, GeneratesOnlyTheCratersTheDemDoesNotResolve) {
+    const auto folder = terraingen::testing::TempPath("terraingen_config_unresolved");
+    const TerrainConfig every = FlatDemCraters(folder, "flat.tif");
+    TerrainConfig limited = every;
+    std::get<CraterLayerSpec>(limited.layers.at(0)).unresolvedPixelsAcross = 4.0;
+    const terraingen::Bounds2d region{20.0, 20.0, 300.0, 300.0};
+    const terraingen::CraterList all =
+        CratersIn(terraingen::BuildTerrain(every, folder), 0, region);
+    const terraingen::CraterList kept =
+        CratersIn(terraingen::BuildTerrain(limited, folder), 0, region);
+    std::vector<std::uint64_t> unresolved;
+    std::size_t resolved = 0;
+    std::size_t offDemLarge = 0;
+    for (std::size_t n = 0; n < all.Size(); ++n) {
+        const terraingen::Crater crater = all.At(n);
+        const bool onDem =
+            crater.x >= 0.0 && crater.x < 320.0 && crater.y >= 0.0 && crater.y < 320.0;
+        if (crater.diameter >= 20.0 && onDem) {
+            ++resolved;
+        } else {
+            unresolved.push_back(crater.id);
+            offDemLarge += crater.diameter >= 20.0 ? 1 : 0;
+        }
+    }
+    ASSERT_GT(resolved, 0u);
+    ASSERT_GT(unresolved.size(), offDemLarge) << "craters below 20 m are kept";
+    EXPECT_GT(offDemLarge, 0u) << "large craters off the DEM are kept";
+    ASSERT_EQ(kept.Size(), unresolved.size());
+    for (std::size_t n = 0; n < kept.Size(); ++n) {
+        EXPECT_EQ(kept.At(n).id, unresolved[n]) << n;
+    }
+}
+
+TEST(BuildTerrain, TakesTheLesserOfTheCatalogAndUnresolvedLimits) {
+    const auto folder = terraingen::testing::TempPath("terraingen_config_unresolved_catalog");
+    TerrainConfig config = FlatDemCraters(folder, "flat.tif");
+    auto& craters = std::get<CraterLayerSpec>(config.layers.at(0));
+    craters.unresolvedPixelsAcross = 4.0;
+    craters.completeness = ConstantField(50.0);
+    const auto completeness = [&](const TerrainConfig& built) {
+        const terraingen::Terrain terrain = terraingen::BuildTerrain(built, folder);
+        return dynamic_cast<const terraingen::CraterLayer&>(*terrain.layers.at(0))
+            .Options()
+            .generation.completeness;
+    };
+    const auto wide = completeness(config);
+    ASSERT_NE(wide, nullptr);
+    EXPECT_EQ(wide->ValueAt(100.0, 100.0), 20.0) << "4 cells of 5 m";
+    EXPECT_EQ(wide->ValueAt(-500.0, -500.0), 50.0) << "off the DEM, the catalog's";
+    craters.completeness = ConstantField(12.0);
+    EXPECT_EQ(completeness(config)->ValueAt(100.0, 100.0), 12.0);
+    const terraingen::Bounds2d region{20.0, 20.0, 300.0, 300.0};
+    const terraingen::CraterList kept =
+        CratersIn(terraingen::BuildTerrain(config, folder), 0, region);
+    ASSERT_GT(kept.Size(), 0u);
+    for (std::size_t n = 0; n < kept.Size(); ++n) {
+        EXPECT_LT(kept.At(n).diameter, 12.0) << n;
+    }
+}
+
+TEST(BuildTerrain, IgnoresTheUnresolvedLimitWithoutABase) {
+    TerrainConfig config = Small();
+    Craters(config).unresolvedPixelsAcross = 4.0;
+    const auto completeness = [](const TerrainConfig& built) {
+        const terraingen::Terrain terrain = terraingen::BuildTerrain(built);
+        return dynamic_cast<const terraingen::CraterLayer&>(*terrain.layers.at(1))
+            .Options()
+            .generation.completeness;
+    };
+    EXPECT_EQ(completeness(config), nullptr);
+    Craters(config).completeness = ConstantField(30.0);
+    ASSERT_NE(completeness(config), nullptr);
+    EXPECT_EQ(completeness(config)->ValueAt(0.0, 0.0), 30.0);
+}
+
+TEST(BuildTerrain, ReportsAnUnresolvedLimitThatIsNotPositiveAndFinite) {
+    for (const double pixels : {0.0, -2.0, std::numeric_limits<double>::infinity()}) {
+        TerrainConfig config = Small();
+        Craters(config).unresolvedPixelsAcross = pixels;
+        EXPECT_EQ(BuildErrorPath(config, {}), "layers[1].unresolved_pixels_across") << pixels;
+    }
 }

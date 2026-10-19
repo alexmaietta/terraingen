@@ -338,6 +338,12 @@ template <typename IO> void Fields(IO& io, CraterLayerSpec& craters) {
        "Where the manual craters are a complete catalog: the diameter in metres from which they "
        "stand in for generated craters, infinite or no value where there is no catalog. Unset "
        "keeps every generated crater.");
+    io("unresolved_pixels_across", craters.unresolvedPixelsAcross,
+       "Generates only the craters the base's measured data does not already hold: drops "
+       "generated craters at least this many of the base's cells across where it has data, the "
+       "smaller of this and completeness when both are set. Without a base, or where it has no "
+       "measured data, every generated crater is kept. Unset keeps every generated crater.",
+       "", Above(0.0));
 }
 
 template <typename IO> void Fields(IO& io, RayLayout& layout) {

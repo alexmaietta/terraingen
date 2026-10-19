@@ -29,7 +29,9 @@ namespace {
 TerrainConfig Everything() {
     TerrainConfig config;
     config.body = terraingen::SphereSurfaceSpec{3389500.0};
-    config.base = terraingen::RasterSourceSpec{"dem.tif"};
+    terraingen::RasterSourceSpec raster{"dem.tif"};
+    raster.read.region = terraingen::Bounds2d{-10.0, -5.0, 20.5, 15.0};
+    config.base = raster;
     terraingen::PavementOptions plates;
     plates.plateSize = 0.8;
     plates.crackWidth = 0.03;
@@ -127,6 +129,7 @@ TerrainConfig Everything() {
     terraingen::FieldSpec craterCompleteness;
     craterCompleteness.value = 1500.0;
     craters.completeness = craterCompleteness;
+    craters.unresolvedPixelsAcross = 4.0;
     terraingen::BoulderLayerSpec boulders;
     boulders.boulders = terraingen::BoulderLayerOptions{};
     terraingen::BoulderLayerOptions& options = boulders.boulders;
@@ -316,6 +319,34 @@ TEST(ConfigJson, RoundTripsTheDefaultsAndEveryNonDefaultValue) {
         EXPECT_EQ(ParseConfig(json), config) << json;
         EXPECT_EQ(ConfigToJson(ParseConfig(json)), json);
     }
+}
+
+TEST(ConfigJson, ReadsGeoTiffRegionsAndUnresolvedCraterLimits) {
+    const TerrainConfig config = ParseConfig(R"({"schema_version": 1,
+        "base": {"type": "raster", "path": "dem.tif",
+                 "region": {"min_x": 1000, "min_y": 1900, "max_x": 1100.5, "max_y": 1950}},
+        "layers": [{"type": "craters", "unresolved_pixels_across": 3.5},
+                   {"type": "dem_detail", "path": "dem.tif",
+                    "region": {"min_x": -1, "min_y": -2, "max_x": 3, "max_y": 4}}]})");
+    EXPECT_EQ(std::get<terraingen::RasterSourceSpec>(*config.base).read.region,
+              (terraingen::Bounds2d{1000.0, 1900.0, 1100.5, 1950.0}));
+    EXPECT_EQ(std::get<CraterLayerSpec>(config.layers.at(0)).unresolvedPixelsAcross, 3.5);
+    EXPECT_EQ(std::get<terraingen::DemDetailLayerSpec>(config.layers.at(1)).read.region,
+              (terraingen::Bounds2d{-1.0, -2.0, 3.0, 4.0}));
+    EXPECT_EQ(ParseConfig(ConfigToJson(config)), config);
+    const TerrainConfig unset = ParseConfig(R"({"schema_version": 1,
+        "base": {"type": "raster", "path": "dem.tif"}, "layers": [{"type": "craters"}]})");
+    EXPECT_FALSE(std::get<terraingen::RasterSourceSpec>(*unset.base).read.region);
+    EXPECT_FALSE(std::get<CraterLayerSpec>(unset.layers.at(0)).unresolvedPixelsAcross);
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "base": {"type": "raster",
+        "path": "dem.tif", "region": {"min_x": 0, "west": 1}}})"),
+              "base.region.west");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "base": {"type": "raster",
+        "path": "dem.tif", "region": [0, 0, 1, 1]}})"),
+              "base.region");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [{"type": "craters",
+        "unresolved_pixels_across": "four"}]})"),
+              "layers[0].unresolved_pixels_across");
 }
 
 TEST(ConfigJson, ReadsAndWritesManualCraterDepthsAndRimHeights) {

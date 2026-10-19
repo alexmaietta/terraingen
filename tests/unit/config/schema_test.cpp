@@ -504,6 +504,30 @@ TEST(ConfigSchema, GivesASphereOnlyARadiusInMetres) {
     EXPECT_EQ(sphere["fields"][0]["unit"], "m");
 }
 
+TEST(ConfigSchema, GivesGeoTiffReadsARegionAndCraterLayersAnUnresolvedLimit) {
+    const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
+    const SchemaJson base = FieldOf(schema["root"], "base")["schema"];
+    ASSERT_EQ(base["kind"], "optional");
+    const SchemaJson raster = AlternativeOf(Resolve(schema, base["of"]), "raster");
+    const SchemaJson region = FieldOf(raster, "region");
+    EXPECT_TRUE(region["default"].is_null());
+    ASSERT_EQ(region["schema"]["kind"], "optional");
+    const SchemaJson box = Resolve(schema, region["schema"]["of"]);
+    std::vector<std::string> names;
+    for (const SchemaJson& field : box["fields"]) {
+        names.push_back(field["name"]);
+        EXPECT_EQ(field["schema"]["kind"], "number");
+    }
+    EXPECT_EQ(names, (std::vector<std::string>{"min_x", "min_y", "max_x", "max_y"}));
+    const SchemaJson layers = FieldOf(schema["root"], "layers")["schema"];
+    const SchemaJson choice = Resolve(schema, layers["of"]);
+    EXPECT_EQ(FieldOf(AlternativeOf(choice, "dem_detail"), "region")["schema"], region["schema"]);
+    const SchemaJson limit = FieldOf(AlternativeOf(choice, "craters"), "unresolved_pixels_across");
+    EXPECT_TRUE(limit["default"].is_null());
+    EXPECT_EQ(limit["minimum"], 0.0);
+    EXPECT_EQ(limit["exclusive_minimum"], true);
+}
+
 TEST(ConfigCatalog, ListsTheNewDensitiesAndAges) {
     using Json = nlohmann::json;
     const Json catalog = Json::parse(terraingen::ConfigCatalog());

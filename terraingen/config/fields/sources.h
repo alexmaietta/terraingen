@@ -15,8 +15,16 @@ inline FieldRange CubeFaceCellsRange() {
     return Between(1.0, static_cast<double>(kMaxCubeFaceCells));
 }
 
+/// The fields of a box in a raster's CRS units, as a GeoTIFF's `region`.
+template <typename IO> void Fields(IO& io, Bounds2d& box) {
+    io("min_x", box.minX, "Lower edge along x, in the raster's CRS units.");
+    io("min_y", box.minY, "Lower edge along y, in the raster's CRS units.");
+    io("max_x", box.maxX, "Upper edge along x, in the raster's CRS units; above min_x.");
+    io("max_y", box.maxY, "Upper edge along y, in the raster's CRS units; above min_y.");
+}
+
 /// The fields of how a GeoTIFF's heights are read: its band, the cell size it is resampled to
-/// when `resamples`, the interpolation, and the scale and offset of its samples.
+/// when `resamples`, the interpolation, the scale and offset of its samples, and the region read.
 /// @param resampling The description of the interpolation.
 /// @param prefix Prepended to each key.
 template <typename IO>
@@ -38,6 +46,10 @@ void GeoTiffReadFields(IO& io, GeoTiffSourceOptions& read, std::string_view resa
        "Added to each scaled sample, replacing the band's offset from the file's GDAL metadata. "
        "Unset keeps the file's.",
        "m");
+    io(key("region"), read.region,
+       "Box in the raster's CRS units to read: only the cells meeting it are used, read from a "
+       "window of the file, with the same heights there as reading the whole file. Unset reads "
+       "the whole file.");
 }
 
 template <> struct SpecName<PlaneSurfaceSpec> {
