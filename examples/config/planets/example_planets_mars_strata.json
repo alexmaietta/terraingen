@@ -16,8 +16,8 @@
             "type": "strata",
             "bed_thickness": 4,
             "thickness_variation": 0.5,
-            "dip_deg": 1.7188733853924696,
-            "dip_azimuth_deg": 45.83662361046586,
+            "dip_deg": 1.5,
+            "dip_azimuth_deg": 45.0,
             "sharpness": 5,
             "cliff_share": 0.3
         },

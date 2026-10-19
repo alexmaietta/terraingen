@@ -51,8 +51,8 @@ class Example(_common.Example):
                 roughness=terraingen.ValueDistribution(a=0.0),
                 elongated_share=0.6,
                 ellipticity=terraingen.ValueDistribution(uniform, 1.3, 1.8),
-                heading_deg=28.64788975654116,
-                heading_spread_deg=11.459155902616466,
+                heading_deg=30.0,
+                heading_spread_deg=10.0,
             ),
             "both": terraingen.CraterIrregularity(
                 enabled=True,

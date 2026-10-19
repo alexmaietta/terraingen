@@ -18,7 +18,7 @@
             "crack_width": 0.04,
             "crack_depth": 0.08,
             "edge_rounding": 0.02,
-            "max_tilt_deg": 3.437746770784939,
+            "max_tilt_deg": 3.5,
             "max_step": 0.04,
             "octaves": 3,
             "gain": 0.55,

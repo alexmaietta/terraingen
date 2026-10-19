@@ -56,7 +56,7 @@ class Example(_common.Example):
                 max_height_ratio=1.0,
                 min_burial=0.0,
                 max_burial=0.05,
-                max_lean_deg=34.37746770784939,
+                max_lean_deg=35.0,
                 relief=terraingen.BoulderRelief.SHAPE,
                 models=terraingen.BoulderModelThreshold(min_diameter=0.8),
             ),
