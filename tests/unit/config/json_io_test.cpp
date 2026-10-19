@@ -138,8 +138,7 @@ TerrainConfig Everything() {
                    .agingExponent = 2.0,
                    .gravity = 1.62},
         .bedrock = {.exposure = terraingen::ExposureParams{8.0, 0.02, 0.05, 0.1, 0.5, 0.3, 40.0, 5},
-                    .abundance = 2.5,
-                    .exposureSpacing = 0.5},
+                    .abundance = 2.5},
         .pose = {.minHeightRatio = 0.3,
                  .maxHeightRatio = 0.7,
                  .minBurial = 0.0,
@@ -172,7 +171,8 @@ TerrainConfig Everything() {
                                  .subdivisions = 1,
                                  .seed = 3},
                       .shapePrototypes = 0},
-        .fade = {1.0, 3.0, terraingen::BlendShape::Linear}};
+        .fade = {1.0, 3.0, terraingen::BlendShape::Linear},
+        .groundSpacing = 0.5};
     boulders.sizes =
         terraingen::Sp8023IntercraterBouldersSpec{terraingen::SpecificationCurve::Maximum};
     boulders.ejectaSizes =

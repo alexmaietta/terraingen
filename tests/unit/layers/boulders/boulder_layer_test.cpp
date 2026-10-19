@@ -307,7 +307,7 @@ TEST(BoulderLayer, LeavesHeightsAloneWithoutReliefAndRejectsBadOptions) {
                 1.0, 2.0, terraingen::SfdKind::ProductionRate);
         },
         [](BoulderLayerOptions& o) { o.ejecta.minCraterDiameter = -1.0; },
-        [](BoulderLayerOptions& o) { o.bedrock.exposureSpacing = 0.0; },
+        [](BoulderLayerOptions& o) { o.groundSpacing = 0.0; },
         [](BoulderLayerOptions& o) {
             o.bedrock.exposure = terraingen::ExposureParams{.reach = 0.0};
         },

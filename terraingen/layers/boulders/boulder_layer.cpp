@@ -452,11 +452,11 @@ std::vector<Boulder> BoulderLayer::DrawBoulders(const CraterList& candidates, do
         }
     }
     std::vector<float> heights(points.size());
-    ground->HeightsAt(points, heights, options_.bedrock.exposureSpacing);
+    ground->HeightsAt(points, heights, options_.groundSpacing);
     for (std::size_t n = 0; n < thinned.size(); ++n) {
         const CandidateGround under(*ground, std::span(points).subspan(n * each, each),
                                     std::span(heights).subspan(n * each, each),
-                                    options_.bedrock.exposureSpacing);
+                                    options_.groundSpacing);
         if (std::optional<Boulder> boulder = PlaceCandidate(thinned[n], spacing, &under)) {
             boulders.push_back(*boulder);
         }
@@ -530,8 +530,7 @@ std::optional<Boulder> BoulderLayer::PlaceCandidate(const ThinnedCandidate& thin
 void BoulderLayer::ReadGround(Boulder& boulder, const Ground* ground) const {
     boulder.ground.reset();
     if (ground != nullptr) {
-        const double height =
-            ground->HeightAt(boulder.x, boulder.y, options_.bedrock.exposureSpacing);
+        const double height = ground->HeightAt(boulder.x, boulder.y, options_.groundSpacing);
         if (!std::isnan(height)) {
             boulder.ground = height;
         }
@@ -623,7 +622,7 @@ std::optional<Vec2d> BoulderLayer::GroundGradient(const Boulder& boulder,
     const std::array<Vec2d, 4> points = GradientPoints(boulder.x, boulder.y, boulder.diameter);
     const auto at = [&](std::size_t n) {
         return static_cast<double>(
-            ground.HeightAt(points[n].x, points[n].y, options_.bedrock.exposureSpacing));
+            ground.HeightAt(points[n].x, points[n].y, options_.groundSpacing));
     };
     const double gx = (at(0) - at(1)) / (2.0 * step);
     const double gy = (at(2) - at(3)) / (2.0 * step);

@@ -311,7 +311,6 @@ void BindGroupedOptions(nb::class_<BoulderLayerOptions>& options) {
     options.def_rw("seed", &O::seed).def_rw("patches", &O::patches).def_rw("ejecta", &O::ejecta);
     BindGrouped(options, "exposure", &O::bedrock, &BoulderBedrock::exposure);
     BindGrouped(options, "bedrock_abundance", &O::bedrock, &BoulderBedrock::abundance);
-    BindGrouped(options, "exposure_spacing", &O::bedrock, &BoulderBedrock::exposureSpacing);
     BindGrouped(options, "bedrock_mean_size", &O::bedrock, &BoulderBedrock::meanSize);
     BindGrouped(options, "min_height_ratio", &O::pose, &BoulderPose::minHeightRatio);
     BindGrouped(options, "max_height_ratio", &O::pose, &BoulderPose::maxHeightRatio);
@@ -339,7 +338,7 @@ void BindGroupedOptions(nb::class_<BoulderLayerOptions>& options) {
     BindGrouped(options, "relief_range", &O::rendering, &BoulderRendering::reliefRange);
     BindGrouped(options, "shapes", &O::rendering, &BoulderRendering::shapes);
     BindGrouped(options, "shape_prototypes", &O::rendering, &BoulderRendering::shapePrototypes);
-    options.def_rw("fade", &O::fade);
+    options.def_rw("fade", &O::fade).def_rw("ground_spacing", &O::groundSpacing);
 }
 
 void BindLayerOptions(nb::module_& m) {

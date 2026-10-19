@@ -271,6 +271,14 @@ def test_patches_raise_the_mean_a_map_divides_out():
     assert terraingen.BoulderLayerOptions(bedrock_mean_size=250.0).bedrock_mean_size == 250.0
 
 
+def test_boulder_layer_reads_the_ground_at_its_ground_spacing():
+    assert terraingen.BoulderLayerOptions().ground_spacing == 1.0
+    assert terraingen.BoulderLayerOptions(ground_spacing=0.5).ground_spacing == 0.5
+    assert not hasattr(terraingen.BoulderLayerOptions(), "exposure_spacing")
+    with pytest.raises(ValueError):
+        terraingen.validate_boulder_layer_options(terraingen.BoulderLayerOptions(ground_spacing=0.0))
+
+
 def test_boulders_follow_a_size_slope_map_and_roll_down_steep_ground():
     options = terraingen.BoulderLayerOptions(
         distribution=terraingen.PowerLawSfd(0.05, 3.0),

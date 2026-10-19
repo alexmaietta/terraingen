@@ -374,10 +374,6 @@ template <typename IO> void BoulderBedrockFields(IO& io, BoulderBedrock& bedrock
        "Boulder abundance on bedrock over that on soil, and in between in proportion; used with "
        "the exposure field.",
        "", Above(0.0));
-    io("exposure_spacing", bedrock.exposureSpacing,
-       "Spacing in metres the ground is read at for the exposure field, fixed so that which "
-       "boulders exist does not depend on the level of detail.",
-       "m", Above(0.0));
     io("bedrock_mean_size", bedrock.meanSize,
        "With a density map, the side in metres of the squares bedrock is held to the map's mean "
        "over, so it gathers boulders without adding any; a GeoTIFF map uses its own cells.",
@@ -494,6 +490,11 @@ template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
     io("shape_prototypes", boulders.rendering.shapePrototypes,
        "How many shapes the boulders share, so they can be drawn as instances; 0 gives every "
        "boulder a shape of its own.");
+    io("ground_spacing", boulders.groundSpacing,
+       "Spacing in metres at which the layer reads the ground beneath it, for the exposure field, "
+       "placement, settling, slopes and breaking; fixed so that which boulders exist does not "
+       "depend on the level of detail.",
+       "m", Above(0.0));
     io("fade", boulders.fade, "How boulders too small to resolve at the sample spacing fade out.");
 }
 

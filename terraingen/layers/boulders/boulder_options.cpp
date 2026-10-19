@@ -112,7 +112,6 @@ void ValidateBoulderBedrock(const BoulderBedrock& bedrock) {
     if (bedrock.exposure) {
         ValidateExposureParams(*bedrock.exposure);
     }
-    RequirePositive(bedrock.exposureSpacing, "Boulder bedrock exposureSpacing");
     RequirePositive(bedrock.meanSize, "Boulder bedrock meanSize");
 }
 
@@ -247,6 +246,7 @@ void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
     ValidateBoulderClusters(options.clusters);
     ValidateBoulderFragmentation(options.fragmentation);
     ValidateBoulderBedrock(options.bedrock);
+    RequirePositive(options.groundSpacing, "Boulder groundSpacing");
     if (!options.sizes.distribution &&
         options.sizes.coverage * MaxBackgroundAbundance(options) >= 1.0) {
         throw std::invalid_argument("Boulder coverage times the patch spread, cluster and bedrock "

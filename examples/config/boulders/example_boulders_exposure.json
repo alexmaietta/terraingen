@@ -22,7 +22,7 @@
                 "reach": 6.0
             },
             "bedrock_abundance": 4.0,
-            "exposure_spacing": 1.0
+            "ground_spacing": 1.0
         }
     ],
     "outputs": [

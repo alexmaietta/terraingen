@@ -183,9 +183,6 @@ struct BoulderBedrock {
     /// The exposure field; unset for no bedrock boulders.
     std::optional<ExposureParams> exposure{};
     double abundance = 3.0;  ///< Abundance on bedrock over that on soil.
-    /// Spacing the ground is read at for the exposure field (m), fixed so that which boulders exist
-    /// does not depend on the level of detail.
-    double exposureSpacing = 1.0;
     /// With a density map, the side (m) of the squares bedrock is held to the map's mean over, so
     /// it gathers boulders without adding any; a raster map's own cells are used instead.
     double meanSize = 1000.0;
@@ -323,6 +320,10 @@ struct BoulderLayerOptions {
     BoulderFragmentation fragmentation{};  ///< Boulders broken by wear; none by default.
     BoulderRendering rendering{};          ///< Relief or models, and shapes.
     ResolutionFade fade{};                 ///< Fade of boulders too small for the spacing.
+    /// Spacing (m) at which the layer reads the ground beneath it, for the exposure field,
+    /// placement, settling, slopes and breaking; fixed so that which boulders exist and how they
+    /// sit does not depend on the level of detail.
+    double groundSpacing = 1.0;
     /// Most boulder candidates to keep generated cells of; 0 regenerates cells every time.
     std::size_t cacheBoulders = 4000000;
     /// A map that sets the abundance of boulders between craters point by point, measuring the
@@ -365,7 +366,7 @@ void ValidateBoulderPatches(const BoulderPatches& patches);
 void ValidateBoulderEjecta(const BoulderEjecta& ejecta, const BoulderSizes& sizes);
 
 /// Checks bedrock boulders.
-/// @throws std::invalid_argument for a non-positive abundance or exposure spacing, or invalid
+/// @throws std::invalid_argument for a non-positive abundance or mean size, or invalid
 /// exposure parameters.
 void ValidateBoulderBedrock(const BoulderBedrock& bedrock);
 
@@ -397,8 +398,8 @@ void ValidateBoulderFillet(const BoulderFillet& fillet);
 void ValidateBoulderRendering(const BoulderRendering& rendering);
 
 /// Checks boulder layer options.
-/// @throws std::invalid_argument for any invalid part, or Golombek-Rapp coverage times the patch
-/// spread and bedrock abundance of 1 or more.
+/// @throws std::invalid_argument for any invalid part, a non-positive ground spacing, or
+/// Golombek-Rapp coverage times the patch spread and bedrock abundance of 1 or more.
 void ValidateBoulderLayerOptions(const BoulderLayerOptions& options);
 
 }  // namespace terraingen

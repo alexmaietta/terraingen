@@ -192,7 +192,7 @@ double BoulderLayer::BackgroundAbundance(double x, double y, const Ground* groun
     }
     if (exposure_) {
         RequireGround(ground, "Boulders that read the exposure field");
-        const double bedrock = exposure_->Exposure(*ground, x, y, options_.bedrock.exposureSpacing);
+        const double bedrock = exposure_->Exposure(*ground, x, y, options_.groundSpacing);
         background *= 1.0 + bedrock * (options_.bedrock.abundance - 1.0);
         if (bedrockMeans_) {
             background /= BedrockMean(x, y, *ground);
@@ -224,8 +224,7 @@ double BoulderLayer::BedrockMean(double x, double y, const Ground& ground) const
                     const double py =
                         bedrockOrigin_.y +
                         (static_cast<double>(j) + (b + 0.5) / kSide) * bedrockCellSize_.y;
-                    sum += 1.0 + gain * exposure_->Exposure(ground, px, py,
-                                                            options_.bedrock.exposureSpacing);
+                    sum += 1.0 + gain * exposure_->Exposure(ground, px, py, options_.groundSpacing);
                 }
             }
             return sum / (kSide * kSide);

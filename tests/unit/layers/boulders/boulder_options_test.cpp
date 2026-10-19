@@ -27,8 +27,7 @@ TEST(ValidateBoulderOptions, ChecksEachGroupOnItsOwn) {
 
     EXPECT_NO_THROW(terraingen::ValidateBoulderBedrock({}));
     EXPECT_THROW(terraingen::ValidateBoulderBedrock({.abundance = 0.0}), std::invalid_argument);
-    EXPECT_THROW(terraingen::ValidateBoulderBedrock({.exposureSpacing = -1.0}),
-                 std::invalid_argument);
+    EXPECT_THROW(terraingen::ValidateBoulderBedrock({.meanSize = -1.0}), std::invalid_argument);
 
     EXPECT_NO_THROW(terraingen::ValidateBoulderPose({}));
     EXPECT_THROW(terraingen::ValidateBoulderPose({.minHeightRatio = 0.0}), std::invalid_argument);
