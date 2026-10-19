@@ -1,5 +1,6 @@
 #include "terraingen/layers/midpoint_displacement.h"
 
+#include "terraingen/layers/roughness_estimate.h"
 #include "terraingen/layers/sample_block.h"
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"
@@ -22,9 +23,6 @@ constexpr int kMaxLevels = 30;
 
 /// Grid cells per side of the tiles a grid is expanded in.
 constexpr std::size_t kTileCells = 128;
-
-/// The longest lag, in cells, the fractal dimension is fitted over.
-constexpr std::size_t kMaxVariogramLag = 8;
 
 /// How close to a node, in node spacings, a sample takes the node's height.
 constexpr double kOnNode = 1e-7;
@@ -68,12 +66,6 @@ double& NodeAt(MidpointNodes& nodes, std::int64_t col, std::int64_t row) {
                         static_cast<std::size_t>(col - nodes.col0)];
 }
 
-/// Whether cell (`col`, `row`) of `heights` holds data.
-bool HasData(const Raster<float>& heights, std::size_t col, std::size_t row) {
-    const float value = heights(col, row);
-    return std::isfinite(value) && !heights.IsNoData(value);
-}
-
 /// RMS of each cell minus the mean of its four neighbours one cell away, over the cells where all
 /// five hold data, and how many cells gave it.
 std::pair<double, std::size_t> ResidualRms(const Raster<float>& heights) {
@@ -98,32 +90,6 @@ std::pair<double, std::size_t> ResidualRms(const Raster<float>& heights) {
     return {count > 0 ? std::sqrt(sum / static_cast<double>(count)) : 0.0, count};
 }
 
-/// The mean squared difference of cells `lag` apart along rows and columns where both hold data,
-/// and how many pairs gave it.
-std::pair<double, std::size_t> Variogram(const Raster<float>& heights, std::size_t lag) {
-    double sum = 0.0;
-    std::size_t count = 0;
-    const auto add = [&](std::size_t col, std::size_t row, std::size_t col2, std::size_t row2) {
-        if (HasData(heights, col, row) && HasData(heights, col2, row2)) {
-            const double difference =
-                static_cast<double>(heights(col2, row2)) - static_cast<double>(heights(col, row));
-            sum += difference * difference;
-            ++count;
-        }
-    };
-    for (std::size_t row = 0; row < heights.Height(); ++row) {
-        for (std::size_t col = 0; col < heights.Width(); ++col) {
-            if (col + lag < heights.Width()) {
-                add(col, row, col + lag, row);
-            }
-            if (row + lag < heights.Height()) {
-                add(col, row, col, row + lag);
-            }
-        }
-    }
-    return {count > 0 ? sum / static_cast<double>(count) : 0.0, count};
-}
-
 }  // namespace
 
 void ValidateMidpointDisplacementOptions(const MidpointDisplacementOptions& options) {
@@ -146,27 +112,9 @@ MidpointRoughness EstimateMidpointRoughness(const Raster<float>& heights) {
     }
     MidpointRoughness roughness;
     roughness.scale = residual;
-    double sumX = 0.0;
-    double sumY = 0.0;
-    double sumXX = 0.0;
-    double sumXY = 0.0;
-    int lags = 0;
-    for (std::size_t lag = 1; lag <= kMaxVariogramLag; lag *= 2) {
-        const auto [variogram, pairs] = Variogram(heights, lag);
-        if (pairs == 0 || !(variogram > 0.0)) {
-            break;
-        }
-        const double x = std::log2(static_cast<double>(lag));
-        const double y = 0.5 * std::log2(variogram);
-        sumX += x;
-        sumY += y;
-        sumXX += x * x;
-        sumXY += x * y;
-        ++lags;
-    }
-    if (lags >= 2) {
-        const double hurst = (lags * sumXY - sumX * sumY) / (lags * sumXX - sumX * sumX);
-        roughness.fractalDimension = 3.0 - std::clamp(hurst, 0.0, 1.0);
+    const DeviogramFit fit = FitDeviogram(heights);
+    if (fit.lags >= 2) {
+        roughness.fractalDimension = 3.0 - std::clamp(fit.slope, 0.0, 1.0);
     }
     return roughness;
 }

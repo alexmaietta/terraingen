@@ -16,6 +16,7 @@ terraingen_add_library(
     pavement.cpp
     region.cpp
     roughness.cpp
+    roughness_estimate.cpp
     sand_fill.cpp
     sand_shadow.cpp
     spectral_continuation.cpp

@@ -17,6 +17,7 @@
 #include "terraingen/layers/pavement.h"
 #include "terraingen/layers/region.h"
 #include "terraingen/layers/roughness.h"
+#include "terraingen/layers/roughness_estimate.h"
 #include "terraingen/layers/sand_fill.h"
 #include "terraingen/layers/spectral_continuation.h"
 #include "terraingen/layers/strata.h"
@@ -373,6 +374,29 @@ void BindSpectralContinuation(nb::module_& m) {
         .def_prop_ro("options", &SpectralContinuationLayer::Options);
 }
 
+void BindRoughnessEstimate(nb::module_& m) {
+    nb::class_<BaseRoughness>(m, "BaseRoughness",
+                              "Self-affine roughness: an RMS height difference `deviation` metres "
+                              "at a lag of `cell_size` metres that grows as lag^hurst.")
+        .def(nb::init<>())
+        .def_rw("hurst", &BaseRoughness::hurst)
+        .def_rw("deviation", &BaseRoughness::deviation)
+        .def_rw("cell_size", &BaseRoughness::cellSize)
+        .def("deviation_at", &BaseRoughness::Deviation, "lag"_a,
+             "The RMS height difference in metres at a lag in metres.")
+        .def("rms_slope", &BaseRoughness::RmsSlope, "baseline"_a,
+             "The RMS slope (rise over run) over a baseline in metres.");
+    m.def("estimate_base_roughness", &EstimateBaseRoughness, "heights"_a, "cell_size"_a,
+          "The Hurst exponent and RMS height difference of a raster's heights by the variogram "
+          "method, at lags of 1 to 8 cells of `cell_size` metres.");
+    m.def("estimate_source_roughness", &EstimateSourceRoughness, "source"_a,
+          "surface"_a = Surface{},
+          "The roughness of a source on a lattice of its native cells about its grid's centre.");
+    m.def("matched_noise_amplitude", &MatchedNoiseAmplitude, "layer"_a, "roughness"_a,
+          "The amplitude in metres that gives a noise layer the roughness's RMS height "
+          "difference at a lag of its wavelength.");
+}
+
 void BindPavement(nb::module_& m) {
     BindOptions<PavementOptions>(
         m, "PavementOptions",
@@ -514,6 +538,7 @@ void BindLayers(nb::module_& m) {
     BindSandFill(m);
     BindMidpointDisplacement(m);
     BindSpectralContinuation(m);
+    BindRoughnessEstimate(m);
     BindPavement(m);
     BindStrata(m);
 }
