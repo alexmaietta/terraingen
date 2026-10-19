@@ -4,6 +4,7 @@
 
 #include "terraingen/noise/hash.h"
 
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -13,7 +14,13 @@
 
 namespace terraingen {
 
-/// One crater: centre in surface coordinates, rim-to-rim diameter, age and a stable ID.
+/// Whether two values are equal or both NaN.
+inline bool SameOrBothNan(double a, double b) {
+    return a == b || (std::isnan(a) && std::isnan(b));
+}
+
+/// One crater: centre in surface coordinates, rim-to-rim diameter, age and a stable ID, and for a
+/// manual crater optionally its depth and rim height.
 struct Crater {
     double x = 0.0;         ///< Surface x of the centre.
     double y = 0.0;         ///< Surface y of the centre.
@@ -23,11 +30,17 @@ struct Crater {
     /// Placed by hand, identified in imagery or read from a catalog rather than generated; takes
     /// precedence over generated craters and is never removed by spacing.
     bool manual = false;
+    /// Rim-to-floor depth (m) of a manual crater; NaN takes it from the degradation model.
+    double depth = std::numeric_limits<double>::quiet_NaN();
+    /// Rim crest above the pre-impact surface (m) of a manual crater with a `depth`; NaN derives
+    /// it from the depth (`ResolvedCraterState`).
+    double rimHeight = std::numeric_limits<double>::quiet_NaN();
 
-    /// Memberwise equality.
+    /// Memberwise equality, with NaN depths and rim heights equal to each other.
     bool operator==(const Crater& other) const {
         return x == other.x && y == other.y && diameter == other.diameter &&
-               ageGyr == other.ageGyr && id == other.id && manual == other.manual;
+               ageGyr == other.ageGyr && id == other.id && manual == other.manual &&
+               SameOrBothNan(depth, other.depth) && SameOrBothNan(rimHeight, other.rimHeight);
     }
     bool operator!=(const Crater& other) const {
         return !(*this == other);
@@ -102,6 +115,16 @@ class CraterList {
         return manual_;
     }
 
+    /// Every explicit depth in metres (`Crater::depth`), NaN where it comes from the model.
+    const std::vector<double>& Depths() const {
+        return depth_;
+    }
+
+    /// Every explicit rim height in metres (`Crater::rimHeight`), NaN where it is derived.
+    const std::vector<double>& RimHeights() const {
+        return rimHeight_;
+    }
+
   private:
     std::vector<double> x_;
     std::vector<double> y_;
@@ -109,6 +132,8 @@ class CraterList {
     std::vector<double> ageGyr_;
     std::vector<std::uint64_t> id_;
     std::vector<std::uint8_t> manual_;
+    std::vector<double> depth_;
+    std::vector<double> rimHeight_;
 };
 
 /// The craters `keep(index, crater)` keeps, in their order.
@@ -127,7 +152,9 @@ template <typename Keep> CraterList FilterCraters(const CraterList& craters, con
 /// Appends `manual` to `craters`, flagged manual and given a `ManualCraterId` where their ID is 0.
 /// @param keep Which craters to append; empty for all.
 /// @throws std::invalid_argument for a crater with a non-finite position, a diameter that is not
-/// positive and finite, or a negative or non-finite age, whether `keep` accepts it or not.
+/// positive and finite, a negative or non-finite age, a depth that is neither NaN nor positive and
+/// finite, a rim height that is neither NaN nor finite and not negative, or a rim height without
+/// a depth, whether `keep` accepts it or not.
 void AppendManualCraters(const CraterList& manual, CraterList& craters,
                          const std::function<bool(const Crater&)>& keep = {});
 

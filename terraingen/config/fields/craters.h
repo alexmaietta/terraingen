@@ -23,6 +23,14 @@ template <typename IO> void Fields(IO& io, Crater& crater) {
        "Gyr", AtLeast(0.0));
     io("id", crater.id,
        "Stable ID that seeds the crater's outline; 0 derives one from its position and diameter.");
+    NanField(io, "depth", crater.depth,
+             "Rim-to-floor depth in metres, in place of the one the degradation model and age "
+             "give; unset keeps the model's.",
+             "m", Above(0.0));
+    NanField(io, "rim_height", crater.rimHeight,
+             "Height of the rim crest above the surface the crater formed on, in metres; needs a "
+             "depth. Unset lowers the fresh rim in proportion to the depth.",
+             "m", AtLeast(0.0));
 }
 
 template <typename IO> void Fields(IO& io, CraterSpacing& spacing) {

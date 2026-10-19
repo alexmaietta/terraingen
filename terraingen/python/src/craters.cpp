@@ -57,8 +57,9 @@ std::optional<CpuColumn<T>> TableColumn(const nb::dict& table, const char* name,
         table[name], nb::arg("dtype") = dtype));
 }
 
-/// @brief A crater list from NumPy columns 'x', 'y', 'diameter' and optionally 'age_gyr', 'id'
-/// and 'manual'; IDs of 0 are hashed from position and size.
+/// @brief A crater list from NumPy columns 'x', 'y', 'diameter' and optionally 'age_gyr', 'id',
+/// 'manual', 'depth' and 'rim_height'; IDs of 0 are hashed from position and size. 'rim_height'
+/// is read only with 'depth', since attribute tables report the shaped rim under that name.
 CraterList FromTable(const nb::dict& table) {
     const CpuColumn<double> x = *TableColumn<double>(table, "x", "float64");
     const CpuColumn<double> y = *TableColumn<double>(table, "y", "float64");
@@ -69,12 +70,26 @@ CraterList FromTable(const nb::dict& table) {
     const auto age = TableColumn<double>(table, "age_gyr", "float64");
     const auto ids = TableColumn<std::uint64_t>(table, "id", "uint64");
     const auto manual = TableColumn<double>(table, "manual", "float64");
+    const auto depth = TableColumn<double>(table, "depth", "float64");
+    const auto rimHeight =
+        depth ? TableColumn<double>(table, "rim_height", "float64") : std::nullopt;
+    for (const auto* column : {&age, &manual, &depth, &rimHeight}) {
+        if (*column && (*column)->shape(0) != x.shape(0)) {
+            throw std::invalid_argument("Crater columns must have the same length");
+        }
+    }
     CraterList list;
     list.Reserve(x.shape(0));
     for (std::size_t i = 0; i < x.shape(0); ++i) {
         Crater crater{x.data()[i], y.data()[i], diameter.data()[i]};
         crater.ageGyr = age ? age->data()[i] : 0.0;
         crater.manual = manual ? manual->data()[i] != 0.0 : true;
+        if (depth) {
+            crater.depth = depth->data()[i];
+        }
+        if (rimHeight) {
+            crater.rimHeight = rimHeight->data()[i];
+        }
         crater.id = ids && ids->data()[i] != 0
                         ? ids->data()[i]
                         : ManualCraterId(crater.x, crater.y, crater.diameter);
@@ -85,23 +100,39 @@ CraterList FromTable(const nb::dict& table) {
 
 void BindCrater(nb::module_& m) {
     nb::class_<Crater>(m, "Crater",
-                       "One crater: centre (m), rim-to-rim diameter (m), age (Gyr) and a stable "
-                       "ID (0 for one hashed from its position and size).")
+                       "One crater: centre (m), rim-to-rim diameter (m), age (Gyr), a stable "
+                       "ID (0 for one hashed from its position and size), and optionally its "
+                       "rim-to-floor depth and rim height (m), NaN to take them from the models.")
         .def(
             "__init__",
-            [](Crater* self, double x, double y, double diameter, double ageGyr, std::uint64_t id) {
-                new (self) Crater{x, y, diameter, ageGyr, id, true};
+            [](Crater* self, double x, double y, double diameter, double ageGyr, std::uint64_t id,
+               double depth, double rimHeight) {
+                new (self) Crater{x, y, diameter, ageGyr, id, true, depth, rimHeight};
             },
-            "x"_a, "y"_a, "diameter"_a, "age_gyr"_a = 0.0, "id"_a = 0)
+            "x"_a, "y"_a, "diameter"_a, "age_gyr"_a = 0.0, "id"_a = 0,
+            "depth"_a = std::numeric_limits<double>::quiet_NaN(),
+            "rim_height"_a = std::numeric_limits<double>::quiet_NaN())
         .def_rw("x", &Crater::x)
         .def_rw("y", &Crater::y)
         .def_rw("diameter", &Crater::diameter)
         .def_rw("age_gyr", &Crater::ageGyr)
         .def_rw("id", &Crater::id)
         .def_rw("manual", &Crater::manual)
+        .def_rw("depth", &Crater::depth,
+                "Rim-to-floor depth (m) of a manual crater; NaN takes it from the degradation "
+                "model.")
+        .def_rw("rim_height", &Crater::rimHeight,
+                "Rim crest above the pre-impact surface (m), with a depth; NaN derives it.")
         .def("__repr__", [](const Crater& c) {
-            return "Crater(" + std::to_string(c.x) + ", " + std::to_string(c.y) + ", " +
-                   std::to_string(c.diameter) + ", age_gyr=" + std::to_string(c.ageGyr) + ")";
+            std::string text = "Crater(" + std::to_string(c.x) + ", " + std::to_string(c.y) + ", " +
+                               std::to_string(c.diameter) + ", age_gyr=" + std::to_string(c.ageGyr);
+            if (!std::isnan(c.depth)) {
+                text += ", depth=" + std::to_string(c.depth);
+            }
+            if (!std::isnan(c.rimHeight)) {
+                text += ", rim_height=" + std::to_string(c.rimHeight);
+            }
+            return text + ")";
         });
     nb::class_<CraterAttributes>(m, "CraterAttributes", "A crater's shape as applied.")
         .def_ro("floor_depth", &CraterAttributes::floorDepth)
@@ -145,7 +176,13 @@ void BindCraterList(nb::module_& m) {
             "other"_a)
         .def_prop_ro(
             "table", [](const CraterList& list) { return CraterTable(list); },
-            "The craters as NumPy columns.");
+            "The craters as NumPy columns.")
+        .def_prop_ro(
+            "depths", [](const CraterList& list) { return Column(list.Depths()); },
+            "Every explicit rim-to-floor depth (m), NaN where the models give it.")
+        .def_prop_ro(
+            "rim_heights", [](const CraterList& list) { return Column(list.RimHeights()); },
+            "Every explicit rim height (m), NaN where it is derived.");
 }
 
 void BindSpacing(nb::module_& m) {

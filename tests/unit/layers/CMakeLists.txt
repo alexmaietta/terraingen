@@ -52,6 +52,7 @@ terraingen_add_test_suite(
     craters/shaping/crater_kernel_test.cpp
     craters/shaping/attributes_test.cpp
     craters/shaping/datum_test.cpp
+    craters/shaping/explicit_state_test.cpp
     craters/shaping/irregularity_test.cpp
     craters/shaping/morphometry_test.cpp
     craters/shaping/slope_test.cpp

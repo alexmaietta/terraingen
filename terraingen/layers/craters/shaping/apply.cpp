@@ -2,6 +2,7 @@
 
 #include "terraingen/gpu/kernel.h"
 #include "terraingen/layers/craters/shaping/crater_kernel.h"
+#include "terraingen/layers/craters/shaping/explicit_state.h"
 #include "terraingen/noise/hash.h"
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/grid.h"
@@ -720,7 +721,7 @@ bool FitBodyDatumsOnGpu(std::vector<PreparedCrater>& prepared,
 /// datum is fitted, so the relief datums are fitted to is the relief applied, and each crater's
 /// slope depends on no other crater of its layer.
 void ShapeOnSlopes(std::vector<PreparedCrater>& prepared, const HeightSampler& ground,
-                   const HeightsSampler& batch, const DegradationModel& degradation,
+                   const HeightsSampler& batch, const CraterShapeModels& models,
                    const CraterApplyOptions& options) {
     const CraterSlopeResponse& response = options.slope;
     if (!response.enabled && !response.criticalGradient) {
@@ -753,7 +754,7 @@ void ShapeOnSlopes(std::vector<PreparedCrater>& prepared, const HeightSampler& g
         crater.slope = SlopeShape(c, gradient->x, gradient->y, response);
         const double rate = SlopeWearRate(response, gradient->x, gradient->y);
         if (rate > 1.0) {
-            crater.state = degradation.WornState(c, rate);
+            crater.state = ResolvedCraterState(models, c, rate);
         }
     }
 }
@@ -1074,7 +1075,7 @@ void ShapePoints(SampleBlock& samples, const std::vector<ReachingCrater>& reachi
 }  // namespace
 
 CraterAttributes CraterShapeModels::Attributes(const Crater& crater) const {
-    return ComputeCraterAttributes(crater, degradation->State(crater), *profile);
+    return ComputeCraterAttributes(crater, ResolvedCraterState(*this, crater), *profile);
 }
 
 CraterSampling SamplingFrom(const LayerContext& context, double spacing, const void* owner) {
@@ -1114,15 +1115,14 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
     const double resolved = ResolvedSpacing(raster, sampling.spacing, options.surface);
     const CraterProfile& profile = *models.profile;
     std::vector<PreparedCrater> prepared =
-        PrepareCraters(craters, options, resolved, *models.degradation, sampling.reshape);
+        PrepareCraters(craters, options, resolved, models, sampling.reshape);
     std::vector<std::vector<PixelWindow>> windows;
     const std::vector<std::size_t> onRaster = CratersOnRaster(
         raster, prepared, CraterReachRadii(profile, options), options.surface, windows);
     const CraterShapeKernel kernel = MakeCraterShapeKernel(profile, options);
     if (options.datum != CraterDatum::None && !onRaster.empty()) {
         ShapeOnSlopes(prepared, sampling.ground ? sampling.ground : RasterSampler(raster),
-                      sampling.ground ? sampling.groundBatch : HeightsSampler{},
-                      *models.degradation, options);
+                      sampling.ground ? sampling.groundBatch : HeightsSampler{}, models, options);
         FitDatums(prepared, onRaster, raster, profile, kernel, options, sampling);
     }
     CraterKernelBatch batch = MakeCraterKernelBatch(kernel, profile, prepared, onRaster, options);
@@ -1153,7 +1153,7 @@ void ApplyCraters(SampleBlock& samples, const CraterList& craters, const CraterS
     }
     const CraterProfile& profile = *models.profile;
     std::vector<PreparedCrater> prepared =
-        PrepareCraters(craters, options, sampling.spacing, *models.degradation, sampling.reshape);
+        PrepareCraters(craters, options, sampling.spacing, models, sampling.reshape);
     const std::vector<ReachingCrater> reaching =
         CratersReaching(samples, prepared, CraterReachRadii(profile, options), options.surface);
     const CraterShapeKernel kernel = MakeCraterShapeKernel(profile, options);
@@ -1162,8 +1162,7 @@ void ApplyCraters(SampleBlock& samples, const CraterList& craters, const CraterS
         indices.push_back(static_cast<std::size_t>(crater.prepared - prepared.data()));
     }
     if (options.datum != CraterDatum::None && !reaching.empty()) {
-        ShapeOnSlopes(prepared, sampling.ground, sampling.groundBatch, *models.degradation,
-                      options);
+        ShapeOnSlopes(prepared, sampling.ground, sampling.groundBatch, models, options);
         FitPointDatums(prepared, indices, profile, kernel, options, sampling);
     }
     const CraterKernelBatch batch =

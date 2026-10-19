@@ -10,6 +10,7 @@
 #include "terraingen/distribution/ivanov.h"
 #include "terraingen/distribution/neukum.h"
 #include "terraingen/layers/craters/generation/spacing.h"
+#include "terraingen/layers/craters/shaping/explicit_state.h"
 #include "terraingen/layers/transforms.h"
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
@@ -108,8 +109,31 @@ void CheckLayer(const LayerSpec& spec, const std::string& path, LayerChecks& con
 
 void CheckManualCraters(const std::vector<Crater>& manual, const std::string& path) {
     for (std::size_t n = 0; n < manual.size(); ++n) {
-        if (!(std::isfinite(manual[n].x) && std::isfinite(manual[n].y))) {
-            throw ConfigError(Element(path, n), "position must be finite");
+        const Crater& crater = manual[n];
+        const std::string at = Element(path, n);
+        if (!(std::isfinite(crater.x) && std::isfinite(crater.y))) {
+            throw ConfigError(at, "position must be finite");
+        }
+        if (!(std::isnan(crater.depth) || (std::isfinite(crater.depth) && crater.depth > 0.0))) {
+            throw ConfigError(Child(at, "depth"), "must be positive");
+        }
+        if (!(std::isnan(crater.rimHeight) ||
+              (std::isfinite(crater.rimHeight) && crater.rimHeight >= 0.0))) {
+            throw ConfigError(Child(at, "rim_height"), "must not be negative");
+        }
+        if (std::isnan(crater.depth) && !std::isnan(crater.rimHeight)) {
+            throw ConfigError(Child(at, "rim_height"), "needs a depth");
+        }
+    }
+}
+
+/// @throws ConfigError at a manual crater whose depth and rim height the layer's profile cannot
+/// take (`ResolvedCraterState`).
+void CheckExplicitShapes(const std::vector<Crater>& manual, const CraterModels& models,
+                         const std::string& path) {
+    for (std::size_t n = 0; n < manual.size(); ++n) {
+        if (!std::isnan(manual[n].depth)) {
+            At(Element(path, n), [&] { ResolvedCraterState(models.Shape(), manual[n]); });
         }
     }
 }
@@ -191,6 +215,7 @@ void CheckLayerSpec(const CraterLayerSpec& craters, const std::string& path, Lay
     }
     CheckDiffusivity(craters.degradation, Child(path, "degradation"));
     const CraterModels models = BuildCraterModels(craters, path);
+    CheckExplicitShapes(craters.manual, models, Child(path, "manual"));
     context.craters = true;
     if (!craters.generate) {
         return;

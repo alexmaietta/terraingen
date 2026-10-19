@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <stdexcept>
@@ -194,4 +195,83 @@ TEST(CraterLayer, SetsTheDensityAMapCountsAndLetsACatalogStandIn) {
     const double generatedShare = (1.0 / 36.0 - 1.0 / 400.0) / (1.0 / 36.0);
     const double expected = perKm2 * 4.0 * generatedShare;
     EXPECT_NEAR(static_cast<double>(inside), expected, 0.04 * expected);
+}
+
+namespace {
+
+/// The models of a layer that shapes craters with the Martin-Parkes-Dunstan profile, worn with age.
+CraterModels ShapedModels() {
+    CraterModels models = Models();
+    models.degradation = std::make_shared<terraingen::FreshnessDegradation>(
+        std::make_shared<terraingen::UniformAges>(2.0), terraingen::LunarFreshCraterMorphometry);
+    models.profile = std::make_shared<terraingen::MartinParkesDunstanProfile>();
+    return models;
+}
+
+/// A layer with one manual 40 m crater at the origin, `depth` deep with rim `rim`.
+CraterLayer ExplicitLayer(bool generate, double depth, double rim) {
+    CraterLayerOptions options = Options();
+    options.generate = generate;
+    options.generation.manual.Append({0.0, 0.0, 40.0, 1.5, 0u, false, depth, rim});
+    return CraterLayer(ShapedModels(), options);
+}
+
+/// A `size` x `size` flat grid of `cell` m cells centred on the origin.
+Raster<float> Centred(std::size_t size, double cell) {
+    Raster<float> raster(size, size, 0.0f);
+    const double half = 0.5 * static_cast<double>(size) * cell;
+    raster.SetTransform(GeoTransform::NorthUp(-half, half, cell));
+    return raster;
+}
+
+}  // namespace
+
+TEST(CraterLayer, ShapesAManualCraterToItsExplicitDepthAndRim) {
+    const CraterLayer layer = ExplicitLayer(false, 6.0, 1.5);
+    Raster<float> heights = Centred(200, 0.5);
+    layer.Apply(heights, {0.5});
+    const auto [low, high] = std::minmax_element(heights.Values().begin(), heights.Values().end());
+    EXPECT_NEAR(static_cast<double>(*high), 1.5, 0.05);
+    EXPECT_NEAR(static_cast<double>(*high) - static_cast<double>(*low), 6.0, 0.1);
+    const terraingen::CraterAttributes attributes =
+        layer.Attributes(layer.Craters({-50.0, -50.0, 50.0, 50.0}).At(0));
+    EXPECT_NEAR(attributes.rimHeight, 1.5, 0.05);
+    EXPECT_NEAR(attributes.floorDepth + attributes.rimHeight, 6.0, 0.05);
+}
+
+TEST(CraterLayer, LeavesOtherCratersAsTheyWereBesideAnExplicitOne) {
+    const double nan = std::nan("");
+    const CraterLayer plain = ExplicitLayer(true, nan, nan);
+    const CraterLayer shaped = ExplicitLayer(true, 6.0, 1.5);
+    const terraingen::Bounds2d region{-64.0, -64.0, 64.0, 64.0};
+    const CraterList before = plain.Craters(region);
+    const CraterList after = shaped.Craters(region);
+    ASSERT_EQ(before.Ids(), after.Ids());
+    ASSERT_GT(before.Size(), 1u);
+    for (std::size_t n = 0; n < before.Size(); ++n) {
+        if (!before.At(n).manual) {
+            EXPECT_EQ(plain.Attributes(before.At(n)), shaped.Attributes(after.At(n)));
+        }
+    }
+    Raster<float> a = Grid();
+    Raster<float> b = Grid();
+    plain.Apply(a, {2.0});
+    shaped.Apply(b, {2.0});
+    const double reach = 2.0 * 20.0 + 2.0;
+    std::size_t compared = 0;
+    for (std::size_t row = 0; row < a.Height(); ++row) {
+        for (std::size_t col = 0; col < a.Width(); ++col) {
+            const auto centre = a.CellCenter(col, row);
+            if (std::hypot(centre.x, centre.y) > reach) {
+                ASSERT_EQ(a(col, row), b(col, row)) << col << " " << row;
+                ++compared;
+            }
+        }
+    }
+    EXPECT_GT(compared, 1000u);
+}
+
+TEST(CraterLayer, RejectsAManualRimHeightWithoutADepth) {
+    const CraterLayer layer = ExplicitLayer(false, std::nan(""), 1.0);
+    EXPECT_THROW(layer.Craters({-64.0, -64.0, 64.0, 64.0}), std::invalid_argument);
 }

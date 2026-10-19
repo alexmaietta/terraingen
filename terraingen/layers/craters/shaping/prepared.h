@@ -45,13 +45,18 @@ struct PreparedCrater {
     CraterSlopeShape slope{};
 };
 
+struct CraterShapeModels;
+
 /// The craters with a non-zero resolution weight at `spacing`, prepared in `CraterApplyOrder`
-/// without datums; `reshape`, when set, changes each outline after `IrregularOutline`.
+/// without datums, each in its `ResolvedCraterState`; `reshape`, when set, changes each outline
+/// after `IrregularOutline`.
 /// @param spacing Sample spacing in metres; positive.
+/// @param models Neither may be null.
 /// @throws std::domain_error as `DegradationModel::State`.
+/// @throws std::invalid_argument as `ResolvedCraterState`.
 std::vector<PreparedCrater>
 PrepareCraters(const CraterList& craters, const CraterApplyOptions& options, double spacing,
-               const DegradationModel& degradation,
+               const CraterShapeModels& models,
                const std::function<void(const Crater&, CraterOutline&)>& reshape = {});
 
 }  // namespace terraingen

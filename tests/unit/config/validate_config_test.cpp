@@ -111,6 +111,26 @@ const PathCase kPathCases[] = {
     {"InfiniteManualPosition",
      [](TerrainConfig& c) { Craters(c).manual = {{kInfinity, 0.0, 5.0, 0.0}}; },
      "layers[1].manual[0]"},
+    {"ManualDepth",
+     [](TerrainConfig& c) { Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, 0.9, 0.2}}; },
+     "valid"},
+    {"ZeroManualDepth",
+     [](TerrainConfig& c) { Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, 0.0}}; },
+     "layers[1].manual[0].depth"},
+    {"NegativeManualRimHeight",
+     [](TerrainConfig& c) { Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, 0.9, -0.1}}; },
+     "layers[1].manual[0].rim_height"},
+    {"ManualRimHeightWithoutDepth",
+     [](TerrainConfig& c) {
+         Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, std::nan(""), 0.2}};
+     },
+     "layers[1].manual[0].rim_height"},
+    {"ManualRimHeightTheProfileFixes",
+     [](TerrainConfig& c) {
+         Craters(c).profile = terraingen::FassettThomsonSpec{};
+         Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, 0.9, 0.2}};
+     },
+     "layers[1].manual[0]"},
     {"ManualOnlyStillChecksDiameterRanges",
      [](TerrainConfig& c) {
          Craters(c).generate = false;
@@ -318,6 +338,28 @@ INSTANTIATE_TEST_SUITE_P(Small, ValidateConfigPaths, ::testing::ValuesIn(kPathCa
                          [](const ::testing::TestParamInfo<PathCase>& param) {
                              return std::string(param.param.name);
                          });
+
+TEST(ValidateConfig, SaysWhyAManualCratersShapeIsRejected) {
+    const auto message = [](void (*mutate)(TerrainConfig&)) {
+        TerrainConfig config = Small();
+        mutate(config);
+        try {
+            ValidateConfig(config);
+        } catch (const terraingen::ConfigError& error) {
+            return std::string(error.what());
+        }
+        return std::string("valid");
+    };
+    EXPECT_NE(message([](TerrainConfig& c) {
+                  Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, std::nan(""), 0.2}};
+              }).find("needs a depth"),
+              std::string::npos);
+    const std::string shallow = message([](TerrainConfig& c) {
+        Craters(c).degradation = terraingen::DiffusionDegradationSpec{};
+        Craters(c).manual = {{0.0, 0.0, 100.0, 0.0, 0u, false, 0.01}};
+    });
+    EXPECT_NE(shallow.find("shallower than diffusion wears it"), std::string::npos) << shallow;
+}
 
 TEST(ValidateConfig, AcceptsTheDefaults) {
     EXPECT_NO_THROW(ValidateConfig(TerrainConfig{}));

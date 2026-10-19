@@ -398,7 +398,9 @@ TEST(PrepareCraters, KeepsResolvedCratersInApplyOrderWithStateAndOutline) {
     craters.Append({0.0, 0.0, 10.0, 0.5, 1u});
     craters.Append({5.0, 0.0, 1.0, 0.0, 2u});
     craters.Append({9.0, 0.0, 20.0, 1.0, 3u});
-    const auto prepared = terraingen::PrepareCraters(craters, {}, 1.0, kFresh);
+    const terraingen::CraterShapeModels models{std::make_shared<FassettThomsonProfile>(),
+                                               std::make_shared<NoDegradation>(kFresh)};
+    const auto prepared = terraingen::PrepareCraters(craters, {}, 1.0, models);
     ASSERT_EQ(prepared.size(), 2u) << "the 1 m crater spans a single sample";
     EXPECT_EQ(prepared[0].crater.id, 3u) << "oldest first";
     EXPECT_EQ(prepared[1].crater.id, 1u);

@@ -55,6 +55,7 @@ terraingen_add_library(
     craters/shaping/crater_kernel.cpp
     craters/shaping/attributes.cpp
     craters/shaping/datum.cpp
+    craters/shaping/explicit_state.cpp
     craters/shaping/irregularity.cpp
     craters/shaping/morphometry.cpp
     craters/shaping/prepared.cpp

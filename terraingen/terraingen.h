@@ -68,6 +68,7 @@
 #include "terraingen/layers/craters/shaping/attributes.h"
 #include "terraingen/layers/craters/shaping/crater_kernel.h"
 #include "terraingen/layers/craters/shaping/datum.h"
+#include "terraingen/layers/craters/shaping/explicit_state.h"
 #include "terraingen/layers/craters/shaping/irregularity.h"
 #include "terraingen/layers/craters/shaping/morphometry.h"
 #include "terraingen/layers/craters/shaping/prepared.h"

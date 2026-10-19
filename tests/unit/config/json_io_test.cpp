@@ -3,6 +3,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <optional>
@@ -59,7 +60,7 @@ TerrainConfig Everything() {
     craters.maxDiameter = 90.0;
     craters.spacing = {2.0, 0.75};
     craters.maxCraters = 1234;
-    craters.manual = {{1.5, -2.25, 30.0, 0.1, 7u}};
+    craters.manual = {{1.5, -2.25, 30.0, 0.1, 7u}, {6.0, 4.0, 6.0, 0.0, 0u, false, 0.9, 0.25}};
     craters.profile = terraingen::ComplexProfileSpec{terraingen::MartinParkesDunstanSpec{}};
     craters.degradation = terraingen::NoDegradationSpec{0.17};
     craters.apply = terraingen::CraterApplyOptions{};
@@ -300,6 +301,28 @@ TEST(ConfigJson, RoundTripsTheDefaultsAndEveryNonDefaultValue) {
         EXPECT_EQ(ParseConfig(json), config) << json;
         EXPECT_EQ(ConfigToJson(ParseConfig(json)), json);
     }
+}
+
+TEST(ConfigJson, ReadsAndWritesManualCraterDepthsAndRimHeights) {
+    const TerrainConfig config = ParseConfig(R"({"schema_version": 1, "layers": [{"type": "craters",
+        "manual": [{"x": 1, "y": 2, "diameter": 6, "depth": 0.9},
+                   {"x": 3, "y": 4, "diameter": 6, "depth": 0.9, "rim_height": 0.2},
+                   {"x": 5, "y": 6, "diameter": 6}]}]})");
+    const auto& manual = std::get<CraterLayerSpec>(config.layers[0]).manual;
+    ASSERT_EQ(manual.size(), 3u);
+    EXPECT_EQ(manual[0].depth, 0.9);
+    EXPECT_TRUE(std::isnan(manual[0].rimHeight));
+    EXPECT_EQ(manual[1].rimHeight, 0.2);
+    EXPECT_TRUE(std::isnan(manual[2].depth));
+    const std::string json = ConfigToJson(config);
+    const std::size_t last = json.find("\"x\": 5.0,");
+    ASSERT_NE(last, std::string::npos) << json;
+    const std::string unset = json.substr(last, json.find('}', last) - last);
+    EXPECT_NE(unset.find("\"depth\": null"), std::string::npos) << unset;
+    EXPECT_NE(unset.find("\"rim_height\": null"), std::string::npos) << unset;
+    EXPECT_NE(json.find("\"depth\": 0.9,\n          \"rim_height\": 0.2"), std::string::npos)
+        << json;
+    EXPECT_EQ(ParseConfig(json), config);
 }
 
 TEST(ConfigJson, WritesTheRootKeysInOrderAndNoAlbedoWhenUnset) {

@@ -26,8 +26,9 @@ struct CraterShapeModels {
     std::shared_ptr<const CraterProfile> profile;         ///< Height by distance from the centre.
     std::shared_ptr<const DegradationModel> degradation;  ///< Each crater's state.
 
-    /// A crater's depth, rim height and freshness in the state `degradation` gives it.
+    /// A crater's depth, rim height and freshness in its `ResolvedCraterState`.
     /// @throws std::domain_error as `DegradationModel::State`.
+    /// @throws std::invalid_argument as `ResolvedCraterState`.
     CraterAttributes Attributes(const Crater& crater) const;
 };
 

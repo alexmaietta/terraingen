@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <limits>
 #include <stdexcept>
 #include <string>
@@ -49,6 +50,80 @@ TEST(ValidateCraterSelection, RejectsInvertedOrNegativeRangesNamingTheModel) {
         } catch (const std::invalid_argument& error) {
             EXPECT_EQ(std::string(error.what()),
                       "Test size and age ranges must satisfy 0 <= min <= max");
+        }
+    }
+}
+
+TEST(Crater, LeavesDepthAndRimHeightUnsetAndComparesNanAsEqual) {
+    const Crater plain{1.0, 2.0, 30.0, 0.5, 4u};
+    EXPECT_TRUE(std::isnan(plain.depth));
+    EXPECT_TRUE(std::isnan(plain.rimHeight));
+    EXPECT_EQ(plain, plain);
+    Crater deep = plain;
+    deep.depth = 3.0;
+    EXPECT_NE(deep, plain);
+    Crater rimmed = deep;
+    rimmed.rimHeight = 0.5;
+    EXPECT_NE(rimmed, deep);
+    EXPECT_EQ(rimmed, rimmed);
+}
+
+TEST(CraterList, KeepsDepthAndRimHeightColumns) {
+    terraingen::CraterList list;
+    list.Reserve(2);
+    list.Append(Crater{0.0, 0.0, 10.0, 0.0, 1u, true, 1.5, 0.25});
+    list.Append(Crater{5.0, 0.0, 20.0, 1.0, 2u});
+    ASSERT_EQ(list.Depths().size(), 2u);
+    EXPECT_EQ(list.Depths()[0], 1.5);
+    EXPECT_EQ(list.RimHeights()[0], 0.25);
+    EXPECT_TRUE(std::isnan(list.Depths()[1]));
+    EXPECT_TRUE(std::isnan(list.RimHeights()[1]));
+    terraingen::CraterList copy;
+    copy.Append(list);
+    EXPECT_EQ(copy.At(0), list.At(0));
+    EXPECT_EQ(copy.At(1), list.At(1));
+    EXPECT_EQ(copy.At(0).depth, 1.5);
+    EXPECT_EQ(copy.At(0).rimHeight, 0.25);
+}
+
+TEST(AppendManualCraters, KeepsExplicitDepthsAndRimHeights) {
+    terraingen::CraterList manual;
+    manual.Append(Crater{0.0, 0.0, 6.0, 0.0, 0u, false, 0.9});
+    manual.Append(Crater{9.0, 0.0, 6.0, 0.0, 0u, false, 0.9, 0.0});
+    terraingen::CraterList craters;
+    terraingen::AppendManualCraters(manual, craters);
+    ASSERT_EQ(craters.Size(), 2u);
+    EXPECT_EQ(craters.At(0).depth, 0.9);
+    EXPECT_TRUE(std::isnan(craters.At(0).rimHeight));
+    EXPECT_EQ(craters.At(1).rimHeight, 0.0);
+    EXPECT_EQ(craters.At(0).id, terraingen::ManualCraterId(0.0, 0.0, 6.0))
+        << "the ID ignores the depth";
+}
+
+TEST(AppendManualCraters, RejectsInvalidDepthsAndRimHeights) {
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const double inf = std::numeric_limits<double>::infinity();
+    const struct {
+        double depth;
+        double rimHeight;
+        const char* message;
+    } cases[] = {
+        {0.0, nan, "A manual crater's depth must be unset or positive"},
+        {-1.0, nan, "A manual crater's depth must be unset or positive"},
+        {inf, nan, "A manual crater's depth must be unset or positive"},
+        {1.0, -0.1, "A manual crater's rim height must be unset or not negative"},
+        {1.0, inf, "A manual crater's rim height must be unset or not negative"},
+        {nan, 0.2, "A manual crater's rim height needs its depth too"},
+    };
+    for (const auto& c : cases) {
+        terraingen::CraterList manual;
+        manual.Append(Crater{0.0, 0.0, 6.0, 0.0, 0u, false, c.depth, c.rimHeight});
+        terraingen::CraterList craters;
+        try {
+            terraingen::AppendManualCraters(manual, craters, [](const Crater&) { return false; });
+            ADD_FAILURE() << "accepted depth " << c.depth << ", rim " << c.rimHeight;
+        } catch (const std::invalid_argument& error) {
+            EXPECT_EQ(std::string(error.what()), c.message);
         }
     }
 }

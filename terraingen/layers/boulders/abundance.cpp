@@ -1,6 +1,7 @@
 #include "terraingen/layers/boulders/boulder_layer.h"
 
 #include "terraingen/layers/boulders/boulder_clusters.h"
+#include "terraingen/layers/craters/shaping/explicit_state.h"
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/noise/hash.h"
@@ -46,10 +47,9 @@ double RadialShare(const BoulderEjecta& ejecta, double rho, double reach) {
 }
 
 /// The share of its blocks `crater` keeps at its age.
-double Retention(const BoulderEjecta& ejecta, const Crater& crater,
-                 const DegradationModel& degradation) {
+double Retention(const BoulderEjecta& ejecta, const Crater& crater, const CraterModels& models) {
     if (ejecta.aging == EjectaAging::Freshness) {
-        const CraterState state = degradation.State(crater);
+        const CraterState state = ResolvedCraterState(*models.profile, *models.degradation, crater);
         const double freshness = state.fresh.depthRatio > 0.0 ? state.Freshness() : 0.0;
         return Smoothstep((freshness - ejecta.minFreshness) / (1.0 - ejecta.minFreshness));
     }
@@ -246,7 +246,7 @@ void BoulderLayer::EjectaAbundance(double x, double y, const EjectaIndex& ejecta
     double share = 0.0;
     double wear = 0.0;
     for (const std::uint32_t n : ejecta.Near(x, y)) {
-        const DegradationModel& degradation = *craters_[ejecta.Source(n)]->Models().degradation;
+        const CraterModels& models = craters_[ejecta.Source(n)]->Models();
         const Crater crater = ejecta.Craters().At(n);
         const double reach = EjectaReach(eject, crater.diameter);
         const double rho =
@@ -258,7 +258,7 @@ void BoulderLayer::EjectaAbundance(double x, double y, const EjectaIndex& ejecta
         if (radial <= share) {
             continue;
         }
-        const double retention = Retention(eject, crater, degradation);
+        const double retention = Retention(eject, crater, models);
         if (retention * radial > share) {
             share = retention * radial;
             wear = 1.0 - retention;

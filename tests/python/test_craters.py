@@ -86,6 +86,58 @@ def test_crater_fields_are_writable():
     assert (crater.x, crater.y, crater.diameter, crater.age_gyr, crater.id) == (1.0, 2.0, 3.0, 0.5, 0)
 
 
+def test_crater_takes_an_explicit_depth_and_rim_height():
+    plain = terraingen.Crater(1.0, 2.0, 6.0)
+    assert math.isnan(plain.depth) and math.isnan(plain.rim_height)
+    assert "depth" not in repr(plain)
+    crater = terraingen.Crater(1.0, 2.0, 6.0, depth=0.9, rim_height=0.2)
+    assert (crater.depth, crater.rim_height) == (0.9, 0.2)
+    assert "depth=0.9" in repr(crater) and "rim_height=0.2" in repr(crater)
+    crater.rim_height = float("nan")
+    assert math.isnan(crater.rim_height)
+    listed = terraingen.CraterList([crater, plain])
+    assert listed.depths[0] == 0.9 and math.isnan(listed.depths[1])
+    assert math.isnan(listed.rim_heights[0])
+
+
+def test_crater_list_reads_depth_and_rim_height_columns():
+    table = {
+        "x": [0.0, 5.0],
+        "y": [0.0, 0.0],
+        "diameter": [6.0, 8.0],
+        "depth": [0.9, float("nan")],
+        "rim_height": [0.2, float("nan")],
+    }
+    craters = terraingen.CraterList.from_table(table)
+    assert (craters[0].depth, craters[0].rim_height) == (0.9, 0.2)
+    assert math.isnan(craters[1].depth)
+    attributes_only = terraingen.CraterList.from_table(
+        {"x": [0.0], "y": [0.0], "diameter": [6.0], "rim_height": [0.3]}
+    )
+    assert math.isnan(attributes_only[0].rim_height), "a rim height without depths is an attribute"
+    with pytest.raises(ValueError):
+        terraingen.CraterList.from_table({"x": [0.0], "y": [0.0], "diameter": [6.0], "depth": [1.0, 2.0]})
+
+
+def test_apply_craters_carves_an_explicit_depth():
+    raster = terraingen.RasterGrid.centred(200, 200, 0.5).make_raster()
+    craters = terraingen.CraterList(
+        [terraingen.Crater(0.0, 0.0, 40.0, age_gyr=1.5, depth=6.0, rim_height=1.5)]
+    )
+    degradation = terraingen.FreshnessDegradation(
+        terraingen.UniformAges(2.0), terraingen.lunar_fresh_crater_morphometry
+    )
+    terraingen.apply_craters(
+        raster, craters, terraingen.MartinParkesDunstanProfile(), degradation, spacing=0.5
+    )
+    assert raster.values.max() == pytest.approx(1.5, abs=0.05)
+    assert raster.values.max() - raster.values.min() == pytest.approx(6.0, abs=0.1)
+    with pytest.raises(ValueError, match="Fassett-Thomson"):
+        terraingen.apply_craters(
+            raster, craters, terraingen.FassettThomsonProfile(), degradation, spacing=0.5
+        )
+
+
 def test_crater_bands_span_the_diameter_range():
     bands = terraingen.crater_bands(8.0, 100.0)
     assert bands[0].low == 8.0 and bands[-1].high == 100.0

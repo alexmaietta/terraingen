@@ -29,6 +29,16 @@ void AppendManualCraters(const CraterList& manual, CraterList& craters,
             throw std::invalid_argument("Manual craters need finite positions, positive diameters "
                                         "and non-negative ages");
         }
+        if (!(std::isnan(crater.depth) || IsPositive(crater.depth))) {
+            throw std::invalid_argument("A manual crater's depth must be unset or positive");
+        }
+        if (!(std::isnan(crater.rimHeight) || IsNonNegative(crater.rimHeight))) {
+            throw std::invalid_argument(
+                "A manual crater's rim height must be unset or not negative");
+        }
+        if (std::isnan(crater.depth) && !std::isnan(crater.rimHeight)) {
+            throw std::invalid_argument("A manual crater's rim height needs its depth too");
+        }
         crater.manual = true;
         if (crater.id == 0) {
             crater.id = ManualCraterId(crater.x, crater.y, crater.diameter);
@@ -46,6 +56,8 @@ void CraterList::Reserve(std::size_t count) {
     ageGyr_.reserve(count);
     id_.reserve(count);
     manual_.reserve(count);
+    depth_.reserve(count);
+    rimHeight_.reserve(count);
 }
 
 void CraterList::Append(const Crater& crater) {
@@ -55,6 +67,8 @@ void CraterList::Append(const Crater& crater) {
     ageGyr_.push_back(crater.ageGyr);
     id_.push_back(crater.id);
     manual_.push_back(crater.manual ? 1 : 0);
+    depth_.push_back(crater.depth);
+    rimHeight_.push_back(crater.rimHeight);
 }
 
 void CraterList::Append(const CraterList& other) {
@@ -64,14 +78,16 @@ void CraterList::Append(const CraterList& other) {
     ageGyr_.insert(ageGyr_.end(), other.ageGyr_.begin(), other.ageGyr_.end());
     id_.insert(id_.end(), other.id_.begin(), other.id_.end());
     manual_.insert(manual_.end(), other.manual_.begin(), other.manual_.end());
+    depth_.insert(depth_.end(), other.depth_.begin(), other.depth_.end());
+    rimHeight_.insert(rimHeight_.end(), other.rimHeight_.begin(), other.rimHeight_.end());
 }
 
 Crater CraterList::At(std::size_t index) const {
     if (index >= Size()) {
         throw std::out_of_range("Crater index out of range");
     }
-    return {x_[index],      y_[index],  diameter_[index],
-            ageGyr_[index], id_[index], manual_[index] != 0};
+    return {x_[index],  y_[index],           diameter_[index], ageGyr_[index],
+            id_[index], manual_[index] != 0, depth_[index],    rimHeight_[index]};
 }
 
 bool CraterSelection::Includes(const Crater& crater) const {
