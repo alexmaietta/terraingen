@@ -17,8 +17,7 @@ using terraingen::PreparedCrater;
 
 namespace {
 
-/// A profile the kernel does not know, forwarding to `inner`, so `ApplyCraterTo` takes its
-/// double-precision path.
+/// A profile the kernel does not know, forwarding to `inner`, so the kernel tabulates it.
 class Opaque final : public CraterProfile {
   public:
     explicit Opaque(std::shared_ptr<const CraterProfile> inner) : inner_(std::move(inner)) {}
@@ -86,35 +85,54 @@ std::vector<CraterApplyOptions> Options() {
 
 }  // namespace
 
-TEST(CraterKernel, ShapesAsTheDoublePathToWithinFloatRounding) {
+TEST(CraterKernel, ShapesTheProfilesItKnowsToWithinFloatRounding) {
     for (const Case& c : Profiles()) {
-        const Opaque reference(c.profile);
         for (const double diameter : {40.0, 30000.0}) {
             const Crater crater{1000.0, -2000.0, diameter, 0.1, 7u};
             const double radius = 0.5 * diameter;
             for (const double depth : {0.2, 0.12}) {
                 for (const double diffusion : {0.0, 5e-6, 0.004}) {
-                    CraterState state{{0.2, 0.04}, {depth, 0.04 * depth / 0.2}, diffusion};
-                    PreparedCrater prepared{crater, 0.8, state};
-                    prepared.datum = terraingen::Plane{5.0, 0.01, -0.02};
-                    for (std::size_t o = 0; o < Options().size(); ++o) {
-                        const CraterApplyOptions options = Options()[o];
-                        prepared.slope = terraingen::SlopeShape(crater, 0.3, -0.2, options.slope);
-                        for (int k = 0; k < 400; ++k) {
-                            const double r = radius * 3.2 * (k + 0.37) / 400.0;
-                            const double a = 0.7 * k;
-                            const double x = crater.x + r * std::cos(a);
-                            const double y = crater.y + r * std::sin(a);
-                            const float kernel =
-                                ApplyCraterTo(3.0f, x, y, prepared, *c.profile, options);
-                            const float exact =
-                                ApplyCraterTo(3.0f, x, y, prepared, reference, options);
-                            ASSERT_NEAR(kernel, exact, 2e-5 * diameter + 1e-4)
-                                << c.name << ", D " << diameter << ", depth " << depth << ", tau "
-                                << diffusion << ", options " << o << " at " << r / radius
-                                << " radii";
-                        }
+                    const CraterState state{{0.2, 0.04}, {depth, 0.04 * depth / 0.2}, diffusion};
+                    const PreparedCrater prepared{crater, 1.0, state};
+                    for (int k = 0; k < 400; ++k) {
+                        const double r = radius * 3.2 * (k + 0.37) / 400.0;
+                        const double a = 0.7 * k;
+                        const float kernel =
+                            ApplyCraterTo(3.0f, crater.x + r * std::cos(a),
+                                          crater.y + r * std::sin(a), prepared, *c.profile, {});
+                        const double exact = 3.0 + c.profile->Height(r, diameter, state);
+                        ASSERT_NEAR(kernel, exact, 2e-5 * diameter + 1e-4)
+                            << c.name << ", D " << diameter << ", depth " << depth << ", tau "
+                            << diffusion << " at " << r / radius << " radii";
                     }
+                }
+            }
+        }
+    }
+}
+
+TEST(CraterKernel, TabulatesProfilesOfYourOwnCloseToTheirHeights) {
+    for (const Case& c : Profiles()) {
+        const Opaque custom(c.profile);
+        for (const double diameter : {40.0, 30000.0}) {
+            const Crater crater{1000.0, -2000.0, diameter, 0.1, 7u};
+            const double radius = 0.5 * diameter;
+            const CraterState state{{0.2, 0.04}, {0.12, 0.024}, 5e-6};
+            PreparedCrater prepared{crater, 0.8, state};
+            prepared.datum = terraingen::Plane{5.0, 0.01, -0.02};
+            for (std::size_t o = 0; o < Options().size(); ++o) {
+                const CraterApplyOptions options = Options()[o];
+                prepared.slope = terraingen::SlopeShape(crater, 0.3, -0.2, options.slope);
+                for (int k = 0; k < 400; ++k) {
+                    const double r = radius * 3.2 * (k + 0.37) / 400.0;
+                    const double a = 0.7 * k;
+                    const double x = crater.x + r * std::cos(a);
+                    const double y = crater.y + r * std::sin(a);
+                    const float known = ApplyCraterTo(3.0f, x, y, prepared, *c.profile, options);
+                    const float tabulated = ApplyCraterTo(3.0f, x, y, prepared, custom, options);
+                    ASSERT_NEAR(tabulated, known, 5e-4 * diameter + 1e-3)
+                        << c.name << ", D " << diameter << ", options " << o << " at " << r / radius
+                        << " radii";
                 }
             }
         }
@@ -123,7 +141,6 @@ TEST(CraterKernel, ShapesAsTheDoublePathToWithinFloatRounding) {
 
 TEST(CraterKernel, FollowsIrregularOutlines) {
     const auto profile = std::make_shared<terraingen::FassettThomsonProfile>();
-    const Opaque reference(profile);
     for (const auto model :
          {terraingen::RimRoughnessModel::PowerLaw, terraingen::RimRoughnessModel::Du2024}) {
         CraterApplyOptions options;
@@ -140,23 +157,38 @@ TEST(CraterKernel, FollowsIrregularOutlines) {
         for (int k = 0; k < 2000; ++k) {
             const double r = 160.0 * k / 2000.0;
             const double a = 0.37 * k;
-            const float kernel =
-                ApplyCraterTo(0.0f, r * std::cos(a), r * std::sin(a), prepared, *profile, options);
-            const float exact =
-                ApplyCraterTo(0.0f, r * std::cos(a), r * std::sin(a), prepared, reference, options);
+            const double x = r * std::cos(a);
+            const double y = r * std::sin(a);
+            const float kernel = ApplyCraterTo(0.0f, x, y, prepared, *profile, options);
+            const double distance =
+                terraingen::CraterProfileDistance(crater, prepared.outline, x, y, {});
+            const double exact = profile->Height(distance, 200.0, prepared.state);
             ASSERT_NEAR(kernel, exact, 2e-3) << "at " << r << " m";
         }
     }
 }
 
-TEST(CraterKernel, LeavesBodiesAndProfilesOfYourOwnToTheDoublePath) {
+TEST(CraterKernel, ShapesEveryProfileOnEverySurface) {
     const terraingen::FassettThomsonProfile profile;
+    const Opaque custom(std::make_shared<terraingen::FassettThomsonProfile>());
     CraterApplyOptions options;
-    EXPECT_TRUE(terraingen::MakeCraterShapeKernel(profile, options));
-    EXPECT_FALSE(terraingen::MakeCraterShapeKernel(
-        Opaque(std::make_shared<terraingen::FassettThomsonProfile>()), options));
+    EXPECT_EQ(terraingen::MakeCraterShapeKernel(profile, options).profile.simple,
+              terraingen::CraterProfileKind::FassettThomson);
+    const terraingen::CraterShapeKernel tabulated =
+        terraingen::MakeCraterShapeKernel(custom, options);
+    EXPECT_EQ(tabulated.profile.simple, terraingen::CraterProfileKind::Tabulated);
+    EXPECT_EQ(tabulated.profile.tableCells, terraingen::kProfileTableCells);
+    EXPECT_FLOAT_EQ(tabulated.profile.tableExtent, 0.5f * static_cast<float>(profile.ReachRadii()));
     options.surface = terraingen::Surface::Sphere(1737400.0);
-    EXPECT_FALSE(terraingen::MakeCraterShapeKernel(profile, options));
+    EXPECT_EQ(terraingen::MakeCraterShapeKernel(profile, options).profile.simple,
+              terraingen::CraterProfileKind::FassettThomson);
+    const Crater crater{0.0, 0.0, 20.0, 0.0, 1u};
+    const PreparedCrater prepared{crater, 1.0, {{0.2, 0.04}, {0.2, 0.04}, 0.0}};
+    const auto batch =
+        terraingen::MakeCraterKernelBatch(tabulated, custom, {prepared, prepared}, {0, 1}, options);
+    EXPECT_EQ(batch.records[0].profileOffset, batch.records[1].profileOffset)
+        << "craters alike share a table";
+    EXPECT_EQ(batch.data.size(), terraingen::kProfileTableCells + 1u);
 }
 
 TEST(CraterKernel, RejectsStatesTheProfileRejects) {

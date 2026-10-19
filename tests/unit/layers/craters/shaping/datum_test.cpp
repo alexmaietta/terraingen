@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <vector>
 
@@ -71,38 +72,6 @@ TEST(FitCraterDatum, FitsTheGroundOnALatticeAroundTheCrater) {
     EXPECT_FALSE(terraingen::FitCraterDatum(crater, options, slope).has_value());
 }
 
-TEST(CraterReliefIndex, SumsEarlierCratersReachingAPointWhateverElseTheListHolds) {
-    const FassettThomsonProfile profile;
-    const terraingen::CraterState fresh = kFresh.State({0, 0, 10, 0, 1});
-    const std::vector<PreparedCrater> near{{{0.0, 0.0, 10.0, 0.0, 1u}, 1.0, fresh},
-                                           {{3.0, 1.0, 6.0, 0.0, 2u}, 0.5, fresh},
-                                           {{1.0, -2.0, 8.0, 0.0, 3u}, 1.0, fresh}};
-    const terraingen::CraterReliefIndex small(near, profile);
-    EXPECT_EQ(small.ReliefBefore(1.0, 0.5, 0), 0.0);
-    const double first = small.ReliefBefore(1.0, 0.5, 1);
-    EXPECT_DOUBLE_EQ(first, profile.Height(std::hypot(1.0, 0.5), 10.0, fresh));
-    const double two = small.ReliefBefore(1.0, 0.5, 2);
-    EXPECT_DOUBLE_EQ(two, first + 0.5 * profile.Height(std::hypot(2.0, 0.5), 6.0, fresh));
-    std::vector<PreparedCrater> more = near;
-    more.insert(more.begin() + 1, {{500.0, 500.0, 40.0, 0.0, 9u}, 1.0, fresh});
-    more.push_back({{-300.0, 0.0, 12.0, 0.0, 10u}, 1.0, fresh});
-    const terraingen::CraterReliefIndex large(more, profile);
-    EXPECT_EQ(large.ReliefBefore(1.0, 0.5, 4), small.ReliefBefore(1.0, 0.5, 3));
-}
-
-TEST(DatumGround, AddsTheReliefOfEarlierCratersToTheGround) {
-    const FassettThomsonProfile profile;
-    const terraingen::CraterState fresh = kFresh.State({0, 0, 10, 0, 1});
-    const std::vector<PreparedCrater> craters{{{0.0, 0.0, 10.0, 0.0, 1u}, 1.0, fresh},
-                                              {{2.0, 0.0, 10.0, 0.0, 2u}, 1.0, fresh}};
-    const terraingen::CraterReliefIndex index(craters, profile);
-    const HeightSampler flat = [](double, double) { return 4.0f; };
-    const HeightSampler ground = terraingen::DatumGround(flat, index, 1);
-    EXPECT_FLOAT_EQ(ground(1.0, 0.0), static_cast<float>(4.0 + profile.Height(1.0, 10.0, fresh)));
-    const HeightSampler none = [](double, double) { return std::nanf(""); };
-    EXPECT_TRUE(std::isnan(terraingen::DatumGround(none, index, 1)(1.0, 0.0)));
-}
-
 TEST(DatumMargin, CoversTheFitFootprintAndReachOfTheLargestCrater) {
     const FassettThomsonProfile profile;
     EXPECT_EQ(terraingen::DatumMargin({}, profile, 100.0), 0.0);
@@ -111,4 +80,17 @@ TEST(DatumMargin, CoversTheFitFootprintAndReachOfTheLargestCrater) {
     options.datumFitRadii = 1.5;
     EXPECT_DOUBLE_EQ(terraingen::DatumMargin(options, profile, 100.0),
                      (1.5 + profile.ReachRadii()) * 50.0);
+}
+
+TEST(ForEachDatumPoint, VisitsTheLatticeInsideTheFootprintRowByRow) {
+    std::vector<std::size_t> points;
+    terraingen::ForEachDatumPoint(7.0, [&](std::size_t point, double dx, double dy) {
+        EXPECT_LT(dx * dx + dy * dy, 49.0);
+        EXPECT_EQ(dx, terraingen::DatumLatticeOffset(static_cast<int>(point % 7), 7.0));
+        EXPECT_EQ(dy, terraingen::DatumLatticeOffset(static_cast<int>(point / 7), 7.0));
+        points.push_back(point);
+    });
+    EXPECT_EQ(points.size(), 37u) << "the corners lie outside";
+    EXPECT_TRUE(std::is_sorted(points.begin(), points.end()));
+    EXPECT_EQ(points.front(), 2u);
 }

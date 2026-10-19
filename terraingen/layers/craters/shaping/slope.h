@@ -79,13 +79,4 @@ struct CraterSlopeShape {
 CraterSlopeShape SlopeShape(const Crater& crater, double east, double north,
                             const CraterSlopeResponse& response);
 
-/// Where the round profile is read for a point at `offset` metres from the centre: moved back by
-/// `shape`'s shift in full within 0.3 radii, fading along a smoothstep to none at the rim.
-/// @param radius Crater radius in metres.
-Vec2d SlopeShiftedOffset(const CraterSlopeShape& shape, const Vec2d& offset, double radius);
-
-/// The share of a crater's raised relief, rim and ejecta, kept at `offset` from its centre: 1 less
-/// the removed share times the squared cosine of the angle from upslope, smooth across the slope.
-double SlopeRaisedShare(const CraterSlopeShape& shape, const Vec2d& offset);
-
 }  // namespace terraingen

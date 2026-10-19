@@ -61,26 +61,24 @@ TEST(SlopeShape, DrawsEachCratersOffsetFromItsID) {
     EXPECT_NE(offsets[0], offsets[1]);
 }
 
-TEST(SlopeShiftedOffset, MovesTheFloorInFullAndLeavesTheRim) {
-    const CraterSlopeShape shape{{0.0, -10.0}, {0.0, 1.0}};
-    const Vec2d floor = terraingen::SlopeShiftedOffset(shape, {0.0, -10.0}, 50.0);
-    EXPECT_DOUBLE_EQ(floor.x, 0.0);
-    EXPECT_DOUBLE_EQ(floor.y, 0.0) << "the deepest point moves to the shift";
-    const Vec2d rim = terraingen::SlopeShiftedOffset(shape, {50.0, 0.0}, 50.0);
-    EXPECT_DOUBLE_EQ(rim.x, 50.0);
-    EXPECT_DOUBLE_EQ(rim.y, 0.0);
-    const Vec2d between = terraingen::SlopeShiftedOffset(shape, {0.0, 32.5}, 50.0);
-    EXPECT_DOUBLE_EQ(between.y, 32.5 + 5.0) << "half the shift half way down the fade";
+TEST(KernelSlopeShiftWeight, MovesTheFloorInFullAndLeavesTheRim) {
+    terraingen::CraterRecord crater;
+    crater.diameter = 100.0f;
+    EXPECT_EQ(terraingen::KernelSlopeShiftWeight(crater, 0.0f, -10.0f), 1.0f);
+    EXPECT_EQ(terraingen::KernelSlopeShiftWeight(crater, 50.0f, 0.0f), 0.0f);
+    EXPECT_FLOAT_EQ(terraingen::KernelSlopeShiftWeight(crater, 0.0f, 32.5f), 0.5f)
+        << "half the shift half way down the fade";
 }
 
-TEST(SlopeRaisedShare, RemovesRaisedReliefUpslopeOnly) {
-    const CraterSlopeShape shape{{0.0, -10.0}, {0.0, 0.8}};
-    EXPECT_DOUBLE_EQ(terraingen::SlopeRaisedShare(shape, {0.0, 60.0}), 0.2);
-    EXPECT_DOUBLE_EQ(terraingen::SlopeRaisedShare(shape, {60.0, 0.0}), 1.0);
-    EXPECT_DOUBLE_EQ(terraingen::SlopeRaisedShare(shape, {0.0, -60.0}), 1.0);
-    EXPECT_DOUBLE_EQ(terraingen::SlopeRaisedShare(shape, {0.0, 0.0}), 1.0);
-    EXPECT_NEAR(terraingen::SlopeRaisedShare(shape, {60.0, 60.0}), 1.0 - 0.8 * 0.5, 1e-12);
-    EXPECT_DOUBLE_EQ(terraingen::SlopeRaisedShare({}, {0.0, 60.0}), 1.0);
+TEST(KernelSlopeRaisedShare, RemovesRaisedReliefUpslopeOnly) {
+    terraingen::CraterRecord crater;
+    crater.diameter = 100.0f;
+    crater.upslopeY = 0.8f;
+    EXPECT_FLOAT_EQ(terraingen::KernelSlopeRaisedShare(crater, 0.0f, 60.0f), 0.2f);
+    EXPECT_EQ(terraingen::KernelSlopeRaisedShare(crater, 60.0f, 0.0f), 1.0f);
+    EXPECT_EQ(terraingen::KernelSlopeRaisedShare(crater, 0.0f, -60.0f), 1.0f);
+    EXPECT_EQ(terraingen::KernelSlopeRaisedShare(crater, 0.0f, 0.0f), 1.0f);
+    EXPECT_NEAR(terraingen::KernelSlopeRaisedShare(crater, 60.0f, 60.0f), 1.0 - 0.8 * 0.5, 1e-6);
 }
 
 TEST(ValidateCraterSlopeResponse, RejectsInvalidSettings) {

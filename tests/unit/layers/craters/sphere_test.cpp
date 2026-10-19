@@ -210,3 +210,167 @@ TEST(SphereCraterLayer, FitsDatumsOnTheSphere) {
                                              {.spacing = spacing, .ground = &ground}));
     EXPECT_LT(heights(25, 25), before(25, 25) - 100.0f);
 }
+
+namespace {
+
+/// A flat ground at height 0, which craters with a datum read beneath them.
+class FlatGround final : public terraingen::Ground {
+  public:
+    float HeightAt(double /*x*/, double /*y*/, double /*spacing*/) const override {
+        return 0.0f;
+    }
+};
+
+/// A rimless parabolic bowl the crater kernel does not know, so it tabulates it.
+class Bowl final : public terraingen::CraterProfile {
+  public:
+    double Height(double distance, double diameter,
+                  const terraingen::CraterState& state) const override {
+        const double x = distance / (0.5 * diameter);
+        return x < 1.0 ? -state.current.depthRatio * diameter * (1.0 - x * x) : 0.0;
+    }
+    double ReachRadii() const override {
+        return 1.0;
+    }
+};
+
+struct BodyCase {
+    const char* name;
+    Surface surface;
+    Crater crater;  ///< At the centre of the raster.
+    double step;    ///< Raster cell side, in degrees.
+};
+
+std::vector<BodyCase> Bodies() {
+    const auto asteroid = std::make_shared<const terraingen::RadialShape>(
+        terraingen::RadialShape::Sample(24, [](const terraingen::Vec3d& d) {
+            return 8000.0 + 600.0 * d.x * d.y + 300.0 * d.z * d.z;
+        }));
+    return {{"plane", Surface::Plane(), {100.0, -50.0, 300.0, 1.0, 10u}, 12.0},
+            {"sphere", Surface::Sphere(kMoon), {30.0, 60.0, 2000.0, 1.0, 11u}, 0.0008},
+            {"ellipsoid",
+             Surface::Ellipsoid(1738100.0, 1737400.0, 1735970.0),
+             {-40.0, 25.0, 2000.0, 1.0, 12u},
+             0.0008},
+            {"shape model", Surface::ShapeModel(asteroid), {10.0, 20.0, 600.0, 1.0, 13u}, 0.05}};
+}
+
+/// Checks that `layer` gives a grid of 96 cells of `body.step` degrees centred on the crater the
+/// same heights as its tiles, its points, other thread counts and a GPU backend, and digs a bowl.
+void ExpectGridsTilesAndPointsAgree(const CraterLayer& layer, const BodyCase& body,
+                                    const terraingen::Ground* ground) {
+    const double half = 48.0 * body.step;
+    Raster<float> whole = Geographic(body.crater.x - half, body.crater.y + half, body.step, 96);
+    Raster<float> threaded = whole;
+    const double spacing = terraingen::RasterGrid::FromRaster(whole).Spacing(body.surface);
+    layer.Apply(whole, {.spacing = spacing, .threads = 1, .ground = ground});
+    layer.Apply(threaded, {.spacing = spacing, .threads = 0, .ground = ground});
+    for (std::size_t i = 0; i < whole.Size(); ++i) {
+        ASSERT_EQ(whole.Values()[i], threaded.Values()[i]) << body.name;
+    }
+    EXPECT_LT(whole(48, 48), -0.05f * static_cast<float>(body.crater.diameter)) << body.name;
+    Raster<float> tile = Geographic(body.crater.x - half + 32.0 * body.step,
+                                    body.crater.y + half - 32.0 * body.step, body.step, 32);
+    layer.Apply(tile, {.spacing = spacing, .threads = 1, .ground = ground});
+    for (std::size_t row = 0; row < 32; ++row) {
+        for (std::size_t col = 0; col < 32; ++col) {
+            ASSERT_EQ(tile(col, row), whole(col + 32, row + 32)) << body.name;
+        }
+    }
+    for (const std::size_t at :
+         {std::size_t{5}, std::size_t{40}, std::size_t{48}, std::size_t{70}}) {
+        const auto centre = whole.CellCenter(at, 95 - at);
+        EXPECT_EQ(layer.ApplyAt(0.0f, centre.x, centre.y, {.spacing = spacing, .ground = ground}),
+                  whole(at, 95 - at))
+            << body.name << " at " << at;
+    }
+    for (const terraingen::BackendStatus& status : terraingen::Backends()) {
+        if (status.backend == terraingen::Backend::Cpu || !status.available) {
+            continue;
+        }
+        Raster<float> gpu = Geographic(body.crater.x - half, body.crater.y + half, body.step, 96);
+        layer.Apply(gpu, {.spacing = spacing, .ground = ground, .backend = status.backend});
+        const float tolerance = body.surface.IsBody() ? 0.0f : 2e-3f;
+        for (std::size_t i = 0; i < whole.Size(); ++i) {
+            ASSERT_NEAR(gpu.Values()[i], whole.Values()[i], tolerance)
+                << body.name << " on " << terraingen::BackendName(status.backend)
+                << "; bodies are shaped on the CPU, planes to within float rounding";
+        }
+    }
+}
+
+}  // namespace
+
+TEST(BodyCraterLayer, GridsTilesPointsAndBackendsAgreeOnEveryBody) {
+    const FlatGround ground;
+    for (const BodyCase& body : Bodies()) {
+        for (const auto datum : {terraingen::CraterDatum::None, terraingen::CraterDatum::Plane,
+                                 terraingen::CraterDatum::CentreHeight}) {
+            CraterLayerOptions options;
+            options.generate = false;
+            options.surface = body.surface;
+            options.apply.datum = datum;
+            options.apply.noise.amplitude = 0.005;
+            options.apply.irregularity.enabled = true;
+            options.apply.irregularity.selection.manual = true;
+            options.apply.irregularity.elongatedShare = 1.0;
+            options.generation.manual.Append(body.crater);
+            const terraingen::Vec2d beside = body.surface.Locate({body.crater.x, body.crater.y},
+                                                                 {0.3 * body.crater.diameter, 0.0});
+            options.generation.manual.Append(
+                {beside.x, beside.y, 0.4 * body.crater.diameter, 0.5, body.crater.id + 100u});
+            const CraterLayer layer(Models(), options);
+            ExpectGridsTilesAndPointsAgree(layer, body, &ground);
+        }
+    }
+}
+
+TEST(BodyCraterLayer, ShapesCratersInTheirLocalFrameOnEveryBody) {
+    for (const BodyCase& body : Bodies()) {
+        CraterLayerOptions options;
+        options.generate = false;
+        options.surface = body.surface;
+        options.generation.manual.Append(body.crater);
+        const CraterLayer layer(Models(), options);
+        CraterLayerOptions flat = options;
+        flat.surface = Surface::Plane();
+        flat.generation.manual = {};
+        flat.generation.manual.Append({0.0, 0.0, body.crater.diameter, 1.0, body.crater.id});
+        const CraterLayer plane(Models(), flat);
+        for (const double distance : {0.0, 0.2, 0.49, 0.65}) {
+            for (const double azimuth : {0.3, 2.0, 4.4}) {
+                const double metres = distance * body.crater.diameter;
+                const terraingen::Vec2d offset{metres * std::sin(azimuth),
+                                               metres * std::cos(azimuth)};
+                const terraingen::Vec2d at =
+                    body.surface.Locate({body.crater.x, body.crater.y}, offset);
+                EXPECT_NEAR(layer.ApplyAt(0.0f, at.x, at.y, {5.0}),
+                            plane.ApplyAt(0.0f, offset.x, offset.y, {5.0}),
+                            1e-4 * body.crater.diameter)
+                    << body.name << " at " << distance;
+            }
+        }
+    }
+}
+
+TEST(BodyCraterLayer, ShapesProfilesOfYourOwnOnEveryBody) {
+    const FlatGround ground;
+    for (const BodyCase& body : Bodies()) {
+        CraterLayerOptions options;
+        options.generate = false;
+        options.surface = body.surface;
+        options.apply.datum = terraingen::CraterDatum::Plane;
+        options.generation.manual.Append(body.crater);
+        CraterModels models = Models();
+        models.profile = std::make_shared<Bowl>();
+        const CraterLayer layer(models, options);
+        ExpectGridsTilesAndPointsAgree(layer, body, &ground);
+        const double depth =
+            terraingen::LunarFreshCraterMorphometry(body.crater.diameter).depthRatio *
+            body.crater.diameter;
+        EXPECT_NEAR(
+            layer.ApplyAt(0.0f, body.crater.x, body.crater.y, {.spacing = 5.0, .ground = &ground}),
+            -depth, 1e-3 * depth)
+            << body.name;
+    }
+}

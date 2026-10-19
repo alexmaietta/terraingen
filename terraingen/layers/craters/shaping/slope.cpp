@@ -13,9 +13,6 @@ namespace {
 
 constexpr std::uint32_t kSlopeStream = 0x534C4F50u;
 
-/// Where the floor shift starts to fade, in radii.
-constexpr double kShiftPlateauRadii = 0.3;
-
 /// The largest floor offset in diameters that keeps the shifted interior from folding.
 constexpr double kMaxFloorOffset = 0.23;
 
@@ -61,24 +58,6 @@ CraterSlopeShape SlopeShape(const Crater& crater, double east, double north,
     const Vec2d up{east / gradient, north / gradient};
     const double removed = strength * (1.0 - response.upslopeRim);
     return {{-offset * up.x, -offset * up.y}, {removed * up.x, removed * up.y}};
-}
-
-Vec2d SlopeShiftedOffset(const CraterSlopeShape& shape, const Vec2d& offset, double radius) {
-    const double radii = std::hypot(offset.x, offset.y) / radius;
-    const double weight =
-        1.0 - Smoothstep((radii - kShiftPlateauRadii) / (1.0 - kShiftPlateauRadii));
-    return {offset.x - weight * shape.shift.x, offset.y - weight * shape.shift.y};
-}
-
-double SlopeRaisedShare(const CraterSlopeShape& shape, const Vec2d& offset) {
-    const double distance = std::hypot(offset.x, offset.y);
-    const double removed = std::hypot(shape.upslope.x, shape.upslope.y);
-    if (!(distance > 0.0) || !(removed > 0.0)) {
-        return 1.0;
-    }
-    const double cosine = std::fmax(0.0, (shape.upslope.x * offset.x + shape.upslope.y * offset.y) /
-                                             (removed * distance));
-    return 1.0 - removed * cosine * cosine;
 }
 
 }  // namespace terraingen

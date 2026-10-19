@@ -15,10 +15,13 @@
 
 namespace terraingen {
 
-/// The fresh profile of simple craters.
+/// The fresh profile of simple craters, or a profile tabulated per crater.
 enum class CraterProfileKind : uint32_t {
     FassettThomson = 0,       ///< `FassettThomsonProfile`.
     MartinParkesDunstan = 1,  ///< `MartinParkesDunstanProfile`.
+    /// Any other profile, tabulated per crater in its state: one row of heights over the
+    /// diameter, `tableCells` + 1 of them from the centre to `tableExtent` diameters out.
+    Tabulated = 2,
 };
 
 /// A crater profile as the kernel evaluates it: a simple profile, complex craters from a
@@ -40,9 +43,9 @@ struct CraterProfileKernel {
     float peakFitMaxDiameter = 0.0f;
     float ejectaExponent = 3.0f;
     float complexReachRadii = 3.0f;
-    float diffusedExtent = 1.5f;  ///< Half the diffused domain's reach, in diameters.
-    uint32_t diffusedCells = 0;
-    uint32_t agesOffset = 0;  ///< Where the tabulated diffusion ages start in `CraterData`.
+    float tableExtent = 1.5f;  ///< Where tabulated heights end, in diameters from the centre.
+    uint32_t tableCells = 0;   ///< Cells of a tabulated profile row; rows hold one more height.
+    uint32_t agesOffset = 0;   ///< Where the tabulated diffusion ages start in `CraterData`.
     uint32_t ageCount = 0;
 };
 
@@ -94,8 +97,8 @@ struct CraterRecord {
     uint32_t harmonicCount = 0;
     uint32_t harmonicOffset = 0;  ///< Amplitude and phase pairs in `CraterData`.
     uint32_t tableCount = 0;
-    uint32_t tableOffset = 0;      ///< The outline's deviations in `CraterData`.
-    uint32_t diffusionOffset = 0;  ///< Its diffusion table in `CraterData`.
+    uint32_t tableOffset = 0;    ///< The outline's deviations in `CraterData`.
+    uint32_t profileOffset = 0;  ///< Its diffusion or profile table in `CraterData`.
     uint32_t hasDatum = 0;
     float datumA = 0.0f;
     float datumB = 0.0f;
@@ -331,11 +334,11 @@ inline float DiffusedProfileHeight(KERNEL_IN(CraterProfileKernel) p, CraterData 
         return FreshProfileHeight(p, distance, diameter, fresh);
     }
     const float x = distance / diameter;
-    if (x >= p.diffusedExtent) {
+    if (x >= p.tableExtent) {
         return 0.0f;
     }
-    const float cell = x / p.diffusedExtent * float(p.diffusedCells);
-    const uint32_t i = min(uint32_t(cell), p.diffusedCells - 1u);
+    const float cell = x / p.tableExtent * float(p.tableCells);
+    const uint32_t i = min(uint32_t(cell), p.tableCells - 1u);
     const float t = cell - float(i);
     uint32_t row = 0u;
     float weight = 0.0f;
@@ -361,8 +364,8 @@ inline float DiffusedProfileHeight(KERNEL_IN(CraterProfileKernel) p, CraterData 
         const float above = CraterValue(data, p.agesOffset + high);
         weight = log(c.diffusion / below) / log(above / below);
     }
-    const uint32_t width = p.diffusedCells + 1u;
-    const uint32_t at = c.diffusionOffset + row * width + i;
+    const uint32_t width = p.tableCells + 1u;
+    const uint32_t at = c.profileOffset + row * width + i;
     float value = (1.0f - t) * CraterValue(data, at) + t * CraterValue(data, at + 1u);
     if (weight > 0.0f) {
         const float next =
@@ -372,9 +375,27 @@ inline float DiffusedProfileHeight(KERNEL_IN(CraterProfileKernel) p, CraterData 
     return diameter * value;
 }
 
+/// The height (m) of a profile tabulated for crater `c` (`CraterProfileKind::Tabulated`),
+/// interpolated linearly along its row; 0 beyond the row.
+inline float TabulatedProfileHeight(KERNEL_IN(CraterProfileKernel) p, CraterData data,
+                                    float distance, float diameter, KERNEL_IN(CraterRecord) c) {
+    const float x = distance / diameter;
+    if (!(x < p.tableExtent)) {
+        return 0.0f;
+    }
+    const float cell = x / p.tableExtent * float(p.tableCells);
+    const uint32_t i = min(uint32_t(cell), p.tableCells - 1u);
+    const float t = cell - float(i);
+    const uint32_t at = c.profileOffset + i;
+    return diameter * ((1.0f - t) * CraterValue(data, at) + t * CraterValue(data, at + 1u));
+}
+
 /// The profile's height (m) at `distance`.
 inline float KernelProfileHeight(KERNEL_IN(CraterShapeKernel) k, CraterData data, float distance,
                                  float diameter, KERNEL_IN(CraterRecord) c) {
+    if (k.profile.simple == CraterProfileKind::Tabulated) {
+        return TabulatedProfileHeight(k.profile, data, distance, diameter, c);
+    }
     if (k.profile.diffused == 1u) {
         return DiffusedProfileHeight(k.profile, data, distance, diameter, c);
     }
@@ -564,14 +585,14 @@ inline float KernelProfileDistance(CraterData data, KERNEL_IN(CraterRecord) c, f
 }
 
 /// How much of crater `c`'s floor shift applies at `dx` east and `dy` north of its centre
-/// (`SlopeShiftedOffset`): all within 0.3 radii, fading along a smoothstep to none at the rim.
+/// (`CraterSlopeShape::shift`): all within 0.3 radii, fading along a smoothstep to none at the rim.
 inline float KernelSlopeShiftWeight(KERNEL_IN(CraterRecord) c, float dx, float dy) {
     const float radii = sqrt(dx * dx + dy * dy) / (0.5f * c.diameter);
     return 1.0f - KernelSmoothstep((radii - 0.3f) / 0.7f);
 }
 
-/// The share of crater `c`'s raised relief kept at `dx` east and `dy` north of its centre
-/// (`SlopeRaisedShare`).
+/// The share of crater `c`'s raised relief, rim and ejecta, kept at `dx` east and `dy` north of
+/// its centre: 1 less the removed share times the squared cosine of the angle from upslope.
 inline float KernelSlopeRaisedShare(KERNEL_IN(CraterRecord) c, float dx, float dy) {
     const float distance = sqrt(dx * dx + dy * dy);
     if (!(distance > 0.0f)) {
@@ -625,7 +646,7 @@ struct CraterDatumKernel {
 };
 
 /// The relief (m) crater `c` adds at `dx` east and `dy` north of its centre without its datum,
-/// as `CraterReliefIndex` sums it: its resolution times the bare profile, within the profile's
+/// as datums are fitted to it: its resolution times the bare profile, within the profile's
 /// reach. `bound` (m) is at least that reach stretched by the crater's outline.
 inline float CraterRelief(KERNEL_IN(CraterShapeKernel) k, CraterData data,
                           KERNEL_IN(CraterRecord) c, float bound, float dx, float dy) {

@@ -8,9 +8,7 @@
 #include "terraingen/layers/ground.h"
 
 #include <cstddef>
-#include <cstdint>
 #include <optional>
-#include <unordered_map>
 #include <vector>
 
 namespace terraingen {
@@ -56,6 +54,21 @@ inline double DatumLatticeOffset(int index, double fitRadius) {
     return fitRadius * ((2.0 * index + 1.0) / kDatumLatticeSide - 1.0);
 }
 
+/// Calls `visit(point, dx, dy)` for each lattice point inside a fit footprint of `fitRadius`
+/// metres, `dx` east and `dy` north of the centre, row by row; `point` numbers every lattice
+/// point, inside or not, row by row.
+template <typename Visit> void ForEachDatumPoint(double fitRadius, const Visit& visit) {
+    for (int j = 0; j < kDatumLatticeSide; ++j) {
+        const double dy = DatumLatticeOffset(j, fitRadius);
+        for (int i = 0; i < kDatumLatticeSide; ++i) {
+            const double dx = DatumLatticeOffset(i, fitRadius);
+            if (dx * dx + dy * dy < fitRadius * fitRadius) {
+                visit(static_cast<std::size_t>(j * kDatumLatticeSide + i), dx, dy);
+            }
+        }
+    }
+}
+
 /// The datum a crater is cut to, fitted to the ground beneath it; nothing for
 /// `CraterDatum::None` or where the ground has no data.
 ///
@@ -63,54 +76,6 @@ inline double DatumLatticeOffset(int index, double fitRadius) {
 /// a 7 x 7 lattice inside the `datumFitRadii` footprint.
 std::optional<Plane> FitCraterDatum(const Crater& crater, const CraterApplyOptions& options,
                                     const HeightSampler& ground);
-
-/// Prepared craters indexed by position, to sum the relief of the craters before any one of
-/// them at a point quickly.
-///
-/// Craters are bucketed by size band, each band in square buckets twice its largest reach.
-class CraterReliefIndex {
-  public:
-    /// Indexes craters; they and `profile` must outlive the index.
-    /// @param craters In the order applied; their datums are not read, so they may be set after the
-    /// index is built.
-    /// @param outlineScale Widens footprints; at least every crater's `CraterOutline::MaxScale`.
-    CraterReliefIndex(const std::vector<PreparedCrater>& craters, const CraterProfile& profile,
-                      double outlineScale = 1.0, const Surface& surface = {});
-
-    /// The relief in metres at surface (x, y) of the craters before crater `k`: `resolution` times
-    /// the profile height of each, shaped by its slope as it is applied, summed in an order
-    /// independent of the other craters.
-    double ReliefBefore(double x, double y, std::size_t k) const;
-
-  private:
-    struct Key {
-        int band;
-        std::int64_t i;
-        std::int64_t j;
-        std::int64_t k;
-        bool operator==(const Key&) const = default;
-    };
-    struct KeyHash {
-        std::size_t operator()(const Key& key) const;
-    };
-
-    /// Adds to `relief` the relief at (`x`, `y`) of the craters of `bucket` before crater `k`.
-    void AddBucket(const std::vector<std::size_t>& bucket, double x, double y, std::size_t k,
-                   double& relief) const;
-
-    const std::vector<PreparedCrater>* craters_;
-    const CraterProfile& profile_;
-    double outlineScale_ = 1.0;
-    Surface surface_;
-    std::vector<int> bands_;
-    std::unordered_map<Key, std::vector<std::size_t>, KeyHash> buckets_;
-};
-
-/// The ground crater `k` of `index` fits its datum to: `ground` plus the relief of the craters
-/// applied before it, as if added without their own datums; NaN where `ground` has no data.
-/// `ground` and `index` must outlive the result.
-HeightSampler DatumGround(const HeightSampler& ground, const CraterReliefIndex& index,
-                          std::size_t k);
 
 /// How far (m) beyond a grid craters with a datum can change it through their datum fit: the fit
 /// footprint plus the profile's reach for the largest crater; 0 without a datum. Craters for a
