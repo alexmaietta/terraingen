@@ -7,10 +7,12 @@
 #include "terraingen/layers/craters/generation/population.h"
 #include "terraingen/layers/craters/profiles/profile.h"
 #include "terraingen/layers/craters/shaping/apply_options.h"
+#include "terraingen/layers/craters/shaping/attributes.h"
 #include "terraingen/layers/craters/shaping/datum.h"
 #include "terraingen/layers/craters/shaping/prepared.h"
 #include "terraingen/layers/evaluation_cache.h"
 #include "terraingen/layers/ground.h"
+#include "terraingen/layers/layer.h"
 #include "terraingen/layers/sample_block.h"
 #include "terraingen/raster/raster.h"
 
@@ -23,6 +25,10 @@ namespace terraingen {
 struct CraterShapeModels {
     std::shared_ptr<const CraterProfile> profile;         ///< Height by distance from the centre.
     std::shared_ptr<const DegradationModel> degradation;  ///< Each crater's state.
+
+    /// A crater's depth, rim height and freshness in the state `degradation` gives it.
+    /// @throws std::domain_error as `DegradationModel::State`.
+    CraterAttributes Attributes(const Crater& crater) const;
 };
 
 /// How `ApplyCraters` samples a raster.
@@ -45,6 +51,10 @@ struct CraterSampling {
     /// rounding of the CPU; points always run on the CPU.
     Backend backend = Backend::Cpu;
 };
+
+/// The sampling a crater layer evaluated in `context` applies its craters with: `spacing`, and the
+/// context's threads, ground, cache and backend, with cached datums kept under `owner`.
+CraterSampling SamplingFrom(const LayerContext& context, double spacing, const void* owner);
 
 /// How far, in crater radii, a crater changes the terrain: the profile's reach, or the ejecta's
 /// when `options.texture` draws beyond the rim and they reach further.

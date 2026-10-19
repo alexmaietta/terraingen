@@ -188,29 +188,17 @@ void CraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context
     const Bounds2d bounds = samples.Bounds();
     const double margin = DatumMargin(options_.apply, *models_.profile, MaxFeatureDiameter());
     const CraterList craters = Craters(options_.surface.Expand(bounds, margin), spacing);
-    const HeightSampler ground =
-        context.ground ? context.ground->Sampler(spacing) : HeightSampler{};
-    CraterSampling sampling{spacing, context.threads, ground};
-    if (context.ground != nullptr) {
-        sampling.groundBatch = context.ground->BatchSampler(spacing);
-    }
-    sampling.cache = context.cache;
-    sampling.owner = this;
-    sampling.backend = context.backend;
-    ApplyCraters(samples, craters, models_.Shape(), options_.apply, sampling);
+    ApplyCraters(samples, craters, models_.Shape(), options_.apply,
+                 SamplingFrom(context, spacing, this));
 }
 
 CraterAttributes CraterLayer::Attributes(const Crater& crater) const {
-    return ComputeCraterAttributes(crater, models_.degradation->State(crater), *models_.profile);
+    return models_.Shape().Attributes(crater);
 }
 
 CraterFeatures CraterLayer::CratersOver(const RasterGrid& grid, double spacing) const {
-    CraterFeatures placed{Craters(grid.Bounds(), std::max(spacing, grid.Spacing(options_.surface))),
-                          {}};
-    for (std::size_t n = 0; n < placed.craters.Size(); ++n) {
-        placed.attributes.push_back(Attributes(placed.craters.At(n)));
-    }
-    return placed;
+    return DescribeCraters(
+        Craters(grid.Bounds(), std::max(spacing, grid.Spacing(options_.surface))), models_.Shape());
 }
 
 double CraterLayer::MaxFeatureDiameter() const {

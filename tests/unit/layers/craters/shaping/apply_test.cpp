@@ -571,3 +571,35 @@ TEST(ApplyCraterTo, BuriesOlderReliefUnderTheEjectaByTheDatum) {
     EXPECT_EQ(terraingen::ApplyCraterTo(2.0f, 31.0, 0.0, prepared, profile, options), 2.0f)
         << "beyond the reach";
 }
+
+TEST(SamplingFrom, CarriesTheLayerContext) {
+    struct Flat final : terraingen::Ground {
+        float HeightAt(double x, double /*y*/, double spacing) const override {
+            return static_cast<float>(x + spacing);
+        }
+    };
+    const Flat ground;
+    terraingen::EvaluationCache cache;
+    const int owner = 0;
+    const terraingen::LayerContext context{.spacing = 1.0,
+                                           .threads = 3,
+                                           .ground = &ground,
+                                           .backend = terraingen::Backend::Vulkan,
+                                           .cache = &cache};
+    const terraingen::CraterSampling sampling = terraingen::SamplingFrom(context, 2.0, &owner);
+    EXPECT_EQ(sampling.spacing, 2.0);
+    EXPECT_EQ(sampling.threads, 3u);
+    EXPECT_EQ(sampling.backend, terraingen::Backend::Vulkan);
+    EXPECT_EQ(sampling.cache, &cache);
+    EXPECT_EQ(sampling.owner, &owner);
+    ASSERT_TRUE(sampling.ground);
+    EXPECT_EQ(sampling.ground(5.0, 0.0), 7.0f) << "read at the spacing given";
+    ASSERT_TRUE(sampling.groundBatch);
+    const terraingen::Vec2d point{1.0, 0.0};
+    float height = 0.0f;
+    sampling.groundBatch({&point, 1}, {&height, 1});
+    EXPECT_EQ(height, 3.0f);
+    const terraingen::CraterSampling bare = terraingen::SamplingFrom({.spacing = 1.0}, 1.0, &owner);
+    EXPECT_FALSE(bare.ground);
+    EXPECT_FALSE(bare.groundBatch);
+}

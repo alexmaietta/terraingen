@@ -648,6 +648,22 @@ bool ShapeTilesOnGpu(Raster<float>& raster, Backend backend, const CraterShapeKe
 
 }  // namespace
 
+CraterAttributes CraterShapeModels::Attributes(const Crater& crater) const {
+    return ComputeCraterAttributes(crater, degradation->State(crater), *profile);
+}
+
+CraterSampling SamplingFrom(const LayerContext& context, double spacing, const void* owner) {
+    CraterSampling sampling{spacing, context.threads};
+    if (context.ground != nullptr) {
+        sampling.ground = context.ground->Sampler(spacing);
+        sampling.groundBatch = context.ground->BatchSampler(spacing);
+    }
+    sampling.cache = context.cache;
+    sampling.owner = owner;
+    sampling.backend = context.backend;
+    return sampling;
+}
+
 double CraterReachRadii(const CraterProfile& profile, const CraterApplyOptions& options) {
     const double reach = profile.ReachRadii();
     return options.texture.ReachesBeyondRim() ? std::fmax(reach, options.texture.ejectaReachRadii)

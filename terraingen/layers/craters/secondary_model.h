@@ -161,13 +161,44 @@ class SecondaryDensity {
     /// The share of ground covered by those secondaries, their areas pi d^2 / 4 summed per m^2.
     double CoverAt(const Vec2d& offset, double dMin, double dMax) const;
 
-    /// The largest secondary it throws, in metres; 0 when it throws none.
-    double Largest() const;
-
     /// The farthest a secondary lands from the primary's centre, in metres; 0 when it throws none.
     double Reach() const {
         return outer_;
     }
+
+    /// The primary's diameter, in metres.
+    double Diameter() const {
+        return diameter_;
+    }
+
+    /// Where the secondaries start (`SecondaryOnsetRange`), in metres from the primary's centre.
+    double Onset() const {
+        return onset_;
+    }
+
+    /// Secondaries per m^2 at least `Reference` across at the onset.
+    double OnsetDensity() const {
+        return density0_;
+    }
+
+    /// The size `OnsetDensity` counts from, `countFraction` times the diameter, in metres.
+    double Reference() const {
+        return reference_;
+    }
+
+    /// Where the secondaries gather; none spreads them evenly.
+    const std::optional<SecondaryRayField>& Rays() const {
+        return rays_;
+    }
+
+    /// Chapman's scaled range 1 + (range - onset) / D at `range` metres, whose inverse square the
+    /// density falls with.
+    double ScaledRange(double range) const {
+        return 1.0 + (range - onset_) / diameter_;
+    }
+
+    /// The share of the cumulative count at `Reference` with diameters in [`low`, `high`) metres.
+    double SizeShare(double low, double high) const;
 
   private:
     /// The count, or with `cover` the covered share, per m^2 in [`dMin`, `dMax`) at `offset`.

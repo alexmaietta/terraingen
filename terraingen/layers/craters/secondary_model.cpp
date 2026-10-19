@@ -219,9 +219,9 @@ double SecondaryDensity::Measure(const Vec2d& offset, double dMin, double dMax, 
     if (!(high > low)) {
         return 0.0;
     }
-    const double r = 1.0 + (range - onset_) / diameter_;
+    const double r = ScaledRange(range);
     const double s = sizeSlope_;
-    double sizes = std::pow(low / reference_, -s) - std::pow(high / reference_, -s);
+    double sizes = SizeShare(low, high);
     if (cover) {
         const double scale = 0.25 * std::numbers::pi * s * std::pow(reference_, s);
         sizes = s == 2.0 ? scale * std::log(high / low)
@@ -239,12 +239,8 @@ double SecondaryDensity::CoverAt(const Vec2d& offset, double dMin, double dMax) 
     return Measure(offset, dMin, dMax, true);
 }
 
-double SecondaryDensity::Largest() const {
-    if (!(outer_ > 0.0)) {
-        return 0.0;
-    }
-    return std::fmin(maxSize_, std::fmax(SingerMaxSecondaryDiameter(diameter_, onset_),
-                                         SingerMaxSecondaryDiameter(diameter_, outer_)));
+double SecondaryDensity::SizeShare(double low, double high) const {
+    return std::pow(low / reference_, -sizeSlope_) - std::pow(high / reference_, -sizeSlope_);
 }
 
 double LargestSecondary(double diameter, const SecondaryCraterOptions& options) {

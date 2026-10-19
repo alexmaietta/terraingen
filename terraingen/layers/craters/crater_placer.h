@@ -3,6 +3,7 @@
 #pragma once
 
 #include "terraingen/layers/craters/crater.h"
+#include "terraingen/layers/craters/shaping/apply.h"
 #include "terraingen/layers/craters/shaping/attributes.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/raster/grid.h"
@@ -21,6 +22,10 @@ struct CraterFeatures {
     /// Appends `other`'s craters and attributes.
     void Append(const CraterFeatures& other);
 };
+
+/// `craters` with their attributes under `models` (`CraterShapeModels::Attributes`).
+/// @throws std::domain_error as `DegradationModel::State`.
+CraterFeatures DescribeCraters(CraterList craters, const CraterShapeModels& models);
 
 /// A layer that places craters. Craters are a pure function of position, so the layer lists them
 /// on request rather than recording them while it is applied.

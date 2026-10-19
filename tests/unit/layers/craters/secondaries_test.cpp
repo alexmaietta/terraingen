@@ -1,12 +1,15 @@
+#include "support/log_capture.h"
 #include "terraingen/terraingen.h"
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <numbers>
 #include <set>
 #include <stdexcept>
+#include <string>
 #include <unordered_map>
 
 using terraingen::Crater;
@@ -151,6 +154,37 @@ TEST(SecondaryCraterLayer, GridsTilesThreadsAndPointsAgree) {
             EXPECT_EQ(layer.ApplyAt(0.0f, centre.x, centre.y, {4.0}), whole(col, row));
         }
         EXPECT_TRUE(std::isnan(layer.ApplyAt(NAN, 0.0, 0.0, {4.0})));
+    }
+}
+
+TEST(SecondaryCraterLayer, ShapesGridsOnTheContextsBackend) {
+    const Crater primary{0.0, 0.0, 1500.0, 0.1, 4u, true};
+    const SecondaryCraterLayer layer(Primaries(primary), Models(), Options(30.0, 6.0));
+    terraingen::Raster<float> cpu(96, 96, 0.0f);
+    cpu.SetTransform(terraingen::GeoTransform::NorthUp(3300.0, 400.0, 4.0));
+    const terraingen::Raster<float> base = cpu;
+    layer.Apply(cpu, {.spacing = 4.0});
+    int ran = 0;
+    for (const terraingen::BackendStatus& status : terraingen::Backends()) {
+        if (status.backend == terraingen::Backend::Cpu || !status.available) {
+            continue;
+        }
+        terraingen::Raster<float> gpu = base;
+        const terraingen::testing::LogCapture log(terraingen::LogLevel::Debug);
+        layer.Apply(gpu, {.spacing = 4.0, .backend = status.backend});
+        const std::string shaped =
+            std::string("craters on ") + std::string(terraingen::BackendName(status.backend));
+        const auto records = log.Matching("craters", terraingen::LogLevel::Debug);
+        EXPECT_TRUE(std::any_of(records.begin(), records.end(), [&](const auto& record) {
+            return record.message.find(shaped) != std::string::npos;
+        })) << shaped;
+        for (std::size_t i = 0; i < gpu.Size(); ++i) {
+            EXPECT_NEAR(gpu.Values()[i], cpu.Values()[i], 2e-3f);
+        }
+        ++ran;
+    }
+    if (ran == 0) {
+        GTEST_SKIP() << "no GPU backend here";
     }
 }
 
@@ -443,7 +477,7 @@ TEST(SecondaryDensity, CoversAsItsCountsAddUp) {
                 0.25 * std::numbers::pi * (d + 0.005) * (d + 0.005) * density.At(at, d, d + 0.01);
         }
         EXPECT_NEAR(density.CoverAt(at, 10.0, 30.0), cover, 1e-6 * cover) << slope;
-        EXPECT_GT(density.Largest(), 30.0);
+        EXPECT_GT(terraingen::LargestSecondary(3000.0, options), 30.0);
         EXPECT_EQ(density.At({100.0, 0.0}, 10.0, 30.0), 0.0) << "inside the onset";
     }
 }
