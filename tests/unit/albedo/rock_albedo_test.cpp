@@ -41,7 +41,7 @@ std::shared_ptr<const BoulderLayer> Boulders(double coverage = 0.02) {
 }
 
 Albedo Grey(const std::shared_ptr<const RockAlbedo>& rocks) {
-    terraingen::SyntheticAlbedoParams params;
+    terraingen::SyntheticAlbedoOptions params;
     params.value = 0.1;
     return {std::make_shared<terraingen::SyntheticAlbedo>(params), {rocks}, {}};
 }
@@ -147,7 +147,7 @@ TEST(RockAlbedo, BrightensSamplesByTheRockThatCoversThem) {
 TEST(RockAlbedo, RejectsBadOptionsAndSources) {
     RockAlbedoOptions options;
     options.reflectanceRatio = 0.0;
-    EXPECT_THROW(terraingen::ValidateRockAlbedo(options), std::invalid_argument);
+    EXPECT_THROW(terraingen::ValidateRockAlbedoOptions(options), std::invalid_argument);
     EXPECT_THROW(RockAlbedo({}, {{Boulders(), nullptr}}), std::invalid_argument);
     EXPECT_THROW(RockAlbedo({}, {{nullptr, std::make_shared<Level>()}}), std::invalid_argument);
     const RasterGrid grid{4, 4, GeoTransform::NorthUp(0.0, 4.0, 1.0)};

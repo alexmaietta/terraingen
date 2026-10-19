@@ -557,7 +557,7 @@ void CheckAlbedoSource(const SyntheticAlbedoSpec& spec, const std::filesystem::p
     CheckNoiseStack(spec.hueNoise, Child(path, "hue_noise"), true);
     CheckNoiseStack(spec.saturationNoise, Child(path, "saturation_noise"), true);
     CheckNoiseStack(spec.valueNoise, Child(path, "value_noise"), true);
-    At(path, [&] { ValidateSyntheticAlbedo(spec.Params()); });
+    At(path, [&] { ValidateSyntheticAlbedoOptions(spec.Params()); });
 }
 
 void CheckAlbedoSource(const RasterAlbedoSpec& spec, const std::filesystem::path& directory,
@@ -601,7 +601,7 @@ void CheckAlbedoLayer(const CraterAlbedoSpec& craters, const std::string& path,
         throw ConfigError(Child(path, "crater_layer"),
                           "there are " + std::to_string(context.craterLayers) + " crater layers");
     }
-    At(path, [&] { ValidateCraterAlbedo(craters.options); });
+    At(path, [&] { ValidateCraterAlbedoOptions(craters.options); });
 }
 
 void CheckAlbedoLayer(const RockAlbedoSpec& rocks, const std::string& path,
@@ -613,12 +613,12 @@ void CheckAlbedoLayer(const RockAlbedoSpec& rocks, const std::string& path,
         throw ConfigError(Child(path, "boulder_layer"),
                           "there are " + std::to_string(context.boulderLayers) + " boulder layers");
     }
-    At(path, [&] { ValidateRockAlbedo(rocks.options); });
+    At(path, [&] { ValidateRockAlbedoOptions(rocks.options); });
 }
 
 void CheckAlbedoLayer(const SplotchAlbedoSpec& splotches, const std::string& path,
                       const AlbedoChecks&) {
-    At(path, [&] { ValidateSplotches(splotches.options); });
+    At(path, [&] { ValidateSplotchAlbedoOptions(splotches.options); });
 }
 
 void CheckAlbedoLayer(const BlastZoneAlbedoSpec& zones, const std::string& path,
@@ -629,7 +629,7 @@ void CheckAlbedoLayer(const BlastZoneAlbedoSpec& zones, const std::string& path,
 }
 
 void CheckAlbedoLayer(const SlopeAlbedoSpec& slopes, const std::string& path, const AlbedoChecks&) {
-    At(path, [&] { ValidateSlopeMaturity(slopes.options); });
+    At(path, [&] { ValidateSlopeAlbedoOptions(slopes.options); });
 }
 
 }  // namespace

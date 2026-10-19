@@ -23,8 +23,8 @@ struct SlopeAlbedo::Lattice {
     }
 };
 
-void ValidateSlopeMaturity(const SlopeMaturityOptions& options) {
-    const SlopeMaturityOptions& o = options;
+void ValidateSlopeAlbedoOptions(const SlopeAlbedoOptions& options) {
+    const SlopeAlbedoOptions& o = options;
     if (!(o.onsetDegrees >= 0.0 && o.onsetDegrees < 90.0)) {
         throw std::invalid_argument("Slope maturity onset must be in [0, 90) degrees");
     }
@@ -38,9 +38,9 @@ void ValidateSlopeMaturity(const SlopeMaturityOptions& options) {
     RequireFinite(o.originReflectance, "Slope origin reflectance");
 }
 
-SlopeAlbedo::SlopeAlbedo(SlopeMaturityOptions options, Surface surface)
+SlopeAlbedo::SlopeAlbedo(SlopeAlbedoOptions options, Surface surface)
     : options_(options), surface_(surface) {
-    ValidateSlopeMaturity(options_);
+    ValidateSlopeAlbedoOptions(options_);
     step_ = surface_.IsBody() ? options_.baseline / (surface_.Radius() * std::numbers::pi / 180.0)
                               : options_.baseline;
 }

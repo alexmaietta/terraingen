@@ -25,14 +25,14 @@ void ValidateStack(const std::vector<NoiseLayer>& layers) {
 
 }  // namespace
 
-void ValidateSyntheticAlbedo(const SyntheticAlbedoParams& params) {
-    RequireFinite(params.hue, "The albedo hue");
-    if (!(IsInUnitInterval(params.saturation) && IsInUnitInterval(params.value))) {
+void ValidateSyntheticAlbedoOptions(const SyntheticAlbedoOptions& options) {
+    RequireFinite(options.hue, "The albedo hue");
+    if (!(IsInUnitInterval(options.saturation) && IsInUnitInterval(options.value))) {
         throw std::invalid_argument("The albedo saturation and value must be in [0, 1]");
     }
-    ValidateStack(params.hueNoise);
-    ValidateStack(params.saturationNoise);
-    ValidateStack(params.valueNoise);
+    ValidateStack(options.hueNoise);
+    ValidateStack(options.saturationNoise);
+    ValidateStack(options.valueNoise);
 }
 
 AlbedoSample HsvToRgb(double hue, double saturation, double value) {
@@ -59,9 +59,9 @@ AlbedoSample HsvToRgb(double hue, double saturation, double value) {
     }
 }
 
-SyntheticAlbedo::SyntheticAlbedo(SyntheticAlbedoParams params, Vec2d origin, Surface surface)
-    : params_(std::move(params)), origin_(origin), surface_(surface) {
-    ValidateSyntheticAlbedo(params_);
+SyntheticAlbedo::SyntheticAlbedo(SyntheticAlbedoOptions options, Vec2d origin, Surface surface)
+    : options_(std::move(options)), origin_(origin), surface_(surface) {
+    ValidateSyntheticAlbedoOptions(options_);
 }
 
 double SyntheticAlbedo::Noise(const std::vector<NoiseLayer>& layers, double x, double y) const {
@@ -73,13 +73,13 @@ double SyntheticAlbedo::Noise(const std::vector<NoiseLayer>& layers, double x, d
 
 AlbedoSample SyntheticAlbedo::ValueAt(double x, double y, const AlbedoContext& /*context*/) const {
     const double value =
-        std::clamp(params_.value * (1.0 + Noise(params_.valueNoise, x, y)), 0.0, 1.0);
-    if (!params_.rgb) {
+        std::clamp(options_.value * (1.0 + Noise(options_.valueNoise, x, y)), 0.0, 1.0);
+    if (!options_.rgb) {
         return {static_cast<float>(value), 0.0f, 0.0f};
     }
-    const double hue = params_.hue + Noise(params_.hueNoise, x, y);
+    const double hue = options_.hue + Noise(options_.hueNoise, x, y);
     const double saturation =
-        std::clamp(params_.saturation + Noise(params_.saturationNoise, x, y), 0.0, 1.0);
+        std::clamp(options_.saturation + Noise(options_.saturationNoise, x, y), 0.0, 1.0);
     return HsvToRgb(hue, saturation, value);
 }
 

@@ -285,7 +285,7 @@ struct CraterAlbedoOptions {
 /// @throws std::invalid_argument for invalid rays, retention, fade or selection, a share outside
 /// [0, 1], a background maturity that is not positive or a cap below it, negative excesses, a
 /// non-positive ejecta exponent, a reach of 1 radius or less, or a non-positive fade exponent.
-void ValidateCraterAlbedo(const CraterAlbedoOptions& options);
+void ValidateCraterAlbedoOptions(const CraterAlbedoOptions& options);
 
 /// The bright ejecta, interiors and rays of the craters of a `CraterLayer`, as
 /// `CraterAlbedoOptions` describes, shaped by the craters' irregular outlines where the layer has
@@ -294,7 +294,8 @@ void ValidateCraterAlbedo(const CraterAlbedoOptions& options);
 class CraterAlbedo final : public AlbedoLayer {
   public:
     /// The bright material of the craters of `craters`.
-    /// @throws std::invalid_argument for a null layer or options invalid as `ValidateCraterAlbedo`.
+    /// @throws std::invalid_argument for a null layer or options invalid as
+    /// `ValidateCraterAlbedoOptions`.
     CraterAlbedo(std::shared_ptr<const CraterLayer> craters, CraterAlbedoOptions options = {});
 
     /// Brightens the albedo at one point by the craters' summed excess; NaN stays NaN.

@@ -666,7 +666,7 @@ struct SyntheticAlbedoSpec {
     std::vector<NoiseLayerConfig> valueNoise;
 
     /// The albedo parameters, with each noise layer's Hurst exponent applied.
-    SyntheticAlbedoParams Params() const;
+    SyntheticAlbedoOptions Params() const;
 
     bool operator==(const SyntheticAlbedoSpec&) const = default;
 };
@@ -701,7 +701,7 @@ struct CraterAlbedoSpec {
 
 /// Albedo layer "splotches": `SplotchAlbedo`, the marks of secondary impacts over the terrain.
 struct SplotchAlbedoSpec {
-    SplotchOptions options{};
+    SplotchAlbedoOptions options{};
 
     bool operator==(const SplotchAlbedoSpec&) const = default;
 };
@@ -725,7 +725,7 @@ struct RockAlbedoSpec {
 
 /// Albedo layer "slopes": `SlopeAlbedo`, steep ground kept fresh by mass wasting.
 struct SlopeAlbedoSpec {
-    SlopeMaturityOptions options{};
+    SlopeAlbedoOptions options{};
 
     bool operator==(const SlopeAlbedoSpec&) const = default;
 };

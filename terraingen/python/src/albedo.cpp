@@ -123,7 +123,7 @@ void BindSynthetic(nb::module_& m) {
                double hue, double saturation, std::vector<NoiseLayer> hueNoise,
                std::vector<NoiseLayer> saturationNoise, const Vec2d& origin,
                const Surface& surface) {
-                SyntheticAlbedoParams params;
+                SyntheticAlbedoOptions params;
                 params.value = value;
                 params.valueNoise = std::move(valueNoise);
                 params.rgb = rgb;
@@ -315,7 +315,8 @@ void BindCraterAlbedoOptions(nb::module_& m) {
         .def_rw("fade_exponent", &CraterAlbedoOptions::fadeExponent)
         .def_rw("origin_reflectance", &CraterAlbedoOptions::originReflectance)
         .def_rw("fade", &CraterAlbedoOptions::fade);
-    m.def("validate_crater_albedo", &ValidateCraterAlbedo, "options"_a, kValidateDoc);
+    m.def("validate_crater_albedo_options", &ValidateCraterAlbedoOptions, "options"_a,
+          kValidateDoc);
 }
 
 void BindCraterAlbedo(nb::module_& m) {
@@ -381,34 +382,35 @@ void BindSplotches(nb::module_& m) {
         .def_rw("craters", &SplotchSwarms::craters)
         .def("count", &SplotchSwarms::Count, "diameter"_a,
              "Splotches a crater `diameter` m across throws, on average.");
-    auto options = nb::class_<SplotchOptions>(
-        m, "SplotchOptions",
+    auto options = nb::class_<SplotchAlbedoOptions>(
+        m, "SplotchAlbedoOptions",
         "Splotches from secondary impacts (Speyerer et al. 2016): formed at `rate_coefficient` * "
         "d^-`rate_exponent` per km^2 per year (d in km), lasting `lifetime_myr`, `min_diameter` to "
         "`max_diameter` m across; `dark_share` dark, `bright_share` bright, the rest mixed.");
-    BindKwargsInit<SplotchOptions>(options);
-    options.def_rw("seed", &SplotchOptions::seed)
-        .def_rw("rate_coefficient", &SplotchOptions::rateCoefficient)
-        .def_rw("rate_exponent", &SplotchOptions::rateExponent)
-        .def_rw("lifetime_myr", &SplotchOptions::lifetimeMyr)
-        .def_rw("min_diameter", &SplotchOptions::minDiameter)
-        .def_rw("max_diameter", &SplotchOptions::maxDiameter)
-        .def_rw("dark_share", &SplotchOptions::darkShare)
-        .def_rw("bright_share", &SplotchOptions::brightShare)
-        .def_rw("dark_change", &SplotchOptions::darkChange)
-        .def_rw("bright_change", &SplotchOptions::brightChange)
-        .def_rw("steep_bright_share", &SplotchOptions::steepBrightShare)
-        .def_rw("steep_slope_degrees", &SplotchOptions::steepSlopeDegrees)
-        .def_rw("softness", &SplotchOptions::softness)
-        .def_rw("raggedness", &SplotchOptions::raggedness)
-        .def_rw("fade", &SplotchOptions::fade)
-        .def_rw("swarms", &SplotchOptions::swarms)
-        .def("coefficient", &SplotchOptions::Coefficient,
+    BindKwargsInit<SplotchAlbedoOptions>(options);
+    options.def_rw("seed", &SplotchAlbedoOptions::seed)
+        .def_rw("rate_coefficient", &SplotchAlbedoOptions::rateCoefficient)
+        .def_rw("rate_exponent", &SplotchAlbedoOptions::rateExponent)
+        .def_rw("lifetime_myr", &SplotchAlbedoOptions::lifetimeMyr)
+        .def_rw("min_diameter", &SplotchAlbedoOptions::minDiameter)
+        .def_rw("max_diameter", &SplotchAlbedoOptions::maxDiameter)
+        .def_rw("dark_share", &SplotchAlbedoOptions::darkShare)
+        .def_rw("bright_share", &SplotchAlbedoOptions::brightShare)
+        .def_rw("dark_change", &SplotchAlbedoOptions::darkChange)
+        .def_rw("bright_change", &SplotchAlbedoOptions::brightChange)
+        .def_rw("steep_bright_share", &SplotchAlbedoOptions::steepBrightShare)
+        .def_rw("steep_slope_degrees", &SplotchAlbedoOptions::steepSlopeDegrees)
+        .def_rw("softness", &SplotchAlbedoOptions::softness)
+        .def_rw("raggedness", &SplotchAlbedoOptions::raggedness)
+        .def_rw("fade", &SplotchAlbedoOptions::fade)
+        .def_rw("swarms", &SplotchAlbedoOptions::swarms)
+        .def("coefficient", &SplotchAlbedoOptions::Coefficient,
              "Splotches of at least 1 m per m^2 at any time.");
-    m.def("validate_splotches", &ValidateSplotches, "options"_a, kValidateDoc);
+    m.def("validate_splotch_albedo_options", &ValidateSplotchAlbedoOptions, "options"_a,
+          kValidateDoc);
     nb::class_<SplotchAlbedo, AlbedoLayer>(
         m, "SplotchAlbedo", "Dark and bright splotches over the surface, the youngest on top.")
-        .def(nb::init<SplotchOptions, Surface>(), "options"_a = SplotchOptions{},
+        .def(nb::init<SplotchAlbedoOptions, Surface>(), "options"_a = SplotchAlbedoOptions{},
              "surface"_a = Surface{})
         .def(
             "count",
@@ -528,7 +530,7 @@ void BindRocks(nb::module_& m) {
     options.def_rw("seed", &RockAlbedoOptions::seed)
         .def_rw("reflectance_ratio", &RockAlbedoOptions::reflectanceRatio)
         .def_rw("unresolved", &RockAlbedoOptions::unresolved);
-    m.def("validate_rock_albedo", &ValidateRockAlbedo, "options"_a, kValidateDoc);
+    m.def("validate_rock_albedo_options", &ValidateRockAlbedoOptions, "options"_a, kValidateDoc);
     nb::class_<RockAlbedo, AlbedoLayer>(m, "RockAlbedo",
                                         "Rock of boulder layers brightening the albedo.")
         .def(
@@ -572,21 +574,21 @@ void BindRocks(nb::module_& m) {
 }
 
 void BindSlopes(nb::module_& m) {
-    auto options = nb::class_<SlopeMaturityOptions>(
-        m, "SlopeMaturityOptions",
+    auto options = nb::class_<SlopeAlbedoOptions>(
+        m, "SlopeAlbedoOptions",
         "How steep ground stays immature: OMAT rises by `maturity_per_degree` beyond "
         "`onset_degrees` (Ikeda et al. 2022), slopes read over `baseline` metres.");
-    BindKwargsInit<SlopeMaturityOptions>(options);
-    options.def_rw("onset_degrees", &SlopeMaturityOptions::onsetDegrees)
-        .def_rw("maturity_per_degree", &SlopeMaturityOptions::maturityPerDegree)
-        .def_rw("background_maturity", &SlopeMaturityOptions::backgroundMaturity)
-        .def_rw("max_maturity", &SlopeMaturityOptions::maxMaturity)
-        .def_rw("baseline", &SlopeMaturityOptions::baseline)
-        .def_rw("origin_reflectance", &SlopeMaturityOptions::originReflectance);
-    m.def("validate_slope_maturity", &ValidateSlopeMaturity, "options"_a, kValidateDoc);
+    BindKwargsInit<SlopeAlbedoOptions>(options);
+    options.def_rw("onset_degrees", &SlopeAlbedoOptions::onsetDegrees)
+        .def_rw("maturity_per_degree", &SlopeAlbedoOptions::maturityPerDegree)
+        .def_rw("background_maturity", &SlopeAlbedoOptions::backgroundMaturity)
+        .def_rw("max_maturity", &SlopeAlbedoOptions::maxMaturity)
+        .def_rw("baseline", &SlopeAlbedoOptions::baseline)
+        .def_rw("origin_reflectance", &SlopeAlbedoOptions::originReflectance);
+    m.def("validate_slope_albedo_options", &ValidateSlopeAlbedoOptions, "options"_a, kValidateDoc);
     nb::class_<SlopeAlbedo, AlbedoLayer>(m, "SlopeAlbedo",
                                          "Steep ground brightened as fresher material.")
-        .def(nb::init<SlopeMaturityOptions, Surface>(), "options"_a = SlopeMaturityOptions{},
+        .def(nb::init<SlopeAlbedoOptions, Surface>(), "options"_a = SlopeAlbedoOptions{},
              "surface"_a = Surface{})
         .def(
             "slope_at",

@@ -399,7 +399,7 @@ template <> struct SpecName<SplotchAlbedoSpec> {
         "surface, after Speyerer et al. (2016).";
 };
 template <typename IO> void Fields(IO& io, SplotchAlbedoSpec& spec) {
-    SplotchOptions& options = spec.options;
+    SplotchAlbedoOptions& options = spec.options;
     io("seed", options.seed, "Seed of where splotches fall and what they are.");
     io("rate_coefficient", options.rateCoefficient,
        "Coefficient a of the cumulative formation rate a d^-b per km^2 per year, d the diameter "
@@ -522,7 +522,7 @@ template <> struct SpecName<SlopeAlbedoSpec> {
         "(2022) and Lucey et al. (2014).";
 };
 template <typename IO> void Fields(IO& io, SlopeAlbedoSpec& spec) {
-    SlopeMaturityOptions& options = spec.options;
+    SlopeAlbedoOptions& options = spec.options;
     io("onset_degrees", options.onsetDegrees,
        "Slope in degrees from which ground freshens; 20, where Lucey et al. (2014) and Ikeda et "
        "al. (2022) find brightening begin.",

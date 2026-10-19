@@ -22,7 +22,7 @@ using terraingen::RayRetention;
 using terraingen::ReflectanceAtMaturity;
 using terraingen::Surface;
 using terraingen::SyntheticAlbedo;
-using terraingen::SyntheticAlbedoParams;
+using terraingen::SyntheticAlbedoOptions;
 using terraingen::ValueDistribution;
 
 namespace {
@@ -59,7 +59,7 @@ CraterAlbedoOptions NoRays() {
 }
 
 Albedo Grey(std::shared_ptr<const terraingen::AlbedoLayer> layer, double value = 0.11) {
-    SyntheticAlbedoParams params;
+    SyntheticAlbedoOptions params;
     params.value = value;
     return {std::make_shared<SyntheticAlbedo>(params), {std::move(layer)}};
 }
@@ -205,7 +205,7 @@ TEST(CraterAlbedo, GridsTilesAndPointsAgree) {
                                 {350.0, 120.0, 300.0, 0.001, 2u, true},
                                 {-200.0, -260.0, 600.0, 0.002, 3u, true}};
     const auto layer = std::make_shared<CraterAlbedo>(Craters(craters));
-    SyntheticAlbedoParams params;
+    SyntheticAlbedoOptions params;
     params.rgb = true;
     params.saturation = 0.1;
     const Albedo albedo{std::make_shared<SyntheticAlbedo>(params), {layer}};
@@ -321,7 +321,7 @@ TEST(CraterAlbedo, WorksOnASphereInMetres) {
                         plane.Excess(onPlane, offset.x, offset.y, 1.0), 1e-6);
         }
     }
-    SyntheticAlbedoParams params;
+    SyntheticAlbedoOptions params;
     params.value = 0.11;
     const Albedo albedo{std::make_shared<SyntheticAlbedo>(params, terraingen::Vec2d{}, moon),
                         {std::make_shared<CraterAlbedo>(sphereCraters)},
@@ -487,7 +487,7 @@ TEST(CraterAlbedo, TexturesFreshMaterialIntoFilamentsLobesAndBrightWalls) {
         }
     }
     textured.texture.lobes = 0.95;
-    EXPECT_THROW(terraingen::ValidateCraterAlbedo(textured), std::invalid_argument);
+    EXPECT_THROW(terraingen::ValidateCraterAlbedoOptions(textured), std::invalid_argument);
     textured.texture = {.continuousRadii = -1.0};
     EXPECT_THROW(terraingen::ValidateCraterAlbedoTexture(textured.texture), std::invalid_argument);
 }
@@ -619,7 +619,7 @@ TEST(CraterReflectanceZones, RejectsInvalidSettings) {
         EXPECT_THROW(terraingen::ValidateCraterReflectanceZones(zones), std::invalid_argument);
         CraterAlbedoOptions options;
         options.zones = zones;
-        EXPECT_THROW(terraingen::ValidateCraterAlbedo(options), std::invalid_argument);
+        EXPECT_THROW(terraingen::ValidateCraterAlbedoOptions(options), std::invalid_argument);
     };
     using Zones = terraingen::CraterReflectanceZones;
     rejects([](Zones& z) { z.maxDiameter = 0.0; });
@@ -656,7 +656,7 @@ TEST(CraterAlbedo, ThinZonesLastAsLongAsTheTopCentimetresTakeToChurn) {
     EXPECT_LT(CraterAlbedo(Craters({older}), lasting).ReflectanceChange(older, -1500.0, 0.0, 0.1),
               0.0);
     lasting.zones.distalLow.retentionMyr = 0.0;
-    EXPECT_THROW(terraingen::ValidateCraterAlbedo(lasting), std::invalid_argument);
+    EXPECT_THROW(terraingen::ValidateCraterAlbedoOptions(lasting), std::invalid_argument);
 }
 
 TEST(CraterAlbedo, TextureStreaksBreakTheBrightProximalZoneIntoFilaments) {
@@ -768,7 +768,7 @@ TEST(CraterAlbedo, RisesShadowTheDistalZonesBehindThem) {
           Shadows{.azimuths = 4}, Shadows{.radialSamples = 9000}}) {
         CraterAlbedoOptions invalid;
         invalid.zones.shadows = bad;
-        EXPECT_THROW(terraingen::ValidateCraterAlbedo(invalid), std::invalid_argument);
+        EXPECT_THROW(terraingen::ValidateCraterAlbedoOptions(invalid), std::invalid_argument);
     }
 }
 
@@ -825,5 +825,5 @@ TEST(CraterAlbedo, RaysCanFollowASharedLayout) {
     }
     EXPECT_LT(lit, 700) << "and dark between them";
     options.rays.layout->widthDegrees = {ValueDistribution::Kind::Constant, 200.0};
-    EXPECT_THROW(terraingen::ValidateCraterAlbedo(options), std::invalid_argument);
+    EXPECT_THROW(terraingen::ValidateCraterAlbedoOptions(options), std::invalid_argument);
 }

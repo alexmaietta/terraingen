@@ -80,7 +80,7 @@ TEST(BlastZoneAlbedo, GridsAndPointsAgreeOnAPlaneAndASphere) {
         zone.coreRadius = 10.0;
         zone.x = 0.0;
         zone.y = 0.0;
-        terraingen::SyntheticAlbedoParams params;
+        terraingen::SyntheticAlbedoOptions params;
         params.value = 0.1;
         const Albedo albedo{
             std::make_shared<terraingen::SyntheticAlbedo>(params, terraingen::Vec2d{}, surface),

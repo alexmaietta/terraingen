@@ -65,7 +65,7 @@ struct SplotchSwarms {
 /// d^-`rateExponent` per km^2 per year for diameter d in km, each lasting `lifetimeMyr`, the
 /// time splotches take to churn the top centimetres. Most are dark, some bright and the rest mixed,
 /// each nearly round; a younger splotch covers older ones as it fades.
-struct SplotchOptions {
+struct SplotchAlbedoOptions {
     std::uint32_t seed = 0;              ///< Seed of where splotches fall and what they are.
     double rateCoefficient = 1.483e-11;  ///< Formation rate coefficient, per km^2 per year.
     double rateExponent = 4.144;         ///< Cumulative slope of the formation rate; positive.
@@ -91,7 +91,7 @@ struct SplotchOptions {
     /// The cumulative number of splotches of diameter at least 1 m per m^2 at any time.
     double Coefficient() const;
 
-    bool operator==(const SplotchOptions&) const = default;
+    bool operator==(const SplotchAlbedoOptions&) const = default;
 };
 
 /// Checks splotch options.
@@ -102,7 +102,7 @@ struct SplotchOptions {
 /// a non-positive rate, slope, count or range, crater diameters or ranges not increasing, a mu
 /// outside (0, 1), invalid or unbounded distributions, shares outside [0, 1] or summing above 1,
 /// or a wedge elongation below 1.
-void ValidateSplotches(const SplotchOptions& options);
+void ValidateSplotchAlbedoOptions(const SplotchAlbedoOptions& options);
 
 /// One splotch.
 struct Splotch {
@@ -116,12 +116,12 @@ struct Splotch {
     bool wedge = false;        ///< Narrowing to a point toward the crater.
 };
 
-/// The splotches of `SplotchOptions` on `surface`, darkening and brightening the albedo; the
+/// The splotches of `SplotchAlbedoOptions` on `surface`, darkening and brightening the albedo; the
 /// same in any grid, tile or point.
 class SplotchAlbedo final : public AlbedoLayer {
   public:
-    /// @throws std::invalid_argument for options invalid as `ValidateSplotches`.
-    explicit SplotchAlbedo(SplotchOptions options = {}, Surface surface = {});
+    /// @throws std::invalid_argument for options invalid as `ValidateSplotchAlbedoOptions`.
+    explicit SplotchAlbedo(SplotchAlbedoOptions options = {}, Surface surface = {});
 
     void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
                  const AlbedoContext& context) const override;
@@ -140,7 +140,7 @@ class SplotchAlbedo final : public AlbedoLayer {
     double Change(const Splotch& splotch, double x, double y, double spacing) const;
 
     /// What the splotches are.
-    const SplotchOptions& Options() const {
+    const SplotchAlbedoOptions& Options() const {
         return options_;
     }
 
@@ -161,7 +161,7 @@ class SplotchAlbedo final : public AlbedoLayer {
     double ChangeAt(const std::vector<const Splotch*>& splotches, double x, double y,
                     double spacing) const;
 
-    SplotchOptions options_;
+    SplotchAlbedoOptions options_;
     Surface surface_;
     std::shared_ptr<const SurfaceCells> cells_;
 };

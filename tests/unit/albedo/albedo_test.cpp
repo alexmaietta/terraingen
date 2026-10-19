@@ -25,7 +25,7 @@ using terraingen::RasterAlbedoOptions;
 using terraingen::RasterGrid;
 using terraingen::ReflectanceAtMaturity;
 using terraingen::SyntheticAlbedo;
-using terraingen::SyntheticAlbedoParams;
+using terraingen::SyntheticAlbedoOptions;
 
 namespace {
 
@@ -112,7 +112,7 @@ TEST(HsvToRgb, FollowsTheHexcone) {
 }
 
 TEST(SyntheticAlbedo, DefaultsToAUniformMareReflectance) {
-    const Albedo albedo{std::make_shared<SyntheticAlbedo>(SyntheticAlbedoParams{}), {}};
+    const Albedo albedo{std::make_shared<SyntheticAlbedo>(SyntheticAlbedoOptions{}), {}};
     const auto bands = EvaluateAlbedo(albedo, Grid(8, 1.0), {});
     ASSERT_EQ(bands.size(), 1u);
     for (std::size_t i = 0; i < bands[0].Size(); ++i) {
@@ -121,7 +121,7 @@ TEST(SyntheticAlbedo, DefaultsToAUniformMareReflectance) {
 }
 
 TEST(SyntheticAlbedo, ColourAndNoiseVaryEachChannel) {
-    SyntheticAlbedoParams params;
+    SyntheticAlbedoOptions params;
     params.rgb = true;
     params.hue = 30.0;
     params.saturation = 0.2;
@@ -150,7 +150,7 @@ TEST(SyntheticAlbedo, ColourAndNoiseVaryEachChannel) {
 }
 
 TEST(SyntheticAlbedo, ClampsTheValue) {
-    SyntheticAlbedoParams params;
+    SyntheticAlbedoOptions params;
     params.value = 0.9;
     params.valueNoise = {Noise(3.0f, 10.0f, 4)};
     const Albedo albedo{std::make_shared<SyntheticAlbedo>(params), {}};
@@ -162,7 +162,7 @@ TEST(SyntheticAlbedo, ClampsTheValue) {
 }
 
 TEST(SyntheticAlbedo, RejectsInvalidParameters) {
-    SyntheticAlbedoParams params;
+    SyntheticAlbedoOptions params;
     params.hue = INFINITY;
     EXPECT_THROW(SyntheticAlbedo{params}, std::invalid_argument);
     params = {};
@@ -180,7 +180,7 @@ TEST(SyntheticAlbedo, RejectsInvalidParameters) {
 }
 
 TEST(EvaluateAlbedo, PointsEqualGridCellsAndThreadsDoNotMatter) {
-    SyntheticAlbedoParams params;
+    SyntheticAlbedoOptions params;
     params.rgb = true;
     params.saturation = 0.1;
     params.valueNoise = {Noise(0.3f, 7.0f, 9)};
@@ -201,13 +201,13 @@ TEST(EvaluateAlbedo, PointsEqualGridCellsAndThreadsDoNotMatter) {
         }
     }
     const auto single = EvaluateAlbedoAt(
-        Albedo{std::make_shared<SyntheticAlbedo>(SyntheticAlbedoParams{}), {}}, 0.0, 0.0, {});
+        Albedo{std::make_shared<SyntheticAlbedo>(SyntheticAlbedoOptions{}), {}}, 0.0, 0.0, {});
     EXPECT_FLOAT_EQ(single[0], 0.110f);
     EXPECT_EQ(single[1], 0.0f);
 }
 
 TEST(EvaluateAlbedo, RejectsInvalidInputs) {
-    const auto source = std::make_shared<SyntheticAlbedo>(SyntheticAlbedoParams{});
+    const auto source = std::make_shared<SyntheticAlbedo>(SyntheticAlbedoOptions{});
     EXPECT_THROW(EvaluateAlbedo(Albedo{}, Grid(4, 1.0), {}), std::invalid_argument);
     EXPECT_THROW(EvaluateAlbedo(Albedo{source, {nullptr}}, Grid(4, 1.0), {}),
                  std::invalid_argument);
@@ -327,7 +327,7 @@ TEST(RasterAlbedo, RejectsInvalidMaps) {
 
 TEST(SyntheticAlbedo, UsesSeamlessNoiseOnASphere) {
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
-    SyntheticAlbedoParams params;
+    SyntheticAlbedoOptions params;
     params.rgb = true;
     params.saturation = 0.1;
     params.valueNoise = {Noise(0.3f, 2000.0f, 3)};

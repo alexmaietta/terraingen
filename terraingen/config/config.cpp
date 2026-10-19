@@ -29,8 +29,8 @@ SyntheticTerrainParams NoiseLayerSpec::Params() const {
     return params;
 }
 
-SyntheticAlbedoParams SyntheticAlbedoSpec::Params() const {
-    SyntheticAlbedoParams params;
+SyntheticAlbedoOptions SyntheticAlbedoSpec::Params() const {
+    SyntheticAlbedoOptions params;
     params.rgb = rgb;
     params.hue = hue;
     params.saturation = saturation;

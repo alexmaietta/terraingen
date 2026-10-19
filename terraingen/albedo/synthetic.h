@@ -16,7 +16,7 @@ inline constexpr double kDefaultSyntheticAlbedoValue = 0.110;
 /// The colour of a `SyntheticAlbedo`: a base colour in hue, saturation and value, each
 /// varied by a stack of noise layers (`EvaluateNoiseLayers`, with amplitudes in the channel's
 /// units).
-struct SyntheticAlbedoParams {
+struct SyntheticAlbedoOptions {
     /// Three bands (red, green, blue) from the colour; otherwise one band, its value.
     bool rgb = false;
     double hue = 0.0;         ///< Degrees; noise added to it wraps around.
@@ -28,13 +28,13 @@ struct SyntheticAlbedoParams {
     /// Relative: the value is multiplied by 1 + the noise, so its contrast scales with it.
     std::vector<NoiseLayer> valueNoise;
 
-    bool operator==(const SyntheticAlbedoParams&) const = default;
+    bool operator==(const SyntheticAlbedoOptions&) const = default;
 };
 
 /// Checks synthetic albedo settings.
 /// @throws std::invalid_argument for a hue, saturation or value that is not finite, a saturation
 /// or value outside [0, 1], more than `kMaxNoiseLayers` layers in a stack, or an invalid layer.
-void ValidateSyntheticAlbedo(const SyntheticAlbedoParams& params);
+void ValidateSyntheticAlbedoOptions(const SyntheticAlbedoOptions& options);
 
 /// Converts a colour from hue, saturation and value to red, green and blue in [0, 1] by the
 /// hexcone model (Smith 1978).
@@ -48,29 +48,30 @@ AlbedoSample HsvToRgb(double hue, double saturation, double value);
 /// is 3D noise at each point's 3D position (`EvaluateNoiseLayers3`).
 class SyntheticAlbedo final : public AlbedoSource {
   public:
-    /// The synthetic albedo with the colour and noise of `params`.
+    /// The synthetic albedo with the colour and noise of `options`.
     /// @param origin Point noise is measured from, keeping single-precision noise accurate where
     /// coordinates are large.
-    /// @throws std::invalid_argument as `ValidateSyntheticAlbedo`.
-    explicit SyntheticAlbedo(SyntheticAlbedoParams params, Vec2d origin = {}, Surface surface = {});
+    /// @throws std::invalid_argument as `ValidateSyntheticAlbedoOptions`.
+    explicit SyntheticAlbedo(SyntheticAlbedoOptions options, Vec2d origin = {},
+                             Surface surface = {});
 
     /// 3 bands when `rgb` is set, otherwise 1.
     std::size_t Bands() const override {
-        return params_.rgb ? kMaxAlbedoBands : 1;
+        return options_.rgb ? kMaxAlbedoBands : 1;
     }
 
     /// The colour with noise at world point (`x`, `y`).
     AlbedoSample ValueAt(double x, double y, const AlbedoContext& context) const override;
 
     /// The colour and its noise.
-    const SyntheticAlbedoParams& Params() const {
-        return params_;
+    const SyntheticAlbedoOptions& Options() const {
+        return options_;
     }
 
   private:
     double Noise(const std::vector<NoiseLayer>& layers, double x, double y) const;
 
-    SyntheticAlbedoParams params_;
+    SyntheticAlbedoOptions options_;
     Vec2d origin_;
     Surface surface_;
 };

@@ -173,7 +173,7 @@ void ValidateCraterReflectanceZones(const CraterReflectanceZones& zones) {
     }
 }
 
-void ValidateCraterAlbedo(const CraterAlbedoOptions& options) {
+void ValidateCraterAlbedoOptions(const CraterAlbedoOptions& options) {
     ValidateCraterReflectanceZones(options.zones);
     ValidateCraterAlbedoTexture(options.texture);
     ValidateCraterRays(options.rays);
@@ -540,7 +540,7 @@ CraterAlbedo::CraterAlbedo(std::shared_ptr<const CraterLayer> craters, CraterAlb
     if (!craters_) {
         throw std::invalid_argument("Crater albedo needs a crater layer");
     }
-    ValidateCraterAlbedo(options_);
+    ValidateCraterAlbedoOptions(options_);
 }
 
 bool CraterAlbedo::Eligible(const Crater& crater, RandomStream& random) const {

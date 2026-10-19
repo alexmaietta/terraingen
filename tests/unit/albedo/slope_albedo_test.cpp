@@ -15,7 +15,7 @@ using terraingen::Albedo;
 using terraingen::GeoTransform;
 using terraingen::RasterGrid;
 using terraingen::SlopeAlbedo;
-using terraingen::SlopeMaturityOptions;
+using terraingen::SlopeAlbedoOptions;
 
 namespace {
 
@@ -40,7 +40,7 @@ class Bowl final : public terraingen::Ground {
 };
 
 Albedo Grey(double value) {
-    terraingen::SyntheticAlbedoParams params;
+    terraingen::SyntheticAlbedoOptions params;
     params.value = value;
     return {std::make_shared<terraingen::SyntheticAlbedo>(params),
             {std::make_shared<SlopeAlbedo>()},
@@ -100,14 +100,14 @@ TEST(SlopeAlbedo, GridsAndPointsAgree) {
 }
 
 TEST(SlopeAlbedo, RejectsBadOptions) {
-    using Change = std::function<void(SlopeMaturityOptions&)>;
+    using Change = std::function<void(SlopeAlbedoOptions&)>;
     const std::vector<Change> changes{
         [](auto& o) { o.onsetDegrees = 90.0; },      [](auto& o) { o.maturityPerDegree = -1.0; },
         [](auto& o) { o.backgroundMaturity = 0.0; }, [](auto& o) { o.maxMaturity = 0.05; },
         [](auto& o) { o.baseline = 0.0; },           [](auto& o) { o.originReflectance = NAN; }};
     for (const Change& change : changes) {
-        SlopeMaturityOptions options;
+        SlopeAlbedoOptions options;
         change(options);
-        EXPECT_THROW(terraingen::ValidateSlopeMaturity(options), std::invalid_argument);
+        EXPECT_THROW(terraingen::ValidateSlopeAlbedoOptions(options), std::invalid_argument);
     }
 }

@@ -18,7 +18,7 @@ namespace terraingen {
 /// and Boyd and Robinson (2019) immature, brighter material on slopes steeper than 25 degrees. OMAT
 /// rises by `maturityPerDegree` beyond `onsetDegrees`, capped at `maxMaturity`, and the albedo
 /// moves with it (`ReflectanceAtMaturity`).
-struct SlopeMaturityOptions {
+struct SlopeAlbedoOptions {
     double onsetDegrees = 20.0;         ///< Slope from which ground freshens, in [0, 90).
     double maturityPerDegree = 0.0065;  ///< OMAT gained per degree beyond the onset; >= 0.
     double backgroundMaturity = 0.10;   ///< OMAT of gentler ground; positive.
@@ -27,22 +27,22 @@ struct SlopeMaturityOptions {
     /// Reflectance of the optical maturity origin (`ReflectanceAtMaturity`).
     double originReflectance = OpticalMaturityOrigin{}.reflectance;
 
-    bool operator==(const SlopeMaturityOptions&) const = default;
+    bool operator==(const SlopeAlbedoOptions&) const = default;
 };
 
 /// Checks slope maturity options.
 /// @throws std::invalid_argument for an onset outside [0, 90), a negative or unbounded rate, a
 /// background maturity that is not positive, a cap below it, a baseline that is not positive, or
 /// any value that is not finite.
-void ValidateSlopeMaturity(const SlopeMaturityOptions& options);
+void ValidateSlopeAlbedoOptions(const SlopeAlbedoOptions& options);
 
 /// The albedo of steep ground moved toward fresher material: slopes are read on the ground at the
 /// nodes of a lattice `baseline` metres apart, fixed to the surface, and interpolated between
 /// them, so grids, tiles and points agree. Without a ground the albedo is left alone.
 class SlopeAlbedo final : public AlbedoLayer {
   public:
-    /// @throws std::invalid_argument for options invalid as `ValidateSlopeMaturity`.
-    explicit SlopeAlbedo(SlopeMaturityOptions options = {}, Surface surface = {});
+    /// @throws std::invalid_argument for options invalid as `ValidateSlopeAlbedoOptions`.
+    explicit SlopeAlbedo(SlopeAlbedoOptions options = {}, Surface surface = {});
 
     /// Moves `value` to the maturity of the slope at (`x`, `y`); NaN stays NaN.
     void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
@@ -66,7 +66,7 @@ class SlopeAlbedo final : public AlbedoLayer {
     double Interpolate(const Lattice& lattice, double x, double y) const;
     void Mature(AlbedoSample& value, std::size_t bands, double slopeDegrees) const;
 
-    SlopeMaturityOptions options_;
+    SlopeAlbedoOptions options_;
     Surface surface_;
     double step_ = 0.0;  ///< Lattice step in surface coordinates.
 };

@@ -27,7 +27,7 @@ void Brighten(AlbedoSample& value, std::size_t bands, double share, double ratio
 
 }  // namespace
 
-void ValidateRockAlbedo(const RockAlbedoOptions& options) {
+void ValidateRockAlbedoOptions(const RockAlbedoOptions& options) {
     RequirePositive(options.reflectanceRatio, "Rock reflectance ratio");
 }
 
@@ -44,7 +44,7 @@ double RockShare(double resolved, const UnresolvedCover& unresolved, double norm
 
 RockAlbedo::RockAlbedo(RockAlbedoOptions options, std::vector<RockSource> sources)
     : options_(options), sources_(std::move(sources)) {
-    ValidateRockAlbedo(options_);
+    ValidateRockAlbedoOptions(options_);
     for (const RockSource& source : sources_) {
         if (!source.layer || !source.ground) {
             throw std::invalid_argument(

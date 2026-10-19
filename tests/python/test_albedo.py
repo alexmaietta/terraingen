@@ -218,7 +218,7 @@ def test_crater_albedo_reflectance_zones(lunar_models):
 
 
 def test_splotches_darken_most_of_their_ground():
-    options = terraingen.SplotchOptions(min_diameter=2.0, seed=3)
+    options = terraingen.SplotchAlbedoOptions(min_diameter=2.0, seed=3)
     assert options.coefficient() == pytest.approx(3.25, rel=0.02)
     layer = terraingen.SplotchAlbedo(options)
     assert layer.count((0.0, 0.0, 100.0, 100.0), 0.5) > 50 and layer.options.dark_share == pytest.approx(
@@ -228,7 +228,7 @@ def test_splotches_darken_most_of_their_ground():
     band = terraingen.evaluate_albedo(albedo, terraingen.RasterGrid.centred(64, 64, 1.0))[0].values
     assert (band < 0.1099).sum() > (band > 0.1101).sum() > 0
     with pytest.raises(ValueError):
-        terraingen.validate_splotches(terraingen.SplotchOptions(softness=0.0))
+        terraingen.validate_splotch_albedo_options(terraingen.SplotchAlbedoOptions(softness=0.0))
 
 
 def test_albedo_layers_read_the_terrain_heights(lunar_models):
@@ -240,7 +240,9 @@ def test_albedo_layers_read_the_terrain_heights(lunar_models):
     flat = terraingen.Terrain(terraingen.FlatSource(5, 5, 2.0), [])
     alone = layer.reflectance_change(young_crater(), 0.0, 0.0, 1.0)
     assert layer.reflectance_change(young_crater(), 0.0, 0.0, 1.0, terrain=flat) == pytest.approx(alone)
-    splotches = terraingen.SplotchAlbedo(terraingen.SplotchOptions(min_diameter=2.0, steep_bright_share=1.0))
+    splotches = terraingen.SplotchAlbedo(
+        terraingen.SplotchAlbedoOptions(min_diameter=2.0, steep_bright_share=1.0)
+    )
     albedo = terraingen.Albedo(terraingen.SyntheticAlbedo(value=0.11), [layer, splotches])
     grid = terraingen.RasterGrid.centred(16, 16, 2.0)
     with_terrain = terraingen.evaluate_albedo(albedo, grid, terrain=flat)[0].values
@@ -263,10 +265,12 @@ def test_blast_zones_brighten_around_a_lander():
 def test_splotch_swarms_follow_robinsons_crater():
     swarms = terraingen.SplotchSwarms(enabled=True, craters=[terraingen.Crater(0.0, 0.0, 18.8)])
     assert swarms.count(18.8) == pytest.approx(248.0)
-    layer = terraingen.SplotchAlbedo(terraingen.SplotchOptions(swarms=swarms))
+    layer = terraingen.SplotchAlbedo(terraingen.SplotchAlbedoOptions(swarms=swarms))
     assert 150 < layer.swarm_size(terraingen.Crater(0.0, 0.0, 18.8)) < 350
     with pytest.raises(ValueError):
-        terraingen.validate_splotches(terraingen.SplotchOptions(swarms=terraingen.SplotchSwarms(mu=1.5)))
+        terraingen.validate_splotch_albedo_options(
+            terraingen.SplotchAlbedoOptions(swarms=terraingen.SplotchSwarms(mu=1.5))
+        )
 
 
 def test_rocks_brighten_by_the_share_they_cover():
@@ -280,7 +284,7 @@ def test_rocks_brighten_by_the_share_they_cover():
     with pytest.raises(ValueError):
         terraingen.RockAlbedo(terraingen.RockAlbedoOptions(), terrain, [1])
     with pytest.raises(ValueError):
-        terraingen.validate_rock_albedo(terraingen.RockAlbedoOptions(reflectance_ratio=0.0))
+        terraingen.validate_rock_albedo_options(terraingen.RockAlbedoOptions(reflectance_ratio=0.0))
 
 
 def test_slopes_mature_from_twenty_degrees():
@@ -290,4 +294,4 @@ def test_slopes_mature_from_twenty_degrees():
     terrain = terraingen.Terrain(terraingen.FlatSource(64, 64, 0.5), [])
     assert layer.slope_at(1.0, 2.0, terrain) == pytest.approx(0.0)
     with pytest.raises(ValueError):
-        terraingen.validate_slope_maturity(terraingen.SlopeMaturityOptions(baseline=0.0))
+        terraingen.validate_slope_albedo_options(terraingen.SlopeAlbedoOptions(baseline=0.0))

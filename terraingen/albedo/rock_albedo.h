@@ -29,7 +29,7 @@ struct RockAlbedoOptions {
 
 /// Checks rock albedo options.
 /// @throws std::invalid_argument for a reflectance ratio that is not positive and finite.
-void ValidateRockAlbedo(const RockAlbedoOptions& options);
+void ValidateRockAlbedoOptions(const RockAlbedoOptions& options);
 
 /// A boulder layer whose rock brightens the albedo, and the ground beneath it.
 struct RockSource {
@@ -47,8 +47,8 @@ double RockShare(double resolved, const UnresolvedCover& unresolved, double norm
 /// (`reflectanceRatio` - 1), for the share of each sample rock covers over every layer.
 class RockAlbedo final : public AlbedoLayer {
   public:
-    /// @throws std::invalid_argument for options invalid as `ValidateRockAlbedo`, or a source
-    /// without a layer or ground.
+    /// @throws std::invalid_argument for options invalid as `ValidateRockAlbedoOptions`, or a
+    /// source without a layer or ground.
     RockAlbedo(RockAlbedoOptions options, std::vector<RockSource> sources);
 
     void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,

@@ -76,7 +76,7 @@ void CheckSwarms(const SplotchSwarms& s) {
 
 /// How much of `splotch` covers the point `offset` metres from its centre, from 1 inside to 0
 /// beyond its lobed, soft edge.
-double Cover(const Splotch& splotch, const Vec2d& offset, const SplotchOptions& options) {
+double Cover(const Splotch& splotch, const Vec2d& offset, const SplotchAlbedoOptions& options) {
     const double radius = 0.5 * splotch.mark.diameter;
     double distance = std::hypot(offset.x, offset.y) / radius;
     double angle = 0.0;
@@ -135,7 +135,7 @@ std::array<Vec2d, 4> SlopePoints(const Surface& surface, double x, double y, dou
 }
 
 /// The spacing slopes under splotches are read at: `spacing`, or half the smallest splotch when 0.
-double SlopeSpacing(double spacing, const SplotchOptions& options) {
+double SlopeSpacing(double spacing, const SplotchAlbedoOptions& options) {
     return spacing > 0.0 ? spacing : 0.5 * options.minDiameter;
 }
 
@@ -213,11 +213,11 @@ double SplotchSwarms::Count(double diameter) const {
     return referenceCount * std::pow(diameter / referenceDiameter, 3.0 + 1.5 * mu);
 }
 
-double SplotchOptions::Coefficient() const {
+double SplotchAlbedoOptions::Coefficient() const {
     return rateCoefficient * std::pow(1000.0, rateExponent) * lifetimeMyr;
 }
 
-void ValidateSplotches(const SplotchOptions& options) {
+void ValidateSplotchAlbedoOptions(const SplotchAlbedoOptions& options) {
     if (!(IsPositive(options.rateCoefficient) && IsPositive(options.rateExponent) &&
           IsPositive(options.lifetimeMyr) && IsPositive(options.Coefficient()))) {
         throw std::invalid_argument(
@@ -244,9 +244,9 @@ void ValidateSplotches(const SplotchOptions& options) {
     CheckSwarms(options.swarms);
 }
 
-SplotchAlbedo::SplotchAlbedo(SplotchOptions options, Surface surface)
+SplotchAlbedo::SplotchAlbedo(SplotchAlbedoOptions options, Surface surface)
     : options_(std::move(options)), surface_(std::move(surface)) {
-    ValidateSplotches(options_);
+    ValidateSplotchAlbedoOptions(options_);
     if (surface_.IsBody()) {
         cells_ = std::make_shared<CubeSphereCells>(surface_);
     } else {
@@ -255,7 +255,7 @@ SplotchAlbedo::SplotchAlbedo(SplotchOptions options, Surface surface)
 }
 
 std::vector<Splotch> SplotchAlbedo::Marks(const Bounds2d& region, double spacing) const {
-    const SplotchOptions& o = options_;
+    const SplotchAlbedoOptions& o = options_;
     CraterGenerationOptions generation;
     generation.dMin = o.minDiameter;
     generation.dMax = o.maxDiameter;
@@ -299,7 +299,7 @@ std::vector<double> SplotchAlbedo::SteepSlopes(const std::vector<Splotch>& splot
 }
 
 void SplotchAlbedo::DrawSides(Splotch& splotch, double slopeDegrees) const {
-    const SplotchOptions& o = options_;
+    const SplotchAlbedoOptions& o = options_;
     double darkShare = o.darkShare;
     double brightShare = o.brightShare;
     if (o.steepBrightShare && slopeDegrees > o.steepSlopeDegrees) {
@@ -339,7 +339,7 @@ std::vector<Splotch> SplotchAlbedo::Splotches(const Bounds2d& region, double spa
 
 void SplotchAlbedo::AddSwarms(const Bounds2d& region, double spacing,
                               std::vector<Splotch>& splotches) const {
-    const SplotchOptions& o = options_;
+    const SplotchAlbedoOptions& o = options_;
     const SplotchSwarms& s = o.swarms;
     const double margin = 0.5 * s.splotchDiameter.Highest() * std::sqrt(s.wedgeElongation);
     CraterGenerationOptions generation;
@@ -374,7 +374,7 @@ void SplotchAlbedo::AddSwarms(const Bounds2d& region, double spacing,
 }
 
 std::vector<Splotch> SplotchAlbedo::Swarm(const Crater& crater, double spacing) const {
-    const SplotchOptions& o = options_;
+    const SplotchAlbedoOptions& o = options_;
     const SplotchSwarms& s = o.swarms;
     const double a = 1.5 * s.mu;
     const double near = std::pow(s.minRange, -a);

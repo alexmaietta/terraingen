@@ -20,16 +20,16 @@ using terraingen::GeoTransform;
 using terraingen::RasterGrid;
 using terraingen::Splotch;
 using terraingen::SplotchAlbedo;
-using terraingen::SplotchOptions;
+using terraingen::SplotchAlbedoOptions;
 using terraingen::Surface;
 using terraingen::SyntheticAlbedo;
-using terraingen::SyntheticAlbedoParams;
+using terraingen::SyntheticAlbedoOptions;
 using terraingen::ValueDistribution;
 
 namespace {
 
-Albedo Grey(SplotchOptions options, Surface surface = {}) {
-    SyntheticAlbedoParams params;
+Albedo Grey(SplotchAlbedoOptions options, Surface surface = {}) {
+    SyntheticAlbedoOptions params;
     params.value = 0.11;
     return {std::make_shared<SyntheticAlbedo>(params, terraingen::Vec2d{}, surface),
             {std::make_shared<SplotchAlbedo>(options, surface)},
@@ -46,8 +46,8 @@ Splotch Dark(double diameter, double ageGyr) {
 
 }  // namespace
 
-TEST(SplotchOptions, FollowSpeyerersFormationRate) {
-    const SplotchOptions options;
+TEST(SplotchAlbedoOptions, FollowSpeyerersFormationRate) {
+    const SplotchAlbedoOptions options;
     const double perKm2 = options.Coefficient() * std::pow(10.0, -options.rateExponent) * 1e6;
     EXPECT_NEAR(perKm2, 0.0029 * 81000.0, 0.02 * 0.0029 * 81000.0)
         << "0.0029 splotches over 10 m per km^2 per year, each lasting 8.1e4 years";
@@ -56,7 +56,7 @@ TEST(SplotchOptions, FollowSpeyerersFormationRate) {
 }
 
 TEST(SplotchAlbedo, GeneratesTheExpectedNumbersKindsAndAges) {
-    SplotchOptions options;
+    SplotchAlbedoOptions options;
     options.minDiameter = 10.0;
     const SplotchAlbedo layer(options);
     const auto large = layer.Splotches({0.0, 0.0, 1000.0, 1000.0}, 1.0);
@@ -110,7 +110,7 @@ TEST(SplotchAlbedo, ChangesFadeWithAgeAndEndAtTheEdge) {
 }
 
 TEST(SplotchAlbedo, YoungerSplotchesCoverOlderOnes) {
-    SplotchOptions options;
+    SplotchAlbedoOptions options;
     options.minDiameter = 2.0;
     options.darkShare = 0.0;
     options.brightShare = 1.0;
@@ -130,7 +130,7 @@ TEST(SplotchAlbedo, YoungerSplotchesCoverOlderOnes) {
 }
 
 TEST(SplotchAlbedo, GridsTilesAndPointsAgree) {
-    SplotchOptions options;
+    SplotchAlbedoOptions options;
     options.minDiameter = 2.0;
     const Albedo albedo = Grey(options);
     const RasterGrid whole{96, 96, GeoTransform::NorthUp(-48.0, 48.0, 1.0)};
@@ -159,7 +159,7 @@ TEST(SplotchAlbedo, GridsTilesAndPointsAgree) {
 }
 
 TEST(SplotchAlbedo, WorksOnASphereAndLeavesNoData) {
-    SplotchOptions options;
+    SplotchAlbedoOptions options;
     options.minDiameter = 2.0;
     const Surface moon = Surface::Sphere(1737400.0);
     const Albedo albedo = Grey(options, moon);
@@ -182,27 +182,29 @@ TEST(SplotchAlbedo, WorksOnASphereAndLeavesNoData) {
     EXPECT_TRUE(none.empty());
 }
 
-TEST(SplotchOptions, RejectsInvalidSettings) {
-    EXPECT_NO_THROW(terraingen::ValidateSplotches({}));
+TEST(SplotchAlbedoOptions, RejectsInvalidSettings) {
+    EXPECT_NO_THROW(terraingen::ValidateSplotchAlbedoOptions({}));
     const auto rejects = [](auto change) {
-        SplotchOptions options;
+        SplotchAlbedoOptions options;
         change(options);
-        EXPECT_THROW(terraingen::ValidateSplotches(options), std::invalid_argument);
+        EXPECT_THROW(terraingen::ValidateSplotchAlbedoOptions(options), std::invalid_argument);
         EXPECT_THROW(SplotchAlbedo{options}, std::invalid_argument);
     };
-    rejects([](SplotchOptions& o) { o.rateCoefficient = 0.0; });
-    rejects([](SplotchOptions& o) { o.rateExponent = -1.0; });
-    rejects([](SplotchOptions& o) { o.lifetimeMyr = 0.0; });
-    rejects([](SplotchOptions& o) { o.minDiameter = 0.0; });
-    rejects([](SplotchOptions& o) { o.maxDiameter = 1.0; });
-    rejects([](SplotchOptions& o) { o.darkShare = 1.1; });
-    rejects([](SplotchOptions& o) { o.brightShare = 0.2; });
-    rejects([](SplotchOptions& o) { o.darkChange = {ValueDistribution::Kind::Constant, -1.0}; });
+    rejects([](SplotchAlbedoOptions& o) { o.rateCoefficient = 0.0; });
+    rejects([](SplotchAlbedoOptions& o) { o.rateExponent = -1.0; });
+    rejects([](SplotchAlbedoOptions& o) { o.lifetimeMyr = 0.0; });
+    rejects([](SplotchAlbedoOptions& o) { o.minDiameter = 0.0; });
+    rejects([](SplotchAlbedoOptions& o) { o.maxDiameter = 1.0; });
+    rejects([](SplotchAlbedoOptions& o) { o.darkShare = 1.1; });
+    rejects([](SplotchAlbedoOptions& o) { o.brightShare = 0.2; });
     rejects(
-        [](SplotchOptions& o) { o.brightChange = {ValueDistribution::Kind::Normal, 0.1, 0.1}; });
-    rejects([](SplotchOptions& o) { o.softness = 0.0; });
-    rejects([](SplotchOptions& o) { o.raggedness = 1.0; });
-    rejects([](SplotchOptions& o) { o.fade.endSamples = 1.0; });
+        [](SplotchAlbedoOptions& o) { o.darkChange = {ValueDistribution::Kind::Constant, -1.0}; });
+    rejects([](SplotchAlbedoOptions& o) {
+        o.brightChange = {ValueDistribution::Kind::Normal, 0.1, 0.1};
+    });
+    rejects([](SplotchAlbedoOptions& o) { o.softness = 0.0; });
+    rejects([](SplotchAlbedoOptions& o) { o.raggedness = 1.0; });
+    rejects([](SplotchAlbedoOptions& o) { o.fade.endSamples = 1.0; });
 }
 
 namespace {
@@ -219,7 +221,7 @@ struct Tilted final : terraingen::Ground {
 }  // namespace
 
 TEST(SplotchAlbedo, SteepSlopesCanFavourBrightSplotches) {
-    SplotchOptions options;
+    SplotchAlbedoOptions options;
     options.minDiameter = 2.0;
     const Bounds2d region{0.0, 0.0, 150.0, 150.0};
     const Tilted steep(30.0);
@@ -242,15 +244,15 @@ TEST(SplotchAlbedo, SteepSlopesCanFavourBrightSplotches) {
     }
     EXPECT_GT(dark, 0);
     options.steepBrightShare = 1.5;
-    EXPECT_THROW(terraingen::ValidateSplotches(options), std::invalid_argument);
+    EXPECT_THROW(terraingen::ValidateSplotchAlbedoOptions(options), std::invalid_argument);
     options.steepBrightShare.reset();
     options.steepSlopeDegrees = 90.0;
-    EXPECT_THROW(terraingen::ValidateSplotches(options), std::invalid_argument);
+    EXPECT_THROW(terraingen::ValidateSplotchAlbedoOptions(options), std::invalid_argument);
 
     options = {};
     options.minDiameter = 2.0;
     options.steepBrightShare = 1.0;
-    SyntheticAlbedoParams params;
+    SyntheticAlbedoOptions params;
     params.value = 0.11;
     const Albedo albedo{std::make_shared<SyntheticAlbedo>(params),
                         {std::make_shared<SplotchAlbedo>(options)}};
@@ -270,7 +272,7 @@ TEST(SplotchAlbedo, SteepSlopesCanFavourBrightSplotches) {
 }
 
 TEST(SplotchAlbedo, ReadsTheSlopeAcrossEachSplotch) {
-    SplotchOptions options;
+    SplotchAlbedoOptions options;
     options.minDiameter = 2.0;
     options.steepBrightShare = 1.0;
     options.steepSlopeDegrees = 15.0;
@@ -297,7 +299,7 @@ TEST(SplotchSwarms, ScaleRobinsonsCraterByHousenAndHolsappsEjecta) {
 }
 
 TEST(SplotchAlbedo, SwarmsLandWhereRobinsonFoundThem) {
-    SplotchOptions options;
+    SplotchAlbedoOptions options;
     options.swarms.enabled = true;
     const SplotchAlbedo layer(options);
     std::vector<double> ranges;
@@ -348,7 +350,7 @@ TEST(SplotchAlbedo, WedgesNarrowTowardTheirCrater) {
 }
 
 TEST(SplotchAlbedo, SwarmsKeepGridsAndPointsInStep) {
-    SplotchOptions options;
+    SplotchAlbedoOptions options;
     options.minDiameter = 4.0;
     options.swarms.enabled = true;
     options.swarms.craterRate = 1.5e-3;
@@ -359,7 +361,7 @@ TEST(SplotchAlbedo, SwarmsKeepGridsAndPointsInStep) {
     const RasterGrid grid{48, 48, GeoTransform::NorthUp(0.0, 192.0, 4.0)};
     const auto values = EvaluateAlbedo(albedo, grid, {.spacing = 4.0});
     const auto swarmed = SplotchAlbedo(options).Splotches({0.0, 0.0, 192.0, 192.0}, 4.0).size();
-    SplotchOptions plain = options;
+    SplotchAlbedoOptions plain = options;
     plain.swarms.enabled = false;
     EXPECT_GT(swarmed, SplotchAlbedo(plain).Splotches({0.0, 0.0, 192.0, 192.0}, 4.0).size());
     for (std::size_t row = 0; row < 48; row += 3) {
@@ -373,9 +375,9 @@ TEST(SplotchAlbedo, SwarmsKeepGridsAndPointsInStep) {
 
 TEST(SplotchSwarms, RejectsInvalidSettings) {
     const auto rejects = [](auto change) {
-        SplotchOptions options;
+        SplotchAlbedoOptions options;
         change(options.swarms);
-        EXPECT_THROW(terraingen::ValidateSplotches(options), std::invalid_argument);
+        EXPECT_THROW(terraingen::ValidateSplotchAlbedoOptions(options), std::invalid_argument);
     };
     using Swarms = terraingen::SplotchSwarms;
     rejects([](Swarms& s) { s.craterRate = 0.0; });

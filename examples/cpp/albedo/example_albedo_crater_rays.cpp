@@ -60,7 +60,7 @@ class AlbedoCraterRays : public terraingen::examples::Example {
         variation.fractal.wavelength = 1500.0f;
         variation.fractal.amplitude = 0.02f;
         variation.fractal.octaves = 4;
-        terraingen::SyntheticAlbedoParams base;
+        terraingen::SyntheticAlbedoOptions base;
         base.value = 0.11;
         base.valueNoise.push_back(variation);
 
