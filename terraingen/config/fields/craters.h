@@ -301,8 +301,8 @@ template <typename IO> void Fields(IO& io, CraterLayerSpec& craters) {
     io("morphometry", craters.morphometry,
        "Published fits of fresh crater depth, rim height and complex crater shape the craters "
        "are shaped with.");
-    io("generate", craters.generate,
-       "Generates craters from the density; off places only the manual craters.");
+    io("generate_random", craters.generateRandom,
+       "Draws random craters from the size distribution; off places only the manual craters.");
     io("seed", craters.seed,
        "Seed the craters are generated with; changing it gives a different crater field of the "
        "same statistics.");

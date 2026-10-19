@@ -32,22 +32,21 @@ class CratersManual : public terraingen::examples::Example {
             std::make_shared<terraingen::FreshnessDegradation>(
                 ages, terraingen::LunarFreshCraterMorphometry),
             std::make_shared<terraingen::FassettThomsonProfile>()};
-        terraingen::CraterLayerOptions options;
-        options.generate = false;
+        terraingen::CraterList manual;
         for (const terraingen::Crater& crater : {
                  terraingen::Crater{0.0, 0.0, 200.0, 0.5},
                  terraingen::Crater{-250.0, 180.0, 90.0, 3.0},
                  terraingen::Crater{260.0, -200.0, 120.0, 1.5},
                  terraingen::Crater{150.0, 250.0, 40.0, 0.1},
              }) {
-            options.generation.manual.Append(crater);
+            manual.Append(crater);
         }
 
         terraingen::Terrain terrain;
         terrain.source = std::make_shared<terraingen::FlatSource>(513, 513, 2.0);
         terrain.layers.push_back(
             std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{fbm}}));
-        terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(models, options));
+        terrain.layers.push_back(terraingen::CraterLayer::Manual(models, manual));
 
         evaluated_ = terraingen::Evaluate(terrain);
         craters_ =

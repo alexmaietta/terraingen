@@ -38,8 +38,9 @@ struct CraterModels {
 
 /// How a `CraterLayer` generates and applies its craters.
 struct CraterLayerOptions {
-    /// Generate craters from the density; otherwise only the manual craters in `generation` apply.
-    bool generate = true;
+    /// Draws random craters from the density; off places only the manual craters in
+    /// `generation`, which are placed either way.
+    bool generateRandom = true;
     std::uint32_t seed = 1;  ///< Varies the generated craters.
     /// Diameter range, spacing, manual craters and cap; `marginRadii` is set from the profile's
     /// reach.
@@ -76,6 +77,14 @@ class CraterLayer final : public Layer, public CraterPlacer {
     /// @param models None may be null.
     /// @throws std::invalid_argument for a missing model or invalid options.
     CraterLayer(CraterModels models, CraterLayerOptions options);
+
+    /// A layer of only `craters`, shaped by `models` and `apply`: `generateRandom` off, so no
+    /// random craters; the density is kept but not drawn from.
+    /// @param craters Flagged manual and given IDs as `AppendManualCraters` does.
+    /// @param surface What the craters lie on.
+    /// @throws std::invalid_argument as the constructor.
+    static std::shared_ptr<CraterLayer> Manual(CraterModels models, CraterList craters,
+                                               CraterApplyOptions apply = {}, Surface surface = {});
 
     /// `dMax` (the density's largest valid diameter when unbounded) or the largest manual crater,
     /// in metres.

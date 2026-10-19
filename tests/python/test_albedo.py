@@ -32,7 +32,7 @@ def manual_crater_layer(lunar_models):
     return terraingen.CraterLayer(
         lunar_models(),
         terraingen.CraterLayerOptions(
-            generate=False, generation=terraingen.CraterGenerationOptions(manual=[young_crater()])
+            generate_random=False, generation=terraingen.CraterGenerationOptions(manual=[young_crater()])
         ),
     )
 

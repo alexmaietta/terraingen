@@ -463,7 +463,7 @@ TEST(BuildTerrain, BoulderEjectaComeFromEveryCraterLayerBefore) {
     TerrainConfig config;
     config.outputs = {terraingen::testing::Heightmap("e.tif", terraingen::GridRegionSpec{65, 65})};
     CraterLayerSpec first;
-    first.generate = false;
+    first.generateRandom = false;
     first.ages = terraingen::FreshAgesSpec{};
     first.manual = {{0.0, 0.0, 40.0, 0.0, 1u, true}};
     CraterLayerSpec second = first;

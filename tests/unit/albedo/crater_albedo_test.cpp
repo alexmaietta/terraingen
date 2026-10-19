@@ -30,7 +30,7 @@ namespace {
 std::shared_ptr<const terraingen::CraterLayer> Craters(const std::vector<Crater>& manual,
                                                        bool irregular = false) {
     terraingen::CraterLayerOptions options;
-    options.generate = false;
+    options.generateRandom = false;
     for (const auto& crater : manual) {
         options.generation.manual.Append(crater);
     }
@@ -297,7 +297,7 @@ TEST(CraterAlbedo, RejectsInvalidOptions) {
 TEST(CraterAlbedo, WorksOnASphereInMetres) {
     const Surface moon = Surface::Sphere(1737400.0);
     terraingen::CraterLayerOptions sphereOptions;
-    sphereOptions.generate = false;
+    sphereOptions.generateRandom = false;
     sphereOptions.surface = moon;
     sphereOptions.generation.manual.Append({179.99, -20.0, 2000.0, 0.0, 9u, true});
     const auto sphereCraters = std::make_shared<terraingen::CraterLayer>(

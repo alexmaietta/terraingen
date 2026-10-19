@@ -3,7 +3,7 @@
     "layers": [
         {
             "type": "craters",
-            "generate": false,
+            "generate_random": false,
             "profile": {
                 "type": "martin_parkes_dunstan"
             },

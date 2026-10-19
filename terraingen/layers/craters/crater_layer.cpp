@@ -48,6 +48,16 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options)
     }
 }
 
+std::shared_ptr<CraterLayer> CraterLayer::Manual(CraterModels models, CraterList craters,
+                                                 CraterApplyOptions apply, Surface surface) {
+    CraterLayerOptions options;
+    options.generateRandom = false;
+    options.generation.manual = std::move(craters);
+    options.apply = std::move(apply);
+    options.surface = surface;
+    return std::make_shared<CraterLayer>(std::move(models), std::move(options));
+}
+
 void CraterLayer::FollowDensityMap() {
     scale_ = std::make_shared<const DensityScale>(*options_.densityMap, *models_.density);
     if (scale_->Max() > 1.0) {
@@ -149,7 +159,7 @@ CraterKeepShare CraterLayer::KeepShare(const Bounds2d& region) const {
 CraterList CraterLayer::Craters(const Bounds2d& region, double spacing, double minDiameter,
                                 double maxDiameter) const {
     CraterGenerationOptions generation = options_.generation;
-    if (options_.generate) {
+    if (options_.generateRandom) {
         if (spacing > 0.0) {
             generation.minResolvedDiameter = options_.apply.fade.startSamples * spacing;
         }
@@ -202,7 +212,7 @@ CraterFeatures CraterLayer::CratersOver(const RasterGrid& grid, double spacing) 
 
 double CraterLayer::MaxFeatureDiameter() const {
     const CraterGenerationOptions& generation = options_.generation;
-    double largest = options_.generate ? ResolveDMax(generation.dMax, *models_.density) : 0.0;
+    double largest = options_.generateRandom ? ResolveDMax(generation.dMax, *models_.density) : 0.0;
     for (std::size_t n = 0; n < generation.manual.Size(); ++n) {
         largest = std::fmax(largest, generation.manual.At(n).diameter);
     }

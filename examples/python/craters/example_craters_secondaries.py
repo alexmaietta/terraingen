@@ -35,7 +35,7 @@ class Example(_common.Example):
         primaries = terraingen.CraterLayer(
             models,
             terraingen.CraterLayerOptions(
-                generate=False, generation=terraingen.CraterGenerationOptions(manual=[primary])
+                generate_random=False, generation=terraingen.CraterGenerationOptions(manual=[primary])
             ),
         )
         options = terraingen.SecondaryCraterOptions(seed=4, onset_count=20.0, min_diameter=30.0)

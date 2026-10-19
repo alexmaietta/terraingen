@@ -124,7 +124,7 @@ TEST(SphereCraters, SpacingMeasuresGreatCircleDistances) {
 
 TEST(SphereCraterLayer, ShapesCratersInMetresAroundTheirCentres) {
     CraterLayerOptions options = SphereOptions();
-    options.generate = false;
+    options.generateRandom = false;
     options.generation.manual.Append({30.0, 60.0, 2000.0, 1.0, 11u});
     const CraterLayer sphere(Models(), options);
     CraterLayerOptions flat = options;
@@ -185,7 +185,7 @@ TEST(SphereCraterLayer, GridsEqualPointsAndThreadsAcrossTheAntimeridian) {
 
 TEST(SphereCraterLayer, FitsDatumsOnTheSphere) {
     CraterLayerOptions options = SphereOptions();
-    options.generate = false;
+    options.generateRandom = false;
     options.apply.datum = terraingen::CraterDatum::Plane;
     options.generation.manual.Append({-20.0, -30.0, 2000.0, 1.0, 31u});
     const CraterLayer layer(Models(), options);
@@ -305,7 +305,7 @@ TEST(BodyCraterLayer, GridsTilesPointsAndBackendsAgreeOnEveryBody) {
         for (const auto datum : {terraingen::CraterDatum::None, terraingen::CraterDatum::Plane,
                                  terraingen::CraterDatum::CentreHeight}) {
             CraterLayerOptions options;
-            options.generate = false;
+            options.generateRandom = false;
             options.surface = body.surface;
             options.apply.datum = datum;
             options.apply.noise.amplitude = 0.005;
@@ -326,7 +326,7 @@ TEST(BodyCraterLayer, GridsTilesPointsAndBackendsAgreeOnEveryBody) {
 TEST(BodyCraterLayer, ShapesCratersInTheirLocalFrameOnEveryBody) {
     for (const BodyCase& body : Bodies()) {
         CraterLayerOptions options;
-        options.generate = false;
+        options.generateRandom = false;
         options.surface = body.surface;
         options.generation.manual.Append(body.crater);
         const CraterLayer layer(Models(), options);
@@ -355,7 +355,7 @@ TEST(BodyCraterLayer, ShapesProfilesOfYourOwnOnEveryBody) {
     const FlatGround ground;
     for (const BodyCase& body : Bodies()) {
         CraterLayerOptions options;
-        options.generate = false;
+        options.generateRandom = false;
         options.surface = body.surface;
         options.apply.datum = terraingen::CraterDatum::Plane;
         options.generation.manual.Append(body.crater);

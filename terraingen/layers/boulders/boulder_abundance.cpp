@@ -143,6 +143,10 @@ std::shared_ptr<const SizeFrequencyDistribution> EjectaSizes(const BoulderLayerO
 std::shared_ptr<const SizeFrequencyDistribution>
 BoulderCandidates(const BoulderLayerOptions& options) {
     ValidateBoulderLayerOptions(options);
+    if (!options.generateRandom) {
+        throw std::invalid_argument(
+            "A boulder layer without generateRandom draws no candidate boulders");
+    }
     return BoulderCandidates(options, MaxBackgroundAbundance(options));
 }
 

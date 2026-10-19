@@ -51,7 +51,7 @@ TerrainConfig Everything() {
     second.hurst = 0.8f;
     noise.stack.push_back(second);
     CraterLayerSpec craters;
-    craters.generate = false;
+    craters.generateRandom = false;
     craters.morphometry = terraingen::CraterMorphometryFit::Mars;
     craters.seed = 99;
     craters.density = terraingen::PiecewisePowerLawSpec{{{1.0, 0.2, 2.0}, {50.0, 10.0, 3.0}}};
@@ -203,6 +203,7 @@ TerrainConfig Everything() {
     terraingen::BoulderLayerSpec table;
     table.sizes = terraingen::TabulatedSpec{{0.1, 1.0}, {1.0, 0.001}};
     table.ejectaSizes = terraingen::PowerLawSpec{0.001, 3.0};
+    table.boulders.generateRandom = false;
     synthterrain.ejectaSizes = terraingen::PiecewiseUniformSpec{{{0.5, 2.0, 0.001}}};
     terraingen::DensityMapSpec boulderMap;
     boulderMap.field.value = 0.01;

@@ -325,7 +325,7 @@ TEST(ValidateCraterIrregularity, RejectsInvalidSettings) {
 
 TEST(ApplyCraters, StretchesElongatedCratersAndKeepsPointQueriesOnTheGrid) {
     terraingen::CraterLayerOptions options;
-    options.generate = false;
+    options.generateRandom = false;
     options.generation.manual.Append({0.5, 0.5, 40.0, 0.0, 7u, true});
     options.apply.datum = terraingen::CraterDatum::Plane;
     options.apply.irregularity.enabled = true;

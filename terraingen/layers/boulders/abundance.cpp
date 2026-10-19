@@ -282,10 +282,18 @@ BoulderAbundance BoulderLayer::Abundance(double x, double y, const Ground* groun
 }
 
 BoulderAbundance BoulderLayer::AbundanceAt(double x, double y, const Ground* ground) const {
+    if (!options_.generateRandom) {
+        BoulderAbundance none;
+        none.background = 0.0;
+        return none;
+    }
     return Abundance(x, y, ground, EjectaCraters(PointBounds(x, y)));
 }
 
 double BoulderLayer::Density(double diameter, const BoulderAbundance& abundance) const {
+    if (!options_.generateRandom) {
+        return 0.0;
+    }
     const BoulderSizes& sizes = options_.sizes;
     double density = 0.0;
     if (abundance.exponent) {
@@ -351,7 +359,8 @@ UnresolvedCover BoulderLayer::UnresolvedCoverWith(const BoulderAbundance& abunda
 UnresolvedCover BoulderLayer::UnresolvedCoverAt(double x, double y, double spacing,
                                                 const Ground* ground) const {
     RequirePositive(spacing, "Unresolved cover spacing");
-    if (options_.sizes.minDiameter >= options_.fade.endSamples * spacing) {
+    if (!options_.generateRandom ||
+        options_.sizes.minDiameter >= options_.fade.endSamples * spacing) {
         return {};
     }
     return UnresolvedCoverWith(AbundanceAt(x, y, ground), UnresolvedNodes(spacing), spacing);
@@ -362,7 +371,8 @@ std::vector<UnresolvedCover> BoulderLayer::UnresolvedCoverOver(const RasterGrid&
                                                                unsigned threads) const {
     RequirePositive(spacing, "Unresolved cover spacing");
     std::vector<UnresolvedCover> cover(grid.width * grid.height);
-    if (options_.sizes.minDiameter >= options_.fade.endSamples * spacing) {
+    if (!options_.generateRandom ||
+        options_.sizes.minDiameter >= options_.fade.endSamples * spacing) {
         return cover;
     }
     const EjectaIndex ejecta = EjectaCraters(grid.Bounds());

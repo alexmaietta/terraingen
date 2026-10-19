@@ -143,7 +143,7 @@ const PathCase kPathCases[] = {
      "layers[1].manual[0]"},
     {"ManualOnlyStillChecksDiameterRanges",
      [](TerrainConfig& c) {
-         Craters(c).generate = false;
+         Craters(c).generateRandom = false;
          Craters(c).minDiameter = -1.0;
      },
      "layers[1].min_diameter"},
@@ -437,7 +437,7 @@ TEST(ValidateConfig, SummarisesTheGridsAndTheCratersExpected) {
     EXPECT_DOUBLE_EQ(*ValidateConfig(config).expectedCraters, 2.0 * expected)
         << "crater layers inside regions are not counted";
 
-    Craters(config).generate = false;
+    Craters(config).generateRandom = false;
     config.layers.resize(2);
     EXPECT_FALSE(ValidateConfig(config).expectedCraters);
 }
@@ -454,6 +454,33 @@ TEST(ValidateConfig, ReportsBoulderLayerProblemsByPath) {
     EXPECT_EQ(withBoulders([](terraingen::BoulderLayerOptions&) {}), "valid");
     EXPECT_EQ(withBoulders([](terraingen::BoulderLayerOptions& r) { r.sizes.coverage = 2.0; }),
               "layers[2].coverage");
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
+                  terraingen::BoulderLayerSpec boulders;
+                  boulders.sizes = terraingen::GolombekRappBouldersSpec{};
+                  boulders.boulders.sizes.coverage = 0.0;
+                  c.layers.push_back(boulders);
+              }),
+              "layers[2].coverage")
+        << "random boulders need some coverage";
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
+                  terraingen::BoulderLayerSpec boulders;
+                  boulders.boulders.generateRandom = false;
+                  boulders.boulders.sizes.coverage = 0.0;
+                  boulders.boulders.sizes.maxDiameter = 0.01;
+                  boulders.boulders.ejecta.minCraterDiameter = 10.0;
+                  boulders.manual = {{1.0, 2.0, 1.5}};
+                  c.layers.insert(c.layers.begin(), boulders);
+              }),
+              "valid")
+        << "a manual-only layer checks no sizes, coverage or ejecta";
+    EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
+                  terraingen::BoulderLayerSpec boulders;
+                  boulders.boulders.generateRandom = false;
+                  boulders.manual = {{1.0, 2.0, -1.5}};
+                  c.layers.push_back(boulders);
+              }),
+              "layers[2].manual[0].diameter")
+        << "but still checks its manual boulders";
     EXPECT_EQ(
         withBoulders([](terraingen::BoulderLayerOptions& r) { r.ejecta.minCraterDiameter = 10.0; }),
         "valid");

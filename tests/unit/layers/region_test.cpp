@@ -30,7 +30,7 @@ terraingen::Raster<float> Slope() {
 
 std::shared_ptr<const terraingen::CraterLayer> ManualCraters() {
     terraingen::CraterLayerOptions options;
-    options.generate = false;
+    options.generateRandom = false;
     for (const auto& [x, y] : {std::pair{0.0, 0.0}, {16.0, 0.0}, {40.0, 20.0}}) {
         options.generation.manual.Append({x, y, 8.0, 0.0});
     }

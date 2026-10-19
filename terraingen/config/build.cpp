@@ -359,7 +359,7 @@ LayerPtr BuildCraterLayer(const CraterLayerSpec& craters, const std::string& pat
                           std::vector<SecondaryCraterOptions> thrown) {
     CraterLayerOptions options;
     options.secondaries = std::move(thrown);
-    options.generate = craters.generate;
+    options.generateRandom = craters.generateRandom;
     options.seed = craters.seed;
     options.generation.dMin = craters.minDiameter;
     options.generation.dMax = craters.maxDiameter;
@@ -476,7 +476,8 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
             },
             [&](const BoulderLayerSpec& s) -> LayerPtr {
                 BoulderLayerOptions options = BuildBoulderOptions(s, path, context.directory);
-                const bool throws = options.ejecta.MinCraterDiameter() > 0.0;
+                const bool throws =
+                    options.generateRandom && options.ejecta.MinCraterDiameter() > 0.0;
                 return std::make_shared<BoulderLayer>(
                     std::move(options),
                     throws ? context.craters : std::vector<std::shared_ptr<const CraterLayer>>{},

@@ -25,7 +25,7 @@ class CratersSecondaries : public terraingen::examples::Example {
     void Generate() override {
         const auto ages = std::make_shared<terraingen::FreshAges>();
         terraingen::CraterLayerOptions primaryOptions;
-        primaryOptions.generate = false;
+        primaryOptions.generateRandom = false;
         primaryOptions.generation.manual.Append({0.0, 0.0, 2000.0, 0.05, 0u, true});
         const auto primaries = std::make_shared<terraingen::CraterLayer>(
             terraingen::CraterModels{std::make_shared<terraingen::PowerLawSfd>(1e-6, 2.0), ages,

@@ -267,13 +267,15 @@ void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
             throw std::invalid_argument("Manual boulders must not share an ID");
         }
     }
-    ValidateBoulderSizes(options.sizes);
+    if (options.generateRandom) {
+        ValidateBoulderSizes(options.sizes);
+    }
     if (options.densityMap) {
         ValidateDensityMap(*options.densityMap);
     }
     if (options.slopeMap) {
         ValidateSizeSlopeMap(*options.slopeMap);
-        if (!options.sizes.distribution) {
+        if (options.generateRandom && !options.sizes.distribution) {
             throw std::invalid_argument(
                 "A boulder size slope map needs a size distribution, not Golombek-Rapp sizes");
         }
@@ -283,12 +285,14 @@ void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
     ValidateBoulderFragmentation(options.fragmentation);
     ValidateBoulderBedrock(options.bedrock);
     RequirePositive(options.groundSpacing, "Boulder groundSpacing");
-    if (!options.sizes.distribution &&
-        options.sizes.coverage * MaxBackgroundAbundance(options) >= 1.0) {
-        throw std::invalid_argument("Boulder coverage times the patch spread, cluster and bedrock "
-                                    "abundance must stay below 1");
+    if (options.generateRandom) {
+        if (!options.sizes.distribution &&
+            options.sizes.coverage * MaxBackgroundAbundance(options) >= 1.0) {
+            throw std::invalid_argument("Boulder coverage times the patch spread, cluster and "
+                                        "bedrock abundance must stay below 1");
+        }
+        ValidateBoulderEjecta(options.ejecta, options.sizes);
     }
-    ValidateBoulderEjecta(options.ejecta, options.sizes);
     ValidateBoulderPose(options.pose);
     ValidateBoulderFillet(options.fillet);
     ValidateBoulderVentifacts(options.ventifacts);

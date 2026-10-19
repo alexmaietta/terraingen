@@ -109,7 +109,7 @@ TEST(GenerateTerrain, SupportsNoLayersNoCratersAndManualCratersOnly) {
                            noise.Values().begin()));
 
     CraterLayerSpec manualOnly;
-    manualOnly.generate = false;
+    manualOnly.generateRandom = false;
     manualOnly.manual = {{0.0, 0.0, 30.0, 0.0, 0u}, {9000.0, 0.0, 30.0, 0.0, 0u}};
     config.layers.push_back(manualOnly);
     const auto manual = GenerateTerrain(config);
@@ -443,7 +443,7 @@ TEST(GenerateTerrain, AddsSecondariesAroundTheCratersBeforeThem) {
     TerrainConfig config = Small();
     Region(config) = {400, 400, 8.0};
     CraterLayerSpec& craters = Craters(config);
-    craters.generate = false;
+    craters.generateRandom = false;
     craters.manual = {{-3000.0, 0.0, 2000.0, 0.0, 3u}};
     terraingen::SecondaryLayerSpec secondaries;
     secondaries.secondaries.onsetCount = 40.0;
@@ -459,7 +459,7 @@ TEST(GenerateTerrain, ShapesSecondariesWithTheirMorphometry) {
     TerrainConfig config = Small();
     Region(config) = {400, 400, 8.0};
     CraterLayerSpec& craters = Craters(config);
-    craters.generate = false;
+    craters.generateRandom = false;
     craters.manual = {{-3000.0, 0.0, 2000.0, 0.0, 3u}};
     terraingen::SecondaryLayerSpec secondaries;
     secondaries.secondaries.onsetCount = 40.0;

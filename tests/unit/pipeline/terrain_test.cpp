@@ -155,7 +155,7 @@ TEST(EvaluateAt, ChangesContinuouslyWithTheSpacing) {
     Terrain terrain;
     terrain.source = std::make_shared<terraingen::FlatSource>(64, 64, 1.0);
     terraingen::CraterLayerOptions options;
-    options.generate = false;
+    options.generateRandom = false;
     options.generation.manual.Append({0.0, 0.0, 20.0, 0.0, 0u});
     terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(
         terraingen::testing::PowerLawCraterModels(), options));

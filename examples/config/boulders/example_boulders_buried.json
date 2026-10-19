@@ -6,7 +6,7 @@
         },
         {
             "type": "craters",
-            "generate": false,
+            "generate_random": false,
             "manual": [
                 {
                     "x": 0,

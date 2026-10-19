@@ -63,16 +63,27 @@ struct UnresolvedCover {
 /// plus blocks around fresh craters (which need `craters`).
 ///
 /// Candidates are drawn per cell in size bands and thinned by a uniform keyed by each ID, so
-/// boulders depend only on position and agree on every grid, tile and point.
+/// boulders depend only on position and agree on every grid, tile and point. Without
+/// `generateRandom` only the manual boulders are placed and no candidates are drawn.
 class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSource {
   public:
+    /// A layer of only `boulders`, with `generateRandom` off: no random boulders or crater blocks.
+    /// @param options How the boulders are posed and drawn, such as `rendering`, `pose` and
+    /// `fillet`; its `manual` boulders are replaced by `boulders`.
+    /// @param surface What the boulders lie on.
+    /// @throws std::invalid_argument as the constructor.
+    static std::shared_ptr<BoulderLayer> Manual(std::vector<ManualBoulder> boulders,
+                                                BoulderLayerOptions options = {},
+                                                Surface surface = {});
+
     /// On a sphere, candidates are drawn in `CubeSphereCells`, distances are great-circle, and
     /// relief and model placements are in each boulder's local east, north and up frame, its
     /// origin on the datum below the boulder.
-    /// @param craters The crater layer whose craters throw blocks; may be null without ejecta.
+    /// @param craters The crater layer whose craters throw blocks; may be null without ejecta or
+    /// without `generateRandom`.
     /// @param surface The crater layer's surface.
-    /// @throws std::invalid_argument for invalid options, ejecta without `craters`, or a crater
-    /// layer on another surface.
+    /// @throws std::invalid_argument for invalid options, ejecta of random boulders without
+    /// `craters`, or a crater layer on another surface.
     BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const CraterLayer> craters = nullptr,
                  Surface surface = {});
 
@@ -92,13 +103,13 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     std::vector<Boulder> Boulders(const Bounds2d& region, double spacing = 0.0,
                                   const Ground* ground = nullptr) const;
 
-    /// The background and ejecta abundance at surface (x, y).
+    /// The background and ejecta abundance at surface (x, y); both 0 without `generateRandom`.
     /// @param ground Needed with the exposure field.
     /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
     BoulderAbundance AbundanceAt(double x, double y, const Ground* ground = nullptr) const;
 
     /// The density -dN/dD of boulders of `diameter` at surface (x, y), per m^2 per metre of
-    /// diameter.
+    /// diameter; 0 without `generateRandom`.
     /// @param diameter In metres, within the layer's sizes.
     /// @param ground Needed with the exposure field.
     /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
@@ -108,7 +119,7 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// cover where they are too small to resolve, each weighted by one minus its
     /// `ResolutionWeight`: the area their density integrates to, and the variance of that share
     /// over the sample's area for Poisson-scattered boulders. Visible plan areas, as the
-    /// Golombek-Rapp coverage.
+    /// Golombek-Rapp coverage; none without `generateRandom`, as manual boulders are listed.
     /// @param spacing Positive.
     /// @param ground Needed with the exposure field.
     /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
@@ -120,10 +131,9 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     std::vector<UnresolvedCover> UnresolvedCoverOver(const RasterGrid& grid, double spacing,
                                                      const Ground* ground, unsigned threads) const;
 
-    /// `sizes.maxDiameter`.
-    double MaxFeatureDiameter() const {
-        return options_.sizes.maxDiameter;
-    }
+    /// The largest boulder (m): `sizes.maxDiameter` with `generateRandom`, or the largest manual
+    /// boulder when larger.
+    double MaxFeatureDiameter() const;
 
     /// The options the layer was made with.
     const BoulderLayerOptions& Options() const {
@@ -169,7 +179,8 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// pieces narrower than `smallest` metres (0 keeps every one) and marking models at `spacing`.
     std::vector<Boulder> PlaceBoulders(const Bounds2d& region, double spacing, double smallest,
                                        const Ground* ground) const;
-    /// The candidates of `region` at least `smallest` metres across (0 for all), before thinning.
+    /// The candidates of `region` at least `smallest` metres across (0 for all), before thinning;
+    /// only the manual boulders reaching it without `generateRandom`.
     CraterList ScatterBoulderCandidates(const Bounds2d& region, double smallest) const;
     /// A candidate thinning keeps, with what it was kept by.
     struct ThinnedCandidate {
@@ -355,7 +366,8 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
 
     BoulderLayerOptions options_;
     std::vector<std::shared_ptr<const CraterLayer>> craters_;
-    double minCraterDiameter_ = 0.0;
+    double minCraterDiameter_ = 0.0;  ///< Smallest crater throwing blocks (m); 0 for none.
+    double largestManual_ = 0.0;      ///< Largest manual boulder (m); 0 for none.
     double maxBackground_ = 1.0;
     double clusterMean_ = 1.0;
     std::uint32_t clusterSeed_ = 0;  ///< Seed of the cluster centres' Worley noise.

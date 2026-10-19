@@ -170,7 +170,7 @@ enum class EjectaAging {
 
 /// Blocks thrown out by craters that dug through the regolith, added to the boulders
 /// between craters: densest at the rim, thinning outward and with age; overlapping ejecta take the
-/// largest share.
+/// largest share. They are generated boulders, so a layer without `generateRandom` has none.
 struct BoulderEjecta {
     /// Craters at least this large throw blocks out (m); 0, with no `regolithThickness`, disables
     /// crater blocks.
@@ -395,6 +395,10 @@ struct BoulderRendering {
 
 /// How a `BoulderLayer` sizes, places, poses and draws its boulders.
 struct BoulderLayerOptions {
+    /// Draws random boulders from `sizes` between craters and from `ejecta` around them; off
+    /// places only the `manual` boulders, draws no candidates and no crater blocks, and leaves
+    /// `sizes`, `ejecta` and the abundance settings unchecked and unused.
+    bool generateRandom = true;
     BoulderSizes sizes{};            ///< Sizes of the boulders between craters.
     std::uint32_t seed = 1;          ///< Varies the boulders.
     BoulderPatches patches{};        ///< Richer and poorer patches.
@@ -438,9 +442,10 @@ struct BoulderLayerOptions {
     std::shared_ptr<const SurfaceField> completeness{};
 
     bool operator==(const BoulderLayerOptions& other) const {
-        return sizes == other.sizes && seed == other.seed && patches == other.patches &&
-               clusters == other.clusters && ejecta == other.ejecta && bedrock == other.bedrock &&
-               pose == other.pose && fillet == other.fillet && ventifacts == other.ventifacts &&
+        return generateRandom == other.generateRandom && sizes == other.sizes &&
+               seed == other.seed && patches == other.patches && clusters == other.clusters &&
+               ejecta == other.ejecta && bedrock == other.bedrock && pose == other.pose &&
+               fillet == other.fillet && ventifacts == other.ventifacts &&
                fragmentation == other.fragmentation && rendering == other.rendering &&
                fade == other.fade && groundSpacing == other.groundSpacing &&
                cacheBoulders == other.cacheBoulders && densityMap == other.densityMap &&
@@ -512,7 +517,8 @@ void ValidateManualBoulder(const ManualBoulder& boulder);
 /// for 0.
 std::uint64_t ManualBoulderId(const ManualBoulder& boulder);
 
-/// Checks boulder layer options.
+/// Checks boulder layer options; without `generateRandom`, the sizes, ejecta and the coverage they
+/// give are not checked.
 /// @throws std::invalid_argument for any invalid part, a non-positive ground spacing,
 /// Golombek-Rapp coverage times the patch spread and bedrock abundance of 1 or more, or manual
 /// boulders sharing an ID.

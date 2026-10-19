@@ -92,7 +92,7 @@ class PlanetsMoon : public terraingen::examples::Example {
                                         std::make_shared<terraingen::FassettThomsonProfile>()},
                                     [&] {
                                         terraingen::CraterLayerOptions basins = options;
-                                        basins.generate = false;
+                                        basins.generateRandom = false;
                                         return basins;
                                     }())};
         mesh_ = terraingen::BodyMesh(global, 64);

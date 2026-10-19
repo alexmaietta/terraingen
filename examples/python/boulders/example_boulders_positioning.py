@@ -37,7 +37,7 @@ class Example(_common.Example):
         craters = terraingen.CraterLayer(
             models,
             terraingen.CraterLayerOptions(
-                generate=False, generation=terraingen.CraterGenerationOptions(manual=[young])
+                generate_random=False, generation=terraingen.CraterGenerationOptions(manual=[young])
             ),
         )
         base = dict(coverage=0.03, min_diameter=0.2, max_diameter=3.0, seed=1)

@@ -25,7 +25,7 @@ namespace {
 
 std::shared_ptr<const CraterLayer> Primaries(const Crater& primary, Surface surface = {}) {
     CraterLayerOptions options;
-    options.generate = false;
+    options.generateRandom = false;
     options.surface = surface;
     options.generation.manual.Append(primary);
     return std::make_shared<CraterLayer>(

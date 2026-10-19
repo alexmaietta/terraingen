@@ -67,7 +67,7 @@ TEST(CraterLayer, GeneratesAndAppliesCratersOverTheGrid) {
 
 TEST(CraterLayer, AppliesOnlyManualCratersWithoutGenerating) {
     CraterLayerOptions options = Options();
-    options.generate = false;
+    options.generateRandom = false;
     options.generation.manual.Append({0.0, 0.0, 30.0, 0.5, 0u});
     options.generation.manual.Append({5000.0, 0.0, 30.0, 0.5, 0u});
     const CraterLayer layer(Models(), options);
@@ -80,13 +80,46 @@ TEST(CraterLayer, AppliesOnlyManualCratersWithoutGenerating) {
     EXPECT_LT(heights(32, 32), -1.0f);
 }
 
+TEST(CraterLayer, ManualMakesALayerOfOnlyTheGivenCraters) {
+    EXPECT_TRUE(CraterLayerOptions{}.generateRandom);
+    CraterList craters;
+    craters.Append({0.0, 0.0, 30.0, 0.5, 0u});
+    craters.Append({5000.0, 0.0, 30.0, 0.5, 0u});
+    terraingen::CraterApplyOptions apply;
+    apply.interiorReplacement = 0.5;
+    const auto layer = CraterLayer::Manual(Models(), craters, apply);
+    EXPECT_FALSE(layer->Options().generateRandom);
+    EXPECT_EQ(layer->Options().apply.interiorReplacement, 0.5);
+    EXPECT_EQ(layer->Options().generation.manual.Ids(), craters.Ids());
+    EXPECT_EQ(layer->MaxFeatureDiameter(), 30.0);
+
+    CraterLayerOptions options;
+    options.generateRandom = false;
+    options.generation.manual = craters;
+    options.apply = apply;
+    const CraterLayer same(Models(), options);
+    const terraingen::Bounds2d region{-64.0, -64.0, 64.0, 64.0};
+    ASSERT_EQ(layer->Craters(region).Size(), 1u);
+    EXPECT_EQ(layer->Craters(region).Ids(), same.Craters(region).Ids());
+    Raster<float> heights = Grid();
+    layer->Apply(heights, {2.0});
+    Raster<float> expected = Grid();
+    same.Apply(expected, {2.0});
+    EXPECT_TRUE(
+        std::equal(heights.Values().begin(), heights.Values().end(), expected.Values().begin()));
+
+    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
+    EXPECT_EQ(CraterLayer::Manual(Models(), craters, {}, moon)->Options().surface, moon);
+    EXPECT_THROW(CraterLayer::Manual(CraterModels{}, craters), std::invalid_argument);
+}
+
 TEST(CraterLayer, RejectsInvalidManualCratersWithoutGenerating) {
     const double nan = std::nan("");
     for (const terraingen::Crater& bad :
          {terraingen::Crater{nan, 0.0, 30.0, 0.5, 0u}, terraingen::Crater{0.0, 0.0, -30.0, 0.5, 0u},
           terraingen::Crater{5000.0, 0.0, 30.0, -1.0, 0u}}) {
         CraterLayerOptions options = Options();
-        options.generate = false;
+        options.generateRandom = false;
         options.generation.manual.Append(bad);
         const CraterLayer layer(Models(), options);
         EXPECT_THROW(layer.Craters({-64.0, -64.0, 64.0, 64.0}), std::invalid_argument);
@@ -95,7 +128,7 @@ TEST(CraterLayer, RejectsInvalidManualCratersWithoutGenerating) {
 
 TEST(CraterLayer, FadesCratersOutAsTheSpacingCoarsens) {
     CraterLayerOptions options = Options();
-    options.generate = false;
+    options.generateRandom = false;
     options.generation.manual.Append({0.0, 0.0, 10.0, 0.0, 0u});
     const CraterLayer layer(Models(), options);
     const auto floor = [&](double spacing) {
@@ -156,7 +189,7 @@ TEST(CraterLayer, CachesCellsAndWorksWithoutACache) {
 TEST(CraterLayer, ReportsItsLargestCrater) {
     EXPECT_EQ(CraterLayer(Models(), Options()).MaxFeatureDiameter(), 40.0);
     CraterLayerOptions options = Options();
-    options.generate = false;
+    options.generateRandom = false;
     options.generation.manual.Append({0.0, 0.0, 75.0, 0.0, 0u});
     options.generation.manual.Append({0.0, 0.0, 12.0, 0.0, 0u});
     EXPECT_EQ(CraterLayer(Models(), options).MaxFeatureDiameter(), 75.0);
@@ -209,9 +242,9 @@ CraterModels ShapedModels() {
 }
 
 /// A layer with one manual 40 m crater at the origin, `depth` deep with rim `rim`.
-CraterLayer ExplicitLayer(bool generate, double depth, double rim) {
+CraterLayer ExplicitLayer(bool generateRandom, double depth, double rim) {
     CraterLayerOptions options = Options();
-    options.generate = generate;
+    options.generateRandom = generateRandom;
     options.generation.manual.Append({0.0, 0.0, 40.0, 1.5, 0u, false, depth, rim});
     return CraterLayer(ShapedModels(), options);
 }

@@ -345,6 +345,10 @@ void BindLayer(nb::module_& m) {
     layer
         .def(nb::init<BoulderLayerOptions, std::shared_ptr<CraterLayer>, Surface>(),
              "options"_a = BoulderLayerOptions{}, "craters"_a = nb::none(), "surface"_a = Surface{})
+        .def_static("manual", &BoulderLayer::Manual, "boulders"_a,
+                    "options"_a = BoulderLayerOptions{}, "surface"_a = Surface{},
+                    "A layer of only `boulders` (ManualBoulder), posed and drawn as `options` "
+                    "says, with `generate_random` off and its `manual` replaced.")
         .def(
             "boulders",
             [](const BoulderLayer& boulders, const Bounds2d& region, double spacing) {

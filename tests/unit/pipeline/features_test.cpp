@@ -20,7 +20,7 @@ namespace {
 std::shared_ptr<const terraingen::CraterLayer>
 ManualCraters(const std::vector<terraingen::Vec2d>& centres) {
     terraingen::CraterLayerOptions options;
-    options.generate = false;
+    options.generateRandom = false;
     for (const auto& centre : centres) {
         options.generation.manual.Append({centre.x, centre.y, 8.0, 0.0});
     }

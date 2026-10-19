@@ -510,7 +510,8 @@ enum class CraterMorphometryFit {
 /// Layer "craters": craters generated over the grid and applied to it (`CraterLayer`).
 struct CraterLayerSpec {
     CraterMorphometryFit morphometry = CraterMorphometryFit::Lunar;
-    bool generate = true;  ///< Generate craters from `density`; otherwise only `manual` ones.
+    /// Draws random craters from `density`; off places only the `manual` craters.
+    bool generateRandom = true;
     std::uint32_t seed = 1;
     /// By default a 3.5 Gyr extended Neukum production surface up to Hartmann (1984) equilibrium,
     /// as the DSNE (SLS-SPEC-159 Rev. I, 3.4.1.1) builds its 3.5 Ga mare density but with the lower
@@ -543,7 +544,7 @@ struct CraterLayerSpec {
     std::optional<double> unresolvedPixelsAcross{};
 
     bool operator==(const CraterLayerSpec& other) const {
-        return morphometry == other.morphometry && generate == other.generate &&
+        return morphometry == other.morphometry && generateRandom == other.generateRandom &&
                seed == other.seed && density == other.density && ages == other.ages &&
                minDiameter == other.minDiameter && maxDiameter == other.maxDiameter &&
                spacing == other.spacing && maxCraters == other.maxCraters &&

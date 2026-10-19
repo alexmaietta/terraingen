@@ -219,7 +219,7 @@ void CheckLayerSpec(const CraterLayerSpec& craters, const std::string& path, Lay
     const CraterModels models = BuildCraterModels(craters, path);
     CheckExplicitShapes(craters.manual, models, Child(path, "manual"));
     context.craters = true;
-    if (!craters.generate) {
+    if (!craters.generateRandom) {
         return;
     }
     if (!(craters.maxDiameter > craters.minDiameter)) {
@@ -281,10 +281,20 @@ void CheckManualBoulders(const std::vector<ManualBoulder>& manual, const std::st
 }
 
 void CheckLayerSpec(const BoulderLayerSpec& spec, const std::string& path, LayerChecks& context) {
-    CheckGolombekRappTerms(spec, path);
     CheckManualBoulders(spec.manual, Child(path, "manual"));
     const BoulderLayerOptions boulders = BuildBoulderOptions(spec, path, context.directory);
     CheckBoulderMaps(boulders, path);
+    context.boulders = true;
+    if (!boulders.generateRandom) {
+        At(path, [&] { ValidateBoulderLayerOptions(boulders); });
+        return;
+    }
+    CheckGolombekRappTerms(spec, path);
+    if (IsGolombekRapp(spec.sizes) && !(boulders.sizes.coverage > 0.0)) {
+        throw ConfigError(Child(path, "coverage"),
+                          "must be above 0 to generate random boulders; set generate_random to "
+                          "false to place only the manual ones");
+    }
     At(path, [&] { ValidateBoulderLayerOptions(boulders); });
     if (boulders.ejecta.MinCraterDiameter() > 0.0 && !context.craters) {
         throw ConfigError(Child(Child(path, "ejecta"), "min_crater_diameter"),
@@ -304,7 +314,6 @@ void CheckLayerSpec(const BoulderLayerSpec& spec, const std::string& path, Layer
         CheckExpectedCount(expected, "candidate boulders", "raise min_diameter or lower coverage",
                            Child(path, "min_diameter"));
     }
-    context.boulders = true;
 }
 
 void CheckLayerSpec(const SecondaryLayerSpec& layer, const std::string& path,

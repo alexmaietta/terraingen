@@ -41,7 +41,7 @@ class TilesBodyPyramid : public terraingen::examples::Example {
         broad.fractal.octaves = 6;
         const auto ages = std::make_shared<terraingen::UniformAges>(4.0);
         terraingen::CraterLayerOptions options;
-        options.generate = false;
+        options.generateRandom = false;
         options.surface = moon_;
         options.generation.manual.Append({0.0, 0.0, 300000.0, 3.9, 0u, true});
         options.generation.manual.Append({-60.0, 30.0, 200000.0, 3.5, 0u, true});

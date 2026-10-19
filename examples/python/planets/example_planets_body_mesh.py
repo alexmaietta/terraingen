@@ -48,7 +48,8 @@ class Example(_common.Example):
         ]
         generation = terraingen.CraterGenerationOptions(manual=basins)
         craters = terraingen.CraterLayer(
-            models, terraingen.CraterLayerOptions(generate=False, generation=generation, surface=self.moon)
+            models,
+            terraingen.CraterLayerOptions(generate_random=False, generation=generation, surface=self.moon),
         )
         terrain = terraingen.Terrain(terraingen.FlatSource(8, 8, 1.0), [noise, craters], surface=self.moon)
 

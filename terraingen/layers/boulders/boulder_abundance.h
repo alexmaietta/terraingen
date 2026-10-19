@@ -71,7 +71,8 @@ std::shared_ptr<const SizeFrequencyDistribution> EjectaSizes(const BoulderLayerO
 /// The distribution per m^2 candidate boulders are drawn from before thinning: the boulders
 /// between craters at their richest, with a size slope map the power laws at its bounding
 /// exponents too, plus fresh crater blocks when enabled.
-/// @throws std::invalid_argument as `ValidateBoulderLayerOptions`.
+/// @throws std::invalid_argument as `ValidateBoulderLayerOptions`, or without `generateRandom`,
+/// when no candidates are drawn.
 std::shared_ptr<const SizeFrequencyDistribution>
 BoulderCandidates(const BoulderLayerOptions& options);
 

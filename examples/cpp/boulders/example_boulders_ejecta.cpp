@@ -38,7 +38,7 @@ class BouldersEjecta : public terraingen::examples::Example {
     void Generate() override {
         const auto ages = std::make_shared<terraingen::FreshAges>();
         terraingen::CraterLayerOptions craterOptions;
-        craterOptions.generate = false;
+        craterOptions.generateRandom = false;
         craterOptions.generation.manual.Append({0.0, 0.0, 20.0, 0.01, 0u, true});
         const auto craters = std::make_shared<terraingen::CraterLayer>(
             terraingen::CraterModels{std::make_shared<terraingen::PowerLawSfd>(1e-6, 2.0), ages,

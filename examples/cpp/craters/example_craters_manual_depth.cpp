@@ -36,7 +36,7 @@ class CratersManualDepth : public terraingen::examples::Example {
                 ages, terraingen::LunarFreshCraterMorphometry),
             std::make_shared<terraingen::MartinParkesDunstanProfile>()};
         terraingen::CraterLayerOptions options;
-        options.generate = false;
+        options.generateRandom = false;
         manual_ = {
             Deep(-22.0, 20.0, 20.0, 3.0, 0.8),
             Deep(22.0, 22.0, 16.0, 1.2),

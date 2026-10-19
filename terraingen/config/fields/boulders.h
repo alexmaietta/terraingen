@@ -320,13 +320,18 @@ template <> struct SpecName<BoulderLayerSpec> {
         "Boulders scattered over the ground from a size distribution, in patches and around fresh "
         "craters, as relief or 3D models.";
 };
-/// The fields of the Golombek-Rapp terms and diameter range of a boulder layer's boulders.
-template <typename IO> void BoulderSizeRangeFields(IO& io, BoulderSizes& sizes) {
+/// The fields of whether a boulder layer draws random boulders, and their Golombek-Rapp terms
+/// and diameter range.
+template <typename IO> void BoulderSizeRangeFields(IO& io, BoulderLayerOptions& boulders) {
+    BoulderSizes& sizes = boulders.sizes;
+    io("generate_random", boulders.generateRandom,
+       "Draws random boulders from the size distribution, between craters and around them; off "
+       "places only the manual boulders, and the sizes, coverage and ejecta go unused.");
     io("coverage", sizes.coverage,
-       "Golombek-Rapp k, the fraction of the ground covered by boulders, between 0 and 1; higher "
-       "values give more boulders. Only golombek_rapp sizes use it, so any other value than the "
-       "default needs them.",
-       "", Inside(0.0, 1.0));
+       "Golombek-Rapp k, the fraction of the ground covered by boulders, from 0 to below 1 and "
+       "above 0 when generating random boulders; higher values give more boulders. Only "
+       "golombek_rapp sizes use it, so any other value than the default needs them.",
+       "", FromBelow(0.0, 1.0));
     io("qa", sizes.qConstant,
        "Constant term of the Golombek-Rapp q = qa + qb / k, per metre; a larger q leaves fewer "
        "large boulders. Only golombek_rapp sizes or ejecta sizes use it, so any other value than "
@@ -345,7 +350,7 @@ template <typename IO> void BoulderSizeRangeFields(IO& io, BoulderSizes& sizes) 
 
 /// The fields of the sizes of a boulder layer's boulders between craters.
 template <typename IO> void BoulderSizeFields(IO& io, BoulderLayerSpec& spec) {
-    BoulderSizeRangeFields(io, spec.boulders.sizes);
+    BoulderSizeRangeFields(io, spec.boulders);
     io("sizes", spec.sizes,
        "Size distribution of the boulders between craters, per m^2; patches and bedrock scale its "
        "density.");
@@ -363,7 +368,7 @@ template <typename IO> void BoulderGatheringFields(IO& io, BoulderLayerOptions& 
        "set.");
     io("ejecta", boulders.ejecta,
        "Blocks thrown out by craters of every top-level crater layer before this one that dug into "
-       "boulder, densest at the rim and thinning outward.");
+       "boulder, densest at the rim and thinning outward; none with generate_random off.");
 }
 
 /// The fields of where a boulder layer's boulders gather, and the sizes of crater ejecta blocks.
@@ -551,7 +556,7 @@ template <typename IO> void BoulderSharingFields(IO& io, BoulderLayerOptions& bo
 /// The fields of a boulder layer's library options: its spec's without the size models, maps,
 /// files and catalog, which the options hold built.
 template <typename IO> void Fields(IO& io, BoulderLayerOptions& boulders) {
-    BoulderSizeRangeFields(io, boulders.sizes);
+    BoulderSizeRangeFields(io, boulders);
     BoulderGatheringFields(io, boulders);
     BoulderBedrockFields(io, boulders.bedrock);
     BoulderPoseFields(io, boulders.pose);

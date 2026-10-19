@@ -170,13 +170,18 @@ BoulderLayer::BoulderLayer(BoulderLayerOptions options,
         if (boulder.FixesAny()) {
             fixed_.emplace(ManualBoulderId(boulder), boulder);
         }
+        largestManual_ = std::fmax(largestManual_, boulder.diameter);
+    }
+    cells_ = MakeCells(surface_);
+    SetUpShapeCaches();
+    if (!options_.generateRandom) {
+        return;
     }
     minCraterDiameter_ = options_.ejecta.MinCraterDiameter();
     if (minCraterDiameter_ > 0.0 && craters_.empty()) {
         throw std::invalid_argument(
             "Boulder ejecta need the crater layer whose craters throw them");
     }
-    cells_ = MakeCells(surface_);
     SetUpAbundance();
     if (options_.cacheBoulders > 0) {
         cache_ = std::make_shared<CraterCellCache>(options_.cacheBoulders);
@@ -187,7 +192,18 @@ BoulderLayer::BoulderLayer(BoulderLayerOptions options,
     if (exposure_ && options_.densityMap) {
         SetUpBedrockMeans();
     }
-    SetUpShapeCaches();
+}
+
+std::shared_ptr<BoulderLayer> BoulderLayer::Manual(std::vector<ManualBoulder> boulders,
+                                                   BoulderLayerOptions options, Surface surface) {
+    options.generateRandom = false;
+    options.manual = std::move(boulders);
+    return std::make_shared<BoulderLayer>(std::move(options), std::shared_ptr<const CraterLayer>{},
+                                          surface);
+}
+
+double BoulderLayer::MaxFeatureDiameter() const {
+    return std::fmax(options_.generateRandom ? options_.sizes.maxDiameter : 0.0, largestManual_);
 }
 
 void BoulderLayer::SetUpAbundance() {
@@ -430,9 +446,21 @@ double BoulderLayer::BreakMarginRadii() const {
 }
 
 CraterList BoulderLayer::ScatterBoulderCandidates(const Bounds2d& region, double smallest) const {
+    const double margin = OwnMarginRadii() + BreakMarginRadii();
+    if (!options_.generateRandom) {
+        CraterList manual;
+        for (const ManualBoulder& boulder : options_.manual) {
+            const Vec2d centre{boulder.x, boulder.y};
+            if (surface_.Contains(surface_.Expand(region, 0.5 * margin * boulder.diameter),
+                                  centre)) {
+                manual.Append(
+                    {boulder.x, boulder.y, boulder.diameter, 0.0, ManualBoulderId(boulder), true});
+            }
+        }
+        return manual;
+    }
     const std::uint32_t seed = SubstreamSeed(options_.seed, kBoulderCandidateStream);
     const FreshAges ages;
-    const double margin = OwnMarginRadii() + BreakMarginRadii();
     CraterGenerationOptions generation;
     generation.dMin = options_.sizes.minDiameter;
     generation.dMax = options_.sizes.maxDiameter;
@@ -498,6 +526,9 @@ std::vector<Boulder> BoulderLayer::DrawBoulders(const CraterList& candidates, do
 
 std::optional<BoulderLayer::ThinnedCandidate>
 BoulderLayer::Thin(const Crater& candidate, const Ground* ground, const EjectaIndex& ejecta) const {
+    if (!options_.generateRandom) {
+        return ThinnedCandidate{candidate, BoulderAbundance{}};
+    }
     ThinnedCandidate thinned{candidate, Abundance(candidate.x, candidate.y, ground, ejecta)};
     if (!candidate.manual) {
         thinned.density = Density(candidate.diameter, thinned.abundance);
@@ -731,7 +762,7 @@ std::vector<Boulder> BoulderLayer::PlaceBoulders(const Bounds2d& region, double 
                        boulders.end());
         return boulders;
     }
-    const double reach = 0.5 * options_.sizes.maxDiameter * (OwnMarginRadii() + BreakMarginRadii());
+    const double reach = 0.5 * MaxFeatureDiameter() * (OwnMarginRadii() + BreakMarginRadii());
     const EjectaIndex ejecta = EjectaCraters(surface_.Expand(from, reach));
     std::vector<Boulder> boulders;
     std::vector<std::size_t> pieces;

@@ -29,7 +29,7 @@ namespace {
 std::shared_ptr<const terraingen::CraterLayer>
 Craters(const std::vector<terraingen::Crater>& manual) {
     terraingen::CraterLayerOptions options;
-    options.generate = false;
+    options.generateRandom = false;
     for (const auto& crater : manual) {
         options.generation.manual.Append(crater);
     }
@@ -163,6 +163,23 @@ TEST(BoulderLayer, AddsBlocksAroundFreshCraters) {
     EXPECT_EQ(BoulderLayer(options, craters).AbundanceAt(50.0, 0.0).ejecta, 1.0);
     options.ejecta.regolithThickness = 15.0;
     EXPECT_EQ(BoulderLayer(options, craters).AbundanceAt(50.0, 0.0).ejecta, 0.0);
+}
+
+TEST(BoulderLayer, ThrowsNoCraterBlocksWithoutRandomBoulders) {
+    BoulderLayerOptions options;
+    options.generateRandom = false;
+    options.ejecta.minCraterDiameter = 50.0;
+    options.ejecta.coverage = 0.15;
+    terraingen::ManualBoulder rim;
+    rim.x = 50.0;
+    rim.diameter = 1.0;
+    options.manual = {rim};
+    const BoulderLayer layer(options, Craters({{0.0, 0.0, 100.0, 0.0, 0u}}));
+    EXPECT_EQ(layer.AbundanceAt(50.0, 0.0).ejecta, 0.0);
+    const auto boulders = layer.Boulders({40.0, -10.0, 60.0, 10.0});
+    ASSERT_EQ(boulders.size(), 1u) << "the manual boulder alone, no blocks at the rim";
+    EXPECT_EQ(boulders[0].id, terraingen::ManualBoulderId(rim));
+    EXPECT_NO_THROW(BoulderLayer{options}) << "and no crater layer needed";
 }
 
 TEST(BoulderLayer, ShapesAndAgesCraterBlocksLikeSynthterrainWhenAsked) {

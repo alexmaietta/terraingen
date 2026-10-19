@@ -362,3 +362,26 @@ def test_manual_boulders_fix_their_pose_and_shape():
         terraingen.ManualBoulder(0.0, 0.0, 1.0, burial=1.0).validate()
     with pytest.raises(ValueError):
         terraingen.BoulderLayer(terraingen.BoulderLayerOptions(manual=[posed, posed]))
+
+
+def test_a_manual_only_boulder_layer_places_just_its_manual_boulders():
+    assert terraingen.BoulderLayerOptions().generate_random
+    boulders = [terraingen.ManualBoulder(1.0, 2.0, 1.5), terraingen.ManualBoulder(-3.0, 4.0, 2.0, id=17)]
+    options = terraingen.BoulderLayerOptions(generate_random=False, coverage=0.0, manual=boulders)
+    options.validate()
+    layer = terraingen.BoulderLayer(options)
+    table = layer.boulders((-10.0, -10.0, 10.0, 10.0))
+    assert sorted(np.asarray(table["diameter"])) == [1.5, 2.0]
+    assert layer.density_at(1.0, 0.0, 0.0) == 0.0
+    assert layer.unresolved_cover_at(0.0, 0.0, 0.5) == (0.0, 0.0)
+    with pytest.raises(ValueError):
+        terraingen.boulder_candidates(options)
+    built = terraingen.BoulderLayer.manual(
+        boulders, terraingen.BoulderLayerOptions(relief=terraingen.BoulderRelief.SHAPE)
+    )
+    assert not built.options.generate_random and built.options.relief == terraingen.BoulderRelief.SHAPE
+    assert sorted(np.asarray(built.boulders((-10.0, -10.0, 10.0, 10.0))["diameter"])) == [1.5, 2.0]
+    centred = terraingen.BoulderLayer.manual([terraingen.ManualBoulder(0.0, 0.0, 1.0)])
+    terrain = terraingen.Terrain(terraingen.FlatSource(41, 41, 0.1), [centred])
+    heights = terraingen.evaluate(terrain).values
+    assert heights.max() > 0.2 and heights[0, 0] == 0.0

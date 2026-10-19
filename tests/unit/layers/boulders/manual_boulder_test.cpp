@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <vector>
@@ -313,6 +314,84 @@ TEST(ManualBoulder, ComparesUnsetFieldsAsEqualAndSaysWhatItFixes) {
     EXPECT_TRUE(azimuth.FixesOrientation());
     EXPECT_EQ(terraingen::ManualBoulderId(plain), terraingen::ManualCraterId(1.0, 2.0, 3.0));
     EXPECT_EQ(terraingen::ManualBoulderId(Posed()), 99u);
+}
+
+TEST(ManualOnlyBoulderLayer, PlacesTheManualBouldersAsAGeneratingLayerDoesAndNothingElse) {
+    EXPECT_TRUE(BoulderLayerOptions{}.generateRandom);
+    BoulderLayerOptions options = Options();
+    options.manual = {Posed(), Plain(2.0, 3.0, 2.5), Plain(-4.0, 1.0, 0.8), Plain(40.0, 40.0, 1.0)};
+    const Ramp ramp(0.1);
+    const auto generating = BoulderLayer(options).Boulders(kRegion, 0.0, &ramp);
+    BoulderLayerOptions manualOnly = options;
+    manualOnly.generateRandom = false;
+    const BoulderLayer layer(manualOnly);
+    const auto boulders = layer.Boulders(kRegion, 0.0, &ramp);
+    ASSERT_EQ(boulders.size(), 3u) << "the manual boulder far outside the region is left out";
+    EXPECT_GT(generating.size(), 20u);
+    for (const Boulder& boulder : boulders) {
+        const Boulder* drawn = Find(generating, boulder.id);
+        ASSERT_NE(drawn, nullptr);
+        EXPECT_EQ(boulder, *drawn) << "posed and placed bit for bit as with random boulders";
+    }
+    const auto models = layer.Models(boulders);
+    ASSERT_EQ(models.size(), 2u) << "the boulders from 1 m";
+    for (const auto& model : models) {
+        EXPECT_TRUE(SamePlacement(
+            model.placement,
+            ModelWithId(BoulderLayer(options).Models(generating), model.boulder.id).placement));
+    }
+    EXPECT_EQ(layer.MaxFeatureDiameter(), 2.5);
+    EXPECT_TRUE(layer.Boulders({-30.0, 20.0, -20.0, 30.0}).empty());
+}
+
+TEST(ManualOnlyBoulderLayer, NeedsNoSizesCraterLayerOrGroundAndHasNoAbundance) {
+    BoulderLayerOptions options;
+    options.generateRandom = false;
+    options.sizes.coverage = 0.0;
+    options.sizes.maxDiameter = 0.01;
+    options.ejecta.minCraterDiameter = 5.0;
+    options.bedrock.exposure = terraingen::ExposureParams{};
+    options.manual = {Plain(0.0, 0.0, 1.0)};
+    EXPECT_NO_THROW(terraingen::ValidateBoulderLayerOptions(options));
+    EXPECT_THROW(terraingen::BoulderCandidates(options), std::invalid_argument);
+    const BoulderLayer layer(options);
+    EXPECT_EQ(layer.Boulders(kRegion).size(), 1u) << "no ground needed for the exposure field";
+    EXPECT_EQ(layer.AbundanceAt(1.0, 1.0), (terraingen::BoulderAbundance{0.0, 0.0, 0.0, {}}));
+    EXPECT_EQ(layer.DensityAt(0.5, 1.0, 1.0), 0.0);
+    EXPECT_EQ(layer.UnresolvedCoverAt(1.0, 1.0, 0.5), terraingen::UnresolvedCover{});
+    const terraingen::RasterGrid grid{8, 8, terraingen::GeoTransform::NorthUp(-2.0, 2.0, 0.5)};
+    for (const auto& cover : layer.UnresolvedCoverOver(grid, 0.5, nullptr, 1)) {
+        EXPECT_EQ(cover, terraingen::UnresolvedCover{});
+    }
+    EXPECT_GT(layer.MaterialCoverAt(0.0, 0.0, 0.1, nullptr), 0.0) << "the manual boulder's rock";
+    EXPECT_EQ(layer.MaterialCoverAt(1.5, 1.5, 0.1, nullptr), 0.0);
+    options.generateRandom = true;
+    EXPECT_THROW(terraingen::ValidateBoulderLayerOptions(options), std::invalid_argument);
+}
+
+TEST(ManualOnlyBoulderLayer, DrawsTheManualBouldersIntoTheHeights) {
+    terraingen::Raster<float> heights(41, 41, 0.0f);
+    heights.SetTransform(terraingen::GeoTransform::NorthUp(-2.05, 2.05, 0.1));
+    BoulderLayer::Manual({Plain(0.0, 0.0, 1.0)})->Apply(heights, {0.1});
+    EXPECT_GT(heights(20, 20), 0.2f) << "the boulder at the centre";
+    EXPECT_EQ(heights(0, 0), 0.0f) << "and nothing else";
+}
+
+TEST(ManualOnlyBoulderLayer, ManualMakesALayerOfOnlyTheGivenBoulders) {
+    BoulderLayerOptions options = Options();
+    options.manual = {Plain(9.0, 9.0, 1.0)};
+    const std::vector<ManualBoulder> boulders{Posed(), Plain(2.0, 3.0, 2.5)};
+    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
+    const auto layer = BoulderLayer::Manual(boulders, options, moon);
+    EXPECT_FALSE(layer->Options().generateRandom);
+    EXPECT_EQ(layer->Options().manual, boulders);
+    EXPECT_EQ(layer->Options().rendering, options.rendering);
+    EXPECT_EQ(layer->Options().pose, options.pose);
+    const auto plain = BoulderLayer::Manual(boulders);
+    EXPECT_EQ(plain->Options().rendering, terraingen::BoulderRendering{});
+    EXPECT_EQ(plain->Boulders(kRegion).size(), 2u);
+    EXPECT_THROW(BoulderLayer::Manual({Plain(1.0, 2.0, 3.0), Plain(1.0, 2.0, 3.0)}),
+                 std::invalid_argument);
 }
 
 TEST(ManualBoulder, RejectsInvalidFieldsAndSharedIds) {

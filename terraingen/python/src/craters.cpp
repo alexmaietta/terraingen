@@ -416,10 +416,12 @@ void BindApply(nb::module_& m) {
 void BindLayerOptions(nb::module_& m) {
     auto options = nb::class_<CraterLayerOptions>(
         m, "CraterLayerOptions",
-        "A crater layer's settings: whether to `generate` craters from the density, its `seed`, "
-        "the `generation` options and the `apply` options.");
+        "A crater layer's settings: whether to `generate_random` craters from the density, its "
+        "`seed`, the `generation` options and the `apply` options.");
     BindKwargsInit<CraterLayerOptions>(options);
-    options.def_rw("generate", &CraterLayerOptions::generate)
+    options
+        .def_rw("generate_random", &CraterLayerOptions::generateRandom,
+                "Draws random craters from the density; off places only the manual craters.")
         .def_rw("surface", &CraterLayerOptions::surface,
                 "What the craters lie on; on a sphere they are placed by longitude and latitude.")
         .def_rw("seed", &CraterLayerOptions::seed)
@@ -447,6 +449,16 @@ void BindCraterLayer(nb::module_& m) {
         "manual craters, applied to the terrain.")
         .def(nb::init<CraterModels, CraterLayerOptions>(), "models"_a,
              "options"_a = CraterLayerOptions{})
+        .def_static(
+            "manual",
+            [](CraterModels models, const std::vector<Crater>& craters, CraterApplyOptions apply,
+               Surface surface) {
+                return CraterLayer::Manual(std::move(models), ManualCraters(craters),
+                                           std::move(apply), surface);
+            },
+            "models"_a, "craters"_a, "apply"_a = CraterApplyOptions{}, "surface"_a = Surface{},
+            "A layer of only `craters` (Crater), shaped by `models` and `apply`, with "
+            "`generate_random` off.")
         .def("craters", &CraterLayerTable, "region"_a, "spacing"_a = 0.0,
              "The craters over `region` (min_x, min_y, max_x, max_y) as NumPy columns, without "
              "evaluating any heights.")
