@@ -56,3 +56,11 @@ if(TARGET _terraingen)
                        "integration;examples;python" PASS_REGULAR_EXPRESSION "craters_simple")
     endif()
 endif()
+
+# The examples run longest, so a parallel ctest without timings from an earlier run starts them
+# before the unit tests instead of leaving a minutes-long example for the end.
+get_property(
+    example_tests
+    DIRECTORY
+    PROPERTY TESTS)
+set_tests_properties(${example_tests} PROPERTIES COST 10)

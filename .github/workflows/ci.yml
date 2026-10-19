@@ -156,7 +156,7 @@ jobs:
       - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
           key: coverage
-          max-size: 500M
+          max-size: 1G
       - name: Install lavapipe
         run: |
           sudo apt-get update
@@ -171,8 +171,7 @@ jobs:
       # examples that the integration tests run.
       - name: Build
         run: cmake --build build --parallel 4
-      # The tests four at a time (ctest reads CTEST_PARALLEL_LEVEL); some examples take minutes
-      # without optimization.
+      # The tests four at a time (ctest reads CTEST_PARALLEL_LEVEL), the long examples first.
       - name: Test and report
         env:
           CTEST_PARALLEL_LEVEL: "4"
