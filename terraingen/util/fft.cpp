@@ -2,8 +2,10 @@
 
 #include "terraingen/util/bits.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <stdexcept>
 #include <utility>
 
 namespace terraingen {
@@ -42,6 +44,30 @@ void Fft(std::vector<std::complex<double>>& values, double sign) {
                 values[start + k + length / 2] = even - odd;
                 w *= step;
             }
+        }
+    }
+}
+
+void Fft2(std::vector<std::complex<double>>& values, std::size_t width, std::size_t height,
+          double sign) {
+    if (values.size() != width * height) {
+        throw std::invalid_argument("A 2D FFT needs width x height values");
+    }
+    std::vector<std::complex<double>> line(width);
+    for (std::size_t row = 0; row < height; ++row) {
+        std::copy_n(values.begin() + static_cast<std::ptrdiff_t>(row * width), width, line.begin());
+        Fft(line, sign);
+        std::copy(line.begin(), line.end(),
+                  values.begin() + static_cast<std::ptrdiff_t>(row * width));
+    }
+    line.resize(height);
+    for (std::size_t col = 0; col < width; ++col) {
+        for (std::size_t row = 0; row < height; ++row) {
+            line[row] = values[row * width + col];
+        }
+        Fft(line, sign);
+        for (std::size_t row = 0; row < height; ++row) {
+            values[row * width + col] = line[row];
         }
     }
 }
