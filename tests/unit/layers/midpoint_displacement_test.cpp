@@ -1,5 +1,7 @@
 #include "terraingen/layers/midpoint_displacement.h"
 
+#include "terraingen/layers/sample_block.h"
+
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/grid.h"
@@ -315,4 +317,32 @@ TEST(EstimateMidpointRoughness, RecoversTheDimensionOfFractionalBrownianSurfaces
         EXPECT_NEAR(EstimateMidpointRoughness(heights).fractalDimension, dimension, tolerance)
             << dimension;
     }
+}
+
+TEST(MidpointDisplacementLayer, SkipsCellsAndPointsWithoutData) {
+    const Hills ground;
+    const MidpointDisplacementLayer layer(Options());
+    Raster<float> heights = RasterGrid{200, 10, GeoTransform::NorthUp(0.0, 10.0, 1.0)}.MakeRaster();
+    heights.SetNoData(-9999.0f);
+    for (std::size_t row = 0; row < heights.Height(); ++row) {
+        for (std::size_t col = 0; col < heights.Width(); ++col) {
+            heights(col, row) = col < 128 ? -9999.0f : 1.0f;
+        }
+    }
+    heights(150, 5) = std::numeric_limits<float>::quiet_NaN();
+    terraingen::LayerContext context;
+    context.ground = &ground;
+    layer.Apply(heights, context);
+    EXPECT_EQ(heights(0, 0), -9999.0f) << "a tile without data";
+    EXPECT_TRUE(std::isnan(heights(150, 5)));
+    EXPECT_NE(heights(151, 5), 1.0f);
+
+    const std::vector<terraingen::Vec2d> points{{3.0, 4.0}, {5.0, 6.0}};
+    std::vector<float> values{std::numeric_limits<float>::quiet_NaN(), 1.0f};
+    terraingen::SampleBlock block{terraingen::Span<const terraingen::Vec2d>(points),
+                                  terraingen::Span<float>(values)};
+    context.spacing = 1.0;
+    layer.Apply(block, context);
+    EXPECT_TRUE(std::isnan(values[0]));
+    EXPECT_NE(values[1], 1.0f);
 }

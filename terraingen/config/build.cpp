@@ -381,17 +381,14 @@ MidpointRoughness SourceRoughness(const Source& source, double pixelSize, const 
     return EstimateMidpointRoughness(heights);
 }
 
-/// The options of a midpoint displacement layer, from the base wherever the spec gives none.
+/// The options of a midpoint displacement layer, from the base wherever the spec gives none; a
+/// valid configuration has a base whenever the spec leaves a value out.
 MidpointDisplacementOptions BuildMidpointOptions(const MidpointDisplacementLayerSpec& spec,
                                                  const Source* source, const Surface& surface) {
     MidpointDisplacementOptions options;
     options.minPixelSize = spec.minPixelSize / surface.UnitLength();
     options.base = spec.base;
     options.seed = spec.seed;
-    if (!(spec.pixelSize && spec.originX && spec.originY) && !source) {
-        throw std::invalid_argument(
-            "A midpoint displacement layer without a base needs its pixel size and origin");
-    }
     const RasterGrid grid = source ? source->Grid() : RasterGrid{};
     options.pixelSize = spec.pixelSize ? *spec.pixelSize / surface.UnitLength() : grid.PixelSize();
     const Vec2d first = grid.transform.PixelToWorld(0.5, 0.5);
@@ -400,10 +397,6 @@ MidpointDisplacementOptions BuildMidpointOptions(const MidpointDisplacementLayer
         options.fractalDimension = *spec.fractalDimension;
         options.scale = *spec.scale;
         return options;
-    }
-    if (!source) {
-        throw std::invalid_argument(
-            "A midpoint displacement layer without a base needs its fractal dimension and scale");
     }
     const MidpointRoughness roughness = SourceRoughness(*source, options.pixelSize, options.origin);
     options.fractalDimension = spec.fractalDimension.value_or(roughness.fractalDimension);

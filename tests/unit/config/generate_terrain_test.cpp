@@ -718,6 +718,11 @@ TEST(WriteOutputs, WritesEveryHierarchyFileAndItsManifest) {
 
     config.hierarchy->manifest.clear();
     EXPECT_EQ(terraingen::WriteOutputs(config, generated, folder).size(), 6u);
+
+    config.hierarchy->products = {terraingen::HierarchyProduct::CraterList};
+    const auto lists = GenerateTerrain(config, folder);
+    EXPECT_TRUE(lists.grids.empty()) << "no grids to blend";
+    EXPECT_EQ(terraingen::WriteOutputs(config, lists, folder).size(), 3u);
 }
 
 TEST(ValidateConfig, NamesTheHierarchyRegionThatOverlapsAnother) {
