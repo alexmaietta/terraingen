@@ -23,8 +23,15 @@
                 "age_gyr": 3.0
             },
             "ages": {
-                "type": "uniform",
-                "lifetime_gyr": 3.0
+                "type": "steady_state",
+                "production": "ivanov",
+                "chronology": "ivanov",
+                "equilibrium": "hartmann",
+                "age_gyr": 3.0
+            },
+            "degradation": {
+                "type": "diffusion",
+                "diffusivity": "matched"
             },
             "min_diameter": 15,
             "max_diameter": 500

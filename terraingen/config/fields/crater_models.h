@@ -238,8 +238,9 @@ template <> struct SpecName<DiffusionDegradationSpec> {
 };
 template <typename IO> void Fields(IO& io, DiffusionDegradationSpec& spec) {
     io("diffusivity", spec.diffusivity,
-       "Model of the diffusion age each crater has from its diameter and age; on Mars only "
-       "power_law is allowed.");
+       "Model of the diffusion age each crater has from its diameter and age. The named fits are "
+       "lunar; matched follows any steady-state ages, such as Martian ones from Ivanov's "
+       "production function.");
     io("power_law", spec.powerLaw, "The diffusivity used when the diffusivity model is power_law.");
     io("reach_radii", spec.reachRadii,
        "Distance from the centre, in crater radii, out to which the diffused profile is solved "
