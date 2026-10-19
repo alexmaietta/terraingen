@@ -4,6 +4,8 @@
 #include "tables.h"
 
 #include "terraingen/layers/boulders/boulder.h"
+#include "terraingen/layers/boulders/boulder_abundance.h"
+#include "terraingen/layers/boulders/boulder_clusters.h"
 #include "terraingen/layers/boulders/boulder_layer.h"
 #include "terraingen/layers/boulders/boulder_models.h"
 #include "terraingen/layers/boulders/boulder_options.h"

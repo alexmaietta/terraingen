@@ -346,38 +346,6 @@ struct BoulderLayerOptions {
     bool operator==(const BoulderLayerOptions&) const = default;
 };
 
-/// How a density map sets a boulder layer's abundance between craters: the abundance at which the
-/// boulder sizes measure what the map does, once the crater blocks there are taken out of it for a
-/// `total` map. With Golombek-Rapp sizes it solves for the coverage, as rock abundance maps give.
-class BoulderMapAbundance {
-  public:
-    /// @throws std::invalid_argument for no map, an invalid one, or one measuring none of the
-    /// sizes.
-    /// @throws std::domain_error as `MapMeasure`.
-    explicit BoulderMapAbundance(const BoulderLayerOptions& options);
-
-    /// The abundance where the map reads `value` (`MapValueAt`) and the crater blocks hold `ejecta`
-    /// of their full abundance: 1 where `value` is NaN, 0 where the blocks make up the whole map.
-    double At(double value, double ejecta) const;
-
-    /// The largest abundance the map gives anywhere, at least 1.
-    double Max() const {
-        return max_;
-    }
-
-  private:
-    /// The coverage at which Golombek-Rapp boulders measure `target`.
-    double Coverage(double target) const;
-
-    DensityMap map_;
-    double coverage_ = 0.0;
-    double measure_ = 0.0;
-    double ejectaMeasure_ = 0.0;
-    std::vector<double> coverages_;
-    std::vector<double> measures_;
-    double max_ = 1.0;
-};
-
 /// Checks boulder sizes.
 /// @throws std::invalid_argument unless 0 < `minDiameter` < `maxDiameter` are finite, and either
 /// the distribution is a density covering the diameters (or extrapolating) or 0 < `coverage` < 1.
@@ -413,32 +381,6 @@ void ValidateBoulderPose(const BoulderPose& pose);
 /// radius positive, below the spacing for `Nearest` and at most twice it for `Thomas`.
 void ValidateBoulderClusters(const BoulderClusters& clusters);
 
-/// A cluster's weight `distance` metres from its centre: a Gaussian of the cluster's radius.
-double ClusterBump(double distance, const BoulderClusters& clusters);
-
-/// The distance in radii beyond which a `Thomas` cluster adds nothing.
-inline constexpr double kThomasReachRadii = 4.0;
-
-/// The mean of `ClusterBump` of the nearest cluster centre over the plane, which the cluster field
-/// is divided by to keep the mean density.
-double MeanClusterBump(const BoulderClusters& clusters);
-
-/// The mean over the surface of the `Thomas` field, the sum of `ClusterBump` within
-/// `kThomasReachRadii` of every centre, which it is divided by to keep the mean density.
-/// @param body Whether centres are scattered through space around a body, `spacing`^2 per square
-/// metre of a plane through them, rather than over a plane.
-double MeanThomasField(const BoulderClusters& clusters, bool body = false);
-
-/// The largest a cluster field multiplies the scattered boulder density by; 1 without clusters.
-/// For `Thomas` it is where as many centres crowd within 3 radii as a one in a million chance
-/// allows, and the rare points above it are capped to it.
-double MaxClusterAbundance(const BoulderClusters& clusters);
-
-/// The mean over the plane of the patches' abundance, `spread` to the power of `PatchNoise`,
-/// which is above 1 for a spread above 1; under a density map the patches are divided by it so
-/// they keep the map's mean. 1 without patches.
-double MeanPatchAbundance(const BoulderPatches& patches);
-
 /// Checks boulder fragmentation.
 /// @throws std::invalid_argument unless the minimum diameter is positive, 0 <= `splitWear` <=
 /// `rubbleWear` <= 1, 2 <= `minPieces` <= `maxPieces` <= 12, and the ratios are finite and not
@@ -458,20 +400,5 @@ void ValidateBoulderRendering(const BoulderRendering& rendering);
 /// @throws std::invalid_argument for any invalid part, or Golombek-Rapp coverage times the patch
 /// spread and bedrock abundance of 1 or more.
 void ValidateBoulderLayerOptions(const BoulderLayerOptions& options);
-
-/// The largest background abundance, on the richest patches on bedrock: the patch spread, times
-/// the bedrock abundance (at least 1) when bedrock is enabled.
-double MaxBackgroundAbundance(const BoulderLayerOptions& options);
-
-/// The sizes of the crater blocks at a fresh crater's rim: the ejecta distribution, or
-/// Golombek-Rapp blocks of the ejecta coverage.
-std::shared_ptr<const SizeFrequencyDistribution> EjectaSizes(const BoulderLayerOptions& options);
-
-/// The distribution per m^2 candidate boulders are drawn from before thinning: the boulders
-/// between craters at their richest, with a size slope map the power laws at its bounding
-/// exponents too, plus fresh crater blocks when enabled.
-/// @throws std::invalid_argument as `ValidateBoulderLayerOptions`.
-std::shared_ptr<const SizeFrequencyDistribution>
-BoulderCandidates(const BoulderLayerOptions& options);
 
 }  // namespace terraingen

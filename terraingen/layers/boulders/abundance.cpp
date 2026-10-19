@@ -1,5 +1,6 @@
 #include "terraingen/layers/boulders/boulder_layer.h"
 
+#include "terraingen/layers/boulders/boulder_clusters.h"
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/noise/worley.h"
@@ -18,8 +19,6 @@ namespace terraingen {
 
 namespace {
 
-constexpr std::uint32_t kBoulderPatches = 0x50415443u;
-constexpr std::uint32_t kBoulderClusters = 0x434C5553u;
 constexpr std::uint32_t kThomasCentres2 = 0x54484D32u;
 constexpr std::uint32_t kThomasCentres3 = 0x54484D33u;
 constexpr std::uint32_t kBedrockMeans = 0x4245444Du;
@@ -80,7 +79,7 @@ EjectaIndex BoulderLayer::EjectaCraters(const Bounds2d& region) const {
 
 double BoulderLayer::NearestClusterDistance(double x, double y) const {
     const double spacing = options_.clusters.spacing;
-    const std::uint32_t seed = options_.seed ^ kBoulderClusters;
+    const std::uint32_t seed = options_.seed ^ kBoulderClusterStream;
     if (surface_.IsBody()) {
         const Vec3d p = surface_.Position({x, y});
         const double s = 1.0 / spacing;
@@ -92,57 +91,86 @@ double BoulderLayer::NearestClusterDistance(double x, double y) const {
                Worley2(static_cast<float>(x / spacing), static_cast<float>(y / spacing), seed).f1);
 }
 
-double BoulderLayer::ThomasClusterField(double x, double y) const {
-    const BoulderClusters& clusters = options_.clusters;
-    const double sigma = clusters.radius;
-    const double side = kThomasReachRadii * sigma;
-    const double perArea = 1.0 / (clusters.spacing * clusters.spacing);
-    const std::uint32_t seed = options_.seed ^ kBoulderClusters;
-    const auto word = [](double cell) {
+namespace {
+
+/// The cells and Gaussians of a `Thomas` cluster field: centres scattered `perCell` to a cell
+/// `side` across, each adding a Gaussian of `sigma` cut at `side`.
+struct ThomasLattice {
+    double sigma = 1.0;
+    double side = 1.0;
+    double perCell = 0.0;
+    std::uint32_t seed = 0;
+
+    /// The word of the lattice cell index `cell`.
+    static std::uint32_t Word(double cell) {
         return static_cast<std::uint32_t>(static_cast<std::int64_t>(cell));
-    };
-    const auto bump = [&](double squared) {
+    }
+
+    /// The Gaussian of a centre `squared` square metres away.
+    double Bump(double squared) const {
         return squared < side * side ? std::exp(-0.5 * squared / (sigma * sigma)) : 0.0;
-    };
-    double sum = 0.0;
-    if (surface_.IsBody()) {
-        const Vec3d p = surface_.Position({x, y});
-        const double perCell =
-            perArea / (std::sqrt(2.0 * std::numbers::pi) * sigma) * side * side * side;
+    }
+
+    /// The field at `p` from centres scattered through space.
+    double Sum3(const Vec3d& p) const {
+        double sum = 0.0;
         const double cx = std::floor(p.x / side);
         const double cy = std::floor(p.y / side);
         const double cz = std::floor(p.z / side);
         for (double k = cz - 1.0; k <= cz + 1.0; k += 1.0) {
             for (double j = cy - 1.0; j <= cy + 1.0; j += 1.0) {
                 for (double i = cx - 1.0; i <= cx + 1.0; i += 1.0) {
-                    RandomStream random(seed, kThomasCentres3, word(i), word(j), word(k));
+                    RandomStream random(seed, kThomasCentres3, Word(i), Word(j), Word(k));
                     const std::uint64_t count = SamplePoisson(random, perCell);
                     for (std::uint64_t n = 0; n < count; ++n) {
                         const double dx = (i + random.NextDouble()) * side - p.x;
                         const double dy = (j + random.NextDouble()) * side - p.y;
                         const double dz = (k + random.NextDouble()) * side - p.z;
-                        sum += bump(dx * dx + dy * dy + dz * dz);
+                        sum += Bump(dx * dx + dy * dy + dz * dz);
                     }
                 }
             }
         }
         return sum;
     }
-    const double perCell = perArea * side * side;
-    const double cx = std::floor(x / side);
-    const double cy = std::floor(y / side);
-    for (double j = cy - 1.0; j <= cy + 1.0; j += 1.0) {
-        for (double i = cx - 1.0; i <= cx + 1.0; i += 1.0) {
-            RandomStream random(seed, kThomasCentres2, word(i), word(j));
-            const std::uint64_t count = SamplePoisson(random, perCell);
-            for (std::uint64_t n = 0; n < count; ++n) {
-                const double dx = (i + random.NextDouble()) * side - x;
-                const double dy = (j + random.NextDouble()) * side - y;
-                sum += bump(dx * dx + dy * dy);
+
+    /// The field at (`x`, `y`) from centres scattered over the plane.
+    double Sum2(double x, double y) const {
+        double sum = 0.0;
+        const double cx = std::floor(x / side);
+        const double cy = std::floor(y / side);
+        for (double j = cy - 1.0; j <= cy + 1.0; j += 1.0) {
+            for (double i = cx - 1.0; i <= cx + 1.0; i += 1.0) {
+                RandomStream random(seed, kThomasCentres2, Word(i), Word(j));
+                const std::uint64_t count = SamplePoisson(random, perCell);
+                for (std::uint64_t n = 0; n < count; ++n) {
+                    const double dx = (i + random.NextDouble()) * side - x;
+                    const double dy = (j + random.NextDouble()) * side - y;
+                    sum += Bump(dx * dx + dy * dy);
+                }
             }
         }
+        return sum;
     }
-    return sum;
+};
+
+}  // namespace
+
+double BoulderLayer::ThomasClusterField(double x, double y) const {
+    const BoulderClusters& clusters = options_.clusters;
+    ThomasLattice lattice;
+    lattice.sigma = clusters.radius;
+    lattice.side = kThomasReachRadii * lattice.sigma;
+    lattice.seed = options_.seed ^ kBoulderClusterStream;
+    const double perArea = 1.0 / (clusters.spacing * clusters.spacing);
+    const double side = lattice.side;
+    if (surface_.IsBody()) {
+        lattice.perCell =
+            perArea / (std::sqrt(2.0 * std::numbers::pi) * lattice.sigma) * side * side * side;
+        return lattice.Sum3(surface_.Position({x, y}));
+    }
+    lattice.perCell = perArea * side * side;
+    return lattice.Sum2(x, y);
 }
 
 double BoulderLayer::BackgroundAbundance(double x, double y, const Ground* ground,
@@ -152,7 +180,7 @@ double BoulderLayer::BackgroundAbundance(double x, double y, const Ground* groun
     const BoulderPatches& patches = options_.patches;
     if (patches.spread > 1.0) {
         const double noise =
-            PatchNoise(surface_, x, y, patches.size, options_.seed ^ kBoulderPatches);
+            PatchNoise(surface_, x, y, patches.size, options_.seed ^ kBoulderPatchStream);
         background *= std::pow(patches.spread, noise) / patchMean_;
     }
     const BoulderClusters& clusters = options_.clusters;
@@ -173,7 +201,7 @@ double BoulderLayer::BackgroundAbundance(double x, double y, const Ground* groun
     return std::min(background, maxBackground_);
 }
 
-std::size_t BoulderLayer::MeanCellHash::operator()(const MeanCell& cell) const {
+std::size_t BoulderLayer::BedrockCellHash::operator()(const BedrockCell& cell) const {
     const auto words = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(cell.ground));
     const U32x4 hash =
         Philox4x32({static_cast<std::uint32_t>(cell.i), static_cast<std::uint32_t>(cell.j),
@@ -191,9 +219,11 @@ double BoulderLayer::BedrockMean(double x, double y, const Ground& ground) const
             for (int b = 0; b < kSide; ++b) {
                 for (int a = 0; a < kSide; ++a) {
                     const double px =
-                        meanOrigin_.x + (static_cast<double>(i) + (a + 0.5) / kSide) * meanCell_.x;
+                        bedrockOrigin_.x +
+                        (static_cast<double>(i) + (a + 0.5) / kSide) * bedrockCellSize_.x;
                     const double py =
-                        meanOrigin_.y + (static_cast<double>(j) + (b + 0.5) / kSide) * meanCell_.y;
+                        bedrockOrigin_.y +
+                        (static_cast<double>(j) + (b + 0.5) / kSide) * bedrockCellSize_.y;
                     sum += 1.0 + gain * exposure_->Exposure(ground, px, py,
                                                             options_.bedrock.exposureSpacing);
                 }
@@ -201,8 +231,8 @@ double BoulderLayer::BedrockMean(double x, double y, const Ground& ground) const
             return sum / (kSide * kSide);
         });
     };
-    const double u = (x - meanOrigin_.x) / meanCell_.x - 0.5;
-    const double v = (y - meanOrigin_.y) / meanCell_.y - 0.5;
+    const double u = (x - bedrockOrigin_.x) / bedrockCellSize_.x - 0.5;
+    const double v = (y - bedrockOrigin_.y) / bedrockCellSize_.y - 0.5;
     const double fu = std::floor(u);
     const double fv = std::floor(v);
     const auto i = static_cast<std::int64_t>(fu);

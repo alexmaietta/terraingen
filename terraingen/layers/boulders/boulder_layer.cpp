@@ -1,5 +1,7 @@
 #include "terraingen/layers/boulders/boulder_layer.h"
 
+#include "terraingen/layers/boulders/boulder_clusters.h"
+
 #include "terraingen/layers/craters/ages/age_model.h"
 #include "terraingen/noise/hash.h"
 #include "terraingen/random/philox.h"
@@ -165,22 +167,36 @@ BoulderLayer::BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const Cr
     if (craters_ && !(craters_->Options().surface == surface_)) {
         throw std::invalid_argument("A boulder layer and its crater layer must share a surface");
     }
-    if (surface_.IsBody()) {
-        cells_ = std::make_shared<CubeSphereCells>(surface_);
-    } else {
-        cells_ = std::make_shared<PlanarCells>();
-    }
-    candidates_ = BoulderCandidates(options_);
+    ValidateBoulderLayerOptions(options_);
     minCraterDiameter_ = options_.ejecta.MinCraterDiameter();
     if (minCraterDiameter_ > 0.0 && !craters_) {
         throw std::invalid_argument(
             "Boulder ejecta need the crater layer whose craters throw them");
     }
-    maxBackground_ = MaxBackgroundAbundance(options_);
-    if (options_.densityMap) {
-        mapAbundance_.emplace(options_);
-        patchMean_ = MeanPatchAbundance(options_.patches);
+    if (surface_.IsBody()) {
+        cells_ = std::make_shared<CubeSphereCells>(surface_);
+    } else {
+        cells_ = std::make_shared<PlanarCells>();
     }
+    SetUpAbundance();
+    if (options_.cacheBoulders > 0) {
+        cache_ = std::make_shared<CraterCellCache>(options_.cacheBoulders);
+    }
+    if (options_.bedrock.exposure) {
+        exposure_.emplace(*options_.bedrock.exposure, surface_);
+    }
+    if (exposure_ && options_.densityMap) {
+        SetUpBedrockMeans();
+    }
+    SetUpShapeCaches();
+}
+
+void BoulderLayer::SetUpAbundance() {
+    BoulderBackground background(options_);
+    maxBackground_ = background.max;
+    patchMean_ = background.patchMean;
+    mapAbundance_ = std::move(background.map);
+    candidates_ = BoulderCandidates(options_, maxBackground_);
     if (options_.slopeMap) {
         referenceCount_ =
             options_.sizes.distribution->Cumulative(options_.slopeMap->referenceDiameter);
@@ -191,25 +207,22 @@ BoulderLayer::BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const Cr
                            : MeanClusterBump(options_.clusters);
     }
     ejectaSizes_ = minCraterDiameter_ > 0.0 ? EjectaSizes(options_) : nullptr;
-    if (options_.cacheBoulders > 0) {
-        cache_ = std::make_shared<CraterCellCache>(options_.cacheBoulders);
+}
+
+void BoulderLayer::SetUpBedrockMeans() {
+    constexpr std::size_t kMeanCells = 1u << 16;
+    const double side = options_.bedrock.meanSize / surface_.UnitLength();
+    bedrockCellSize_ = {side, side};
+    if (const auto* raster = dynamic_cast<const RasterField*>(options_.densityMap->field.get())) {
+        const GeoTransform& transform = raster->Values().Transform();
+        bedrockOrigin_ = {transform.originX, transform.originY};
+        bedrockCellSize_ = {transform.pixelWidth, transform.pixelHeight};
     }
-    if (options_.bedrock.exposure) {
-        exposure_.emplace(*options_.bedrock.exposure, surface_);
-    }
-    if (exposure_ && options_.densityMap) {
-        constexpr std::size_t kMeanCells = 1u << 16;
-        const double side = options_.bedrock.meanSize / surface_.UnitLength();
-        meanCell_ = {side, side};
-        if (const auto* raster =
-                dynamic_cast<const RasterField*>(options_.densityMap->field.get())) {
-            const GeoTransform& transform = raster->Values().Transform();
-            meanOrigin_ = {transform.originX, transform.originY};
-            meanCell_ = {transform.pixelWidth, transform.pixelHeight};
-        }
-        bedrockMeans_ = std::make_shared<LruCache<MeanCell, double, MeanCellHash>>(
-            kMeanCells, [](const double&) { return std::size_t{1}; });
-    }
+    bedrockMeans_ = std::make_shared<LruCache<BedrockCell, double, BedrockCellHash>>(
+        kMeanCells, [](const double&) { return std::size_t{1}; });
+}
+
+void BoulderLayer::SetUpShapeCaches() {
     const std::uint32_t prototypes = options_.rendering.shapePrototypes;
     shapes_ = std::make_shared<LruCache<std::uint64_t, BoulderShape>>(
         prototypes > 0 ? prototypes : 4096, [](const BoulderShape&) { return std::size_t{1}; });

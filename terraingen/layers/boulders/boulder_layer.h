@@ -4,6 +4,7 @@
 
 #include "terraingen/distribution/size_frequency.h"
 #include "terraingen/layers/boulders/boulder.h"
+#include "terraingen/layers/boulders/boulder_abundance.h"
 #include "terraingen/layers/boulders/boulder_fragments.h"
 #include "terraingen/layers/boulders/boulder_models.h"
 #include "terraingen/layers/boulders/boulder_options.h"
@@ -139,6 +140,12 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     void ApplySamples(SampleBlock& samples, const LayerContext& context) const override;
 
   private:
+    /// Builds the background abundance models, the candidate sizes and the cluster mean.
+    void SetUpAbundance();
+    /// Sets the lattice bedrock means are taken over and their cache.
+    void SetUpBedrockMeans();
+    /// Makes the caches of shared shapes and their fragments.
+    void SetUpShapeCaches();
     /// The candidates of `region`, before thinning.
     CraterList ScatterBoulderCandidates(const Bounds2d& region, double spacing) const;
     /// A candidate thinning keeps, with what it was kept by.
@@ -257,14 +264,14 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     double BedrockMean(double x, double y, const Ground& ground) const;
 
     /// A cell of the lattice bedrock means are taken over, on one ground.
-    struct MeanCell {
+    struct BedrockCell {
         const Ground* ground = nullptr;
         std::int64_t i = 0;
         std::int64_t j = 0;
-        bool operator==(const MeanCell&) const = default;
+        bool operator==(const BedrockCell&) const = default;
     };
-    struct MeanCellHash {
-        std::size_t operator()(const MeanCell& cell) const;
+    struct BedrockCellHash {
+        std::size_t operator()(const BedrockCell& cell) const;
     };
 
     BoulderLayerOptions options_;
@@ -274,10 +281,10 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     double clusterMean_ = 1.0;
     double referenceCount_ = 0.0;  ///< N(>=D0) of the sizes at a size slope map's D0, per m^2.
     std::optional<BoulderMapAbundance> mapAbundance_;
-    double patchMean_ = 1.0;  ///< Under a map, what the patches are divided by.
-    Vec2d meanOrigin_{};      ///< Corner of the bedrock mean lattice, in surface units.
-    Vec2d meanCell_{};        ///< Its cell sides, in surface units; signed as the map's.
-    std::shared_ptr<LruCache<MeanCell, double, MeanCellHash>> bedrockMeans_;
+    double patchMean_ = 1.0;   ///< Under a map, what the patches are divided by.
+    Vec2d bedrockOrigin_{};    ///< Corner of the bedrock mean lattice, in surface units.
+    Vec2d bedrockCellSize_{};  ///< Its cell sides, in surface units; signed as the map's.
+    std::shared_ptr<LruCache<BedrockCell, double, BedrockCellHash>> bedrockMeans_;
     std::shared_ptr<const SizeFrequencyDistribution> candidates_;
     std::shared_ptr<const SizeFrequencyDistribution> ejectaSizes_;
     std::shared_ptr<CraterCellCache> cache_;

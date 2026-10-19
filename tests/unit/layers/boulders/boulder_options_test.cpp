@@ -1,3 +1,4 @@
+#include "terraingen/layers/boulders/boulder_clusters.h"
 #include "terraingen/terraingen.h"
 
 #include <gtest/gtest.h>
@@ -59,4 +60,23 @@ TEST(BoulderCandidates, CoverTheRichestBackgroundPlusCraterBlocks) {
     EXPECT_DOUBLE_EQ(terraingen::BoulderCandidates(ejecta)->Incremental(1.0),
                      terraingen::GolombekRappSfd(0.02).Incremental(1.0) +
                          terraingen::GolombekRappSfd(0.1).Incremental(1.0));
+}
+
+TEST(BoulderBackground, BuildsTheModelsOnceAndMatchesTheirFunctions) {
+    BoulderLayerOptions options;
+    options.patches.spread = 3.0;
+    const terraingen::BoulderBackground plain(options);
+    EXPECT_EQ(plain.patchMean, 1.0) << "patches are only rescaled under a map";
+    EXPECT_FALSE(plain.map.has_value());
+    EXPECT_EQ(plain.max, terraingen::MaxBackgroundAbundance(options));
+    EXPECT_EQ(terraingen::BoulderCandidates(options, plain.max)->Incremental(0.5),
+              terraingen::BoulderCandidates(options)->Incremental(0.5));
+    options.sizes.coverage = 0.5;
+    EXPECT_THROW(terraingen::BoulderCandidates(options), std::invalid_argument)
+        << "the checked overload validates";
+}
+
+TEST(LatticeMean, AveragesOverTheLatticeCentres) {
+    EXPECT_DOUBLE_EQ(terraingen::LatticeMean(4.0, [](double x, double y) { return x + y; }), 4.0);
+    EXPECT_EQ(terraingen::LatticeMean(1.0, [](double, double) { return 2.0; }), 2.0);
 }

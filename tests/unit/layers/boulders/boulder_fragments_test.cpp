@@ -1,5 +1,6 @@
 #include "terraingen/layers/boulders/boulder_fragments.h"
 
+#include "terraingen/layers/boulders/boulder_clusters.h"
 #include "terraingen/layers/boulders/boulder_layer.h"
 #include "terraingen/terraingen.h"
 
