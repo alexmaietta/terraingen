@@ -1,6 +1,7 @@
 #include "terraingen/pipeline/terrain.h"
 
 #include "terraingen/layers/evaluation_cache.h"
+#include "terraingen/util/arithmetic.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/log.h"
 #include "terraingen/util/parallel.h"
@@ -49,6 +50,25 @@ std::uint32_t MortonKey(const Vec2d& point, const Bounds2d& bounds) {
            (spread(quantize(point.y, bounds.minY, bounds.maxY)) << 1u);
 }
 
+/// The indices of `points` sorted by their Morton codes over the points' bounds, ties by index.
+std::vector<std::size_t> MortonOrder(std::span<const Vec2d> points) {
+    Bounds2d bounds{points[0].x, points[0].y, points[0].x, points[0].y};
+    for (const Vec2d& p : points) {
+        bounds = {std::fmin(bounds.minX, p.x), std::fmin(bounds.minY, p.y),
+                  std::fmax(bounds.maxX, p.x), std::fmax(bounds.maxY, p.y)};
+    }
+    std::vector<std::pair<std::uint32_t, std::size_t>> keyed(points.size());
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        keyed[i] = {MortonKey(points[i], bounds), i};
+    }
+    std::sort(keyed.begin(), keyed.end());
+    std::vector<std::size_t> order(points.size());
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        order[i] = keyed[i].second;
+    }
+    return order;
+}
+
 /// `EvaluateStack` over `points` in batches on `threads` threads, the points taken in Morton order
 /// so each batch covers a small area and prepares only the features there.
 void EvaluateBatched(const Terrain& terrain, std::size_t layers, std::span<const Vec2d> points,
@@ -58,45 +78,54 @@ void EvaluateBatched(const Terrain& terrain, std::size_t layers, std::span<const
         EvaluateStack(terrain, layers, points, heights, spacing);
         return;
     }
-    Bounds2d bounds{points[0].x, points[0].y, points[0].x, points[0].y};
-    for (const Vec2d& p : points) {
-        bounds = {std::fmin(bounds.minX, p.x), std::fmin(bounds.minY, p.y),
-                  std::fmax(bounds.maxX, p.x), std::fmax(bounds.maxY, p.y)};
-    }
-    std::vector<std::pair<std::uint32_t, std::size_t>> order(points.size());
-    for (std::size_t i = 0; i < points.size(); ++i) {
-        order[i] = {MortonKey(points[i], bounds), i};
-    }
-    std::sort(order.begin(), order.end());
+    const std::vector<std::size_t> order = MortonOrder(points);
     std::vector<Vec2d> sorted(points.size());
     for (std::size_t i = 0; i < points.size(); ++i) {
-        sorted[i] = points[order[i].second];
+        sorted[i] = points[order[i]];
     }
     std::vector<float> values(points.size());
     EvaluationCache cache;
-    const std::size_t batches = (points.size() + kBatch - 1) / kBatch;
-    ParallelFor(batches, threads, [&](std::size_t batch) {
+    ParallelFor(CeilDiv(points.size(), kBatch), threads, [&](std::size_t batch) {
         const std::size_t begin = batch * kBatch;
         const std::size_t count = std::min(kBatch, points.size() - begin);
         EvaluateStack(terrain, layers, std::span<const Vec2d>(sorted).subspan(begin, count),
                       std::span<float>(values).subspan(begin, count), spacing, &cache);
     });
     for (std::size_t i = 0; i < points.size(); ++i) {
-        heights[order[i].second] = values[i];
+        heights[order[i]] = values[i];
     }
 }
+
+/// The ground beneath the first layers of a terrain it keeps.
+class OwnedGround final : public Ground {
+  public:
+    OwnedGround(const Terrain& terrain, std::size_t layers)
+        : terrain_(std::make_shared<const Terrain>(terrain)), ground_(*terrain_, layers) {}
+
+    float HeightAt(double x, double y, double spacing) const override {
+        return ground_.HeightAt(x, y, spacing);
+    }
+    void HeightsAt(std::span<const Vec2d> points, std::span<float> heights,
+                   double spacing) const override {
+        ground_.HeightsAt(points, heights, spacing);
+    }
+
+  private:
+    std::shared_ptr<const Terrain> terrain_;
+    TerrainGround ground_;
+};
 
 }  // namespace
 
 Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid, double spacing) {
-    return Evaluate(terrain, grid, EvaluationOptions{spacing, 1});
+    return Evaluate(terrain, grid, EvaluationOptions{spacing});
 }
 
 Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid,
                        const EvaluationOptions& options) {
     ValidateTerrain(terrain);
     RequireNonNegative(options.spacing, "Sample spacing");
-    const double resolved = std::max(options.spacing, grid.Spacing(terrain.surface));
+    const double resolved = ResolvedSpacing(grid, options.spacing, terrain.surface);
     const Backend backend = ResolveBackend(options.backend.value_or(DefaultBackend()));
     Raster<float> heights = grid.MakeRaster();
     if (terrain.source) {
@@ -132,7 +161,7 @@ std::vector<float> EvaluatePoints(const Terrain& terrain, std::span<const Vec2d>
 
 float EvaluateAt(const Terrain& terrain, double x, double y, double spacing) {
     const Vec2d point{x, y};
-    return EvaluatePoints(terrain, {&point, 1}, spacing, 1)[0];
+    return EvaluatePoints(terrain, {&point, 1}, spacing)[0];
 }
 
 TerrainGround::TerrainGround(const Terrain& terrain, std::size_t layers)
@@ -153,29 +182,6 @@ void TerrainGround::HeightsAt(std::span<const Vec2d> points, std::span<float> he
                               double spacing) const {
     EvaluateBatched(terrain_, layers_, points, heights, spacing, 0);
 }
-
-namespace {
-
-/// The ground beneath the first layers of a terrain it keeps.
-class OwnedGround final : public Ground {
-  public:
-    OwnedGround(const Terrain& terrain, std::size_t layers)
-        : terrain_(std::make_shared<const Terrain>(terrain)), ground_(*terrain_, layers) {}
-
-    float HeightAt(double x, double y, double spacing) const override {
-        return ground_.HeightAt(x, y, spacing);
-    }
-    void HeightsAt(std::span<const Vec2d> points, std::span<float> heights,
-                   double spacing) const override {
-        ground_.HeightsAt(points, heights, spacing);
-    }
-
-  private:
-    std::shared_ptr<const Terrain> terrain_;
-    TerrainGround ground_;
-};
-
-}  // namespace
 
 std::shared_ptr<const Ground> SharedGround(const Terrain& terrain, std::size_t layers) {
     return std::make_shared<OwnedGround>(terrain, layers);

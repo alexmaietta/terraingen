@@ -35,21 +35,47 @@ std::size_t BareLayers(const Terrain& terrain) {
     return n;
 }
 
-/// The shares before any material layer: soil, bedrock where `bare` is exposed and dust patches.
-MaterialShares GroundShares(const Terrain& terrain, const MaterialOptions& options,
-                            const ExposureField* field, const Ground& bare, double x, double y,
-                            double spacing) {
-    MaterialShares shares = SoilShares();
-    if (field != nullptr) {
-        CoverWith(shares, MaterialClass::Bedrock, field->Exposure(bare, x, y, spacing));
-    }
-    if (options.dustCover > 0.0) {
-        const double noise = PatchNoise(terrain.surface, x, y, options.dustPatch, options.seed);
-        const double threshold = 1.0 - 2.0 * options.dustCover;
-        CoverWith(shares, MaterialClass::Dust, Smoothstep((noise - threshold) / kDustEdge));
-    }
-    return shares;
+/// `terrain`, after checking it and `options`.
+const Terrain& Checked(const Terrain& terrain, const MaterialOptions& options) {
+    ValidateMaterialOptions(options);
+    ValidateTerrain(terrain);
+    return terrain;
 }
+
+/// The shares of a terrain before any material layer: soil, bedrock where the bare ground is
+/// exposed and dust patches.
+class GroundCover {
+  public:
+    /// @throws std::invalid_argument as `ValidateMaterialOptions` and `ValidateTerrain`.
+    GroundCover(const Terrain& terrain, const MaterialOptions& options)
+        : terrain_(Checked(terrain, options)), options_(options),
+          bare_(terrain, BareLayers(terrain)) {
+        if (options.exposure) {
+            field_.emplace(*options.exposure, terrain.surface);
+        }
+    }
+
+    /// The shares at surface point (`x`, `y`), reading the ground at `spacing` metres.
+    MaterialShares At(double x, double y, double spacing) const {
+        MaterialShares shares = SoilShares();
+        if (field_) {
+            CoverWith(shares, MaterialClass::Bedrock, field_->Exposure(bare_, x, y, spacing));
+        }
+        if (options_.dustCover > 0.0) {
+            const double noise =
+                PatchNoise(terrain_.surface, x, y, options_.dustPatch, options_.seed);
+            const double threshold = 1.0 - 2.0 * options_.dustCover;
+            CoverWith(shares, MaterialClass::Dust, Smoothstep((noise - threshold) / kDustEdge));
+        }
+        return shares;
+    }
+
+  private:
+    const Terrain& terrain_;
+    const MaterialOptions& options_;
+    TerrainGround bare_;
+    std::optional<ExposureField> field_;
+};
 
 }  // namespace
 
@@ -65,55 +91,33 @@ void ValidateMaterialOptions(const MaterialOptions& options) {
 
 MaterialShares MaterialsAt(const Terrain& terrain, const MaterialOptions& options, double x,
                            double y, double spacing) {
-    ValidateMaterialOptions(options);
-    ValidateTerrain(terrain);
+    const GroundCover ground(terrain, options);
     RequirePositive(spacing, "Material spacing");
-    std::optional<ExposureField> field;
-    if (options.exposure) {
-        field.emplace(*options.exposure, terrain.surface);
-    }
-    const TerrainGround bare(terrain, BareLayers(terrain));
-    MaterialShares shares =
-        GroundShares(terrain, options, field ? &*field : nullptr, bare, x, y, spacing);
-    for (std::size_t n = 0; n < terrain.layers.size(); ++n) {
-        const auto* source = dynamic_cast<const MaterialSource*>(terrain.layers[n].get());
-        if (source == nullptr) {
-            continue;
-        }
+    MaterialShares shares = ground.At(x, y, spacing);
+    ForEachLayer<MaterialSource>(terrain, [&](const MaterialSource& source, std::size_t n) {
         const TerrainGround beneath(terrain, n);
-        CoverWith(shares, source->Material(), source->MaterialCoverAt(x, y, spacing, &beneath));
-    }
+        CoverWith(shares, source.Material(), source.MaterialCoverAt(x, y, spacing, &beneath));
+    });
     return shares;
 }
 
 std::vector<Raster<float>> EvaluateMaterials(const Terrain& terrain, const MaterialOptions& options,
                                              const RasterGrid& grid,
                                              const EvaluationOptions& evaluation) {
-    ValidateMaterialOptions(options);
-    ValidateTerrain(terrain);
+    const GroundCover ground(terrain, options);
     RequireNonNegative(evaluation.spacing, "Material spacing");
-    const double spacing = std::max(evaluation.spacing, grid.Spacing(terrain.surface));
+    const double spacing = ResolvedSpacing(grid, evaluation.spacing, terrain.surface);
     std::vector<std::pair<MaterialClass, Raster<double>>> covers;
-    for (std::size_t n = 0; n < terrain.layers.size(); ++n) {
-        const auto* source = dynamic_cast<const MaterialSource*>(terrain.layers[n].get());
-        if (source != nullptr) {
-            const TerrainGround beneath(terrain, n);
-            covers.emplace_back(
-                source->Material(),
-                source->MaterialCoverOver(grid, spacing, &beneath, evaluation.threads));
-        }
-    }
-    std::optional<ExposureField> field;
-    if (options.exposure) {
-        field.emplace(*options.exposure, terrain.surface);
-    }
-    const TerrainGround bare(terrain, BareLayers(terrain));
+    ForEachLayer<MaterialSource>(terrain, [&](const MaterialSource& source, std::size_t n) {
+        const TerrainGround beneath(terrain, n);
+        covers.emplace_back(source.Material(),
+                            source.MaterialCoverOver(grid, spacing, &beneath, evaluation.threads));
+    });
     std::vector<Raster<float>> bands(kMaterialClasses, grid.MakeRaster());
     ParallelFor(grid.height, evaluation.threads, [&](std::size_t row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
             const Vec2d centre = bands[0].CellCenter(col, row);
-            MaterialShares shares = GroundShares(terrain, options, field ? &*field : nullptr, bare,
-                                                 centre.x, centre.y, spacing);
+            MaterialShares shares = ground.At(centre.x, centre.y, spacing);
             for (const auto& [material, cover] : covers) {
                 CoverWith(shares, material, cover(col, row));
             }

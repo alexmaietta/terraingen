@@ -60,7 +60,7 @@ class TilesQuadtree : public terraingen::examples::Example {
 
         const terraingen::RasterGrid grid = terrain.source->Grid();
         const terraingen::TileScheme scheme = terraingen::TileScheme::Covering(grid, 128);
-        finest_ = scheme.LevelFor(1.0);
+        finest_ = scheme.ResolvingLevel(1.0);
         tileSize_ = scheme.TileSize(finest_);
         whole_ = terraingen::Evaluate(terrain);
         keys_ = scheme.TilesCovering(grid.Bounds(), finest_);

@@ -82,7 +82,7 @@ struct TileScheme {
 
     /// The coarsest level, from 0 to 60, whose spacing is at most `spacing` world units.
     /// @throws std::invalid_argument if `spacing` is not positive and finite.
-    int LevelFor(double spacing) const;
+    int ResolvingLevel(double spacing) const;
 
     /// The tile at `level` containing world point (`x`, `y`); points on a shared edge belong to the
     /// tile east or south of it.
@@ -115,7 +115,7 @@ struct TileScheme {
 /// @throws std::invalid_argument for an invalid scheme, level or terrain; and whatever the parts
 /// throw.
 Raster<float> EvaluateTile(const Terrain& terrain, const TileScheme& scheme, const TileKey& key,
-                           unsigned threads = 1);
+                           unsigned threads = 0);
 
 /// `EvaluateTile` for several tiles, split over threads, in the order of `keys`.
 /// @param threads Threads to use; 0 for every hardware thread.
@@ -150,11 +150,6 @@ class TileCache {
     /// Tiles evicted since construction.
     std::size_t Evictions() const {
         return cache_.Evictions();
-    }
-
-    /// The tile scheme given at construction.
-    const TileScheme& Scheme() const {
-        return scheme_;
     }
 
   private:

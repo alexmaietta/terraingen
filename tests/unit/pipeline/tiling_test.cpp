@@ -17,11 +17,11 @@ TEST(TileScheme, HalvesTilesAndSpacingWithEachLevel) {
     EXPECT_EQ(scheme.TileSize(3), 64.0);
     EXPECT_EQ(scheme.Spacing(0), 4.0);
     EXPECT_EQ(scheme.Spacing(2), 1.0);
-    EXPECT_EQ(scheme.LevelFor(4.0), 0);
-    EXPECT_EQ(scheme.LevelFor(3.9), 1);
-    EXPECT_EQ(scheme.LevelFor(1.0), 2);
-    EXPECT_EQ(scheme.LevelFor(100.0), 0);
-    EXPECT_THROW(scheme.LevelFor(0.0), std::invalid_argument);
+    EXPECT_EQ(scheme.ResolvingLevel(4.0), 0);
+    EXPECT_EQ(scheme.ResolvingLevel(3.9), 1);
+    EXPECT_EQ(scheme.ResolvingLevel(1.0), 2);
+    EXPECT_EQ(scheme.ResolvingLevel(100.0), 0);
+    EXPECT_THROW(scheme.ResolvingLevel(0.0), std::invalid_argument);
     EXPECT_THROW(scheme.TileSize(-1), std::invalid_argument);
 }
 

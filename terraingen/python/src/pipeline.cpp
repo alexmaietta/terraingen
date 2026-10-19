@@ -255,7 +255,7 @@ void BindTileScheme(nb::module_& m) {
         .def_ro("cells", &TileScheme::cells)
         .def("tile_size", &TileScheme::TileSize, "level"_a)
         .def("spacing", &TileScheme::Spacing, "level"_a)
-        .def("level_for", &TileScheme::LevelFor, "spacing"_a,
+        .def("resolving_level", &TileScheme::ResolvingLevel, "spacing"_a,
              "The coarsest level whose spacing is at most `spacing`.")
         .def("tile_at", &TileScheme::TileAt, "x"_a, "y"_a, "level"_a)
         .def("tiles_covering", &TileScheme::TilesCovering, "bounds"_a, "level"_a)
@@ -269,7 +269,7 @@ void BindTiles(nb::module_& m) {
         "evaluate_tile",
         [](const PyTerrain& terrain, const TileScheme& scheme, const TileKey& key,
            unsigned threads) { return EvaluateTile(terrain.Get(), scheme, key, threads); },
-        "terrain"_a, "scheme"_a, "key"_a, "threads"_a = 1, nb::call_guard<nb::gil_scoped_release>(),
+        "terrain"_a, "scheme"_a, "key"_a, "threads"_a = 0, nb::call_guard<nb::gil_scoped_release>(),
         "One tile of `scheme` at its level's spacing, equal to the same cells of any larger grid.");
     m.def(
         "evaluate_tiles",

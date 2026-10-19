@@ -20,19 +20,19 @@ def tiled_terrain(lunar_models, crater_layer, noise_relief):
 
 
 def test_scheme_level_matches_the_grid_spacing(scheme):
-    level = scheme.level_for(2.0)
+    level = scheme.resolving_level(2.0)
     assert scheme.spacing(level) == pytest.approx(2.0) and scheme.tile_size(level) == pytest.approx(128.0)
 
 
 def test_tiles_covering_the_grid_start_at_its_corner(scheme):
-    level = scheme.level_for(2.0)
+    level = scheme.resolving_level(2.0)
     keys = scheme.tiles_covering(GRID.bounds, level)
     assert len(keys) == 4 and keys[0] == scheme.tile_at(-127.0, 127.0, level)
 
 
 def test_tiles_match_the_whole_grid(scheme, tiled_terrain):
     whole = terraingen.evaluate(tiled_terrain, grid=GRID).values
-    keys = scheme.tiles_covering(GRID.bounds, scheme.level_for(2.0))
+    keys = scheme.tiles_covering(GRID.bounds, scheme.resolving_level(2.0))
     tiles = terraingen.evaluate_tiles(tiled_terrain, scheme, keys)
     for key, tile in zip(keys, tiles, strict=True):
         tile_grid = scheme.grid(key)
@@ -42,14 +42,14 @@ def test_tiles_match_the_whole_grid(scheme, tiled_terrain):
 
 
 def test_evaluate_tile_matches_evaluate_tiles(scheme, tiled_terrain):
-    keys = scheme.tiles_covering(GRID.bounds, scheme.level_for(2.0))
+    keys = scheme.tiles_covering(GRID.bounds, scheme.resolving_level(2.0))
     tiles = terraingen.evaluate_tiles(tiled_terrain, scheme, keys)
     single = terraingen.evaluate_tile(tiled_terrain, scheme, keys[0])
     np.testing.assert_array_equal(single.values, tiles[0].values)
 
 
 def test_tile_keys_know_their_parent_and_level(scheme):
-    level = scheme.level_for(2.0)
+    level = scheme.resolving_level(2.0)
     key = scheme.tiles_covering(GRID.bounds, level)[0]
     assert key.children[0].parent == key and key.level == level
 
@@ -77,7 +77,9 @@ def test_scheme_rejects_a_negative_root_size():
 def cached_terrain(noise_relief):
     terrain = terraingen.Terrain(terraingen.FlatSource(256, 256, 0.25), [noise_relief(1, 30.0, 3.0)])
     scheme = terraingen.TileScheme.covering(terraingen.RasterGrid.centred(256, 256, 0.25), 16)
-    keys = scheme.tiles_covering(terraingen.RasterGrid.centred(256, 256, 0.25).bounds, scheme.level_for(0.25))
+    keys = scheme.tiles_covering(
+        terraingen.RasterGrid.centred(256, 256, 0.25).bounds, scheme.resolving_level(0.25)
+    )
     return terrain, scheme, keys
 
 

@@ -73,7 +73,19 @@ class TerrainGround final : public Ground {
 /// @throws std::invalid_argument if `terrain` has fewer layers.
 std::shared_ptr<const Ground> SharedGround(const Terrain& terrain, std::size_t layers);
 
-/// The heights of `terrain` over `grid`, evaluated on one thread.
+/// Calls `visit(layer, index)` for each layer of `terrain` that is a `T`, in order, with `index`
+/// its position in `terrain.layers`.
+template <typename T, typename Visit>
+void ForEachLayer(const Terrain& terrain, const Visit& visit) {
+    for (std::size_t n = 0; n < terrain.layers.size(); ++n) {
+        if (const auto* layer = dynamic_cast<const T*>(terrain.layers[n].get())) {
+            visit(*layer, n);
+        }
+    }
+}
+
+/// The heights of `terrain` over `grid`, evaluated on every hardware thread with the default
+/// options.
 /// @param spacing Sample spacing in metres; 0 means the grid's spacing, and a smaller value is
 /// raised to it.
 /// @throws std::invalid_argument as `ValidateTerrain`, or for a negative or non-finite `spacing`;
@@ -81,7 +93,7 @@ std::shared_ptr<const Ground> SharedGround(const Terrain& terrain, std::size_t l
 Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid, double spacing = 0.0);
 
 /// The heights of `terrain` over `grid`, evaluated on several threads to the same bits as one.
-/// @throws std::invalid_argument as the single-threaded `Evaluate`.
+/// @throws std::invalid_argument as `Evaluate` with a spacing.
 /// @throws std::runtime_error when the backend is `Vulkan` and Vulkan is unavailable.
 Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid,
                        const EvaluationOptions& options);

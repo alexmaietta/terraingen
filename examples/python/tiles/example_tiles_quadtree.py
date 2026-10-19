@@ -48,7 +48,7 @@ class Example(_common.Example):
         terrain = terraingen.Terrain(terraingen.FlatSource(512, 512, 1.0), [noise, craters])
         scheme = terraingen.TileScheme.covering(grid, cells=128)
 
-        self.finest = scheme.level_for(1.0)
+        self.finest = scheme.resolving_level(1.0)
         self.whole = terraingen.evaluate(terrain, grid=grid)
         whole = self.whole.values
         self.keys = scheme.tiles_covering(grid.bounds, self.finest)

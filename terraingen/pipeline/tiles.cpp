@@ -48,8 +48,7 @@ TileScheme TileScheme::Covering(const RasterGrid& grid, std::size_t cells) {
     if (grid.width == 0 || grid.height == 0 || cells == 0) {
         throw std::invalid_argument("A tile scheme needs a non-empty grid and cells");
     }
-    if (t.rowRotation != 0.0 || t.colRotation != 0.0 || !(t.pixelWidth > 0.0) ||
-        t.pixelHeight != -t.pixelWidth) {
+    if (t.IsRotated() || !(t.pixelWidth > 0.0) || t.pixelHeight != -t.pixelWidth) {
         throw std::invalid_argument("A tile scheme covers north-up grids with square cells");
     }
     const double tileSize = static_cast<double>(cells) * t.pixelWidth;
@@ -81,7 +80,7 @@ double TileScheme::Spacing(int level) const {
     return TileSize(level) / static_cast<double>(cells);
 }
 
-int TileScheme::LevelFor(double spacing) const {
+int TileScheme::ResolvingLevel(double spacing) const {
     RequirePositive(spacing, "Spacing");
     int level = 0;
     while (level < kMaxLevel && Spacing(level) > spacing) {
