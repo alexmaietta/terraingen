@@ -14,10 +14,56 @@ void AppendEffective(const std::vector<NoiseLayerConfig>& stack, Layers& layers)
 
 }  // namespace
 
+CraterApplyOptions DefaultCraterApply() {
+    CraterApplyOptions apply;
+    apply.irregularity.enabled = true;
+    return apply;
+}
+
+BoulderLayerOptions DefaultBoulders() {
+    BoulderLayerOptions boulders;
+    boulders.sizes.maxDiameter = 10.0;
+    return boulders;
+}
+
+RoughnessOptions DefaultRoughness() {
+    RoughnessOptions roughness;
+    roughness.maxWavelength = 16.0;
+    return roughness;
+}
+
+BedformOptions DefaultBedforms() {
+    BedformOptions bedforms;
+    bedforms.wavelength = 4.0;
+    bedforms.height = 0.4;
+    bedforms.cover = 0.9;
+    return bedforms;
+}
+
+DuneOptions DefaultDunes() {
+    DuneOptions dunes;
+    dunes.width = 50.0;
+    dunes.minWidth = 15.0;
+    dunes.density = 0.5;
+    dunes.spacing = 129.0;
+    return dunes;
+}
+
 NoiseLayer NoiseLayerConfig::Effective() const {
     NoiseLayer effective = layer;
     if (hurst) {
         effective.fractal.gain = GainFromHurst(*hurst, layer.fractal.lacunarity);
+    }
+    if (amplitude) {
+        effective.fractal.amplitude = *amplitude;
+    }
+    return effective;
+}
+
+NoiseLayer NoiseLayerConfig::EffectiveRelief() const {
+    NoiseLayer effective = Effective();
+    if (!amplitude) {
+        effective.fractal.amplitude = kNoiseAmplitudeRatio * layer.fractal.wavelength;
     }
     return effective;
 }
@@ -25,7 +71,9 @@ NoiseLayer NoiseLayerConfig::Effective() const {
 SyntheticTerrainParams NoiseLayerSpec::Params() const {
     SyntheticTerrainParams params;
     params.layers.clear();
-    AppendEffective(stack, params.layers);
+    for (const NoiseLayerConfig& layer : stack) {
+        params.layers.push_back(layer.EffectiveRelief());
+    }
     return params;
 }
 

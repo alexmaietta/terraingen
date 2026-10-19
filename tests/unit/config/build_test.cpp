@@ -136,7 +136,8 @@ TEST(BuildCraterModels, BuildsSteadyStateAgesFromEachModel) {
         craters.ages = spec;
         return BuildCraterModels(craters).ages->LifetimeGyr(diameter);
     };
-    const double trask = lifetime({}, 20.0);
+    const double trask =
+        lifetime({3.5, ProductionFunction::ExtendedNeukum, EquilibriumModel::Trask}, 20.0);
     const double hartmann =
         lifetime({3.5, ProductionFunction::ExtendedNeukum, EquilibriumModel::Hartmann}, 20.0);
     EXPECT_GT(trask, 0.0);
@@ -163,6 +164,17 @@ TEST(BuildCraterModels, BuildsSteadyStateAgesFromEachModel) {
 TEST(BuildCraterModels, BuildsEachSelectedModel) {
     CraterLayerSpec craters;
     auto models = BuildCraterModels(craters);
+    EXPECT_NE(dynamic_cast<const terraingen::SteadyStateAges*>(models.ages.get()), nullptr);
+    EXPECT_NE(dynamic_cast<const terraingen::DiffusionDegradation*>(models.degradation.get()),
+              nullptr);
+    EXPECT_NE(dynamic_cast<const terraingen::DiffusedProfile*>(models.profile.get()), nullptr);
+    EXPECT_NE(dynamic_cast<const terraingen::MinimumSfd*>(models.density.get()), nullptr);
+    EXPECT_LT(models.density->Cumulative(4.0), terraingen::TraskEquilibrium().Cumulative(4.0))
+        << "below Trask equilibrium";
+
+    craters.ages = terraingen::UniformAgesSpec{};
+    craters.degradation = terraingen::FreshnessDegradationSpec{};
+    models = BuildCraterModels(craters);
     EXPECT_NE(dynamic_cast<const terraingen::UniformAges*>(models.ages.get()), nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::FreshnessDegradation*>(models.degradation.get()),
               nullptr);
@@ -242,6 +254,7 @@ TEST(BuildCraterModels, MatchesTheDiffusivityToTheSteadyStateEquilibrium) {
         return law(500.0, 1.0) / (500.0 * 500.0);
     };
     terraingen::SteadyStateAgesSpec steady;
+    steady.equilibrium = terraingen::EquilibriumModel::Trask;
     craters.ages = steady;
     EXPECT_DOUBLE_EQ(BuildCraterModels(craters).degradation->State(crater).diffusion,
                      tau(terraingen::Fassett2022TraskDiffusivity()));
@@ -335,6 +348,12 @@ TEST(ValidateConfig, ReportsDensityAndSlopeMapProblemsAtTheMap) {
 
 TEST(BuildBoulderOptions, BuildsTheSizesAndReportsThemAtTheirKeys) {
     terraingen::BoulderLayerSpec spec;
+    const auto surveyor = terraingen::config::BuildBoulderOptions(spec, "layers[3]");
+    ASSERT_NE(surveyor.sizes.distribution, nullptr);
+    EXPECT_DOUBLE_EQ(surveyor.sizes.distribution->Cumulative(1.0), 2.34e-3)
+        << "Surveyor 1 by default";
+    EXPECT_EQ(surveyor.sizes.maxDiameter, 10.0);
+    spec.sizes = terraingen::GolombekRappBouldersSpec{};
     EXPECT_EQ(terraingen::config::BuildBoulderOptions(spec, "layers[3]").sizes.distribution,
               nullptr)
         << "golombek_rapp sizes come from the layer";

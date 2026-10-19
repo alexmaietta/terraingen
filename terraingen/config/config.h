@@ -69,14 +69,50 @@ inline constexpr double kMaxCreaseAngle = 180.0;
 /// What GeoTIFF output tile sides, in pixels, must be a multiple of.
 inline constexpr std::uint32_t kTileSizeMultiple = 16;
 
+/// Amplitude over wavelength of a terrain noise layer whose amplitude is unset. With it the
+/// default 1 km layer has a median slope of 6.4 deg at a 16 m baseline, near the lunar highland
+/// median of 7.5 deg at 17 m (Rosenburg et al. 2011, Table 1,
+/// https://doi.org/10.1029/2010JE003716), whatever wavelength is chosen.
+inline constexpr float kNoiseAmplitudeRatio = 0.1f;
+
+/// Crater shaping by default: irregular outlines on, their elongated share of 5.4% the lunar one
+/// of Bottke et al. (2000, https://doi.org/10.1006/icar.1999.6323).
+CraterApplyOptions DefaultCraterApply();
+
+/// Boulders by default: up to 10 m across, within the largest rocks NAC images resolve at lunar
+/// landing sites, 3 to 19 m (Li et al. 2017, Table 2, https://doi.org/10.1016/j.pss.2017.08.008).
+BoulderLayerOptions DefaultBoulders();
+
+/// Roughness by default: octaves up to 16 m, the relief below the 17 m shortest baseline of the
+/// LOLA slope statistics the noise layer is matched to (Rosenburg et al. 2011,
+/// https://doi.org/10.1029/2010JE003716).
+RoughnessOptions DefaultRoughness();
+
+/// Bedforms by default: large wind ripples 4 m apart and 0.4 m high, within the 1 to 5 m
+/// wavelengths of large martian ripples that mantle martian dunes ubiquitously (Lapotre et al.
+/// 2016, https://doi.org/10.1126/science.aaf3206), so the cover is the layer's most, 0.9; the
+/// height keeps the 0.1 height-to-wavelength ratio of `MarsDuneRipples`.
+BedformOptions DefaultBedforms();
+
+/// Dunes by default: barchans 50 m wide, about 30 to a square kilometre, as in the barchan field
+/// of La Pampa de la Joya, with domes below its 15 m elementary dune size (Elbelrhiti et al. 2008,
+/// https://arxiv.org/abs/cond-mat/0609120); a lattice of 129 m cells half of which hold a dune.
+DuneOptions DefaultDunes();
+
 /// One noise layer, its octave gain optionally derived from a Hurst exponent.
 struct NoiseLayerConfig {
     NoiseLayer layer{};
     /// When set, the octave gain comes from it (`GainFromHurst`) instead of `layer.fractal.gain`.
     std::optional<float> hurst;
+    /// When set, the amplitude in place of `layer.fractal.amplitude`; unset gives terrain noise
+    /// `kNoiseAmplitudeRatio` times its wavelength (`EffectiveRelief`).
+    std::optional<float> amplitude;
 
-    /// `layer` with its gain replaced from `hurst` when that is set.
+    /// `layer` with its gain replaced from `hurst` and its amplitude from `amplitude` when set.
     NoiseLayer Effective() const;
+    /// `Effective` with an unset amplitude `kNoiseAmplitudeRatio` times the wavelength, as terrain
+    /// noise layers take it.
+    NoiseLayer EffectiveRelief() const;
 
     bool operator==(const NoiseLayerConfig&) const = default;
 };
@@ -244,7 +280,7 @@ enum class EquilibriumModel { Trask, Hartmann };
 struct SteadyStateAgesSpec {
     double ageGyr = 3.5;
     ProductionFunction production = ProductionFunction::ExtendedNeukum;
-    EquilibriumModel equilibrium = EquilibriumModel::Trask;
+    EquilibriumModel equilibrium = EquilibriumModel::Hartmann;
     ChronologyModel chronology = ChronologyModel::Neukum;
     bool operator==(const SteadyStateAgesSpec&) const = default;
 };
@@ -320,17 +356,25 @@ struct CraterLayerSpec {
     CraterMorphometryFit morphometry = CraterMorphometryFit::Lunar;
     bool generate = true;  ///< Generate craters from `density`; otherwise only `manual` ones.
     std::uint32_t seed = 1;
-    DensitySpec density{};
-    AgesSpec ages{};
-    double minDiameter = 4.0;    ///< Metres.
+    /// By default a 3.5 Gyr extended Neukum production surface up to Hartmann (1984) equilibrium,
+    /// as the DSNE (SLS-SPEC-159 Rev. I, 3.4.1.1) builds its 3.5 Ga mare density but with the lower
+    /// of the two equilibria that small-crater counts fall between (Fassett 2022, eq. 3 and
+    /// section 3, https://doi.org/10.1029/2022JE007510): below Trask, the DSNE's upper limit, at
+    /// every diameter under about 1.7 km.
+    DensitySpec density{MinimumSpec{{ProductionSurfaceSpec{}, HartmannSpec{}}}};
+    /// By default steady-state ages on that surface, matching the density.
+    AgesSpec ages{SteadyStateAgesSpec{}};
+    /// Metres; by default 2.5, where the extended Neukum production function the default density
+    /// and ages use begins.
+    double minDiameter = 2.5;
     double maxDiameter = 250.0;  ///< Metres.
     CraterSpacing spacing{};
     std::size_t maxCraters = 0;  ///< Keep at most this many generated craters; 0 keeps all.
     /// Manual craters, in the surface's coordinates; parsing sets their `manual` flag.
     std::vector<Crater> manual{};
     ProfileSpec profile{MartinParkesDunstanSpec{}};
-    DegradationSpec degradation{};
-    CraterApplyOptions apply{};
+    DegradationSpec degradation{DiffusionDegradationSpec{}};
+    CraterApplyOptions apply{DefaultCraterApply()};
     std::optional<DensityMapSpec> densityMap{};  ///< Gives `CraterLayerOptions::densityMap`.
     /// Gives `generation.completeness`: where `manual` is a complete catalog, from which diameter.
     std::optional<FieldSpec> completeness{};
@@ -369,8 +413,12 @@ using BoulderSizesSpec =
 /// Ejecta come from every top-level crater layer before this one, at least one of which must exist
 /// when crater blocks are enabled. `boulders.cacheBoulders` is not part of the configuration.
 struct BoulderLayerSpec {
-    BoulderLayerOptions boulders{};
-    BoulderSizesSpec sizes{};  ///< Gives `boulders.sizes.distribution`.
+    BoulderLayerOptions boulders{DefaultBoulders()};
+    /// Gives `boulders.sizes.distribution`. By default the Surveyor 1 power law, N(>=D) = 0.234
+    /// D^-2.11 per 100 m^2, which the DSNE suggests for design when the site is unknown
+    /// (SLS-SPEC-159 Rev. I, Table 3.4.1.4-1, after Shoemaker and Morris 1970); fitted below 2 m
+    /// and extrapolated above.
+    BoulderSizesSpec sizes{PowerLawSpec{2.34e-3, 2.11}};
     /// Gives `boulders.ejecta.distribution`; unset follows `sizes`.
     std::optional<BoulderSizesSpec> ejectaSizes{};
     bool extrapolate = false;  ///< Let tables be evaluated beyond their published diameters.
@@ -388,7 +436,7 @@ struct BoulderLayerSpec {
 
 /// Layer "roughness": fine roughness of a given RMS slope (`RoughnessLayer`).
 struct RoughnessLayerSpec {
-    RoughnessOptions roughness{};
+    RoughnessOptions roughness{DefaultRoughness()};
 
     bool operator==(const RoughnessLayerSpec&) const = default;
 };
@@ -396,7 +444,7 @@ struct RoughnessLayerSpec {
 /// Layer "bedforms": fields of wind-blown ripples or dunes (`BedformLayer`); angles in
 /// radians.
 struct BedformLayerSpec {
-    BedformOptions bedforms{};
+    BedformOptions bedforms{DefaultBedforms()};
 
     bool operator==(const BedformLayerSpec&) const = default;
 };
@@ -404,7 +452,7 @@ struct BedformLayerSpec {
 /// Layer "dunes": barchans, domes or crest-line dunes with ripples on them (`DuneLayer`); angles
 /// in radians.
 struct DuneLayerSpec {
-    DuneOptions dunes{};
+    DuneOptions dunes{DefaultDunes()};
 
     bool operator==(const DuneLayerSpec&) const = default;
 };
@@ -568,11 +616,11 @@ enum class ListFormat { Csv, Json };
 /// On a body the centre is a longitude and latitude, and cells are `pixelSize` metres along a
 /// meridian, the same in degrees of longitude.
 struct GridRegionSpec {
-    std::size_t width = 513;   ///< Cells.
-    std::size_t height = 513;  ///< Cells.
-    double pixelSize = 2.0;    ///< Metres.
-    double centreX = 0.0;      ///< Centre in surface coordinates.
-    double centreY = 0.0;      ///< Centre in surface coordinates.
+    std::size_t width = 1025;   ///< Cells.
+    std::size_t height = 1025;  ///< Cells.
+    double pixelSize = 1.0;     ///< Metres.
+    double centreX = 0.0;       ///< Centre in surface coordinates.
+    double centreY = 0.0;       ///< Centre in surface coordinates.
 
     bool operator==(const GridRegionSpec&) const = default;
 };

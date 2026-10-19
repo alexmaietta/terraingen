@@ -349,6 +349,7 @@ TEST(ValidateConfig, ReportsBoulderLayerProblemsByPath) {
     EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
                   Region(c) = {60000, 60000, 0.1};
                   terraingen::BoulderLayerSpec boulders;
+                  boulders.sizes = terraingen::GolombekRappBouldersSpec{};
                   boulders.boulders.sizes.coverage = 0.5;
                   c.layers = {boulders};
               }),

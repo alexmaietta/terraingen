@@ -464,9 +464,12 @@ TEST(ConfigSchema, ListsProductionSurfacesMinimumsAndTheirModels) {
         types.push_back(alternative["type"]);
     }
     EXPECT_EQ(types, (std::vector<std::string>{"uniform", "fresh", "steady_state"}));
-    EXPECT_EQ(FieldOf(craters, "ages")["default"],
-              (SchemaJson{{"type", "uniform"}, {"lifetime_gyr", 1.0}}));
-    EXPECT_EQ(FieldOf(craters, "density")["default"]["type"], "power_law");
+    EXPECT_EQ(FieldOf(craters, "ages")["default"], (SchemaJson{{"type", "steady_state"},
+                                                               {"age_gyr", 3.5},
+                                                               {"production", "extended_neukum"},
+                                                               {"equilibrium", "hartmann"},
+                                                               {"chronology", "neukum"}}));
+    EXPECT_EQ(FieldOf(craters, "density")["default"]["type"], "minimum");
     const SchemaJson steady = AlternativeOf(ages, "steady_state");
     EXPECT_EQ(FieldOf(steady, "production")["schema"]["choices"],
               (SchemaJson{"neukum", "extended_neukum", "ivanov"}));

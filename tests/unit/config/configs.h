@@ -113,12 +113,14 @@ inline TerrainConfig Small() {
     config.outputs = {Heightmap("terrain.tif")};
     NoiseLayerSpec noise;
     noise.stack[0].layer.fractal.wavelength = 200.0f;
-    noise.stack[0].layer.fractal.amplitude = 10.0f;
+    noise.stack[0].amplitude = 10.0f;
     CraterLayerSpec craters;
     craters.minDiameter = 8.0;
     craters.maxDiameter = 60.0;
     craters.density = LunarDensitySpec();
     craters.ages = LunarAgesSpec();
+    craters.degradation = terraingen::FreshnessDegradationSpec{};
+    craters.apply.irregularity.enabled = false;
     config.layers = {noise, craters};
     return config;
 }

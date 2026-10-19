@@ -27,7 +27,10 @@ template <typename IO> void Fields(IO& io, NoiseLayerConfig& config) {
        "Wavelength of the first, broadest octave, in metres; sets the size of the largest "
        "features.",
        "m", Above(0.0));
-    io("amplitude", fractal.amplitude, "Largest height of the layer above or below 0, in metres.",
+    io("amplitude", config.amplitude,
+       "Largest value of the layer above or below 0: in metres for terrain noise, where unset is "
+       "0.1 times the wavelength, near the lunar highland median slope at any wavelength; unset "
+       "is 100 for albedo noise.",
        "m");
     io("octaves", fractal.octaves,
        "Number of octaves, at least 1; each one adds detail at a shorter wavelength.", "",

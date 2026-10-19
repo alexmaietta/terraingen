@@ -104,7 +104,7 @@ def test_schema_describes_fields_with_units_and_choices():
     region = next(f for f in heightmap["fields"] if f["name"] == "region")
     grid = schema["definitions"][region["schema"]["of"]["ref"]]
     pixel_size = next(f for f in grid["fields"] if f["name"] == "pixel_size")
-    assert pixel_size["unit"] == "m" and pixel_size["default"] == 2.0
+    assert pixel_size["unit"] == "m" and pixel_size["default"] == 1.0
 
 
 def test_catalog_lists_every_type():
@@ -157,10 +157,12 @@ def test_steady_state_ages_and_morphometry_round_trip():
     assert terraingen.Config.from_dict(config.to_dict()) == config
 
 
-def test_crater_layers_default_to_a_power_law_with_uniform_ages():
+def test_crater_layers_default_to_a_steady_state_surface_below_trask():
     layer = terraingen.Config.from_dict(crater_config()).to_dict()["layers"][0]
-    assert layer["density"]["type"] == "power_law"
-    assert layer["ages"] == {"type": "uniform", "lifetime_gyr": 1.0}
+    assert layer["density"]["type"] == "minimum"
+    assert [d["type"] for d in layer["density"]["distributions"]] == ["production_surface", "hartmann"]
+    assert layer["ages"]["type"] == "steady_state" and layer["ages"]["equilibrium"] == "hartmann"
+    assert layer["degradation"]["type"] == "diffusion"
     assert layer["morphometry"] == "lunar"
 
 

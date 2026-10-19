@@ -48,14 +48,14 @@ TEST(ConfigJson, OmittedKeysTakeDefaultsAndOmittedListsAreEmpty) {
     })");
     const auto& region = *std::get<terraingen::HeightmapOutput>(partial.outputs.at(0)).region;
     EXPECT_EQ(region.width, 64u);
-    EXPECT_EQ(region.height, 513u);
+    EXPECT_EQ(region.height, 1025u);
     ASSERT_EQ(partial.layers.size(), 2u);
     const auto& noise = std::get<terraingen::NoiseLayerSpec>(partial.layers[0]);
     EXPECT_EQ(noise.stack.at(0).layer.fractal.octaves, 3);
     EXPECT_EQ(noise.stack.at(0).hurst, 0.7f);
     const auto& craters = std::get<CraterLayerSpec>(partial.layers[1]);
     EXPECT_TRUE(std::holds_alternative<terraingen::TraskSpec>(craters.density));
-    EXPECT_EQ(craters.minDiameter, 4.0);
+    EXPECT_EQ(craters.minDiameter, 2.5);
     EXPECT_EQ(craters.apply.rimSmoothing, terraingen::RimSmoothing{});
 }
 

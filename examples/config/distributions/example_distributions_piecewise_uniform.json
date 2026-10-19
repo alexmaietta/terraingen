@@ -35,6 +35,10 @@
                     }
                 ]
             },
+            "ages": {
+                "type": "uniform",
+                "lifetime_gyr": 1.0
+            },
             "min_diameter": 0.5
         }
     ],

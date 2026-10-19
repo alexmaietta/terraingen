@@ -343,7 +343,7 @@ TEST(ConfigJson, RoundTripsAlbedos) {
     synthetic.hue = 30.0;
     synthetic.saturation = 0.1;
     synthetic.value = 0.2;
-    synthetic.valueNoise = {terraingen::NoiseLayerConfig{{}, 0.8f}};
+    synthetic.valueNoise = {terraingen::NoiseLayerConfig{{}, 0.8f, {}}};
     synthetic.hueNoise = {terraingen::NoiseLayerConfig{}};
     terraingen::CraterAlbedoSpec craters;
     craters.craterLayer = 1;
@@ -468,12 +468,20 @@ TEST(ConfigJson, ReadsProductionSurfacesMinimumsAndSteadyStateAges) {
               terraingen::CraterMorphometryFit::Lunar);
 }
 
-TEST(ConfigJson, DefaultsCraterLayersToAPowerLawWithUniformAges) {
+TEST(ConfigJson, DefaultsCraterLayersToASteadyStateSurfaceBelowTrask) {
     const TerrainConfig config =
         ParseConfig(R"({"schema_version": 1, "layers": [{"type": "craters"}]})");
     const auto& craters = std::get<CraterLayerSpec>(config.layers.at(0));
-    EXPECT_EQ(craters.density, DensitySpec{terraingen::PowerLawSpec{}});
-    EXPECT_EQ(craters.ages, AgesSpec{terraingen::UniformAgesSpec{1.0}});
+    const terraingen::MinimumSpec density{
+        {terraingen::ProductionSurfaceSpec{}, terraingen::HartmannSpec{}}};
+    EXPECT_EQ(craters.density, DensitySpec{density});
+    const terraingen::SteadyStateAgesSpec ages{3.5, terraingen::ProductionFunction::ExtendedNeukum,
+                                               terraingen::EquilibriumModel::Hartmann,
+                                               terraingen::ChronologyModel::Neukum};
+    EXPECT_EQ(craters.ages, AgesSpec{ages});
+    EXPECT_TRUE(std::holds_alternative<terraingen::DiffusionDegradationSpec>(craters.degradation));
+    EXPECT_TRUE(craters.apply.irregularity.enabled);
+    EXPECT_EQ(craters.minDiameter, 2.5);
     EXPECT_EQ(craters.morphometry, terraingen::CraterMorphometryFit::Lunar);
     const TerrainConfig surface = ParseConfig(R"({"schema_version": 1, "layers": [{"type":
         "craters", "density": {"type": "production_surface"}}]})");

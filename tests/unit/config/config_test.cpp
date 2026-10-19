@@ -33,7 +33,7 @@ TEST(NoiseLayerConfig, DerivesTheGainFromTheHurstExponent) {
 
 TEST(NoiseLayerSpec, GivesEachLayerOfTheStackWithItsHurstExponent) {
     terraingen::NoiseLayerSpec spec;
-    spec.stack.push_back(NoiseLayerConfig{{}, 0.8f});
+    spec.stack.push_back(NoiseLayerConfig{{}, 0.8f, {}});
     const terraingen::SyntheticTerrainParams params = spec.Params();
     ASSERT_EQ(params.layers.size(), 2u);
     EXPECT_EQ(params.layers[0], spec.stack[0].layer);
@@ -47,7 +47,7 @@ TEST(SyntheticAlbedoSpec, GivesTheColourAndEachNoiseStack) {
     spec.saturation = 0.2;
     spec.value = 0.4;
     spec.hueNoise = {NoiseLayerConfig{}};
-    spec.valueNoise = {NoiseLayerConfig{{}, 0.5f}, NoiseLayerConfig{}};
+    spec.valueNoise = {NoiseLayerConfig{{}, 0.5f, {}}, NoiseLayerConfig{}};
     const terraingen::SyntheticAlbedoOptions params = spec.Params();
     EXPECT_TRUE(params.rgb);
     EXPECT_EQ(params.hue, 30.0);

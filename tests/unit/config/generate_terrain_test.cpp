@@ -84,7 +84,7 @@ TEST(GenerateTerrain, AppliesTheHurstExponentToTheGain) {
     Noise(config).stack[0].hurst = 0.6f;
     const auto terrain = GenerateTerrain(config);
     terraingen::SyntheticTerrainParams params;
-    params.layers[0] = Noise(config).stack[0].layer;
+    params.layers[0] = Noise(config).stack[0].EffectiveRelief();
     params.layers[0].fractal.gain = terraingen::GainFromHurst(0.6f, 2.0f);
     const auto expected = terraingen::GenerateSyntheticTerrain(65, 49, 2.0, params);
     EXPECT_TRUE(std::equal(HeightsOf(terrain).Values().begin(), HeightsOf(terrain).Values().end(),
@@ -228,6 +228,7 @@ TEST(GenerateTerrain, AddsBouldersWithEjectaFromTheLastCraterLayerBeforeThem) {
     Craters(config).minDiameter = 4.0;
     terraingen::BoulderLayerSpec boulders;
     boulders.boulders.sizes.minDiameter = 0.5;
+    boulders.sizes = terraingen::GolombekRappBouldersSpec{};
     boulders.boulders.sizes.coverage = 0.03;
     boulders.boulders.ejecta.coverage = 0.2;
     boulders.boulders.ejecta.minCraterDiameter = 8.0;
@@ -298,7 +299,7 @@ TEST(GenerateTerrain, LoadsResamplesAndDetailsARasterSource) {
     RasterSpec(config).read.pixelSize.reset();
     terraingen::NoiseLayerConfig detail;
     detail.layer.fractal.wavelength = 20.0f;
-    detail.layer.fractal.amplitude = 1.5f;
+    detail.amplitude = 1.5f;
     terraingen::NoiseLayerSpec detailLayer;
     detailLayer.stack = {detail};
     config.layers = {detailLayer};
@@ -322,6 +323,9 @@ TEST(GenerateTerrain, PlacesCratersInTheRastersCoordinates) {
     CraterLayerSpec craters;
     craters.density = terraingen::PowerLawSpec{0.1, 2.0};
     craters.minDiameter = 15.0;
+    craters.ages = terraingen::UniformAgesSpec{};
+    craters.degradation = terraingen::FreshnessDegradationSpec{};
+    craters.apply.irregularity.enabled = false;
     craters.maxDiameter = 60.0;
     craters.manual = {{1100.0, 1925.0, 50.0, 0.0, 0u, true}};
     config.layers = {craters};
