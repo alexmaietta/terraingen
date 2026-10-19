@@ -21,15 +21,15 @@ ProductionSurface::ProductionSurface(std::shared_ptr<const SizeFrequencyDistribu
 }
 
 double ProductionSurface::CumulativeAt(double diameter) const {
-    return scale_ * CumulativeOf(*production_, diameter);
+    return scale_ * UncheckedCumulative(*production_, diameter);
 }
 
 double ProductionSurface::IncrementalAt(double diameter) const {
-    return scale_ * IncrementalOf(*production_, diameter);
+    return scale_ * UncheckedIncremental(*production_, diameter);
 }
 
 double ProductionSurface::InvertCumulative(double target, double dMin, double dMax) const {
-    return InvertCumulativeOf(*production_, target / scale_, dMin, dMax);
+    return UncheckedInverse(*production_, target / scale_, dMin, dMax);
 }
 
 }  // namespace terraingen

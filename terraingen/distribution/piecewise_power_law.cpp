@@ -1,6 +1,6 @@
 #include "terraingen/distribution/piecewise_power_law.h"
 
-#include "terraingen/distribution/combined.h"
+#include "terraingen/distribution/composition.h"
 #include "terraingen/util/checks.h"
 
 #include <cmath>
@@ -16,29 +16,22 @@ PiecewisePowerLawSfd::PiecewisePowerLawSfd(std::vector<PowerLawSegment> segments
     if (segments_.empty()) {
         throw std::invalid_argument("A piecewise power law needs at least one segment");
     }
-    if (segments_.front().start != range.min) {
-        throw std::invalid_argument("The first segment must start at the range minimum");
-    }
-    for (std::size_t i = 0; i < segments_.size(); ++i) {
-        const PowerLawSegment& segment = segments_[i];
+    for (const PowerLawSegment& segment : segments_) {
         if (!IsPositive(segment.coefficient) || !IsPositive(segment.exponent)) {
             throw std::invalid_argument("Segment coefficients and exponents must be positive");
         }
-        if (i == 0) {
-            continue;
-        }
-        if (!(std::isfinite(segment.start) && segment.start > segments_[i - 1].start &&
-              segment.start < range.max)) {
-            throw std::invalid_argument("Segment starts must increase within the range");
-        }
-        detail::CheckJoin(segments_[i - 1].Cumulative(segment.start),
-                          segment.Cumulative(segment.start), segment.start, tolerance,
-                          allowDiscontinuities);
     }
+    detail::CheckStarts(detail::Starts(segments_), range, "segment");
+    detail::CheckJoins(
+        segments_,
+        [](const PowerLawSegment& segment, double diameter) {
+            return segment.Cumulative(diameter);
+        },
+        tolerance, allowDiscontinuities);
 }
 
 const PowerLawSegment& PiecewisePowerLawSfd::SegmentAt(double diameter) const {
-    return segments_[detail::IndexOfStart(segments_, diameter)];
+    return segments_[detail::PieceIndex(segments_, diameter)];
 }
 
 double PiecewisePowerLawSfd::CumulativeAt(double diameter) const {
@@ -50,15 +43,11 @@ double PiecewisePowerLawSfd::IncrementalAt(double diameter) const {
 }
 
 double PiecewisePowerLawSfd::InvertCumulative(double target, double dMin, double dMax) const {
-    std::size_t index = 0;
-    while (index + 1 < segments_.size()) {
-        const PowerLawSegment& segment = segments_[index];
-        const double high = std::fmin(dMax, segments_[index + 1].start);
-        if (std::fmax(dMin, segment.start) < high && target >= segment.Cumulative(high)) {
-            break;
-        }
-        ++index;
-    }
+    const std::size_t index =
+        detail::WalkPieces(segments_, 0, dMax, [&](std::size_t i, double high) {
+            const PowerLawSegment& segment = segments_[i];
+            return std::fmax(dMin, segment.start) < high && target >= segment.Cumulative(high);
+        });
     const PowerLawSegment& segment = segments_[index];
     const double low = std::fmax(dMin, segment.start);
     if (target > segment.Cumulative(low)) {

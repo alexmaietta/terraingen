@@ -53,15 +53,9 @@ class PySizeFrequencyDistribution : public Sfd {
 
     /// @brief The hooks of any distribution, for the base class's Python methods of the same
     /// names.
-    static double CumulativeAtOf(const Sfd& sfd, double diameter) {
-        return CumulativeOf(sfd, diameter);
-    }
-    static double IncrementalAtOf(const Sfd& sfd, double diameter) {
-        return IncrementalOf(sfd, diameter);
-    }
-    static double InvertCumulativeAtOf(const Sfd& sfd, double target, double dMin, double dMax) {
-        return InvertCumulativeOf(sfd, target, dMin, dMax);
-    }
+    using Sfd::UncheckedCumulative;
+    using Sfd::UncheckedIncremental;
+    using Sfd::UncheckedInverse;
 
   protected:
     double CumulativeAt(double diameter) const override {
@@ -104,11 +98,11 @@ void BindBase(nb::module_& m) {
         "a distribution of your own.")
         .def(nb::init<SfdKind, double, double>(), "kind"_a = SfdKind::Density,
              "min_diameter"_a = 0.0, "max_diameter"_a = kInfinity)
-        .def("cumulative_at", &Py::CumulativeAtOf, "diameter"_a,
+        .def("cumulative_at", &Py::UncheckedCumulative, "diameter"_a,
              "N(>= diameter) without range checks; override it in a subclass.")
-        .def("incremental_at", &Py::IncrementalAtOf, "diameter"_a,
+        .def("incremental_at", &Py::UncheckedIncremental, "diameter"_a,
              "-dN/dD without range checks; numerical unless overridden.")
-        .def("invert_cumulative", &Py::InvertCumulativeAtOf, "target"_a, "min_diameter"_a,
+        .def("invert_cumulative", &Py::UncheckedInverse, "target"_a, "min_diameter"_a,
              "max_diameter"_a,
              "The diameter between the two where N(>= D) is `target`; numerical unless "
              "overridden.")
@@ -353,11 +347,11 @@ void BindBoulderDistributions(nb::module_& m) {
         .value("MAXIMUM", SpecificationCurve::Maximum);
     m.def(
         "sp8023_intercrater_blocks",
-        [](SpecificationCurve curve) { return SfdPointer(Sp8023IntercraterBlocks(curve)); },
-        "curve"_a, "NASA SP-8023 blocks between craters.");
+        [](SpecificationCurve curve) { return Shared(Sp8023IntercraterBlocks(curve)); }, "curve"_a,
+        "NASA SP-8023 blocks between craters.");
     m.def(
         "sp8023_crater_blocks",
-        [](SpecificationCurve curve) { return SfdPointer(Sp8023CraterBlocks(curve)); }, "curve"_a,
+        [](SpecificationCurve curve) { return Shared(Sp8023CraterBlocks(curve)); }, "curve"_a,
         "NASA SP-8023 blocks near craters.");
     nb::enum_<SynthterrainBoulders>(m, "SynthterrainBoulders",
                                     "synthterrain's boulder distributions.")
@@ -367,7 +361,7 @@ void BindBoulderDistributions(nb::module_& m) {
     m.def(
         "synthterrain_boulder_distribution",
         [](SynthterrainBoulders boulders) {
-            return SfdPointer(SynthterrainBoulderDistribution(boulders));
+            return Shared(SynthterrainBoulderDistribution(boulders));
         },
         "boulders"_a, "One of synthterrain's power-law boulder distributions.");
 }

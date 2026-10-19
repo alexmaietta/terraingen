@@ -1,32 +1,27 @@
 #include "terraingen/distribution/neukum.h"
 
+#include "terraingen/distribution/exponential_chronology.h"
 #include "terraingen/distribution/power_law.h"
 
 #include <cmath>
 #include <memory>
-#include <stdexcept>
 #include <utility>
 
 namespace terraingen {
 
 namespace {
 
-void CheckAge(double ageGyr) {
-    if (!(ageGyr >= 0.0 && ageGyr <= kMaxLunarAgeGyr)) {
-        throw std::domain_error("Lunar surface age must be between 0 and 4.6 Gyr");
-    }
-}
+constexpr detail::ExponentialChronology kNeukum{5.44e-14, 6.93, 8.38e-4, kMaxLunarAgeGyr,
+                                                "Lunar surface age must be between 0 and 4.6 Gyr"};
 
 }  // namespace
 
 double NeukumLunarChronology(double ageGyr) {
-    CheckAge(ageGyr);
-    return (5.44e-14 * std::expm1(6.93 * ageGyr) + 8.38e-4 * ageGyr) / 1e6;
+    return kNeukum.Count(ageGyr);
 }
 
 double NeukumLunarChronologyRate(double ageGyr) {
-    CheckAge(ageGyr);
-    return (5.44e-14 * 6.93 * std::exp(6.93 * ageGyr) + 8.38e-4) / 1e6;
+    return kNeukum.Rate(ageGyr);
 }
 
 LogPolynomialSfd NeukumProductionFunction() {

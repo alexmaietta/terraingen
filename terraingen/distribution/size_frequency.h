@@ -98,18 +98,20 @@ class SizeFrequencyDistribution {
     virtual double InvertCumulative(double target, double dMin, double dMax) const;
 
     /// Unchecked `CumulativeAt` of another distribution, for distributions built from others.
-    static double CumulativeOf(const SizeFrequencyDistribution& distribution, double diameter) {
+    static double UncheckedCumulative(const SizeFrequencyDistribution& distribution,
+                                      double diameter) {
         return distribution.CumulativeAt(diameter);
     }
 
     /// Unchecked `IncrementalAt` of another distribution.
-    static double IncrementalOf(const SizeFrequencyDistribution& distribution, double diameter) {
+    static double UncheckedIncremental(const SizeFrequencyDistribution& distribution,
+                                       double diameter) {
         return distribution.IncrementalAt(diameter);
     }
 
     /// Unchecked `InvertCumulative` of another distribution.
-    static double InvertCumulativeOf(const SizeFrequencyDistribution& distribution, double target,
-                                     double dMin, double dMax) {
+    static double UncheckedInverse(const SizeFrequencyDistribution& distribution, double target,
+                                   double dMin, double dMax) {
         return distribution.InvertCumulative(target, dMin, dMax);
     }
 

@@ -37,6 +37,9 @@ class SummedSfd final : public SizeFrequencyDistribution {
     double IncrementalAt(double diameter) const override;
 
   private:
+    /// The sum of `terms`, already checked to share `kind`.
+    SummedSfd(SfdKind kind, std::vector<WeightedSfd>&& terms);
+
     std::vector<WeightedSfd> terms_;
 };
 

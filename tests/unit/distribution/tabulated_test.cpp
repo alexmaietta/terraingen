@@ -77,7 +77,7 @@ class Inverter final : public SizeFrequencyDistribution {
     Inverter() : SizeFrequencyDistribution(SfdKind::Density, DiameterRange{1.0, 2.0}) {}
 
     static double Invert(const SizeFrequencyDistribution& sfd, double target) {
-        return InvertCumulativeOf(sfd, target, 0.0, kInf);
+        return UncheckedInverse(sfd, target, 0.0, kInf);
     }
 
   protected:

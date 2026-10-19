@@ -1,72 +1,54 @@
 #include "terraingen/distribution/minimum.h"
 
-#include "terraingen/distribution/combined.h"
+#include "terraingen/distribution/composition.h"
 
-#include <cmath>
-#include <stdexcept>
 #include <utility>
 
 namespace terraingen {
 
 namespace {
 
-SfdKind
-CommonKind(const std::vector<std::shared_ptr<const SizeFrequencyDistribution>>& distributions) {
-    std::vector<const SizeFrequencyDistribution*> pointers;
-    for (const auto& distribution : distributions) {
-        pointers.push_back(distribution.get());
-    }
-    return detail::CommonKind(pointers, "A minimum");
-}
-
-/// The intersection of the inputs' valid ranges, whether or not they allow extrapolation.
-DiameterRange IntersectRanges(
+/// The intersection of the checked inputs' valid ranges, whether or not they allow extrapolation.
+DiameterRange IntersectValidRanges(
     const std::vector<std::shared_ptr<const SizeFrequencyDistribution>>& distributions) {
-    CommonKind(distributions);
-    DiameterRange range;
+    std::vector<DiameterRange> ranges;
     for (const auto& distribution : distributions) {
-        range.min = std::fmax(range.min, distribution->ValidRange().min);
-        range.max = std::fmin(range.max, distribution->ValidRange().max);
+        ranges.push_back(distribution->ValidRange());
     }
-    if (!(range.max > range.min)) {
-        throw std::invalid_argument("The distributions' valid ranges do not overlap");
-    }
-    return range;
+    return detail::IntersectRanges(ranges, "The distributions' valid ranges do not overlap");
 }
 
 }  // namespace
 
 MinimumSfd::MinimumSfd(std::vector<std::shared_ptr<const SizeFrequencyDistribution>> distributions)
-    : SizeFrequencyDistribution(CommonKind(distributions), IntersectRanges(distributions)),
+    : MinimumSfd(detail::CommonKind(detail::Distributions(distributions), "A minimum"),
+                 std::move(distributions)) {}
+
+MinimumSfd::MinimumSfd(
+    SfdKind kind, std::vector<std::shared_ptr<const SizeFrequencyDistribution>>&& distributions)
+    : SizeFrequencyDistribution(kind, IntersectValidRanges(distributions)),
       distributions_(std::move(distributions)) {}
 
-const SizeFrequencyDistribution& MinimumSfd::LowestAt(double diameter) const {
+std::pair<const SizeFrequencyDistribution*, double> MinimumSfd::LowestAt(double diameter) const {
     const SizeFrequencyDistribution* lowest = distributions_.front().get();
-    double value = CumulativeOf(*lowest, diameter);
+    double value = UncheckedCumulative(*lowest, diameter);
     for (std::size_t n = 1; n < distributions_.size(); ++n) {
         const auto& distribution = distributions_[n];
-        const double candidate = CumulativeOf(*distribution, diameter);
+        const double candidate = UncheckedCumulative(*distribution, diameter);
         if (candidate < value) {
             value = candidate;
             lowest = distribution.get();
         }
     }
-    return *lowest;
+    return {lowest, value};
 }
 
 double MinimumSfd::CumulativeAt(double diameter) const {
-    double value = CumulativeOf(*distributions_.front(), diameter);
-    for (std::size_t n = 1; n < distributions_.size(); ++n) {
-        const double candidate = CumulativeOf(*distributions_[n], diameter);
-        if (candidate < value) {
-            value = candidate;
-        }
-    }
-    return value;
+    return LowestAt(diameter).second;
 }
 
 double MinimumSfd::IncrementalAt(double diameter) const {
-    return IncrementalOf(LowestAt(diameter), diameter);
+    return UncheckedIncremental(*LowestAt(diameter).first, diameter);
 }
 
 }  // namespace terraingen

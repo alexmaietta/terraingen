@@ -1,28 +1,22 @@
 #include "terraingen/distribution/ivanov.h"
 
-#include <cmath>
-#include <stdexcept>
+#include "terraingen/distribution/exponential_chronology.h"
 
 namespace terraingen {
 
 namespace {
 
-void CheckAge(double ageGyr) {
-    if (!(ageGyr >= 0.0 && ageGyr <= kMaxMarsAgeGyr)) {
-        throw std::domain_error("Martian surface age must be between 0 and 4.6 Gyr");
-    }
-}
+constexpr detail::ExponentialChronology kIvanov{
+    2.68e-14, 6.93, 4.13e-4, kMaxMarsAgeGyr, "Martian surface age must be between 0 and 4.6 Gyr"};
 
 }  // namespace
 
 double IvanovMarsChronology(double ageGyr) {
-    CheckAge(ageGyr);
-    return (2.68e-14 * std::expm1(6.93 * ageGyr) + 4.13e-4 * ageGyr) / 1e6;
+    return kIvanov.Count(ageGyr);
 }
 
 double IvanovMarsChronologyRate(double ageGyr) {
-    CheckAge(ageGyr);
-    return (2.68e-14 * 6.93 * std::exp(6.93 * ageGyr) + 4.13e-4) / 1e6;
+    return kIvanov.Rate(ageGyr);
 }
 
 LogPolynomialSfd IvanovMarsProductionFunction() {

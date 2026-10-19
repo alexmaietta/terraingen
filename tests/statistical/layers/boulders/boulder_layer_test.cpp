@@ -64,9 +64,10 @@ TEST(BoulderLayerStatistics, ThinningFollowsTheLocalCoverageInPatches) {
 TEST(BoulderLayerStatistics, CountsFollowAnyDistribution) {
     for (const auto& distribution :
          std::initializer_list<std::shared_ptr<terraingen::SizeFrequencyDistribution>>{
-             terraingen::Sp8023IntercraterBlocks(terraingen::SpecificationCurve::Nominal),
-             terraingen::SynthterrainBoulderDistribution(
-                 terraingen::SynthterrainBoulders::Haworth)}) {
+             std::make_shared<terraingen::TabulatedSfd>(
+                 terraingen::Sp8023IntercraterBlocks(terraingen::SpecificationCurve::Nominal)),
+             std::make_shared<terraingen::PowerLawSfd>(terraingen::SynthterrainBoulderDistribution(
+                 terraingen::SynthterrainBoulders::Haworth))}) {
         BoulderLayerOptions options;
         options.sizes.distribution = distribution;
         options.sizes.minDiameter = 0.2;
@@ -79,8 +80,8 @@ TEST(BoulderLayerStatistics, CountsFollowAnyDistribution) {
 }
 
 TEST(BoulderLayerStatistics, ClustersKeepTheCountOfADistribution) {
-    const auto distribution =
-        terraingen::Sp8023IntercraterBlocks(terraingen::SpecificationCurve::Nominal);
+    const auto distribution = std::make_shared<terraingen::TabulatedSfd>(
+        terraingen::Sp8023IntercraterBlocks(terraingen::SpecificationCurve::Nominal));
     BoulderLayerOptions options;
     options.sizes.distribution = distribution;
     options.sizes.minDiameter = 0.2;

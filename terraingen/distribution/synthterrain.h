@@ -4,8 +4,6 @@
 
 #include "terraingen/distribution/power_law.h"
 
-#include <memory>
-
 namespace terraingen {
 
 /// The boulder distributions synthterrain offers, N per m^2 with D in metres, for
@@ -19,6 +17,6 @@ enum class SynthterrainBoulders {
 /// The synthterrain boulder distribution `boulders` as a power-law `Density`, valid at every
 /// diameter.
 /// @throws std::invalid_argument for an unknown distribution.
-std::shared_ptr<PowerLawSfd> SynthterrainBoulderDistribution(SynthterrainBoulders boulders);
+PowerLawSfd SynthterrainBoulderDistribution(SynthterrainBoulders boulders);
 
 }  // namespace terraingen

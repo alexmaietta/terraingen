@@ -1,5 +1,6 @@
-#include "terraingen/distribution/combined.h"
+#include "terraingen/distribution/composition.h"
 
+#include <cctype>
 #include <stdexcept>
 
 namespace terraingen::detail {
@@ -22,6 +23,33 @@ SfdKind CommonKind(std::span<const SizeFrequencyDistribution* const> distributio
 
 DiameterRange UsableRange(const SizeFrequencyDistribution& distribution) {
     return distribution.AllowsExtrapolation() ? DiameterRange{} : distribution.ValidRange();
+}
+
+DiameterRange IntersectRanges(std::span<const DiameterRange> ranges, const std::string& message) {
+    DiameterRange range;
+    for (const DiameterRange& each : ranges) {
+        range.min = std::fmax(range.min, each.min);
+        range.max = std::fmin(range.max, each.max);
+    }
+    if (!(range.min < range.max)) {
+        throw std::invalid_argument(message);
+    }
+    return range;
+}
+
+void CheckStarts(std::span<const double> starts, const DiameterRange& range,
+                 const std::string& noun) {
+    if (starts.empty() || starts.front() != range.min) {
+        throw std::invalid_argument("The first " + noun + " must start at the range minimum");
+    }
+    for (std::size_t i = 1; i < starts.size(); ++i) {
+        if (!(std::isfinite(starts[i]) && starts[i] > starts[i - 1] && starts[i] < range.max)) {
+            std::string capitalized = noun;
+            capitalized.front() =
+                static_cast<char>(std::toupper(static_cast<unsigned char>(capitalized.front())));
+            throw std::invalid_argument(capitalized + " starts must increase within the range");
+        }
+    }
 }
 
 void CheckJoin(double below, double above, double start, double tolerance,

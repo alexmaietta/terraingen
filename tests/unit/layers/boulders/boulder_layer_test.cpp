@@ -179,13 +179,14 @@ TEST(BoulderLayer, LimitsCraterBlocksToHowFarTheyAreThrownOverRegolith) {
 
 TEST(BoulderLayer, DrawsBouldersAndCraterBlocksFromAnyDistribution) {
     BoulderLayerOptions options;
-    options.sizes.distribution = terraingen::SynthterrainBoulderDistribution(
-        terraingen::SynthterrainBoulders::ViperSpecification);
+    options.sizes.distribution =
+        std::make_shared<terraingen::PowerLawSfd>(terraingen::SynthterrainBoulderDistribution(
+            terraingen::SynthterrainBoulders::ViperSpecification));
     options.sizes.minDiameter = 1.0;
     options.sizes.maxDiameter = 8.0;
     options.ejecta.minCraterDiameter = 50.0;
-    options.ejecta.distribution =
-        terraingen::Sp8023CraterBlocks(terraingen::SpecificationCurve::Nominal);
+    options.ejecta.distribution = std::make_shared<terraingen::TabulatedSfd>(
+        terraingen::Sp8023CraterBlocks(terraingen::SpecificationCurve::Nominal));
     const BoulderLayer layer(options, Craters({{0.0, 0.0, 100.0, 0.0, 0u}}));
     EXPECT_DOUBLE_EQ(layer.DensityAt(2.0, 400.0, 0.0),
                      options.sizes.distribution->Incremental(2.0));
@@ -201,7 +202,8 @@ TEST(BoulderLayer, DrawsBouldersAndCraterBlocksFromAnyDistribution) {
     options.sizes.minDiameter = 0.1;
     EXPECT_THROW(BoulderLayer(options, Craters({})), std::invalid_argument)
         << "the crater table starts at 0.85 m";
-    auto extrapolated = terraingen::Sp8023CraterBlocks(terraingen::SpecificationCurve::Nominal);
+    auto extrapolated = std::make_shared<terraingen::TabulatedSfd>(
+        terraingen::Sp8023CraterBlocks(terraingen::SpecificationCurve::Nominal));
     extrapolated->SetAllowExtrapolation(true);
     options.ejecta.distribution = extrapolated;
     EXPECT_NO_THROW(BoulderLayer(options, Craters({})));

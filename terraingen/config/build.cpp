@@ -259,11 +259,13 @@ std::shared_ptr<SizeFrequencyDistribution> BuildBoulderSizes(const BoulderSizesS
         Overloaded{
             [](const GolombekRappBouldersSpec&) -> Result { return nullptr; },
             [](const Sp8023IntercraterBouldersSpec& s) -> Result {
-                return Sp8023IntercraterBlocks(s.curve);
+                return std::make_shared<TabulatedSfd>(Sp8023IntercraterBlocks(s.curve));
             },
-            [](const Sp8023CraterBouldersSpec& s) -> Result { return Sp8023CraterBlocks(s.curve); },
+            [](const Sp8023CraterBouldersSpec& s) -> Result {
+                return std::make_shared<TabulatedSfd>(Sp8023CraterBlocks(s.curve));
+            },
             [](const SynthterrainBouldersSpec& s) -> Result {
-                return SynthterrainBoulderDistribution(s.model);
+                return std::make_shared<PowerLawSfd>(SynthterrainBoulderDistribution(s.model));
             },
             [&](const PowerLawSpec& s) -> Result { return density(s); },
             [&](const PiecewisePowerLawSpec& s) -> Result { return density(s); },

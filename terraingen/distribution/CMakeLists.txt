@@ -1,8 +1,9 @@
 terraingen_add_library(
     distribution
     SOURCES
-    combined.cpp
+    composition.cpp
     equilibrium.cpp
+    exponential_chronology.cpp
     golombek_rapp.cpp
     ivanov.cpp
     log_polynomial.cpp

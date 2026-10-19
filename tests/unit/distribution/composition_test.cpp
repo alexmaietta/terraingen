@@ -1,4 +1,4 @@
-#include "terraingen/distribution/combined.h"
+#include "terraingen/distribution/composition.h"
 
 #include "terraingen/distribution/power_law.h"
 
@@ -51,11 +51,11 @@ TEST(CheckJoin, RejectsRisesAndUnallowedDrops) {
     EXPECT_NO_THROW(terraingen::detail::CheckJoin(1.0, 0.5, 10.0, 1e-3, true));
 }
 
-TEST(IndexOfStart, AppliesTheLowerPieceAtAJoin) {
+TEST(PieceIndex, AppliesTheLowerPieceAtAJoin) {
     const std::vector<PowerLawSegment> pieces = {
         {0.0, 1.0, 2.0}, {10.0, 1.0, 2.0}, {100.0, 1.0, 2.0}};
-    EXPECT_EQ(terraingen::detail::IndexOfStart(pieces, 5.0), 0u);
-    EXPECT_EQ(terraingen::detail::IndexOfStart(pieces, 10.0), 0u);
-    EXPECT_EQ(terraingen::detail::IndexOfStart(pieces, 10.5), 1u);
-    EXPECT_EQ(terraingen::detail::IndexOfStart(pieces, 1e6), 2u);
+    EXPECT_EQ(terraingen::detail::PieceIndex(pieces, 5.0), 0u);
+    EXPECT_EQ(terraingen::detail::PieceIndex(pieces, 10.0), 0u);
+    EXPECT_EQ(terraingen::detail::PieceIndex(pieces, 10.5), 1u);
+    EXPECT_EQ(terraingen::detail::PieceIndex(pieces, 1e6), 2u);
 }

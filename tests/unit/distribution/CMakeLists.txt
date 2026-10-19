@@ -1,7 +1,7 @@
 terraingen_add_test_suite(
     distribution
     SOURCES
-    combined_test.cpp
+    composition_test.cpp
     equilibrium_test.cpp
     golombek_rapp_test.cpp
     ivanov_test.cpp
