@@ -7,7 +7,7 @@ target_link_libraries(
     PUBLIC terraingen::terraingen
     PRIVATE terraingen_warnings terraingen_coverage)
 
-# `terraingen gui`: the GUI (gui/) on Ernie's app when the build has Ernie, else a stub that says
+# `terraingen --gui`: the GUI (gui/) on Ernie's app when the build has Ernie, else a stub that says
 # how to add it.
 if(TERRAINGEN_GUI)
     add_subdirectory(gui)

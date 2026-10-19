@@ -2,6 +2,7 @@
 /// @brief Levelled logging to a replaceable sink, and timing helpers for log messages.
 #pragma once
 
+#include <array>
 #include <chrono>
 #include <functional>
 #include <optional>
@@ -13,6 +14,10 @@ namespace terraingen {
 
 /// Severity of a log message, in increasing order; `Off` as the threshold disables logging.
 enum class LogLevel { Trace, Debug, Info, Warning, Error, Off };
+
+/// Every level, in increasing order: the levels `ParseLogLevel` reads.
+inline constexpr std::array kLogLevels{LogLevel::Trace,   LogLevel::Debug, LogLevel::Info,
+                                       LogLevel::Warning, LogLevel::Error, LogLevel::Off};
 
 /// The lower-case name of a level: "trace", "debug", "info", "warning", "error" or "off".
 std::string_view LogLevelName(LogLevel level);

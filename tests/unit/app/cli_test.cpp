@@ -16,7 +16,6 @@
 namespace {
 
 using terraingen::cli::kExitFailure;
-using terraingen::cli::kExitInvalidConfig;
 using terraingen::cli::kExitSuccess;
 using terraingen::cli::kExitUsage;
 
@@ -112,6 +111,19 @@ TEST(Cli, RejectsBadArguments) {
     }
     EXPECT_EQ(Cli({}).err, "terraingen: Missing a command or configuration file\n"
                            "Run 'terraingen --help' to see the usage.\n");
+}
+
+TEST(Cli, NamesTheChoicesOfBadOptionValues) {
+    EXPECT_NE(Cli({"a.json", "--log-level", "loud"})
+                  .err.find("--log-level needs trace, debug, info, warning, error or off, not "
+                            "'loud'"),
+              std::string::npos);
+    EXPECT_NE(Cli({"a.json", "--backend", "opencl"})
+                  .err.find("--backend needs auto, cpu, gpu, vulkan, cuda or metal, not 'opencl'"),
+              std::string::npos);
+    EXPECT_NE(Cli({"a.json", "--output-dir"}).err.find("--output-dir needs a value"),
+              std::string::npos);
+    EXPECT_NE(Cli({"a.json", "b.json"}).err.find("Unexpected argument b.json"), std::string::npos);
 }
 
 TEST(Cli, ParsesThreadCounts) {
@@ -216,14 +228,14 @@ TEST(Cli, ValidatesAConfigAndReportsItsGridAndCraters) {
     const auto bad = Write(directory / "bad.json",
                            R"({"schema_version": 1, "layers": [{"type": "noise", "stack": []}]})");
     const Result invalid = Cli({"validate", bad.string()});
-    EXPECT_EQ(invalid.code, kExitInvalidConfig);
+    EXPECT_EQ(invalid.code, kExitFailure);
     EXPECT_NE(invalid.err.find("layers[0]"), std::string::npos) << invalid.err;
-    EXPECT_EQ(Cli({"validate", (directory / "missing.json").string()}).code, kExitInvalidConfig);
+    EXPECT_EQ(Cli({"validate", (directory / "missing.json").string()}).code, kExitFailure);
 
     const auto raster = Write(directory / "raster.json",
                               R"({"schema_version": 1,
                                   "base": {"type": "raster", "path": "nowhere.tif"}})");
-    EXPECT_EQ(Cli({"validate", raster.string()}).code, kExitInvalidConfig);
+    EXPECT_EQ(Cli({"validate", raster.string()}).code, kExitFailure);
 }
 
 TEST(Cli, GeneratesAConfigsOutputsIntoTheChosenFolder) {
@@ -249,7 +261,7 @@ TEST(Cli, ReportsConfigAndOutputErrorsWhenGenerating) {
     const auto directory = Directory("generate_errors");
     const auto bad = Write(directory / "bad.json", R"({"schema_version": 99})");
     const Result invalid = Cli({bad.string()});
-    EXPECT_EQ(invalid.code, kExitInvalidConfig);
+    EXPECT_EQ(invalid.code, kExitFailure);
     EXPECT_NE(invalid.err.find("bad.json: "), std::string::npos) << invalid.err;
 
     const auto config = Write(directory / "terrain.json", kConfig);

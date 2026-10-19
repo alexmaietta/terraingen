@@ -13,10 +13,8 @@ namespace terraingen::cli {
 
 /// Exit code of a successful run.
 inline constexpr int kExitSuccess = 0;
-/// Exit code of an invalid configuration.
-inline constexpr int kExitInvalidConfig = 1;
-/// Exit code of any other failure, such as an unwritable output; equal to
-/// `kExitInvalidConfig`, which scripts already treat as a failed run.
+/// Exit code of a failed run: an invalid configuration or any other error, such as an unwritable
+/// output.
 inline constexpr int kExitFailure = 1;
 /// Exit code of bad command-line arguments.
 inline constexpr int kExitUsage = 2;
@@ -50,8 +48,8 @@ GuiArgs ParseGuiArgs(const std::vector<std::string>& args);
 /// - `CONFIG [--output-dir DIR] [--log-level LEVEL] [--threads N] [--backend NAME]` generates the
 ///   terrain the JSON file CONFIG describes and writes its outputs; relative input paths resolve
 ///   against the config's folder, relative output paths against DIR or the config's folder, and
-///   NAME (auto, cpu, gpu, vulkan, cuda or metal; by default `DefaultBackend()`) is where the
-///   heights are evaluated;
+///   NAME (one of `kBackendNames`; by default `DefaultBackend()`) is where the heights are
+///   evaluated;
 /// - `validate CONFIG` checks CONFIG without generating and reports its grid and expected craters;
 /// - `schema` prints every configuration type with its defaults (`ConfigCatalog`);
 /// - `backends` prints each backend with its device or why it is unavailable, then the default;
@@ -59,8 +57,8 @@ GuiArgs ParseGuiArgs(const std::vector<std::string>& args);
 ///   PATH or the starter terrain, generating on NAME as above;
 /// - `-V` or `--version`, and `-h` or `--help`.
 /// @param args The arguments, without the program name.
-/// @return `kExitSuccess`, `kExitInvalidConfig` for a `ConfigError`, `kExitFailure` for another
-/// error, or `kExitUsage` for bad arguments, which prints the problem and a pointer to `--help`.
+/// @return `kExitSuccess`, `kExitFailure` for a `ConfigError` or another error, or `kExitUsage`
+/// for bad arguments, which prints the problem and a pointer to `--help`.
 int Run(const std::vector<std::string>& args, std::ostream& out, std::ostream& err);
 
 }  // namespace terraingen::cli

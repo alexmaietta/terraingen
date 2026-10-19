@@ -23,7 +23,7 @@ int RunGui(const std::vector<std::string>& args, std::ostream& /*out*/, std::ost
         app.Run();
     } catch (const std::exception& error) {
         err << "terraingen: the GUI stopped: " << error.what() << "\n";
-        return kExitInvalidConfig;
+        return kExitFailure;
     }
     return kExitSuccess;
 }

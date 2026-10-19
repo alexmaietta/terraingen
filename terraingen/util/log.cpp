@@ -66,9 +66,7 @@ std::optional<LogLevel> ParseLogLevel(std::string_view name) {
     if (lower == "warn") {
         return LogLevel::Warning;
     }
-    constexpr std::array kLevels{LogLevel::Trace,   LogLevel::Debug, LogLevel::Info,
-                                 LogLevel::Warning, LogLevel::Error, LogLevel::Off};
-    for (const LogLevel level : kLevels) {
+    for (const LogLevel level : kLogLevels) {
         if (lower == LogLevelName(level)) {
             return level;
         }

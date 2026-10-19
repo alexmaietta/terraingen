@@ -31,44 +31,109 @@ struct GenerateArgs {
     std::optional<Backend> backend = std::nullopt;
 };
 
+/// The arguments of a command, read in order.
+class ArgCursor {
+  public:
+    explicit ArgCursor(const std::vector<std::string>& args) : args_(args) {}
+
+    /// Whether every argument has been read.
+    bool Done() const {
+        return next_ >= args_.size();
+    }
+
+    /// The next argument.
+    const std::string& Next() {
+        return args_[next_++];
+    }
+
+    /// The value after the option `option`.
+    /// @throws std::invalid_argument when `option` is the last argument.
+    const std::string& Value(const std::string& option) {
+        if (Done()) {
+            throw std::invalid_argument(option + " needs a value");
+        }
+        return Next();
+    }
+
+  private:
+    const std::vector<std::string>& args_;
+    std::size_t next_ = 0;
+};
+
+/// Whether `arg` is an option rather than a path.
+bool IsOption(const std::string& arg) {
+    return arg.rfind("--", 0) == 0;
+}
+
+/// Reads `arg` if it is one of the options every generating command takes, `--threads N` and
+/// `--backend NAME`, taking its value from `cursor`; false for any other argument.
+bool ReadRunOption(const std::string& arg, ArgCursor& cursor, unsigned& threads,
+                   std::optional<Backend>& backend) {
+    if (arg == "--threads") {
+        threads = ParseThreads(cursor.Value(arg));
+    } else if (arg == "--backend") {
+        backend = ParseBackend(cursor.Value(arg));
+    } else {
+        return false;
+    }
+    return true;
+}
+
+/// Sets the single positional argument `path` to `arg`.
+/// @throws std::invalid_argument when `path` is already set.
+void ReadPath(const std::string& arg, std::optional<std::string>& path) {
+    if (path) {
+        throw std::invalid_argument("Unexpected argument " + arg);
+    }
+    path = arg;
+}
+
+/// `names` as a message lists them, as in "a, b or c".
+template <typename Names> std::string ListNames(const Names& names) {
+    std::string list;
+    for (std::size_t i = 0; i < names.size(); ++i) {
+        list += (i == 0 ? "" : i + 1 == names.size() ? " or " : ", ");
+        list += names[i];
+    }
+    return list;
+}
+
+/// Parses a `--log-level` value.
+/// @throws std::invalid_argument for a name `ParseLogLevel` does not read.
+LogLevel ParseLevel(const std::string& name) {
+    if (const std::optional<LogLevel> level = ParseLogLevel(name)) {
+        return *level;
+    }
+    std::vector<std::string_view> names;
+    for (const LogLevel level : kLogLevels) {
+        names.push_back(LogLevelName(level));
+    }
+    throw std::invalid_argument("--log-level needs " + ListNames(names) + ", not '" + name + "'");
+}
+
 GenerateArgs ParseGenerate(const std::vector<std::string>& args) {
     GenerateArgs parsed;
-    bool haveConfig = false;
-    for (std::size_t i = 0; i < args.size(); ++i) {
-        const std::string& arg = args[i];
-        const auto value = [&]() -> const std::string& {
-            if (i + 1 >= args.size()) {
-                throw std::invalid_argument(arg + " needs a value");
-            }
-            return args[++i];
-        };
+    std::optional<std::string> config;
+    ArgCursor cursor(args);
+    while (!cursor.Done()) {
+        const std::string& arg = cursor.Next();
+        if (ReadRunOption(arg, cursor, parsed.threads, parsed.backend)) {
+            continue;
+        }
         if (arg == "--output-dir") {
-            parsed.outputDir = value();
+            parsed.outputDir = cursor.Value(arg);
         } else if (arg == "--log-level") {
-            const std::string& name = value();
-            const std::optional<LogLevel> level = ParseLogLevel(name);
-            if (!level) {
-                throw std::invalid_argument(
-                    "--log-level needs trace, debug, info, warning, error or off, not '" + name +
-                    "'");
-            }
-            parsed.logLevel = *level;
-        } else if (arg == "--threads") {
-            parsed.threads = ParseThreads(value());
-        } else if (arg == "--backend") {
-            parsed.backend = ParseBackend(value());
-        } else if (arg.rfind("--", 0) == 0) {
+            parsed.logLevel = ParseLevel(cursor.Value(arg));
+        } else if (IsOption(arg)) {
             throw std::invalid_argument("Unknown option " + arg);
-        } else if (haveConfig) {
-            throw std::invalid_argument("Unexpected argument " + arg);
         } else {
-            parsed.config = arg;
-            haveConfig = true;
+            ReadPath(arg, config);
         }
     }
-    if (!haveConfig) {
+    if (!config) {
         throw std::invalid_argument("Missing the configuration file");
     }
+    parsed.config = *config;
     return parsed;
 }
 
@@ -96,7 +161,7 @@ int RunReporting(const std::filesystem::path& config, std::ostream& err, Command
         command();
     } catch (const ConfigError& error) {
         err << config.string() << ": " << error.what() << "\n";
-        return kExitInvalidConfig;
+        return kExitFailure;
     } catch (const std::exception& error) {
         err << "terraingen: " << error.what() << "\n";
         return kExitFailure;
@@ -186,45 +251,45 @@ Backend ParseBackend(const std::string& text) {
     if (const std::optional<Backend> backend = BackendNamed(text)) {
         return *backend;
     }
-    throw std::invalid_argument("--backend needs auto, cpu, gpu, vulkan, cuda or metal, not '" +
-                                text + "'");
+    throw std::invalid_argument("--backend needs " + BackendNameList() + ", not '" + text + "'");
 }
 
 GuiArgs ParseGuiArgs(const std::vector<std::string>& args) {
     GuiArgs parsed;
-    for (std::size_t i = 0; i < args.size(); ++i) {
-        const std::string& arg = args[i];
-        const auto value = [&]() -> const std::string& {
-            if (i + 1 >= args.size()) {
-                throw std::invalid_argument(arg + " needs a value");
-            }
-            return args[++i];
-        };
-        if (arg == "--threads") {
-            parsed.threads = ParseThreads(value());
-        } else if (arg == "--backend") {
-            parsed.backend = ParseBackend(value());
-        } else if (arg.rfind("--", 0) == 0) {
-            throw std::invalid_argument("Unknown option " + arg + " with --gui");
-        } else if (!parsed.open.empty()) {
-            throw std::invalid_argument("Unexpected argument " + arg);
-        } else {
-            parsed.open = arg;
+    std::optional<std::string> open;
+    ArgCursor cursor(args);
+    while (!cursor.Done()) {
+        const std::string& arg = cursor.Next();
+        if (ReadRunOption(arg, cursor, parsed.threads, parsed.backend)) {
+            continue;
         }
+        if (IsOption(arg)) {
+            throw std::invalid_argument("Unknown option " + arg + " with --gui");
+        }
+        ReadPath(arg, open);
     }
+    parsed.open = open.value_or("");
     return parsed;
 }
 
 std::string Usage() {
+    std::string backends;
+    for (const std::string_view name : kBackendNames) {
+        backends += (backends.empty() ? "" : "|") + std::string(name);
+    }
     return "Usage:\n"
            "  terraingen CONFIG [--output-dir DIR] [--log-level LEVEL] [--threads N]\n"
-           "                    [--backend auto|cpu|gpu|vulkan|cuda|metal]\n"
+           "                    [--backend " +
+           backends +
+           "]\n"
            "                         Generate the terrain the JSON file CONFIG describes\n"
            "  terraingen validate CONFIG\n"
            "                         Check CONFIG without generating\n"
            "  terraingen schema      Print every configuration type with its defaults\n"
            "  terraingen backends    Show where terrains can be evaluated here, and the default\n"
-           "  terraingen [PATH] --gui [--threads N] [--backend auto|cpu|gpu|vulkan|cuda|metal]\n"
+           "  terraingen [PATH] --gui [--threads N] [--backend " +
+           backends +
+           "]\n"
            "                         Open the GUI on a configuration, GeoTIFF heights or the\n"
            "                         starter terrain\n"
            "  terraingen -V, --version\n"
