@@ -17,7 +17,6 @@ terraingen_add_library(
     terraingen_distribution
     terraingen_layers
     terraingen_noise
-    terraingen_materials
     terraingen_pipeline
     terraingen_raster
     terraingen_sources

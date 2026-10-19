@@ -4,6 +4,7 @@
 
 #include "terraingen/albedo/blast_zones.h"
 #include "terraingen/albedo/crater_albedo.h"
+#include "terraingen/albedo/photometry.h"
 #include "terraingen/albedo/raster_albedo.h"
 #include "terraingen/albedo/rock_albedo.h"
 #include "terraingen/albedo/slope_albedo.h"
@@ -30,8 +31,8 @@
 #include "terraingen/layers/sand_fill.h"
 #include "terraingen/layers/sand_shadow.h"
 #include "terraingen/layers/strata.h"
-#include "terraingen/materials/materials.h"
 #include "terraingen/noise/noise_layers.h"
+#include "terraingen/pipeline/materials.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/resample.h"
 #include "terraingen/sources/geotiff_source.h"

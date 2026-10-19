@@ -7,6 +7,7 @@ terraingen_add_library(
     brightness_statistics.cpp
     crater_albedo.cpp
     maturity.cpp
+    photometry.cpp
     raster_albedo.cpp
     rock_albedo.cpp
     slope_albedo.cpp

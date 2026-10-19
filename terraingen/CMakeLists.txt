@@ -59,7 +59,6 @@ add_subdirectory(sources)
 add_subdirectory(layers)
 add_subdirectory(albedo)
 add_subdirectory(pipeline)
-add_subdirectory(materials)
 add_subdirectory(config)
 
 get_property(modules GLOBAL PROPERTY TERRAINGEN_MODULES)

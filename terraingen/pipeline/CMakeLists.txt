@@ -4,6 +4,7 @@ terraingen_add_library(
     body_mesh.cpp
     features.cpp
     height_mesh.cpp
+    materials.cpp
     terrain.cpp
     tiles.cpp
     PUBLIC

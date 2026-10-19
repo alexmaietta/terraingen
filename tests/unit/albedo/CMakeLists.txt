@@ -5,6 +5,7 @@ terraingen_add_test_suite(
     bands_test.cpp
     blast_zones_test.cpp
     crater_albedo_test.cpp
+    photometry_test.cpp
     rock_albedo_test.cpp
     slope_albedo_test.cpp
     splotches_test.cpp

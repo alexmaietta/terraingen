@@ -2,7 +2,8 @@
 #include "common.h"
 #include "objects.h"
 
-#include "terraingen/materials/materials.h"
+#include "terraingen/albedo/photometry.h"
+#include "terraingen/pipeline/materials.h"
 
 #include <array>
 #include <optional>
