@@ -318,13 +318,14 @@ std::optional<DatumKernelIndex> IndexDatumRelief(const std::vector<PreparedCrate
 }
 
 /// Fits the datums of craters `fitted` of `prepared`, all indexed in `index`: the ground under
-/// each lattice point is read, the relief of the craters before each crater added by
+/// each lattice point is read (in one pass by `batchGround` when given, else by `ground`), the
+/// relief of the craters before each crater added by
 /// `KernelDatumRelief` on GPU `backend` when it can take it and on CPU threads otherwise, and the
 /// fit solved in double.
 void FitDatumsWithKernel(std::vector<PreparedCrater>& prepared,
                          const std::vector<std::size_t>& fitted, const HeightSampler& ground,
-                         const DatumKernelIndex& index, const CraterApplyOptions& options,
-                         Backend backend, unsigned threads) {
+                         const HeightsSampler& batchGround, const DatumKernelIndex& index,
+                         const CraterApplyOptions& options, Backend backend, unsigned threads) {
     constexpr auto kPoints = static_cast<std::size_t>(kDatumLatticeSide * kDatumLatticeSide);
     Raster<float> lattice(kPoints, fitted.size(), 0.0f);
     std::vector<std::uint8_t> valid(lattice.Size(), 0);
@@ -341,16 +342,35 @@ void FitDatumsWithKernel(std::vector<PreparedCrater>& prepared,
             }
         }
     };
-    ParallelFor(fitted.size(), threads, [&](std::size_t n) {
-        const Crater& c = prepared[fitted[n]].crater;
-        forEachPoint(n, [&](std::size_t at, double dx, double dy) {
-            const float height = ground(c.x + dx, c.y + dy);
-            if (!std::isnan(height)) {
-                lattice.Values()[at] = height;
-                valid[at] = 1;
-            }
+    const auto keep = [&](std::size_t at, float height) {
+        if (!std::isnan(height)) {
+            lattice.Values()[at] = height;
+            valid[at] = 1;
+        }
+    };
+    if (batchGround) {
+        std::vector<Vec2d> points;
+        std::vector<std::size_t> slots;
+        for (std::size_t n = 0; n < fitted.size(); ++n) {
+            const Crater& c = prepared[fitted[n]].crater;
+            forEachPoint(n, [&](std::size_t at, double dx, double dy) {
+                points.push_back({c.x + dx, c.y + dy});
+                slots.push_back(at);
+            });
+        }
+        std::vector<float> heights(points.size());
+        batchGround(points, heights);
+        for (std::size_t i = 0; i < points.size(); ++i) {
+            keep(slots[i], heights[i]);
+        }
+    } else {
+        ParallelFor(fitted.size(), threads, [&](std::size_t n) {
+            const Crater& c = prepared[fitted[n]].crater;
+            forEachPoint(n, [&](std::size_t at, double dx, double dy) {
+                keep(at, ground(c.x + dx, c.y + dy));
+            });
         });
-    });
+    }
     std::vector<std::uint32_t> targets(fitted.size());
     for (std::size_t n = 0; n < fitted.size(); ++n) {
         targets[n] = index.slot[fitted[n]];
@@ -403,20 +423,37 @@ void FitDatumsWithKernel(std::vector<PreparedCrater>& prepared,
 /// datum is fitted, so the relief datums are fitted to is the relief applied, and each crater's
 /// slope depends on no other crater of its layer.
 void ShapeOnSlopes(std::vector<PreparedCrater>& prepared, const HeightSampler& ground,
-                   const DegradationModel& degradation, const CraterApplyOptions& options) {
+                   const HeightsSampler& batch, const DegradationModel& degradation,
+                   const CraterApplyOptions& options) {
     const CraterSlopeResponse& response = options.slope;
     if (!response.enabled && !response.criticalGradient) {
         return;
     }
-    for (PreparedCrater& crater : prepared) {
+    std::vector<Vec2d> points;
+    points.reserve(4 * prepared.size());
+    for (const PreparedCrater& crater : prepared) {
         const Crater& c = crater.crater;
         const double half = options.datumFitRadii * 0.5 * c.diameter;
-        const auto at = [&](double east, double north) {
-            const Vec2d p = options.surface.Locate({c.x, c.y}, {east, north});
-            return static_cast<double>(ground(p.x, p.y));
-        };
-        const double east = (at(half, 0.0) - at(-half, 0.0)) / (2.0 * half);
-        const double north = (at(0.0, half) - at(0.0, -half)) / (2.0 * half);
+        for (const Vec2d offset :
+             {Vec2d{half, 0.0}, Vec2d{-half, 0.0}, Vec2d{0.0, half}, Vec2d{0.0, -half}}) {
+            points.push_back(options.surface.Locate({c.x, c.y}, offset));
+        }
+    }
+    std::vector<float> heights(points.size());
+    if (batch) {
+        batch(points, heights);
+    } else {
+        for (std::size_t i = 0; i < points.size(); ++i) {
+            heights[i] = ground(points[i].x, points[i].y);
+        }
+    }
+    for (std::size_t k = 0; k < prepared.size(); ++k) {
+        PreparedCrater& crater = prepared[k];
+        const Crater& c = crater.crater;
+        const double half = options.datumFitRadii * 0.5 * c.diameter;
+        const auto at = [&](std::size_t n) { return static_cast<double>(heights[4 * k + n]); };
+        const double east = (at(0) - at(1)) / (2.0 * half);
+        const double north = (at(2) - at(3)) / (2.0 * half);
         if (!std::isfinite(east) || !std::isfinite(north)) {
             continue;
         }
@@ -446,8 +483,9 @@ void FitDatums(std::vector<PreparedCrater>& prepared, const std::vector<std::siz
     if (shape && options.datum != CraterDatum::CentreHeight) {
         if (const std::optional<DatumKernelIndex> index =
                 IndexDatumRelief(prepared, fitted, profile, *shape, options)) {
-            FitDatumsWithKernel(prepared, fitted, ground, *index, options, sampling.backend,
-                                sampling.threads);
+            FitDatumsWithKernel(prepared, fitted, ground,
+                                sampling.ground ? sampling.groundBatch : HeightsSampler{}, *index,
+                                options, sampling.backend, sampling.threads);
             return;
         }
     }
@@ -687,7 +725,8 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
                 return static_cast<float>(
                     Sample(raster, x, y).value_or(std::numeric_limits<double>::quiet_NaN()));
             });
-        ShapeOnSlopes(prepared, beneath, *models.degradation, options);
+        ShapeOnSlopes(prepared, beneath, sampling.ground ? sampling.groundBatch : HeightsSampler{},
+                      *models.degradation, options);
         FitDatums(prepared, onRaster, raster, profile, kernel, options, sampling);
     }
     if (kernel) {
@@ -741,7 +780,8 @@ void ApplyCraters(SampleBlock& samples, const CraterList& craters, const CraterS
         indices.push_back(static_cast<std::size_t>(crater.prepared - prepared.data()));
     }
     if (options.datum != CraterDatum::None && !reaching.empty()) {
-        ShapeOnSlopes(prepared, sampling.ground, *models.degradation, options);
+        ShapeOnSlopes(prepared, sampling.ground, sampling.groundBatch, *models.degradation,
+                      options);
         std::optional<DatumKernelIndex> kernelIndex;
         bool indexed = false;
         std::optional<CraterReliefIndex> index;
@@ -752,8 +792,8 @@ void ApplyCraters(SampleBlock& samples, const CraterList& craters, const CraterS
                     indexed = true;
                 }
                 if (kernelIndex) {
-                    FitDatumsWithKernel(prepared, {k}, sampling.ground, *kernelIndex, options,
-                                        Backend::Cpu, 1);
+                    FitDatumsWithKernel(prepared, {k}, sampling.ground, sampling.groundBatch,
+                                        *kernelIndex, options, Backend::Cpu, 1);
                     return prepared[k].datum;
                 }
             }

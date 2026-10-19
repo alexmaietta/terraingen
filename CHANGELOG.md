@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Freshness degradation never makes a crater deeper than fresh: basins shallower than the cutoff keep their fresh shape.
 - Small craters inside larger ones on sloping ground no longer stand as raised mounds: datums are fitted to the slope-shaped relief that is applied.
+- Crater layers over other layers read the ground beneath their slopes and datums in batches rather than point by point, and point batches are evaluated in spatial order: the hero demo went from 433 s to 11 s with the same output.
 
 ## [0.1.0] - 2026-10-18
 

@@ -7,9 +7,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <stdexcept>
+#include <utility>
+#include <vector>
 
 namespace terraingen {
 
@@ -26,6 +29,60 @@ void EvaluateStack(const Terrain& terrain, std::size_t layers, std::span<const V
         const TerrainGround ground(terrain, n);
         SampleBlock samples(points, heights);
         terrain.layers[n]->Apply(samples, LayerContext{spacing, 1, &ground, Backend::Cpu, cache});
+    }
+}
+
+/// The Morton code of `point` on a 2^16 lattice over `bounds`.
+std::uint32_t MortonKey(const Vec2d& point, const Bounds2d& bounds) {
+    const auto quantize = [](double value, double low, double high) {
+        const double share = high > low ? (value - low) / (high - low) : 0.0;
+        return static_cast<std::uint32_t>(std::clamp(share, 0.0, 1.0) * 65535.0);
+    };
+    const auto spread = [](std::uint32_t v) {
+        v = (v | (v << 8u)) & 0x00FF00FFu;
+        v = (v | (v << 4u)) & 0x0F0F0F0Fu;
+        v = (v | (v << 2u)) & 0x33333333u;
+        v = (v | (v << 1u)) & 0x55555555u;
+        return v;
+    };
+    return spread(quantize(point.x, bounds.minX, bounds.maxX)) |
+           (spread(quantize(point.y, bounds.minY, bounds.maxY)) << 1u);
+}
+
+/// `EvaluateStack` over `points` in batches on `threads` threads, the points taken in Morton order
+/// so each batch covers a small area and prepares only the features there.
+void EvaluateBatched(const Terrain& terrain, std::size_t layers, std::span<const Vec2d> points,
+                     std::span<float> heights, double spacing, unsigned threads) {
+    constexpr std::size_t kBatch = 256;
+    if (points.size() <= kBatch) {
+        EvaluateStack(terrain, layers, points, heights, spacing);
+        return;
+    }
+    Bounds2d bounds{points[0].x, points[0].y, points[0].x, points[0].y};
+    for (const Vec2d& p : points) {
+        bounds = {std::fmin(bounds.minX, p.x), std::fmin(bounds.minY, p.y),
+                  std::fmax(bounds.maxX, p.x), std::fmax(bounds.maxY, p.y)};
+    }
+    std::vector<std::pair<std::uint32_t, std::size_t>> order(points.size());
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        order[i] = {MortonKey(points[i], bounds), i};
+    }
+    std::sort(order.begin(), order.end());
+    std::vector<Vec2d> sorted(points.size());
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        sorted[i] = points[order[i].second];
+    }
+    std::vector<float> values(points.size());
+    EvaluationCache cache;
+    const std::size_t batches = (points.size() + kBatch - 1) / kBatch;
+    ParallelFor(batches, threads, [&](std::size_t batch) {
+        const std::size_t begin = batch * kBatch;
+        const std::size_t count = std::min(kBatch, points.size() - begin);
+        EvaluateStack(terrain, layers, std::span<const Vec2d>(sorted).subspan(begin, count),
+                      std::span<float>(values).subspan(begin, count), spacing, &cache);
+    });
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        heights[order[i].second] = values[i];
     }
 }
 
@@ -68,20 +125,8 @@ std::vector<float> EvaluatePoints(const Terrain& terrain, std::span<const Vec2d>
                                   double spacing, unsigned threads) {
     ValidateTerrain(terrain);
     RequirePositive(spacing, "Sample spacing");
-    constexpr std::size_t kBatch = 256;
     std::vector<float> heights(points.size());
-    const std::size_t batches = (points.size() + kBatch - 1) / kBatch;
-    std::optional<EvaluationCache> cache;
-    if (batches > 1) {
-        cache.emplace();
-    }
-    ParallelFor(batches, threads, [&](std::size_t batch) {
-        const std::size_t begin = batch * kBatch;
-        const std::size_t count = std::min(kBatch, points.size() - begin);
-        EvaluateStack(terrain, terrain.layers.size(), points.subspan(begin, count),
-                      std::span<float>(heights).subspan(begin, count), spacing,
-                      cache ? &*cache : nullptr);
-    });
+    EvaluateBatched(terrain, terrain.layers.size(), points, heights, spacing, threads);
     return heights;
 }
 
@@ -106,18 +151,7 @@ float TerrainGround::HeightAt(double x, double y, double spacing) const {
 
 void TerrainGround::HeightsAt(std::span<const Vec2d> points, std::span<float> heights,
                               double spacing) const {
-    constexpr std::size_t kBatch = 256;
-    const std::size_t batches = (points.size() + kBatch - 1) / kBatch;
-    std::optional<EvaluationCache> cache;
-    if (batches > 1) {
-        cache.emplace();
-    }
-    ParallelFor(batches, 0, [&](std::size_t batch) {
-        const std::size_t begin = batch * kBatch;
-        const std::size_t count = std::min(kBatch, points.size() - begin);
-        EvaluateStack(terrain_, layers_, points.subspan(begin, count),
-                      heights.subspan(begin, count), spacing, cache ? &*cache : nullptr);
-    });
+    EvaluateBatched(terrain_, layers_, points, heights, spacing, 0);
 }
 
 namespace {

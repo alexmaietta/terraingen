@@ -353,3 +353,15 @@ TEST(SharedGround, OutlivesTheTerrainItWasMadeFrom) {
     EXPECT_EQ(heights[0], expected);
     EXPECT_THROW(terraingen::SharedGround(Rolling(), 99), std::invalid_argument);
 }
+
+TEST(EvaluatePoints, GivesEachPointItsOwnHeightInAnyOrder) {
+    const Terrain terrain = Rolling();
+    std::vector<terraingen::Vec2d> points;
+    for (int n = 0; n < 700; ++n) {
+        points.push_back({std::fmod(n * 37.77, 90.0) - 45.0, std::fmod(n * 91.13, 90.0) - 45.0});
+    }
+    const std::vector<float> heights = terraingen::EvaluatePoints(terrain, points, 1.0, 3);
+    for (std::size_t n = 0; n < points.size(); n += 23) {
+        ASSERT_EQ(heights[n], terraingen::EvaluateAt(terrain, points[n].x, points[n].y, 1.0)) << n;
+    }
+}

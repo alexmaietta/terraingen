@@ -33,6 +33,8 @@ struct CraterSampling {
     /// The ground datums are fitted to; empty for the raster as passed in, interpolated
     /// bilinearly.
     HeightSampler ground{};
+    /// `ground` at many points in one pass, to the same values; empty reads them one at a time.
+    HeightsSampler groundBatch{};
     /// Changes each crater's outline after its irregularity, such as secondaries stretched toward
     /// their primary; empty leaves outlines as they are. Must be deterministic and thread-safe.
     std::function<void(const Crater&, CraterOutline&)> reshape{};

@@ -191,6 +191,9 @@ void CraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context
     const HeightSampler ground =
         context.ground ? context.ground->Sampler(spacing) : HeightSampler{};
     CraterSampling sampling{spacing, context.threads, ground};
+    if (context.ground != nullptr) {
+        sampling.groundBatch = context.ground->BatchSampler(spacing);
+    }
     sampling.cache = context.cache;
     sampling.owner = this;
     sampling.backend = context.backend;

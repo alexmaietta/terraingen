@@ -2,8 +2,12 @@
 
 #include <gtest/gtest.h>
 
+#include <atomic>
 #include <cmath>
+#include <cstdint>
+#include <memory>
 #include <numbers>
+#include <span>
 #include <stdexcept>
 #include <vector>
 
@@ -256,4 +260,46 @@ TEST(ApplyCraters, FitsDatumsToTheSlopeShapedReliefSoNoCraterStandsAsAMesa) {
     }
     EXPECT_LT(inside, 0.0) << "the small crater is a hollow in the shifted floor, not a mesa";
     EXPECT_LT(around, 0.4) << "and leaves its surroundings much as they are";
+}
+
+TEST(ApplyCraters, ReadsTheGroundBeneathInBatchesToTheSameHeights) {
+    const terraingen::CraterShapeModels models{
+        std::make_shared<terraingen::FassettThomsonProfile>(),
+        std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry)};
+    terraingen::Raster<float> base(121, 121, 0.0f);
+    base.SetTransform(terraingen::GeoTransform::NorthUp(-60.5, 60.5, 1.0));
+    terraingen::CraterList craters;
+    for (std::uint32_t n = 0; n < 12; ++n) {
+        craters.Append({-40.0 + 7.0 * n, 30.0 - 5.0 * n, 6.0 + n, 0.1, n + 1});
+    }
+    terraingen::CraterApplyOptions options;
+    options.datum = terraingen::CraterDatum::Plane;
+    options.slope = Enabled(0.15);
+    const auto height = [](double x, double y) {
+        return static_cast<float>(0.3 * x + 0.002 * y * y);
+    };
+    std::atomic<int> singles = 0;
+    std::atomic<int> batches = 0;
+    terraingen::CraterSampling single;
+    single.ground = height;
+    terraingen::CraterSampling batched;
+    batched.ground = [&](double x, double y) {
+        ++singles;
+        return height(x, y);
+    };
+    batched.groundBatch = [&](std::span<const Vec2d> points, std::span<float> heights) {
+        ++batches;
+        for (std::size_t i = 0; i < points.size(); ++i) {
+            heights[i] = height(points[i].x, points[i].y);
+        }
+    };
+    terraingen::Raster<float> one = base;
+    terraingen::ApplyCraters(one, craters, models, options, single);
+    terraingen::Raster<float> many = base;
+    terraingen::ApplyCraters(many, craters, models, options, batched);
+    EXPECT_EQ(singles.load(), 0) << "slopes and datums read in batches";
+    EXPECT_EQ(batches.load(), 2) << "one for the slopes, one for the datums";
+    for (std::size_t i = 0; i < one.Size(); ++i) {
+        ASSERT_EQ(one.Values()[i], many.Values()[i]);
+    }
 }
