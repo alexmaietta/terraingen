@@ -149,13 +149,26 @@ double ShapeReach(const TriangleMesh& placed, double cx, double cy) {
 
 BoulderLayer::BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const CraterLayer> craters,
                            Surface surface)
+    : BoulderLayer(std::move(options),
+                   craters ? std::vector<std::shared_ptr<const CraterLayer>>{std::move(craters)}
+                           : std::vector<std::shared_ptr<const CraterLayer>>{},
+                   surface) {}
+
+BoulderLayer::BoulderLayer(BoulderLayerOptions options,
+                           std::vector<std::shared_ptr<const CraterLayer>> craters, Surface surface)
     : options_(std::move(options)), craters_(std::move(craters)), surface_(surface) {
-    if (craters_ && !(craters_->Options().surface == surface_)) {
-        throw std::invalid_argument("A boulder layer and its crater layer must share a surface");
+    for (const auto& layer : craters_) {
+        if (!layer) {
+            throw std::invalid_argument("A boulder layer's crater layers must not be null");
+        }
+        if (!(layer->Options().surface == surface_)) {
+            throw std::invalid_argument(
+                "A boulder layer and its crater layer must share a surface");
+        }
     }
     ValidateBoulderLayerOptions(options_);
     minCraterDiameter_ = options_.ejecta.MinCraterDiameter();
-    if (minCraterDiameter_ > 0.0 && !craters_) {
+    if (minCraterDiameter_ > 0.0 && craters_.empty()) {
         throw std::invalid_argument(
             "Boulder ejecta need the crater layer whose craters throw them");
     }

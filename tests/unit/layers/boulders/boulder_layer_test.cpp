@@ -110,6 +110,27 @@ TEST(BoulderLayer, GivesTheSameBouldersInEveryRegionAndSkipsOnlyUnresolvedOnes) 
     EXPECT_LT(coarse.size(), whole.size());
 }
 
+TEST(BoulderLayer, TakesBlocksFromEveryCraterLayerGiven) {
+    BoulderLayerOptions options;
+    options.ejecta.minCraterDiameter = 50.0;
+    const auto first = Craters({{0.0, 0.0, 100.0, 0.0, 0u}});
+    const auto second = Craters({{1000.0, 0.0, 100.0, 0.0, 0u}});
+    const BoulderLayer both(options, {first, second}, terraingen::Surface{});
+    EXPECT_EQ(both.AbundanceAt(50.0, 0.0).ejecta, 1.0) << "the first layer's rim";
+    EXPECT_EQ(both.AbundanceAt(1050.0, 0.0).ejecta, 1.0) << "the second layer's rim";
+    const BoulderLayer last(options, second);
+    EXPECT_EQ(last.AbundanceAt(50.0, 0.0).ejecta, 0.0);
+    const BoulderLayer one(options, {first}, terraingen::Surface{});
+    const BoulderLayer single(options, first);
+    EXPECT_EQ(one.Boulders({30.0, -20.0, 70.0, 20.0}), single.Boulders({30.0, -20.0, 70.0, 20.0}))
+        << "one layer in a list is that layer";
+    EXPECT_THROW(
+        BoulderLayer(options,
+                     std::vector<std::shared_ptr<const terraingen::CraterLayer>>{first, nullptr},
+                     terraingen::Surface{}),
+        std::invalid_argument);
+}
+
 TEST(BoulderLayer, AddsBlocksAroundFreshCraters) {
     BoulderLayerOptions options;
     options.ejecta.minCraterDiameter = 50.0;

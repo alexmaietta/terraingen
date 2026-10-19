@@ -304,12 +304,13 @@ Vec2d ReferencePoint(const Terrain& terrain) {
     return terrain.source ? terrain.source->ReferencePoint() : Vec2d{};
 }
 
-/// What a layer is built on: the base's reference point, the last top-level crater and boulder
-/// layers so far (for boulder ejecta, secondaries and sand shadows) and the surface.
+/// What a layer is built on: the base's reference point, the top-level crater layers so far (all
+/// for boulder ejecta, the last for secondaries), the last boulder layer (for sand shadows) and the
+/// surface.
 struct LayerInputs {
     Vec2d referencePoint;
     const std::filesystem::path& directory;
-    const std::shared_ptr<const CraterLayer>& craters;
+    const std::vector<std::shared_ptr<const CraterLayer>>& craters;
     const std::shared_ptr<const BoulderLayer>& boulders;
     const Surface& surface;
     /// The secondaries later layers throw from a crater layer built with these inputs.
@@ -367,8 +368,10 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
             [&](const BoulderLayerSpec& s) -> LayerPtr {
                 BoulderLayerOptions options = BuildBoulderOptions(s, path, context.directory);
                 const bool throws = options.ejecta.MinCraterDiameter() > 0.0;
-                return std::make_shared<BoulderLayer>(std::move(options),
-                                                      throws ? context.craters : nullptr, surface);
+                return std::make_shared<BoulderLayer>(
+                    std::move(options),
+                    throws ? context.craters : std::vector<std::shared_ptr<const CraterLayer>>{},
+                    surface);
             },
             [&](const RoughnessLayerSpec& s) -> LayerPtr {
                 return std::make_shared<RoughnessLayer>(s.roughness, surface);
@@ -403,7 +406,7 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
                     s.feather, s.blend, surface);
             },
             [&](const SecondaryLayerSpec& s) -> LayerPtr {
-                return BuildSecondaryLayer(s, context.craters);
+                return BuildSecondaryLayer(s, context.craters.back());
             },
             [&](const DemDetailLayerSpec& s) -> LayerPtr {
                 const auto file = Resolve(s.path, context.directory);
@@ -440,7 +443,7 @@ Terrain BuildValidTerrain(const TerrainConfig& config, const std::filesystem::pa
     if (config.base) {
         terrain.source = BuildSource(*config.base, directory, terrain.surface);
     }
-    std::shared_ptr<const CraterLayer> craters;
+    std::vector<std::shared_ptr<const CraterLayer>> craters;
     std::shared_ptr<const BoulderLayer> boulders;
     for (std::size_t i = 0; i < config.layers.size(); ++i) {
         const LayerInputs context{ReferencePoint(terrain),
@@ -451,7 +454,7 @@ Terrain BuildValidTerrain(const TerrainConfig& config, const std::filesystem::pa
                                   ThrownSecondaries(config.layers, i)};
         terrain.layers.push_back(BuildLayer(config.layers[i], Element("layers", i), context));
         if (std::holds_alternative<CraterLayerSpec>(config.layers[i])) {
-            craters = std::static_pointer_cast<const CraterLayer>(terrain.layers.back());
+            craters.push_back(std::static_pointer_cast<const CraterLayer>(terrain.layers.back()));
         }
         if (std::holds_alternative<BoulderLayerSpec>(config.layers[i])) {
             boulders = std::static_pointer_cast<const BoulderLayer>(terrain.layers.back());

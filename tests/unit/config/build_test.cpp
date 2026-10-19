@@ -375,6 +375,24 @@ TEST(Resolve, ResolvesRelativePathsAgainstAFolder) {
     EXPECT_EQ(terraingen::config::Resolve("a.tif", {}), std::filesystem::path("a.tif"));
 }
 
+TEST(BuildTerrain, BoulderEjectaComeFromEveryCraterLayerBefore) {
+    TerrainConfig config;
+    config.outputs = {terraingen::testing::Heightmap("e.tif", terraingen::GridRegionSpec{65, 65})};
+    CraterLayerSpec first;
+    first.generate = false;
+    first.ages = terraingen::FreshAgesSpec{};
+    first.manual = {{0.0, 0.0, 40.0, 0.0, 1u, true}};
+    CraterLayerSpec second = first;
+    second.manual = {{500.0, 0.0, 40.0, 0.0, 2u, true}};
+    terraingen::BoulderLayerSpec boulders;
+    boulders.boulders.ejecta.minCraterDiameter = 10.0;
+    config.layers = {first, second, boulders};
+    const terraingen::Terrain terrain = terraingen::BuildTerrain(config);
+    const auto& layer = dynamic_cast<const terraingen::BoulderLayer&>(*terrain.layers[2]);
+    EXPECT_EQ(layer.AbundanceAt(20.0, 0.0).ejecta, 1.0) << "the first crater layer's rim";
+    EXPECT_EQ(layer.AbundanceAt(520.0, 0.0).ejecta, 1.0) << "the second crater layer's rim";
+}
+
 TEST(BuildTerrain, BuildsEveryLayerKindInOrder) {
     TerrainConfig config = Small();
     terraingen::BoulderLayerSpec boulders;

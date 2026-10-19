@@ -62,16 +62,23 @@ EjectaIndex BoulderLayer::EjectaCraters(const Bounds2d& region) const {
     if (minCraterDiameter_ <= 0.0) {
         return {};
     }
-    const double margin = options_.ejecta.reach * 0.5 * craters_->MaxFeatureDiameter();
-    const double spacing = minCraterDiameter_ / craters_->Options().apply.fade.startSamples;
-    const CraterList all = craters_->Craters(surface_.Expand(region, margin), spacing);
-    CraterList ejecta = FilterCraters(all, [&](std::size_t, const Crater& crater) {
-        return crater.diameter >= minCraterDiameter_;
-    });
+    CraterList ejecta;
+    std::vector<std::uint32_t> sources;
+    for (std::size_t k = 0; k < craters_.size(); ++k) {
+        const CraterLayer& layer = *craters_[k];
+        const double margin = options_.ejecta.reach * 0.5 * layer.MaxFeatureDiameter();
+        const double spacing = minCraterDiameter_ / layer.Options().apply.fade.startSamples;
+        const CraterList all = layer.Craters(surface_.Expand(region, margin), spacing);
+        const CraterList thrown = FilterCraters(all, [&](std::size_t, const Crater& crater) {
+            return crater.diameter >= minCraterDiameter_;
+        });
+        ejecta.Append(thrown);
+        sources.resize(ejecta.Size(), static_cast<std::uint32_t>(k));
+    }
     const auto reach = [&](const Crater& crater) {
         return EjectaReach(options_.ejecta, crater.diameter) * 0.5 * crater.diameter;
     };
-    return {std::move(ejecta), surface_, reach};
+    return {std::move(ejecta), surface_, reach, std::move(sources)};
 }
 
 double BoulderLayer::NearestClusterDistance(double x, double y) const {
@@ -237,10 +244,10 @@ double BoulderLayer::BedrockMean(double x, double y, const Ground& ground) const
 void BoulderLayer::EjectaAbundance(double x, double y, const EjectaIndex& ejecta,
                                    BoulderAbundance& abundance) const {
     const BoulderEjecta& eject = options_.ejecta;
-    const DegradationModel& degradation = *craters_->Models().degradation;
     double share = 0.0;
     double wear = 0.0;
     for (const std::uint32_t n : ejecta.Near(x, y)) {
+        const DegradationModel& degradation = *craters_[ejecta.Source(n)]->Models().degradation;
         const Crater crater = ejecta.Craters().At(n);
         const double reach = EjectaReach(eject, crater.diameter);
         const double rho =

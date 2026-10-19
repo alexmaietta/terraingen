@@ -366,8 +366,8 @@ using BoulderSizesSpec =
 
 /// Layer "boulders": boulders scattered over the terrain (`BoulderLayer`).
 ///
-/// Ejecta come from the nearest crater layer before this one, which must exist when crater blocks
-/// are enabled. `boulders.cacheBoulders` is not part of the configuration.
+/// Ejecta come from every top-level crater layer before this one, at least one of which must exist
+/// when crater blocks are enabled. `boulders.cacheBoulders` is not part of the configuration.
 struct BoulderLayerSpec {
     BoulderLayerOptions boulders{};
     BoulderSizesSpec sizes{};        ///< Gives `boulders.sizes.distribution`.

@@ -64,6 +64,12 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const CraterLayer> craters = nullptr,
                  Surface surface = {});
 
+    /// Boulders whose ejecta come from every one of `craters`, each crater's blocks worn by its
+    /// own layer's degradation; overlapping ejecta take the largest share as within one layer.
+    /// @throws std::invalid_argument as the single-layer constructor, or for a null layer.
+    BoulderLayer(BoulderLayerOptions options,
+                 std::vector<std::shared_ptr<const CraterLayer>> craters, Surface surface);
+
     /// The boulders centred in `region` (surface coordinates) or reaching it with their radius or
     /// fillet, in a fixed order.
     /// @param spacing Sample spacing in metres; boulders too small to resolve at it are left out
@@ -317,7 +323,7 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     };
 
     BoulderLayerOptions options_;
-    std::shared_ptr<const CraterLayer> craters_;
+    std::vector<std::shared_ptr<const CraterLayer>> craters_;
     double minCraterDiameter_ = 0.0;
     double maxBackground_ = 1.0;
     double clusterMean_ = 1.0;

@@ -16,8 +16,9 @@ constexpr std::size_t kMinBuckets = 1024;
 }  // namespace
 
 EjectaIndex::EjectaIndex(CraterList craters, const Surface& surface,
-                         const std::function<double(const Crater&)>& reach)
-    : craters_(std::move(craters)) {
+                         const std::function<double(const Crater&)>& reach,
+                         std::vector<std::uint32_t> sources)
+    : craters_(std::move(craters)), sources_(std::move(sources)) {
     const std::size_t count = craters_.Size();
     all_.resize(count);
     for (std::size_t n = 0; n < count; ++n) {

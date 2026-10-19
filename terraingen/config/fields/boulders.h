@@ -358,7 +358,7 @@ template <typename IO> void BoulderGatheringFields(IO& io, BoulderLayerOptions& 
        "Clusters of the boulders between craters around scattered centres; off unless share is "
        "set.");
     io("ejecta", boulders.ejecta,
-       "Blocks thrown out by craters of the nearest crater layer before this one that dug into "
+       "Blocks thrown out by craters of every top-level crater layer before this one that dug into "
        "boulder, densest at the rim and thinning outward.");
 }
 
