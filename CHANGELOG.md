@@ -20,8 +20,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configuration reference in the documentation, generated from the schema at build time, and machine-readable value ranges in the schema.
 - Rock albedo: boulders brighter than the regolith (Holt 1981; Marshal et al. 2023), and a speckle of the share of each sample covered by boulders too small to resolve, with the scatter of randomly placed rocks.
 - Slope albedo: steep ground kept immature by mass wasting, its optical maturity rising with slope beyond 20 degrees (Ikeda et al. 2022; Lucey et al. 2014).
+- Crater shaping and datum fitting on the GPU on spheres, ellipsoids and shape models, not only on planes.
+- Configurations are checked against every field's documented range, and errors name the exact field, such as `layers[2].reach`.
+- Python options classes document every field with its description and unit, and gain `validate()` and a readable `repr`.
 
 ### Changed
+
+- Defaults give a plausible lunar terrain at 1 m per pixel in which every height layer shows: craters from a production surface capped below the Trask equilibrium with steady-state ages, diffusion and irregular outlines; Surveyor boulders; noise relief scaled to its wavelength; and visible roughness, bedforms and dunes.
+- Boulder lists and models hold every boulder of the layer's diameter range; only the heightmap leaves out boulders too small to resolve.
+- Boulder ejecta come from every crater layer before the boulder layer, not only the last one.
+- The boulder layer's `exposure_spacing` key is now `ground_spacing` (Python `ground_spacing`), the spacing of every ground read the layer makes.
+- Crater shaping has one implementation, the kernel, on every surface; craters on bodies and custom profiles may differ from before in the last digits.
+- Random streams and hashes are unified, so boulder, albedo, dune, bedform and pavement outputs for a given seed differ from earlier versions; their statistics are unchanged.
+- Every evaluation defaults to all threads, including `EvaluateAt`, `EvaluateTile` and Python `evaluate_tile`.
+- The `materials` module is folded into `pipeline` (material maps) and `albedo` (Hapke photometry); include `terraingen/pipeline/materials.h` and `terraingen/albedo/photometry.h`.
+- Python: `ExposureField.exposure` takes `(x, y, spacing=0.0, terrain=None, layers=0)` like the other ground queries, unbounded options read as `None` instead of infinity, `write_outputs` returns paths, a subclass missing a required method raises `TypeError`, and `CraterFeatures.write` is `write_list`.
+- Python names: `cell_of` is `cell_at`, `point_of` is `coordinates`, `level_for` is `resolving_level`, `outline_of` is `irregular_outline`, `min_diameter_for_count` is `count_limit_diameter`, `singer_range_for_size` is `singer_max_range`, `SplotchOptions` is `SplotchAlbedoOptions` and `SlopeMaturityOptions` is `SlopeAlbedoOptions`.
+- The CI coverage job builds at `-O1` without atomic counters, so it caches and runs several times faster.
 
 - Density maps that count every feature take out the secondaries thrown from a layer's craters and the blocks thrown out around craters, and boulder patches and bedrock keep a map's mean, so nothing is counted twice.
 - Boulder models settle onto a stable face by default instead of balancing on an edge or corner.
@@ -36,6 +51,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Freshness degradation never makes a crater deeper than fresh: basins shallower than the cutoff keep their fresh shape.
 - Small craters inside larger ones on sloping ground no longer stand as raised mounds: datums are fitted to the slope-shaped relief that is applied.
 - Crater layers over other layers read the ground beneath their slopes and datums in batches rather than point by point, and point batches are evaluated in spatial order: the hero demo went from 433 s to 11 s with the same output.
+- Secondary craters run on the GPU backend the terrain asks for instead of always on the CPU.
+- A crater layer after a boulder layer no longer refits crater datums for every batch of ground reads.
+- Tilted boulders are no longer cut off at tile edges and point queries.
+- Crater and boulder lists honour a spacing finer than the grid.
+- Zero-area regions and crater sizes below the models' range are rejected with a clear error instead of failing during generation.
+
+### Removed
+
+- Python `crater_blend_weight` (use `CraterBlend.weight`), `CraterAgeModel.lifetime_gyr` (use `lifetime_at`) and the flat selection aliases on crater irregularity, crater albedo and secondary options (use `selection`).
 
 ## [0.1.0] - 2026-10-18
 
