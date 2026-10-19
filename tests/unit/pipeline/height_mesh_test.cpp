@@ -5,7 +5,9 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <map>
 #include <stdexcept>
+#include <utility>
 
 using terraingen::GeoTransform;
 using terraingen::Raster;
@@ -49,4 +51,40 @@ TEST(HeightMesh, IsInTheSiteFrameOnASphere) {
     EXPECT_NEAR(mesh.positions[5].x, 10.0 * std::cos(40.0 * std::acos(-1.0) / 180.0), 1e-3)
         << "a cell east, its longitude step shortened by latitude";
     EXPECT_LT(mesh.positions[5].z, 5.0) << "the datum curves away";
+}
+
+TEST(HeightMesh, LeavesOutSquaresInCutoutsAndHangsAClosedSkirtBelowEveryEdge) {
+    Raster<float> heights(6, 6, 1.0f);
+    heights.SetTransform(GeoTransform::NorthUp(0.0, 6.0, 1.0));
+    terraingen::HeightMeshOptions options;
+    options.cutouts = {{1.5, 1.5, 3.5, 3.5}};
+    const auto holed = terraingen::HeightMesh(heights, {}, {}, options);
+    EXPECT_EQ(holed.triangles.size(), 2u * (25u - 4u)) << "the four squares inside the box";
+
+    options.skirt = 2.0;
+    const auto skirted = terraingen::HeightMesh(heights, {}, {}, options);
+    const std::size_t boundary = 4u * 5u + 4u * 2u;
+    EXPECT_EQ(skirted.triangles.size(), holed.triangles.size() + 2u * boundary);
+    EXPECT_EQ(skirted.positions.size(), holed.positions.size() + 20u + 8u);
+    for (std::size_t i = holed.positions.size(); i < skirted.positions.size(); ++i) {
+        EXPECT_EQ(skirted.positions[i].z, -1.0);
+    }
+    std::map<std::pair<std::uint32_t, std::uint32_t>, int> edges;
+    for (const auto& t : skirted.triangles) {
+        for (std::size_t k = 0; k < 3; ++k) {
+            ++edges[{t[k], t[(k + 1) % 3]}];
+        }
+    }
+    std::size_t open = 0;
+    for (const auto& [edge, count] : edges) {
+        EXPECT_EQ(count, 1);
+        open += edges.count({edge.second, edge.first}) == 0 ? 1u : 0u;
+    }
+    EXPECT_EQ(open, boundary) << "only the skirts' lower edges stay open";
+
+    options.skirt = -1.0;
+    EXPECT_THROW(terraingen::HeightMesh(heights, {}, {}, options), std::invalid_argument);
+    options.skirt = 0.0;
+    options.cutouts = {{-1.0, -1.0, 7.0, 7.0}};
+    EXPECT_THROW(terraingen::HeightMesh(heights, {}, {}, options), std::invalid_argument);
 }

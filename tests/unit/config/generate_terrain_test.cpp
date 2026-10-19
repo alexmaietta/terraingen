@@ -639,3 +639,99 @@ TEST(GenerateTerrain, ExpandsADemByMidpointDisplacementKeepingItsCells) {
         cubic.terrain, terraingen::RasterGrid::FromRaster(smooth.grids[0].heights));
     ExpectSameRaster(smooth.grids[0].heights, plain);
 }
+
+namespace {
+
+/// A DEM expanded by midpoint displacement in a hierarchy of two levels about its centre.
+TerrainConfig DemHierarchy(std::size_t blendCells) {
+    TerrainConfig config = RasterConfig("dem.tif");
+    config.layers = {terraingen::MidpointDisplacementLayerSpec{}};
+    config.outputs.clear();
+    terraingen::HierarchySpec hierarchy;
+    hierarchy.regions = {{1100.0, 1925.0, 50.0, 2}};
+    hierarchy.products = {terraingen::HierarchyProduct::Heightmap,
+                          terraingen::HierarchyProduct::TerrainMesh};
+    hierarchy.blendCells = blendCells;
+    hierarchy.skirt = 1.0;
+    config.hierarchy = hierarchy;
+    return config;
+}
+
+/// The heights generated over level `level` of a `DemHierarchy`.
+const terraingen::Raster<float>& Level(const terraingen::GeneratedTerrain& generated,
+                                       std::size_t level) {
+    return generated.grids.at(level).heights;
+}
+
+}  // namespace
+
+TEST(GenerateTerrain, NestsHierarchyLevelsOnEachOthersCells) {
+    const auto folder = TempPath("terraingen_hierarchy");
+    const auto dem = WriteDem(folder, "dem.tif");
+    const TerrainConfig config = DemHierarchy(0);
+    const auto summary = terraingen::ValidateConfig(config, folder);
+    ASSERT_EQ(summary.outputGrids.size(), 6u);
+    const auto generated = GenerateTerrain(config, folder);
+    ASSERT_EQ(generated.grids.size(), 3u);
+    ExpectSameRaster(Level(generated, 0), dem);
+    const auto& coarse = Level(generated, 1);
+    const auto& fine = Level(generated, 2);
+    ASSERT_EQ(coarse.Width(), 21u);
+    ASSERT_EQ(fine.Width(), 21u);
+    EXPECT_EQ(coarse.CellCenter(10, 10).x, 1102.5) << "snapped to a DEM cell centre";
+    for (std::size_t row = 0; row < 21; row += 2) {
+        for (std::size_t col = 0; col < 21; col += 2) {
+            ASSERT_EQ(coarse(col, row), dem(15 + col / 2, 10 + row / 2));
+            ASSERT_EQ(fine(col, row), coarse(5 + col / 2, 5 + row / 2));
+        }
+    }
+
+    const auto blended = GenerateTerrain(DemHierarchy(4), folder);
+    const auto& edged = Level(blended, 1);
+    for (std::size_t col = 1; col < 21; col += 2) {
+        const double between = 0.5 * (static_cast<double>(dem(15 + col / 2, 10)) +
+                                      static_cast<double>(dem(16 + col / 2, 10)));
+        EXPECT_NEAR(edged(col, 0), between, 1e-4) << "linear between the parent's edge nodes";
+    }
+    for (std::size_t row = 4; row < 17; ++row) {
+        for (std::size_t col = 4; col < 17; ++col) {
+            ASSERT_EQ(edged(col, row), coarse(col, row)) << "untouched inside the band";
+        }
+    }
+    EXPECT_NE(edged(1, 1), coarse(1, 1));
+}
+
+TEST(WriteOutputs, WritesEveryHierarchyFileAndItsManifest) {
+    const auto folder = TempPath("terraingen_hierarchy_files");
+    WriteDem(folder, "dem.tif");
+    TerrainConfig config = DemHierarchy(4);
+    config.hierarchy->path = "site/region_{region}_level_{level}";
+    config.hierarchy->manifest = "site/manifest.json";
+    const auto generated = GenerateTerrain(config, folder);
+    const auto written = terraingen::WriteOutputs(config, generated, folder);
+    ASSERT_EQ(written.size(), 7u);
+    for (const char* name : {"region_0_level_0.tif", "region_0_level_1.tif", "region_0_level_2.tif",
+                             "region_0_level_0.glb", "region_0_level_2.glb", "manifest.json"}) {
+        EXPECT_TRUE(std::filesystem::exists(folder / "site" / name)) << name;
+    }
+    EXPECT_EQ(written.back(), folder / "site" / "manifest.json");
+
+    config.hierarchy->manifest.clear();
+    EXPECT_EQ(terraingen::WriteOutputs(config, generated, folder).size(), 6u);
+}
+
+TEST(ValidateConfig, NamesTheHierarchyRegionThatOverlapsAnother) {
+    const auto folder = TempPath("terraingen_hierarchy_overlap");
+    WriteDem(folder, "dem.tif");
+    TerrainConfig config = DemHierarchy(4);
+    config.hierarchy->regions.push_back({1110.0, 1930.0, 20.0, 1});
+    try {
+        terraingen::ValidateConfig(config, folder);
+        ADD_FAILURE() << "overlapping regions";
+    } catch (const ConfigError& error) {
+        EXPECT_EQ(error.Path(), "hierarchy.regions[1]");
+    }
+    config.hierarchy->products = {terraingen::HierarchyProduct::Albedo};
+    config.hierarchy->regions.pop_back();
+    EXPECT_THROW(terraingen::ValidateConfig(config, folder), ConfigError) << "no albedo";
+}

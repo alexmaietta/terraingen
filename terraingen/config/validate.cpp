@@ -7,6 +7,7 @@
 #include "terraingen/config/fields/checks.h"
 #include "terraingen/config/fields/common.h"
 #include "terraingen/config/generate.h"
+#include "terraingen/config/hierarchy.h"
 #include "terraingen/distribution/ivanov.h"
 #include "terraingen/distribution/neukum.h"
 #include "terraingen/layers/craters/generation/spacing.h"
@@ -621,9 +622,11 @@ std::vector<Extent> CheckOutputs(const TerrainConfig& config, const Surface& sur
     const OutputChecks checks{surface.IsBody(), config.albedo.has_value(),
                               config.materials.has_value()};
     std::vector<Extent> extents;
-    for (std::size_t i = 0; i < config.outputs.size(); ++i) {
-        const OutputSpec& output = config.outputs[i];
-        const std::string path = Element("outputs", i);
+    const std::vector<OutputSpec> outputs = config::ConfigOutputs(config, summary.base, surface);
+    for (std::size_t i = 0; i < outputs.size(); ++i) {
+        const OutputSpec& output = outputs[i];
+        const std::string path =
+            i < config.outputs.size() ? Element("outputs", i) : std::string("hierarchy");
         std::visit([&](const auto& o) { CheckOutput(o, path, checks); }, output);
         const std::optional<RasterGrid> grid = CheckOutputGrid(output, path, summary.base, surface);
         summary.outputGrids.push_back(grid);

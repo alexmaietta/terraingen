@@ -175,6 +175,31 @@ template <> struct EnumNames<MidpointBase> {
     }};
 };
 
+template <> struct EnumNames<HierarchyProduct> {
+    static constexpr std::array<EnumEntry<HierarchyProduct>, 8> kValues{{
+        {"heightmap", HierarchyProduct::Heightmap, "The heights, as <name>.tif."},
+        {"albedo", HierarchyProduct::Albedo, "The albedo, as <name>_albedo.tif."},
+        {"materials", HierarchyProduct::Materials, "The material map, as <name>_materials.tif."},
+        {"photometry", HierarchyProduct::Photometry,
+         "The Hapke parameters, as <name>_photometry.tif."},
+        {"terrain_mesh", HierarchyProduct::TerrainMesh,
+         "The heights as a mesh, cut out under finer levels, as <name> in the mesh format."},
+        {"crater_list", HierarchyProduct::CraterList, "The craters, as <name>_craters.csv."},
+        {"boulder_list", HierarchyProduct::BoulderList, "The boulders, as <name>_boulders.csv."},
+        {"boulder_models", HierarchyProduct::BoulderModels,
+         "The boulders placed as models, as <name>_boulders in the mesh format."},
+    }};
+};
+
+template <> struct EnumNames<HierarchyMeshFormat> {
+    static constexpr std::array<EnumEntry<HierarchyMeshFormat>, 4> kValues{{
+        {"glb", HierarchyMeshFormat::Glb, "Binary glTF, .glb."},
+        {"gltf", HierarchyMeshFormat::Gltf, "glTF with a .bin, .gltf."},
+        {"obj", HierarchyMeshFormat::Obj, "Wavefront OBJ, .obj."},
+        {"stl", HierarchyMeshFormat::Stl, "STL, .stl."},
+    }};
+};
+
 template <> struct EnumNames<EjectaProfile> {
     static constexpr std::array<EnumEntry<EjectaProfile>, 2> kValues{{
         {"smoothstep", EjectaProfile::Smoothstep,

@@ -173,10 +173,21 @@ void BindEvaluation(nb::module_& m) {
           "The terrain's heights at `points`, an array of shape (n, 2) in surface coordinates, "
           "sampled every `spacing` metres, as a float32 array; each equals `evaluate_at` there. "
           "Batches of points are much faster than one call per point.");
-    m.def("height_mesh", &HeightMesh, "heights"_a, "surface"_a = Surface{},
-          "site"_a = Vec2d{0.0, 0.0},
-          "The heights as a mesh, a vertex per cell with data, in the frame boulder models are "
-          "written in: world coordinates on a plane, east-north-up metres of `site` on a sphere.");
+    m.def(
+        "height_mesh",
+        [](const Raster<float>& heights, const Surface& surface, const Vec2d& site,
+           std::vector<Bounds2d> cutouts, double skirt) {
+            HeightMeshOptions options;
+            options.cutouts = std::move(cutouts);
+            options.skirt = skirt;
+            return HeightMesh(heights, surface, site, options);
+        },
+        "heights"_a, "surface"_a = Surface{}, "site"_a = Vec2d{0.0, 0.0},
+        "cutouts"_a = std::vector<Bounds2d>{}, "skirt"_a = 0.0,
+        "The heights as a mesh, a vertex per cell with data, in the frame boulder models are "
+        "written in: world coordinates on a plane, east-north-up metres of `site` on a sphere. "
+        "Squares whose four cell centres lie in one of the `cutouts` boxes (min x, min y, max x, "
+        "max y) are left out, and a skirt `skirt` metres deep hangs below every boundary edge.");
     m.def(
         "body_mesh",
         [](const PyTerrain& terrain, std::size_t cellsPerFace, double spacing, unsigned threads) {

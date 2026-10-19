@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Midpoint displacement layer: random midpoint displacement (diamond-square) expansion of a DEM or any base lattice to finer spacings, as PANGU expands DEMs (Martin et al. 2014), keeping every coarser node so nested grids share their cells, with the scale and fractal dimension estimated from the base when not given.
 - Manual craters with an explicit rim-to-floor depth and rim height, in place of what the degradation model and age give; diffusion profiles solve for the age that reaches the depth.
 - Manual boulders that fix any of their height, burial, yaw, lean, tilt, rest, wear and shape seed; unset fields are drawn as for generated boulders, and fixed ones are neither re-settled nor broken.
+- Multi-resolution hierarchies: a `hierarchy` section nests squares in a base grid, each level twice as fine (or `factor` times) on its parent's cell centres, writes heightmaps, meshes, lists and maps per grid as `region_{region}_level_{level}` with a JSON manifest, blends each level's edges into its parent's so meshes meet without gaps, cuts meshes out under finer levels and hangs skirts, and rejects overlapping regions.
+- Terrain meshes take `cutouts`, a `skirt` and a frame `site`.
 
 ### Changed
 

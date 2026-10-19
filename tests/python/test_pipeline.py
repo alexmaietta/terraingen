@@ -1,5 +1,6 @@
 """pipeline: building and evaluating terrains from configs and objects, outputs and body meshes."""
 
+import json
 import pathlib
 
 import numpy as np
@@ -222,3 +223,39 @@ def test_generated_grids_know_their_grid_and_list_features_over_any(generated):
     assert len(generated.placed_craters(grid, spacing=4.0).craters) <= len(
         generated.placed_craters(grid).craters
     )
+
+
+def test_a_hierarchy_writes_nested_grids_meshes_and_a_manifest(tmp_path):
+    config = terraingen.Config.from_dict(
+        {
+            "schema_version": 1,
+            "layers": [{"type": "noise", "stack": [{"wavelength": 40, "amplitude": 2}]}],
+            "hierarchy": {
+                "path": "site/region_{region}_level_{level}",
+                "base": {"width": 33, "height": 33, "pixel_size": 2},
+                "regions": [{"centre_x": 5, "centre_y": -3, "size": 16, "levels": 2}],
+                "products": ["heightmap", "terrain_mesh"],
+                "skirt": 1.0,
+                "manifest": "site/manifest.json",
+            },
+        }
+    )
+    assert len(config.output_grids()) == 6
+    written = terraingen.write_outputs(config, terraingen.generate_terrain(config, tmp_path), tmp_path)
+    assert len(written) == 7 and written[-1].name == "manifest.json"
+    manifest = json.loads((tmp_path / "site" / "manifest.json").read_text())
+    assert [grid["level"] for grid in manifest["grids"]] == [0, 1, 2]
+    assert manifest["grids"][2]["parent"] == 1
+    assert (tmp_path / manifest["grids"][2]["files"]["terrain_mesh"]).exists()
+
+
+def test_height_mesh_cuts_out_boxes_and_hangs_skirts():
+    heights = terraingen.evaluate(terraingen.Terrain(None, []), grid=terraingen.FlatSource(6, 6, 1.0).grid())
+    whole = terraingen.height_mesh(heights)
+    first = heights.cell_center(1, 4)
+    last = heights.cell_center(3, 2)
+    box = (first[0] - 0.01, first[1] - 0.01, last[0] + 0.01, last[1] + 0.01)
+    holed = terraingen.height_mesh(heights, cutouts=[box])
+    skirted = terraingen.height_mesh(heights, cutouts=[box], skirt=2.0)
+    assert holed.triangle_count == whole.triangle_count - 8
+    assert skirted.triangle_count == holed.triangle_count + 2 * 28

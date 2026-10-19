@@ -114,7 +114,7 @@ TEST(ConfigSchema, DescribesEveryFieldAndEveryDefaultFitsIt) {
         names.push_back(field["name"]);
     }
     EXPECT_EQ(names, (std::vector<std::string>{"schema_version", "body", "base", "layers",
-                                               "outputs", "albedo", "materials"}));
+                                               "outputs", "albedo", "materials", "hierarchy"}));
 
     // Every alternative's default, and every field's, fits its schema.
     std::map<std::string, int> kinds;
@@ -240,7 +240,7 @@ TEST(ConfigSchema, GivesUnitsOnlyToNumbersAndFromAFixedSet) {
 
 TEST(ConfigSchema, BoundsOnlyNumbersAndTheirDefaultsFitTheBounds) {
     const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
-    const std::set<std::string> placeholders = {"radius", "diameter"};
+    const std::set<std::string> placeholders = {"radius", "diameter", "size"};
     int bounded = 0;
     const auto check = [&](const SchemaJson& fields, const std::string& where) {
         for (const SchemaJson& field : fields) {
@@ -358,7 +358,7 @@ TEST(ConfigCatalog, ListsEveryTypeAndEachEntryParsesWhereItBelongs) {
         keys.push_back(key);
     }
     EXPECT_EQ(keys, (std::vector<std::string>{"schema_version", "body", "base", "layers", "outputs",
-                                              "albedo", "materials", "models"}));
+                                              "albedo", "materials", "hierarchy", "models"}));
     const auto types = [](const Json& list) {
         std::vector<std::string> names;
         for (const Json& entry : list) {

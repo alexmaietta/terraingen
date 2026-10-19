@@ -1,6 +1,7 @@
 #include "terraingen/config/generate.h"
 
 #include "terraingen/config/build.h"
+#include "terraingen/config/hierarchy.h"
 #include "terraingen/config/json.h"
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
@@ -9,11 +10,13 @@
 #include "terraingen/sources/geotiff_source.h"
 #include "terraingen/sources/source_chain.h"
 #include "terraingen/util/bits.h"
+#include "terraingen/util/files.h"
 #include "terraingen/util/log.h"
 
 #include <algorithm>
 #include <cmath>
 #include <iomanip>
+#include <limits>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -98,10 +101,11 @@ void LogStepTimes(const std::vector<StepTime>& steps, std::size_t grids, double 
 }
 
 /// The distinct grids the heightmap, albedo, terrain mesh and material outputs cover, in order.
-std::vector<RasterGrid> GeneratedGrids(const TerrainConfig& config, const Terrain& terrain) {
+std::vector<RasterGrid> GeneratedGrids(const std::vector<OutputSpec>& outputs,
+                                       const Terrain& terrain) {
     const std::optional<RasterGrid> base = BaseGrid(terrain);
     std::vector<RasterGrid> grids;
-    for (const OutputSpec& output : config.outputs) {
+    for (const OutputSpec& output : outputs) {
         if (WritesGrid(output)) {
             const RasterGrid grid = *config::OutputGrid(output, base, terrain.surface);
             if (std::find(grids.begin(), grids.end(), grid) == grids.end()) {
@@ -116,10 +120,11 @@ std::vector<RasterGrid> GeneratedGrids(const TerrainConfig& config, const Terrai
 /// need, timing each step.
 class GridGenerator {
   public:
-    GridGenerator(const TerrainConfig& config, GeneratedTerrain& generated,
-                  const std::filesystem::path& directory, unsigned threads)
+    GridGenerator(const TerrainConfig& config, const std::vector<OutputSpec>& outputs,
+                  GeneratedTerrain& generated, const std::filesystem::path& directory,
+                  unsigned threads)
         : config_(config), generated_(generated), directory_(directory), threads_(threads),
-          grids_(GeneratedGrids(config, generated.terrain)) {
+          grids_(GeneratedGrids(outputs, generated.terrain)) {
         for (std::size_t n = 0; n < config.layers.size(); ++n) {
             steps_.push_back(
                 {"layer " + std::to_string(n + 1) + " " + LayerType(config.layers[n])});
@@ -196,6 +201,79 @@ class GridGenerator {
     std::vector<StepTime> steps_;
     std::optional<Albedo> albedo_;
 };
+
+/// `value` rounded to a whole number when within rounding of one, as cell positions on a coarser
+/// lattice are.
+double Snapped(double value) {
+    const double nearest = std::round(value);
+    return std::fabs(value - nearest) < 1e-9 ? nearest : value;
+}
+
+/// `heights` interpolated bilinearly at world (`x`, `y`) between cell centres; NaN outside them or
+/// next to a cell without data.
+double Bilinear(const Raster<float>& heights, double x, double y) {
+    const Vec2d pixel = heights.Transform().WorldToPixel(x, y);
+    const double u = Snapped(pixel.x - 0.5);
+    const double v = Snapped(pixel.y - 0.5);
+    const double col = std::floor(u);
+    const double row = std::floor(v);
+    const double fu = u - col;
+    const double fv = v - row;
+    const auto at = [&](double c, double r, double weight) {
+        if (weight == 0.0) {
+            return 0.0;
+        }
+        if (c < 0.0 || r < 0.0 || c >= static_cast<double>(heights.Width()) ||
+            r >= static_cast<double>(heights.Height())) {
+            return std::numeric_limits<double>::quiet_NaN();
+        }
+        const float value = heights(static_cast<std::size_t>(c), static_cast<std::size_t>(r));
+        return heights.IsNoData(value) ? std::numeric_limits<double>::quiet_NaN()
+                                       : weight * static_cast<double>(value);
+    };
+    return at(col, row, (1.0 - fu) * (1.0 - fv)) + at(col + 1.0, row, fu * (1.0 - fv)) +
+           at(col, row + 1.0, (1.0 - fu) * fv) + at(col + 1.0, row + 1.0, fu * fv);
+}
+
+/// Blends each hierarchy level's heights toward its parent's over `cells` cells along its edges,
+/// with a smoothstep from the parent's on the edge, so the levels' meshes meet without gaps;
+/// parents blend first.
+void BlendHierarchyEdges(const std::vector<config::HierarchyGrid>& grids, std::size_t cells,
+                         GeneratedTerrain& generated) {
+    const Surface& surface = generated.terrain.surface;
+    for (const config::HierarchyGrid& grid : grids) {
+        if (!grid.parent) {
+            continue;
+        }
+        GeneratedGrid* child = generated.Find(config::RegionGrid(grid.grid, surface));
+        const GeneratedGrid* parent =
+            generated.Find(config::RegionGrid(grids[*grid.parent].grid, surface));
+        if (!child || !parent) {
+            continue;
+        }
+        Raster<float>& heights = child->heights;
+        const std::size_t width = heights.Width();
+        const std::size_t height = heights.Height();
+        for (std::size_t row = 0; row < height; ++row) {
+            for (std::size_t col = 0; col < width; ++col) {
+                const std::size_t edge =
+                    std::min(std::min(col, row), std::min(width - 1 - col, height - 1 - row));
+                if (edge >= cells || heights.IsNoData(heights(col, row))) {
+                    continue;
+                }
+                const Vec2d centre = heights.CellCenter(col, row);
+                const double outer = Bilinear(parent->heights, centre.x, centre.y);
+                if (std::isnan(outer)) {
+                    continue;
+                }
+                const double t = static_cast<double>(edge) / static_cast<double>(cells);
+                const double weight = t * t * (3.0 - 2.0 * t);
+                heights(col, row) = static_cast<float>(
+                    outer + weight * (static_cast<double>(heights(col, row)) - outer));
+            }
+        }
+    }
+}
 
 /// What `WriteOutputs` writes one output from.
 struct OutputContext {
@@ -341,11 +419,18 @@ bool Write(const MeshOutput& output, const std::filesystem::path& path,
     return true;
 }
 
-bool Write(const TerrainMeshOutput& /*output*/, const std::filesystem::path& path,
+bool Write(const TerrainMeshOutput& output, const std::filesystem::path& path,
            const OutputContext& context) {
     const Stopwatch stopwatch;
+    HeightMeshOptions options;
+    options.skirt = output.skirt;
+    for (const RectangleRegionSpec& cutout : output.cutouts) {
+        options.cutouts.push_back({cutout.minX, cutout.minY, cutout.maxX, cutout.maxY});
+    }
+    const Vec2d centre = context.Centre();
+    const Vec2d site{output.siteX.value_or(centre.x), output.siteY.value_or(centre.y)};
     TriangleMesh mesh = HeightMesh(context.Generated(path).heights,
-                                   context.generated.terrain.surface, context.Centre());
+                                   context.generated.terrain.surface, site, options);
     const std::size_t triangles = mesh.triangles.size();
     std::vector<Vec3d> normals = VertexNormals(mesh);
     WriteMesh(path, {std::move(mesh), std::move(normals), {"terrain", {0.5, 0.5, 0.5}}});
@@ -375,11 +460,19 @@ GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
     GeneratedTerrain generated{BuildTerrain(config, directory)};
     generated.backend = ResolveBackend(backend.value_or(DefaultBackend()));
     const Stopwatch stopwatch;
-    GridGenerator generator(config, generated, directory, threads);
-    for (const OutputSpec& output : config.outputs) {
+    const Surface& surface = generated.terrain.surface;
+    const std::vector<OutputSpec> outputs =
+        config::ConfigOutputs(config, BaseGrid(generated.terrain), surface);
+    GridGenerator generator(config, outputs, generated, directory, threads);
+    for (const OutputSpec& output : outputs) {
         if (WritesGrid(output)) {
             generator.Generate(output);
         }
+    }
+    if (config.hierarchy && config.hierarchy->blendCells > 0) {
+        BlendHierarchyEdges(
+            config::HierarchyGrids(*config.hierarchy, BaseGrid(generated.terrain), surface),
+            config.hierarchy->blendCells, generated);
     }
     generated.geoKeys = OutputGeoKeys(generated.terrain);
     generated.seconds = stopwatch.Milliseconds() / 1000.0;
@@ -414,7 +507,7 @@ std::vector<std::filesystem::path> WriteOutputs(const TerrainConfig& config,
     const std::optional<RasterGrid> base = BaseGrid(terrain.terrain);
     std::vector<std::filesystem::path> written;
     std::vector<PlacedBoulderSet> placed;
-    for (const OutputSpec& spec : config.outputs) {
+    for (const OutputSpec& spec : config::ConfigOutputs(config, base, terrain.terrain.surface)) {
         const std::string& relative =
             std::visit([](const auto& output) -> const std::string& { return output.path; }, spec);
         const std::filesystem::path path = config::Resolve(relative, directory);
@@ -430,6 +523,17 @@ std::vector<std::filesystem::path> WriteOutputs(const TerrainConfig& config,
         if (std::visit([&](const auto& output) { return Write(output, path, context); }, spec)) {
             written.push_back(path);
         }
+    }
+    if (config.hierarchy && !config.hierarchy->manifest.empty()) {
+        const std::filesystem::path path = config::Resolve(config.hierarchy->manifest, directory);
+        if (path.has_parent_path()) {
+            std::filesystem::create_directories(path.parent_path());
+        }
+        WriteFile(path, config::HierarchyManifest(*config.hierarchy,
+                                                  config::HierarchyGrids(*config.hierarchy, base,
+                                                                         terrain.terrain.surface),
+                                                  terrain.terrain.surface));
+        written.push_back(path);
     }
     return written;
 }

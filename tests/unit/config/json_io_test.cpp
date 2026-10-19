@@ -279,6 +279,8 @@ TerrainConfig Everything() {
         terraingen::BoulderModelsOutput{"boulders.glb", 20.0, region, 2.0},
         terraingen::MeshOutput{"body.icq", 64, 300.0},
         terraingen::TerrainMeshOutput{"site.glb", region},
+        terraingen::TerrainMeshOutput{
+            "holed.obj", region, {{-1.0, -2.0, 3.0, 4.0}}, 2.5, 30.0, -45.0},
         terraingen::MaterialsOutput{
             {"materials.tif", terraingen::TiffCompression::Deflate, 64, region}},
         terraingen::PhotometryOutput{{"hapke.tif", terraingen::TiffCompression::Lzw, 256, region}}};
@@ -290,6 +292,19 @@ TerrainConfig Everything() {
     materials.photometry.reference = terraingen::PhotometryReference::MarsPancam;
     materials.photometry.classes[3] = terraingen::HapkeParameters{0.7, 0.4, 0.3, 15.0};
     config.materials = materials;
+    terraingen::HierarchySpec hierarchy;
+    hierarchy.path = "site/{region}_{level}";
+    hierarchy.base = region;
+    hierarchy.factor = 4;
+    hierarchy.shrink = 3.0;
+    hierarchy.regions = {{30.0, -45.0, 8.0, 2}, {}};
+    hierarchy.products = {terraingen::HierarchyProduct::TerrainMesh,
+                          terraingen::HierarchyProduct::BoulderList};
+    hierarchy.meshFormat = terraingen::HierarchyMeshFormat::Stl;
+    hierarchy.blendCells = 3;
+    hierarchy.skirt = 0.5;
+    hierarchy.manifest = "site/index.json";
+    config.hierarchy = hierarchy;
     return config;
 }
 

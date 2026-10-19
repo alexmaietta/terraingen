@@ -4,6 +4,7 @@
 
 #include "terraingen/config/config.h"
 #include "terraingen/config/fields/common.h"
+#include "terraingen/config/fields/layers.h"
 #include "terraingen/config/fields/sources.h"
 
 #include <string>
@@ -172,6 +173,61 @@ template <> struct SpecName<TerrainMeshOutput> {
 template <typename IO> void Fields(IO& io, TerrainMeshOutput& output) {
     io("path", output.path, OutputPathHelp("File to write, ending in .glb, .gltf, .obj or .stl"));
     io("region", output.region, RegionHelp("the mesh covers") + ".");
+    io("cutouts", output.cutouts,
+       "Rectangles in surface coordinates whose quads are left out, a quad when all four corners "
+       "lie in one, such as where a finer mesh covers the ground.");
+    io("skirt", output.skirt,
+       "Depth in metres of a skirt hung below every boundary edge, around cutouts too, hiding "
+       "gaps between meshes; 0 for none.",
+       "m", AtLeast(0.0));
+    io("site_x", output.siteX,
+       "x of the site on a body the mesh's frame is centred on, in surface coordinates; unset "
+       "for the grid's centre.");
+    io("site_y", output.siteY,
+       "y of the site on a body the mesh's frame is centred on, in surface coordinates; unset "
+       "for the grid's centre.");
+}
+
+template <typename IO> void Fields(IO& io, HierarchyRegionSpec& region) {
+    io("centre_x", region.centreX,
+       "Centre of the square along x in surface coordinates, snapped to a cell centre of the "
+       "base.");
+    io("centre_y", region.centreY,
+       "Centre of the square along y in surface coordinates, snapped to a cell centre of the "
+       "base.");
+    io("size", region.size,
+       "Width in metres of the square at level 1, rounded to cells that end on the base's cell "
+       "centres; required.",
+       "m", Above(0.0));
+    io("levels", region.levels, "Levels nested in the base, each finer than the last.", "",
+       AtLeast(1.0));
+}
+
+template <typename IO> void Fields(IO& io, HierarchySpec& hierarchy) {
+    io("path", hierarchy.path,
+       OutputPathHelp("Name of each grid's files, without an extension, in which {region} and "
+                      "{level} are replaced; the base is region 0, level 0"));
+    io("base", hierarchy.base,
+       "Grid of level 0, the base of the hierarchy; unset for the base's grid, whose cells the "
+       "midpoint displacement layer expands.");
+    io("factor", hierarchy.factor, "Times finer each level is than the one it lies in.", "",
+       AtLeast(2.0));
+    io("shrink", hierarchy.shrink,
+       "Times narrower each level is than the one it lies in; the factor keeps the same number of "
+       "cells at every level.",
+       "", AtLeast(1.0));
+    io("regions", hierarchy.regions, "The squares refined in the base, which may not overlap.");
+    io("products", hierarchy.products, "What is written over every grid.");
+    io("mesh_format", hierarchy.meshFormat, "Format of terrain meshes and boulder models.");
+    io("blend_cells", hierarchy.blendCells,
+       "Cells along a level's edges over which its heights blend from its parent's, which they "
+       "equal on the edge, so meshes meet without gaps; 0 keeps the level's own heights.");
+    io("skirt", hierarchy.skirt,
+       "Depth in metres of the skirt below each terrain mesh's boundary edges; 0 for none.", "m",
+       AtLeast(0.0));
+    io("manifest", hierarchy.manifest,
+       OutputPathHelp("JSON manifest listing each grid, its parent and its files; empty for "
+                      "none"));
 }
 
 }  // namespace terraingen::config

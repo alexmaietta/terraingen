@@ -37,6 +37,10 @@ template <typename IO> void Fields(IO& io, TerrainConfig& config) {
     io("materials", config.materials,
        "The material map: soil, sand, dust, bedrock and rock shares, and their Hapke parameters, "
        "written by materials and photometry outputs; none when unset.");
+    io("hierarchy", config.hierarchy,
+       "A multi-resolution terrain: a base grid and squares nested in it, each level finer than "
+       "the one it lies in, written as one file per product per grid with a manifest; none when "
+       "unset.");
 }
 
 }  // namespace terraingen::config

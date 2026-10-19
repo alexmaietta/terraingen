@@ -1024,8 +1024,19 @@ struct MeshOutput {
 struct TerrainMeshOutput {
     std::string path;
     std::optional<GridRegionSpec> region{};
+    /// Rectangles in surface coordinates whose quads are left out, such as where a finer level of
+    /// a hierarchy covers the ground; a quad is left out when all four corners lie in one.
+    std::vector<RectangleRegionSpec> cutouts{};
+    /// Depth in metres of the skirt hung below every boundary edge, inner ones included, to hide
+    /// gaps between meshes; 0 for none.
+    double skirt = 0.0;
+    /// Surface coordinates of the frame's site on a body (`HeightMesh`); unset for the grid's
+    /// centre.
+    std::optional<double> siteX{};
+    std::optional<double> siteY{};  ///< As `siteX`.
     bool operator==(const TerrainMeshOutput& other) const {
-        return path == other.path && region == other.region;
+        return path == other.path && region == other.region && cutouts == other.cutouts &&
+               skirt == other.skirt && siteX == other.siteX && siteY == other.siteY;
     }
     bool operator!=(const TerrainMeshOutput& other) const {
         return !(*this == other);
@@ -1265,6 +1276,71 @@ struct MaterialsSpec {
     }
 };
 
+/// What a hierarchy writes over each of its grids, as the output of the same name does.
+enum class HierarchyProduct {
+    Heightmap,      ///< "<name>.tif".
+    Albedo,         ///< "<name>_albedo.tif".
+    Materials,      ///< "<name>_materials.tif".
+    Photometry,     ///< "<name>_photometry.tif".
+    TerrainMesh,    ///< "<name>" with the mesh format's extension.
+    CraterList,     ///< "<name>_craters.csv".
+    BoulderList,    ///< "<name>_boulders.csv".
+    BoulderModels,  ///< "<name>_boulders" with the mesh format's extension.
+};
+
+/// The mesh files a hierarchy writes.
+enum class HierarchyMeshFormat { Glb, Gltf, Obj, Stl };
+
+/// A square of a hierarchy, refined level by level about its centre, which snaps to a cell centre
+/// of the base.
+struct HierarchyRegionSpec {
+    double centreX = 0.0;    ///< Surface coordinates.
+    double centreY = 0.0;    ///< Surface coordinates.
+    double size = 0.0;       ///< Metres across level 1; must be given.
+    std::size_t levels = 1;  ///< Levels nested in the base, from 1.
+
+    bool operator==(const HierarchyRegionSpec& other) const {
+        return centreX == other.centreX && centreY == other.centreY && size == other.size &&
+               levels == other.levels;
+    }
+    bool operator!=(const HierarchyRegionSpec& other) const {
+        return !(*this == other);
+    }
+};
+
+/// A multi-resolution terrain: a base grid (level 0) and squares nested in it, each level `factor`
+/// times finer than the one it lies in and `shrink` times narrower, written as one file per
+/// product per grid, named by `path` with "{region}" and "{level}" replaced (the base is region
+/// 0, level 0), with a manifest of the grids and their files.
+///
+/// Every level's cell centres lie on its parent's lattice refined `factor` times, and its edge
+/// rows and columns on the parent's cell centres. Squares of different regions may not overlap.
+struct HierarchySpec {
+    std::string path = "region_{region}_level_{level}";
+    std::optional<GridRegionSpec> base{};  ///< Level 0; unset for the base's grid.
+    std::size_t factor = 2;                ///< Times finer each level is than its parent.
+    double shrink = 2.0;                   ///< Times narrower each level is than its parent.
+    std::vector<HierarchyRegionSpec> regions;
+    std::vector<HierarchyProduct> products{HierarchyProduct::Heightmap};
+    HierarchyMeshFormat meshFormat = HierarchyMeshFormat::Glb;
+    /// Cells along a level's edges over which its heights blend from its parent's, which they
+    /// equal on the edge so meshes meet without gaps; 0 keeps the level's own heights.
+    std::size_t blendCells = 8;
+    double skirt = 0.0;  ///< Metres; the skirt of each terrain mesh (`TerrainMeshOutput`).
+    /// The manifest of grids and files, relative to the output folder; empty for none.
+    std::string manifest = "manifest.json";
+
+    bool operator==(const HierarchySpec& other) const {
+        return path == other.path && base == other.base && factor == other.factor &&
+               shrink == other.shrink && regions == other.regions && products == other.products &&
+               meshFormat == other.meshFormat && blendCells == other.blendCells &&
+               skirt == other.skirt && manifest == other.manifest;
+    }
+    bool operator!=(const HierarchySpec& other) const {
+        return !(*this == other);
+    }
+};
+
 /// Everything needed to generate a terrain: the body it lies on, optionally its base heights, the
 /// layers added to them in order, the outputs to write, and optionally its albedo and materials.
 struct TerrainConfig {
@@ -1275,11 +1351,12 @@ struct TerrainConfig {
     std::vector<OutputSpec> outputs;
     std::optional<AlbedoSpec> albedo;        ///< None by default.
     std::optional<MaterialsSpec> materials;  ///< None by default.
+    std::optional<HierarchySpec> hierarchy;  ///< None by default.
 
     bool operator==(const TerrainConfig& other) const {
         return schemaVersion == other.schemaVersion && body == other.body && base == other.base &&
                layers == other.layers && outputs == other.outputs && albedo == other.albedo &&
-               materials == other.materials;
+               materials == other.materials && hierarchy == other.hierarchy;
     }
     bool operator!=(const TerrainConfig& other) const {
         return !(*this == other);
