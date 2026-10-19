@@ -1,0 +1,76 @@
+{
+    "schema_version": 1,
+    "layers": [
+        {
+            "type": "boulders",
+            "seed": 1,
+            "coverage": 0.03,
+            "sizes": {
+                "type": "golombek_rapp"
+            },
+            "min_diameter": 0.1,
+            "max_diameter": 1.0,
+            "models": {
+                "min_diameter": 0.5
+            },
+            "manual": [
+                {
+                    "x": -6,
+                    "y": 4,
+                    "diameter": 1.6,
+                    "id": 101,
+                    "height": 0.9,
+                    "burial": 0.3,
+                    "yaw_deg": 30,
+                    "lean_deg": 5,
+                    "tilt_deg": 15,
+                    "tilt_azimuth_deg": 90,
+                    "wear": 0.2,
+                    "rest": "side",
+                    "shape_seed": 7
+                },
+                {
+                    "x": 5,
+                    "y": 3,
+                    "diameter": 1.2,
+                    "yaw_deg": 90,
+                    "burial": 0.5
+                },
+                {
+                    "x": 0,
+                    "y": -6,
+                    "diameter": 1.0
+                }
+            ]
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_boulders_manual.tif",
+            "region": {
+                "width": 801,
+                "height": 801,
+                "pixel_size": 0.05
+            }
+        },
+        {
+            "type": "boulder_list",
+            "path": "example_boulders_manual.csv",
+            "region": {
+                "width": 801,
+                "height": 801,
+                "pixel_size": 0.05
+            }
+        },
+        {
+            "type": "boulder_models",
+            "path": "example_boulders_manual.glb",
+            "region": {
+                "width": 801,
+                "height": 801,
+                "pixel_size": 0.05
+            }
+        }
+    ]
+}

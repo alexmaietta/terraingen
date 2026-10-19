@@ -1,0 +1,62 @@
+{
+    "schema_version": 1,
+    "layers": [
+        {
+            "type": "craters",
+            "generate": false,
+            "profile": {
+                "type": "martin_parkes_dunstan"
+            },
+            "degradation": {
+                "type": "freshness"
+            },
+            "manual": [
+                {
+                    "x": -22,
+                    "y": 20,
+                    "diameter": 20,
+                    "depth": 3.0,
+                    "rim_height": 0.8
+                },
+                {
+                    "x": 22,
+                    "y": 22,
+                    "diameter": 16,
+                    "depth": 1.2
+                },
+                {
+                    "x": -20,
+                    "y": -22,
+                    "diameter": 24,
+                    "depth": 2.0,
+                    "rim_height": 0.3
+                },
+                {
+                    "x": 22,
+                    "y": -20,
+                    "diameter": 18
+                }
+            ]
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_craters_manual_depth.tif",
+            "region": {
+                "width": 401,
+                "height": 401,
+                "pixel_size": 0.25
+            }
+        },
+        {
+            "type": "crater_list",
+            "path": "example_craters_manual_depth.csv",
+            "region": {
+                "width": 401,
+                "height": 401,
+                "pixel_size": 0.25
+            }
+        }
+    ]
+}
