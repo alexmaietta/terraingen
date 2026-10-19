@@ -2,9 +2,11 @@
 
 #include "terraingen/app/gui/config_editor.h"
 #include "terraingen/app/gui/terrain_scene.h"
+#include "terraingen/app/gui/widgets.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/config/json.h"
 #include "terraingen/raster/geotiff/geotiff.h"
+#include "terraingen/util/log.h"
 
 #include <ernie/app/icons.h>
 #include <imgui.h>
@@ -27,9 +29,9 @@ namespace terraingen::gui {
 
 namespace {
 
-/// How long Live waits after the last edit before generating, so typing does not regenerate on
-/// every key.
-constexpr std::chrono::milliseconds kLiveDelay{250};
+/// How long Live waits after the last edit before generating, in milliseconds, so typing does not
+/// regenerate on every key.
+constexpr double kLiveDelayMs = 250.0;
 
 /// The outliner's panel, docked left, and the inspector's, docked right.
 constexpr const char* kTerrainPanel = "Terrain";
@@ -72,24 +74,24 @@ constexpr const char* kStarterConfig = R"({
 }
 )";
 
-int ResizeString(ImGuiInputTextCallbackData* data) {
-    if (data->EventFlag == ImGuiInputTextFlags_CallbackResize) {
-        auto* text = static_cast<std::string*>(data->UserData);
-        text->resize(static_cast<std::size_t>(data->BufTextLen));
-        data->Buf = text->data();
+/// Hides the viewport's grid, light and selection overlays and toolbars, and Ernie's panels the
+/// terrain GUI does not use, then shows the log.
+void SimplifyViewer(ernie::app::Viewer& viewer) {
+    ernie::app::ViewportDisplay display = viewer.GetViewportDisplay();
+    display.grid = false;
+    display.lights = false;
+    display.selection = false;
+    display.toolbarRenderer = false;
+    display.toolbarVar = false;
+    display.toolbarCamera = false;
+    display.toolbarLighting = false;
+    viewer.SetViewportDisplay(display);
+    for (const char* title : kHiddenPanels) {
+        if (ernie::app::Panel* panel = viewer.FindPanel(title)) {
+            panel->SetVisible(false);
+        }
     }
-    return 0;
-}
-
-/// An ImGui text field editing `text`, single or multiline (`size` set).
-bool InputString(const char* label, std::string& text, const ImVec2* size = nullptr) {
-    const ImGuiInputTextFlags flags = ImGuiInputTextFlags_CallbackResize;
-    if (size != nullptr) {
-        return ImGui::InputTextMultiline(label, text.data(), text.capacity() + 1, *size,
-                                         flags | ImGuiInputTextFlags_AllowTabInput, ResizeString,
-                                         &text);
-    }
-    return ImGui::InputText(label, text.data(), text.capacity() + 1, flags, ResizeString, &text);
+    viewer.FocusPanel("Log");
 }
 
 bool HasExtension(const std::filesystem::path& path, std::initializer_list<const char*> exts) {
@@ -121,8 +123,8 @@ struct GuiApp::State {
     std::string status = "Open a configuration or heights, or generate the starter terrain";
     std::future<Generated> generation;
     bool framed = false;
-    bool live = false;                                            ///< Regenerate after each edit.
-    std::optional<std::chrono::steady_clock::time_point> edited;  ///< The last edit not generated.
+    bool live = false;                ///< Regenerate after each edit.
+    std::optional<Stopwatch> edited;  ///< Time since the last edit not generated.
 
     void Report(ernie::app::LogLevel level, std::string text) {
         status = text;
@@ -140,7 +142,14 @@ struct GuiApp::State {
     }
 
     void Edited() {
-        edited = std::chrono::steady_clock::now();
+        edited.emplace();
+    }
+
+    /// Follows an edit of `document`: the text is rewritten from it, and the edit noted.
+    void DocumentChanged() {
+        config = document.dump(4) + "\n";
+        parseError.clear();
+        Edited();
     }
 
     /// Puts a finished generation into the scene, framing the first terrain shown.
@@ -191,27 +200,13 @@ GuiApp::GuiApp(const GuiAppOptions& options) : state_(std::make_unique<State>())
     viewerOptions.docks.right = 0.3f;
     viewerOptions.docks.bottom = 0.14f;
     s.viewer.emplace(s.scene, viewerOptions);
-    ernie::app::ViewportDisplay display = s.viewer->GetViewportDisplay();
-    display.grid = false;
-    display.lights = false;
-    display.selection = false;
-    display.toolbarRenderer = false;
-    display.toolbarVar = false;
-    display.toolbarCamera = false;
-    display.toolbarLighting = false;
-    s.viewer->SetViewportDisplay(display);
-    for (const char* title : kHiddenPanels) {
-        if (ernie::app::Panel* panel = s.viewer->FindPanel(title)) {
-            panel->SetVisible(false);
-        }
-    }
-    s.viewer->FocusPanel("Log");
+    SimplifyViewer(*s.viewer);
     s.ParseText();
     s.viewer->OnFrame([this](ernie::app::Viewer&, const ernie::app::FrameInfo&) {
         State& st = *state_;
         st.Collect();
         if (st.live && st.edited && st.parseError.empty() && !Generating() &&
-            std::chrono::steady_clock::now() - *st.edited > kLiveDelay) {
+            st.edited->Milliseconds() > kLiveDelayMs) {
             Generate();
         }
     });
@@ -312,10 +307,9 @@ void GuiApp::Generate() {
         const unsigned threads = s.threads;
         const std::optional<Backend> backend = s.backend;
         s.generation = std::async(std::launch::async, [config, directory, threads, backend] {
-            const auto start = std::chrono::steady_clock::now();
+            const Stopwatch stopwatch;
             Generated done{GenerateTerrain(config, directory, threads, backend), 0.0};
-            done.seconds =
-                std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+            done.seconds = stopwatch.Milliseconds() / 1000.0;
             return done;
         });
         s.status = "Generating...";
@@ -362,9 +356,7 @@ void GuiApp::SetLive(bool live) {
 void GuiApp::EditConfig(const std::function<void(nlohmann::ordered_json&)>& edit) {
     State& s = *state_;
     edit(s.document);
-    s.config = s.document.dump(4) + "\n";
-    s.parseError.clear();
-    s.Edited();
+    s.DocumentChanged();
 }
 
 void GuiApp::SaveConfig(const std::filesystem::path& path) {
@@ -408,20 +400,36 @@ void GuiApp::ShowSaveDialog() {
         [this](ernie::app::Viewer&, const std::filesystem::path& path) { SaveConfig(path); });
 }
 
+void GuiApp::Save() {
+    if (state_->configFile.empty()) {
+        ShowSaveDialog();
+    } else {
+        SaveConfig(state_->configFile);
+    }
+}
+
 void GuiApp::DrawTerrainPanel() {
+    DrawToolbar();
+    DrawFileStatus();
     State& s = *state_;
-    // The toolbar: file actions, then Generate in the accent colour, then Live.
+    if (ImGui::BeginChild("##outliner")) {
+        if (s.editor.DrawOutliner(s.document)) {
+            s.DocumentChanged();
+        }
+    }
+    ImGui::EndChild();
+    HandleShortcuts();
+}
+
+void GuiApp::DrawToolbar() {
+    State& s = *state_;
     if (ImGui::Button(ernie::app::icons::kFolderOpen)) {
         ShowOpenDialog();
     }
     ImGui::SetItemTooltip("Open a configuration or heights (Ctrl+O)");
     ImGui::SameLine();
     if (ImGui::Button(ernie::app::icons::kSave)) {
-        if (s.configFile.empty()) {
-            ShowSaveDialog();
-        } else {
-            SaveConfig(s.configFile);
-        }
+        Save();
     }
     ImGui::SetItemTooltip("Save the configuration (Ctrl+S)");
     ImGui::SameLine();
@@ -446,8 +454,10 @@ void GuiApp::DrawTerrainPanel() {
     ImGui::SameLine();
     ImGui::Checkbox("Live", &s.live);
     ImGui::SetItemTooltip("Generate again a moment after each edit");
+}
 
-    // The file, starred when edited since it was opened or saved, and what last happened.
+void GuiApp::DrawFileStatus() {
+    const State& s = *state_;
     const bool dirty = s.config != s.savedConfig;
     const std::string file = s.configFile.empty() ? "Untitled" : s.configFile.filename().string();
     ImGui::TextUnformatted((file + (dirty ? " *" : "")).c_str());
@@ -461,26 +471,15 @@ void GuiApp::DrawTerrainPanel() {
         ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.4f, 1.0f), "The JSON does not parse");
         ImGui::SetItemTooltip("%s", s.parseError.c_str());
     }
+}
 
-    if (ImGui::BeginChild("##outliner")) {
-        if (s.editor.DrawOutliner(s.document)) {
-            s.config = s.document.dump(4) + "\n";
-            s.parseError.clear();
-            s.Edited();
-        }
-    }
-    ImGui::EndChild();
-
+void GuiApp::HandleShortcuts() {
     const ImGuiIO& io = ImGui::GetIO();
     if (!io.WantTextInput && io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_O, false)) {
         ShowOpenDialog();
     }
     if (!io.WantTextInput && io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false)) {
-        if (s.configFile.empty()) {
-            ShowSaveDialog();
-        } else {
-            SaveConfig(s.configFile);
-        }
+        Save();
     }
     if (ImGui::IsKeyPressed(ImGuiKey_F5, false)) {
         Generate();
@@ -495,9 +494,7 @@ void GuiApp::DrawInspectorPanel() {
     if (ImGui::BeginTabItem("Settings")) {
         if (ImGui::BeginChild("##settings")) {
             if (s.editor.DrawInspector(s.document)) {
-                s.config = s.document.dump(4) + "\n";
-                s.parseError.clear();
-                s.Edited();
+                s.DocumentChanged();
             }
         }
         ImGui::EndChild();

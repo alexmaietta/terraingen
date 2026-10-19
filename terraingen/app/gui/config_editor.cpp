@@ -1,5 +1,6 @@
 #include "terraingen/app/gui/config_editor.h"
 
+#include "terraingen/app/gui/widgets.h"
 #include "terraingen/config/json.h"
 
 #include <imgui.h>
@@ -63,20 +64,6 @@ const char* TypeGlyph(std::string_view root, std::string_view type) {
 /// Text for a setting the configuration leaves at its default.
 const ImVec4 kDefaultColour(0.55f, 0.57f, 0.62f, 1.0f);
 
-int ResizeString(ImGuiInputTextCallbackData* data) {
-    if (data->EventFlag == ImGuiInputTextFlags_CallbackResize) {
-        auto* text = static_cast<std::string*>(data->UserData);
-        text->resize(static_cast<std::size_t>(data->BufTextLen));
-        data->Buf = text->data();
-    }
-    return 0;
-}
-
-bool InputString(const char* label, std::string& text) {
-    return ImGui::InputText(label, text.data(), text.capacity() + 1,
-                            ImGuiInputTextFlags_CallbackResize, ResizeString, &text);
-}
-
 std::string Lower(std::string_view text) {
     std::string lower(text);
     std::transform(lower.begin(), lower.end(), lower.begin(),
@@ -118,15 +105,38 @@ std::string ChoiceText(std::string_view choice) {
     return text;
 }
 
+/// An item of `type` in root list or field `root` as the outliner shows it: its glyph and label.
+std::string TypeTitle(std::string_view root, std::string_view type) {
+    return std::string(TypeGlyph(root, type)) + "  " + ConfigEditor::Label(type);
+}
+
+/// The type picked in the open popup "add", which lists a choice's alternatives, each shown as
+/// `text(type)` with its description as tooltip; nothing when none was picked.
+template <typename Text>
+std::optional<std::string> AddTypeMenu(const Json& choice, const Text& text) {
+    std::optional<std::string> picked;
+    if (ImGui::BeginPopup("add")) {
+        for (const Json& alternative : choice["alternatives"]) {
+            const std::string type = alternative["type"];
+            if (ImGui::Selectable(text(type).c_str())) {
+                picked = type;
+            }
+            Tooltip(alternative.value("description", ""));
+        }
+        ImGui::EndPopup();
+    }
+    return picked;
+}
+
 /// The type of a choice's object, or its first alternative's when it has none.
-std::string TypeOf(const Json& value, const Json& choice) {
+std::string ChoiceType(const Json& value, const Json& choice) {
     if (value.is_object() && value.contains("type") && value["type"].is_string()) {
         return value["type"];
     }
     return choice["alternatives"].front()["type"];
 }
 
-const Json* AlternativeOf(const Json& choice, const std::string& type) {
+const Json* FindAlternative(const Json& choice, const std::string& type) {
     for (const Json& alternative : choice["alternatives"]) {
         if (alternative["type"] == type) {
             return &alternative;
@@ -232,7 +242,7 @@ Json ConfigEditor::NewValue(const Json& node) const {
 
 void ConfigEditor::SetType(Json& value, const Json& node, const std::string& type) const {
     const Json& choice = Resolve(node);
-    const Json* alternative = AlternativeOf(choice, type);
+    const Json* alternative = FindAlternative(choice, type);
     if (alternative == nullptr) {
         return;
     }
@@ -298,7 +308,7 @@ bool ConfigEditor::AddItem(Json& config, std::string_view list, const std::strin
         return false;
     }
     const Json& item = Resolve(Resolve((*field)["schema"])["of"]);
-    if (item["kind"] != "choice" || AlternativeOf(item, type) == nullptr) {
+    if (item["kind"] != "choice" || FindAlternative(item, type) == nullptr) {
         return false;
     }
     Json& items = config[std::string(list)];
@@ -407,10 +417,10 @@ bool ConfigEditor::DrawRootItem(Json& config, const Json& field) {
     const Json& shown = present ? config[name] : field["default"];
     std::string text;
     if (Resolve(optional ? node["of"] : node)["kind"] == "choice") {
-        const std::string type = TypeOf(shown, Resolve(optional ? node["of"] : node));
-        text = std::string(TypeGlyph(name, type)) + "  " + Label(type);
+        const std::string type = ChoiceType(shown, Resolve(optional ? node["of"] : node));
+        text = TypeTitle(name, type);
     } else {
-        text = std::string(TypeGlyph(name, name)) + "  " + Label(name);
+        text = TypeTitle(name, name);
     }
     const float trash = optional ? ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x : 0;
     if (ImGui::Selectable(text.c_str(), selection_ == pointer, ImGuiSelectableFlags_AllowOverlap,
@@ -447,8 +457,8 @@ bool ConfigEditor::DrawRootList(Json& config, const Json& field) {
     for (std::size_t i = 0; i < items.size(); ++i) {
         ImGui::PushID(static_cast<int>(i));
         const std::string pointer = "/" + name + "/" + std::to_string(i);
-        const std::string type = TypeOf(items[i], item);
-        std::string text = std::string(TypeGlyph(name, type)) + "  " + Label(type);
+        const std::string type = ChoiceType(items[i], item);
+        std::string text = TypeTitle(name, type);
         const std::string detail = ItemDetail(items[i]);
         const float trash = ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x;
         if (ImGui::Selectable(text.c_str(), selection_ == pointer,
@@ -456,7 +466,7 @@ bool ConfigEditor::DrawRootList(Json& config, const Json& field) {
                               ImVec2(ImGui::GetContentRegionAvail().x - trash, 0.0f))) {
             selection_ = pointer;
         }
-        if (const Json* alternative = AlternativeOf(item, type)) {
+        if (const Json* alternative = FindAlternative(item, type)) {
             Tooltip((*alternative).value("description", ""), "Drag to reorder");
         }
         if (ImGui::BeginDragDropSource()) {
@@ -485,16 +495,9 @@ bool ConfigEditor::DrawRootList(Json& config, const Json& field) {
                       ImVec2(-1.0f, 0.0f))) {
         ImGui::OpenPopup("add");
     }
-    if (ImGui::BeginPopup("add")) {
-        for (const Json& alternative : item["alternatives"]) {
-            const std::string type = alternative["type"];
-            const std::string text = std::string(TypeGlyph(name, type)) + "  " + Label(type);
-            if (ImGui::Selectable(text.c_str())) {
-                changed |= AddItem(config, name, type);
-            }
-            Tooltip(alternative.value("description", ""));
-        }
-        ImGui::EndPopup();
+    if (const auto type =
+            AddTypeMenu(item, [&](const std::string& t) { return TypeTitle(name, t); })) {
+        changed |= AddItem(config, name, *type);
     }
     if (remove) {
         changed |= RemoveItem(config, name, *remove);
@@ -549,14 +552,14 @@ bool ConfigEditor::DrawInspector(Json& config) {
     ImGui::PushID(selection_.c_str());
     bool changed = false;
     if ((*node)["kind"] == "choice") {
-        const std::string type = TypeOf(value, *node);
+        const std::string type = ChoiceType(value, *node);
         const std::string title = item ? Label(Singular(root)) : Label(root);
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted((std::string(TypeGlyph(root, type)) + "  " + title).c_str());
         ImGui::SameLine();
         ImGui::SetNextItemWidth(-1.0f);
         changed |= DrawTypeMenu("##type", value, *node);
-        if (const Json* alternative = AlternativeOf(*node, TypeOf(value, *node))) {
+        if (const Json* alternative = FindAlternative(*node, ChoiceType(value, *node))) {
             ImGui::PushStyleColor(ImGuiCol_Text, kDefaultColour);
             ImGui::TextWrapped("%s", alternative->value("description", "").c_str());
             ImGui::PopStyleColor();
@@ -566,7 +569,7 @@ bool ConfigEditor::DrawInspector(Json& config) {
         changed |= DrawChoiceFields(value, *node);
         ImGui::EndTable();
     } else {
-        ImGui::TextUnformatted((std::string(TypeGlyph(root, root)) + "  " + Label(root)).c_str());
+        ImGui::TextUnformatted(TypeTitle(root, root).c_str());
         ImGui::PushStyleColor(ImGuiCol_Text, kDefaultColour);
         ImGui::TextWrapped("%s", field->value("description", "").c_str());
         ImGui::PopStyleColor();
@@ -587,11 +590,11 @@ bool ConfigEditor::DrawInspector(Json& config) {
 }
 
 bool ConfigEditor::DrawTypeMenu(const char* id, Json& value, const Json& choice) {
-    const std::string type = TypeOf(value, choice);
+    const std::string type = ChoiceType(value, choice);
     bool changed = false;
     const bool open = ImGui::BeginCombo(id, Label(type).c_str());
     if (!open) {
-        if (const Json* current = AlternativeOf(choice, type)) {
+        if (const Json* current = FindAlternative(choice, type)) {
             Tooltip(current->value("description", ""));
         }
         return false;
@@ -610,9 +613,9 @@ bool ConfigEditor::DrawTypeMenu(const char* id, Json& value, const Json& choice)
 
 bool ConfigEditor::DrawChoiceFields(Json& value, const Json& choice) {
     if (!value.is_object()) {
-        value = Json{{"type", TypeOf(value, choice)}};
+        value = Json{{"type", ChoiceType(value, choice)}};
     }
-    const Json* alternative = AlternativeOf(choice, TypeOf(value, choice));
+    const Json* alternative = FindAlternative(choice, ChoiceType(value, choice));
     if (alternative == nullptr) {
         return false;
     }
@@ -834,16 +837,9 @@ bool ConfigEditor::DrawArray(const std::string& label, Json& value, const Json& 
         if (IconButton(kGlyphPlus, "add", "Add an item")) {
             ImGui::OpenPopup("add");
         }
-        if (ImGui::BeginPopup("add")) {
-            for (const Json& alternative : item["alternatives"]) {
-                const std::string type = alternative["type"];
-                if (ImGui::Selectable(Label(type).c_str())) {
-                    value.push_back(Json{{"type", type}});
-                    changed = true;
-                }
-                Tooltip(alternative.value("description", ""));
-            }
-            ImGui::EndPopup();
+        if (const auto type = AddTypeMenu(item, [](const std::string& t) { return Label(t); })) {
+            value.push_back(Json{{"type", *type}});
+            changed = true;
         }
     } else if (IconButton(kGlyphPlus, "add", "Add an item")) {
         value.push_back(itemKind == "object" ? Json::object() : node["default"]);

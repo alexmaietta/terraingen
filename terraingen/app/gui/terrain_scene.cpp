@@ -24,7 +24,7 @@ struct Placement {
     double cellSize = 1.0;
 };
 
-Placement PlacementOf(const Raster<float>& raster, const char* what) {
+Placement RasterPlacement(const Raster<float>& raster, const char* what) {
     const GeoTransform& t = raster.Transform();
     if (raster.Width() < 2 || raster.Height() < 2) {
         throw std::invalid_argument(std::string(what) + " needs at least 2 x 2 cells");
@@ -37,7 +37,7 @@ Placement PlacementOf(const Raster<float>& raster, const char* what) {
     return {{t.originX, t.originY}, t.pixelWidth};
 }
 
-ernie::Tensor TensorOf(const Raster<float>& raster) {
+ernie::Tensor ToTensor(const Raster<float>& raster) {
     return ernie::Tensor::Copy<float>(raster.Values(), {static_cast<std::int64_t>(raster.Height()),
                                                         static_cast<std::int64_t>(raster.Width())});
 }
@@ -64,9 +64,9 @@ void ShowTerrain(ernie::Scene& scene, const Raster<float>& heights, bool geograp
         throw std::invalid_argument("Heights in longitude and latitude cannot be viewed yet; "
                                     "view a projected raster");
     }
-    const Placement place = PlacementOf(heights, "The heights");
+    const Placement place = RasterPlacement(heights, "The heights");
     ernie::Prim terrain = scene.Define(kTerrainPrim, tokens::kTerrain);
-    terrain.Write(tokens::kHeights, TensorOf(heights))
+    terrain.Write(tokens::kHeights, ToTensor(heights))
         .Set(tokens::kOrigin, place.corner)
         .Set(tokens::kCellSize, place.cellSize)
         .Set(tokens::kMaterialBinding, kMaterialPrim);
@@ -81,12 +81,12 @@ void ShowTerrain(ernie::Scene& scene, const Raster<float>& heights, bool geograp
         scene.Clear(kMaterialPrim, tokens::kAlbedoMap);
         return;
     }
-    const Placement map = PlacementOf(*albedo, "The albedo");
+    const Placement map = RasterPlacement(*albedo, "The albedo");
     if (albedo->Width() != heights.Width() || albedo->Height() != heights.Height() ||
         map.corner != place.corner || map.cellSize != place.cellSize) {
         throw std::invalid_argument("The albedo must lie on the heights' grid");
     }
-    material.Write(tokens::kAlbedoMap, TensorOf(*albedo))
+    material.Write(tokens::kAlbedoMap, ToTensor(*albedo))
         .Set(tokens::kAlbedoMapOrigin, map.corner)
         .Set(tokens::kAlbedoMapCellSize, map.cellSize);
 }

@@ -122,8 +122,16 @@ class GuiApp {
     const std::string& Status() const;
 
   private:
+    /// Saves to the configuration file, or asks where with `ShowSaveDialog` when there is none.
+    void Save();
     /// Draws the Terrain panel: the toolbar, the file and status, and the outliner.
     void DrawTerrainPanel();
+    /// Draws the Terrain panel's toolbar: file actions, Generate in the accent colour, and Live.
+    void DrawToolbar();
+    /// Draws the file, starred when edited since it was opened or saved, and what last happened.
+    void DrawFileStatus();
+    /// Handles the Ctrl+O, Ctrl+S and F5 shortcuts.
+    void HandleShortcuts();
     /// Draws the Inspector panel: the selection's settings, and the configuration as JSON.
     void DrawInspectorPanel();
 
