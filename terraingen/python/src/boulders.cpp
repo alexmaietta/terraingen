@@ -402,6 +402,18 @@ void BindLayer(nb::module_& m) {
                 },
                 "diameter"_a, "x"_a, "y"_a, "terrain"_a = nb::none(), "layers"_a = 0,
                 "Boulders at least `diameter` across per square metre at (x, y).")
+            .def(
+                "unresolved_cover_at",
+                [](const BoulderLayer& layer, double x, double y, double spacing,
+                   const PyTerrain* terrain, std::size_t layers) {
+                    const UnresolvedCover cover = WithGround(terrain, layers, [&](const Ground* g) {
+                        return layer.UnresolvedCoverAt(x, y, spacing, g);
+                    });
+                    return std::pair{cover.mean, cover.variance};
+                },
+                "x"_a, "y"_a, "spacing"_a, "terrain"_a = nb::none(), "layers"_a = 0,
+                "The share of a sample `spacing` metres across at (x, y) that boulders too small "
+                "to resolve cover: (mean, variance).")
             .def_prop_ro("options", &BoulderLayer::Options);
     BindMaterialCover<BoulderLayer>(boulderLayer);
     m.def("add_boulder", &AddBoulder, "height"_a, "x"_a, "y"_a, "boulder"_a, "weight"_a = 1.0,

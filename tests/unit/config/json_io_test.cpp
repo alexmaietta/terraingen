@@ -363,8 +363,15 @@ TEST(ConfigJson, RoundTripsAlbedos) {
     splotches.options.swarms.craters = {{10.0, -20.0, 18.8, 0.0, 0u, false}};
     terraingen::BlastZoneAlbedoSpec blast;
     blast.zones = {terraingen::BlastZone{.x = 5.0, .area = 2530.0, .coreRadius = 3.0}};
+    terraingen::RockAlbedoSpec rocks;
+    rocks.boulderLayer = 0;
+    rocks.options.reflectanceRatio = 1.5;
+    rocks.options.unresolved = false;
+    terraingen::SlopeAlbedoSpec slopes;
+    slopes.options.baseline = 2.0;
+    slopes.options.onsetDegrees = 25.0;
     config.albedo = terraingen::AlbedoSpec{
-        synthetic, {craters, terraingen::CraterAlbedoSpec{}, splotches, blast}};
+        synthetic, {craters, terraingen::CraterAlbedoSpec{}, splotches, blast, rocks, slopes}};
     config.outputs = {
         terraingen::AlbedoOutput{"albedo.tif", terraingen::TiffCompression::Deflate, 32}};
     const std::string json = ConfigToJson(config);

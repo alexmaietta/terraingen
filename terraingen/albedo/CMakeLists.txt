@@ -6,6 +6,8 @@ terraingen_add_library(
     crater_albedo.cpp
     maturity.cpp
     raster_albedo.cpp
+    rock_albedo.cpp
+    slope_albedo.cpp
     splotches.cpp
     synthetic.cpp
     PUBLIC

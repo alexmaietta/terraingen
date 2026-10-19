@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 
@@ -117,6 +118,33 @@ void TerrainGround::HeightsAt(std::span<const Vec2d> points, std::span<float> he
         EvaluateStack(terrain_, layers_, points.subspan(begin, count),
                       heights.subspan(begin, count), spacing, cache ? &*cache : nullptr);
     });
+}
+
+namespace {
+
+/// The ground beneath the first layers of a terrain it keeps.
+class OwnedGround final : public Ground {
+  public:
+    OwnedGround(const Terrain& terrain, std::size_t layers)
+        : terrain_(std::make_shared<const Terrain>(terrain)), ground_(*terrain_, layers) {}
+
+    float HeightAt(double x, double y, double spacing) const override {
+        return ground_.HeightAt(x, y, spacing);
+    }
+    void HeightsAt(std::span<const Vec2d> points, std::span<float> heights,
+                   double spacing) const override {
+        ground_.HeightsAt(points, heights, spacing);
+    }
+
+  private:
+    std::shared_ptr<const Terrain> terrain_;
+    TerrainGround ground_;
+};
+
+}  // namespace
+
+std::shared_ptr<const Ground> SharedGround(const Terrain& terrain, std::size_t layers) {
+    return std::make_shared<OwnedGround>(terrain, layers);
 }
 
 Raster<float> Evaluate(const Terrain& terrain) {

@@ -499,6 +499,30 @@ TEST(ValidateConfig, ReportsAlbedoProblemsByPath) {
                   c.albedo->layers.push_back(blast);
               }),
               "albedo.layers[1].zones[1]");
+    EXPECT_EQ(
+        error([](TerrainConfig& c) { c.albedo->layers.push_back(terraingen::RockAlbedoSpec{}); }),
+        "albedo.layers[1]")
+        << "rocks need a boulder layer";
+    EXPECT_EQ(error([](TerrainConfig& c) {
+                  c.layers.push_back(terraingen::BoulderLayerSpec{});
+                  terraingen::RockAlbedoSpec rocks;
+                  rocks.boulderLayer = 1;
+                  c.albedo->layers.push_back(rocks);
+              }),
+              "albedo.layers[1].boulder_layer");
+    EXPECT_EQ(error([](TerrainConfig& c) {
+                  c.layers.push_back(terraingen::BoulderLayerSpec{});
+                  terraingen::RockAlbedoSpec rocks;
+                  rocks.options.reflectanceRatio = -1.0;
+                  c.albedo->layers.push_back(rocks);
+              }),
+              "albedo.layers[1]");
+    EXPECT_EQ(error([](TerrainConfig& c) {
+                  terraingen::SlopeAlbedoSpec slopes;
+                  slopes.options.baseline = 0.0;
+                  c.albedo->layers.push_back(slopes);
+              }),
+              "albedo.layers[1]");
     EXPECT_EQ(error([](TerrainConfig& c) { c.layers.pop_back(); }), "albedo.layers[0]");
     EXPECT_EQ(error([](TerrainConfig& c) { c.albedo->source = terraingen::RasterAlbedoSpec{}; }),
               "albedo.source.path");

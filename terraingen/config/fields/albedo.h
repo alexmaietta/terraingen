@@ -504,6 +504,56 @@ template <typename IO> void Fields(IO& io, BlastZoneAlbedoSpec& spec) {
     io("zones", spec.zones, "One blast zone per lander.");
 }
 
+template <> struct SpecName<RockAlbedoSpec> {
+    static constexpr std::string_view kName = "rocks";
+    static constexpr std::string_view kDescription =
+        "Rock brighter than the regolith: the boulders of boulder layers where resolved, and a "
+        "speckle of the share of each sample covered by those too small to resolve.";
+};
+template <typename IO> void Fields(IO& io, RockAlbedoSpec& spec) {
+    io("boulder_layer", spec.boulderLayer,
+       "Which top-level boulder layer's rock to brighten, counting from 0; unset uses every "
+       "top-level boulder layer.");
+    io("seed", spec.options.seed, "Seed of the per-sample draws of rock too small to resolve.");
+    io("reflectance_ratio", spec.options.reflectanceRatio,
+       "Rock reflectance over the regolith's; 2.5 after Marshal et al. (2023), within Holt's "
+       "(1981) Apollo 16 rocks at 18 to 51% against soils of 14 to 15%; earlier models used 1.5.",
+       "", Above(0.0));
+    io("unresolved", spec.options.unresolved,
+       "Brightens each sample by the share of it covered by boulders too small to resolve, drawn "
+       "about the expected share with the scatter of randomly placed rocks: bright speckle.");
+}
+
+template <> struct SpecName<SlopeAlbedoSpec> {
+    static constexpr std::string_view kName = "slopes";
+    static constexpr std::string_view kDescription =
+        "Steep ground kept immature and bright by regolith moving downslope, after Ikeda et al. "
+        "(2022) and Lucey et al. (2014).";
+};
+template <typename IO> void Fields(IO& io, SlopeAlbedoSpec& spec) {
+    SlopeMaturityOptions& options = spec.options;
+    io("onset_degrees", options.onsetDegrees,
+       "Slope in degrees from which ground freshens; 20, where Lucey et al. (2014) and Ikeda et "
+       "al. (2022) find brightening begin.",
+       "deg", FromBelow(0.0, 90.0));
+    io("maturity_per_degree", options.maturityPerDegree,
+       "Optical maturity (OMAT) gained per degree beyond the onset; about 0.0065 on the crater "
+       "walls of Ikeda et al. (2022).",
+       "", AtLeast(0.0));
+    io("background_maturity", options.backgroundMaturity,
+       "OMAT of gentler ground; about 0.10 at 20 degrees in Laue (Ikeda et al. 2022).", "",
+       Above(0.0));
+    io("max_maturity", options.maxMaturity, "Cap on OMAT, at least the background's.", "",
+       Above(0.0));
+    io("baseline", options.baseline,
+       "Metres slopes are measured over, the spacing of the lattice they are read on; 10, the "
+       "DTM Ikeda et al. (2022) measured slopes on.",
+       "m", Above(0.0));
+    io("origin_reflectance", options.originReflectance,
+       "Reflectance of the optical maturity origin, from which reflectance scales with maturity "
+       "at fixed iron content.");
+}
+
 template <typename IO> void Fields(IO& io, AlbedoSpec& spec) {
     io("source", spec.source,
        "Base albedo of the terrain, before its layers: a synthetic colour or a raster map.");

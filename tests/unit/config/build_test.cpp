@@ -403,6 +403,18 @@ TEST(BuildAlbedo, BrightensEveryOrOneCraterLayer) {
         terraingen::BuildAlbedo(both, terraingen::BuildTerrain(both));
     ASSERT_EQ(spotted.layers.size(), 2u);
     EXPECT_NE(dynamic_cast<const terraingen::SplotchAlbedo*>(spotted.layers[1].get()), nullptr);
+    TerrainConfig rocky = both;
+    rocky.layers.push_back(terraingen::BoulderLayerSpec{});
+    rocky.layers.push_back(terraingen::BoulderLayerSpec{});
+    rocky.albedo->layers = {terraingen::RockAlbedoSpec{}, terraingen::SlopeAlbedoSpec{}};
+    const terraingen::Albedo rocks =
+        terraingen::BuildAlbedo(rocky, terraingen::BuildTerrain(rocky));
+    ASSERT_EQ(rocks.layers.size(), 2u);
+    EXPECT_NE(dynamic_cast<const terraingen::RockAlbedo*>(rocks.layers[0].get()), nullptr);
+    EXPECT_NE(dynamic_cast<const terraingen::SlopeAlbedo*>(rocks.layers[1].get()), nullptr);
+    const terraingen::RasterGrid grid{8, 8, terraingen::GeoTransform::NorthUp(0.0, 8.0, 1.0)};
+    EXPECT_EQ(terraingen::EvaluateAlbedo(rocks, grid, {.spacing = 1.0})[0].Width(), 8u)
+        << "the rock's grounds outlive the terrain they were built from";
     TerrainConfig none = Small();
     EXPECT_THROW(terraingen::BuildAlbedo(none, terraingen::BuildTerrain(none)), ConfigError);
     TerrainConfig invalid = terraingen::testing::WithAlbedo();

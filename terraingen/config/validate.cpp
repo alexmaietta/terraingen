@@ -564,6 +564,18 @@ void CheckCraterAlbedo(const CraterAlbedoSpec& craters, std::size_t craterLayers
     At(path, [&] { ValidateCraterAlbedo(craters.options); });
 }
 
+void CheckRockAlbedo(const RockAlbedoSpec& rocks, std::size_t boulderLayers,
+                     const std::string& path) {
+    if (boulderLayers == 0) {
+        throw ConfigError(path, "rock albedo needs a top-level boulder layer");
+    }
+    if (rocks.boulderLayer && *rocks.boulderLayer >= boulderLayers) {
+        throw ConfigError(Child(path, "boulder_layer"),
+                          "there are " + std::to_string(boulderLayers) + " boulder layers");
+    }
+    At(path, [&] { ValidateRockAlbedo(rocks.options); });
+}
+
 }  // namespace
 
 RasterGrid DescribeSource(const SourceSpec& source, const std::filesystem::path& directory,
@@ -583,23 +595,32 @@ void ValidateAlbedo(const TerrainConfig& config, const std::filesystem::path& di
         std::count_if(config.layers.begin(), config.layers.end(), [](const LayerSpec& layer) {
             return std::holds_alternative<CraterLayerSpec>(layer);
         }));
+    const auto boulderLayers = static_cast<std::size_t>(
+        std::count_if(config.layers.begin(), config.layers.end(), [](const LayerSpec& layer) {
+            return std::holds_alternative<BoulderLayerSpec>(layer);
+        }));
     for (std::size_t i = 0; i < albedo.layers.size(); ++i) {
         const std::string path = Element("albedo.layers", i);
-        std::visit(Overloaded{
-                       [&](const CraterAlbedoSpec& craters) {
-                           CheckCraterAlbedo(craters, craterLayers, path);
-                       },
-                       [&](const SplotchAlbedoSpec& splotches) {
-                           At(path, [&] { ValidateSplotches(splotches.options); });
-                       },
-                       [&](const BlastZoneAlbedoSpec& zones) {
-                           for (std::size_t z = 0; z < zones.zones.size(); ++z) {
-                               At(Element(Child(path, "zones"), z),
-                                  [&] { ValidateBlastZone(zones.zones[z]); });
-                           }
-                       },
-                   },
-                   albedo.layers[i]);
+        std::visit(
+            Overloaded{
+                [&](const CraterAlbedoSpec& craters) {
+                    CheckCraterAlbedo(craters, craterLayers, path);
+                },
+                [&](const SplotchAlbedoSpec& splotches) {
+                    At(path, [&] { ValidateSplotches(splotches.options); });
+                },
+                [&](const BlastZoneAlbedoSpec& zones) {
+                    for (std::size_t z = 0; z < zones.zones.size(); ++z) {
+                        At(Element(Child(path, "zones"), z),
+                           [&] { ValidateBlastZone(zones.zones[z]); });
+                    }
+                },
+                [&](const RockAlbedoSpec& rocks) { CheckRockAlbedo(rocks, boulderLayers, path); },
+                [&](const SlopeAlbedoSpec& slopes) {
+                    At(path, [&] { ValidateSlopeMaturity(slopes.options); });
+                },
+            },
+            albedo.layers[i]);
     }
 }
 

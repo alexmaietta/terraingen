@@ -2,6 +2,8 @@
 
 #include "terraingen/albedo/crater_albedo.h"
 #include "terraingen/albedo/raster_albedo.h"
+#include "terraingen/albedo/rock_albedo.h"
+#include "terraingen/albedo/slope_albedo.h"
 #include "terraingen/albedo/synthetic.h"
 #include "terraingen/config/fields/checks.h"
 #include "terraingen/config/generate.h"
@@ -40,6 +42,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <span>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -691,6 +694,19 @@ Terrain BuildValidTerrain(const TerrainConfig& config, const std::filesystem::pa
     return terrain;
 }
 
+/// The top-level boulder layers of a terrain built from `config`, in order, each with the
+/// ground beneath it.
+std::vector<RockSource> RockSourcesOf(const TerrainConfig& config, const Terrain& terrain) {
+    std::vector<RockSource> sources;
+    for (std::size_t i = 0; i < config.layers.size(); ++i) {
+        if (std::holds_alternative<BoulderLayerSpec>(config.layers[i])) {
+            sources.push_back({std::static_pointer_cast<const BoulderLayer>(terrain.layers[i]),
+                               SharedGround(terrain, i)});
+        }
+    }
+    return sources;
+}
+
 /// The top-level crater layers of a terrain built from `config`, in order.
 std::vector<std::shared_ptr<const CraterLayer>> CraterLayersOf(const TerrainConfig& config,
                                                                const Terrain& terrain) {
@@ -728,6 +744,18 @@ Albedo BuildValidAlbedo(const TerrainConfig& config, const Terrain& terrain,
                        [&](const BlastZoneAlbedoSpec& zones) {
                            albedo.layers.push_back(
                                std::make_shared<BlastZoneAlbedo>(zones.zones, terrain.surface));
+                       },
+                       [&](const RockAlbedoSpec& rocks) {
+                           std::vector<RockSource> sources = RockSourcesOf(config, terrain);
+                           if (rocks.boulderLayer) {
+                               sources = {sources[*rocks.boulderLayer]};
+                           }
+                           albedo.layers.push_back(
+                               std::make_shared<RockAlbedo>(rocks.options, std::move(sources)));
+                       },
+                       [&](const SlopeAlbedoSpec& slopes) {
+                           albedo.layers.push_back(
+                               std::make_shared<SlopeAlbedo>(slopes.options, terrain.surface));
                        },
                    },
                    layer);

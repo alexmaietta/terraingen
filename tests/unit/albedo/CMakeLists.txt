@@ -4,6 +4,8 @@ terraingen_add_test_suite(
     albedo_test.cpp
     blast_zones_test.cpp
     crater_albedo_test.cpp
+    rock_albedo_test.cpp
+    slope_albedo_test.cpp
     splotches_test.cpp
     LIBRARIES
     terraingen::albedo

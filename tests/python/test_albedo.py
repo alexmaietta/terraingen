@@ -267,3 +267,27 @@ def test_splotch_swarms_follow_robinsons_crater():
     assert 150 < layer.swarm_size(terraingen.Crater(0.0, 0.0, 18.8)) < 350
     with pytest.raises(ValueError):
         terraingen.validate_splotches(terraingen.SplotchOptions(swarms=terraingen.SplotchSwarms(mu=1.5)))
+
+
+def test_rocks_brighten_by_the_share_they_cover():
+    boulders = terraingen.BoulderLayer(terraingen.BoulderLayerOptions(seed=3))
+    terrain = terraingen.Terrain(terraingen.FlatSource(64, 64, 0.5), [boulders])
+    mean, variance = boulders.unresolved_cover_at(1.0, 2.0, 50.0)
+    assert 0.0 < mean < 0.02 and variance > 0.0
+    rocks = terraingen.RockAlbedo(terraingen.RockAlbedoOptions(seed=1), terrain, [0])
+    assert 0.0 < rocks.share_at(1.0, 2.0, 50.0) < 1.0
+    assert terraingen.rock_share(0.5, 0.0, 0.0, 0.0) == 0.5
+    with pytest.raises(ValueError):
+        terraingen.RockAlbedo(terraingen.RockAlbedoOptions(), terrain, [1])
+    with pytest.raises(ValueError):
+        terraingen.validate_rock_albedo(terraingen.RockAlbedoOptions(reflectance_ratio=0.0))
+
+
+def test_slopes_mature_from_twenty_degrees():
+    layer = terraingen.SlopeAlbedo()
+    assert layer.maturity_at(10.0) == pytest.approx(0.10)
+    assert layer.maturity_at(30.0) == pytest.approx(0.165)
+    terrain = terraingen.Terrain(terraingen.FlatSource(64, 64, 0.5), [])
+    assert layer.slope_at(1.0, 2.0, terrain) == pytest.approx(0.0)
+    with pytest.raises(ValueError):
+        terraingen.validate_slope_maturity(terraingen.SlopeMaturityOptions(baseline=0.0))

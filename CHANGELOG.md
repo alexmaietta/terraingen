@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Size slope maps that bend boulder sizes into a local power law, from an exponent or a mean diameter map.
 - Crater and boulder catalogs with a completeness limit, above which they stand in for generated features.
 - Configuration reference in the documentation, generated from the schema at build time, and machine-readable value ranges in the schema.
+- Rock albedo: boulders brighter than the regolith (Holt 1981; Marshal et al. 2023), and a speckle of the share of each sample covered by boulders too small to resolve, with the scatter of randomly placed rocks.
+- Slope albedo: steep ground kept immature by mass wasting, its optical maturity rising with slope beyond 20 degrees (Ikeda et al. 2022; Lucey et al. 2014).
 
 ### Changed
 

@@ -6,6 +6,8 @@
 #include "terraingen/random/philox.h"
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"
+#include "terraingen/util/checks.h"
+#include "terraingen/util/parallel.h"
 
 #include <algorithm>
 #include <cmath>
@@ -278,6 +280,76 @@ double BoulderLayer::Density(double diameter, const BoulderAbundance& abundance)
 
 double BoulderLayer::DensityAt(double diameter, double x, double y, const Ground* ground) const {
     return Density(diameter, AbundanceAt(x, y, ground));
+}
+
+std::vector<BoulderLayer::UnresolvedNode> BoulderLayer::UnresolvedNodes(double spacing) const {
+    const BoulderSizes& sizes = options_.sizes;
+    const double start = options_.fade.startSamples * spacing;
+    const double end = std::fmin(options_.fade.endSamples * spacing, sizes.maxDiameter);
+    std::vector<UnresolvedNode> nodes;
+    const auto add = [&](double low, double high) {
+        if (!(high > low)) {
+            return;
+        }
+        constexpr int kIntervals = 16;
+        const double a = std::log(low);
+        const double h = (std::log(high) - a) / kIntervals;
+        for (int i = 0; i <= kIntervals; ++i) {
+            const double d = std::exp(a + h * i);
+            const double simpson = (i == 0 || i == kIntervals) ? 1.0 : (i % 2 == 1 ? 4.0 : 2.0);
+            const double unresolved = 1.0 - ResolutionWeight(d, spacing, options_.fade);
+            if (unresolved > 0.0) {
+                nodes.push_back(
+                    {d, 0.25 * std::numbers::pi * d * d, unresolved * d * simpson * h / 3.0});
+            }
+        }
+    };
+    add(sizes.minDiameter, std::fmin(start, end));
+    add(std::fmax(sizes.minDiameter, start), end);
+    return nodes;
+}
+
+UnresolvedCover BoulderLayer::UnresolvedCoverWith(const BoulderAbundance& abundance,
+                                                  const std::vector<UnresolvedNode>& nodes,
+                                                  double spacing) const {
+    UnresolvedCover cover;
+    for (const UnresolvedNode& node : nodes) {
+        const double n = Density(node.diameter, abundance) * node.weight;
+        cover.mean += node.footprint * n;
+        cover.variance += node.footprint * node.footprint * n;
+    }
+    cover.variance /= spacing * spacing;
+    return cover;
+}
+
+UnresolvedCover BoulderLayer::UnresolvedCoverAt(double x, double y, double spacing,
+                                                const Ground* ground) const {
+    RequirePositive(spacing, "Unresolved cover spacing");
+    if (options_.sizes.minDiameter >= options_.fade.endSamples * spacing) {
+        return {};
+    }
+    return UnresolvedCoverWith(AbundanceAt(x, y, ground), UnresolvedNodes(spacing), spacing);
+}
+
+std::vector<UnresolvedCover> BoulderLayer::UnresolvedCoverOver(const RasterGrid& grid,
+                                                               double spacing, const Ground* ground,
+                                                               unsigned threads) const {
+    RequirePositive(spacing, "Unresolved cover spacing");
+    std::vector<UnresolvedCover> cover(grid.width * grid.height);
+    if (options_.sizes.minDiameter >= options_.fade.endSamples * spacing) {
+        return cover;
+    }
+    const EjectaIndex ejecta = EjectaCraters(grid.Bounds());
+    const std::vector<UnresolvedNode> nodes = UnresolvedNodes(spacing);
+    ParallelFor(grid.height, threads, [&](std::size_t row) {
+        for (std::size_t col = 0; col < grid.width; ++col) {
+            const Vec2d centre = grid.transform.PixelToWorld(static_cast<double>(col) + 0.5,
+                                                             static_cast<double>(row) + 0.5);
+            cover[row * grid.width + col] =
+                UnresolvedCoverWith(Abundance(centre.x, centre.y, ground, ejecta), nodes, spacing);
+        }
+    });
+    return cover;
 }
 
 }  // namespace terraingen

@@ -8,12 +8,15 @@
 #include "terraingen/albedo/crater_albedo.h"
 #include "terraingen/albedo/maturity.h"
 #include "terraingen/albedo/raster_albedo.h"
+#include "terraingen/albedo/rock_albedo.h"
+#include "terraingen/albedo/slope_albedo.h"
 #include "terraingen/albedo/splotches.h"
 #include "terraingen/albedo/synthetic.h"
 #include "terraingen/pipeline/terrain.h"
 
 #include <optional>
 #include <stdexcept>
+#include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -516,6 +519,86 @@ void BindEvaluation(nb::module_& m) {
         "shaped by the ground read `terrain`'s heights when given.");
 }
 
+void BindRocks(nb::module_& m) {
+    auto options = nb::class_<RockAlbedoOptions>(
+        m, "RockAlbedoOptions",
+        "How rock brightens the albedo: `reflectance_ratio` times the regolith's (2.5 after "
+        "Marshal et al. 2023), and with `unresolved` a speckle of rock too small to resolve.");
+    BindKwargsInit<RockAlbedoOptions>(options);
+    options.def_rw("seed", &RockAlbedoOptions::seed)
+        .def_rw("reflectance_ratio", &RockAlbedoOptions::reflectanceRatio)
+        .def_rw("unresolved", &RockAlbedoOptions::unresolved);
+    m.def("validate_rock_albedo", &ValidateRockAlbedo, "options"_a, kValidateDoc);
+    nb::class_<RockAlbedo, AlbedoLayer>(m, "RockAlbedo",
+                                        "Rock of boulder layers brightening the albedo.")
+        .def(
+            "__init__",
+            [](RockAlbedo* self, RockAlbedoOptions options, const PyTerrain& terrain,
+               const std::vector<std::size_t>& layers) {
+                const Terrain built = terrain.Get();
+                std::vector<RockSource> sources;
+                for (const std::size_t n : layers) {
+                    if (n >= built.layers.size()) {
+                        throw std::invalid_argument("The terrain has no layer " +
+                                                    std::to_string(n));
+                    }
+                    auto layer = std::dynamic_pointer_cast<const BoulderLayer>(built.layers[n]);
+                    if (!layer) {
+                        throw std::invalid_argument("Layer " + std::to_string(n) +
+                                                    " is not a boulder layer");
+                    }
+                    sources.push_back({std::move(layer), SharedGround(built, n)});
+                }
+                new (self) RockAlbedo(options, std::move(sources));
+            },
+            "options"_a, "terrain"_a, "layers"_a,
+            "The rock of `terrain`'s boulder layers at indices `layers`, each read on the ground "
+            "beneath it.")
+        .def(
+            "share_at",
+            [](const RockAlbedo& rocks, double x, double y, double spacing) {
+                return rocks.ShareAt(x, y, AlbedoContext{spacing});
+            },
+            "x"_a, "y"_a, "spacing"_a = 1.0,
+            "The share of the sample `spacing` metres across at (x, y) that rock covers.");
+    m.def(
+        "rock_share",
+        [](double resolved, double mean, double variance, double normal) {
+            return RockShare(resolved, {mean, variance}, normal);
+        },
+        "resolved"_a, "unresolved_mean"_a, "unresolved_variance"_a, "normal"_a,
+        "The share of a sample rock covers: `resolved` plus, of the rest, a log-normal share of "
+        "the given mean and variance at the standard normal draw `normal`, at most 1.");
+}
+
+void BindSlopes(nb::module_& m) {
+    auto options = nb::class_<SlopeMaturityOptions>(
+        m, "SlopeMaturityOptions",
+        "How steep ground stays immature: OMAT rises by `maturity_per_degree` beyond "
+        "`onset_degrees` (Ikeda et al. 2022), slopes read over `baseline` metres.");
+    BindKwargsInit<SlopeMaturityOptions>(options);
+    options.def_rw("onset_degrees", &SlopeMaturityOptions::onsetDegrees)
+        .def_rw("maturity_per_degree", &SlopeMaturityOptions::maturityPerDegree)
+        .def_rw("background_maturity", &SlopeMaturityOptions::backgroundMaturity)
+        .def_rw("max_maturity", &SlopeMaturityOptions::maxMaturity)
+        .def_rw("baseline", &SlopeMaturityOptions::baseline)
+        .def_rw("origin_reflectance", &SlopeMaturityOptions::originReflectance);
+    m.def("validate_slope_maturity", &ValidateSlopeMaturity, "options"_a, kValidateDoc);
+    nb::class_<SlopeAlbedo, AlbedoLayer>(m, "SlopeAlbedo",
+                                         "Steep ground brightened as fresher material.")
+        .def(nb::init<SlopeMaturityOptions, Surface>(), "options"_a = SlopeMaturityOptions{},
+             "surface"_a = Surface{})
+        .def(
+            "slope_at",
+            [](const SlopeAlbedo& slopes, double x, double y, const PyTerrain& terrain) {
+                const Terrain built = terrain.Get();
+                const TerrainGround ground(built, built.layers.size());
+                return slopes.SlopeAt(x, y, ground);
+            },
+            "x"_a, "y"_a, "terrain"_a, "The slope in degrees at (x, y) on `terrain`.")
+        .def("maturity_at", &SlopeAlbedo::MaturityAt, "slope_degrees"_a,
+             "The OMAT of ground of `slope_degrees`.");
+}
 }  // namespace
 
 void BindAlbedo(nb::module_& m) {
@@ -525,6 +608,8 @@ void BindAlbedo(nb::module_& m) {
     BindCraterAlbedo(m);
     BindSplotches(m);
     BindBlastZones(m);
+    BindRocks(m);
+    BindSlopes(m);
     BindMaturity(m);
     BindEvaluation(m);
 }

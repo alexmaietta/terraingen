@@ -1,6 +1,7 @@
 #include "terraingen/albedo/albedo.h"
 
 #include "terraingen/util/checks.h"
+#include "terraingen/util/log.h"
 #include "terraingen/util/parallel.h"
 
 #include <algorithm>
@@ -110,8 +111,11 @@ std::vector<Raster<float>> EvaluateAlbedo(const Albedo& albedo, const RasterGrid
         bands.push_back(std::move(raster));
     }
     albedo.source->Fill(bands, context);
-    for (const auto& layer : albedo.layers) {
-        layer->Apply(bands, context);
+    for (std::size_t n = 0; n < albedo.layers.size(); ++n) {
+        const Stopwatch stopwatch;
+        albedo.layers[n]->Apply(bands, context);
+        LogDebug("albedo", "Applied albedo layer ", n + 1, " in ",
+                 FormatDuration(stopwatch.Milliseconds()));
     }
     return bands;
 }

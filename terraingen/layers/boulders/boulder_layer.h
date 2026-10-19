@@ -38,6 +38,14 @@ struct BoulderAbundance {
     bool operator==(const BoulderAbundance&) const = default;
 };
 
+/// The share of a sample's area covered by boulders too small to resolve in it.
+struct UnresolvedCover {
+    double mean = 0.0;      ///< Expected share.
+    double variance = 0.0;  ///< Variance of the share from the boulders' Poisson scatter.
+
+    bool operator==(const UnresolvedCover&) const = default;
+};
+
 /// Boulders scattered over the ground: between craters, in patches and richer on bedrock,
 /// plus blocks around fresh craters (which need `craters`).
 ///
@@ -75,6 +83,22 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// @param ground Needed with the exposure field.
     /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
     double DensityAt(double diameter, double x, double y, const Ground* ground = nullptr) const;
+
+    /// The share of a sample `spacing` metres across at surface (x, y) that the layer's boulders
+    /// cover where they are too small to resolve, each weighted by one minus its
+    /// `ResolutionWeight`: the area their density integrates to, and the variance of that share
+    /// over the sample's area for Poisson-scattered boulders. Visible plan areas, as the
+    /// Golombek-Rapp coverage.
+    /// @param spacing Positive.
+    /// @param ground Needed with the exposure field.
+    /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
+    UnresolvedCover UnresolvedCoverAt(double x, double y, double spacing,
+                                      const Ground* ground = nullptr) const;
+    /// `UnresolvedCoverAt` at every cell centre of `grid`, row-major, the ejecta craters found
+    /// once.
+    /// @throws std::invalid_argument as `UnresolvedCoverAt`.
+    std::vector<UnresolvedCover> UnresolvedCoverOver(const RasterGrid& grid, double spacing,
+                                                     const Ground* ground, unsigned threads) const;
 
     /// `sizes.maxDiameter`.
     double MaxFeatureDiameter() const {
@@ -214,6 +238,20 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     void EjectaAbundance(double x, double y, const EjectaIndex& ejecta,
                          BoulderAbundance& abundance) const;
     double Density(double diameter, const BoulderAbundance& abundance) const;
+    /// A diameter `UnresolvedCoverAt` integrates over, its plan area, and its quadrature weight
+    /// times the share of it left unresolved.
+    struct UnresolvedNode {
+        double diameter;
+        double footprint;
+        double weight;
+    };
+    /// The nodes of `UnresolvedCoverAt` at `spacing`: Simpson's rule in log diameter, split where
+    /// the resolution fade begins.
+    std::vector<UnresolvedNode> UnresolvedNodes(double spacing) const;
+    /// `UnresolvedCoverAt` with the abundance there.
+    UnresolvedCover UnresolvedCoverWith(const BoulderAbundance& abundance,
+                                        const std::vector<UnresolvedNode>& nodes,
+                                        double spacing) const;
     /// The mean bedrock factor around (`x`, `y`) on `ground` over the cells of the density map,
     /// or squares of `BoulderBedrock::meanSize`, blended between the four nearest cell centres.
     double BedrockMean(double x, double y, const Ground& ground) const;

@@ -337,3 +337,19 @@ TEST(Evaluate, ReportsEachLayerAsItIsApplied) {
     }
     ExpectSameRaster(reported, Evaluate(terrain));
 }
+
+TEST(SharedGround, OutlivesTheTerrainItWasMadeFrom) {
+    std::shared_ptr<const terraingen::Ground> ground;
+    float expected = 0.0f;
+    {
+        const Terrain terrain = Rolling();
+        expected = terraingen::TerrainGround(terrain, 1).HeightAt(3.0, 4.0, 1.0);
+        ground = terraingen::SharedGround(terrain, 1);
+    }
+    EXPECT_EQ(ground->HeightAt(3.0, 4.0, 1.0), expected);
+    std::vector<float> heights(1);
+    const terraingen::Vec2d point{3.0, 4.0};
+    ground->HeightsAt({&point, 1}, heights, 1.0);
+    EXPECT_EQ(heights[0], expected);
+    EXPECT_THROW(terraingen::SharedGround(Rolling(), 99), std::invalid_argument);
+}

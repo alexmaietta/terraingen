@@ -5,6 +5,8 @@
 #include "terraingen/albedo/blast_zones.h"
 #include "terraingen/albedo/crater_albedo.h"
 #include "terraingen/albedo/raster_albedo.h"
+#include "terraingen/albedo/rock_albedo.h"
+#include "terraingen/albedo/slope_albedo.h"
 #include "terraingen/albedo/splotches.h"
 #include "terraingen/albedo/synthetic.h"
 #include "terraingen/distribution/moore.h"
@@ -696,8 +698,26 @@ struct BlastZoneAlbedoSpec {
     bool operator==(const BlastZoneAlbedoSpec&) const = default;
 };
 
+/// Albedo layer "rocks": `RockAlbedo`, the rock of the terrain's boulder layers, each read on the
+/// ground beneath it.
+struct RockAlbedoSpec {
+    /// Index of the top-level boulder layer, from 0; unset for every top-level boulder layer.
+    std::optional<std::size_t> boulderLayer;
+    RockAlbedoOptions options{};
+
+    bool operator==(const RockAlbedoSpec&) const = default;
+};
+
+/// Albedo layer "slopes": `SlopeAlbedo`, steep ground kept fresh by mass wasting.
+struct SlopeAlbedoSpec {
+    SlopeMaturityOptions options{};
+
+    bool operator==(const SlopeAlbedoSpec&) const = default;
+};
+
 /// An albedo layer, named in JSON by its "type".
-using AlbedoLayerSpec = std::variant<CraterAlbedoSpec, SplotchAlbedoSpec, BlastZoneAlbedoSpec>;
+using AlbedoLayerSpec = std::variant<CraterAlbedoSpec, SplotchAlbedoSpec, BlastZoneAlbedoSpec,
+                                     RockAlbedoSpec, SlopeAlbedoSpec>;
 
 /// The albedo of the terrain: a source and the layers that change it, evaluated over the
 /// terrain's grid.

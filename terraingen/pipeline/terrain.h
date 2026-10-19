@@ -68,6 +68,11 @@ class TerrainGround final : public Ground {
     std::size_t layers_;
 };
 
+/// A `TerrainGround` beneath the first `layers` layers of a copy of `terrain` that it keeps, so it
+/// outlives `terrain`; the copy shares its source and layers.
+/// @throws std::invalid_argument if `terrain` has fewer layers.
+std::shared_ptr<const Ground> SharedGround(const Terrain& terrain, std::size_t layers);
+
 /// The heights of `terrain` over `grid`, evaluated on one thread.
 /// @param spacing Sample spacing in metres; 0 means the grid's spacing, and a smaller value is
 /// raised to it.
