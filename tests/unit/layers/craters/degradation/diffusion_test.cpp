@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 
@@ -161,7 +162,9 @@ TEST(PowerLawDiffusivity, ScalesWithDiameterAboveItsFloor) {
     EXPECT_EQ(terraingen::FassettThomson2014Diffusivity()(300.0, 1.0), 5500.0);
     EXPECT_NO_THROW(terraingen::ValidatePowerLawDiffusivity(trask));
     EXPECT_THROW(terraingen::ValidatePowerLawDiffusivity({0.0, 1.0, 0.0}), std::invalid_argument);
-    EXPECT_THROW(terraingen::ValidatePowerLawDiffusivity({1.0, NAN, 0.0}), std::invalid_argument);
+    EXPECT_THROW(terraingen::ValidatePowerLawDiffusivity(
+                     {1.0, std::numeric_limits<double>::quiet_NaN(), 0.0}),
+                 std::invalid_argument);
     EXPECT_THROW(terraingen::ValidatePowerLawDiffusivity({1.0, 1.0, -1.0}), std::invalid_argument);
 }
 

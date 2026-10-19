@@ -101,10 +101,10 @@ TEST(PerlinStructureFunction, MatchesSampledDifferencesOfThePerlinBasis) {
             const float x = 0.37f * static_cast<float>(n % 256) + 0.013f * static_cast<float>(n);
             const float y = 0.29f * static_cast<float>(n / 256);
             const double angle = 2.399963 * n;
-            const double a = terraingen::PerlinNoise2(x, y, seed);
-            const double b = terraingen::PerlinNoise2(
+            const double a = static_cast<double>(terraingen::PerlinNoise2(x, y, seed));
+            const double b = static_cast<double>(terraingen::PerlinNoise2(
                 static_cast<float>(static_cast<double>(x) + r * std::cos(angle)),
-                static_cast<float>(static_cast<double>(y) + r * std::sin(angle)), seed);
+                static_cast<float>(static_cast<double>(y) + r * std::sin(angle)), seed));
             sum += (a - b) * (a - b);
         }
         EXPECT_NEAR(sum / kSamples, PerlinStructureFunction(r), 0.03 * PerlinStructureFunction(r))

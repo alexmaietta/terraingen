@@ -147,7 +147,8 @@ class LayersCustom : public terraingen::examples::Example {
         double largestShift = 0.0;
         double totalShift = 0.0;
         for (std::size_t i = 0; i < plain_.Values().size(); ++i) {
-            const double shift = std::abs(terraced_.Values()[i] - plain_.Values()[i]);
+            const double shift =
+                static_cast<double>(std::abs(terraced_.Values()[i] - plain_.Values()[i]));
             largestShift = std::max(largestShift, shift);
             totalShift += shift;
         }

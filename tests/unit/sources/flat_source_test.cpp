@@ -48,7 +48,8 @@ TEST(FlatSource, RejectsInvalidGrids) {
 TEST(FlatSource, CentresItsGridWhereAsked) {
     const FlatSource source(4, 2, 0.5, 1.0f, {30.0, -10.0});
     EXPECT_EQ(source.Grid().transform, GeoTransform::NorthUp(29.0, -9.5, 0.5));
-    EXPECT_THROW(FlatSource(4, 2, 0.5, 1.0f, {NAN, 0.0}), std::invalid_argument);
+    EXPECT_THROW(FlatSource(4, 2, 0.5, 1.0f, {std::numeric_limits<double>::quiet_NaN(), 0.0}),
+                 std::invalid_argument);
 }
 
 TEST(FlatSource, TakesItsCellSizeInMetresOnASurface) {

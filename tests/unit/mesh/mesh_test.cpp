@@ -8,6 +8,7 @@
 
 #include <array>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 
 using terraingen::RigidTransform;
@@ -98,8 +99,9 @@ TEST(TriangleAreaNormal, PointsOutOfACounterClockwiseTriangleWithTwiceItsArea) {
 
 TEST(RequireScaleFactors, RejectsZeroAndNonFiniteFactorsByName) {
     EXPECT_NO_THROW(terraingen::RequireScaleFactors({-1.0, 2.0, 0.5}, "Scales"));
-    for (const Vec3d& bad :
-         {Vec3d{0.0, 1.0, 1.0}, Vec3d{1.0, NAN, 1.0}, Vec3d{1.0, 1.0, INFINITY}}) {
+    constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
+    constexpr double kInf = std::numeric_limits<double>::infinity();
+    for (const Vec3d& bad : {Vec3d{0.0, 1.0, 1.0}, Vec3d{1.0, kNaN, 1.0}, Vec3d{1.0, 1.0, kInf}}) {
         try {
             terraingen::RequireScaleFactors(bad, "Node scales");
             ADD_FAILURE() << "accepted a bad scale";

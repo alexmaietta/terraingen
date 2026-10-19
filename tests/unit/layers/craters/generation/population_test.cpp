@@ -568,9 +568,10 @@ TEST(GenerateCraters, SkippingLargeBandsKeepsEverySmallerCraterUnlessTheyInterac
 TEST(ResolveDMax, FallsBackToTheTopOfTheDensitysRange) {
     const terraingen::PowerLawSfd unbounded(0.05, 2.0);
     EXPECT_EQ(terraingen::ResolveDMax(50.0, unbounded), 50.0);
-    EXPECT_TRUE(std::isinf(terraingen::ResolveDMax(INFINITY, unbounded)));
+    constexpr double kInf = std::numeric_limits<double>::infinity();
+    EXPECT_TRUE(std::isinf(terraingen::ResolveDMax(kInf, unbounded)));
     const terraingen::PowerLawSfd bounded(0.05, 2.0, terraingen::SfdKind::Density, {1.0, 300.0});
-    EXPECT_EQ(terraingen::ResolveDMax(INFINITY, bounded), 300.0);
+    EXPECT_EQ(terraingen::ResolveDMax(kInf, bounded), 300.0);
 }
 
 TEST(FilterCraters, KeepsWhatThePredicateAcceptsInOrder) {

@@ -51,10 +51,11 @@ Footprint SecondaryFootprint(const Vec2d& centre, const Bounds2d& region, const 
             corners.push_back(surface.Offset(centre, {x, y}));
         }
     }
-    double minX = INFINITY;
-    double maxX = -INFINITY;
-    double minY = INFINITY;
-    double maxY = -INFINITY;
+    constexpr double kInf = std::numeric_limits<double>::infinity();
+    double minX = kInf;
+    double maxX = -kInf;
+    double minY = kInf;
+    double maxY = -kInf;
     for (const Vec2d& c : corners) {
         minX = std::fmin(minX, c.x);
         maxX = std::fmax(maxX, c.x);

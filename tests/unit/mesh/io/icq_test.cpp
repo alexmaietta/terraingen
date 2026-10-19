@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <fstream>
+#include <limits>
 #include <map>
 #include <stdexcept>
 #include <utility>
@@ -145,7 +146,7 @@ TEST(IcqFile, RejectsBadFiles) {
     EXPECT_THROW(terraingen::WriteIcq(terraingen::testing::TempPath("icq_bad.icq"), bad),
                  std::invalid_argument);
     bad = Sphere(2, 1.0);
-    bad.vertices[3].y = NAN;
+    bad.vertices[3].y = std::numeric_limits<double>::quiet_NaN();
     EXPECT_THROW(terraingen::WriteIcq(terraingen::testing::TempPath("icq_nan.icq"), bad),
                  std::invalid_argument);
 }

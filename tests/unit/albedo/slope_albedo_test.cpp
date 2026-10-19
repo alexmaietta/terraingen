@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -81,8 +82,8 @@ TEST(SlopeAlbedo, BrightensSteepGroundAsFreshMaterial) {
         return terraingen::EvaluateAlbedoAt(albedo, 1.0, 2.0, OnGround(1.0, &ground))[0];
     };
     EXPECT_FLOAT_EQ(value(gentle), 0.12f);
-    EXPECT_FLOAT_EQ(value(steep),
-                    static_cast<float>(terraingen::ReflectanceAtMaturity(0.12f, 0.10, 0.165)));
+    EXPECT_FLOAT_EQ(value(steep), static_cast<float>(terraingen::ReflectanceAtMaturity(
+                                      static_cast<double>(0.12f), 0.10, 0.165)));
     EXPECT_NEAR(value(steep) - 0.12f, 0.026, 0.002)
         << "about the 0.02 Lucey et al. (2014) found beyond 20 degrees";
     EXPECT_FLOAT_EQ(terraingen::EvaluateAlbedoAt(albedo, 1.0, 2.0, {1.0})[0], 0.12f)
@@ -109,9 +110,12 @@ TEST(SlopeAlbedo, GridsAndPointsAgree) {
 TEST(SlopeAlbedo, RejectsBadOptions) {
     using Change = std::function<void(SlopeAlbedoOptions&)>;
     const std::vector<Change> changes{
-        [](auto& o) { o.onsetDegrees = 90.0; },      [](auto& o) { o.maturityPerDegree = -1.0; },
-        [](auto& o) { o.backgroundMaturity = 0.0; }, [](auto& o) { o.maxMaturity = 0.05; },
-        [](auto& o) { o.baseline = 0.0; },           [](auto& o) { o.originReflectance = NAN; }};
+        [](auto& o) { o.onsetDegrees = 90.0; },
+        [](auto& o) { o.maturityPerDegree = -1.0; },
+        [](auto& o) { o.backgroundMaturity = 0.0; },
+        [](auto& o) { o.maxMaturity = 0.05; },
+        [](auto& o) { o.baseline = 0.0; },
+        [](auto& o) { o.originReflectance = std::numeric_limits<double>::quiet_NaN(); }};
     for (const Change& change : changes) {
         SlopeAlbedoOptions options;
         change(options);

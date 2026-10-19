@@ -91,7 +91,9 @@ TEST(MidpointDisplacementOptions, RejectInvalidValues) {
     };
     rejects([](MidpointDisplacementOptions& o) { o.pixelSize = 0.0; });
     rejects([](MidpointDisplacementOptions& o) { o.origin.x = std::nan(""); });
-    rejects([](MidpointDisplacementOptions& o) { o.origin.y = INFINITY; });
+    rejects([](MidpointDisplacementOptions& o) {
+        o.origin.y = std::numeric_limits<double>::infinity();
+    });
     rejects([](MidpointDisplacementOptions& o) { o.fractalDimension = 1.9; });
     rejects([](MidpointDisplacementOptions& o) { o.fractalDimension = 3.1; });
     rejects([](MidpointDisplacementOptions& o) { o.fractalDimension = std::nan(""); });

@@ -10,6 +10,7 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
+#include <limits>
 #include <stdexcept>
 #include <string>
 
@@ -43,8 +44,9 @@ const CraterProfile& FreshShape(const CraterProfile& profile, double diameter) {
 /// The lowest point of the Fassett-Thomson fit within the rim, over the diameter.
 double FitFloorRatio(const FassettThomsonProfile& profile, double diameter,
                      const CraterMorphometry& fresh) {
-    const CraterState unbounded{fresh, {INFINITY, fresh.rimHeightRatio}, 0.0};
-    double floor = INFINITY;
+    constexpr double kInf = std::numeric_limits<double>::infinity();
+    const CraterState unbounded{fresh, {kInf, fresh.rimHeightRatio}, 0.0};
+    double floor = kInf;
     for (int step = 0; step <= 200; ++step) {
         const double distance = 0.0025 * static_cast<double>(step) * diameter;
         floor = std::fmin(floor, profile.Height(distance, diameter, unbounded) / diameter);

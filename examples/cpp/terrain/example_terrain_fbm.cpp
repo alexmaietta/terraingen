@@ -39,7 +39,7 @@ class TerrainFbm : public terraingen::examples::Example {
 
         points_.clear();
         for (const auto& [x, y] : {std::pair{0.0, 0.0}, std::pair{120.5, -310.25}}) {
-            points_.push_back(terraingen::EvaluateAt(terrain, x, y, 2.0));
+            points_.push_back(static_cast<double>(terraingen::EvaluateAt(terrain, x, y, 2.0)));
             Out() << "Height at (" << x << ", " << y << "): " << points_.back() << " m\n";
         }
         Show("heights", evaluated_);

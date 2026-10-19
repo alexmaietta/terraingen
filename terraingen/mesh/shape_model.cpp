@@ -8,6 +8,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <stdexcept>
 #include <vector>
@@ -152,7 +153,7 @@ RadialShape ShapeModelFromMesh(const TriangleMesh& mesh, std::size_t q) {
             detail::EquiangularCoordinate(Dot(direction, f.v) / along, static_cast<double>(q)),
             near);
         double outer = 0.0;
-        double inner = INFINITY;
+        double inner = std::numeric_limits<double>::infinity();
         for (const std::uint32_t t : near) {
             const auto& tri = mesh.triangles[t];
             const std::optional<double> hit = Crossing(

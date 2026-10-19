@@ -94,7 +94,8 @@ TEST(BoulderLayer, CoversWithBouldersTooSmallToResolveTheAreaTheirSizesGive) {
     ASSERT_EQ(over.size(), 30u);
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
-            const auto centre = grid.transform.PixelToWorld(col + 0.5, row + 0.5);
+            const auto centre = grid.transform.PixelToWorld(static_cast<double>(col) + 0.5,
+                                                            static_cast<double>(row) + 0.5);
             EXPECT_EQ(over[row * grid.width + col],
                       layer->UnresolvedCoverAt(centre.x, centre.y, 0.2));
         }
@@ -114,8 +115,8 @@ TEST(RockAlbedo, BrightensSamplesByTheRockThatCoversThem) {
     bool covered = false;
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
-            EXPECT_FLOAT_EQ(values[0](col, row),
-                            static_cast<float>(0.1f * (1.0 + 1.5 * cover(col, row))));
+            const double expected = static_cast<double>(0.1f) * (1.0 + 1.5 * cover(col, row));
+            EXPECT_FLOAT_EQ(values[0](col, row), static_cast<float>(expected));
             covered = covered || cover(col, row) > 0.0;
         }
     }
@@ -136,8 +137,8 @@ TEST(RockAlbedo, BrightensSamplesByTheRockThatCoversThem) {
         for (std::size_t col = 0; col < grid.width; ++col) {
             brighter += coarse[0](col, row) > values[0](col, row) ? 1 : 0;
             if (row % 7 == 0 && col % 5 == 0) {
-                const auto centre = coarse[0].CellCenter(col, row);
-                ASSERT_EQ(terraingen::EvaluateAlbedoAt(albedo, centre.x, centre.y, onGround)[0],
+                const auto cell = coarse[0].CellCenter(col, row);
+                ASSERT_EQ(terraingen::EvaluateAlbedoAt(albedo, cell.x, cell.y, onGround)[0],
                           coarse[0](col, row));
             }
         }

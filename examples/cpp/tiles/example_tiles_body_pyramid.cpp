@@ -136,7 +136,8 @@ class TilesBodyPyramid : public terraingen::examples::Example {
         const std::size_t width = mosaic_.Width();
         for (std::size_t row = 0; row < mosaic_.Height(); ++row) {
             for (std::size_t col = 0; col < width; ++col) {
-                const double step = std::fabs(mosaic_((col + 1) % width, row) - mosaic_(col, row));
+                const double step = static_cast<double>(
+                    std::fabs(mosaic_((col + 1) % width, row) - mosaic_(col, row)));
                 if ((col + 1) % kCells == 0) {
                     seams = std::max(seams, step);
                 } else {

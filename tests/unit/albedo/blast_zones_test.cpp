@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 
@@ -110,12 +111,12 @@ TEST(BlastZone, RejectsInvalidSettings) {
         EXPECT_THROW(terraingen::ValidateBlastZone(zone), std::invalid_argument);
         EXPECT_THROW(BlastZoneAlbedo({zone}), std::invalid_argument);
     };
-    rejects([](BlastZone& z) { z.x = NAN; });
+    rejects([](BlastZone& z) { z.x = std::numeric_limits<double>::quiet_NaN(); });
     rejects([](BlastZone& z) { z.area = 0.0; });
     rejects([](BlastZone& z) { z.elongation = 0.9; });
     rejects([](BlastZone& z) { z.haloReach = 0.5; });
     rejects([](BlastZone& z) { z.change = -1.0; });
-    rejects([](BlastZone& z) { z.coreChange = INFINITY; });
+    rejects([](BlastZone& z) { z.coreChange = std::numeric_limits<double>::infinity(); });
     rejects([](BlastZone& z) { z.coreRadius = -1.0; });
     rejects([](BlastZone& z) { z.raggedness = 1.0; });
 }

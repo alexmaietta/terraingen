@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -28,6 +29,9 @@ using terraingen::SyntheticAlbedo;
 using terraingen::SyntheticAlbedoOptions;
 
 namespace {
+
+constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
+constexpr double kInf = std::numeric_limits<double>::infinity();
 
 RasterGrid Grid(std::size_t side, double cell, double originX = -50.0, double originY = 50.0) {
     return {side, side, GeoTransform::NorthUp(originX, originY, cell)};
@@ -82,7 +86,7 @@ TEST(OpticalMaturity, MatchesLuceyTable1WithTheLaboratoryOrigin) {
     EXPECT_NEAR(OpticalMaturity(0.354, 0.370, terraingen::kLaboratoryMaturityOrigin), 0.405, 1e-3);
     EXPECT_NEAR(OpticalMaturity(0.08, 0.08 * 1.19), 0.0, 1e-12);
     EXPECT_THROW(OpticalMaturity(0.0, 0.1), std::invalid_argument);
-    EXPECT_THROW(OpticalMaturity(0.1, NAN), std::invalid_argument);
+    EXPECT_THROW(OpticalMaturity(0.1, kNaN), std::invalid_argument);
 }
 
 TEST(ReflectanceAtMaturity, MovesFromTheOriginInProportionToMaturity) {
@@ -92,7 +96,7 @@ TEST(ReflectanceAtMaturity, MovesFromTheOriginInProportionToMaturity) {
     EXPECT_DOUBLE_EQ(ReflectanceAtMaturity(0.05, 0.2, 0.4), 0.05);
     EXPECT_THROW(ReflectanceAtMaturity(0.2, 0.0, 0.1), std::invalid_argument);
     EXPECT_THROW(ReflectanceAtMaturity(0.2, 0.2, -0.1), std::invalid_argument);
-    EXPECT_THROW(ReflectanceAtMaturity(0.2, 0.2, 0.1, NAN), std::invalid_argument);
+    EXPECT_THROW(ReflectanceAtMaturity(0.2, 0.2, 0.1, kNaN), std::invalid_argument);
 }
 
 TEST(HsvToRgb, FollowsTheHexcone) {
@@ -163,7 +167,7 @@ TEST(SyntheticAlbedo, ClampsTheValue) {
 
 TEST(SyntheticAlbedo, RejectsInvalidParameters) {
     SyntheticAlbedoOptions params;
-    params.hue = INFINITY;
+    params.hue = kInf;
     EXPECT_THROW(SyntheticAlbedo{params}, std::invalid_argument);
     params = {};
     params.saturation = 1.5;
@@ -219,7 +223,7 @@ TEST(EvaluateAlbedo, RejectsInvalidInputs) {
     EXPECT_THROW(EvaluateAlbedo(Albedo{source, {}}, RasterGrid{}, {}), std::invalid_argument);
     EXPECT_THROW(EvaluateAlbedo(Albedo{source, {}}, Grid(4, 1.0), {-1.0}), std::invalid_argument);
     EXPECT_NO_THROW(EvaluateAlbedo(Albedo{source, {}}, Grid(4, 1.0), {0.0}));
-    EXPECT_THROW(EvaluateAlbedoAt(Albedo{source, {}}, 0.0, 0.0, {NAN}), std::invalid_argument);
+    EXPECT_THROW(EvaluateAlbedoAt(Albedo{source, {}}, 0.0, 0.0, {kNaN}), std::invalid_argument);
 }
 
 TEST(RasterAlbedo, MeasuresTheHurstExponentAndRoughness) {
@@ -262,8 +266,8 @@ TEST(RasterAlbedo, InterpolatesAndAddsDetailOnlyBelowItsResolution) {
     int count = 0;
     for (double y = 60.0; y < 260.0; y += 0.37) {
         const double x = 40.0 + 0.5 * y;
-        const double ratio =
-            std::log(detailed.ValueAt(x, y, fine)[0] / smooth.ValueAt(x, y, fine)[0]);
+        const double ratio = static_cast<double>(
+            std::log(detailed.ValueAt(x, y, fine)[0] / smooth.ValueAt(x, y, fine)[0]));
         sum += ratio * ratio;
         ++count;
     }

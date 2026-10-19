@@ -229,10 +229,14 @@ void AppendNodeTriangles(const cgltf_node& node, SceneMesh& read) {
             for (std::size_t v = 0; v < positions->count; ++v) {
                 cgltf_float q[3] = {};
                 cgltf_accessor_read_float(positions, v, q, 3);
-                const Vec3d placed{world[0] * q[0] + world[4] * q[1] + world[8] * q[2] + world[12],
-                                   world[1] * q[0] + world[5] * q[1] + world[9] * q[2] + world[13],
-                                   world[2] * q[0] + world[6] * q[1] + world[10] * q[2] +
-                                       world[14]};
+                const cgltf_float x =
+                    world[0] * q[0] + world[4] * q[1] + world[8] * q[2] + world[12];
+                const cgltf_float y =
+                    world[1] * q[0] + world[5] * q[1] + world[9] * q[2] + world[13];
+                const cgltf_float z =
+                    world[2] * q[0] + world[6] * q[1] + world[10] * q[2] + world[14];
+                const Vec3d placed{static_cast<double>(x), static_cast<double>(y),
+                                   static_cast<double>(z)};
                 read.mesh.positions.push_back(ZUp(placed));
             }
             const std::size_t count =
@@ -251,7 +255,8 @@ void AppendNodeTriangles(const cgltf_node& node, SceneMesh& read) {
                 const cgltf_material& material = *primitive.material;
                 read.material.name = material.name ? material.name : "default";
                 for (std::size_t c = 0; c < 3; ++c) {
-                    read.material.colour[c] = material.pbr_metallic_roughness.base_color_factor[c];
+                    read.material.colour[c] =
+                        static_cast<double>(material.pbr_metallic_roughness.base_color_factor[c]);
                 }
             }
         }

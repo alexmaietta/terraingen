@@ -53,7 +53,7 @@ std::optional<double> Sample(const Raster<float>& raster, double x, double y) {
         if (raster.IsNoData(cells[i])) {
             return std::nullopt;
         }
-        values[i] = cells[i];
+        values[i] = static_cast<double>(cells[i]);
     }
     return (1.0 - fv) * ((1.0 - fu) * values[0] + fu * values[1]) +
            fv * ((1.0 - fu) * values[2] + fu * values[3]);
@@ -347,7 +347,7 @@ void SolveDatums(std::vector<PreparedCrater>& prepared, const std::vector<std::s
         ForEachDatumPoint(FitRadius(c, options), [&](std::size_t point, double dx, double dy) {
             const std::size_t at = n * kPoints + point;
             if (valid[at] != 0) {
-                fit.Add(dx, dy, lattice.Values()[at]);
+                fit.Add(dx, dy, static_cast<double>(lattice.Values()[at]));
             }
         });
         std::optional<Plane>& datum = prepared[fitted[n]].datum;

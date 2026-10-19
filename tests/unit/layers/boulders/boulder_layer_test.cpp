@@ -10,6 +10,7 @@
 #include <atomic>
 #include <cmath>
 #include <functional>
+#include <limits>
 #include <map>
 #include <memory>
 #include <set>
@@ -949,8 +950,8 @@ TEST(BoulderLayer, FacetsCutTheWindwardSideOfDomesShapesAndModels) {
         double lowered = 0.0;
         for (double t = -0.45; t <= 0.45; t += 0.05) {
             const double x = b.x + t * b.diameter;
-            const double h = cut.ApplyAt(0.0f, x, b.y, {0.01});
-            const double before = plain.ApplyAt(0.0f, x, b.y, {0.01});
+            const double h = static_cast<double>(cut.ApplyAt(0.0f, x, b.y, {0.01}));
+            const double before = static_cast<double>(plain.ApplyAt(0.0f, x, b.y, {0.01}));
             EXPECT_LE(h, before + 1e-6);
             EXPECT_LE(h, std::fmax(b.facets[0].HeightAt({x - b.x, 0.0}), 0.0) + 1e-6);
             lowered = std::fmax(lowered, before - h);
@@ -1019,8 +1020,8 @@ TEST(BoulderVentifacts, GaleSharesAndRejectsBadOptions) {
         v.minAngle = 1.0;
         v.maxAngle = 0.9;
     });
-    rejects([](auto& v) { v.windAzimuth = NAN; });
-    rejects([](auto& v) { v.secondWindAzimuth = INFINITY; });
+    rejects([](auto& v) { v.windAzimuth = std::numeric_limits<double>::quiet_NaN(); });
+    rejects([](auto& v) { v.secondWindAzimuth = std::numeric_limits<double>::infinity(); });
     Boulder b;
     b.facets[0] = {0.0, terraingen::kPi / 4.0, 0.5};
     b.facetCount = 1;

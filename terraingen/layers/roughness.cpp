@@ -33,7 +33,7 @@ double LatticeOffset(std::uint32_t hash) {
 /// The rotation matrix, row-major, of a uniform random rotation from three uniform hashes, by
 /// Shoemake's (1992) unit quaternion.
 std::array<double, 9> UniformRotation(const UVec3& turn) {
-    const double u1 = HashToUnitFloat(turn.x);
+    const double u1 = static_cast<double>(HashToUnitFloat(turn.x));
     const double u2 = 2.0 * kPi * static_cast<double>(HashToUnitFloat(turn.y));
     const double u3 = 2.0 * kPi * static_cast<double>(HashToUnitFloat(turn.z));
     const double a = std::sqrt(1.0 - u1);

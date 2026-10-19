@@ -30,7 +30,7 @@ ClampLayer::ClampLayer(std::optional<double> min, std::optional<double> max)
 
 float ClampLayer::HeightAt(float height, double /*x*/, double /*y*/, double /*spacing*/,
                            const Ground* /*ground*/) const {
-    double value = height;
+    double value = static_cast<double>(height);
     if (min_) {
         value = std::max(value, *min_);
     }
@@ -49,7 +49,7 @@ FunctionLayer::FunctionLayer(HeightFunction function, Surface surface)
 
 float FunctionLayer::HeightAt(float height, double x, double y, double spacing,
                               const Ground* /*ground*/) const {
-    return static_cast<float>(function_(x, y, spacing, height));
+    return static_cast<float>(function_(x, y, spacing, static_cast<double>(height)));
 }
 
 }  // namespace terraingen

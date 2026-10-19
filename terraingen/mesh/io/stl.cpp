@@ -54,7 +54,7 @@ class Welder {
 Vec3d GetVector(const std::string& bytes, std::size_t offset) {
     std::array<float, 3> v{};
     std::memcpy(v.data(), bytes.data() + offset, sizeof(v));
-    return {v[0], v[1], v[2]};
+    return {static_cast<double>(v[0]), static_cast<double>(v[1]), static_cast<double>(v[2])};
 }
 
 TriangleMesh ReadBinary(const std::string& bytes) {

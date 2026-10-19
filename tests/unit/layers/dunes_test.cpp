@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -19,6 +20,7 @@ using terraingen::Vec2d;
 namespace {
 
 constexpr double kDegree = terraingen::kPi / 180.0;
+constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
 
 /// One barchan of `width` in a cell far bigger than it.
 DuneOptions OneBarchan(double width = 400.0) {
@@ -275,10 +277,10 @@ TEST(DuneLayer, RejectsBadOptions) {
     rejects([](DuneOptions& o) { o.widthSpread = 1.0; });
     rejects([](DuneOptions& o) { o.defects = -0.1; });
     rejects([](DuneOptions& o) { o.sinuosity = -1.0; });
-    rejects([](DuneOptions& o) { o.anchor.x = NAN; });
+    rejects([](DuneOptions& o) { o.anchor.x = kNaN; });
     rejects([](DuneOptions& o) { o.ripples.leeFraction = 1.0; });
     rejects([](DuneOptions& o) { o.ripples.defectDensity = -0.1; });
-    rejects([](DuneOptions& o) { o.defectDensity = NAN; });
+    rejects([](DuneOptions& o) { o.defectDensity = kNaN; });
     rejects([](DuneOptions& o) { o.ripples.interduneCover = -0.5; });
     rejects([](DuneOptions& o) { o.fade.endSamples = 0.0; });
     EXPECT_NO_THROW(DuneLayer{DuneOptions{}});

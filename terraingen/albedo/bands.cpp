@@ -27,9 +27,9 @@ void MatureBands(AlbedoSample& value, std::size_t bands, double reference, doubl
                  double originReflectance, double factor) {
     for (std::size_t band = 0; band < bands; ++band) {
         if (!std::isnan(value[band])) {
-            value[band] =
-                static_cast<float>(factor * ReflectanceAtMaturity(value[band], reference, maturity,
-                                                                  originReflectance));
+            value[band] = static_cast<float>(
+                factor * ReflectanceAtMaturity(static_cast<double>(value[band]), reference,
+                                               maturity, originReflectance));
         }
     }
 }

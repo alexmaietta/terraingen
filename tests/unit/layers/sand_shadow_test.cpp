@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 
@@ -153,7 +154,7 @@ TEST(SandShadowLayer, RejectsBadOptions) {
         change(options);
         EXPECT_THROW(SandShadowLayer(boulders, options), std::invalid_argument);
     };
-    rejects([](SandShadowOptions& o) { o.windAzimuth = NAN; });
+    rejects([](SandShadowOptions& o) { o.windAzimuth = std::numeric_limits<double>::quiet_NaN(); });
     rejects([](SandShadowOptions& o) { o.lengthRatio = 0.0; });
     rejects([](SandShadowOptions& o) { o.flankAngle = 0.0; });
     rejects([](SandShadowOptions& o) { o.flankAngle = 0.5 * terraingen::kPi; });

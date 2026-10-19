@@ -8,6 +8,7 @@
 #include <atomic>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <stdexcept>
 #include <utility>
 
@@ -125,8 +126,8 @@ class RadialDiffusion {
 /// the rim the highest from 0.25 diameters out, the floor the lowest within 0.5.
 CraterMorphometry AppendHeights(const std::vector<double>& h, double dx,
                                 std::vector<float>& heights) {
-    double rim = -INFINITY;
-    double floor = INFINITY;
+    double rim = -std::numeric_limits<double>::infinity();
+    double floor = std::numeric_limits<double>::infinity();
     for (std::size_t i = 0; i < h.size(); ++i) {
         const double x = static_cast<double>(i) * dx;
         if (x >= 0.25) {

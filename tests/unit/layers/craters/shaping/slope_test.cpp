@@ -119,7 +119,7 @@ TEST(ApplyCraters, OffsetsFloorsDownslopeAndLowersRimsUpslopeOnSlopingGround) {
         terraingen::ApplyCraters(heights, craters, models, o, {});
         std::vector<double> column(heights.Height());
         for (std::size_t row = 0; row < heights.Height(); ++row) {
-            column[row] = heights(100, row) - base(100, row);
+            column[row] = static_cast<double>(heights(100, row) - base(100, row));
         }
         return column;
     };
@@ -248,7 +248,7 @@ TEST(ApplyCraters, FitsDatumsToTheSlopeShapedReliefSoNoCraterStandsAsAMesa) {
         for (std::size_t col = 0; col < both.Width(); ++col) {
             const Vec2d p = both.CellCenter(col, row);
             const double radii = std::hypot(p.x, p.y + 45.0) / 8.0;
-            const double change = both(col, row) - alone(col, row);
+            const double change = static_cast<double>(both(col, row) - alone(col, row));
             if (radii < 0.7) {
                 inside = std::fmax(inside, change);
             } else if (radii > 1.6 && radii < 2.0) {

@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <set>
 #include <stdexcept>
@@ -27,6 +28,7 @@ using terraingen::Vec3d;
 namespace {
 
 constexpr double kMoon = 1737400.0;
+constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
 
 }  // namespace
 
@@ -101,7 +103,7 @@ TEST(Surface, SpherePositionsAndPoints) {
     const Vec2d south = moon.Coordinates({0.0, 0.0, -3.0});
     EXPECT_EQ(south.y, -90.0);
     EXPECT_THROW(Surface::Sphere(0.0), std::invalid_argument);
-    EXPECT_THROW(Surface::Sphere(NAN), std::invalid_argument);
+    EXPECT_THROW(Surface::Sphere(kNaN), std::invalid_argument);
 }
 
 TEST(Surface, SphereExpandCoversEveryPointWithinTheDistance) {
@@ -233,7 +235,7 @@ TEST(CubeSphereCells, CoveringFindsEveryCellReachingTheRegion) {
         }
     }
     EXPECT_THROW(cells.CellsCovering({0.0, 0.0, -1.0, 1.0}, size), std::invalid_argument);
-    EXPECT_THROW(cells.CellsCovering({0.0, 0.0, NAN, 1.0}, size), std::invalid_argument);
+    EXPECT_THROW(cells.CellsCovering({0.0, 0.0, kNaN, 1.0}, size), std::invalid_argument);
 }
 
 TEST(CubeSphereCells, CoveringKeepsCellsAtTheRegionEdgesAndDropsFarRingCells) {
@@ -353,7 +355,7 @@ TEST(Surface, AnEllipsoidOfEqualRadiiIsTheSphere) {
     EXPECT_NEAR(kEllipsoid.Radius(), std::cbrt(270.0 * 147.0 * 104.0), 1e-9);
     EXPECT_THROW(Surface::Ellipsoid(0.0, 1.0, 1.0), std::invalid_argument);
     EXPECT_THROW(Surface::Ellipsoid(1.0, -1.0, 1.0), std::invalid_argument);
-    EXPECT_THROW(Surface::Ellipsoid(1.0, 1.0, NAN), std::invalid_argument);
+    EXPECT_THROW(Surface::Ellipsoid(1.0, 1.0, kNaN), std::invalid_argument);
 }
 
 TEST(Surface, EllipsoidPositionsLieOnItInTheirDirection) {

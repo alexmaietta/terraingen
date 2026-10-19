@@ -89,7 +89,9 @@ SceneMesh ReadObj(const std::filesystem::path& path) {
     SceneMesh read;
     const std::vector<tinyobj::real_t>& vertices = reader.GetAttrib().vertices;
     for (std::size_t v = 0; v + 2 < vertices.size(); v += 3) {
-        read.mesh.positions.push_back(ZUp({vertices[v], vertices[v + 1], vertices[v + 2]}));
+        read.mesh.positions.push_back(
+            ZUp({static_cast<double>(vertices[v]), static_cast<double>(vertices[v + 1]),
+                 static_cast<double>(vertices[v + 2])}));
     }
     for (const tinyobj::shape_t& shape : reader.GetShapes()) {
         const auto& indices = shape.mesh.indices;
@@ -103,7 +105,9 @@ SceneMesh ReadObj(const std::filesystem::path& path) {
     if (!reader.GetMaterials().empty()) {
         const tinyobj::material_t& material = reader.GetMaterials().front();
         read.material = {material.name,
-                         {material.diffuse[0], material.diffuse[1], material.diffuse[2]}};
+                         {static_cast<double>(material.diffuse[0]),
+                          static_cast<double>(material.diffuse[1]),
+                          static_cast<double>(material.diffuse[2])}};
     }
     return read;
 }

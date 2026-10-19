@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <utility>
@@ -259,7 +260,8 @@ TEST(BodyMesh, CoversTheBodyWithOutwardTrianglesAtTheTerrainsHeights) {
         const auto& p = mesh.positions[k];
         const double r = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
         const auto point = moon.Coordinates(p);
-        const double height = terraingen::EvaluateAt(terrain, point.x, point.y, step);
+        const double height =
+            static_cast<double>(terraingen::EvaluateAt(terrain, point.x, point.y, step));
         EXPECT_NEAR(r, 1737400.0 + height, 1e-3);
     }
     for (const auto& t : mesh.triangles) {
@@ -276,7 +278,7 @@ TEST(BodyMesh, CoversTheBodyWithOutwardTrianglesAtTheTerrainsHeights) {
         return mesh.positions[face * (n + 1) * (n + 1) + j * (n + 1) + i];
     };
     const auto pxEdge = corner(0, n, n / 2);
-    double nearest = INFINITY;
+    double nearest = std::numeric_limits<double>::infinity();
     for (std::size_t k = 2 * (n + 1) * (n + 1); k < 3 * (n + 1) * (n + 1); ++k) {
         const auto& q = mesh.positions[k];
         nearest = std::fmin(nearest, std::hypot(q.x - pxEdge.x, q.y - pxEdge.y, q.z - pxEdge.z));

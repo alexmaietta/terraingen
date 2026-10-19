@@ -176,7 +176,9 @@ TEST(ValidateConfig, ReportsBodyProblemsByPath) {
               "body.radius");
     EXPECT_EQ(error([](TerrainConfig& c) { Region(c).centreY = 89.999; }),
               "outputs[0].region.height");
-    EXPECT_EQ(error([](TerrainConfig& c) { Region(c).centreX = NAN; }),
+    EXPECT_EQ(error([](TerrainConfig& c) {
+                  Region(c).centreX = std::numeric_limits<double>::quiet_NaN();
+              }),
               "outputs[0].region.centre_x");
     for (std::uint32_t b = 0; b < terraingen::kNoiseBasisCount; ++b) {
         const auto basis = static_cast<terraingen::NoiseBasis>(b);

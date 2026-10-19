@@ -25,7 +25,7 @@ PlaneFit FitFootprint(const Crater& crater, double fitRadii, const Surface& surf
                           const Vec2d at = surface.Locate({crater.x, crater.y}, {dx, dy});
                           const float height = ground(at.x, at.y);
                           if (!std::isnan(height)) {
-                              fit.Add(dx, dy, height);
+                              fit.Add(dx, dy, static_cast<double>(height));
                           }
                       });
     return fit;

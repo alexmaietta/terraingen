@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 
 using terraingen::PavementLayer;
@@ -186,7 +187,7 @@ TEST(PavementLayer, OldSoakerRidgesAndRejectsBadOptions) {
     rejects([](PavementOptions& o) { o.octaves = 9; });
     rejects([](PavementOptions& o) { o.lacunarity = 1.0; });
     rejects([](PavementOptions& o) { o.gain = 0.0; });
-    rejects([](PavementOptions& o) { o.anchor.y = NAN; });
+    rejects([](PavementOptions& o) { o.anchor.y = std::numeric_limits<double>::quiet_NaN(); });
     rejects([](PavementOptions& o) { o.exposureSpacing = 0.0; });
     rejects([](PavementOptions& o) { o.exposure = terraingen::ExposureParams{-1.0}; });
 }

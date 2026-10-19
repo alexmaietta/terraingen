@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 #include <vector>
 
@@ -15,6 +16,7 @@ using terraingen::StrataOptions;
 namespace {
 
 constexpr double kDegree = terraingen::kPi / 180.0;
+constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
 
 /// Ground with a constant height.
 class Level final : public terraingen::Ground {
@@ -197,11 +199,11 @@ TEST(StrataLayer, RejectsBadOptions) {
     rejects([](StrataOptions& o) { o.thicknessVariation = -0.1; });
     rejects([](StrataOptions& o) { o.dip = 0.5 * terraingen::kPi; });
     rejects([](StrataOptions& o) { o.sharpness = 0.9; });
-    rejects([](StrataOptions& o) { o.sharpness = INFINITY; });
+    rejects([](StrataOptions& o) { o.sharpness = std::numeric_limits<double>::infinity(); });
     rejects([](StrataOptions& o) { o.strength = 1.1; });
     rejects([](StrataOptions& o) { o.cliffShare = 0.0; });
-    rejects([](StrataOptions& o) { o.dipAzimuth = NAN; });
-    rejects([](StrataOptions& o) { o.anchor = {NAN, 0.0}; });
+    rejects([](StrataOptions& o) { o.dipAzimuth = kNaN; });
+    rejects([](StrataOptions& o) { o.anchor = {kNaN, 0.0}; });
     rejects([](StrataOptions& o) { o.hardShare = 1.5; });
     rejects([](StrataOptions& o) { o.softSharpness = 0.5; });
 }

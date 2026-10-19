@@ -81,7 +81,7 @@ void CheckNoiseStack(const std::vector<NoiseLayerConfig>& layers, const std::str
     for (std::size_t i = 0; i < layers.size(); ++i) {
         const std::string layer = Element(path, i);
         if (layers[i].hurst) {
-            CheckFinite(*layers[i].hurst, Child(layer, "hurst"));
+            CheckFinite(static_cast<double>(*layers[i].hurst), Child(layer, "hurst"));
         }
         At(layer, [&] { ValidateNoiseLayer(layers[i].Effective()); });
     }

@@ -570,7 +570,8 @@ std::optional<Boulder> BoulderLayer::PlaceCandidate(const ThinnedCandidate& thin
 void BoulderLayer::ReadGround(Boulder& boulder, const Ground* ground) const {
     boulder.ground.reset();
     if (ground != nullptr) {
-        const double height = ground->HeightAt(boulder.x, boulder.y, options_.groundSpacing);
+        const double height =
+            static_cast<double>(ground->HeightAt(boulder.x, boulder.y, options_.groundSpacing));
         if (!std::isnan(height)) {
             boulder.ground = height;
         }
