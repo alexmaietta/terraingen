@@ -10,7 +10,6 @@
 
 using terraingen::GeoTransform;
 using terraingen::TiffCompression;
-using terraingen::detail::CompressionCodeOf;
 using terraingen::detail::CompressionFromCode;
 using terraingen::detail::FieldSize;
 using terraingen::detail::IfdFormat;
@@ -20,14 +19,15 @@ using terraingen::detail::kIfd8;
 using terraingen::detail::kSShort;
 using terraingen::detail::LzwNextWidth;
 using terraingen::detail::ShiftHalfPixel;
+using terraingen::detail::TiffCompressionCode;
 
 TEST(TiffFormat, IfdFieldSizesForClassicAndBigTiff) {
-    const IfdFormat classic = IfdFormat::For(false);
+    const IfdFormat classic = terraingen::detail::IfdLayout(false);
     EXPECT_EQ(classic.countSize, 2u);
     EXPECT_EQ(classic.wordSize, 4u);
     EXPECT_EQ(classic.EntrySize(), 12u);
     EXPECT_EQ(classic.ValueAt(), 8u);
-    const IfdFormat big = IfdFormat::For(true);
+    const IfdFormat big = terraingen::detail::IfdLayout(true);
     EXPECT_EQ(big.countSize, 8u);
     EXPECT_EQ(big.EntrySize(), 20u);
     EXPECT_EQ(big.ValueAt(), 12u);
@@ -45,9 +45,9 @@ TEST(TiffFormat, CompressionCodesRoundTrip) {
     for (const TiffCompression compression :
          {TiffCompression::None, TiffCompression::Lzw, TiffCompression::PackBits,
           TiffCompression::Deflate}) {
-        EXPECT_EQ(CompressionFromCode(CompressionCodeOf(compression)), compression);
+        EXPECT_EQ(CompressionFromCode(TiffCompressionCode(compression)), compression);
     }
-    EXPECT_EQ(CompressionCodeOf(TiffCompression::Deflate), 8);
+    EXPECT_EQ(TiffCompressionCode(TiffCompression::Deflate), 8);
     EXPECT_EQ(CompressionFromCode(32946), TiffCompression::Deflate);
     EXPECT_FALSE(CompressionFromCode(7).has_value());
 }
@@ -58,6 +58,36 @@ TEST(TiffFormat, ShiftHalfPixelMovesTheOriginAlongBothPixelAxes) {
     EXPECT_DOUBLE_EQ(shifted.originX, 10.0 + 0.5 * (2.0 + 0.5));
     EXPECT_DOUBLE_EQ(shifted.originY, 20.0 + 0.5 * (0.25 - 4.0));
     EXPECT_EQ(ShiftHalfPixel(shifted, -1.0), transform);
+}
+
+TEST(TiffFormat, TransformsRoundTripThroughTheModelTags) {
+    using terraingen::detail::DecodeTransform;
+    using terraingen::detail::EncodeTransform;
+    const GeoTransform northUp = GeoTransform::NorthUp(-10.5, 20.25, 0.5);
+    const GeoTransform rotated = GeoTransform::FromGdal({10.0, 2.0, 0.5, 20.0, 0.25, -4.0});
+    for (const bool pixelIsPoint : {false, true}) {
+        const auto scaled = EncodeTransform(northUp, pixelIsPoint);
+        EXPECT_EQ(scaled.pixelScale.size(), 3u);
+        EXPECT_EQ(scaled.tiepoint.size(), 6u);
+        EXPECT_TRUE(scaled.transformation.empty());
+        EXPECT_EQ(DecodeTransform(scaled, pixelIsPoint), northUp);
+        const auto matrix = EncodeTransform(rotated, pixelIsPoint);
+        EXPECT_TRUE(matrix.pixelScale.empty());
+        EXPECT_EQ(matrix.transformation.size(), 16u);
+        EXPECT_EQ(DecodeTransform(matrix, pixelIsPoint), rotated);
+    }
+    EXPECT_DOUBLE_EQ(EncodeTransform(northUp, true).tiepoint[3], -10.5 + 0.25);
+    EXPECT_FALSE(DecodeTransform({}, false).has_value());
+    EXPECT_FALSE(DecodeTransform({{1.0, 1.0, 0.0}, {}, {}}, false).has_value());
+}
+
+TEST(TiffFormat, DecodeTransformRejectsShortOrSeveralTiepoints) {
+    using terraingen::GeoTiffError;
+    using terraingen::detail::DecodeTransform;
+    EXPECT_THROW(DecodeTransform({{}, {}, {1.0, 0.0, 0.0}}, false), GeoTiffError);
+    EXPECT_THROW(DecodeTransform({{1.0}, {0, 0, 0, 0, 0, 0}, {}}, false), GeoTiffError);
+    EXPECT_THROW(DecodeTransform({{1.0, 1.0}, std::vector<double>(12, 0.0), {}}, false),
+                 GeoTiffError);
 }
 
 TEST(TiffFormat, GeographicSphereKeysDirectory) {

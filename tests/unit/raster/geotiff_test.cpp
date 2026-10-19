@@ -285,6 +285,39 @@ TEST(WriteGeoTiff, RejectsInvalidRequests) {
     EXPECT_THROW(WriteGeoTiff(TempPath("missing/dir/x.tif"), raster), GeoTiffError);
 }
 
+TEST(WriteGeoTiff, NamesTheFileInEveryError) {
+    const Raster<float> raster = Sample(8, 8);
+    const auto message = [](const std::filesystem::path& path, const auto& write) {
+        try {
+            write(path);
+        } catch (const GeoTiffError& error) {
+            return std::string(error.what());
+        }
+        return std::string("no error");
+    };
+    const auto tile = TempPath("tile.tif");
+    EXPECT_EQ(
+        message(tile, [&](const auto& path) { WriteGeoTiff(path, raster, {}, {.tileSize = 20}); }),
+        tile.string() + ": the tile size must be a positive multiple of 16");
+    const auto empty = TempPath("empty.tif");
+    EXPECT_EQ(message(empty, [](const auto& path) { WriteGeoTiff(path, Raster<float>()); }),
+              empty.string() + ": cannot write an empty raster");
+    const auto missing = TempPath("missing/dir/x.tif");
+    EXPECT_EQ(message(missing, [&](const auto& path) { WriteGeoTiff(path, raster); })
+                  .rfind(missing.string() + ": ", 0),
+              0u);
+}
+
+TEST(ReadGeoTiff, NamesTheFileInCodecErrors) {
+    std::vector<std::uint8_t> corrupt = float32_lzw_fp_tiles.bytes;
+    ASSERT_EQ(ReadGeoTiffInfo(WriteBytes("lzw.tif", corrupt)).compression, TiffCompression::Lzw);
+    for (std::size_t i = corrupt.size() / 4; i < corrupt.size() * 3 / 4; ++i) {
+        corrupt[i] = 0xff;
+    }
+    const std::string error = ReadError(corrupt);
+    EXPECT_EQ(error.rfind(TempPath("patched.tif").string() + ": Corrupt LZW data", 0), 0u) << error;
+}
+
 TEST(ReadGeoTiff, ReportsUnreadableAndUnsupportedFiles) {
     EXPECT_THROW(ReadGeoTiff(TempPath("does_not_exist.tif")), GeoTiffError);
     EXPECT_THROW(ReadGeoTiff(WriteBytes("text.tif", {'h', 'e', 'l', 'l', 'o', 0, 0, 0})),

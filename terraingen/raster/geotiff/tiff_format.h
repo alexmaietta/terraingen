@@ -99,17 +99,12 @@ std::size_t FieldSize(std::uint16_t type);
 std::optional<TiffCompression> CompressionFromCode(std::uint64_t code);
 
 /// The Compression tag value written for `compression`; Deflate is written as code 8.
-std::uint16_t CompressionCodeOf(TiffCompression compression);
+std::uint16_t TiffCompressionCode(TiffCompression compression);
 
 /// The sizes of IFD fields in classic TIFF or BigTIFF.
 struct IfdFormat {
     std::size_t countSize;  ///< Size of the entry count before the entries.
     std::size_t wordSize;   ///< Size of a value count, an inline value and an offset.
-
-    /// The format of classic TIFF (`bigTiff` false) or BigTIFF.
-    static constexpr IfdFormat For(bool bigTiff) {
-        return bigTiff ? IfdFormat{8, 8} : IfdFormat{2, 4};
-    }
 
     /// The size in bytes of one entry: tag, type, count and value or offset.
     constexpr std::size_t EntrySize() const {
@@ -122,8 +117,13 @@ struct IfdFormat {
     }
 };
 
+/// The IFD format of classic TIFF (`bigTiff` false) or BigTIFF.
+constexpr IfdFormat IfdLayout(bool bigTiff) {
+    return bigTiff ? IfdFormat{8, 8} : IfdFormat{2, 4};
+}
+
 /// One IFD entry with its value bytes, already read from wherever they are stored.
-struct Entry {
+struct IfdEntry {
     std::uint16_t type = 0;           ///< Field type (`FieldType`).
     std::uint64_t count = 0;          ///< Number of values.
     std::vector<std::uint8_t> bytes;  ///< The values, in the file's byte order.
@@ -132,5 +132,23 @@ struct Entry {
 /// `transform` shifted by half a pixel along both pixel axes.
 /// @param sign +1 to shift forward, -1 back.
 GeoTransform ShiftHalfPixel(const GeoTransform& transform, double sign);
+
+/// The GeoTIFF model tags that store a pixel-to-world transform: ModelPixelScale and
+/// ModelTiepoint for one without rotation, otherwise ModelTransformation. Tags not stored are
+/// empty.
+struct ModelTags {
+    std::vector<double> pixelScale;      ///< ModelPixelScale: x and y pixel size, and z.
+    std::vector<double> tiepoint;        ///< ModelTiepoint: one pixel (i, j, k) and world point.
+    std::vector<double> transformation;  ///< ModelTransformation: a 4x4 matrix, row by row.
+};
+
+/// The model tags storing `transform`. GeoTIFF places PixelIsPoint rasters at their first
+/// pixel's centre, so `transform` is shifted half a pixel for them.
+ModelTags EncodeTransform(const GeoTransform& transform, bool pixelIsPoint);
+
+/// The transform `tags` store, undoing the PixelIsPoint shift; nothing when they store none
+/// (neither ModelTransformation nor both ModelPixelScale and ModelTiepoint).
+/// @throws GeoTiffError for tags with too few values or several tiepoints.
+std::optional<GeoTransform> DecodeTransform(const ModelTags& tags, bool pixelIsPoint);
 
 }  // namespace terraingen::detail

@@ -78,21 +78,23 @@ class TiffReader {
         return bytes;
     }
 
-    std::uint16_t U16(const std::uint8_t* p) const {
-        const auto value = static_cast<std::uint16_t>(p[0] | (p[1] << 8));
+    /// The unsigned integer of type `T` at `p`, in the file's byte order.
+    template <typename T> T Unsigned(const std::uint8_t* p) const {
+        T value = 0;
+        std::memcpy(&value, p, sizeof(T));
         return bigEndian_ ? ByteSwap(value) : value;
+    }
+
+    std::uint16_t U16(const std::uint8_t* p) const {
+        return Unsigned<std::uint16_t>(p);
     }
 
     std::uint32_t U32(const std::uint8_t* p) const {
-        std::uint32_t value = 0;
-        std::memcpy(&value, p, 4);
-        return bigEndian_ ? ByteSwap(value) : value;
+        return Unsigned<std::uint32_t>(p);
     }
 
     std::uint64_t U64(const std::uint8_t* p) const {
-        std::uint64_t value = 0;
-        std::memcpy(&value, p, 8);
-        return bigEndian_ ? ByteSwap(value) : value;
+        return Unsigned<std::uint64_t>(p);
     }
 
     /// An unsigned value of `size` bytes, 2, 4 or 8.
@@ -108,8 +110,8 @@ class TiffReader {
     }
 
     /// The entries of the first IFD.
-    std::map<std::uint16_t, Entry> ReadFirstIfd() {
-        const IfdFormat format = IfdFormat::For(bigTiff_);
+    std::map<std::uint16_t, IfdEntry> ReadFirstIfd() {
+        const IfdFormat format = IfdLayout(bigTiff_);
         std::array<std::uint8_t, 8> countBytes{};
         Read(firstIfd_, countBytes.data(), format.countSize);
         const std::uint64_t entries = Word(countBytes.data(), format.countSize);
@@ -118,11 +120,11 @@ class TiffReader {
         }
         const std::vector<std::uint8_t> table =
             ReadBytes(firstIfd_ + format.countSize, entries * format.EntrySize());
-        std::map<std::uint16_t, Entry> result;
+        std::map<std::uint16_t, IfdEntry> result;
         for (std::uint64_t i = 0; i < entries; ++i) {
             const std::uint8_t* p = table.data() + i * format.EntrySize();
             const std::uint16_t tag = U16(p);
-            Entry entry;
+            IfdEntry entry;
             entry.type = U16(p + 2);
             entry.count = Word(p + 4, format.wordSize);
             const std::size_t fieldSize = FieldSize(entry.type);
@@ -145,7 +147,7 @@ class TiffReader {
     }
 
     /// Unsigned integer values of an entry of any integer type.
-    std::vector<std::uint64_t> Integers(const Entry& entry) const {
+    std::vector<std::uint64_t> Integers(const IfdEntry& entry) const {
         std::vector<std::uint64_t> values(static_cast<std::size_t>(entry.count));
         const std::size_t size = FieldSize(entry.type);
         for (std::size_t i = 0; i < values.size(); ++i) {
@@ -168,7 +170,7 @@ class TiffReader {
         return values;
     }
 
-    std::vector<double> Doubles(const Entry& entry) const {
+    std::vector<double> Doubles(const IfdEntry& entry) const {
         if (entry.type != kDouble && entry.type != kFloat) {
             Fail("expected floating-point values");
         }
@@ -183,7 +185,7 @@ class TiffReader {
         return values;
     }
 
-    static std::string Ascii(const Entry& entry) {
+    static std::string Ascii(const IfdEntry& entry) {
         std::string text(entry.bytes.begin(), entry.bytes.end());
         while (!text.empty() && text.back() == '\0') {
             text.pop_back();
@@ -242,16 +244,16 @@ class TiffReader {
 /// The first IFD of a file and the reader to interpret it.
 struct Ifd {
     TiffReader& reader;
-    std::map<std::uint16_t, Entry> entries;
+    std::map<std::uint16_t, IfdEntry> entries;
 
-    const Entry* Find(Tag tag) const {
+    const IfdEntry* Find(Tag tag) const {
         const auto found = entries.find(tag);
         return found == entries.end() ? nullptr : &found->second;
     }
 
     /// The one value of `tag`, the same for every band, or `fallback` without the tag.
     std::uint64_t Single(Tag tag, std::uint64_t fallback) const {
-        const Entry* entry = Find(tag);
+        const IfdEntry* entry = Find(tag);
         if (entry == nullptr) {
             return fallback;
         }
@@ -361,8 +363,8 @@ void ReadChunks(const Ifd& ifd, Layout& layout) {
         layout.chunkHeight = static_cast<std::size_t>(
             std::min<std::uint64_t>(ifd.Single(kRowsPerStrip, info.height), info.height));
     }
-    const Entry* offsets = ifd.Find(offsetsTag);
-    const Entry* counts = ifd.Find(countsTag);
+    const IfdEntry* offsets = ifd.Find(offsetsTag);
+    const IfdEntry* counts = ifd.Find(countsTag);
     if (offsets == nullptr || counts == nullptr) {
         ifd.reader.Fail(std::string("missing ") + (info.tiled ? "tile" : "strip") +
                         " offsets or byte counts");
@@ -382,50 +384,52 @@ void ReadChunks(const Ifd& ifd, Layout& layout) {
 
 GeoKeys ReadGeoKeys(const Ifd& ifd) {
     GeoKeys keys;
-    if (const Entry* directory = ifd.Find(kGeoKeyDirectory)) {
+    if (const IfdEntry* directory = ifd.Find(kGeoKeyDirectory)) {
         for (const std::uint64_t value : ifd.reader.Integers(*directory)) {
             keys.directory.push_back(static_cast<std::uint16_t>(value));
         }
     }
-    if (const Entry* doubles = ifd.Find(kGeoDoubleParams)) {
+    if (const IfdEntry* doubles = ifd.Find(kGeoDoubleParams)) {
         keys.doubleParams = ifd.reader.Doubles(*doubles);
     }
-    if (const Entry* ascii = ifd.Find(kGeoAsciiParams)) {
+    if (const IfdEntry* ascii = ifd.Find(kGeoAsciiParams)) {
         keys.asciiParams = TiffReader::Ascii(*ascii);
     }
     return keys;
 }
 
-/// The pixel-to-world transform of the model tags, and whether there were any.
-GeoTransform TransformFromTags(const Ifd& ifd, bool& georeferenced) {
-    georeferenced = false;
-    if (const Entry* matrix = ifd.Find(kModelTransformation)) {
-        const std::vector<double> m = ifd.reader.Doubles(*matrix);
-        if (m.size() < 16) {
-            ifd.reader.Fail("ModelTransformation needs 16 values");
-        }
-        georeferenced = true;
-        return GeoTransform::FromGdal({m[3], m[0], m[1], m[7], m[4], m[5]});
+/// The model tags the transform is read from: ModelTransformation when there is one, otherwise
+/// ModelPixelScale and ModelTiepoint when there are both.
+ModelTags ReadModelTags(const Ifd& ifd) {
+    ModelTags tags;
+    if (const IfdEntry* matrix = ifd.Find(kModelTransformation)) {
+        tags.transformation = ifd.reader.Doubles(*matrix);
+        return tags;
     }
-    const Entry* scale = ifd.Find(kModelPixelScale);
-    const Entry* tiepoint = ifd.Find(kModelTiepoint);
-    if (scale == nullptr || tiepoint == nullptr) {
-        return {};
+    const IfdEntry* scale = ifd.Find(kModelPixelScale);
+    const IfdEntry* tiepoint = ifd.Find(kModelTiepoint);
+    if (scale != nullptr && tiepoint != nullptr) {
+        tags.pixelScale = ifd.reader.Doubles(*scale);
+        tags.tiepoint = ifd.reader.Doubles(*tiepoint);
     }
-    const std::vector<double> s = ifd.reader.Doubles(*scale);
-    const std::vector<double> t = ifd.reader.Doubles(*tiepoint);
-    if (s.size() < 2 || t.size() < 6) {
-        ifd.reader.Fail("ModelPixelScale needs 2 and ModelTiepoint 6 values");
+    return tags;
+}
+
+/// Sets the pixel-to-world transform of the model tags, and whether there were any.
+void ReadTransform(const Ifd& ifd, GeoTiffInfo& info) {
+    const ModelTags tags = ReadModelTags(ifd);
+    std::optional<GeoTransform> transform;
+    try {
+        transform = DecodeTransform(tags, info.geoKeys.PixelIsPoint());
+    } catch (const GeoTiffError& error) {
+        ifd.reader.Fail(error.what());
     }
-    if (t.size() > 6) {
-        ifd.reader.Fail("multiple tiepoints (ground control points) are not supported");
-    }
-    georeferenced = true;
-    return GeoTransform::FromGdal({t[3] - t[0] * s[0], s[0], 0.0, t[4] + t[1] * s[1], 0.0, -s[1]});
+    info.georeferenced = transform.has_value();
+    info.transform = transform.value_or(GeoTransform{});
 }
 
 std::optional<double> ParseNoData(const Ifd& ifd) {
-    const Entry* noData = ifd.Find(kGdalNoData);
+    const IfdEntry* noData = ifd.Find(kGdalNoData);
     if (noData == nullptr) {
         return std::nullopt;
     }
@@ -450,11 +454,8 @@ Layout ReadLayout(TiffReader& reader) {
     info.tiled = ifd.Find(kTileWidth) != nullptr;
     ReadChunks(ifd, layout);
     info.geoKeys = ReadGeoKeys(ifd);
-    info.transform = TransformFromTags(ifd, info.georeferenced);
-    if (info.georeferenced && info.geoKeys.PixelIsPoint()) {
-        info.transform = ShiftHalfPixel(info.transform, -1.0);
-    }
-    const Entry* metadata = ifd.Find(kGdalMetadata);
+    ReadTransform(ifd, info);
+    const IfdEntry* metadata = ifd.Find(kGdalMetadata);
     info.bandScaling = ParseGdalBandScaling(
         metadata != nullptr ? TiffReader::Ascii(*metadata) : std::string(), info.bands);
     info.noData = ParseNoData(ifd);
@@ -564,20 +565,25 @@ std::vector<std::uint8_t> Decompress(TiffReader& reader, const Layout& layout, s
         return std::vector<std::uint8_t>(expected, 0);
     }
     std::vector<std::uint8_t> raw = reader.ReadBytes(layout.offsets[chunk], stored);
-    switch (layout.info.compression) {
-    case TiffCompression::Lzw:
-        return DecodeLzw(raw, expected);
-    case TiffCompression::PackBits:
-        return DecodePackBits(raw, expected);
-    case TiffCompression::Deflate:
-        return DecodeDeflate(raw, expected);
-    default:
-        if (raw.size() < expected) {
-            reader.Fail("truncated uncompressed chunk");
+    try {
+        switch (layout.info.compression) {
+        case TiffCompression::Lzw:
+            return DecodeLzw(raw, expected);
+        case TiffCompression::PackBits:
+            return DecodePackBits(raw, expected);
+        case TiffCompression::Deflate:
+            return DecodeDeflate(raw, expected);
+        default:
+            break;
         }
-        raw.resize(expected);
-        return raw;
+    } catch (const GeoTiffError& error) {
+        reader.Fail(error.what());
     }
+    if (raw.size() < expected) {
+        reader.Fail("truncated uncompressed chunk");
+    }
+    raw.resize(expected);
+    return raw;
 }
 
 /// Chunk `chunk`, holding `rows` rows, as little-endian samples without a predictor.
