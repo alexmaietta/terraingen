@@ -11,6 +11,7 @@ terraingen_add_library(
     ground.cpp
     layer.cpp
     material.cpp
+    midpoint_displacement.cpp
     noise_relief.cpp
     pavement.cpp
     region.cpp

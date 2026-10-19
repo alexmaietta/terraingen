@@ -95,6 +95,7 @@ struct LayerChecks {
     const std::vector<Extent>& extents;
     const std::filesystem::path& directory;
     const Surface& surface;
+    bool base = false;      ///< Whether the configuration has a base.
     bool craters = false;   ///< Whether a crater layer came before.
     bool boulders = false;  ///< Whether a boulder layer came before.
     /// Craters the crater layers so far are expected to generate over each extent; empty when
@@ -352,6 +353,16 @@ void CheckLayerSpec(const DemDetailLayerSpec& layer, const std::string& path,
     CheckFinite(layer.weight, Child(path, "weight"));
 }
 
+void CheckLayerSpec(const MidpointDisplacementLayerSpec& layer, const std::string& path,
+                    LayerChecks& context) {
+    const bool complete =
+        layer.pixelSize && layer.originX && layer.originY && layer.fractalDimension && layer.scale;
+    if (!context.base && !complete) {
+        throw ConfigError(path, "without a base needs pixel_size, origin_x, origin_y, "
+                                "fractal_dimension and scale");
+    }
+}
+
 void CheckLayerSpec(const RegionLayerSpec& layer, const std::string& path, LayerChecks& context) {
     At(Child(path, "shape"), [&] { ValidateRegionShape(BuildRegionShape(layer.shape)); });
     const bool empty = std::visit(
@@ -595,6 +606,7 @@ void CheckLayers(const TerrainConfig& config, const std::vector<Extent>& extents
                  const std::filesystem::path& directory, const Surface& surface,
                  ConfigSummary& summary) {
     LayerChecks layers{extents, directory, surface};
+    layers.base = config.base.has_value();
     for (std::size_t i = 0; i < config.layers.size(); ++i) {
         CheckLayer(config.layers[i], Element("layers", i), layers);
     }

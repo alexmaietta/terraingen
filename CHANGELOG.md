@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `RasterSource`, heights from a raster in memory, shared rather than copied, low-passed and resampled as a GeoTIFF source is; `GeoTiffSource` is now a `RasterSource` of its band.
 - Windowed GeoTIFF reads that decode only the strips or tiles a window meets, and a `region` for GeoTIFF sources that reads only the window it needs while giving the same heights there as the whole file.
 - `Source::ResolutionAt`, the cell size of the data behind each height, and `UnresolvedCraterLimit`, a completeness limit that leaves the craters a DEM already resolves to it and generates only smaller ones; `MinimumField` combines it with a catalog's limit.
+- Midpoint displacement layer: random midpoint displacement (diamond-square) expansion of a DEM or any base lattice to finer spacings, as PANGU expands DEMs (Martin et al. 2014), keeping every coarser node so nested grids share their cells, with the scale and fractal dimension estimated from the base when not given.
 
 ### Changed
 

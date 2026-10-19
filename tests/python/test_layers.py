@@ -449,3 +449,26 @@ def test_dune_grainflows_and_straightened_ripples():
     )
     assert config.to_dict()["layers"][0]["grainflows"]["cover"] == 0.5
     config.validate()
+
+
+def test_midpoint_displacement_expands_a_lattice_keeping_its_nodes():
+    grid = terraingen.FlatSource(64, 64, 1.0).grid()
+    flat = terraingen.evaluate(terraingen.Terrain(None, []), grid=grid)
+    origin = flat.cell_center(0, 0)
+    options = terraingen.MidpointDisplacementOptions(
+        pixel_size=4.0, origin=origin, fractal_dimension=2.3, scale=0.5, base=terraingen.MidpointBase.SOURCE
+    )
+    options.validate()
+    layer = terraingen.MidpointDisplacementLayer(options)
+    assert layer.levels(1.0) == 2 and layer.node_spacing(2) == pytest.approx(1.0)
+    assert layer.options.base == terraingen.MidpointBase.SOURCE
+    heights = terraingen.evaluate(terraingen.Terrain(None, [layer]), grid=grid)
+    values = heights.values
+    assert np.all(values[::4, ::4] == 0.0)
+    assert np.abs(values).max() > 0.1
+    roughness = terraingen.estimate_midpoint_roughness(heights)
+    assert roughness.scale > 0.0 and 2.0 <= roughness.fractal_dimension <= 3.0
+    with pytest.raises(ValueError):
+        terraingen.validate_midpoint_displacement_options(
+            terraingen.MidpointDisplacementOptions(fractal_dimension=3.5)
+        )

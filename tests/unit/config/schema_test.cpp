@@ -524,6 +524,8 @@ TEST(ConfigCatalog, ListsTheNewDensitiesAndAges) {
 TEST(LayerType, NamesALayerAsItsJsonTypeAndARegionByTheLayerInside) {
     EXPECT_EQ(terraingen::LayerType(terraingen::CraterLayerSpec{}), "craters");
     EXPECT_EQ(terraingen::LayerType(terraingen::SandFillLayerSpec{}), "sand_fill");
+    EXPECT_EQ(terraingen::LayerType(terraingen::MidpointDisplacementLayerSpec{}),
+              "midpoint_displacement");
     terraingen::RegionLayerSpec region;
     region.layer = terraingen::BoulderLayerSpec{};
     EXPECT_EQ(terraingen::LayerType(region), "region (boulders)");

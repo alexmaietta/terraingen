@@ -191,6 +191,16 @@ const PathCase kPathCases[] = {
          c.layers.push_back(boulders);
      },
      "layers[2]"},
+    {"MidpointDisplacementWithoutBase",
+     [](TerrainConfig& c) { c.layers.push_back(terraingen::MidpointDisplacementLayerSpec{}); },
+     "layers[2]"},
+    {"MidpointDisplacementDimensionAboveThree",
+     [](TerrainConfig& c) {
+         terraingen::MidpointDisplacementLayerSpec layer;
+         layer.fractalDimension = 3.5;
+         c.layers.push_back(layer);
+     },
+     "layers[2].fractal_dimension"},
     {"SandFillWithoutReach",
      [](TerrainConfig& c) { c.layers.push_back(terraingen::SandFillLayerSpec{{0.0}}); },
      "layers[2].reach"},

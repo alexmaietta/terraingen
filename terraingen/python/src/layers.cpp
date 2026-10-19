@@ -12,6 +12,7 @@
 #include "terraingen/layers/fade.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/layers/material.h"
+#include "terraingen/layers/midpoint_displacement.h"
 #include "terraingen/layers/noise_relief.h"
 #include "terraingen/layers/pavement.h"
 #include "terraingen/layers/region.h"
@@ -291,6 +292,40 @@ void BindSandFill(nb::module_& m) {
     BindMaterialCover<SandFillLayer>(layer);
 }
 
+void BindMidpointDisplacement(nb::module_& m) {
+    BindEnum<MidpointBase>(m, "MidpointBase", "What a midpoint displacement layer displaces from.");
+    auto options = nb::class_<MidpointDisplacementOptions>(
+        m, "MidpointDisplacementOptions",
+        "The base lattice of `pixel_size` through `origin` and the fractal (`fractal_dimension`, "
+        "`scale` metres) a midpoint displacement layer expands.");
+    BindKwargsInit<MidpointDisplacementOptions>(options);
+    options.def_rw("pixel_size", &MidpointDisplacementOptions::pixelSize)
+        .def_rw("origin", &MidpointDisplacementOptions::origin)
+        .def_rw("fractal_dimension", &MidpointDisplacementOptions::fractalDimension)
+        .def_rw("scale", &MidpointDisplacementOptions::scale)
+        .def_rw("min_pixel_size", &MidpointDisplacementOptions::minPixelSize)
+        .def_rw("base", &MidpointDisplacementOptions::base)
+        .def_rw("seed", &MidpointDisplacementOptions::seed)
+        .def("validate", &ValidateMidpointDisplacementOptions, kValidateDoc);
+    m.def("validate_midpoint_displacement_options", &ValidateMidpointDisplacementOptions,
+          "options"_a, kValidateDoc);
+    nb::class_<MidpointRoughness>(m, "MidpointRoughness",
+                                  "The displacement scale and fractal dimension a raster shows.")
+        .def_ro("scale", &MidpointRoughness::scale)
+        .def_ro("fractal_dimension", &MidpointRoughness::fractalDimension);
+    m.def("estimate_midpoint_roughness", &EstimateMidpointRoughness, "heights"_a,
+          "The scale and fractal dimension of a raster's heights on its own cells.");
+    nb::class_<MidpointDisplacementLayer, Layer>(
+        m, "MidpointDisplacementLayer",
+        "Random midpoint displacement (diamond-square) expansion of a base lattice.")
+        .def(nb::init<MidpointDisplacementOptions, Surface>(), "options"_a, "surface"_a = Surface{})
+        .def("levels", &MidpointDisplacementLayer::Levels, "spacing"_a,
+             "The levels expanded at a sample spacing in metres.")
+        .def("node_spacing", &MidpointDisplacementLayer::NodeSpacing, "level"_a,
+             "The node spacing at a level, in surface units.")
+        .def_prop_ro("options", &MidpointDisplacementLayer::Options);
+}
+
 void BindPavement(nb::module_& m) {
     BindOptions<PavementOptions>(
         m, "PavementOptions",
@@ -430,6 +465,7 @@ void BindLayers(nb::module_& m) {
     BindDunes(m);
     BindMaterialClasses(m);
     BindSandFill(m);
+    BindMidpointDisplacement(m);
     BindPavement(m);
     BindStrata(m);
 }

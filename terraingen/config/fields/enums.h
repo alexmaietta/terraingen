@@ -164,6 +164,17 @@ template <> struct EnumNames<BlendShape> {
     }};
 };
 
+template <> struct EnumNames<MidpointBase> {
+    static constexpr std::array<EnumEntry<MidpointBase>, 2> kValues{{
+        {"diamond_square", MidpointBase::DiamondSquare,
+         "The ground at the base lattice's nodes, interpolated by square and diamond steps: the "
+         "heights are replaced by the expanded lattice, as when expanding a DEM."},
+        {"source", MidpointBase::Source,
+         "Zero at the base lattice's nodes: only the displacements are added, keeping the source's "
+         "own interpolation between nodes."},
+    }};
+};
+
 template <> struct EnumNames<EjectaProfile> {
     static constexpr std::array<EnumEntry<EjectaProfile>, 2> kValues{{
         {"smoothstep", EjectaProfile::Smoothstep,

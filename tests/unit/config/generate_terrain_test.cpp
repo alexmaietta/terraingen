@@ -602,3 +602,40 @@ TEST(GenerateTerrain, ListsCratersOverTheWholeBody) {
     EXPECT_LT(south, -45.0);
     EXPECT_GT(north, 45.0);
 }
+
+TEST(GenerateTerrain, ExpandsADemByMidpointDisplacementKeepingItsCells) {
+    const auto folder = TempPath("terraingen_midpoint");
+    const auto dem = WriteDem(folder, "dem.tif");
+    TerrainConfig config = RasterConfig("dem.tif");
+    config.layers = {terraingen::MidpointDisplacementLayerSpec{}};
+    const terraingen::GridRegionSpec region{21, 21, 2.5, 1102.5, 1922.5};
+    config.outputs = {terraingen::testing::Heightmap("fine.tif", region),
+                      terraingen::testing::Heightmap("base.tif", std::nullopt)};
+    terraingen::ValidateConfig(config, folder);
+    const auto generated = GenerateTerrain(config, folder);
+    ASSERT_EQ(generated.grids.size(), 2u);
+    const terraingen::Raster<float>& fine = generated.grids[0].heights;
+    bool expanded = false;
+    for (std::size_t row = 0; row < fine.Height(); ++row) {
+        for (std::size_t col = 0; col < fine.Width(); ++col) {
+            const float source = dem(15 + col / 2, 10 + row / 2);
+            if (col % 2 == 0 && row % 2 == 0) {
+                ASSERT_EQ(fine(col, row), source) << col << " " << row;
+            } else {
+                expanded = expanded || fine(col, row) != source;
+            }
+        }
+    }
+    EXPECT_TRUE(expanded);
+    ExpectSameRaster(generated.grids[1].heights, dem);
+
+    auto& layer = std::get<terraingen::MidpointDisplacementLayerSpec>(config.layers[0]);
+    layer.fractalDimension = 2.4;
+    layer.scale = 0.0;
+    layer.base = terraingen::MidpointBase::Source;
+    const auto smooth = GenerateTerrain(config, folder);
+    const auto cubic = GenerateTerrain(RasterConfig("dem.tif"), folder);
+    const auto plain = terraingen::Evaluate(
+        cubic.terrain, terraingen::RasterGrid::FromRaster(smooth.grids[0].heights));
+    ExpectSameRaster(smooth.grids[0].heights, plain);
+}

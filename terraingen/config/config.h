@@ -25,6 +25,7 @@
 #include "terraingen/layers/craters/shaping/apply.h"
 #include "terraingen/layers/density_map.h"
 #include "terraingen/layers/dunes.h"
+#include "terraingen/layers/midpoint_displacement.h"
 #include "terraingen/layers/pavement.h"
 #include "terraingen/layers/region.h"
 #include "terraingen/layers/roughness.h"
@@ -758,6 +759,30 @@ struct DemDetailLayerSpec {
     }
 };
 
+/// Layer "midpoint_displacement": random midpoint displacement expansion of a base lattice
+/// (`MidpointDisplacementLayer`), on the base's grid with its estimated roughness
+/// (`EstimateMidpointRoughness`) wherever a value is not given.
+struct MidpointDisplacementLayerSpec {
+    std::optional<double> pixelSize{};  ///< Metres; unset for the base's cell size.
+    std::optional<double> originX{};    ///< Surface coordinates; unset for the base's first cell.
+    std::optional<double> originY{};    ///< Surface coordinates; unset for the base's first cell.
+    std::optional<double> fractalDimension{};  ///< Unset to estimate from the base.
+    std::optional<double> scale{};             ///< Metres; unset to estimate from the base.
+    double minPixelSize = 0.0;                 ///< Metres; 0 for no limit.
+    MidpointBase base = MidpointBase::DiamondSquare;
+    std::uint32_t seed = 1;
+
+    bool operator==(const MidpointDisplacementLayerSpec& other) const {
+        return pixelSize == other.pixelSize && originX == other.originX &&
+               originY == other.originY && fractalDimension == other.fractalDimension &&
+               scale == other.scale && minPixelSize == other.minPixelSize && base == other.base &&
+               seed == other.seed;
+    }
+    bool operator!=(const MidpointDisplacementLayerSpec& other) const {
+        return !(*this == other);
+    }
+};
+
 /// Layer "scale": height * `scale` + `offset` (`ScaleLayer`).
 struct ScaleLayerSpec {
     double scale = 1.0;
@@ -866,11 +891,11 @@ template <typename T> class Boxed {
 struct RegionLayerSpec;
 
 /// A layer, named in JSON by its "type".
-using LayerSpec =
-    std::variant<NoiseLayerSpec, CraterLayerSpec, BoulderLayerSpec, RoughnessLayerSpec,
-                 BedformLayerSpec, ScaleLayerSpec, ClampLayerSpec, RegionLayerSpec,
-                 SecondaryLayerSpec, DemDetailLayerSpec, DuneLayerSpec, SandFillLayerSpec,
-                 PavementLayerSpec, StrataLayerSpec, SandShadowLayerSpec>;
+using LayerSpec = std::variant<NoiseLayerSpec, CraterLayerSpec, BoulderLayerSpec,
+                               RoughnessLayerSpec, BedformLayerSpec, ScaleLayerSpec, ClampLayerSpec,
+                               RegionLayerSpec, SecondaryLayerSpec, DemDetailLayerSpec,
+                               DuneLayerSpec, SandFillLayerSpec, PavementLayerSpec, StrataLayerSpec,
+                               SandShadowLayerSpec, MidpointDisplacementLayerSpec>;
 
 /// Layer "region": `layer` applied only inside `shape` (`RegionLayer`). Boulder ejecta do
 /// not see crater layers inside regions.

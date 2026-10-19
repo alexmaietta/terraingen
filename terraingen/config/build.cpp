@@ -324,6 +324,7 @@ struct LayerInputs {
     const std::vector<std::shared_ptr<const CraterLayer>>& craters;
     const std::shared_ptr<const BoulderLayer>& boulders;
     const Surface& surface;
+    const std::shared_ptr<const Source>& source;  ///< The base; null without one.
     /// The secondaries later layers throw from a crater layer built with these inputs.
     std::vector<SecondaryCraterOptions> thrown{};
 };
@@ -356,6 +357,58 @@ LayerPtr BuildCraterLayer(const CraterLayerSpec& craters, const std::string& pat
     CraterModels models = BuildCraterModels(craters, path);
     return At(path,
               [&] { return std::make_shared<CraterLayer>(std::move(models), std::move(options)); });
+}
+
+/// The roughness of `source` on cells of `pixelSize` centred on its grid with a node at `origin`,
+/// at most `kRoughnessCells` a side.
+MidpointRoughness SourceRoughness(const Source& source, double pixelSize, const Vec2d& origin) {
+    constexpr double kRoughnessCells = 512.0;
+    const Bounds2d bounds = source.Grid().Bounds();
+    const auto cells = [&](double extent) {
+        return std::clamp(std::floor(extent / pixelSize), 3.0, kRoughnessCells);
+    };
+    const double width = cells(bounds.maxX - bounds.minX);
+    const double height = cells(bounds.maxY - bounds.minY);
+    const double col0 =
+        std::round((0.5 * (bounds.minX + bounds.maxX) - origin.x) / pixelSize - 0.5 * width);
+    const double rowTop =
+        std::round((0.5 * (bounds.minY + bounds.maxY) - origin.y) / pixelSize + 0.5 * height);
+    const RasterGrid grid{static_cast<std::size_t>(width), static_cast<std::size_t>(height),
+                          GeoTransform::NorthUp(origin.x + (col0 - 0.5) * pixelSize,
+                                                origin.y + (rowTop + 0.5) * pixelSize, pixelSize)};
+    Raster<float> heights = grid.MakeRaster();
+    source.Fill(heights);
+    return EstimateMidpointRoughness(heights);
+}
+
+/// The options of a midpoint displacement layer, from the base wherever the spec gives none.
+MidpointDisplacementOptions BuildMidpointOptions(const MidpointDisplacementLayerSpec& spec,
+                                                 const Source* source, const Surface& surface) {
+    MidpointDisplacementOptions options;
+    options.minPixelSize = spec.minPixelSize / surface.UnitLength();
+    options.base = spec.base;
+    options.seed = spec.seed;
+    if (!(spec.pixelSize && spec.originX && spec.originY) && !source) {
+        throw std::invalid_argument(
+            "A midpoint displacement layer without a base needs its pixel size and origin");
+    }
+    const RasterGrid grid = source ? source->Grid() : RasterGrid{};
+    options.pixelSize = spec.pixelSize ? *spec.pixelSize / surface.UnitLength() : grid.PixelSize();
+    const Vec2d first = grid.transform.PixelToWorld(0.5, 0.5);
+    options.origin = {spec.originX.value_or(first.x), spec.originY.value_or(first.y)};
+    if (spec.fractalDimension && spec.scale) {
+        options.fractalDimension = *spec.fractalDimension;
+        options.scale = *spec.scale;
+        return options;
+    }
+    if (!source) {
+        throw std::invalid_argument(
+            "A midpoint displacement layer without a base needs its fractal dimension and scale");
+    }
+    const MidpointRoughness roughness = SourceRoughness(*source, options.pixelSize, options.origin);
+    options.fractalDimension = spec.fractalDimension.value_or(roughness.fractalDimension);
+    options.scale = spec.scale.value_or(roughness.scale);
+    return options;
 }
 
 LayerPtr BuildSecondaryLayer(const SecondaryLayerSpec& spec,
@@ -404,6 +457,10 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
             },
             [&](const BedformLayerSpec& s) -> LayerPtr {
                 return std::make_shared<BedformLayer>(s.bedforms, surface);
+            },
+            [&](const MidpointDisplacementLayerSpec& s) -> LayerPtr {
+                return std::make_shared<MidpointDisplacementLayer>(
+                    BuildMidpointOptions(s, context.source.get(), surface), surface);
             },
             [&](const ScaleLayerSpec& s) -> LayerPtr {
                 return std::make_shared<ScaleLayer>(s.scale, s.offset);
@@ -462,6 +519,7 @@ Terrain BuildValidTerrain(const TerrainConfig& config, const std::filesystem::pa
                                   craters,
                                   boulders,
                                   terrain.surface,
+                                  terrain.source,
                                   ThrownSecondaries(config.layers, i)};
         terrain.layers.push_back(BuildLayer(config.layers[i], Element("layers", i), context));
         if (std::holds_alternative<CraterLayerSpec>(config.layers[i])) {

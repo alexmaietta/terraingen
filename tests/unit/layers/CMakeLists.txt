@@ -12,6 +12,7 @@ terraingen_add_test_suite(
     ground_test.cpp
     lattice_test.cpp
     layer_test.cpp
+    midpoint_displacement_test.cpp
     noise_relief_test.cpp
     pavement_test.cpp
     region_test.cpp

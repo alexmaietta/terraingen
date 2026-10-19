@@ -250,6 +250,9 @@ TerrainConfig Everything() {
         terraingen::RoughnessLayerSpec{},
         terraingen::ScaleLayerSpec{1.5, -20.0},
         terraingen::ClampLayerSpec{std::nullopt, 12.5},
+        terraingen::MidpointDisplacementLayerSpec{4.0, 1.5, -2.5, 2.3, 0.4, 0.25,
+                                                  terraingen::MidpointBase::Source, 5u},
+        terraingen::MidpointDisplacementLayerSpec{},
         terraingen::RegionLayerSpec{terraingen::CircleRegionSpec{3.0, -4.0, 50.0}, 7.5,
                                     terraingen::BlendShape::Gaussian, craters},
         terraingen::RegionLayerSpec{

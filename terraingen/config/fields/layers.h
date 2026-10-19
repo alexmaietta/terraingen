@@ -448,6 +448,40 @@ template <typename IO> void Fields(IO& io, DemDetailLayerSpec& spec) {
     io("weight", spec.weight, "Share of the detail added; 1 restores it whole, 0.5 halves it.");
 }
 
+template <> struct SpecName<MidpointDisplacementLayerSpec> {
+    static constexpr std::string_view kName = "midpoint_displacement";
+    static constexpr std::string_view kDescription =
+        "Random midpoint displacement (diamond-square) expansion of the base lattice, as PANGU "
+        "expands DEMs: each level halves the node spacing down to the sample spacing, adding "
+        "fractal detail without changing the nodes before it.";
+};
+template <typename IO> void Fields(IO& io, MidpointDisplacementLayerSpec& spec) {
+    io("pixel_size", spec.pixelSize,
+       "Spacing of the base lattice's nodes in metres. Unset uses the base's cell size.", "m",
+       Above(0.0));
+    io("origin_x", spec.originX,
+       "x of a node of the base lattice, in surface coordinates. Unset uses the base's first "
+       "cell centre.");
+    io("origin_y", spec.originY,
+       "y of a node of the base lattice, in surface coordinates. Unset uses the base's first "
+       "cell centre.");
+    io("fractal_dimension", spec.fractalDimension,
+       "Fractal dimension, from 2 (smooth) to 3 (rough): each square or diamond step scales the "
+       "displacement by 2^-((3 - F) / 2). Unset estimates it from the base's variogram.",
+       "", Between(2.0, 3.0));
+    io("scale", spec.scale,
+       "Standard deviation in metres of the displacement at the base lattice's own last diamond "
+       "step. Unset estimates it from the base as the RMS of each cell minus the mean of its four "
+       "neighbours.",
+       "m", AtLeast(0.0));
+    io("min_pixel_size", spec.minPixelSize,
+       "Finest node spacing in metres the lattice is expanded to; 0 expands down to the sample "
+       "spacing.",
+       "m", AtLeast(0.0));
+    io("base", spec.base, "What is displaced: the ground at the base nodes, or zero.");
+    io("seed", spec.seed, "Seed of the displacements.");
+}
+
 template <> struct SpecName<ScaleLayerSpec> {
     static constexpr std::string_view kName = "scale";
     static constexpr std::string_view kDescription =
