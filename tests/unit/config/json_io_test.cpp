@@ -205,7 +205,17 @@ TerrainConfig Everything() {
     boulderMap.measure = terraingen::DensityMeasure::ArealFraction;
     boulderMap.minDiameter = 1.0;
     synthterrain.densityMap = boulderMap;
-    synthterrain.manual = {{3.0, -4.0, 2.5, 0.0, 0u}};
+    terraingen::ManualBoulder posed{1.0, 2.0, 1.5, 11u};
+    posed.height = 0.8;
+    posed.burial = 0.3;
+    posed.yaw = 30.0 * terraingen::kDegree;
+    posed.lean = 10.0 * terraingen::kDegree;
+    posed.tilt = 20.0 * terraingen::kDegree;
+    posed.tiltAzimuth = -72.5 * terraingen::kDegree;
+    posed.wear = 0.4;
+    posed.rest = terraingen::BoulderRest::End;
+    posed.shapeSeed = 42u;
+    synthterrain.manual = {{3.0, -4.0, 2.5}, posed};
     terraingen::FieldSpec boulderCompleteness;
     boulderCompleteness.path = "complete.tif";
     synthterrain.completeness = boulderCompleteness;

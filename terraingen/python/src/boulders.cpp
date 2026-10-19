@@ -151,6 +151,8 @@ void BindBoulder(nb::module_& m) {
         .def_rw("rest", &Boulder::rest)
         .def_rw("parent", &Boulder::parent)
         .def_rw("piece", &Boulder::piece)
+        .def_rw("shape_seed", &Boulder::shapeSeed,
+                "The seed of its shape; None derives it from its ID, or its parent's.")
         .def_prop_rw(
             "facets",
             [](const Boulder& b) {
@@ -251,6 +253,20 @@ void BindRendering(nb::module_& m) {
              "Whether a boulder of `diameter` metres is drawn into the heights.");
 }
 
+void BindManualBoulder(nb::module_& m) {
+    BindOptions<ManualBoulder>(
+        m, "ManualBoulder",
+        "A boulder placed by hand at (`x`, `y`), `diameter` metres long, with any of its pose and "
+        "shape fixed: `height`, `burial`, `yaw_deg`, `lean_deg`, `tilt_deg`, "
+        "`tilt_azimuth_deg`, `wear`, `rest` and `shape_seed`; None draws a field as for "
+        "generated boulders. Angles in degrees.",
+        &ValidateManualBoulder);
+    m.def("validate_manual_boulder", &ValidateManualBoulder, "boulder"_a, kValidateDoc);
+    m.def("manual_boulder_id", &ManualBoulderId, "boulder"_a,
+          "The ID a manual boulder is placed with: its own, or one from its position and size "
+          "for 0.");
+}
+
 void BindLayerOptions(nb::module_& m) {
     using O = BoulderLayerOptions;
     BindOptions<O>(
@@ -268,7 +284,8 @@ void BindLayerOptions(nb::module_& m) {
             "Sizes per m^2 in place of Golombek-Rapp boulders of `coverage`; None for those.")
         .def_rw("density_map", &O::densityMap)
         .def_rw("slope_map", &O::slopeMap)
-        .def_rw("manual", &O::manual, "Catalog boulders placed as given, as craters.")
+        .def_rw("manual", &O::manual,
+                "Catalog or hand-placed boulders (ManualBoulder) placed as given.")
         .def_rw("completeness", &O::completeness,
                 "Diameter (m) from which `manual` is a complete catalog at each point.");
     m.def("validate_boulder_layer_options", &ValidateBoulderLayerOptions, "options"_a,
@@ -419,6 +436,7 @@ void BindBoulders(nb::module_& m) {
     BindClustersAndFragments(m);
     BindFillet(m);
     BindRendering(m);
+    BindManualBoulder(m);
     BindLayerOptions(m);
     BindLayer(m);
     BindSandShadows(m);

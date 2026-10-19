@@ -298,6 +298,14 @@ template <> struct EnumNames<CraterMorphometryFit> {
     }};
 };
 
+template <> struct EnumNames<BoulderRest> {
+    static constexpr std::array<EnumEntry<BoulderRest>, 3> kValues{{
+        {"face", BoulderRest::Face, "On its broadest face: its short axis up."},
+        {"side", BoulderRest::Side, "On a side: its intermediate axis up."},
+        {"end", BoulderRest::End, "On an end: its long axis up."},
+    }};
+};
+
 template <> struct EnumNames<BoulderRelief> {
     static constexpr std::array<EnumEntry<BoulderRelief>, 3> kValues{{
         {"dome", BoulderRelief::Dome,

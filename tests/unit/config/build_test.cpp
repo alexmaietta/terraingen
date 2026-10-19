@@ -618,7 +618,11 @@ TEST(BuildTerrain, GivesLayersTheirMapsCatalogsAndCompleteness) {
     craters.completeness = ConstantField(50.0);
     terraingen::BoulderLayerSpec boulders;
     boulders.densityMap = ConstantDensityMap(1.5);
-    boulders.manual = {{1.0, 2.0, 3.0, 0.0, 0u}};
+    terraingen::ManualBoulder placed{1.0, 2.0, 3.0, 7u};
+    placed.burial = 0.25;
+    placed.yaw = 0.5;
+    placed.rest = terraingen::BoulderRest::Side;
+    boulders.manual = {placed};
     boulders.completeness = ConstantField(2.0);
     boulders.sizes = terraingen::PowerLawSpec{0.01, 3.0};
     boulders.slopeMap = ConstantSlopeMap(2.5);
@@ -634,7 +638,7 @@ TEST(BuildTerrain, GivesLayersTheirMapsCatalogsAndCompleteness) {
     ASSERT_TRUE(options.densityMap);
     EXPECT_EQ(options.densityMap->field->ValueAt(0.0, 0.0), 1.5);
     ASSERT_EQ(options.manual.size(), 1u);
-    EXPECT_TRUE(options.manual[0].manual);
+    EXPECT_EQ(options.manual[0], placed) << "every fixed field handed on";
     EXPECT_EQ(options.completeness->ValueAt(0.0, 0.0), 2.0);
     ASSERT_TRUE(options.slopeMap);
     EXPECT_EQ(options.slopeMap->field->ValueAt(0.0, 0.0), 2.5);

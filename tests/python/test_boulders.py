@@ -279,7 +279,7 @@ def test_boulder_max_slope_is_optional():
 def test_boulder_layers_take_maps_and_catalogs():
     options = terraingen.BoulderLayerOptions(
         density_map=terraingen.DensityMap(field=terraingen.ConstantField(2.0)),
-        manual=[terraingen.Crater(1.0, 2.0, 5.0)],
+        manual=[terraingen.ManualBoulder(1.0, 2.0, 5.0)],
         completeness=terraingen.ConstantField(4.0),
     )
     layer = terraingen.BoulderLayer(options)
@@ -322,3 +322,43 @@ def test_boulder_angles_are_in_degrees():
         20.0,
         90.0,
     )
+
+
+def test_manual_boulders_fix_their_pose_and_shape():
+    plain = terraingen.ManualBoulder(1.0, 2.0, 1.5)
+    assert plain.height is None and plain.yaw_deg is None and plain.rest is None
+    assert plain.shape_seed is None and "ManualBoulder(x=1.0" in repr(plain)
+    posed = terraingen.ManualBoulder(
+        x=-3.0,
+        y=4.0,
+        diameter=2.0,
+        id=17,
+        height=0.9,
+        burial=0.3,
+        yaw_deg=30.0,
+        lean_deg=10.0,
+        tilt_deg=20.0,
+        tilt_azimuth_deg=90.0,
+        wear=0.25,
+        rest=terraingen.BoulderRest.SIDE,
+        shape_seed=5,
+    )
+    assert (posed.yaw_deg, posed.lean_deg, posed.tilt_deg, posed.tilt_azimuth_deg) == (
+        30.0,
+        10.0,
+        20.0,
+        90.0,
+    )
+    posed.validate()
+    assert terraingen.manual_boulder_id(posed) == 17
+    assert terraingen.manual_boulder_id(plain) == terraingen.manual_crater_id(1.0, 2.0, 1.5)
+    table = terraingen.BoulderLayer(
+        terraingen.BoulderLayerOptions(min_diameter=0.5, coverage=0.01, manual=[plain, posed])
+    ).boulders((-10.0, -10.0, 10.0, 10.0))
+    row = list(np.asarray(table["id"])).index(17)
+    assert np.asarray(table["height"])[row] == 0.9 and np.asarray(table["burial"])[row] == 0.3
+    assert np.asarray(table["wear"])[row] == 0.25 and np.asarray(table["rest"])[row] == 1
+    with pytest.raises(ValueError):
+        terraingen.ManualBoulder(0.0, 0.0, 1.0, burial=1.0).validate()
+    with pytest.raises(ValueError):
+        terraingen.BoulderLayer(terraingen.BoulderLayerOptions(manual=[posed, posed]))

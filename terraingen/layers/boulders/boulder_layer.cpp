@@ -166,6 +166,11 @@ BoulderLayer::BoulderLayer(BoulderLayerOptions options,
         }
     }
     ValidateBoulderLayerOptions(options_);
+    for (const ManualBoulder& boulder : options_.manual) {
+        if (boulder.FixesAny()) {
+            fixed_.emplace(ManualBoulderId(boulder), boulder);
+        }
+    }
     minCraterDiameter_ = options_.ejecta.MinCraterDiameter();
     if (minCraterDiameter_ > 0.0 && craters_.empty()) {
         throw std::invalid_argument(
@@ -248,12 +253,25 @@ BoulderLayer::CachedFragments(std::uint64_t shapeSeed) const {
 }
 
 std::shared_ptr<const BoulderShape> BoulderLayer::Shape(const Boulder& boulder) const {
-    const std::uint32_t prototypes = options_.rendering.shapePrototypes;
+    const std::uint64_t seed = ShapeSeed(boulder, options_.rendering.shapePrototypes);
     if (boulder.parent == 0) {
-        return CachedShape(BoulderShapeSeed(boulder.id, prototypes));
+        return CachedShape(seed);
     }
-    const auto fragments = CachedFragments(BoulderShapeSeed(boulder.parent, prototypes));
+    const auto fragments = CachedFragments(seed);
     return {fragments, &(*fragments)[boulder.piece].shape};
+}
+
+const ManualBoulder* BoulderLayer::Fixed(std::uint64_t id) const {
+    const auto found = fixed_.find(id);
+    return found != fixed_.end() ? &found->second : nullptr;
+}
+
+bool BoulderLayer::Settles(const Boulder& boulder) const {
+    if (!options_.pose.settle) {
+        return false;
+    }
+    const ManualBoulder* fixed = boulder.parent == 0 ? Fixed(boulder.id) : nullptr;
+    return fixed == nullptr || !fixed->FixesOrientation();
 }
 
 Boulder BoulderLayer::InLocalFrame(const Boulder& boulder) const {
@@ -268,7 +286,7 @@ Boulder BoulderLayer::InLocalFrame(const Boulder& boulder) const {
 TriangleMesh BoulderLayer::PlacedOnLevel(const Boulder& boulder) const {
     const auto shape = Shape(boulder);
     const BoulderPlacement placement =
-        PlaceBoulderModel(InLocalFrame(boulder), *shape, 0.0, options_.pose.settle);
+        PlaceBoulderModel(InLocalFrame(boulder), *shape, 0.0, Settles(boulder));
     TriangleMesh mesh = PlaceMesh(shape->mesh, placement);
     CutFacets(mesh, InLocalFrame(boulder), 0.0);
     return mesh;
@@ -424,8 +442,8 @@ CraterList BoulderLayer::ScatterBoulderCandidates(const Bounds2d& region, double
     if (smallest > 0.0) {
         generation.minResolvedDiameter = smallest;
     }
-    for (const Crater& boulder : options_.manual) {
-        generation.manual.Append(boulder);
+    for (const ManualBoulder& boulder : options_.manual) {
+        generation.manual.Append({boulder.x, boulder.y, boulder.diameter, 0.0, boulder.id, true});
     }
     generation.completeness = options_.completeness;
     if (cache_) {
@@ -491,13 +509,17 @@ BoulderLayer::Thin(const Crater& candidate, const Ground* ground, const EjectaIn
     return thinned;
 }
 
-Boulder BoulderLayer::DrawPose(const ThinnedCandidate& thinned, double spacing) const {
+Boulder BoulderLayer::DrawPose(const ThinnedCandidate& thinned, double spacing,
+                               const ManualBoulder* fixed) const {
     const Crater& candidate = thinned.candidate;
     RandomStream random = AttributeStream(options_.seed, candidate.id, BoulderDraw::Pose);
     const BoulderPose& pose = options_.pose;
     const double ratio =
         ValueRange{pose.minHeightRatio, pose.maxHeightRatio}.Lerp(random.NextDouble());
-    const double wear = Wear(candidate.diameter, thinned.abundance, thinned.density, candidate.id);
+    double wear = Wear(candidate.diameter, thinned.abundance, thinned.density, candidate.id);
+    if (fixed != nullptr && !std::isnan(fixed->wear)) {
+        wear = fixed->wear;
+    }
     double share = random.NextDouble();
     if (pose.burialByWear > 0.0) {
         share = (1.0 - pose.burialByWear) * share + pose.burialByWear * wear;
@@ -510,20 +532,34 @@ Boulder BoulderLayer::DrawPose(const ThinnedCandidate& thinned, double spacing) 
         yaw,         lean,        candidate.id};
     boulder.wear = wear;
     boulder.model = options_.rendering.models.IsModel(boulder.diameter, spacing);
+    if (fixed != nullptr) {
+        const auto set = [](double& field, double value) {
+            if (!std::isnan(value)) {
+                field = value;
+            }
+        };
+        set(boulder.height, fixed->height);
+        set(boulder.burial, fixed->burial);
+        set(boulder.yaw, fixed->yaw);
+        set(boulder.lean, fixed->lean);
+        boulder.shapeSeed = fixed->shapeSeed;
+    }
     return boulder;
 }
 
 std::optional<Boulder> BoulderLayer::PlaceCandidate(const ThinnedCandidate& thinned, double spacing,
                                                     const Ground* ground) const {
-    Boulder boulder = DrawPose(thinned, spacing);
+    const ManualBoulder* fixed = thinned.candidate.manual ? Fixed(thinned.candidate.id) : nullptr;
+    Boulder boulder = DrawPose(thinned, spacing, fixed);
     const BoulderPose& pose = options_.pose;
     if (pose.maxSlope && ground != nullptr && !thinned.candidate.manual &&
         !Roll(boulder, *ground)) {
         return std::nullopt;
     }
     ReadGround(boulder, ground);
-    if (pose.sideShare > 0.0 || pose.endShare > 0.0 || pose.maxTilt > 0.0 || pose.followSlope) {
-        Settle(boulder, ground);
+    if (pose.sideShare > 0.0 || pose.endShare > 0.0 || pose.maxTilt > 0.0 || pose.followSlope ||
+        (fixed != nullptr && fixed->FixesOrientation())) {
+        Settle(boulder, ground, fixed);
     }
     if (options_.ventifacts.share > 0.0) {
         Abrade(boulder);
@@ -617,7 +653,8 @@ std::optional<Vec2d> BoulderLayer::Gradient(const Boulder& boulder, const Ground
                           options_.groundSpacing);
 }
 
-void BoulderLayer::Settle(Boulder& boulder, const Ground* ground) const {
+void BoulderLayer::Settle(Boulder& boulder, const Ground* ground,
+                          const ManualBoulder* fixed) const {
     const BoulderPose& pose = options_.pose;
     RandomStream random = AttributeStream(options_.seed, boulder.id, BoulderDraw::Settle);
     const double pick = random.NextDouble();
@@ -625,20 +662,45 @@ void BoulderLayer::Settle(Boulder& boulder, const Ground* ground) const {
                    : pick < pose.endShare + pose.sideShare ? BoulderRest::Side
                                                            : BoulderRest::Face;
     Vec3d up{0.0, 0.0, 1.0};
+    double cosine = 1.0;
+    double azimuth = 0.0;
     if (pose.maxTilt > 0.0) {
-        const double cosine = 1.0 - random.NextDouble() * (1.0 - std::cos(pose.maxTilt));
+        cosine = 1.0 - random.NextDouble() * (1.0 - std::cos(pose.maxTilt));
         const double sine = std::sqrt(std::fmax(0.0, 1.0 - cosine * cosine));
-        const double azimuth = 2.0 * kPi * random.NextDouble();
+        azimuth = 2.0 * kPi * random.NextDouble();
         up = {sine * std::cos(azimuth), sine * std::sin(azimuth), cosine};
     }
+    const bool fixesTilt =
+        fixed != nullptr && !(std::isnan(fixed->tilt) && std::isnan(fixed->tiltAzimuth));
+    if (fixed != nullptr && fixed->rest) {
+        boulder.rest = *fixed->rest;
+    }
+    if (fixesTilt) {
+        if (!(pose.maxTilt > 0.0)) {
+            azimuth = 2.0 * kPi * random.NextDouble();
+        }
+        const double tilt = std::isnan(fixed->tilt) ? std::acos(cosine) : fixed->tilt;
+        const double toward = std::isnan(fixed->tiltAzimuth) ? azimuth : fixed->tiltAzimuth;
+        up = {std::sin(tilt) * std::cos(toward), std::sin(tilt) * std::sin(toward), std::cos(tilt)};
+    }
+    bool sloped = false;
     if (pose.followSlope && ground != nullptr) {
         if (const std::optional<Vec2d> g = Gradient(boulder, *ground)) {
             const double slope = std::atan(std::hypot(g->x, g->y));
             up = TiltRotation(slope, std::atan2(-g->y, -g->x)).Apply(up);
+            sloped = true;
         }
     }
     boulder.tilt = std::acos(std::clamp(up.z, -1.0, 1.0));
     boulder.tiltAzimuth = std::atan2(up.y, up.x);
+    if (fixesTilt && !sloped) {
+        if (!std::isnan(fixed->tilt)) {
+            boulder.tilt = fixed->tilt;
+        }
+        if (!std::isnan(fixed->tiltAzimuth)) {
+            boulder.tiltAzimuth = fixed->tiltAzimuth;
+        }
+    }
 }
 
 std::vector<Boulder> BoulderLayer::Boulders(const Bounds2d& region, double spacing,
@@ -763,17 +825,17 @@ Boulder BoulderLayer::PlacePiece(const Boulder& parent, const BoulderFragment& f
 std::vector<Boulder> BoulderLayer::Break(const Boulder& parent, double spacing,
                                          double smallest) const {
     const BoulderFragmentation& fragmentation = options_.fragmentation;
-    if (parent.diameter < fragmentation.minDiameter || parent.wear < fragmentation.splitWear) {
+    if (parent.diameter < fragmentation.minDiameter || parent.wear < fragmentation.splitWear ||
+        Fixed(parent.id) != nullptr) {
         return {parent};
     }
     const auto shape = Shape(parent);
-    const auto fragments =
-        CachedFragments(BoulderShapeSeed(parent.id, options_.rendering.shapePrototypes));
+    const auto fragments = CachedFragments(ShapeSeed(parent, options_.rendering.shapePrototypes));
     Boulder origin = parent;
     origin.x = 0.0;
     origin.y = 0.0;
-    const PieceFrame frame{PlaceBoulderModel(origin, *shape, 0.0, options_.pose.settle),
-                           Stage(parent), shape->shortAxis};
+    const PieceFrame frame{PlaceBoulderModel(origin, *shape, 0.0, Settles(parent)), Stage(parent),
+                           shape->shortAxis};
     const IdWords id = SplitId(parent.id);
     RandomStream random(options_.seed, kBoulderPieceStream, id.low, id.high);
     std::vector<Boulder> pieces;
@@ -905,15 +967,13 @@ std::vector<BoulderModel> BoulderLayer::Models(const std::vector<Boulder>& bould
         std::shared_ptr<const BoulderShape> shape = Shape(boulder);
         const Boulder local = InLocalFrame(boulder);
         const BoulderPlacement placement =
-            PlaceBoulderModel(local, *shape, *boulder.ground, options_.pose.settle);
+            PlaceBoulderModel(local, *shape, *boulder.ground, Settles(boulder));
         if (boulder.facetCount > 0) {
             shape = std::make_shared<const BoulderShape>(
                 Abraded(*shape, placement, local, *boulder.ground));
         }
-        models[n] = {boulder,
-                     BoulderShapeSeed(boulder.parent != 0 ? boulder.parent : boulder.id,
-                                      options_.rendering.shapePrototypes),
-                     shape, placement};
+        models[n] = {boulder, ShapeSeed(boulder, options_.rendering.shapePrototypes), shape,
+                     placement};
     });
     return models;
 }

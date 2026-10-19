@@ -175,6 +175,40 @@ void RadianField(IO& io, std::string_view key, std::optional<double>& radians,
     }
 }
 
+/// Whether an `IO` takes an angle stored in radians and unset when NaN as the radians themselves,
+/// through `io.NanRadians(key, radians, description, range)`, such as the Python bindings.
+template <typename IO, typename = void> struct TakesNanRadiansTrait : std::false_type {};
+template <typename IO>
+struct TakesNanRadiansTrait<
+    IO, std::void_t<decltype(std::declval<IO&>().NanRadians(
+            std::string_view{}, std::declval<double&>(), std::string_view{}, FieldRange{}))>>
+    : std::true_type {};
+template <typename IO> inline constexpr bool TakesNanRadians = TakesNanRadiansTrait<IO>::value;
+
+/// `RadianField` for an angle unset when NaN, as an optional field in degrees.
+template <typename IO>
+void NanRadianField(IO& io, std::string_view key, double& radians, std::string_view description,
+                    const FieldRange& range = {}) {
+    if constexpr (TakesNanRadians<IO>) {
+        io.NanRadians(key, radians, description, range);
+    } else {
+        std::optional<double> value;
+        if (!std::isnan(radians)) {
+            value = radians;
+        }
+        RadianField(io, key, value, description, range);
+        radians = value.value_or(std::numeric_limits<double>::quiet_NaN());
+    }
+}
+
+/// Reads or writes a number unset when NaN, as an optional field.
+template <typename IO>
+void NanField(IO& io, std::string_view key, double& value, std::string_view description,
+              std::string_view unit = {}, const FieldRange& range = {}) {
+    OptionalBound(io, key, value, description, unit, std::numeric_limits<double>::quiet_NaN(),
+                  range);
+}
+
 /// The keys of a crater selection's fields.
 struct SelectionKeys {
     std::string_view minDiameter = "min_diameter";

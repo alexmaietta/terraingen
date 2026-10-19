@@ -24,6 +24,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -239,8 +240,22 @@ void CheckGolombekRappTerms(const BoulderLayerSpec& spec, const std::string& pat
           Child(Child(path, "ejecta"), "coverage"), R"("ejecta_sizes": {"type": "golombek_rapp"})");
 }
 
+/// @throws ConfigError at a manual boulder that is invalid or shares an earlier one's ID.
+void CheckManualBoulders(const std::vector<ManualBoulder>& manual, const std::string& path) {
+    std::unordered_map<std::uint64_t, std::size_t> ids;
+    for (std::size_t n = 0; n < manual.size(); ++n) {
+        At(Element(path, n), [&] { ValidateManualBoulder(manual[n]); });
+        const auto added = ids.emplace(ManualBoulderId(manual[n]), n);
+        if (!added.second) {
+            throw ConfigError(Element(path, n),
+                              "shares its ID with " + Element(path, added.first->second));
+        }
+    }
+}
+
 void CheckLayerSpec(const BoulderLayerSpec& spec, const std::string& path, LayerChecks& context) {
     CheckGolombekRappTerms(spec, path);
+    CheckManualBoulders(spec.manual, Child(path, "manual"));
     const BoulderLayerOptions boulders = BuildBoulderOptions(spec, path, context.directory);
     CheckBoulderMaps(boulders, path);
     At(path, [&] { ValidateBoulderLayerOptions(boulders); });

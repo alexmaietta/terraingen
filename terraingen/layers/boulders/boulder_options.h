@@ -427,9 +427,11 @@ struct BoulderLayerOptions {
     /// at its reference diameter; needs a size distribution rather than Golombek-Rapp sizes. Unset
     /// keeps the sizes' own shape everywhere.
     std::optional<SizeSlopeMap> slopeMap{};
-    /// Boulders from a catalog, placed as given and never thinned or left out; `x`, `y` and
-    /// `diameter` are read, and IDs come from position and size (`AppendManualCraters`).
-    std::vector<Crater> manual{};
+    /// Boulders from a catalog or placed by hand, placed as given and never thinned or left out;
+    /// IDs of 0 come from position and size (`ManualCraterId`). Fields they leave unset are drawn
+    /// as for generated boulders; those fixing any field are never broken, and those fixing their
+    /// orientation are not tipped over by `pose.settle`.
+    std::vector<ManualBoulder> manual{};
     /// The diameter (m) from which `manual` is a complete catalog at each point: generated boulders
     /// at least this large centred there are dropped, so the catalog stands in for them. Infinite
     /// or NaN where there is no catalog; unset keeps every generated boulder.
@@ -500,9 +502,20 @@ void ValidateBoulderFillet(const BoulderFillet& fillet);
 /// @throws std::invalid_argument for a non-positive model threshold or invalid shapes.
 void ValidateBoulderRendering(const BoulderRendering& rendering);
 
+/// Checks a manual boulder.
+/// @throws std::invalid_argument unless the position is finite, the diameter positive and finite,
+/// and each set field valid: the height positive and finite, the burial in [0, 1), the angles
+/// finite and the wear in [0, 1].
+void ValidateManualBoulder(const ManualBoulder& boulder);
+
+/// The ID a manual boulder is placed with: its own, or `ManualCraterId` of its position and size
+/// for 0.
+std::uint64_t ManualBoulderId(const ManualBoulder& boulder);
+
 /// Checks boulder layer options.
-/// @throws std::invalid_argument for any invalid part, a non-positive ground spacing, or
-/// Golombek-Rapp coverage times the patch spread and bedrock abundance of 1 or more.
+/// @throws std::invalid_argument for any invalid part, a non-positive ground spacing,
+/// Golombek-Rapp coverage times the patch spread and bedrock abundance of 1 or more, or manual
+/// boulders sharing an ID.
 void ValidateBoulderLayerOptions(const BoulderLayerOptions& options);
 
 }  // namespace terraingen

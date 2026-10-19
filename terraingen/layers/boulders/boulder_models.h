@@ -83,9 +83,15 @@ RigidTransform TiltRotation(double tilt, double azimuth);
 BoulderPlacement PlaceBoulderModel(const Boulder& boulder, const BoulderShape& shape,
                                    double groundHeight, bool settle = false);
 
+/// The seed of `boulder`'s shape, or of its parent's whole shape for a fragment: its `shapeSeed`
+/// when set, else `BoulderShapeSeed` of its ID, or its parent's.
+/// @param prototypes Number of shared shapes, or 0 for a shape per boulder.
+std::uint64_t ShapeSeed(const Boulder& boulder, std::uint32_t prototypes = 0);
+
 /// A boulder as a mesh in world coordinates, its own shape placed by `PlaceBoulderModel`.
 /// @param groundHeight Height of the ground under its centre, in metres.
-/// @param prototypes Number of shared shapes, or 0 for a shape per boulder (`BoulderShapeSeed`).
+/// @param prototypes Number of shared shapes, or 0 for a shape per boulder (`BoulderShapeSeed`);
+/// a set `shapeSeed` is used instead.
 /// @throws std::invalid_argument as `ValidateBoulderShapeOptions`.
 TriangleMesh BoulderMesh(const Boulder& boulder, const BoulderShapeOptions& options,
                          double groundHeight, std::uint32_t prototypes = 0);

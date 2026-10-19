@@ -302,10 +302,17 @@ std::optional<double> TopSurface(const TriangleMesh& placed, double x, double y)
     return top;
 }
 
+std::uint64_t ShapeSeed(const Boulder& boulder, std::uint32_t prototypes) {
+    if (boulder.shapeSeed) {
+        return *boulder.shapeSeed;
+    }
+    return BoulderShapeSeed(boulder.parent != 0 ? boulder.parent : boulder.id, prototypes);
+}
+
 TriangleMesh BoulderMesh(const Boulder& boulder, const BoulderShapeOptions& options,
                          double groundHeight, std::uint32_t prototypes) {
-    const BoulderShape shape =
-        GenerateBoulderShape(BoulderShapeSeed(boulder.id, prototypes), options);
+    const BoulderShape shape = GenerateBoulderShape(
+        boulder.shapeSeed ? *boulder.shapeSeed : BoulderShapeSeed(boulder.id, prototypes), options);
     return PlaceMesh(shape.mesh, PlaceBoulderModel(boulder, shape, groundHeight));
 }
 

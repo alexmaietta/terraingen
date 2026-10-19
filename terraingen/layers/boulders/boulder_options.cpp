@@ -7,6 +7,7 @@
 #include <cmath>
 #include <stdexcept>
 #include <string>
+#include <unordered_set>
 
 namespace terraingen {
 
@@ -230,7 +231,42 @@ void ValidateBoulderRendering(const BoulderRendering& rendering) {
     ValidateBoulderShapeOptions(rendering.shapes);
 }
 
+void ValidateManualBoulder(const ManualBoulder& boulder) {
+    RequireFinite(boulder.x, "A manual boulder's x");
+    RequireFinite(boulder.y, "A manual boulder's y");
+    RequirePositive(boulder.diameter, "A manual boulder's diameter");
+    if (!std::isnan(boulder.height)) {
+        RequirePositive(boulder.height, "A manual boulder's height");
+    }
+    if (!std::isnan(boulder.burial) && !(boulder.burial >= 0.0 && boulder.burial < 1.0)) {
+        throw std::invalid_argument("A manual boulder's burial must be in [0, 1)");
+    }
+    const auto angle = [](double value, const char* what) {
+        if (!std::isnan(value)) {
+            RequireFinite(value, what);
+        }
+    };
+    angle(boulder.yaw, "A manual boulder's yaw");
+    angle(boulder.lean, "A manual boulder's lean");
+    angle(boulder.tilt, "A manual boulder's tilt");
+    angle(boulder.tiltAzimuth, "A manual boulder's tiltAzimuth");
+    if (!std::isnan(boulder.wear)) {
+        RequireUnitInterval(boulder.wear, "A manual boulder's wear");
+    }
+}
+
+std::uint64_t ManualBoulderId(const ManualBoulder& boulder) {
+    return boulder.id != 0 ? boulder.id : ManualCraterId(boulder.x, boulder.y, boulder.diameter);
+}
+
 void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
+    std::unordered_set<std::uint64_t> ids;
+    for (const ManualBoulder& boulder : options.manual) {
+        ValidateManualBoulder(boulder);
+        if (!ids.insert(ManualBoulderId(boulder)).second) {
+            throw std::invalid_argument("Manual boulders must not share an ID");
+        }
+    }
     ValidateBoulderSizes(options.sizes);
     if (options.densityMap) {
         ValidateDensityMap(*options.densityMap);

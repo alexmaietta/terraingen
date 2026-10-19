@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <variant>
@@ -140,4 +141,31 @@ TEST(ConfigAngles, AreDescribedInDegreesInTheSchema) {
     };
     check(check, Json::parse(terraingen::ConfigSchema()));
     EXPECT_GE(angles, 39);
+}
+
+TEST(ConfigAngles, ReadManualBoulderAnglesInDegreesAndLeaveOmittedOnesUnset) {
+    const TerrainConfig config = ParseConfig(OneLayer(
+        R"({"type": "boulders", "manual": [{"x": 1, "y": 2, "diameter": 1.5, "yaw_deg": 30,
+            "lean_deg": 10, "tilt_deg": 20, "tilt_azimuth_deg": -90, "burial": 0.3,
+            "rest": "side", "shape_seed": 9}, {"x": 0, "y": 0, "diameter": 1, "yaw_deg": null}]})"));
+    const auto& manual = std::get<terraingen::BoulderLayerSpec>(config.layers.at(0)).manual;
+    ASSERT_EQ(manual.size(), 2u);
+    EXPECT_EQ(manual[0].yaw, 30.0 * kDegree);
+    EXPECT_EQ(manual[0].lean, 10.0 * kDegree);
+    EXPECT_EQ(manual[0].tilt, 20.0 * kDegree);
+    EXPECT_EQ(manual[0].tiltAzimuth, -90.0 * kDegree);
+    EXPECT_EQ(manual[0].burial, 0.3);
+    EXPECT_EQ(manual[0].rest, terraingen::BoulderRest::Side);
+    EXPECT_EQ(manual[0].shapeSeed, std::optional<std::uint64_t>(9u));
+    EXPECT_TRUE(std::isnan(manual[0].height) && std::isnan(manual[0].wear));
+    const terraingen::ManualBoulder unset{0.0, 0.0, 1.0};
+    EXPECT_EQ(manual[1], unset) << "every field unset";
+    const Json written = Json::parse(ConfigToJson(config))["layers"][0]["manual"][0];
+    EXPECT_EQ(written["yaw_deg"], 30.0);
+    EXPECT_EQ(written["tilt_azimuth_deg"], -90.0);
+    EXPECT_TRUE(written["height"].is_null());
+    EXPECT_EQ(ParseConfig(ConfigToJson(config)), config);
+    EXPECT_EQ(terraingen::testing::ParseErrorPath(
+                  OneLayer(R"({"type": "boulders", "manual": [{"yaw": 1}]})")),
+              "layers[0].manual[0].yaw");
 }

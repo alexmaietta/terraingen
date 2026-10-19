@@ -7,6 +7,7 @@
 #include <cmath>
 #include <limits>
 #include <string>
+#include <vector>
 
 using terraingen::TerrainConfig;
 using terraingen::ValidateConfig;
@@ -386,6 +387,38 @@ TEST(ValidateConfig, ReportsBoulderLayerProblemsByPath) {
                   c.layers = {boulders};
               }),
               "layers[0].min_diameter");
+}
+
+TEST(ValidateConfig, ReportsManualBoulderProblemsByPath) {
+    const auto withManual = [](auto change) {
+        return ErrorPath([&](TerrainConfig& c) {
+            terraingen::BoulderLayerSpec boulders;
+            boulders.boulders.sizes.minDiameter = 1.0;
+            boulders.manual = {{1.0, 2.0, 1.5}, {-3.0, 4.0, 2.0}};
+            change(boulders.manual);
+            c.layers.push_back(boulders);
+        });
+    };
+    using Manual = std::vector<terraingen::ManualBoulder>;
+    EXPECT_EQ(withManual([](Manual&) {}), "valid");
+    EXPECT_EQ(withManual([](Manual& m) {
+                  m[1].burial = 0.5;
+                  m[1].tilt = 0.2;
+                  m[1].rest = terraingen::BoulderRest::End;
+              }),
+              "valid");
+    EXPECT_EQ(withManual([](Manual& m) { m[1].burial = 1.0; }), "layers[2].manual[1].burial");
+    EXPECT_EQ(withManual([](Manual& m) { m[0].height = 0.0; }), "layers[2].manual[0].height");
+    EXPECT_EQ(withManual([](Manual& m) { m[0].wear = 1.5; }), "layers[2].manual[0].wear");
+    EXPECT_EQ(withManual([](Manual& m) { m[0].diameter = -1.0; }), "layers[2].manual[0].diameter");
+    EXPECT_EQ(withManual([](Manual& m) { m[1].yaw = kInfinity; }), "layers[2].manual[1]");
+    EXPECT_EQ(withManual([](Manual& m) { m[1] = m[0]; }), "layers[2].manual[1]")
+        << "two boulders with one ID";
+    EXPECT_EQ(withManual([](Manual& m) {
+                  m[0].id = 5;
+                  m[1].id = 5;
+              }),
+              "layers[2].manual[1]");
 }
 
 TEST(ValidateConfig, ReportsBoulderSizeProblemsByPath) {

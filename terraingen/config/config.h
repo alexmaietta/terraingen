@@ -615,8 +615,8 @@ struct BoulderLayerSpec {
     std::vector<std::string> shapeFiles{};
     std::optional<DensityMapSpec> densityMap{};  ///< Gives `boulders.densityMap`.
     std::optional<SizeSlopeMapSpec> slopeMap{};  ///< Gives `boulders.slopeMap`.
-    /// Catalog boulders in the surface's coordinates, as `boulders.manual`.
-    std::vector<Crater> manual{};
+    /// Catalog or hand-placed boulders in the surface's coordinates, as `boulders.manual`.
+    std::vector<ManualBoulder> manual{};
     std::optional<FieldSpec> completeness{};  ///< Gives `boulders.completeness`.
 
     bool operator==(const BoulderLayerSpec& other) const {

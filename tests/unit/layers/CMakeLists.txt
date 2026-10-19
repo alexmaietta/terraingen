@@ -30,6 +30,7 @@ terraingen_add_test_suite(
     boulders/boulder_options_test.cpp
     boulders/boulder_shape_test.cpp
     boulders/ejecta_index_test.cpp
+    boulders/manual_boulder_test.cpp
     craters/crater_layer_test.cpp
     craters/crater_test.cpp
     craters/secondaries_test.cpp

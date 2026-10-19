@@ -10,6 +10,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -107,6 +108,26 @@ template <typename T> class OptionsBinder {
                 At<std::optional<double>>(self, offset) =
                     degrees ? std::optional<double>(config::RadiansFromDegrees(*degrees))
                             : std::nullopt;
+            },
+            FieldDoc(description, "deg").c_str());
+    }
+
+    /// Binds the angle `radians`, unset when NaN, as the property `key` in degrees, None when
+    /// unset.
+    void NanRadians(std::string_view key, double& radians, std::string_view description,
+                    const config::FieldRange& /*range*/) {
+        const std::size_t offset = Offset(key, radians);
+        Add(key);
+        cls_.def_prop_rw(
+            names_->back().c_str(),
+            [offset](const T& self) -> std::optional<double> {
+                const double value = At<double>(self, offset);
+                return std::isnan(value) ? std::nullopt
+                                         : std::optional<double>(config::DegreesFromRadians(value));
+            },
+            [offset](T& self, std::optional<double> degrees) {
+                At<double>(self, offset) = degrees ? config::RadiansFromDegrees(*degrees)
+                                                   : std::numeric_limits<double>::quiet_NaN();
             },
             FieldDoc(description, "deg").c_str());
     }

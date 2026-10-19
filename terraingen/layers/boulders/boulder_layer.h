@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <unordered_map>
 #include <vector>
 
 namespace terraingen {
@@ -180,8 +181,15 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     std::optional<ThinnedCandidate> Thin(const Crater& candidate, const Ground* ground,
                                          const EjectaIndex& ejecta) const;
     /// The boulder a thinned candidate becomes before it meets the ground: its size, burial,
-    /// yaw, lean and wear drawn by its ID, and whether it is a model at `spacing`.
-    Boulder DrawPose(const ThinnedCandidate& thinned, double spacing) const;
+    /// yaw, lean and wear drawn by its ID, then those `fixed` sets (null for none) and its shape
+    /// seed, and whether it is a model at `spacing`.
+    Boulder DrawPose(const ThinnedCandidate& thinned, double spacing,
+                     const ManualBoulder* fixed) const;
+    /// The manual boulder of ID `id` that fixes any of its fields, or null.
+    const ManualBoulder* Fixed(std::uint64_t id) const;
+    /// Whether `boulder`'s model is tipped over to rest stably: with `pose.settle`, unless it is
+    /// a manual boulder that fixes its orientation.
+    bool Settles(const Boulder& boulder) const;
     /// A thinned candidate as a boulder on `ground`, or nothing when it is left out on steep
     /// ground.
     std::optional<Boulder> PlaceCandidate(const ThinnedCandidate& thinned, double spacing,
@@ -197,9 +205,10 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     double OwnMarginRadii() const;
     /// Margin in radii its pieces may scatter beyond that when boulders break.
     double BreakMarginRadii() const;
-    /// Sets `boulder`'s resting axis and tilt from the pose options, on the slope of `ground` when
-    /// they follow it.
-    void Settle(Boulder& boulder, const Ground* ground) const;
+    /// Sets `boulder`'s resting axis and tilt from the pose options, or those `fixed` sets (null
+    /// for none), on the slope of `ground` when they follow it; a fixed tilt and azimuth come out
+    /// exactly off a followed slope.
+    void Settle(Boulder& boulder, const Ground* ground, const ManualBoulder* fixed) const;
     /// The rise east and north (m/m) of `ground` across `boulder`'s diameter; none where the
     /// ground is missing.
     std::optional<Vec2d> Gradient(const Boulder& boulder, const Ground& ground) const;
@@ -208,7 +217,7 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     bool Roll(Boulder& boulder, const Ground& ground) const;
     /// The pieces `parent` breaks into at its wear, those at least `smallest` metres across, models
     /// marked at `spacing` and their ground left to `ReadGrounds`; `parent` alone when it is too
-    /// small or too fresh to break.
+    /// small or too fresh to break, or a manual boulder fixing any field.
     std::vector<Boulder> Break(const Boulder& parent, double spacing, double smallest) const;
     /// Sets the ground of the boulders `indices` of `boulders` from `ground`, read in one pass;
     /// unset without a ground or where it is missing.
@@ -363,6 +372,8 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     std::shared_ptr<LruCache<std::uint64_t, BoulderShape>> shapes_;
     std::shared_ptr<LruCache<std::uint64_t, std::vector<BoulderFragment>>> fragments_;
     std::optional<ExposureField> exposure_;
+    /// The manual boulders that fix any field, by the ID they are placed with.
+    std::unordered_map<std::uint64_t, ManualBoulder> fixed_;
     Surface surface_;
     std::shared_ptr<const SurfaceCells> cells_;
 };

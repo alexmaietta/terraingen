@@ -699,10 +699,7 @@ BoulderLayerOptions BuildBoulderOptions(const BoulderLayerSpec& spec, const std:
             SizeSlopeMap{BuildField(s.field, Child(Child(path, "slope_map"), "field"), directory),
                          s.measure, s.referenceDiameter, s.minExponent, s.maxExponent};
     }
-    for (Crater boulder : spec.manual) {
-        boulder.manual = true;
-        options.manual.push_back(boulder);
-    }
+    options.manual = spec.manual;
     if (spec.completeness) {
         options.completeness =
             BuildField(*spec.completeness, Child(path, "completeness"), directory);

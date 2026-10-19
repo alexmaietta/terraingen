@@ -1099,7 +1099,7 @@ TEST(BoulderLayer, PlacesCatalogBouldersAndDropsGeneratedOnesItCovers) {
     BoulderLayerOptions options;
     options.sizes.coverage = 0.08;
     options.sizes.minDiameter = 0.3;
-    options.manual = {{2.0, 3.0, 12.0, 0.0, 0u, true}, {-4.0, 1.0, 0.8, 0.0, 0u, true}};
+    options.manual = {{2.0, 3.0, 12.0}, {-4.0, 1.0, 0.8}};
     options.completeness = std::make_shared<terraingen::ConstantField>(0.6);
     options.pose.maxSlope = 0.1;
     const Analytic steep([](double x, double) { return static_cast<float>(0.5 * x); });

@@ -469,6 +469,46 @@ template <typename IO> void BoulderRenderingFields(IO& io, BoulderRendering& ren
        "The boulders' 3D boulder shapes, used by shape relief and by models.");
 }
 
+template <typename IO> void Fields(IO& io, ManualBoulder& boulder) {
+    io("x", boulder.x,
+       "Centre along x in the surface's coordinates; the longitude in degrees on a sphere.");
+    io("y", boulder.y,
+       "Centre along y in the surface's coordinates; the latitude in degrees on a sphere.");
+    io("diameter", boulder.diameter, "Length of the long axis, in metres.", "m", Above(0.0));
+    io("id", boulder.id,
+       "Stable ID that seeds what is drawn for the boulder; 0 derives one from its position and "
+       "diameter.");
+    NanField(io, "height", boulder.height,
+             "Vertical extent in metres, buried part included; unset draws it from the height "
+             "ratios.",
+             "m", Above(0.0));
+    NanField(io, "burial", boulder.burial,
+             "Buried share of the height, from 0 to below 1; unset draws it.", "",
+             FromBelow(0.0, 1.0));
+    NanRadianField(io, "yaw_deg", boulder.yaw,
+                   "Rotation about the vertical, degrees counter-clockwise from east; unset "
+                   "draws it.");
+    NanRadianField(io, "lean_deg", boulder.lean,
+                   "Tilt of the boulder's vertical axis from the vertical, degrees; unset draws "
+                   "it.");
+    NanRadianField(io, "tilt_deg", boulder.tilt,
+                   "Angle of the up axis from the vertical after lean, degrees; unset draws it. "
+                   "A followed slope tips it further.");
+    NanRadianField(io, "tilt_azimuth_deg", boulder.tiltAzimuth,
+                   "Direction the up axis tips toward, degrees counter-clockwise from east; unset "
+                   "draws it.");
+    NanField(io, "wear", boulder.wear,
+             "How worn it is, from 0 (fresh) to 1; unset draws it. With burial_by_wear it sets "
+             "a drawn burial.",
+             "", UnitInterval());
+    io("rest", boulder.rest,
+       "Which axis it stands along; unset draws it. A fixed lean, tilt, tilt azimuth or rest "
+       "keeps a model from being tipped over by settle.");
+    io("shape_seed", boulder.shapeSeed,
+       "Seed of its 3D shape, as a generated boulder's derived one; unset derives it from the "
+       "ID.");
+}
+
 /// The fields of the files and maps a boulder layer reads, and its catalog boulders.
 template <typename IO> void BoulderInputFields(IO& io, BoulderLayerSpec& spec) {
     io("shape_files", spec.shapeFiles,
@@ -483,8 +523,8 @@ template <typename IO> void BoulderInputFields(IO& io, BoulderLayerSpec& spec) {
        "sizes into a local power law through their count at its reference diameter; needs a size "
        "distribution. Unset keeps the sizes' shape everywhere.");
     io("manual", spec.manual,
-       "Catalog boulders placed as given and never thinned or left out; x, y and diameter are "
-       "read.");
+       "Catalog or hand-placed boulders placed as given and never thinned or left out; fields "
+       "left unset are drawn as for generated boulders. Boulders fixing any field never break.");
     io("completeness", spec.completeness,
        "Where the manual boulders are a complete catalog: the diameter in metres from which they "
        "stand in for generated boulders, infinite or no value where there is no catalog. Unset "
