@@ -676,6 +676,71 @@ TEST(GenerateTerrain, ContinuesADemsSpectrumOnlyBelowItsCells) {
 
 namespace {
 
+/// A DEM with roughness and noise that estimate their settings from it, over 2.5 m cells.
+TerrainConfig EstimatingDem(const terraingen::GridRegionSpec& region) {
+    TerrainConfig config = RasterConfig("dem.tif");
+    terraingen::RoughnessLayerSpec roughness;
+    roughness.estimateFromBase = true;
+    roughness.roughness.maxWavelength = 4.0;
+    roughness.roughness.minWavelength = 0.5;
+    terraingen::NoiseLayerSpec noise;
+    noise.estimateFromBase = true;
+    noise.stack[0].layer.fractal.wavelength = 5.0f;
+    noise.stack[0].layer.fractal.octaves = 3;
+    config.layers = {noise, roughness};
+    config.outputs = {terraingen::testing::Heightmap("fine.tif", region)};
+    return config;
+}
+
+}  // namespace
+
+TEST(GenerateTerrain, EstimatesRoughnessAndNoiseFromTheBaseAlikeForGridsTilesAndPoints) {
+    const auto folder = TempPath("terraingen_estimate");
+    const auto dem = WriteDem(folder, "dem.tif");
+    const terraingen::GridRegionSpec region{24, 20, 2.5, 1080.0, 1950.0};
+    const TerrainConfig config = EstimatingDem(region);
+    terraingen::ValidateConfig(config, folder);
+    const auto generated = GenerateTerrain(config, folder);
+    const auto shifted = GenerateTerrain(EstimatingDem({8, 8, 1.0, 1010.0, 1990.0}), folder);
+    const terraingen::RasterSource base(dem);
+    const terraingen::BaseRoughness expected = terraingen::EstimateSourceRoughness(base);
+    const auto roughness =
+        terraingen::LayerAt<terraingen::RoughnessLayer>(generated.terrain, 1, "roughness");
+    EXPECT_DOUBLE_EQ(roughness->Options().hurst, expected.hurst);
+    EXPECT_DOUBLE_EQ(roughness->Options().rmsSlope, expected.RmsSlope(0.25));
+    EXPECT_EQ(roughness->Options(),
+              terraingen::LayerAt<terraingen::RoughnessLayer>(shifted.terrain, 1, "roughness")
+                  ->Options());
+    const auto noise = terraingen::LayerAt<terraingen::NoiseRelief>(generated.terrain, 0, "noise");
+    EXPECT_GT(noise->Params().layers[0].fractal.amplitude, 0.0f);
+    EXPECT_EQ(noise->Params(),
+              terraingen::LayerAt<terraingen::NoiseRelief>(shifted.terrain, 0, "noise")->Params());
+
+    const terraingen::Raster<float>& grid = generated.grids[0].heights;
+    const terraingen::RasterGrid lattice = terraingen::RasterGrid::FromRaster(grid);
+    const terraingen::Raster<float> tile =
+        terraingen::Evaluate(generated.terrain, terraingen::Subgrid(lattice, {5, 17, 3, 11}), 2.5);
+    std::vector<terraingen::Vec2d> points;
+    for (std::size_t row = 0; row < grid.Height(); ++row) {
+        for (std::size_t col = 0; col < grid.Width(); ++col) {
+            points.push_back(grid.CellCenter(col, row));
+        }
+    }
+    const std::vector<float> atPoints = terraingen::EvaluatePoints(generated.terrain, points, 2.5);
+    for (std::size_t row = 0; row < grid.Height(); ++row) {
+        for (std::size_t col = 0; col < grid.Width(); ++col) {
+            ASSERT_EQ(atPoints[row * grid.Width() + col], grid(col, row)) << col << " " << row;
+        }
+    }
+    for (std::size_t row = 0; row < tile.Height(); ++row) {
+        for (std::size_t col = 0; col < tile.Width(); ++col) {
+            ASSERT_EQ(tile(col, row), grid(col + 5, row + 3)) << col << " " << row;
+        }
+    }
+}
+
+namespace {
+
 /// A DEM refined in a region of two levels about its centre, expanded by midpoint displacement,
 /// with heightmaps of every level and a merged nested mesh.
 TerrainConfig DemRegions(std::size_t blendCells) {

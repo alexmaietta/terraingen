@@ -40,6 +40,63 @@ TEST(NoiseLayerSpec, GivesEachLayerOfTheStackWithItsHurstExponent) {
     EXPECT_EQ(params.layers[1], spec.stack[1].Effective());
 }
 
+namespace {
+
+terraingen::BaseRoughness Base() {
+    terraingen::BaseRoughness base;
+    base.hurst = 0.6;
+    base.deviation = 0.2;
+    base.cellSize = 2.0;
+    return base;
+}
+
+}  // namespace
+
+TEST(NoiseLayerSpec, EstimatesUnsetHurstExponentsAndAmplitudesFromTheBase) {
+    terraingen::NoiseLayerSpec spec;
+    spec.stack[0].layer.fractal.wavelength = 4.0f;
+    spec.stack.push_back(NoiseLayerConfig{{}, 0.9f, 1.5f});
+    spec.stack.push_back(NoiseLayerConfig{});
+    spec.stack[2].layer.enabled = false;
+    const terraingen::SyntheticTerrainParams params = spec.EstimatedParams(Base());
+    ASSERT_EQ(params.layers.size(), 3u);
+    const terraingen::NoiseLayer& first = params.layers[0];
+    EXPECT_EQ(first.fractal.gain, terraingen::GainFromHurst(0.6f, first.fractal.lacunarity));
+    EXPECT_EQ(first.fractal.amplitude, terraingen::MatchedNoiseAmplitude(first, Base()));
+    EXPECT_EQ(params.layers[1], spec.stack[1].Effective()) << "explicit values override";
+    EXPECT_EQ(params.layers[2].fractal.amplitude, spec.Params().layers[2].fractal.amplitude);
+
+    NoiseLayerConfig amplitudeOnly;
+    amplitudeOnly.hurst = 0.9f;
+    spec.stack = {amplitudeOnly};
+    terraingen::BaseRoughness continued = Base();
+    continued.hurst = static_cast<double>(0.9f);
+    const terraingen::NoiseLayer layer = spec.EstimatedParams(Base()).layers[0];
+    EXPECT_EQ(layer.fractal.amplitude, terraingen::MatchedNoiseAmplitude(layer, continued))
+        << "the base continues at the layer's own Hurst exponent";
+}
+
+TEST(RoughnessLayerSpec, TakesTheDefaultsTheGivenValuesOrTheBaseEstimates) {
+    terraingen::RoughnessLayerSpec spec;
+    EXPECT_EQ(spec.Options(), terraingen::DefaultRoughness());
+    terraingen::RoughnessOptions estimated = spec.EstimatedOptions(Base());
+    EXPECT_EQ(estimated.hurst, 0.6);
+    EXPECT_DOUBLE_EQ(estimated.rmsSlope, Base().RmsSlope(spec.roughness.baseline));
+    EXPECT_EQ(estimated.maxWavelength, spec.roughness.maxWavelength);
+
+    spec.hurst = 0.9;
+    terraingen::BaseRoughness continued = Base();
+    continued.hurst = 0.9;
+    estimated = spec.EstimatedOptions(Base());
+    EXPECT_EQ(estimated.hurst, 0.9);
+    EXPECT_DOUBLE_EQ(estimated.rmsSlope, continued.RmsSlope(spec.roughness.baseline));
+
+    spec.rmsSlope = 0.05;
+    EXPECT_EQ(spec.EstimatedOptions(Base()).rmsSlope, 0.05);
+    EXPECT_EQ(spec.Options().rmsSlope, 0.05);
+    EXPECT_EQ(spec.Options().hurst, 0.9);
+}
+
 TEST(SyntheticAlbedoSpec, GivesTheColourAndEachNoiseStack) {
     terraingen::SyntheticAlbedoSpec spec;
     spec.rgb = true;

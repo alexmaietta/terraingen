@@ -78,6 +78,39 @@ SyntheticTerrainParams NoiseLayerSpec::Params() const {
     return params;
 }
 
+SyntheticTerrainParams NoiseLayerSpec::EstimatedParams(const BaseRoughness& base) const {
+    SyntheticTerrainParams params;
+    params.layers.clear();
+    for (NoiseLayerConfig layer : stack) {
+        if (!layer.hurst) {
+            layer.hurst = static_cast<float>(base.hurst);
+        }
+        NoiseLayer effective = layer.EffectiveRelief();
+        if (!layer.amplitude && effective.enabled) {
+            BaseRoughness continued = base;
+            continued.hurst = static_cast<double>(*layer.hurst);
+            effective.fractal.amplitude = MatchedNoiseAmplitude(effective, continued);
+        }
+        params.layers.push_back(effective);
+    }
+    return params;
+}
+
+RoughnessOptions RoughnessLayerSpec::Options() const {
+    RoughnessOptions options = roughness;
+    options.rmsSlope = rmsSlope.value_or(roughness.rmsSlope);
+    options.hurst = hurst.value_or(roughness.hurst);
+    return options;
+}
+
+RoughnessOptions RoughnessLayerSpec::EstimatedOptions(BaseRoughness base) const {
+    RoughnessOptions options = Options();
+    base.hurst = hurst.value_or(base.hurst);
+    options.hurst = base.hurst;
+    options.rmsSlope = rmsSlope.value_or(base.RmsSlope(options.baseline));
+    return options;
+}
+
 SyntheticAlbedoOptions SyntheticAlbedoSpec::Params() const {
     SyntheticAlbedoOptions params;
     params.rgb = rgb;

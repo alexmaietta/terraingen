@@ -328,8 +328,18 @@ void CheckLayerSpec(const SecondaryLayerSpec& layer, const std::string& path,
     At(path, [&] { ValidateSecondaryCraterOptions(layer.secondaries); });
 }
 
-void CheckLayerSpec(const NoiseLayerSpec& noise, const std::string& path, LayerChecks&) {
+/// Requires a base for a layer at `path` that estimates its settings from it.
+/// @throws ConfigError at the layer's "estimate_from_base" without a base.
+void CheckEstimateBase(bool estimate, const std::string& path, const LayerChecks& context) {
+    if (estimate && !context.base) {
+        throw ConfigError(Child(path, "estimate_from_base"),
+                          "needs a base to estimate from; without one give the values instead");
+    }
+}
+
+void CheckLayerSpec(const NoiseLayerSpec& noise, const std::string& path, LayerChecks& context) {
     CheckNoiseStack(noise.stack, Child(path, "stack"), false);
+    CheckEstimateBase(noise.estimateFromBase, path, context);
 }
 
 void CheckLayerSpec(const SandShadowLayerSpec& layer, const std::string& path,
@@ -340,8 +350,10 @@ void CheckLayerSpec(const SandShadowLayerSpec& layer, const std::string& path,
     At(path, [&] { ValidateSandShadowOptions(layer.shadows); });
 }
 
-void CheckLayerSpec(const RoughnessLayerSpec& layer, const std::string& path, LayerChecks&) {
-    At(path, [&] { ValidateRoughnessOptions(layer.roughness); });
+void CheckLayerSpec(const RoughnessLayerSpec& layer, const std::string& path,
+                    LayerChecks& context) {
+    At(path, [&] { ValidateRoughnessOptions(layer.Options()); });
+    CheckEstimateBase(layer.estimateFromBase, path, context);
 }
 
 void CheckLayerSpec(const DuneLayerSpec& layer, const std::string& path, LayerChecks&) {

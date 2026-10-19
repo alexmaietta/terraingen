@@ -29,6 +29,7 @@
 #include "terraingen/layers/pavement.h"
 #include "terraingen/layers/region.h"
 #include "terraingen/layers/roughness.h"
+#include "terraingen/layers/roughness_estimate.h"
 #include "terraingen/layers/sand_fill.h"
 #include "terraingen/layers/sand_shadow.h"
 #include "terraingen/layers/spectral_continuation.h"
@@ -223,12 +224,21 @@ struct ChainSourceSpec {
 /// (`NoiseRelief`), measured from the base's reference point.
 struct NoiseLayerSpec {
     std::vector<NoiseLayerConfig> stack{NoiseLayerConfig{}};
+    /// Whether unset Hurst exponents and amplitudes come from the base (`EstimatedParams` of
+    /// `EstimateSourceRoughness`); needs a base.
+    bool estimateFromBase = false;
 
     /// The stack as terrain parameters, with each layer's Hurst exponent applied.
     SyntheticTerrainParams Params() const;
 
+    /// `Params` with each layer's unset Hurst exponent `base.hurst` and unset amplitude the one
+    /// that continues `base` at the layer's Hurst exponent to a lag of its wavelength
+    /// (`MatchedNoiseAmplitude`).
+    /// @throws std::invalid_argument as `MatchedNoiseAmplitude`.
+    SyntheticTerrainParams EstimatedParams(const BaseRoughness& base) const;
+
     bool operator==(const NoiseLayerSpec& other) const {
-        return stack == other.stack;
+        return stack == other.stack && estimateFromBase == other.estimateFromBase;
     }
     bool operator!=(const NoiseLayerSpec& other) const {
         return !(*this == other);
@@ -639,12 +649,28 @@ struct BoulderLayerSpec {
     }
 };
 
-/// Layer "roughness": fine roughness of a given RMS slope (`RoughnessLayer`).
+/// Layer "roughness": fine roughness of a given RMS slope (`RoughnessLayer`), or of the RMS slope
+/// and Hurst exponent the base's variogram continues to (`EstimateSourceRoughness`).
 struct RoughnessLayerSpec {
+    /// The roughness; its `rmsSlope` and `hurst` stand in for those below when they are unset and
+    /// nothing is estimated.
     RoughnessOptions roughness{DefaultRoughness()};
+    std::optional<double> rmsSlope{};  ///< Rise over run; unset for the default or the estimate.
+    std::optional<double> hurst{};     ///< Unset for the default or the estimate.
+    /// Whether unset `rmsSlope` and `hurst` come from the base (`EstimatedOptions` of
+    /// `EstimateSourceRoughness`); needs a base.
+    bool estimateFromBase = false;
+
+    /// `roughness` with `rmsSlope` and `hurst` in place where set.
+    RoughnessOptions Options() const;
+
+    /// `Options` with an unset `hurst` `base.hurst` and an unset `rmsSlope` the RMS slope over
+    /// the baseline that continues `base` at the Hurst exponent (`BaseRoughness::RmsSlope`).
+    RoughnessOptions EstimatedOptions(BaseRoughness base) const;
 
     bool operator==(const RoughnessLayerSpec& other) const {
-        return roughness == other.roughness;
+        return roughness == other.roughness && rmsSlope == other.rmsSlope && hurst == other.hurst &&
+               estimateFromBase == other.estimateFromBase;
     }
     bool operator!=(const RoughnessLayerSpec& other) const {
         return !(*this == other);

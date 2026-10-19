@@ -381,28 +381,6 @@ LayerPtr BuildCraterLayer(const CraterLayerSpec& craters, const std::string& pat
               [&] { return std::make_shared<CraterLayer>(std::move(models), std::move(options)); });
 }
 
-/// `source` on cells of `pixelSize` centred on its grid with a cell centre at `origin`, at most
-/// 512 cells a side, for estimating its roughness or spectrum.
-Raster<float> SampleSourceWindow(const Source& source, double pixelSize, const Vec2d& origin) {
-    constexpr double kWindowCells = 512.0;
-    const Bounds2d bounds = source.Grid().Bounds();
-    const auto cells = [&](double extent) {
-        return std::clamp(std::floor(extent / pixelSize), 3.0, kWindowCells);
-    };
-    const double width = cells(bounds.maxX - bounds.minX);
-    const double height = cells(bounds.maxY - bounds.minY);
-    const double col0 =
-        std::round((0.5 * (bounds.minX + bounds.maxX) - origin.x) / pixelSize - 0.5 * width);
-    const double rowTop =
-        std::round((0.5 * (bounds.minY + bounds.maxY) - origin.y) / pixelSize + 0.5 * height);
-    const RasterGrid grid{static_cast<std::size_t>(width), static_cast<std::size_t>(height),
-                          GeoTransform::NorthUp(origin.x + (col0 - 0.5) * pixelSize,
-                                                origin.y + (rowTop + 0.5) * pixelSize, pixelSize)};
-    Raster<float> heights = grid.MakeRaster();
-    source.Fill(heights);
-    return heights;
-}
-
 /// The options of a spectral continuation layer, fitted to the base wherever the spec gives no
 /// slope or amplitude; a valid configuration has a base whenever the spec leaves one out.
 SpectralContinuationOptions BuildSpectralOptions(const SpectralContinuationLayerSpec& spec,
@@ -455,6 +433,15 @@ MidpointDisplacementOptions BuildMidpointOptions(const MidpointDisplacementLayer
     return options;
 }
 
+/// The roughness of a layer's base at its native resolution (`EstimateSourceRoughness`).
+/// @throws std::invalid_argument without a base, or as `EstimateSourceRoughness`.
+BaseRoughness BaseRoughnessAt(const LayerInputs& context, const Surface& surface) {
+    if (!context.source) {
+        throw std::invalid_argument("Estimating from the base needs a base");
+    }
+    return EstimateSourceRoughness(*context.source, surface);
+}
+
 LayerPtr BuildSecondaryLayer(const SecondaryLayerSpec& spec,
                              const std::shared_ptr<const CraterLayer>& primaries) {
     const CraterShapeModels models{
@@ -468,7 +455,11 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
     return std::visit(
         Overloaded{
             [&](const NoiseLayerSpec& s) -> LayerPtr {
-                return std::make_shared<NoiseRelief>(s.Params(), context.referencePoint, surface);
+                const SyntheticTerrainParams params = At(path, [&] {
+                    return s.estimateFromBase ? s.EstimatedParams(BaseRoughnessAt(context, surface))
+                                              : s.Params();
+                });
+                return std::make_shared<NoiseRelief>(params, context.referencePoint, surface);
             },
             [&](const CraterLayerSpec& s) -> LayerPtr {
                 return BuildCraterLayer(s, path, surface, context.directory, context.source,
@@ -484,7 +475,12 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
                     surface);
             },
             [&](const RoughnessLayerSpec& s) -> LayerPtr {
-                return std::make_shared<RoughnessLayer>(s.roughness, surface);
+                const RoughnessOptions options = At(path, [&] {
+                    return s.estimateFromBase
+                               ? s.EstimatedOptions(BaseRoughnessAt(context, surface))
+                               : s.Options();
+                });
+                return std::make_shared<RoughnessLayer>(options, surface);
             },
             [&](const DuneLayerSpec& s) -> LayerPtr {
                 return std::make_shared<DuneLayer>(s.dunes, surface);

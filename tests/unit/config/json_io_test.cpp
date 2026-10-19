@@ -50,6 +50,7 @@ TerrainConfig Everything() {
     second.layer.warpAmplitude = 12.5f;
     second.hurst = 0.8f;
     noise.stack.push_back(second);
+    noise.estimateFromBase = true;
     CraterLayerSpec craters;
     craters.generateRandom = false;
     craters.morphometry = terraingen::CraterMorphometryFit::Mars;
@@ -231,15 +232,15 @@ TerrainConfig Everything() {
     slopeMap.minExponent = 1.5;
     slopeMap.maxExponent = 5.0;
     synthterrain.slopeMap = slopeMap;
-    terraingen::RoughnessOptions roughnessOptions;
-    roughnessOptions.rmsSlope = 0.3;
-    roughnessOptions.baseline = 0.05;
-    roughnessOptions.hurst = 0.6;
-    roughnessOptions.maxWavelength = 2.0;
-    roughnessOptions.minWavelength = 0.005;
-    roughnessOptions.seed = 9;
-    roughnessOptions.fade = {1.5, 5.0};
-    const terraingen::RoughnessLayerSpec roughness{roughnessOptions};
+    terraingen::RoughnessLayerSpec roughness;
+    roughness.rmsSlope = 0.3;
+    roughness.roughness.baseline = 0.05;
+    roughness.hurst = 0.6;
+    roughness.roughness.maxWavelength = 2.0;
+    roughness.roughness.minWavelength = 0.005;
+    roughness.roughness.seed = 9;
+    roughness.roughness.fade = {1.5, 5.0};
+    roughness.estimateFromBase = true;
     config.layers = {
         noise,
         craters,
@@ -337,6 +338,25 @@ TEST(ConfigJson, RoundTripsTheDefaultsAndEveryNonDefaultValue) {
         EXPECT_EQ(ParseConfig(json), config) << json;
         EXPECT_EQ(ConfigToJson(ParseConfig(json)), json);
     }
+}
+
+TEST(ConfigJson, RoundTripsLayersThatEstimateFromTheBase) {
+    const TerrainConfig config = ParseConfig(R"({"schema_version": 1,
+        "layers": [{"type": "roughness", "estimate_from_base": true, "hurst": 0.7},
+                   {"type": "noise", "estimate_from_base": true, "stack": [{"wavelength": 4}]}]})");
+    const auto& roughness = std::get<terraingen::RoughnessLayerSpec>(config.layers[0]);
+    EXPECT_TRUE(roughness.estimateFromBase);
+    EXPECT_EQ(roughness.hurst, 0.7);
+    EXPECT_FALSE(roughness.rmsSlope);
+    const auto& noise = std::get<terraingen::NoiseLayerSpec>(config.layers[1]);
+    EXPECT_TRUE(noise.estimateFromBase);
+    EXPECT_FALSE(noise.stack[0].amplitude);
+    const std::string json = ConfigToJson(config);
+    EXPECT_NE(json.find("\"rms_slope\": null"), std::string::npos) << json;
+    EXPECT_EQ(ParseConfig(json), config);
+    const TerrainConfig plain =
+        ParseConfig(R"({"schema_version": 1, "layers": [{"type": "roughness"}]})");
+    EXPECT_FALSE(std::get<terraingen::RoughnessLayerSpec>(plain.layers[0]).estimateFromBase);
 }
 
 TEST(ConfigJson, ReadsGeoTiffRegionsAndUnresolvedCraterLimits) {

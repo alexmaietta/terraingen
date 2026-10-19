@@ -64,6 +64,12 @@ template <typename IO> void Fields(IO& io, NoiseLayerSpec& layer) {
        "Noise layers, " + CountText(1, kMaxNoiseLayers) +
            ", combined in order: the first enabled layer sets the height and each later one is "
            "combined with it by its blend mode.");
+    io("estimate_from_base", layer.estimateFromBase,
+       "Continues the base's roughness into the noise: each layer's unset hurst becomes the "
+       "Hurst exponent of the base's variogram at its native cell size, and each unset "
+       "amplitude gives the layer the RMS height difference that variogram extrapolates to at "
+       "a lag of the layer's wavelength. Meant for wavelengths at or below the base's cell "
+       "size; needs a base.");
 }
 
 template <> struct SpecName<RoughnessLayerSpec> {
@@ -71,17 +77,18 @@ template <> struct SpecName<RoughnessLayerSpec> {
     static constexpr std::string_view kDescription =
         "Fine roughness from octaves of noise, scaled to a given RMS slope over a baseline.";
 };
-template <typename IO> void Fields(IO& io, RoughnessOptions& roughness) {
-    io("rms_slope", roughness.rmsSlope,
-       "RMS slope, as rise over run, over the baseline when every octave is resolved; higher "
-       "values give rougher ground.",
-       "", Above(0.0));
-    io("baseline", roughness.baseline, "Baseline the RMS slope is given over, in metres.", "m",
-       Above(0.0));
-    io("hurst", roughness.hurst,
-       "Hurst exponent, in (0, 1]: octave amplitudes grow as wavelength^hurst, so lower values "
-       "put relatively more roughness at short wavelengths.",
-       "", AboveUpTo(0.0, 1.0));
+/// What a roughness's "rms_slope" field means.
+inline constexpr std::string_view kRmsSlopeHelp =
+    "RMS slope, as rise over run, over the baseline when every octave is resolved; higher values "
+    "give rougher ground.";
+
+/// What a roughness's "hurst" field means.
+inline constexpr std::string_view kRoughnessHurstHelp =
+    "Hurst exponent, in (0, 1]: octave amplitudes grow as wavelength^hurst, so lower values put "
+    "relatively more roughness at short wavelengths.";
+
+/// The fields of a roughness's octaves: their wavelengths, seed and fade.
+template <typename IO> void RoughnessOctaveFields(IO& io, RoughnessOptions& roughness) {
     io("max_wavelength", roughness.maxWavelength, "Wavelength of the longest octave, in metres.",
        "m", Above(0.0));
     io("min_wavelength", roughness.minWavelength,
@@ -94,8 +101,33 @@ template <typename IO> void Fields(IO& io, RoughnessOptions& roughness) {
        "How octaves too fine to resolve at the sample spacing fade out, by samples per "
        "wavelength.");
 }
+
+template <typename IO> void Fields(IO& io, RoughnessOptions& roughness) {
+    io("rms_slope", roughness.rmsSlope, std::string(kRmsSlopeHelp), "", Above(0.0));
+    io("baseline", roughness.baseline, "Baseline the RMS slope is given over, in metres.", "m",
+       Above(0.0));
+    io("hurst", roughness.hurst, std::string(kRoughnessHurstHelp), "", AboveUpTo(0.0, 1.0));
+    RoughnessOctaveFields(io, roughness);
+}
+
 template <typename IO> void Fields(IO& io, RoughnessLayerSpec& spec) {
-    Fields(io, spec.roughness);
+    io("rms_slope", spec.rmsSlope,
+       std::string(kRmsSlopeHelp) +
+           " Unset is 0.15, or with estimate_from_base the base's RMS slope extrapolated to the "
+           "baseline.",
+       "", Above(0.0));
+    io("baseline", spec.roughness.baseline, "Baseline the RMS slope is given over, in metres.", "m",
+       Above(0.0));
+    io("hurst", spec.hurst,
+       std::string(kRoughnessHurstHelp) + " Unset is 0.8, or with estimate_from_base the base's.",
+       "", AboveUpTo(0.0, 1.0));
+    io("estimate_from_base", spec.estimateFromBase,
+       "Continues the base's roughness below its resolution: fits the Hurst exponent and RMS "
+       "height difference to the base's variogram at lags of 1 to 8 native cells, over up to "
+       "512 cells about its centre, and extrapolates the RMS slope to the baseline. Set "
+       "rms_slope or hurst to override an estimate. Needs a base with relief; keep "
+       "max_wavelength near the base's cell size.");
+    RoughnessOctaveFields(io, spec.roughness);
 }
 
 template <typename IO> void Fields(IO& io, DuneRipples& ripples) {

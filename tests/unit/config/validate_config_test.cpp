@@ -356,11 +356,25 @@ const PathCase kPathCases[] = {
      "layers[1].ages.age_gyr"},
     {"RoughnessHurstAboveOne",
      [](TerrainConfig& c) {
-         terraingen::RoughnessOptions roughness;
+         terraingen::RoughnessLayerSpec roughness;
          roughness.hurst = 2.0;
-         c.layers.push_back(terraingen::RoughnessLayerSpec{roughness});
+         c.layers.push_back(roughness);
      },
      "layers[2].hurst"},
+    {"RoughnessEstimateWithoutABase",
+     [](TerrainConfig& c) {
+         terraingen::RoughnessLayerSpec roughness;
+         roughness.estimateFromBase = true;
+         c.layers.push_back(roughness);
+     },
+     "layers[2].estimate_from_base"},
+    {"NoiseEstimateWithoutABase",
+     [](TerrainConfig& c) {
+         terraingen::NoiseLayerSpec noise;
+         noise.estimateFromBase = true;
+         c.layers.push_back(noise);
+     },
+     "layers[2].estimate_from_base"},
     {"UnresolvedLimitWithoutABase",
      [](TerrainConfig& c) { Craters(c).unresolvedPixelsAcross = 4.0; }, "valid"},
     {"ZeroUnresolvedLimit", [](TerrainConfig& c) { Craters(c).unresolvedPixelsAcross = 0.0; },
