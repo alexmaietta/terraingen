@@ -15,8 +15,6 @@ namespace terraingen {
 
 namespace {
 
-constexpr std::uint32_t kStrataStream = 0x53545241u;
-constexpr std::uint32_t kHardnessStream = 0x48415244u;
 constexpr const char* kGroundReader = "A strata material cover";
 /// Width of the fade from bench to cliff in the material map, in bed heights.
 constexpr double kCliffFade = 0.05;
@@ -77,7 +75,7 @@ StrataLayer::Bed StrataLayer::BedAt(double level) const {
     bool hard = options_.hardShare >= 1.0;
     if (!hard) {
         const auto bits = static_cast<std::uint64_t>(k);
-        RandomStream random(options_.seed, kHardnessStream, static_cast<std::uint32_t>(bits),
+        RandomStream random(options_.seed, kStrataHardnessStream, static_cast<std::uint32_t>(bits),
                             static_cast<std::uint32_t>(bits >> 32));
         hard = random.NextDouble() < options_.hardShare;
     }

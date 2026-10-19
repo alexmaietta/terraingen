@@ -1,6 +1,7 @@
 #include "terraingen/layers/exposure.h"
 
 #include "terraingen/noise/perlin.h"
+#include "terraingen/random/stream.h"
 
 #include <gtest/gtest.h>
 
@@ -113,7 +114,8 @@ TEST(PatchNoise, StaysInRangeAndFollowsTwoOctavesOfPerlinNoise) {
         const auto px = static_cast<float>(x / 50.0);
         const auto py = static_cast<float>(y / 50.0);
         const auto coarse = static_cast<double>(terraingen::PerlinNoise2(px, py, 9u));
-        const auto fine = static_cast<double>(terraingen::PerlinNoise2(4.0f * px, 4.0f * py, 10u));
+        const auto fine = static_cast<double>(terraingen::PerlinNoise2(
+            4.0f * px, 4.0f * py, terraingen::SubstreamSeed(9u, terraingen::kPatchFineStream)));
         const double expected = 2.5 * (0.7 * coarse + 0.3 * fine);
         EXPECT_EQ(value, std::clamp(expected, -1.0, 1.0));
     }

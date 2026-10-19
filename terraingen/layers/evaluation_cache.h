@@ -2,6 +2,7 @@
 /// @brief `EvaluationCache`, values one evaluation's batches of points share.
 #pragma once
 
+#include "terraingen/noise/hash.h"
 #include "terraingen/util/lru_cache.h"
 
 #include <bit>
@@ -45,8 +46,7 @@ class EvaluationCache {
     };
     struct KeyHash {
         std::size_t operator()(const Key& key) const {
-            return std::hash<std::uint64_t>{}(key.id * 0x9E3779B97F4A7C15ull ^ key.owner ^
-                                              (key.spacing << 1));
+            return HashWords({static_cast<std::uint64_t>(key.owner), key.id, key.spacing});
         }
     };
     struct Holder {

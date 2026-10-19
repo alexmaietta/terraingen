@@ -19,7 +19,6 @@ namespace terraingen {
 
 namespace {
 
-constexpr std::uint32_t kPavementStream = 0x50415645u;
 constexpr const char* kExposureReader = "A pavement that reads the exposure field";
 /// Plate sizes per lattice unit of the coarse and fine edge warp, and the fine warp's share.
 constexpr double kWarpScale = 3.0;
@@ -29,10 +28,6 @@ constexpr double kFineWarp = 0.35;
 constexpr std::int64_t kRings = 2;
 /// The most crack octaves.
 constexpr int kMaxOctaves = 8;
-/// Seed step between octaves.
-constexpr std::uint32_t kOctaveSeed = 101u;
-/// Mixes a parent plate's id into its finer octave's seed, so finer cracks end at its edges.
-constexpr std::uint32_t kParentMix = 0x9e3779b9u;
 
 /// One plate: its site and the plane it lies in.
 struct Site {
@@ -156,25 +151,26 @@ PavementLayer::PavementLayer(PavementOptions options, Surface surface)
     double size = 1.0;
     double relief = 1.0;
     for (int k = 0; k < options_.octaves; ++k) {
-        levels_.push_back({options_.plateSize / size, relief * options_.crackWidth,
-                           relief * options_.crackDepth, relief * options_.edgeRounding,
-                           relief * options_.maxTilt, relief * options_.maxStep,
-                           options_.seed + kOctaveSeed * static_cast<std::uint32_t>(k)});
+        levels_.push_back(
+            {options_.plateSize / size, relief * options_.crackWidth, relief * options_.crackDepth,
+             relief * options_.edgeRounding, relief * options_.maxTilt, relief * options_.maxStep,
+             SubstreamSeed(options_.seed, kPavementOctaveStream, static_cast<std::uint32_t>(k))});
         size *= options_.lacunarity;
         relief *= options_.gain;
     }
 }
 
 Vec2d PavementLayer::Warp(const Vec2d& q, double size, std::uint32_t seed) const {
-    const auto warp = [&](double scale, double ox, double oy, std::uint32_t salt) {
+    const auto warp = [&](double scale, double ox, double oy, std::uint32_t field) {
         return static_cast<double>(
-            PerlinNoise2Precise(q.x / (scale * size) + ox, q.y / (scale * size) + oy, seed + salt));
+            PerlinNoise2Precise(q.x / (scale * size) + ox, q.y / (scale * size) + oy,
+                                SubstreamSeed(seed, kPavementWarpStream, field)));
     };
     const double reach = options_.warp * size;
-    return {q.x + reach * (warp(kWarpScale, 0.0, 0.0, 7u) +
-                           kFineWarp * warp(kFineWarpScale, 5.3, -8.1, 9u)),
-            q.y + reach * (warp(kWarpScale, 31.7, -12.3, 8u) +
-                           kFineWarp * warp(kFineWarpScale, -17.9, 4.4, 10u))};
+    return {q.x + reach * (warp(kWarpScale, 0.0, 0.0, 0u) +
+                           kFineWarp * warp(kFineWarpScale, 5.3, -8.1, 2u)),
+            q.y + reach * (warp(kWarpScale, 31.7, -12.3, 1u) +
+                           kFineWarp * warp(kFineWarpScale, -17.9, 4.4, 3u))};
 }
 
 PavementLayer::Plate PavementLayer::PlateAt(const Vec2d& q, const Level& level, std::uint32_t seed,
@@ -207,7 +203,8 @@ double PavementLayer::Relief(const Vec2d& q, double spacing) const {
             spacing > 0.0
                 ? ResolutionWeight(level.crackWidth + 2.0 * level.rounding, spacing, options_.fade)
                 : 1.0;
-        const Plate plate = PlateAt(q, level, level.seed ^ (parent * kParentMix), crackWeight);
+        const Plate plate = PlateAt(
+            q, level, SubstreamSeed(level.seed, kPavementParentStream, parent), crackWeight);
         relief += interior * plateWeight * plate.relief;
         interior *= plate.interior;
         parent = plate.id;
@@ -230,7 +227,9 @@ double PavementLayer::ReliefAt(double x, double y) const {
 
 double PavementLayer::EdgeDistanceAt(double x, double y) const {
     const std::optional<Vec2d> q = plane_.Project(x, y);
-    return q ? PlateAt(*q, levels_.front(), levels_.front().seed, 1.0).edge
+    return q ? PlateAt(*q, levels_.front(),
+                       SubstreamSeed(levels_.front().seed, kPavementParentStream, 0u), 1.0)
+                   .edge
              : std::numeric_limits<double>::infinity();
 }
 

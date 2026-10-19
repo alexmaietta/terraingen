@@ -11,8 +11,6 @@ namespace terraingen {
 
 namespace {
 
-constexpr std::uint32_t kFragmentStream = 0x46524147u;
-
 /// The seed points of `pieces` pieces of a shape whose box is `box`: around the middle, a third
 /// of the way out, a little above or below it so the cracks tilt.
 std::vector<Vec3d> SeedPoints(const Box3d& box, int pieces, RandomStream& random) {
@@ -83,7 +81,7 @@ std::vector<BoulderFragment> FragmentBoulderShape(const BoulderShape& parent, in
     if (pieces < 2 || pieces > 12) {
         throw std::invalid_argument("A boulder breaks into 2 to 12 pieces");
     }
-    RandomStream random(static_cast<std::uint32_t>(seed), kFragmentStream,
+    RandomStream random(static_cast<std::uint32_t>(seed), kBoulderFragmentStream,
                         static_cast<std::uint32_t>(seed >> 32));
     const Box3d box = Bounds(parent.mesh);
     const std::vector<Vec3d> seeds = cracks == BoulderCracks::Slabs

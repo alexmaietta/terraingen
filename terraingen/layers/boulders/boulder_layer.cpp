@@ -55,14 +55,18 @@ class CandidateGround final : public Ground {
     double spacing_;
 };
 
-constexpr std::uint32_t kBoulderSeed = 0x524F434Bu;
-constexpr std::uint32_t kBoulderAttributes = 0x41545452u;
-constexpr std::uint32_t kBoulderPieces = 0x50494543u;
+/// How far in radii a boulder shape can reach from its centre: half the diagonal of its unit box
+/// over half its longest axis, for a shape tilted or resting on a side.
+constexpr double kShapeReachRadii = 1.7320508075688772;
 
-/// A uniform in [0, 1) from two 32-bit words.
-double Uniform(std::uint32_t high, std::uint32_t low) {
-    const std::uint64_t bits = (static_cast<std::uint64_t>(high) << 32) | low;
-    return static_cast<double>(bits >> 11) * 0x1.0p-53;
+/// The purposes a boulder draws numbers for, each its own substream of its ID.
+enum class BoulderDraw : std::uint32_t { Keep, Pose, Wear, Settle, Abrade, Fragments };
+
+/// The substream of `kBoulderAttributeStream` for boulder or shape `id` and purpose `draw`.
+RandomStream AttributeStream(std::uint32_t seed, std::uint64_t id, BoulderDraw draw) {
+    const IdWords words = SplitId(id);
+    return RandomStream(seed, kBoulderAttributeStream, words.low, words.high,
+                        static_cast<std::uint32_t>(draw));
 }
 
 /// Cuts `mesh` flat at a plane: triangles crossing it are split along it, sharing the new points
@@ -172,6 +176,8 @@ BoulderLayer::BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const Cr
 void BoulderLayer::SetUpAbundance() {
     BoulderBackground background(options_);
     maxBackground_ = background.max;
+    clusterSeed_ = SubstreamSeed(options_.seed, kBoulderClusterStream);
+    patchSeed_ = SubstreamSeed(options_.seed, kBoulderPatchStream);
     patchMean_ = background.patchMean;
     mapAbundance_ = std::move(background.map);
     candidates_ = BoulderCandidates(options_, maxBackground_);
@@ -220,13 +226,9 @@ BoulderLayer::CachedFragments(std::uint64_t shapeSeed) const {
         const BoulderFragmentation& fragmentation = options_.fragmentation;
         const auto span =
             static_cast<std::uint32_t>(fragmentation.maxPieces - fragmentation.minPieces + 1);
-        const int pieces =
-            fragmentation.minPieces +
-            static_cast<int>(PcgHash(static_cast<std::uint32_t>(shapeSeed) ^ kBoulderPieces) %
-                             span);
-        const std::uint32_t pick = PcgHash(static_cast<std::uint32_t>(shapeSeed >> 32) ^
-                                           kBoulderPieces ^ static_cast<std::uint32_t>(shapeSeed));
-        const BoulderCracks cracks = (pick >> 8) * 0x1.0p-24 < fragmentation.slabShare
+        RandomStream random = AttributeStream(options_.seed, shapeSeed, BoulderDraw::Fragments);
+        const int pieces = fragmentation.minPieces + static_cast<int>(random.NextU32() % span);
+        const BoulderCracks cracks = random.NextDouble() < fragmentation.slabShare
                                          ? BoulderCracks::Slabs
                                          : BoulderCracks::Radial;
         return FragmentBoulderShape(*CachedShape(shapeSeed), pieces, shapeSeed, cracks);
@@ -262,16 +264,15 @@ TriangleMesh BoulderLayer::PlacedOnLevel(const Boulder& boulder) const {
 
 double BoulderLayer::Wear(double diameter, const BoulderAbundance& abundance, double density,
                           std::uint64_t id) const {
-    const IdWords words = SplitId(id);
-    const U32x4 draw =
-        Philox4x32({words.low, words.high, kBoulderAttributes, 2u}, {options_.seed, kBoulderSeed});
+    RandomStream random = AttributeStream(options_.seed, id, BoulderDraw::Wear);
+    const double thrown = random.NextDouble();
     if (abundance.ejecta > 0.0 && density > 0.0) {
         const double fromCrater = abundance.ejecta * ejectaSizes_->Incremental(diameter) / density;
-        if (Uniform(draw.x, draw.y) < fromCrater) {
+        if (thrown < fromCrater) {
             return abundance.ejectaWear;
         }
     }
-    return Uniform(draw.z, draw.w);
+    return random.NextDouble();
 }
 
 float BoulderLayer::AddRelief(float height, float base, double x, double y, const Boulder& boulder,
@@ -384,7 +385,10 @@ void BoulderLayer::AddModelCover(Raster<double>& cover, const RasterGrid& grid,
 }
 
 double BoulderLayer::OwnMarginRadii() const {
-    return options_.fillet.heightShare > 0.0 ? 1.0 + 2.0 * options_.fillet.widthRatio : 1.0;
+    const double body = options_.rendering.relief == BoulderRelief::Shape ? kShapeReachRadii : 1.0;
+    const double fillet =
+        options_.fillet.heightShare > 0.0 ? 1.0 + 2.0 * options_.fillet.widthRatio : 1.0;
+    return std::fmax(body, fillet);
 }
 
 double BoulderLayer::BreakMarginRadii() const {
@@ -394,7 +398,7 @@ double BoulderLayer::BreakMarginRadii() const {
 }
 
 CraterList BoulderLayer::ScatterBoulderCandidates(const Bounds2d& region, double spacing) const {
-    const std::uint32_t seed = options_.seed ^ kBoulderSeed;
+    const std::uint32_t seed = SubstreamSeed(options_.seed, kBoulderCandidateStream);
     const FreshAges ages;
     const double margin = OwnMarginRadii() + BreakMarginRadii();
     CraterGenerationOptions generation{.dMin = options_.sizes.minDiameter,
@@ -462,14 +466,11 @@ std::vector<Boulder> BoulderLayer::DrawBoulders(const CraterList& candidates, do
 
 std::optional<BoulderLayer::ThinnedCandidate>
 BoulderLayer::Thin(const Crater& candidate, const Ground* ground, const EjectaIndex& ejecta) const {
-    const IdWords id = SplitId(candidate.id);
-    const U32x4 draw =
-        Philox4x32({id.low, id.high, kBoulderAttributes, 0u}, {options_.seed, kBoulderSeed});
     ThinnedCandidate thinned{candidate, Abundance(candidate.x, candidate.y, ground, ejecta)};
     if (!candidate.manual) {
         thinned.density = Density(candidate.diameter, thinned.abundance);
-        if (Uniform(draw.x, draw.y) >=
-            thinned.density / candidates_->Incremental(candidate.diameter)) {
+        RandomStream random = AttributeStream(options_.seed, candidate.id, BoulderDraw::Keep);
+        if (random.NextDouble() >= thinned.density / candidates_->Incremental(candidate.diameter)) {
             return std::nullopt;
         }
     }
@@ -478,28 +479,21 @@ BoulderLayer::Thin(const Crater& candidate, const Ground* ground, const EjectaIn
 
 Boulder BoulderLayer::DrawPose(const ThinnedCandidate& thinned, double spacing) const {
     const Crater& candidate = thinned.candidate;
-    const IdWords id = SplitId(candidate.id);
-    const U32x4 draw =
-        Philox4x32({id.low, id.high, kBoulderAttributes, 0u}, {options_.seed, kBoulderSeed});
-    const U32x4 shape =
-        Philox4x32({id.low, id.high, kBoulderAttributes, 1u}, {options_.seed, kBoulderSeed});
+    RandomStream random = AttributeStream(options_.seed, candidate.id, BoulderDraw::Pose);
     const BoulderPose& pose = options_.pose;
     const double ratio =
-        ValueRange{pose.minHeightRatio, pose.maxHeightRatio}.Lerp(Uniform(shape.x, shape.y));
+        ValueRange{pose.minHeightRatio, pose.maxHeightRatio}.Lerp(random.NextDouble());
     const double wear = Wear(candidate.diameter, thinned.abundance, thinned.density, candidate.id);
-    double share = Uniform(draw.z, draw.w);
+    double share = random.NextDouble();
     if (pose.burialByWear > 0.0) {
         share = (1.0 - pose.burialByWear) * share + pose.burialByWear * wear;
     }
     const double burial = ValueRange{pose.minBurial, pose.maxBurial}.Lerp(share);
-    Boulder boulder{candidate.x,
-                    candidate.y,
-                    candidate.diameter,
-                    ratio * candidate.diameter,
-                    burial,
-                    2.0 * std::numbers::pi * Uniform(shape.z, shape.w),
-                    pose.maxLean * Uniform(shape.w, shape.x),
-                    candidate.id};
+    const double yaw = 2.0 * std::numbers::pi * random.NextDouble();
+    const double lean = pose.maxLean * random.NextDouble();
+    Boulder boulder{
+        candidate.x, candidate.y, candidate.diameter, ratio * candidate.diameter, burial,
+        yaw,         lean,        candidate.id};
     boulder.wear = wear;
     boulder.model = options_.rendering.models.IsModel(boulder.diameter, spacing);
     return boulder;
@@ -535,23 +529,21 @@ void BoulderLayer::ReadGround(Boulder& boulder, const Ground* ground) const {
 
 void BoulderLayer::Abrade(Boulder& boulder) const {
     const BoulderVentifacts& ventifacts = options_.ventifacts;
-    const IdWords id = SplitId(boulder.id);
-    const U32x4 draw =
-        Philox4x32({id.low, id.high, kBoulderAttributes, 4u}, {options_.seed, kBoulderSeed});
-    if (Uniform(draw.x, draw.y) >= ventifacts.share) {
+    RandomStream random = AttributeStream(options_.seed, boulder.id, BoulderDraw::Abrade);
+    if (random.NextDouble() >= ventifacts.share) {
         return;
     }
-    const U32x4 angles =
-        Philox4x32({id.low, id.high, kBoulderAttributes, 5u}, {options_.seed, kBoulderSeed});
     const double reach = 0.5 * boulder.diameter * (1.0 - boulder.wear);
     const auto facet = [&](double wind, double pick) {
         return BoulderFacet{wind + std::numbers::pi,
                             ValueRange{ventifacts.minAngle, ventifacts.maxAngle}.Lerp(pick), reach};
     };
-    boulder.facets[0] = facet(ventifacts.windAzimuth, Uniform(angles.x, angles.y));
+    boulder.facets[0] = facet(ventifacts.windAzimuth, random.NextDouble());
     boulder.facetCount = 1;
-    if (ventifacts.secondWindAzimuth && Uniform(draw.z, draw.w) < ventifacts.keelShare) {
-        boulder.facets[1] = facet(*ventifacts.secondWindAzimuth, Uniform(angles.z, angles.w));
+    const double keel = random.NextDouble();
+    const double second = random.NextDouble();
+    if (ventifacts.secondWindAzimuth && keel < ventifacts.keelShare) {
+        boulder.facets[1] = facet(*ventifacts.secondWindAzimuth, second);
         boulder.facetCount = 2;
     }
 }
@@ -613,18 +605,16 @@ std::optional<Vec2d> BoulderLayer::Gradient(const Boulder& boulder, const Ground
 
 void BoulderLayer::Settle(Boulder& boulder, const Ground* ground) const {
     const BoulderPose& pose = options_.pose;
-    const IdWords id = SplitId(boulder.id);
-    const U32x4 draw =
-        Philox4x32({id.low, id.high, kBoulderAttributes, 3u}, {options_.seed, kBoulderSeed});
-    const double pick = Uniform(draw.x, draw.y);
+    RandomStream random = AttributeStream(options_.seed, boulder.id, BoulderDraw::Settle);
+    const double pick = random.NextDouble();
     boulder.rest = pick < pose.endShare                    ? BoulderRest::End
                    : pick < pose.endShare + pose.sideShare ? BoulderRest::Side
                                                            : BoulderRest::Face;
     Vec3d up{0.0, 0.0, 1.0};
     if (pose.maxTilt > 0.0) {
-        const double cosine = 1.0 - Uniform(draw.z, draw.w) * (1.0 - std::cos(pose.maxTilt));
+        const double cosine = 1.0 - random.NextDouble() * (1.0 - std::cos(pose.maxTilt));
         const double sine = std::sqrt(std::fmax(0.0, 1.0 - cosine * cosine));
-        const double azimuth = 2.0 * std::numbers::pi * Uniform(draw.w, draw.x);
+        const double azimuth = 2.0 * std::numbers::pi * random.NextDouble();
         up = {sine * std::cos(azimuth), sine * std::sin(azimuth), cosine};
     }
     if (pose.followSlope && ground != nullptr) {
@@ -703,8 +693,9 @@ Boulder BoulderLayer::PlacePiece(const Boulder& parent, const BoulderFragment& f
     Boulder piece = parent;
     piece.facetCount = 0;
     const IdWords id = SplitId(parent.id);
-    const UVec3 key = Pcg3dHash({id.low, id.high, kBoulderPieces + static_cast<std::uint32_t>(k)});
-    piece.id = (static_cast<std::uint64_t>(key.x) << 32) | key.y;
+    const UVec3 key =
+        Pcg3dHash({id.low, id.high, kBoulderPieceStream + static_cast<std::uint32_t>(k)});
+    piece.id = JoinWords(key.x, key.y);
     piece.parent = parent.id;
     piece.piece = static_cast<std::uint32_t>(k);
     piece.diameter = parent.diameter * fragment.scale;
@@ -736,7 +727,7 @@ std::vector<Boulder> BoulderLayer::Break(const Boulder& parent, double spacing,
     const PieceFrame frame{PlaceBoulderModel(origin, *shape, 0.0, options_.pose.settle),
                            Stage(parent), shape->shortAxis};
     const IdWords id = SplitId(parent.id);
-    RandomStream random(options_.seed ^ kBoulderPieces, kBoulderSeed, id.low, id.high);
+    RandomStream random(options_.seed, kBoulderPieceStream, id.low, id.high);
     const double smallest = spacing > 0.0 ? options_.fade.startSamples * spacing : 0.0;
     std::vector<Boulder> pieces;
     for (std::size_t k = 0; k < fragments->size(); ++k) {

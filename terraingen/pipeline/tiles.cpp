@@ -36,11 +36,8 @@ std::size_t TileBytes(const Raster<float>& tile) {
 }  // namespace
 
 std::size_t TileKeyHash::operator()(const TileKey& key) const {
-    const UVec3 hash =
-        Pcg3dHash({static_cast<std::uint32_t>(key.level),
-                   static_cast<std::uint32_t>(key.x) ^ static_cast<std::uint32_t>(key.x >> 32),
-                   static_cast<std::uint32_t>(key.y) ^ static_cast<std::uint32_t>(key.y >> 32)});
-    return (static_cast<std::size_t>(hash.x) << 32) ^ hash.y;
+    return HashWords({static_cast<std::uint64_t>(key.level), static_cast<std::uint64_t>(key.x),
+                      static_cast<std::uint64_t>(key.y)});
 }
 
 TileScheme TileScheme::Covering(const RasterGrid& grid, std::size_t cells) {

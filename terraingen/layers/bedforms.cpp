@@ -17,8 +17,6 @@ namespace terraingen {
 
 namespace {
 
-constexpr std::uint32_t kBedformStream = 0x42454446u;
-constexpr std::uint32_t kBedformSphereStream = 0x42454453u;
 constexpr double kRadiusMin = 0.40;
 constexpr double kRadiusMax = 0.70;
 constexpr double kRagged = 0.30;
@@ -90,6 +88,7 @@ BedformLayer::BedformLayer(BedformOptions options, Surface surface)
                             (std::pow(kRadiusMax, 3.0) - std::pow(kRadiusMin, 3.0)) /
                             (3.0 * (kRadiusMax - kRadiusMin));
     density_ = std::min(1.0, -std::log1p(-options_.cover) / meanArea);
+    wanderSeed_ = SubstreamSeed(options_.seed, kBedformWanderStream);
     if (options_.exposure) {
         exposure_.emplace(*options_.exposure, surface_);
     }
@@ -123,9 +122,9 @@ void BedformLayer::AddField(FieldSum& sum, RandomStream& random, const Vec2d& ce
     }
     const double cover = Smoothstep(inside / kEdgeShare);
     const double wavelength = options_.wavelength * scale;
-    const double wander = static_cast<double>(PerlinNoise2(
-        static_cast<float>(dx / (kWanderWavelengths * wavelength)) + oy,
-        static_cast<float>(dy / (kWanderWavelengths * wavelength)) + ox, options_.seed + 1u));
+    const double wander = static_cast<double>(
+        PerlinNoise2(static_cast<float>(dx / (kWanderWavelengths * wavelength)) + oy,
+                     static_cast<float>(dy / (kWanderWavelengths * wavelength)) + ox, wanderSeed_));
     const double along = (dx * std::cos(azimuth) + dy * std::sin(azimuth)) / wavelength +
                          options_.sinuosity * wander + phase;
     const double t = along - std::floor(along);

@@ -81,13 +81,21 @@ double SampleExponential(RandomStream& random, double rate) {
     return -std::log(random.NextDoubleOpenBelow()) / rate;
 }
 
+double StandardNormal(double u1, double u2) {
+    return std::sqrt(-2.0 * std::log1p(-u1)) * std::cos(2.0 * std::numbers::pi * u2);
+}
+
+double StandardNormal(RandomStream& random) {
+    const double u1 = random.NextDouble();
+    const double u2 = random.NextDouble();
+    return StandardNormal(u1, u2);
+}
+
 double SampleNormal(RandomStream& random, double mean, double sigma) {
     if (!(std::isfinite(mean) && IsNonNegative(sigma))) {
         throw std::invalid_argument("Normal mean must be finite and sigma finite and not negative");
     }
-    constexpr double kTwoPi = 2.0 * std::numbers::pi;
-    const double radius = std::sqrt(-2.0 * std::log(random.NextDoubleOpenBelow()));
-    return mean + sigma * radius * std::cos(kTwoPi * random.NextDouble());
+    return mean + sigma * StandardNormal(random);
 }
 
 TabulatedDistribution::TabulatedDistribution(std::vector<double> values,

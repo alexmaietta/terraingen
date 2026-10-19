@@ -25,9 +25,6 @@ namespace terraingen {
 
 namespace {
 
-constexpr std::uint32_t kSplotchStream = 0x53504c54u;
-constexpr std::uint32_t kSwarmStream = 0x5357524du;
-constexpr std::uint32_t kSwarmSeed = 0x50415253u;
 constexpr std::size_t kBlockRows = 32;
 constexpr double kBinCells = 16.0;
 
@@ -134,13 +131,11 @@ double SlopeSpacing(double spacing, const SplotchAlbedoOptions& options) {
     return spacing > 0.0 ? spacing : 0.5 * options.minDiameter;
 }
 
-/// The slope in degrees from the heights at `GradientPoints` half a splotch out; 0 where any is
-/// NaN.
-double SlopeDegrees(std::span<const float> heights, double diameter) {
-    const double dx = static_cast<double>(heights[0] - heights[1]) / diameter;
-    const double dy = static_cast<double>(heights[2] - heights[3]) / diameter;
-    const double slope = GradientSlopeDegrees(dx, dy);
-    return std::isnan(slope) ? 0.0 : slope;
+/// The slope in degrees from the heights at `GradientPoints` half a splotch `diameter` out; 0
+/// where any is missing.
+double SlopeDegrees(std::span<const float, 4> heights, double diameter) {
+    const std::optional<Vec2d> gradient = GradientFromHeights(heights, 0.5 * diameter);
+    return gradient ? GradientSlopeDegrees(gradient->x, gradient->y) : 0.0;
 }
 
 /// The splotches of a grid's bounds in square bins of `kBinCells` cells, each bin listing those
@@ -284,7 +279,8 @@ std::vector<double> SplotchAlbedo::SteepSlopes(const std::vector<Splotch>& splot
     std::vector<float> heights(points.size());
     ground->HeightsAt(points, heights, SlopeSpacing(spacing, options_));
     for (std::size_t n = 0; n < splotches.size(); ++n) {
-        slopes[n] = SlopeDegrees(std::span(heights).subspan(4 * n, 4), splotches[n].mark.diameter);
+        slopes[n] =
+            SlopeDegrees(std::span(heights).subspan(4 * n).first<4>(), splotches[n].mark.diameter);
     }
     return slopes;
 }
@@ -341,7 +337,7 @@ void SplotchAlbedo::AddSwarms(const Bounds2d& region, double spacing,
     const UniformAges ages(1e-3 * o.lifetimeMyr);
     const CraterList craters =
         GenerateCraters(*cells_, surface_.Expand(region, s.maxRange + margin), density, ages,
-                        o.seed ^ kSwarmSeed, generation);
+                        SubstreamSeed(o.seed, kSwarmCraterStream), generation);
     const Bounds2d wanted = surface_.Expand(region, margin);
     const Bounds2d reach = surface_.Expand(region, s.maxRange + margin);
     const auto addSwarm = [&](const Crater& crater) {
@@ -372,7 +368,7 @@ std::vector<Splotch> SplotchAlbedo::Swarm(const Crater& crater, double spacing) 
     const double far = std::pow(s.maxRange, -a);
     std::vector<Splotch> splotches;
     const IdWords id = SplitId(crater.id);
-    RandomStream random(o.seed, kSwarmStream, id.low, id.high);
+    RandomStream random(o.seed, kSplotchSwarmStream, id.low, id.high);
     const std::uint64_t count = SamplePoisson(random, s.Count(crater.diameter));
     for (std::uint64_t i = 0; i < count; ++i) {
         const double range = std::pow(near - random.NextDouble() * (near - far), -1.0 / a);

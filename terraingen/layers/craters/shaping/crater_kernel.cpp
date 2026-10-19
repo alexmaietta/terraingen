@@ -5,7 +5,7 @@
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
 #include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
 #include "terraingen/layers/craters/shaping/apply.h"
-#include "terraingen/noise/hash.h"
+#include "terraingen/random/stream.h"
 
 #include <array>
 #include <map>
@@ -14,12 +14,6 @@
 namespace terraingen {
 
 namespace {
-
-/// The key that seeds `crater`'s noise or texture with `seed`.
-std::uint32_t CraterKey(const Crater& crater, std::uint32_t seed) {
-    return PcgHash(static_cast<std::uint32_t>(crater.id) ^
-                   PcgHash(static_cast<std::uint32_t>(crater.id >> 32) ^ seed));
-}
 
 /// Whether the simple profile shapes `crater` in `state`: not where the table or the complex
 /// form does.
@@ -184,8 +178,9 @@ CraterRecord BaseRecord(const PreparedCrater& p, const CraterApplyOptions& optio
     r.shiftY = static_cast<float>(p.slope.shift.y);
     r.upslopeX = static_cast<float>(p.slope.upslope.x);
     r.upslopeY = static_cast<float>(p.slope.upslope.y);
-    r.noiseKey = CraterKey(p.crater, options.noise.seed);
-    r.textureKey = CraterKey(p.crater, options.texture.seed ^ 0x54455854u);
+    r.noiseKey = CraterKey(p.crater.id, options.noise.seed);
+    r.textureKey =
+        CraterKey(p.crater.id, SubstreamSeed(options.texture.seed, kCraterTextureStream));
     return r;
 }
 

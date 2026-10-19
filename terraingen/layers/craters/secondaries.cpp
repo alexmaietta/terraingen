@@ -22,8 +22,6 @@ namespace terraingen {
 
 namespace {
 
-constexpr std::uint32_t kSecondaryStream = 0x53454344u;
-
 /// The primary's ID mixed with a cell's indices into a secondary's ID.
 std::uint64_t SecondaryId(std::uint64_t primary, int band, std::int64_t ring, std::int64_t sector,
                           std::uint32_t index) {
@@ -31,8 +29,8 @@ std::uint64_t SecondaryId(std::uint64_t primary, int band, std::int64_t ring, st
     const U32x4 block = Philox4x32(
         {id.low, id.high,
          static_cast<std::uint32_t>(band) ^ (static_cast<std::uint32_t>(ring) << 8), index},
-        {static_cast<std::uint32_t>(sector), kSecondaryStream});
-    return (static_cast<std::uint64_t>(block.x) << 32) | block.y;
+        {static_cast<std::uint32_t>(sector), kSecondaryIdStream});
+    return JoinWords(block.x, block.y);
 }
 
 /// The smallest and largest distances, and the directions (radians counter-clockwise from east,

@@ -4,6 +4,7 @@
 #include "terraingen/layers/roughness.h"
 #include "terraingen/noise/hash.h"
 #include "terraingen/noise/perlin.h"
+#include "terraingen/random/streams.h"
 #include "terraingen/util/checks.h"
 
 #include <algorithm>
@@ -17,8 +18,6 @@ namespace terraingen {
 
 namespace {
 
-/// Seed of the fixed sample the RMS of `PerlinNoise2` is measured on.
-constexpr std::uint32_t kRmsSeed = 0x5eed1234u;
 /// Step between the seeds of successive detail octaves (2^32 over the golden ratio).
 constexpr std::uint32_t kOctaveSeedStep = 0x9e3779b9u;
 
@@ -32,9 +31,9 @@ double PerlinRms() {
         constexpr int kSide = 256;
         for (int j = 0; j < kSide; ++j) {
             for (int i = 0; i < kSide; ++i) {
-                const float v =
-                    PerlinNoise2(i / 8, j / 8, static_cast<float>(i % 8) / 8.0f + 1.0f / 16.0f,
-                                 static_cast<float>(j % 8) / 8.0f + 1.0f / 16.0f, kRmsSeed);
+                const float v = PerlinNoise2(
+                    i / 8, j / 8, static_cast<float>(i % 8) / 8.0f + 1.0f / 16.0f,
+                    static_cast<float>(j % 8) / 8.0f + 1.0f / 16.0f, kAlbedoDetailRmsStream);
                 sum += static_cast<double>(v) * static_cast<double>(v);
             }
         }

@@ -11,8 +11,6 @@ namespace terraingen {
 
 namespace {
 
-constexpr std::uint32_t kSlopeStream = 0x534C4F50u;
-
 /// The largest floor offset in diameters that keeps the shifted interior from folding.
 constexpr double kMaxFloorOffset = 0.23;
 
@@ -51,7 +49,7 @@ CraterSlopeShape SlopeShape(const Crater& crater, double east, double north,
     }
     const double strength = Smoothstep(std::atan(gradient) / response.fullSlope);
     const IdWords id = SplitId(crater.id);
-    RandomStream random(response.seed, kSlopeStream, id.low, id.high);
+    RandomStream random(response.seed, kCraterSlopeStream, id.low, id.high);
     const double u1 = random.NextDouble();
     const double u2 = random.NextDouble();
     const double offset = strength * response.floorOffset.Sample(u1, u2) * crater.diameter;

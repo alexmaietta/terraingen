@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <bit>
+#include <cstddef>
 #include <cstdint>
 #include <set>
 
@@ -58,4 +59,23 @@ TEST(UVec3, ComparesEveryLane) {
     EXPECT_NE(v, (UVec3{0u, 2u, 3u}));
     EXPECT_NE(v, (UVec3{1u, 0u, 3u}));
     EXPECT_NE(v, (UVec3{1u, 2u, 0u}));
+}
+
+TEST(HashWord64, MixesBothWordsAndTheSeed) {
+    constexpr std::uint32_t kKey = terraingen::HashWord64(0x0000000100000002ull, 3u);
+    EXPECT_EQ(kKey, PcgHash(2u ^ PcgHash(1u ^ 3u)));
+    EXPECT_NE(terraingen::HashWord64(0x0000000100000002ull, 4u), kKey);
+    EXPECT_NE(terraingen::HashWord64(0x0000000200000002ull, 3u), kKey);
+}
+
+TEST(HashWords, SpreadsSmallKeysAndDependsOnOrder) {
+    std::set<std::size_t> seen;
+    for (std::uint64_t i = 0; i < 64; ++i) {
+        for (std::uint64_t j = 0; j < 64; ++j) {
+            seen.insert(terraingen::HashWords({i, j}));
+        }
+    }
+    EXPECT_EQ(seen.size(), 64u * 64u);
+    EXPECT_NE(terraingen::HashWords({1u, 2u}), terraingen::HashWords({2u, 1u}));
+    EXPECT_NE(terraingen::HashWords({1u}), terraingen::HashWords({1u, 0u}));
 }

@@ -3,15 +3,11 @@
 #pragma once
 
 #include "terraingen/layers/boulders/boulder_options.h"
+#include "terraingen/random/streams.h"
 
 #include <cstdint>
 
 namespace terraingen {
-
-/// Seed salt of the boulder cluster centres.
-inline constexpr std::uint32_t kBoulderClusterStream = 0x434C5553u;
-/// Seed salt of the boulder patch noise.
-inline constexpr std::uint32_t kBoulderPatchStream = 0x50415443u;
 
 /// The distance in radii beyond which a `Thomas` cluster adds nothing.
 inline constexpr double kThomasReachRadii = 4.0;

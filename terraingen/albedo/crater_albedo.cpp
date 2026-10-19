@@ -21,9 +21,6 @@ namespace terraingen {
 
 namespace {
 
-constexpr std::uint32_t kCraterAlbedoStream = 0x414c4244u;
-constexpr std::uint32_t kObliqueStream = 0x4f424c51u;
-constexpr std::uint32_t kZoneStream = 0x5a4f4e45u;
 constexpr std::size_t kBlockRows = 32;
 
 }  // namespace
@@ -200,19 +197,13 @@ void ValidateCraterAlbedoOptions(const CraterAlbedoOptions& options) {
 
 namespace {
 
-/// The key of `crater`'s texture.
-std::uint32_t TextureKey(const Crater& crater, const CraterAlbedoTexture& texture) {
-    return PcgHash(static_cast<std::uint32_t>(crater.id) ^
-                   PcgHash(static_cast<std::uint32_t>(crater.id >> 32) ^ texture.seed));
-}
-
 /// How far `crater`'s ejecta edge reaches at `angle` radians around it, over its mean reach.
 double LobeScale(double angle, std::uint32_t key, const CraterAlbedoTexture& texture) {
     if (texture.lobes == 0.0) {
         return 1.0;
     }
     const double ring = static_cast<double>(texture.lobeCount) / (2.0 * std::numbers::pi);
-    const double n = RingNoise(ring, angle, 0.0, key ^ 0x4C4F4245u, 2);
+    const double n = RingNoise(ring, angle, 0.0, key ^ kEjectaLobeStream, 2);
     return 1.0 + texture.lobes * std::clamp(n, -1.0, 1.0);
 }
 
@@ -466,7 +457,7 @@ struct CraterAlbedo::Prepared {
             }
             const double streak = zone.streaked
                                       ? StreakShare(2.0 * distance / crater.diameter, angle,
-                                                    TextureKey(crater, texture), texture)
+                                                    CraterKey(crater.id, texture.seed), texture)
                                       : 1.0;
             change += open * cover * zone.strength * zone.resolution * streak * zone.change;
             open *= 1.0 - cover * zone.strength;
@@ -485,7 +476,7 @@ struct CraterAlbedo::Prepared {
         const bool textured = texture.streaks > 0.0 || texture.lobes > 0.0;
         const Vec2d offset = surface.Offset({crater.x, crater.y}, {x, y});
         const double angle = textured ? std::atan2(offset.y, offset.x) : 0.0;
-        const std::uint32_t key = textured ? TextureKey(crater, texture) : 0u;
+        const std::uint32_t key = textured ? CraterKey(crater.id, texture.seed) : 0u;
         if (radii < 1.0) {
             return InteriorExcess(o, radii, angle, key);
         }
@@ -610,7 +601,7 @@ void CraterAlbedo::AddZones(Prepared& prepared, double left, double resolution) 
     const CraterReflectanceZones& z = options_.zones;
     const double diameter = prepared.crater.diameter;
     const IdWords id = SplitId(prepared.crater.id);
-    RandomStream random(z.seed, kZoneStream, id.low, id.high);
+    RandomStream random(z.seed, kAlbedoZoneStream, id.low, id.high);
     const bool immature = z.excavationRatio * diameter > z.matureDepth;
     std::vector<DrawnZone> distal;
     for (const ReflectanceZone* zone : z.All()) {
@@ -717,7 +708,7 @@ CraterImpact CraterAlbedo::Impact(const Crater& crater) const {
         return impact;
     }
     const IdWords id = SplitId(crater.id);
-    RandomStream random(options_.seed, kObliqueStream, id.low, id.high);
+    RandomStream random(options_.seed, kObliqueRayStream, id.low, id.high);
     impact.angleDegrees = std::asin(std::sqrt(random.NextDouble())) * kRadian;
     const double h = random.NextDouble();
     impact.heading = oblique.heading ? *oblique.heading : 2.0 * std::numbers::pi * h;

@@ -6,10 +6,8 @@
 namespace terraingen {
 
 std::size_t CraterCellCache::KeyHash::operator()(const Key& key) const {
-    const UVec3 hash =
-        Pcg3dHash({static_cast<std::uint32_t>(key.exponent), static_cast<std::uint32_t>(key.i),
-                   static_cast<std::uint32_t>(key.j)});
-    return (static_cast<std::size_t>(hash.x) << 32) ^ hash.y;
+    return HashWords({static_cast<std::uint64_t>(key.exponent), static_cast<std::uint64_t>(key.i),
+                      static_cast<std::uint64_t>(key.j)});
 }
 
 CraterCellCache::CraterCellCache(std::size_t maxCraters)

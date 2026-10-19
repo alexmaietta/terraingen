@@ -1,3 +1,4 @@
+#include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/random/value_distribution.h"
 

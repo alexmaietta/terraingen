@@ -714,21 +714,25 @@ TEST(BoulderLayer, LeavesOutBouldersOnGroundSteeperThanTheirMaxSlope) {
 }
 
 TEST(BoulderLayer, DrawsTiltedShapesThatPointQueriesMatch) {
-    BoulderLayerOptions options;
-    options.sizes.coverage = 0.1;
-    options.sizes.minDiameter = 0.5;
-    options.pose.sideShare = 0.4;
-    options.pose.maxTilt = 0.6;
-    options.rendering.relief = terraingen::BoulderRelief::Shape;
-    options.rendering.shapes.subdivisions = 1;
-    const BoulderLayer layer(options);
-    Raster<float> heights(60, 60, 1.0f);
-    heights.SetTransform(GeoTransform::NorthUp(-7.5, 7.5, 0.25));
-    layer.Apply(heights, {0.25, 4});
-    for (std::size_t row = 0; row < heights.Height(); ++row) {
-        for (std::size_t col = 0; col < heights.Width(); ++col) {
-            const auto centre = heights.CellCenter(col, row);
-            ASSERT_EQ(layer.ApplyAt(1.0f, centre.x, centre.y, {0.25}), heights(col, row));
+    for (const std::uint32_t seed : {1u, 2u, 3u, 4u}) {
+        BoulderLayerOptions options;
+        options.seed = seed;
+        options.sizes.coverage = 0.1;
+        options.sizes.minDiameter = 0.5;
+        options.pose.sideShare = 0.4;
+        options.pose.maxTilt = 0.6;
+        options.rendering.relief = terraingen::BoulderRelief::Shape;
+        options.rendering.shapes.subdivisions = 1;
+        const BoulderLayer layer(options);
+        Raster<float> heights(60, 60, 1.0f);
+        heights.SetTransform(GeoTransform::NorthUp(-7.5, 7.5, 0.25));
+        layer.Apply(heights, {0.25, 4});
+        for (std::size_t row = 0; row < heights.Height(); ++row) {
+            for (std::size_t col = 0; col < heights.Width(); ++col) {
+                const auto centre = heights.CellCenter(col, row);
+                ASSERT_EQ(layer.ApplyAt(1.0f, centre.x, centre.y, {0.25}), heights(col, row))
+                    << "seed " << seed;
+            }
         }
     }
 }

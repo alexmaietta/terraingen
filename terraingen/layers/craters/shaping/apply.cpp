@@ -2,6 +2,7 @@
 
 #include "terraingen/gpu/kernel.h"
 #include "terraingen/layers/craters/shaping/crater_kernel.h"
+#include "terraingen/noise/hash.h"
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/arithmetic.h"
@@ -486,10 +487,9 @@ class ReliefIndex {
     };
     struct KeyHash {
         std::size_t operator()(const Key& key) const {
-            std::size_t hash = std::hash<long long>{}(key.i);
-            hash = hash * 1000003u ^ std::hash<long long>{}(key.j);
-            hash = hash * 1000003u ^ std::hash<long long>{}(key.k);
-            return hash * 1000003u ^ std::hash<int>{}(key.band);
+            return HashWords({static_cast<std::uint64_t>(key.band),
+                              static_cast<std::uint64_t>(key.i), static_cast<std::uint64_t>(key.j),
+                              static_cast<std::uint64_t>(key.k)});
         }
     };
 

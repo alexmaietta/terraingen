@@ -29,7 +29,14 @@ double SampleTruncatedPowerLaw(RandomStream& random, double min, double max, dou
 /// @throws std::invalid_argument unless `rate` is positive and finite.
 double SampleExponential(RandomStream& random, double rate);
 
-/// A normally distributed sample, drawn with the Box-Muller transform.
+/// A standard normal from two independent uniforms `u1` and `u2` in [0, 1) by the Box-Muller
+/// transform: sqrt(-2 ln(1 - `u1`)) cos(2 pi `u2`).
+double StandardNormal(double u1, double u2);
+
+/// A standard normal from the next two doubles of `random` (`StandardNormal`).
+double StandardNormal(RandomStream& random);
+
+/// A normally distributed sample, `mean` + `sigma` `StandardNormal(random)`.
 /// @param sigma The standard deviation, >= 0.
 /// @throws std::invalid_argument unless `mean` is finite and `sigma` is finite and not negative.
 double SampleNormal(RandomStream& random, double mean, double sigma);

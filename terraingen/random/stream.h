@@ -1,8 +1,9 @@
 /// @file
-/// @brief `RandomStream`, a counter-based random number stream, and 64-bit ID splitting.
+/// @brief `RandomStream`, a counter-based random number stream, derived seeds and 64-bit IDs.
 #pragma once
 
 #include "terraingen/random/philox.h"
+#include "terraingen/random/streams.h"
 
 #include <cstdint>
 
@@ -10,9 +11,9 @@ namespace terraingen {
 
 /// A counter-based stream of random numbers built on `Philox4x32`.
 ///
-/// The key is (`seed`, `stream`); the words `a`, `b` and `c` address an independent substream, so
-/// the numbers for one cell never depend on any other cell. Each substream gives 2^34 draws before
-/// it repeats.
+/// The key is (`seed`, `stream`), `stream` a tag from random/streams.h; the words `a`, `b` and `c`
+/// address an independent substream, so the numbers for one cell never depend on any other cell.
+/// Each substream gives 2^34 draws before it repeats.
 class RandomStream {
   public:
     /// Opens a substream.
@@ -52,6 +53,19 @@ struct IdWords {
 /// Splits a 64-bit ID into its low and high 32-bit words.
 constexpr IdWords SplitId(std::uint64_t id) {
     return {static_cast<std::uint32_t>(id), static_cast<std::uint32_t>(id >> 32)};
+}
+
+/// The 64-bit word with `high` above `low`: an ID from two draws or hash words.
+constexpr std::uint64_t JoinWords(std::uint32_t high, std::uint32_t low) {
+    return (static_cast<std::uint64_t>(high) << 32) | low;
+}
+
+/// A seed for a generator keyed by a seed alone, such as a crater population or a noise field,
+/// drawn from substream (`seed`, `stream`, `a`) apart from the draws of every `RandomStream`.
+/// @param stream A tag from random/streams.h.
+constexpr std::uint32_t SubstreamSeed(std::uint32_t seed, std::uint32_t stream,
+                                      std::uint32_t a = 0) {
+    return Philox4x32({a, 0u, 0u, 0xFFFFFFFFu}, {seed, stream}).x;
 }
 
 }  // namespace terraingen

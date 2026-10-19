@@ -2,7 +2,7 @@
 
 #include "terraingen/albedo/synthetic.h"
 #include "terraingen/distribution/golombek_rapp.h"
-#include "terraingen/random/value_distribution.h"
+#include "terraingen/random/samplers.h"
 
 #include <gtest/gtest.h>
 

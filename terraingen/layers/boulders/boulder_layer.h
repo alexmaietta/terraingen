@@ -317,7 +317,9 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     double minCraterDiameter_ = 0.0;
     double maxBackground_ = 1.0;
     double clusterMean_ = 1.0;
-    double referenceCount_ = 0.0;  ///< N(>=D0) of the sizes at a size slope map's D0, per m^2.
+    std::uint32_t clusterSeed_ = 0;  ///< Seed of the cluster centres' Worley noise.
+    std::uint32_t patchSeed_ = 0;    ///< Seed of the abundance patch noise.
+    double referenceCount_ = 0.0;    ///< N(>=D0) of the sizes at a size slope map's D0, per m^2.
     std::optional<BoulderMapAbundance> mapAbundance_;
     double patchMean_ = 1.0;   ///< Under a map, what the patches are divided by.
     Vec2d bedrockOrigin_{};    ///< Corner of the bedrock mean lattice, in surface units.

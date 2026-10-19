@@ -1,6 +1,7 @@
 #include "terraingen/albedo/blast_zones.h"
 
 #include "terraingen/albedo/bands.h"
+#include "terraingen/random/streams.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/geometry.h"
 
@@ -82,11 +83,11 @@ double BlastZoneAlbedo::Change(const BlastZone& zone, double x, double y) const 
     const double heading = zone.headingDegrees * kDegree;
     const double u = (offset.x * std::cos(heading) + offset.y * std::sin(heading)) / major;
     const double v = (offset.y * std::cos(heading) - offset.x * std::sin(heading)) / minor;
-    const double lobe =
-        zone.raggedness > 0.0
-            ? LobeFactor(RingNoise(kLobeRing, std::atan2(v, u), 0.0, zone.seed ^ 0x424c5354u, 3),
-                         zone.raggedness)
-            : 1.0;
+    const double lobe = zone.raggedness > 0.0
+                            ? LobeFactor(RingNoise(kLobeRing, std::atan2(v, u), 0.0,
+                                                   zone.seed ^ kBlastZoneStream, 3),
+                                         zone.raggedness)
+                            : 1.0;
     const double rho = std::hypot(u, v) / lobe;
     const double share = BlastZoneMeanShare();
     const double peak = (zone.change - zone.haloChange * (1.0 - share)) / share;

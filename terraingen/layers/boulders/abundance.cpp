@@ -3,6 +3,7 @@
 #include "terraingen/layers/boulders/boulder_clusters.h"
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/fade.h"
+#include "terraingen/noise/hash.h"
 #include "terraingen/noise/worley.h"
 #include "terraingen/random/philox.h"
 #include "terraingen/random/samplers.h"
@@ -18,10 +19,6 @@
 namespace terraingen {
 
 namespace {
-
-constexpr std::uint32_t kThomasCentres2 = 0x54484D32u;
-constexpr std::uint32_t kThomasCentres3 = 0x54484D33u;
-constexpr std::uint32_t kBedrockMeans = 0x4245444Du;
 
 /// Golombek-Rapp boulders per m^2 per metre of diameter at `diameter` for coverage `k`.
 double GolombekRappDensity(double diameter, double k, double qa, double qb) {
@@ -79,16 +76,16 @@ EjectaIndex BoulderLayer::EjectaCraters(const Bounds2d& region) const {
 
 double BoulderLayer::NearestClusterDistance(double x, double y) const {
     const double spacing = options_.clusters.spacing;
-    const std::uint32_t seed = options_.seed ^ kBoulderClusterStream;
     if (surface_.IsBody()) {
         const Vec3d p = surface_.Position({x, y});
         const double s = 1.0 / spacing;
-        return spacing * static_cast<double>(
-                             Worley3(SplitLatticePrecise3(s * p.x, s * p.y, s * p.z), seed).f1);
+        return spacing *
+               static_cast<double>(
+                   Worley3(SplitLatticePrecise3(s * p.x, s * p.y, s * p.z), clusterSeed_).f1);
     }
-    return spacing *
-           static_cast<double>(
-               Worley2(static_cast<float>(x / spacing), static_cast<float>(y / spacing), seed).f1);
+    return spacing * static_cast<double>(Worley2(static_cast<float>(x / spacing),
+                                                 static_cast<float>(y / spacing), clusterSeed_)
+                                             .f1);
 }
 
 namespace {
@@ -120,7 +117,7 @@ struct ThomasLattice {
         for (double k = cz - 1.0; k <= cz + 1.0; k += 1.0) {
             for (double j = cy - 1.0; j <= cy + 1.0; j += 1.0) {
                 for (double i = cx - 1.0; i <= cx + 1.0; i += 1.0) {
-                    RandomStream random(seed, kThomasCentres3, Word(i), Word(j), Word(k));
+                    RandomStream random(seed, kThomasSpaceStream, Word(i), Word(j), Word(k));
                     const std::uint64_t count = SamplePoisson(random, perCell);
                     for (std::uint64_t n = 0; n < count; ++n) {
                         const double dx = (i + random.NextDouble()) * side - p.x;
@@ -141,7 +138,7 @@ struct ThomasLattice {
         const double cy = std::floor(y / side);
         for (double j = cy - 1.0; j <= cy + 1.0; j += 1.0) {
             for (double i = cx - 1.0; i <= cx + 1.0; i += 1.0) {
-                RandomStream random(seed, kThomasCentres2, Word(i), Word(j));
+                RandomStream random(seed, kThomasPlaneStream, Word(i), Word(j));
                 const std::uint64_t count = SamplePoisson(random, perCell);
                 for (std::uint64_t n = 0; n < count; ++n) {
                     const double dx = (i + random.NextDouble()) * side - x;
@@ -161,7 +158,7 @@ double BoulderLayer::ThomasClusterField(double x, double y) const {
     ThomasLattice lattice;
     lattice.sigma = clusters.radius;
     lattice.side = kThomasReachRadii * lattice.sigma;
-    lattice.seed = options_.seed ^ kBoulderClusterStream;
+    lattice.seed = options_.seed;
     const double perArea = 1.0 / (clusters.spacing * clusters.spacing);
     const double side = lattice.side;
     if (surface_.IsBody()) {
@@ -179,8 +176,7 @@ double BoulderLayer::BackgroundAbundance(double x, double y, const Ground* groun
         mapAbundance_ ? mapAbundance_->At(MapValueAt(*options_.densityMap, x, y), ejecta) : 1.0;
     const BoulderPatches& patches = options_.patches;
     if (patches.spread > 1.0) {
-        const double noise =
-            PatchNoise(surface_, x, y, patches.size, options_.seed ^ kBoulderPatchStream);
+        const double noise = PatchNoise(surface_, x, y, patches.size, patchSeed_);
         background *= std::pow(patches.spread, noise) / patchMean_;
     }
     const BoulderClusters& clusters = options_.clusters;
@@ -202,12 +198,8 @@ double BoulderLayer::BackgroundAbundance(double x, double y, const Ground* groun
 }
 
 std::size_t BoulderLayer::BedrockCellHash::operator()(const BedrockCell& cell) const {
-    const auto words = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(cell.ground));
-    const U32x4 hash =
-        Philox4x32({static_cast<std::uint32_t>(cell.i), static_cast<std::uint32_t>(cell.j),
-                    static_cast<std::uint32_t>(words), static_cast<std::uint32_t>(words >> 32)},
-                   {kBedrockMeans, 0u});
-    return (static_cast<std::size_t>(hash.x) << 32) ^ hash.y;
+    return HashWords({static_cast<std::uint64_t>(cell.i), static_cast<std::uint64_t>(cell.j),
+                      static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(cell.ground))});
 }
 
 double BoulderLayer::BedrockMean(double x, double y, const Ground& ground) const {

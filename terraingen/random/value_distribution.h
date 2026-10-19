@@ -35,10 +35,6 @@ struct ValueDistribution {
     bool operator==(const ValueDistribution&) const = default;
 };
 
-/// A standard normal from two independent uniforms `u1` and `u2` in [0, 1) by the Box-Muller
-/// transform: sqrt(-2 ln(1 - `u1`)) cos(2 pi `u2`).
-double StandardNormal(double u1, double u2);
-
 /// Checks a value distribution.
 /// @throws std::invalid_argument for parameters that are not finite, a uniform with `b` < `a`, a
 /// negative standard deviation, a log-normal with a non-positive median, `min` above `max`, or a

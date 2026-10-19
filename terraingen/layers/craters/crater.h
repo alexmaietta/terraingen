@@ -2,6 +2,8 @@
 /// @brief `Crater` and `CraterList`, and `CraterSelection`, which of them a model applies to.
 #pragma once
 
+#include "terraingen/noise/hash.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -29,6 +31,12 @@ struct Crater {
 /// crater in every run.
 /// @param diameter In metres.
 std::uint64_t ManualCraterId(double x, double y, double diameter);
+
+/// The 32-bit key that seeds crater `id`'s noise or texture under `seed`, the same on the CPU and
+/// the GPU, which is handed it.
+constexpr std::uint32_t CraterKey(std::uint64_t id, std::uint32_t seed) {
+    return HashWord64(id, seed);
+}
 
 /// Craters stored as one array per field, so each column can be shared with NumPy or a GPU
 /// without copying.

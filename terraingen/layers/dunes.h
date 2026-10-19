@@ -220,6 +220,10 @@ class DuneLayer final : public FormulaLayer, public MaterialSource {
     AnchoredPlane plane_;
     Vec2d wind_{1.0, 0.0};
     std::int64_t rings_ = 1;
+    std::uint32_t defectSeed_ = 0;  ///< Seed of the noise of defects along crests.
+    std::uint32_t wanderSeed_ = 0;  ///< Seed of the ripple crest wander.
+    std::uint32_t kinkSeed_ = 0;    ///< Seed of the ripple crest kinks.
+    std::uint32_t fadeSeed_ = 0;    ///< Seed of the ripple fading along crests.
 };
 
 }  // namespace terraingen

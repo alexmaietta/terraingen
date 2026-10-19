@@ -100,6 +100,7 @@ class BedformLayer final : public FormulaLayer, public MaterialSource {
     BedformOptions options_;
     double cell_ = 1.0;
     double density_ = 0.0;
+    std::uint32_t wanderSeed_ = 0;  ///< Seed of the crest wander noise.
     std::optional<ExposureField> exposure_;
     std::optional<CubeSphereCells> cells_;
 };

@@ -10,11 +10,7 @@
 
 namespace terraingen {
 
-namespace {
-
-constexpr std::uint32_t kRayStream = 0x52415953u;
-
-}  // namespace
+namespace {}  // namespace
 
 void ValidateRayLayout(const RayLayout& layout) {
     ValidateValueDistribution(layout.count);
@@ -29,7 +25,7 @@ void ValidateRayLayout(const RayLayout& layout) {
 
 std::vector<RayDirection> RayDirections(const Crater& crater, const RayLayout& layout) {
     const IdWords id = SplitId(crater.id);
-    RandomStream random(layout.seed, kRayStream, id.low, id.high);
+    RandomStream random(layout.seed, kCraterRayStream, id.low, id.high);
     const double c1 = random.NextDouble();
     const double c2 = random.NextDouble();
     const auto count = static_cast<int>(std::lround(layout.count.Sample(c1, c2)));

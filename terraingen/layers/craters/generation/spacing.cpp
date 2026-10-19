@@ -1,5 +1,6 @@
 #include "terraingen/layers/craters/generation/spacing.h"
 
+#include "terraingen/noise/hash.h"
 #include "terraingen/util/checks.h"
 
 #include <array>
@@ -17,11 +18,8 @@ using CellKey = std::array<long long, 3>;
 
 struct CellKeyHash {
     std::size_t operator()(const CellKey& key) const {
-        std::uint64_t hash = 1469598103934665603ull;
-        for (const long long part : key) {
-            hash = (hash ^ static_cast<std::uint64_t>(part)) * 1099511628211ull;
-        }
-        return static_cast<std::size_t>(hash);
+        return HashWords({static_cast<std::uint64_t>(key[0]), static_cast<std::uint64_t>(key[1]),
+                          static_cast<std::uint64_t>(key[2])});
     }
 };
 

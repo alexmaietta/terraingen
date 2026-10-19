@@ -1,15 +1,13 @@
 #include "terraingen/random/value_distribution.h"
 
+#include "terraingen/random/samplers.h"
+
 #include <algorithm>
 #include <cmath>
 #include <numbers>
 #include <stdexcept>
 
 namespace terraingen {
-
-double StandardNormal(double u1, double u2) {
-    return std::sqrt(-2.0 * std::log1p(-u1)) * std::cos(2.0 * std::numbers::pi * u2);
-}
 
 double ValueDistribution::Sample(double u1, double u2) const {
     double value = a;

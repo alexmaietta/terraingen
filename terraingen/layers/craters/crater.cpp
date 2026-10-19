@@ -17,7 +17,7 @@ std::uint64_t ManualCraterId(double x, double y, double diameter) {
     const IdWords dBits = SplitId(std::bit_cast<std::uint64_t>(diameter));
     const U32x4 block =
         Philox4x32({xBits.low, xBits.high, yBits.low, yBits.high}, {dBits.low, dBits.high});
-    return (static_cast<std::uint64_t>(block.x) << 32) | block.y;
+    return JoinWords(block.x, block.y);
 }
 
 void AppendManualCraters(const CraterList& manual, CraterList& craters,

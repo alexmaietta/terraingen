@@ -2,6 +2,7 @@
 
 #include "terraingen/layers/fade.h"
 #include "terraingen/noise/value.h"
+#include "terraingen/random/streams.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/geometry.h"
 
@@ -37,7 +38,7 @@ double MeanClumpBump() {
         constexpr int kSamples = 1 << 16;
         double sum = 0.0;
         for (int i = 0; i < kSamples; ++i) {
-            sum += ClumpBump(0.0371 * i, 0x434c554du);
+            sum += ClumpBump(0.0371 * i, kSecondaryClumpStream);
         }
         return sum / kSamples;
     }();

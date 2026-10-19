@@ -18,18 +18,13 @@ namespace terraingen {
 
 namespace {
 
-constexpr std::uint32_t kCraterStream = 0x43524154u;
-constexpr std::uint32_t kCraterAgeStream = 0x43524147u;
-constexpr std::uint32_t kCraterIdStream = 0x43524944u;
-constexpr std::uint32_t kCraterKeepStream = 0x43524B50u;
-
 std::uint64_t CraterId(std::uint32_t seed, const CraterBand& band, const CellIndex& cell,
                        std::uint32_t index) {
     const U32x4 block =
         Philox4x32({static_cast<std::uint32_t>(cell.i), static_cast<std::uint32_t>(cell.j),
                     static_cast<std::uint32_t>(band.exponent), index},
                    {seed, kCraterIdStream});
-    return (static_cast<std::uint64_t>(block.x) << 32) | block.y;
+    return JoinWords(block.x, block.y);
 }
 
 }  // namespace

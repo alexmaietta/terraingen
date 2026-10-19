@@ -1,8 +1,8 @@
 #include "terraingen/albedo/rock_albedo.h"
 
 #include "terraingen/albedo/bands.h"
-#include "terraingen/random/philox.h"
-#include "terraingen/random/value_distribution.h"
+#include "terraingen/noise/hash.h"
+#include "terraingen/random/samplers.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/parallel.h"
 
@@ -15,8 +15,6 @@
 namespace terraingen {
 
 namespace {
-
-constexpr std::uint32_t kRockStream = 0x524F434Bu;
 
 /// Multiplies every band of `value` by 1 + `share` (`ratio` - 1); NaN stays NaN.
 void Brighten(AlbedoSample& value, std::size_t bands, double share, double ratio) {
@@ -54,14 +52,10 @@ RockAlbedo::RockAlbedo(RockAlbedoOptions options, std::vector<RockSource> source
 }
 
 double RockAlbedo::UnresolvedNormal(double x, double y, std::size_t source) const {
-    const auto xs = std::bit_cast<std::uint64_t>(x);
-    const auto ys = std::bit_cast<std::uint64_t>(y);
-    const U32x4 bits =
-        Philox4x32({static_cast<std::uint32_t>(xs), static_cast<std::uint32_t>(xs >> 32),
-                    static_cast<std::uint32_t>(ys), static_cast<std::uint32_t>(ys >> 32)},
-                   {options_.seed ^ kRockStream, static_cast<std::uint32_t>(source)});
-    return StandardNormal(std::ldexp(static_cast<double>(bits.x), -32),
-                          std::ldexp(static_cast<double>(bits.y), -32));
+    RandomStream random(
+        options_.seed, kRockAlbedoStream, HashWord64(std::bit_cast<std::uint64_t>(x)),
+        HashWord64(std::bit_cast<std::uint64_t>(y)), static_cast<std::uint32_t>(source));
+    return StandardNormal(random);
 }
 
 double RockAlbedo::ShareAt(double x, double y, const AlbedoContext& context) const {

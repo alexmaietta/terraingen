@@ -4,6 +4,10 @@
 
 #include "terraingen/util/portable.h"
 
+#ifndef __SLANG__
+#include <initializer_list>
+#endif
+
 namespace terraingen {
 
 /// Three 32-bit words.
@@ -48,5 +52,26 @@ constexpr UVec3 Pcg3dHash(UVec3 v) {
 constexpr float HashToUnitFloat(uint32_t hash) {
     return float(hash >> 8u) * 0x1p-24f;
 }
+
+#ifndef __SLANG__
+
+/// A 32-bit `PcgHash` of a 64-bit word, mixed with `seed`: for keying a stream or noise by an ID.
+constexpr uint32_t HashWord64(std::uint64_t word, uint32_t seed = 0) {
+    return PcgHash(uint32_t(word) ^ PcgHash(uint32_t(word >> 32u) ^ seed));
+}
+
+/// A hash for hashed containers of a key made of 64-bit `words` (integers, pointers or double
+/// bits): the words chained through `Pcg3dHash` and the first two output words joined.
+inline std::size_t HashWords(std::initializer_list<std::uint64_t> words) {
+    UVec3 state = {};
+    for (const std::uint64_t word : words) {
+        const UVec3 mixed = {state.x ^ uint32_t(word), state.y ^ uint32_t(word >> 32u),
+                             state.z + 1u};
+        state = Pcg3dHash(mixed);
+    }
+    return static_cast<std::size_t>((std::uint64_t(state.x) << 32u) ^ state.y);
+}
+
+#endif
 
 }  // namespace terraingen

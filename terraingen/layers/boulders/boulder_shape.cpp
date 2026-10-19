@@ -15,8 +15,6 @@ namespace terraingen {
 
 namespace {
 
-constexpr std::uint32_t kBoulderStream = 0x424F554Cu;
-
 /// Throws unless `low` <= `range.min` <= `range.max` <= `high`.
 void CheckRange(const ValueRange& range, double low, double high, const char* what) {
     if (!(range.min >= low && range.min <= range.max && range.max <= high)) {
@@ -430,7 +428,7 @@ BoulderShape NormalizedBoulderShape(const SceneMesh& rock) {
 
 BoulderShape GenerateBoulderShape(std::uint64_t shapeSeed, const BoulderShapeOptions& options) {
     ValidateBoulderShapeOptions(options);
-    RandomStream random(options.seed, kBoulderStream, static_cast<std::uint32_t>(shapeSeed),
+    RandomStream random(options.seed, kBoulderShapeStream, static_cast<std::uint32_t>(shapeSeed),
                         static_cast<std::uint32_t>(shapeSeed >> 32));
     if (!options.library.empty()) {
         const std::size_t index = random.NextU32() % options.library.size();
@@ -458,8 +456,8 @@ BoulderShape GenerateBoulderShape(std::uint64_t shapeSeed, const BoulderShapeOpt
     const std::vector<Fracture> faces = soft && style.solid != BaseSolid::Icosahedron
                                             ? SolidFaces(solid, axes)
                                             : std::vector<Fracture>{};
-    ApplyFractures(mesh, solid.positions.size(), style, random, softness, noiseSeed ^ 0x43555453u,
-                   faces, noiseSeed);
+    ApplyFractures(mesh, solid.positions.size(), style, random, softness,
+                   SubstreamSeed(noiseSeed, kBoulderFractureStream), faces, noiseSeed);
 
     const Vec3d extents = Bounds(mesh).Extents();
     mesh = Scaled(mesh, {1.0 / extents.x, intermediate / extents.y, shortAxis / extents.z});
@@ -470,8 +468,8 @@ std::uint64_t BoulderShapeSeed(std::uint64_t id, std::uint32_t prototypes) {
     if (prototypes == 0) {
         return id;
     }
-    const UVec3 hash = Pcg3dHash(
-        {static_cast<std::uint32_t>(id), static_cast<std::uint32_t>(id >> 32), 0x50524F54u});
+    const UVec3 hash = Pcg3dHash({static_cast<std::uint32_t>(id),
+                                  static_cast<std::uint32_t>(id >> 32), kBoulderPrototypeStream});
     return hash.x % prototypes;
 }
 

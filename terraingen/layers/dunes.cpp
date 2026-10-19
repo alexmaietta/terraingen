@@ -17,7 +17,6 @@ namespace terraingen {
 
 namespace {
 
-constexpr std::uint32_t kDuneStream = 0x44554e45u;
 constexpr double kHalfPi = 0.5 * std::numbers::pi;
 /// Wavelengths per lattice unit of the crest wander and of the defects along crests.
 constexpr double kWanderWavelengths = 4.0;
@@ -43,7 +42,6 @@ constexpr double kRippleFadeScale = 4.0;
 /// Forked crests: the smallest side in wavelengths of the cells their pairs are drawn in (cells
 /// otherwise hold one pair on average), the separation of a pair in wavelengths, and the radius in
 /// wavelengths within which its phase is whole and beyond which it is gone.
-constexpr std::uint32_t kForkStream = 0x464f524bu;
 constexpr double kForkMinCell = 0.5;
 constexpr double kForkMin = 1.5;
 constexpr double kForkMax = 3.0;
@@ -51,13 +49,10 @@ constexpr double kForkInner = 3.2;
 constexpr double kForkOuter = 4.0;
 /// Distance in wavelengths over which the ripples fade in from a fork's end.
 constexpr double kForkCore = 0.5;
-/// Crest breaks: the stream they are drawn from, and the distance in wavelengths over which a
-/// crest falls to nothing at a break.
-constexpr std::uint32_t kCrestBreakStream = 0x42524b53u;
+/// Distance in wavelengths over which a crest falls to nothing at a break.
 constexpr double kBreakTaper = 1.0;
 /// Grainflows: the share of a scarp's length its theatre head takes to reach full depth, the share
 /// of a lobe's length it takes to rise, and the share after which its toe rounds off.
-constexpr std::uint32_t kGrainflowStream = 0x47464c57u;
 constexpr double kGrainflowHead = 0.15;
 constexpr double kGrainflowRise = 0.25;
 constexpr double kGrainflowToe = 0.6;
@@ -292,6 +287,10 @@ DuneLayer::DuneLayer(DuneOptions options, Surface surface)
     wind_ = {std::cos(options_.windAzimuth), std::sin(options_.windAzimuth)};
     const double widest = options_.width * (1.0 + options_.widthSpread);
     rings_ = static_cast<std::int64_t>(std::ceil(Reach(widest, options_) / options_.spacing));
+    defectSeed_ = SubstreamSeed(options_.seed, kDuneDefectStream);
+    wanderSeed_ = SubstreamSeed(options_.seed, kRippleWanderStream);
+    kinkSeed_ = SubstreamSeed(options_.seed, kRippleKinkStream);
+    fadeSeed_ = SubstreamSeed(options_.seed, kRippleFadeStream);
 }
 
 double DuneLayer::Barchans(const Vec2d& q) const {
@@ -349,10 +348,10 @@ double DuneLayer::CrestPhase(const Vec2d& p) const {
 double DuneLayer::CrestAmplitude(const Vec2d& q, double psi) const {
     const double lambda = options_.wavelength;
     double amplitude =
-        1.0 - options_.defects *
-                  (0.5 + 0.5 * static_cast<double>(PerlinNoise2Precise(
-                                   q.x / (kDefectWavelengths * lambda),
-                                   q.y / (kDefectWavelengths * lambda), options_.seed + 1u)));
+        1.0 -
+        options_.defects * (0.5 + 0.5 * static_cast<double>(PerlinNoise2Precise(
+                                            q.x / (kDefectWavelengths * lambda),
+                                            q.y / (kDefectWavelengths * lambda), defectSeed_)));
     if (options_.shape == DuneShape::Barchanoid) {
         amplitude *= 0.6 + 0.4 * CrestSegment(q);
     }
@@ -417,7 +416,7 @@ double DuneLayer::CrestBreaks(std::int64_t crest, double along) const {
     const auto cell = static_cast<std::int64_t>(std::floor(along / length));
     double weight = 1.0;
     for (std::int64_t c = cell - 1; c <= cell + 1; ++c) {
-        RandomStream random = LatticeStream(options_.seed, kCrestBreakStream, crest, c);
+        RandomStream random = LatticeStream(options_.seed, kDuneCrestBreakStream, crest, c);
         const double at = (static_cast<double>(c) + random.NextDouble()) * length;
         weight = std::min(weight, Smoothstep(std::fabs(along - at) / taper));
     }
@@ -451,7 +450,7 @@ double DuneLayer::Grainflows(const Vec2d& q, double face) const {
     const double cellAcross = std::max(flows.maxScarpWidth, flows.maxLobeWidth);
     double relief = 0.0;
     ForEachLatticeCell({v, u}, {cellAcross, cellAlong}, 1, [&](std::int64_t cv, std::int64_t cu) {
-        RandomStream random = LatticeStream(options_.seed, kGrainflowStream, cu, cv);
+        RandomStream random = LatticeStream(options_.seed, kDuneGrainflowStream, cu, cv);
         if (random.NextDouble() >= flows.cover) {
             return;
         }
@@ -509,18 +508,17 @@ double DuneLayer::Ripples(const Vec2d& q, double dune) const {
     double core = 1.0;
     const double psi =
         (q.x * wind_.x + q.y * wind_.y - ripples.slopeCoupling * dune) / lambda +
-        sinuosity * (static_cast<double>(PerlinNoise2Precise(q.x / (kRippleWander * lambda),
-                                                             q.y / (kRippleWander * lambda),
-                                                             options_.seed + 2u)) +
-                     kRippleKinks * static_cast<double>(PerlinNoise2Precise(
-                                        q.x / (kRippleKinkScale * lambda),
-                                        q.y / (kRippleKinkScale * lambda), options_.seed + 3u))) +
+        sinuosity *
+            (static_cast<double>(PerlinNoise2Precise(q.x / (kRippleWander * lambda),
+                                                     q.y / (kRippleWander * lambda), wanderSeed_)) +
+             kRippleKinks * static_cast<double>(PerlinNoise2Precise(
+                                q.x / (kRippleKinkScale * lambda),
+                                q.y / (kRippleKinkScale * lambda), kinkSeed_))) +
         Forks(q, lambda, ripples.defectDensity, core);
     const double fading =
-        1.0 -
-        kRippleFading * (0.5 + 0.5 * static_cast<double>(PerlinNoise2Precise(
-                                         q.x / (kRippleFadeScale * lambda),
-                                         q.y / (kRippleFadeScale * lambda), options_.seed + 4u)));
+        1.0 - kRippleFading * (0.5 + 0.5 * static_cast<double>(PerlinNoise2Precise(
+                                               q.x / (kRippleFadeScale * lambda),
+                                               q.y / (kRippleFadeScale * lambda), fadeSeed_)));
     const double sand = SandDepth(dune);
     const double steep = std::hypot(gx, gy) / std::tan(options_.slipFaceAngle);
     const double avalanche = 1.0 - (1.0 - kSlipFaceRipples) * Smoothstep(2.0 * steep - 1.0);
@@ -539,7 +537,7 @@ double DuneLayer::Forks(const Vec2d& q, double wavelength, double density, doubl
     const auto rings = static_cast<std::int64_t>(std::ceil(kForkOuter * wavelength / cell));
     double phase = 0.0;
     ForEachLatticeCell(q, {cell, cell}, rings, [&](std::int64_t gx, std::int64_t gy) {
-        RandomStream random = LatticeStream(options_.seed, kForkStream, gx, gy);
+        RandomStream random = LatticeStream(options_.seed, kDuneForkStream, gx, gy);
         double draw = random.NextDouble();
         while (draw > none) {
             draw *= random.NextDouble();

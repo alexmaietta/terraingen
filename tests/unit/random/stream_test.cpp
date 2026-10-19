@@ -3,6 +3,7 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
@@ -74,4 +75,34 @@ TEST(RandomStream, UniformRangesAreRespected) {
         EXPECT_GT(open, 0.0);
         EXPECT_LE(open, 1.0);
     }
+}
+
+TEST(RandomStream, JoinsWhatSplitIdSplits) {
+    constexpr std::uint64_t kId = 0x0123456789ABCDEFull;
+    constexpr terraingen::IdWords kWords = terraingen::SplitId(kId);
+    static_assert(terraingen::JoinWords(kWords.high, kWords.low) == kId);
+}
+
+TEST(RandomStream, SubstreamSeedsDifferByTagAndWordAndStayApartFromStreams) {
+    using terraingen::SubstreamSeed;
+    constexpr std::uint32_t kSeed = SubstreamSeed(7u, terraingen::kDuneDefectStream);
+    EXPECT_EQ(SubstreamSeed(7u, terraingen::kDuneDefectStream), kSeed);
+    EXPECT_NE(SubstreamSeed(7u, terraingen::kRippleKinkStream), kSeed);
+    EXPECT_NE(SubstreamSeed(8u, terraingen::kDuneDefectStream), kSeed);
+    EXPECT_NE(SubstreamSeed(7u, terraingen::kDuneDefectStream, 1u), kSeed);
+    EXPECT_NE(RandomStream(7u, terraingen::kDuneDefectStream).NextU32(), kSeed);
+}
+
+TEST(RandomStream, StreamTagsAreDistinct) {
+    EXPECT_TRUE(terraingen::detail::AllDistinct(terraingen::detail::kStreamTags));
+    EXPECT_FALSE(terraingen::detail::AllDistinct(std::array<std::uint32_t, 3>{1u, 2u, 1u}));
+}
+
+TEST(StandardNormal, DrawsTwoDoublesFromTheStream) {
+    RandomStream stream(5u, 6u);
+    RandomStream copy(5u, 6u);
+    const double u1 = copy.NextDouble();
+    const double u2 = copy.NextDouble();
+    EXPECT_EQ(terraingen::StandardNormal(stream), terraingen::StandardNormal(u1, u2));
+    EXPECT_EQ(stream.NextU32(), copy.NextU32());
 }

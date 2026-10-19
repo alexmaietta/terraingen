@@ -1,7 +1,7 @@
 #include "terraingen/layers/craters/shaping/irregularity.h"
 
 #include "terraingen/layers/fade.h"
-#include "terraingen/random/stream.h"
+#include "terraingen/random/samplers.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/fft.h"
 
@@ -16,10 +16,6 @@ namespace terraingen {
 
 namespace {
 
-constexpr std::uint32_t kIrregularityStream = 0x49525247u;
-
-constexpr std::uint32_t kMarksStream = 0x4D41524Bu;
-
 constexpr int kMaxMarkKnots = 1024;
 
 /// How far a periodic Catmull-Rom spline can overshoot its knots, as a share of their largest
@@ -30,13 +26,6 @@ constexpr double kSplineOvershoot = 1.25;
 constexpr double kSmoothstepSlope = 1.5;
 
 constexpr std::size_t kTableSize = 1024;
-
-/// A standard normal from the next two uniforms of `random`.
-double Normal(RandomStream& random) {
-    const double u1 = random.NextDouble();
-    const double u2 = random.NextDouble();
-    return StandardNormal(u1, u2);
-}
 
 /// y = a D + b in a crater's diameter D (km), with one line up to 20 km and another above, as Du et
 /// al. (2024, Table 2) fit their breakpoints; and its 1-sigma misfit on each side.
@@ -100,7 +89,7 @@ void LimitDeviation(std::vector<double>& table, double maxDeviation) {
 std::vector<double> DuRimTable(double diameter, bool scatter, double maxDeviation,
                                RandomStream& random) {
     const double kilometres = std::clamp(diameter / 1000.0, 1.0, 140.0);
-    const auto draw = [&] { return scatter ? Normal(random) : 0.0; };
+    const auto draw = [&] { return scatter ? StandardNormal(random) : 0.0; };
     DuSpectrum fit{};
     fit.slope = kSlope12.At(kilometres, draw());
     fit.logWavelength2 = kLogWavelength2.At(kilometres, draw());
@@ -109,7 +98,7 @@ std::vector<double> DuRimTable(double diameter, bool scatter, double maxDeviatio
     fit.logPower4 = kLogPower4.At(kilometres, draw());
     std::vector<std::complex<double>> spectrum(kTableSize);
     for (std::size_t k = 1; k < kTableSize / 2; ++k) {
-        const double noise = scatter ? kSpectrumSigma * Normal(random) : 0.0;
+        const double noise = scatter ? kSpectrumSigma * StandardNormal(random) : 0.0;
         const double amplitude =
             std::sqrt(std::pow(10.0, fit.LogPower(k) + noise) * 2.0 * std::numbers::pi) /
             kSpectrumVertices;
@@ -289,7 +278,7 @@ CraterOutline IrregularOutline(const Crater& crater, const CraterIrregularity& i
         return outline;
     }
     const IdWords id = SplitId(crater.id);
-    RandomStream random(irregularity.seed, kIrregularityStream, id.low, id.high);
+    RandomStream random(irregularity.seed, kCraterIrregularityStream, id.low, id.high);
     const OutlineDraws draws = DrawOutline(random);
     if (draws.elongated < irregularity.elongatedShare) {
         outline.ellipticity = irregularity.ellipticity.Sample(draws.e1, draws.e2);
@@ -305,7 +294,7 @@ CraterOutline IrregularOutline(const Crater& crater, const CraterIrregularity& i
         AddHarmonics(outline, irregularity, draws, random);
     }
     if (irregularity.marksShare > 0.0) {
-        RandomStream marks(irregularity.seed, kMarksStream, id.low, id.high);
+        RandomStream marks(irregularity.seed, kCraterMarkStream, id.low, id.high);
         const double share = marks.NextDouble();
         const double u1 = marks.NextDouble();
         const double u2 = marks.NextDouble();

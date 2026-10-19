@@ -2,6 +2,7 @@
 
 #include "terraingen/noise/hash.h"
 #include "terraingen/noise/perlin.h"
+#include "terraingen/random/streams.h"
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/checks.h"
@@ -19,10 +20,6 @@ namespace {
 
 constexpr int kMaxOctaves = 40;
 
-/// Salts of the hashes giving each octave its offsets and seed, its 3D rotation, and its 3D
-/// offset.
-constexpr std::uint32_t kOctaveSalt = 0x524F5547u;
-constexpr std::uint32_t kRotationSalt = 0x524F5433u;
 constexpr std::uint32_t kOffsetZSalt = 7u;
 
 /// The golden angle, in radians, by which each octave is turned from the last.
@@ -131,7 +128,7 @@ RoughnessLayer::RoughnessLayer(RoughnessOptions options, Surface surface)
 }
 
 RoughnessLayer::Octave RoughnessLayer::MakeOctave(std::uint32_t i, double wavelength) const {
-    const UVec3 hash = Pcg3dHash({options_.seed, i, kOctaveSalt});
+    const UVec3 hash = Pcg3dHash({options_.seed, i, kRoughnessOctaveStream});
     const double angle = kGoldenAngle * static_cast<double>(i);
     Octave octave{wavelength,
                   std::pow(wavelength, options_.hurst),
@@ -141,7 +138,7 @@ RoughnessLayer::Octave RoughnessLayer::MakeOctave(std::uint32_t i, double wavele
                   LatticeOffset(hash.y),
                   hash.z};
     if (surface_.IsBody()) {
-        octave.rotation = UniformRotation(Pcg3dHash({options_.seed, i, kRotationSalt}));
+        octave.rotation = UniformRotation(Pcg3dHash({options_.seed, i, kRoughnessRotationStream}));
         octave.offsetZ = LatticeOffset(Pcg3dHash({hash.z, i, kOffsetZSalt}).x);
     }
     return octave;
