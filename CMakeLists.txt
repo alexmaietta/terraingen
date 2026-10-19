@@ -80,8 +80,14 @@ if(TERRAINGEN_COVERAGE)
     if(NOT TERRAINGEN_BUILD_TESTS)
         message(FATAL_ERROR "TERRAINGEN_COVERAGE requires TERRAINGEN_BUILD_TESTS")
     endif()
-    # Atomic counters keep hit counts exact in code that runs on several threads.
-    target_compile_options(terraingen_coverage INTERFACE --coverage -fprofile-update=atomic -O0 -g)
+    # -O1 runs the terrain-generating tests several times faster than -O0. The counters are not
+    # atomic: atomic ones made threaded tests about three times slower, a race only loses hits, and
+    # ccache does not cache compiles with -fprofile-update.
+    set(TERRAINGEN_COVERAGE_OPTIMIZATION
+        "-O1"
+        CACHE STRING "Optimization flag for coverage builds")
+    target_compile_options(terraingen_coverage INTERFACE --coverage
+                                                         ${TERRAINGEN_COVERAGE_OPTIMIZATION} -g)
     target_link_options(terraingen_coverage INTERFACE --coverage)
 endif()
 

@@ -31,9 +31,10 @@ if(TERRAINGEN_COVERAGE)
                 "^core\\.build_info_stable$"
         COMMAND
             "${GCOVR_EXECUTABLE}" --root "${PROJECT_SOURCE_DIR}" --gcov-executable "${gcov_command}"
-            --filter "${PROJECT_SOURCE_DIR}/terraingen/" --gcov-exclude ".*build_info.*"
+            -j 0 --filter "${PROJECT_SOURCE_DIR}/terraingen/" --gcov-exclude ".*build_info.*"
             --gcov-exclude-directories ".*terraingen_build_info\\.dir.*"
             --gcov-ignore-parse-errors=suspicious_hits.warn_once_per_file
+            --gcov-ignore-parse-errors=negative_hits.warn_once_per_file
             --merge-mode-functions=separate --exclude-throw-branches --exclude-noncode-lines
             --delete --txt --html-details "${report_dir}/index.html" --html-title
             "TerrainGen coverage" --cobertura "${report_dir}/coverage.xml" --markdown-summary
