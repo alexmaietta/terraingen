@@ -126,6 +126,18 @@ def test_boulder_layer_options_keep_their_fields():
     )
 
 
+def test_boulder_fade_sets_the_smallest_boulder_drawn_in_pixels():
+    fade = terraingen.ResolutionFade(start_samples=4.0, end_samples=6.0)
+    options = terraingen.BoulderLayerOptions(coverage=0.1, min_diameter=0.2, max_diameter=3.0, fade=fade)
+    layer = terraingen.BoulderLayer(options)
+    region = (-15.0, -15.0, 15.0, 15.0)
+    every = layer.boulders(region)["diameter"]
+    drawn = layer.boulders(region, 0.25)["diameter"]
+    assert every.min() < 1.0 and drawn.min() >= 1.0
+    assert len(drawn) == np.count_nonzero(every >= 1.0)
+    assert "pixels" in terraingen.BoulderLayerOptions.fade.__doc__
+
+
 def test_boulder_fillets_and_burial_by_wear_are_options():
     fillet = terraingen.BoulderFillet(height_share=0.4, width_ratio=0.25)
     boulders = terraingen.BoulderLayerOptions(burial_by_wear=0.5, fillet=fillet)

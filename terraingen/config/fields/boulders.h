@@ -496,7 +496,11 @@ template <typename IO> void BoulderSharingFields(IO& io, BoulderLayerOptions& bo
        "placement, settling, slopes and breaking; fixed so that which boulders exist does not "
        "depend on the level of detail.",
        "m", Above(0.0));
-    io("fade", boulders.fade, "How boulders too small to resolve at the sample spacing fade out.");
+    io("fade", boulders.fade,
+       "Which boulders are drawn into the heightmap by their size in pixels of the evaluation "
+       "grid: start_samples is the smallest drawn (2 by default, the fewest that resolve a "
+       "boulder) and end_samples the size from which they are drawn in full. Smaller boulders "
+       "exist only in the boulder lists and 3D models.");
 }
 
 /// The fields of a boulder layer's library options: its spec's without the size models, maps,

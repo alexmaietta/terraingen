@@ -319,7 +319,11 @@ struct BoulderLayerOptions {
     BoulderVentifacts ventifacts{};  ///< Facets planed by the wind; none by default.
     BoulderFragmentation fragmentation{};  ///< Boulders broken by wear; none by default.
     BoulderRendering rendering{};          ///< Relief or models, and shapes.
-    ResolutionFade fade{};                 ///< Fade of boulders too small for the spacing.
+    /// Which boulders are drawn into the heights by their size in samples of the evaluation
+    /// spacing: none narrower than `startSamples` (2, the fewest that resolve one), in full from
+    /// `endSamples`. Grids, tiles and points at one spacing agree; the lists and models hold
+    /// every boulder whatever its size.
+    ResolutionFade fade{};
     /// Spacing (m) at which the layer reads the ground beneath it, for the exposure field,
     /// placement, settling, slopes and breaking; fixed so that which boulders exist and how they
     /// sit does not depend on the level of detail.

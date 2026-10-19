@@ -72,8 +72,9 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
 
     /// The boulders centred in `region` (surface coordinates) or reaching it with their radius or
     /// fillet, in a fixed order.
-    /// @param spacing Sample spacing in metres; boulders too small to resolve at it are left out
-    /// and models are marked at it; 0 keeps every boulder.
+    /// @param spacing Sample spacing in metres; boulders narrower than `fade.startSamples` samples
+    /// at it, which the heights leave out, are left out and models are marked at it; 0 keeps
+    /// every boulder.
     /// @param ground Read under each boulder; needed with the exposure field.
     /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
     std::vector<Boulder> Boulders(const Bounds2d& region, double spacing = 0.0,

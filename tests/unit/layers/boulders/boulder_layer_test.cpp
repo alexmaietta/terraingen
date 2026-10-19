@@ -607,6 +607,63 @@ TEST(BoulderLayer, DrawsOnlyBouldersInItsReliefRange) {
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
 }
 
+TEST(BoulderLayer, DrawsNoBoulderNarrowerThanTheFadeStartButListsEveryOne) {
+    BoulderLayerOptions options;
+    options.sizes.coverage = 0.1;
+    options.sizes.minDiameter = 0.2;
+    options.sizes.maxDiameter = 3.0;
+    options.fade = {.startSamples = 3.0, .endSamples = 5.0};
+    const BoulderLayer layer(options);
+    constexpr double kSpacing = 0.25;
+    const double smallest = options.fade.startSamples * kSpacing;
+    const terraingen::RasterGrid grid{100, 80, GeoTransform::NorthUp(-12.5, 10.0, kSpacing)};
+    Raster<float> heights(grid.width, grid.height, 0.0f);
+    heights.SetTransform(grid.transform);
+    layer.Apply(heights, {kSpacing, 2});
+    const std::vector<Boulder> listed = layer.BouldersOver(grid, kSpacing, nullptr).boulders;
+    std::size_t small = 0;
+    std::size_t drawn = 0;
+    for (const Boulder& boulder : listed) {
+        const auto pixel = grid.transform.WorldToPixel(boulder.x, boulder.y);
+        if (pixel.x < 0.0 || pixel.y < 0.0 || pixel.x >= 100.0 || pixel.y >= 80.0) {
+            continue;
+        }
+        const float at =
+            heights(static_cast<std::size_t>(pixel.x), static_cast<std::size_t>(pixel.y));
+        if (boulder.diameter >= options.fade.endSamples * kSpacing) {
+            drawn += at > 0.0f ? 1u : 0u;
+            continue;
+        }
+        if (boulder.diameter >= smallest) {
+            continue;
+        }
+        ++small;
+        const bool covered = std::any_of(listed.begin(), listed.end(), [&](const Boulder& other) {
+            return other.diameter >= smallest &&
+                   std::hypot(other.x - boulder.x, other.y - boulder.y) <
+                       0.5 * other.diameter + kSpacing;
+        });
+        if (!covered) {
+            EXPECT_EQ(at, 0.0f) << "a " << boulder.diameter << " m boulder is drawn";
+        }
+    }
+    EXPECT_GT(small, 10u) << "boulders too small for the heights are still listed";
+    EXPECT_GT(drawn, 0u);
+    for (const double x0 : {-12.5, 0.0}) {
+        Raster<float> tile(50, 80, 0.0f);
+        tile.SetTransform(GeoTransform::NorthUp(x0, 10.0, kSpacing));
+        layer.Apply(tile, {kSpacing, 1});
+        const auto offset = static_cast<std::size_t>((x0 + 12.5) / kSpacing);
+        for (std::size_t row = 0; row < 80; ++row) {
+            for (std::size_t col = 0; col < 50; ++col) {
+                ASSERT_EQ(tile(col, row), heights(offset + col, row));
+                const auto centre = tile.CellCenter(col, row);
+                ASSERT_EQ(layer.ApplyAt(0.0f, centre.x, centre.y, {kSpacing}), tile(col, row));
+            }
+        }
+    }
+}
+
 TEST(DomeHeight, AveragesTheDomeOverASampleSoItsRimSlopes) {
     const Boulder boulder{0.0, 0.0, 2.0, 1.0, 0.25, 0.0, 0.0, 1u};
     EXPECT_DOUBLE_EQ(terraingen::DomeHeight(boulder, 0.6), 0.75 * 0.8) << "a point sample";
