@@ -78,9 +78,7 @@ template <typename IO> void Fields(IO& io, BoulderVentifacts& ventifacts) {
        "none. Gale crater: 0.39 (Bridges et al. 2014).",
        "", UnitInterval());
     io("wind_azimuth", ventifacts.windAzimuth,
-       "Where the abrading wind blows toward, in radians counter-clockwise from east; facets face "
-       "the other way.",
-       "rad");
+       WindAzimuthHelp("abrading wind", "facets face the other way"), "rad");
     io("min_angle", ventifacts.minAngle,
        "Gentlest facet slope from horizontal, in radians; 50 to 60 deg on basalt (Laity and "
        "Bridges 2009).",
@@ -322,12 +320,9 @@ template <> struct SpecName<BoulderLayerSpec> {
         "Boulders scattered over the ground from a size distribution, in patches and around fresh "
         "craters, as relief or 3D models.";
 };
-template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
-    BoulderLayerOptions& boulders = spec.boulders;
-    BoulderSizes& sizes = boulders.sizes;
-    BoulderBedrock& bedrock = boulders.bedrock;
-    BoulderPose& pose = boulders.pose;
-    BoulderRendering& rendering = boulders.rendering;
+/// The fields of the sizes of a boulder layer's boulders between craters.
+template <typename IO> void BoulderSizeFields(IO& io, BoulderLayerSpec& spec) {
+    BoulderSizes& sizes = spec.boulders.sizes;
     io("coverage", sizes.coverage,
        "Golombek-Rapp k, the fraction of the ground covered by boulders, between 0 and 1; used "
        "with golombek_rapp sizes, where higher values give more boulders.",
@@ -346,6 +341,11 @@ template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
     io("sizes", spec.sizes,
        "Size distribution of the boulders between craters, per m^2; patches and bedrock scale its "
        "density.");
+}
+
+/// The fields of where a boulder layer's boulders gather: patches, clusters and crater ejecta.
+template <typename IO> void BoulderPlacementFields(IO& io, BoulderLayerSpec& spec) {
+    BoulderLayerOptions& boulders = spec.boulders;
     io("seed", boulders.seed,
        "Seed of the boulders, their attributes and the patches; changing it gives a different "
        "boulder field of the same statistics.");
@@ -363,6 +363,10 @@ template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
     io("extrapolate", spec.extrapolate,
        "Lets the size distributions be evaluated outside their valid diameters, such as beyond a "
        "table's published ones; otherwise they must cover the boulder sizes.");
+}
+
+/// The fields of the boulders a layer adds where the ground beneath is bedrock.
+template <typename IO> void BoulderBedrockFields(IO& io, BoulderBedrock& bedrock) {
     io("exposure", bedrock.exposure,
        "Raises the abundance of boulders where the ground beneath is bedrock, judged from its "
        "shape; unset disables it.");
@@ -378,6 +382,10 @@ template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
        "With a density map, the side in metres of the squares bedrock is held to the map's mean "
        "over, so it gathers boulders without adding any; a GeoTIFF map uses its own cells.",
        "m", Above(0.0));
+}
+
+/// The fields of how a boulder layer's boulders sit on the ground.
+template <typename IO> void BoulderPoseFields(IO& io, BoulderPose& pose) {
     io("min_height_ratio", pose.minHeightRatio,
        "Smallest boulder height over diameter; each boulder's is drawn uniformly between the two "
        "ratios.",
@@ -424,6 +432,10 @@ template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
        "burial and those of worn ones sink toward the largest, while boulders between craters "
        "span every stage; 0 draws burial uniformly.",
        "", UnitInterval());
+}
+
+/// The fields of how wear and wind change a boulder layer's boulders.
+template <typename IO> void BoulderWearFields(IO& io, BoulderLayerOptions& boulders) {
     io("fillet", boulders.fillet,
        "Regolith piled against each boulder's base, around relief and models alike; off unless "
        "height_share is set.");
@@ -433,6 +445,10 @@ template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
     io("fragmentation", boulders.fragmentation,
        "Boulders broken by wear into pieces that replace them, split and then scattered as "
        "rubble; off unless split_wear is below 1.");
+}
+
+/// The fields of how a boulder layer's boulders are drawn: as relief in the heights or as models.
+template <typename IO> void BoulderRenderingFields(IO& io, BoulderRendering& rendering) {
     io("relief", rendering.relief, "How the boulders drawn into the heights look there.");
     io("models", rendering.models,
        "Which boulders become 3D models of their own rather than relief in the heights; neither "
@@ -442,6 +458,10 @@ template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
        "max_diameter, and models only when asked.");
     io("shapes", rendering.shapes,
        "The boulders' 3D boulder shapes, used by shape relief and by models.");
+}
+
+/// The fields of the files and maps a boulder layer reads, and its catalog boulders.
+template <typename IO> void BoulderInputFields(IO& io, BoulderLayerSpec& spec) {
     io("shape_files", spec.shapeFiles,
        "Rock meshes (.obj with its .mtl, .gltf or .glb) the boulder shapes are drawn from instead "
        "of the procedural styles, each boulder picking one by its shape seed; paths relative to "
@@ -460,7 +480,18 @@ template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
        "Where the manual boulders are a complete catalog: the diameter in metres from which they "
        "stand in for generated boulders, infinite or no value where there is no catalog. Unset "
        "keeps every generated boulder.");
-    io("shape_prototypes", rendering.shapePrototypes,
+}
+
+template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
+    BoulderLayerOptions& boulders = spec.boulders;
+    BoulderSizeFields(io, spec);
+    BoulderPlacementFields(io, spec);
+    BoulderBedrockFields(io, boulders.bedrock);
+    BoulderPoseFields(io, boulders.pose);
+    BoulderWearFields(io, boulders);
+    BoulderRenderingFields(io, boulders.rendering);
+    BoulderInputFields(io, spec);
+    io("shape_prototypes", boulders.rendering.shapePrototypes,
        "How many shapes the boulders share, so they can be drawn as instances; 0 gives every "
        "boulder a shape of its own.");
     io("fade", boulders.fade, "How boulders too small to resolve at the sample spacing fade out.");

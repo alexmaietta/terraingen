@@ -67,7 +67,9 @@ class Writer {
   public:
     /// A writer into one object.
     /// @param json The object to write; it must outlive the writer.
-    explicit Writer(Json& json) : json_(json) {}
+    /// @param omitUnset Whether unset optional fields of this object are left out rather than
+    /// written as null; the objects inside it write theirs as null.
+    explicit Writer(Json& json, bool omitUnset = false) : json_(json), omitUnset_(omitUnset) {}
 
     /// Writes a field as a key; `description` and `unit` are for `ConfigSchema`.
     template <typename T>
@@ -76,6 +78,7 @@ class Writer {
 
   private:
     Json& json_;
+    bool omitUnset_ = false;
 };
 
 /// A struct read and written as a JSON object through its `Fields`.
@@ -103,16 +106,8 @@ template <typename... Ts>
 void Read(const Json& json, const std::string& path, std::variant<Ts...>& value);
 /// @}
 
-/// @name AfterRead
-/// Finishes a value after its object is read: nothing, but list outputs take their format
-/// from the path's extension when the JSON gives none.
-/// @{
-template <typename T> void AfterRead(const Json& /*json*/, T& /*value*/) {}
-void AfterRead(const Json& json, CraterListOutput& output);
-void AfterRead(const Json& json, BoulderListOutput& output);
-/// @}
-
-/// Reads an object at `path` into a value through its `Fields`.
+/// Reads an object at `path` into a value through its `Fields`; a list output given no "format"
+/// takes it from its path (`InferListFormat`).
 /// @param typed Whether the value is a variant alternative, so a "type" key is expected too.
 /// @throws ConfigError at `path`, or below it, for an object that does not fit.
 template <typename T>
@@ -123,7 +118,11 @@ void ReadObject(const Json& json, const std::string& path, T& value, bool typed 
     }
     Fields(reader, value);
     reader.Finish();
-    AfterRead(json, value);
+    if constexpr (std::derived_from<T, ListOutput>) {
+        if (!json.contains("format")) {
+            value.format = InferListFormat(value.path);
+        }
+    }
 }
 
 template <std::unsigned_integral T>
@@ -307,9 +306,23 @@ template <typename... Ts> Json ToJson(const std::variant<Ts...>& value) {
         value);
 }
 
+/// @name IsUnset
+/// Whether a field is an unset optional.
+/// @{
+template <typename T> bool IsUnset(const T& /*value*/) {
+    return false;
+}
+template <typename T> bool IsUnset(const std::optional<T>& value) {
+    return !value.has_value();
+}
+/// @}
+
 template <typename T>
 void Writer::operator()(std::string_view key, T& value, std::string_view /*description*/,
                         std::string_view /*unit*/, const FieldRange& /*range*/) {
+    if (omitUnset_ && IsUnset(value)) {
+        return;
+    }
     json_[std::string(key)] = ToJson(value);
 }
 

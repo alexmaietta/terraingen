@@ -74,26 +74,8 @@ template <typename IO> void Fields(IO& io, ValueDistribution& distribution) {
                   "which normal and log-normal kinds do not allow.");
 }
 
-template <typename IO> void Fields(IO& io, CraterIrregularity& irregularity) {
-    io("enabled", irregularity.enabled,
-       "Gives eligible craters irregular, non-circular outlines; off keeps every crater round.");
-    io("seed", irregularity.seed,
-       "Seed the outlines are drawn with, along with each crater's ID; changing it reshapes every "
-       "irregular crater.");
-    CraterSelection& selection = irregularity.selection;
-    io("min_diameter", selection.minDiameter,
-       "Smallest diameter, in metres, of craters made irregular.", "m", AtLeast(0.0));
-    OptionalBound(io, "max_diameter", selection.maxDiameter,
-                  "Largest diameter, in metres, of craters made irregular; unset has no upper "
-                  "limit.",
-                  "m", std::numeric_limits<double>::infinity(), AtLeast(0.0));
-    io("min_age_gyr", selection.minAgeGyr, "Youngest age, in Gyr, of craters made irregular.",
-       "Gyr", AtLeast(0.0));
-    OptionalBound(io, "max_age_gyr", selection.maxAgeGyr,
-                  "Oldest age, in Gyr, of craters made irregular; unset has no upper limit.", "Gyr",
-                  std::numeric_limits<double>::infinity(), AtLeast(0.0));
-    io("manual", selection.manual,
-       "Makes manual craters irregular too; otherwise only generated craters are.");
+/// The fields of irregular craters' rough, wavy rims.
+template <typename IO> void RoughRimFields(IO& io, CraterIrregularity& irregularity) {
     io("rough_share", irregularity.roughShare,
        "Share of eligible craters, from 0 to 1, given rough, wavy rims.", "", UnitInterval());
     io("model", irregularity.model, "How rough rims are drawn.");
@@ -116,6 +98,10 @@ template <typename IO> void Fields(IO& io, CraterIrregularity& irregularity) {
        "With power_law, the highest harmonic of the rim's waviness, at most 64; higher harmonics "
        "add finer wiggles.",
        "", Between(1.0, 64.0));
+}
+
+/// The fields of irregular craters stretched into ellipses.
+template <typename IO> void ElongationFields(IO& io, CraterIrregularity& irregularity) {
     io("elongated_share", irregularity.elongatedShare,
        "Share of eligible craters, from 0 to 1, made elliptical, keeping their area.", "",
        UnitInterval());
@@ -128,6 +114,10 @@ template <typename IO> void Fields(IO& io, CraterIrregularity& irregularity) {
     io("heading_spread", irregularity.headingSpread,
        "Largest random turn of a long axis either way from the heading, in radians.", "rad",
        AtLeast(0.0));
+}
+
+/// The fields of the radial marks down irregular craters' walls.
+template <typename IO> void RadialMarkFields(IO& io, CraterIrregularity& irregularity) {
     io("marks_share", irregularity.marksShare,
        "Share of eligible craters, from 0 to 1, given radial marks: ridges and grooves down the "
        "wall, strongest where it is steepest.",
@@ -148,6 +138,19 @@ template <typename IO> void Fields(IO& io, CraterIrregularity& irregularity) {
        "", Inside(0.0, 1.0));
     io("marks_fade_radii", irregularity.marksFadeRadii,
        "Width, in crater radii, over which the marks fade in and out.", "", AboveUpTo(0.0, 0.5));
+}
+
+template <typename IO> void Fields(IO& io, CraterIrregularity& irregularity) {
+    io("enabled", irregularity.enabled,
+       "Gives eligible craters irregular, non-circular outlines; off keeps every crater round.");
+    io("seed", irregularity.seed,
+       "Seed the outlines are drawn with, along with each crater's ID; changing it reshapes every "
+       "irregular crater.");
+    SelectionFields(io, irregularity.selection, "craters made irregular",
+                    "Makes manual craters irregular too; otherwise only generated craters are.");
+    RoughRimFields(io, irregularity);
+    ElongationFields(io, irregularity);
+    RadialMarkFields(io, irregularity);
 }
 
 template <typename IO> void Fields(IO& io, RimSmoothing& smoothing) {
@@ -397,19 +400,10 @@ template <typename IO> void Fields(IO& io, SecondaryLayerSpec& spec) {
        "How far secondaries reach, in primary diameters from its centre; unset uses the longest "
        "typical ray of Elliott et al. (2018).",
        "", Above(0.0));
-    io("min_primary_diameter", o.selection.minDiameter,
-       "Smallest primary crater, in metres, that throws secondaries.", "m", AtLeast(0.0));
-    OptionalBound(io, "max_primary_diameter", o.selection.maxDiameter,
-                  "Largest primary crater, in metres, that throws secondaries; unset has no upper "
-                  "limit.",
-                  "m", std::numeric_limits<double>::infinity(), AtLeast(0.0));
-    io("min_age_gyr", o.selection.minAgeGyr, "Youngest primary, in Gyr, that throws secondaries.",
-       "Gyr", AtLeast(0.0));
-    OptionalBound(io, "max_age_gyr", o.selection.maxAgeGyr,
-                  "Oldest primary, in Gyr, that throws secondaries; unset has no upper limit.",
-                  "Gyr", std::numeric_limits<double>::infinity(), AtLeast(0.0));
-    io("manual", o.selection.manual,
-       "Lets manual primary craters throw secondaries too; otherwise only generated ones do.");
+    SelectionFields(
+        io, o.selection, "primary craters that throw secondaries",
+        "Lets manual primary craters throw secondaries too; otherwise only generated ones do.",
+        {.minDiameter = "min_primary_diameter", .maxDiameter = "max_primary_diameter"});
     io("cell_size_factor", o.cellSizeFactor,
        "Side of the polar cells secondaries are drawn in, as a multiple of each size band's "
        "largest diameter.",

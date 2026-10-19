@@ -5,6 +5,8 @@
 #include "terraingen/config/config.h"
 #include "terraingen/config/fields/common.h"
 
+#include <limits>
+#include <string>
 #include <string_view>
 
 namespace terraingen::config {
@@ -28,14 +30,14 @@ template <typename IO> void Fields(IO& io, SyntheticAlbedoSpec& spec) {
        "Reflectance of the brightest band, from 0 to 1; the one band's value without rgb. "
        "Higher values give a brighter surface.",
        "", UnitInterval());
+    const std::string layers = "Noise layers, " + CountText(0, kMaxNoiseLayers);
     io("hue_noise", spec.hueNoise,
-       "Noise layers, 0 to 8, whose sum in degrees is added to the hue; used with rgb only.");
+       layers + ", whose sum in degrees is added to the hue; used with rgb only.");
     io("saturation_noise", spec.saturationNoise,
-       "Noise layers, 0 to 8, added to the saturation, which is then clamped to [0, 1]; used "
-       "with rgb only.");
+       layers + ", added to the saturation, which is then clamped to [0, 1]; used with rgb only.");
     io("value_noise", spec.valueNoise,
-       "Noise layers, 0 to 8: the value is multiplied by 1 plus their sum and clamped to [0, 1], "
-       "so their amplitude sets the relative contrast.");
+       layers + ": the value is multiplied by 1 plus their sum and clamped to [0, 1], so their "
+                "amplitude sets the relative contrast.");
 }
 
 template <typename IO> void Fields(IO& io, AlbedoDetail& detail) {
@@ -283,20 +285,9 @@ template <typename IO> void Fields(IO& io, CraterAlbedoOptions& options) {
     io("seed", options.seed,
        "Seed of which craters get bright material, their rays and their impacts; changing it "
        "gives a different pattern of the same statistics.");
-    CraterSelection& selection = options.selection;
-    io("min_diameter", selection.minDiameter,
-       "Smallest diameter, in metres, of craters given bright material.", "m", AtLeast(0.0));
-    OptionalBound(io, "max_diameter", selection.maxDiameter,
-                  "Largest diameter, in metres, of craters given bright material; unset has no "
-                  "upper limit.",
-                  "m", std::numeric_limits<double>::infinity(), AtLeast(0.0));
-    io("min_age_gyr", selection.minAgeGyr,
-       "Youngest age, in Gyr, of craters given bright material.", "Gyr", AtLeast(0.0));
-    OptionalBound(io, "max_age_gyr", selection.maxAgeGyr,
-                  "Oldest age, in Gyr, of craters given bright material; unset has no upper limit.",
-                  "Gyr", std::numeric_limits<double>::infinity(), AtLeast(0.0));
-    io("manual", selection.manual,
-       "Gives manual craters bright material too; otherwise only generated craters have it.");
+    SelectionFields(
+        io, options.selection, "craters given bright material",
+        "Gives manual craters bright material too; otherwise only generated craters have it.");
     io("share", options.share, "Share of eligible craters, from 0 to 1, given bright material.", "",
        UnitInterval());
     io("background_maturity", options.backgroundMaturity,

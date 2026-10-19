@@ -4,8 +4,10 @@
 
 #include "terraingen/config/config.h"
 #include "terraingen/config/fields/common.h"
+#include "terraingen/config/fields/sources.h"
 
 #include <numbers>
+#include <string>
 #include <string_view>
 
 namespace terraingen::config {
@@ -57,8 +59,9 @@ template <> struct SpecName<NoiseLayerSpec> {
 };
 template <typename IO> void Fields(IO& io, NoiseLayerSpec& layer) {
     io("stack", layer.stack,
-       "Noise layers, 1 to 8, combined in order: the first enabled layer sets the height and each "
-       "later one is combined with it by its blend mode.");
+       "Noise layers, " + CountText(1, kMaxNoiseLayers) +
+           ", combined in order: the first enabled layer sets the height and each later one is "
+           "combined with it by its blend mode.");
 }
 
 template <> struct SpecName<RoughnessLayerSpec> {
@@ -152,13 +155,10 @@ template <> struct SpecName<DuneLayerSpec> {
         "Wind-blown dunes added to the terrain: isolated barchans or domes, or fields of "
         "transverse, barchanoid or linear crests, with slip faces and optional ripples on them.";
 };
-template <typename IO> void Fields(IO& io, DuneLayerSpec& spec) {
-    DuneOptions& dunes = spec.dunes;
+/// The fields of every dune's shape and the wind that shapes it.
+template <typename IO> void DuneProfileFields(IO& io, DuneOptions& dunes) {
     io("shape", dunes.shape, "The kind of dune.");
-    io("wind_azimuth", dunes.windAzimuth,
-       "Direction the wind blows toward, in radians counter-clockwise from +x (local east of the "
-       "anchor on a body); slip faces face it.",
-       "rad");
+    io("wind_azimuth", dunes.windAzimuth, WindAzimuthHelp("wind", "slip faces face it"), "rad");
     io("azimuth_spread", dunes.azimuthSpread,
        "Largest difference of each barchan or dome's wind from the azimuth, in radians.", "rad",
        AtLeast(0.0));
@@ -173,6 +173,10 @@ template <typename IO> void Fields(IO& io, DuneLayerSpec& spec) {
        Above(0.0));
     io("dome_exponent", dunes.domeExponent, "Exponent alpha of the cos^alpha profile of domes.", "",
        Above(0.0));
+}
+
+/// The fields of isolated barchans and domes, one per lattice cell at most.
+template <typename IO> void DuneLatticeFields(IO& io, DuneOptions& dunes) {
     io("spacing", dunes.spacing,
        "Barchans and domes: side of the lattice cells, each holding at most one dune, in metres.",
        "m", Above(0.0));
@@ -193,6 +197,10 @@ template <typename IO> void Fields(IO& io, DuneLayerSpec& spec) {
        "Barchans: how far the horns reach downwind of the crest, in dune heights.", "",
        AtLeast(0.0));
     io("dome_length", dunes.domeLength, "Domes: length along the wind over width.", "", Above(0.0));
+}
+
+/// The fields of fields of transverse, barchanoid and linear crests.
+template <typename IO> void DuneCrestFields(IO& io, DuneOptions& dunes) {
     io("wavelength", dunes.wavelength,
        "Transverse, barchanoid and linear dunes: crest-to-crest spacing, in metres.", "m",
        Above(0.0));
@@ -213,13 +221,19 @@ template <typename IO> void Fields(IO& io, DuneLayerSpec& spec) {
        "1/m", AtLeast(0.0));
     io("flank_slope", dunes.flankSlope, "Linear dunes: mean slope of both flanks, in radians.",
        "rad", Inside(0.0, 0.5 * std::numbers::pi));
+}
+
+template <typename IO> void Fields(IO& io, DuneLayerSpec& spec) {
+    DuneOptions& dunes = spec.dunes;
+    DuneProfileFields(io, dunes);
+    DuneLatticeFields(io, dunes);
+    DuneCrestFields(io, dunes);
     io("seed", dunes.seed,
        "Seed of the dunes and ripples; changing it gives a different layout of the same "
        "statistics.");
-    io("anchor_x", dunes.anchor.x,
-       "On a body, the longitude in degrees of the point whose tangent frame the dunes are laid "
-       "out in; they are true to scale near it and absent on the far hemisphere.");
-    io("anchor_y", dunes.anchor.y, "On a body, the latitude in degrees of the anchor.");
+    AnchorFields(io, dunes.anchor,
+                 "the dunes are laid out in; they are true to scale near it and absent on the far "
+                 "hemisphere");
     io("fade", dunes.fade,
        "How dunes too fine for the sample spacing fade out, by samples across their width or "
        "wavelength.");
@@ -264,15 +278,10 @@ template <typename IO> void Fields(IO& io, PavementLayerSpec& spec) {
        "Ratio of crack width, depth, rounding, tilt and step between octaves, in (0, 1].", "",
        AboveUpTo(0.0, 1.0));
     io("seed", pavement.seed, "Seed of the plates.");
-    io("exposure", pavement.exposure,
-       "Shows plates only where the ground beneath is bare bedrock, fading out over soil; unset "
-       "shows them everywhere.");
-    io("exposure_spacing", pavement.exposureSpacing,
-       "Spacing in metres the ground is read at for the exposure field.", "m", Above(0.0));
-    io("anchor_x", pavement.anchor.x,
-       "On a body, the longitude in degrees of the point whose tangent frame the plates are laid "
-       "out in.");
-    io("anchor_y", pavement.anchor.y, "On a body, the latitude in degrees of the anchor.");
+    ExposureFields(io, pavement.exposure, pavement.exposureSpacing,
+                   "Shows plates only where the ground beneath is bare bedrock, fading out over "
+                   "soil; unset shows them everywhere.");
+    AnchorFields(io, pavement.anchor, "the plates are laid out in");
     io("fade", pavement.fade,
        "How plates and cracks too fine for the sample spacing fade out, by samples across them.");
 }
@@ -306,10 +315,7 @@ template <typename IO> void Fields(IO& io, StrataLayerSpec& spec) {
        "Share of each bed's height, at its top, laid as bedrock in the material map, in (0, 1].",
        "", AboveUpTo(0.0, 1.0));
     io("seed", strata.seed, "Seed of the bed boundaries.");
-    io("anchor_x", strata.anchor.x,
-       "On a body, the longitude in degrees of the point whose tangent frame the dip is measured "
-       "in.");
-    io("anchor_y", strata.anchor.y, "On a body, the latitude in degrees of the anchor.");
+    AnchorFields(io, strata.anchor, "the dip is measured in");
     io("hard_share", strata.hardShare,
        "Share of the beds that are hard rock, from 0 to 1: hard beds form benches and cliffs of "
        "bedrock, soft beds slopes cut at soft_sharpness without bedrock.",
@@ -329,9 +335,7 @@ template <> struct SpecName<SandShadowLayerSpec> {
 template <typename IO> void Fields(IO& io, SandShadowLayerSpec& spec) {
     SandShadowOptions& shadows = spec.shadows;
     io("wind_azimuth", shadows.windAzimuth,
-       "Where the wind blows toward, in radians counter-clockwise from +x (local east on a "
-       "body).",
-       "rad");
+       WindAzimuthHelp("wind", "tails trail away from boulders along it"), "rad");
     io("length_ratio", shadows.lengthRatio,
        "Length of a tail beyond its boulder over the boulder's width; 1.1 is the reattachment "
        "length behind a dome, and modelled shadow dunes run 1.3 to 5.6, longer in lighter "
@@ -384,9 +388,7 @@ template <typename IO> void Fields(IO& io, BedformLayerSpec& spec) {
     io("height", bedforms.height,
        "Trough-to-crest height, in metres, scaled with each field's wavelength.", "m",
        AtLeast(0.0));
-    io("wind_azimuth", bedforms.windAzimuth,
-       "Direction the wind blows toward, in radians counter-clockwise from +x (local east on a "
-       "sphere); crests lie across it.",
+    io("wind_azimuth", bedforms.windAzimuth, WindAzimuthHelp("wind", "crests lie across it"),
        "rad");
     io("azimuth_spread", bedforms.azimuthSpread,
        "Largest difference of each field's wind from the azimuth, in radians.", "rad",
@@ -406,11 +408,9 @@ template <typename IO> void Fields(IO& io, BedformLayerSpec& spec) {
     io("seed", bedforms.seed,
        "Seed of the fields and their crests; changing it gives a different layout of the same "
        "statistics.");
-    io("exposure", bedforms.exposure,
-       "Leaves out fields whose centres lie on bedrock, the likelier the barer the ground, as "
-       "sand settles in lows; unset disables it.");
-    io("exposure_spacing", bedforms.exposureSpacing,
-       "Spacing in metres the ground is read at for the exposure field.", "m", Above(0.0));
+    ExposureFields(io, bedforms.exposure, bedforms.exposureSpacing,
+                   "Leaves out fields whose centres lie on bedrock, the likelier the barer the "
+                   "ground, as sand settles in lows; unset disables it.");
     io("fade", bedforms.fade,
        "How bedforms too fine for the sample spacing fade out, by samples per wavelength.");
 }
@@ -424,15 +424,7 @@ template <> struct SpecName<DemDetailLayerSpec> {
 };
 template <typename IO> void Fields(IO& io, DemDetailLayerSpec& spec) {
     io("path", spec.path, InputPathHelp("GeoTIFF DEM to take the detail from"));
-    io("band", spec.read.band, "Band of the file to read, counting from 0.");
-    io("resampling", spec.read.resampling, "Interpolation used between the DEM's cells.");
-    io("scale", spec.read.scale,
-       "Factor each sample is multiplied by, replacing the band's scale from the file's GDAL "
-       "metadata. Unset keeps the file's.");
-    io("offset", spec.read.offset,
-       "Added to each scaled sample, replacing the band's offset from the file's GDAL metadata. "
-       "Unset keeps the file's.",
-       "m");
+    GeoTiffReadFields(io, spec.read, "Interpolation used between the DEM's cells.", false);
     io("low_pass", spec.read.lowPass,
        "Standard deviation in metres of the Gaussian low-pass the detail is measured above; "
        "positive, and the same as the raster source's low_pass to restore the DEM whole.",

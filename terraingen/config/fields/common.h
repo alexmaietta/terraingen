@@ -8,6 +8,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstddef>
 #include <limits>
 #include <optional>
 #include <string>
@@ -18,19 +19,14 @@ namespace terraingen::config {
 /// The JSON "type" of the variant alternative `Spec` (`kName`) and what it is (`kDescription`).
 template <typename Spec> struct SpecName;
 
-/// The values a numeric field, or each number of a list, may take, which `ConfigSchema` gives
-/// editors and the reference; validation still checks them, with the rules that tie fields
-/// together. Unset bounds are open.
+/// The values a numeric field, or each number of a list, may take: `ConfigSchema` gives them to
+/// editors and the reference, and `CheckConfigRanges` enforces them. Rules that tie fields together
+/// are checked by validation. Unset bounds are open.
 struct FieldRange {
     std::optional<double> minimum;  ///< Smallest value, in the field's unit.
     std::optional<double> maximum;  ///< Largest value, in the field's unit.
     bool exclusiveMinimum = false;  ///< `minimum` itself is out.
     bool exclusiveMaximum = false;  ///< `maximum` itself is out.
-
-    /// Whether the range sets a bound.
-    bool Bounded() const {
-        return minimum.has_value() || maximum.has_value();
-    }
 };
 
 /// Values of at least `minimum`.
@@ -41,11 +37,6 @@ inline FieldRange AtLeast(double minimum) {
 /// Values above `minimum`; `Above(0)` for positive values.
 inline FieldRange Above(double minimum) {
     return {minimum, std::nullopt, true, false};
-}
-
-/// Values of at most `maximum`.
-inline FieldRange AtMost(double maximum) {
-    return {std::nullopt, maximum};
 }
 
 /// Values from `minimum` to `maximum`, both included.
@@ -73,6 +64,11 @@ inline FieldRange UnitInterval() {
     return Between(0.0, 1.0);
 }
 
+/// "lowest to highest", as descriptions give the counts a field allows.
+inline std::string CountText(std::size_t lowest, std::size_t highest) {
+    return std::to_string(lowest) + " to " + std::to_string(highest);
+}
+
 /// Reads or writes a bound that is unset when infinite, as an optional field.
 /// @param unit The bound's unit symbol, or empty.
 /// @param unset The bound when the field is unset: +infinity or -infinity.
@@ -87,6 +83,67 @@ void OptionalBound(IO& io, std::string_view key, double& bound, std::string_view
     }
     io(key, value, description, unit, range);
     bound = value.value_or(unset);
+}
+
+/// The keys of a crater selection's fields.
+struct SelectionKeys {
+    std::string_view minDiameter = "min_diameter";
+    std::string_view maxDiameter = "max_diameter";
+    std::string_view minAge = "min_age_gyr";
+    std::string_view maxAge = "max_age_gyr";
+    std::string_view manual = "manual";
+};
+
+/// The fields of a crater selection (`CraterSelection`): the diameters and ages of the craters
+/// selected, and whether manual craters are.
+/// @param craters What the selected craters are, such as "craters made irregular".
+/// @param manualHelp The description of the manual flag.
+template <typename IO, typename Selection>
+void SelectionFields(IO& io, Selection& selection, std::string_view craters,
+                     std::string_view manualHelp, const SelectionKeys& keys = {}) {
+    const std::string of = ", of " + std::string(craters);
+    io(keys.minDiameter, selection.minDiameter, "Smallest diameter, in metres" + of + ".", "m",
+       AtLeast(0.0));
+    OptionalBound(io, keys.maxDiameter, selection.maxDiameter,
+                  "Largest diameter, in metres" + of + "; unset has no upper limit.", "m",
+                  std::numeric_limits<double>::infinity(), AtLeast(0.0));
+    io(keys.minAge, selection.minAgeGyr, "Youngest age, in Gyr" + of + ".", "Gyr", AtLeast(0.0));
+    OptionalBound(io, keys.maxAge, selection.maxAgeGyr,
+                  "Oldest age, in Gyr" + of + "; unset has no upper limit.", "Gyr",
+                  std::numeric_limits<double>::infinity(), AtLeast(0.0));
+    io(keys.manual, selection.manual, manualHelp);
+}
+
+/// The description of a wind azimuth: where `wind`, such as "wind", blows toward, and the
+/// `effect` it has, such as "slip faces face it".
+inline std::string WindAzimuthHelp(std::string_view wind, std::string_view effect) {
+    return "Direction the " + std::string(wind) +
+           " blows toward, in radians counter-clockwise from +x (local east on a body); " +
+           std::string(effect) + ".";
+}
+
+/// The fields of the anchor of a layer laid out in a tangent frame: the longitude and latitude,
+/// on a body, of the point whose tangent frame `what`, such as "the plates are laid out in".
+/// @param prefix The keys' prefix, to which "_x" and "_y" are added.
+template <typename IO, typename Anchor>
+void AnchorFields(IO& io, Anchor& anchor, std::string_view what,
+                  std::string_view prefix = "anchor") {
+    io(std::string(prefix) + "_x", anchor.x,
+       "On a body, the longitude in degrees of the point whose tangent frame " + std::string(what) +
+           ".");
+    io(std::string(prefix) + "_y", anchor.y, "On a body, the latitude in degrees of the anchor.");
+}
+
+/// The fields of an exposure field a layer reads on the ground beneath it, and the spacing in
+/// metres it reads the ground at.
+/// @param exposureHelp The description of the exposure field.
+/// @param prefix The exposure's key, to which "_spacing" is added for the spacing's.
+template <typename IO, typename Exposure>
+void ExposureFields(IO& io, Exposure& exposure, double& spacing, std::string_view exposureHelp,
+                    std::string_view prefix = "exposure") {
+    io(std::string(prefix), exposure, exposureHelp);
+    io(std::string(prefix) + "_spacing", spacing,
+       "Spacing in metres the ground is read at for the exposure field.", "m", Above(0.0));
 }
 
 /// The description of an output file's path: `file`, such as "GeoTIFF file to write", and where
