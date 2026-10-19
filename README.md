@@ -21,6 +21,8 @@ TerrainGen can:
 - Model each crater's profile, age, degradation, irregularity.
 - Bake small boulders into the heightmap, and generate procedural 3D boulder models for the large ones.
 - Produce synthetic albedo maps with crater ejecta and rays that fade with crater age.
+- Read GeoTIFF elevation and albedo maps, and ICQ, OBJ, glTF and STL shape models.
+- Write GeoTIFF heightmaps and albedo, material and photometry maps, crater and boulder lists as CSV or JSON, and terrain, boulder and body meshes as glTF, OBJ or STL.
 - Model complex geologic features such as complex and secondary craters, boulder ejecta fields, dunes and wind ripples, layered strata terraced into benches and cliffs, fractured bedrock pavement, wind-carved ventifacts, and sand pooled in lows or trailing behind boulders.
 - Be extended through base classes in C++ or Python with custom size-frequency distributions, crater ages, profiles and degradation, albedo, sources, and layers.
 - Perform GPU-accelerated operations for generating noise, craters, boulders, albedo, and more.
