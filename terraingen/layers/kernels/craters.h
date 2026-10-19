@@ -168,13 +168,15 @@ inline float CraterValue(CraterData data, uint32_t index) {
     return data[index];
 }
 
-/// Crater records, floats and unsigned integers a dispatch binds, indexed as arrays.
+/// Crater records and frames, floats and unsigned integers a dispatch binds, indexed as arrays.
 typedef StructuredBuffer<CraterRecord> CraterRecords;
+typedef StructuredBuffer<CraterFrame> CraterFrames;
 typedef StructuredBuffer<float> KernelFloats;
 typedef StructuredBuffer<uint> KernelUints;
 #else
-/// Crater records, floats and unsigned integers, indexed as arrays.
+/// Crater records and frames, floats and unsigned integers, indexed as arrays.
 using CraterRecords = const CraterRecord*;
+using CraterFrames = const CraterFrame*;
 using KernelFloats = const float*;
 using KernelUints = const uint32_t*;
 
@@ -783,6 +785,28 @@ inline float KernelDatumRelief(KERNEL_IN(CraterDatumKernel) kernel, CraterData d
     return relief;
 }
 
+/// What fitting crater datums on a body takes on the GPU: the craters' shapes.
+struct CraterBodyDatumKernel {
+    CraterShapeKernel shape;
+};
+
+/// The relief (m) of craters `entries[first]` to `entries[first + count - 1]` of `records`, in
+/// that order, at the point at position (`px`, `py`, `pz`) from the dispatch's origin (m) on a
+/// body; each crater read in its `frames` (`KernelFrameOffset`) within its `bounds` (m), as
+/// `CraterRelief` takes them.
+inline float KernelBodyDatumRelief(KERNEL_IN(CraterShapeKernel) k, CraterData data,
+                                   CraterRecords records, CraterFrames frames, KernelFloats bounds,
+                                   KernelUints entries, uint32_t first, uint32_t count, float px,
+                                   float py, float pz) {
+    float relief = 0.0f;
+    for (uint32_t e = first; e < first + count; ++e) {
+        const uint32_t n = entries[e];
+        const KernelOffset at = KernelFrameOffset(frames[n], px, py, pz);
+        relief += CraterRelief(k, data, records[n], bounds[n], at.dx, at.dy);
+    }
+    return relief;
+}
+
 #ifndef __SLANG__
 static_assert(sizeof(CraterProfileKernel) == 76,
               "CraterProfileKernel must match its std430 layout");
@@ -796,6 +820,11 @@ static_assert(sizeof(CraterDatumKernel) == 196, "CraterDatumKernel must match it
 
 /// The compiled forms of the crater datum kernel.
 template <> KernelProgram CompiledKernel<CraterDatumKernel>();
+static_assert(sizeof(CraterBodyDatumKernel) == 180,
+              "CraterBodyDatumKernel must match its std430 layout");
+
+/// The compiled forms of the crater datum kernel on bodies.
+template <> KernelProgram CompiledKernel<CraterBodyDatumKernel>();
 #endif
 
 }  // namespace terraingen

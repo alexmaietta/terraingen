@@ -71,3 +71,5 @@ terraingen_add_kernel(terraingen_layers terraingen_kernel_craters CraterShapeKer
                       terraingen/layers/kernels/craters.h kernels/craters.slang)
 terraingen_add_kernel(terraingen_layers terraingen_kernel_crater_datums CraterDatumKernel
                       terraingen/layers/kernels/craters.h kernels/crater_datums.slang)
+terraingen_add_kernel(terraingen_layers terraingen_kernel_crater_body_datums CraterBodyDatumKernel
+                      terraingen/layers/kernels/craters.h kernels/crater_body_datums.slang)

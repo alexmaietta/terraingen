@@ -424,7 +424,8 @@ TEST(CraterKernel, ShapesBodyGridsOnEveryAvailableGpuAsOnTheCpu) {
     for (const BodySurface& body : BodySurfaces()) {
         const terraingen::CraterList craters = BodyCraters(body, kSide, 250);
         const terraingen::Raster<float> base = BodyGrid(body, kSide);
-        for (const auto datum : {terraingen::CraterDatum::None, terraingen::CraterDatum::Plane}) {
+        for (const auto datum : {terraingen::CraterDatum::None, terraingen::CraterDatum::Plane,
+                                 terraingen::CraterDatum::MeanHeight}) {
             CraterApplyOptions options;
             options.surface = body.surface;
             options.datum = datum;
@@ -444,11 +445,27 @@ TEST(CraterKernel, ShapesBodyGridsOnEveryAvailableGpuAsOnTheCpu) {
                 terraingen::Raster<float> gpu = base;
                 terraingen::CraterSampling sampling;
                 sampling.backend = status.backend;
+                std::vector<std::string> messages;
+                terraingen::SetLogLevel(terraingen::LogLevel::Debug);
+                terraingen::SetLogSink([&messages](const terraingen::LogRecord& record) {
+                    messages.push_back(record.message);
+                });
                 terraingen::ApplyCraters(gpu, craters, models, options, sampling);
+                terraingen::SetLogSink(nullptr);
+                terraingen::SetLogLevel(terraingen::LogLevel::Warning);
+                const std::string name(terraingen::BackendName(status.backend));
+                const auto logged = [&](const std::string& text) {
+                    return std::any_of(messages.begin(), messages.end(), [&](const auto& m) {
+                        return m.find(text) != std::string::npos && m.ends_with(name);
+                    });
+                };
+                EXPECT_TRUE(logged("craters on")) << body.name << " shaped on " << name;
+                if (datum != terraingen::CraterDatum::None) {
+                    EXPECT_TRUE(logged("crater datums on")) << body.name << " fitted on " << name;
+                }
                 for (std::size_t i = 0; i < gpu.Size(); ++i) {
                     ASSERT_FALSE(std::isnan(gpu.Values()[i]))
-                        << body.name << " on " << terraingen::BackendName(status.backend)
-                        << ", cell " << i;
+                        << body.name << " on " << name << ", cell " << i;
                 }
                 const double largest = LargestDifference(gpu, cpu);
                 EXPECT_LT(largest, 1e-5 * body.maxDiameter)
