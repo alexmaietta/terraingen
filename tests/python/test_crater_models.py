@@ -190,6 +190,18 @@ def test_fassett_2022_hartmann_diffusivity_grows_with_age():
     assert law(100.0, 1.0) > law(100.0, 0.5) > 0 and law.diffusivity(100.0) > 0
 
 
+def test_equilibrium_diffusion_ages_wear_craters_to_the_cutoff_at_their_lifetimes(steady):
+    diffused = terraingen.DiffusedProfile(terraingen.FassettThomsonProfile())
+    fresh = terraingen.lunar_fresh_crater_morphometry
+    ages = terraingen.equilibrium_diffusion_ages(diffused, fresh, steady.equilibrium_lifetime_gyr)
+    lifetime = steady.equilibrium_lifetime_gyr(20.0)
+    degradation = terraingen.DiffusionDegradation(fresh, ages, diffused)
+    state = degradation.state(terraingen.Crater(0.0, 0.0, 20.0, age_gyr=lifetime))
+    assert state.current.depth_ratio == pytest.approx(terraingen.VISIBILITY_DEPTH_RATIO, abs=1e-9)
+    tau = diffused.age_at_depth_ratio(fresh(20.0), 20.0, terraingen.VISIBILITY_DEPTH_RATIO)
+    assert ages(20.0, lifetime) == pytest.approx(tau * 400.0)
+
+
 def test_fassett_thomson_2014_diffusivity_coefficient():
     assert terraingen.fassett_thomson_2014_diffusivity().coefficient == pytest.approx(5.5)
 

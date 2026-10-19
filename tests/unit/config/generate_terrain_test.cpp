@@ -428,9 +428,12 @@ TEST(GenerateTerrain, WearsCratersByDiffusionAsTheLibraryDoes) {
     const terraingen::CraterModels models = BuildCraterModels(Craters(config));
     ASSERT_GT(CratersOf(generated).craters.Size(), 0u);
     const terraingen::Crater crater = CratersOf(generated).craters.At(0);
-    EXPECT_DOUBLE_EQ(models.degradation->State(crater).diffusion,
-                     terraingen::Fassett2022TraskDiffusivity()(crater.diameter, crater.ageGyr) /
-                         (crater.diameter * crater.diameter));
+    const double fit = terraingen::Fassett2022TraskDiffusivity()(crater.diameter, crater.ageGyr) /
+                       (crater.diameter * crater.diameter);
+    EXPECT_EQ(CratersOf(generated).attributes[0].depthRatio,
+              models.degradation->State(crater).current.depthRatio);
+    EXPECT_NEAR(models.degradation->State(crater).diffusion, fit, 0.05 * fit)
+        << "matched to their own profile, the ages wear craters as Fassett et al.'s fit";
 }
 
 TEST(GenerateTerrain, AddsSecondariesAroundTheCratersBeforeThem) {

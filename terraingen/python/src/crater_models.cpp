@@ -16,6 +16,8 @@
 #include "terraingen/layers/craters/shaping/morphometry.h"
 #include "terraingen/random/stream.h"
 
+#include <functional>
+#include <memory>
 #include <optional>
 #include <utility>
 
@@ -264,7 +266,11 @@ void BindCompositeProfiles(nb::module_& m) {
                std::size_t cells) {
                 new (self) DiffusedProfile(std::move(fresh), reachRadii, cells);
             },
-            "fresh"_a, "reach_radii"_a = 3.0, "cells"_a = 600);
+            "fresh"_a, "reach_radii"_a = 3.0, "cells"_a = 600)
+        .def("age_at_depth_ratio", &DiffusedProfile::AgeAtDepthRatio, "fresh"_a, "diameter"_a,
+             "depth_ratio"_a,
+             "The diffusion age kappa t / D^2 at which a crater of `fresh` morphometry wears to "
+             "`depth_ratio`.");
 }
 
 void BindCraterModelSet(nb::module_& m) {
@@ -307,6 +313,18 @@ void BindDiffusivities(nb::module_& m) {
           "Fassett et al.'s (2022) diffusivity fit with Hartmann's equilibrium.");
     m.def("fassett_2022_trask_diffusivity", &Fassett2022TraskDiffusivity,
           "Fassett et al.'s (2022) diffusivity fit with Trask's equilibrium.");
+    m.attr("VISIBILITY_DEPTH_RATIO") = kVisibilityDepthRatio;
+    m.def(
+        "equilibrium_diffusion_ages",
+        [](std::shared_ptr<DiffusedProfile> profile, FreshMorphometry fresh,
+           std::function<double(double)> lifetimeGyr, double cutoffDepthRatio) {
+            return EquilibriumDiffusionAges(std::move(profile), std::move(fresh),
+                                            std::move(lifetimeGyr), cutoffDepthRatio);
+        },
+        "profile"_a, "fresh"_a, "lifetime_gyr"_a, "cutoff_depth_ratio"_a = kVisibilityDepthRatio,
+        "Diffusion ages, a function of (diameter, age_gyr), that wear each crater of `profile` to "
+        "`cutoff_depth_ratio` at the end of its lifetime `lifetime_gyr(diameter)`, as Fassett et "
+        "al. (2022) derive the diffusivity that holds an equilibrium.");
 }
 
 }  // namespace

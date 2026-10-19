@@ -247,9 +247,10 @@ template <> struct EnumNames<RimRoughnessModel> {
 template <> struct EnumNames<DiffusivityModel> {
     static constexpr std::array<EnumEntry<DiffusivityModel>, 6> kValues{{
         {"matched", DiffusivityModel::Matched,
-         "The Fassett et al. (2022) diffusivity fitted to the steady-state ages' equilibrium "
-         "(Trask or Hartmann), so craters wear as that equilibrium expects; Hartmann's for other "
-         "ages."},
+         "With steady-state ages, the diffusivity that wears each crater to Fassett et al.'s "
+         "(2022) visibility cutoff, depth 0.04 of the diameter, at the end of its equilibrium "
+         "lifetime, as they derive it, for the layer's own profile; fassett_2022_hartmann for "
+         "other ages."},
         {"fassett_2022_hartmann", DiffusivityModel::Fassett2022Hartmann,
          "Lunar size-dependent diffusivity of Fassett et al. (2022) for the Hartmann equilibrium, "
          "3.6 D^0.87 m^2/Myr with D in km."},

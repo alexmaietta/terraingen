@@ -229,6 +229,7 @@ TEST(BuildCraterModels, BuildsEachSelectedModel) {
 
 TEST(BuildCraterModels, WearsTheProfileByDiffusion) {
     CraterLayerSpec craters;
+    craters.ages = terraingen::UniformAgesSpec{};
     craters.degradation = terraingen::DiffusionDegradationSpec{};
     const auto models = BuildCraterModels(craters);
     ASSERT_NE(dynamic_cast<const terraingen::DiffusedProfile*>(models.profile.get()), nullptr);
@@ -249,19 +250,27 @@ TEST(BuildCraterModels, WearsTheProfileByDiffusion) {
 TEST(BuildCraterModels, MatchesTheDiffusivityToTheSteadyStateEquilibrium) {
     CraterLayerSpec craters;
     craters.degradation = terraingen::DiffusionDegradationSpec{};
-    const terraingen::Crater crater{0.0, 0.0, 500.0, 1.0, 1u};
-    const auto tau = [&](const terraingen::PowerLawDiffusivity& law) {
-        return law(500.0, 1.0) / (500.0 * 500.0);
-    };
-    terraingen::SteadyStateAgesSpec steady;
-    steady.equilibrium = terraingen::EquilibriumModel::Trask;
-    craters.ages = steady;
-    EXPECT_DOUBLE_EQ(BuildCraterModels(craters).degradation->State(crater).diffusion,
-                     tau(terraingen::Fassett2022TraskDiffusivity()));
-    steady.equilibrium = terraingen::EquilibriumModel::Hartmann;
-    craters.ages = steady;
-    EXPECT_DOUBLE_EQ(BuildCraterModels(craters).degradation->State(crater).diffusion,
-                     tau(terraingen::Fassett2022HartmannDiffusivity()));
+    std::vector<double> diffusion;
+    for (const auto equilibrium :
+         {terraingen::EquilibriumModel::Trask, terraingen::EquilibriumModel::Hartmann}) {
+        terraingen::SteadyStateAgesSpec steady;
+        steady.equilibrium = equilibrium;
+        craters.ages = steady;
+        const auto models = BuildCraterModels(craters);
+        const auto& ages = dynamic_cast<const terraingen::SteadyStateAges&>(*models.ages);
+        for (const double diameter : {3.0, 8.0, 40.0, 150.0}) {
+            const double lifetime = ages.EquilibriumLifetimeGyr(diameter);
+            const auto state = [&](double age) {
+                return models.degradation->State({0.0, 0.0, diameter, age, 1u});
+            };
+            EXPECT_NEAR(state(lifetime).current.depthRatio, terraingen::kVisibilityDepthRatio, 1e-3)
+                << diameter;
+            EXPECT_GT(state(0.5 * lifetime).current.depthRatio, terraingen::kVisibilityDepthRatio);
+            EXPECT_DOUBLE_EQ(state(0.5 * lifetime).diffusion, 0.5 * state(lifetime).diffusion);
+        }
+        diffusion.push_back(models.degradation->State({0.0, 0.0, 40.0, 0.1, 1u}).diffusion);
+    }
+    EXPECT_LT(diffusion[0], diffusion[1]) << "craters last longer at Trask's density";
 }
 
 TEST(BuildCraterModels, ReportsEachModelsProblemsAtItsKey) {

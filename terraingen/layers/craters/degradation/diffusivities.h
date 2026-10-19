@@ -4,7 +4,14 @@
 
 #include "terraingen/layers/craters/degradation/diffusion.h"
 
+#include <functional>
+#include <memory>
+
 namespace terraingen {
+
+/// The depth over diameter at which Fassett et al. (2022, section 4) take a crater to be no longer
+/// recognised, from the left tail of the d/D distributions of Mahanti et al. (2018).
+inline constexpr double kVisibilityDepthRatio = 0.04;
 
 /// The lunar diffusivity of Fassett and Thomson (2014), 5.5 m^2/Myr for every size.
 PowerLawDiffusivity FassettThomson2014Diffusivity();
@@ -21,5 +28,20 @@ PowerLawDiffusivity Fassett2022TraskDiffusivity();
 /// The diffusion age kappa t in m^2 that Fassett and Thomson (2014, eq. 6) calibrate against
 /// crater age `ageGyr` (Gyr): a quintic in t clamped at 0.
 double FassettThomson2014DiffusionAge(double ageGyr);
+
+/// Diffusion ages that wear each crater of `profile` to `cutoffDepthRatio` at the end of its
+/// equilibrium lifetime, as Fassett et al. (2022, section 4) derive the diffusivity that holds an
+/// equilibrium: the fresh shape diffused to the cutoff, over the lifetime. A crater of diameter D
+/// and age t gets kappa t = tau_cut(D) D^2 t / lifetime(D), so its shape follows its age model
+/// whatever the profile.
+/// @param fresh The fresh morphometry the degradation starts from.
+/// @param lifetimeGyr The equilibrium lifetime in Gyr of craters of a diameter in metres, such as
+/// `SteadyStateAges::EquilibriumLifetimeGyr`; positive.
+/// @throws std::invalid_argument for a null `profile`, an empty `fresh` or `lifetimeGyr`, or a
+/// cutoff outside (0, 1).
+DiffusionAgeModel EquilibriumDiffusionAges(std::shared_ptr<const DiffusedProfile> profile,
+                                           FreshMorphometry fresh,
+                                           std::function<double(double)> lifetimeGyr,
+                                           double cutoffDepthRatio = kVisibilityDepthRatio);
 
 }  // namespace terraingen

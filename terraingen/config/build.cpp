@@ -180,13 +180,21 @@ ComplexCraterShape BuildComplexShape(CraterMorphometryFit fit) {
     return LunarComplexCraterShape();
 }
 
-DiffusionAgeModel BuildDiffusionAges(const DiffusionDegradationSpec& spec, const AgesSpec& ages) {
+/// The diffusion ages of `spec`; `matched` wears craters of steady-state `ages` to the
+/// visibility cutoff at the end of their lifetimes, on `profile` from `fresh`.
+DiffusionAgeModel BuildDiffusionAges(const DiffusionDegradationSpec& spec,
+                                     const std::shared_ptr<const CraterAgeModel>& ages,
+                                     const std::shared_ptr<const DiffusedProfile>& profile,
+                                     const FreshMorphometry& fresh) {
     switch (spec.diffusivity) {
     case DiffusivityModel::Matched: {
-        const auto* steady = std::get_if<SteadyStateAgesSpec>(&ages);
-        return steady && steady->equilibrium == EquilibriumModel::Trask
-                   ? Fassett2022TraskDiffusivity()
-                   : Fassett2022HartmannDiffusivity();
+        auto steady = std::dynamic_pointer_cast<const SteadyStateAges>(ages);
+        if (!steady) {
+            return Fassett2022HartmannDiffusivity();
+        }
+        return EquilibriumDiffusionAges(profile, fresh, [steady](double diameter) {
+            return steady->EquilibriumLifetimeGyr(diameter);
+        });
     }
     case DiffusivityModel::Fassett2022Hartmann:
         return Fassett2022HartmannDiffusivity();
@@ -240,8 +248,8 @@ void AddDegradation(const CraterLayerSpec& craters, CraterModels& models) {
                 models.degradation = std::make_shared<NoDegradation>(fresh, s.depthRatio);
             },
             [&](const DiffusionDegradationSpec& s) {
-                const DiffusionAgeModel ages = BuildDiffusionAges(s, craters.ages);
                 auto profile = std::make_shared<DiffusedProfile>(models.profile, s.reachRadii);
+                const DiffusionAgeModel ages = BuildDiffusionAges(s, models.ages, profile, fresh);
                 models.degradation = std::make_shared<DiffusionDegradation>(fresh, ages, profile);
                 models.profile = std::move(profile);
             },

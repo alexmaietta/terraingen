@@ -73,6 +73,12 @@ class DiffusedProfile final : public CraterProfile {
     CraterMorphometry Morphometry(const CraterMorphometry& fresh, double diameter,
                                   double tau) const;
 
+    /// The diffusion age tau (kappa t / D^2) at which a crater of `fresh` morphometry and
+    /// `diameter` metres wears to `depthRatio` depth over diameter: 0 when it is that shallow
+    /// fresh, the last age tabulated when it is never worn that far.
+    double AgeAtDepthRatio(const CraterMorphometry& fresh, double diameter,
+                           double depthRatio) const;
+
     /// The diffusion ages tau tabulated, from 0, increasing.
     const std::vector<double>& Ages() const;
 

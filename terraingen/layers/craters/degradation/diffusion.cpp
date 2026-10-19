@@ -278,6 +278,25 @@ CraterMorphometry DiffusedProfile::Morphometry(const CraterMorphometry& fresh, d
     return result;
 }
 
+double DiffusedProfile::AgeAtDepthRatio(const CraterMorphometry& fresh, double diameter,
+                                        double depthRatio) const {
+    const std::vector<CraterMorphometry>& rows = CachedTable(fresh, diameter)->morphometry;
+    const std::vector<double>& ages = TableAges();
+    if (rows.front().depthRatio <= depthRatio) {
+        return 0.0;
+    }
+    for (std::size_t r = 1; r < rows.size(); ++r) {
+        const double above = rows[r - 1].depthRatio;
+        const double below = rows[r].depthRatio;
+        if (below <= depthRatio) {
+            const double weight = (above - depthRatio) / (above - below);
+            return r == 1 ? weight * ages[1]
+                          : ages[r - 1] * std::pow(ages[r] / ages[r - 1], weight);
+        }
+    }
+    return ages.back();
+}
+
 DiffusionDegradation::DiffusionDegradation(FreshMorphometry fresh, DiffusionAgeModel ages,
                                            std::shared_ptr<const DiffusedProfile> profile)
     : fresh_(std::move(fresh)), ages_(std::move(ages)), profile_(std::move(profile)) {

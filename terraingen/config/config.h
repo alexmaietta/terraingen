@@ -299,8 +299,9 @@ struct FreshnessDegradationSpec {
 };
 /// Where "diffusion" degradation takes its diffusion ages from.
 enum class DiffusivityModel {
-    /// "matched": the Fassett et al. (2022) diffusivity fitted to the steady-state ages'
-    /// equilibrium, which keeps craters as deep as that equilibrium needs; Hartmann's for other
+    /// "matched": with steady-state ages, `EquilibriumDiffusionAges`, which wears each crater of
+    /// the layer's profile to Fassett et al.'s (2022) visibility cutoff, d/D 0.04, at the end of
+    /// its equilibrium lifetime, as they derive the diffusivity; `Fassett2022Hartmann` for other
     /// ages.
     Matched,
     Fassett2022Hartmann,  ///< "fassett_2022_hartmann": `Fassett2022HartmannDiffusivity`.
@@ -373,6 +374,8 @@ struct CraterLayerSpec {
     /// Manual craters, in the surface's coordinates; parsing sets their `manual` flag.
     std::vector<Crater> manual{};
     ProfileSpec profile{MartinParkesDunstanSpec{}};
+    /// By default diffusion matched to those ages: about a quarter of the craters keep 3/4 of
+    /// their fresh depth, as in Moore's steady state, and none wear past the visibility cutoff.
     DegradationSpec degradation{DiffusionDegradationSpec{}};
     CraterApplyOptions apply{DefaultCraterApply()};
     std::optional<DensityMapSpec> densityMap{};  ///< Gives `CraterLayerOptions::densityMap`.

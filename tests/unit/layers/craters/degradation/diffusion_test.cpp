@@ -108,6 +108,50 @@ TEST(DiffusedProfile, ReachesTheVisibilityCutoffAtFassettEtAl2022Lifetimes) {
     }
 }
 
+TEST(DiffusedProfile, FindsTheAgeAtWhichACraterWearsToADepth) {
+    const DiffusedProfile profile(std::make_shared<FassettThomsonProfile>());
+    const CraterMorphometry fresh = terraingen::LunarFreshCraterMorphometry(20.0);
+    for (const double depth : {0.09, 0.06, 0.04, 0.02}) {
+        const double tau = profile.AgeAtDepthRatio(fresh, 20.0, depth);
+        ASSERT_GT(tau, 0.0);
+        EXPECT_NEAR(profile.Morphometry(fresh, 20.0, tau).depthRatio, depth, 1e-9) << depth;
+    }
+    EXPECT_LT(profile.AgeAtDepthRatio(fresh, 20.0, 0.06),
+              profile.AgeAtDepthRatio(fresh, 20.0, 0.04));
+    EXPECT_EQ(profile.AgeAtDepthRatio(fresh, 20.0, 0.5), 0.0);
+    EXPECT_EQ(profile.AgeAtDepthRatio(fresh, 20.0, 0.0), profile.Ages().back());
+}
+
+TEST(EquilibriumDiffusionAges, WearCratersToTheCutoffAtTheEndOfTheirLifetimes) {
+    const auto profile =
+        std::make_shared<DiffusedProfile>(std::make_shared<FassettThomsonProfile>());
+    const auto lifetime = [](double diameter) { return 0.01 * diameter; };
+    const terraingen::DiffusionAgeModel ages = terraingen::EquilibriumDiffusionAges(
+        profile, terraingen::LunarFreshCraterMorphometry, lifetime);
+    const DiffusionDegradation degradation(terraingen::LunarFreshCraterMorphometry, ages, profile);
+    for (const double diameter : {2.0, 10.0, 60.0}) {
+        const CraterState end = degradation.State({0.0, 0.0, diameter, lifetime(diameter), 1u});
+        EXPECT_NEAR(end.current.depthRatio, terraingen::kVisibilityDepthRatio, 1e-9) << diameter;
+        EXPECT_DOUBLE_EQ(ages(diameter, 0.25 * lifetime(diameter)),
+                         0.25 * ages(diameter, lifetime(diameter)));
+    }
+    EXPECT_EQ(ages(10.0, 0.0), 0.0);
+    const terraingen::DiffusionAgeModel shallow = terraingen::EquilibriumDiffusionAges(
+        profile, terraingen::LunarFreshCraterMorphometry, lifetime, 0.06);
+    EXPECT_LT(shallow(10.0, 0.1), ages(10.0, 0.1));
+    EXPECT_THROW(terraingen::EquilibriumDiffusionAges(
+                     nullptr, terraingen::LunarFreshCraterMorphometry, lifetime),
+                 std::invalid_argument);
+    EXPECT_THROW(terraingen::EquilibriumDiffusionAges(profile, {}, lifetime),
+                 std::invalid_argument);
+    EXPECT_THROW(
+        terraingen::EquilibriumDiffusionAges(profile, terraingen::LunarFreshCraterMorphometry, {}),
+        std::invalid_argument);
+    EXPECT_THROW(terraingen::EquilibriumDiffusionAges(
+                     profile, terraingen::LunarFreshCraterMorphometry, lifetime, 1.0),
+                 std::invalid_argument);
+}
+
 TEST(PowerLawDiffusivity, ScalesWithDiameterAboveItsFloor) {
     const PowerLawDiffusivity trask = terraingen::Fassett2022TraskDiffusivity();
     EXPECT_NEAR(trask.Diffusivity(1000.0), 3.1, 1e-12);
