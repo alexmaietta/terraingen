@@ -9,22 +9,27 @@
 #include "terraingen/layers/region.h"
 #include "terraingen/pipeline/terrain.h"
 
+#include <algorithm>
+#include <cstddef>
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <variant>
+#include <vector>
 
 namespace terraingen {
 
 /// The `Surface` a spec describes: a plane, a sphere, an ellipsoid or a shape model, whose file is
-/// found relative to `directory` and loaded once per file, modification time, Q and unit.
-/// @throws ConfigError at "body.radius" or "body.radii" for radii that are not positive and
-/// finite, and at "body.path", "body.q" or "body.metres_per_unit" for a shape model that
-/// cannot be loaded or a Q or unit out of range.
+/// found relative to `directory` and loaded once per file, modification time, Q and unit. As it
+/// is also used on its own, it checks the body's field ranges (`CheckRanges`) first.
+/// @throws ConfigError at the field of "body" out of its range, at "body.radii" for not three
+/// radii, and at "body.path" for a shape model that cannot be loaded.
 Surface BuildSurface(const SurfaceSpec& spec, const std::filesystem::path& directory = {});
 
 /// The density, ages, profile and degradation models a crater layer selects.
 /// @param path The layer's JSON path, which errors are reported under.
-/// @throws ConfigError at `path`.density, .ages, .profile or .degradation for an invalid model.
+/// @throws ConfigError at `path`.density, .ages, .profile or .degradation for a model whose
+/// constructor rejects its parameters.
 CraterModels BuildCraterModels(const CraterLayerSpec& craters, const std::string& path = {});
 
 /// The terrain a configuration describes, ready to `Evaluate` over any grid or at points. Checks
@@ -43,17 +48,22 @@ Albedo BuildAlbedo(const TerrainConfig& config, const Terrain& terrain,
                    const std::filesystem::path& directory = {});
 
 /// Steps shared by validation, building and output writing.
+///
+/// Each `Build*` only builds: it turns a spec into library objects, reporting what their
+/// constructors and file readers reject at the spec's JSON path, and leaves every other check to
+/// `ValidateConfig`, which calls them to check what they build.
 namespace config {
 
 /// `path` resolved against `directory`; an empty `directory` leaves it relative.
 std::filesystem::path Resolve(const std::string& path, const std::filesystem::path& directory);
 
-/// The boulder options a layer describes, unchecked, with its size distributions built and its
-/// shape files read.
+/// The boulder options a layer describes, unchecked, with its size distributions, maps and
+/// completeness built and its shape files read.
 /// @param path The layer's JSON path, which errors are reported under.
 /// @param directory Folder the shape files resolve against.
 /// @throws ConfigError at `path`.sizes, .ejecta_sizes or .shape_files[i] for an invalid
-/// distribution or an unreadable mesh.
+/// distribution or an unreadable mesh, and at a map's or the completeness' field for an unreadable
+/// GeoTIFF.
 BoulderLayerOptions BuildBoulderOptions(const BoulderLayerSpec& spec, const std::string& path,
                                         const std::filesystem::path& directory = {});
 
@@ -64,8 +74,8 @@ BoulderLayerOptions BuildBoulderOptions(const BoulderLayerSpec& spec, const std:
 std::shared_ptr<const SurfaceField> BuildField(const FieldSpec& spec, const std::string& path,
                                                const std::filesystem::path& directory = {});
 
-/// The density map a spec describes, its field built (`BuildField`) and the map checked.
-/// @throws ConfigError at `path` for an invalid map or field.
+/// The density map a spec describes, unchecked, its field built (`BuildField`).
+/// @throws ConfigError at `path`.field for an unreadable GeoTIFF.
 DensityMap BuildDensityMap(const DensityMapSpec& spec, const std::string& path,
                            const std::filesystem::path& directory = {});
 
@@ -97,6 +107,45 @@ RasterGrid WholeBodyGrid(const Surface& surface, double spacing);
 /// output without a grid to cover, which `ValidateConfig` rejects.
 std::optional<RasterGrid> OutputGrid(const OutputSpec& output,
                                      const std::optional<RasterGrid>& base, const Surface& surface);
+
+/// The sample spacing in metres an output lists features at; 0 for its grid's, and for outputs
+/// that list none.
+double OutputSpacing(const OutputSpec& output);
+
+/// Whether a variant, such as a layer or an output, holds one of the alternatives `Kinds`.
+template <typename... Kinds, typename... Ts> bool HoldsAny(const std::variant<Ts...>& value) {
+    return (std::holds_alternative<Kinds>(value) || ...);
+}
+
+/// The number of `layers` of the kinds `Kinds`; layers inside regions do not count.
+template <typename... Kinds> std::size_t CountLayers(const std::vector<LayerSpec>& layers) {
+    return static_cast<std::size_t>(
+        std::count_if(layers.begin(), layers.end(),
+                      [](const LayerSpec& layer) { return HoldsAny<Kinds...>(layer); }));
+}
+
+/// Whether any of `layers` is of the kinds `Kinds`; layers inside regions do not count.
+template <typename... Kinds> bool HasLayer(const std::vector<LayerSpec>& layers) {
+    return CountLayers<Kinds...>(layers) > 0;
+}
+
+/// The indices of the `layers` of the kinds `Kinds`, in order; layers inside regions do not count.
+template <typename... Kinds>
+std::vector<std::size_t> LayerIndices(const std::vector<LayerSpec>& layers) {
+    std::vector<std::size_t> indices;
+    for (std::size_t i = 0; i < layers.size(); ++i) {
+        if (HoldsAny<Kinds...>(layers[i])) {
+            indices.push_back(i);
+        }
+    }
+    return indices;
+}
+
+/// Whether any of `outputs` is of the kinds `Kinds`.
+template <typename... Kinds> bool HasOutput(const std::vector<OutputSpec>& outputs) {
+    return std::any_of(outputs.begin(), outputs.end(),
+                       [](const OutputSpec& output) { return HoldsAny<Kinds...>(output); });
+}
 
 }  // namespace config
 

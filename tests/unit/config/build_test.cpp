@@ -13,6 +13,7 @@
 #include <cstddef>
 #include <fstream>
 #include <string>
+#include <vector>
 
 using terraingen::BuildCraterModels;
 using terraingen::ConfigError;
@@ -266,7 +267,7 @@ TEST(BuildCraterModels, ReportsEachModelsProblemsAtItsKey) {
     diffusion.diffusivity = terraingen::DiffusivityModel::PowerLaw;
     diffusion.powerLaw = {0.0, 1.0, 0.0};
     craters.degradation = diffusion;
-    EXPECT_EQ(ModelErrorPath(craters), "layers[0].degradation");
+    EXPECT_EQ(ModelErrorPath(craters), "built") << "ValidateConfig checks the diffusivity";
     craters.degradation = terraingen::NoDegradationSpec{};
     craters.ages = terraingen::SteadyStateAgesSpec{9.0};
     EXPECT_EQ(ModelErrorPath(craters), "layers[0].ages");
@@ -294,7 +295,7 @@ TEST(BuildField, BuildsConstantsAndReadsGeoTiffs) {
                  ConfigError);
 }
 
-TEST(BuildDensityMap, BuildsTheFieldAndChecksTheMap) {
+TEST(BuildDensityMap, BuildsTheFieldAndLeavesTheMapUnchecked) {
     const terraingen::DensityMap map =
         terraingen::config::BuildDensityMap({.field = {.value = 5.0},
                                              .measure = terraingen::DensityMeasure::Count,
@@ -307,13 +308,29 @@ TEST(BuildDensityMap, BuildsTheFieldAndChecksTheMap) {
     EXPECT_TRUE(std::isinf(map.maxDiameter));
     EXPECT_EQ(map.areaUnit, 1e6);
     EXPECT_FALSE(map.total);
+    EXPECT_NO_THROW(terraingen::config::BuildDensityMap(
+        {.measure = terraingen::DensityMeasure::Count}, "layers[0].density_map"));
     try {
-        terraingen::config::BuildDensityMap({.measure = terraingen::DensityMeasure::Count},
+        terraingen::config::BuildDensityMap({.field = {.path = "missing.tif"}},
                                             "layers[0].density_map");
         FAIL() << "expected a ConfigError";
     } catch (const ConfigError& error) {
-        EXPECT_EQ(error.Path(), "layers[0].density_map");
+        EXPECT_EQ(error.Path(), "layers[0].density_map.field");
     }
+}
+
+TEST(ValidateConfig, ReportsDensityAndSlopeMapProblemsAtTheMap) {
+    TerrainConfig config = terraingen::testing::Small();
+    terraingen::testing::Craters(config).densityMap =
+        terraingen::DensityMapSpec{.measure = terraingen::DensityMeasure::Count};
+    EXPECT_EQ(terraingen::testing::ValidationErrorPath(config), "layers[1].density_map");
+    config = terraingen::testing::Small();
+    terraingen::BoulderLayerSpec boulders;
+    boulders.sizes = terraingen::PowerLawSpec{0.01, 3.0};
+    boulders.slopeMap = terraingen::SizeSlopeMapSpec{.field = {.value = 2.5}};
+    boulders.slopeMap->maxExponent = boulders.slopeMap->minExponent;
+    config.layers.push_back(boulders);
+    EXPECT_EQ(terraingen::testing::ValidationErrorPath(config), "layers[2].slope_map");
 }
 
 TEST(BuildBoulderOptions, BuildsTheSizesAndReportsThemAtTheirKeys) {
@@ -523,13 +540,6 @@ TEST(BuildTerrain, GivesLayersTheirMapsCatalogsAndCompleteness) {
     ASSERT_TRUE(options.slopeMap);
     EXPECT_EQ(options.slopeMap->field->ValueAt(0.0, 0.0), 2.5);
     EXPECT_EQ(options, options);
-    boulders.slopeMap->minExponent = 0.0;
-    try {
-        terraingen::config::BuildBoulderOptions(boulders, "layers[2]");
-        FAIL() << "expected a ConfigError";
-    } catch (const ConfigError& error) {
-        EXPECT_EQ(error.Path(), "layers[2].slope_map");
-    }
 }
 
 TEST(BuildTerrain, GivesCraterLayersTheSecondariesThrownFromThem) {
@@ -547,4 +557,46 @@ TEST(BuildTerrain, GivesCraterLayersTheSecondariesThrownFromThem) {
     EXPECT_EQ(first->Options().secondaries.size(), 2u);
     EXPECT_EQ(first->Options().secondaries[0].onsetCount, 5.0);
     EXPECT_TRUE(last->Options().secondaries.empty());
+}
+
+TEST(LayerKinds, CountFindAndIndexLayersOfAKind) {
+    using terraingen::BoulderLayerSpec;
+    using terraingen::NoiseLayerSpec;
+    using terraingen::RegionLayerSpec;
+    namespace config = terraingen::config;
+    const std::vector<terraingen::LayerSpec> layers{
+        NoiseLayerSpec{}, CraterLayerSpec{}, BoulderLayerSpec{}, CraterLayerSpec{},
+        RegionLayerSpec{{}, 0.0, {}, CraterLayerSpec{}}};
+    EXPECT_TRUE((config::HoldsAny<NoiseLayerSpec, BoulderLayerSpec>(layers[2])));
+    EXPECT_FALSE((config::HoldsAny<NoiseLayerSpec, BoulderLayerSpec>(layers[1])));
+    EXPECT_EQ(config::CountLayers<CraterLayerSpec>(layers), 2u) << "not the one in a region";
+    EXPECT_EQ((config::CountLayers<CraterLayerSpec, BoulderLayerSpec>(layers)), 3u);
+    EXPECT_TRUE(config::HasLayer<BoulderLayerSpec>(layers));
+    EXPECT_FALSE(config::HasLayer<terraingen::DuneLayerSpec>(layers));
+    EXPECT_EQ(config::LayerIndices<CraterLayerSpec>(layers), (std::vector<std::size_t>{1, 3}));
+    const std::vector<terraingen::OutputSpec> outputs{terraingen::HeightmapOutput{},
+                                                      terraingen::MeshOutput{}};
+    EXPECT_TRUE(config::HasOutput<terraingen::MeshOutput>(outputs));
+    EXPECT_FALSE(config::HasOutput<terraingen::PhotometryOutput>(outputs));
+}
+
+TEST(OutputSpacing, IsAFeatureOutputsSpacingOrZero) {
+    terraingen::CraterListOutput list;
+    EXPECT_EQ(terraingen::config::OutputSpacing(list), 0.0);
+    list.spacing = 2.5;
+    EXPECT_EQ(terraingen::config::OutputSpacing(list), 2.5);
+    terraingen::BoulderModelsOutput models;
+    models.spacing = 0.5;
+    EXPECT_EQ(terraingen::config::OutputSpacing(models), 0.5);
+    EXPECT_EQ(terraingen::config::OutputSpacing(terraingen::HeightmapOutput{}), 0.0);
+    terraingen::MeshOutput mesh;
+    mesh.spacing = 9.0;
+    EXPECT_EQ(terraingen::config::OutputSpacing(mesh), 0.0) << "a mesh lists no features";
+}
+
+TEST(InferListFormat, FollowsTheJsonExtension) {
+    EXPECT_EQ(terraingen::InferListFormat("a/craters.json"), terraingen::ListFormat::Json);
+    EXPECT_EQ(terraingen::InferListFormat("craters.csv"), terraingen::ListFormat::Csv);
+    EXPECT_EQ(terraingen::InferListFormat("craters"), terraingen::ListFormat::Csv);
+    EXPECT_EQ(terraingen::InferListFormat("json"), terraingen::ListFormat::Csv);
 }

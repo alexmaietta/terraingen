@@ -6,6 +6,8 @@
 #include "terraingen/albedo/slope_albedo.h"
 #include "terraingen/albedo/synthetic.h"
 #include "terraingen/config/fields/checks.h"
+#include "terraingen/config/fields/fields.h"
+#include "terraingen/config/fields/ranges.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/config/validate.h"
 #include "terraingen/distribution/equilibrium.h"
@@ -45,6 +47,7 @@
 #include <span>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -54,6 +57,7 @@ namespace terraingen {
 namespace {
 
 using config::At;
+using config::AtFile;
 using config::BuildBoulderOptions;
 using config::BuildRegionShape;
 using config::Child;
@@ -75,13 +79,23 @@ SfdPtr BuildProduction(ProductionFunction production) {
 }
 
 Chronology BuildChronology(ChronologyModel chronology) {
-    return chronology == ChronologyModel::Ivanov ? Chronology(IvanovMarsChronology)
-                                                 : Chronology(NeukumLunarChronology);
+    switch (chronology) {
+    case ChronologyModel::Ivanov:
+        return Chronology(IvanovMarsChronology);
+    case ChronologyModel::Neukum:
+        break;
+    }
+    return Chronology(NeukumLunarChronology);
 }
 
 SfdPtr BuildEquilibrium(EquilibriumModel equilibrium) {
-    return std::make_shared<PowerLawSfd>(
-        equilibrium == EquilibriumModel::Hartmann ? HartmannEquilibrium() : TraskEquilibrium());
+    switch (equilibrium) {
+    case EquilibriumModel::Hartmann:
+        return std::make_shared<PowerLawSfd>(HartmannEquilibrium());
+    case EquilibriumModel::Trask:
+        break;
+    }
+    return std::make_shared<PowerLawSfd>(TraskEquilibrium());
 }
 
 SfdPtr BuildDensity(const DensitySpec& spec) {
@@ -146,13 +160,24 @@ std::shared_ptr<const CraterAgeModel> BuildAges(const AgesSpec& spec) {
         spec);
 }
 
-FreshMorphometry MorphometryOf(CraterMorphometryFit fit) {
-    return fit == CraterMorphometryFit::Mars ? FreshMorphometry(MarsFreshCraterMorphometry)
-                                             : FreshMorphometry(LunarFreshCraterMorphometry);
+FreshMorphometry BuildMorphometry(CraterMorphometryFit fit) {
+    switch (fit) {
+    case CraterMorphometryFit::Mars:
+        return FreshMorphometry(MarsFreshCraterMorphometry);
+    case CraterMorphometryFit::Lunar:
+        break;
+    }
+    return FreshMorphometry(LunarFreshCraterMorphometry);
 }
 
-ComplexCraterShape ComplexShapeOf(CraterMorphometryFit fit) {
-    return fit == CraterMorphometryFit::Mars ? MarsComplexCraterShape() : LunarComplexCraterShape();
+ComplexCraterShape BuildComplexShape(CraterMorphometryFit fit) {
+    switch (fit) {
+    case CraterMorphometryFit::Mars:
+        return MarsComplexCraterShape();
+    case CraterMorphometryFit::Lunar:
+        break;
+    }
+    return LunarComplexCraterShape();
 }
 
 DiffusionAgeModel BuildDiffusionAges(const DiffusionDegradationSpec& spec, const AgesSpec& ages) {
@@ -172,7 +197,6 @@ DiffusionAgeModel BuildDiffusionAges(const DiffusionDegradationSpec& spec, const
     case DiffusivityModel::FassettThomson2014Calibration:
         return [](double, double ageGyr) { return FassettThomson2014DiffusionAge(ageGyr); };
     case DiffusivityModel::PowerLaw:
-        ValidatePowerLawDiffusivity(spec.powerLaw);
         return spec.powerLaw;
     }
     return Fassett2022HartmannDiffusivity();
@@ -197,7 +221,7 @@ std::shared_ptr<const CraterProfile> BuildProfile(const ProfileSpec& spec,
                           [&](const MartinParkesDunstanSpec& s) -> Result { return simple(s); },
                           [&](const ComplexProfileSpec& s) -> Result {
                               return std::make_shared<ComplexCraterProfile>(
-                                  simple(s.simple), ComplexShapeOf(morphometry));
+                                  simple(s.simple), BuildComplexShape(morphometry));
                           },
                       },
                       spec);
@@ -205,7 +229,7 @@ std::shared_ptr<const CraterProfile> BuildProfile(const ProfileSpec& spec,
 
 /// Sets `models.degradation` from `craters`; diffusion also wears `models.profile`.
 void AddDegradation(const CraterLayerSpec& craters, CraterModels& models) {
-    const FreshMorphometry fresh = MorphometryOf(craters.morphometry);
+    const FreshMorphometry fresh = BuildMorphometry(craters.morphometry);
     std::visit(
         Overloaded{
             [&](const FreshnessDegradationSpec& s) {
@@ -324,7 +348,7 @@ LayerPtr BuildSecondaryLayer(const SecondaryLayerSpec& spec,
                              const std::shared_ptr<const CraterLayer>& primaries) {
     const CraterShapeModels models{
         primaries->Models().profile,
-        std::make_shared<NoDegradation>(MorphometryOf(spec.morphometry), spec.depthRatio)};
+        std::make_shared<NoDegradation>(BuildMorphometry(spec.morphometry), spec.depthRatio)};
     return std::make_shared<SecondaryCraterLayer>(primaries, models, spec.secondaries);
 }
 
@@ -391,6 +415,49 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
         spec);
 }
 
+/// The secondaries the secondary layers after the crater layer `layers[index]` throw from it, up
+/// to the next crater layer; none when `layers[index]` is not a crater layer.
+std::vector<SecondaryCraterOptions> ThrownSecondaries(const std::vector<LayerSpec>& layers,
+                                                      std::size_t index) {
+    std::vector<SecondaryCraterOptions> thrown;
+    if (!std::holds_alternative<CraterLayerSpec>(layers[index])) {
+        return thrown;
+    }
+    for (std::size_t j = index + 1;
+         j < layers.size() && !std::holds_alternative<CraterLayerSpec>(layers[j]); ++j) {
+        if (const auto* secondaries = std::get_if<SecondaryLayerSpec>(&layers[j])) {
+            thrown.push_back(secondaries->secondaries);
+        }
+    }
+    return thrown;
+}
+
+Terrain BuildValidTerrain(const TerrainConfig& config, const std::filesystem::path& directory) {
+    Terrain terrain;
+    terrain.surface = BuildSurface(config.body, directory);
+    if (config.base) {
+        terrain.source = BuildSource(*config.base, directory, terrain.surface);
+    }
+    std::shared_ptr<const CraterLayer> craters;
+    std::shared_ptr<const BoulderLayer> boulders;
+    for (std::size_t i = 0; i < config.layers.size(); ++i) {
+        const LayerInputs context{ReferencePoint(terrain),
+                                  directory,
+                                  craters,
+                                  boulders,
+                                  terrain.surface,
+                                  ThrownSecondaries(config.layers, i)};
+        terrain.layers.push_back(BuildLayer(config.layers[i], Element("layers", i), context));
+        if (std::holds_alternative<CraterLayerSpec>(config.layers[i])) {
+            craters = std::static_pointer_cast<const CraterLayer>(terrain.layers.back());
+        }
+        if (std::holds_alternative<BoulderLayerSpec>(config.layers[i])) {
+            boulders = std::static_pointer_cast<const BoulderLayer>(terrain.layers.back());
+        }
+    }
+    return terrain;
+}
+
 /// The bands of a raster albedo map, scaled as its metadata or the spec says.
 std::vector<Raster<float>> LoadAlbedoBands(const RasterAlbedoSpec& spec,
                                            const std::filesystem::path& directory) {
@@ -431,6 +498,95 @@ std::shared_ptr<const AlbedoSource> BuildAlbedoSource(const AlbedoSourceSpec& sp
                       spec);
 }
 
+/// What albedo layers are built from: the terrain, and the configuration it was built from.
+struct AlbedoInputs {
+    const TerrainConfig& config;
+    const Terrain& terrain;
+};
+
+void AddAlbedoLayer(const CraterAlbedoSpec& craters, const AlbedoInputs& inputs, Albedo& albedo) {
+    const std::vector<std::size_t> indices =
+        config::LayerIndices<CraterLayerSpec>(inputs.config.layers);
+    for (std::size_t i = 0; i < indices.size(); ++i) {
+        if (!craters.craterLayer || *craters.craterLayer == i) {
+            albedo.layers.push_back(std::make_shared<CraterAlbedo>(
+                std::static_pointer_cast<const CraterLayer>(inputs.terrain.layers[indices[i]]),
+                craters.options));
+        }
+    }
+}
+
+void AddAlbedoLayer(const RockAlbedoSpec& rocks, const AlbedoInputs& inputs, Albedo& albedo) {
+    std::vector<RockSource> sources;
+    for (const std::size_t i : config::LayerIndices<BoulderLayerSpec>(inputs.config.layers)) {
+        sources.push_back({std::static_pointer_cast<const BoulderLayer>(inputs.terrain.layers[i]),
+                           SharedGround(inputs.terrain, i)});
+    }
+    if (rocks.boulderLayer) {
+        sources = {sources[*rocks.boulderLayer]};
+    }
+    albedo.layers.push_back(std::make_shared<RockAlbedo>(rocks.options, std::move(sources)));
+}
+
+void AddAlbedoLayer(const SplotchAlbedoSpec& splotches, const AlbedoInputs& inputs,
+                    Albedo& albedo) {
+    albedo.layers.push_back(
+        std::make_shared<SplotchAlbedo>(splotches.options, inputs.terrain.surface));
+}
+
+void AddAlbedoLayer(const BlastZoneAlbedoSpec& zones, const AlbedoInputs& inputs, Albedo& albedo) {
+    albedo.layers.push_back(std::make_shared<BlastZoneAlbedo>(zones.zones, inputs.terrain.surface));
+}
+
+void AddAlbedoLayer(const SlopeAlbedoSpec& slopes, const AlbedoInputs& inputs, Albedo& albedo) {
+    albedo.layers.push_back(std::make_shared<SlopeAlbedo>(slopes.options, inputs.terrain.surface));
+}
+
+Albedo BuildValidAlbedo(const TerrainConfig& config, const Terrain& terrain,
+                        const std::filesystem::path& directory) {
+    Albedo albedo;
+    albedo.surface = terrain.surface;
+    albedo.source = BuildAlbedoSource(config.albedo->source, terrain, directory);
+    const AlbedoInputs inputs{config, terrain};
+    for (const AlbedoLayerSpec& layer : config.albedo->layers) {
+        std::visit([&](const auto& spec) { AddAlbedoLayer(spec, inputs, albedo); }, layer);
+    }
+    return albedo;
+}
+
+/// The radial shape a shape model spec describes, loaded once per file, modification time, Q and
+/// unit, as validating and building a terrain both need it.
+/// @throws ConfigError at "body.path" for a file that cannot be read or resampled.
+std::shared_ptr<const RadialShape> LoadShapeModel(const ShapeModelSurfaceSpec& spec,
+                                                  const std::filesystem::path& directory) {
+    const std::filesystem::path file = Resolve(spec.path, directory);
+    std::error_code error;
+    const auto modified = std::filesystem::last_write_time(file, error);
+    if (error) {
+        throw ConfigError("body.path", "cannot read " + file.string());
+    }
+    using Key = std::tuple<std::string, std::filesystem::file_time_type, std::size_t, double>;
+    static std::mutex mutex;
+    static std::map<Key, std::shared_ptr<const RadialShape>> loaded;
+    const Key key{std::filesystem::absolute(file).string(), modified, spec.q.value_or(0),
+                  spec.metresPerUnit.value_or(0.0)};
+    const std::lock_guard<std::mutex> lock(mutex);
+    if (const auto found = loaded.find(key); found != loaded.end()) {
+        return found->second;
+    }
+    const auto shape = AtFile("body.path", [&] {
+        if (IsIcqPath(file)) {
+            const IcqModel model = ReadIcq(file, spec.metresPerUnit.value_or(1000.0));
+            return spec.q && *spec.q != model.q ? ShapeModelFromMesh(IcqToMesh(model), *spec.q)
+                                                : ToRadialShape(model);
+        }
+        const double scale = spec.metresPerUnit.value_or(1.0);
+        const TriangleMesh mesh = Scaled(ReadMesh(file).mesh, {scale, scale, scale});
+        return ShapeModelFromMesh(mesh, spec.q.value_or(256));
+    });
+    return loaded.emplace(key, std::make_shared<const RadialShape>(shape)).first->second;
+}
+
 }  // namespace
 
 namespace config {
@@ -453,13 +609,11 @@ BoulderLayerOptions BuildBoulderOptions(const BoulderLayerSpec& spec, const std:
     options.sizes.distribution = sizes(spec.sizes, "sizes");
     options.ejecta.distribution = sizes(spec.ejectaSizes, "ejecta_sizes");
     for (std::size_t i = 0; i < spec.shapeFiles.size(); ++i) {
-        const std::string file = Element(Child(path, "shape_files"), i);
-        try {
-            options.rendering.shapes.library.push_back(std::make_shared<const SceneMesh>(
-                ReadMesh(Resolve(spec.shapeFiles[i], directory))));
-        } catch (const std::exception& error) {
-            throw ConfigError(file, error.what());
-        }
+        options.rendering.shapes.library.push_back(
+            AtFile(Element(Child(path, "shape_files"), i), [&] {
+                return std::make_shared<const SceneMesh>(
+                    ReadMesh(Resolve(spec.shapeFiles[i], directory)));
+            }));
     }
     if (spec.densityMap) {
         options.densityMap =
@@ -467,11 +621,9 @@ BoulderLayerOptions BuildBoulderOptions(const BoulderLayerSpec& spec, const std:
     }
     if (spec.slopeMap) {
         const SizeSlopeMapSpec& s = *spec.slopeMap;
-        const std::string at = Child(path, "slope_map");
         options.slopeMap =
-            SizeSlopeMap{BuildField(s.field, Child(at, "field"), directory), s.measure,
-                         s.referenceDiameter, s.minExponent, s.maxExponent};
-        At(at, [&] { ValidateSizeSlopeMap(*options.slopeMap); });
+            SizeSlopeMap{BuildField(s.field, Child(Child(path, "slope_map"), "field"), directory),
+                         s.measure, s.referenceDiameter, s.minExponent, s.maxExponent};
     }
     for (Crater boulder : spec.manual) {
         boulder.manual = true;
@@ -494,11 +646,8 @@ std::shared_ptr<const SurfaceField> BuildField(const FieldSpec& spec, const std:
     read.scale = spec.scale;
     read.fallback = spec.fallback.value_or(std::numeric_limits<double>::quiet_NaN());
     read.periodicLongitude = spec.periodicLongitude;
-    try {
-        return ReadRasterField(Resolve(spec.path, directory), read, spec.band);
-    } catch (const std::exception& error) {
-        throw ConfigError(path, error.what());
-    }
+    return AtFile(path,
+                  [&] { return ReadRasterField(Resolve(spec.path, directory), read, spec.band); });
 }
 
 DensityMap BuildDensityMap(const DensityMapSpec& spec, const std::string& path,
@@ -510,7 +659,6 @@ DensityMap BuildDensityMap(const DensityMapSpec& spec, const std::string& path,
     map.maxDiameter = spec.maxDiameter.value_or(std::numeric_limits<double>::infinity());
     map.areaUnit = spec.areaUnit;
     map.total = spec.total;
-    At(path, [&] { ValidateDensityMap(map); });
     return map;
 }
 
@@ -551,10 +699,26 @@ std::optional<RasterGrid> OutputGrid(const OutputSpec& output,
         output);
 }
 
+double OutputSpacing(const OutputSpec& output) {
+    return std::visit(
+        [](const auto& o) {
+            if constexpr (FeatureOutput<std::decay_t<decltype(o)>>) {
+                return o.spacing.value_or(0.0);
+            }
+            return 0.0;
+        },
+        output);
+}
+
 MaterialPhotometry BuildPhotometry(const PhotometrySpec& spec) {
-    MaterialPhotometry photometry = spec.reference == PhotometryReference::MarsPancam
-                                        ? MarsPancamPhotometry()
-                                        : MaterialPhotometry{};
+    MaterialPhotometry photometry{};
+    switch (spec.reference) {
+    case PhotometryReference::MarsPancam:
+        photometry = MarsPancamPhotometry();
+        break;
+    case PhotometryReference::None:
+        break;
+    }
     for (std::size_t k = 0; k < kMaterialClasses; ++k) {
         if (spec.classes[k]) {
             photometry[k] = spec.classes[k];
@@ -586,75 +750,21 @@ CraterModels BuildCraterModels(const CraterLayerSpec& craters, const std::string
     return models;
 }
 
-namespace {
-
-/// The radial shape a shape model spec describes, loaded once per file, modification time, Q and
-/// unit, as validating and building a terrain both need it.
-/// @throws ConfigError at "body.path", "body.q" or "body.metres_per_unit".
-std::shared_ptr<const RadialShape> LoadShapeModel(const ShapeModelSurfaceSpec& spec,
-                                                  const std::filesystem::path& directory) {
-    config::RequireNonEmpty(spec.path, "body.path");
-    if (spec.q && (*spec.q == 0 || *spec.q > 4096)) {
-        throw ConfigError("body.q", "must be 1 to 4096");
-    }
-    if (spec.metresPerUnit && !(std::isfinite(*spec.metresPerUnit) && *spec.metresPerUnit > 0.0)) {
-        throw ConfigError("body.metres_per_unit", "must be positive");
-    }
-    const std::filesystem::path file = Resolve(spec.path, directory);
-    std::error_code error;
-    const auto modified = std::filesystem::last_write_time(file, error);
-    if (error) {
-        throw ConfigError("body.path", "cannot read " + file.string());
-    }
-    using Key = std::tuple<std::string, std::filesystem::file_time_type, std::size_t, double>;
-    static std::mutex mutex;
-    static std::map<Key, std::shared_ptr<const RadialShape>> loaded;
-    const Key key{std::filesystem::absolute(file).string(), modified, spec.q.value_or(0),
-                  spec.metresPerUnit.value_or(0.0)};
-    const std::lock_guard<std::mutex> lock(mutex);
-    if (const auto found = loaded.find(key); found != loaded.end()) {
-        return found->second;
-    }
-    const auto shape = At("body.path", [&] {
-        try {
-            if (IsIcqPath(file)) {
-                const IcqModel model = ReadIcq(file, spec.metresPerUnit.value_or(1000.0));
-                return spec.q && *spec.q != model.q ? ShapeModelFromMesh(IcqToMesh(model), *spec.q)
-                                                    : ToRadialShape(model);
-            }
-            const double scale = spec.metresPerUnit.value_or(1.0);
-            const TriangleMesh mesh = Scaled(ReadMesh(file).mesh, {scale, scale, scale});
-            return ShapeModelFromMesh(mesh, spec.q.value_or(256));
-        } catch (const std::runtime_error& failure) {
-            throw std::invalid_argument(failure.what());
-        }
-    });
-    return loaded.emplace(key, std::make_shared<const RadialShape>(shape)).first->second;
-}
-
-}  // namespace
-
 Surface BuildSurface(const SurfaceSpec& spec, const std::filesystem::path& directory) {
+    SurfaceSpec ranged = spec;
+    config::CheckRanges(ranged, "body", {}, {});
     return std::visit(
         Overloaded{
             [](const PlaneSurfaceSpec&) -> Surface { return Surface::Plane(); },
             [](const SphereSurfaceSpec& s) -> Surface {
-                if (!(std::isfinite(s.radius) && s.radius > 0.0)) {
-                    throw ConfigError("body.radius", "must be positive: the body's radius");
-                }
-                return Surface::Sphere(s.radius);
+                return At("body.radius", [&] { return Surface::Sphere(s.radius); });
             },
             [](const EllipsoidSurfaceSpec& s) -> Surface {
                 if (s.radii.size() != 3) {
                     throw ConfigError("body.radii", "must hold exactly three semi-axes a, b, c");
                 }
-                for (std::size_t i = 0; i < 3; ++i) {
-                    if (!(std::isfinite(s.radii[i]) && s.radii[i] > 0.0)) {
-                        throw ConfigError(Element("body.radii", i),
-                                          "must be positive: a semi-axis in metres");
-                    }
-                }
-                return Surface::Ellipsoid(s.radii[0], s.radii[1], s.radii[2]);
+                return At("body.radii",
+                          [&] { return Surface::Ellipsoid(s.radii[0], s.radii[1], s.radii[2]); });
             },
             [&](const ShapeModelSurfaceSpec& s) -> Surface {
                 return Surface::ShapeModel(LoadShapeModel(s, directory));
@@ -662,107 +772,6 @@ Surface BuildSurface(const SurfaceSpec& spec, const std::filesystem::path& direc
         },
         spec);
 }
-
-namespace {
-
-Terrain BuildValidTerrain(const TerrainConfig& config, const std::filesystem::path& directory) {
-    Terrain terrain;
-    terrain.surface = BuildSurface(config.body, directory);
-    if (config.base) {
-        terrain.source = BuildSource(*config.base, directory, terrain.surface);
-    }
-    std::shared_ptr<const CraterLayer> craters;
-    std::shared_ptr<const BoulderLayer> boulders;
-    for (std::size_t i = 0; i < config.layers.size(); ++i) {
-        LayerInputs context{ReferencePoint(terrain), directory, craters, boulders, terrain.surface};
-        for (std::size_t j = i + 1;
-             std::holds_alternative<CraterLayerSpec>(config.layers[i]) &&
-             j < config.layers.size() && !std::holds_alternative<CraterLayerSpec>(config.layers[j]);
-             ++j) {
-            if (const auto* secondaries = std::get_if<SecondaryLayerSpec>(&config.layers[j])) {
-                context.thrown.push_back(secondaries->secondaries);
-            }
-        }
-        terrain.layers.push_back(BuildLayer(config.layers[i], Element("layers", i), context));
-        if (std::holds_alternative<CraterLayerSpec>(config.layers[i])) {
-            craters = std::static_pointer_cast<const CraterLayer>(terrain.layers.back());
-        }
-        if (std::holds_alternative<BoulderLayerSpec>(config.layers[i])) {
-            boulders = std::static_pointer_cast<const BoulderLayer>(terrain.layers.back());
-        }
-    }
-    return terrain;
-}
-
-/// The top-level boulder layers of a terrain built from `config`, in order, each with the
-/// ground beneath it.
-std::vector<RockSource> RockSourcesOf(const TerrainConfig& config, const Terrain& terrain) {
-    std::vector<RockSource> sources;
-    for (std::size_t i = 0; i < config.layers.size(); ++i) {
-        if (std::holds_alternative<BoulderLayerSpec>(config.layers[i])) {
-            sources.push_back({std::static_pointer_cast<const BoulderLayer>(terrain.layers[i]),
-                               SharedGround(terrain, i)});
-        }
-    }
-    return sources;
-}
-
-/// The top-level crater layers of a terrain built from `config`, in order.
-std::vector<std::shared_ptr<const CraterLayer>> CraterLayersOf(const TerrainConfig& config,
-                                                               const Terrain& terrain) {
-    std::vector<std::shared_ptr<const CraterLayer>> craterLayers;
-    for (std::size_t i = 0; i < config.layers.size(); ++i) {
-        if (std::holds_alternative<CraterLayerSpec>(config.layers[i])) {
-            craterLayers.push_back(std::static_pointer_cast<const CraterLayer>(terrain.layers[i]));
-        }
-    }
-    return craterLayers;
-}
-
-Albedo BuildValidAlbedo(const TerrainConfig& config, const Terrain& terrain,
-                        const std::filesystem::path& directory) {
-    const AlbedoSpec& spec = *config.albedo;
-    Albedo albedo;
-    albedo.surface = terrain.surface;
-    albedo.source = BuildAlbedoSource(spec.source, terrain, directory);
-    const std::vector<std::shared_ptr<const CraterLayer>> craterLayers =
-        CraterLayersOf(config, terrain);
-    for (const AlbedoLayerSpec& layer : spec.layers) {
-        std::visit(Overloaded{
-                       [&](const CraterAlbedoSpec& craters) {
-                           for (std::size_t i = 0; i < craterLayers.size(); ++i) {
-                               if (!craters.craterLayer || *craters.craterLayer == i) {
-                                   albedo.layers.push_back(std::make_shared<CraterAlbedo>(
-                                       craterLayers[i], craters.options));
-                               }
-                           }
-                       },
-                       [&](const SplotchAlbedoSpec& splotches) {
-                           albedo.layers.push_back(
-                               std::make_shared<SplotchAlbedo>(splotches.options, terrain.surface));
-                       },
-                       [&](const BlastZoneAlbedoSpec& zones) {
-                           albedo.layers.push_back(
-                               std::make_shared<BlastZoneAlbedo>(zones.zones, terrain.surface));
-                       },
-                       [&](const RockAlbedoSpec& rocks) {
-                           std::vector<RockSource> sources = RockSourcesOf(config, terrain);
-                           if (rocks.boulderLayer) {
-                               sources = {sources[*rocks.boulderLayer]};
-                           }
-                           albedo.layers.push_back(
-                               std::make_shared<RockAlbedo>(rocks.options, std::move(sources)));
-                       },
-                       [&](const SlopeAlbedoSpec& slopes) {
-                           albedo.layers.push_back(
-                               std::make_shared<SlopeAlbedo>(slopes.options, terrain.surface));
-                       },
-                   },
-                   layer);
-    }
-    return albedo;
-}
-}  // namespace
 
 Terrain BuildTerrain(const TerrainConfig& config, const std::filesystem::path& directory) {
     ValidateConfig(config, directory);
