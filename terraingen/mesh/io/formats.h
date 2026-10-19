@@ -6,11 +6,20 @@
 #include "terraingen/mesh/io/mesh_io.h"
 
 #include <array>
+#include <bit>
 #include <filesystem>
 #include <string>
 #include <vector>
 
 namespace terraingen::detail {
+
+static_assert(std::endian::native == std::endian::little,
+              "The binary mesh writers assume a little-endian host");
+
+/// Appends `value`'s bytes to `bytes`, little-endian.
+template <typename T> void Put(std::string& bytes, T value) {
+    bytes.append(reinterpret_cast<const char*>(&value), sizeof(T));
+}
 
 /// TerrainGen's z-up (x, y, z) in the y-up frame of OBJ and glTF: (x, z, -y).
 inline Vec3d YUp(const Vec3d& p) {
@@ -41,8 +50,8 @@ void Save(const std::filesystem::path& path, const std::string& bytes);
 void WriteObj(const std::filesystem::path& path, const std::vector<SceneMesh>& meshes,
               const std::vector<SceneNode>& nodes);
 
-/// `WriteScene` for .gltf (with a .bin beside it) or .glb.
-void WriteGltf(const std::filesystem::path& path, const std::vector<SceneMesh>& meshes,
+/// `WriteScene` for .gltf (with a .bin beside it), or .glb when `binary`.
+void WriteGltf(const std::filesystem::path& path, bool binary, const std::vector<SceneMesh>& meshes,
                const std::vector<SceneNode>& nodes);
 
 /// `WriteScene` for .stl: every node's mesh placed and merged into one binary STL, z-up.

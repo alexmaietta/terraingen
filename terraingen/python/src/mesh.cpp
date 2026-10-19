@@ -183,7 +183,7 @@ void BindScene(nb::module_& m) {
           "material.");
     m.def(
         "is_mesh_path", [](const std::filesystem::path& path) { return IsMeshPath(path); },
-        "path"_a, "Whether the extension names a mesh format: .obj, .gltf, .glb or .stl.");
+        "path"_a, "Whether the extension names a mesh format: .obj, .gltf, .glb, .stl or .icq.");
     nb::class_<SceneNode>(m, "SceneNode",
                           "An instance of a scene mesh: scaled per axis, then moved by `pose`.")
         .def(

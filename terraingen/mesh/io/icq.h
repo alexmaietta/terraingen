@@ -38,7 +38,9 @@ bool IsIcqPath(const std::filesystem::path& path);
 /// along +x and J along -y; on faces 2 to 5 (-y, -x, +y, +x) J runs along -z; on face 6 (-z) I runs
 /// along +x and J along +y. Labels the format shares between faces get the same direction exactly.
 /// @throws std::invalid_argument unless `q` > 0, `i` and `j` <= `q` and 1 <= `face` <= 6.
-Vec3d IcqDirection(std::size_t q, std::size_t i, std::size_t j, std::size_t face);
+inline Vec3d IcqDirection(std::size_t q, std::size_t i, std::size_t j, std::size_t face) {
+    return RadialShape::LabelDirection(q, i, j, face);
+}
 
 /// Reads an ICQ file: Q on the first line, then 6 (Q + 1)^2 lines of x, y and z (extra columns,
 /// such as albedo, are ignored).

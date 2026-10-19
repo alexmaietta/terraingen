@@ -35,7 +35,8 @@ struct SceneNode {
     RigidTransform pose{};       ///< Rotation and translation applied after the scale.
 };
 
-/// Whether `path` names a mesh format by its extension: .obj, .gltf, .glb or .stl.
+/// Whether `path` names a mesh format `ReadMesh` reads by its extension, in any case: .obj,
+/// .gltf, .glb, .stl or .icq. `WriteScene` writes all but .icq (see `WriteIcq`).
 bool IsMeshPath(const std::filesystem::path& path);
 
 /// Writes meshes drawn once per node, in the format the extension names. glTF (.glb, or .gltf

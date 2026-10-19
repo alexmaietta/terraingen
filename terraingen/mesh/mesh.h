@@ -6,6 +6,7 @@
 
 #include <array>
 #include <cstdint>
+#include <string_view>
 #include <vector>
 
 namespace terraingen {
@@ -27,6 +28,11 @@ struct Box3d {
         return max - min;
     }
 };
+
+/// The normal of the counter-clockwise triangle `a`, `b`, `c`, with a length of twice its area.
+inline Vec3d TriangleAreaNormal(const Vec3d& a, const Vec3d& b, const Vec3d& c) {
+    return Cross(b - a, c - a);
+}
 
 /// The smallest axis-aligned box around a mesh's vertices.
 /// @throws std::invalid_argument for a mesh without vertices.
@@ -72,6 +78,8 @@ struct RigidTransform {
 
     /// The point rotated, then translated.
     Vec3d Apply(const Vec3d& point) const;
+    /// The vector rotated, without the translation.
+    Vec3d Rotate(const Vec3d& vector) const;
     /// The transform that applies `first`, then this one.
     RigidTransform After(const RigidTransform& first) const;
 
@@ -96,6 +104,11 @@ std::array<double, 4> RotationQuaternion(const std::array<double, 9>& rotation);
 
 /// A mesh with every vertex moved by a transform.
 TriangleMesh Transformed(const TriangleMesh& mesh, const RigidTransform& transform);
+
+/// Checks that each per-axis scale factor is finite and not zero.
+/// @param what What the factors are, as error messages name them, such as "Node scales".
+/// @throws std::invalid_argument otherwise.
+void RequireScaleFactors(const Vec3d& scale, std::string_view what);
 
 /// A mesh with every vertex scaled about the origin per axis; triangles flip when an odd
 /// number of the factors are negative, so the mesh stays outward-facing.

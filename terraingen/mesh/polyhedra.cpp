@@ -16,7 +16,7 @@ namespace {
 TriangleMesh Outward(TriangleMesh mesh) {
     for (auto& t : mesh.triangles) {
         const Vec3d& a = mesh.positions[t[0]];
-        const Vec3d normal = Cross(mesh.positions[t[1]] - a, mesh.positions[t[2]] - a);
+        const Vec3d normal = TriangleAreaNormal(a, mesh.positions[t[1]], mesh.positions[t[2]]);
         if (Dot(normal, a + mesh.positions[t[1]] + mesh.positions[t[2]]) < 0.0) {
             std::swap(t[1], t[2]);
         }

@@ -17,24 +17,10 @@ namespace {
 constexpr std::size_t kHeaderBytes = 80;
 constexpr std::size_t kTriangleBytes = 50;
 
-/// Appends `value`'s bytes, little-endian on the hosts supported.
-template <typename T> void Put(std::string& bytes, T value) {
-    bytes.append(reinterpret_cast<const char*>(&value), sizeof(T));
-}
-
 void PutVector(std::string& bytes, const Vec3d& v) {
     for (const double c : {v.x, v.y, v.z}) {
         Put(bytes, static_cast<float>(c));
     }
-}
-
-/// The unit normal of a triangle, or zero for a degenerate one.
-Vec3d FaceNormal(const Vec3d& a, const Vec3d& b, const Vec3d& c) {
-    const Vec3d u = b - a;
-    const Vec3d v = c - a;
-    const Vec3d n{u.y * v.z - u.z * v.y, u.z * v.x - u.x * v.z, u.x * v.y - u.y * v.x};
-    const double length = Length(n);
-    return length > 0.0 ? n * (1.0 / length) : Vec3d{};
 }
 
 /// Collects triangle corners into a mesh, joining corners at the same position into one vertex.
@@ -124,7 +110,7 @@ void WriteStl(const std::filesystem::path& path, const std::vector<SceneMesh>& m
             const std::array<Vec3d, 3> corners{Placed(node, mesh.positions[t[0]]),
                                                Placed(node, mesh.positions[t[1]]),
                                                Placed(node, mesh.positions[t[2]])};
-            PutVector(bytes, FaceNormal(corners[0], corners[1], corners[2]));
+            PutVector(bytes, Normalized(TriangleAreaNormal(corners[0], corners[1], corners[2])));
             for (const Vec3d& corner : corners) {
                 PutVector(bytes, corner);
             }

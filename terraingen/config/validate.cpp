@@ -390,7 +390,7 @@ struct OutputContext {
 };
 
 void RequireMeshFile(const std::string& file, const std::string& path) {
-    if (!IsMeshPath(file)) {
+    if (!IsMeshPath(file) || IsIcqPath(file)) {
         throw ConfigError(path, "must end in .obj, .gltf, .glb or .stl");
     }
 }

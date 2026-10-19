@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <map>
 #include <stdexcept>
+#include <string>
 #include <tuple>
 #include <utility>
 
@@ -27,8 +28,7 @@ namespace {
 
 /// Twice the area-weighted normal of triangle `t`.
 Vec3d AreaNormal(const TriangleMesh& mesh, const std::array<std::uint32_t, 3>& t) {
-    const Vec3d& a = mesh.positions[t[0]];
-    return Cross(mesh.positions[t[1]] - a, mesh.positions[t[2]] - a);
+    return TriangleAreaNormal(mesh.positions[t[0]], mesh.positions[t[1]], mesh.positions[t[2]]);
 }
 
 }  // namespace
@@ -121,10 +121,13 @@ ShadedMesh WithCreases(const TriangleMesh& mesh, double creaseAngle) {
 }
 
 Vec3d RigidTransform::Apply(const Vec3d& p) const {
+    return Rotate(p) + translation;
+}
+
+Vec3d RigidTransform::Rotate(const Vec3d& v) const {
     const auto& r = rotation;
-    return {r[0] * p.x + r[1] * p.y + r[2] * p.z + translation.x,
-            r[3] * p.x + r[4] * p.y + r[5] * p.z + translation.y,
-            r[6] * p.x + r[7] * p.y + r[8] * p.z + translation.z};
+    return {r[0] * v.x + r[1] * v.y + r[2] * v.z, r[3] * v.x + r[4] * v.y + r[5] * v.z,
+            r[6] * v.x + r[7] * v.y + r[8] * v.z};
 }
 
 RigidTransform RigidTransform::After(const RigidTransform& first) const {
@@ -174,14 +177,14 @@ void RequireRotation(const std::array<double, 9>& r) {
                 dot += r[3 * i + k] * r[3 * j + k];
             }
             if (std::fabs(dot - (i == j ? 1.0 : 0.0)) > 1e-9) {
-                throw std::invalid_argument("A pose must be a rotation");
+                throw std::invalid_argument("A rotation matrix must be orthonormal");
             }
         }
     }
     const double det = r[0] * (r[4] * r[8] - r[5] * r[7]) - r[1] * (r[3] * r[8] - r[5] * r[6]) +
                        r[2] * (r[3] * r[7] - r[4] * r[6]);
     if (det < 0.0) {
-        throw std::invalid_argument("A pose must be a rotation, not a reflection");
+        throw std::invalid_argument("A rotation matrix must not be a reflection");
     }
 }
 
@@ -211,12 +214,16 @@ TriangleMesh Transformed(const TriangleMesh& mesh, const RigidTransform& transfo
     return moved;
 }
 
-TriangleMesh Scaled(const TriangleMesh& mesh, const Vec3d& scale) {
+void RequireScaleFactors(const Vec3d& scale, std::string_view what) {
     for (const double s : {scale.x, scale.y, scale.z}) {
         if (!(std::isfinite(s) && s != 0.0)) {
-            throw std::invalid_argument("Scale factors must be finite and not zero");
+            throw std::invalid_argument(std::string(what) + " must be finite and not zero");
         }
     }
+}
+
+TriangleMesh Scaled(const TriangleMesh& mesh, const Vec3d& scale) {
+    RequireScaleFactors(scale, "Scale factors");
     TriangleMesh scaled = mesh;
     for (Vec3d& p : scaled.positions) {
         p = {p.x * scale.x, p.y * scale.y, p.z * scale.z};

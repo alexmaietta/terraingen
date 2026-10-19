@@ -47,10 +47,6 @@ bool IsIcqPath(const std::filesystem::path& path) {
     return extension == ".icq";
 }
 
-Vec3d IcqDirection(std::size_t q, std::size_t i, std::size_t j, std::size_t face) {
-    return RadialShape::LabelDirection(q, i, j, face);
-}
-
 IcqModel ReadIcq(const std::filesystem::path& path, double metresPerUnit) {
     std::ifstream file(path);
     if (!file) {
@@ -104,8 +100,11 @@ void WriteIcq(const std::filesystem::path& path, const IcqModel& model, double m
     }
 }
 
-TriangleMesh IcqToMesh(const IcqModel& model) {
-    CheckModel(model);
+namespace {
+
+/// For each stored vertex, the index of the one copy of it the mesh keeps: shared edge and corner
+/// labels taken from one face, as Gaskell's converter does.
+std::vector<std::size_t> SharedVertices(const IcqModel& model) {
     const std::size_t q = model.q;
     std::vector<std::size_t> n(model.vertices.size());
     for (std::size_t k = 0; k < n.size(); ++k) {
@@ -146,7 +145,18 @@ TriangleMesh IcqToMesh(const IcqModel& model) {
     at(0, q, 6) = at(0, q, 3);
     at(q, q, 5) = at(0, q, 4);
     at(q, q, 6) = at(0, q, 4);
+    return n;
+}
 
+}  // namespace
+
+TriangleMesh IcqToMesh(const IcqModel& model) {
+    CheckModel(model);
+    const std::size_t q = model.q;
+    const std::vector<std::size_t> shared = SharedVertices(model);
+    const auto at = [&](std::size_t i, std::size_t j, std::size_t f) {
+        return shared[model.Index(i, j, f)];
+    };
     TriangleMesh mesh;
     std::vector<std::uint32_t> compact(model.vertices.size(), UINT32_MAX);
     const auto vertex = [&](std::size_t i, std::size_t j, std::size_t f) {

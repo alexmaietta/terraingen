@@ -62,7 +62,7 @@ std::vector<Vec3d> PlacedVertices(const TriangleMesh& mesh, const SceneNode& nod
 }  // namespace
 
 TEST(IsMeshPath, KnowsEveryMeshFormat) {
-    for (const char* path : {"out/b.glb", "b.gltf", "b.OBJ", "b.stl"}) {
+    for (const char* path : {"out/b.glb", "b.gltf", "b.OBJ", "b.stl", "shape.ICQ"}) {
         EXPECT_TRUE(terraingen::IsMeshPath(path)) << path;
     }
     EXPECT_FALSE(terraingen::IsMeshPath("b.ply"));
@@ -129,6 +129,17 @@ TEST(WriteMesh, WritesAValidBinaryGltfContainer) {
     EXPECT_THROW(terraingen::WriteMesh(path, {sphere, {{0, 0, 1}}, {}}), std::invalid_argument);
     EXPECT_THROW(terraingen::WriteMesh(TempPath("missing/dir/x.glb"), {sphere, {}, {}}),
                  std::runtime_error);
+    EXPECT_THROW(terraingen::WriteMesh(TempPath("sphere.icq"), {sphere, {}, {}}),
+                 std::invalid_argument);
+}
+
+TEST(WriteMesh, WritesBinaryGltfForAnUpperCaseExtension) {
+    const auto path = TempPath("upper.GLB");
+    std::filesystem::remove(TempPath("upper.bin"));
+    terraingen::WriteMesh(path, {terraingen::Icosphere(1), {}, {}});
+    EXPECT_EQ(Read(path).substr(0, 4), "glTF");
+    EXPECT_FALSE(std::filesystem::exists(TempPath("upper.bin")));
+    EXPECT_EQ(terraingen::ReadMesh(path).mesh.triangles.size(), 80u);
 }
 
 TEST(WriteScene, PlacesEveryNodeAlikeInEveryFormat) {

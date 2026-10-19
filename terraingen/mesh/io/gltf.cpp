@@ -20,14 +20,6 @@ namespace terraingen::detail {
 
 namespace {
 
-static_assert(std::endian::native == std::endian::little,
-              "The glTF writer assumes a little-endian host");
-
-/// Appends `value`'s bytes, little-endian on the hosts supported.
-template <typename T> void Put(std::string& bytes, T value) {
-    bytes.append(reinterpret_cast<const char*>(&value), sizeof(T));
-}
-
 /// The cgltf document of a scene: every array sized before any pointer into it is taken, and the
 /// binary buffer every accessor reads.
 class GltfDocument {
@@ -45,9 +37,8 @@ class GltfDocument {
         }
     }
 
-    /// Writes the document as .glb, or as .gltf with its buffer in a .bin beside it.
-    void Write(const std::filesystem::path& path) {
-        const bool binary = path.extension() == ".glb" || path.extension() == ".GLB";
+    /// Writes the document as .glb (`binary`), or as .gltf with its buffer in a .bin beside it.
+    void Write(const std::filesystem::path& path, bool binary) {
         cgltf_buffer buffer{};
         buffer.size = binary_.size();
         std::string bin;
@@ -220,7 +211,7 @@ class GltfDocument {
 };
 
 /// Adds the triangles of `node` and its children, placed by their world transforms, to `read`.
-void AddNode(const cgltf_node& node, SceneMesh& read) {
+void AppendNodeTriangles(const cgltf_node& node, SceneMesh& read) {
     if (node.mesh != nullptr) {
         cgltf_float world[16];
         cgltf_node_transform_world(&node, world);
@@ -267,15 +258,15 @@ void AddNode(const cgltf_node& node, SceneMesh& read) {
         }
     }
     for (std::size_t c = 0; c < node.children_count; ++c) {
-        AddNode(*node.children[c], read);
+        AppendNodeTriangles(*node.children[c], read);
     }
 }
 
 }  // namespace
 
-void WriteGltf(const std::filesystem::path& path, const std::vector<SceneMesh>& meshes,
+void WriteGltf(const std::filesystem::path& path, bool binary, const std::vector<SceneMesh>& meshes,
                const std::vector<SceneNode>& nodes) {
-    GltfDocument(meshes, nodes).Write(path);
+    GltfDocument(meshes, nodes).Write(path, binary);
 }
 
 SceneMesh ReadGltf(const std::filesystem::path& path) {
@@ -293,12 +284,12 @@ SceneMesh ReadGltf(const std::filesystem::path& path) {
     SceneMesh read;
     if (data->scene != nullptr) {
         for (std::size_t n = 0; n < data->scene->nodes_count; ++n) {
-            AddNode(*data->scene->nodes[n], read);
+            AppendNodeTriangles(*data->scene->nodes[n], read);
         }
     } else {
         for (std::size_t n = 0; n < data->nodes_count; ++n) {
             if (data->nodes[n].parent == nullptr) {
-                AddNode(data->nodes[n], read);
+                AppendNodeTriangles(data->nodes[n], read);
             }
         }
     }

@@ -81,6 +81,32 @@ TEST(RigidTransform, RotatesTranslatesAndComposes) {
     ExpectNear(both.Apply({0, 0, 0}), {0, 1, 0});
     const TriangleMesh cube = terraingen::BaseSolidMesh(terraingen::BaseSolid::Cube);
     EXPECT_NEAR(terraingen::Volume(terraingen::Transformed(cube, moved)), 8.0, 1e-9);
+    ExpectNear(moved.Rotate({1, 0, 0}), {0, 1, 0});
+    const Vec3d p{0.3, -1.2, 2.5};
+    const Vec3d applied = moved.Apply(p);
+    const Vec3d rotated = moved.Rotate(p) + moved.translation;
+    EXPECT_EQ(applied.x, rotated.x);
+    EXPECT_EQ(applied.y, rotated.y);
+    EXPECT_EQ(applied.z, rotated.z);
+}
+
+TEST(TriangleAreaNormal, PointsOutOfACounterClockwiseTriangleWithTwiceItsArea) {
+    ExpectNear(terraingen::TriangleAreaNormal({0, 0, 0}, {2, 0, 0}, {0, 3, 0}), {0, 0, 6});
+    ExpectNear(terraingen::TriangleAreaNormal({0, 0, 0}, {0, 3, 0}, {2, 0, 0}), {0, 0, -6});
+    ExpectNear(terraingen::TriangleAreaNormal({1, 1, 1}, {2, 2, 2}, {3, 3, 3}), {0, 0, 0});
+}
+
+TEST(RequireScaleFactors, RejectsZeroAndNonFiniteFactorsByName) {
+    EXPECT_NO_THROW(terraingen::RequireScaleFactors({-1.0, 2.0, 0.5}, "Scales"));
+    for (const Vec3d& bad :
+         {Vec3d{0.0, 1.0, 1.0}, Vec3d{1.0, NAN, 1.0}, Vec3d{1.0, 1.0, INFINITY}}) {
+        try {
+            terraingen::RequireScaleFactors(bad, "Node scales");
+            ADD_FAILURE() << "accepted a bad scale";
+        } catch (const std::invalid_argument& error) {
+            EXPECT_STREQ(error.what(), "Node scales must be finite and not zero");
+        }
+    }
 }
 
 TEST(Scaled, ScalesPerAxisAndKeepsTheMeshOutward) {

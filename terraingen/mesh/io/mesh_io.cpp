@@ -41,11 +41,7 @@ void CheckScene(const std::vector<SceneMesh>& meshes, const std::vector<SceneNod
         if (node.mesh >= meshes.size()) {
             throw std::invalid_argument("A scene node names a mesh the scene does not have");
         }
-        for (const double s : {node.scale.x, node.scale.y, node.scale.z}) {
-            if (!(std::isfinite(s) && s != 0.0)) {
-                throw std::invalid_argument("Node scales must be finite and not zero");
-            }
-        }
+        RequireScaleFactors(node.scale, "Node scales");
         RequireRotation(node.pose.rotation);
     }
 }
@@ -59,11 +55,8 @@ Vec3d Placed(const SceneNode& node, const Vec3d& p) {
 }
 
 Vec3d PlacedNormal(const SceneNode& node, const Vec3d& n) {
-    const Vec3d scaled{n.x / node.scale.x, n.y / node.scale.y, n.z / node.scale.z};
-    const auto& r = node.pose.rotation;
-    const Vec3d rotated{r[0] * scaled.x + r[1] * scaled.y + r[2] * scaled.z,
-                        r[3] * scaled.x + r[4] * scaled.y + r[5] * scaled.z,
-                        r[6] * scaled.x + r[7] * scaled.y + r[8] * scaled.z};
+    const Vec3d rotated =
+        node.pose.Rotate({n.x / node.scale.x, n.y / node.scale.y, n.z / node.scale.z});
     return rotated * (1.0 / Length(rotated));
 }
 
@@ -80,23 +73,24 @@ void Save(const std::filesystem::path& path, const std::string& bytes) {
 bool IsMeshPath(const std::filesystem::path& path) {
     const std::string extension = Extension(path);
     return extension == ".obj" || extension == ".gltf" || extension == ".glb" ||
-           extension == ".stl";
+           extension == ".stl" || extension == ".icq";
 }
 
 void WriteScene(const std::filesystem::path& path, const std::vector<SceneMesh>& meshes,
                 const std::vector<SceneNode>& nodes) {
-    if (!IsMeshPath(path)) {
+    const std::string extension = Extension(path);
+    const bool gltf = extension == ".gltf" || extension == ".glb";
+    if (extension != ".obj" && extension != ".stl" && !gltf) {
         throw std::invalid_argument("Mesh files must end in .obj, .gltf, .glb or .stl: " +
                                     path.string());
     }
     CheckScene(meshes, nodes);
-    const std::string extension = Extension(path);
     if (extension == ".obj") {
         detail::WriteObj(path, meshes, nodes);
     } else if (extension == ".stl") {
         detail::WriteStl(path, meshes, nodes);
     } else {
-        detail::WriteGltf(path, meshes, nodes);
+        detail::WriteGltf(path, extension == ".glb", meshes, nodes);
     }
 }
 
