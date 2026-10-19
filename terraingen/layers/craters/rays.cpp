@@ -1,6 +1,7 @@
 #include "terraingen/layers/craters/rays.h"
 
 #include "terraingen/random/stream.h"
+#include "terraingen/util/geometry.h"
 
 #include <algorithm>
 #include <cmath>
@@ -39,8 +40,7 @@ std::vector<RayDirection> RayDirections(const Crater& crater, const RayLayout& l
         ray.azimuth = 2.0 * std::numbers::pi * random.NextDouble();
         const double w1 = random.NextDouble();
         const double w2 = random.NextDouble();
-        ray.sinHalfWidth =
-            std::sin(0.5 * layout.widthDegrees.Sample(w1, w2) * std::numbers::pi / 180.0);
+        ray.sinHalfWidth = std::sin(0.5 * layout.widthDegrees.Sample(w1, w2) * kDegree);
         ray.key = random.NextU32();
         rays.push_back(ray);
     }

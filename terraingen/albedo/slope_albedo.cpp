@@ -2,10 +2,10 @@
 
 #include "terraingen/albedo/bands.h"
 #include "terraingen/util/checks.h"
+#include "terraingen/util/geometry.h"
 
 #include <cmath>
 #include <limits>
-#include <numbers>
 #include <stdexcept>
 #include <utility>
 
@@ -41,8 +41,7 @@ void ValidateSlopeAlbedoOptions(const SlopeAlbedoOptions& options) {
 SlopeAlbedo::SlopeAlbedo(SlopeAlbedoOptions options, Surface surface)
     : options_(options), surface_(surface) {
     ValidateSlopeAlbedoOptions(options_);
-    step_ = surface_.IsBody() ? options_.baseline / (surface_.Radius() * std::numbers::pi / 180.0)
-                              : options_.baseline;
+    step_ = options_.baseline / surface_.UnitLength();
 }
 
 double SlopeAlbedo::MaturityAt(double slopeDegrees) const {
@@ -81,7 +80,7 @@ SlopeAlbedo::Lattice SlopeAlbedo::ReadLattice(const Bounds2d& region, const Grou
                 (z(i + 1, j) - z(i - 1, j)) / surface_.Distance(node(i - 1, j), node(i + 1, j));
             const double dy =
                 (z(i, j + 1) - z(i, j - 1)) / surface_.Distance(node(i, j - 1), node(i, j + 1));
-            const double slope = std::atan(std::hypot(dx, dy)) * 180.0 / std::numbers::pi;
+            const double slope = GradientSlopeDegrees(dx, dy);
             lattice.slopes[j * lattice.columns + i] = std::isnan(slope) ? 0.0 : slope;
         }
     }

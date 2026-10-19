@@ -7,6 +7,7 @@
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/checks.h"
+#include "terraingen/util/geometry.h"
 #include "terraingen/util/log.h"
 
 #include <algorithm>
@@ -222,7 +223,7 @@ double StreakShare(double radii, double angle, std::uint32_t key,
     if (texture.streaks == 0.0) {
         return 1.0;
     }
-    const double ring = 180.0 / (std::numbers::pi * texture.streakWidthDegrees);
+    const double ring = kRadian / texture.streakWidthDegrees;
     const double n = RingNoise(ring, angle, radii / texture.streakLengthRadii, key, 3);
     const double filament = Smoothstep(0.5 + 1.5 * n);
     return 1.0 - texture.streaks * (1.0 - filament);
@@ -553,7 +554,7 @@ CraterAlbedo::Ray CraterAlbedo::DrawRay(RandomStream& random, double median,
     const CraterRays& rays = options_.rays;
     const ObliqueImpacts& oblique = rays.oblique;
     const double asymmetry = (impact.speedRatio - 1.0) / (impact.speedRatio + 1.0);
-    const double zone = oblique.zoneHalfWidthDegrees * std::numbers::pi / 180.0;
+    const double zone = oblique.zoneHalfWidthDegrees * kDegree;
     const double drawn = 2.0 * std::numbers::pi * random.NextDouble();
     const double azimuth = direction != nullptr ? direction->azimuth : drawn;
     const double l1 = random.NextDouble();
@@ -575,10 +576,9 @@ CraterAlbedo::Ray CraterAlbedo::DrawRay(RandomStream& random, double median,
         (oblique.enabled && impact.angleDegrees < oblique.butterflyDegrees && downrange)) {
         ray.length = 0.0;
     }
-    ray.sinHalfWidth =
-        direction != nullptr
-            ? direction->sinHalfWidth
-            : std::sin(0.5 * rays.widthDegrees.Sample(w1, w2) * std::numbers::pi / 180.0);
+    ray.sinHalfWidth = direction != nullptr
+                           ? direction->sinHalfWidth
+                           : std::sin(0.5 * rays.widthDegrees.Sample(w1, w2) * kDegree);
     ray.seed = random.NextU32();
     return ray;
 }
@@ -634,7 +634,7 @@ void CraterAlbedo::AddZones(Prepared& prepared, double left, double resolution) 
         drawn.reach =
             zone->coefficient * std::pow(diameter, zone->exponent) * zone->scale.Sample(s1, s2);
         drawn.raggedness = zone->raggedness;
-        drawn.ring = 180.0 / (std::numbers::pi * zone->fingerWidthDegrees);
+        drawn.ring = kRadian / zone->fingerWidthDegrees;
         drawn.feather = zone->feather;
         drawn.streaked = zone == &z.proximalHigh;
         drawn.distal = zone == &z.distalHigh || zone == &z.distalLow;
@@ -706,8 +706,7 @@ void CraterAlbedo::AddShadows(Prepared& prepared, const Ground& ground,
     const std::vector<Vec2d> points = profile->Points(centre, surface);
     std::vector<float> heights(points.size());
     ground.HeightsAt(points, heights, profile->step);
-    profile->TraceJets(heights,
-                       std::tan(s.jetAngleDegrees * std::numbers::pi / 180.0) * profile->step);
+    profile->TraceJets(heights, std::tan(s.jetAngleDegrees * kDegree) * profile->step);
     prepared.shadow = std::move(profile);
 }
 
@@ -719,7 +718,7 @@ CraterImpact CraterAlbedo::Impact(const Crater& crater) const {
     }
     const IdWords id = SplitId(crater.id);
     RandomStream random(options_.seed, kObliqueStream, id.low, id.high);
-    impact.angleDegrees = std::asin(std::sqrt(random.NextDouble())) * 180.0 / std::numbers::pi;
+    impact.angleDegrees = std::asin(std::sqrt(random.NextDouble())) * kRadian;
     const double h = random.NextDouble();
     impact.heading = oblique.heading ? *oblique.heading : 2.0 * std::numbers::pi * h;
     const double r1 = random.NextDouble();

@@ -5,6 +5,7 @@
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/checks.h"
+#include "terraingen/util/geometry.h"
 
 #include <algorithm>
 #include <cmath>
@@ -61,7 +62,7 @@ BedformOptions MarsLargeRipples() {
     BedformOptions ripples;
     ripples.wavelength = 2.0;
     ripples.height = 0.2;
-    const double leeSlope = std::tan(30.0 * std::numbers::pi / 180.0);
+    const double leeSlope = std::tan(30.0 * kDegree);
     ripples.leeFraction = std::numbers::pi * ripples.height / (2.0 * ripples.wavelength * leeSlope);
     ripples.sinuosity = 0.6;
     ripples.cover = 0.15;

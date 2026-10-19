@@ -3,6 +3,7 @@
 #include "terraingen/layers/fade.h"
 #include "terraingen/noise/value.h"
 #include "terraingen/util/checks.h"
+#include "terraingen/util/geometry.h"
 
 #include <algorithm>
 #include <cmath>
@@ -134,7 +135,7 @@ std::optional<SecondaryRayField> SecondaryRayField::Make(const Crater& primary,
     field.diameter = primary.diameter;
     field.onset = SecondaryOnsetRange(primary.diameter);
     field.share = rays.share;
-    field.sinFloor = std::sin(rays.minHalfAngleDegrees * std::numbers::pi / 180.0);
+    field.sinFloor = std::sin(rays.minHalfAngleDegrees * kDegree);
     field.clustering = rays.clustering;
     field.spacing = rays.clusterSpacing;
     field.meanClump = MeanClumpBump();

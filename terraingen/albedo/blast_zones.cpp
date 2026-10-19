@@ -2,6 +2,7 @@
 
 #include "terraingen/albedo/bands.h"
 #include "terraingen/util/checks.h"
+#include "terraingen/util/geometry.h"
 
 #include <cmath>
 #include <numbers>
@@ -78,7 +79,7 @@ double BlastZoneAlbedo::Change(const BlastZone& zone, double x, double y) const 
         return 0.0;
     }
     const auto [major, minor] = SemiAxes(zone);
-    const double heading = zone.headingDegrees * std::numbers::pi / 180.0;
+    const double heading = zone.headingDegrees * kDegree;
     const double u = (offset.x * std::cos(heading) + offset.y * std::sin(heading)) / major;
     const double v = (offset.y * std::cos(heading) - offset.x * std::sin(heading)) / minor;
     const double lobe =

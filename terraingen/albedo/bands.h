@@ -3,15 +3,15 @@
 #pragma once
 
 #include "terraingen/albedo/albedo.h"
+#include "terraingen/util/geometry.h"
 
 #include <cstddef>
 #include <cstdint>
-#include <numbers>
 
 namespace terraingen {
 
 /// Ring frequency of edge lobes about 45 degrees wide, for `RingNoise`.
-inline constexpr double kLobeRing = 180.0 / (std::numbers::pi * 45.0);
+inline constexpr double kLobeRing = kRadian / 45.0;
 
 /// Multiplies the first `bands` values of `value` by `factor`; NaN stays NaN.
 void ScaleBands(AlbedoSample& value, std::size_t bands, double factor);

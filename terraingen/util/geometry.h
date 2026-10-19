@@ -14,6 +14,12 @@ inline constexpr double kDegree = std::numbers::pi / 180.0;
 /// One radian in degrees.
 inline constexpr double kRadian = 180.0 / std::numbers::pi;
 
+/// The slope in degrees of a surface with height gradient (`dx`, `dy`) in metres per metre; NaN
+/// where either is NaN.
+inline double GradientSlopeDegrees(double dx, double dy) {
+    return std::atan(std::hypot(dx, dy)) * kRadian;
+}
+
 /// A 2D point or offset in double precision.
 struct Vec2d {
     double x = 0.0;

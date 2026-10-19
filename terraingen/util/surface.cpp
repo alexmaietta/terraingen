@@ -289,8 +289,8 @@ Vec2d Surface::Coordinates(const Vec3d& direction) const {
     if (form_ == Form::Plane) {
         return {direction.x, direction.y};
     }
-    const double lon = std::atan2(direction.y, direction.x) / kDegree;
-    const double lat = std::atan2(direction.z, std::hypot(direction.x, direction.y)) / kDegree;
+    const double lon = std::atan2(direction.y, direction.x) * kRadian;
+    const double lat = std::atan2(direction.z, std::hypot(direction.x, direction.y)) * kRadian;
     return {lon == -180.0 ? 180.0 : lon, lat};
 }
 
@@ -310,7 +310,7 @@ Bounds2d Surface::Expand(const Bounds2d& region, double metres) const {
     if (IsNonSphere()) {
         const double shortest = MinRadius();
         angle = metres < shortest ? std::asin(metres / shortest) : std::numbers::pi;
-        dLat = angle / kDegree;
+        dLat = angle * kRadian;
     }
     Bounds2d expanded{region.minX, std::max(-90.0, region.minY - dLat), region.maxX,
                       std::min(90.0, region.maxY + dLat)};
@@ -318,7 +318,7 @@ Bounds2d Surface::Expand(const Bounds2d& region, double metres) const {
     const double reach = std::sin(std::min(angle, std::numbers::pi / 2.0));
     const double cosLat = std::cos(std::min(widest, 90.0) * kDegree);
     const double dLon = angle < std::numbers::pi / 2.0 && reach < cosLat
-                            ? std::asin(reach / cosLat) / kDegree
+                            ? std::asin(reach / cosLat) * kRadian
                             : 360.0;
     if (expanded.minY <= -90.0 || expanded.maxY >= 90.0 || dLon >= 180.0 ||
         region.maxX - region.minX + 2.0 * dLon >= 360.0) {

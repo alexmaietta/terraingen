@@ -2,13 +2,13 @@
 
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/util/checks.h"
+#include "terraingen/util/geometry.h"
 #include "terraingen/util/parallel.h"
 
 #include <algorithm>
 #include <cmath>
 #include <iterator>
 #include <limits>
-#include <numbers>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -71,7 +71,7 @@ double RegionShape::DistanceOutside(double x, double y, const Surface& surface) 
             const double lon = x + shift;
             const double dx = std::fmax(0.0, std::fmax(rectangle.minX - lon, lon - rectangle.maxX));
             const double dy = std::fmax(0.0, std::fmax(rectangle.minY - y, y - rectangle.maxY));
-            const double cosLat = std::cos(y * std::numbers::pi / 180.0);
+            const double cosLat = std::cos(y * kDegree);
             best = std::fmin(best, surface.UnitLength() * std::hypot(dx * cosLat, dy));
         }
         return best;

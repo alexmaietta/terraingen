@@ -45,6 +45,15 @@ TEST(Geometry, ConvertsDegreesToRadians) {
     EXPECT_DOUBLE_EQ(terraingen::kDegree * terraingen::kRadian, 1.0);
 }
 
+TEST(Geometry, MeasuresSlopeInDegreesFromAGradient) {
+    EXPECT_EQ(terraingen::GradientSlopeDegrees(0.0, 0.0), 0.0);
+    EXPECT_DOUBLE_EQ(terraingen::GradientSlopeDegrees(1.0, 0.0), 45.0);
+    EXPECT_DOUBLE_EQ(terraingen::GradientSlopeDegrees(0.0, -1.0), 45.0);
+    EXPECT_DOUBLE_EQ(terraingen::GradientSlopeDegrees(0.6, 0.8), 45.0);
+    EXPECT_NEAR(terraingen::GradientSlopeDegrees(std::sqrt(3.0), 0.0), 60.0, 1e-12);
+    EXPECT_TRUE(std::isnan(terraingen::GradientSlopeDegrees(std::nan(""), 0.0)));
+}
+
 TEST(Geometry, BoundsAPointByTheNextRepresentableValues) {
     const terraingen::Bounds2d box = terraingen::PointBounds(1.5, -2.0);
     EXPECT_TRUE(box.Contains(1.5, -2.0));

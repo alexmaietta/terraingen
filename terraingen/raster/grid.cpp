@@ -99,7 +99,7 @@ double RasterGrid::SurfaceArea(const Surface& surface) const {
         const double lat = south + (north - south) * (j + 0.5) / kSteps;
         for (int i = 0; i < kSteps; ++i) {
             const double lon = west + turn * (i + 0.5) / kSteps;
-            area += surface.AreaPerSteradian({lon / kDegree, lat / kDegree}) * std::cos(lat);
+            area += surface.AreaPerSteradian({lon * kRadian, lat * kRadian}) * std::cos(lat);
         }
     }
     return area * turn * (north - south) / (kSteps * kSteps);

@@ -1,6 +1,7 @@
 #include "terraingen/config/build.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/mesh/io/mesh_io.h"
+#include "terraingen/util/geometry.h"
 #include "terraingen/util/overloaded.h"
 
 #include <nlohmann/json.hpp>
@@ -10,7 +11,6 @@
 #include <cstdio>
 #include <fstream>
 #include <map>
-#include <numbers>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -204,7 +204,7 @@ BoulderPlacement SitePlacement(const BoulderModel& boulder, const Surface& surfa
 void WriteBoulderScene(const std::vector<BoulderModel>& boulders, const std::filesystem::path& path,
                        double creaseAngle, const Surface& surface, const Vec2d& site,
                        bool instanced) {
-    const double radians = creaseAngle * std::numbers::pi / 180.0;
+    const double radians = creaseAngle * kDegree;
     std::vector<SceneMesh> meshes;
     std::map<const BoulderShape*, std::size_t> indices;
     std::vector<SceneNode> nodes;

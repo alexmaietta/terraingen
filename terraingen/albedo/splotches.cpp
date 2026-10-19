@@ -8,6 +8,7 @@
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/checks.h"
+#include "terraingen/util/geometry.h"
 
 #include <algorithm>
 #include <array>
@@ -143,7 +144,7 @@ double SlopeSpacing(double spacing, const SplotchAlbedoOptions& options) {
 double SlopeDegrees(std::span<const float> heights, double diameter) {
     const double dx = static_cast<double>(heights[0] - heights[1]) / diameter;
     const double dy = static_cast<double>(heights[2] - heights[3]) / diameter;
-    const double slope = std::atan(std::hypot(dx, dy)) * 180.0 / std::numbers::pi;
+    const double slope = GradientSlopeDegrees(dx, dy);
     return std::isnan(slope) ? 0.0 : slope;
 }
 

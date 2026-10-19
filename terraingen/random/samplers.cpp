@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iterator>
+#include <numbers>
 #include <stdexcept>
 #include <utility>
 
@@ -84,7 +85,7 @@ double SampleNormal(RandomStream& random, double mean, double sigma) {
     if (!(std::isfinite(mean) && IsNonNegative(sigma))) {
         throw std::invalid_argument("Normal mean must be finite and sigma finite and not negative");
     }
-    constexpr double kTwoPi = 6.283185307179586477;
+    constexpr double kTwoPi = 2.0 * std::numbers::pi;
     const double radius = std::sqrt(-2.0 * std::log(random.NextDoubleOpenBelow()));
     return mean + sigma * radius * std::cos(kTwoPi * random.NextDouble());
 }
