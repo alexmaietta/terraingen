@@ -3,15 +3,21 @@
 #include "support/temp_path.h"
 #include "terraingen/raster/gaussian_blur.h"
 #include "terraingen/raster/geotiff/geotiff.h"
+#include "terraingen/raster/geotiff/tiff_format.h"
 #include "terraingen/raster/resample.h"
 #include "tests/unit/raster/gdal_fixtures.h"
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <limits>
+#include <optional>
 #include <stdexcept>
+#include <vector>
 
 using terraingen::GeoKeys;
 using terraingen::GeoTiffSource;
@@ -234,4 +240,160 @@ TEST(GeoTiffSource, LowPassesTheFileByAGaussianInMetres) {
     EXPECT_NE(smooth.HeightAt(centre.x, centre.y), dem(5, 4)) << "detail is removed";
     options.lowPass = -1.0;
     EXPECT_THROW(GeoTiffSource(path, options), std::invalid_argument);
+}
+
+namespace {
+
+/// Writes a 60 x 45 DEM of uneven heights in 4 m cells, with its origin at (1000, 2000), a
+/// no-data hole and 16-pixel tiles.
+void WriteLargeDem(const std::filesystem::path& path) {
+    Raster<float> dem(60, 45);
+    dem.SetTransform(GeoTransform::NorthUp(1000.0, 2000.0, 4.0));
+    for (std::size_t row = 0; row < dem.Height(); ++row) {
+        for (std::size_t col = 0; col < dem.Width(); ++col) {
+            dem(col, row) = static_cast<float>(
+                5.0 * std::sin(0.31 * static_cast<double>(col)) +
+                2.0 * std::cos(0.47 * static_cast<double>(row) + 0.1 * static_cast<double>(col)) +
+                0.05 * static_cast<double>(row * col));
+        }
+    }
+    dem.SetNoData(-9999.0f);
+    dem(30, 20) = -9999.0f;
+    terraingen::GeoTiffWriteOptions tiles;
+    tiles.tileSize = 16;
+    terraingen::WriteGeoTiff(path, dem, Keys(), tiles);
+}
+
+bool SameBits(float a, float b) {
+    return std::memcmp(&a, &b, sizeof(float)) == 0;
+}
+
+}  // namespace
+
+TEST(GeoTiffSource, ARegionGivesTheSameBitsOverItsGridAndNoDataBeyond) {
+    const auto path = TempPath("geotiff_source_region.tif");
+    WriteLargeDem(path);
+    const std::vector<terraingen::Bounds2d> regions{{1081.0, 1883.0, 1149.0, 1931.0},
+                                                    {950.0, 1951.0, 1062.0, 2100.0},
+                                                    {1201.0, 1700.0, 1300.0, 1851.0}};
+    for (const double lowPass : {0.0, 7.0}) {
+        for (const std::optional<double> pixelSize :
+             {std::optional<double>(), std::optional(1.5)}) {
+            for (const ResampleMethod method : {ResampleMethod::Cubic, ResampleMethod::Bilinear}) {
+                GeoTiffSourceOptions options;
+                options.lowPass = lowPass;
+                options.pixelSize = pixelSize;
+                options.resampling = method;
+                const GeoTiffSource full(path, options);
+                for (const terraingen::Bounds2d& region : regions) {
+                    SCOPED_TRACE(::testing::Message()
+                                 << "lowPass " << lowPass << " pixelSize " << pixelSize.value_or(0)
+                                 << " method " << static_cast<int>(method) << " region "
+                                 << region.minX << "," << region.minY);
+                    GeoTiffSourceOptions clipped = options;
+                    clipped.region = region;
+                    const std::size_t before = terraingen::detail::DecodedChunkCount();
+                    const GeoTiffSource part(path, clipped);
+                    const RasterGrid grid = part.Grid();
+                    EXPECT_EQ(grid, terraingen::Subgrid(full.Grid(), terraingen::PixelWindowIn(
+                                                                         full.Grid(), region)));
+                    EXPECT_EQ(part.ReferencePoint().x, full.ReferencePoint().x);
+                    EXPECT_EQ(part.ReferencePoint().y, full.ReferencePoint().y);
+                    auto mine = grid.MakeRaster();
+                    auto theirs = grid.MakeRaster();
+                    part.Fill(mine);
+                    EXPECT_LT(terraingen::detail::DecodedChunkCount() - before, 12u)
+                        << "only a window of the 4 x 3 tiles is read";
+                    full.Fill(theirs);
+                    EXPECT_EQ(mine.NoData(), theirs.NoData());
+                    for (std::size_t i = 0; i < mine.Size(); ++i) {
+                        ASSERT_TRUE(SameBits(mine.Values()[i], theirs.Values()[i])) << i;
+                    }
+                    const terraingen::Bounds2d box = grid.Bounds();
+                    for (double x = box.minX + 0.01; x < box.maxX; x += 0.93) {
+                        for (double y = box.minY + 0.01; y < box.maxY; y += 1.07) {
+                            ASSERT_TRUE(SameBits(part.HeightAt(x, y), full.HeightAt(x, y)))
+                                << x << "," << y;
+                            ASSERT_EQ(part.ResolutionAt(x, y), full.ResolutionAt(x, y));
+                        }
+                    }
+                    for (std::size_t row = 0; row < grid.height; ++row) {
+                        for (std::size_t col = 0; col < grid.width; ++col) {
+                            const auto centre = mine.CellCenter(col, row);
+                            ASSERT_TRUE(SameBits(part.HeightAt(centre.x, centre.y),
+                                                 full.HeightAt(centre.x, centre.y)));
+                        }
+                    }
+                    const double side = std::min(box.maxX - box.minX, box.maxY - box.minY) / 6.0;
+                    const RasterGrid offLattice{
+                        5, 4, GeoTransform::NorthUp(box.minX + 0.7, box.maxY - 0.3, side)};
+                    auto offMine = offLattice.MakeRaster();
+                    auto offTheirs = offLattice.MakeRaster();
+                    part.Fill(offMine);
+                    full.Fill(offTheirs);
+                    for (std::size_t i = 0; i < offMine.Size(); ++i) {
+                        ASSERT_TRUE(SameBits(offMine.Values()[i], offTheirs.Values()[i])) << i;
+                    }
+                    auto everything = full.Grid().MakeRaster();
+                    part.Fill(everything);
+                    ASSERT_TRUE(everything.NoData().has_value());
+                    const terraingen::PixelWindow inside =
+                        terraingen::PixelWindowIn(full.Grid(), region);
+                    std::size_t outside = 0;
+                    for (std::size_t row = 0; row < everything.Height(); ++row) {
+                        for (std::size_t col = 0; col < everything.Width(); ++col) {
+                            if (col >= inside.colBegin && col < inside.colEnd &&
+                                row >= inside.rowBegin && row < inside.rowEnd) {
+                                continue;
+                            }
+                            ++outside;
+                            ASSERT_TRUE(everything.IsNoData(everything(col, row)));
+                        }
+                    }
+                    EXPECT_GT(outside, 0u);
+                    const double far = box.minX > 1100.0 ? 1010.0 : 1230.0;
+                    EXPECT_TRUE(std::isnan(part.HeightAt(far, 1830.5)));
+                    EXPECT_FALSE(std::isnan(full.HeightAt(far, 1830.5)));
+                    EXPECT_TRUE(std::isinf(part.ResolutionAt(far, 1830.5)));
+                }
+            }
+        }
+    }
+}
+
+TEST(GeoTiffSource, RejectsRegionsThatAreNotFiniteEmptyOrMissTheFile) {
+    const auto path = TempPath("geotiff_source_bad_region.tif");
+    WriteDem(path);
+    const double inf = std::numeric_limits<double>::infinity();
+    for (const terraingen::Bounds2d& region :
+         {terraingen::Bounds2d{1000.0, 1980.0, inf, 2000.0},
+          terraingen::Bounds2d{std::nan(""), 1980.0, 1010.0, 2000.0},
+          terraingen::Bounds2d{1010.0, 1980.0, 1010.0, 2000.0},
+          terraingen::Bounds2d{1020.0, 1980.0, 1010.0, 2000.0},
+          terraingen::Bounds2d{1000.0, 1990.0, 1010.0, 1980.0},
+          terraingen::Bounds2d{2000.0, 1980.0, 2010.0, 2000.0},
+          terraingen::Bounds2d{1000.0, 2000.0, 1010.0, 2010.0}}) {
+        GeoTiffSourceOptions options;
+        options.region = region;
+        EXPECT_THROW(GeoTiffSource(path, options), std::invalid_argument)
+            << region.minX << "," << region.minY << "," << region.maxX << "," << region.maxY;
+    }
+    GeoTiffSourceOptions corner;
+    corner.region = terraingen::Bounds2d{1000.0, 1999.0, 1001.0, 2000.0};
+    EXPECT_EQ(GeoTiffSource(path, corner).Grid().width, 1u);
+    GeoTiffSourceOptions same = corner;
+    EXPECT_EQ(same, corner);
+    same.region->maxX = 1002.0;
+    EXPECT_NE(same, corner);
+}
+
+TEST(GeoTiffSource, ResolvesTheFilesCellsCoarsenedByTheLowPass) {
+    const auto path = TempPath("geotiff_source_resolution.tif");
+    WriteDem(path);
+    GeoTiffSourceOptions options;
+    options.pixelSize = 1.0;
+    EXPECT_EQ(GeoTiffSource(path, options).ResolutionAt(1010.0, 1990.0), 4.0);
+    EXPECT_TRUE(std::isinf(GeoTiffSource(path, options).ResolutionAt(990.0, 1990.0)));
+    options.lowPass = 8.0;
+    EXPECT_EQ(GeoTiffSource(path, options).ResolutionAt(1010.0, 1990.0), 16.0);
 }

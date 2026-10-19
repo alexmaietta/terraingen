@@ -2,6 +2,7 @@
 /// @brief Reading and writing GeoTIFF rasters, with their projection keys and band scaling.
 #pragma once
 
+#include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/geo_transform.h"
 #include "terraingen/raster/raster.h"
 
@@ -137,6 +138,16 @@ struct GeoTiff {
 /// @param band The band, from 0.
 /// @throws GeoTiffError for unreadable, malformed or unsupported files, or a missing band.
 GeoTiff ReadGeoTiff(const std::filesystem::path& path, std::size_t band = 0);
+
+/// Reads one band of a window of a GeoTIFF's first image as `ReadGeoTiff` reads it, decoding only
+/// the strips or tiles that meet the window; the raster's transform starts at the window's first
+/// cell.
+/// @param band The band, from 0.
+/// @param window The cells to read; clipped to the image.
+/// @throws GeoTiffError as `ReadGeoTiff`.
+/// @throws std::invalid_argument for a window that is empty once clipped.
+GeoTiff ReadGeoTiffWindow(const std::filesystem::path& path, std::size_t band,
+                          const PixelWindow& window);
 
 /// GeoKeys for longitude and latitude in degrees on a sphere, such as a planet or moon.
 ///

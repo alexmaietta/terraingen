@@ -44,6 +44,24 @@ class ConstantField final : public SurfaceField {
     double value_;
 };
 
+/// The smaller of two fields at each point, the one that has a value where the other is NaN: a
+/// completeness limit that two limits give, such as a catalog's and a DEM's
+/// (`UnresolvedCraterLimit`).
+class MinimumField final : public SurfaceField {
+  public:
+    /// @throws std::invalid_argument for a null field.
+    MinimumField(std::shared_ptr<const SurfaceField> a, std::shared_ptr<const SurfaceField> b);
+
+    double ValueAt(double x, double y) const override;
+
+    /// The larger of the two fields' maxima, NaN only when both are, a bound for the minimum.
+    double Max() const override;
+
+  private:
+    std::shared_ptr<const SurfaceField> a_;
+    std::shared_ptr<const SurfaceField> b_;
+};
+
 /// How a `RasterField` reads its raster.
 struct RasterFieldOptions {
     /// `Nearest`, or `Bilinear` over the valid cells around a point, weights renormalized, so a

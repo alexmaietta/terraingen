@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <limits>
+#include <memory>
 #include <stdexcept>
 
 using terraingen::ConstantField;
@@ -64,6 +65,23 @@ TEST(ConstantField, IsTheSameEverywhere) {
     EXPECT_EQ(field.ValueAt(-1e6, 3.0), 2.5);
     EXPECT_EQ(field.Max(), 2.5);
     EXPECT_TRUE(std::isnan(ConstantField(kNaN).ValueAt(0.0, 0.0)));
+}
+
+TEST(MinimumField, TakesTheSmallerValueAndIgnoresNaN) {
+    const auto five = std::make_shared<ConstantField>(5.0);
+    const auto none = std::make_shared<ConstantField>(kNaN);
+    const auto cells = std::make_shared<RasterField>(Cells());
+    const terraingen::MinimumField both(five, cells);
+    EXPECT_EQ(both.ValueAt(5.0, 15.0), 0.0);
+    EXPECT_EQ(both.ValueAt(25.0, 15.0), 5.0);
+    EXPECT_EQ(both.ValueAt(-100.0, 15.0), 5.0) << "the raster has no value there";
+    EXPECT_EQ(both.Max(), 21.0);
+    const terraingen::MinimumField unset(none, none);
+    EXPECT_TRUE(std::isnan(unset.ValueAt(0.0, 0.0)));
+    EXPECT_TRUE(std::isnan(unset.Max()));
+    EXPECT_EQ(terraingen::MinimumField(none, five).Max(), 5.0);
+    EXPECT_THROW(terraingen::MinimumField(nullptr, five), std::invalid_argument);
+    EXPECT_THROW(terraingen::MinimumField(five, nullptr), std::invalid_argument);
 }
 
 TEST(RasterField, InterpolatesItsCellsAndBoundsThem) {

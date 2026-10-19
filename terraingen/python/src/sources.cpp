@@ -1,3 +1,4 @@
+#include "arrays.h"
 #include "bindings.h"
 #include "common.h"
 #include "trampolines.h"
@@ -5,12 +6,15 @@
 #include "terraingen/sources/field.h"
 #include "terraingen/sources/flat_source.h"
 #include "terraingen/sources/geotiff_source.h"
+#include "terraingen/sources/raster_source.h"
 #include "terraingen/sources/source.h"
 #include "terraingen/sources/source_chain.h"
 #include "terraingen/sources/synthetic_terrain.h"
 
 #include <nanobind/operators.h>
 
+#include <algorithm>
+#include <limits>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -49,17 +53,46 @@ class PySource : public Source {
     float HeightAt(double x, double y) const override {
         return CallRequiredAs<float>(nb_trampoline, "height_at", x, y);
     }
+
+    double ResolutionAt(double x, double y) const override {
+        return CallOverride<double>(nb_trampoline, "resolution_at", x, y)
+            .value_or(std::numeric_limits<double>::infinity());
+    }
 };
+
+/// A raster of heights from a 2D array of shape (height, width).
+Raster<float> HeightsFromArray(const CpuMatrix<float>& array, const GeoTransform& transform,
+                               std::optional<float> noData) {
+    Raster<float> raster(array.shape(1), array.shape(0));
+    std::copy(array.data(), array.data() + array.size(), raster.Values().begin());
+    raster.SetTransform(transform);
+    raster.SetNoData(noData);
+    return raster;
+}
+
+/// Raster source options from the keyword arguments.
+RasterSourceOptions SamplingOptions(std::optional<double> pixelSize, ResampleMethod resampling,
+                                    double lowPass) {
+    RasterSourceOptions options;
+    options.pixelSize = pixelSize;
+    options.resampling = resampling;
+    options.lowPass = lowPass;
+    return options;
+}
 
 void BindSourceBase(nb::module_& m) {
     nb::class_<Source, PySource>(
         m, "Source",
         "Where a terrain's heights come from, over its grid. Subclass it and implement `grid()` "
-        "(a RasterGrid) and `height_at(x, y)`, and optionally `fill(heights)` and "
-        "`reference_point()`, for a source of your own.")
+        "(a RasterGrid) and `height_at(x, y)`, and optionally `fill(heights)`, "
+        "`reference_point()` and `resolution_at(x, y)`, for a source of your own.")
         .def(nb::init<>())
         .def("grid", &Source::Grid)
         .def("height_at", &Source::HeightAt, "x"_a, "y"_a)
+        .def("resolution_at", &Source::ResolutionAt, "x"_a, "y"_a,
+             "The cell size in CRS units of the data giving the height at (x, y), before any "
+             "resampling and coarsened by a low-pass: the scale below which the source resolves "
+             "nothing. Infinity where no measured data gives it, as for flat sources.")
         .def("reference_point", &Source::ReferencePoint)
         .def("fill", &Source::Fill, "heights"_a, "Sets every cell of `heights`.")
         .def_prop_ro("width", [](const Source& source) { return source.Grid().width; })
@@ -79,18 +112,45 @@ void BindSourceTypes(nb::module_& m) {
     nb::class_<GeoTiffSource, Source>(
         m, "GeoTiffSource",
         "Heights from band `band` of a GeoTIFF, optionally low-passed by a Gaussian of `low_pass` "
-        "metres, resampled to `pixel_size` metres and scaled (height * scale + offset).")
+        "metres, resampled to `pixel_size` metres and scaled (height * scale + offset). With "
+        "`region` (min_x, min_y, max_x, max_y) it covers only the cells meeting that box and "
+        "reads only a window of the file, giving the same heights there as without it.")
         .def(
             "__init__",
             [](GeoTiffSource* self, const std::filesystem::path& path, std::size_t band,
                std::optional<double> pixelSize, ResampleMethod resampling,
-               std::optional<double> scale, std::optional<double> offset, double lowPass) {
-                new (self)
-                    GeoTiffSource(path, {band, pixelSize, resampling, scale, offset, lowPass});
+               std::optional<double> scale, std::optional<double> offset, double lowPass,
+               std::optional<Bounds2d> region) {
+                new (self) GeoTiffSource(
+                    path, {band, pixelSize, resampling, scale, offset, lowPass, region});
             },
             "path"_a, "band"_a = 0, "pixel_size"_a = nb::none(),
             "resampling"_a = ResampleMethod::Cubic, "scale"_a = nb::none(), "offset"_a = nb::none(),
-            "low_pass"_a = 0.0);
+            "low_pass"_a = 0.0, "region"_a = nb::none());
+    nb::class_<RasterSource, Source>(
+        m, "RasterSource",
+        "Heights from a raster held in memory, used as given with its no-data value, optionally "
+        "low-passed by a Gaussian of `low_pass` CRS units and resampled to `pixel_size`.")
+        .def(
+            "__init__",
+            [](RasterSource* self, const Raster<float>& heights, std::optional<double> pixelSize,
+               ResampleMethod resampling, double lowPass) {
+                new (self) RasterSource(heights, SamplingOptions(pixelSize, resampling, lowPass));
+            },
+            "heights"_a, "pixel_size"_a = nb::none(), "resampling"_a = ResampleMethod::Cubic,
+            "low_pass"_a = 0.0)
+        .def(
+            "__init__",
+            [](RasterSource* self, const CpuMatrix<float>& heights, const GeoTransform& transform,
+               std::optional<float> noData, std::optional<double> pixelSize,
+               ResampleMethod resampling, double lowPass) {
+                new (self) RasterSource(HeightsFromArray(heights, transform, noData),
+                                        SamplingOptions(pixelSize, resampling, lowPass));
+            },
+            "heights"_a, "transform"_a = GeoTransform{}, "nodata"_a = nb::none(),
+            "pixel_size"_a = nb::none(), "resampling"_a = ResampleMethod::Cubic, "low_pass"_a = 0.0,
+            "From a float32 array of shape (height, width), copied, placed by `transform`, with "
+            "`nodata` marking cells without data.");
     nb::class_<SourceChain, Source>(
         m, "SourceChain",
         "Several sources tried in order, each filling where those before it have no data; the "
@@ -129,6 +189,12 @@ void BindFields(nb::module_& m) {
         .def("max", &SurfaceField::Max);
     nb::class_<ConstantField, SurfaceField>(m, "ConstantField", "The same `value` everywhere.")
         .def(nb::init<double>(), "value"_a);
+    nb::class_<MinimumField, SurfaceField>(
+        m, "MinimumField",
+        "The smaller of two fields at each point, the one with a value where the other is NaN, "
+        "such as a catalog's completeness limit and `unresolved_crater_limit`.")
+        .def(nb::init<std::shared_ptr<const SurfaceField>, std::shared_ptr<const SurfaceField>>(),
+             "a"_a, "b"_a);
     auto options = nb::class_<RasterFieldOptions>(
         m, "RasterFieldOptions",
         "How a raster field is read: `method` (nearest or bilinear), `scale` multiplying every "

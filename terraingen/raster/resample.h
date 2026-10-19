@@ -2,6 +2,7 @@
 /// @brief Resampling and interpolation of rasters: nearest, bilinear and cubic.
 #pragma once
 
+#include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
 
@@ -36,6 +37,37 @@ Raster<float> Resample(const Raster<float>& raster, double pixelSize, ResampleMe
 /// @throws std::invalid_argument for an empty or rotated raster.
 /// @throws std::domain_error if the raster's transform is not invertible.
 float SampleRaster(const Raster<float>& raster, double x, double y, ResampleMethod method);
+
+/// Where a raster that is a window of a larger one, such as a window read from a file, lies in
+/// it.
+struct RasterPlacement {
+    RasterGrid whole{};   ///< The larger raster's grid.
+    std::size_t col = 0;  ///< The window's first column in it.
+    std::size_t row = 0;  ///< The window's first row in it.
+
+    /// A raster placed in itself.
+    static RasterPlacement Whole(const Raster<float>& raster) {
+        return {RasterGrid::FromRaster(raster), 0, 0};
+    }
+};
+
+/// `SampleRaster` of the larger raster `window` is placed in, read from `window` alone: the same
+/// bits wherever every cell interpolated lies in `window` or beyond the larger raster's edge
+/// where `window` reaches it; NaN outside the larger raster.
+/// @param window The window; not empty and not rotated.
+/// @throws std::invalid_argument for an empty or rotated window.
+/// @throws std::domain_error if the larger raster's transform is not invertible.
+float SampleRasterWindow(const Raster<float>& window, const RasterPlacement& placement, double x,
+                         double y, ResampleMethod method);
+
+/// The cells `cells` of `Resample` of the larger raster `window` is placed in, read from `window`
+/// alone, on their grid of the resampled lattice: the same bits wherever every cell interpolated
+/// lies in `window` or beyond the larger raster's edge where `window` reaches it.
+/// @param cells A non-empty window of `ResampledGrid(placement.whole, pixelSize)`.
+/// @throws std::invalid_argument as `Resample`, or for `cells` empty or beyond the resampled
+/// grid.
+Raster<float> ResampleWindow(const Raster<float>& window, const RasterPlacement& placement,
+                             double pixelSize, ResampleMethod method, const PixelWindow& cells);
 
 /// A raster resampled onto a non-empty grid, each cell `SampleRaster` at its centre.
 ///

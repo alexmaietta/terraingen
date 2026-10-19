@@ -38,6 +38,17 @@ TEST(PixelWindowIn, CoversTheBoxAndClampsToTheRaster) {
     EXPECT_TRUE(terraingen::PixelWindowIn(raster, {20.0, 20.0, 30.0, 30.0}).Empty());
 }
 
+TEST(Subgrid, StartsAtTheWindowsFirstCellOnTheSameLattice) {
+    const auto grid = terraingen::RasterGrid::FromRaster(Grid(10, 8));
+    EXPECT_EQ(terraingen::WholeWindow(grid), (PixelWindow{0, 10, 0, 8}));
+    EXPECT_EQ(terraingen::Subgrid(grid, terraingen::WholeWindow(grid)), grid);
+    const terraingen::RasterGrid part = terraingen::Subgrid(grid, {2, 5, 3, 7});
+    EXPECT_EQ(part.width, 3u);
+    EXPECT_EQ(part.height, 4u);
+    EXPECT_EQ(part.transform, terraingen::GeoTransform::NorthUp(2.0, 5.0, 1.0));
+    EXPECT_EQ(terraingen::Subgrid(grid, {4, 4, 0, 8}).width, 0u);
+}
+
 TEST(PixelWindowsIn, GivesOneWindowOnAPlaneAndWrapsLongitudeOnASphere) {
     const Raster<float> plane = Grid(10, 8);
     EXPECT_EQ(terraingen::PixelWindowsIn(plane, {1.0, 1.0, 2.0, 2.0}, Surface()).size(), 1u);

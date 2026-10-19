@@ -3,10 +3,13 @@
 #include "support/raster_equality.h"
 #include "support/temp_path.h"
 #include "terraingen/raster/geotiff/tiff_codecs.h"
+#include "terraingen/raster/geotiff/tiff_format.h"
+#include "terraingen/util/bits.h"
 #include "tests/unit/raster/gdal_fixtures.h"
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
@@ -144,6 +147,92 @@ TEST(ReadGeoTiff, MatchesGdalForEveryFixtureLayout) {
             EXPECT_FALSE(raster.NoData().has_value());
         }
     }
+}
+
+namespace {
+
+/// The bits of a sample, equal for equal NaNs.
+std::uint32_t Bits(float value) {
+    return terraingen::BitCast<std::uint32_t>(value);
+}
+
+/// Checks that each window read from `path` is the same crop of the whole image, transform and
+/// no-data value included.
+void ExpectWindowsCropTheImage(const std::filesystem::path& path, std::size_t band,
+                               const std::vector<terraingen::PixelWindow>& windows) {
+    const auto whole = ReadGeoTiff(path, band);
+    const Raster<float>& full = whole.raster;
+    for (const terraingen::PixelWindow& window : windows) {
+        SCOPED_TRACE(::testing::Message() << window.colBegin << ".." << window.colEnd << " x "
+                                          << window.rowBegin << ".." << window.rowEnd);
+        const auto part = terraingen::ReadGeoTiffWindow(path, band, window);
+        const std::size_t colEnd = std::min(window.colEnd, full.Width());
+        const std::size_t rowEnd = std::min(window.rowEnd, full.Height());
+        ASSERT_EQ(part.raster.Width(), colEnd - window.colBegin);
+        ASSERT_EQ(part.raster.Height(), rowEnd - window.rowBegin);
+        const terraingen::RasterGrid expected =
+            terraingen::Subgrid(terraingen::RasterGrid::FromRaster(full),
+                                {window.colBegin, colEnd, window.rowBegin, rowEnd});
+        EXPECT_EQ(part.raster.Transform(), expected.transform);
+        EXPECT_EQ(part.raster.NoData().has_value(), full.NoData().has_value());
+        EXPECT_EQ(part.geoKeys, whole.geoKeys);
+        for (std::size_t row = 0; row < part.raster.Height(); ++row) {
+            for (std::size_t col = 0; col < part.raster.Width(); ++col) {
+                ASSERT_EQ(Bits(part.raster(col, row)),
+                          Bits(full(window.colBegin + col, window.rowBegin + row)))
+                    << col << "," << row;
+            }
+        }
+    }
+}
+
+}  // namespace
+
+TEST(ReadGeoTiffWindow, CropsEveryFixtureLayoutAcrossChunksAndAtTheEdges) {
+    const std::vector<terraingen::PixelWindow> windows{
+        {0, 21, 0, 19},  {0, 5, 0, 4},     {17, 21, 15, 19}, {3, 19, 2, 18},
+        {14, 18, 1, 17}, {15, 16, 15, 17}, {20, 21, 0, 19},  {10, 40, 12, 99}};
+    for (const GdalFixture* fixture : kGdalFixtures) {
+        SCOPED_TRACE(fixture->name);
+        const auto path =
+            WriteBytes(std::string("window_") + fixture->name + ".tif", fixture->bytes);
+        ExpectWindowsCropTheImage(path, fixture->band, windows);
+    }
+}
+
+TEST(ReadGeoTiffWindow, CropsWrittenTilesAndDecodesOnlyThoseMeetingTheWindow) {
+    const Raster<float> raster = Sample(50, 37);
+    for (const TiffCompression compression :
+         {TiffCompression::None, TiffCompression::Deflate, TiffCompression::Lzw}) {
+        SCOPED_TRACE(static_cast<int>(compression));
+        const auto path = TempPath("window_tiles.tif");
+        GeoTiffWriteOptions options = Tiled(16);
+        options.compression = compression;
+        WriteGeoTiff(path, raster, {}, options);
+        ExpectWindowsCropTheImage(path, 0,
+                                  {{0, 50, 0, 37},
+                                   {15, 33, 15, 33},
+                                   {48, 50, 32, 37},
+                                   {0, 1, 0, 1},
+                                   {20, 30, 20, 30},
+                                   {31, 90, 0, 16}});
+        const std::size_t before = terraingen::detail::DecodedChunkCount();
+        terraingen::ReadGeoTiffWindow(path, 0, {20, 30, 20, 30});
+        EXPECT_EQ(terraingen::detail::DecodedChunkCount() - before, 1u);
+        terraingen::ReadGeoTiffWindow(path, 0, {15, 17, 15, 17});
+        EXPECT_EQ(terraingen::detail::DecodedChunkCount() - before, 5u);
+        ReadGeoTiff(path);
+        EXPECT_EQ(terraingen::detail::DecodedChunkCount() - before, 5u + 12u);
+    }
+}
+
+TEST(ReadGeoTiffWindow, RejectsWindowsMissingTheImageAndMissingBands) {
+    const auto path = TempPath("window_errors.tif");
+    WriteGeoTiff(path, Sample(20, 10));
+    EXPECT_THROW(terraingen::ReadGeoTiffWindow(path, 0, {5, 5, 0, 10}), std::invalid_argument);
+    EXPECT_THROW(terraingen::ReadGeoTiffWindow(path, 0, {0, 20, 10, 12}), std::invalid_argument);
+    EXPECT_THROW(terraingen::ReadGeoTiffWindow(path, 0, {25, 30, 0, 10}), std::invalid_argument);
+    EXPECT_THROW(terraingen::ReadGeoTiffWindow(path, 1, {0, 20, 0, 10}), GeoTiffError);
 }
 
 TEST(ParseGdalBandScaling, ReadsEachBandsScaleAndOffsetAndSkipsTheRest) {

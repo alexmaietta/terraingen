@@ -126,7 +126,8 @@ struct CraterGenerationOptions {
     /// The diameter (m) from which `manual` craters are a complete catalog at each point: generated
     /// craters at least this large centred there are dropped, so the catalog stands in for them
     /// rather than adding to them. Infinite or NaN where there is no catalog; unset keeps every
-    /// generated crater.
+    /// generated crater. A DEM's own craters are such a catalog (`UnresolvedCraterLimit`), with
+    /// or without `manual` craters.
     std::shared_ptr<const SurfaceField> completeness{};
     /// What the region and margins are measured on: on a sphere, regions are longitude and
     /// latitude boxes and margins are metres, and `cells` must be `CubeSphereCells` of its radius.

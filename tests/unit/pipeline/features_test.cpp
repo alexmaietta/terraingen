@@ -126,6 +126,94 @@ TEST(PlacedBoulders, PlacesModelsOnTheGroundBeneathTheirLayer) {
     }
 }
 
+namespace {
+
+/// A DEM of `cells` x `cells` cells of `size` metres with its top-left corner at (`left`,
+/// `top`), resampled to 2 m.
+std::shared_ptr<const terraingen::RasterSource> Dem(std::size_t cells, double size, double left,
+                                                    double top) {
+    terraingen::Raster<float> heights(cells, cells, 3.0f);
+    heights.SetTransform(terraingen::GeoTransform::NorthUp(left, top, size));
+    terraingen::RasterSourceOptions options;
+    options.pixelSize = 2.0;
+    return std::make_shared<terraingen::RasterSource>(heights, options);
+}
+
+/// The craters of 6 to 40 m a terrain on `source` places over `grid`, limited to those `source`
+/// leaves unresolved at four cells across when `limited`.
+terraingen::CraterList DemCraters(const std::shared_ptr<const terraingen::Source>& source,
+                                  const RasterGrid& grid, bool limited) {
+    terraingen::CraterLayerOptions options;
+    options.seed = 7;
+    options.generation.dMin = 6.0;
+    options.generation.dMax = 40.0;
+    if (limited) {
+        options.generation.completeness = terraingen::UnresolvedCraterLimit(source, 4.0);
+    }
+    Terrain terrain;
+    terrain.source = source;
+    terrain.layers = {std::make_shared<terraingen::CraterLayer>(PowerLawCraterModels(), options)};
+    return terraingen::PlacedCraters(terrain, grid).craters;
+}
+
+}  // namespace
+
+TEST(PlacedCraters, LeavesTheCratersADemResolvesToIt) {
+    const auto dem = Dem(26, 5.0, -65.0, 65.0);
+    const RasterGrid grid = dem->Grid();
+    const terraingen::CraterList all = DemCraters(dem, grid, false);
+    const terraingen::CraterList kept = DemCraters(dem, grid, true);
+    std::size_t resolved = 0;
+    for (std::size_t n = 0; n < all.Size(); ++n) {
+        const terraingen::Crater crater = all.At(n);
+        if (crater.diameter >= 20.0 && !std::isnan(dem->HeightAt(crater.x, crater.y))) {
+            ++resolved;
+        }
+    }
+    ASSERT_GT(resolved, 0u) << "the DEM resolves some of the generated craters";
+    ASSERT_EQ(kept.Size(), all.Size() - resolved);
+    std::size_t smaller = 0;
+    for (std::size_t n = 0; n < kept.Size(); ++n) {
+        const terraingen::Crater crater = kept.At(n);
+        if (!std::isnan(dem->HeightAt(crater.x, crater.y))) {
+            EXPECT_LT(crater.diameter, 20.0);
+            ++smaller;
+        }
+    }
+    EXPECT_GT(smaller, 0u);
+}
+
+TEST(PlacedCraters, FollowTheResolutionOfEachMemberOfASourceChain) {
+    const auto site = Dem(40, 2.0, -40.0, 40.0);
+    const auto region = Dem(32, 8.0, -128.0, 128.0);
+    const auto chain = std::make_shared<terraingen::SourceChain>(
+        std::vector<std::shared_ptr<const terraingen::Source>>{site, region});
+    const RasterGrid grid = region->Grid();
+    const terraingen::CraterList all = DemCraters(chain, grid, false);
+    const terraingen::CraterList kept = DemCraters(chain, grid, true);
+    std::size_t siteResolved = 0;
+    for (std::size_t n = 0; n < all.Size(); ++n) {
+        const terraingen::Crater crater = all.At(n);
+        if (crater.diameter >= 8.0 && !std::isnan(site->HeightAt(crater.x, crater.y))) {
+            ++siteResolved;
+        }
+    }
+    ASSERT_GT(siteResolved, 0u) << "the site DEM resolves some craters over it";
+    std::size_t between = 0;
+    for (std::size_t n = 0; n < kept.Size(); ++n) {
+        const terraingen::Crater crater = kept.At(n);
+        if (!std::isnan(site->HeightAt(crater.x, crater.y))) {
+            EXPECT_LT(crater.diameter, 8.0) << "four 2 m cells over the site";
+        } else if (!std::isnan(region->HeightAt(crater.x, crater.y))) {
+            EXPECT_LT(crater.diameter, 32.0) << "four 8 m cells elsewhere";
+            if (crater.diameter >= 8.0) {
+                ++between;
+            }
+        }
+    }
+    EXPECT_GT(between, 0u) << "craters the site would resolve stay beyond it";
+}
+
 TEST(PlacedBoulders, KeepsOnlyTheBouldersARegionHolds) {
     Terrain terrain = Flat();
     terrain.layers = {std::make_shared<terraingen::RegionLayer>(

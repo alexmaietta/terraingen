@@ -155,3 +155,85 @@ def test_fields_can_be_written_in_python():
         options,
     )
     assert len(craters) > 0 and min(c.x for c in craters) >= 0.0
+
+
+def test_raster_source_matches_a_geotiff_source_of_the_same_heights(tmp_path, coarse_dem):
+    from_file = terraingen.GeoTiffSource(tmp_path / "dem.tif", pixel_size=2.0, low_pass=10.0)
+    in_memory = terraingen.RasterSource(
+        coarse_dem.values, coarse_dem.transform, pixel_size=2.0, low_pass=10.0
+    )
+    from_raster = terraingen.RasterSource(coarse_dem, pixel_size=2.0, low_pass=10.0)
+    expected = terraingen.evaluate(terraingen.Terrain(from_file)).values
+    np.testing.assert_array_equal(terraingen.evaluate(terraingen.Terrain(in_memory)).values, expected)
+    np.testing.assert_array_equal(terraingen.evaluate(terraingen.Terrain(from_raster)).values, expected)
+    x, y = coarse_dem.cell_center(10, 12)
+    assert in_memory.height_at(x + 1.3, y - 0.7) == from_file.height_at(x + 1.3, y - 0.7)
+    assert in_memory.resolution_at(x, y) == 20.0 and from_file.resolution_at(x, y) == 20.0
+    assert in_memory.resolution_at(-1e6, 0.0) == float("inf")
+
+
+def test_raster_source_honours_nodata_and_rejects_bad_options():
+    heights = np.arange(12, dtype=np.float32).reshape(3, 4)
+    heights[1, 2] = -9999.0
+    source = terraingen.RasterSource(heights, terraingen.GeoTransform.north_up(0.0, 3.0, 1.0), nodata=-9999.0)
+    assert np.isnan(source.height_at(2.5, 1.5)) and source.height_at(0.5, 2.5) == 0.0
+    with pytest.raises(ValueError):
+        terraingen.RasterSource(heights, pixel_size=0.0)
+    with pytest.raises(ValueError):
+        terraingen.RasterSource(heights, low_pass=-1.0)
+
+
+def test_geotiff_source_region_reads_the_same_heights_over_its_grid(tmp_path, coarse_dem):
+    full = terraingen.GeoTiffSource(tmp_path / "dem.tif", pixel_size=2.0)
+    left, top = full.transform.origin_x, full.transform.origin_y
+    region = (left + 40.0, top - 120.0, left + 100.0, top - 60.0)
+    part = terraingen.GeoTiffSource(tmp_path / "dem.tif", pixel_size=2.0, region=region)
+    assert (part.width, part.height) == (30, 30)
+    grid = part.grid()
+    expected = terraingen.evaluate(terraingen.Terrain(full), grid=grid).values
+    np.testing.assert_array_equal(terraingen.evaluate(terraingen.Terrain(part), grid=grid).values, expected)
+    assert np.isnan(part.height_at(left + 1.0, top - 1.0))
+    with pytest.raises(ValueError):
+        terraingen.GeoTiffSource(tmp_path / "dem.tif", region=(1e7, 1e7, 1e7 + 1.0, 1e7 + 1.0))
+
+
+def test_unresolved_crater_limit_drops_the_craters_a_dem_resolves():
+    heights = np.zeros((26, 26), dtype=np.float32)
+    dem = terraingen.RasterSource(heights, terraingen.GeoTransform.north_up(-65.0, 65.0, 5.0), pixel_size=2.0)
+    limit = terraingen.unresolved_crater_limit(dem, 4.0)
+    assert limit.value_at(0.0, 0.0) == 20.0 and limit.value_at(1e6, 0.0) == float("inf")
+    both = terraingen.MinimumField(limit, terraingen.ConstantField(12.0))
+    assert both.value_at(0.0, 0.0) == 12.0 and both.value_at(1e6, 0.0) == 12.0
+    options = terraingen.CraterGenerationOptions(min_diameter=6.0, max_diameter=40.0)
+    region = (-60.0, -60.0, 60.0, 60.0)
+    density = terraingen.PowerLawSfd(0.05, 2.0)
+
+    def generate():
+        return terraingen.generate_craters(
+            terraingen.PlanarCells(), region, density, terraingen.FreshAges(), 3, options
+        )
+
+    every = generate()
+    options.completeness = limit
+    kept = generate()
+    assert any(c.diameter >= 20.0 for c in every)
+    assert kept and all(c.diameter < 20.0 for c in kept)
+    with pytest.raises(ValueError):
+        terraingen.unresolved_crater_limit(dem, 0.0)
+
+
+def test_python_sources_resolve_nothing_unless_they_say():
+    class Level(terraingen.Source):
+        def grid(self):
+            return terraingen.FlatSource(4, 4, 1.0).grid()
+
+        def height_at(self, x, y):
+            return 0.0
+
+    class Measured(Level):
+        def resolution_at(self, x, y):
+            return 3.0
+
+    assert Level().resolution_at(0.0, 0.0) == float("inf")
+    assert Measured().resolution_at(0.0, 0.0) == 3.0
+    assert terraingen.unresolved_crater_limit(Measured(), 2.0).value_at(0.0, 0.0) == 6.0

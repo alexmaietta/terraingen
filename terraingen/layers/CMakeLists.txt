@@ -44,6 +44,7 @@ terraingen_add_library(
     craters/degradation/freshness.cpp
     craters/generation/cell_cache.cpp
     craters/generation/population.cpp
+    craters/generation/resolved_limit.cpp
     craters/generation/spacing.cpp
     craters/profiles/complex.cpp
     craters/profiles/fassett_thomson.cpp

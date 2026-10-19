@@ -46,6 +46,15 @@ PixelWindow PixelWindowIn(const RasterGrid& grid, const Bounds2d& box);
 /// `PixelWindowIn` the raster's grid.
 PixelWindow PixelWindowIn(const Raster<float>& raster, const Bounds2d& box);
 
+/// The window of every cell of a grid.
+inline PixelWindow WholeWindow(const RasterGrid& grid) {
+    return {0, grid.width, 0, grid.height};
+}
+
+/// The grid of the cells `cells` of `grid`, on its lattice: its transform starts at the window's
+/// first cell, and is `grid`'s own when that is the first cell of `grid`.
+RasterGrid Subgrid(const RasterGrid& grid, const PixelWindow& cells);
+
 /// The non-empty windows of a grid (in `surface`'s coordinates) covering a box: one on a plane,
 /// up to three on a sphere, none off the grid.
 /// @param box The box: on a sphere a longitude-latitude box, which is also taken a turn either way

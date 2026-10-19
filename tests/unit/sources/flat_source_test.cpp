@@ -19,6 +19,12 @@ TEST(FlatSource, CoversAGridCentredOnTheOrigin) {
     EXPECT_EQ(source.ReferencePoint().y, 0.0);
 }
 
+TEST(FlatSource, ResolvesNothing) {
+    const FlatSource source(10, 6, 2.0);
+    EXPECT_EQ(source.ResolutionAt(0.0, 0.0), std::numeric_limits<double>::infinity());
+    EXPECT_EQ(source.ResolutionAt(1e6, -1e6), std::numeric_limits<double>::infinity());
+}
+
 TEST(FlatSource, FillsAnyGridWithItsElevation) {
     const FlatSource source(10, 6, 2.0, -3.5f);
     terraingen::RasterGrid tile{3, 2, GeoTransform::NorthUp(500.0, 500.0, 2.0)};

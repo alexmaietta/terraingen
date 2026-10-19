@@ -4,6 +4,7 @@ terraingen_add_library(
     field.cpp
     flat_source.cpp
     geotiff_source.cpp
+    raster_source.cpp
     source_chain.cpp
     synthetic_terrain.cpp
     PUBLIC

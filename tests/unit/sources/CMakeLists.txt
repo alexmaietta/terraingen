@@ -4,6 +4,7 @@ terraingen_add_test_suite(
     field_test.cpp
     flat_source_test.cpp
     geotiff_source_test.cpp
+    raster_source_test.cpp
     source_chain_test.cpp
     synthetic_terrain_test.cpp
     LIBRARIES

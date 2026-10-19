@@ -1,6 +1,7 @@
 #include "terraingen/sources/source_chain.h"
 
 #include "terraingen/sources/flat_source.h"
+#include "terraingen/sources/raster_source.h"
 
 #include <gtest/gtest.h>
 
@@ -129,6 +130,24 @@ TEST(SourceChain, StopsOnceEveryCellHasData) {
     SourceChain({full, spare}).Fill(heights);
     EXPECT_EQ(full->fills, 1);
     EXPECT_EQ(spare->fills, 0);
+}
+
+TEST(SourceChain, ResolvesWhatTheMemberGivingTheHeightResolves) {
+    Raster<float> fine(20, 20, 1.0f);
+    fine.SetTransform(GeoTransform::NorthUp(0.0, 20.0, 1.0));
+    fine.SetNoData(-1.0f);
+    fine(5, 5) = -1.0f;
+    Raster<float> coarse(10, 10, 2.0f);
+    coarse.SetTransform(GeoTransform::NorthUp(-40.0, 40.0, 8.0));
+    const auto site = std::make_shared<terraingen::RasterSource>(fine);
+    const auto region = std::make_shared<terraingen::RasterSource>(coarse);
+    const SourceChain chain({site, region, std::make_shared<terraingen::FlatSource>(1, 1, 1.0)});
+    const double inf = std::numeric_limits<double>::infinity();
+    EXPECT_EQ(chain.ResolutionAt(10.3, 10.6), 1.0);
+    EXPECT_EQ(chain.ResolutionAt(5.5, 14.5), 8.0) << "the site DEM's hole";
+    EXPECT_EQ(chain.ResolutionAt(-20.0, 30.0), 8.0);
+    EXPECT_EQ(chain.ResolutionAt(100.0, 100.0), inf) << "only the flat datum";
+    EXPECT_EQ(SourceChain({site, region}).ResolutionAt(100.0, 100.0), inf);
 }
 
 TEST(SourceChain, RejectsNoSourcesAndNullOnes) {

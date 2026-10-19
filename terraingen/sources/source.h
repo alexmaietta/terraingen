@@ -7,6 +7,8 @@
 #include "terraingen/raster/raster.h"
 #include "terraingen/util/geometry.h"
 
+#include <limits>
+
 namespace terraingen {
 
 /// Where a terrain's heights come from: a flat datum, a DEM, or a source of your own. Layers
@@ -39,6 +41,16 @@ class Source {
     /// The height in metres at world point (`x`, `y`), or NaN where the source has no data: what
     /// `Fill` gives a cell centred there, to the same bits.
     virtual float HeightAt(double x, double y) const = 0;
+
+    /// The cell size of the data that gives the height at world point (`x`, `y`), before any
+    /// resampling, in CRS units (metres on a plane, degrees for a source in longitude and
+    /// latitude, which `Surface::UnitLength` converts along a meridian): the scale below which the
+    /// source resolves no features, so a 240 m DEM resampled to 2 m still resolves only what 240 m
+    /// cells do. Infinity where no measured data gives the height, as for synthetic and flat
+    /// sources, the default.
+    virtual double ResolutionAt(double /*x*/, double /*y*/) const {
+        return std::numeric_limits<double>::infinity();
+    }
 };
 
 }  // namespace terraingen

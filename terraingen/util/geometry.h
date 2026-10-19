@@ -138,6 +138,14 @@ struct Bounds2d {
     Bounds2d Expanded(double margin) const {
         return {minX - margin, minY - margin, maxX + margin, maxY + margin};
     }
+
+    /// Memberwise equality.
+    bool operator==(const Bounds2d& other) const {
+        return minX == other.minX && minY == other.minY && maxX == other.maxX && maxY == other.maxY;
+    }
+    bool operator!=(const Bounds2d& other) const {
+        return !(*this == other);
+    }
 };
 
 /// The smallest box that contains a point: [`x`, next double above `x`) x [`y`, next double

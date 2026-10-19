@@ -37,6 +37,18 @@ PixelWindow PixelWindowIn(const Raster<float>& raster, const Bounds2d& box) {
     return PixelWindowIn(RasterGrid::FromRaster(raster), box);
 }
 
+RasterGrid Subgrid(const RasterGrid& grid, const PixelWindow& cells) {
+    RasterGrid result{cells.Empty() ? 0 : cells.colEnd - cells.colBegin,
+                      cells.Empty() ? 0 : cells.rowEnd - cells.rowBegin, grid.transform};
+    if (cells.colBegin != 0 || cells.rowBegin != 0) {
+        const Vec2d corner = grid.transform.PixelToWorld(static_cast<double>(cells.colBegin),
+                                                         static_cast<double>(cells.rowBegin));
+        result.transform.originX = corner.x;
+        result.transform.originY = corner.y;
+    }
+    return result;
+}
+
 std::vector<PixelWindow> PixelWindowsIn(const RasterGrid& grid, const Bounds2d& box,
                                         const Surface& surface) {
     std::vector<PixelWindow> windows;

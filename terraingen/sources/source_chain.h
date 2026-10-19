@@ -41,6 +41,10 @@ class SourceChain final : public Source {
     /// one.
     float HeightAt(double x, double y) const override;
 
+    /// The resolution of the first source with a height at (`x`, `y`), the one `HeightAt` takes
+    /// it from; infinity if no source has one.
+    double ResolutionAt(double x, double y) const override;
+
     /// The sources in the order they are tried.
     const std::vector<std::shared_ptr<const Source>>& Sources() const {
         return sources_;

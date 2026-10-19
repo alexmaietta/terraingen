@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Crater shaping and datum fitting on the GPU on spheres, ellipsoids and shape models, not only on planes.
 - Configurations are checked against every field's documented range, and errors name the exact field, such as `layers[2].reach`.
 - Python options classes document every field with its description and unit, and gain `validate()` and a readable `repr`.
+- `RasterSource`, heights from a raster in memory, shared rather than copied, low-passed and resampled as a GeoTIFF source is; `GeoTiffSource` is now a `RasterSource` of its band.
+- Windowed GeoTIFF reads that decode only the strips or tiles a window meets, and a `region` for GeoTIFF sources that reads only the window it needs while giving the same heights there as the whole file.
+- `Source::ResolutionAt`, the cell size of the data behind each height, and `UnresolvedCraterLimit`, a completeness limit that leaves the craters a DEM already resolves to it and generates only smaller ones; `MinimumField` combines it with a catalog's limit.
 
 ### Changed
 

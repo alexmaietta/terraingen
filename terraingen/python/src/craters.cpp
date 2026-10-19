@@ -7,6 +7,7 @@
 #include "terraingen/layers/craters/crater.h"
 #include "terraingen/layers/craters/crater_layer.h"
 #include "terraingen/layers/craters/generation/population.h"
+#include "terraingen/layers/craters/generation/resolved_limit.h"
 #include "terraingen/layers/craters/generation/spacing.h"
 #include "terraingen/layers/craters/secondaries.h"
 #include "terraingen/layers/craters/shaping/apply.h"
@@ -189,8 +190,15 @@ void BindGenerationOptions(nb::module_& m) {
                 "Callable giving the share of generated craters like a Crater kept, by a uniform "
                 "keyed to each ID; it is called from worker threads.")
         .def_rw("completeness", &CraterGenerationOptions::completeness,
-                "Diameter (m) from which `manual` is a complete catalog at each point.")
+                "Diameter (m) from which `manual` is a complete catalog at each point, or from "
+                "which a DEM resolves craters (`unresolved_crater_limit`).")
         .def("validate", &ValidateCraterGenerationOptions, kValidateDoc);
+    m.def("unresolved_crater_limit", &UnresolvedCraterLimit, "source"_a, "pixels_across"_a,
+          "surface"_a = Surface{},
+          "A field of the diameter (m) from which `source` resolves craters: `pixels_across` "
+          "times `source.resolution_at(x, y)`, converted to metres on `surface`; infinity where "
+          "it resolves nothing. Set `completeness` to it so generated craters leave the DEM's "
+          "own to it.");
 }
 
 void BindGeneration(nb::module_& m) {

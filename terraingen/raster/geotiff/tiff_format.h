@@ -150,4 +150,8 @@ ModelTags EncodeTransform(const GeoTransform& transform, bool pixelIsPoint);
 /// @throws GeoTiffError for tags with too few values or several tiepoints.
 std::optional<GeoTransform> DecodeTransform(const ModelTags& tags, bool pixelIsPoint);
 
+/// How many strips or tiles the GeoTIFF reader has decoded on the calling thread, for tests of
+/// windowed reads.
+std::size_t DecodedChunkCount();
+
 }  // namespace terraingen::detail

@@ -11,6 +11,22 @@
 
 namespace terraingen {
 
+MinimumField::MinimumField(std::shared_ptr<const SurfaceField> a,
+                           std::shared_ptr<const SurfaceField> b)
+    : a_(std::move(a)), b_(std::move(b)) {
+    if (!a_ || !b_) {
+        throw std::invalid_argument("A minimum field cannot take a null field");
+    }
+}
+
+double MinimumField::ValueAt(double x, double y) const {
+    return std::fmin(a_->ValueAt(x, y), b_->ValueAt(x, y));
+}
+
+double MinimumField::Max() const {
+    return std::fmax(a_->Max(), b_->Max());
+}
+
 void ValidateRasterFieldOptions(const RasterFieldOptions& options) {
     if (options.method == ResampleMethod::Cubic) {
         throw std::invalid_argument(

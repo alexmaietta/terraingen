@@ -41,6 +41,7 @@ terraingen_add_test_suite(
     craters/degradation/freshness_test.cpp
     craters/generation/cell_cache_test.cpp
     craters/generation/population_test.cpp
+    craters/generation/resolved_limit_test.cpp
     craters/generation/spacing_test.cpp
     craters/profiles/complex_test.cpp
     craters/profiles/fassett_thomson_test.cpp

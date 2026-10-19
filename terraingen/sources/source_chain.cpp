@@ -51,4 +51,13 @@ float SourceChain::HeightAt(double x, double y) const {
     return std::numeric_limits<float>::quiet_NaN();
 }
 
+double SourceChain::ResolutionAt(double x, double y) const {
+    for (const auto& source : sources_) {
+        if (!std::isnan(source->HeightAt(x, y))) {
+            return source->ResolutionAt(x, y);
+        }
+    }
+    return std::numeric_limits<double>::infinity();
+}
+
 }  // namespace terraingen
