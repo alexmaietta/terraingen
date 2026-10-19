@@ -119,8 +119,8 @@ TEST(RasterSource, SharesTheRasterItIsGivenAndHonoursNoData) {
 }
 
 TEST(RasterSource, RejectsUnusableRastersAndOptions) {
-    EXPECT_THROW(RasterSource(Raster<float>()), std::invalid_argument);
-    EXPECT_THROW(RasterSource(std::shared_ptr<const Raster<float>>()), std::invalid_argument);
+    EXPECT_THROW(RasterSource{Raster<float>{}}, std::invalid_argument);
+    EXPECT_THROW(RasterSource{std::shared_ptr<const Raster<float>>{}}, std::invalid_argument);
     for (const double size : {0.0, -1.0, kInf, std::nan("")}) {
         RasterSourceOptions options;
         options.pixelSize = size;
