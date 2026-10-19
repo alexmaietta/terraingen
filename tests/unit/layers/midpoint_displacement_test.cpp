@@ -291,8 +291,9 @@ TEST(EstimateMidpointRoughness, RecoversTheDimensionOfFractionalBrownianSurfaces
                                                 static_cast<std::uint32_t>(v));
                 const double amplitude =
                     std::pow(k, -(hurst + 1.0)) * terraingen::StandardNormal(random);
-                spectrum[v * kSize + u] =
-                    std::polar(amplitude, 2.0 * terraingen::kPi * random.NextDouble());
+                const double phase = 2.0 * terraingen::kPi * random.NextDouble();
+                spectrum[v * kSize + u] = {amplitude * std::cos(phase),
+                                           amplitude * std::sin(phase)};
             }
         }
         std::vector<std::complex<double>> line(kSize);
