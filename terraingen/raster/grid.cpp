@@ -49,7 +49,7 @@ double RasterGrid::Spacing(const Surface& surface) const {
 RasterGrid ResampledGrid(const RasterGrid& grid, double pixelSize) {
     RequirePositive(pixelSize, "Pixel size");
     const GeoTransform& source = grid.transform;
-    if (source.rowRotation != 0.0 || source.colRotation != 0.0) {
+    if (source.IsRotated()) {
         throw std::invalid_argument("Cannot resample a rotated raster");
     }
     const double scaleX = std::fabs(source.pixelWidth) / pixelSize;
@@ -70,6 +70,10 @@ double ResolvedSpacing(const Raster<float>& raster, double spacing, const Surfac
     if (!(grid.PixelSize() > 0.0)) {
         throw std::domain_error("The raster's transform is not invertible");
     }
+    return ResolvedSpacing(grid, spacing, surface);
+}
+
+double ResolvedSpacing(const RasterGrid& grid, double spacing, const Surface& surface) {
     return std::max(spacing, grid.Spacing(surface));
 }
 

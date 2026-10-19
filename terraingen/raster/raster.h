@@ -121,6 +121,16 @@ template <typename T> class Raster {
         return value == *noData_;
     }
 
+    /// Whether `value` holds no data: NaN, or the no-data value.
+    bool IsMissing(const T& value) const {
+        if constexpr (std::is_floating_point_v<T>) {
+            if (std::isnan(value)) {
+                return true;
+            }
+        }
+        return IsNoData(value);
+    }
+
     /// The value marking cells without data, if any.
     const std::optional<T>& NoData() const {
         return noData_;

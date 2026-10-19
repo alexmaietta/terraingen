@@ -153,7 +153,7 @@ RadialShape ShapeModelFromMesh(const TriangleMesh& mesh, std::size_t q) {
     std::vector<std::uint32_t> near;
     std::size_t folded = 0;
     const RadialShape shape = RadialShape::Sample(q, [&](const Vec3d& direction) {
-        const std::size_t face = detail::CubeFaceOf(detail::kCubeFaces, direction);
+        const std::size_t face = detail::NearestFace(detail::kCubeFaces, direction);
         const detail::CubeFace& f = detail::kCubeFaces[face];
         const double along = Dot(direction, f.normal);
         bins.Near(face, PatchCoordinate(Dot(direction, f.u) / along, q),

@@ -78,6 +78,13 @@ class RadialShape {
     bool operator==(const RadialShape&) const = default;
 
   private:
+    /// Checks that labels shared between faces have equal radii.
+    void CheckSharedLabels() const;
+    /// The largest area per steradian at any quadrilateral's corner, before the margin.
+    double CornerAreaBound() const;
+    /// The largest area per steradian at the corners of quadrilateral (`i`, `j`) of `face`.
+    double QuadAreaBound(std::size_t i, std::size_t j, std::size_t face) const;
+
     std::size_t q_ = 0;
     std::vector<double> radii_;
     double min_ = 0.0;

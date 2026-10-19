@@ -26,7 +26,7 @@ RasterField::RasterField(Raster<float> raster, RasterFieldOptions options)
         throw std::invalid_argument("A raster field needs a raster");
     }
     const GeoTransform& transform = raster_.Transform();
-    if (transform.rowRotation != 0.0 || transform.colRotation != 0.0) {
+    if (transform.IsRotated()) {
         throw std::invalid_argument("A raster field cannot read a rotated raster");
     }
     for (const float value : raster_.Values()) {
@@ -47,16 +47,25 @@ double RasterField::Sample(double x, double y) const {
     if (!(pixel.x >= 0.0 && pixel.y >= 0.0 && pixel.x < width && pixel.y < height)) {
         return std::numeric_limits<double>::quiet_NaN();
     }
-    const auto valid = [&](std::size_t col, std::size_t row) {
-        const float value = raster_(col, row);
-        return std::isfinite(value) && !raster_.IsNoData(value);
-    };
-    if (options_.method == ResampleMethod::Nearest) {
-        const auto col = static_cast<std::size_t>(pixel.x);
-        const auto row = static_cast<std::size_t>(pixel.y);
-        return valid(col, row) ? static_cast<double>(raster_(col, row))
-                               : std::numeric_limits<double>::quiet_NaN();
-    }
+    return options_.method == ResampleMethod::Nearest ? SampleNearest(pixel)
+                                                      : SampleBilinear(pixel);
+}
+
+bool RasterField::IsValid(std::size_t col, std::size_t row) const {
+    const float value = raster_(col, row);
+    return std::isfinite(value) && !raster_.IsNoData(value);
+}
+
+double RasterField::SampleNearest(const Vec2d& pixel) const {
+    const auto col = static_cast<std::size_t>(pixel.x);
+    const auto row = static_cast<std::size_t>(pixel.y);
+    return IsValid(col, row) ? static_cast<double>(raster_(col, row))
+                             : std::numeric_limits<double>::quiet_NaN();
+}
+
+double RasterField::SampleBilinear(const Vec2d& pixel) const {
+    const auto width = static_cast<double>(raster_.Width());
+    const auto height = static_cast<double>(raster_.Height());
     const double u = std::clamp(pixel.x - 0.5, 0.0, width - 1.0);
     const double v = std::clamp(pixel.y - 0.5, 0.0, height - 1.0);
     const auto col = static_cast<std::size_t>(u);
@@ -70,7 +79,7 @@ double RasterField::Sample(double x, double y) const {
     for (const auto& [c, r, w] :
          {std::tuple{col, row, (1.0 - tx) * (1.0 - ty)}, std::tuple{right, row, tx * (1.0 - ty)},
           std::tuple{col, below, (1.0 - tx) * ty}, std::tuple{right, below, tx * ty}}) {
-        if (w > 0.0 && valid(c, r)) {
+        if (w > 0.0 && IsValid(c, r)) {
             sum += w * static_cast<double>(raster_(c, r));
             weights += w;
         }

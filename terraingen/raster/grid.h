@@ -64,4 +64,9 @@ RasterGrid ResampledGrid(const RasterGrid& grid, double pixelSize);
 /// @throws std::domain_error if the raster's transform is not invertible.
 double ResolvedSpacing(const Raster<float>& raster, double spacing, const Surface& surface);
 
+/// The spacing a grid is evaluated at: the larger of `spacing` and the grid's own spacing on
+/// `surface` (`RasterGrid::Spacing`).
+/// @param spacing The requested spacing in metres; 0 for the grid's own.
+double ResolvedSpacing(const RasterGrid& grid, double spacing, const Surface& surface);
+
 }  // namespace terraingen

@@ -41,6 +41,11 @@ struct GeoTransform {
         return {originX, pixelWidth, rowRotation, originY, colRotation, pixelHeight};
     }
 
+    /// Whether rows or columns are rotated against the world axes.
+    bool IsRotated() const {
+        return rowRotation != 0.0 || colRotation != 0.0;
+    }
+
     /// Maps pixel coordinates, 0 at the first pixel's outer edge, to world coordinates.
     Vec2d PixelToWorld(double col, double row) const {
         return {originX + col * pixelWidth + row * rowRotation,

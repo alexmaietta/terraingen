@@ -14,8 +14,6 @@ namespace terraingen {
 
 namespace {
 
-constexpr double kQuarter = std::numbers::pi / 4.0;
-
 /// Factor on the largest area per steradian found at quadrilateral corners, for its variation
 /// within the curved bilinear quadrilaterals.
 constexpr double kAreaMargin = 1.25;
@@ -32,7 +30,8 @@ double Gnomonic(std::size_t k, std::size_t q) {
     if (2 * k == q) {
         return 0.0;
     }
-    return std::tan(kQuarter * (2.0 * static_cast<double>(k) / static_cast<double>(q) - 1.0));
+    return std::tan(detail::kQuarter *
+                    (2.0 * static_cast<double>(k) / static_cast<double>(q) - 1.0));
 }
 
 }  // namespace
@@ -43,8 +42,7 @@ Vec3d RadialShape::LabelDirection(std::size_t q, std::size_t i, std::size_t j, s
     }
     const Vec3d p =
         detail::CubeFacePoint(detail::kIcqFaces[face - 1], Gnomonic(i, q), Gnomonic(j, q));
-    const double length = Length(p);
-    return {p.x / length, p.y / length, p.z / length};
+    return p / Length(p);
 }
 
 RadialShape RadialShape::Sample(std::size_t q, const std::function<double(const Vec3d&)>& radius) {
@@ -79,6 +77,11 @@ RadialShape::RadialShape(std::size_t q, std::vector<double> radii)
     const auto [lo, hi] = std::minmax_element(radii_.begin(), radii_.end());
     min_ = *lo;
     max_ = *hi;
+    CheckSharedLabels();
+    maxArea_ = CornerAreaBound() * kAreaMargin;
+}
+
+void RadialShape::CheckSharedLabels() const {
     std::map<std::array<double, 3>, double> shared;
     for (std::size_t face = 1; face <= 6; ++face) {
         for (std::size_t j = 0; j <= q_; ++j) {
@@ -96,39 +99,49 @@ RadialShape::RadialShape(std::size_t q, std::vector<double> radii)
             }
         }
     }
+}
+
+double RadialShape::CornerAreaBound() const {
+    double largest = 0.0;
     for (std::size_t face = 1; face <= 6; ++face) {
         for (std::size_t j = 0; j < q_; ++j) {
             for (std::size_t i = 0; i < q_; ++i) {
-                const std::array<std::pair<std::size_t, std::size_t>, 4> corners{
-                    {{i, j}, {i + 1, j}, {i + 1, j + 1}, {i, j + 1}}};
-                std::array<Vec3d, 4> p{};
-                for (std::size_t k = 0; k < 4; ++k) {
-                    const auto [ci, cj] = corners[k];
-                    p[k] = LabelDirection(q_, ci, cj, face) * radii_[LabelIndex(ci, cj, face)];
-                }
-                Vec3d normal = Cross(p[2] - p[0], p[3] - p[1]);
-                normal = normal * (1.0 / Length(normal));
-                if (Dot(normal, p[0]) < 0.0) {
-                    normal = normal * -1.0;
-                }
-                for (const Vec3d& corner : p) {
-                    const double r = Length(corner);
-                    const double cosine = Dot(corner, normal) / r;
-                    maxArea_ = std::max(maxArea_, r * r / std::max(cosine, 1e-3));
-                }
+                largest = std::max(largest, QuadAreaBound(i, j, face));
             }
         }
     }
-    maxArea_ *= kAreaMargin;
+    return largest;
+}
+
+double RadialShape::QuadAreaBound(std::size_t i, std::size_t j, std::size_t face) const {
+    const std::array<std::pair<std::size_t, std::size_t>, 4> corners{
+        {{i, j}, {i + 1, j}, {i + 1, j + 1}, {i, j + 1}}};
+    std::array<Vec3d, 4> p{};
+    for (std::size_t k = 0; k < 4; ++k) {
+        const auto [ci, cj] = corners[k];
+        p[k] = LabelDirection(q_, ci, cj, face) * radii_[LabelIndex(ci, cj, face)];
+    }
+    Vec3d normal = Cross(p[2] - p[0], p[3] - p[1]);
+    normal = normal * (1.0 / Length(normal));
+    if (Dot(normal, p[0]) < 0.0) {
+        normal = normal * -1.0;
+    }
+    double largest = 0.0;
+    for (const Vec3d& corner : p) {
+        const double r = Length(corner);
+        const double cosine = Dot(corner, normal) / r;
+        largest = std::max(largest, r * r / std::max(cosine, 1e-3));
+    }
+    return largest;
 }
 
 double RadialShape::At(const Vec3d& direction) const {
-    const std::size_t index = detail::CubeFaceOf(detail::kIcqFaces, direction);
+    const std::size_t index = detail::NearestFace(detail::kIcqFaces, direction);
     const detail::CubeFace& f = detail::kIcqFaces[index];
     const double along = Dot(direction, f.normal);
     const auto position = [&](const Vec3d& axis) {
-        const double angle = std::atan(Dot(direction, axis) / along);
-        const double s = (angle + kQuarter) / (2.0 * kQuarter) * static_cast<double>(q_);
+        const double s =
+            detail::EquiangularCoordinate(Dot(direction, axis) / along, static_cast<double>(q_));
         const double k = std::clamp(std::floor(s), 0.0, static_cast<double>(q_ - 1));
         return std::pair<std::size_t, double>{static_cast<std::size_t>(k),
                                               std::clamp(s - k, 0.0, 1.0)};

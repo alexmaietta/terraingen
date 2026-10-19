@@ -259,7 +259,7 @@ TEST(BodyMesh, CoversTheBodyWithOutwardTrianglesAtTheTerrainsHeights) {
     for (std::size_t k = 0; k < mesh.positions.size(); k += 7) {
         const auto& p = mesh.positions[k];
         const double r = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
-        const auto point = moon.PointOf(p);
+        const auto point = moon.Coordinates(p);
         const double height = terraingen::EvaluateAt(terrain, point.x, point.y, step);
         EXPECT_NEAR(r, 1737400.0 + height, 1e-3);
     }
@@ -318,7 +318,7 @@ TEST(BodyIcq, PlacesEachLabelAtTheBodysRadiusPlusTheHeight) {
             for (std::size_t i = 0; i <= 6; ++i) {
                 const terraingen::Vec3d p = model.vertices[model.Index(i, j, f)];
                 const terraingen::Vec3d d = terraingen::IcqDirection(6, i, j, f);
-                const terraingen::Vec2d point = body.PointOf(d);
+                const terraingen::Vec2d point = body.Coordinates(d);
                 const float height = terraingen::EvaluateAt(
                     terrain, point.x, point.y, body.Radius() * std::numbers::pi / 2.0 / 6.0);
                 EXPECT_NEAR(terraingen::Length(p),

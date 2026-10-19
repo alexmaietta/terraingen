@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <limits>
 #include <stdexcept>
 #include <vector>
@@ -49,6 +50,29 @@ TEST(PlanarCells, SamplesPointsInsideTheCell) {
         EXPECT_GE(point.x, -6.0);
         EXPECT_LT(point.x, -4.0);
     }
+}
+
+TEST(SurfaceCells, PlanarCellsRejectEmptyRegionsWhileCubeSphereCellsCoverPoints) {
+    const PlanarCells planar;
+    const terraingen::CubeSphereCells sphere(1737400.0);
+    EXPECT_THROW(planar.CellsCovering({10.0, 20.0, 10.0, 20.0}, 5e4), std::invalid_argument);
+    const std::vector<CellIndex> point = sphere.CellsCovering({10.0, 20.0, 10.0, 20.0}, 5e4);
+    EXPECT_TRUE(std::binary_search(point.begin(), point.end(), sphere.CellAt(10.0, 20.0, 5e4)));
+    for (const terraingen::SurfaceCells* cells :
+         {static_cast<const terraingen::SurfaceCells*>(&planar),
+          static_cast<const terraingen::SurfaceCells*>(&sphere)}) {
+        EXPECT_THROW(cells->CellsCovering({11.0, 20.0, 10.0, 21.0}, 5e4), std::invalid_argument);
+        EXPECT_FALSE(cells->CellsCovering({10.0, 20.0, 11.0, 21.0}, 5e4).empty());
+    }
+}
+
+TEST(MakeCells, PicksPlanarOrCubeSphereCellsByTheSurface) {
+    const auto plane = terraingen::MakeCells(terraingen::Surface::Plane());
+    EXPECT_NE(dynamic_cast<const PlanarCells*>(plane.get()), nullptr);
+    const auto body = terraingen::MakeCells(terraingen::Surface::Ellipsoid(3.0, 2.0, 1.0));
+    const auto* cells = dynamic_cast<const terraingen::CubeSphereCells*>(body.get());
+    ASSERT_NE(cells, nullptr);
+    EXPECT_EQ(cells->Radius(), 1.0);
 }
 
 TEST(PlanarCells, RejectsInvalidRegionsAndCellSizes) {

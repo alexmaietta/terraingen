@@ -26,7 +26,7 @@ template <typename T> RasterStats ComputeStats(const Raster<T>& raster) {
     double sum = 0.0;
     for (const T value : raster.Values()) {
         const auto v = static_cast<double>(value);
-        if (!std::isfinite(v) || (raster.NoData() && value == *raster.NoData())) {
+        if (!std::isfinite(v) || raster.IsNoData(value)) {
             continue;
         }
         if (stats.validCount == 0) {

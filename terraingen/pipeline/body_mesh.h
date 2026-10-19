@@ -20,7 +20,7 @@ namespace terraingen {
 /// (`Surface::Position`); vertices along the faces' edges are repeated per face.
 /// @param spacing Sample spacing in metres; 0 for a quad's side at a face's centre.
 /// @param threads Threads to use; 0 for every hardware thread.
-/// @throws std::invalid_argument for a terrain not on a sphere, zero cells, or a negative or
+/// @throws std::invalid_argument for a terrain not on a body, zero cells, or a negative or
 /// non-finite spacing; and whatever the terrain's parts throw.
 TriangleMesh BodyMesh(const Terrain& terrain, std::size_t cellsPerFace, double spacing = 0.0,
                       unsigned threads = 0);

@@ -1,9 +1,9 @@
 #include "terraingen/util/log.h"
 
-#include <algorithm>
+#include "terraingen/util/text.h"
+
 #include <array>
 #include <atomic>
-#include <cctype>
 #include <cstdio>
 #include <iostream>
 #include <mutex>
@@ -60,9 +60,7 @@ std::string_view LogLevelName(LogLevel level) {
 }
 
 std::optional<LogLevel> ParseLogLevel(std::string_view name) {
-    std::string lower(name);
-    std::transform(lower.begin(), lower.end(), lower.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    const std::string lower = Lower(name);
     if (lower == "warn") {
         return LogLevel::Warning;
     }

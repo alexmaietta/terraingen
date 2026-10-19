@@ -64,7 +64,7 @@ void CheckSource(const Raster<float>& raster) {
         throw std::invalid_argument("Cannot resample an empty raster");
     }
     const GeoTransform& source = raster.Transform();
-    if (source.rowRotation != 0.0 || source.colRotation != 0.0) {
+    if (source.IsRotated()) {
         throw std::invalid_argument("Cannot resample a rotated raster");
     }
 }

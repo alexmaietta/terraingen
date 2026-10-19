@@ -100,8 +100,8 @@ def test_sphere_frame_points_up_and_north(moon):
     assert up == pytest.approx((1.0, 0.0, 0.0)) and north == pytest.approx((0.0, 0.0, 1.0))
 
 
-def test_sphere_point_of_inverts_a_direction(moon):
-    assert moon.point_of((0.0, 1.0, 0.0)) == pytest.approx((90.0, 0.0))
+def test_sphere_coordinates_invert_a_direction(moon):
+    assert moon.coordinates((0.0, 1.0, 0.0)) == pytest.approx((90.0, 0.0))
 
 
 def test_sphere_expand_grows_a_region(moon):
@@ -153,13 +153,13 @@ def test_planar_cells_sample_points_inside_their_cell():
 
 def test_cube_sphere_cells_neighbour_themselves():
     sphere = terraingen.CubeSphereCells(1737400.0)
-    cell = sphere.cell_of(23.0, 1.0, 50000.0)
+    cell = sphere.cell_at(23.0, 1.0, 50000.0)
     assert cell in sphere.neighbours(cell, 50000.0, 1) and sphere.cells_per_edge(50000.0) > 10
 
 
 def test_cube_sphere_cell_area_is_near_the_cell_size_squared():
     sphere = terraingen.CubeSphereCells(1737400.0)
-    cell = sphere.cell_of(23.0, 1.0, 50000.0)
+    cell = sphere.cell_at(23.0, 1.0, 50000.0)
     assert sphere.cell_area(cell, 50000.0) == pytest.approx(50000.0**2, rel=0.5)
 
 

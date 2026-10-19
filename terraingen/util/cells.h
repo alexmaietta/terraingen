@@ -8,9 +8,14 @@
 #include <array>
 #include <compare>
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 namespace terraingen {
+
+namespace detail {
+struct CubeFace;
+}  // namespace detail
 
 /// Integer coordinates of one cell in a grid of square cells.
 struct CellIndex {
@@ -29,8 +34,8 @@ class SurfaceCells {
 
     /// The cells that intersect `region` (surface coordinates), in a fixed order.
     /// @param cellSize The cell side in metres.
-    /// @throws std::invalid_argument if `cellSize` is not positive and finite or `region` is empty
-    /// or not finite.
+    /// @throws std::invalid_argument if `cellSize` is not positive and finite, or `region` is not
+    /// finite or not one the implementation accepts.
     virtual std::vector<CellIndex> CellsCovering(const Bounds2d& region, double cellSize) const = 0;
 
     /// The area of a cell in m^2.
@@ -102,7 +107,7 @@ class CubeSphereCells final : public SurfaceCells {
     /// [-180, 180].
     /// @param cellSize The cell side in metres.
     /// @throws std::invalid_argument if `cellSize` is not positive and finite, the cells would be
-    /// too small for the sphere, or `region` is not finite or inverted.
+    /// too small for the sphere, or `region` is not finite or inverted; a point is allowed.
     std::vector<CellIndex> CellsCovering(const Bounds2d& region, double cellSize) const override;
 
     /// The area of a cell in m^2: exact from its solid angle on a sphere, by quadrature of the area
@@ -127,7 +132,7 @@ class CubeSphereCells final : public SurfaceCells {
     /// The cell holding a point given in degrees.
     /// @param cellSize The cell side in metres.
     /// @throws std::invalid_argument as `CellsPerEdge`.
-    CellIndex CellOf(double lonDeg, double latDeg, double cellSize) const;
+    CellIndex CellAt(double lonDeg, double latDeg, double cellSize) const;
 
     /// A cell and the cells up to `rings` steps from it along its face's rows and columns,
     /// continuing onto neighbouring faces past an edge, without repeats, sorted by i, then j.
@@ -149,20 +154,36 @@ class CubeSphereCells final : public SurfaceCells {
 
     /// The radius in metres the cells are sized by: the sphere's, or an ellipsoid's shortest.
     double Radius() const {
-        return radius_;
+        return sphere_.Radius();
     }
 
   private:
-    /// The gnomonic bounds a1, a2, b1, b2 of a cell on its face.
-    std::array<double, 4> Bounds(const CellIndex& cell, double cellSize) const;
+    /// The gnomonic bounds a1, a2, b1, b2 of a cell on its face of `n` cells per edge.
+    std::array<double, 4> Bounds(const CellIndex& cell, std::int32_t n) const;
 
-    /// An upper bound of `Weight` over the gnomonic rectangle [a1, a2] x [b1, b2] of `face`,
-    /// from interval bounds of the direction's squared components.
-    double WeightBound(std::size_t face, double a1, double a2, double b1, double b2) const;
+    /// An upper bound of `Weight` over the gnomonic rectangle a1, a2, b1, b2 of `face`, from
+    /// interval bounds of the direction's squared components.
+    double WeightBound(std::size_t face, const std::array<double, 4>& bounds) const;
 
-    double radius_;
+    /// Adds the cells holding sample points of cell (`col`, `row`) of `face`, which lies past the
+    /// face's edge, so on its neighbours.
+    void AddAcrossEdge(const detail::CubeFace& face, std::int32_t col, std::int32_t row,
+                       std::int32_t n, double cellSize, std::vector<CellIndex>& cells) const;
+
+    /// The sorted cells holding a lattice of points over `box`, finer than the cells.
+    std::vector<CellIndex> Seeds(const Bounds2d& box, double cellSize) const;
+
+    /// The `seeds` plus the ring `cells` around them that may reach `box`.
+    std::vector<CellIndex> KeepReaching(const Bounds2d& box, const std::vector<CellIndex>& seeds,
+                                        const std::vector<CellIndex>& cells, double cellSize) const;
+
     Surface surface_;
+    Surface sphere_;          ///< The sphere of `Radius`, which cell geometry is computed on.
     double weightCap_ = 0.0;  ///< Bound of `Weight` over the whole ellipsoid; 0 on a sphere.
 };
+
+/// The cells features are generated in on `surface`: `PlanarCells` on a plane, `CubeSphereCells`
+/// on a body.
+std::shared_ptr<const SurfaceCells> MakeCells(const Surface& surface);
 
 }  // namespace terraingen

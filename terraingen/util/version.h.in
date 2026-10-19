@@ -13,19 +13,17 @@ namespace terraingen {
 
 #define TERRAINGEN_API_VERSION 1
 
-/// @brief A semantic version number.
+/// A semantic version number.
 struct Version {
     int major;  ///< Major version.
     int minor;  ///< Minor version.
     int patch;  ///< Patch version.
 };
 
-/// @brief The version of the linked library.
-/// @return Major, minor and patch numbers.
+/// The major, minor and patch numbers of the linked library.
 Version GetVersion();
 
-/// @brief The API version of the linked library.
-/// @return `TERRAINGEN_API_VERSION` as compiled into the library.
+/// The API version of the linked library, `TERRAINGEN_API_VERSION` as compiled into it.
 int GetApiVersion();
 
 }  // namespace terraingen

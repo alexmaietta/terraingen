@@ -39,12 +39,6 @@ struct BucketIndex {
 /// next to the local curvature radius.
 class Surface {
   public:
-    /// The kind of surface.
-    enum class Kind {
-        Plane,  ///< A plane.
-        Body,   ///< A body: a sphere, a triaxial ellipsoid or a shape model.
-    };
-
     /// A plane, the default.
     Surface() = default;
 
@@ -67,19 +61,14 @@ class Surface {
     /// @throws std::invalid_argument for a null `shape`.
     static Surface ShapeModel(std::shared_ptr<const RadialShape> shape);
 
-    /// The kind of surface.
-    Kind GetKind() const {
-        return kind_;
-    }
-
     /// Whether the surface is a body (a sphere, an ellipsoid or a shape model) rather than a plane.
     bool IsBody() const {
-        return kind_ == Kind::Body;
+        return form_ != Form::Plane;
     }
 
     /// Whether the surface is exactly a sphere, of one radius.
     bool IsSphere() const {
-        return kind_ == Kind::Body && !shape_ && radii_.x == radii_.y && radii_.y == radii_.z;
+        return form_ == Form::Sphere;
     }
 
     /// The body's shape model; null for a plane, a sphere or an ellipsoid.
@@ -116,28 +105,38 @@ class Surface {
     /// Metres per surface unit along a meridian: 1 on a plane, R pi / 180 on a sphere, and that of
     /// the mean radius `Radius` on an ellipsoid, where the true scale varies with position.
     double UnitLength() const {
-        return kind_ == Kind::Plane ? 1.0 : unitLength_;
+        return form_ == Form::Plane ? 1.0 : unitLength_;
     }
 
     /// The east and north offsets in metres of `point` in the local frame of `centre` (both in
     /// surface coordinates); exactly `point` - `centre` on a plane.
     Vec2d Offset(const Vec2d& centre, const Vec2d& point) const {
-        if (kind_ == Kind::Plane) {
-            return {point.x - centre.x, point.y - centre.y};
+        switch (form_) {
+        case Form::Plane:
+            return point - centre;
+        case Form::Sphere:
+            return SphereOffset(centre, point);
+        case Form::Ellipsoid:
+        case Form::Shape:
+            break;
         }
-        return IsNonSphere() ? TangentOffset(centre, point) : SphereOffset(centre, point);
+        return TangentOffset(centre, point);
     }
 
     /// The point, in surface coordinates, at east and north `offset` metres from `centre`: the
     /// inverse of `Offset`. On a sphere the longitude is in (-180, 180].
     Vec2d Locate(const Vec2d& centre, const Vec2d& offset) const {
-        if (kind_ == Kind::Plane) {
-            return {centre.x + offset.x, centre.y + offset.y};
+        switch (form_) {
+        case Form::Plane:
+            return centre + offset;
+        case Form::Sphere:
+            return SphereLocate(centre, offset);
+        case Form::Ellipsoid:
+            return EllipsoidLocate(centre, offset);
+        case Form::Shape:
+            break;
         }
-        if (shape_) {
-            return ShapeLocate(centre, offset);
-        }
-        return IsNonSphere() ? EllipsoidLocate(centre, offset) : SphereLocate(centre, offset);
+        return ShapeLocate(centre, offset);
     }
 
     /// The distance in metres between two points: straight on a plane, along a great circle on
@@ -154,7 +153,7 @@ class Surface {
     LocalFrame Frame(const Vec2d& point) const;
 
     /// The surface point of a nonzero `direction` from the body's centre; (x, y) on a plane.
-    Vec2d PointOf(const Vec3d& direction) const;
+    Vec2d Coordinates(const Vec3d& direction) const;
 
     /// A box containing every point within a distance of a region; on a body latitudes
     /// are clamped to [-90, 90] and a box reaching a pole or wider than a full turn takes every
@@ -169,7 +168,7 @@ class Surface {
         if (region.Contains(point.x, point.y)) {
             return true;
         }
-        if (kind_ == Kind::Plane) {
+        if (form_ == Form::Plane) {
             return false;
         }
         const Vec2d pole{point.x, point.y >= 90.0 && region.maxY >= 90.0 ? region.minY : point.y};
@@ -182,14 +181,22 @@ class Surface {
     /// @param size The bucket side in metres.
     BucketIndex Bucket(const Vec2d& point, double size) const;
 
-    /// Whether two surfaces are the same kind and radii, and share one shape model or have none.
+    /// Whether two surfaces are the same form and radii, and share one shape model or have none.
     bool operator==(const Surface&) const = default;
 
   private:
+    /// The shape of the surface, set by the factories.
+    enum class Form {
+        Plane,      ///< A plane.
+        Sphere,     ///< A sphere: an ellipsoid of equal radii.
+        Ellipsoid,  ///< A triaxial ellipsoid of unequal radii.
+        Shape,      ///< A shape model.
+    };
+
     /// Whether the surface is a body the sphere formulas do not apply to: an ellipsoid of unequal
     /// radii or a shape model.
     bool IsNonSphere() const {
-        return kind_ == Kind::Body && !IsSphere();
+        return form_ == Form::Ellipsoid || form_ == Form::Shape;
     }
 
     Vec2d SphereOffset(const Vec2d& centre, const Vec2d& point) const;
@@ -201,7 +208,7 @@ class Surface {
     /// ellipsoid or shape model.
     Vec3d Normal(const Vec2d& point, const Vec3d& p) const;
 
-    Kind kind_ = Kind::Plane;
+    Form form_ = Form::Plane;
     double radius_ = 0.0;
     double unitLength_ = 1.0;
     Vec3d radii_{};

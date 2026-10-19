@@ -99,7 +99,7 @@ void BindSurfacePoints(nb::class_<Surface>& surface) {
                 return std::tuple{frame.east, frame.north, frame.up};
             },
             "point"_a, "The (east, north, up) unit vectors at a point.")
-        .def("point_of", &Surface::PointOf, "direction"_a,
+        .def("coordinates", &Surface::Coordinates, "direction"_a,
              "The surface point of a direction from the sphere's centre.")
         .def("expand", &Surface::Expand, "region"_a, "metres"_a,
              "A box holding every point within `metres` of `region`.")
@@ -211,7 +211,7 @@ void BindCells(nb::module_& m) {
             "(area, bound): draw counts over `area` m^2 and keep a point with chance "
             "weight(point) / bound; bound 0 keeps every point.")
         .def("weight", &CubeSphereCells::Weight, "point"_a, "The area per steradian at a point.")
-        .def("cell_of", &CubeSphereCells::CellOf, "longitude"_a, "latitude"_a, "cell_size"_a,
+        .def("cell_at", &CubeSphereCells::CellAt, "longitude"_a, "latitude"_a, "cell_size"_a,
              "The cell holding a point.")
         .def("neighbours", &CubeSphereCells::Neighbours, "cell"_a, "cell_size"_a, "rings"_a = 1,
              "The cells within `rings` of `cell`, across face edges too.")

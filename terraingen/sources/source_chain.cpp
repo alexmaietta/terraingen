@@ -1,6 +1,8 @@
 #include "terraingen/sources/source_chain.h"
 
+#include <algorithm>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 #include <utility>
 
@@ -18,27 +20,12 @@ SourceChain::SourceChain(std::vector<std::shared_ptr<const Source>> sources)
     }
 }
 
-namespace {
-
-/// Whether `value` of `raster` has no data: NaN, as `HeightAt` reports it, or the raster's no-data
-/// value.
-bool Missing(const Raster<float>& raster, float value) {
-    return std::isnan(value) || raster.IsNoData(value);
-}
-
-}  // namespace
-
 void SourceChain::Fill(Raster<float>& heights) const {
     sources_.front()->Fill(heights);
     for (std::size_t n = 1; n < sources_.size(); ++n) {
-        bool missing = false;
-        for (const float value : heights.Values()) {
-            if (Missing(heights, value)) {
-                missing = true;
-                break;
-            }
-        }
-        if (!missing) {
+        const auto values = heights.Values();
+        if (std::none_of(values.begin(), values.end(),
+                         [&](float value) { return heights.IsMissing(value); })) {
             return;
         }
         Raster<float> next(heights.Width(), heights.Height());
@@ -47,7 +34,7 @@ void SourceChain::Fill(Raster<float>& heights) const {
         for (std::size_t i = 0; i < heights.Size(); ++i) {
             float& cell = heights.Values()[i];
             const float value = next.Values()[i];
-            if (Missing(heights, cell) && !Missing(next, value)) {
+            if (heights.IsMissing(cell) && !next.IsMissing(value)) {
                 cell = value;
             }
         }
@@ -61,7 +48,7 @@ float SourceChain::HeightAt(double x, double y) const {
             return height;
         }
     }
-    return std::nanf("");
+    return std::numeric_limits<float>::quiet_NaN();
 }
 
 }  // namespace terraingen

@@ -4,6 +4,7 @@
 
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
+#include "terraingen/util/arithmetic.h"
 #include "terraingen/util/geometry.h"
 #include "terraingen/util/parallel.h"
 #include "terraingen/util/surface.h"
@@ -67,19 +68,20 @@ struct FeatureCell {
 /// Each band of `kBandRows` rows is one task and visits the features in order, so every cell sees
 /// them in the same order whatever `threads` is. No-data cells are skipped.
 /// @param threads Threads to split the bands over; 0 for every hardware thread.
-/// @param windowsOf `windowsOf(n)` gives the windows of feature n, as a `std::vector<PixelWindow>`
+/// @param featureWindows `featureWindows(n)` gives the windows of feature n, as a
+/// `std::vector<PixelWindow>`
 /// (`PixelWindowsIn`); windows of one feature must not overlap.
 /// @param visit `visit(cell, at)` with `cell` the value to read and update and `at` its
 /// `FeatureCell`.
-template <typename T, typename WindowsOf, typename Visit>
+template <typename T, typename FeatureWindows, typename Visit>
 void ForEachFeatureCell(Raster<T>& raster, unsigned threads, std::size_t featureCount,
-                        const WindowsOf& windowsOf, const Visit& visit) {
-    const std::size_t bands = (raster.Height() + kBandRows - 1) / kBandRows;
+                        const FeatureWindows& featureWindows, const Visit& visit) {
+    const std::size_t bands = CeilDiv(raster.Height(), kBandRows);
     ParallelFor(bands, threads, [&](std::size_t band) {
         const std::size_t bandBegin = band * kBandRows;
         const std::size_t bandEnd = std::min(raster.Height(), bandBegin + kBandRows);
         for (std::size_t n = 0; n < featureCount; ++n) {
-            const std::vector<PixelWindow>& windows = windowsOf(n);
+            const std::vector<PixelWindow>& windows = featureWindows(n);
             for (std::size_t w = 0; w < windows.size(); ++w) {
                 const PixelWindow& window = windows[w];
                 const std::size_t rowEnd = std::min(bandEnd, window.rowEnd);

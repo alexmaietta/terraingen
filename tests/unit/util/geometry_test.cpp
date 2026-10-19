@@ -25,10 +25,24 @@ TEST(Geometry, DoesVectorArithmetic) {
     EXPECT_EQ(terraingen::Length(Vec3d{3.0, 4.0, 0.0}), 5.0);
     EXPECT_EQ(terraingen::Normalized(Vec3d{0.0, 0.0, 2.0}), (Vec3d{0.0, 0.0, 1.0}));
     EXPECT_EQ(terraingen::Normalized(Vec3d{}), Vec3d{});
+    EXPECT_EQ(-a, (Vec3d{-1.0, -2.0, -3.0}));
+    EXPECT_EQ(a / 2.0, (Vec3d{0.5, 1.0, 1.5}));
+}
+
+TEST(Geometry, DoesPlanarVectorArithmetic) {
+    const Vec2d a{1.0, 2.0};
+    const Vec2d b{4.0, -5.0};
+    EXPECT_EQ(a + b, (Vec2d{5.0, -3.0}));
+    EXPECT_EQ(a - b, (Vec2d{-3.0, 7.0}));
+    EXPECT_EQ(-a, (Vec2d{-1.0, -2.0}));
+    EXPECT_EQ(a * 3.0, (Vec2d{3.0, 6.0}));
+    EXPECT_EQ(a / 4.0, (Vec2d{0.25, 0.5}));
 }
 
 TEST(Geometry, ConvertsDegreesToRadians) {
     EXPECT_DOUBLE_EQ(180.0 * terraingen::kDegree, std::numbers::pi);
+    EXPECT_DOUBLE_EQ(std::numbers::pi * terraingen::kRadian, 180.0);
+    EXPECT_DOUBLE_EQ(terraingen::kDegree * terraingen::kRadian, 1.0);
 }
 
 TEST(Geometry, BoundsAPointByTheNextRepresentableValues) {

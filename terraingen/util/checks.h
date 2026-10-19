@@ -42,4 +42,9 @@ void RequireFinite(double value, std::string_view what);
 /// @throws std::invalid_argument "<what> must be in [0, 1]" otherwise.
 void RequireUnitInterval(double value, std::string_view what);
 
+/// Checks that `low` is below `high`, such as the ends of a range; infinite ends are allowed.
+/// @param what The pair's name, which starts the error message.
+/// @throws std::invalid_argument "<what> must be increasing" unless `low` < `high`.
+void RequireIncreasing(double low, double high, std::string_view what);
+
 }  // namespace terraingen

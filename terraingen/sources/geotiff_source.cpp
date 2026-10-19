@@ -133,7 +133,7 @@ void GeoTiffSource::CopyFromLattice(Raster<float>& heights, LatticeOffset offset
 
 void GeoTiffSource::FillBySampling(Raster<float>& heights) const {
     const GeoTransform& target = heights.Transform();
-    if (target.rowRotation != 0.0 || target.colRotation != 0.0) {
+    if (target.IsRotated()) {
         throw std::invalid_argument("A rotated grid off the lattice of " + path_.string() +
                                     " cannot be filled");
     }

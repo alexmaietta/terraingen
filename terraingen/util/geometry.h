@@ -11,6 +11,9 @@ namespace terraingen {
 /// One degree in radians.
 inline constexpr double kDegree = std::numbers::pi / 180.0;
 
+/// One radian in degrees.
+inline constexpr double kRadian = 180.0 / std::numbers::pi;
+
 /// A 2D point or offset in double precision.
 struct Vec2d {
     double x = 0.0;
@@ -19,6 +22,31 @@ struct Vec2d {
     /// Componentwise equality.
     bool operator==(const Vec2d&) const = default;
 };
+
+/// Componentwise sum.
+inline Vec2d operator+(const Vec2d& a, const Vec2d& b) {
+    return {a.x + b.x, a.y + b.y};
+}
+
+/// Componentwise difference.
+inline Vec2d operator-(const Vec2d& a, const Vec2d& b) {
+    return {a.x - b.x, a.y - b.y};
+}
+
+/// `v` negated.
+inline Vec2d operator-(const Vec2d& v) {
+    return {-v.x, -v.y};
+}
+
+/// `v` scaled by `s`.
+inline Vec2d operator*(const Vec2d& v, double s) {
+    return {v.x * s, v.y * s};
+}
+
+/// `v` with each component divided by `s`.
+inline Vec2d operator/(const Vec2d& v, double s) {
+    return {v.x / s, v.y / s};
+}
 
 /// A 3D point or vector in double precision.
 struct Vec3d {
@@ -40,9 +68,19 @@ inline Vec3d operator-(const Vec3d& a, const Vec3d& b) {
     return {a.x - b.x, a.y - b.y, a.z - b.z};
 }
 
+/// `v` negated.
+inline Vec3d operator-(const Vec3d& v) {
+    return {-v.x, -v.y, -v.z};
+}
+
 /// `v` scaled by `s`.
 inline Vec3d operator*(const Vec3d& v, double s) {
     return {v.x * s, v.y * s, v.z * s};
+}
+
+/// `v` with each component divided by `s`.
+inline Vec3d operator/(const Vec3d& v, double s) {
+    return {v.x / s, v.y / s, v.z / s};
 }
 
 /// Dot product.

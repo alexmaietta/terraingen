@@ -144,7 +144,7 @@ BedformLayer::Point BedformLayer::Evaluate(double x, double y, const Ground* gro
         RequireGround(ground, kExposureReader);
     }
     if (cells_) {
-        const CellIndex home = cells_->CellOf(x, y, cell_);
+        const CellIndex home = cells_->CellAt(x, y, cell_);
         for (const CellIndex& cell : cells_->Neighbours(home, cell_, 2)) {
             RandomStream random(options_.seed, kBedformSphereStream,
                                 static_cast<std::uint32_t>(cell.i),

@@ -46,7 +46,7 @@ TEST(Surface, PlaneOffsetsAreDifferencesExactly) {
     EXPECT_EQ(back.y, point.y);
     EXPECT_EQ(plane.Distance({0.0, 0.0}, {3.0, 4.0}), 5.0);
     EXPECT_EQ(plane.Position({2.0, 3.0}), (Vec3d{2.0, 3.0, 0.0}));
-    const Vec2d flat = plane.PointOf({2.0, 3.0, 9.0});
+    const Vec2d flat = plane.Coordinates({2.0, 3.0, 9.0});
     EXPECT_EQ(flat.x, 2.0);
     EXPECT_EQ(flat.y, 3.0);
     const Bounds2d grown = plane.Expand({0.0, 0.0, 1.0, 1.0}, 2.0);
@@ -95,10 +95,10 @@ TEST(Surface, SpherePositionsAndPoints) {
     EXPECT_NEAR(p.x, 0.0, 1e-6);
     EXPECT_NEAR(p.y, kMoon, 1e-6);
     EXPECT_NEAR(moon.Position({0.0, 90.0}).z, kMoon, 1e-6);
-    const Vec2d back = moon.PointOf({-1.0, 0.0, 0.0});
+    const Vec2d back = moon.Coordinates({-1.0, 0.0, 0.0});
     EXPECT_EQ(back.x, 180.0);
     EXPECT_EQ(back.y, 0.0);
-    const Vec2d south = moon.PointOf({0.0, 0.0, -3.0});
+    const Vec2d south = moon.Coordinates({0.0, 0.0, -3.0});
     EXPECT_EQ(south.y, -90.0);
     EXPECT_THROW(Surface::Sphere(0.0), std::invalid_argument);
     EXPECT_THROW(Surface::Sphere(NAN), std::invalid_argument);
@@ -167,12 +167,12 @@ TEST(CubeSphereCells, SamplesAreUniformOverEachCell) {
     int inLowerHalf = 0;
     const int draws = 20000;
     const auto lowerHalf = [&](const Vec2d& p) {
-        const CellIndex fine = cells.CellOf(p.x, p.y, size / 2.0);
+        const CellIndex fine = cells.CellAt(p.x, p.y, size / 2.0);
         return fine.j % 2 == 0;
     };
     for (int k = 0; k < draws; ++k) {
         const Vec2d p = cells.SamplePoint(random.NextDouble(), random.NextDouble(), corner, size);
-        EXPECT_EQ(cells.CellOf(p.x, p.y, size), corner);
+        EXPECT_EQ(cells.CellAt(p.x, p.y, size), corner);
         inLowerHalf += lowerHalf(p) ? 1 : 0;
     }
     const std::int32_t m = cells.CellsPerEdge(size / 2.0);
@@ -217,7 +217,7 @@ TEST(CubeSphereCells, CoveringFindsEveryCellReachingTheRegion) {
         for (int k = 0; k < 3000; ++k) {
             const double lon = region.minX + (region.maxX - region.minX) * random.NextDouble();
             const double lat = region.minY + (region.maxY - region.minY) * random.NextDouble();
-            const CellIndex c = cells.CellOf(lon, lat, size);
+            const CellIndex c = cells.CellAt(lon, lat, size);
             EXPECT_TRUE(found.count({c.i, c.j})) << lon << " " << lat;
         }
     }
@@ -241,20 +241,20 @@ TEST(CubeSphereCells, CoveringKeepsCellsAtTheRegionEdgesAndDropsFarRingCells) {
             const double lat = region.minY + (region.maxY - region.minY) * t;
             for (const auto& [x, y] : {std::pair{lon, region.minY}, std::pair{lon, region.maxY},
                                        std::pair{region.minX, lat}, std::pair{region.maxX, lat}}) {
-                const CellIndex c = cells.CellOf(x, y, size);
+                const CellIndex c = cells.CellAt(x, y, size);
                 EXPECT_TRUE(std::binary_search(covering.begin(), covering.end(), c))
                     << x << " " << y;
             }
         }
     }
 
-    const CellIndex centre = cells.CellOf(10.0, 10.0, size);
+    const CellIndex centre = cells.CellAt(10.0, 10.0, size);
     const std::int32_t n = cells.CellsPerEdge(size);
     const double step = std::numbers::pi / 2.0 / n;
     const Vec3d direction = CubeSphereCells::Direction(
         centre.i / n, -std::numbers::pi / 4.0 + (centre.i % n + 0.5) * step,
         -std::numbers::pi / 4.0 + (centre.j + 0.5) * step);
-    const Vec2d point = Surface::Sphere(kMoon).PointOf(direction);
+    const Vec2d point = Surface::Sphere(kMoon).Coordinates(direction);
     const std::vector<CellIndex> one =
         cells.CellsCovering(terraingen::PointBounds(point.x, point.y), size);
     ASSERT_EQ(one.size(), 1u);
@@ -273,7 +273,7 @@ TEST(CubeSphereCells, TwoRingsOfNeighboursHoldEveryPointWithinACellAcrossFacesAn
             {360.0 * random.NextDouble() - 180.0, 180.0 * random.NextDouble() - 90.0});
     }
     for (const Vec2d& centre : centres) {
-        const CellIndex home = cells.CellOf(centre.x, centre.y, size);
+        const CellIndex home = cells.CellAt(centre.x, centre.y, size);
         const std::vector<CellIndex> around = cells.Neighbours(home, size, 2);
         EXPECT_TRUE(std::find(around.begin(), around.end(), home) != around.end());
         for (int k = 0; k < 60; ++k) {
@@ -281,7 +281,7 @@ TEST(CubeSphereCells, TwoRingsOfNeighboursHoldEveryPointWithinACellAcrossFacesAn
             const double azimuth = 2.0 * std::numbers::pi * random.NextDouble();
             const Vec2d there =
                 moon.Locate(centre, {distance * std::sin(azimuth), distance * std::cos(azimuth)});
-            const CellIndex cell = cells.CellOf(there.x, there.y, size);
+            const CellIndex cell = cells.CellAt(there.x, there.y, size);
             EXPECT_TRUE(std::find(around.begin(), around.end(), cell) != around.end())
                 << centre.x << " " << centre.y;
         }
@@ -355,7 +355,7 @@ TEST(Surface, EllipsoidPositionsLieOnItInTheirDirection) {
                         p.z * p.z / (radii.z * radii.z),
                     1.0, 1e-12);
         EXPECT_NEAR(terraingen::Length(p), kEllipsoid.RadiusAt(point), 1e-9);
-        const Vec2d back = kEllipsoid.PointOf(p);
+        const Vec2d back = kEllipsoid.Coordinates(p);
         EXPECT_NEAR(back.y, point.y, 1e-9);
     }
     EXPECT_NEAR(kEllipsoid.RadiusAt({0.0, 0.0}), 270.0, 1e-12);
@@ -560,7 +560,7 @@ TEST(Surface, ShapeModelPositionsLieOnTheShapeInTheirDirection) {
         const Vec3d u = terraingen::UnitVector(point.x, point.y);
         EXPECT_NEAR(terraingen::Length(p), kShape.Shape()->At(u), 1e-9);
         EXPECT_NEAR(terraingen::Length(p), kShape.RadiusAt(point), 1e-9);
-        const Vec2d back = kShape.PointOf(p);
+        const Vec2d back = kShape.Coordinates(p);
         EXPECT_NEAR(back.y, point.y, 1e-9);
     }
 }

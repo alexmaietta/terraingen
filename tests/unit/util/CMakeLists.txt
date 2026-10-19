@@ -12,6 +12,7 @@ terraingen_add_test_suite(
     radial_shape_test.cpp
     special_functions_test.cpp
     surface_test.cpp
+    text_test.cpp
     version_test.cpp
     LIBRARIES
     terraingen::terraingen)

@@ -18,14 +18,26 @@ std::int32_t CellCoordinate(double value) {
     return static_cast<std::int32_t>(value);
 }
 
-}  // namespace
-
-std::vector<CellIndex> PlanarCells::CellsCovering(const Bounds2d& region, double cellSize) const {
-    RequirePositive(cellSize, "Cell size");
+/// Checks a region: finite and not empty.
+void CheckRegion(const Bounds2d& region) {
     if (!(std::isfinite(region.minX) && std::isfinite(region.minY) && std::isfinite(region.maxX) &&
           std::isfinite(region.maxY) && region.maxX > region.minX && region.maxY > region.minY)) {
         throw std::invalid_argument("Region must be finite and not empty");
     }
+}
+
+}  // namespace
+
+std::shared_ptr<const SurfaceCells> MakeCells(const Surface& surface) {
+    if (surface.IsBody()) {
+        return std::make_shared<CubeSphereCells>(surface);
+    }
+    return std::make_shared<PlanarCells>();
+}
+
+std::vector<CellIndex> PlanarCells::CellsCovering(const Bounds2d& region, double cellSize) const {
+    RequirePositive(cellSize, "Cell size");
+    CheckRegion(region);
     const std::int32_t iMin = CellCoordinate(std::floor(region.minX / cellSize));
     const std::int32_t jMin = CellCoordinate(std::floor(region.minY / cellSize));
     const std::int32_t iMax = CellCoordinate(std::ceil(region.maxX / cellSize) - 1.0);
