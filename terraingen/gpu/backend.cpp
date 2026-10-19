@@ -17,47 +17,49 @@ namespace {
 /// The backend `SetDefaultBackend` set, or -1 for none.
 std::atomic<int> gDefault{-1};
 
+/// The backends named by `kBackendNames`, in the same order.
+constexpr std::array<Backend, kBackendNames.size()> kNamedBackends{
+    Backend::Auto, Backend::Cpu, Backend::Gpu, Backend::Vulkan, Backend::Cuda, Backend::Metal};
+
 /// The GPU backends, best first: what `Gpu` and `Auto` choose from.
 constexpr Backend kGpuBackends[] = {Backend::Metal, Backend::Cuda, Backend::Vulkan};
 
+/// Why the device of a GPU backend is unavailable; empty when it is available.
+std::string DeviceReason(Backend backend) {
+    switch (backend) {
+    case Backend::Vulkan:
+        return VulkanCompute::Reason();
+    case Backend::Cuda:
+        return CudaCompute::Reason();
+    case Backend::Metal:
+        return MetalCompute::Reason();
+    default:
+        return std::string(BackendName(backend)) + " is not a device backend";
+    }
+}
+
 /// Whether a backend runs here, on which device, or why not. CUDA and Metal also need their
-/// kernels in the build (`TERRAINGEN_HAS_CUDA_KERNELS`, `TERRAINGEN_HAS_METAL_KERNELS`).
+/// kernels in the build (`TERRAINGEN_HAS_CUDA_KERNELS`, `TERRAINGEN_HAS_METAL_KERNELS`); without
+/// CUDA kernels the driver is not even opened.
 BackendStatus ProbeBackend(Backend backend) {
     BackendStatus status{backend, false, {}, {}};
-    const auto from = [&](const auto* compute, const std::string& reason) {
-        status.available = compute != nullptr;
-        if (compute != nullptr) {
-            status.device = compute->DeviceName();
-        } else {
-            status.reason = reason;
-        }
-    };
-    switch (backend) {
-    case Backend::Cpu:
+    if (backend == Backend::Cpu) {
         status.available = true;
         status.device = "host";
-        break;
-    case Backend::Vulkan:
-        from(VulkanCompute::Get(), VulkanCompute::Reason());
-        break;
-    case Backend::Cuda:
-        if (TERRAINGEN_HAS_CUDA_KERNELS) {
-            from(CudaCompute::Get(), CudaCompute::Reason());
-        } else {
-            status.reason =
-                "this build has no CUDA kernels (NVRTC does not run where it was built)";
-        }
-        break;
-    case Backend::Metal:
-        if (TERRAINGEN_HAS_METAL_KERNELS) {
-            from(MetalCompute::Get(), MetalCompute::Reason());
-        } else {
-            status.reason = MetalCompute::Reason();
-        }
-        break;
-    default:
-        status.reason = std::string(BackendName(backend)) + " is not a device backend";
-        break;
+        return status;
+    }
+    if (backend == Backend::Cuda && !TERRAINGEN_HAS_CUDA_KERNELS) {
+        status.reason = "this build has no CUDA kernels (NVRTC does not run where it was built)";
+        return status;
+    }
+    const ComputeDevice* device = GpuDevice(backend);
+    if (device == nullptr) {
+        status.reason = DeviceReason(backend);
+    } else if (backend == Backend::Metal && !TERRAINGEN_HAS_METAL_KERNELS) {
+        status.reason = "this build has no Metal kernels";
+    } else {
+        status.available = true;
+        status.device = device->DeviceName();
     }
     return status;
 }
@@ -74,34 +76,46 @@ std::optional<Backend> BestGpu() {
 
 }  // namespace
 
+ComputeDevice* GpuDevice(Backend backend) {
+    switch (backend) {
+    case Backend::Vulkan:
+        return VulkanCompute::Get();
+    case Backend::Cuda:
+        return CudaCompute::Get();
+    case Backend::Metal:
+        return MetalCompute::Get();
+    default:
+        return nullptr;
+    }
+}
+
+std::string BackendNameList() {
+    std::string list;
+    for (std::size_t i = 0; i < kBackendNames.size(); ++i) {
+        list += (i == 0 ? "" : i + 1 == kBackendNames.size() ? " or " : ", ");
+        list += kBackendNames[i];
+    }
+    return list;
+}
+
 std::optional<Backend> BackendNamed(std::string_view name) {
     std::string lower(name);
     for (char& c : lower) {
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     }
-    for (const Backend backend : {Backend::Auto, Backend::Cpu, Backend::Gpu, Backend::Vulkan,
-                                  Backend::Cuda, Backend::Metal}) {
-        if (lower == BackendName(backend)) {
-            return backend;
+    for (std::size_t i = 0; i < kBackendNames.size(); ++i) {
+        if (lower == kBackendNames[i]) {
+            return kNamedBackends[i];
         }
     }
     return std::nullopt;
 }
 
 std::string_view BackendName(Backend backend) {
-    switch (backend) {
-    case Backend::Auto:
-        return "auto";
-    case Backend::Cpu:
-        return "cpu";
-    case Backend::Vulkan:
-        return "vulkan";
-    case Backend::Gpu:
-        return "gpu";
-    case Backend::Cuda:
-        return "cuda";
-    case Backend::Metal:
-        return "metal";
+    for (std::size_t i = 0; i < kNamedBackends.size(); ++i) {
+        if (kNamedBackends[i] == backend) {
+            return kBackendNames[i];
+        }
     }
     return "unknown";
 }
@@ -131,8 +145,8 @@ Backend DefaultBackend() {
     if (const auto backend = BackendNamed(name)) {
         return *backend;
     }
-    throw std::invalid_argument("TERRAINGEN_BACKEND is \"" + std::string(name) +
-                                "\"; expected auto, cpu, gpu, vulkan, cuda or metal");
+    throw std::invalid_argument("TERRAINGEN_BACKEND is \"" + std::string(name) + "\"; expected " +
+                                BackendNameList());
 }
 
 void SetDefaultBackend(Backend backend) {

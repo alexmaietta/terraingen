@@ -1,5 +1,6 @@
 #include "terraingen/gpu/backend.h"
 #include "terraingen/gpu/cuda.h"
+#include "terraingen/gpu/kernel.h"
 #include "terraingen/gpu/metal.h"
 #include "terraingen/gpu/vulkan.h"
 
@@ -9,6 +10,7 @@
 #include <cstdlib>
 #include <optional>
 #include <stdexcept>
+#include <string_view>
 
 using terraingen::Backend;
 
@@ -52,6 +54,32 @@ TEST(BackendNamed, ReadsEachNameInAnyCase) {
         EXPECT_EQ(terraingen::BackendNamed(terraingen::BackendName(backend)), backend);
     }
     EXPECT_EQ(terraingen::BackendName(static_cast<Backend>(7)), "unknown");
+}
+
+TEST(BackendNameList, ListsEveryNameBackendNamedReads) {
+    EXPECT_EQ(terraingen::BackendNameList(), "auto, cpu, gpu, vulkan, cuda or metal");
+    for (const std::string_view name : terraingen::kBackendNames) {
+        ASSERT_TRUE(terraingen::BackendNamed(name).has_value()) << name;
+        EXPECT_EQ(terraingen::BackendName(*terraingen::BackendNamed(name)), name);
+    }
+}
+
+TEST(GpuDevice, IsTheSharedDeviceOfEachGpuBackend) {
+    EXPECT_EQ(terraingen::GpuDevice(Backend::Cpu), nullptr);
+    EXPECT_EQ(terraingen::GpuDevice(Backend::Auto), nullptr);
+    EXPECT_EQ(terraingen::GpuDevice(Backend::Gpu), nullptr);
+    EXPECT_EQ(terraingen::GpuDevice(Backend::Vulkan), terraingen::VulkanCompute::Get());
+    EXPECT_EQ(terraingen::GpuDevice(Backend::Cuda), terraingen::CudaCompute::Get());
+    EXPECT_EQ(terraingen::GpuDevice(Backend::Metal), terraingen::MetalCompute::Get());
+}
+
+TEST(RunKernel, LeavesTheGridAloneWithoutAGpuForm) {
+    terraingen::Raster<float> grid(4, 3, 1.0f);
+    for (const Backend backend :
+         {Backend::Cpu, Backend::Auto, Backend::Vulkan, Backend::Cuda, Backend::Metal}) {
+        EXPECT_FALSE(terraingen::RunKernel(backend, {}, {}, grid, {0.0, 0.0}));
+    }
+    EXPECT_EQ(grid.Values()[0], 1.0f);
 }
 
 TEST_F(BackendTest, DefaultsFollowTheEnvironmentUntilSetInCode) {

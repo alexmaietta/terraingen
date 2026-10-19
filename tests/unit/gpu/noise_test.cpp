@@ -99,11 +99,15 @@ TEST(GpuNoise, MatchesTheCpuWithinTolerancesAndPhiloxExactly) {
         std::uint32_t count;
         std::uint32_t seed;
     } push{count, seed};
-    compute->Run({terraingen_test_noise_conformance, terraingen_test_noise_conformance_size},
-                 {std::as_writable_bytes(std::span(points)), std::span(block),
-                  std::as_writable_bytes(std::span(values)),
-                  std::as_writable_bytes(std::span(words))},
-                 std::as_bytes(std::span(&push, 1)), {(count + 63u) / 64u, 1u, 1u});
+    const terraingen::KernelProgram program{
+        {terraingen_test_noise_conformance, terraingen_test_noise_conformance_size}, {}, {}};
+    const std::vector<terraingen::DeviceBuffer> buffers{
+        terraingen::InputBuffer(std::as_bytes(std::span(points)), points.size()),
+        terraingen::InputBuffer(std::span(block), 1),
+        terraingen::OutputBuffer(std::as_writable_bytes(std::span(values)), values.size()),
+        terraingen::OutputBuffer(std::as_writable_bytes(std::span(words)), words.size())};
+    compute->Run(program, buffers, std::as_bytes(std::span(&push, 1)),
+                 {{(count + 63u) / 64u, 1u, 1u}, {64u, 1u, 1u}});
 
     NoiseLayers cpuBlock;
     for (const NoiseLayer& layer : layers) {

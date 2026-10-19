@@ -132,6 +132,19 @@ struct RunAllocations {
     }
 };
 
+/// A structured buffer as Slang passes it in `SLANG_globalParams`.
+struct BufferParam {
+    cu::DevicePtr data;
+    std::uint64_t count;
+};
+
+/// The entry point of a loaded kernel and its global parameter block.
+struct Entry {
+    cu::Function function = nullptr;
+    cu::DevicePtr globals = 0;
+    std::size_t globalsSize = 0;
+};
+
 }  // namespace
 
 /// The driver, device, primary context and loaded modules.
@@ -195,7 +208,7 @@ struct CudaCompute::State {
     }
 
     /// The module of `ptx`, loaded on first use.
-    cu::Module ModuleFor(std::span<const char> ptx) {
+    cu::Module CachedModule(std::span<const char> ptx) {
         const auto found = modules.find(ptx.data());
         if (found != modules.end()) {
             return found->second;
@@ -209,13 +222,64 @@ struct CudaCompute::State {
         Check(loaded, "module loading");
         return modules.emplace(ptx.data(), module).first->second;
     }
+
+    /// The entry point "main_0" of `ptx` and its global parameters, which must hold `buffers`
+    /// structured buffers and the push constants.
+    Entry FindEntry(std::span<const char> ptx, std::size_t buffers) {
+        const cu::Module module = CachedModule(ptx);
+        Entry entry;
+        Check(driver.moduleGetFunction(&entry.function, module, "main_0"), "kernel lookup");
+        Check(driver.moduleGetGlobal(&entry.globals, &entry.globalsSize, module,
+                                     "SLANG_globalParams"),
+              "global parameter lookup");
+        if (entry.globalsSize != buffers * sizeof(BufferParam) + sizeof(cu::DevicePtr)) {
+            throw std::runtime_error("The CUDA kernel's global parameters are not " +
+                                     std::to_string(buffers) + " buffers and push constants");
+        }
+        return entry;
+    }
+
+    /// Allocates device memory for `bytes`, owned by `run`, and uploads them.
+    cu::DevicePtr Upload(std::span<const std::byte> bytes, RunAllocations& run) const {
+        cu::DevicePtr pointer = 0;
+        Check(driver.memAlloc(&pointer, std::max<std::size_t>(bytes.size(), 4)),
+              "memory allocation");
+        run.pointers.push_back(pointer);
+        Check(driver.memcpyHtoD(pointer, bytes.data(), bytes.size()), "upload");
+        return pointer;
+    }
+
+    /// Uploads the buffers, then the push constants, and points the global parameters at them.
+    void UploadParams(const Entry& entry, std::span<const DeviceBuffer> buffers,
+                      std::span<const std::byte> pushConstants, RunAllocations& run) const {
+        std::vector<std::byte> params(entry.globalsSize);
+        for (std::size_t i = 0; i < buffers.size(); ++i) {
+            const BufferParam param{Upload(buffers[i].bytes, run), buffers[i].count};
+            std::memcpy(params.data() + i * sizeof(BufferParam), &param, sizeof(param));
+        }
+        const cu::DevicePtr push = Upload(pushConstants, run);
+        std::memcpy(params.data() + buffers.size() * sizeof(BufferParam), &push, sizeof(push));
+        Check(driver.memcpyHtoD(entry.globals, params.data(), params.size()), "parameter upload");
+    }
+
+    /// Copies the output buffers back from their allocations, the first ones of `run`.
+    void DownloadOutputs(std::span<const DeviceBuffer> buffers, const RunAllocations& run) const {
+        for (std::size_t i = 0; i < buffers.size(); ++i) {
+            if (buffers[i].output != nullptr) {
+                Check(
+                    driver.memcpyDtoH(buffers[i].output, run.pointers[i], buffers[i].bytes.size()),
+                    "download");
+            }
+        }
+    }
 };
 
 namespace {
 
-std::once_flag gOnce;
-CudaCompute* gCompute = nullptr;
-std::string gReason;
+LazyDevice<CudaCompute>& SharedDevice() {
+    static LazyDevice<CudaCompute> device("CUDA");
+    return device;
+}
 
 }  // namespace
 
@@ -223,78 +287,45 @@ CudaCompute::CudaCompute(std::unique_ptr<State> state) : state_(std::move(state)
 
 CudaCompute::~CudaCompute() = default;
 
+std::unique_ptr<CudaCompute> CudaCompute::Open() {
+    auto state = std::make_unique<State>();
+    state->Open();
+    return std::unique_ptr<CudaCompute>(new CudaCompute(std::move(state)));
+}
+
 CudaCompute* CudaCompute::Get() {
-    std::call_once(gOnce, [] {
-        try {
-            auto state = std::make_unique<State>();
-            state->Open();
-            const std::string name = state->name;
-            gCompute = new CudaCompute(std::move(state));
-            LogInfo("gpu", "CUDA compute on ", name);
-        } catch (const std::exception& error) {
-            gReason = error.what();
-            LogInfo("gpu", "CUDA unavailable: ", gReason);
-        }
-    });
-    return gCompute;
+    return SharedDevice().Get();
 }
 
 std::string CudaCompute::Reason() {
-    Get();
-    return gReason;
+    return SharedDevice().Reason();
 }
 
 const std::string& CudaCompute::DeviceName() const {
     return state_->name;
 }
 
-void CudaCompute::Run(std::span<const char> ptx, const std::vector<CudaBuffer>& buffers,
-                      std::span<const std::byte> pushConstants, std::array<std::uint32_t, 3> groups,
-                      std::array<std::uint32_t, 3> groupSize) {
+bool CudaCompute::CanRun(const KernelProgram& program) const {
+    return !program.ptx.empty();
+}
+
+void CudaCompute::Run(const KernelProgram& program, std::span<const DeviceBuffer> buffers,
+                      std::span<const std::byte> pushConstants, const Dispatch& dispatch) {
+    if (!CanRun(program)) {
+        throw std::runtime_error("The kernel has no PTX for CUDA");
+    }
     State& s = *state_;
-    const Driver& d = s.driver;
     const std::lock_guard lock(s.mutex);
-    s.Check(d.ctxSetCurrent(s.context), "context binding");
-    const cu::Module module = s.ModuleFor(ptx);
-    cu::Function function = nullptr;
-    s.Check(d.moduleGetFunction(&function, module, "main_0"), "kernel lookup");
-    cu::DevicePtr globals = 0;
-    std::size_t globalsSize = 0;
-    s.Check(d.moduleGetGlobal(&globals, &globalsSize, module, "SLANG_globalParams"),
-            "global parameter lookup");
-    struct BufferParam {
-        cu::DevicePtr data;
-        std::uint64_t count;
-    };
-    if (globalsSize != buffers.size() * sizeof(BufferParam) + sizeof(cu::DevicePtr)) {
-        throw std::runtime_error("The CUDA kernel's global parameters are not " +
-                                 std::to_string(buffers.size()) + " buffers and push constants");
-    }
-    RunAllocations run(d);
-    std::vector<std::byte> params(globalsSize);
-    for (std::size_t i = 0; i < buffers.size(); ++i) {
-        cu::DevicePtr pointer = 0;
-        s.Check(d.memAlloc(&pointer, std::max<std::size_t>(buffers[i].bytes.size(), 4)),
-                "memory allocation");
-        run.pointers.push_back(pointer);
-        s.Check(d.memcpyHtoD(pointer, buffers[i].bytes.data(), buffers[i].bytes.size()), "upload");
-        const BufferParam param{pointer, buffers[i].count};
-        std::memcpy(params.data() + i * sizeof(BufferParam), &param, sizeof(param));
-    }
-    cu::DevicePtr push = 0;
-    s.Check(d.memAlloc(&push, std::max<std::size_t>(pushConstants.size(), 4)), "memory allocation");
-    run.pointers.push_back(push);
-    s.Check(d.memcpyHtoD(push, pushConstants.data(), pushConstants.size()), "upload");
-    std::memcpy(params.data() + buffers.size() * sizeof(BufferParam), &push, sizeof(push));
-    s.Check(d.memcpyHtoD(globals, params.data(), params.size()), "parameter upload");
-    s.Check(d.launchKernel(function, groups[0], groups[1], groups[2], groupSize[0], groupSize[1],
-                           groupSize[2], 0, nullptr, nullptr, nullptr),
+    s.Check(s.driver.ctxSetCurrent(s.context), "context binding");
+    const Entry entry = s.FindEntry(program.ptx, buffers.size());
+    RunAllocations run(s.driver);
+    s.UploadParams(entry, buffers, pushConstants, run);
+    const auto& [groups, size] = dispatch;
+    s.Check(s.driver.launchKernel(entry.function, groups[0], groups[1], groups[2], size[0], size[1],
+                                  size[2], 0, nullptr, nullptr, nullptr),
             "kernel launch");
-    s.Check(d.ctxSynchronize(), "kernel");
-    for (std::size_t i = 0; i < buffers.size(); ++i) {
-        s.Check(d.memcpyDtoH(buffers[i].bytes.data(), run.pointers[i], buffers[i].bytes.size()),
-                "download");
-    }
+    s.Check(s.driver.ctxSynchronize(), "kernel");
+    s.DownloadOutputs(buffers, run);
 }
 
 }  // namespace terraingen

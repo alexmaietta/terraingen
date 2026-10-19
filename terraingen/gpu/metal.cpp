@@ -1,10 +1,11 @@
 #include "terraingen/gpu/metal.h"
 
+#include <stdexcept>
+#include <utility>
+
 // On Apple platforms CMake compiles this file as Objective-C++ (with ARC) against the system Metal
 // framework; elsewhere it is C++ and only the stub below, which reports Metal unavailable, builds.
 #if defined(__APPLE__)
-
-#include "terraingen/util/log.h"
 
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
@@ -13,8 +14,7 @@
 #include <cstring>
 #include <map>
 #include <mutex>
-#include <stdexcept>
-#include <utility>
+#include <vector>
 
 namespace terraingen {
 
@@ -42,7 +42,7 @@ struct MetalCompute::State {
     }
 
     /// The pipeline of `source`, compiled on first use.
-    id<MTLComputePipelineState> PipelineFor(std::span<const char> source) {
+    id<MTLComputePipelineState> CachedPipeline(std::span<const char> source) {
         const auto found = pipelines.find(source.data());
         if (found != pipelines.end()) {
             return found->second;
@@ -68,66 +68,30 @@ struct MetalCompute::State {
         }
         return pipelines.emplace(source.data(), pipeline).first->second;
     }
-};
 
-namespace {
-
-std::once_flag gOnce;
-MetalCompute* gCompute = nullptr;
-std::string gReason;
-
-}  // namespace
-
-MetalCompute::MetalCompute(std::unique_ptr<State> state) : state_(std::move(state)) {}
-
-MetalCompute::~MetalCompute() = default;
-
-MetalCompute* MetalCompute::Get() {
-    std::call_once(gOnce, [] {
-        try {
-            auto state = std::make_unique<State>();
-            state->Open();
-            const std::string name = state->name;
-            gCompute = new MetalCompute(std::move(state));
-            LogInfo("gpu", "Metal compute on ", name);
-        } catch (const std::exception& error) {
-            gReason = error.what();
-            LogInfo("gpu", "Metal unavailable: ", gReason);
-        }
-    });
-    return gCompute;
-}
-
-std::string MetalCompute::Reason() {
-    Get();
-    return gReason;
-}
-
-const std::string& MetalCompute::DeviceName() const {
-    return state_->name;
-}
-
-void MetalCompute::Run(std::span<const char> source,
-                       const std::vector<std::span<std::byte>>& buffers,
-                       std::span<const std::byte> pushConstants,
-                       std::array<std::uint32_t, 3> groups,
-                       std::array<std::uint32_t, 3> groupSize) {
-    State& s = *state_;
-    const std::lock_guard lock(s.mutex);
-    @autoreleasepool {
-        id<MTLComputePipelineState> pipeline = s.PipelineFor(source);
+    /// A shared device buffer holding a copy of each host buffer.
+    std::vector<id<MTLBuffer>> Upload(std::span<const DeviceBuffer> buffers) const {
         std::vector<id<MTLBuffer>> deviceBuffers;
-        for (const std::span<std::byte> buffer : buffers) {
+        for (const DeviceBuffer& buffer : buffers) {
             id<MTLBuffer> deviceBuffer =
-                [s.device newBufferWithBytes:buffer.data()
-                                      length:std::max<std::size_t>(buffer.size(), 4)
-                                     options:MTLResourceStorageModeShared];
+                [device newBufferWithBytes:buffer.bytes.data()
+                                    length:std::max<std::size_t>(buffer.bytes.size(), 4)
+                                   options:MTLResourceStorageModeShared];
             if (deviceBuffer == nil) {
                 throw std::runtime_error("Metal buffer allocation failed");
             }
             deviceBuffers.push_back(deviceBuffer);
         }
-        id<MTLCommandBuffer> command = [s.queue commandBuffer];
+        return deviceBuffers;
+    }
+
+    /// Encodes the dispatch, binding the buffers in order and the push constants after them,
+    /// and waits for it to complete.
+    void DispatchAndWait(id<MTLComputePipelineState> pipeline,
+                         const std::vector<id<MTLBuffer>>& deviceBuffers,
+                         std::span<const std::byte> pushConstants, const Dispatch& dispatch) const {
+        const auto& [groups, size] = dispatch;
+        id<MTLCommandBuffer> command = [queue commandBuffer];
         id<MTLComputeCommandEncoder> encoder = [command computeCommandEncoder];
         [encoder setComputePipelineState:pipeline];
         for (std::size_t i = 0; i < deviceBuffers.size(); ++i) {
@@ -137,15 +101,42 @@ void MetalCompute::Run(std::span<const char> source,
                    length:pushConstants.size()
                   atIndex:deviceBuffers.size()];
         [encoder dispatchThreadgroups:MTLSizeMake(groups[0], groups[1], groups[2])
-                threadsPerThreadgroup:MTLSizeMake(groupSize[0], groupSize[1], groupSize[2])];
+                threadsPerThreadgroup:MTLSizeMake(size[0], size[1], size[2])];
         [encoder endEncoding];
         [command commit];
         [command waitUntilCompleted];
         if ([command status] != MTLCommandBufferStatusCompleted) {
             throw std::runtime_error("The Metal kernel failed");
         }
+    }
+};
+
+std::unique_ptr<MetalCompute> MetalCompute::Open() {
+    auto state = std::make_unique<State>();
+    state->Open();
+    return std::unique_ptr<MetalCompute>(new MetalCompute(std::move(state)));
+}
+
+const std::string& MetalCompute::DeviceName() const {
+    return state_->name;
+}
+
+void MetalCompute::Run(const KernelProgram& program, std::span<const DeviceBuffer> buffers,
+                       std::span<const std::byte> pushConstants, const Dispatch& dispatch) {
+    if (!CanRun(program)) {
+        throw std::runtime_error("The kernel has no Metal source");
+    }
+    State& s = *state_;
+    const std::lock_guard lock(s.mutex);
+    @autoreleasepool {
+        id<MTLComputePipelineState> pipeline = s.CachedPipeline(program.metal);
+        const std::vector<id<MTLBuffer>> deviceBuffers = s.Upload(buffers);
+        s.DispatchAndWait(pipeline, deviceBuffers, pushConstants, dispatch);
         for (std::size_t i = 0; i < buffers.size(); ++i) {
-            std::memcpy(buffers[i].data(), [deviceBuffers[i] contents], buffers[i].size());
+            if (buffers[i].output != nullptr) {
+                std::memcpy(buffers[i].output, [deviceBuffers[i] contents],
+                            buffers[i].bytes.size());
+            }
         }
     }
 }
@@ -154,37 +145,52 @@ void MetalCompute::Run(std::span<const char> source,
 
 #else
 
-#include <stdexcept>
-#include <utility>
-
 namespace terraingen {
 
 struct MetalCompute::State {};
+
+std::unique_ptr<MetalCompute> MetalCompute::Open() {
+    throw std::runtime_error("Metal runs only on Apple platforms");
+}
+
+const std::string& MetalCompute::DeviceName() const {
+    throw std::runtime_error("Metal is unavailable on this platform");
+}
+
+void MetalCompute::Run(const KernelProgram& /*program*/, std::span<const DeviceBuffer> /*buffers*/,
+                       std::span<const std::byte> /*pushConstants*/, const Dispatch& /*dispatch*/) {
+    throw std::runtime_error("Metal is unavailable on this platform");
+}
+
+}  // namespace terraingen
+
+#endif
+
+namespace terraingen {
+
+namespace {
+
+LazyDevice<MetalCompute>& SharedDevice() {
+    static LazyDevice<MetalCompute> device("Metal");
+    return device;
+}
+
+}  // namespace
 
 MetalCompute::MetalCompute(std::unique_ptr<State> state) : state_(std::move(state)) {}
 
 MetalCompute::~MetalCompute() = default;
 
 MetalCompute* MetalCompute::Get() {
-    return nullptr;
+    return SharedDevice().Get();
 }
 
 std::string MetalCompute::Reason() {
-    return "Metal runs only on Apple platforms";
+    return SharedDevice().Reason();
 }
 
-const std::string& MetalCompute::DeviceName() const {
-    throw std::logic_error("Metal is unavailable on this platform");
-}
-
-void MetalCompute::Run(std::span<const char> /*source*/,
-                       const std::vector<std::span<std::byte>>& /*buffers*/,
-                       std::span<const std::byte> /*pushConstants*/,
-                       std::array<std::uint32_t, 3> /*groups*/,
-                       std::array<std::uint32_t, 3> /*groupSize*/) {
-    throw std::logic_error("Metal is unavailable on this platform");
+bool MetalCompute::CanRun(const KernelProgram& program) const {
+    return !program.metal.empty();
 }
 
 }  // namespace terraingen
-
-#endif

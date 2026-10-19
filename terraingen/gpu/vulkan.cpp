@@ -41,11 +41,11 @@ void DestroyPipeline(VkDevice device, const Pipeline& p) {
     vkDestroyShaderModule(device, p.module, nullptr);
 }
 
-VkShaderModule CreateShaderModule(VkDevice device, const ComputeKernel& kernel) {
+VkShaderModule CreateShaderModule(VkDevice device, std::span<const unsigned char> spirv) {
     VkShaderModuleCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    info.codeSize = kernel.size;
-    info.pCode = reinterpret_cast<const std::uint32_t*>(kernel.spirv);
+    info.codeSize = spirv.size();
+    info.pCode = reinterpret_cast<const std::uint32_t*>(spirv.data());
     VkShaderModule module = VK_NULL_HANDLE;
     Check(vkCreateShaderModule(device, &info, nullptr, &module), "shader module");
     return module;
@@ -82,13 +82,13 @@ VkPipelineLayout CreatePipelineLayout(VkDevice device, VkDescriptorSetLayout set
     return layout;
 }
 
-/// The pipeline running `kernel` with `bindings` storage buffers and `pushSize` bytes of push
+/// The pipeline running `spirv` with `bindings` storage buffers and `pushSize` bytes of push
 /// constants; nothing is left behind when a step fails.
-Pipeline CreatePipeline(VkDevice device, const ComputeKernel& kernel, std::size_t bindings,
+Pipeline CreatePipeline(VkDevice device, std::span<const unsigned char> spirv, std::size_t bindings,
                         std::size_t pushSize) {
     Pipeline p;
     try {
-        p.module = CreateShaderModule(device, kernel);
+        p.module = CreateShaderModule(device, spirv);
         p.setLayout = CreateSetLayout(device, bindings);
         p.layout = CreatePipelineLayout(device, p.setLayout, pushSize);
         VkComputePipelineCreateInfo info{};
@@ -325,11 +325,11 @@ struct RunResources {
 };
 
 /// Creates a device buffer for each host buffer and copies the host data into it.
-void UploadBuffers(const std::vector<std::span<std::byte>>& host,
+void UploadBuffers(std::span<const DeviceBuffer> host,
                    const VkPhysicalDeviceMemoryProperties& memory, RunResources& run) {
     for (std::size_t i = 0; i < host.size(); ++i) {
-        MakeBuffer(run.device, memory, host[i].size(), run.buffers[i]);
-        std::memcpy(run.buffers[i].mapped, host[i].data(), host[i].size());
+        MakeBuffer(run.device, memory, host[i].bytes.size(), run.buffers[i]);
+        std::memcpy(run.buffers[i].mapped, host[i].bytes.data(), host[i].bytes.size());
     }
 }
 
@@ -412,9 +412,12 @@ void SubmitAndWait(VkQueue queue, RunResources& run) {
     Check(vkWaitForFences(run.device, 1, &run.fence, VK_TRUE, UINT64_MAX), "wait");
 }
 
-void DownloadBuffers(const RunResources& run, const std::vector<std::span<std::byte>>& host) {
+/// Copies the output buffers back to the host.
+void DownloadOutputs(const RunResources& run, std::span<const DeviceBuffer> host) {
     for (std::size_t i = 0; i < host.size(); ++i) {
-        std::memcpy(host[i].data(), run.buffers[i].mapped, host[i].size());
+        if (host[i].output != nullptr) {
+            std::memcpy(host[i].output, run.buffers[i].mapped, host[i].bytes.size());
+        }
     }
 }
 
@@ -472,23 +475,26 @@ struct VulkanCompute::State {
         pool = CreateCommandPool(device, family);
     }
 
-    const Pipeline& PipelineFor(const ComputeKernel& kernel, std::size_t bindings,
-                                std::size_t pushSize) {
-        const auto key = std::make_tuple(kernel.spirv, bindings, pushSize);
+    /// The pipeline of `spirv` with `bindings` buffers and `pushSize` bytes of push constants,
+    /// created on first use.
+    const Pipeline& CachedPipeline(std::span<const unsigned char> spirv, std::size_t bindings,
+                                   std::size_t pushSize) {
+        const auto key = std::make_tuple(spirv.data(), bindings, pushSize);
         auto found = pipelines.find(key);
         if (found != pipelines.end()) {
             return found->second;
         }
-        return pipelines.emplace(key, CreatePipeline(device, kernel, bindings, pushSize))
+        return pipelines.emplace(key, CreatePipeline(device, spirv, bindings, pushSize))
             .first->second;
     }
 };
 
 namespace {
 
-std::once_flag gOnce;
-VulkanCompute* gCompute = nullptr;
-std::string gReason;
+LazyDevice<VulkanCompute>& SharedDevice() {
+    static LazyDevice<VulkanCompute> device("Vulkan");
+    return device;
+}
 
 }  // namespace
 
@@ -519,47 +525,46 @@ VulkanCompute::VulkanCompute(std::unique_ptr<State> state) : state_(std::move(st
 
 VulkanCompute::~VulkanCompute() = default;
 
+std::unique_ptr<VulkanCompute> VulkanCompute::Open() {
+    auto state = std::make_unique<State>();
+    state->Open();
+    return std::unique_ptr<VulkanCompute>(new VulkanCompute(std::move(state)));
+}
+
 VulkanCompute* VulkanCompute::Get() {
-    std::call_once(gOnce, [] {
-        try {
-            auto state = std::make_unique<State>();
-            state->Open();
-            const std::string name = state->name;
-            gCompute = new VulkanCompute(std::move(state));
-            LogInfo("gpu", "Vulkan compute on ", name);
-        } catch (const std::exception& error) {
-            gReason = error.what();
-            LogInfo("gpu", "Vulkan unavailable: ", gReason);
-        }
-    });
-    return gCompute;
+    return SharedDevice().Get();
 }
 
 std::string VulkanCompute::Reason() {
-    Get();
-    return gReason;
+    return SharedDevice().Reason();
 }
 
 const std::string& VulkanCompute::DeviceName() const {
     return state_->name;
 }
 
-void VulkanCompute::Run(const ComputeKernel& kernel,
-                        const std::vector<std::span<std::byte>>& buffers,
-                        std::span<const std::byte> pushConstants,
-                        std::array<std::uint32_t, 3> groups) {
+bool VulkanCompute::CanRun(const KernelProgram& program) const {
+    return !program.spirv.empty();
+}
+
+void VulkanCompute::Run(const KernelProgram& program, std::span<const DeviceBuffer> buffers,
+                        std::span<const std::byte> pushConstants, const Dispatch& dispatch) {
     State& s = *state_;
+    if (!CanRun(program)) {
+        throw std::runtime_error("The kernel has no SPIR-V for Vulkan");
+    }
     if (pushConstants.size() > s.maxPushConstants) {
         throw std::runtime_error("Push constants exceed the device's limit");
     }
     const std::lock_guard lock(s.mutex);
-    const Pipeline& pipeline = s.PipelineFor(kernel, buffers.size(), pushConstants.size());
+    const Pipeline& pipeline =
+        s.CachedPipeline(program.spirv, buffers.size(), pushConstants.size());
     RunResources run(s.device, s.pool, buffers.size());
     UploadBuffers(buffers, s.memory, run);
     const VkDescriptorSet set = BindBuffers(pipeline, run);
-    RecordDispatch(pipeline, set, pushConstants, groups, run);
+    RecordDispatch(pipeline, set, pushConstants, dispatch.groups, run);
     SubmitAndWait(s.queue, run);
-    DownloadBuffers(run, buffers);
+    DownloadOutputs(run, buffers);
 }
 
 }  // namespace terraingen

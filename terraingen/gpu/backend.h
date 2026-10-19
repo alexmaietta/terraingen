@@ -1,7 +1,8 @@
 /// @file
-/// @brief Evaluation backends (CPU or Vulkan) and the process-wide default.
+/// @brief Evaluation backends (the CPU, Vulkan, CUDA or Metal) and the process-wide default.
 #pragma once
 
+#include <array>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -19,8 +20,14 @@ enum class Backend {
     Metal,   ///< Metal on the system's default device; Apple platforms only.
 };
 
-/// Looks up a backend by name ("auto", "cpu", "gpu", "vulkan", "cuda" or "metal"), ignoring case;
-/// `std::nullopt` for an unknown name.
+/// Every backend name `BackendNamed` reads, in the order messages list them.
+inline constexpr std::array<std::string_view, 6> kBackendNames{"auto",   "cpu",  "gpu",
+                                                               "vulkan", "cuda", "metal"};
+
+/// The backend names as messages list them: "auto, cpu, gpu, vulkan, cuda or metal".
+std::string BackendNameList();
+
+/// Looks up a backend by one of `kBackendNames`, ignoring case; `std::nullopt` for an unknown name.
 std::optional<Backend> BackendNamed(std::string_view name);
 
 /// The name of a backend, as `BackendNamed` reads it; "unknown" for an out-of-range value.
