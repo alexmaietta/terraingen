@@ -184,9 +184,13 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// Rolls `boulder` down ground steeper than `maxSlope` until it rests, as `rollDistance`
     /// allows; false when it would roll farther, or with no roll distance on steep ground.
     bool Roll(Boulder& boulder, const Ground& ground) const;
-    /// The pieces `parent` breaks into at its wear, those resolved at `spacing`; `parent` alone
-    /// when it is too small or too fresh to break.
-    std::vector<Boulder> Break(const Boulder& parent, double spacing, const Ground* ground) const;
+    /// The pieces `parent` breaks into at its wear, those resolved at `spacing`, their ground left
+    /// to `ReadGrounds`; `parent` alone when it is too small or too fresh to break.
+    std::vector<Boulder> Break(const Boulder& parent, double spacing) const;
+    /// Sets the ground of the boulders `indices` of `boulders` from `ground`, read in one pass;
+    /// unset without a ground or where it is missing.
+    void ReadGrounds(std::vector<Boulder>& boulders, const std::vector<std::size_t>& indices,
+                     const Ground* ground) const;
     /// How far a breaking boulder has come apart: its cracks' opening, 0 to 1 from `splitWear`
     /// to `rubbleWear`, and its pieces' scatter, 0 to 1 beyond.
     struct BreakStage {

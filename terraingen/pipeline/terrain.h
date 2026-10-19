@@ -55,8 +55,10 @@ class TerrainGround final : public Ground {
   public:
     /// The ground beneath layer `layers` of `terrain`, which must outlive it.
     /// @param layers The number of layers the ground includes.
+    /// @param cache Values the layers beneath share with the evaluation reading this ground, such
+    /// as crater datums, so nested reads do not compute them again; null for a cache per read.
     /// @throws std::invalid_argument if `terrain` has fewer than `layers` layers.
-    TerrainGround(const Terrain& terrain, std::size_t layers);
+    TerrainGround(const Terrain& terrain, std::size_t layers, EvaluationCache* cache = nullptr);
 
     /// The starting height at surface point (`x`, `y`) after each included layer's `ApplyAt`, at
     /// a sample spacing of `spacing` metres.
@@ -69,6 +71,7 @@ class TerrainGround final : public Ground {
   private:
     const Terrain& terrain_;
     std::size_t layers_;
+    EvaluationCache* cache_;
 };
 
 /// A `TerrainGround` beneath the first `layers` layers of a copy of `terrain` that it keeps, so it

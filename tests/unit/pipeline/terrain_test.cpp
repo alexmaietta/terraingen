@@ -1,6 +1,7 @@
 #include "terraingen/pipeline/terrain.h"
 
 #include "support/raster_equality.h"
+#include "terraingen/layers/evaluation_cache.h"
 #include "terraingen/terraingen.h"
 #include "terrains.h"
 
@@ -301,6 +302,26 @@ TEST(TerrainGround, IsTheSourceAndTheLayersBeneath) {
     EXPECT_THROW(terraingen::TerrainGround(terrain, 3), std::invalid_argument);
     EXPECT_EQ(terraingen::TerrainGround(Terrain{}, 0).HeightAt(3.0, 4.0, 2.0), 0.0f)
         << "the datum without a source";
+}
+
+TEST(TerrainGround, SharingAnEvaluationCacheGivesTheSameHeights) {
+    const Terrain terrain = Datum(terraingen::CraterDatum::Plane);
+    terraingen::EvaluationCache cache;
+    const terraingen::TerrainGround cached(terrain, 2, &cache);
+    const terraingen::TerrainGround fresh(terrain, 2);
+    std::vector<terraingen::Vec2d> points;
+    for (int i = 0; i < 600; ++i) {
+        points.push_back({-20.0 + 0.07 * i, 15.0 - 0.05 * i});
+    }
+    std::vector<float> first(points.size());
+    std::vector<float> again(points.size());
+    std::vector<float> expected(points.size());
+    cached.HeightsAt(points, first, 2.0);
+    cached.HeightsAt(points, again, 2.0);
+    fresh.HeightsAt(points, expected, 2.0);
+    EXPECT_EQ(first, expected);
+    EXPECT_EQ(again, expected) << "values kept from the first read";
+    EXPECT_EQ(cached.HeightAt(points[7].x, points[7].y, 2.0), expected[7]);
 }
 
 TEST(Evaluate, StartsATerrainWithoutASourceAtTheDatum) {

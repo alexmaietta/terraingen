@@ -649,15 +649,41 @@ std::vector<Boulder> BoulderLayer::Boulders(const Bounds2d& region, double spaci
     const double reach = 0.5 * options_.sizes.maxDiameter * (OwnMarginRadii() + BreakMarginRadii());
     const EjectaIndex ejecta = EjectaCraters(surface_.Expand(from, reach));
     std::vector<Boulder> boulders;
+    std::vector<std::size_t> pieces;
     for (const Boulder& parent : DrawBoulders(candidates, spacing, ground, ejecta)) {
-        for (const Boulder& boulder : Break(parent, spacing, ground)) {
+        for (const Boulder& boulder : Break(parent, spacing)) {
             const double own = 0.5 * boulder.diameter * OwnMarginRadii();
             if (surface_.Contains(surface_.Expand(region, own), {boulder.x, boulder.y})) {
+                if (boulder.parent != 0) {
+                    pieces.push_back(boulders.size());
+                }
                 boulders.push_back(boulder);
             }
         }
     }
+    ReadGrounds(boulders, pieces, ground);
     return boulders;
+}
+
+void BoulderLayer::ReadGrounds(std::vector<Boulder>& boulders,
+                               const std::vector<std::size_t>& indices,
+                               const Ground* ground) const {
+    std::vector<Vec2d> points;
+    points.reserve(indices.size());
+    for (const std::size_t n : indices) {
+        boulders[n].ground.reset();
+        points.push_back({boulders[n].x, boulders[n].y});
+    }
+    if (ground == nullptr || points.empty()) {
+        return;
+    }
+    std::vector<float> heights(points.size());
+    ground->HeightsAt(points, heights, options_.groundSpacing);
+    for (std::size_t k = 0; k < indices.size(); ++k) {
+        if (!std::isnan(heights[k])) {
+            boulders[indices[k]].ground = heights[k];
+        }
+    }
 }
 
 BoulderLayer::BreakStage BoulderLayer::Stage(const Boulder& parent) const {
@@ -712,8 +738,7 @@ Boulder BoulderLayer::PlacePiece(const Boulder& parent, const BoulderFragment& f
     return piece;
 }
 
-std::vector<Boulder> BoulderLayer::Break(const Boulder& parent, double spacing,
-                                         const Ground* ground) const {
+std::vector<Boulder> BoulderLayer::Break(const Boulder& parent, double spacing) const {
     const BoulderFragmentation& fragmentation = options_.fragmentation;
     if (parent.diameter < fragmentation.minDiameter || parent.wear < fragmentation.splitWear) {
         return {parent};
@@ -738,7 +763,6 @@ std::vector<Boulder> BoulderLayer::Break(const Boulder& parent, double spacing,
             continue;
         }
         piece.model = options_.rendering.models.IsModel(piece.diameter, spacing);
-        ReadGround(piece, ground);
         pieces.push_back(piece);
     }
     return pieces;
