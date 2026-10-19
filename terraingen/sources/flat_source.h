@@ -3,6 +3,7 @@
 #pragma once
 
 #include "terraingen/sources/source.h"
+#include "terraingen/util/surface.h"
 
 #include <cstddef>
 
@@ -22,6 +23,17 @@ class FlatSource final : public Source {
     /// and finite, or `elevation` or `centre` is not finite.
     FlatSource(std::size_t width, std::size_t height, double pixelSize, float elevation = 0.0f,
                Vec2d centre = {});
+
+    /// The flat source over a grid on `surface` whose cell size is given in metres, as for a site
+    /// on a body: the grid is in the surface's coordinates.
+    /// @param pixelSize Cell size in metres, positive and finite; on a body it is converted to
+    /// degrees along a meridian (`Surface::UnitLength`).
+    /// @param centre Grid centre in the surface's coordinates (longitude and latitude in degrees on
+    /// a body).
+    /// @throws std::invalid_argument as the constructor in world units.
+    FlatSource(std::size_t width, std::size_t height, double pixelSize, float elevation,
+               Vec2d centre, const Surface& surface)
+        : FlatSource(width, height, pixelSize / surface.UnitLength(), elevation, centre) {}
 
     /// The grid given at construction.
     RasterGrid Grid() const override {

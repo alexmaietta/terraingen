@@ -8,6 +8,7 @@
 #pragma once
 
 #include <cmath>
+#include <concepts>
 #include <cstddef>
 #include <limits>
 #include <optional>
@@ -69,6 +70,20 @@ inline std::string CountText(std::size_t lowest, std::size_t highest) {
     return std::to_string(lowest) + " to " + std::to_string(highest);
 }
 
+/// An `IO` that takes an optional bound as the bound itself, through
+/// `io.Bound(key, bound, description, unit, unset, range)`, such as the Python bindings.
+template <typename IO>
+concept TakesBounds = requires(IO& io, double& bound) {
+    io.Bound(std::string_view{}, bound, std::string_view{}, std::string_view{}, 0.0, FieldRange{});
+};
+
+/// An `IO` that may take a group of fields written flat as one value of the group's type,
+/// through `io.Group(name, group, description)`, which returns false to have them visited flat.
+template <typename IO, typename Group>
+concept TakesGroups = requires(IO& io, Group& group) {
+    { io.Group(std::string_view{}, group, std::string_view{}) } -> std::same_as<bool>;
+};
+
 /// Reads or writes a bound that is unset when infinite, as an optional field.
 /// @param unit The bound's unit symbol, or empty.
 /// @param unset The bound when the field is unset: +infinity or -infinity.
@@ -77,6 +92,10 @@ void OptionalBound(IO& io, std::string_view key, double& bound, std::string_view
                    std::string_view unit = {},
                    double unset = std::numeric_limits<double>::infinity(),
                    const FieldRange& range = {}) {
+    if constexpr (TakesBounds<IO>) {
+        io.Bound(key, bound, description, unit, unset, range);
+        return;
+    }
     std::optional<double> value;
     if (std::isfinite(bound)) {
         value = bound;
@@ -101,6 +120,13 @@ struct SelectionKeys {
 template <typename IO, typename Selection>
 void SelectionFields(IO& io, Selection& selection, std::string_view craters,
                      std::string_view manualHelp, const SelectionKeys& keys = {}) {
+    if constexpr (TakesGroups<IO, Selection>) {
+        if (io.Group("selection", selection,
+                     "The selection of " + std::string(craters) +
+                         ": their diameters and ages, and whether manual craters count.")) {
+            return;
+        }
+    }
     const std::string of = ", of " + std::string(craters);
     io(keys.minDiameter, selection.minDiameter, "Smallest diameter, in metres" + of + ".", "m",
        AtLeast(0.0));
@@ -128,6 +154,14 @@ inline std::string WindAzimuthHelp(std::string_view wind, std::string_view effec
 template <typename IO, typename Anchor>
 void AnchorFields(IO& io, Anchor& anchor, std::string_view what,
                   std::string_view prefix = "anchor") {
+    if constexpr (TakesGroups<IO, Anchor>) {
+        if (io.Group(prefix, anchor,
+                     "On a body, the longitude and latitude in degrees of the point whose tangent "
+                     "frame " +
+                         std::string(what) + ".")) {
+            return;
+        }
+    }
     io(std::string(prefix) + "_x", anchor.x,
        "On a body, the longitude in degrees of the point whose tangent frame " + std::string(what) +
            ".");

@@ -151,7 +151,9 @@ def test_exposure_at_a_point_matches_the_filled_raster(noise_relief):
     field = terraingen.ExposureField(terraingen.ExposureParams(reach=3.0))
     terrain = exposure_terrain(noise_relief)
     exposure = field.fill(terrain, 1, terraingen.RasterGrid.centred(256, 256, 0.25), 0.25).values
-    assert field.exposure(terrain, 1, 0.125, 0.125, 0.25) == pytest.approx(exposure[127, 128], abs=1e-6)
+    assert field.exposure(0.125, 0.125, 0.25, terrain, 1) == pytest.approx(exposure[127, 128], abs=1e-6)
+    with pytest.raises(ValueError, match="need the ground"):
+        field.exposure(0.125, 0.125)
 
 
 def test_exposure_of_flat_ground_is_uniform():
@@ -209,7 +211,7 @@ def test_python_raster_layer_edits_the_heights(paraboloid):
 
 
 def test_base_layer_without_overrides_raises(paraboloid):
-    with pytest.raises(RuntimeError):
+    with pytest.raises(TypeError):
         terraingen.evaluate(terraingen.Terrain(paraboloid, [terraingen.Layer()]))
 
 

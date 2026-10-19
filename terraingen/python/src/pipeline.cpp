@@ -1,3 +1,4 @@
+#include "arrays.h"
 #include "bindings.h"
 #include "common.h"
 #include "objects.h"
@@ -32,17 +33,12 @@ std::filesystem::path Directory(const OptionalPath& directory) {
     return directory.value_or(std::filesystem::path{});
 }
 
-using PointArray = nb::ndarray<const double, nb::ndim<2>, nb::device::cpu, nb::c_contig>;
-
 /// `EvaluatePoints` over the rows of an (n, 2) array, as a float32 array.
-nb::object EvaluatePointArray(const PyTerrain& terrain, const PointArray& points, double spacing,
-                              unsigned threads) {
-    if (points.shape(1) != 2) {
-        throw std::invalid_argument("Points must be an array of shape (n, 2)");
-    }
-    std::vector<Vec2d> positions(points.shape(0));
-    for (std::size_t i = 0; i < positions.size(); ++i) {
-        positions[i] = {points.data()[2 * i], points.data()[2 * i + 1]};
+nb::object EvaluatePointArray(const PyTerrain& terrain, const CpuMatrix<double>& points,
+                              double spacing, unsigned threads) {
+    std::vector<Vec2d> positions;
+    for (const auto& row : Rows<2>(points)) {
+        positions.push_back({row[0], row[1]});
     }
     std::vector<float> heights;
     {
@@ -67,11 +63,6 @@ RasterGrid GridOr(const Terrain& terrain, const std::optional<RasterGrid>& grid)
         throw std::invalid_argument("A terrain without a source needs a grid");
     }
     return terrain.source->Grid();
-}
-
-/// @brief The list format a file's extension asks for: JSON for .json, CSV otherwise.
-ListFormat FormatOf(const std::filesystem::path& path) {
-    return path.extension() == ".json" ? ListFormat::Json : ListFormat::Csv;
 }
 
 void BindTerrainClass(nb::module_& m) {
@@ -100,9 +91,9 @@ void BindFeatures(nb::module_& m) {
             "for manual craters), in the surface's coordinates, and their attributes "
             "'floor_depth' and 'rim_height' (m), 'depth_ratio', 'freshness' and 'complex'.")
         .def(
-            "write",
+            "write_list",
             [](const CraterFeatures& f, const std::filesystem::path& path) {
-                WriteCraterList(f.craters, path, FormatOf(path), f.attributes);
+                WriteCraterList(f.craters, path, InferListFormat(path.string()), f.attributes);
             },
             "path"_a, "Writes the craters as CSV, or JSON for a .json path.");
     nb::class_<BoulderFeatures>(m, "BoulderFeatures",
@@ -112,12 +103,14 @@ void BindFeatures(nb::module_& m) {
                 "The boulder models, with their shapes and placements.")
         .def_prop_ro(
             "table", [](const BoulderFeatures& f) { return BoulderTable(f.boulders); },
-            "The boulders as NumPy columns 'x', 'y', 'ground' (NaN when unknown), 'diameter', "
-            "'height', 'burial', 'yaw', 'lean', 'id' and 'model' (1 for boulder models).")
+            "The boulders as NumPy columns, as `BoulderLayer.boulders` gives them: 'x', 'y', "
+            "'ground' (NaN when unknown), 'diameter', 'height', 'burial', 'yaw', 'lean', 'id', "
+            "'model' (1 for boulder models), 'wear', 'parent', 'piece', 'rest' (a BoulderRest), "
+            "'tilt' and 'tilt_azimuth'.")
         .def(
             "write_list",
             [](const BoulderFeatures& f, const std::filesystem::path& path) {
-                WriteBoulderList(f.boulders, path, FormatOf(path));
+                WriteBoulderList(f.boulders, path, InferListFormat(path.string()));
             },
             "path"_a, "Writes the boulders as CSV, or JSON for a .json path.")
         .def(
@@ -299,16 +292,12 @@ void BindTiles(nb::module_& m) {
         .def_prop_ro("evictions", &TileCache::Evictions, "Tiles evicted so far.");
 }
 
-/// @brief Registers ConfigError, a ValueError with the JSON `path` of the offending value.
+/// @brief Registers ConfigError, a ValueError with the JSON `path` of the offending value, as
+/// GeoTiffError is registered, then a translator that sets the path.
 void BindConfigError(nb::module_& m) {
-    // Named within the extension module, as nanobind names its own types, so its stubs list it.
-    const std::string name = nb::cast<std::string>(m.attr("__name__")) + ".ConfigError";
-    static nb::object configError =
-        nb::steal(PyErr_NewExceptionWithDoc(name.c_str(),
-                                            "An invalid configuration; `path` is the JSON path of "
-                                            "the offending value, empty for the whole document.",
-                                            PyExc_ValueError, nullptr));
-    m.attr("ConfigError") = configError;
+    static const nb::exception<ConfigError> configError(m, "ConfigError", PyExc_ValueError);
+    configError.attr("__doc__") = "An invalid configuration; `path` is the JSON path of the "
+                                  "offending value, empty for the whole document.";
     nb::register_exception_translator([](const std::exception_ptr& error, void*) {
         try {
             std::rethrow_exception(error);
@@ -520,19 +509,10 @@ void BindRun(nb::module_& m) {
         "config"_a, "terrain"_a, "directory"_a = nb::none(),
         "The Albedo a configuration describes for `terrain`, built from the same configuration "
         "by `build_terrain`.");
-    m.def(
-        "write_outputs",
-        [](const TerrainConfig& config, const GeneratedTerrain& terrain,
-           const std::filesystem::path& directory) {
-            std::vector<std::string> paths;
-            for (const auto& path : WriteOutputs(config, terrain, directory)) {
-                paths.push_back(path.string());
-            }
-            return paths;
-        },
-        "config"_a, "terrain"_a, "directory"_a, nb::call_guard<nb::gil_scoped_release>(),
-        "Writes `config`'s outputs for `terrain`, resolving relative paths against `directory`, "
-        "and returns the paths written.");
+    m.def("write_outputs", &WriteOutputs, "config"_a, "terrain"_a, "directory"_a,
+          nb::call_guard<nb::gil_scoped_release>(),
+          "Writes `config`'s outputs for `terrain`, resolving relative paths against `directory`, "
+          "and returns the paths written, as pathlib.Path.");
 }
 
 }  // namespace

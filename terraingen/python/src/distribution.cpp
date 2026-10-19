@@ -1,5 +1,7 @@
 #include "bindings.h"
 #include "common.h"
+#include "options.h"
+#include "trampolines.h"
 
 #include "terraingen/distribution/equilibrium.h"
 #include "terraingen/distribution/golombek_rapp.h"
@@ -19,8 +21,6 @@
 #include "terraingen/distribution/synthterrain.h"
 #include "terraingen/distribution/tabulated.h"
 #include "terraingen/distribution/viper.h"
-
-#include <nanobind/trampoline.h>
 
 #include <limits>
 #include <tuple>
@@ -59,7 +59,7 @@ class PySizeFrequencyDistribution : public Sfd {
 
   protected:
     double CumulativeAt(double diameter) const override {
-        NB_OVERRIDE_PURE_NAME("cumulative_at", CumulativeAt, diameter);
+        return CallRequiredAs<double>(nb_trampoline, "cumulative_at", diameter);
     }
 
     double IncrementalAt(double diameter) const override {
@@ -304,11 +304,7 @@ void BindLunarCraterDistributions(nb::module_& m) {
     m.def(
         "hartmann_equilibrium", [] { return Shared(HartmannEquilibrium()); },
         "Hartmann's lunar crater equilibrium.");
-    nb::enum_<MooreTerrain>(m, "MooreTerrain", "Moore's (1971) lunar terrain classes.")
-        .value("ROUGH_MARE", MooreTerrain::RoughMare)
-        .value("SMOOTH_MARE", MooreTerrain::SmoothMare)
-        .value("UPLANDS", MooreTerrain::Uplands)
-        .value("HEAVILY_CRATERED", MooreTerrain::HeavilyCratered);
+    BindEnum<MooreTerrain>(m, "MooreTerrain", "Moore's (1971) lunar terrain classes.");
     m.def(
         "moore_distribution",
         [](MooreTerrain terrain) { return Shared(MooreDistribution(terrain)); }, "terrain"_a,
@@ -341,10 +337,7 @@ void BindMartianCraterDistributions(nb::module_& m) {
 }
 
 void BindBoulderDistributions(nb::module_& m) {
-    nb::enum_<SpecificationCurve>(m, "SpecificationCurve", "Which SP-8023 boulder curve.")
-        .value("MINIMUM", SpecificationCurve::Minimum)
-        .value("NOMINAL", SpecificationCurve::Nominal)
-        .value("MAXIMUM", SpecificationCurve::Maximum);
+    BindEnum<SpecificationCurve>(m, "SpecificationCurve", "Which SP-8023 boulder curve.");
     m.def(
         "sp8023_intercrater_blocks",
         [](SpecificationCurve curve) { return Shared(Sp8023IntercraterBlocks(curve)); }, "curve"_a,

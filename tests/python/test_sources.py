@@ -49,6 +49,20 @@ def test_flat_source_rejects_an_empty_grid():
         terraingen.FlatSource(0, 10, 1.0)
 
 
+def test_flat_source_on_a_body_takes_its_cell_size_in_metres():
+    moon = terraingen.Surface.sphere(1737400.0)
+    source = terraingen.FlatSource(9, 9, 30.0, centre=(10.0, -20.0), surface=moon)
+    assert source.transform.pixel_width == pytest.approx(30.0 / moon.unit_length)
+
+
+def test_python_source_without_its_methods_raises_type_error():
+    class Empty(terraingen.Source):
+        pass
+
+    with pytest.raises(TypeError, match="Empty must define grid"):
+        Empty().grid()
+
+
 def test_geotiff_source_resamples_to_its_pixel_size(tmp_path, coarse_dem):
     assert resampled_source(tmp_path).width == 132
 

@@ -152,7 +152,7 @@ def test_python_distribution_without_cumulative_at_raises():
     class Incomplete(terraingen.SizeFrequencyDistribution):
         pass
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(TypeError, match="Incomplete must define cumulative_at"):
         Incomplete().cumulative(10.0)
 
 

@@ -44,3 +44,13 @@ TEST(FlatSource, CentresItsGridWhereAsked) {
     EXPECT_EQ(source.Grid().transform, GeoTransform::NorthUp(29.0, -9.5, 0.5));
     EXPECT_THROW(FlatSource(4, 2, 0.5, 1.0f, {NAN, 0.0}), std::invalid_argument);
 }
+
+TEST(FlatSource, TakesItsCellSizeInMetresOnASurface) {
+    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
+    const FlatSource site(4, 2, 30.0, 0.0f, {10.0, -20.0}, moon);
+    const FlatSource degrees(4, 2, 30.0 / moon.UnitLength(), 0.0f, {10.0, -20.0});
+    EXPECT_EQ(site.Grid().transform, degrees.Grid().transform);
+    const FlatSource plane(4, 2, 0.5, 1.0f, {30.0, -10.0}, terraingen::Surface{});
+    EXPECT_EQ(plane.Grid().transform, GeoTransform::NorthUp(29.0, -9.5, 0.5));
+    EXPECT_THROW(FlatSource(4, 2, 0.0, 0.0f, {}, moon), std::invalid_argument);
+}

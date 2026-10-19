@@ -43,6 +43,13 @@ def test_placed_boulder_mesh_keeps_the_shape_vertices(first_model):
     assert first_model.mesh.vertex_count == first_model.shape.mesh.vertex_count
 
 
+def test_placed_boulder_mesh_is_its_placement_applied(first_model):
+    placed = first_model.placement.place_mesh(first_model.shape.mesh).arrays[0]
+    np.testing.assert_array_equal(first_model.mesh.arrays[0], placed)
+    shape = first_model.shape.mesh.arrays[0]
+    assert placed[0] == pytest.approx(first_model.placement.apply(tuple(shape[0])), abs=1e-12)
+
+
 def test_top_surface_is_found_above_the_boulder_only(first_model):
     placed = first_model.mesh
     assert terraingen.top_surface(placed, first_model.boulder.x, first_model.boulder.y) is not None
@@ -99,8 +106,8 @@ def test_placed_lists_and_models_are_written(tmp_path, lunar_models, crater_laye
     terrain = boulder_terrain(lunar_models, crater_layer, 301)
     craters = terraingen.placed_craters(terrain)
     boulders = terraingen.placed_boulders(terrain)
-    craters.write(tmp_path / "craters.csv")
-    craters.write(tmp_path / "craters.json")
+    craters.write_list(tmp_path / "craters.csv")
+    craters.write_list(tmp_path / "craters.json")
     boulders.write_list(tmp_path / "boulders.csv")
     boulders.write_list(tmp_path / "boulders.json")
     boulders.write_models(tmp_path / "boulders.glb")

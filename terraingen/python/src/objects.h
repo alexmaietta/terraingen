@@ -7,7 +7,11 @@
 #include "terraingen/albedo/albedo.h"
 #include "terraingen/pipeline/terrain.h"
 
+#include <cstddef>
 #include <memory>
+#include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 namespace terraingen::python {
@@ -77,20 +81,41 @@ template <typename Fn> auto WithGround(const PyTerrain* terrain, std::size_t lay
     return fn(static_cast<const Ground*>(&ground));
 }
 
+/// `WithGround` beneath every layer of `terrain`, or with null when `terrain` is null.
+template <typename Fn> auto WithFullGround(const PyTerrain* terrain, Fn fn) {
+    return WithGround(terrain, terrain != nullptr ? terrain->layers.size() : 0, std::move(fn));
+}
+
+/// What the arguments of a method that reads the ground mean, for its docstring.
+inline constexpr const char* kGroundDoc =
+    "`spacing` is the sample spacing in metres (0 for every detail); what reads the ground "
+    "beneath needs it from `terrain`'s source and its first `layers` layers.";
+
+/// Binds `name(x, y, spacing=0.0, terrain=None, layers=0)` on `cls`, the class of `Self`, as
+/// `query(self, x, y, spacing, ground)` with the ground `WithGround` makes.
+template <typename Self, typename Class, typename Query>
+void BindGroundQuery(Class& cls, const char* name, Query query, std::string_view doc) {
+    cls.def(
+        name,
+        [query](const Self& self, double x, double y, double spacing, const PyTerrain* terrain,
+                std::size_t layers) {
+            return WithGround(terrain, layers, [&](const Ground* ground) {
+                return query(self, x, y, spacing, ground);
+            });
+        },
+        "x"_a, "y"_a, "spacing"_a = 0.0, "terrain"_a = nb::none(), "layers"_a = 0,
+        (std::string(doc) + " " + kGroundDoc).c_str());
+}
+
 /// Adds `material` and `material_cover_at` to a class binding of a `MaterialSource` layer.
 template <typename Layer, typename Class> void BindMaterialCover(Class& cls) {
     cls.def_prop_ro("material", [](const Layer& source) { return source.Material(); });
-    cls.def(
-        "material_cover_at",
-        [](const Layer& source, double x, double y, double spacing, const PyTerrain* terrain,
-           std::size_t layers) {
-            return WithGround(terrain, layers, [&](const Ground* ground) {
-                return source.MaterialCoverAt(x, y, spacing, ground);
-            });
+    BindGroundQuery<Layer>(
+        cls, "material_cover_at",
+        [](const Layer& source, double x, double y, double spacing, const Ground* ground) {
+            return source.MaterialCoverAt(x, y, spacing, ground);
         },
-        "x"_a, "y"_a, "spacing"_a = 1.0, "terrain"_a = nb::none(), "layers"_a = 0,
-        "How fully the layer covers (x, y) with its material, in [0, 1]; layers that read the "
-        "ground need `terrain`'s source and its first `layers` layers.");
+        "How fully the layer covers (x, y) with its material, in [0, 1].");
 }
 
 }  // namespace terraingen::python

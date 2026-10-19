@@ -8,6 +8,7 @@ import pytest
 import terraingen
 
 REGION = (-200.0, -200.0, 200.0, 200.0)
+ALL_CRATERS = terraingen.CraterSelection(manual=True)
 
 
 def generate_lunar_craters(lunar_craters, region=REGION):
@@ -146,12 +147,12 @@ def test_crater_noise_changes_the_craters_only_when_set(lunar_craters):
 
 
 def test_crater_blend_weight_is_one_inside_the_blend():
-    assert terraingen.crater_blend_weight(0.5, terraingen.CraterBlend()) == 1.0
+    assert terraingen.CraterBlend().weight(0.5) == 1.0
 
 
 def test_crater_blend_weight_falls_linearly_across_the_blend():
     blend = terraingen.CraterBlend(start_radii=0.8, end_radii=1.2, shape=terraingen.BlendShape.LINEAR)
-    assert terraingen.crater_blend_weight(1.0, blend) == pytest.approx(0.5)
+    assert blend.weight(1.0) == pytest.approx(0.5)
 
 
 def test_fresh_crater_attributes_keep_the_fresh_depth_ratio():
@@ -193,14 +194,19 @@ def test_max_craters_caps_generation(lunar_models):
 
 
 def test_irregular_outlines_are_elongated():
-    irregular = terraingen.CraterIrregularity(enabled=True, elongated_share=1.0, manual=True)
+    irregular = terraingen.CraterIrregularity(enabled=True, elongated_share=1.0, selection=ALL_CRATERS)
     outline = terraingen.irregular_outline(terraingen.Crater(0.0, 0.0, 50.0), irregular)
     assert outline.ellipticity > 1.0 and not outline.round and outline.max_scale >= 1.0
 
 
 def test_marked_outlines_shift_only_the_wall():
     marked = terraingen.CraterIrregularity(
-        enabled=True, manual=True, rough_share=0.0, elongated_share=0.0, marks_share=1.0, marks_knots=12
+        enabled=True,
+        selection=ALL_CRATERS,
+        rough_share=0.0,
+        elongated_share=0.0,
+        marks_share=1.0,
+        marks_knots=12,
     )
     assert (marked.marks_inner_radii, marked.marks_outer_radii, marked.marks_fade_radii) == (0.3, 0.9, 0.1)
     outline = terraingen.irregular_outline(terraingen.Crater(0.0, 0.0, 50.0, 0.0, 5), marked)
@@ -210,7 +216,7 @@ def test_marked_outlines_shift_only_the_wall():
 
 
 def test_max_outline_scale_bounds_every_outline():
-    irregular = terraingen.CraterIrregularity(enabled=True, elongated_share=1.0, manual=True)
+    irregular = terraingen.CraterIrregularity(enabled=True, elongated_share=1.0, selection=ALL_CRATERS)
     outline = terraingen.irregular_outline(terraingen.Crater(0.0, 0.0, 50.0), irregular)
     assert terraingen.max_outline_scale(irregular) >= outline.max_scale
 
@@ -242,13 +248,23 @@ def test_crater_selection_can_exclude_manual_craters():
 
 
 def test_secondary_options_select_their_primaries():
-    secondaries = terraingen.SecondaryCraterOptions(min_primary_diameter=3000.0, max_age_gyr=0.5)
+    selection = terraingen.CraterSelection(min_diameter=3000.0, max_age_gyr=0.5)
+    secondaries = terraingen.SecondaryCraterOptions(selection=selection)
     assert secondaries.selection.min_diameter == 3000.0 and secondaries.selection.max_age_gyr == 0.5
 
 
 def test_irregularity_options_select_generated_craters_only():
-    irregularity = terraingen.CraterIrregularity(max_diameter=50.0)
-    assert irregularity.selection.max_diameter == 50.0 and not irregularity.manual
+    irregularity = terraingen.CraterIrregularity()
+    irregularity.selection.max_diameter = 50.0
+    assert irregularity.selection.max_diameter == 50.0 and not irregularity.selection.manual
+
+
+def test_unbounded_selection_bounds_read_as_none():
+    selection = terraingen.CraterSelection(max_diameter=50.0)
+    assert selection.max_diameter == 50.0 and selection.max_age_gyr is None
+    selection.max_diameter = None
+    assert selection.max_diameter is None
+    assert selection.includes(terraingen.Crater(0.0, 0.0, 1e6))
 
 
 def test_singer_range_for_size_inverts_the_largest_secondary():

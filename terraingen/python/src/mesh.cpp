@@ -1,6 +1,7 @@
+#include "arrays.h"
 #include "bindings.h"
 #include "common.h"
-#include "tables.h"
+#include "options.h"
 
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
@@ -8,12 +9,10 @@
 #include "terraingen/mesh/polyhedra.h"
 #include "terraingen/mesh/shape_model.h"
 
-#include <nanobind/ndarray.h>
 #include <nanobind/operators.h>
 #include <nanobind/stl/array.h>
 
 #include <array>
-#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -22,27 +21,24 @@ namespace terraingen::python {
 
 namespace {
 
-using Points = nb::ndarray<const double, nb::ndim<2>, nb::device::cpu, nb::c_contig>;
-using Indices = nb::ndarray<const std::uint32_t, nb::ndim<2>, nb::device::cpu, nb::c_contig>;
+using Points = CpuMatrix<double>;
+using Indices = CpuMatrix<std::uint32_t>;
 
 std::vector<Vec3d> ToVectors(const Points& array) {
-    if (array.shape(1) != 3) {
-        throw std::invalid_argument("Expected an array of shape (n, 3)");
-    }
-    std::vector<Vec3d> points(array.shape(0));
-    for (std::size_t i = 0; i < points.size(); ++i) {
-        points[i] = {array.data()[3 * i], array.data()[3 * i + 1], array.data()[3 * i + 2]};
+    std::vector<Vec3d> points;
+    for (const auto& row : Rows<3>(array)) {
+        points.push_back({row[0], row[1], row[2]});
     }
     return points;
 }
 
-nb::object VectorArray(const std::vector<Vec3d>& vectors) {
+NumpyArray<double> VectorArray(const std::vector<Vec3d>& vectors) {
     std::vector<double> flat;
     flat.reserve(3 * vectors.size());
     for (const Vec3d& v : vectors) {
         flat.insert(flat.end(), {v.x, v.y, v.z});
     }
-    return Column(std::move(flat)).attr("reshape")(-1, 3);
+    return OwnedArray(std::move(flat), {vectors.size(), 3});
 }
 
 nb::tuple MeshArrays(const TriangleMesh& mesh) {
@@ -52,18 +48,14 @@ nb::tuple MeshArrays(const TriangleMesh& mesh) {
         triangles.insert(triangles.end(), t.begin(), t.end());
     }
     return nb::make_tuple(VectorArray(mesh.positions),
-                          Column(std::move(triangles)).attr("reshape")(-1, 3));
+                          OwnedArray(std::move(triangles), {mesh.triangles.size(), 3}));
 }
 
 TriangleMesh MeshFromArrays(const Points& positions, const Indices& triangles) {
-    if (triangles.shape(1) != 3) {
-        throw std::invalid_argument("Triangles must have shape (m, 3)");
-    }
     TriangleMesh mesh;
     mesh.positions = ToVectors(positions);
-    for (std::size_t i = 0; i < triangles.shape(0); ++i) {
-        mesh.triangles.push_back(
-            {triangles.data()[3 * i], triangles.data()[3 * i + 1], triangles.data()[3 * i + 2]});
+    for (const auto& triangle : Rows<3>(triangles)) {
+        mesh.triangles.push_back({triangle[0], triangle[1], triangle[2]});
     }
     return mesh;
 }
@@ -145,12 +137,7 @@ void BindTriangleMesh(nb::module_& m) {
              "Each triangle split into four `levels` times, new vertices on the unit sphere if "
              "`on_unit_sphere`.");
     BindMeshFiles(mesh);
-    nb::enum_<BaseSolid>(m, "BaseSolid", "A solid boulder shapes start from.")
-        .value("ICOSAHEDRON", BaseSolid::Icosahedron)
-        .value("CUBE", BaseSolid::Cube)
-        .value("PYRAMID", BaseSolid::Pyramid)
-        .value("PRISM", BaseSolid::Prism)
-        .value("TETRAHEDRON", BaseSolid::Tetrahedron);
+    BindEnum<BaseSolid>(m, "BaseSolid", "A solid boulder shapes start from.");
     m.def("base_solid_mesh", &BaseSolidMesh, "solid"_a, "The mesh of a base solid.");
     m.def("icosphere", &Icosphere, "levels"_a,
           "A unit sphere: an icosahedron subdivided `levels` times.");
@@ -193,6 +180,7 @@ void BindScene(nb::module_& m) {
             },
             "mesh"_a, "scale"_a = Vec3d{1.0, 1.0, 1.0}, "pose"_a = RigidTransform{})
         .def_rw("mesh", &SceneNode::mesh)
+        .def_rw("scale", &SceneNode::scale, "Scale along the mesh's x, y and z.")
         .def_rw("pose", &SceneNode::pose);
     m.def("write_scene", &WriteScene, "path"_a, "meshes"_a, "nodes"_a,
           "Writes `meshes` (SceneMesh) drawn once per node: a glTF scene storing each mesh once, "

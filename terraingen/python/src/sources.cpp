@@ -26,7 +26,7 @@ class PySource : public Source {
     NB_TRAMPOLINE(Source);
 
     RasterGrid Grid() const override {
-        NB_OVERRIDE_PURE_NAME("grid", Grid);
+        return CallRequiredAs<RasterGrid>(nb_trampoline, "grid");
     }
 
     Vec2d ReferencePoint() const override {
@@ -47,7 +47,7 @@ class PySource : public Source {
     }
 
     float HeightAt(double x, double y) const override {
-        NB_OVERRIDE_PURE_NAME("height_at", HeightAt, x, y);
+        return CallRequiredAs<float>(nb_trampoline, "height_at", x, y);
     }
 };
 
@@ -71,17 +71,11 @@ void BindSourceTypes(nb::module_& m) {
     nb::class_<FlatSource, Source>(m, "FlatSource",
                                    "A level datum at `elevation` over a `width` x `height` grid of "
                                    "`pixel_size` metres centred on `centre`.")
-        .def(
-            "__init__",
-            [](FlatSource* self, std::size_t width, std::size_t height, double pixelSize,
-               float elevation, const Vec2d& centre, const Surface& surface) {
-                new (self)
-                    FlatSource(width, height, pixelSize / surface.UnitLength(), elevation, centre);
-            },
-            "width"_a, "height"_a, "pixel_size"_a, "elevation"_a = 0.0f, "centre"_a = Vec2d{},
-            "surface"_a = Surface{},
-            "On a sphere `centre` is (longitude, latitude) in degrees and `pixel_size` stays in "
-            "metres, converted to degrees along a meridian.");
+        .def(nb::init<std::size_t, std::size_t, double, float, Vec2d, const Surface&>(), "width"_a,
+             "height"_a, "pixel_size"_a, "elevation"_a = 0.0f, "centre"_a = Vec2d{},
+             "surface"_a = Surface{},
+             "On a body `centre` is (longitude, latitude) in degrees and `pixel_size` stays in "
+             "metres, converted to degrees along a meridian.");
     nb::class_<GeoTiffSource, Source>(
         m, "GeoTiffSource",
         "Heights from band `band` of a GeoTIFF, optionally low-passed by a Gaussian of `low_pass` "
@@ -115,11 +109,11 @@ class PyField : public SurfaceField {
     NB_TRAMPOLINE(SurfaceField);
 
     double ValueAt(double x, double y) const override {
-        NB_OVERRIDE_PURE_NAME("value_at", ValueAt, x, y);
+        return CallRequiredAs<double>(nb_trampoline, "value_at", x, y);
     }
 
     double Max() const override {
-        NB_OVERRIDE_PURE_NAME("max", Max);
+        return CallRequiredAs<double>(nb_trampoline, "max");
     }
 };
 
@@ -145,8 +139,7 @@ void BindFields(nb::module_& m) {
         .def_rw("scale", &RasterFieldOptions::scale)
         .def_rw("fallback", &RasterFieldOptions::fallback)
         .def_rw("periodic_longitude", &RasterFieldOptions::periodicLongitude);
-    m.def("validate_raster_field_options", &ValidateRasterFieldOptions, "options"_a,
-          "Raise ValueError if the options are unusable.");
+    m.def("validate_raster_field_options", &ValidateRasterFieldOptions, "options"_a, kValidateDoc);
     nb::class_<RasterField, SurfaceField>(
         m, "RasterField", "A field interpolated from a raster in the surface's coordinates.")
         .def(nb::init<Raster<float>, RasterFieldOptions>(), "raster"_a,
@@ -172,8 +165,7 @@ void BindSyntheticTerrain(nb::module_& m) {
             "layers"_a = nb::none())
         .def_rw("layers", &SyntheticTerrainParams::layers)
         .def(nb::self == nb::self);
-    m.def("validate_synthetic_terrain", &ValidateSyntheticTerrain, "params"_a,
-          "Raise ValueError if the terrain parameters are unusable.");
+    m.def("validate_synthetic_terrain", &ValidateSyntheticTerrain, "params"_a, kValidateDoc);
     m.def("fill_synthetic_terrain", &FillSyntheticTerrain, "raster"_a, "params"_a,
           nb::call_guard<nb::gil_scoped_release>(),
           "Set every cell of `raster` to the synthetic terrain height at its centre.");

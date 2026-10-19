@@ -1,6 +1,7 @@
 #include "bindings.h"
 #include "common.h"
 #include "objects.h"
+#include "options.h"
 #include "trampolines.h"
 
 #include "terraingen/albedo/albedo.h"
@@ -14,9 +15,7 @@
 #include "terraingen/albedo/synthetic.h"
 #include "terraingen/pipeline/terrain.h"
 
-#include <optional>
 #include <stdexcept>
-#include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -54,7 +53,7 @@ class PyAlbedoSource : public AlbedoSource {
     NB_TRAMPOLINE(AlbedoSource);
 
     std::size_t Bands() const override {
-        NB_OVERRIDE_PURE_NAME("bands", Bands);
+        return CallRequiredAs<std::size_t>(nb_trampoline, "bands");
     }
 
     AlbedoSample ValueAt(double x, double y, const AlbedoContext& context) const override {
@@ -148,17 +147,11 @@ void BindSynthetic(nb::module_& m) {
 }
 
 void BindRasterAlbedo(nb::module_& m) {
-    auto detail = nb::class_<AlbedoDetail>(
+    BindOptions<AlbedoDetail>(
         m, "AlbedoDetail",
         "Sub-cell detail added to an albedo map: `octaves` of noise carrying the map's measured "
-        "roughness (or `hurst`) one octave down at a time, times `scale`.");
-    BindKwargsInit<AlbedoDetail>(detail);
-    detail.def_rw("enabled", &AlbedoDetail::enabled)
-        .def_rw("seed", &AlbedoDetail::seed)
-        .def_rw("octaves", &AlbedoDetail::octaves)
-        .def_rw("scale", &AlbedoDetail::scale)
-        .def_rw("hurst", &AlbedoDetail::hurst)
-        .def_rw("fade", &AlbedoDetail::fade);
+        "roughness (or `hurst`) one octave down at a time, times `scale`.",
+        &ValidateAlbedoDetail);
     m.def("validate_albedo_detail", &ValidateAlbedoDetail, "detail"_a, kValidateDoc);
     auto options = nb::class_<RasterAlbedoOptions>(
         m, "RasterAlbedoOptions", "How an albedo map is interpolated and given detail.");
@@ -176,151 +169,77 @@ void BindRasterAlbedo(nb::module_& m) {
                      "The roughness of the log brightness at one cell, as measured.");
 }
 
-void BindRetention(nb::module_& m) {
-    auto retention = nb::class_<RayRetention>(
+void BindRays(nb::module_& m) {
+    BindOptions<RayRetention>(
         m, "RayRetention",
         "How long rays stay visible (Myr) by crater diameter (m): `small_myr` up to "
         "`small_diameter`, `mid_myr` from `mid_diameter`, `large_myr` above `large_diameter`, "
-        "all times `scale`.");
-    BindKwargsInit<RayRetention>(retention);
-    retention.def_rw("small_diameter", &RayRetention::smallDiameter)
-        .def_rw("small_myr", &RayRetention::smallMyr)
-        .def_rw("mid_diameter", &RayRetention::midDiameter)
-        .def_rw("mid_myr", &RayRetention::midMyr)
-        .def_rw("large_diameter", &RayRetention::largeDiameter)
-        .def_rw("large_myr", &RayRetention::largeMyr)
-        .def_rw("scale", &RayRetention::scale)
+        "all times `scale`.",
+        &ValidateRayRetention)
         .def("myr", &RayRetention::Myr, "diameter"_a);
     m.def("validate_ray_retention", &ValidateRayRetention, "retention"_a, kValidateDoc);
-}
-
-void BindRays(nb::module_& m) {
-    auto oblique = nb::class_<ObliqueImpacts>(
+    BindOptions<ObliqueImpacts>(
         m, "ObliqueImpacts",
         "Ray patterns of oblique impacts: below `asymmetric_degrees` the ejecta is asymmetric, "
         "below `forbidden_degrees` an uprange zone has no rays, below `butterfly_degrees` rays "
-        "form a butterfly; impacts come from `heading` (degrees from north) or any direction.");
-    BindKwargsInit<ObliqueImpacts>(oblique);
-    oblique.def_rw("enabled", &ObliqueImpacts::enabled)
-        .def_rw("heading", &ObliqueImpacts::heading)
-        .def_rw("asymmetric_degrees", &ObliqueImpacts::asymmetricDegrees)
-        .def_rw("forbidden_degrees", &ObliqueImpacts::forbiddenDegrees)
-        .def_rw("butterfly_degrees", &ObliqueImpacts::butterflyDegrees)
-        .def_rw("downrange_speed_ratio", &ObliqueImpacts::downrangeSpeedRatio)
-        .def_rw("zone_half_width_degrees", &ObliqueImpacts::zoneHalfWidthDegrees);
+        "form a butterfly; impacts come from `heading` (radians counter-clockwise from east) or "
+        "any direction.",
+        &ValidateObliqueImpacts);
     m.def("validate_oblique_impacts", &ValidateObliqueImpacts, "oblique"_a, kValidateDoc);
-    auto rays = nb::class_<CraterRays>(
+    BindOptions<CraterRays>(
         m, "CraterRays",
         "Bright rays: how many (`count`), how long (Elliott et al. 2018: `length_coefficient` * "
         "(D/2 in km)^`length_exponent` km, spread by `length_spread`), how wide, how bright "
-        "(`excess` maturity) and how patchy.");
-    BindKwargsInit<CraterRays>(rays);
-    rays.def_rw("enabled", &CraterRays::enabled)
-        .def_rw("count", &CraterRays::count)
-        .def_rw("length_coefficient", &CraterRays::lengthCoefficient)
-        .def_rw("length_exponent", &CraterRays::lengthExponent)
-        .def_rw("length_spread", &CraterRays::lengthSpread)
-        .def_rw("width_degrees", &CraterRays::widthDegrees)
-        .def_rw("excess", &CraterRays::excess)
-        .def_rw("patchiness", &CraterRays::patchiness)
-        .def_rw("patch_radii", &CraterRays::patchRadii)
-        .def_rw("oblique", &CraterRays::oblique)
-        .def_rw("layout", &CraterRays::layout)
+        "(`excess` maturity) and how patchy.",
+        &ValidateCraterRays)
         .def("median_length", &CraterRays::MedianLength, "diameter"_a);
     m.def("validate_crater_rays", &ValidateCraterRays, "rays"_a, kValidateDoc);
 }
 
-void BindCraterAlbedoOptions(nb::module_& m) {
-    auto texture = nb::class_<CraterAlbedoTexture>(
-        m, "CraterAlbedoTexture",
-        "Texture of fresh craters' bright material: `streaks` breaking it into filaments "
-        "`streak_width_degrees` wide and `streak_length_radii` long, `lobes` (`lobe_count` of "
-        "them) wandering the ejecta edge, and `floor_share` dimming floors under walls.");
-    BindKwargsInit<CraterAlbedoTexture>(texture);
-    texture.def_rw("streaks", &CraterAlbedoTexture::streaks)
-        .def_rw("streak_width_degrees", &CraterAlbedoTexture::streakWidthDegrees)
-        .def_rw("streak_length_radii", &CraterAlbedoTexture::streakLengthRadii)
-        .def_rw("continuous_radii", &CraterAlbedoTexture::continuousRadii)
-        .def_rw("lobes", &CraterAlbedoTexture::lobes)
-        .def_rw("lobe_count", &CraterAlbedoTexture::lobeCount)
-        .def_rw("floor_share", &CraterAlbedoTexture::floorShare)
-        .def_rw("seed", &CraterAlbedoTexture::seed);
-    m.def("validate_crater_albedo_texture", &ValidateCraterAlbedoTexture, "texture"_a,
-          kValidateDoc);
-    auto zone = nb::class_<ReflectanceZone>(
+void BindReflectanceZones(nb::module_& m) {
+    BindOptions<ReflectanceZone>(
         m, "ReflectanceZone",
         "A reflectance zone around new small craters: `share` of craters have it, it changes "
         "reflectance by `change` and reaches `coefficient` * D^`exponent` m times `scale`, with "
-        "fingers pulling in by `raggedness` and an edge fading over `feather`.");
-    BindKwargsInit<ReflectanceZone>(zone);
-    zone.def_rw("share", &ReflectanceZone::share)
-        .def_rw("change", &ReflectanceZone::change)
-        .def_rw("coefficient", &ReflectanceZone::coefficient)
-        .def_rw("exponent", &ReflectanceZone::exponent)
-        .def_rw("scale", &ReflectanceZone::scale)
-        .def_rw("raggedness", &ReflectanceZone::raggedness)
-        .def_rw("finger_width_degrees", &ReflectanceZone::fingerWidthDegrees)
-        .def_rw("feather", &ReflectanceZone::feather)
-        .def_rw("retention_myr", &ReflectanceZone::retentionMyr);
+        "fingers pulling in by `raggedness` and an edge fading over `feather`.",
+        &ValidateReflectanceZone);
     m.def("validate_reflectance_zone", &ValidateReflectanceZone, "zone"_a, kValidateDoc);
-    auto zones = nb::class_<CraterReflectanceZones>(
-        m, "CraterReflectanceZones",
-        "The proximal and distal, high and low reflectance zones around new craters up to "
-        "`max_diameter` (Robinson et al. 2015, Speyerer et al. 2016); the proximal high zone only "
-        "where `excavation_ratio` * D exceeds `mature_depth`.");
-    BindKwargsInit<CraterReflectanceZones>(zones);
-    zones.def_rw("enabled", &CraterReflectanceZones::enabled)
-        .def_rw("max_diameter", &CraterReflectanceZones::maxDiameter)
-        .def_rw("mature_depth", &CraterReflectanceZones::matureDepth)
-        .def_rw("excavation_ratio", &CraterReflectanceZones::excavationRatio)
-        .def_rw("proximal_high", &CraterReflectanceZones::proximalHigh)
-        .def_rw("proximal_low", &CraterReflectanceZones::proximalLow)
-        .def_rw("distal_high", &CraterReflectanceZones::distalHigh)
-        .def_rw("distal_low", &CraterReflectanceZones::distalLow)
-        .def_rw("seed", &CraterReflectanceZones::seed)
-        .def("max_reach", &CraterReflectanceZones::MaxReach, "diameter"_a);
-    auto shadows = nb::class_<ZoneShadows>(
+    BindOptions<ZoneShadows>(
         m, "ZoneShadows",
         "Shadows of rises in the distal zones: a jet from the rim that drops at most "
         "`jet_angle_degrees`, full shadow `depth` m below it, sampled on `azimuths` rays of "
         "`radial_samples`.");
-    BindKwargsInit<ZoneShadows>(shadows);
-    shadows.def_rw("enabled", &ZoneShadows::enabled)
-        .def_rw("jet_angle_degrees", &ZoneShadows::jetAngleDegrees)
-        .def_rw("depth", &ZoneShadows::depth)
-        .def_rw("azimuths", &ZoneShadows::azimuths)
-        .def_rw("radial_samples", &ZoneShadows::radialSamples);
-    zones.def_rw("shadows", &CraterReflectanceZones::shadows);
+    BindOptions<CraterReflectanceZones>(
+        m, "CraterReflectanceZones",
+        "The proximal and distal, high and low reflectance zones around new craters up to "
+        "`max_diameter` (Robinson et al. 2015, Speyerer et al. 2016); the proximal high zone only "
+        "where `excavation_ratio` * D exceeds `mature_depth`.",
+        &ValidateCraterReflectanceZones)
+        .def("max_reach", &CraterReflectanceZones::MaxReach, "diameter"_a);
     m.def("validate_crater_reflectance_zones", &ValidateCraterReflectanceZones, "zones"_a,
           kValidateDoc);
-    auto options = nb::class_<CraterAlbedoOptions>(
+}
+
+void BindCraterAlbedoOptions(nb::module_& m) {
+    BindOptions<CraterAlbedoTexture>(
+        m, "CraterAlbedoTexture",
+        "Texture of fresh craters' bright material: `streaks` breaking it into filaments "
+        "`streak_width_degrees` wide and `streak_length_radii` long, `lobes` (`lobe_count` of "
+        "them) wandering the ejecta edge, and `floor_share` dimming floors under walls.",
+        &ValidateCraterAlbedoTexture);
+    m.def("validate_crater_albedo_texture", &ValidateCraterAlbedoTexture, "texture"_a,
+          kValidateDoc);
+    BindReflectanceZones(m);
+    BindOptions<CraterAlbedoOptions>(
         m, "CraterAlbedoOptions",
-        "Which craters get bright material (diameters, ages, `share`), how much brighter their "
-        "interiors and ejecta are in optical maturity, their rays, and how fast it all fades.");
-    BindKwargsInit<CraterAlbedoOptions>(options);
-    options.def_rw("seed", &CraterAlbedoOptions::seed)
-        .def_rw("selection", &CraterAlbedoOptions::selection);
-    BindSelection(options, &CraterAlbedoOptions::selection, "min_diameter", "max_diameter");
-    options.def_rw("share", &CraterAlbedoOptions::share)
-        .def_rw("background_maturity", &CraterAlbedoOptions::backgroundMaturity)
-        .def_rw("max_maturity", &CraterAlbedoOptions::maxMaturity)
-        .def_rw("interior_excess", &CraterAlbedoOptions::interiorExcess)
-        .def_rw("ejecta_excess", &CraterAlbedoOptions::ejectaExcess)
-        .def_rw("ejecta_exponent", &CraterAlbedoOptions::ejectaExponent)
-        .def_rw("ejecta_reach_radii", &CraterAlbedoOptions::ejectaReachRadii)
-        .def_rw("rays", &CraterAlbedoOptions::rays)
-        .def_rw("texture", &CraterAlbedoOptions::texture)
-        .def_rw("zones", &CraterAlbedoOptions::zones)
-        .def_rw("retention", &CraterAlbedoOptions::retention)
-        .def_rw("fade_exponent", &CraterAlbedoOptions::fadeExponent)
-        .def_rw("origin_reflectance", &CraterAlbedoOptions::originReflectance)
-        .def_rw("fade", &CraterAlbedoOptions::fade);
+        "Which craters get bright material (`selection`, `share`), how much brighter their "
+        "interiors and ejecta are in optical maturity, their rays, and how fast it all fades.",
+        &ValidateCraterAlbedoOptions);
     m.def("validate_crater_albedo_options", &ValidateCraterAlbedoOptions, "options"_a,
           kValidateDoc);
 }
 
 void BindCraterAlbedo(nb::module_& m) {
-    BindRetention(m);
     BindRays(m);
     BindCraterAlbedoOptions(m);
     nb::class_<CraterAlbedo, AlbedoLayer>(m, "CraterAlbedo",
@@ -334,12 +253,9 @@ void BindCraterAlbedo(nb::module_& m) {
             "reflectance_change",
             [](const CraterAlbedo& layer, const Crater& crater, double x, double y, double spacing,
                const PyTerrain* terrain) {
-                if (terrain == nullptr) {
-                    return layer.ReflectanceChange(crater, x, y, spacing);
-                }
-                const Terrain built = terrain->Get();
-                const TerrainGround ground(built, built.layers.size());
-                return layer.ReflectanceChange(crater, x, y, spacing, &ground);
+                return WithFullGround(terrain, [&](const Ground* ground) {
+                    return layer.ReflectanceChange(crater, x, y, spacing, ground);
+                });
             },
             "crater"_a, "x"_a, "y"_a, "spacing"_a, "terrain"_a = nb::none(),
             "The relative reflectance change the zones of `crater` give (x, y), shadowed by "
@@ -357,53 +273,18 @@ void BindCraterAlbedo(nb::module_& m) {
 }
 
 void BindSplotches(nb::module_& m) {
-    auto swarms = nb::class_<SplotchSwarms>(
+    BindOptions<SplotchSwarms>(
         m, "SplotchSwarms",
         "Swarms of splotches around new craters (Robinson et al. 2015), scaled by ejecta mass "
-        "(Housen and Holsapple 2011); off unless `enabled`.");
-    BindKwargsInit<SplotchSwarms>(swarms);
-    swarms.def_rw("enabled", &SplotchSwarms::enabled)
-        .def_rw("crater_rate", &SplotchSwarms::craterRate)
-        .def_rw("crater_slope", &SplotchSwarms::craterSlope)
-        .def_rw("min_crater_diameter", &SplotchSwarms::minCraterDiameter)
-        .def_rw("max_crater_diameter", &SplotchSwarms::maxCraterDiameter)
-        .def_rw("reference_diameter", &SplotchSwarms::referenceDiameter)
-        .def_rw("reference_count", &SplotchSwarms::referenceCount)
-        .def_rw("mu", &SplotchSwarms::mu)
-        .def_rw("min_range", &SplotchSwarms::minRange)
-        .def_rw("max_range", &SplotchSwarms::maxRange)
-        .def_rw("splotch_diameter", &SplotchSwarms::splotchDiameter)
-        .def_rw("dark_share", &SplotchSwarms::darkShare)
-        .def_rw("bright_share", &SplotchSwarms::brightShare)
-        .def_rw("dark_change", &SplotchSwarms::darkChange)
-        .def_rw("bright_change", &SplotchSwarms::brightChange)
-        .def_rw("wedge_share", &SplotchSwarms::wedgeShare)
-        .def_rw("wedge_elongation", &SplotchSwarms::wedgeElongation)
-        .def_rw("craters", &SplotchSwarms::craters)
+        "(Housen and Holsapple 2011); off unless `enabled`.")
         .def("count", &SplotchSwarms::Count, "diameter"_a,
              "Splotches a crater `diameter` m across throws, on average.");
-    auto options = nb::class_<SplotchAlbedoOptions>(
+    BindOptions<SplotchAlbedoOptions>(
         m, "SplotchAlbedoOptions",
         "Splotches from secondary impacts (Speyerer et al. 2016): formed at `rate_coefficient` * "
         "d^-`rate_exponent` per km^2 per year (d in km), lasting `lifetime_myr`, `min_diameter` to "
-        "`max_diameter` m across; `dark_share` dark, `bright_share` bright, the rest mixed.");
-    BindKwargsInit<SplotchAlbedoOptions>(options);
-    options.def_rw("seed", &SplotchAlbedoOptions::seed)
-        .def_rw("rate_coefficient", &SplotchAlbedoOptions::rateCoefficient)
-        .def_rw("rate_exponent", &SplotchAlbedoOptions::rateExponent)
-        .def_rw("lifetime_myr", &SplotchAlbedoOptions::lifetimeMyr)
-        .def_rw("min_diameter", &SplotchAlbedoOptions::minDiameter)
-        .def_rw("max_diameter", &SplotchAlbedoOptions::maxDiameter)
-        .def_rw("dark_share", &SplotchAlbedoOptions::darkShare)
-        .def_rw("bright_share", &SplotchAlbedoOptions::brightShare)
-        .def_rw("dark_change", &SplotchAlbedoOptions::darkChange)
-        .def_rw("bright_change", &SplotchAlbedoOptions::brightChange)
-        .def_rw("steep_bright_share", &SplotchAlbedoOptions::steepBrightShare)
-        .def_rw("steep_slope_degrees", &SplotchAlbedoOptions::steepSlopeDegrees)
-        .def_rw("softness", &SplotchAlbedoOptions::softness)
-        .def_rw("raggedness", &SplotchAlbedoOptions::raggedness)
-        .def_rw("fade", &SplotchAlbedoOptions::fade)
-        .def_rw("swarms", &SplotchAlbedoOptions::swarms)
+        "`max_diameter` m across; `dark_share` dark, `bright_share` bright, the rest mixed.",
+        &ValidateSplotchAlbedoOptions)
         .def("coefficient", &SplotchAlbedoOptions::Coefficient,
              "Splotches of at least 1 m per m^2 at any time.");
     m.def("validate_splotch_albedo_options", &ValidateSplotchAlbedoOptions, "options"_a,
@@ -428,24 +309,12 @@ void BindSplotches(nb::module_& m) {
 }
 
 void BindBlastZones(nb::module_& m) {
-    auto zone = nb::class_<BlastZone>(
+    BindOptions<BlastZone>(
         m, "BlastZone",
         "The zone around a lander its engine scoured (Clegg et al. 2014): `area` m^2 brighter by "
         "`change` on average, elongated along `heading_degrees`, in a halo reaching `halo_reach` "
-        "times as far, around a dark core of `core_radius` m.");
-    BindKwargsInit<BlastZone>(zone);
-    zone.def_rw("x", &BlastZone::x)
-        .def_rw("y", &BlastZone::y)
-        .def_rw("area", &BlastZone::area)
-        .def_rw("elongation", &BlastZone::elongation)
-        .def_rw("heading_degrees", &BlastZone::headingDegrees)
-        .def_rw("change", &BlastZone::change)
-        .def_rw("halo_change", &BlastZone::haloChange)
-        .def_rw("halo_reach", &BlastZone::haloReach)
-        .def_rw("core_radius", &BlastZone::coreRadius)
-        .def_rw("core_change", &BlastZone::coreChange)
-        .def_rw("raggedness", &BlastZone::raggedness)
-        .def_rw("seed", &BlastZone::seed);
+        "times as far, around a dark core of `core_radius` m.",
+        &ValidateBlastZone);
     m.def("validate_blast_zone", &ValidateBlastZone, "zone"_a, kValidateDoc);
     nb::class_<BlastZoneAlbedo, AlbedoLayer>(m, "BlastZoneAlbedo",
                                              "Blast zones around landers, brightening the albedo.")
@@ -490,13 +359,9 @@ void BindEvaluation(nb::module_& m) {
     m.def(
         "evaluate_albedo_at",
         [](const PyAlbedo& albedo, double x, double y, double spacing, const PyTerrain* terrain) {
-            const std::optional<Terrain> built =
-                terrain ? std::optional<Terrain>(terrain->Get()) : std::nullopt;
-            const std::optional<TerrainGround> ground =
-                built ? std::optional<TerrainGround>(std::in_place, *built, built->layers.size())
-                      : std::nullopt;
-            const AlbedoSample sample = EvaluateAlbedoAt(
-                albedo.Get(), x, y, AlbedoContext{spacing, 1, ground ? &*ground : nullptr});
+            const AlbedoSample sample = WithFullGround(terrain, [&](const Ground* ground) {
+                return EvaluateAlbedoAt(albedo.Get(), x, y, AlbedoContext{spacing, 1, ground});
+            });
             return Bands(sample, albedo.source ? albedo.source->Bands() : 1);
         },
         "albedo"_a, "x"_a, "y"_a, "spacing"_a, "terrain"_a = nb::none(),
@@ -506,13 +371,9 @@ void BindEvaluation(nb::module_& m) {
         "evaluate_albedo",
         [](const PyAlbedo& albedo, const RasterGrid& grid, double spacing, unsigned threads,
            const PyTerrain* terrain) {
-            const std::optional<Terrain> built =
-                terrain ? std::optional<Terrain>(terrain->Get()) : std::nullopt;
-            const std::optional<TerrainGround> ground =
-                built ? std::optional<TerrainGround>(std::in_place, *built, built->layers.size())
-                      : std::nullopt;
-            return EvaluateAlbedo(albedo.Get(), grid,
-                                  AlbedoContext{spacing, threads, ground ? &*ground : nullptr});
+            return WithFullGround(terrain, [&](const Ground* ground) {
+                return EvaluateAlbedo(albedo.Get(), grid, AlbedoContext{spacing, threads, ground});
+            });
         },
         "albedo"_a, "grid"_a, "spacing"_a = 0.0, "threads"_a = 0, "terrain"_a = nb::none(),
         nb::call_guard<nb::gil_scoped_release>(),
@@ -521,15 +382,25 @@ void BindEvaluation(nb::module_& m) {
         "shaped by the ground read `terrain`'s heights when given.");
 }
 
+/// @brief The rock of `terrain`'s boulder layers at indices `layers`, each read on the ground
+/// beneath it.
+std::vector<RockSource> RockSources(const PyTerrain& terrain,
+                                    const std::vector<std::size_t>& layers) {
+    const Terrain built = terrain.Get();
+    std::vector<RockSource> sources;
+    for (const std::size_t n : layers) {
+        sources.push_back(
+            {LayerAt<BoulderLayer>(built, n, "a boulder layer"), SharedGround(built, n)});
+    }
+    return sources;
+}
+
 void BindRocks(nb::module_& m) {
-    auto options = nb::class_<RockAlbedoOptions>(
+    BindOptions<RockAlbedoOptions>(
         m, "RockAlbedoOptions",
         "How rock brightens the albedo: `reflectance_ratio` times the regolith's (2.5 after "
-        "Marshal et al. 2023), and with `unresolved` a speckle of rock too small to resolve.");
-    BindKwargsInit<RockAlbedoOptions>(options);
-    options.def_rw("seed", &RockAlbedoOptions::seed)
-        .def_rw("reflectance_ratio", &RockAlbedoOptions::reflectanceRatio)
-        .def_rw("unresolved", &RockAlbedoOptions::unresolved);
+        "Marshal et al. 2023), and with `unresolved` a speckle of rock too small to resolve.",
+        &ValidateRockAlbedoOptions);
     m.def("validate_rock_albedo_options", &ValidateRockAlbedoOptions, "options"_a, kValidateDoc);
     nb::class_<RockAlbedo, AlbedoLayer>(m, "RockAlbedo",
                                         "Rock of boulder layers brightening the albedo.")
@@ -537,21 +408,7 @@ void BindRocks(nb::module_& m) {
             "__init__",
             [](RockAlbedo* self, RockAlbedoOptions options, const PyTerrain& terrain,
                const std::vector<std::size_t>& layers) {
-                const Terrain built = terrain.Get();
-                std::vector<RockSource> sources;
-                for (const std::size_t n : layers) {
-                    if (n >= built.layers.size()) {
-                        throw std::invalid_argument("The terrain has no layer " +
-                                                    std::to_string(n));
-                    }
-                    auto layer = std::dynamic_pointer_cast<const BoulderLayer>(built.layers[n]);
-                    if (!layer) {
-                        throw std::invalid_argument("Layer " + std::to_string(n) +
-                                                    " is not a boulder layer");
-                    }
-                    sources.push_back({std::move(layer), SharedGround(built, n)});
-                }
-                new (self) RockAlbedo(options, std::move(sources));
+                new (self) RockAlbedo(options, RockSources(terrain, layers));
             },
             "options"_a, "terrain"_a, "layers"_a,
             "The rock of `terrain`'s boulder layers at indices `layers`, each read on the ground "
@@ -574,17 +431,11 @@ void BindRocks(nb::module_& m) {
 }
 
 void BindSlopes(nb::module_& m) {
-    auto options = nb::class_<SlopeAlbedoOptions>(
+    BindOptions<SlopeAlbedoOptions>(
         m, "SlopeAlbedoOptions",
         "How steep ground stays immature: OMAT rises by `maturity_per_degree` beyond "
-        "`onset_degrees` (Ikeda et al. 2022), slopes read over `baseline` metres.");
-    BindKwargsInit<SlopeAlbedoOptions>(options);
-    options.def_rw("onset_degrees", &SlopeAlbedoOptions::onsetDegrees)
-        .def_rw("maturity_per_degree", &SlopeAlbedoOptions::maturityPerDegree)
-        .def_rw("background_maturity", &SlopeAlbedoOptions::backgroundMaturity)
-        .def_rw("max_maturity", &SlopeAlbedoOptions::maxMaturity)
-        .def_rw("baseline", &SlopeAlbedoOptions::baseline)
-        .def_rw("origin_reflectance", &SlopeAlbedoOptions::originReflectance);
+        "`onset_degrees` (Ikeda et al. 2022), slopes read over `baseline` metres.",
+        &ValidateSlopeAlbedoOptions);
     m.def("validate_slope_albedo_options", &ValidateSlopeAlbedoOptions, "options"_a, kValidateDoc);
     nb::class_<SlopeAlbedo, AlbedoLayer>(m, "SlopeAlbedo",
                                          "Steep ground brightened as fresher material.")
@@ -593,14 +444,14 @@ void BindSlopes(nb::module_& m) {
         .def(
             "slope_at",
             [](const SlopeAlbedo& slopes, double x, double y, const PyTerrain& terrain) {
-                const Terrain built = terrain.Get();
-                const TerrainGround ground(built, built.layers.size());
-                return slopes.SlopeAt(x, y, ground);
+                return WithFullGround(
+                    &terrain, [&](const Ground* ground) { return slopes.SlopeAt(x, y, *ground); });
             },
             "x"_a, "y"_a, "terrain"_a, "The slope in degrees at (x, y) on `terrain`.")
         .def("maturity_at", &SlopeAlbedo::MaturityAt, "slope_degrees"_a,
              "The OMAT of ground of `slope_degrees`.");
 }
+
 }  // namespace
 
 void BindAlbedo(nb::module_& m) {

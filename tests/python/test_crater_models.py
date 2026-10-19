@@ -32,11 +32,11 @@ def test_steady_state_ages_report_the_surface_age(steady):
 
 
 def test_steady_state_lifetime_grows_with_diameter_up_to_the_surface_age(steady):
-    assert steady.lifetime_gyr(10.0) < steady.lifetime_gyr(1000.0) <= 3.5
+    assert steady.lifetime_at(10.0) < steady.lifetime_at(1000.0) <= 3.5
 
 
 def test_steady_state_equilibrium_lifetime_matches_the_lifetime(steady):
-    assert steady.equilibrium_lifetime_gyr(10.0) == pytest.approx(steady.lifetime_gyr(10.0))
+    assert steady.equilibrium_lifetime_gyr(10.0) == pytest.approx(steady.lifetime_at(10.0))
 
 
 def test_uniform_ages_remaining_lifetime():
@@ -130,7 +130,7 @@ def test_crater_models_keep_their_profile(lunar_models):
 
 
 def test_python_age_model_lifetime(linear_ages):
-    assert linear_ages.lifetime_gyr(10.0) == pytest.approx(0.1)
+    assert linear_ages.lifetime_at(10.0) == pytest.approx(0.1)
 
 
 def test_python_age_model_samples_ages_below_the_lifetime(linear_ages):
@@ -209,7 +209,7 @@ def test_steady_state_ages_take_any_production_and_chronology():
         3.0,
         terraingen.ivanov_mars_chronology,
     )
-    assert mars.surface_age_gyr == 3.0 and 0 < mars.lifetime_gyr(100.0) <= 3.0
+    assert mars.surface_age_gyr == 3.0 and 0 < mars.lifetime_at(100.0) <= 3.0
 
 
 @pytest.mark.parametrize(

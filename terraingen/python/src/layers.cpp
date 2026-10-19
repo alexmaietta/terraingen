@@ -1,6 +1,7 @@
 #include "bindings.h"
 #include "common.h"
 #include "objects.h"
+#include "options.h"
 #include "trampolines.h"
 
 #include "terraingen/layers/bedforms.h"
@@ -19,7 +20,6 @@
 #include "terraingen/layers/strata.h"
 #include "terraingen/layers/transforms.h"
 
-#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -43,7 +43,7 @@ class PyLayer : public Layer {
         }
         const bool pointwise = Overrides(nb_trampoline, "apply_at");
         if (!pointwise && !Overrides(nb_trampoline, "apply")) {
-            throw std::logic_error("A Python Layer must define apply_at or apply");
+            throw nb::type_error("A Python Layer must define apply_at or apply");
         }
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             if (samples.IsNoData(i)) {
@@ -95,19 +95,12 @@ void BindLayerBase(nb::module_& m) {
 }
 
 void BindFades(nb::module_& m) {
-    nb::enum_<BlendShape>(m, "BlendShape", "How a weight falls from 1 to 0.")
-        .value("LINEAR", BlendShape::Linear)
-        .value("SMOOTHSTEP", BlendShape::Smoothstep)
-        .value("SMOOTHERSTEP", BlendShape::Smootherstep)
-        .value("GAUSSIAN", BlendShape::Gaussian);
-    auto fade = nb::class_<ResolutionFade>(
+    BindEnum<BlendShape>(m, "BlendShape", "How a weight falls from 1 to 0.");
+    BindOptions<ResolutionFade>(
         m, "ResolutionFade",
         "How features too small to resolve fade out, by how many samples span them: absent up "
-        "to `start_samples`, whole from `end_samples`.");
-    BindKwargsInit<ResolutionFade>(fade);
-    fade.def_rw("start_samples", &ResolutionFade::startSamples)
-        .def_rw("end_samples", &ResolutionFade::endSamples)
-        .def_rw("shape", &ResolutionFade::shape);
+        "to `start_samples`, whole from `end_samples`.",
+        &ValidateResolutionFade);
     m.def("validate_resolution_fade", &ValidateResolutionFade, "fade"_a, kValidateDoc);
     m.def("falloff", &Falloff, "x"_a, "start"_a, "end"_a, "shape"_a,
           "The weight at `x` of a falloff from 1 at `start` to 0 at `end` along `shape`.");
@@ -181,18 +174,11 @@ void BindRegions(nb::module_& m) {
 }
 
 void BindRoughness(nb::module_& m) {
-    auto options = nb::class_<RoughnessOptions>(
+    BindOptions<RoughnessOptions>(
         m, "RoughnessOptions",
         "Fine roughness of `rms_slope` (m/m) over `baseline` metres with Hurst exponent `hurst`, "
-        "between `min_wavelength` and `max_wavelength` metres.");
-    BindKwargsInit<RoughnessOptions>(options);
-    options.def_rw("rms_slope", &RoughnessOptions::rmsSlope)
-        .def_rw("baseline", &RoughnessOptions::baseline)
-        .def_rw("hurst", &RoughnessOptions::hurst)
-        .def_rw("max_wavelength", &RoughnessOptions::maxWavelength)
-        .def_rw("min_wavelength", &RoughnessOptions::minWavelength)
-        .def_rw("seed", &RoughnessOptions::seed)
-        .def_rw("fade", &RoughnessOptions::fade);
+        "between `min_wavelength` and `max_wavelength` metres.",
+        &ValidateRoughnessOptions);
     m.def("validate_roughness_options", &ValidateRoughnessOptions, "options"_a, kValidateDoc);
     nb::class_<RoughnessLayer, Layer>(m, "RoughnessLayer", "Fine roughness of a given RMS slope.")
         .def(nb::init<RoughnessOptions, Surface>(), "options"_a = RoughnessOptions{},
@@ -206,81 +192,55 @@ void BindRoughness(nb::module_& m) {
           "The structure function of 3D Perlin noise at lag `r` lattice units.");
 }
 
-void BindExposureParams(nb::module_& m) {
-    auto params = nb::class_<ExposureParams>(
+void BindExposure(nb::module_& m) {
+    BindOptions<ExposureParams>(
         m, "ExposureParams",
         "How exposed the ground is (crests and steep slopes shed regolith): rises and slopes "
-        "for soil and boulder, read over `reach` metres.");
-    BindKwargsInit<ExposureParams>(params);
-    params.def_rw("reach", &ExposureParams::reach)
-        .def_rw("rise_soil", &ExposureParams::riseSoil)
-        .def_rw("rise_boulder", &ExposureParams::riseBoulder)
-        .def_rw("slope_soil", &ExposureParams::slopeSoil)
-        .def_rw("slope_boulder", &ExposureParams::slopeBoulder)
-        .def_rw("floor_cover", &ExposureParams::floorCover)
-        .def_rw("floor_patch", &ExposureParams::floorPatch)
-        .def_rw("seed", &ExposureParams::seed);
+        "for soil and boulder, read over `reach` metres.",
+        &ValidateExposureParams);
     m.def("validate_exposure_params", &ValidateExposureParams, "params"_a, kValidateDoc);
+    auto exposureField =
+        nb::class_<ExposureField>(m, "ExposureField",
+                                  "How exposed the ground is, from 0 (buried under regolith) to 1 "
+                                  "(bare boulder): crests and "
+                                  "steep slopes shed regolith, read over `params.reach` metres.")
+            .def(nb::init<ExposureParams, Surface>(), "params"_a = ExposureParams{},
+                 "surface"_a = Surface{})
+            .def(
+                "fill",
+                [](const ExposureField& field, const PyTerrain& terrain, std::size_t layers,
+                   const RasterGrid& grid, double spacing, unsigned threads) {
+                    Raster<float> exposure = grid.MakeRaster();
+                    WithGround(&terrain, layers, [&](const Ground* ground) {
+                        field.Fill(exposure, *ground, spacing, threads);
+                    });
+                    return exposure;
+                },
+                "terrain"_a, "layers"_a, "grid"_a, "spacing"_a, "threads"_a = 0,
+                nb::call_guard<nb::gil_scoped_release>(),
+                "The exposure over `grid` of the ground made by `terrain`'s source and its first "
+                "`layers` layers, sampled every `spacing` metres.");
+    BindGroundQuery<ExposureField>(
+        exposureField, "exposure",
+        [](const ExposureField& exposure, double x, double y, double spacing,
+           const Ground* ground) {
+            RequireGround(ground, "Exposure fields");
+            return exposure.Exposure(*ground, x, y, spacing);
+        },
+        "The exposure at (x, y), from 0 to 1.");
 }
 
-void BindExposureField(nb::module_& m) {
-    nb::class_<ExposureField>(
-        m, "ExposureField",
-        "How exposed the ground is, from 0 (buried under regolith) to 1 (bare boulder): crests and "
-        "steep slopes shed regolith, read over `params.reach` metres.")
-        .def(nb::init<ExposureParams, Surface>(), "params"_a = ExposureParams{},
-             "surface"_a = Surface{})
-        .def(
-            "fill",
-            [](const ExposureField& field, const PyTerrain& terrain, std::size_t layers,
-               const RasterGrid& grid, double spacing, unsigned threads) {
-                Raster<float> exposure = grid.MakeRaster();
-                WithGround(&terrain, layers, [&](const Ground* ground) {
-                    field.Fill(exposure, *ground, spacing, threads);
-                });
-                return exposure;
-            },
-            "terrain"_a, "layers"_a, "grid"_a, "spacing"_a, "threads"_a = 0,
-            nb::call_guard<nb::gil_scoped_release>(),
-            "The exposure over `grid` of the ground made by `terrain`'s source and its first "
-            "`layers` layers, sampled every `spacing` metres.")
-        .def(
-            "exposure",
-            [](const ExposureField& field, const PyTerrain& terrain, std::size_t layers, double x,
-               double y, double spacing) {
-                return WithGround(&terrain, layers, [&](const Ground* ground) {
-                    return field.Exposure(*ground, x, y, spacing);
-                });
-            },
-            "terrain"_a, "layers"_a, "x"_a, "y"_a, "spacing"_a);
-}
-
-void BindBedformOptions(nb::module_& m) {
-    auto options = nb::class_<BedformOptions>(
+void BindBedforms(nb::module_& m) {
+    BindOptions<BedformOptions>(
         m, "BedformOptions",
-        "Ripples and dunes: `wavelength` and `height` (m), crests across `wind_azimuth` (degrees "
-        "from north), covering `cover` of the ground in fields `field_size` metres across.");
-    BindKwargsInit<BedformOptions>(options);
-    options.def_rw("wavelength", &BedformOptions::wavelength)
-        .def_rw("height", &BedformOptions::height)
-        .def_rw("wind_azimuth", &BedformOptions::windAzimuth)
-        .def_rw("azimuth_spread", &BedformOptions::azimuthSpread)
-        .def_rw("lee_fraction", &BedformOptions::leeFraction)
-        .def_rw("sinuosity", &BedformOptions::sinuosity)
-        .def_rw("cover", &BedformOptions::cover)
-        .def_rw("field_size", &BedformOptions::fieldSize)
-        .def_rw("seed", &BedformOptions::seed)
-        .def_rw("exposure", &BedformOptions::exposure)
-        .def_rw("exposure_spacing", &BedformOptions::exposureSpacing)
-        .def_rw("fade", &BedformOptions::fade);
+        "Ripples and dunes: `wavelength` and `height` (m), crests across `wind_azimuth` (radians "
+        "counter-clockwise from +x), covering `cover` of the ground in fields `field_size` metres "
+        "across.",
+        &ValidateBedformOptions);
     m.def("validate_bedform_options", &ValidateBedformOptions, "options"_a, kValidateDoc);
     m.def("mars_large_ripples", &MarsLargeRipples, "Martian large ripples.");
     m.def("mars_transverse_aeolian_ridges", &MarsTransverseAeolianRidges,
           "Martian transverse aeolian ridges.");
-}
-
-void BindBedforms(nb::module_& m) {
-    BindBedformOptions(m);
     auto bedforms = nb::class_<BedformLayer, Layer>(m, "BedformLayer", "Aeolian bedforms.");
     bedforms.def(nb::init<BedformOptions, Surface>(), "options"_a, "surface"_a = Surface{})
         .def(
@@ -308,60 +268,35 @@ void BindMaterialClasses(nb::module_& m) {
 }
 
 void BindSandFill(nb::module_& m) {
-    auto options = nb::class_<SandFillOptions>(
+    BindOptions<SandFillOptions>(
         m, "SandFillOptions",
         "Sand pooled in lows: `fill` of the depth below the surroundings `reach` metres around, up "
-        "to `max_thickness` metres.");
-    BindKwargsInit<SandFillOptions>(options);
-    options.def_rw("reach", &SandFillOptions::reach)
-        .def_rw("fill", &SandFillOptions::fill)
-        .def_rw("max_thickness", &SandFillOptions::maxThickness)
-        .def_rw("cover_thickness", &SandFillOptions::coverThickness);
+        "to `max_thickness` metres.",
+        &ValidateSandFillOptions);
     m.def("validate_sand_fill_options", &ValidateSandFillOptions, "options"_a, kValidateDoc);
     auto layer = nb::class_<SandFillLayer, Layer>(m, "SandFillLayer",
                                                   "Sand pooled in the lows of the ground beneath.");
     layer
         .def(nb::init<SandFillOptions, Surface>(), "options"_a = SandFillOptions{},
              "surface"_a = Surface{})
-        .def(
-            "thickness_at",
-            [](const SandFillLayer& fill, double x, double y, double spacing,
-               const PyTerrain& terrain, std::size_t layers) {
-                return WithGround(&terrain, layers, [&](const Ground* ground) {
-                    return fill.ThicknessAt(*ground, x, y, spacing);
-                });
-            },
-            "x"_a, "y"_a, "spacing"_a, "terrain"_a, "layers"_a,
-            "The sand thickness at (x, y) in metres over `terrain`'s source and its first "
-            "`layers` layers.")
         .def_prop_ro("options", &SandFillLayer::Options);
+    BindGroundQuery<SandFillLayer>(
+        layer, "thickness_at",
+        [](const SandFillLayer& fill, double x, double y, double spacing, const Ground* ground) {
+            RequireGround(ground, "Sand fill layers");
+            return fill.ThicknessAt(*ground, x, y, spacing);
+        },
+        "The sand thickness at (x, y) in metres.");
     BindMaterialCover<SandFillLayer>(layer);
 }
 
 void BindPavement(nb::module_& m) {
-    auto options = nb::class_<PavementOptions>(
+    BindOptions<PavementOptions>(
         m, "PavementOptions",
         "Fractured bedrock: Voronoi plates `plate_size` metres across, each tilted and stepped, "
         "parted by cracks (or raised ridges) `crack_width` metres wide and `crack_depth` deep; "
-        "angles in radians.");
-    BindKwargsInit<PavementOptions>(options);
-    options.def_rw("plate_size", &PavementOptions::plateSize)
-        .def_rw("jitter", &PavementOptions::jitter)
-        .def_rw("warp", &PavementOptions::warp)
-        .def_rw("crack_width", &PavementOptions::crackWidth)
-        .def_rw("crack_depth", &PavementOptions::crackDepth)
-        .def_rw("raised", &PavementOptions::raised)
-        .def_rw("edge_rounding", &PavementOptions::edgeRounding)
-        .def_rw("max_tilt", &PavementOptions::maxTilt)
-        .def_rw("max_step", &PavementOptions::maxStep)
-        .def_rw("octaves", &PavementOptions::octaves)
-        .def_rw("lacunarity", &PavementOptions::lacunarity)
-        .def_rw("gain", &PavementOptions::gain)
-        .def_rw("seed", &PavementOptions::seed)
-        .def_rw("exposure", &PavementOptions::exposure)
-        .def_rw("exposure_spacing", &PavementOptions::exposureSpacing)
-        .def_rw("anchor", &PavementOptions::anchor)
-        .def_rw("fade", &PavementOptions::fade);
+        "angles in radians.",
+        &ValidatePavementOptions);
     m.def("validate_pavement_options", &ValidatePavementOptions, "options"_a, kValidateDoc);
     m.def("mars_desiccation_ridges", &MarsDesiccationRidges,
           "The desiccation ridges of Gale crater's Old Soaker slab (Stein et al. 2018).");
@@ -376,22 +311,11 @@ void BindPavement(nb::module_& m) {
 }
 
 void BindStrata(nb::module_& m) {
-    auto options = nb::class_<StrataOptions>(
+    BindOptions<StrataOptions>(
         m, "StrataOptions",
         "Layered rock: beds `bed_thickness` metres thick, dipping `dip` toward `dip_azimuth`, each "
-        "cut into a flat bench and a cliff by `sharpness`; angles in radians.");
-    BindKwargsInit<StrataOptions>(options);
-    options.def_rw("bed_thickness", &StrataOptions::bedThickness)
-        .def_rw("thickness_variation", &StrataOptions::thicknessVariation)
-        .def_rw("dip", &StrataOptions::dip)
-        .def_rw("dip_azimuth", &StrataOptions::dipAzimuth)
-        .def_rw("sharpness", &StrataOptions::sharpness)
-        .def_rw("strength", &StrataOptions::strength)
-        .def_rw("cliff_share", &StrataOptions::cliffShare)
-        .def_rw("seed", &StrataOptions::seed)
-        .def_rw("anchor", &StrataOptions::anchor)
-        .def_rw("hard_share", &StrataOptions::hardShare)
-        .def_rw("soft_sharpness", &StrataOptions::softSharpness);
+        "cut into a flat bench and a cliff by `sharpness`; angles in radians.",
+        &ValidateStrataOptions);
     m.def("validate_strata_options", &ValidateStrataOptions, "options"_a, kValidateDoc);
     auto layer = nb::class_<StrataLayer, Layer>(m, "StrataLayer",
                                                 "Layered rock terraced into benches and cliffs.");
@@ -404,86 +328,33 @@ void BindStrata(nb::module_& m) {
     BindMaterialCover<StrataLayer>(layer);
 }
 
-void BindDuneOptions(nb::module_& m) {
-    nb::enum_<DuneShape>(m, "DuneShape", "The kind of dune a DuneLayer builds.")
-        .value("BARCHAN", DuneShape::Barchan)
-        .value("DOME", DuneShape::Dome)
-        .value("TRANSVERSE", DuneShape::Transverse)
-        .value("BARCHANOID", DuneShape::Barchanoid)
-        .value("LINEAR", DuneShape::Linear);
-    auto ripples = nb::class_<DuneRipples>(
+void BindDuneParts(nb::module_& m) {
+    BindEnum<DuneShape>(m, "DuneShape", "The kind of dune a DuneLayer builds.");
+    BindOptions<DuneRipples>(
         m, "DuneRipples",
         "Ripples on dunes: `wavelength` and `height` (m) on flat sand, turned and tightened by the "
         "dune's slope by `slope_coupling`; a wavelength of 0 gives none.");
-    BindKwargsInit<DuneRipples>(ripples);
-    ripples.def_rw("wavelength", &DuneRipples::wavelength)
-        .def_rw("height", &DuneRipples::height)
-        .def_rw("lee_fraction", &DuneRipples::leeFraction)
-        .def_rw("sinuosity", &DuneRipples::sinuosity)
-        .def_rw("slope_coupling", &DuneRipples::slopeCoupling)
-        .def_rw("interdune_cover", &DuneRipples::interduneCover)
-        .def_rw("defect_density", &DuneRipples::defectDensity)
-        .def_rw("flank_straightening", &DuneRipples::flankStraightening)
-        .def_rw("fade", &DuneRipples::fade);
-    auto flows = nb::class_<DuneGrainflows>(
+    BindOptions<DuneGrainflows>(
         m, "DuneGrainflows",
         "Grainflows on slip faces: scarps and lobes with sizes (m) uniform between their bounds, "
         "`thickness` metres deep and high, in `cover` of the lattice cells; 0 cover gives none.");
-    BindKwargsInit<DuneGrainflows>(flows);
-    flows.def_rw("cover", &DuneGrainflows::cover)
-        .def_rw("min_scarp_width", &DuneGrainflows::minScarpWidth)
-        .def_rw("max_scarp_width", &DuneGrainflows::maxScarpWidth)
-        .def_rw("min_scarp_length", &DuneGrainflows::minScarpLength)
-        .def_rw("max_scarp_length", &DuneGrainflows::maxScarpLength)
-        .def_rw("min_lobe_width", &DuneGrainflows::minLobeWidth)
-        .def_rw("max_lobe_width", &DuneGrainflows::maxLobeWidth)
-        .def_rw("min_lobe_length", &DuneGrainflows::minLobeLength)
-        .def_rw("max_lobe_length", &DuneGrainflows::maxLobeLength)
-        .def_rw("thickness", &DuneGrainflows::thickness)
-        .def_rw("fade", &DuneGrainflows::fade);
     m.def("mars_dune_grainflows", &MarsDuneGrainflows,
           "The grainflows of Namib Dune's lee slope (Ewing et al. 2017).");
-    auto options = nb::class_<DuneOptions>(
+}
+
+void BindDunes(nb::module_& m) {
+    BindDuneParts(m);
+    BindOptions<DuneOptions>(
         m, "DuneOptions",
         "Dunes: barchans and domes of `width` (m) in cells `spacing` metres apart, or crest-line "
         "dunes `wavelength` metres apart and `height` metres high; angles in radians, the wind "
-        "counter-clockwise from +x.");
-    BindKwargsInit<DuneOptions>(options);
-    options.def_rw("shape", &DuneOptions::shape)
-        .def_rw("wind_azimuth", &DuneOptions::windAzimuth)
-        .def_rw("azimuth_spread", &DuneOptions::azimuthSpread)
-        .def_rw("slip_face_angle", &DuneOptions::slipFaceAngle)
-        .def_rw("stoss_slope", &DuneOptions::stossSlope)
-        .def_rw("stoss_exponent", &DuneOptions::stossExponent)
-        .def_rw("dome_exponent", &DuneOptions::domeExponent)
-        .def_rw("spacing", &DuneOptions::spacing)
-        .def_rw("density", &DuneOptions::density)
-        .def_rw("width", &DuneOptions::width)
-        .def_rw("width_spread", &DuneOptions::widthSpread)
-        .def_rw("min_width", &DuneOptions::minWidth)
-        .def_rw("height_ratio", &DuneOptions::heightRatio)
-        .def_rw("horn_length", &DuneOptions::hornLength)
-        .def_rw("dome_length", &DuneOptions::domeLength)
-        .def_rw("wavelength", &DuneOptions::wavelength)
-        .def_rw("height", &DuneOptions::height)
-        .def_rw("sinuosity", &DuneOptions::sinuosity)
-        .def_rw("defects", &DuneOptions::defects)
-        .def_rw("defect_density", &DuneOptions::defectDensity)
-        .def_rw("flank_slope", &DuneOptions::flankSlope)
-        .def_rw("seed", &DuneOptions::seed)
-        .def_rw("anchor", &DuneOptions::anchor)
-        .def_rw("fade", &DuneOptions::fade)
-        .def_rw("ripples", &DuneOptions::ripples)
-        .def_rw("grainflows", &DuneOptions::grainflows);
+        "counter-clockwise from +x.",
+        &ValidateDuneOptions);
     m.def("validate_dune_options", &ValidateDuneOptions, "options"_a, kValidateDoc);
     m.def("mars_dune_ripples", &MarsDuneRipples, "Martian large wind ripples to lay on dunes.");
     m.def("mars_barchans", &MarsBarchans, "Martian barchans with large ripples.");
     m.def("mars_transverse_dunes", &MarsTransverseDunes,
           "The transverse dunes of Mars's north polar erg, with large ripples.");
-}
-
-void BindDunes(nb::module_& m) {
-    BindDuneOptions(m);
     auto dunes =
         nb::class_<DuneLayer, Layer>(m, "DuneLayer", "Wind-blown dunes, with ripples on them.");
     dunes.def(nb::init<DuneOptions, Surface>(), "options"_a, "surface"_a = Surface{})
@@ -493,13 +364,8 @@ void BindDunes(nb::module_& m) {
     BindMaterialCover<DuneLayer>(dunes);
 }
 
-}  // namespace
-
 void BindDensityMaps(nb::module_& m) {
-    nb::enum_<DensityMeasure>(m, "DensityMeasure", "What a density map's values measure.")
-        .value("SCALE", DensityMeasure::Scale)
-        .value("COUNT", DensityMeasure::Count)
-        .value("AREAL_FRACTION", DensityMeasure::ArealFraction);
+    BindEnum<DensityMeasure>(m, "DensityMeasure", "What a density map's values measure.");
     auto map = nb::class_<DensityMap>(
         m, "DensityMap",
         "A map of a crater or boulder population that sets a layer's density point by point: "
@@ -513,9 +379,9 @@ void BindDensityMaps(nb::module_& m) {
         .def_rw("min_diameter", &DensityMap::minDiameter)
         .def_rw("max_diameter", &DensityMap::maxDiameter)
         .def_rw("area_unit", &DensityMap::areaUnit)
-        .def_rw("total", &DensityMap::total);
-    m.def("validate_density_map", &ValidateDensityMap, "map"_a,
-          "Raise ValueError if the map is unusable.");
+        .def_rw("total", &DensityMap::total)
+        .def("validate", &ValidateDensityMap, kValidateDoc);
+    m.def("validate_density_map", &ValidateDensityMap, "map"_a, kValidateDoc);
     m.def("map_measure", &MapMeasure, "map"_a, "distribution"_a,
           "What `map` measures of `distribution` as it is.");
     nb::class_<DensityScale>(m, "DensityScale",
@@ -528,9 +394,7 @@ void BindDensityMaps(nb::module_& m) {
 }
 
 void BindSizeSlopeMaps(nb::module_& m) {
-    nb::enum_<SizeSlopeMeasure>(m, "SizeSlopeMeasure", "What a size slope map's values measure.")
-        .value("EXPONENT", SizeSlopeMeasure::Exponent)
-        .value("MEAN_DIAMETER", SizeSlopeMeasure::MeanDiameter);
+    BindEnum<SizeSlopeMeasure>(m, "SizeSlopeMeasure", "What a size slope map's values measure.");
     auto map = nb::class_<SizeSlopeMap>(
         m, "SizeSlopeMap",
         "A map of how steeply feature counts fall with size: its `field` gives the cumulative "
@@ -542,12 +406,14 @@ void BindSizeSlopeMaps(nb::module_& m) {
         .def_rw("measure", &SizeSlopeMap::measure)
         .def_rw("reference_diameter", &SizeSlopeMap::referenceDiameter)
         .def_rw("min_exponent", &SizeSlopeMap::minExponent)
-        .def_rw("max_exponent", &SizeSlopeMap::maxExponent);
-    m.def("validate_size_slope_map", &ValidateSizeSlopeMap, "map"_a,
-          "Raise ValueError if the map is unusable.");
+        .def_rw("max_exponent", &SizeSlopeMap::maxExponent)
+        .def("validate", &ValidateSizeSlopeMap, kValidateDoc);
+    m.def("validate_size_slope_map", &ValidateSizeSlopeMap, "map"_a, kValidateDoc);
     m.def("size_slope_at", &SizeSlopeAt, "map"_a, "x"_a, "y"_a,
           "The exponent the map gives at (x, y), clamped; None where it has no value.");
 }
+
+}  // namespace
 
 void BindLayers(nb::module_& m) {
     BindDensityMaps(m);
@@ -557,8 +423,7 @@ void BindLayers(nb::module_& m) {
     BindTransforms(m);
     BindRegions(m);
     BindRoughness(m);
-    BindExposureParams(m);
-    BindExposureField(m);
+    BindExposure(m);
     BindBedforms(m);
     BindDunes(m);
     BindMaterialClasses(m);

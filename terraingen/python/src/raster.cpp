@@ -1,5 +1,7 @@
+#include "arrays.h"
 #include "bindings.h"
 #include "common.h"
+#include "options.h"
 
 #include "terraingen/raster/gaussian_blur.h"
 #include "terraingen/raster/geo_transform.h"
@@ -12,6 +14,7 @@
 #include <nanobind/ndarray.h>
 #include <nanobind/operators.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -68,15 +71,9 @@ void BindGeoTransform(nb::module_& m) {
         .def("__repr__", &Repr);
 }
 
-RasterF RasterFromArray(nb::ndarray<const float, nb::ndim<2>, nb::device::cpu> array,
-                        const GeoTransform& transform) {
+RasterF RasterFromArray(const CpuMatrix<float>& array, const GeoTransform& transform) {
     RasterF raster(array.shape(1), array.shape(0));
-    const auto view = array.view();
-    for (std::size_t row = 0; row < raster.Height(); ++row) {
-        for (std::size_t col = 0; col < raster.Width(); ++col) {
-            raster(col, row) = view(row, col);
-        }
-    }
+    std::copy(array.data(), array.data() + array.size(), raster.Values().begin());
     raster.SetTransform(transform);
     return raster;
 }
@@ -183,10 +180,7 @@ void BindGrid(nb::module_& m) {
 }
 
 void BindResampling(nb::module_& m) {
-    nb::enum_<ResampleMethod>(m, "ResampleMethod", "How a raster is interpolated.")
-        .value("NEAREST", ResampleMethod::Nearest)
-        .value("BILINEAR", ResampleMethod::Bilinear)
-        .value("CUBIC", ResampleMethod::Cubic);
+    BindEnum<ResampleMethod>(m, "ResampleMethod", "How a raster is interpolated.");
     m.def("gaussian_blur", nb::overload_cast<const RasterF&, double>(&GaussianBlur), "raster"_a,
           "sigma_pixels"_a,
           "The raster blurred by a Gaussian of `sigma_pixels` cells; NaN cells are left out of "
@@ -203,11 +197,7 @@ void BindResampling(nb::module_& m) {
 }
 
 void BindTiffEnums(nb::module_& m) {
-    nb::enum_<TiffCompression>(m, "TiffCompression", "TIFF compression.")
-        .value("NONE", TiffCompression::None)
-        .value("LZW", TiffCompression::Lzw)
-        .value("PACKBITS", TiffCompression::PackBits, "Read only.")
-        .value("DEFLATE", TiffCompression::Deflate);
+    BindEnum<TiffCompression>(m, "TiffCompression", "TIFF compression.");
     nb::enum_<TiffSampleFormat>(m, "TiffSampleFormat", "How a TIFF's samples are stored.")
         .value("UNSIGNED_INTEGER", TiffSampleFormat::UnsignedInteger)
         .value("SIGNED_INTEGER", TiffSampleFormat::SignedInteger)

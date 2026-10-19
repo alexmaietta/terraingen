@@ -1,27 +1,26 @@
 #include "bindings.h"
 #include "common.h"
 #include "objects.h"
+#include "options.h"
 
 #include "terraingen/albedo/photometry.h"
 #include "terraingen/pipeline/materials.h"
 
-#include <array>
+#include <algorithm>
 #include <optional>
+#include <stdexcept>
 #include <vector>
-
-namespace nb = nanobind;
-using namespace nb::literals;
 
 namespace terraingen::python {
 
 namespace {
 
-/// `photometry` as a list of `HapkeParameters` or None, one per `MaterialClass`.
+/// @brief `photometry` as a list of `HapkeParameters` or None, one per `MaterialClass`.
 std::vector<std::optional<HapkeParameters>> ToList(const MaterialPhotometry& photometry) {
     return {photometry.begin(), photometry.end()};
 }
 
-/// `classes` as `MaterialPhotometry`.
+/// @brief `classes` as `MaterialPhotometry`.
 /// @throws std::invalid_argument for a list of the wrong length.
 MaterialPhotometry FromList(const std::vector<std::optional<HapkeParameters>>& classes) {
     if (classes.size() != kMaterialClasses) {
@@ -32,21 +31,14 @@ MaterialPhotometry FromList(const std::vector<std::optional<HapkeParameters>>& c
     return photometry;
 }
 
-}  // namespace
-
-void BindMaterials(nb::module_& m) {
-    auto options = nb::class_<MaterialOptions>(
+void BindMaterialMaps(nb::module_& m) {
+    BindOptions<MaterialOptions>(
         m, "MaterialOptions",
         "How a material map is made: bedrock where the ground beneath the material layers is bare "
-        "(`exposure`, None "
-        "for none), and dust in patches covering about `dust_cover` of the surface.");
-    BindKwargsInit<MaterialOptions>(options);
-    options.def_rw("exposure", &MaterialOptions::exposure)
-        .def_rw("dust_cover", &MaterialOptions::dustCover)
-        .def_rw("dust_patch", &MaterialOptions::dustPatch)
-        .def_rw("seed", &MaterialOptions::seed);
-    m.def("validate_material_options", &ValidateMaterialOptions, "options"_a,
-          "Raises ValueError for invalid options.");
+        "(`exposure`, None for none), and dust in patches covering about `dust_cover` of the "
+        "surface.",
+        &ValidateMaterialOptions);
+    m.def("validate_material_options", &ValidateMaterialOptions, "options"_a, kValidateDoc);
     m.def(
         "materials_at",
         [](const PyTerrain& terrain, const MaterialOptions& material, double x, double y,
@@ -57,8 +49,7 @@ void BindMaterials(nb::module_& m) {
         "terrain"_a, "options"_a, "x"_a, "y"_a, "spacing"_a,
         "The share of each MaterialClass at (x, y), in class order: soil, then bedrock where the "
         "ground beneath the first material layer is bare, dust in patches, and each material "
-        "layer's "
-        "cover in order.");
+        "layer's cover in order.");
     m.def(
         "evaluate_materials",
         [](const PyTerrain& terrain, const MaterialOptions& material, const RasterGrid& grid,
@@ -69,24 +60,19 @@ void BindMaterials(nb::module_& m) {
         "terrain"_a, "options"_a, "grid"_a, "spacing"_a = 0.0, "threads"_a = 0,
         nb::call_guard<nb::gil_scoped_release>(),
         "One raster per MaterialClass over `grid`: each cell's share of that class.");
+}
 
-    auto hapke = nb::class_<HapkeParameters>(
+void BindPhotometry(nb::module_& m) {
+    BindOptions<HapkeParameters>(
         m, "HapkeParameters",
         "Hapke parameters: single-scattering `albedo` w, two-term Henyey-Greenstein `b` and `c`, "
-        "and macroscopic `roughness` theta-bar in degrees.");
-    BindKwargsInit<HapkeParameters>(hapke);
-    hapke.def_rw("albedo", &HapkeParameters::albedo)
-        .def_rw("b", &HapkeParameters::b)
-        .def_rw("c", &HapkeParameters::c)
-        .def_rw("roughness", &HapkeParameters::roughness)
+        "and macroscopic `roughness` theta-bar in degrees.")
         .def("__eq__", [](const HapkeParameters& a, const HapkeParameters& b) { return a == b; });
     m.def(
         "mars_pancam_photometry", [] { return ToList(MarsPancamPhotometry()); },
         "Hapke parameters of Martian soil, sand, dust, bedrock and rock at 753 nm from Pancam "
-        "(Johnson et "
-        "al. 2006a, b, as tabulated by Fernando et al. 2013, and Opportunity's Eagle crater "
-        "outcrop "
-        "for bedrock), one per MaterialClass.");
+        "(Johnson et al. 2006a, b, as tabulated by Fernando et al. 2013, and Opportunity's Eagle "
+        "crater outcrop for bedrock), one per MaterialClass.");
     m.def(
         "mix_photometry",
         [](const std::vector<double>& shares,
@@ -108,6 +94,13 @@ void BindMaterials(nb::module_& m) {
         },
         "materials"_a, "photometry"_a,
         "Rasters of the albedo, b, c and roughness that material rasters mix to.");
+}
+
+}  // namespace
+
+void BindMaterials(nb::module_& m) {
+    BindMaterialMaps(m);
+    BindPhotometry(m);
 }
 
 }  // namespace terraingen::python

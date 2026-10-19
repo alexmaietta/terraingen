@@ -22,6 +22,8 @@ import math
 
 import numpy as np
 
+from . import _terraingen
+
 TERRAIN_PATH = "/World/Terrain"
 SUN_PATH = "/World/Sun"
 CAMERA_PATH = "/World/Camera"
@@ -59,18 +61,11 @@ def direction(azimuth_deg, elevation_deg):
 def terrain_bounds(raster, exaggeration=1.0):
     """World bounds ``((x0, y0, z0), (x1, y1, z1))`` of a raster's cell centres and valid heights."""
     t = _check_north_up(raster)
-    values = np.asarray(raster.values)
-    valid = np.isfinite(values)
-    if raster.nodata is not None:
-        valid &= values != raster.nodata
-    low = float(values[valid].min()) if valid.any() else 0.0
-    high = float(values[valid].max()) if valid.any() else 0.0
+    stats = _terraingen.compute_stats(raster)
+    low, high = (stats.min, stats.max) if stats.valid_count > 0 else (0.0, 0.0)
+    min_x, min_y, max_x, max_y = _terraingen.RasterGrid.from_raster(raster).bounds
     half = 0.5 * t.pixel_width
-    x0 = t.origin_x + half
-    x1 = t.origin_x + raster.width * t.pixel_width - half
-    y1 = t.origin_y - half
-    y0 = t.origin_y - raster.height * t.pixel_width + half
-    return (x0, y0, low * exaggeration), (x1, y1, high * exaggeration)
+    return (min_x + half, min_y + half, low * exaggeration), (max_x - half, max_y - half, high * exaggeration)
 
 
 def add_terrain(scene, raster, path=TERRAIN_PATH, *, exaggeration=None, material=None):
@@ -135,10 +130,8 @@ def _define_mesh(scene, path, positions, triangles, normals, material):
 
 
 def _shaded(shape, crease_angle_deg):
-    """(positions, triangles, normals) of a boulder shape split along its creases."""
-    mesh, normals = shape.mesh.with_creases(math.radians(crease_angle_deg))
-    positions, triangles = mesh.arrays
-    return positions, triangles, normals
+    """(mesh, normals) of a boulder shape split along its creases."""
+    return shape.mesh.with_creases(math.radians(crease_angle_deg))
 
 
 def add_boulders(scene, models, path=BOULDERS_PATH, *, instanced=True, crease_angle_deg=60.0, material=None):
@@ -157,11 +150,10 @@ def add_boulders(scene, models, path=BOULDERS_PATH, *, instanced=True, crease_an
     if not instanced:
         scene.define(base, tokens.XFORM)
         for n, model in enumerate(models):
-            positions, triangles, normals = _shaded(model.shape, crease_angle_deg)
+            mesh, normals = _shaded(model.shape, crease_angle_deg)
+            placed, triangles = model.placement.place_mesh(mesh).arrays
             rotation = np.asarray(model.placement.pose.rotation).reshape(3, 3)
-            scale = np.asarray(model.placement.scale)
-            placed = (positions * scale) @ rotation.T + np.asarray(model.placement.pose.translation)
-            turned = (normals / scale) @ rotation.T
+            turned = (normals / np.asarray(model.placement.scale)) @ rotation.T
             turned /= np.linalg.norm(turned, axis=1, keepdims=True)
             _define_mesh(scene, base.child(f"Boulder{n}"), placed, triangles, turned, material)
         return scene.get_prim(base)
@@ -173,7 +165,8 @@ def add_boulders(scene, models, path=BOULDERS_PATH, *, instanced=True, crease_an
     prototypes = []
     for index, shape in shapes.values():
         prototype = base.child(f"Shape{index}")
-        _define_mesh(scene, prototype, *_shaded(shape, crease_angle_deg), material)
+        mesh, normals = _shaded(shape, crease_angle_deg)
+        _define_mesh(scene, prototype, *mesh.arrays, normals, material)
         prototypes.append(prototype)
     count = len(indices)
     positions = np.zeros((count, 3), np.float32)

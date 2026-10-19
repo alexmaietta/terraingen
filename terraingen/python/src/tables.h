@@ -2,13 +2,12 @@
 /// @brief Craters, boulders and other values as NumPy columns.
 #pragma once
 
+#include "arrays.h"
 #include "common.h"
 
 #include "terraingen/layers/boulders/boulder.h"
 #include "terraingen/layers/craters/generation/population.h"
 #include "terraingen/layers/craters/shaping/attributes.h"
-
-#include <nanobind/ndarray.h>
 
 #include <cstdint>
 #include <limits>
@@ -16,13 +15,6 @@
 #include <vector>
 
 namespace terraingen::python {
-
-/// A NumPy array owning a copy of `values`.
-template <typename T> inline nb::object Column(std::vector<T> values) {
-    auto* owned = new std::vector<T>(std::move(values));
-    nb::capsule owner(owned, [](void* p) noexcept { delete static_cast<std::vector<T>*>(p); });
-    return nb::cast(nb::ndarray<nb::numpy, T, nb::ndim<1>>(owned->data(), {owned->size()}, owner));
-}
 
 /// The craters as NumPy columns, with their attributes when there is one per crater.
 inline nb::dict CraterTable(const CraterList& craters,

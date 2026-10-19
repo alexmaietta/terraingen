@@ -398,8 +398,7 @@ template <> struct SpecName<SplotchAlbedoSpec> {
         "Dark and bright splotches that secondary impacts of loose regolith leave over the whole "
         "surface, after Speyerer et al. (2016).";
 };
-template <typename IO> void Fields(IO& io, SplotchAlbedoSpec& spec) {
-    SplotchAlbedoOptions& options = spec.options;
+template <typename IO> void Fields(IO& io, SplotchAlbedoOptions& options) {
     io("seed", options.seed, "Seed of where splotches fall and what they are.");
     io("rate_coefficient", options.rateCoefficient,
        "Coefficient a of the cumulative formation rate a d^-b per km^2 per year, d the diameter "
@@ -446,6 +445,9 @@ template <typename IO> void Fields(IO& io, SplotchAlbedoSpec& spec) {
        "", FromBelow(0.0, 1.0));
     io("fade", options.fade, "How splotches too small to resolve at the sample spacing fade out.");
     io("swarms", options.swarms, "Swarms of splotches around new craters; off by default.");
+}
+template <typename IO> void Fields(IO& io, SplotchAlbedoSpec& spec) {
+    Fields(io, spec.options);
 }
 
 template <typename IO> void Fields(IO& io, BlastZone& zone) {
@@ -501,18 +503,21 @@ template <> struct SpecName<RockAlbedoSpec> {
         "Rock brighter than the regolith: the boulders of boulder layers where resolved, and a "
         "speckle of the share of each sample covered by those too small to resolve.";
 };
+template <typename IO> void Fields(IO& io, RockAlbedoOptions& options) {
+    io("seed", options.seed, "Seed of the per-sample draws of rock too small to resolve.");
+    io("reflectance_ratio", options.reflectanceRatio,
+       "Rock reflectance over the regolith's; 2.5 after Marshal et al. (2023), within Holt's "
+       "(1981) Apollo 16 rocks at 18 to 51% against soils of 14 to 15%; earlier models used 1.5.",
+       "", Above(0.0));
+    io("unresolved", options.unresolved,
+       "Brightens each sample by the share of it covered by boulders too small to resolve, drawn "
+       "about the expected share with the scatter of randomly placed rocks: bright speckle.");
+}
 template <typename IO> void Fields(IO& io, RockAlbedoSpec& spec) {
     io("boulder_layer", spec.boulderLayer,
        "Which top-level boulder layer's rock to brighten, counting from 0; unset uses every "
        "top-level boulder layer.");
-    io("seed", spec.options.seed, "Seed of the per-sample draws of rock too small to resolve.");
-    io("reflectance_ratio", spec.options.reflectanceRatio,
-       "Rock reflectance over the regolith's; 2.5 after Marshal et al. (2023), within Holt's "
-       "(1981) Apollo 16 rocks at 18 to 51% against soils of 14 to 15%; earlier models used 1.5.",
-       "", Above(0.0));
-    io("unresolved", spec.options.unresolved,
-       "Brightens each sample by the share of it covered by boulders too small to resolve, drawn "
-       "about the expected share with the scatter of randomly placed rocks: bright speckle.");
+    Fields(io, spec.options);
 }
 
 template <> struct SpecName<SlopeAlbedoSpec> {
@@ -521,8 +526,7 @@ template <> struct SpecName<SlopeAlbedoSpec> {
         "Steep ground kept immature and bright by regolith moving downslope, after Ikeda et al. "
         "(2022) and Lucey et al. (2014).";
 };
-template <typename IO> void Fields(IO& io, SlopeAlbedoSpec& spec) {
-    SlopeAlbedoOptions& options = spec.options;
+template <typename IO> void Fields(IO& io, SlopeAlbedoOptions& options) {
     io("onset_degrees", options.onsetDegrees,
        "Slope in degrees from which ground freshens; 20, where Lucey et al. (2014) and Ikeda et "
        "al. (2022) find brightening begin.",
@@ -543,6 +547,9 @@ template <typename IO> void Fields(IO& io, SlopeAlbedoSpec& spec) {
     io("origin_reflectance", options.originReflectance,
        "Reflectance of the optical maturity origin, from which reflectance scales with maturity "
        "at fixed iron content.");
+}
+template <typename IO> void Fields(IO& io, SlopeAlbedoSpec& spec) {
+    Fields(io, spec.options);
 }
 
 template <typename IO> void Fields(IO& io, AlbedoSpec& spec) {

@@ -1,5 +1,6 @@
 #include "bindings.h"
 #include "common.h"
+#include "options.h"
 #include "trampolines.h"
 
 #include "terraingen/layers/craters/ages/age_model.h"
@@ -35,7 +36,7 @@ class PyCraterAgeModel : public CraterAgeModel {
 
   protected:
     double LifetimeAt(double diameter) const override {
-        NB_OVERRIDE_PURE_NAME("lifetime_at", LifetimeAt, diameter);
+        return CallRequiredAs<double>(nb_trampoline, "lifetime_at", diameter);
     }
 
     double SampleAgeAt(RandomStream& random, double diameter, double lifetimeGyr) const override {
@@ -51,7 +52,7 @@ class PyDegradationModel : public DegradationModel {
     NB_TRAMPOLINE(DegradationModel);
 
     CraterState State(const Crater& crater) const override {
-        NB_OVERRIDE_PURE_NAME("state", State, crater);
+        return CallRequiredAs<CraterState>(nb_trampoline, "state", crater);
     }
 };
 
@@ -62,11 +63,11 @@ class PyCraterProfile : public CraterProfile {
     NB_TRAMPOLINE(CraterProfile);
 
     double Height(double distance, double diameter, const CraterState& state) const override {
-        NB_OVERRIDE_PURE_NAME("height", Height, distance, diameter, state);
+        return CallRequiredAs<double>(nb_trampoline, "height", distance, diameter, state);
     }
 
     double ReachRadii() const override {
-        NB_OVERRIDE_PURE_NAME("reach_radii", ReachRadii);
+        return CallRequiredAs<double>(nb_trampoline, "reach_radii");
     }
 
     bool IsComplex(double diameter) const override {
@@ -89,7 +90,6 @@ void BindAges(nb::module_& m) {
                double lifetimeGyr) { return UniformAgeGyr(random, lifetimeGyr); },
             "random"_a, "diameter"_a, "lifetime_gyr"_a,
             "An age (Gyr) within the lifetime; uniform unless overridden.")
-        .def("lifetime_gyr", &CraterAgeModel::LifetimeGyr, "diameter"_a)
         .def("sample_age_gyr", &CraterAgeModel::SampleAgeGyr, "random"_a, "diameter"_a)
         .def("remaining_lifetime", &CraterAgeModel::RemainingLifetime, "diameter"_a, "age_gyr"_a,
              "The share of a crater's lifetime left: 1 for a new crater, falling to 0 at the end "
@@ -161,15 +161,12 @@ void BindDegradationModels(nb::module_& m) {
 }
 
 void BindDiffusion(nb::module_& m) {
-    auto lawClass = nb::class_<PowerLawDiffusivity>(
+    BindOptions<PowerLawDiffusivity>(
         m, "PowerLawDiffusivity",
         "Topographic diffusivity coefficient * D^exponent (m^2 per Myr, D in km), no less than "
         "at `min_diameter` metres; called with (diameter, age_gyr) it gives the diffusion "
-        "length squared, in m^2.");
-    BindKwargsInit<PowerLawDiffusivity>(lawClass);
-    lawClass.def_rw("coefficient", &PowerLawDiffusivity::coefficient)
-        .def_rw("exponent", &PowerLawDiffusivity::exponent)
-        .def_rw("min_diameter", &PowerLawDiffusivity::minDiameter)
+        "length squared, in m^2.",
+        &ValidatePowerLawDiffusivity)
         .def("diffusivity", &PowerLawDiffusivity::Diffusivity, "diameter"_a)
         .def("__call__", &PowerLawDiffusivity::operator(), "diameter"_a, "age_gyr"_a);
     m.def("validate_power_law_diffusivity", &ValidatePowerLawDiffusivity, "law"_a, kValidateDoc);
@@ -208,10 +205,7 @@ void BindSimpleProfiles(nb::module_& m) {
         .def("height", &CraterProfile::Height, "distance"_a, "diameter"_a, "state"_a)
         .def("reach_radii", &CraterProfile::ReachRadii)
         .def("is_complex", &CraterProfile::IsComplex, "diameter"_a);
-    nb::enum_<FassettThomsonRim>(m, "FassettThomsonRim", "How the Fassett and Thomson rim is fit.")
-        .value("ORIGINAL", FassettThomsonRim::Original)
-        .value("AT_ONE_RADIUS", FassettThomsonRim::AtOneRadius)
-        .value("PLATEAU", FassettThomsonRim::Plateau);
+    BindEnum<FassettThomsonRim>(m, "FassettThomsonRim", "How the Fassett and Thomson rim is fit.");
     nb::class_<FassettThomsonProfile, CraterProfile>(
         m, "FassettThomsonProfile",
         "The fresh simple-crater profile of Fassett and Thomson (2014).")

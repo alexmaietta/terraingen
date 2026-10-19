@@ -55,7 +55,7 @@ class Example(_common.Example):
 
     def save(self, out):
         terraingen.write_geotiff(out / "example_craters_simple.tif", self.heights)
-        self.craters.write(out / "example_craters_simple.csv")
+        self.craters.write_list(out / "example_craters_simple.csv")
         print(
             "wrote",
             write_png(out / "example_craters_simple.png", hillshade(self.heights.values, 2.0)),

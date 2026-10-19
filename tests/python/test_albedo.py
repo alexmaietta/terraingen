@@ -163,7 +163,8 @@ def test_ray_median_length_exceeds_the_diameter():
 
 
 def test_crater_albedo_options_select_craters():
-    assert terraingen.CraterAlbedoOptions(min_diameter=100.0).selection.min_diameter == 100.0
+    selection = terraingen.CraterSelection(min_diameter=100.0)
+    assert terraingen.CraterAlbedoOptions(selection=selection).selection.min_diameter == 100.0
 
 
 @pytest.mark.parametrize(
@@ -281,8 +282,11 @@ def test_rocks_brighten_by_the_share_they_cover():
     rocks = terraingen.RockAlbedo(terraingen.RockAlbedoOptions(seed=1), terrain, [0])
     assert 0.0 < rocks.share_at(1.0, 2.0, 50.0) < 1.0
     assert terraingen.rock_share(0.5, 0.0, 0.0, 0.0) == 0.5
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="no layer 1"):
         terraingen.RockAlbedo(terraingen.RockAlbedoOptions(), terrain, [1])
+    noisy = terraingen.Terrain(terrain.source, [terraingen.ScaleLayer(1.0), boulders])
+    with pytest.raises(ValueError, match="Layer 0 is not a boulder layer"):
+        terraingen.RockAlbedo(terraingen.RockAlbedoOptions(), noisy, [0])
     with pytest.raises(ValueError):
         terraingen.validate_rock_albedo_options(terraingen.RockAlbedoOptions(reflectance_ratio=0.0))
 

@@ -12,6 +12,9 @@
 #include <memory>
 #include <optional>
 #include <span>
+#include <stdexcept>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace terraingen {
@@ -72,6 +75,22 @@ class TerrainGround final : public Ground {
 /// outlives `terrain`; the copy shares its source and layers.
 /// @throws std::invalid_argument if `terrain` has fewer layers.
 std::shared_ptr<const Ground> SharedGround(const Terrain& terrain, std::size_t layers);
+
+/// Layer `index` of `terrain`, which must be a `T`.
+/// @param what What a `T` is, for the error message, such as "a boulder layer".
+/// @throws std::invalid_argument if `terrain` has no layer `index` or it is not a `T`.
+template <typename T>
+std::shared_ptr<const T> LayerAt(const Terrain& terrain, std::size_t index, std::string_view what) {
+    if (index >= terrain.layers.size()) {
+        throw std::invalid_argument("The terrain has no layer " + std::to_string(index));
+    }
+    auto layer = std::dynamic_pointer_cast<const T>(terrain.layers[index]);
+    if (!layer) {
+        throw std::invalid_argument("Layer " + std::to_string(index) + " is not " +
+                                    std::string(what));
+    }
+    return layer;
+}
 
 /// Calls `visit(layer, index)` for each layer of `terrain` that is a `T`, in order, with `index`
 /// its position in `terrain.layers`.

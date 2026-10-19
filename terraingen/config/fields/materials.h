@@ -35,8 +35,7 @@ template <typename IO> void Fields(IO& io, PhotometrySpec& photometry) {
        "Hapke parameters of rocks and boulders; unset keeps the reference's.");
 }
 
-template <typename IO> void Fields(IO& io, MaterialsSpec& materials) {
-    MaterialOptions& options = materials.options;
+template <typename IO> void Fields(IO& io, MaterialOptions& options) {
     io("exposure", options.exposure,
        "Thresholds marking bare ground as bedrock, read on the ground beneath the first layer that "
        "lays a material; unset for no bedrock.");
@@ -46,6 +45,10 @@ template <typename IO> void Fields(IO& io, MaterialsSpec& materials) {
     io("dust_patch", options.dustPatch, "Typical width of a dust patch, in metres.", "m",
        Above(0.0));
     io("seed", options.seed, "Seed of the dust patches.");
+}
+
+template <typename IO> void Fields(IO& io, MaterialsSpec& materials) {
+    Fields(io, materials.options);
     io("photometry", materials.photometry,
        "Hapke parameters of each material class, which photometry outputs mix.");
 }

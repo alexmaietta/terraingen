@@ -1,6 +1,7 @@
 #include "bindings.h"
 #include "common.h"
 #include "objects.h"
+#include "options.h"
 #include "tables.h"
 
 #include "terraingen/layers/boulders/boulder.h"
@@ -22,48 +23,22 @@ namespace terraingen::python {
 namespace {
 
 void BindBoulderStyle(nb::module_& m) {
-    nb::class_<ValueRange>(m, "ValueRange", "An interval values are drawn uniformly from.")
-        .def(
-            "__init__",
-            [](ValueRange* self, double min, double max) { new (self) ValueRange{min, max}; },
-            "min"_a = 0.0, "max"_a = 0.0)
-        .def_rw("min", &ValueRange::min)
-        .def_rw("max", &ValueRange::max);
-    auto style = nb::class_<BoulderStyle>(
+    BindOptions<ValueRange>(m, "ValueRange", "An interval values are drawn uniformly from.");
+    BindOptions<BoulderStyle>(
         m, "BoulderStyle",
         "One kind of boulder: its `solid`, stretched to axes 1 : `intermediate` : `short_axis`, "
         "rounded toward an ellipsoid by `rounding`, roughened by noise and cut by fracture planes; "
         "`weight` is its share of boulders.");
-    BindKwargsInit<BoulderStyle>(style);
-    style.def_rw("name", &BoulderStyle::name)
-        .def_rw("weight", &BoulderStyle::weight)
-        .def_rw("solid", &BoulderStyle::solid)
-        .def_rw("intermediate", &BoulderStyle::intermediate)
-        .def_rw("short_axis", &BoulderStyle::shortAxis)
-        .def_rw("rounding", &BoulderStyle::rounding)
-        .def_rw("min_fractures", &BoulderStyle::minFractures)
-        .def_rw("max_fractures", &BoulderStyle::maxFractures)
-        .def_rw("fracture_depth", &BoulderStyle::fractureDepth)
-        .def_rw("max_fracture_tilt", &BoulderStyle::maxFractureTilt)
-        .def_rw("noise_amplitude", &BoulderStyle::noiseAmplitude)
-        .def_rw("noise_wavelength", &BoulderStyle::noiseWavelength)
-        .def_rw("noise_octaves", &BoulderStyle::noiseOctaves)
-        .def_rw("edge_softness", &BoulderStyle::edgeSoftness)
-        .def_rw("face_roughness", &BoulderStyle::faceRoughness);
     m.def("default_boulder_styles", &DefaultBoulderStyles,
           "The default mix: blocks and slabs, rounded boulders, wedges, pyramids and shards.");
 }
 
 void BindBoulderShapes(nb::module_& m) {
     BindBoulderStyle(m);
-    auto options = nb::class_<BoulderShapeOptions>(
+    BindOptions<BoulderShapeOptions>(
         m, "BoulderShapeOptions",
-        "Boulder shapes: the `styles` to draw from, `subdivisions` of each solid and a `seed`.");
-    BindKwargsInit<BoulderShapeOptions>(options);
-    options.def_rw("styles", &BoulderShapeOptions::styles)
-        .def_rw("subdivisions", &BoulderShapeOptions::subdivisions)
-        .def_rw("weathering", &BoulderShapeOptions::weathering)
-        .def_rw("seed", &BoulderShapeOptions::seed)
+        "Boulder shapes: the `styles` to draw from, `subdivisions` of each solid and a `seed`.",
+        &ValidateBoulderShapeOptions)
         .def_prop_rw(
             "library",
             [](const BoulderShapeOptions& o) {
@@ -167,104 +142,66 @@ void BindBoulder(nb::module_& m) {
 }
 
 void BindPatchesAndEjecta(nb::module_& m) {
-    auto patches = nb::class_<BoulderPatches>(
+    BindOptions<BoulderPatches>(
         m, "BoulderPatches",
         "Patches of richer and poorer boulder cover, about `size` metres across: the abundance "
-        "varies from 1 / `spread` to `spread` times its mean (1 for the same everywhere).");
-    BindKwargsInit<BoulderPatches>(patches);
-    patches.def_rw("spread", &BoulderPatches::spread).def_rw("size", &BoulderPatches::size);
-    nb::enum_<BoulderClusterModel>(m, "BoulderClusterModel",
-                                   "How boulder cluster centres are laid out and combine.")
-        .value("NEAREST", BoulderClusterModel::Nearest)
-        .value("THOMAS", BoulderClusterModel::Thomas);
-    nb::enum_<EjectaProfile>(m, "EjectaProfile",
-                             "How ejecta boulders fall off from a crater's rim.")
-        .value("SMOOTHSTEP", EjectaProfile::Smoothstep)
-        .value("EXPONENTIAL", EjectaProfile::Exponential);
-    nb::enum_<EjectaAging>(m, "EjectaAging", "How ejecta boulders fade as their crater ages.")
-        .value("FRESHNESS", EjectaAging::Freshness)
-        .value("AGE", EjectaAging::Age);
-    auto ejecta = nb::class_<BoulderEjecta>(
+        "varies from 1 / `spread` to `spread` times its mean (1 for the same everywhere).",
+        &ValidateBoulderPatches);
+    BindEnum<BoulderClusterModel>(m, "BoulderClusterModel",
+                                  "How boulder cluster centres are laid out and combine.");
+    BindEnum<EjectaProfile>(m, "EjectaProfile",
+                            "How ejecta boulders fall off from a crater's rim.");
+    BindEnum<EjectaAging>(m, "EjectaAging", "How ejecta boulders fade as their crater ages.");
+    BindOptions<BoulderEjecta>(
         m, "BoulderEjecta",
         "Boulders thrown out by craters at least `min_crater_diameter` across (or deep enough to "
         "reach bedrock under `regolith_thickness`): extra `coverage` near the rim, falling off "
-        "to `reach` radii, fading as the crater ages.");
-    BindKwargsInit<BoulderEjecta>(ejecta);
-    ejecta.def_rw("min_crater_diameter", &BoulderEjecta::minCraterDiameter)
-        .def_rw("regolith_thickness", &BoulderEjecta::regolithThickness)
-        .def_rw("excavation_depth_ratio", &BoulderEjecta::excavationDepthRatio)
-        .def_rw("distribution", &BoulderEjecta::distribution)
-        .def_rw("coverage", &BoulderEjecta::coverage)
-        .def_rw("profile", &BoulderEjecta::profile)
-        .def_rw("reach", &BoulderEjecta::reach)
-        .def_rw("decay_radii", &BoulderEjecta::decayRadii)
-        .def_rw("floor_share", &BoulderEjecta::floorShare)
-        .def_rw("aging", &BoulderEjecta::aging)
-        .def_rw("min_freshness", &BoulderEjecta::minFreshness)
-        .def_rw("lifetime_gyr", &BoulderEjecta::lifetimeGyr)
-        .def_rw("aging_exponent", &BoulderEjecta::agingExponent);
+        "to `reach` radii, fading as the crater ages.")
+        .def_rw("distribution", &BoulderEjecta::distribution,
+                "Sizes per m^2 of the blocks at the rim of a fresh crater, in place of "
+                "Golombek-Rapp blocks of `coverage`; None for those.");
 }
 
 void BindClustersAndFragments(nb::module_& m) {
-    auto clusters = nb::class_<BoulderClusters>(
+    BindOptions<BoulderClusters>(
         m, "BoulderClusters",
         "Boulders between craters gathered in clusters: `share` of them crowd within about "
         "`radius` metres of cluster centres about `spacing` metres apart; the mean density is "
-        "kept.");
-    BindKwargsInit<BoulderClusters>(clusters);
-    clusters.def_rw("share", &BoulderClusters::share)
-        .def_rw("spacing", &BoulderClusters::spacing)
-        .def_rw("radius", &BoulderClusters::radius)
-        .def_rw("model", &BoulderClusters::model);
+        "kept.",
+        &ValidateBoulderClusters);
     m.def("validate_boulder_clusters", &ValidateBoulderClusters, "clusters"_a, kValidateDoc);
     m.def("mean_patch_abundance", &MeanPatchAbundance, "patches"_a,
           "The mean of the patches' abundance, which a density map divides them by.");
     m.def("max_cluster_abundance", &MaxClusterAbundance, "clusters"_a,
           "The most a cluster field multiplies the scattered boulder density by.");
-    auto fragmentation = nb::class_<BoulderFragmentation>(
+    BindOptions<BoulderFragmentation>(
         m, "BoulderFragmentation",
         "Boulders broken by wear into pieces that replace them: from `split_wear` boulders at "
         "least `min_diameter` across split into `min_pieces` to `max_pieces` fitting pieces, "
         "their cracks opening to `gap_ratio` diameters; from `rubble_wear` the pieces scatter up "
-        "to `spread_ratio` diameters further, turn and sink. A `split_wear` of 1 breaks nothing.");
-    BindKwargsInit<BoulderFragmentation>(fragmentation);
-    fragmentation.def_rw("min_diameter", &BoulderFragmentation::minDiameter)
-        .def_rw("split_wear", &BoulderFragmentation::splitWear)
-        .def_rw("rubble_wear", &BoulderFragmentation::rubbleWear)
-        .def_rw("min_pieces", &BoulderFragmentation::minPieces)
-        .def_rw("max_pieces", &BoulderFragmentation::maxPieces)
-        .def_rw("gap_ratio", &BoulderFragmentation::gapRatio)
-        .def_rw("spread_ratio", &BoulderFragmentation::spreadRatio)
-        .def_rw("slab_share", &BoulderFragmentation::slabShare)
+        "to `spread_ratio` diameters further, turn and sink. A `split_wear` of 1 breaks nothing.",
+        &ValidateBoulderFragmentation)
         .def_prop_ro("enabled", &BoulderFragmentation::Enabled);
     m.def("validate_boulder_fragmentation", &ValidateBoulderFragmentation, "fragmentation"_a,
           kValidateDoc);
 }
 
 void BindFillet(nb::module_& m) {
-    auto fillet = nb::class_<BoulderFillet>(
+    BindOptions<BoulderFillet>(
         m, "BoulderFillet",
         "Regolith piled against each boulder's base: `height_share` of its exposed height out to "
         "its radius, falling to nothing `width_ratio` diameters further out; 0 `height_share` "
-        "draws none.");
-    BindKwargsInit<BoulderFillet>(fillet);
-    fillet.def_rw("height_share", &BoulderFillet::heightShare)
-        .def_rw("width_ratio", &BoulderFillet::widthRatio);
+        "draws none.",
+        &ValidateBoulderFillet);
     m.def("boulder_fillet_height", &FilletHeight, "boulder"_a, "distance"_a, "fillet"_a,
           "The height (m) of `boulder`'s fillet `distance` metres from its centre.");
     m.def("validate_boulder_fillet", &ValidateBoulderFillet, "fillet"_a, kValidateDoc);
-    auto ventifacts = nb::class_<BoulderVentifacts>(
+    BindOptions<BoulderVentifacts>(
         m, "BoulderVentifacts",
         "Windward facets planed on `share` of the boulders by wind blowing toward "
         "`wind_azimuth`, sloping `min_angle` to `max_angle`, with keels on `keel_share` of them "
-        "toward `second_wind_azimuth`; angles in radians.");
-    BindKwargsInit<BoulderVentifacts>(ventifacts);
-    ventifacts.def_rw("share", &BoulderVentifacts::share)
-        .def_rw("wind_azimuth", &BoulderVentifacts::windAzimuth)
-        .def_rw("min_angle", &BoulderVentifacts::minAngle)
-        .def_rw("max_angle", &BoulderVentifacts::maxAngle)
-        .def_rw("second_wind_azimuth", &BoulderVentifacts::secondWindAzimuth)
-        .def_rw("keel_share", &BoulderVentifacts::keelShare);
+        "toward `second_wind_azimuth`; angles in radians.",
+        &ValidateBoulderVentifacts);
     m.def("validate_boulder_ventifacts", &ValidateBoulderVentifacts, "ventifacts"_a, kValidateDoc);
     m.def("gale_ventifacts", &GaleVentifacts,
           "The ventifacts of Gale crater's first 100 sols (Bridges et al. 2014; facet slopes "
@@ -272,84 +209,41 @@ void BindFillet(nb::module_& m) {
 }
 
 void BindRendering(nb::module_& m) {
-    nb::enum_<BoulderRelief>(m, "BoulderRelief", "How boulders are drawn into the heights.")
-        .value("DOME", BoulderRelief::Dome)
-        .value("SHAPE", BoulderRelief::Shape)
-        .value("NONE", BoulderRelief::None);
-    auto threshold = nb::class_<BoulderModelThreshold>(
+    BindEnum<BoulderRelief>(m, "BoulderRelief", "How boulders are drawn into the heights.");
+    BindOptions<BoulderModelThreshold>(
         m, "BoulderModelThreshold",
         "Which boulders are placed as 3D boulder models: at least `min_diameter` metres across, or "
-        "`min_samples` samples across, and below `max_diameter` and `max_samples` when set.");
-    BindKwargsInit<BoulderModelThreshold>(threshold);
-    threshold.def_rw("min_diameter", &BoulderModelThreshold::minDiameter)
-        .def_rw("min_samples", &BoulderModelThreshold::minSamples)
-        .def_rw("max_diameter", &BoulderModelThreshold::maxDiameter)
-        .def_rw("max_samples", &BoulderModelThreshold::maxSamples)
+        "`min_samples` samples across, and below `max_diameter` and `max_samples` when set.")
         .def("is_model", &BoulderModelThreshold::IsModel, "diameter"_a, "spacing"_a = 0.0,
              "Whether a boulder of `diameter` metres is a model at `spacing`.");
-    auto range = nb::class_<BoulderReliefRange>(
+    BindOptions<BoulderReliefRange>(
         m, "BoulderReliefRange",
         "Which boulders are drawn into the heights: from `min_diameter` up to `max_diameter` "
-        "metres, models only with `models`.");
-    BindKwargsInit<BoulderReliefRange>(range);
-    range.def_rw("min_diameter", &BoulderReliefRange::minDiameter)
-        .def_rw("max_diameter", &BoulderReliefRange::maxDiameter)
-        .def_rw("models", &BoulderReliefRange::models)
+        "metres, models only with `models`.")
         .def("holds", &BoulderReliefRange::Holds, "diameter"_a, "model"_a,
              "Whether a boulder of `diameter` metres is drawn into the heights.");
 }
 
-/// @brief The grouped options under their flat config names.
-void BindGroupedOptions(nb::class_<BoulderLayerOptions>& options) {
-    using O = BoulderLayerOptions;
-    BindGrouped(options, "coverage", &O::sizes, &BoulderSizes::coverage);
-    BindGrouped(options, "qa", &O::sizes, &BoulderSizes::qConstant);
-    BindGrouped(options, "qb", &O::sizes, &BoulderSizes::qCoverageCoefficient);
-    BindGrouped(options, "distribution", &O::sizes, &BoulderSizes::distribution);
-    BindGrouped(options, "min_diameter", &O::sizes, &BoulderSizes::minDiameter);
-    BindGrouped(options, "max_diameter", &O::sizes, &BoulderSizes::maxDiameter);
-    options.def_rw("seed", &O::seed).def_rw("patches", &O::patches).def_rw("ejecta", &O::ejecta);
-    BindGrouped(options, "exposure", &O::bedrock, &BoulderBedrock::exposure);
-    BindGrouped(options, "bedrock_abundance", &O::bedrock, &BoulderBedrock::abundance);
-    BindGrouped(options, "bedrock_mean_size", &O::bedrock, &BoulderBedrock::meanSize);
-    BindGrouped(options, "min_height_ratio", &O::pose, &BoulderPose::minHeightRatio);
-    BindGrouped(options, "max_height_ratio", &O::pose, &BoulderPose::maxHeightRatio);
-    BindGrouped(options, "min_burial", &O::pose, &BoulderPose::minBurial);
-    BindGrouped(options, "max_burial", &O::pose, &BoulderPose::maxBurial);
-    BindGrouped(options, "max_lean", &O::pose, &BoulderPose::maxLean);
-    BindGrouped(options, "burial_by_wear", &O::pose, &BoulderPose::burialByWear);
-    BindGrouped(options, "side_share", &O::pose, &BoulderPose::sideShare);
-    BindGrouped(options, "end_share", &O::pose, &BoulderPose::endShare);
-    BindGrouped(options, "max_tilt", &O::pose, &BoulderPose::maxTilt);
-    BindGrouped(options, "follow_slope", &O::pose, &BoulderPose::followSlope);
-    BindGrouped(options, "settle", &O::pose, &BoulderPose::settle);
-    BindGrouped(options, "max_slope", &O::pose, &BoulderPose::maxSlope);
-    BindGrouped(options, "roll_distance", &O::pose, &BoulderPose::rollDistance);
-    options.def_rw("fillet", &O::fillet);
-    options.def_rw("density_map", &O::densityMap)
-        .def_rw("slope_map", &O::slopeMap)
-        .def_rw("manual", &O::manual, "Catalog boulders placed as given, as craters.")
-        .def_rw("completeness", &O::completeness,
-                "Diameter (m) from which `manual` is a complete catalog at each point.");
-    options.def_rw("ventifacts", &O::ventifacts);
-    options.def_rw("clusters", &O::clusters).def_rw("fragmentation", &O::fragmentation);
-    BindGrouped(options, "relief", &O::rendering, &BoulderRendering::relief);
-    BindGrouped(options, "models", &O::rendering, &BoulderRendering::models);
-    BindGrouped(options, "relief_range", &O::rendering, &BoulderRendering::reliefRange);
-    BindGrouped(options, "shapes", &O::rendering, &BoulderRendering::shapes);
-    BindGrouped(options, "shape_prototypes", &O::rendering, &BoulderRendering::shapePrototypes);
-    options.def_rw("fade", &O::fade).def_rw("ground_spacing", &O::groundSpacing);
-}
-
 void BindLayerOptions(nb::module_& m) {
-    nb::class_<BoulderLayerOptions> options(
+    using O = BoulderLayerOptions;
+    BindOptions<O>(
         m, "BoulderLayerOptions",
         "A boulder layer's settings: sizes from Golombek and Rapp's model for `coverage` (or "
         "`distribution`), between `min_diameter` and `max_diameter`; `patches`, `ejecta` and "
         "`exposure` shape where they lie; heights, burial and lean shape each boulder; `relief` "
-        "and `models` how they are drawn.");
-    BindKwargsInit<BoulderLayerOptions>(options);
-    BindGroupedOptions(options);
+        "and `models` how they are drawn.",
+        &ValidateBoulderLayerOptions)
+        .def_prop_rw(
+            "distribution", [](const O& o) { return o.sizes.distribution; },
+            [](O& o, std::shared_ptr<const SizeFrequencyDistribution> distribution) {
+                o.sizes.distribution = std::move(distribution);
+            },
+            "Sizes per m^2 in place of Golombek-Rapp boulders of `coverage`; None for those.")
+        .def_rw("density_map", &O::densityMap)
+        .def_rw("slope_map", &O::slopeMap)
+        .def_rw("manual", &O::manual, "Catalog boulders placed as given, as craters.")
+        .def_rw("completeness", &O::completeness,
+                "Diameter (m) from which `manual` is a complete catalog at each point.");
     m.def("validate_boulder_layer_options", &ValidateBoulderLayerOptions, "options"_a,
           kValidateDoc);
     m.def("boulder_throw_distance", &BoulderThrowDistance, "crater_diameter"_a,
@@ -361,62 +255,63 @@ void BindLayerOptions(nb::module_& m) {
         "The distribution candidate boulders are drawn from before thinning.");
 }
 
+void BindLayerQueries(nb::class_<BoulderLayer, Layer>& layer) {
+    layer
+        .def(
+            "abundance_at",
+            [](const BoulderLayer& boulders, double x, double y, const PyTerrain* terrain,
+               std::size_t layers) {
+                const BoulderAbundance abundance =
+                    WithGround(terrain, layers,
+                               [&](const Ground* g) { return boulders.AbundanceAt(x, y, g); });
+                return std::pair{abundance.background, abundance.ejecta};
+            },
+            "x"_a, "y"_a, "terrain"_a = nb::none(), "layers"_a = 0,
+            "The boulder abundance at (x, y): (background, ejecta). With the exposure field, give "
+            "the ground beneath the boulders: `terrain`'s source and its first `layers` layers.")
+        .def(
+            "density_at",
+            [](const BoulderLayer& boulders, double diameter, double x, double y,
+               const PyTerrain* terrain, std::size_t layers) {
+                return WithGround(terrain, layers, [&](const Ground* g) {
+                    return boulders.DensityAt(diameter, x, y, g);
+                });
+            },
+            "diameter"_a, "x"_a, "y"_a, "terrain"_a = nb::none(), "layers"_a = 0,
+            "Boulders at least `diameter` across per square metre at (x, y).")
+        .def(
+            "unresolved_cover_at",
+            [](const BoulderLayer& boulders, double x, double y, double spacing,
+               const PyTerrain* terrain, std::size_t layers) {
+                const UnresolvedCover cover = WithGround(terrain, layers, [&](const Ground* g) {
+                    return boulders.UnresolvedCoverAt(x, y, spacing, g);
+                });
+                return std::pair{cover.mean, cover.variance};
+            },
+            "x"_a, "y"_a, "spacing"_a, "terrain"_a = nb::none(), "layers"_a = 0,
+            "The share of a sample `spacing` metres across at (x, y) that boulders too small "
+            "to resolve cover: (mean, variance).");
+}
+
 void BindLayer(nb::module_& m) {
-    auto boulderLayer =
-        nb::class_<BoulderLayer, Layer>(
-            m, "BoulderLayer",
-            "Boulders drawn into the heights, the largest optionally "
-            "placed as 3D boulder models; `craters` supplies the craters "
-            "that throw ejecta boulders.")
-            .def(nb::init<BoulderLayerOptions, std::shared_ptr<CraterLayer>, Surface>(),
-                 "options"_a = BoulderLayerOptions{}, "craters"_a = nb::none(),
-                 "surface"_a = Surface{})
-            .def(
-                "boulders",
-                [](const BoulderLayer& layer, const Bounds2d& region, double spacing) {
-                    return BoulderTable(layer.Boulders(region, spacing));
-                },
-                "region"_a, "spacing"_a = 0.0,
-                "The boulders over `region` (min_x, min_y, max_x, max_y) as NumPy columns, without "
-                "evaluating any heights or ground.")
-            .def(
-                "abundance_at",
-                [](const BoulderLayer& layer, double x, double y, const PyTerrain* terrain,
-                   std::size_t layers) {
-                    const BoulderAbundance abundance =
-                        WithGround(terrain, layers,
-                                   [&](const Ground* g) { return layer.AbundanceAt(x, y, g); });
-                    return std::pair{abundance.background, abundance.ejecta};
-                },
-                "x"_a, "y"_a, "terrain"_a = nb::none(), "layers"_a = 0,
-                "The boulder abundance at (x, y): (background, ejecta). With the exposure field, "
-                "give "
-                "the ground beneath the boulders: `terrain`'s source and its first `layers` "
-                "layers.")
-            .def(
-                "density_at",
-                [](const BoulderLayer& layer, double diameter, double x, double y,
-                   const PyTerrain* terrain, std::size_t layers) {
-                    return WithGround(terrain, layers, [&](const Ground* g) {
-                        return layer.DensityAt(diameter, x, y, g);
-                    });
-                },
-                "diameter"_a, "x"_a, "y"_a, "terrain"_a = nb::none(), "layers"_a = 0,
-                "Boulders at least `diameter` across per square metre at (x, y).")
-            .def(
-                "unresolved_cover_at",
-                [](const BoulderLayer& layer, double x, double y, double spacing,
-                   const PyTerrain* terrain, std::size_t layers) {
-                    const UnresolvedCover cover = WithGround(terrain, layers, [&](const Ground* g) {
-                        return layer.UnresolvedCoverAt(x, y, spacing, g);
-                    });
-                    return std::pair{cover.mean, cover.variance};
-                },
-                "x"_a, "y"_a, "spacing"_a, "terrain"_a = nb::none(), "layers"_a = 0,
-                "The share of a sample `spacing` metres across at (x, y) that boulders too small "
-                "to resolve cover: (mean, variance).")
-            .def_prop_ro("options", &BoulderLayer::Options);
-    BindMaterialCover<BoulderLayer>(boulderLayer);
+    auto layer = nb::class_<BoulderLayer, Layer>(
+        m, "BoulderLayer",
+        "Boulders drawn into the heights, the largest optionally placed as 3D boulder models; "
+        "`craters` supplies the craters that throw ejecta boulders.");
+    layer
+        .def(nb::init<BoulderLayerOptions, std::shared_ptr<CraterLayer>, Surface>(),
+             "options"_a = BoulderLayerOptions{}, "craters"_a = nb::none(), "surface"_a = Surface{})
+        .def(
+            "boulders",
+            [](const BoulderLayer& boulders, const Bounds2d& region, double spacing) {
+                return BoulderTable(boulders.Boulders(region, spacing));
+            },
+            "region"_a, "spacing"_a = 0.0,
+            "The boulders over `region` (min_x, min_y, max_x, max_y) as NumPy columns, without "
+            "evaluating any heights or ground.")
+        .def_prop_ro("options", &BoulderLayer::Options);
+    BindLayerQueries(layer);
+    BindMaterialCover<BoulderLayer>(layer);
     m.def("add_boulder", &AddBoulder, "height"_a, "x"_a, "y"_a, "boulder"_a, "weight"_a = 1.0,
           "surface"_a = Surface{}, "width"_a = 0.0,
           "`height` at (x, y) with `boulder` drawn into it at `weight`, its dome averaged over "
@@ -430,7 +325,13 @@ void BindPlacement(nb::module_& m) {
                                  "Where a boulder shape goes: scaled per axis, then posed.")
         .def_ro("scale", &BoulderPlacement::scale)
         .def_ro("pose", &BoulderPlacement::pose)
-        .def("apply", &BoulderPlacement::Apply, "point"_a);
+        .def("apply", &BoulderPlacement::Apply, "point"_a)
+        .def(
+            "place_mesh",
+            [](const BoulderPlacement& placement, TriangleMesh mesh) {
+                return PlaceMesh(std::move(mesh), placement);
+            },
+            "mesh"_a, "`mesh`, a unit shape's mesh, with every point moved by the placement.");
     m.def("place_boulder_model", &PlaceBoulderModel, "boulder"_a, "shape"_a, "ground_height"_a,
           "settle"_a = false,
           "The placement of `shape` as `boulder` on ground at `ground_height`; with `settle`, "
@@ -447,14 +348,7 @@ void BindModels(nb::module_& m) {
         .def_prop_ro("shape", [](const BoulderModel& b) { return *b.shape; })
         .def_ro("placement", &BoulderModel::placement)
         .def_prop_ro(
-            "mesh",
-            [](const BoulderModel& b) {
-                TriangleMesh placed = b.shape->mesh;
-                for (Vec3d& p : placed.positions) {
-                    p = b.placement.Apply(p);
-                }
-                return placed;
-            },
+            "mesh", [](const BoulderModel& b) { return PlaceMesh(b.shape->mesh, b.placement); },
             "The boulder's mesh placed in the world.");
     m.def("boulder_mesh", &BoulderMesh, "boulder"_a, "options"_a, "ground_height"_a,
           "prototypes"_a = 0, "`boulder` as a mesh in the world, standing on the ground.");
@@ -463,19 +357,12 @@ void BindModels(nb::module_& m) {
 }
 
 void BindSandShadows(nb::module_& m) {
-    auto options = nb::class_<SandShadowOptions>(
+    BindOptions<SandShadowOptions>(
         m, "SandShadowOptions",
         "Sand tails behind boulders: blown toward `wind_azimuth`, `length_ratio` boulder widths "
-        "long, flanks at `flank_angle`; angles in radians.");
-    BindKwargsInit<SandShadowOptions>(options);
-    options.def_rw("wind_azimuth", &SandShadowOptions::windAzimuth)
-        .def_rw("length_ratio", &SandShadowOptions::lengthRatio)
-        .def_rw("flank_angle", &SandShadowOptions::flankAngle)
-        .def_rw("min_diameter", &SandShadowOptions::minDiameter)
-        .def_rw("cover_thickness", &SandShadowOptions::coverThickness)
-        .def_rw("fade", &SandShadowOptions::fade);
-    m.def("validate_sand_shadow_options", &ValidateSandShadowOptions, "options"_a,
-          "Raises ValueError for invalid options.");
+        "long, flanks at `flank_angle`; angles in radians.",
+        &ValidateSandShadowOptions);
+    m.def("validate_sand_shadow_options", &ValidateSandShadowOptions, "options"_a, kValidateDoc);
     auto layer = nb::class_<SandShadowLayer, Layer>(m, "SandShadowLayer",
                                                     "Sand tails in the lee of boulders.");
     layer
@@ -486,18 +373,13 @@ void BindSandShadows(nb::module_& m) {
                 new (self) SandShadowLayer(std::move(boulders), shadowOptions, surface);
             },
             "boulders"_a, "options"_a = SandShadowOptions{}, "surface"_a = Surface{})
-        .def(
-            "thickness_at",
-            [](const SandShadowLayer& shadows, double x, double y, double spacing,
-               const PyTerrain* terrain, std::size_t layers) {
-                return WithGround(terrain, layers, [&](const Ground* ground) {
-                    return shadows.ThicknessAt(x, y, spacing, ground);
-                });
-            },
-            "x"_a, "y"_a, "spacing"_a = 0.0, "terrain"_a = nb::none(), "layers"_a = 0,
-            "The sand depth at (x, y) in metres; with the boulders' exposure field, give the "
-            "ground: `terrain`'s source and its first `layers` layers.")
         .def_prop_ro("options", &SandShadowLayer::Options);
+    BindGroundQuery<SandShadowLayer>(
+        layer, "thickness_at",
+        [](const SandShadowLayer& shadows, double x, double y, double spacing,
+           const Ground* ground) { return shadows.ThicknessAt(x, y, spacing, ground); },
+        "The sand depth at (x, y) in metres; with the boulders' exposure field it reads the "
+        "ground.");
     BindMaterialCover<SandShadowLayer>(layer);
 }
 

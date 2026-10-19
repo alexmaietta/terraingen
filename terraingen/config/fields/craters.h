@@ -368,14 +368,7 @@ template <typename IO> void Fields(IO& io, SecondaryShapes& shapes) {
        "least 1, falling to 1 at the outer range.");
 }
 
-template <> struct SpecName<SecondaryLayerSpec> {
-    static constexpr std::string_view kName = "secondaries";
-    static constexpr std::string_view kDescription =
-        "Secondary craters around the craters of the last crater layer before this one, after "
-        "Singer et al. (2020).";
-};
-template <typename IO> void Fields(IO& io, SecondaryLayerSpec& spec) {
-    SecondaryCraterOptions& o = spec.secondaries;
+template <typename IO> void Fields(IO& io, SecondaryCraterOptions& o) {
     io("seed", o.seed,
        "Seed the secondaries are drawn with; changing it gives a different field of the same "
        "statistics.");
@@ -410,6 +403,16 @@ template <typename IO> void Fields(IO& io, SecondaryLayerSpec& spec) {
        "", Above(0.0));
     io("rays", o.rays, "Secondaries gathered into rays and clumped along them; off by default.");
     io("shapes", o.shapes, "Secondaries stretched toward their primary; round by default.");
+}
+
+template <> struct SpecName<SecondaryLayerSpec> {
+    static constexpr std::string_view kName = "secondaries";
+    static constexpr std::string_view kDescription =
+        "Secondary craters around the craters of the last crater layer before this one, after "
+        "Singer et al. (2020).";
+};
+template <typename IO> void Fields(IO& io, SecondaryLayerSpec& spec) {
+    Fields(io, spec.secondaries);
     io("depth_ratio", spec.depthRatio,
        "Depth over diameter every secondary is given, with no wear by age; lower values give "
        "shallower secondaries.",

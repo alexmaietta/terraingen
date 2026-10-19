@@ -1,5 +1,7 @@
+#include "arrays.h"
 #include "bindings.h"
 #include "common.h"
+#include "options.h"
 
 #include "terraingen/noise/fractal.h"
 #include "terraingen/noise/hash.h"
@@ -11,7 +13,6 @@
 #include "terraingen/noise/worley.h"
 #include "terraingen/sources/synthetic_terrain.h"
 
-#include <nanobind/ndarray.h>
 #include <nanobind/operators.h>
 
 #include <cstdint>
@@ -23,68 +24,44 @@ namespace terraingen::python {
 
 namespace {
 
-using InputArray = nb::ndarray<const float, nb::device::cpu, nb::c_contig>;
-using InputArray64 = nb::ndarray<const double, nb::device::cpu, nb::c_contig>;
-using OutputArray = nb::ndarray<nb::numpy, float>;
+using InputArray = CpuArray<float>;
+using InputArray64 = CpuArray<double>;
+using OutputArray = NumpyArray<float>;
 
 /// @brief The shape shared by every array, or an error naming them.
 template <typename Array, typename... More>
 std::vector<std::size_t> SameShape(const char* names, const Array& first, const More&... more) {
-    std::vector<std::size_t> shape(first.ndim());
-    for (std::size_t i = 0; i < first.ndim(); ++i) {
-        shape[i] = first.shape(i);
-    }
-    const auto matches = [&](const Array& other) {
-        if (other.ndim() != first.ndim()) {
-            return false;
-        }
-        for (std::size_t i = 0; i < first.ndim(); ++i) {
-            if (other.shape(i) != first.shape(i)) {
-                return false;
-            }
-        }
-        return true;
-    };
-    if (!(matches(more) && ...)) {
+    const std::vector<std::size_t> shape = Shape(first);
+    if (!((Shape(more) == shape) && ...)) {
         throw std::invalid_argument(std::string(names) + " must have the same shape");
     }
     return shape;
 }
 
-/// @brief A new float32 array of `shape`, owning `data`.
-OutputArray NewArray(const std::vector<std::size_t>& shape, std::size_t count, float*& data) {
-    data = new float[count];
-    nb::capsule owner(data, [](void* p) noexcept { delete[] static_cast<float*>(p); });
-    return OutputArray(data, shape.size(), shape.data(), owner);
+/// @brief `fn(i)` for each of `count` points without the GIL, as a float32 array of `shape`.
+template <typename Fn>
+OutputArray EvaluateEach(const std::vector<std::size_t>& shape, std::size_t count, Fn fn) {
+    std::vector<float> out(count);
+    {
+        nb::gil_scoped_release release;
+        for (std::size_t i = 0; i < count; ++i) {
+            out[i] = fn(i);
+        }
+    }
+    return OwnedArray(std::move(out), shape);
 }
 
 /// @brief `fn(x, y)` at each point of two float32 arrays of one shape, without the GIL.
 template <typename Fn> OutputArray Evaluate(const InputArray& x, const InputArray& y, Fn fn) {
-    const std::vector<std::size_t> shape = SameShape("x and y", x, y);
-    float* out = nullptr;
-    OutputArray result = NewArray(shape, x.size(), out);
-    {
-        nb::gil_scoped_release release;
-        for (std::size_t i = 0; i < x.size(); ++i) {
-            out[i] = fn(x.data()[i], y.data()[i]);
-        }
-    }
-    return result;
+    return EvaluateEach(SameShape("x and y", x, y), x.size(),
+                        [&](std::size_t i) { return fn(x.data()[i], y.data()[i]); });
 }
 
 /// @brief `fn(x, y, z)` at each point of three float64 arrays of one shape, as float32.
 template <typename Fn>
 OutputArray Evaluate3(const InputArray64& x, const InputArray64& y, const InputArray64& z, Fn fn) {
-    const std::vector<std::size_t> shape = SameShape("x, y and z", x, y, z);
-    float* out = nullptr;
-    OutputArray result = NewArray(shape, x.size(), out);
-    {
-        nb::gil_scoped_release release;
-        for (std::size_t i = 0; i < x.size(); ++i) {
-            out[i] = fn(x.data()[i], y.data()[i], z.data()[i]);
-        }
-    }
-    return result;
+    return EvaluateEach(SameShape("x, y and z", x, y, z), x.size(),
+                        [&](std::size_t i) { return fn(x.data()[i], y.data()[i], z.data()[i]); });
 }
 
 void BindHashes(nb::module_& m) {
@@ -130,12 +107,9 @@ float ValueAt(float x, float y, std::uint32_t seed) {
 template <typename Worley>
 nb::tuple WorleyArrays(const std::vector<std::size_t>& shape, std::size_t count,
                        const Worley& worley) {
-    float* f1 = nullptr;
-    float* f2 = nullptr;
-    float* value = nullptr;
-    OutputArray first = NewArray(shape, count, f1);
-    OutputArray second = NewArray(shape, count, f2);
-    OutputArray cell = NewArray(shape, count, value);
+    std::vector<float> f1(count);
+    std::vector<float> f2(count);
+    std::vector<float> value(count);
     {
         nb::gil_scoped_release release;
         for (std::size_t i = 0; i < count; ++i) {
@@ -145,7 +119,8 @@ nb::tuple WorleyArrays(const std::vector<std::size_t>& shape, std::size_t count,
             value[i] = d.value;
         }
     }
-    return nb::make_tuple(first, second, cell);
+    return nb::make_tuple(OwnedArray(std::move(f1), shape), OwnedArray(std::move(f2), shape),
+                          OwnedArray(std::move(value), shape));
 }
 
 nb::tuple WorleyTuple(const WorleyDistances& d) {
@@ -193,25 +168,10 @@ void BindBasisNoise(nb::module_& m) {
 }
 
 void BindEnums(nb::module_& m) {
-    nb::enum_<NoiseBasis>(m, "NoiseBasis", "Single-octave noise a fractal is built from.")
-        .value("PERLIN", NoiseBasis::Perlin)
-        .value("SIMPLEX", NoiseBasis::Simplex)
-        .value("VALUE", NoiseBasis::Value)
-        .value("WORLEY_F1", NoiseBasis::WorleyF1)
-        .value("WORLEY_F2", NoiseBasis::WorleyF2)
-        .value("WORLEY_F2_MINUS_F1", NoiseBasis::WorleyF2MinusF1)
-        .value("VORONOI", NoiseBasis::Voronoi);
-    nb::enum_<FractalType>(m, "FractalType", "How octaves of the basis noise are combined.")
-        .value("FBM", FractalType::Fbm)
-        .value("RIDGED", FractalType::Ridged)
-        .value("BILLOW", FractalType::Billow)
-        .value("HYBRID_MULTIFRACTAL", FractalType::HybridMultifractal);
-    nb::enum_<LayerBlend>(m, "LayerBlend",
-                          "How a layer combines with the height of the layers before it.")
-        .value("ADD", LayerBlend::Add)
-        .value("MAX", LayerBlend::Max)
-        .value("MIN", LayerBlend::Min)
-        .value("MASK", LayerBlend::Mask);
+    BindEnum<NoiseBasis>(m, "NoiseBasis", "Single-octave noise a fractal is built from.");
+    BindEnum<FractalType>(m, "FractalType", "How octaves of the basis noise are combined.");
+    BindEnum<LayerBlend>(m, "LayerBlend",
+                         "How a layer combines with the height of the layers before it.");
 }
 
 void BindFractalParams(nb::module_& m) {
@@ -246,8 +206,7 @@ void BindFractal(nb::module_& m) {
           "Octave gain lacunarity**(-hurst) that gives Hurst exponent `hurst`.");
     m.def("basis_noise2", &BasisNoise2, "basis"_a, "x"_a, "y"_a, "seed"_a,
           "One octave of `basis` noise in [-1, 1], in lattice units.");
-    m.def("validate_fractal_params", &ValidateFractalParams, "params"_a,
-          "Raise ValueError if the parameters are unusable.");
+    m.def("validate_fractal_params", &ValidateFractalParams, "params"_a, kValidateDoc);
     m.def(
         "fractal2",
         [](const InputArray& x, const InputArray& y, const FractalParams& params) {
@@ -285,8 +244,7 @@ void BindNoiseLayer(nb::module_& m) {
         .def_rw("warp_wavelength", &NoiseLayer::warpWavelength, "Warp field wavelength in metres.")
         .def(nb::self == nb::self);
     m.attr("MAX_NOISE_LAYERS") = kMaxNoiseLayers;
-    m.def("validate_noise_layer", &ValidateNoiseLayer, "layer"_a,
-          "Raise ValueError if the layer is unusable.");
+    m.def("validate_noise_layer", &ValidateNoiseLayer, "layer"_a, kValidateDoc);
 }
 
 void BindLayerEvaluation(nb::module_& m) {

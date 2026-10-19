@@ -64,6 +64,12 @@ def test_unknown_keys_name_their_path():
     assert isinstance(unknown.value, ValueError)
 
 
+def test_config_error_is_a_documented_class_of_the_module():
+    assert issubclass(terraingen.ConfigError, ValueError)
+    assert terraingen.ConfigError.__module__.startswith("terraingen")
+    assert "JSON path" in terraingen.ConfigError.__doc__
+
+
 def test_validation_errors_name_their_path():
     with pytest.raises(terraingen.ConfigError) as empty:
         terraingen.Config.from_dict(

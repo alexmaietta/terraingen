@@ -320,9 +320,8 @@ template <> struct SpecName<BoulderLayerSpec> {
         "Boulders scattered over the ground from a size distribution, in patches and around fresh "
         "craters, as relief or 3D models.";
 };
-/// The fields of the sizes of a boulder layer's boulders between craters.
-template <typename IO> void BoulderSizeFields(IO& io, BoulderLayerSpec& spec) {
-    BoulderSizes& sizes = spec.boulders.sizes;
+/// The fields of the Golombek-Rapp terms and diameter range of a boulder layer's boulders.
+template <typename IO> void BoulderSizeRangeFields(IO& io, BoulderSizes& sizes) {
     io("coverage", sizes.coverage,
        "Golombek-Rapp k, the fraction of the ground covered by boulders, between 0 and 1; used "
        "with golombek_rapp sizes, where higher values give more boulders.",
@@ -338,14 +337,18 @@ template <typename IO> void BoulderSizeFields(IO& io, BoulderLayerSpec& spec) {
        Above(0.0));
     io("max_diameter", sizes.maxDiameter,
        "Largest boulder generated, in metres, exclusive; above the smallest.", "m", Above(0.0));
+}
+
+/// The fields of the sizes of a boulder layer's boulders between craters.
+template <typename IO> void BoulderSizeFields(IO& io, BoulderLayerSpec& spec) {
+    BoulderSizeRangeFields(io, spec.boulders.sizes);
     io("sizes", spec.sizes,
        "Size distribution of the boulders between craters, per m^2; patches and bedrock scale its "
        "density.");
 }
 
 /// The fields of where a boulder layer's boulders gather: patches, clusters and crater ejecta.
-template <typename IO> void BoulderPlacementFields(IO& io, BoulderLayerSpec& spec) {
-    BoulderLayerOptions& boulders = spec.boulders;
+template <typename IO> void BoulderGatheringFields(IO& io, BoulderLayerOptions& boulders) {
     io("seed", boulders.seed,
        "Seed of the boulders, their attributes and the patches; changing it gives a different "
        "boulder field of the same statistics.");
@@ -357,6 +360,11 @@ template <typename IO> void BoulderPlacementFields(IO& io, BoulderLayerSpec& spe
     io("ejecta", boulders.ejecta,
        "Blocks thrown out by craters of the nearest crater layer before this one that dug into "
        "boulder, densest at the rim and thinning outward.");
+}
+
+/// The fields of where a boulder layer's boulders gather, and the sizes of crater ejecta blocks.
+template <typename IO> void BoulderPlacementFields(IO& io, BoulderLayerSpec& spec) {
+    BoulderGatheringFields(io, spec.boulders);
     io("ejecta_sizes", spec.ejectaSizes,
        "Size distribution of the blocks at the rim of a fresh crater, per m^2; golombek_rapp uses "
        "the ejecta's coverage with qa and qb.");
@@ -478,15 +486,8 @@ template <typename IO> void BoulderInputFields(IO& io, BoulderLayerSpec& spec) {
        "keeps every generated boulder.");
 }
 
-template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
-    BoulderLayerOptions& boulders = spec.boulders;
-    BoulderSizeFields(io, spec);
-    BoulderPlacementFields(io, spec);
-    BoulderBedrockFields(io, boulders.bedrock);
-    BoulderPoseFields(io, boulders.pose);
-    BoulderWearFields(io, boulders);
-    BoulderRenderingFields(io, boulders.rendering);
-    BoulderInputFields(io, spec);
+/// The fields of how a boulder layer shares shapes, reads the ground and fades its boulders.
+template <typename IO> void BoulderSharingFields(IO& io, BoulderLayerOptions& boulders) {
     io("shape_prototypes", boulders.rendering.shapePrototypes,
        "How many shapes the boulders share, so they can be drawn as instances; 0 gives every "
        "boulder a shape of its own.");
@@ -496,6 +497,30 @@ template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
        "depend on the level of detail.",
        "m", Above(0.0));
     io("fade", boulders.fade, "How boulders too small to resolve at the sample spacing fade out.");
+}
+
+/// The fields of a boulder layer's library options: its spec's without the size models, maps,
+/// files and catalog, which the options hold built.
+template <typename IO> void Fields(IO& io, BoulderLayerOptions& boulders) {
+    BoulderSizeRangeFields(io, boulders.sizes);
+    BoulderGatheringFields(io, boulders);
+    BoulderBedrockFields(io, boulders.bedrock);
+    BoulderPoseFields(io, boulders.pose);
+    BoulderWearFields(io, boulders);
+    BoulderRenderingFields(io, boulders.rendering);
+    BoulderSharingFields(io, boulders);
+}
+
+template <typename IO> void Fields(IO& io, BoulderLayerSpec& spec) {
+    BoulderLayerOptions& boulders = spec.boulders;
+    BoulderSizeFields(io, spec);
+    BoulderPlacementFields(io, spec);
+    BoulderBedrockFields(io, boulders.bedrock);
+    BoulderPoseFields(io, boulders.pose);
+    BoulderWearFields(io, boulders);
+    BoulderRenderingFields(io, boulders.rendering);
+    BoulderInputFields(io, spec);
+    BoulderSharingFields(io, boulders);
 }
 
 }  // namespace terraingen::config

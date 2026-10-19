@@ -1,15 +1,14 @@
+#include "arrays.h"
 #include "bindings.h"
 #include "common.h"
+#include "options.h"
 
 #include "terraingen/random/philox.h"
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/random/value_distribution.h"
 
-#include <nanobind/ndarray.h>
-
 #include <cstdint>
-#include <limits>
 #include <optional>
 #include <vector>
 
@@ -18,15 +17,12 @@ namespace terraingen::python {
 namespace {
 
 /// @brief `count` values of `draw()` as a NumPy array.
-template <typename T, typename Draw>
-nb::ndarray<nb::numpy, T> DrawArray(std::size_t count, Draw draw) {
-    T* data = new T[count];
-    nb::capsule owner(data, [](void* p) noexcept { delete[] static_cast<T*>(p); });
-    for (std::size_t i = 0; i < count; ++i) {
-        data[i] = static_cast<T>(draw());
+template <typename T, typename Draw> NumpyArray<T> DrawArray(std::size_t count, Draw draw) {
+    std::vector<T> values(count);
+    for (T& value : values) {
+        value = static_cast<T>(draw());
     }
-    const std::size_t shape[1] = {count};
-    return nb::ndarray<nb::numpy, T>(data, 1, shape, owner);
+    return OwnedArray(std::move(values), {count});
 }
 
 /// @brief One value of `draw()`, or an array of `count` of them.
@@ -119,29 +115,13 @@ void BindSamplers(nb::module_& m) {
 }
 
 void BindValueDistribution(nb::module_& m) {
-    nb::enum_<ValueDistribution::Kind>(m, "ValueDistributionKind")
-        .value("CONSTANT", ValueDistribution::Kind::Constant)
-        .value("UNIFORM", ValueDistribution::Kind::Uniform)
-        .value("NORMAL", ValueDistribution::Kind::Normal)
-        .value("LOG_NORMAL", ValueDistribution::Kind::LogNormal);
-    nb::class_<ValueDistribution>(
+    BindEnum<ValueDistribution::Kind>(m, "ValueDistributionKind",
+                                      "The kind of distribution a random value is drawn from.");
+    BindOptions<ValueDistribution>(
         m, "ValueDistribution",
         "A random value: constant `a`, uniform from `a` to `b`, normal or log-normal with mean "
-        "`a` and deviation `b`, clipped to [min, max].")
-        .def(
-            "__init__",
-            [](ValueDistribution* self, ValueDistribution::Kind kind, double a, double b,
-               std::optional<double> min, std::optional<double> max) {
-                new (self) ValueDistribution{
-                    kind, a, b, min.value_or(-std::numeric_limits<double>::infinity()), Bound(max)};
-            },
-            "kind"_a = ValueDistribution::Kind::Constant, "a"_a = 0.0, "b"_a = 0.0,
-            "min"_a = nb::none(), "max"_a = nb::none())
-        .def_rw("kind", &ValueDistribution::kind)
-        .def_rw("a", &ValueDistribution::a)
-        .def_rw("b", &ValueDistribution::b)
-        .def_rw("min", &ValueDistribution::min)
-        .def_rw("max", &ValueDistribution::max);
+        "`a` and deviation `b`, clipped to [min, max].",
+        &ValidateValueDistribution);
     m.def("validate_value_distribution", &ValidateValueDistribution, "distribution"_a,
           kValidateDoc);
 }

@@ -1,5 +1,7 @@
+#include "arrays.h"
 #include "bindings.h"
 #include "common.h"
+#include "options.h"
 #include "tables.h"
 
 #include "terraingen/layers/craters/crater.h"
@@ -12,10 +14,8 @@
 #include "terraingen/layers/craters/shaping/datum.h"
 #include "terraingen/layers/craters/shaping/irregularity.h"
 
-#include <limits>
-#include <nanobind/ndarray.h>
-
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -25,9 +25,6 @@
 namespace terraingen::python {
 
 namespace {
-
-using Column64 = nb::ndarray<const double, nb::ndim<1>, nb::device::cpu, nb::c_contig>;
-using ColumnU64 = nb::ndarray<const std::uint64_t, nb::ndim<1>, nb::device::cpu, nb::c_contig>;
 
 /// @brief Craters held as manual craters.
 CraterList ManualCraters(const std::vector<Crater>& craters) {
@@ -39,7 +36,8 @@ CraterList ManualCraters(const std::vector<Crater>& craters) {
     return list;
 }
 
-std::vector<Crater> CratersOf(const CraterList& list) {
+/// @brief The craters of `list` as Crater objects.
+std::vector<Crater> ToCraters(const CraterList& list) {
     std::vector<Crater> craters;
     for (std::size_t i = 0; i < list.Size(); ++i) {
         craters.push_back(list.At(i));
@@ -47,28 +45,29 @@ std::vector<Crater> CratersOf(const CraterList& list) {
     return craters;
 }
 
-/// @brief Column `name` of `table` as contiguous values of `T`, if the table has it.
-template <typename Column>
-std::optional<Column> TableColumn(const nb::dict& table, const char* name, const char* dtype) {
+/// @brief Column `name` of `table` as contiguous values of `dtype`, if the table has it.
+template <typename T>
+std::optional<CpuColumn<T>> TableColumn(const nb::dict& table, const char* name,
+                                        const char* dtype) {
     if (!table.contains(name)) {
         return std::nullopt;
     }
-    return nb::cast<Column>(nb::module_::import_("numpy").attr("ascontiguousarray")(
+    return nb::cast<CpuColumn<T>>(nb::module_::import_("numpy").attr("ascontiguousarray")(
         table[name], nb::arg("dtype") = dtype));
 }
 
 /// @brief A crater list from NumPy columns 'x', 'y', 'diameter' and optionally 'age_gyr', 'id'
 /// and 'manual'; IDs of 0 are hashed from position and size.
 CraterList FromTable(const nb::dict& table) {
-    const Column64 x = *TableColumn<Column64>(table, "x", "float64");
-    const Column64 y = *TableColumn<Column64>(table, "y", "float64");
-    const Column64 diameter = *TableColumn<Column64>(table, "diameter", "float64");
+    const CpuColumn<double> x = *TableColumn<double>(table, "x", "float64");
+    const CpuColumn<double> y = *TableColumn<double>(table, "y", "float64");
+    const CpuColumn<double> diameter = *TableColumn<double>(table, "diameter", "float64");
     if (x.shape(0) != y.shape(0) || x.shape(0) != diameter.shape(0)) {
         throw std::invalid_argument("Crater columns must have the same length");
     }
-    const auto age = TableColumn<Column64>(table, "age_gyr", "float64");
-    const auto ids = TableColumn<ColumnU64>(table, "id", "uint64");
-    const auto manual = TableColumn<Column64>(table, "manual", "float64");
+    const auto age = TableColumn<double>(table, "age_gyr", "float64");
+    const auto ids = TableColumn<std::uint64_t>(table, "id", "uint64");
+    const auto manual = TableColumn<double>(table, "manual", "float64");
     CraterList list;
     list.Reserve(x.shape(0));
     for (std::size_t i = 0; i < x.shape(0); ++i) {
@@ -149,14 +148,12 @@ void BindCraterList(nb::module_& m) {
 }
 
 void BindSpacing(nb::module_& m) {
-    auto spacing = nb::class_<CraterSpacing>(
+    BindOptions<CraterSpacing>(
         m, "CraterSpacing",
         "Keeps craters of similar size apart: two conflict when their diameters differ by at most "
         "`diameter_ratio` (at least 1) and their centres are closer than `separation` times the "
-        "larger diameter. A separation of 0 disables it.");
-    BindKwargsInit<CraterSpacing>(spacing);
-    spacing.def_rw("diameter_ratio", &CraterSpacing::diameterRatio)
-        .def_rw("separation", &CraterSpacing::separation)
+        "larger diameter. A separation of 0 disables it.",
+        &ValidateCraterSpacing)
         .def_rw("outrank_from", &CraterSpacing::outrankFrom);
     m.def("validate_crater_spacing", &ValidateCraterSpacing, "spacing"_a, kValidateDoc);
     m.def("craters_conflict", &CratersConflict, "a"_a, "b"_a, "spacing"_a, "surface"_a = Surface{},
@@ -183,7 +180,7 @@ void BindGenerationOptions(nb::module_& m) {
         .def_rw("cell_size_factor", &CraterGenerationOptions::cellSizeFactor)
         .def_rw("max_expected_craters", &CraterGenerationOptions::maxExpectedCraters)
         .def_prop_rw(
-            "manual", [](const CraterGenerationOptions& o) { return CratersOf(o.manual); },
+            "manual", [](const CraterGenerationOptions& o) { return ToCraters(o.manual); },
             [](CraterGenerationOptions& o, const std::vector<Crater>& craters) {
                 o.manual = ManualCraters(craters);
             },
@@ -192,7 +189,8 @@ void BindGenerationOptions(nb::module_& m) {
                 "Callable giving the share of generated craters like a Crater kept, by a uniform "
                 "keyed to each ID; it is called from worker threads.")
         .def_rw("completeness", &CraterGenerationOptions::completeness,
-                "Diameter (m) from which `manual` is a complete catalog at each point.");
+                "Diameter (m) from which `manual` is a complete catalog at each point.")
+        .def("validate", &ValidateCraterGenerationOptions, kValidateDoc);
 }
 
 void BindGeneration(nb::module_& m) {
@@ -218,76 +216,43 @@ void BindGeneration(nb::module_& m) {
 }
 
 void BindApplyEnums(nb::module_& m) {
-    nb::enum_<CraterOrder>(m, "CraterOrder", "The order overlapping craters are applied in.")
-        .value("OLDEST_FIRST", CraterOrder::OldestFirst)
-        .value("LARGEST_FIRST", CraterOrder::LargestFirst);
-    nb::enum_<CraterDatum>(m, "CraterDatum", "The surface a crater's interior is cut relative to.")
-        .value("NONE", CraterDatum::None)
-        .value("PLANE", CraterDatum::Plane)
-        .value("MEAN_HEIGHT", CraterDatum::MeanHeight)
-        .value("CENTRE_HEIGHT", CraterDatum::CentreHeight);
-    auto blendClass = nb::class_<CraterBlend>(
+    BindEnum<CraterOrder>(m, "CraterOrder", "The order overlapping craters are applied in.");
+    BindEnum<CraterDatum>(m, "CraterDatum", "The surface a crater's interior is cut relative to.");
+    BindOptions<CraterBlend>(
         m, "CraterBlend",
-        "Where a crater's replaced interior blends into the draped exterior, in radii.");
-    BindKwargsInit<CraterBlend>(blendClass);
-    blendClass.def_rw("start_radii", &CraterBlend::startRadii)
-        .def_rw("end_radii", &CraterBlend::endRadii)
-        .def_rw("shape", &CraterBlend::shape)
+        "Where a crater's replaced interior blends into the draped exterior, in radii.")
         .def("weight", &CraterBlend::Weight, "radii"_a,
              "The interior weight `radii` crater radii from the centre.");
-    m.def(
-        "crater_blend_weight",
-        [](double radii, const CraterBlend& blend) { return blend.Weight(radii); }, "radii"_a,
-        "blend"_a, "The interior weight `radii` crater radii from the centre.");
 }
 
 void BindSelectionClass(nb::module_& m) {
-    nb::enum_<RimRoughnessModel>(m, "RimRoughnessModel", "How irregular crater rims are drawn.")
-        .value("POWER_LAW", RimRoughnessModel::PowerLaw)
-        .value("DU_2024", RimRoughnessModel::Du2024);
-    auto selection = nb::class_<CraterSelection>(
+    BindEnum<RimRoughnessModel>(m, "RimRoughnessModel", "How irregular crater rims are drawn.");
+    BindOptions<CraterSelection>(
         m, "CraterSelection",
         "Which craters a model applies to: diameters (m) and ages (Gyr) within ranges, and manual "
-        "craters only with `manual`.");
-    BindKwargsInit<CraterSelection>(selection);
-    selection.def_rw("min_diameter", &CraterSelection::minDiameter)
-        .def_rw("max_diameter", &CraterSelection::maxDiameter)
-        .def_rw("min_age_gyr", &CraterSelection::minAgeGyr)
-        .def_rw("max_age_gyr", &CraterSelection::maxAgeGyr)
-        .def_rw("manual", &CraterSelection::manual)
-        .def("includes", &CraterSelection::Includes, "crater"_a, "Whether `crater` is selected.");
+        "craters only with `manual`.",
+        [](auto& io, CraterSelection& selection) {
+            config::SelectionFields(io, selection, "selected craters",
+                                    "Selects manual craters too; otherwise only generated craters "
+                                    "are selected.");
+        })
+        .def("includes", &CraterSelection::Includes, "crater"_a, "Whether `crater` is selected.")
+        .def(
+            "validate",
+            [](const CraterSelection& selection, std::string_view what) {
+                ValidateCraterSelection(selection, what);
+            },
+            "what"_a = "Crater selection", kValidateDoc);
     m.def("validate_crater_selection", &ValidateCraterSelection, "selection"_a,
-          "what"_a = "Crater selection", "Raises ValueError naming the first invalid setting.");
+          "what"_a = "Crater selection", kValidateDoc);
 }
 
 void BindIrregularity(nb::module_& m) {
-    auto irregularity = nb::class_<CraterIrregularity>(
+    BindOptions<CraterIrregularity>(
         m, "CraterIrregularity",
         "Irregular, elongated crater outlines for the craters it selects: rims roughened by "
-        "random harmonics and some craters stretched into ellipses.");
-    BindKwargsInit<CraterIrregularity>(irregularity);
-    irregularity.def_rw("enabled", &CraterIrregularity::enabled)
-        .def_rw("seed", &CraterIrregularity::seed)
-        .def_rw("selection", &CraterIrregularity::selection);
-    BindSelection(irregularity, &CraterIrregularity::selection, "min_diameter", "max_diameter");
-    irregularity.def_rw("rough_share", &CraterIrregularity::roughShare)
-        .def_rw("model", &CraterIrregularity::model)
-        .def_rw("scatter", &CraterIrregularity::scatter)
-        .def_rw("max_deviation", &CraterIrregularity::maxDeviation)
-        .def_rw("roughness", &CraterIrregularity::roughness)
-        .def_rw("spectral_slope", &CraterIrregularity::spectralSlope)
-        .def_rw("min_harmonic", &CraterIrregularity::minHarmonic)
-        .def_rw("max_harmonic", &CraterIrregularity::maxHarmonic)
-        .def_rw("elongated_share", &CraterIrregularity::elongatedShare)
-        .def_rw("ellipticity", &CraterIrregularity::ellipticity)
-        .def_rw("heading", &CraterIrregularity::heading)
-        .def_rw("heading_spread", &CraterIrregularity::headingSpread)
-        .def_rw("marks_share", &CraterIrregularity::marksShare)
-        .def_rw("marks_amplitude", &CraterIrregularity::marksAmplitude)
-        .def_rw("marks_knots", &CraterIrregularity::marksKnots)
-        .def_rw("marks_inner_radii", &CraterIrregularity::marksInnerRadii)
-        .def_rw("marks_outer_radii", &CraterIrregularity::marksOuterRadii)
-        .def_rw("marks_fade_radii", &CraterIrregularity::marksFadeRadii);
+        "random harmonics and some craters stretched into ellipses.",
+        &ValidateCraterIrregularity);
     m.def("validate_crater_irregularity", &ValidateCraterIrregularity, "irregularity"_a,
           kValidateDoc);
 }
@@ -309,95 +274,59 @@ void BindOutlines(nb::module_& m) {
           "The largest outline scale `irregularity` can give, for reach.");
 }
 
-void BindApplyOptions(nb::module_& m) {
-    auto smoothing = nb::class_<RimSmoothing>(
+void BindShapeDetails(nb::module_& m) {
+    BindOptions<RimSmoothing>(
         m, "RimSmoothing",
         "Rounded crater rims: near the rim the profile is blended toward itself smoothed across "
         "distance by a Gaussian of `sigma_radii` radii, over the band from `inner_radii` to "
-        "`outer_radii`, fading along `shape`, at `strength`; 0 `sigma_radii` leaves rims sharp.");
-    BindKwargsInit<RimSmoothing>(smoothing);
-    smoothing.def_rw("sigma_radii", &RimSmoothing::sigmaRadii)
-        .def_rw("inner_radii", &RimSmoothing::innerRadii)
-        .def_rw("outer_radii", &RimSmoothing::outerRadii)
-        .def_rw("shape", &RimSmoothing::shape)
-        .def_rw("strength", &RimSmoothing::strength)
+        "`outer_radii`, fading along `shape`, at `strength`; 0 `sigma_radii` leaves rims sharp.",
+        &ValidateRimSmoothing)
         .def("weight", &RimSmoothing::Weight, "radii"_a,
              "The smoothing weight at `radii` crater radii from the centre.");
     m.def("validate_rim_smoothing", &ValidateRimSmoothing, "smoothing"_a, kValidateDoc);
-    auto noise = nb::class_<CraterNoise>(
+    BindOptions<CraterNoise>(
         m, "CraterNoise",
         "Fractal noise added to each crater, keyed to its ID: `amplitude` over the whole "
         "footprint (fading out beyond the rim) at `wavelength_radii`, and `rim_amplitude` in the "
         "band from `rim_inner_radii` to `rim_outer_radii` at `rim_wavelength_radii`; amplitudes "
-        "are shares of the diameter and 0 adds none.");
-    BindKwargsInit<CraterNoise>(noise);
-    noise.def_rw("amplitude", &CraterNoise::amplitude)
-        .def_rw("wavelength_radii", &CraterNoise::wavelengthRadii)
-        .def_rw("octaves", &CraterNoise::octaves)
-        .def_rw("gain", &CraterNoise::gain)
-        .def_rw("rim_amplitude", &CraterNoise::rimAmplitude)
-        .def_rw("rim_wavelength_radii", &CraterNoise::rimWavelengthRadii)
-        .def_rw("rim_inner_radii", &CraterNoise::rimInnerRadii)
-        .def_rw("rim_outer_radii", &CraterNoise::rimOuterRadii)
-        .def_rw("seed", &CraterNoise::seed);
+        "are shares of the diameter and 0 adds none.",
+        &ValidateCraterNoise);
     m.def("validate_crater_noise", &ValidateCraterNoise, "noise"_a, kValidateDoc);
-    auto texture = nb::class_<CraterTexture>(
+    BindOptions<CraterTexture>(
         m, "CraterTexture",
         "Texture keyed to each crater's ID: `wall_streaks` (gullies down the inner wall, as a "
         "share of the diameter, `wall_streak_width_radii` wide), `ejecta` (hummocky lineated "
         "ejecta as a share of McGetchin's thickness, lineations `ejecta_lineation_radii` wide) "
         "and `mantling` (older relief buried under the ejecta, with a datum), out to "
-        "`ejecta_reach_radii`; gullies and ejecta fade out by `min_freshness`.");
-    BindKwargsInit<CraterTexture>(texture);
-    texture.def_rw("wall_streaks", &CraterTexture::wallStreaks)
-        .def_rw("wall_streak_width_radii", &CraterTexture::wallStreakWidthRadii)
-        .def_rw("ejecta", &CraterTexture::ejecta)
-        .def_rw("ejecta_lineation_radii", &CraterTexture::ejectaLineationRadii)
-        .def_rw("mantling", &CraterTexture::mantling)
-        .def_rw("ejecta_reach_radii", &CraterTexture::ejectaReachRadii)
-        .def_rw("min_freshness", &CraterTexture::minFreshness)
-        .def_rw("seed", &CraterTexture::seed);
+        "`ejecta_reach_radii`; gullies and ejecta fade out by `min_freshness`.",
+        &ValidateCraterTexture);
     m.def("validate_crater_texture", &ValidateCraterTexture, "texture"_a, kValidateDoc);
     m.def("ejecta_thickness_share", &EjectaThicknessShare, "radii"_a, "reach_radii"_a,
           "McGetchin's ejecta thickness at `radii` radii over that at the rim, tapered to "
           "nothing at `reach_radii`.");
-    auto slope = nb::class_<CraterSlopeResponse>(
+}
+
+void BindApplyOptions(nb::module_& m) {
+    BindShapeDetails(m);
+    BindOptions<CraterSlopeResponse>(
         m, "CraterSlopeResponse",
         "Craters made asymmetric along the slope of the ground beneath their layer: the deepest "
         "point `floor_offset` diameters downslope (drawn per crater), `upslope_rim` of the raised "
-        "rim and ejecta kept upslope, complete from `full_slope` radians.");
-    BindKwargsInit<CraterSlopeResponse>(slope);
-    slope.def_rw("enabled", &CraterSlopeResponse::enabled)
-        .def_rw("seed", &CraterSlopeResponse::seed)
-        .def_rw("floor_offset", &CraterSlopeResponse::floorOffset)
-        .def_rw("upslope_rim", &CraterSlopeResponse::upslopeRim)
-        .def_rw("full_slope", &CraterSlopeResponse::fullSlope)
-        .def_rw("critical_gradient", &CraterSlopeResponse::criticalGradient)
-        .def_rw("max_wear_rate", &CraterSlopeResponse::maxWearRate);
+        "rim and ejecta kept upslope, complete from `full_slope` radians.",
+        &ValidateCraterSlopeResponse);
     m.def("validate_crater_slope_response", &ValidateCraterSlopeResponse, "response"_a,
           kValidateDoc);
     m.def("slope_wear_rate", &SlopeWearRate, "response"_a, "east"_a, "north"_a,
           "How many times as fast a crater wears on ground rising `east` and `north` m/m.");
-    auto apply = nb::class_<CraterApplyOptions>(
+    BindOptions<CraterApplyOptions>(
         m, "CraterApplyOptions",
         "How craters are applied: the `datum` interiors are cut relative to (fit over "
         "`datum_fit_radii` radii; with none, craters are added to the terrain and the settings "
         "after it are unused), how much of the interior replaces the older relief "
         "(`interior_replacement`, 0 to 1), the `blend` into the exterior, the `order` overlapping "
         "craters are applied in, the resolution `fade`, rim `irregularity`, `rim_smoothing`, "
-        "`noise`, `texture` and `slope`.");
-    BindKwargsInit<CraterApplyOptions>(apply);
-    apply.def_rw("order", &CraterApplyOptions::order)
-        .def_rw("fade", &CraterApplyOptions::fade)
-        .def_rw("datum", &CraterApplyOptions::datum)
-        .def_rw("datum_fit_radii", &CraterApplyOptions::datumFitRadii)
-        .def_rw("interior_replacement", &CraterApplyOptions::interiorReplacement)
-        .def_rw("blend", &CraterApplyOptions::blend)
-        .def_rw("irregularity", &CraterApplyOptions::irregularity)
-        .def_rw("rim_smoothing", &CraterApplyOptions::rimSmoothing)
-        .def_rw("noise", &CraterApplyOptions::noise)
-        .def_rw("texture", &CraterApplyOptions::texture)
-        .def_rw("slope", &CraterApplyOptions::slope);
+        "`noise`, `texture` and `slope`.",
+        &ValidateCraterApplyOptions);
     m.def("validate_crater_apply_options", &ValidateCraterApplyOptions, "options"_a, kValidateDoc);
     m.def("crater_apply_order", &CraterApplyOrder, "craters"_a, "order"_a,
           "The indices of `craters` in the order they are applied.");
@@ -418,9 +347,10 @@ void BindApply(nb::module_& m) {
             ApplyCraters(raster, craters, models, options, {spacing, threads});
         },
         "raster"_a, "craters"_a, "profile"_a, "degradation"_a, "options"_a = CraterApplyOptions{},
-        "spacing"_a = 0.0, "threads"_a = 1, nb::call_guard<nb::gil_scoped_release>(),
-        "Applies `craters` to `raster` in place, shaped by `profile` and `degradation`. With a "
-        "datum, the ground is the raster as given.");
+        "spacing"_a = 0.0, "threads"_a = 0, nb::call_guard<nb::gil_scoped_release>(),
+        "Applies `craters` to `raster` in place, shaped by `profile` and `degradation`, on up to "
+        "`threads` threads (0 for every hardware thread; the result does not depend on it). With "
+        "a datum, the ground is the raster as given.");
     m.def(
         "fit_crater_datum",
         [](const Crater& crater, const CraterApplyOptions& options,
@@ -479,14 +409,11 @@ void BindCraterLayer(nb::module_& m) {
 }
 
 void BindSecondaryOptions(nb::module_& m) {
-    auto layout = nb::class_<RayLayout>(m, "RayLayout",
-                                        "How many rays a crater has (`count`) and how wide "
-                                        "(`width_degrees`), drawn from its ID and "
-                                        "`seed`; layers with the same layout share the same rays.");
-    BindKwargsInit<RayLayout>(layout);
-    layout.def_rw("seed", &RayLayout::seed)
-        .def_rw("count", &RayLayout::count)
-        .def_rw("width_degrees", &RayLayout::widthDegrees);
+    BindOptions<RayLayout>(m, "RayLayout",
+                           "How many rays a crater has (`count`) and how wide (`width_degrees`), "
+                           "drawn from its ID and `seed`; layers with the same layout share the "
+                           "same rays.",
+                           &ValidateRayLayout);
     m.def("validate_ray_layout", &ValidateRayLayout, "layout"_a, kValidateDoc);
     nb::class_<RayDirection>(m, "RayDirection", "One ray: its azimuth and width.")
         .def_ro("azimuth", &RayDirection::azimuth, "Radians counter-clockwise from east.")
@@ -494,42 +421,20 @@ void BindSecondaryOptions(nb::module_& m) {
         .def_ro("key", &RayDirection::key);
     m.def("ray_directions", &RayDirections, "crater"_a, "layout"_a,
           "The rays of `crater` under `layout`.");
-    auto rays = nb::class_<SecondaryRays>(
+    BindOptions<SecondaryRays>(
         m, "SecondaryRays",
         "Secondaries gathered into their primary's rays (`share` of them) and clumped along each "
         "ray (`clustering`, every `cluster_spacing` in log range); off unless `enabled`.");
-    BindKwargsInit<SecondaryRays>(rays);
-    rays.def_rw("enabled", &SecondaryRays::enabled)
-        .def_rw("layout", &SecondaryRays::layout)
-        .def_rw("share", &SecondaryRays::share)
-        .def_rw("min_half_angle_degrees", &SecondaryRays::minHalfAngleDegrees)
-        .def_rw("clustering", &SecondaryRays::clustering)
-        .def_rw("cluster_spacing", &SecondaryRays::clusterSpacing);
-    auto shapes = nb::class_<SecondaryShapes>(
+    BindOptions<SecondaryShapes>(
         m, "SecondaryShapes",
         "Secondaries stretched toward their primary: `elongated_share` of them, by `ellipticity` "
         "near it, rounder with range.");
-    BindKwargsInit<SecondaryShapes>(shapes);
-    shapes.def_rw("elongated_share", &SecondaryShapes::elongatedShare)
-        .def_rw("ellipticity", &SecondaryShapes::ellipticity);
-    auto options = nb::class_<SecondaryCraterOptions>(
+    BindOptions<SecondaryCraterOptions>(
         m, "SecondaryCraterOptions",
         "Secondary craters around a crater layer's primaries; `onset_count` (the number at "
         "least `count_fraction` of the primary's diameter across, per primary-sized area at the "
-        "onset) must be given.");
-    BindKwargsInit<SecondaryCraterOptions>(options);
-    options.def_rw("seed", &SecondaryCraterOptions::seed)
-        .def_rw("onset_count", &SecondaryCraterOptions::onsetCount)
-        .def_rw("count_fraction", &SecondaryCraterOptions::countFraction)
-        .def_rw("size_slope", &SecondaryCraterOptions::sizeSlope)
-        .def_rw("min_diameter", &SecondaryCraterOptions::minDiameter)
-        .def_rw("max_diameter", &SecondaryCraterOptions::maxDiameter)
-        .def_rw("outer_range", &SecondaryCraterOptions::outerRange)
-        .def_rw("rays", &SecondaryCraterOptions::rays)
-        .def_rw("shapes", &SecondaryCraterOptions::shapes)
-        .def_rw("selection", &SecondaryCraterOptions::selection);
-    BindSelection(options, &SecondaryCraterOptions::selection, "min_primary_diameter",
-                  "max_primary_diameter");
+        "onset) must be given.",
+        &ValidateSecondaryCraterOptions);
     m.def("validate_secondary_crater_options", &ValidateSecondaryCraterOptions, "options"_a,
           kValidateDoc);
 }

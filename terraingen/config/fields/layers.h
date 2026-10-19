@@ -69,8 +69,7 @@ template <> struct SpecName<RoughnessLayerSpec> {
     static constexpr std::string_view kDescription =
         "Fine roughness from octaves of noise, scaled to a given RMS slope over a baseline.";
 };
-template <typename IO> void Fields(IO& io, RoughnessLayerSpec& spec) {
-    RoughnessOptions& roughness = spec.roughness;
+template <typename IO> void Fields(IO& io, RoughnessOptions& roughness) {
     io("rms_slope", roughness.rmsSlope,
        "RMS slope, as rise over run, over the baseline when every octave is resolved; higher "
        "values give rougher ground.",
@@ -92,6 +91,9 @@ template <typename IO> void Fields(IO& io, RoughnessLayerSpec& spec) {
     io("fade", roughness.fade,
        "How octaves too fine to resolve at the sample spacing fade out, by samples per "
        "wavelength.");
+}
+template <typename IO> void Fields(IO& io, RoughnessLayerSpec& spec) {
+    Fields(io, spec.roughness);
 }
 
 template <typename IO> void Fields(IO& io, DuneRipples& ripples) {
@@ -223,8 +225,7 @@ template <typename IO> void DuneCrestFields(IO& io, DuneOptions& dunes) {
        "rad", Inside(0.0, 0.5 * std::numbers::pi));
 }
 
-template <typename IO> void Fields(IO& io, DuneLayerSpec& spec) {
-    DuneOptions& dunes = spec.dunes;
+template <typename IO> void Fields(IO& io, DuneOptions& dunes) {
     DuneProfileFields(io, dunes);
     DuneLatticeFields(io, dunes);
     DuneCrestFields(io, dunes);
@@ -242,6 +243,9 @@ template <typename IO> void Fields(IO& io, DuneLayerSpec& spec) {
        "Grainflows on the slip faces: scarps below the brink and lobes below them; off unless "
        "cover is set.");
 }
+template <typename IO> void Fields(IO& io, DuneLayerSpec& spec) {
+    Fields(io, spec.dunes);
+}
 
 template <> struct SpecName<PavementLayerSpec> {
     static constexpr std::string_view kName = "pavement";
@@ -249,8 +253,7 @@ template <> struct SpecName<PavementLayerSpec> {
         "Fractured bedrock: polygonal plates, each tilted and stepped, parted by cracks or raised "
         "ridges, split again by finer octaves of cracks; lays bedrock over the material map.";
 };
-template <typename IO> void Fields(IO& io, PavementLayerSpec& spec) {
-    PavementOptions& pavement = spec.pavement;
+template <typename IO> void Fields(IO& io, PavementOptions& pavement) {
     io("plate_size", pavement.plateSize, "Mean plate width, in metres.", "m", Above(0.0));
     io("jitter", pavement.jitter,
        "How far plate centres stray from a square lattice, from 0 (square plates) to 1.", "",
@@ -285,6 +288,9 @@ template <typename IO> void Fields(IO& io, PavementLayerSpec& spec) {
     io("fade", pavement.fade,
        "How plates and cracks too fine for the sample spacing fade out, by samples across them.");
 }
+template <typename IO> void Fields(IO& io, PavementLayerSpec& spec) {
+    Fields(io, spec.pavement);
+}
 
 template <> struct SpecName<StrataLayerSpec> {
     static constexpr std::string_view kName = "strata";
@@ -292,8 +298,7 @@ template <> struct SpecName<StrataLayerSpec> {
         "Layered rock: the ground beneath terraced into dipping beds, each a flat bench below a "
         "cliff, so hills become stepped buttes and mesas; lays bedrock over the cliffs.";
 };
-template <typename IO> void Fields(IO& io, StrataLayerSpec& spec) {
-    StrataOptions& strata = spec.strata;
+template <typename IO> void Fields(IO& io, StrataOptions& strata) {
     io("bed_thickness", strata.bedThickness, "Mean thickness of a bed, in metres.", "m",
        Above(0.0));
     io("thickness_variation", strata.thicknessVariation,
@@ -325,6 +330,9 @@ template <typename IO> void Fields(IO& io, StrataLayerSpec& spec) {
        "are.",
        "", AtLeast(1.0));
 }
+template <typename IO> void Fields(IO& io, StrataLayerSpec& spec) {
+    Fields(io, spec.strata);
+}
 
 template <> struct SpecName<SandShadowLayerSpec> {
     static constexpr std::string_view kName = "sand_shadow";
@@ -332,8 +340,7 @@ template <> struct SpecName<SandShadowLayerSpec> {
         "Sand shadows: a tapering sand tail in the lee of each boulder of the nearest boulder "
         "layer before this one; lays sand over the material map.";
 };
-template <typename IO> void Fields(IO& io, SandShadowLayerSpec& spec) {
-    SandShadowOptions& shadows = spec.shadows;
+template <typename IO> void Fields(IO& io, SandShadowOptions& shadows) {
     io("wind_azimuth", shadows.windAzimuth,
        WindAzimuthHelp("wind", "tails trail away from boulders along it"), "rad");
     io("length_ratio", shadows.lengthRatio,
@@ -353,6 +360,9 @@ template <typename IO> void Fields(IO& io, SandShadowLayerSpec& spec) {
        "How tails behind boulders too small for the sample spacing fade out, by samples across "
        "the boulder.");
 }
+template <typename IO> void Fields(IO& io, SandShadowLayerSpec& spec) {
+    Fields(io, spec.shadows);
+}
 
 template <> struct SpecName<SandFillLayerSpec> {
     static constexpr std::string_view kName = "sand_fill";
@@ -360,8 +370,7 @@ template <> struct SpecName<SandFillLayerSpec> {
         "Sand pooled in the lows of the ground beneath: cracks, troughs and hollows between "
         "rises, laying sand over the material map.";
 };
-template <typename IO> void Fields(IO& io, SandFillLayerSpec& spec) {
-    SandFillOptions& fill = spec.sandFill;
+template <typename IO> void Fields(IO& io, SandFillOptions& fill) {
     io("reach", fill.reach,
        "Radius in metres of the surroundings a low is measured against: two rings, at half the "
        "reach and at the reach.",
@@ -374,14 +383,16 @@ template <typename IO> void Fields(IO& io, SandFillLayerSpec& spec) {
        "Sand thickness in metres from which it fully covers the ground in the material map.", "m",
        Above(0.0));
 }
+template <typename IO> void Fields(IO& io, SandFillLayerSpec& spec) {
+    Fields(io, spec.sandFill);
+}
 
 template <> struct SpecName<BedformLayerSpec> {
     static constexpr std::string_view kName = "bedforms";
     static constexpr std::string_view kDescription =
         "Fields of wind-blown ripples or dunes added to the terrain.";
 };
-template <typename IO> void Fields(IO& io, BedformLayerSpec& spec) {
-    BedformOptions& bedforms = spec.bedforms;
+template <typename IO> void Fields(IO& io, BedformOptions& bedforms) {
     io("wavelength", bedforms.wavelength,
        "Crest-to-crest spacing, in metres; each field's varies from 0.8 to 1.2 times it.", "m",
        Above(0.0));
@@ -413,6 +424,9 @@ template <typename IO> void Fields(IO& io, BedformLayerSpec& spec) {
                    "ground, as sand settles in lows; unset disables it.");
     io("fade", bedforms.fade,
        "How bedforms too fine for the sample spacing fade out, by samples per wavelength.");
+}
+template <typename IO> void Fields(IO& io, BedformLayerSpec& spec) {
+    Fields(io, spec.bedforms);
 }
 
 template <> struct SpecName<DemDetailLayerSpec> {
