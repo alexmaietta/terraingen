@@ -89,7 +89,7 @@
                         "y": 0,
                         "area": 25403,
                         "elongation": 1.14,
-                        "heading_degrees": 100,
+                        "heading_deg": 100,
                         "change": 0.151,
                         "core_radius": 6,
                         "seed": 11

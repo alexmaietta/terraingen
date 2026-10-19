@@ -1,6 +1,9 @@
 #include "terraingen/config/fields/json_io.h"
 
+#include <array>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -13,6 +16,22 @@ namespace config {
 
 void Fail(const std::string& path, const std::string& message) {
     throw ConfigError(path, message);
+}
+
+double DegreesFromRadians(double radians) {
+    const double nearest = radians * kRadian;
+    if (!std::isfinite(nearest)) {
+        return nearest;
+    }
+    std::array<char, 32> text{};
+    for (int digits = 1; digits <= 17; ++digits) {
+        std::snprintf(text.data(), text.size(), "%.*g", digits, nearest);
+        const double degrees = std::strtod(text.data(), nullptr);
+        if (RadiansFromDegrees(degrees) == radians) {
+            return degrees;
+        }
+    }
+    return nearest;
 }
 
 Reader::Reader(const Json& json, std::string path) : json_(json), path_(std::move(path)) {

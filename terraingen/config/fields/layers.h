@@ -5,7 +5,6 @@
 #include "terraingen/config/config.h"
 #include "terraingen/config/fields/common.h"
 #include "terraingen/config/fields/sources.h"
-#include "terraingen/util/bits.h"
 
 #include <string>
 #include <string_view>
@@ -163,16 +162,17 @@ template <> struct SpecName<DuneLayerSpec> {
 /// The fields of every dune's shape and the wind that shapes it.
 template <typename IO> void DuneProfileFields(IO& io, DuneOptions& dunes) {
     io("shape", dunes.shape, "The kind of dune.");
-    io("wind_azimuth", dunes.windAzimuth, WindAzimuthHelp("wind", "slip faces face it"), "rad");
-    io("azimuth_spread", dunes.azimuthSpread,
-       "Largest difference of each barchan or dome's wind from the azimuth, in radians.", "rad",
-       AtLeast(0.0));
-    io("slip_face_angle", dunes.slipFaceAngle,
-       "Slope of the lee slip faces, in radians: the sand's angle of repose.", "rad",
-       Inside(0.0, 0.5 * kPi));
-    io("stoss_slope", dunes.stossSlope,
-       "Mean slope of the windward faces, in radians; below the slip face angle.", "rad",
-       Inside(0.0, 0.5 * kPi));
+    RadianField(io, "wind_azimuth_deg", dunes.windAzimuth,
+                WindAzimuthHelp("wind", "slip faces face it"));
+    RadianField(io, "azimuth_spread_deg", dunes.azimuthSpread,
+                "Largest difference of each barchan or dome's wind from the azimuth, in degrees.",
+                AtLeast(0.0));
+    RadianField(io, "slip_face_angle_deg", dunes.slipFaceAngle,
+                "Slope of the lee slip faces, in degrees: the sand's angle of repose.",
+                Inside(0.0, 90.0));
+    RadianField(io, "stoss_slope_deg", dunes.stossSlope,
+                "Mean slope of the windward faces, in degrees; below the slip face angle.",
+                Inside(0.0, 90.0));
     io("stoss_exponent", dunes.stossExponent,
        "Exponent alpha of the cos^alpha windward profile of dunes; higher is blunter.", "",
        Above(0.0));
@@ -224,8 +224,8 @@ template <typename IO> void DuneCrestFields(IO& io, DuneOptions& dunes) {
        "break into segments about 1 / defect_density long; 0 for none. Olympia Undae: 0.0027 "
        "(Ewing et al. 2010).",
        "1/m", AtLeast(0.0));
-    io("flank_slope", dunes.flankSlope, "Linear dunes: mean slope of both flanks, in radians.",
-       "rad", Inside(0.0, 0.5 * kPi));
+    RadianField(io, "flank_slope_deg", dunes.flankSlope,
+                "Linear dunes: mean slope of both flanks, in degrees.", Inside(0.0, 90.0));
 }
 
 template <typename IO> void Fields(IO& io, DuneOptions& dunes) {
@@ -270,8 +270,8 @@ template <typename IO> void Fields(IO& io, PavementOptions& pavement) {
     io("raised", pavement.raised, "Whether plates are parted by raised ridges instead of cracks.");
     io("edge_rounding", pavement.edgeRounding,
        "Width of the rounded shoulder beside each crack, in metres.", "m", AtLeast(0.0));
-    io("max_tilt", pavement.maxTilt, "Largest tilt of a plate, in radians.", "rad",
-       FromBelow(0.0, 0.5 * kPi));
+    RadianField(io, "max_tilt_deg", pavement.maxTilt, "Largest tilt of a plate, in degrees.",
+                FromBelow(0.0, 90.0));
     io("max_step", pavement.maxStep, "Largest height offset of a plate, up or down, in metres.",
        "m", AtLeast(0.0));
     io("octaves", pavement.octaves,
@@ -307,12 +307,11 @@ template <typename IO> void Fields(IO& io, StrataOptions& strata) {
     io("thickness_variation", strata.thicknessVariation,
        "How far each bed boundary strays from even spacing, in bed thicknesses, in [0, 1).", "",
        FromBelow(0.0, 1.0));
-    io("dip", strata.dip, "Dip of the beds from horizontal, in radians, below 90 deg.", "rad",
-       FromBelow(0.0, 0.5 * kPi));
-    io("dip_azimuth", strata.dipAzimuth,
-       "Direction the beds dip toward, in radians counter-clockwise from +x (local east on a "
-       "body).",
-       "rad");
+    RadianField(io, "dip_deg", strata.dip, "Dip of the beds from horizontal, in degrees, below 90.",
+                FromBelow(0.0, 90.0));
+    RadianField(io, "dip_azimuth_deg", strata.dipAzimuth,
+                "Direction the beds dip toward, in degrees counter-clockwise from +x (local east "
+                "on a body).");
     io("sharpness", strata.sharpness,
        "How sharply each bed is cut into a flat bench and a cliff, at least 1; 1 leaves the "
        "ground as it is.",
@@ -344,17 +343,17 @@ template <> struct SpecName<SandShadowLayerSpec> {
         "layer before this one; lays sand over the material map.";
 };
 template <typename IO> void Fields(IO& io, SandShadowOptions& shadows) {
-    io("wind_azimuth", shadows.windAzimuth,
-       WindAzimuthHelp("wind", "tails trail away from boulders along it"), "rad");
+    RadianField(io, "wind_azimuth_deg", shadows.windAzimuth,
+                WindAzimuthHelp("wind", "tails trail away from boulders along it"));
     io("length_ratio", shadows.lengthRatio,
        "Length of a tail beyond its boulder over the boulder's width; 1.1 is the reattachment "
        "length behind a dome, and modelled shadow dunes run 1.3 to 5.6, longer in lighter "
        "winds.",
        "", Above(0.0));
-    io("flank_angle", shadows.flankAngle,
-       "Slope of a tail's flanks, in radians, at most the angle of repose (about 32 deg for dry "
-       "sand); sets the tail's height with the boulder's width.",
-       "rad", Inside(0.0, 0.5 * kPi));
+    RadianField(io, "flank_angle_deg", shadows.flankAngle,
+                "Slope of a tail's flanks, in degrees, at most the angle of repose (about 32 for "
+                "dry sand); sets the tail's height with the boulder's width.",
+                Inside(0.0, 90.0));
     io("min_diameter", shadows.minDiameter, "Smallest boulder with a tail, in metres.", "m",
        AtLeast(0.0));
     io("cover_thickness", shadows.coverThickness,
@@ -402,11 +401,11 @@ template <typename IO> void Fields(IO& io, BedformOptions& bedforms) {
     io("height", bedforms.height,
        "Trough-to-crest height, in metres, scaled with each field's wavelength.", "m",
        AtLeast(0.0));
-    io("wind_azimuth", bedforms.windAzimuth, WindAzimuthHelp("wind", "crests lie across it"),
-       "rad");
-    io("azimuth_spread", bedforms.azimuthSpread,
-       "Largest difference of each field's wind from the azimuth, in radians.", "rad",
-       AtLeast(0.0));
+    RadianField(io, "wind_azimuth_deg", bedforms.windAzimuth,
+                WindAzimuthHelp("wind", "crests lie across it"));
+    RadianField(io, "azimuth_spread_deg", bedforms.azimuthSpread,
+                "Largest difference of each field's wind from the azimuth, in degrees.",
+                AtLeast(0.0));
     io("lee_fraction", bedforms.leeFraction,
        "Share of a wavelength the lee face takes, in (0, 1): 0.5 is symmetric, lower values give "
        "a steeper lee face.",

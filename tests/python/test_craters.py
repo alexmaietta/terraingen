@@ -332,9 +332,7 @@ def test_secondaries_fall_beyond_the_onset_range(lunar_models):
     bright = terraingen.CraterRays(layout=layout)
     assert bright.layout.seed == 2
     with pytest.raises(ValueError):
-        terraingen.validate_ray_layout(
-            terraingen.RayLayout(width_degrees=terraingen.ValueDistribution(a=200.0))
-        )
+        terraingen.validate_ray_layout(terraingen.RayLayout(width_deg=terraingen.ValueDistribution(a=200.0)))
 
 
 def full_apply_options():

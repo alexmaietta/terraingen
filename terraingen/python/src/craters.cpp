@@ -312,7 +312,7 @@ void BindApplyOptions(nb::module_& m) {
         m, "CraterSlopeResponse",
         "Craters made asymmetric along the slope of the ground beneath their layer: the deepest "
         "point `floor_offset` diameters downslope (drawn per crater), `upslope_rim` of the raised "
-        "rim and ejecta kept upslope, complete from `full_slope` radians.",
+        "rim and ejecta kept upslope, complete from `full_slope_deg` degrees.",
         &ValidateCraterSlopeResponse);
     m.def("validate_crater_slope_response", &ValidateCraterSlopeResponse, "response"_a,
           kValidateDoc);
@@ -410,7 +410,7 @@ void BindCraterLayer(nb::module_& m) {
 
 void BindSecondaryOptions(nb::module_& m) {
     BindOptions<RayLayout>(m, "RayLayout",
-                           "How many rays a crater has (`count`) and how wide (`width_degrees`), "
+                           "How many rays a crater has (`count`) and how wide (`width_deg`), "
                            "drawn from its ID and `seed`; layers with the same layout share the "
                            "same rays.",
                            &ValidateRayLayout);

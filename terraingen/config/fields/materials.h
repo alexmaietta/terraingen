@@ -15,8 +15,8 @@ template <typename IO> void Fields(IO& io, HapkeParameters& hapke) {
     io("c", hapke.c,
        "Backscatter fraction c of the two-term Henyey-Greenstein phase function, from 0 to 1.", "",
        UnitInterval());
-    io("roughness", hapke.roughness, "Macroscopic roughness theta-bar, in degrees below 90.", "deg",
-       FromBelow(0.0, 90.0));
+    io("roughness_deg", hapke.roughness, "Macroscopic roughness theta-bar, in degrees below 90.",
+       "deg", FromBelow(0.0, 90.0));
 }
 
 template <typename IO> void Fields(IO& io, PhotometrySpec& photometry) {

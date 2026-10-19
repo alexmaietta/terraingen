@@ -15,9 +15,9 @@
         {
             "type": "dunes",
             "shape": "barchan",
-            "wind_azimuth": 0,
-            "slip_face_angle": 0.5061454830783556,
-            "stoss_slope": 0.13962634015954636,
+            "wind_azimuth_deg": 0,
+            "slip_face_angle_deg": 29,
+            "stoss_slope_deg": 8,
             "spacing": 1000,
             "density": 1,
             "width": 400,

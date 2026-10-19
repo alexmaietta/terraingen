@@ -278,9 +278,7 @@ std::string ConfigEditor::Label(std::string_view key, std::string_view unit) {
         words.push_back(word);
     }
     const std::string lowerUnit = Lower(unit);
-    if (words.size() > 1 && !unit.empty() &&
-        (Lower(words.back()) == lowerUnit ||
-         (lowerUnit == "deg" && Lower(words.back()) == "degrees"))) {
+    if (words.size() > 1 && !unit.empty() && Lower(words.back()) == lowerUnit) {
         words.pop_back();
     }
     std::string label;

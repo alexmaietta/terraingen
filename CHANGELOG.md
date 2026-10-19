@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Breaking: every angle key in configurations and the Python options classes is now in degrees and ends in `_deg` (`wind_azimuth_deg`, `slip_face_angle_deg`, `heading_deg`, `crease_angle_deg`), azimuths counter-clockwise from +x (local east); the old keys are rejected.
 - Defaults give a plausible lunar terrain at 1 m per pixel in which every height layer shows: craters from a production surface capped below the Trask equilibrium with steady-state ages, diffusion and irregular outlines; Surveyor boulders; noise relief scaled to its wavelength; and visible roughness, bedforms and dunes.
 - Boulder layers default to the nominal NASA SP-8023 intercrater sizes rather than Golombek-Rapp; a `coverage`, `qa`, `qb` or `ejecta.coverage` that no Golombek-Rapp sizes use is now an error that names `"sizes": {"type": "golombek_rapp"}`.
 - Boulder lists and models hold every boulder of the layer's diameter range; only the heightmap leaves out boulders too small to resolve.

@@ -5,7 +5,6 @@
 #include "terraingen/config/config.h"
 #include "terraingen/config/fields/common.h"
 #include "terraingen/config/fields/maps.h"
-#include "terraingen/util/bits.h"
 
 #include <string_view>
 
@@ -77,18 +76,18 @@ template <typename IO> void Fields(IO& io, BoulderVentifacts& ventifacts) {
        "Share of boulders with a windward facet planed by sand-laden wind, from 0 to 1; 0 for "
        "none. Gale crater: 0.39 (Bridges et al. 2014).",
        "", UnitInterval());
-    io("wind_azimuth", ventifacts.windAzimuth,
-       WindAzimuthHelp("abrading wind", "facets face the other way"), "rad");
-    io("min_angle", ventifacts.minAngle,
-       "Gentlest facet slope from horizontal, in radians; 50 to 60 deg on basalt (Laity and "
-       "Bridges 2009).",
-       "rad", Inside(0.0, 0.5 * kPi));
-    io("max_angle", ventifacts.maxAngle, "Steepest facet slope from horizontal, in radians.", "rad",
-       Inside(0.0, 0.5 * kPi));
-    io("second_wind_azimuth", ventifacts.secondWindAzimuth,
-       "A second abrading wind, where it blows toward, in radians; some faceted boulders get a "
-       "second facet facing it and a keel between. Unset for none.",
-       "rad");
+    RadianField(io, "wind_azimuth_deg", ventifacts.windAzimuth,
+                WindAzimuthHelp("abrading wind", "facets face the other way"));
+    RadianField(io, "min_angle_deg", ventifacts.minAngle,
+                "Gentlest facet slope from horizontal, in degrees; 50 to 60 on basalt (Laity and "
+                "Bridges 2009).",
+                Inside(0.0, 90.0));
+    RadianField(io, "max_angle_deg", ventifacts.maxAngle,
+                "Steepest facet slope from horizontal, in degrees.", Inside(0.0, 90.0));
+    RadianField(io, "second_wind_azimuth_deg", ventifacts.secondWindAzimuth,
+                "A second abrading wind, where it blows toward, in degrees like the first; some "
+                "faceted boulders get a second facet facing it and a keel between. Unset for "
+                "none.");
     io("keel_share", ventifacts.keelShare,
        "Share of faceted boulders with the second facet, from 0 to 1. Gale crater: 12 of 39 "
        "(Bridges et al. 2014).",
@@ -409,8 +408,8 @@ template <typename IO> void BoulderPoseFields(IO& io, BoulderPose& pose) {
        "Largest buried share of a boulder's height, below 1; more burial leaves less of the "
        "boulder exposed.",
        "", FromBelow(0.0, 1.0));
-    io("max_lean", pose.maxLean, "Largest tilt of a boulder from the vertical, in radians.", "rad",
-       AtLeast(0.0));
+    RadianField(io, "max_lean_deg", pose.maxLean,
+                "Largest tilt of a boulder from the vertical, in degrees.", AtLeast(0.0));
     io("side_share", pose.sideShare,
        "Share of boulders resting on a side, their intermediate axis up, rather than on their "
        "broadest face.",
@@ -418,21 +417,22 @@ template <typename IO> void BoulderPoseFields(IO& io, BoulderPose& pose) {
     io("end_share", pose.endShare,
        "Share of boulders standing on an end, their long axis up; with side_share, at most 1.", "",
        UnitInterval());
-    io("max_tilt", pose.maxTilt,
-       "Largest tilt of a boulder's up axis from the vertical in a random direction, after its "
-       "lean, in radians; tilts are spread evenly over that cap of directions.",
-       "rad", Between(0.0, kPi));
+    RadianField(io, "max_tilt_deg", pose.maxTilt,
+                "Largest tilt of a boulder's up axis from the vertical in a random direction, "
+                "after its lean, in degrees; tilts are spread evenly over that cap of directions.",
+                Between(0.0, 180.0));
     io("follow_slope", pose.followSlope,
        "Settles each boulder on the slope of the ground beneath it before its tilt.");
     io("settle", pose.settle,
        "Tips each boulder model over until it rests stably on a face, its centre of mass over "
        "what it stands on, rather than balanced on an edge or corner.");
-    io("max_slope", pose.maxSlope,
-       "Steepest ground, across a boulder's diameter, that boulders stay on, in radians; steeper "
-       "ground has none, models and drawn boulders alike. Unset keeps boulders on any slope.",
-       "rad", Inside(0.0, 0.5 * kPi));
+    RadianField(io, "max_slope_deg", pose.maxSlope,
+                "Steepest ground, across a boulder's diameter, that boulders stay on, in degrees; "
+                "steeper ground has none, models and drawn boulders alike. Unset keeps boulders "
+                "on any slope.",
+                Inside(0.0, 90.0));
     io("roll_distance", pose.rollDistance,
-       "With max_slope, boulders on steeper ground roll down it and rest where it is gentle "
+       "With max_slope_deg, boulders on steeper ground roll down it and rest where it is gentle "
        "enough, gathering at the foot of slopes; those that would roll farther than this many "
        "metres are left out. Unset leaves out every boulder on steeper ground.",
        "m", Above(0.0));

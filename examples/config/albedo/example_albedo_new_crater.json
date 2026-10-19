@@ -100,7 +100,7 @@
                 },
                 "texture": {
                     "streaks": 0.7,
-                    "streak_width_degrees": 4,
+                    "streak_width_deg": 4,
                     "streak_length_radii": 0.8
                 },
                 "zones": {

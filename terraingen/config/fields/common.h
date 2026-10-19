@@ -7,6 +7,8 @@
 /// writer). Each alternative of a variant also has a `SpecName` next to its `Fields`.
 #pragma once
 
+#include "terraingen/util/geometry.h"
+
 #include <cmath>
 #include <cstddef>
 #include <limits>
@@ -118,6 +120,61 @@ void OptionalBound(IO& io, std::string_view key, double& bound, std::string_view
     bound = value.value_or(unset);
 }
 
+/// An angle in degrees as configurations give it: the shortest decimal that `RadiansFromDegrees`
+/// turns back into exactly `radians`, else the nearest.
+double DegreesFromRadians(double radians);
+
+/// An angle in radians from degrees as configurations give it.
+inline double RadiansFromDegrees(double degrees) {
+    return degrees * kDegree;
+}
+
+/// Whether an `IO` takes an angle stored in radians as the radians themselves, through
+/// `io.Radians(key, radians, description, range)`, such as the Python bindings.
+template <typename IO, typename = void> struct TakesRadiansTrait : std::false_type {};
+template <typename IO>
+struct TakesRadiansTrait<
+    IO, std::void_t<decltype(std::declval<IO&>().Radians(
+            std::string_view{}, std::declval<double&>(), std::string_view{}, FieldRange{}))>>
+    : std::true_type {};
+template <typename IO> inline constexpr bool TakesRadians = TakesRadiansTrait<IO>::value;
+
+/// Reads or writes an angle stored in radians as degrees, the unit "deg": its key ends in "_deg"
+/// and `range` is in degrees. Unchanged degrees leave the radians exactly as they were.
+template <typename IO>
+void RadianField(IO& io, std::string_view key, double& radians, std::string_view description,
+                 const FieldRange& range = {}) {
+    if constexpr (TakesRadians<IO>) {
+        io.Radians(key, radians, description, range);
+    } else {
+        const double shown = DegreesFromRadians(radians);
+        double degrees = shown;
+        io(key, degrees, description, "deg", range);
+        if (!(degrees == shown)) {
+            radians = RadiansFromDegrees(degrees);
+        }
+    }
+}
+
+/// `RadianField` for an optional angle, unset when the field is.
+template <typename IO>
+void RadianField(IO& io, std::string_view key, std::optional<double>& radians,
+                 std::string_view description, const FieldRange& range = {}) {
+    if constexpr (TakesRadians<IO>) {
+        io.Radians(key, radians, description, range);
+    } else {
+        std::optional<double> shown;
+        if (radians) {
+            shown = DegreesFromRadians(*radians);
+        }
+        std::optional<double> degrees = shown;
+        io(key, degrees, description, "deg", range);
+        if (degrees.has_value() != shown.has_value() || (degrees && !(*degrees == *shown))) {
+            radians = degrees ? std::optional<double>(RadiansFromDegrees(*degrees)) : std::nullopt;
+        }
+    }
+}
+
 /// The keys of a crater selection's fields.
 struct SelectionKeys {
     std::string_view minDiameter = "min_diameter";
@@ -158,7 +215,7 @@ void SelectionFields(IO& io, Selection& selection, std::string_view craters,
 /// `effect` it has, such as "slip faces face it".
 inline std::string WindAzimuthHelp(std::string_view wind, std::string_view effect) {
     return "Direction the " + std::string(wind) +
-           " blows toward, in radians counter-clockwise from +x (local east on a body); " +
+           " blows toward, in degrees counter-clockwise from +x (local east on a body); " +
            std::string(effect) + ".";
 }
 

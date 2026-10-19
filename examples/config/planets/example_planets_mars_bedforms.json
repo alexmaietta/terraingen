@@ -33,7 +33,7 @@
             "type": "bedforms",
             "wavelength": 6,
             "height": 0.4,
-            "wind_azimuth": 60,
+            "wind_azimuth_deg": 3437.746770784939,
             "cover": 0.6,
             "field_size": 80,
             "seed": 2

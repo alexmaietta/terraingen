@@ -199,8 +199,9 @@ void BindFillet(nb::module_& m) {
     BindOptions<BoulderVentifacts>(
         m, "BoulderVentifacts",
         "Windward facets planed on `share` of the boulders by wind blowing toward "
-        "`wind_azimuth`, sloping `min_angle` to `max_angle`, with keels on `keel_share` of them "
-        "toward `second_wind_azimuth`; angles in radians.",
+        "`wind_azimuth_deg`, sloping `min_angle_deg` to `max_angle_deg`, with keels on "
+        "`keel_share` "
+        "of them toward `second_wind_azimuth_deg`; angles in degrees.",
         &ValidateBoulderVentifacts);
     m.def("validate_boulder_ventifacts", &ValidateBoulderVentifacts, "ventifacts"_a, kValidateDoc);
     m.def("gale_ventifacts", &GaleVentifacts,
@@ -357,11 +358,11 @@ void BindModels(nb::module_& m) {
 }
 
 void BindSandShadows(nb::module_& m) {
-    BindOptions<SandShadowOptions>(
-        m, "SandShadowOptions",
-        "Sand tails behind boulders: blown toward `wind_azimuth`, `length_ratio` boulder widths "
-        "long, flanks at `flank_angle`; angles in radians.",
-        &ValidateSandShadowOptions);
+    BindOptions<SandShadowOptions>(m, "SandShadowOptions",
+                                   "Sand tails behind boulders: blown toward `wind_azimuth_deg`, "
+                                   "`length_ratio` boulder widths "
+                                   "long, flanks at `flank_angle_deg`; angles in degrees.",
+                                   &ValidateSandShadowOptions);
     m.def("validate_sand_shadow_options", &ValidateSandShadowOptions, "options"_a, kValidateDoc);
     auto layer = nb::class_<SandShadowLayer, Layer>(m, "SandShadowLayer",
                                                     "Sand tails in the lee of boulders.");

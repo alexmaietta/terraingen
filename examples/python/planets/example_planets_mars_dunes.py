@@ -9,7 +9,6 @@ heights and hillshades.
     python example_planets_mars_dunes.py [--viewer window|null] [--output-dir DIR] [--test]
 """
 
-import math
 import pathlib
 import sys
 
@@ -30,7 +29,7 @@ class Example(_common.Example):
         self.options = terraingen.mars_barchans()
         self.options.spacing, self.options.density, self.options.width = 1000.0, 1.0, 400.0
         print(
-            f"barchans: slip faces {math.degrees(self.options.slip_face_angle):.0f} deg, "
+            f"barchans: slip faces {self.options.slip_face_angle_deg:.0f} deg, "
             f"ripples {self.options.ripples.wavelength} m apart"
         )
         self.layer = terraingen.DuneLayer(self.options)

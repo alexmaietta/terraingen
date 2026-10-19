@@ -125,7 +125,7 @@ const PathCase kPathCases[] = {
      "outputs[0].path"},
     {"BoulderModelsCreaseTooWide",
      [](TerrainConfig& c) { c.outputs = {terraingen::BoulderModelsOutput{"boulders.glb", 200.0}}; },
-     "outputs[0].crease_angle"},
+     "outputs[0].crease_angle_deg"},
     {"EmptyMinimumDensity",
      [](TerrainConfig& c) { Craters(c).density = terraingen::MinimumSpec{}; }, "layers[1].density"},
     {"PavementWithoutOctaves",
@@ -603,7 +603,7 @@ TEST(ValidateConfig, ReportsAlbedoProblemsByPath) {
     EXPECT_EQ(error([&](TerrainConfig& c) {
                   synthetic(c).hueNoise.assign(terraingen::kMaxNoiseLayers + 1, {});
               }),
-              "albedo.source.hue_noise");
+              "albedo.source.hue_noise_deg");
     EXPECT_EQ(error([&](TerrainConfig& c) {
                   synthetic(c).saturationNoise = {terraingen::NoiseLayerConfig{}};
                   synthetic(c).saturationNoise[0].layer.fractal.octaves = 0;

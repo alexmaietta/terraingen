@@ -24,7 +24,7 @@
         },
         {
             "type": "sand_shadow",
-            "wind_azimuth": 0.5,
+            "wind_azimuth_deg": 28.64788975654116,
             "length_ratio": 2.0
         }
     ],

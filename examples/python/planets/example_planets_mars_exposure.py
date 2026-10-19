@@ -37,7 +37,7 @@ class Example(_common.Example):
             terraingen.BedformOptions(
                 wavelength=2.5,
                 height=0.25,
-                wind_azimuth=60.0,
+                wind_azimuth_deg=3437.746770784939,
                 cover=0.8,
                 field_size=30.0,
                 seed=3,

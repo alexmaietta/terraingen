@@ -21,7 +21,7 @@
             },
             "min_diameter": 0.2,
             "max_diameter": 3,
-            "max_slope": 0.35
+            "max_slope_deg": 20.05352282957881
         }
     ],
     "outputs": [

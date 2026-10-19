@@ -24,8 +24,8 @@
             "relief": "shape",
             "ventifacts": {
                 "share": 0.39,
-                "wind_azimuth": 0.8,
-                "second_wind_azimuth": 4.3,
+                "wind_azimuth_deg": 45.83662361046586,
+                "second_wind_azimuth_deg": 246.371851906254,
                 "keel_share": 0.31
             }
         }

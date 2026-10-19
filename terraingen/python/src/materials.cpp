@@ -66,7 +66,7 @@ void BindPhotometry(nb::module_& m) {
     BindOptions<HapkeParameters>(
         m, "HapkeParameters",
         "Hapke parameters: single-scattering `albedo` w, two-term Henyey-Greenstein `b` and `c`, "
-        "and macroscopic `roughness` theta-bar in degrees.")
+        "and macroscopic `roughness_deg` theta-bar in degrees.")
         .def("__eq__", [](const HapkeParameters& a, const HapkeParameters& b) { return a == b; });
     m.def(
         "mars_pancam_photometry", [] { return ToList(MarsPancamPhotometry()); },

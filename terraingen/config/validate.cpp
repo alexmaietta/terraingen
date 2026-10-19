@@ -652,7 +652,7 @@ void CheckBody(const SurfaceSpec& body, const std::string& path) {
 
 void CheckAlbedoSource(const SyntheticAlbedoSpec& spec, const std::filesystem::path& /*directory*/,
                        const std::string& path) {
-    CheckNoiseStack(spec.hueNoise, Child(path, "hue_noise"), true);
+    CheckNoiseStack(spec.hueNoise, Child(path, "hue_noise_deg"), true);
     CheckNoiseStack(spec.saturationNoise, Child(path, "saturation_noise"), true);
     CheckNoiseStack(spec.valueNoise, Child(path, "value_noise"), true);
     At(path, [&] { ValidateSyntheticAlbedoOptions(spec.Params()); });

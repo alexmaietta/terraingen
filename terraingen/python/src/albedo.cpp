@@ -180,9 +180,10 @@ void BindRays(nb::module_& m) {
     m.def("validate_ray_retention", &ValidateRayRetention, "retention"_a, kValidateDoc);
     BindOptions<ObliqueImpacts>(
         m, "ObliqueImpacts",
-        "Ray patterns of oblique impacts: below `asymmetric_degrees` the ejecta is asymmetric, "
-        "below `forbidden_degrees` an uprange zone has no rays, below `butterfly_degrees` rays "
-        "form a butterfly; impacts come from `heading` (radians counter-clockwise from east) or "
+        "Ray patterns of oblique impacts: below `asymmetric_deg` the ejecta is asymmetric, "
+        "below `forbidden_deg` an uprange zone has no rays, below `butterfly_deg` rays "
+        "form a butterfly; impacts come from `heading_deg` (degrees counter-clockwise from east) "
+        "or "
         "any direction.",
         &ValidateObliqueImpacts);
     m.def("validate_oblique_impacts", &ValidateObliqueImpacts, "oblique"_a, kValidateDoc);
@@ -207,7 +208,7 @@ void BindReflectanceZones(nb::module_& m) {
     BindOptions<ZoneShadows>(
         m, "ZoneShadows",
         "Shadows of rises in the distal zones: a jet from the rim that drops at most "
-        "`jet_angle_degrees`, full shadow `depth` m below it, sampled on `azimuths` rays of "
+        "`jet_angle_deg`, full shadow `depth` m below it, sampled on `azimuths` rays of "
         "`radial_samples`.");
     BindOptions<CraterReflectanceZones>(
         m, "CraterReflectanceZones",
@@ -224,7 +225,7 @@ void BindCraterAlbedoOptions(nb::module_& m) {
     BindOptions<CraterAlbedoTexture>(
         m, "CraterAlbedoTexture",
         "Texture of fresh craters' bright material: `streaks` breaking it into filaments "
-        "`streak_width_degrees` wide and `streak_length_radii` long, `lobes` (`lobe_count` of "
+        "`streak_width_deg` wide and `streak_length_radii` long, `lobes` (`lobe_count` of "
         "them) wandering the ejecta edge, and `floor_share` dimming floors under walls.",
         &ValidateCraterAlbedoTexture);
     m.def("validate_crater_albedo_texture", &ValidateCraterAlbedoTexture, "texture"_a,
@@ -312,7 +313,7 @@ void BindBlastZones(nb::module_& m) {
     BindOptions<BlastZone>(
         m, "BlastZone",
         "The zone around a lander its engine scoured (Clegg et al. 2014): `area` m^2 brighter by "
-        "`change` on average, elongated along `heading_degrees`, in a halo reaching `halo_reach` "
+        "`change` on average, elongated along `heading_deg`, in a halo reaching `halo_reach` "
         "times as far, around a dark core of `core_radius` m.",
         &ValidateBlastZone);
     m.def("validate_blast_zone", &ValidateBlastZone, "zone"_a, kValidateDoc);
@@ -434,7 +435,7 @@ void BindSlopes(nb::module_& m) {
     BindOptions<SlopeAlbedoOptions>(
         m, "SlopeAlbedoOptions",
         "How steep ground stays immature: OMAT rises by `maturity_per_degree` beyond "
-        "`onset_degrees` (Ikeda et al. 2022), slopes read over `baseline` metres.",
+        "`onset_deg` (Ikeda et al. 2022), slopes read over `baseline` metres.",
         &ValidateSlopeAlbedoOptions);
     m.def("validate_slope_albedo_options", &ValidateSlopeAlbedoOptions, "options"_a, kValidateDoc);
     nb::class_<SlopeAlbedo, AlbedoLayer>(m, "SlopeAlbedo",

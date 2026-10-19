@@ -89,7 +89,7 @@ TerrainConfig Everything() {
     irregularity.ellipticity = {terraingen::ValueDistribution::Kind::LogNormal, 1.2, 0.1, 1.0,
                                 2.23};
     irregularity.heading = 0.3;
-    irregularity.headingSpread = 0.2;
+    irregularity.headingSpread = 10.0 * terraingen::kDegree;
     craters.apply.rimSmoothing.sigmaRadii = 0.1;
     craters.apply.rimSmoothing.strength = 0.5;
     craters.apply.noise.amplitude = 0.01;
@@ -107,7 +107,7 @@ TerrainConfig Everything() {
     craters.apply.slope.seed = 6;
     craters.apply.slope.floorOffset = {terraingen::ValueDistribution::Kind::Constant, 0.1};
     craters.apply.slope.upslopeRim = 0.2;
-    craters.apply.slope.fullSlope = 0.1;
+    craters.apply.slope.fullSlope = 6.0 * terraingen::kDegree;
     craters.apply.slope.criticalGradient = 0.7;
     craters.apply.slope.maxWearRate = 5.0;
     terraingen::DensityMapSpec craterMap;
@@ -155,7 +155,7 @@ TerrainConfig Everything() {
     options.pose.maxHeightRatio = 0.7;
     options.pose.minBurial = 0.0;
     options.pose.maxBurial = 0.5;
-    options.pose.maxLean = 0.1;
+    options.pose.maxLean = 6.0 * terraingen::kDegree;
     options.pose.maxSlope = 0.6;
     options.pose.rollDistance = 25.0;
     options.ventifacts.share = 0.39;

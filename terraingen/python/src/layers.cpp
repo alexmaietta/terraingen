@@ -233,7 +233,8 @@ void BindExposure(nb::module_& m) {
 void BindBedforms(nb::module_& m) {
     BindOptions<BedformOptions>(
         m, "BedformOptions",
-        "Ripples and dunes: `wavelength` and `height` (m), crests across `wind_azimuth` (radians "
+        "Ripples and dunes: `wavelength` and `height` (m), crests across `wind_azimuth_deg` "
+        "(degrees "
         "counter-clockwise from +x), covering `cover` of the ground in fields `field_size` metres "
         "across.",
         &ValidateBedformOptions);
@@ -295,7 +296,7 @@ void BindPavement(nb::module_& m) {
         m, "PavementOptions",
         "Fractured bedrock: Voronoi plates `plate_size` metres across, each tilted and stepped, "
         "parted by cracks (or raised ridges) `crack_width` metres wide and `crack_depth` deep; "
-        "angles in radians.",
+        "angles in degrees.",
         &ValidatePavementOptions);
     m.def("validate_pavement_options", &ValidatePavementOptions, "options"_a, kValidateDoc);
     m.def("mars_desiccation_ridges", &MarsDesiccationRidges,
@@ -313,8 +314,9 @@ void BindPavement(nb::module_& m) {
 void BindStrata(nb::module_& m) {
     BindOptions<StrataOptions>(
         m, "StrataOptions",
-        "Layered rock: beds `bed_thickness` metres thick, dipping `dip` toward `dip_azimuth`, each "
-        "cut into a flat bench and a cliff by `sharpness`; angles in radians.",
+        "Layered rock: beds `bed_thickness` metres thick, dipping `dip_deg` toward "
+        "`dip_azimuth_deg`, each "
+        "cut into a flat bench and a cliff by `sharpness`; angles in degrees.",
         &ValidateStrataOptions);
     m.def("validate_strata_options", &ValidateStrataOptions, "options"_a, kValidateDoc);
     auto layer = nb::class_<StrataLayer, Layer>(m, "StrataLayer",
@@ -347,7 +349,7 @@ void BindDunes(nb::module_& m) {
     BindOptions<DuneOptions>(
         m, "DuneOptions",
         "Dunes: barchans and domes of `width` (m) in cells `spacing` metres apart, or crest-line "
-        "dunes `wavelength` metres apart and `height` metres high; angles in radians, the wind "
+        "dunes `wavelength` metres apart and `height` metres high; angles in degrees, the wind "
         "counter-clockwise from +x.",
         &ValidateDuneOptions);
     m.def("validate_dune_options", &ValidateDuneOptions, "options"_a, kValidateDoc);

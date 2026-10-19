@@ -1,5 +1,6 @@
 """layers: noise relief, regions, clamps, roughness, bedforms, exposure, fades and Python layers."""
 
+import json
 import math
 
 import numpy as np
@@ -235,10 +236,23 @@ def test_layers_accept_a_sphere_surface(lunar_models):
     assert all(part is not None for part in (rough, boulders, bedforms))
 
 
+def test_angles_are_degrees_in_options_and_configs():
+    dunes = terraingen.DuneOptions(slip_face_angle_deg=30.0, wind_azimuth_deg=90.0)
+    assert (dunes.slip_face_angle_deg, dunes.wind_azimuth_deg) == (30.0, 90.0)
+    assert not hasattr(dunes, "slip_face_angle")
+    assert terraingen.BoulderVentifacts().second_wind_azimuth_deg is None
+    config = terraingen.Config.from_dict(
+        {"schema_version": 1, "layers": [{"type": "dunes", "wind_azimuth_deg": 90}, {"type": "craters"}]}
+    )
+    written = config.to_dict()["layers"]
+    assert written[0]["wind_azimuth_deg"] == 90.0 and written[0]["slip_face_angle_deg"] == 32.0
+    assert "roughness" in json.dumps(written[1]) and "edges" not in json.dumps(written[1])
+
+
 def test_dune_presets_build_barchans_with_slip_faces_and_ripples():
     barchans = terraingen.mars_barchans()
     assert barchans.shape == terraingen.DuneShape.BARCHAN
-    assert math.degrees(barchans.slip_face_angle) == pytest.approx(29.0)
+    assert barchans.slip_face_angle_deg == 29.0
     assert barchans.ripples.wavelength == pytest.approx(2.1)
     assert terraingen.mars_transverse_dunes().wavelength == pytest.approx(248.0)
     options = terraingen.DuneOptions(width=400.0, width_spread=0.0, spacing=2000.0, density=1.0)
@@ -250,7 +264,7 @@ def test_dune_presets_build_barchans_with_slip_faces_and_ripples():
     row, col = np.unravel_index(np.argmax(heights), heights.shape)
     assert layer.dune_height_at(*raster.cell_center(int(col), int(row))) > 0.0
     with pytest.raises(ValueError):
-        terraingen.validate_dune_options(terraingen.DuneOptions(stoss_slope=1.0))
+        terraingen.validate_dune_options(terraingen.DuneOptions(stoss_slope_deg=60.0))
 
 
 def test_dune_ripples_ride_on_crest_fields():
@@ -306,7 +320,7 @@ def test_pancam_photometry_mixes_and_needs_every_present_class():
     assert pancam[terraingen.MaterialClass.BEDROCK.value].albedo == pytest.approx(0.90)
     assert pancam[terraingen.MaterialClass.SAND.value].albedo == pytest.approx(0.52)
     mixed = terraingen.mix_photometry([0.5, 0.5, 0.0, 0.0, 0.0], pancam)
-    assert mixed.albedo == pytest.approx(0.64) and mixed.roughness == pytest.approx(12.0)
+    assert mixed.albedo == pytest.approx(0.64) and mixed.roughness_deg == pytest.approx(12.0)
     partial = list(pancam)
     partial[terraingen.MaterialClass.BEDROCK.value] = None
     with pytest.raises(ValueError):
@@ -319,7 +333,7 @@ def test_pancam_photometry_mixes_and_needs_every_present_class():
 
 def test_pavement_plates_crack_in_octaves_and_lay_bedrock():
     options = terraingen.PavementOptions(
-        plate_size=1.0, crack_width=0.04, crack_depth=0.1, max_step=0.0, max_tilt=0.0
+        plate_size=1.0, crack_width=0.04, crack_depth=0.1, max_step=0.0, max_tilt_deg=0.0
     )
     single = terraingen.PavementLayer(options)
     options.octaves = 3
@@ -359,7 +373,7 @@ def test_strata_terrace_hills_into_benches_and_cliffs():
     config = terraingen.Config.from_dict(
         {
             "schema_version": 1,
-            "layers": [{"type": "strata", "bed_thickness": 3.0, "dip": 0.05}],
+            "layers": [{"type": "strata", "bed_thickness": 3.0, "dip_deg": 3.0}],
         }
     )
     assert config.to_dict()["layers"][0]["bed_thickness"] == 3.0
@@ -392,7 +406,7 @@ def test_sand_shadows_trail_boulders_and_boulders_are_rock():
 def test_ventifacts_plane_the_windward_side_of_boulders():
     gale = terraingen.gale_ventifacts()
     assert gale.share == pytest.approx(0.39)
-    ventifacts = terraingen.BoulderVentifacts(share=1.0, wind_azimuth=0.0)
+    ventifacts = terraingen.BoulderVentifacts(share=1.0, wind_azimuth_deg=0.0)
     boulders = terraingen.BoulderLayer(
         terraingen.BoulderLayerOptions(
             coverage=0.05, min_diameter=1.0, max_diameter=2.0, ventifacts=ventifacts

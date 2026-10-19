@@ -21,8 +21,8 @@ template <typename IO> void Fields(IO& io, SyntheticAlbedoSpec& spec) {
     io("rgb", spec.rgb,
        "Gives three bands, red, green and blue, from the colour; off gives one band of the value "
        "alone, ignoring hue and saturation.");
-    io("hue", spec.hue, "Hue of the base colour in degrees, wrapping around; used with rgb only.",
-       "deg");
+    io("hue_deg", spec.hue,
+       "Hue of the base colour in degrees, wrapping around; used with rgb only.", "deg");
     io("saturation", spec.saturation,
        "Saturation of the base colour, from 0 for grey to 1; used with rgb only.", "",
        UnitInterval());
@@ -31,7 +31,7 @@ template <typename IO> void Fields(IO& io, SyntheticAlbedoSpec& spec) {
        "Higher values give a brighter surface.",
        "", UnitInterval());
     const std::string layers = "Noise layers, " + CountText(0, kMaxNoiseLayers);
-    io("hue_noise", spec.hueNoise,
+    io("hue_noise_deg", spec.hueNoise,
        layers + ", whose sum in degrees is added to the hue; used with rgb only.");
     io("saturation_noise", spec.saturationNoise,
        layers + ", added to the saturation, which is then clamped to [0, 1]; used with rgb only.");
@@ -90,26 +90,25 @@ template <typename IO> void Fields(IO& io, ObliqueImpacts& oblique) {
     io("enabled", oblique.enabled,
        "Draws an impact angle and direction per crater that shape its rays; off treats every "
        "impact as vertical.");
-    io("heading", oblique.heading,
-       "Downrange direction of every impact, in radians counter-clockwise from east; unset draws "
-       "a random heading per crater.",
-       "rad");
-    io("asymmetric_degrees", oblique.asymmetricDegrees,
+    RadianField(io, "heading_deg", oblique.heading,
+                "Downrange direction of every impact, in degrees counter-clockwise from +x "
+                "(local east on a body); unset draws a random heading per crater.");
+    io("asymmetric_deg", oblique.asymmetricDegrees,
        "Impact angle from the horizontal, in degrees, below which ejecta leave faster downrange, "
        "lengthening rays there and shortening them uprange.",
        "deg", Between(0.0, 90.0));
-    io("forbidden_degrees", oblique.forbiddenDegrees,
+    io("forbidden_deg", oblique.forbiddenDegrees,
        "Impact angle in degrees below which rays within the zone half width of uprange are "
        "dropped; at most the asymmetric angle.",
        "deg", Between(0.0, 90.0));
-    io("butterfly_degrees", oblique.butterflyDegrees,
+    io("butterfly_deg", oblique.butterflyDegrees,
        "Impact angle in degrees below which rays within the zone half width of downrange are "
        "dropped too, a butterfly pattern; at most the forbidden angle.",
        "deg", Between(0.0, 90.0));
     io("downrange_speed_ratio", oblique.downrangeSpeedRatio,
        "Downrange over uprange ejection speed below the asymmetric angle, drawn per crater; at "
        "least 1, higher values stretch downrange rays more.");
-    io("zone_half_width_degrees", oblique.zoneHalfWidthDegrees,
+    io("zone_half_width_deg", oblique.zoneHalfWidthDegrees,
        "Half width in degrees, 0 to 180, of the ray-free zones uprange and downrange; "
        "illustrative, as the sources do not measure it.",
        "deg", Between(0.0, 180.0));
@@ -132,7 +131,7 @@ template <typename IO> void Fields(IO& io, CraterRays& rays) {
     io("length_spread", rays.lengthSpread,
        "Natural logarithm of a ray's length over the median, drawn per ray; a wider "
        "distribution gives more varied lengths.");
-    io("width_degrees", rays.widthDegrees,
+    io("width_deg", rays.widthDegrees,
        "Angle in degrees a ray spans 2 radii from the centre, drawn per ray, within (0, 180); "
        "beyond 2 radii a ray keeps the width it has there.");
     io("excess", rays.excess,
@@ -151,7 +150,7 @@ template <typename IO> void Fields(IO& io, CraterRays& rays) {
        "How oblique impacts lengthen rays downrange and clear them uprange.");
     io("layout", rays.layout,
        "Takes the rays' number, directions and widths from this layout in place of count and "
-       "width_degrees, so they lie over a secondaries layer with the same layout; unset draws them "
+       "width_deg, so they lie over a secondaries layer with the same layout; unset draws them "
        "per crater.");
 }
 
@@ -187,7 +186,7 @@ template <typename IO> void Fields(IO& io, CraterAlbedoTexture& texture) {
        "Share of the excess radial streaks take away between filaments, from 0 to 1, breaking "
        "ejecta, rays and interiors into fine streaks; 0 leaves them smooth.",
        "", UnitInterval());
-    io("streak_width_degrees", texture.streakWidthDegrees,
+    io("streak_width_deg", texture.streakWidthDegrees,
        "Typical width of a filament around the crater, in degrees.", "deg", Above(0.0));
     io("streak_length_radii", texture.streakLengthRadii,
        "Typical length of a filament outward from the crater, in crater radii.", "", Above(0.0));
@@ -226,7 +225,7 @@ template <typename IO> void Fields(IO& io, ReflectanceZone& zone) {
        "Share of the reach, from 0 up to 1, that fingers of the edge pull in by; 0 keeps the "
        "zone round, higher values make it ray-like.",
        "", FromBelow(0.0, 1.0));
-    io("finger_width_degrees", zone.fingerWidthDegrees,
+    io("finger_width_deg", zone.fingerWidthDegrees,
        "Typical width of the edge's fingers around the crater, in degrees.", "deg", Above(0.0));
     io("feather", zone.feather,
        "Share of the reach, from 0 to 1 excluding 0, over which the zone fades out at its edge.",
@@ -241,7 +240,7 @@ template <typename IO> void Fields(IO& io, ZoneShadows& shadows) {
     io("enabled", shadows.enabled,
        "Gives the distal zones shadows behind rises such as crater rims, read from the terrain's "
        "heights; off by default.");
-    io("jet_angle_degrees", shadows.jetAngleDegrees,
+    io("jet_angle_deg", shadows.jetAngleDegrees,
        "Steepest angle in degrees, between 0 and 90 excluded, at which the jet forming the distal "
        "zones can drop behind a rise; lower values give longer shadows. Illustrative.",
        "deg", Inside(0.0, 90.0));
@@ -433,7 +432,7 @@ template <typename IO> void Fields(IO& io, SplotchAlbedoOptions& options) {
        "read from the terrain's heights; unset keeps the bright share. Bright splotches are "
        "found mostly on such slopes, but the source gives no share.",
        "", UnitInterval());
-    io("steep_slope_degrees", options.steepSlopeDegrees,
+    io("steep_slope_deg", options.steepSlopeDegrees,
        "Slope in degrees, between 0 and 90 excluded, from which ground is steep.", "deg",
        Inside(0.0, 90.0));
     io("softness", options.softness,
@@ -460,7 +459,7 @@ template <typename IO> void Fields(IO& io, BlastZone& zone) {
     io("elongation", zone.elongation,
        "Long over short axis of the zone, at least 1; Apollo about 1.14, Chang'e-3 about 1.74.", "",
        AtLeast(1.0));
-    io("heading_degrees", zone.headingDegrees,
+    io("heading_deg", zone.headingDegrees,
        "Direction of the long axis, degrees counter-clockwise from east, such as along the "
        "final approach.",
        "deg");
@@ -527,7 +526,7 @@ template <> struct SpecName<SlopeAlbedoSpec> {
         "(2022) and Lucey et al. (2014).";
 };
 template <typename IO> void Fields(IO& io, SlopeAlbedoOptions& options) {
-    io("onset_degrees", options.onsetDegrees,
+    io("onset_deg", options.onsetDegrees,
        "Slope in degrees from which ground freshens; 20, where Lucey et al. (2014) and Ikeda et "
        "al. (2022) find brightening begin.",
        "deg", FromBelow(0.0, 90.0));

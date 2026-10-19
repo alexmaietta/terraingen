@@ -114,13 +114,12 @@ template <typename IO> void ElongationFields(IO& io, CraterIrregularity& irregul
        UnitInterval());
     io("ellipticity", irregularity.ellipticity,
        "Long over short rim-to-rim diameter of elliptical craters, drawn per crater; at least 1.");
-    io("heading", irregularity.heading,
-       "Heading of elliptical craters' long axes, in radians counter-clockwise from +x; unset "
-       "gives random headings.",
-       "rad");
-    io("heading_spread", irregularity.headingSpread,
-       "Largest random turn of a long axis either way from the heading, in radians.", "rad",
-       AtLeast(0.0));
+    RadianField(io, "heading_deg", irregularity.heading,
+                "Heading of elliptical craters' long axes, in degrees counter-clockwise from +x "
+                "(local east on a body); unset gives random headings.");
+    RadianField(io, "heading_spread_deg", irregularity.headingSpread,
+                "Largest random turn of a long axis either way from the heading, in degrees.",
+                AtLeast(0.0));
 }
 
 /// The fields of the radial marks down irregular craters' walls.
@@ -238,10 +237,10 @@ template <typename IO> void Fields(IO& io, CraterSlopeResponse& slope) {
        "Share of the raised rim and ejecta kept straight upslope, from 0 to 1; the rest returns "
        "toward the sides.",
        "", UnitInterval());
-    io("full_slope", slope.fullSlope,
-       "Slope at which the asymmetry is complete, in radians; it rises from none on level "
-       "ground.",
-       "rad", Above(0.0));
+    RadianField(io, "full_slope_deg", slope.fullSlope,
+                "Slope at which the asymmetry is complete, in degrees; it rises from none on "
+                "level ground.",
+                Above(0.0));
     io("critical_gradient", slope.criticalGradient,
        "Critical gradient Sc, rise over run, toward which downslope transport grows without bound: "
        "a crater on a regional gradient S wears 1 / (1 - (S / Sc)^2) times as fast (Roering et al. "
@@ -337,7 +336,7 @@ template <typename IO> void Fields(IO& io, RayLayout& layout) {
     io("seed", layout.seed,
        "Seed of the rays' directions; layers with the same layout share the same rays.");
     io("count", layout.count, "Number of rays of a crater, drawn per crater and rounded; 0 to 64.");
-    io("width_degrees", layout.widthDegrees,
+    io("width_deg", layout.widthDegrees,
        "Angle in degrees a ray spans 2 radii from the centre, drawn per ray, within (0, 180).");
 }
 
@@ -351,7 +350,7 @@ template <typename IO> void Fields(IO& io, SecondaryRays& rays) {
     io("share", rays.share,
        "Share of secondaries in rays, from 0 to 1; the rest stay spread evenly. Illustrative.", "",
        UnitInterval());
-    io("min_half_angle_degrees", rays.minHalfAngleDegrees,
+    io("min_half_angle_deg", rays.minHalfAngleDegrees,
        "Narrowest half width of a ray, in degrees from 0 to 90 excluded, so rays widen with range "
        "beyond their width near the primary. Illustrative.",
        "deg", Inside(0.0, 90.0));

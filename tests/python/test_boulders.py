@@ -1,5 +1,7 @@
 """layers/boulders: boulder options, placement, models, abundance and writers."""
 
+import math
+
 import numpy as np
 import pytest
 
@@ -117,11 +119,13 @@ def test_placed_lists_and_models_are_written(tmp_path, lunar_models, crater_laye
 
 
 def test_boulder_layer_options_keep_their_fields():
-    boulders = terraingen.BoulderLayerOptions(qa=1.5, bedrock_abundance=2.0, max_lean=0.1, shape_prototypes=8)
-    assert (boulders.qa, boulders.bedrock_abundance, boulders.max_lean, boulders.shape_prototypes) == (
+    boulders = terraingen.BoulderLayerOptions(
+        qa=1.5, bedrock_abundance=2.0, max_lean_deg=6.0, shape_prototypes=8
+    )
+    assert (boulders.qa, boulders.bedrock_abundance, boulders.max_lean_deg, boulders.shape_prototypes) == (
         1.5,
         2.0,
-        0.1,
+        6.0,
         8,
     )
 
@@ -259,19 +263,19 @@ def test_validate_boulder_layer_options_rejects_negative_coverage():
 
 
 def test_boulders_rest_on_sides_and_ends_and_tilt():
-    options = terraingen.BoulderLayerOptions(coverage=0.08, side_share=0.3, end_share=0.1, max_tilt=0.8)
+    options = terraingen.BoulderLayerOptions(coverage=0.08, side_share=0.3, end_share=0.1, max_tilt_deg=45.0)
     table = terraingen.BoulderLayer(options).boulders((-30.0, -30.0, 30.0, 30.0))
     rests = np.asarray(table["rest"])
     assert set(np.unique(rests)) <= {0, 1, 2} and (rests == 1).any() and (rests == 2).any()
-    assert np.asarray(table["tilt"]).max() <= 0.8 + 1e-12
+    assert np.asarray(table["tilt"]).max() <= math.radians(45.0) + 1e-12
     boulder = terraingen.Boulder(0.0, 0.0, 1.0, 0.5)
     boulder.rest = terraingen.BoulderRest.END
     assert boulder.rest == terraingen.BoulderRest.END
 
 
 def test_boulder_max_slope_is_optional():
-    options = terraingen.BoulderLayerOptions(max_slope=0.5)
-    assert options.max_slope == 0.5 and terraingen.BoulderLayerOptions().max_slope is None
+    options = terraingen.BoulderLayerOptions(max_slope_deg=30.0)
+    assert options.max_slope_deg == 30.0 and terraingen.BoulderLayerOptions().max_slope_deg is None
 
 
 def test_boulder_layers_take_maps_and_catalogs():
@@ -302,7 +306,7 @@ def test_boulders_follow_a_size_slope_map_and_roll_down_steep_ground():
     options = terraingen.BoulderLayerOptions(
         distribution=terraingen.PowerLawSfd(0.05, 3.0),
         slope_map=terraingen.SizeSlopeMap(field=terraingen.ConstantField(2.0), reference_diameter=1.0),
-        max_slope=0.4,
+        max_slope_deg=22.0,
         roll_distance=20.0,
     )
     layer = terraingen.BoulderLayer(options)

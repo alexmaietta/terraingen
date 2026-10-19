@@ -17,10 +17,10 @@
         "source": {
             "type": "synthetic",
             "rgb": true,
-            "hue": 30,
+            "hue_deg": 30,
             "saturation": 0.12,
             "value": 0.14,
-            "hue_noise": [
+            "hue_noise_deg": [
                 {
                     "seed": 5,
                     "wavelength": 900,

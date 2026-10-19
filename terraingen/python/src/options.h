@@ -75,6 +75,42 @@ template <typename T> class OptionsBinder {
             FieldDoc(description, unit).c_str());
     }
 
+    /// Binds the angle `radians` as the property `key` in degrees, as the configuration gives it.
+    void Radians(std::string_view key, double& radians, std::string_view description,
+                 const config::FieldRange& /*range*/) {
+        const std::size_t offset = Offset(key, radians);
+        Add(key);
+        cls_.def_prop_rw(
+            names_->back().c_str(),
+            [offset](const T& self) {
+                return config::DegreesFromRadians(At<double>(self, offset));
+            },
+            [offset](T& self, double degrees) {
+                At<double>(self, offset) = config::RadiansFromDegrees(degrees);
+            },
+            FieldDoc(description, "deg").c_str());
+    }
+
+    /// Binds the optional angle `radians` as the property `key` in degrees, None when unset.
+    void Radians(std::string_view key, std::optional<double>& radians, std::string_view description,
+                 const config::FieldRange& /*range*/) {
+        const std::size_t offset = Offset(key, radians);
+        Add(key);
+        cls_.def_prop_rw(
+            names_->back().c_str(),
+            [offset](const T& self) -> std::optional<double> {
+                const auto& value = At<std::optional<double>>(self, offset);
+                return value ? std::optional<double>(config::DegreesFromRadians(*value))
+                             : std::nullopt;
+            },
+            [offset](T& self, std::optional<double> degrees) {
+                At<std::optional<double>>(self, offset) =
+                    degrees ? std::optional<double>(config::RadiansFromDegrees(*degrees))
+                            : std::nullopt;
+            },
+            FieldDoc(description, "deg").c_str());
+    }
+
     /// Binds `group` as the property `name`, or returns false to have its fields bound one by one
     /// when it is the whole struct.
     template <typename G>

@@ -123,7 +123,7 @@
                         "a": 25,
                         "b": 40
                     },
-                    "width_degrees": {
+                    "width_deg": {
                         "kind": "uniform",
                         "a": 4,
                         "b": 12
@@ -132,7 +132,7 @@
                 },
                 "texture": {
                     "streaks": 0.8,
-                    "streak_width_degrees": 3.5,
+                    "streak_width_deg": 3.5,
                     "streak_length_radii": 0.8,
                     "continuous_radii": 0.7,
                     "lobes": 0.35,

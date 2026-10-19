@@ -104,7 +104,7 @@ template <> struct SpecName<BoulderModelsOutput> {
 };
 template <typename IO> void Fields(IO& io, BoulderModelsOutput& output) {
     io("path", output.path, OutputPathHelp("File to write, ending in .glb, .gltf, .obj or .stl"));
-    io("crease_angle", output.creaseAngle,
+    io("crease_angle_deg", output.creaseAngle,
        "Angle in degrees, from " + CountText(0, static_cast<std::size_t>(kMaxCreaseAngle)) +
            ": vertices are split where faces meet at more than it, giving sharp edges.",
        "deg", Between(0.0, kMaxCreaseAngle));
