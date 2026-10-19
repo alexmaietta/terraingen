@@ -8,11 +8,11 @@
 
 # TerrainGen
 
-![Blue Moon MK1 SN101 lander at Connecting Ridge, with Mons Malapert in the background](docs/images/hero_mk1_sn101_connecting_ridge.jpg)
+A high-performance scientific terrain generation tool for interplanetary bodies.
+
+![Blue Moon MK1 SN101 lander at Connecting Ridge, with Mons Malapert in the background](https://raw.githubusercontent.com/alexmaietta/terraingen/main/docs/images/hero_mk1_sn101_connecting_ridge.jpg)
 
 *Blue Moon MK1 SN101 lander at Connecting Ridge near the lunar south pole, with Mons Malapert in the background. Terrain upscaled by TerrainGen from LOLA elevation models.*
-
-A high-performance scientific terrain generation tool for interplanetary bodies.
 
 TerrainGen can:
 
