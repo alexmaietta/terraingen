@@ -6,8 +6,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <numbers>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 using terraingen::ValueDistribution;
@@ -49,6 +51,50 @@ TEST(ValueDistribution, SamplesEachKindWithinItsBounds) {
     for (const auto& distribution : invalid) {
         EXPECT_THROW(terraingen::ValidateValueDistribution(distribution), std::invalid_argument);
     }
+}
+
+TEST(ValueDistribution, PiecewiseInvertsTheBinsAndSkipsEmptyOnes) {
+    ValueDistribution piecewise{ValueDistribution::Kind::Piecewise};
+    piecewise.edges = {0.0, 1.0, 2.0, 4.0};
+    piecewise.weights = {1.0, 0.0, 1.0};
+    terraingen::ValidateValueDistribution(piecewise);
+    EXPECT_DOUBLE_EQ(piecewise.Sample(0.0, 0.9), 0.0);
+    EXPECT_DOUBLE_EQ(piecewise.Sample(0.25, 0.9), 0.5);
+    EXPECT_DOUBLE_EQ(piecewise.Sample(0.5, 0.9), 2.0);
+    EXPECT_DOUBLE_EQ(piecewise.Sample(0.75, 0.1), 3.0);
+    EXPECT_EQ(piecewise.Lowest(), 0.0);
+    EXPECT_EQ(piecewise.Highest(), 4.0);
+    piecewise.weights = {1.0, 1.0, 0.0};
+    EXPECT_LE(piecewise.Sample(std::nextafter(1.0, 0.0), 0.0), 2.0);
+    piecewise.max = 1.5;
+    EXPECT_EQ(piecewise.Sample(0.99, 0.0), 1.5);
+    EXPECT_EQ(piecewise.Highest(), 1.5);
+}
+
+TEST(ValueDistribution, RejectsMalformedPiecewiseBins) {
+    const auto piecewise = [](std::vector<double> edges, std::vector<double> weights) {
+        ValueDistribution d{ValueDistribution::Kind::Piecewise};
+        d.edges = std::move(edges);
+        d.weights = std::move(weights);
+        return d;
+    };
+    const std::vector<ValueDistribution> invalid{
+        piecewise({}, {}),
+        piecewise({0.0}, {}),
+        piecewise({0.0, 1.0}, {1.0, 1.0}),
+        piecewise({0.0, 1.0, 1.0}, {1.0, 1.0}),
+        piecewise({1.0, 0.0}, {1.0}),
+        piecewise({0.0, std::nan("")}, {1.0}),
+        piecewise({0.0, 1.0}, {-1.0}),
+        piecewise({0.0, 1.0}, {0.0}),
+        piecewise({0.0, 1.0}, {std::numeric_limits<double>::infinity()})};
+    for (const auto& distribution : invalid) {
+        EXPECT_THROW(terraingen::ValidateValueDistribution(distribution), std::invalid_argument);
+    }
+    ValueDistribution uniform{ValueDistribution::Kind::Uniform, 0.0, 1.0};
+    uniform.edges = {0.0, 1.0};
+    uniform.weights = {1.0};
+    EXPECT_THROW(terraingen::ValidateValueDistribution(uniform), std::invalid_argument);
 }
 
 TEST(StandardNormal, IsTheBoxMullerTransform) {

@@ -3,6 +3,7 @@
 #pragma once
 
 #include <limits>
+#include <vector>
 
 namespace terraingen {
 
@@ -14,15 +15,18 @@ struct ValueDistribution {
         Uniform,    ///< Uniform on [`a`, `b`].
         Normal,     ///< Mean `a`, standard deviation `b`.
         LogNormal,  ///< Median `a`, standard deviation of the natural logarithm `b`.
+        Piecewise,  ///< Uniform within each bin of `edges`, with bin shares from `weights`.
     };
     Kind kind = Kind::Constant;                             ///< The family.
     double a = 0.0;                                         ///< First parameter, per `kind`.
     double b = 0.0;                                         ///< Second parameter, per `kind`.
     double min = -std::numeric_limits<double>::infinity();  ///< Lower clamp.
     double max = std::numeric_limits<double>::infinity();   ///< Upper clamp.
+    std::vector<double> edges{};    ///< Piecewise bin edges, strictly increasing.
+    std::vector<double> weights{};  ///< Piecewise relative weight of each bin.
 
     /// A value drawn from two independent uniforms `u1` and `u2` in [0, 1) (Box-Muller for the
-    /// normal kinds), clamped to [`min`, `max`].
+    /// normal kinds, inversion of `u1` for piecewise), clamped to [`min`, `max`].
     double Sample(double u1, double u2) const;
 
     /// The smallest value `Sample` can return.
@@ -37,8 +41,10 @@ struct ValueDistribution {
 
 /// Checks a value distribution.
 /// @throws std::invalid_argument for parameters that are not finite, a uniform with `b` < `a`, a
-/// negative standard deviation, a log-normal with a non-positive median, `min` above `max`, or a
-/// normal or log-normal without a finite `max`.
+/// negative standard deviation, a log-normal with a non-positive median, `min` above `max`, a
+/// normal or log-normal without a finite `max`, a piecewise kind without at least two strictly
+/// increasing finite edges and one non-negative weight per bin summing above zero, or edges or
+/// weights on any other kind.
 void ValidateValueDistribution(const ValueDistribution& distribution);
 
 }  // namespace terraingen

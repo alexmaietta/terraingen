@@ -72,6 +72,13 @@ template <typename IO> void Fields(IO& io, ValueDistribution& distribution) {
     OptionalBound(io, "max", distribution.max,
                   "Upper bound drawn values are clamped to; unset leaves them unbounded above, "
                   "which normal and log-normal kinds do not allow.");
+    io("edges", distribution.edges,
+       "With piecewise, the edges of the bins, at least two and strictly increasing; values are "
+       "uniform within each bin. Empty for every other kind.");
+    io("weights", distribution.weights,
+       "With piecewise, the relative weight of each bin, one fewer than the edges, not negative "
+       "and not all zero; each bin draws its share of the total. Empty for every other kind.",
+       "", AtLeast(0.0));
 }
 
 /// The fields of irregular craters' rough, wavy rims.

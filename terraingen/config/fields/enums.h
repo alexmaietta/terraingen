@@ -224,12 +224,14 @@ template <> struct EnumNames<BaseSolid> {
 };
 
 template <> struct EnumNames<ValueDistribution::Kind> {
-    static constexpr std::array<EnumEntry<ValueDistribution::Kind>, 4> kValues{{
+    static constexpr std::array<EnumEntry<ValueDistribution::Kind>, 5> kValues{{
         {"constant", ValueDistribution::Kind::Constant, "Always a."},
         {"uniform", ValueDistribution::Kind::Uniform, "Uniform between a and b."},
         {"normal", ValueDistribution::Kind::Normal, "Normal with mean a and standard deviation b."},
         {"log_normal", ValueDistribution::Kind::LogNormal,
          "Log-normal with median a and standard deviation b of the natural logarithm."},
+        {"piecewise", ValueDistribution::Kind::Piecewise,
+         "Uniform within each bin between edges, each bin drawn in proportion to its weight."},
     }};
 };
 

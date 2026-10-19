@@ -120,7 +120,8 @@ void BindValueDistribution(nb::module_& m) {
     BindOptions<ValueDistribution>(
         m, "ValueDistribution",
         "A random value: constant `a`, uniform from `a` to `b`, normal or log-normal with mean "
-        "`a` and deviation `b`, clipped to [min, max].",
+        "`a` and deviation `b`, or piecewise: uniform within bins between `edges`, each drawn "
+        "in proportion to its entry in `weights`; clipped to [min, max].",
         &ValidateValueDistribution);
     m.def("validate_value_distribution", &ValidateValueDistribution, "distribution"_a,
           kValidateDoc);
