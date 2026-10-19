@@ -53,7 +53,7 @@ double SingerMaxSecondaryDiameter(double diameter, double range) {
            std::pow(r, -kSingerRangeExponent * std::log(d));
 }
 
-double SingerRangeForSize(double diameter, double size) {
+double SingerMaxRange(double diameter, double size) {
     const double d = diameter / 1000.0;
     const double logD = std::log(d);
     if (!(logD > 0.0)) {

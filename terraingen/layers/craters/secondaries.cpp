@@ -45,7 +45,7 @@ struct Footprint {
     double half = std::numbers::pi;
 };
 
-Footprint FootprintOf(const Vec2d& centre, const Bounds2d& region, const Surface& surface) {
+Footprint SecondaryFootprint(const Vec2d& centre, const Bounds2d& region, const Surface& surface) {
     Footprint footprint;
     std::vector<Vec2d> corners;
     for (const double x : {region.minX, region.maxX}) {
@@ -140,7 +140,7 @@ class Scatter {
           maxStretch_(SecondaryStretch(layer.Options().shapes)) {}
 
     /// Draws the secondaries `crater` throws, if it is a selected primary.
-    void Throws(const Crater& crater) {
+    void DrawSecondaries(const Crater& crater) {
         if (!options_.selection.Includes(crater)) {
             return;
         }
@@ -152,7 +152,7 @@ class Scatter {
         if (!(primary.outer > primary.onset)) {
             return;
         }
-        primary.footprint = FootprintOf({crater.x, crater.y}, wanted_, surface_);
+        primary.footprint = SecondaryFootprint({crater.x, crater.y}, wanted_, surface_);
         primary.density0 = *options_.onsetCount / (0.25 * std::numbers::pi * diameter * diameter);
         primary.reference = options_.countFraction * diameter;
         primary.rays = SecondaryRayField::Make(crater, options_.rays);
@@ -183,7 +183,7 @@ class Scatter {
             return;
         }
         const double diameter = primary.crater.diameter;
-        const double far = std::fmin(primary.outer, SingerRangeForSize(diameter, low));
+        const double far = std::fmin(primary.outer, SingerMaxRange(diameter, low));
         const double cell = options_.cellSizeFactor * high;
         const double inner = std::fmax(primary.onset, primary.footprint.near - cell);
         const double outerEdge = std::fmin(far, primary.footprint.far + cell);
@@ -359,7 +359,7 @@ CraterList SecondaryCraterLayer::Secondaries(
     const double skipBelow = spacing > 0.0 ? apply_.fade.startSamples * spacing : 0.0;
     Scatter scatter(*this, surface, region, wanted, reachRadii, skipBelow);
     for (std::size_t n = 0; n < primaries.Size(); ++n) {
-        scatter.Throws(primaries.At(n));
+        scatter.DrawSecondaries(primaries.At(n));
     }
     outlines = scatter.TakeOutlines();
     return scatter.Take();

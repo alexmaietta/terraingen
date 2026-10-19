@@ -92,7 +92,7 @@ def test_crater_bands_span_the_diameter_range():
 
 def test_min_diameter_for_count_exceeds_the_lower_bound(lunar_craters):
     density, _ = lunar_craters(3.5)
-    assert terraingen.min_diameter_for_count(density, 1e6, 100.0, 8.0, 1000.0) > 8.0
+    assert terraingen.count_limit_diameter(density, 1e6, 100.0, 8.0, 1000.0) > 8.0
 
 
 def test_manual_crater_id_is_deterministic():
@@ -194,7 +194,7 @@ def test_max_craters_caps_generation(lunar_models):
 
 def test_irregular_outlines_are_elongated():
     irregular = terraingen.CraterIrregularity(enabled=True, elongated_share=1.0, manual=True)
-    outline = terraingen.outline_of(terraingen.Crater(0.0, 0.0, 50.0), irregular)
+    outline = terraingen.irregular_outline(terraingen.Crater(0.0, 0.0, 50.0), irregular)
     assert outline.ellipticity > 1.0 and not outline.round and outline.max_scale >= 1.0
 
 
@@ -203,7 +203,7 @@ def test_marked_outlines_shift_only_the_wall():
         enabled=True, manual=True, rough_share=0.0, elongated_share=0.0, marks_share=1.0, marks_knots=12
     )
     assert (marked.marks_inner_radii, marked.marks_outer_radii, marked.marks_fade_radii) == (0.3, 0.9, 0.1)
-    outline = terraingen.outline_of(terraingen.Crater(0.0, 0.0, 50.0, 0.0, 5), marked)
+    outline = terraingen.irregular_outline(terraingen.Crater(0.0, 0.0, 50.0, 0.0, 5), marked)
     assert len(outline.marks) == 12 and not outline.round
     assert outline.mark_shift(1.0, 0.0, 0.1) == 0.0 and outline.mark_shift(1.0, 0.0, 1.0) == 0.0
     assert abs(outline.mark_shift(1.0, 0.0, 0.6)) <= 1.25 * marked.marks_amplitude.b
@@ -211,7 +211,7 @@ def test_marked_outlines_shift_only_the_wall():
 
 def test_max_outline_scale_bounds_every_outline():
     irregular = terraingen.CraterIrregularity(enabled=True, elongated_share=1.0, manual=True)
-    outline = terraingen.outline_of(terraingen.Crater(0.0, 0.0, 50.0), irregular)
+    outline = terraingen.irregular_outline(terraingen.Crater(0.0, 0.0, 50.0), irregular)
     assert terraingen.max_outline_scale(irregular) >= outline.max_scale
 
 
@@ -253,11 +253,11 @@ def test_irregularity_options_select_generated_craters_only():
 
 def test_singer_range_for_size_inverts_the_largest_secondary():
     largest = terraingen.singer_max_secondary_diameter(20000.0, 60000.0)
-    assert terraingen.singer_range_for_size(20000.0, largest) == pytest.approx(60000.0)
+    assert terraingen.singer_max_range(20000.0, largest) == pytest.approx(60000.0)
 
 
 def test_singer_range_is_infinite_for_secondaries_too_small_to_reach():
-    assert math.isinf(terraingen.singer_range_for_size(800.0, 10.0))
+    assert math.isinf(terraingen.singer_max_range(800.0, 10.0))
 
 
 def test_singer_largest_secondary_of_a_small_primary():

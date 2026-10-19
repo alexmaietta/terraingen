@@ -165,7 +165,7 @@ class Generation {
         CraterList craters;
         craters.Reserve(static_cast<std::size_t>(expected));
         for (const BandPlan& entry : plan) {
-            const BandRegion region = BandRegionOf(entry.band);
+            const BandRegion region = BandBounds(entry.band);
             for (const CellIndex& cell : entry.cells) {
                 const std::shared_ptr<const CraterList> drawn = DrawCell(entry.band, cell);
                 for (std::size_t n = 0; n < drawn->Size(); ++n) {
@@ -187,7 +187,7 @@ class Generation {
         Bounds2d outer;
     };
 
-    BandRegion BandRegionOf(const CraterBand& band) const {
+    BandRegion BandBounds(const CraterBand& band) const {
         return {band, surface_.Expand(region_, CandidateMargin(band.low)),
                 surface_.Expand(region_, CandidateMargin(band.high))};
     }
@@ -350,8 +350,8 @@ CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
     return craters;
 }
 
-double MinDiameterForCount(const SizeFrequencyDistribution& density, double area, double count,
-                           double dMin, double dMax) {
+double CountLimitDiameter(const SizeFrequencyDistribution& density, double area, double count,
+                          double dMin, double dMax) {
     if (!(IsPositive(count) && IsPositive(area))) {
         throw std::invalid_argument("Count and area must be positive and finite");
     }

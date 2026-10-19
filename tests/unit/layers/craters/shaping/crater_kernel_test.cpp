@@ -135,7 +135,7 @@ TEST(CraterKernel, FollowsIrregularOutlines) {
         options.irregularity.marksAmplitude = {terraingen::ValueDistribution::Kind::Constant, 0.02};
         const Crater crater{0.0, 0.0, 200.0, 0.0, 11u, true};
         PreparedCrater prepared{crater, 1.0, {{0.2, 0.04}, {0.2, 0.04}, 0.0}};
-        prepared.outline = terraingen::OutlineOf(crater, options.irregularity);
+        prepared.outline = terraingen::IrregularOutline(crater, options.irregularity);
         ASSERT_FALSE(prepared.outline.Round());
         for (int k = 0; k < 2000; ++k) {
             const double r = 160.0 * k / 2000.0;

@@ -23,7 +23,7 @@ double SingerMaxSecondaryDiameter(double diameter, double range);
 /// The range in metres beyond which `SingerMaxSecondaryDiameter` falls below `size` metres: its
 /// inverse in range. Infinite for primaries of 1 km or less, whose largest secondary does not
 /// shrink with range.
-double SingerRangeForSize(double diameter, double size);
+double SingerMaxRange(double diameter, double size);
 
 /// How far from its centre a primary of `diameter` metres throws its first secondaries (Singer et
 /// al. 2020): the radius plus about 1.8 diameters up to 3 km and 1.3 from 31 km, in metres.

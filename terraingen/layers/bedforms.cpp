@@ -97,7 +97,7 @@ BedformLayer::BedformLayer(BedformOptions options, Surface surface)
     }
 }
 
-void BedformLayer::AddField(Point& point, RandomStream& random, const Vec2d& centre,
+void BedformLayer::AddField(FieldSum& sum, RandomStream& random, const Vec2d& centre,
                             const Vec2d& offset, const Ground* ground) const {
     const double barren = random.NextDouble();
     const auto ox = static_cast<float>(97.0 * random.NextDouble());
@@ -132,14 +132,14 @@ void BedformLayer::AddField(Point& point, RandomStream& random, const Vec2d& cen
     const double profile =
         t < upwind ? 0.5 * (1.0 - std::cos(std::numbers::pi * t / upwind))
                    : 0.5 * (1.0 + std::cos(std::numbers::pi * (t - upwind) / options_.leeFraction));
-    point.cover += cover;
-    point.relief += cover * options_.height * scale * profile;
+    sum.cover += cover;
+    sum.relief += cover * options_.height * scale * profile;
 }
 
-BedformLayer::Point BedformLayer::Evaluate(double x, double y, const Ground* ground) const {
-    Point point;
+BedformLayer::FieldSum BedformLayer::SumFields(double x, double y, const Ground* ground) const {
+    FieldSum sum;
     if (density_ <= 0.0) {
-        return point;
+        return sum;
     }
     if (exposure_) {
         RequireGround(ground, kExposureReader);
@@ -157,9 +157,9 @@ BedformLayer::Point BedformLayer::Evaluate(double x, double y, const Ground* gro
             const double u = random.NextDouble();
             const double v = random.NextDouble();
             const Vec2d centre = cells_->SamplePoint(u, v, cell, cell_);
-            AddField(point, random, centre, surface_.Offset(centre, {x, y}), ground);
+            AddField(sum, random, centre, surface_.Offset(centre, {x, y}), ground);
         }
-        return point;
+        return sum;
     }
     const auto ix = static_cast<std::int64_t>(std::floor(x / cell_));
     const auto iy = static_cast<std::int64_t>(std::floor(y / cell_));
@@ -173,14 +173,14 @@ BedformLayer::Point BedformLayer::Evaluate(double x, double y, const Ground* gro
             }
             const double cx = (static_cast<double>(gx) + random.NextDouble()) * cell_;
             const double cy = (static_cast<double>(gy) + random.NextDouble()) * cell_;
-            AddField(point, random, {cx, cy}, {x - cx, y - cy}, ground);
+            AddField(sum, random, {cx, cy}, {x - cx, y - cy}, ground);
         }
     }
-    return point;
+    return sum;
 }
 
 double BedformLayer::CoverAt(double x, double y, const Ground* ground) const {
-    return std::min(1.0, Evaluate(x, y, ground).cover);
+    return std::min(1.0, SumFields(x, y, ground).cover);
 }
 
 float BedformLayer::HeightAt(float height, double x, double y, double spacing,
@@ -189,12 +189,12 @@ float BedformLayer::HeightAt(float height, double x, double y, double spacing,
     if (weight <= 0.0) {
         return height;
     }
-    const Point point = Evaluate(x, y, ground);
-    if (point.cover <= 0.0) {
+    const FieldSum sum = SumFields(x, y, ground);
+    if (sum.cover <= 0.0) {
         return height;
     }
     return static_cast<float>(static_cast<double>(height) +
-                              weight * point.relief / std::max(1.0, point.cover));
+                              weight * sum.relief / std::max(1.0, sum.cover));
 }
 
 void BedformLayer::CheckContext(const LayerContext& context) const {

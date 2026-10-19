@@ -115,7 +115,7 @@ class PavementLayer final : public FormulaLayer, public MaterialSource {
     Plate PlateAt(const Vec2d& q, const Level& level, std::uint32_t seed, double crackWeight) const;
     /// The relief of every octave at planar point `q`, each faded at `spacing`; 0 for none.
     double Relief(const Vec2d& q, double spacing) const;
-    double Gate(double x, double y, const Ground* ground) const;
+    double ExposureWeight(double x, double y, const Ground* ground) const;
 
     PavementOptions options_;
     std::optional<ExposureField> exposure_;

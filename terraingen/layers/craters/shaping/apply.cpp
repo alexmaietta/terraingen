@@ -261,7 +261,7 @@ std::optional<DatumKernelIndex> IndexDatumRelief(const std::vector<PreparedCrate
         index.lows[2 * m + 1] = static_cast<float>(c.y - static_cast<double>(record.y));
         bands[ReliefBand(prepared[kept[m]])].push_back(static_cast<std::uint32_t>(m));
     }
-    std::vector<std::uint32_t> cellOf;
+    std::vector<std::uint32_t> cellIndex;
     std::vector<std::uint32_t> filled;
     for (const auto& [band, members] : bands) {
         const auto size = static_cast<float>(1.0001 * profile.ReachRadii() * std::ldexp(1.0, band));
@@ -290,13 +290,13 @@ std::optional<DatumKernelIndex> IndexDatumRelief(const std::vector<PreparedCrate
                                                        static_cast<std::uint32_t>(down),
                                                        static_cast<std::uint32_t>(first)});
         index.cells.resize(2 * (first + across * down), 0);
-        cellOf.resize(members.size());
+        cellIndex.resize(members.size());
         for (std::size_t m = 0; m < members.size(); ++m) {
             const CraterRecord& r = index.batch.records[members[m]];
             const auto i = static_cast<std::size_t>(std::floor(r.x / size) - minI);
             const auto j = static_cast<std::size_t>(std::floor(r.y / size) - minJ);
-            cellOf[m] = static_cast<std::uint32_t>(first + j * across + i);
-            ++index.cells[2 * cellOf[m] + 1];
+            cellIndex[m] = static_cast<std::uint32_t>(first + j * across + i);
+            ++index.cells[2 * cellIndex[m] + 1];
         }
         auto start = static_cast<std::uint32_t>(index.entries.size());
         for (std::size_t cell = first; cell < first + across * down; ++cell) {
@@ -306,7 +306,7 @@ std::optional<DatumKernelIndex> IndexDatumRelief(const std::vector<PreparedCrate
         index.entries.resize(start);
         filled.assign(across * down, 0);
         for (std::size_t m = 0; m < members.size(); ++m) {
-            const std::uint32_t cell = cellOf[m];
+            const std::uint32_t cell = cellIndex[m];
             index.entries[index.cells[2 * cell] + filled[cell - first]++] = members[m];
         }
     }

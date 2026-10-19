@@ -277,7 +277,7 @@ double CraterOutline::MaxScale() const {
     return std::sqrt(ellipticity) * sum;
 }
 
-CraterOutline OutlineOf(const Crater& crater, const CraterIrregularity& irregularity) {
+CraterOutline IrregularOutline(const Crater& crater, const CraterIrregularity& irregularity) {
     CraterOutline outline;
     if (!irregularity.enabled || !irregularity.selection.Includes(crater)) {
         return outline;

@@ -40,7 +40,7 @@ struct PreparedCrater {
 };
 
 /// The craters with a non-zero resolution weight at `spacing`, prepared in `CraterApplyOrder`
-/// without datums; `reshape`, when set, changes each outline after `OutlineOf`.
+/// without datums; `reshape`, when set, changes each outline after `IrregularOutline`.
 /// @param spacing Sample spacing in metres; positive.
 /// @throws std::domain_error as `DegradationModel::State`.
 std::vector<PreparedCrater>

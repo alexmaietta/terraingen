@@ -43,7 +43,7 @@ const std::vector<double>& TableAges() {
 
 /// The row below `tau` and the weight of the row above it, interpolating in log tau (linearly in
 /// tau before the first nonzero age).
-std::pair<std::size_t, double> RowOf(double tau) {
+std::pair<std::size_t, double> AgeRow(double tau) {
     const std::vector<double>& ages = TableAges();
     if (tau <= 0.0) {
         return {0, 0.0};
@@ -191,7 +191,7 @@ DiffusedProfile::Table DiffusedProfile::Solve(const CraterMorphometry& fresh,
 }
 
 std::shared_ptr<const DiffusedProfile::Table>
-DiffusedProfile::TableFor(const CraterMorphometry& fresh, double diameter) const {
+DiffusedProfile::CachedTable(const CraterMorphometry& fresh, double diameter) const {
     const double reference = fresh_->IsComplex(diameter) ? diameter : kReferenceDiameter;
     const Key key{fresh.depthRatio, fresh.rimHeightRatio, reference};
     struct Last {
@@ -211,7 +211,7 @@ DiffusedProfile::TableFor(const CraterMorphometry& fresh, double diameter) const
 
 std::shared_ptr<const std::vector<float>>
 DiffusedProfile::HeightTable(const CraterMorphometry& fresh, double diameter) const {
-    const std::shared_ptr<const Table> table = TableFor(fresh, diameter);
+    const std::shared_ptr<const Table> table = CachedTable(fresh, diameter);
     return {table, &table->heights};
 }
 
@@ -224,11 +224,11 @@ double DiffusedProfile::Height(double distance, double diameter, const CraterSta
     if (x >= extent) {
         return 0.0;
     }
-    const auto table = TableFor(state.fresh, diameter);
+    const auto table = CachedTable(state.fresh, diameter);
     const double cell = x / extent * static_cast<double>(cells_);
     const auto i = std::min(static_cast<std::size_t>(cell), cells_ - 1);
     const double t = cell - static_cast<double>(i);
-    const auto [row, weight] = RowOf(state.diffusion);
+    const auto [row, weight] = AgeRow(state.diffusion);
     const std::size_t width = cells_ + 1;
     const auto at = [&](std::size_t r) {
         const float* values = table->heights.data() + r * width;
@@ -246,8 +246,8 @@ CraterMorphometry DiffusedProfile::Morphometry(const CraterMorphometry& fresh, d
     if (!(tau > 0.0)) {
         return fresh;
     }
-    const auto table = TableFor(fresh, diameter);
-    const auto [row, weight] = RowOf(tau);
+    const auto table = CachedTable(fresh, diameter);
+    const auto [row, weight] = AgeRow(tau);
     CraterMorphometry result = table->morphometry[row];
     if (weight > 0.0) {
         const CraterMorphometry& next = table->morphometry[row + 1];

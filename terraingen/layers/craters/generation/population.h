@@ -93,7 +93,7 @@ struct CraterGenerationOptions {
     CraterList manual{};
     /// Keep at most this many generated craters, the largest (ties to the smaller ID); 0 keeps
     /// all. Manual craters are always kept and do not count. A capped region no longer equals its
-    /// tiles joined; `MinDiameterForCount` bounds counts tile-safely.
+    /// tiles joined; `CountLimitDiameter` bounds counts tile-safely.
     std::size_t maxCraters = 0;
     /// Skip bands whose craters are all smaller than this (m) and, with spacing, too small to
     /// remove a crater this large; craters at or above it are unchanged. 0 generates every band.
@@ -132,8 +132,8 @@ double ResolveDMax(double dMax, const SizeFrequencyDistribution& density);
 /// @throws std::invalid_argument unless `count` and `area` are positive and finite and
 /// 0 < `dMin` < `dMax`.
 /// @throws std::domain_error if the interval leaves the density's valid range.
-double MinDiameterForCount(const SizeFrequencyDistribution& density, double area, double count,
-                           double dMin, double dMax);
+double CountLimitDiameter(const SizeFrequencyDistribution& density, double area, double count,
+                          double dMin, double dMax);
 
 /// Generates the craters of a density whose centres lie in `region` (surface coordinates) or
 /// within `marginRadii` radii of it.

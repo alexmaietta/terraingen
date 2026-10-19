@@ -210,7 +210,7 @@ double PavementLayer::Relief(const Vec2d& q, double spacing) const {
     return relief;
 }
 
-double PavementLayer::Gate(double x, double y, const Ground* ground) const {
+double PavementLayer::ExposureWeight(double x, double y, const Ground* ground) const {
     if (!exposure_) {
         return 1.0;
     }
@@ -232,7 +232,7 @@ double PavementLayer::EdgeDistanceAt(double x, double y) const {
 double PavementLayer::MaterialCoverAt(double x, double y, double /*spacing*/,
                                       const Ground* ground) const {
     Vec2d q;
-    return Planar(x, y, q) ? Gate(x, y, ground) : 0.0;
+    return Planar(x, y, q) ? ExposureWeight(x, y, ground) : 0.0;
 }
 
 float PavementLayer::HeightAt(float height, double x, double y, double spacing,
@@ -241,11 +241,11 @@ float PavementLayer::HeightAt(float height, double x, double y, double spacing,
     if (!Planar(x, y, q) || ResolutionWeight(options_.plateSize, spacing, options_.fade) <= 0.0) {
         return height;
     }
-    const double gate = Gate(x, y, ground);
-    if (gate <= 0.0) {
+    const double exposure = ExposureWeight(x, y, ground);
+    if (exposure <= 0.0) {
         return height;
     }
-    return static_cast<float>(static_cast<double>(height) + gate * Relief(q, spacing));
+    return static_cast<float>(static_cast<double>(height) + exposure * Relief(q, spacing));
 }
 
 void PavementLayer::CheckContext(const LayerContext& context) const {

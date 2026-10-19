@@ -497,7 +497,7 @@ double DuneLayer::Ripples(const Vec2d& q, double dune) const {
         kRippleFading * (0.5 + 0.5 * static_cast<double>(PerlinNoise2Precise(
                                          q.x / (kRippleFadeScale * lambda),
                                          q.y / (kRippleFadeScale * lambda), options_.seed + 4u)));
-    const double sand = SandOf(dune);
+    const double sand = SandDepth(dune);
     const double steep = std::hypot(gx, gy) / std::tan(options_.slipFaceAngle);
     const double avalanche = 1.0 - (1.0 - kSlipFaceRipples) * Smoothstep(2.0 * steep - 1.0);
     const double share =
@@ -553,7 +553,7 @@ double DuneLayer::Forks(const Vec2d& q, double wavelength, double density, doubl
     return phase;
 }
 
-double DuneLayer::SandOf(double dune) const {
+double DuneLayer::SandDepth(double dune) const {
     const double reference =
         options_.shape == DuneShape::Barchan || options_.shape == DuneShape::Dome
             ? options_.heightRatio * options_.width
@@ -567,7 +567,7 @@ double DuneLayer::MaterialCoverAt(double x, double y, double /*spacing*/,
     if (!Planar(x, y, q)) {
         return 0.0;
     }
-    const double sand = SandOf(Height(q));
+    const double sand = SandDepth(Height(q));
     const DuneRipples& ripples = options_.ripples;
     if (ripples.wavelength <= 0.0 || ripples.height <= 0.0) {
         return sand;

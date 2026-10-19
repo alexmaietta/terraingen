@@ -182,7 +182,7 @@ class DuneLayer final : public FormulaLayer, public MaterialSource {
     double Crests(const Vec2d& q) const;
     double Ripples(const Vec2d& q, double dune) const;
     /// How fully a dune `dune` metres high covers the ground with sand, in [0, 1].
-    double SandOf(double dune) const;
+    double SandDepth(double dune) const;
     /// How much of crest `crest` stands at `along` metres along it, in [0, 1]: 0 at its breaks.
     double CrestBreaks(std::int64_t crest, double along) const;
     /// The phase that forked crests `wavelength` metres apart, `density` pairs of ends per metre of

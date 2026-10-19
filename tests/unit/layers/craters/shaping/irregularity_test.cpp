@@ -14,7 +14,7 @@
 
 using terraingen::Crater;
 using terraingen::CraterIrregularity;
-using terraingen::OutlineOf;
+using terraingen::IrregularOutline;
 using terraingen::ValueDistribution;
 
 namespace {
@@ -50,44 +50,46 @@ TEST(CraterProfileDistance, StretchesTheDistanceByTheOutline) {
         << "twice as long along the heading";
 }
 
-TEST(OutlineOf, ShapesOnlyEligibleCratersAndStaysTheSameForAnID) {
+TEST(IrregularOutline, ShapesOnlyEligibleCratersAndStaysTheSameForAnID) {
     CraterIrregularity irregularity;
-    EXPECT_TRUE(OutlineOf(At(1), irregularity).Round()) << "off by default";
+    EXPECT_TRUE(IrregularOutline(At(1), irregularity).Round()) << "off by default";
     irregularity.enabled = true;
-    EXPECT_FALSE(OutlineOf(At(1), irregularity).Round());
-    EXPECT_EQ(OutlineOf(At(1), irregularity).amplitudes, OutlineOf(At(1), irregularity).amplitudes);
-    EXPECT_NE(OutlineOf(At(1), irregularity).phases, OutlineOf(At(2), irregularity).phases);
+    EXPECT_FALSE(IrregularOutline(At(1), irregularity).Round());
+    EXPECT_EQ(IrregularOutline(At(1), irregularity).amplitudes,
+              IrregularOutline(At(1), irregularity).amplitudes);
+    EXPECT_NE(IrregularOutline(At(1), irregularity).phases,
+              IrregularOutline(At(2), irregularity).phases);
     terraingen::CraterSelection& selection = irregularity.selection;
     selection.minDiameter = 200.0;
-    EXPECT_TRUE(OutlineOf(At(1), irregularity).Round());
+    EXPECT_TRUE(IrregularOutline(At(1), irregularity).Round());
     selection.minDiameter = 0.0;
     selection.maxDiameter = 50.0;
-    EXPECT_TRUE(OutlineOf(At(1), irregularity).Round());
+    EXPECT_TRUE(IrregularOutline(At(1), irregularity).Round());
     selection.maxDiameter = 1000.0;
     selection.minAgeGyr = 2.0;
-    EXPECT_TRUE(OutlineOf(At(1), irregularity).Round()) << "too young";
+    EXPECT_TRUE(IrregularOutline(At(1), irregularity).Round()) << "too young";
     selection.minAgeGyr = 0.0;
     selection.maxAgeGyr = 0.5;
-    EXPECT_TRUE(OutlineOf(At(1), irregularity).Round()) << "too old";
+    EXPECT_TRUE(IrregularOutline(At(1), irregularity).Round()) << "too old";
     selection.maxAgeGyr = 4.0;
     Crater manual = At(1);
     manual.manual = true;
-    EXPECT_TRUE(OutlineOf(manual, irregularity).Round());
+    EXPECT_TRUE(IrregularOutline(manual, irregularity).Round());
     selection.manual = true;
-    EXPECT_FALSE(OutlineOf(manual, irregularity).Round());
+    EXPECT_FALSE(IrregularOutline(manual, irregularity).Round());
     irregularity.seed = 5;
-    EXPECT_NE(OutlineOf(At(1), irregularity).phases,
-              OutlineOf(manual, CraterIrregularity{}).phases);
+    EXPECT_NE(IrregularOutline(At(1), irregularity).phases,
+              IrregularOutline(manual, CraterIrregularity{}).phases);
 }
 
-TEST(OutlineOf, MakesTheShareOfCratersAskedForElliptical) {
+TEST(IrregularOutline, MakesTheShareOfCratersAskedForElliptical) {
     CraterIrregularity irregularity;
     irregularity.enabled = true;
     irregularity.roughShare = 0.0;
     int elongated = 0;
     constexpr int kCount = 20000;
     for (std::uint64_t id = 0; id < kCount; ++id) {
-        const auto outline = OutlineOf(At(id), irregularity);
+        const auto outline = IrregularOutline(At(id), irregularity);
         EXPECT_TRUE(outline.amplitudes.empty());
         if (outline.ellipticity > 1.0) {
             ++elongated;
@@ -123,7 +125,7 @@ TEST(CraterOutline, HasTheRoughnessAskedForAndStaysWithinItsBounds) {
     irregularity.elongatedShare = 0.0;
     irregularity.roughness = {ValueDistribution::Kind::Constant, 0.04};
     for (std::uint64_t id = 0; id < 20; ++id) {
-        const auto outline = OutlineOf(At(id), irregularity);
+        const auto outline = IrregularOutline(At(id), irregularity);
         const auto [rms, mean] = Stretch(outline);
         EXPECT_NEAR(rms, 0.04, 1e-6) << id;
         EXPECT_NEAR(mean, 1.0, 1e-9);
@@ -139,16 +141,16 @@ TEST(CraterOutline, HasTheRoughnessAskedForAndStaysWithinItsBounds) {
     EXPECT_EQ(terraingen::MaxOutlineScale(CraterIrregularity{}), 1.0);
     irregularity.heading = 0.5;
     irregularity.headingSpread = 0.0;
-    EXPECT_EQ(OutlineOf(At(3), irregularity).heading, 0.5);
+    EXPECT_EQ(IrregularOutline(At(3), irregularity).heading, 0.5);
 }
 
-TEST(OutlineOf, FollowsDuEtAlsFittedRimSpectra) {
+TEST(IrregularOutline, FollowsDuEtAlsFittedRimSpectra) {
     CraterIrregularity irregularity;
     irregularity.enabled = true;
     irregularity.elongatedShare = 0.0;
     irregularity.model = terraingen::RimRoughnessModel::Du2024;
     irregularity.scatter = false;
-    const auto outline = OutlineOf(At(9, 10000.0), irregularity);
+    const auto outline = IrregularOutline(At(9, 10000.0), irregularity);
     ASSERT_EQ(outline.table.size(), 1024u);
     EXPECT_TRUE(outline.amplitudes.empty());
     const auto amplitude = [&](int k) {
@@ -184,17 +186,17 @@ TEST(OutlineOf, FollowsDuEtAlsFittedRimSpectra) {
     irregularity.scatter = true;
     irregularity.maxDeviation = 0.01;
     for (std::uint64_t id = 0; id < 50; ++id) {
-        const auto capped = OutlineOf(At(id, 60000.0), irregularity);
+        const auto capped = IrregularOutline(At(id, 60000.0), irregularity);
         for (const double deviation : capped.table) {
             ASSERT_LE(std::fabs(deviation), 0.01 + 1e-12);
         }
         EXPECT_LE(capped.MaxScale(), 1.01 + 1e-12);
     }
-    EXPECT_NE(OutlineOf(At(1, 60000.0), irregularity).table,
-              OutlineOf(At(2, 60000.0), irregularity).table);
+    EXPECT_NE(IrregularOutline(At(1, 60000.0), irregularity).table,
+              IrregularOutline(At(2, 60000.0), irregularity).table);
 }
 
-TEST(OutlineOf, MarksTheShareAskedForWithoutChangingTheRestOfTheOutline) {
+TEST(IrregularOutline, MarksTheShareAskedForWithoutChangingTheRestOfTheOutline) {
     CraterIrregularity irregularity;
     irregularity.enabled = true;
     irregularity.elongatedShare = 0.5;
@@ -203,8 +205,8 @@ TEST(OutlineOf, MarksTheShareAskedForWithoutChangingTheRestOfTheOutline) {
     int count = 0;
     constexpr std::uint64_t kCraters = 4000;
     for (std::uint64_t i = 1; i <= kCraters; ++i) {
-        const terraingen::CraterOutline plain = OutlineOf(At(i), irregularity);
-        const terraingen::CraterOutline outline = OutlineOf(At(i), marked);
+        const terraingen::CraterOutline plain = IrregularOutline(At(i), irregularity);
+        const terraingen::CraterOutline outline = IrregularOutline(At(i), marked);
         ASSERT_TRUE(plain.marks.empty());
         ASSERT_EQ(outline.amplitudes, plain.amplitudes);
         ASSERT_EQ(outline.phases, plain.phases);
@@ -218,10 +220,10 @@ TEST(OutlineOf, MarksTheShareAskedForWithoutChangingTheRestOfTheOutline) {
         }
     }
     EXPECT_NEAR(static_cast<double>(count) / kCraters, 0.3, 0.02);
-    EXPECT_EQ(OutlineOf(At(7), marked).marks, OutlineOf(At(7), marked).marks);
+    EXPECT_EQ(IrregularOutline(At(7), marked).marks, IrregularOutline(At(7), marked).marks);
     marked.marksAmplitude = {ValueDistribution::Kind::Constant, 0.0};
     marked.marksShare = 1.0;
-    EXPECT_TRUE(OutlineOf(At(7), marked).marks.empty()) << "no marks without amplitude";
+    EXPECT_TRUE(IrregularOutline(At(7), marked).marks.empty()) << "no marks without amplitude";
 }
 
 TEST(CraterOutline, ShiftsOnlyTheWallSmoothlyAroundTheCrater) {
@@ -257,7 +259,7 @@ TEST(CraterProfileDistance, ShiftsTheWallByTheMarksAndKeepsItInOrder) {
     irregularity.marksFadeRadii = 0.1;
     terraingen::ValidateCraterIrregularity(irregularity);
     const Crater crater = At(3, 100.0);
-    const terraingen::CraterOutline outline = OutlineOf(crater, irregularity);
+    const terraingen::CraterOutline outline = IrregularOutline(crater, irregularity);
     ASSERT_FALSE(outline.marks.empty());
     for (int a = 0; a < 64; ++a) {
         const double theta = 2.0 * std::numbers::pi * a / 64.0;

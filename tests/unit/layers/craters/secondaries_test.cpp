@@ -229,12 +229,12 @@ TEST(SecondaryCraterLayer, RejectsInvalidSettings) {
         std::invalid_argument);
 }
 
-TEST(SingerRangeForSize, InvertsTheLargestSecondaryInRange) {
+TEST(SingerMaxRange, InvertsTheLargestSecondaryInRange) {
     for (const double range : {30000.0, 80000.0, 200000.0}) {
         const double largest = terraingen::SingerMaxSecondaryDiameter(20000.0, range);
-        EXPECT_NEAR(terraingen::SingerRangeForSize(20000.0, largest), range, 1e-6 * range);
+        EXPECT_NEAR(terraingen::SingerMaxRange(20000.0, largest), range, 1e-6 * range);
     }
-    EXPECT_TRUE(std::isinf(terraingen::SingerRangeForSize(800.0, 5.0)))
+    EXPECT_TRUE(std::isinf(terraingen::SingerMaxRange(800.0, 5.0)))
         << "below 1 km the largest secondary does not shrink with range";
 }
 

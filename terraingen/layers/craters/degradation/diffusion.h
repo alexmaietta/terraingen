@@ -107,7 +107,7 @@ class DiffusedProfile final : public CraterProfile {
         std::vector<CraterMorphometry> morphometry;
     };
 
-    std::shared_ptr<const Table> TableFor(const CraterMorphometry& fresh, double diameter) const;
+    std::shared_ptr<const Table> CachedTable(const CraterMorphometry& fresh, double diameter) const;
     Table Solve(const CraterMorphometry& fresh, double diameter) const;
 
     std::shared_ptr<const CraterProfile> fresh_;

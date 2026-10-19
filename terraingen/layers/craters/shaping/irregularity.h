@@ -116,14 +116,14 @@ struct CraterOutline {
 
 /// The outline `irregularity` gives a crater, seeded by its ID; round unless irregularity is
 /// enabled and the crater selected.
-CraterOutline OutlineOf(const Crater& crater, const CraterIrregularity& irregularity);
+CraterOutline IrregularOutline(const Crater& crater, const CraterIrregularity& irregularity);
 
 /// The largest stretch any crater's outline can have, to widen footprints by; 1 when disabled.
 double MaxOutlineScale(const CraterIrregularity& irregularity);
 
 /// The distance in metres at which a crater's round profile is read at surface (x, y): the true
-/// distance over the stretch of its `outline` (`OutlineOf`) in that direction, shifted by its
-/// marks.
+/// distance over the stretch of its `outline` (`IrregularOutline`) in that direction, shifted by
+/// its marks.
 double CraterProfileDistance(const Crater& crater, const CraterOutline& outline, double x, double y,
                              const Surface& surface = {});
 

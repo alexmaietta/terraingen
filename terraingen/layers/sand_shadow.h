@@ -89,7 +89,7 @@ class SandShadowLayer final : public Layer, public MaterialSource {
     };
     std::vector<Shadow> ShadowsOver(const Bounds2d& region, double spacing,
                                     const Ground* ground) const;
-    double DepthOf(const Shadow& shadow, double x, double y) const;
+    double ShadowDepth(const Shadow& shadow, double x, double y) const;
 
     std::shared_ptr<const BoulderLayer> boulders_;
     SandShadowOptions options_;

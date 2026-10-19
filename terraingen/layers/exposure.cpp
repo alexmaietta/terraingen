@@ -15,7 +15,7 @@ namespace terraingen {
 namespace {
 
 /// Smoothstep of where `value` lies between `low` and `high`.
-double Share(double value, double low, double high) {
+double BetweenSmooth(double value, double low, double high) {
     return Smoothstep((value - low) / (high - low));
 }
 
@@ -64,12 +64,12 @@ double ExposureField::Exposure(const Ground& ground, double x, double y, double 
     const double rise = (static_cast<double>(here) - mean) / reach;
     const double slope =
         std::hypot(heights[0] - heights[4], heights[2] - heights[6]) / (2.0 * reach);
-    double exposure = std::max(Share(rise, params_.riseSoil, params_.riseBoulder),
-                               Share(slope, params_.slopeSoil, params_.slopeBoulder));
+    double exposure = std::max(BetweenSmooth(rise, params_.riseSoil, params_.riseBoulder),
+                               BetweenSmooth(slope, params_.slopeSoil, params_.slopeBoulder));
     if (params_.floorCover > 0.0) {
         const double noise = PatchNoise(surface_, x, y, params_.floorPatch, params_.seed);
         const double threshold = 1.0 - 2.0 * params_.floorCover;
-        exposure = std::max(exposure, Share(noise, threshold - 0.2, threshold + 0.2));
+        exposure = std::max(exposure, BetweenSmooth(noise, threshold - 0.2, threshold + 0.2));
     }
     return exposure;
 }

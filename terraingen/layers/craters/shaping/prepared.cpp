@@ -15,7 +15,7 @@ PrepareCraters(const CraterList& craters, const CraterApplyOptions& options, dou
         if (resolution == 0.0) {
             continue;
         }
-        CraterOutline outline = OutlineOf(crater, options.irregularity);
+        CraterOutline outline = IrregularOutline(crater, options.irregularity);
         if (reshape) {
             reshape(crater, outline);
         }

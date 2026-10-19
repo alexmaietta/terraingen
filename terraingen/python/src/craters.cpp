@@ -210,7 +210,7 @@ void BindGeneration(nb::module_& m) {
           "seed"_a, "options"_a, nb::call_guard<nb::gil_scoped_release>(),
           "The craters of `density` with centres in `region` (min_x, min_y, max_x, max_y), drawn "
           "per cell so any region, however tiled, holds the same craters.");
-    m.def("min_diameter_for_count", &MinDiameterForCount, "density"_a, "area"_a, "count"_a,
+    m.def("count_limit_diameter", &CountLimitDiameter, "density"_a, "area"_a, "count"_a,
           "min_diameter"_a, "max_diameter"_a,
           "The smallest diameter that keeps the expected count over `area` at `count`.");
     m.def("manual_crater_id", &ManualCraterId, "x"_a, "y"_a, "diameter"_a,
@@ -303,7 +303,7 @@ void BindOutlines(nb::module_& m) {
              "The shift in radii the wall marks add at `radii` from the centre toward (dx, dy).")
         .def_prop_ro("max_scale", &CraterOutline::MaxScale)
         .def_prop_ro("round", &CraterOutline::Round);
-    m.def("outline_of", &OutlineOf, "crater"_a, "irregularity"_a,
+    m.def("irregular_outline", &IrregularOutline, "crater"_a, "irregularity"_a,
           "The outline `irregularity` gives `crater`.");
     m.def("max_outline_scale", &MaxOutlineScale, "irregularity"_a,
           "The largest outline scale `irregularity` can give, for reach.");
@@ -540,7 +540,7 @@ void BindSecondaryLaws(nb::module_& m) {
           "(Singer et al. 2020).");
     m.def("secondary_onset_range", &SecondaryOnsetRange, "diameter"_a,
           "How far from its centre (m) a primary throws its first secondaries.");
-    m.def("singer_range_for_size", &SingerRangeForSize, "diameter"_a, "size"_a,
+    m.def("singer_max_range", &SingerMaxRange, "diameter"_a, "size"_a,
           "The range (m) beyond which a primary `diameter` metres across throws no secondary "
           "`size` metres across (Singer et al. 2020); infinite up to 1 km.");
     m.def("elliott_median_ray_length", &ElliottMedianRayLength, "diameter"_a,

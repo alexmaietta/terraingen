@@ -421,18 +421,18 @@ TEST(GenerateCraters, MaxCratersKeepsTheLargestGeneratedCraters) {
     EXPECT_EQ(generous.Ids(), all.Ids());
 }
 
-TEST(MinDiameterForCount, InvertsTheExpectedCount) {
+TEST(CountLimitDiameter, InvertsTheExpectedCount) {
     const PowerLawSfd density(0.1, 2.0);
     const double area = 1e6;
-    const double d = terraingen::MinDiameterForCount(density, area, 500.0, 1.0, 100.0);
+    const double d = terraingen::CountLimitDiameter(density, area, 500.0, 1.0, 100.0);
     EXPECT_NEAR(density.ExpectedCount(area, d, 100.0), 500.0, 1e-6);
     EXPECT_NEAR(d, 1.0 / std::sqrt(500.0 / (area * 0.1) + 1e-4), 1e-9);
-    EXPECT_EQ(terraingen::MinDiameterForCount(density, area, 1e12, 1.0, 100.0), 1.0);
-    EXPECT_THROW(terraingen::MinDiameterForCount(density, area, 0.0, 1.0, 100.0),
+    EXPECT_EQ(terraingen::CountLimitDiameter(density, area, 1e12, 1.0, 100.0), 1.0);
+    EXPECT_THROW(terraingen::CountLimitDiameter(density, area, 0.0, 1.0, 100.0),
                  std::invalid_argument);
-    EXPECT_THROW(terraingen::MinDiameterForCount(density, -1.0, 5.0, 1.0, 100.0),
+    EXPECT_THROW(terraingen::CountLimitDiameter(density, -1.0, 5.0, 1.0, 100.0),
                  std::invalid_argument);
-    EXPECT_THROW(terraingen::MinDiameterForCount(density, area, 5.0, 10.0, 1.0),
+    EXPECT_THROW(terraingen::CountLimitDiameter(density, area, 5.0, 10.0, 1.0),
                  std::invalid_argument);
 }
 

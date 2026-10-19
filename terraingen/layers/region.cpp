@@ -27,7 +27,7 @@ float Blend(float height, float inner, double weight) {
 }
 
 /// The smallest window holding every one of `windows`; empty when there is none.
-PixelWindow UnionOf(const std::vector<PixelWindow>& windows) {
+PixelWindow MergeWindows(const std::vector<PixelWindow>& windows) {
     if (windows.empty()) {
         return {};
     }
@@ -136,7 +136,7 @@ bool RegionLayer::Holds(double x, double y) const {
 
 PixelWindow RegionLayer::InnerWindow(const RasterGrid& grid) const {
     const Bounds2d reach = surface_.Expand(shape_.Bounds(surface_), feather_);
-    return UnionOf(PixelWindowsIn(grid, reach, surface_));
+    return MergeWindows(PixelWindowsIn(grid, reach, surface_));
 }
 
 std::optional<RasterGrid> RegionLayer::InnerGrid(const RasterGrid& grid) const {

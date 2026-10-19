@@ -89,12 +89,12 @@ class BedformLayer final : public FormulaLayer, public MaterialSource {
     void CheckContext(const LayerContext& context) const override;
 
   private:
-    struct Point {
+    struct FieldSum {
         double cover = 0.0;
         double relief = 0.0;
     };
-    Point Evaluate(double x, double y, const Ground* ground) const;
-    void AddField(Point& point, RandomStream& random, const Vec2d& centre, const Vec2d& offset,
+    FieldSum SumFields(double x, double y, const Ground* ground) const;
+    void AddField(FieldSum& sum, RandomStream& random, const Vec2d& centre, const Vec2d& offset,
                   const Ground* ground) const;
 
     BedformOptions options_;

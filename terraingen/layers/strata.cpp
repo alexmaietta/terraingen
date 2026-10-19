@@ -58,7 +58,7 @@ StrataLayer::StrataLayer(StrataOptions options, Surface surface)
     }
 }
 
-double StrataLayer::BoundaryOf(std::int64_t k) const {
+double StrataLayer::BedBoundary(std::int64_t k) const {
     const auto bits = static_cast<std::uint64_t>(k);
     RandomStream random(options_.seed, kStrataStream, static_cast<std::uint32_t>(bits),
                         static_cast<std::uint32_t>(bits >> 32));
@@ -66,18 +66,18 @@ double StrataLayer::BoundaryOf(std::int64_t k) const {
     return options_.bedThickness * (static_cast<double>(k) + offset);
 }
 
-StrataLayer::Bed StrataLayer::BedOf(double level) const {
+StrataLayer::Bed StrataLayer::BedAt(double level) const {
     auto k = static_cast<std::int64_t>(std::floor(level / options_.bedThickness));
-    double bottom = BoundaryOf(k);
+    double bottom = BedBoundary(k);
     while (level < bottom) {
         --k;
-        bottom = BoundaryOf(k);
+        bottom = BedBoundary(k);
     }
-    double top = BoundaryOf(k + 1);
+    double top = BedBoundary(k + 1);
     while (level >= top) {
         ++k;
         bottom = top;
-        top = BoundaryOf(k + 1);
+        top = BedBoundary(k + 1);
     }
     bool hard = options_.hardShare >= 1.0;
     if (!hard) {
@@ -89,7 +89,7 @@ StrataLayer::Bed StrataLayer::BedOf(double level) const {
     return {bottom, top, hard};
 }
 
-bool StrataLayer::LevelOf(double height, double x, double y, double& level) const {
+bool StrataLayer::StratigraphicLevel(double height, double x, double y, double& level) const {
     Vec2d q{x, y};
     if (surface_.IsBody()) {
         if (Dot(UnitVector(x, y), anchorDirection_) <= 0.0) {
@@ -103,19 +103,19 @@ bool StrataLayer::LevelOf(double height, double x, double y, double& level) cons
 
 double StrataLayer::BedPositionAt(double height, double x, double y) const {
     double level = 0.0;
-    if (!LevelOf(height, x, y, level)) {
+    if (!StratigraphicLevel(height, x, y, level)) {
         return 0.0;
     }
-    const Bed bed = BedOf(level);
+    const Bed bed = BedAt(level);
     return std::clamp((level - bed.bottom) / (bed.top - bed.bottom), 0.0, 1.0);
 }
 
 double StrataLayer::TerracedAt(double height, double x, double y) const {
     double level = 0.0;
-    if (!LevelOf(height, x, y, level) || options_.strength <= 0.0) {
+    if (!StratigraphicLevel(height, x, y, level) || options_.strength <= 0.0) {
         return height;
     }
-    const Bed bed = BedOf(level);
+    const Bed bed = BedAt(level);
     const double rise = bed.top - bed.bottom;
     const double u = std::clamp((level - bed.bottom) / rise, 0.0, 1.0);
     const double sharpness = bed.hard ? options_.sharpness : options_.softSharpness;
@@ -131,10 +131,10 @@ double StrataLayer::MaterialCoverAt(double x, double y, double spacing,
         return 0.0;
     }
     double level = 0.0;
-    if (!LevelOf(height, x, y, level)) {
+    if (!StratigraphicLevel(height, x, y, level)) {
         return 0.0;
     }
-    const Bed bed = BedOf(level);
+    const Bed bed = BedAt(level);
     if (!bed.hard) {
         return 0.0;
     }

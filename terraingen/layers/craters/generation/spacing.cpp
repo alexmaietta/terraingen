@@ -32,7 +32,7 @@ struct BandGrid {
     std::unordered_map<CellKey, std::vector<std::size_t>, CellKeyHash> cells;
 };
 
-CellKey KeyOf(const Crater& crater, double size, const Surface& surface) {
+CellKey BucketKey(const Crater& crater, double size, const Surface& surface) {
     const BucketIndex bucket = surface.Bucket({crater.x, crater.y}, size);
     return {bucket.i, bucket.j, bucket.k};
 }
@@ -48,7 +48,7 @@ std::map<int, BandGrid> BandGrids(const CraterList& craters, const CraterSpacing
         if (grid.cellSize == 0.0) {
             grid.cellSize = spacing.separation * spacing.diameterRatio * std::ldexp(1.0, band + 1);
         }
-        grid.cells[KeyOf(crater, grid.cellSize, surface)].push_back(n);
+        grid.cells[BucketKey(crater, grid.cellSize, surface)].push_back(n);
     }
     return bands;
 }
@@ -76,7 +76,7 @@ class ConflictSearch {
   private:
     /// Whether a crater in the cells of `grid` around `crater` outranks it.
     bool OutrankedIn(const BandGrid& grid, std::size_t n, const Crater& crater) const {
-        const CellKey centre = KeyOf(crater, grid.cellSize, surface_);
+        const CellKey centre = BucketKey(crater, grid.cellSize, surface_);
         const long long depth = surface_.IsBody() ? 1 : 0;
         for (long long di = -1; di <= 1; ++di) {
             for (long long dj = -1; dj <= 1; ++dj) {

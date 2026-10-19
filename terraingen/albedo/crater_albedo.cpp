@@ -661,7 +661,7 @@ CraterAlbedo::Prepared CraterAlbedo::Prepare(const Crater& crater, double spacin
         return prepared;
     }
     prepared.weight = std::pow(left, o.fadeExponent) * resolution;
-    prepared.outline = OutlineOf(crater, craters_->Options().apply.irregularity);
+    prepared.outline = IrregularOutline(crater, craters_->Options().apply.irregularity);
     prepared.reach = o.ejectaReachRadii * (0.5 * crater.diameter) * prepared.outline.MaxScale() *
                      (1.0 + o.texture.lobes);
     if (o.rays.enabled) {

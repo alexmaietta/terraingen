@@ -87,11 +87,11 @@ class StrataLayer final : public FormulaLayer, public MaterialSource {
         double top = 0.0;
         bool hard = true;
     };
-    Bed BedOf(double level) const;
-    double BoundaryOf(std::int64_t k) const;
+    Bed BedAt(double level) const;
+    double BedBoundary(std::int64_t k) const;
     /// The stratigraphic level of ground `height` metres high at (x, y): its height less the
     /// dipping bed plane. False on the far hemisphere of a body, where the layer does nothing.
-    bool LevelOf(double height, double x, double y, double& level) const;
+    bool StratigraphicLevel(double height, double x, double y, double& level) const;
 
     StrataOptions options_;
     Vec2d dipDirection_{1.0, 0.0};
