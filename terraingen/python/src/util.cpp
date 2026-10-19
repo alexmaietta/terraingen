@@ -3,6 +3,7 @@
 
 #include "terraingen/util/build_info.h"
 #include "terraingen/util/cells.h"
+#include "terraingen/util/geometry.h"
 #include "terraingen/util/log.h"
 #include "terraingen/util/radial_shape.h"
 #include "terraingen/util/special_functions.h"
@@ -217,9 +218,14 @@ void BindCells(nb::module_& m) {
              "The cells within `rings` of `cell`, across face edges too.")
         .def("cells_per_edge", &CubeSphereCells::CellsPerEdge, "cell_size"_a)
         .def_prop_ro("radius", &CubeSphereCells::Radius)
-        .def_static("direction", &CubeSphereCells::Direction, "face"_a, "alpha"_a, "beta"_a,
-                    "The unit direction of equiangular coordinates (alpha, beta) on cube face "
-                    "`face`.");
+        .def_static(
+            "direction",
+            [](int face, double alphaDeg, double betaDeg) {
+                return CubeSphereCells::Direction(face, alphaDeg * kDegree, betaDeg * kDegree);
+            },
+            "face"_a, "alpha_deg"_a, "beta_deg"_a,
+            "The unit direction of equiangular coordinates (alpha_deg, beta_deg) on cube face "
+            "`face`, each in [-45, 45] degrees.");
 }
 
 }  // namespace

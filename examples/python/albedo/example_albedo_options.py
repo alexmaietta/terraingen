@@ -1,6 +1,6 @@
 """Albedo options: colour, maps with detail, and how bright crater material behaves.
 
-- `SyntheticAlbedo(rgb=True, hue, saturation, ...)` gives three bands from a colour and its noise.
+- `SyntheticAlbedo(rgb=True, hue_deg, saturation, ...)` gives three bands from a colour and its noise.
 - `RasterAlbedo` interpolates an albedo map and adds sub-cell detail carrying the map's measured
   roughness down (`AlbedoDetail`).
 - `CraterAlbedoOptions` sets how much brighter fresh craters, their ejecta and their rays are, how
@@ -37,7 +37,12 @@ class Example(_common.Example):
             terraingen.FractalParams(seed=6, wavelength=600.0, amplitude=0.04, octaves=6)
         )
         colour = terraingen.SyntheticAlbedo(
-            rgb=True, hue=30.0, saturation=0.12, value=0.14, hue_noise=[hue_noise], value_noise=[value_noise]
+            rgb=True,
+            hue_deg=30.0,
+            saturation=0.12,
+            value=0.14,
+            hue_noise_deg=[hue_noise],
+            value_noise=[value_noise],
         )
         self.rgb = np.stack(
             [band.values for band in terraingen.evaluate_albedo(terraingen.Albedo(colour), grid)], axis=-1

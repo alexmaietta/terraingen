@@ -131,7 +131,7 @@ def _define_mesh(scene, path, positions, triangles, normals, material):
 
 def _shaded(shape, crease_angle_deg):
     """(mesh, normals) of a boulder shape split along its creases."""
-    return shape.mesh.with_creases(math.radians(crease_angle_deg))
+    return shape.mesh.with_creases(crease_angle_deg)
 
 
 def add_boulders(scene, models, path=BOULDERS_PATH, *, instanced=True, crease_angle_deg=60.0, material=None):

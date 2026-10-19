@@ -1,7 +1,5 @@
 """layers/boulders: boulder options, placement, models, abundance and writers."""
 
-import math
-
 import numpy as np
 import pytest
 
@@ -112,7 +110,7 @@ def test_placed_lists_and_models_are_written(tmp_path, lunar_models, crater_laye
     craters.write_list(tmp_path / "craters.json")
     boulders.write_list(tmp_path / "boulders.csv")
     boulders.write_list(tmp_path / "boulders.json")
-    boulders.write_models(tmp_path / "boulders.glb")
+    boulders.write_models(tmp_path / "boulders.glb", crease_angle_deg=45.0)
     assert (tmp_path / "craters.csv").read_text().startswith("x,y,diameter")
     assert (tmp_path / "boulders.json").read_text().startswith("{")
     assert (tmp_path / "boulders.glb").read_bytes()[:4] == b"glTF"
@@ -267,7 +265,7 @@ def test_boulders_rest_on_sides_and_ends_and_tilt():
     table = terraingen.BoulderLayer(options).boulders((-30.0, -30.0, 30.0, 30.0))
     rests = np.asarray(table["rest"])
     assert set(np.unique(rests)) <= {0, 1, 2} and (rests == 1).any() and (rests == 2).any()
-    assert np.asarray(table["tilt"]).max() <= math.radians(45.0) + 1e-12
+    assert np.asarray(table["tilt_deg"]).max() <= 45.0 + 1e-9
     boulder = terraingen.Boulder(0.0, 0.0, 1.0, 0.5)
     boulder.rest = terraingen.BoulderRest.END
     assert boulder.rest == terraingen.BoulderRest.END
@@ -313,3 +311,14 @@ def test_boulders_follow_a_size_slope_map_and_roll_down_steep_ground():
     assert layer.density_at(2.0, 0.0, 0.0) == pytest.approx(0.05 * 2.0 * 2.0**-3.0)
     assert terraingen.size_slope_at(options.slope_map, 0.0, 0.0) == 2.0
     assert options.roll_distance == 20.0
+
+
+def test_boulder_angles_are_in_degrees():
+    boulder = terraingen.Boulder(0.0, 0.0, 1.0, 0.5, yaw_deg=30.0, lean_deg=10.0)
+    boulder.tilt_deg, boulder.tilt_azimuth_deg = 20.0, 90.0
+    assert (boulder.yaw_deg, boulder.lean_deg, boulder.tilt_deg, boulder.tilt_azimuth_deg) == (
+        30.0,
+        10.0,
+        20.0,
+        90.0,
+    )

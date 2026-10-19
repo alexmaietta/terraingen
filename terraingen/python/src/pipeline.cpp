@@ -104,9 +104,9 @@ void BindFeatures(nb::module_& m) {
         .def_prop_ro(
             "table", [](const BoulderFeatures& f) { return BoulderTable(f.boulders); },
             "The boulders as NumPy columns, as `BoulderLayer.boulders` gives them: 'x', 'y', "
-            "'ground' (NaN when unknown), 'diameter', 'height', 'burial', 'yaw', 'lean', 'id', "
-            "'model' (1 for boulder models), 'wear', 'parent', 'piece', 'rest' (a BoulderRest), "
-            "'tilt' and 'tilt_azimuth'.")
+            "'ground' (NaN when unknown), 'diameter', 'height', 'burial', 'yaw_deg', 'lean_deg', "
+            "'id', 'model' (1 for boulder models), 'wear', 'parent', 'piece', 'rest' (a "
+            "BoulderRest), 'tilt_deg' and 'tilt_azimuth_deg'.")
         .def(
             "write_list",
             [](const BoulderFeatures& f, const std::filesystem::path& path) {
@@ -115,11 +115,11 @@ void BindFeatures(nb::module_& m) {
             "path"_a, "Writes the boulders as CSV, or JSON for a .json path.")
         .def(
             "write_models",
-            [](const BoulderFeatures& f, const std::filesystem::path& path, double creaseAngle,
+            [](const BoulderFeatures& f, const std::filesystem::path& path, double creaseAngleDeg,
                bool instanced) {
-                WriteBoulderModels(f.models, path, creaseAngle, {}, {}, instanced);
+                WriteBoulderModels(f.models, path, creaseAngleDeg, {}, {}, instanced);
             },
-            "path"_a, "crease_angle"_a = 60.0, "instanced"_a = true,
+            "path"_a, "crease_angle_deg"_a = 60.0, "instanced"_a = true,
             "Writes the boulder models as a glTF scene (.glb or .gltf), OBJ (.obj) or STL (.stl): "
             "each shared shape once, drawn per boulder, or with `instanced` false every boulder as "
             "its own placed mesh.");

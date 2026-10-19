@@ -8,6 +8,7 @@
 #include "terraingen/mesh/mesh.h"
 #include "terraingen/mesh/polyhedra.h"
 #include "terraingen/mesh/shape_model.h"
+#include "terraingen/util/geometry.h"
 
 #include <nanobind/operators.h>
 #include <nanobind/stl/array.h>
@@ -73,9 +74,18 @@ void BindRigidTransform(nb::module_& m) {
             },
             "rotation"_a = std::array<double, 9>{1, 0, 0, 0, 1, 0, 0, 0, 1},
             "translation"_a = Vec3d{}, "`rotation` is a row-major 3 x 3 matrix.")
-        .def_static("rotation_x", &RigidTransform::RotationX, "angle"_a, "Radians.")
-        .def_static("rotation_y", &RigidTransform::RotationY, "angle"_a, "Radians.")
-        .def_static("rotation_z", &RigidTransform::RotationZ, "angle"_a, "Radians.")
+        .def_static(
+            "rotation_x",
+            [](double angleDeg) { return RigidTransform::RotationX(angleDeg * kDegree); },
+            "angle_deg"_a, "A turn of `angle_deg` degrees about x.")
+        .def_static(
+            "rotation_y",
+            [](double angleDeg) { return RigidTransform::RotationY(angleDeg * kDegree); },
+            "angle_deg"_a, "A turn of `angle_deg` degrees about y.")
+        .def_static(
+            "rotation_z",
+            [](double angleDeg) { return RigidTransform::RotationZ(angleDeg * kDegree); },
+            "angle_deg"_a, "A turn of `angle_deg` degrees about z.")
         .def_static("translation_by", &RigidTransform::Translation, "offset"_a)
         .def_rw("rotation", &RigidTransform::rotation)
         .def_rw("translation", &RigidTransform::translation)
@@ -124,13 +134,13 @@ void BindTriangleMesh(nb::module_& m) {
             "Area-weighted unit normals, one per vertex, as an array of shape (n, 3).")
         .def(
             "with_creases",
-            [](const TriangleMesh& self, double creaseAngle) {
-                const ShadedMesh shaded = WithCreases(self, creaseAngle);
+            [](const TriangleMesh& self, double creaseAngleDeg) {
+                const ShadedMesh shaded = WithCreases(self, creaseAngleDeg * kDegree);
                 return nb::make_tuple(shaded.mesh, VectorArray(shaded.normals));
             },
-            "crease_angle"_a,
-            "(mesh, normals): vertices split along creases sharper than `crease_angle` radians, "
-            "with smooth normals elsewhere.")
+            "crease_angle_deg"_a,
+            "(mesh, normals): vertices split along creases sharper than `crease_angle_deg` "
+            "degrees, with smooth normals elsewhere.")
         .def("transformed", &Transformed, "transform"_a)
         .def("scaled", &Scaled, "scale"_a, "The mesh scaled per axis.")
         .def("subdivided", &Subdivide, "levels"_a, "on_unit_sphere"_a = false,

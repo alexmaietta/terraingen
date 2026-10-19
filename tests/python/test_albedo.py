@@ -76,6 +76,7 @@ def test_optical_maturity_origin_keeps_its_ratio():
 
 def test_hsv_to_rgb_of_half_bright_red():
     assert terraingen.hsv_to_rgb(0.0, 1.0, 0.5) == pytest.approx((0.5, 0.0, 0.0))
+    assert terraingen.hsv_to_rgb(hue_deg=120.0, saturation=1.0, value=1.0) == pytest.approx((0.0, 1.0, 0.0))
 
 
 def test_crater_albedo_brightens_a_young_crater_beyond_its_rim(lunar_models):
@@ -85,7 +86,8 @@ def test_crater_albedo_brightens_a_young_crater_beyond_its_rim(lunar_models):
 
 def test_crater_albedo_impact_has_a_valid_angle_and_speed(lunar_models):
     impact = terraingen.CraterAlbedo(manual_crater_layer(lunar_models)).impact(young_crater())
-    assert 0.0 <= impact.angle_degrees <= 90.0 and impact.speed_ratio >= 1.0
+    assert 0.0 <= impact.angle_deg <= 90.0 and impact.speed_ratio >= 1.0
+    assert -360.0 <= impact.heading_deg <= 360.0
 
 
 def test_albedo_at_a_point_matches_the_evaluated_band(lunar_models):
@@ -115,11 +117,13 @@ def test_albedo_keeps_its_layers(lunar_models):
 
 def test_rgb_synthetic_albedo_has_three_bands():
     rgb = terraingen.evaluate_albedo(
-        terraingen.Albedo(terraingen.SyntheticAlbedo(rgb=True, hue=30.0, saturation=0.2)),
+        terraingen.Albedo(terraingen.SyntheticAlbedo(rgb=True, hue_deg=30.0, saturation=0.2)),
         terraingen.RasterGrid.centred(129, 129, 8.0),
     )
     assert len(rgb) == 3
-    on_a_plane = terraingen.SyntheticAlbedo(rgb=True, hue=30.0, saturation=0.3, surface=terraingen.Surface())
+    on_a_plane = terraingen.SyntheticAlbedo(
+        rgb=True, hue_deg=30.0, saturation=0.3, surface=terraingen.Surface()
+    )
     assert on_a_plane.bands() == 3
 
 

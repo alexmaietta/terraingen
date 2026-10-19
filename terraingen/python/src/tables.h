@@ -8,6 +8,7 @@
 #include "terraingen/layers/boulders/boulder.h"
 #include "terraingen/layers/craters/generation/population.h"
 #include "terraingen/layers/craters/shaping/attributes.h"
+#include "terraingen/util/geometry.h"
 
 #include <cstdint>
 #include <limits>
@@ -45,7 +46,7 @@ inline nb::dict CraterTable(const CraterList& craters,
     return table;
 }
 
-/// The boulders as NumPy columns.
+/// The boulders as NumPy columns, angles in degrees.
 inline nb::dict BoulderTable(const std::vector<Boulder>& boulders) {
     std::vector<double> x, y, ground, diameter, height, burial, yaw, lean, wear, tilt, azimuth;
     std::vector<std::uint64_t> id, parent;
@@ -58,16 +59,16 @@ inline nb::dict BoulderTable(const std::vector<Boulder>& boulders) {
         diameter.push_back(boulder.diameter);
         height.push_back(boulder.height);
         burial.push_back(boulder.burial);
-        yaw.push_back(boulder.yaw);
-        lean.push_back(boulder.lean);
+        yaw.push_back(boulder.yaw * kRadian);
+        lean.push_back(boulder.lean * kRadian);
         id.push_back(boulder.id);
         model.push_back(boulder.model ? 1 : 0);
         wear.push_back(boulder.wear);
         parent.push_back(boulder.parent);
         piece.push_back(boulder.piece);
         rest.push_back(static_cast<std::uint8_t>(boulder.rest));
-        tilt.push_back(boulder.tilt);
-        azimuth.push_back(boulder.tiltAzimuth);
+        tilt.push_back(boulder.tilt * kRadian);
+        azimuth.push_back(boulder.tiltAzimuth * kRadian);
     }
     nb::dict table;
     table["x"] = Column(std::move(x));
@@ -76,16 +77,16 @@ inline nb::dict BoulderTable(const std::vector<Boulder>& boulders) {
     table["diameter"] = Column(std::move(diameter));
     table["height"] = Column(std::move(height));
     table["burial"] = Column(std::move(burial));
-    table["yaw"] = Column(std::move(yaw));
-    table["lean"] = Column(std::move(lean));
+    table["yaw_deg"] = Column(std::move(yaw));
+    table["lean_deg"] = Column(std::move(lean));
     table["id"] = Column(std::move(id));
     table["model"] = Column(std::move(model));
     table["wear"] = Column(std::move(wear));
     table["parent"] = Column(std::move(parent));
     table["piece"] = Column(std::move(piece));
     table["rest"] = Column(std::move(rest));
-    table["tilt"] = Column(std::move(tilt));
-    table["tilt_azimuth"] = Column(std::move(azimuth));
+    table["tilt_deg"] = Column(std::move(tilt));
+    table["tilt_azimuth_deg"] = Column(std::move(azimuth));
     return table;
 }
 

@@ -116,8 +116,8 @@ def boulder_models():
 
 
 def test_quaternions_match_rotation_matrices():
-    for angle in (0.0, 0.7, math.pi):
-        turn = tg.RigidTransform.rotation_z(angle).after(tg.RigidTransform.rotation_x(0.3))
+    for angle in (0.0, 40.0, 180.0):
+        turn = tg.RigidTransform.rotation_z(angle).after(tg.RigidTransform.rotation_x(17.0))
         x, y, z, w = render._quaternion(turn.rotation)
         m = np.asarray(turn.rotation).reshape(3, 3)
         rebuilt = np.array(
@@ -141,6 +141,6 @@ def test_add_boulders_instances_shared_shapes_or_bakes_each():
     render.add_boulders(baked, models, instanced=False)
     first = ernie.Path(render.BOULDERS_PATH).child("Boulder0")
     points = np.asarray(ernie.Mesh.at(baked, first).points)
-    split, _ = models[0].shape.mesh.with_creases(math.radians(60.0))
+    split, _ = models[0].shape.mesh.with_creases(60.0)
     expected = models[0].placement.apply(tuple(split.arrays[0][0]))
     assert points[0] == pytest.approx(expected, abs=1e-4)

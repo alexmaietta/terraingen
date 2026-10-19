@@ -76,22 +76,19 @@ void BindBoulderShapes(nb::module_& m) {
           kValidateDoc);
 }
 
-void BindBoulder(nb::module_& m) {
-    nb::enum_<BoulderRest>(m, "BoulderRest", "Which of its axes a boulder stands along.")
-        .value("FACE", BoulderRest::Face)
-        .value("SIDE", BoulderRest::Side)
-        .value("END", BoulderRest::End);
-    nb::class_<BoulderFacet>(m, "BoulderFacet",
-                             "A ventifact facet: facing `azimuth` (radians from east), sloping "
-                             "`angle` radians, meeting the ground `reach` metres from the centre.")
+void BindFacet(nb::module_& m) {
+    nb::class_<BoulderFacet> facet(
+        m, "BoulderFacet",
+        "A ventifact facet: facing `azimuth_deg` (degrees from east), sloping `angle_deg` degrees, "
+        "meeting the ground `reach` metres from the centre.");
+    facet
         .def(
             "__init__",
-            [](BoulderFacet* self, double azimuth, double angle, double reach) {
-                new (self) BoulderFacet{azimuth, angle, reach};
+            [](BoulderFacet* self, double azimuthDeg, double angleDeg, double reach) {
+                new (self) BoulderFacet{config::RadiansFromDegrees(azimuthDeg),
+                                        config::RadiansFromDegrees(angleDeg), reach};
             },
-            "azimuth"_a, "angle"_a, "reach"_a)
-        .def_rw("azimuth", &BoulderFacet::azimuth)
-        .def_rw("angle", &BoulderFacet::angle)
+            "azimuth_deg"_a, "angle_deg"_a, "reach"_a)
         .def_rw("reach", &BoulderFacet::reach)
         .def(
             "height_at",
@@ -100,29 +97,58 @@ void BindBoulder(nb::module_& m) {
             },
             "east"_a, "north"_a,
             "The facet's height (m) above the ground east and north metres from the centre.");
-    nb::class_<Boulder>(m, "Boulder", "One boulder: centre, size, burial, orientation and ID.")
+    DefDegrees(facet, "azimuth_deg", &BoulderFacet::azimuth,
+               "The way the facet faces, degrees counter-clockwise from east.");
+    DefDegrees(facet, "angle_deg", &BoulderFacet::angle,
+               "The facet's slope from horizontal, degrees.");
+}
+
+void BindBoulderAngles(nb::class_<Boulder>& boulder) {
+    DefDegrees(boulder, "yaw_deg", &Boulder::yaw,
+               "Rotation about the vertical, degrees counter-clockwise from east.");
+    DefDegrees(boulder, "lean_deg", &Boulder::lean,
+               "Tilt of the vertical axis from the vertical, degrees.");
+    DefDegrees(boulder, "tilt_deg", &Boulder::tilt,
+               "Angle of the up axis from the vertical after lean, degrees.");
+    DefDegrees(boulder, "tilt_azimuth_deg", &Boulder::tiltAzimuth,
+               "The way the up axis tips, degrees counter-clockwise from east.");
+}
+
+void BindBoulder(nb::module_& m) {
+    nb::enum_<BoulderRest>(m, "BoulderRest", "Which of its axes a boulder stands along.")
+        .value("FACE", BoulderRest::Face)
+        .value("SIDE", BoulderRest::Side)
+        .value("END", BoulderRest::End);
+    BindFacet(m);
+    nb::class_<Boulder> boulder(m, "Boulder",
+                                "One boulder: centre, size, burial, orientation and ID.");
+    BindBoulderAngles(boulder);
+    boulder
         .def(
             "__init__",
             [](Boulder* self, double x, double y, double diameter, double height, double burial,
-               double yaw, double lean, std::uint64_t id) {
-                new (self) Boulder{x, y, diameter, height, burial, yaw, lean, id};
+               double yawDeg, double leanDeg, std::uint64_t id) {
+                new (self) Boulder{x,
+                                   y,
+                                   diameter,
+                                   height,
+                                   burial,
+                                   config::RadiansFromDegrees(yawDeg),
+                                   config::RadiansFromDegrees(leanDeg),
+                                   id};
             },
-            "x"_a, "y"_a, "diameter"_a, "height"_a, "burial"_a = 0.0, "yaw"_a = 0.0, "lean"_a = 0.0,
-            "id"_a = 0)
+            "x"_a, "y"_a, "diameter"_a, "height"_a, "burial"_a = 0.0, "yaw_deg"_a = 0.0,
+            "lean_deg"_a = 0.0, "id"_a = 0)
         .def_rw("x", &Boulder::x)
         .def_rw("y", &Boulder::y)
         .def_rw("diameter", &Boulder::diameter)
         .def_rw("height", &Boulder::height)
         .def_rw("burial", &Boulder::burial)
-        .def_rw("yaw", &Boulder::yaw)
-        .def_rw("lean", &Boulder::lean)
         .def_rw("id", &Boulder::id)
         .def_rw("ground", &Boulder::ground)
         .def_rw("model", &Boulder::model)
         .def_rw("wear", &Boulder::wear)
         .def_rw("rest", &Boulder::rest)
-        .def_rw("tilt", &Boulder::tilt)
-        .def_rw("tilt_azimuth", &Boulder::tiltAzimuth)
         .def_rw("parent", &Boulder::parent)
         .def_rw("piece", &Boulder::piece)
         .def_prop_rw(

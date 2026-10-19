@@ -266,9 +266,11 @@ void BindIrregularity(nb::module_& m) {
 }
 
 void BindOutlines(nb::module_& m) {
-    nb::class_<CraterOutline>(m, "CraterOutline", "A crater's irregular, elongated outline.")
-        .def_ro("ellipticity", &CraterOutline::ellipticity)
-        .def_ro("heading", &CraterOutline::heading)
+    nb::class_<CraterOutline> outline(m, "CraterOutline",
+                                      "A crater's irregular, elongated outline.");
+    DefDegreesRo(outline, "heading_deg", &CraterOutline::heading,
+                 "The long axis, degrees counter-clockwise from +x.");
+    outline.def_ro("ellipticity", &CraterOutline::ellipticity)
         .def("scale", &CraterOutline::Scale, "dx"_a, "dy"_a,
              "The outline's radius, relative to the round one, in direction (dx, dy).")
         .def_ro("marks", &CraterOutline::marks)
@@ -423,10 +425,10 @@ void BindSecondaryOptions(nb::module_& m) {
                            "same rays.",
                            &ValidateRayLayout);
     m.def("validate_ray_layout", &ValidateRayLayout, "layout"_a, kValidateDoc);
-    nb::class_<RayDirection>(m, "RayDirection", "One ray: its azimuth and width.")
-        .def_ro("azimuth", &RayDirection::azimuth, "Radians counter-clockwise from east.")
-        .def_ro("sin_half_width", &RayDirection::sinHalfWidth)
-        .def_ro("key", &RayDirection::key);
+    nb::class_<RayDirection> ray(m, "RayDirection", "One ray: its azimuth and width.");
+    DefDegreesRo(ray, "azimuth_deg", &RayDirection::azimuth,
+                 "Degrees counter-clockwise from east.");
+    ray.def_ro("sin_half_width", &RayDirection::sinHalfWidth).def_ro("key", &RayDirection::key);
     m.def("ray_directions", &RayDirections, "crater"_a, "layout"_a,
           "The rays of `crater` under `layout`.");
     BindOptions<SecondaryRays>(

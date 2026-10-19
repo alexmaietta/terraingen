@@ -223,6 +223,22 @@ nb::class_<T> BindOptions(nb::handle scope, const char* name, const char* doc,
     return cls;
 }
 
+/// Binds the angle `member`, stored in radians, as the property `name` in degrees.
+template <typename T, typename Class>
+void DefDegrees(Class& cls, const char* name, double T::* member, const char* doc) {
+    cls.def_prop_rw(
+        name, [member](const T& self) { return config::DegreesFromRadians(self.*member); },
+        [member](T& self, double degrees) { self.*member = config::RadiansFromDegrees(degrees); },
+        doc);
+}
+
+/// Binds the angle `member`, stored in radians, as the read-only property `name` in degrees.
+template <typename T, typename Class>
+void DefDegreesRo(Class& cls, const char* name, double T::* member, const char* doc) {
+    cls.def_prop_ro(
+        name, [member](const T& self) { return config::DegreesFromRadians(self.*member); }, doc);
+}
+
 /// `name` in upper case, as Python enum members are named.
 inline std::string UpperName(std::string_view name) {
     std::string upper(name);

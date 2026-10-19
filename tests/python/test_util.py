@@ -204,3 +204,8 @@ def test_radial_shapes_interpolate_their_labels_and_make_shape_model_surfaces():
     cells = terraingen.CubeSphereCells(body)
     assert cells.radius == body.min_radius
     assert cells.cell_sampling(terraingen.CellIndex(0, 0), 50.0)[1] == shape.max_area_per_steradian
+
+
+def test_cube_sphere_direction_takes_degrees():
+    corner = np.abs(terraingen.CubeSphereCells.direction(0, 45.0, 0.0))
+    assert sorted(corner) == pytest.approx([0.0, 0.5**0.5, 0.5**0.5], abs=1e-12)

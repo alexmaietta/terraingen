@@ -115,7 +115,7 @@ void BindSynthetic(nb::module_& m) {
     nb::class_<SyntheticAlbedo, AlbedoSource>(
         m, "SyntheticAlbedo",
         "A synthetic albedo: `value` (reflectance), varied by `value_noise` (relative), and with "
-        "`rgb` three bands from `hue` and `saturation` and their noise.")
+        "`rgb` three bands from `hue_deg` (degrees) and `saturation` and their noise.")
         .def(
             "__init__",
             [](SyntheticAlbedo* self, double value, std::vector<NoiseLayer> valueNoise, bool rgb,
@@ -133,8 +133,8 @@ void BindSynthetic(nb::module_& m) {
                 new (self) SyntheticAlbedo(std::move(params), origin, surface);
             },
             "value"_a = kDefaultSyntheticAlbedoValue, "value_noise"_a = std::vector<NoiseLayer>{},
-            "rgb"_a = false, "hue"_a = 0.0, "saturation"_a = 0.0,
-            "hue_noise"_a = std::vector<NoiseLayer>{},
+            "rgb"_a = false, "hue_deg"_a = 0.0, "saturation"_a = 0.0,
+            "hue_noise_deg"_a = std::vector<NoiseLayer>{},
             "saturation_noise"_a = std::vector<NoiseLayer>{}, "origin"_a = Vec2d{},
             "surface"_a = Surface{});
     m.def(
@@ -143,7 +143,7 @@ void BindSynthetic(nb::module_& m) {
             const AlbedoSample rgb = HsvToRgb(hue, saturation, value);
             return std::tuple{rgb[0], rgb[1], rgb[2]};
         },
-        "hue"_a, "saturation"_a, "value"_a, "A colour's (red, green, blue), hue in degrees.");
+        "hue_deg"_a, "saturation"_a, "value"_a, "A colour's (red, green, blue).");
 }
 
 void BindRasterAlbedo(nb::module_& m) {
@@ -265,12 +265,13 @@ void BindCraterAlbedo(nb::module_& m) {
              "The impact `crater` came from, drawn from its ID.")
         .def("reach", &CraterAlbedo::Reach, "crater"_a,
              "How far (m) from its centre `crater` can brighten the ground.");
-    nb::class_<CraterImpact>(m, "CraterImpact",
-                             "An impact: its angle from the horizontal, downrange heading and "
-                             "downrange-to-uprange ejection speed ratio.")
-        .def_ro("angle_degrees", &CraterImpact::angleDegrees)
-        .def_ro("heading", &CraterImpact::heading, "Radians counter-clockwise from east.")
+    nb::class_<CraterImpact> impact(m, "CraterImpact",
+                                    "An impact: its angle from the horizontal, downrange heading "
+                                    "and downrange-to-uprange ejection speed ratio.");
+    impact.def_ro("angle_deg", &CraterImpact::angleDegrees)
         .def_ro("speed_ratio", &CraterImpact::speedRatio);
+    DefDegreesRo(impact, "heading_deg", &CraterImpact::heading,
+                 "Downrange, degrees counter-clockwise from east.");
 }
 
 void BindSplotches(nb::module_& m) {
@@ -449,8 +450,8 @@ void BindSlopes(nb::module_& m) {
                     &terrain, [&](const Ground* ground) { return slopes.SlopeAt(x, y, *ground); });
             },
             "x"_a, "y"_a, "terrain"_a, "The slope in degrees at (x, y) on `terrain`.")
-        .def("maturity_at", &SlopeAlbedo::MaturityAt, "slope_degrees"_a,
-             "The OMAT of ground of `slope_degrees`.");
+        .def("maturity_at", &SlopeAlbedo::MaturityAt, "slope_deg"_a,
+             "The OMAT of ground of `slope_deg` degrees.");
 }
 
 }  // namespace

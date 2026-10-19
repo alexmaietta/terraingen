@@ -1,7 +1,5 @@
 """meshes: triangle meshes, rigid transforms, mesh and scene writers, and boulder shapes."""
 
-import math
-
 import numpy as np
 import pytest
 
@@ -23,7 +21,7 @@ def egg_style():
 
 
 def shifted_turn():
-    turn = terraingen.RigidTransform.rotation_z(math.pi / 2)
+    turn = terraingen.RigidTransform.rotation_z(90.0)
     return terraingen.RigidTransform.translation_by((5.0, 0.0, 0.0)).after(turn)
 
 
@@ -49,12 +47,12 @@ def test_vertex_normals_have_one_row_per_vertex():
 
 
 def test_creases_split_vertices_at_sharp_edges(cube):
-    creased, normals = cube.with_creases(math.radians(30.0))
+    creased, normals = cube.with_creases(30.0)
     assert creased.vertex_count == 24 and normals.shape == (24, 3)
 
 
 def test_rotation_turns_x_into_y():
-    turn = terraingen.RigidTransform.rotation_z(math.pi / 2)
+    turn = terraingen.RigidTransform.rotation_z(90.0)
     assert turn.apply((1.0, 0.0, 0.0)) == pytest.approx((0.0, 1.0, 0.0), abs=1e-12)
 
 

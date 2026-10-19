@@ -415,8 +415,9 @@ def test_ventifacts_plane_the_windward_side_of_boulders():
     table = boulders.boulders((-50.0, -50.0, 50.0, 50.0))
     x, y, d = table["x"][0], table["y"][0], table["diameter"][0]
     boulder = terraingen.Boulder(x, y, d, 0.5 * d)
-    boulder.facets = [terraingen.BoulderFacet(3.14159, 0.9, 0.5 * d)]
-    assert len(boulder.facets) == 1
+    boulder.facets = [terraingen.BoulderFacet(180.0, 50.0, 0.5 * d)]
+    assert len(boulder.facets) == 1 and boulder.facets[0].azimuth_deg == 180.0
+    assert boulder.facets[0].angle_deg == 50.0
     assert boulder.facets[0].height_at(-0.5 * d, 0.0) == pytest.approx(0.0, abs=1e-5)
     with pytest.raises(ValueError):
         terraingen.validate_boulder_ventifacts(terraingen.BoulderVentifacts(share=2.0))
