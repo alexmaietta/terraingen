@@ -76,6 +76,9 @@ std::string ConfigCatalog(int indent = 2);
 /// - "choice" with its "alternatives", each {"type", "description", "fields", "default"}.
 std::string ConfigSchema(int indent = 2);
 
+/// The format a list file's path implies: JSON for a .json path, else CSV.
+ListFormat InferListFormat(std::string_view path);
+
 /// A layer's JSON "type", with the type of the layer inside for a region: "region (boulders)".
 std::string LayerType(const LayerSpec& layer);
 

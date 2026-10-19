@@ -83,15 +83,6 @@ void Read(const Json& json, const std::string& path, int& value) {
 
 namespace {
 
-/// Sets `output.format` from its path's extension (.json or else CSV) when `json` gives none.
-void InferListFormat(const Json& json, ListOutput& output) {
-    if (!json.contains("format")) {
-        const std::string& path = output.path;
-        const bool isJson = path.size() >= 5 && path.compare(path.size() - 5, 5, ".json") == 0;
-        output.format = isJson ? ListFormat::Json : ListFormat::Csv;
-    }
-}
-
 /// Checks a configuration's "schema_version" before any other key, which a newer version may add.
 /// @throws ConfigError at "schema_version" when the object `json` has none, or another version
 /// than this library reads.
@@ -114,14 +105,6 @@ void CheckSchemaVersion(const Json& json) {
 }
 
 }  // namespace
-
-void AfterRead(const Json& json, CraterListOutput& output) {
-    InferListFormat(json, output);
-}
-
-void AfterRead(const Json& json, BoulderListOutput& output) {
-    InferListFormat(json, output);
-}
 
 }  // namespace config
 
@@ -152,17 +135,15 @@ TerrainConfig LoadConfig(const std::filesystem::path& path) {
 }
 
 std::string ConfigToJson(const TerrainConfig& terrainConfig, int indent) {
-    config::Json json = config::ToJson(terrainConfig);
-    if (!terrainConfig.base) {
-        json.erase("base");
-    }
-    if (!terrainConfig.materials) {
-        json.erase("materials");
-    }
-    if (!terrainConfig.albedo) {
-        json.erase("albedo");
-    }
+    config::Json json = config::Json::object();
+    TerrainConfig copy = terrainConfig;
+    config::Writer writer(json, true);
+    config::Fields(writer, copy);
     return json.dump(indent) + "\n";
+}
+
+ListFormat InferListFormat(std::string_view path) {
+    return path.ends_with(".json") ? ListFormat::Json : ListFormat::Csv;
 }
 
 std::string LayerType(const LayerSpec& layer) {
