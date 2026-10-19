@@ -819,11 +819,15 @@ template <typename T> class Boxed {
     /// A default-constructed value.
     Boxed() : value_(std::make_unique<T>()) {}
     /// A value made from anything `T` can be made from, such as one alternative of a variant.
+    /// `std::conjunction` stops at a `Boxed` argument, so copying never asks whether an incomplete
+    /// `T` is constructible.
     template <
         typename U,
-        std::enable_if_t<!std::is_same_v<std::remove_cv_t<std::remove_reference_t<U>>, Boxed> &&
-                             std::is_constructible_v<T, U&&>,
-                         int> = 0>
+        std::enable_if_t<
+            std::conjunction_v<
+                std::negation<std::is_same<std::remove_cv_t<std::remove_reference_t<U>>, Boxed>>,
+                std::is_constructible<T, U&&>>,
+            int> = 0>
     Boxed(U&& value)  // NOLINT(google-explicit-constructor): converts implicitly by design
         : value_(std::make_unique<T>(std::forward<U>(value))) {}
     Boxed(const Boxed& other) : value_(std::make_unique<T>(*other.value_)) {}

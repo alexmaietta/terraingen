@@ -180,7 +180,7 @@ class TiffReader {
             if (entry.type == kDouble) {
                 values[i] = BitCast<double>(U64(entry.bytes.data() + i * 8));
             } else {
-                values[i] = BitCast<float>(U32(entry.bytes.data() + i * 4));
+                values[i] = static_cast<double>(BitCast<float>(U32(entry.bytes.data() + i * 4)));
             }
         }
         return values;

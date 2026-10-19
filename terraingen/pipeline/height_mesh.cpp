@@ -45,7 +45,8 @@ TriangleMesh HeightMesh(const Raster<float>& heights, const Surface& surface, co
             const float h = heights(col, row);
             if (!heights.IsNoData(h)) {
                 vertex[row * width + col] = static_cast<std::uint32_t>(mesh.positions.size());
-                mesh.positions.push_back(frame.Place(heights.CellCenter(col, row), h));
+                mesh.positions.push_back(
+                    frame.Place(heights.CellCenter(col, row), static_cast<double>(h)));
             }
         }
     }

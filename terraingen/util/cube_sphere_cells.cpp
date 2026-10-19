@@ -316,7 +316,11 @@ SurfaceCells::Sampling CubeSphereCells::CellSampling(const CellIndex& cell, doub
 Vec2d CubeSphereCells::SamplePoint(double u, double v, const CellIndex& cell,
                                    double cellSize) const {
     const std::int32_t n = CellsPerEdge(cellSize);
-    const auto [a1, a2, b1, b2] = Bounds(cell, n);
+    const std::array<double, 4> box = Bounds(cell, n);
+    const double a1 = box[0];
+    const double a2 = box[1];
+    const double b1 = box[2];
+    const double b2 = box[3];
     const auto strip = [&](double a) {
         return Corner(a, b2) - Corner(a, b1) - Corner(a1, b2) + Corner(a1, b1);
     };
