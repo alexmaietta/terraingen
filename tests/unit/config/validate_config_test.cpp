@@ -392,6 +392,65 @@ TEST(ValidateConfig, EjectaSizesFollowTheSizesWhenUnset) {
     EXPECT_DOUBLE_EQ(options.ejecta.distribution->Cumulative(1.0), 6.9e-4);
 }
 
+TEST(ValidateConfig, RejectsGolombekRappTermsThatNoSizesUse) {
+    const auto errorPath = [](auto change) {
+        TerrainConfig config = Small();
+        terraingen::BoulderLayerSpec boulders;
+        boulders.boulders.sizes.minDiameter = 0.5;
+        change(boulders);
+        config.layers.push_back(boulders);
+        return ValidationErrorPath(config);
+    };
+    using Spec = terraingen::BoulderLayerSpec;
+    const auto coverage = [](Spec& s) { s.boulders.sizes.coverage = 0.05; };
+    EXPECT_EQ(errorPath(coverage), "layers[2].coverage") << "the default sizes are SP-8023";
+    EXPECT_EQ(errorPath([&](Spec& s) {
+                  coverage(s);
+                  s.sizes = terraingen::GolombekRappBouldersSpec{};
+              }),
+              "valid");
+    EXPECT_EQ(errorPath([](Spec& s) { s.boulders.sizes.qConstant = 2.0; }), "layers[2].qa");
+    EXPECT_EQ(errorPath([](Spec& s) { s.boulders.sizes.qCoverageCoefficient = 0.2; }),
+              "layers[2].qb");
+    EXPECT_EQ(errorPath([](Spec& s) {
+                  s.boulders.sizes.qConstant = 2.0;
+                  s.ejectaSizes = terraingen::GolombekRappBouldersSpec{};
+              }),
+              "valid")
+        << "Golombek-Rapp ejecta use qa";
+
+    const auto ejecta = [](Spec& s) { s.boulders.ejecta.coverage = 0.2; };
+    EXPECT_EQ(errorPath(ejecta), "layers[2].ejecta.coverage");
+    EXPECT_EQ(errorPath([&](Spec& s) {
+                  ejecta(s);
+                  s.sizes = terraingen::GolombekRappBouldersSpec{};
+              }),
+              "valid")
+        << "ejecta sizes follow the sizes";
+    EXPECT_EQ(errorPath([&](Spec& s) {
+                  ejecta(s);
+                  s.sizes = terraingen::GolombekRappBouldersSpec{};
+                  s.ejectaSizes = terraingen::Sp8023CraterBouldersSpec{};
+              }),
+              "layers[2].ejecta.coverage");
+}
+
+TEST(ValidateConfig, NamesGolombekRappSizesForACoverage) {
+    const TerrainConfig config = terraingen::ParseConfig(R"({"schema_version": 1,
+        "layers": [{"type": "boulders", "coverage": 0.05}],
+        "outputs": [{"type": "heightmap", "path": "a.tif",
+                     "region": {"width": 33, "height": 33, "pixel_size": 1}}]})");
+    try {
+        ValidateConfig(config);
+        ADD_FAILURE() << "validated";
+    } catch (const terraingen::ConfigError& error) {
+        EXPECT_EQ(error.Path(), "layers[0].coverage");
+        EXPECT_NE(std::string(error.what()).find(R"("sizes": {"type": "golombek_rapp"})"),
+                  std::string::npos)
+            << error.what();
+    }
+}
+
 TEST(ValidateConfig, RejectsSteadyStateAgesBelowTheProductionFunction) {
     TerrainConfig config = Small();
     Craters(config).ages = terraingen::SteadyStateAgesSpec{};

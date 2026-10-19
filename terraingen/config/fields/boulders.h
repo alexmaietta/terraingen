@@ -110,7 +110,8 @@ template <typename IO> void Fields(IO& io, BoulderEjecta& ejecta) {
        "", AboveUpTo(0.0, 1.0));
     io("coverage", ejecta.coverage,
        "Golombek-Rapp k, the fraction of ground covered by blocks at the rim of a fresh crater, "
-       "between 0 and 1; used with golombek_rapp ejecta sizes.",
+       "between 0 and 1. Only golombek_rapp ejecta sizes use it, so any other value than the "
+       "default needs them.",
        "", Inside(0.0, 1.0));
     io("profile", ejecta.profile,
        "How the share of a crater's blocks falls off with distance from its centre.");
@@ -323,15 +324,19 @@ template <> struct SpecName<BoulderLayerSpec> {
 /// The fields of the Golombek-Rapp terms and diameter range of a boulder layer's boulders.
 template <typename IO> void BoulderSizeRangeFields(IO& io, BoulderSizes& sizes) {
     io("coverage", sizes.coverage,
-       "Golombek-Rapp k, the fraction of the ground covered by boulders, between 0 and 1; used "
-       "with golombek_rapp sizes, where higher values give more boulders.",
+       "Golombek-Rapp k, the fraction of the ground covered by boulders, between 0 and 1; higher "
+       "values give more boulders. Only golombek_rapp sizes use it, so any other value than the "
+       "default needs them.",
        "", Inside(0.0, 1.0));
     io("qa", sizes.qConstant,
        "Constant term of the Golombek-Rapp q = qa + qb / k, per metre; a larger q leaves fewer "
-       "large boulders. Also used for golombek_rapp ejecta.",
+       "large boulders. Only golombek_rapp sizes or ejecta sizes use it, so any other value than "
+       "the default needs them.",
        "1/m");
     io("qb", sizes.qCoverageCoefficient,
-       "Term of the Golombek-Rapp q = qa + qb / k divided by the coverage k, per metre.", "1/m");
+       "Term of the Golombek-Rapp q = qa + qb / k divided by the coverage k, per metre; used as "
+       "qa is.",
+       "1/m");
     io("min_diameter", sizes.minDiameter,
        "Smallest boulder generated, in metres; lower values add many more small boulders.", "m",
        Above(0.0));

@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Defaults give a plausible lunar terrain at 1 m per pixel in which every height layer shows: craters from a production surface capped below the Trask equilibrium with steady-state ages, diffusion and irregular outlines; Surveyor boulders; noise relief scaled to its wavelength; and visible roughness, bedforms and dunes.
+- Boulder layers default to the nominal NASA SP-8023 intercrater sizes rather than Golombek-Rapp; a `coverage`, `qa`, `qb` or `ejecta.coverage` that no Golombek-Rapp sizes use is now an error that names `"sizes": {"type": "golombek_rapp"}`.
 - Boulder lists and models hold every boulder of the layer's diameter range; only the heightmap leaves out boulders too small to resolve.
 - Boulder ejecta come from every crater layer before the boulder layer, not only the last one.
 - The boulder layer's `exposure_spacing` key is now `ground_spacing` (Python `ground_spacing`), the spacing of every ground read the layer makes.

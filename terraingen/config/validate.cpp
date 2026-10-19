@@ -211,7 +211,36 @@ void CheckBoulderMaps(const BoulderLayerOptions& boulders, const std::string& pa
     }
 }
 
+bool IsGolombekRapp(const BoulderSizesSpec& sizes) {
+    return std::holds_alternative<GolombekRappBouldersSpec>(sizes);
+}
+
+/// @throws ConfigError at a Golombek-Rapp term changed from its default, such as "coverage", when
+/// no size model of the layer is Golombek-Rapp and so none would use it.
+void CheckGolombekRappTerms(const BoulderLayerSpec& spec, const std::string& path) {
+    const BoulderLayerSpec defaults{};
+    const BoulderSizes& sizes = spec.boulders.sizes;
+    const BoulderSizes& unset = defaults.boulders.sizes;
+    const bool layer = IsGolombekRapp(spec.sizes);
+    const bool ejecta = IsGolombekRapp(spec.ejectaSizes.value_or(spec.sizes));
+    const auto check = [](bool used, double value, double fallback, const std::string& at,
+                          const char* fix) {
+        if (!used && value != fallback) {
+            throw ConfigError(at, std::string("is only used by Golombek-Rapp sizes; set ") + fix +
+                                      " or leave it out");
+        }
+    };
+    const char* const layerFix = R"("sizes": {"type": "golombek_rapp"})";
+    check(layer, sizes.coverage, unset.coverage, Child(path, "coverage"), layerFix);
+    check(layer || ejecta, sizes.qConstant, unset.qConstant, Child(path, "qa"), layerFix);
+    check(layer || ejecta, sizes.qCoverageCoefficient, unset.qCoverageCoefficient,
+          Child(path, "qb"), layerFix);
+    check(ejecta, spec.boulders.ejecta.coverage, defaults.boulders.ejecta.coverage,
+          Child(Child(path, "ejecta"), "coverage"), R"("ejecta_sizes": {"type": "golombek_rapp"})");
+}
+
 void CheckLayerSpec(const BoulderLayerSpec& spec, const std::string& path, LayerChecks& context) {
+    CheckGolombekRappTerms(spec, path);
     const BoulderLayerOptions boulders = BuildBoulderOptions(spec, path, context.directory);
     CheckBoulderMaps(boulders, path);
     At(path, [&] { ValidateBoulderLayerOptions(boulders); });

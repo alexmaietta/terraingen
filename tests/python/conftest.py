@@ -43,7 +43,13 @@ SMALL_CONFIG = {
             "density": copy.deepcopy(LUNAR_DENSITY),
             "ages": copy.deepcopy(LUNAR_AGES),
         },
-        {"type": "boulders", "coverage": 0.1, "min_diameter": 0.5, "max_diameter": 2},
+        {
+            "type": "boulders",
+            "coverage": 0.1,
+            "sizes": {"type": "golombek_rapp"},
+            "min_diameter": 0.5,
+            "max_diameter": 2,
+        },
     ],
     "outputs": [
         {"type": "heightmap", "path": "heights.tif", "region": SMALL_REGION},

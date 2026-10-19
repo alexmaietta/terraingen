@@ -53,6 +53,7 @@ TEST(WriteOutputs, WritesBoulderListsAndBoulderModels) {
     TerrainConfig config = Small();
     const terraingen::GridRegionSpec region{200, 200, 0.5};
     terraingen::BoulderLayerSpec boulders;
+    boulders.sizes = terraingen::GolombekRappBouldersSpec{};
     boulders.boulders.sizes.coverage = 0.3;
     boulders.boulders.sizes.minDiameter = 0.5;
     boulders.boulders.rendering.relief = terraingen::BoulderRelief::Shape;
@@ -184,6 +185,7 @@ TEST(WriteOutputs, WritesBoulderModelsOnASphereAboutTheGridCentre) {
     config.body = terraingen::SphereSurfaceSpec{1737400.0};
     const terraingen::GridRegionSpec region{160, 160, 0.25, -30.0, 60.0};
     terraingen::BoulderLayerSpec boulders;
+    boulders.sizes = terraingen::GolombekRappBouldersSpec{};
     boulders.boulders.sizes.coverage = 0.3;
     boulders.boulders.sizes.minDiameter = 0.5;
     boulders.boulders.sizes.maxDiameter = 3.0;
@@ -248,6 +250,7 @@ TEST(WriteOutputs, DrawsBoulderModelsFromRockFilesAndWritesTheTerrainMesh) {
     TerrainConfig config = Small();
     const terraingen::GridRegionSpec region{120, 100, 0.5};
     terraingen::BoulderLayerSpec boulders;
+    boulders.sizes = terraingen::GolombekRappBouldersSpec{};
     boulders.boulders.sizes.coverage = 0.3;
     boulders.boulders.sizes.minDiameter = 0.5;
     boulders.boulders.rendering.models.minDiameter = 1.5;
