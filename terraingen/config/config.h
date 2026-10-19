@@ -31,6 +31,7 @@
 #include "terraingen/layers/roughness.h"
 #include "terraingen/layers/sand_fill.h"
 #include "terraingen/layers/sand_shadow.h"
+#include "terraingen/layers/spectral_continuation.h"
 #include "terraingen/layers/strata.h"
 #include "terraingen/noise/noise_layers.h"
 #include "terraingen/pipeline/materials.h"
@@ -789,6 +790,30 @@ struct MidpointDisplacementLayerSpec {
     }
 };
 
+/// Layer "spectral_continuation": detail below the base's resolution continuing its power-law
+/// spectrum (`SpectralContinuationLayer`), fitted to the base (`EstimatePowerLawSpectrum`) on its
+/// own grid wherever the slope or amplitude is not given.
+struct SpectralContinuationLayerSpec {
+    std::optional<double> pixelSize{};  ///< Metres; unset for the base's cell size.
+    std::optional<double> slope{};      ///< Spectral slope beta; unset to fit from the base.
+    std::optional<double> octaveRms{};  ///< Metres; unset to fit from the base.
+    SpectrumFitBand fit{};              ///< Wavelengths the base's spectrum is fitted over.
+    double minWavelength = 0.05;        ///< Metres.
+    double taperOctaves = 1.0;
+    std::uint32_t seed = 1;
+    ResolutionFade fade{};
+
+    bool operator==(const SpectralContinuationLayerSpec& other) const {
+        return pixelSize == other.pixelSize && slope == other.slope &&
+               octaveRms == other.octaveRms && fit == other.fit &&
+               minWavelength == other.minWavelength && taperOctaves == other.taperOctaves &&
+               seed == other.seed && fade == other.fade;
+    }
+    bool operator!=(const SpectralContinuationLayerSpec& other) const {
+        return !(*this == other);
+    }
+};
+
 /// Layer "scale": height * `scale` + `offset` (`ScaleLayer`).
 struct ScaleLayerSpec {
     double scale = 1.0;
@@ -897,11 +922,12 @@ template <typename T> class Boxed {
 struct RegionLayerSpec;
 
 /// A layer, named in JSON by its "type".
-using LayerSpec = std::variant<NoiseLayerSpec, CraterLayerSpec, BoulderLayerSpec,
-                               RoughnessLayerSpec, BedformLayerSpec, ScaleLayerSpec, ClampLayerSpec,
-                               RegionLayerSpec, SecondaryLayerSpec, DemDetailLayerSpec,
-                               DuneLayerSpec, SandFillLayerSpec, PavementLayerSpec, StrataLayerSpec,
-                               SandShadowLayerSpec, MidpointDisplacementLayerSpec>;
+using LayerSpec =
+    std::variant<NoiseLayerSpec, CraterLayerSpec, BoulderLayerSpec, RoughnessLayerSpec,
+                 BedformLayerSpec, ScaleLayerSpec, ClampLayerSpec, RegionLayerSpec,
+                 SecondaryLayerSpec, DemDetailLayerSpec, DuneLayerSpec, SandFillLayerSpec,
+                 PavementLayerSpec, StrataLayerSpec, SandShadowLayerSpec,
+                 MidpointDisplacementLayerSpec, SpectralContinuationLayerSpec>;
 
 /// Layer "region": `layer` applied only inside `shape` (`RegionLayer`). Boulder ejecta do
 /// not see crater layers inside regions.

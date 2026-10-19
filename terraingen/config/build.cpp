@@ -381,13 +381,13 @@ LayerPtr BuildCraterLayer(const CraterLayerSpec& craters, const std::string& pat
               [&] { return std::make_shared<CraterLayer>(std::move(models), std::move(options)); });
 }
 
-/// The roughness of `source` on cells of `pixelSize` centred on its grid with a node at `origin`,
-/// at most `kRoughnessCells` a side.
-MidpointRoughness SourceRoughness(const Source& source, double pixelSize, const Vec2d& origin) {
-    constexpr double kRoughnessCells = 512.0;
+/// `source` on cells of `pixelSize` centred on its grid with a cell centre at `origin`, at most
+/// 512 cells a side, for estimating its roughness or spectrum.
+Raster<float> SampleSourceWindow(const Source& source, double pixelSize, const Vec2d& origin) {
+    constexpr double kWindowCells = 512.0;
     const Bounds2d bounds = source.Grid().Bounds();
     const auto cells = [&](double extent) {
-        return std::clamp(std::floor(extent / pixelSize), 3.0, kRoughnessCells);
+        return std::clamp(std::floor(extent / pixelSize), 3.0, kWindowCells);
     };
     const double width = cells(bounds.maxX - bounds.minX);
     const double height = cells(bounds.maxY - bounds.minY);
@@ -400,7 +400,35 @@ MidpointRoughness SourceRoughness(const Source& source, double pixelSize, const 
                                                 origin.y + (rowTop + 0.5) * pixelSize, pixelSize)};
     Raster<float> heights = grid.MakeRaster();
     source.Fill(heights);
-    return EstimateMidpointRoughness(heights);
+    return heights;
+}
+
+/// The options of a spectral continuation layer, fitted to the base wherever the spec gives no
+/// slope or amplitude; a valid configuration has a base whenever the spec leaves one out.
+SpectralContinuationOptions BuildSpectralOptions(const SpectralContinuationLayerSpec& spec,
+                                                 const Source* source, const Surface& surface,
+                                                 const std::string& path) {
+    SpectralContinuationOptions options;
+    options.minWavelength = spec.minWavelength;
+    options.taperOctaves = spec.taperOctaves;
+    options.seed = spec.seed;
+    options.fade = spec.fade;
+    const RasterGrid grid = source ? source->Grid() : RasterGrid{};
+    options.pixelSize = spec.pixelSize.value_or(grid.PixelSize() * surface.UnitLength());
+    if (spec.slope && spec.octaveRms) {
+        options.slope = *spec.slope;
+        options.octaveRms = *spec.octaveRms;
+        return options;
+    }
+    const PowerLawSpectrum fit = At(path, [&] {
+        const Raster<float> heights =
+            SampleSourceWindow(*source, options.pixelSize / surface.UnitLength(),
+                               grid.transform.PixelToWorld(0.5, 0.5));
+        return EstimatePowerLawSpectrum(heights, spec.fit);
+    });
+    options.slope = spec.slope.value_or(fit.slope);
+    options.octaveRms = spec.octaveRms.value_or(fit.octaveRms);
+    return options;
 }
 
 /// The options of a midpoint displacement layer, from the base wherever the spec gives none; a
@@ -420,7 +448,8 @@ MidpointDisplacementOptions BuildMidpointOptions(const MidpointDisplacementLayer
         options.scale = *spec.scale;
         return options;
     }
-    const MidpointRoughness roughness = SourceRoughness(*source, options.pixelSize, options.origin);
+    const MidpointRoughness roughness =
+        EstimateMidpointRoughness(SampleSourceWindow(*source, options.pixelSize, options.origin));
     options.fractalDimension = spec.fractalDimension.value_or(roughness.fractalDimension);
     options.scale = spec.scale.value_or(roughness.scale);
     return options;
@@ -477,6 +506,10 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
             [&](const MidpointDisplacementLayerSpec& s) -> LayerPtr {
                 return std::make_shared<MidpointDisplacementLayer>(
                     BuildMidpointOptions(s, context.source.get(), surface), surface);
+            },
+            [&](const SpectralContinuationLayerSpec& s) -> LayerPtr {
+                return std::make_shared<SpectralContinuationLayer>(
+                    BuildSpectralOptions(s, context.source.get(), surface, path), surface);
             },
             [&](const ScaleLayerSpec& s) -> LayerPtr {
                 return std::make_shared<ScaleLayer>(s.scale, s.offset);

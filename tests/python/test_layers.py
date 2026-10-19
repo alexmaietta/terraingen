@@ -472,3 +472,50 @@ def test_midpoint_displacement_expands_a_lattice_keeping_its_nodes():
         terraingen.validate_midpoint_displacement_options(
             terraingen.MidpointDisplacementOptions(fractal_dimension=3.5)
         )
+
+
+def test_spectral_continuation_adds_detail_below_the_base_following_its_spectrum():
+    grid = terraingen.FlatSource(128, 128, 0.125).grid()
+    options = terraingen.SpectralContinuationOptions(
+        pixel_size=1.0, slope=3.0, octave_rms=0.2, min_wavelength=0.25
+    )
+    options.validate()
+    layer = terraingen.SpectralContinuationLayer(options)
+    assert layer.band_frequencies() == pytest.approx([0.5, 1.0, 2.0])
+    assert layer.target_psd(0.4) == 0.0 and layer.target_psd(2.0) > 0.0
+    assert layer.options.slope == 3.0
+    heights = terraingen.evaluate(terraingen.Terrain(None, [layer]), grid=grid)
+    assert heights.values.std() > 0.05
+    at = heights.cell_center(5, 7)
+    point = layer.apply_at(0.0, at[0], at[1], terraingen.LayerContext(0.125, 1))
+    assert point == heights.values[7, 5]
+    coarse_grid = terraingen.FlatSource(32, 32, 1.0).grid()
+    coarse = terraingen.evaluate(terraingen.Terrain(None, [layer]), grid=coarse_grid)
+    assert np.all(coarse.values == 0.0)
+
+    bins = terraingen.radial_power_spectrum(heights)
+    assert bins[-1].frequency == pytest.approx(4.0, rel=0.1) and bins[0].count > 0
+    band = terraingen.SpectrumFitBand(min_pixels=3.0, max_pixels=6.0)
+    fit = terraingen.estimate_power_law_spectrum(heights, band)
+    assert 2.0 <= fit.slope <= 4.0 and fit.octave_rms > 0.0
+    with pytest.raises(ValueError):
+        terraingen.validate_spectral_continuation_options(terraingen.SpectralContinuationOptions(slope=4.5))
+    with pytest.raises(ValueError):
+        terraingen.validate_spectrum_fit_band(terraingen.SpectrumFitBand(min_pixels=1.0))
+    config = terraingen.Config.from_dict(
+        {
+            "schema_version": 1,
+            "layers": [
+                {
+                    "type": "spectral_continuation",
+                    "pixel_size": 1.0,
+                    "slope": 2.6,
+                    "octave_rms": 0.1,
+                    "min_wavelength": 0.2,
+                }
+            ],
+        }
+    )
+    config.validate()
+    spec = config.to_dict()["layers"][0]
+    assert spec["slope"] == 2.6 and spec["fit_min_pixels"] == 4.0

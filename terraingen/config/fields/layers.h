@@ -482,6 +482,71 @@ template <typename IO> void Fields(IO& io, MidpointDisplacementLayerSpec& spec) 
     io("seed", spec.seed, "Seed of the displacements.");
 }
 
+/// The fields a spectral continuation shares between its options and its layer spec.
+template <typename IO>
+void SpectralSynthesisFields(IO& io, double& minWavelength, double& taperOctaves,
+                             std::uint32_t& seed, ResolutionFade& fade) {
+    io("min_wavelength", minWavelength,
+       "Shortest wavelength of the detail in metres; the detail spans the wavelengths from twice "
+       "the base's pixel size down to it.",
+       "m", Above(0.0));
+    io("taper_octaves", taperOctaves,
+       "Octaves above the base's Nyquist frequency over which the detail fades in, so it adds "
+       "nothing at wavelengths the base resolves.",
+       "", Above(0.0));
+    io("seed", seed,
+       "Seed of the detail; changing it gives a different pattern of the same "
+       "spectrum.");
+    io("fade", fade,
+       "How wavelengths too fine for the sample spacing fade out, by samples per wavelength.");
+}
+
+template <typename IO> void Fields(IO& io, SpectralContinuationOptions& options) {
+    io("pixel_size", options.pixelSize,
+       "Cell size of the base in metres; the detail starts at twice it, the base's Nyquist "
+       "wavelength.",
+       "m", Above(0.0));
+    io("slope", options.slope,
+       "Spectral slope beta of the radially averaged power spectrum, P(f) ~ f^-beta, in [2, 4]: "
+       "beta = 2 H + 2 for Hurst exponent H.",
+       "", Between(2.0, 4.0));
+    io("octave_rms", options.octaveRms,
+       "RMS height in metres the power law holds at wavelengths from one to two base pixels.", "m",
+       AtLeast(0.0));
+    SpectralSynthesisFields(io, options.minWavelength, options.taperOctaves, options.seed,
+                            options.fade);
+}
+
+template <> struct SpecName<SpectralContinuationLayerSpec> {
+    static constexpr std::string_view kName = "spectral_continuation";
+    static constexpr std::string_view kDescription =
+        "Detail finer than the base continuing its measured power-law spectrum to shorter "
+        "wavelengths with random phases, as sparse Gabor noise: an alternative to midpoint "
+        "displacement without lattice artefacts.";
+};
+template <typename IO> void Fields(IO& io, SpectralContinuationLayerSpec& spec) {
+    io("pixel_size", spec.pixelSize,
+       "Cell size of the base in metres; the detail starts at twice it. Unset uses the base's "
+       "cell size.",
+       "m", Above(0.0));
+    io("slope", spec.slope,
+       "Spectral slope beta of the radially averaged power spectrum, P(f) ~ f^-beta, in [2, 4]: "
+       "beta = 2 H + 2 for Hurst exponent H. Unset fits it to the base.",
+       "", Between(2.0, 4.0));
+    io("octave_rms", spec.octaveRms,
+       "RMS height in metres the power law holds at wavelengths from one to two base pixels. "
+       "Unset fits it to the base.",
+       "m", AtLeast(0.0));
+    io("fit_min_pixels", spec.fit.minPixels,
+       "Shortest wavelength, in base pixels, the base's spectrum is fitted over; at least 2.", "",
+       AtLeast(2.0));
+    io("fit_max_pixels", spec.fit.maxPixels,
+       "Longest wavelength, in base pixels, the base's spectrum is fitted over; 0 for a quarter "
+       "of the window the spectrum is measured on (at most 512 cells a side).",
+       "", AtLeast(0.0));
+    SpectralSynthesisFields(io, spec.minWavelength, spec.taperOctaves, spec.seed, spec.fade);
+}
+
 template <> struct SpecName<ScaleLayerSpec> {
     static constexpr std::string_view kName = "scale";
     static constexpr std::string_view kDescription =

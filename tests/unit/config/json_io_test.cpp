@@ -267,6 +267,9 @@ TerrainConfig Everything() {
         terraingen::MidpointDisplacementLayerSpec{4.0, 1.5, -2.5, 2.3, 0.4, 0.25,
                                                   terraingen::MidpointBase::Source, 5u},
         terraingen::MidpointDisplacementLayerSpec{},
+        terraingen::SpectralContinuationLayerSpec{
+            2.0, 2.8, 0.15, {3.0, 40.0}, 0.1, 0.5, 9u, {1.5, 5.0, terraingen::BlendShape::Linear}},
+        terraingen::SpectralContinuationLayerSpec{},
         terraingen::RegionLayerSpec{terraingen::CircleRegionSpec{3.0, -4.0, 50.0}, 7.5,
                                     terraingen::BlendShape::Gaussian, craters},
         terraingen::RegionLayerSpec{

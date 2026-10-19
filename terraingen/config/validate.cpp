@@ -434,6 +434,25 @@ void CheckLayerSpec(const MidpointDisplacementLayerSpec& layer, const std::strin
     }
 }
 
+void CheckLayerSpec(const SpectralContinuationLayerSpec& layer, const std::string& path,
+                    LayerChecks& context) {
+    if (!context.base && !(layer.pixelSize && layer.slope && layer.octaveRms)) {
+        throw ConfigError(path, "without a base to fit its spectrum to needs pixel_size, slope "
+                                "and octave_rms");
+    }
+    At(path, [&] {
+        ValidateSpectrumFitBand(layer.fit);
+        SpectralContinuationOptions options;
+        options.pixelSize = layer.pixelSize.value_or(options.pixelSize);
+        options.slope = layer.slope.value_or(options.slope);
+        options.octaveRms = layer.octaveRms.value_or(options.octaveRms);
+        options.minWavelength = layer.minWavelength;
+        options.taperOctaves = layer.taperOctaves;
+        options.fade = layer.fade;
+        ValidateSpectralContinuationOptions(options);
+    });
+}
+
 void CheckLayerSpec(const RegionLayerSpec& layer, const std::string& path, LayerChecks& context) {
     At(Child(path, "shape"), [&] { ValidateRegionShape(BuildRegionShape(layer.shape)); });
     const bool empty = std::visit(

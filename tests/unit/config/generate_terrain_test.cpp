@@ -640,6 +640,38 @@ TEST(GenerateTerrain, ExpandsADemByMidpointDisplacementKeepingItsCells) {
     ExpectSameRaster(smooth.grids[0].heights, plain);
 }
 
+TEST(GenerateTerrain, ContinuesADemsSpectrumOnlyBelowItsCells) {
+    const auto folder = TempPath("terraingen_spectral");
+    const auto dem = WriteDem(folder, "dem.tif");
+    TerrainConfig config = RasterConfig("dem.tif");
+    terraingen::SpectralContinuationLayerSpec layer;
+    layer.fit.maxPixels = 16.0;
+    layer.minWavelength = 1.0;
+    config.layers = {layer};
+    const terraingen::GridRegionSpec region{21, 21, 1.25, 1102.5, 1922.5};
+    config.outputs = {terraingen::testing::Heightmap("fine.tif", region),
+                      terraingen::testing::Heightmap("base.tif", std::nullopt)};
+    terraingen::ValidateConfig(config, folder);
+    const auto generated = GenerateTerrain(config, folder);
+    ASSERT_EQ(generated.grids.size(), 2u);
+    ExpectSameRaster(generated.grids[1].heights, dem);
+    const auto plain =
+        terraingen::Evaluate(GenerateTerrain(RasterConfig("dem.tif"), folder).terrain,
+                             terraingen::RasterGrid::FromRaster(generated.grids[0].heights));
+    double squares = 0.0;
+    for (std::size_t i = 0; i < plain.Size(); ++i) {
+        const double difference = static_cast<double>(generated.grids[0].heights.Values()[i]) -
+                                  static_cast<double>(plain.Values()[i]);
+        squares += difference * difference;
+    }
+    EXPECT_GT(squares, 0.0) << "detail below the DEM's 5 m cells";
+
+    layer.slope = 2.5;
+    layer.octaveRms = 0.0;
+    config.layers = {layer};
+    ExpectSameRaster(GenerateTerrain(config, folder).grids[0].heights, plain);
+}
+
 namespace {
 
 /// A DEM expanded by midpoint displacement in a hierarchy of two levels about its centre.

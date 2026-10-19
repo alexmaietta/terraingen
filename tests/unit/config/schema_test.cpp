@@ -550,6 +550,8 @@ TEST(LayerType, NamesALayerAsItsJsonTypeAndARegionByTheLayerInside) {
     EXPECT_EQ(terraingen::LayerType(terraingen::SandFillLayerSpec{}), "sand_fill");
     EXPECT_EQ(terraingen::LayerType(terraingen::MidpointDisplacementLayerSpec{}),
               "midpoint_displacement");
+    EXPECT_EQ(terraingen::LayerType(terraingen::SpectralContinuationLayerSpec{}),
+              "spectral_continuation");
     terraingen::RegionLayerSpec region;
     region.layer = terraingen::BoulderLayerSpec{};
     EXPECT_EQ(terraingen::LayerType(region), "region (boulders)");

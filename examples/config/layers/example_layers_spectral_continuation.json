@@ -1,0 +1,35 @@
+{
+    "schema_version": 1,
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 1,
+                    "wavelength": 40,
+                    "amplitude": 1,
+                    "octaves": 4
+                }
+            ]
+        },
+        {
+            "type": "spectral_continuation",
+            "pixel_size": 1,
+            "slope": 3,
+            "octave_rms": 0.05,
+            "min_wavelength": 0.2,
+            "seed": 2
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_layers_spectral_continuation.tif",
+            "region": {
+                "width": 401,
+                "height": 401,
+                "pixel_size": 0.1
+            }
+        }
+    ]
+}

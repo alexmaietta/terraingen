@@ -18,6 +18,7 @@
 #include "terraingen/layers/region.h"
 #include "terraingen/layers/roughness.h"
 #include "terraingen/layers/sand_fill.h"
+#include "terraingen/layers/spectral_continuation.h"
 #include "terraingen/layers/strata.h"
 #include "terraingen/layers/transforms.h"
 
@@ -326,6 +327,52 @@ void BindMidpointDisplacement(nb::module_& m) {
         .def_prop_ro("options", &MidpointDisplacementLayer::Options);
 }
 
+void BindSpectrumFit(nb::module_& m) {
+    nb::class_<SpectrumBin>(m, "SpectrumBin", "One annulus of a radially averaged power spectrum.")
+        .def_ro("frequency", &SpectrumBin::frequency, "Mean radial frequency, cycles per unit.")
+        .def_ro("power", &SpectrumBin::power, "Mean power spectral density.")
+        .def_ro("count", &SpectrumBin::count, "Frequency samples averaged.");
+    m.def("radial_power_spectrum", &RadialPowerSpectrum, "heights"_a,
+          "The radially averaged power spectral density of a raster on its own cells, Hann "
+          "windowed and detrended.");
+    auto band = nb::class_<SpectrumFitBand>(
+        m, "SpectrumFitBand",
+        "The wavelengths, in base pixels, a power-law spectrum is fitted over.");
+    BindKwargsInit<SpectrumFitBand>(band);
+    band.def_rw("min_pixels", &SpectrumFitBand::minPixels)
+        .def_rw("max_pixels", &SpectrumFitBand::maxPixels)
+        .def("validate", &ValidateSpectrumFitBand, kValidateDoc);
+    m.def("validate_spectrum_fit_band", &ValidateSpectrumFitBand, "band"_a, kValidateDoc);
+    nb::class_<PowerLawSpectrum>(m, "PowerLawSpectrum",
+                                 "A power-law spectrum by its slope beta and the RMS height (m) it "
+                                 "holds in the octave just finer than the base's Nyquist "
+                                 "wavelength.")
+        .def_ro("slope", &PowerLawSpectrum::slope)
+        .def_ro("octave_rms", &PowerLawSpectrum::octaveRms);
+    m.def("estimate_power_law_spectrum", &EstimatePowerLawSpectrum, "heights"_a,
+          "band"_a = SpectrumFitBand{}, "The power law fitted to a raster's radial spectrum.");
+}
+
+void BindSpectralContinuation(nb::module_& m) {
+    BindSpectrumFit(m);
+    BindOptions<SpectralContinuationOptions>(
+        m, "SpectralContinuationOptions",
+        "The power-law spectrum (`slope`, `octave_rms` metres) of a base of `pixel_size` metres "
+        "that a spectral continuation layer extends down to `min_wavelength` metres.",
+        &ValidateSpectralContinuationOptions);
+    m.def("validate_spectral_continuation_options", &ValidateSpectralContinuationOptions,
+          "options"_a, kValidateDoc);
+    nb::class_<SpectralContinuationLayer, Layer>(
+        m, "SpectralContinuationLayer",
+        "Detail finer than a base continuing its power-law spectrum, as sparse Gabor noise.")
+        .def(nb::init<SpectralContinuationOptions, Surface>(), "options"_a, "surface"_a = Surface{})
+        .def("target_psd", &SpectralContinuationLayer::TargetPsd, "frequency"_a,
+             "The target PSD in m^4 at a frequency in cycles per metre.")
+        .def("band_frequencies", &SpectralContinuationLayer::BandFrequencies,
+             "The lowest frequencies of the bands, in cycles per metre.")
+        .def_prop_ro("options", &SpectralContinuationLayer::Options);
+}
+
 void BindPavement(nb::module_& m) {
     BindOptions<PavementOptions>(
         m, "PavementOptions",
@@ -466,6 +513,7 @@ void BindLayers(nb::module_& m) {
     BindMaterialClasses(m);
     BindSandFill(m);
     BindMidpointDisplacement(m);
+    BindSpectralContinuation(m);
     BindPavement(m);
     BindStrata(m);
 }

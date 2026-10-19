@@ -23,6 +23,15 @@ namespace {
 
 constexpr double kInfinity = std::numeric_limits<double>::infinity();
 
+/// A spectral continuation that gives its whole spectrum, so it needs no base.
+terraingen::SpectralContinuationLayerSpec ExplicitSpectrum() {
+    terraingen::SpectralContinuationLayerSpec layer;
+    layer.pixelSize = 1.0;
+    layer.slope = 3.0;
+    layer.octaveRms = 0.1;
+    return layer;
+}
+
 /// A change to a `Small` configuration and the JSON path validation reports for it.
 struct PathCase {
     const char* name;
@@ -223,6 +232,33 @@ const PathCase kPathCases[] = {
          c.layers.push_back(layer);
      },
      "layers[2].fractal_dimension"},
+    {"SpectralContinuationWithoutBase",
+     [](TerrainConfig& c) { c.layers.push_back(terraingen::SpectralContinuationLayerSpec{}); },
+     "layers[2]"},
+    {"SpectralContinuationWithItsSpectrumWithoutBase",
+     [](TerrainConfig& c) { c.layers.push_back(ExplicitSpectrum()); }, "valid"},
+    {"SpectralContinuationSlopeAboveFour",
+     [](TerrainConfig& c) {
+         terraingen::SpectralContinuationLayerSpec layer = ExplicitSpectrum();
+         layer.slope = 4.5;
+         c.layers.push_back(layer);
+     },
+     "layers[2].slope"},
+    {"SpectralContinuationFitBandInverted",
+     [](TerrainConfig& c) {
+         terraingen::SpectralContinuationLayerSpec layer = ExplicitSpectrum();
+         layer.fit.minPixels = 8.0;
+         layer.fit.maxPixels = 6.0;
+         c.layers.push_back(layer);
+     },
+     "layers[2]"},
+    {"SpectralContinuationZeroMinWavelength",
+     [](TerrainConfig& c) {
+         terraingen::SpectralContinuationLayerSpec layer = ExplicitSpectrum();
+         layer.minWavelength = 0.0;
+         c.layers.push_back(layer);
+     },
+     "layers[2].min_wavelength"},
     {"SandFillWithoutReach",
      [](TerrainConfig& c) { c.layers.push_back(terraingen::SandFillLayerSpec{{0.0}}); },
      "layers[2].reach"},
