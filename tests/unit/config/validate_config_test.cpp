@@ -311,7 +311,8 @@ TEST(ValidateConfig, SummarisesTheGridsAndTheCratersExpected) {
 
     config.layers.push_back(Craters(config));
     EXPECT_DOUBLE_EQ(*ValidateConfig(config).expectedCraters, 2.0 * expected);
-    config.layers.push_back(terraingen::RegionLayerSpec{{}, 1.0, {}, Craters(config)});
+    config.layers.push_back(terraingen::RegionLayerSpec{
+        terraingen::CircleRegionSpec{0.0, 0.0, 10.0}, 1.0, {}, Craters(config)});
     EXPECT_DOUBLE_EQ(*ValidateConfig(config).expectedCraters, 2.0 * expected)
         << "crater layers inside regions are not counted";
 
@@ -377,6 +378,34 @@ TEST(ValidateConfig, ReportsBoulderSizeProblemsByPath) {
     EXPECT_EQ(ValidationErrorPath(config), "layers[2].ejecta_sizes");
 }
 
+TEST(ValidateConfig, EjectaSizesFollowTheSizesWhenUnset) {
+    TerrainConfig config = Small();
+    terraingen::BoulderLayerSpec boulders;
+    boulders.boulders.sizes.minDiameter = 0.5;
+    boulders.boulders.ejecta.minCraterDiameter = 8.0;
+    boulders.sizes = terraingen::PowerLawSpec{6.9e-4, 2.56};
+    config.layers.push_back(boulders);
+    EXPECT_EQ(ValidationErrorPath(config), "valid");
+    const auto options = terraingen::config::BuildBoulderOptions(boulders, "layers[2]");
+    ASSERT_NE(options.ejecta.distribution, nullptr);
+    EXPECT_DOUBLE_EQ(options.ejecta.distribution->Cumulative(1.0), 6.9e-4);
+}
+
+TEST(ValidateConfig, RejectsSteadyStateAgesBelowTheProductionFunction) {
+    TerrainConfig config = Small();
+    Craters(config).ages = terraingen::SteadyStateAgesSpec{};
+    Craters(config).minDiameter = 1.0;
+    try {
+        terraingen::ValidateConfig(config);
+        ADD_FAILURE() << "validated";
+    } catch (const terraingen::ConfigError& error) {
+        EXPECT_EQ(error.Path(), "layers[1].min_diameter");
+        EXPECT_NE(std::string(error.what()).find("2.5 m"), std::string::npos) << error.what();
+    }
+    Craters(config).minDiameter = 2.5;
+    EXPECT_EQ(ValidationErrorPath(config), "valid");
+}
+
 TEST(ValidateConfig, ReportsBedformProblemsByPath) {
     terraingen::BedformOptions ridges = terraingen::MarsTransverseAeolianRidges();
     ridges.leeFraction = 2.0;
@@ -398,20 +427,36 @@ TEST(ValidateConfig, ReportsTransformAndRegionProblemsByPath) {
               "layers[2].shape.radius");
     EXPECT_EQ(with(RegionLayerSpec{terraingen::RectangleRegionSpec{1.0, 0.0, 0.0, 1.0}}),
               "layers[2].shape");
-    EXPECT_EQ(with(RegionLayerSpec{{}, -1.0}), "layers[2].feather");
-    EXPECT_EQ(with(RegionLayerSpec{{}, 1.0, {}, ClampLayerSpec{2.0, 1.0}}), "layers[2].layer");
+    EXPECT_EQ(with(RegionLayerSpec{}), "layers[2].shape") << "the default shape has no area";
+    EXPECT_EQ(with(RegionLayerSpec{terraingen::CircleRegionSpec{0.0, 0.0, 0.0}, 5.0}),
+              "layers[2].shape");
+    EXPECT_EQ(with(RegionLayerSpec{terraingen::RectangleRegionSpec{0.0, 0.0, 4.0, 4.0}}), "valid");
+    EXPECT_EQ(with(RegionLayerSpec{terraingen::CircleRegionSpec{0.0, 0.0, 10.0}, -1.0}),
+              "layers[2].feather");
+    EXPECT_EQ(with(RegionLayerSpec{
+                  terraingen::CircleRegionSpec{0.0, 0.0, 10.0}, 1.0, {}, ClampLayerSpec{2.0, 1.0}}),
+              "layers[2].layer");
     TerrainConfig small = Small();
-    EXPECT_EQ(with(RegionLayerSpec{{}, 1.0, {}, RegionLayerSpec{{}, 1.0, {}, Craters(small)}}),
+    EXPECT_EQ(with(RegionLayerSpec{
+                  terraingen::CircleRegionSpec{0.0, 0.0, 10.0},
+                  1.0,
+                  {},
+                  RegionLayerSpec{
+                      terraingen::CircleRegionSpec{0.0, 0.0, 10.0}, 1.0, {}, Craters(small)}}),
               "valid");
     terraingen::BoulderLayerSpec boulders;
     boulders.boulders.ejecta.minCraterDiameter = 10.0;
-    EXPECT_EQ(ErrorPath([&](TerrainConfig& c) {
-                  c.layers = {RegionLayerSpec{{}, 1.0, {}, Craters(c)}, boulders};
-              }),
-              "layers[1].ejecta.min_crater_diameter")
+    EXPECT_EQ(
+        ErrorPath([&](TerrainConfig& c) {
+            c.layers = {
+                RegionLayerSpec{terraingen::CircleRegionSpec{0.0, 0.0, 10.0}, 1.0, {}, Craters(c)},
+                boulders};
+        }),
+        "layers[1].ejecta.min_crater_diameter")
         << "crater layers inside regions do not count for ejecta";
     EXPECT_EQ(ErrorPath([&](TerrainConfig& c) {
-                  c.layers.push_back(RegionLayerSpec{{}, 1.0, {}, boulders});
+                  c.layers.push_back(RegionLayerSpec{
+                      terraingen::CircleRegionSpec{0.0, 0.0, 10.0}, 1.0, {}, boulders});
               }),
               "valid")
         << "boulders inside a region see the crater layers before it";

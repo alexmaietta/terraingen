@@ -584,7 +584,7 @@ TEST(LayerKinds, CountFindAndIndexLayersOfAKind) {
     namespace config = terraingen::config;
     const std::vector<terraingen::LayerSpec> layers{
         NoiseLayerSpec{}, CraterLayerSpec{}, BoulderLayerSpec{}, CraterLayerSpec{},
-        RegionLayerSpec{{}, 0.0, {}, CraterLayerSpec{}}};
+        RegionLayerSpec{terraingen::CircleRegionSpec{0.0, 0.0, 10.0}, 0.0, {}, CraterLayerSpec{}}};
     EXPECT_TRUE((config::HoldsAny<NoiseLayerSpec, BoulderLayerSpec>(layers[2])));
     EXPECT_FALSE((config::HoldsAny<NoiseLayerSpec, BoulderLayerSpec>(layers[1])));
     EXPECT_EQ(config::CountLayers<CraterLayerSpec>(layers), 2u) << "not the one in a region";

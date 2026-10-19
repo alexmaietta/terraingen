@@ -370,9 +370,10 @@ using BoulderSizesSpec =
 /// when crater blocks are enabled. `boulders.cacheBoulders` is not part of the configuration.
 struct BoulderLayerSpec {
     BoulderLayerOptions boulders{};
-    BoulderSizesSpec sizes{};        ///< Gives `boulders.sizes.distribution`.
-    BoulderSizesSpec ejectaSizes{};  ///< Gives `boulders.ejecta.distribution`.
-    bool extrapolate = false;        ///< Let tables be evaluated beyond their published diameters.
+    BoulderSizesSpec sizes{};  ///< Gives `boulders.sizes.distribution`.
+    /// Gives `boulders.ejecta.distribution`; unset follows `sizes`.
+    std::optional<BoulderSizesSpec> ejectaSizes{};
+    bool extrapolate = false;  ///< Let tables be evaluated beyond their published diameters.
     /// Rock meshes (.obj, .gltf or .glb) that replace the procedural shapes, as
     /// `BoulderShapeOptions::library`; relative to the configuration's folder.
     std::vector<std::string> shapeFiles{};

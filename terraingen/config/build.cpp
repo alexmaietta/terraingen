@@ -612,7 +612,7 @@ BoulderLayerOptions BuildBoulderOptions(const BoulderLayerSpec& spec, const std:
         return built;
     };
     options.sizes.distribution = sizes(spec.sizes, "sizes");
-    options.ejecta.distribution = sizes(spec.ejectaSizes, "ejecta_sizes");
+    options.ejecta.distribution = sizes(spec.ejectaSizes.value_or(spec.sizes), "ejecta_sizes");
     for (std::size_t i = 0; i < spec.shapeFiles.size(); ++i) {
         options.rendering.shapes.library.push_back(
             AtFile(Element(Child(path, "shape_files"), i), [&] {

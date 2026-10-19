@@ -7,6 +7,8 @@
 #include "terraingen/config/fields/checks.h"
 #include "terraingen/config/fields/common.h"
 #include "terraingen/config/generate.h"
+#include "terraingen/distribution/ivanov.h"
+#include "terraingen/distribution/neukum.h"
 #include "terraingen/layers/craters/generation/spacing.h"
 #include "terraingen/layers/transforms.h"
 #include "terraingen/mesh/io/icq.h"
@@ -15,8 +17,10 @@
 #include "terraingen/util/overloaded.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <concepts>
+#include <cstdio>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -133,6 +137,48 @@ void AddExpectedCraters(const CraterLayerSpec& craters, const CraterModels& mode
     }
 }
 
+/// A length as messages give it, such as 2.5.
+std::string Metres(double value) {
+    std::array<char, 32> buffer{};
+    std::snprintf(buffer.data(), buffer.size(), "%g", value);
+    return buffer.data();
+}
+
+/// The diameters a production function is defined over.
+DiameterRange ProductionRange(ProductionFunction production) {
+    switch (production) {
+    case ProductionFunction::Neukum:
+        return NeukumProductionFunction().ValidRange();
+    case ProductionFunction::Ivanov:
+        return IvanovMarsProductionFunction().ValidRange();
+    case ProductionFunction::ExtendedNeukum:
+        break;
+    }
+    return ExtendedNeukumProductionFunction().ValidRange();
+}
+
+/// @throws ConfigError at `path` when the density or the ages of a generating layer are not
+/// defined at its smallest diameter, as steady-state ages are not below their production
+/// function's range.
+void CheckModelRange(const CraterLayerSpec& craters, const CraterModels& models,
+                     const std::string& path) {
+    try {
+        models.density->Cumulative(craters.minDiameter);
+        models.ages->LifetimeGyr(craters.minDiameter);
+    } catch (const std::domain_error&) {
+        const DiameterRange& density = models.density->ValidRange();
+        std::string message =
+            "the density or ages are not defined at " + Metres(craters.minDiameter) + " m";
+        if (const auto* steady = std::get_if<SteadyStateAgesSpec>(&craters.ages)) {
+            message += "; steady-state ages need the production function's diameters, from " +
+                       Metres(ProductionRange(steady->production).min) + " m";
+        } else if (density.min > 0.0) {
+            message += "; the density starts at " + Metres(density.min) + " m";
+        }
+        throw ConfigError(path, message);
+    }
+}
+
 void CheckLayerSpec(const CraterLayerSpec& craters, const std::string& path, LayerChecks& context) {
     CheckManualCraters(craters.manual, Child(path, "manual"));
     At(Child(path, "spacing"), [&] { ValidateCraterSpacing(craters.spacing); });
@@ -151,6 +197,7 @@ void CheckLayerSpec(const CraterLayerSpec& craters, const std::string& path, Lay
     if (!(craters.maxDiameter > craters.minDiameter)) {
         throw ConfigError(Child(path, "max_diameter"), "must exceed min_diameter");
     }
+    CheckModelRange(craters, models, Child(path, "min_diameter"));
     AddExpectedCraters(craters, models, path, context);
 }
 
@@ -279,6 +326,17 @@ void CheckLayerSpec(const DemDetailLayerSpec& layer, const std::string& path,
 
 void CheckLayerSpec(const RegionLayerSpec& layer, const std::string& path, LayerChecks& context) {
     At(Child(path, "shape"), [&] { ValidateRegionShape(BuildRegionShape(layer.shape)); });
+    const bool empty = std::visit(
+        Overloaded{
+            [](const RectangleRegionSpec& r) { return !(r.maxX > r.minX && r.maxY > r.minY); },
+            [](const CircleRegionSpec& c) { return !(c.radius > 0.0); },
+        },
+        layer.shape);
+    if (empty) {
+        throw ConfigError(Child(path, "shape"),
+                          "required: the shape has no area; give the rectangle's bounds or the "
+                          "circle's radius");
+    }
     // Crater layers inside a region count for neither later layers nor the summary.
     LayerChecks inner = context;
     CheckLayer(*layer.layer, Child(path, "layer"), inner);

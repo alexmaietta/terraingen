@@ -367,7 +367,7 @@ template <typename IO> void BoulderPlacementFields(IO& io, BoulderLayerSpec& spe
     BoulderGatheringFields(io, spec.boulders);
     io("ejecta_sizes", spec.ejectaSizes,
        "Size distribution of the blocks at the rim of a fresh crater, per m^2; golombek_rapp uses "
-       "the ejecta's coverage with qa and qb.");
+       "the ejecta's coverage with qa and qb. Unset follows sizes.");
     io("extrapolate", spec.extrapolate,
        "Lets the size distributions be evaluated outside their valid diameters, such as beyond a "
        "table's published ones; otherwise they must cover the boulder sizes.");
