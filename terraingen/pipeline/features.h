@@ -10,12 +10,12 @@
 namespace terraingen {
 
 /// The craters a terrain's layers apply over `grid`: `PlacedCraters` of its layers.
-/// @param spacing The sample spacing in metres; 0 for the grid's, as `Evaluate`.
+/// @param spacing The sample spacing in metres, finer than the grid's or not; 0 for the grid's.
 CraterFeatures PlacedCraters(const Terrain& terrain, const RasterGrid& grid, double spacing = 0.0);
 
 /// The boulders a terrain's `BoulderPlacer` layers place over `grid`, each read on the ground
 /// beneath its layer, and the boulder models among them.
-/// @param spacing The sample spacing in metres; 0 for the grid's, as `Evaluate`.
+/// @param spacing The sample spacing in metres, finer than the grid's or not; 0 for the grid's.
 BoulderFeatures PlacedBoulders(const Terrain& terrain, const RasterGrid& grid,
                                double spacing = 0.0);
 

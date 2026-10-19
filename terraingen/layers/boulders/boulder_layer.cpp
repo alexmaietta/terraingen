@@ -410,7 +410,7 @@ double BoulderLayer::BreakMarginRadii() const {
                                    : 0.0;
 }
 
-CraterList BoulderLayer::ScatterBoulderCandidates(const Bounds2d& region, double spacing) const {
+CraterList BoulderLayer::ScatterBoulderCandidates(const Bounds2d& region, double smallest) const {
     const std::uint32_t seed = SubstreamSeed(options_.seed, kBoulderCandidateStream);
     const FreshAges ages;
     const double margin = OwnMarginRadii() + BreakMarginRadii();
@@ -419,8 +419,8 @@ CraterList BoulderLayer::ScatterBoulderCandidates(const Bounds2d& region, double
                                        .marginRadii = margin};
     generation.surface = surface_;
     generation.logName = "boulders";
-    if (spacing > 0.0) {
-        generation.minResolvedDiameter = options_.fade.startSamples * spacing;
+    if (smallest > 0.0) {
+        generation.minResolvedDiameter = smallest;
     }
     for (const Crater& boulder : options_.manual) {
         generation.manual.Append(boulder);
@@ -642,6 +642,12 @@ void BoulderLayer::Settle(Boulder& boulder, const Ground* ground) const {
 
 std::vector<Boulder> BoulderLayer::Boulders(const Bounds2d& region, double spacing,
                                             const Ground* ground) const {
+    const double smallest = spacing > 0.0 ? options_.fade.startSamples * spacing : 0.0;
+    return PlaceBoulders(region, spacing, smallest, ground);
+}
+
+std::vector<Boulder> BoulderLayer::PlaceBoulders(const Bounds2d& region, double spacing,
+                                                 double smallest, const Ground* ground) const {
     if (exposure_) {
         RequireGround(ground, "Boulders that read the exposure field");
     }
@@ -652,7 +658,7 @@ std::vector<Boulder> BoulderLayer::Boulders(const Bounds2d& region, double spaci
         return roll == 0.0 ||
                surface_.Contains(surface_.Expand(region, own), {boulder.x, boulder.y});
     };
-    const CraterList candidates = ScatterBoulderCandidates(from, spacing);
+    const CraterList candidates = ScatterBoulderCandidates(from, smallest);
     if (!options_.fragmentation.Enabled()) {
         std::vector<Boulder> boulders =
             DrawBoulders(candidates, spacing, ground, EjectaCraters(from));
@@ -664,7 +670,7 @@ std::vector<Boulder> BoulderLayer::Boulders(const Bounds2d& region, double spaci
     std::vector<Boulder> boulders;
     std::vector<std::size_t> pieces;
     for (const Boulder& parent : DrawBoulders(candidates, spacing, ground, ejecta)) {
-        for (const Boulder& boulder : Break(parent, spacing)) {
+        for (const Boulder& boulder : Break(parent, spacing, smallest)) {
             const double own = 0.5 * boulder.diameter * OwnMarginRadii();
             if (surface_.Contains(surface_.Expand(region, own), {boulder.x, boulder.y})) {
                 if (boulder.parent != 0) {
@@ -751,7 +757,8 @@ Boulder BoulderLayer::PlacePiece(const Boulder& parent, const BoulderFragment& f
     return piece;
 }
 
-std::vector<Boulder> BoulderLayer::Break(const Boulder& parent, double spacing) const {
+std::vector<Boulder> BoulderLayer::Break(const Boulder& parent, double spacing,
+                                         double smallest) const {
     const BoulderFragmentation& fragmentation = options_.fragmentation;
     if (parent.diameter < fragmentation.minDiameter || parent.wear < fragmentation.splitWear) {
         return {parent};
@@ -766,7 +773,6 @@ std::vector<Boulder> BoulderLayer::Break(const Boulder& parent, double spacing) 
                            Stage(parent), shape->shortAxis};
     const IdWords id = SplitId(parent.id);
     RandomStream random(options_.seed, kBoulderPieceStream, id.low, id.high);
-    const double smallest = spacing > 0.0 ? options_.fade.startSamples * spacing : 0.0;
     std::vector<Boulder> pieces;
     for (std::size_t k = 0; k < fragments->size(); ++k) {
         const double push = random.NextDouble();
@@ -912,7 +918,7 @@ std::vector<BoulderModel> BoulderLayer::Models(const std::vector<Boulder>& bould
 BoulderFeatures BoulderLayer::BouldersOver(const RasterGrid& grid, double spacing,
                                            const Ground* ground) const {
     BoulderFeatures placed{
-        Boulders(grid.Bounds(), ResolvedSpacing(grid, spacing, surface_), ground), {}};
+        PlaceBoulders(grid.Bounds(), ListedSpacing(grid, spacing, surface_), 0.0, ground), {}};
     placed.models = Models(placed.boulders);
     return placed;
 }

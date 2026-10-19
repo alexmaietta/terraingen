@@ -74,6 +74,44 @@ TEST(PlacedCraters, KeepsOnlyTheCratersARegionHolds) {
     EXPECT_TRUE(terraingen::PlacedCraters(terrain, terrain.source->Grid()).craters.Empty());
 }
 
+TEST(PlacedCraters, ListsAtASpacingFinerThanTheGrid) {
+    Terrain terrain = Flat();
+    terraingen::CraterLayerOptions options;
+    options.generation.dMin = 0.5;
+    options.generation.dMax = 20.0;
+    terrain.layers = {std::make_shared<terraingen::CraterLayer>(PowerLawCraterModels(), options)};
+    const RasterGrid grid = terrain.source->Grid();
+    const auto atGrid = terraingen::PlacedCraters(terrain, grid);
+    const auto finer = terraingen::PlacedCraters(terrain, grid, 0.25);
+    EXPECT_GT(finer.craters.Size(), atGrid.craters.Size())
+        << "craters too small for the grid but not for the spacing";
+    double smallest = 1e9;
+    for (const double diameter : finer.craters.Diameters()) {
+        smallest = std::fmin(smallest, diameter);
+    }
+    EXPECT_LT(smallest, 2.0) << "below two of the grid's 1 m cells";
+}
+
+TEST(PlacedBoulders, ListsEveryBoulderOfTheSizesHoweverSmall) {
+    Terrain terrain = Flat();
+    terraingen::BoulderLayerOptions options;
+    options.sizes.minDiameter = 0.2;
+    options.sizes.coverage = 0.1;
+    const auto layer = std::make_shared<terraingen::BoulderLayer>(options);
+    terrain.layers = {layer};
+    const RasterGrid grid = terrain.source->Grid();
+    const auto placed = terraingen::PlacedBoulders(terrain, grid);
+    EXPECT_EQ(placed.boulders.size(), layer->Boulders(grid.Bounds()).size());
+    std::size_t small = 0;
+    for (const auto& boulder : placed.boulders) {
+        small += boulder.diameter < 2.0 ? 1 : 0;
+    }
+    EXPECT_GT(small, 0u) << "boulders the 1 m grid cannot draw stay in the list";
+    EXPECT_EQ(placed.boulders.size(),
+              terraingen::PlacedBoulders(terrain, grid, 4.0).boulders.size())
+        << "the spacing does not decide which boulders exist";
+}
+
 TEST(PlacedBoulders, PlacesModelsOnTheGroundBeneathTheirLayer) {
     Terrain terrain = Flat();
     terrain.layers = {std::make_shared<terraingen::ScaleLayer>(1.0, 3.0),

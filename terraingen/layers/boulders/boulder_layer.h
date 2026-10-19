@@ -152,8 +152,12 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     void SetUpBedrockMeans();
     /// Makes the caches of shared shapes and their fragments.
     void SetUpShapeCaches();
-    /// The candidates of `region`, before thinning.
-    CraterList ScatterBoulderCandidates(const Bounds2d& region, double spacing) const;
+    /// The boulders centred in `region` or reaching it, as `Boulders`, leaving out those and the
+    /// pieces narrower than `smallest` metres (0 keeps every one) and marking models at `spacing`.
+    std::vector<Boulder> PlaceBoulders(const Bounds2d& region, double spacing, double smallest,
+                                       const Ground* ground) const;
+    /// The candidates of `region` at least `smallest` metres across (0 for all), before thinning.
+    CraterList ScatterBoulderCandidates(const Bounds2d& region, double smallest) const;
     /// A candidate thinning keeps, with what it was kept by.
     struct ThinnedCandidate {
         Crater candidate;
@@ -190,9 +194,10 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// Rolls `boulder` down ground steeper than `maxSlope` until it rests, as `rollDistance`
     /// allows; false when it would roll farther, or with no roll distance on steep ground.
     bool Roll(Boulder& boulder, const Ground& ground) const;
-    /// The pieces `parent` breaks into at its wear, those resolved at `spacing`, their ground left
-    /// to `ReadGrounds`; `parent` alone when it is too small or too fresh to break.
-    std::vector<Boulder> Break(const Boulder& parent, double spacing) const;
+    /// The pieces `parent` breaks into at its wear, those at least `smallest` metres across, models
+    /// marked at `spacing` and their ground left to `ReadGrounds`; `parent` alone when it is too
+    /// small or too fresh to break.
+    std::vector<Boulder> Break(const Boulder& parent, double spacing, double smallest) const;
     /// Sets the ground of the boulders `indices` of `boulders` from `ground`, read in one pass;
     /// unset without a ground or where it is missing.
     void ReadGrounds(std::vector<Boulder>& boulders, const std::vector<std::size_t>& indices,

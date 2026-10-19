@@ -340,8 +340,8 @@ CraterAttributes SecondaryCraterLayer::Attributes(const Crater& crater) const {
 }
 
 CraterFeatures SecondaryCraterLayer::CratersOver(const RasterGrid& grid, double spacing) const {
-    return DescribeCraters(
-        Secondaries(grid.Bounds(), ResolvedSpacing(grid, spacing, apply_.surface)), models_);
+    return DescribeCraters(Secondaries(grid.Bounds(), ListedSpacing(grid, spacing, apply_.surface)),
+                           models_);
 }
 
 double SecondaryCraterLayer::MaxFeatureDiameter() const {

@@ -54,7 +54,9 @@ template <typename IO, typename Output> void FeatureExtentFields(IO& io, Output&
            ", or without a base the whole body on a body.");
     io("spacing", output.spacing,
        "Sample spacing in metres the features are listed at, as a heightmap of that pixel size "
-       "applies them; unset for the region's pixel size. A whole-body list needs it.",
+       "applies them, finer or coarser than the region's pixels; unset for the region's pixel "
+       "size. Boulder lists hold every boulder of the layers' diameter ranges, and mark models at "
+       "it. A whole-body list needs it.",
        "m", Above(0.0));
 }
 

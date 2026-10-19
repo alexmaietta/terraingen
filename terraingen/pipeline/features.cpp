@@ -3,11 +3,11 @@
 namespace terraingen {
 
 CraterFeatures PlacedCraters(const Terrain& terrain, const RasterGrid& grid, double spacing) {
-    return PlacedCraters(terrain.layers, grid, ResolvedSpacing(grid, spacing, terrain.surface));
+    return PlacedCraters(terrain.layers, grid, ListedSpacing(grid, spacing, terrain.surface));
 }
 
 BoulderFeatures PlacedBoulders(const Terrain& terrain, const RasterGrid& grid, double spacing) {
-    const double resolved = ResolvedSpacing(grid, spacing, terrain.surface);
+    const double resolved = ListedSpacing(grid, spacing, terrain.surface);
     BoulderFeatures placed;
     ForEachLayer<BoulderPlacer>(terrain, [&](const BoulderPlacer& placer, std::size_t n) {
         const TerrainGround ground(terrain, n);

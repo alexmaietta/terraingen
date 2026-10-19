@@ -84,6 +84,7 @@ void CheckNoiseStack(const std::vector<NoiseLayerConfig>& layers, const std::str
 struct Extent {
     double area = 0.0;     ///< Square metres.
     double spacing = 0.0;  ///< Metres.
+    bool listed = false;   ///< A feature list, which holds every boulder however small.
 };
 
 /// What a layer is checked against, and what the layers before it found.
@@ -174,7 +175,9 @@ void CheckLayerSpec(const BoulderLayerSpec& spec, const std::string& path, Layer
     const BoulderSizes& sizes = boulders.sizes;
     for (const Extent& extent : context.extents) {
         const double minDiameter =
-            std::fmax(sizes.minDiameter, boulders.fade.startSamples * extent.spacing);
+            extent.listed
+                ? sizes.minDiameter
+                : std::fmax(sizes.minDiameter, boulders.fade.startSamples * extent.spacing);
         if (minDiameter >= sizes.maxDiameter) {
             continue;
         }
@@ -483,8 +486,12 @@ std::vector<Extent> CheckOutputs(const TerrainConfig& config, const Surface& sur
         const std::optional<RasterGrid> grid = CheckOutputGrid(output, path, summary.base, surface);
         summary.outputGrids.push_back(grid);
         if (grid) {
-            extents.push_back({grid->SurfaceArea(surface),
-                               std::fmax(config::OutputSpacing(output), grid->Spacing(surface))});
+            const bool listed =
+                config::HoldsAny<CraterListOutput, BoulderListOutput, BoulderModelsOutput>(output);
+            const double spacing =
+                listed ? ListedSpacing(*grid, config::OutputSpacing(output), surface)
+                       : std::fmax(config::OutputSpacing(output), grid->Spacing(surface));
+            extents.push_back({grid->SurfaceArea(surface), spacing, listed});
         }
     }
     return extents;

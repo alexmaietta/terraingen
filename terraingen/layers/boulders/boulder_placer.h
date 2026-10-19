@@ -29,9 +29,11 @@ class BoulderPlacer {
   public:
     virtual ~BoulderPlacer() = default;
 
-    /// The boulders the layer places over `grid`, as its `Apply` there sees them, each read on
+    /// The boulders the layer places over `grid`, each read on
     /// `ground` (null leaves the ground unknown, and models unplaced).
-    /// @param spacing The sample spacing in metres, raised to the grid's as `Apply` raises it.
+    /// @param spacing The sample spacing in metres models are marked at, finer than the grid's or
+    /// not (`ListedSpacing`); 0 for the grid's. Every boulder of the layer's diameter range is
+    /// listed, however small, since those too small for the heights stand as models or in lists.
     virtual BoulderFeatures BouldersOver(const RasterGrid& grid, double spacing,
                                          const Ground* ground) const = 0;
 };

@@ -77,6 +77,10 @@ double ResolvedSpacing(const RasterGrid& grid, double spacing, const Surface& su
     return std::max(spacing, grid.Spacing(surface));
 }
 
+double ListedSpacing(const RasterGrid& grid, double spacing, const Surface& surface) {
+    return spacing > 0.0 ? spacing : grid.Spacing(surface);
+}
+
 double RasterGrid::SurfaceArea(const Surface& surface) const {
     if (!surface.IsBody()) {
         return Area();

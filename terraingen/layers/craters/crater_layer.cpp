@@ -196,7 +196,7 @@ CraterAttributes CraterLayer::Attributes(const Crater& crater) const {
 }
 
 CraterFeatures CraterLayer::CratersOver(const RasterGrid& grid, double spacing) const {
-    return DescribeCraters(Craters(grid.Bounds(), ResolvedSpacing(grid, spacing, options_.surface)),
+    return DescribeCraters(Craters(grid.Bounds(), ListedSpacing(grid, spacing, options_.surface)),
                            models_.Shape());
 }
 

@@ -69,4 +69,9 @@ double ResolvedSpacing(const Raster<float>& raster, double spacing, const Surfac
 /// @param spacing The requested spacing in metres; 0 for the grid's own.
 double ResolvedSpacing(const RasterGrid& grid, double spacing, const Surface& surface);
 
+/// The spacing features are listed at over a grid: `spacing` when given, finer than the grid's
+/// own or not, else the grid's own spacing on `surface`.
+/// @param spacing The requested spacing in metres; 0 for the grid's own.
+double ListedSpacing(const RasterGrid& grid, double spacing, const Surface& surface);
+
 }  // namespace terraingen
