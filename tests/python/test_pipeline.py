@@ -259,3 +259,33 @@ def test_height_mesh_cuts_out_boxes_and_hangs_skirts():
     skirted = terraingen.height_mesh(heights, cutouts=[box], skirt=2.0)
     assert holed.triangle_count == whole.triangle_count - 8
     assert skirted.triangle_count == holed.triangle_count + 2 * 28
+
+
+def test_a_nested_terrain_refines_regions_built_in_python():
+    base = terraingen.FlatSource(33, 33, 2.0).grid()
+    origin = terraingen.evaluate(terraingen.Terrain(None, []), grid=base).cell_center(0, 0)
+    upscaling = terraingen.MidpointDisplacementLayer(
+        terraingen.MidpointDisplacementOptions(
+            pixel_size=2.0, origin=origin, scale=0.3, base=terraingen.MidpointBase.SOURCE
+        )
+    )
+    levels = terraingen.repeated_levels(2.0, 16.0, 2)
+    assert levels[1] == terraingen.NestedLevel(pixel_size=0.5, size=8.0)
+    region = terraingen.NestedRegion(name="site", centre=(5.0, -3.0), levels=levels, blend_cells=0)
+    region.upscaling = [upscaling]
+    assert len(region.upscaling) == 1
+    nested = terraingen.NestedTerrain(terraingen.Terrain(None, []), base, [region])
+    assert [g.level for g in nested.grids] == [0, 1, 2]
+    assert nested.grids[2].parent == 1 and nested.grids[0].region is None
+    assert nested.find_region("site") == 0 and nested.grid_index(0, 2) == 2
+    assert len(nested.grid_terrain(2).layers) == 1
+    heights = nested.evaluate_all(threads=2)
+    fine = heights[2].values
+    assert np.abs(fine).max() > 0.0
+    np.testing.assert_array_equal(nested.evaluate(2, heights[1]).values, fine)
+    mesh = nested.mesh(heights, [0, 1, 2], skirt=1.0)
+    assert mesh.triangle_count > 0
+    with pytest.raises(ValueError, match="overlaps"):
+        terraingen.nest_grids(
+            base, [region, terraingen.NestedRegion(name="b", centre=(6.0, -2.0), levels=levels)]
+        )
