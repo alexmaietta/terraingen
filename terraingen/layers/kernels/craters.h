@@ -114,6 +114,52 @@ struct CraterRecord {
     float upslopeY = 0.0f;  ///< `CraterSlopeShape::upslope` north.
 };
 
+/// A point east and north of a crater's centre, in metres, as the kernel reads it.
+struct KernelOffset {
+    float dx = 0.0f;
+    float dy = 0.0f;
+};
+
+/// A crater's local frame on a body, from which the GPU works out each sample's offset
+/// (`KernelFrameOffset`) as `Surface::Offset` does.
+struct CraterFrame {
+    float x = 0.0f;  ///< Centre's position from the dispatch's origin (m), as `Surface::Position`.
+    float y = 0.0f;
+    float z = 0.0f;
+    float eastX = 1.0f;  ///< Unit vector east at the centre.
+    float eastY = 0.0f;
+    float eastZ = 0.0f;
+    float northX = 0.0f;  ///< Unit vector north at the centre.
+    float northY = 1.0f;
+    float northZ = 0.0f;
+    /// The radius (m) of a sphere, whose offsets are azimuthal equidistant; 0 on an ellipsoid or
+    /// shape model, whose offsets are projected on the tangent plane.
+    float sphereRadius = 0.0f;
+};
+
+/// The offset of the point at position (`px`, `py`, `pz`) from the dispatch's origin (m) in
+/// crater frame `f`: `Surface::Offset` in single precision.
+inline KernelOffset KernelFrameOffset(KERNEL_IN(CraterFrame) f, float px, float py, float pz) {
+    const float dx = px - f.x;
+    const float dy = py - f.y;
+    const float dz = pz - f.z;
+    KernelOffset offset;
+    offset.dx = dx * f.eastX + dy * f.eastY + dz * f.eastZ;
+    offset.dy = dx * f.northX + dy * f.northY + dz * f.northZ;
+    if (f.sphereRadius > 0.0f) {
+        const float half = min(0.5f * sqrt(dx * dx + dy * dy + dz * dz) / f.sphereRadius, 1.0f);
+        const float arc = 2.0f * f.sphereRadius * atan2(half, sqrt(1.0f - half * half));
+        const float across = sqrt(offset.dx * offset.dx + offset.dy * offset.dy);
+        if (across > 0.0f) {
+            offset.dx *= arc / across;
+            offset.dy *= arc / across;
+        } else {
+            offset.dy = arc;
+        }
+    }
+    return offset;
+}
+
 #ifdef __SLANG__
 /// Where the variable-length values of craters are read from: a buffer the dispatch binds.
 typedef StructuredBuffer<float> CraterData;
@@ -742,6 +788,7 @@ static_assert(sizeof(CraterProfileKernel) == 76,
               "CraterProfileKernel must match its std430 layout");
 static_assert(sizeof(CraterShapeKernel) == 180, "CraterShapeKernel must match its std430 layout");
 static_assert(sizeof(CraterRecord) == 116, "CraterRecord must match its std430 layout");
+static_assert(sizeof(CraterFrame) == 40, "CraterFrame must match its std430 layout");
 
 /// The compiled forms of the crater kernel.
 template <> KernelProgram CompiledKernel<CraterShapeKernel>();

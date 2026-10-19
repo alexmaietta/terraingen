@@ -654,9 +654,10 @@ void ShapeTiles(Raster<float>& raster, unsigned threads, const CraterShapeKernel
 constexpr std::size_t kGpuTileCells = 16;
 
 /// The craters of each tile of `kGpuTileCells`, `tilesX` across, as the GPU kernel reads them:
-/// tiles across and side, then each tile's first entry and count; and the entries.
+/// tiles across and side, 1 on a body, then each tile's first entry and count; and the entries.
 std::pair<std::vector<std::uint32_t>, std::vector<std::uint32_t>>
-GpuTileLists(const Raster<float>& raster, const std::vector<std::vector<PixelWindow>>& windows) {
+GpuTileLists(const Raster<float>& raster, const std::vector<std::vector<PixelWindow>>& windows,
+             bool onBody) {
     const std::size_t tilesX = CeilDiv(raster.Width(), kGpuTileCells);
     const std::size_t tilesY = CeilDiv(raster.Height(), kGpuTileCells);
     std::vector<std::vector<std::uint32_t>> lists(tilesX * tilesY);
@@ -671,7 +672,7 @@ GpuTileLists(const Raster<float>& raster, const std::vector<std::vector<PixelWin
         }
     }
     std::vector<std::uint32_t> tiles{static_cast<std::uint32_t>(tilesX),
-                                     static_cast<std::uint32_t>(kGpuTileCells)};
+                                     static_cast<std::uint32_t>(kGpuTileCells), onBody ? 1u : 0u};
     std::vector<std::uint32_t> entries;
     for (const std::vector<std::uint32_t>& list : lists) {
         tiles.push_back(static_cast<std::uint32_t>(entries.size()));
@@ -684,39 +685,74 @@ GpuTileLists(const Raster<float>& raster, const std::vector<std::vector<PixelWin
     return {std::move(tiles), std::move(entries)};
 }
 
+/// Where the GPU reads crater offsets on a body: each crater's frame, and each cell's position as
+/// x, y, z triples row by row, both from one origin; a placeholder of each on a plane.
+struct GpuFrames {
+    std::vector<CraterFrame> frames{CraterFrame{}};
+    std::vector<float> positions{0.0f};
+};
+
+/// The frames of craters `onRaster` of `prepared` and the positions of the cells of `raster` on
+/// body `surface`, measured from the position of surface point `centre`, on `threads` threads.
+GpuFrames BodyFrames(const Raster<float>& raster, const std::vector<PreparedCrater>& prepared,
+                     const std::vector<std::size_t>& onRaster, const Surface& surface,
+                     const Vec2d& centre, unsigned threads) {
+    const Vec3d origin = surface.Position(centre);
+    GpuFrames body;
+    body.frames.resize(onRaster.size());
+    for (std::size_t n = 0; n < onRaster.size(); ++n) {
+        body.frames[n] = MakeCraterFrame(surface, prepared[onRaster[n]].crater, origin);
+    }
+    body.positions.resize(3 * raster.Size());
+    ParallelFor(raster.Height(), threads, [&](std::size_t row) {
+        for (std::size_t col = 0; col < raster.Width(); ++col) {
+            const Vec3d p = surface.Position(raster.CellCenter(col, row)) - origin;
+            float* at = body.positions.data() + 3 * (row * raster.Width() + col);
+            at[0] = static_cast<float>(p.x);
+            at[1] = static_cast<float>(p.y);
+            at[2] = static_cast<float>(p.z);
+        }
+    });
+    return body;
+}
+
 /// Shapes the craters `onRaster` of `prepared` into `raster` on GPU `backend`, each cell running
 /// the craters of its tile in order; false, leaving `raster` unchanged, when the backend is the
-/// CPU or cannot take the grid (`RunKernel`). The GPU reads planar offsets from per-row and
-/// per-column positions, so on a body, whose local frames differ per crater, grids are shaped on
-/// the CPU instead.
-bool ShapeTilesOnGpu(Raster<float>& raster, Backend backend, const CraterShapeKernel& kernel,
-                     CraterKernelBatch& batch, const std::vector<PreparedCrater>& prepared,
+/// CPU or cannot take the grid (`RunKernel`). On a plane the GPU reads offsets from per-column and
+/// per-row positions; on a body from cell positions and crater frames, set on `threads` threads.
+bool ShapeTilesOnGpu(Raster<float>& raster, Backend backend, unsigned threads,
+                     const CraterShapeKernel& kernel, CraterKernelBatch& batch,
+                     const std::vector<PreparedCrater>& prepared,
                      const std::vector<std::size_t>& onRaster,
                      const std::vector<std::vector<PixelWindow>>& windows, const Surface& surface) {
     if (backend == Backend::Cpu || batch.records.empty()) {
         return false;
     }
-    if (surface.IsBody()) {
-        LogDebug("craters", "Shaping craters on the CPU: ", BackendName(backend),
-                 " shapes planar grids only");
-        return false;
-    }
-    const auto [tiles, entries] = GpuTileLists(raster, windows);
+    const bool onBody = surface.IsBody();
+    const auto [tiles, entries] = GpuTileLists(raster, windows, onBody);
     const Bounds2d bounds = RasterGrid::FromRaster(raster).Bounds();
     const Vec2d origin{0.5 * (bounds.minX + bounds.maxX), 0.5 * (bounds.minY + bounds.maxY)};
-    for (std::size_t n = 0; n < onRaster.size(); ++n) {
-        const Crater& c = prepared[onRaster[n]].crater;
-        batch.records[n].x = static_cast<float>(c.x - origin.x);
-        batch.records[n].y = static_cast<float>(c.y - origin.y);
+    GpuFrames body;
+    if (onBody) {
+        body = BodyFrames(raster, prepared, onRaster, surface, origin, threads);
+    } else {
+        for (std::size_t n = 0; n < onRaster.size(); ++n) {
+            const Crater& c = prepared[onRaster[n]].crater;
+            batch.records[n].x = static_cast<float>(c.x - origin.x);
+            batch.records[n].y = static_cast<float>(c.y - origin.y);
+        }
     }
     if (batch.data.empty()) {
         batch.data.push_back(0.0f);
     }
-    const std::array<KernelBuffer, 4> extra{
+    const std::array<KernelBuffer, 6> extra{
         KernelBuffer{std::as_bytes(std::span(batch.records)), batch.records.size()},
         KernelBuffer{std::as_bytes(std::span(batch.data)), batch.data.size()},
         KernelBuffer{std::as_bytes(std::span(tiles)), tiles.size()},
-        KernelBuffer{std::as_bytes(std::span(entries)), entries.size()}};
+        KernelBuffer{std::as_bytes(std::span(entries)), entries.size()},
+        KernelBuffer{std::as_bytes(std::span(body.frames)), body.frames.size()},
+        KernelBuffer{std::as_bytes(std::span(body.positions)), body.positions.size(),
+                     onBody ? std::size_t{3} : std::size_t{0}}};
     if (!RunKernel(backend, CompiledKernel<CraterShapeKernel>(),
                    std::as_bytes(std::span(&kernel, 1)), raster, origin, extra)) {
         return false;
@@ -849,8 +885,8 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
         FitDatums(prepared, onRaster, raster, profile, kernel, options, sampling);
     }
     CraterKernelBatch batch = MakeCraterKernelBatch(kernel, profile, prepared, onRaster, options);
-    if (!ShapeTilesOnGpu(raster, sampling.backend, kernel, batch, prepared, onRaster, windows,
-                         options.surface)) {
+    if (!ShapeTilesOnGpu(raster, sampling.backend, sampling.threads, kernel, batch, prepared,
+                         onRaster, windows, options.surface)) {
         ShapeTiles(raster, sampling.threads, kernel, batch, prepared, onRaster, windows,
                    options.surface);
     }

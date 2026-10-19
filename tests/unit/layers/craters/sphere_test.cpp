@@ -290,11 +290,10 @@ void ExpectGridsTilesAndPointsAgree(const CraterLayer& layer, const BodyCase& bo
         }
         Raster<float> gpu = Geographic(body.crater.x - half, body.crater.y + half, body.step, 96);
         layer.Apply(gpu, {.spacing = spacing, .ground = ground, .backend = status.backend});
-        const float tolerance = body.surface.IsBody() ? 0.0f : 2e-3f;
+        const auto tolerance = static_cast<float>(1e-5 * body.crater.diameter);
         for (std::size_t i = 0; i < whole.Size(); ++i) {
             ASSERT_NEAR(gpu.Values()[i], whole.Values()[i], tolerance)
-                << body.name << " on " << terraingen::BackendName(status.backend)
-                << "; bodies are shaped on the CPU, planes to within float rounding";
+                << body.name << " on " << terraingen::BackendName(status.backend);
         }
     }
 }

@@ -266,6 +266,24 @@ CraterShapeKernel MakeCraterShapeKernel(const CraterProfile& profile,
     return k;
 }
 
+CraterFrame MakeCraterFrame(const Surface& surface, const Crater& crater, const Vec3d& origin) {
+    const Vec2d centre{crater.x, crater.y};
+    const Vec3d position = surface.Position(centre) - origin;
+    const LocalFrame frame = surface.Frame(centre);
+    CraterFrame f;
+    f.x = static_cast<float>(position.x);
+    f.y = static_cast<float>(position.y);
+    f.z = static_cast<float>(position.z);
+    f.eastX = static_cast<float>(frame.east.x);
+    f.eastY = static_cast<float>(frame.east.y);
+    f.eastZ = static_cast<float>(frame.east.z);
+    f.northX = static_cast<float>(frame.north.x);
+    f.northY = static_cast<float>(frame.north.y);
+    f.northZ = static_cast<float>(frame.north.z);
+    f.sphereRadius = surface.IsSphere() ? static_cast<float>(surface.Radius()) : 0.0f;
+    return f;
+}
+
 CraterKernelBatch MakeCraterKernelBatch(const CraterShapeKernel& kernel,
                                         const CraterProfile& profile,
                                         const std::vector<PreparedCrater>& prepared,

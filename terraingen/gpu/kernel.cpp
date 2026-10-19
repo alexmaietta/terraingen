@@ -12,9 +12,9 @@ namespace terraingen {
 
 namespace {
 
-/// Most cells one dispatch covers, keeping each buffer under the smallest storage buffer range
+/// Most bytes a strip's buffer of the grid's cells holds, under the smallest storage buffer range
 /// Vulkan allows (128 MiB).
-constexpr std::size_t kMaxStripCells = std::size_t{1} << 24;
+constexpr std::size_t kMaxStripBytes = std::size_t{1} << 26;
 
 /// Cells per workgroup side in kernels.
 constexpr std::size_t kGroupSide = 16;
@@ -72,6 +72,17 @@ KernelParams GridParams(const Raster<float>& grid) {
     return params;
 }
 
+/// The most bytes any buffer of `grid`'s cells holds per cell: its heights or one of `extra`.
+std::size_t CellBytes(const Raster<float>& grid, std::span<const KernelBuffer> extra) {
+    std::size_t bytes = sizeof(float);
+    for (const KernelBuffer& buffer : extra) {
+        if (buffer.perCell != 0) {
+            bytes = std::max(bytes, buffer.bytes.size() / grid.Size());
+        }
+    }
+    return bytes;
+}
+
 /// A whole grid's kernel run, one strip of rows at a time.
 struct StripRun {
     ComputeDevice& device;
@@ -94,7 +105,14 @@ struct StripRun {
             InputBuffer(std::as_bytes(std::span(ys).subspan(row0, rows)), rows),
             InputBuffer(kernel, 1)};
         for (const KernelBuffer& buffer : extra) {
-            buffers.push_back(InputBuffer(buffer.bytes, buffer.count));
+            if (buffer.perCell == 0) {
+                buffers.push_back(InputBuffer(buffer.bytes, buffer.count));
+                continue;
+            }
+            const std::size_t elements = buffer.perCell * width;
+            const std::size_t bytes = buffer.bytes.size() / buffer.count * elements;
+            buffers.push_back(
+                InputBuffer(buffer.bytes.subspan(row0 * bytes, rows * bytes), rows * elements));
         }
         const Dispatch dispatch{{Groups(width), Groups(rows), 1u}, {kGroupSide, kGroupSide, 1u}};
         device.Run(program, buffers, std::as_bytes(std::span(&params, 1)), dispatch);
@@ -120,8 +138,8 @@ bool RunKernel(Backend backend, const KernelProgram& program, std::span<const st
                  RowOffsets(grid, origin),
                  GridParams(grid)};
     const std::size_t height = grid.Height();
-    const std::size_t stripRows =
-        std::clamp<std::size_t>(kMaxStripCells / grid.Width(), 1, kMaxGroups * kGroupSide);
+    const std::size_t stripRows = std::clamp<std::size_t>(
+        kMaxStripBytes / (CellBytes(grid, extra) * grid.Width()), 1, kMaxGroups * kGroupSide);
     for (std::size_t row0 = 0; row0 < height; row0 += stripRows) {
         run.Run(grid.Values(), row0, std::min(stripRows, height - row0));
     }

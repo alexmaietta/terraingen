@@ -322,3 +322,143 @@ TEST(CraterKernel, FitsDatumsOnEveryAvailableGpuAsOnTheCpu) {
         GTEST_SKIP() << "no GPU backend here";
     }
 }
+
+namespace {
+
+struct BodySurface {
+    std::string name;
+    terraingen::Surface surface;
+    terraingen::Vec2d centre;  ///< Longitude and latitude in degrees.
+    double step;               ///< Grid cell side in degrees.
+    double maxDiameter;        ///< Largest crater on the grid, in metres.
+};
+
+std::vector<BodySurface> BodySurfaces() {
+    const auto asteroid = std::make_shared<const terraingen::RadialShape>(
+        terraingen::RadialShape::Sample(24, [](const terraingen::Vec3d& d) {
+            return 8000.0 + 600.0 * d.x * d.y + 300.0 * d.z * d.z;
+        }));
+    return {{"sphere", terraingen::Surface::Sphere(1737400.0), {30.0, 60.0}, 0.0005, 400.0},
+            {"ellipsoid",
+             terraingen::Surface::Ellipsoid(1738100.0, 1737400.0, 1735970.0),
+             {-40.0, 25.0},
+             0.0005,
+             400.0},
+            {"shape model", terraingen::Surface::ShapeModel(asteroid), {10.0, 20.0}, 0.01, 60.0}};
+}
+
+/// `count` craters up to `body.maxDiameter` spread over a square of `side` cells around the
+/// body's centre.
+terraingen::CraterList BodyCraters(const BodySurface& body, std::size_t side, int count) {
+    terraingen::CraterList craters;
+    const double half = 0.5 * static_cast<double>(side) * body.step;
+    for (int i = 0; i < count; ++i) {
+        const double u = std::fmod(0.37 * i, 1.0);
+        const double v = std::fmod(0.53 * i + 0.1, 1.0);
+        const double d = body.maxDiameter * (0.02 + 0.98 * std::fmod(0.29 * i, 1.0));
+        craters.Append({body.centre.x - half + 2.0 * half * u,
+                        body.centre.y - half + 2.0 * half * v, d, 0.002 * (i % 40),
+                        static_cast<std::uint64_t>(i + 1)});
+    }
+    return craters;
+}
+
+/// A longitude-latitude grid of `side` cells centred on `body`'s centre, sloping east.
+terraingen::Raster<float> BodyGrid(const BodySurface& body, std::size_t side) {
+    terraingen::Raster<float> grid(side, side, 0.0f);
+    const double half = 0.5 * static_cast<double>(side) * body.step;
+    grid.SetTransform(
+        terraingen::GeoTransform::NorthUp(body.centre.x - half, body.centre.y + half, body.step));
+    for (std::size_t i = 0; i < grid.Size(); ++i) {
+        grid.Values()[i] = 0.02f * static_cast<float>(i % side);
+    }
+    return grid;
+}
+
+/// The largest difference between two rasters of one size, in metres.
+double LargestDifference(const terraingen::Raster<float>& a, const terraingen::Raster<float>& b) {
+    double largest = 0.0;
+    for (std::size_t i = 0; i < a.Size(); ++i) {
+        largest = std::max(largest, std::fabs(static_cast<double>(a.Values()[i]) -
+                                              static_cast<double>(b.Values()[i])));
+    }
+    return largest;
+}
+
+}  // namespace
+
+TEST(CraterKernel, WorksOutBodyOffsetsInEachCratersFrameAsTheSurfaceDoes) {
+    for (const BodySurface& body : BodySurfaces()) {
+        const Crater crater{body.centre.x, body.centre.y, body.maxDiameter, 0.0, 1u};
+        const terraingen::Vec2d corner = body.surface.Locate(body.centre, {-900.0, 700.0});
+        const terraingen::Vec3d origin = body.surface.Position(corner);
+        const terraingen::CraterFrame frame =
+            terraingen::MakeCraterFrame(body.surface, crater, origin);
+        for (const double metres : {0.0, 0.01, 1.0, 37.0, 250.0, 1200.0}) {
+            for (const double azimuth : {0.0, 0.7, 2.2, 3.9, 5.5}) {
+                const terraingen::Vec2d point = body.surface.Locate(
+                    body.centre, {metres * std::sin(azimuth), metres * std::cos(azimuth)});
+                const terraingen::Vec3d p = body.surface.Position(point) - origin;
+                const terraingen::KernelOffset kernel =
+                    terraingen::KernelFrameOffset(frame, static_cast<float>(p.x),
+                                                  static_cast<float>(p.y), static_cast<float>(p.z));
+                const terraingen::KernelOffset exact =
+                    terraingen::ShapingOffset(body.surface, crater, point);
+                const double tolerance = 1e-3 + 1e-6 * metres;
+                EXPECT_NEAR(kernel.dx, exact.dx, tolerance) << body.name << " at " << metres;
+                EXPECT_NEAR(kernel.dy, exact.dy, tolerance) << body.name << " at " << metres;
+            }
+        }
+    }
+}
+
+TEST(CraterKernel, ShapesBodyGridsOnEveryAvailableGpuAsOnTheCpu) {
+    const auto ft = std::make_shared<terraingen::FassettThomsonProfile>();
+    const auto diffused = std::make_shared<terraingen::DiffusedProfile>(ft);
+    const terraingen::CraterShapeModels models{
+        diffused, std::make_shared<terraingen::DiffusionDegradation>(
+                      terraingen::LunarFreshCraterMorphometry,
+                      terraingen::Fassett2022HartmannDiffusivity(), diffused)};
+    constexpr std::size_t kSide = 256;
+    int ran = 0;
+    for (const BodySurface& body : BodySurfaces()) {
+        const terraingen::CraterList craters = BodyCraters(body, kSide, 250);
+        const terraingen::Raster<float> base = BodyGrid(body, kSide);
+        for (const auto datum : {terraingen::CraterDatum::None, terraingen::CraterDatum::Plane}) {
+            CraterApplyOptions options;
+            options.surface = body.surface;
+            options.datum = datum;
+            options.noise.amplitude = 0.01;
+            options.texture.ejecta = 0.5;
+            options.irregularity.enabled = true;
+            options.irregularity.selection.manual = true;
+            options.slope.enabled = datum == terraingen::CraterDatum::Plane;
+            options.slope.fullSlope = 0.002;
+            terraingen::Raster<float> cpu = base;
+            terraingen::ApplyCraters(cpu, craters, models, options, {});
+            EXPECT_GT(LargestDifference(cpu, base), 0.05 * body.maxDiameter) << body.name;
+            for (const terraingen::BackendStatus& status : terraingen::Backends()) {
+                if (status.backend == terraingen::Backend::Cpu || !status.available) {
+                    continue;
+                }
+                terraingen::Raster<float> gpu = base;
+                terraingen::CraterSampling sampling;
+                sampling.backend = status.backend;
+                terraingen::ApplyCraters(gpu, craters, models, options, sampling);
+                for (std::size_t i = 0; i < gpu.Size(); ++i) {
+                    ASSERT_FALSE(std::isnan(gpu.Values()[i]))
+                        << body.name << " on " << terraingen::BackendName(status.backend)
+                        << ", cell " << i;
+                }
+                const double largest = LargestDifference(gpu, cpu);
+                EXPECT_LT(largest, 1e-5 * body.maxDiameter)
+                    << body.name << " on " << terraingen::BackendName(status.backend) << ", datum "
+                    << static_cast<int>(datum);
+                ++ran;
+            }
+        }
+    }
+    if (ran == 0) {
+        GTEST_SKIP() << "no GPU backend here";
+    }
+}

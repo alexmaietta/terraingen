@@ -25,12 +25,6 @@ constexpr std::uint32_t kProfileTableCells = 512;
 CraterShapeKernel MakeCraterShapeKernel(const CraterProfile& profile,
                                         const CraterApplyOptions& options);
 
-/// A point east and north of a crater's centre, in metres, as the kernel reads it.
-struct KernelOffset {
-    float dx = 0.0f;
-    float dy = 0.0f;
-};
-
 /// The offset at which the kernel shapes surface point `point` from `crater`'s centre:
 /// `Surface::Offset` in single precision, so exactly the difference on a plane and the crater's
 /// local frame on a body.
@@ -39,6 +33,10 @@ inline KernelOffset ShapingOffset(const Surface& surface, const Crater& crater,
     const Vec2d offset = surface.Offset({crater.x, crater.y}, point);
     return {static_cast<float>(offset.x), static_cast<float>(offset.y)};
 }
+
+/// The frame in which the GPU shapes points of body `surface` around `crater`
+/// (`KernelFrameOffset`), with positions measured from `origin` (m).
+CraterFrame MakeCraterFrame(const Surface& surface, const Crater& crater, const Vec3d& origin);
 
 /// Craters ready for the kernel: one record per crater, and the values that vary in length.
 struct CraterKernelBatch {
