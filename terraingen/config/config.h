@@ -53,6 +53,21 @@ namespace terraingen {
 /// Version of the configuration format that this library reads and writes.
 inline constexpr int kConfigSchemaVersion = 1;
 
+/// Smallest grid side, in cells, a configuration may request.
+inline constexpr std::size_t kMinConfigGridSize = 2;
+
+/// Largest grid side, in cells, a configuration may request.
+inline constexpr std::size_t kMaxConfigGridSize = 65536;
+
+/// Largest number of cells along a cube face edge of a body mesh or a shape model's radial grid.
+inline constexpr std::size_t kMaxCubeFaceCells = 4096;
+
+/// Largest crease angle of boulder models, in degrees.
+inline constexpr double kMaxCreaseAngle = 180.0;
+
+/// What GeoTIFF output tile sides, in pixels, must be a multiple of.
+inline constexpr std::uint32_t kTileSizeMultiple = 16;
+
 /// One noise layer, its octave gain optionally derived from a Hurst exponent.
 struct NoiseLayerConfig {
     NoiseLayer layer{};

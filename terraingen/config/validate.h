@@ -13,9 +13,6 @@
 
 namespace terraingen {
 
-/// Largest grid side, in cells, a configuration may request.
-inline constexpr std::size_t kMaxConfigGridSize = 65536;
-
 /// What a valid configuration generates, as `ValidateConfig` finds it.
 struct ConfigSummary {
     std::optional<RasterGrid> base;  ///< The base's grid; none without a base.
@@ -26,9 +23,14 @@ struct ConfigSummary {
     std::optional<double> expectedCraters;
 };
 
-/// Checks everything that parsing cannot, such as grid limits, the raster file, model parameters,
-/// outputs and their grids, and the expected crater counts over each, and returns the grids and
-/// the largest count.
+/// Checks every number of a configuration against the range its field declares (`FieldRange`),
+/// in the units the configuration stores it in.
+/// @throws ConfigError naming the first number out of its range by its JSON path.
+void CheckConfigRanges(const TerrainConfig& config);
+
+/// Checks every field range (`CheckConfigRanges`) and everything that parsing cannot, such as grid
+/// limits, the raster file, model parameters, outputs and their grids, and the expected crater
+/// counts over each, and returns the grids and the largest count.
 /// @param directory Folder relative input paths resolve against.
 /// @throws ConfigError naming the first invalid value by its JSON path.
 ConfigSummary ValidateConfig(const TerrainConfig& config,

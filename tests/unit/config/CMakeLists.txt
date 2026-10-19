@@ -3,6 +3,7 @@ terraingen_add_test_suite(
     SOURCES
     build_test.cpp
     checks_test.cpp
+    ranges_test.cpp
     config_test.cpp
     feature_lists_test.cpp
     generate_terrain_test.cpp

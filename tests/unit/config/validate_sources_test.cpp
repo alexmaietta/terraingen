@@ -157,7 +157,7 @@ TEST(ValidateConfig, ReportsRasterAlbedoProblemsByPath) {
     EXPECT_EQ(rejected({"map.tif", {0}, {}, NAN, {}}), "albedo.source.scale");
     terraingen::RasterAlbedoSpec detail{"map.tif", {0}, {}, {}, {}};
     detail.options.detail.octaves = 0;
-    EXPECT_EQ(rejected(detail), "albedo.source.detail");
+    EXPECT_EQ(rejected(detail), "albedo.source.detail.octaves");
     terraingen::Raster<float> rotated = map;
     rotated.SetTransform({1000.0, 20.0, 1.0, 2000.0, 0.0, -20.0});
     terraingen::WriteGeoTiff(folder / "rotated.tif", rotated, terraingen::testing::Keys());

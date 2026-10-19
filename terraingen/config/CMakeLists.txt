@@ -9,6 +9,7 @@ terraingen_add_library(
     feature_lists.cpp
     generate.cpp
     json.cpp
+    ranges.cpp
     schema.cpp
     validate.cpp
     PUBLIC

@@ -31,17 +31,23 @@ TEST(ConfigChecks, BuildsJsonPaths) {
 }
 
 TEST(ConfigChecks, PassValidValues) {
-    EXPECT_NO_THROW(config::RequirePositive(1.0, "a"));
-    EXPECT_NO_THROW(config::RequireNonNegative(0.0, "a"));
-    EXPECT_NO_THROW(config::RequireFinite(-1.0, "a"));
+    EXPECT_NO_THROW(config::CheckFinite(-1.0, "a"));
+    EXPECT_NO_THROW(config::CheckNonEmpty("x.tif", "e.path"));
 }
 
 TEST(ConfigChecks, ReportInvalidValuesAtTheirPath) {
-    EXPECT_EQ(ErrorOf([] { config::RequirePositive(0.0, "a.b"); }), "a.b: must be positive");
-    EXPECT_EQ(ErrorOf([] { config::RequireNonNegative(-1.0, "c"); }), "c: must not be negative");
-    EXPECT_EQ(ErrorOf([] { config::RequireFinite(kNaN, "d[1]"); }), "d[1]: must be finite");
-    EXPECT_EQ(ErrorOf([] { config::RequireNonEmpty("", "e.path"); }), "e.path: must not be empty");
-    EXPECT_NO_THROW(config::RequireNonEmpty("x.tif", "e.path"));
+    EXPECT_EQ(ErrorOf([] { config::CheckFinite(kNaN, "d[1]"); }), "d[1]: must be finite");
+    EXPECT_EQ(ErrorOf([] { config::CheckNonEmpty("", "e.path"); }), "e.path: must not be empty");
+}
+
+TEST(ConfigChecks, ReportFileErrorsAtTheirPath) {
+    EXPECT_EQ(config::AtFile("a", [] { return 3; }), 3);
+    EXPECT_EQ(ErrorOf([] { config::AtFile("f.path", [] { throw std::runtime_error("io"); }); }),
+              "f.path: io");
+    EXPECT_EQ(ErrorOf([] { config::AtFile("g", [] { throw std::invalid_argument("bad"); }); }),
+              "g: bad");
+    EXPECT_EQ(ErrorOf([] { config::AtFile("h", [] { throw terraingen::ConfigError("x", "y"); }); }),
+              "x: y");
 }
 
 TEST(ConfigChecks, ReportLibraryErrorsAtTheirPath) {
