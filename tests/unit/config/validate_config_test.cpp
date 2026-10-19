@@ -59,6 +59,24 @@ const PathCase kPathCases[] = {
      "layers[1].density.distributions[0].age_gyr"},
     {"NoLifetime", [](TerrainConfig& c) { Craters(c).ages = terraingen::UniformAgesSpec{0.0}; },
      "layers[1].ages.lifetime_gyr"},
+    {"NoFreshnessLifetime",
+     [](TerrainConfig& c) { Craters(c).ages = terraingen::FreshnessAgesSpec{0.0}; },
+     "layers[1].ages.lifetime_gyr"},
+    {"ReversedFreshness",
+     [](TerrainConfig& c) {
+         Craters(c).ages = terraingen::FreshnessAgesSpec{
+             1.0, {terraingen::ValueDistribution::Kind::Uniform, 0.6, 0.2}};
+     },
+     "layers[1].ages"},
+    {"NegativeFreshnessWeight",
+     [](TerrainConfig& c) {
+         terraingen::FreshnessAgesSpec ages;
+         ages.freshness = {terraingen::ValueDistribution::Kind::Piecewise};
+         ages.freshness.edges = {0.0, 1.0};
+         ages.freshness.weights = {-1.0};
+         Craters(c).ages = ages;
+     },
+     "layers[1].ages.freshness.weights[0]"},
     {"DeepCutoff",
      [](TerrainConfig& c) { Craters(c).degradation = terraingen::FreshnessDegradationSpec{0.5}; },
      "layers[1].degradation.cutoff_depth_ratio"},

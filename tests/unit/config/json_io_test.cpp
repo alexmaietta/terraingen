@@ -298,8 +298,16 @@ TEST(ConfigJson, RoundTripsEveryModelType) {
         terraingen::HartmannSpec{},
         terraingen::MooreSpec{terraingen::MooreTerrain::Uplands},
         terraingen::ViperSpec{}};
+    terraingen::ValueDistribution piecewise{terraingen::ValueDistribution::Kind::Piecewise};
+    piecewise.edges = {0.0, 0.5, 1.0};
+    piecewise.weights = {1.0, 2.0};
     const std::vector<AgesSpec> ages{
-        terraingen::FreshAgesSpec{}, terraingen::UniformAgesSpec{2.5},
+        terraingen::FreshAgesSpec{},
+        terraingen::UniformAgesSpec{2.5},
+        terraingen::FreshnessAgesSpec{},
+        terraingen::FreshnessAgesSpec{
+            0.8, {terraingen::ValueDistribution::Kind::Normal, 0.35, 0.1, 0.0, 1.0}},
+        terraingen::FreshnessAgesSpec{2.0, piecewise},
         terraingen::SteadyStateAgesSpec{},
         terraingen::SteadyStateAgesSpec{3.0, ProductionFunction::Neukum,
                                         terraingen::EquilibriumModel::Hartmann,
@@ -466,6 +474,26 @@ TEST(ConfigJson, ReadsProductionSurfacesMinimumsAndSteadyStateAges) {
         {"type": "craters"}, {"type": "secondaries", "onset_count": 3, "morphometry": "lunar"}]})");
     EXPECT_EQ(std::get<terraingen::SecondaryLayerSpec>(secondaries.layers.at(1)).morphometry,
               terraingen::CraterMorphometryFit::Lunar);
+}
+
+TEST(ConfigJson, ReadsFreshnessAgesWithTheirDistribution) {
+    const TerrainConfig config = ParseConfig(R"({"schema_version": 1, "layers": [{
+        "type": "craters",
+        "ages": {"type": "freshness", "lifetime_gyr": 1.5,
+                 "freshness": {"kind": "normal", "a": 0.35, "b": 0.1}}}]})");
+    const terraingen::FreshnessAgesSpec normal{
+        1.5, {terraingen::ValueDistribution::Kind::Normal, 0.35, 0.1, 0.0, 1.0}};
+    EXPECT_EQ(std::get<CraterLayerSpec>(config.layers.at(0)).ages, AgesSpec{normal});
+    const TerrainConfig shaped = ParseConfig(R"({"schema_version": 1, "layers": [{
+        "type": "craters",
+        "ages": {"type": "freshness",
+                 "freshness": {"kind": "piecewise", "edges": [0, 0.3, 1], "weights": [2, 1]}}}]})");
+    const auto& ages = std::get<terraingen::FreshnessAgesSpec>(
+        std::get<CraterLayerSpec>(shaped.layers.at(0)).ages);
+    EXPECT_EQ(ages.lifetimeGyr, 1.0);
+    EXPECT_EQ(ages.freshness.edges, (std::vector<double>{0.0, 0.3, 1.0}));
+    EXPECT_EQ(ages.freshness.weights, (std::vector<double>{2.0, 1.0}));
+    EXPECT_EQ(ParseConfig(ConfigToJson(shaped)), shaped);
 }
 
 TEST(ConfigJson, DefaultsCraterLayersToASteadyStateSurfaceBelowTrask) {

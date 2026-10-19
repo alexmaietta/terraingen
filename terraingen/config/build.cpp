@@ -20,6 +20,7 @@
 #include "terraingen/distribution/spliced.h"
 #include "terraingen/distribution/tabulated.h"
 #include "terraingen/layers/craters/ages/age_model.h"
+#include "terraingen/layers/craters/ages/freshness.h"
 #include "terraingen/layers/craters/ages/steady_state.h"
 #include "terraingen/layers/craters/degradation/degradation_model.h"
 #include "terraingen/layers/craters/degradation/diffusivities.h"
@@ -155,6 +156,9 @@ std::shared_ptr<const CraterAgeModel> BuildAges(const AgesSpec& spec) {
                 return std::make_shared<SteadyStateAges>(BuildProduction(s.production),
                                                          BuildEquilibrium(s.equilibrium), s.ageGyr,
                                                          BuildChronology(s.chronology));
+            },
+            [](const FreshnessAgesSpec& s) -> Result {
+                return std::make_shared<FreshnessAges>(s.freshness, s.lifetimeGyr);
             },
         },
         spec);

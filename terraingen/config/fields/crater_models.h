@@ -192,6 +192,23 @@ template <typename IO> void Fields(IO& io, SteadyStateAgesSpec& spec) {
        "Chronology whose formation rate the craters' ages are drawn from.");
 }
 
+template <> struct SpecName<FreshnessAgesSpec> {
+    static constexpr std::string_view kName = "freshness";
+    static constexpr std::string_view kDescription =
+        "Ages from a freshness f between 0 and 1 drawn per crater, age = (1 - f) lifetime, with "
+        "one lifetime for every diameter; freshness stands for age as in degree-of-freshness "
+        "dating (Pohn and Offield 1970; Trang et al. 2015).";
+};
+template <typename IO> void Fields(IO& io, FreshnessAgesSpec& spec) {
+    io("lifetime_gyr", spec.lifetimeGyr,
+       "Lifetime in Gyr, positive, of every crater: freshness 0 is this old, 1 is new; crater "
+       "albedo such as ray fading reads these ages.",
+       "Gyr", Above(0.0));
+    io("freshness", spec.freshness,
+       "Distribution each crater's freshness is drawn from, also clamped to 0 to 1: 1 is fresh, "
+       "0 at the end of its lifetime; with freshness degradation, depth and rim scale with it.");
+}
+
 template <> struct SpecName<FreshnessDegradationSpec> {
     static constexpr std::string_view kName = "freshness";
     static constexpr std::string_view kDescription =

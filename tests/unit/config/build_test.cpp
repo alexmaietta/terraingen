@@ -215,6 +215,15 @@ TEST(BuildCraterModels, BuildsEachSelectedModel) {
     craters.ages = terraingen::FreshAgesSpec{};
     EXPECT_NE(dynamic_cast<const terraingen::FreshAges*>(BuildCraterModels(craters).ages.get()),
               nullptr);
+    craters.ages = terraingen::FreshnessAgesSpec{
+        0.7, {terraingen::ValueDistribution::Kind::Normal, 0.35, 0.1, -1.0, 2.0}};
+    const auto drawn = BuildCraterModels(craters);
+    const auto& freshness = dynamic_cast<const terraingen::FreshnessAges&>(*drawn.ages);
+    EXPECT_EQ(freshness.LifetimeGyr(5.0), 0.7);
+    EXPECT_EQ(freshness.LifetimeGyr(500.0), 0.7);
+    EXPECT_EQ(freshness.Freshness().a, 0.35);
+    EXPECT_EQ(freshness.Freshness().min, 0.0);
+    EXPECT_EQ(freshness.Freshness().max, 1.0);
     craters.ages = terraingen::SteadyStateAgesSpec{};
     const auto extended = BuildCraterModels(craters);
     EXPECT_GT(extended.ages->LifetimeGyr(5.0), 0.0);

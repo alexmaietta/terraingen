@@ -33,6 +33,7 @@
 #include "terraingen/layers/strata.h"
 #include "terraingen/noise/noise_layers.h"
 #include "terraingen/pipeline/materials.h"
+#include "terraingen/random/value_distribution.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/resample.h"
 #include "terraingen/sources/geotiff_source.h"
@@ -285,8 +286,15 @@ struct SteadyStateAgesSpec {
     ChronologyModel chronology = ChronologyModel::Neukum;
     bool operator==(const SteadyStateAgesSpec&) const = default;
 };
+/// Crater ages "freshness": `FreshnessAges(freshness, lifetimeGyr)`.
+struct FreshnessAgesSpec {
+    double lifetimeGyr = 1.0;
+    ValueDistribution freshness{ValueDistribution::Kind::Uniform, 0.0, 1.0, 0.0, 1.0};
+    bool operator==(const FreshnessAgesSpec&) const = default;
+};
 /// A crater age model, named in JSON by its "type".
-using AgesSpec = std::variant<UniformAgesSpec, FreshAgesSpec, SteadyStateAgesSpec>;
+using AgesSpec =
+    std::variant<UniformAgesSpec, FreshAgesSpec, SteadyStateAgesSpec, FreshnessAgesSpec>;
 
 /// Degradation "none": `NoDegradation`, optionally with a fixed depth-to-diameter ratio.
 struct NoDegradationSpec {

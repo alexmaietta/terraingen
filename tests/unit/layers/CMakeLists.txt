@@ -34,6 +34,7 @@ terraingen_add_test_suite(
     craters/secondaries_test.cpp
     craters/sphere_test.cpp
     craters/ages/age_model_test.cpp
+    craters/ages/freshness_test.cpp
     craters/ages/steady_state_test.cpp
     craters/degradation/degradation_model_test.cpp
     craters/degradation/diffusion_test.cpp

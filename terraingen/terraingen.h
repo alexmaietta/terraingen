@@ -43,6 +43,7 @@
 #include "terraingen/layers/boulders/boulder_placer.h"
 #include "terraingen/layers/boulders/boulder_shape.h"
 #include "terraingen/layers/craters/ages/age_model.h"
+#include "terraingen/layers/craters/ages/freshness.h"
 #include "terraingen/layers/craters/ages/steady_state.h"
 #include "terraingen/layers/craters/crater.h"
 #include "terraingen/layers/craters/crater_layer.h"

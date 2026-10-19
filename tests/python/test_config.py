@@ -157,6 +157,24 @@ def test_steady_state_ages_and_morphometry_round_trip():
     assert terraingen.Config.from_dict(config.to_dict()) == config
 
 
+def test_freshness_ages_round_trip_and_validate():
+    ages = {
+        "type": "freshness",
+        "lifetime_gyr": 1.5,
+        "freshness": {"kind": "piecewise", "edges": [0.0, 0.3, 1.0], "weights": [1.0, 2.0]},
+    }
+    config = terraingen.Config.from_dict(crater_config(ages=ages))
+    written = config.to_dict()["layers"][0]["ages"]
+    assert written["lifetime_gyr"] == 1.5
+    assert written["freshness"]["kind"] == "piecewise" and written["freshness"]["weights"] == [1.0, 2.0]
+    assert terraingen.Config.from_json(config.to_json()) == config
+    config.validate()
+    ages["freshness"] = {"kind": "piecewise", "edges": [0.0, 1.0], "weights": [0.0]}
+    with pytest.raises(terraingen.ConfigError) as empty:
+        terraingen.Config.from_dict(crater_config(ages=ages)).validate()
+    assert empty.value.path == "layers[0].ages"
+
+
 def test_crater_layers_default_to_a_steady_state_surface_below_trask():
     layer = terraingen.Config.from_dict(crater_config()).to_dict()["layers"][0]
     assert layer["density"]["type"] == "minimum"

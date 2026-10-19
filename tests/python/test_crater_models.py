@@ -43,6 +43,49 @@ def test_uniform_ages_remaining_lifetime():
     assert terraingen.UniformAges(2.0).remaining_lifetime(10.0, 1.0) == pytest.approx(0.5)
 
 
+def test_freshness_ages_draw_freshness_from_a_distribution():
+    normal = terraingen.ValueDistribution(terraingen.ValueDistributionKind.NORMAL, 0.35, 0.1)
+    ages = terraingen.FreshnessAges(normal, lifetime_gyr=2.0)
+    assert ages.freshness.min == 0.0 and ages.freshness.max == 1.0
+    assert ages.lifetime_at(5.0) == ages.lifetime_at(500.0) == 2.0
+    stream = terraingen.RandomStream(3, 4)
+    freshness = np.array(
+        [ages.remaining_lifetime(10.0, ages.sample_age_gyr(stream, 10.0)) for _ in range(20000)]
+    )
+    assert freshness.mean() == pytest.approx(0.35, abs=0.004)
+    assert freshness.std() == pytest.approx(0.1, abs=0.004)
+    assert 0.0 <= ages.sample_freshness(stream) <= 1.0
+
+
+def test_freshness_ages_take_piecewise_shapes():
+    shape = terraingen.ValueDistribution(
+        terraingen.ValueDistributionKind.PIECEWISE, edges=[0.0, 0.5, 1.0], weights=[3.0, 1.0]
+    )
+    terraingen.validate_value_distribution(shape)
+    ages = terraingen.FreshnessAges(shape, 1.0)
+    stream = terraingen.RandomStream(5, 6)
+    freshness = np.array([ages.sample_freshness(stream) for _ in range(20000)])
+    assert (freshness < 0.5).mean() == pytest.approx(0.75, abs=0.01)
+    with pytest.raises(ValueError):
+        terraingen.FreshnessAges(
+            terraingen.ValueDistribution(terraingen.ValueDistributionKind.PIECEWISE), 1.0
+        )
+    with pytest.raises(ValueError):
+        terraingen.FreshnessAges(shape, 0.0)
+
+
+def test_freshness_ages_drive_freshness_degradation():
+    ages = terraingen.FreshnessAges(
+        terraingen.ValueDistribution(terraingen.ValueDistributionKind.CONSTANT, 0.25), 2.0
+    )
+    degradation = terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry)
+    young = degradation.state(terraingen.Crater(0.0, 0.0, 100.0, age_gyr=0.0)).current.depth_ratio
+    drawn = ages.sample_age_gyr(terraingen.RandomStream(1, 1), 100.0)
+    assert drawn == pytest.approx(1.5)
+    worn = degradation.state(terraingen.Crater(0.0, 0.0, 100.0, age_gyr=drawn)).current.depth_ratio
+    assert worn < young
+
+
 def test_no_degradation_keeps_the_fresh_depth_ratio(crater):
     fresh = terraingen.lunar_fresh_crater_morphometry(100.0)
     assert terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry).state(

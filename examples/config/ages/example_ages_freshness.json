@@ -1,0 +1,71 @@
+{
+    "schema_version": 1,
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 1,
+                    "wavelength": 800,
+                    "amplitude": 40,
+                    "octaves": 8
+                }
+            ]
+        },
+        {
+            "type": "craters",
+            "seed": 1,
+            "density": {
+                "type": "minimum",
+                "distributions": [
+                    {
+                        "type": "production_surface",
+                        "production": "extended_neukum",
+                        "chronology": "neukum",
+                        "age_gyr": 3.5
+                    },
+                    {
+                        "type": "trask"
+                    }
+                ]
+            },
+            "min_diameter": 8,
+            "max_diameter": 300,
+            "ages": {
+                "type": "freshness",
+                "lifetime_gyr": 3.5,
+                "freshness": {
+                    "kind": "normal",
+                    "a": 0.35,
+                    "b": 0.15,
+                    "min": 0,
+                    "max": 1
+                }
+            },
+            "degradation": {
+                "type": "freshness",
+                "cutoff_depth_ratio": 0.04
+            }
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_ages_freshness.tif",
+            "region": {
+                "width": 513,
+                "height": 513,
+                "pixel_size": 2
+            }
+        },
+        {
+            "type": "crater_list",
+            "path": "example_ages_freshness.csv",
+            "region": {
+                "width": 513,
+                "height": 513,
+                "pixel_size": 2
+            }
+        }
+    ]
+}

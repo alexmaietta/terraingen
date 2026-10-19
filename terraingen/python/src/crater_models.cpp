@@ -4,6 +4,7 @@
 #include "trampolines.h"
 
 #include "terraingen/layers/craters/ages/age_model.h"
+#include "terraingen/layers/craters/ages/freshness.h"
 #include "terraingen/layers/craters/ages/steady_state.h"
 #include "terraingen/layers/craters/crater_layer.h"
 #include "terraingen/layers/craters/degradation/degradation_model.h"
@@ -15,6 +16,7 @@
 #include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
 #include "terraingen/layers/craters/shaping/morphometry.h"
 #include "terraingen/random/stream.h"
+#include "terraingen/random/value_distribution.h"
 
 #include <functional>
 #include <memory>
@@ -101,6 +103,14 @@ void BindAges(nb::module_& m) {
     nb::class_<UniformAges, CraterAgeModel>(
         m, "UniformAges", "Ages uniform over a lifetime of `lifetime_gyr`, whatever the size.")
         .def(nb::init<double>(), "lifetime_gyr"_a);
+    nb::class_<FreshnessAges, CraterAgeModel>(
+        m, "FreshnessAges",
+        "Ages from a freshness f drawn per crater from `freshness` (a `ValueDistribution`, also "
+        "clamped to [0, 1]): age = (1 - f) * `lifetime_gyr`, whatever the size.")
+        .def(nb::init<ValueDistribution, double>(), "freshness"_a, "lifetime_gyr"_a)
+        .def_prop_ro("freshness", &FreshnessAges::Freshness)
+        .def("sample_freshness", &FreshnessAges::SampleFreshness, "random"_a,
+             "Draws a freshness in [0, 1].");
     nb::class_<SteadyStateAges, CraterAgeModel>(
         m, "SteadyStateAges",
         "Ages of a surface `age_gyr` old in steady state: a crater lasts until the "

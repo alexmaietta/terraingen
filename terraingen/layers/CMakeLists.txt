@@ -36,6 +36,7 @@ terraingen_add_library(
     craters/secondaries.cpp
     craters/secondary_model.cpp
     craters/ages/age_model.cpp
+    craters/ages/freshness.cpp
     craters/ages/steady_state.cpp
     craters/degradation/degradation_model.cpp
     craters/degradation/diffusion.cpp

@@ -463,7 +463,7 @@ TEST(ConfigSchema, ListsProductionSurfacesMinimumsAndTheirModels) {
     for (const SchemaJson& alternative : ages["alternatives"]) {
         types.push_back(alternative["type"]);
     }
-    EXPECT_EQ(types, (std::vector<std::string>{"uniform", "fresh", "steady_state"}));
+    EXPECT_EQ(types, (std::vector<std::string>{"uniform", "fresh", "steady_state", "freshness"}));
     EXPECT_EQ(FieldOf(craters, "ages")["default"], (SchemaJson{{"type", "steady_state"},
                                                                {"age_gyr", 3.5},
                                                                {"production", "extended_neukum"},
@@ -476,6 +476,17 @@ TEST(ConfigSchema, ListsProductionSurfacesMinimumsAndTheirModels) {
     EXPECT_EQ(FieldOf(steady, "equilibrium")["schema"]["choices"],
               (SchemaJson{"trask", "hartmann"}));
     EXPECT_EQ(FieldOf(steady, "chronology")["schema"]["choices"], (SchemaJson{"neukum", "ivanov"}));
+    const SchemaJson freshness = AlternativeOf(ages, "freshness");
+    EXPECT_EQ(FieldOf(freshness, "lifetime_gyr")["unit"], "Gyr");
+    EXPECT_EQ(FieldOf(freshness, "lifetime_gyr")["default"], 1.0);
+    const SchemaJson drawn = FieldOf(freshness, "freshness");
+    EXPECT_EQ(drawn["default"]["kind"], "uniform");
+    EXPECT_EQ(drawn["default"]["edges"], SchemaJson::array());
+    const SchemaJson& distribution = Resolve(schema, drawn["schema"]);
+    EXPECT_EQ(FieldOf(distribution, "kind")["schema"]["choices"],
+              (SchemaJson{"constant", "uniform", "normal", "log_normal", "piecewise"}));
+    EXPECT_EQ(FieldOf(distribution, "edges")["schema"]["kind"], "array");
+    EXPECT_EQ(FieldOf(distribution, "weights")["schema"]["kind"], "array");
 
     const SchemaJson morphometry = FieldOf(craters, "morphometry");
     EXPECT_EQ(morphometry["schema"]["choices"], (SchemaJson{"lunar", "mars"}));
@@ -507,7 +518,7 @@ TEST(ConfigCatalog, ListsTheNewDensitiesAndAges) {
     for (const Json& entry : catalog["models"]["ages"]) {
         ages.push_back(entry["type"]);
     }
-    EXPECT_EQ(ages, (std::vector<std::string>{"uniform", "fresh", "steady_state"}));
+    EXPECT_EQ(ages, (std::vector<std::string>{"uniform", "fresh", "steady_state", "freshness"}));
 }
 
 TEST(LayerType, NamesALayerAsItsJsonTypeAndARegionByTheLayerInside) {
