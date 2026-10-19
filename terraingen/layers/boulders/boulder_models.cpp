@@ -104,6 +104,93 @@ std::pair<Vec2d, bool> NearestOnHull(const std::vector<Vec2d>& hull, const Vec2d
     return {best, inside};
 }
 
+/// The product `a` `b` of two row-major 3 x 3 matrices.
+std::array<double, 9> Multiply(const std::array<double, 9>& a, const std::array<double, 9>& b) {
+    std::array<double, 9> product{};
+    for (std::size_t r = 0; r < 3; ++r) {
+        for (std::size_t k = 0; k < 3; ++k) {
+            for (std::size_t j = 0; j < 3; ++j) {
+                product[3 * r + k] += a[3 * r + j] * b[3 * j + k];
+            }
+        }
+    }
+    return product;
+}
+
+/// One tip of a settling shape: a turn by `angle` radians about the horizontal axis `axis`
+/// through `origin`, the side `toward` (a horizontal unit vector square to it) going down.
+struct PivotStep {
+    Vec3d origin;
+    Vec3d axis;
+    Vec3d toward;
+    double cs = 1.0;
+    double sn = 0.0;
+
+    /// Where the step turns `p`.
+    Vec3d Turn(const Vec3d& p) const {
+        const Vec3d up{0.0, 0.0, 1.0};
+        const Vec3d v = p - origin;
+        const double u = Dot(v, toward);
+        const double w = v.z;
+        return origin + axis * Dot(v, axis) + toward * (u * cs + w * sn) + up * (w * cs - u * sn);
+    }
+
+    /// The step's rotation as a row-major matrix.
+    std::array<double, 9> Rotation() const {
+        std::array<double, 9> m{};
+        const std::array<double, 3> av{axis.x, axis.y, axis.z};
+        const std::array<double, 3> dv{toward.x, toward.y, toward.z};
+        const std::array<double, 3> zv{0.0, 0.0, 1.0};
+        for (std::size_t r = 0; r < 3; ++r) {
+            for (std::size_t k = 0; k < 3; ++k) {
+                m[3 * r + k] = av[r] * av[k] + cs * (dv[r] * dv[k] + zv[r] * zv[k]) +
+                               sn * (dv[r] * zv[k] - zv[r] * dv[k]);
+            }
+        }
+        return m;
+    }
+};
+
+/// The next tip of `points` resting on the plane through their lowest point toward `centre`,
+/// about the edge or corner of the contact nearest it, until another point touches; none once
+/// the centre stands over the contact, within `tolerance`.
+std::optional<PivotStep> NextPivot(const std::vector<Vec3d>& points, const Vec3d& centre,
+                                   double tolerance) {
+    const double low = ZRange(points, [](const Vec3d& p) { return p; }).first;
+    std::vector<Vec2d> contact;
+    for (const Vec3d& p : points) {
+        if (p.z <= low + tolerance) {
+            contact.push_back({p.x, p.y});
+        }
+    }
+    const Vec2d c{centre.x, centre.y};
+    const auto [pivot, inside] = NearestOnHull(Hull2d(contact), c);
+    const double distance = std::hypot(c.x - pivot.x, c.y - pivot.y);
+    if (inside || distance <= tolerance) {
+        return std::nullopt;
+    }
+    PivotStep step;
+    step.toward = {(c.x - pivot.x) / distance, (c.y - pivot.y) / distance, 0.0};
+    step.axis = {-step.toward.y, step.toward.x, 0.0};
+    step.origin = {pivot.x, pivot.y, low};
+    double rise = 0.0;
+    double run = 0.0;
+    for (const Vec3d& p : points) {
+        const double u = Dot(p - step.origin, step.toward);
+        if (u > tolerance && (run == 0.0 || (p.z - low) * run < rise * u)) {
+            rise = p.z - low;
+            run = u;
+        }
+    }
+    if (run == 0.0) {
+        return std::nullopt;
+    }
+    const double angle = std::atan2(rise, run);
+    step.cs = std::cos(angle);
+    step.sn = std::sin(angle);
+    return step;
+}
+
 /// The rotation that tips `points` over on a level plane until they rest: each step pivots about
 /// the edge or corner of the ground contact nearest the centre of mass, toward it, until another
 /// point touches, and stops once the centre of mass stands over the contact.
@@ -115,71 +202,16 @@ std::array<double, 9> SettleRotation(std::vector<Vec3d> points, Vec3d centre) {
             std::fmax(extent, std::fmax(std::fabs(p.x), std::fmax(std::fabs(p.y), std::fabs(p.z))));
     }
     const double tolerance = 1e-7 * extent;
-    for (int step = 0; step < 64; ++step) {
-        double low = std::numeric_limits<double>::infinity();
-        for (const Vec3d& p : points) {
-            low = std::fmin(low, p.z);
-        }
-        std::vector<Vec2d> contact;
-        for (const Vec3d& p : points) {
-            if (p.z <= low + tolerance) {
-                contact.push_back({p.x, p.y});
-            }
-        }
-        const Vec2d c{centre.x, centre.y};
-        const auto [pivot, inside] = NearestOnHull(Hull2d(contact), c);
-        const double distance = std::hypot(c.x - pivot.x, c.y - pivot.y);
-        if (inside || distance <= tolerance) {
+    for (int n = 0; n < 64; ++n) {
+        const std::optional<PivotStep> step = NextPivot(points, centre, tolerance);
+        if (!step) {
             break;
         }
-        const Vec3d d{(c.x - pivot.x) / distance, (c.y - pivot.y) / distance, 0.0};
-        const Vec3d a{-d.y, d.x, 0.0};
-        const Vec3d up{0.0, 0.0, 1.0};
-        const Vec3d o{pivot.x, pivot.y, low};
-        double rise = 0.0;
-        double run = 0.0;
-        for (const Vec3d& p : points) {
-            const double u = Dot(p - o, d);
-            if (u > tolerance && (run == 0.0 || (p.z - low) * run < rise * u)) {
-                rise = p.z - low;
-                run = u;
-            }
-        }
-        if (run == 0.0) {
-            break;
-        }
-        const double angle = std::atan2(rise, run);
-        const double cs = std::cos(angle);
-        const double sn = std::sin(angle);
-        const auto turn = [&](const Vec3d& p) {
-            const Vec3d v = p - o;
-            const double u = Dot(v, d);
-            const double w = v.z;
-            return o + a * Dot(v, a) + d * (u * cs + w * sn) + up * (w * cs - u * sn);
-        };
         for (Vec3d& p : points) {
-            p = turn(p);
+            p = step->Turn(p);
         }
-        centre = turn(centre);
-        std::array<double, 9> m{};
-        const std::array<double, 3> av{a.x, a.y, a.z};
-        const std::array<double, 3> dv{d.x, d.y, d.z};
-        const std::array<double, 3> zv{0.0, 0.0, 1.0};
-        for (std::size_t r = 0; r < 3; ++r) {
-            for (std::size_t k = 0; k < 3; ++k) {
-                m[3 * r + k] = av[r] * av[k] + cs * (dv[r] * dv[k] + zv[r] * zv[k]) +
-                               sn * (dv[r] * zv[k] - zv[r] * dv[k]);
-            }
-        }
-        std::array<double, 9> next{};
-        for (std::size_t r = 0; r < 3; ++r) {
-            for (std::size_t k = 0; k < 3; ++k) {
-                for (std::size_t j = 0; j < 3; ++j) {
-                    next[3 * r + k] += m[3 * r + j] * total[3 * j + k];
-                }
-            }
-        }
-        total = next;
+        centre = step->Turn(centre);
+        total = Multiply(step->Rotation(), total);
     }
     return total;
 }
@@ -230,11 +262,7 @@ BoulderPlacement PlaceBoulderModel(const Boulder& boulder, const BoulderShape& s
                          .After(RigidTransform::RotationX(boulder.lean))
                          .After(RestRotation(boulder.rest));
     if (settle && !shape.mesh.triangles.empty()) {
-        std::vector<Vec3d> points;
-        points.reserve(shape.mesh.positions.size());
-        for (const Vec3d& p : shape.mesh.positions) {
-            points.push_back(placement.Apply(p));
-        }
+        const std::vector<Vec3d> points = PlaceMesh(shape.mesh, placement).positions;
         RigidTransform rest;
         rest.rotation = SettleRotation(points, MassCentre(points, shape.mesh.triangles));
         placement.pose = rest.After(placement.pose);
@@ -242,13 +270,8 @@ BoulderPlacement PlaceBoulderModel(const Boulder& boulder, const BoulderShape& s
     if (boulder.tilt != 0.0) {
         placement.pose = TiltRotation(boulder.tilt, boulder.tiltAzimuth).After(placement.pose);
     }
-    double low = std::numeric_limits<double>::infinity();
-    double high = -low;
-    for (const Vec3d& p : shape.mesh.positions) {
-        const double z = placement.Apply(p).z;
-        low = std::fmin(low, z);
-        high = std::fmax(high, z);
-    }
+    const auto [low, high] =
+        ZRange(shape.mesh.positions, [&](const Vec3d& p) { return placement.Apply(p); });
     placement.pose.translation = {boulder.x, boulder.y,
                                   groundHeight - boulder.burial * (high - low) - low};
     return placement;
@@ -282,8 +305,10 @@ TriangleMesh BoulderMesh(const Boulder& boulder, const BoulderShapeOptions& opti
                          double groundHeight, std::uint32_t prototypes) {
     const BoulderShape shape =
         GenerateBoulderShape(BoulderShapeSeed(boulder.id, prototypes), options);
-    const BoulderPlacement placement = PlaceBoulderModel(boulder, shape, groundHeight);
-    TriangleMesh mesh = shape.mesh;
+    return PlaceMesh(shape.mesh, PlaceBoulderModel(boulder, shape, groundHeight));
+}
+
+TriangleMesh PlaceMesh(TriangleMesh mesh, const BoulderPlacement& placement) {
     for (Vec3d& p : mesh.positions) {
         p = placement.Apply(p);
     }

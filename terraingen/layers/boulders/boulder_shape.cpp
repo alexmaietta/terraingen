@@ -26,8 +26,9 @@ void CheckRange(const ValueRange& range, double low, double high, const char* wh
     }
 }
 
+/// A uniform draw from `range`, from the next uniform of `random`.
 double Draw(RandomStream& random, const ValueRange& range) {
-    return range.min + (range.max - range.min) * random.NextDouble();
+    return range.Lerp(random.NextDouble());
 }
 
 /// The surface roughness of a style at direction `p`: `noiseOctaves` octaves of 3D Perlin noise
@@ -58,7 +59,6 @@ Vec3d DrawNormal(RandomStream& random, double maxTilt) {
     return {ring * std::cos(angle), ring * std::sin(angle), z};
 }
 
-/// The index of the style a uniform draw picks, each in proportion to its weight.
 /// The extents of a library rock, which must be a valid mesh with depth along every axis.
 Vec3d CheckRock(const TriangleMesh& mesh) {
     ValidateMesh(mesh);
@@ -70,6 +70,7 @@ Vec3d CheckRock(const TriangleMesh& mesh) {
     return extents;
 }
 
+/// The index of the style a uniform draw picks, each in proportion to its weight.
 std::size_t PickStyle(RandomStream& random, const std::vector<BoulderStyle>& styles) {
     double total = 0.0;
     for (const BoulderStyle& style : styles) {
@@ -99,8 +100,6 @@ Vec3d ShapeVertex(const Vec3d& p, const Vec3d& axes, double rounding, const Boul
     return ray * (radius * rough);
 }
 
-/// Cuts `mesh` with the style's fracture planes, each at a drawn share of the reach of the solid's
-/// original corners. `Subdivide` keeps those corners as the first `corners` vertices.
 /// The smooth minimum of `a` and `b` over `k`: their minimum, eased by up to `k` / 4 where they
 /// are within `k` of each other.
 double SmoothMin(double a, double b, double k) {
@@ -181,45 +180,52 @@ void CutSoftly(TriangleMesh& mesh, const std::vector<Fracture>& fractures,
     }
 }
 
+/// The next fracture plane of `random` for `style`: a drawn normal, offset by a drawn share of
+/// the farthest reach along it of the first `corners` points of `mesh`.
+Fracture DrawFracture(RandomStream& random, const BoulderStyle& style, const TriangleMesh& mesh,
+                      std::size_t corners) {
+    const Vec3d normal = DrawNormal(random, style.maxFractureTilt);
+    const double depth = Draw(random, style.fractureDepth);
+    double reach = 0.0;
+    for (std::size_t v = 0; v < corners; ++v) {
+        reach = std::fmax(reach, Dot(normal, mesh.positions[v]));
+    }
+    return {normal, depth * reach};
+}
+
+/// Moves the points of `mesh` beyond `fracture` along their rays onto it.
+void CutSharply(TriangleMesh& mesh, const Fracture& fracture) {
+    for (Vec3d& p : mesh.positions) {
+        const double along = Dot(fracture.normal, p);
+        if (along > fracture.offset) {
+            p = p * (fracture.offset / along);
+        }
+    }
+}
+
+/// Cuts `mesh` with the style's fracture planes, each at a drawn share of the reach of the solid's
+/// original corners. `Subdivide` keeps those corners as the first `corners` vertices.
 void ApplyFractures(TriangleMesh& mesh, std::size_t corners, const BoulderStyle& style,
                     RandomStream& random, double softness, std::uint32_t seed,
                     const std::vector<Fracture>& faces, std::uint32_t noiseSeed) {
     const int span = style.maxFractures - style.minFractures + 1;
     const int fractures =
         style.minFractures + std::min(span - 1, static_cast<int>(random.NextDouble() * span));
-    if (softness > 0.0 || style.faceRoughness > 0.0) {
-        std::vector<Fracture> planes = faces;
-        for (int n = 0; n < fractures; ++n) {
-            const Vec3d normal = DrawNormal(random, style.maxFractureTilt);
-            const double depth = Draw(random, style.fractureDepth);
-            double reach = 0.0;
-            for (std::size_t v = 0; v < corners; ++v) {
-                reach = std::fmax(reach, Dot(normal, mesh.positions[v]));
-            }
-            if (depth * reach > 0.0) {
-                planes.push_back({normal, depth * reach});
-            }
-        }
-        CutSoftly(mesh, planes, style, softness, seed, !faces.empty(), noiseSeed);
-        return;
-    }
+    const bool soft = softness > 0.0 || style.faceRoughness > 0.0;
+    std::vector<Fracture> planes = soft ? faces : std::vector<Fracture>{};
     for (int n = 0; n < fractures; ++n) {
-        const Vec3d normal = DrawNormal(random, style.maxFractureTilt);
-        const double depth = Draw(random, style.fractureDepth);
-        double reach = 0.0;
-        for (std::size_t v = 0; v < corners; ++v) {
-            reach = std::fmax(reach, Dot(normal, mesh.positions[v]));
-        }
-        const double plane = depth * reach;
-        if (!(plane > 0.0)) {
+        const Fracture fracture = DrawFracture(random, style, mesh, corners);
+        if (!(fracture.offset > 0.0)) {
             continue;
         }
-        for (Vec3d& p : mesh.positions) {
-            const double along = Dot(normal, p);
-            if (along > plane) {
-                p = p * (plane / along);
-            }
+        if (soft) {
+            planes.push_back(fracture);
+        } else {
+            CutSharply(mesh, fracture);
         }
+    }
+    if (soft) {
+        CutSoftly(mesh, planes, style, softness, seed, !faces.empty(), noiseSeed);
     }
 }
 

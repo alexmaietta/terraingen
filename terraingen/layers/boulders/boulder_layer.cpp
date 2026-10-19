@@ -27,45 +27,32 @@ namespace terraingen {
 
 namespace {
 
-/// A ground whose heights at some points, at one spacing, are read up front in one pass; any
-/// other point or spacing is read from the ground beneath. Gives the same heights either way.
-class PrefetchedGround final : public Ground {
+/// The ground under one candidate: its heights at a few points, at one spacing, read up front
+/// with every other candidate's; any other point or spacing is read from the ground beneath.
+/// Gives the same heights either way.
+class CandidateGround final : public Ground {
   public:
-    PrefetchedGround(const Ground& ground, std::span<const Vec2d> points, double spacing)
-        : ground_(ground), spacing_(spacing) {
-        std::vector<float> heights(points.size());
-        ground.HeightsAt(points, heights, spacing);
-        heights_.reserve(points.size());
-        for (std::size_t n = 0; n < points.size(); ++n) {
-            heights_.emplace(KeyOf(points[n].x, points[n].y), heights[n]);
-        }
-    }
+    CandidateGround(const Ground& ground, std::span<const Vec2d> points,
+                    std::span<const float> heights, double spacing)
+        : ground_(ground), points_(points), heights_(heights), spacing_(spacing) {}
 
     float HeightAt(double x, double y, double spacing) const override {
         if (spacing == spacing_) {
-            const auto found = heights_.find(KeyOf(x, y));
-            if (found != heights_.end()) {
-                return found->second;
+            for (std::size_t n = 0; n < points_.size(); ++n) {
+                if (std::bit_cast<std::uint64_t>(points_[n].x) == std::bit_cast<std::uint64_t>(x) &&
+                    std::bit_cast<std::uint64_t>(points_[n].y) == std::bit_cast<std::uint64_t>(y)) {
+                    return heights_[n];
+                }
             }
         }
         return ground_.HeightAt(x, y, spacing);
     }
 
   private:
-    using Key = std::pair<std::uint64_t, std::uint64_t>;
-    struct KeyHash {
-        std::size_t operator()(const Key& key) const {
-            return std::hash<std::uint64_t>{}(key.first * 0x9E3779B97F4A7C15ull ^ key.second);
-        }
-    };
-
-    static Key KeyOf(double x, double y) {
-        return {std::bit_cast<std::uint64_t>(x), std::bit_cast<std::uint64_t>(y)};
-    }
-
     const Ground& ground_;
+    std::span<const Vec2d> points_;
+    std::span<const float> heights_;
     double spacing_;
-    std::unordered_map<Key, float, KeyHash> heights_;
 };
 
 constexpr std::uint32_t kBoulderSeed = 0x524F434Bu;
@@ -154,11 +141,6 @@ double ShapeReach(const TriangleMesh& placed, double cx, double cy) {
                      std::fmax(std::fabs(box.min.y - cy), std::fabs(box.max.y - cy)));
 }
 
-/// A uniform in [`low`, `high`) from `u`.
-double Between(double low, double high, double u) {
-    return low + (high - low) * u;
-}
-
 }  // namespace
 
 BoulderLayer::BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const CraterLayer> craters,
@@ -231,13 +213,13 @@ void BoulderLayer::SetUpShapeCaches() {
         [](const std::vector<BoulderFragment>&) { return std::size_t{1}; });
 }
 
-std::shared_ptr<const BoulderShape> BoulderLayer::ShapeOf(std::uint64_t shapeSeed) const {
+std::shared_ptr<const BoulderShape> BoulderLayer::CachedShape(std::uint64_t shapeSeed) const {
     return shapes_->Get(shapeSeed,
                         [&] { return GenerateBoulderShape(shapeSeed, options_.rendering.shapes); });
 }
 
 std::shared_ptr<const std::vector<BoulderFragment>>
-BoulderLayer::FragmentsOf(std::uint64_t shapeSeed) const {
+BoulderLayer::CachedFragments(std::uint64_t shapeSeed) const {
     return fragments_->Get(shapeSeed, [&] {
         const BoulderFragmentation& fragmentation = options_.fragmentation;
         const auto span =
@@ -251,16 +233,16 @@ BoulderLayer::FragmentsOf(std::uint64_t shapeSeed) const {
         const BoulderCracks cracks = (pick >> 8) * 0x1.0p-24 < fragmentation.slabShare
                                          ? BoulderCracks::Slabs
                                          : BoulderCracks::Radial;
-        return FragmentBoulderShape(*ShapeOf(shapeSeed), pieces, shapeSeed, cracks);
+        return FragmentBoulderShape(*CachedShape(shapeSeed), pieces, shapeSeed, cracks);
     });
 }
 
 std::shared_ptr<const BoulderShape> BoulderLayer::Shape(const Boulder& boulder) const {
     const std::uint32_t prototypes = options_.rendering.shapePrototypes;
     if (boulder.parent == 0) {
-        return ShapeOf(BoulderShapeSeed(boulder.id, prototypes));
+        return CachedShape(BoulderShapeSeed(boulder.id, prototypes));
     }
-    const auto fragments = FragmentsOf(BoulderShapeSeed(boulder.parent, prototypes));
+    const auto fragments = CachedFragments(BoulderShapeSeed(boulder.parent, prototypes));
     return {fragments, &(*fragments)[boulder.piece].shape};
 }
 
@@ -277,10 +259,7 @@ TriangleMesh BoulderLayer::PlacedOnLevel(const Boulder& boulder) const {
     const auto shape = Shape(boulder);
     const BoulderPlacement placement =
         PlaceBoulderModel(InLocalFrame(boulder), *shape, 0.0, options_.pose.settle);
-    TriangleMesh mesh = shape->mesh;
-    for (Vec3d& p : mesh.positions) {
-        p = placement.Apply(p);
-    }
+    TriangleMesh mesh = PlaceMesh(shape->mesh, placement);
     CutFacets(mesh, InLocalFrame(boulder), 0.0);
     return mesh;
 }
@@ -337,7 +316,7 @@ double BoulderLayer::MaterialCoverAt(double x, double y, double spacing,
         Boulders(surface_.Expand({x, y, x, y}, rim), spacing, ground);
     double cover = 0.0;
     for (const Relief& relief : PrepareRelief(boulders, spacing)) {
-        const TriangleMesh* shape = relief.placed ? &*relief.placed : nullptr;
+        const TriangleMesh* shape = relief.Shape();
         if (relief.rock && RockRelief(x, y, *relief.boulder, shape, relief.width) > 0.0) {
             cover = std::fmax(cover, relief.weight);
         }
@@ -358,6 +337,14 @@ Raster<double> BoulderLayer::MaterialCoverOver(const RasterGrid& grid, double sp
     const double rim = options_.rendering.relief == BoulderRelief::Dome ? 0.5 * spacing : 0.0;
     const std::vector<Boulder> boulders =
         Boulders(surface_.Expand(grid.Bounds(), rim), spacing, ground);
+    AddRockCover(cover, grid, boulders, spacing, threads);
+    AddModelCover(cover, grid, boulders, spacing, threads);
+    return cover;
+}
+
+void BoulderLayer::AddRockCover(Raster<double>& cover, const RasterGrid& grid,
+                                const std::vector<Boulder>& boulders, double spacing,
+                                unsigned threads) const {
     std::vector<Relief> reliefs = PrepareRelief(boulders, spacing);
     std::erase_if(reliefs, [](const Relief& relief) { return !relief.rock; });
     std::vector<std::vector<PixelWindow>> windows;
@@ -369,13 +356,18 @@ Raster<double> BoulderLayer::MaterialCoverOver(const RasterGrid& grid, double sp
         [&](std::size_t n) -> const std::vector<PixelWindow>& { return windows[n]; },
         [&](double& cell, const FeatureCell& at) {
             const Relief& relief = reliefs[at.feature];
-            const TriangleMesh* shape = relief.placed ? &*relief.placed : nullptr;
+            const TriangleMesh* shape = relief.Shape();
             if (RockRelief(at.centre.x, at.centre.y, *relief.boulder, shape, relief.width) > 0.0) {
                 cell = std::fmax(cell, relief.weight);
             }
         });
+}
+
+void BoulderLayer::AddModelCover(Raster<double>& cover, const RasterGrid& grid,
+                                 const std::vector<Boulder>& boulders, double spacing,
+                                 unsigned threads) const {
     std::vector<const Boulder*> models;
-    windows.clear();
+    std::vector<std::vector<PixelWindow>> windows;
     for (const Boulder& boulder : boulders) {
         if (boulder.model) {
             models.push_back(&boulder);
@@ -393,7 +385,6 @@ Raster<double> BoulderLayer::MaterialCoverOver(const RasterGrid& grid, double sp
                 cell = std::fmax(cell, ResolutionWeight(boulder.diameter, spacing, options_.fade));
             }
         });
-    return cover;
 }
 
 double BoulderLayer::OwnMarginRadii() const {
@@ -431,60 +422,66 @@ CraterList BoulderLayer::ScatterBoulderCandidates(const Bounds2d& region, double
 std::vector<Boulder> BoulderLayer::DrawBoulders(const CraterList& candidates, double spacing,
                                                 const Ground* ground,
                                                 const EjectaIndex& ejecta) const {
-    std::vector<Kept> kept;
+    std::vector<ThinnedCandidate> thinned;
     for (std::size_t n = 0; n < candidates.Size(); ++n) {
-        if (std::optional<Kept> k = Keep(candidates.At(n), ground, ejecta)) {
-            kept.push_back(*k);
+        if (std::optional<ThinnedCandidate> one = Thin(candidates.At(n), ground, ejecta)) {
+            thinned.push_back(*one);
         }
-    }
-    std::optional<PrefetchedGround> fetched;
-    if (ground != nullptr) {
-        const BoulderPose& pose = options_.pose;
-        const bool gradient = pose.followSlope || pose.maxSlope.has_value();
-        std::vector<Vec2d> points;
-        points.reserve(kept.size() * (gradient ? 5 : 1));
-        for (const Kept& k : kept) {
-            const Crater& c = k.candidate;
-            points.push_back({c.x, c.y});
-            if (gradient) {
-                for (const Vec2d& p : GradientPoints(c.x, c.y, c.diameter)) {
-                    points.push_back(p);
-                }
-            }
-        }
-        fetched.emplace(*ground, points, options_.bedrock.exposureSpacing);
     }
     std::vector<Boulder> boulders;
-    boulders.reserve(kept.size());
-    for (const Kept& k : kept) {
-        if (std::optional<Boulder> boulder = Place(k, spacing, fetched ? &*fetched : nullptr)) {
+    boulders.reserve(thinned.size());
+    if (ground == nullptr) {
+        for (const ThinnedCandidate& one : thinned) {
+            if (std::optional<Boulder> boulder = PlaceCandidate(one, spacing, nullptr)) {
+                boulders.push_back(*boulder);
+            }
+        }
+        return boulders;
+    }
+    const BoulderPose& pose = options_.pose;
+    const std::size_t each = pose.followSlope || pose.maxSlope.has_value() ? 5 : 1;
+    std::vector<Vec2d> points;
+    points.reserve(thinned.size() * each);
+    for (const ThinnedCandidate& one : thinned) {
+        const Crater& c = one.candidate;
+        points.push_back({c.x, c.y});
+        if (each == 5) {
+            for (const Vec2d& p : GradientPoints(c.x, c.y, c.diameter)) {
+                points.push_back(p);
+            }
+        }
+    }
+    std::vector<float> heights(points.size());
+    ground->HeightsAt(points, heights, options_.bedrock.exposureSpacing);
+    for (std::size_t n = 0; n < thinned.size(); ++n) {
+        const CandidateGround under(*ground, std::span(points).subspan(n * each, each),
+                                    std::span(heights).subspan(n * each, each),
+                                    options_.bedrock.exposureSpacing);
+        if (std::optional<Boulder> boulder = PlaceCandidate(thinned[n], spacing, &under)) {
             boulders.push_back(*boulder);
         }
     }
     return boulders;
 }
 
-std::optional<BoulderLayer::Kept> BoulderLayer::Keep(const Crater& candidate, const Ground* ground,
-                                                     const EjectaIndex& ejecta) const {
+std::optional<BoulderLayer::ThinnedCandidate>
+BoulderLayer::Thin(const Crater& candidate, const Ground* ground, const EjectaIndex& ejecta) const {
     const IdWords id = SplitId(candidate.id);
     const U32x4 draw =
         Philox4x32({id.low, id.high, kBoulderAttributes, 0u}, {options_.seed, kBoulderSeed});
-    Kept kept{candidate, Abundance(candidate.x, candidate.y, ground, ejecta)};
+    ThinnedCandidate thinned{candidate, Abundance(candidate.x, candidate.y, ground, ejecta)};
     if (!candidate.manual) {
-        kept.density = Density(candidate.diameter, kept.abundance);
+        thinned.density = Density(candidate.diameter, thinned.abundance);
         if (Uniform(draw.x, draw.y) >=
-            kept.density / candidates_->Incremental(candidate.diameter)) {
+            thinned.density / candidates_->Incremental(candidate.diameter)) {
             return std::nullopt;
         }
     }
-    return kept;
+    return thinned;
 }
 
-std::optional<Boulder> BoulderLayer::Place(const Kept& kept, double spacing,
-                                           const Ground* ground) const {
-    const Crater& candidate = kept.candidate;
-    const BoulderAbundance& abundance = kept.abundance;
-    const double density = kept.density;
+Boulder BoulderLayer::DrawPose(const ThinnedCandidate& thinned, double spacing) const {
+    const Crater& candidate = thinned.candidate;
     const IdWords id = SplitId(candidate.id);
     const U32x4 draw =
         Philox4x32({id.low, id.high, kBoulderAttributes, 0u}, {options_.seed, kBoulderSeed});
@@ -492,13 +489,13 @@ std::optional<Boulder> BoulderLayer::Place(const Kept& kept, double spacing,
         Philox4x32({id.low, id.high, kBoulderAttributes, 1u}, {options_.seed, kBoulderSeed});
     const BoulderPose& pose = options_.pose;
     const double ratio =
-        Between(pose.minHeightRatio, pose.maxHeightRatio, Uniform(shape.x, shape.y));
-    const double wear = Wear(candidate.diameter, abundance, density, candidate.id);
+        ValueRange{pose.minHeightRatio, pose.maxHeightRatio}.Lerp(Uniform(shape.x, shape.y));
+    const double wear = Wear(candidate.diameter, thinned.abundance, thinned.density, candidate.id);
     double share = Uniform(draw.z, draw.w);
     if (pose.burialByWear > 0.0) {
         share = (1.0 - pose.burialByWear) * share + pose.burialByWear * wear;
     }
-    const double burial = Between(pose.minBurial, pose.maxBurial, share);
+    const double burial = ValueRange{pose.minBurial, pose.maxBurial}.Lerp(share);
     Boulder boulder{candidate.x,
                     candidate.y,
                     candidate.diameter,
@@ -509,16 +506,18 @@ std::optional<Boulder> BoulderLayer::Place(const Kept& kept, double spacing,
                     candidate.id};
     boulder.wear = wear;
     boulder.model = options_.rendering.models.IsModel(boulder.diameter, spacing);
-    if (pose.maxSlope && ground != nullptr && !candidate.manual && !Roll(boulder, *ground)) {
+    return boulder;
+}
+
+std::optional<Boulder> BoulderLayer::PlaceCandidate(const ThinnedCandidate& thinned, double spacing,
+                                                    const Ground* ground) const {
+    Boulder boulder = DrawPose(thinned, spacing);
+    const BoulderPose& pose = options_.pose;
+    if (pose.maxSlope && ground != nullptr && !thinned.candidate.manual &&
+        !Roll(boulder, *ground)) {
         return std::nullopt;
     }
-    if (ground != nullptr) {
-        const double height =
-            ground->HeightAt(boulder.x, boulder.y, options_.bedrock.exposureSpacing);
-        if (!std::isnan(height)) {
-            boulder.ground = height;
-        }
-    }
+    ReadGround(boulder, ground);
     if (pose.sideShare > 0.0 || pose.endShare > 0.0 || pose.maxTilt > 0.0 || pose.followSlope) {
         Settle(boulder, ground);
     }
@@ -526,6 +525,17 @@ std::optional<Boulder> BoulderLayer::Place(const Kept& kept, double spacing,
         Abrade(boulder);
     }
     return boulder;
+}
+
+void BoulderLayer::ReadGround(Boulder& boulder, const Ground* ground) const {
+    boulder.ground.reset();
+    if (ground != nullptr) {
+        const double height =
+            ground->HeightAt(boulder.x, boulder.y, options_.bedrock.exposureSpacing);
+        if (!std::isnan(height)) {
+            boulder.ground = height;
+        }
+    }
 }
 
 void BoulderLayer::Abrade(Boulder& boulder) const {
@@ -541,7 +551,7 @@ void BoulderLayer::Abrade(Boulder& boulder) const {
     const double reach = 0.5 * boulder.diameter * (1.0 - boulder.wear);
     const auto facet = [&](double wind, double pick) {
         return BoulderFacet{wind + std::numbers::pi,
-                            Between(ventifacts.minAngle, ventifacts.maxAngle, pick), reach};
+                            ValueRange{ventifacts.minAngle, ventifacts.maxAngle}.Lerp(pick), reach};
     };
     boulder.facets[0] = facet(ventifacts.windAzimuth, Uniform(angles.x, angles.y));
     boulder.facetCount = 1;
@@ -565,9 +575,7 @@ void BoulderLayer::CutFacets(TriangleMesh& placed, const Boulder& local, double 
 BoulderShape BoulderLayer::Abraded(const BoulderShape& shape, const BoulderPlacement& placement,
                                    const Boulder& local, double base) const {
     BoulderShape cut = shape;
-    for (Vec3d& p : cut.mesh.positions) {
-        p = placement.Apply(p);
-    }
+    cut.mesh = PlaceMesh(std::move(cut.mesh), placement);
     CutFacets(cut.mesh, local, base);
     const std::array<double, 9>& r = placement.pose.rotation;
     for (Vec3d& p : cut.mesh.positions) {
@@ -684,81 +692,84 @@ std::vector<Boulder> BoulderLayer::Boulders(const Bounds2d& region, double spaci
     return boulders;
 }
 
+BoulderLayer::BreakStage BoulderLayer::Stage(const Boulder& parent) const {
+    const BoulderFragmentation& fragmentation = options_.fragmentation;
+    const bool rubble = parent.wear >= fragmentation.rubbleWear;
+    BreakStage stage;
+    stage.opening = rubble || fragmentation.rubbleWear <= fragmentation.splitWear
+                        ? 1.0
+                        : (parent.wear - fragmentation.splitWear) /
+                              (fragmentation.rubbleWear - fragmentation.splitWear);
+    stage.scatter = !rubble                          ? 0.0
+                    : fragmentation.rubbleWear < 1.0 ? (parent.wear - fragmentation.rubbleWear) /
+                                                           (1.0 - fragmentation.rubbleWear)
+                                                     : 1.0;
+    return stage;
+}
+
+Boulder BoulderLayer::PlacePiece(const Boulder& parent, const BoulderFragment& fragment,
+                                 std::size_t k, const PieceFrame& frame, double push,
+                                 double twist) const {
+    const BoulderFragmentation& fragmentation = options_.fragmentation;
+    const BoulderPlacement& placement = frame.placement;
+    const double scatter = frame.stage.scatter;
+    const auto [low, high] = ZRange(fragment.shape.mesh.positions, [&](const Vec3d& p) {
+        return placement.Apply(fragment.centre + p * fragment.scale);
+    });
+    const Vec3d centre = placement.Apply(fragment.centre);
+    const double out = std::hypot(centre.x, centre.y);
+    const double angle = out > 0.0 ? std::atan2(centre.y, centre.x) : 2.0 * std::numbers::pi * push;
+    const double gap = (frame.stage.opening * fragmentation.gapRatio +
+                        scatter * fragmentation.spreadRatio * (0.5 + 0.5 * push)) *
+                       parent.diameter;
+    Boulder piece = parent;
+    piece.facetCount = 0;
+    const IdWords id = SplitId(parent.id);
+    const UVec3 key = Pcg3dHash({id.low, id.high, kBoulderPieces + static_cast<std::uint32_t>(k)});
+    piece.id = (static_cast<std::uint64_t>(key.x) << 32) | key.y;
+    piece.parent = parent.id;
+    piece.piece = static_cast<std::uint32_t>(k);
+    piece.diameter = parent.diameter * fragment.scale;
+    piece.height = parent.height * fragment.shape.shortAxis * fragment.scale / frame.shortAxis;
+    piece.yaw = parent.yaw + scatter * std::numbers::pi * (2.0 * twist - 1.0);
+    piece.lean = parent.lean * (1.0 - scatter);
+    piece.tilt = parent.tilt * (1.0 - scatter);
+    const double sunk = std::clamp(-low / (high - low), 0.0, 0.95);
+    piece.burial = std::fmax(sunk, sunk + scatter * (options_.pose.maxBurial - sunk));
+    const Vec2d at = surface_.Locate(
+        {parent.x, parent.y}, {centre.x + gap * std::cos(angle), centre.y + gap * std::sin(angle)});
+    piece.x = at.x;
+    piece.y = at.y;
+    return piece;
+}
+
 std::vector<Boulder> BoulderLayer::Break(const Boulder& parent, double spacing,
                                          const Ground* ground) const {
     const BoulderFragmentation& fragmentation = options_.fragmentation;
     if (parent.diameter < fragmentation.minDiameter || parent.wear < fragmentation.splitWear) {
         return {parent};
     }
-    const bool rubble = parent.wear >= fragmentation.rubbleWear;
-    const double opening = rubble || fragmentation.rubbleWear <= fragmentation.splitWear
-                               ? 1.0
-                               : (parent.wear - fragmentation.splitWear) /
-                                     (fragmentation.rubbleWear - fragmentation.splitWear);
-    const double scatter =
-        !rubble ? 0.0
-        : fragmentation.rubbleWear < 1.0
-            ? (parent.wear - fragmentation.rubbleWear) / (1.0 - fragmentation.rubbleWear)
-            : 1.0;
     const auto shape = Shape(parent);
     const auto fragments =
-        FragmentsOf(BoulderShapeSeed(parent.id, options_.rendering.shapePrototypes));
+        CachedFragments(BoulderShapeSeed(parent.id, options_.rendering.shapePrototypes));
     Boulder origin = parent;
     origin.x = 0.0;
     origin.y = 0.0;
-    const BoulderPlacement placement = PlaceBoulderModel(origin, *shape, 0.0, options_.pose.settle);
+    const PieceFrame frame{PlaceBoulderModel(origin, *shape, 0.0, options_.pose.settle),
+                           Stage(parent), shape->shortAxis};
     const IdWords id = SplitId(parent.id);
     RandomStream random(options_.seed ^ kBoulderPieces, kBoulderSeed, id.low, id.high);
     const double smallest = spacing > 0.0 ? options_.fade.startSamples * spacing : 0.0;
     std::vector<Boulder> pieces;
     for (std::size_t k = 0; k < fragments->size(); ++k) {
-        const BoulderFragment& fragment = (*fragments)[k];
         const double push = random.NextDouble();
         const double twist = random.NextDouble();
-        double low = std::numeric_limits<double>::infinity();
-        double high = -low;
-        for (const Vec3d& p : fragment.shape.mesh.positions) {
-            const double z = placement.Apply(fragment.centre + p * fragment.scale).z;
-            low = std::fmin(low, z);
-            high = std::fmax(high, z);
-        }
-        const Vec3d centre = placement.Apply(fragment.centre);
-        const double out = std::hypot(centre.x, centre.y);
-        const double angle =
-            out > 0.0 ? std::atan2(centre.y, centre.x) : 2.0 * std::numbers::pi * push;
-        const double gap = (opening * fragmentation.gapRatio +
-                            scatter * fragmentation.spreadRatio * (0.5 + 0.5 * push)) *
-                           parent.diameter;
-        Boulder piece = parent;
-        piece.facetCount = 0;
-        const UVec3 key =
-            Pcg3dHash({id.low, id.high, kBoulderPieces + static_cast<std::uint32_t>(k)});
-        piece.id = (static_cast<std::uint64_t>(key.x) << 32) | key.y;
-        piece.parent = parent.id;
-        piece.piece = static_cast<std::uint32_t>(k);
-        piece.diameter = parent.diameter * fragment.scale;
-        piece.height = parent.height * fragment.shape.shortAxis * fragment.scale / shape->shortAxis;
-        piece.yaw = parent.yaw + scatter * std::numbers::pi * (2.0 * twist - 1.0);
-        piece.lean = parent.lean * (1.0 - scatter);
-        piece.tilt = parent.tilt * (1.0 - scatter);
-        const double sunk = std::clamp(-low / (high - low), 0.0, 0.95);
-        piece.burial = std::fmax(sunk, sunk + scatter * (options_.pose.maxBurial - sunk));
-        const Vec2d at = surface_.Locate({parent.x, parent.y}, {centre.x + gap * std::cos(angle),
-                                                                centre.y + gap * std::sin(angle)});
-        piece.x = at.x;
-        piece.y = at.y;
+        Boulder piece = PlacePiece(parent, (*fragments)[k], k, frame, push, twist);
         if (piece.diameter < smallest) {
             continue;
         }
         piece.model = options_.rendering.models.IsModel(piece.diameter, spacing);
-        piece.ground.reset();
-        if (ground != nullptr) {
-            const double height =
-                ground->HeightAt(piece.x, piece.y, options_.bedrock.exposureSpacing);
-            if (!std::isnan(height)) {
-                piece.ground = height;
-            }
-        }
+        ReadGround(piece, ground);
         pieces.push_back(piece);
     }
     return pieces;
@@ -782,18 +793,6 @@ double DomeHeight(const Boulder& boulder, double distance, double width) {
 float AddBoulder(float height, double x, double y, const Boulder& boulder, double weight,
                  const Surface& surface, double width) {
     const Vec2d offset = surface.Offset({boulder.x, boulder.y}, {x, y});
-    if (!(width > 0.0)) {
-        const double dx = offset.x;
-        const double dy = offset.y;
-        const double radius = 0.5 * boulder.diameter;
-        const double r2 = (dx * dx + dy * dy) / (radius * radius);
-        if (r2 >= 1.0) {
-            return height;
-        }
-        const double top =
-            boulder.CutByFacets(offset, boulder.ExposedHeight() * std::sqrt(1.0 - r2));
-        return static_cast<float>(static_cast<double>(height) + weight * top);
-    }
     const double dome =
         boulder.CutByFacets(offset, DomeHeight(boulder, std::hypot(offset.x, offset.y), width));
     return dome > 0.0 ? static_cast<float>(static_cast<double>(height) + weight * dome) : height;
@@ -832,7 +831,7 @@ std::vector<BoulderLayer::Relief> BoulderLayer::PrepareRelief(const std::vector<
 void BoulderLayer::DrawRelief(SampleBlock& samples, const std::vector<Relief>& reliefs,
                               unsigned threads) const {
     const auto draw = [&](float height, float base, const Vec2d& p, const Relief& relief) {
-        const TriangleMesh* shape = relief.placed ? &*relief.placed : nullptr;
+        const TriangleMesh* shape = relief.Shape();
         return AddRelief(height, base, p.x, p.y, *relief.boulder, shape, relief.weight, relief.rock,
                          relief.width);
     };

@@ -149,16 +149,24 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// The candidates of `region`, before thinning.
     CraterList ScatterBoulderCandidates(const Bounds2d& region, double spacing) const;
     /// A candidate thinning keeps, with what it was kept by.
-    struct Kept {
+    struct ThinnedCandidate {
         Crater candidate;
         BoulderAbundance abundance;
         double density = 0.0;
     };
     /// `candidate` with its abundance and density, or nothing when thinning drops it.
-    std::optional<Kept> Keep(const Crater& candidate, const Ground* ground,
-                             const EjectaIndex& ejecta) const;
-    /// A kept candidate as a boulder, or nothing when it is left out on steep ground.
-    std::optional<Boulder> Place(const Kept& kept, double spacing, const Ground* ground) const;
+    std::optional<ThinnedCandidate> Thin(const Crater& candidate, const Ground* ground,
+                                         const EjectaIndex& ejecta) const;
+    /// The boulder a thinned candidate becomes before it meets the ground: its size, burial,
+    /// yaw, lean and wear drawn by its ID, and whether it is a model at `spacing`.
+    Boulder DrawPose(const ThinnedCandidate& thinned, double spacing) const;
+    /// A thinned candidate as a boulder on `ground`, or nothing when it is left out on steep
+    /// ground.
+    std::optional<Boulder> PlaceCandidate(const ThinnedCandidate& thinned, double spacing,
+                                          const Ground* ground) const;
+    /// Sets `boulder`'s ground height from `ground` under its centre; unset without a ground or
+    /// where the ground is missing.
+    void ReadGround(Boulder& boulder, const Ground* ground) const;
     /// The boulders `candidates` give, in their order: those thinning keeps, their ground read in
     /// one pass (`Ground::HeightsAt`) and then placed.
     std::vector<Boulder> DrawBoulders(const CraterList& candidates, double spacing,
@@ -182,10 +190,30 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// The pieces `parent` breaks into at its wear, those resolved at `spacing`; `parent` alone
     /// when it is too small or too fresh to break.
     std::vector<Boulder> Break(const Boulder& parent, double spacing, const Ground* ground) const;
+    /// How far a breaking boulder has come apart: its cracks' opening, 0 to 1 from `splitWear`
+    /// to `rubbleWear`, and its pieces' scatter, 0 to 1 beyond.
+    struct BreakStage {
+        double opening = 0.0;
+        double scatter = 0.0;
+    };
+    /// The stage `parent` has reached at its wear.
+    BreakStage Stage(const Boulder& parent) const;
+    /// What every piece of a breaking boulder shares: its parent's shape placed at the origin on
+    /// level ground, its stage and the shape's short axis.
+    struct PieceFrame {
+        BoulderPlacement placement;
+        BreakStage stage;
+        double shortAxis = 1.0;
+    };
+    /// Piece `k`, `fragment`, of `parent`, moved out by `frame`'s stage with the uniforms `push`
+    /// and `twist`; its model mark and ground are left to the caller.
+    Boulder PlacePiece(const Boulder& parent, const BoulderFragment& fragment, std::size_t k,
+                       const PieceFrame& frame, double push, double twist) const;
     /// The pieces of the shape of seed `shapeSeed`, shared by every boulder of that shape.
-    std::shared_ptr<const std::vector<BoulderFragment>> FragmentsOf(std::uint64_t shapeSeed) const;
+    std::shared_ptr<const std::vector<BoulderFragment>>
+    CachedFragments(std::uint64_t shapeSeed) const;
     /// The shape of seed `shapeSeed`.
-    std::shared_ptr<const BoulderShape> ShapeOf(std::uint64_t shapeSeed) const;
+    std::shared_ptr<const BoulderShape> CachedShape(std::uint64_t shapeSeed) const;
     /// The wear (0 fresh to 1 worn) of a boulder of `diameter` keyed by `id`: that of the crater
     /// its block came from, drawn by each source's share of `density`, or uniform between craters.
     double Wear(double diameter, const BoulderAbundance& abundance, double density,
@@ -222,7 +250,20 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
         double width;  ///< Width a dome is averaged over: the spacing, or 0 for shapes.
         std::optional<TriangleMesh> placed;
         Bounds2d box;
+
+        /// The placed shape, or null for a dome.
+        const TriangleMesh* Shape() const {
+            return placed ? &*placed : nullptr;
+        }
     };
+    /// Raises `cover` over `grid` to the weight of each of `boulders` whose drawn rock stands at a
+    /// cell's centre.
+    void AddRockCover(Raster<double>& cover, const RasterGrid& grid,
+                      const std::vector<Boulder>& boulders, double spacing, unsigned threads) const;
+    /// Raises `cover` over `grid` to the weight of each model of `boulders` over a cell's centre.
+    void AddModelCover(Raster<double>& cover, const RasterGrid& grid,
+                       const std::vector<Boulder>& boulders, double spacing,
+                       unsigned threads) const;
     /// The boulders of `boulders` resolved at `spacing` with relief or a fillet to draw, in order.
     std::vector<Relief> PrepareRelief(const std::vector<Boulder>& boulders, double spacing) const;
     /// Draws `reliefs` into every sample their boxes hold.

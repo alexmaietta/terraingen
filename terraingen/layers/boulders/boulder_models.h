@@ -7,9 +7,13 @@
 #include "terraingen/mesh/mesh.h"
 #include "terraingen/util/surface.h"
 
+#include <cmath>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <optional>
+#include <utility>
+#include <vector>
 
 namespace terraingen {
 
@@ -24,6 +28,22 @@ struct BoulderPlacement {
         return pose.Apply({p.x * scale.x, p.y * scale.y, p.z * scale.z});
     }
 };
+
+/// `mesh`, a unit shape's mesh, with every point moved by `placement`.
+TriangleMesh PlaceMesh(TriangleMesh mesh, const BoulderPlacement& placement);
+
+/// The lowest and highest z of `points` once mapped by `map`.
+template <typename Map>
+std::pair<double, double> ZRange(const std::vector<Vec3d>& points, const Map& map) {
+    double low = std::numeric_limits<double>::infinity();
+    double high = -low;
+    for (const Vec3d& p : points) {
+        const double z = map(p).z;
+        low = std::fmin(low, z);
+        high = std::fmax(high, z);
+    }
+    return {low, high};
+}
 
 /// A boulder placed as a 3D model of its own.
 struct BoulderModel {

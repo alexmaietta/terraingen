@@ -19,6 +19,11 @@ struct ValueRange {
     double min = 0.0;  ///< Lower end.
     double max = 0.0;  ///< Upper end, >= `min`.
 
+    /// The value `u` of the way from `min` to `max`: a uniform draw for a uniform `u` in [0, 1).
+    double Lerp(double u) const {
+        return min + (max - min) * u;
+    }
+
     bool operator==(const ValueRange&) const = default;
 };
 

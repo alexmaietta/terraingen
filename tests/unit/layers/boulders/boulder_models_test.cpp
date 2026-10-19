@@ -10,6 +10,28 @@
 
 using terraingen::Boulder;
 
+TEST(PlaceMesh, MovesEveryPointByThePlacement) {
+    terraingen::TriangleMesh mesh;
+    mesh.positions = {{1.0, 0.0, 0.0}, {0.0, 1.0, -1.0}};
+    terraingen::BoulderPlacement placement;
+    placement.scale = {2.0, 3.0, 4.0};
+    placement.pose.translation = {1.0, 1.0, 1.0};
+    const terraingen::TriangleMesh placed = terraingen::PlaceMesh(mesh, placement);
+    EXPECT_EQ(placed.positions[0].x, 3.0);
+    EXPECT_EQ(placed.positions[1].y, 4.0);
+    EXPECT_EQ(placed.positions[1].z, -3.0);
+    const auto [low, high] = terraingen::ZRange(
+        mesh.positions, [&](const terraingen::Vec3d& p) { return placement.Apply(p); });
+    EXPECT_EQ(low, -3.0);
+    EXPECT_EQ(high, 1.0);
+}
+
+TEST(ValueRange, LerpsFromMinToMax) {
+    const terraingen::ValueRange range{2.0, 6.0};
+    EXPECT_EQ(range.Lerp(0.0), 2.0);
+    EXPECT_EQ(range.Lerp(0.25), 3.0);
+}
+
 TEST(PlaceBoulderModel, StandsTheShapeAtTheBouldersSizeBurialAndHeading) {
     const terraingen::BoulderShapeOptions options;
     const Boulder boulder{5.0, -3.0, 2.0, 1.0, 0.25, 0.4, 0.0, 42u};
