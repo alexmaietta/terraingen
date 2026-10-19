@@ -16,6 +16,9 @@
             "type": "boulders",
             "seed": 1,
             "coverage": 0.02,
+            "sizes": {
+                "type": "golombek_rapp"
+            },
             "min_diameter": 0.3,
             "max_diameter": 4,
             "exposure": {

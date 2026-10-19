@@ -9,6 +9,9 @@
             "type": "boulders",
             "seed": 4,
             "coverage": 0.06,
+            "sizes": {
+                "type": "golombek_rapp"
+            },
             "min_diameter": 0.1,
             "max_diameter": 2.5,
             "clusters": {
