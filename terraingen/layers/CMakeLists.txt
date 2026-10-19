@@ -1,12 +1,14 @@
 terraingen_add_library(
     layers
     SOURCES
+    anchored_plane.cpp
     bedforms.cpp
     density_map.cpp
     dunes.cpp
     detail.cpp
     exposure.cpp
     fade.cpp
+    ground.cpp
     layer.cpp
     material.cpp
     noise_relief.cpp

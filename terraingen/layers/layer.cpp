@@ -41,21 +41,13 @@ float Layer::ApplyAt(float height, double x, double y, const LayerContext& conte
 
 void FormulaLayer::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
     CheckContext(context);
-    if (Raster<float>* grid = samples.Grid()) {
-        const double spacing =
-            std::max(context.spacing, RasterGrid::FromRaster(*grid).Spacing(surface_));
-        MapCells(*grid, context.threads, [&](float height, const Vec2d& centre) {
-            return HeightAt(height, centre.x, centre.y, spacing, context.ground);
-        });
-        return;
-    }
-    for (std::size_t i = 0; i < samples.Size(); ++i) {
-        if (!samples.IsNoData(i)) {
-            const Vec2d p = samples.Position(i);
-            samples.Height(i) =
-                HeightAt(samples.Height(i), p.x, p.y, context.spacing, context.ground);
-        }
-    }
+    const Raster<float>* grid = samples.Grid();
+    const double spacing =
+        grid != nullptr ? std::max(context.spacing, RasterGrid::FromRaster(*grid).Spacing(surface_))
+                        : context.spacing;
+    MapSamples(samples, context.threads, [&](float height, const Vec2d& p) {
+        return HeightAt(height, p.x, p.y, spacing, context.ground);
+    });
 }
 
 }  // namespace terraingen

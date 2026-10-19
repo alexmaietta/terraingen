@@ -6,6 +6,7 @@
 #include "terraingen/raster/raster.h"
 #include "terraingen/util/surface.h"
 
+#include <array>
 #include <cstdint>
 
 namespace terraingen {
@@ -70,6 +71,8 @@ class ExposureField {
   private:
     ExposureParams params_;
     Surface surface_;
+    /// The surroundings read around a point, in metres east and north of it.
+    std::array<Vec2d, 8> ring_{};
 };
 
 }  // namespace terraingen

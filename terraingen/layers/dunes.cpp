@@ -1,5 +1,6 @@
 #include "terraingen/layers/dunes.h"
 
+#include "terraingen/layers/lattice.h"
 #include "terraingen/noise/perlin.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/util/checks.h"
@@ -8,7 +9,9 @@
 #include <algorithm>
 #include <cmath>
 #include <numbers>
+#include <optional>
 #include <stdexcept>
+#include <string>
 
 namespace terraingen {
 
@@ -129,62 +132,105 @@ double RippleProfile(double t, double lee) {
     return t < upwind ? t / upwind : 1.0 - (t - upwind) / lee;
 }
 
-}  // namespace
-
-void ValidateDuneOptions(const DuneOptions& options) {
-    const double right = kHalfPi;
-    if (!(options.slipFaceAngle > 0.0 && options.slipFaceAngle < right &&
+/// Checks the slopes of dunes.
+/// @throws std::invalid_argument unless the slip face and flank are in (0, 90) deg and the stoss
+/// slope is positive and below the slip face.
+void ValidateDuneSlopes(const DuneOptions& options) {
+    if (!(options.slipFaceAngle > 0.0 && options.slipFaceAngle < kHalfPi &&
           options.stossSlope > 0.0 && options.stossSlope < options.slipFaceAngle &&
-          options.flankSlope > 0.0 && options.flankSlope < right)) {
+          options.flankSlope > 0.0 && options.flankSlope < kHalfPi)) {
         throw std::invalid_argument(
             "Dune slopes must be positive and below 90 deg, the stoss below the slip face");
     }
-    if (!(IsPositive(options.stossExponent) && IsPositive(options.domeExponent) &&
-          IsPositive(options.spacing) && IsPositive(options.width) &&
-          IsNonNegative(options.minWidth) && IsPositive(options.heightRatio) &&
-          IsNonNegative(options.hornLength) && IsPositive(options.domeLength) &&
-          IsPositive(options.wavelength) && IsNonNegative(options.height))) {
-        throw std::invalid_argument("Dune sizes and exponents must be positive");
+}
+
+/// Checks the sizes, shares and wind of dunes.
+/// @throws std::invalid_argument as `ValidateDuneOptions`.
+void ValidateDuneSizes(const DuneOptions& options) {
+    RequirePositive(options.stossExponent, "Dune stossExponent");
+    RequirePositive(options.domeExponent, "Dune domeExponent");
+    RequirePositive(options.spacing, "Dune spacing");
+    RequirePositive(options.width, "Dune width");
+    RequireNonNegative(options.minWidth, "Dune minWidth");
+    RequirePositive(options.heightRatio, "Dune heightRatio");
+    RequireNonNegative(options.hornLength, "Dune hornLength");
+    RequirePositive(options.domeLength, "Dune domeLength");
+    RequirePositive(options.wavelength, "Dune wavelength");
+    RequireNonNegative(options.height, "Dune height");
+    RequireUnitInterval(options.density, "Dune density");
+    RequireUnitInterval(options.defects, "Dune defects");
+    if (!(options.widthSpread >= 0.0 && options.widthSpread < 1.0)) {
+        throw std::invalid_argument("Dune widthSpread must be in [0, 1)");
     }
-    if (!(options.density >= 0.0 && options.density <= 1.0 && options.defects >= 0.0 &&
-          options.defects <= 1.0 && options.widthSpread >= 0.0 && options.widthSpread < 1.0)) {
-        throw std::invalid_argument(
-            "Dune density and defects must be in [0, 1], and the width spread in [0, 1)");
+    RequireNonNegative(options.sinuosity, "Dune sinuosity");
+    RequireNonNegative(options.azimuthSpread, "Dune azimuthSpread");
+    RequireNonNegative(options.defectDensity, "Dune defectDensity");
+    RequireFinite(options.windAzimuth, "Dune windAzimuth");
+    RequireFinite(options.anchor.x, "Dune anchor x");
+    RequireFinite(options.anchor.y, "Dune anchor y");
+}
+
+/// Checks the ripples on dunes.
+/// @throws std::invalid_argument as `ValidateDuneOptions`.
+void ValidateDuneRipples(const DuneRipples& ripples) {
+    RequireNonNegative(ripples.wavelength, "Dune ripple wavelength");
+    RequireNonNegative(ripples.height, "Dune ripple height");
+    if (!(ripples.leeFraction > 0.0 && ripples.leeFraction < 1.0)) {
+        throw std::invalid_argument("Dune ripple leeFraction must be in (0, 1)");
     }
-    if (!(IsNonNegative(options.sinuosity) && IsNonNegative(options.azimuthSpread) &&
-          std::isfinite(options.windAzimuth) && std::isfinite(options.anchor.x) &&
-          std::isfinite(options.anchor.y))) {
-        throw std::invalid_argument(
-            "Dune sinuosity and azimuth spread must be finite and not negative, the anchor finite");
-    }
-    const DuneRipples& ripples = options.ripples;
-    if (!(IsNonNegative(ripples.wavelength) && IsNonNegative(ripples.height) &&
-          ripples.leeFraction > 0.0 && ripples.leeFraction < 1.0 &&
-          IsNonNegative(ripples.sinuosity) && IsNonNegative(ripples.slopeCoupling) &&
-          ripples.interduneCover >= 0.0 && ripples.interduneCover <= 1.0 &&
-          IsNonNegative(ripples.defectDensity) && IsNonNegative(options.defectDensity) &&
-          ripples.flankStraightening >= 0.0 && ripples.flankStraightening <= 1.0)) {
-        throw std::invalid_argument(
-            "Dune ripples need sizes and coupling not negative, a lee fraction in (0, 1) and an "
-            "interdune cover and flank straightening in [0, 1], and defect densities not "
-            "negative");
-    }
-    ValidateResolutionFade(options.fade);
+    RequireNonNegative(ripples.sinuosity, "Dune ripple sinuosity");
+    RequireNonNegative(ripples.slopeCoupling, "Dune ripple slopeCoupling");
+    RequireUnitInterval(ripples.interduneCover, "Dune ripple interduneCover");
+    RequireNonNegative(ripples.defectDensity, "Dune ripple defectDensity");
+    RequireUnitInterval(ripples.flankStraightening, "Dune ripple flankStraightening");
     ValidateResolutionFade(ripples.fade);
-    const DuneGrainflows& flows = options.grainflows;
-    const auto range = [](double low, double high) {
-        return IsPositive(low) && high >= low && std::isfinite(high);
-    };
-    if (!(flows.cover >= 0.0 && flows.cover <= 1.0 &&
-          range(flows.minScarpWidth, flows.maxScarpWidth) &&
-          range(flows.minScarpLength, flows.maxScarpLength) &&
-          range(flows.minLobeWidth, flows.maxLobeWidth) &&
-          range(flows.minLobeLength, flows.maxLobeLength) && IsNonNegative(flows.thickness))) {
-        throw std::invalid_argument(
-            "Dune grainflows need a cover in [0, 1], positive sizes with each minimum at most its "
-            "maximum, and a thickness not negative");
+}
+
+/// Checks a size range of grainflows: positive, the minimum at most the maximum, both finite.
+void RequireSizeRange(double low, double high, const char* what) {
+    if (!(IsPositive(low) && high >= low && std::isfinite(high))) {
+        throw std::invalid_argument(std::string(what) +
+                                    " must be positive, the minimum at most the maximum");
     }
+}
+
+/// Checks the grainflows on slip faces.
+/// @throws std::invalid_argument as `ValidateDuneOptions`.
+void ValidateDuneGrainflows(const DuneGrainflows& flows) {
+    RequireUnitInterval(flows.cover, "Dune grainflow cover");
+    RequireSizeRange(flows.minScarpWidth, flows.maxScarpWidth, "Dune grainflow scarp widths");
+    RequireSizeRange(flows.minScarpLength, flows.maxScarpLength, "Dune grainflow scarp lengths");
+    RequireSizeRange(flows.minLobeWidth, flows.maxLobeWidth, "Dune grainflow lobe widths");
+    RequireSizeRange(flows.minLobeLength, flows.maxLobeLength, "Dune grainflow lobe lengths");
+    RequireNonNegative(flows.thickness, "Dune grainflow thickness");
     ValidateResolutionFade(flows.fade);
+}
+
+/// The height of a dune of `dune` at (x, y) in its wind frame: barchan and dome blended.
+double IsolatedDuneAt(double x, double y, const Dune& dune, const DuneOptions& options) {
+    double h = 0.0;
+    if (dune.barchan > 0.0) {
+        h += dune.barchan * BarchanAt(x, y, dune, options);
+    }
+    if (dune.barchan < 1.0) {
+        h += (1.0 - dune.barchan) * DomeAt(x, y, dune, options);
+    }
+    return h;
+}
+
+/// The value between `low` and `high` at `t` in [0, 1].
+double Between(double low, double high, double t) {
+    return low + (high - low) * t;
+}
+
+}  // namespace
+
+void ValidateDuneOptions(const DuneOptions& options) {
+    ValidateDuneSlopes(options);
+    ValidateDuneSizes(options);
+    ValidateDuneRipples(options.ripples);
+    ValidateResolutionFade(options.fade);
+    ValidateDuneGrainflows(options.grainflows);
 }
 
 DuneRipples MarsDuneRipples() {
@@ -241,115 +287,100 @@ DuneOptions MarsTransverseDunes() {
 }
 
 DuneLayer::DuneLayer(DuneOptions options, Surface surface)
-    : FormulaLayer(surface), options_(options) {
+    : FormulaLayer(surface), options_(options), plane_(surface, options.anchor) {
     ValidateDuneOptions(options_);
     wind_ = {std::cos(options_.windAzimuth), std::sin(options_.windAzimuth)};
     const double widest = options_.width * (1.0 + options_.widthSpread);
     rings_ = static_cast<std::int64_t>(std::ceil(Reach(widest, options_) / options_.spacing));
-    if (surface_.IsBody()) {
-        anchorDirection_ = UnitVector(options_.anchor.x, options_.anchor.y);
-    }
-}
-
-bool DuneLayer::Planar(double x, double y, Vec2d& planar) const {
-    if (!surface_.IsBody()) {
-        planar = {x, y};
-        return true;
-    }
-    if (Dot(UnitVector(x, y), anchorDirection_) <= 0.0) {
-        return false;
-    }
-    planar = surface_.Offset(options_.anchor, {x, y});
-    return true;
 }
 
 double DuneLayer::Barchans(const Vec2d& q) const {
-    const auto ix = static_cast<std::int64_t>(std::floor(q.x / options_.spacing));
-    const auto iy = static_cast<std::int64_t>(std::floor(q.y / options_.spacing));
     double highest = 0.0;
-    for (std::int64_t gy = iy - rings_; gy <= iy + rings_; ++gy) {
-        for (std::int64_t gx = ix - rings_; gx <= ix + rings_; ++gx) {
-            RandomStream random(options_.seed, kDuneStream, static_cast<std::uint32_t>(gx),
-                                static_cast<std::uint32_t>(gy),
-                                static_cast<std::uint32_t>((gx >> 32) ^ ((gy >> 32) << 16)));
-            if (random.NextDouble() >= options_.density) {
-                continue;
-            }
-            const double cx = (static_cast<double>(gx) + random.NextDouble()) * options_.spacing;
-            const double cy = (static_cast<double>(gy) + random.NextDouble()) * options_.spacing;
-            Dune dune;
-            dune.width =
-                options_.width * (1.0 + options_.widthSpread * (2.0 * random.NextDouble() - 1.0));
-            dune.height = options_.heightRatio * dune.width;
-            const double azimuth =
-                options_.windAzimuth + options_.azimuthSpread * (2.0 * random.NextDouble() - 1.0);
-            dune.barchan = options_.shape == DuneShape::Dome
-                               ? 0.0
-                               : Smoothstep((dune.width - options_.minWidth) /
-                                            (0.5 * std::max(options_.minWidth, 1e-9)));
-            const double dx = q.x - cx;
-            const double dy = q.y - cy;
-            const double c = std::cos(azimuth);
-            const double s = std::sin(azimuth);
-            const double x = dx * c + dy * s;
-            const double y = dy * c - dx * s;
-            double h = 0.0;
-            if (dune.barchan > 0.0) {
-                h += dune.barchan * BarchanAt(x, y, dune, options_);
-            }
-            if (dune.barchan < 1.0) {
-                h += (1.0 - dune.barchan) * DomeAt(x, y, dune, options_);
-            }
-            highest = std::max(highest, h);
-        }
-    }
+    ForEachLatticeCell(q, {options_.spacing, options_.spacing}, rings_,
+                       [&](std::int64_t gx, std::int64_t gy) {
+                           RandomStream random = LatticeStream(options_.seed, kDuneStream, gx, gy);
+                           if (random.NextDouble() >= options_.density) {
+                               return;
+                           }
+                           highest = std::max(highest, BarchanCell(random, gx, gy, q));
+                       });
     return highest;
 }
 
-double DuneLayer::Crests(const Vec2d& q) const {
-    const double lambda = options_.wavelength;
+double DuneLayer::BarchanCell(RandomStream& random, std::int64_t gx, std::int64_t gy,
+                              const Vec2d& q) const {
+    const double cx = (static_cast<double>(gx) + random.NextDouble()) * options_.spacing;
+    const double cy = (static_cast<double>(gy) + random.NextDouble()) * options_.spacing;
+    Dune dune;
+    dune.width = options_.width * (1.0 + options_.widthSpread * (2.0 * random.NextDouble() - 1.0));
+    dune.height = options_.heightRatio * dune.width;
+    const double azimuth =
+        options_.windAzimuth + options_.azimuthSpread * (2.0 * random.NextDouble() - 1.0);
+    dune.barchan = options_.shape == DuneShape::Dome
+                       ? 0.0
+                       : Smoothstep((dune.width - options_.minWidth) /
+                                    (0.5 * std::max(options_.minWidth, 1e-9)));
+    const double dx = q.x - cx;
+    const double dy = q.y - cy;
+    const double c = std::cos(azimuth);
+    const double s = std::sin(azimuth);
+    return IsolatedDuneAt(dx * c + dy * s, dy * c - dx * s, dune, options_);
+}
+
+double DuneLayer::CrestSegment(const Vec2d& p) const {
     const Vec2d across{-wind_.y, wind_.x};
-    const bool linear = options_.shape == DuneShape::Linear;
-    const Vec2d normal = linear ? across : wind_;
-    const auto segment = [&](const Vec2d& p) {
-        return std::fabs(std::cos(std::numbers::pi * (p.x * across.x + p.y * across.y) /
-                                  (kBarchanoidSegment * lambda)));
-    };
-    const auto phase = [&](const Vec2d& p) {
-        double value =
-            (p.x * normal.x + p.y * normal.y) / lambda +
-            options_.sinuosity * static_cast<double>(PerlinNoise2Precise(
-                                     p.x / (kWanderWavelengths * lambda),
-                                     p.y / (kWanderWavelengths * lambda), options_.seed));
-        if (options_.shape == DuneShape::Barchanoid) {
-            value += kBarchanoidBend * segment(p);
-        }
-        return value;
-    };
-    const double psi = phase(q);
-    const double step = 0.01 * lambda;
-    const double gx = (phase({q.x + step, q.y}) - psi) / step;
-    const double gy = (phase({q.x, q.y + step}) - psi) / step;
-    const double stretch = std::max(1e-6, std::hypot(gx, gy) * lambda);
+    return std::fabs(std::cos(std::numbers::pi * (p.x * across.x + p.y * across.y) /
+                              (kBarchanoidSegment * options_.wavelength)));
+}
+
+double DuneLayer::CrestPhase(const Vec2d& p) const {
+    const double lambda = options_.wavelength;
+    const Vec2d normal = options_.shape == DuneShape::Linear ? Vec2d{-wind_.y, wind_.x} : wind_;
+    double value = (p.x * normal.x + p.y * normal.y) / lambda +
+                   options_.sinuosity * static_cast<double>(PerlinNoise2Precise(
+                                            p.x / (kWanderWavelengths * lambda),
+                                            p.y / (kWanderWavelengths * lambda), options_.seed));
+    if (options_.shape == DuneShape::Barchanoid) {
+        value += kBarchanoidBend * CrestSegment(p);
+    }
+    return value;
+}
+
+double DuneLayer::CrestAmplitude(const Vec2d& q, double psi) const {
+    const double lambda = options_.wavelength;
     double amplitude =
         1.0 - options_.defects *
                   (0.5 + 0.5 * static_cast<double>(PerlinNoise2Precise(
                                    q.x / (kDefectWavelengths * lambda),
                                    q.y / (kDefectWavelengths * lambda), options_.seed + 1u)));
     if (options_.shape == DuneShape::Barchanoid) {
-        amplitude *= 0.6 + 0.4 * segment(q);
+        amplitude *= 0.6 + 0.4 * CrestSegment(q);
     }
     if (options_.defectDensity > 0.0) {
-        const Vec2d along = linear ? wind_ : across;
+        const Vec2d along = options_.shape == DuneShape::Linear ? wind_ : Vec2d{-wind_.y, wind_.x};
         amplitude *=
             CrestBreaks(static_cast<std::int64_t>(std::floor(psi)), q.x * along.x + q.y * along.y);
     }
-    const double height = amplitude * options_.height;
+    return amplitude;
+}
+
+double DuneLayer::Crests(const Vec2d& q) const {
+    const double lambda = options_.wavelength;
+    const double psi = CrestPhase(q);
+    const double step = 0.01 * lambda;
+    const double gx = (CrestPhase({q.x + step, q.y}) - psi) / step;
+    const double gy = (CrestPhase({q.x, q.y + step}) - psi) / step;
+    const double stretch = std::max(1e-6, std::hypot(gx, gy) * lambda);
+    const double height = CrestAmplitude(q, psi) * options_.height;
     if (height <= 0.0) {
         return 0.0;
     }
-    const double u = Fract(psi);
-    if (linear) {
+    return CrestProfile(Fract(psi), height, stretch);
+}
+
+double DuneLayer::CrestProfile(double u, double height, double stretch) const {
+    const double lambda = options_.wavelength;
+    if (options_.shape == DuneShape::Linear) {
         const double flank =
             std::min(0.5, height * stretch / (std::tan(options_.flankSlope) * lambda));
         const double offset = std::fabs(u - 0.5);
@@ -386,9 +417,7 @@ double DuneLayer::CrestBreaks(std::int64_t crest, double along) const {
     const auto cell = static_cast<std::int64_t>(std::floor(along / length));
     double weight = 1.0;
     for (std::int64_t c = cell - 1; c <= cell + 1; ++c) {
-        RandomStream random(options_.seed, kCrestBreakStream, static_cast<std::uint32_t>(crest),
-                            static_cast<std::uint32_t>(c),
-                            static_cast<std::uint32_t>((crest >> 32) ^ ((c >> 32) << 16)));
+        RandomStream random = LatticeStream(options_.seed, kCrestBreakStream, crest, c);
         const double at = (static_cast<double>(c) + random.NextDouble()) * length;
         weight = std::min(weight, Smoothstep(std::fabs(along - at) / taper));
     }
@@ -420,49 +449,44 @@ double DuneLayer::Grainflows(const Vec2d& q, double face) const {
     const double v = q.x * across.x + q.y * across.y;
     const double cellAlong = flows.maxScarpLength + flows.maxLobeLength;
     const double cellAcross = std::max(flows.maxScarpWidth, flows.maxLobeWidth);
-    const auto iu = static_cast<std::int64_t>(std::floor(u / cellAlong));
-    const auto iv = static_cast<std::int64_t>(std::floor(v / cellAcross));
-    const auto between = [](double low, double high, double t) { return low + (high - low) * t; };
     double relief = 0.0;
-    for (std::int64_t cu = iu - 1; cu <= iu + 1; ++cu) {
-        for (std::int64_t cv = iv - 1; cv <= iv + 1; ++cv) {
-            RandomStream random(options_.seed, kGrainflowStream, static_cast<std::uint32_t>(cu),
-                                static_cast<std::uint32_t>(cv),
-                                static_cast<std::uint32_t>((cu >> 32) ^ ((cv >> 32) << 16)));
-            if (random.NextDouble() >= flows.cover) {
-                continue;
-            }
-            const double head = (static_cast<double>(cu) + random.NextDouble()) * cellAlong;
-            const double middle = (static_cast<double>(cv) + random.NextDouble()) * cellAcross;
-            const double scarpWidth =
-                between(flows.minScarpWidth, flows.maxScarpWidth, random.NextDouble());
-            const double scarpLength =
-                between(flows.minScarpLength, flows.maxScarpLength, random.NextDouble());
-            const double lobeWidth =
-                between(flows.minLobeWidth, flows.maxLobeWidth, random.NextDouble());
-            const double lobeLength =
-                between(flows.minLobeLength, flows.maxLobeLength, random.NextDouble());
-            const double s = u - head;
-            const double n = std::fabs(v - middle);
-            if (s >= 0.0 && s < scarpLength) {
-                const double half = 0.5 * scarpWidth;
-                const double profile =
-                    Smoothstep(s / (kGrainflowHead * scarpLength)) * (1.0 - s / scarpLength);
-                relief -= profile * std::max(0.0, 1.0 - (n / half) * (n / half));
-            }
-            const double t = s - scarpLength;
-            if (t >= 0.0 && t < lobeLength) {
-                const double toe = std::max(0.0, (t - kGrainflowToe * lobeLength) /
-                                                     ((1.0 - kGrainflowToe) * lobeLength));
-                const double half = 0.5 * lobeWidth * std::sqrt(std::max(0.0, 1.0 - toe * toe));
-                if (n < half) {
-                    const double profile = Smoothstep(t / (kGrainflowRise * lobeLength));
-                    relief += profile * (1.0 - (n / half) * (n / half));
-                }
-            }
+    ForEachLatticeCell({v, u}, {cellAcross, cellAlong}, 1, [&](std::int64_t cv, std::int64_t cu) {
+        RandomStream random = LatticeStream(options_.seed, kGrainflowStream, cu, cv);
+        if (random.NextDouble() >= flows.cover) {
+            return;
+        }
+        const double head = (static_cast<double>(cu) + random.NextDouble()) * cellAlong;
+        const double middle = (static_cast<double>(cv) + random.NextDouble()) * cellAcross;
+        AddGrainflow(relief, random, u - head, std::fabs(v - middle));
+    });
+    return face * flows.thickness * relief;
+}
+
+void DuneLayer::AddGrainflow(double& relief, RandomStream& random, double s, double n) const {
+    const DuneGrainflows& flows = options_.grainflows;
+    const double scarpWidth =
+        Between(flows.minScarpWidth, flows.maxScarpWidth, random.NextDouble());
+    const double scarpLength =
+        Between(flows.minScarpLength, flows.maxScarpLength, random.NextDouble());
+    const double lobeWidth = Between(flows.minLobeWidth, flows.maxLobeWidth, random.NextDouble());
+    const double lobeLength =
+        Between(flows.minLobeLength, flows.maxLobeLength, random.NextDouble());
+    if (s >= 0.0 && s < scarpLength) {
+        const double half = 0.5 * scarpWidth;
+        const double profile =
+            Smoothstep(s / (kGrainflowHead * scarpLength)) * (1.0 - s / scarpLength);
+        relief -= profile * std::max(0.0, 1.0 - (n / half) * (n / half));
+    }
+    const double t = s - scarpLength;
+    if (t >= 0.0 && t < lobeLength) {
+        const double toe =
+            std::max(0.0, (t - kGrainflowToe * lobeLength) / ((1.0 - kGrainflowToe) * lobeLength));
+        const double half = 0.5 * lobeWidth * std::sqrt(std::max(0.0, 1.0 - toe * toe));
+        if (n < half) {
+            const double profile = Smoothstep(t / (kGrainflowRise * lobeLength));
+            relief += profile * (1.0 - (n / half) * (n / half));
         }
     }
-    return face * flows.thickness * relief;
 }
 
 double DuneLayer::Ripples(const Vec2d& q, double dune) const {
@@ -513,44 +537,41 @@ double DuneLayer::Forks(const Vec2d& q, double wavelength, double density, doubl
     const double cell = std::max(std::sqrt(wavelength / density), kForkMinCell * wavelength);
     const double none = std::exp(-density * cell * cell / wavelength);
     const auto rings = static_cast<std::int64_t>(std::ceil(kForkOuter * wavelength / cell));
+    double phase = 0.0;
+    ForEachLatticeCell(q, {cell, cell}, rings, [&](std::int64_t gx, std::int64_t gy) {
+        RandomStream random = LatticeStream(options_.seed, kForkStream, gx, gy);
+        double draw = random.NextDouble();
+        while (draw > none) {
+            draw *= random.NextDouble();
+            const Vec2d centre{(static_cast<double>(gx) + random.NextDouble()) * cell,
+                               (static_cast<double>(gy) + random.NextDouble()) * cell};
+            AddFork(phase, core, random, q, centre, wavelength);
+        }
+    });
+    return phase;
+}
+
+void DuneLayer::AddFork(double& phase, double& core, RandomStream& random, const Vec2d& q,
+                        const Vec2d& centre, double wavelength) {
     const double inner = kForkInner * wavelength;
     const double outer = kForkOuter * wavelength;
-    const auto ix = static_cast<std::int64_t>(std::floor(q.x / cell));
-    const auto iy = static_cast<std::int64_t>(std::floor(q.y / cell));
-    double phase = 0.0;
-    for (std::int64_t gy = iy - rings; gy <= iy + rings; ++gy) {
-        for (std::int64_t gx = ix - rings; gx <= ix + rings; ++gx) {
-            RandomStream random(options_.seed, kForkStream, static_cast<std::uint32_t>(gx),
-                                static_cast<std::uint32_t>(gy),
-                                static_cast<std::uint32_t>((gx >> 32) ^ ((gy >> 32) << 16)));
-            double draw = random.NextDouble();
-            while (draw > none) {
-                draw *= random.NextDouble();
-                const Vec2d centre{(static_cast<double>(gx) + random.NextDouble()) * cell,
-                                   (static_cast<double>(gy) + random.NextDouble()) * cell};
-                const double turn = 2.0 * std::numbers::pi * random.NextDouble();
-                const double half =
-                    0.5 * wavelength * (kForkMin + (kForkMax - kForkMin) * random.NextDouble());
-                const double sign = random.NextDouble() < 0.5 ? -1.0 : 1.0;
-                const double r = std::hypot(q.x - centre.x, q.y - centre.y);
-                const double window = 1.0 - Smoothstep((r - inner) / (outer - inner));
-                if (window <= 0.0) {
-                    continue;
-                }
-                const Vec2d a{centre.x - half * std::cos(turn), centre.y - half * std::sin(turn)};
-                const Vec2d b{centre.x + half * std::cos(turn), centre.y + half * std::sin(turn)};
-                double subtended =
-                    std::atan2(q.y - a.y, q.x - a.x) - std::atan2(q.y - b.y, q.x - b.x);
-                subtended -= 2.0 * std::numbers::pi *
-                             std::floor((subtended + std::numbers::pi) / (2.0 * std::numbers::pi));
-                phase += sign * window * subtended / (2.0 * std::numbers::pi);
-                const double nearest =
-                    std::min(std::hypot(q.x - a.x, q.y - a.y), std::hypot(q.x - b.x, q.y - b.y));
-                core = std::min(core, Smoothstep(nearest / (kForkCore * wavelength)));
-            }
-        }
+    const double turn = 2.0 * std::numbers::pi * random.NextDouble();
+    const double half = 0.5 * wavelength * (kForkMin + (kForkMax - kForkMin) * random.NextDouble());
+    const double sign = random.NextDouble() < 0.5 ? -1.0 : 1.0;
+    const double r = std::hypot(q.x - centre.x, q.y - centre.y);
+    const double window = 1.0 - Smoothstep((r - inner) / (outer - inner));
+    if (window <= 0.0) {
+        return;
     }
-    return phase;
+    const Vec2d a{centre.x - half * std::cos(turn), centre.y - half * std::sin(turn)};
+    const Vec2d b{centre.x + half * std::cos(turn), centre.y + half * std::sin(turn)};
+    double subtended = std::atan2(q.y - a.y, q.x - a.x) - std::atan2(q.y - b.y, q.x - b.x);
+    subtended -= 2.0 * std::numbers::pi *
+                 std::floor((subtended + std::numbers::pi) / (2.0 * std::numbers::pi));
+    phase += sign * window * subtended / (2.0 * std::numbers::pi);
+    const double nearest =
+        std::min(std::hypot(q.x - a.x, q.y - a.y), std::hypot(q.x - b.x, q.y - b.y));
+    core = std::min(core, Smoothstep(nearest / (kForkCore * wavelength)));
 }
 
 double DuneLayer::SandDepth(double dune) const {
@@ -563,11 +584,11 @@ double DuneLayer::SandDepth(double dune) const {
 
 double DuneLayer::MaterialCoverAt(double x, double y, double /*spacing*/,
                                   const Ground* /*ground*/) const {
-    Vec2d q;
-    if (!Planar(x, y, q)) {
+    const std::optional<Vec2d> q = plane_.Project(x, y);
+    if (!q) {
         return 0.0;
     }
-    const double sand = SandDepth(Height(q));
+    const double sand = SandDepth(Height(*q));
     const DuneRipples& ripples = options_.ripples;
     if (ripples.wavelength <= 0.0 || ripples.height <= 0.0) {
         return sand;
@@ -576,14 +597,14 @@ double DuneLayer::MaterialCoverAt(double x, double y, double /*spacing*/,
 }
 
 double DuneLayer::DuneHeightAt(double x, double y) const {
-    Vec2d q;
-    return Planar(x, y, q) ? Height(q) : 0.0;
+    const std::optional<Vec2d> q = plane_.Project(x, y);
+    return q ? Height(*q) : 0.0;
 }
 
 float DuneLayer::HeightAt(float height, double x, double y, double spacing,
                           const Ground* /*ground*/) const {
-    Vec2d q;
-    if (!Planar(x, y, q)) {
+    const std::optional<Vec2d> q = plane_.Project(x, y);
+    if (!q) {
         return height;
     }
     const bool isolated = options_.shape == DuneShape::Barchan || options_.shape == DuneShape::Dome;
@@ -600,14 +621,14 @@ float DuneLayer::HeightAt(float height, double x, double y, double spacing,
     if (duneWeight <= 0.0 && rippleWeight <= 0.0 && flowWeight <= 0.0) {
         return height;
     }
-    const double dune = Height(q);
+    const double dune = Height(*q);
     double relief = duneWeight * dune;
     if (rippleWeight > 0.0) {
-        relief += rippleWeight * Ripples(q, dune);
+        relief += rippleWeight * Ripples(*q, dune);
     }
     if (flowWeight > 0.0) {
-        const Vec2d g = Gradient(q, 0.25 * flows.minScarpLength);
-        relief += flowWeight * Grainflows(q, SlipFaceWeight(g));
+        const Vec2d g = Gradient(*q, 0.25 * flows.minScarpLength);
+        relief += flowWeight * Grainflows(*q, SlipFaceWeight(g));
     }
     return static_cast<float>(static_cast<double>(height) + relief);
 }

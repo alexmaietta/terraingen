@@ -2,6 +2,7 @@
 /// @brief `StrataLayer`, layered rock: the ground beneath terraced into benches and cliffs.
 #pragma once
 
+#include "terraingen/layers/anchored_plane.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/layers/material.h"
 #include "terraingen/util/geometry.h"
@@ -96,7 +97,7 @@ class StrataLayer final : public FormulaLayer, public MaterialSource {
     StrataOptions options_;
     Vec2d dipDirection_{1.0, 0.0};
     double dipSlope_ = 0.0;
-    Vec3d anchorDirection_{};
+    AnchoredPlane plane_;
 };
 
 }  // namespace terraingen

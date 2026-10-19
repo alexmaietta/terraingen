@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <numbers>
+#include <optional>
 #include <stdexcept>
 
 namespace terraingen {
@@ -35,27 +36,21 @@ void ValidateStrataOptions(const StrataOptions& options) {
         throw std::invalid_argument(
             "Strata sharpness and softSharpness must be finite and at least 1");
     }
-    if (!(options.strength >= 0.0 && options.strength <= 1.0 && options.hardShare >= 0.0 &&
-          options.hardShare <= 1.0)) {
-        throw std::invalid_argument("Strata strength and hardShare must be in [0, 1]");
-    }
+    RequireUnitInterval(options.strength, "Strata strength");
+    RequireUnitInterval(options.hardShare, "Strata hardShare");
     if (!(options.cliffShare > 0.0 && options.cliffShare <= 1.0)) {
         throw std::invalid_argument("Strata cliffShare must be in (0, 1]");
     }
-    if (!(std::isfinite(options.dipAzimuth) && std::isfinite(options.anchor.x) &&
-          std::isfinite(options.anchor.y))) {
-        throw std::invalid_argument("Strata dipAzimuth and anchor must be finite");
-    }
+    RequireFinite(options.dipAzimuth, "Strata dipAzimuth");
+    RequireFinite(options.anchor.x, "Strata anchor x");
+    RequireFinite(options.anchor.y, "Strata anchor y");
 }
 
 StrataLayer::StrataLayer(StrataOptions options, Surface surface)
-    : FormulaLayer(surface), options_(options) {
+    : FormulaLayer(surface), options_(options), plane_(surface, options.anchor) {
     ValidateStrataOptions(options_);
     dipDirection_ = {std::cos(options_.dipAzimuth), std::sin(options_.dipAzimuth)};
     dipSlope_ = std::tan(options_.dip);
-    if (surface_.IsBody()) {
-        anchorDirection_ = UnitVector(options_.anchor.x, options_.anchor.y);
-    }
 }
 
 double StrataLayer::BedBoundary(std::int64_t k) const {
@@ -90,14 +85,11 @@ StrataLayer::Bed StrataLayer::BedAt(double level) const {
 }
 
 bool StrataLayer::StratigraphicLevel(double height, double x, double y, double& level) const {
-    Vec2d q{x, y};
-    if (surface_.IsBody()) {
-        if (Dot(UnitVector(x, y), anchorDirection_) <= 0.0) {
-            return false;
-        }
-        q = surface_.Offset(options_.anchor, {x, y});
+    const std::optional<Vec2d> q = plane_.Project(x, y);
+    if (!q) {
+        return false;
     }
-    level = height + dipSlope_ * (q.x * dipDirection_.x + q.y * dipDirection_.y);
+    level = height + dipSlope_ * (q->x * dipDirection_.x + q->y * dipDirection_.y);
     return std::isfinite(level);
 }
 

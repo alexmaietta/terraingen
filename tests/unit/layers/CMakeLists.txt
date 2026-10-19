@@ -1,6 +1,7 @@
 terraingen_add_test_suite(
     layers
     SOURCES
+    anchored_plane_test.cpp
     bedforms_test.cpp
     bisection_test.cpp
     density_map_test.cpp
@@ -8,6 +9,8 @@ terraingen_add_test_suite(
     detail_test.cpp
     exposure_test.cpp
     fade_test.cpp
+    ground_test.cpp
+    lattice_test.cpp
     layer_test.cpp
     noise_relief_test.cpp
     pavement_test.cpp

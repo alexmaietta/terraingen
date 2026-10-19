@@ -1,5 +1,6 @@
 #include "terraingen/layers/bedforms.h"
 
+#include "terraingen/layers/lattice.h"
 #include "terraingen/noise/perlin.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/cell_loops.h"
@@ -161,21 +162,15 @@ BedformLayer::FieldSum BedformLayer::SumFields(double x, double y, const Ground*
         }
         return sum;
     }
-    const auto ix = static_cast<std::int64_t>(std::floor(x / cell_));
-    const auto iy = static_cast<std::int64_t>(std::floor(y / cell_));
-    for (std::int64_t gy = iy - 1; gy <= iy + 1; ++gy) {
-        for (std::int64_t gx = ix - 1; gx <= ix + 1; ++gx) {
-            RandomStream random(options_.seed, kBedformStream, static_cast<std::uint32_t>(gx),
-                                static_cast<std::uint32_t>(gy),
-                                static_cast<std::uint32_t>((gx >> 32) ^ ((gy >> 32) << 16)));
-            if (random.NextDouble() >= density_) {
-                continue;
-            }
-            const double cx = (static_cast<double>(gx) + random.NextDouble()) * cell_;
-            const double cy = (static_cast<double>(gy) + random.NextDouble()) * cell_;
-            AddField(sum, random, {cx, cy}, {x - cx, y - cy}, ground);
+    ForEachLatticeCell({x, y}, {cell_, cell_}, 1, [&](std::int64_t gx, std::int64_t gy) {
+        RandomStream random = LatticeStream(options_.seed, kBedformStream, gx, gy);
+        if (random.NextDouble() >= density_) {
+            return;
         }
-    }
+        const double cx = (static_cast<double>(gx) + random.NextDouble()) * cell_;
+        const double cy = (static_cast<double>(gy) + random.NextDouble()) * cell_;
+        AddField(sum, random, {cx, cy}, {x - cx, y - cy}, ground);
+    });
     return sum;
 }
 

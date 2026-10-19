@@ -2,6 +2,7 @@
 /// @brief Positions a layer evaluates and their heights: a raster's cells or scattered points.
 #pragma once
 
+#include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/util/geometry.h"
 
@@ -57,5 +58,24 @@ class SampleBlock {
     std::span<const Vec2d> positions_;
     std::span<float> heights_;
 };
+
+/// Sets each point of `samples` holding data, in order, to `map(height, position)`.
+template <typename Map> void MapPoints(SampleBlock& samples, const Map& map) {
+    for (std::size_t i = 0; i < samples.Size(); ++i) {
+        if (!samples.IsNoData(i)) {
+            samples.Height(i) = map(samples.Height(i), samples.Position(i));
+        }
+    }
+}
+
+/// Sets each sample of `samples` holding data to `map(height, position)`: a grid's cells over
+/// `threads` threads (`MapCells`), or points in order.
+template <typename Map> void MapSamples(SampleBlock& samples, unsigned threads, const Map& map) {
+    if (Raster<float>* grid = samples.Grid()) {
+        MapCells(*grid, threads, map);
+        return;
+    }
+    MapPoints(samples, map);
+}
 
 }  // namespace terraingen

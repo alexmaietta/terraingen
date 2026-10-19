@@ -3,9 +3,12 @@
 #pragma once
 
 #include "terraingen/util/geometry.h"
+#include "terraingen/util/surface.h"
 
+#include <array>
 #include <cstddef>
 #include <functional>
+#include <optional>
 #include <span>
 
 namespace terraingen {
@@ -51,5 +54,26 @@ class Ground {
         };
     }
 };
+
+/// The four points `step` metres east, west, north and south of `centre` on `surface`, in that
+/// order, which `GradientFromHeights` reads a gradient from.
+std::array<Vec2d, 4> GradientPoints(const Surface& surface, const Vec2d& centre, double step);
+
+/// The gradient (east, north, rise over run) by central differences of `heights` read at
+/// `GradientPoints` `step` metres out; nothing where any difference is not finite.
+std::optional<Vec2d> GradientFromHeights(std::span<const float, 4> heights, double step);
+
+/// The gradient (east, north, rise over run) of `ground` at `centre` by central differences
+/// `step` metres out (`GradientPoints`); nothing where the ground has no data there.
+/// @param spacing Sample spacing in metres the ground is read at.
+std::optional<Vec2d> GroundGradient(const Ground& ground, const Surface& surface,
+                                    const Vec2d& centre, double step, double spacing);
+
+/// The heights of `ground` at `offsets` (metres east and north in the local frame of `centre`),
+/// into `heights` of the same size, with `fallback` where the ground has no data.
+/// @param spacing Sample spacing in metres the ground is read at.
+void GroundAround(const Ground& ground, const Surface& surface, const Vec2d& centre,
+                  std::span<const Vec2d> offsets, double spacing, double fallback,
+                  std::span<double> heights);
 
 }  // namespace terraingen

@@ -2,9 +2,11 @@
 /// @brief `DuneLayer`, dune fields of barchans, domes or crest-line dunes, with ripples on them.
 #pragma once
 
+#include "terraingen/layers/anchored_plane.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/layers/material.h"
+#include "terraingen/random/stream.h"
 #include "terraingen/util/geometry.h"
 
 #include <cstdint>
@@ -175,11 +177,22 @@ class DuneLayer final : public FormulaLayer, public MaterialSource {
                    const Ground* ground) const override;
 
   private:
-    /// (x, y) in the plane the dunes are laid out in (m), or false on a body's far hemisphere.
-    bool Planar(double x, double y, Vec2d& planar) const;
     double Height(const Vec2d& q) const;
     double Barchans(const Vec2d& q) const;
+    /// The height at planar point `q` of the barchan or dome of lattice cell (`gx`, `gy`), drawn
+    /// from `random` after its chance.
+    double BarchanCell(RandomStream& random, std::int64_t gx, std::int64_t gy,
+                       const Vec2d& q) const;
     double Crests(const Vec2d& q) const;
+    /// How far planar point `p` lies from a barchanoid crest's links, in [0, 1].
+    double CrestSegment(const Vec2d& p) const;
+    /// The warped crest phase at planar point `p`, in wavelengths.
+    double CrestPhase(const Vec2d& p) const;
+    /// The share of the crest height standing at planar point `q` on crest phase `psi`.
+    double CrestAmplitude(const Vec2d& q, double psi) const;
+    /// The crest profile at phase `u` in [0, 1) for a crest `height` metres high whose phase is
+    /// stretched by `stretch`.
+    double CrestProfile(double u, double height, double stretch) const;
     double Ripples(const Vec2d& q, double dune) const;
     /// How fully a dune `dune` metres high covers the ground with sand, in [0, 1].
     double SandDepth(double dune) const;
@@ -189,6 +202,9 @@ class DuneLayer final : public FormulaLayer, public MaterialSource {
     /// crest, add near planar point `q`, in wavelengths; `core` becomes the weight in [0, 1] that
     /// fades the crests out at the forks' ends.
     double Forks(const Vec2d& q, double wavelength, double density, double& core) const;
+    /// Adds to `phase` and `core` the fork centred at `centre`, its shape drawn from `random`.
+    static void AddFork(double& phase, double& core, RandomStream& random, const Vec2d& q,
+                        const Vec2d& centre, double wavelength);
     /// The dunes' gradient at planar point `q`, by central differences `step` metres apart.
     Vec2d Gradient(const Vec2d& q, double step) const;
     /// How far the ground with gradient `g` is a slip face, in [0, 1]: facing downwind near the
@@ -196,11 +212,14 @@ class DuneLayer final : public FormulaLayer, public MaterialSource {
     double SlipFaceWeight(const Vec2d& g) const;
     /// The grainflows' relief at planar point `q` (m), on the slip face share `face`.
     double Grainflows(const Vec2d& q, double face) const;
+    /// Adds to `relief` the scarp and lobe of one grainflow at `s` metres downslope of its head
+    /// and `n` across, its sizes drawn from `random`.
+    void AddGrainflow(double& relief, RandomStream& random, double s, double n) const;
 
     DuneOptions options_;
+    AnchoredPlane plane_;
     Vec2d wind_{1.0, 0.0};
     std::int64_t rings_ = 1;
-    Vec3d anchorDirection_{};
 };
 
 }  // namespace terraingen

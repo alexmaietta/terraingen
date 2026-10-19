@@ -19,18 +19,9 @@ void NoiseRelief::ApplySamples(SampleBlock& samples, const LayerContext& context
         ApplyKernel(samples, context, kernel_, origin_);
         return;
     }
-    const auto at = [&](float height, const Vec2d& p) {
+    MapSamples(samples, context.threads, [&](float height, const Vec2d& p) {
         return height + NoiseLayersAt(params_.layers, origin_, surface_, p.x, p.y);
-    };
-    if (Raster<float>* grid = samples.Grid()) {
-        MapCells(*grid, context.threads, at);
-        return;
-    }
-    for (std::size_t i = 0; i < samples.Size(); ++i) {
-        if (!samples.IsNoData(i)) {
-            samples.Height(i) = at(samples.Height(i), samples.Position(i));
-        }
-    }
+    });
 }
 
 float NoiseLayersAt(const std::vector<NoiseLayer>& layers, const Vec2d& origin,

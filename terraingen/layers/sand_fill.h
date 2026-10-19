@@ -4,6 +4,9 @@
 
 #include "terraingen/layers/layer.h"
 #include "terraingen/layers/material.h"
+#include "terraingen/util/geometry.h"
+
+#include <array>
 
 namespace terraingen {
 
@@ -59,7 +62,12 @@ class SandFillLayer final : public FormulaLayer, public MaterialSource {
   private:
     double Thickness(const Ground& ground, double x, double y, double height, double spacing) const;
 
+    /// Points on each ring the surroundings are read at; the inner ring is turned half a step.
+    static constexpr int kRingPoints = 8;
+
     SandFillOptions options_;
+    /// The two rings read around a point, inner first, in metres east and north of it.
+    std::array<Vec2d, 2 * kRingPoints> rings_{};
 };
 
 }  // namespace terraingen

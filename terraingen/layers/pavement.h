@@ -2,6 +2,7 @@
 /// @brief `PavementLayer`, fractured bedrock: polygonal plates parted by cracks or raised ridges.
 #pragma once
 
+#include "terraingen/layers/anchored_plane.h"
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/layers/layer.h"
@@ -111,7 +112,8 @@ class PavementLayer final : public FormulaLayer, public MaterialSource {
         double interior = 1.0;
         std::uint32_t id = 0;
     };
-    bool Planar(double x, double y, Vec2d& planar) const;
+    /// Planar point `q` moved by the edge warp of plates `size` across.
+    Vec2d Warp(const Vec2d& q, double size, std::uint32_t seed) const;
     Plate PlateAt(const Vec2d& q, const Level& level, std::uint32_t seed, double crackWeight) const;
     /// The relief of every octave at planar point `q`, each faded at `spacing`; 0 for none.
     double Relief(const Vec2d& q, double spacing) const;
@@ -119,7 +121,7 @@ class PavementLayer final : public FormulaLayer, public MaterialSource {
 
     PavementOptions options_;
     std::optional<ExposureField> exposure_;
-    Vec3d anchorDirection_{};
+    AnchoredPlane plane_;
     std::vector<Level> levels_;
 };
 

@@ -1,6 +1,7 @@
 #include "terraingen/layers/sand_shadow.h"
 
 #include "terraingen/raster/cell_loops.h"
+#include "terraingen/util/checks.h"
 
 #include <algorithm>
 #include <cmath>
@@ -11,21 +12,13 @@
 namespace terraingen {
 
 void ValidateSandShadowOptions(const SandShadowOptions& options) {
-    if (!std::isfinite(options.windAzimuth)) {
-        throw std::invalid_argument("Sand shadow windAzimuth must be finite");
-    }
-    if (!(options.lengthRatio > 0.0 && std::isfinite(options.lengthRatio))) {
-        throw std::invalid_argument("Sand shadow lengthRatio must be positive and finite");
-    }
+    RequireFinite(options.windAzimuth, "Sand shadow windAzimuth");
+    RequirePositive(options.lengthRatio, "Sand shadow lengthRatio");
     if (!(options.flankAngle > 0.0 && options.flankAngle < 0.5 * std::numbers::pi)) {
         throw std::invalid_argument("Sand shadow flankAngle must be in (0, 90) deg");
     }
-    if (!(options.minDiameter >= 0.0 && std::isfinite(options.minDiameter))) {
-        throw std::invalid_argument("Sand shadow minDiameter must be finite and not negative");
-    }
-    if (!(options.coverThickness > 0.0 && std::isfinite(options.coverThickness))) {
-        throw std::invalid_argument("Sand shadow coverThickness must be positive and finite");
-    }
+    RequireNonNegative(options.minDiameter, "Sand shadow minDiameter");
+    RequirePositive(options.coverThickness, "Sand shadow coverThickness");
     ValidateResolutionFade(options.fade);
 }
 
@@ -145,19 +138,15 @@ void SandShadowLayer::ApplySamples(SampleBlock& samples, const LayerContext& con
             });
         return;
     }
-    for (std::size_t i = 0; i < samples.Size(); ++i) {
-        if (samples.IsNoData(i)) {
-            continue;
-        }
-        const Vec2d p = samples.Position(i);
+    MapPoints(samples, [&](float height, const Vec2d& p) {
         double depth = 0.0;
         for (const Shadow& shadow : shadows) {
             if (surface_.Contains(shadow.box, p)) {
                 depth = std::max(depth, ShadowDepth(shadow, p.x, p.y));
             }
         }
-        samples.Height(i) = static_cast<float>(static_cast<double>(samples.Height(i)) + depth);
-    }
+        return static_cast<float>(static_cast<double>(height) + depth);
+    });
 }
 
 }  // namespace terraingen

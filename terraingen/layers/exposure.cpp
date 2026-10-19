@@ -40,6 +40,14 @@ void ValidateExposureParams(const ExposureParams& params) {
 ExposureField::ExposureField(const ExposureParams& params, const Surface& surface)
     : params_(params), surface_(surface) {
     ValidateExposureParams(params_);
+    constexpr double kDiagonal = 0.70710678118654752;
+    constexpr std::array<double, 8> kEast{1.0,  kDiagonal,  0.0, -kDiagonal,
+                                          -1.0, -kDiagonal, 0.0, kDiagonal};
+    constexpr std::array<double, 8> kNorth{0.0, kDiagonal,  1.0,  kDiagonal,
+                                           0.0, -kDiagonal, -1.0, -kDiagonal};
+    for (std::size_t k = 0; k < ring_.size(); ++k) {
+        ring_[k] = {kEast[k] * params_.reach, kNorth[k] * params_.reach};
+    }
 }
 
 double ExposureField::Exposure(const Ground& ground, double x, double y, double spacing) const {
@@ -47,19 +55,12 @@ double ExposureField::Exposure(const Ground& ground, double x, double y, double 
     if (std::isnan(here)) {
         return 0.0;
     }
-    constexpr double kDiagonal = 0.70710678118654752;
-    constexpr std::array<double, 8> kEast{1.0,  kDiagonal,  0.0, -kDiagonal,
-                                          -1.0, -kDiagonal, 0.0, kDiagonal};
-    constexpr std::array<double, 8> kNorth{0.0, kDiagonal,  1.0,  kDiagonal,
-                                           0.0, -kDiagonal, -1.0, -kDiagonal};
     const double reach = params_.reach;
     std::array<double, 8> heights{};
+    GroundAround(ground, surface_, {x, y}, ring_, spacing, static_cast<double>(here), heights);
     double mean = 0.0;
-    for (std::size_t k = 0; k < 8; ++k) {
-        const Vec2d at = surface_.Locate({x, y}, {kEast[k] * reach, kNorth[k] * reach});
-        const float there = ground.HeightAt(at.x, at.y, spacing);
-        heights[k] = static_cast<double>(std::isnan(there) ? here : there);
-        mean += heights[k] / 8.0;
+    for (const double height : heights) {
+        mean += height / 8.0;
     }
     const double rise = (static_cast<double>(here) - mean) / reach;
     const double slope =

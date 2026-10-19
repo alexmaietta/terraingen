@@ -1,15 +1,19 @@
 #include "terraingen/layers/pavement.h"
 
+#include "terraingen/layers/lattice.h"
 #include "terraingen/noise/perlin.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/surface.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
 #include <numbers>
+#include <optional>
 #include <stdexcept>
+#include <utility>
 
 namespace terraingen {
 
@@ -43,31 +47,86 @@ struct Site {
     }
 };
 
+/// The plate sites of the cells around a point, and the one nearest it.
+struct Sites {
+    std::array<Site, (2 * kRings + 1) * (2 * kRings + 1)> sites;
+    std::size_t count = 0;
+    std::size_t nearest = 0;
+};
+
+/// The sites of plates `size` across, their sites strayed by `jitter`, within `kRings` cells of
+/// point `p`.
+Sites PlateSites(const Vec2d& p, double size, double jitter, double maxStep, double maxTilt,
+                 std::uint32_t seed) {
+    Sites around;
+    double best = std::numeric_limits<double>::infinity();
+    ForEachLatticeCell(p, {size, size}, kRings, [&](std::int64_t gx, std::int64_t gy) {
+        RandomStream random = LatticeStream(seed, kPavementStream, gx, gy);
+        const double u = random.NextDouble();
+        const double v = random.NextDouble();
+        Site& site = around.sites[around.count];
+        site.centre = {(static_cast<double>(gx) + 0.5 + jitter * (u - 0.5)) * size,
+                       (static_cast<double>(gy) + 0.5 + jitter * (v - 0.5)) * size};
+        site.step = maxStep * (2.0 * random.NextDouble() - 1.0);
+        site.slope = std::tan(maxTilt * random.NextDouble());
+        const double turn = 2.0 * std::numbers::pi * random.NextDouble();
+        site.downhill = {std::cos(turn), std::sin(turn)};
+        site.id = random.NextU32();
+        const double d = std::hypot(p.x - site.centre.x, p.y - site.centre.y);
+        if (d < best) {
+            best = d;
+            around.nearest = around.count;
+        }
+        ++around.count;
+    });
+    return around;
+}
+
+/// The distance from `p` to the nearest edge of the plate of the site nearest it, and the site
+/// across that edge.
+std::pair<double, std::size_t> NearestEdge(const Sites& around, const Vec2d& p) {
+    const Site& own = around.sites[around.nearest];
+    double edge = std::numeric_limits<double>::infinity();
+    std::size_t neighbour = around.nearest;
+    for (std::size_t k = 0; k < around.count; ++k) {
+        if (k == around.nearest) {
+            continue;
+        }
+        const Vec2d centre = around.sites[k].centre;
+        const Vec2d across{centre.x - own.centre.x, centre.y - own.centre.y};
+        const double length = std::hypot(across.x, across.y);
+        const Vec2d middle{0.5 * (centre.x + own.centre.x), 0.5 * (centre.y + own.centre.y)};
+        const double d =
+            ((middle.x - p.x) * across.x + (middle.y - p.y) * across.y) / std::max(length, 1e-12);
+        if (d < edge) {
+            edge = d;
+            neighbour = k;
+        }
+    }
+    return {edge, neighbour};
+}
+
 }  // namespace
 
 void ValidatePavementOptions(const PavementOptions& options) {
     RequirePositive(options.plateSize, "Pavement plateSize");
     RequirePositive(options.crackWidth, "Pavement crackWidth");
     RequirePositive(options.exposureSpacing, "Pavement exposureSpacing");
-    if (!(IsNonNegative(options.crackDepth) && IsNonNegative(options.edgeRounding) &&
-          IsNonNegative(options.maxStep) && IsNonNegative(options.warp))) {
-        throw std::invalid_argument(
-            "Pavement crack depth, edge rounding, step and warp must be finite and not negative");
-    }
+    RequireNonNegative(options.crackDepth, "Pavement crackDepth");
+    RequireNonNegative(options.edgeRounding, "Pavement edgeRounding");
+    RequireNonNegative(options.maxStep, "Pavement maxStep");
+    RequireNonNegative(options.warp, "Pavement warp");
     if (!(options.maxTilt >= 0.0 && options.maxTilt < 0.5 * std::numbers::pi)) {
         throw std::invalid_argument("Pavement maxTilt must be in [0, 90) deg");
     }
-    if (!(options.jitter >= 0.0 && options.jitter <= 1.0)) {
-        throw std::invalid_argument("Pavement jitter must be in [0, 1]");
-    }
+    RequireUnitInterval(options.jitter, "Pavement jitter");
     if (!(options.octaves >= 1 && options.octaves <= kMaxOctaves && options.lacunarity > 1.0 &&
           std::isfinite(options.lacunarity) && options.gain > 0.0 && options.gain <= 1.0)) {
         throw std::invalid_argument(
             "Pavement needs 1 to 8 octaves, a lacunarity above 1 and a gain in (0, 1]");
     }
-    if (!(std::isfinite(options.anchor.x) && std::isfinite(options.anchor.y))) {
-        throw std::invalid_argument("Pavement anchor must be finite");
-    }
+    RequireFinite(options.anchor.x, "Pavement anchor x");
+    RequireFinite(options.anchor.y, "Pavement anchor y");
     if (options.exposure) {
         ValidateExposureParams(*options.exposure);
     }
@@ -89,13 +148,10 @@ PavementOptions MarsDesiccationRidges() {
 }
 
 PavementLayer::PavementLayer(PavementOptions options, Surface surface)
-    : FormulaLayer(surface), options_(options) {
+    : FormulaLayer(surface), options_(options), plane_(surface, options.anchor) {
     ValidatePavementOptions(options_);
     if (options_.exposure) {
         exposure_.emplace(*options_.exposure, surface_);
-    }
-    if (surface_.IsBody()) {
-        anchorDirection_ = UnitVector(options_.anchor.x, options_.anchor.y);
     }
     double size = 1.0;
     double relief = 1.0;
@@ -109,81 +165,30 @@ PavementLayer::PavementLayer(PavementOptions options, Surface surface)
     }
 }
 
-bool PavementLayer::Planar(double x, double y, Vec2d& planar) const {
-    if (!surface_.IsBody()) {
-        planar = {x, y};
-        return true;
-    }
-    if (Dot(UnitVector(x, y), anchorDirection_) <= 0.0) {
-        return false;
-    }
-    planar = surface_.Offset(options_.anchor, {x, y});
-    return true;
-}
-
-PavementLayer::Plate PavementLayer::PlateAt(const Vec2d& q, const Level& level, std::uint32_t seed,
-                                            double crackWeight) const {
-    const double size = level.size;
+Vec2d PavementLayer::Warp(const Vec2d& q, double size, std::uint32_t seed) const {
     const auto warp = [&](double scale, double ox, double oy, std::uint32_t salt) {
         return static_cast<double>(
             PerlinNoise2Precise(q.x / (scale * size) + ox, q.y / (scale * size) + oy, seed + salt));
     };
     const double reach = options_.warp * size;
-    const Vec2d p{q.x + reach * (warp(kWarpScale, 0.0, 0.0, 7u) +
-                                 kFineWarp * warp(kFineWarpScale, 5.3, -8.1, 9u)),
-                  q.y + reach * (warp(kWarpScale, 31.7, -12.3, 8u) +
-                                 kFineWarp * warp(kFineWarpScale, -17.9, 4.4, 10u))};
-    const auto ix = static_cast<std::int64_t>(std::floor(p.x / size));
-    const auto iy = static_cast<std::int64_t>(std::floor(p.y / size));
-    Site sites[(2 * kRings + 1) * (2 * kRings + 1)];
-    std::size_t count = 0;
-    std::size_t nearest = 0;
-    double best = std::numeric_limits<double>::infinity();
-    for (std::int64_t gy = iy - kRings; gy <= iy + kRings; ++gy) {
-        for (std::int64_t gx = ix - kRings; gx <= ix + kRings; ++gx) {
-            RandomStream random(seed, kPavementStream, static_cast<std::uint32_t>(gx),
-                                static_cast<std::uint32_t>(gy),
-                                static_cast<std::uint32_t>((gx >> 32) ^ ((gy >> 32) << 16)));
-            const double u = random.NextDouble();
-            const double v = random.NextDouble();
-            Site& site = sites[count];
-            site.centre = {(static_cast<double>(gx) + 0.5 + options_.jitter * (u - 0.5)) * size,
-                           (static_cast<double>(gy) + 0.5 + options_.jitter * (v - 0.5)) * size};
-            site.step = level.maxStep * (2.0 * random.NextDouble() - 1.0);
-            site.slope = std::tan(level.maxTilt * random.NextDouble());
-            const double turn = 2.0 * std::numbers::pi * random.NextDouble();
-            site.downhill = {std::cos(turn), std::sin(turn)};
-            site.id = random.NextU32();
-            const double d = std::hypot(p.x - site.centre.x, p.y - site.centre.y);
-            if (d < best) {
-                best = d;
-                nearest = count;
-            }
-            ++count;
-        }
-    }
-    const Site& own = sites[nearest];
-    double edge = std::numeric_limits<double>::infinity();
-    std::size_t neighbour = nearest;
-    for (std::size_t k = 0; k < count; ++k) {
-        if (k == nearest) {
-            continue;
-        }
-        const Vec2d across{sites[k].centre.x - own.centre.x, sites[k].centre.y - own.centre.y};
-        const double length = std::hypot(across.x, across.y);
-        const Vec2d middle{0.5 * (sites[k].centre.x + own.centre.x),
-                           0.5 * (sites[k].centre.y + own.centre.y)};
-        const double d =
-            ((middle.x - p.x) * across.x + (middle.y - p.y) * across.y) / std::max(length, 1e-12);
-        if (d < edge) {
-            edge = d;
-            neighbour = k;
-        }
-    }
+    return {q.x + reach * (warp(kWarpScale, 0.0, 0.0, 7u) +
+                           kFineWarp * warp(kFineWarpScale, 5.3, -8.1, 9u)),
+            q.y + reach * (warp(kWarpScale, 31.7, -12.3, 8u) +
+                           kFineWarp * warp(kFineWarpScale, -17.9, 4.4, 10u))};
+}
+
+PavementLayer::Plate PavementLayer::PlateAt(const Vec2d& q, const Level& level, std::uint32_t seed,
+                                            double crackWeight) const {
+    const Vec2d p = Warp(q, level.size, seed);
+    const Sites around =
+        PlateSites(p, level.size, options_.jitter, level.maxStep, level.maxTilt, seed);
+    const Site& own = around.sites[around.nearest];
+    const auto [edge, neighbour] = NearestEdge(around, p);
     const double shoulder = 0.5 * level.crackWidth + level.rounding;
     const double crack = 1.0 - Smoothstep(edge / shoulder);
     const double ownHeight = own.HeightAt(p);
-    const double plate = ownHeight + 0.5 * crack * (sites[neighbour].HeightAt(p) - ownHeight);
+    const double plate =
+        ownHeight + 0.5 * crack * (around.sites[neighbour].HeightAt(p) - ownHeight);
     const double sign = options_.raised ? 1.0 : -1.0;
     return {plate + crackWeight * sign * level.crackDepth * crack, edge, 1.0 - crack, own.id};
 }
@@ -219,33 +224,32 @@ double PavementLayer::ExposureWeight(double x, double y, const Ground* ground) c
 }
 
 double PavementLayer::ReliefAt(double x, double y) const {
-    Vec2d q;
-    return Planar(x, y, q) ? Relief(q, 0.0) : 0.0;
+    const std::optional<Vec2d> q = plane_.Project(x, y);
+    return q ? Relief(*q, 0.0) : 0.0;
 }
 
 double PavementLayer::EdgeDistanceAt(double x, double y) const {
-    Vec2d q;
-    return Planar(x, y, q) ? PlateAt(q, levels_.front(), levels_.front().seed, 1.0).edge
-                           : std::numeric_limits<double>::infinity();
+    const std::optional<Vec2d> q = plane_.Project(x, y);
+    return q ? PlateAt(*q, levels_.front(), levels_.front().seed, 1.0).edge
+             : std::numeric_limits<double>::infinity();
 }
 
 double PavementLayer::MaterialCoverAt(double x, double y, double /*spacing*/,
                                       const Ground* ground) const {
-    Vec2d q;
-    return Planar(x, y, q) ? ExposureWeight(x, y, ground) : 0.0;
+    return plane_.Project(x, y) ? ExposureWeight(x, y, ground) : 0.0;
 }
 
 float PavementLayer::HeightAt(float height, double x, double y, double spacing,
                               const Ground* ground) const {
-    Vec2d q;
-    if (!Planar(x, y, q) || ResolutionWeight(options_.plateSize, spacing, options_.fade) <= 0.0) {
+    const std::optional<Vec2d> q = plane_.Project(x, y);
+    if (!q || ResolutionWeight(options_.plateSize, spacing, options_.fade) <= 0.0) {
         return height;
     }
     const double exposure = ExposureWeight(x, y, ground);
     if (exposure <= 0.0) {
         return height;
     }
-    return static_cast<float>(static_cast<double>(height) + exposure * Relief(q, spacing));
+    return static_cast<float>(static_cast<double>(height) + exposure * Relief(*q, spacing));
 }
 
 void PavementLayer::CheckContext(const LayerContext& context) const {

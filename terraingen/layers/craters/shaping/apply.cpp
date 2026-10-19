@@ -433,11 +433,9 @@ void ShapeOnSlopes(std::vector<PreparedCrater>& prepared, const HeightSampler& g
     points.reserve(4 * prepared.size());
     for (const PreparedCrater& crater : prepared) {
         const Crater& c = crater.crater;
-        const double half = options.datumFitRadii * 0.5 * c.diameter;
-        for (const Vec2d offset :
-             {Vec2d{half, 0.0}, Vec2d{-half, 0.0}, Vec2d{0.0, half}, Vec2d{0.0, -half}}) {
-            points.push_back(options.surface.Locate({c.x, c.y}, offset));
-        }
+        const std::array<Vec2d, 4> around =
+            GradientPoints(options.surface, {c.x, c.y}, options.datumFitRadii * 0.5 * c.diameter);
+        points.insert(points.end(), around.begin(), around.end());
     }
     std::vector<float> heights(points.size());
     if (batch) {
@@ -450,15 +448,14 @@ void ShapeOnSlopes(std::vector<PreparedCrater>& prepared, const HeightSampler& g
     for (std::size_t k = 0; k < prepared.size(); ++k) {
         PreparedCrater& crater = prepared[k];
         const Crater& c = crater.crater;
-        const double half = options.datumFitRadii * 0.5 * c.diameter;
-        const auto at = [&](std::size_t n) { return static_cast<double>(heights[4 * k + n]); };
-        const double east = (at(0) - at(1)) / (2.0 * half);
-        const double north = (at(2) - at(3)) / (2.0 * half);
-        if (!std::isfinite(east) || !std::isfinite(north)) {
+        const std::optional<Vec2d> gradient =
+            GradientFromHeights(std::span<const float, 4>(heights.data() + 4 * k, 4),
+                                options.datumFitRadii * 0.5 * c.diameter);
+        if (!gradient) {
             continue;
         }
-        crater.slope = SlopeShape(c, east, north, response);
-        const double rate = SlopeWearRate(response, east, north);
+        crater.slope = SlopeShape(c, gradient->x, gradient->y, response);
+        const double rate = SlopeWearRate(response, gradient->x, gradient->y);
         if (rate > 1.0) {
             crater.state = degradation.WornState(c, rate);
         }

@@ -94,3 +94,22 @@ TEST(FunctionLayer, PassesTheSpacingInMetresOnASphere) {
     layer.Apply(heights, {});
     EXPECT_NEAR(seen, 0.001 * moon.UnitLength(), 1e-9);
 }
+
+TEST(MapSamples, MapsCellsAndPointsHoldingData) {
+    Raster<float> grid(3, 2, 1.0f);
+    grid.SetTransform(terraingen::GeoTransform::NorthUp(0.0, 2.0, 1.0));
+    grid(1, 0) = NAN;
+    SampleBlock cells(grid);
+    terraingen::MapSamples(
+        cells, 0, [](float height, const Vec2d& p) { return height + static_cast<float>(p.x); });
+    EXPECT_EQ(grid(0, 0), 1.5f);
+    EXPECT_TRUE(std::isnan(grid(1, 0)));
+    EXPECT_EQ(grid(2, 1), 3.5f);
+    const std::vector<Vec2d> positions{{1.0, 2.0}, {3.0, 4.0}};
+    std::vector<float> heights{1.0f, NAN};
+    SampleBlock points(positions, heights);
+    terraingen::MapSamples(
+        points, 1, [](float height, const Vec2d& p) { return height + static_cast<float>(p.y); });
+    EXPECT_EQ(heights[0], 3.0f);
+    EXPECT_TRUE(std::isnan(heights[1]));
+}
