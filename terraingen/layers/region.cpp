@@ -62,34 +62,31 @@ Raster<float> CopyWindow(const Raster<float>& heights, const PixelWindow& window
 }  // namespace
 
 double RegionShape::DistanceOutside(double x, double y, const Surface& surface) const {
+    const auto outside = [&](double px, double cosLat) {
+        const double dx = std::fmax(0.0, std::fmax(rectangle.minX - px, px - rectangle.maxX));
+        const double dy = std::fmax(0.0, std::fmax(rectangle.minY - y, y - rectangle.maxY));
+        return std::hypot(dx * cosLat, dy);
+    };
     if (surface.IsBody()) {
         if (kind == Kind::Circle) {
             return std::fmax(0.0, surface.Distance(centre, {x, y}) - radius);
         }
+        const double cosLat = std::cos(y * kDegree);
         double best = std::numeric_limits<double>::infinity();
         for (const double shift : {-360.0, 0.0, 360.0}) {
-            const double lon = x + shift;
-            const double dx = std::fmax(0.0, std::fmax(rectangle.minX - lon, lon - rectangle.maxX));
-            const double dy = std::fmax(0.0, std::fmax(rectangle.minY - y, y - rectangle.maxY));
-            const double cosLat = std::cos(y * kDegree);
-            best = std::fmin(best, surface.UnitLength() * std::hypot(dx * cosLat, dy));
+            best = std::fmin(best, surface.UnitLength() * outside(x + shift, cosLat));
         }
         return best;
     }
     if (kind == Kind::Circle) {
         return std::fmax(0.0, std::hypot(x - centre.x, y - centre.y) - radius);
     }
-    const double dx = std::fmax(0.0, std::fmax(rectangle.minX - x, x - rectangle.maxX));
-    const double dy = std::fmax(0.0, std::fmax(rectangle.minY - y, y - rectangle.maxY));
-    return std::hypot(dx, dy);
+    return outside(x, 1.0);
 }
 
 Bounds2d RegionShape::Bounds(const Surface& surface) const {
     if (kind == Kind::Circle) {
-        if (surface.IsBody()) {
-            return surface.Expand({centre.x, centre.y, centre.x, centre.y}, radius);
-        }
-        return {centre.x - radius, centre.y - radius, centre.x + radius, centre.y + radius};
+        return surface.Expand({centre.x, centre.y, centre.x, centre.y}, radius);
     }
     return rectangle;
 }

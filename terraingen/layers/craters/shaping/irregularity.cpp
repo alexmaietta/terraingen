@@ -164,6 +164,29 @@ void AddHarmonics(CraterOutline& outline, const CraterIrregularity& irregularity
     }
 }
 
+/// Checks the radial marks of crater irregularity.
+/// @throws std::invalid_argument as `ValidateCraterIrregularity`.
+void ValidateRadialMarks(const CraterIrregularity& irregularity) {
+    ValidateValueDistribution(irregularity.marksAmplitude);
+    RequireUnitInterval(irregularity.marksShare, "Crater marks share");
+    if (!(irregularity.marksKnots >= 3 && irregularity.marksKnots <= kMaxMarkKnots)) {
+        throw std::invalid_argument("Crater mark knots must be from 3 to 1024");
+    }
+    const double fade = irregularity.marksFadeRadii;
+    if (!(IsPositive(fade) && irregularity.marksInnerRadii - fade >= 0.0 &&
+          irregularity.marksInnerRadii <= irregularity.marksOuterRadii &&
+          irregularity.marksOuterRadii + fade <= 1.0)) {
+        throw std::invalid_argument("Crater marks need a positive fade with 0 <= inner - fade, "
+                                    "inner <= outer and outer + fade <= 1 radii");
+    }
+    if (!(irregularity.marksAmplitude.Lowest() >= 0.0 &&
+          2.0 * kSplineOvershoot * kSmoothstepSlope * irregularity.marksAmplitude.Highest() <
+              fade)) {
+        throw std::invalid_argument("Crater mark amplitude must not be negative, and below fade / "
+                                    "3.75 radii so walls cannot fold");
+    }
+}
+
 }  // namespace
 
 void ValidateCraterIrregularity(const CraterIrregularity& irregularity) {
@@ -195,24 +218,7 @@ void ValidateCraterIrregularity(const CraterIrregularity& irregularity) {
         !IsNonNegative(irregularity.headingSpread)) {
         throw std::invalid_argument("Crater heading and spread must be finite, the spread >= 0");
     }
-    ValidateValueDistribution(irregularity.marksAmplitude);
-    RequireUnitInterval(irregularity.marksShare, "Crater marks share");
-    if (!(irregularity.marksKnots >= 3 && irregularity.marksKnots <= kMaxMarkKnots)) {
-        throw std::invalid_argument("Crater mark knots must be from 3 to 1024");
-    }
-    const double fade = irregularity.marksFadeRadii;
-    if (!(IsPositive(fade) && irregularity.marksInnerRadii - fade >= 0.0 &&
-          irregularity.marksInnerRadii <= irregularity.marksOuterRadii &&
-          irregularity.marksOuterRadii + fade <= 1.0)) {
-        throw std::invalid_argument("Crater marks need a positive fade with 0 <= inner - fade, "
-                                    "inner <= outer and outer + fade <= 1 radii");
-    }
-    if (!(irregularity.marksAmplitude.Lowest() >= 0.0 &&
-          2.0 * kSplineOvershoot * kSmoothstepSlope * irregularity.marksAmplitude.Highest() <
-              fade)) {
-        throw std::invalid_argument("Crater mark amplitude must not be negative, and below fade / "
-                                    "3.75 radii so walls cannot fold");
-    }
+    ValidateRadialMarks(irregularity);
 }
 
 double CraterOutline::Scale(double dx, double dy) const {

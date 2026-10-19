@@ -658,3 +658,16 @@ TEST(GenerateCraters, LetsACompleteCatalogStandInForGeneratedCraters) {
                   .Size())
         << "no catalog anywhere";
 }
+
+TEST(ValidateCraterGenerationOptions, RejectsBadRangesAndAcceptsDefaults) {
+    terraingen::CraterGenerationOptions options{.dMin = 4.0, .dMax = 250.0};
+    EXPECT_NO_THROW(terraingen::ValidateCraterGenerationOptions(options));
+    options.dMax = 4.0;
+    EXPECT_THROW(terraingen::ValidateCraterGenerationOptions(options), std::invalid_argument);
+    options.dMax = 250.0;
+    options.cellSizeFactor = 0.0;
+    EXPECT_THROW(terraingen::ValidateCraterGenerationOptions(options), std::invalid_argument);
+    options.cellSizeFactor = 8.0;
+    options.maxExpectedCraters = -1.0;
+    EXPECT_THROW(terraingen::ValidateCraterGenerationOptions(options), std::invalid_argument);
+}

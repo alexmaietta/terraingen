@@ -121,6 +121,12 @@ struct CraterGenerationOptions {
     std::string logName = "craters";
 };
 
+/// Checks crater generation options.
+/// @throws std::invalid_argument for invalid spacing, a non-positive `dMin`, a `dMax` not above
+/// it, a negative margin, expected limit or resolved diameter, or a non-positive cell size factor
+/// or largest band.
+void ValidateCraterGenerationOptions(const CraterGenerationOptions& options);
+
 /// The largest diameter generated in metres: `dMax`, or for an infinite `dMax` the top of the
 /// density's valid range; infinite when both are unbounded.
 double ResolveDMax(double dMax, const SizeFrequencyDistribution& density);

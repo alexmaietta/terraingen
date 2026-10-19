@@ -85,6 +85,60 @@ void SolveTridiagonal(const Tridiagonal& system, std::vector<double>& x, std::ve
     }
 }
 
+/// Implicit steps of radial diffusion on `n` cells `dx` apart with the outer edge held at 0.
+class RadialDiffusion {
+  public:
+    RadialDiffusion(std::size_t n, double dx)
+        : n_(n), below_(n + 1, 0.0), above_(n + 1, 0.0),
+          system_{std::vector<double>(n), std::vector<double>(n), std::vector<double>(n)}, c_(n),
+          d_(n) {
+        for (std::size_t i = 1; i < n; ++i) {
+            const double x = static_cast<double>(i) * dx;
+            below_[i] = (x - 0.5 * dx) / (x * dx * dx);
+            above_[i] = (x + 0.5 * dx) / (x * dx * dx);
+        }
+        above_[0] = 4.0 / (dx * dx);
+    }
+
+    /// Diffuses heights `h` (n + 1 values) over `dt`.
+    void Step(std::vector<double>& h, double dt) {
+        for (std::size_t i = 0; i < n_; ++i) {
+            system_.lower[i] = -dt * below_[i];
+            system_.diag[i] = 1.0 + dt * (below_[i] + above_[i]);
+            system_.upper[i] = -dt * above_[i];
+        }
+        h[n_] = 0.0;
+        SolveTridiagonal(system_, h, c_, d_);
+    }
+
+  private:
+    std::size_t n_;
+    std::vector<double> below_;
+    std::vector<double> above_;
+    Tridiagonal system_;
+    std::vector<double> c_;
+    std::vector<double> d_;
+};
+
+/// Appends heights `h` (cells `dx` diameters apart) to `heights` and returns their morphometry:
+/// the rim the highest from 0.25 diameters out, the floor the lowest within 0.5.
+CraterMorphometry AppendHeights(const std::vector<double>& h, double dx,
+                                std::vector<float>& heights) {
+    double rim = -INFINITY;
+    double floor = INFINITY;
+    for (std::size_t i = 0; i < h.size(); ++i) {
+        const double x = static_cast<double>(i) * dx;
+        if (x >= 0.25) {
+            rim = std::fmax(rim, h[i]);
+        }
+        if (x <= 0.5) {
+            floor = std::fmin(floor, h[i]);
+        }
+        heights.push_back(static_cast<float>(h[i]));
+    }
+    return {rim - floor, rim};
+}
+
 }  // namespace
 
 double PowerLawDiffusivity::Diffusivity(double diameter) const {
@@ -142,50 +196,18 @@ DiffusedProfile::Table DiffusedProfile::Solve(const CraterMorphometry& fresh,
     for (std::size_t i = 0; i < n; ++i) {
         h[i] = fresh_->Height(static_cast<double>(i) * dx * diameter, diameter, initial) / diameter;
     }
-    std::vector<double> below(n + 1, 0.0);
-    std::vector<double> above(n + 1, 0.0);
-    for (std::size_t i = 1; i < n; ++i) {
-        const double x = static_cast<double>(i) * dx;
-        below[i] = (x - 0.5 * dx) / (x * dx * dx);
-        above[i] = (x + 0.5 * dx) / (x * dx * dx);
-    }
-    above[0] = 4.0 / (dx * dx);
-
+    RadialDiffusion diffusion(n, dx);
     Table table;
     const std::vector<double>& ages = TableAges();
     table.heights.reserve(ages.size() * (n + 1));
-    Tridiagonal system{std::vector<double>(n), std::vector<double>(n), std::vector<double>(n)};
-    std::vector<double> c(n);
-    std::vector<double> d(n);
-    const auto step = [&](double dt) {
-        for (std::size_t i = 0; i < n; ++i) {
-            system.lower[i] = -dt * below[i];
-            system.diag[i] = 1.0 + dt * (below[i] + above[i]);
-            system.upper[i] = -dt * above[i];
-        }
-        h[n] = 0.0;
-        SolveTridiagonal(system, h, c, d);
-    };
     double tau = 0.0;
     for (const double target : ages) {
         while (tau < target) {
             const double dt = std::fmin(target - tau, std::fmax(dx * dx, 0.002 * tau));
-            step(dt);
+            diffusion.Step(h, dt);
             tau += dt;
         }
-        double rim = -INFINITY;
-        double floor = INFINITY;
-        for (std::size_t i = 0; i <= n; ++i) {
-            const double x = static_cast<double>(i) * dx;
-            if (x >= 0.25) {
-                rim = std::fmax(rim, h[i]);
-            }
-            if (x <= 0.5) {
-                floor = std::fmin(floor, h[i]);
-            }
-            table.heights.push_back(static_cast<float>(h[i]));
-        }
-        table.morphometry.push_back({rim - floor, rim});
+        table.morphometry.push_back(AppendHeights(h, dx, table.heights));
     }
     return table;
 }

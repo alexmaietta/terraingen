@@ -21,9 +21,7 @@ double RimSmoothing::Weight(double radii) const {
 
 void ValidateRimSmoothing(const RimSmoothing& smoothing) {
     RequireNonNegative(smoothing.sigmaRadii, "Rim smoothing sigma");
-    if (!(smoothing.strength >= 0.0 && smoothing.strength <= 1.0)) {
-        throw std::invalid_argument("Rim smoothing strength must be between 0 and 1");
-    }
+    RequireUnitInterval(smoothing.strength, "Rim smoothing strength");
     if (!(smoothing.innerRadii >= 0.0 && smoothing.innerRadii < 1.0 && smoothing.outerRadii > 1.0 &&
           std::isfinite(smoothing.outerRadii))) {
         throw std::invalid_argument("Rim smoothing band must satisfy 0 <= inner < 1 < outer");
@@ -50,9 +48,7 @@ void ValidateCraterTexture(const CraterTexture& texture) {
     RequireNonNegative(texture.ejecta, "Crater ejecta texture amplitude");
     RequirePositive(texture.wallStreakWidthRadii, "Crater wall streak width");
     RequirePositive(texture.ejectaLineationRadii, "Crater ejecta lineation width");
-    if (!(texture.mantling >= 0.0 && texture.mantling <= 1.0)) {
-        throw std::invalid_argument("Crater ejecta mantling must be in [0, 1]");
-    }
+    RequireUnitInterval(texture.mantling, "Crater ejecta mantling");
     if (!(texture.ejectaReachRadii > 1.0 && std::isfinite(texture.ejectaReachRadii))) {
         throw std::invalid_argument("Crater ejecta must reach beyond 1 radius");
     }
@@ -84,9 +80,7 @@ void ValidateCraterApplyOptions(const CraterApplyOptions& options) {
         throw std::invalid_argument("A crater slope response needs the plane datum");
     }
     RequirePositive(options.datumFitRadii, "datumFitRadii");
-    if (!(options.interiorReplacement >= 0.0 && options.interiorReplacement <= 1.0)) {
-        throw std::invalid_argument("interiorReplacement must be between 0 and 1");
-    }
+    RequireUnitInterval(options.interiorReplacement, "interiorReplacement");
     const CraterBlend& blend = options.blend;
     if (!(std::isfinite(blend.startRadii) && std::isfinite(blend.endRadii) &&
           blend.startRadii >= 0.0 && blend.endRadii > blend.startRadii)) {

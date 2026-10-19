@@ -32,7 +32,9 @@ std::uint64_t CraterId(std::uint32_t seed, const CraterBand& band, const CellInd
     return (static_cast<std::uint64_t>(block.x) << 32) | block.y;
 }
 
-void CheckOptions(const CraterGenerationOptions& options) {
+}  // namespace
+
+void ValidateCraterGenerationOptions(const CraterGenerationOptions& options) {
     ValidateCraterSpacing(options.spacing);
     RequirePositive(options.dMin, "dMin");
     if (!(options.dMax > options.dMin)) {
@@ -48,6 +50,8 @@ void CheckOptions(const CraterGenerationOptions& options) {
         throw std::invalid_argument("maxBandDiameter must be positive");
     }
 }
+
+namespace {
 
 /// One band of a generation: the cells drawn and the craters they are expected to hold.
 struct BandPlan {
@@ -342,7 +346,7 @@ double ResolveDMax(double dMax, const SizeFrequencyDistribution& density) {
 CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
                            const SizeFrequencyDistribution& density, const CraterAgeModel& ages,
                            std::uint32_t seed, const CraterGenerationOptions& options) {
-    CheckOptions(options);
+    ValidateCraterGenerationOptions(options);
     const Stopwatch stopwatch;
     const Generation generation(cells, region, density, ages, seed, options);
     GenerationCounts counts;
@@ -353,9 +357,8 @@ CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
 
 double CountLimitDiameter(const SizeFrequencyDistribution& density, double area, double count,
                           double dMin, double dMax) {
-    if (!(IsPositive(count) && IsPositive(area))) {
-        throw std::invalid_argument("Count and area must be positive and finite");
-    }
+    RequirePositive(count, "Count");
+    RequirePositive(area, "Area");
     if (!(IsPositive(dMin) && dMax > dMin && std::isfinite(dMax))) {
         throw std::invalid_argument("Diameter interval must satisfy 0 < dMin < dMax");
     }
