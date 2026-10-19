@@ -67,6 +67,7 @@ inline constexpr std::uint32_t kPavementParentStream = 0x50565052u;     ///< Pla
 inline constexpr std::uint32_t kPavementWarpStream = 0x50565750u;       ///< Plate edge warp noise.
 inline constexpr std::uint32_t kPatchFineStream = 0x5046494Eu;          ///< Fine patch noise.
 inline constexpr std::uint32_t kMidpointDisplacementStream = 0x524D4450u;  ///< RMD displacements.
+inline constexpr std::uint32_t kSpectralContinuationStream = 0x5350434Eu;  ///< Gabor impulses.
 
 namespace detail {
 
@@ -124,7 +125,8 @@ inline constexpr std::array kStreamTags = {kCraterStream,
                                            kPavementParentStream,
                                            kPavementWarpStream,
                                            kPatchFineStream,
-                                           kMidpointDisplacementStream};
+                                           kMidpointDisplacementStream,
+                                           kSpectralContinuationStream};
 
 /// Whether no two of `tags` are equal.
 template <std::size_t N> constexpr bool AllDistinct(const std::array<std::uint32_t, N>& tags) {

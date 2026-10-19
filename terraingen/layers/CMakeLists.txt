@@ -18,6 +18,7 @@ terraingen_add_library(
     roughness.cpp
     sand_fill.cpp
     sand_shadow.cpp
+    spectral_continuation.cpp
     strata.cpp
     sample_block.cpp
     transforms.cpp

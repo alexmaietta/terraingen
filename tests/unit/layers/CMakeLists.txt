@@ -20,6 +20,7 @@ terraingen_add_test_suite(
     evaluation_cache_test.cpp
     sand_fill_test.cpp
     sand_shadow_test.cpp
+    spectral_continuation_test.cpp
     strata_test.cpp
     sample_block_test.cpp
     sphere_layers_test.cpp
