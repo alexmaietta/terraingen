@@ -2,10 +2,24 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
 #include <stdexcept>
 
 using terraingen::GeoTransform;
 using terraingen::Raster;
+
+TEST(Raster, IsMissingForNaNAndTheNoDataValue) {
+    Raster<float> raster(1, 1);
+    EXPECT_TRUE(raster.IsMissing(std::numeric_limits<float>::quiet_NaN()));
+    EXPECT_FALSE(raster.IsMissing(-9999.0f));
+    raster.SetNoData(-9999.0f);
+    EXPECT_TRUE(raster.IsMissing(-9999.0f));
+    EXPECT_FALSE(raster.IsMissing(1.0f));
+    Raster<int> counts(1, 1);
+    counts.SetNoData(-1);
+    EXPECT_TRUE(counts.IsMissing(-1));
+    EXPECT_FALSE(counts.IsMissing(0));
+}
 
 TEST(Raster, DefaultIsEmpty) {
     const Raster<float> raster;

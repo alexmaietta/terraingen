@@ -25,6 +25,25 @@ using terraingen::testing::ExpectSameRaster;
 using terraingen::testing::Rolling;
 using terraingen::testing::Smoothed;
 
+TEST(ForEachLayer, VisitsTheLayersOfOneTypeInOrderWithTheirIndices) {
+    Terrain terrain = Rolling();
+    terrain.layers.push_back(terrain.layers.front());
+    std::vector<std::size_t> noise;
+    terraingen::ForEachLayer<terraingen::NoiseRelief>(
+        terrain, [&](const terraingen::NoiseRelief& layer, std::size_t n) {
+            EXPECT_EQ(&layer, terrain.layers[n].get());
+            noise.push_back(n);
+        });
+    EXPECT_EQ(noise, (std::vector<std::size_t>{0, 2}));
+    std::size_t craters = 0;
+    terraingen::ForEachLayer<terraingen::CraterPlacer>(
+        terrain, [&](const terraingen::CraterPlacer&, std::size_t n) {
+            EXPECT_EQ(n, 1u);
+            ++craters;
+        });
+    EXPECT_EQ(craters, 1u);
+}
+
 TEST(Evaluate, RunsTheSourceThenLayersOverTheSourcesGrid) {
     const Terrain terrain = Rolling();
     const auto whole = Evaluate(terrain);

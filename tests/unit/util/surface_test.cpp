@@ -1,4 +1,5 @@
 #include "terraingen/util/cells.h"
+#include "terraingen/util/cube_faces.h"
 #include "terraingen/util/radial_shape.h"
 #include "terraingen/util/surface.h"
 
@@ -130,6 +131,17 @@ TEST(Surface, SphereExpandCoversEveryPointWithinTheDistance) {
     const Bounds2d huge = moon.Expand({0.0, 0.0, 1.0, 1.0}, 3.0 * kMoon);
     EXPECT_EQ(huge.minX, -180.0);
     EXPECT_EQ(huge.minY, -90.0);
+}
+
+TEST(CubeFaces, FindTheNearestFaceAndEquiangularCoordinates) {
+    using terraingen::detail::kCubeFaces;
+    EXPECT_EQ(terraingen::detail::NearestFace(kCubeFaces, Vec3d{0.2, -3.0, 1.0}), 3u);
+    EXPECT_EQ(terraingen::detail::NearestFace(kCubeFaces, Vec3d{1.0, 1.0, 0.0}), 0u)
+        << "the first face on ties";
+    EXPECT_DOUBLE_EQ(terraingen::detail::EquiangularCoordinate(-1.0, 8.0), 0.0);
+    EXPECT_DOUBLE_EQ(terraingen::detail::EquiangularCoordinate(0.0, 8.0), 4.0);
+    EXPECT_DOUBLE_EQ(terraingen::detail::EquiangularCoordinate(1.0, 8.0), 8.0);
+    EXPECT_DOUBLE_EQ(terraingen::detail::kQuarter, std::numbers::pi / 4.0);
 }
 
 TEST(CubeSphereCells, CellsTileTheSphereWithExactAreas) {

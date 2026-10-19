@@ -9,6 +9,17 @@ using terraingen::GeoTransform;
 using terraingen::Raster;
 using terraingen::RasterGrid;
 
+TEST(ResolvedSpacing, RaisesARequestedSpacingToTheGrids) {
+    const RasterGrid grid{4, 3, GeoTransform::NorthUp(0.0, 0.0, 2.0)};
+    const terraingen::Surface plane;
+    EXPECT_EQ(terraingen::ResolvedSpacing(grid, 0.0, plane), 2.0);
+    EXPECT_EQ(terraingen::ResolvedSpacing(grid, 1.0, plane), 2.0);
+    EXPECT_EQ(terraingen::ResolvedSpacing(grid, 5.0, plane), 5.0);
+    const auto moon = terraingen::Surface::Sphere(1737400.0);
+    const RasterGrid degrees{4, 3, GeoTransform::NorthUp(0.0, 0.0, 0.01)};
+    EXPECT_EQ(terraingen::ResolvedSpacing(degrees, 0.0, moon), degrees.Spacing(moon));
+}
+
 TEST(RasterGrid, DescribesARastersCellsAndExtent) {
     Raster<float> raster(4, 3);
     raster.SetTransform(GeoTransform::NorthUp(100.0, 50.0, 2.5));

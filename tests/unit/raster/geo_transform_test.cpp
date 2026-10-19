@@ -49,6 +49,12 @@ TEST(GeoTransform, WorldToPixelThrowsWhenNotInvertible) {
     EXPECT_THROW(degenerate.WorldToPixel(1.0, 1.0), std::domain_error);
 }
 
+TEST(GeoTransform, IsRotatedWhenEitherRotationTermIsSet) {
+    EXPECT_FALSE(GeoTransform::NorthUp(0.0, 0.0, 1.0).IsRotated());
+    EXPECT_TRUE(GeoTransform::FromGdal({0.0, 1.0, 0.5, 0.0, 0.0, -1.0}).IsRotated());
+    EXPECT_TRUE(GeoTransform::FromGdal({0.0, 1.0, 0.0, 0.0, -0.5, -1.0}).IsRotated());
+}
+
 TEST(GeoTransform, EqualityComparesEveryCoefficient) {
     const std::array<double, 6> base{1.0, 2.0, 3.0, 4.0, 5.0, 6.0};
     EXPECT_EQ(GeoTransform::FromGdal(base), GeoTransform::FromGdal(base));
