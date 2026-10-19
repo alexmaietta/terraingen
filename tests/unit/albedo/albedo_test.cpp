@@ -1,3 +1,4 @@
+#include "terraingen/albedo/brightness_statistics.h"
 #include "terraingen/terraingen.h"
 
 #include <gtest/gtest.h>
@@ -407,4 +408,20 @@ TEST(ForEachAlbedoBlock, PreparesEachBlockOnceAndVisitsItsCells) {
         ADD_FAILURE();
         return terraingen::AlbedoCellVisitor();
     });
+}
+
+TEST(ForEachAlbedoPixel, VisitsEveryCellByColumnAndRow) {
+    std::vector<terraingen::Raster<float>> bands{terraingen::Raster<float>(3, 5, 0.0f),
+                                                 terraingen::Raster<float>(3, 5, 1.0f)};
+    terraingen::ForEachAlbedoPixel(bands, 2,
+                                   [](AlbedoSample& value, std::size_t col, std::size_t row) {
+                                       value[0] = static_cast<float>(10 * row + col);
+                                       value[1] += 1.0f;
+                                   });
+    EXPECT_EQ(bands[0](2, 4), 42.0f);
+    EXPECT_EQ(bands[0](1, 0), 1.0f);
+    EXPECT_EQ(bands[1](0, 3), 2.0f);
+    std::vector<terraingen::Raster<float>> none;
+    terraingen::ForEachAlbedoPixel(none, 1,
+                                   [](AlbedoSample&, std::size_t, std::size_t) { ADD_FAILURE(); });
 }

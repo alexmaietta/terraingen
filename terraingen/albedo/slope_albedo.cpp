@@ -1,6 +1,7 @@
 #include "terraingen/albedo/slope_albedo.h"
 
-#include "terraingen/util/parallel.h"
+#include "terraingen/albedo/bands.h"
+#include "terraingen/util/checks.h"
 
 #include <cmath>
 #include <limits>
@@ -27,20 +28,14 @@ void ValidateSlopeMaturity(const SlopeMaturityOptions& options) {
     if (!(o.onsetDegrees >= 0.0 && o.onsetDegrees < 90.0)) {
         throw std::invalid_argument("Slope maturity onset must be in [0, 90) degrees");
     }
-    if (!(o.maturityPerDegree >= 0.0 && std::isfinite(o.maturityPerDegree))) {
-        throw std::invalid_argument("Slope maturity per degree must be finite and not negative");
-    }
+    RequireNonNegative(o.maturityPerDegree, "Slope maturity per degree");
     if (!(o.backgroundMaturity > 0.0 && std::isfinite(o.maxMaturity) &&
           o.maxMaturity >= o.backgroundMaturity)) {
         throw std::invalid_argument(
             "Slope background maturity must be positive and the cap finite and not below it");
     }
-    if (!(o.baseline > 0.0 && std::isfinite(o.baseline))) {
-        throw std::invalid_argument("Slope baseline must be positive and finite");
-    }
-    if (!std::isfinite(o.originReflectance)) {
-        throw std::invalid_argument("Slope origin reflectance must be finite");
-    }
+    RequirePositive(o.baseline, "Slope baseline");
+    RequireFinite(o.originReflectance, "Slope origin reflectance");
 }
 
 SlopeAlbedo::SlopeAlbedo(SlopeMaturityOptions options, Surface surface)
@@ -112,55 +107,49 @@ double SlopeAlbedo::SlopeAt(double x, double y, const Ground& ground) const {
 
 void SlopeAlbedo::Mature(AlbedoSample& value, std::size_t bands, double slopeDegrees) const {
     const double maturity = MaturityAt(slopeDegrees);
-    if (maturity == options_.backgroundMaturity) {
-        return;
-    }
-    for (std::size_t band = 0; band < bands; ++band) {
-        if (!std::isnan(value[band])) {
-            value[band] = static_cast<float>(ReflectanceAtMaturity(
-                value[band], options_.backgroundMaturity, maturity, options_.originReflectance));
-        }
+    if (maturity != options_.backgroundMaturity) {
+        MatureBands(value, bands, options_.backgroundMaturity, maturity,
+                    options_.originReflectance);
     }
 }
 
 void SlopeAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
                           const AlbedoContext& context) const {
-    ValidateAlbedoContext(context);
     if (context.ground != nullptr) {
         Mature(value, bands, SlopeAt(x, y, *context.ground));
     }
 }
 
-void SlopeAlbedo::Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const {
-    ValidateAlbedoContext(context);
-    if (context.ground == nullptr || bands.empty()) {
-        return;
-    }
-    const RasterGrid grid = RasterGrid::FromRaster(bands[0]);
+namespace {
+
+/// The box of the cell centres of `raster`.
+Bounds2d CellCentreBounds(const Raster<float>& raster) {
+    const std::size_t lastCol = raster.Width() - 1;
+    const std::size_t lastRow = raster.Height() - 1;
     Bounds2d centres{
         std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity(),
         -std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity()};
     for (const auto& [col, row] : {std::pair<std::size_t, std::size_t>{0, 0},
-                                   {grid.width - 1, 0},
-                                   {0, grid.height - 1},
-                                   {grid.width - 1, grid.height - 1}}) {
-        const Vec2d c = bands[0].CellCenter(col, row);
+                                   {lastCol, 0},
+                                   {0, lastRow},
+                                   {lastCol, lastRow}}) {
+        const Vec2d c = raster.CellCenter(col, row);
         centres = {std::fmin(centres.minX, c.x), std::fmin(centres.minY, c.y),
                    std::fmax(centres.maxX, c.x), std::fmax(centres.maxY, c.y)};
     }
-    const Lattice lattice = ReadLattice(centres, *context.ground);
-    ParallelFor(grid.height, context.threads, [&](std::size_t row) {
-        for (std::size_t col = 0; col < grid.width; ++col) {
-            const Vec2d centre = bands[0].CellCenter(col, row);
-            AlbedoSample value{};
-            for (std::size_t band = 0; band < bands.size(); ++band) {
-                value[band] = bands[band](col, row);
-            }
-            Mature(value, bands.size(), Interpolate(lattice, centre.x, centre.y));
-            for (std::size_t band = 0; band < bands.size(); ++band) {
-                bands[band](col, row) = value[band];
-            }
-        }
+    return centres;
+}
+
+}  // namespace
+
+void SlopeAlbedo::Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const {
+    if (context.ground == nullptr || bands.empty()) {
+        return;
+    }
+    const Lattice lattice = ReadLattice(CellCentreBounds(bands[0]), *context.ground);
+    const std::size_t count = bands.size();
+    ForEachAlbedoCell(bands, context.threads, [&](AlbedoSample& value, double x, double y) {
+        Mature(value, count, Interpolate(lattice, x, y));
     });
 }
 

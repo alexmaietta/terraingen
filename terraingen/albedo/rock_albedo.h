@@ -51,11 +51,9 @@ class RockAlbedo final : public AlbedoLayer {
     /// without a layer or ground.
     RockAlbedo(RockAlbedoOptions options, std::vector<RockSource> sources);
 
-    /// Brightens `value` by the rock at (`x`, `y`); NaN stays NaN.
     void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
                  const AlbedoContext& context) const override;
 
-    /// `ApplyAt` at every cell centre, the boulders found once per layer.
     void Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const override;
 
     /// The share of the sample at (`x`, `y`) rock covers, over every layer.
@@ -63,7 +61,9 @@ class RockAlbedo final : public AlbedoLayer {
 
   private:
     /// The standard normal drawn for unresolved rock of source `source` at (`x`, `y`).
-    double Draw(double x, double y, std::size_t source) const;
+    double UnresolvedNormal(double x, double y, std::size_t source) const;
+    /// The share of each cell of the grid of `first` that no source's rock covers, row-major.
+    std::vector<double> BareShares(const Raster<float>& first, const AlbedoContext& context) const;
 
     RockAlbedoOptions options_;
     std::vector<RockSource> sources_;

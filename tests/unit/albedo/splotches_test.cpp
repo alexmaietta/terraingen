@@ -224,7 +224,6 @@ TEST(SplotchAlbedo, SteepSlopesCanFavourBrightSplotches) {
     const Bounds2d region{0.0, 0.0, 150.0, 150.0};
     const Tilted steep(30.0);
     const Tilted gentle(5.0);
-    EXPECT_NEAR(SplotchAlbedo(options).SlopeDegrees(steep, 10.0, 20.0, 4.0, 0.5), 30.0, 1e-3);
     const auto plain = SplotchAlbedo(options).Splotches(region, 0.5, &steep);
     options.steepBrightShare = 1.0;
     const SplotchAlbedo layer(options);
@@ -267,6 +266,25 @@ TEST(SplotchAlbedo, SteepSlopesCanFavourBrightSplotches) {
                           values[0](col, row));
             }
         }
+    }
+}
+
+TEST(SplotchAlbedo, ReadsTheSlopeAcrossEachSplotch) {
+    SplotchOptions options;
+    options.minDiameter = 2.0;
+    options.steepBrightShare = 1.0;
+    options.steepSlopeDegrees = 15.0;
+    const SplotchAlbedo layer(options);
+    const Bounds2d region{0.0, 0.0, 100.0, 100.0};
+    const Tilted above(15.2);
+    const Tilted below(14.8);
+    const auto plain = layer.Splotches(region, 0.5);
+    const auto steep = layer.Splotches(region, 0.5, &above);
+    const auto gentle = layer.Splotches(region, 0.5, &below);
+    ASSERT_GT(plain.size(), 10u);
+    for (std::size_t n = 0; n < plain.size(); ++n) {
+        EXPECT_DOUBLE_EQ(steep[n].change, 0.10);
+        EXPECT_EQ(gentle[n].change, plain[n].change);
     }
 }
 

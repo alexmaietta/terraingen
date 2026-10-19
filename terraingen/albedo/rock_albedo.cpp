@@ -1,7 +1,9 @@
 #include "terraingen/albedo/rock_albedo.h"
 
+#include "terraingen/albedo/bands.h"
 #include "terraingen/random/philox.h"
 #include "terraingen/random/value_distribution.h"
+#include "terraingen/util/checks.h"
 #include "terraingen/util/parallel.h"
 
 #include <algorithm>
@@ -18,23 +20,15 @@ constexpr std::uint32_t kRockStream = 0x524F434Bu;
 
 /// Multiplies every band of `value` by 1 + `share` (`ratio` - 1); NaN stays NaN.
 void Brighten(AlbedoSample& value, std::size_t bands, double share, double ratio) {
-    if (share == 0.0) {
-        return;
-    }
-    const double factor = 1.0 + share * (ratio - 1.0);
-    for (std::size_t band = 0; band < bands; ++band) {
-        if (!std::isnan(value[band])) {
-            value[band] = static_cast<float>(factor * static_cast<double>(value[band]));
-        }
+    if (share != 0.0) {
+        ScaleBands(value, bands, 1.0 + share * (ratio - 1.0));
     }
 }
 
 }  // namespace
 
 void ValidateRockAlbedo(const RockAlbedoOptions& options) {
-    if (!(options.reflectanceRatio > 0.0 && std::isfinite(options.reflectanceRatio))) {
-        throw std::invalid_argument("Rock reflectance ratio must be positive and finite");
-    }
+    RequirePositive(options.reflectanceRatio, "Rock reflectance ratio");
 }
 
 double RockShare(double resolved, const UnresolvedCover& unresolved, double normal) {
@@ -44,8 +38,8 @@ double RockShare(double resolved, const UnresolvedCover& unresolved, double norm
         drawn =
             std::fmin(1.0, std::exp(std::log(unresolved.mean) - 0.5 * s2 + std::sqrt(s2) * normal));
     }
-    const double kept = std::clamp(resolved, 0.0, 1.0);
-    return kept + (1.0 - kept) * drawn;
+    const double clamped = std::clamp(resolved, 0.0, 1.0);
+    return clamped + (1.0 - clamped) * drawn;
 }
 
 RockAlbedo::RockAlbedo(RockAlbedoOptions options, std::vector<RockSource> sources)
@@ -59,7 +53,7 @@ RockAlbedo::RockAlbedo(RockAlbedoOptions options, std::vector<RockSource> source
     }
 }
 
-double RockAlbedo::Draw(double x, double y, std::size_t source) const {
+double RockAlbedo::UnresolvedNormal(double x, double y, std::size_t source) const {
     const auto xs = std::bit_cast<std::uint64_t>(x);
     const auto ys = std::bit_cast<std::uint64_t>(y);
     const U32x4 bits =
@@ -81,7 +75,8 @@ double RockAlbedo::ShareAt(double x, double y, const AlbedoContext& context) con
             options_.unresolved
                 ? source.layer->UnresolvedCoverAt(x, y, context.spacing, source.ground.get())
                 : UnresolvedCover{};
-        bare *= 1.0 - RockShare(resolved, unresolved, options_.unresolved ? Draw(x, y, n) : 0.0);
+        bare *= 1.0 - RockShare(resolved, unresolved,
+                                options_.unresolved ? UnresolvedNormal(x, y, n) : 0.0);
     }
     return 1.0 - bare;
 }
@@ -91,12 +86,9 @@ void RockAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, doubl
     Brighten(value, bands, ShareAt(x, y, context), options_.reflectanceRatio);
 }
 
-void RockAlbedo::Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const {
-    ValidateAlbedoContext(context);
-    if (bands.empty() || sources_.empty()) {
-        return;
-    }
-    const RasterGrid grid = RasterGrid::FromRaster(bands[0]);
+std::vector<double> RockAlbedo::BareShares(const Raster<float>& first,
+                                           const AlbedoContext& context) const {
+    const RasterGrid grid = RasterGrid::FromRaster(first);
     std::vector<double> bare(grid.width * grid.height, 1.0);
     for (std::size_t n = 0; n < sources_.size(); ++n) {
         const RockSource& source = sources_[n];
@@ -109,26 +101,28 @@ void RockAlbedo::Apply(std::vector<Raster<float>>& bands, const AlbedoContext& c
         ParallelFor(grid.height, context.threads, [&](std::size_t row) {
             for (std::size_t col = 0; col < grid.width; ++col) {
                 const std::size_t cell = row * grid.width + col;
-                const Vec2d centre = bands[0].CellCenter(col, row);
+                const Vec2d centre = first.CellCenter(col, row);
                 bare[cell] *=
-                    1.0 - RockShare(resolved(col, row), unresolved[cell],
-                                    options_.unresolved ? Draw(centre.x, centre.y, n) : 0.0);
+                    1.0 -
+                    RockShare(resolved(col, row), unresolved[cell],
+                              options_.unresolved ? UnresolvedNormal(centre.x, centre.y, n) : 0.0);
             }
         });
     }
-    ParallelFor(grid.height, context.threads, [&](std::size_t row) {
-        for (std::size_t col = 0; col < grid.width; ++col) {
-            AlbedoSample value{};
-            for (std::size_t band = 0; band < bands.size(); ++band) {
-                value[band] = bands[band](col, row);
-            }
-            Brighten(value, bands.size(), 1.0 - bare[row * grid.width + col],
-                     options_.reflectanceRatio);
-            for (std::size_t band = 0; band < bands.size(); ++band) {
-                bands[band](col, row) = value[band];
-            }
-        }
-    });
+    return bare;
+}
+
+void RockAlbedo::Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const {
+    if (bands.empty() || sources_.empty()) {
+        return;
+    }
+    const std::vector<double> bare = BareShares(bands[0], context);
+    const std::size_t width = bands[0].Width();
+    const std::size_t count = bands.size();
+    ForEachAlbedoPixel(
+        bands, context.threads, [&](AlbedoSample& value, std::size_t col, std::size_t row) {
+            Brighten(value, count, 1.0 - bare[row * width + col], options_.reflectanceRatio);
+        });
 }
 
 }  // namespace terraingen

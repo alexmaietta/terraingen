@@ -11,6 +11,7 @@
 #include "terraingen/layers/fade.h"
 #include "terraingen/random/value_distribution.h"
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -238,6 +239,11 @@ struct CraterReflectanceZones {
     /// The farthest any zone reaches from the centre of a crater `diameter` metres across.
     double MaxReach(double diameter) const;
 
+    /// The four zones from the innermost: proximal high and low, then distal high and low.
+    std::array<const ReflectanceZone*, 4> All() const {
+        return {&proximalHigh, &proximalLow, &distalHigh, &distalLow};
+    }
+
     bool operator==(const CraterReflectanceZones&) const = default;
 };
 
@@ -336,6 +342,14 @@ class CraterAlbedo final : public AlbedoLayer {
     void AddZones(Prepared& prepared, double left, double resolution) const;
     /// Samples the ground around `prepared` for the shadows of its distal zones over `region`.
     void AddShadows(Prepared& prepared, const Ground& ground, const Bounds2d& region) const;
+    /// How far beyond a region craters are gathered for their ejecta and rays, in metres.
+    double GatherMargin() const;
+    /// Appends the craters of `list` with bright material resolved at `spacing` that reach
+    /// `region` to `prepared`, prepared.
+    void TakePrepared(const CraterList& list, const Bounds2d& region, double spacing,
+                      std::vector<Prepared>& prepared) const;
+    /// The craters with bright material reaching `region` at `spacing` metres, in ID order, with
+    /// their zone shadows on `ground` when it is set.
     std::vector<Prepared> Gather(const Bounds2d& region, double spacing,
                                  const Ground* ground) const;
 

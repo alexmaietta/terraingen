@@ -109,14 +109,25 @@ using AlbedoCellVisitor = std::function<void(AlbedoSample& value, double x, doub
 void ForEachAlbedoCell(std::vector<Raster<float>>& bands, unsigned threads,
                        const AlbedoCellVisitor& visit);
 
+/// Visits the albedo at one cell by its column and row: `visit(value, col, row)` may change
+/// `value`.
+using AlbedoPixelVisitor =
+    std::function<void(AlbedoSample& value, std::size_t col, std::size_t row)>;
+
+/// `ForEachAlbedoCell` with each cell's column and row instead of its centre, for layers that
+/// prepare per-cell values over the whole grid.
+/// @param threads Threads to split the rows over; 0 for every hardware thread.
+void ForEachAlbedoPixel(std::vector<Raster<float>>& bands, unsigned threads,
+                        const AlbedoPixelVisitor& visit);
+
 /// `ForEachAlbedoCell` in blocks of rows, for visitors that prepare per block, such as a
 /// list of the features near it.
 /// @param threads Threads to split the blocks over; 0 for every hardware thread.
 /// @param blockRows Rows per block; positive.
-/// @param visitorFor `visitorFor(rowBegin, rowEnd)` returns the visitor of the cells of rows
+/// @param makeVisitor `makeVisitor(rowBegin, rowEnd)` returns the visitor of the cells of rows
 /// [`rowBegin`, `rowEnd`), called once per block on the thread that visits it.
 void ForEachAlbedoBlock(
     std::vector<Raster<float>>& bands, unsigned threads, std::size_t blockRows,
-    const std::function<AlbedoCellVisitor(std::size_t rowBegin, std::size_t rowEnd)>& visitorFor);
+    const std::function<AlbedoCellVisitor(std::size_t rowBegin, std::size_t rowEnd)>& makeVisitor);
 
 }  // namespace terraingen

@@ -290,9 +290,8 @@ TEST(CraterAlbedo, RejectsInvalidOptions) {
     rejects([](CraterAlbedoOptions& o) { o.ejectaExponent = 0.0; });
     rejects([](CraterAlbedoOptions& o) { o.ejectaReachRadii = 1.0; });
     rejects([](CraterAlbedoOptions& o) { o.fadeExponent = 0.0; });
-    EXPECT_THROW(Grey(std::make_shared<CraterAlbedo>(craters))
-                     .layers[0]
-                     ->ApplyAt(*std::make_unique<AlbedoSample>(), 1, 0.0, 0.0, {.spacing = 0.0}),
+    EXPECT_THROW(terraingen::EvaluateAlbedoAt(Grey(std::make_shared<CraterAlbedo>(craters)), 0.0,
+                                              0.0, {.spacing = 0.0}),
                  std::invalid_argument);
 }
 

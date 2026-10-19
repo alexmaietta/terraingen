@@ -2,7 +2,9 @@ terraingen_add_library(
     albedo
     SOURCES
     albedo.cpp
+    bands.cpp
     blast_zones.cpp
+    brightness_statistics.cpp
     crater_albedo.cpp
     maturity.cpp
     raster_albedo.cpp

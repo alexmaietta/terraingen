@@ -1,10 +1,8 @@
 #include "terraingen/albedo/blast_zones.h"
 
-#include "terraingen/layers/fade.h"
-#include "terraingen/noise/fractal.h"
+#include "terraingen/albedo/bands.h"
 #include "terraingen/util/checks.h"
 
-#include <algorithm>
 #include <cmath>
 #include <numbers>
 #include <stdexcept>
@@ -15,11 +13,10 @@ namespace terraingen {
 namespace {
 
 constexpr double kFullRadius = 0.3;
-constexpr double kLobeRing = 180.0 / (std::numbers::pi * 45.0);
 
 /// The zone's radial profile at `rho` of its radius: 1 to `kFullRadius`, fading to 0 at 1.
 double Profile(double rho) {
-    return 1.0 - Smoothstep(std::clamp((rho - kFullRadius) / (1.0 - kFullRadius), 0.0, 1.0));
+    return FadeOut(rho, kFullRadius, 1.0 - kFullRadius);
 }
 
 /// The semi-axes (long, short) in metres of `zone`.
@@ -84,52 +81,33 @@ double BlastZoneAlbedo::Change(const BlastZone& zone, double x, double y) const 
     const double heading = zone.headingDegrees * std::numbers::pi / 180.0;
     const double u = (offset.x * std::cos(heading) + offset.y * std::sin(heading)) / major;
     const double v = (offset.y * std::cos(heading) - offset.x * std::sin(heading)) / minor;
-    double lobe = 1.0;
-    if (zone.raggedness > 0.0) {
-        FractalParams params;
-        params.seed = zone.seed ^ 0x424c5354u;
-        params.wavelength = 1.0f;
-        params.amplitude = 1.0f;
-        params.octaves = 3;
-        const double angle = std::atan2(v, u);
-        const double n = static_cast<double>(
-            Fractal3(kLobeRing * std::cos(angle), kLobeRing * std::sin(angle), 0.0, params));
-        lobe = 1.0 - zone.raggedness * std::clamp(0.5 - n, 0.0, 1.0);
-    }
+    const double lobe =
+        zone.raggedness > 0.0
+            ? LobeFactor(RingNoise(kLobeRing, std::atan2(v, u), 0.0, zone.seed ^ 0x424c5354u, 3),
+                         zone.raggedness)
+            : 1.0;
     const double rho = std::hypot(u, v) / lobe;
     const double share = BlastZoneMeanShare();
     const double peak = (zone.change - zone.haloChange * (1.0 - share)) / share;
     const double inner = rho < 1.0 ? Profile(rho) : 0.0;
-    const double halo =
-        rho <= 1.0 ? 1.0
-        : zone.haloReach > 1.0
-            ? 1.0 - Smoothstep(std::clamp((rho - 1.0) / (zone.haloReach - 1.0), 0.0, 1.0))
-            : 0.0;
+    const double halo = rho <= 1.0             ? 1.0
+                        : zone.haloReach > 1.0 ? FadeOut(rho, 1.0, zone.haloReach - 1.0)
+                                               : 0.0;
     double change = peak * inner + (1.0 - inner) * zone.haloChange * halo;
     if (zone.coreRadius > 0.0) {
-        const double core =
-            1.0 - Smoothstep(std::clamp((distance / zone.coreRadius - 0.7) / 0.3, 0.0, 1.0));
+        const double core = FadeOut(distance / zone.coreRadius, 0.7, 0.3);
         change = zone.coreChange * core + (1.0 - core) * change;
     }
     return change;
 }
 
 void BlastZoneAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
-                              const AlbedoContext& context) const {
-    ValidateAlbedoContext(context);
+                              const AlbedoContext& /*context*/) const {
     double change = 0.0;
     for (const BlastZone& zone : zones_) {
         change += Change(zone, x, y);
     }
-    if (change == 0.0) {
-        return;
-    }
-    const double factor = std::fmax(0.0, 1.0 + change);
-    for (std::size_t band = 0; band < bands; ++band) {
-        if (!std::isnan(value[band])) {
-            value[band] = static_cast<float>(factor * static_cast<double>(value[band]));
-        }
-    }
+    ChangeBands(value, bands, change);
 }
 
 }  // namespace terraingen

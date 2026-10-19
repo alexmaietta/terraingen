@@ -17,23 +17,43 @@ void ValidateAlbedoContext(const AlbedoContext& context) {
 
 namespace {
 
-/// Visits the cells of one row of `bands`.
-void VisitRow(std::vector<Raster<float>>& bands, std::size_t row, const AlbedoCellVisitor& visit) {
-    const Raster<float>& first = bands.front();
-    for (std::size_t col = 0; col < first.Width(); ++col) {
+/// Calls `visit(value, col)` for the albedo of each cell of one row of `bands`, writing back what
+/// it leaves in `value`.
+template <typename Visit>
+void VisitRowCells(std::vector<Raster<float>>& bands, std::size_t row, const Visit& visit) {
+    for (std::size_t col = 0; col < bands.front().Width(); ++col) {
         AlbedoSample value{};
         for (std::size_t band = 0; band < bands.size(); ++band) {
             value[band] = bands[band](col, row);
         }
-        const Vec2d centre = first.CellCenter(col, row);
-        visit(value, centre.x, centre.y);
+        visit(value, col);
         for (std::size_t band = 0; band < bands.size(); ++band) {
             bands[band](col, row) = value[band];
         }
     }
 }
 
+/// Visits the cells of one row of `bands` by their centres.
+void VisitRow(std::vector<Raster<float>>& bands, std::size_t row, const AlbedoCellVisitor& visit) {
+    const Raster<float>& first = bands.front();
+    VisitRowCells(bands, row, [&](AlbedoSample& value, std::size_t col) {
+        const Vec2d centre = first.CellCenter(col, row);
+        visit(value, centre.x, centre.y);
+    });
+}
+
 }  // namespace
+
+void ForEachAlbedoPixel(std::vector<Raster<float>>& bands, unsigned threads,
+                        const AlbedoPixelVisitor& visit) {
+    if (bands.empty()) {
+        return;
+    }
+    ParallelFor(bands.front().Height(), threads, [&](std::size_t row) {
+        VisitRowCells(bands, row,
+                      [&](AlbedoSample& value, std::size_t col) { visit(value, col, row); });
+    });
+}
 
 void ForEachAlbedoCell(std::vector<Raster<float>>& bands, unsigned threads,
                        const AlbedoCellVisitor& visit) {
@@ -46,7 +66,7 @@ void ForEachAlbedoCell(std::vector<Raster<float>>& bands, unsigned threads,
 
 void ForEachAlbedoBlock(
     std::vector<Raster<float>>& bands, unsigned threads, std::size_t blockRows,
-    const std::function<AlbedoCellVisitor(std::size_t rowBegin, std::size_t rowEnd)>& visitorFor) {
+    const std::function<AlbedoCellVisitor(std::size_t rowBegin, std::size_t rowEnd)>& makeVisitor) {
     if (bands.empty()) {
         return;
     }
@@ -55,7 +75,7 @@ void ForEachAlbedoBlock(
     ParallelFor(blocks, threads, [&](std::size_t block) {
         const std::size_t rowBegin = block * blockRows;
         const std::size_t rowEnd = std::min(height, rowBegin + blockRows);
-        const AlbedoCellVisitor visit = visitorFor(rowBegin, rowEnd);
+        const AlbedoCellVisitor visit = makeVisitor(rowBegin, rowEnd);
         for (std::size_t row = rowBegin; row < rowEnd; ++row) {
             VisitRow(bands, row, visit);
         }

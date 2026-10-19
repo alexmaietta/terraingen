@@ -1,5 +1,6 @@
 #include "terraingen/albedo/raster_albedo.h"
 
+#include "terraingen/albedo/brightness_statistics.h"
 #include "terraingen/layers/roughness.h"
 #include "terraingen/noise/hash.h"
 #include "terraingen/noise/perlin.h"
@@ -8,6 +9,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 #include <utility>
 
@@ -41,84 +43,13 @@ double PerlinRms() {
     return rms;
 }
 
-/// The logarithm of the mean of the bands at a cell, or NaN where it has no data.
-double LogBrightness(const std::vector<Raster<float>>& bands, std::size_t col, std::size_t row) {
-    double sum = 0.0;
-    for (const Raster<float>& band : bands) {
-        const float value = band(col, row);
-        if (band.IsNoData(value) || !std::isfinite(value) || value <= 0.0f) {
-            return NAN;
-        }
-        sum += static_cast<double>(value);
-    }
-    return std::log(sum / static_cast<double>(bands.size()));
-}
-
 }  // namespace
-
-std::vector<double> LogBrightnessGrid(const std::vector<Raster<float>>& bands) {
-    const std::size_t width = bands.front().Width();
-    const std::size_t height = bands.front().Height();
-    std::vector<double> logs(width * height);
-    for (std::size_t row = 0; row < height; ++row) {
-        for (std::size_t col = 0; col < width; ++col) {
-            logs[row * width + col] = LogBrightness(bands, col, row);
-        }
-    }
-    return logs;
-}
-
-std::optional<double> StructureFunction(const std::vector<double>& values, std::size_t width,
-                                        std::size_t height, std::size_t lag) {
-    double sum = 0.0;
-    std::size_t pairs = 0;
-    const auto add = [&](double a, double b) {
-        if (std::isfinite(a) && std::isfinite(b)) {
-            sum += (a - b) * (a - b);
-            ++pairs;
-        }
-    };
-    for (std::size_t row = 0; row < height; ++row) {
-        for (std::size_t col = 0; col < width; ++col) {
-            const double here = values[row * width + col];
-            if (col + lag < width) {
-                add(here, values[row * width + col + lag]);
-            }
-            if (row + lag < height) {
-                add(here, values[(row + lag) * width + col]);
-            }
-        }
-    }
-    if (!(pairs > 0 && sum > 0.0)) {
-        return std::nullopt;
-    }
-    return sum / static_cast<double>(pairs);
-}
-
-double FitSlope(const std::vector<double>& x, const std::vector<double>& y) {
-    const auto n = static_cast<double>(x.size());
-    double mx = 0.0;
-    double my = 0.0;
-    for (std::size_t i = 0; i < x.size(); ++i) {
-        mx += x[i] / n;
-        my += y[i] / n;
-    }
-    double sxy = 0.0;
-    double sxx = 0.0;
-    for (std::size_t i = 0; i < x.size(); ++i) {
-        sxy += (x[i] - mx) * (y[i] - my);
-        sxx += (x[i] - mx) * (x[i] - mx);
-    }
-    return sxy / sxx;
-}
 
 void ValidateAlbedoDetail(const AlbedoDetail& detail) {
     if (detail.octaves < 1 || detail.octaves > 16) {
         throw std::invalid_argument("Albedo detail needs 1 to 16 octaves");
     }
-    if (!IsNonNegative(detail.scale)) {
-        throw std::invalid_argument("The albedo detail scale must not be negative");
-    }
+    RequireNonNegative(detail.scale, "The albedo detail scale");
     if (detail.hurst) {
         RequireUnitInterval(*detail.hurst, "The albedo detail Hurst exponent");
     }
@@ -200,7 +131,7 @@ AlbedoSample RasterAlbedo::ValueAt(double x, double y, const AlbedoContext& cont
     for (std::size_t band = 0; band < bands_.size(); ++band) {
         value[band] = SampleRaster(bands_[band], x, y, options_.method);
         if (std::isnan(value[band])) {
-            value.fill(NAN);
+            value.fill(std::numeric_limits<float>::quiet_NaN());
             return value;
         }
     }

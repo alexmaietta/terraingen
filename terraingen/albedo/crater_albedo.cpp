@@ -1,7 +1,7 @@
 #include "terraingen/albedo/crater_albedo.h"
 
+#include "terraingen/albedo/bands.h"
 #include "terraingen/layers/craters/secondaries.h"
-#include "terraingen/noise/fractal.h"
 #include "terraingen/noise/hash.h"
 #include "terraingen/noise/value.h"
 #include "terraingen/random/stream.h"
@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <numbers>
 #include <stdexcept>
 #include <utility>
@@ -149,7 +150,7 @@ void ValidateReflectanceZone(const ReflectanceZone& zone) {
 
 double CraterReflectanceZones::MaxReach(double diameter) const {
     double reach = 0.0;
-    for (const ReflectanceZone* zone : {&proximalHigh, &proximalLow, &distalHigh, &distalLow}) {
+    for (const ReflectanceZone* zone : All()) {
         reach = std::fmax(reach, zone->coefficient * std::pow(diameter, zone->exponent) *
                                      zone->scale.Highest());
     }
@@ -157,8 +158,7 @@ double CraterReflectanceZones::MaxReach(double diameter) const {
 }
 
 void ValidateCraterReflectanceZones(const CraterReflectanceZones& zones) {
-    for (const ReflectanceZone* zone :
-         {&zones.proximalHigh, &zones.proximalLow, &zones.distalHigh, &zones.distalLow}) {
+    for (const ReflectanceZone* zone : zones.All()) {
         ValidateReflectanceZone(*zone);
     }
     RequirePositive(zones.maxDiameter, "The largest crater with reflectance zones");
@@ -197,6 +197,8 @@ void ValidateCraterAlbedo(const CraterAlbedoOptions& options) {
     }
 }
 
+namespace {
+
 /// The key of `crater`'s texture.
 std::uint32_t TextureKey(const Crater& crater, const CraterAlbedoTexture& texture) {
     return PcgHash(static_cast<std::uint32_t>(crater.id) ^
@@ -208,14 +210,8 @@ double LobeScale(double angle, std::uint32_t key, const CraterAlbedoTexture& tex
     if (texture.lobes == 0.0) {
         return 1.0;
     }
-    FractalParams params;
-    params.seed = key ^ 0x4C4F4245u;
-    params.wavelength = 1.0f;
-    params.amplitude = 1.0f;
-    params.octaves = 2;
     const double ring = static_cast<double>(texture.lobeCount) / (2.0 * std::numbers::pi);
-    const double n =
-        static_cast<double>(Fractal3(ring * std::cos(angle), ring * std::sin(angle), 0.0, params));
+    const double n = RingNoise(ring, angle, 0.0, key ^ 0x4C4F4245u, 2);
     return 1.0 + texture.lobes * std::clamp(n, -1.0, 1.0);
 }
 
@@ -226,15 +222,9 @@ double StreakShare(double radii, double angle, std::uint32_t key,
     if (texture.streaks == 0.0) {
         return 1.0;
     }
-    FractalParams params;
-    params.seed = key;
-    params.wavelength = 1.0f;
-    params.amplitude = 1.0f;
-    params.octaves = 3;
     const double ring = 180.0 / (std::numbers::pi * texture.streakWidthDegrees);
-    const double n = static_cast<double>(Fractal3(ring * std::cos(angle), ring * std::sin(angle),
-                                                  radii / texture.streakLengthRadii, params));
-    const double filament = Smoothstep(std::clamp(0.5 + 1.5 * n, 0.0, 1.0));
+    const double n = RingNoise(ring, angle, radii / texture.streakLengthRadii, key, 3);
+    const double filament = Smoothstep(0.5 + 1.5 * n);
     return 1.0 - texture.streaks * (1.0 - filament);
 }
 
@@ -274,7 +264,43 @@ struct ShadowProfile {
         };
         const double g = (1.0 - fa) * ((1.0 - fr) * at(a0, r0) + fr * at(a0, r1)) +
                          fa * ((1.0 - fr) * at(a1, r0) + fr * at(a1, r1));
-        return Smoothstep(std::clamp(g / depth, 0.0, 1.0));
+        return Smoothstep(g / depth);
+    }
+
+    /// The surface points of the held samples around `centre`, row-major by ray.
+    std::vector<Vec2d> Points(const Vec2d& centre, const Surface& surface) const {
+        std::vector<Vec2d> points;
+        points.reserve(rays * used);
+        for (std::size_t k = 0; k < rays; ++k) {
+            const std::size_t i = (first + k) % azimuths;
+            const double angle =
+                2.0 * std::numbers::pi * static_cast<double>(i) / static_cast<double>(azimuths);
+            for (std::size_t j = 0; j < used; ++j) {
+                const double distance = start + static_cast<double>(j) * step;
+                points.push_back(surface.Locate(
+                    centre, {distance * std::cos(angle), distance * std::sin(angle)}));
+            }
+        }
+        return points;
+    }
+
+    /// Sets the samples along each held ray from the ground's `heights` there, row-major by ray:
+    /// how far a jet from the rim, dropping by at most `drop` metres per sample, runs above them.
+    void TraceJets(const std::vector<float>& heights, double drop) {
+        gap.assign(heights.size(), 0.0f);
+        for (std::size_t k = 0; k < rays; ++k) {
+            const std::size_t row = k * used;
+            double jet = static_cast<double>(heights[row]);
+            for (std::size_t j = 1; j < used; ++j) {
+                const double h = static_cast<double>(heights[row + j]);
+                if (std::isnan(h) || std::isnan(jet)) {
+                    jet = h;
+                    continue;
+                }
+                jet = std::fmax(h, jet - drop);
+                gap[row + j] = static_cast<float>(jet - h);
+            }
+        }
     }
 };
 
@@ -290,10 +316,11 @@ RayWindow RaysOver(const Vec2d& centre, const Bounds2d& region, const Surface& s
                    std::size_t azimuths) {
     RayWindow window;
     window.rays = azimuths;
-    double minX = INFINITY;
-    double maxX = -INFINITY;
-    double minY = INFINITY;
-    double maxY = -INFINITY;
+    constexpr double kInf = std::numeric_limits<double>::infinity();
+    double minX = kInf;
+    double maxX = -kInf;
+    double minY = kInf;
+    double maxY = -kInf;
     std::vector<Vec2d> corners;
     for (const double x : {region.minX, region.maxX}) {
         for (const double y : {region.minY, region.maxY}) {
@@ -327,6 +354,25 @@ RayWindow RaysOver(const Vec2d& centre, const Bounds2d& region, const Surface& s
     return window;
 }
 
+/// The shadow profile of `shadows` from the rim of a crater `radius` metres across to `reach`
+/// metres, holding the rays of `window` and the samples out to its far side; heights not yet
+/// traced.
+ShadowProfile MakeShadowProfile(const ZoneShadows& shadows, double radius, double reach,
+                                const RayWindow& window) {
+    ShadowProfile profile;
+    profile.azimuths = static_cast<std::size_t>(shadows.azimuths);
+    profile.samples = static_cast<std::size_t>(shadows.radialSamples);
+    profile.start = radius;
+    profile.step = (reach - radius) / static_cast<double>(profile.samples - 1);
+    profile.depth = shadows.depth;
+    const double used = std::ceil((window.far - radius) / profile.step) + 2.0;
+    profile.first = window.first;
+    profile.rays = window.rays;
+    profile.used =
+        static_cast<std::size_t>(std::clamp(used, 2.0, static_cast<double>(profile.samples)));
+    return profile;
+}
+
 /// One reflectance zone of a crater, drawn.
 struct DrawnZone {
     double change = 0.0;
@@ -347,21 +393,15 @@ struct DrawnZone {
         if (distance >= reach) {
             return 0.0;
         }
-        double finger = 1.0;
-        if (raggedness > 0.0) {
-            FractalParams params;
-            params.seed = key;
-            params.wavelength = 1.0f;
-            params.amplitude = 1.0f;
-            params.octaves = 4;
-            const double n = static_cast<double>(Fractal3(
-                ring * std::cos(angle), ring * std::sin(angle), 3.0 * distance / reach, params));
-            finger = 1.0 - raggedness * std::clamp(0.5 - n, 0.0, 1.0);
-        }
-        const double t = distance / (reach * finger);
-        return 1.0 - Smoothstep(std::clamp((t - (1.0 - feather)) / feather, 0.0, 1.0));
+        const double finger =
+            raggedness > 0.0
+                ? LobeFactor(RingNoise(ring, angle, 3.0 * distance / reach, key, 4), raggedness)
+                : 1.0;
+        return SoftEdge(distance / (reach * finger), feather);
     }
 };
+
+}  // namespace
 
 /// One ray, in the frame of its crater.
 struct CraterAlbedo::Ray {
@@ -438,44 +478,60 @@ struct CraterAlbedo::Prepared {
         if (weight == 0.0) {
             return 0.0;
         }
-        const double radius = 0.5 * crater.diameter;
-        const double radii = CraterProfileDistance(crater, outline, x, y, surface) / radius;
+        const double radii =
+            CraterProfileDistance(crater, outline, x, y, surface) / (0.5 * crater.diameter);
         const CraterAlbedoTexture& texture = o.texture;
         const bool textured = texture.streaks > 0.0 || texture.lobes > 0.0;
         const Vec2d offset = surface.Offset({crater.x, crater.y}, {x, y});
         const double angle = textured ? std::atan2(offset.y, offset.x) : 0.0;
         const std::uint32_t key = textured ? TextureKey(crater, texture) : 0u;
         if (radii < 1.0) {
-            double interior = o.interiorExcess;
-            const double wall = Smoothstep(std::clamp((radii - 0.3) / 0.6, 0.0, 1.0));
-            if (texture.floorShare < 1.0) {
-                interior *= texture.floorShare + (1.0 - texture.floorShare) * wall;
-            }
-            const double streak = StreakShare(radii, angle, key, texture);
-            return weight * interior * (1.0 - (1.0 - streak) * wall);
+            return InteriorExcess(o, radii, angle, key);
         }
-        double excess = 0.0;
-        const double lobed = radii / LobeScale(angle, key, texture);
-        if (lobed < o.ejectaReachRadii) {
-            const double edge = std::pow(o.ejectaReachRadii, -o.ejectaExponent);
-            excess = o.ejectaExcess * (std::pow(std::fmax(lobed, 1.0), -o.ejectaExponent) - edge) /
-                     (1.0 - edge);
-        }
-        for (const Ray& ray : rays) {
-            const double along = offset.x * ray.cos + offset.y * ray.sin;
-            const double lateral = std::fabs(offset.y * ray.cos - offset.x * ray.sin);
-            excess += ray.ExcessAt(along, lateral, radius, o.rays);
-        }
+        const double excess = OutsideExcess(o, offset, radii, angle, key);
         if (excess == 0.0) {
             return 0.0;
         }
         const double streak = StreakShare(radii, angle, key, texture);
         if (texture.continuousRadii > 0.0) {
-            const double ramp =
-                Smoothstep(std::clamp((radii - 1.0) / texture.continuousRadii, 0.0, 1.0));
+            const double ramp = SmoothRamp(radii, 1.0, texture.continuousRadii);
             return weight * excess * (1.0 - (1.0 - streak) * ramp);
         }
         return weight * excess * streak;
+    }
+
+    /// The weighted excess inside the rim, `radii` radii and `angle` radians from the centre,
+    /// its filaments keyed by `key`.
+    double InteriorExcess(const CraterAlbedoOptions& o, double radii, double angle,
+                          std::uint32_t key) const {
+        const CraterAlbedoTexture& texture = o.texture;
+        double interior = o.interiorExcess;
+        const double wall = SmoothRamp(radii, 0.3, 0.6);
+        if (texture.floorShare < 1.0) {
+            interior *= texture.floorShare + (1.0 - texture.floorShare) * wall;
+        }
+        const double streak = StreakShare(radii, angle, key, texture);
+        return weight * interior * (1.0 - (1.0 - streak) * wall);
+    }
+
+    /// The unweighted excess of the ejecta and rays beyond the rim at `offset` metres from the
+    /// centre, `radii` radii and `angle` radians, before the filaments.
+    double OutsideExcess(const CraterAlbedoOptions& o, const Vec2d& offset, double radii,
+                         double angle, std::uint32_t key) const {
+        double excess = 0.0;
+        const double lobed = radii / LobeScale(angle, key, o.texture);
+        if (lobed < o.ejectaReachRadii) {
+            const double edge = std::pow(o.ejectaReachRadii, -o.ejectaExponent);
+            excess = o.ejectaExcess * (std::pow(std::fmax(lobed, 1.0), -o.ejectaExponent) - edge) /
+                     (1.0 - edge);
+        }
+        const double radius = 0.5 * crater.diameter;
+        for (const Ray& ray : rays) {
+            const double along = offset.x * ray.cos + offset.y * ray.sin;
+            const double lateral = std::fabs(offset.y * ray.cos - offset.x * ray.sin);
+            excess += ray.ExcessAt(along, lateral, radius, o.rays);
+        }
+        return excess;
     }
 };
 
@@ -557,8 +613,7 @@ void CraterAlbedo::AddZones(Prepared& prepared, double left, double resolution) 
     RandomStream random(z.seed, kZoneStream, id.low, id.high);
     const bool immature = z.excavationRatio * diameter > z.matureDepth;
     std::vector<DrawnZone> distal;
-    for (const ReflectanceZone* zone :
-         {&z.proximalHigh, &z.proximalLow, &z.distalHigh, &z.distalLow}) {
+    for (const ReflectanceZone* zone : z.All()) {
         const double present = random.NextDouble();
         const double c1 = random.NextDouble();
         const double c2 = random.NextDouble();
@@ -568,7 +623,7 @@ void CraterAlbedo::AddZones(Prepared& prepared, double left, double resolution) 
         drawn.key = random.NextU32();
         const double life =
             zone->retentionMyr
-                ? std::fmin(left, 1.0 - 1000.0 * prepared.crater.ageGyr / *zone->retentionMyr)
+                ? std::fmin(left, LifeLeft(prepared.crater.ageGyr, *zone->retentionMyr))
                 : left;
         if (present >= zone->share || (zone == &z.proximalHigh && !immature) || life <= 0.0) {
             continue;
@@ -600,7 +655,7 @@ CraterAlbedo::Prepared CraterAlbedo::Prepare(const Crater& crater, double spacin
     if (!Eligible(crater, random)) {
         return prepared;
     }
-    const double left = 1.0 - 1000.0 * crater.ageGyr / o.retention.Myr(crater.diameter);
+    const double left = LifeLeft(crater.ageGyr, o.retention.Myr(crater.diameter));
     const double resolution = ResolutionWeight(crater.diameter, spacing, o.fade);
     if (left <= 0.0 || resolution == 0.0) {
         return prepared;
@@ -643,50 +698,16 @@ void CraterAlbedo::AddShadows(Prepared& prepared, const Ground& ground,
     if (reach <= radius) {
         return;
     }
-    auto profile = std::make_shared<ShadowProfile>();
-    const auto azimuths = static_cast<std::size_t>(s.azimuths);
-    const auto samples = static_cast<std::size_t>(s.radialSamples);
-    profile->azimuths = azimuths;
-    profile->samples = samples;
-    profile->start = radius;
-    profile->step = (reach - radius) / static_cast<double>(samples - 1);
-    profile->depth = s.depth;
+    const Vec2d centre{crater.x, crater.y};
     const Surface& surface = craters_->Options().surface;
-    const RayWindow window = RaysOver({crater.x, crater.y}, region, surface, azimuths);
-    const double used = std::ceil((window.far - radius) / profile->step) + 2.0;
-    profile->first = window.first;
-    profile->rays = window.rays;
-    profile->used = static_cast<std::size_t>(std::clamp(used, 2.0, static_cast<double>(samples)));
-    const std::size_t count = profile->rays * profile->used;
-    std::vector<Vec2d> points;
-    points.reserve(count);
-    for (std::size_t k = 0; k < profile->rays; ++k) {
-        const std::size_t i = (window.first + k) % azimuths;
-        const double angle =
-            2.0 * std::numbers::pi * static_cast<double>(i) / static_cast<double>(azimuths);
-        for (std::size_t j = 0; j < profile->used; ++j) {
-            const double distance = radius + static_cast<double>(j) * profile->step;
-            points.push_back(surface.Locate(
-                {crater.x, crater.y}, {distance * std::cos(angle), distance * std::sin(angle)}));
-        }
-    }
-    std::vector<float> heights(count);
+    const RayWindow window =
+        RaysOver(centre, region, surface, static_cast<std::size_t>(s.azimuths));
+    auto profile = std::make_shared<ShadowProfile>(MakeShadowProfile(s, radius, reach, window));
+    const std::vector<Vec2d> points = profile->Points(centre, surface);
+    std::vector<float> heights(points.size());
     ground.HeightsAt(points, heights, profile->step);
-    const double drop = std::tan(s.jetAngleDegrees * std::numbers::pi / 180.0) * profile->step;
-    profile->gap.assign(count, 0.0f);
-    for (std::size_t k = 0; k < profile->rays; ++k) {
-        const std::size_t row = k * profile->used;
-        double jet = static_cast<double>(heights[row]);
-        for (std::size_t j = 1; j < profile->used; ++j) {
-            const double h = static_cast<double>(heights[row + j]);
-            if (std::isnan(h) || std::isnan(jet)) {
-                jet = h;
-                continue;
-            }
-            jet = std::fmax(h, jet - drop);
-            profile->gap[row + j] = static_cast<float>(jet - h);
-        }
-    }
+    profile->TraceJets(heights,
+                       std::tan(s.jetAngleDegrees * std::numbers::pi / 180.0) * profile->step);
     prepared.shadow = std::move(profile);
 }
 
@@ -713,41 +734,37 @@ double CraterAlbedo::Reach(const Crater& crater) const {
     return Prepare(crater, 0.0).reach;
 }
 
-std::vector<CraterAlbedo::Prepared> CraterAlbedo::Gather(const Bounds2d& region, double spacing,
-                                                         const Ground* ground) const {
+double CraterAlbedo::GatherMargin() const {
     const double largest = craters_->MaxFeatureDiameter();
     const double rayReach = options_.rays.enabled
                                 ? options_.rays.MedianLength(largest) *
                                       std::exp(options_.rays.lengthSpread.Highest()) *
                                       options_.rays.oblique.MaxStretch()
                                 : 0.0;
-    const double ejectaReach =
-        std::fmax(rayReach, 0.5 * largest * options_.ejectaReachRadii *
-                                MaxOutlineScale(craters_->Options().apply.irregularity) *
-                                (1.0 + options_.texture.lobes));
+    return std::fmax(rayReach, 0.5 * largest * options_.ejectaReachRadii *
+                                   MaxOutlineScale(craters_->Options().apply.irregularity) *
+                                   (1.0 + options_.texture.lobes));
+}
+
+void CraterAlbedo::TakePrepared(const CraterList& list, const Bounds2d& region, double spacing,
+                                std::vector<Prepared>& prepared) const {
     const Surface& surface = craters_->Options().surface;
-    std::vector<Prepared> prepared;
-    const auto take = [&](const CraterList& list) {
-        for (std::size_t i = 0; i < list.Size(); ++i) {
-            Prepared one = Prepare(list.At(i), spacing);
-            if (one.weight == 0.0) {
-                continue;
-            }
-            const Crater& c = one.crater;
-            if (!surface.Contains(surface.Expand(region, one.reach), {c.x, c.y})) {
-                continue;
-            }
+    for (std::size_t i = 0; i < list.Size(); ++i) {
+        Prepared one = Prepare(list.At(i), spacing);
+        if (one.weight == 0.0) {
+            continue;
+        }
+        const Crater& c = one.crater;
+        if (surface.Contains(surface.Expand(region, one.reach), {c.x, c.y})) {
             prepared.push_back(std::move(one));
         }
-    };
-    take(craters_->Craters(surface.Expand(region, ejectaReach), spacing));
-    if (options_.zones.enabled) {
-        for (double high = std::fmin(largest, options_.zones.maxDiameter);
-             options_.zones.MaxReach(high) > ejectaReach; high *= 0.5) {
-            take(craters_->Craters(surface.Expand(region, options_.zones.MaxReach(high)), spacing,
-                                   0.5 * high, high));
-        }
     }
+}
+
+namespace {
+
+/// Sorts `prepared` by crater ID and drops repeats.
+template <typename Prepared> void SortUniqueById(std::vector<Prepared>& prepared) {
     std::sort(prepared.begin(), prepared.end(),
               [](const Prepared& a, const Prepared& b) { return a.crater.id < b.crater.id; });
     prepared.erase(std::unique(prepared.begin(), prepared.end(),
@@ -755,7 +772,44 @@ std::vector<CraterAlbedo::Prepared> CraterAlbedo::Gather(const Bounds2d& region,
                                    return a.crater.id == b.crater.id;
                                }),
                    prepared.end());
-    if (ground != nullptr && options_.zones.enabled && options_.zones.shadows.enabled) {
+}
+
+/// Moves `value` to the reflectance at the background maturity plus `excess`, capped, then
+/// changes it by the relative reflectance `change`, never below 0.
+void Brighten(AlbedoSample& value, std::size_t bands, double excess, double change,
+              const CraterAlbedoOptions& o) {
+    if (excess == 0.0 && change == 0.0) {
+        return;
+    }
+    const double factor = std::fmax(0.0, 1.0 + change);
+    if (excess == 0.0) {
+        ScaleBands(value, bands, factor);
+        return;
+    }
+    const double maturity = std::fmin(o.backgroundMaturity + excess, o.maxMaturity);
+    MatureBands(value, bands, o.backgroundMaturity, maturity, o.originReflectance, factor);
+}
+
+}  // namespace
+
+std::vector<CraterAlbedo::Prepared> CraterAlbedo::Gather(const Bounds2d& region, double spacing,
+                                                         const Ground* ground) const {
+    const double margin = GatherMargin();
+    const Surface& surface = craters_->Options().surface;
+    std::vector<Prepared> prepared;
+    TakePrepared(craters_->Craters(surface.Expand(region, margin), spacing), region, spacing,
+                 prepared);
+    const CraterReflectanceZones& zones = options_.zones;
+    if (zones.enabled) {
+        for (double high = std::fmin(craters_->MaxFeatureDiameter(), zones.maxDiameter);
+             zones.MaxReach(high) > margin; high *= 0.5) {
+            TakePrepared(craters_->Craters(surface.Expand(region, zones.MaxReach(high)), spacing,
+                                           0.5 * high, high),
+                         region, spacing, prepared);
+        }
+    }
+    SortUniqueById(prepared);
+    if (ground != nullptr && zones.enabled && zones.shadows.enabled) {
         std::size_t shadowed = 0;
         for (Prepared& p : prepared) {
             AddShadows(p, *ground, region);
@@ -766,35 +820,8 @@ std::vector<CraterAlbedo::Prepared> CraterAlbedo::Gather(const Bounds2d& region,
     return prepared;
 }
 
-namespace {
-
-/// Moves `value` to the reflectance at the background maturity plus `excess`, capped, then
-/// changes it by the relative reflectance `change`, never below 0.
-void Brighten(AlbedoSample& value, std::size_t bands, double excess, double change,
-              const CraterAlbedoOptions& o) {
-    if (excess == 0.0 && change == 0.0) {
-        return;
-    }
-    const double maturity = std::fmin(o.backgroundMaturity + excess, o.maxMaturity);
-    const double factor = std::fmax(0.0, 1.0 + change);
-    for (std::size_t band = 0; band < bands; ++band) {
-        if (std::isnan(value[band])) {
-            continue;
-        }
-        double reflectance = value[band];
-        if (excess != 0.0) {
-            reflectance = ReflectanceAtMaturity(reflectance, o.backgroundMaturity, maturity,
-                                                o.originReflectance);
-        }
-        value[band] = static_cast<float>(factor * reflectance);
-    }
-}
-
-}  // namespace
-
 void CraterAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
                            const AlbedoContext& context) const {
-    ValidateAlbedoContext(context);
     const Surface& surface = craters_->Options().surface;
     double excess = 0.0;
     double change = 0.0;
@@ -806,7 +833,6 @@ void CraterAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, dou
 }
 
 void CraterAlbedo::Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const {
-    ValidateAlbedoContext(context);
     if (bands.empty()) {
         return;
     }

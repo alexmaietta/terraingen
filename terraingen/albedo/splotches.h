@@ -123,11 +123,9 @@ class SplotchAlbedo final : public AlbedoLayer {
     /// @throws std::invalid_argument for options invalid as `ValidateSplotches`.
     explicit SplotchAlbedo(SplotchOptions options = {}, Surface surface = {});
 
-    /// Changes the albedo at one point by the splotches over it; NaN stays NaN.
     void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
                  const AlbedoContext& context) const override;
 
-    /// `ApplyAt` at every cell centre, generating the splotches once.
     void Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const override;
 
     /// The splotches resolved at `spacing` metres reaching `region`, youngest first; with
@@ -141,17 +139,22 @@ class SplotchAlbedo final : public AlbedoLayer {
     /// The relative reflectance change `splotch` alone gives (`x`, `y`) at `spacing` metres.
     double Change(const Splotch& splotch, double x, double y, double spacing) const;
 
-    /// The slope in degrees of `ground` at the centre of a splotch `diameter` metres across at
-    /// (`x`, `y`), over its width, read at `spacing` metres (half the smallest splotch for 0).
-    double SlopeDegrees(const Ground& ground, double x, double y, double diameter,
-                        double spacing) const;
-
     /// What the splotches are.
     const SplotchOptions& Options() const {
         return options_;
     }
 
   private:
+    /// The splotches of `region` resolved at `spacing` metres, before their sides are drawn.
+    std::vector<Splotch> Marks(const Bounds2d& region, double spacing) const;
+    /// The slope in degrees of `ground` under each of `splotches`, over its width, read at
+    /// `spacing` metres (half the smallest splotch for 0); all 0 without `ground` or a steep
+    /// bright share.
+    std::vector<double> SteepSlopes(const std::vector<Splotch>& splotches, double spacing,
+                                    const Ground* ground) const;
+    /// Draws whether `splotch` on ground of `slopeDegrees` is dark, bright or mixed, and its
+    /// changes, split and lobes.
+    void DrawSides(Splotch& splotch, double slopeDegrees) const;
     /// Adds the splotches of the swarms reaching `region` to `splotches`.
     void AddSwarms(const Bounds2d& region, double spacing, std::vector<Splotch>& splotches) const;
     /// The change of `splotches`, youngest first, at (`x`, `y`).
