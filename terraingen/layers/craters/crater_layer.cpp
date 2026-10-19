@@ -1,6 +1,7 @@
 #include "terraingen/layers/craters/crater_layer.h"
 
 #include "terraingen/distribution/summed.h"
+#include "terraingen/layers/bisection.h"
 #include "terraingen/layers/craters/generation/spacing.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/cells.h"
@@ -46,9 +47,12 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options)
         ValidateSecondaryCraterOptions(secondaries);
     }
     candidates_ = models_.density;
-    if (!options_.densityMap) {
-        return;
+    if (options_.densityMap) {
+        FollowDensityMap();
     }
+}
+
+void CraterLayer::FollowDensityMap() {
     scale_ = std::make_shared<const DensityScale>(*options_.densityMap, *models_.density);
     if (scale_->Max() > 1.0) {
         candidates_ =
@@ -62,21 +66,7 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options)
         return;
     }
     for (const SecondaryCraterOptions& secondaries : options_.secondaries) {
-        const double smallest = std::fmax(map.minDiameter, secondaries.minDiameter);
-        const auto throws = [&](double diameter) {
-            return LargestSecondary(diameter, secondaries) > smallest;
-        };
-        double low = std::log(1e-3);
-        double high = std::log(kLargestThrower);
-        if (!throws(kLargestThrower)) {
-            continue;
-        }
-        for (int i = 0; i < 100; ++i) {
-            const double middle = 0.5 * (low + high);
-            (throws(std::exp(middle)) ? high : low) = middle;
-        }
-        throwFrom_ =
-            std::fmin(throwFrom_, std::fmax(std::exp(high), secondaries.selection.minDiameter));
+        throwFrom_ = std::fmin(throwFrom_, SmallestThrower(map, secondaries));
     }
     if (std::isfinite(throwFrom_) && options_.generation.maxCraters > 0) {
         throw std::invalid_argument("Taking secondaries out of a density map needs every crater, "
@@ -85,7 +75,20 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options)
     options_.generation.spacing.outrankFrom = throwFrom_;
 }
 
-CraterKeepShare CraterLayer::KeepShare(const Bounds2d& region) const {
+double CraterLayer::SmallestThrower(const DensityMap& map,
+                                    const SecondaryCraterOptions& secondaries) {
+    const double smallest = std::fmax(map.minDiameter, secondaries.minDiameter);
+    const auto throws = [&](double diameter) {
+        return LargestSecondary(diameter, secondaries) > smallest;
+    };
+    if (!throws(kLargestThrower)) {
+        return std::numeric_limits<double>::infinity();
+    }
+    return std::fmax(BisectLog(1e-3, kLargestThrower, 100, 0.0, throws),
+                     secondaries.selection.minDiameter);
+}
+
+CraterList CraterLayer::Throwers(const Bounds2d& region) const {
     CraterGenerationOptions large = options_.generation;
     large.dMin = std::fmax(large.dMin, throwFrom_);
     large.minResolvedDiameter = 0.0;
@@ -94,24 +97,27 @@ CraterKeepShare CraterLayer::KeepShare(const Bounds2d& region) const {
         reach = std::fmax(reach, SecondaryOuterRange(MaxFeatureDiameter(), secondaries));
     }
     const Bounds2d around = options_.surface.Expand(region, reach);
-    CraterList throwers;
     if (large.dMin < ResolveDMax(large.dMax, *candidates_)) {
         if (cache_) {
             large.cellCraters =
                 CachedCellCraters(*cache_, *cells_, *candidates_, *models_.ages, options_.seed);
         }
-        throwers =
-            GenerateCraters(*cells_, around, *candidates_, *models_.ages, options_.seed, large);
-    } else {
-        AppendManualCraters(large.manual, throwers, [&](const Crater& crater) {
-            return options_.surface.Contains(around, {crater.x, crater.y});
-        });
+        return GenerateCraters(*cells_, around, *candidates_, *models_.ages, options_.seed, large);
     }
+    CraterList throwers;
+    AppendManualCraters(large.manual, throwers, [&](const Crater& crater) {
+        return options_.surface.Contains(around, {crater.x, crater.y});
+    });
+    return throwers;
+}
+
+CraterKeepShare CraterLayer::KeepShare(const Bounds2d& region) const {
     struct Thrower {
         Vec2d centre;
         SecondaryDensity density;
     };
     auto thrown = std::make_shared<std::vector<Thrower>>();
+    const CraterList throwers = Throwers(region);
     for (std::size_t n = 0; n < throwers.Size(); ++n) {
         const Crater crater = throwers.At(n);
         for (const SecondaryCraterOptions& secondaries : options_.secondaries) {

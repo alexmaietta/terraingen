@@ -39,7 +39,6 @@ TEST(CraterCellCache, GeneratesEachCellOnceAndReturnsTheHeldCraters) {
     EXPECT_EQ(cache.Size(), 5u);
     cache.Get(3, CellIndex{3, 4}, generate);
     EXPECT_EQ(calls, 2) << "another band is another cell";
-    EXPECT_EQ(cache.MaxCraters(), 1000u);
     EXPECT_EQ(cache.Evictions(), 0u);
 }
 

@@ -82,11 +82,6 @@ class CraterReliefIndex {
     /// independent of the other craters.
     double ReliefBefore(double x, double y, std::size_t k) const;
 
-    /// The indexed craters, in the order applied.
-    const std::vector<PreparedCrater>& Craters() const {
-        return *craters_;
-    }
-
   private:
     struct Key {
         int band;

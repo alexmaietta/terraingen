@@ -1,5 +1,7 @@
 #include "terraingen/layers/craters/ages/steady_state.h"
 
+#include "terraingen/layers/bisection.h"
+
 #include <cmath>
 #include <stdexcept>
 #include <utility>
@@ -12,17 +14,10 @@ namespace {
 /// N1(T).
 double SampleFormationAge(RandomStream& random, const Chronology& chronology, double maxAgeGyr) {
     const double target = random.NextDouble() * chronology(maxAgeGyr);
-    double low = 0.0;
-    double high = maxAgeGyr;
-    for (int i = 0; i < 100 && high - low > 1e-15 * maxAgeGyr; ++i) {
-        const double middle = 0.5 * (low + high);
-        if (chronology(middle) < target) {
-            low = middle;
-        } else {
-            high = middle;
-        }
-    }
-    return 0.5 * (low + high);
+    const BisectionInterval age =
+        Bisect(0.0, maxAgeGyr, 100, 1e-15 * maxAgeGyr,
+               [&](double middle) { return !(chronology(middle) < target); });
+    return 0.5 * (age.low + age.high);
 }
 
 }  // namespace

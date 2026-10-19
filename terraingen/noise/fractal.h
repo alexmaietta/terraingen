@@ -8,6 +8,10 @@
 #include "terraingen/noise/value.h"
 #include "terraingen/noise/worley.h"
 
+#ifndef __SLANG__
+#include <cstring>
+#endif
+
 namespace terraingen {
 
 /// Single-octave noise function a fractal is built from.

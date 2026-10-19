@@ -34,11 +34,6 @@ class CraterCellCache {
         return cache_.Size();
     }
 
-    /// The most craters held.
-    std::size_t MaxCraters() const {
-        return cache_.Capacity();
-    }
-
     /// The number of cells evicted since construction.
     std::size_t Evictions() const {
         return cache_.Evictions();

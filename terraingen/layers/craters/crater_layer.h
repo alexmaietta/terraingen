@@ -92,11 +92,6 @@ class CraterLayer final : public Layer, public CraterPlacer {
 
     CraterFeatures CratersOver(const RasterGrid& grid, double spacing) const override;
 
-    /// The cell cache, or null when `cacheCraters` is 0.
-    const CraterCellCache* Cache() const {
-        return cache_.get();
-    }
-
     /// The models the layer was made with.
     const CraterModels& Models() const {
         return models_;
@@ -116,6 +111,13 @@ class CraterLayer final : public Layer, public CraterPlacer {
     void ApplySamples(SampleBlock& samples, const LayerContext& context) const override;
 
   private:
+    /// Draws craters at the density map's largest scale and thins them by the map, taking the
+    /// secondaries out of a `total` map.
+    void FollowDensityMap();
+    /// The smallest primary (m) throwing secondaries the map measures; infinite for none.
+    static double SmallestThrower(const DensityMap& map, const SecondaryCraterOptions& secondaries);
+    /// The craters large enough to throw secondaries that can reach `region`.
+    CraterList Throwers(const Bounds2d& region) const;
     /// The keep share for craters over `region`: the map's, less the secondaries thrown there
     /// by the craters around it that are large enough, when they are taken out of the map.
     CraterKeepShare KeepShare(const Bounds2d& region) const;

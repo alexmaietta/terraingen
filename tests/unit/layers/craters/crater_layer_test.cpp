@@ -146,11 +146,8 @@ TEST(CraterLayer, CachesCellsAndWorksWithoutACache) {
     CraterLayerOptions options = Options();
     options.cacheCraters = 0;
     const CraterLayer uncached(Models(), options);
-    EXPECT_EQ(uncached.Cache(), nullptr);
-    ASSERT_NE(cached.Cache(), nullptr);
     const terraingen::Bounds2d region{-64.0, -64.0, 64.0, 64.0};
     EXPECT_EQ(cached.Craters(region).Ids(), uncached.Craters(region).Ids());
-    EXPECT_GT(cached.Cache()->Size(), 0u);
     EXPECT_EQ(cached.Craters(region).Ids(), uncached.Craters(region).Ids());
     EXPECT_EQ(cached.ApplyAt(1.0f, 3.0, -7.0, {2.0}), uncached.ApplyAt(1.0f, 3.0, -7.0, {2.0}));
 }

@@ -67,11 +67,6 @@ class ExposureField {
         return params_;
     }
 
-    /// What the ground lies on.
-    const Surface& GetSurface() const {
-        return surface_;
-    }
-
   private:
     ExposureParams params_;
     Surface surface_;

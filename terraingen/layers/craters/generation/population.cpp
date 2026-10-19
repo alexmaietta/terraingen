@@ -1,5 +1,6 @@
 #include "terraingen/layers/craters/generation/population.h"
 
+#include "terraingen/layers/bisection.h"
 #include "terraingen/layers/craters/generation/spacing.h"
 #include "terraingen/random/philox.h"
 #include "terraingen/random/samplers.h"
@@ -361,17 +362,9 @@ double CountLimitDiameter(const SizeFrequencyDistribution& density, double area,
     if (density.ExpectedCount(area, dMin, dMax) <= count) {
         return dMin;
     }
-    double low = std::log(dMin);
-    double high = std::log(dMax);
-    for (int i = 0; i < 200 && high - low > 1e-12; ++i) {
-        const double middle = 0.5 * (low + high);
-        if (density.ExpectedCount(area, std::exp(middle), dMax) > count) {
-            low = middle;
-        } else {
-            high = middle;
-        }
-    }
-    return std::exp(high);
+    return BisectLog(dMin, dMax, 200, 1e-12, [&](double diameter) {
+        return !(density.ExpectedCount(area, diameter, dMax) > count);
+    });
 }
 
 }  // namespace terraingen

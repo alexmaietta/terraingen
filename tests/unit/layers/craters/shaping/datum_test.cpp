@@ -88,7 +88,6 @@ TEST(CraterReliefIndex, SumsEarlierCratersReachingAPointWhateverElseTheListHolds
     more.push_back({{-300.0, 0.0, 12.0, 0.0, 10u}, 1.0, fresh});
     const terraingen::CraterReliefIndex large(more, profile);
     EXPECT_EQ(large.ReliefBefore(1.0, 0.5, 4), small.ReliefBefore(1.0, 0.5, 3));
-    EXPECT_EQ(large.Craters().size(), 5u);
 }
 
 TEST(DatumGround, AddsTheReliefOfEarlierCratersToTheGround) {
