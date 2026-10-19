@@ -1,6 +1,9 @@
 #include "configs.h"
 #include "support/temp_path.h"
 #include "terraingen/config/generate.h"
+#include "terraingen/util/bits.h"
+
+#include <nlohmann/json.hpp>
 
 #include <gtest/gtest.h>
 
@@ -87,11 +90,12 @@ TEST(WriteBoulderList, WritesCsvAndJsonWithUnknownGroundsLeftOut) {
     const auto csv = TempPath("terraingen_boulders.csv");
     terraingen::WriteBoulderList(boulders, csv, ListFormat::Csv);
     const std::string text = ReadText(csv);
-    EXPECT_EQ(text.rfind("x,y,ground,diameter,height,burial,yaw,lean,id,model,wear,parent,piece,"
-                         "rest,tilt,tilt_azimuth\n"
-                         "1.5,-2,3.25,0.5,",
-                         0),
-              0u)
+    EXPECT_EQ(
+        text.rfind("x,y,ground,diameter,height,burial,yaw_deg,lean_deg,id,model,wear,parent,piece,"
+                   "rest,tilt_deg,tilt_azimuth_deg\n"
+                   "1.5,-2,3.25,0.5,",
+                   0),
+        0u)
         << text;
     EXPECT_NE(text.find("\n0,0,,"), std::string::npos) << text;
     const auto json = TempPath("terraingen_boulders.json");
@@ -100,6 +104,21 @@ TEST(WriteBoulderList, WritesCsvAndJsonWithUnknownGroundsLeftOut) {
     EXPECT_NE(ReadText(json).find("\"ground\": 3.25"), std::string::npos);
     EXPECT_THROW(terraingen::WriteBoulderList({}, TempPath("missing/dir/r.csv"), ListFormat::Csv),
                  std::runtime_error);
+}
+
+TEST(WriteBoulderList, WritesAnglesInDegrees) {
+    terraingen::Boulder boulder;
+    boulder.yaw = 0.5 * terraingen::kPi;
+    boulder.lean = 0.25 * terraingen::kPi;
+    boulder.tilt = terraingen::kPi / 6.0;
+    boulder.tiltAzimuth = terraingen::kPi;
+    const auto json = TempPath("terraingen_boulder_angles.json");
+    terraingen::WriteBoulderList({boulder}, json, ListFormat::Json);
+    const nlohmann::json written = nlohmann::json::parse(ReadText(json))["boulders"][0];
+    EXPECT_NEAR(written["yaw_deg"].get<double>(), 90.0, 1e-12);
+    EXPECT_NEAR(written["lean_deg"].get<double>(), 45.0, 1e-12);
+    EXPECT_NEAR(written["tilt_deg"].get<double>(), 30.0, 1e-12);
+    EXPECT_NEAR(written["tilt_azimuth_deg"].get<double>(), 180.0, 1e-12);
 }
 
 TEST(WriteBoulderModels, RejectsOtherFilesAnglesAndNoBoulders) {

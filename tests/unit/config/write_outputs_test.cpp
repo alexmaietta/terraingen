@@ -75,10 +75,11 @@ TEST(WriteOutputs, WritesBoulderListsAndBoulderModels) {
     const auto written = WriteOutputs(config, terrain, directory);
     ASSERT_EQ(written.size(), 4u);
     const std::string csv = ReadText(written[0]);
-    EXPECT_EQ(csv.rfind("x,y,ground,diameter,height,burial,yaw,lean,id,model,wear,parent,piece,"
-                        "rest,tilt,tilt_azimuth\n",
-                        0),
-              0u);
+    EXPECT_EQ(
+        csv.rfind("x,y,ground,diameter,height,burial,yaw_deg,lean_deg,id,model,wear,parent,piece,"
+                  "rest,tilt_deg,tilt_azimuth_deg\n",
+                  0),
+        0u);
     EXPECT_EQ(std::count(csv.begin(), csv.end(), '\n'),
               static_cast<long>(BouldersOf(terrain, region).boulders.size() + 1));
     EXPECT_NE(ReadText(written[1]).find("\"model\": true"), std::string::npos);

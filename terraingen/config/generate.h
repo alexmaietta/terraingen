@@ -70,9 +70,10 @@ std::string Summary(const GeneratedTerrain& terrain);
 void WriteCraterList(const CraterList& craters, const std::filesystem::path& path,
                      ListFormat format, const std::vector<CraterAttributes>& attributes = {});
 
-/// Writes boulders as CSV (columns x, y, ground, diameter, height, burial, yaw, lean, id, model,
-/// wear, parent, piece, rest, tilt and tilt_azimuth) or as JSON ({"boulders": [...]}) with the
-/// same keys, doubles written exactly and an unknown ground left empty (CSV) or null (JSON).
+/// Writes boulders as CSV (columns x, y, ground, diameter, height, burial, yaw_deg, lean_deg, id,
+/// model, wear, parent, piece, rest, tilt_deg and tilt_azimuth_deg, angles in degrees) or as JSON
+/// ({"boulders": [...]}) with the same keys, doubles written exactly and an unknown ground left
+/// empty (CSV) or null (JSON).
 /// @throws std::runtime_error if the file cannot be written.
 void WriteBoulderList(const std::vector<Boulder>& boulders, const std::filesystem::path& path,
                       ListFormat format);

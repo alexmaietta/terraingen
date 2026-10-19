@@ -58,16 +58,16 @@ const std::array<Column<Boulder>, 16> kBoulderColumns{{
     {"diameter", [](const Boulder& b) { return Cell(b.diameter); }},
     {"height", [](const Boulder& b) { return Cell(b.height); }},
     {"burial", [](const Boulder& b) { return Cell(b.burial); }},
-    {"yaw", [](const Boulder& b) { return Cell(b.yaw); }},
-    {"lean", [](const Boulder& b) { return Cell(b.lean); }},
+    {"yaw_deg", [](const Boulder& b) { return Cell(b.yaw * kRadian); }},
+    {"lean_deg", [](const Boulder& b) { return Cell(b.lean * kRadian); }},
     {"id", [](const Boulder& b) { return Cell(b.id); }},
     {"model", [](const Boulder& b) { return Cell(b.model); }},
     {"wear", [](const Boulder& b) { return Cell(b.wear); }},
     {"parent", [](const Boulder& b) { return Cell(b.parent); }},
     {"piece", [](const Boulder& b) { return Cell(static_cast<std::uint64_t>(b.piece)); }},
     {"rest", [](const Boulder& b) { return Cell(static_cast<int>(b.rest)); }},
-    {"tilt", [](const Boulder& b) { return Cell(b.tilt); }},
-    {"tilt_azimuth", [](const Boulder& b) { return Cell(b.tiltAzimuth); }},
+    {"tilt_deg", [](const Boulder& b) { return Cell(b.tilt * kRadian); }},
+    {"tilt_azimuth_deg", [](const Boulder& b) { return Cell(b.tiltAzimuth * kRadian); }},
 }};
 
 /// A cell as CSV writes it: doubles exactly, an unknown value empty and booleans as 1 or 0.
