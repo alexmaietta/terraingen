@@ -7,7 +7,6 @@ terraingen_add_library(
     nested.cpp
     materials.cpp
     terrain.cpp
-    tiles.cpp
     PUBLIC
     terraingen_layers
     terraingen_mesh

@@ -21,76 +21,53 @@ using terraingen::testing::ExpectSameRaster;
 using terraingen::testing::Rolling;
 using terraingen::testing::Smoothed;
 
-TEST(EvaluateTile, EqualsTheSameCellsOfALargerGridWithRoundedRims) {
-    const Terrain terrain = Smoothed();
-    const terraingen::TileScheme scheme{{-96.0, 64.0}, 128.0, 16};
-    const RasterGrid large{200, 160, GeoTransform::NorthUp(-200.0, 160.0, 2.0)};
-    const auto whole = Evaluate(terrain, large);
-    for (const terraingen::TileKey key :
-         {terraingen::TileKey{2, 1, 1}, terraingen::TileKey{2, 2, 0},
-          terraingen::TileKey{2, 0, 2}}) {
-        const auto tile = terraingen::EvaluateTile(terrain, scheme, key, 4);
-        const RasterGrid grid = scheme.Grid(key);
-        const auto offset =
-            large.transform.WorldToPixel(grid.transform.originX, grid.transform.originY);
-        const auto col0 = static_cast<std::size_t>(offset.x);
-        const auto row0 = static_cast<std::size_t>(offset.y);
-        for (std::size_t row = 0; row < grid.height; ++row) {
-            for (std::size_t col = 0; col < grid.width; ++col) {
-                ASSERT_EQ(tile(col, row), whole(col0 + col, row0 + row))
-                    << "tile " << key.x << "," << key.y << " cell " << col << "," << row;
-            }
+namespace {
+
+/// The 16 x 16 cells of `grid` from column `col0` and row `row0`.
+RasterGrid Window(const RasterGrid& grid, std::size_t col0, std::size_t row0) {
+    return terraingen::Subgrid(grid, {col0, col0 + 16, row0, row0 + 16});
+}
+
+/// Expects `window`, the heights over the 16 x 16 cells of a larger grid from (`col0`, `row0`), to
+/// equal `whole`'s there to within `tolerance`.
+void ExpectSameCells(const terraingen::Raster<float>& window,
+                     const terraingen::Raster<float>& whole, std::size_t col0, std::size_t row0,
+                     float tolerance = 0.0f) {
+    for (std::size_t row = 0; row < window.Height(); ++row) {
+        for (std::size_t col = 0; col < window.Width(); ++col) {
+            ASSERT_NEAR(window(col, row), whole(col0 + col, row0 + row), tolerance)
+                << "window at " << col0 << "," << row0 << " cell " << col << "," << row;
         }
     }
 }
 
-TEST(EvaluateTile, MatchesGridsEvaluatedAtEachLevelsSpacing) {
-    const Terrain terrain = Rolling();
-    const terraingen::TileScheme scheme{{-96.0, 64.0}, 128.0, 16};
-    for (const int level : {0, 1, 2, 3}) {
-        const terraingen::TileKey key{level, 0, 0};
-        const auto tile = terraingen::EvaluateTile(terrain, scheme, key);
-        const auto grid = Evaluate(terrain, scheme.Grid(key));
-        ExpectSameRaster(tile, grid);
-    }
-}
+}  // namespace
 
-TEST(EvaluateTiles, EvaluatesEveryTileInOrder) {
+TEST(Evaluate, AWindowEqualsTheSameCellsOfALargerGridWithRoundedRims) {
     const Terrain terrain = Smoothed();
-    const terraingen::TileScheme scheme{{-96.0, 64.0}, 128.0, 16};
-    const auto keys = scheme.TilesCovering({-96.0, 0.0, 0.0, 64.0}, 2);
-    const auto tiles = terraingen::EvaluateTiles(terrain, scheme, keys, 4);
-    ASSERT_EQ(tiles.size(), keys.size());
-    for (std::size_t n = 0; n < keys.size(); ++n) {
-        ExpectSameRaster(tiles[n], terraingen::EvaluateTile(terrain, scheme, keys[n]));
+    const RasterGrid large{200, 160, GeoTransform::NorthUp(-200.0, 160.0, 2.0)};
+    const auto whole = Evaluate(terrain, large);
+    for (const auto& [col0, row0] :
+         {std::pair<std::size_t, std::size_t>{68, 48}, std::pair<std::size_t, std::size_t>{84, 32},
+          std::pair<std::size_t, std::size_t>{52, 64}}) {
+        const auto window =
+            Evaluate(terrain, Window(large, col0, row0), terraingen::EvaluationOptions{0.0, 4});
+        ExpectSameCells(window, whole, col0, row0);
     }
-    EXPECT_THROW(
-        terraingen::EvaluateTile(terrain, terraingen::TileScheme{{0.0, 0.0}, -1.0, 16}, {0, 0, 0}),
-        std::invalid_argument);
 }
 
-TEST(EvaluateTile, CratersCutToADatumEqualALargerGrid) {
+TEST(Evaluate, CratersCutToADatumEqualALargerGridInAWindow) {
     const Terrain terrain = Datum();
-    const terraingen::TileScheme scheme{{-96.0, 64.0}, 128.0, 16};
     const RasterGrid large{120, 100, GeoTransform::NorthUp(-120.0, 100.0, 2.0)};
     const auto whole = Evaluate(terrain, large, terraingen::EvaluationOptions{0.0, 4});
     ExpectSameRaster(whole, Evaluate(terrain, large, terraingen::EvaluationOptions{0.0, 1}));
-    for (const terraingen::TileKey key :
-         {terraingen::TileKey{2, 1, 1}, terraingen::TileKey{2, 0, 0}}) {
-        const auto tile = terraingen::EvaluateTile(terrain, scheme, key);
-        const RasterGrid grid = scheme.Grid(key);
-        const auto offset =
-            large.transform.WorldToPixel(grid.transform.originX, grid.transform.originY);
-        for (std::size_t row = 0; row < grid.height; ++row) {
-            for (std::size_t col = 0; col < grid.width; ++col) {
-                ASSERT_EQ(tile(col, row), whole(static_cast<std::size_t>(offset.x) + col,
-                                                static_cast<std::size_t>(offset.y) + row));
-            }
-        }
+    for (const auto& [col0, row0] : {std::pair<std::size_t, std::size_t>{28, 34},
+                                     std::pair<std::size_t, std::size_t>{12, 18}}) {
+        ExpectSameCells(Evaluate(terrain, Window(large, col0, row0)), whole, col0, row0);
     }
 }
 
-TEST(Evaluate, BouldersFromCraterEjectaAndBedrockAgreeOnGridsTilesAndPoints) {
+TEST(Evaluate, BouldersFromCraterEjectaAndBedrockAgreeOnGridsWindowsAndPoints) {
     Terrain terrain = Rolling();
     const auto craters =
         std::dynamic_pointer_cast<const terraingen::CraterLayer>(terrain.layers[1]);
@@ -115,21 +92,10 @@ TEST(Evaluate, BouldersFromCraterEjectaAndBedrockAgreeOnGridsTilesAndPoints) {
             ASSERT_EQ(terraingen::EvaluateAt(terrain, centre.x, centre.y, 1.0), whole(col, row));
         }
     }
-    const terraingen::TileScheme scheme{{-96.0, 64.0}, 128.0, 16};
-    const terraingen::TileKey key{3, 2, 2};
-    const auto tile = terraingen::EvaluateTile(terrain, scheme, key);
-    const RasterGrid grid = scheme.Grid(key);
-    const auto offset =
-        large.transform.WorldToPixel(grid.transform.originX, grid.transform.originY);
-    for (std::size_t row = 0; row < grid.height; ++row) {
-        for (std::size_t col = 0; col < grid.width; ++col) {
-            ASSERT_EQ(tile(col, row), whole(static_cast<std::size_t>(offset.x) + col,
-                                            static_cast<std::size_t>(offset.y) + row));
-        }
-    }
+    ExpectSameCells(Evaluate(terrain, Window(large, 56, 68)), whole, 56, 68);
 }
 
-TEST(Evaluate, SphereTilesAndPointsEqualTheWholeTerrain) {
+TEST(Evaluate, SphereWindowsAndPointsEqualTheWholeTerrain) {
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
     const double step = 4.0 / moon.UnitLength();
     Terrain terrain;
@@ -162,33 +128,16 @@ TEST(Evaluate, SphereTilesAndPointsEqualTheWholeTerrain) {
     }
     const RasterGrid large{200, 160, GeoTransform::NorthUp(-100.0 * step, 80.0 * step, step)};
     const auto smoothed = Evaluate(terrain, large);
-    const terraingen::TileScheme scheme{{-48.0 * step, 32.0 * step}, 64.0 * step, 16};
-    for (const terraingen::TileKey key :
-         {terraingen::TileKey{2, 1, 1}, terraingen::TileKey{2, 2, 0}}) {
-        const auto tile = terraingen::EvaluateTile(terrain, scheme, key, 2);
-        const RasterGrid grid = scheme.Grid(key);
-        const auto offset =
-            large.transform.WorldToPixel(grid.transform.originX, grid.transform.originY);
-        const auto col0 = static_cast<std::size_t>(std::lround(offset.x));
-        const auto row0 = static_cast<std::size_t>(std::lround(offset.y));
-        for (std::size_t row = 0; row < grid.height; ++row) {
-            for (std::size_t col = 0; col < grid.width; ++col) {
-                ASSERT_NEAR(tile(col, row), smoothed(col0 + col, row0 + row), 1e-3)
-                    << col << " " << row;
-            }
-        }
+    for (const auto& [col0, row0] : {std::pair<std::size_t, std::size_t>{84, 64},
+                                     std::pair<std::size_t, std::size_t>{100, 48}}) {
+        const auto window =
+            Evaluate(terrain, Window(large, col0, row0), terraingen::EvaluationOptions{0.0, 2});
+        ExpectSameCells(window, smoothed, col0, row0, 1e-3f);
     }
 }
 
-TEST(EvaluateTile, WholeBodyTilesAgreeAcrossTheAntimeridianAndAtThePole) {
+TEST(Evaluate, WholeBodyGridsAgreeAcrossTheAntimeridianAndAtThePole) {
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
-    const auto scheme = terraingen::TileScheme::WholeBody(16);
-    EXPECT_EQ(scheme.TileSize(0), 180.0);
-    EXPECT_EQ(terraingen::TileScheme::BodyTiles(2).size(), 32u);
-    EXPECT_EQ(terraingen::TileScheme::WrapBodyTile({3, -1, 2}), (terraingen::TileKey{3, 15, 2}));
-    EXPECT_EQ(terraingen::TileScheme::WrapBodyTile({3, 16, 2}), (terraingen::TileKey{3, 0, 2}));
-    EXPECT_THROW(terraingen::TileScheme::BodyTiles(-1), std::invalid_argument);
-
     Terrain terrain;
     terrain.surface = moon;
     terrain.source = std::make_shared<terraingen::FlatSource>(8, 8, 1.0, 0.0f);
@@ -205,31 +154,25 @@ TEST(EvaluateTile, WholeBodyTilesAgreeAcrossTheAntimeridianAndAtThePole) {
             std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry),
             std::make_shared<terraingen::FassettThomsonProfile>()},
         options));
-    const int level = 9;
-    const std::int64_t columns = std::int64_t{2} << level;
-    const double size = scheme.TileSize(level);
+    const double size = 180.0 / 512.0;
     const double step = size / 16.0;
-    for (const terraingen::TileKey key :
-         {terraingen::TileKey{level, columns - 1, 100}, terraingen::TileKey{level, 0, 100},
-          terraingen::TileKey{level, 37, 0}}) {
-        const auto tile = terraingen::EvaluateTile(terrain, scheme, key, 2);
-        const RasterGrid grid = scheme.Grid(key);
-        const RasterGrid around{48, 48,
-                                GeoTransform::NorthUp(grid.transform.originX - 16.0 * step,
-                                                      grid.transform.originY + 16.0 * step, step)};
-        const auto larger = Evaluate(terrain, around);
-        for (std::size_t row = 0; row < 16; ++row) {
-            for (std::size_t col = 0; col < 16; ++col) {
-                ASSERT_NEAR(tile(col, row), larger(col + 16, row + 16), 1e-3)
-                    << key.x << " " << key.y << " " << col << " " << row;
-            }
-        }
+    const auto square = [&](double west, double north) {
+        return RasterGrid{16, 16, GeoTransform::NorthUp(west, north, step)};
+    };
+    const terraingen::EvaluationOptions two{0.0, 2};
+    for (const auto& [west, north] : {std::pair<double, double>{180.0 - size, 90.0 - 100.0 * size},
+                                      std::pair<double, double>{-180.0, 90.0 - 100.0 * size},
+                                      std::pair<double, double>{-180.0 + 37.0 * size, 90.0}}) {
+        const auto inner = Evaluate(terrain, square(west, north), two);
+        const RasterGrid around{
+            48, 48, GeoTransform::NorthUp(west - 16.0 * step, north + 16.0 * step, step)};
+        ExpectSameCells(inner, Evaluate(terrain, around), 16, 16, 1e-3f);
     }
-    const auto east = terraingen::EvaluateTile(terrain, scheme, {level, columns - 1, 100}, 1);
+    const auto east = Evaluate(terrain, square(180.0 - size, 90.0 - 100.0 * size));
+    const auto west = Evaluate(terrain, square(-180.0, 90.0 - 100.0 * size));
     const RasterGrid shifted{32, 16,
                              GeoTransform::NorthUp(180.0 - size, 90.0 - 100.0 * size, step)};
     const auto across = Evaluate(terrain, shifted);
-    const auto west = terraingen::EvaluateTile(terrain, scheme, {level, 0, 100}, 1);
     double relief = 0.0;
     for (std::size_t row = 0; row < 16; ++row) {
         for (std::size_t col = 0; col < 16; ++col) {

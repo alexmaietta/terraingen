@@ -5,7 +5,7 @@ metres, equal to the cell centred there of a grid evaluated at that spacing, wit
 grid. This example checks that against a grid, samples a rover's path across craters, and times
 the queries.
 
-    python example_tiles_point_queries.py [--viewer window|null] [--output-dir DIR] [--test]
+    python example_queries_points.py [--viewer window|null] [--output-dir DIR] [--test]
 """
 
 import pathlib
@@ -71,7 +71,7 @@ class Example(_common.Example):
     def save(self, out):
         print(
             "wrote",
-            write_png(out / "example_tiles_point_queries.png", line_plot([(self.path, self.heights)])),
+            write_png(out / "example_queries_points.png", line_plot([(self.path, self.heights)])),
         )
 
     def test_final(self):

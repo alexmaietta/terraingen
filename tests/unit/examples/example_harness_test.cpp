@@ -59,10 +59,11 @@ template <typename T> ex::ExampleInfo Info(const std::string& file, const std::s
     });
 }
 
-const bool kRegistered = ex::RegisterExample(Info<Ramp>("dir/example_tiles_ramp.cpp", "A ramp")) &&
-                         ex::RegisterExample(Info<Ramp>("example_terrain_ramp.cpp", "Ramp")) &&
-                         ex::RegisterExample(Info<Broken>("example_zzz_broken.cpp", "Broken")) &&
-                         ex::RegisterExample(Info<Ramp>("example_craters_ramp.cpp", "Ramp"));
+const bool kRegistered =
+    ex::RegisterExample(Info<Ramp>("dir/example_queries_ramp.cpp", "A ramp")) &&
+    ex::RegisterExample(Info<Ramp>("example_terrain_ramp.cpp", "Ramp")) &&
+    ex::RegisterExample(Info<Broken>("example_zzz_broken.cpp", "Broken")) &&
+    ex::RegisterExample(Info<Ramp>("example_craters_ramp.cpp", "Ramp"));
 
 std::filesystem::path Directory(const std::string& name) {
     const std::filesystem::path directory =
@@ -99,7 +100,7 @@ TEST(ExampleHarness, NamesExamplesAfterTheirFiles) {
 }
 
 TEST(ExampleHarness, RefusesTwoExamplesOfOneName) {
-    EXPECT_THROW(ex::RegisterExample(Info<Ramp>("example_tiles_ramp.cpp", "")),
+    EXPECT_THROW(ex::RegisterExample(Info<Ramp>("example_queries_ramp.cpp", "")),
                  std::invalid_argument);
 }
 
@@ -108,13 +109,13 @@ TEST(ExampleHarness, OrdersByCategoryThenName) {
     for (const ex::ExampleInfo* info : ex::Examples()) {
         names.push_back(info->name);
     }
-    EXPECT_EQ(names, (std::vector<std::string>{"terrain_ramp", "craters_ramp", "tiles_ramp",
+    EXPECT_EQ(names, (std::vector<std::string>{"terrain_ramp", "craters_ramp", "queries_ramp",
                                                "zzz_broken"}));
 }
 
 TEST(ExampleHarness, FindsExamplesWithOrWithoutThePrefix) {
-    ASSERT_NE(ex::FindExample("tiles_ramp"), nullptr);
-    EXPECT_EQ(ex::FindExample("example_tiles_ramp"), ex::FindExample("tiles_ramp"));
+    ASSERT_NE(ex::FindExample("queries_ramp"), nullptr);
+    EXPECT_EQ(ex::FindExample("example_queries_ramp"), ex::FindExample("queries_ramp"));
     EXPECT_EQ(ex::FindExample("tiles"), nullptr);
     EXPECT_TRUE(std::filesystem::exists(ex::ExamplesDir() / "config"));
 }
@@ -147,7 +148,7 @@ TEST(ExampleHarness, MainListsAndHelps) {
     const Result list = RunMain({"--list"});
     EXPECT_EQ(list.code, ex::kExitSuccess);
     EXPECT_EQ(list.out.rfind("terrain:\n  terrain_ramp", 0), 0u) << list.out;
-    EXPECT_NE(list.out.find("\ntiles:\n  tiles_ramp"), std::string::npos) << list.out;
+    EXPECT_NE(list.out.find("\nqueries:\n  queries_ramp"), std::string::npos) << list.out;
     EXPECT_NE(list.out.find("A ramp"), std::string::npos);
 
     const Result help = RunMain({"-h"});
@@ -158,11 +159,11 @@ TEST(ExampleHarness, MainListsAndHelps) {
 TEST(ExampleHarness, MainRejectsBadArguments) {
     for (const std::vector<std::string>& args :
          std::vector<std::vector<std::string>>{{"--bogus"},
-                                               {"tiles_ramp", "--output-dir"},
+                                               {"queries_ramp", "--output-dir"},
                                                {"--viewer", "gl"},
                                                {"nothing_here"},
                                                {"--viewer", "null"},
-                                               {"tiles_ramp", "--viewer", "window"}}) {
+                                               {"queries_ramp", "--viewer", "window"}}) {
         const Result result = RunMain(args);
         EXPECT_EQ(result.code, ex::kExitUsage) << args.front();
         EXPECT_FALSE(result.err.empty());
@@ -172,19 +173,19 @@ TEST(ExampleHarness, MainRejectsBadArguments) {
 TEST(ExampleHarness, MainRunsWithoutAViewerSavingAndChecking) {
     const std::filesystem::path dir = Directory("main");
     const Result result =
-        RunMain({"example_tiles_ramp", "extra", "--output-dir", dir.string(), "--test"});
+        RunMain({"example_queries_ramp", "extra", "--output-dir", dir.string(), "--test"});
     EXPECT_EQ(result.code, ex::kExitSuccess) << result.err;
-    EXPECT_EQ(result.out, "ramp 1\nexample_tiles_ramp: checks passed\n");
+    EXPECT_EQ(result.out, "ramp 1\nexample_queries_ramp: checks passed\n");
     EXPECT_TRUE(std::filesystem::exists(dir / "ramp.txt"));
 
     const std::filesystem::path unsaved = Directory("unsaved");
-    EXPECT_EQ(RunMain({"tiles_ramp", "--no-save", "--output-dir", unsaved.string()}).code,
+    EXPECT_EQ(RunMain({"queries_ramp", "--no-save", "--output-dir", unsaved.string()}).code,
               ex::kExitSuccess);
     EXPECT_FALSE(std::filesystem::exists(unsaved));
 
-    const Result failed = RunMain({"tiles_ramp", "fail", "--no-save", "--test"});
+    const Result failed = RunMain({"queries_ramp", "fail", "--no-save", "--test"});
     EXPECT_EQ(failed.code, ex::kExitFailure);
-    EXPECT_EQ(failed.err, "example_tiles_ramp: Check failed: not told to fail\n");
+    EXPECT_EQ(failed.err, "example_queries_ramp: Check failed: not told to fail\n");
 
     const Result broken = RunMain({"zzz_broken"});
     EXPECT_EQ(broken.code, ex::kExitFailure);
@@ -202,8 +203,8 @@ TEST(ExampleHarness, MainOpensTheWindowWhenGivenOne) {
         hidden = headless;
         return 7;
     };
-    EXPECT_EQ(RunMain({"tiles_ramp", "a", "--headless", "--test"}, window).code, 7);
-    EXPECT_EQ(opened, ex::FindExample("tiles_ramp"));
+    EXPECT_EQ(RunMain({"queries_ramp", "a", "--headless", "--test"}, window).code, 7);
+    EXPECT_EQ(opened, ex::FindExample("queries_ramp"));
     EXPECT_EQ(seen.positional, std::vector<std::string>{"a"});
     EXPECT_TRUE(seen.test);
     EXPECT_TRUE(hidden);
@@ -214,7 +215,7 @@ TEST(ExampleHarness, MainOpensTheWindowWhenGivenOne) {
 
     const std::filesystem::path dir = Directory("null");
     EXPECT_EQ(
-        RunMain({"tiles_ramp", "--viewer", "null", "--output-dir", dir.string()}, window).code,
+        RunMain({"queries_ramp", "--viewer", "null", "--output-dir", dir.string()}, window).code,
         ex::kExitSuccess);
     EXPECT_TRUE(std::filesystem::exists(dir / "ramp.txt"));
 }

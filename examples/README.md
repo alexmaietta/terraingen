@@ -3,10 +3,10 @@
 Examples in three forms, named `example_<category>_<name>`. They go from basic synthetic terrains,
 to craters on those terrains, to boulders, to albedo, and then through every crater and boulder model
 and option: size-frequency distributions, age models, profiles, degradation, positioning and how
-craters are applied; then regions, the Moon and Mars on spheres, detail on DEMs, and tiles.
+craters are applied; then regions, the Moon and Mars on spheres, detail on DEMs, and point queries.
 
 Each form has a folder per category (`terrain`, `craters`, `distributions`, `ages`, `boulders`,
-`albedo`, `layers`, `planets`, `sources`, `tiles`, `config`), holding that category's examples.
+`albedo`, `layers`, `planets`, `sources`, `queries`, `config`), holding that category's examples.
 
 - `config/`: JSON configs for the `terraingen` command:
   `terraingen examples/config/<category>/<file>.json [--output-dir DIR]`.
@@ -63,12 +63,12 @@ Options:
 | layers | `example_layers_regions`, `_roughness`, `_scale_and_clamp` | `example_layers_custom`, `_regions` | `example_layers_custom`, `_regions` |
 | planets | `example_planets_asteroid_body_mesh`, `_mars_bedforms`, `_mars_craters`, `_mars_dunes`, `_mars_exposure`, `_mars_pavement`, `_mars_sand_fill`, `_mars_sand_shadows`, `_mars_strata`, `_mars_ventifacts`, `_mercury_site`, `_moon_body_mesh`, `_moon_site` | `example_planets_moon` | `example_planets_body_mesh`, `_mars`, `_mars_dunes`, `_mars_exposure`, `_mercury`, `_moon_site` |
 | sources |  | `example_sources_raster_detail` | `example_sources_chain`, `_raster_detail` |
-| tiles |  | `example_tiles_body_pyramid`, `_quadtree`, `_rover_contacts` | `example_tiles_body_pyramid`, `_point_queries`, `_quadtree`, `_rover_contacts` |
+| queries |  | `example_queries_rover_contacts` | `example_queries_points`, `_rover_contacts` |
 | config |  | `example_config_load` | `example_config_load` |
 
-The `sources` and `tiles` examples are code only: configs read real DEMs from disk (a raster
+The `sources` and `queries` examples are code only: configs read real DEMs from disk (a raster
 source is `{"type": "raster", "path": "dem.tif"}`) and write whole grids, so these examples write
-a coarse DEM of their own first, and tile a terrain from code.
+a coarse DEM of their own first, and query a terrain at points from code.
 
 Custom models: every model and layer type is an interface you can implement, in C++ by deriving
 from it and in Python by subclassing it (`SizeFrequencyDistribution`, `CraterAgeModel`,

@@ -14,8 +14,8 @@ namespace {
 
 /// The categories in the order the examples teach them.
 constexpr std::array<std::string_view, 11> kCategoryOrder = {
-    "terrain", "craters", "distributions", "ages",  "boulders", "albedo",
-    "layers",  "planets", "sources",       "tiles", "config"};
+    "terrain", "craters", "distributions", "ages",    "boulders", "albedo",
+    "layers",  "planets", "sources",       "queries", "config"};
 
 std::size_t CategoryRank(std::string_view category) {
     const auto it = std::find(kCategoryOrder.begin(), kCategoryOrder.end(), category);

@@ -14,7 +14,7 @@ if(TERRAINGEN_BUILD_TESTS)
         NAME benchmarks.smoke
         COMMAND
             terraingen_benchmarks --benchmark_min_time=1x --benchmark_format=json
-            "--benchmark_filter=GenerateBoulderShape/3|GenerateCraters/256$|ApplyCraters/cells:1024/threads:0|EvaluateGrid/cells:512/threads:0|EvaluateTiles/level:5|EvaluateAtWarm/real_time/threads:2$|EvaluateAtUncached|EvaluateAtCold|EvaluateAtDatum"
+            "--benchmark_filter=GenerateBoulderShape/3|GenerateCraters/256$|ApplyCraters/cells:1024/threads:0|EvaluateGrid/cells:512/threads:0|EvaluateAtWarm/real_time/threads:2$|EvaluateAtUncached|EvaluateAtCold|EvaluateAtDatum"
     )
     set_tests_properties(benchmarks.smoke PROPERTIES LABELS benchmark)
     if(TARGET _terraingen)

@@ -107,7 +107,6 @@
 #include "terraingen/pipeline/features.h"
 #include "terraingen/pipeline/materials.h"
 #include "terraingen/pipeline/terrain.h"
-#include "terraingen/pipeline/tiles.h"
 #include "terraingen/random/philox.h"
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"

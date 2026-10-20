@@ -6,8 +6,8 @@
 /// rocky ground, queries each wheel's contact height every step on one thread and then four, and
 /// reports the body's height, pitch and roll and the query rate.
 ///
-///     example_tiles_rover_contacts [--output-dir DIR] [--test]
-///     terraingen-examples tiles_rover_contacts
+///     example_queries_rover_contacts [--output-dir DIR] [--test]
+///     terraingen-examples queries_rover_contacts
 
 #include "common/example.h"
 #include "terraingen/terraingen.h"
@@ -31,7 +31,7 @@ constexpr std::array<std::array<double, 2>, 4> kWheels{
 constexpr int kSteps = 4000;
 constexpr double kDegrees = 180.0 / 3.14159265358979323846;
 
-class TilesRoverContacts : public terraingen::examples::Example {
+class QueriesRoverContacts : public terraingen::examples::Example {
   public:
     using Example::Example;
 
@@ -159,4 +159,4 @@ class TilesRoverContacts : public terraingen::examples::Example {
 
 }  // namespace
 
-TERRAINGEN_EXAMPLE(TilesRoverContacts, "A rover's wheel contacts from point queries")
+TERRAINGEN_EXAMPLE(QueriesRoverContacts, "A rover's wheel contacts from point queries")

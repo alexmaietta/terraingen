@@ -6,7 +6,7 @@ there, and releases the GIL, so several threads can query at once. This example 
 four wheels across cratered, rocky ground, takes each wheel's height, and from them the body's
 height, pitch and roll; then compares one thread with four.
 
-    python example_tiles_rover_contacts.py [--viewer window|null] [--output-dir DIR] [--test]
+    python example_queries_rover_contacts.py [--viewer window|null] [--output-dir DIR] [--test]
 """
 
 import math
@@ -104,7 +104,7 @@ class Example(_common.Example):
     def save(self, out):
         distance = 0.1 * np.arange(STEPS)
         image = line_plot([(distance, self.body), (distance, self.pitch), (distance, self.roll)])
-        print("wrote", write_png(out / "example_tiles_rover_contacts.png", image))
+        print("wrote", write_png(out / "example_queries_rover_contacts.png", image))
 
     def test_final(self):
         assert self.runs[1].shape == (STEPS, 4), "four wheel heights at every step"

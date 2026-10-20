@@ -13,7 +13,6 @@
 #include "terraingen/pipeline/height_mesh.h"
 #include "terraingen/pipeline/nested.h"
 #include "terraingen/pipeline/terrain.h"
-#include "terraingen/pipeline/tiles.h"
 
 #include <nanobind/operators.h>
 
@@ -208,100 +207,6 @@ void BindEvaluation(nb::module_& m) {
         nb::call_guard<nb::gil_scoped_release>(),
         "The whole body a terrain on a sphere or ellipsoid lies on as an ICQ shape model with "
         "`q` intervals per face edge, each label at the radius plus the terrain's height there.");
-}
-
-void BindTileKey(nb::module_& m) {
-    nb::class_<TileKey>(m, "TileKey", "Tile (x, y) of a tile scheme's level `level`.")
-        .def(
-            "__init__",
-            [](TileKey* self, int level, std::int64_t x, std::int64_t y) {
-                new (self) TileKey{level, x, y};
-            },
-            "level"_a, "x"_a, "y"_a)
-        .def_rw("level", &TileKey::level)
-        .def_rw("x", &TileKey::x)
-        .def_rw("y", &TileKey::y)
-        .def(nb::self == nb::self)
-        .def("__repr__",
-             [](const TileKey& k) {
-                 return "TileKey(" + std::to_string(k.level) + ", " + std::to_string(k.x) + ", " +
-                        std::to_string(k.y) + ")";
-             })
-        .def_prop_ro("parent", &TileScheme::Parent)
-        .def_prop_ro("children", [](const TileKey& key) {
-            const auto c = TileScheme::Children(key);
-            return std::vector<TileKey>(c.begin(), c.end());
-        });
-}
-
-void BindTileScheme(nb::module_& m) {
-    nb::class_<TileScheme>(
-        m, "TileScheme",
-        "A quadtree of north-up tiles: level 0 has tiles `root_size` across from `origin` (the "
-        "top-left corner of tile (0, 0)), each level halves them, and every tile has `cells` x "
-        "`cells` samples.")
-        .def(
-            "__init__",
-            [](TileScheme* self, const Vec2d& origin, double rootSize, std::size_t cells) {
-                new (self) TileScheme{origin, rootSize, cells};
-                self->Validate();
-            },
-            "origin"_a, "root_size"_a, "cells"_a = 256)
-        .def_static("covering", &TileScheme::Covering, "grid"_a, "cells"_a = 256,
-                    "A scheme one of whose levels has the cells of `grid`.")
-        .def_static("whole_body", &TileScheme::WholeBody, "cells"_a = 256,
-                    "A longitude-latitude pyramid over a whole sphere.")
-        .def_static("body_tiles", &TileScheme::BodyTiles, "level"_a,
-                    "Every tile of a level of a whole-body scheme.")
-        .def_static("wrap_body_tile", &TileScheme::WrapBodyTile, "key"_a,
-                    "The whole-body tile a neighbour across the antimeridian is.")
-        .def_ro("origin", &TileScheme::origin)
-        .def_ro("root_size", &TileScheme::rootSize)
-        .def_ro("cells", &TileScheme::cells)
-        .def("tile_size", &TileScheme::TileSize, "level"_a)
-        .def("spacing", &TileScheme::Spacing, "level"_a)
-        .def("resolving_level", &TileScheme::ResolvingLevel, "spacing"_a,
-             "The coarsest level whose spacing is at most `spacing`.")
-        .def("tile_at", &TileScheme::TileAt, "x"_a, "y"_a, "level"_a)
-        .def("tiles_covering", &TileScheme::TilesCovering, "bounds"_a, "level"_a)
-        .def("grid", &TileScheme::Grid, "key"_a, "The tile's grid of samples.");
-}
-
-void BindTiles(nb::module_& m) {
-    BindTileKey(m);
-    BindTileScheme(m);
-    m.def(
-        "evaluate_tile",
-        [](const PyTerrain& terrain, const TileScheme& scheme, const TileKey& key,
-           unsigned threads) { return EvaluateTile(terrain.Get(), scheme, key, threads); },
-        "terrain"_a, "scheme"_a, "key"_a, "threads"_a = 0, nb::call_guard<nb::gil_scoped_release>(),
-        "One tile of `scheme` at its level's spacing, equal to the same cells of any larger grid.");
-    m.def(
-        "evaluate_tiles",
-        [](const PyTerrain& terrain, const TileScheme& scheme, const std::vector<TileKey>& keys,
-           unsigned threads) { return EvaluateTiles(terrain.Get(), scheme, keys, threads); },
-        "terrain"_a, "scheme"_a, "keys"_a, "threads"_a = 0,
-        nb::call_guard<nb::gil_scoped_release>(),
-        "`evaluate_tile` for each of `keys`, split over threads.");
-    nb::class_<TileCache>(
-        m, "TileCache",
-        "Tiles of one terrain and scheme, evaluated on demand and kept up to about "
-        "`max_bytes`, least recently used first out; thread-safe. The budget is "
-        "split over 16 shards that each keep at least one tile, so a budget "
-        "smaller than 16 tiles is exceeded.")
-        .def(
-            "__init__",
-            [](TileCache* self, const PyTerrain& terrain, const TileScheme& scheme,
-               std::size_t maxBytes) { new (self) TileCache(terrain.Get(), scheme, maxBytes); },
-            "terrain"_a, "scheme"_a, "max_bytes"_a = std::size_t{1} << 30)
-        .def(
-            "get",
-            [](TileCache& cache, const TileKey& key) { return Raster<float>(*cache.Get(key)); },
-            "key"_a, nb::call_guard<nb::gil_scoped_release>(),
-            "The tile at `key`, evaluated if it is not held.")
-        .def_prop_ro("size", &TileCache::Size, "Bytes held.")
-        .def_prop_ro("max_bytes", &TileCache::MaxBytes)
-        .def_prop_ro("evictions", &TileCache::Evictions, "Tiles evicted so far.");
 }
 
 /// @brief Registers ConfigError, a ValueError with the JSON `path` of the offending value, as
@@ -622,7 +527,6 @@ void BindPipeline(nb::module_& m) {
     BindTerrainClass(m);
     BindFeatures(m);
     BindEvaluation(m);
-    BindTiles(m);
     BindNested(m);
     BindConfig(m);
     BindGeneratedTerrain(m);

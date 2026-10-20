@@ -20,7 +20,7 @@ CATEGORIES = (
     "layers",
     "planets",
     "sources",
-    "tiles",
+    "queries",
     "config",
 )
 
