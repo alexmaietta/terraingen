@@ -124,7 +124,10 @@ void BindTransforms(nb::module_& m) {
             },
             "layers"_a, "origin"_a = Vec2d{}, "surface"_a = Surface{},
             "On a sphere the noise is 3D at each point's position, seamless everywhere, and "
-            "`origin` is unused.");
+            "`origin` is unused.")
+        .def_prop_ro(
+            "layers", [](const NoiseRelief& relief) { return relief.Params().layers; },
+            "The noise layers, with any Hurst exponents and amplitudes applied.");
     nb::class_<ScaleLayer, Layer>(m, "ScaleLayer", "height * scale + offset.")
         .def(nb::init<double, double>(), "scale"_a, "offset"_a = 0.0);
     nb::class_<DetailLayer, Layer>(
@@ -188,7 +191,8 @@ void BindRoughness(nb::module_& m) {
              "surface"_a = Surface{})
         .def("rms_slope", &RoughnessLayer::RmsSlope, "baseline"_a)
         .def("wavelengths", &RoughnessLayer::Wavelengths,
-             "The wavelengths (m) of the roughness octaves.");
+             "The wavelengths (m) of the roughness octaves.")
+        .def_prop_ro("options", &RoughnessLayer::Options);
     m.def("perlin_structure_function", &PerlinStructureFunction, "r"_a,
           "The structure function of 2D Perlin noise at lag `r` lattice units.");
     m.def("perlin3_structure_function", &Perlin3StructureFunction, "r"_a,

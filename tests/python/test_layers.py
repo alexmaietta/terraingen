@@ -519,3 +519,74 @@ def test_spectral_continuation_adds_detail_below_the_base_following_its_spectrum
     config.validate()
     spec = config.to_dict()["layers"][0]
     assert spec["slope"] == 2.6 and spec["fit_min_pixels"] == 4.0
+
+
+def self_affine_heights(hurst, size=96):
+    """Cosines halving in wavelength by sqrt(2) from 128 m to 1/8 m, amplitudes as wavelength^hurst."""
+    rng = np.random.default_rng(4)
+    y, x = np.mgrid[0:size, 0:size].astype(np.float64) + 0.5
+    heights = np.zeros((size, size))
+    for wavelength in 128.0 * 2.0 ** (-0.5 * np.arange(21)):
+        for turn, phase in rng.uniform(0.0, 2.0 * math.pi, (8, 2)):
+            k = 2.0 * math.pi / wavelength
+            heights += 0.1 * wavelength**hurst * np.cos(k * (x * math.cos(turn) + y * math.sin(turn)) + phase)
+    return heights.astype(np.float32)
+
+
+def test_base_roughness_recovers_the_hurst_exponent_and_continues_it():
+    heights = terraingen.Raster.from_array(
+        self_affine_heights(0.7), terraingen.GeoTransform.north_up(0.0, 96.0, 1.0)
+    )
+    roughness = terraingen.estimate_base_roughness(heights, 1.0)
+    assert roughness.hurst == pytest.approx(0.7, abs=0.1)
+    assert roughness.cell_size == 1.0 and roughness.deviation > 0.0
+    assert roughness.deviation_at(0.25) == pytest.approx(roughness.deviation * 0.25**roughness.hurst)
+    assert roughness.rms_slope(0.25) == pytest.approx(roughness.deviation_at(0.25) / 0.25)
+    with pytest.raises(ValueError):
+        terraingen.estimate_base_roughness(terraingen.Raster.from_array(np.zeros((8, 8), np.float32)), 1.0)
+    from_source = terraingen.estimate_source_roughness(terraingen.RasterSource(heights))
+    assert from_source.cell_size == 1.0
+    assert from_source.hurst == pytest.approx(roughness.hurst, abs=0.02)
+
+    layer = terraingen.NoiseLayer()
+    layer.fractal.wavelength = 1.0
+    layer.fractal.octaves = 3
+    amplitude = terraingen.matched_noise_amplitude(layer, roughness)
+    assert amplitude > 0.0
+    doubled = terraingen.BaseRoughness()
+    doubled.hurst, doubled.deviation, doubled.cell_size = roughness.hurst, 2.0 * roughness.deviation, 1.0
+    assert terraingen.matched_noise_amplitude(layer, doubled) == pytest.approx(2.0 * amplitude, rel=1e-5)
+
+
+def test_roughness_and_noise_layers_estimate_their_settings_from_a_dem(tmp_path):
+    heights = terraingen.Raster.from_array(
+        self_affine_heights(0.8, 64), terraingen.GeoTransform.north_up(1000.0, 2064.0, 1.0)
+    )
+    terraingen.write_geotiff(str(tmp_path / "dem.tif"), heights)
+    config = terraingen.Config.from_dict(
+        {
+            "schema_version": 1,
+            "base": {"type": "raster", "path": "dem.tif"},
+            "layers": [
+                {"type": "noise", "estimate_from_base": True, "stack": [{"wavelength": 1.0, "octaves": 2}]},
+                {"type": "roughness", "estimate_from_base": True, "max_wavelength": 1.0, "rms_slope": 0.3},
+            ],
+        }
+    )
+    config.validate(str(tmp_path))
+    layers = config.to_dict()["layers"]
+    assert layers[1]["estimate_from_base"] and layers[1]["hurst"] is None and layers[1]["rms_slope"] == 0.3
+    assert terraingen.Config.from_dict(config.to_dict()) == config
+    terrain = terraingen.build_terrain(config, str(tmp_path))
+    base = terraingen.estimate_source_roughness(terrain.source)
+    roughness = terrain.layers[1].options
+    assert roughness.hurst == pytest.approx(base.hurst) and roughness.rms_slope == 0.3
+    noise = terrain.layers[0].layers[0]
+    assert noise.fractal.gain == pytest.approx(terraingen.gain_from_hurst(base.hurst, 2.0), rel=1e-6)
+    assert noise.fractal.amplitude > 0.0
+    without_base = terraingen.Config.from_dict(
+        {"schema_version": 1, "layers": [{"type": "roughness", "estimate_from_base": True}]}
+    )
+    with pytest.raises(terraingen.ConfigError) as error:
+        without_base.validate()
+    assert error.value.path == "layers[0].estimate_from_base"

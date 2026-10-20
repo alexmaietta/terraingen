@@ -84,6 +84,7 @@
 #include "terraingen/layers/pavement.h"
 #include "terraingen/layers/region.h"
 #include "terraingen/layers/roughness.h"
+#include "terraingen/layers/roughness_estimate.h"
 #include "terraingen/layers/sample_block.h"
 #include "terraingen/layers/sand_fill.h"
 #include "terraingen/layers/sand_shadow.h"
