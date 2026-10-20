@@ -3,7 +3,6 @@ terraingen_add_test_suite(
     SOURCES
     features_test.cpp
     height_mesh_test.cpp
-    nested_test.cpp
     materials_test.cpp
     terrain_test.cpp
     terrain_windows_test.cpp

@@ -7,7 +7,6 @@
 #include "terraingen/config/fields/checks.h"
 #include "terraingen/config/fields/common.h"
 #include "terraingen/config/generate.h"
-#include "terraingen/config/regions.h"
 #include "terraingen/distribution/ivanov.h"
 #include "terraingen/distribution/neukum.h"
 #include "terraingen/layers/craters/generation/spacing.h"
@@ -596,17 +595,11 @@ void CheckOutputExtent(const Output& output, const std::string& path,
 /// The grid the output at `path` covers (`OutputGrid`), its region and spacing checked; none for a
 /// mesh.
 /// @throws ConfigError for an invalid region or spacing, or an output with no grid to cover.
-std::optional<RasterGrid> CheckOutputGrid(const config::ResolvedOutput& resolved,
+std::optional<RasterGrid> CheckOutputGrid(const OutputSpec& output, const std::string& path,
                                           const std::optional<RasterGrid>& base,
                                           const Surface& surface) {
-    const OutputSpec& output = resolved.spec;
-    const std::string& path = resolved.where;
-    if (config::HoldsAny<MeshOutput, NestedMeshOutput, ManifestOutput>(output)) {
+    if (std::holds_alternative<MeshOutput>(output)) {
         return std::nullopt;
-    }
-    if (resolved.group) {
-        std::visit([&](const auto& o) { CheckOutputExtent(o, path, base, surface); }, output);
-        return resolved.grid;
     }
     std::visit([&](const auto& o) { CheckOutputExtent(o, path, base, surface); }, output);
     std::optional<RasterGrid> grid = config::OutputGrid(output, base, surface);
@@ -692,58 +685,19 @@ void CheckOutput(const TerrainMeshOutput& output, const std::string& path, const
     CheckMeshFile(output.path, Child(path, "path"));
 }
 
-void CheckOutput(const NestedMeshOutput& output, const std::string& path, const OutputChecks&) {
-    CheckMeshFile(output.path, Child(path, "path"));
-}
-
-void CheckOutput(const ManifestOutput& output, const std::string& path, const OutputChecks&) {
-    CheckNonEmpty(output.path, Child(path, "path"));
-}
-
-/// Checks the regions, their bases, levels and upscaling layers, and returns them laid out.
-/// @throws ConfigError under "regions" for an invalid region.
-config::RegionLayout CheckRegions(const TerrainConfig& config,
-                                  const std::filesystem::path& directory, const Surface& surface,
-                                  const std::optional<RasterGrid>& base) {
-    for (std::size_t r = 0; r < config.regions.size(); ++r) {
-        const RegionSpec& region = config.regions[r];
-        const std::string path = Element("regions", r);
-        if (region.base) {
-            DescribeRegion(*region.base, Child(path, "base"), surface);
-        }
-        const std::vector<Extent> none;
-        LayerChecks checks{none, directory, surface};
-        checks.base = base.has_value();
-        for (std::size_t j = 0; j < region.upscaling.size(); ++j) {
-            CheckLayer(region.upscaling[j], Element(Child(path, "upscaling"), j), checks);
-        }
-    }
-    config::RegionLayout layout = config::LayOutRegions(config.regions, base, surface);
-    for (const config::RegionLayout::Group& group : layout.groups) {
-        for (const NestedGrid& grid : group.grids) {
-            if (grid.region) {
-                CheckGridSize(grid.grid.width, grid.grid.height,
-                              Element("regions", group.regions[*grid.region]));
-            }
-        }
-    }
-    return layout;
-}
-
 /// Checks each output and its grid, records the grids in `summary` and returns where each output
 /// with a grid evaluates the layers.
 /// @throws ConfigError under "outputs" for an invalid output.
 std::vector<Extent> CheckOutputs(const TerrainConfig& config, const Surface& surface,
-                                 const config::RegionLayout& layout, ConfigSummary& summary) {
+                                 ConfigSummary& summary) {
     const OutputChecks checks{surface.IsBody(), config.albedo.has_value(),
                               config.materials.has_value()};
     std::vector<Extent> extents;
-    for (const config::ResolvedOutput& resolved :
-         config::ResolveOutputs(config, summary.base, surface, layout)) {
-        const OutputSpec& output = resolved.spec;
-        const std::string& path = resolved.where;
+    for (std::size_t i = 0; i < config.outputs.size(); ++i) {
+        const OutputSpec& output = config.outputs[i];
+        const std::string path = Element("outputs", i);
         std::visit([&](const auto& o) { CheckOutput(o, path, checks); }, output);
-        const std::optional<RasterGrid> grid = CheckOutputGrid(resolved, summary.base, surface);
+        const std::optional<RasterGrid> grid = CheckOutputGrid(output, path, summary.base, surface);
         summary.outputGrids.push_back(grid);
         if (grid) {
             const bool listed =
@@ -928,8 +882,7 @@ ConfigSummary ValidateConfig(const TerrainConfig& config, const std::filesystem:
     if (config.base) {
         summary.base = DescribeSource(*config.base, directory, surface);
     }
-    const config::RegionLayout layout = CheckRegions(config, directory, surface, summary.base);
-    const std::vector<Extent> extents = CheckOutputs(config, surface, layout, summary);
+    const std::vector<Extent> extents = CheckOutputs(config, surface, summary);
     CheckLayers(config, extents, directory, surface, summary);
     if (config.albedo) {
         ValidateAlbedo(config, directory);

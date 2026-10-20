@@ -31,9 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Roughness and noise layers that estimate their settings from the base with `estimate_from_base`: the Hurst exponent and RMS height difference of its variogram at its native cells, extrapolated to the roughness baseline or matched at each noise layer's wavelength; explicit values override the estimates.
 - Manual craters with an explicit rim-to-floor depth and rim height, in place of what the degradation model and age give; diffusion profiles solve for the age that reaches the depth.
 - Manual boulders that fix any of their height, burial, yaw, lean, tilt, rest, wear and shape seed; unset fields are drawn as for generated boulders, and fixed ones are neither re-settled nor broken.
-- Multi-resolution regions: a top-level `regions` list of named squares refined level by level in a base grid, from `levels` ({pixel_size, size}) or a `repeat` ({count, factor, shrink, size}), each with `upscaling` layers and `blend_cells`; heightmaps, albedo, maps, lists, boulder models and terrain meshes cover a level by name with `nested`, `nested_mesh` writes the levels as one mesh or one per grid, and `manifest` lists the grids and their files. Overlapping regions are rejected.
 - Terrain meshes take `cutouts`, a `skirt` and a frame `site`.
-- `NestedTerrain`, the library behind multi-resolution terrains: regions of levels nested in a base grid on its cell centres, each with its own upscaling layers, evaluated with their edges blended into the level above and merged into one mesh cut out under finer levels; in C++ and Python.
 - Configuration keys `region` (`min_x`, `min_y`, `max_x`, `max_y` in CRS units) on raster bases and `dem_detail` layers to read only a window of a DEM, and `unresolved_pixels_across` on crater layers to generate only the craters the base DEM does not already resolve, combined with any catalog `completeness`.
 - Manual-only boulder layers: `generate_random` off (`BoulderLayerOptions::generateRandom`) places only the `manual` boulders, with no random boulders or crater blocks, draws no candidates and needs no valid sizes or coverage; `CraterLayer::Manual` and `BoulderLayer::Manual` (Python `CraterLayer.manual`, `BoulderLayer.manual`) make layers of only the given craters or boulders.
 
@@ -75,7 +73,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- The `hierarchy` section, replaced by `regions` with `nested`, `nested_mesh` and `manifest` outputs.
 - Tile schemes, tiles and the tile cache (`TileScheme`, `TileKey`, `EvaluateTile`, `EvaluateTiles`, `TileCache`, in C++ and Python): level of detail belongs to the renderer, and any grid evaluated alone already equals the same cells of a larger one. The tile examples go too; the point query examples move to a `queries` category.
 - Python `crater_blend_weight` (use `CraterBlend.weight`), `CraterAgeModel.lifetime_gyr` (use `lifetime_at`) and the flat selection aliases on crater irregularity, crater albedo and secondary options (use `selection`).
 

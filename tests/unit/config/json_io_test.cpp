@@ -300,33 +300,6 @@ TerrainConfig Everything() {
     materials.photometry.reference = terraingen::PhotometryReference::MarsPancam;
     materials.photometry.classes[3] = terraingen::HapkeParameters{0.7, 0.4, 0.3, 15.0};
     config.materials = materials;
-    terraingen::RegionSpec site;
-    site.name = "site";
-    site.centreX = 30.0;
-    site.centreY = -45.0;
-    site.base = region;
-    site.levels = {{0.25, 8.0}, {0.125, 4.0}};
-    site.upscaling = {terraingen::MidpointDisplacementLayerSpec{},
-                      terraingen::RoughnessLayerSpec{}};
-    site.blendCells = 3;
-    terraingen::RegionSpec repeated;
-    repeated.name = "wide";
-    repeated.repeat = terraingen::RepeatedLevelsSpec{3, 4, 1.5, 60.0};
-    config.regions = {site, repeated};
-    terraingen::HeightmapOutput level;
-    level.path = "site/{region}_{level}.tif";
-    level.nested = terraingen::NestedLevelRef{"site", std::nullopt};
-    terraingen::CraterListOutput levelCraters;
-    levelCraters.path = "site/craters.json";
-    levelCraters.nested = terraingen::NestedLevelRef{"site", 2};
-    terraingen::TerrainMeshOutput mesh;
-    mesh.path = "site/level.glb";
-    mesh.nested = terraingen::NestedLevelRef{"wide", 1};
-    config.outputs.push_back(level);
-    config.outputs.push_back(levelCraters);
-    config.outputs.push_back(mesh);
-    config.outputs.push_back(terraingen::NestedMeshOutput{"site/all.glb", {"site", "wide"}, 0.5});
-    config.outputs.push_back(terraingen::ManifestOutput{"site/manifest.json", {"site"}});
     return config;
 }
 

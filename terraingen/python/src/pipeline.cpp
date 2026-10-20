@@ -11,10 +11,7 @@
 #include "terraingen/pipeline/body_mesh.h"
 #include "terraingen/pipeline/features.h"
 #include "terraingen/pipeline/height_mesh.h"
-#include "terraingen/pipeline/nested.h"
 #include "terraingen/pipeline/terrain.h"
-
-#include <nanobind/operators.h>
 
 #include <filesystem>
 #include <optional>
@@ -434,100 +431,10 @@ void BindRun(nb::module_& m) {
 
 }  // namespace
 
-void BindNested(nb::module_& m) {
-    auto level = nb::class_<NestedLevel>(
-        m, "NestedLevel",
-        "One level of a nested region: cells of `pixel_size` metres across a square about `size` "
-        "metres wide.");
-    BindKwargsInit<NestedLevel>(level);
-    level.def_rw("pixel_size", &NestedLevel::pixelSize)
-        .def_rw("size", &NestedLevel::size)
-        .def(nb::self == nb::self);
-    m.def("repeated_levels", &RepeatedLevels, "base_pixel_size"_a, "size"_a, "count"_a,
-          "factor"_a = 2, "shrink"_a = 2.0,
-          "`count` levels below a base of `base_pixel_size` metres, each `factor` times finer and "
-          "`shrink` times narrower than the one above, the first `size` metres across.");
-    auto region = nb::class_<NestedRegion>(
-        m, "NestedRegion",
-        "A square refined level by level about `centre` inside a base grid, its `upscaling` "
-        "layers applied to every level after the source and before the terrain's layers.");
-    BindKwargsInit<NestedRegion>(region);
-    region.def_rw("name", &NestedRegion::name)
-        .def_rw("centre", &NestedRegion::centre)
-        .def_rw("levels", &NestedRegion::levels)
-        .def_prop_rw(
-            "upscaling", [](const NestedRegion& self) { return MutableAll(self.upscaling); },
-            [](NestedRegion& self, const std::vector<std::shared_ptr<Layer>>& layers) {
-                self.upscaling.assign(layers.begin(), layers.end());
-            })
-        .def_rw("blend_cells", &NestedRegion::blendCells);
-    nb::class_<NestedGrid>(m, "NestedGrid", "A grid of a nested terrain.")
-        .def_ro("region", &NestedGrid::region, "Index of its region; None for the base.")
-        .def_ro("level", &NestedGrid::level)
-        .def_ro("grid", &NestedGrid::grid)
-        .def_ro("parent", &NestedGrid::parent, "Index of the grid it lies in; None for the base.")
-        .def_ro("children", &NestedGrid::children);
-    m.def("nest_grids", &NestGrids, "base"_a, "regions"_a, "surface"_a = Surface{},
-          "The grids of `regions` nested in `base`: the base, then each region's levels.");
-    nb::class_<NestedTerrain>(
-        m, "NestedTerrain",
-        "A terrain refined in nested regions, each level blended into the one above along its "
-        "edges.")
-        .def(
-            "__init__",
-            [](NestedTerrain* self, const PyTerrain& terrain, const RasterGrid& base,
-               std::vector<NestedRegion> regions) {
-                new (self) NestedTerrain(terrain.Get(), base, std::move(regions));
-            },
-            "terrain"_a, "base"_a, "regions"_a)
-        .def_prop_ro("base", &NestedTerrain::Base)
-        .def_prop_ro("grids", &NestedTerrain::Grids)
-        .def_prop_ro("regions", &NestedTerrain::Regions)
-        .def_prop_ro("site", &NestedTerrain::Site, "The base's centre, which meshes are framed at.")
-        .def("find_region", &NestedTerrain::FindRegion, "name"_a)
-        .def("grid_index", &NestedTerrain::GridIndex, "region"_a, "level"_a,
-             "The index in `grids` of a region's level; level 0 is the base.")
-        .def(
-            "grid_terrain",
-            [](const NestedTerrain& self, std::size_t grid) {
-                return FromTerrain(self.GridTerrain(grid));
-            },
-            "grid"_a, "The terrain a grid is evaluated with.")
-        .def(
-            "evaluate",
-            [](const NestedTerrain& self, std::size_t grid, const Raster<float>* parent,
-               unsigned threads) {
-                EvaluationOptions options;
-                options.threads = threads;
-                return self.Evaluate(grid, parent, options);
-            },
-            "grid"_a, "parent"_a = nb::none(), "threads"_a = 0,
-            nb::call_guard<nb::gil_scoped_release>(),
-            "The heights over one grid, its edges blended into `parent`, the heights over the "
-            "grid it lies in.")
-        .def(
-            "evaluate_all",
-            [](const NestedTerrain& self, unsigned threads) {
-                EvaluationOptions options;
-                options.threads = threads;
-                return self.EvaluateAll(options);
-            },
-            "threads"_a = 0, nb::call_guard<nb::gil_scoped_release>(),
-            "The heights over every grid, in the order of `grids`.")
-        .def("grid_mesh", &NestedTerrain::GridMesh, "heights"_a, "grid"_a, "among"_a,
-             "skirt"_a = 0.0,
-             "The mesh of one grid, cut out under those of its children among `among`, framed at "
-             "`site`.")
-        .def("mesh", &NestedTerrain::Mesh, "heights"_a, "grids"_a, "skirt"_a = 0.0,
-             "The meshes of `grids` merged into one, each cut out under those of its children "
-             "among `grids`, framed at `site`.");
-}
-
 void BindPipeline(nb::module_& m) {
     BindTerrainClass(m);
     BindFeatures(m);
     BindEvaluation(m);
-    BindNested(m);
     BindConfig(m);
     BindGeneratedTerrain(m);
     BindRun(m);

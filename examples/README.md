@@ -54,7 +54,7 @@ Options:
 
 | Category | Config | C++ | Python |
 | --- | --- | --- | --- |
-| terrain | `example_terrain_billow`, `_cellular`, `_domain_warp`, `_fbm`, `_layered`, `_regions`, `_ridged`, `_roughness`, `_voronoi` | `example_terrain_fbm`, `_layered` | `example_terrain_fbm`, `_fractal_types`, `_hurst_sweep`, `_layered`, `_noise_kernels` |
+| terrain | `example_terrain_billow`, `_cellular`, `_domain_warp`, `_fbm`, `_layered`, `_ridged`, `_roughness`, `_voronoi` | `example_terrain_fbm`, `_layered` | `example_terrain_fbm`, `_fractal_types`, `_hurst_sweep`, `_layered`, `_noise_kernels` |
 | craters | `example_craters_datum`, `_degradation_diffusion`, `_degradation_none`, `_interior_replacement`, `_irregular`, `_manual`, `_manual_depth`, `_max_craters`, `_profile_complex`, `_profile_martin_parkes_dunstan`, `_rim_smoothing_soft`, `_secondaries`, `_secondary_rays`, `_simple`, `_smoothed_rims`, `_spacing` | `example_craters_degradation`, `_manual`, `_manual_depth`, `_profiles`, `_secondaries`, `_simple` | `example_craters_age_sweep`, `_apply_options`, `_degradation`, `_irregularity`, `_manual`, `_manual_depth`, `_positioning`, `_profiles`, `_rim_smoothing`, `_secondaries`, `_simple` |
 | distributions | `example_distributions_moore_rough_mare`, `_piecewise_power_law`, `_power_law`, `_tabulated`, `_trask_equilibrium`, `_viper` | `example_distributions_csfd` | `example_distributions_csfd`, `_custom` |
 | ages | `example_ages_fresh`, `_freshness`, `_steady_state`, `_uniform` | `example_ages_models` | `example_ages_models` |

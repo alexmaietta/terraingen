@@ -8,7 +8,6 @@ terraingen_add_library(
     config.cpp
     feature_lists.cpp
     generate.cpp
-    regions.cpp
     json.cpp
     ranges.cpp
     schema.cpp

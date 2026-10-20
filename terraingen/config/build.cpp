@@ -815,8 +815,6 @@ std::optional<RasterGrid> OutputGrid(const OutputSpec& output,
             [&](const ListOutput& o) { return listed(o); },
             [&](const BoulderModelsOutput& o) { return listed(o); },
             [](const MeshOutput&) -> std::optional<RasterGrid> { return std::nullopt; },
-            [](const NestedMeshOutput&) -> std::optional<RasterGrid> { return std::nullopt; },
-            [](const ManifestOutput&) -> std::optional<RasterGrid> { return std::nullopt; },
         },
         output);
 }
@@ -858,36 +856,6 @@ RegionShape BuildRegionShape(const RegionShapeSpec& spec) {
             [](const CircleRegionSpec& s) { return RegionShape::Circle({s.x, s.y}, s.radius); },
         },
         spec);
-}
-
-std::vector<NestedTerrain> BuildNestedTerrains(const TerrainConfig& config, const Terrain& terrain,
-                                               const RegionLayout& layout,
-                                               const std::filesystem::path& directory) {
-    const std::vector<std::shared_ptr<const CraterLayer>> craters;
-    const std::shared_ptr<const BoulderLayer> boulders;
-    std::vector<NestedTerrain> nested;
-    for (const RegionLayout::Group& group : layout.groups) {
-        const double basePixel =
-            std::fabs(group.base.transform.pixelHeight) * terrain.surface.UnitLength();
-        std::vector<NestedRegion> regions;
-        for (std::size_t r : group.regions) {
-            const RegionSpec& spec = config.regions[r];
-            NestedRegion region;
-            region.name = spec.name;
-            region.centre = {spec.centreX, spec.centreY};
-            region.levels = RegionLevels(spec, basePixel);
-            region.blendCells = spec.blendCells;
-            const std::string path = Child(Element("regions", r), "upscaling");
-            for (std::size_t j = 0; j < spec.upscaling.size(); ++j) {
-                const LayerInputs inputs{ReferencePoint(terrain), directory,     craters, boulders,
-                                         terrain.surface,         terrain.source};
-                region.upscaling.push_back(BuildLayer(spec.upscaling[j], Element(path, j), inputs));
-            }
-            regions.push_back(std::move(region));
-        }
-        nested.emplace_back(terrain, group.base, std::move(regions));
-    }
-    return nested;
 }
 
 }  // namespace config

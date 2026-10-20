@@ -997,21 +997,6 @@ struct GridRegionSpec {
     }
 };
 
-/// The level of a named region an output covers (`TerrainConfig::regions`); level 0 is the base the
-/// region lies in.
-struct NestedLevelRef {
-    std::string region;
-    /// Unset for every level, from 0, with "{level}" in the output's path replaced by its number.
-    std::optional<std::size_t> level{};
-
-    bool operator==(const NestedLevelRef& other) const {
-        return region == other.region && level == other.level;
-    }
-    bool operator!=(const NestedLevelRef& other) const {
-        return !(*this == other);
-    }
-};
-
 /// A list file to write; the format follows the extension (.json or else CSV) unless given.
 ///
 /// The list covers `region`, or the base's grid without one, or else the whole body on a body.
@@ -1022,10 +1007,9 @@ struct ListOutput {
     /// Sample spacing in metres the features are listed at, as a heightmap of that pixel size
     /// applies them; unset for the grid's. A whole-body list needs it.
     std::optional<double> spacing{};
-    std::optional<NestedLevelRef> nested{};  ///< In place of `region`.
     bool operator==(const ListOutput& other) const {
         return path == other.path && format == other.format && region == other.region &&
-               spacing == other.spacing && nested == other.nested;
+               spacing == other.spacing;
     }
     bool operator!=(const ListOutput& other) const {
         return !(*this == other);
@@ -1039,10 +1023,9 @@ struct GeoTiffOutput {
     TiffCompression compression = TiffCompression::Lzw;  ///< None, Lzw or Deflate.
     std::uint32_t tileSize = 256;                        ///< Pixels per tile side.
     std::optional<GridRegionSpec> region{};
-    std::optional<NestedLevelRef> nested{};  ///< In place of `region`.
     bool operator==(const GeoTiffOutput& other) const {
         return path == other.path && compression == other.compression &&
-               tileSize == other.tileSize && region == other.region && nested == other.nested;
+               tileSize == other.tileSize && region == other.region;
     }
     bool operator!=(const GeoTiffOutput& other) const {
         return !(*this == other);
@@ -1065,12 +1048,11 @@ struct BoulderModelsOutput {
     std::string path;
     double creaseAngle = 60.0;  ///< Degrees between faces above which vertices are split.
     std::optional<GridRegionSpec> region{};
-    std::optional<double> spacing{};         ///< As `ListOutput::spacing`.
-    bool instanced = true;                   ///< Shared shapes written once and drawn per boulder.
-    std::optional<NestedLevelRef> nested{};  ///< In place of `region`.
+    std::optional<double> spacing{};  ///< As `ListOutput::spacing`.
+    bool instanced = true;            ///< Shared shapes written once and drawn per boulder.
     bool operator==(const BoulderModelsOutput& other) const {
         return path == other.path && creaseAngle == other.creaseAngle && region == other.region &&
-               spacing == other.spacing && instanced == other.instanced && nested == other.nested;
+               spacing == other.spacing && instanced == other.instanced;
     }
     bool operator!=(const BoulderModelsOutput& other) const {
         return !(*this == other);
@@ -1111,13 +1093,9 @@ struct TerrainMeshOutput {
     /// centre.
     std::optional<double> siteX{};
     std::optional<double> siteY{};  ///< As `siteX`.
-    /// In place of `region`; the mesh is then cut out under the finer levels of the region and
-    /// framed at the centre of its base unless a site is given.
-    std::optional<NestedLevelRef> nested{};
     bool operator==(const TerrainMeshOutput& other) const {
         return path == other.path && region == other.region && cutouts == other.cutouts &&
-               skirt == other.skirt && siteX == other.siteX && siteY == other.siteY &&
-               nested == other.nested;
+               skirt == other.skirt && siteX == other.siteX && siteY == other.siteY;
     }
     bool operator!=(const TerrainMeshOutput& other) const {
         return !(*this == other);
@@ -1131,40 +1109,10 @@ struct MaterialsOutput : GeoTiffOutput {};
 /// Output "photometry": the Hapke albedo, b, c and roughness the materials mix to, in four bands.
 struct PhotometryOutput : GeoTiffOutput {};
 
-/// Output "nested_mesh": the base and every level of `regions`, which share a base, as meshes
-/// (`NestedTerrain::Mesh`), each cut out under the finer levels and framed at the base's centre:
-/// one merged file, or one per grid when `path` holds "{level}" (and "{region}" with more than one
-/// region), the base being level 0 of the first region.
-struct NestedMeshOutput {
-    std::string path;
-    std::vector<std::string> regions;  ///< Names of regions; at least one.
-    double skirt = 0.0;                ///< Metres hung below every boundary edge; 0 for none.
-    bool operator==(const NestedMeshOutput& other) const {
-        return path == other.path && regions == other.regions && skirt == other.skirt;
-    }
-    bool operator!=(const NestedMeshOutput& other) const {
-        return !(*this == other);
-    }
-};
-
-/// Output "manifest": a JSON list of the bases and levels of `regions` (every region when empty),
-/// with each grid's parent, extent and the files the other outputs write over it.
-struct ManifestOutput {
-    std::string path;
-    std::vector<std::string> regions;  ///< Names of regions; empty for every region.
-    bool operator==(const ManifestOutput& other) const {
-        return path == other.path && regions == other.regions;
-    }
-    bool operator!=(const ManifestOutput& other) const {
-        return !(*this == other);
-    }
-};
-
 /// An output, named in JSON by its "type".
 using OutputSpec =
     std::variant<HeightmapOutput, CraterListOutput, BoulderListOutput, BoulderModelsOutput,
-                 AlbedoOutput, MeshOutput, TerrainMeshOutput, MaterialsOutput, PhotometryOutput,
-                 NestedMeshOutput, ManifestOutput>;
+                 AlbedoOutput, MeshOutput, TerrainMeshOutput, MaterialsOutput, PhotometryOutput>;
 
 /// Albedo source "synthetic": `SyntheticAlbedo`, a base colour with a noise stack per
 /// channel (each 0 to `kMaxNoiseLayers` layers), measured from the base's reference
@@ -1387,64 +1335,6 @@ struct MaterialsSpec {
     }
 };
 
-/// One level of a region (`NestedLevel`): cells of `pixelSize` metres across about `size` metres.
-struct RegionLevelSpec {
-    double pixelSize = 0.0;  ///< Metres; the level above's over a whole number of at least 2.
-    double size = 0.0;       ///< Metres.
-
-    bool operator==(const RegionLevelSpec& other) const {
-        return pixelSize == other.pixelSize && size == other.size;
-    }
-    bool operator!=(const RegionLevelSpec& other) const {
-        return !(*this == other);
-    }
-};
-
-/// The levels of a region given as a count (`RepeatedLevels`): level k has cells of the base's
-/// pixel size over factor^k and is `size` / shrink^(k - 1) metres across.
-struct RepeatedLevelsSpec {
-    std::size_t count = 1;
-    std::size_t factor = 2;
-    double shrink = 2.0;
-    double size = 0.0;  ///< Metres across level 1; must be given.
-
-    bool operator==(const RepeatedLevelsSpec& other) const {
-        return count == other.count && factor == other.factor && shrink == other.shrink &&
-               size == other.size;
-    }
-    bool operator!=(const RepeatedLevelsSpec& other) const {
-        return !(*this == other);
-    }
-};
-
-/// A named square refined level by level about its centre inside a base grid (`NestedRegion`),
-/// its levels given by `levels` or by `repeat`, one of the two.
-///
-/// Regions with the same base form one `NestedTerrain`, whose regions may not overlap.
-struct RegionSpec {
-    std::string name;
-    double centreX = 0.0;  ///< Surface coordinates; snapped to the base's nearest cell centre.
-    double centreY = 0.0;  ///< Surface coordinates.
-    /// Level 0, the grid the region lies in; unset for the base's grid.
-    std::optional<GridRegionSpec> base{};
-    std::vector<RegionLevelSpec> levels;
-    std::optional<RepeatedLevelsSpec> repeat{};
-    /// Layers adding the detail of the finer levels, applied to them after the base and before the
-    /// terrain's layers.
-    std::vector<LayerSpec> upscaling;
-    /// Cells along each level's edges over which it blends from the level above.
-    std::size_t blendCells = 8;
-
-    bool operator==(const RegionSpec& other) const {
-        return name == other.name && centreX == other.centreX && centreY == other.centreY &&
-               base == other.base && levels == other.levels && repeat == other.repeat &&
-               upscaling == other.upscaling && blendCells == other.blendCells;
-    }
-    bool operator!=(const RegionSpec& other) const {
-        return !(*this == other);
-    }
-};
-
 /// Everything needed to generate a terrain: the body it lies on, optionally its base heights, the
 /// layers added to them in order, the outputs to write, and optionally its albedo and materials.
 struct TerrainConfig {
@@ -1455,12 +1345,11 @@ struct TerrainConfig {
     std::vector<OutputSpec> outputs;
     std::optional<AlbedoSpec> albedo;        ///< None by default.
     std::optional<MaterialsSpec> materials;  ///< None by default.
-    std::vector<RegionSpec> regions;         ///< Regions refined in nested levels.
 
     bool operator==(const TerrainConfig& other) const {
         return schemaVersion == other.schemaVersion && body == other.body && base == other.base &&
                layers == other.layers && outputs == other.outputs && albedo == other.albedo &&
-               materials == other.materials && regions == other.regions;
+               materials == other.materials;
     }
     bool operator!=(const TerrainConfig& other) const {
         return !(*this == other);

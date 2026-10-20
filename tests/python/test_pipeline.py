@@ -1,6 +1,5 @@
 """pipeline: building and evaluating terrains from configs and objects, outputs and body meshes."""
 
-import json
 import pathlib
 
 import numpy as np
@@ -225,42 +224,6 @@ def test_generated_grids_know_their_grid_and_list_features_over_any(generated):
     )
 
 
-def test_regions_write_every_level_a_nested_mesh_and_a_manifest(tmp_path):
-    config = terraingen.Config.from_dict(
-        {
-            "schema_version": 1,
-            "layers": [{"type": "noise", "stack": [{"wavelength": 40, "amplitude": 2}]}],
-            "regions": [
-                {
-                    "name": "site",
-                    "centre_x": 5,
-                    "centre_y": -3,
-                    "base": {"width": 33, "height": 33, "pixel_size": 2},
-                    "repeat": {"count": 2, "size": 16},
-                }
-            ],
-            "outputs": [
-                {"type": "heightmap", "path": "site/{region}_{level}.tif", "nested": {"region": "site"}},
-                {"type": "nested_mesh", "path": "site/site.glb", "regions": ["site"], "skirt": 1.0},
-                {"type": "manifest", "path": "site/manifest.json"},
-            ],
-        }
-    )
-    assert len(config.output_grids()) == 5
-    written = terraingen.write_outputs(config, terraingen.generate_terrain(config, tmp_path), tmp_path)
-    assert [path.name for path in written] == [
-        "site_0.tif",
-        "site_1.tif",
-        "site_2.tif",
-        "site.glb",
-        "manifest.json",
-    ]
-    manifest = json.loads((tmp_path / "site" / "manifest.json").read_text())
-    assert [grid["level"] for grid in manifest["grids"]] == [0, 1, 2]
-    assert manifest["grids"][2]["parent"] == 1
-    assert manifest["grids"][2]["files"]["nested_mesh"] == ["site/site.glb"]
-
-
 def test_height_mesh_cuts_out_boxes_and_hangs_skirts():
     heights = terraingen.evaluate(terraingen.Terrain(None, []), grid=terraingen.FlatSource(6, 6, 1.0).grid())
     whole = terraingen.height_mesh(heights)
@@ -271,37 +234,3 @@ def test_height_mesh_cuts_out_boxes_and_hangs_skirts():
     skirted = terraingen.height_mesh(heights, cutouts=[box], skirt=2.0)
     assert holed.triangle_count == whole.triangle_count - 8
     assert skirted.triangle_count == holed.triangle_count + 2 * 28
-
-
-def test_a_nested_terrain_refines_regions_built_in_python():
-    base = terraingen.FlatSource(33, 33, 2.0).grid()
-    origin = terraingen.evaluate(terraingen.Terrain(None, []), grid=base).cell_center(0, 0)
-    upscaling = terraingen.MidpointDisplacementLayer(
-        terraingen.MidpointDisplacementOptions(
-            pixel_size=2.0, origin=origin, scale=0.3, base=terraingen.MidpointBase.SOURCE
-        )
-    )
-    levels = terraingen.repeated_levels(2.0, 16.0, 2)
-    assert levels[1] == terraingen.NestedLevel(pixel_size=0.5, size=8.0)
-    region = terraingen.NestedRegion(name="site", centre=(5.0, -3.0), levels=levels, blend_cells=0)
-    region.upscaling = [upscaling]
-    assert len(region.upscaling) == 1
-    nested = terraingen.NestedTerrain(terraingen.Terrain(None, []), base, [region])
-    assert [g.level for g in nested.grids] == [0, 1, 2]
-    assert nested.grids[2].parent == 1 and nested.grids[0].region is None
-    assert nested.find_region("site") == 0 and nested.grid_index(0, 2) == 2
-    assert len(nested.grid_terrain(2).layers) == 1
-    heights = nested.evaluate_all(threads=2)
-    fine = heights[2].values
-    assert np.abs(fine).max() > 0.0
-    np.testing.assert_array_equal(nested.evaluate(2, heights[1]).values, fine)
-    mesh = nested.mesh(heights, [0, 1, 2], skirt=1.0)
-    assert mesh.triangle_count > 0
-    assert (
-        nested.grid_mesh(heights[0], 0, [0, 1]).triangle_count
-        < nested.grid_mesh(heights[0], 0, [0]).triangle_count
-    )
-    with pytest.raises(ValueError, match="overlaps"):
-        terraingen.nest_grids(
-            base, [region, terraingen.NestedRegion(name="b", centre=(6.0, -2.0), levels=levels)]
-        )
