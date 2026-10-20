@@ -4,7 +4,9 @@
 
 #include "terraingen/albedo/albedo.h"
 #include "terraingen/config/config.h"
+#include "terraingen/config/regions.h"
 #include "terraingen/pipeline/features.h"
+#include "terraingen/pipeline/nested.h"
 #include "terraingen/pipeline/terrain.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/grid.h"
@@ -27,22 +29,31 @@ struct GeneratedGrid {
     /// The share of each material class, one raster per `MaterialClass`; empty unless a materials
     /// or photometry output covers the grid.
     std::vector<Raster<float>> materials{};
+    /// The region whose terrain gave the heights, for its levels from 1 (`TerrainConfig::regions`);
+    /// none for the terrain itself.
+    std::optional<std::size_t> region{};
 };
 
 /// A terrain generated from a configuration.
 struct GeneratedTerrain {
     Terrain terrain;  ///< The terrain built from the configuration, to list its features from.
-    /// One per distinct grid a heightmap, albedo or terrain mesh output covers, in output order.
+    /// The configuration's regions grouped by base (`config::LayOutRegions`).
+    config::RegionLayout layout{};
+    /// The nested terrain of each group of `layout`, whose levels its regions are evaluated with.
+    std::vector<NestedTerrain> nested{};
+    /// One per distinct grid and terrain a heightmap, albedo, terrain mesh, material or nested mesh
+    /// output covers, in output order, the levels above a region's level before it.
     std::vector<GeneratedGrid> grids{};
     /// The projection of a raster base, or geographic keys on a body without one.
     GeoKeys geoKeys{};
     double seconds = 0.0;            ///< Wall-clock time the heights and albedo took to evaluate.
     Backend backend = Backend::Cpu;  ///< Where the heights were evaluated: `Cpu` or a GPU backend.
 
-    /// The generated grid whose heights cover `grid`, or null.
-    const GeneratedGrid* Find(const RasterGrid& grid) const;
-    /// The generated grid whose heights cover `grid`, or null.
-    GeneratedGrid* Find(const RasterGrid& grid);
+    /// The generated grid whose heights cover `grid`, from the terrain or from `region`'s, or null.
+    const GeneratedGrid* Find(const RasterGrid& grid,
+                              std::optional<std::size_t> region = std::nullopt) const;
+    /// The generated grid whose heights cover `grid`, from the terrain or from `region`'s, or null.
+    GeneratedGrid* Find(const RasterGrid& grid, std::optional<std::size_t> region = std::nullopt);
 };
 
 /// Generates the terrain a configuration describes over each grid its heightmap, albedo and
@@ -92,8 +103,9 @@ void WriteBoulderModels(const std::vector<BoulderModel>& boulders,
                         const Surface& surface = {}, const Vec2d& site = {}, bool instanced = true);
 
 /// Writes a configuration's outputs and returns the paths written: heightmaps and albedos
-/// with `terrain.geoKeys`, terrain meshes, crater and boulder lists, boulder models and meshes,
-/// each over the grid it covers (`config::OutputGrid`).
+/// with `terrain.geoKeys`, terrain meshes, crater and boulder lists, boulder models, meshes,
+/// nested meshes and manifests, each over the grid and terrain it covers
+/// (`config::ResolveOutputs`).
 /// @param terrain The terrain `GenerateTerrain` generated from `config`.
 /// @param directory Folder relative output paths resolve against.
 /// @throws std::runtime_error if an output cannot be written, or `terrain` has not generated the

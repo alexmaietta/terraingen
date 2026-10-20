@@ -287,6 +287,26 @@ HeightMeshOptions NestedTerrain::MeshOptions(std::size_t grid, double skirt) con
     return options;
 }
 
+TriangleMesh NestedTerrain::GridMesh(const Raster<float>& heights, std::size_t grid,
+                                     const std::vector<std::size_t>& among, double skirt) const {
+    if (grid >= grids_.size()) {
+        throw std::invalid_argument("A nested terrain has no grid " + std::to_string(grid));
+    }
+    if (RasterGrid::FromRaster(heights) != grids_[grid].grid) {
+        throw std::invalid_argument("The heights of grid " + std::to_string(grid) +
+                                    " are not over it");
+    }
+    HeightMeshOptions options;
+    options.skirt = skirt;
+    const HeightMeshOptions all = MeshOptions(grid, skirt);
+    for (std::size_t c = 0; c < grids_[grid].children.size(); ++c) {
+        if (std::find(among.begin(), among.end(), grids_[grid].children[c]) != among.end()) {
+            options.cutouts.push_back(all.cutouts[c]);
+        }
+    }
+    return HeightMesh(heights, terrain_.surface, Site(), options);
+}
+
 TriangleMesh NestedTerrain::Mesh(const std::vector<Raster<float>>& heights,
                                  const std::vector<std::size_t>& grids, double skirt) const {
     if (heights.size() != grids_.size()) {
@@ -297,19 +317,7 @@ TriangleMesh NestedTerrain::Mesh(const std::vector<Raster<float>>& heights,
         if (g >= grids_.size()) {
             throw std::invalid_argument("A nested terrain has no grid " + std::to_string(g));
         }
-        if (RasterGrid::FromRaster(heights[g]) != grids_[g].grid) {
-            throw std::invalid_argument("The heights of grid " + std::to_string(g) +
-                                        " are not over it");
-        }
-        HeightMeshOptions options;
-        options.skirt = skirt;
-        const HeightMeshOptions all = MeshOptions(g, skirt);
-        for (std::size_t c = 0; c < grids_[g].children.size(); ++c) {
-            if (std::find(grids.begin(), grids.end(), grids_[g].children[c]) != grids.end()) {
-                options.cutouts.push_back(all.cutouts[c]);
-            }
-        }
-        const TriangleMesh mesh = HeightMesh(heights[g], terrain_.surface, Site(), options);
+        const TriangleMesh mesh = GridMesh(heights[g], g, grids, skirt);
         const auto offset = static_cast<std::uint32_t>(merged.positions.size());
         merged.positions.insert(merged.positions.end(), mesh.positions.begin(),
                                 mesh.positions.end());

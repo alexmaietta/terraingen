@@ -4,9 +4,11 @@
 
 #include "terraingen/albedo/albedo.h"
 #include "terraingen/config/config.h"
+#include "terraingen/config/regions.h"
 #include "terraingen/layers/boulders/boulder_layer.h"
 #include "terraingen/layers/craters/crater_layer.h"
 #include "terraingen/layers/region.h"
+#include "terraingen/pipeline/nested.h"
 #include "terraingen/pipeline/terrain.h"
 
 #include <algorithm>
@@ -108,8 +110,9 @@ RasterGrid RegionGrid(const GridRegionSpec& region, const Surface& surface);
 RasterGrid WholeBodyGrid(const Surface& surface, double spacing);
 
 /// The grid an output covers: its region, or else `base`, the base's grid; for a list or boulder
-/// models without either on a body, the whole body at its spacing. None for a mesh, or for an
-/// output without a grid to cover, which `ValidateConfig` rejects.
+/// models without either on a body, the whole body at its spacing. None for a mesh, a nested mesh,
+/// a manifest, or an output without a grid to cover, which `ValidateConfig` rejects. A nested
+/// level an output gives is resolved by `ResolveOutputs` instead.
 std::optional<RasterGrid> OutputGrid(const OutputSpec& output,
                                      const std::optional<RasterGrid>& base, const Surface& surface);
 
@@ -145,6 +148,13 @@ std::vector<std::size_t> LayerIndices(const std::vector<LayerSpec>& layers) {
     }
     return indices;
 }
+
+/// The nested terrains of a valid configuration's regions, one per group of `layout`, each
+/// region's upscaling layers built on `terrain`'s base.
+/// @param terrain The terrain `BuildTerrain` built from `config`.
+std::vector<NestedTerrain> BuildNestedTerrains(const TerrainConfig& config, const Terrain& terrain,
+                                               const RegionLayout& layout,
+                                               const std::filesystem::path& directory);
 
 /// Whether any of `outputs` is of the kinds `Kinds`.
 template <typename... Kinds> bool HasOutput(const std::vector<OutputSpec>& outputs) {

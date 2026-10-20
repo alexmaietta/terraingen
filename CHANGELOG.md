@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Spectral continuation layer: detail finer than a DEM that continues its fitted power-law spectrum (radially averaged, Hann-windowed PSD) to shorter wavelengths as sparse Gabor noise, tapered in at the DEM's Nyquist wavelength so resolved scales gain nothing; an alternative to midpoint displacement without lattice artefacts, with grids, tiles and points in agreement.
 - Manual craters with an explicit rim-to-floor depth and rim height, in place of what the degradation model and age give; diffusion profiles solve for the age that reaches the depth.
 - Manual boulders that fix any of their height, burial, yaw, lean, tilt, rest, wear and shape seed; unset fields are drawn as for generated boulders, and fixed ones are neither re-settled nor broken.
-- Multi-resolution hierarchies: a `hierarchy` section nests squares in a base grid, each level twice as fine (or `factor` times) on its parent's cell centres, writes heightmaps, meshes, lists and maps per grid as `region_{region}_level_{level}` with a JSON manifest, blends each level's edges into its parent's so meshes meet without gaps, cuts meshes out under finer levels and hangs skirts, and rejects overlapping regions.
+- Multi-resolution regions: a top-level `regions` list of named squares refined level by level in a base grid, from `levels` ({pixel_size, size}) or a `repeat` ({count, factor, shrink, size}), each with `upscaling` layers and `blend_cells`; heightmaps, albedo, maps, lists, boulder models and terrain meshes cover a level by name with `nested`, `nested_mesh` writes the levels as one mesh or one per grid, and `manifest` lists the grids and their files. Overlapping regions are rejected.
 - Terrain meshes take `cutouts`, a `skirt` and a frame `site`.
 - `NestedTerrain`, the library behind multi-resolution terrains: regions of levels nested in a base grid on its cell centres, each with its own upscaling layers, evaluated with their edges blended into the level above and merged into one mesh cut out under finer levels; in C++ and Python.
 - Configuration keys `region` (`min_x`, `min_y`, `max_x`, `max_y` in CRS units) on raster bases and `dem_detail` layers to read only a window of a DEM, and `unresolved_pixels_across` on crater layers to generate only the craters the base DEM does not already resolve, combined with any catalog `completeness`.
@@ -74,6 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- The `hierarchy` section, replaced by `regions` with `nested`, `nested_mesh` and `manifest` outputs.
 - Python `crater_blend_weight` (use `CraterBlend.weight`), `CraterAgeModel.lifetime_gyr` (use `lifetime_at`) and the flat selection aliases on crater irregularity, crater albedo and secondary options (use `selection`).
 
 ## [0.1.0] - 2026-10-18

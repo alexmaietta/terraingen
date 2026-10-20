@@ -1,8 +1,8 @@
 #include "terraingen/config/generate.h"
 
 #include "terraingen/config/build.h"
-#include "terraingen/config/hierarchy.h"
 #include "terraingen/config/json.h"
+#include "terraingen/config/regions.h"
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/pipeline/body_mesh.h"
@@ -58,6 +58,7 @@ bool WritesGrid(const OutputSpec& output) {
 /// The boulders placed over one grid at one spacing, shared by the outputs that list them.
 struct PlacedBoulderSet {
     RasterGrid grid;
+    std::optional<std::size_t> region;
     double spacing = 0.0;
     BoulderFeatures features;
 };
@@ -100,52 +101,82 @@ void LogStepTimes(const std::vector<StepTime>& steps, std::size_t grids, double 
     }
 }
 
-/// The distinct grids the heightmap, albedo, terrain mesh and material outputs cover, in order.
-std::vector<RasterGrid> GeneratedGrids(const std::vector<OutputSpec>& outputs,
-                                       const Terrain& terrain) {
-    const std::optional<RasterGrid> base = BaseGrid(terrain);
-    std::vector<RasterGrid> grids;
-    for (const OutputSpec& output : outputs) {
-        if (WritesGrid(output)) {
-            const RasterGrid grid = *config::OutputGrid(output, base, terrain.surface);
-            if (std::find(grids.begin(), grids.end(), grid) == grids.end()) {
-                grids.push_back(grid);
-            }
+/// A grid and the terrain that evaluates it: the terrain itself, or a region's for its levels.
+struct GridKey {
+    RasterGrid grid;
+    std::optional<std::size_t> region;
+    std::optional<std::size_t> group;  ///< For a nested grid, its group.
+    std::size_t index = 0;             ///< For a nested grid, its index in the group.
+};
+
+/// The keys of the grids `output` writes over: its own, or each grid of a nested mesh.
+std::vector<GridKey> OutputKeys(const config::ResolvedOutput& output,
+                                const config::RegionLayout& layout) {
+    if (std::holds_alternative<NestedMeshOutput>(output.spec)) {
+        std::vector<GridKey> keys;
+        const config::RegionLayout::Group& group = layout.groups[*output.group];
+        for (std::size_t index : output.grids) {
+            const NestedGrid& grid = group.grids[index];
+            const std::optional<std::size_t> region =
+                grid.region ? std::optional<std::size_t>(group.regions[*grid.region])
+                            : std::nullopt;
+            keys.push_back({grid.grid, region, output.group, index});
         }
+        return keys;
     }
-    return grids;
+    if (!WritesGrid(output.spec)) {
+        return {};
+    }
+    if (output.group) {
+        return {{*output.grid, output.region, output.group, output.grids.front()}};
+    }
+    return {{*output.grid, std::nullopt, std::nullopt, 0}};
 }
 
 /// Evaluates a generated terrain's heights, albedo and materials over the grids its outputs
 /// need, timing each step.
 class GridGenerator {
   public:
-    GridGenerator(const TerrainConfig& config, const std::vector<OutputSpec>& outputs,
+    GridGenerator(const TerrainConfig& config, const std::vector<config::ResolvedOutput>& outputs,
                   GeneratedTerrain& generated, const std::filesystem::path& directory,
                   unsigned threads)
-        : config_(config), generated_(generated), directory_(directory), threads_(threads),
-          grids_(GeneratedGrids(outputs, generated.terrain)) {
+        : config_(config), generated_(generated), directory_(directory), threads_(threads) {
         for (std::size_t n = 0; n < config.layers.size(); ++n) {
             steps_.push_back(
                 {"layer " + std::to_string(n + 1) + " " + LayerType(config.layers[n])});
         }
+        for (const RegionSpec& region : config.regions) {
+            upscalingSteps_.push_back(steps_.size());
+            for (std::size_t n = 0; n < region.upscaling.size(); ++n) {
+                steps_.push_back({"region " + region.name + " upscaling " + std::to_string(n + 1) +
+                                  " " + LayerType(region.upscaling[n])});
+            }
+        }
         steps_.push_back({"albedo"});
         steps_.push_back({"materials"});
+        for (const config::ResolvedOutput& output : outputs) {
+            for (const GridKey& key : OutputKeys(output, generated.layout)) {
+                Count(key);
+            }
+        }
     }
 
-    /// Generates what `output` writes over its grid, unless an earlier output did.
-    void Generate(const OutputSpec& output) {
-        const Terrain& terrain = generated_.terrain;
-        const RasterGrid grid = *config::OutputGrid(output, BaseGrid(terrain), terrain.surface);
-        GeneratedGrid& target = Heights(grid);
-        if (std::holds_alternative<AlbedoOutput>(output) && target.albedo.empty()) {
-            AddAlbedo(grid, target);
-        }
-        if (MapsMaterials(output) && target.materials.empty()) {
-            const Stopwatch stopwatch;
-            target.materials = EvaluateMaterials(terrain, config_.materials->options, grid,
-                                                 EvaluationOptions{0.0, threads_});
-            Timed(steps_.size() - 1, stopwatch.Milliseconds());
+    /// Generates what `output` writes over its grids, unless an earlier output did.
+    void Generate(const config::ResolvedOutput& output) {
+        for (const GridKey& key : OutputKeys(output, generated_.layout)) {
+            const std::size_t at = Heights(key);
+            const Terrain& terrain = TerrainOf(key);
+            if (std::holds_alternative<AlbedoOutput>(output.spec) &&
+                generated_.grids[at].albedo.empty()) {
+                AddAlbedo(key.grid, terrain, generated_.grids[at]);
+            }
+            if (MapsMaterials(output.spec) && generated_.grids[at].materials.empty()) {
+                const Stopwatch stopwatch;
+                generated_.grids[at].materials =
+                    EvaluateMaterials(terrain, config_.materials->options, key.grid,
+                                      EvaluationOptions{0.0, threads_});
+                Timed(steps_.size() - 1, stopwatch.Milliseconds());
+            }
         }
     }
 
@@ -162,27 +193,71 @@ class GridGenerator {
         LogInfo("pipeline", "  ", steps_[step].name, " in ", FormatDuration(milliseconds));
     }
 
-    /// The heights over `grid`, evaluated the first time.
-    GeneratedGrid& Heights(const RasterGrid& grid) {
-        if (GeneratedGrid* existing = generated_.Find(grid)) {
-            return *existing;
-        }
-        const Terrain& terrain = generated_.terrain;
-        LogInfo("pipeline", "Grid ", generated_.grids.size() + 1, " of ", grids_.size(), ": ",
-                grid.width, "x", grid.height, " at ", FormatSpacing(grid.Spacing(terrain.surface)));
-        EvaluationOptions options{0.0, threads_, generated_.backend};
-        options.onLayer = [this](std::size_t step, double milliseconds) {
-            Timed(step, milliseconds);
-        };
-        generated_.grids.push_back({Evaluate(terrain, grid, options), {}});
-        return generated_.grids.back();
+    /// The key of the grid `key`'s nested grid lies in.
+    GridKey ParentKey(const GridKey& key) const {
+        const config::RegionLayout::Group& group = generated_.layout.groups[*key.group];
+        const std::size_t parent = *group.grids[key.index].parent;
+        const NestedGrid& grid = group.grids[parent];
+        const std::optional<std::size_t> region =
+            grid.region ? std::optional<std::size_t>(group.regions[*grid.region]) : std::nullopt;
+        return {grid.grid, region, key.group, parent};
     }
 
-    void AddAlbedo(const RasterGrid& grid, GeneratedGrid& target) {
+    /// Counts `key` and the grids above it among the grids to evaluate.
+    void Count(const GridKey& key) {
+        if (key.group && generated_.layout.groups[*key.group].grids[key.index].parent) {
+            Count(ParentKey(key));
+        }
+        const bool seen = std::any_of(keys_.begin(), keys_.end(), [&](const GridKey& other) {
+            return other.grid == key.grid && other.region == key.region;
+        });
+        if (!seen) {
+            keys_.push_back(key);
+        }
+    }
+
+    const Terrain& TerrainOf(const GridKey& key) const {
+        return key.group ? generated_.nested[*key.group].GridTerrain(key.index)
+                         : generated_.terrain;
+    }
+
+    /// The index of the heights over `key`, evaluated the first time after the grid above it.
+    std::size_t Heights(const GridKey& key) {
+        if (const GeneratedGrid* existing = generated_.Find(key.grid, key.region)) {
+            return static_cast<std::size_t>(existing - generated_.grids.data());
+        }
+        std::optional<std::size_t> parent;
+        if (key.group && generated_.layout.groups[*key.group].grids[key.index].parent) {
+            parent = Heights(ParentKey(key));
+        }
+        const Surface& surface = generated_.terrain.surface;
+        LogInfo("pipeline", "Grid ", generated_.grids.size() + 1, " of ", keys_.size(), ": ",
+                key.grid.width, "x", key.grid.height, " at ",
+                FormatSpacing(key.grid.Spacing(surface)),
+                key.region ? " in region " + config_.regions[*key.region].name : std::string());
+        EvaluationOptions options{0.0, threads_, generated_.backend};
+        const std::size_t upscaling =
+            key.region ? config_.regions[*key.region].upscaling.size() : 0;
+        const std::size_t offset = key.region ? upscalingSteps_[*key.region] : 0;
+        options.onLayer = [this, upscaling, offset](std::size_t step, double milliseconds) {
+            Timed(step < upscaling ? offset + step : step - upscaling, milliseconds);
+        };
+        Raster<float> heights =
+            key.group
+                ? generated_.nested[*key.group].Evaluate(
+                      key.index, parent ? &generated_.grids[*parent].heights : nullptr, options)
+                : Evaluate(generated_.terrain, key.grid, options);
+        GeneratedGrid generated;
+        generated.heights = std::move(heights);
+        generated.region = key.region;
+        generated_.grids.push_back(std::move(generated));
+        return generated_.grids.size() - 1;
+    }
+
+    void AddAlbedo(const RasterGrid& grid, const Terrain& terrain, GeneratedGrid& target) {
         const Stopwatch stopwatch;
-        const Terrain& terrain = generated_.terrain;
         if (!albedo_) {
-            albedo_ = BuildAlbedo(config_, terrain, directory_);
+            albedo_ = BuildAlbedo(config_, generated_.terrain, directory_);
         }
         const TerrainGround ground(terrain, terrain.layers.size());
         AlbedoContext context;
@@ -197,83 +272,11 @@ class GridGenerator {
     GeneratedTerrain& generated_;
     const std::filesystem::path& directory_;
     unsigned threads_;
-    std::vector<RasterGrid> grids_;
+    std::vector<GridKey> keys_;
     std::vector<StepTime> steps_;
+    std::vector<std::size_t> upscalingSteps_;
     std::optional<Albedo> albedo_;
 };
-
-/// `value` rounded to a whole number when within rounding of one, as cell positions on a coarser
-/// lattice are.
-double Snapped(double value) {
-    const double nearest = std::round(value);
-    return std::fabs(value - nearest) < 1e-9 ? nearest : value;
-}
-
-/// `heights` interpolated bilinearly at world (`x`, `y`) between cell centres; NaN outside them or
-/// next to a cell without data.
-double Bilinear(const Raster<float>& heights, double x, double y) {
-    const Vec2d pixel = heights.Transform().WorldToPixel(x, y);
-    const double u = Snapped(pixel.x - 0.5);
-    const double v = Snapped(pixel.y - 0.5);
-    const double col = std::floor(u);
-    const double row = std::floor(v);
-    const double fu = u - col;
-    const double fv = v - row;
-    const auto at = [&](double c, double r, double weight) {
-        if (weight == 0.0) {
-            return 0.0;
-        }
-        if (c < 0.0 || r < 0.0 || c >= static_cast<double>(heights.Width()) ||
-            r >= static_cast<double>(heights.Height())) {
-            return std::numeric_limits<double>::quiet_NaN();
-        }
-        const float value = heights(static_cast<std::size_t>(c), static_cast<std::size_t>(r));
-        return heights.IsNoData(value) ? std::numeric_limits<double>::quiet_NaN()
-                                       : weight * static_cast<double>(value);
-    };
-    return at(col, row, (1.0 - fu) * (1.0 - fv)) + at(col + 1.0, row, fu * (1.0 - fv)) +
-           at(col, row + 1.0, (1.0 - fu) * fv) + at(col + 1.0, row + 1.0, fu * fv);
-}
-
-/// Blends each hierarchy level's heights toward its parent's over `cells` cells along its edges,
-/// with a smoothstep from the parent's on the edge, so the levels' meshes meet without gaps;
-/// parents blend first.
-void BlendHierarchyEdges(const std::vector<config::HierarchyGrid>& grids, std::size_t cells,
-                         GeneratedTerrain& generated) {
-    const Surface& surface = generated.terrain.surface;
-    for (const config::HierarchyGrid& grid : grids) {
-        if (!grid.parent) {
-            continue;
-        }
-        GeneratedGrid* child = generated.Find(config::RegionGrid(grid.grid, surface));
-        const GeneratedGrid* parent =
-            generated.Find(config::RegionGrid(grids[*grid.parent].grid, surface));
-        if (!child || !parent) {
-            continue;
-        }
-        Raster<float>& heights = child->heights;
-        const std::size_t width = heights.Width();
-        const std::size_t height = heights.Height();
-        for (std::size_t row = 0; row < height; ++row) {
-            for (std::size_t col = 0; col < width; ++col) {
-                const std::size_t edge =
-                    std::min(std::min(col, row), std::min(width - 1 - col, height - 1 - row));
-                if (edge >= cells || heights.IsNoData(heights(col, row))) {
-                    continue;
-                }
-                const Vec2d centre = heights.CellCenter(col, row);
-                const double outer = Bilinear(parent->heights, centre.x, centre.y);
-                if (std::isnan(outer)) {
-                    continue;
-                }
-                const double t = static_cast<double>(edge) / static_cast<double>(cells);
-                const double weight = t * t * (3.0 - 2.0 * t);
-                heights(col, row) = static_cast<float>(
-                    outer + weight * (static_cast<double>(heights(col, row)) - outer));
-            }
-        }
-    }
-}
 
 /// What `WriteOutputs` writes one output from.
 struct OutputContext {
@@ -281,23 +284,32 @@ struct OutputContext {
     std::optional<RasterGrid> grid;         ///< The grid the output covers; none for a mesh.
     double spacing = 0.0;                   ///< The output's sample spacing; 0 for its grid's.
     const TerrainConfig* config = nullptr;  ///< The configuration the outputs come from.
-    std::vector<PlacedBoulderSet>* placed = nullptr;  ///< Boulders placed for earlier outputs.
+    std::vector<PlacedBoulderSet>* placed = nullptr;   ///< Boulders placed for earlier outputs.
+    const config::ResolvedOutput* resolved = nullptr;  ///< The output and what it covers.
+
+    /// The terrain the output is evaluated with: a region's for its levels, else the terrain.
+    const Terrain& Evaluated() const {
+        return resolved->group
+                   ? generated.nested[*resolved->group].GridTerrain(resolved->grids.front())
+                   : generated.terrain;
+    }
 
     /// The boulders placed over the output's grid, placed once for every output that lists them.
     const BoulderFeatures& Boulders() const {
         for (const PlacedBoulderSet& set : *placed) {
-            if (set.grid == *grid && set.spacing == spacing) {
+            if (set.grid == *grid && set.region == resolved->region && set.spacing == spacing) {
                 return set.features;
             }
         }
-        placed->push_back({*grid, spacing, PlacedBoulders(generated.terrain, *grid, spacing)});
+        placed->push_back(
+            {*grid, resolved->region, spacing, PlacedBoulders(Evaluated(), *grid, spacing)});
         return placed->back().features;
     }
 
     /// The heights and albedo generated over the output's grid.
     /// @throws std::runtime_error if they were not generated.
     const GeneratedGrid& Generated(const std::filesystem::path& path) const {
-        const GeneratedGrid* found = grid ? generated.Find(*grid) : nullptr;
+        const GeneratedGrid* found = grid ? generated.Find(*grid, resolved->region) : nullptr;
         if (!found) {
             throw std::runtime_error("No heights generated for " + path.string());
         }
@@ -368,7 +380,7 @@ bool Write(const CraterListOutput& output, const std::filesystem::path& path,
            const OutputContext& context) {
     const Stopwatch stopwatch;
     const CraterFeatures placed =
-        PlacedCraters(context.generated.terrain, *context.grid, context.spacing);
+        PlacedCraters(context.Evaluated(), *context.grid, context.spacing);
     WriteCraterList(placed.craters, path, output.format, placed.attributes);
     LogInfo("pipeline", "Wrote ", placed.craters.Size(), " craters to ", path.string(), " in ",
             FormatDuration(stopwatch.Milliseconds()));
@@ -439,19 +451,63 @@ bool Write(const TerrainMeshOutput& output, const std::filesystem::path& path,
     return true;
 }
 
+/// Writes a nested mesh output: one merged mesh, or one mesh per grid, and returns the paths.
+/// @param prepare Resolves a relative path and creates its folder.
+/// @throws std::runtime_error if a grid's heights were not generated.
+template <typename Prepare>
+std::vector<std::filesystem::path>
+WriteNestedMesh(const NestedMeshOutput& output, const config::ResolvedOutput& resolved,
+                const GeneratedTerrain& generated, const Prepare& prepare) {
+    const Stopwatch stopwatch;
+    const NestedTerrain& nested = generated.nested[*resolved.group];
+    std::vector<Raster<float>> heights(nested.Grids().size());
+    for (std::size_t index : resolved.grids) {
+        const NestedGrid& grid = nested.Grids()[index];
+        const std::optional<std::size_t> region =
+            grid.region ? std::optional<std::size_t>(
+                              generated.layout.groups[*resolved.group].regions[*grid.region])
+                        : std::nullopt;
+        const GeneratedGrid* found = generated.Find(grid.grid, region);
+        if (!found) {
+            throw std::runtime_error("No heights generated for " + output.path);
+        }
+        heights[index] = found->heights;
+    }
+    const auto write = [&](const std::filesystem::path& path, TriangleMesh mesh) {
+        const std::size_t triangles = mesh.triangles.size();
+        std::vector<Vec3d> normals = VertexNormals(mesh);
+        WriteMesh(path, {std::move(mesh), std::move(normals), {"terrain", {0.5, 0.5, 0.5}}});
+        LogInfo("pipeline", "Wrote a nested mesh of ", triangles, " triangles to ", path.string(),
+                " in ", FormatDuration(stopwatch.Milliseconds()));
+    };
+    std::vector<std::filesystem::path> written;
+    if (!config::SplitsNestedMesh(output)) {
+        written.push_back(prepare(output.path));
+        write(written.back(), nested.Mesh(heights, resolved.grids, output.skirt));
+        return written;
+    }
+    for (std::size_t index : resolved.grids) {
+        written.push_back(
+            prepare(config::NestedMeshFile(output, generated.layout, *resolved.group, index)));
+        write(written.back(), nested.GridMesh(heights[index], index, resolved.grids, output.skirt));
+    }
+    return written;
+}
+
 }  // namespace
 
-const GeneratedGrid* GeneratedTerrain::Find(const RasterGrid& grid) const {
+const GeneratedGrid* GeneratedTerrain::Find(const RasterGrid& grid,
+                                            std::optional<std::size_t> region) const {
     for (const GeneratedGrid& generated : grids) {
-        if (RasterGrid::FromRaster(generated.heights) == grid) {
+        if (generated.region == region && RasterGrid::FromRaster(generated.heights) == grid) {
             return &generated;
         }
     }
     return nullptr;
 }
 
-GeneratedGrid* GeneratedTerrain::Find(const RasterGrid& grid) {
-    return const_cast<GeneratedGrid*>(std::as_const(*this).Find(grid));
+GeneratedGrid* GeneratedTerrain::Find(const RasterGrid& grid, std::optional<std::size_t> region) {
+    return const_cast<GeneratedGrid*>(std::as_const(*this).Find(grid, region));
 }
 
 GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
@@ -461,18 +517,15 @@ GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
     generated.backend = ResolveBackend(backend.value_or(DefaultBackend()));
     const Stopwatch stopwatch;
     const Surface& surface = generated.terrain.surface;
-    const std::vector<OutputSpec> outputs =
-        config::ConfigOutputs(config, BaseGrid(generated.terrain), surface);
+    const std::optional<RasterGrid> base = BaseGrid(generated.terrain);
+    generated.layout = config::LayOutRegions(config.regions, base, surface);
+    generated.nested =
+        config::BuildNestedTerrains(config, generated.terrain, generated.layout, directory);
+    const std::vector<config::ResolvedOutput> outputs =
+        config::ResolveOutputs(config, base, surface, generated.layout);
     GridGenerator generator(config, outputs, generated, directory, threads);
-    for (const OutputSpec& output : outputs) {
-        if (WritesGrid(output)) {
-            generator.Generate(output);
-        }
-    }
-    if (config.hierarchy && config.hierarchy->blendCells > 0) {
-        BlendHierarchyEdges(
-            config::HierarchyGrids(*config.hierarchy, BaseGrid(generated.terrain), surface),
-            config.hierarchy->blendCells, generated);
+    for (const config::ResolvedOutput& output : outputs) {
+        generator.Generate(output);
     }
     generated.geoKeys = OutputGeoKeys(generated.terrain);
     generated.seconds = stopwatch.Milliseconds() / 1000.0;
@@ -505,35 +558,53 @@ std::vector<std::filesystem::path> WriteOutputs(const TerrainConfig& config,
                                                 const GeneratedTerrain& terrain,
                                                 const std::filesystem::path& directory) {
     const std::optional<RasterGrid> base = BaseGrid(terrain.terrain);
+    const Surface& surface = terrain.terrain.surface;
+    const std::vector<config::ResolvedOutput> outputs =
+        config::ResolveOutputs(config, base, surface, terrain.layout);
     std::vector<std::filesystem::path> written;
     std::vector<PlacedBoulderSet> placed;
-    for (const OutputSpec& spec : config::ConfigOutputs(config, base, terrain.terrain.surface)) {
-        const std::string& relative =
-            std::visit([](const auto& output) -> const std::string& { return output.path; }, spec);
+    const auto prepare = [&](const std::string& relative) {
         const std::filesystem::path path = config::Resolve(relative, directory);
         if (path.has_parent_path()) {
             std::filesystem::create_directories(path.parent_path());
         }
-        const OutputContext context{terrain,
-                                    config::OutputGrid(spec, base, terrain.terrain.surface),
-                                    config::OutputSpacing(spec), &config, &placed};
-        if (std::holds_alternative<MeshOutput>(spec) == context.grid.has_value()) {
+        return path;
+    };
+    for (const config::ResolvedOutput& output : outputs) {
+        if (const auto* mesh = std::get_if<NestedMeshOutput>(&output.spec)) {
+            for (const auto& path : WriteNestedMesh(*mesh, output, terrain, prepare)) {
+                written.push_back(path);
+            }
+            continue;
+        }
+        if (const auto* manifest = std::get_if<ManifestOutput>(&output.spec)) {
+            const std::filesystem::path path = prepare(manifest->path);
+            WriteFile(path, config::RegionManifest(*manifest, terrain.layout, outputs, surface));
+            written.push_back(path);
+            continue;
+        }
+        const std::string& relative =
+            std::visit([](const auto& o) -> const std::string& { return o.path; }, output.spec);
+        const std::filesystem::path path = prepare(relative);
+        const OutputContext context{terrain, output.grid, config::OutputSpacing(output.spec),
+                                    &config, &placed,     &output};
+        if (std::holds_alternative<MeshOutput>(output.spec) == context.grid.has_value()) {
             throw std::runtime_error("No grid to write " + path.string() + " over");
         }
-        if (std::visit([&](const auto& output) { return Write(output, path, context); }, spec)) {
+        const bool wrote = std::visit(
+            [&](const auto& o) {
+                using Output = std::decay_t<decltype(o)>;
+                if constexpr (std::is_same_v<Output, NestedMeshOutput> ||
+                              std::is_same_v<Output, ManifestOutput>) {
+                    return false;
+                } else {
+                    return Write(o, path, context);
+                }
+            },
+            output.spec);
+        if (wrote) {
             written.push_back(path);
         }
-    }
-    if (config.hierarchy && !config.hierarchy->manifest.empty()) {
-        const std::filesystem::path path = config::Resolve(config.hierarchy->manifest, directory);
-        if (path.has_parent_path()) {
-            std::filesystem::create_directories(path.parent_path());
-        }
-        WriteFile(path, config::HierarchyManifest(*config.hierarchy,
-                                                  config::HierarchyGrids(*config.hierarchy, base,
-                                                                         terrain.terrain.surface),
-                                                  terrain.terrain.surface));
-        written.push_back(path);
     }
     return written;
 }

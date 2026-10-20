@@ -225,28 +225,40 @@ def test_generated_grids_know_their_grid_and_list_features_over_any(generated):
     )
 
 
-def test_a_hierarchy_writes_nested_grids_meshes_and_a_manifest(tmp_path):
+def test_regions_write_every_level_a_nested_mesh_and_a_manifest(tmp_path):
     config = terraingen.Config.from_dict(
         {
             "schema_version": 1,
             "layers": [{"type": "noise", "stack": [{"wavelength": 40, "amplitude": 2}]}],
-            "hierarchy": {
-                "path": "site/region_{region}_level_{level}",
-                "base": {"width": 33, "height": 33, "pixel_size": 2},
-                "regions": [{"centre_x": 5, "centre_y": -3, "size": 16, "levels": 2}],
-                "products": ["heightmap", "terrain_mesh"],
-                "skirt": 1.0,
-                "manifest": "site/manifest.json",
-            },
+            "regions": [
+                {
+                    "name": "site",
+                    "centre_x": 5,
+                    "centre_y": -3,
+                    "base": {"width": 33, "height": 33, "pixel_size": 2},
+                    "repeat": {"count": 2, "size": 16},
+                }
+            ],
+            "outputs": [
+                {"type": "heightmap", "path": "site/{region}_{level}.tif", "nested": {"region": "site"}},
+                {"type": "nested_mesh", "path": "site/site.glb", "regions": ["site"], "skirt": 1.0},
+                {"type": "manifest", "path": "site/manifest.json"},
+            ],
         }
     )
-    assert len(config.output_grids()) == 6
+    assert len(config.output_grids()) == 5
     written = terraingen.write_outputs(config, terraingen.generate_terrain(config, tmp_path), tmp_path)
-    assert len(written) == 7 and written[-1].name == "manifest.json"
+    assert [path.name for path in written] == [
+        "site_0.tif",
+        "site_1.tif",
+        "site_2.tif",
+        "site.glb",
+        "manifest.json",
+    ]
     manifest = json.loads((tmp_path / "site" / "manifest.json").read_text())
     assert [grid["level"] for grid in manifest["grids"]] == [0, 1, 2]
     assert manifest["grids"][2]["parent"] == 1
-    assert (tmp_path / manifest["grids"][2]["files"]["terrain_mesh"]).exists()
+    assert manifest["grids"][2]["files"]["nested_mesh"] == ["site/site.glb"]
 
 
 def test_height_mesh_cuts_out_boxes_and_hangs_skirts():
@@ -285,6 +297,10 @@ def test_a_nested_terrain_refines_regions_built_in_python():
     np.testing.assert_array_equal(nested.evaluate(2, heights[1]).values, fine)
     mesh = nested.mesh(heights, [0, 1, 2], skirt=1.0)
     assert mesh.triangle_count > 0
+    assert (
+        nested.grid_mesh(heights[0], 0, [0, 1]).triangle_count
+        < nested.grid_mesh(heights[0], 0, [0]).triangle_count
+    )
     with pytest.raises(ValueError, match="overlaps"):
         terraingen.nest_grids(
             base, [region, terraingen.NestedRegion(name="b", centre=(6.0, -2.0), levels=levels)]

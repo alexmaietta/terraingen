@@ -6,8 +6,10 @@
 #include "terraingen/config/json.h"
 #include "terraingen/raster/resample.h"
 #include "terraingen/terraingen.h"
+#include "terraingen/util/files.h"
 
 #include <gtest/gtest.h>
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <string>
@@ -674,101 +676,198 @@ TEST(GenerateTerrain, ContinuesADemsSpectrumOnlyBelowItsCells) {
 
 namespace {
 
-/// A DEM expanded by midpoint displacement in a hierarchy of two levels about its centre.
-TerrainConfig DemHierarchy(std::size_t blendCells) {
+/// A DEM refined in a region of two levels about its centre, expanded by midpoint displacement,
+/// with heightmaps of every level and a merged nested mesh.
+TerrainConfig DemRegions(std::size_t blendCells) {
     TerrainConfig config = RasterConfig("dem.tif");
-    config.layers = {terraingen::MidpointDisplacementLayerSpec{}};
-    config.outputs.clear();
-    terraingen::HierarchySpec hierarchy;
-    hierarchy.regions = {{1100.0, 1925.0, 50.0, 2}};
-    hierarchy.products = {terraingen::HierarchyProduct::Heightmap,
-                          terraingen::HierarchyProduct::TerrainMesh};
-    hierarchy.blendCells = blendCells;
-    hierarchy.skirt = 1.0;
-    config.hierarchy = hierarchy;
+    terraingen::RegionSpec site;
+    site.name = "site";
+    site.centreX = 1100.0;
+    site.centreY = 1925.0;
+    site.repeat = terraingen::RepeatedLevelsSpec{2, 2, 2.0, 50.0};
+    site.upscaling = {terraingen::MidpointDisplacementLayerSpec{}};
+    site.blendCells = blendCells;
+    config.regions = {site};
+    terraingen::HeightmapOutput levels;
+    levels.path = "site_{level}.tif";
+    levels.nested = terraingen::NestedLevelRef{"site", std::nullopt};
+    config.outputs = {levels, terraingen::NestedMeshOutput{"site.glb", {"site"}, 1.0}};
     return config;
 }
 
-/// The heights generated over level `level` of a `DemHierarchy`.
-const terraingen::Raster<float>& Level(const terraingen::GeneratedTerrain& generated,
-                                       std::size_t level) {
-    return generated.grids.at(level).heights;
+/// The path of the `ConfigError` validating `config` throws, or "none".
+std::string ErrorPath(const TerrainConfig& config, const std::filesystem::path& folder) {
+    try {
+        terraingen::ValidateConfig(config, folder);
+    } catch (const ConfigError& error) {
+        return error.Path();
+    }
+    return "none";
 }
 
 }  // namespace
 
-TEST(GenerateTerrain, NestsHierarchyLevelsOnEachOthersCells) {
-    const auto folder = TempPath("terraingen_hierarchy");
+TEST(GenerateTerrain, NestsRegionLevelsOnEachOthersCells) {
+    const auto folder = TempPath("terraingen_regions");
     const auto dem = WriteDem(folder, "dem.tif");
-    const TerrainConfig config = DemHierarchy(0);
+    const TerrainConfig config = DemRegions(0);
     const auto summary = terraingen::ValidateConfig(config, folder);
-    ASSERT_EQ(summary.outputGrids.size(), 6u);
+    ASSERT_EQ(summary.outputGrids.size(), 4u);
+    EXPECT_FALSE(summary.outputGrids[3].has_value()) << "the nested mesh";
     const auto generated = GenerateTerrain(config, folder);
     ASSERT_EQ(generated.grids.size(), 3u);
-    ExpectSameRaster(Level(generated, 0), dem);
-    const auto& coarse = Level(generated, 1);
-    const auto& fine = Level(generated, 2);
+    ASSERT_EQ(generated.nested.size(), 1u);
+    EXPECT_FALSE(generated.grids[0].region.has_value());
+    EXPECT_EQ(generated.grids[2].region, 0u);
+    ExpectSameRaster(generated.grids[0].heights, dem);
+    const auto& coarse = generated.grids[1].heights;
+    const auto& fine = generated.grids[2].heights;
     ASSERT_EQ(coarse.Width(), 21u);
     ASSERT_EQ(fine.Width(), 21u);
     EXPECT_EQ(coarse.CellCenter(10, 10).x, 1102.5) << "snapped to a DEM cell centre";
-    for (std::size_t row = 0; row < 21; row += 2) {
-        for (std::size_t col = 0; col < 21; col += 2) {
-            ASSERT_EQ(coarse(col, row), dem(15 + col / 2, 10 + row / 2));
-            ASSERT_EQ(fine(col, row), coarse(5 + col / 2, 5 + row / 2));
+    EXPECT_EQ(generated.Find(terraingen::RasterGrid::FromRaster(coarse), 0u), &generated.grids[1]);
+    EXPECT_EQ(generated.Find(terraingen::RasterGrid::FromRaster(coarse)), nullptr)
+        << "the terrain itself was not evaluated there";
+    bool expanded = false;
+    for (std::size_t row = 0; row < 21; ++row) {
+        for (std::size_t col = 0; col < 21; ++col) {
+            if (col % 2 == 0 && row % 2 == 0) {
+                ASSERT_EQ(coarse(col, row), dem(15 + col / 2, 10 + row / 2));
+                ASSERT_EQ(fine(col, row), coarse(5 + col / 2, 5 + row / 2));
+            } else {
+                expanded = expanded || fine(col, row) != fine(col - col % 2, row - row % 2);
+            }
         }
     }
+    EXPECT_TRUE(expanded);
 
-    const auto blended = GenerateTerrain(DemHierarchy(4), folder);
-    const auto& edged = Level(blended, 1);
+    const auto blended = GenerateTerrain(DemRegions(4), folder);
+    const auto& edged = blended.grids[1].heights;
     for (std::size_t col = 1; col < 21; col += 2) {
         const double between = 0.5 * (static_cast<double>(dem(15 + col / 2, 10)) +
                                       static_cast<double>(dem(16 + col / 2, 10)));
-        EXPECT_NEAR(edged(col, 0), between, 1e-4) << "linear between the parent's edge nodes";
+        EXPECT_NEAR(edged(col, 0), between, 1e-4) << "linear between the cells above";
     }
     for (std::size_t row = 4; row < 17; ++row) {
         for (std::size_t col = 4; col < 17; ++col) {
             ASSERT_EQ(edged(col, row), coarse(col, row)) << "untouched inside the band";
         }
     }
-    EXPECT_NE(edged(1, 1), coarse(1, 1));
 }
 
-TEST(WriteOutputs, WritesEveryHierarchyFileAndItsManifest) {
-    const auto folder = TempPath("terraingen_hierarchy_files");
+TEST(WriteOutputs, WritesEveryLevelNestedMeshesAndAManifest) {
+    const auto folder = TempPath("terraingen_region_files");
     WriteDem(folder, "dem.tif");
-    TerrainConfig config = DemHierarchy(4);
-    config.hierarchy->path = "site/region_{region}_level_{level}";
-    config.hierarchy->manifest = "site/manifest.json";
+    TerrainConfig config = DemRegions(4);
+    config.outputs.push_back(terraingen::NestedMeshOutput{"split/{level}.obj", {"site"}, 0.0});
+    terraingen::TerrainMeshOutput base;
+    base.path = "base.stl";
+    base.nested = terraingen::NestedLevelRef{"site", 0};
+    terraingen::CraterListOutput craters;
+    craters.path = "site_{level}_craters.csv";
+    craters.nested = terraingen::NestedLevelRef{"site", std::nullopt};
+    config.outputs.push_back(base);
+    config.outputs.push_back(craters);
+    config.outputs.push_back(terraingen::ManifestOutput{"manifest.json", {}});
     const auto generated = GenerateTerrain(config, folder);
     const auto written = terraingen::WriteOutputs(config, generated, folder);
-    ASSERT_EQ(written.size(), 7u);
-    for (const char* name : {"region_0_level_0.tif", "region_0_level_1.tif", "region_0_level_2.tif",
-                             "region_0_level_0.glb", "region_0_level_2.glb", "manifest.json"}) {
-        EXPECT_TRUE(std::filesystem::exists(folder / "site" / name)) << name;
+    ASSERT_EQ(written.size(), 3u + 1u + 3u + 1u + 3u + 1u);
+    for (const char* name : {"site_0.tif", "site_2.tif", "site.glb", "split/0.obj", "split/2.obj",
+                             "base.stl", "site_1_craters.csv", "manifest.json"}) {
+        EXPECT_TRUE(std::filesystem::exists(folder / name)) << name;
     }
-    EXPECT_EQ(written.back(), folder / "site" / "manifest.json");
-
-    config.hierarchy->manifest.clear();
-    EXPECT_EQ(terraingen::WriteOutputs(config, generated, folder).size(), 6u);
-
-    config.hierarchy->products = {terraingen::HierarchyProduct::CraterList};
-    const auto lists = GenerateTerrain(config, folder);
-    EXPECT_TRUE(lists.grids.empty()) << "no grids to blend";
-    EXPECT_EQ(terraingen::WriteOutputs(config, lists, folder).size(), 3u);
+    const auto manifest = nlohmann::json::parse(terraingen::ReadFile(folder / "manifest.json"));
+    ASSERT_EQ(manifest["grids"].size(), 3u);
+    const auto& top = manifest["grids"][0];
+    EXPECT_TRUE(top["region"].is_null());
+    EXPECT_EQ(top["files"]["heightmap"], nlohmann::json::array({"site_0.tif"}));
+    EXPECT_EQ(top["files"]["terrain_mesh"], nlohmann::json::array({"base.stl"}));
+    EXPECT_EQ(top["files"]["nested_mesh"], nlohmann::json::array({"site.glb", "split/0.obj"}));
+    const auto& finest = manifest["grids"][2];
+    EXPECT_EQ(finest["region"], "site");
+    EXPECT_EQ(finest["level"], 2);
+    EXPECT_EQ(finest["parent"], 1);
+    EXPECT_EQ(finest["pixel_size"], 1.25);
+    EXPECT_EQ(finest["files"]["crater_list"], nlohmann::json::array({"site_2_craters.csv"}));
 }
 
-TEST(ValidateConfig, NamesTheHierarchyRegionThatOverlapsAnother) {
-    const auto folder = TempPath("terraingen_hierarchy_overlap");
+TEST(ValidateConfig, NamesTheRegionOrOutputAtFault) {
+    const auto folder = TempPath("terraingen_region_errors");
     WriteDem(folder, "dem.tif");
-    TerrainConfig config = DemHierarchy(4);
-    config.hierarchy->regions.push_back({1110.0, 1930.0, 20.0, 1});
-    try {
-        terraingen::ValidateConfig(config, folder);
-        ADD_FAILURE() << "overlapping regions";
-    } catch (const ConfigError& error) {
-        EXPECT_EQ(error.Path(), "hierarchy.regions[1]");
-    }
-    config.hierarchy->products = {terraingen::HierarchyProduct::Albedo};
-    config.hierarchy->regions.pop_back();
-    EXPECT_THROW(terraingen::ValidateConfig(config, folder), ConfigError) << "no albedo";
+    EXPECT_EQ(ErrorPath(DemRegions(4), folder), "none");
+    const auto with = [&](auto change) {
+        TerrainConfig config = DemRegions(4);
+        change(config);
+        return ErrorPath(config, folder);
+    };
+    EXPECT_EQ(with([](TerrainConfig& c) {
+                  c.regions.push_back(c.regions[0]);
+                  c.regions[1].name = "near";
+                  c.regions[1].centreX = 1110.0;
+              }),
+              "regions[1]");
+    EXPECT_EQ(with([](TerrainConfig& c) { c.regions[0].levels = {{2.5, 50.0}}; }), "regions[0]")
+        << "levels and repeat";
+    EXPECT_EQ(with([](TerrainConfig& c) {
+                  c.base.reset();
+                  c.regions[0].upscaling.clear();
+                  c.outputs.pop_back();
+              }),
+              "regions[0].base");
+    EXPECT_EQ(with([](TerrainConfig& c) {
+                  terraingen::MidpointDisplacementLayerSpec bad;
+                  bad.fractalDimension = 3.5;
+                  c.regions[0].upscaling = {bad};
+              }),
+              "regions[0].upscaling[0].fractal_dimension");
+    EXPECT_EQ(
+        with([](TerrainConfig& c) { c.regions[0].upscaling = {terraingen::SecondaryLayerSpec{}}; }),
+        "regions[0].upscaling[0]");
+    const auto heightmap = [](TerrainConfig& c) -> terraingen::HeightmapOutput& {
+        return std::get<terraingen::HeightmapOutput>(c.outputs[0]);
+    };
+    EXPECT_EQ(with([&](TerrainConfig& c) { heightmap(c).nested->region = "other"; }),
+              "outputs[0].nested.region");
+    EXPECT_EQ(with([&](TerrainConfig& c) { heightmap(c).nested->level = 3; }),
+              "outputs[0].nested.level");
+    EXPECT_EQ(with([&](TerrainConfig& c) { heightmap(c).path = "site.tif"; }), "outputs[0].path");
+    EXPECT_EQ(
+        with([&](TerrainConfig& c) { heightmap(c).region = terraingen::testing::SmallRegion(); }),
+        "outputs[0].region");
+    EXPECT_EQ(with([](TerrainConfig& c) {
+                  std::get<terraingen::NestedMeshOutput>(c.outputs[1]).regions.clear();
+              }),
+              "outputs[1].regions");
+    EXPECT_EQ(with([](TerrainConfig& c) {
+                  std::get<terraingen::NestedMeshOutput>(c.outputs[1]).path = "site.tif";
+              }),
+              "outputs[1].path");
+    EXPECT_EQ(with([](TerrainConfig& c) {
+                  terraingen::RegionSpec apart = c.regions[0];
+                  apart.name = "apart";
+                  apart.base = terraingen::GridRegionSpec{65, 65, 2.0, 0.0, 0.0};
+                  apart.centreX = 0.0;
+                  apart.centreY = 0.0;
+                  apart.upscaling.clear();
+                  c.regions.push_back(apart);
+                  std::get<terraingen::NestedMeshOutput>(c.outputs[1]).regions.push_back("apart");
+              }),
+              "outputs[1].regions[1]")
+        << "on another base";
+    EXPECT_EQ(with([](TerrainConfig& c) {
+                  c.regions.push_back(c.regions[0]);
+                  c.regions[1].name = "far";
+                  c.regions[1].centreX = 1030.0;
+                  c.regions[1].centreY = 1960.0;
+                  c.regions[1].repeat->size = 20.0;
+                  auto& mesh = std::get<terraingen::NestedMeshOutput>(c.outputs[1]);
+                  mesh.regions.push_back("far");
+                  mesh.path = "{level}.glb";
+              }),
+              "outputs[1].path")
+        << "{level} without {region} for two regions";
+    EXPECT_EQ(with([](TerrainConfig& c) {
+                  c.outputs.push_back(terraingen::ManifestOutput{"m.json", {"nowhere"}});
+              }),
+              "outputs[2].regions[0]");
 }

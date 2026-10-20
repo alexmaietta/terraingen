@@ -1,0 +1,94 @@
+{
+    "schema_version": 1,
+    "layers": [
+        {
+            "type": "noise",
+            "stack": [
+                {
+                    "seed": 3,
+                    "wavelength": 600,
+                    "amplitude": 30,
+                    "octaves": 5
+                }
+            ]
+        }
+    ],
+    "regions": [
+        {
+            "name": "landing",
+            "centre_x": -150,
+            "centre_y": 100,
+            "base": {
+                "width": 257,
+                "height": 257,
+                "pixel_size": 4
+            },
+            "repeat": {
+                "count": 3,
+                "size": 256
+            },
+            "upscaling": [
+                {
+                    "type": "midpoint_displacement",
+                    "pixel_size": 4,
+                    "origin_x": -512,
+                    "origin_y": 512,
+                    "fractal_dimension": 2.3,
+                    "scale": 0.4,
+                    "base": "source"
+                }
+            ]
+        },
+        {
+            "name": "traverse",
+            "centre_x": 250,
+            "centre_y": -200,
+            "base": {
+                "width": 257,
+                "height": 257,
+                "pixel_size": 4
+            },
+            "levels": [
+                {
+                    "pixel_size": 2,
+                    "size": 128
+                },
+                {
+                    "pixel_size": 0.5,
+                    "size": 48
+                }
+            ],
+            "blend_cells": 4
+        }
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "example_terrain_regions/{region}_{level}.tif",
+            "nested": {
+                "region": "landing"
+            }
+        },
+        {
+            "type": "heightmap",
+            "path": "example_terrain_regions/{region}_{level}.tif",
+            "nested": {
+                "region": "traverse",
+                "level": 2
+            }
+        },
+        {
+            "type": "nested_mesh",
+            "path": "example_terrain_regions/site.glb",
+            "regions": [
+                "landing",
+                "traverse"
+            ],
+            "skirt": 2
+        },
+        {
+            "type": "manifest",
+            "path": "example_terrain_regions/manifest.json"
+        }
+    ]
+}

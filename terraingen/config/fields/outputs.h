@@ -31,6 +31,19 @@ template <typename IO> void Fields(IO& io, GridRegionSpec& region) {
        "Centre of the grid along y in surface coordinates; the latitude in degrees on a body.");
 }
 
+template <typename IO> void Fields(IO& io, NestedLevelRef& nested) {
+    io("region", nested.region, "Name of the region; required.");
+    io("level", nested.level,
+       "Level of the region, 0 being the base it lies in; unset for every level, with {level} in "
+       "the path replaced by its number.");
+}
+
+/// The description of an output's nested level.
+inline std::string NestedHelp(std::string_view what) {
+    return "Level of a named region " + std::string(what) +
+           ", in place of a region; {region} in the path is replaced by its name";
+}
+
 /// The description of an output's region: `what` it covers.
 inline std::string RegionHelp(std::string_view what) {
     return "Grid of square cells " + std::string(what) + "; unset for the base's grid";
@@ -40,6 +53,7 @@ inline std::string RegionHelp(std::string_view what) {
 template <typename IO> void GeoTiffOutputFields(IO& io, GeoTiffOutput& output) {
     io("path", output.path, OutputPathHelp("GeoTIFF file to write"));
     io("region", output.region, RegionHelp("the file covers") + ".");
+    io("nested", output.nested, NestedHelp("the file covers") + ".");
     io("compression", output.compression,
        "Compression of the file; compressed files use the floating-point predictor.");
     io("tile_size", output.tileSize,
@@ -59,6 +73,7 @@ template <typename IO, typename Output> void FeatureExtentFields(IO& io, Output&
        "size. Boulder lists hold every boulder of the layers' diameter ranges, and mark models at "
        "it. A whole-body list needs it.",
        "m", Above(0.0));
+    io("nested", output.nested, NestedHelp("the features are listed over") + ".");
 }
 
 /// The fields of crater and boulder list outputs.
@@ -186,48 +201,79 @@ template <typename IO> void Fields(IO& io, TerrainMeshOutput& output) {
     io("site_y", output.siteY,
        "y of the site on a body the mesh's frame is centred on, in surface coordinates; unset "
        "for the grid's centre.");
+    io("nested", output.nested,
+       NestedHelp("the mesh covers") + "; the mesh is cut out under the region's finer levels.");
 }
 
-template <typename IO> void Fields(IO& io, HierarchyRegionSpec& region) {
-    io("centre_x", region.centreX,
-       "Centre of the square along x in surface coordinates, snapped to a cell centre of the "
-       "base.");
-    io("centre_y", region.centreY,
-       "Centre of the square along y in surface coordinates, snapped to a cell centre of the "
-       "base.");
-    io("size", region.size,
-       "Width in metres of the square at level 1, rounded to cells that end on the base's cell "
+template <> struct SpecName<NestedMeshOutput> {
+    static constexpr std::string_view kName = "nested_mesh";
+    static constexpr std::string_view kDescription =
+        "Writes the base and every level of regions sharing it as meshes, each cut out under the "
+        "finer levels and framed at the base's centre: one merged file, or one per grid with "
+        "{level} in the path.";
+};
+template <typename IO> void Fields(IO& io, NestedMeshOutput& output) {
+    io("path", output.path,
+       OutputPathHelp("File to write, ending in .glb, .gltf, .obj or .stl; with {level} (and "
+                      "{region} for several regions) one file per grid, the base being level 0 "
+                      "of the first region"));
+    io("regions", output.regions, "Names of the regions, which share a base; at least one.");
+    io("skirt", output.skirt,
+       "Depth in metres of a skirt hung below every boundary edge, hiding gaps; 0 for none.", "m",
+       AtLeast(0.0));
+}
+
+template <> struct SpecName<ManifestOutput> {
+    static constexpr std::string_view kName = "manifest";
+    static constexpr std::string_view kDescription =
+        "Writes a JSON list of the regions' bases and levels: each grid's parent, extent, pixel "
+        "size and the files the other outputs write over it.";
+};
+template <typename IO> void Fields(IO& io, ManifestOutput& output) {
+    io("path", output.path, OutputPathHelp("JSON file to write"));
+    io("regions", output.regions, "Names of the regions listed; empty for every region.");
+}
+
+template <typename IO> void Fields(IO& io, RegionLevelSpec& level) {
+    io("pixel_size", level.pixelSize,
+       "Cell size in metres: the level above's over a whole number of at least 2; required.", "m",
+       Above(0.0));
+    io("size", level.size,
+       "Width of the level in metres, rounded to cells that end on the level above's cell "
        "centres; required.",
        "m", Above(0.0));
-    io("levels", region.levels, "Levels nested in the base, each finer than the last.", "",
-       AtLeast(1.0));
 }
 
-template <typename IO> void Fields(IO& io, HierarchySpec& hierarchy) {
-    io("path", hierarchy.path,
-       OutputPathHelp("Name of each grid's files, without an extension, in which {region} and "
-                      "{level} are replaced; the base is region 0, level 0"));
-    io("base", hierarchy.base,
-       "Grid of level 0, the base of the hierarchy; unset for the base's grid, whose cells the "
-       "midpoint displacement layer expands.");
-    io("factor", hierarchy.factor, "Times finer each level is than the one it lies in.", "",
-       AtLeast(2.0));
-    io("shrink", hierarchy.shrink,
-       "Times narrower each level is than the one it lies in; the factor keeps the same number of "
+template <typename IO> void Fields(IO& io, RepeatedLevelsSpec& repeat) {
+    io("count", repeat.count, "Levels nested in the base.", "", AtLeast(1.0));
+    io("factor", repeat.factor, "Times finer each level is than the one above.", "", AtLeast(2.0));
+    io("shrink", repeat.shrink,
+       "Times narrower each level is than the one above; the factor keeps the same number of "
        "cells at every level.",
        "", AtLeast(1.0));
-    io("regions", hierarchy.regions, "The squares refined in the base, which may not overlap.");
-    io("products", hierarchy.products, "What is written over every grid.");
-    io("mesh_format", hierarchy.meshFormat, "Format of terrain meshes and boulder models.");
-    io("blend_cells", hierarchy.blendCells,
-       "Cells along a level's edges over which its heights blend from its parent's, which they "
-       "equal on the edge, so meshes meet without gaps; 0 keeps the level's own heights.");
-    io("skirt", hierarchy.skirt,
-       "Depth in metres of the skirt below each terrain mesh's boundary edges; 0 for none.", "m",
-       AtLeast(0.0));
-    io("manifest", hierarchy.manifest,
-       OutputPathHelp("JSON manifest listing each grid, its parent and its files; empty for "
-                      "none"));
+    io("size", repeat.size, "Width of level 1 in metres; required.", "m", Above(0.0));
+}
+
+template <typename IO> void Fields(IO& io, RegionSpec& region) {
+    io("name", region.name, "Name outputs refer to the region by, unique; required.");
+    io("centre_x", region.centreX,
+       "Centre along x in surface coordinates, snapped to the base's nearest cell centre; the "
+       "longitude in degrees on a body.");
+    io("centre_y", region.centreY,
+       "Centre along y in surface coordinates, snapped to the base's nearest cell centre; the "
+       "latitude in degrees on a body.");
+    io("base", region.base,
+       "Grid of level 0, which the region lies in; unset for the base's grid. Regions with the "
+       "same base may not overlap.");
+    io("levels", region.levels, "The levels from 1, each finer than the one above.");
+    io("repeat", region.repeat, "The levels as a count, in place of levels.");
+    io("upscaling", region.upscaling,
+       "Layers adding the detail of the finer levels, such as midpoint_displacement or "
+       "spectral_continuation, applied to every level after the base and before the terrain's "
+       "layers; they should add nothing at the base's pixel size.");
+    io("blend_cells", region.blendCells,
+       "Cells along each level's edges over which its heights blend from the level above's, "
+       "which they equal on the edge, so meshes meet without gaps; 0 keeps the level's own.");
 }
 
 }  // namespace terraingen::config

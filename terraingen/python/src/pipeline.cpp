@@ -609,6 +609,10 @@ void BindNested(nb::module_& m) {
             },
             "threads"_a = 0, nb::call_guard<nb::gil_scoped_release>(),
             "The heights over every grid, in the order of `grids`.")
+        .def("grid_mesh", &NestedTerrain::GridMesh, "heights"_a, "grid"_a, "among"_a,
+             "skirt"_a = 0.0,
+             "The mesh of one grid, cut out under those of its children among `among`, framed at "
+             "`site`.")
         .def("mesh", &NestedTerrain::Mesh, "heights"_a, "grids"_a, "skirt"_a = 0.0,
              "The meshes of `grids` merged into one, each cut out under those of its children "
              "among `grids`, framed at `site`.");

@@ -16,8 +16,8 @@ namespace terraingen {
 /// What a valid configuration generates, as `ValidateConfig` finds it.
 struct ConfigSummary {
     std::optional<RasterGrid> base;  ///< The base's grid; none without a base.
-    /// The grid each output covers (`config::OutputGrid`), in order, then those of the hierarchy's
-    /// outputs (`config::ConfigOutputs`); none for a mesh.
+    /// The grid each output covers, in order, an output of every level of a region once per level
+    /// (`config::ResolveOutputs`); none for a mesh, a nested mesh or a manifest.
     std::vector<std::optional<RasterGrid>> outputGrids;
     /// Craters the top-level crater layers are expected to generate over the output grid with the
     /// most; unset when none generate or no output covers a grid.

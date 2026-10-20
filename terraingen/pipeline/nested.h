@@ -146,6 +146,12 @@ class NestedTerrain {
     /// `skirt` metres deep.
     HeightMeshOptions MeshOptions(std::size_t grid, double skirt = 0.0) const;
 
+    /// The mesh of grid `grid` over `heights`, cut out under those of its children that are among
+    /// `among`, with a skirt `skirt` metres deep, in the frame of the base's centre.
+    /// @throws std::invalid_argument for heights not over the grid, or a grid index out of range.
+    TriangleMesh GridMesh(const Raster<float>& heights, std::size_t grid,
+                          const std::vector<std::size_t>& among, double skirt = 0.0) const;
+
     /// The meshes of grids `grids` merged into one, each cut out under those of its children that
     /// are among `grids`, in the frame of the base's centre (`HeightMesh`).
     /// @param heights The heights over every grid, in the order of `Grids`.
