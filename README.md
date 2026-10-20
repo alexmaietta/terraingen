@@ -60,7 +60,7 @@ terraingen --gui
 
 ### Releases
 
-Every [release](https://github.com/alexmaietta/terraingen/releases) has the CLI, library, headers and CMake package for each platform, and `.deb` packages for Ubuntu and Debian. The [latest](https://github.com/alexmaietta/terraingen/releases/tag/latest) pre-release is built from `main` on every push.
+Every [release](https://github.com/alexmaietta/terraingen/releases) has the CLI, library, headers and CMake package for each platform, and `.deb` packages for Ubuntu and Debian. The [dev](https://github.com/alexmaietta/terraingen/releases/tag/dev) pre-release is built from `main` on every push.
 
 ### Building from Source
 
@@ -80,7 +80,7 @@ To build the Python package from source, run `pip install .` instead.
 docker run --rm ghcr.io/alexmaietta/terraingen:latest terraingen --help
 ```
 
-The `dev` tag follows `main`.
+The `latest` tag is the newest release, and each release is also tagged with its version without the `v`, such as `0.1.0` and `0.1`. The `dev` tag follows `main`.
 
 ## Getting Started
 

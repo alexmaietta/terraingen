@@ -450,9 +450,10 @@ jobs:
           path: dist
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
 
-  # The "latest" pre-release: main's packages and their checksums, replaced on every push to main.
-  # Marked as a pre-release and never as the latest release, so versioned releases stay the default.
-  latest:
+  # The "dev" pre-release: main's packages and their checksums, replaced on every push to main, like
+  # the dev Docker tag and the PyPI .devN versions. Marked as a pre-release and never as the latest
+  # release, so versioned releases stay the default.
+  dev:
     needs: [lint, test, packages, package-test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
@@ -473,9 +474,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release delete latest --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
-          gh release create latest assets/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --prerelease --latest=false --title "Latest (main)" \
+          gh release delete dev --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
+          gh release create dev assets/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --prerelease --latest=false --title "Dev (main)" \
             --notes "Built from main at $GITHUB_SHA. For versioned binaries, use a tagged release."
 
   # A GitHub release for each v* tag, with every wheel, the sdist, the packages and their checksums.
