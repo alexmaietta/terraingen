@@ -119,6 +119,14 @@ Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid, double sp
 Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid,
                        const EvaluationOptions& options);
 
+/// Evaluates `terrain` over `grid` into a caller buffer, to the same bits as `Evaluate`.
+/// @param heights grid.width * grid.height heights in meters, row-major with row 0 first (north
+/// up), as `Raster` stores them.
+/// @throws std::invalid_argument as `Evaluate`, or for a buffer of another size.
+/// @throws std::runtime_error as `Evaluate`.
+void FillHeights(const Terrain& terrain, const RasterGrid& grid, Span<float> heights,
+                 const EvaluationOptions& options = {});
+
 /// Checks that a terrain can be evaluated.
 /// @throws std::invalid_argument if `terrain` holds a null layer.
 void ValidateTerrain(const Terrain& terrain);

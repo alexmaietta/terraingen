@@ -13,6 +13,7 @@
 #include "terraingen/pipeline/height_mesh.h"
 #include "terraingen/pipeline/terrain.h"
 
+#include <cstdint>
 #include <filesystem>
 #include <optional>
 #include <stdexcept>
@@ -171,20 +172,94 @@ void BindEvaluation(nb::module_& m) {
           "sampled every `spacing` metres, as a float32 array; each equals `evaluate_at` there. "
           "Batches of points are much faster than one call per point.");
     m.def(
-        "height_mesh",
+        "fill_heights",
+        [](const PyTerrain& terrain, const RasterGrid& grid, CpuOutMatrix<float> out,
+           double spacing, unsigned threads, std::optional<Backend> backend) {
+            if (out.shape(0) != grid.height || out.shape(1) != grid.width) {
+                throw std::invalid_argument("Expected a float32 array of shape (" +
+                                            std::to_string(grid.height) + ", " +
+                                            std::to_string(grid.width) + ")");
+            }
+            const Terrain built = terrain.Get();
+            nb::gil_scoped_release release;
+            FillHeights(built, grid, Span<float>(out.data(), out.size()),
+                        EvaluationOptions{spacing, threads, backend});
+        },
+        "terrain"_a, "grid"_a, nb::arg("out").noconvert(), "spacing"_a = 0.0, "threads"_a = 0,
+        "backend"_a = nb::none(),
+        "Evaluates `terrain` over `grid` into `out`, a writable C-contiguous float32 array of "
+        "shape (height, width), to the same bits as `evaluate` with the same options.");
+}
+
+/// Mesh options from the Python arguments.
+BuildMeshOptions MeshOptions(std::vector<Bounds2d> cutouts, double skirt) {
+    BuildMeshOptions options;
+    options.cutouts = std::move(cutouts);
+    options.skirt = skirt;
+    return options;
+}
+
+/// The values of an array of shape (n, 3), as one span.
+/// @throws std::invalid_argument for another number of columns.
+template <typename T> Span<T> Triples(const CpuOutMatrix<T>& array, const char* name) {
+    if (array.shape(1) != 3) {
+        throw std::invalid_argument(std::string("Expected ") + name + " of shape (n, 3)");
+    }
+    return Span<T>(array.data(), array.size());
+}
+
+void BindHeightMesh(nb::module_& m) {
+    nb::class_<MeshSize>(m, "MeshSize", "The number of vertices and triangles of a mesh.")
+        .def_ro("vertices", &MeshSize::vertices)
+        .def_ro("triangles", &MeshSize::triangles)
+        .def("__eq__", [](const MeshSize& a, const MeshSize& b) { return a == b; })
+        .def("__repr__", [](const MeshSize& s) {
+            return "MeshSize(vertices=" + std::to_string(s.vertices) +
+                   ", triangles=" + std::to_string(s.triangles) + ")";
+        });
+    m.def(
+        "build_mesh",
         [](const Raster<float>& heights, const Surface& surface, const Vec2d& site,
            std::vector<Bounds2d> cutouts, double skirt) {
-            HeightMeshOptions options;
-            options.cutouts = std::move(cutouts);
-            options.skirt = skirt;
-            return HeightMesh(heights, surface, site, options);
+            return BuildMesh(heights, surface, site, MeshOptions(std::move(cutouts), skirt));
         },
         "heights"_a, "surface"_a = Surface{}, "site"_a = Vec2d{0.0, 0.0},
         "cutouts"_a = std::vector<Bounds2d>{}, "skirt"_a = 0.0,
+        nb::call_guard<nb::gil_scoped_release>(),
         "The heights as a mesh, a vertex per cell with data, in the frame boulder models are "
-        "written in: world coordinates on a plane, east-north-up metres of `site` on a sphere. "
-        "Squares whose four cell centres lie in one of the `cutouts` boxes (min x, min y, max x, "
-        "max y) are left out, and a skirt `skirt` metres deep hangs below every boundary edge.");
+        "written in: world coordinates on a plane, east-north-up meters of `site` on a sphere. "
+        "Squares whose four cell centers lie in one of the `cutouts` boxes (min x, min y, max x, "
+        "max y) are left out, and a skirt `skirt` meters deep hangs below every boundary edge. "
+        "The mesh's `positions` and `triangles` are NumPy views of it, without a copy.");
+    m.def(
+        "get_mesh_size",
+        [](const Raster<float>& heights, std::vector<Bounds2d> cutouts, double skirt) {
+            return GetMeshSize(heights, MeshOptions(std::move(cutouts), skirt));
+        },
+        "heights"_a, "cutouts"_a = std::vector<Bounds2d>{}, "skirt"_a = 0.0,
+        nb::call_guard<nb::gil_scoped_release>(),
+        "The MeshSize `build_mesh` makes of the heights with these cutouts and skirt, to size the "
+        "arrays `fill_mesh` fills.");
+    m.def(
+        "fill_mesh",
+        [](const Raster<float>& heights, CpuOutMatrix<double> positions,
+           CpuOutMatrix<std::int32_t> triangles, const Surface& surface, const Vec2d& site,
+           std::vector<Bounds2d> cutouts, double skirt) {
+            const Span<double> points = Triples(positions, "positions");
+            const Span<std::int32_t> indices = Triples(triangles, "triangles");
+            const BuildMeshOptions options = MeshOptions(std::move(cutouts), skirt);
+            nb::gil_scoped_release release;
+            FillMesh(heights, points, indices, surface, site, options);
+        },
+        "heights"_a, nb::arg("positions").noconvert(), nb::arg("triangles").noconvert(),
+        "surface"_a = Surface{}, "site"_a = Vec2d{0.0, 0.0}, "cutouts"_a = std::vector<Bounds2d>{},
+        "skirt"_a = 0.0,
+        "Writes the mesh `build_mesh` makes, bit for bit, into writable C-contiguous arrays: "
+        "`positions` float64 of shape (vertices, 3) and `triangles` int32 of shape (triangles, "
+        "3), sized by `get_mesh_size`.");
+}
+
+void BindBodyMesh(nb::module_& m) {
     m.def(
         "body_mesh",
         [](const PyTerrain& terrain, std::size_t cellsPerFace, double spacing, unsigned threads) {
@@ -435,6 +510,8 @@ void BindPipeline(nb::module_& m) {
     BindTerrainClass(m);
     BindFeatures(m);
     BindEvaluation(m);
+    BindHeightMesh(m);
+    BindBodyMesh(m);
     BindConfig(m);
     BindGeneratedTerrain(m);
     BindRun(m);

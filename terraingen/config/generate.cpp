@@ -344,15 +344,15 @@ bool Write(const MeshOutput& output, const std::filesystem::path& path,
 bool Write(const TerrainMeshOutput& output, const std::filesystem::path& path,
            const OutputContext& context) {
     const Stopwatch stopwatch;
-    HeightMeshOptions options;
+    BuildMeshOptions options;
     options.skirt = output.skirt;
     for (const RectangleRegionSpec& cutout : output.cutouts) {
         options.cutouts.push_back({cutout.minX, cutout.minY, cutout.maxX, cutout.maxY});
     }
     const Vec2d centre = context.Centre();
     const Vec2d site{output.siteX.value_or(centre.x), output.siteY.value_or(centre.y)};
-    TriangleMesh mesh = HeightMesh(context.Generated(path).heights,
-                                   context.generated.terrain.surface, site, options);
+    TriangleMesh mesh = BuildMesh(context.Generated(path).heights,
+                                  context.generated.terrain.surface, site, options);
     const std::size_t triangles = mesh.triangles.size();
     std::vector<Vec3d> normals = VertexNormals(mesh);
     WriteMesh(path, {std::move(mesh), std::move(normals), {"terrain", {0.5, 0.5, 0.5}}});

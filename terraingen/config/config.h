@@ -1078,7 +1078,7 @@ struct MeshOutput {
 };
 
 /// Output "terrain_mesh": the heights over `region`, or the base's grid without one, as a mesh
-/// (`HeightMesh`) with smooth normals, in any format `WriteMesh` writes and in the frame boulder
+/// (`BuildMesh`) with smooth normals, in any format `WriteMesh` writes and in the frame boulder
 /// models are written in.
 struct TerrainMeshOutput {
     std::string path;
@@ -1089,7 +1089,7 @@ struct TerrainMeshOutput {
     /// Depth in metres of the skirt hung below every boundary edge, inner ones included, to hide
     /// gaps between meshes; 0 for none.
     double skirt = 0.0;
-    /// Surface coordinates of the frame's site on a body (`HeightMesh`); unset for the grid's
+    /// Surface coordinates of the frame's site on a body (`BuildMesh`); unset for the grid's
     /// centre.
     std::optional<double> siteX{};
     std::optional<double> siteY{};  ///< As `siteX`.

@@ -11,6 +11,7 @@
 
 #include <array>
 #include <cmath>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <stdexcept>
@@ -65,6 +66,31 @@ TEST(Evaluate, RunsTheSourceThenLayersOverTheSourcesGrid) {
         ASSERT_EQ(again.Values()[i], whole.Values()[i])
             << "a spacing finer than the cells is raised to them";
     }
+}
+
+TEST(FillHeights, WritesWhatEvaluateGivesToTheBitAndRejectsWrongSizes) {
+    const Terrain terrain = Rolling();
+    const RasterGrid grid = terrain.source->Grid();
+    terraingen::EvaluationOptions options;
+    options.spacing = 3.0;
+    options.threads = 2;
+    const auto expected = Evaluate(terrain, grid, options);
+    std::vector<float> heights(grid.width * grid.height, -1.0f);
+    terraingen::FillHeights(terrain, grid, heights, options);
+    ASSERT_EQ(heights.size(), expected.Size());
+    EXPECT_EQ(std::memcmp(heights.data(), expected.Values().data(), heights.size() * sizeof(float)),
+              0);
+
+    std::vector<float> defaults(grid.width * grid.height);
+    terraingen::FillHeights(terrain, grid, defaults);
+    const auto plain = Evaluate(terrain, grid);
+    EXPECT_EQ(std::memcmp(defaults.data(), plain.Values().data(), defaults.size() * sizeof(float)),
+              0);
+
+    std::vector<float> tooShort(grid.width * grid.height - 1);
+    EXPECT_THROW(terraingen::FillHeights(terrain, grid, tooShort), std::invalid_argument);
+    std::vector<float> tooLong(grid.width * grid.height + 1);
+    EXPECT_THROW(terraingen::FillHeights(terrain, grid, tooLong), std::invalid_argument);
 }
 
 TEST(Evaluate, TilesEqualTheWholeTerrain) {

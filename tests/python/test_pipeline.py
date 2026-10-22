@@ -202,11 +202,98 @@ def test_body_mesh_writes_ply_and_glb(tmp_path, lunar_site):
     assert terraingen.read_mesh(tmp_path / "moon.obj").mesh.triangle_count == mesh.triangle_count
 
 
-def test_height_mesh_has_a_vertex_per_cell(paraboloid):
+def test_build_mesh_has_a_vertex_per_cell(paraboloid):
     heights = terraingen.evaluate(terraingen.Terrain(paraboloid))
-    mesh = terraingen.height_mesh(heights)
+    mesh = terraingen.build_mesh(heights)
     assert mesh.vertex_count == heights.width * heights.height
     assert mesh.triangle_count == 2 * (heights.width - 1) * (heights.height - 1)
+    assert not hasattr(terraingen, "height_mesh")
+
+
+def test_build_mesh_views_its_arrays_without_copying(paraboloid):
+    heights = terraingen.evaluate(terraingen.Terrain(paraboloid))
+    mesh = terraingen.build_mesh(heights, skirt=1.0)
+    positions, triangles = mesh.positions, mesh.triangles
+    assert positions.shape == (mesh.vertex_count, 3) and positions.dtype == np.float64
+    assert triangles.shape == (mesh.triangle_count, 3) and triangles.dtype == np.uint32
+    assert np.shares_memory(positions, mesh.positions)
+    assert np.shares_memory(triangles, mesh.triangles)
+    copied_positions, copied_triangles = mesh.arrays
+    np.testing.assert_array_equal(positions, copied_positions)
+    np.testing.assert_array_equal(triangles, copied_triangles)
+    positions[0, 2] = 1234.5
+    assert mesh.arrays[0][0, 2] == 1234.5
+    del mesh
+    assert positions[0, 2] == 1234.5
+
+
+def _fill(heights, surface=None, site=(0.0, 0.0), cutouts=(), skirt=0.0):
+    """get_mesh_size, then fill_mesh into fresh NumPy arrays of that size."""
+    size = terraingen.get_mesh_size(heights, cutouts=list(cutouts), skirt=skirt)
+    positions = np.full((size.vertices, 3), np.nan)
+    triangles = np.full((size.triangles, 3), -1, dtype=np.int32)
+    surface = surface or terraingen.Surface()
+    terraingen.fill_mesh(heights, positions, triangles, surface, site, list(cutouts), skirt)
+    return size, positions, triangles
+
+
+def test_fill_mesh_writes_what_build_mesh_makes_into_numpy_arrays(paraboloid, moon):
+    heights = terraingen.evaluate(terraingen.Terrain(paraboloid))
+    heights.values[3, 4] = -9999.0
+    heights.nodata = -9999.0
+    first = heights.cell_center(1, 4)
+    last = heights.cell_center(3, 2)
+    box = (first[0] - 0.01, first[1] - 0.01, last[0] + 0.01, last[1] + 0.01)
+    for options in ({}, {"cutouts": [box]}, {"skirt": 2.0}, {"cutouts": [box], "skirt": 0.5}):
+        mesh = terraingen.build_mesh(heights, **options)
+        size, positions, triangles = _fill(heights, **options)
+        assert (size.vertices, size.triangles) == (mesh.vertex_count, mesh.triangle_count)
+        assert size == terraingen.get_mesh_size(heights, **options)
+        assert positions.tobytes() == mesh.positions.tobytes()
+        np.testing.assert_array_equal(triangles, mesh.triangles.astype(np.int32))
+    site = terraingen.FlatSource(9, 9, 100.0, centre=(23.47, 0.67), surface=moon)
+    spherical = terraingen.evaluate(terraingen.Terrain(site, surface=moon))
+    mesh = terraingen.build_mesh(spherical, surface=moon, site=(23.47, 0.67), skirt=3.0)
+    _, positions, triangles = _fill(spherical, surface=moon, site=(23.47, 0.67), skirt=3.0)
+    assert positions.tobytes() == mesh.positions.tobytes()
+    np.testing.assert_array_equal(triangles, mesh.triangles.astype(np.int32))
+
+
+def test_fill_mesh_rejects_arrays_it_cannot_fill_in_place(paraboloid):
+    heights = terraingen.evaluate(terraingen.Terrain(paraboloid))
+    size = terraingen.get_mesh_size(heights)
+    positions = np.zeros((size.vertices, 3))
+    triangles = np.zeros((size.triangles, 3), dtype=np.int32)
+    with pytest.raises(ValueError):
+        terraingen.fill_mesh(heights, positions[:-1], triangles)
+    with pytest.raises(ValueError):
+        terraingen.fill_mesh(heights, positions, np.zeros((size.triangles + 1, 3), dtype=np.int32))
+    with pytest.raises(TypeError):
+        terraingen.fill_mesh(heights, positions.astype(np.float32), triangles)
+    with pytest.raises(TypeError):
+        terraingen.fill_mesh(heights, positions, triangles.astype(np.int64))
+    with pytest.raises(TypeError):
+        terraingen.fill_mesh(heights, np.asfortranarray(positions), triangles)
+    positions.flags.writeable = False
+    with pytest.raises(TypeError):
+        terraingen.fill_mesh(heights, positions, triangles)
+    with pytest.raises((TypeError, ValueError)):
+        terraingen.fill_mesh(heights, np.zeros((size.vertices, 4)), triangles)
+
+
+def test_fill_heights_writes_what_evaluate_gives_in_place(paraboloid):
+    terrain = terraingen.Terrain(paraboloid)
+    grid = paraboloid.grid()
+    expected = terraingen.evaluate(terrain, spacing=2.0, threads=2, grid=grid)
+    out = np.full((grid.height, grid.width), np.nan, dtype=np.float32)
+    address = out.__array_interface__["data"][0]
+    assert terraingen.fill_heights(terrain, grid, out, spacing=2.0, threads=2) is None
+    assert out.__array_interface__["data"][0] == address
+    assert out.tobytes() == np.asarray(expected).tobytes()
+    with pytest.raises(ValueError):
+        terraingen.fill_heights(terrain, grid, np.zeros((grid.width, grid.height + 1), dtype=np.float32))
+    with pytest.raises(TypeError):
+        terraingen.fill_heights(terrain, grid, np.zeros((grid.height, grid.width)))
 
 
 def test_body_mesh_needs_a_sphere():
@@ -224,13 +311,13 @@ def test_generated_grids_know_their_grid_and_list_features_over_any(generated):
     )
 
 
-def test_height_mesh_cuts_out_boxes_and_hangs_skirts():
+def test_build_mesh_cuts_out_boxes_and_hangs_skirts():
     heights = terraingen.evaluate(terraingen.Terrain(None, []), grid=terraingen.FlatSource(6, 6, 1.0).grid())
-    whole = terraingen.height_mesh(heights)
+    whole = terraingen.build_mesh(heights)
     first = heights.cell_center(1, 4)
     last = heights.cell_center(3, 2)
     box = (first[0] - 0.01, first[1] - 0.01, last[0] + 0.01, last[1] + 0.01)
-    holed = terraingen.height_mesh(heights, cutouts=[box])
-    skirted = terraingen.height_mesh(heights, cutouts=[box], skirt=2.0)
+    holed = terraingen.build_mesh(heights, cutouts=[box])
+    skirted = terraingen.build_mesh(heights, cutouts=[box], skirt=2.0)
     assert holed.triangle_count == whole.triangle_count - 8
     assert skirted.triangle_count == holed.triangle_count + 2 * 28

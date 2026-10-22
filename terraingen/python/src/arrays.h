@@ -26,6 +26,11 @@ using CpuColumn = nb::ndarray<const T, nb::ndim<1>, nb::device::cpu, nb::c_conti
 template <typename T>
 using CpuMatrix = nb::ndarray<const T, nb::ndim<2>, nb::device::cpu, nb::c_contig>;
 
+/// A writable C-contiguous two-dimensional array of `T` in CPU memory, rows first, that the
+/// bindings fill in place.
+template <typename T>
+using CpuOutMatrix = nb::ndarray<T, nb::ndim<2>, nb::device::cpu, nb::c_contig>;
+
 /// A NumPy array of `T` returned to Python.
 template <typename T> using NumpyArray = nb::ndarray<nb::numpy, T>;
 

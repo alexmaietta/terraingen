@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Manual boulders that fix any of their height, burial, yaw, lean, tilt, rest, wear and shape seed; unset fields are drawn as for generated boulders, and fixed ones are neither re-settled nor broken.
 - Terrain meshes take `cutouts`, a `skirt` and a frame `site`.
 - Configuration keys `region` (`min_x`, `min_y`, `max_x`, `max_y` in CRS units) on raster bases and `dem_detail` layers to read only a window of a DEM, and `unresolved_pixels_across` on crater layers to generate only the craters the base DEM does not already resolve, combined with any catalog `completeness`.
+- `GetMeshSize` and `FillMesh` (Python `get_mesh_size`, `fill_mesh`) size and write a height mesh into caller buffers laid out as Chrono's ChVector3d and ChVector3i arrays or NumPy (N, 3) float64 and (M, 3) int32 arrays, with no copy; `FillHeights` (Python `fill_heights`) evaluates a terrain into a caller buffer; `TriangleMesh.positions` and `TriangleMesh.triangles` are NumPy views of a mesh without a copy.
 - Manual-only boulder layers: `generate_random` off (`BoulderLayerOptions::generateRandom`) places only the `manual` boulders, with no random boulders or crater blocks, draws no candidates and needs no valid sizes or coverage; `CraterLayer::Manual` and `BoulderLayer::Manual` (Python `CraterLayer.manual`, `BoulderLayer.manual`) make layers of only the given craters or boulders.
 
 ### Changed
@@ -59,6 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Faster boulders: the ground beneath them is read in one batch, outputs over one region share the boulders placed for the first, models are placed in parallel, ejecta craters are found through a spatial index and shapes skip the roughness of fracture planes that cannot reach a vertex. The hero demo runs in about 10 s instead of 276 s.
 - Martin, Parkes and Dunstan is the default crater profile.
 - Breaking: crater layers' `generate` is now `generate_random` (`CraterLayerOptions::generateRandom`, Python `generate_random`): it draws random craters from the size distribution, and manual craters are placed either way; the old key is rejected.
+- Breaking: `HeightMesh` and `HeightMeshOptions` are now `BuildMesh` and `BuildMeshOptions`, and Python `height_mesh` is now `build_mesh`; a height mesh holds at most INT32_MAX vertices.
 
 ### Fixed
 

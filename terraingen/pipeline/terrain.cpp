@@ -146,6 +146,17 @@ Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid,
     return heights;
 }
 
+void FillHeights(const Terrain& terrain, const RasterGrid& grid, Span<float> heights,
+                 const EvaluationOptions& options) {
+    if (heights.size() != grid.width * grid.height) {
+        throw std::invalid_argument("The grid needs " + std::to_string(grid.width * grid.height) +
+                                    " heights, not " + std::to_string(heights.size()));
+    }
+    const Raster<float> evaluated = Evaluate(terrain, grid, options);
+    const Span<const float> values = evaluated.Values();
+    std::copy(values.begin(), values.end(), heights.begin());
+}
+
 void ValidateTerrain(const Terrain& terrain) {
     if (std::any_of(terrain.layers.begin(), terrain.layers.end(),
                     [](const auto& l) { return !l; })) {

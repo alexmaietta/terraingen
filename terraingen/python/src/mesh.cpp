@@ -14,7 +14,9 @@
 #include <nanobind/stl/array.h>
 
 #include <array>
+#include <cstdint>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -50,6 +52,25 @@ nb::tuple MeshArrays(const TriangleMesh& mesh) {
     }
     return nb::make_tuple(VectorArray(mesh.positions),
                           OwnedArray(std::move(triangles), {mesh.triangles.size(), 3}));
+}
+
+static_assert(std::is_standard_layout_v<Vec3d> && sizeof(Vec3d) == 3 * sizeof(double),
+              "positions are viewed as packed x, y, z doubles");
+static_assert(sizeof(std::array<std::uint32_t, 3>) == 3 * sizeof(std::uint32_t),
+              "triangles are viewed as packed index triples");
+
+/// A view of shape (n, 3) of the positions of the mesh `self` that keeps it alive.
+NumpyArray<double> PositionView(nb::handle self) {
+    TriangleMesh& mesh = nb::cast<TriangleMesh&>(self);
+    return NumpyArray<double>(reinterpret_cast<double*>(mesh.positions.data()),
+                              {mesh.positions.size(), 3}, self);
+}
+
+/// A view of shape (m, 3) of the triangles of the mesh `self` that keeps it alive.
+NumpyArray<std::uint32_t> TriangleView(nb::handle self) {
+    TriangleMesh& mesh = nb::cast<TriangleMesh&>(self);
+    return NumpyArray<std::uint32_t>(reinterpret_cast<std::uint32_t*>(mesh.triangles.data()),
+                                     {mesh.triangles.size(), 3}, self);
 }
 
 TriangleMesh MeshFromArrays(const Points& positions, const Indices& triangles) {
@@ -116,6 +137,12 @@ void BindTriangleMesh(nb::module_& m) {
             "From float64 positions of shape (n, 3) and uint32 triangles of shape (m, 3).")
         .def_prop_ro("arrays", &MeshArrays,
                      "(positions, triangles) as NumPy arrays of shape (n, 3).")
+        .def_prop_ro("positions", &PositionView,
+                     "Writable float64 NumPy view of shape (n, 3) of the vertex positions that "
+                     "keeps the mesh alive, without a copy.")
+        .def_prop_ro("triangles", &TriangleView,
+                     "Writable uint32 NumPy view of shape (m, 3) of the triangles' vertex "
+                     "indices that keeps the mesh alive, without a copy.")
         .def_prop_ro("vertex_count", [](const TriangleMesh& self) { return self.positions.size(); })
         .def_prop_ro("triangle_count",
                      [](const TriangleMesh& self) { return self.triangles.size(); })
