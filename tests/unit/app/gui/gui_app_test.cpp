@@ -166,7 +166,7 @@ TEST(GuiApp, ReportsErrorsWithoutStopping) {
     EXPECT_EQ(app.Status().rfind("Cannot save", 0), 0u) << app.Status();
     EXPECT_FALSE(std::filesystem::exists(dir / "bad.json"));
 
-    app.SetConfigText(R"({"schema_version": 1, "base": {"type": "raster", "path": "no.tif"}})");
+    app.SetConfigText(R"({"schema_version": 1, "source": {"type": "raster", "path": "no.tif"}})");
     app.Generate();
     Settle(app);
     EXPECT_EQ(app.Status().rfind("Generation failed", 0), 0u) << app.Status();

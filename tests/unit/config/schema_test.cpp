@@ -62,6 +62,14 @@ void CheckFits(const SchemaJson& schema, const SchemaJson& node, const SchemaJso
             CheckFits(schema, field["schema"], value[name], where + "." + name, kinds);
         }
     } else if (kind == "choice") {
+        if (value.is_string() && resolved.value("named", false)) {
+            const SchemaJson& alternatives = resolved["alternatives"];
+            EXPECT_TRUE(std::any_of(
+                alternatives.begin(), alternatives.end(),
+                [&](const SchemaJson& alternative) { return alternative["type"] == value; }))
+                << where << " names " << value;
+            return;
+        }
         ASSERT_TRUE(value.is_object() && value.contains("type")) << where;
         bool found = false;
         for (const SchemaJson& alternative : resolved["alternatives"]) {
@@ -113,7 +121,7 @@ TEST(ConfigSchema, DescribesEveryFieldAndEveryDefaultFitsIt) {
     for (const SchemaJson& field : root["fields"]) {
         names.push_back(field["name"]);
     }
-    EXPECT_EQ(names, (std::vector<std::string>{"schema_version", "body", "base", "layers",
+    EXPECT_EQ(names, (std::vector<std::string>{"schema_version", "body", "source", "layers",
                                                "outputs", "albedo", "materials"}));
 
     // Every alternative's default, and every field's, fits its schema.
@@ -297,7 +305,7 @@ TEST(ConfigSchema, BoundsOnlyNumbersAndTheirDefaultsFitTheBounds) {
 
 TEST(ConfigSchema, ListsTheParsersChoicesAndRefersToRecursiveTypes) {
     const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
-    const SchemaJson base = FieldOf(schema["root"], "base")["schema"];
+    const SchemaJson base = FieldOf(schema["root"], "source")["schema"];
     ASSERT_EQ(base["kind"], "optional");
     const SchemaJson source = base["of"];
     ASSERT_EQ(source["kind"], "ref");
@@ -357,8 +365,8 @@ TEST(ConfigCatalog, ListsEveryTypeAndEachEntryParsesWhereItBelongs) {
     for (const auto& [key, value] : ordered.items()) {
         keys.push_back(key);
     }
-    EXPECT_EQ(keys, (std::vector<std::string>{"schema_version", "body", "base", "layers", "outputs",
-                                              "albedo", "materials", "models"}));
+    EXPECT_EQ(keys, (std::vector<std::string>{"schema_version", "body", "source", "layers",
+                                              "outputs", "albedo", "materials", "models"}));
     const auto types = [](const Json& list) {
         std::vector<std::string> names;
         for (const Json& entry : list) {
@@ -381,8 +389,9 @@ TEST(ConfigCatalog, ListsEveryTypeAndEachEntryParsesWhereItBelongs) {
     for (const Json& body : catalog["body"]) {
         parses({{"body", body}}, "body");
     }
-    for (const Json& base : catalog["base"]) {
-        parses({{"base", base}}, "base");
+    EXPECT_EQ(types(catalog["source"]), (std::vector<std::string>{"raster", "chain", "synthetic"}));
+    for (const Json& source : catalog["source"]) {
+        parses({{"source", source}}, "source");
     }
     for (const char* list : {"layers", "outputs"}) {
         for (const Json& entry : catalog[list]) {
@@ -504,12 +513,12 @@ TEST(ConfigSchema, GivesASphereOnlyARadiusInMetres) {
     EXPECT_EQ(sphere["fields"][0]["unit"], "m");
 }
 
-TEST(ConfigSchema, GivesGeoTiffReadsARegionAndCraterLayersAnUnresolvedLimit) {
+TEST(ConfigSchema, GivesGeoTiffReadsACropAndCraterLayersAnUnresolvedLimit) {
     const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
-    const SchemaJson base = FieldOf(schema["root"], "base")["schema"];
+    const SchemaJson base = FieldOf(schema["root"], "source")["schema"];
     ASSERT_EQ(base["kind"], "optional");
     const SchemaJson raster = AlternativeOf(Resolve(schema, base["of"]), "raster");
-    const SchemaJson region = FieldOf(raster, "region");
+    const SchemaJson region = FieldOf(raster, "crop");
     EXPECT_TRUE(region["default"].is_null());
     ASSERT_EQ(region["schema"]["kind"], "optional");
     const SchemaJson box = Resolve(schema, region["schema"]["of"]);
@@ -521,7 +530,30 @@ TEST(ConfigSchema, GivesGeoTiffReadsARegionAndCraterLayersAnUnresolvedLimit) {
     EXPECT_EQ(names, (std::vector<std::string>{"min_x", "min_y", "max_x", "max_y"}));
     const SchemaJson layers = FieldOf(schema["root"], "layers")["schema"];
     const SchemaJson choice = Resolve(schema, layers["of"]);
-    EXPECT_EQ(FieldOf(AlternativeOf(choice, "dem_detail"), "region")["schema"], region["schema"]);
+    const SchemaJson upsampling = Resolve(schema, FieldOf(raster, "upsampling")["schema"]);
+    EXPECT_EQ(FieldOf(raster, "upsampling")["default"], "cubic");
+    ASSERT_EQ(upsampling["kind"], "choice");
+    EXPECT_EQ(upsampling["named"], true);
+    std::vector<std::string> upsamplers;
+    for (const SchemaJson& alternative : upsampling["alternatives"]) {
+        upsamplers.push_back(alternative["type"]);
+    }
+    EXPECT_EQ(upsamplers,
+              (std::vector<std::string>{"nearest", "bilinear", "cubic", "catmull_rom", "lanczos3",
+                                        "cubic_bspline", "diamond_square"}));
+    std::vector<std::string> fractal;
+    const SchemaJson diamondSquare = AlternativeOf(upsampling, "diamond_square");
+    for (const SchemaJson& field : diamondSquare["fields"]) {
+        fractal.push_back(field["name"]);
+    }
+    EXPECT_EQ(fractal, (std::vector<std::string>{"fractal_dimension", "scale", "interp",
+                                                 "min_pixel_size_m", "seed"}));
+    const SchemaJson synthetic = AlternativeOf(Resolve(schema, base["of"]), "synthetic");
+    EXPECT_EQ(FieldOf(synthetic, "upsampling")["schema"]["of"],
+              FieldOf(raster, "upsampling")["schema"]);
+    EXPECT_EQ(FieldOf(synthetic, "stack")["schema"],
+              FieldOf(AlternativeOf(choice, "noise"), "stack")["schema"])
+        << "the synthetic source shares the noise layer's stack";
     const SchemaJson limit = FieldOf(AlternativeOf(choice, "craters"), "unresolved_pixels_across");
     EXPECT_TRUE(limit["default"].is_null());
     EXPECT_EQ(limit["minimum"], 0.0);
@@ -548,8 +580,6 @@ TEST(ConfigCatalog, ListsTheNewDensitiesAndAges) {
 TEST(LayerType, NamesALayerAsItsJsonTypeAndARegionByTheLayerInside) {
     EXPECT_EQ(terraingen::LayerType(terraingen::CraterLayerSpec{}), "craters");
     EXPECT_EQ(terraingen::LayerType(terraingen::SandFillLayerSpec{}), "sand_fill");
-    EXPECT_EQ(terraingen::LayerType(terraingen::MidpointDisplacementLayerSpec{}),
-              "midpoint_displacement");
     EXPECT_EQ(terraingen::LayerType(terraingen::SpectralContinuationLayerSpec{}),
               "spectral_continuation");
     terraingen::RegionLayerSpec region;

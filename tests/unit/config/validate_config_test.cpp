@@ -222,16 +222,63 @@ const PathCase kPathCases[] = {
          c.layers.push_back(boulders);
      },
      "layers[2]"},
-    {"MidpointDisplacementWithoutBase",
-     [](TerrainConfig& c) { c.layers.push_back(terraingen::MidpointDisplacementLayerSpec{}); },
-     "layers[2]"},
-    {"MidpointDisplacementDimensionAboveThree",
+    {"SyntheticSourceIsValid",
      [](TerrainConfig& c) {
-         terraingen::MidpointDisplacementLayerSpec layer;
-         layer.fractalDimension = 3.5;
-         c.layers.push_back(layer);
+         terraingen::SyntheticSourceSpec synthetic;
+         synthetic.stack = {terraingen::NoiseLayerConfig{}};
+         c.source = synthetic;
      },
-     "layers[2].fractal_dimension"},
+     "valid"},
+    {"UpsamplingWithoutPixelSize",
+     [](TerrainConfig& c) {
+         terraingen::SyntheticSourceSpec synthetic;
+         synthetic.upsampling = terraingen::UpsamplingSpec{};
+         c.source = synthetic;
+     },
+     "source.upsampling"},
+    {"UnknownUpsamplingType",
+     [](TerrainConfig& c) {
+         terraingen::SyntheticSourceSpec synthetic;
+         synthetic.pixelSize = 4.0;
+         synthetic.upsampling = terraingen::UpsamplingSpec{"no_such_upsampler", {}, {}};
+         c.source = synthetic;
+     },
+     "source.upsampling"},
+    {"DiamondSquareDimensionAboveThree",
+     [](TerrainConfig& c) {
+         terraingen::SyntheticSourceSpec synthetic;
+         synthetic.pixelSize = 4.0;
+         terraingen::UpsamplingSpec upsampling;
+         upsampling.type = "diamond_square";
+         upsampling.diamondSquare.fractalDimension = 3.5;
+         synthetic.upsampling = upsampling;
+         c.source = synthetic;
+     },
+     "source.upsampling.fractal_dimension"},
+    {"SyntheticStackTooLong",
+     [](TerrainConfig& c) {
+         terraingen::SyntheticSourceSpec synthetic;
+         synthetic.stack.assign(terraingen::kMaxNoiseLayers + 1, terraingen::NoiseLayerConfig{});
+         c.source = synthetic;
+     },
+     "source.stack"},
+    {"SyntheticPixelSizeNotPositive",
+     [](TerrainConfig& c) {
+         terraingen::SyntheticSourceSpec synthetic;
+         synthetic.pixelSize = 0.0;
+         c.source = synthetic;
+     },
+     "source.pixel_size_m"},
+    {"EstimateFromNoiseWithoutPosts",
+     [](TerrainConfig& c) {
+         terraingen::SyntheticSourceSpec synthetic;
+         synthetic.stack = {terraingen::NoiseLayerConfig{}};
+         c.source = synthetic;
+         terraingen::RoughnessLayerSpec roughness;
+         roughness.estimateFromBase = true;
+         c.layers.push_back(roughness);
+     },
+     "layers[2].estimate_from_base"},
     {"SpectralContinuationWithoutBase",
      [](TerrainConfig& c) { c.layers.push_back(terraingen::SpectralContinuationLayerSpec{}); },
      "layers[2]"},
@@ -428,7 +475,7 @@ TEST(ValidateConfig, AcceptsTheDefaults) {
 TEST(ValidateConfig, SummarisesTheGridsAndTheCratersExpected) {
     TerrainConfig config = Small();
     const terraingen::ConfigSummary summary = ValidateConfig(config);
-    EXPECT_FALSE(summary.base);
+    EXPECT_FALSE(summary.source);
     ASSERT_EQ(summary.outputGrids.size(), 1u);
     const terraingen::RasterGrid grid = summary.outputGrids[0].value();
     EXPECT_EQ(grid.width, 65u);
@@ -855,54 +902,81 @@ TEST(ValidateConfig, ReportsAlbedoProblemsByPath) {
               "outputs[0].tile_size");
 }
 
-TEST(ValidateConfig, ReportsGeoTiffRegionProblemsByPath) {
+TEST(ValidateConfig, ReportsGeoTiffCropProblemsByPath) {
     using terraingen::Bounds2d;
     using terraingen::testing::RasterConfig;
     using terraingen::testing::RasterSpec;
     const auto folder = terraingen::testing::TempPath("terraingen_region_errors");
     terraingen::testing::WriteDem(folder, "dem.tif");
     const double nan = std::numeric_limits<double>::quiet_NaN();
-    const auto base = [&](const Bounds2d& region) {
+    const auto crop = [&](const Bounds2d& region) {
         TerrainConfig config = RasterConfig("dem.tif");
-        RasterSpec(config).read.region = region;
+        RasterSpec(config).read.crop = region;
         return ValidationErrorPath(config, folder);
     };
-    const auto detail = [&](const Bounds2d& region) {
-        TerrainConfig config = RasterConfig("dem.tif");
-        terraingen::DemDetailLayerSpec layer;
-        layer.path = "dem.tif";
-        layer.read.region = region;
-        config.layers = {layer};
-        return ValidationErrorPath(config, folder);
-    };
-    EXPECT_EQ(base(Bounds2d{1050.0, 1900.0, 1100.0, 1950.0}), "valid");
-    EXPECT_EQ(base(Bounds2d{nan, 1900.0, 1100.0, 1950.0}), "base.region.min_x");
-    EXPECT_EQ(base(Bounds2d{1050.0, 1900.0, 1100.0, kInfinity}), "base.region.max_y");
-    EXPECT_EQ(base(Bounds2d{1100.0, 1900.0, 1050.0, 1950.0}), "base.region.max_x");
-    EXPECT_EQ(base(Bounds2d{1050.0, 1950.0, 1100.0, 1950.0}), "base.region.max_y");
-    EXPECT_EQ(base(Bounds2d{5000.0, 5000.0, 6000.0, 6000.0}), "base.region");
-    EXPECT_EQ(detail(Bounds2d{1050.0, 1900.0, 1100.0, 1950.0}), "valid");
-    EXPECT_EQ(detail(Bounds2d{1050.0, nan, 1100.0, 1950.0}), "layers[0].region.min_y");
-    EXPECT_EQ(detail(Bounds2d{1100.0, 1900.0, 1050.0, 1950.0}), "layers[0].region.max_x");
-    EXPECT_EQ(detail(Bounds2d{0.0, 0.0, 10.0, 10.0}), "layers[0].region");
+    EXPECT_EQ(crop(Bounds2d{1050.0, 1900.0, 1100.0, 1950.0}), "valid");
+    EXPECT_EQ(crop(Bounds2d{nan, 1900.0, 1100.0, 1950.0}), "source.crop.min_x");
+    EXPECT_EQ(crop(Bounds2d{1050.0, 1900.0, 1100.0, kInfinity}), "source.crop.max_y");
+    EXPECT_EQ(crop(Bounds2d{1100.0, 1900.0, 1050.0, 1950.0}), "source.crop.max_x");
+    EXPECT_EQ(crop(Bounds2d{1050.0, 1950.0, 1100.0, 1950.0}), "source.crop.max_y");
+    EXPECT_EQ(crop(Bounds2d{5000.0, 5000.0, 6000.0, 6000.0}), "source.crop");
 }
 
-TEST(ValidateConfig, MeasuresARasterBasesGridOverItsRegion) {
+TEST(ValidateConfig, ReportsUpsamplingProblemsByPath) {
+    using terraingen::testing::RasterConfig;
+    using terraingen::testing::RasterSpec;
+    const auto folder = terraingen::testing::TempPath("terraingen_upsampling_errors");
+    terraingen::testing::WriteDem(folder, "dem.tif");
+    TerrainConfig config = RasterConfig("dem.tif");
+    for (const char* type : {"nearest", "bilinear", "cubic", "catmull_rom", "lanczos3",
+                             "cubic_bspline", "diamond_square"}) {
+        RasterSpec(config).upsampling.type = type;
+        EXPECT_EQ(ValidationErrorPath(config, folder), "valid") << type;
+    }
+    RasterSpec(config).upsampling.diamondSquare.scale = -1.0;
+    EXPECT_EQ(ValidationErrorPath(config, folder), "source.upsampling.scale");
+    RasterSpec(config).upsampling.diamondSquare.scale.reset();
+    RasterSpec(config).upsampling.diamondSquare.minPixelSize = -1.0;
+    EXPECT_EQ(ValidationErrorPath(config, folder), "source.upsampling.min_pixel_size_m");
+    RasterSpec(config).upsampling = {"lanczos", {}, {}};
+    EXPECT_EQ(ValidationErrorPath(config, folder), "source.upsampling");
+    try {
+        ValidateConfig(config, folder);
+    } catch (const terraingen::ConfigError& error) {
+        EXPECT_NE(std::string(error.what()).find("unknown upsampling type \"lanczos\""),
+                  std::string::npos)
+            << error.what();
+    }
+    terraingen::RegisterUpsampler("validate_test_upsampler", [](const std::string&) {
+        return std::make_shared<terraingen::KernelUpsampler>();
+    });
+    RasterSpec(config).upsampling = {"validate_test_upsampler", {}, {}};
+    EXPECT_EQ(ValidationErrorPath(config, folder), "valid") << "a registered type";
+    const terraingen::RasterSourceSpec raster = RasterSpec(config);
+    config.source = terraingen::ChainSourceSpec{{raster, raster}};
+    std::get<terraingen::RasterSourceSpec>(
+        std::get<terraingen::ChainSourceSpec>(*config.source).sources[0])
+        .upsampling.type = "nope";
+    EXPECT_EQ(ValidationErrorPath(config, folder), "source.sources[0].upsampling");
+}
+
+TEST(ValidateConfig, MeasuresARasterSourcesGridOverItsCrop) {
     using terraingen::testing::RasterConfig;
     using terraingen::testing::RasterSpec;
     const auto folder = terraingen::testing::TempPath("terraingen_region_size");
     terraingen::testing::WriteDem(folder, "dem.tif");
     TerrainConfig config = RasterConfig("dem.tif");
-    RasterSpec(config).read.pixelSize = 0.002;
-    EXPECT_EQ(ValidationErrorPath(config, folder), "base.pixel_size") << "100000 cells across";
-    const terraingen::Bounds2d window{1050.0, 1900.0, 1050.1, 1900.1};
-    RasterSpec(config).read.region = window;
-    EXPECT_EQ(ValidationErrorPath(config, folder), "valid") << "a window of 50 cells";
-    const terraingen::RasterGrid grid = terraingen::DescribeSource(*config.base, folder);
+    const terraingen::Bounds2d window{1050.0, 1900.0, 1080.1, 1930.1};
+    RasterSpec(config).read.crop = window;
+    EXPECT_EQ(ValidationErrorPath(config, folder), "valid");
+    const std::optional<terraingen::RasterGrid> grid =
+        terraingen::DescribeSource(*config.source, folder);
+    ASSERT_TRUE(grid.has_value());
     terraingen::GeoTiffSourceOptions read = RasterSpec(config).read;
-    EXPECT_EQ(grid, terraingen::GeoTiffSource(folder / "dem.tif", read).Grid());
-    EXPECT_LT(grid.width, 60u);
-    RasterSpec(config).read.pixelSize.reset();
-    RasterSpec(config).read.region = terraingen::Bounds2d{1051.0, 1901.0, 1052.0, 1902.0};
-    EXPECT_EQ(ValidationErrorPath(config, folder), "base.region") << "a single cell";
+    EXPECT_EQ(*grid, terraingen::GeoTiffSource(folder / "dem.tif", read).Grid());
+    EXPECT_LT(grid->width, 10u);
+    RasterSpec(config).read.crop = terraingen::Bounds2d{1051.0, 1901.0, 1052.0, 1902.0};
+    EXPECT_EQ(ValidationErrorPath(config, folder), "source.crop") << "a single cell";
+    EXPECT_FALSE(terraingen::DescribeSource(terraingen::SyntheticSourceSpec{}).has_value())
+        << "synthetic noise has no grid";
 }

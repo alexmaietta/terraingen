@@ -1,5 +1,7 @@
 #include "terraingen/config/fields/json_io.h"
 
+#include "terraingen/sources/upsampling.h"
+
 #include <array>
 #include <cmath>
 #include <cstdio>
@@ -98,6 +100,63 @@ void Read(const Json& json, const std::string& path, int& value) {
         Fail(path, "integer is out of range");
     }
     value = static_cast<int>(number);
+}
+
+void Read(const Json& json, const std::string& path, UpsamplingSpec& value) {
+    UpsamplingSpec spec;
+    if (json.is_string()) {
+        spec.type = json.get<std::string>();
+        if (spec.type.empty()) {
+            Fail(path, "must not be empty");
+        }
+        value = std::move(spec);
+        return;
+    }
+    if (!json.is_object()) {
+        Fail(path, std::string("expected an upsampling name or an object with a \"type\", not ") +
+                       json.type_name());
+    }
+    const auto type = json.find("type");
+    if (type == json.end() || !type->is_string() || type->get<std::string>().empty()) {
+        Fail(Child(path, "type"), "expected an upsampling name");
+    }
+    spec.type = type->get<std::string>();
+    if (KernelUpsamplerMethod(spec.type)) {
+        Reader reader(json, path);
+        reader.Accept("type");
+        reader.Finish();
+    } else if (spec.type == "diamond_square") {
+        ReadObject(json, path, spec.diamondSquare, true);
+    } else {
+        Json settings = json;
+        settings.erase("type");
+        if (!settings.empty()) {
+            spec.settings = settings.dump();
+        }
+    }
+    value = std::move(spec);
+}
+
+Json ToJson(const UpsamplingSpec& value, bool compact) {
+    if (value.type == "diamond_square") {
+        Json json = Json::object();
+        json["type"] = value.type;
+        const Json fields = FieldsJson(value.diamondSquare, false, compact);
+        for (const auto& item : fields.items()) {
+            json[item.key()] = item.value();
+        }
+        return json;
+    }
+    if (value.settings.empty()) {
+        return value.type;
+    }
+    Json json = Json::object();
+    json["type"] = value.type;
+    const Json settings = Json::parse(value.settings);
+    for (const auto& item : settings.items()) {
+        json[item.key()] = item.value();
+    }
+    return json;
 }
 
 namespace {

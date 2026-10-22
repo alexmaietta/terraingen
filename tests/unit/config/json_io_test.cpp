@@ -30,8 +30,14 @@ TerrainConfig Everything() {
     TerrainConfig config;
     config.body = terraingen::SphereSurfaceSpec{3389500.0};
     terraingen::RasterSourceSpec raster{"dem.tif"};
-    raster.read.region = terraingen::Bounds2d{-10.0, -5.0, 20.5, 15.0};
-    config.base = raster;
+    raster.read.crop = terraingen::Bounds2d{-10.0, -5.0, 20.5, 15.0};
+    raster.read.effectivePixelSize = 12.5;
+    raster.upsampling.type = "diamond_square";
+    raster.upsampling.diamondSquare.fractalDimension = 2.35;
+    raster.upsampling.diamondSquare.interp = terraingen::DiamondSquareInterp::CatmullRom;
+    raster.upsampling.diamondSquare.minPixelSize = 0.25;
+    raster.upsampling.diamondSquare.seed = 4;
+    config.source = raster;
     terraingen::PavementOptions plates;
     plates.plateSize = 0.8;
     plates.crackWidth = 0.03;
@@ -266,9 +272,6 @@ TerrainConfig Everything() {
         terraingen::RoughnessLayerSpec{},
         terraingen::ScaleLayerSpec{1.5, -20.0},
         terraingen::ClampLayerSpec{std::nullopt, 12.5},
-        terraingen::MidpointDisplacementLayerSpec{4.0, 1.5, -2.5, 2.3, 0.4, 0.25,
-                                                  terraingen::MidpointBase::Source, 5u},
-        terraingen::MidpointDisplacementLayerSpec{},
         terraingen::SpectralContinuationLayerSpec{
             2.0, 2.8, 0.15, {3.0, 40.0}, 0.1, 0.5, 9u, {1.5, 5.0, terraingen::BlendShape::Linear}},
         terraingen::SpectralContinuationLayerSpec{},
@@ -332,29 +335,29 @@ TEST(ConfigJson, RoundTripsLayersThatEstimateFromTheBase) {
     EXPECT_FALSE(std::get<terraingen::RoughnessLayerSpec>(plain.layers[0]).estimateFromBase);
 }
 
-TEST(ConfigJson, ReadsGeoTiffRegionsAndUnresolvedCraterLimits) {
+TEST(ConfigJson, ReadsGeoTiffCropsAndUnresolvedCraterLimits) {
     const TerrainConfig config = ParseConfig(R"({"schema_version": 1,
-        "base": {"type": "raster", "path": "dem.tif",
-                 "region": {"min_x": 1000, "min_y": 1900, "max_x": 1100.5, "max_y": 1950}},
-        "layers": [{"type": "craters", "unresolved_pixels_across": 3.5},
-                   {"type": "dem_detail", "path": "dem.tif",
-                    "region": {"min_x": -1, "min_y": -2, "max_x": 3, "max_y": 4}}]})");
-    EXPECT_EQ(std::get<terraingen::RasterSourceSpec>(*config.base).read.region,
-              (terraingen::Bounds2d{1000.0, 1900.0, 1100.5, 1950.0}));
+        "source": {"type": "raster", "path": "dem.tif",
+                   "crop": {"min_x": 1000, "min_y": 1900, "max_x": 1100.5, "max_y": 1950},
+                   "effective_pixel_size_m": 20},
+        "layers": [{"type": "craters", "unresolved_pixels_across": 3.5}]})");
+    const auto& raster = std::get<terraingen::RasterSourceSpec>(*config.source);
+    EXPECT_EQ(raster.read.crop, (terraingen::Bounds2d{1000.0, 1900.0, 1100.5, 1950.0}));
+    EXPECT_EQ(raster.read.effectivePixelSize, 20.0);
+    EXPECT_EQ(raster.upsampling, terraingen::UpsamplingSpec{}) << "cubic by default";
     EXPECT_EQ(std::get<CraterLayerSpec>(config.layers.at(0)).unresolvedPixelsAcross, 3.5);
-    EXPECT_EQ(std::get<terraingen::DemDetailLayerSpec>(config.layers.at(1)).read.region,
-              (terraingen::Bounds2d{-1.0, -2.0, 3.0, 4.0}));
     EXPECT_EQ(ParseConfig(ConfigToJson(config)), config);
     const TerrainConfig unset = ParseConfig(R"({"schema_version": 1,
-        "base": {"type": "raster", "path": "dem.tif"}, "layers": [{"type": "craters"}]})");
-    EXPECT_FALSE(std::get<terraingen::RasterSourceSpec>(*unset.base).read.region);
+        "source": {"type": "raster", "path": "dem.tif"}, "layers": [{"type": "craters"}]})");
+    EXPECT_FALSE(std::get<terraingen::RasterSourceSpec>(*unset.source).read.crop);
+    EXPECT_FALSE(std::get<terraingen::RasterSourceSpec>(*unset.source).read.effectivePixelSize);
     EXPECT_FALSE(std::get<CraterLayerSpec>(unset.layers.at(0)).unresolvedPixelsAcross);
-    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "base": {"type": "raster",
-        "path": "dem.tif", "region": {"min_x": 0, "west": 1}}})"),
-              "base.region.west");
-    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "base": {"type": "raster",
-        "path": "dem.tif", "region": [0, 0, 1, 1]}})"),
-              "base.region");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "source": {"type": "raster",
+        "path": "dem.tif", "crop": {"min_x": 0, "west": 1}}})"),
+              "source.crop.west");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "source": {"type": "raster",
+        "path": "dem.tif", "crop": [0, 0, 1, 1]}})"),
+              "source.crop");
     EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [{"type": "craters",
         "unresolved_pixels_across": "four"}]})"),
               "layers[0].unresolved_pixels_across");
@@ -385,7 +388,7 @@ TEST(ConfigJson, ReadsAndWritesManualCraterDepthsAndRimHeights) {
 TEST(ConfigJson, WritesTheRootKeysInOrderAndNoAlbedoWhenUnset) {
     const std::string json = ConfigToJson(TerrainConfig{});
     EXPECT_EQ(json.rfind("{\n  \"schema_version\": 1,\n  \"body\": {", 0), 0u) << json;
-    EXPECT_EQ(json.find("\"base\""), std::string::npos) << json;
+    EXPECT_EQ(json.find("\"source\""), std::string::npos) << json;
     EXPECT_EQ(json.find("\"albedo\""), std::string::npos) << json;
     EXPECT_EQ(json.find("\"layers\""), std::string::npos) << "empty lists are left out";
     const std::string small = ConfigToJson(terraingen::testing::Small());
@@ -449,16 +452,30 @@ TEST(ConfigJson, RoundTripsEveryModelType) {
         terraingen::SteadyStateAgesSpec{1.0, ProductionFunction::Ivanov,
                                         terraingen::EquilibriumModel::Trask,
                                         ChronologyModel::Ivanov}};
+    terraingen::UpsamplingSpec lanczos;
+    lanczos.type = "lanczos3";
+    terraingen::UpsamplingSpec registered;
+    registered.type = "my_upsampler";
+    registered.settings = R"({"sharpness":0.5,"taps":[1,2]})";
+    terraingen::UpsamplingSpec named;
+    named.type = "my_upsampler";
+    terraingen::SyntheticSourceSpec synthetic;
+    synthetic.elevation = -100.0;
+    synthetic.stack = {terraingen::NoiseLayerConfig{}};
+    synthetic.pixelSize = 4.0;
+    synthetic.upsampling = lanczos;
     for (const terraingen::SourceSpec& source :
-         {terraingen::SourceSpec{terraingen::RasterSourceSpec{
-              "dem.tif", {2, 0.25, terraingen::ResampleMethod::Bilinear, {}, {}, 30.0}}},
-          terraingen::SourceSpec{terraingen::RasterSourceSpec{"x.tif"}},
+         {terraingen::SourceSpec{
+              terraingen::RasterSourceSpec{"dem.tif", {2, 0.25, {}, {}, 30.0, nullptr}, lanczos}},
+          terraingen::SourceSpec{terraingen::RasterSourceSpec{"x.tif", {}, registered}},
+          terraingen::SourceSpec{terraingen::RasterSourceSpec{"x.tif", {}, named}},
           terraingen::SourceSpec{terraingen::ChainSourceSpec{
-              {terraingen::RasterSourceSpec{
-                   "a.tif", {1, 2.0, terraingen::ResampleMethod::Nearest, 0.001, -250.0}},
-               terraingen::ChainSourceSpec{}}}}}) {
+              {terraingen::RasterSourceSpec{"a.tif", {1, 0.001, -250.0}},
+               terraingen::ChainSourceSpec{}, synthetic}}},
+          terraingen::SourceSpec{terraingen::SyntheticSourceSpec{}},
+          terraingen::SourceSpec{synthetic}}) {
         TerrainConfig config;
-        config.base = source;
+        config.source = source;
         EXPECT_EQ(ParseConfig(ConfigToJson(config)), config);
     }
     for (const DensitySpec& density : densities) {
@@ -570,19 +587,19 @@ TEST(ConfigJson, RoundTripsBodiesBasesAndRegions) {
               "body.body");
 
     const TerrainConfig based = ParseConfig(R"({"schema_version": 1,
-        "base": {"type": "raster", "path": "dem.tif"},
+        "source": {"type": "raster", "path": "dem.tif"},
         "outputs": [{"type": "mesh", "path": "m.glb", "cells_per_face": 64},
                     {"type": "heightmap", "path": "h.tif",
                      "region": {"width": 10, "height": 20, "pixel_size": 4,
                                 "centre_x": 30, "centre_y": -45}}]})");
-    EXPECT_EQ(std::get<terraingen::RasterSourceSpec>(*based.base).path, "dem.tif");
+    EXPECT_EQ(std::get<terraingen::RasterSourceSpec>(*based.source).path, "dem.tif");
     EXPECT_EQ(std::get<terraingen::MeshOutput>(based.outputs.at(0)).cellsPerFace, 64u);
     EXPECT_EQ(std::get<terraingen::HeightmapOutput>(based.outputs.at(1)).region,
               (terraingen::GridRegionSpec{10, 20, 4.0, 30.0, -45.0}));
     EXPECT_EQ(ParseConfig(ConfigToJson(based)), based);
     for (const char* removed : {R"({"schema_version": 1, "surface": {"type": "plane"}})",
-                                R"({"schema_version": 1, "source": {"type": "raster"}})",
-                                R"({"schema_version": 1, "base": {"type": "flat"}})",
+                                R"({"schema_version": 1, "base": {"type": "raster"}})",
+                                R"({"schema_version": 1, "source": {"type": "flat"}})",
                                 R"({"schema_version": 1, "outputs": [{"type": "body_mesh"}]})"}) {
         EXPECT_NE(ParseErrorPath(removed), "no error") << removed;
     }
@@ -725,6 +742,72 @@ TEST(ConfigJson, RoundTripsSecondaryLayers) {
     EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [{"type": "secondaries",
               "onset_count": "many"}]})"),
               "layers[0].onset_count");
+}
+
+TEST(ConfigJson, ReadsUpsamplingAsANameOrAnObjectAndWritesItBack) {
+    const TerrainConfig config = ParseConfig(R"({"schema_version": 1,
+        "source": {"type": "chain", "sources": [
+            {"type": "raster", "path": "a.tif", "upsampling": "catmull_rom"},
+            {"type": "raster", "path": "b.tif", "upsampling": {"type": "nearest"}},
+            {"type": "raster", "path": "c.tif",
+             "upsampling": {"type": "diamond_square", "fractal_dimension": 2.3, "scale": 0.5,
+                            "interp": "catmull_rom", "min_pixel_size_m": 0.5, "seed": 1}},
+            {"type": "raster", "path": "d.tif", "upsampling": {"type": "mine", "taps": 3}},
+            {"type": "synthetic", "elevation_m": 5, "pixel_size_m": 2,
+             "stack": [{"wavelength": 50}], "upsampling": "diamond_square"}]}})");
+    const auto& sources = std::get<terraingen::ChainSourceSpec>(*config.source).sources;
+    const auto upsampling = [&](std::size_t n) {
+        return std::get<terraingen::RasterSourceSpec>(sources.at(n)).upsampling;
+    };
+    EXPECT_EQ(upsampling(0).type, "catmull_rom");
+    EXPECT_EQ(upsampling(1).type, "nearest");
+    const terraingen::UpsamplingSpec diamond = upsampling(2);
+    EXPECT_EQ(diamond.type, "diamond_square");
+    EXPECT_EQ(diamond.diamondSquare.fractalDimension, 2.3);
+    EXPECT_EQ(diamond.diamondSquare.scale, 0.5);
+    EXPECT_EQ(diamond.diamondSquare.interp, terraingen::DiamondSquareInterp::CatmullRom);
+    EXPECT_EQ(diamond.diamondSquare.minPixelSize, 0.5);
+    EXPECT_EQ(upsampling(3).type, "mine");
+    EXPECT_EQ(upsampling(3).settings, R"({"taps":3})");
+    const auto& synthetic = std::get<terraingen::SyntheticSourceSpec>(sources.at(4));
+    EXPECT_EQ(synthetic.elevation, 5.0);
+    EXPECT_EQ(synthetic.pixelSize, 2.0);
+    ASSERT_EQ(synthetic.stack.size(), 1u);
+    EXPECT_EQ(synthetic.upsampling->type, "diamond_square");
+    EXPECT_FALSE(synthetic.upsampling->diamondSquare.fractalDimension);
+    const std::string json = ConfigToJson(config);
+    EXPECT_NE(json.find(R"("upsampling": "catmull_rom")"), std::string::npos) << json;
+    EXPECT_NE(json.find(R"("upsampling": "nearest")"), std::string::npos) << json;
+    EXPECT_NE(json.find(R"("taps": 3)"), std::string::npos) << json;
+    EXPECT_EQ(ParseConfig(json), config);
+
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "source": {"type": "raster",
+        "path": "a.tif", "upsampling": {"type": "cubic", "a": -0.75}}})"),
+              "source.upsampling.a");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "source": {"type": "raster",
+        "path": "a.tif", "upsampling": {"type": "diamond_square", "levels": 3}}})"),
+              "source.upsampling.levels");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "source": {"type": "raster",
+        "path": "a.tif", "upsampling": {"scale": 1}}})"),
+              "source.upsampling.type");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "source": {"type": "raster",
+        "path": "a.tif", "upsampling": 3}})"),
+              "source.upsampling");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "source": {"type": "raster",
+        "path": "a.tif", "upsampling": ""}})"),
+              "source.upsampling");
+    for (const char* removed : {R"({"type": "raster", "path": "a.tif", "pixel_size": 2})",
+                                R"({"type": "raster", "path": "a.tif", "resampling": "cubic"})",
+                                R"({"type": "raster", "path": "a.tif", "low_pass": 10})",
+                                R"({"type": "raster", "path": "a.tif", "region": {}})"}) {
+        const std::string text = std::string(R"({"schema_version": 1, "source": )") + removed + "}";
+        EXPECT_EQ(ParseErrorPath(text).rfind("source.", 0), 0u) << removed;
+    }
+    for (const char* layer : {"midpoint_displacement", "dem_detail"}) {
+        const std::string text =
+            std::string(R"({"schema_version": 1, "layers": [{"type": ")") + layer + "\"}]}";
+        EXPECT_EQ(ParseErrorPath(text), "layers[0].type") << layer;
+    }
 }
 
 TEST(LoadConfig, ReadsFilesAndReportsUnreadableOnes) {

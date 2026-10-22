@@ -36,9 +36,9 @@ GeoKeys OutputGeoKeys(const Terrain& terrain) {
     return keys;
 }
 
-/// The grid of the terrain's base, or none without one.
+/// The grid of the terrain's source, or none without one or for one without bounds.
 std::optional<RasterGrid> BaseGrid(const Terrain& terrain) {
-    return terrain.source ? std::optional<RasterGrid>(terrain.source->Grid()) : std::nullopt;
+    return terrain.source ? BoundedGrid(*terrain.source) : std::nullopt;
 }
 
 /// Whether an output writes the material map or its photometry.

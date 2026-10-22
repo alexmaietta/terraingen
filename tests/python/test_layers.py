@@ -451,27 +451,27 @@ def test_dune_grainflows_and_straightened_ripples():
     config.validate()
 
 
-def test_midpoint_displacement_expands_a_lattice_keeping_its_nodes():
-    grid = terraingen.FlatSource(64, 64, 1.0).grid()
-    flat = terraingen.evaluate(terraingen.Terrain(None, []), grid=grid)
-    origin = flat.cell_center(0, 0)
-    options = terraingen.MidpointDisplacementOptions(
-        pixel_size=4.0, origin=origin, fractal_dimension=2.3, scale=0.5, base=terraingen.MidpointBase.SOURCE
+def test_diamond_square_upsampling_expands_posts_keeping_them():
+    posts = terraingen.Raster.from_array(
+        np.zeros((16, 16), dtype=np.float32), terraingen.GeoTransform.north_up(0.0, 64.0, 4.0)
     )
+    options = terraingen.DiamondSquareOptions(fractal_dimension=2.3, scale=0.5)
     options.validate()
-    layer = terraingen.MidpointDisplacementLayer(options)
-    assert layer.levels(1.0) == 2 and layer.node_spacing(2) == pytest.approx(1.0)
-    assert layer.options.base == terraingen.MidpointBase.SOURCE
-    heights = terraingen.evaluate(terraingen.Terrain(None, [layer]), grid=grid)
+    upsampler = terraingen.DiamondSquareUpsampler(options)
+    assert upsampler.levels(4.0, 1.0) == 2 and upsampler.reach() == 4
+    assert upsampler.options.interp == terraingen.DiamondSquareInterp.BILINEAR
+    source = terraingen.RasterSource(posts, upsampler=upsampler)
+    grid = terraingen.RasterGrid(63, 63, terraingen.GeoTransform.north_up(0.5, 63.5, 1.0))
+    heights = terraingen.evaluate(terraingen.Terrain(source), grid=grid)
     values = heights.values
-    assert np.all(values[::4, ::4] == 0.0)
+    assert np.all(values[1::4, 1::4] == 0.0)
     assert np.abs(values).max() > 0.1
     roughness = terraingen.estimate_midpoint_roughness(heights)
     assert roughness.scale > 0.0 and 2.0 <= roughness.fractal_dimension <= 3.0
     with pytest.raises(ValueError):
-        terraingen.validate_midpoint_displacement_options(
-            terraingen.MidpointDisplacementOptions(fractal_dimension=3.5)
-        )
+        terraingen.validate_diamond_square_options(terraingen.DiamondSquareOptions(fractal_dimension=3.5))
+    fitted = terraingen.DiamondSquareUpsampler().fit_to(terraingen.RasterPosts(heights))
+    assert fitted.options.scale > 0.0 and fitted.options.fractal_dimension is not None
 
 
 def test_spectral_continuation_adds_detail_below_the_base_following_its_spectrum():
@@ -566,7 +566,7 @@ def test_roughness_and_noise_layers_estimate_their_settings_from_a_dem(tmp_path)
     config = terraingen.Config.from_dict(
         {
             "schema_version": 1,
-            "base": {"type": "raster", "path": "dem.tif"},
+            "source": {"type": "raster", "path": "dem.tif"},
             "layers": [
                 {"type": "noise", "estimate_from_base": True, "stack": [{"wavelength": 1.0, "octaves": 2}]},
                 {"type": "roughness", "estimate_from_base": True, "max_wavelength": 1.0, "rms_slope": 0.3},

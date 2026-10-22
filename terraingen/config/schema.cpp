@@ -191,6 +191,31 @@ template <typename... Ts> struct Describer<std::variant<Ts...>> {
     }
 };
 
+template <> struct Describer<UpsamplingSpec> {
+    static Json Describe(SchemaBuilder& builder) {
+        return builder.Reference<UpsamplingSpec>([&] {
+            Json alternatives = Json::array();
+            for (const auto& entry : EnumNames<ResampleMethod>::kValues) {
+                const std::string name(entry.name);
+                alternatives.push_back(Json{{"type", name},
+                                            {"description", std::string(entry.description)},
+                                            {"fields", Json::array()},
+                                            {"default", name}});
+            }
+            UpsamplingSpec diamondSquare;
+            diamondSquare.type = "diamond_square";
+            alternatives.push_back(
+                Json{{"type", diamondSquare.type},
+                     {"description",
+                      "Random midpoint displacement: each level halves the node spacing down to "
+                      "the sample spacing, adding fractal detail without changing the posts."},
+                     {"fields", DescribeFields<DiamondSquareOptions>(builder)},
+                     {"default", ToJson(diamondSquare)}});
+            return Json{{"kind", "choice"}, {"alternatives", alternatives}, {"named", true}};
+        });
+    }
+};
+
 template <typename T> struct Describer<T, std::enable_if_t<HasFields<T>>> {
     static Json Describe(SchemaBuilder& builder) {
         return builder.Reference<T>(

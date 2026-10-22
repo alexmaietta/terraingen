@@ -5,15 +5,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 #include <stdexcept>
 #include <string>
 
 namespace terraingen {
 
 namespace {
-
-/// The longest lag, in cells, the deviogram is fitted over.
-constexpr std::size_t kMaxVariogramLag = 8;
 
 /// Largest side, in cells, of the lattice a source is sampled on.
 constexpr double kLatticeCells = 512.0;
@@ -26,63 +24,6 @@ constexpr int kNoisePoints = 64;
 constexpr double kNoiseStep = 0.6180339887498949;
 
 }  // namespace
-
-bool HasData(const Raster<float>& heights, std::size_t col, std::size_t row) {
-    const float value = heights(col, row);
-    return std::isfinite(value) && !heights.IsNoData(value);
-}
-
-std::pair<double, std::size_t> Variogram(const Raster<float>& heights, std::size_t lag) {
-    double sum = 0.0;
-    std::size_t count = 0;
-    const auto add = [&](std::size_t col, std::size_t row, std::size_t col2, std::size_t row2) {
-        if (HasData(heights, col, row) && HasData(heights, col2, row2)) {
-            const double difference =
-                static_cast<double>(heights(col2, row2)) - static_cast<double>(heights(col, row));
-            sum += difference * difference;
-            ++count;
-        }
-    };
-    for (std::size_t row = 0; row < heights.Height(); ++row) {
-        for (std::size_t col = 0; col < heights.Width(); ++col) {
-            if (col + lag < heights.Width()) {
-                add(col, row, col + lag, row);
-            }
-            if (row + lag < heights.Height()) {
-                add(col, row, col, row + lag);
-            }
-        }
-    }
-    return {count > 0 ? sum / static_cast<double>(count) : 0.0, count};
-}
-
-DeviogramFit FitDeviogram(const Raster<float>& heights) {
-    double sumX = 0.0;
-    double sumY = 0.0;
-    double sumXX = 0.0;
-    double sumXY = 0.0;
-    int lags = 0;
-    for (std::size_t lag = 1; lag <= kMaxVariogramLag; lag *= 2) {
-        const auto [variogram, pairs] = Variogram(heights, lag);
-        if (pairs == 0 || !(variogram > 0.0)) {
-            break;
-        }
-        const double x = std::log2(static_cast<double>(lag));
-        const double y = 0.5 * std::log2(variogram);
-        sumX += x;
-        sumY += y;
-        sumXX += x * x;
-        sumXY += x * y;
-        ++lags;
-    }
-    DeviogramFit fit;
-    fit.lags = lags;
-    if (lags >= 2) {
-        fit.slope = (lags * sumXY - sumX * sumY) / (lags * sumXX - sumX * sumX);
-        fit.intercept = (sumY - fit.slope * sumX) / lags;
-    }
-    return fit;
-}
 
 double BaseRoughness::Deviation(double lag) const {
     return deviation * std::pow(lag / cellSize, hurst);
@@ -113,7 +54,15 @@ BaseRoughness EstimateBaseRoughness(const Raster<float>& heights, double cellSiz
 }
 
 Raster<float> SampleSourceWindow(const Source& source, double cellSize, const Vec2d& origin) {
-    const Bounds2d bounds = source.Grid().Bounds();
+    const std::optional<RasterGrid> bounded = BoundedGrid(source);
+    Bounds2d bounds;
+    if (bounded) {
+        bounds = bounded->Bounds();
+    } else {
+        const Vec2d center = source.ReferencePoint();
+        const double half = 0.5 * kLatticeCells * cellSize;
+        bounds = {center.x - half, center.y - half, center.x + half, center.y + half};
+    }
     const auto cells = [&](double extent) {
         return std::clamp(std::floor(extent / cellSize), 3.0, kLatticeCells);
     };
@@ -127,12 +76,24 @@ Raster<float> SampleSourceWindow(const Source& source, double cellSize, const Ve
                           GeoTransform::NorthUp(origin.x + (col0 - 0.5) * cellSize,
                                                 origin.y + (rowTop + 0.5) * cellSize, cellSize)};
     Raster<float> heights = grid.MakeRaster();
-    source.Fill(heights);
+    source.Fill(heights, cellSize);
     return heights;
 }
 
 BaseRoughness EstimateSourceRoughness(const Source& source, const Surface& surface) {
     const RasterGrid grid = source.Grid();
+    if (!BoundedGrid(source)) {
+        const Vec2d center = source.ReferencePoint();
+        const double native = source.ResolutionAt(center.x, center.y);
+        if (!std::isfinite(native)) {
+            throw std::invalid_argument(
+                "Estimating roughness needs a source with posts, such as a DEM or synthetic noise "
+                "with a pixel size; give the values instead");
+        }
+        const Raster<float> heights =
+            SampleSourceWindow(source, native, grid.transform.PixelToWorld(0.5, 0.5));
+        return EstimateBaseRoughness(heights, native * surface.UnitLength());
+    }
     const Bounds2d bounds = grid.Bounds();
     const double native =
         source.ResolutionAt(0.5 * (bounds.minX + bounds.maxX), 0.5 * (bounds.minY + bounds.maxY));

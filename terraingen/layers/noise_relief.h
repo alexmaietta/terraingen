@@ -1,5 +1,5 @@
 /// @file
-/// @brief `NoiseRelief`, a stack of noise layers added to the terrain, and `NoiseLayersAt`.
+/// @brief `NoiseRelief`, a stack of noise layers added to the terrain.
 #pragma once
 
 #include "terraingen/layers/kernels/noise_relief.h"
@@ -12,12 +12,6 @@
 #include <vector>
 
 namespace terraingen {
-
-/// The summed noise of `layers` at surface (x, y): 2D relative to `origin` on a plane (keeping
-/// single precision accurate), 3D at the point's 3D position on a sphere.
-/// @param origin Where plane coordinates are measured from; unused on a sphere.
-float NoiseLayersAt(const std::vector<NoiseLayer>& layers, const Vec2d& origin,
-                    const Surface& surface, double x, double y);
 
 /// A stack of noise layers added to the terrain: rolling relief on a flat source, or detail on a
 /// DEM. Each sample gets `NoiseLayersAt`, seamless on a sphere.

@@ -1,11 +1,14 @@
 terraingen_add_test_suite(
     sources
     SOURCES
+    diamond_square_test.cpp
     field_test.cpp
     flat_source_test.cpp
     geotiff_source_test.cpp
     raster_source_test.cpp
     source_chain_test.cpp
+    synthetic_source_test.cpp
     synthetic_terrain_test.cpp
+    upsampling_test.cpp
     LIBRARIES
     terraingen::sources)

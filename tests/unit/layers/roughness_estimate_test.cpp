@@ -2,6 +2,7 @@
 
 #include "terraingen/random/stream.h"
 #include "terraingen/sources/raster_source.h"
+#include "terraingen/sources/synthetic_source.h"
 #include "terraingen/util/bits.h"
 
 #include <gtest/gtest.h>
@@ -168,12 +169,24 @@ TEST(EstimateSourceRoughness, ReadsTheSourceOnItsNativeCells) {
     EXPECT_NEAR(read.deviation, direct.deviation, 0.01 * direct.deviation);
     EXPECT_EQ(read.cellSize, 2.0);
 
-    terraingen::RasterSourceOptions finer;
-    finer.pixelSize = 0.5;
-    const BaseRoughness resampled =
-        terraingen::EstimateSourceRoughness(terraingen::RasterSource(heights, finer));
-    EXPECT_EQ(resampled.cellSize, 2.0);
-    EXPECT_NEAR(resampled.hurst, direct.hurst, 0.05);
+    terraingen::RasterSourceOptions smoothed;
+    smoothed.effectivePixelSize = 4.0;
+    const BaseRoughness coarser =
+        terraingen::EstimateSourceRoughness(terraingen::RasterSource(heights, smoothed));
+    EXPECT_EQ(coarser.cellSize, 4.0) << "read on cells of the effective pixel size";
+    EXPECT_NEAR(coarser.hurst, direct.hurst, 0.15);
+
+    terraingen::NoiseLayer layer;
+    layer.fractal.wavelength = 200.0f;
+    layer.fractal.amplitude = 20.0f;
+    layer.fractal.octaves = 6;
+    const terraingen::SyntheticSource posts(terraingen::SyntheticTerrainParams{{layer}}, 0.0f, 2.0);
+    EXPECT_EQ(terraingen::EstimateSourceRoughness(posts).cellSize, 2.0)
+        << "synthetic noise is read on its posts";
+    EXPECT_THROW(terraingen::EstimateSourceRoughness(
+                     terraingen::SyntheticSource(terraingen::SyntheticTerrainParams{{layer}})),
+                 std::invalid_argument)
+        << "noise without posts has no cell size to read it on";
 
     const terraingen::Surface sphere = terraingen::Surface::Sphere(1000.0);
     EXPECT_DOUBLE_EQ(terraingen::EstimateSourceRoughness(source, sphere).cellSize,

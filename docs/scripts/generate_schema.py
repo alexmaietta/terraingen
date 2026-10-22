@@ -17,7 +17,8 @@ REPO_BLOB = "https://github.com/alexmaietta/terraingen/blob/main/"
 # Titles and slugs of the choices, keyed by where they are first reached from the root.
 CHOICES = {
     "body": ("Bodies", "body"),
-    "base": ("Base sources", "base"),
+    "source": ("Sources", "source"),
+    "source[raster].upsampling": ("Upsampling", "models/upsampling"),
     "layers": ("Layers", "layers"),
     "layers[craters].density": ("Crater densities", "models/densities"),
     "layers[craters].ages": ("Crater ages", "models/ages"),
@@ -33,11 +34,12 @@ CHOICES = {
 # The order of the reference's sections in the navigation.
 SECTIONS = [
     ("Bodies", ["body"]),
-    ("Base sources", ["base"]),
+    ("Sources", ["source"]),
     ("Layers", ["layers"]),
     (
         "Crater and boulder models",
         [
+            "source[raster].upsampling",
             "layers[craters].density",
             "layers[craters].ages",
             "layers[craters].profile",

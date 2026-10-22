@@ -36,7 +36,7 @@ TEST(ConfigJson, ReadsInfiniteBoundsAsUnset) {
 
 TEST(ConfigJson, OmittedKeysTakeDefaultsAndOmittedListsAreEmpty) {
     const TerrainConfig minimal = ParseConfig(R"({"schema_version": 1})");
-    EXPECT_FALSE(minimal.base.has_value());
+    EXPECT_FALSE(minimal.source.has_value());
     EXPECT_TRUE(std::holds_alternative<terraingen::PlaneSurfaceSpec>(minimal.body));
     EXPECT_TRUE(minimal.layers.empty());
     EXPECT_TRUE(minimal.outputs.empty());

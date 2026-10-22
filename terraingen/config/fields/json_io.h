@@ -107,6 +107,9 @@ void Read(const Json& json, const std::string& path, float& value);
 void Read(const Json& json, const std::string& path, bool& value);
 void Read(const Json& json, const std::string& path, std::string& value);
 void Read(const Json& json, const std::string& path, int& value);
+/// An upsampling, from a name alone or an object with a "type": a kernel's object has no other
+/// key, diamond_square's has its fields, and another type's keys are kept as its settings.
+void Read(const Json& json, const std::string& path, UpsamplingSpec& value);
 template <typename T, std::enable_if_t<IsUnsignedInteger<T>, int> = 0>
 void Read(const Json& json, const std::string& path, T& value);
 template <typename E, std::enable_if_t<NamedEnum<E>, int> = 0>
@@ -266,6 +269,8 @@ template <typename T, std::enable_if_t<IsUnsignedInteger<T>, int> = 0>
 Json ToJson(T value, bool /*compact*/ = false) {
     return static_cast<std::uint64_t>(value);
 }
+/// An upsampling as its name alone when it has no settings, else as an object with its "type".
+Json ToJson(const UpsamplingSpec& value, bool compact = false);
 template <typename E, std::enable_if_t<NamedEnum<E>, int> = 0>
 Json ToJson(E value, bool compact = false);
 template <typename T, std::enable_if_t<HasFields<T>, int> = 0>

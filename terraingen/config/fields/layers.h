@@ -60,10 +60,7 @@ template <> struct SpecName<NoiseLayerSpec> {
         "relief.";
 };
 template <typename IO> void Fields(IO& io, NoiseLayerSpec& layer) {
-    io("stack", layer.stack,
-       "Noise layers, " + CountText(1, kMaxNoiseLayers) +
-           ", combined in order: the first enabled layer sets the height and each later one is "
-           "combined with it by its blend mode.");
+    io("stack", layer.stack, NoiseStackHelp(1));
     io("estimate_from_base", layer.estimateFromBase,
        "Continues the base's roughness into the noise: each layer's unset hurst becomes the "
        "Hurst exponent of the base's variogram at its native cell size, and each unset "
@@ -463,57 +460,6 @@ template <typename IO> void Fields(IO& io, BedformLayerSpec& spec) {
     Fields(io, spec.bedforms);
 }
 
-template <> struct SpecName<DemDetailLayerSpec> {
-    static constexpr std::string_view kName = "dem_detail";
-    static constexpr std::string_view kDescription =
-        "Adds the detail a GeoTIFF DEM has above its own low-pass, to restore measured relief over "
-        "a "
-        "raster source read with the same low_pass.";
-};
-template <typename IO> void Fields(IO& io, DemDetailLayerSpec& spec) {
-    io("path", spec.path, InputPathHelp("GeoTIFF DEM to take the detail from"));
-    GeoTiffReadFields(io, spec.read, "Interpolation used between the DEM's cells.", false);
-    io("low_pass", spec.read.lowPass,
-       "Standard deviation in metres of the Gaussian low-pass the detail is measured above; "
-       "positive, and the same as the raster source's low_pass to restore the DEM whole.",
-       "m", Above(0.0));
-    io("weight", spec.weight, "Share of the detail added; 1 restores it whole, 0.5 halves it.");
-}
-
-template <> struct SpecName<MidpointDisplacementLayerSpec> {
-    static constexpr std::string_view kName = "midpoint_displacement";
-    static constexpr std::string_view kDescription =
-        "Random midpoint displacement (diamond-square) expansion of the base lattice, as PANGU "
-        "expands DEMs: each level halves the node spacing down to the sample spacing, adding "
-        "fractal detail without changing the nodes before it.";
-};
-template <typename IO> void Fields(IO& io, MidpointDisplacementLayerSpec& spec) {
-    io("pixel_size", spec.pixelSize,
-       "Spacing of the base lattice's nodes in metres. Unset uses the base's cell size.", "m",
-       Above(0.0));
-    io("origin_x", spec.originX,
-       "x of a node of the base lattice, in surface coordinates. Unset uses the base's first "
-       "cell centre.");
-    io("origin_y", spec.originY,
-       "y of a node of the base lattice, in surface coordinates. Unset uses the base's first "
-       "cell centre.");
-    io("fractal_dimension", spec.fractalDimension,
-       "Fractal dimension, from 2 (smooth) to 3 (rough): each square or diamond step scales the "
-       "displacement by 2^-((3 - F) / 2). Unset estimates it from the base's variogram.",
-       "", Between(2.0, 3.0));
-    io("scale", spec.scale,
-       "Standard deviation in metres of the displacement at the base lattice's own last diamond "
-       "step. Unset estimates it from the base as the RMS of each cell minus the mean of its four "
-       "neighbours.",
-       "m", AtLeast(0.0));
-    io("min_pixel_size", spec.minPixelSize,
-       "Finest node spacing in metres the lattice is expanded to; 0 expands down to the sample "
-       "spacing.",
-       "m", AtLeast(0.0));
-    io("base", spec.base, "What is displaced: the ground at the base nodes, or zero.");
-    io("seed", spec.seed, "Seed of the displacements.");
-}
-
 /// The fields a spectral continuation shares between its options and its layer spec.
 template <typename IO>
 void SpectralSynthesisFields(IO& io, double& minWavelength, double& taperOctaves,
@@ -553,8 +499,8 @@ template <> struct SpecName<SpectralContinuationLayerSpec> {
     static constexpr std::string_view kName = "spectral_continuation";
     static constexpr std::string_view kDescription =
         "Detail finer than the base continuing its measured power-law spectrum to shorter "
-        "wavelengths with random phases, as sparse Gabor noise: an alternative to midpoint "
-        "displacement without lattice artefacts.";
+        "wavelengths with random phases, as sparse Gabor noise: an alternative to diamond-square "
+        "upsampling without lattice artifacts.";
 };
 template <typename IO> void Fields(IO& io, SpectralContinuationLayerSpec& spec) {
     io("pixel_size", spec.pixelSize,

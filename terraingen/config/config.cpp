@@ -69,13 +69,17 @@ NoiseLayer NoiseLayerConfig::EffectiveRelief() const {
     return effective;
 }
 
-SyntheticTerrainParams NoiseLayerSpec::Params() const {
+SyntheticTerrainParams StackParams(const std::vector<NoiseLayerConfig>& stack) {
     SyntheticTerrainParams params;
     params.layers.clear();
     for (const NoiseLayerConfig& layer : stack) {
         params.layers.push_back(layer.EffectiveRelief());
     }
     return params;
+}
+
+SyntheticTerrainParams NoiseLayerSpec::Params() const {
+    return StackParams(stack);
 }
 
 SyntheticTerrainParams NoiseLayerSpec::EstimatedParams(const BaseRoughness& base) const {

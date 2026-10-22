@@ -39,29 +39,26 @@ TEST(ValidateConfig, ReportsRasterSourceProblems) {
         return std::string("valid");
     };
     EXPECT_EQ(error([](TerrainConfig&) {}), "valid");
-    EXPECT_EQ(error([](TerrainConfig& c) { RasterSpec(c).path.clear(); }).rfind("base.path", 0),
+    EXPECT_EQ(error([](TerrainConfig& c) { RasterSpec(c).path.clear(); }).rfind("source.path", 0),
               0u);
     EXPECT_NE(
         error([](TerrainConfig& c) { RasterSpec(c).path = "missing.tif"; }).find("cannot open"),
         std::string::npos);
-    EXPECT_NE(error([](TerrainConfig& c) { RasterSpec(c).read.band = 1; }).find("base.band"),
+    EXPECT_NE(error([](TerrainConfig& c) { RasterSpec(c).read.band = 1; }).find("source.band"),
               std::string::npos);
     EXPECT_NE(
         error([](TerrainConfig& c) { RasterSpec(c).path = "degrees.tif"; }).find("geographic"),
         std::string::npos);
     EXPECT_NE(error([](TerrainConfig& c) {
                   c.body = terraingen::SphereSurfaceSpec{1737400.0};
-              }).find("base.path: on a body the raster must be in longitude and latitude"),
+              }).find("source.path: on a body the raster must be in longitude and latitude"),
               std::string::npos);
     EXPECT_EQ(error([](TerrainConfig& c) {
-                  RasterSpec(c).read.pixelSize = -1.0;
-              }).rfind("base.pixel_size", 0),
+                  RasterSpec(c).read.effectivePixelSize = -1.0;
+              }).rfind("source.effective_pixel_size_m", 0),
               0u);
-    EXPECT_EQ(error([](TerrainConfig& c) {
-                  RasterSpec(c).read.pixelSize = 1e-6;
-              }).rfind("base.pixel_size", 0),
-              0u);
-    EXPECT_EQ(error([](TerrainConfig& c) { RasterSpec(c).read.pixelSize = 1.0; }), "valid");
+    EXPECT_EQ(error([](TerrainConfig& c) { RasterSpec(c).read.effectivePixelSize = 20.0; }),
+              "valid");
     EXPECT_EQ(error([](TerrainConfig& c) {
                   terraingen::NoiseLayerSpec noise;
                   noise.stack[0].layer.fractal.octaves = 0;
@@ -77,15 +74,12 @@ TEST(ValidateConfig, ReportsRasterSourceProblems) {
     terraingen::Raster<float> rotated(8, 8, 1.0f);
     rotated.SetTransform(terraingen::GeoTransform{0.0, 1.0, 0.2, 0.0, 0.1, -1.0});
     terraingen::WriteGeoTiff(folder / "rotated.tif", rotated, terraingen::testing::Keys());
-    EXPECT_EQ(error([](TerrainConfig& c) {
-                  RasterSpec(c).path = "rotated.tif";
-                  RasterSpec(c).read.pixelSize = 0.5;
-              }).rfind("base.pixel_size", 0),
-              0u);
+    EXPECT_EQ(error([](TerrainConfig& c) { RasterSpec(c).path = "rotated.tif"; }), "valid");
     terraingen::WriteGeoTiff(folder / "tiny.tif", terraingen::Raster<float>(1, 1, 0.0f),
                              terraingen::testing::Keys());
     EXPECT_EQ(
-        error([](TerrainConfig& c) { RasterSpec(c).path = "tiny.tif"; }).rfind("base.path", 0), 0u);
+        error([](TerrainConfig& c) { RasterSpec(c).path = "tiny.tif"; }).rfind("source.path", 0),
+        0u);
 }
 
 TEST(ValidateConfig, ReportsChainProblemsByPath) {
@@ -94,14 +88,19 @@ TEST(ValidateConfig, ReportsChainProblemsByPath) {
     const auto raster = [](const std::string& path) { return terraingen::RasterSourceSpec{path}; };
     const auto error = [&](terraingen::ChainSourceSpec chain) {
         TerrainConfig config;
-        config.base = std::move(chain);
+        config.source = std::move(chain);
+        config.outputs = {terraingen::testing::Heightmap("h.tif", std::nullopt)};
         return ValidationErrorPath(config, folder);
     };
     EXPECT_EQ(error({{raster("dem.tif"), raster("dem.tif")}}), "valid");
-    EXPECT_EQ(error({}), "base.sources");
-    EXPECT_EQ(error({{raster("dem.tif"), raster("missing.tif")}}), "base.sources[1].path");
+    EXPECT_EQ(error({{raster("dem.tif"), terraingen::SyntheticSourceSpec{}}}), "valid")
+        << "a DEM over a flat datum";
+    EXPECT_EQ(error({{terraingen::SyntheticSourceSpec{}, raster("dem.tif")}}), "outputs[0].region")
+        << "a chain without bounds has no grid to cover";
+    EXPECT_EQ(error({}), "source.sources");
+    EXPECT_EQ(error({{raster("dem.tif"), raster("missing.tif")}}), "source.sources[1].path");
     EXPECT_EQ(error({{terraingen::ChainSourceSpec{{raster("")}}}}),
-              "base.sources[0].sources[0].path");
+              "source.sources[0].sources[0].path");
 }
 
 TEST(ValidateConfig, ReportsOutputGridProblemsByPath) {
@@ -115,7 +114,7 @@ TEST(ValidateConfig, ReportsOutputGridProblemsByPath) {
     };
     const auto unchanged = [](TerrainConfig&) {};
     const auto moon = [](TerrainConfig& c) { c.body = terraingen::SphereSurfaceSpec{1737400.0}; };
-    const auto dem = [](TerrainConfig& c) { c.base = terraingen::RasterSourceSpec{"dem.tif"}; };
+    const auto dem = [](TerrainConfig& c) { c.source = terraingen::RasterSourceSpec{"dem.tif"}; };
     const terraingen::OutputSpec heightmap = terraingen::testing::Heightmap("h.tif", std::nullopt);
     EXPECT_EQ(error(heightmap, unchanged), "outputs[0].region");
     EXPECT_EQ(error(heightmap, moon), "outputs[0].region");
@@ -217,11 +216,11 @@ TEST(ValidateConfig, ReportsMeshProblemsByPath) {
     EXPECT_EQ(error([](auto&, auto& o) { o.spacing = -1.0; }), "outputs[0].spacing");
 }
 
-TEST(DescribeSource, ReadsTheRasterHeaderAndResampledSize) {
+TEST(DescribeSource, ReadsTheRasterHeader) {
     const auto folder = TempPath("terraingen_describe");
     terraingen::testing::WriteDem(folder, "dem.tif");
     TerrainConfig config = terraingen::testing::RasterConfig("dem.tif");
-    const auto grid = terraingen::DescribeSource(*config.base, folder);
+    const terraingen::RasterGrid grid = terraingen::DescribeSource(*config.source, folder).value();
     EXPECT_EQ(grid.width, 40u);
     EXPECT_EQ(grid.height, 30u);
     EXPECT_EQ(grid.transform, terraingen::GeoTransform::NorthUp(1000.0, 2000.0, 5.0));
@@ -232,12 +231,9 @@ TEST(DescribeSource, ReadsTheRasterHeaderAndResampledSize) {
     EXPECT_EQ(bounds.maxX, 1200.0);
     EXPECT_EQ(bounds.minY, 1850.0);
     EXPECT_EQ(bounds.maxY, 2000.0);
-    terraingen::testing::RasterSpec(config).read.pixelSize = 2.5;
-    const auto fine = terraingen::DescribeSource(*config.base, folder);
-    EXPECT_EQ(fine.width, 80u);
-    EXPECT_EQ(fine.height, 60u);
-    EXPECT_DOUBLE_EQ(fine.PixelSize(), 2.5);
-    EXPECT_EQ(fine.transform.pixelHeight, -2.5) << "keeps the north-up sign";
+    terraingen::testing::RasterSpec(config).upsampling.type = "lanczos3";
+    EXPECT_EQ(terraingen::DescribeSource(*config.source, folder), grid)
+        << "upsampling leaves the grid alone";
 }
 
 TEST(BuildSurface, BuildsPlanesAndSpheresOfARadius) {

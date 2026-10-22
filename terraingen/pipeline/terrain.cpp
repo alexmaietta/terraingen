@@ -23,8 +23,11 @@ namespace {
 /// them all at once, each on the ground beneath it, which shares `cache`.
 void EvaluateStack(const Terrain& terrain, std::size_t layers, Span<const Vec2d> points,
                    Span<float> heights, double spacing, EvaluationCache* cache) {
+    const double sourceSpacing = spacing / terrain.surface.UnitLength();
     for (std::size_t i = 0; i < points.size(); ++i) {
-        heights[i] = terrain.source ? terrain.source->HeightAt(points[i].x, points[i].y) : 0.0f;
+        heights[i] = terrain.source
+                         ? terrain.source->HeightAt(points[i].x, points[i].y, sourceSpacing)
+                         : 0.0f;
     }
     for (std::size_t n = 0; n < layers; ++n) {
         const TerrainGround ground(terrain, n, cache);
@@ -131,7 +134,7 @@ Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid,
     const Backend backend = ResolveBackend(options.backend.value_or(DefaultBackend()));
     Raster<float> heights = grid.MakeRaster();
     if (terrain.source) {
-        terrain.source->Fill(heights);
+        terrain.source->Fill(heights, resolved / terrain.surface.UnitLength());
     }
     for (std::size_t n = 0; n < terrain.layers.size(); ++n) {
         const Stopwatch stopwatch;
@@ -202,10 +205,14 @@ std::shared_ptr<const Ground> SharedGround(const Terrain& terrain, std::size_t l
 
 Raster<float> Evaluate(const Terrain& terrain) {
     ValidateTerrain(terrain);
-    if (!terrain.source) {
-        throw std::invalid_argument("A terrain without a source needs a grid to evaluate over");
+    const std::optional<RasterGrid> grid =
+        terrain.source ? BoundedGrid(*terrain.source) : std::nullopt;
+    if (!grid) {
+        throw std::invalid_argument(
+            "A terrain without a source, or with a source without bounds such as synthetic "
+            "noise, needs a grid to evaluate over");
     }
-    return Evaluate(terrain, terrain.source->Grid());
+    return Evaluate(terrain, *grid);
 }
 
 }  // namespace terraingen

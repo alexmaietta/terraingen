@@ -741,16 +741,16 @@ std::string BuildErrorPath(const TerrainConfig& config, const std::filesystem::p
 
 }  // namespace
 
-TEST(BuildTerrain, ReadsOnlyTheRegionOfARasterBase) {
+TEST(BuildTerrain, ReadsOnlyTheCropOfARasterSource) {
     const auto folder = terraingen::testing::TempPath("terraingen_config_region");
     terraingen::testing::WriteDem(folder, "dem.tif");
     TerrainConfig config = terraingen::testing::RasterConfig("dem.tif");
     const terraingen::Bounds2d region{1050.0, 1900.0, 1100.0, 1950.0};
-    terraingen::testing::RasterSpec(config).read.region = region;
+    terraingen::testing::RasterSpec(config).read.crop = region;
     const terraingen::Terrain terrain = terraingen::BuildTerrain(config, folder);
     const terraingen::RasterGrid grid = terrain.source->Grid();
     terraingen::GeoTiffSourceOptions read;
-    read.region = region;
+    read.crop = region;
     EXPECT_EQ(grid, terraingen::GeoTiffSource(folder / "dem.tif", read).Grid());
     EXPECT_LT(grid.width, 40u);
     EXPECT_LT(grid.height, 30u);
@@ -759,30 +759,84 @@ TEST(BuildTerrain, ReadsOnlyTheRegionOfARasterBase) {
     EXPECT_GE(bounds.minX, region.minX - 5.0);
     EXPECT_GE(bounds.maxX, region.maxX);
     EXPECT_LE(bounds.maxX, region.maxX + 5.0);
-    EXPECT_TRUE(std::isnan(terrain.source->HeightAt(1010.0, 1990.0))) << "outside the region";
+    EXPECT_TRUE(std::isnan(terrain.source->HeightAt(1010.0, 1990.0, 1.0))) << "outside the crop";
 }
 
-TEST(BuildTerrain, AddsDemDetailOnlyInsideItsRegion) {
-    const auto folder = terraingen::testing::TempPath("terraingen_config_detail_region");
+TEST(BuildTerrain, UpsamplesTheSourceAsItsUpsamplingSays) {
+    const auto folder = terraingen::testing::TempPath("terraingen_config_upsampling");
     const terraingen::Raster<float> dem = terraingen::testing::WriteDem(folder, "dem.tif");
     TerrainConfig config = terraingen::testing::RasterConfig("dem.tif");
-    terraingen::testing::RasterSpec(config).read.lowPass = 15.0;
-    const terraingen::RasterGrid grid = terraingen::RasterGrid::FromRaster(dem);
-    const terraingen::Raster<float> smooth =
-        terraingen::Evaluate(terraingen::BuildTerrain(config, folder), grid);
-    terraingen::DemDetailLayerSpec detail;
-    detail.path = "dem.tif";
-    detail.read.lowPass = 15.0;
-    detail.read.region = terraingen::Bounds2d{1050.0, 1900.0, 1100.0, 1950.0};
-    config.layers = {detail};
-    const terraingen::Raster<float> restored =
-        terraingen::Evaluate(terraingen::BuildTerrain(config, folder), grid);
-    EXPECT_NEAR(restored(15, 15), dem(15, 15), 1e-3) << "inside the region";
-    EXPECT_NE(smooth(2, 2), dem(2, 2));
-    EXPECT_EQ(restored(2, 2), smooth(2, 2)) << "outside the region";
+    const terraingen::RasterGrid fine =
+        terraingen::ResampledGrid(terraingen::RasterGrid::FromRaster(dem), 1.0);
+    const terraingen::Raster<float> cubic =
+        terraingen::Evaluate(terraingen::BuildTerrain(config, folder), fine);
+    const terraingen::Raster<float> expected =
+        terraingen::Resample(dem, 1.0, terraingen::ResampleMethod::Cubic);
+    for (std::size_t i = 0; i < cubic.Size(); ++i) {
+        ASSERT_EQ(cubic.Values()[i], expected.Values()[i]) << "cubic by default";
+    }
+    terraingen::UpsamplingSpec& upsampling = terraingen::testing::RasterSpec(config).upsampling;
+    upsampling.type = "diamond_square";
+    upsampling.diamondSquare.minPixelSize = 2.0;
+    const terraingen::Terrain terrain = terraingen::BuildTerrain(config, folder);
+    const auto source = std::dynamic_pointer_cast<const terraingen::GeoTiffSource>(terrain.source);
+    ASSERT_NE(source, nullptr);
+    const terraingen::Raster<float> refined = terraingen::Evaluate(terrain, fine);
+    EXPECT_NE(refined(8, 6), cubic(8, 6));
+    EXPECT_EQ(refined(2, 2), dem(0, 0)) << "the cells stay";
+    upsampling.type = "lanczos3";
+    EXPECT_NE(terraingen::Evaluate(terraingen::BuildTerrain(config, folder), fine)(8, 6),
+              cubic(8, 6));
 }
 
-TEST(BuildTerrain, ReportsARegionThatIsInvertedNotFiniteOrOffTheFile) {
+TEST(BuildTerrain, BuildsASyntheticSourceOrAFlatOneWithoutASource) {
+    TerrainConfig config = Small();
+    config.source.reset();
+    const terraingen::Terrain flat = terraingen::BuildTerrain(config);
+    const auto datum = std::dynamic_pointer_cast<const terraingen::SyntheticSource>(flat.source);
+    ASSERT_NE(datum, nullptr);
+    EXPECT_TRUE(datum->Params().layers.empty());
+    EXPECT_EQ(datum->HeightAt(123.0, -4.0, 1.0), 0.0f);
+
+    terraingen::SyntheticSourceSpec synthetic;
+    synthetic.elevation = -20.0;
+    synthetic.stack = {terraingen::NoiseLayerConfig{}};
+    synthetic.pixelSize = 16.0;
+    terraingen::UpsamplingSpec bilinear;
+    bilinear.type = "bilinear";
+    synthetic.upsampling = bilinear;
+    config.source = synthetic;
+    const terraingen::Terrain noise = terraingen::BuildTerrain(config);
+    const auto made = std::dynamic_pointer_cast<const terraingen::SyntheticSource>(noise.source);
+    ASSERT_NE(made, nullptr);
+    EXPECT_EQ(made->Elevation(), -20.0f);
+    EXPECT_EQ(made->PixelSize(), 16.0);
+    EXPECT_EQ(made->Params(), terraingen::StackParams(synthetic.stack));
+    const auto kernel =
+        std::dynamic_pointer_cast<const terraingen::KernelUpsampler>(made->UpsamplerInUse());
+    ASSERT_NE(kernel, nullptr);
+    EXPECT_EQ(kernel->Method(), terraingen::ResampleMethod::Bilinear);
+}
+
+TEST(BuildTerrain, MakesRegisteredUpsamplersWithTheirSettings) {
+    std::string received;
+    terraingen::RegisterUpsampler("config_test_kernel", [&received](const std::string& settings) {
+        received = settings;
+        return std::make_shared<terraingen::KernelUpsampler>(terraingen::ResampleMethod::Nearest);
+    });
+    const auto folder = terraingen::testing::TempPath("terraingen_config_registered");
+    terraingen::testing::WriteDem(folder, "dem.tif");
+    TerrainConfig config = terraingen::testing::RasterConfig("dem.tif");
+    terraingen::testing::RasterSpec(config).upsampling.type = "config_test_kernel";
+    terraingen::testing::RasterSpec(config).upsampling.settings = R"({"sharpness":2})";
+    terraingen::BuildTerrain(config, folder);
+    EXPECT_EQ(received, R"({"sharpness":2})");
+    terraingen::testing::RasterSpec(config).upsampling.settings.clear();
+    terraingen::BuildTerrain(config, folder);
+    EXPECT_EQ(received, "{}");
+}
+
+TEST(BuildTerrain, ReportsACropThatIsInvertedNotFiniteOrOffTheFile) {
     const auto folder = terraingen::testing::TempPath("terraingen_config_bad_region");
     terraingen::testing::WriteDem(folder, "dem.tif");
     const double nan = std::numeric_limits<double>::quiet_NaN();
@@ -790,15 +844,9 @@ TEST(BuildTerrain, ReportsARegionThatIsInvertedNotFiniteOrOffTheFile) {
          {terraingen::Bounds2d{1100.0, 1900.0, 1050.0, 1950.0},
           terraingen::Bounds2d{1050.0, nan, 1100.0, 1950.0},
           terraingen::Bounds2d{5000.0, 5000.0, 6000.0, 6000.0}}) {
-        TerrainConfig base = terraingen::testing::RasterConfig("dem.tif");
-        terraingen::testing::RasterSpec(base).read.region = region;
-        EXPECT_EQ(BuildErrorPath(base, folder).rfind("base", 0), 0u) << region.minX;
-        TerrainConfig layer = terraingen::testing::RasterConfig("dem.tif");
-        terraingen::DemDetailLayerSpec detail;
-        detail.path = "dem.tif";
-        detail.read.region = region;
-        layer.layers = {detail};
-        EXPECT_EQ(BuildErrorPath(layer, folder).rfind("layers[0]", 0), 0u) << region.minX;
+        TerrainConfig cropped = terraingen::testing::RasterConfig("dem.tif");
+        terraingen::testing::RasterSpec(cropped).read.crop = region;
+        EXPECT_EQ(BuildErrorPath(cropped, folder).rfind("source", 0), 0u) << region.minX;
     }
 }
 

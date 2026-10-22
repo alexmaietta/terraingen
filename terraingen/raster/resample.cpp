@@ -1,6 +1,7 @@
 #include "terraingen/raster/resample.h"
 
 #include "terraingen/util/arithmetic.h"
+#include "terraingen/util/bits.h"
 
 #include <algorithm>
 #include <array>
@@ -13,7 +14,7 @@ namespace terraingen {
 
 namespace {
 
-/// Keys cubic convolution kernel with a = -0.5.
+/// Keys cubic convolution kernel with a = -0.5, the Catmull-Rom spline.
 double CubicWeight(double x) {
     constexpr double a = -0.5;
     x = std::fabs(x);
@@ -22,6 +23,37 @@ double CubicWeight(double x) {
     }
     if (x < 2.0) {
         return ((a * x - 5.0 * a) * x + 8.0 * a) * x - 4.0 * a;
+    }
+    return 0.0;
+}
+
+/// sin(pi x) / (pi x), 1 at 0.
+double Sinc(double x) {
+    if (x == 0.0) {
+        return 1.0;
+    }
+    const double angle = kPi * x;
+    return std::sin(angle) / angle;
+}
+
+/// The Lanczos kernel with three lobes, exactly 0 at the whole offsets but 0.
+double Lanczos3Weight(double x) {
+    x = std::fabs(x);
+    if (x >= 3.0 || (x > 0.0 && x == std::floor(x))) {
+        return 0.0;
+    }
+    return Sinc(x) * Sinc(x / 3.0);
+}
+
+/// The uniform cubic B-spline.
+double BSplineWeight(double x) {
+    x = std::fabs(x);
+    if (x < 1.0) {
+        return 2.0 / 3.0 - x * x + 0.5 * x * x * x;
+    }
+    if (x < 2.0) {
+        const double rest = 2.0 - x;
+        return rest * rest * rest / 6.0;
     }
     return 0.0;
 }
@@ -38,37 +70,15 @@ std::size_t WindowIndex(double index, std::size_t wholeSize, std::size_t first, 
 /// holds no data.
 std::optional<float> Interpolate(const Raster<float>& raster, const RasterPlacement& placement,
                                  double u, double v, ResampleMethod method) {
-    const auto column = [&](double index) {
-        return WindowIndex(index, placement.whole.width, placement.col, raster.Width());
-    };
-    const auto row = [&](double index) {
-        return WindowIndex(index, placement.whole.height, placement.row, raster.Height());
+    const auto value = [&](double col, double row) {
+        return raster(WindowIndex(col, placement.whole.width, placement.col, raster.Width()),
+                      WindowIndex(row, placement.whole.height, placement.row, raster.Height()));
     };
     if (method == ResampleMethod::Nearest) {
-        return raster(column(std::round(u)), row(std::round(v)));
+        return value(std::round(u), std::round(v));
     }
-    const double u0 = std::floor(u);
-    const double v0 = std::floor(v);
-    const double fu = u - u0;
-    const double fv = v - v0;
-    const int first = method == ResampleMethod::Bilinear ? 0 : -1;
-    const int last = method == ResampleMethod::Bilinear ? 1 : 2;
-    double sum = 0.0;
-    for (int j = first; j <= last; ++j) {
-        const double wy =
-            method == ResampleMethod::Bilinear ? (j == 0 ? 1.0 - fv : fv) : CubicWeight(fv - j);
-        const std::size_t y = row(v0 + j);
-        for (int i = first; i <= last; ++i) {
-            const double wx =
-                method == ResampleMethod::Bilinear ? (i == 0 ? 1.0 - fu : fu) : CubicWeight(fu - i);
-            const float value = raster(column(u0 + i), y);
-            if (wx * wy != 0.0 && raster.IsNoData(value)) {
-                return std::nullopt;
-            }
-            sum += wx * wy * static_cast<double>(value);
-        }
-    }
-    return static_cast<float>(sum);
+    return InterpolateLattice(u, v, method, value,
+                              [&](float cell) { return raster.IsNoData(cell); });
 }
 
 void CheckSource(const Raster<float>& raster) {
@@ -102,6 +112,63 @@ Raster<float> ResampleCells(const Raster<float>& window, const RasterPlacement& 
 }
 
 }  // namespace
+
+int KernelRadius(ResampleMethod method) {
+    switch (method) {
+    case ResampleMethod::Nearest:
+    case ResampleMethod::Bilinear:
+        return 1;
+    case ResampleMethod::Lanczos3:
+        return 3;
+    case ResampleMethod::Cubic:
+    case ResampleMethod::CatmullRom:
+    case ResampleMethod::CubicBSpline:
+        break;
+    }
+    return 2;
+}
+
+double KernelWeight(ResampleMethod method, double x) {
+    switch (method) {
+    case ResampleMethod::Nearest:
+        return std::fabs(x) < 0.5 ? 1.0 : 0.0;
+    case ResampleMethod::Bilinear:
+        return std::fmax(0.0, 1.0 - std::fabs(x));
+    case ResampleMethod::Lanczos3:
+        return Lanczos3Weight(x);
+    case ResampleMethod::CubicBSpline:
+        return BSplineWeight(x);
+    case ResampleMethod::Cubic:
+    case ResampleMethod::CatmullRom:
+        break;
+    }
+    return CubicWeight(x);
+}
+
+std::array<double, 6> KernelWeights(ResampleMethod method, double fraction) {
+    std::array<double, 6> weights{};
+    if (method == ResampleMethod::Nearest) {
+        return weights;
+    }
+    if (method == ResampleMethod::Bilinear) {
+        weights[0] = 1.0 - fraction;
+        weights[1] = fraction;
+        return weights;
+    }
+    const int radius = KernelRadius(method);
+    double total = 0.0;
+    for (int i = 1 - radius; i <= radius; ++i) {
+        const double weight = KernelWeight(method, fraction - i);
+        weights[static_cast<std::size_t>(i + radius - 1)] = weight;
+        total += weight;
+    }
+    if (method == ResampleMethod::Lanczos3) {
+        for (double& weight : weights) {
+            weight /= total;
+        }
+    }
+    return weights;
+}
 
 float SampleRaster(const Raster<float>& raster, double x, double y, ResampleMethod method) {
     return SampleRasterWindow(raster, RasterPlacement::Whole(raster), x, y, method);

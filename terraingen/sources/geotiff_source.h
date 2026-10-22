@@ -6,9 +6,11 @@
 #include "terraingen/raster/resample.h"
 #include "terraingen/sources/raster_source.h"
 #include "terraingen/sources/source.h"
+#include "terraingen/sources/upsampling.h"
 
 #include <cstddef>
 #include <filesystem>
+#include <memory>
 #include <mutex>
 #include <optional>
 
@@ -16,74 +18,73 @@ namespace terraingen {
 
 /// How a `GeoTiffSource` reads its band.
 struct GeoTiffSourceOptions {
-    std::size_t band = 0;  ///< Zero-based band index.
-    /// Cell size to resample to, in CRS units; unset keeps the file's cells.
-    std::optional<double> pixelSize{};
-    /// Interpolation for resampling and for cells off the source's lattice.
-    ResampleMethod resampling = ResampleMethod::Cubic;
+    std::size_t band = 0;            ///< Zero-based band index.
     std::optional<double> scale{};   ///< Replaces the band's scale when set; finite.
     std::optional<double> offset{};  ///< Replaces the band's offset when set; finite.
-    /// Standard deviation in metres of a Gaussian low-pass applied to the file's heights once,
-    /// before any resampling: the low frequencies of a DEM to add finer synthetic detail to
-    /// (`DetailLayer` can add the removed detail back). 0 keeps every frequency.
-    double lowPass = 0.0;
     /// The box in CRS units the source covers: only the cells of its grid that meet it, read
     /// from a window of the file. Unset covers the whole file.
-    std::optional<Bounds2d> region{};
+    std::optional<Bounds2d> crop{};
+    /// The cell size in meters the file's heights resolve, for a DEM that was upsampled or
+    /// smoothed before it was saved: `ResolutionAt` gives it in place of the cells' size. Unset
+    /// uses the cells'.
+    std::optional<double> effectivePixelSize{};
+    /// How the cells become heights between them and at sample spacings finer than the cells;
+    /// null for cubic interpolation (`DefaultUpsampler`).
+    std::shared_ptr<const Upsampler> upsampler{};
 
-    /// Memberwise equality.
+    /// Memberwise equality, the upsamplers compared by identity.
     bool operator==(const GeoTiffSourceOptions& other) const {
-        return band == other.band && pixelSize == other.pixelSize &&
-               resampling == other.resampling && scale == other.scale && offset == other.offset &&
-               lowPass == other.lowPass && region == other.region;
+        return band == other.band && scale == other.scale && offset == other.offset &&
+               crop == other.crop && effectivePixelSize == other.effectivePixelSize &&
+               upsampler == other.upsampler;
     }
     bool operator!=(const GeoTiffSourceOptions& other) const {
         return !(*this == other);
     }
 };
 
-/// Heights from one band of a GeoTIFF in a projected CRS, optionally resampled to square
-/// cells of `pixelSize` over the file's extent: a `RasterSource` of the file's band.
+/// Heights from one band of a GeoTIFF in a projected CRS: a `RasterSource` of the file's band.
 ///
-/// The cells the source needs are read on first use and kept: the whole file, or with a `region`
-/// a window of it, the cells under the region's grid and enough around them for the low-pass and
-/// the interpolation, so that the source gives the same bits there as without the region. On the
-/// source's own lattice `Fill` copies cells exactly; on any other grid each cell is the file
-/// interpolated at its centre with `resampling`. Cells beyond the file, or beyond the region's
-/// grid, are no-data. Samples are scaled with the band's scale and offset, which `scale` and
-/// `offset` replace; when that changes the samples, cells without data become NaN.
+/// The cells the source needs are read on first use and kept: the whole file, or with a `crop`
+/// a window of it, the cells under the crop's grid and enough around them for the upsampler, so
+/// that the source gives the same bits there as without the crop. On the source's own lattice
+/// at its cell size or coarser `Fill` copies cells exactly; elsewhere, and at finer spacings,
+/// the upsampler gives each cell. Cells beyond the file, or beyond the crop's grid, are no-data.
+/// Samples are scaled with the band's scale and offset, which `scale` and `offset` replace; when
+/// that changes the samples, cells without data become NaN.
 class GeoTiffSource final : public Source {
   public:
+    using Source::Fill;
+
     /// Reads the file's header.
     /// @throws GeoTiffError if the file cannot be read.
     /// @throws std::invalid_argument for a missing band, a geographic CRS (craters are sized in
-    /// metres), a non-positive `pixelSize`, a rotated raster that would need resampling, a
-    /// `scale` or `offset` that is not finite, a negative or non-finite `lowPass`, or a `region`
-    /// that is not finite, is empty (`minX` >= `maxX` or `minY` >= `maxY`) or misses the file.
+    /// meters), a `scale` or `offset` that is not finite, an `effectivePixelSize` that is not
+    /// positive and finite, or a `crop` that is not finite, is empty (`minX` >= `maxX` or `minY`
+    /// >= `maxY`) or misses the file.
     explicit GeoTiffSource(std::filesystem::path path, GeoTiffSourceOptions options = {});
 
-    /// The file's grid, resampled to `pixelSize` when set, and clipped to the cells that meet
-    /// `region` when set.
+    /// The file's grid, clipped to the cells that meet `crop` when set.
     RasterGrid Grid() const override {
         return Subgrid(lattice_, cells_);
     }
 
-    /// The top-left corner of the file's grid, in CRS units, with or without a region.
+    /// The top-left corner of the file's grid, in CRS units, with or without a crop.
     Vec2d ReferencePoint() const override;
 
-    /// Copies cells on the source's lattice, otherwise samples the file at cell centres.
+    /// Copies cells on the source's lattice at its cell size or coarser, otherwise upsamples.
     /// @throws std::invalid_argument for a rotated grid off the source's lattice.
     /// @throws GeoTiffError if the file cannot be read.
-    void Fill(Raster<float>& heights) const override;
+    void Fill(Raster<float>& heights, double spacing) const override;
 
-    /// The height in metres of the source cell centred at CRS (`x`, `y`) when there is one,
-    /// otherwise of the file interpolated there with `resampling` (`SampleRaster`); NaN beyond
-    /// the file or the region's grid, and where it has no data.
+    /// The height in meters of the source cell centered at CRS (`x`, `y`) at the cell size or
+    /// coarser, otherwise the upsampler's; NaN beyond the file or the crop's grid, and where it
+    /// has no data.
     /// @throws GeoTiffError if the file cannot be read.
-    float HeightAt(double x, double y) const override;
+    float HeightAt(double x, double y, double spacing) const override;
 
-    /// The file's cell size in metres, the larger side of a cell, or twice `lowPass` when that is
-    /// larger; infinity where `HeightAt` is NaN.
+    /// `effectivePixelSize`, or else the file's cell size in meters, the larger side of a cell;
+    /// infinity where `HeightAt` is NaN.
     /// @throws GeoTiffError if the file cannot be read.
     double ResolutionAt(double x, double y) const override;
 
@@ -98,7 +99,7 @@ class GeoTiffSource final : public Source {
     }
 
   private:
-    /// Reads the cells needed once, scales, low-passes and resamples them as the options say.
+    /// Reads the cells needed once and scales them.
     const detail::RasterHeights& Heights() const;
 
     std::filesystem::path path_;

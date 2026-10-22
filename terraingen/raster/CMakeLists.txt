@@ -7,6 +7,7 @@ terraingen_add_library(
     gaussian_blur.cpp
     grid.cpp
     resample.cpp
+    variogram.cpp
     geotiff/geotiff.cpp
     geotiff/geotiff_read.cpp
     geotiff/geotiff_write.cpp

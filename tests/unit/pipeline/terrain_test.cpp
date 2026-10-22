@@ -241,6 +241,66 @@ TEST(Evaluate, TilesEqualTheWholeTerrainAtACoarserSpacing) {
         << "bands too small for 7 m are not generated";
 }
 
+namespace {
+
+/// A flat source that records the last sample spacing it was given.
+class SpacingProbe final : public terraingen::Source {
+  public:
+    RasterGrid Grid() const override {
+        return {};
+    }
+    void Fill(terraingen::Raster<float>& heights, double spacing) const override {
+        last = spacing;
+        std::fill(heights.Values().begin(), heights.Values().end(), 0.0f);
+    }
+    float HeightAt(double, double, double spacing) const override {
+        last = spacing;
+        return 0.0f;
+    }
+    mutable double last = 0.0;
+};
+
+}  // namespace
+
+TEST(Evaluate, GivesTheSourceTheSampleSpacingInItsUnits) {
+    const auto probe = std::make_shared<SpacingProbe>();
+    Terrain terrain;
+    terrain.source = probe;
+    Evaluate(terrain, {4, 4, GeoTransform::NorthUp(0.0, 0.0, 2.0)});
+    EXPECT_EQ(probe->last, 2.0);
+    Evaluate(terrain, {4, 4, GeoTransform::NorthUp(0.0, 0.0, 2.0)}, 5.0);
+    EXPECT_EQ(probe->last, 5.0);
+    terraingen::EvaluateAt(terrain, 1.0, 1.0, 0.25);
+    EXPECT_EQ(probe->last, 0.25);
+    terrain.surface = terraingen::Surface::Sphere(1000.0);
+    terraingen::EvaluateAt(terrain, 1.0, 1.0, 0.25);
+    EXPECT_DOUBLE_EQ(probe->last, 0.25 / terrain.surface.UnitLength()) << "degrees on a body";
+    EXPECT_THROW(Evaluate(terrain), std::invalid_argument) << "a source without bounds";
+}
+
+TEST(EvaluatePoints, EqualsGridsOverAnUpsampledDemAtTheirSpacing) {
+    terraingen::Raster<float> dem(16, 16);
+    dem.SetTransform(GeoTransform::NorthUp(-32.0, 32.0, 4.0));
+    for (std::size_t i = 0; i < dem.Size(); ++i) {
+        dem.Values()[i] = static_cast<float>(std::sin(0.37 * static_cast<double>(i)));
+    }
+    terraingen::DiamondSquareOptions fractal;
+    fractal.fractalDimension = 2.4;
+    fractal.scale = 0.2;
+    terraingen::RasterSourceOptions options;
+    options.upsampler = std::make_shared<terraingen::DiamondSquareUpsampler>(fractal);
+    Terrain terrain;
+    terrain.source = std::make_shared<terraingen::RasterSource>(dem, options);
+    const RasterGrid grid{40, 30, GeoTransform::NorthUp(-20.3, 19.1, 0.6)};
+    const auto heights = Evaluate(terrain, grid);
+    for (std::size_t row = 0; row < grid.height; row += 3) {
+        for (std::size_t col = 0; col < grid.width; col += 3) {
+            const auto center = heights.CellCenter(col, row);
+            ASSERT_EQ(terraingen::EvaluateAt(terrain, center.x, center.y, 0.6), heights(col, row));
+        }
+    }
+}
+
 TEST(EvaluateAt, RejectsBadSpacingsAndIncompleteTerrains) {
     Terrain terrain = Rolling();
     EXPECT_THROW(terraingen::EvaluateAt(terrain, 0.0, 0.0, 0.0), std::invalid_argument);

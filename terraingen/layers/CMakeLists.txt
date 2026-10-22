@@ -5,13 +5,11 @@ terraingen_add_library(
     bedforms.cpp
     density_map.cpp
     dunes.cpp
-    detail.cpp
     exposure.cpp
     fade.cpp
     ground.cpp
     layer.cpp
     material.cpp
-    midpoint_displacement.cpp
     noise_relief.cpp
     pavement.cpp
     region.cpp

@@ -2,7 +2,7 @@
 
 Every part of a terrain can be replaced by subclassing its base class:
 
-- `Source`: `grid()` and `height_at(x, y)`; here an inclined plane.
+- `Source`: `grid()` and `height_at(x, y, spacing)`; here an inclined plane.
 - `Layer`: `apply_at(height, x, y, context)` for one point, or `apply(heights, context)` for a whole
   raster with NumPy; here a sinuous rille (point-wise), a regional tilt (raster) and a terrace
   quantization (raster).
@@ -40,7 +40,7 @@ class InclinedPlane(terraingen.Source):
     def grid(self):
         return terraingen.RasterGrid.centred(SIZE, SIZE, PIXEL)
 
-    def height_at(self, x, y):
+    def height_at(self, x, y, spacing):
         return self.slope * (x + y) / math.sqrt(2.0)
 
 

@@ -25,7 +25,6 @@
 #include "terraingen/layers/craters/shaping/apply.h"
 #include "terraingen/layers/density_map.h"
 #include "terraingen/layers/dunes.h"
-#include "terraingen/layers/midpoint_displacement.h"
 #include "terraingen/layers/pavement.h"
 #include "terraingen/layers/region.h"
 #include "terraingen/layers/roughness.h"
@@ -39,6 +38,7 @@
 #include "terraingen/random/value_distribution.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/resample.h"
+#include "terraingen/sources/diamond_square.h"
 #include "terraingen/sources/geotiff_source.h"
 #include "terraingen/sources/synthetic_terrain.h"
 
@@ -126,20 +126,62 @@ struct NoiseLayerConfig {
     }
 };
 
-/// Base "raster": a heightmap read from a GeoTIFF, in its own projected coordinates
-/// (`GeoTiffSource`).
+/// How a source's posts become heights between them and at sample spacings finer than them
+/// (`Upsampler`): `type` names a kernel upsampler (`KernelUpsamplerNames`), "diamond_square", or a
+/// type registered with `RegisterUpsampler`. In JSON a name alone, or an object with the "type"
+/// and the type's settings.
+struct UpsamplingSpec {
+    std::string type = "cubic";
+    DiamondSquareOptions diamondSquare{};  ///< The settings of "diamond_square"; meters.
+    /// A registered type's settings, a JSON object as text without the "type"; empty for none.
+    std::string settings{};
+
+    bool operator==(const UpsamplingSpec& other) const {
+        return type == other.type && diamondSquare == other.diamondSquare &&
+               settings == other.settings;
+    }
+    bool operator!=(const UpsamplingSpec& other) const {
+        return !(*this == other);
+    }
+};
+
+/// Source "raster": a heightmap read from a GeoTIFF, in its own projected coordinates
+/// (`GeoTiffSource`), upsampled as `upsampling` says.
 ///
-/// Relative paths resolve against the configuration's folder. The raster can be resampled to
-/// `pixelSize` metres over the same extent, as when upscaling a DEM; its coordinates must then be
-/// a projection in metres.
+/// Relative paths resolve against the configuration's folder.
 struct RasterSourceSpec {
     std::string path;
-    GeoTiffSourceOptions read{};  ///< How the band is read; `pixelSize` and `lowPass` in metres.
+    /// How the band is read: band, scale, offset, crop and `effectivePixelSize` (meters); its
+    /// upsampler is unused, `upsampling` gives it.
+    GeoTiffSourceOptions read{};
+    UpsamplingSpec upsampling{};
 
     bool operator==(const RasterSourceSpec& other) const {
-        return path == other.path && read == other.read;
+        return path == other.path && read == other.read && upsampling == other.upsampling;
     }
     bool operator!=(const RasterSourceSpec& other) const {
+        return !(*this == other);
+    }
+};
+
+/// The terrain parameters of a stack of noise layers: each layer's Hurst exponent applied and an
+/// unset amplitude `kNoiseAmplitudeRatio` times its wavelength
+/// (`NoiseLayerConfig::EffectiveRelief`).
+SyntheticTerrainParams StackParams(const std::vector<NoiseLayerConfig>& stack);
+
+/// Source "synthetic": `elevation` plus a stack of noise layers (`SyntheticSource`), evaluated at
+/// every point, or with `pixelSize` sampled at posts that `upsampling` refines (cubic unset).
+struct SyntheticSourceSpec {
+    double elevation = 0.0;                      ///< Meters.
+    std::vector<NoiseLayerConfig> stack{};       ///< 0 to `kMaxNoiseLayers` layers; none is flat.
+    std::optional<double> pixelSize{};           ///< Meters between posts; unset for none.
+    std::optional<UpsamplingSpec> upsampling{};  ///< Needs `pixelSize`.
+
+    bool operator==(const SyntheticSourceSpec& other) const {
+        return elevation == other.elevation && stack == other.stack &&
+               pixelSize == other.pixelSize && upsampling == other.upsampling;
+    }
+    bool operator!=(const SyntheticSourceSpec& other) const {
         return !(*this == other);
     }
 };
@@ -204,10 +246,10 @@ struct SizeSlopeMapSpec {
 
 struct ChainSourceSpec;
 
-/// The starting heights of a terrain, its base, named in JSON by its "type".
-using SourceSpec = std::variant<RasterSourceSpec, ChainSourceSpec>;
+/// Where a terrain's heights come from, its source, named in JSON by its "type".
+using SourceSpec = std::variant<RasterSourceSpec, ChainSourceSpec, SyntheticSourceSpec>;
 
-/// Base "chain": `sources` tried in order, each filling where those before it have no
+/// Source "chain": `sources` tried in order, each filling where those before it have no
 /// data (`SourceChain`); its grid is the first source's.
 struct ChainSourceSpec {
     std::vector<SourceSpec> sources;
@@ -221,7 +263,7 @@ struct ChainSourceSpec {
 };
 
 /// Layer "noise": a stack of 1 to `kMaxNoiseLayers` noise layers added to the terrain
-/// (`NoiseRelief`), measured from the base's reference point.
+/// (`NoiseRelief`), measured from the source's reference point.
 struct NoiseLayerSpec {
     std::vector<NoiseLayerConfig> stack{NoiseLayerConfig{}};
     /// Whether unset Hurst exponents and amplitudes come from the base (`EstimatedParams` of
@@ -772,51 +814,6 @@ struct SecondaryLayerSpec {
     }
 };
 
-/// Layer "dem_detail": the detail a GeoTIFF DEM has above its own low-pass, added to the heights
-/// (`DetailLayer`), to restore measured relief over a source that keeps only the DEM's low
-/// frequencies.
-struct DemDetailLayerSpec {
-    std::string path;
-    /// How the DEM is read; its `lowPass` is required.
-    GeoTiffSourceOptions read = [] {
-        GeoTiffSourceOptions options;
-        options.lowPass = 50.0;
-        return options;
-    }();
-    double weight = 1.0;  ///< Share of the detail added; 1 restores it whole.
-
-    bool operator==(const DemDetailLayerSpec& other) const {
-        return path == other.path && read == other.read && weight == other.weight;
-    }
-    bool operator!=(const DemDetailLayerSpec& other) const {
-        return !(*this == other);
-    }
-};
-
-/// Layer "midpoint_displacement": random midpoint displacement expansion of a base lattice
-/// (`MidpointDisplacementLayer`), on the base's grid with its estimated roughness
-/// (`EstimateMidpointRoughness`) wherever a value is not given.
-struct MidpointDisplacementLayerSpec {
-    std::optional<double> pixelSize{};  ///< Metres; unset for the base's cell size.
-    std::optional<double> originX{};    ///< Surface coordinates; unset for the base's first cell.
-    std::optional<double> originY{};    ///< Surface coordinates; unset for the base's first cell.
-    std::optional<double> fractalDimension{};  ///< Unset to estimate from the base.
-    std::optional<double> scale{};             ///< Metres; unset to estimate from the base.
-    double minPixelSize = 0.0;                 ///< Metres; 0 for no limit.
-    MidpointBase base = MidpointBase::DiamondSquare;
-    std::uint32_t seed = 1;
-
-    bool operator==(const MidpointDisplacementLayerSpec& other) const {
-        return pixelSize == other.pixelSize && originX == other.originX &&
-               originY == other.originY && fractalDimension == other.fractalDimension &&
-               scale == other.scale && minPixelSize == other.minPixelSize && base == other.base &&
-               seed == other.seed;
-    }
-    bool operator!=(const MidpointDisplacementLayerSpec& other) const {
-        return !(*this == other);
-    }
-};
-
 /// Layer "spectral_continuation": detail below the base's resolution continuing its power-law
 /// spectrum (`SpectralContinuationLayer`), fitted to the base (`EstimatePowerLawSpectrum`) on its
 /// own grid wherever the slope or amplitude is not given.
@@ -952,9 +949,8 @@ struct RegionLayerSpec;
 using LayerSpec =
     std::variant<NoiseLayerSpec, CraterLayerSpec, BoulderLayerSpec, RoughnessLayerSpec,
                  BedformLayerSpec, ScaleLayerSpec, ClampLayerSpec, RegionLayerSpec,
-                 SecondaryLayerSpec, DemDetailLayerSpec, DuneLayerSpec, SandFillLayerSpec,
-                 PavementLayerSpec, StrataLayerSpec, SandShadowLayerSpec,
-                 MidpointDisplacementLayerSpec, SpectralContinuationLayerSpec>;
+                 SecondaryLayerSpec, DuneLayerSpec, SandFillLayerSpec, PavementLayerSpec,
+                 StrataLayerSpec, SandShadowLayerSpec, SpectralContinuationLayerSpec>;
 
 /// Layer "region": `layer` applied only inside `shape` (`RegionLayer`). Boulder ejecta do
 /// not see crater layers inside regions.
@@ -1335,21 +1331,23 @@ struct MaterialsSpec {
     }
 };
 
-/// Everything needed to generate a terrain: the body it lies on, optionally its base heights, the
-/// layers added to them in order, the outputs to write, and optionally its albedo and materials.
+/// Everything needed to generate a terrain: the body it lies on, optionally its source of heights,
+/// the layers added to them in order, the outputs to write, and optionally its albedo and
+/// materials.
 struct TerrainConfig {
     int schemaVersion = kConfigSchemaVersion;
     SurfaceSpec body{};
-    std::optional<SourceSpec> base{};  ///< None for the body's datum, 0 m, everywhere.
+    /// None for a flat synthetic source at the body's datum, 0 m, everywhere.
+    std::optional<SourceSpec> source{};
     std::vector<LayerSpec> layers;
     std::vector<OutputSpec> outputs;
     std::optional<AlbedoSpec> albedo;        ///< None by default.
     std::optional<MaterialsSpec> materials;  ///< None by default.
 
     bool operator==(const TerrainConfig& other) const {
-        return schemaVersion == other.schemaVersion && body == other.body && base == other.base &&
-               layers == other.layers && outputs == other.outputs && albedo == other.albedo &&
-               materials == other.materials;
+        return schemaVersion == other.schemaVersion && body == other.body &&
+               source == other.source && layers == other.layers && outputs == other.outputs &&
+               albedo == other.albedo && materials == other.materials;
     }
     bool operator!=(const TerrainConfig& other) const {
         return !(*this == other);

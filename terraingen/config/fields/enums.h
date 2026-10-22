@@ -164,14 +164,14 @@ template <> struct EnumNames<BlendShape> {
     }};
 };
 
-template <> struct EnumNames<MidpointBase> {
-    static constexpr std::array<EnumEntry<MidpointBase>, 2> kValues{{
-        {"diamond_square", MidpointBase::DiamondSquare,
-         "The ground at the base lattice's nodes, interpolated by square and diamond steps: the "
-         "heights are replaced by the expanded lattice, as when expanding a DEM."},
-        {"source", MidpointBase::Source,
-         "Zero at the base lattice's nodes: only the displacements are added, keeping the source's "
-         "own interpolation between nodes."},
+template <> struct EnumNames<DiamondSquareInterp> {
+    static constexpr std::array<EnumEntry<DiamondSquareInterp>, 2> kValues{{
+        {"bilinear", DiamondSquareInterp::Bilinear,
+         "Square nodes the mean of their four corners, diamond nodes the mean of their four "
+         "neighbors, samples bilinear between nodes."},
+        {"catmull_rom", DiamondSquareInterp::CatmullRom,
+         "Catmull-Rom splines over four nodes along each axis, as the VIPER terrain expansion "
+         "does: smoother, with fewer lattice creases."},
     }};
 };
 
@@ -349,14 +349,22 @@ template <> struct EnumNames<ListFormat> {
 };
 
 template <> struct EnumNames<ResampleMethod> {
-    static constexpr std::array<EnumEntry<ResampleMethod>, 3> kValues{{
+    static constexpr std::array<EnumEntry<ResampleMethod>, 6> kValues{{
         {"nearest", ResampleMethod::Nearest,
          "The value of the nearest cell centre: blocky, but never mixes values."},
         {"bilinear", ResampleMethod::Bilinear,
          "Linear in each axis over the four surrounding cells."},
         {"cubic", ResampleMethod::Cubic,
-         "Keys cubic convolution over the sixteen surrounding cells: the smoothest, for upscaling "
-         "DEMs."},
+         "Keys cubic convolution (a = -0.5) over the sixteen surrounding cells: smooth, for "
+         "upscaling DEMs."},
+        {"catmull_rom", ResampleMethod::CatmullRom,
+         "The Catmull-Rom spline over the sixteen surrounding cells, the same kernel as cubic."},
+        {"lanczos3", ResampleMethod::Lanczos3,
+         "The three-lobe Lanczos kernel over the 36 surrounding cells: sharper than cubic, with "
+         "slight ringing at steps."},
+        {"cubic_bspline", ResampleMethod::CubicBSpline,
+         "The cubic B-spline over the sixteen surrounding cells: the smoothest, but it smooths "
+         "the cells themselves."},
     }};
 };
 

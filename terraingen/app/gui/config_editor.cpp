@@ -122,10 +122,14 @@ std::optional<std::string> AddTypeMenu(const Json& choice, const Text& text) {
     return picked;
 }
 
-/// The type of a choice's object, or its first alternative's when it has none.
+/// The type of a choice's object, or the name standing for it in a named choice, or its first
+/// alternative's when it has neither.
 std::string ChoiceType(const Json& value, const Json& choice) {
     if (value.is_object() && value.contains("type") && value["type"].is_string()) {
         return value["type"];
+    }
+    if (value.is_string() && choice.value("named", false)) {
+        return value;
     }
     return choice["alternatives"].front()["type"];
 }

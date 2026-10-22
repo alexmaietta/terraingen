@@ -23,17 +23,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Crater shaping and datum fitting on the GPU on spheres, ellipsoids and shape models, not only on planes.
 - Configurations are checked against every field's documented range, and errors name the exact field, such as `layers[2].reach`.
 - Python options classes document every field with its description and unit, and gain `validate()` and a readable `repr`.
-- `RasterSource`, heights from a raster in memory, shared rather than copied, low-passed and resampled as a GeoTIFF source is; `GeoTiffSource` is now a `RasterSource` of its band.
-- Windowed GeoTIFF reads that decode only the strips or tiles a window meets, and a `region` for GeoTIFF sources that reads only the window it needs while giving the same heights there as the whole file.
+- `RasterSource`, heights from a raster in memory, shared rather than copied and upsampled as a GeoTIFF source is; `GeoTiffSource` is now a `RasterSource` of its band.
+- Windowed GeoTIFF reads that decode only the strips or tiles a window meets, and a `crop` for GeoTIFF sources that reads only the window it needs while giving the same heights there as the whole file.
+- Upsampling on sources (`Upsampler`, config `upsampling`): how a source's posts become heights between them and at any finer sample spacing, deterministically, so points, tiles and grids at one spacing agree; kernels `nearest`, `bilinear`, `cubic` (the default, the same bits as before), `catmull_rom`, `lanczos3` and `cubic_bspline`, and `diamond_square`.
+- `RegisterUpsampler` (Python `register_upsampler`) names upsampler types of your own, C++ or Python subclasses of `Upsampler`, for configurations to use with their settings.
+- `SyntheticSource` (config source `synthetic`): heights generated from a noise stack plus `elevation_m` over an unbounded plane or the whole body, evaluated at every point, or sampled at posts `pixel_size_m` apart and upsampled like a DEM; an empty stack is flat.
+- `effective_pixel_size_m` on raster sources (`effectivePixelSize`), the cell size a DEM upsampled or smoothed before it was saved truly resolves, which `ResolutionAt` and `unresolved_pixels_across` use.
+- Lanczos (three lobes), Catmull-Rom and cubic B-spline kernels for `Resample`, `SampleRaster` and `ResampleMethod`.
 - `Source::ResolutionAt`, the cell size of the data behind each height, and `UnresolvedCraterLimit`, a completeness limit that leaves the craters a DEM already resolves to it and generates only smaller ones; `MinimumField` combines it with a catalog's limit.
-- Midpoint displacement layer: random midpoint displacement (diamond-square) expansion of a DEM or any base lattice to finer spacings, as PANGU expands DEMs (Martin et al. 2014), keeping every coarser node so nested grids share their cells, with the scale and fractal dimension estimated from the base when not given.
-- Spectral continuation layer: detail finer than a DEM that continues its fitted power-law spectrum (radially averaged, Hann-windowed PSD) to shorter wavelengths as sparse Gabor noise, tapered in at the DEM's Nyquist wavelength so resolved scales gain nothing; an alternative to midpoint displacement without lattice artefacts, with grids, tiles and points in agreement.
+- Diamond-square upsampling (`DiamondSquareUpsampler`, `"upsampling": {"type": "diamond_square"}`): random midpoint displacement of a source's posts to finer spacings, as PANGU expands DEMs (Martin et al. 2014), keeping every coarser node so nested grids share their cells, with bilinear or Catmull-Rom (`interp`) refinement and the scale and fractal dimension estimated from the posts when not given.
+- Spectral continuation layer: detail finer than a DEM that continues its fitted power-law spectrum (radially averaged, Hann-windowed PSD) to shorter wavelengths as sparse Gabor noise, tapered in at the DEM's Nyquist wavelength so resolved scales gain nothing; an alternative to diamond-square upsampling without lattice artifacts, with grids, tiles and points in agreement.
 - Roughness and noise layers that estimate their settings from the base with `estimate_from_base`: the Hurst exponent and RMS height difference of its variogram at its native cells, extrapolated to the roughness baseline or matched at each noise layer's wavelength; explicit values override the estimates.
 - Manual craters with an explicit rim-to-floor depth and rim height, in place of what the degradation model and age give; diffusion profiles solve for the age that reaches the depth.
 - Manual boulders that fix any of their height, burial, yaw, lean, tilt, rest, wear and shape seed; unset fields are drawn as for generated boulders, and fixed ones are neither re-settled nor broken.
 - Terrain meshes take `cutouts`, a `skirt` and a frame `site`.
-- Configuration keys `region` (`min_x`, `min_y`, `max_x`, `max_y` in CRS units) on raster bases and `dem_detail` layers to read only a window of a DEM, and `unresolved_pixels_across` on crater layers to generate only the craters the base DEM does not already resolve, combined with any catalog `completeness`.
 - `GetMeshSize` and `FillMesh` (Python `get_mesh_size`, `fill_mesh`) size and write a height mesh into caller buffers laid out as Chrono's ChVector3d and ChVector3i arrays or NumPy (N, 3) float64 and (M, 3) int32 arrays, with no copy; `FillHeights` (Python `fill_heights`) evaluates a terrain into a caller buffer; `TriangleMesh.positions` and `TriangleMesh.triangles` are NumPy views of a mesh without a copy.
+- Configuration keys `crop` (`min_x`, `min_y`, `max_x`, `max_y` in CRS units) on raster sources to read only a window of a DEM, and `unresolved_pixels_across` on crater layers to generate only the craters the source DEM does not already resolve, combined with any catalog `completeness`.
 - Manual-only boulder layers: `generate_random` off (`BoulderLayerOptions::generateRandom`) places only the `manual` boulders, with no random boulders or crater blocks, draws no candidates and needs no valid sizes or coverage; `CraterLayer::Manual` and `BoulderLayer::Manual` (Python `CraterLayer.manual`, `BoulderLayer.manual`) make layers of only the given craters or boulders.
 
 ### Changed
@@ -61,6 +66,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Martin, Parkes and Dunstan is the default crater profile.
 - Breaking: crater layers' `generate` is now `generate_random` (`CraterLayerOptions::generateRandom`, Python `generate_random`): it draws random craters from the size distribution, and manual craters are placed either way; the old key is rejected.
 - Breaking: `HeightMesh` and `HeightMeshOptions` are now `BuildMesh` and `BuildMeshOptions`, and Python `height_mesh` is now `build_mesh`; a height mesh holds at most INT32_MAX vertices.
+- Breaking: the configuration's `base` is now `source` (the old key is rejected), with types `raster`, `chain` and `synthetic`; without one the terrain starts from a flat synthetic source at 0 m. Python `Config.base_grid` is `source_grid`, and `ConfigSummary::base` is `source`; `DescribeSource` gives no grid for a source without bounds.
+- Breaking: sources take the sample spacing, in their own units: `Source::Fill(heights, spacing)` and `Source::HeightAt(x, y, spacing)`, and Python `Source` subclasses define `height_at(x, y, spacing)` and `fill(heights, spacing)`; `Fill(heights)` keeps the grid's cell size. A source without bounds gives a grid without cells (`BoundedGrid`), and `Evaluate(terrain)` needs a grid for it.
+- Breaking: raster sources upsample instead of resampling: `RasterSourceOptions` and `GeoTiffSourceOptions` take an `upsampler` and an `effectivePixelSize` (Python `upsampler=`, `effective_pixel_size_m=`), the GeoTIFF `region` is `crop`, and a raster source's grid is always its file's; evaluate it over a finer grid for finer cells.
+- `NoiseLayersAt` moves to `terraingen/sources/synthetic_terrain.h`, and `HasData`, `Variogram` and `FitDeviogram` to `terraingen/raster/variogram.h`.
 
 ### Fixed
 
@@ -76,6 +85,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - Tile schemes, tiles and the tile cache (`TileScheme`, `TileKey`, `EvaluateTile`, `EvaluateTiles`, `TileCache`, in C++ and Python): level of detail belongs to the renderer, and any grid evaluated alone already equals the same cells of a larger one. The tile examples go too; the point query examples move to a `queries` category.
+- Resampling raster sources to a pixel size and low-passing them: `pixelSize`, `resampling` and `lowPass` on `RasterSourceOptions` and `GeoTiffSourceOptions`, and the config keys `pixel_size`, `resampling` and `low_pass` on raster sources; upsampling over a finer grid replaces them.
+- `DetailLayer` and the `dem_detail` layer, which only restored the detail a low-passed source removed.
 - Python `crater_blend_weight` (use `CraterBlend.weight`), `CraterAgeModel.lifetime_gyr` (use `lifetime_at`) and the flat selection aliases on crater irregularity, crater albedo and secondary options (use `selection`).
 
 ## [0.1.0] - 2026-10-18

@@ -242,21 +242,21 @@ inline Raster<float> WriteDem(const std::filesystem::path& folder, const std::st
     return dem;
 }
 
-/// @brief A configuration with a raster base and a heightmap over its grid.
+/// @brief A configuration with a raster source and a heightmap over its grid.
 /// @param path The raster's path.
 /// @return The configuration.
 inline TerrainConfig RasterConfig(const std::string& path) {
     TerrainConfig config;
-    config.base = RasterSourceSpec{path};
+    config.source = RasterSourceSpec{path};
     config.outputs = {Heightmap("terrain.tif", std::nullopt)};
     return config;
 }
 
-/// @brief The raster base of a `RasterConfig`.
-/// @param config A configuration with a raster base.
-/// @return Its base spec.
+/// @brief The raster source of a `RasterConfig`.
+/// @param config A configuration with a raster source.
+/// @return Its source spec.
 inline RasterSourceSpec& RasterSpec(TerrainConfig& config) {
-    return std::get<RasterSourceSpec>(*config.base);
+    return std::get<RasterSourceSpec>(*config.source);
 }
 
 }  // namespace terraingen::testing

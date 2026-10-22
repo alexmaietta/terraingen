@@ -1,7 +1,7 @@
-"""Add detail to a coarse DEM: a GeoTIFF source resampled finer, plus noise and small craters.
+"""Add detail to a coarse DEM: a GeoTIFF source upsampled finer, plus noise and small craters.
 
-A coarse elevation model, such as one from orbit, is read with `GeoTiffSource`, interpolated to a
-finer pixel size, and given what it cannot resolve: fine noise and craters smaller than its
+A coarse elevation model, such as one from orbit, is read with `GeoTiffSource`, upsampled onto a
+grid of a finer pixel size, and given what it cannot resolve: fine noise and craters smaller than its
 pixels. This example first writes a coarse 16 m DEM of its own to stand in for real data, then
 builds the detailed 2 m terrain on it. Writes both and their hillshades.
 
@@ -54,11 +54,15 @@ class Example(_common.Example):
         with tempfile.TemporaryDirectory() as temp:
             path = pathlib.Path(temp) / "example_sources_raster_detail_coarse.tif"
             terraingen.write_geotiff(path, self.dem)
-            source = terraingen.GeoTiffSource(
-                path, pixel_size=2.0, resampling=terraingen.ResampleMethod.CUBIC
+            source = terraingen.GeoTiffSource(path, upsampler=terraingen.KernelUpsampler())
+            transform = source.transform
+            grid = terraingen.RasterGrid(
+                source.width * 8,
+                source.height * 8,
+                terraingen.GeoTransform.north_up(transform.origin_x, transform.origin_y, 2.0),
             )
             print(
-                f"coarse DEM {self.dem.width} x {self.dem.height} at 16 m; source resampled to {source.width} x {source.height} at 2 m"
+                f"coarse DEM {self.dem.width} x {self.dem.height} at 16 m; source upsampled to {grid.width} x {grid.height} at 2 m"
             )
             production = terraingen.extended_neukum_production_function()
             equilibrium = terraingen.trask_equilibrium()
@@ -92,10 +96,10 @@ class Example(_common.Example):
                 ]
             )
             terrain = terraingen.Terrain(source, [detail, small])
-            self.heights = terraingen.evaluate(terrain)
-            self.craters = terraingen.placed_craters(terrain).table
+            self.heights = terraingen.evaluate(terrain, grid=grid)
+            self.craters = terraingen.placed_craters(terrain, grid).table
             print(f"added {len(self.craters['x'])} craters of 6 to 100 m")
-            self.resampled = terraingen.evaluate(terraingen.Terrain(source))
+            self.resampled = terraingen.evaluate(terraingen.Terrain(source), grid=grid)
         self.show("heights", self.heights)
         self.show("resampled DEM", self.resampled)
 

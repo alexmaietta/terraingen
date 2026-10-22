@@ -14,6 +14,8 @@ namespace terraingen {
 /// chain takes its grid and reference point from the first.
 class SourceChain final : public Source {
   public:
+    using Source::Fill;
+
     /// The chain of `sources`, first first.
     /// @throws std::invalid_argument for no sources or a null one.
     explicit SourceChain(std::vector<std::shared_ptr<const Source>> sources);
@@ -34,15 +36,16 @@ class SourceChain final : public Source {
     }
 
     /// Fills from the first source, then each cell still without data from the next source
-    /// that has data there, keeping the first source's no-data value.
-    void Fill(Raster<float>& heights) const override;
+    /// that has data there, keeping the first source's no-data value; each source upsamples its
+    /// own posts.
+    void Fill(Raster<float>& heights, double spacing) const override;
 
     /// The first height in metres at world point (`x`, `y`) that is not NaN; NaN if no source has
     /// one.
-    float HeightAt(double x, double y) const override;
+    float HeightAt(double x, double y, double spacing) const override;
 
-    /// The resolution of the first source with a height at (`x`, `y`), the one `HeightAt` takes
-    /// it from; infinity if no source has one.
+    /// The resolution of the first source with a height at (`x`, `y`) at its coarsest, an
+    /// infinite spacing; infinity if no source has one.
     double ResolutionAt(double x, double y) const override;
 
     /// The sources in the order they are tried.

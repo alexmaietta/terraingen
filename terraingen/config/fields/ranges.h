@@ -5,6 +5,7 @@
 #include "terraingen/config/config.h"
 #include "terraingen/config/fields/checks.h"
 #include "terraingen/config/fields/common.h"
+#include "terraingen/config/fields/sources.h"
 
 #include <cstddef>
 #include <optional>
@@ -57,6 +58,8 @@ void CheckRanges(std::vector<T>& value, const std::string& path, std::string_vie
                  const FieldRange& range);
 template <typename... Ts>
 void CheckRanges(std::variant<Ts...>& value, const std::string& path, std::string_view unit,
+                 const FieldRange& range);
+void CheckRanges(UpsamplingSpec& value, const std::string& path, std::string_view unit,
                  const FieldRange& range);
 /// @}
 
@@ -115,6 +118,14 @@ template <typename... Ts>
 void CheckRanges(std::variant<Ts...>& value, const std::string& path, std::string_view unit,
                  const FieldRange& range) {
     std::visit([&](auto& alternative) { CheckRanges(alternative, path, unit, range); }, value);
+}
+
+inline void CheckRanges(UpsamplingSpec& value, const std::string& path, std::string_view /*unit*/,
+                        const FieldRange& /*range*/) {
+    if (value.type == "diamond_square") {
+        RangeChecker checker(path);
+        Fields(checker, value.diamondSquare);
+    }
 }
 
 }  // namespace terraingen::config

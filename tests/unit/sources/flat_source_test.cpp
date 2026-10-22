@@ -33,7 +33,7 @@ TEST(FlatSource, FillsAnyGridWithItsElevation) {
     for (const float value : heights.Values()) {
         EXPECT_EQ(value, -3.5f);
     }
-    EXPECT_EQ(source.HeightAt(1e6, -3.0), -3.5f);
+    EXPECT_EQ(source.HeightAt(1e6, -3.0, 0.5), -3.5f);
 }
 
 TEST(FlatSource, RejectsInvalidGrids) {

@@ -38,7 +38,7 @@ class ConfigError : public std::runtime_error {
 ///      "outputs": [{"type": "heightmap", "path": "terrain.tif",
 ///                   "region": {"width": 513, "height": 513, "pixel_size": 2}}]}
 ///
-/// Keys are snake_case versions of the C++ fields; bodies, bases, layers, outputs and models are
+/// Keys are snake_case versions of the C++ fields; bodies, sources, layers, outputs and models are
 /// objects with a "type". Omitted keys take their defaults and omitted lists are empty.
 /// @throws ConfigError for malformed JSON, a missing or unsupported "schema_version", an unknown
 /// key, or a value of the wrong type.
@@ -48,13 +48,13 @@ TerrainConfig ParseConfig(std::string_view json);
 /// @throws ConfigError as `ParseConfig`, or when the file cannot be read.
 TerrainConfig LoadConfig(const std::filesystem::path& path);
 
-/// A configuration as JSON with every value written out but an unset base and albedo; parsing it
+/// A configuration as JSON with every value written out but an unset source and albedo; parsing it
 /// gives back an equal configuration.
 std::string ConfigToJson(const TerrainConfig& config, int indent = 2);
 
 /// A reference of every configuration type with its defaults, as JSON.
 ///
-/// The lists "body", "base", "layers" and "outputs" hold each type of their kind,
+/// The lists "body", "source", "layers" and "outputs" hold each type of their kind,
 /// "albedo" the albedo, and "models" one noise layer and every density, ages, degradation,
 /// profile, boulder size, region shape, albedo source and albedo layer type. Each entry parses
 /// where its kind belongs in a configuration.
@@ -73,7 +73,9 @@ std::string ConfigCatalog(int indent = 2);
 /// - "object" with its "fields", each {"name", "description", "unit", "schema", "default"}, and for
 ///   a bounded number (or each number of a list) "minimum" and "exclusive_minimum", "maximum"
 ///   and "exclusive_maximum";
-/// - "choice" with its "alternatives", each {"type", "description", "fields", "default"}.
+/// - "choice" with its "alternatives", each {"type", "description", "fields", "default"}, and
+///   "named" true where the "type" alone, as a string, stands for an alternative (an upsampling);
+///   such a choice also takes the names of types registered in code.
 std::string ConfigSchema(int indent = 2);
 
 /// The format a list file's path implies: JSON for a .json path, else CSV.

@@ -121,7 +121,7 @@ void ValidateSpectralContinuationOptions(const SpectralContinuationOptions& opti
 /// Heights are a function of position, seed and sample spacing alone, so grids, tiles and points
 /// agree. Each impulse fades out by its wavelength over the sample spacing (`fade`), so at the
 /// base's own spacing the layer adds nothing. On a body, surface coordinates are scaled by
-/// `Surface::UnitLength` to a local plane, as `MidpointDisplacementLayer` does.
+/// `Surface::UnitLength` to a local plane.
 class SpectralContinuationLayer final : public Layer {
   public:
     /// @throws std::invalid_argument as `ValidateSpectralContinuationOptions`.

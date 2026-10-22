@@ -25,16 +25,16 @@ class InclinedPlane final : public terraingen::Source {
         return {257, 257, terraingen::GeoTransform::NorthUp(-257.0, 257.0, 2.0)};
     }
 
-    void Fill(terraingen::Raster<float>& heights) const override {
+    void Fill(terraingen::Raster<float>& heights, double spacing) const override {
         for (std::size_t row = 0; row < heights.Height(); ++row) {
             for (std::size_t col = 0; col < heights.Width(); ++col) {
                 const terraingen::Vec2d centre = heights.CellCenter(col, row);
-                heights(col, row) = HeightAt(centre.x, centre.y);
+                heights(col, row) = HeightAt(centre.x, centre.y, spacing);
             }
         }
     }
 
-    float HeightAt(double x, double y) const override {
+    float HeightAt(double x, double y, double /*spacing*/) const override {
         return static_cast<float>(slope_ * (x + y) / std::sqrt(2.0));
     }
 

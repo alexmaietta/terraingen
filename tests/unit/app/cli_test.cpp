@@ -234,7 +234,7 @@ TEST(Cli, ValidatesAConfigAndReportsItsGridAndCraters) {
 
     const auto raster = Write(directory / "raster.json",
                               R"({"schema_version": 1,
-                                  "base": {"type": "raster", "path": "nowhere.tif"}})");
+                                  "source": {"type": "raster", "path": "nowhere.tif"}})");
     EXPECT_EQ(Cli({"validate", raster.string()}).code, kExitFailure);
 }
 

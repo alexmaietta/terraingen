@@ -30,11 +30,14 @@ std::shared_ptr<const RasterSource> Dem(std::size_t cells, double size, double l
 }  // namespace
 
 TEST(UnresolvedCraterLimit, IsTheCellsAcrossOfTheDataGivingTheHeight) {
-    terraingen::RasterSourceOptions fine;
-    fine.pixelSize = 1.0;
-    const auto dem = Dem(10, 5.0, 0.0, 50.0, fine);
+    const auto dem = Dem(10, 5.0, 0.0, 50.0, {});
     const auto limit = UnresolvedCraterLimit(dem, 4.0);
-    EXPECT_EQ(limit->ValueAt(20.0, 20.0), 20.0) << "four 5 m cells, not four 1 m ones";
+    EXPECT_EQ(limit->ValueAt(20.0, 20.0), 20.0) << "four 5 m cells, at any sample spacing";
+    terraingen::RasterSourceOptions upsampled;
+    upsampled.effectivePixelSize = 8.0;
+    EXPECT_EQ(UnresolvedCraterLimit(Dem(10, 5.0, 0.0, 50.0, upsampled), 4.0)->ValueAt(20.0, 20.0),
+              32.0)
+        << "four cells of the effective pixel size of a DEM upsampled before it was saved";
     EXPECT_EQ(limit->ValueAt(-1.0, 20.0), kInf);
     EXPECT_EQ(limit->Max(), kInf);
     EXPECT_EQ(UnresolvedCraterLimit(std::make_shared<terraingen::FlatSource>(4, 4, 1.0), 4.0)
@@ -79,7 +82,7 @@ TEST(UnresolvedCraterLimit, DropsGeneratedCratersTheDemResolvesWithoutACatalog) 
     for (std::size_t n = 0; n < all.Size(); ++n) {
         const terraingen::Crater crater = all.At(n);
         const bool resolved =
-            crater.diameter >= 20.0 && !std::isnan(dem->HeightAt(crater.x, crater.y));
+            crater.diameter >= 20.0 && !std::isnan(dem->HeightAt(crater.x, crater.y, 5.0));
         large += resolved ? 1 : 0;
         small += resolved ? 0 : 1;
     }
@@ -89,7 +92,7 @@ TEST(UnresolvedCraterLimit, DropsGeneratedCratersTheDemResolvesWithoutACatalog) 
     std::size_t next = 0;
     for (std::size_t n = 0; n < all.Size(); ++n) {
         const terraingen::Crater crater = all.At(n);
-        if (crater.diameter >= 20.0 && !std::isnan(dem->HeightAt(crater.x, crater.y))) {
+        if (crater.diameter >= 20.0 && !std::isnan(dem->HeightAt(crater.x, crater.y, 5.0))) {
             continue;
         }
         EXPECT_EQ(kept.At(next++).id, crater.id);

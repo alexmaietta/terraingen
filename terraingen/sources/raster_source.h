@@ -6,6 +6,7 @@
 #include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/resample.h"
 #include "terraingen/sources/source.h"
+#include "terraingen/sources/upsampling.h"
 
 #include <memory>
 #include <optional>
@@ -15,19 +16,17 @@ namespace terraingen {
 
 /// How a `RasterSource` reads its raster.
 struct RasterSourceOptions {
-    /// Cell size to resample to, in CRS units; unset keeps the raster's cells.
-    std::optional<double> pixelSize{};
-    /// Interpolation for resampling and for cells off the source's lattice.
-    ResampleMethod resampling = ResampleMethod::Cubic;
-    /// Standard deviation in CRS units of a Gaussian low-pass applied to the heights once, before
-    /// any resampling: the low frequencies of a DEM to add finer synthetic detail to. 0 keeps
-    /// every frequency.
-    double lowPass = 0.0;
+    /// The cell size in CRS units the heights resolve, for a DEM that was upsampled or smoothed
+    /// before it was saved: `ResolutionAt` gives it in place of the cells' size. Unset uses the
+    /// cells'.
+    std::optional<double> effectivePixelSize{};
+    /// How the cells become heights between them and at sample spacings finer than the cells;
+    /// null for cubic interpolation (`DefaultUpsampler`).
+    std::shared_ptr<const Upsampler> upsampler{};
 
-    /// Memberwise equality.
+    /// Memberwise equality, the upsamplers compared by identity.
     bool operator==(const RasterSourceOptions& other) const {
-        return pixelSize == other.pixelSize && resampling == other.resampling &&
-               lowPass == other.lowPass;
+        return effectivePixelSize == other.effectivePixelSize && upsampler == other.upsampler;
     }
     bool operator!=(const RasterSourceOptions& other) const {
         return !(*this == other);
@@ -37,29 +36,26 @@ struct RasterSourceOptions {
 namespace detail {
 
 /// Checks raster source options.
-/// @throws std::invalid_argument for a `pixelSize` that is not positive and finite, or a negative
-/// or non-finite `lowPass`.
+/// @throws std::invalid_argument for an `effectivePixelSize` that is not positive and finite.
 void ValidateRasterSourceOptions(const RasterSourceOptions& options);
 
-/// The grid a raster source over the whole grid `native` covers: `native`, resampled to
-/// `pixelSize` when set.
-/// @throws std::invalid_argument for a rotated `native` that would need resampling.
-RasterGrid SourceLattice(const RasterGrid& native, const RasterSourceOptions& options);
+/// The upsampler of `options`: its own, or cubic interpolation without one.
+std::shared_ptr<const Upsampler> OptionUpsampler(const RasterSourceOptions& options);
 
-/// The cells of the whole grid `native` that give the heights of `cells` of its
-/// `SourceLattice` to the same bits as the whole: those under `cells` with margins for the
-/// low-pass's kernel and the interpolation, clamped to `native`.
-PixelWindow NativeWindow(const RasterGrid& native, const RasterSourceOptions& options,
-                         const PixelWindow& cells);
+/// The cells of the whole grid `native` that give the heights of its cells `cells` to the same
+/// bits as the whole: those under `cells` with a margin of `reach` cells and one more for
+/// rounding, clamped to `native`.
+PixelWindow NativeWindow(const RasterGrid& native, int reach, const PixelWindow& cells);
 
-/// The heights of a raster source: a window of a raster, low-passed and resampled as the options
-/// say, giving the cells `cells` of its lattice (`SourceLattice`).
+/// The heights of a raster source: a window of a raster giving the cells `cells` of its lattice,
+/// upsampled between them as the options say.
 class RasterHeights {
   public:
     /// @param native A window of the raster at `placement`, covering `NativeWindow` of `cells`.
     /// @param cells A non-empty window of the lattice; the whole lattice gives the heights over
     /// every cell, and also interpolates over the whole of the raster.
     /// @param name What the source is called in errors.
+    /// @throws std::invalid_argument as `Upsampler::FitTo`.
     RasterHeights(std::shared_ptr<const Raster<float>> native, const RasterPlacement& placement,
                   const RasterSourceOptions& options, const PixelWindow& cells, std::string name);
 
@@ -73,18 +69,23 @@ class RasterHeights {
         return lattice_;
     }
 
-    /// Copies cells on the lattice, otherwise samples at cell centres; cells beyond those covered
-    /// are no-data.
+    /// Copies cells on the lattice at its spacing or coarser, otherwise upsamples; cells beyond
+    /// those covered are no-data.
     /// @throws std::invalid_argument for a rotated grid off the lattice.
-    void Fill(Raster<float>& heights) const;
+    void Fill(Raster<float>& heights, double spacing) const;
 
-    /// The height of the lattice cell centred at (`x`, `y`) when there is one, otherwise the raster
-    /// interpolated there; NaN beyond the cells covered and where there is no data.
-    float HeightAt(double x, double y) const;
+    /// The height of the lattice cell centered at (`x`, `y`) at the lattice's spacing or coarser,
+    /// otherwise the upsampler's; NaN beyond the cells covered and where there is no data.
+    float HeightAt(double x, double y, double spacing) const;
 
-    /// The native cell size, coarsened to twice the low-pass's deviation, where `HeightAt` has a
-    /// height; infinity elsewhere.
+    /// The effective pixel size, or else the native cell size, where `HeightAt` has a height;
+    /// infinity elsewhere.
     double ResolutionAt(double x, double y) const;
+
+    /// The upsampler in use, fitted to the cells (`Upsampler::FitTo`).
+    const std::shared_ptr<const Upsampler>& UpsamplerInUse() const {
+        return upsampler_;
+    }
 
   private:
     /// Where a grid on the lattice starts, in lattice cells.
@@ -97,36 +98,36 @@ class RasterHeights {
     std::optional<LatticeOffset> OffsetOnLattice(const GeoTransform& target) const;
     /// Copies the cells under `heights`, which starts at `offset`.
     void CopyFromLattice(Raster<float>& heights, LatticeOffset offset) const;
-    /// Whether lattice cell (`col`, `row`) is covered.
+    /// Whether lattice position (`col`, `row`), in cells, is covered.
     bool Covers(double col, double row) const;
 
     std::shared_ptr<const Raster<float>> native_;
     RasterPlacement nativePlacement_;
-    std::shared_ptr<const Raster<float>> heights_;
-    RasterPlacement heightsPlacement_;
     RasterGrid lattice_;
     PixelWindow cells_;
-    bool clipped_ = false;
-    ResampleMethod resampling_ = ResampleMethod::Cubic;
+    RasterPosts posts_;
+    std::shared_ptr<const Upsampler> upsampler_;
+    double cellSpacing_ = 0.0;
     double resolution_ = 0.0;
     std::string name_;
 };
 
 }  // namespace detail
 
-/// Heights from a raster held in memory, in a projected CRS or the surface's coordinates,
-/// optionally low-passed and resampled to square cells of `pixelSize` over its extent.
+/// Heights from a raster held in memory, in a projected CRS or the surface's coordinates.
 ///
 /// The heights are used as given, with the raster's no-data value. On the source's own lattice
-/// `Fill` copies cells exactly; on any other grid each cell is the raster interpolated at its
-/// centre with `resampling`. Cells beyond the raster are no-data.
+/// at its cell size or coarser `Fill` copies cells exactly; elsewhere, and at finer spacings,
+/// the upsampler gives each cell from the raster's cells, its posts. Cells beyond the raster are
+/// no-data.
 class RasterSource final : public Source {
   public:
+    using Source::Fill;
+
     /// The source of `heights`.
     /// @param keys The projection outputs are written with.
-    /// @throws std::invalid_argument for an empty raster, a `pixelSize` that is not positive and
-    /// finite, a negative or non-finite `lowPass`, or a rotated raster that would need
-    /// resampling.
+    /// @throws std::invalid_argument for an empty raster, invalid options, or as
+    /// `Upsampler::FitTo`.
     explicit RasterSource(Raster<float> heights, RasterSourceOptions options = {},
                           GeoKeys keys = {});
 
@@ -135,7 +136,7 @@ class RasterSource final : public Source {
     explicit RasterSource(std::shared_ptr<const Raster<float>> heights,
                           RasterSourceOptions options = {}, GeoKeys keys = {});
 
-    /// The raster's grid, resampled to `pixelSize` when set.
+    /// The raster's grid.
     RasterGrid Grid() const override {
         return heights_.Grid();
     }
@@ -148,21 +149,20 @@ class RasterSource final : public Source {
         return keys_;
     }
 
-    /// Copies cells on the source's lattice, otherwise samples the raster at cell centres.
+    /// Copies cells on the source's lattice at its cell size or coarser, otherwise upsamples.
     /// @throws std::invalid_argument for a rotated grid off the source's lattice.
-    void Fill(Raster<float>& heights) const override {
-        heights_.Fill(heights);
+    void Fill(Raster<float>& heights, double spacing) const override {
+        heights_.Fill(heights, spacing);
     }
 
-    /// The height of the source cell centred at (`x`, `y`) when there is one, otherwise of the
-    /// raster interpolated there with `resampling` (`SampleRaster`); NaN beyond the raster and
-    /// where it has no data.
-    float HeightAt(double x, double y) const override {
-        return heights_.HeightAt(x, y);
+    /// The height of the source cell centered at (`x`, `y`) at the cell size or coarser, otherwise
+    /// the upsampler's; NaN beyond the raster and where it has no data.
+    float HeightAt(double x, double y, double spacing) const override {
+        return heights_.HeightAt(x, y, spacing);
     }
 
-    /// The raster's cell size in CRS units, the larger side of a cell, or twice `lowPass` when
-    /// that is larger; infinity where `HeightAt` is NaN.
+    /// `effectivePixelSize`, or else the raster's cell size in CRS units, the larger side of a
+    /// cell; infinity where `HeightAt` is NaN.
     double ResolutionAt(double x, double y) const override {
         return heights_.ResolutionAt(x, y);
     }
@@ -170,6 +170,11 @@ class RasterSource final : public Source {
     /// How the raster is read.
     const RasterSourceOptions& Options() const {
         return options_;
+    }
+
+    /// The upsampler in use, fitted to the raster (`Upsampler::FitTo`).
+    const std::shared_ptr<const Upsampler>& UpsamplerInUse() const {
+        return heights_.UpsamplerInUse();
     }
 
   private:

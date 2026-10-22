@@ -28,7 +28,6 @@
 #include "terraingen/layers/craters/generation/resolved_limit.h"
 #include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
 #include "terraingen/layers/craters/shaping/morphometry.h"
-#include "terraingen/layers/detail.h"
 #include "terraingen/layers/noise_relief.h"
 #include "terraingen/layers/transforms.h"
 #include "terraingen/mesh/io/icq.h"
@@ -37,6 +36,8 @@
 #include "terraingen/sources/field.h"
 #include "terraingen/sources/geotiff_source.h"
 #include "terraingen/sources/source_chain.h"
+#include "terraingen/sources/synthetic_source.h"
+#include "terraingen/sources/upsampling.h"
 #include "terraingen/util/overloaded.h"
 
 #include <algorithm>
@@ -288,31 +289,71 @@ std::shared_ptr<SizeFrequencyDistribution> BuildBoulderSizes(const BoulderSizesS
         spec);
 }
 
-std::shared_ptr<const Source> BuildSource(const SourceSpec& spec,
-                                          const std::filesystem::path& directory,
-                                          const Surface& surface) {
-    using Result = std::shared_ptr<const Source>;
-    return std::visit(Overloaded{
-                          [&](const RasterSourceSpec& s) -> Result {
-                              GeoTiffSourceOptions read = s.read;
-                              if (read.pixelSize) {
-                                  *read.pixelSize /= surface.UnitLength();
-                              }
-                              return std::make_shared<GeoTiffSource>(Resolve(s.path, directory),
-                                                                     read);
-                          },
-                          [&](const ChainSourceSpec& s) -> Result {
-                              std::vector<Result> sources;
-                              for (const SourceSpec& source : s.sources) {
-                                  sources.push_back(BuildSource(source, directory, surface));
-                              }
-                              return std::make_shared<SourceChain>(std::move(sources));
-                          },
-                      },
-                      spec);
+/// The upsampler a spec names, its lengths in the surface's units.
+/// @param path The spec's JSON path, which errors are reported under.
+/// @throws ConfigError at `path` for settings a registered type rejects.
+std::shared_ptr<const Upsampler> BuildUpsampler(const UpsamplingSpec& spec, const Surface& surface,
+                                                const std::string& path) {
+    if (const std::optional<ResampleMethod> method = KernelUpsamplerMethod(spec.type)) {
+        return std::make_shared<KernelUpsampler>(*method);
+    }
+    if (spec.type == "diamond_square") {
+        DiamondSquareOptions options = spec.diamondSquare;
+        options.minPixelSize /= surface.UnitLength();
+        return At(path, [&] { return std::make_shared<DiamondSquareUpsampler>(options); });
+    }
+    return At(path, [&] {
+        return MakeRegisteredUpsampler(spec.type, spec.settings.empty() ? "{}" : spec.settings);
+    });
 }
 
-/// The point noise is measured from: the base's reference point, or the origin without a base.
+/// The source a spec describes, its lengths in the surface's units.
+/// @param path The spec's JSON path, which errors are reported under.
+/// @throws ConfigError at `path`, or below it, for what the sources reject.
+std::shared_ptr<const Source> BuildSource(const SourceSpec& spec,
+                                          const std::filesystem::path& directory,
+                                          const Surface& surface, const std::string& path) {
+    using Result = std::shared_ptr<const Source>;
+    const double unit = surface.UnitLength();
+    return std::visit(
+        Overloaded{
+            [&](const RasterSourceSpec& s) -> Result {
+                GeoTiffSourceOptions read = s.read;
+                if (read.effectivePixelSize) {
+                    *read.effectivePixelSize /= unit;
+                }
+                read.upsampler = BuildUpsampler(s.upsampling, surface, Child(path, "upsampling"));
+                return At(path, [&] {
+                    return std::make_shared<GeoTiffSource>(Resolve(s.path, directory), read);
+                });
+            },
+            [&](const ChainSourceSpec& s) -> Result {
+                std::vector<Result> sources;
+                for (std::size_t n = 0; n < s.sources.size(); ++n) {
+                    sources.push_back(BuildSource(s.sources[n], directory, surface,
+                                                  Element(Child(path, "sources"), n)));
+                }
+                return At(path, [&] { return std::make_shared<SourceChain>(std::move(sources)); });
+            },
+            [&](const SyntheticSourceSpec& s) -> Result {
+                std::optional<double> pixelSize = s.pixelSize;
+                if (pixelSize) {
+                    *pixelSize /= unit;
+                }
+                const std::shared_ptr<const Upsampler> upsampler =
+                    s.upsampling ? BuildUpsampler(*s.upsampling, surface, Child(path, "upsampling"))
+                                 : nullptr;
+                return At(path, [&] {
+                    return std::make_shared<SyntheticSource>(StackParams(s.stack),
+                                                             static_cast<float>(s.elevation),
+                                                             pixelSize, upsampler, surface);
+                });
+            },
+        },
+        spec);
+}
+
+/// The point noise is measured from: the source's reference point, or the origin without one.
 Vec2d ReferencePoint(const Terrain& terrain) {
     return terrain.source ? terrain.source->ReferencePoint() : Vec2d{};
 }
@@ -326,7 +367,8 @@ struct LayerInputs {
     const std::vector<std::shared_ptr<const CraterLayer>>& craters;
     const std::shared_ptr<const BoulderLayer>& boulders;
     const Surface& surface;
-    const std::shared_ptr<const Source>& source;  ///< The base; null without one.
+    /// The source the configuration gives; null without one.
+    const std::shared_ptr<const Source>& source;
     /// The secondaries later layers throw from a crater layer built with these inputs.
     std::vector<SecondaryCraterOptions> thrown{};
 };
@@ -409,30 +451,6 @@ SpectralContinuationOptions BuildSpectralOptions(const SpectralContinuationLayer
     return options;
 }
 
-/// The options of a midpoint displacement layer, from the base wherever the spec gives none; a
-/// valid configuration has a base whenever the spec leaves a value out.
-MidpointDisplacementOptions BuildMidpointOptions(const MidpointDisplacementLayerSpec& spec,
-                                                 const Source* source, const Surface& surface) {
-    MidpointDisplacementOptions options;
-    options.minPixelSize = spec.minPixelSize / surface.UnitLength();
-    options.base = spec.base;
-    options.seed = spec.seed;
-    const RasterGrid grid = source ? source->Grid() : RasterGrid{};
-    options.pixelSize = spec.pixelSize ? *spec.pixelSize / surface.UnitLength() : grid.PixelSize();
-    const Vec2d first = grid.transform.PixelToWorld(0.5, 0.5);
-    options.origin = {spec.originX.value_or(first.x), spec.originY.value_or(first.y)};
-    if (spec.fractalDimension && spec.scale) {
-        options.fractalDimension = *spec.fractalDimension;
-        options.scale = *spec.scale;
-        return options;
-    }
-    const MidpointRoughness roughness =
-        EstimateMidpointRoughness(SampleSourceWindow(*source, options.pixelSize, options.origin));
-    options.fractalDimension = spec.fractalDimension.value_or(roughness.fractalDimension);
-    options.scale = spec.scale.value_or(roughness.scale);
-    return options;
-}
-
 /// The roughness of a layer's base at its native resolution (`EstimateSourceRoughness`).
 /// @throws std::invalid_argument without a base, or as `EstimateSourceRoughness`.
 BaseRoughness BaseRoughnessAt(const LayerInputs& context, const Surface& surface) {
@@ -500,10 +518,6 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
             [&](const BedformLayerSpec& s) -> LayerPtr {
                 return std::make_shared<BedformLayer>(s.bedforms, surface);
             },
-            [&](const MidpointDisplacementLayerSpec& s) -> LayerPtr {
-                return std::make_shared<MidpointDisplacementLayer>(
-                    BuildMidpointOptions(s, context.source.get(), surface), surface);
-            },
             [&](const SpectralContinuationLayerSpec& s) -> LayerPtr {
                 return std::make_shared<SpectralContinuationLayer>(
                     BuildSpectralOptions(s, context.source.get(), surface, path), surface);
@@ -521,16 +535,6 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
             },
             [&](const SecondaryLayerSpec& s) -> LayerPtr {
                 return BuildSecondaryLayer(s, context.craters.back());
-            },
-            [&](const DemDetailLayerSpec& s) -> LayerPtr {
-                const auto file = Resolve(s.path, context.directory);
-                GeoTiffSourceOptions full = s.read;
-                full.lowPass = 0.0;
-                return At(path, [&] {
-                    return std::make_shared<DetailLayer>(
-                        std::make_shared<GeoTiffSource>(file, full),
-                        std::make_shared<GeoTiffSource>(file, s.read), s.weight, surface);
-                });
             },
         },
         spec);
@@ -556,10 +560,10 @@ std::vector<SecondaryCraterOptions> ThrownSecondaries(const std::vector<LayerSpe
 Terrain BuildValidTerrain(const TerrainConfig& config, const std::filesystem::path& directory) {
     Terrain terrain;
     terrain.surface = BuildSurface(config.body, directory);
-    if (config.base) {
-        terrain.source =
-            At("base", [&] { return BuildSource(*config.base, directory, terrain.surface); });
-    }
+    terrain.source = config.source
+                         ? BuildSource(*config.source, directory, terrain.surface, "source")
+                         : std::make_shared<SyntheticSource>();
+    const std::shared_ptr<const Source> given = config.source ? terrain.source : nullptr;
     std::vector<std::shared_ptr<const CraterLayer>> craters;
     std::shared_ptr<const BoulderLayer> boulders;
     for (std::size_t i = 0; i < config.layers.size(); ++i) {
@@ -568,7 +572,7 @@ Terrain BuildValidTerrain(const TerrainConfig& config, const std::filesystem::pa
                                   craters,
                                   boulders,
                                   terrain.surface,
-                                  terrain.source,
+                                  given,
                                   ThrownSecondaries(config.layers, i)};
         terrain.layers.push_back(BuildLayer(config.layers[i], Element("layers", i), context));
         if (std::holds_alternative<CraterLayerSpec>(config.layers[i])) {

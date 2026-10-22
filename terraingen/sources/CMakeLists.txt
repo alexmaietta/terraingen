@@ -1,13 +1,17 @@
 terraingen_add_library(
     sources
     SOURCES
+    diamond_square.cpp
     field.cpp
     flat_source.cpp
     geotiff_source.cpp
     raster_source.cpp
     source_chain.cpp
+    synthetic_source.cpp
     synthetic_terrain.cpp
+    upsampling.cpp
     PUBLIC
     terraingen_noise
+    terraingen_random
     terraingen_raster
     terraingen_util)

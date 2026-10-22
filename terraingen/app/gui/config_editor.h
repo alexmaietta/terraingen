@@ -46,7 +46,7 @@ class ConfigEditor {
     /// alternative also has; does nothing for an unknown type.
     void SetType(Json& value, const Json& node, const std::string& type) const;
 
-    /// The schema entry of a root field such as "base" or "layers"; null if there is none.
+    /// The schema entry of a root field such as "source" or "layers"; null if there is none.
     const Json* RootField(std::string_view name) const;
 
     /// A setting's label: its key in words, capitalised, without a last word that only

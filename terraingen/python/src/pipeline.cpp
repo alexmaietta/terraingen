@@ -57,10 +57,13 @@ RasterGrid GridOr(const Terrain& terrain, const std::optional<RasterGrid>& grid)
     if (grid) {
         return *grid;
     }
-    if (!terrain.source) {
-        throw std::invalid_argument("A terrain without a source needs a grid");
+    const std::optional<RasterGrid> bounded =
+        terrain.source ? BoundedGrid(*terrain.source) : std::nullopt;
+    if (!bounded) {
+        throw std::invalid_argument(
+            "A terrain without a source, or with a source without bounds, needs a grid");
     }
-    return terrain.source->Grid();
+    return *bounded;
 }
 
 void BindTerrainClass(nb::module_& m) {
@@ -340,17 +343,17 @@ void BindConfigQueries(nb::class_<TerrainConfig>& config) {
             "The Surface the configuration's terrain lies on; a shape model's path resolves "
             "against `directory`.")
         .def(
-            "base_grid",
+            "source_grid",
             [](const TerrainConfig& c, const OptionalPath& directory) -> std::optional<RasterGrid> {
-                if (!c.base) {
+                if (!c.source) {
                     return std::nullopt;
                 }
-                return DescribeSource(*c.base, Directory(directory),
+                return DescribeSource(*c.source, Directory(directory),
                                       BuildSurface(c.body, Directory(directory)));
             },
             "directory"_a = nb::none(),
-            "The grid the configuration's base covers, reading only a raster's header; None "
-            "without a base.")
+            "The grid the configuration's source covers, reading only a raster's header; None "
+            "without a source or for synthetic noise, which has no bounds.")
         .def(
             "output_grids",
             [](const TerrainConfig& c, const OptionalPath& directory) {
@@ -367,15 +370,16 @@ void BindConfigQueries(nb::class_<TerrainConfig>& config) {
 
 void BindConfig(nb::module_& m) {
     BindConfigError(m);
-    nb::class_<TerrainConfig> config(m, "Config",
-                                     "A terrain configuration: a body, optionally a base, layers, "
-                                     "outputs and optionally an albedo, as the JSON configs of the "
-                                     "terraingen command describe.");
+    nb::class_<TerrainConfig> config(
+        m, "Config",
+        "A terrain configuration: a body, optionally a source, layers, "
+        "outputs and optionally an albedo, as the JSON configs of the "
+        "terraingen command describe.");
     BindConfigIo(config);
     BindConfigQueries(config);
     m.def(
         "config_catalog", [] { return FromJson(ConfigCatalog(-1)); },
-        "Every configuration type with its defaults, as a dict: the lists 'body', 'base', "
+        "Every configuration type with its defaults, as a dict: the lists 'body', 'source', "
         "'layers' and 'outputs', the 'albedo', and the 'models' (densities, ages, "
         "degradation, profiles, boulder sizes, region shapes and albedo sources and layers).");
     m.def(

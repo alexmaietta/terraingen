@@ -28,7 +28,7 @@ double MinimumField::Max() const {
 }
 
 void ValidateRasterFieldOptions(const RasterFieldOptions& options) {
-    if (options.method == ResampleMethod::Cubic) {
+    if (options.method != ResampleMethod::Nearest && options.method != ResampleMethod::Bilinear) {
         throw std::invalid_argument(
             "A raster field reads nearest or bilinear, which stay within the cells read");
     }

@@ -20,8 +20,8 @@ SourceChain::SourceChain(std::vector<std::shared_ptr<const Source>> sources)
     }
 }
 
-void SourceChain::Fill(Raster<float>& heights) const {
-    sources_.front()->Fill(heights);
+void SourceChain::Fill(Raster<float>& heights, double spacing) const {
+    sources_.front()->Fill(heights, spacing);
     for (std::size_t n = 1; n < sources_.size(); ++n) {
         const auto values = heights.Values();
         if (std::none_of(values.begin(), values.end(),
@@ -30,7 +30,7 @@ void SourceChain::Fill(Raster<float>& heights) const {
         }
         Raster<float> next(heights.Width(), heights.Height());
         next.SetTransform(heights.Transform());
-        sources_[n]->Fill(next);
+        sources_[n]->Fill(next, spacing);
         for (std::size_t i = 0; i < heights.Size(); ++i) {
             float& cell = heights.Values()[i];
             const float value = next.Values()[i];
@@ -41,9 +41,9 @@ void SourceChain::Fill(Raster<float>& heights) const {
     }
 }
 
-float SourceChain::HeightAt(double x, double y) const {
+float SourceChain::HeightAt(double x, double y, double spacing) const {
     for (const auto& source : sources_) {
-        const float height = source->HeightAt(x, y);
+        const float height = source->HeightAt(x, y, spacing);
         if (!std::isnan(height)) {
             return height;
         }
@@ -53,7 +53,7 @@ float SourceChain::HeightAt(double x, double y) const {
 
 double SourceChain::ResolutionAt(double x, double y) const {
     for (const auto& source : sources_) {
-        if (!std::isnan(source->HeightAt(x, y))) {
+        if (!std::isnan(source->HeightAt(x, y, std::numeric_limits<double>::infinity()))) {
             return source->ResolutionAt(x, y);
         }
     }

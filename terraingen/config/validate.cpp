@@ -16,6 +16,7 @@
 #include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/noise/noise_layers.h"
 #include "terraingen/raster/cell_loops.h"
+#include "terraingen/sources/upsampling.h"
 #include "terraingen/util/overloaded.h"
 
 #include <algorithm>
@@ -98,7 +99,7 @@ struct LayerChecks {
     const std::vector<Extent>& extents;
     const std::filesystem::path& directory;
     const Surface& surface;
-    bool base = false;      ///< Whether the configuration has a base.
+    bool posts = false;     ///< Whether the source has posts to estimate settings from.
     bool craters = false;   ///< Whether a crater layer came before.
     bool boulders = false;  ///< Whether a boulder layer came before.
     /// Craters the crater layers so far are expected to generate over each extent; empty when
@@ -327,12 +328,13 @@ void CheckLayerSpec(const SecondaryLayerSpec& layer, const std::string& path,
     At(path, [&] { ValidateSecondaryCraterOptions(layer.secondaries); });
 }
 
-/// Requires a base for a layer at `path` that estimates its settings from it.
-/// @throws ConfigError at the layer's "estimate_from_base" without a base.
+/// Requires a source with posts for a layer at `path` that estimates its settings from it.
+/// @throws ConfigError at the layer's "estimate_from_base" without one.
 void CheckEstimateBase(bool estimate, const std::string& path, const LayerChecks& context) {
-    if (estimate && !context.base) {
+    if (estimate && !context.posts) {
         throw ConfigError(Child(path, "estimate_from_base"),
-                          "needs a base to estimate from; without one give the values instead");
+                          "needs a source with posts to estimate from, a raster or synthetic noise "
+                          "with a pixel size; without one give the values instead");
     }
 }
 
@@ -410,55 +412,37 @@ GeoTiffInfo CheckGeoTiffRead(const std::string& file, std::size_t band, const st
 }
 
 /// The cells of `lattice`, the grid a GeoTIFF read at `path` gives over the whole file, that the
-/// read's `region` meets; the whole lattice without a region.
-/// @throws ConfigError under the read's "region" for a region that is not finite, is empty or
-/// misses the file.
-RasterGrid CheckGeoTiffRegion(const std::optional<Bounds2d>& region, const RasterGrid& lattice,
-                              const std::string& path) {
-    if (!region) {
+/// read's `crop` meets; the whole lattice without a crop.
+/// @throws ConfigError under the read's "crop" for a crop that is not finite, is empty or misses
+/// the file.
+RasterGrid CheckGeoTiffCrop(const std::optional<Bounds2d>& crop, const RasterGrid& lattice,
+                            const std::string& path) {
+    if (!crop) {
         return lattice;
     }
-    const std::string at = Child(path, "region");
-    CheckFinite(region->minX, Child(at, "min_x"));
-    CheckFinite(region->minY, Child(at, "min_y"));
-    CheckFinite(region->maxX, Child(at, "max_x"));
-    CheckFinite(region->maxY, Child(at, "max_y"));
-    if (!(region->maxX > region->minX)) {
+    const std::string at = Child(path, "crop");
+    CheckFinite(crop->minX, Child(at, "min_x"));
+    CheckFinite(crop->minY, Child(at, "min_y"));
+    CheckFinite(crop->maxX, Child(at, "max_x"));
+    CheckFinite(crop->maxY, Child(at, "max_y"));
+    if (!(crop->maxX > crop->minX)) {
         throw ConfigError(Child(at, "max_x"), "must exceed min_x");
     }
-    if (!(region->maxY > region->minY)) {
+    if (!(crop->maxY > crop->minY)) {
         throw ConfigError(Child(at, "max_y"), "must exceed min_y");
     }
-    const PixelWindow cells = PixelWindowIn(lattice, *region);
+    const PixelWindow cells = PixelWindowIn(lattice, *crop);
     if (cells.Empty()) {
         throw ConfigError(at, "misses the file");
     }
     return Subgrid(lattice, cells);
 }
 
-void CheckLayerSpec(const DemDetailLayerSpec& layer, const std::string& path,
-                    LayerChecks& context) {
-    const GeoTiffInfo info =
-        CheckGeoTiffRead(layer.path, layer.read.band, path, context.directory, context.surface);
-    CheckGeoTiffRegion(layer.read.region, {info.width, info.height, info.transform}, path);
-    CheckFinite(layer.weight, Child(path, "weight"));
-}
-
-void CheckLayerSpec(const MidpointDisplacementLayerSpec& layer, const std::string& path,
-                    LayerChecks& context) {
-    const bool complete =
-        layer.pixelSize && layer.originX && layer.originY && layer.fractalDimension && layer.scale;
-    if (!context.base && !complete) {
-        throw ConfigError(path, "without a base needs pixel_size, origin_x, origin_y, "
-                                "fractal_dimension and scale");
-    }
-}
-
 void CheckLayerSpec(const SpectralContinuationLayerSpec& layer, const std::string& path,
                     LayerChecks& context) {
-    if (!context.base && !(layer.pixelSize && layer.slope && layer.octaveRms)) {
-        throw ConfigError(path, "without a base to fit its spectrum to needs pixel_size, slope "
-                                "and octave_rms");
+    if (!context.posts && !(layer.pixelSize && layer.slope && layer.octaveRms)) {
+        throw ConfigError(path, "without a source with posts to fit its spectrum to needs "
+                                "pixel_size, slope and octave_rms");
     }
     At(path, [&] {
         ValidateSpectrumFitBand(layer.fit);
@@ -495,24 +479,62 @@ void CheckLayer(const LayerSpec& spec, const std::string& path, LayerChecks& con
     std::visit([&](const auto& layer) { CheckLayerSpec(layer, path, context); }, spec);
 }
 
-RasterGrid DescribeSourceAt(const SourceSpec& source, const std::filesystem::path& directory,
-                            const std::string& path, const Surface& surface);
+std::optional<RasterGrid> DescribeSourceAt(const SourceSpec& source,
+                                           const std::filesystem::path& directory,
+                                           const std::string& path, const Surface& surface);
 
-RasterGrid DescribeChain(const ChainSourceSpec& chain, const std::filesystem::path& directory,
-                         const std::string& path, const Surface& surface) {
+std::optional<RasterGrid> DescribeChain(const ChainSourceSpec& chain,
+                                        const std::filesystem::path& directory,
+                                        const std::string& path, const Surface& surface) {
     const std::string sources = Child(path, "sources");
     if (chain.sources.empty()) {
         throw ConfigError(sources, "must not be empty");
     }
-    RasterGrid grid;
+    std::optional<RasterGrid> grid;
     for (std::size_t n = 0; n < chain.sources.size(); ++n) {
-        const RasterGrid described =
+        const std::optional<RasterGrid> described =
             DescribeSourceAt(chain.sources[n], directory, Element(sources, n), surface);
         if (n == 0) {
             grid = described;
         }
     }
     return grid;
+}
+
+/// Checks an upsampling at `path`: a kernel, diamond-square with valid settings, or a type
+/// registered with `RegisterUpsampler`.
+/// @throws ConfigError at `path` for an unknown type, or below it for invalid settings.
+void CheckUpsampling(const UpsamplingSpec& upsampling, const std::string& path) {
+    if (KernelUpsamplerMethod(upsampling.type) || IsUpsamplerRegistered(upsampling.type)) {
+        return;
+    }
+    if (upsampling.type == "diamond_square") {
+        At(path, [&] { ValidateDiamondSquareOptions(upsampling.diamondSquare); });
+        return;
+    }
+    std::string expected;
+    for (const std::string& name : KernelUpsamplerNames()) {
+        expected += name + ", ";
+    }
+    expected += "diamond_square";
+    for (const std::string& name : RegisteredUpsamplerNames()) {
+        expected += ", " + name;
+    }
+    throw ConfigError(path, "unknown upsampling type \"" + upsampling.type +
+                                "\"; expected one of: " + expected);
+}
+
+/// Checks a synthetic source at `path`: its stack, and upsampling only with a pixel size.
+/// @throws ConfigError below `path` for an invalid stack or upsampling.
+void CheckSyntheticSource(const SyntheticSourceSpec& synthetic, const std::string& path) {
+    CheckNoiseStack(synthetic.stack, Child(path, "stack"), true);
+    if (synthetic.upsampling) {
+        const std::string at = Child(path, "upsampling");
+        if (!synthetic.pixelSize) {
+            throw ConfigError(at, "needs pixel_size_m: only noise sampled at posts is upsampled");
+        }
+        CheckUpsampling(*synthetic.upsampling, at);
+    }
 }
 
 RasterGrid DescribeRegion(const GridRegionSpec& region, const std::string& path,
@@ -536,34 +558,43 @@ RasterGrid DescribeRaster(const RasterSourceSpec& raster, const std::filesystem:
         CheckGeoTiffRead(raster.path, raster.read.band, path, directory, surface);
     RasterGrid grid{info.width, info.height, info.transform};
     std::string sizePath = Child(path, "path");
-    if (raster.read.pixelSize) {
-        sizePath = Child(path, "pixel_size");
-        if (grid.transform.IsRotated()) {
-            throw ConfigError(sizePath, "rotated rasters cannot be resampled");
-        }
-        try {
-            grid = ResampledGrid(grid, *raster.read.pixelSize / surface.UnitLength());
-        } catch (const std::invalid_argument&) {
-            throw ConfigError(sizePath, "resampling would exceed " +
-                                            std::to_string(kMaxConfigGridSize) + " cells per side");
-        }
-    }
-    if (raster.read.region) {
-        grid = CheckGeoTiffRegion(raster.read.region, grid, path);
-        sizePath = Child(path, "region");
+    if (raster.read.crop) {
+        grid = CheckGeoTiffCrop(raster.read.crop, grid, path);
+        sizePath = Child(path, "crop");
     }
     CheckGridSize(grid.width, grid.height, sizePath);
+    CheckUpsampling(raster.upsampling, Child(path, "upsampling"));
     return grid;
 }
 
-RasterGrid DescribeSourceAt(const SourceSpec& source, const std::filesystem::path& directory,
-                            const std::string& path, const Surface& surface) {
+std::optional<RasterGrid> DescribeSourceAt(const SourceSpec& source,
+                                           const std::filesystem::path& directory,
+                                           const std::string& path, const Surface& surface) {
     return std::visit(
         Overloaded{
-            [&](const RasterSourceSpec& s) { return DescribeRaster(s, directory, path, surface); },
+            [&](const RasterSourceSpec& s) -> std::optional<RasterGrid> {
+                return DescribeRaster(s, directory, path, surface);
+            },
             [&](const ChainSourceSpec& s) { return DescribeChain(s, directory, path, surface); },
+            [&](const SyntheticSourceSpec& s) -> std::optional<RasterGrid> {
+                CheckSyntheticSource(s, path);
+                return std::nullopt;
+            },
         },
         source);
+}
+
+/// Whether a source has posts that layers can estimate settings from: a raster, a chain whose
+/// first source has, or synthetic noise with a pixel size.
+bool HasPosts(const SourceSpec& source) {
+    return std::visit(Overloaded{
+                          [](const RasterSourceSpec&) { return true; },
+                          [](const ChainSourceSpec& s) {
+                              return !s.sources.empty() && HasPosts(s.sources.front());
+                          },
+                          [](const SyntheticSourceSpec& s) { return s.pixelSize.has_value(); },
+                      },
+                      source);
 }
 
 /// Rows of a whole-body list's grid above which its spacing is too fine.
@@ -608,8 +639,10 @@ std::optional<RasterGrid> CheckOutputGrid(const OutputSpec& output, const std::s
             config::HoldsAny<CraterListOutput, BoulderListOutput, BoulderModelsOutput>(output);
         throw ConfigError(Child(path, "region"),
                           listed && surface.IsBody()
-                              ? "required without a base, or a spacing to list the whole body"
-                              : "required without a base: the grid of square cells to cover");
+                              ? "required without a raster source, or a spacing to list the whole "
+                                "body"
+                              : "required without a raster source: the grid of square cells to "
+                                "cover");
     }
     return grid;
 }
@@ -697,7 +730,8 @@ std::vector<Extent> CheckOutputs(const TerrainConfig& config, const Surface& sur
         const OutputSpec& output = config.outputs[i];
         const std::string path = Element("outputs", i);
         std::visit([&](const auto& o) { CheckOutput(o, path, checks); }, output);
-        const std::optional<RasterGrid> grid = CheckOutputGrid(output, path, summary.base, surface);
+        const std::optional<RasterGrid> grid =
+            CheckOutputGrid(output, path, summary.source, surface);
         summary.outputGrids.push_back(grid);
         if (grid) {
             const bool listed =
@@ -718,7 +752,7 @@ void CheckLayers(const TerrainConfig& config, const std::vector<Extent>& extents
                  const std::filesystem::path& directory, const Surface& surface,
                  ConfigSummary& summary) {
     LayerChecks layers{extents, directory, surface};
-    layers.base = config.base.has_value();
+    layers.posts = config.source && HasPosts(*config.source);
     for (std::size_t i = 0; i < config.layers.size(); ++i) {
         CheckLayer(config.layers[i], Element("layers", i), layers);
     }
@@ -856,9 +890,10 @@ void CheckAlbedoLayer(const SlopeAlbedoSpec& slopes, const std::string& path, co
 
 }  // namespace
 
-RasterGrid DescribeSource(const SourceSpec& source, const std::filesystem::path& directory,
-                          const Surface& surface) {
-    return DescribeSourceAt(source, directory, "base", surface);
+std::optional<RasterGrid> DescribeSource(const SourceSpec& source,
+                                         const std::filesystem::path& directory,
+                                         const Surface& surface) {
+    return DescribeSourceAt(source, directory, "source", surface);
 }
 
 void ValidateAlbedo(const TerrainConfig& config, const std::filesystem::path& directory) {
@@ -879,8 +914,8 @@ ConfigSummary ValidateConfig(const TerrainConfig& config, const std::filesystem:
     CheckBody(config.body, "body");
     ConfigSummary summary;
     const Surface surface = BuildSurface(config.body, directory);
-    if (config.base) {
-        summary.base = DescribeSource(*config.base, directory, surface);
+    if (config.source) {
+        summary.source = DescribeSource(*config.source, directory, surface);
     }
     const std::vector<Extent> extents = CheckOutputs(config, surface, summary);
     CheckLayers(config, extents, directory, surface, summary);

@@ -129,14 +129,12 @@ TEST(PlacedBoulders, PlacesModelsOnTheGroundBeneathTheirLayer) {
 namespace {
 
 /// A DEM of `cells` x `cells` cells of `size` metres with its top-left corner at (`left`,
-/// `top`), resampled to 2 m.
+/// `top`).
 std::shared_ptr<const terraingen::RasterSource> Dem(std::size_t cells, double size, double left,
                                                     double top) {
     terraingen::Raster<float> heights(cells, cells, 3.0f);
     heights.SetTransform(terraingen::GeoTransform::NorthUp(left, top, size));
-    terraingen::RasterSourceOptions options;
-    options.pixelSize = 2.0;
-    return std::make_shared<terraingen::RasterSource>(heights, options);
+    return std::make_shared<terraingen::RasterSource>(heights);
 }
 
 /// The craters of 6 to 40 m a terrain on `source` places over `grid`, limited to those `source`
@@ -160,13 +158,13 @@ terraingen::CraterList DemCraters(const std::shared_ptr<const terraingen::Source
 
 TEST(PlacedCraters, LeavesTheCratersADemResolvesToIt) {
     const auto dem = Dem(26, 5.0, -65.0, 65.0);
-    const RasterGrid grid = dem->Grid();
+    const RasterGrid grid = terraingen::ResampledGrid(dem->Grid(), 2.0);
     const terraingen::CraterList all = DemCraters(dem, grid, false);
     const terraingen::CraterList kept = DemCraters(dem, grid, true);
     std::size_t resolved = 0;
     for (std::size_t n = 0; n < all.Size(); ++n) {
         const terraingen::Crater crater = all.At(n);
-        if (crater.diameter >= 20.0 && !std::isnan(dem->HeightAt(crater.x, crater.y))) {
+        if (crater.diameter >= 20.0 && !std::isnan(dem->HeightAt(crater.x, crater.y, 2.0))) {
             ++resolved;
         }
     }
@@ -175,7 +173,7 @@ TEST(PlacedCraters, LeavesTheCratersADemResolvesToIt) {
     std::size_t smaller = 0;
     for (std::size_t n = 0; n < kept.Size(); ++n) {
         const terraingen::Crater crater = kept.At(n);
-        if (!std::isnan(dem->HeightAt(crater.x, crater.y))) {
+        if (!std::isnan(dem->HeightAt(crater.x, crater.y, 2.0))) {
             EXPECT_LT(crater.diameter, 20.0);
             ++smaller;
         }
@@ -188,13 +186,13 @@ TEST(PlacedCraters, FollowTheResolutionOfEachMemberOfASourceChain) {
     const auto region = Dem(32, 8.0, -128.0, 128.0);
     const auto chain = std::make_shared<terraingen::SourceChain>(
         std::vector<std::shared_ptr<const terraingen::Source>>{site, region});
-    const RasterGrid grid = region->Grid();
+    const RasterGrid grid = terraingen::ResampledGrid(region->Grid(), 2.0);
     const terraingen::CraterList all = DemCraters(chain, grid, false);
     const terraingen::CraterList kept = DemCraters(chain, grid, true);
     std::size_t siteResolved = 0;
     for (std::size_t n = 0; n < all.Size(); ++n) {
         const terraingen::Crater crater = all.At(n);
-        if (crater.diameter >= 8.0 && !std::isnan(site->HeightAt(crater.x, crater.y))) {
+        if (crater.diameter >= 8.0 && !std::isnan(site->HeightAt(crater.x, crater.y, 2.0))) {
             ++siteResolved;
         }
     }
@@ -202,9 +200,9 @@ TEST(PlacedCraters, FollowTheResolutionOfEachMemberOfASourceChain) {
     std::size_t between = 0;
     for (std::size_t n = 0; n < kept.Size(); ++n) {
         const terraingen::Crater crater = kept.At(n);
-        if (!std::isnan(site->HeightAt(crater.x, crater.y))) {
+        if (!std::isnan(site->HeightAt(crater.x, crater.y, 2.0))) {
             EXPECT_LT(crater.diameter, 8.0) << "four 2 m cells over the site";
-        } else if (!std::isnan(region->HeightAt(crater.x, crater.y))) {
+        } else if (!std::isnan(region->HeightAt(crater.x, crater.y, 2.0))) {
             EXPECT_LT(crater.diameter, 32.0) << "four 8 m cells elsewhere";
             if (crater.diameter >= 8.0) {
                 ++between;

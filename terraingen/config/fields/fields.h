@@ -22,11 +22,12 @@ template <typename IO> void Fields(IO& io, TerrainConfig& config) {
     io("body", config.body,
        "What the terrain lies on: a plane in metres, or a whole body (a sphere, ellipsoid or "
        "shape model) in longitude and latitude degrees.");
-    io("base", config.base,
-       "The starting heights, read from a GeoTIFF or a chain of them, whose grid outputs cover "
-       "unless they give a region; unset for the body's datum, 0 m, everywhere.");
+    io("source", config.source,
+       "Where the heights come from: a GeoTIFF, a chain of sources, or synthetic noise, and how "
+       "its posts are upsampled to finer spacings. A raster's grid is what outputs cover unless "
+       "they give a region; unset is flat at the body's datum, 0 m, everywhere.");
     io("layers", config.layers,
-       "Relief and features added to the base's heights, applied in order: noise, craters, "
+       "Relief and features added to the source's heights, applied in order: noise, craters, "
        "boulders and more.");
     io("outputs", config.outputs,
        "Files written after generation, each over its own region or the whole body: heightmaps, "

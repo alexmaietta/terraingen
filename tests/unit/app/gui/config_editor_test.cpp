@@ -49,13 +49,13 @@ class HeadlessImGui : public ::testing::Test {
     }
 };
 
-/// A configuration using every base, layer and output type of the catalog, a chain of bases and an
-/// albedo.
+/// A configuration using every source, layer and output type of the catalog, a chain of sources
+/// and an albedo.
 Json Everything() {
     const Json catalog = Json::parse(terraingen::ConfigCatalog());
     Json config = Json{{"schema_version", terraingen::kConfigSchemaVersion}};
     config["body"] = catalog["body"].back();
-    config["base"] = Json{{"type", "chain"}, {"sources", catalog["base"]}};
+    config["source"] = Json{{"type", "chain"}, {"sources", catalog["source"]}};
     config["layers"] = catalog["layers"];
     config["outputs"] = catalog["outputs"];
     config["albedo"] = catalog["albedo"];
@@ -76,7 +76,7 @@ TEST(ConfigEditor, MakesNewValuesFromTheSchema) {
         return Json();
     };
     EXPECT_EQ(editor.NewValue(field("body")), (Json{{"type", "plane"}}));
-    EXPECT_TRUE(editor.NewValue(field("base")).is_null());
+    EXPECT_TRUE(editor.NewValue(field("source")).is_null());
     EXPECT_EQ(editor.NewValue(field("layers")), Json::array());
     EXPECT_TRUE(editor.NewValue(field("albedo")).is_null());
     EXPECT_EQ(editor.Resolve(field("body"))["kind"], "choice");

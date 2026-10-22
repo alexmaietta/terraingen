@@ -2,6 +2,7 @@
 
 import json
 
+import numpy as np
 import pytest
 
 import terraingen
@@ -41,7 +42,7 @@ def test_config_on_a_sphere_describes_its_grids():
             ],
         }
     )
-    assert config.body().is_body and config.base_grid() is None
+    assert config.body().is_body and config.source_grid() is None
     site, mesh, whole = config.output_grids()
     assert (site.width, site.height) == (17, 9)
     assert mesh is None
@@ -78,13 +79,84 @@ def test_validation_errors_name_their_path():
     assert empty.value.path == "layers[0].stack"
 
 
-def test_missing_base_files_fail_validation():
+def test_missing_source_files_fail_validation():
     config = terraingen.Config.from_dict(
-        {"schema_version": 1, "base": {"type": "raster", "path": "none.tif"}}
+        {"schema_version": 1, "source": {"type": "raster", "path": "none.tif"}}
     )
     with pytest.raises(terraingen.ConfigError) as missing:
         config.validate("/nonexistent")
-    assert missing.value.path.startswith("base")
+    assert missing.value.path.startswith("source")
+    with pytest.raises(terraingen.ConfigError) as removed:
+        terraingen.Config.from_dict({"schema_version": 1, "base": {"type": "raster", "path": "x.tif"}})
+    assert removed.value.path == "base"
+
+
+def test_a_synthetic_source_has_no_grid_and_upsamples_only_posts():
+    synthetic = {"type": "synthetic", "elevation_m": 3, "stack": [{"wavelength": 40}]}
+    config = terraingen.Config.from_dict({"schema_version": 1, "source": synthetic})
+    assert config.source_grid() is None
+    config.validate()
+    synthetic["upsampling"] = "bilinear"
+    with pytest.raises(terraingen.ConfigError) as unposted:
+        terraingen.Config.from_dict({"schema_version": 1, "source": synthetic}).validate()
+    assert unposted.value.path == "source.upsampling"
+    synthetic["pixel_size_m"] = 4
+    config = terraingen.Config.from_dict({"schema_version": 1, "source": synthetic})
+    config.validate()
+    assert config.to_dict()["source"]["upsampling"] == "bilinear"
+    terrain = terraingen.build_terrain(config)
+    assert isinstance(terrain.source, terraingen.SyntheticSource)
+    assert terrain.source.pixel_size == 4.0 and terrain.source.elevation == 3.0
+    assert isinstance(terrain.source.upsampler, terraingen.KernelUpsampler)
+
+
+def test_a_python_upsampler_registered_by_name_serves_a_config(tmp_path):
+    class Stepped(terraingen.Upsampler):
+        """Each post's height over its whole cell, raised by `lift` meters between posts."""
+
+        def __init__(self, lift=0.0):
+            super().__init__()
+            self.lift = lift
+
+        def height_at(self, posts, x, y, spacing):
+            col, row = posts.transform().world_to_pixel(x, y)
+            value = posts.read(int(np.floor(col)), int(np.floor(row)), 1, 1)[0, 0]
+            return float(value) + self.lift
+
+    terraingen.register_upsampler("stepped_test", Stepped)
+    assert "stepped_test" in terraingen.registered_upsampler_names()
+    heights = terraingen.Raster.from_array(
+        np.arange(16, dtype=np.float32).reshape(4, 4), terraingen.GeoTransform.north_up(0.0, 40.0, 10.0)
+    )
+    terraingen.write_geotiff(str(tmp_path / "dem.tif"), heights)
+    config = terraingen.Config.from_dict(
+        {
+            "schema_version": 1,
+            "source": {
+                "type": "raster",
+                "path": "dem.tif",
+                "upsampling": {"type": "stepped_test", "lift": 0.5},
+            },
+            "outputs": [{"type": "heightmap", "path": "h.tif"}],
+        }
+    )
+    config.validate(str(tmp_path))
+    assert config.to_dict()["source"]["upsampling"] == {"type": "stepped_test", "lift": 0.5}
+    terrain = terraingen.build_terrain(config, str(tmp_path))
+    assert terrain.source.height_at(12.0, 37.0, 1.0) == pytest.approx(1.5)
+    assert (
+        terrain.source.height_at(15.0, 35.0, 10.0) == 1.0 and terrain.source.height_at(15.0, 35.0, 1.0) == 1.5
+    )
+    fine = terraingen.evaluate(
+        terrain, grid=terraingen.RasterGrid(8, 8, terraingen.GeoTransform.north_up(0.0, 40.0, 5.0))
+    )
+    assert fine.values[0, 2] == pytest.approx(1.5)
+    unknown = terraingen.Config.from_dict(
+        {"schema_version": 1, "source": {"type": "raster", "path": "dem.tif", "upsampling": "nope_test"}}
+    )
+    with pytest.raises(terraingen.ConfigError) as error:
+        unknown.validate(str(tmp_path))
+    assert error.value.path == "source.upsampling"
 
 
 def test_loading_a_missing_file_raises_a_config_error():
@@ -96,9 +168,9 @@ def test_schema_describes_fields_with_units_and_choices():
     schema = terraingen.config_schema()
     assert schema["schema_version"] == 1
     root = {f["name"]: f for f in schema["root"]["fields"]}
-    assert list(root)[:3] == ["schema_version", "body", "base"]
+    assert list(root)[:3] == ["schema_version", "body", "source"]
     assert root["layers"]["description"].endswith(".")
-    assert root["base"]["schema"]["kind"] == "optional"
+    assert root["source"]["schema"]["kind"] == "optional"
     outputs = schema["definitions"][root["outputs"]["schema"]["of"]["ref"]]
     heightmap = next(a for a in outputs["alternatives"] if a["type"] == "heightmap")
     region = next(f for f in heightmap["fields"] if f["name"] == "region")

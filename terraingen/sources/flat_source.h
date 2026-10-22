@@ -13,6 +13,8 @@ namespace terraingen {
 /// `pixelSize` cells centred on `centre`: the start of a fully synthetic terrain.
 class FlatSource final : public Source {
   public:
+    using Source::Fill;
+
     /// The flat source over the given grid.
     /// @param width Columns, at least 1.
     /// @param height Rows, at least 1.
@@ -41,10 +43,10 @@ class FlatSource final : public Source {
     }
 
     /// Sets every cell of `heights` to the elevation.
-    void Fill(Raster<float>& heights) const override;
+    void Fill(Raster<float>& heights, double spacing) const override;
 
     /// The elevation in metres, everywhere.
-    float HeightAt(double /*x*/, double /*y*/) const override {
+    float HeightAt(double /*x*/, double /*y*/, double /*spacing*/) const override {
         return elevation_;
     }
 

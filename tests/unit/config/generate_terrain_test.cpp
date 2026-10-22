@@ -10,6 +10,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -293,13 +294,16 @@ TEST(GenerateTerrain, LoadsResamplesAndDetailsARasterSource) {
     RasterSpec(config).read.scale.reset();
     RasterSpec(config).read.offset.reset();
 
-    RasterSpec(config).read.pixelSize = 2.5;
-    RasterSpec(config).read.resampling = terraingen::ResampleMethod::Bilinear;
+    const std::vector<terraingen::OutputSpec> outputs = config.outputs;
+    RasterSpec(config).upsampling.type = "bilinear";
+    config.outputs = {terraingen::testing::Heightmap(
+        "fine.tif", terraingen::GridRegionSpec{80, 60, 2.5, 1100.0, 1925.0})};
     const auto resampled = GenerateTerrain(config, folder);
     ExpectSameRaster(HeightsOf(resampled),
                      terraingen::Resample(dem, 2.5, terraingen::ResampleMethod::Bilinear));
 
-    RasterSpec(config).read.pixelSize.reset();
+    RasterSpec(config).upsampling = {};
+    config.outputs = outputs;
     terraingen::NoiseLayerConfig detail;
     detail.layer.fractal.wavelength = 20.0f;
     detail.amplitude = 1.5f;
@@ -359,7 +363,7 @@ TEST(GenerateTerrain, FillsARastersGapsFromTheSourcesChainedAfterIt) {
     terraingen::WriteGeoTiff(folder / "holes.tif", holes, Keys());
     const auto raster = [](const std::string& path) { return terraingen::RasterSourceSpec{path}; };
     TerrainConfig config;
-    config.base = terraingen::ChainSourceSpec{{raster("holes.tif"), raster("dem.tif")}};
+    config.source = terraingen::ChainSourceSpec{{raster("holes.tif"), raster("dem.tif")}};
     config.outputs = {terraingen::testing::Heightmap("filled.tif", std::nullopt)};
     const auto filled = GenerateTerrain(config, folder);
     ExpectSameRaster(HeightsOf(filled), dem);
@@ -490,27 +494,24 @@ TEST(Summary, DescribesTheTerrainItsTimeAndBackend) {
                   terraingen::DescribeBackend(terraingen::Backend::Vulkan));
 }
 
-TEST(GenerateTerrain, SplitsADemIntoItsLowPassAndTheDetailAddedBack) {
-    const auto folder = TempPath("terraingen_dem_detail");
-    const auto dem = WriteDem(folder, "dem.tif");
-    TerrainConfig config = RasterConfig("dem.tif");
-    terraingen::testing::RasterSpec(config).read.lowPass = 15.0;
-    const auto smooth = GenerateTerrain(config, folder);
-    const auto smoothHeights = HeightsOf(smooth).Values();
-    const auto demHeights = dem.Values();
-    EXPECT_FALSE(std::equal(smoothHeights.begin(), smoothHeights.end(), demHeights.begin(),
-                            demHeights.end()));
-    terraingen::DemDetailLayerSpec detail;
-    detail.path = "dem.tif";
-    detail.read.lowPass = 15.0;
-    config.layers = {detail};
-    const auto restored = GenerateTerrain(config, folder);
-    for (std::size_t i = 0; i < dem.Size(); ++i) {
-        ASSERT_NEAR(HeightsOf(restored).Values()[i], dem.Values()[i], 1e-3) << i;
-    }
-    detail.read.lowPass = 0.0;
-    config.layers = {detail};
-    EXPECT_THROW(terraingen::ValidateConfig(config, folder), ConfigError);
+TEST(GenerateTerrain, GeneratesASyntheticSourceOverEachOutputsRegion) {
+    TerrainConfig config;
+    terraingen::SyntheticSourceSpec synthetic;
+    synthetic.elevation = 4.0;
+    terraingen::NoiseLayerConfig layer;
+    layer.layer.fractal.wavelength = 120.0f;
+    synthetic.stack = {layer};
+    config.source = synthetic;
+    const terraingen::GridRegionSpec region{33, 17, 3.0, 50.0, -20.0};
+    config.outputs = {terraingen::testing::Heightmap("synthetic.tif", region)};
+    const auto generated = GenerateTerrain(config);
+    const terraingen::SyntheticSource expected(terraingen::StackParams(synthetic.stack), 4.0f);
+    terraingen::Raster<float> heights = terraingen::config::RegionGrid(region, {}).MakeRaster();
+    expected.Fill(heights);
+    ExpectSameRaster(HeightsOf(generated), heights);
+    config.outputs = {terraingen::testing::Heightmap("synthetic.tif", std::nullopt)};
+    EXPECT_THROW(terraingen::ValidateConfig(config), ConfigError)
+        << "synthetic noise has no grid of its own to cover";
 }
 
 TEST(GenerateTerrain, EvaluatesEachDistinctOutputGridOnce) {
@@ -603,11 +604,11 @@ TEST(GenerateTerrain, ListsCratersOverTheWholeBody) {
     EXPECT_GT(north, 45.0);
 }
 
-TEST(GenerateTerrain, ExpandsADemByMidpointDisplacementKeepingItsCells) {
+TEST(GenerateTerrain, ExpandsADemByDiamondSquareKeepingItsCells) {
     const auto folder = TempPath("terraingen_midpoint");
     const auto dem = WriteDem(folder, "dem.tif");
     TerrainConfig config = RasterConfig("dem.tif");
-    config.layers = {terraingen::MidpointDisplacementLayerSpec{}};
+    RasterSpec(config).upsampling.type = "diamond_square";
     const terraingen::GridRegionSpec region{21, 21, 2.5, 1102.5, 1922.5};
     config.outputs = {terraingen::testing::Heightmap("fine.tif", region),
                       terraingen::testing::Heightmap("base.tif", std::nullopt)};
@@ -629,15 +630,21 @@ TEST(GenerateTerrain, ExpandsADemByMidpointDisplacementKeepingItsCells) {
     EXPECT_TRUE(expanded);
     ExpectSameRaster(generated.grids[1].heights, dem);
 
-    auto& layer = std::get<terraingen::MidpointDisplacementLayerSpec>(config.layers[0]);
-    layer.fractalDimension = 2.4;
-    layer.scale = 0.0;
-    layer.base = terraingen::MidpointBase::Source;
+    terraingen::DiamondSquareOptions& fractal = RasterSpec(config).upsampling.diamondSquare;
+    fractal.fractalDimension = 2.4;
+    fractal.scale = 0.0;
+    fractal.interp = terraingen::DiamondSquareInterp::CatmullRom;
     const auto smooth = GenerateTerrain(config, folder);
-    const auto cubic = GenerateTerrain(RasterConfig("dem.tif"), folder);
-    const auto plain = terraingen::Evaluate(
-        cubic.terrain, terraingen::RasterGrid::FromRaster(smooth.grids[0].heights));
-    ExpectSameRaster(smooth.grids[0].heights, plain);
+    double change = 0.0;
+    for (std::size_t row = 0; row < smooth.grids[0].heights.Height(); ++row) {
+        for (std::size_t col = 0; col < smooth.grids[0].heights.Width(); ++col) {
+            change =
+                std::max(change, std::fabs(static_cast<double>(fine(col, row)) -
+                                           static_cast<double>(smooth.grids[0].heights(col, row))));
+        }
+    }
+    EXPECT_GT(change, 0.0) << "without displacements the refinement is a smooth spline";
+    EXPECT_EQ(smooth.grids[0].heights(0, 0), dem(15, 10));
 }
 
 TEST(GenerateTerrain, ContinuesADemsSpectrumOnlyBelowItsCells) {

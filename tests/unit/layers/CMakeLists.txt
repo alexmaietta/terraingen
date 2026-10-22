@@ -6,13 +6,11 @@ terraingen_add_test_suite(
     bisection_test.cpp
     density_map_test.cpp
     dunes_test.cpp
-    detail_test.cpp
     exposure_test.cpp
     fade_test.cpp
     ground_test.cpp
     lattice_test.cpp
     layer_test.cpp
-    midpoint_displacement_test.cpp
     noise_relief_test.cpp
     pavement_test.cpp
     region_test.cpp

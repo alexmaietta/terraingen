@@ -12,28 +12,27 @@ namespace terraingen {
 
 namespace {
 
-/// How the band's heights are low-passed and resampled.
+/// How the band's cells become heights.
 RasterSourceOptions SamplingOptions(const GeoTiffSourceOptions& options) {
     RasterSourceOptions sampling;
-    sampling.pixelSize = options.pixelSize;
-    sampling.resampling = options.resampling;
-    sampling.lowPass = options.lowPass;
+    sampling.effectivePixelSize = options.effectivePixelSize;
+    sampling.upsampler = options.upsampler;
     return sampling;
 }
 
-/// The cells of `lattice` that meet `region`.
-/// @throws std::invalid_argument for a region that is not finite, is empty or misses the lattice.
-PixelWindow RegionCells(const RasterGrid& lattice, const Bounds2d& region) {
-    if (!(std::isfinite(region.minX) && std::isfinite(region.minY) && std::isfinite(region.maxX) &&
-          std::isfinite(region.maxY))) {
-        throw std::invalid_argument("The region must be finite");
+/// The cells of `lattice` that meet `crop`.
+/// @throws std::invalid_argument for a crop that is not finite, is empty or misses the lattice.
+PixelWindow CropCells(const RasterGrid& lattice, const Bounds2d& crop) {
+    if (!(std::isfinite(crop.minX) && std::isfinite(crop.minY) && std::isfinite(crop.maxX) &&
+          std::isfinite(crop.maxY))) {
+        throw std::invalid_argument("The crop must be finite");
     }
-    if (!(region.minX < region.maxX && region.minY < region.maxY)) {
-        throw std::invalid_argument("The region must have minX < maxX and minY < maxY");
+    if (!(crop.minX < crop.maxX && crop.minY < crop.maxY)) {
+        throw std::invalid_argument("The crop must have minX < maxX and minY < maxY");
     }
-    const PixelWindow cells = PixelWindowIn(lattice, region);
+    const PixelWindow cells = PixelWindowIn(lattice, crop);
     if (cells.Empty()) {
-        throw std::invalid_argument("The region misses the file");
+        throw std::invalid_argument("The crop misses the file");
     }
     return cells;
 }
@@ -41,7 +40,7 @@ PixelWindow RegionCells(const RasterGrid& lattice, const Bounds2d& region) {
 }  // namespace
 
 GeoTiffSource::GeoTiffSource(std::filesystem::path path, GeoTiffSourceOptions options)
-    : path_(std::move(path)), options_(options), info_(ReadGeoTiffInfo(path_)) {
+    : path_(std::move(path)), options_(std::move(options)), info_(ReadGeoTiffInfo(path_)) {
     const std::size_t band = options_.band;
     if (band >= info_.bands) {
         throw std::invalid_argument("Band " + std::to_string(band) + " is missing; the file has " +
@@ -53,7 +52,7 @@ GeoTiffSource::GeoTiffSource(std::filesystem::path path, GeoTiffSourceOptions op
     if ((scale && !std::isfinite(*scale)) || (offset && !std::isfinite(*offset))) {
         throw std::invalid_argument("Scale and offset must be finite");
     }
-    RequireNonNegative(options_.lowPass, "Low-pass deviation");
+    detail::ValidateRasterSourceOptions(SamplingOptions(options_));
     scaling_ = {scale.value_or(info_.bandScaling[band].scale),
                 offset.value_or(info_.bandScaling[band].offset)};
     if (info_.geoKeys.IsGeographic()) {
@@ -61,9 +60,8 @@ GeoTiffSource::GeoTiffSource(std::filesystem::path path, GeoTiffSourceOptions op
             "The raster's CRS is geographic (degrees); craters are sized in metres, so reproject "
             "it first, for example with gdalwarp -t_srs");
     }
-    lattice_ = detail::SourceLattice({info_.width, info_.height, info_.transform},
-                                     SamplingOptions(options_));
-    cells_ = options_.region ? RegionCells(lattice_, *options_.region) : WholeWindow(lattice_);
+    lattice_ = {info_.width, info_.height, info_.transform};
+    cells_ = options_.crop ? CropCells(lattice_, *options_.crop) : WholeWindow(lattice_);
 }
 
 Vec2d GeoTiffSource::ReferencePoint() const {
@@ -73,8 +71,8 @@ Vec2d GeoTiffSource::ReferencePoint() const {
 const detail::RasterHeights& GeoTiffSource::Heights() const {
     std::call_once(loaded_, [this] {
         const RasterSourceOptions sampling = SamplingOptions(options_);
-        const RasterGrid native{info_.width, info_.height, info_.transform};
-        const PixelWindow window = detail::NativeWindow(native, sampling, cells_);
+        const PixelWindow window =
+            detail::NativeWindow(lattice_, detail::OptionUpsampler(sampling)->Reach(), cells_);
         GeoTiff tiff = ReadGeoTiffWindow(path_, options_.band, window);
         if (!scaling_.Identity()) {
             Raster<float>& raster = tiff.raster;
@@ -90,18 +88,18 @@ const detail::RasterHeights& GeoTiffSource::Heights() const {
             }
         }
         heights_.emplace(std::make_shared<const Raster<float>>(std::move(tiff.raster)),
-                         RasterPlacement{native, window.colBegin, window.rowBegin}, sampling,
+                         RasterPlacement{lattice_, window.colBegin, window.rowBegin}, sampling,
                          cells_, path_.string());
     });
     return *heights_;
 }
 
-void GeoTiffSource::Fill(Raster<float>& heights) const {
-    Heights().Fill(heights);
+void GeoTiffSource::Fill(Raster<float>& heights, double spacing) const {
+    Heights().Fill(heights, spacing);
 }
 
-float GeoTiffSource::HeightAt(double x, double y) const {
-    return Heights().HeightAt(x, y);
+float GeoTiffSource::HeightAt(double x, double y, double spacing) const {
+    return Heights().HeightAt(x, y, spacing);
 }
 
 double GeoTiffSource::ResolutionAt(double x, double y) const {

@@ -1,5 +1,5 @@
 /// Roughness continuing a coarse DEM below its cells: the example writes an 8 m DEM of its own to
-/// stand in for orbital data, reads it resampled to 0.5 m, estimates the Hurst exponent and RMS
+/// stand in for orbital data, reads it upsampled to 0.5 m, estimates the Hurst exponent and RMS
 /// slope its variogram extrapolates to a 1 m baseline (`EstimateSourceRoughness`), and adds a
 /// `RoughnessLayer` of those values with octaves from the DEM's cell size down to the new one. A
 /// configuration does the same with "estimate_from_base": true on its roughness layer.
@@ -42,9 +42,8 @@ class SourcesRasterRoughness : public terraingen::examples::Example {
         std::filesystem::create_directories(temp);
         const std::filesystem::path dem = temp / "example_sources_raster_roughness_coarse.tif";
         terraingen::WriteGeoTiff(dem, coarse_);
-        terraingen::GeoTiffSourceOptions demOptions;
-        demOptions.pixelSize = 0.5;
-        const auto raster = std::make_shared<terraingen::GeoTiffSource>(dem, demOptions);
+        const auto raster = std::make_shared<terraingen::GeoTiffSource>(dem);
+        const terraingen::RasterGrid grid = terraingen::ResampledGrid(raster->Grid(), 0.5);
 
         base_ = terraingen::EstimateSourceRoughness(*raster);
         terraingen::RoughnessOptions roughness;
@@ -63,8 +62,8 @@ class SourcesRasterRoughness : public terraingen::examples::Example {
         terrain.layers = {std::make_shared<terraingen::RoughnessLayer>(roughness)};
         terraingen::Terrain plain;
         plain.source = raster;
-        smooth_ = terraingen::Evaluate(plain);
-        evaluated_ = terraingen::Evaluate(terrain);
+        smooth_ = terraingen::Evaluate(plain, grid);
+        evaluated_ = terraingen::Evaluate(terrain, grid);
         std::filesystem::remove_all(temp);
         Show("heights", evaluated_);
         Show("resampled DEM", smooth_);

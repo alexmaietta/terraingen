@@ -1,4 +1,4 @@
-/// Detail on a coarse DEM: a `GeoTiffSource` resampled to a finer pixel, plus fine noise and
+/// Detail on a coarse DEM: a `GeoTiffSource` upsampled to a finer pixel, plus fine noise and
 /// craters smaller than the DEM's cells. The example first writes a coarse 16 m DEM of its own to
 /// stand in for orbital data, then builds the 2 m terrain on it. A `SourceChain` fills any gaps in
 /// the DEM from a flat datum.
@@ -63,13 +63,11 @@ class SourcesRasterDetail : public terraingen::examples::Example {
         const std::filesystem::path dem = temp / "example_sources_raster_detail_coarse.tif";
         terraingen::WriteGeoTiff(dem, coarse_);
 
-        terraingen::GeoTiffSourceOptions demOptions;
-        demOptions.pixelSize = 2.0;
-        const auto raster = std::make_shared<terraingen::GeoTiffSource>(dem, demOptions);
+        const auto raster = std::make_shared<terraingen::GeoTiffSource>(dem);
         const auto chain = std::make_shared<terraingen::SourceChain>(
             std::vector<std::shared_ptr<const terraingen::Source>>{
                 raster, std::make_shared<terraingen::FlatSource>(1, 1, 2.0)});
-        const terraingen::RasterGrid grid = raster->Grid();
+        const terraingen::RasterGrid grid = terraingen::ResampledGrid(raster->Grid(), 2.0);
         Out() << "16 m DEM resampled to " << grid.width << " x " << grid.height
               << " cells of 2 m\n";
 
@@ -87,7 +85,7 @@ class SourcesRasterDetail : public terraingen::examples::Example {
         terrain.layers = {
             std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{detail}}),
             std::make_shared<terraingen::CraterLayer>(LunarModels(), small)};
-        evaluated_ = terraingen::Evaluate(terrain);
+        evaluated_ = terraingen::Evaluate(terrain, grid);
         craters_ =
             terraingen::PlacedCraters(terrain, terraingen::RasterGrid::FromRaster(evaluated_));
         std::filesystem::remove_all(temp);

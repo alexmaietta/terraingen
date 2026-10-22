@@ -23,7 +23,7 @@ FlatSource::FlatSource(std::size_t width, std::size_t height, double pixelSize, 
     grid_ = {width, height, GeoTransform::NorthUp(centre.x - halfX, centre.y + halfY, pixelSize)};
 }
 
-void FlatSource::Fill(Raster<float>& heights) const {
+void FlatSource::Fill(Raster<float>& heights, double /*spacing*/) const {
     std::fill(heights.Values().begin(), heights.Values().end(), elevation_);
 }
 

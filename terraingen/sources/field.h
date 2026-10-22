@@ -87,7 +87,8 @@ struct RasterFieldOptions {
 };
 
 /// Checks raster field options.
-/// @throws std::invalid_argument for a cubic method, or a scale that is not positive and finite.
+/// @throws std::invalid_argument for a method other than nearest or bilinear, or a scale that is
+/// not positive and finite.
 void ValidateRasterFieldOptions(const RasterFieldOptions& options);
 
 /// A field interpolated from a raster in the surface's coordinates.

@@ -15,7 +15,9 @@ namespace terraingen {
 
 /// What a valid configuration generates, as `ValidateConfig` finds it.
 struct ConfigSummary {
-    std::optional<RasterGrid> base;  ///< The base's grid; none without a base.
+    /// The source's grid; none without a source or for one without bounds, such as synthetic
+    /// noise.
+    std::optional<RasterGrid> source;
     /// The grid each output covers (`config::OutputGrid`), in order; none for a mesh.
     std::vector<std::optional<RasterGrid>> outputGrids;
     /// Craters the top-level crater layers are expected to generate over the output grid with the
@@ -36,12 +38,15 @@ void CheckConfigRanges(const TerrainConfig& config);
 ConfigSummary ValidateConfig(const TerrainConfig& config,
                              const std::filesystem::path& directory = {});
 
-/// The grid a base covers, reading only the header of a raster's file; a chain's is its first
-/// source's. On a body grids are in degrees, a pixel size in metres along a meridian.
+/// The grid a source covers, reading only the header of a raster's file; a chain's is its first
+/// source's, and synthetic noise has none. On a body grids are in degrees. Also checks the
+/// sources' upsampling and synthetic stacks.
 /// @param directory Folder relative paths resolve against.
-/// @throws ConfigError under "base" for an unreadable raster or invalid grid parameters.
-RasterGrid DescribeSource(const SourceSpec& source, const std::filesystem::path& directory = {},
-                          const Surface& surface = {});
+/// @throws ConfigError under "source" for an unreadable raster, invalid grid parameters, an
+/// unknown upsampling type or invalid settings.
+std::optional<RasterGrid> DescribeSource(const SourceSpec& source,
+                                         const std::filesystem::path& directory = {},
+                                         const Surface& surface = {});
 
 /// Checks a configuration's albedo against its crater layers and files.
 /// @param config A configuration with an albedo.

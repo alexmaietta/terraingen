@@ -6,13 +6,11 @@
 
 #include "terraingen/layers/bedforms.h"
 #include "terraingen/layers/density_map.h"
-#include "terraingen/layers/detail.h"
 #include "terraingen/layers/dunes.h"
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/layers/material.h"
-#include "terraingen/layers/midpoint_displacement.h"
 #include "terraingen/layers/noise_relief.h"
 #include "terraingen/layers/pavement.h"
 #include "terraingen/layers/region.h"
@@ -130,17 +128,6 @@ void BindTransforms(nb::module_& m) {
             "The noise layers, with any Hurst exponents and amplitudes applied.");
     nb::class_<ScaleLayer, Layer>(m, "ScaleLayer", "height * scale + offset.")
         .def(nb::init<double, double>(), "scale"_a, "offset"_a = 0.0);
-    nb::class_<DetailLayer, Layer>(
-        m, "DetailLayer",
-        "Adds `weight` times the detail of `full` above `smooth` at each sample, such as a DEM's "
-        "detail above its own low-pass.")
-        .def(
-            "__init__",
-            [](DetailLayer* self, std::shared_ptr<Source> full, std::shared_ptr<Source> smooth,
-               double weight, const Surface& surface) {
-                new (self) DetailLayer(std::move(full), std::move(smooth), weight, surface);
-            },
-            "full"_a, "smooth"_a, "weight"_a = 1.0, "surface"_a = Surface{});
     nb::class_<ClampLayer, Layer>(m, "ClampLayer", "Heights held between `min` and `max`.")
         .def(nb::init<std::optional<double>, std::optional<double>>(), "min"_a = nb::none(),
              "max"_a = nb::none());
@@ -296,40 +283,6 @@ void BindSandFill(nb::module_& m) {
         },
         "The sand thickness at (x, y) in metres.");
     BindMaterialCover<SandFillLayer>(layer);
-}
-
-void BindMidpointDisplacement(nb::module_& m) {
-    BindEnum<MidpointBase>(m, "MidpointBase", "What a midpoint displacement layer displaces from.");
-    auto options = nb::class_<MidpointDisplacementOptions>(
-        m, "MidpointDisplacementOptions",
-        "The base lattice of `pixel_size` through `origin` and the fractal (`fractal_dimension`, "
-        "`scale` metres) a midpoint displacement layer expands.");
-    BindKwargsInit<MidpointDisplacementOptions>(options);
-    options.def_rw("pixel_size", &MidpointDisplacementOptions::pixelSize)
-        .def_rw("origin", &MidpointDisplacementOptions::origin)
-        .def_rw("fractal_dimension", &MidpointDisplacementOptions::fractalDimension)
-        .def_rw("scale", &MidpointDisplacementOptions::scale)
-        .def_rw("min_pixel_size", &MidpointDisplacementOptions::minPixelSize)
-        .def_rw("base", &MidpointDisplacementOptions::base)
-        .def_rw("seed", &MidpointDisplacementOptions::seed)
-        .def("validate", &ValidateMidpointDisplacementOptions, kValidateDoc);
-    m.def("validate_midpoint_displacement_options", &ValidateMidpointDisplacementOptions,
-          "options"_a, kValidateDoc);
-    nb::class_<MidpointRoughness>(m, "MidpointRoughness",
-                                  "The displacement scale and fractal dimension a raster shows.")
-        .def_ro("scale", &MidpointRoughness::scale)
-        .def_ro("fractal_dimension", &MidpointRoughness::fractalDimension);
-    m.def("estimate_midpoint_roughness", &EstimateMidpointRoughness, "heights"_a,
-          "The scale and fractal dimension of a raster's heights on its own cells.");
-    nb::class_<MidpointDisplacementLayer, Layer>(
-        m, "MidpointDisplacementLayer",
-        "Random midpoint displacement (diamond-square) expansion of a base lattice.")
-        .def(nb::init<MidpointDisplacementOptions, Surface>(), "options"_a, "surface"_a = Surface{})
-        .def("levels", &MidpointDisplacementLayer::Levels, "spacing"_a,
-             "The levels expanded at a sample spacing in metres.")
-        .def("node_spacing", &MidpointDisplacementLayer::NodeSpacing, "level"_a,
-             "The node spacing at a level, in surface units.")
-        .def_prop_ro("options", &MidpointDisplacementLayer::Options);
 }
 
 void BindSpectrumFit(nb::module_& m) {
@@ -540,7 +493,6 @@ void BindLayers(nb::module_& m) {
     BindDunes(m);
     BindMaterialClasses(m);
     BindSandFill(m);
-    BindMidpointDisplacement(m);
     BindSpectralContinuation(m);
     BindRoughnessEstimate(m);
     BindPavement(m);

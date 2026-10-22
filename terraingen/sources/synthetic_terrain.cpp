@@ -9,6 +9,16 @@
 
 namespace terraingen {
 
+float NoiseLayersAt(const std::vector<NoiseLayer>& layers, const Vec2d& origin,
+                    const Surface& surface, double x, double y) {
+    if (surface.IsBody()) {
+        const Vec3d p = surface.Position({x, y});
+        return EvaluateNoiseLayers3(p.x, p.y, p.z, layers.data(), layers.size());
+    }
+    return EvaluateNoiseLayers(static_cast<float>(x - origin.x), static_cast<float>(y - origin.y),
+                               layers.data(), layers.size());
+}
+
 void ValidateSyntheticTerrain(const SyntheticTerrainParams& params) {
     if (params.layers.empty() || params.layers.size() > kMaxNoiseLayers) {
         throw std::invalid_argument("A synthetic terrain needs between 1 and " +

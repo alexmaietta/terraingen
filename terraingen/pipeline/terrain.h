@@ -24,7 +24,8 @@ namespace terraingen {
 ///
 /// Every part is a pure function of where it is evaluated, so a terrain can be evaluated over any
 /// grid, such as a tile, at any sample spacing. On a body, grids are in longitude and latitude and
-/// spacings in metres (`RasterGrid::Spacing`). The layers must be built for `surface`.
+/// spacings in meters (`RasterGrid::Spacing`), which reach the source in its units, divided by
+/// `Surface::UnitLength`. The layers must be built for `surface`.
 struct Terrain {
     std::shared_ptr<const Source> source;              ///< The starting heights; may be null.
     std::vector<std::shared_ptr<const Layer>> layers;  ///< Applied in order.
@@ -132,7 +133,8 @@ void FillHeights(const Terrain& terrain, const RasterGrid& grid, Span<float> hei
 void ValidateTerrain(const Terrain& terrain);
 
 /// The heights of `terrain` over its source's grid.
-/// @throws std::invalid_argument as `Evaluate` over a grid, or for a terrain without a source.
+/// @throws std::invalid_argument as `Evaluate` over a grid, or for a terrain without a source or
+/// with a source without bounds (`BoundedGrid`).
 Raster<float> Evaluate(const Terrain& terrain);
 
 /// The heights of a terrain at scattered points, such as wheel contacts or mesh vertices: the
