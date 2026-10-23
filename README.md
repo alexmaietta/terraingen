@@ -26,7 +26,7 @@ TerrainGen can:
 - Model complex geologic features such as complex and secondary craters, boulder ejecta fields, dunes and wind ripples, layered strata terraced into benches and cliffs, fractured bedrock pavement, wind-carved ventifacts, and sand pooled in lows or trailing behind boulders.
 - Be extended through base classes in C++ or Python with custom size-frequency distributions, crater ages, profiles and degradation, albedo, sources, and layers.
 - Perform GPU-accelerated operations for generating noise, craters, boulders, albedo, and more.
-- Generate deterministic results for the same seed on any grid, tile or thread count.
+- Generate deterministic results for the same seed on any grid, point query or thread count.
 - Integrate into simulations and other external workflows.
 
 We also provide:
@@ -80,7 +80,7 @@ To build the Python package from source, run `pip install .` instead.
 docker run --rm ghcr.io/alexmaietta/terraingen:latest terraingen --help
 ```
 
-The `latest` tag is the newest release, and each release is also tagged with its version without the `v`, such as `0.1.0` and `0.1`. The `dev` tag follows `main`.
+The `latest` tag is the newest release, and each release is also tagged with its version without the `v`, such as `0.2.0` and `0.2`. The `dev` tag follows `main`.
 
 ## Getting Started
 
@@ -170,7 +170,7 @@ If you use TerrainGen for published research, please cite:
   author  = {Maietta, Alex},
   title   = {{TerrainGen}: An open-source scientific terrain generation suite for planetary surfaces},
   url     = {https://github.com/alexmaietta/terraingen},
-  version = {0.1.0},
+  version = {0.2.0},
   license = {BSD-3-Clause},
   year    = {2026}
 }

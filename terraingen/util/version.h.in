@@ -11,7 +11,7 @@ namespace terraingen {
 /// The version with any pre-release part, such as 0.1.0.dev42, as the Python package carries it.
 #define TERRAINGEN_FULL_VERSION_STRING "@TERRAINGEN_FULL_VERSION@"
 
-#define TERRAINGEN_API_VERSION 1
+#define TERRAINGEN_API_VERSION 2
 
 /// A semantic version number.
 struct Version {

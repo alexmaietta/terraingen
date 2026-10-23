@@ -25,7 +25,7 @@ CHOICES = {
     "layers[craters].profile": ("Crater profiles", "models/profiles"),
     "layers[craters].degradation": ("Crater degradation", "models/degradation"),
     "layers[boulders].sizes": ("Boulder sizes", "models/boulder-sizes"),
-    "layers[region].shape": ("Region shapes", "models/region-shapes"),
+    "layers[masked].shape": ("Mask shapes", "models/mask-shapes"),
     "outputs": ("Outputs", "outputs"),
     "albedo.source": ("Albedo sources", "albedo-sources"),
     "albedo.layers": ("Albedo layers", "albedo-layers"),
@@ -45,7 +45,7 @@ SECTIONS = [
             "layers[craters].profile",
             "layers[craters].degradation",
             "layers[boulders].sizes",
-            "layers[region].shape",
+            "layers[masked].shape",
         ],
     ),
     ("Albedo", ["albedo.source", "albedo.layers"]),
@@ -279,7 +279,7 @@ class Reference:
         ref = self.ref_of("layers")
         choice = self.definitions[ref]
         names = self.names[ref]
-        index = ["# Layers", "", "Relief and features added to the base, applied in order.", ""]
+        index = ["# Layers", "", "Relief and features added to the source, applied in order.", ""]
         index += ["| Type | What it is |", "| --- | --- |"]
         pages = []
         for alternative in choice["alternatives"]:

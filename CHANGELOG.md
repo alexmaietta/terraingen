@@ -7,101 +7,197 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-23
+
+Sources replace the base: DEMs are upsampled rather than resampled, synthetic sources generate heights from noise, and layers leave out what the source already resolves. Outputs set their own pixel size and extent, `GenerateFromConfig` returns everything it computes, and the core types are renamed. Configurations and code written for 0.1.0 need the changes under [Migrating from 0.1.0](#migrating-from-010).
+
 ### Added
 
-- Piecewise uniform size-frequency distributions: counts per diameter band, given absolutely or as shares of a total.
+- Sources in configurations (`source`) of type `raster`, `chain` or `synthetic`; without one the terrain starts from a flat synthetic source at 0 m.
+- `SyntheticSource` (source `synthetic`): heights from a noise stack plus `elevation_m` over an unbounded plane or the whole body, evaluated at every point, or sampled at posts `pixel_size_m` apart and upsampled like a DEM; an empty stack is flat.
+- `RasterSource`, heights from a raster in memory, shared rather than copied and upsampled as a GeoTIFF source is; `GeoTiffSource` is a `RasterSource` of its band.
+- Upsampling on sources (`Upsampler`, config `upsampling`): how a source's posts become heights between them and at any finer sample spacing, deterministically, so points and grids at one spacing agree; kernels `nearest`, `bilinear`, `cubic` (the default), `catmull_rom`, `lanczos3` and `cubic_bspline`.
+- Diamond-square upsampling (`DiamondSquareUpsampler`, `"upsampling": {"type": "diamond_square"}`): random midpoint displacement of a source's posts to finer spacings, as PANGU expands DEMs (Martin et al. 2014), keeping every coarser node, with bilinear or Catmull-Rom (`interp`) refinement and the scale and fractal dimension estimated from the posts when not given.
+- `RegisterUpsampler` (Python `register_upsampler`) names upsampler types of your own, C++ or Python subclasses of `Upsampler`, for configurations to use with their settings.
+- Windowed GeoTIFF reads that decode only the strips or tiles a window meets, and `crop` (`min_x`, `min_y`, `max_x`, `max_y` in CRS units) on raster sources to read only the window needed while giving the same heights there as the whole file.
+- `effective_pixel_size_m` on raster sources (`effectivePixelSize`), the cell size a DEM upsampled or smoothed before it was saved truly resolves.
+- `Source::ResolutionAt`, the cell size of the data behind each height, and `UnresolvedCraterLimit`, a completeness limit that leaves the craters a DEM already resolves to it; `MinimumField` combines it with a catalog's limit.
+- `source_resolves_px` on craters, secondaries, boulders, noise, dunes and bedforms: features at least that many source cells across, by diameter, wavelength or dune width, are already in the source, so only smaller ones are added at each point, each raster of a chain giving its own limit; ignored on synthetic sources, `null` adds them all. In C++ `sourceResolvesPixels` on the layer options, applied when the layer is given its `source`, with `SourceResolvedLimit` and `LayerResolvedLimit` (Python `source_resolved_limit`).
+- Spectral continuation layer (`spectral_continuation`, `SpectralContinuationLayer`): detail finer than a DEM that continues its fitted power-law spectrum to shorter wavelengths as sparse Gabor noise, tapered in at the DEM's Nyquist wavelength so resolved scales gain nothing, with grids and points in agreement.
+- Roughness and noise layers that estimate their settings from the source with `estimate_from_base`: the Hurst exponent and RMS height difference of its variogram, extrapolated to the roughness baseline or matched at each noise layer's wavelength; explicit values override the estimates. The estimators are public: `EstimateSourceRoughness`, `EstimateBaseRoughness`, `EstimatePowerLawSpectrum`, `RadialPowerSpectrum`, `EstimateMidpointRoughness` and `raster/variogram.h` (Python `estimate_source_roughness` and the rest).
+- Lanczos (three lobes), Catmull-Rom and cubic B-spline kernels for `Resample`, `SampleRaster` and `ResampleMethod`.
+- Output areas: `pixel_size_m` and `extent_m` (`extent_deg` on a body) as `{"center": [x, y], "size": [w, h]}` or `{"min": [x, y], "max": [x, y]}`, defaulting to a raster or chain source's extent and cell size; the grid starts at the extent's min corner, is snapped outward to whole cells and sampled at cell centers (`OutputAreaSpec`, `ExtentSpec`, `config::SnappedGrid`).
+- Optional output paths: without a `path` the result is returned and nothing is written. `GenerateFromConfig` returns everything the outputs ask for, each computed once: `GeneratedGrid` holds the grid, heights, albedo, materials, photometry, placed craters and boulders and terrain mesh, `GeneratedOutputs` the body mesh or ICQ model, the report, `Grid()` and `Find()`; Python `GeneratedGrid` values are views without a copy.
+- `terrain_mesh` outputs take `cutouts` (`{"min": [x, y], "max": [x, y]}` boxes), a `skirt_m` and a frame `site_deg` as [lon, lat].
+- Terrain reports: output type `report` (`ReportOutput`) with an optional `path`, returned as `GeneratedOutputs::report` and written as JSON by `WriteOutputs`; per grid (`GridReport`) height and slope statistics, craters per power-of-2 diameter bin against the first crater layer's density and boulder counts and cover, with per-layer timings, backend, threads, layer seeds and version (`ReportGrid`, `ReportToJson`, `TerrainReport`, `LayerTimer`; Python `report_grid`, `report_to_json`, `TerrainReport.to_dict`).
+- `GetMeshSize` and `FillMesh` (Python `get_mesh_size`, `fill_mesh`) size and write a height mesh into caller buffers laid out as Chrono's ChVector3d and ChVector3i arrays or NumPy (N, 3) float64 and (M, 3) int32 arrays, with no copy; `FillHeights` (Python `fill_heights`) evaluates into a caller buffer; `TriangleMesh.positions` and `TriangleMesh.triangles` are NumPy views without a copy.
+- Piecewise uniform size-frequency distributions (`piecewise_uniform`): counts per diameter band, given absolutely or as shares of a total.
+- Piecewise value distributions, uniform within bins drawn by weight, and `freshness` crater ages that draw each crater's freshness from a value distribution.
 - Radial wall marks on craters, ridges and grooves down the wall that are strongest where it is steepest.
-- Thomas cluster process for boulder clusters, with Poisson-scattered centres whose clusters add where they overlap.
 - Craters on slopes: floors offset downslope and rims and ejecta lowered upslope (Plescia et al. 2019), and faster wear toward a critical gradient (Roering et al. 1999).
+- Manual craters with an explicit rim-to-floor depth and rim height in place of what the degradation model and age give; diffusion profiles solve for the age that reaches the depth.
+- Thomas cluster process for boulder clusters, with Poisson-scattered centers whose clusters add where they overlap.
 - Boulders limited to a maximum slope, optionally rolling down steeper ground to gather at its foot.
+- Manual boulders that fix any of their height, burial, yaw, lean, tilt, rest, wear and shape seed; unset fields are drawn as for generated boulders, and fixed ones are neither re-settled nor broken.
+- Manual-only layers: boulder layers with `generate_random` off place only their `manual` boulders, and `CraterLayer::Manual` and `BoulderLayer::Manual` (Python `CraterLayer.manual`, `BoulderLayer.manual`) make layers of only the given craters or boulders.
 - Density maps from GeoTIFFs or constants: a scale, a count in a diameter range, or an areal fraction such as rock abundance, which set crater and boulder densities point by point.
 - Size slope maps that bend boulder sizes into a local power law, from an exponent or a mean diameter map.
 - Crater and boulder catalogs with a completeness limit, above which they stand in for generated features.
-- Configuration reference in the documentation, generated from the schema at build time, and machine-readable value ranges in the schema.
-- Rock albedo: boulders brighter than the regolith (Holt 1981; Marshal et al. 2023), and a speckle of the share of each sample covered by boulders too small to resolve, with the scatter of randomly placed rocks.
-- Slope albedo: steep ground kept immature by mass wasting, its optical maturity rising with slope beyond 20 degrees (Ikeda et al. 2022; Lucey et al. 2014).
+- Rock albedo (`rocks`): boulders brighter than the regolith (Holt 1981; Marshal et al. 2023), and a speckle of the share of each sample covered by boulders too small to resolve.
+- Slope albedo (`slopes`): steep ground kept immature by mass wasting, its optical maturity rising with slope beyond 20 degrees (Ikeda et al. 2022; Lucey et al. 2014).
 - Crater shaping and datum fitting on the GPU on spheres, ellipsoids and shape models, not only on planes.
+- `fade_px` and `fade_shape` on crater `apply` and boulder layers: the resolution fade as its start and end output samples and its curve.
 - Configurations are checked against every field's documented range, and errors name the exact field, such as `layers[2].reach`.
+- Configuration reference in the documentation, generated from the schema at build time, and machine-readable value ranges in the schema.
 - Python options classes document every field with its description and unit, and gain `validate()` and a readable `repr`.
-- `RasterSource`, heights from a raster in memory, shared rather than copied and upsampled as a GeoTIFF source is; `GeoTiffSource` is now a `RasterSource` of its band.
-- Windowed GeoTIFF reads that decode only the strips or tiles a window meets, and a `crop` for GeoTIFF sources that reads only the window it needs while giving the same heights there as the whole file.
-- Upsampling on sources (`Upsampler`, config `upsampling`): how a source's posts become heights between them and at any finer sample spacing, deterministically, so points, tiles and grids at one spacing agree; kernels `nearest`, `bilinear`, `cubic` (the default, the same bits as before), `catmull_rom`, `lanczos3` and `cubic_bspline`, and `diamond_square`.
-- `RegisterUpsampler` (Python `register_upsampler`) names upsampler types of your own, C++ or Python subclasses of `Upsampler`, for configurations to use with their settings.
-- Terrain reports (`ReportGrid`, `ReportToJson`, `TerrainReport`, `LayerTimer`; Python `report_grid`, `report_to_json`, `TerrainReport.to_dict`): height and slope statistics of an evaluated grid in the surface's meters, craters per power-of-2 diameter bin against a target distribution's expected counts, boulder counts and cover, and per-layer timings, as JSON, which the config's `report` output produces.
-- `SyntheticSource` (config source `synthetic`): heights generated from a noise stack plus `elevation_m` over an unbounded plane or the whole body, evaluated at every point, or sampled at posts `pixel_size_m` apart and upsampled like a DEM; an empty stack is flat.
-- `effective_pixel_size_m` on raster sources (`effectivePixelSize`), the cell size a DEM upsampled or smoothed before it was saved truly resolves, which `ResolutionAt` and `source_resolves_px` use.
-- Lanczos (three lobes), Catmull-Rom and cubic B-spline kernels for `Resample`, `SampleRaster` and `ResampleMethod`.
-- `Source::ResolutionAt`, the cell size of the data behind each height, and `UnresolvedCraterLimit`, a completeness limit that leaves the craters a DEM already resolves to it and generates only smaller ones; `MinimumField` combines it with a catalog's limit.
-- Diamond-square upsampling (`DiamondSquareUpsampler`, `"upsampling": {"type": "diamond_square"}`): random midpoint displacement of a source's posts to finer spacings, as PANGU expands DEMs (Martin et al. 2014), keeping every coarser node so nested grids share their cells, with bilinear or Catmull-Rom (`interp`) refinement and the scale and fractal dimension estimated from the posts when not given.
-- Spectral continuation layer: detail finer than a DEM that continues its fitted power-law spectrum (radially averaged, Hann-windowed PSD) to shorter wavelengths as sparse Gabor noise, tapered in at the DEM's Nyquist wavelength so resolved scales gain nothing; an alternative to diamond-square upsampling without lattice artifacts, with grids, tiles and points in agreement.
-- Roughness and noise layers that estimate their settings from the base with `estimate_from_base`: the Hurst exponent and RMS height difference of its variogram at its native cells, extrapolated to the roughness baseline or matched at each noise layer's wavelength; explicit values override the estimates.
-- Manual craters with an explicit rim-to-floor depth and rim height, in place of what the degradation model and age give; diffusion profiles solve for the age that reaches the depth.
-- Manual boulders that fix any of their height, burial, yaw, lean, tilt, rest, wear and shape seed; unset fields are drawn as for generated boulders, and fixed ones are neither re-settled nor broken.
-- Terrain meshes take `cutouts`, a `skirt` and a frame `site`.
-- Output type `report` (`ReportOutput`) with an optional `path`: `GenerateFromConfig` returns the report (`GeneratedOutputs::report`, Python `GeneratedOutputs.report`) with a `GridReport` per grid with heights, crater bins against the first crater layer's density and boulder counts where a list output placed them, per-layer timings, backend, threads, layer seeds and version, and `WriteOutputs` writes it as JSON.
-- `GetMeshSize` and `FillMesh` (Python `get_mesh_size`, `fill_mesh`) size and write a height mesh into caller buffers laid out as Chrono's ChVector3d and ChVector3i arrays or NumPy (N, 3) float64 and (M, 3) int32 arrays, with no copy; `FillHeights` (Python `fill_heights`) evaluates a terrain into a caller buffer; `TriangleMesh.positions` and `TriangleMesh.triangles` are NumPy views of a mesh without a copy.
-- Configuration keys `crop` (`min_x`, `min_y`, `max_x`, `max_y` in CRS units) on raster sources to read only a window of a DEM.
-- Manual-only boulder layers: `generate_random` off (`BoulderLayerOptions::generateRandom`) places only the `manual` boulders, with no random boulders or crater blocks, draws no candidates and needs no valid sizes or coverage; `CraterLayer::Manual` and `BoulderLayer::Manual` (Python `CraterLayer.manual`, `BoulderLayer.manual`) make layers of only the given craters or boulders.
-- `source_resolves_px` on craters, secondaries, boulders, noise, dunes and bedforms: features at least that many source cells across, by diameter, wavelength or dune width, are already in the source data, so only smaller ones are added at each point, each raster of a chain giving its own limit and none where no raster has data; ignored on synthetic sources, `null` adds them all. It defaults to 4 on craters, secondaries, dunes and bedforms and to none on boulders and noise.
-- `SourceResolvedLimit` and `LayerResolvedLimit` (Python `source_resolved_limit`), the per-point feature size a source already holds, and `sourceResolvesPixels` on `CraterLayerOptions`, `SecondaryCraterOptions`, `BoulderLayerOptions`, `DuneOptions` and `BedformOptions` (Python `source_resolves_px`), applied when the layer is given the source: `CraterLayer`, `SecondaryCraterLayer`, `BoulderLayer`, `DuneLayer`, `BedformLayer` and `NoiseRelief` take an optional `source` (Python `source=`), and `NoiseRelief` its `sourceResolvesPixels`.
-- `fade_px` and `fade_shape` on crater `apply` and boulder layers (Python `fade_px`, `fade_shape`): the resolution fade as a list of its start and end output samples and its curve.
 
 ### Changed
 
-- Breaking: every angle key in configurations and the Python options classes is now in degrees and ends in `_deg` (`wind_azimuth_deg`, `slip_face_angle_deg`, `heading_deg`, `crease_angle_deg`), azimuths counter-clockwise from +x (local east); the old keys are rejected. The rest of the Python API follows: `SyntheticAlbedo(hue_deg=, hue_noise_deg=)`, `hsv_to_rgb(hue_deg)`, `write_models(crease_angle_deg=)`, `TriangleMesh.with_creases(crease_angle_deg)`, `RigidTransform.rotation_x/y/z(angle_deg)`, `CubeSphereCells.direction(face, alpha_deg, beta_deg)`, `SlopeAlbedo.maturity_at(slope_deg)`, `Boulder` `yaw_deg`, `lean_deg`, `tilt_deg` and `tilt_azimuth_deg` (also the boulder table columns and the columns of boulder lists written as CSV or JSON), `BoulderFacet` `azimuth_deg` and `angle_deg`, `CraterImpact` `angle_deg` and `heading_deg`, `CraterOutline.heading_deg` and `RayDirection.azimuth_deg`; the C++ library keeps radians.
-- Defaults give a plausible lunar terrain at 1 m per pixel in which every height layer shows: craters from a production surface capped below the Trask equilibrium with steady-state ages, diffusion and irregular outlines; Surveyor boulders; noise relief scaled to its wavelength; and visible roughness, bedforms and dunes.
-- Boulder layers default to the nominal NASA SP-8023 intercrater sizes rather than Golombek-Rapp; a `coverage`, `qa`, `qb` or `ejecta.coverage` that no Golombek-Rapp sizes use is now an error that names `"sizes": {"type": "golombek_rapp"}`.
+- Breaking: the configuration's `base` is now `source`, and the region layer is now `masked`; old keys and types are rejected.
+- Breaking: raster sources upsample instead of resampling: a raster source's grid is always its file's, and evaluating it over a finer grid gives finer cells; `RasterSourceOptions` and `GeoTiffSourceOptions` take an `upsampler` and an `effectivePixelSize`.
+- Breaking: outputs give their area as `pixel_size_m` and `extent_m` in place of `region` (`width`, `height`, `pixel_size`, `centre_x`, `centre_y`) and of `spacing` on crater lists, boulder lists and boulder models; both are required without a raster or chain source.
+- Breaking: on a raster or chain source, craters, secondaries, dunes and bedforms leave out by default what is at least 4 source cells across (`source_resolves_px`); set it to `null` for the 0.1.0 output.
+- Breaking: every angle key in configurations and the Python options classes is in degrees and ends in `_deg`, azimuths counter-clockwise from +x (local east), and the rest of the Python API follows with `_deg` names and arguments; the C++ library keeps radians.
+- Breaking: crater and boulder size keys carry their units (`_m`, `_px`), in configurations and the Python options classes alike, and crater layers' `generate` is now `generate_random`; the old keys are rejected.
+- Breaking: core types and functions are renamed with no aliases, `Terrain` to `TerrainGenerator`, `GenerateTerrain` to `GenerateFromConfig`, `TerrainConfig` to `TerrainGenConfig`, `HeightMesh` to `BuildMesh`, `RegionLayer` to `MaskedLayer` and the rest in the table below, and Python names follow C++ names one to one.
+- Breaking: sources take the sample spacing: `Source::Fill(heights, spacing)` and `Source::HeightAt(x, y, spacing)`, and Python `Source` subclasses define `height_at(x, y, spacing)` and `fill(heights, spacing)`; a source without bounds gives a grid without cells (`BoundedGrid`), and `Evaluate(generator)` needs a grid for it.
+- The library, Python bindings, tests and examples are C++17 (0.1.0 needed C++20); public headers take `Span` in place of `std::span`.
+- Defaults give a plausible lunar terrain at 1 m per pixel in which every height layer shows: craters from a production surface capped below the Trask equilibrium with steady-state ages, diffusion and irregular outlines, Martin, Parkes and Dunstan profiles, nominal NASA SP-8023 intercrater boulders (0.4% cover by rocks of 1 m and more), noise relief scaled to its wavelength, and visible roughness, bedforms and dunes.
+- A boulder `coverage`, `qa`, `qb` or `ejecta.coverage` that no Golombek-Rapp sizes use is an error that names `"sizes": {"type": "golombek_rapp"}`.
 - Boulder lists and models hold every boulder of the layer's diameter range; only the heightmap leaves out boulders too small to resolve.
 - Boulder ejecta come from every crater layer before the boulder layer, not only the last one.
-- The boulder layer's `exposure_spacing` key is now `ground_spacing` (Python `ground_spacing`), the spacing of every ground read the layer makes.
-- Crater shaping has one implementation, the kernel, on every surface; craters on bodies and custom profiles may differ from before in the last digits.
-- Random streams and hashes are unified, so boulder, albedo, dune, bedform and pavement outputs for a given seed differ from earlier versions; their statistics are unchanged.
-- Every evaluation defaults to all threads, including `EvaluateAt`, `EvaluateTile` and Python `evaluate_tile`.
-- The `materials` module is folded into `pipeline` (material maps) and `albedo` (Hapke photometry); include `terraingen/pipeline/materials.h` and `terraingen/albedo/photometry.h`.
-- Python: `ExposureField.exposure` takes `(x, y, spacing=0.0, terrain=None, layers=0)` like the other ground queries, unbounded options read as `None` instead of infinity, `write_outputs` returns paths, a subclass missing a required method raises `TypeError`, and `CraterFeatures.write` is `write_list`.
-- Python names: `cell_of` is `cell_at`, `point_of` is `coordinates`, `level_for` is `resolving_level`, `outline_of` is `irregular_outline`, `min_diameter_for_count` is `count_limit_diameter`, `singer_range_for_size` is `singer_max_range`, `SplotchOptions` is `SplotchAlbedoOptions` and `SlopeMaturityOptions` is `SlopeAlbedoOptions`.
-- The CI coverage job builds at `-O1` without atomic counters, so it caches and runs several times faster.
-
-- Density maps that count every feature take out the secondaries thrown from a layer's craters and the blocks thrown out around craters, and boulder patches and bedrock keep a map's mean, so nothing is counted twice.
 - Boulder models settle onto a stable face by default instead of balancing on an edge or corner.
-- Boulder generation logs under boulders rather than craters.
-- Crater and boulder generation summaries log at debug level; `terraingen` ends with one line counting the files written instead of listing each, and feature outputs log how long they took.
-- Generation logs each grid as it is evaluated, with the time of every layer, the albedo and the materials, and ends with each step's total and share.
-- Faster boulders: the ground beneath them is read in one batch, outputs over one region share the boulders placed for the first, models are placed in parallel, ejecta craters are found through a spatial index and shapes skip the roughness of fracture planes that cannot reach a vertex. The hero demo runs in about 10 s instead of 276 s.
-- Martin, Parkes and Dunstan is the default crater profile.
-- Breaking: crater layers' `generate` is now `generate_random` (`CraterLayerOptions::generateRandom`, Python `generate_random`): it draws random craters from the size distribution, and manual craters are placed either way; the old key is rejected.
-- Breaking: `HeightMesh` and `HeightMeshOptions` are now `BuildMesh` and `BuildMeshOptions`, and Python `height_mesh` is now `build_mesh`; a height mesh holds at most INT32_MAX vertices.
-- Breaking: the configuration's `base` is now `source` (the old key is rejected), with types `raster`, `chain` and `synthetic`; without one the terrain starts from a flat synthetic source at 0 m. Python `Config.base_grid` is `source_grid`, and `ConfigSummary::base` is `source`; `DescribeSource` gives no grid for a source without bounds.
-- Breaking: sources take the sample spacing, in their own units: `Source::Fill(heights, spacing)` and `Source::HeightAt(x, y, spacing)`, and Python `Source` subclasses define `height_at(x, y, spacing)` and `fill(heights, spacing)`; `Fill(heights)` keeps the grid's cell size. A source without bounds gives a grid without cells (`BoundedGrid`), and `Evaluate(terrain)` needs a grid for it.
-- Breaking: raster sources upsample instead of resampling: `RasterSourceOptions` and `GeoTiffSourceOptions` take an `upsampler` and an `effectivePixelSize` (Python `upsampler=`, `effective_pixel_size=`), the GeoTIFF `region` is `crop`, and a raster source's grid is always its file's; evaluate it over a finer grid for finer cells.
-- Breaking: outputs give their area as `pixel_size_m` and `extent_m` (`extent_deg` on a body), `{"center": [x, y], "size": [w, h]}` or `{"min": [x, y], "max": [x, y]}`, in place of `region` (and of `spacing` on crater lists, boulder lists and boulder models); the grid starts at the extent's min corner, is snapped outward to whole cells and sampled at cell centers. Both default to a raster or chain source's extent and cell size, and are required without one (`OutputAreaSpec`, `ExtentSpec`, `config::SnappedGrid`).
-- Breaking: `terrain_mesh` outputs take `skirt_m`, `site_deg` as [lon, lat] and `cutouts` as `{"min": [x, y], "max": [x, y]}` boxes, for `skirt`, `site_x`/`site_y` and `min_x`/`max_x` boxes.
-- Breaking: every output's `path` is optional; without one the result is returned and nothing is written. `GenerateFromConfig` (Python `generate_from_config`) returns everything the outputs ask for, each computed once: `GeneratedGrid` holds the `grid`, heights, albedo, materials, photometry, placed craters and boulders and the terrain mesh, `GeneratedOutputs` the body mesh or ICQ model, `Grid()` and `Find()`; `WriteOutputs` (Python `write_outputs`) only writes it. Python `GeneratedGrid` values are views without a copy.
-- Breaking: renames, with no aliases: `Terrain` is `TerrainGenerator` (`pipeline/generator.h`), `EvaluateAt` and `EvaluatePoints` are `HeightAt` and `HeightsAt`, `ValidateTerrain` is `ValidateGenerator`, `BuildTerrain` is `BuildGenerator`, `GenerateTerrain` is `GenerateFromConfig` returning `GeneratedOutputs` (its `terrain` is `generator`), `TerrainConfig` is `TerrainGenConfig`, and `pipeline/height_mesh.h` is `pipeline/mesh_build.h`. Python follows C++ names one to one: `TerrainGenerator`, `TerrainGenConfig`, `GeneratedOutputs`, `height_at`, `heights_at`, `build_generator`, `generate_from_config`, `parse_config`, `load_config` and `config_to_json` (for `Config.from_json`, `Config.load` and `to_json`), `get_version`, `get_api_version`, `get_build_info`, `fillet_height`, `perlin_noise3_precise`, `TriangleMesh.subdivide`, `Raster.no_data`, `GeoTiffInfo.no_data`, `ValueDistribution.Kind`, `CraterGenerationOptions.d_min` and `d_max`, and keywords `generator=` (for `terrain=`), `generated=`, `heights=` (`fill_heights`), `random=` (samplers), `d_min=`/`d_max=`, `requested=`, `sink=`, `inner=`, `no_data=`, `lon_deg=`/`lat_deg=`.
-- `NoiseLayersAt` moves to `terraingen/sources/synthetic_terrain.h`, and `HasData`, `Variogram` and `FitDeviogram` to `terraingen/raster/variogram.h`.
-- Breaking: on a raster or chain source, craters, secondaries, dunes and bedforms leave out by default what is at least 4 source cells across (`source_resolves_px`); set it to `null` for the old output.
-- Breaking: crater and boulder size keys carry their units, in configurations and the Python options classes alike; the old keys are rejected. Craters: `min_diameter` is `min_diameter_m`, `max_diameter` is `max_diameter_m`, and `apply.fade` (`start_samples`, `end_samples`, `shape`) is `apply.fade_px` with `apply.fade_shape`. Secondaries: `min_diameter_m`, `max_diameter_m`, `min_primary_diameter_m`, `max_primary_diameter_m`. Density maps: `min_diameter_m`, `max_diameter_m`. Boulders: `min_diameter_m`, `max_diameter_m`, `fade_px` with `fade_shape` (for `fade`), `ground_spacing_m`, `bedrock_mean_size_m`, `roll_distance_m`, `patches.size_m`, `clusters.spacing_m`, `clusters.radius_m`, `ejecta.min_crater_diameter_m`, `ejecta.regolith_thickness_m`, `fragmentation.min_diameter_m`, `models.min_diameter_m`, `models.max_diameter_m`, `models.min_px` (for `min_samples`), `models.max_px` (for `max_samples`), `relief_range.min_diameter_m`, `relief_range.max_diameter_m` and `slope_map.reference_diameter_m`.
-- Breaking: the `region` layer is now `masked` (the old type is rejected), and `RegionLayer` is `MaskedLayer` (`terraingen/layers/masked.h`, Python `MaskedLayer`); `RegionShape::centre` is `center`.
+- Density maps that count every feature take out the secondaries and blocks thrown from a layer's craters, and boulder patches and bedrock keep a map's mean, so nothing is counted twice.
+- The `matched` diffusivity wears each crater to Fassett et al.'s visibility cutoff at the end of its equilibrium lifetime, for the layer's own profile.
+- Crater shaping has one implementation, the kernel, on every surface; craters on bodies and custom profiles may differ from 0.1.0 in the last digits.
+- Random streams and hashes are unified, so boulder, albedo, dune, bedform and pavement outputs for a given seed differ from 0.1.0; their statistics are unchanged.
+- Every evaluation defaults to all threads, including `HeightAt` and `HeightsAt`.
+- The `materials` module is folded into `pipeline` (material maps, `terraingen/pipeline/materials.h`) and `albedo` (Hapke photometry, `terraingen/albedo/photometry.h`), and `NoiseLayersAt` moves to `terraingen/sources/synthetic_terrain.h`.
+- Python: `ExposureField.exposure` takes `(x, y, spacing=0.0, generator=None, layers=0)` like the other ground queries, unbounded options read as `None` instead of infinity, `write_outputs` returns paths and a subclass missing a required method raises `TypeError`.
+- Written configurations leave out lists that are empty by default.
+- Faster craters and boulders: ground reads for crater slopes and datums and beneath boulders are batched and spatially ordered, outputs over one area share the boulders placed for the first, boulder models are placed in parallel and ejecta craters found through a spatial index; the hero demo went from 433 s to about 10 s.
+- Logs: generation logs each grid as it is evaluated with the time of every layer, the albedo and the materials and ends with each step's total and share; crater and boulder summaries log at debug level, boulders under boulders rather than craters, and `terraingen` ends with one line counting the files written.
+
+### Removed
+
+- Tile schemes, tiles and the tile cache (`TileScheme`, `TileKey`, `EvaluateTile`, `EvaluateTiles`, `TileCache`, in C++ and Python): level of detail belongs to the renderer, and any grid evaluated alone already equals the same cells of a larger one; the point query examples move to a `queries` category.
+- Resampling and low-passing raster sources: `pixelSize`, `resampling` and `lowPass` on `GeoTiffSourceOptions` and the config keys `pixel_size`, `resampling` and `low_pass` on raster sources; upsampling over a finer grid replaces them.
+- `DetailLayer` and the `dem_detail` layer, which only restored the detail a low-passed source removed.
+- `GridRegionSpec`, `config::RegionGrid` and `config::FeatureOutput`; an output's area is an `OutputAreaSpec`.
+- Python `crater_blend_weight` (use `CraterBlend.weight`), `CraterAgeModel.lifetime_gyr` (use `lifetime_at`) and the flat selection aliases on crater irregularity, crater albedo and secondary options (use `selection`).
 
 ### Fixed
 
 - Freshness degradation never makes a crater deeper than fresh: basins shallower than the cutoff keep their fresh shape.
 - Small craters inside larger ones on sloping ground no longer stand as raised mounds: datums are fitted to the slope-shaped relief that is applied.
-- Crater layers over other layers read the ground beneath their slopes and datums in batches rather than point by point, and point batches are evaluated in spatial order: the hero demo went from 433 s to 11 s with the same output.
 - Secondary craters run on the GPU backend the terrain asks for instead of always on the CPU.
 - A crater layer after a boulder layer no longer refits crater datums for every batch of ground reads.
-- Tilted boulders are no longer cut off at tile edges and point queries.
-- Crater and boulder lists honour a spacing finer than the grid.
-- Zero-area regions and crater sizes below the models' range are rejected with a clear error instead of failing during generation.
+- Tilted boulders are no longer cut off at grid edges and in point queries.
+- Zero-area output areas and crater sizes below the models' range are rejected with a clear error instead of failing during generation.
+- The library builds without warnings under Clang and MSVC.
 
-### Removed
+### Migrating from 0.1.0
 
-- `GridRegionSpec`, `config::RegionGrid` and `config::FeatureOutput`; an output's area is an `OutputAreaSpec` and `config::OutputSpacing` takes the source's grid and the surface.
-- Tile schemes, tiles and the tile cache (`TileScheme`, `TileKey`, `EvaluateTile`, `EvaluateTiles`, `TileCache`, in C++ and Python): level of detail belongs to the renderer, and any grid evaluated alone already equals the same cells of a larger one. The tile examples go too; the point query examples move to a `queries` category.
-- Resampling raster sources to a pixel size and low-passing them: `pixelSize`, `resampling` and `lowPass` on `RasterSourceOptions` and `GeoTiffSourceOptions`, and the config keys `pixel_size`, `resampling` and `low_pass` on raster sources; upsampling over a finer grid replaces them.
-- `DetailLayer` and the `dem_detail` layer, which only restored the detail a low-passed source removed.
-- The crater layer key `unresolved_pixels_across` (`CraterLayerSpec::unresolvedPixelsAcross`): `source_resolves_px` replaces it.
-- Python `crater_blend_weight` (use `CraterBlend.weight`), `CraterAgeModel.lifetime_gyr` (use `lifetime_at`) and the flat selection aliases on crater irregularity, crater albedo and secondary options (use `selection`).
+Old keys and names are rejected rather than aliased. Angle keys are in degrees; sizes in meters unless they end in `_px`.
+
+**Configuration, top level and sources**
+
+| 0.1.0 | 0.2.0 |
+| --- | --- |
+| `base` | `source` (types `raster`, `chain`, `synthetic`) |
+| `base.pixel_size`, `base.resampling` | `source.upsampling`; set the output's `pixel_size_m` for finer cells |
+| `base.low_pass` | removed; `effective_pixel_size_m` for a DEM smoothed before it was saved |
+| layer `dem_detail` | removed; use `source.upsampling` or a `spectral_continuation` layer |
+
+**Configuration, outputs**
+
+| 0.1.0 | 0.2.0 |
+| --- | --- |
+| `region.pixel_size` | `pixel_size_m` |
+| `region.width`, `height`, `centre_x`, `centre_y` | `extent_m: {"center": [x, y], "size": [width * pixel_size, height * pixel_size]}` (`extent_deg` on a body) |
+| `spacing` on `crater_list`, `boulder_list`, `boulder_models` | `pixel_size_m` |
+| `path` required | `path` optional |
+| `crease_angle` (`boulder_models`) | `crease_angle_deg` |
+
+**Configuration, layers**
+
+| 0.1.0 | 0.2.0 |
+| --- | --- |
+| layer `region` | layer `masked` |
+| craters `generate` | `generate_random` |
+| craters `min_diameter`, `max_diameter` | `min_diameter_m`, `max_diameter_m` |
+| craters `apply.fade` {`start_samples`, `end_samples`, `shape`} | `apply.fade_px` [start, end], `apply.fade_shape` |
+| crater `irregularity.heading`, `heading_spread` | `heading_deg`, `heading_spread_deg` |
+| secondaries `min_diameter`, `max_diameter`, `min_primary_diameter`, `max_primary_diameter` | the same with `_m` |
+| secondaries `width_degrees`, `min_half_angle_degrees` | `width_deg`, `min_half_angle_deg` |
+| boulders `min_diameter`, `max_diameter` | `min_diameter_m`, `max_diameter_m` |
+| boulders `fade` {`start_samples`, `end_samples`, `shape`} | `fade_px` [start, end], `fade_shape` |
+| boulders `exposure_spacing` | `ground_spacing_m` |
+| boulders `max_lean`, `max_tilt` | `max_lean_deg`, `max_tilt_deg` |
+| boulders `patches.size`, `clusters.spacing`, `clusters.radius` | `patches.size_m`, `clusters.spacing_m`, `clusters.radius_m` |
+| boulders `ejecta.min_crater_diameter`, `ejecta.regolith_thickness` | `ejecta.min_crater_diameter_m`, `ejecta.regolith_thickness_m` |
+| boulders `fragmentation.min_diameter`, `relief_range.min_diameter`, `relief_range.max_diameter` | the same with `_m` |
+| boulders `models.min_diameter`, `models.max_diameter`, `models.min_samples`, `models.max_samples` | `models.min_diameter_m`, `models.max_diameter_m`, `models.min_px`, `models.max_px` |
+| manual boulders `yaw`, `lean`, `tilt`, `tilt_azimuth` | `yaw_deg`, `lean_deg`, `tilt_deg`, `tilt_azimuth_deg` |
+| ventifacts `wind_azimuth`, `second_wind_azimuth`, `min_angle`, `max_angle` | the same with `_deg` |
+| dunes `wind_azimuth`, `azimuth_spread`, `slip_face_angle`, `stoss_slope`, `flank_slope` | the same with `_deg` |
+| bedforms `wind_azimuth`, `azimuth_spread` | `wind_azimuth_deg`, `azimuth_spread_deg` |
+| strata `dip`, `dip_azimuth` | `dip_deg`, `dip_azimuth_deg` |
+| pavement `max_tilt` | `max_tilt_deg` |
+| sand shadow `wind_azimuth`, `flank_angle` | `wind_azimuth_deg`, `flank_angle_deg` |
+| albedo `hue`, `hue_noise`, `heading` | `hue_deg`, `hue_noise_deg`, `heading_deg` |
+| albedo `*_degrees` (`width_degrees`, `streak_width_degrees`, `jet_angle_degrees`, `steep_slope_degrees` and the rest) | `*_deg` |
+| materials `roughness` | `roughness_deg` |
+
+**C++ API**
+
+| 0.1.0 | 0.2.0 |
+| --- | --- |
+| `Terrain` (`pipeline/terrain.h`) | `TerrainGenerator` (`pipeline/generator.h`) |
+| `EvaluateAt`, `EvaluatePoints` | `HeightAt`, `HeightsAt` |
+| `ValidateTerrain`, `BuildTerrain` | `ValidateGenerator`, `BuildGenerator` |
+| `GenerateTerrain`, `GeneratedTerrain` (`.terrain`) | `GenerateFromConfig`, `GeneratedOutputs` (`.generator`) |
+| `TerrainConfig` | `TerrainGenConfig` |
+| `ConfigSummary::base` | `ConfigSummary::source` |
+| `HeightMesh`, `HeightMeshOptions` (`pipeline/height_mesh.h`) | `BuildMesh`, `BuildMeshOptions` (`pipeline/mesh_build.h`) |
+| `RegionLayer` (`layers/region.h`), `RegionShape::centre` | `MaskedLayer` (`layers/masked.h`), `RegionShape::center` |
+| `Source::Fill(heights)`, `Source::HeightAt(x, y)` | `Source::Fill(heights, spacing)`, `Source::HeightAt(x, y, spacing)` |
+| `GeoTiffSourceOptions::pixelSize`, `resampling`, `lowPass` | `upsampler`, `effectivePixelSize`; evaluate over a finer grid |
+| `CraterLayerOptions::generate` | `CraterLayerOptions::generateRandom` |
+| `BoulderLayerOptions::exposureSpacing` | `BoulderLayerOptions::groundSpacing` |
+| `DetailLayer`, `TileScheme`, `TileKey`, `TileCache`, `EvaluateTile`, `EvaluateTiles` | removed |
+| `GridRegionSpec`, `config::RegionGrid`, `config::FeatureOutput` | `OutputAreaSpec`, `ExtentSpec`, `config::SnappedGrid` |
+| `terraingen/materials/` | `terraingen/pipeline/materials.h`, `terraingen/albedo/photometry.h` |
+| `NoiseLayersAt` in `layers/noise_relief.h` | `sources/synthetic_terrain.h` |
+| `TERRAINGEN_API_VERSION` 1 | 2 |
+
+**Python API**
+
+| 0.1.0 | 0.2.0 |
+| --- | --- |
+| `Terrain` | `TerrainGenerator` |
+| `evaluate_at`, `evaluate_points` | `height_at`, `heights_at` |
+| `build_terrain`, `generate_terrain`, `GeneratedTerrain` | `build_generator`, `generate_from_config`, `GeneratedOutputs` |
+| `Config`, `Config.from_json`, `Config.load`, `Config.to_json` | `TerrainGenConfig`, `parse_config`, `load_config`, `config_to_json` |
+| `Config.base_grid` | `TerrainGenConfig.source_grid` |
+| `height_mesh` | `build_mesh` |
+| `RegionLayer` | `MaskedLayer` |
+| keyword `terrain=` | `generator=` (and `generated=` for `write_outputs`) |
+| `Source.height_at(x, y)`, `Source.fill(heights)` | `height_at(x, y, spacing)`, `fill(heights, spacing)` |
+| `GeoTiffSource(pixel_size=, resampling=, low_pass=)` | `GeoTiffSource(upsampler=, effective_pixel_size=, crop=)` |
+| `version`, `api_version`, `build_info` | `get_version`, `get_api_version`, `get_build_info` |
+| `boulder_fillet_height`, `perlin_noise3` | `fillet_height`, `perlin_noise3_precise` |
+| `TriangleMesh.subdivided` | `TriangleMesh.subdivide` |
+| `Raster.nodata`, `GeoTiffInfo.nodata` | `Raster.no_data`, `GeoTiffInfo.no_data` |
+| `ValueDistributionKind` | `ValueDistribution.Kind` |
+| `CraterGenerationOptions.min_diameter`, `max_diameter` | `d_min`, `d_max` |
+| `CraterFeatures.write` | `CraterFeatures.write_list` |
+| `cell_of`, `point_of`, `level_for`, `outline_of` | `cell_at`, `coordinates`, `resolving_level`, `irregular_outline` |
+| `min_diameter_for_count`, `singer_range_for_size` | `count_limit_diameter`, `singer_max_range` |
+| `SplotchOptions`, `SlopeMaturityOptions` | `SplotchAlbedoOptions`, `SlopeAlbedoOptions` |
+| angles in radians (`SyntheticAlbedo(hue=)`, `hsv_to_rgb(hue)`, `RigidTransform.rotation_x(angle)`, `Boulder.yaw`, ...) | degrees with `_deg` names (`hue_deg=`, `angle_deg`, `Boulder.yaw_deg`, ...) |
+| `crater_blend_weight`, `CraterAgeModel.lifetime_gyr` | `CraterBlend.weight`, `lifetime_at` |
+| `TileScheme`, `TileKey`, `TileCache`, `evaluate_tile`, `evaluate_tiles` | removed |
 
 ## [0.1.0] - 2026-10-18
 
@@ -121,5 +217,6 @@ Initial release.
 - Examples in C++, Python and JSON.
 - Release archives for Linux, macOS and Windows, Debian packages, and a Docker image.
 
-[Unreleased]: https://github.com/alexmaietta/terraingen/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/alexmaietta/terraingen/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/alexmaietta/terraingen/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/alexmaietta/terraingen/releases/tag/v0.1.0

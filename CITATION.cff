@@ -12,7 +12,7 @@ authors:
 repository-code: "https://github.com/alexmaietta/terraingen"
 url: "https://alexmaietta.github.io/terraingen/"
 license: BSD-3-Clause
-version: 0.1.0
+version: 0.2.0
 keywords:
   - terrain
   - moon

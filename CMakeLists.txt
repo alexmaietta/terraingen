@@ -8,7 +8,7 @@ endif()
 
 # The release being worked towards, such as 0.1.0, or for a development build a PEP 440 pre-release of
 # it, such as 0.1.0.dev42, which only the Python package carries.
-set(TERRAINGEN_FULL_VERSION "0.1.1")
+set(TERRAINGEN_FULL_VERSION "0.2.0")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TERRAINGEN_VERSION "${TERRAINGEN_FULL_VERSION}")
 
 project(
