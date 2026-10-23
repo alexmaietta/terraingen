@@ -194,7 +194,9 @@ template <typename IO> void Fields(IO& io, TerrainMeshOutput& output) {
 template <> struct SpecName<ReportOutput> {
     static constexpr std::string_view kName = "report";
     static constexpr std::string_view kDescription =
-        "A report of what the configuration generates; accepted and checked, not yet produced.";
+        "A JSON report of what the configuration generates: height, slope, crater bin and "
+        "boulder statistics per evaluated grid, per-layer timings, backend, threads, seeds and "
+        "version.";
 };
 template <typename IO> void Fields(IO& io, ReportOutput& output) {
     io("path", output.path, OptionalOutputPathHelp("File to write the report to"));

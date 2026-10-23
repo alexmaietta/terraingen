@@ -1116,8 +1116,8 @@ struct MaterialsOutput : GeoTiffOutput {};
 /// Output "photometry": the Hapke albedo, b, c and roughness the materials mix to, in four bands.
 struct PhotometryOutput : GeoTiffOutput {};
 
-/// Output "report": a report of what the configuration generates. Parsed and checked; nothing is
-/// produced for it yet.
+/// Output "report": a report of what the configuration generates (`GeneratedOutputs::report`),
+/// written as JSON (`ReportToJson`).
 struct ReportOutput {
     std::string path;  ///< The file to write; empty to only return the report.
     bool operator==(const ReportOutput& other) const {

@@ -493,6 +493,11 @@ void BindGeneratedOutputs(nb::module_& m) {
             [](nb::handle self) { return View(self, nb::cast<GeneratedOutputs&>(self).bodyIcq); },
             "The whole body as an IcqModel, for mesh outputs to .icq paths; None otherwise.")
         .def_prop_ro(
+            "report",
+            [](nb::handle self) { return View(self, nb::cast<GeneratedOutputs&>(self).report); },
+            "The TerrainReport, for a configuration with a report output; None otherwise. Its "
+            "grids list craters and boulders only where a list output asked for them.")
+        .def_prop_ro(
             "generator", [](const GeneratedOutputs& g) { return FromGenerator(g.generator); },
             "A copy of the TerrainGenerator built from the configuration.");
     generated

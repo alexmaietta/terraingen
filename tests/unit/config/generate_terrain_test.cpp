@@ -8,9 +8,11 @@
 #include "terraingen/terraingen.h"
 
 #include <gtest/gtest.h>
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -18,7 +20,9 @@ using terraingen::BuildCraterModels;
 using terraingen::ConfigError;
 using terraingen::CraterLayerSpec;
 using terraingen::CraterList;
+using terraingen::CraterListOutput;
 using terraingen::GenerateFromConfig;
+using terraingen::ListFormat;
 using terraingen::TerrainGenConfig;
 using terraingen::testing::AlbedoOf;
 using terraingen::testing::BouldersOf;
@@ -33,6 +37,7 @@ using terraingen::testing::RasterConfig;
 using terraingen::testing::RasterSpec;
 using terraingen::testing::Region;
 using terraingen::testing::Small;
+using terraingen::testing::SmallRegion;
 using terraingen::testing::TempPath;
 using terraingen::testing::WriteDem;
 
@@ -847,4 +852,112 @@ TEST(GenerateFromConfig, EstimatesRoughnessAndNoiseFromTheBaseAlikeForGridsTiles
             ASSERT_EQ(tile(col, row), grid(col + 5, row + 3)) << col << " " << row;
         }
     }
+}
+
+namespace {
+
+/// `Small` with crater seed 7, a boulder layer of seed 11, crater and boulder lists over its
+/// heightmap's region and a report output without a path.
+TerrainGenConfig WithReport() {
+    TerrainGenConfig config = Small();
+    Craters(config).seed = 7;
+    terraingen::BoulderLayerSpec boulders;
+    boulders.sizes = terraingen::GolombekRappBouldersSpec{};
+    boulders.boulders.sizes.coverage = 0.3;
+    boulders.boulders.sizes.minDiameter = 1.0;
+    boulders.boulders.seed = 11;
+    config.layers.push_back(boulders);
+    config.outputs.push_back(CraterListOutput{{"", ListFormat::Csv, SmallRegion()}});
+    config.outputs.push_back(terraingen::BoulderListOutput{{"", ListFormat::Csv, SmallRegion()}});
+    config.outputs.push_back(terraingen::ReportOutput{});
+    return config;
+}
+
+/// The "grids" of a report holding `grids`, as `ReportToJson` writes them with NaN as null.
+nlohmann::json GridsJson(const std::vector<terraingen::GridReport>& grids) {
+    terraingen::TerrainReport report;
+    report.grids = grids;
+    return nlohmann::json::parse(terraingen::ReportToJson(report)).at("grids");
+}
+
+}  // namespace
+
+TEST(GenerateFromConfig, ReportsGridStatisticsFeatureCountsTimingsAndSeeds) {
+    TerrainGenConfig config = WithReport();
+    const auto generated = GenerateFromConfig(config, {}, 2, terraingen::Backend::Cpu);
+    ASSERT_TRUE(generated.report);
+    const terraingen::TerrainReport& report = *generated.report;
+    const terraingen::GeneratedGrid& grid = generated.Grid();
+    ASSERT_TRUE(grid.craters);
+    ASSERT_TRUE(grid.boulders);
+    ASSERT_EQ(report.grids.size(), 1u);
+    const auto target = BuildCraterModels(Craters(config)).density;
+    const terraingen::GridReport expected = terraingen::ReportGrid(
+        grid.heights, terraingen::Surface{}, &*grid.craters, &*grid.boulders, target.get(), 1);
+    EXPECT_EQ(GridsJson(report.grids), GridsJson({expected}));
+
+    const terraingen::GridReport& stats = report.grids[0];
+    EXPECT_EQ(stats.grid, SmallRegion().Grid());
+    EXPECT_LT(stats.heightMin, stats.heightMax);
+    EXPECT_GT(stats.slopeMeanDeg, 0.0);
+    const double area = stats.grid.SurfaceArea(terraingen::Surface{});
+    std::size_t counted = 0;
+    std::size_t withExpected = 0;
+    for (const terraingen::CraterBin& bin : stats.craterBins) {
+        counted += bin.count;
+        if (std::isfinite(bin.expected)) {
+            ++withExpected;
+            EXPECT_DOUBLE_EQ(bin.expected,
+                             target->ExpectedCount(area, bin.minDiameter, bin.maxDiameter));
+        }
+    }
+    EXPECT_GT(grid.craters->craters.Size(), 0u);
+    EXPECT_EQ(counted, grid.craters->craters.Size());
+    EXPECT_GT(withExpected, 0u);
+    EXPECT_GT(stats.boulderCount, 0u);
+    EXPECT_EQ(stats.boulderCount, grid.boulders->boulders.size());
+    EXPECT_GT(stats.boulderCover, 0.0);
+
+    ASSERT_EQ(report.layers.size(), 3u);
+    const std::vector<std::string> types{"noise", "craters", "boulders"};
+    for (std::size_t i = 0; i < types.size(); ++i) {
+        EXPECT_EQ(report.layers[i].type, types[i]);
+        EXPECT_GT(report.layers[i].seconds, 0.0) << types[i];
+    }
+    EXPECT_EQ(report.backend, "cpu");
+    EXPECT_EQ(report.threads, 2u);
+    EXPECT_EQ(report.seeds, (std::vector<std::uint32_t>{7u, 11u}));
+    EXPECT_EQ(report.seconds, generated.seconds);
+    EXPECT_EQ(report.version, TERRAINGEN_FULL_VERSION_STRING);
+}
+
+TEST(GenerateFromConfig, ReportsOnlyWithAReportOutputAndPlacesNoFeaturesForIt) {
+    TerrainGenConfig config = Small();
+    EXPECT_FALSE(GenerateFromConfig(config).report) << "no report output";
+
+    const GridRegion wide{33, 25, 4.0};
+    CraterLayerSpec inner = Craters(config);
+    inner.seed = 5;
+    config.layers.push_back(terraingen::RegionLayerSpec{
+        terraingen::CircleRegionSpec{0.0, 0.0, 20.0}, 0.0, terraingen::BlendShape::Linear, inner});
+    config.outputs.push_back(terraingen::testing::Heightmap("", wide));
+    config.outputs.push_back(CraterListOutput{{"", ListFormat::Csv, GridRegion{40, 40, 1.0}}});
+    config.outputs.push_back(terraingen::ReportOutput{});
+    const auto generated = GenerateFromConfig(config, {}, 1);
+    ASSERT_EQ(generated.grids.size(), 3u);
+    ASSERT_TRUE(generated.report);
+    const terraingen::TerrainReport& report = *generated.report;
+    ASSERT_EQ(report.grids.size(), 2u) << "only the grids with heights";
+    EXPECT_EQ(report.grids[0].grid, SmallRegion().Grid());
+    EXPECT_EQ(report.grids[1].grid, wide.Grid());
+    for (const terraingen::GridReport& grid : report.grids) {
+        EXPECT_TRUE(grid.craterBins.empty()) << "no list over the grid, so no craters placed";
+        EXPECT_EQ(grid.boulderCount, 0u);
+        EXPECT_FALSE(std::isnan(grid.heightMean));
+    }
+    EXPECT_FALSE(generated.grids[0].craters);
+    ASSERT_EQ(report.layers.size(), 3u);
+    EXPECT_EQ(report.layers[2].type, "region (craters)");
+    EXPECT_EQ(report.seeds, (std::vector<std::uint32_t>{1u, 5u})) << "a region's from its layer";
+    EXPECT_EQ(report.threads, 1u);
 }

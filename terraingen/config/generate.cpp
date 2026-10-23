@@ -2,6 +2,7 @@
 
 #include "terraingen/config/build.h"
 #include "terraingen/config/json.h"
+#include "terraingen/gpu/backend.h"
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/pipeline/body_mesh.h"
@@ -12,9 +13,14 @@
 #include "terraingen/util/log.h"
 #include "terraingen/util/overloaded.h"
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <fstream>
 #include <iomanip>
+#include <memory>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -118,7 +124,7 @@ class OutputGenerator {
                     const std::filesystem::path& directory, unsigned threads)
         : config_(config), generated_(generated), directory_(directory), threads_(threads),
           base_(BaseGrid(generated.generator)), grids_(CoveredGrids(config, generated.generator)),
-          albedoStep_(config.layers.size()) {
+          albedoStep_(config.layers.size()), layerTimer_(LayerTypes(config)) {
         for (std::size_t n = 0; n < config.layers.size(); ++n) {
             steps_.push_back(
                 {"layer " + std::to_string(n + 1) + " " + LayerType(config.layers[n])});
@@ -182,7 +188,20 @@ class OutputGenerator {
         }
     }
 
+    /// Each layer's type and its time summed over every evaluation, in order.
+    const std::vector<LayerTiming>& LayerTimings() const {
+        return layerTimer_.Timings();
+    }
+
   private:
+    static std::vector<std::string> LayerTypes(const TerrainGenConfig& config) {
+        std::vector<std::string> types;
+        for (const LayerSpec& layer : config.layers) {
+            types.push_back(LayerType(layer));
+        }
+        return types;
+    }
+
     void Timed(std::size_t step, double milliseconds) {
         steps_[step].milliseconds += milliseconds;
         LogInfo("pipeline", "  ", steps_[step].name, " in ", FormatDuration(milliseconds));
@@ -210,6 +229,7 @@ class OutputGenerator {
         EvaluationOptions options{0.0, threads_, generated_.backend};
         options.onLayer = [this](std::size_t step, double milliseconds) {
             Timed(step, milliseconds);
+            layerTimer_.Add(step, milliseconds);
         };
         target.heights = Evaluate(generator, target.grid, options);
     }
@@ -266,7 +286,55 @@ class OutputGenerator {
     std::size_t albedoStep_;  ///< The step of the albedo; materials, features and meshes follow.
     std::vector<StepTime> steps_;
     std::optional<Albedo> albedo_;
+    LayerTimer layerTimer_;
 };
+
+/// The top-level "seed" of each layer that has one, in order, a region's from its inner layer.
+std::vector<std::uint32_t> LayerSeeds(const TerrainGenConfig& config) {
+    const nlohmann::json json = nlohmann::json::parse(ConfigToJson(config, -1));
+    std::vector<std::uint32_t> seeds;
+    for (const nlohmann::json& entry : json.at("layers")) {
+        const nlohmann::json* layer = &entry;
+        while (layer->value("type", std::string{}) == "region" && layer->contains("layer")) {
+            layer = &layer->at("layer");
+        }
+        const auto seed = layer->find("seed");
+        if (seed != layer->end() && seed->is_number_unsigned()) {
+            seeds.push_back(seed->get<std::uint32_t>());
+        }
+    }
+    return seeds;
+}
+
+/// The density of the first top-level crater layer, or null without one.
+std::shared_ptr<const SizeFrequencyDistribution> CraterTarget(const TerrainGenConfig& config) {
+    const std::vector<std::size_t> craters = config::LayerIndices<CraterLayerSpec>(config.layers);
+    if (craters.empty()) {
+        return nullptr;
+    }
+    return BuildCraterModels(std::get<CraterLayerSpec>(config.layers[craters.front()])).density;
+}
+
+/// The report of what was generated from `config`, with each layer's summed `timings`.
+TerrainReport BuildReport(const TerrainGenConfig& config, const GeneratedOutputs& generated,
+                          std::vector<LayerTiming> timings, unsigned threads) {
+    TerrainReport report;
+    const std::shared_ptr<const SizeFrequencyDistribution> target = CraterTarget(config);
+    for (const GeneratedGrid& grid : generated.grids) {
+        if (grid.heights.Empty()) {
+            continue;
+        }
+        report.grids.push_back(ReportGrid(
+            grid.heights, generated.generator.surface, grid.craters ? &*grid.craters : nullptr,
+            grid.boulders ? &*grid.boulders : nullptr, target.get(), threads));
+    }
+    report.layers = std::move(timings);
+    report.backend = std::string(BackendName(generated.backend));
+    report.threads = threads;
+    report.seeds = LayerSeeds(config);
+    report.seconds = generated.seconds;
+    return report;
+}
 
 /// How a GeoTIFF output is written.
 GeoTiffWriteOptions TiffOptions(const GeoTiffOutput& output) {
@@ -392,6 +460,17 @@ void WriteBodyMesh(const MeshOutput& output, const std::filesystem::path& path,
             path.string());
 }
 
+/// Writes a report as JSON (`ReportToJson`).
+/// @throws std::runtime_error if the file cannot be written.
+void WriteReport(const TerrainReport& report, const std::filesystem::path& path) {
+    std::ofstream file(path, std::ios::binary);
+    file << ReportToJson(report) << '\n';
+    if (!file) {
+        throw std::runtime_error("Cannot write the report to " + path.string());
+    }
+    LogInfo("pipeline", "Wrote the report to ", path.string());
+}
+
 /// The path an output names, empty for none.
 const std::string& OutputPath(const OutputSpec& spec) {
     return std::visit([](const auto& output) -> const std::string& { return output.path; }, spec);
@@ -433,6 +512,9 @@ GeneratedOutputs GenerateFromConfig(const TerrainGenConfig& config,
     generated.geoKeys = OutputGeoKeys(generated.generator);
     generated.seconds = stopwatch.Milliseconds() / 1000.0;
     outputGenerator.LogTimes(stopwatch.Milliseconds());
+    if (config::HasOutput<ReportOutput>(config.outputs)) {
+        generated.report = BuildReport(config, generated, outputGenerator.LayerTimings(), threads);
+    }
     return generated;
 }
 
@@ -470,13 +552,14 @@ std::vector<std::filesystem::path> WriteOutputs(const TerrainGenConfig& config,
         if (relative.empty()) {
             continue;
         }
-        if (std::holds_alternative<ReportOutput>(spec)) {
-            LogWarning("pipeline", "Reports are not produced yet; not writing ", relative);
-            continue;
-        }
         const std::filesystem::path path = config::Resolve(relative, directory);
         if (path.has_parent_path()) {
             std::filesystem::create_directories(path.parent_path());
+        }
+        if (std::holds_alternative<ReportOutput>(spec)) {
+            WriteReport(Require(generated.report, "report", path), path);
+            written.push_back(path);
+            continue;
         }
         if (const auto* mesh = std::get_if<MeshOutput>(&spec)) {
             WriteBodyMesh(*mesh, path, generated);

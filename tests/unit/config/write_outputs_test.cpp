@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
+#include <stdexcept>
 #include <string>
 #include <variant>
 
@@ -385,14 +386,38 @@ TEST(WriteOutputs, ReturnsOutputsWithoutPathsAndWritesNothingForThem) {
     EXPECT_EQ(grid.mesh->positions.size(), 65u * 49u);
     EXPECT_FALSE(grid.boulders) << "no output asked for boulders";
     EXPECT_TRUE(grid.materials.empty());
+    ASSERT_TRUE(generated.report) << "a report without a path is returned";
+    EXPECT_EQ(generated.report->grids.size(), 1u);
     const auto directory = TempPath("terraingen_in_memory");
     std::filesystem::remove_all(directory);
     EXPECT_TRUE(WriteOutputs(config, generated, directory).empty());
     EXPECT_FALSE(std::filesystem::exists(directory)) << "not even the folder";
+}
 
-    config.outputs.back() = terraingen::ReportOutput{"report.json"};
-    EXPECT_TRUE(WriteOutputs(config, generated, directory).empty())
-        << "reports are parsed and checked but not produced yet";
+TEST(WriteOutputs, WritesTheReportItReturned) {
+    TerrainGenConfig config = Small();
+    config.outputs.push_back(CraterListOutput{{"", ListFormat::Csv, SmallRegion()}});
+    config.outputs.push_back(terraingen::ReportOutput{"out/report.json"});
+    const auto generated = GenerateFromConfig(config);
+    ASSERT_TRUE(generated.report);
+    const auto directory = TempPath("terraingen_report_output");
+    std::filesystem::remove_all(directory);
+    const auto written = WriteOutputs(config, generated, directory);
+    ASSERT_EQ(written.size(), 2u);
+    EXPECT_EQ(written[1], directory / "out" / "report.json");
+    const nlohmann::json json = nlohmann::json::parse(ReadText(written[1]));
+    EXPECT_EQ(json, nlohmann::json::parse(terraingen::ReportToJson(*generated.report)));
+    std::size_t counted = 0;
+    for (const nlohmann::json& bin : json.at("grids").at(0).at("crater_bins")) {
+        counted += bin.at("count").get<std::size_t>();
+    }
+    EXPECT_EQ(counted, generated.Grid().craters->craters.Size());
+    EXPECT_EQ(json.at("layers").size(), 2u);
+
+    TerrainGenConfig without = config;
+    without.outputs.pop_back();
+    EXPECT_THROW(WriteOutputs(config, GenerateFromConfig(without), directory), std::runtime_error)
+        << "nothing to write without the report";
 }
 
 TEST(WriteOutputs, WritesMaterialsAndTheirPhotometry) {

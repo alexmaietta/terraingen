@@ -4,6 +4,7 @@
 
 #include "terraingen/albedo/albedo.h"
 #include "terraingen/config/config.h"
+#include "terraingen/config/report.h"
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/mesh.h"
 #include "terraingen/pipeline/features.h"
@@ -54,6 +55,13 @@ struct GeneratedOutputs {
     GeoKeys geoKeys{};
     double seconds = 0.0;            ///< Wall-clock time the outputs took to generate.
     Backend backend = Backend::Cpu;  ///< Where the heights were evaluated: `Cpu` or a GPU backend.
+    /// The report, for a configuration with a report output: a `GridReport` per grid with
+    /// heights, with the craters and boulders listed over it only where a list or boulder models
+    /// output asked for them (none are placed for the report alone), and the first top-level crater
+    /// layer's density as the crater target; per-layer timings over every evaluation; the backend,
+    /// threads, the top-level "seed" of each layer that has one (a region's from its inner
+    /// layer), `seconds` and version.
+    std::optional<TerrainReport> report{};
 
     /// The only grid.
     /// @throws std::runtime_error when the outputs cover no grid or several.
@@ -66,8 +74,9 @@ struct GeneratedOutputs {
 
 /// Generates everything a configuration's outputs ask for, each computed once: `BuildGenerator`,
 /// then over each distinct grid the outputs cover its heights (`Evaluate`), albedo, materials and
-/// photometry, terrain mesh, and the craters and boulders placed there, and the whole body's mesh.
-/// Nothing is written (`WriteOutputs`).
+/// photometry, terrain mesh, and the craters and boulders placed there, the whole body's mesh and,
+/// with a report output, the report (`GeneratedOutputs::report`). Nothing is written
+/// (`WriteOutputs`).
 /// @param directory Folder relative input paths resolve against.
 /// @param threads Threads to use, 0 for every hardware thread; the result does not depend on it.
 /// @param backend Where the heights are evaluated; empty for `DefaultBackend()`.
@@ -115,7 +124,8 @@ void WriteBoulderModels(const std::vector<BoulderModel>& boulders,
 /// Writes each output of a configuration that has a path from what `GenerateFromConfig`
 /// returned, computing nothing, and returns the paths written: rasters with `generated.geoKeys`,
 /// meshes, crater and boulder lists and boulder models, each from the grid it covers
-/// (`config::OutputGrid`). Outputs without a path, and reports, are not written.
+/// (`config::OutputGrid`), and reports as JSON (`ReportToJson`). Outputs without a path are not
+/// written.
 /// @param generated What `GenerateFromConfig` generated from `config`.
 /// @param directory Folder relative output paths resolve against.
 /// @throws std::runtime_error if an output cannot be written, or `generated` lacks what it needs.

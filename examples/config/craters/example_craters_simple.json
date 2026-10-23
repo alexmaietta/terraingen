@@ -70,6 +70,10 @@
                     1026
                 ]
             }
+        },
+        {
+            "type": "report",
+            "path": "example_craters_simple_report.json"
         }
     ]
 }

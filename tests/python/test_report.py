@@ -78,3 +78,28 @@ def test_terrain_reports_round_trip_through_json():
     assert grid["grid"]["pixel_size"] == 2.0 and grid["slope_deg"]["mean"] == 0.0
     assert grid["boulders"] == {"count": 0, "models": 0, "cover": 0.0}
     assert "\n" not in terraingen.report_to_json(report, indent=-1)
+
+
+def test_a_report_output_returns_and_writes_the_report(tmp_path, small_config):
+    area = {key: small_config["outputs"][0][key] for key in ("pixel_size_m", "extent_m")}
+    small_config["outputs"] += [
+        {"type": "boulder_list", **area},
+        {"type": "report", "path": "report.json"},
+    ]
+    config = terraingen.TerrainGenConfig.from_dict(small_config)
+    generated = terraingen.generate_from_config(config, threads=2)
+    report = generated.report
+    assert isinstance(report, terraingen.TerrainReport)
+    assert [layer.type for layer in report.layers] == ["noise", "craters", "boulders"]
+    assert report.threads == 2 and report.backend == "cpu" and report.seeds == [1, 1]
+    grid = generated.grids[0]
+    assert len(report.grids) == 1
+    stats = report.grids[0]
+    assert sum(b.count for b in stats.crater_bins) == len(grid.craters.craters)
+    assert stats.boulder_count == len(grid.boulders.boulders) > 0
+    written = terraingen.write_outputs(config, generated, tmp_path)
+    assert tmp_path / "report.json" in written
+    assert json.loads((tmp_path / "report.json").read_text()) == report.to_dict()
+
+    del small_config["outputs"][-1]
+    assert terraingen.generate_from_config(terraingen.TerrainGenConfig.from_dict(small_config)).report is None

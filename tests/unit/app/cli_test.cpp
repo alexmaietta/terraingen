@@ -270,9 +270,9 @@ TEST(Cli, GeneratesAConfigsOutputsIntoTheChosenFolder) {
     const auto pathless = Directory("generate_pathless");
     const Result some = Cli({Write(pathless / "terrain.json", unwritten).string()});
     ASSERT_EQ(some.code, kExitSuccess) << some.err;
-    EXPECT_NE(some.out.find("Wrote 2 files to "), std::string::npos)
-        << "a mesh without a path and a report are not written: " << some.out;
-    EXPECT_FALSE(std::filesystem::exists(pathless / "report.json"));
+    EXPECT_NE(some.out.find("Wrote 3 files to "), std::string::npos)
+        << "a mesh without a path is not written, the report is: " << some.out;
+    EXPECT_TRUE(std::filesystem::exists(pathless / "report.json"));
 }
 
 TEST(Cli, ReportsConfigAndOutputErrorsWhenGenerating) {
