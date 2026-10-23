@@ -1,10 +1,10 @@
 #include "terraingen/albedo/raster_albedo.h"
 
-#include "terraingen/albedo/brightness_statistics.h"
 #include "terraingen/noise/hash.h"
 #include "terraingen/noise/perlin.h"
 #include "terraingen/noise/structure_function.h"
 #include "terraingen/random/streams.h"
+#include "terraingen/raster/variogram.h"
 #include "terraingen/util/checks.h"
 
 #include <algorithm>
@@ -21,8 +21,24 @@ namespace {
 /// Step between the seeds of successive detail octaves (2^32 over the golden ratio).
 constexpr std::uint32_t kOctaveSeedStep = 0x9e3779b9u;
 
-/// The lags, in cells, the map's structure function is measured at.
-constexpr std::array<std::size_t, 4> kLags{1, 2, 4, 8};
+/// The logarithm of the mean of the bands at each cell, NaN where a band has no data or is not
+/// positive.
+Raster<float> LogBrightness(const std::vector<Raster<float>>& bands) {
+    Raster<float> logs(bands.front().Width(), bands.front().Height());
+    for (std::size_t row = 0; row < logs.Height(); ++row) {
+        for (std::size_t col = 0; col < logs.Width(); ++col) {
+            double sum = 0.0;
+            for (const Raster<float>& band : bands) {
+                const float value = band(col, row);
+                sum += band.IsNoData(value) || !std::isfinite(value) || value <= 0.0f
+                           ? std::numeric_limits<double>::quiet_NaN()
+                           : static_cast<double>(value);
+            }
+            logs(col, row) = static_cast<float>(std::log(sum / static_cast<double>(bands.size())));
+        }
+    }
+    return logs;
+}
 
 /// The RMS of `PerlinNoise2` over a fixed set of points, so octaves can be given an RMS.
 double PerlinRms() {
@@ -80,22 +96,11 @@ RasterAlbedo::RasterAlbedo(std::vector<Raster<float>> bands, RasterAlbedoOptions
 }
 
 void RasterAlbedo::MeasureRoughness() {
-    const std::size_t width = bands_.front().Width();
-    const std::size_t height = bands_.front().Height();
-    const std::vector<double> logs = LogBrightnessGrid(bands_);
-    std::vector<double> logLags;
-    std::vector<double> logStructure;
-    for (const std::size_t lag : kLags) {
-        if (const std::optional<double> structure = StructureFunction(logs, width, height, lag)) {
-            logLags.push_back(std::log(static_cast<double>(lag)));
-            logStructure.push_back(std::log(*structure));
-        }
-    }
-    if (!logLags.empty() && logLags.front() == 0.0) {
-        roughness_ = std::sqrt(0.5 * std::exp(logStructure.front()));
-    }
-    if (logLags.size() >= 2) {
-        hurst_ = std::clamp(0.5 * FitSlope(logLags, logStructure), 0.0, 1.0);
+    const Raster<float> logs = LogBrightness(bands_);
+    const DeviogramFit fit = FitDeviogram(logs);
+    roughness_ = fit.cellRms / std::sqrt(2.0);
+    if (fit.lags >= 2) {
+        hurst_ = std::clamp(fit.slope, 0.0, 1.0);
     }
 }
 

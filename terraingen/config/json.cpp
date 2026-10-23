@@ -1,11 +1,13 @@
 #include "terraingen/config/fields/json_io.h"
 
 #include "terraingen/sources/upsampling.h"
+#include "terraingen/util/text.h"
 
 #include <array>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -235,10 +237,8 @@ bool operator!=(const TerrainGenConfig& a, const TerrainGenConfig& b) {
 }
 
 ListFormat InferListFormat(std::string_view path) {
-    constexpr std::string_view suffix = ".json";
-    const bool json =
-        path.size() >= suffix.size() && path.substr(path.size() - suffix.size()) == suffix;
-    return json ? ListFormat::Json : ListFormat::Csv;
+    return HasExtension(std::filesystem::path(path), {".json"}) ? ListFormat::Json
+                                                                : ListFormat::Csv;
 }
 
 std::string LayerType(const LayerSpec& layer) {

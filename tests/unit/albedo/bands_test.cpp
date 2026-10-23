@@ -87,3 +87,12 @@ TEST(LifeLeft, FallsFromOneToZeroOverTheLifetime) {
     EXPECT_DOUBLE_EQ(terraingen::LifeLeft(0.005, 10.0), 0.5);
     EXPECT_LT(terraingen::LifeLeft(0.02, 10.0), 0.0);
 }
+
+TEST(ChangeOverlay, LetsEachLayerCoverWhatTheOnesAboveLeaveShowing) {
+    terraingen::ChangeOverlay overlay;
+    EXPECT_EQ(overlay.Change(), 0.0);
+    overlay.Add(0.5, 0.2);
+    overlay.Add(1.0, -0.1);
+    overlay.Add(1.0, 0.4);
+    EXPECT_DOUBLE_EQ(overlay.Change(), 0.5 * 0.2 + 0.5 * -0.1);
+}

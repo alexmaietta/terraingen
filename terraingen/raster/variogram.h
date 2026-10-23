@@ -16,6 +16,7 @@ struct DeviogramFit {
     int lags = 0;            ///< Lags the line was fitted over; the slope needs at least 2.
     double slope = 0.0;      ///< The Hurst exponent H, unclamped.
     double intercept = 0.0;  ///< log2 of the RMS height difference at a lag of one cell.
+    double cellRms = 0.0;  ///< The measured RMS difference at one cell; 0 without pairs or relief.
 };
 
 /// The deviogram of `heights` (the root mean squared difference of cells a lag apart along rows

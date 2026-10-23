@@ -10,6 +10,7 @@ terraingen_add_test_suite(
     resample_test.cpp
     spectrum_test.cpp
     tiff_format_test.cpp
+    variogram_test.cpp
     LIBRARIES
     terraingen::raster
     terraingen::random)

@@ -346,49 +346,49 @@ void SplotchAlbedo::AddSwarms(const Bounds2d& region, double spacing,
     }
 }
 
-std::vector<Splotch> SplotchAlbedo::Swarm(const Crater& crater, double spacing) const {
-    const SplotchAlbedoOptions& o = options_;
-    const SplotchSwarms& s = o.swarms;
+Splotch SplotchAlbedo::DrawSwarmSplotch(RandomStream& random, const Crater& crater,
+                                        std::uint64_t index) const {
+    const SplotchSwarms& s = options_.swarms;
     const double a = 1.5 * s.mu;
     const double near = std::pow(s.minRange, -a);
     const double far = std::pow(s.maxRange, -a);
-    std::vector<Splotch> splotches;
+    const double range = std::pow(near - random.NextDouble() * (near - far), -1.0 / a);
+    const double azimuth = 2.0 * kPi * random.NextDouble();
+    const double s1 = random.NextDouble();
+    const double s2 = random.NextDouble();
+    const double kind = random.NextDouble();
+    const double d1 = random.NextDouble();
+    const double d2 = random.NextDouble();
+    const double b1 = random.NextDouble();
+    const double b2 = random.NextDouble();
+    Splotch splotch;
+    splotch.split = 2.0 * kPi * random.NextDouble();
+    splotch.key = random.NextU32();
+    splotch.wedge = random.NextDouble() < s.wedgeShare;
+    const Vec2d at = surface_.Locate({crater.x, crater.y},
+                                     {range * std::cos(azimuth), range * std::sin(azimuth)});
+    splotch.mark = {at.x, at.y, s.splotchDiameter.Sample(s1, s2), crater.ageGyr,
+                    crater.id ^ ((index + 1) * 0x9E3779B97F4A7C15ull)};
+    SetSides(splotch, kind, s.darkShare, s.brightShare, s.darkChange.Sample(d1, d2),
+             s.brightChange.Sample(b1, b2));
+    if (splotch.wedge) {
+        const Vec2d back = surface_.Offset(at, {crater.x, crater.y});
+        splotch.elongation = s.wedgeElongation;
+        splotch.heading = std::atan2(back.y, back.x);
+    }
+    return splotch;
+}
+
+std::vector<Splotch> SplotchAlbedo::Swarm(const Crater& crater, double spacing) const {
     const IdWords id = SplitId(crater.id);
-    RandomStream random(o.seed, kSplotchSwarmStream, id.low, id.high);
-    const std::uint64_t count = SamplePoisson(random, s.Count(crater.diameter));
+    RandomStream random(options_.seed, kSplotchSwarmStream, id.low, id.high);
+    const std::uint64_t count = SamplePoisson(random, options_.swarms.Count(crater.diameter));
+    std::vector<Splotch> splotches;
     for (std::uint64_t i = 0; i < count; ++i) {
-        const double range = std::pow(near - random.NextDouble() * (near - far), -1.0 / a);
-        const double azimuth = 2.0 * kPi * random.NextDouble();
-        const double s1 = random.NextDouble();
-        const double s2 = random.NextDouble();
-        const double kind = random.NextDouble();
-        const double d1 = random.NextDouble();
-        const double d2 = random.NextDouble();
-        const double b1 = random.NextDouble();
-        const double b2 = random.NextDouble();
-        const double split = 2.0 * kPi * random.NextDouble();
-        const std::uint32_t key = random.NextU32();
-        const bool wedge = random.NextDouble() < s.wedgeShare;
-        const double size = s.splotchDiameter.Sample(s1, s2);
-        if (ResolutionWeight(size, spacing, o.fade) == 0.0) {
-            continue;
+        const Splotch splotch = DrawSwarmSplotch(random, crater, i);
+        if (ResolutionWeight(splotch.mark.diameter, spacing, options_.fade) > 0.0) {
+            splotches.push_back(splotch);
         }
-        const Vec2d at = surface_.Locate({crater.x, crater.y},
-                                         {range * std::cos(azimuth), range * std::sin(azimuth)});
-        Splotch splotch;
-        splotch.mark = {at.x, at.y, size, crater.ageGyr,
-                        crater.id ^ ((i + 1) * 0x9E3779B97F4A7C15ull)};
-        SetSides(splotch, kind, s.darkShare, s.brightShare, s.darkChange.Sample(d1, d2),
-                 s.brightChange.Sample(b1, b2));
-        splotch.split = split;
-        splotch.key = key;
-        if (wedge) {
-            const Vec2d back = surface_.Offset(at, {crater.x, crater.y});
-            splotch.wedge = true;
-            splotch.elongation = s.wedgeElongation;
-            splotch.heading = std::atan2(back.y, back.x);
-        }
-        splotches.push_back(splotch);
     }
     return splotches;
 }
@@ -399,8 +399,7 @@ double SplotchAlbedo::Change(const Splotch& splotch, double x, double y, double 
 
 double SplotchAlbedo::ChangeAt(const std::vector<const Splotch*>& splotches, double x, double y,
                                double spacing) const {
-    double change = 0.0;
-    double open = 1.0;
+    ChangeOverlay overlay;
     for (const Splotch* splotch : splotches) {
         const Vec2d offset = surface_.Offset({splotch->mark.x, splotch->mark.y}, {x, y});
         const double cover = Cover(*splotch, offset, options_);
@@ -408,13 +407,11 @@ double SplotchAlbedo::ChangeAt(const std::vector<const Splotch*>& splotches, dou
             continue;
         }
         const double left = LifeLeft(splotch->mark.ageGyr, options_.lifetimeMyr);
-        const double strength = std::fmax(0.0, left) * cover;
-        change += open * strength *
-                  ResolutionWeight(splotch->mark.diameter, spacing, options_.fade) *
-                  SideChange(*splotch, offset);
-        open *= 1.0 - strength;
+        overlay.Add(std::fmax(0.0, left) * cover,
+                    ResolutionWeight(splotch->mark.diameter, spacing, options_.fade) *
+                        SideChange(*splotch, offset));
     }
-    return change;
+    return overlay.Change();
 }
 
 void SplotchAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,

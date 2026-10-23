@@ -1,4 +1,3 @@
-#include "terraingen/albedo/brightness_statistics.h"
 #include "terraingen/terraingen.h"
 
 #include <gtest/gtest.h>
@@ -364,24 +363,6 @@ TEST(RasterAlbedo, AddsDetailInMetersOnASphere) {
     const auto bands = EvaluateAlbedo(composed, grid, {0.0, 2});
     const auto center = bands[0].CellCenter(17, 23);
     EXPECT_EQ(EvaluateAlbedoAt(composed, center.x, center.y, {100.0 / 8.0})[0], bands[0](17, 23));
-}
-
-TEST(RasterAlbedoStatistics, MeasureTheMapsLogBrightness) {
-    terraingen::Raster<float> red(3, 2, 1.0f);
-    terraingen::Raster<float> green(3, 2, 3.0f);
-    green.SetNoData(0.0f);
-    green(2, 1) = 0.0f;
-    const std::vector<double> logs = terraingen::LogBrightnessGrid({red, green});
-    ASSERT_EQ(logs.size(), 6u);
-    EXPECT_DOUBLE_EQ(logs[0], std::log(2.0));
-    EXPECT_TRUE(std::isnan(logs[5]));
-
-    const std::vector<double> ramp{0.0, 1.0, 2.0, 3.0, 4.0, 5.0};
-    EXPECT_DOUBLE_EQ(*terraingen::StructureFunction(ramp, 3, 2, 1), (4.0 + 3.0 * 9.0) / 7.0);
-    EXPECT_FALSE(terraingen::StructureFunction(ramp, 3, 2, 3)) << "no pairs that far apart";
-    EXPECT_FALSE(terraingen::StructureFunction(std::vector<double>(6, 1.0), 3, 2, 1))
-        << "a uniform map";
-    EXPECT_DOUBLE_EQ(terraingen::FitSlope({0.0, 1.0, 2.0}, {1.0, 3.0, 5.0}), 2.0);
 }
 
 TEST(ForEachAlbedoBlock, PreparesEachBlockOnceAndVisitsItsCells) {

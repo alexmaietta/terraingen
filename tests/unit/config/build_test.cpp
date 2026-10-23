@@ -720,6 +720,8 @@ TEST(InferListFormat, FollowsTheJsonExtension) {
     EXPECT_EQ(terraingen::InferListFormat("craters.csv"), terraingen::ListFormat::Csv);
     EXPECT_EQ(terraingen::InferListFormat("craters"), terraingen::ListFormat::Csv);
     EXPECT_EQ(terraingen::InferListFormat("json"), terraingen::ListFormat::Csv);
+    EXPECT_EQ(terraingen::InferListFormat("a/CRATERS.JSON"), terraingen::ListFormat::Json);
+    EXPECT_EQ(terraingen::InferListFormat("craters.Json"), terraingen::ListFormat::Json);
 }
 
 namespace {

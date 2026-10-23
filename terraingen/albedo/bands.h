@@ -22,6 +22,26 @@ void ScaleBands(AlbedoSample& value, std::size_t bands, double factor);
 /// 0; NaN stays NaN and a change of 0 leaves them alone.
 void ChangeBands(AlbedoSample& value, std::size_t bands, double change);
 
+/// Relative reflectance changes laid over one another, the first on top: each covers its share of
+/// what the ones before it leave showing.
+class ChangeOverlay {
+  public:
+    /// Lays down a layer covering `cover` (in [0, 1]) of what shows, changing it by `change` there.
+    void Add(double cover, double change) {
+        change_ += open_ * cover * change;
+        open_ *= 1.0 - cover;
+    }
+
+    /// The summed relative change.
+    double Change() const {
+        return change_;
+    }
+
+  private:
+    double change_ = 0.0;
+    double open_ = 1.0;
+};
+
 /// Moves the first `bands` values of `value` from optical maturity `reference` to `maturity`
 /// (`ReflectanceAtMaturity`), then multiplies them by `factor`; NaN stays NaN.
 void MatureBands(AlbedoSample& value, std::size_t bands, double reference, double maturity,

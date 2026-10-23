@@ -5,6 +5,7 @@
 #include "terraingen/albedo/albedo.h"
 #include "terraingen/layers/craters/crater.h"
 #include "terraingen/layers/fade.h"
+#include "terraingen/random/stream.h"
 #include "terraingen/random/value_distribution.h"
 #include "terraingen/util/cells.h"
 #include "terraingen/util/surface.h"
@@ -172,6 +173,8 @@ class SplotchAlbedo final : public AlbedoLayer {
     void DrawSides(Splotch& splotch, double slopeDegrees) const;
     /// Adds the splotches of the swarms reaching `region` to `splotches`.
     void AddSwarms(const Bounds2d& region, double spacing, std::vector<Splotch>& splotches) const;
+    /// The `index`th splotch of the swarm `crater` throws, its draws the next of `random`.
+    Splotch DrawSwarmSplotch(RandomStream& random, const Crater& crater, std::uint64_t index) const;
     /// The change of `splotches`, youngest first, at (`x`, `y`).
     double ChangeAt(const std::vector<const Splotch*>& splotches, double x, double y,
                     double spacing) const;

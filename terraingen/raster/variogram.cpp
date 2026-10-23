@@ -49,12 +49,16 @@ DeviogramFit FitDeviogram(const Raster<float>& heights) {
     double sumXX = 0.0;
     double sumXY = 0.0;
     int lags = 0;
+    double cellRms = 0.0;
     for (std::size_t lag = 1; lag <= kMaxVariogramLag; lag *= 2) {
         const auto [variogram, pairs] = Variogram(heights, lag);
         if (pairs == 0 || !(variogram > 0.0)) {
             break;
         }
         const double x = std::log2(static_cast<double>(lag));
+        if (lag == 1) {
+            cellRms = std::sqrt(variogram);
+        }
         const double y = 0.5 * std::log2(variogram);
         sumX += x;
         sumY += y;
@@ -64,6 +68,7 @@ DeviogramFit FitDeviogram(const Raster<float>& heights) {
     }
     DeviogramFit fit;
     fit.lags = lags;
+    fit.cellRms = cellRms;
     if (lags >= 2) {
         fit.slope = (lags * sumXY - sumX * sumY) / (lags * sumXX - sumX * sumX);
         fit.intercept = (sumY - fit.slope * sumX) / lags;

@@ -3,9 +3,12 @@
 #include "terraingen/layers/fade.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <optional>
+#include <utility>
 
 namespace terraingen::detail {
 
@@ -64,33 +67,54 @@ void ShadowProfile::TraceJets(const std::vector<float>& heights, double drop) {
     }
 }
 
-RayWindow RaysOver(const Vec2d& center, const Bounds2d& region, const Surface& surface,
-                   std::size_t azimuths) {
-    RayWindow window;
-    window.rays = azimuths;
+namespace {
+
+/// The offsets from `center` of the corners of `region`.
+std::array<Vec2d, 4> CornerOffsets(const Vec2d& center, const Bounds2d& region,
+                                   const Surface& surface) {
+    return {surface.Offset(center, {region.minX, region.minY}),
+            surface.Offset(center, {region.minX, region.maxY}),
+            surface.Offset(center, {region.maxX, region.minY}),
+            surface.Offset(center, {region.maxX, region.maxY})};
+}
+
+/// The middle direction of `corners` and the largest angle of any of them from it, in radians;
+/// nothing when the corners surround the center.
+std::optional<std::pair<double, double>> AngleSpan(const std::array<Vec2d, 4>& corners) {
     constexpr double kInf = std::numeric_limits<double>::infinity();
     Bounds2d box{kInf, kInf, -kInf, -kInf};
-    std::vector<Vec2d> corners;
-    for (const double x : {region.minX, region.maxX}) {
-        for (const double y : {region.minY, region.maxY}) {
-            const Vec2d c = surface.Offset(center, {x, y});
-            corners.push_back(c);
-            box = {std::fmin(box.minX, c.x), std::fmin(box.minY, c.y), std::fmax(box.maxX, c.x),
-                   std::fmax(box.maxY, c.y)};
-            window.far = std::fmax(window.far, std::hypot(c.x, c.y));
-        }
+    for (const Vec2d& c : corners) {
+        box = {std::fmin(box.minX, c.x), std::fmin(box.minY, c.y), std::fmax(box.maxX, c.x),
+               std::fmax(box.maxY, c.y)};
     }
     if (box.minX <= 0.0 && box.maxX >= 0.0 && box.minY <= 0.0 && box.maxY >= 0.0) {
-        return window;
+        return std::nullopt;
     }
     const double mid = std::atan2(0.5 * (box.minY + box.maxY), 0.5 * (box.minX + box.maxX));
     double half = 0.0;
     for (const Vec2d& c : corners) {
         half = std::fmax(half, std::fabs(std::remainder(std::atan2(c.y, c.x) - mid, 2.0 * kPi)));
     }
+    return std::pair{mid, half};
+}
+
+}  // namespace
+
+RayWindow RaysOver(const Vec2d& center, const Bounds2d& region, const Surface& surface,
+                   std::size_t azimuths) {
+    const std::array<Vec2d, 4> corners = CornerOffsets(center, region, surface);
+    RayWindow window;
+    window.rays = azimuths;
+    for (const Vec2d& c : corners) {
+        window.far = std::fmax(window.far, std::hypot(c.x, c.y));
+    }
+    const auto span = AngleSpan(corners);
+    if (!span) {
+        return window;
+    }
     const double ray = 2.0 * kPi / static_cast<double>(azimuths);
-    const double from = std::floor((mid - half) / ray) - 1.0;
-    const double to = std::ceil((mid + half) / ray) + 1.0;
+    const double from = std::floor((span->first - span->second) / ray) - 1.0;
+    const double to = std::ceil((span->first + span->second) / ray) + 1.0;
     if (to - from + 1.0 >= static_cast<double>(azimuths)) {
         return window;
     }
@@ -102,6 +126,7 @@ RayWindow RaysOver(const Vec2d& center, const Bounds2d& region, const Surface& s
 
 ShadowProfile MakeShadowProfile(const ZoneShadows& shadows, double radius, double reach,
                                 const RayWindow& window) {
+
     ShadowProfile profile;
     profile.azimuths = static_cast<std::size_t>(shadows.azimuths);
     profile.samples = static_cast<std::size_t>(shadows.radialSamples);
