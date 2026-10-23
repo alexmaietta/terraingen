@@ -1,6 +1,6 @@
 """Hand-placed craters given an explicit rim-to-floor depth, one with its rim height as well.
 
-The craters lie on a small flat site under the Martin-Parkes-Dunstan profile, which honours both;
+The craters lie on a small flat site under the Martin-Parkes-Dunstan profile, which honors both;
 one more crater gives only its diameter and takes its depth from the degradation model. The same
 terrain as examples/config/craters/example_craters_manual_depth.json.
 

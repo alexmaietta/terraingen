@@ -1,8 +1,8 @@
 #include "support/raster_equality.h"
 #include "terraingen/sources/geotiff_source.h"
 
-#include "support/resample.h"
 #include "support/gdal_fixtures.h"
+#include "support/resample.h"
 #include "support/temp_path.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/geotiff/tiff_format.h"

@@ -47,7 +47,7 @@ def test_values_view_keeps_the_raster_alive():
     assert np.all(view == 3.0)
 
 
-def test_asarray_shares_memory_and_honours_dtype_and_copy():
+def test_asarray_shares_memory_and_honors_dtype_and_copy():
     raster = terraingen.Raster(3, 2, 1.0)
     assert np.shares_memory(np.asarray(raster), raster.values)
     assert np.asarray(raster, dtype=np.float64).dtype == np.float64

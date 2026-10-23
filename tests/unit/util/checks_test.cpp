@@ -55,7 +55,6 @@ TEST(Checks, RequirementsNameTheValueInTheirMessages) {
               "Shares must be in [0, 1]");
 }
 
-
 TEST(Checks, RequireDiameterRejectsDiametersOutsideAnyModelsDomain) {
     EXPECT_NO_THROW(terraingen::RequireDiameter(4.0));
     for (const double diameter : {0.0, -1.0, kInf, kNaN}) {

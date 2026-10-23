@@ -239,7 +239,7 @@ def test_raster_source_matches_a_geotiff_source_of_the_same_heights(tmp_path, co
     assert in_memory.upsampler.options.scale == 0.5
 
 
-def test_raster_source_honours_nodata_and_rejects_bad_options():
+def test_raster_source_honors_nodata_and_rejects_bad_options():
     heights = np.arange(12, dtype=np.float32).reshape(3, 4)
     heights[1, 2] = -9999.0
     source = terraingen.RasterSource(

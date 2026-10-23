@@ -93,7 +93,7 @@ struct Albedo {
 std::vector<Raster<float>> EvaluateAlbedo(const Albedo& albedo, const RasterGrid& grid,
                                           AlbedoContext context);
 
-/// The albedo at world point (`x`, `y`): the cell centerd there of `EvaluateAlbedo` over a grid
+/// The albedo at world point (`x`, `y`): the cell centered there of `EvaluateAlbedo` over a grid
 /// of `context.spacing`, to the same bits.
 /// @throws std::invalid_argument as `EvaluateAlbedo`.
 AlbedoSample EvaluateAlbedoAt(const Albedo& albedo, double x, double y,
