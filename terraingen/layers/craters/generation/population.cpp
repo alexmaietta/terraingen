@@ -169,9 +169,17 @@ class Generation {
         for (const BandPlan& entry : plan) {
             const BandRegion region = BandBounds(entry.band);
             for (const CellIndex& cell : entry.cells) {
-                const std::shared_ptr<const CraterList> drawn = DrawCell(entry.band, cell);
-                for (std::size_t n = 0; n < drawn->Size(); ++n) {
-                    const Crater crater = drawn->At(n);
+                const std::shared_ptr<const CellCraters> drawn = DrawCell(entry.band, cell);
+                const CraterList& list = drawn->craters;
+                const Bounds2d reach =
+                    drawn->maxDiameter > entry.band.high
+                        ? surface_.Expand(region_, CandidateMargin(drawn->maxDiameter))
+                        : region.outer;
+                for (const std::uint32_t n : drawn->Rows(reach.minY, reach.maxY)) {
+                    if (OutsideBand(region, list.Diameters()[n], list.X()[n], list.Y()[n])) {
+                        continue;
+                    }
+                    const Crater crater = list.At(n);
                     if (InBandRegion(region, crater) && Kept(crater)) {
                         craters.Append(crater);
                     }
@@ -192,6 +200,13 @@ class Generation {
     BandRegion BandBounds(const CraterBand& band) const {
         return {band, surface_.Expand(region_, CandidateMargin(band.low)),
                 surface_.Expand(region_, CandidateMargin(band.high))};
+    }
+
+    /// Whether a crater of the band lies outside its outer region, which `InBandRegion` rejects
+    /// first; tested on the list's columns before the crater is copied out.
+    bool OutsideBand(const BandRegion& region, double diameter, double x, double y) const {
+        return diameter >= region.band.low && diameter <= region.band.high &&
+               !surface_.Contains(region.outer, {x, y});
     }
 
     /// `InRegion` with the crater's candidate margin, expanding the region only for craters of the
@@ -223,12 +238,12 @@ class Generation {
         return random.NextDouble() < options_.keepShare(crater);
     }
 
-    std::shared_ptr<const CraterList> DrawCell(const CraterBand& band,
-                                               const CellIndex& cell) const {
+    std::shared_ptr<const CellCraters> DrawCell(const CraterBand& band,
+                                                const CellIndex& cell) const {
         if (options_.cellCraters) {
             return options_.cellCraters(band, cell);
         }
-        return std::make_shared<const CraterList>(
+        return std::make_shared<const CellCraters>(
             GenerateCellCraters(cells_, band, cell, density_, ages_, seed_));
     }
 
@@ -305,6 +320,29 @@ std::vector<CraterBand> CraterBands(double dMin, double dMax, double cellSizeFac
         bands.push_back({k, low, high, cellSizeFactor * std::ldexp(1.0, k + 1)});
     }
     return bands;
+}
+
+CellCraters::CellCraters(CraterList list) : craters(std::move(list)), byY(craters.Size()) {
+    const std::vector<double>& y = craters.Y();
+    for (std::uint32_t n = 0; n < byY.size(); ++n) {
+        byY[n] = n;
+    }
+    std::stable_sort(byY.begin(), byY.end(),
+                     [&y](std::uint32_t a, std::uint32_t b) { return y[a] < y[b]; });
+    for (const double diameter : craters.Diameters()) {
+        maxDiameter = std::fmax(maxDiameter, diameter);
+    }
+}
+
+std::vector<std::uint32_t> CellCraters::Rows(double minY, double maxY) const {
+    const std::vector<double>& y = craters.Y();
+    const auto first = std::lower_bound(
+        byY.begin(), byY.end(), minY, [&y](std::uint32_t n, double value) { return y[n] < value; });
+    const auto last = std::upper_bound(
+        first, byY.end(), maxY, [&y](double value, std::uint32_t n) { return value < y[n]; });
+    std::vector<std::uint32_t> rows(first, last);
+    std::sort(rows.begin(), rows.end());
+    return rows;
 }
 
 CraterList GenerateCellCraters(const SurfaceCells& cells, const CraterBand& band,

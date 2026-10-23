@@ -26,8 +26,8 @@ class CraterCellCache {
     explicit CraterCellCache(std::size_t maxCraters = 4000000);
 
     /// The craters of `cell` in the band of `exponent`, drawn by `generate` when not held.
-    std::shared_ptr<const CraterList> Get(int exponent, const CellIndex& cell,
-                                          const std::function<CraterList()>& generate) {
+    std::shared_ptr<const CellCraters> Get(int exponent, const CellIndex& cell,
+                                           const std::function<CellCraters()>& generate) {
         return cache_.Get({exponent, cell.i, cell.j}, generate);
     }
 
@@ -48,7 +48,7 @@ class CraterCellCache {
         std::size_t operator()(const Key& key) const;
     };
 
-    LruCache<Key, CraterList, KeyHash> cache_;
+    LruCache<Key, CellCraters, KeyHash> cache_;
 };
 
 /// A source for `CraterGenerationOptions::cellCraters` that draws each cell with

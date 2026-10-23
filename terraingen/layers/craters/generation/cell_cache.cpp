@@ -14,7 +14,7 @@ std::size_t CraterCellCache::KeyHash::operator()(const Key& key) const {
 
 CraterCellCache::CraterCellCache(std::size_t maxCraters)
     : cache_(
-          maxCraters, [](const CraterList& craters) { return craters.Size(); },
+          maxCraters, [](const CellCraters& cell) { return cell.craters.Size(); },
           [maxCraters](std::size_t evicted) {
               LogDebug("craters", "Crater cache evicted ", evicted, " cells to stay within ",
                        maxCraters, " craters");
@@ -25,7 +25,7 @@ CellCraterSource CachedCellCraters(CraterCellCache& cache, const SurfaceCells& c
                                    const CraterAgeModel& ages, std::uint32_t seed) {
     return [&cache, &cells, &density, &ages, seed](const CraterBand& band, const CellIndex& cell) {
         return cache.Get(band.exponent, cell, [&] {
-            return GenerateCellCraters(cells, band, cell, density, ages, seed);
+            return CellCraters(GenerateCellCraters(cells, band, cell, density, ages, seed));
         });
     };
 }

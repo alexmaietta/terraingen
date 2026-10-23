@@ -31,13 +31,13 @@ TEST(CraterCellCache, GeneratesEachCellOnceAndReturnsTheHeldCraters) {
     int calls = 0;
     const auto generate = [&] {
         ++calls;
-        return Cell(3, 5);
+        return terraingen::CellCraters(Cell(3, 5));
     };
     const auto first = cache.Get(2, CellIndex{3, 4}, generate);
     const auto again = cache.Get(2, CellIndex{3, 4}, generate);
     EXPECT_EQ(calls, 1);
     EXPECT_EQ(first, again);
-    EXPECT_EQ(first->Size(), 5u);
+    EXPECT_EQ(first->craters.Size(), 5u);
     cache.Get(3, CellIndex{3, 4}, generate);
     EXPECT_EQ(calls, 2) << "another band is another cell";
 }
@@ -45,15 +45,15 @@ TEST(CraterCellCache, GeneratesEachCellOnceAndReturnsTheHeldCraters) {
 TEST(CraterCellCache, StaysWithinItsBudgetByEvictingTheLeastRecentlyUsed) {
     CraterCellCache cache(160);
     for (int i = 0; i < 400; ++i) {
-        cache.Get(0, CellIndex{i, 0}, [&] { return Cell(i, 4); });
+        cache.Get(0, CellIndex{i, 0}, [&] { return terraingen::CellCraters(Cell(i, 4)); });
     }
     int calls = 0;
     const auto craters = cache.Get(0, CellIndex{0, 0}, [&] {
         ++calls;
-        return Cell(0, 4);
+        return terraingen::CellCraters(Cell(0, 4));
     });
     EXPECT_EQ(calls, 1) << "an evicted cell is generated again";
-    EXPECT_EQ(craters->At(0).x, 0.0);
+    EXPECT_EQ(craters->craters.At(0).x, 0.0);
     EXPECT_THROW(CraterCellCache(0), std::invalid_argument);
 }
 
@@ -67,7 +67,7 @@ TEST(CachedCellCraters, DrawsEachCellOnceAsGenerateCellCratersWould) {
     const terraingen::CraterBand band = terraingen::CraterBands(4.0, 8.0, 16.0).front();
     const CellIndex cell{1, -2};
     const auto first = source(band, cell);
-    EXPECT_EQ(first->Ids(),
+    EXPECT_EQ(first->craters.Ids(),
               terraingen::GenerateCellCraters(cells, band, cell, density, ages, 4u).Ids());
     EXPECT_EQ(source(band, cell).get(), first.get()) << "held in the cache";
 }
@@ -92,7 +92,7 @@ TEST(GenerateCachedCraters, GeneratesTheSameCratersWithOrWithoutACache) {
     const auto again =
         cache.Get(terraingen::CraterBands(4.0, 16.0, 16.0).front().exponent, CellIndex{0, 0}, [&] {
             ++calls;
-            return CraterList{};
+            return terraingen::CellCraters(CraterList{});
         });
     EXPECT_EQ(calls, 0) << "the cached generation filled the cache";
 }

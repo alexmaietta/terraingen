@@ -50,10 +50,24 @@ CraterList GenerateCellCraters(const SurfaceCells& cells, const CraterBand& band
                                const CellIndex& cell, const SizeFrequencyDistribution& density,
                                const CraterAgeModel& ages, std::uint32_t seed);
 
+/// The craters of one cell in the order drawn, with their indices ordered by y so the craters of a
+/// row range are found by binary search.
+struct CellCraters {
+    CraterList craters;
+    std::vector<std::uint32_t> byY;  ///< Indices into `craters` by increasing y, then index.
+    double maxDiameter = 0.0;        ///< The largest diameter, in meters; 0 without craters.
+
+    /// Indexes `craters` by y.
+    explicit CellCraters(CraterList craters);
+
+    /// The indices, in drawn order, of the craters with y in [`minY`, `maxY`].
+    std::vector<std::uint32_t> Rows(double minY, double maxY) const;
+};
+
 /// Supplies the craters of one cell of one band as `GenerateCellCraters` would, for example from
 /// a cache; must be thread-safe.
-using CellCraterSource =
-    std::function<std::shared_ptr<const CraterList>(const CraterBand& band, const CellIndex& cell)>;
+using CellCraterSource = std::function<std::shared_ptr<const CellCraters>(const CraterBand& band,
+                                                                          const CellIndex& cell)>;
 
 /// The share of generated craters like `crater` that `GenerateCraters` keeps, in [0, 1].
 using CraterKeepShare = std::function<double(const Crater& crater)>;

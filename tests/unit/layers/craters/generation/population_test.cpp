@@ -448,6 +448,20 @@ TEST(CountLimitDiameter, InvertsTheExpectedCount) {
                  std::invalid_argument);
 }
 
+TEST(CellCraters, RowsGiveTheCratersInAYRangeInDrawnOrder) {
+    terraingen::CraterList list;
+    for (const double y : {5.0, -2.0, 3.0, 3.0, 9.0, -7.0}) {
+        list.Append({0.0, y, 1.0 + y * y, 0.5, 1u});
+    }
+    const terraingen::CellCraters cell(list);
+    EXPECT_EQ(cell.Rows(-2.0, 5.0), (std::vector<std::uint32_t>{0, 1, 2, 3}));
+    EXPECT_EQ(cell.Rows(3.0, 3.0), (std::vector<std::uint32_t>{2, 3}));
+    EXPECT_TRUE(cell.Rows(10.0, 20.0).empty());
+    EXPECT_EQ(cell.Rows(-100.0, 100.0).size(), 6u);
+    EXPECT_EQ(cell.maxDiameter, 82.0);
+    EXPECT_TRUE(terraingen::CellCraters(terraingen::CraterList{}).Rows(-1.0, 1.0).empty());
+}
+
 TEST(GenerateCraters, CellCraterSourcesGiveTheSameCraters) {
     const terraingen::PowerLawSfd density(0.05, 2.0);
     const terraingen::UniformAges ages(1.0);
@@ -462,7 +476,7 @@ TEST(GenerateCraters, CellCraterSourcesGiveTheSameCraters) {
         options.cellCraters = [&](const terraingen::CraterBand& band,
                                   const terraingen::CellIndex& cell) {
             ++calls;
-            return std::make_shared<const terraingen::CraterList>(terraingen::GenerateCellCraters(
+            return std::make_shared<const terraingen::CellCraters>(terraingen::GenerateCellCraters(
                 terraingen::PlanarCells(), band, cell, density, ages, 5u));
         };
         const auto supplied = terraingen::GenerateCraters(terraingen::PlanarCells(), region,
@@ -484,13 +498,18 @@ TEST(GenerateCraters, CellCraterSourcesOutsideTheirBandKeepCratersWithinTheirOwn
         terraingen::CraterList craters;
         craters.Append({region.maxX + 140.0, 0.0, 200.0, 0.5, 1u});
         craters.Append({region.maxX + 160.0, 0.0, 200.0, 0.5, 2u});
-        return std::make_shared<const terraingen::CraterList>(craters);
+        craters.Append({0.0, region.maxY + 140.0, 200.0, 0.5, 3u});
+        craters.Append({0.0, region.maxY + 160.0, 200.0, 0.5, 4u});
+        return std::make_shared<const terraingen::CellCraters>(craters);
     };
     const auto craters =
         terraingen::GenerateCraters(terraingen::PlanarCells(), region, density, ages, 5u, options);
     EXPECT_GT(calls, 0);
     EXPECT_EQ(std::count(craters.Ids().begin(), craters.Ids().end(), 1u), calls);
     EXPECT_EQ(std::count(craters.Ids().begin(), craters.Ids().end(), 2u), 0);
+    EXPECT_EQ(std::count(craters.Ids().begin(), craters.Ids().end(), 3u), calls)
+        << "beyond every band's rows, but within its own margin";
+    EXPECT_EQ(std::count(craters.Ids().begin(), craters.Ids().end(), 4u), 0);
 }
 
 TEST(GenerateCraters, SkippingUnresolvedBandsKeepsEveryResolvedCrater) {

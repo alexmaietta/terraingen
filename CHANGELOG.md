@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Point queries on a body find the cells around them directly from the neighbors of the cell holding the point, instead of sampling the region: about 1.8x faster on a sphere, within 1.2x of a plane.
+- Generated cells keep their craters indexed by y, so a point query visits only the craters in its rows instead of copying every crater of the cells around it: point queries about 2x faster on a plane and 1.5x on a sphere.
 
 - `terraingen schema` prints the configuration schema (`ConfigSchema`); the catalog of types with their defaults stays available as Python `config_catalog()`.
 - Every number in a configuration must be finite, and such errors name the number itself, such as `layers[1].manual[0].x`.
