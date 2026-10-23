@@ -2,17 +2,20 @@
 /// @brief `EjectaIndex`, craters bucketed by the discs their ejecta reach.
 #pragma once
 
+#include "terraingen/layers/craters/band_buckets.h"
 #include "terraingen/layers/craters/crater.h"
 #include "terraingen/util/surface.h"
 
 #include <cstdint>
 #include <functional>
+#include <memory>
+#include <optional>
 #include <vector>
 
 namespace terraingen {
 
-/// Craters bucketed on a plane by the discs their ejecta reach, so that the craters able to reach
-/// a point are found without visiting all of them. On a body every crater is a candidate.
+/// Craters bucketed by the discs their ejecta reach (`BandBuckets`, one band per power of two of
+/// reach), so the craters able to reach a point are found without visiting all of them.
 class EjectaIndex {
   public:
     EjectaIndex() = default;
@@ -36,18 +39,13 @@ class EjectaIndex {
 
     /// The craters whose reach may hold (`x`, `y`), in ascending order; a superset of those
     /// that do.
-    const std::vector<std::uint32_t>& Near(double x, double y) const;
+    std::vector<std::uint32_t> Near(double x, double y) const;
 
   private:
     CraterList craters_;
     std::vector<std::uint32_t> sources_;
-    std::vector<std::uint32_t> all_;
-    double minX_ = 0.0;
-    double minY_ = 0.0;
-    double cell_ = 0.0;
-    std::size_t columns_ = 0;
-    std::size_t rows_ = 0;
-    std::vector<std::vector<std::uint32_t>> buckets_;
+    std::shared_ptr<const Surface> surface_;  ///< Held so moved indexes keep their buckets valid.
+    std::optional<BandBuckets> buckets_;
 };
 
 }  // namespace terraingen
