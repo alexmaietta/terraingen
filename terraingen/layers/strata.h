@@ -11,7 +11,7 @@
 
 namespace terraingen {
 
-/// The beds a `StrataLayer` cuts. Lengths are in metres, angles in radians.
+/// The beds a `StrataLayer` cuts. Lengths are in meters, angles in radians.
 struct StrataOptions {
     double bedThickness = 2.0;  ///< Mean thickness of a bed.
     /// How far each bed boundary strays, in bed thicknesses, in [0, 1).
@@ -68,10 +68,10 @@ class StrataLayer final : public FormulaLayer, public MaterialSource {
     /// @throws std::invalid_argument as `ValidateStrataOptions`.
     explicit StrataLayer(StrataOptions options, Surface surface = {});
 
-    /// The terraced height of ground `height` metres high at world (x, y) (m).
+    /// The terraced height of ground `height` meters high at world (x, y) (m).
     double TerracedAt(double height, double x, double y) const;
 
-    /// How far through its bed ground `height` metres high at world (x, y) lies, in [0, 1).
+    /// How far through its bed ground `height` meters high at world (x, y) lies, in [0, 1).
     double BedPositionAt(double height, double x, double y) const;
 
     /// The options the layer was made with.
@@ -100,7 +100,7 @@ class StrataLayer final : public FormulaLayer, public MaterialSource {
     };
     Bed BedAt(double level) const;
     double BedBoundary(std::int64_t k) const;
-    /// The stratigraphic level of ground `height` metres high at (x, y): its height less the
+    /// The stratigraphic level of ground `height` meters high at (x, y): its height less the
     /// dipping bed plane. False on the far hemisphere of a body, where the layer does nothing.
     bool StratigraphicLevel(double height, double x, double y, double& level) const;
 

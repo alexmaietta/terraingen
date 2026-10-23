@@ -12,7 +12,7 @@
 
 namespace terraingen {
 
-/// A mesh's material: a name and a diffuse colour.
+/// A mesh's material: a name and a diffuse color.
 struct MeshMaterial {
     std::string name = "default";                ///< Name in OBJ/MTL and glTF.
     std::array<double, 3> color{0.5, 0.5, 0.5};  ///< Linear RGB, each in [0, 1].
@@ -28,9 +28,9 @@ struct MeshMaterial {
 
 /// A mesh with optional normals and its material.
 struct SceneMesh {
-    TriangleMesh mesh;           ///< The mesh, in metres.
+    TriangleMesh mesh;           ///< The mesh, in meters.
     std::vector<Vec3d> normals;  ///< Empty, or one unit normal per vertex.
-    MeshMaterial material{};     ///< Written as an MTL material or a glTF base colour.
+    MeshMaterial material{};     ///< Written as an MTL material or a glTF base color.
 };
 
 /// An instance of a scene mesh: its vertices scaled per axis by `scale`, then moved by
@@ -62,8 +62,8 @@ void WriteMesh(const std::filesystem::path& path, const SceneMesh& mesh);
 
 /// Reads every triangle of an .obj (polygons triangulated), a .gltf or .glb (every triangle
 /// primitive of the default scene, with its nodes' transforms), a binary or ASCII .stl, or an ICQ
-/// shape model in kilometres (.icq, as `ReadIcq` and `IcqToMesh`), in metres and z-up, with the
-/// first material's diffuse colour where the format has one. Normals are not read.
+/// shape model in kilometers (.icq, as `ReadIcq` and `IcqToMesh`), in meters and z-up, with the
+/// first material's diffuse color where the format has one. Normals are not read.
 /// @throws std::invalid_argument for another extension.
 /// @throws std::runtime_error if the file cannot be read or holds no triangles.
 SceneMesh ReadMesh(const std::filesystem::path& path);

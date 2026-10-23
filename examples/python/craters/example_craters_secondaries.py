@@ -47,7 +47,7 @@ class Example(_common.Example):
         )
         self.onset = terraingen.secondary_onset_range(primary.diameter)
         self.outer = secondaries.outer_range(primary.diameter)
-        print(f"secondaries from {self.onset / 1000:.1f} to {self.outer / 1000:.1f} km from the centre")
+        print(f"secondaries from {self.onset / 1000:.1f} to {self.outer / 1000:.1f} km from the center")
         self.table = secondaries.secondaries((-self.outer, -self.outer, self.outer, self.outer))
         ranges = np.hypot(self.table["x"], self.table["y"])
         self.bands = []

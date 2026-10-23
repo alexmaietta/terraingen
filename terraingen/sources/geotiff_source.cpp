@@ -57,7 +57,7 @@ GeoTiffSource::GeoTiffSource(std::filesystem::path path, GeoTiffSourceOptions op
                 offset.value_or(info_.bandScaling[band].offset)};
     if (info_.geoKeys.IsGeographic()) {
         throw std::invalid_argument(
-            "The raster's CRS is geographic (degrees); craters are sized in metres, so reproject "
+            "The raster's CRS is geographic (degrees); craters are sized in meters, so reproject "
             "it first, for example with gdalwarp -t_srs");
     }
     lattice_ = {info_.width, info_.height, info_.transform};

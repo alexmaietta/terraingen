@@ -25,7 +25,7 @@ enum class CraterDatum {
     None,          ///< No datum: the profile is added onto the terrain everywhere.
     Plane,         ///< Least-squares plane over the fit footprint; keeps regional slopes.
     MeanHeight,    ///< Flat datum at the mean height over the fit footprint.
-    CenterHeight,  ///< Flat datum at the terrain height under the crater centre.
+    CenterHeight,  ///< Flat datum at the terrain height under the crater center.
 };
 
 /// Where a crater's replaced interior blends into the surrounding terrain, in crater radii.
@@ -34,7 +34,7 @@ struct CraterBlend {
     double endRadii = 1.2;                        ///< And 0 from here; above `startRadii`.
     BlendShape shape = BlendShape::Smootherstep;  ///< The curve in between.
 
-    /// The interior weight at `radii` crater radii from the centre: 1 up to `startRadii`, 0 from
+    /// The interior weight at `radii` crater radii from the center: 1 up to `startRadii`, 0 from
     /// `endRadii`, and `shape` in between.
     double Weight(double radii) const {
         return Falloff(radii, startRadii, endRadii, shape);
@@ -59,7 +59,7 @@ struct RimSmoothing {
     BlendShape shape = BlendShape::Smootherstep;  ///< How the weight falls toward the edges.
     double strength = 1.0;  ///< Share of the smoothed height used at the rim, in [0, 1].
 
-    /// The smoothing weight at `radii` crater radii from the centre: `strength` at the rim, 0 from
+    /// The smoothing weight at `radii` crater radii from the center: `strength` at the rim, 0 from
     /// the band's edges and when `sigmaRadii` is 0.
     double Weight(double radii) const;
 
@@ -179,8 +179,8 @@ struct CraterApplyOptions {
     /// Floors offset downslope, rims lowered upslope and faster wear on the slope of the ground
     /// beneath the layer; needs the `Plane` datum.
     CraterSlopeResponse slope{};
-    /// What craters are shaped on; on a sphere, centres and rasters are longitude and latitude and
-    /// each crater is shaped in its local frame, spacings in metres.
+    /// What craters are shaped on; on a sphere, centers and rasters are longitude and latitude and
+    /// each crater is shaped in its local frame, spacings in meters.
     Surface surface{};
 
     /// Memberwise equality.

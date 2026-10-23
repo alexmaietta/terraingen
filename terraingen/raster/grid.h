@@ -40,7 +40,7 @@ struct RasterGrid {
     /// ellipsoid the area element is integrated over the same box.
     double SurfaceArea(const Surface& surface) const;
 
-    /// The grid's sample spacing in metres on a surface: `PixelSize` on a plane, on a sphere the
+    /// The grid's sample spacing in meters on a surface: `PixelSize` on a plane, on a sphere the
     /// latitude step of a cell (its largest side).
     double Spacing(const Surface& surface) const;
 
@@ -66,18 +66,18 @@ RasterGrid ResampledGrid(const RasterGrid& grid, double pixelSize);
 
 /// The spacing a raster is sampled at: the larger of `spacing` and the raster's own spacing on
 /// `surface` (`RasterGrid::Spacing`).
-/// @param spacing The requested spacing in metres; 0 for the raster's own.
+/// @param spacing The requested spacing in meters; 0 for the raster's own.
 /// @throws std::domain_error if the raster's transform is not invertible.
 double ResolvedSpacing(const Raster<float>& raster, double spacing, const Surface& surface);
 
 /// The spacing a grid is evaluated at: the larger of `spacing` and the grid's own spacing on
 /// `surface` (`RasterGrid::Spacing`).
-/// @param spacing The requested spacing in metres; 0 for the grid's own.
+/// @param spacing The requested spacing in meters; 0 for the grid's own.
 double ResolvedSpacing(const RasterGrid& grid, double spacing, const Surface& surface);
 
 /// The spacing features are listed at over a grid: `spacing` when given, finer than the grid's
 /// own or not, else the grid's own spacing on `surface`.
-/// @param spacing The requested spacing in metres; 0 for the grid's own.
+/// @param spacing The requested spacing in meters; 0 for the grid's own.
 double ListedSpacing(const RasterGrid& grid, double spacing, const Surface& surface);
 
 }  // namespace terraingen

@@ -19,7 +19,7 @@ namespace terraingen {
 ///
 /// Row 0 is the first row in the file, the northern edge for north-up rasters. Cells are addressed
 /// as (column, row), matching the (x, y) order of `GeoTransform`.
-/// @tparam T Cell type, usually `float` heights in metres.
+/// @tparam T Cell type, usually `float` heights in meters.
 template <typename T> class Raster {
   public:
     /// An empty raster with the identity transform and no no-data value.
@@ -141,7 +141,7 @@ template <typename T> class Raster {
         noData_ = value;
     }
 
-    /// The world coordinates of a cell's centre.
+    /// The world coordinates of a cell's center.
     Vec2d CellCenter(std::size_t col, std::size_t row) const {
         return transform_.PixelToWorld(static_cast<double>(col) + 0.5,
                                        static_cast<double>(row) + 0.5);

@@ -8,7 +8,7 @@
 
 namespace terraingen {
 
-/// What a crater looks like in its current state, for listing, labelling or placing.
+/// What a crater looks like in its current state, for listing, labeling or placing.
 struct CraterAttributes {
     double floorDepth = 0.0;  ///< Depth of the floor below the surrounding surface (m).
     double rimHeight = 0.0;   ///< Height of the rim crest above the surrounding surface (m).

@@ -25,7 +25,7 @@ struct KernelBuffer {
 /// Runs a kernel compiled by `terraingen_add_kernel` over every cell of `grid` holding data, in
 /// strips of rows, on `backend` (`Vulkan`, `Cuda` or `Metal`).
 ///
-/// Each cell gets the kernel's `ApplyCell` at its centre measured from `origin`, which the host
+/// Each cell gets the kernel's `ApplyCell` at its center measured from `origin`, which the host
 /// works out per column and per row in double, so cells see the same positions as on the CPU.
 /// @param program The compiled kernel.
 /// @param kernel The kernel's parameter block, laid out as in the kernel header.

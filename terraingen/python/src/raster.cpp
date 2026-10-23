@@ -120,7 +120,7 @@ void BindRasterClass(nb::module_& m) {
         .def_prop_rw("transform", &RasterF::Transform, &RasterF::SetTransform)
         .def_prop_rw("no_data", &RasterF::NoData, &RasterF::SetNoData)
         .def("cell_center", &RasterF::CellCenter, "col"_a, "row"_a,
-             "World coordinates of a cell's centre.")
+             "World coordinates of a cell's center.")
         .def("__repr__", [](const RasterF& r) {
             return "Raster(width=" + std::to_string(r.Width()) +
                    ", height=" + std::to_string(r.Height()) + ")";
@@ -162,7 +162,7 @@ void BindGrid(nb::module_& m) {
             },
             "width"_a, "height"_a, "transform"_a)
         .def_static("centered", &CenteredGrid, "width"_a, "height"_a, "pixel_size"_a,
-                    "center"_a = Vec2d{}, "A north-up grid of square cells centred on `center`.")
+                    "center"_a = Vec2d{}, "A north-up grid of square cells centered on `center`.")
         .def_static("from_raster", &RasterGrid::FromRaster, "raster"_a,
                     "The grid `raster` covers: its size and transform.")
         .def_rw("width", &RasterGrid::width)
@@ -172,9 +172,9 @@ void BindGrid(nb::module_& m) {
         .def_prop_ro("area", &RasterGrid::Area, "Area in square world units.")
         .def_prop_ro("pixel_size", &RasterGrid::PixelSize, "Cell size in world units.")
         .def("surface_area", &RasterGrid::SurfaceArea, "surface"_a,
-             "The area the grid covers on `surface`, in square metres.")
+             "The area the grid covers on `surface`, in square meters.")
         .def("spacing", &RasterGrid::Spacing, "surface"_a,
-             "The sample spacing in metres on `surface`.")
+             "The sample spacing in meters on `surface`.")
         .def("make_raster", &RasterGrid::MakeRaster, "fill"_a = 0.0f,
              "A raster on this grid filled with `fill`.");
 }
@@ -213,7 +213,7 @@ void BindGeoKeys(nb::module_& m) {
         .def_prop_ro("pixel_is_point", &GeoKeys::PixelIsPoint)
         .def(nb::self == nb::self);
     m.def("geographic_sphere_keys", &GeographicSphereKeys, "radius"_a,
-          "GeoKeys for longitude and latitude on a sphere of `radius` metres, such as a moon or "
+          "GeoKeys for longitude and latitude on a sphere of `radius` meters, such as a moon or "
           "planet.");
     nb::class_<BandScaling>(m, "BandScaling", "A band's scale and offset: value * scale + offset.")
         .def_ro("scale", &BandScaling::scale)

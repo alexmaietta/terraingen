@@ -7,7 +7,7 @@ namespace terraingen::detail {
 
 namespace {
 
-/// Square metres per square kilometre.
+/// Square meters per square kilometer.
 constexpr double kSquareKilometer = 1e6;
 
 void CheckAge(const ExponentialChronology& chronology, double ageGyr) {

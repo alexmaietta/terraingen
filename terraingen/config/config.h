@@ -1082,7 +1082,7 @@ struct AlbedoOutput : GeoTiffOutput {};
 struct MeshOutput {
     std::string path;                 ///< The file to write; empty to only return the mesh.
     std::size_t cellsPerFace = 128;   ///< Quads along each edge of the six cube faces.
-    std::optional<double> spacing{};  ///< Sample spacing in metres; unset for a quad's side.
+    std::optional<double> spacing{};  ///< Sample spacing in meters; unset for a quad's side.
     bool operator==(const MeshOutput& other) const {
         return path == other.path && cellsPerFace == other.cellsPerFace && spacing == other.spacing;
     }
@@ -1138,7 +1138,7 @@ using OutputSpec = std::variant<HeightmapOutput, CraterListOutput, BoulderListOu
                                 BoulderModelsOutput, AlbedoOutput, MeshOutput, TerrainMeshOutput,
                                 MaterialsOutput, PhotometryOutput, ReportOutput>;
 
-/// Albedo source "synthetic": `SyntheticAlbedo`, a base colour with a noise stack per
+/// Albedo source "synthetic": `SyntheticAlbedo`, a base color with a noise stack per
 /// channel (each 0 to `kMaxNoiseLayers` layers), measured from the base's reference
 /// point.
 struct SyntheticAlbedoSpec {
@@ -1271,7 +1271,7 @@ struct AlbedoSpec {
     }
 };
 
-/// Body "plane": a projected frame in metres, the default.
+/// Body "plane": a projected frame in meters, the default.
 struct PlaneSurfaceSpec {
     bool operator==(const PlaneSurfaceSpec& /*other*/) const {
         return true;
@@ -1284,7 +1284,7 @@ struct PlaneSurfaceSpec {
 /// Body "sphere": a body such as a planet or moon (`Surface`); grids and positions are
 /// longitude and latitude in degrees, and features are generated over the whole body.
 struct SphereSurfaceSpec {
-    double radius = 0.0;  ///< Metres; must be given.
+    double radius = 0.0;  ///< Meters; must be given.
     bool operator==(const SphereSurfaceSpec& other) const {
         return radius == other.radius;
     }
@@ -1295,9 +1295,9 @@ struct SphereSurfaceSpec {
 
 /// Body "ellipsoid": a body shaped as a triaxial ellipsoid (`Surface::Ellipsoid`), with
 /// planetocentric longitude and latitude in degrees and heights along the direction from the
-/// centre.
+/// center.
 struct EllipsoidSurfaceSpec {
-    std::vector<double> radii;  ///< Semi-axes a, b, c in metres along x, y and z; exactly three.
+    std::vector<double> radii;  ///< Semi-axes a, b, c in meters along x, y and z; exactly three.
     bool operator==(const EllipsoidSurfaceSpec& other) const {
         return radii == other.radii;
     }
@@ -1313,7 +1313,7 @@ struct ShapeModelSurfaceSpec {
     /// Intervals per face edge of the radial grid; unset keeps an ICQ model's own Q, and uses 256
     /// for a mesh.
     std::optional<std::size_t> q{};
-    /// Metres per file unit; unset is 1000 for an ICQ model (kilometres) and 1 for a mesh.
+    /// Meters per file unit; unset is 1000 for an ICQ model (kilometers) and 1 for a mesh.
     std::optional<double> metersPerUnit{};
     bool operator==(const ShapeModelSurfaceSpec& other) const {
         return path == other.path && q == other.q && metersPerUnit == other.metersPerUnit;

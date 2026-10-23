@@ -3,7 +3,7 @@
 `BoulderLayer` draws sizes from Golombek and Rapp's (1997) model for a boulder coverage by default, or from
 any size-frequency distribution: the NASA SP-8023 curves for blocks between and near craters,
 synthterrain's power laws, or a distribution of your own. Each is used over 0.2 to 3 m, or the part
-of it the distribution covers. Prints the boulders per 100 square metres at each size and writes a
+of it the distribution covers. Prints the boulders per 100 square meters at each size and writes a
 montage of hillshades.
 
     python example_boulders_size_models.py [--viewer window|null] [--output-dir DIR] [--test]

@@ -59,7 +59,7 @@ def direction(azimuth_deg, elevation_deg):
 
 
 def terrain_bounds(raster, exaggeration=1.0):
-    """World bounds ``((x0, y0, z0), (x1, y1, z1))`` of a raster's cell centres and valid heights."""
+    """World bounds ``((x0, y0, z0), (x1, y1, z1))`` of a raster's cell centers and valid heights."""
     t = _check_north_up(raster)
     stats = _terraingen.compute_stats(raster)
     low, high = (stats.min, stats.max) if stats.valid_count > 0 else (0.0, 0.0)
@@ -211,7 +211,7 @@ def frame_terrain(
     exaggeration=1.0,
     margin=1.1,
 ):
-    """Defines a Camera that looks at the raster's centre from the given azimuth and elevation.
+    """Defines a Camera that looks at the raster's center from the given azimuth and elevation.
 
     The camera stands far enough away for the terrain's bounding sphere, times ``margin``, to fit
     its vertical field of view, keeping USD's 50 mm focal length and fitting the vertical aperture

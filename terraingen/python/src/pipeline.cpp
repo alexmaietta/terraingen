@@ -133,7 +133,7 @@ void BindFeatures(nb::module_& m) {
         "generator"_a, "grid"_a = nb::none(), "spacing"_a = 0.0,
         nb::call_guard<nb::gil_scoped_release>(),
         "The craters the generator's crater and secondary crater layers apply over `grid` (by "
-        "default its source's) at `spacing` metres (0 for the grid's), in layer order.");
+        "default its source's) at `spacing` meters (0 for the grid's), in layer order.");
     m.def(
         "placed_boulders",
         [](const PyTerrainGenerator& generator, std::optional<RasterGrid> grid, double spacing) {
@@ -144,7 +144,7 @@ void BindFeatures(nb::module_& m) {
         nb::call_guard<nb::gil_scoped_release>(),
         "The boulders the generator's boulder layers place over `grid` (by default its source's) "
         "at "
-        "`spacing` metres (0 for the grid's), and the boulder models among them.");
+        "`spacing` meters (0 for the grid's), and the boulder models among them.");
 }
 
 void BindEvaluation(nb::module_& m) {
@@ -159,7 +159,7 @@ void BindEvaluation(nb::module_& m) {
         "generator"_a, "spacing"_a = 0.0, "threads"_a = 0, "grid"_a = nb::none(),
         "backend"_a = nb::none(), nb::call_guard<nb::gil_scoped_release>(),
         "Evaluates `generator` over `grid` (by default its source's) at a sample spacing of "
-        "`spacing` metres (0 for the grid's), on up to `threads` threads (0 for every hardware "
+        "`spacing` meters (0 for the grid's), on up to `threads` threads (0 for every hardware "
         "thread; the result does not depend on it), on `backend` (None for default_backend()). "
         "On Vulkan the heights match the CPU to within float rounding.");
     m.def(
@@ -168,11 +168,11 @@ void BindEvaluation(nb::module_& m) {
             return HeightAt(generator.Get(), x, y, spacing);
         },
         "generator"_a, "x"_a, "y"_a, "spacing"_a, nb::call_guard<nb::gil_scoped_release>(),
-        "The generator's height at (x, y) sampled every `spacing` metres; equal to the cell "
-        "centred there of `evaluate`.");
+        "The generator's height at (x, y) sampled every `spacing` meters; equal to the cell "
+        "centered there of `evaluate`.");
     m.def("heights_at", &HeightsAtArray, "generator"_a, "points"_a, "spacing"_a, "threads"_a = 0,
           "The generator's heights at `points`, an array of shape (n, 2) in surface coordinates, "
-          "sampled every `spacing` metres, as a float32 array; each equals `height_at` there. "
+          "sampled every `spacing` meters, as a float32 array; each equals `height_at` there. "
           "Batches of points are much faster than one call per point.");
     m.def(
         "fill_heights",
@@ -508,7 +508,7 @@ void BindGeneratedOutputs(nb::module_& m) {
             },
             "grid"_a = nb::none(), "spacing"_a = 0.0,
             "The craters the terrain's layers apply over `grid` (by default its first generated "
-            "grid) at `spacing` metres (0 for the grid's).")
+            "grid) at `spacing` meters (0 for the grid's).")
         .def(
             "placed_boulders",
             [](const GeneratedOutputs& g, std::optional<RasterGrid> grid, double spacing) {
@@ -516,7 +516,7 @@ void BindGeneratedOutputs(nb::module_& m) {
             },
             "grid"_a = nb::none(), "spacing"_a = 0.0,
             "The boulders the terrain's layers place over `grid` (by default its first generated "
-            "grid) at `spacing` metres (0 for the grid's), and the models among them.")
+            "grid) at `spacing` meters (0 for the grid's), and the models among them.")
         .def_ro("seconds", &GeneratedOutputs::seconds,
                 "Wall-clock time the heights and albedo took to evaluate, in seconds.")
         .def_ro("backend", &GeneratedOutputs::backend,

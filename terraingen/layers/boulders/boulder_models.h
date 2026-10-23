@@ -20,7 +20,7 @@ namespace terraingen {
 /// How a unit `BoulderShape` becomes a boulder in the world: scaled per axis by `scale`,
 /// then moved by `pose`.
 struct BoulderPlacement {
-    Vec3d scale{1.0, 1.0, 1.0};  ///< Scale along the shape's x, y and z, in metres.
+    Vec3d scale{1.0, 1.0, 1.0};  ///< Scale along the shape's x, y and z, in meters.
     RigidTransform pose{};       ///< Rotation and translation after scaling.
 
     /// Where point `p` of the unit shape lands in the world.
@@ -60,7 +60,7 @@ std::optional<double> TopSurface(const TriangleMesh& placed, double x, double y)
 /// A boulder's placement moved from its own local frame into the local frame of a site.
 ///
 /// On a sphere the site frame is east, north and up at `site` on the datum sphere, keeping a scene
-/// about a site in metre-scale coordinates; on a plane `placement` is returned unchanged.
+/// about a site in meter-scale coordinates; on a plane `placement` is returned unchanged.
 /// @param placement In the boulder's local frame (east, north, up above datum).
 /// @param boulder Surface coordinates of the boulder.
 /// @param site Surface coordinates of the site.
@@ -77,9 +77,9 @@ RigidTransform TiltRotation(double tilt, double azimuth);
 /// the height; then stood on the axis `rest` names, leaned by `lean` about the long axis, turned by
 /// `yaw`, tipped by `tilt` toward `tiltAzimuth`, and set at the boulder's position with `burial`
 /// of its vertical extent below `groundHeight`. With `settle`, before the tilt it is tipped over
-/// on level ground, from that pose, until it rests stably with its centre of mass above the face
+/// on level ground, from that pose, until it rests stably with its center of mass above the face
 /// or edges it stands on, so no shape is left balanced on a corner.
-/// @param groundHeight Height of the ground under its centre, in metres.
+/// @param groundHeight Height of the ground under its center, in meters.
 BoulderPlacement PlaceBoulderModel(const Boulder& boulder, const BoulderShape& shape,
                                    double groundHeight, bool settle = false);
 
@@ -89,7 +89,7 @@ BoulderPlacement PlaceBoulderModel(const Boulder& boulder, const BoulderShape& s
 std::uint64_t ShapeSeed(const Boulder& boulder, std::uint32_t prototypes = 0);
 
 /// A boulder as a mesh in world coordinates, its own shape placed by `PlaceBoulderModel`.
-/// @param groundHeight Height of the ground under its centre, in metres.
+/// @param groundHeight Height of the ground under its center, in meters.
 /// @param prototypes Number of shared shapes, or 0 for a shape per boulder (`BoulderShapeSeed`);
 /// a set `shapeSeed` is used instead.
 /// @throws std::invalid_argument as `ValidateBoulderShapeOptions`.

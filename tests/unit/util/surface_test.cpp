@@ -334,7 +334,7 @@ TEST(Surface, BucketsAreCubesOfThePositionAndFlatOnAPlane) {
 
 namespace {
 
-/// An elongated body like Itokawa, in metres.
+/// An elongated body like Itokawa, in meters.
 const Surface kEllipsoid = Surface::Ellipsoid(270.0, 147.0, 104.0);
 
 double Dot3(const Vec3d& a, const Vec3d& b) {

@@ -19,7 +19,7 @@ inline const ernie::Path kSunPrim{"/World/Sun"};
 inline const ernie::Path kSettingsPrim{"/Render/Settings"};
 
 /// Defines what a TerrainGen scene needs besides its terrain, keeping prims already there:
-/// a sun 30 degrees up in the north-east, the terrain's grey material, and render settings that
+/// a sun 30 degrees up in the north-east, the terrain's gray material, and render settings that
 /// shade it with an elevation colormap.
 void SetUpScene(ernie::Scene& scene);
 

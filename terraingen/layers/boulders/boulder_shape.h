@@ -86,7 +86,7 @@ struct BoulderShapeOptions {
     /// worn.
     double weathering = 1.0;
     /// Rock meshes, such as `ReadMesh` reads, that replace the styles when not empty: each seed
-    /// picks one, normalised to the unit form of `BoulderShape` with its z axis kept vertical.
+    /// picks one, normalized to the unit form of `BoulderShape` with its z axis kept vertical.
     std::vector<std::shared_ptr<const SceneMesh>> library{};
 
     bool operator==(const BoulderShapeOptions& other) const {
@@ -113,10 +113,10 @@ struct BoulderShape {
     std::size_t style = 0;      ///< Index into the options' styles, or its library when it has one.
     double intermediate = 1.0;  ///< Extent along y, in long-axis lengths.
     double shortAxis = 1.0;     ///< Extent along z, in long-axis lengths.
-    MeshMaterial material{"rock", {0.5, 0.5, 0.5}};  ///< The library mesh's, or plain grey.
+    MeshMaterial material{"rock", {0.5, 0.5, 0.5}};  ///< The library mesh's, or plain gray.
 };
 
-/// `mesh` in the unit form of `BoulderShape`: centred on its box, turned about z so its longer
+/// `mesh` in the unit form of `BoulderShape`: centerd on its box, turned about z so its longer
 /// horizontal side lies along x, and scaled so that side is 1 long.
 /// @throws std::invalid_argument for a mesh that is invalid or flat along an axis.
 BoulderShape NormalizedBoulderShape(const SceneMesh& mesh);

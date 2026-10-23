@@ -16,7 +16,7 @@ struct RayLayout {
     std::uint32_t seed = 0;  ///< Seed of the directions.
     /// Rays per crater, 0 to 64.
     ValueDistribution count{ValueDistribution::Kind::Normal, 10.7, 3.1, 6.0, 20.0};
-    /// Angular width 2 radii from the centre, in (0, 180) degrees.
+    /// Angular width 2 radii from the center, in (0, 180) degrees.
     ValueDistribution widthDegrees{ValueDistribution::Kind::Normal, 22.0, 8.3, 5.4, 38.6};
 
     /// Memberwise equality.
@@ -36,7 +36,7 @@ void ValidateRayLayout(const RayLayout& layout);
 /// One ray of a crater.
 struct RayDirection {
     double azimuth = 0.0;       ///< Radians counter-clockwise from east.
-    double sinHalfWidth = 0.0;  ///< Sine of half its angular width 2 radii from the centre.
+    double sinHalfWidth = 0.0;  ///< Sine of half its angular width 2 radii from the center.
     std::uint32_t key = 0;      ///< Varies what lies along the ray.
 };
 

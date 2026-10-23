@@ -8,24 +8,24 @@
 
 namespace terraingen {
 
-/// A power law N(>=D) = `coefficient` * D^(-`exponent`) from `start` metres, alone or as
+/// A power law N(>=D) = `coefficient` * D^(-`exponent`) from `start` meters, alone or as
 /// one segment of a `PiecewisePowerLawSfd`.
 struct PowerLawSegment {
-    double start = 0.0;        ///< First diameter, metres.
+    double start = 0.0;        ///< First diameter, meters.
     double coefficient = 1.0;  ///< N(>=1 m), per m^2 (or per m^2 per Gyr); positive.
     double exponent = 2.0;     ///< Cumulative slope; positive.
 
-    /// N(>=D) = coefficient * D^(-exponent), with D = `diameter` in metres.
+    /// N(>=D) = coefficient * D^(-exponent), with D = `diameter` in meters.
     double Cumulative(double diameter) const {
         return coefficient * std::pow(diameter, -exponent);
     }
 
-    /// -dN/dD = coefficient * exponent * D^(-exponent - 1), with D in metres.
+    /// -dN/dD = coefficient * exponent * D^(-exponent - 1), with D in meters.
     double Incremental(double diameter) const {
         return coefficient * exponent * std::pow(diameter, -exponent - 1.0);
     }
 
-    /// The diameter in metres where N(>=D) is a positive `target`.
+    /// The diameter in meters where N(>=D) is a positive `target`.
     double Invert(double target) const {
         return std::pow(target / coefficient, -1.0 / exponent);
     }
@@ -40,13 +40,13 @@ struct PowerLawSegment {
     }
 };
 
-/// N(>=D) = `coefficient` * D^(-`exponent`), with D in metres and N per m^2 (or per m^2 per
+/// N(>=D) = `coefficient` * D^(-`exponent`), with D in meters and N per m^2 (or per m^2 per
 /// Gyr).
 class PowerLawSfd final : public SizeFrequencyDistribution {
   public:
     /// The power law with the given coefficient and exponent.
     /// @param coefficient N(>=1 m), per m^2 (or per m^2 per Gyr).
-    /// @param range The valid range, in metres.
+    /// @param range The valid range, in meters.
     /// @throws std::invalid_argument unless `coefficient` and `exponent` are positive and finite
     /// and the range is valid.
     PowerLawSfd(double coefficient, double exponent, SfdKind kind = SfdKind::Density,
@@ -71,7 +71,7 @@ class PowerLawSfd final : public SizeFrequencyDistribution {
     PowerLawSegment law_;
 };
 
-/// Converts a power-law coefficient published for D in km and N per km^2 to D in metres and
+/// Converts a power-law coefficient published for D in km and N per km^2 to D in meters and
 /// N per m^2.
 double PowerLawCoefficientFromKilometers(double coefficient, double exponent);
 

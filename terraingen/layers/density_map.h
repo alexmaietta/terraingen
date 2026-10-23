@@ -14,7 +14,7 @@ namespace terraingen {
 /// What a density map's values measure.
 enum class DensityMeasure {
     Scale,          ///< The local density over the layer's own; 1 keeps it as given.
-    Count,          ///< Features in [`minDiameter`, `maxDiameter`) per `areaUnit` square metres.
+    Count,          ///< Features in [`minDiameter`, `maxDiameter`) per `areaUnit` square meters.
     ArealFraction,  ///< Share of the ground covered by features in [`minDiameter`, `maxDiameter`).
 };
 
@@ -36,7 +36,7 @@ struct DensityMap {
     /// Largest diameter measured (m), exclusive; finite for `ArealFraction` unless the size
     /// distribution's valid range is.
     double maxDiameter = std::numeric_limits<double>::infinity();
-    double areaUnit = 1.0;  ///< Square metres per map area unit for `Count`: 1e6 for per km^2.
+    double areaUnit = 1.0;  ///< Square meters per map area unit for `Count`: 1e6 for per km^2.
     /// The map measures every feature of its kind, including those a layer adds by other means,
     /// which are taken out of it; otherwise it measures only what the layer generates.
     bool total = true;
@@ -97,13 +97,13 @@ std::optional<double> SizeSlopeAt(const SizeSlopeMap& map, double x, double y);
 /// `Count` or `ArealFraction`, or an area unit that is not positive and finite.
 void ValidateDensityMap(const DensityMap& map);
 
-/// What `map` measures of `distribution` as it is: its count per square metre in the map's range,
+/// What `map` measures of `distribution` as it is: its count per square meter in the map's range,
 /// the share of ground its features there cover, or 1 for `Scale`.
 /// @throws std::domain_error if the range leaves the distribution's valid range, or an
 /// `ArealFraction` has no finite largest diameter.
 double MapMeasure(const DensityMap& map, const SizeFrequencyDistribution& distribution);
 
-/// The map's value at surface (x, y) in square metres for a `Count`; NaN where it has none.
+/// The map's value at surface (x, y) in square meters for a `Count`; NaN where it has none.
 double MapValueAt(const DensityMap& map, double x, double y);
 
 /// The local scale a density map gives a size distribution: the map's value over its measure of

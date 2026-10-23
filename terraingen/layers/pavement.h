@@ -15,7 +15,7 @@
 
 namespace terraingen {
 
-/// The plates and cracks of a `PavementLayer`. Lengths are in metres, angles in radians.
+/// The plates and cracks of a `PavementLayer`. Lengths are in meters, angles in radians.
 struct PavementOptions {
     double plateSize = 1.0;      ///< Mean plate width: the spacing of the plates' Voronoi sites.
     double jitter = 1.0;         ///< How far sites stray from a square lattice, in [0, 1].

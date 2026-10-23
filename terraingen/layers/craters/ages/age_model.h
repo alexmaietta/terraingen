@@ -11,17 +11,17 @@ class CraterAgeModel {
   public:
     virtual ~CraterAgeModel() = default;
 
-    /// The visible lifetime in Gyr of craters of `diameter` metres.
+    /// The visible lifetime in Gyr of craters of `diameter` meters.
     /// @throws std::domain_error if `diameter` is not positive and finite, or the model is not
     /// defined there.
     double LifetimeGyr(double diameter) const;
 
-    /// Draws the age in Gyr, within [0, `LifetimeGyr(diameter)`], of a crater of `diameter` metres.
+    /// Draws the age in Gyr, within [0, `LifetimeGyr(diameter)`], of a crater of `diameter` meters.
     /// @throws std::domain_error as `LifetimeGyr`.
     double SampleAgeGyr(RandomStream& random, double diameter) const;
 
     /// The share of a crater's lifetime left at `ageGyr`: 1 - `ageGyr` / `LifetimeGyr(diameter)`,
-    /// clamped to [0, 1]; 1 when the lifetime is zero. Diameter in metres.
+    /// clamped to [0, 1]; 1 when the lifetime is zero. Diameter in meters.
     /// @throws std::domain_error as `LifetimeGyr`.
     double RemainingLifetime(double diameter, double ageGyr) const;
 
@@ -29,7 +29,7 @@ class CraterAgeModel {
     /// The lifetime in Gyr for a diameter (m) already checked positive and finite.
     virtual double LifetimeAt(double diameter) const = 0;
 
-    /// Draws an age in Gyr for a diameter in metres; the caller clamps it to [0, `lifetimeGyr`].
+    /// Draws an age in Gyr for a diameter in meters; the caller clamps it to [0, `lifetimeGyr`].
     virtual double SampleAgeAt(RandomStream& random, double diameter, double lifetimeGyr) const = 0;
 };
 

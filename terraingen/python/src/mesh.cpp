@@ -127,7 +127,7 @@ void BindMeshFiles(nb::class_<TriangleMesh>& mesh) {
 }
 
 void BindTriangleMesh(nb::module_& m) {
-    nb::class_<TriangleMesh> mesh(m, "TriangleMesh", "A triangle mesh in metres.");
+    nb::class_<TriangleMesh> mesh(m, "TriangleMesh", "A triangle mesh in meters.");
     mesh.def(
             "__init__",
             [](TriangleMesh* self, const Points& positions, const Indices& triangles) {
@@ -153,8 +153,8 @@ void BindTriangleMesh(nb::module_& m) {
                 return std::pair{box.min, box.max};
             },
             "((min x, y, z), (max x, y, z)).")
-        .def_prop_ro("volume", &Volume, "The enclosed volume of a closed mesh, in cubic metres.")
-        .def_prop_ro("surface_area", &SurfaceArea, "The area of its triangles, in square metres.")
+        .def_prop_ro("volume", &Volume, "The enclosed volume of a closed mesh, in cubic meters.")
+        .def_prop_ro("surface_area", &SurfaceArea, "The area of its triangles, in square meters.")
         .def(
             "vertex_normals",
             [](const TriangleMesh& self) { return VectorArray(VertexNormals(self)); },
@@ -181,7 +181,7 @@ void BindTriangleMesh(nb::module_& m) {
 }
 
 void BindScene(nb::module_& m) {
-    nb::class_<MeshMaterial>(m, "MeshMaterial", "A mesh's material: a name and a diffuse colour.")
+    nb::class_<MeshMaterial>(m, "MeshMaterial", "A mesh's material: a name and a diffuse color.")
         .def(
             "__init__",
             [](MeshMaterial* self, std::string name, std::array<double, 3> color) {
@@ -202,7 +202,7 @@ void BindScene(nb::module_& m) {
         .def_rw("mesh", &SceneMesh::mesh)
         .def_rw("material", &SceneMesh::material);
     m.def("read_mesh", &ReadMesh, "path"_a,
-          "Every triangle of an .obj, .gltf, .glb, .stl or (kilometre) .icq file in z-up metres, "
+          "Every triangle of an .obj, .gltf, .glb, .stl or (kilometer) .icq file in z-up meters, "
           "with its first "
           "material.");
     m.def(
@@ -227,7 +227,7 @@ void BindScene(nb::module_& m) {
 void BindIcq(nb::module_& m) {
     nb::class_<IcqModel>(m, "IcqModel",
                          "A Gaskell implicitly connected quadrilateral (ICQ) shape model, in "
-                         "metres: vertices v(I, J, F) on six cube faces, I and J from 0 to Q.")
+                         "meters: vertices v(I, J, F) on six cube faces, I and J from 0 to Q.")
         .def(nb::init<>())
         .def_rw("q", &IcqModel::q)
         .def_rw("vertices", &IcqModel::vertices,
@@ -241,9 +241,9 @@ void BindIcq(nb::module_& m) {
              "The model as 12 Q^2 outward triangles over its 6 Q^2 + 2 distinct vertices.")
         .def("__eq__", [](const IcqModel& a, const IcqModel& b) { return a == b; });
     m.def("read_icq", &ReadIcq, "path"_a, "meters_per_unit"_a = 1000.0,
-          "Reads an ICQ file; Gaskell's models are in kilometres.");
+          "Reads an ICQ file; Gaskell's models are in kilometers.");
     m.def("write_icq", &WriteIcq, "path"_a, "model"_a, "meters_per_unit"_a = 1000.0,
-          "Writes an ICQ file; Gaskell's models are in kilometres.");
+          "Writes an ICQ file; Gaskell's models are in kilometers.");
     m.def("to_icq", &ToIcq, "shape"_a, "The RadialShape as an ICQ model.");
     m.def("icq_direction", &IcqDirection, "q"_a, "i"_a, "j"_a, "face"_a,
           "The unit direction of ICQ label (i, j, face) with Gaskell's face orientation.");

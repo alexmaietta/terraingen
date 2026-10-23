@@ -46,8 +46,8 @@ static const uint32_t kFractalTypeCount = 4;
 /// `ValidateFractalParams`.
 struct FractalParams {
     uint32_t seed = 0;           ///< Seed; each octave derives its own seed and lattice offset.
-    float wavelength = 1000.0f;  ///< Wavelength of the first octave, in world units (metres).
-    float amplitude = 100.0f;    ///< Maximum absolute height, in world units (metres).
+    float wavelength = 1000.0f;  ///< Wavelength of the first octave, in world units (meters).
+    float amplitude = 100.0f;    ///< Maximum absolute height, in world units (meters).
     int octaves = 8;             ///< Number of octaves; at least 1.
     float lacunarity = 2.0f;     ///< Frequency ratio between successive octaves; greater than 1.
     float gain = 0.5f;           ///< Weight ratio between successive octaves; greater than 0.
@@ -201,7 +201,7 @@ inline float FinishFractal(FractalSums sums, FractalParams params) {
 }  // namespace detail
 
 /// 2D fractal height; each octave has its own seed, lattice offset and golden-angle turn.
-/// @param x, y World coordinates in metres.
+/// @param x, y World coordinates in meters.
 /// @param params The fractal, assumed valid (`ValidateFractalParams` checks it on the host).
 /// @return Height in [-amplitude, amplitude] world units, for any parameters.
 inline float Fractal2(float x, float y, FractalParams params) {
@@ -284,7 +284,7 @@ inline float Fractal3Float(float x, float y, float z, FractalParams params) {
 #ifndef __SLANG__
 /// `Fractal2` in 3D, for noise on a sphere; lattice coordinates are split in double
 /// precision so noise stays exact at a planet's radius.
-/// @param x, y, z World coordinates in metres.
+/// @param x, y, z World coordinates in meters.
 /// @param params The fractal, assumed valid.
 /// @return Height in [-amplitude, amplitude] world units.
 inline float Fractal3(double x, double y, double z, FractalParams params) {

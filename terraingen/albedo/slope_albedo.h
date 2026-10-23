@@ -23,7 +23,7 @@ struct SlopeAlbedoOptions {
     double maturityPerDegree = 0.0065;  ///< OMAT gained per degree beyond the onset; >= 0.
     double backgroundMaturity = 0.10;   ///< OMAT of gentler ground; positive.
     double maxMaturity = 0.42;          ///< Cap on OMAT; >= `backgroundMaturity`.
-    double baseline = 10.0;             ///< Metres slopes are measured over; positive.
+    double baseline = 10.0;             ///< Meters slopes are measured over; positive.
     /// Reflectance of the optical maturity origin (`ReflectanceAtMaturity`).
     double originReflectance = OpticalMaturityOrigin{}.reflectance;
 
@@ -44,7 +44,7 @@ struct SlopeAlbedoOptions {
 void ValidateSlopeAlbedoOptions(const SlopeAlbedoOptions& options);
 
 /// The albedo of steep ground moved toward fresher material: slopes are read on the ground at the
-/// nodes of a lattice `baseline` metres apart, fixed to the surface, and interpolated between
+/// nodes of a lattice `baseline` meters apart, fixed to the surface, and interpolated between
 /// them, so grids, tiles and points agree. Without a ground the albedo is left alone.
 class SlopeAlbedo final : public AlbedoLayer {
   public:
@@ -55,7 +55,7 @@ class SlopeAlbedo final : public AlbedoLayer {
     void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
                  const AlbedoContext& context) const override;
 
-    /// `ApplyAt` at every cell centre, the lattice read once.
+    /// `ApplyAt` at every cell center, the lattice read once.
     void Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const override;
 
     /// The slope in degrees at (`x`, `y`) on `ground`, interpolated between lattice nodes.

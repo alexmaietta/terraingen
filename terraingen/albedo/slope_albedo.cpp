@@ -121,7 +121,7 @@ void SlopeAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, doub
 
 namespace {
 
-/// The box of the cell centres of `raster`.
+/// The box of the cell centers of `raster`.
 Bounds2d CellCenterBounds(const Raster<float>& raster) {
     const std::size_t lastCol = raster.Width() - 1;
     const std::size_t lastRow = raster.Height() - 1;

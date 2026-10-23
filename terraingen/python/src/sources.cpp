@@ -278,12 +278,12 @@ void BindUpsampling(nb::module_& m) {
 void BindSourceTypes(nb::module_& m) {
     nb::class_<FlatSource, Source>(m, "FlatSource",
                                    "A level datum at `elevation` over a `width` x `height` grid of "
-                                   "`pixel_size` metres centred on `center`.")
+                                   "`pixel_size` meters centered on `center`.")
         .def(nb::init<std::size_t, std::size_t, double, float, Vec2d, const Surface&>(), "width"_a,
              "height"_a, "pixel_size"_a, "elevation"_a = 0.0f, "center"_a = Vec2d{},
              "surface"_a = Surface{},
              "On a body `center` is (longitude, latitude) in degrees and `pixel_size` stays in "
-             "metres, converted to degrees along a meridian.");
+             "meters, converted to degrees along a meridian.");
     nb::class_<SyntheticSource, Source>(
         m, "SyntheticSource",
         "Heights generated from noise without bounds: `elevation` meters plus the noise `layers` "
@@ -387,7 +387,7 @@ class PyField : public SurfaceField {
 void BindFields(nb::module_& m) {
     nb::class_<SurfaceField, PyField>(
         m, "SurfaceField",
-        "A scalar quantity over a surface, read at surface coordinates (metres on a plane, "
+        "A scalar quantity over a surface, read at surface coordinates (meters on a plane, "
         "longitude and latitude in degrees on a sphere), such as a density map or a catalog's "
         "completeness limit. Subclass it and implement `value_at(x, y)` (NaN where it has no "
         "value) and `max()` for a field of your own.")
@@ -441,11 +441,11 @@ void BindSyntheticTerrain(nb::module_& m) {
     m.def("validate_synthetic_terrain", &ValidateSyntheticTerrain, "params"_a, kValidateDoc);
     m.def("fill_synthetic_terrain", &FillSyntheticTerrain, "raster"_a, "params"_a,
           nb::call_guard<nb::gil_scoped_release>(),
-          "Set every cell of `raster` to the synthetic terrain height at its centre.");
+          "Set every cell of `raster` to the synthetic terrain height at its center.");
     m.def("generate_synthetic_terrain", &GenerateSyntheticTerrain, "width"_a, "height"_a,
           "pixel_size"_a, "params"_a, nb::call_guard<nb::gil_scoped_release>(),
-          "Generate a north-up synthetic terrain centred on the world origin, with square pixels "
-          "of `pixel_size` metres.");
+          "Generate a north-up synthetic terrain centered on the world origin, with square pixels "
+          "of `pixel_size` meters.");
 }
 
 }  // namespace

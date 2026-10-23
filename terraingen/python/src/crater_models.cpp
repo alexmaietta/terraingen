@@ -176,7 +176,7 @@ void BindDiffusion(nb::module_& m) {
     BindOptions<PowerLawDiffusivity>(
         m, "PowerLawDiffusivity",
         "Topographic diffusivity coefficient * D^exponent (m^2 per Myr, D in km), no less than "
-        "at `min_diameter` metres; called with (diameter, age_gyr) it gives the diffusion "
+        "at `min_diameter` meters; called with (diameter, age_gyr) it gives the diffusion "
         "length squared, in m^2.",
         &ValidatePowerLawDiffusivity)
         .def("diffusivity", &PowerLawDiffusivity::Diffusivity, "diameter"_a)
@@ -207,8 +207,8 @@ void BindDiffusion(nb::module_& m) {
 void BindSimpleProfiles(nb::module_& m) {
     nb::class_<CraterProfile, PyCraterProfile>(
         m, "CraterProfile",
-        "A crater's height relative to the surrounding surface at `distance` metres from its "
-        "centre. Subclass it and implement `height(distance, diameter, state)` and "
+        "A crater's height relative to the surrounding surface at `distance` meters from its "
+        "center. Subclass it and implement `height(distance, diameter, state)` and "
         "`reach_radii()` (how far, in radii, it changes the terrain), and optionally "
         "`is_complex(diameter)`. A Python profile is called for every sample near every crater, "
         "from every evaluation thread, and Python calls take turns on the GIL, so evaluate "
@@ -230,7 +230,7 @@ void BindSimpleProfiles(nb::module_& m) {
 
 void BindComplexShape(nb::module_& m) {
     nb::class_<KilometerPowerLaw>(m, "KilometerPowerLaw",
-                                  "coefficient * D^exponent with D in kilometres.")
+                                  "coefficient * D^exponent with D in kilometers.")
         .def(
             "__init__",
             [](KilometerPowerLaw* self, double coefficient, double exponent) {

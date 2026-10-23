@@ -15,30 +15,30 @@
 
 namespace terraingen {
 
-/// The largest secondary crater's diameter at `range` metres from a primary of `diameter` metres,
-/// in metres, after the generalized fit of Singer et al. (2020): d = a R^-b with a = 0.022 D^1.96
+/// The largest secondary crater's diameter at `range` meters from a primary of `diameter` meters,
+/// in meters, after the generalized fit of Singer et al. (2020): d = a R^-b with a = 0.022 D^1.96
 /// and b = 0.14 ln D, D and R in km.
 double SingerMaxSecondaryDiameter(double diameter, double range);
 
-/// The range in metres beyond which `SingerMaxSecondaryDiameter` falls below `size` metres: its
+/// The range in meters beyond which `SingerMaxSecondaryDiameter` falls below `size` meters: its
 /// inverse in range. Infinite for primaries of 1 km or less, whose largest secondary does not
 /// shrink with range.
 double SingerMaxRange(double diameter, double size);
 
-/// How far from its centre a primary of `diameter` metres throws its first secondaries (Singer et
-/// al. 2020): the radius plus about 1.8 diameters up to 3 km and 1.3 from 31 km, in metres.
+/// How far from its center a primary of `diameter` meters throws its first secondaries (Singer et
+/// al. 2020): the radius plus about 1.8 diameters up to 3 km and 1.3 from 31 km, in meters.
 double SecondaryOnsetRange(double diameter);
 
-/// The median ray length in metres of Elliott et al. (2018, eq. 2): `coefficient` R^`exponent` km
+/// The median ray length in meters of Elliott et al. (2018, eq. 2): `coefficient` R^`exponent` km
 /// for a crater of radius R km.
-/// @param diameter In metres.
+/// @param diameter In meters.
 /// @param coefficient In km.
 double ElliottMedianRayLength(double diameter, double coefficient = 6.59, double exponent = 1.27);
 
 /// Secondaries gathered into their primary's rays and clumped along them, as they commonly lie
 /// in radial chains and clusters pointing back to the primary (Singer et al. 2020); off by
 /// default. `share` of the secondaries follow the rays of `layout`, each ray's across-profile
-/// Gaussian at the ray's width 2 radii from the centre but never narrower than
+/// Gaussian at the ray's width 2 radii from the center but never narrower than
 /// `minHalfAngleDegrees`, and clumped along the ray by noise in log range with a wavelength of
 /// `clusterSpacing`. The count is kept: secondaries move into the rays, none are added. The
 /// share, floor angle, clustering and spacing are illustrative, as the sources do not measure
@@ -93,7 +93,7 @@ struct SecondaryCraterOptions {
     double sizeSlope = 4.0;       ///< Cumulative size slope, positive.
     double minDiameter = 1.0;     ///< Smallest secondary generated (m).
     double maxDiameter = std::numeric_limits<double>::infinity();  ///< Largest (m), exclusive.
-    /// Outer range in primary diameters from the centre; unset uses 1.6 times Elliott et al.'s
+    /// Outer range in primary diameters from the center; unset uses 1.6 times Elliott et al.'s
     /// median ray length (`ElliottMedianRayLength`).
     std::optional<double> outerRange;
     /// The primaries that throw secondaries.
@@ -132,11 +132,11 @@ struct SecondaryCraterOptions {
 /// shapes with a share outside [0, 1] or an ellipticity that can be below 1 or unbounded.
 void ValidateSecondaryCraterOptions(const SecondaryCraterOptions& options);
 
-/// The outer range from its centre, in metres, of the secondaries of a primary of `diameter`
-/// metres.
+/// The outer range from its center, in meters, of the secondaries of a primary of `diameter`
+/// meters.
 double SecondaryOuterRange(double diameter, const SecondaryCraterOptions& options);
 
-/// The largest secondary a primary of `diameter` metres throws under `options`, in metres: the
+/// The largest secondary a primary of `diameter` meters throws under `options`, in meters: the
 /// larger of `SingerMaxSecondaryDiameter` at the onset and the outer range, at most `maxDiameter`;
 /// 0 when its outer range does not pass its onset.
 double LargestSecondary(double diameter, const SecondaryCraterOptions& options);
@@ -145,8 +145,8 @@ double LargestSecondary(double diameter, const SecondaryCraterOptions& options);
 /// the even spread's.
 struct SecondaryRayField {
     std::vector<RayDirection> rays;
-    double diameter = 0.0;    ///< The primary's, in metres.
-    double onset = 0.0;       ///< `SecondaryOnsetRange`, in metres.
+    double diameter = 0.0;    ///< The primary's, in meters.
+    double onset = 0.0;       ///< `SecondaryOnsetRange`, in meters.
     double share = 0.0;       ///< `SecondaryRays::share`.
     double sinFloor = 0.0;    ///< Sine of `SecondaryRays::minHalfAngleDegrees`.
     double clustering = 0.0;  ///< `SecondaryRays::clustering`.
@@ -157,22 +157,22 @@ struct SecondaryRayField {
     /// has no rays.
     static std::optional<SecondaryRayField> Make(const Crater& primary, const SecondaryRays& rays);
 
-    /// The across-ray half width of `ray` at `range` metres.
+    /// The across-ray half width of `ray` at `range` meters.
     double Width(const RayDirection& ray, double range) const;
 
-    /// The across-ray profile of `ray` at `range` metres and `azimuth`, 1 on its centre line.
+    /// The across-ray profile of `ray` at `range` meters and `azimuth`, 1 on its center line.
     double Profile(const RayDirection& ray, double range, double azimuth) const;
 
-    /// The clumping along `ray` at `range` metres, 1 on average.
+    /// The clumping along `ray` at `range` meters, 1 on average.
     double Clump(const RayDirection& ray, double range) const;
 
-    /// The mean over azimuth of the summed profiles at `range` metres.
+    /// The mean over azimuth of the summed profiles at `range` meters.
     double MeanProfile(double range) const;
 
-    /// The density of secondaries at `range` metres and `azimuth` over the even spread's.
+    /// The density of secondaries at `range` meters and `azimuth` over the even spread's.
     double Density(double range, double azimuth) const;
 
-    /// An upper bound of `Density` between `r0` and `r1` metres, with a margin.
+    /// An upper bound of `Density` between `r0` and `r1` meters, with a margin.
     double Peak(double r0, double r1) const;
 };
 
@@ -184,24 +184,24 @@ class SecondaryDensity {
     /// The secondaries `primary` throws under `options`; none when its selection leaves it out.
     SecondaryDensity(const Crater& primary, const SecondaryCraterOptions& options);
 
-    /// Secondaries per m^2 with diameters in [`dMin`, `dMax`) metres at `offset` metres east and
-    /// north of the primary's centre, in its local frame.
+    /// Secondaries per m^2 with diameters in [`dMin`, `dMax`) meters at `offset` meters east and
+    /// north of the primary's center, in its local frame.
     double At(const Vec2d& offset, double dMin, double dMax) const;
 
     /// The share of ground covered by those secondaries, their areas pi d^2 / 4 summed per m^2.
     double CoverAt(const Vec2d& offset, double dMin, double dMax) const;
 
-    /// The farthest a secondary lands from the primary's centre, in metres; 0 when it throws none.
+    /// The farthest a secondary lands from the primary's center, in meters; 0 when it throws none.
     double Reach() const {
         return outer_;
     }
 
-    /// The primary's diameter, in metres.
+    /// The primary's diameter, in meters.
     double Diameter() const {
         return diameter_;
     }
 
-    /// Where the secondaries start (`SecondaryOnsetRange`), in metres from the primary's centre.
+    /// Where the secondaries start (`SecondaryOnsetRange`), in meters from the primary's center.
     double Onset() const {
         return onset_;
     }
@@ -211,7 +211,7 @@ class SecondaryDensity {
         return density0_;
     }
 
-    /// The size `OnsetDensity` counts from, `countFraction` times the diameter, in metres.
+    /// The size `OnsetDensity` counts from, `countFraction` times the diameter, in meters.
     double Reference() const {
         return reference_;
     }
@@ -221,13 +221,13 @@ class SecondaryDensity {
         return rays_;
     }
 
-    /// Chapman's scaled range 1 + (range - onset) / D at `range` metres, whose inverse square the
+    /// Chapman's scaled range 1 + (range - onset) / D at `range` meters, whose inverse square the
     /// density falls with.
     double ScaledRange(double range) const {
         return 1.0 + (range - onset_) / diameter_;
     }
 
-    /// The share of the cumulative count at `Reference` with diameters in [`low`, `high`) metres.
+    /// The share of the cumulative count at `Reference` with diameters in [`low`, `high`) meters.
     double SizeShare(double low, double high) const;
 
   private:

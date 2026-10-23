@@ -115,9 +115,9 @@ const std::optional<ExtentSpec>& SurfaceExtent(const OutputAreaSpec& area, const
 /// Whether an output lists features: a crater or boulder list, or boulder models.
 bool ListsFeatures(const OutputSpec& output);
 
-/// The whole of a body in longitude and latitude, in square cells of at most `spacing` metres
+/// The whole of a body in longitude and latitude, in square cells of at most `spacing` meters
 /// along a meridian, for listing features over it.
-/// @param spacing In metres; positive.
+/// @param spacing In meters; positive.
 RasterGrid WholeBodyGrid(const Surface& surface, double spacing);
 
 /// The grid an output covers, unchecked: its extent (or else `base`'s, the source's grid) snapped

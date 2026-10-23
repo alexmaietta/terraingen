@@ -33,7 +33,7 @@ class SteadyStateAges final : public CraterAgeModel {
         return ageGyr_;
     }
 
-    /// The equilibrium lifetime tau(D) in Gyr of craters of `diameter` metres, before capping at
+    /// The equilibrium lifetime tau(D) in Gyr of craters of `diameter` meters, before capping at
     /// the surface age.
     /// @throws std::domain_error outside either distribution's valid range.
     double EquilibriumLifetimeGyr(double diameter) const;

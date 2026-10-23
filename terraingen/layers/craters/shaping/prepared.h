@@ -13,14 +13,14 @@
 
 namespace terraingen {
 
-/// A crater's datum: the plane h = `a` + `b` dx + `c` dy, dx and dy in metres east and
-/// north of its centre.
+/// A crater's datum: the plane h = `a` + `b` dx + `c` dy, dx and dy in meters east and
+/// north of its center.
 struct Plane {
-    double a = 0.0;  ///< Height at the centre (m).
+    double a = 0.0;  ///< Height at the center (m).
     double b = 0.0;  ///< Slope eastward (m/m).
     double c = 0.0;  ///< Slope northward (m/m).
 
-    /// The height a + b dx + c dy at `dx` east and `dy` north of the centre (m).
+    /// The height a + b dx + c dy at `dx` east and `dy` north of the center (m).
     double At(double dx, double dy) const {
         return a + b * dx + c * dy;
     }
@@ -50,7 +50,7 @@ struct CraterShapeModels;
 /// The craters with a non-zero resolution weight at `spacing`, prepared in `CraterApplyOrder`
 /// without datums, each in its `ResolvedCraterState`; `reshape`, when set, changes each outline
 /// after `IrregularOutline`.
-/// @param spacing Sample spacing in metres; positive.
+/// @param spacing Sample spacing in meters; positive.
 /// @param models Neither may be null.
 /// @throws std::domain_error as `DegradationModel::State`.
 /// @throws std::invalid_argument as `ResolvedCraterState`.

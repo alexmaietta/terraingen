@@ -55,7 +55,7 @@ class CandidateGround final : public Ground {
     double spacing_;
 };
 
-/// How far in radii a boulder shape can reach from its centre: half the diagonal of its unit box
+/// How far in radii a boulder shape can reach from its center: half the diagonal of its unit box
 /// over half its longest axis, for a shape tilted or resting on a side.
 constexpr double kShapeReachRadii = 1.7320508075688772;
 
@@ -70,7 +70,7 @@ RandomStream AttributeStream(std::uint32_t seed, std::uint64_t id, BoulderDraw d
 }
 
 /// Cuts `mesh` flat at a plane: triangles crossing it are split along it, sharing the new points
-/// between neighbours so the mesh stays closed, and points above it (`distance(p)` > 0, the
+/// between neighbors so the mesh stays closed, and points above it (`distance(p)` > 0, the
 /// distance along the unit `normal`) are moved down onto it.
 template <typename Distance>
 void CutByPlane(TriangleMesh& mesh, const Vec3d& normal, const Distance& distance) {
@@ -125,7 +125,7 @@ void CutByPlane(TriangleMesh& mesh, const Vec3d& normal, const Distance& distanc
     }
 }
 
-/// The box the relief of a boulder at (`x`, `y`) reaching `reach` metres is drawn over: on a
+/// The box the relief of a boulder at (`x`, `y`) reaching `reach` meters is drawn over: on a
 /// sphere a square in degrees around the box `Surface::Expand` gives.
 Bounds2d ReliefBox(double x, double y, double reach, const Surface& surface) {
     if (!surface.IsBody()) {
@@ -138,7 +138,7 @@ Bounds2d ReliefBox(double x, double y, double reach, const Surface& surface) {
     return {cx - half, cy - half, cx + half, cy + half};
 }
 
-/// How far a placed shape reaches from its boulder's centre `cx`, `cy` along either axis.
+/// How far a placed shape reaches from its boulder's center `cx`, `cy` along either axis.
 double ShapeReach(const TriangleMesh& placed, double cx, double cy) {
     const Box3d box = Bounds(placed);
     return std::fmax(std::fmax(std::fabs(box.min.x - cx), std::fabs(box.max.x - cx)),

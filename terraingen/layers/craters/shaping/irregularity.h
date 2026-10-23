@@ -59,7 +59,7 @@ struct CraterIrregularity {
     double headingSpread = 0.0;  ///< Spread of `heading` either way, in radians.
 
     /// Share of selected craters with radial marks: the wall's profile is read nearer to or
-    /// farther from the centre by a shift that varies smoothly around the crater, leaving ridges
+    /// farther from the center by a shift that varies smoothly around the crater, leaving ridges
     /// and grooves down the wall that are strongest where it is steepest. No published
     /// measurements of such marks are known, so the defaults are set by eye.
     double marksShare = 0.0;
@@ -116,11 +116,11 @@ struct CraterOutline {
     double marksOuterRadii = 0.9;  ///< Where the marks start to fade, in radii.
     double marksFadeRadii = 0.1;   ///< Width of the fades, in radii.
 
-    /// The factor the rim radius is stretched by toward (`dx`, `dy`) metres east and north of the
-    /// centre; 1 for a round crater.
+    /// The factor the rim radius is stretched by toward (`dx`, `dy`) meters east and north of the
+    /// center; 1 for a round crater.
     double Scale(double dx, double dy) const;
 
-    /// The shift in radii the marks add at `radii` from the centre toward (`dx`, `dy`); 0 outside
+    /// The shift in radii the marks add at `radii` from the center toward (`dx`, `dy`); 0 outside
     /// the marks' window, which ends inside the rim.
     double MarkShift(double dx, double dy, double radii) const;
 
@@ -140,13 +140,13 @@ CraterOutline IrregularOutline(const Crater& crater, const CraterIrregularity& i
 /// The largest stretch any crater's outline can have, to widen footprints by; 1 when disabled.
 double MaxOutlineScale(const CraterIrregularity& irregularity);
 
-/// The distance in metres at which a crater's round profile is read at surface (x, y): the true
+/// The distance in meters at which a crater's round profile is read at surface (x, y): the true
 /// distance over the stretch of its `outline` (`IrregularOutline`) in that direction, shifted by
 /// its marks.
 double CraterProfileDistance(const Crater& crater, const CraterOutline& outline, double x, double y,
                              const Surface& surface = {});
 
-/// `CraterProfileDistance` for a point `offset` metres east and north of the crater's centre in
+/// `CraterProfileDistance` for a point `offset` meters east and north of the crater's center in
 /// its local frame.
 double CraterProfileDistance(const Crater& crater, const CraterOutline& outline,
                              const Vec2d& offset);

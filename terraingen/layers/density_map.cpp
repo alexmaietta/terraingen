@@ -15,7 +15,7 @@ namespace {
 /// Simpson intervals in log diameter for an areal fraction.
 constexpr int kArealSteps = 2048;
 
-/// The share of ground covered by features of `distribution` in [`low`, `high`) metres: the
+/// The share of ground covered by features of `distribution` in [`low`, `high`) meters: the
 /// integral of pi D^2 / 4 dN/dD, taken in log diameter.
 double ArealFraction(const SizeFrequencyDistribution& distribution, double low, double high) {
     const double a = std::log(low);

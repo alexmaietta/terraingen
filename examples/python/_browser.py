@@ -15,7 +15,7 @@ SETTINGS_PRIM = "/Render/Settings"
 
 
 def show_terrain(scene, view):
-    """Writes a view (`Example.views`) as the scene's terrain prim, with a sun, a grey material
+    """Writes a view (`Example.views`) as the scene's terrain prim, with a sun, a gray material
     and render settings shading it with an elevation colormap, as `terraingen --gui` does."""
     import ernie
     from ernie import tokens

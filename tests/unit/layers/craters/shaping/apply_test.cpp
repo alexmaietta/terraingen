@@ -38,7 +38,7 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters,
     terraingen::ApplyCraters(raster, craters, models, options, {spacing, threads, ground});
 }
 
-/// A `size` x `size` north-up raster of 1 m pixels centred on the origin.
+/// A `size` x `size` north-up raster of 1 m pixels centered on the origin.
 Raster<float> Flat(std::size_t size, float value = 0.0f) {
     Raster<float> raster(size, size, value);
     const double half = 0.5 * static_cast<double>(size);
@@ -74,13 +74,13 @@ CraterApplyOptions Faded(terraingen::ResolutionFade fade) {
     return options;
 }
 
-/// Height at the cell whose centre is nearest (x, y).
+/// Height at the cell whose center is nearest (x, y).
 float At(const Raster<float>& raster, double x, double y) {
     const auto pixel = raster.Transform().WorldToPixel(x, y);
     return raster(static_cast<std::size_t>(pixel.x), static_cast<std::size_t>(pixel.y));
 }
 
-/// Profile height of a fresh crater `diameter` across at `distance` from its centre.
+/// Profile height of a fresh crater `diameter` across at `distance` from its center.
 double Fresh(const FassettThomsonProfile& profile, double distance, double diameter) {
     const CraterState state = kFresh.State(Crater{0.0, 0.0, diameter, 0.0, 0u});
     return profile.Height(distance, diameter, state);

@@ -88,7 +88,7 @@ class SourcesRasterRoughness : public terraingen::examples::Example {
             sum += added * added;
         }
         const double rms = std::sqrt(sum / static_cast<double>(evaluated_.Size()));
-        Check(rms > 0.01 && rms < 2.0, "the roughness adds centimetres to decimetres of relief");
+        Check(rms > 0.01 && rms < 2.0, "the roughness adds centimeters to decimeters of relief");
     }
 
   private:

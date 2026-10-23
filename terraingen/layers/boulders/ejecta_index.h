@@ -17,7 +17,7 @@ class EjectaIndex {
   public:
     EjectaIndex() = default;
 
-    /// Indexes `craters`, each reaching `reach(crater)` metres from its centre.
+    /// Indexes `craters`, each reaching `reach(crater)` meters from its center.
     /// @param sources The layer each crater comes from, by index; empty for one layer.
     EjectaIndex(CraterList craters, const Surface& surface,
                 const std::function<double(const Crater&)>& reach,

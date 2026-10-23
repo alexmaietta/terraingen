@@ -1,5 +1,5 @@
 /// @file
-/// @brief `RadialShape`, a star-shaped body's radius along each direction from its centre.
+/// @brief `RadialShape`, a star-shaped body's radius along each direction from its center.
 #pragma once
 
 #include "terraingen/util/geometry.h"
@@ -10,21 +10,21 @@
 
 namespace terraingen {
 
-/// The radius of a star-shaped body (one every ray from its centre crosses once) along each
+/// The radius of a star-shaped body (one every ray from its center crosses once) along each
 /// direction: a radial ICQ grid, the vertex labels (I, J, F) of Gaskell's implicitly connected
-/// quadrilateral format (I and J from 0 to Q, faces F from 1 to 6 centred on +z, -y, -x, +y, +x
+/// quadrilateral format (I and J from 0 to Q, faces F from 1 to 6 centered on +z, -y, -x, +y, +x
 /// and -z) each at a fixed equiangular direction, holding the radius there. Within each of a
 /// face's Q^2 quadrilaterals the radius is interpolated bilinearly in those angles. Labels the
 /// format shares between faces have the same direction and radius, so the radius is continuous;
 /// it never leaves the range of the label radii.
 class RadialShape {
   public:
-    /// The shape of `q` intervals per face edge from a radius in metres along each unit direction,
+    /// The shape of `q` intervals per face edge from a radius in meters along each unit direction,
     /// evaluated at every label.
     /// @throws std::invalid_argument for a `q` of 0, or a radius that is not positive and finite.
     static RadialShape Sample(std::size_t q, const std::function<double(const Vec3d&)>& radius);
 
-    /// The shape of `q` intervals per face edge from 6 (q + 1)^2 label radii in metres, in ICQ
+    /// The shape of `q` intervals per face edge from 6 (q + 1)^2 label radii in meters, in ICQ
     /// file order (`LabelIndex`).
     /// @throws std::invalid_argument for a `q` of 0, the wrong count, a radius that is not
     /// positive and finite, or labels shared between faces with different radii.
@@ -43,7 +43,7 @@ class RadialShape {
         return ((face - 1) * (q_ + 1) + j) * (q_ + 1) + i;
     }
 
-    /// The radius in metres along a nonzero `direction`.
+    /// The radius in meters along a nonzero `direction`.
     double At(const Vec3d& direction) const;
 
     /// Q, the intervals per face edge.
@@ -51,17 +51,17 @@ class RadialShape {
         return q_;
     }
 
-    /// The label radii in metres, in the order of `LabelIndex`.
+    /// The label radii in meters, in the order of `LabelIndex`.
     const std::vector<double>& Radii() const {
         return radii_;
     }
 
-    /// The smallest label radius in metres, a lower bound of `At`.
+    /// The smallest label radius in meters, a lower bound of `At`.
     double MinRadius() const {
         return min_;
     }
 
-    /// The largest label radius in metres, an upper bound of `At`.
+    /// The largest label radius in meters, an upper bound of `At`.
     double MaxRadius() const {
         return max_;
     }

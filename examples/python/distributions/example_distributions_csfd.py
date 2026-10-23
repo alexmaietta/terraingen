@@ -1,6 +1,6 @@
 """Cumulative size-frequency distributions (CSFDs) of the built-in crater models.
 
-Each distribution gives N(>= D), the number of craters at least D metres across per square metre.
+Each distribution gives N(>= D), the number of craters at least D meters across per square meter.
 This example tabulates the lunar production on surfaces of several ages (Neukum's production and
 chronology), the equilibria of Trask and Hartmann, the DSNE lunar surface (production capped at
 equilibrium), Moore's terrain classes and the VIPER specification, and Mars. It writes the table as

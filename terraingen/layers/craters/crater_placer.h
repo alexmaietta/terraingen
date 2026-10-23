@@ -34,14 +34,14 @@ class CraterPlacer {
     virtual ~CraterPlacer() = default;
 
     /// The craters the layer applies over `grid`, as its `Apply` there sees them.
-    /// @param spacing The sample spacing in metres the craters are listed at, as a heightmap of
+    /// @param spacing The sample spacing in meters the craters are listed at, as a heightmap of
     /// that spacing applies them, finer than the grid's or not (`ListedSpacing`); 0 for the grid's.
     virtual CraterFeatures CratersOver(const RasterGrid& grid, double spacing) const = 0;
 };
 
 /// The craters `layers` apply over `grid`, layer by layer in order: those of every
 /// `CraterPlacer` among them.
-/// @param spacing The sample spacing in metres.
+/// @param spacing The sample spacing in meters.
 CraterFeatures PlacedCraters(Span<const std::shared_ptr<const Layer>> layers,
                              const RasterGrid& grid, double spacing);
 

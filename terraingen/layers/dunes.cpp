@@ -23,7 +23,7 @@ constexpr double kHalfPi = 0.5 * kPi;
 /// Wavelengths per lattice unit of the crest wander and of the defects along crests.
 constexpr double kWanderWavelengths = 4.0;
 constexpr double kDefectWavelengths = 3.0;
-/// Phase by which barchanoid crest centres trail their links, in wavelengths, and the length of
+/// Phase by which barchanoid crest centers trail their links, in wavelengths, and the length of
 /// a crest segment from link to link, in wavelengths.
 constexpr double kBarchanoidBend = 0.15;
 constexpr double kBarchanoidSegment = 1.5;
@@ -105,14 +105,14 @@ double BarchanAt(double x, double y, const Dune& dune, const DuneOptions& option
                     dune.height * (1.0 - tau * tau) - std::tan(options.slipFaceAngle) * distance);
 }
 
-/// The height of a dome at (x, y) about its centre in its wind frame.
+/// The height of a dome at (x, y) about its center in its wind frame.
 double DomeAt(double x, double y, const Dune& dune, const DuneOptions& options) {
     const double along = x / (0.5 * options.domeLength * dune.width);
     const double across = y / (0.5 * dune.width);
     return dune.height * Bump(std::hypot(along, across), options.domeExponent);
 }
 
-/// The farthest a dune of `width` reaches from its centre (m).
+/// The farthest a dune of `width` reaches from its center (m).
 double Reach(double width, const DuneOptions& options) {
     const double height = options.heightRatio * width;
     const double barchan = std::max(

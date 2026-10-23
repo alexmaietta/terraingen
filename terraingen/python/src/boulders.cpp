@@ -64,9 +64,10 @@ void BindBoulderShapes(nb::module_& m) {
         .def_ro("material", &BoulderShape::material)
         .def_ro("intermediate", &BoulderShape::intermediate)
         .def_ro("short_axis", &BoulderShape::shortAxis);
-    m.def("normalized_boulder_shape", &NormalizedBoulderShape, "mesh"_a,
-          "A rock mesh in the unit form of BoulderShape: centred, its longer horizontal side along "
-          "x and 1 long.");
+    m.def(
+        "normalized_boulder_shape", &NormalizedBoulderShape, "mesh"_a,
+        "A rock mesh in the unit form of BoulderShape: centered, its longer horizontal side along "
+        "x and 1 long.");
     m.def("generate_boulder_shape", &GenerateBoulderShape, "shape_seed"_a,
           "options"_a = BoulderShapeOptions{},
           "The shape `shape_seed` gives: the same seed always gives the same shape.");
@@ -80,7 +81,7 @@ void BindFacet(nb::module_& m) {
     nb::class_<BoulderFacet> facet(
         m, "BoulderFacet",
         "A ventifact facet: facing `azimuth_deg` (degrees from east), sloping `angle_deg` degrees, "
-        "meeting the ground `reach` metres from the centre.");
+        "meeting the ground `reach` meters from the center.");
     facet
         .def(
             "__init__",
@@ -96,7 +97,7 @@ void BindFacet(nb::module_& m) {
                 return f.HeightAt({east, north});
             },
             "east"_a, "north"_a,
-            "The facet's height (m) above the ground east and north metres from the centre.");
+            "The facet's height (m) above the ground east and north meters from the center.");
     DefDegrees(facet, "azimuth_deg", &BoulderFacet::azimuth,
                "The way the facet faces, degrees counter-clockwise from east.");
     DefDegrees(facet, "angle_deg", &BoulderFacet::angle,
@@ -121,7 +122,7 @@ void BindBoulder(nb::module_& m) {
         .value("END", BoulderRest::End);
     BindFacet(m);
     nb::class_<Boulder> boulder(m, "Boulder",
-                                "One boulder: centre, size, burial, orientation and ID.");
+                                "One boulder: center, size, burial, orientation and ID.");
     BindBoulderAngles(boulder);
     boulder
         .def(
@@ -172,11 +173,11 @@ void BindBoulder(nb::module_& m) {
 void BindPatchesAndEjecta(nb::module_& m) {
     BindOptions<BoulderPatches>(
         m, "BoulderPatches",
-        "Patches of richer and poorer boulder cover, about `size` metres across: the abundance "
+        "Patches of richer and poorer boulder cover, about `size` meters across: the abundance "
         "varies from 1 / `spread` to `spread` times its mean (1 for the same everywhere).",
         &ValidateBoulderPatches);
     BindEnum<BoulderClusterModel>(m, "BoulderClusterModel",
-                                  "How boulder cluster centres are laid out and combine.");
+                                  "How boulder cluster centers are laid out and combine.");
     BindEnum<EjectaProfile>(m, "EjectaProfile",
                             "How ejecta boulders fall off from a crater's rim.");
     BindEnum<EjectaAging>(m, "EjectaAging", "How ejecta boulders fade as their crater ages.");
@@ -194,7 +195,7 @@ void BindClustersAndFragments(nb::module_& m) {
     BindOptions<BoulderClusters>(
         m, "BoulderClusters",
         "Boulders between craters gathered in clusters: `share` of them crowd within about "
-        "`radius` metres of cluster centres about `spacing` metres apart; the mean density is "
+        "`radius` meters of cluster centers about `spacing` meters apart; the mean density is "
         "kept.",
         &ValidateBoulderClusters);
     m.def("validate_boulder_clusters", &ValidateBoulderClusters, "clusters"_a, kValidateDoc);
@@ -222,7 +223,7 @@ void BindFillet(nb::module_& m) {
         "draws none.",
         &ValidateBoulderFillet);
     m.def("fillet_height", &FilletHeight, "boulder"_a, "distance"_a, "fillet"_a,
-          "The height (m) of `boulder`'s fillet `distance` metres from its centre.");
+          "The height (m) of `boulder`'s fillet `distance` meters from its center.");
     m.def("validate_boulder_fillet", &ValidateBoulderFillet, "fillet"_a, kValidateDoc);
     BindOptions<BoulderVentifacts>(
         m, "BoulderVentifacts",
@@ -241,22 +242,22 @@ void BindRendering(nb::module_& m) {
     BindEnum<BoulderRelief>(m, "BoulderRelief", "How boulders are drawn into the heights.");
     BindOptions<BoulderModelThreshold>(
         m, "BoulderModelThreshold",
-        "Which boulders are placed as 3D boulder models: at least `min_diameter` metres across, or "
+        "Which boulders are placed as 3D boulder models: at least `min_diameter` meters across, or "
         "`min_samples` samples across, and below `max_diameter` and `max_samples` when set.")
         .def("is_model", &BoulderModelThreshold::IsModel, "diameter"_a, "spacing"_a = 0.0,
-             "Whether a boulder of `diameter` metres is a model at `spacing`.");
+             "Whether a boulder of `diameter` meters is a model at `spacing`.");
     BindOptions<BoulderReliefRange>(
         m, "BoulderReliefRange",
         "Which boulders are drawn into the heights: from `min_diameter` up to `max_diameter` "
-        "metres, models only with `models`.")
+        "meters, models only with `models`.")
         .def("holds", &BoulderReliefRange::Holds, "diameter"_a, "model"_a,
-             "Whether a boulder of `diameter` metres is drawn into the heights.");
+             "Whether a boulder of `diameter` meters is drawn into the heights.");
 }
 
 void BindManualBoulder(nb::module_& m) {
     BindOptions<ManualBoulder>(
         m, "ManualBoulder",
-        "A boulder placed by hand at (`x`, `y`), `diameter` metres long, with any of its pose and "
+        "A boulder placed by hand at (`x`, `y`), `diameter` meters long, with any of its pose and "
         "shape fixed: `height`, `burial`, `yaw_deg`, `lean_deg`, `tilt_deg`, "
         "`tilt_azimuth_deg`, `wear`, `rest` and `shape_seed`; None draws a field as for "
         "generated boulders. Angles in degrees.",
@@ -322,7 +323,7 @@ void BindLayerQueries(nb::class_<BoulderLayer, Layer>& layer) {
                 });
             },
             "diameter"_a, "x"_a, "y"_a, "generator"_a = nb::none(), "layers"_a = 0,
-            "Boulders at least `diameter` across per square metre at (x, y).")
+            "Boulders at least `diameter` across per square meter at (x, y).")
         .def(
             "unresolved_cover_at",
             [](const BoulderLayer& boulders, double x, double y, double spacing,
@@ -333,7 +334,7 @@ void BindLayerQueries(nb::class_<BoulderLayer, Layer>& layer) {
                 return std::pair{cover.mean, cover.variance};
             },
             "x"_a, "y"_a, "spacing"_a, "generator"_a = nb::none(), "layers"_a = 0,
-            "The share of a sample `spacing` metres across at (x, y) that boulders too small "
+            "The share of a sample `spacing` meters across at (x, y) that boulders too small "
             "to resolve cover: (mean, variance).");
 }
 
@@ -367,9 +368,9 @@ void BindLayer(nb::module_& m) {
     m.def("add_boulder", &AddBoulder, "height"_a, "x"_a, "y"_a, "boulder"_a, "weight"_a = 1.0,
           "surface"_a = Surface{}, "width"_a = 0.0,
           "`height` at (x, y) with `boulder` drawn into it at `weight`, its dome averaged over "
-          "`width` metres.");
+          "`width` meters.");
     m.def("dome_height", &DomeHeight, "boulder"_a, "distance"_a, "width"_a = 0.0,
-          "A boulder's dome `distance` metres from its centre, averaged over `width` metres.");
+          "A boulder's dome `distance` meters from its center, averaged over `width` meters.");
 }
 
 void BindPlacement(nb::module_& m) {
@@ -430,7 +431,7 @@ void BindSandShadows(nb::module_& m) {
         layer, "thickness_at",
         [](const SandShadowLayer& shadows, double x, double y, double spacing,
            const Ground* ground) { return shadows.ThicknessAt(x, y, spacing, ground); },
-        "The sand depth at (x, y) in metres; with the boulders' exposure field it reads the "
+        "The sand depth at (x, y) in meters; with the boulders' exposure field it reads the "
         "ground.");
     BindMaterialCover<SandShadowLayer>(layer);
 }

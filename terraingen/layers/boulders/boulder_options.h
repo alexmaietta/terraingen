@@ -34,9 +34,9 @@ struct BoulderModelThreshold {
     std::optional<double> maxDiameter{};  ///< Boulders this wide (m) or wider are not.
     std::optional<double> maxSamples{};   ///< Boulders spanning this many samples or more are not.
 
-    /// Whether a boulder of `diameter` metres is a model: at or above a lower threshold and below
+    /// Whether a boulder of `diameter` meters is a model: at or above a lower threshold and below
     /// the upper ones.
-    /// @param spacing Sample spacing in metres; 0 for none, when only `minDiameter` counts.
+    /// @param spacing Sample spacing in meters; 0 for none, when only `minDiameter` counts.
     bool IsModel(double diameter, double spacing) const;
 
     bool operator==(const BoulderModelThreshold& other) const {
@@ -52,7 +52,7 @@ struct BoulderModelThreshold {
 /// `coverage`, or `distribution`, from `minDiameter` up to `maxDiameter`.
 struct BoulderSizes {
     double coverage = 0.02;  ///< Golombek-Rapp k, the fractional area covered by boulders.
-    /// Golombek-Rapp q = `qConstant` + `qCoverageCoefficient` / k, per metre: their qa and qb.
+    /// Golombek-Rapp q = `qConstant` + `qCoverageCoefficient` / k, per meter: their qa and qb.
     double qConstant = 1.79;
     double qCoverageCoefficient = 0.152;  ///< Golombek-Rapp qb (see `qConstant`).
     /// Sizes per m^2 in place of Golombek-Rapp boulders (e.g. `Sp8023IntercraterBlocks`); patches
@@ -86,23 +86,23 @@ struct BoulderPatches {
     }
 };
 
-/// How boulder cluster centres are laid out and how their clusters combine.
+/// How boulder cluster centers are laid out and how their clusters combine.
 enum class BoulderClusterModel {
-    /// One centre per cell of a jittered lattice `spacing` apart; each point takes the Gaussian of
-    /// its nearest centre only.
+    /// One center per cell of a jittered lattice `spacing` apart; each point takes the Gaussian of
+    /// its nearest center only.
     Nearest,
-    /// A Thomas cluster process: centres scattered as a Poisson process, one per `spacing`^2 on
+    /// A Thomas cluster process: centers scattered as a Poisson process, one per `spacing`^2 on
     /// average, each spreading its boulders in a Gaussian of `radius`, overlapping clusters adding
     /// (Thomas 1949, https://doi.org/10.1093/biomet/36.1-2.18).
     Thomas,
 };
 
 /// Boulders between craters gathered in clusters: `share` of them crowd within about `radius` of
-/// cluster centres about `spacing` apart and the rest stay scattered. The mean abundance is kept:
+/// cluster centers about `spacing` apart and the rest stay scattered. The mean abundance is kept:
 /// the mean count with a size distribution, the mean coverage with Golombek-Rapp boulders.
 struct BoulderClusters {
     double share = 0.0;     ///< Share of the boulders in clusters, in [0, 1]; 0 for none.
-    double spacing = 50.0;  ///< Typical distance between cluster centres (m).
+    double spacing = 50.0;  ///< Typical distance between cluster centers (m).
     /// Gaussian radius of a cluster (m): below `spacing` for `Nearest`, at most twice it for
     /// `Thomas`.
     double radius = 5.0;
@@ -149,7 +149,7 @@ struct BoulderFragmentation {
     }
 };
 
-/// How the share of a crater's blocks falls off with distance from its centre, in radii.
+/// How the share of a crater's blocks falls off with distance from its center, in radii.
 enum class EjectaProfile {
     /// Every block inside the rim, falling along a smoothstep to none at `reach`.
     Smoothstep,
@@ -184,7 +184,7 @@ struct BoulderEjecta {
     std::shared_ptr<const SizeFrequencyDistribution> distribution{};
     double coverage = 0.1;  ///< Golombek-Rapp k at the rim of a fresh crater.
     EjectaProfile profile = EjectaProfile::Smoothstep;  ///< Falloff with distance.
-    double reach = 3.0;        ///< Radii from the centre beyond which a crater adds no blocks.
+    double reach = 3.0;        ///< Radii from the center beyond which a crater adds no blocks.
     double decayRadii = 0.7;   ///< e-folding distance of `Exponential`, in radii.
     double floorShare = 0.05;  ///< The floor's share of the rim's blocks with `Exponential`.
     EjectaAging aging = EjectaAging::Freshness;  ///< Wear with time.
@@ -214,10 +214,10 @@ struct BoulderEjecta {
     }
 };
 
-/// The greatest throw (m) of blocks from a crater's centre over a regolith blanket: Bart and
+/// The greatest throw (m) of blocks from a crater's center over a regolith blanket: Bart and
 /// Melosh's (2010, eq. 9) (138.5 / g) (D / H)^0.7086.
-/// @param craterDiameter D, in metres.
-/// @param regolithThickness H, in metres.
+/// @param craterDiameter D, in meters.
+/// @param regolithThickness H, in meters.
 /// @param gravity g, in m/s^2.
 /// @throws std::invalid_argument unless every argument is positive and finite.
 double BoulderThrowDistance(double craterDiameter, double regolithThickness, double gravity);
@@ -274,7 +274,7 @@ struct BoulderPose {
     std::optional<double> maxSlope{};
     /// With `maxSlope`, boulders on steeper ground roll down it instead, in steps along the
     /// steepest descent, and come to rest where it is no steeper than `maxSlope`, gathering at the
-    /// foot of slopes; those that would roll farther than this many metres are left out. Unset
+    /// foot of slopes; those that would roll farther than this many meters are left out. Unset
     /// leaves out every boulder on steeper ground.
     std::optional<double> rollDistance{};
 
@@ -310,7 +310,7 @@ struct BoulderFillet {
 
 /// Ventifacts: windward facets planed on boulders by sand-laden wind, set once the boulder has
 /// settled. A facet faces upwind at `minAngle` to `maxAngle` from horizontal and meets the ground
-/// at the boulder's upwind edge when fresh, moving in to its centre as it wears; boulders with a
+/// at the boulder's upwind edge when fresh, moving in to its center as it wears; boulders with a
 /// keel carry a second facet facing the second wind. Angles are in radians.
 struct BoulderVentifacts {
     double share = 0.0;  ///< Share of boulders with a facet, in [0, 1]; 0 for none.
@@ -343,10 +343,10 @@ void ValidateBoulderVentifacts(const BoulderVentifacts& ventifacts);
 /// winds are left to the site: Gale's came from the southwest and north-northeast.
 BoulderVentifacts GaleVentifacts();
 
-/// The height (m) of `boulder`'s fillet `distance` metres from its centre.
+/// The height (m) of `boulder`'s fillet `distance` meters from its center.
 double FilletHeight(const Boulder& boulder, double distance, const BoulderFillet& fillet);
 
-/// How far (m) from its centre `boulder`'s fillet reaches: its radius plus the fillet's width.
+/// How far (m) from its center `boulder`'s fillet reaches: its radius plus the fillet's width.
 double FilletReach(const Boulder& boulder, const BoulderFillet& fillet);
 
 /// Which boulders are drawn into the heights: those from `minDiameter` up to `maxDiameter` that are
@@ -357,7 +357,7 @@ struct BoulderReliefRange {
     std::optional<double> maxDiameter{};  ///< Boulders this wide (m) or wider are not drawn.
     bool models = false;  ///< Draw models into the heights as well, as a stand-in for far views.
 
-    /// Whether a boulder of `diameter` metres, a model or not, is drawn into the heights.
+    /// Whether a boulder of `diameter` meters, a model or not, is drawn into the heights.
     bool Holds(double diameter, bool model) const {
         return diameter >= minDiameter && (!maxDiameter || diameter < *maxDiameter) &&
                (!model || models);
@@ -437,7 +437,7 @@ struct BoulderLayerOptions {
     /// orientation are not tipped over by `pose.settle`.
     std::vector<ManualBoulder> manual{};
     /// The diameter (m) from which `manual` is a complete catalog at each point: generated boulders
-    /// at least this large centred there are dropped, so the catalog stands in for them. Infinite
+    /// at least this large centerd there are dropped, so the catalog stands in for them. Infinite
     /// or NaN where there is no catalog; unset keeps every generated boulder.
     std::shared_ptr<const SurfaceField> completeness{};
     /// Source cells across from which the source's measured data already holds a boulder: with a

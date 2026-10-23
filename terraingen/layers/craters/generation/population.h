@@ -20,7 +20,7 @@
 namespace terraingen {
 
 /// Keeps craters of similar size apart: two conflict when their diameters differ by at most
-/// `diameterRatio` and their centres are closer than `separation` times the larger diameter.
+/// `diameterRatio` and their centers are closer than `separation` times the larger diameter.
 struct CraterSpacing {
     CraterSpacing() = default;
     /// Spacing with `diameterRatio` `ratio` and `separation` `minSeparation`.
@@ -49,7 +49,7 @@ struct CraterSpacing {
     }
 };
 
-/// A size band of crater generation: diameters [`low`, `high`) metres, from 2^`exponent` to
+/// A size band of crater generation: diameters [`low`, `high`) meters, from 2^`exponent` to
 /// 2^(`exponent` + 1) clipped to the requested range.
 struct CraterBand {
     int exponent = 0;       ///< The band's power of two.
@@ -67,7 +67,7 @@ struct CraterBand {
     }
 };
 
-/// The bands `GenerateCraters` uses to cover [`dMin`, `dMax`) metres, smallest first.
+/// The bands `GenerateCraters` uses to cover [`dMin`, `dMax`) meters, smallest first.
 /// @param cellSizeFactor Cell side over each band's largest whole diameter.
 std::vector<CraterBand> CraterBands(double dMin, double dMax, double cellSizeFactor);
 
@@ -87,12 +87,12 @@ using CraterKeepShare = std::function<double(const Crater& crater)>;
 
 /// Which craters `GenerateCraters` draws, and how.
 struct CraterGenerationOptions {
-    /// Smallest diameter generated, in metres; must be set to a positive value.
+    /// Smallest diameter generated, in meters; must be set to a positive value.
     double dMin = 0.0;
     /// Largest diameter (m), exclusive; infinity means the top of the density's valid range, which
     /// must then be finite.
     double dMax = std::numeric_limits<double>::infinity();
-    /// Also keep craters centred outside the region within this many radii of it.
+    /// Also keep craters centerd outside the region within this many radii of it.
     double marginRadii = 0.0;
     /// Cell side as a multiple of each band's largest diameter.
     double cellSizeFactor = 16.0;
@@ -124,13 +124,13 @@ struct CraterGenerationOptions {
     /// depend only on the crater; unset keeps every crater.
     CraterKeepShare keepShare{};
     /// The diameter (m) from which `manual` craters are a complete catalog at each point: generated
-    /// craters at least this large centred there are dropped, so the catalog stands in for them
+    /// craters at least this large centerd there are dropped, so the catalog stands in for them
     /// rather than adding to them. Infinite or NaN where there is no catalog; unset keeps every
     /// generated crater. A DEM's own craters are such a catalog (`UnresolvedCraterLimit`), with
     /// or without `manual` craters.
     std::shared_ptr<const SurfaceField> completeness{};
     /// What the region and margins are measured on: on a sphere, regions are longitude and
-    /// latitude boxes and margins are metres, and `cells` must be `CubeSphereCells` of its radius.
+    /// latitude boxes and margins are meters, and `cells` must be `CubeSphereCells` of its radius.
     Surface surface{};
     /// What the drawn features are called in the log: its category and the noun of its counts.
     std::string logName = "craters";
@@ -142,11 +142,11 @@ struct CraterGenerationOptions {
 /// or largest band.
 void ValidateCraterGenerationOptions(const CraterGenerationOptions& options);
 
-/// The largest diameter generated in metres: `dMax`, or for an infinite `dMax` the top of the
+/// The largest diameter generated in meters: `dMax`, or for an infinite `dMax` the top of the
 /// density's valid range; infinite when both are unbounded.
 double ResolveDMax(double dMax, const SizeFrequencyDistribution& density);
 
-/// The smallest diameter in [`dMin`, `dMax`) metres from which `density` expects about `count`
+/// The smallest diameter in [`dMin`, `dMax`) meters from which `density` expects about `count`
 /// craters over `area` m^2, found by bisection in log diameter; `dMin` if even that expects fewer.
 ///
 /// Raising `dMin` to it bounds the count while keeping the distribution's shape and tile joins.
@@ -156,7 +156,7 @@ double ResolveDMax(double dMax, const SizeFrequencyDistribution& density);
 double CountLimitDiameter(const SizeFrequencyDistribution& density, double area, double count,
                           double dMin, double dMax);
 
-/// Generates the craters of a density whose centres lie in `region` (surface coordinates) or
+/// Generates the craters of a density whose centers lie in `region` (surface coordinates) or
 /// within `marginRadii` radii of it.
 ///
 /// Craters are drawn per cell of each size band from substreams keyed by (`seed`, band, cell), so

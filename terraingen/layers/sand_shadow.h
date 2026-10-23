@@ -17,7 +17,7 @@ struct SandShadowOptions {
     /// Where the wind blows toward, radians counter-clockwise from +x (local east on a body).
     double windAzimuth = 0.0;
     /// Length of a shadow beyond the boulder over the boulder's width. 1.1 is the reattachment
-    /// length behind a dome (Savory and Toy 1986, after Hesp and Smyth 2017); their modelled
+    /// length behind a dome (Savory and Toy 1986, after Hesp and Smyth 2017); their modeled
     /// shadow dunes run 1.3 to 5.6 widths, longer in lighter winds.
     double lengthRatio = 1.1;
     /// Slope of a shadow's flanks, below 90 deg; at most the angle of repose, about 32 deg for dry
@@ -63,7 +63,7 @@ class SandShadowLayer final : public Layer, public MaterialSource {
                     Surface surface = {});
 
     /// The sand depth (m) the shadows lay at world (x, y).
-    /// @param spacing Sample spacing in metres, which picks the boulders as the boulder layer does.
+    /// @param spacing Sample spacing in meters, which picks the boulders as the boulder layer does.
     /// @param ground Needed with the boulder layer's exposure field.
     double ThicknessAt(double x, double y, double spacing = 0.0,
                        const Ground* ground = nullptr) const;

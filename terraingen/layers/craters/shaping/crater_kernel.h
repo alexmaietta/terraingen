@@ -25,7 +25,7 @@ constexpr std::uint32_t kProfileTableCells = 512;
 CraterShapeKernel MakeCraterShapeKernel(const CraterProfile& profile,
                                         const CraterApplyOptions& options);
 
-/// The offset at which the kernel shapes surface point `point` from `crater`'s centre:
+/// The offset at which the kernel shapes surface point `point` from `crater`'s center:
 /// `Surface::Offset` in single precision, so exactly the difference on a plane and the crater's
 /// local frame on a body.
 inline KernelOffset ShapingOffset(const Surface& surface, const Crater& crater,

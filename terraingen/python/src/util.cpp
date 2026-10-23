@@ -86,13 +86,13 @@ void BindLog(nb::module_& m) {
 void BindSurfacePoints(nb::class_<Surface>& surface) {
     surface
         .def("distance", &Surface::Distance, "a"_a, "b"_a,
-             "The distance in metres between two points, great-circle on a sphere.")
+             "The distance in meters between two points, great-circle on a sphere.")
         .def("position", &Surface::Position, "point"_a,
              "The 3D position (m) of a point; on a sphere, body-fixed with z north.")
         .def("offset", &Surface::Offset, "center"_a, "point"_a,
-             "`point` as (east, north) metres from `center` (azimuthal equidistant on a sphere).")
+             "`point` as (east, north) meters from `center` (azimuthal equidistant on a sphere).")
         .def("locate", &Surface::Locate, "center"_a, "offset"_a,
-             "The point (east, north) metres from `center`.")
+             "The point (east, north) meters from `center`.")
         .def(
             "frame",
             [](const Surface& s, const Vec2d& point) {
@@ -101,7 +101,7 @@ void BindSurfacePoints(nb::class_<Surface>& surface) {
             },
             "point"_a, "The (east, north, up) unit vectors at a point.")
         .def("coordinates", &Surface::Coordinates, "direction"_a,
-             "The surface point of a direction from the sphere's centre.")
+             "The surface point of a direction from the sphere's center.")
         .def("expand", &Surface::Expand, "region"_a, "meters"_a,
              "A box holding every point within `meters` of `region`.")
         .def("contains", &Surface::Contains, "region"_a, "point"_a,
@@ -111,16 +111,16 @@ void BindSurfacePoints(nb::class_<Surface>& surface) {
 
 void BindRadialShape(nb::module_& m) {
     nb::class_<RadialShape>(m, "RadialShape",
-                            "A star-shaped body's radius along each direction from its centre, on "
+                            "A star-shaped body's radius along each direction from its center, on "
                             "a radial ICQ grid of labels (i, j, face) interpolated bilinearly.")
         .def(nb::init<std::size_t, std::vector<double>>(), "q"_a, "radii"_a,
-             "From 6 (q + 1)^2 label radii in metres, in ICQ file order (face, then j, then i).")
+             "From 6 (q + 1)^2 label radii in meters, in ICQ file order (face, then j, then i).")
         .def_static("sample", &RadialShape::Sample, "q"_a, "radius"_a,
-                    "From `radius(direction)` in metres, evaluated at every label.")
+                    "From `radius(direction)` in meters, evaluated at every label.")
         .def_static("label_direction", &RadialShape::LabelDirection, "q"_a, "i"_a, "j"_a, "face"_a,
                     "The unit direction of label (i, j, face), face from 1 to 6.")
         .def("label_index", &RadialShape::LabelIndex, "i"_a, "j"_a, "face"_a)
-        .def("at", &RadialShape::At, "direction"_a, "The radius in metres along `direction`.")
+        .def("at", &RadialShape::At, "direction"_a, "The radius in meters along `direction`.")
         .def_prop_ro("q", &RadialShape::Q)
         .def_prop_ro("radii", &RadialShape::Radii)
         .def_prop_ro("min_radius", &RadialShape::MinRadius)
@@ -131,14 +131,14 @@ void BindRadialShape(nb::module_& m) {
 
 void BindSurface(nb::module_& m) {
     nb::class_<Surface> surface(m, "Surface",
-                                "What a terrain lies on: a plane, with coordinates in metres, or "
+                                "What a terrain lies on: a plane, with coordinates in meters, or "
                                 "a sphere, with coordinates in degrees of longitude and latitude "
-                                "and lengths in metres.");
+                                "and lengths in meters.");
     surface.def(nb::init<>(), "A plane.")
         .def_static("plane", &Surface::Plane)
-        .def_static("sphere", &Surface::Sphere, "radius"_a, "A sphere of `radius` metres.")
+        .def_static("sphere", &Surface::Sphere, "radius"_a, "A sphere of `radius` meters.")
         .def_static("ellipsoid", &Surface::Ellipsoid, "a"_a, "b"_a, "c"_a,
-                    "A triaxial ellipsoid with semi-axes `a`, `b` and `c` metres along x, y and z; "
+                    "A triaxial ellipsoid with semi-axes `a`, `b` and `c` meters along x, y and z; "
                     "equal radii give a sphere.")
         .def_static(
             "shape_model",
@@ -155,15 +155,15 @@ void BindSurface(nb::module_& m) {
         .def_prop_ro("is_sphere", &Surface::IsSphere)
         .def_prop_ro("min_radius", &Surface::MinRadius)
         .def_prop_ro("max_radius", &Surface::MaxRadius)
-        .def_prop_ro("radii", &Surface::Radii, "The semi-axes (a, b, c) in metres.")
+        .def_prop_ro("radii", &Surface::Radii, "The semi-axes (a, b, c) in meters.")
         .def("radius_at", &Surface::RadiusAt, "point"_a,
-             "The distance in metres from the centre to the surface at (longitude, latitude).")
+             "The distance in meters from the center to the surface at (longitude, latitude).")
         .def("area_per_steradian", &Surface::AreaPerSteradian, "point"_a,
-             "The surface area per steradian of direction from the centre at a point, in m^2.")
+             "The surface area per steradian of direction from the center at a point, in m^2.")
         .def_prop_ro("is_body", &Surface::IsBody)
         .def_prop_ro("radius", &Surface::Radius)
         .def_prop_ro("unit_length", &Surface::UnitLength,
-                     "Metres per coordinate unit: 1 on a plane, metres per degree along a "
+                     "Meters per coordinate unit: 1 on a plane, meters per degree along a "
                      "meridian on a sphere.")
         .def("__eq__", [](const Surface& a, const Surface& b) { return a == b; });
     BindSurfacePoints(surface);
@@ -189,16 +189,16 @@ void BindCells(nb::module_& m) {
                              "Cells that tile a surface, which crater and boulder generation draws "
                              "from one cell at a time.")
         .def("cells_covering", &SurfaceCells::CellsCovering, "region"_a, "cell_size"_a,
-             "The cells of `cell_size` metres that may hold points of `region`.")
+             "The cells of `cell_size` meters that may hold points of `region`.")
         .def("cell_area", &SurfaceCells::CellArea, "cell"_a, "cell_size"_a,
-             "The cell's area in square metres.")
+             "The cell's area in square meters.")
         .def("sample_point", &SurfaceCells::SamplePoint, "u"_a, "v"_a, "cell"_a, "cell_size"_a,
              "The point at (u, v) in [0, 1)^2 of the cell, uniform in area.");
     nb::class_<PlanarCells, SurfaceCells>(m, "PlanarCells", "Square cells of a plane.")
         .def(nb::init<>());
     nb::class_<CubeSphereCells, SurfaceCells>(
         m, "CubeSphereCells",
-        "Equiangular cube-sphere cells of a sphere of `radius` metres, of nearly equal area, or "
+        "Equiangular cube-sphere cells of a sphere of `radius` meters, of nearly equal area, or "
         "of a body `Surface`; on an ellipsoid they are sized by its shortest semi-axis.")
         .def(nb::init<double>(), "radius"_a)
         .def(nb::init<const Surface&>(), "surface"_a)

@@ -22,7 +22,7 @@ struct BoulderFragment {
     /// its largest horizontal extent rather than turned to its long axis, so that placing it with
     /// its parent's pose puts it back where it was.
     BoulderShape shape;
-    Vec3d center;        ///< Centre of the piece's box in the parent's unit form.
+    Vec3d center;        ///< Center of the piece's box in the parent's unit form.
     double scale = 1.0;  ///< The piece's largest horizontal extent in the parent's unit form.
 };
 
@@ -31,7 +31,7 @@ struct BoulderFragment {
 ///
 /// Seed points are drawn around the parent's middle, or along a line through it for slabs; each
 /// piece is the parent cut by the planes halfway to the other seed points, its vertices moving
-/// along their rays from its own seed point, so neighbouring pieces meet on the same plane.
+/// along their rays from its own seed point, so neighboring pieces meet on the same plane.
 /// @throws std::invalid_argument for fewer than 2 pieces or more than 12.
 std::vector<BoulderFragment> FragmentBoulderShape(const BoulderShape& parent, int pieces,
                                                   std::uint64_t seed,

@@ -1,6 +1,6 @@
 /* TerrainGen's documentation theme: minimal and grayscale, flat matte surfaces and hairline rules. */
 
-/* ---- Colours ------------------------------------------------------------------------------ */
+/* ---- Colors ------------------------------------------------------------------------------ */
 
 [data-md-color-scheme="default"] {
     --md-default-bg-color: #fbfbfa;
@@ -55,7 +55,7 @@
     --tg-surface: #1a1a1a;
 }
 
-/* Grayscale code: weight and shade instead of colour. */
+/* Grayscale code: weight and shade instead of color. */
 .md-typeset .highlight,
 .md-typeset .doc-signature {
     --md-code-hl-keyword-color: var(--md-default-fg-color);

@@ -1,6 +1,6 @@
-"""Albedo options: colour, maps with detail, and how bright crater material behaves.
+"""Albedo options: color, maps with detail, and how bright crater material behaves.
 
-- `SyntheticAlbedo(rgb=True, hue_deg, saturation, ...)` gives three bands from a colour and its noise.
+- `SyntheticAlbedo(rgb=True, hue_deg, saturation, ...)` gives three bands from a color and its noise.
 - `RasterAlbedo` interpolates an albedo map and adds sub-cell detail carrying the map's measured
   roughness down (`AlbedoDetail`).
 - `CraterAlbedoOptions` sets how much brighter fresh craters, their ejecta and their rays are, how

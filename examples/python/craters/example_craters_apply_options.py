@@ -2,7 +2,7 @@
 
 By default a crater's profile is added to the terrain, so its floor follows the rough terrain
 beneath. A `datum` instead cuts the interior relative to the ground fitted under the crater: a
-plane, its mean height or the height at its centre. With a datum, `interior_replacement` sets how
+plane, its mean height or the height at its center. With a datum, `interior_replacement` sets how
 much of the interior replaces the older relief (1 erases it, as an impact excavates it; 0 keeps it)
 and `blend` where the replaced interior gives way to the draped rim. Writes a montage of hillshades
 of the same craters on the same rough terrain.
@@ -45,7 +45,7 @@ class Example(_common.Example):
             "default": terraingen.CraterApplyOptions(),
             "plane datum": terraingen.CraterApplyOptions(datum=terraingen.CraterDatum.PLANE),
             "mean-height datum": terraingen.CraterApplyOptions(datum=terraingen.CraterDatum.MEAN_HEIGHT),
-            "centre-height datum": terraingen.CraterApplyOptions(datum=terraingen.CraterDatum.CENTER_HEIGHT),
+            "center-height datum": terraingen.CraterApplyOptions(datum=terraingen.CraterDatum.CENTER_HEIGHT),
             "plane, half replaced": terraingen.CraterApplyOptions(
                 datum=terraingen.CraterDatum.PLANE, interior_replacement=0.5
             ),

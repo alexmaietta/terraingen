@@ -73,7 +73,7 @@ void CheckSwarms(const SplotchSwarms& s) {
     }
 }
 
-/// How much of `splotch` covers the point `offset` metres from its centre, from 1 inside to 0
+/// How much of `splotch` covers the point `offset` meters from its center, from 1 inside to 0
 /// beyond its lobed, soft edge.
 double Cover(const Splotch& splotch, const Vec2d& offset, const SplotchAlbedoOptions& options) {
     const double radius = 0.5 * splotch.mark.diameter;
@@ -103,7 +103,7 @@ double Cover(const Splotch& splotch, const Vec2d& offset, const SplotchAlbedoOpt
     return SoftEdge(distance / lobe, options.softness);
 }
 
-/// The change of `splotch` at `offset` metres from its centre, crossing from one side to the
+/// The change of `splotch` at `offset` meters from its center, crossing from one side to the
 /// other of a mixed splotch.
 double SideChange(const Splotch& splotch, const Vec2d& offset) {
     if (splotch.otherChange == splotch.change) {

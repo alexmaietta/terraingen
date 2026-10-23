@@ -1,7 +1,7 @@
 """Point queries: the height at any point, as a physics engine or rover simulation asks for it.
 
 `height_at(terrain, x, y, spacing)` gives the height at one point sampled every `spacing`
-metres, equal to the cell centred there of a grid evaluated at that spacing, without evaluating a
+meters, equal to the cell centered there of a grid evaluated at that spacing, without evaluating a
 grid. This example checks that against a grid, samples a rover's path across craters, and times
 the queries.
 
@@ -51,7 +51,7 @@ class Example(_common.Example):
         self.grid = terraingen.evaluate(terrain, spacing=SPACING)
         self.center = self.grid.values[32, 32]
         self.query = terraingen.height_at(terrain, 0.25, -0.25, SPACING)
-        print(f"grid cell at the centre {self.center:.4f} m, point query {self.query:.4f} m")
+        print(f"grid cell at the center {self.center:.4f} m, point query {self.query:.4f} m")
 
         self.path = np.linspace(-100.0, 100.0, 801)
         start = time.perf_counter()
@@ -76,7 +76,7 @@ class Example(_common.Example):
 
     def test_final(self):
         assert self.grid.shape == (64, 64), "the grid is 64 x 64"
-        assert abs(self.query - self.center) < 1e-4, "the point query equals the grid cell centred there"
+        assert abs(self.query - self.center) < 1e-4, "the point query equals the grid cell centered there"
         assert self.heights.shape == (801,) and np.isfinite(self.heights).all(), (
             "801 finite heights along the path"
         )

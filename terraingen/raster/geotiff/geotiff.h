@@ -35,7 +35,7 @@ struct GeoKeys {
         return directory.empty();
     }
 
-    /// Whether GTRasterTypeGeoKey is PixelIsPoint: pixel coordinates name pixel centres rather
+    /// Whether GTRasterTypeGeoKey is PixelIsPoint: pixel coordinates name pixel centers rather
     /// than pixel areas.
     bool PixelIsPoint() const;
 
@@ -152,7 +152,7 @@ GeoTiff ReadGeoTiffWindow(const std::filesystem::path& path, std::size_t band,
 /// GeoKeys for longitude and latitude in degrees on a sphere, such as a planet or moon.
 ///
 /// A user-defined geographic CRS with both axes `radius` and pixel-is-area rasters.
-/// @param radius The sphere's radius in metres; positive and finite.
+/// @param radius The sphere's radius in meters; positive and finite.
 /// @throws std::invalid_argument unless `radius` is positive and finite.
 GeoKeys GeographicSphereKeys(double radius);
 

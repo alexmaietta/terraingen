@@ -126,7 +126,7 @@ class GuiApp {
     void Save();
     /// Draws the Terrain panel: the toolbar, the file and status, and the outliner.
     void DrawTerrainPanel();
-    /// Draws the Terrain panel's toolbar: file actions, Generate in the accent colour, and Live.
+    /// Draws the Terrain panel's toolbar: file actions, Generate in the accent color, and Live.
     void DrawToolbar();
     /// Draws the file, starred when edited since it was opened or saved, and what last happened.
     void DrawFileStatus();

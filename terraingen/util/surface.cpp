@@ -21,7 +21,7 @@ void LocalAxes(double lon, double lat, Vec3d& east, Vec3d& north) {
     north = {-sinLat * cosLon, -sinLat * sinLon, std::cos(lat)};
 }
 
-/// The volumetric mean radius in metres of a shape model, from the mean of r^3 over directions.
+/// The volumetric mean radius in meters of a shape model, from the mean of r^3 over directions.
 double MeanRadius(const RadialShape& shape) {
     constexpr int kSteps = 180;
     double cubed = 0.0;

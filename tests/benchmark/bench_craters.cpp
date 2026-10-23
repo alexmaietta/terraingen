@@ -6,7 +6,7 @@ namespace terraingen::benchmarks {
 
 namespace {
 
-/// Lunar craters from 2.5 m to 200 m generated over a square region whose side, in metres, is the
+/// Lunar craters from 2.5 m to 200 m generated over a square region whose side, in meters, is the
 /// argument.
 void BM_GenerateCraters(benchmark::State& state) {
     const auto density = testing::LunarCraterDensity(3.5);

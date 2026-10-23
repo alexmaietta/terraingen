@@ -23,7 +23,7 @@
 
 namespace {
 
-/// A crater D metres across lasts D / 50 Gyr, up to the surface's 3.5 Gyr, its age uniform within.
+/// A crater D meters across lasts D / 50 Gyr, up to the surface's 3.5 Gyr, its age uniform within.
 class SizeLimitedLifetimes final : public terraingen::CraterAgeModel {
   protected:
     double LifetimeAt(double diameter) const override {

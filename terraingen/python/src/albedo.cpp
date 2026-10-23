@@ -143,7 +143,7 @@ void BindSynthetic(nb::module_& m) {
             const AlbedoSample rgb = HsvToRgb(hue, saturation, value);
             return std::tuple{rgb[0], rgb[1], rgb[2]};
         },
-        "hue_deg"_a, "saturation"_a, "value"_a, "A colour's (red, green, blue).");
+        "hue_deg"_a, "saturation"_a, "value"_a, "A color's (red, green, blue).");
 }
 
 void BindRasterAlbedo(nb::module_& m) {
@@ -264,7 +264,7 @@ void BindCraterAlbedo(nb::module_& m) {
         .def("impact", &CraterAlbedo::Impact, "crater"_a,
              "The impact `crater` came from, drawn from its ID.")
         .def("reach", &CraterAlbedo::Reach, "crater"_a,
-             "How far (m) from its centre `crater` can brighten the ground.");
+             "How far (m) from its center `crater` can brighten the ground.");
     nb::class_<CraterImpact> impact(m, "CraterImpact",
                                     "An impact: its angle from the horizontal, downrange heading "
                                     "and downrange-to-uprange ejection speed ratio.");
@@ -368,8 +368,8 @@ void BindEvaluation(nb::module_& m) {
             return Bands(sample, albedo.source ? albedo.source->Bands() : 1);
         },
         "albedo"_a, "x"_a, "y"_a, "spacing"_a, "generator"_a = nb::none(),
-        "The albedo's bands at (x, y) sampled every `spacing` metres, equal to the grid cell "
-        "centred there; layers shaped by the ground read `generator`'s heights when given.");
+        "The albedo's bands at (x, y) sampled every `spacing` meters, equal to the grid cell "
+        "centered there; layers shaped by the ground read `generator`'s heights when given.");
     m.def(
         "evaluate_albedo",
         [](const PyAlbedo& albedo, const RasterGrid& grid, double spacing, unsigned threads,
@@ -381,7 +381,7 @@ void BindEvaluation(nb::module_& m) {
         "albedo"_a, "grid"_a, "spacing"_a = 0.0, "threads"_a = 0, "generator"_a = nb::none(),
         nb::call_guard<nb::gil_scoped_release>(),
         "The albedo's bands over `grid` (such as `RasterGrid.from_raster(heights)` or a source's "
-        "`grid()`), sampled every `spacing` metres (0 for the grid's), one Raster per band; layers "
+        "`grid()`), sampled every `spacing` meters (0 for the grid's), one Raster per band; layers "
         "shaped by the ground read `generator`'s heights when given.");
 }
 
@@ -422,7 +422,7 @@ void BindRocks(nb::module_& m) {
                 return rocks.ShareAt(x, y, AlbedoContext{spacing});
             },
             "x"_a, "y"_a, "spacing"_a = 1.0,
-            "The share of the sample `spacing` metres across at (x, y) that rock covers.");
+            "The share of the sample `spacing` meters across at (x, y) that rock covers.");
     m.def(
         "rock_share",
         [](double resolved, double mean, double variance, double normal) {
@@ -437,7 +437,7 @@ void BindSlopes(nb::module_& m) {
     BindOptions<SlopeAlbedoOptions>(
         m, "SlopeAlbedoOptions",
         "How steep ground stays immature: OMAT rises by `maturity_per_degree` beyond "
-        "`onset_deg` (Ikeda et al. 2022), slopes read over `baseline` metres.",
+        "`onset_deg` (Ikeda et al. 2022), slopes read over `baseline` meters.",
         &ValidateSlopeAlbedoOptions);
     m.def("validate_slope_albedo_options", &ValidateSlopeAlbedoOptions, "options"_a, kValidateDoc);
     nb::class_<SlopeAlbedo, AlbedoLayer>(m, "SlopeAlbedo",

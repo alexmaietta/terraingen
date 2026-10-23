@@ -24,9 +24,9 @@ struct SpectrumBin {
 
 /// The radially averaged power spectral density of `heights` on its own cells.
 ///
-/// The centred window of the largest power-of-2 width and height that fit is detrended by its
+/// The centered window of the largest power-of-2 width and height that fit is detrended by its
 /// least-squares plane, cells without data set to the plane, and tapered by a Hann window in each
-/// direction against edge leakage; the periodogram is normalised by the window's energy so that
+/// direction against edge leakage; the periodogram is normalized by the window's energy so that
 /// the PSD integrates to the height variance. Bins are a quarter octave wide in |f|, from the
 /// window's fundamental to the Nyquist frequency 1 / (2 pixel size), finest last; empty bins are
 /// left out. Frequencies are in cycles per unit of the raster's transform.
@@ -62,7 +62,7 @@ struct PowerLawSpectrum {
     /// Spectral slope beta of the radially averaged PSD, in [2, 4]: beta = 2 H + 2 for a
     /// self-affine surface of Hurst exponent H (Rosenburg et al. 2011).
     double slope = 3.0;
-    /// RMS height in metres the power law holds at wavelengths from one to two base pixels.
+    /// RMS height in meters the power law holds at wavelengths from one to two base pixels.
     double octaveRms = 0.0;
 };
 
@@ -76,10 +76,10 @@ PowerLawSpectrum EstimatePowerLawSpectrum(const Raster<float>& heights,
 
 /// The spectrum a `SpectralContinuationLayer` continues and the wavelengths it adds.
 struct SpectralContinuationOptions {
-    double pixelSize = 1.0;       ///< Cell size of the base in metres; detail starts at twice it.
+    double pixelSize = 1.0;       ///< Cell size of the base in meters; detail starts at twice it.
     double slope = 3.0;           ///< Spectral slope beta, in [2, 4] (`PowerLawSpectrum::slope`).
-    double octaveRms = 0.1;       ///< Metres (`PowerLawSpectrum::octaveRms`).
-    double minWavelength = 0.05;  ///< Shortest wavelength added, in metres.
+    double octaveRms = 0.1;       ///< Meters (`PowerLawSpectrum::octaveRms`).
+    double minWavelength = 0.05;  ///< Shortest wavelength added, in meters.
     /// Octaves above the base's Nyquist frequency over which the detail tapers in, from none at
     /// the Nyquist frequency to the whole power law; positive.
     double taperOctaves = 1.0;
@@ -127,10 +127,10 @@ class SpectralContinuationLayer final : public Layer {
     /// @throws std::invalid_argument as `ValidateSpectralContinuationOptions`.
     explicit SpectralContinuationLayer(SpectralContinuationOptions options, Surface surface = {});
 
-    /// The target power spectral density at `frequency` cycles per metre, in m^4.
+    /// The target power spectral density at `frequency` cycles per meter, in m^4.
     double TargetPsd(double frequency) const;
 
-    /// The lowest frequencies of the bands, in cycles per metre, coarsest first.
+    /// The lowest frequencies of the bands, in cycles per meter, coarsest first.
     std::vector<double> BandFrequencies() const;
 
     /// The options the layer was made with.
@@ -144,21 +144,21 @@ class SpectralContinuationLayer final : public Layer {
   private:
     /// One octave band of impulses.
     struct Band {
-        double frequency = 0.0;  ///< Lowest frequency, in cycles per metre.
+        double frequency = 0.0;  ///< Lowest frequency, in cycles per meter.
         double bandwidth = 0.0;  ///< Gaussian envelope parameter a, in 1 / m.
-        double reach = 0.0;      ///< Impulse radius and lattice cell side, in metres.
+        double reach = 0.0;      ///< Impulse radius and lattice cell side, in meters.
         std::uint32_t index = 0;
     };
 
     struct ImpulseTable;
 
     /// The impulses of `band` over the lattice cells that reach the box [`minX`, `maxX`] x
-    /// [`minY`, `maxY`] metres, faded for `spacing` metres.
+    /// [`minY`, `maxY`] meters, faded for `spacing` meters.
     ImpulseTable Table(const Band& band, double minX, double minY, double maxX, double maxY,
                        double spacing) const;
-    /// The detail at `p` metres from the impulses of `tables`.
+    /// The detail at `p` meters from the impulses of `tables`.
     static double DetailAt(const std::vector<ImpulseTable>& tables, const Vec2d& p);
-    /// Adds the detail at `positions` (metres) to `heights` at `spacing` metres.
+    /// Adds the detail at `positions` (meters) to `heights` at `spacing` meters.
     void AddDetail(const std::vector<Vec2d>& positions, const std::vector<float*>& heights,
                    double spacing) const;
 

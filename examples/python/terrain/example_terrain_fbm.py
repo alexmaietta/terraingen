@@ -51,7 +51,7 @@ class Example(_common.Example):
         assert heights.shape == (513, 513), "the heights are 513 x 513"
         assert np.all(np.isfinite(heights)), "every height is finite"
         assert 10.0 < heights.max() - heights.min() < 400.0, (
-            "the relief is tens of metres, as a 40 m amplitude gives"
+            "the relief is tens of meters, as a 40 m amplitude gives"
         )
         assert all(np.isfinite(h) and heights.min() - 1.0 <= h <= heights.max() + 1.0 for h in self.points), (
             "the point queries lie within the grid's height range"

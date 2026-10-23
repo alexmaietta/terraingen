@@ -61,10 +61,10 @@ class RoughnessLayer final : public FormulaLayer {
     /// @throws std::invalid_argument as `ValidateRoughnessOptions`.
     explicit RoughnessLayer(RoughnessOptions options, Surface surface = {});
 
-    /// The RMS slope (rise over run) over `baseline` metres with every octave resolved.
+    /// The RMS slope (rise over run) over `baseline` meters with every octave resolved.
     double RmsSlope(double baseline) const;
 
-    /// The octaves' wavelengths in metres, longest first.
+    /// The octaves' wavelengths in meters, longest first.
     std::vector<double> Wavelengths() const;
 
     /// The options the layer was made with.

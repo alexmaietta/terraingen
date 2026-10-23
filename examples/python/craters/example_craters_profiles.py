@@ -1,4 +1,4 @@
-"""Crater profiles: the shape of a crater across its centre, and a profile of your own.
+"""Crater profiles: the shape of a crater across its center, and a profile of your own.
 
 Plots the height across a 100 m crater for each built-in profile (Fassett and Thomson's fresh
 profile with its three rim fits, Martin, Parkes and Dunstan's, and the same fresh profile after

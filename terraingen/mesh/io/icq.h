@@ -12,9 +12,9 @@
 
 namespace terraingen {
 
-/// A shape model in Gaskell's implicitly connected quadrilateral (ICQ) format, in metres: the
-/// vertices v(I, J, F) labelled as grid points on the six faces of a cube, I and J from 0 to Q and
-/// F from 1 to 6, the faces centred on +z, -y, -x, +y, +x and -z. Vertices on the cube's edges and
+/// A shape model in Gaskell's implicitly connected quadrilateral (ICQ) format, in meters: the
+/// vertices v(I, J, F) labeled as grid points on the six faces of a cube, I and J from 0 to Q and
+/// F from 1 to 6, the faces centered on +z, -y, -x, +y, +x and -z. Vertices on the cube's edges and
 /// corners are stored once per face, as in the files. Format: R. W. Gaskell, "The Implicitly
 /// Connected Quadrilateral Format", NASA PDS Small Bodies Node,
 /// https://sbnarchive.psi.edu/pds3/dawn/fc/DWNCSPC_4_01/DOCUMENT/ICQMODEL.ASC
@@ -50,13 +50,13 @@ inline Vec3d IcqDirection(std::size_t q, std::size_t i, std::size_t j, std::size
 
 /// Reads an ICQ file: Q on the first line, then 6 (Q + 1)^2 lines of x, y and z (extra columns,
 /// such as albedo, are ignored).
-/// @param metersPerUnit Metres per file unit; Gaskell's models are in kilometres.
+/// @param metersPerUnit Meters per file unit; Gaskell's models are in kilometers.
 /// @throws std::runtime_error if the file cannot be read, or holds a bad Q, too few vertices or a
 /// value that is not a finite number.
 IcqModel ReadIcq(const std::filesystem::path& path, double metersPerUnit = 1000.0);
 
 /// Writes `model` as an ICQ file.
-/// @param metersPerUnit Metres per file unit; Gaskell's models are in kilometres.
+/// @param metersPerUnit Meters per file unit; Gaskell's models are in kilometers.
 /// @throws std::invalid_argument for a Q of 0, a vertex count other than 6 (Q + 1)^2 or a vertex
 /// that is not finite.
 /// @throws std::runtime_error if the file cannot be written.

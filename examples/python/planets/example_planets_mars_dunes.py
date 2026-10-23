@@ -52,7 +52,7 @@ class Example(_common.Example):
 
     def test_final(self):
         field = self.field.values
-        assert np.isfinite(field).all() and field.max() > 20.0, "dunes tens of metres high"
+        assert np.isfinite(field).all() and field.max() > 20.0, "dunes tens of meters high"
         assert field.max() < self.options.height_ratio * self.options.width * 1.3, (
             "no dune taller than its width allows"
         )
@@ -60,4 +60,4 @@ class Example(_common.Example):
             [self.layer.dune_height_at(*self.close.cell_center(c, 256)) for c in range(0, 513, 4)]
         )
         ripples = self.close.values[256, ::4] - bare
-        assert ripples.max() - ripples.min() > 0.1, "ripples decimetres high on the dune"
+        assert ripples.max() - ripples.min() > 0.1, "ripples decimeters high on the dune"

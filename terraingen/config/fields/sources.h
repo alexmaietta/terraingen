@@ -62,7 +62,7 @@ inline constexpr std::string_view kUpsamplingHelp =
 template <> struct SpecName<PlaneSurfaceSpec> {
     static constexpr std::string_view kName = "plane";
     static constexpr std::string_view kDescription =
-        "A flat projected frame in metres, for local sites.";
+        "A flat projected frame in meters, for local sites.";
 };
 template <typename IO> void Fields(IO& /*io*/, PlaneSurfaceSpec& /*spec*/) {}
 
@@ -73,7 +73,7 @@ template <> struct SpecName<SphereSurfaceSpec> {
         "features generated over the whole body.";
 };
 template <typename IO> void Fields(IO& io, SphereSurfaceSpec& spec) {
-    io("radius", spec.radius, "Radius of the body's datum sphere, in metres; required.", "m",
+    io("radius", spec.radius, "Radius of the body's datum sphere, in meters; required.", "m",
        Above(0.0));
 }
 
@@ -82,11 +82,11 @@ template <> struct SpecName<EllipsoidSurfaceSpec> {
     static constexpr std::string_view kDescription =
         "A whole body shaped as a triaxial ellipsoid, such as an elongated moon or asteroid: "
         "planetocentric longitude and latitude (degrees), heights along the direction from the "
-        "centre, and features generated over the whole body.";
+        "center, and features generated over the whole body.";
 };
 template <typename IO> void Fields(IO& io, EllipsoidSurfaceSpec& spec) {
     io("radii", spec.radii,
-       "Semi-axes a, b and c of the datum ellipsoid in metres, along x (longitude 0), y "
+       "Semi-axes a, b and c of the datum ellipsoid in meters, along x (longitude 0), y "
        "(longitude 90) and z (the north pole); exactly three, each positive.",
        "m", Above(0.0));
 }
@@ -95,7 +95,7 @@ template <> struct SpecName<ShapeModelSurfaceSpec> {
     static constexpr std::string_view kName = "shape_model";
     static constexpr std::string_view kDescription =
         "A whole star-shaped body such as an asteroid, from a shape model: planetocentric "
-        "longitude and latitude (degrees), heights along the direction from the centre, and "
+        "longitude and latitude (degrees), heights along the direction from the center, and "
         "features generated over the whole body. The model is resampled along rays from its "
         "origin, keeping the outermost surface where a ray crosses it more than once.";
 };
@@ -109,8 +109,8 @@ template <typename IO> void Fields(IO& io, ShapeModelSurfaceSpec& spec) {
            "; unset keeps an ICQ model's own Q and uses 256 for a mesh.",
        "", CubeFaceCellsRange());
     io("meters_per_unit", spec.metersPerUnit,
-       "Metres per unit of the file's coordinates; unset is 1000 for an ICQ model, whose "
-       "coordinates are kilometres, and 1 for a mesh.",
+       "Meters per unit of the file's coordinates; unset is 1000 for an ICQ model, whose "
+       "coordinates are kilometers, and 1 for a mesh.",
        "m", Above(0.0));
 }
 

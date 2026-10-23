@@ -1,5 +1,5 @@
 // Shapes the craters of CraterShapeKernel into a strip of grid rows. Each cell holding data runs
-// ApplyCraterKernel for the craters of its tile, in order, at its offset from each crater's centre:
+// ApplyCraterKernel for the craters of its tile, in order, at its offset from each crater's center:
 // the difference of planar positions, or on a body its offset in the crater's frame
 // (KernelFrameOffset). The host side is ShapeTilesOnGpu
 // (terraingen/layers/craters/shaping/apply.cpp).

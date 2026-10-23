@@ -128,7 +128,7 @@ TEST(PlacedBoulders, PlacesModelsOnTheGroundBeneathTheirLayer) {
 
 namespace {
 
-/// A DEM of `cells` x `cells` cells of `size` metres with its top-left corner at (`left`,
+/// A DEM of `cells` x `cells` cells of `size` meters with its top-left corner at (`left`,
 /// `top`).
 std::shared_ptr<const terraingen::RasterSource> Dem(std::size_t cells, double size, double left,
                                                     double top) {

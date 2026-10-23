@@ -49,7 +49,7 @@ class ConfigEditor {
     /// The schema entry of a root field such as "source" or "layers"; null if there is none.
     const Json* RootField(std::string_view name) const;
 
-    /// A setting's label: its key in words, capitalised, without a last word that only
+    /// A setting's label: its key in words, capitalized, without a last word that only
     /// repeats its unit ("age_gyr" with unit "Gyr" is "Age").
     static std::string Label(std::string_view key, std::string_view unit = {});
 

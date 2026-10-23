@@ -74,7 +74,7 @@ class TerrainLayered : public terraingen::examples::Example {
         Check(evaluated_.Width() == 513 && evaluated_.Height() == 513, "the heights are 513 x 513");
         Check(stats_.validCount == evaluated_.Size(), "every height is finite");
         Check(stats_.max - stats_.min > 10.0 && stats_.max - stats_.min < 500.0,
-              "the relief is tens of metres");
+              "the relief is tens of meters");
         double differs = 0.0;
         for (std::size_t i = 0; i < rolling_.Size(); ++i) {
             const float change = evaluated_.Values()[i] - rolling_.Values()[i];

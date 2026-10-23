@@ -14,7 +14,7 @@ using terraingen::Surface;
 
 namespace {
 
-/// Craters of many sizes scattered over a few hundred metres.
+/// Craters of many sizes scattered over a few hundred meters.
 CraterList Scattered() {
     CraterList craters;
     for (int n = 0; n < 400; ++n) {

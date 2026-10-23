@@ -15,7 +15,7 @@ class AnchoredPlane {
   public:
     AnchoredPlane(const Surface& surface, const Vec2d& anchor);
 
-    /// Surface (x, y) in the plane, in metres; nothing on a body's far hemisphere.
+    /// Surface (x, y) in the plane, in meters; nothing on a body's far hemisphere.
     std::optional<Vec2d> Project(double x, double y) const;
 
   private:

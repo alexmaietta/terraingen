@@ -16,7 +16,7 @@ FlatSource::FlatSource(std::size_t width, std::size_t height, double pixelSize, 
     }
     RequirePositive(pixelSize, "Pixel size");
     if (!(std::isfinite(elevation) && std::isfinite(center.x) && std::isfinite(center.y))) {
-        throw std::invalid_argument("Elevation and centre must be finite");
+        throw std::invalid_argument("Elevation and center must be finite");
     }
     const double halfX = 0.5 * static_cast<double>(width) * pixelSize;
     const double halfY = 0.5 * static_cast<double>(height) * pixelSize;

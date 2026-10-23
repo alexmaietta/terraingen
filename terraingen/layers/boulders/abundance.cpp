@@ -21,13 +21,13 @@ namespace terraingen {
 
 namespace {
 
-/// Golombek-Rapp boulders per m^2 per metre of diameter at `diameter` for coverage `k`.
+/// Golombek-Rapp boulders per m^2 per meter of diameter at `diameter` for coverage `k`.
 double GolombekRappDensity(double diameter, double k, double qa, double qb) {
     const double q = qa + qb / k;
     return k * q * std::exp(-q * diameter) / (kPi * diameter * diameter / 4.0);
 }
 
-/// How far, in radii from its centre, a crater's blocks reach.
+/// How far, in radii from its center, a crater's blocks reach.
 double EjectaReach(const BoulderEjecta& ejecta, double diameter) {
     if (!(ejecta.gravity && ejecta.regolithThickness)) {
         return ejecta.reach;
@@ -38,7 +38,7 @@ double EjectaReach(const BoulderEjecta& ejecta, double diameter) {
     return std::fmin(ejecta.reach, std::fmax(1.0, thrown));
 }
 
-/// A crater's share of blocks at `rho` radii from its centre, within its `reach`.
+/// A crater's share of blocks at `rho` radii from its center, within its `reach`.
 double RadialShare(const BoulderEjecta& ejecta, double rho, double reach) {
     if (ejecta.profile == EjectaProfile::Smoothstep) {
         return rho <= 1.0 ? 1.0 : Smoothstep((reach - rho) / (reach - 1.0));
@@ -97,7 +97,7 @@ double BoulderLayer::NearestClusterDistance(double x, double y) const {
 
 namespace {
 
-/// The cells and Gaussians of a `Thomas` cluster field: centres scattered `perCell` to a cell
+/// The cells and Gaussians of a `Thomas` cluster field: centers scattered `perCell` to a cell
 /// `side` across, each adding a Gaussian of `sigma` cut at `side`.
 struct ThomasLattice {
     double sigma = 1.0;
@@ -110,12 +110,12 @@ struct ThomasLattice {
         return static_cast<std::uint32_t>(static_cast<std::int64_t>(cell));
     }
 
-    /// The Gaussian of a centre `squared` square metres away.
+    /// The Gaussian of a center `squared` square meters away.
     double Bump(double squared) const {
         return squared < side * side ? std::exp(-0.5 * squared / (sigma * sigma)) : 0.0;
     }
 
-    /// The field at `p` from centres scattered through space.
+    /// The field at `p` from centers scattered through space.
     double Sum3(const Vec3d& p) const {
         double sum = 0.0;
         const double cx = std::floor(p.x / side);
@@ -138,7 +138,7 @@ struct ThomasLattice {
         return sum;
     }
 
-    /// The field at (`x`, `y`) from centres scattered over the plane.
+    /// The field at (`x`, `y`) from centers scattered over the plane.
     double Sum2(double x, double y) const {
         double sum = 0.0;
         const double cx = std::floor(x / side);

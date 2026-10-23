@@ -46,7 +46,7 @@ class GroundCover {
         }
     }
 
-    /// The shares at surface point (`x`, `y`), reading the ground at `spacing` metres.
+    /// The shares at surface point (`x`, `y`), reading the ground at `spacing` meters.
     MaterialShares At(double x, double y, double spacing) const {
         MaterialShares shares = SoilShares();
         if (field_) {

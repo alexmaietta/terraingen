@@ -27,7 +27,7 @@ namespace terraingen {
 struct CraterSlopeResponse {
     bool enabled = false;    ///< Off: craters keep their shape on any slope.
     std::uint32_t seed = 0;  ///< Varies the floor offsets.
-    /// How far the deepest point lies downslope of the centre, in diameters, drawn per crater;
+    /// How far the deepest point lies downslope of the center, in diameters, drawn per crater;
     /// below 0.23. The default spans the interquartile range of the upslope wall width over the
     /// downslope diameter, 0.55 to 0.69 with a median of 0.61, digitized from Plescia et al.
     /// (2019, Fig. 3).
@@ -62,7 +62,7 @@ struct CraterSlopeResponse {
     }
 };
 
-/// How many times as fast a crater wears on ground rising `east` and `north` metres per metre,
+/// How many times as fast a crater wears on ground rising `east` and `north` meters per meter,
 /// under `response`'s critical gradient; 1 without one.
 double SlopeWearRate(const CraterSlopeResponse& response, double east, double north);
 
@@ -73,7 +73,7 @@ void ValidateCraterSlopeResponse(const CraterSlopeResponse& response);
 
 /// One crater's asymmetry on its slope.
 struct CraterSlopeShape {
-    Vec2d shift{};    ///< Where the deepest point moves, east and north of the centre (m).
+    Vec2d shift{};    ///< Where the deepest point moves, east and north of the center (m).
     Vec2d upslope{};  ///< Upslope unit vector times the share of raised relief removed there.
 
     /// Whether the crater keeps its level-ground shape.
@@ -82,7 +82,7 @@ struct CraterSlopeShape {
     }
 };
 
-/// The asymmetry `response` gives `crater` on ground rising `east` and `north` metres per metre,
+/// The asymmetry `response` gives `crater` on ground rising `east` and `north` meters per meter,
 /// its floor offset drawn from its ID; level when disabled or on level ground.
 CraterSlopeShape SlopeShape(const Crater& crater, double east, double north,
                             const CraterSlopeResponse& response);

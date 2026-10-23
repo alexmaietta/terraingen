@@ -25,8 +25,8 @@ struct NoiseLayer {
     bool enabled = true;                 ///< Whether the layer contributes.
     FractalParams fractal;               ///< The layer's fractal; its amplitude scales the layer.
     LayerBlend blend = LayerBlend::Add;  ///< How it combines with the layers before it.
-    float warpAmplitude = 0.0f;     ///< Domain warp displacement in metres; 0 disables warping.
-    float warpWavelength = 500.0f;  ///< Wavelength of the warp field in metres.
+    float warpAmplitude = 0.0f;     ///< Domain warp displacement in meters; 0 disables warping.
+    float warpWavelength = 500.0f;  ///< Wavelength of the warp field in meters.
 
 #ifndef __SLANG__
     /// Memberwise equality.
@@ -48,8 +48,8 @@ struct NoiseLayers {
 
 /// A 2D domain warp offset.
 struct WarpOffset2 {
-    float dx = 0.0f;  ///< Offset in x, in metres.
-    float dy = 0.0f;  ///< Offset in y, in metres.
+    float dx = 0.0f;  ///< Offset in x, in meters.
+    float dy = 0.0f;  ///< Offset in y, in meters.
 };
 
 namespace detail {
@@ -72,8 +72,8 @@ inline FractalParams WarpParams(NoiseLayer layer) {
 }
 
 /// A layer's domain warp offset from two independent warp fields (`WarpParams`).
-/// @param x, y World coordinates in metres.
-/// @return The offset, each component bounded by `layer.warpAmplitude` metres.
+/// @param x, y World coordinates in meters.
+/// @return The offset, each component bounded by `layer.warpAmplitude` meters.
 inline WarpOffset2 DomainWarp2(float x, float y, NoiseLayer layer) {
     FractalParams warp = WarpParams(layer);
     WarpOffset2 offset = {};
@@ -85,7 +85,7 @@ inline WarpOffset2 DomainWarp2(float x, float y, NoiseLayer layer) {
 
 /// A layer's normalized value, warped when `warpAmplitude` > 0, before amplitude and
 /// blending.
-/// @param x, y World coordinates in metres.
+/// @param x, y World coordinates in meters.
 /// @return The value in [-1, 1].
 inline float EvaluateNoiseLayer(float x, float y, NoiseLayer layer) {
     FractalParams unit = layer.fractal;
@@ -101,7 +101,7 @@ namespace detail {
 
 /// The height of a stack of layers so far.
 struct NoiseStack {
-    float height = 0.0f;   ///< Height so far, in metres.
+    float height = 0.0f;   ///< Height so far, in meters.
     bool started = false;  ///< Whether any layer has set the height yet.
 };
 
@@ -132,7 +132,7 @@ inline NoiseStack BlendNoiseLayer(NoiseStack stack, NoiseLayer layer, float valu
 }
 
 /// Adds a layer at a 2D point to a stack, if the layer is enabled.
-/// @param x, y World coordinates in metres.
+/// @param x, y World coordinates in meters.
 inline NoiseStack AddNoiseLayer2(NoiseStack stack, float x, float y, NoiseLayer layer) {
     if (!layer.enabled) {
         return stack;
@@ -144,8 +144,8 @@ inline NoiseStack AddNoiseLayer2(NoiseStack stack, float x, float y, NoiseLayer 
 
 /// Height of stacked layers: the first enabled layer sets it (`amplitude * value`), each
 /// later enabled layer combines by its `blend` mode.
-/// @param x, y World coordinates in metres.
-/// @return Height in metres; 0 if no layer is enabled.
+/// @param x, y World coordinates in meters.
+/// @return Height in meters; 0 if no layer is enabled.
 inline float EvaluateNoiseLayers(float x, float y, NoiseLayers layers) {
     detail::NoiseStack stack = {};
     for (uint32_t i = 0; i < layers.count; ++i) {
@@ -156,9 +156,9 @@ inline float EvaluateNoiseLayers(float x, float y, NoiseLayers layers) {
 
 #ifndef __SLANG__
 /// `EvaluateNoiseLayers` of any number of layers, including more than a GPU block holds.
-/// @param x, y World coordinates in metres.
+/// @param x, y World coordinates in meters.
 /// @param layers The first of `count` layers.
-/// @return Height in metres; 0 if no layer is enabled.
+/// @return Height in meters; 0 if no layer is enabled.
 inline float EvaluateNoiseLayers(float x, float y, const NoiseLayer* layers, std::size_t count) {
     detail::NoiseStack stack;
     for (std::size_t i = 0; i < count; ++i) {
@@ -169,14 +169,14 @@ inline float EvaluateNoiseLayers(float x, float y, const NoiseLayer* layers, std
 
 /// A 3D domain warp offset.
 struct WarpOffset3 {
-    double dx = 0.0;  ///< Offset in x, in metres.
-    double dy = 0.0;  ///< Offset in y, in metres.
-    double dz = 0.0;  ///< Offset in z, in metres.
+    double dx = 0.0;  ///< Offset in x, in meters.
+    double dy = 0.0;  ///< Offset in y, in meters.
+    double dz = 0.0;  ///< Offset in z, in meters.
 };
 
 /// `DomainWarp2` in 3D: three warp fields (`WarpParams`) evaluated with `Fractal3`.
-/// @param x, y, z World coordinates in metres.
-/// @return The offset, each component bounded by `layer.warpAmplitude` metres.
+/// @param x, y, z World coordinates in meters.
+/// @return The offset, each component bounded by `layer.warpAmplitude` meters.
 inline WarpOffset3 DomainWarp3(double x, double y, double z, NoiseLayer layer) {
     FractalParams warp = WarpParams(layer);
     WarpOffset3 offset;
@@ -189,7 +189,7 @@ inline WarpOffset3 DomainWarp3(double x, double y, double z, NoiseLayer layer) {
 }
 
 /// `EvaluateNoiseLayer` in 3D, with `Fractal3` and `DomainWarp3`.
-/// @param x, y, z World coordinates in metres.
+/// @param x, y, z World coordinates in meters.
 /// @return The layer's normalized value in [-1, 1].
 inline float EvaluateNoiseLayer3(double x, double y, double z, NoiseLayer layer) {
     FractalParams unit = layer.fractal;
@@ -204,7 +204,7 @@ inline float EvaluateNoiseLayer3(double x, double y, double z, NoiseLayer layer)
 namespace detail {
 
 /// Adds a layer at a 3D point to a stack, if the layer is enabled.
-/// @param x, y, z World coordinates in metres.
+/// @param x, y, z World coordinates in meters.
 inline NoiseStack AddNoiseLayer3(NoiseStack stack, double x, double y, double z, NoiseLayer layer) {
     if (!layer.enabled) {
         return stack;
@@ -215,9 +215,9 @@ inline NoiseStack AddNoiseLayer3(NoiseStack stack, double x, double y, double z,
 }  // namespace detail
 
 /// `EvaluateNoiseLayers` in 3D with `EvaluateNoiseLayer3`, for noise on a sphere.
-/// @param x, y, z World coordinates in metres.
+/// @param x, y, z World coordinates in meters.
 /// @param layers The first of `count` layers.
-/// @return Height in metres; 0 if no layer is enabled.
+/// @return Height in meters; 0 if no layer is enabled.
 inline float EvaluateNoiseLayers3(double x, double y, double z, const NoiseLayer* layers,
                                   std::size_t count) {
     detail::NoiseStack stack;

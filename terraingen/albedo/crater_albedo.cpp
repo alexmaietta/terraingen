@@ -233,8 +233,8 @@ struct ShadowProfile {
     double depth = 1.0;
     std::vector<float> gap;
 
-    /// How deep in shadow the ground is at `distance` metres and `angle` radians from the
-    /// crater's centre, from 0 in the open to 1 in full shadow.
+    /// How deep in shadow the ground is at `distance` meters and `angle` radians from the
+    /// crater's center, from 0 in the open to 1 in full shadow.
     double Shade(double distance, double angle) const {
         if (distance <= start) {
             return 0.0;
@@ -275,7 +275,7 @@ struct ShadowProfile {
     }
 
     /// Sets the samples along each held ray from the ground's `heights` there, row-major by ray:
-    /// how far a jet from the rim, dropping by at most `drop` metres per sample, runs above them.
+    /// how far a jet from the rim, dropping by at most `drop` meters per sample, runs above them.
     void TraceJets(const std::vector<float>& heights, double drop) {
         gap.assign(heights.size(), 0.0f);
         for (std::size_t k = 0; k < rays; ++k) {
@@ -295,7 +295,7 @@ struct ShadowProfile {
 };
 
 /// The rays, of `azimuths` around `center`, that reach `region`, with one more on each side, and
-/// the farthest distance in metres of the region from `center`.
+/// the farthest distance in meters of the region from `center`.
 struct RayWindow {
     std::size_t first = 0;
     std::size_t rays = 0;
@@ -343,8 +343,8 @@ RayWindow RaysOver(const Vec2d& center, const Bounds2d& region, const Surface& s
     return window;
 }
 
-/// The shadow profile of `shadows` from the rim of a crater `radius` metres across to `reach`
-/// metres, holding the rays of `window` and the samples out to its far side; heights not yet
+/// The shadow profile of `shadows` from the rim of a crater `radius` meters across to `reach`
+/// meters, holding the rays of `window` and the samples out to its far side; heights not yet
 /// traced.
 ShadowProfile MakeShadowProfile(const ZoneShadows& shadows, double radius, double reach,
                                 const RayWindow& window) {
@@ -375,8 +375,8 @@ struct DrawnZone {
     bool distal = false;
     std::uint32_t key = 0;
 
-    /// How much of the change the zone gives at `distance` metres and `angle` radians from the
-    /// crater's centre, from 1 inside to 0 beyond its ragged edge, whose fingers bend and break
+    /// How much of the change the zone gives at `distance` meters and `angle` radians from the
+    /// crater's center, from 1 inside to 0 beyond its ragged edge, whose fingers bend and break
     /// with distance.
     double Cover(double distance, double angle) const {
         if (distance >= reach) {
@@ -400,8 +400,8 @@ struct CraterAlbedo::Ray {
     double sinHalfWidth = 0.0;
     std::uint32_t seed = 0;
 
-    /// The ray's excess at `along` metres from the crater's centre along it and `lateral` across,
-    /// for a crater of `radius` metres.
+    /// The ray's excess at `along` meters from the crater's center along it and `lateral` across,
+    /// for a crater of `radius` meters.
     double ExcessAt(double along, double lateral, double radius, const CraterRays& rays) const {
         if (along <= radius || along >= length) {
             return 0.0;
@@ -489,7 +489,7 @@ struct CraterAlbedo::Prepared {
         return weight * excess * streak;
     }
 
-    /// The weighted excess inside the rim, `radii` radii and `angle` radians from the centre,
+    /// The weighted excess inside the rim, `radii` radii and `angle` radians from the center,
     /// its filaments keyed by `key`.
     double InteriorExcess(const CraterAlbedoOptions& o, double radii, double angle,
                           std::uint32_t key) const {
@@ -503,8 +503,8 @@ struct CraterAlbedo::Prepared {
         return weight * interior * (1.0 - (1.0 - streak) * wall);
     }
 
-    /// The unweighted excess of the ejecta and rays beyond the rim at `offset` metres from the
-    /// centre, `radii` radii and `angle` radians, before the filaments.
+    /// The unweighted excess of the ejecta and rays beyond the rim at `offset` meters from the
+    /// center, `radii` radii and `angle` radians, before the filaments.
     double OutsideExcess(const CraterAlbedoOptions& o, const Vec2d& offset, double radii,
                          double angle, std::uint32_t key) const {
         double excess = 0.0;

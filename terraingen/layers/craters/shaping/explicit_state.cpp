@@ -26,7 +26,7 @@ std::string CraterName(const Crater& crater) {
     return buffer.data();
 }
 
-/// The profile that shapes a crater of `diameter` metres from its fresh state: `profile` without
+/// The profile that shapes a crater of `diameter` meters from its fresh state: `profile` without
 /// diffusion, and its simple profile below the complex transition.
 const CraterProfile& FreshShape(const CraterProfile& profile, double diameter) {
     const CraterProfile* shape = &profile;

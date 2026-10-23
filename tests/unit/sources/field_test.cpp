@@ -88,7 +88,7 @@ TEST(RasterField, InterpolatesItsCellsAndBoundsThem) {
     const RasterField field(Cells(), WithScale(2.0));
     EXPECT_DOUBLE_EQ(field.ValueAt(5.0, 15.0), 0.0);
     EXPECT_DOUBLE_EQ(field.ValueAt(15.0, 15.0), 20.0);
-    EXPECT_DOUBLE_EQ(field.ValueAt(10.0, 15.0), 10.0) << "bilinear between cell centres";
+    EXPECT_DOUBLE_EQ(field.ValueAt(10.0, 15.0), 10.0) << "bilinear between cell centers";
     EXPECT_DOUBLE_EQ(field.ValueAt(15.0, 10.0), 21.0);
     EXPECT_DOUBLE_EQ(field.Max(), 42.0) << "the NaN and no-data cells are left out";
     EXPECT_TRUE(std::isnan(field.ValueAt(35.0, 15.0)));

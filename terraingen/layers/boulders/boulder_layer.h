@@ -97,9 +97,9 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
                  std::vector<std::shared_ptr<const CraterLayer>> craters, Surface surface,
                  std::shared_ptr<const Source> source = nullptr);
 
-    /// The boulders centred in `region` (surface coordinates) or reaching it with their radius or
+    /// The boulders centerd in `region` (surface coordinates) or reaching it with their radius or
     /// fillet, in a fixed order.
-    /// @param spacing Sample spacing in metres; boulders narrower than `fade.startSamples` samples
+    /// @param spacing Sample spacing in meters; boulders narrower than `fade.startSamples` samples
     /// at it, which the heights leave out, are left out and models are marked at it; 0 keeps
     /// every boulder.
     /// @param ground Read under each boulder; needed with the exposure field.
@@ -112,14 +112,14 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
     BoulderAbundance AbundanceAt(double x, double y, const Ground* ground = nullptr) const;
 
-    /// The density -dN/dD of boulders of `diameter` at surface (x, y), per m^2 per metre of
+    /// The density -dN/dD of boulders of `diameter` at surface (x, y), per m^2 per meter of
     /// diameter; 0 without `generateRandom`.
-    /// @param diameter In metres, within the layer's sizes.
+    /// @param diameter In meters, within the layer's sizes.
     /// @param ground Needed with the exposure field.
     /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
     double DensityAt(double diameter, double x, double y, const Ground* ground = nullptr) const;
 
-    /// The share of a sample `spacing` metres across at surface (x, y) that the layer's boulders
+    /// The share of a sample `spacing` meters across at surface (x, y) that the layer's boulders
     /// cover where they are too small to resolve, each weighted by one minus its
     /// `ResolutionWeight`: the area their density integrates to, and the variance of that share
     /// over the sample's area for Poisson-scattered boulders. Visible plan areas, as the
@@ -129,7 +129,7 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
     UnresolvedCover UnresolvedCoverAt(double x, double y, double spacing,
                                       const Ground* ground = nullptr) const;
-    /// `UnresolvedCoverAt` at every cell centre of `grid`, row-major, the ejecta craters found
+    /// `UnresolvedCoverAt` at every cell center of `grid`, row-major, the ejecta craters found
     /// once.
     /// @throws std::invalid_argument as `UnresolvedCoverAt`.
     std::vector<UnresolvedCover> UnresolvedCoverOver(const RasterGrid& grid, double spacing,
@@ -179,11 +179,11 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     void SetUpBedrockMeans();
     /// Makes the caches of shared shapes and their fragments.
     void SetUpShapeCaches();
-    /// The boulders centred in `region` or reaching it, as `Boulders`, leaving out those and the
-    /// pieces narrower than `smallest` metres (0 keeps every one) and marking models at `spacing`.
+    /// The boulders centerd in `region` or reaching it, as `Boulders`, leaving out those and the
+    /// pieces narrower than `smallest` meters (0 keeps every one) and marking models at `spacing`.
     std::vector<Boulder> PlaceBoulders(const Bounds2d& region, double spacing, double smallest,
                                        const Ground* ground) const;
-    /// The candidates of `region` at least `smallest` metres across (0 for all), before thinning;
+    /// The candidates of `region` at least `smallest` meters across (0 for all), before thinning;
     /// only the manual boulders reaching it without `generateRandom`.
     CraterList ScatterBoulderCandidates(const Bounds2d& region, double smallest) const;
     /// A candidate thinning keeps, with what it was kept by.
@@ -209,14 +209,14 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// ground.
     std::optional<Boulder> PlaceCandidate(const ThinnedCandidate& thinned, double spacing,
                                           const Ground* ground) const;
-    /// Sets `boulder`'s ground height from `ground` under its centre; unset without a ground or
+    /// Sets `boulder`'s ground height from `ground` under its center; unset without a ground or
     /// where the ground is missing.
     void ReadGround(Boulder& boulder, const Ground* ground) const;
     /// The boulders `candidates` give, in their order: those thinning keeps, their ground read in
     /// one pass (`Ground::HeightsAt`) and then placed.
     std::vector<Boulder> DrawBoulders(const CraterList& candidates, double spacing,
                                       const Ground* ground, const EjectaIndex& ejecta) const;
-    /// Margin in radii a boulder's own relief and fillet reach beyond its centre.
+    /// Margin in radii a boulder's own relief and fillet reach beyond its center.
     double OwnMarginRadii() const;
     /// Margin in radii its pieces may scatter beyond that when boulders break.
     double BreakMarginRadii() const;
@@ -230,7 +230,7 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// Rolls `boulder` down ground steeper than `maxSlope` until it rests, as `rollDistance`
     /// allows; false when it would roll farther, or with no roll distance on steep ground.
     bool Roll(Boulder& boulder, const Ground& ground) const;
-    /// The pieces `parent` breaks into at its wear, those at least `smallest` metres across, models
+    /// The pieces `parent` breaks into at its wear, those at least `smallest` meters across, models
     /// marked at `spacing` and their ground left to `ReadGrounds`; `parent` alone when it is too
     /// small or too fresh to break, or a manual boulder fixing any field.
     std::vector<Boulder> Break(const Boulder& parent, double spacing, double smallest) const;
@@ -269,14 +269,14 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// `height` at (`x`, `y`) raised to at least `base` (the height before any boulder) plus the
     /// boulder's exposed part and its fillet, so boulders and fillets form a union instead of
     /// stacking; `placed` is its shape placed on level ground at 0 for `BoulderRelief::Shape`, a
-    /// dome is averaged over `width` metres, and without `rock` only the fillet is drawn.
+    /// dome is averaged over `width` meters, and without `rock` only the fillet is drawn.
     float AddRelief(float height, float base, double x, double y, const Boulder& boulder,
                     const TriangleMesh* placed, double weight, bool rock, double width) const;
     /// The height of `boulder`'s exposed rock above the ground at (`x`, `y`), 0 off it; `placed`
     /// and `width` as in `AddRelief`.
     double RockRelief(double x, double y, const Boulder& boulder, const TriangleMesh* placed,
                       double width) const;
-    /// `boulder` in its local frame: centred at the origin on a sphere, unchanged on a plane.
+    /// `boulder` in its local frame: centerd at the origin on a sphere, unchanged on a plane.
     Boulder InLocalFrame(const Boulder& boulder) const;
     /// `boulder`'s shape placed on level ground at 0, cut by its facets.
     TriangleMesh PlacedOnLevel(const Boulder& boulder) const;
@@ -305,10 +305,10 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
         }
     };
     /// Raises `cover` over `grid` to the weight of each of `boulders` whose drawn rock stands at a
-    /// cell's centre.
+    /// cell's center.
     void AddRockCover(Raster<double>& cover, const RasterGrid& grid,
                       const std::vector<Boulder>& boulders, double spacing, unsigned threads) const;
-    /// Raises `cover` over `grid` to the weight of each model of `boulders` over a cell's centre.
+    /// Raises `cover` over `grid` to the weight of each model of `boulders` over a cell's center.
     void AddModelCover(Raster<double>& cover, const RasterGrid& grid,
                        const std::vector<Boulder>& boulders, double spacing,
                        unsigned threads) const;
@@ -323,9 +323,9 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// The abundance at (`x`, `y`) with the ejecta craters `ejecta` around.
     BoulderAbundance Abundance(double x, double y, const Ground* ground,
                                const EjectaIndex& ejecta) const;
-    /// The distance (m) from surface (x, y) to the nearest cluster centre.
+    /// The distance (m) from surface (x, y) to the nearest cluster center.
     double NearestClusterDistance(double x, double y) const;
-    /// The sum at surface (x, y) of the Gaussians of the `Thomas` cluster centres around it.
+    /// The sum at surface (x, y) of the Gaussians of the `Thomas` cluster centers around it.
     double ThomasClusterField(double x, double y) const;
     /// The abundance between craters at (`x`, `y`), where the crater blocks hold `ejecta` of
     /// theirs.
@@ -349,7 +349,7 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
                                         const std::vector<UnresolvedNode>& nodes,
                                         double spacing) const;
     /// The mean bedrock factor around (`x`, `y`) on `ground` over the cells of the density map,
-    /// or squares of `BoulderBedrock::meanSize`, blended between the four nearest cell centres.
+    /// or squares of `BoulderBedrock::meanSize`, blended between the four nearest cell centers.
     double BedrockMean(double x, double y, const Ground& ground) const;
 
     /// A cell of the lattice bedrock means are taken over, on one ground.
@@ -374,7 +374,7 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     double largestManual_ = 0.0;      ///< Largest manual boulder (m); 0 for none.
     double maxBackground_ = 1.0;
     double clusterMean_ = 1.0;
-    std::uint32_t clusterSeed_ = 0;  ///< Seed of the cluster centres' Worley noise.
+    std::uint32_t clusterSeed_ = 0;  ///< Seed of the cluster centers' Worley noise.
     std::uint32_t patchSeed_ = 0;    ///< Seed of the abundance patch noise.
     double referenceCount_ = 0.0;    ///< N(>=D0) of the sizes at a size slope map's D0, per m^2.
     std::optional<BoulderMapAbundance> mapAbundance_;
@@ -394,8 +394,8 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     std::shared_ptr<const SurfaceCells> cells_;
 };
 
-/// The height (m) of a boulder's dome of its exposed height over its diameter `distance` metres
-/// from its centre, averaged over a band `width` metres wide across that distance so its rim
+/// The height (m) of a boulder's dome of its exposed height over its diameter `distance` meters
+/// from its center, averaged over a band `width` meters wide across that distance so its rim
 /// slopes over a sample instead of standing as a wall; 0 `width` samples it at the point.
 double DomeHeight(const Boulder& boulder, double distance, double width = 0.0);
 

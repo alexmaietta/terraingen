@@ -148,7 +148,7 @@ class InverseSquare(terraingen.SizeFrequencyDistribution):
 
 
 class LinearAges(terraingen.CraterAgeModel):
-    """Crater lifetimes of 0.01 Gyr per metre of diameter."""
+    """Crater lifetimes of 0.01 Gyr per meter of diameter."""
 
     def lifetime_at(self, diameter):
         return 0.01 * diameter

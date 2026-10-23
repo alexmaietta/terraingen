@@ -25,7 +25,7 @@ PIXEL = 2.0
 
 
 class SizeLimitedLifetimes(terraingen.CraterAgeModel):
-    """A crater D metres across lasts D / 50 Gyr, up to the surface's 3.5 Gyr."""
+    """A crater D meters across lasts D / 50 Gyr, up to the surface's 3.5 Gyr."""
 
     def lifetime_at(self, diameter):
         return min(diameter / 50.0, 3.5)

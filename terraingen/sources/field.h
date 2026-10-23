@@ -12,7 +12,7 @@
 
 namespace terraingen {
 
-/// A scalar quantity over a surface, read at surface coordinates: metres on a plane, longitude
+/// A scalar quantity over a surface, read at surface coordinates: meters on a plane, longitude
 /// and latitude in degrees on a sphere. Values depend only on position, so tiles, point queries
 /// and threads agree; implementations must be thread-safe.
 class SurfaceField {

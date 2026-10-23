@@ -23,7 +23,7 @@ from _common import hillshade, montage, normalize, write_png
 
 SITE = (23.47, 0.67)
 PIXEL = 200.0
-# Volumetric mean radius of the Moon in metres, from the NASA NSSDCA Moon fact sheet.
+# Volumetric mean radius of the Moon in meters, from the NASA NSSDCA Moon fact sheet.
 MOON_RADIUS = 1737400.0
 
 

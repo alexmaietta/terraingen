@@ -17,7 +17,7 @@ struct WorleyDistances {
 
 namespace detail {
 
-/// The squared gap along one axis between a fraction `f` of the centre cell and the cell `d`
+/// The squared gap along one axis between a fraction `f` of the center cell and the cell `d`
 /// cells away.
 inline float CellGapSquared(int32_t d, float f) {
     float gap = 0.0f;

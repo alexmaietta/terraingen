@@ -40,7 +40,7 @@ void RequireGround(const Ground* ground, std::string_view what);
 /// Relief added on top of a source: noise, craters, or a layer of your own.
 ///
 /// A layer implements `ApplySamples` over a `SampleBlock` (a grid's cells or scattered points), so
-/// a point gets the same height as a grid cell centred there. Implementations must be
+/// a point gets the same height as a grid cell centerd there. Implementations must be
 /// deterministic and thread-safe. Layers that place features list them on request
 /// (`CraterPlacer`, `BoulderPlacer`).
 class Layer {
@@ -69,11 +69,11 @@ class Layer {
 class FormulaLayer : public Layer {
   protected:
     /// @param surface What the layer's coordinates lie on, which converts a grid's cell size to
-    /// metres for the sample spacing.
+    /// meters for the sample spacing.
     explicit FormulaLayer(Surface surface = {}) : surface_(surface) {}
 
     /// The height at (x, y) after the layer, from `height` before it.
-    /// @param spacing Sample spacing in metres.
+    /// @param spacing Sample spacing in meters.
     /// @param ground The terrain beneath the layer, null when the context gives none.
     virtual float HeightAt(float height, double x, double y, double spacing,
                            const Ground* ground) const = 0;

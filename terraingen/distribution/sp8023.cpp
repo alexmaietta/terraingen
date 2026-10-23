@@ -12,7 +12,7 @@ namespace terraingen {
 
 namespace {
 
-/// A point of a digitized curve: log10 of the diameter in metres and of N per m^2.
+/// A point of a digitized curve: log10 of the diameter in meters and of N per m^2.
 struct LogPoint {
     double logDiameter;
     double logCumulative;

@@ -96,12 +96,12 @@ class CraterLayer final : public Layer, public CraterPlacer {
                                                CraterApplyOptions apply = {}, Surface surface = {});
 
     /// `dMax` (the density's largest valid diameter when unbounded) or the largest manual crater,
-    /// in metres.
+    /// in meters.
     double MaxFeatureDiameter() const;
 
     /// The craters this layer applies to a grid covering `region` (surface coordinates): generated
-    /// and manual ones centred in it or within the profile's reach of it.
-    /// @param spacing Sample spacing in metres; bands too small to resolve at it are skipped
+    /// and manual ones centerd in it or within the profile's reach of it.
+    /// @param spacing Sample spacing in meters; bands too small to resolve at it are skipped
     /// (`CraterGenerationOptions::minResolvedDiameter`), 0 keeps every band.
     /// @param minDiameter,maxDiameter Diameters (m) of the craters wanted: generated bands wholly
     /// outside them may be skipped (`maxBandDiameter`), so craters outside them can still come

@@ -17,20 +17,20 @@ namespace terraingen {
 /// (Shepard et al. 2001; Rosenburg et al. 2011, eq. 4, https://doi.org/10.1029/2010JE003716).
 struct BaseRoughness {
     double hurst = 1.0;      ///< Hurst exponent H, in (0, 1].
-    double deviation = 0.0;  ///< RMS height difference at a lag of `cellSize`, in metres.
-    double cellSize = 1.0;   ///< Lag `deviation` is given at, in metres.
+    double deviation = 0.0;  ///< RMS height difference at a lag of `cellSize`, in meters.
+    double cellSize = 1.0;   ///< Lag `deviation` is given at, in meters.
 
-    /// The RMS height difference in metres at a lag of `lag` metres.
+    /// The RMS height difference in meters at a lag of `lag` meters.
     double Deviation(double lag) const;
 
-    /// The RMS slope (rise over run) over a baseline of `baseline` metres.
+    /// The RMS slope (rise over run) over a baseline of `baseline` meters.
     double RmsSlope(double baseline) const;
 };
 
 /// The roughness of `heights` on its own cells by the variogram method (`FitDeviogram`): H the
 /// fitted slope, clamped to at most 1, and the deviation the fitted RMS height difference at one
 /// cell. Cells with no data are skipped.
-/// @param cellSize The side of a cell in metres, positive.
+/// @param cellSize The side of a cell in meters, positive.
 /// @throws std::invalid_argument for a `cellSize` that is not positive, for heights with relief at
 /// fewer than two lags, or for a fitted Hurst exponent that is not positive.
 BaseRoughness EstimateBaseRoughness(const Raster<float>& heights, double cellSize);
@@ -42,7 +42,7 @@ BaseRoughness EstimateBaseRoughness(const Raster<float>& heights, double cellSiz
 Raster<float> SampleSourceWindow(const Source& source, double cellSize, const Vec2d& origin);
 
 /// The roughness of `source` at its native resolution: `EstimateBaseRoughness` of
-/// `SampleSourceWindow` on cells of the source's `ResolutionAt` its grid's centre, or of its
+/// `SampleSourceWindow` on cells of the source's `ResolutionAt` its grid's center, or of its
 /// grid's cell size where that is infinite (a flat source), with a node half a cell in from the
 /// grid's top-left corner: on the native cell centers of a raster resampled over its own extent.
 /// A source without bounds is sampled around its reference point on its posts, with a node at
@@ -52,7 +52,7 @@ Raster<float> SampleSourceWindow(const Source& source, double cellSize, const Ve
 /// for a source without bounds or a finite resolution.
 BaseRoughness EstimateSourceRoughness(const Source& source, const Surface& surface = {});
 
-/// The amplitude in metres that gives `layer` the RMS height difference `roughness` has at a lag
+/// The amplitude in meters that gives `layer` the RMS height difference `roughness` has at a lag
 /// of the layer's wavelength: `roughness.Deviation(wavelength)` over the layer's RMS height
 /// difference at that lag with unit amplitude, measured on a fixed lattice of 64 x 64 points
 /// 0.618 wavelengths apart in the plane.

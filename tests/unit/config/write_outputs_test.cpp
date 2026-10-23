@@ -260,7 +260,7 @@ TEST(WriteOutputs, WritesEllipsoidBodiesAsIcqShapeModels) {
     const terraingen::IcqModel model = terraingen::ReadIcq(written[0]);
     EXPECT_EQ(model.q, 8u);
     const terraingen::Vec3d tip = model.vertices[model.Index(4, 4, 5)];
-    EXPECT_NEAR(tip.x, 267500.0, 1e-2) << "face 5 is centred on +x, in metres once read";
+    EXPECT_NEAR(tip.x, 267500.0, 1e-2) << "face 5 is centered on +x, in meters once read";
 }
 
 TEST(WriteOutputs, DrawsBoulderModelsFromRockFilesAndWritesTheTerrainMesh) {

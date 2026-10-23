@@ -60,7 +60,7 @@ class RasterAlbedo final : public AlbedoSource {
     /// Builds the albedo and measures the map's roughness.
     ///
     /// On a sphere (`surface`) the map is in longitude and latitude, its cell size is its latitude
-    /// step in metres, and the detail is 3D Perlin noise at each point's 3D position.
+    /// step in meters, and the detail is 3D Perlin noise at each point's 3D position.
     /// @param bands 1 or 3 rasters on one grid.
     /// @throws std::invalid_argument for another band count, empty, rotated or mismatched rasters,
     /// or invalid options.

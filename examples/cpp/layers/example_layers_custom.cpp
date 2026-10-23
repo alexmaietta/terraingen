@@ -16,7 +16,7 @@
 
 namespace {
 
-/// A plane rising `slope` metres per metre towards the north-east over a 257 x 257 grid of 2 m.
+/// A plane rising `slope` meters per meter towards the north-east over a 257 x 257 grid of 2 m.
 class InclinedPlane final : public terraingen::Source {
   public:
     explicit InclinedPlane(double slope) : slope_(slope) {}
@@ -53,7 +53,7 @@ class Rille final : public terraingen::FormulaLayer {
     }
 };
 
-/// Rounds heights halfway to steps of `step` metres.
+/// Rounds heights halfway to steps of `step` meters.
 class Terraces final : public terraingen::FormulaLayer {
   public:
     explicit Terraces(double step) : step_(step) {}

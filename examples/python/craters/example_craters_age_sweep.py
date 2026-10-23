@@ -1,7 +1,7 @@
 """The same cratered terrain at several surface ages.
 
 Each surface is the Neukum production for its age, capped at Trask's equilibrium by a `MinimumSfd`:
-young surfaces gain craters quickly, and craters of tens of metres saturate within about a billion
+young surfaces gain craters quickly, and craters of tens of meters saturate within about a billion
 years, after which new craters erase as many as they add. The seed stays fixed, so each panel
 differs only by age. Prints counts and writes a montage of hillshades.
 

@@ -31,7 +31,7 @@ RigidTransform RestRotation(BoulderRest rest) {
     return {};
 }
 
-/// The centre of mass of a closed mesh of uniform density, from its signed tetrahedra.
+/// The center of mass of a closed mesh of uniform density, from its signed tetrahedra.
 Vec3d MassCenter(const std::vector<Vec3d>& points,
                  const std::vector<std::array<std::uint32_t, 3>>& triangles) {
     Vec3d sum{};
@@ -154,7 +154,7 @@ struct PivotStep {
 
 /// The next tip of `points` resting on the plane through their lowest point toward `center`,
 /// about the edge or corner of the contact nearest it, until another point touches; none once
-/// the centre stands over the contact, within `tolerance`.
+/// the center stands over the contact, within `tolerance`.
 std::optional<PivotStep> NextPivot(const std::vector<Vec3d>& points, const Vec3d& center,
                                    double tolerance) {
     const double low = ZRange(points, [](const Vec3d& p) { return p; }).first;
@@ -193,8 +193,8 @@ std::optional<PivotStep> NextPivot(const std::vector<Vec3d>& points, const Vec3d
 }
 
 /// The rotation that tips `points` over on a level plane until they rest: each step pivots about
-/// the edge or corner of the ground contact nearest the centre of mass, toward it, until another
-/// point touches, and stops once the centre of mass stands over the contact.
+/// the edge or corner of the ground contact nearest the center of mass, toward it, until another
+/// point touches, and stops once the center of mass stands over the contact.
 std::array<double, 9> SettleRotation(std::vector<Vec3d> points, Vec3d center) {
     std::array<double, 9> total{1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
     double extent = 0.0;

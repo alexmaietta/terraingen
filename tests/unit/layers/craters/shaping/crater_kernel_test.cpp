@@ -330,7 +330,7 @@ struct BodySurface {
     terraingen::Surface surface;
     terraingen::Vec2d center;  ///< Longitude and latitude in degrees.
     double step;               ///< Grid cell side in degrees.
-    double maxDiameter;        ///< Largest crater on the grid, in metres.
+    double maxDiameter;        ///< Largest crater on the grid, in meters.
 };
 
 std::vector<BodySurface> BodySurfaces() {
@@ -348,7 +348,7 @@ std::vector<BodySurface> BodySurfaces() {
 }
 
 /// `count` craters up to `body.maxDiameter` spread over a square of `side` cells around the
-/// body's centre.
+/// body's center.
 terraingen::CraterList BodyCraters(const BodySurface& body, std::size_t side, int count) {
     terraingen::CraterList craters;
     const double half = 0.5 * static_cast<double>(side) * body.step;
@@ -363,7 +363,7 @@ terraingen::CraterList BodyCraters(const BodySurface& body, std::size_t side, in
     return craters;
 }
 
-/// A longitude-latitude grid of `side` cells centred on `body`'s centre, sloping east.
+/// A longitude-latitude grid of `side` cells centered on `body`'s center, sloping east.
 terraingen::Raster<float> BodyGrid(const BodySurface& body, std::size_t side) {
     terraingen::Raster<float> grid(side, side, 0.0f);
     const double half = 0.5 * static_cast<double>(side) * body.step;
@@ -375,7 +375,7 @@ terraingen::Raster<float> BodyGrid(const BodySurface& body, std::size_t side) {
     return grid;
 }
 
-/// The largest difference between two rasters of one size, in metres.
+/// The largest difference between two rasters of one size, in meters.
 double LargestDifference(const terraingen::Raster<float>& a, const terraingen::Raster<float>& b) {
     double largest = 0.0;
     for (std::size_t i = 0; i < a.Size(); ++i) {

@@ -16,13 +16,13 @@ enum class SfdKind {
     ProductionRate,  ///< Cumulative count per m^2 per Gyr (a production function).
 };
 
-/// Diameters in metres where a distribution is defined: (`min`, `max`], or with `min` = 0 all
+/// Diameters in meters where a distribution is defined: (`min`, `max`], or with `min` = 0 all
 /// positive diameters up to `max`.
 struct DiameterRange {
-    double min = 0.0;                                      ///< Lower bound in metres, >= 0.
-    double max = std::numeric_limits<double>::infinity();  ///< Upper bound in metres, > `min`.
+    double min = 0.0;                                      ///< Lower bound in meters, >= 0.
+    double max = std::numeric_limits<double>::infinity();  ///< Upper bound in meters, > `min`.
 
-    /// Whether `diameter` (metres) is positive and within [`min`, `max`].
+    /// Whether `diameter` (meters) is positive and within [`min`, `max`].
     bool Contains(double diameter) const {
         return diameter > 0.0 && diameter >= min && diameter <= max;
     }
@@ -30,7 +30,7 @@ struct DiameterRange {
 
 /// A cumulative size-frequency distribution N(>=D) of craters or boulders.
 ///
-/// Diameters are in metres and counts per m^2 (or per m^2 per Gyr; see `Kind`). Distributions
+/// Diameters are in meters and counts per m^2 (or per m^2 per Gyr; see `Kind`). Distributions
 /// decrease monotonically. Evaluating outside `ValidRange` throws unless extrapolation is allowed.
 class SizeFrequencyDistribution {
   public:
@@ -41,7 +41,7 @@ class SizeFrequencyDistribution {
         return kind_;
     }
 
-    /// The diameters in metres where the distribution may be evaluated without extrapolation.
+    /// The diameters in meters where the distribution may be evaluated without extrapolation.
     const DiameterRange& ValidRange() const {
         return range_;
     }
@@ -56,26 +56,26 @@ class SizeFrequencyDistribution {
         extrapolate_ = allow;
     }
 
-    /// N(>=D), the count per m^2 (or per m^2 per Gyr) of features at least `diameter` metres
+    /// N(>=D), the count per m^2 (or per m^2 per Gyr) of features at least `diameter` meters
     /// across.
     /// @throws std::domain_error if `diameter` is not positive and finite, or is outside the valid
     /// range without extrapolation.
     double Cumulative(double diameter) const;
 
-    /// -dN/dD at `diameter` metres, per m^2 per metre (or per m^2 per Gyr per metre).
+    /// -dN/dD at `diameter` meters, per m^2 per meter (or per m^2 per Gyr per meter).
     /// @throws std::domain_error under the same conditions as `Cumulative`.
     double Incremental(double diameter) const;
 
     /// Expected number of features with diameter in [`dMin`, `dMax`), area * (N(dMin) - N(dMax)).
     /// @param area Area in m^2 (or m^2 Gyr for a production rate), finite and >= 0.
-    /// @param dMin Smallest diameter in metres.
-    /// @param dMax Largest diameter in metres; may be infinite.
+    /// @param dMin Smallest diameter in meters.
+    /// @param dMax Largest diameter in meters; may be infinite.
     /// @throws std::invalid_argument unless 0 < `dMin` < `dMax` and `area` >= 0 is finite.
     /// @throws std::domain_error if a diameter is outside the valid range without extrapolation,
     /// or `dMax` is infinite and the valid range is bounded.
     double ExpectedCount(double area, double dMin, double dMax) const;
 
-    /// Draws a diameter in metres in [`dMin`, `dMax`) by inverting N(>=D); `dMax` may be infinite.
+    /// Draws a diameter in meters in [`dMin`, `dMax`) by inverting N(>=D); `dMax` may be infinite.
     /// @throws std::invalid_argument unless 0 < `dMin` < `dMax`, or if N(dMin) = N(dMax).
     /// @throws std::domain_error under the same conditions as `ExpectedCount`.
     double SampleDiameter(RandomStream& random, double dMin, double dMax) const;
@@ -85,16 +85,16 @@ class SizeFrequencyDistribution {
     /// @throws std::invalid_argument unless 0 <= `range.min` < `range.max`.
     SizeFrequencyDistribution(SfdKind kind, DiameterRange range);
 
-    /// N(>=D) at a positive `diameter` in metres, without range checks.
+    /// N(>=D) at a positive `diameter` in meters, without range checks.
     virtual double CumulativeAt(double diameter) const = 0;
 
     /// -dN/dD without range checks; defaults to a central difference in log diameter.
     virtual double IncrementalAt(double diameter) const;
 
-    /// Diameter D in metres in [`dMin`, `dMax`] with N(>=D) = `target`; defaults to bisection in
+    /// Diameter D in meters in [`dMin`, `dMax`] with N(>=D) = `target`; defaults to bisection in
     /// log diameter.
     /// @param target Cumulative count with N(dMax) <= `target` <= N(dMin).
-    /// @param dMax Largest diameter in metres; may be infinite.
+    /// @param dMax Largest diameter in meters; may be infinite.
     virtual double InvertCumulative(double target, double dMin, double dMax) const;
 
     /// Unchecked `CumulativeAt` of another distribution, for distributions built from others.

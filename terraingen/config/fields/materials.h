@@ -42,7 +42,7 @@ template <typename IO> void Fields(IO& io, MaterialOptions& options) {
     io("dust_cover", options.dustCover,
        "About the share of the surface under bright dust patches, from 0 up to 1.", "",
        FromBelow(0.0, 1.0));
-    io("dust_patch", options.dustPatch, "Typical width of a dust patch, in metres.", "m",
+    io("dust_patch", options.dustPatch, "Typical width of a dust patch, in meters.", "m",
        Above(0.0));
     io("seed", options.seed, "Seed of the dust patches.");
 }

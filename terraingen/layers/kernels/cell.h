@@ -6,7 +6,7 @@
 
 namespace terraingen {
 
-/// A kernel's position: a cell centre or point measured from the layer's origin, in metres,
+/// A kernel's position: a cell center or point measured from the layer's origin, in meters,
 /// so single precision stays accurate far from the frame's origin.
 struct CellPosition {
     float x = 0.0f;  ///< East of the origin.

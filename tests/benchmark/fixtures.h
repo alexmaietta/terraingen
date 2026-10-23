@@ -11,8 +11,8 @@ namespace terraingen::benchmarks {
 
 /// A 3.5 Gyr lunar mare: craters from 2.5 m (the lunar model's lower limit) to `maxDiameter`, the
 /// Fassett and Thomson profile degraded by age, on rolling noise, over a flat `size` x `size` m
-/// source of `pixelSize` cells centred on the origin. `cacheCraters` sizes the crater cell cache (0
-/// for none). On a sphere `body` the source is centred on longitude and latitude 0.
+/// source of `pixelSize` cells centered on the origin. `cacheCraters` sizes the crater cell cache
+/// (0 for none). On a sphere `body` the source is centered on longitude and latitude 0.
 inline TerrainGenerator LunarMare(double size, double pixelSize, double maxDiameter = 200.0,
                                   std::size_t cacheCraters = 4000000,
                                   CraterDatum datum = CraterDatum::None, const Surface& body = {}) {

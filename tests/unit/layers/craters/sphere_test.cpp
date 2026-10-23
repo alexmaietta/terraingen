@@ -237,7 +237,7 @@ class Bowl final : public terraingen::CraterProfile {
 struct BodyCase {
     const char* name;
     Surface surface;
-    Crater crater;  ///< At the centre of the raster.
+    Crater crater;  ///< At the center of the raster.
     double step;    ///< Raster cell side, in degrees.
 };
 
@@ -255,7 +255,7 @@ std::vector<BodyCase> Bodies() {
             {"shape model", Surface::ShapeModel(asteroid), {10.0, 20.0, 600.0, 1.0, 13u}, 0.05}};
 }
 
-/// Checks that `layer` gives a grid of 96 cells of `body.step` degrees centred on the crater the
+/// Checks that `layer` gives a grid of 96 cells of `body.step` degrees centered on the crater the
 /// same heights as its tiles, its points, other thread counts and a GPU backend, and digs a bowl.
 void ExpectGridsTilesAndPointsAgree(const CraterLayer& layer, const BodyCase& body,
                                     const terraingen::Ground* ground) {

@@ -12,12 +12,12 @@ namespace terraingen::config {
 template <> struct SpecName<PowerLawSpec> {
     static constexpr std::string_view kName = "power_law";
     static constexpr std::string_view kDescription =
-        "A cumulative power law, N(>=D) = coefficient D^-exponent per m^2 with D in metres.";
+        "A cumulative power law, N(>=D) = coefficient D^-exponent per m^2 with D in meters.";
 };
 template <typename IO> void Fields(IO& io, PowerLawSpec& spec) {
     io("coefficient", spec.coefficient,
        "Coefficient of N(>=D) = coefficient D^-exponent, the cumulative count per m^2 with D in "
-       "metres; scales how many there are.",
+       "meters; scales how many there are.",
        "", Above(0.0));
     io("exponent", spec.exponent,
        "Exponent of the power law; larger values give relatively more small craters or boulders.",
@@ -26,11 +26,11 @@ template <typename IO> void Fields(IO& io, PowerLawSpec& spec) {
 
 template <typename IO> void Fields(IO& io, PowerLawSegment& segment) {
     io("start", segment.start,
-       "Diameter in metres where this segment begins; it runs up to the next segment's start.", "m",
+       "Diameter in meters where this segment begins; it runs up to the next segment's start.", "m",
        AtLeast(0.0));
     io("coefficient", segment.coefficient,
        "Coefficient of N(>=D) = coefficient D^-exponent, the cumulative count per m^2 with D in "
-       "metres.",
+       "meters.",
        "", Above(0.0));
     io("exponent", segment.exponent,
        "Exponent of the segment's power law; larger values give relatively more small craters.", "",
@@ -63,14 +63,14 @@ template <typename IO> void Fields(IO& io, TabulatedSpec& spec) {
        "Cumulative count N(>=D) at each diameter, per area unit; positive and not increasing.", "",
        Above(0.0));
     io("diameter_unit", spec.diameterUnit,
-       "Metres per table diameter unit: 1 for metres, 1000 for km.", "m", Above(0.0));
-    io("area_unit", spec.areaUnit, "Square metres per table area unit: 1 for m^2, 1e6 for km^2.",
+       "Meters per table diameter unit: 1 for meters, 1000 for km.", "m", Above(0.0));
+    io("area_unit", spec.areaUnit, "Square meters per table area unit: 1 for m^2, 1e6 for km^2.",
        "m^2", Above(0.0));
 }
 
 template <typename IO> void Fields(IO& io, UniformBand& band) {
-    io("min", band.min, "Smallest diameter of the band in metres.", "m", Above(0.0));
-    io("max", band.max, "Largest diameter of the band in metres, above min.", "m", Above(0.0));
+    io("min", band.min, "Smallest diameter of the band in meters.", "m", Above(0.0));
+    io("max", band.max, "Largest diameter of the band in meters, above min.", "m", Above(0.0));
     io("density", band.density,
        "Count per m^2 with diameters in the band, spread uniformly across it; a relative weight "
        "when total is set.",
@@ -243,7 +243,7 @@ template <typename IO> void Fields(IO& io, PowerLawDiffusivity& law) {
        "Exponent of the diameter in coefficient (D / 1 km)^exponent; 0 gives the same "
        "diffusivity for every crater size.");
     io("min_diameter", law.minDiameter,
-       "Diameter in metres below which the diffusivity is held at its value at this diameter; "
+       "Diameter in meters below which the diffusivity is held at its value at this diameter; "
        "not negative.",
        "m", AtLeast(0.0));
 }
@@ -260,7 +260,7 @@ template <typename IO> void Fields(IO& io, DiffusionDegradationSpec& spec) {
        "production function.");
     io("power_law", spec.powerLaw, "The diffusivity used when the diffusivity model is power_law.");
     io("reach_radii", spec.reachRadii,
-       "Distance from the centre, in crater radii, out to which the diffused profile is solved "
+       "Distance from the center, in crater radii, out to which the diffused profile is solved "
        "and held at 0; at least the fresh profile's reach.");
 }
 

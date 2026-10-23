@@ -29,7 +29,7 @@ std::shared_ptr<const BoulderLayer> Sparse() {
     return std::make_shared<BoulderLayer>(options);
 }
 
-/// A boulder of `layer` with no other within `clear` metres.
+/// A boulder of `layer` with no other within `clear` meters.
 Boulder Isolated(const BoulderLayer& layer, double clear) {
     const auto boulders = layer.Boulders({-150.0, -150.0, 150.0, 150.0});
     for (const Boulder& boulder : boulders) {

@@ -46,14 +46,14 @@ class MaterialSource {
     virtual MaterialClass Material() const = 0;
 
     /// How fully the layer covers world (x, y) with its material, in [0, 1].
-    /// @param spacing Sample spacing in metres, as the layer's heights are evaluated at.
+    /// @param spacing Sample spacing in meters, as the layer's heights are evaluated at.
     /// @param ground The terrain beneath the layer; layers that read it need it.
     virtual double MaterialCoverAt(double x, double y, double spacing,
                                    const Ground* ground) const = 0;
 
-    /// `MaterialCoverAt` at every cell centre of `grid`. By default cell by cell; layers that
+    /// `MaterialCoverAt` at every cell center of `grid`. By default cell by cell; layers that
     /// place features override it to find them once for the whole grid.
-    /// @param spacing Sample spacing in metres, at least the grid's cell size.
+    /// @param spacing Sample spacing in meters, at least the grid's cell size.
     /// @param threads Worker threads, 0 for all.
     virtual Raster<double> MaterialCoverOver(const RasterGrid& grid, double spacing,
                                              const Ground* ground, unsigned threads) const;

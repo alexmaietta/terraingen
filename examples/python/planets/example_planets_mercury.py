@@ -21,7 +21,7 @@ import _common
 from _common import hillshade, write_png
 
 PIXEL = 200.0
-# Volumetric mean radius of Mercury in metres, from the NASA NSSDCA Mercury fact sheet.
+# Volumetric mean radius of Mercury in meters, from the NASA NSSDCA Mercury fact sheet.
 MERCURY_RADIUS = 2439700.0
 
 
@@ -75,7 +75,7 @@ class Example(_common.Example):
         assert len(diameters) > 50, "more than 50 craters"
         assert diameters.min() >= 1000.0 and diameters.max() <= 30000.0, "every crater is 1 to 30 km across"
         assert np.ptp(heights) > 100.0 and np.abs(heights).max() < 20000.0, (
-            "hundreds of metres to kilometres of relief"
+            "hundreds of meters to kilometers of relief"
         )
 
 

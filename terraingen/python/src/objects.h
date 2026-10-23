@@ -90,7 +90,7 @@ template <typename Fn> auto WithFullGround(const PyTerrainGenerator* generator, 
 
 /// What the arguments of a method that reads the ground mean, for its docstring.
 inline constexpr const char* kGroundDoc =
-    "`spacing` is the sample spacing in metres; what reads the ground beneath needs a positive "
+    "`spacing` is the sample spacing in meters; what reads the ground beneath needs a positive "
     "one and the ground from `generator`'s source and its first `layers` layers.";
 
 /// Binds `name(x, y, spacing=0.0, generator=None, layers=0)` on `cls`, the class of `Self`, as

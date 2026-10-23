@@ -1,5 +1,5 @@
 /// @file
-/// @brief Internal: the boulder cluster fields and the lattice means that normalise them.
+/// @brief Internal: the boulder cluster fields and the lattice means that normalize them.
 #pragma once
 
 #include "terraingen/layers/boulders/boulder_options.h"
@@ -13,7 +13,7 @@ namespace terraingen {
 inline constexpr double kThomasReachRadii = 4.0;
 
 /// The mean of `f(x, y)` over a square `cells` units across from the origin, sampled at the
-/// centres of a 256 x 256 lattice.
+/// centers of a 256 x 256 lattice.
 template <typename Function> double LatticeMean(double cells, const Function& f) {
     constexpr int kSamples = 256;
     double sum = 0.0;
@@ -25,21 +25,21 @@ template <typename Function> double LatticeMean(double cells, const Function& f)
     return sum / (kSamples * kSamples);
 }
 
-/// A cluster's weight `distance` metres from its centre: a Gaussian of the cluster's radius.
+/// A cluster's weight `distance` meters from its center: a Gaussian of the cluster's radius.
 double ClusterBump(double distance, const BoulderClusters& clusters);
 
-/// The mean of `ClusterBump` of the nearest cluster centre over the plane, which the cluster field
+/// The mean of `ClusterBump` of the nearest cluster center over the plane, which the cluster field
 /// is divided by to keep the mean density.
 double MeanClusterBump(const BoulderClusters& clusters);
 
 /// The mean over the surface of the `Thomas` field, the sum of `ClusterBump` within
-/// `kThomasReachRadii` of every centre, which it is divided by to keep the mean density.
-/// @param body Whether centres are scattered through space around a body, `spacing`^2 per square
-/// metre of a plane through them, rather than over a plane.
+/// `kThomasReachRadii` of every center, which it is divided by to keep the mean density.
+/// @param body Whether centers are scattered through space around a body, `spacing`^2 per square
+/// meter of a plane through them, rather than over a plane.
 double MeanThomasField(const BoulderClusters& clusters, bool body = false);
 
 /// The largest a cluster field multiplies the scattered boulder density by; 1 without clusters.
-/// For `Thomas` it is where as many centres crowd within 3 radii as a one in a million chance
+/// For `Thomas` it is where as many centers crowd within 3 radii as a one in a million chance
 /// allows, and the rare points above it are capped to it.
 double MaxClusterAbundance(const BoulderClusters& clusters);
 

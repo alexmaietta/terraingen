@@ -6,7 +6,7 @@
 
 namespace terraingen {
 
-/// The boulder distributions synthterrain offers, N per m^2 with D in metres, for
+/// The boulder distributions synthterrain offers, N per m^2 with D in meters, for
 /// comparison with it.
 enum class SynthterrainBoulders {
     InterCrater,         ///< 0.0001 D^-1.75457, "low blockiness".

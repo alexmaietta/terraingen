@@ -66,7 +66,7 @@ std::size_t WindowIndex(double index, std::size_t wholeSize, std::size_t first, 
 }
 
 /// The larger raster `raster` is placed in interpolated at pixel coordinates (`u`, `v`) measured
-/// from the centre of its first cell, read from `raster`, or nothing where a contributing cell
+/// from the center of its first cell, read from `raster`, or nothing where a contributing cell
 /// holds no data.
 std::optional<float> Interpolate(const Raster<float>& raster, const RasterPlacement& placement,
                                  double u, double v, ResampleMethod method) {

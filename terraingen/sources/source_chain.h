@@ -40,7 +40,7 @@ class SourceChain final : public Source {
     /// own posts.
     void Fill(Raster<float>& heights, double spacing) const override;
 
-    /// The first height in metres at world point (`x`, `y`) that is not NaN; NaN if no source has
+    /// The first height in meters at world point (`x`, `y`) that is not NaN; NaN if no source has
     /// one.
     float HeightAt(double x, double y, double spacing) const override;
 

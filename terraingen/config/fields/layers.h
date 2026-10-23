@@ -380,7 +380,7 @@ template <typename IO> void Fields(IO& io, SandShadowOptions& shadows) {
                 WindAzimuthHelp("wind", "tails trail away from boulders along it"));
     io("length_ratio", shadows.lengthRatio,
        "Length of a tail beyond its boulder over the boulder's width; 1.1 is the reattachment "
-       "length behind a dome, and modelled shadow dunes run 1.3 to 5.6, longer in lighter "
+       "length behind a dome, and modeled shadow dunes run 1.3 to 5.6, longer in lighter "
        "winds.",
        "", Above(0.0));
     RadianField(io, "flank_angle_deg", shadows.flankAngle,
@@ -538,7 +538,7 @@ template <> struct SpecName<ScaleLayerSpec> {
 template <typename IO> void Fields(IO& io, ScaleLayerSpec& spec) {
     io("scale", spec.scale,
        "Factor every height so far is multiplied by, as for vertical exaggeration.");
-    io("offset", spec.offset, "Metres added to every height after scaling, to shift the datum.",
+    io("offset", spec.offset, "Meters added to every height after scaling, to shift the datum.",
        "m");
 }
 

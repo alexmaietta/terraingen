@@ -18,7 +18,7 @@ using terraingen::ResampleMethod;
 
 namespace {
 
-/// A `width` x `height` raster of 2 m cells with value a + b x + c y at each cell centre.
+/// A `width` x `height` raster of 2 m cells with value a + b x + c y at each cell center.
 Raster<float> Plane(std::size_t width, std::size_t height, double a, double b, double c) {
     Raster<float> raster(width, height);
     raster.SetTransform(GeoTransform::NorthUp(-10.0, 20.0, 2.0));

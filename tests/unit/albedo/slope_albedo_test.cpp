@@ -20,7 +20,7 @@ using terraingen::SlopeAlbedoOptions;
 
 namespace {
 
-/// An evaluation at `spacing` metres over `ground`.
+/// An evaluation at `spacing` meters over `ground`.
 terraingen::AlbedoContext OnGround(double spacing, const terraingen::Ground* ground) {
     terraingen::AlbedoContext context;
     context.spacing = spacing;

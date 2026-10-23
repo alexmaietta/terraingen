@@ -36,7 +36,7 @@ std::uint64_t SecondaryId(std::uint64_t primary, int band, std::int64_t ring, st
 
 /// The smallest and largest distances, and the directions (radians counter-clockwise from east,
 /// as an interval around `mid` of half-width `half`), from `center` to `region` on `surface`;
-/// the whole circle when `region` holds the centre.
+/// the whole circle when `region` holds the center.
 struct Footprint {
     double near = 0.0;
     double far = 0.0;

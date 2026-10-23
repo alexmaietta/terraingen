@@ -14,7 +14,7 @@ namespace terraingen {
 struct LocalFrame {
     Vec3d east;   ///< Unit vector east.
     Vec3d north;  ///< Unit vector north.
-    Vec3d up;     ///< Unit vector up: the surface normal, away from the centre of a body.
+    Vec3d up;     ///< Unit vector up: the surface normal, away from the center of a body.
 };
 
 /// The integer coordinates of a cube of a 3D grid.
@@ -36,10 +36,10 @@ struct BucketIndex {
 /// sphere is the special case of equal radii, or a star-shaped shape model), measuring distances
 /// and directions between surface coordinates.
 ///
-/// On a plane, surface coordinates are metres in a projected frame. On a body they are
+/// On a plane, surface coordinates are meters in a projected frame. On a body they are
 /// planetocentric longitude and latitude in degrees (east and north positive): the direction from
-/// the centre, with heights along it. On a sphere of radius R the local frame of a point is its
-/// azimuthal equidistant projection in metres; on an ellipsoid or shape model it is the tangent
+/// the center, with heights along it. On a sphere of radius R the local frame of a point is its
+/// azimuthal equidistant projection in meters; on an ellipsoid or shape model it is the tangent
 /// plane at the point, onto which offsets are projected along the normal, exact for features small
 /// next to the local curvature radius.
 class Surface {
@@ -52,11 +52,11 @@ class Surface {
         return {};
     }
 
-    /// A sphere of `radius` metres.
+    /// A sphere of `radius` meters.
     /// @throws std::invalid_argument unless `radius` is positive and finite.
     static Surface Sphere(double radius);
 
-    /// A triaxial ellipsoid with semi-axes `a`, `b` and `c` metres along x (longitude 0), y
+    /// A triaxial ellipsoid with semi-axes `a`, `b` and `c` meters along x (longitude 0), y
     /// (longitude 90) and z (the north pole); equal radii give `Sphere`.
     /// @throws std::invalid_argument unless every radius is positive and finite.
     static Surface Ellipsoid(double a, double b, double c);
@@ -81,39 +81,39 @@ class Surface {
         return shape_.get();
     }
 
-    /// The smallest distance in metres from the centre to the surface; 0 on a plane.
+    /// The smallest distance in meters from the center to the surface; 0 on a plane.
     double MinRadius() const;
 
-    /// The largest distance in metres from the centre to the surface; 0 on a plane.
+    /// The largest distance in meters from the center to the surface; 0 on a plane.
     double MaxRadius() const;
 
-    /// The radius in metres of a sphere, or the volumetric mean radius of an ellipsoid
+    /// The radius in meters of a sphere, or the volumetric mean radius of an ellipsoid
     /// ((abc)^(1/3)) or shape model; 0 for a plane.
     double Radius() const {
         return radius_;
     }
 
-    /// The semi-axes in metres along x, y and z; all equal on a sphere, 0 on a plane or a shape
+    /// The semi-axes in meters along x, y and z; all equal on a sphere, 0 on a plane or a shape
     /// model.
     Vec3d Radii() const {
         return radii_;
     }
 
-    /// The distance in metres from the centre to the surface at `point`: the sphere's radius, or
+    /// The distance in meters from the center to the surface at `point`: the sphere's radius, or
     /// the ellipsoid's radius in the point's direction; 0 on a plane.
     double RadiusAt(const Vec2d& point) const;
 
-    /// The surface area per steradian of direction from the centre at `point`, r^2 / (u . n) in
-    /// m^2: R^2 on a sphere; 1 on a plane, where it is the area per square metre.
+    /// The surface area per steradian of direction from the center at `point`, r^2 / (u . n) in
+    /// m^2: R^2 on a sphere; 1 on a plane, where it is the area per square meter.
     double AreaPerSteradian(const Vec2d& point) const;
 
-    /// Metres per surface unit along a meridian: 1 on a plane, R pi / 180 on a sphere, and that of
+    /// Meters per surface unit along a meridian: 1 on a plane, R pi / 180 on a sphere, and that of
     /// the mean radius `Radius` on an ellipsoid, where the true scale varies with position.
     double UnitLength() const {
         return form_ == Form::Plane ? 1.0 : unitLength_;
     }
 
-    /// The east and north offsets in metres of `point` in the local frame of `center` (both in
+    /// The east and north offsets in meters of `point` in the local frame of `center` (both in
     /// surface coordinates); exactly `point` - `center` on a plane.
     Vec2d Offset(const Vec2d& center, const Vec2d& point) const {
         switch (form_) {
@@ -128,7 +128,7 @@ class Surface {
         return TangentOffset(center, point);
     }
 
-    /// The point, in surface coordinates, at east and north `offset` metres from `center`: the
+    /// The point, in surface coordinates, at east and north `offset` meters from `center`: the
     /// inverse of `Offset`. On a sphere the longitude is in (-180, 180].
     Vec2d Locate(const Vec2d& center, const Vec2d& offset) const {
         switch (form_) {
@@ -144,12 +144,12 @@ class Surface {
         return ShapeLocate(center, offset);
     }
 
-    /// The distance in metres between two points: straight on a plane, along a great circle on
+    /// The distance in meters between two points: straight on a plane, along a great circle on
     /// a sphere, and the chord on an ellipsoid, which matches the surface distance to second order
     /// for nearby points and never exceeds it.
     double Distance(const Vec2d& a, const Vec2d& b) const;
 
-    /// A surface point in 3D, in metres: (x, y, 0) on a plane; `RadiusAt` times `UnitVector` on a
+    /// A surface point in 3D, in meters: (x, y, 0) on a plane; `RadiusAt` times `UnitVector` on a
     /// body.
     Vec3d Position(const Vec2d& point) const;
 
@@ -157,13 +157,13 @@ class Surface {
     /// and z axes on a plane; the local frame of `Offset` on a body, with up along the normal.
     LocalFrame Frame(const Vec2d& point) const;
 
-    /// The surface point of a nonzero `direction` from the body's centre; (x, y) on a plane.
+    /// The surface point of a nonzero `direction` from the body's center; (x, y) on a plane.
     Vec2d Coordinates(const Vec3d& direction) const;
 
     /// A box containing every point within a distance of a region; on a body latitudes
     /// are clamped to [-90, 90] and a box reaching a pole or wider than a full turn takes every
     /// longitude, [-180, 180]. Longitudes are not wrapped.
-    /// @param meters The distance in metres.
+    /// @param meters The distance in meters.
     Bounds2d Expand(const Bounds2d& region, double meters) const;
 
     /// Whether a region holds a point, half-open as `Bounds2d::Contains`; on a sphere a
@@ -183,7 +183,7 @@ class Surface {
 
     /// The 3D bucket holding `Position(point)`, for hashing nearby features; on a plane k is
     /// always 0.
-    /// @param size The bucket side in metres.
+    /// @param size The bucket side in meters.
     BucketIndex Bucket(const Vec2d& point, double size) const;
 
     /// Whether two surfaces are the same form and radii, and share one shape model or have none.

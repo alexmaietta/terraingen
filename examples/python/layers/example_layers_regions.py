@@ -1,7 +1,7 @@
 """Regions: different layers in different parts of the terrain.
 
 `MaskedLayer` applies a layer only inside a rectangle or circle, fading it out over `feather`
-metres outside. Here a circular mare is flattened and lowered (a `ScaleLayer` in a circle), the
+meters outside. Here a circular mare is flattened and lowered (a `ScaleLayer` in a circle), the
 west half is an old, heavily cratered surface and the east half a younger one. Prints each region's
 crater count and writes the heights and a hillshade.
 
@@ -67,7 +67,7 @@ class Example(_common.Example):
         x = self.craters["x"]
         print(f"{np.count_nonzero(x < 0)} craters in the west, {np.count_nonzero(x >= 0)} in the east")
         print(
-            f"mare weight at the centre {self.mare.weight(0.0, 0.0):.2f}, 700 m out {self.mare.weight(700.0, 0.0):.2f}"
+            f"mare weight at the center {self.mare.weight(0.0, 0.0):.2f}, 700 m out {self.mare.weight(700.0, 0.0):.2f}"
         )
         self.show("heights", self.heights)
 

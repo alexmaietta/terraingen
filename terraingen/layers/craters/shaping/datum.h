@@ -48,14 +48,14 @@ class PlaneFit {
 /// Points per side of the lattice crater datums are fitted over.
 constexpr int kDatumLatticeSide = 7;
 
-/// The offset (m) from a crater's centre of lattice point `index` (0 to `kDatumLatticeSide` - 1)
+/// The offset (m) from a crater's center of lattice point `index` (0 to `kDatumLatticeSide` - 1)
 /// along one axis of a fit footprint of `fitRadius` (m).
 inline double DatumLatticeOffset(int index, double fitRadius) {
     return fitRadius * ((2.0 * index + 1.0) / kDatumLatticeSide - 1.0);
 }
 
 /// Calls `visit(point, dx, dy)` for each lattice point inside a fit footprint of `fitRadius`
-/// metres, `dx` east and `dy` north of the centre, row by row; `point` numbers every lattice
+/// meters, `dx` east and `dy` north of the center, row by row; `point` numbers every lattice
 /// point, inside or not, row by row.
 template <typename Visit> void ForEachDatumPoint(double fitRadius, const Visit& visit) {
     for (int j = 0; j < kDatumLatticeSide; ++j) {
@@ -72,7 +72,7 @@ template <typename Visit> void ForEachDatumPoint(double fitRadius, const Visit& 
 /// The datum a crater is cut to, fitted to the ground beneath it; nothing for
 /// `CraterDatum::None` or where the ground has no data.
 ///
-/// `CenterHeight` reads the ground at the centre; `MeanHeight` and `Plane` fit it at the points of
+/// `CenterHeight` reads the ground at the center; `MeanHeight` and `Plane` fit it at the points of
 /// a 7 x 7 lattice inside the `datumFitRadii` footprint.
 std::optional<Plane> FitCraterDatum(const Crater& crater, const CraterApplyOptions& options,
                                     const HeightSampler& ground);
@@ -80,7 +80,7 @@ std::optional<Plane> FitCraterDatum(const Crater& crater, const CraterApplyOptio
 /// How far (m) beyond a grid craters with a datum can change it through their datum fit: the fit
 /// footprint plus the profile's reach for the largest crater; 0 without a datum. Craters for a
 /// grid or point should be generated this far around it.
-/// @param maxDiameter The largest crater's diameter, in metres.
+/// @param maxDiameter The largest crater's diameter, in meters.
 double DatumMargin(const CraterApplyOptions& options, const CraterProfile& profile,
                    double maxDiameter);
 

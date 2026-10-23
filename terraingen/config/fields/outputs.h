@@ -151,7 +151,7 @@ template <> struct SpecName<MeshOutput> {
     static constexpr std::string_view kName = "mesh";
     static constexpr std::string_view kDescription =
         "Writes the whole body, from six cube faces: a mesh as glTF (.glb or .gltf), OBJ (.obj) or "
-        "STL (.stl), or a Gaskell ICQ shape model in kilometres (.icq), whose Q is "
+        "STL (.stl), or a Gaskell ICQ shape model in kilometers (.icq), whose Q is "
         "cells_per_face.";
 };
 template <typename IO> void Fields(IO& io, MeshOutput& output) {
@@ -162,8 +162,8 @@ template <typename IO> void Fields(IO& io, MeshOutput& output) {
            "; more give a finer mesh, with two triangles per quad.",
        "", CubeFaceCellsRange());
     io("spacing", output.spacing,
-       "Sample spacing in metres the heights are evaluated at, which sets the finest features "
-       "kept; unset uses a quad's side at a face's centre.",
+       "Sample spacing in meters the heights are evaluated at, which sets the finest features "
+       "kept; unset uses a quad's side at a face's center.",
        "m", Above(0.0));
 }
 

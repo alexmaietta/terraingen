@@ -55,7 +55,7 @@ class TerrainFbm : public terraingen::examples::Example {
         Check(evaluated_.Width() == 513 && evaluated_.Height() == 513, "the heights are 513 x 513");
         Check(stats_.validCount == evaluated_.Size(), "every height is finite");
         Check(stats_.max - stats_.min > 10.0 && stats_.max - stats_.min < 400.0,
-              "the relief is tens of metres, as a 40 m amplitude gives");
+              "the relief is tens of meters, as a 40 m amplitude gives");
         bool pointsInRange = points_.size() == 2;
         for (const double h : points_) {
             pointsInRange =

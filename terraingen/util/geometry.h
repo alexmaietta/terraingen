@@ -15,7 +15,7 @@ inline constexpr double kDegree = kPi / 180.0;
 /// One radian in degrees.
 inline constexpr double kRadian = 180.0 / kPi;
 
-/// The slope in degrees of a surface with height gradient (`dx`, `dy`) in metres per metre; NaN
+/// The slope in degrees of a surface with height gradient (`dx`, `dy`) in meters per meter; NaN
 /// where either is NaN.
 inline double GradientSlopeDegrees(double dx, double dy) {
     return std::atan(std::hypot(dx, dy)) * kRadian;
@@ -121,7 +121,7 @@ inline Vec3d Normalized(const Vec3d& v) {
     return length > 0.0 ? v * (1.0 / length) : v;
 }
 
-/// An axis-aligned box [`minX`, `maxX`) x [`minY`, `maxY`) in surface coordinates (metres
+/// An axis-aligned box [`minX`, `maxX`) x [`minY`, `maxY`) in surface coordinates (meters
 /// on a plane, the world coordinates a raster's `GeoTransform` maps pixels to).
 struct Bounds2d {
     double minX = 0.0;

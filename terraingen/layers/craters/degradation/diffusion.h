@@ -24,9 +24,9 @@ struct PowerLawDiffusivity {
     double exponent = 0.0;     ///< Power of the diameter; 0 for a constant diffusivity.
     double minDiameter = 0.0;  ///< Diameter below which kappa is held (m); non-negative.
 
-    /// kappa in m^2/Myr of craters of `diameter` metres.
+    /// kappa in m^2/Myr of craters of `diameter` meters.
     double Diffusivity(double diameter) const;
-    /// The diffusion age kappa t in m^2 of a crater of `diameter` metres and `ageGyr` Gyr.
+    /// The diffusion age kappa t in m^2 of a crater of `diameter` meters and `ageGyr` Gyr.
     double operator()(double diameter, double ageGyr) const;
 
     /// Memberwise equality.
@@ -74,14 +74,14 @@ class DiffusedProfile final : public CraterProfile {
         return fresh_->IsComplex(diameter);
     }
 
-    /// The morphometry of a crater of `diameter` metres diffused to age `tau` (kappa t / D^2): rim
+    /// The morphometry of a crater of `diameter` meters diffused to age `tau` (kappa t / D^2): rim
     /// crest height (highest point beyond half a radius) and depth below it (to the lowest point
     /// within a radius), over the diameter.
     CraterMorphometry Morphometry(const CraterMorphometry& fresh, double diameter,
                                   double tau) const;
 
     /// The diffusion age tau (kappa t / D^2) at which a crater of `fresh` morphometry and
-    /// `diameter` metres wears to `depthRatio` depth over diameter: 0 when it is that shallow
+    /// `diameter` meters wears to `depthRatio` depth over diameter: 0 when it is that shallow
     /// fresh, the last age tabulated when it is never worn that far.
     double AgeAtDepthRatio(const CraterMorphometry& fresh, double diameter,
                            double depthRatio) const;
@@ -99,7 +99,7 @@ class DiffusedProfile final : public CraterProfile {
         return cells_;
     }
 
-    /// The heights over the diameter a crater of `fresh` morphometry and `diameter` metres is read
+    /// The heights over the diameter a crater of `fresh` morphometry and `diameter` meters is read
     /// from: a row per age of `Ages`, `Cells` + 1 heights per row out to half the reach in
     /// diameters.
     std::shared_ptr<const std::vector<float>> HeightTable(const CraterMorphometry& fresh,

@@ -49,18 +49,18 @@ class SurfaceCells {
     virtual ~SurfaceCells() = default;
 
     /// The cells that intersect `region` (surface coordinates), in a fixed order.
-    /// @param cellSize The cell side in metres.
+    /// @param cellSize The cell side in meters.
     /// @throws std::invalid_argument if `cellSize` is not positive and finite, or `region` is not
     /// finite or not one the implementation accepts.
     virtual std::vector<CellIndex> CellsCovering(const Bounds2d& region, double cellSize) const = 0;
 
     /// The area of a cell in m^2.
-    /// @param cellSize The cell side in metres.
+    /// @param cellSize The cell side in meters.
     virtual double CellArea(const CellIndex& cell, double cellSize) const = 0;
 
     /// Maps uniform `u` and `v` in [0, 1) to a point uniform over a cell, in surface coordinates;
     /// uniform over `Sampling`'s measure where that thins.
-    /// @param cellSize The cell side in metres.
+    /// @param cellSize The cell side in meters.
     virtual Vec2d SamplePoint(double u, double v, const CellIndex& cell, double cellSize) const = 0;
 
     /// How to place features in a cell uniformly by area: draw a Poisson count over `area`
@@ -73,7 +73,7 @@ class SurfaceCells {
     };
 
     /// The sampling of a cell, as `Sampling` describes.
-    /// @param cellSize The cell side in metres.
+    /// @param cellSize The cell side in meters.
     virtual Sampling CellSampling(const CellIndex& cell, double cellSize) const {
         return {CellArea(cell, cellSize), 0.0};
     }
@@ -88,8 +88,8 @@ class SurfaceCells {
 /// [j L, (j + 1) L).
 class PlanarCells final : public SurfaceCells {
   public:
-    /// The cells intersecting `region` (metres), in row-major order: increasing j, then i.
-    /// @param cellSize The cell side in metres.
+    /// The cells intersecting `region` (meters), in row-major order: increasing j, then i.
+    /// @param cellSize The cell side in meters.
     /// @throws std::invalid_argument if `cellSize` is not positive and finite, `region` is empty or
     /// not finite, or a cell index would overflow 32 bits.
     std::vector<CellIndex> CellsCovering(const Bounds2d& region, double cellSize) const override;
@@ -97,12 +97,12 @@ class PlanarCells final : public SurfaceCells {
     /// `cellSize` squared, in m^2.
     double CellArea(const CellIndex& cell, double cellSize) const override;
 
-    /// The point at fractions `u` and `v` in [0, 1) across a cell in x and y, in metres.
+    /// The point at fractions `u` and `v` in [0, 1) across a cell in x and y, in meters.
     Vec2d SamplePoint(double u, double v, const CellIndex& cell, double cellSize) const override;
 };
 
 /// Near-square cells on a body, in longitude and latitude degrees: each face of a cube split into
-/// n x n cells along equiangular coordinates of the direction from the centre.
+/// n x n cells along equiangular coordinates of the direction from the center.
 ///
 /// For a cell side L, n = ceil(R pi / (2 L)), with R the sphere's radius or an ellipsoid's
 /// shortest semi-axis, so no cell is narrower than L. Cell (i, j) is column i mod n and row j of
@@ -110,7 +110,7 @@ class PlanarCells final : public SurfaceCells {
 /// `CellArea` is each cell's true area and `CellSampling` thins points to be uniform by area.
 class CubeSphereCells final : public SurfaceCells {
   public:
-    /// Cells on a sphere of `radius` metres.
+    /// Cells on a sphere of `radius` meters.
     /// @throws std::invalid_argument unless `radius` is positive and finite.
     explicit CubeSphereCells(double radius);
 
@@ -121,7 +121,7 @@ class CubeSphereCells final : public SurfaceCells {
     /// Every cell reaching into a region, plus some next to them, sorted by i, then j.
     /// @param region The region in longitude and latitude degrees; longitudes may run past
     /// [-180, 180].
-    /// @param cellSize The cell side in metres.
+    /// @param cellSize The cell side in meters.
     /// @throws std::invalid_argument if `cellSize` is not positive and finite, the cells would be
     /// too small for the sphere, or `region` is not finite or inverted; a point is allowed.
     std::vector<CellIndex> CellsCovering(const Bounds2d& region, double cellSize) const override;
@@ -146,29 +146,29 @@ class CubeSphereCells final : public SurfaceCells {
     Vec2d SamplePoint(double u, double v, const CellIndex& cell, double cellSize) const override;
 
     /// The cell holding a point given in degrees.
-    /// @param cellSize The cell side in metres.
+    /// @param cellSize The cell side in meters.
     /// @throws std::invalid_argument as `CellsPerEdge`.
     CellIndex CellAt(double lonDeg, double latDeg, double cellSize) const;
 
     /// A cell and the cells up to `rings` steps from it along its face's rows and columns,
-    /// continuing onto neighbouring faces past an edge, without repeats, sorted by i, then j.
-    /// @param cellSize The cell side in metres.
+    /// continuing onto neighboring faces past an edge, without repeats, sorted by i, then j.
+    /// @param cellSize The cell side in meters.
     /// @throws std::invalid_argument as `CellsPerEdge`.
     std::vector<CellIndex> Neighbors(const CellIndex& cell, double cellSize, int rings) const;
 
     /// The unit direction of a face at equiangular coordinates.
     /// @param face The face, 0 to 5: +x, -x, +y, -y, +z, -z.
-    /// @param alpha Angle from the face's centre along its first axis, radians in [-pi/4, pi/4].
-    /// @param beta Angle from the face's centre along its second axis, radians in [-pi/4, pi/4].
+    /// @param alpha Angle from the face's center along its first axis, radians in [-pi/4, pi/4].
+    /// @param beta Angle from the face's center along its second axis, radians in [-pi/4, pi/4].
     static Vec3d Direction(int face, double alpha, double beta);
 
     /// The number of cells along each edge of a face, n = ceil(R pi / (2 `cellSize`)).
-    /// @param cellSize The cell side in metres.
+    /// @param cellSize The cell side in meters.
     /// @throws std::invalid_argument if `cellSize` is not positive and finite or the cells would be
     /// too small for the sphere.
     std::int32_t CellsPerEdge(double cellSize) const;
 
-    /// The radius in metres the cells are sized by: the sphere's, or an ellipsoid's shortest.
+    /// The radius in meters the cells are sized by: the sphere's, or an ellipsoid's shortest.
     double Radius() const {
         return sphere_.Radius();
     }
@@ -182,7 +182,7 @@ class CubeSphereCells final : public SurfaceCells {
     double WeightBound(std::size_t face, const std::array<double, 4>& bounds) const;
 
     /// Adds the cells holding sample points of cell (`col`, `row`) of `face`, which lies past the
-    /// face's edge, so on its neighbours.
+    /// face's edge, so on its neighbors.
     void AddAcrossEdge(const detail::CubeFace& face, std::int32_t col, std::int32_t row,
                        std::int32_t n, double cellSize, std::vector<CellIndex>& cells) const;
 

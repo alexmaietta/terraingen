@@ -4,7 +4,7 @@ Thank you for helping. Bug reports, questions, references and pull requests are 
 
 ## Building and testing
 
-TerrainGen needs CMake 3.22 or newer and a C++17 compiler (tested with GCC 11, Clang 14, Apple Clang 15 and MSVC 2022). Everything else is fetched by CMake. Keep the library, tests and examples C++17: no `std::span` (use `terraingen::Span`), `std::numbers` (use `kPi` from `util/bits.h`), defaulted comparisons, concepts or designated initialisers.
+TerrainGen needs CMake 3.22 or newer and a C++17 compiler (tested with GCC 11, Clang 14, Apple Clang 15 and MSVC 2022). Everything else is fetched by CMake. Keep the library, tests and examples C++17: no `std::span` (use `terraingen::Span`), `std::numbers` (use `kPi` from `util/bits.h`), defaulted comparisons, concepts or designated initializers.
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -35,7 +35,7 @@ The 3D GUI (`terraingen CONFIG --gui`) builds with Ernie, the renderer, from a l
 ## Conventions
 
 - **Cite what you model.** Constants, fits and models come from published sources: name the paper, with its DOI or URL, in the doc comment, and keep the rest of the comment to what the code does. If a value has no source, say so rather than guess.
-- **Plain ASCII** in code, comments, docs and commit messages: write "metres", "degrees", "D^-2" and "sigma" rather than Unicode symbols.
+- **Plain ASCII** in code, comments, docs and commit messages: write "meters", "degrees", "D^-2" and "sigma" rather than Unicode symbols.
 - **Document public headers** with short `///` comments: a `@file` line saying what the header holds, then one sentence per type and function. Add `@param` only for units, ranges or special values, `@return` only when the sentence does not say it, and `@throws` for each exception a function raises on purpose. Leave overrides undocumented, and prefer clear names to inline comments.
 - **Dependencies:** TerrainGen stays light. Please discuss a new third-party library in an issue before adding it; vendored code in `third_party/` stays byte-identical to upstream.
 - **Configuration fields** carry a description and, for numbers, a unit (see the field lists in `terraingen/config/fields/`); a test checks every field has them.

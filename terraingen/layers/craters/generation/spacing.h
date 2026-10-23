@@ -19,7 +19,7 @@ bool CratersConflict(const Crater& a, const Crater& b, const CraterSpacing& spac
                      const Surface& surface = {});
 
 /// Whether `a` takes precedence over `b` when they conflict: a manual crater over a generated one,
-/// then one at least `outrankFrom` metres across over one smaller, then the younger crater (which
+/// then one at least `outrankFrom` meters across over one smaller, then the younger crater (which
 /// would have overprinted the older), then the larger, then the smaller ID.
 bool CraterTakesPrecedence(const Crater& a, const Crater& b,
                            double outrankFrom = std::numeric_limits<double>::infinity());

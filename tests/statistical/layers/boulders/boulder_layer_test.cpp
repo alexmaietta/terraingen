@@ -26,7 +26,7 @@ double ExpectedBoulders(const BoulderLayer& layer, const terraingen::Bounds2d& r
     return expected;
 }
 
-/// Boulders centred in `region`.
+/// Boulders centered in `region`.
 double CountBoulders(const BoulderLayer& layer, const terraingen::Bounds2d& region) {
     double count = 0.0;
     for (const auto& boulder : layer.Boulders(region)) {

@@ -580,7 +580,7 @@ TEST(BuildSurface, LoadsAnIcqShapeModelOnceRelativeToTheConfig) {
     EXPECT_NEAR(coarse.Shape()->At({0.0, 0.0, 1.0}), 380.0, 0.5);
     const terraingen::Surface meters = terraingen::BuildSurface(
         terraingen::ShapeModelSurfaceSpec{"config_shape.icq", {}, 1.0}, ::testing::TempDir());
-    EXPECT_NEAR(meters.Shape()->At({1.0, 0.0, 0.0}), 0.4, 1e-8) << "in metres, not kilometres";
+    EXPECT_NEAR(meters.Shape()->At({1.0, 0.0, 0.0}), 0.4, 1e-8) << "in meters, not kilometers";
 }
 
 TEST(BuildSurface, ResamplesAMeshShapeModelScaledToMeters) {
@@ -722,7 +722,7 @@ TEST(InferListFormat, FollowsTheJsonExtension) {
 
 namespace {
 
-/// The craters of the crater layer `index` of `terrain` centred in `region`.
+/// The craters of the crater layer `index` of `terrain` centered in `region`.
 terraingen::CraterList CratersIn(const terraingen::TerrainGenerator& terrain, std::size_t index,
                                  const terraingen::Bounds2d& region) {
     return dynamic_cast<const terraingen::CraterLayer&>(*terrain.layers.at(index)).Craters(region);

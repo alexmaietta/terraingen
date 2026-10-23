@@ -23,7 +23,7 @@ namespace terraingen {
 
 /// The models craters are shaped with: their profile and the degradation state it is drawn in.
 struct CraterShapeModels {
-    std::shared_ptr<const CraterProfile> profile;         ///< Height by distance from the centre.
+    std::shared_ptr<const CraterProfile> profile;         ///< Height by distance from the center.
     std::shared_ptr<const DegradationModel> degradation;  ///< Each crater's state.
 
     /// A crater's depth, rim height and freshness in its `ResolvedCraterState`.
@@ -62,7 +62,7 @@ CraterSampling SamplingFrom(const LayerContext& context, double spacing, const v
 double CraterReachRadii(const CraterProfile& profile, const CraterApplyOptions& options);
 
 /// The height at surface (x, y) after one crater, bit-identical to what `ApplyCraters` does to a
-/// cell centred there; `height` beyond its reach (`CraterReachRadii`).
+/// cell centerd there; `height` beyond its reach (`CraterReachRadii`).
 ///
 /// Adds the profile, noise and texture weighted by the crater's resolution; with a datum, also
 /// moves the terrain toward the datum by `interiorReplacement` times the blend weight, or by the
@@ -85,7 +85,7 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
                   const CraterApplyOptions& options = {}, const CraterSampling& sampling = {});
 
 /// `ApplyCraters` on a sample block: a grid as above, or scattered points, each of which ends at
-/// the same height as a grid cell centred there.
+/// the same height as a grid cell centerd there.
 /// @throws std::invalid_argument as above; for points also without a positive spacing, or with a
 /// datum and no `sampling.ground`.
 void ApplyCraters(SampleBlock& samples, const CraterList& craters, const CraterShapeModels& models,

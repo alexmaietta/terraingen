@@ -37,7 +37,7 @@ class MinimumSfd final : public SizeFrequencyDistribution {
     MinimumSfd(SfdKind kind,
                std::vector<std::shared_ptr<const SizeFrequencyDistribution>>&& distributions);
 
-    /// The input with the lowest N(>=D) at `diameter` metres, the first on ties, and that N.
+    /// The input with the lowest N(>=D) at `diameter` meters, the first on ties, and that N.
     std::pair<const SizeFrequencyDistribution*, double> LowestAt(double diameter) const;
 
     std::vector<std::shared_ptr<const SizeFrequencyDistribution>> distributions_;

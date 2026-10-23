@@ -1,5 +1,5 @@
 /// Regions: different layers in different parts of the terrain. A `MaskedLayer` applies a layer
-/// only inside a rectangle or circle, faded out over `feather` metres outside it. A circular mare
+/// only inside a rectangle or circle, faded out over `feather` meters outside it. A circular mare
 /// is flattened and lowered, the west half is an old, heavily cratered surface and the east half a
 /// younger one. Writes the heights.
 ///
@@ -71,7 +71,7 @@ class LayersRegions : public terraingen::examples::Example {
         evaluated_ = terraingen::Evaluate(terrain);
         craters_ =
             terraingen::PlacedCraters(terrain, terraingen::RasterGrid::FromRaster(evaluated_));
-        Out() << craters_.craters.Size() << " craters; mare weight at the centre " << std::fixed
+        Out() << craters_.craters.Size() << " craters; mare weight at the center " << std::fixed
               << std::setprecision(2) << mare_->Weight(0.0, 0.0) << ", 700 m out "
               << mare_->Weight(700.0, 0.0) << "\n"
               << std::defaultfloat;

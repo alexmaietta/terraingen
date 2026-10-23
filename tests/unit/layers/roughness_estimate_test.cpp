@@ -53,7 +53,7 @@ class SelfAffineSurface {
         return sum;
     }
 
-    /// The RMS height difference at a lag of `lag` metres, averaged along x and y.
+    /// The RMS height difference at a lag of `lag` meters, averaged along x and y.
     double Deviation(double lag) const {
         double sum = 0.0;
         for (const Wave& wave : waves_) {
@@ -63,7 +63,7 @@ class SelfAffineSurface {
         return std::sqrt(sum);
     }
 
-    /// The surface over `size` x `size` cells of `cellSize` metres.
+    /// The surface over `size` x `size` cells of `cellSize` meters.
     Raster<float> Sample(std::size_t size, double cellSize) const {
         Raster<float> heights(size, size);
         heights.SetTransform(
@@ -81,7 +81,7 @@ class SelfAffineSurface {
     std::vector<Wave> waves_;
 };
 
-/// The RMS height difference in metres of `layer` at a lag of its wavelength on a lattice unlike
+/// The RMS height difference in meters of `layer` at a lag of its wavelength on a lattice unlike
 /// the one `MatchedNoiseAmplitude` measures on.
 double LayerDeviation(const terraingen::NoiseLayer& layer) {
     const double lag = static_cast<double>(layer.fractal.wavelength);
@@ -165,7 +165,7 @@ TEST(EstimateSourceRoughness, ReadsTheSourceOnItsNativeCells) {
     const terraingen::RasterSource source(heights);
     const BaseRoughness direct = EstimateBaseRoughness(heights, 2.0);
     const BaseRoughness read = terraingen::EstimateSourceRoughness(source);
-    EXPECT_NEAR(read.hurst, direct.hurst, 0.01) << "the lattice is centred on the grid";
+    EXPECT_NEAR(read.hurst, direct.hurst, 0.01) << "the lattice is centered on the grid";
     EXPECT_NEAR(read.deviation, direct.deviation, 0.01 * direct.deviation);
     EXPECT_EQ(read.cellSize, 2.0);
 

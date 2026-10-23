@@ -15,9 +15,9 @@ namespace terraingen {
 /// The six faces of a cube are each split into `cellsPerFace` x `cellsPerFace` quads along
 /// equiangular coordinates (as `CubeSphereCells`), two triangles each, with every vertex at the
 /// body's radius in that direction plus the terrain's height there (`HeightAt`; points without
-/// data are on the datum). Positions are body-fixed metres, x towards longitude 0 on the equator
+/// data are on the datum). Positions are body-fixed meters, x towards longitude 0 on the equator
 /// and z north (`Surface::Position`); vertices along the faces' edges are repeated per face.
-/// @param spacing Sample spacing in metres; 0 for a quad's side at a face's centre.
+/// @param spacing Sample spacing in meters; 0 for a quad's side at a face's center.
 /// @param threads Threads to use; 0 for every hardware thread.
 /// @throws std::invalid_argument for a terrain not on a body, zero cells, or a negative or
 /// non-finite spacing; and whatever the terrain's parts throw.
@@ -27,7 +27,7 @@ TriangleMesh BodyMesh(const TerrainGenerator& generator, std::size_t cellsPerFac
 /// The whole body a terrain on a sphere or ellipsoid lies on as an ICQ shape model with `q`
 /// intervals per face edge: each label at `IcqDirection`, at the body's radius in that direction
 /// plus the terrain's height there (points without data are on the datum).
-/// @param spacing Sample spacing in metres; 0 for an interval at a face's centre.
+/// @param spacing Sample spacing in meters; 0 for an interval at a face's center.
 /// @param threads Threads to use; 0 for every hardware thread.
 /// @throws std::invalid_argument for a terrain not on a body, a `q` of 0, or a negative or
 /// non-finite spacing; and whatever the terrain's parts throw.

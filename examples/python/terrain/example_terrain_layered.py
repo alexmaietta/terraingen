@@ -67,7 +67,7 @@ class Example(_common.Example):
         heights = self.heights.values
         assert heights.shape == (513, 513), "the heights are 513 x 513"
         assert np.all(np.isfinite(heights)), "every height is finite"
-        assert 10.0 < heights.max() - heights.min() < 500.0, "the relief is tens of metres"
+        assert 10.0 < heights.max() - heights.min() < 500.0, "the relief is tens of meters"
         assert np.abs(heights - self.rolling.values).max() > 0.5, "the crests and mask change the rolling fBm"
 
 

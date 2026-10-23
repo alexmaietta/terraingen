@@ -9,13 +9,13 @@
 
 namespace terraingen {
 
-/// y = `coefficient` * D^`exponent` with D and y in kilometres (km^3 for volumes), as
+/// y = `coefficient` * D^`exponent` with D and y in kilometers (km^3 for volumes), as
 /// morphometric relations are published.
 struct KilometerPowerLaw {
     double coefficient = 0.0;  ///< y of a 1 km crater, in km (or km^3).
     double exponent = 0.0;     ///< Power of the diameter.
 
-    /// y in metres (m^3 with `volume`) for a crater of `diameter` metres.
+    /// y in meters (m^3 with `volume`) for a crater of `diameter` meters.
     double At(double diameter, bool volume = false) const;
 
     /// Memberwise equality.
@@ -41,7 +41,7 @@ struct ComplexCraterShape {
     /// height and a base in proportion to the diameter. 0 applies the laws to every size.
     double peakFitMaxDiameter = 0.0;
     double ejectaExponent = 3.0;  ///< The exterior falls off as (r / R)^-exponent.
-    double reachRadii = 3.0;      ///< Radii from the centre where the exterior reaches zero.
+    double reachRadii = 3.0;      ///< Radii from the center where the exterior reaches zero.
 
     /// Memberwise equality.
     bool operator==(const ComplexCraterShape& other) const {

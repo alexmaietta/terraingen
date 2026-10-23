@@ -22,7 +22,7 @@ using terraingen::Vec3d;
 
 namespace {
 
-/// A sphere of `radius` metres as an ICQ model of `q` intervals.
+/// A sphere of `radius` meters as an ICQ model of `q` intervals.
 IcqModel Sphere(std::size_t q, double radius) {
     IcqModel model;
     model.q = q;
@@ -112,7 +112,7 @@ TEST(IcqFile, RoundTripsInKilometersAndIgnoresExtraColumns) {
     EXPECT_EQ(first, 4.0);
     double x = 0.0;
     text >> x;
-    EXPECT_NEAR(std::fabs(x), 2.5 / std::sqrt(3.0), 1e-6) << "kilometres in the file";
+    EXPECT_NEAR(std::fabs(x), 2.5 / std::sqrt(3.0), 1e-6) << "kilometers in the file";
 
     const auto extra = terraingen::testing::TempPath("icq_extra.icq");
     {
@@ -213,7 +213,7 @@ TEST(IcqModel, ConvertsToAndFromARadialShape) {
     terraingen::WriteIcq(path, model);
     const RadialShape read = terraingen::ToRadialShape(terraingen::ReadIcq(path));
     for (std::size_t k = 0; k < shape.Radii().size(); ++k) {
-        EXPECT_NEAR(read.Radii()[k], shape.Radii()[k], 1e-5) << "written to the micrometre";
+        EXPECT_NEAR(read.Radii()[k], shape.Radii()[k], 1e-5) << "written to the micrometer";
     }
 }
 

@@ -25,12 +25,12 @@ struct BoulderFacet {
     /// Direction the facet faces (upwind), radians counter-clockwise from east.
     double azimuth = 0.0;
     double angle = 0.0;  ///< Slope of the facet from horizontal, radians, in (0, 90) deg.
-    /// Distance (m) toward `azimuth` from the boulder's centre at which the facet meets the surface
+    /// Distance (m) toward `azimuth` from the boulder's center at which the facet meets the surface
     /// the boulder stands on.
     double reach = 0.0;
 
-    /// The facet's height (m) above that surface at east and north `offset` metres from the
-    /// boulder's centre, negative beyond `reach`.
+    /// The facet's height (m) above that surface at east and north `offset` meters from the
+    /// boulder's center, negative beyond `reach`.
     double HeightAt(const Vec2d& offset) const {
         const double along = offset.x * std::cos(azimuth) + offset.y * std::sin(azimuth);
         return (reach - along) * std::tan(angle);
@@ -45,10 +45,10 @@ struct BoulderFacet {
 };
 
 /// One boulder: where it stands, how large it is and how it lies, in surface coordinates
-/// and metres.
+/// and meters.
 struct Boulder {
-    double x = 0.0;         ///< Surface x of its centre.
-    double y = 0.0;         ///< Surface y of its centre.
+    double x = 0.0;         ///< Surface x of its center.
+    double y = 0.0;         ///< Surface y of its center.
     double diameter = 0.0;  ///< Length of its long axis: its largest horizontal extent on its face.
     /// Length of its short axis, buried part included: its full height resting on its face.
     double height = 0.0;
@@ -59,7 +59,7 @@ struct Boulder {
     BoulderRest rest = BoulderRest::Face;  ///< Which axis it stands along.
     double tilt = 0.0;         ///< Angle of its up axis from the vertical, after lean, radians.
     double tiltAzimuth = 0.0;  ///< Direction its up axis tips toward, radians from east.
-    /// Height of the ground beneath its centre before any boulders, when the layer knows it.
+    /// Height of the ground beneath its center before any boulders, when the layer knows it.
     std::optional<double> ground{};
     /// Placed as a 3D model of its own rather than drawn into the heights
     /// (`BoulderModelThreshold`).
@@ -77,13 +77,13 @@ struct Boulder {
     /// (`BoulderShapeSeed`).
     std::optional<std::uint64_t> shapeSeed{};
 
-    /// Height of the top above the surface it stands on, `height` (1 - `burial`), in metres.
+    /// Height of the top above the surface it stands on, `height` (1 - `burial`), in meters.
     double ExposedHeight() const {
         return height * (1.0 - burial);
     }
 
-    /// `top`, a height (m) of the boulder above the surface at east and north `offset` metres from
-    /// its centre, lowered to its facets and not below 0.
+    /// `top`, a height (m) of the boulder above the surface at east and north `offset` meters from
+    /// its center, lowered to its facets and not below 0.
     double CutByFacets(const Vec2d& offset, double top) const {
         for (std::uint8_t k = 0; k < facetCount; ++k) {
             top = std::fmin(top, facets[k].HeightAt(offset));
@@ -105,11 +105,11 @@ struct Boulder {
     }
 };
 
-/// A boulder placed by hand: its centre and size, and any of its pose and shape fixed; NaN or
+/// A boulder placed by hand: its center and size, and any of its pose and shape fixed; NaN or
 /// unset fields are drawn as for generated boulders.
 struct ManualBoulder {
-    double x = 0.0;         ///< Surface x of its centre.
-    double y = 0.0;         ///< Surface y of its centre.
+    double x = 0.0;         ///< Surface x of its center.
+    double y = 0.0;         ///< Surface y of its center.
     double diameter = 0.0;  ///< Length of its long axis (m).
     /// Stable ID; 0 derives one from position and size (`ManualCraterId`).
     std::uint64_t id = 0;

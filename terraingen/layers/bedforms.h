@@ -30,7 +30,7 @@ struct BedformOptions {
     double cover = 0.0;        ///< Share of the ground under fields, in [0, 0.9].
     double fieldSize = 100.0;  ///< Typical width of a field (m).
     std::uint32_t seed = 1;    ///< Varies the fields.
-    /// When set, a field is left out with probability the exposure at its centre, read from the
+    /// When set, a field is left out with probability the exposure at its center, read from the
     /// ground beneath the layer.
     std::optional<ExposureParams> exposure;
     double exposureSpacing = 1.0;  ///< Spacing the ground is read at for the exposure field (m).
@@ -75,7 +75,7 @@ BedformOptions MarsTransverseAeolianRidges();
 /// only, so grids, tiles and points agree.
 class BedformLayer final : public FormulaLayer, public MaterialSource {
   public:
-    /// On a sphere, fields are drawn in `CubeSphereCells`, shaped in their centres' local frames,
+    /// On a sphere, fields are drawn in `CubeSphereCells`, shaped in their centers' local frames,
     /// with the azimuth counter-clockwise from local east. Applying the layer with the exposure
     /// field enabled needs `context.ground`.
     /// @param source The source the terrain's heights come from, which with

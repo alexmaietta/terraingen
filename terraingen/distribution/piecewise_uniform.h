@@ -9,10 +9,10 @@
 namespace terraingen {
 
 /// One band of a piecewise uniform distribution: `density` features with diameters spread
-/// uniformly over [`min`, `max`) metres.
+/// uniformly over [`min`, `max`) meters.
 struct UniformBand {
-    double min = 1.0;       ///< Smallest diameter, metres; positive.
-    double max = 2.0;       ///< Largest diameter, metres; above `min`.
+    double min = 1.0;       ///< Smallest diameter, meters; positive.
+    double max = 2.0;       ///< Largest diameter, meters; above `min`.
     double density = 0.01;  ///< Features per m^2 (or per m^2 per Gyr), or a relative weight; >= 0.
 
     /// Memberwise equality.

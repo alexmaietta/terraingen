@@ -74,7 +74,7 @@ TEST(PlaceBoulderModel, BuriesItsShareOfTheLeanedHeightAndSharesPrototypes) {
 
 namespace {
 
-/// The centre of mass and placed points of `shape` placed as `boulder` on ground at 0.
+/// The center of mass and placed points of `shape` placed as `boulder` on ground at 0.
 std::pair<terraingen::Vec3d, std::vector<terraingen::Vec3d>>
 Placed(const Boulder& boulder, const terraingen::BoulderShape& shape, bool settle) {
     const auto placement = terraingen::PlaceBoulderModel(boulder, shape, 0.0, settle);
@@ -93,8 +93,8 @@ Placed(const Boulder& boulder, const terraingen::BoulderShape& shape, bool settl
     return {sum * (1.0 / (4.0 * volume)), points};
 }
 
-/// Whether the centre of mass stands over the points touching the ground: for every horizontal
-/// direction some contact point reaches at least as far as the centre.
+/// Whether the center of mass stands over the points touching the ground: for every horizontal
+/// direction some contact point reaches at least as far as the center.
 bool RestsStably(const terraingen::Vec3d& center, const std::vector<terraingen::Vec3d>& points) {
     double low = 1e300;
     for (const auto& p : points) {

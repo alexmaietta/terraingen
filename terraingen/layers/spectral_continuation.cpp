@@ -75,7 +75,7 @@ double Hann(std::size_t i, std::size_t n) {
            0.5 * std::cos(2.0 * kPi * (static_cast<double>(i) + 0.5) / static_cast<double>(n));
 }
 
-/// The centred power-of-2 window of a raster.
+/// The centerd power-of-2 window of a raster.
 struct Window {
     std::size_t col0 = 0;
     std::size_t row0 = 0;
@@ -96,7 +96,7 @@ Window CenteredWindow(const Raster<float>& heights) {
 }
 
 /// The least-squares plane z = c0 + c1 x + c2 y through the cells of `window` holding data, x and
-/// y their offsets from the window's centre in cells.
+/// y their offsets from the window's center in cells.
 struct Plane {
     double c0 = 0.0;
     double c1 = 0.0;
@@ -115,7 +115,7 @@ double Determinant(const Matrix3& m) {
            m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
 }
 
-/// The offset of cell `i` of `n` from their centre, in cells.
+/// The offset of cell `i` of `n` from their center, in cells.
 double Centered(std::size_t i, std::size_t n) {
     return static_cast<double>(i) - 0.5 * static_cast<double>(n - 1);
 }
@@ -335,12 +335,12 @@ void ValidateSpectralContinuationOptions(const SpectralContinuationOptions& opti
 /// The impulses of one band over a window of its lattice cells.
 struct SpectralContinuationLayer::ImpulseTable {
     struct Impulse {
-        double x = 0.0;  ///< Centre, in metres.
+        double x = 0.0;  ///< Center, in meters.
         double y = 0.0;
-        double kx = 0.0;  ///< Angular wave vector, in radians per metre.
+        double kx = 0.0;  ///< Angular wave vector, in radians per meter.
         double ky = 0.0;
         double phase = 0.0;
-        double amplitude = 0.0;  ///< Metres, faded for the sample spacing.
+        double amplitude = 0.0;  ///< Meters, faded for the sample spacing.
     };
 
     const Band* band = nullptr;

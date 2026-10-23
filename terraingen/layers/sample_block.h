@@ -12,7 +12,7 @@
 
 namespace terraingen {
 
-/// Heights to change in place and where they are: every cell of a raster, sampled at its centre,
+/// Heights to change in place and where they are: every cell of a raster, sampled at its center,
 /// or a list of scattered points such as wheel contacts. Layers apply to a block in one call, so a
 /// single point and a whole grid take the same path and give the same height at the same place.
 class SampleBlock {
@@ -39,7 +39,7 @@ class SampleBlock {
         return grid_;
     }
 
-    /// The position of sample `i`: a cell centre, or a point.
+    /// The position of sample `i`: a cell center, or a point.
     Vec2d Position(std::size_t i) const;
 
     /// The height of sample `i`.
@@ -54,7 +54,7 @@ class SampleBlock {
     /// `PointBounds` contain their largest coordinates.
     Bounds2d Bounds() const;
 
-    /// The feature spacing in metres: `spacing`, raised to a grid's cell spacing on `surface`.
+    /// The feature spacing in meters: `spacing`, raised to a grid's cell spacing on `surface`.
     double ResolvedSpacing(double spacing, const Surface& surface) const;
 
   private:

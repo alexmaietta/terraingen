@@ -59,7 +59,7 @@ class PyLayer : public Layer {
     }
 
   private:
-    /// `apply` on a raster of one cell of side `context.spacing` centred at `p`.
+    /// `apply` on a raster of one cell of side `context.spacing` centered at `p`.
     float ApplyToOneCell(float height, const Vec2d& p, const LayerContext& context) const {
         Raster<float> cell(1, 1, height);
         cell.SetTransform(GeoTransform::NorthUp(p.x - 0.5 * context.spacing,
@@ -357,7 +357,7 @@ void BindRoughnessEstimate(nb::module_& m) {
           "method, at lags of 1 to 8 cells of `cell_size` meters.");
     m.def("estimate_source_roughness", &EstimateSourceRoughness, "source"_a,
           "surface"_a = Surface{},
-          "The roughness of a source on a lattice of its native cells about its grid's centre.");
+          "The roughness of a source on a lattice of its native cells about its grid's center.");
     m.def("matched_noise_amplitude", &MatchedNoiseAmplitude, "layer"_a, "roughness"_a,
           "The amplitude in meters that gives a noise layer the roughness's RMS height "
           "difference at a lag of its wavelength.");

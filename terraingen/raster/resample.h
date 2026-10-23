@@ -16,7 +16,7 @@ namespace terraingen {
 
 /// How `Resample` interpolates between source cells.
 enum class ResampleMethod {
-    Nearest,   ///< The value of the nearest cell centre.
+    Nearest,   ///< The value of the nearest cell center.
     Bilinear,  ///< Linear in each axis over the four surrounding cells.
     Cubic,     ///< Keys cubic convolution (a = -0.5) over the sixteen surrounding cells.
     /// The Catmull-Rom spline over the sixteen surrounding cells: the same kernel as `Cubic`, Keys
@@ -86,7 +86,7 @@ std::optional<float> InterpolateLattice(double u, double v, ResampleMethod metho
 /// A raster resampled to square cells over the same extent, origin and axis directions, on the
 /// `ResampledGrid`, keeping `raster`'s no-data value (NaN cells without one).
 ///
-/// Each output cell centre is interpolated in the source, with samples beyond the edge taken from
+/// Each output cell center is interpolated in the source, with samples beyond the edge taken from
 /// the nearest edge cell. An output cell is no-data where any contributing cell is.
 /// @param raster The source raster; not empty and not rotated.
 /// @param pixelSize The new cell side in world units; positive and finite.
@@ -132,7 +132,7 @@ float SampleRasterWindow(const Raster<float>& window, const RasterPlacement& pla
 Raster<float> ResampleWindow(const Raster<float>& window, const RasterPlacement& placement,
                              double pixelSize, ResampleMethod method, const PixelWindow& cells);
 
-/// A raster resampled onto a non-empty grid, each cell `SampleRaster` at its centre.
+/// A raster resampled onto a non-empty grid, each cell `SampleRaster` at its center.
 ///
 /// Cells giving NaN hold `raster`'s no-data value, or NaN, which then becomes the no-data value
 /// (`FilledNoData`).
@@ -147,7 +147,7 @@ Raster<float> ResampleTo(const Raster<float>& raster, const RasterGrid& grid,
 /// was `missing`, else none.
 std::optional<float> FilledNoData(std::optional<float> noData, bool missing);
 
-/// Sets each cell of `target` to `sample` at the cell's centre; cells where it gives NaN
+/// Sets each cell of `target` to `sample` at the cell's center; cells where it gives NaN
 /// hold `noData`, or NaN without one, and `target` gets `FilledNoData`.
 /// @tparam Sample Callable as `float(double x, double y)` with world coordinates; returns NaN
 /// where missing.

@@ -41,12 +41,12 @@ void ValidateMaterialOptions(const MaterialOptions& options);
 /// The material shares of `generator` at world (x, y): soil, then bedrock where the ground beneath
 /// the first `MaterialSource` layer is bare, then dust in patches, then each `MaterialSource`
 /// layer's cover in layer order, each read on the ground beneath it.
-/// @param spacing Sample spacing in metres; positive.
+/// @param spacing Sample spacing in meters; positive.
 /// @throws std::invalid_argument as `ValidateMaterialOptions` or `ValidateGenerator`.
 MaterialShares MaterialsAt(const TerrainGenerator& generator, const MaterialOptions& options,
                            double x, double y, double spacing);
 
-/// One raster per `MaterialClass` over `grid`, each cell `MaterialsAt` its centre at the grid's
+/// One raster per `MaterialClass` over `grid`, each cell `MaterialsAt` its center at the grid's
 /// spacing (or `evaluation.spacing` where coarser).
 /// @throws std::invalid_argument as `MaterialsAt`.
 std::vector<Raster<float>> EvaluateMaterials(const TerrainGenerator& generator,

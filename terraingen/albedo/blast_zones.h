@@ -13,13 +13,13 @@ namespace terraingen {
 /// The blast zone around one lander, after Clegg et al. (2014) and Clegg-Watkins et al. (2016):
 /// an elliptical zone of `area` brighter by `change` on average, brightest within about a third of
 /// its radius and fading to its edge, inside a fainter halo reaching `haloReach` times as far, with
-/// a darker core of `coreRadius` metres where the soil beneath the engine and the crew's tracks
+/// a darker core of `coreRadius` meters where the soil beneath the engine and the crew's tracks
 /// were disturbed. Changes are relative to the undisturbed ground at 30 degrees phase.
 ///
 /// Measured areas: Apollo 18,725 to 53,872 m^2 (mean 28,785, thrust 45 kN), Luna 987 to 3355 m^2
 /// (mean 2100, 16 to 19 kN), Surveyor 131 to 279 m^2 (mean 215, under 0.5 kN), Chang'e-3 2530 m^2
 /// (7.5 kN). Changes: Apollo +7.5% to +12.5% (mean +10.9%), Luna +5.1% to +10.6%, Surveyor +3.4%
-/// to +13.2%, Chang'e-3 +10%. Apollo dark cores: -15% to -30% within a few metres.
+/// to +13.2%, Chang'e-3 +10%. Apollo dark cores: -15% to -30% within a few meters.
 struct BlastZone {
     double x = 0.0;                ///< Surface x of the lander.
     double y = 0.0;                ///< Surface y of the lander.

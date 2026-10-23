@@ -189,8 +189,8 @@ void BindFractalParams(nb::module_& m) {
             "lacunarity"_a = 2.0f, "gain"_a = 0.5f, "basis"_a = NoiseBasis::Perlin,
             "type"_a = FractalType::Fbm, "offset"_a = 1.0f)
         .def_rw("seed", &FractalParams::seed)
-        .def_rw("wavelength", &FractalParams::wavelength, "First-octave wavelength in metres.")
-        .def_rw("amplitude", &FractalParams::amplitude, "Maximum absolute height in metres.")
+        .def_rw("wavelength", &FractalParams::wavelength, "First-octave wavelength in meters.")
+        .def_rw("amplitude", &FractalParams::amplitude, "Maximum absolute height in meters.")
         .def_rw("octaves", &FractalParams::octaves)
         .def_rw("lacunarity", &FractalParams::lacunarity)
         .def_rw("gain", &FractalParams::gain)
@@ -214,7 +214,7 @@ void BindFractal(nb::module_& m) {
             return Evaluate(x, y,
                             [&params](float px, float py) { return Fractal2(px, py, params); });
         },
-        "x"_a, "y"_a, "params"_a, "Fractal height in metres at each world position (x, y).");
+        "x"_a, "y"_a, "params"_a, "Fractal height in meters at each world position (x, y).");
     m.def(
         "fractal2",
         [](float x, float y, const FractalParams& params) {
@@ -240,8 +240,8 @@ void BindNoiseLayer(nb::module_& m) {
         .def_rw("enabled", &NoiseLayer::enabled)
         .def_rw("fractal", &NoiseLayer::fractal)
         .def_rw("blend", &NoiseLayer::blend)
-        .def_rw("warp_amplitude", &NoiseLayer::warpAmplitude, "Domain warp in metres; 0 is off.")
-        .def_rw("warp_wavelength", &NoiseLayer::warpWavelength, "Warp field wavelength in metres.")
+        .def_rw("warp_amplitude", &NoiseLayer::warpAmplitude, "Domain warp in meters; 0 is off.")
+        .def_rw("warp_wavelength", &NoiseLayer::warpWavelength, "Warp field wavelength in meters.")
         .def(nb::self == nb::self);
     m.attr("MAX_NOISE_LAYERS") = kMaxNoiseLayers;
     m.def("validate_noise_layer", &ValidateNoiseLayer, "layer"_a, kValidateDoc);
@@ -256,7 +256,7 @@ void BindLayerEvaluation(nb::module_& m) {
                 return EvaluateNoiseLayers(px, py, params.layers.data(), params.layers.size());
             });
         },
-        "x"_a, "y"_a, "params"_a, "Height in metres of the layer stack at each world position.");
+        "x"_a, "y"_a, "params"_a, "Height in meters of the layer stack at each world position.");
     m.def(
         "evaluate_noise_layer",
         [](float x, float y, const NoiseLayer& layer) {
@@ -273,7 +273,7 @@ void BindLayerEvaluation(nb::module_& m) {
             return nb::make_tuple(offset.dx, offset.dy);
         },
         "x"_a, "y"_a, "layer"_a,
-        "The domain warp offset (dx, dy) in metres a layer applies at world position (x, y).");
+        "The domain warp offset (dx, dy) in meters a layer applies at world position (x, y).");
 }
 
 void BindBasisNoise3(nb::module_& m) {
@@ -333,7 +333,7 @@ void BindFractal3(nb::module_& m) {
             });
         },
         "x"_a, "y"_a, "z"_a, "params"_a,
-        "Fractal height in metres at each 3D world position (m), as noise on a sphere uses it.");
+        "Fractal height in meters at each 3D world position (m), as noise on a sphere uses it.");
     m.def(
         "fractal3",
         [](double x, double y, double z, const FractalParams& params) {
@@ -351,7 +351,7 @@ void BindFractal3(nb::module_& m) {
             });
         },
         "x"_a, "y"_a, "z"_a, "params"_a,
-        "Height in metres of the layer stack at each 3D world position (m).");
+        "Height in meters of the layer stack at each 3D world position (m).");
 }
 
 }  // namespace

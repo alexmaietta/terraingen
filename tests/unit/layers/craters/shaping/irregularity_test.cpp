@@ -233,7 +233,7 @@ TEST(CraterOutline, ShiftsOnlyTheWallSmoothlyAroundTheCrater) {
     EXPECT_DOUBLE_EQ(outline.Scale(1.0, 2.0), 1.0);
     EXPECT_EQ(outline.MarkShift(1.0, 0.0, 0.15), 0.0);
     EXPECT_EQ(outline.MarkShift(1.0, 0.0, 1.0), 0.0);
-    EXPECT_DOUBLE_EQ(outline.MarkShift(0.0, 0.0, 0.5), 0.01) << "the centre reads angle 0";
+    EXPECT_DOUBLE_EQ(outline.MarkShift(0.0, 0.0, 0.5), 0.01) << "the center reads angle 0";
     EXPECT_DOUBLE_EQ(outline.MarkShift(1.0, 0.0, 0.5), 0.01) << "passes through its knots";
     EXPECT_NEAR(outline.MarkShift(-1.0, std::sqrt(3.0), 0.5), 0.005, 1e-12);
     EXPECT_NEAR(outline.MarkShift(1.0, 0.0, 0.25), 0.005, 1e-12) << "half way up the fade";

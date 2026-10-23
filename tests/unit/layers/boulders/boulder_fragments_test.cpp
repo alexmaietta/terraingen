@@ -266,7 +266,7 @@ TEST(BoulderLayer, KeepsTheMeanDensityOfThomasClustersOnABody) {
     EXPECT_GT(terraingen::MeanThomasField(options.clusters, true), 0.0);
     EXPECT_NEAR(terraingen::MeanThomasField(options.clusters, true),
                 terraingen::MeanThomasField(options.clusters), 1e-3)
-        << "the same mean as centres on a plane";
+        << "the same mean as centers on a plane";
 }
 
 TEST(FragmentBoulderShape, SplitsSlabsByRoughlyParallelCracks) {
@@ -297,7 +297,7 @@ TEST(FragmentBoulderShape, SplitsSlabsByRoughlyParallelCracks) {
     }
     const double mean = 0.5 * (sxx + syy);
     const double spread = std::sqrt(0.25 * (sxx - syy) * (sxx - syy) + sxy * sxy);
-    EXPECT_LT((mean - spread) / (mean + spread), 0.1) << "slab centres lie along a line";
+    EXPECT_LT((mean - spread) / (mean + spread), 0.1) << "slab centers lie along a line";
     EXPECT_NE(FragmentBoulderShape(parent, 4, 11, terraingen::BoulderCracks::Radial)[0].center.x,
               slabs[0].center.x);
     BoulderLayerOptions options;

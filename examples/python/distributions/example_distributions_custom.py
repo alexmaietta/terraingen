@@ -21,7 +21,7 @@ from _common import hillshade, write_png
 
 
 class RolledOverPowerLaw(terraingen.SizeFrequencyDistribution):
-    """N(>= D) = coefficient * D^-slope above `knee` metres, flattening to D^-shallow below it."""
+    """N(>= D) = coefficient * D^-slope above `knee` meters, flattening to D^-shallow below it."""
 
     def __init__(self, coefficient=0.05, slope=2.5, shallow=1.2, knee=20.0):
         super().__init__(terraingen.SfdKind.DENSITY, 1.0, 10000.0)

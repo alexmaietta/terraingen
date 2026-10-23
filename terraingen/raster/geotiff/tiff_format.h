@@ -142,7 +142,7 @@ struct ModelTags {
 };
 
 /// The model tags storing `transform`. GeoTIFF places PixelIsPoint rasters at their first
-/// pixel's centre, so `transform` is shifted half a pixel for them.
+/// pixel's center, so `transform` is shifted half a pixel for them.
 ModelTags EncodeTransform(const GeoTransform& transform, bool pixelIsPoint);
 
 /// The transform `tags` store, undoing the PixelIsPoint shift; nothing when they store none

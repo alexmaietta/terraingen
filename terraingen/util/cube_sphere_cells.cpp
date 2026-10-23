@@ -58,7 +58,7 @@ void CheckRegion(const Bounds2d& region) {
     }
 }
 
-/// The angle in radians from the centre of a cell to its farthest corner, and that centre.
+/// The angle in radians from the center of a cell to its farthest corner, and that center.
 double CornerAngle(const detail::CubeFace& face, const std::array<double, 4>& bounds,
                    Vec3d& center) {
     const auto [a1, a2, b1, b2] = bounds;
@@ -213,7 +213,7 @@ std::vector<CellIndex> CubeSphereCells::KeepReaching(const Bounds2d& box,
                                                      const std::vector<CellIndex>& seeds,
                                                      const std::vector<CellIndex>& cells,
                                                      double cellSize) const {
-    // A ring cell reaches the region only if its centre lies within its farthest corner's angle of
+    // A ring cell reaches the region only if its center lies within its farthest corner's angle of
     // it, since cell edges are great circles; one expansion by the largest such angle tests them.
     const std::int32_t n = CellsPerEdge(cellSize);
     std::vector<CellIndex> ring;

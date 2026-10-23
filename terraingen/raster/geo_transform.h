@@ -11,8 +11,8 @@ namespace terraingen {
 
 /// Affine mapping from pixel to world coordinates, as GDAL's six-coefficient geotransform.
 ///
-/// Pixel (0, 0) is the outer corner of the first pixel, so centres sit at half-integer
-/// coordinates. World coordinates are in the CRS's units (metres when projected). North-up rasters
+/// Pixel (0, 0) is the outer corner of the first pixel, so centers sit at half-integer
+/// coordinates. World coordinates are in the CRS's units (meters when projected). North-up rasters
 /// have a negative `pixelHeight` and no rotation. The default maps pixels to world one to one, as
 /// GDAL does for ungeoreferenced rasters.
 struct GeoTransform {

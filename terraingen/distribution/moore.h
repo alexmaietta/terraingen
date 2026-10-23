@@ -7,7 +7,7 @@
 namespace terraingen {
 
 /// Moore's terrain-specific cumulative crater distributions for Lunar Roving Vehicle
-/// trafficability, N per m^2 with D in metres.
+/// trafficability, N per m^2 with D in meters.
 enum class MooreTerrain {
     RoughMare,        ///< 10^-1 D^-2 below 100 m, 10 D^-3 above.
     SmoothMare,       ///< 10^-1 D^-2 below 40 m, then 10^0.602 D^-3, 10^-2.038 D^-1.68, 10 D^-3.

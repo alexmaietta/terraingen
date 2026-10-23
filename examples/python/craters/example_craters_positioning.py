@@ -5,7 +5,7 @@ craters as any larger one. `CraterLayer.craters(region)` lists them without eval
 `CraterSpacing` keeps craters of similar size apart (no two within `separation` larger diameters
 when their sizes differ by at most `diameter_ratio`; off by default), and `max_craters` keeps only
 that many.
-Prints counts and nearest-neighbour distances and writes a montage of hillshades.
+Prints counts and nearest-neighbor distances and writes a montage of hillshades.
 
     python example_craters_positioning.py [--viewer window|null] [--output-dir DIR] [--test]
 """
@@ -69,7 +69,7 @@ class Example(_common.Example):
             self.counts[name] = len(table["x"])
             self.median_gaps[name] = np.median(gaps)
             print(
-                f"{name:16s} {len(table['x']):5d} craters, median nearest neighbour {np.median(gaps):.2f} diameters"
+                f"{name:16s} {len(table['x']):5d} craters, median nearest neighbor {np.median(gaps):.2f} diameters"
             )
             heights = terraingen.evaluate(
                 terraingen.TerrainGenerator(terraingen.FlatSource(513, 513, 1.0), [layer])
@@ -90,7 +90,7 @@ class Example(_common.Example):
         assert counts["no spacing"] >= counts["some spacing"] >= counts["wide spacing"], (
             "wider spacing keeps fewer craters"
         )
-        assert gaps["wide spacing"] > gaps["no spacing"], "wider spacing moves neighbours apart"
+        assert gaps["wide spacing"] > gaps["no spacing"], "wider spacing moves neighbors apart"
         assert counts["at most 100"] <= 100, "max_craters caps the count"
 
 

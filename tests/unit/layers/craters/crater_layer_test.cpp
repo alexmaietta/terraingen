@@ -249,7 +249,7 @@ CraterLayer ExplicitLayer(bool generateRandom, double depth, double rim) {
     return CraterLayer(ShapedModels(), options);
 }
 
-/// A `size` x `size` flat grid of `cell` m cells centred on the origin.
+/// A `size` x `size` flat grid of `cell` m cells centered on the origin.
 Raster<float> Centered(std::size_t size, double cell) {
     Raster<float> raster(size, size, 0.0f);
     const double half = 0.5 * static_cast<double>(size) * cell;

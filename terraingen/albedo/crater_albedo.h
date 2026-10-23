@@ -31,7 +31,7 @@ struct RayRetention {
     double largeMyr = 750.0;         ///< Retention of large craters, Myr.
     double scale = 1.0;              ///< Multiplies every time.
 
-    /// The retention time in Myr of a crater `diameter` metres across.
+    /// The retention time in Myr of a crater `diameter` meters across.
     double Myr(double diameter) const;
 
     bool operator==(const RayRetention& other) const {
@@ -104,7 +104,7 @@ struct CraterRays {
     double lengthExponent = 1.27;     ///< Exponent of `ElliottMedianRayLength`.
     /// Natural log of a ray's length over the median.
     ValueDistribution lengthSpread{ValueDistribution::Kind::Uniform, -0.356, 0.468};
-    /// Angular width 2 radii from the centre, in (0, 180) degrees; the width there holds beyond.
+    /// Angular width 2 radii from the center, in (0, 180) degrees; the width there holds beyond.
     ValueDistribution widthDegrees{ValueDistribution::Kind::Normal, 22.0, 8.3, 5.4, 38.6};
     double excess = 0.048;     ///< Maturity excess at the rim, in OMAT; >= 0.
     double patchiness = 0.5;   ///< Most of the excess the noise takes away, in [0, 1].
@@ -115,7 +115,7 @@ struct CraterRays {
     /// draws them per crater as before.
     std::optional<RayLayout> layout;
 
-    /// The median ray length from the centre, in metres, of a crater `diameter` metres across.
+    /// The median ray length from the center, in meters, of a crater `diameter` meters across.
     double MedianLength(double diameter) const;
 
     bool operator==(const CraterRays& other) const {
@@ -174,7 +174,7 @@ void ValidateCraterAlbedoTexture(const CraterAlbedoTexture& texture);
 
 /// One reflectance zone around new small craters: a share of craters has it, it changes the
 /// reflectance relative to the pre-impact surface by `change`, and it reaches
-/// `coefficient` D^`exponent` metres from the centre times `scale`, both drawn per crater, with
+/// `coefficient` D^`exponent` meters from the center times `scale`, both drawn per crater, with
 /// a ragged edge of fingers pulled in by up to `raggedness` of the reach, lasting `retentionMyr`.
 struct ReflectanceZone {
     double share = 1.0;                ///< Share of craters with the zone, in [0, 1].
@@ -210,7 +210,7 @@ void ValidateReflectanceZone(const ReflectanceZone& zone);
 /// Topographic shadows in the distal reflectance zones, which form along the surface: rises such
 /// as crater rims leave the ground behind them untouched (Speyerer et al. 2016). A jet runs out
 /// along the ground from the rim and cannot drop faster than `jetAngleDegrees`; where the ground
-/// lies below it the distal zones fade, gone `depth` metres below. The ground is sampled per
+/// lies below it the distal zones fade, gone `depth` meters below. The ground is sampled per
 /// crater on `azimuths` rays of `radialSamples` samples. The angle and depth are illustrative,
 /// as the sources do not measure them.
 struct ZoneShadows {
@@ -235,7 +235,7 @@ struct ZoneShadows {
 /// where the crater excavates below the mature regolith, inside proximal low (PLRZ), inside
 /// distal high (DHRZ) and distal low (DLRZ) in order of reach; inner zones cover outer ones.
 /// The changes multiply the albedo after the maturity excess. The distal zones and the thin low
-/// reflectance ejecta live in the top centimetres, which secondaries churn in 8.1e4 years
+/// reflectance ejecta live in the top centimeters, which secondaries churn in 8.1e4 years
 /// (Speyerer et al. 2016), and last that long; the bright, immature PHRZ fades with the bright
 /// material.
 struct CraterReflectanceZones {
@@ -243,7 +243,7 @@ struct CraterReflectanceZones {
     double maxDiameter = 50.0;     ///< Largest crater with zones (m); the fits stop near 43 m.
     double matureDepth = 1.0;      ///< Depth of mature regolith (m); not negative.
     double excavationRatio = 0.1;  ///< Excavation depth over diameter; positive.
-    /// PHRZ: +12% +/- 9% to a median 1.5 D (mean 2.1 D) from the centre.
+    /// PHRZ: +12% +/- 9% to a median 1.5 D (mean 2.1 D) from the center.
     ReflectanceZone proximalHigh{1.0,
                                  {ValueDistribution::Kind::Normal, 0.12, 0.09, 0.01, 0.5},
                                  1.5,
@@ -254,7 +254,7 @@ struct CraterReflectanceZones {
                                  0.3,
                                  {}};
     /// PLRZ: -9% +/- 4%, in nearly all craters, to a median 2.9 D (mean 3.2 D); lasting as long as
-    /// the top centimetres is an inference from Robinson et al.'s (2015) discussion.
+    /// the top centimeters is an inference from Robinson et al.'s (2015) discussion.
     ReflectanceZone proximalLow{1.0,
                                 {ValueDistribution::Kind::Normal, -0.09, 0.04, -0.2, -0.01},
                                 2.9,
@@ -287,7 +287,7 @@ struct CraterReflectanceZones {
     ZoneShadows shadows{};   ///< Shadows of rises in the distal zones; off by default.
     std::uint32_t seed = 0;  ///< Varies every crater's zones.
 
-    /// The farthest any zone reaches from the centre of a crater `diameter` metres across.
+    /// The farthest any zone reaches from the center of a crater `diameter` meters across.
     double MaxReach(double diameter) const;
 
     /// The four zones from the innermost: proximal high and low, then distal high and low.
@@ -374,23 +374,23 @@ class CraterAlbedo final : public AlbedoLayer {
     void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
                  const AlbedoContext& context) const override;
 
-    /// `ApplyAt` at every cell centre, gathering craters once per block of rows.
+    /// `ApplyAt` at every cell center, gathering craters once per block of rows.
     void Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const override;
 
     /// The excess optical maturity (OMAT) `crater` gives surface point (`x`, `y`) at a sample
-    /// spacing of `spacing` metres.
+    /// spacing of `spacing` meters.
     double Excess(const Crater& crater, double x, double y, double spacing) const;
 
     /// The relative reflectance change the zones of `crater` give surface point (`x`, `y`) at a
-    /// sample spacing of `spacing` metres; 0 without zones. Shadows need `ground`.
+    /// sample spacing of `spacing` meters; 0 without zones. Shadows need `ground`.
     double ReflectanceChange(const Crater& crater, double x, double y, double spacing,
                              const Ground* ground = nullptr) const;
 
     /// The impact `crater` came from, drawn from its ID; vertical without oblique impacts.
     CraterImpact Impact(const Crater& crater) const;
 
-    /// How far from its centre `crater` can brighten the ground: the farthest of its ejecta and
-    /// its rays, in metres; 0 without bright material.
+    /// How far from its center `crater` can brighten the ground: the farthest of its ejecta and
+    /// its rays, in meters; 0 without bright material.
     double Reach(const Crater& crater) const;
 
     /// How bright, and for how long.
@@ -415,13 +415,13 @@ class CraterAlbedo final : public AlbedoLayer {
     void AddZones(Prepared& prepared, double left, double resolution) const;
     /// Samples the ground around `prepared` for the shadows of its distal zones over `region`.
     void AddShadows(Prepared& prepared, const Ground& ground, const Bounds2d& region) const;
-    /// How far beyond a region craters are gathered for their ejecta and rays, in metres.
+    /// How far beyond a region craters are gathered for their ejecta and rays, in meters.
     double GatherMargin() const;
     /// Appends the craters of `list` with bright material resolved at `spacing` that reach
     /// `region` to `prepared`, prepared.
     void TakePrepared(const CraterList& list, const Bounds2d& region, double spacing,
                       std::vector<Prepared>& prepared) const;
-    /// The craters with bright material reaching `region` at `spacing` metres, in ID order, with
+    /// The craters with bright material reaching `region` at `spacing` meters, in ID order, with
     /// their zone shadows on `ground` when it is set.
     std::vector<Prepared> Gather(const Bounds2d& region, double spacing,
                                  const Ground* ground) const;

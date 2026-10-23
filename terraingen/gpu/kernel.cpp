@@ -43,7 +43,7 @@ bool Dispatchable(const Raster<float>& grid) {
            Groups(grid.Width()) <= kMaxGroups;
 }
 
-/// The x of each column's cell centres, measured from `origin`.
+/// The x of each column's cell centers, measured from `origin`.
 std::vector<float> ColumnOffsets(const Raster<float>& grid, const Vec2d& origin) {
     std::vector<float> xs(grid.Width());
     for (std::size_t col = 0; col < xs.size(); ++col) {
@@ -52,7 +52,7 @@ std::vector<float> ColumnOffsets(const Raster<float>& grid, const Vec2d& origin)
     return xs;
 }
 
-/// The y of each row's cell centres, measured from `origin`.
+/// The y of each row's cell centers, measured from `origin`.
 std::vector<float> RowOffsets(const Raster<float>& grid, const Vec2d& origin) {
     std::vector<float> ys(grid.Height());
     for (std::size_t row = 0; row < ys.size(); ++row) {

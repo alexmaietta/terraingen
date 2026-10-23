@@ -55,7 +55,7 @@ struct SplotchSwarms {
     /// New craters of at least 1 m per m^2 within `lifetimeMyr`.
     double Coefficient(double lifetimeMyr) const;
 
-    /// The splotches a crater `diameter` metres across throws, on average.
+    /// The splotches a crater `diameter` meters across throws, on average.
     double Count(double diameter) const;
 
     bool operator==(const SplotchSwarms& other) const {
@@ -77,7 +77,7 @@ struct SplotchSwarms {
 
 /// Splotches after Speyerer et al. (2016): formed at a cumulative rate of `rateCoefficient`
 /// d^-`rateExponent` per km^2 per year for diameter d in km, each lasting `lifetimeMyr`, the
-/// time splotches take to churn the top centimetres. Most are dark, some bright and the rest mixed,
+/// time splotches take to churn the top centimeters. Most are dark, some bright and the rest mixed,
 /// each nearly round; a younger splotch covers older ones as it fades.
 struct SplotchAlbedoOptions {
     std::uint32_t seed = 0;              ///< Seed of where splotches fall and what they are.
@@ -132,7 +132,7 @@ void ValidateSplotchAlbedoOptions(const SplotchAlbedoOptions& options);
 
 /// One splotch.
 struct Splotch {
-    Crater mark;               ///< Centre, diameter, age and ID, as a crater's.
+    Crater mark;               ///< Center, diameter, age and ID, as a crater's.
     double change = 0.0;       ///< Reflectance change of its dark or only side.
     double otherChange = 0.0;  ///< Reflectance change of its other side; `change` unless mixed.
     double split = 0.0;        ///< Direction across which a mixed splotch changes side, radians.
@@ -154,15 +154,15 @@ class SplotchAlbedo final : public AlbedoLayer {
 
     void Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const override;
 
-    /// The splotches resolved at `spacing` metres reaching `region`, youngest first; with
+    /// The splotches resolved at `spacing` meters reaching `region`, youngest first; with
     /// `ground`, those on steep slopes follow `steepBrightShare`.
     std::vector<Splotch> Splotches(const Bounds2d& region, double spacing,
                                    const Ground* ground = nullptr) const;
 
-    /// The splotches of the swarm `crater` throws, resolved at `spacing` metres (0 for all).
+    /// The splotches of the swarm `crater` throws, resolved at `spacing` meters (0 for all).
     std::vector<Splotch> Swarm(const Crater& crater, double spacing) const;
 
-    /// The relative reflectance change `splotch` alone gives (`x`, `y`) at `spacing` metres.
+    /// The relative reflectance change `splotch` alone gives (`x`, `y`) at `spacing` meters.
     double Change(const Splotch& splotch, double x, double y, double spacing) const;
 
     /// What the splotches are.
@@ -171,10 +171,10 @@ class SplotchAlbedo final : public AlbedoLayer {
     }
 
   private:
-    /// The splotches of `region` resolved at `spacing` metres, before their sides are drawn.
+    /// The splotches of `region` resolved at `spacing` meters, before their sides are drawn.
     std::vector<Splotch> Marks(const Bounds2d& region, double spacing) const;
     /// The slope in degrees of `ground` under each of `splotches`, over its width, read at
-    /// `spacing` metres (half the smallest splotch for 0); all 0 without `ground` or a steep
+    /// `spacing` meters (half the smallest splotch for 0); all 0 without `ground` or a steep
     /// bright share.
     std::vector<double> SteepSlopes(const std::vector<Splotch>& splotches, double spacing,
                                     const Ground* ground) const;

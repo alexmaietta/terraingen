@@ -35,7 +35,7 @@ struct TerrainGenerator {
 
 /// How to evaluate a generator over a grid.
 struct EvaluationOptions {
-    /// Sample spacing in metres; 0 means the grid's spacing on the generator's surface, and a
+    /// Sample spacing in meters; 0 means the grid's spacing on the generator's surface, and a
     /// smaller value is raised to it.
     double spacing = 0.0;
     /// Threads to split each layer over; 0 for every hardware thread. The result does
@@ -64,7 +64,7 @@ class TerrainGround final : public Ground {
                   EvaluationCache* cache = nullptr);
 
     /// The starting height at surface point (`x`, `y`) after each included layer's `ApplyAt`, at
-    /// a sample spacing of `spacing` metres.
+    /// a sample spacing of `spacing` meters.
     float HeightAt(double x, double y, double spacing) const override;
 
     /// The heights at `points` in batches over every hardware thread, as the free `HeightsAt` does.
@@ -111,7 +111,7 @@ void ForEachLayer(const TerrainGenerator& generator, const Visit& visit) {
 
 /// The heights of `generator` over `grid`, evaluated on every hardware thread with the default
 /// options.
-/// @param spacing Sample spacing in metres; 0 means the grid's spacing, and a smaller value is
+/// @param spacing Sample spacing in meters; 0 means the grid's spacing, and a smaller value is
 /// raised to it.
 /// @throws std::invalid_argument as `ValidateGenerator`, or for a negative or non-finite `spacing`;
 /// and whatever the parts throw.
@@ -143,10 +143,10 @@ Raster<float> Evaluate(const TerrainGenerator& generator);
 
 /// The heights of a generator at scattered points, such as wheel contacts or mesh vertices: the
 /// starting heights there, then each layer applied to all of them at once. Each equals the cell
-/// centred at its point of `Evaluate` over a grid of `spacing` metres, to the same bits, whatever
+/// centered at its point of `Evaluate` over a grid of `spacing` meters, to the same bits, whatever
 /// the batch and thread count.
 /// @param points Positions in surface coordinates.
-/// @param spacing The sample spacing, in metres.
+/// @param spacing The sample spacing, in meters.
 /// @param threads Threads to split the points over; 0 for every hardware thread.
 /// @throws std::invalid_argument as `ValidateGenerator`, or for a `spacing` that is not positive
 /// and finite.

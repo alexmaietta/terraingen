@@ -20,7 +20,7 @@ template <typename IO> void Fields(IO& io, TerrainGenConfig& config) {
     io("schema_version", config.schemaVersion,
        "Version of the configuration format, which this library reads; required.");
     io("body", config.body,
-       "What the terrain lies on: a plane in metres, or a whole body (a sphere, ellipsoid or "
+       "What the terrain lies on: a plane in meters, or a whole body (a sphere, ellipsoid or "
        "shape model) in longitude and latitude degrees.");
     io("source", config.source,
        "Where the heights come from: a GeoTIFF, a chain of sources, or synthetic noise, and how "

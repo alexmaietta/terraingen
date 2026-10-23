@@ -27,7 +27,7 @@ namespace terraingen {
 
 namespace {
 
-/// Height of the raster at world point (x, y) by bilinear interpolation of the cell centres, or
+/// Height of the raster at world point (x, y) by bilinear interpolation of the cell centers, or
 /// nothing if a contributing cell is outside the raster or holds no data.
 std::optional<double> Sample(const Raster<float>& raster, double x, double y) {
     const Vec2d pixel = raster.Transform().WorldToPixel(x, y);
@@ -67,7 +67,7 @@ HeightSampler RasterSampler(const Raster<float>& raster) {
     };
 }
 
-/// How far (m) from its centre `prepared` reaches `reachRadii` radii out, stretched by its
+/// How far (m) from its center `prepared` reaches `reachRadii` radii out, stretched by its
 /// outline.
 double CraterReach(const PreparedCrater& prepared, double reachRadii) {
     return prepared.outline.MaxScale() * reachRadii * (0.5 * prepared.crater.diameter);
@@ -85,7 +85,7 @@ int ReliefBand(const PreparedCrater& crater) {
     return std::ilogb(crater.crater.diameter * crater.outline.MaxScale());
 }
 
-/// The datum fit footprint of a crater, in metres from its centre.
+/// The datum fit footprint of a crater, in meters from its center.
 double FitRadius(const Crater& crater, const CraterApplyOptions& options) {
     return options.datumFitRadii * 0.5 * crater.diameter;
 }
@@ -159,7 +159,7 @@ std::vector<std::size_t> ReliefCraters(const std::vector<PreparedCrater>& prepar
     return kept;
 }
 
-/// Sets each record of `index` to the float nearest its crater's centre, with what that drops in
+/// Sets each record of `index` to the float nearest its crater's center, with what that drops in
 /// `lows`, and groups the records by size band.
 std::map<int, std::vector<std::uint32_t>> RoundRecords(const std::vector<PreparedCrater>& prepared,
                                                        const std::vector<std::size_t>& kept,
@@ -178,7 +178,7 @@ std::map<int, std::vector<std::uint32_t>> RoundRecords(const std::vector<Prepare
     return bands;
 }
 
-/// Lays out the cells of one size band of `index`, `size` metres across, holding records
+/// Lays out the cells of one size band of `index`, `size` meters across, holding records
 /// `members`; false when they spread too far for float cell indices or the cell budget.
 bool AddReliefBand(DatumKernelIndex& index, float size, const std::vector<std::uint32_t>& members) {
     float minI = std::numeric_limits<float>::infinity();
@@ -418,8 +418,8 @@ class ReliefIndex {
         return static_cast<float>(1.0001 * CraterReach((*prepared_)[n], profileReach_));
     }
 
-    /// Calls `visit(n)` for each crater n before crater `k` whose centre may lie within `radius`
-    /// metres plus its reach of surface `point`, and perhaps for others before `k`, in no fixed
+    /// Calls `visit(n)` for each crater n before crater `k` whose center may lie within `radius`
+    /// meters plus its reach of surface `point`, and perhaps for others before `k`, in no fixed
     /// order.
     template <typename Visit>
     void ForEachNear(const Vec2d& point, double radius, std::size_t k, const Visit& visit) const {
@@ -458,7 +458,7 @@ class ReliefIndex {
         }
     }
 
-    /// The relief in metres at surface `point` of the craters before crater `k`.
+    /// The relief in meters at surface `point` of the craters before crater `k`.
     float ReliefBefore(const Vec2d& point, std::size_t k) const {
         float relief = 0.0f;
         const long long depth = surface_.IsBody() ? 1 : 0;

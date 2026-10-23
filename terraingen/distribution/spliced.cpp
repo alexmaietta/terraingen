@@ -10,7 +10,7 @@ namespace terraingen {
 
 namespace {
 
-/// Whether `distribution` may be evaluated from `low` to `high` metres.
+/// Whether `distribution` may be evaluated from `low` to `high` meters.
 bool Covers(const SizeFrequencyDistribution& distribution, double low, double high) {
     const DiameterRange usable = detail::UsableRange(distribution);
     return usable.min <= low && usable.max >= high;

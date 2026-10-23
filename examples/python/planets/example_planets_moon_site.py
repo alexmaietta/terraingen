@@ -1,10 +1,10 @@
-"""A site on the Moon, on a sphere: longitude and latitude coordinates and metres everywhere else.
+"""A site on the Moon, on a sphere: longitude and latitude coordinates and meters everywhere else.
 
 On a sphere surface, grid coordinates are degrees of longitude and latitude, but pixel sizes,
-wavelengths and crater diameters stay in metres. Noise is 3D at each point's position, so it is
+wavelengths and crater diameters stay in meters. Noise is 3D at each point's position, so it is
 seamless across the antimeridian and the poles, and craters are placed by longitude and latitude
 and shaped in their own local frame. This example builds a 51 km site at Mare Tranquillitatis,
-queries points by longitude and latitude, converts between degrees and local metres, and writes
+queries points by longitude and latitude, converts between degrees and local meters, and writes
 the heights (with a geographic CRS) and a hillshade.
 
     python example_planets_moon_site.py [--viewer window|null] [--output-dir DIR] [--test]
@@ -23,7 +23,7 @@ from _common import hillshade, write_png
 
 SITE = (23.47, 0.67)
 PIXEL = 200.0
-# Volumetric mean radius of the Moon in metres, from the NASA NSSDCA Moon fact sheet.
+# Volumetric mean radius of the Moon in meters, from the NASA NSSDCA Moon fact sheet.
 MOON_RADIUS = 1737400.0
 
 

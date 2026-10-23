@@ -10,10 +10,10 @@
 
 namespace terraingen {
 
-/// One piece of a `SplicedSfd`: `distribution` applies from `start` metres up to the next
+/// One piece of a `SplicedSfd`: `distribution` applies from `start` meters up to the next
 /// piece's start.
 struct SfdPiece {
-    double start = 0.0;                                             ///< First diameter, metres.
+    double start = 0.0;                                             ///< First diameter, meters.
     std::shared_ptr<const SizeFrequencyDistribution> distribution;  ///< Applies from `start`.
 };
 
@@ -27,7 +27,7 @@ class SplicedSfd final : public SizeFrequencyDistribution {
     /// The distribution spliced from `pieces`.
     /// @param pieces At least one piece, with strictly increasing `start`, the first `start` equal
     /// to `range.min`, and each distribution valid (or extrapolating) over its interval.
-    /// @param range The valid range, in metres.
+    /// @param range The valid range, in meters.
     /// @param tolerance Relative mismatch allowed at a join.
     /// @throws std::invalid_argument for malformed pieces, mixed kinds, a piece not valid over its
     /// interval, or a join that rises or is discontinuous by more than `tolerance`.

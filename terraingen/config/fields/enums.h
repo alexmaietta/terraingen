@@ -148,7 +148,7 @@ template <> struct EnumNames<CraterDatum> {
         {"mean_height", CraterDatum::MeanHeight,
          "Interior cut relative to a flat datum at the mean height over the fit footprint."},
         {"center_height", CraterDatum::CenterHeight,
-         "Interior cut relative to a flat datum at the terrain height under the crater centre."},
+         "Interior cut relative to a flat datum at the terrain height under the crater center."},
     }};
 };
 
@@ -188,10 +188,10 @@ template <> struct EnumNames<EjectaProfile> {
 template <> struct EnumNames<BoulderClusterModel> {
     static constexpr std::array<EnumEntry<BoulderClusterModel>, 2> kValues{{
         {"nearest", BoulderClusterModel::Nearest,
-         "One centre per cell of a jittered lattice, each point weighted by its nearest centre "
+         "One center per cell of a jittered lattice, each point weighted by its nearest center "
          "only."},
         {"thomas", BoulderClusterModel::Thomas,
-         "A Thomas cluster process: Poisson-scattered centres whose Gaussian clusters add where "
+         "A Thomas cluster process: Poisson-scattered centers whose Gaussian clusters add where "
          "they overlap."},
     }};
 };
@@ -218,11 +218,11 @@ template <> struct EnumNames<SpecificationCurve> {
 template <> struct EnumNames<SynthterrainBoulders> {
     static constexpr std::array<EnumEntry<SynthterrainBoulders>, 3> kValues{{
         {"intercrater", SynthterrainBoulders::InterCrater,
-         "0.0001 D^-1.75457 per m^2 with D in metres: synthetic_moon's \"low blockiness\"."},
+         "0.0001 D^-1.75457 per m^2 with D in meters: synthetic_moon's \"low blockiness\"."},
         {"haworth", SynthterrainBoulders::Haworth,
-         "0.002 D^-2.6607 per m^2 with D in metres: synthetic_moon's \"high blockiness\"."},
+         "0.002 D^-2.6607 per m^2 with D in meters: synthetic_moon's \"high blockiness\"."},
         {"viper_specification", SynthterrainBoulders::ViperSpecification,
-         "0.0003 D^-2.482 per m^2 with D in metres: the VIPER Environmental Specification."},
+         "0.0003 D^-2.482 per m^2 with D in meters: the VIPER Environmental Specification."},
     }};
 };
 
@@ -277,10 +277,10 @@ template <> struct EnumNames<DiffusivityModel> {
          "3.1 D^1.05 m^2/Myr with D in km."},
         {"fassett_thomson_2014", DiffusivityModel::FassettThomson2014,
          "Lunar diffusivity of Fassett and Thomson (2014), 5.5 m^2/Myr for every crater size; it "
-         "erases craters below a few hundred metres within a small share of their lifetimes."},
+         "erases craters below a few hundred meters within a small share of their lifetimes."},
         {"fassett_thomson_2014_calibration", DiffusivityModel::FassettThomson2014Calibration,
          "Fassett and Thomson's (2014) lunar diffusion age against crater age, independent of "
-         "size; suits kilometre-scale craters."},
+         "size; suits kilometer-scale craters."},
         {"power_law", DiffusivityModel::PowerLaw,
          "A diffusivity of your own, coefficient (D / 1 km)^exponent m^2/Myr, from the power_law "
          "settings."},
@@ -351,7 +351,7 @@ template <> struct EnumNames<ListFormat> {
 template <> struct EnumNames<ResampleMethod> {
     static constexpr std::array<EnumEntry<ResampleMethod>, 6> kValues{{
         {"nearest", ResampleMethod::Nearest,
-         "The value of the nearest cell centre: blocky, but never mixes values."},
+         "The value of the nearest cell center: blocky, but never mixes values."},
         {"bilinear", ResampleMethod::Bilinear,
          "Linear in each axis over the four surrounding cells."},
         {"cubic", ResampleMethod::Cubic,
@@ -384,7 +384,7 @@ template <> struct EnumNames<SizeSlopeMeasure> {
         {"exponent", SizeSlopeMeasure::Exponent,
          "The cumulative exponent alpha, counts falling as D^-alpha."},
         {"mean_diameter", SizeSlopeMeasure::MeanDiameter,
-         "The mean diameter in metres of the features from the reference diameter up, from which "
+         "The mean diameter in meters of the features from the reference diameter up, from which "
          "alpha = mean / (mean - D0)."},
     }};
 };

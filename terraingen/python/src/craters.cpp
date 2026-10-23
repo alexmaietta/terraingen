@@ -101,7 +101,7 @@ CraterList FromTable(const nb::dict& table) {
 
 void BindCrater(nb::module_& m) {
     nb::class_<Crater>(m, "Crater",
-                       "One crater: centre (m), rim-to-rim diameter (m), age (Gyr), a stable "
+                       "One crater: center (m), rim-to-rim diameter (m), age (Gyr), a stable "
                        "ID (0 for one hashed from its position and size), and optionally its "
                        "rim-to-floor depth and rim height (m), NaN to take them from the models.")
         .def(
@@ -190,7 +190,7 @@ void BindSpacing(nb::module_& m) {
     BindOptions<CraterSpacing>(
         m, "CraterSpacing",
         "Keeps craters of similar size apart: two conflict when their diameters differ by at most "
-        "`diameter_ratio` (at least 1) and their centres are closer than `separation` times the "
+        "`diameter_ratio` (at least 1) and their centers are closer than `separation` times the "
         "larger diameter. A separation of 0 disables it.",
         &ValidateCraterSpacing)
         .def_rw("outrank_from", &CraterSpacing::outrankFrom);
@@ -258,7 +258,7 @@ void BindGeneration(nb::module_& m) {
           "The power-of-two diameter bands craters are generated in, and their cell sizes.");
     m.def("generate_craters", &GenerateCraters, "cells"_a, "region"_a, "density"_a, "ages"_a,
           "seed"_a, "options"_a, nb::call_guard<nb::gil_scoped_release>(),
-          "The craters of `density` with centres in `region` (min_x, min_y, max_x, max_y), drawn "
+          "The craters of `density` with centers in `region` (min_x, min_y, max_x, max_y), drawn "
           "per cell so any region, however tiled, holds the same craters.");
     m.def("count_limit_diameter", &CountLimitDiameter, "density"_a, "area"_a, "count"_a, "d_min"_a,
           "d_max"_a, "The smallest diameter that keeps the expected count over `area` at `count`.");
@@ -273,7 +273,7 @@ void BindApplyEnums(nb::module_& m) {
         m, "CraterBlend",
         "Where a crater's replaced interior blends into the draped exterior, in radii.")
         .def("weight", &CraterBlend::Weight, "radii"_a,
-             "The interior weight `radii` crater radii from the centre.");
+             "The interior weight `radii` crater radii from the center.");
 }
 
 void BindSelectionClass(nb::module_& m) {
@@ -318,7 +318,7 @@ void BindOutlines(nb::module_& m) {
              "The outline's radius, relative to the round one, in direction (dx, dy).")
         .def_ro("marks", &CraterOutline::marks)
         .def("mark_shift", &CraterOutline::MarkShift, "dx"_a, "dy"_a, "radii"_a,
-             "The shift in radii the wall marks add at `radii` from the centre toward (dx, dy).")
+             "The shift in radii the wall marks add at `radii` from the center toward (dx, dy).")
         .def_prop_ro("max_scale", &CraterOutline::MaxScale)
         .def_prop_ro("round", &CraterOutline::Round);
     m.def("irregular_outline", &IrregularOutline, "crater"_a, "irregularity"_a,
@@ -335,7 +335,7 @@ void BindShapeDetails(nb::module_& m) {
         "`outer_radii`, fading along `shape`, at `strength`; 0 `sigma_radii` leaves rims sharp.",
         &ValidateRimSmoothing)
         .def("weight", &RimSmoothing::Weight, "radii"_a,
-             "The smoothing weight at `radii` crater radii from the centre.");
+             "The smoothing weight at `radii` crater radii from the center.");
     m.def("validate_rim_smoothing", &ValidateRimSmoothing, "smoothing"_a, kValidateDoc);
     BindOptions<CraterNoise>(
         m, "CraterNoise",
@@ -511,16 +511,16 @@ void BindSecondaryOptions(nb::module_& m) {
 
 void BindSecondaryLaws(nb::module_& m) {
     m.def("singer_max_secondary_diameter", &SingerMaxSecondaryDiameter, "diameter"_a, "range"_a,
-          "The largest secondary (m) at `range` metres from a primary `diameter` metres across "
+          "The largest secondary (m) at `range` meters from a primary `diameter` meters across "
           "(Singer et al. 2020).");
     m.def("secondary_onset_range", &SecondaryOnsetRange, "diameter"_a,
-          "How far from its centre (m) a primary throws its first secondaries.");
+          "How far from its center (m) a primary throws its first secondaries.");
     m.def("singer_max_range", &SingerMaxRange, "diameter"_a, "size"_a,
-          "The range (m) beyond which a primary `diameter` metres across throws no secondary "
-          "`size` metres across (Singer et al. 2020); infinite up to 1 km.");
+          "The range (m) beyond which a primary `diameter` meters across throws no secondary "
+          "`size` meters across (Singer et al. 2020); infinite up to 1 km.");
     m.def("elliott_median_ray_length", &ElliottMedianRayLength, "diameter"_a,
           "coefficient"_a = 6.59, "exponent"_a = 1.27,
-          "The median ray length (m) of a crater `diameter` metres across (Elliott et al. 2018).");
+          "The median ray length (m) of a crater `diameter` meters across (Elliott et al. 2018).");
 }
 
 void BindSecondaries(nb::module_& m) {

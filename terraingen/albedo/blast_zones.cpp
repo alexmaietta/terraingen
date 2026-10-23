@@ -20,7 +20,7 @@ double Profile(double rho) {
     return FadeOut(rho, kFullRadius, 1.0 - kFullRadius);
 }
 
-/// The semi-axes (long, short) in metres of `zone`.
+/// The semi-axes (long, short) in meters of `zone`.
 std::pair<double, double> SemiAxes(const BlastZone& zone) {
     const double minor = std::sqrt(zone.area / (kPi * zone.elongation));
     return {zone.elongation * minor, minor};

@@ -39,7 +39,7 @@ struct DuneRipples {
     /// on flanks; they never grow above `height`.
     double slopeCoupling = 1.0;
     double interduneCover = 0.0;  ///< Share of the ripples' height kept off the dunes, in [0, 1].
-    /// Defect density: pairs of crest ends (forked crests, Y-junctions) per metre of crest, as
+    /// Defect density: pairs of crest ends (forked crests, Y-junctions) per meter of crest, as
     /// Ewing et al. (2010) measure it; 0 for none.
     double defectDensity = 0.0;
     /// How far crests straighten off the stoss, in [0, 1]: 0 keeps `sinuosity` everywhere, 1
@@ -63,7 +63,7 @@ struct DuneRipples {
 /// Grainflows on slip faces: avalanches that leave a theatre-headed scarp below the brink and a
 /// tongue-shaped lobe of sand below it. Each is drawn on a lattice aligned with the wind, its sizes
 /// uniform between the bounds, and shown only where the ground faces downwind near the slip face
-/// angle. Lengths are in metres, along the slope; widths across it.
+/// angle. Lengths are in meters, along the slope; widths across it.
 struct DuneGrainflows {
     double cover = 0.0;  ///< Chance, in [0, 1], that each lattice cell holds one; 0 for none.
     double minScarpWidth = 0.5;
@@ -90,7 +90,7 @@ struct DuneGrainflows {
     }
 };
 
-/// The dunes a `DuneLayer` builds, their sizes and slopes. Lengths are in metres, angles in
+/// The dunes a `DuneLayer` builds, their sizes and slopes. Lengths are in meters, angles in
 /// radians.
 struct DuneOptions {
     DuneShape shape = DuneShape::Barchan;
@@ -118,9 +118,9 @@ struct DuneOptions {
     double sinuosity = 0.3;  ///< How far a crest wanders along its length, in wavelengths.
     /// Share of the height that varies along crests, ending some, in [0, 1].
     double defects = 0.3;
-    /// Crest-line dunes: pairs of crest ends per metre of crest, as Ewing et al. (2010) measure it;
+    /// Crest-line dunes: pairs of crest ends per meter of crest, as Ewing et al. (2010) measure it;
     /// crests break into segments that stand above half their height for 1 / `defectDensity`
-    /// metres on average, falling to nothing over a wavelength either side of each break. 0 for
+    /// meters on average, falling to nothing over a wavelength either side of each break. 0 for
     /// none.
     double defectDensity = 0.0;
     double flankSlope = 0.3490658503988659;  ///< Mean flank slope of linear dunes; 20 deg.
@@ -168,7 +168,7 @@ struct DuneOptions {
 void ValidateDuneOptions(const DuneOptions& options);
 
 /// Martian large wind ripples to lay on dunes: 2.1 m wavelength, 0.2 m height and a 30 deg lee;
-/// 0.099 pairs of crest ends per metre, as Olympia Undae's 2.1 m wind ripples (Ewing et al. 2010);
+/// 0.099 pairs of crest ends per meter, as Olympia Undae's 2.1 m wind ripples (Ewing et al. 2010);
 /// sinuous on stoss slopes and straighter on flanks and lee slopes (Lapotre et al. 2016; Ewing et
 /// al. 2017).
 DuneRipples MarsDuneRipples();
@@ -186,7 +186,7 @@ DuneOptions MarsBarchans();
 
 /// The transverse dunes of Mars's north polar erg with large ripples: 248 m apart and 28 m high,
 /// with 29 deg slip faces and 8 deg stoss slopes, and the defect density of Olympia Undae's primary
-/// crests, 0.0027 pairs of ends per metre (Ewing et al. 2010).
+/// crests, 0.0027 pairs of ends per meter (Ewing et al. 2010).
 DuneOptions MarsTransverseDunes();
 
 /// Wind-blown dunes added to the terrain.
@@ -239,29 +239,29 @@ class DuneLayer final : public FormulaLayer, public MaterialSource {
     double CrestPhase(const Vec2d& p) const;
     /// The share of the crest height standing at planar point `q` on crest phase `psi`.
     double CrestAmplitude(const Vec2d& q, double psi) const;
-    /// The crest profile at phase `u` in [0, 1) for a crest `height` metres high whose phase is
+    /// The crest profile at phase `u` in [0, 1) for a crest `height` meters high whose phase is
     /// stretched by `stretch`.
     double CrestProfile(double u, double height, double stretch) const;
     double Ripples(const Vec2d& q, double dune) const;
-    /// How fully a dune `dune` metres high covers the ground with sand, in [0, 1].
+    /// How fully a dune `dune` meters high covers the ground with sand, in [0, 1].
     double SandDepth(double dune) const;
-    /// How much of crest `crest` stands at `along` metres along it, in [0, 1]: 0 at its breaks.
+    /// How much of crest `crest` stands at `along` meters along it, in [0, 1]: 0 at its breaks.
     double CrestBreaks(std::int64_t crest, double along) const;
-    /// The phase that forked crests `wavelength` metres apart, `density` pairs of ends per metre of
+    /// The phase that forked crests `wavelength` meters apart, `density` pairs of ends per meter of
     /// crest, add near planar point `q`, in wavelengths; `core` becomes the weight in [0, 1] that
     /// fades the crests out at the forks' ends.
     double Forks(const Vec2d& q, double wavelength, double density, double& core) const;
-    /// Adds to `phase` and `core` the fork centred at `center`, its shape drawn from `random`.
+    /// Adds to `phase` and `core` the fork centerd at `center`, its shape drawn from `random`.
     static void AddFork(double& phase, double& core, RandomStream& random, const Vec2d& q,
                         const Vec2d& center, double wavelength);
-    /// The dunes' gradient at planar point `q`, by central differences `step` metres apart.
+    /// The dunes' gradient at planar point `q`, by central differences `step` meters apart.
     Vec2d Gradient(const Vec2d& q, double step) const;
     /// How far the ground with gradient `g` is a slip face, in [0, 1]: facing downwind near the
     /// slip face angle.
     double SlipFaceWeight(const Vec2d& g) const;
     /// The grainflows' relief at planar point `q` (m), on the slip face share `face`.
     double Grainflows(const Vec2d& q, double face) const;
-    /// Adds to `relief` the scarp and lobe of one grainflow at `s` metres downslope of its head
+    /// Adds to `relief` the scarp and lobe of one grainflow at `s` meters downslope of its head
     /// and `n` across, its sizes drawn from `random`.
     void AddGrainflow(double& relief, RandomStream& random, double s, double n) const;
 

@@ -19,11 +19,11 @@ inline bool SameOrBothNan(double a, double b) {
     return a == b || (std::isnan(a) && std::isnan(b));
 }
 
-/// One crater: centre in surface coordinates, rim-to-rim diameter, age and a stable ID, and for a
+/// One crater: center in surface coordinates, rim-to-rim diameter, age and a stable ID, and for a
 /// manual crater optionally its depth and rim height.
 struct Crater {
-    double x = 0.0;         ///< Surface x of the centre.
-    double y = 0.0;         ///< Surface y of the centre.
+    double x = 0.0;         ///< Surface x of the center.
+    double y = 0.0;         ///< Surface y of the center.
     double diameter = 0.0;  ///< Rim-to-rim diameter (m).
     double ageGyr = 0.0;    ///< Age (Gyr).
     std::uint64_t id = 0;   ///< Stable ID.
@@ -49,7 +49,7 @@ struct Crater {
 
 /// A stable ID for a manual crater that has none, hashed with `Philox4x32`: the same for the same
 /// crater in every run.
-/// @param diameter In metres.
+/// @param diameter In meters.
 std::uint64_t ManualCraterId(double x, double y, double diameter);
 
 /// The 32-bit key that seeds crater `id`'s noise or texture under `seed`, the same on the CPU and
@@ -85,17 +85,17 @@ class CraterList {
     /// @throws std::out_of_range if `index` >= `Size()`.
     Crater At(std::size_t index) const;
 
-    /// Surface x of every centre.
+    /// Surface x of every center.
     const std::vector<double>& X() const {
         return x_;
     }
 
-    /// Surface y of every centre.
+    /// Surface y of every center.
     const std::vector<double>& Y() const {
         return y_;
     }
 
-    /// Every diameter, in metres.
+    /// Every diameter, in meters.
     const std::vector<double>& Diameters() const {
         return diameter_;
     }
@@ -115,12 +115,12 @@ class CraterList {
         return manual_;
     }
 
-    /// Every explicit depth in metres (`Crater::depth`), NaN where it comes from the model.
+    /// Every explicit depth in meters (`Crater::depth`), NaN where it comes from the model.
     const std::vector<double>& Depths() const {
         return depth_;
     }
 
-    /// Every explicit rim height in metres (`Crater::rimHeight`), NaN where it is derived.
+    /// Every explicit rim height in meters (`Crater::rimHeight`), NaN where it is derived.
     const std::vector<double>& RimHeights() const {
         return rimHeight_;
     }

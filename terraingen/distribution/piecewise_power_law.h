@@ -20,7 +20,7 @@ class PiecewisePowerLawSfd final : public SizeFrequencyDistribution {
     /// The distribution made of `segments`.
     /// @param segments At least one segment, with strictly increasing `start` and the first `start`
     /// equal to `range.min`.
-    /// @param range The valid range, in metres.
+    /// @param range The valid range, in meters.
     /// @param tolerance Relative mismatch allowed at a join.
     /// @throws std::invalid_argument for no segments, a coefficient or exponent that is not
     /// positive and finite, starts that do not increase within the range, a join that rises, or a

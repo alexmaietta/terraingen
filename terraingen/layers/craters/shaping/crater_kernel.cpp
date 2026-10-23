@@ -233,7 +233,7 @@ class ProfileTables {
 
   private:
     /// Appends the profile's heights over the diameter along one row for a crater of `diameter`
-    /// metres in `state`.
+    /// meters in `state`.
     void AppendRow(double diameter, const CraterState& state, std::vector<float>& data) const {
         const double extent = 0.5 * profile_.ReachRadii();
         const double step = extent / static_cast<double>(kernel_.profile.tableCells);

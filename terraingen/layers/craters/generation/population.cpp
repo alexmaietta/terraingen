@@ -130,7 +130,7 @@ class Generation {
         return SpacingReach(diameter, dMax_, spacing) + 0.5 * options_.marginRadii * neighbor;
     }
 
-    /// Whether `crater` is centred in the region or within its margin of it.
+    /// Whether `crater` is centerd in the region or within its margin of it.
     bool InRegion(const Crater& crater, double margin) const {
         return surface_.Contains(surface_.Expand(region_, margin), {crater.x, crater.y});
     }
@@ -206,7 +206,7 @@ class Generation {
                InRegion(crater, CandidateMargin(crater.diameter));
     }
 
-    /// Whether a generated crater stays: below the catalog's completeness limit at its centre, and
+    /// Whether a generated crater stays: below the catalog's completeness limit at its center, and
     /// within the keep share there by a uniform keyed to its ID.
     bool Kept(const Crater& crater) const {
         if (options_.completeness &&

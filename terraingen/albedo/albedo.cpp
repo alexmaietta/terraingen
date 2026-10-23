@@ -34,7 +34,7 @@ void VisitRowCells(std::vector<Raster<float>>& bands, std::size_t row, const Vis
     }
 }
 
-/// Visits the cells of one row of `bands` by their centres.
+/// Visits the cells of one row of `bands` by their centers.
 void VisitRow(std::vector<Raster<float>>& bands, std::size_t row, const AlbedoCellVisitor& visit) {
     const Raster<float>& first = bands.front();
     VisitRowCells(bands, row, [&](AlbedoSample& value, std::size_t col) {

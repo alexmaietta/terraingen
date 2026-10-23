@@ -90,8 +90,8 @@ void CheckNoiseStack(const std::vector<NoiseLayerConfig>& layers, const std::str
 
 /// Where an output evaluates the layers: the area it covers and its sample spacing.
 struct Extent {
-    double area = 0.0;     ///< Square metres.
-    double spacing = 0.0;  ///< Metres.
+    double area = 0.0;     ///< Square meters.
+    double spacing = 0.0;  ///< Meters.
     bool listed = false;   ///< A feature list, which holds every boulder however small.
 };
 
@@ -414,7 +414,7 @@ GeoTiffInfo CheckGeoTiffRead(const std::string& file, std::size_t band, const st
     if (info.geoKeys.IsGeographic() && !surface.IsBody()) {
         throw ConfigError(filePath,
                           "the raster's CRS is geographic (degrees); craters are sized in "
-                          "metres, so reproject it first, for example with gdalwarp -t_srs, "
+                          "meters, so reproject it first, for example with gdalwarp -t_srs, "
                           "or set the body to a sphere");
     }
     if (surface.IsBody() && !info.geoKeys.Empty() && !info.geoKeys.IsGeographic()) {

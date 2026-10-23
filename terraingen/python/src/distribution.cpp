@@ -87,13 +87,13 @@ template <typename Part> std::vector<StartAndSfd> Pairs(const std::vector<Part>&
 
 void BindBase(nb::module_& m) {
     nb::enum_<SfdKind>(m, "SfdKind", "What a size-frequency distribution counts.")
-        .value("DENSITY", SfdKind::Density, "Craters or boulders per square metre.")
-        .value("PRODUCTION_RATE", SfdKind::ProductionRate, "Per square metre per Gyr.");
+        .value("DENSITY", SfdKind::Density, "Craters or boulders per square meter.")
+        .value("PRODUCTION_RATE", SfdKind::ProductionRate, "Per square meter per Gyr.");
     using Py = PySizeFrequencyDistribution;
     nb::class_<Sfd, Py>(
         m, "SizeFrequencyDistribution",
-        "A cumulative size-frequency distribution N(>= D) per square metre (or per square metre "
-        "per Gyr for a production rate), diameters in metres, valid between `min_diameter` and "
+        "A cumulative size-frequency distribution N(>= D) per square meter (or per square meter "
+        "per Gyr for a production rate), diameters in meters, valid between `min_diameter` and "
         "`max_diameter`. Subclass it and implement `cumulative_at(diameter)` (and optionally "
         "`incremental_at(diameter)`, -dN/dD, and `invert_cumulative(target, d_min, d_max)`) for "
         "a distribution of your own.")
@@ -114,14 +114,14 @@ void BindBase(nb::module_& m) {
         .def("cumulative", &Sfd::Cumulative, "diameter"_a, "N(>= diameter).")
         .def("incremental", &Sfd::Incremental, "diameter"_a, "-dN/dD at `diameter`.")
         .def("expected_count", &Sfd::ExpectedCount, "area"_a, "d_min"_a, "d_max"_a,
-             "Expected number over `area` square metres between the diameters.")
+             "Expected number over `area` square meters between the diameters.")
         .def("sample_diameter", &Sfd::SampleDiameter, "random"_a, "d_min"_a, "d_max"_a,
              "A diameter drawn from the distribution between the two.");
 }
 
 void BindPowerLaws(nb::module_& m) {
     nb::class_<PowerLawSfd, Sfd>(m, "PowerLawSfd",
-                                 "N(>= D) = coefficient * D^-exponent, D in metres.")
+                                 "N(>= D) = coefficient * D^-exponent, D in meters.")
         .def(
             "__init__",
             [](PowerLawSfd* self, double coefficient, double exponent, SfdKind kind,
@@ -133,14 +133,14 @@ void BindPowerLaws(nb::module_& m) {
         .def_prop_ro("coefficient", &PowerLawSfd::Coefficient)
         .def_prop_ro("exponent", &PowerLawSfd::Exponent);
     nb::class_<PowerLawSegment>(m, "PowerLawSegment",
-                                "One piece of a piecewise power law, from `start` metres.")
+                                "One piece of a piecewise power law, from `start` meters.")
         .def_ro("start", &PowerLawSegment::start)
         .def_ro("coefficient", &PowerLawSegment::coefficient)
         .def_ro("exponent", &PowerLawSegment::exponent);
     m.def("power_law_coefficient_from_kilometers", &PowerLawCoefficientFromKilometers,
           "coefficient"_a, "exponent"_a,
-          "The coefficient per square metre, D in metres, of a power law given per square "
-          "kilometre with D in kilometres.");
+          "The coefficient per square meter, D in meters, of a power law given per square "
+          "kilometer with D in kilometers.");
     nb::class_<PiecewisePowerLawSfd, Sfd>(
         m, "PiecewisePowerLawSfd",
         "Power laws over consecutive diameter ranges: `segments` are (start diameter, "
@@ -166,25 +166,25 @@ void BindTables(nb::module_& m) {
     nb::class_<TabulatedSfd, Sfd>(
         m, "TabulatedSfd",
         "Cumulative counts at given diameters, interpolated log-log. `diameter_unit` and "
-        "`area_unit` convert the table to metres and square metres (1000 and 1e6 for km and "
+        "`area_unit` convert the table to meters and square meters (1000 and 1e6 for km and "
         "km^2).")
         .def(nb::init<std::vector<double>, std::vector<double>, SfdKind, double, double>(),
              "diameters"_a, "cumulative"_a, "kind"_a = SfdKind::Density, "diameter_unit"_a = 1.0,
              "area_unit"_a = 1.0)
-        .def_prop_ro("diameters", &TabulatedSfd::Diameters, "Diameters in metres.")
+        .def_prop_ro("diameters", &TabulatedSfd::Diameters, "Diameters in meters.")
         .def_prop_ro("cumulative_values", &TabulatedSfd::CumulativeValues,
-                     "N(>= D) per square metre at each diameter.");
+                     "N(>= D) per square meter at each diameter.");
     nb::class_<UniformBand>(m, "UniformBand",
-                            "A band of `density` features per square metre with diameters spread "
-                            "uniformly from `min` to `max` metres.")
+                            "A band of `density` features per square meter with diameters spread "
+                            "uniformly from `min` to `max` meters.")
         .def_ro("min", &UniformBand::min)
         .def_ro("max", &UniformBand::max)
         .def_ro("density", &UniformBand::density);
     nb::class_<PiecewiseUniformSfd, Sfd>(
         m, "PiecewiseUniformSfd",
         "Counts in diameter bands, each with diameters spread uniformly: `bands` are (min, max, "
-        "density) with diameters in metres and densities per square metre. A positive `total` "
-        "takes the densities as relative weights and shares `total` per square metre among them.")
+        "density) with diameters in meters and densities per square meter. A positive `total` "
+        "takes the densities as relative weights and shares `total` per square meter among them.")
         .def(
             "__init__",
             [](PiecewiseUniformSfd* self,
@@ -300,7 +300,7 @@ void BindProductionSurface(nb::module_& m) {
 void BindLunarCraterDistributions(nb::module_& m) {
     m.def(
         "trask_equilibrium", [] { return Shared(TraskEquilibrium()); },
-        "Trask's (1966) lunar crater equilibrium, N(>= D) = 10^-1.1 D^-2 per square metre.");
+        "Trask's (1966) lunar crater equilibrium, N(>= D) = 10^-1.1 D^-2 per square meter.");
     m.def(
         "hartmann_equilibrium", [] { return Shared(HartmannEquilibrium()); },
         "Hartmann's lunar crater equilibrium.");
@@ -314,16 +314,16 @@ void BindLunarCraterDistributions(nb::module_& m) {
         "The VIPER mission's crater specification.");
     m.def(
         "neukum_production_function", [] { return Shared(NeukumProductionFunction()); },
-        "Neukum's lunar production function, per square metre per Gyr at today's rate.");
+        "Neukum's lunar production function, per square meter per Gyr at today's rate.");
     m.def(
         "extended_neukum_production_function",
         [] { return Shared(ExtendedNeukumProductionFunction()); },
         "The Neukum production function extended to small craters, as DSNE uses it.");
     m.def("neukum_lunar_chronology", &NeukumLunarChronology, "age_gyr"_a,
-          "Neukum's lunar chronology: craters at least 1 km across per square metre on a "
+          "Neukum's lunar chronology: craters at least 1 km across per square meter on a "
           "surface `age_gyr` old.");
     m.def("neukum_lunar_chronology_rate", &NeukumLunarChronologyRate, "age_gyr"_a,
-          "dN1/dT of Neukum's lunar chronology, per square metre per Gyr.");
+          "dN1/dT of Neukum's lunar chronology, per square meter per Gyr.");
 }
 
 void BindMartianCraterDistributions(nb::module_& m) {
@@ -331,9 +331,9 @@ void BindMartianCraterDistributions(nb::module_& m) {
         "ivanov_mars_production_function", [] { return Shared(IvanovMarsProductionFunction()); },
         "Ivanov's (2001) Martian production function.");
     m.def("ivanov_mars_chronology", &IvanovMarsChronology, "age_gyr"_a,
-          "Ivanov's (2001) Martian chronology, N(>= 1 km) per square metre.");
+          "Ivanov's (2001) Martian chronology, N(>= 1 km) per square meter.");
     m.def("ivanov_mars_chronology_rate", &IvanovMarsChronologyRate, "age_gyr"_a,
-          "dN1/dT of Ivanov's Martian chronology, per square metre per Gyr.");
+          "dN1/dT of Ivanov's Martian chronology, per square meter per Gyr.");
 }
 
 void BindBoulderDistributions(nb::module_& m) {

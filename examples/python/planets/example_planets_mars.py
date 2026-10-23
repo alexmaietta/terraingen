@@ -72,7 +72,7 @@ class Example(_common.Example):
             "a fresh Martian crater is 0.1 to 0.3 times as deep as it is wide"
         )
         assert 0.5 < self.ripples.wavelength < 10.0 and 0.0 < self.ripples.height < 1.0, (
-            "large ripples are metres apart and decimetres high"
+            "large ripples are meters apart and decimeters high"
         )
         assert len(diameters) > 100, "more than 100 craters"
         assert diameters.min() >= 15.0 and diameters.max() <= 150.0, "every crater is 15 to 150 m across"

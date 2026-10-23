@@ -1,6 +1,6 @@
 /// Crater size-frequency distributions: the built-in lunar and Martian models, and one of your own.
 ///
-/// Prints N(>= D) per square kilometre for the production on surfaces of several ages, the
+/// Prints N(>= D) per square kilometer for the production on surfaces of several ages, the
 /// equilibria of Trask and Hartmann, the DSNE lunar surface (production capped at equilibrium),
 /// Moore's rough mare and Mars. Then defines a distribution by deriving from
 /// `SizeFrequencyDistribution` (a power law that rolls over below a knee), draws craters from it
@@ -24,7 +24,7 @@
 
 namespace {
 
-/// N(>= D) = coefficient * D^-slope above `knee` metres, flattening to D^-shallow below it.
+/// N(>= D) = coefficient * D^-slope above `knee` meters, flattening to D^-shallow below it.
 class RolledOverPowerLaw final : public terraingen::SizeFrequencyDistribution {
   public:
     RolledOverPowerLaw(double coefficient, double slope, double shallow, double knee)

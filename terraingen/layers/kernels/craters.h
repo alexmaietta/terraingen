@@ -3,7 +3,7 @@
 ///
 /// The host prepares each crater (`CraterRecord`), fits its datum and gathers what varies in
 /// length, outlines and diffusion tables, into one array of floats (`CraterData`); the kernel
-/// shapes one sample from its offset to a crater's centre, in single precision.
+/// shapes one sample from its offset to a crater's center, in single precision.
 #pragma once
 
 #include "terraingen/noise/fractal.h"
@@ -20,7 +20,7 @@ enum class CraterProfileKind : uint32_t {
     FassettThomson = 0,       ///< `FassettThomsonProfile`.
     MartinParkesDunstan = 1,  ///< `MartinParkesDunstanProfile`.
     /// Any other profile, tabulated per crater in its state: one row of heights over the
-    /// diameter, `tableCells` + 1 of them from the centre to `tableExtent` diameters out.
+    /// diameter, `tableCells` + 1 of them from the center to `tableExtent` diameters out.
     Tabulated = 2,
 };
 
@@ -43,7 +43,7 @@ struct CraterProfileKernel {
     float peakFitMaxDiameter = 0.0f;
     float ejectaExponent = 3.0f;
     float complexReachRadii = 3.0f;
-    float tableExtent = 1.5f;  ///< Where tabulated heights end, in diameters from the centre.
+    float tableExtent = 1.5f;  ///< Where tabulated heights end, in diameters from the center.
     uint32_t tableCells = 0;   ///< Cells of a tabulated profile row; rows hold one more height.
     uint32_t agesOffset = 0;   ///< Where the tabulated diffusion ages start in `CraterData`.
     uint32_t ageCount = 0;
@@ -82,8 +82,8 @@ struct CraterShapeKernel {
 
 /// One crater ready to shape.
 struct CraterRecord {
-    float x = 0.0f;  ///< Centre east of the dispatch's origin (m); read on the GPU only.
-    float y = 0.0f;  ///< Centre north of the dispatch's origin (m); read on the GPU only.
+    float x = 0.0f;  ///< Center east of the dispatch's origin (m); read on the GPU only.
+    float y = 0.0f;  ///< Center north of the dispatch's origin (m); read on the GPU only.
     float diameter = 0.0f;
     float resolution = 1.0f;
     float freshDepth = 0.0f;
@@ -114,7 +114,7 @@ struct CraterRecord {
     float upslopeY = 0.0f;  ///< `CraterSlopeShape::upslope` north.
 };
 
-/// A point east and north of a crater's centre, in metres, as the kernel reads it.
+/// A point east and north of a crater's center, in meters, as the kernel reads it.
 struct KernelOffset {
     float dx = 0.0f;
     float dy = 0.0f;
@@ -123,13 +123,13 @@ struct KernelOffset {
 /// A crater's local frame on a body, from which the GPU works out each sample's offset
 /// (`KernelFrameOffset`) as `Surface::Offset` does.
 struct CraterFrame {
-    float x = 0.0f;  ///< Centre's position from the dispatch's origin (m), as `Surface::Position`.
+    float x = 0.0f;  ///< Center's position from the dispatch's origin (m), as `Surface::Position`.
     float y = 0.0f;
     float z = 0.0f;
-    float eastX = 1.0f;  ///< Unit vector east at the centre.
+    float eastX = 1.0f;  ///< Unit vector east at the center.
     float eastY = 0.0f;
     float eastZ = 0.0f;
-    float northX = 0.0f;  ///< Unit vector north at the centre.
+    float northX = 0.0f;  ///< Unit vector north at the center.
     float northY = 1.0f;
     float northZ = 0.0f;
     /// The radius (m) of a sphere, whose offsets are azimuthal equidistant; 0 on an ellipsoid or
@@ -139,7 +139,7 @@ struct CraterFrame {
 
 /// asin(`s`) / `s` for `s` in [0, 1]: by its series below 0.25, to within float rounding, since
 /// GPUs may evaluate inverse trigonometric functions to only a few thousand ulp (Vulkan allows
-/// 4096), which would be millimetres over a crater.
+/// 4096), which would be millimeters over a crater.
 inline float KernelArcsineRatio(float s) {
     if (s < 0.25f) {
         const float s2 = s * s;
@@ -327,7 +327,7 @@ inline float SimpleProfileHeight(KERNEL_IN(CraterProfileKernel) p, float distanc
            diameter;
 }
 
-/// y (m) of a power law `coefficient` D^`exponent` in kilometres, or m^3 with `volume`.
+/// y (m) of a power law `coefficient` D^`exponent` in kilometers, or m^3 with `volume`.
 inline float KilometerLaw(float coefficient, float exponent, float diameter, bool volume) {
     const float kilometers = coefficient * pow(diameter / 1000.0f, exponent);
     return volume ? kilometers * 1e9f : kilometers * 1000.0f;
@@ -510,7 +510,7 @@ inline FractalParams KernelFractalParams(uint32_t seed, float wavelength, int oc
     return params;
 }
 
-/// The crater noise (`CraterNoise`) at `dx`, `dy` metres from the centre and `radii` radii out.
+/// The crater noise (`CraterNoise`) at `dx`, `dy` meters from the center and `radii` radii out.
 inline float KernelNoiseHeight(KERNEL_IN(CraterShapeKernel) k, KERNEL_IN(CraterRecord) c, float dx,
                                float dy, float radii) {
     if (k.noiseAmplitude == 0.0f && k.noiseRimAmplitude == 0.0f) {
@@ -630,7 +630,7 @@ inline float KernelMarkShift(CraterData data, KERNEL_IN(CraterRecord) c, float d
     return window * shift;
 }
 
-/// The distance (m) crater `c`'s round profile is read at, `dx` east and `dy` north of its centre
+/// The distance (m) crater `c`'s round profile is read at, `dx` east and `dy` north of its center
 /// (`CraterProfileDistance`).
 inline float KernelProfileDistance(CraterData data, KERNEL_IN(CraterRecord) c, float dx, float dy) {
     float distance = sqrt(dx * dx + dy * dy);
@@ -644,7 +644,7 @@ inline float KernelProfileDistance(CraterData data, KERNEL_IN(CraterRecord) c, f
     return distance;
 }
 
-/// How much of crater `c`'s floor shift applies at `dx` east and `dy` north of its centre
+/// How much of crater `c`'s floor shift applies at `dx` east and `dy` north of its center
 /// (`CraterSlopeShape::shift`): all within 0.3 radii, fading along a smoothstep to none at the rim.
 inline float KernelSlopeShiftWeight(KERNEL_IN(CraterRecord) c, float dx, float dy) {
     const float radii = sqrt(dx * dx + dy * dy) / (0.5f * c.diameter);
@@ -652,7 +652,7 @@ inline float KernelSlopeShiftWeight(KERNEL_IN(CraterRecord) c, float dx, float d
 }
 
 /// The share of crater `c`'s raised relief, rim and ejecta, kept at `dx` east and `dy` north of
-/// its centre: 1 less the removed share times the squared cosine of the angle from upslope.
+/// its center: 1 less the removed share times the squared cosine of the angle from upslope.
 inline float KernelSlopeRaisedShare(KERNEL_IN(CraterRecord) c, float dx, float dy) {
     const float distance = sqrt(dx * dx + dy * dy);
     if (!(distance > 0.0f)) {
@@ -663,7 +663,7 @@ inline float KernelSlopeRaisedShare(KERNEL_IN(CraterRecord) c, float dx, float d
     return 1.0f - removed * cosine * cosine;
 }
 
-/// `height` after crater `c`, at `dx` east and `dy` north of its centre in metres
+/// `height` after crater `c`, at `dx` east and `dy` north of its center in meters
 /// (`ApplyCraterTo`); unchanged beyond its reach.
 inline float ApplyCraterKernel(KERNEL_IN(CraterShapeKernel) k, CraterData data,
                                KERNEL_IN(CraterRecord) c, float height, float dx, float dy) {
@@ -705,7 +705,7 @@ struct CraterDatumKernel {
     uint32_t unused = 0u;
 };
 
-/// The relief (m) crater `c` adds at `dx` east and `dy` north of its centre without its datum,
+/// The relief (m) crater `c` adds at `dx` east and `dy` north of its center without its datum,
 /// as datums are fitted to it: its resolution times the bare profile, within the profile's
 /// reach. `bound` (m) is at least that reach stretched by the crater's outline.
 inline float CraterRelief(KERNEL_IN(CraterShapeKernel) k, CraterData data,

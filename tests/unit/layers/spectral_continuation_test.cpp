@@ -37,7 +37,7 @@ SpectralContinuationOptions Options(double slope = 3.0) {
     return options;
 }
 
-/// A north-up grid of `size` x `size` cells of `step` metres with its top-left corner at
+/// A north-up grid of `size` x `size` cells of `step` meters with its top-left corner at
 /// (`x0`, `y0`).
 RasterGrid Grid(std::size_t size, double step, double x0 = -3.0, double y0 = 7.0) {
     return {size, size, GeoTransform::NorthUp(x0, y0, step)};

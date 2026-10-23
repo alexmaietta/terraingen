@@ -70,7 +70,7 @@ class BouldersEjecta : public terraingen::examples::Example {
         for (const double x : {0.0, 10.0, 15.0, 20.0, 30.0}) {
             const terraingen::BoulderAbundance a = boulders->AbundanceAt(x, 0.0);
             abundance_.emplace_back(x, a);
-            Out() << Format("  %4.0f m from the centre: %5.2f, %5.2f\n", x, a.background, a.ejecta);
+            Out() << Format("  %4.0f m from the center: %5.2f, %5.2f\n", x, a.background, a.ejecta);
         }
 
         terraingen::TerrainGenerator terrain;

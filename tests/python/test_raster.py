@@ -10,7 +10,7 @@ import terraingen
 
 
 def ramp_raster():
-    """An 8 x 8 ramp 0..63 on a centred 2 m grid."""
+    """An 8 x 8 ramp 0..63 on a centered 2 m grid."""
     return terraingen.Raster.from_array(
         np.arange(64, dtype=np.float32).reshape(8, 8), terraingen.RasterGrid.centered(8, 8, 2.0).transform
     )

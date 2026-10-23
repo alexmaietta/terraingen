@@ -25,7 +25,7 @@ namespace {
 constexpr double kNan = std::numeric_limits<double>::quiet_NaN();
 const Bounds2d kRegion{-15.0, -15.0, 15.0, 15.0};
 
-/// Ground rising `rise` metres per metre eastward from 3 m at x = 0.
+/// Ground rising `rise` meters per meter eastward from 3 m at x = 0.
 class Ramp final : public terraingen::Ground {
   public:
     explicit Ramp(double rise = 0.0) : rise_(rise) {}
@@ -373,7 +373,7 @@ TEST(ManualOnlyBoulderLayer, DrawsTheManualBouldersIntoTheHeights) {
     terraingen::Raster<float> heights(41, 41, 0.0f);
     heights.SetTransform(terraingen::GeoTransform::NorthUp(-2.05, 2.05, 0.1));
     BoulderLayer::Manual({Plain(0.0, 0.0, 1.0)})->Apply(heights, {0.1});
-    EXPECT_GT(heights(20, 20), 0.2f) << "the boulder at the centre";
+    EXPECT_GT(heights(20, 20), 0.2f) << "the boulder at the center";
     EXPECT_EQ(heights(0, 0), 0.0f) << "and nothing else";
 }
 

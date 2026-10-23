@@ -10,7 +10,7 @@
 
 namespace terraingen {
 
-inline constexpr std::uint32_t kCraterStream = 0x43524154u;       ///< Crater sizes and centres.
+inline constexpr std::uint32_t kCraterStream = 0x43524154u;       ///< Crater sizes and centers.
 inline constexpr std::uint32_t kCraterAgeStream = 0x43524147u;    ///< Crater ages.
 inline constexpr std::uint32_t kCraterIdStream = 0x43524944u;     ///< Crater IDs.
 inline constexpr std::uint32_t kCraterKeepStream = 0x43524B50u;   ///< Keep-share thinning by ID.
@@ -30,10 +30,10 @@ inline constexpr std::uint32_t kBoulderShapeStream = 0x424F554Cu;      ///< Boul
 inline constexpr std::uint32_t kBoulderFractureStream = 0x43555453u;   ///< Shape fracture noise.
 inline constexpr std::uint32_t kBoulderPrototypeStream = 0x50524F54u;  ///< Shape prototype pick.
 inline constexpr std::uint32_t kBoulderFragmentStream = 0x46524147u;   ///< Shape fragments.
-inline constexpr std::uint32_t kBoulderClusterStream = 0x434C5553u;    ///< Cluster centres.
+inline constexpr std::uint32_t kBoulderClusterStream = 0x434C5553u;    ///< Cluster centers.
 inline constexpr std::uint32_t kBoulderPatchStream = 0x50415443u;      ///< Abundance patches.
-inline constexpr std::uint32_t kThomasPlaneStream = 0x54484D32u;  ///< Thomas centres on a plane.
-inline constexpr std::uint32_t kThomasSpaceStream = 0x54484D33u;  ///< Thomas centres on a body.
+inline constexpr std::uint32_t kThomasPlaneStream = 0x54484D32u;  ///< Thomas centers on a plane.
+inline constexpr std::uint32_t kThomasSpaceStream = 0x54484D33u;  ///< Thomas centers on a body.
 
 inline constexpr std::uint32_t kCraterAlbedoStream = 0x414C4244u;  ///< Crater albedo per crater.
 inline constexpr std::uint32_t kObliqueRayStream = 0x4F424C51u;    ///< Oblique impact rays.

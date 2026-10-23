@@ -19,7 +19,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import _common
 from _common import normalize, write_png
 
-# Volumetric mean radius of the Moon in metres, from the NASA NSSDCA Moon fact sheet.
+# Volumetric mean radius of the Moon in meters, from the NASA NSSDCA Moon fact sheet.
 MOON_RADIUS = 1737400.0
 
 

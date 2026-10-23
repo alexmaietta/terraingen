@@ -66,7 +66,7 @@ double At(const DuneLayer& layer, double x, double y, double spacing = 0.01) {
     return static_cast<double>(layer.ApplyAt(0.0f, x, y, {spacing}));
 }
 
-/// The steepest slope of `layer`'s dunes over a square of `half` metres about `center`.
+/// The steepest slope of `layer`'s dunes over a square of `half` meters about `center`.
 double SteepestSlope(const DuneLayer& layer, const Vec2d& center, double half, double step) {
     double steepest = 0.0;
     for (double y = center.y - half; y <= center.y + half; y += step) {

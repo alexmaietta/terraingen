@@ -1,7 +1,7 @@
 /// A rover's wheel contacts from point queries, as a physics engine such as Chrono asks for them
 /// every step.
 ///
-/// `HeightAt` gives the height at one point, equal to the grid cell centred there, and is safe
+/// `HeightAt` gives the height at one point, equal to the grid cell centered there, and is safe
 /// to call from several threads at once. This example drives a four-wheeled rover across cratered,
 /// rocky ground, queries each wheel's contact height every step on one thread and then four, and
 /// reports the body's height, pitch and roll and the query rate.

@@ -44,12 +44,12 @@ class SecondaryCraterLayer final : public Layer, public CraterPlacer {
                          SecondaryCraterOptions options, CraterApplyOptions apply = {},
                          std::shared_ptr<const Source> source = nullptr);
 
-    /// The largest secondary the layer places, in metres.
+    /// The largest secondary the layer places, in meters.
     double MaxFeatureDiameter() const;
 
-    /// The secondaries a grid covering `region` (surface coordinates) gets: those centred in it or
+    /// The secondaries a grid covering `region` (surface coordinates) gets: those centerd in it or
     /// within the profile's reach of it.
-    /// @param spacing Sample spacing in metres; 0 for every size.
+    /// @param spacing Sample spacing in meters; 0 for every size.
     /// @throws std::invalid_argument if more than `maxExpected` are expected.
     CraterList Secondaries(const Bounds2d& region, double spacing = 0.0) const;
 
@@ -57,8 +57,8 @@ class SecondaryCraterLayer final : public Layer, public CraterPlacer {
     CraterList Secondaries(const Bounds2d& region, double spacing,
                            std::unordered_map<std::uint64_t, SecondaryOutline>& outlines) const;
 
-    /// The outer range from its centre, in metres, of the secondaries of a primary of `diameter`
-    /// metres.
+    /// The outer range from its center, in meters, of the secondaries of a primary of `diameter`
+    /// meters.
     double OuterRange(double diameter) const;
 
     /// A secondary's attributes in the state the degradation model gives it.

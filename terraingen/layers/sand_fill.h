@@ -12,11 +12,11 @@ namespace terraingen {
 
 /// How much sand a `SandFillLayer` pools, and where.
 struct SandFillOptions {
-    double reach = 10.0;  ///< Radius in metres of the surroundings a low is measured against.
+    double reach = 10.0;  ///< Radius in meters of the surroundings a low is measured against.
     /// Share, in [0, 1], of a low's depth below its surroundings that sand fills.
     double fill = 0.6;
     double maxThickness = 0.5;  ///< The thickest the sand gets, approached smoothly (m).
-    /// Sand thickness in metres at which it fully covers the ground; thinner sand covers part.
+    /// Sand thickness in meters at which it fully covers the ground; thinner sand covers part.
     double coverThickness = 0.02;
 
     bool operator==(const SandFillOptions& other) const {
@@ -45,8 +45,8 @@ class SandFillLayer final : public FormulaLayer, public MaterialSource {
     /// @throws std::invalid_argument as `ValidateSandFillOptions`.
     explicit SandFillLayer(SandFillOptions options = {}, Surface surface = {});
 
-    /// The sand thickness at world (x, y) over `ground`, in metres.
-    /// @param spacing Sample spacing in metres the ground is read at.
+    /// The sand thickness at world (x, y) over `ground`, in meters.
+    /// @param spacing Sample spacing in meters the ground is read at.
     double ThicknessAt(const Ground& ground, double x, double y, double spacing) const;
 
     /// The options the layer was made with.
@@ -72,7 +72,7 @@ class SandFillLayer final : public FormulaLayer, public MaterialSource {
     static constexpr int kRingPoints = 8;
 
     SandFillOptions options_;
-    /// The two rings read around a point, inner first, in metres east and north of it.
+    /// The two rings read around a point, inner first, in meters east and north of it.
     std::array<Vec2d, 2 * kRingPoints> rings_{};
 };
 

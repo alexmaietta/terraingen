@@ -11,7 +11,7 @@ namespace terraingen {
 
 namespace {
 
-/// The table's diameter range in metres, after checking the table and units.
+/// The table's diameter range in meters, after checking the table and units.
 DiameterRange TableRange(const std::vector<double>& diameters,
                          const std::vector<double>& cumulative, double diameterUnit,
                          double areaUnit) {

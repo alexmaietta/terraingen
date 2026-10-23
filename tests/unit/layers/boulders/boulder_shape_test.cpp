@@ -194,7 +194,7 @@ TEST(NormalizedBoulderShape, TurnsAndScalesARockToTheUnitForm) {
     EXPECT_NEAR(box.Extents().x, 1.0, 1e-12) << "the longer horizontal side along x";
     EXPECT_NEAR(shape.intermediate, 2.0 / 6.0, 1e-12);
     EXPECT_NEAR(shape.shortAxis, 3.0 / 6.0, 1e-12) << "z stays vertical";
-    EXPECT_NEAR(box.min.x + box.max.x, 0.0, 1e-12) << "centred on its box";
+    EXPECT_NEAR(box.min.x + box.max.x, 0.0, 1e-12) << "centered on its box";
     EXPECT_NEAR(box.min.z + box.max.z, 0.0, 1e-12);
     EXPECT_GT(terraingen::Volume(shape.mesh), 0.0) << "turning keeps the faces outward";
     EXPECT_EQ(shape.material.name, "granite");

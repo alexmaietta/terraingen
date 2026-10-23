@@ -1,6 +1,6 @@
 /// Crater profiles: each built-in profile across a 100 m crater, and a profile of your own.
 ///
-/// Prints the height every 10 m from the centre for Fassett and Thomson's fresh profile (three rim
+/// Prints the height every 10 m from the center for Fassett and Thomson's fresh profile (three rim
 /// fits), Martin, Parkes and Dunstan's, the fresh profile after 0.1 Gyr of topographic diffusion,
 /// and a parabolic bowl that derives from `CraterProfile`. Then shapes a crater population with the
 /// custom profile and writes the terrain.

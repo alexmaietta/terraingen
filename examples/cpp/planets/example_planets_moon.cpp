@@ -1,7 +1,7 @@
 /// The Moon on a sphere: a site at Mare Tranquillitatis and a mesh of the whole body.
 ///
 /// On a sphere surface, grid coordinates are degrees of longitude and latitude while pixel sizes,
-/// wavelengths and crater diameters stay in metres; noise is 3D at each point's position and
+/// wavelengths and crater diameters stay in meters; noise is 3D at each point's position and
 /// craters are placed by longitude and latitude. The site is a 51 km grid of 200 m cells; the
 /// whole-body mesh is a cube-sphere whose vertices sit at the radius plus the terrain's height.
 /// Writes the site's heights (with a geographic CRS for the Moon's sphere) and the mesh as glTF.
@@ -20,7 +20,7 @@
 
 namespace {
 
-/// Volumetric mean radius of the Moon, in metres, from the NASA NSSDCA Moon fact sheet.
+/// Volumetric mean radius of the Moon, in meters, from the NASA NSSDCA Moon fact sheet.
 constexpr double kMoonRadius = 1737400.0;
 
 class PlanetsMoon : public terraingen::examples::Example {

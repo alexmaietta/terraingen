@@ -38,7 +38,7 @@ void BM_HeightAtWarm(benchmark::State& state) {
 }
 BENCHMARK(BM_HeightAtWarm)->ThreadRange(1, 8)->UseRealTime();
 
-/// `BM_HeightAtWarm` on a lunar-sized sphere: the same patch in metres, placed at the equator.
+/// `BM_HeightAtWarm` on a lunar-sized sphere: the same patch in meters, placed at the equator.
 void BM_HeightAtWarmSphere(benchmark::State& state) {
     static const Surface moon = Surface::Sphere(1737400.0);
     static const TerrainGenerator terrain =

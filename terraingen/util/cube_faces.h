@@ -11,7 +11,7 @@
 
 namespace terraingen::detail {
 
-/// pi / 4 radians, the largest equiangular angle from a face's centre to its edge.
+/// pi / 4 radians, the largest equiangular angle from a face's center to its edge.
 inline constexpr double kQuarter = kPi / 4.0;
 
 /// A cube face: its outward normal and the axes its first and second coordinates run along.
@@ -31,7 +31,7 @@ constexpr std::array<CubeFace, 6> kCubeFaces{{
     {{0.0, 0.0, -1.0}, {0.0, 1.0, 0.0}, {1.0, 0.0, 0.0}},
 }};
 
-/// Gaskell's ICQ faces 1 to 6, centred on +z, -y, -x, +y, +x and -z, with `u` the direction I runs
+/// Gaskell's ICQ faces 1 to 6, centered on +z, -y, -x, +y, +x and -z, with `u` the direction I runs
 /// along and `v` the direction J runs along; measured from his published models.
 constexpr std::array<CubeFace, 6> kIcqFaces{{
     {{0.0, 0.0, 1.0}, {1.0, 0.0, 0.0}, {0.0, -1.0, 0.0}},

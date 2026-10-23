@@ -56,7 +56,7 @@ TEST(FitCraterDatum, FitsTheGroundOnALatticeAroundTheCrater) {
     options.datum = CraterDatum::Plane;
     const auto plane = terraingen::FitCraterDatum(crater, options, slope);
     ASSERT_TRUE(plane.has_value());
-    EXPECT_NEAR(plane->a, 10.0 + 50.0 + 10.0, 1e-4) << "height under the centre";
+    EXPECT_NEAR(plane->a, 10.0 + 50.0 + 10.0, 1e-4) << "height under the center";
     EXPECT_NEAR(plane->b, 0.5, 1e-6);
     EXPECT_NEAR(plane->c, -0.25, 1e-6);
     options.datum = CraterDatum::MeanHeight;

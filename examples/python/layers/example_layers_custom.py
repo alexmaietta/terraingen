@@ -31,7 +31,7 @@ SIZE = 257
 
 
 class InclinedPlane(terraingen.Source):
-    """A plane rising `slope` metres per metre towards the north-east."""
+    """A plane rising `slope` meters per meter towards the north-east."""
 
     def __init__(self, slope=0.02):
         super().__init__()
@@ -63,7 +63,7 @@ class Tilt(terraingen.Layer):
 
 
 class Terraces(terraingen.Layer):
-    """Rounds heights to steps of `step` metres, softened by half."""
+    """Rounds heights to steps of `step` meters, softened by half."""
 
     def __init__(self, step=4.0):
         super().__init__()

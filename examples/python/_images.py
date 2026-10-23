@@ -33,7 +33,7 @@ def normalize(values):
 
 
 def write_png(path, image):
-    """Writes a grey (2D) or RGB (3D) image with values in [0, 1] as an 8-bit PNG."""
+    """Writes a gray (2D) or RGB (3D) image with values in [0, 1] as an 8-bit PNG."""
     pixels = (np.clip(np.nan_to_num(np.asarray(image, dtype=np.float64)), 0.0, 1.0) * 255.0 + 0.5).astype(
         np.uint8
     )
@@ -90,10 +90,10 @@ PALETTE = [
 
 
 def line_plot(curves, log_x=False, log_y=False, size=(640, 420), margin=24):
-    """An RGB image in [0, 1] of `curves`, a list of (x, y) arrays, in the colours of PALETTE.
+    """An RGB image in [0, 1] of `curves`, a list of (x, y) arrays, in the colors of PALETTE.
 
     The axes span the curves' finite values, logarithmically with `log_x` / `log_y`, inside a
-    grey frame. There is no text: print a legend naming the curves in PALETTE order.
+    gray frame. There is no text: print a legend naming the curves in PALETTE order.
     """
     width, height = size
     image = np.ones((height, width, 3))
@@ -127,5 +127,5 @@ def line_plot(curves, log_x=False, log_y=False, size=(640, 420), margin=24):
 
 
 def color_name(index):
-    """The name of PALETTE colour `index`, for legends."""
+    """The name of PALETTE color `index`, for legends."""
     return ["blue", "red", "green", "purple", "orange", "brown", "pink", "gray"][index % len(PALETTE)]

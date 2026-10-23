@@ -10,7 +10,7 @@
 namespace terraingen {
 
 /// The depth over diameter at which Fassett et al. (2022, section 4) take a crater to be no longer
-/// recognised, from the left tail of the d/D distributions of Mahanti et al. (2018).
+/// recognized, from the left tail of the d/D distributions of Mahanti et al. (2018).
 inline constexpr double kVisibilityDepthRatio = 0.04;
 
 /// The lunar diffusivity of Fassett and Thomson (2014), 5.5 m^2/Myr for every size.
@@ -35,7 +35,7 @@ double FassettThomson2014DiffusionAge(double ageGyr);
 /// and age t gets kappa t = tau_cut(D) D^2 t / lifetime(D), so its shape follows its age model
 /// whatever the profile.
 /// @param fresh The fresh morphometry the degradation starts from.
-/// @param lifetimeGyr The equilibrium lifetime in Gyr of craters of a diameter in metres, such as
+/// @param lifetimeGyr The equilibrium lifetime in Gyr of craters of a diameter in meters, such as
 /// `SteadyStateAges::EquilibriumLifetimeGyr`; positive.
 /// @throws std::invalid_argument for a null `profile`, an empty `fresh` or `lifetimeGyr`, or a
 /// cutoff outside (0, 1).

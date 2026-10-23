@@ -15,7 +15,7 @@ namespace terraingen {
 ///
 /// n is 2D Perlin noise on a plane and 3D at the 3D point on a sphere; the finer octave is seeded
 /// `seed` + 1. About half the ground lies near either end.
-/// @param size Typical width of a patch, in metres; positive.
+/// @param size Typical width of a patch, in meters; positive.
 /// @param seed Seed of the coarser octave.
 double PatchNoise(const Surface& surface, double x, double y, double size, std::uint32_t seed);
 
@@ -61,11 +61,11 @@ class ExposureField {
     explicit ExposureField(const ExposureParams& params = {}, const Surface& surface = {});
 
     /// The share of bedrock at world (x, y), in [0, 1] (0 soil, 1 bedrock; 0 without data).
-    /// Neighbours without data count as level with the point.
+    /// Neighbors without data count as level with the point.
     /// @param spacing Sample spacing in world units.
     double Exposure(const Ground& ground, double x, double y, double spacing) const;
 
-    /// Fills `raster` with `Exposure` at each cell centre.
+    /// Fills `raster` with `Exposure` at each cell center.
     /// @param spacing Sample spacing in world units.
     /// @param threads Worker threads; 0 for every hardware thread.
     void Fill(Raster<float>& raster, const Ground& ground, double spacing,
@@ -79,7 +79,7 @@ class ExposureField {
   private:
     ExposureParams params_;
     Surface surface_;
-    /// The surroundings read around a point, in metres east and north of it.
+    /// The surroundings read around a point, in meters east and north of it.
     std::array<Vec2d, 8> ring_{};
 };
 

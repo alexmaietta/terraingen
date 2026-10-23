@@ -1,7 +1,7 @@
 """A rover's wheel contacts from point queries, as a physics engine asks for them each step.
 
 Physics engines (Chrono, for example) query the ground under each wheel every step rather than a
-whole grid. `height_at(terrain, x, y, spacing)` answers one point, equal to the grid cell centred
+whole grid. `height_at(terrain, x, y, spacing)` answers one point, equal to the grid cell centered
 there, and releases the GIL, so several threads can query at once. This example drives a rover with
 four wheels across cratered, rocky ground, takes each wheel's height, and from them the body's
 height, pitch and roll; then compares one thread with four.

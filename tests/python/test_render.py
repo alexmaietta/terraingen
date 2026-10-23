@@ -103,7 +103,7 @@ def test_renders_a_generated_terrain_headlessly():
     image = np.asarray(renderer.render(scene))
     assert image.shape == (32, 32, 4)
     lit = image[..., :3].sum(axis=-1) > 0
-    assert lit[16, 16], "the terrain is centred"
+    assert lit[16, 16], "the terrain is centered"
     assert not lit[0, 0] and not lit[-1, -1], "the whole terrain fits the frame"
 
 

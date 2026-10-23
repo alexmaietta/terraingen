@@ -16,10 +16,10 @@ class TabulatedSfd final : public SizeFrequencyDistribution {
   public:
     /// The distribution through the table's points.
     /// @param diameters At least two strictly increasing positive diameters, in `diameterUnit`
-    /// metres.
+    /// meters.
     /// @param cumulative N(>=D) at each diameter, positive, finite and not increasing, per
     /// `areaUnit` m^2.
-    /// @param diameterUnit Metres per table diameter unit.
+    /// @param diameterUnit Meters per table diameter unit.
     /// @param areaUnit m^2 per table area unit.
     /// @throws std::invalid_argument for fewer than two points, mismatched lengths, units or values
     /// that are not positive and finite, diameters that do not strictly increase, or values that
@@ -27,7 +27,7 @@ class TabulatedSfd final : public SizeFrequencyDistribution {
     TabulatedSfd(std::vector<double> diameters, std::vector<double> cumulative,
                  SfdKind kind = SfdKind::Density, double diameterUnit = 1.0, double areaUnit = 1.0);
 
-    /// The table's diameters in metres.
+    /// The table's diameters in meters.
     const std::vector<double>& Diameters() const {
         return diameters_;
     }
