@@ -40,12 +40,12 @@ terraingen_add_library(
     craters/secondaries.cpp
     craters/secondary_model.cpp
     craters/ages/age_model.cpp
-    craters/ages/freshness.cpp
+    craters/ages/freshness_ages.cpp
     craters/ages/steady_state.cpp
     craters/degradation/degradation_model.cpp
     craters/degradation/diffusion.cpp
     craters/degradation/diffusivities.cpp
-    craters/degradation/freshness.cpp
+    craters/degradation/freshness_degradation.cpp
     craters/generation/cell_cache.cpp
     craters/generation/population.cpp
     craters/generation/spacing.cpp
@@ -58,10 +58,10 @@ terraingen_add_library(
     craters/shaping/attributes.cpp
     craters/shaping/datum.cpp
     craters/shaping/datum_fit.cpp
-    craters/shaping/explicit_state.cpp
     craters/shaping/irregularity.cpp
     craters/shaping/morphometry.cpp
     craters/shaping/prepared.cpp
+    craters/shaping/resolved_state.cpp
     craters/shaping/slope.cpp
     PUBLIC
     terraingen_distribution

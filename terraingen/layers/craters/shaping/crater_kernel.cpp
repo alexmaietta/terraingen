@@ -25,45 +25,24 @@ bool ShapesSimply(const CraterShapeKernel& kernel, double diameter, const Crater
     return !(p.complex == 1u && diameter >= static_cast<double>(p.transitionDiameter));
 }
 
-/// Sets the complex form of `shape` on `p`.
-void SetComplexShape(CraterProfileKernel& p, const ComplexCraterShape& shape) {
-    const KilometerPowerLaw width = shape.peakDiameter ? *shape.peakDiameter : shape.peakVolume;
-    p.complex = 1u;
-    p.transitionDiameter = static_cast<float>(shape.transitionDiameter);
-    p.floorCoefficient = static_cast<float>(shape.floorDiameter.coefficient);
-    p.floorExponent = static_cast<float>(shape.floorDiameter.exponent);
-    p.peakHeightCoefficient = static_cast<float>(shape.peakHeight.coefficient);
-    p.peakHeightExponent = static_cast<float>(shape.peakHeight.exponent);
-    p.peakWidthCoefficient = static_cast<float>(width.coefficient);
-    p.peakWidthExponent = static_cast<float>(width.exponent);
-    p.peakFromVolume = shape.peakDiameter ? 0u : 1u;
-    p.peakFitMaxDiameter = static_cast<float>(shape.peakFitMaxDiameter);
-    p.ejectaExponent = static_cast<float>(shape.ejectaExponent);
-    p.complexReachRadii = static_cast<float>(shape.reachRadii);
-}
-
 /// `profile` as the kernel evaluates it in closed form, or nothing for a profile it does not
 /// know, which it tabulates.
 std::optional<CraterProfileKernel> ClosedFormProfile(const CraterProfile& profile) {
     CraterProfileKernel p;
     const CraterProfile* fresh = &profile;
     if (const auto* diffused = dynamic_cast<const DiffusedProfile*>(&profile)) {
-        p.diffused = 1u;
-        p.tableExtent = static_cast<float>(0.5 * diffused->ReachRadii());
-        p.tableCells = static_cast<std::uint32_t>(diffused->Cells());
-        p.agesOffset = 0u;
-        p.ageCount = static_cast<std::uint32_t>(diffused->Ages().size());
+        p = diffused->Kernel();
         fresh = &diffused->Fresh();
     }
     if (const auto* complex = dynamic_cast<const ComplexCraterProfile*>(fresh)) {
-        SetComplexShape(p, complex->Shape());
+        SetKernelComplexShape(p, complex->Shape());
         fresh = &complex->Simple();
     }
     if (const auto* ft = dynamic_cast<const FassettThomsonProfile*>(fresh)) {
-        p.simple = CraterProfileKind::FassettThomson;
-        p.rim = static_cast<std::uint32_t>(ft->Rim());
-    } else if (dynamic_cast<const MartinParkesDunstanProfile*>(fresh) != nullptr) {
-        p.simple = CraterProfileKind::MartinParkesDunstan;
+        p.simple = ft->Kernel().simple;
+        p.rim = ft->Kernel().rim;
+    } else if (const auto* mpd = dynamic_cast<const MartinParkesDunstanProfile*>(fresh)) {
+        p.simple = mpd->Kernel().simple;
     } else {
         return std::nullopt;
     }
@@ -160,14 +139,8 @@ void AppendOutline(const CraterOutline& outline, CraterRecord& r, std::vector<fl
 /// The record of prepared crater `p`, without its outline and profile tables.
 CraterRecord BaseRecord(const PreparedCrater& p, const CraterApplyOptions& options) {
     const CraterState& state = p.state;
-    CraterRecord r;
-    r.diameter = static_cast<float>(p.crater.diameter);
+    CraterRecord r = KernelStateRecord(p.crater.diameter, state);
     r.resolution = static_cast<float>(p.resolution);
-    r.freshDepth = static_cast<float>(state.fresh.depthRatio);
-    r.freshRim = static_cast<float>(state.fresh.rimHeightRatio);
-    r.currentDepth = static_cast<float>(state.current.depthRatio);
-    r.currentRim = static_cast<float>(state.current.rimHeightRatio);
-    r.diffusion = static_cast<float>(state.diffusion);
     if (p.datum) {
         r.hasDatum = 1u;
         r.datumA = static_cast<float>(p.datum->a);

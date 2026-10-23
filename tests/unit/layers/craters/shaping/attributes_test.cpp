@@ -43,8 +43,8 @@ TEST(ComputeCraterAttributes, FindsTheFloorOfComplexCratersBesideTheirPeaks) {
     const auto attributes = ComputeCraterAttributes({0.0, 0.0, 30000.0, 1.0, 1u}, state, profile);
     EXPECT_TRUE(attributes.complex);
     EXPECT_NEAR(attributes.floorDepth,
-                (morphometry.depthRatio - morphometry.rimHeightRatio) * 30000.0, 1e-6);
-    EXPECT_NEAR(attributes.rimHeight, morphometry.rimHeightRatio * 30000.0, 1e-6);
+                (morphometry.depthRatio - morphometry.rimHeightRatio) * 30000.0, 1e-7 * 30000.0);
+    EXPECT_NEAR(attributes.rimHeight, morphometry.rimHeightRatio * 30000.0, 1e-7 * 30000.0);
     EXPECT_FALSE(ComputeCraterAttributes({0.0, 0.0, 300.0, 1.0, 1u}, state, profile).complex);
 }
 

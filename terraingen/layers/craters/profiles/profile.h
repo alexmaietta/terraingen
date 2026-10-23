@@ -3,6 +3,7 @@
 #pragma once
 
 #include "terraingen/layers/craters/degradation/state.h"
+#include "terraingen/layers/kernels/craters.h"
 
 namespace terraingen {
 
@@ -25,5 +26,18 @@ class CraterProfile {
         return false;
     }
 };
+
+/// The kernel record of a crater of `diameter` meters in `state`, the shape fields only, as the
+/// profile kernels read it.
+inline CraterRecord KernelStateRecord(double diameter, const CraterState& state) {
+    CraterRecord r;
+    r.diameter = static_cast<float>(diameter);
+    r.freshDepth = static_cast<float>(state.fresh.depthRatio);
+    r.freshRim = static_cast<float>(state.fresh.rimHeightRatio);
+    r.currentDepth = static_cast<float>(state.current.depthRatio);
+    r.currentRim = static_cast<float>(state.current.rimHeightRatio);
+    r.diffusion = static_cast<float>(state.diffusion);
+    return r;
+}
 
 }  // namespace terraingen

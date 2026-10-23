@@ -37,11 +37,11 @@ terraingen_add_test_suite(
     craters/secondaries_test.cpp
     craters/sphere_test.cpp
     craters/ages/age_model_test.cpp
-    craters/ages/freshness_test.cpp
+    craters/ages/freshness_ages_test.cpp
     craters/ages/steady_state_test.cpp
     craters/degradation/degradation_model_test.cpp
     craters/degradation/diffusion_test.cpp
-    craters/degradation/freshness_test.cpp
+    craters/degradation/freshness_degradation_test.cpp
     craters/generation/cell_cache_test.cpp
     craters/generation/population_test.cpp
     craters/generation/spacing_test.cpp
@@ -52,9 +52,9 @@ terraingen_add_test_suite(
     craters/shaping/crater_kernel_test.cpp
     craters/shaping/attributes_test.cpp
     craters/shaping/datum_test.cpp
-    craters/shaping/explicit_state_test.cpp
     craters/shaping/irregularity_test.cpp
     craters/shaping/morphometry_test.cpp
+    craters/shaping/resolved_state_test.cpp
     craters/shaping/slope_test.cpp
     LIBRARIES
     terraingen::layers)

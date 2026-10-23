@@ -1,4 +1,4 @@
-#include "terraingen/layers/craters/degradation/freshness.h"
+#include "terraingen/layers/craters/degradation/freshness_degradation.h"
 
 #include <cmath>
 #include <stdexcept>

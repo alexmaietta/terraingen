@@ -1,4 +1,4 @@
-#include "terraingen/layers/craters/shaping/explicit_state.h"
+#include "terraingen/layers/craters/shaping/resolved_state.h"
 
 #include "terraingen/layers/craters/degradation/diffusion.h"
 #include "terraingen/layers/craters/profiles/complex.h"

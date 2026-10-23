@@ -94,9 +94,9 @@ class DiffusedProfile final : public CraterProfile {
         return *fresh_;
     }
 
-    /// Radial cells of the solver; each row of a table holds one more height.
-    std::size_t Cells() const {
-        return cells_;
+    /// The profile's tables as the crater kernel reads them, with the ages first in its data.
+    const CraterProfileKernel& Kernel() const {
+        return kernel_;
     }
 
     /// The heights over the diameter a crater of `fresh` morphometry and `diameter` meters is read
@@ -134,6 +134,7 @@ class DiffusedProfile final : public CraterProfile {
     std::size_t cells_;
     std::shared_ptr<LruCache<Key, Table, KeyHash>> tables_;
     std::uint64_t instance_;  ///< Unique to this profile, keying each thread's last table.
+    CraterProfileKernel kernel_;
 };
 
 /// Craters worn by topographic diffusion; pair it with the crater layer's `DiffusedProfile`.

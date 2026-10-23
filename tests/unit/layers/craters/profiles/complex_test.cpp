@@ -44,16 +44,16 @@ TEST(ComplexCraterProfile, HasAFlatFloorACentralPeakAndAContinuousRim) {
     const auto state = Fresh(d);
     const double depth = 1044.0 * std::pow(30.0, 0.301);
     const double rim = 236.0 * std::pow(30.0, 0.399);
-    EXPECT_NEAR(profile.Height(15000.0, d, state), rim, 1e-6);
+    EXPECT_NEAR(profile.Height(15000.0, d, state), rim, 1e-7 * d);
     EXPECT_NEAR(profile.Height(15000.0 + 1e-6, d, state), rim, 1e-3) << "continuous at the rim";
     const double floorRadius = 0.5 * 187.0 * std::pow(30.0, 1.249);
     const double peak = 0.589 * std::pow(30.0, 1.969);
     const double volume = 0.987e2 * std::pow(30.0, 5.078);
     const double base = std::sqrt(3.0 * volume / (terraingen::kPi * peak));
     ASSERT_LT(base, floorRadius);
-    EXPECT_NEAR(profile.Height(0.5 * (base + floorRadius), d, state), rim - depth, 1e-6)
+    EXPECT_NEAR(profile.Height(0.5 * (base + floorRadius), d, state), rim - depth, 1e-7 * d)
         << "flat between the peak and the wall";
-    EXPECT_NEAR(profile.Height(0.0, d, state), rim - depth + peak, 1e-6);
+    EXPECT_NEAR(profile.Height(0.0, d, state), rim - depth + peak, 1e-7 * d);
     double sum = 0.0;
     const double step = base / 2000.0;
     for (double r = 0.5 * step; r < base; r += step) {
@@ -73,11 +73,11 @@ TEST(ComplexCraterProfile, LowersThePeakAsTheCraterWearsAndHoldsItAboveTheFit) {
     worn.current.rimHeightRatio *= 0.5;
     const double freshPeak = profile.Height(0.0, d, Fresh(d)) - profile.Height(9000.0, d, Fresh(d));
     const double wornPeak = profile.Height(0.0, d, worn) - profile.Height(9000.0, d, worn);
-    EXPECT_NEAR(wornPeak, 0.5 * freshPeak, 1e-6);
+    EXPECT_NEAR(wornPeak, 0.5 * freshPeak, 1e-7 * d);
     const double big = 100000.0;
     const auto state = Fresh(big);
     const double floor = profile.Height(0.3 * 50000.0, big, state);
-    EXPECT_NEAR(profile.Height(0.0, big, state) - floor, 0.589 * std::pow(51.0, 1.969), 1e-6)
+    EXPECT_NEAR(profile.Height(0.0, big, state) - floor, 0.589 * std::pow(51.0, 1.969), 1e-7 * big)
         << "the peak stops growing past the fitted sizes";
 }
 

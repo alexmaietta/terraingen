@@ -1,9 +1,7 @@
 #include "terraingen/layers/craters/profiles/complex.h"
 
-#include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 
-#include <algorithm>
 #include <cmath>
 #include <stdexcept>
 #include <utility>
@@ -35,6 +33,22 @@ void ValidateComplexCraterShape(const ComplexCraterShape& shape) {
     }
 }
 
+void SetKernelComplexShape(CraterProfileKernel& p, const ComplexCraterShape& shape) {
+    const KilometerPowerLaw width = shape.peakDiameter ? *shape.peakDiameter : shape.peakVolume;
+    p.complex = 1u;
+    p.transitionDiameter = static_cast<float>(shape.transitionDiameter);
+    p.floorCoefficient = static_cast<float>(shape.floorDiameter.coefficient);
+    p.floorExponent = static_cast<float>(shape.floorDiameter.exponent);
+    p.peakHeightCoefficient = static_cast<float>(shape.peakHeight.coefficient);
+    p.peakHeightExponent = static_cast<float>(shape.peakHeight.exponent);
+    p.peakWidthCoefficient = static_cast<float>(width.coefficient);
+    p.peakWidthExponent = static_cast<float>(width.exponent);
+    p.peakFromVolume = shape.peakDiameter ? 0u : 1u;
+    p.peakFitMaxDiameter = static_cast<float>(shape.peakFitMaxDiameter);
+    p.ejectaExponent = static_cast<float>(shape.ejectaExponent);
+    p.complexReachRadii = static_cast<float>(shape.reachRadii);
+}
+
 ComplexCraterProfile::ComplexCraterProfile(std::shared_ptr<const CraterProfile> simple,
                                            ComplexCraterShape shape)
     : simple_(std::move(simple)), shape_(shape) {
@@ -42,6 +56,7 @@ ComplexCraterProfile::ComplexCraterProfile(std::shared_ptr<const CraterProfile> 
         throw std::invalid_argument("A complex crater profile needs a simple one");
     }
     ValidateComplexCraterShape(shape_);
+    SetKernelComplexShape(kernel_, shape_);
 }
 
 double ComplexCraterProfile::ReachRadii() const {
@@ -53,38 +68,9 @@ double ComplexCraterProfile::Height(double distance, double diameter,
     if (!IsComplex(diameter)) {
         return simple_->Height(distance, diameter, state);
     }
-    const double radius = 0.5 * diameter;
-    const double x = distance / radius;
-    const double depth = state.current.depthRatio * diameter;
-    const double rim = state.current.rimHeightRatio * diameter;
-    if (x >= 1.0) {
-        const double edge = std::pow(shape_.reachRadii, -shape_.ejectaExponent);
-        if (x >= shape_.reachRadii) {
-            return 0.0;
-        }
-        return rim * (std::pow(x, -shape_.ejectaExponent) - edge) / (1.0 - edge);
-    }
-    const double floor = std::min(0.9, shape_.floorDiameter.At(diameter) / diameter);
-    double height = rim - depth;
-    if (x > floor) {
-        const double t = (x - floor) / (1.0 - floor);
-        height += depth * t * t;
-    }
-    const double fitted =
-        shape_.peakFitMaxDiameter > 0.0 ? std::fmin(diameter, shape_.peakFitMaxDiameter) : diameter;
-    const double peakHeight = shape_.peakHeight.At(fitted);
-    const double base =
-        (shape_.peakDiameter
-             ? 0.5 * shape_.peakDiameter->At(fitted)
-             : std::sqrt(3.0 * shape_.peakVolume.At(fitted, true) / (kPi * peakHeight))) *
-        (diameter / fitted);
-    if (distance < base) {
-        const double fresh = state.fresh.depthRatio;
-        const double kept = fresh > 0.0 ? state.current.depthRatio / fresh : 1.0;
-        const double u = 1.0 - (distance / base) * (distance / base);
-        height += kept * peakHeight * u * u;
-    }
-    return height;
+    return static_cast<double>(ComplexProfileHeight(kernel_, static_cast<float>(distance),
+                                                    static_cast<float>(diameter),
+                                                    KernelStateRecord(diameter, state)));
 }
 
 }  // namespace terraingen

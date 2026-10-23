@@ -2,7 +2,8 @@
 
 #include "terraingen/gpu/kernel.h"
 #include "terraingen/layers/craters/band_buckets.h"
-#include "terraingen/layers/craters/shaping/explicit_state.h"
+#include "terraingen/layers/craters/shaping/resolved_state.h"
+#include "terraingen/raster/resample.h"
 #include "terraingen/util/log.h"
 #include "terraingen/util/parallel.h"
 
@@ -18,46 +19,6 @@
 namespace terraingen {
 
 namespace {
-
-/// Height of the raster at world point (x, y) by bilinear interpolation of the cell centers, or
-/// nothing if a contributing cell is outside the raster or holds no data.
-std::optional<double> Sample(const Raster<float>& raster, double x, double y) {
-    const Vec2d pixel = raster.Transform().WorldToPixel(x, y);
-    const double u = pixel.x - 0.5;
-    const double v = pixel.y - 0.5;
-    const double col0 = std::floor(u);
-    const double row0 = std::floor(v);
-    const double maxCol = static_cast<double>(raster.Width()) - 1.0;
-    const double maxRow = static_cast<double>(raster.Height()) - 1.0;
-    if (col0 < 0.0 || row0 < 0.0 || col0 > maxCol || row0 > maxRow) {
-        return std::nullopt;
-    }
-    const auto c0 = static_cast<std::size_t>(col0);
-    const auto r0 = static_cast<std::size_t>(row0);
-    const std::size_t c1 = std::min(c0 + 1, raster.Width() - 1);
-    const std::size_t r1 = std::min(r0 + 1, raster.Height() - 1);
-    const double fu = u - col0;
-    const double fv = v - row0;
-    const std::array<float, 4> cells{raster(c0, r0), raster(c1, r0), raster(c0, r1),
-                                     raster(c1, r1)};
-    std::array<double, 4> values{};
-    for (std::size_t i = 0; i < cells.size(); ++i) {
-        if (raster.IsNoData(cells[i])) {
-            return std::nullopt;
-        }
-        values[i] = static_cast<double>(cells[i]);
-    }
-    return (1.0 - fv) * ((1.0 - fu) * values[0] + fu * values[1]) +
-           fv * ((1.0 - fu) * values[2] + fu * values[3]);
-}
-
-/// The raster's heights as a sampler, NaN where `Sample` gives none; `raster` must outlive it.
-HeightSampler RasterSampler(const Raster<float>& raster) {
-    return [&raster](double x, double y) {
-        return static_cast<float>(
-            Sample(raster, x, y).value_or(std::numeric_limits<double>::quiet_NaN()));
-    };
-}
 
 /// The size band of `crater`: its diameter stretched by its outline, as a power of two.
 int ReliefBand(const PreparedCrater& crater) {
@@ -692,7 +653,10 @@ void FitGridDatums(std::vector<PreparedCrater>& prepared, const std::vector<std:
                    const Raster<float>& raster, const CraterShapeModels& models,
                    const CraterShapeKernel& kernel, const CraterApplyOptions& options,
                    const CraterSampling& sampling) {
-    const HeightSampler ground = sampling.ground ? sampling.ground : RasterSampler(raster);
+    const HeightSampler ground =
+        sampling.ground ? sampling.ground : HeightSampler([&raster](double x, double y) {
+            return SampleRaster(raster, x, y, ResampleMethod::Bilinear);
+        });
     const HeightsSampler batch = sampling.ground ? sampling.groundBatch : HeightsSampler{};
     ShapeOnSlopes(prepared, ground, batch, models, options);
     FitDatums(prepared, fitted, ground, batch, *models.profile, kernel, options, sampling);

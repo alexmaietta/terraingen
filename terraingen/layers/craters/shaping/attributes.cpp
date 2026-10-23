@@ -1,7 +1,7 @@
 #include "terraingen/layers/craters/shaping/attributes.h"
 
 #include "terraingen/layers/craters/shaping/apply.h"
-#include "terraingen/layers/craters/shaping/explicit_state.h"
+#include "terraingen/layers/craters/shaping/resolved_state.h"
 
 #include <cmath>
 #include <limits>

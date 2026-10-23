@@ -15,7 +15,8 @@ struct KilometerPowerLaw {
     double coefficient = 0.0;  ///< y of a 1 km crater, in km (or km^3).
     double exponent = 0.0;     ///< Power of the diameter.
 
-    /// y in meters (m^3 with `volume`) for a crater of `diameter` meters.
+    /// y in meters (m^3 with `volume`) for a crater of `diameter` meters, in double precision for
+    /// the fresh morphometry laws; profiles read the laws through `KilometerLaw`.
     double At(double diameter, bool volume = false) const;
 
     /// Memberwise equality.
@@ -62,6 +63,9 @@ struct ComplexCraterShape {
 /// of at most 1 radius.
 void ValidateComplexCraterShape(const ComplexCraterShape& shape);
 
+/// Sets the complex form of `shape` on kernel profile `p`, as `ComplexProfileHeight` reads it.
+void SetKernelComplexShape(CraterProfileKernel& p, const ComplexCraterShape& shape);
+
 /// Simple craters below a transition diameter, complex ones from it: a flat floor, a concave
 /// wall, a central peak lowered as the crater wears, and a power-law exterior.
 class ComplexCraterProfile final : public CraterProfile {
@@ -70,6 +74,7 @@ class ComplexCraterProfile final : public CraterProfile {
     /// @throws std::invalid_argument for a null `simple` or an invalid `shape`.
     ComplexCraterProfile(std::shared_ptr<const CraterProfile> simple, ComplexCraterShape shape);
 
+    /// The simple profile below the transition, else `ComplexProfileHeight` in single precision.
     double Height(double distance, double diameter, const CraterState& state) const override;
 
     /// The larger of the simple profile's reach and `reachRadii`.
@@ -93,6 +98,7 @@ class ComplexCraterProfile final : public CraterProfile {
   private:
     std::shared_ptr<const CraterProfile> simple_;
     ComplexCraterShape shape_;
+    CraterProfileKernel kernel_;
 };
 
 }  // namespace terraingen

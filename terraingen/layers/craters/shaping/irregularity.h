@@ -116,7 +116,8 @@ struct CraterOutline {
     double marksFadeRadii = 0.1;   ///< Width of the fades, in radii.
 
     /// The factor the rim radius is stretched by toward (`dx`, `dy`) meters east and north of the
-    /// center; 1 for a round crater.
+    /// center; 1 for a round crater. In double precision, which the outline's area and mean tests
+    /// need; the crater kernel evaluates it as `KernelOutlineScale`.
     double Scale(double dx, double dy) const;
 
     /// The shift in radii the marks add at `radii` from the center toward (`dx`, `dy`); 0 outside

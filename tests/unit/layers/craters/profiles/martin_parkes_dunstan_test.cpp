@@ -27,9 +27,9 @@ TEST(MartinParkesDunstanProfile, FreshCraterHasABowlAndASharpRim) {
     const MartinParkesDunstanProfile profile;
     const double d = 100.0;
     const CraterState fresh = Fresh(0.2, 0.036);
-    EXPECT_NEAR(profile.Height(0.0, d, fresh), (0.036 - 0.2) * d, 1e-9);
-    EXPECT_NEAR(profile.Height(50.0, d, fresh), 0.036 * d, 1e-9);
-    EXPECT_NEAR(profile.Height(25.0, d, fresh), (0.2 * 0.25 - 0.2 + 0.036) * d, 1e-9);
+    EXPECT_NEAR(profile.Height(0.0, d, fresh), (0.036 - 0.2) * d, 1e-7 * d);
+    EXPECT_NEAR(profile.Height(50.0, d, fresh), 0.036 * d, 1e-7 * d);
+    EXPECT_NEAR(profile.Height(25.0, d, fresh), (0.2 * 0.25 - 0.2 + 0.036) * d, 1e-7 * d);
     EXPECT_NEAR(profile.Height(50.0 + 1e-9, d, fresh), 0.036 * d, 1e-6);
     EXPECT_NEAR(profile.Height(100.0 - 1e-9, d, fresh), 0.0, 1e-6);
     EXPECT_EQ(profile.Height(100.0, d, fresh), 0.0);
@@ -45,8 +45,8 @@ TEST(MartinParkesDunstanProfile, DegradedCraterHasARoundedContinuousRim) {
     const double beta = 1.5 * (0.036 * d - 0.6 * 0.036 * d) / k;
     ASSERT_LT(alpha, 0.0);
     ASSERT_GT(beta, 0.0);
-    EXPECT_NEAR(profile.Height(50.0, d, worn), 0.6 * 0.036 * d, 1e-9);
-    EXPECT_NEAR(profile.Height(0.0, d, worn), (0.6 * 0.036 - 0.12) * d, 1e-9);
+    EXPECT_NEAR(profile.Height(50.0, d, worn), 0.6 * 0.036 * d, 1e-7 * d);
+    EXPECT_NEAR(profile.Height(0.0, d, worn), (0.6 * 0.036 - 0.12) * d, 1e-7 * d);
     for (const double x : {alpha, 0.0, beta}) {
         const double r = (x + 1.0) * 50.0;
         EXPECT_NEAR(profile.Height(r - 1e-7, d, worn), profile.Height(r + 1e-7, d, worn), 1e-5)

@@ -24,23 +24,23 @@ enum class FassettThomsonRim {
 class FassettThomsonProfile final : public CraterProfile {
   public:
     /// @param rim How the interior and exterior fits are joined at the rim.
-    explicit FassettThomsonProfile(FassettThomsonRim rim = FassettThomsonRim::Original)
-        : rim_(rim) {}
+    explicit FassettThomsonProfile(FassettThomsonRim rim = FassettThomsonRim::Original);
 
-    /// Reads the fresh rim height and current depth of `state`.
+    /// Reads the fresh rim height and current depth of `state`; `FassettThomsonShape` in single
+    /// precision.
     double Height(double distance, double diameter, const CraterState& state) const override;
 
     double ReachRadii() const override {
         return 1.5;
     }
 
-    /// How the fits are joined at the rim.
-    FassettThomsonRim Rim() const {
-        return rim_;
+    /// The profile as the crater kernel evaluates it.
+    const CraterProfileKernel& Kernel() const {
+        return kernel_;
     }
 
   private:
-    FassettThomsonRim rim_;
+    CraterProfileKernel kernel_;
 };
 
 }  // namespace terraingen

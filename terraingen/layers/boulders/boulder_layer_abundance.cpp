@@ -2,7 +2,7 @@
 
 #include "terraingen/distribution/golombek_rapp.h"
 #include "terraingen/layers/boulders/boulder_clusters.h"
-#include "terraingen/layers/craters/shaping/explicit_state.h"
+#include "terraingen/layers/craters/shaping/resolved_state.h"
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/noise/hash.h"

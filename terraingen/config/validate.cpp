@@ -9,7 +9,7 @@
 #include "terraingen/config/fields/materials.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/layers/craters/generation/spacing.h"
-#include "terraingen/layers/craters/shaping/explicit_state.h"
+#include "terraingen/layers/craters/shaping/resolved_state.h"
 #include "terraingen/layers/transforms.h"
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"

@@ -76,8 +76,8 @@ TEST(MarsComplexCraterShape, GivesGarvinsCentralPeaks) {
     const double floor = (m.rimHeightRatio - m.depthRatio) * d;
     const double peak = 40.0 * std::pow(20.0, 0.51);
     const double base = 125.0 * std::pow(20.0, 1.05);
-    EXPECT_NEAR(profile.Height(0.0, d, state), floor + peak, 1e-6);
-    EXPECT_NEAR(profile.Height(base, d, state), floor, 1e-6) << "the peak's base";
+    EXPECT_NEAR(profile.Height(0.0, d, state), floor + peak, 1e-7 * d);
+    EXPECT_NEAR(profile.Height(base, d, state), floor, 1e-7 * d) << "the peak's base";
     EXPECT_TRUE(profile.IsComplex(7000.0));
     EXPECT_FALSE(profile.IsComplex(6999.0));
     auto shape = terraingen::MarsComplexCraterShape();

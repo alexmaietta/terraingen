@@ -43,13 +43,24 @@ const std::vector<double>& TableAges() {
     return ages;
 }
 
-/// The row below `tau` and the weight of the row above it, interpolating in log tau (linearly in
-/// tau before the first nonzero age).
+/// `TableAges` in single precision, where the crater kernel reads them.
+CraterData KernelAges() {
+    static const std::vector<float> ages = [] {
+        std::vector<float> values;
+        for (const double age : TableAges()) {
+            values.push_back(static_cast<float>(age));
+        }
+        return values;
+    }();
+    CraterData data;
+    data.values = ages.data();
+    return data;
+}
+
+/// The row below `tau` and the weight of the row above it, as `KernelAgeRowAt` finds them but in
+/// double precision, so `Morphometry` and `AgeAtDepthRatio` invert each other exactly.
 std::pair<std::size_t, double> AgeRow(double tau) {
     const std::vector<double>& ages = TableAges();
-    if (tau <= 0.0) {
-        return {0, 0.0};
-    }
     if (tau >= ages.back()) {
         return {ages.size() - 1, 0.0};
     }
@@ -180,6 +191,11 @@ DiffusedProfile::DiffusedProfile(std::shared_ptr<const CraterProfile> fresh, dou
     }
     tables_ = std::make_shared<LruCache<Key, Table, KeyHash>>(
         cacheTables, [](const Table&) { return std::size_t{1}; });
+    kernel_.diffused = 1u;
+    kernel_.tableExtent = static_cast<float>(0.5 * reachRadii_);
+    kernel_.tableCells = static_cast<std::uint32_t>(cells_);
+    kernel_.agesOffset = 0u;
+    kernel_.ageCount = static_cast<std::uint32_t>(TableAges().size());
 }
 
 const std::vector<double>& DiffusedProfile::Ages() const {
@@ -241,26 +257,15 @@ double DiffusedProfile::Height(double distance, double diameter, const CraterSta
     if (!(state.diffusion > 0.0)) {
         return fresh_->Height(distance, diameter, {state.fresh, state.fresh, 0.0});
     }
-    const double x = distance / diameter;
-    const double extent = 0.5 * reachRadii_;
-    if (x >= extent) {
+    const float x = static_cast<float>(distance) / static_cast<float>(diameter);
+    if (x >= kernel_.tableExtent) {
         return 0.0;
     }
     const auto table = CachedTable(state.fresh, diameter);
-    const double cell = x / extent * static_cast<double>(cells_);
-    const auto i = std::min(static_cast<std::size_t>(cell), cells_ - 1);
-    const double t = cell - static_cast<double>(i);
-    const auto [row, weight] = AgeRow(state.diffusion);
-    const std::size_t width = cells_ + 1;
-    const auto at = [&](std::size_t r) {
-        const float* values = table->heights.data() + r * width;
-        return (1.0 - t) * static_cast<double>(values[i]) + t * static_cast<double>(values[i + 1]);
-    };
-    double value = at(row);
-    if (weight > 0.0) {
-        value += weight * (at(row + 1) - value);
-    }
-    return diameter * value;
+    CraterData heights;
+    heights.values = table->heights.data();
+    return diameter * static_cast<double>(KernelDiffusedValue(kernel_, KernelAges(), heights, 0u, x,
+                                                              static_cast<float>(state.diffusion)));
 }
 
 CraterMorphometry DiffusedProfile::Morphometry(const CraterMorphometry& fresh, double diameter,

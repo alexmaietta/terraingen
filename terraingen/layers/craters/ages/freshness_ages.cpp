@@ -1,4 +1,4 @@
-#include "terraingen/layers/craters/ages/freshness.h"
+#include "terraingen/layers/craters/ages/freshness_ages.h"
 
 #include "terraingen/util/checks.h"
 

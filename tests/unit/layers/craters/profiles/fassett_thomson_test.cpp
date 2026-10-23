@@ -35,33 +35,33 @@ TEST(FassettThomsonProfile, EvaluatesTheFitsWithAFlatFloor) {
     const FassettThomsonProfile profile;
     const double d = 100.0;
     const CraterState deep = Fresh(kLunarFreshRimHeightRatio + 0.181);
-    EXPECT_NEAR(profile.Height(0.0, d, deep), -0.181 * d, 1e-12);
-    EXPECT_NEAR(profile.Height(0.6 * 50.0, d, deep), Interior(0.6) * d, 1e-12);
-    EXPECT_NEAR(profile.Height(1.2 * 50.0, d, deep), Exterior(1.2) * d, 1e-12);
+    EXPECT_NEAR(profile.Height(0.0, d, deep), -0.181 * d, 1e-7 * d);
+    EXPECT_NEAR(profile.Height(0.6 * 50.0, d, deep), Interior(0.6) * d, 1e-7 * d);
+    EXPECT_NEAR(profile.Height(1.2 * 50.0, d, deep), Exterior(1.2) * d, 1e-7 * d);
     EXPECT_EQ(profile.Height(1.51 * 50.0, d, deep), 0.0);
     EXPECT_EQ(profile.ReachRadii(), 1.5);
     const CraterState shallow = Fresh(0.13);
-    EXPECT_NEAR(profile.Height(0.0, d, shallow), (kLunarFreshRimHeightRatio - 0.13) * d, 1e-12);
-    EXPECT_NEAR(profile.Height(0.9 * 50.0, d, shallow), Interior(0.9) * d, 1e-12);
+    EXPECT_NEAR(profile.Height(0.0, d, shallow), (kLunarFreshRimHeightRatio - 0.13) * d, 1e-7 * d);
+    EXPECT_NEAR(profile.Height(0.9 * 50.0, d, shallow), Interior(0.9) * d, 1e-7 * d);
 }
 
 TEST(FassettThomsonProfile, RimVariantsJoinAsPublished) {
     const double d = 10.0;
     const CraterState state = Fresh(0.2);
     const auto step = [&](const FassettThomsonProfile& profile, double x) {
-        return profile.Height((x + 1e-9) * 0.5 * d, d, state) -
-               profile.Height((x - 1e-9) * 0.5 * d, d, state);
+        return profile.Height((x + 1e-6) * 0.5 * d, d, state) -
+               profile.Height((x - 1e-6) * 0.5 * d, d, state);
     };
     const FassettThomsonProfile original(FassettThomsonRim::Original);
     EXPECT_NEAR(step(original, 0.98), 0.0, 2e-5 * d);
     const FassettThomsonProfile atOne(FassettThomsonRim::AtOneRadius);
-    EXPECT_NEAR(atOne.Height(0.99 * 0.5 * d, d, state), Interior(0.99) * d, 1e-12);
-    EXPECT_NEAR(step(atOne, 1.0), (Exterior(1.0) - Interior(1.0)) * d, 1e-6);
+    EXPECT_NEAR(atOne.Height(0.99 * 0.5 * d, d, state), Interior(0.99) * d, 1e-7 * d);
+    EXPECT_NEAR(step(atOne, 1.0), (Exterior(1.0) - Interior(1.0)) * d, 1e-5);
     EXPECT_NEAR(step(atOne, 1.0) / d, -0.0076, 1e-4);
     const FassettThomsonProfile plateau(FassettThomsonRim::Plateau);
-    EXPECT_NEAR(plateau.Height(0.5 * d, d, state), kLunarFreshRimHeightRatio * d, 1e-12);
-    EXPECT_NEAR(plateau.Height(0.7 * 0.5 * d, d, state), Interior(0.7) * d, 1e-12);
-    EXPECT_NEAR(plateau.Height(0.0, d, state), (kLunarFreshRimHeightRatio - 0.2) * d, 1e-12);
+    EXPECT_NEAR(plateau.Height(0.5 * d, d, state), kLunarFreshRimHeightRatio * d, 1e-7 * d);
+    EXPECT_NEAR(plateau.Height(0.7 * 0.5 * d, d, state), Interior(0.7) * d, 1e-7 * d);
+    EXPECT_NEAR(plateau.Height(0.0, d, state), (kLunarFreshRimHeightRatio - 0.2) * d, 1e-7 * d);
     EXPECT_NEAR(step(plateau, 1.02) / d, -0.0042, 1e-4);
     double previous = original.Height(0.0, d, state);
     for (int i = 1; i <= 97; ++i) {

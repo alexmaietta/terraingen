@@ -466,6 +466,22 @@ inline KernelAgeRow KernelAgeRowAt(KERNEL_IN(CraterProfileKernel) p, CraterData 
     return age;
 }
 
+/// A diffused profile's height over the diameter at `x` diameters from the center, below
+/// `p.tableExtent`, at diffusion age `tau`: the ages read from `ages` and the crater's rows, one
+/// per age, from `table` at `rows`, interpolated linearly in distance and log age.
+inline float KernelDiffusedValue(KERNEL_IN(CraterProfileKernel) p, CraterData ages,
+                                 CraterData table, uint32_t rows, float x, float tau) {
+    const KernelTableCell cell = KernelTableAt(p, x);
+    const KernelAgeRow age = KernelAgeRowAt(p, ages, tau);
+    const uint32_t width = p.tableCells + 1u;
+    const uint32_t at = rows + age.row * width + cell.index;
+    float value = KernelLerp(table, at, cell.t);
+    if (age.weight > 0.0f) {
+        value += age.weight * (KernelLerp(table, at + width, cell.t) - value);
+    }
+    return value;
+}
+
 /// `DiffusedProfile::Height` (m), reading the crater's table from `data`.
 inline float DiffusedProfileHeight(KERNEL_IN(CraterProfileKernel) p, CraterData data,
                                    float distance, float diameter, KERNEL_IN(CraterRecord) c) {
@@ -479,15 +495,7 @@ inline float DiffusedProfileHeight(KERNEL_IN(CraterProfileKernel) p, CraterData 
     if (x >= p.tableExtent) {
         return 0.0f;
     }
-    const KernelTableCell cell = KernelTableAt(p, x);
-    const KernelAgeRow age = KernelAgeRowAt(p, data, c.diffusion);
-    const uint32_t width = p.tableCells + 1u;
-    const uint32_t at = c.profileOffset + age.row * width + cell.index;
-    float value = KernelLerp(data, at, cell.t);
-    if (age.weight > 0.0f) {
-        value += age.weight * (KernelLerp(data, at + width, cell.t) - value);
-    }
-    return diameter * value;
+    return diameter * KernelDiffusedValue(p, data, data, c.profileOffset, x, c.diffusion);
 }
 
 /// The height (m) of a profile tabulated for crater `c` (`CraterProfileKind::Tabulated`),
@@ -626,17 +634,37 @@ inline float KernelTextureHeight(KERNEL_IN(CraterShapeKernel) k, KERNEL_IN(Crate
     return fade * height;
 }
 
+/// How far an area-preserving ellipse of long over short axis `ellipticity`, its long axis at
+/// `heading` radians, reaches at angle `theta`, over the round radius.
+inline float KernelEllipseScale(float theta, float ellipticity, float heading) {
+    const float along = sqrt(ellipticity);
+    const float across = 1.0f / along;
+    const float u = cos(theta - heading) / along;
+    const float v = sin(theta - heading) / across;
+    return 1.0f / sqrt(u * u + v * v);
+}
+
+/// The periodic Catmull-Rom spline through knots `p0` to `p3` at `t` of the way from `p1` to `p2`.
+inline float KernelCatmullRom(float p0, float p1, float p2, float p3, float t) {
+    return 0.5f * (2.0f * p1 + (p2 - p0) * t + (2.0f * p0 - 5.0f * p1 + 4.0f * p2 - p3) * t * t +
+                   (3.0f * (p1 - p2) + p3 - p0) * t * t * t);
+}
+
+/// The strength of wall marks at `radii`: full from `inner` to `outer` radii, fading along
+/// smoothsteps `fade` radii wide either side, 0 beyond.
+inline float KernelMarksWindow(float radii, float inner, float outer, float fade) {
+    if (!(radii > inner - fade) || !(radii < outer + fade)) {
+        return 0.0f;
+    }
+    return KernelSmoothstep((radii - inner + fade) / fade) *
+           KernelSmoothstep((outer + fade - radii) / fade);
+}
+
 /// How far the outline reaches toward (`dx`, `dy`), over the round radius (`CraterOutline::Scale`).
 inline float KernelOutlineScale(CraterData data, KERNEL_IN(CraterRecord) c, float dx, float dy) {
     const float theta = KernelAngle(dy, dx);
-    float scale = 1.0f;
-    if (c.ellipticity != 1.0f) {
-        const float along = sqrt(c.ellipticity);
-        const float across = 1.0f / along;
-        const float u = cos(theta - c.heading) / along;
-        const float v = sin(theta - c.heading) / across;
-        scale = 1.0f / sqrt(u * u + v * v);
-    }
+    const float scale =
+        c.ellipticity != 1.0f ? KernelEllipseScale(theta, c.ellipticity, c.heading) : 1.0f;
     float wobble = 1.0f;
     if (c.tableCount > 0u) {
         const KernelPeriodicCell cell = KernelPeriodicAt(theta / kKernelTwoPi, c.tableCount);
@@ -655,27 +683,20 @@ inline float KernelOutlineScale(CraterData data, KERNEL_IN(CraterRecord) c, floa
 /// (`CraterOutline::MarkShift`).
 inline float KernelMarkShift(CraterData data, KERNEL_IN(CraterRecord) c, float dx, float dy,
                              float radii) {
-    const float inner = CraterValue(data, c.markOffset);
-    const float outer = CraterValue(data, c.markOffset + 1u);
-    const float fade = CraterValue(data, c.markOffset + 2u);
-    if (!(radii > inner - fade) || !(radii < outer + fade)) {
+    const float window = KernelMarksWindow(radii, CraterValue(data, c.markOffset),
+                                           CraterValue(data, c.markOffset + 1u),
+                                           CraterValue(data, c.markOffset + 2u));
+    if (window == 0.0f) {
         return 0.0f;
     }
-    const float window = KernelSmoothstep((radii - inner + fade) / fade) *
-                         KernelSmoothstep((outer + fade - radii) / fade);
     const uint32_t size = c.markCount;
     const KernelPeriodicCell cell = KernelPeriodicAt(KernelAngle(dy, dx) / kKernelTwoPi, size);
     const uint32_t index = cell.index;
-    const float t = cell.t;
     const uint32_t knots = c.markOffset + 3u;
-    const float p0 = CraterValue(data, knots + (index + size - 1u) % size);
-    const float p1 = CraterValue(data, knots + index);
-    const float p2 = CraterValue(data, knots + (index + 1u) % size);
-    const float p3 = CraterValue(data, knots + (index + 2u) % size);
-    const float shift =
-        0.5f * (2.0f * p1 + (p2 - p0) * t + (2.0f * p0 - 5.0f * p1 + 4.0f * p2 - p3) * t * t +
-                (3.0f * (p1 - p2) + p3 - p0) * t * t * t);
-    return window * shift;
+    return window * KernelCatmullRom(CraterValue(data, knots + (index + size - 1u) % size),
+                                     CraterValue(data, knots + index),
+                                     CraterValue(data, knots + (index + 1u) % size),
+                                     CraterValue(data, knots + (index + 2u) % size), cell.t);
 }
 
 /// The distance (m) crater `c`'s round profile is read at, `dx` east and `dy` north of its center
