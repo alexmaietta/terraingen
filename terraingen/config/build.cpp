@@ -584,16 +584,25 @@ std::vector<SecondaryCraterOptions> ThrownSecondaries(const std::vector<LayerSpe
     return thrown;
 }
 
+/// The generator of a checked configuration, built on `external` in place of its own source when
+/// one is given: the layers then read `external` as their measured data.
 TerrainGenerator BuildValidGenerator(const TerrainGenConfig& config,
-                                     const std::filesystem::path& directory) {
+                                     const std::filesystem::path& directory,
+                                     const std::shared_ptr<const Source>& external = nullptr) {
     TerrainGenerator generator;
     generator.surface = BuildSurface(config.body, directory);
-    generator.source = config.source
-                           ? BuildSource(*config.source, directory, generator.surface, "source")
-                           : std::make_shared<SyntheticSource>();
-    const std::shared_ptr<const Source> given = config.source ? generator.source : nullptr;
+    if (external) {
+        generator.source = external;
+    } else {
+        generator.source = config.source
+                               ? BuildSource(*config.source, directory, generator.surface, "source")
+                               : std::make_shared<SyntheticSource>();
+    }
+    const std::shared_ptr<const Source> given =
+        external ? external : (config.source ? generator.source : nullptr);
     const std::shared_ptr<const Source> measured =
-        config.source ? MeasuredSource(*config.source, generator.source) : nullptr;
+        external ? external
+                 : (config.source ? MeasuredSource(*config.source, generator.source) : nullptr);
     std::vector<std::shared_ptr<const CraterLayer>> craters;
     std::shared_ptr<const BoulderLayer> boulders;
     for (std::size_t i = 0; i < config.layers.size(); ++i) {
@@ -983,6 +992,19 @@ TerrainGenerator BuildGenerator(const TerrainGenConfig& config,
                                 const std::filesystem::path& directory) {
     ValidateConfig(config, directory);
     return BuildValidGenerator(config, directory);
+}
+
+TerrainGenerator BuildGenerator(const TerrainGenConfig& config,
+                                std::shared_ptr<const Source> source,
+                                const std::filesystem::path& directory) {
+    if (!source) {
+        throw std::invalid_argument("BuildGenerator needs a source");
+    }
+    if (config.source) {
+        throw ConfigError("source", "must be left out when the caller gives the source");
+    }
+    ValidateConfig(config, directory);
+    return BuildValidGenerator(config, directory, source);
 }
 
 Albedo BuildAlbedo(const TerrainGenConfig& config, const TerrainGenerator& generator,

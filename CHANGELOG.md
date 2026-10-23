@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `RasterGrid::Centered(center, size, pixelSize)` and `RasterGrid::Covering(box, pixelSize)`: the north-up grid covering a box, snapped outward to whole cells as configuration outputs snap their extents (`SnappedCells`, `kGridSnapTolerance`).
 - `ManualCrater(x, y, diameter, depth, rimHeight)` (`manual_crater`) and a `CraterList` built from a list of craters, `CraterList{a, b, c}`.
 - `BoulderList` (Python `BoulderList`): boulders stored one column per field, as `CraterList` stores craters, built from `Boulder` records (`Append`, `BoulderList{a, b, c}`) and read back with `At`.
+- `BuildGenerator(config, source)` (`build_generator(config, source=...)`): a configuration's layers built on a source the caller gives, such as an embedder's DEM, which they read as measured data (`source_resolves_px`, crater datums); the configuration gives no source of its own.
 - Point queries keep fitted crater datums between calls, so craters with a datum are fitted once and later queries near them run as fast as craters without one (`BM_HeightAtDatum` about 1k to 340k point queries per second). `HeightsAt` and `HeightAt` share a cache kept per generator, matched by its surface, source and layers and dropped once one of them is freed; pass an `EvaluationCache` (`cache=` in Python) to manage one yourself.
 
 ### Changed

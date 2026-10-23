@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <filesystem>
+#include <memory>
 #include <optional>
 #include <string>
 #include <type_traits>
@@ -41,6 +42,15 @@ CraterModels BuildCraterModels(const CraterLayerSpec& craters, const std::string
 /// @param directory Folder relative input paths resolve against.
 /// @throws ConfigError if the configuration is invalid.
 TerrainGenerator BuildGenerator(const TerrainGenConfig& config,
+                                const std::filesystem::path& directory = {});
+
+/// The terrain generator a configuration describes, on `source` in place of a source of its own,
+/// such as an embedder's DEM. The layers read `source` as measured data, as they read a raster
+/// source: `source_resolves_px` and crater datums use it.
+/// @throws ConfigError if the configuration is invalid or gives a source.
+/// @throws std::invalid_argument for a null `source`.
+TerrainGenerator BuildGenerator(const TerrainGenConfig& config,
+                                std::shared_ptr<const Source> source,
                                 const std::filesystem::path& directory = {});
 
 /// The albedo `config.albedo` describes for `generator`, whose top-level crater layers crater

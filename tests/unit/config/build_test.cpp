@@ -13,12 +13,15 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -1017,4 +1020,66 @@ TEST(BuildGenerator, ReportsASourceResolvedLimitThatIsNotPositiveAndFinite) {
         Craters(config).sourceResolvesPixels = pixels;
         EXPECT_EQ(BuildErrorPath(config, {}), "layers[1].source_resolves_px") << pixels;
     }
+}
+
+namespace {
+
+/// A 200 x 200 raster source of 20 m cells at a constant 100 m, centered on the origin.
+std::shared_ptr<const terraingen::Source> FlatDem() {
+    terraingen::Raster<float> heights(200, 200, 100.0f);
+    heights.SetTransform(terraingen::GeoTransform::NorthUp(-2000.0, 2000.0, 20.0));
+    return std::make_shared<terraingen::RasterSource>(std::move(heights));
+}
+
+}  // namespace
+
+TEST(BuildGenerator, BuildsOnAGivenSourceAsMeasuredData) {
+    const TerrainGenConfig config = terraingen::ParseConfig(R"({
+        "schema_version": 1,
+        "layers": [
+            {"type": "craters", "generate_random": false,
+             "manual": [{"x": 0, "y": 0, "diameter": 50, "depth": 10}]}
+        ]
+    })");
+    const auto dem = FlatDem();
+    const terraingen::TerrainGenerator onDem = terraingen::BuildGenerator(config, dem);
+    const terraingen::TerrainGenerator alone = terraingen::BuildGenerator(config);
+
+    EXPECT_EQ(onDem.source, dem);
+    EXPECT_NEAR(terraingen::HeightAt(onDem, 300.0, 300.0, 1.0), 100.0, 1e-4);
+    EXPECT_NEAR(terraingen::HeightAt(onDem, 0.0, 0.0, 1.0),
+                100.0 + terraingen::HeightAt(alone, 0.0, 0.0, 1.0), 1e-3)
+        << "the crater is cut into the given source";
+}
+
+TEST(BuildGenerator, LeavesOutCratersTheGivenSourceResolves) {
+    const TerrainGenConfig config = terraingen::ParseConfig(R"({
+        "schema_version": 1,
+        "layers": [{"type": "craters", "seed": 2, "min_diameter_m": 20, "max_diameter_m": 1000}]
+    })");
+    const terraingen::RasterGrid grid =
+        terraingen::RasterGrid::Centered({0.0, 0.0}, {4000.0, 4000.0}, 20.0);
+    const auto largest = [&](const terraingen::TerrainGenerator& generator) {
+        const terraingen::CraterList craters = terraingen::PlacedCraters(generator, grid).craters;
+        double most = 0.0;
+        for (std::size_t i = 0; i < craters.Size(); ++i) {
+            if (std::abs(craters.X()[i]) < 1500.0 && std::abs(craters.Y()[i]) < 1500.0) {
+                most = std::max(most, craters.Diameters()[i]);
+            }
+        }
+        return most;
+    };
+    EXPECT_GT(largest(terraingen::BuildGenerator(config)), 80.0);
+    EXPECT_LT(largest(terraingen::BuildGenerator(config, FlatDem())), 80.0)
+        << "craters 4 cells (80 m) across and up are in the 20 m source where it has data";
+}
+
+TEST(BuildGenerator, AGivenSourceReplacesNoneOfTheConfigurations) {
+    const TerrainGenConfig withSource = terraingen::ParseConfig(R"({
+        "schema_version": 1,
+        "source": {"type": "synthetic"},
+        "layers": []
+    })");
+    EXPECT_THROW(terraingen::BuildGenerator(withSource, FlatDem()), ConfigError);
+    EXPECT_THROW(terraingen::BuildGenerator(Small(), nullptr), std::invalid_argument);
 }

@@ -304,3 +304,23 @@ def test_a_sphere_needs_a_positive_radius(radius):
     with pytest.raises(terraingen.ConfigError) as sphere:
         config.validate()
     assert sphere.value.path == "body.radius"
+
+
+def test_build_generator_builds_on_a_given_source():
+    heights = terraingen.Raster.from_array(
+        np.full((200, 200), 100.0, dtype=np.float32), terraingen.GeoTransform.north_up(-2000.0, 2000.0, 20.0)
+    )
+    dem = terraingen.RasterSource(heights)
+    crater = {"x": 0, "y": 0, "diameter": 50, "depth": 10}
+    config = terraingen.TerrainGenConfig.from_dict(
+        {"schema_version": 1, "layers": [{"type": "craters", "generate_random": False, "manual": [crater]}]}
+    )
+    terrain = terraingen.build_generator(config, source=dem)
+    alone = terraingen.build_generator(config)
+    assert terraingen.height_at(terrain, 300.0, 300.0, 1.0) == pytest.approx(100.0, abs=1e-4)
+    assert terraingen.height_at(terrain, 0.0, 0.0, 1.0) == pytest.approx(
+        100.0 + terraingen.height_at(alone, 0.0, 0.0, 1.0), abs=1e-3
+    )
+    with pytest.raises(terraingen.ConfigError):
+        own = terraingen.TerrainGenConfig.from_dict({"schema_version": 1, "source": {"type": "synthetic"}})
+        terraingen.build_generator(own, source=dem)

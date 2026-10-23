@@ -539,12 +539,17 @@ void BindRun(nb::module_& m) {
         "paths resolve against `directory`. Raises ConfigError for an invalid configuration.");
     m.def(
         "build_generator",
-        [](const TerrainGenConfig& config, const OptionalPath& directory) {
-            return FromGenerator(BuildGenerator(config, Directory(directory)));
+        [](const TerrainGenConfig& config, const OptionalPath& directory,
+           std::shared_ptr<const Source> source) {
+            return FromGenerator(
+                source ? BuildGenerator(config, std::move(source), Directory(directory))
+                       : BuildGenerator(config, Directory(directory)));
         },
-        "config"_a, "directory"_a = nb::none(),
+        "config"_a, "directory"_a = nb::none(), "source"_a = nb::none(),
         "The TerrainGenerator a configuration describes, as library objects to evaluate, tile, "
-        "query at points or change; relative input paths resolve against `directory`.");
+        "query at points or change; relative input paths resolve against `directory`. With a "
+        "`source`, the generator is built on it in place of a source of the configuration's "
+        "own, which it must not give.");
     m.def(
         "build_albedo",
         [](const TerrainGenConfig& config, const PyTerrainGenerator& generator,
