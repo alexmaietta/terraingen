@@ -8,17 +8,9 @@
 
 #include <array>
 #include <cstddef>
-#include <functional>
 #include <optional>
 
 namespace terraingen {
-
-/// Heights of the ground at world positions, NaN where there is none; thread-safe.
-using HeightSampler = std::function<float(double x, double y)>;
-
-/// Heights of the ground at many world positions at once, into a span of the same size;
-/// thread-safe.
-using HeightsSampler = std::function<void(Span<const Vec2d> points, Span<float> heights)>;
 
 /// The terrain beneath a layer (its source and the layers before it), readable anywhere.
 ///
@@ -39,18 +31,6 @@ class Ground {
         for (std::size_t i = 0; i < points.size(); ++i) {
             heights[i] = HeightAt(points[i].x, points[i].y, spacing);
         }
-    }
-
-    /// A sampler reading `HeightAt` at a fixed spacing; `*this` must outlive it.
-    HeightSampler Sampler(double spacing) const {
-        return [this, spacing](double x, double y) { return HeightAt(x, y, spacing); };
-    }
-
-    /// A sampler reading `HeightsAt` at a fixed spacing; `*this` must outlive it.
-    HeightsSampler BatchSampler(double spacing) const {
-        return [this, spacing](Span<const Vec2d> points, Span<float> heights) {
-            HeightsAt(points, heights, spacing);
-        };
     }
 };
 

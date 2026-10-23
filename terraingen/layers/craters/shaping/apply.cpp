@@ -262,8 +262,13 @@ void ShapePoints(SampleBlock& samples, const std::vector<ReachingCrater>& reachi
 CraterSampling SamplingFrom(const LayerContext& context, double spacing, const void* owner) {
     CraterSampling sampling{spacing, context.threads};
     if (context.ground != nullptr) {
-        sampling.ground = context.ground->Sampler(spacing);
-        sampling.groundBatch = context.ground->BatchSampler(spacing);
+        const Ground* ground = context.ground;
+        sampling.ground = [ground, spacing](double x, double y) {
+            return ground->HeightAt(x, y, spacing);
+        };
+        sampling.groundBatch = [ground, spacing](Span<const Vec2d> points, Span<float> heights) {
+            ground->HeightsAt(points, heights, spacing);
+        };
     }
     sampling.cache = context.cache;
     sampling.owner = owner;

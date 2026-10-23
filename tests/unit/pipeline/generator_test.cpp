@@ -366,7 +366,6 @@ TEST(TerrainGround, IsTheSourceAndTheLayersBeneath) {
     EXPECT_EQ(source.HeightAt(3.0, 4.0, 2.0), 5.0f);
     EXPECT_EQ(noise.HeightAt(3.0, 4.0, 2.0), terrain.layers[0]->ApplyAt(5.0f, 3.0, 4.0, {2.0}));
     EXPECT_EQ(all.HeightAt(3.0, 4.0, 2.0), terraingen::HeightAt(terrain, 3.0, 4.0, 2.0));
-    EXPECT_EQ(noise.Sampler(2.0)(3.0, 4.0), noise.HeightAt(3.0, 4.0, 2.0));
     const std::vector<terraingen::Vec2d> points{{3.0, 4.0}, {-7.5, 2.25}, {11.0, -6.0}};
     std::vector<float> heights(points.size());
     all.HeightsAt(points, heights, 2.0);

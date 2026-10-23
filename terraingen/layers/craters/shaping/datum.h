@@ -9,9 +9,17 @@
 #include "terraingen/util/plane_fit.h"
 
 #include <cstddef>
+#include <functional>
 #include <optional>
 
 namespace terraingen {
+
+/// Heights of the ground at world positions, NaN where there is none; thread-safe.
+using HeightSampler = std::function<float(double x, double y)>;
+
+/// Heights of the ground at many world positions at once, into a span of the same size;
+/// thread-safe.
+using HeightsSampler = std::function<void(Span<const Vec2d> points, Span<float> heights)>;
 
 /// Points per side of the lattice crater datums are fitted over.
 constexpr int kDatumLatticeSide = 7;
