@@ -6,27 +6,17 @@
 
 namespace terraingen {
 
-namespace {
-
-/// The intersection of the checked inputs' valid ranges, whether or not they allow extrapolation.
-DiameterRange IntersectValidRanges(
-    const std::vector<std::shared_ptr<const SizeFrequencyDistribution>>& distributions) {
-    std::vector<DiameterRange> ranges;
-    for (const auto& distribution : distributions) {
-        ranges.push_back(distribution->ValidRange());
-    }
-    return detail::IntersectRanges(ranges, "The distributions' valid ranges do not overlap");
-}
-
-}  // namespace
-
 MinimumSfd::MinimumSfd(std::vector<std::shared_ptr<const SizeFrequencyDistribution>> distributions)
     : MinimumSfd(detail::CommonKind(detail::Distributions(distributions), "A minimum"),
                  std::move(distributions)) {}
 
 MinimumSfd::MinimumSfd(
     SfdKind kind, std::vector<std::shared_ptr<const SizeFrequencyDistribution>>&& distributions)
-    : SizeFrequencyDistribution(kind, IntersectValidRanges(distributions)),
+    : SizeFrequencyDistribution(
+          kind, detail::IntersectRanges(
+                    distributions,
+                    [](const SizeFrequencyDistribution& each) { return each.ValidRange(); },
+                    "The distributions' valid ranges do not overlap")),
       distributions_(std::move(distributions)) {}
 
 std::pair<const SizeFrequencyDistribution*, double> MinimumSfd::LowestAt(double diameter) const {

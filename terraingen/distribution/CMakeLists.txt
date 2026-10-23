@@ -3,7 +3,6 @@ terraingen_add_library(
     SOURCES
     composition.cpp
     equilibrium.cpp
-    exponential_chronology.cpp
     golombek_rapp.cpp
     ivanov.cpp
     log_polynomial.cpp

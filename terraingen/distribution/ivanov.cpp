@@ -1,6 +1,6 @@
 #include "terraingen/distribution/ivanov.h"
 
-#include "terraingen/distribution/exponential_chronology.h"
+#include "terraingen/distribution/production_surface.h"
 
 namespace terraingen {
 

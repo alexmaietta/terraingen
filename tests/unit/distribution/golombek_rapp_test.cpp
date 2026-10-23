@@ -28,12 +28,11 @@ template <typename F> double IntegrateLog(F f, double a, double b, int steps = 4
 
 TEST(GolombekRappSfd, FollowsGolombekAndRapp) {
     const GolombekRappSfd boulders(0.02);
-    EXPECT_DOUBLE_EQ(boulders.Q(), 1.79 + 0.152 / 0.02);
+    const double q = 1.79 + 0.152 / 0.02;
     EXPECT_DOUBLE_EQ(boulders.FractionalArea(0.0), 0.02);
-    EXPECT_DOUBLE_EQ(boulders.FractionalArea(0.5), 0.02 * std::exp(-boulders.Q() * 0.5));
-    EXPECT_DOUBLE_EQ(boulders.Incremental(0.3), 0.02 * boulders.Q() *
-                                                    std::exp(-boulders.Q() * 0.3) /
-                                                    (terraingen::kPi * 0.09 / 4.0));
+    EXPECT_DOUBLE_EQ(boulders.FractionalArea(0.5), 0.02 * std::exp(-q * 0.5));
+    EXPECT_DOUBLE_EQ(boulders.Incremental(0.3),
+                     0.02 * q * std::exp(-q * 0.3) / (terraingen::kPi * 0.09 / 4.0));
     for (const double d : {0.05, 0.2, 1.0, 3.0}) {
         const double integral =
             IntegrateLog([&](double x) { return boulders.Incremental(x); }, d, 60.0);

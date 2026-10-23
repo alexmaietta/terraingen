@@ -1,7 +1,7 @@
 #include "terraingen/distribution/neukum.h"
 
-#include "terraingen/distribution/exponential_chronology.h"
 #include "terraingen/distribution/power_law.h"
+#include "terraingen/distribution/production_surface.h"
 
 #include <cmath>
 #include <memory>

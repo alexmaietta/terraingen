@@ -7,19 +7,23 @@
 
 #include <cmath>
 #include <cstddef>
+#include <memory>
 #include <string>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
 namespace terraingen::detail {
 
-/// Whether `Part` has a `distribution` member.
-template <typename Part, typename = void> struct HasDistribution : std::false_type {};
+/// The distribution a shared pointer holds.
+inline const SizeFrequencyDistribution*
+Distribution(const std::shared_ptr<const SizeFrequencyDistribution>& part) {
+    return part.get();
+}
 
-template <typename Part>
-struct HasDistribution<Part, std::void_t<decltype(std::declval<const Part&>().distribution)>>
-    : std::true_type {};
+/// The distribution a part holds as its `distribution` member.
+template <typename Part> const SizeFrequencyDistribution* Distribution(const Part& part) {
+    return part.distribution.get();
+}
 
 /// The distributions of `parts`: shared pointers, or structs holding one as `distribution`.
 template <typename Part>
@@ -27,11 +31,7 @@ std::vector<const SizeFrequencyDistribution*> Distributions(const std::vector<Pa
     std::vector<const SizeFrequencyDistribution*> distributions;
     distributions.reserve(parts.size());
     for (const Part& part : parts) {
-        if constexpr (HasDistribution<Part>::value) {
-            distributions.push_back(part.distribution.get());
-        } else {
-            distributions.push_back(part.get());
-        }
+        distributions.push_back(Distribution(part));
     }
     return distributions;
 }
@@ -50,11 +50,24 @@ DiameterRange UsableRange(const SizeFrequencyDistribution& distribution);
 /// @throws std::invalid_argument with `message` if no diameter is in all of them.
 DiameterRange IntersectRanges(Span<const DiameterRange> ranges, const std::string& message);
 
+/// The diameters in meters where `range(distribution)` holds for every distribution of `parts`.
+/// @throws std::invalid_argument with `message` if no diameter is in all of them.
+template <typename Part, typename Range>
+DiameterRange IntersectRanges(const std::vector<Part>& parts, const Range& range,
+                              const std::string& message) {
+    std::vector<DiameterRange> ranges;
+    ranges.reserve(parts.size());
+    for (const Part& part : parts) {
+        ranges.push_back(range(*Distribution(part)));
+    }
+    return IntersectRanges(ranges, message);
+}
+
 /// Checks the starts of pieces in meters: the first at `range.min`, the rest finite and strictly
 /// increasing below `range.max`.
-/// @param noun What a piece is called in messages, such as "segment".
+/// @param what What the pieces are called in messages, such as "Segment".
 /// @throws std::invalid_argument for no starts or starts that break those rules.
-void CheckStarts(Span<const double> starts, const DiameterRange& range, const std::string& noun);
+void CheckStarts(Span<const double> starts, const DiameterRange& range, const std::string& what);
 
 /// The `start` of each of `pieces`.
 template <typename Piece> std::vector<double> Starts(const std::vector<Piece>& pieces) {

@@ -279,8 +279,6 @@ void BindGolombekRapp(nb::module_& m) {
             },
             "coverage"_a, "qa"_a = 1.79, "qb"_a = 0.152, "min_diameter"_a = 0.0,
             "max_diameter"_a = kInfinity)
-        .def_prop_ro("coverage", &GolombekRappSfd::Coverage)
-        .def_prop_ro("q", &GolombekRappSfd::Q)
         .def("fractional_area", &GolombekRappSfd::FractionalArea, "diameter"_a);
 }
 

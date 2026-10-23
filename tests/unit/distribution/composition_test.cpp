@@ -81,19 +81,19 @@ TEST(IntersectRanges, KeepsTheOverlapOrThrows) {
 TEST(CheckStarts, NeedsTheRangeMinimumThenIncreasingStartsInsideTheRange) {
     const DiameterRange range{1.0, 100.0};
     const std::vector<double> good = {1.0, 10.0, 50.0};
-    EXPECT_NO_THROW(terraingen::detail::CheckStarts(good, range, "piece"));
+    EXPECT_NO_THROW(terraingen::detail::CheckStarts(good, range, "Piece"));
     const std::vector<double> late = {2.0, 10.0};
-    EXPECT_THROW(terraingen::detail::CheckStarts(late, range, "piece"), std::invalid_argument);
+    EXPECT_THROW(terraingen::detail::CheckStarts(late, range, "Piece"), std::invalid_argument);
     const std::vector<double> back = {1.0, 10.0, 10.0};
     try {
-        terraingen::detail::CheckStarts(back, range, "segment");
+        terraingen::detail::CheckStarts(back, range, "Segment");
         FAIL() << "repeated start accepted";
     } catch (const std::invalid_argument& error) {
         EXPECT_STREQ(error.what(), "Segment starts must increase within the range");
     }
     const std::vector<double> outside = {1.0, 100.0};
-    EXPECT_THROW(terraingen::detail::CheckStarts(outside, range, "piece"), std::invalid_argument);
-    EXPECT_THROW(terraingen::detail::CheckStarts({}, range, "piece"), std::invalid_argument);
+    EXPECT_THROW(terraingen::detail::CheckStarts(outside, range, "Piece"), std::invalid_argument);
+    EXPECT_THROW(terraingen::detail::CheckStarts({}, range, "Piece"), std::invalid_argument);
 }
 
 TEST(CheckJoins, ChecksEveryJoinOfThePieces) {
@@ -132,4 +132,20 @@ TEST(PieceIndex, AppliesTheLowerPieceAtAJoin) {
     EXPECT_EQ(terraingen::detail::PieceIndex(pieces, 10.0), 0u);
     EXPECT_EQ(terraingen::detail::PieceIndex(pieces, 10.5), 1u);
     EXPECT_EQ(terraingen::detail::PieceIndex(pieces, 1e6), 2u);
+}
+
+TEST(IntersectRanges, IntersectsTheRangesOfParts) {
+    const auto narrow =
+        std::make_shared<const PowerLawSfd>(1.0, 2.0, SfdKind::Density, DiameterRange{2.0, 50.0});
+    const auto wide =
+        std::make_shared<const PowerLawSfd>(1.0, 2.0, SfdKind::Density, DiameterRange{1.0, 20.0});
+    const std::vector<std::shared_ptr<const SizeFrequencyDistribution>> parts = {narrow, wide};
+    const DiameterRange valid = terraingen::detail::IntersectRanges(
+        parts, [](const SizeFrequencyDistribution& each) { return each.ValidRange(); }, "none");
+    EXPECT_EQ(valid.min, 2.0);
+    EXPECT_EQ(valid.max, 20.0);
+    const std::vector<terraingen::WeightedSfd> terms = {{1.0, narrow}};
+    EXPECT_EQ(
+        terraingen::detail::IntersectRanges(terms, terraingen::detail::UsableRange, "none").max,
+        50.0);
 }

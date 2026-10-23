@@ -1,6 +1,5 @@
 #include "terraingen/distribution/composition.h"
 
-#include <cctype>
 #include <stdexcept>
 
 namespace terraingen::detail {
@@ -37,16 +36,13 @@ DiameterRange IntersectRanges(Span<const DiameterRange> ranges, const std::strin
     return range;
 }
 
-void CheckStarts(Span<const double> starts, const DiameterRange& range, const std::string& noun) {
+void CheckStarts(Span<const double> starts, const DiameterRange& range, const std::string& what) {
     if (starts.empty() || starts.front() != range.min) {
-        throw std::invalid_argument("The first " + noun + " must start at the range minimum");
+        throw std::invalid_argument(what + " starts must begin at the range minimum");
     }
     for (std::size_t i = 1; i < starts.size(); ++i) {
         if (!(std::isfinite(starts[i]) && starts[i] > starts[i - 1] && starts[i] < range.max)) {
-            std::string capitalized = noun;
-            capitalized.front() =
-                static_cast<char>(std::toupper(static_cast<unsigned char>(capitalized.front())));
-            throw std::invalid_argument(capitalized + " starts must increase within the range");
+            throw std::invalid_argument(what + " starts must increase within the range");
         }
     }
 }

@@ -21,16 +21,6 @@ class GolombekRappSfd final : public SizeFrequencyDistribution {
     explicit GolombekRappSfd(double coverage, double qa = 1.79, double qb = 0.152,
                              DiameterRange range = {});
 
-    /// k, the fractional area covered by boulders, in (0, 1).
-    double Coverage() const {
-        return coverage_;
-    }
-
-    /// q = qa + qb / k, the size scale of the exponential, per meter.
-    double Q() const {
-        return q_;
-    }
-
     /// F(D) = k exp(-q D), the fractional area covered by boulders at least `diameter` meters
     /// across.
     double FractionalArea(double diameter) const;

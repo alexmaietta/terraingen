@@ -21,7 +21,7 @@ PiecewisePowerLawSfd::PiecewisePowerLawSfd(std::vector<PowerLawSegment> segments
             throw std::invalid_argument("Segment coefficients and exponents must be positive");
         }
     }
-    detail::CheckStarts(detail::Starts(segments_), range, "segment");
+    detail::CheckStarts(detail::Starts(segments_), range, "Segment");
     detail::CheckJoins(
         segments_,
         [](const PowerLawSegment& segment, double diameter) {

@@ -22,7 +22,7 @@ SplicedSfd::SplicedSfd(std::vector<SfdPiece> pieces, DiameterRange range, double
     : SizeFrequencyDistribution(
           detail::CommonKind(detail::Distributions(pieces), "A spliced distribution"), range),
       pieces_(std::move(pieces)) {
-    detail::CheckStarts(detail::Starts(pieces_), range, "piece");
+    detail::CheckStarts(detail::Starts(pieces_), range, "Piece");
     for (std::size_t i = 0; i < pieces_.size(); ++i) {
         const double end = i + 1 < pieces_.size() ? pieces_[i + 1].start : range.max;
         if (!Covers(*pieces_[i].distribution, pieces_[i].start, end)) {

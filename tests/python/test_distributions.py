@@ -131,8 +131,9 @@ def test_production_surface_keeps_its_production_function():
 
 def test_golombek_rapp_coverage_sets_the_exponent():
     boulders = terraingen.GolombekRappSfd(0.05)
-    assert boulders.coverage == 0.05 and boulders.q == pytest.approx(1.79 + 0.152 / 0.05)
+    q = 1.79 + 0.152 / 0.05
     assert boulders.fractional_area(0.0) == pytest.approx(0.05)
+    assert boulders.fractional_area(0.5) == pytest.approx(0.05 * math.exp(-q * 0.5))
 
 
 def test_python_distribution_evaluates_cumulative_at(inverse_square):

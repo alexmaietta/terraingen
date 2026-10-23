@@ -18,22 +18,16 @@ SfdKind CheckedKind(const std::vector<WeightedSfd>& terms) {
     return kind;
 }
 
-/// Where every one of checked `terms` may be evaluated.
-DiameterRange Overlap(const std::vector<WeightedSfd>& terms) {
-    std::vector<DiameterRange> ranges;
-    for (const WeightedSfd& term : terms) {
-        ranges.push_back(detail::UsableRange(*term.distribution));
-    }
-    return detail::IntersectRanges(ranges, "Summed terms must have overlapping valid ranges");
-}
-
 }  // namespace
 
 SummedSfd::SummedSfd(std::vector<WeightedSfd> terms)
     : SummedSfd(CheckedKind(terms), std::move(terms)) {}
 
 SummedSfd::SummedSfd(SfdKind kind, std::vector<WeightedSfd>&& terms)
-    : SizeFrequencyDistribution(kind, Overlap(terms)), terms_(std::move(terms)) {}
+    : SizeFrequencyDistribution(
+          kind, detail::IntersectRanges(terms, detail::UsableRange,
+                                        "Summed terms must have overlapping valid ranges")),
+      terms_(std::move(terms)) {}
 
 double SummedSfd::CumulativeAt(double diameter) const {
     double sum = 0.0;
